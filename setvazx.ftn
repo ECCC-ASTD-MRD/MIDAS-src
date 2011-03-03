@@ -1,0 +1,139 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine setvazx (f,ntrunc,f_xx,ntrunc_xx,lower_L,nksdim,klatbin)
+*
+*
+#if defined (DOC)
+*
+***s/r SETVAZX  - Transfer of Vazx from source to working resolutions
+*
+*Author  : M. Tanguay RPN, January, 2005
+*
+*Arguments
+*     o   f         : Vazx field at working resolution
+*     i   f_xx      : Vazx field at  source resolution
+*     i   lower_L   : .T. if source res. is lower than working res.
+*     i   n(i)trunc : truncation of working (source) resolution
+*     i   nksdim    : nvar3d*nlev + nvar2d of working field
+*
+#endif
+      implicit none
+*
+      logical lower_L
+      real*8 f(*),f_xx(*)
+      integer :: ntrunc, ntrunc_xx, nksdim, klatbin
+*
+*implicits
+*
+      integer jlev,jdim,jla,m,start,end,rdim,jlatbin
+*
+*     ------------------------------------------------
+*
+*     If source resolution is lower than working resolution
+*     -----------------------------------------------------
+      if(lower_L) then
+*
+        jdim = 0
+        rdim = 0
+        do jlev = 1, nksdim
+*
+          do jla = 1, ntrunc_xx + 1
+            jdim = jdim + 1
+            rdim = rdim + 1
+            f(jdim) = f_xx(rdim)
+          enddo
+*
+          jdim = jdim + ntrunc - ntrunc_xx
+*
+          start = ntrunc_xx + 2
+*
+          do  m = 2,ntrunc_xx + 1
+*
+            end   = start + (ntrunc_xx-(m-1))
+*
+            do jla = start, end
+*
+              jdim = jdim + 1
+              rdim = rdim + 1
+              f(jdim) = f_xx(rdim)
+*
+              jdim = jdim + 1
+              rdim = rdim + 1
+              f(jdim) = f_xx(rdim)
+*
+            enddo
+*
+            jdim = jdim + 2*(ntrunc - ntrunc_xx)
+*
+            start = end + 1
+*
+          enddo
+*
+          jdim = jdim + (ntrunc - ntrunc_xx)*(ntrunc - ntrunc_xx + 1)
+*
+        enddo
+*
+*     If source resolution is higher than working resolution
+*     ------------------------------------------------------
+      else
+*
+        jdim = 0
+        rdim = 0
+        do jlatbin=1,klatbin
+        do jlev = 1, nksdim
+*
+          do jla = 1, ntrunc + 1
+            jdim = jdim + 1
+            rdim = rdim + 1
+            f(rdim) = f_xx(jdim)
+          enddo
+*
+          jdim = jdim + ntrunc_xx - ntrunc
+*
+          start = ntrunc + 2
+*
+          do  m = 2,ntrunc + 1
+*
+            end   = start + (ntrunc-(m-1))
+*
+            do jla = start, end
+*
+              jdim = jdim + 1
+              rdim = rdim + 1
+              f(rdim) = f_xx(jdim)
+*
+              jdim = jdim + 1
+              rdim = rdim + 1
+              f(rdim) = f_xx(jdim)
+*
+            enddo
+*
+            jdim = jdim + 2*(ntrunc_xx - ntrunc)
+*
+            start = end + 1
+*
+          enddo
+*
+          jdim = jdim + (ntrunc_xx - ntrunc)*(ntrunc_xx - ntrunc + 1)
+*
+        enddo
+        enddo
+*
+      endif
+*
+      return
+      end

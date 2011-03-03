@@ -1,0 +1,74 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE lmhu2es
+#if defined (DOC)
+*
+***s/r lmhu2es - Lnq increments to dewpoint depression
+*                increments transformation
+*
+*
+*Author  : C. Chouinard *ARMA/AES September 1998
+*Revision:
+*
+*          Bin He   *ARMA  June 25,2005
+*               - OpenMP optimization.
+*
+**    Purpose:  -Computation of dewpoint depression  increments from
+*                temperature and logarithm of specific humidity
+*                increments using precalculated operators
+*
+*
+*Arguments
+*
+#endif
+      IMPLICIT NONE
+*implicits
+c------------------------------------------------------------------------
+#include "comdim.cdk"
+#include "comdimo.cdk"
+c
+#include "commvo.cdk"
+#include "commvog.cdk"
+c
+      integer jobs,jlev
+      INTEGER myid,numthd,omp_get_thread_num,omp_get_num_threads
+
+c     Computation of dewpoint depression increments from lnq,ps and t increments
+!$OMP PARALLEL PRIVATE(jobs,jlev,myid,numthd)
+      myid=omp_get_thread_num()+1
+      numthd=omp_get_num_threads()
+      do jobs = myid, nobtot,numthd
+        do jlev = 1, nflev
+          gomes(jlev,jobs) =  ollq2es(1,jlev,jobs)*gomq(jlev,jobs) +
+     $                        ollq2es(2,jlev,jobs)*gomps(1,jobs) +
+     $                        ollq2es(3,jlev,jobs)*gomt(jlev,jobs)
+***************************************************************
+c        if(jobs.eq.1) then
+c           print *,' lmhu2es: jobs,jlev,GOMQ,GOMPS,GOMT,GOMES '
+c     &          ,jobs,jlev,gomq(jlev,jobs),gomps(1,jobs)
+c     &          ,gomt(jlev,jobs),gomes(jlev,jobs)
+c           print *,' lmhu2es: ollq2es(1),ollq2es(2),ollq2es(3),'
+c     &          ,ollq2es(1,jlev,jobs),ollq2es(2,jlev,jobs)
+c     &          ,ollq2es(3,jlev,jobs)
+c        endif
+********************************************************************
+        enddo
+      enddo
+!$OMP END PARALLEL
+c
+      return
+      end

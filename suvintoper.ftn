@@ -1,0 +1,89 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE suvintoper(poper,plevo,klevo,plevi,klevi,kprof)
+#if defined (DOC)
+*
+***s/r suvintoper  - Initialise explicit logarithmic interpolation operator
+*
+*
+*Author  : S. Pellerin *ARMA/AES  March 2000
+*Revision:
+*       JM Belanger CMDA/SMC  Jul 2000 
+*                   . 32 bits conversion
+*
+**    Purpose:  -Initialize explicit logarithmic interpolation operator.
+*                It computes kprof matrices of klevo x klevi elements (logarithmic
+*                weight).
+*                The multi dimension orperator may be built at once in
+*                providing a 2nd dimension (kprof) to input and output
+*                vector coordinates.
+*
+*Arguments
+*     Output:
+*            poper:  interpolation operator (klevo,kveli,kprof)
+*     Input :
+*            plevo : increasing pressure values of output coordinate (klevo,kprof)
+*            klevo : output dimension
+*            plevi : increasing pressure values of input coordinate (klevi,kprof)
+*            klevi : input dimension
+*            kprof : third dimension of weight matrix
+*
+#endif
+      IMPLICIT NONE
+*implicits
+*
+      integer klevo,klevi,kprof
+      real*8 poper(klevo,klevi,kprof),plevo(klevo,kprof)
+      real*8 plevi(klevi,kprof)
+c
+      integer jlevo,jlevi,jprof
+      real*8 zwb,zwt
+c
+c     Operator initialisation to null values
+c
+      do jprof = 1, kprof
+        do jlevi = 1, klevi
+          do jlevo = 1, klevo
+            poper(jlevo,jlevi,jprof) = 0.0
+          enddo
+        enddo
+      enddo
+c
+c     Computation of non zero elements
+c
+      do jprof = 1, kprof
+        do jlevo = 1, klevo
+c
+          jlevi = 2
+c
+          do while(plevo(jlevo,jprof).gt.plevi(jlevi,jprof).and.jlevi.lt
+     &         .klevi)
+            jlevi = jlevi + 1
+          enddo
+c
+          zwb = log(plevo(jlevo,jprof)/plevi(jlevi-1,jprof)) /
+     &         log(plevi(jlevi,jprof)/plevi(jlevi-1,jprof))
+          zwt = 1. - zwb
+          poper(jlevo,jlevi - 1,jprof) = zwt
+          poper(jlevo,jlevi,jprof) = zwb
+        enddo
+      enddo
+c
+      return
+      end
+
+

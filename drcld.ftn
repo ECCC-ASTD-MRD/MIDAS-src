@@ -1,0 +1,53 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      REAL FUNCTION  DRCLD ( IZ ) 
+***fonction       DRCLD
+*
+*auteur           Louis Garand  - rpn - dorval
+*
+*revision 001     Jacques Halle - ddo - dorval - 421-4660
+*                                 fev 1991
+*                 adapter au systeme operationel GOES.
+*
+*REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
+*                                 Decembre 1995
+*                 Generaliser pour toutes les plateformes satellitaires.
+*
+*langage          fortran 5
+*
+*objet            ce sous-programme calcule la normalisation due
+*                 a l'angle zenith solaire selon 
+*                 MINNIS-HARRISSON (COURBE FIG 7), P1038,JCAM 84.  
+*
+*appel            xnorm = DRCLD ( IZ )
+*
+*arguments        xnorm - output - facteur de normalisation
+*                 iz    - input  - cosinus de l'angle solaire
+**
+      implicit  none
+c
+      integer  iz
+c
+      real  DRF(11) 
+c
+      DATA  DRF / 1.000, 1.002, 1.042, 1.092, 1.178, 1.286,
+     X            1.420, 1.546, 1.710, 1.870, 2.050        / 
+c
+      DRCLD = DRF (IZ)
+c 
+      RETURN
+      END 

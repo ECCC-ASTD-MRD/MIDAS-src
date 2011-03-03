@@ -1,0 +1,249 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DOBSPPP(PJO,CDFAM)
+#if defined (DOC)
+*
+***s/r DOBSPPP  - Computation of Jo and the residuals to the observations
+*                 FOR UPPER AIR DATAFILES
+*
+*
+*Author  : P. Koclas *CMC/AES  September 1994
+*Revision:
+*           P. Koclas *CMC/AES February 1995
+*            - Minor modifications
+*            - Allow for multiple data files.
+*           P. KoCLAS CMC/CMSV AUGUST 1998
+*            - ANALYSYS ON ETA COORDINATE
+*           C. Charette ARMA/AES NOV 1998
+*            - Extrapolation GZ below model orography.
+*            - Adapt code to follow Luc Fillion's notes on 3dvar-eta
+*              analysis. LLPRINT to print diagnostics
+*           S. Pellerin ARMA/SMC Sept. 2000
+*            - Change references to GOMOBS for GOMOBSG (regional implementation)
+*           C. Charette ARMA/SMC Oct. 2000
+*            - Accept observations on pressure vertical coordinate
+*           C. Charette ARMA/SMC NOV. 2001
+*            - Warning message in case uu,vv,tt,es have to be extrapolated
+*           C. Charette ARMA/SMC FEV. 2002
+*            - Commented out the if(llprint...) statements within
+*              the do loops. They were preventing vectorization.
+*           C. Charette - ARMA/SMC - Sept 2004
+*            - Conversion to hybrid vertical coordinate
+*
+**    Purpose:  -Interpolate vertically the contents of commvo to
+*                the pressure levels of the observations. Then
+*                compute Jo.
+*                A linear interpolation in ln(p) is performed.
+*
+*
+*Arguments
+*     PJO:  CONTRIBUTION to Jo
+*     CDFAM: FAMILY OF OBSSERVATION
+*
+#endif
+      IMPLICIT NONE
+      REAL*8 PJO
+      CHARACTER *2 CDFAM
+*implicits
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+*
+      INTEGER IPB,IPT,ITY,IDBURP
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
+      INTEGER J,JDATA
+      REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI
+      REAL*8 ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT,LLNOXTR
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      LLPRINT   = .FALSE.
+c      LLPRINT = .TRUE.
+      LLNOXTR   = .FALSE.
+      zgamma = 0.0065 / GRAV
+      zexp = RGASD*zgamma
+C
+      DLSUM=0.
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+         IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+C
+C*    1. Computation of (HX - Z)/SIGMA
+C     .  -----------------------------
+C
+ 100  CONTINUE
+C
+C     Process all data within the domain of the model
+C
+            DO JDATA=IBEGIN,ILAST
+               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &         .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &         .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+               IF ( LLOK ) THEN
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IPOS = MOBDATA(NCMPOS,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IK   = ROBDATA(NCMLYR,JDATA)
+                  IPT = IK + IPOS*NLEVTRL
+                  IPB = IPT+1
+                  ZPT  = RPPOBSHR(IK,IOBS)
+                  ZPB  = RPPOBSHR(IK+1,IOBS)
+                  ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+                  ZWT  = 1. - ZWB
+C
+C                 CONTRIBUTION TO Jo
+C
+***************************************************************
+c        IF(LLPRINT .AND. CSTNID(IOBS).EQ.'71600') THEN
+c         zcon= ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR
+c         write(nulout,*)'dobsppp:jdata,IOBS,st,ib,it,PB,PT,WB,WT,VAR='
+c     &             ,jdata,IOBS,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
+c         write(nulout,*)'dobsppp:ityp,ik,VHYBHR(IK+1),VHYBHR(IK),LEV='
+c     &          ,MOBDATA(NCMVNM,JDATA),ik,VHYBHR(IK+1),VHYBHR(IK),ZLEV
+c         write(nulout,*)'dobsppp:GMOBSHR(IPB,IOBS),GMOBSHR(PT,OBS)='
+c     &                  ,GOMOBSHR(IPB,IOBS),GOMOBSHR(IPT,IOBS)
+c         write(nulout,*)'dobsppp: innovation, observation, stdoer= '
+c     &                 ,zcon,ZVAR,ZOER
+c        ENDIF
+***************************************************************
+                  ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
+     +                               + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
+                  DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
+     +                        *ROBDATA8(NCMOMA,JDATA)
+                  ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+               ENDIF
+C
+            END DO
+ 200  CONTINUE
+C
+C     Process all upper air data data below model's orography
+C
+            DO JDATA=IBEGIN,ILAST
+               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &         .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &         .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+               IF ( LLOK ) THEN
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IPOS = MOBDATA(NCMPOS,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IPT = NLEVTRL-1 + IPOS*NLEVTRL
+                  IPB = IPT+1
+C
+C                 CONTRIBUTION TO Jo
+C
+                  IF(MOBDATA(NCMVNM,JDATA) .EQ. NEGZ ) THEN
+c
+c-------------------Forward nonlinear model for geopotential data below
+C                   model's orography
+c
+                    ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
+     &                        *GOMTHR(NLEVTRL,IOBS)
+***************************************************************
+c        IF(LLPRINT .AND. CSTNID(IOBS).EQ.'71600') THEN
+c           ZPHI=RMTMOBS(iobs) + ZTVG/zgamma
+c     &          *(1.-(zlev/gompshr(1,iobs))**zexp)
+c           zinc = zphi - zvar
+c           write(nulout,*)'dobsppp:OBS,TVG,GMQH(NLEVTRL),GMTH(NLEVTRL)'
+c     &          ,IOBS,ZTVG,GOMQHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
+c           write(nulout,*)'dobsppp:RMTMOBS,ZLEV,zgama,exp,gmpsh(,obs)='
+c     &                ,RMTMOBS(IOBS),ZLEV,zgamma,zexp,gompshr(1,iobs)
+c           write(nulout,*)'dobsppp: zphi,gzinc, gzobs, std-dev-obs = '
+c     &                 ,ZPHI,zinc,ZVAR,ZOER
+c        ENDIF
+***************************************************************
+                    ROBDATA8(NCMOMA,JDATA)=(RMTMOBS(iobs)
+     &                        + ZTVG/zgamma
+     &                        *(1.-(zlev/gompshr(1,iobs))**zexp)
+     &                        - zvar)/zoer
+                    DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
+     +                   *ROBDATA8(NCMOMA,JDATA)
+                    ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                  ELSE
+c
+c-------------------Forward model for UU,VV,TT,ES below model's orography
+c                   Extrapolation of order zero from model surface
+c                   Allowed at present only for HUMSAT (idburp=158)
+*
+*
+                     IDBURP    = MOD(MOBHDR(NCMITY,IOBS),1000)
+                     IF (IDBURP .EQ. 158 .AND.
+     +                         MOBDATA(NCMVNM,JDATA) .EQ. NEES) THEN
+                       ROBDATA8(NCMOMA,JDATA) = (GOMOBSHR(IPB,IOBS)
+     +                      -ZVAR)/ZOER
+                       DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
+     +                      *ROBDATA8(NCMOMA,JDATA)
+                       ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+***************************************************************
+c        IF(LLPRINT .AND. CSTNID(IOBS).EQ.'71600') THEN
+c           zcon= GOMOBSHR(IPB,IOBS)-ZVAR
+c           write(nulout,*)'dobsppp:jdata,IOBS,st,pb,GMOBSHR(PB,),VAR='
+c     &            ,jdata,IOBS,cstnid(iobs),ipb,GOMOBSHR(IPB,IOBS),ZVAR
+c           write(nulout,*)'dobsppp: ityp,ppobshr(NLEVTRL,),ZLEV= '
+c     &          ,MOBDATA(NCMVNM,JDATA),RPPOBSHR(NLEVTRL,IOBS),ZLEV
+c           write(nulout,*)'dobsppp:innovation, observation, stdoer = '
+c     &                 ,zcon,ZVAR,ZOER
+c        ENDIF
+***************************************************************
+                    ELSE
+                      LLNOXTR   = .TRUE.
+                      ZTORAD    = 1.D0/(RPI/180.D0)
+                      ZLAT      = ROBHDR(NCMLAT,IOBS)*ZTORAD
+                      ZLON      = ROBHDR(NCMLON,IOBS)*ZTORAD
+                      IDBURP    = MOD(MOBHDR(NCMITY,IOBS),1000)
+                  WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED '
+     &             ,' OBS ',CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
+     &             , MOBDATA(NCMVNM,JDATA),' LAT ', ZLAT,  ' LON ', ZLON
+                    ENDIF
+                 ENDIF
+                ENDIF
+C
+            END DO
+ 300  CONTINUE
+C
+      ENDIF
+      END DO
+C--------------------------------------------------------------------
+      PJO = DLSUM
+C--------------------------------------------------------------------
+*
+      IF(LLNOXTR) THEN
+        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        WRITE(NULOUT,*)' Warning 3DV:dobsppp: NO EXTRAPOLATION'
+     &       ,' ALLOWED SEE LISTING FOR MORE DETAILS'
+        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      ENDIF
+*
+      RETURN
+      END
+

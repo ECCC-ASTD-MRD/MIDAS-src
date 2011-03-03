@@ -1,0 +1,120 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine lvtapgd(pgz,ki,kj)
+#if defined (DOC)
+*
+*S/P LVTAPGD:
+*
+*         CALCULE Y A PARTIR DE R PAR SOLUTION DE L'EQUATION R*CON=S**E
+C *D(Y)
+*         AVEC UN SCHEME DU 4EME ORDRE DU A J. COTE.
+*         NOTE: CET ALGORITHME EST EXACTEMENT REVERSIBLE (VOIR VPAT).
+*
+*         ON DOIT FOURNIR LA COND
+*         A LA LIMITE INF. Y(N). LA MATRICE MATAP A ETE CALCULEE DANS LA
+*         SUBR. MATAPAT.
+*
+*
+* AUTHOR: Luc Fillion - 5 Nov 98 - Grid-Point version of lvtap
+C subroutine.
+*
+* REVISION: C.Charette ARMA/AES 18 nov 1998
+*                     - when llprint=.true. calculate grid point
+C coordinates
+*                       closest to  R1OBSLA and R1OBSLO read from the
+*                       namelist.Print debug diagnostics for this point.
+* REVISION: L. Fillion ARMA/AES 11 feb 1999
+*                     - Remove T factor since r.h.s. must now be
+C prepared outside lvtapgd
+*           S. Pellerin *ARMA/SMC Nov. 2001
+*                     - Reordering dependencies for Linux compilation
+#endif
+      IMPLICIT NONE
+      integer ki,kj
+*
+
+      INTEGER  IKLEVM2, JK, IK, ilen,ierr
+      REAL*8    ZAK, ZBK, ZCK, ZCON
+
+*implicits
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comode.cdk"
+#include "comphy.cdk"
+#include "comgd1.cdk"
+#include "com1obs.cdk"
+*modules
+*
+      real*8    pgz(ni,nflev,nj)
+*
+      logical llprint
+      INTEGER IILOC,IJLOC
+**
+*      WRITE(nulout,FMT='(/,4X,"Starting LVTAPGD1D",//)')
+*      call vflush(nulout)
+
+      llprint = .false.
+      if (llprint) then
+        IILOC = NI1OBSLO
+        IJLOC = NI1OBSLA
+        write(nulout,*) 'lvtapgd:iiloc,ijloc= ',iiloc,ijloc
+      endif
+c
+c tt1 : working vector of virtual temperatures.
+c
+      ZCON = -RGASD
+      ZAK = -2.0*ZCON*VMA(nflev)
+      ZBK = -2.0*ZCON*VMB(nflev)
+      ZCK = -2.0*ZCON*VMC(nflev)
+      pgz(ki,nflev,kj) = 0.0
+      pgz(ki,nflev-1,kj)=ZAK*tt1(ki,nflev-1,kj)+
+     &     ZBK*tt1(ki,nflev,kj)+
+     &     ZCK*tt1(ki,nflev-2,kj)+
+     &     pgz(ki,nflev,kj)
+c      if(llprint .and. ki .eq. iiloc .and. kj .eq. ijloc) then
+c        write(nulout,*)'lvtapgd:nflev,ki,kj,zak,zbk,zck,pgz(ki,nflev,) '
+c     &              ,nflev,ki,kj,zak,zbk,zck,pgz(ki,nflev,kj)
+c        write(nulout,*)'lvtapgd:nflev-1,ki,kj,ak,zbk,zck,pgz(ki,nflev-1)'
+c     &              ,nflev-1,ki,kj,zak,zbk,zck,pgz(ki,nflev-1,kj)
+c        write(nulout,*)'lvtapgd:nflev-1,ki,kj,tt1(nflev-2,nflev-1,nflev)'
+c     &              ,nflev-1,ki,kj,zak,zbk,zck,tt1(ki,nflev-2,kj)
+c     &              ,tt1(ki,nflev-1,kj),tt1(ki,nflev,kj)
+c            endif
+*
+      IKLEVM2 = nflev-2
+      do JK = 1, IKLEVM2
+        IK = nflev-1-JK
+        ZAK = -2.0*ZCON*VMA(IK+1)
+        ZBK = -2.0*ZCON*VMB(IK+1)
+        ZCK = -2.0*ZCON*VMC(IK+1)
+        pgz(ki,ik,kj)= ZAK*tt1(ki,IK,kj)+
+     &       ZBK*tt1(ki,IK+1,kj)+
+     &       ZCK*tt1(ki,IK+2,kj)+
+     &       pgz(ki,IK+2,kj)
+c        if(llprint .and. ki .eq. iiloc .and. kj .eq. ijloc) then
+c          write(nulout,*)'lvtapgd:ik,ki,kj,jk,zak,zbk,zck pgz(ki,ik,)= '
+c     &         ,ik,ki,kj,jk,zak,zbk,zck,pgz(ki,ik,kj)
+*
+c          write(nulout,*)
+c     &           'lvtapgd:ik,ki,kj,jk,tt1(ik,),tt1(ik+1,),tt1(ik+2,)= '
+c     &      ,ik,ki,kj,jk,tt1(ki,IK,kj),tt1(ki,IK+1,kj),tt1(ki,IK+2,kj )
+c        endif
+      enddo
+C
+C
+      RETURN
+      END

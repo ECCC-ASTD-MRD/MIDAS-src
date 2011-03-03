@@ -1,0 +1,183 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_Hgp
+      use modmask, only : lmaskgp
+#if defined (DOC)
+*
+***s/r  -oda_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
+*
+*
+*Author  : S. Macpherson *ARMA December 2004
+*    -------------------
+**    Purpose: Compute H'dx for all GPS ZTD observations using TL of gpsztdop
+*
+*     Revisions:
+*
+*           S. Macpherson ARMA, March 2009
+*            - Rename the subroutine acording to ODA naming convention
+*            - Use of mask to process only assimilated ZTD data
+*            - Computation of H'dx instead of Jo=sum([Hdx-d]/sigma)
+*            - Withdraw of the QCVAR to be applied outside of the
+*              operator
+*
+#endif
+
+      IMPLICIT NONE
+*implicits
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "comcst.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+#include "comstate.cdk"
+#include "comgpsgb.cdk"
+*
+C
+      REAL*8 ZTODEG
+      REAL*8 ZLAT
+      REAL*8 ZLON
+      REAL*8 ZETA(NFLEV)
+      REAL*8 ZTT (NFLEV)
+      REAL*8 ZHU (NFLEV)
+      REAL*8 ZGZ (NFLEV)
+      REAL*8 ZTTB (NFLEV)
+      REAL*8 ZHUB (NFLEV)
+      REAL*8 ZP0
+      REAL*8 ZP0B
+      REAL*8 ZPT
+      REAL*8 ZMT
+C
+      REAL*8 ZHX, ZLEV
+      REAL*8 ZDZ
+      REAL*8 ZHXB
+C
+C
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP, ITYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JK
+C
+      LOGICAL  ASSIM, LLOK
+
+      INTEGER NH, NH1
+
+C
+C     * 1.  Initializations
+C     *     ---------------
+C
+      ZTODEG = 180.0 / RPI
+C
+C
+C     *    .   1.1  Eta vector
+C     *    .        ----------
+C
+      DO JL = 1, NFLEV
+         ZETA(JL) = VLEV(JL)
+      ENDDO
+C
+      write(nulout,fmt='(/,4x,A)') 
+     + 'LVGPSZTD- Linear Version: GPS ZTD observations'
+C
+      DO JF = 1, NFILES
+C
+C     *  Process only GPS observation files (family = GP)
+C
+         IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
+            IBEGIN   = NBEGINTYP(JF)
+            ILAST    = NENDTYP  (JF)
+            IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+            ILASTOB  = MOBDATA(NCMOBS,ILAST )
+C
+C     *     Loop over all GPS observations (locations) of the file
+C
+            DO JO = IBEGINOB, ILASTOB
+C
+               IDATA   = MOBHDR(NCMRLN,JO)
+               IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+C
+c     *     Scan for ZTD assimilation at this location
+c
+               NH = 0
+               ASSIM = .FALSE.
+               DO JDATA= IDATA, IDATEND
+                  LLOK = ( lmaskgp(JDATA) )
+                  IF ( LLOK ) THEN
+                     ZLEV = ROBDATA8(NCMPPP,JDATA)
+                     ASSIM = .TRUE.
+                     NH = NH + 1
+                  ENDIF
+               ENDDO
+C
+C     *     If ZTD assimilation, apply the TL observation operator
+C
+               IF ( ASSIM ) THEN
+C
+C     *           LR background profile and increments at the observation location x :
+C
+                    ZLAT = ROBHDR(NCMLAT,JO) * ZTODEG
+                    ZLON = ROBHDR(NCMLON,JO) * ZTODEG
+                    DO JL = 1, NFLEV
+                      ZTTB(JL) = GOMTG(JL,JO)
+                      ZTT(JL)  = GOMT(JL,JO)
+                      ZHUB(JL) = EXP(GOMQG(JL,JO))
+C     *              dq from d(ln q)
+                      ZHU(JL)  = ZHUB(JL) * GOMQ(JL,JO)
+                      ZGZ(JL)  = GOMGZG(JL,JO)
+                    ENDDO
+                    ZP0B = GOMPSG(1,JO)
+                    ZP0  = GOMPS(1,JO)
+                    ZPT  = RPPOBS(1,JO)
+                    ZMT  = ZGZ(NFLEV)/GRAV
+C
+C     *        Call TL of ZTD observation operator ZHXB = H(Xb), ZHX = H'*dX
+C
+                    ZHX = 0.0
+                    ZHXB = 0.0
+                    ZDZ = ZLEV - ZMT
+                    CALL GPSZTDOPTL(ZLAT,ZLON,ZLEV,ZETA,ZTTB,ZHUB,
+     +                    ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZTT,ZHU,ZP0,ZHX)
+C
+C     *        Store ZHX = H'dx in NCMOMA
+C
+                    NH1 = 0
+                    DO JDATA= IDATA, IDATEND
+                      IF ( lmaskgp(JDATA) ) THEN
+                          NH1 = NH1 + 1
+                          ROBDATA8(NCMOMA,JDATA) = ZHX
+                      ENDIF
+                    ENDDO
+c
+               ENDIF
+c
+            ENDDO
+c
+         ENDIF
+c
+      ENDDO
+      RETURN
+      END

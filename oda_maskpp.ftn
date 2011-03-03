@@ -1,0 +1,114 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_maskpp(CDFAM)
+      use modmask, only : lmaskpp_in, lmaskpp_out, lmask,ldiagpp, ldiag
+      IMPLICIT NONE
+* Argument declarations
+      CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)
+#if defined (DOC)
+*
+*Purpose : Defines a mask of assimilated and diagnosed data inside
+*          and outside the vertical domain
+*
+*Author  : S. Pellerin, ARMA, January 2009
+*          Based on selection made in observation operator as written by
+*          P. Koclas *CMC/AES in September 1994
+*Revision:
+*
+#endif
+
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+#include "comfilt.cdk"
+* Local declarations
+      INTEGER IPB,IPT,IDBURP
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND,NQCVAR
+      INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO
+      REAL*8 ZVAR,ZOER,ZDADPS,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG
+      REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZPRESBPB,ZPRESBPT
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT, LLUV, LLNOXTR
+      LLNOXTR   = .false.
+C
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+C
+C     Process all data within the domain of the model
+C
+          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = MOBDATA(NCMOBS,ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = MOBHDR(NCMRLN,JO)
+            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+            DO JDATA=IDATA,IDATEND
+              lmaskpp_in(jdata)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &             .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &             .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+              IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHU  .AND.
+     &             MOBDATA(NCMVCO,JDATA) .EQ. 2   ) THEN
+                IF   ( NINT(ROBDATA8(NCMPPP,JDATA)) .GE. NINT(RLIMLVHU
+     &               *100) ) THEN
+                  ldiagpp(jdata) = .true.
+                ENDIF
+              endif
+
+            END DO
+          enddo
+C
+          DO JDATA=IBEGIN,ILAST
+            lmaskpp_out(jdata)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &           .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &           .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+            if (lmaskpp_out(jdata) .and. MOBDATA(NCMVNM,JDATA) .NE.NEGZ)
+     &           then
+              lmaskpp_out(jdata) = .false.
+              LLNOXTR   = .true.
+              ZTORAD    = 1.D0/(RPI/180.D0)
+              ZLAT      = ROBHDR(NCMLAT,IOBS)*ZTORAD
+              ZLON      = ROBHDR(NCMLON,IOBS)*ZTORAD
+              IDBURP    = MOD(MOBHDR(NCMITY,IOBS),1000)
+*
+              WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '
+     &             ,' OBS ',CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
+     &             , MOBDATA(NCMVNM,JDATA),' LAT ', ZLAT,  ' LON ',
+     &             ZLON
+            endif
+          END DO
+        ENDIF
+      END DO
+      lmask = lmask .or. lmaskpp_in
+      lmask = lmask .or. lmaskpp_out
+      ldiag = ldiag .or. ldiagpp
+C--------------------------------------------------------------------
+      IF(LLNOXTR) THEN
+        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        WRITE(NULOUT,*)' Warning - ODA_MASKPP: NO EXTRAPOLATION'
+     &       ,' ALLOWED SEE LISTING FOR MORE DETAILS'
+        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      ENDIF
+C
+      RETURN
+      END

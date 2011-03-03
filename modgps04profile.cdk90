@@ -1,0 +1,110 @@
+module modgps04profile
+#if defined (DOC)
+  !
+  ! Types:
+  !      gpsprofile:
+  !        ngpslev  :: Number of vertical levels
+  !        rLat     :: Latitude
+  !        rLon     :: Longitude
+  !        rETA     :: List of profile levels          Independent vars
+  !        rTT      :: List of temperatures          |
+  !        rLQ      :: List of (log) specific hum    | Control vars
+  !        rP0      :: Surface pressure              |
+  !        rMT      :: Surface geopotential height   | Parameter
+  !        rPT      :: Lid pressure
+  !
+  !        The other quantities in the structure are cached profiles of
+  !        quantities with a record of dependencies wrt control vars.
+  !        The logicals indicate whether a structure is already cached.
+  !        The profiles include p, t, lq, refractivity and geop hgt.
+  !
+  ! Josep M. Aparicio
+  ! Meteorological Service of Canada, 2003.
+  !
+#endif
+  use modgps00base, only:i4,dp,ngpssize
+  use modgps03diff, only:gpsdiff
+  implicit none
+  
+  type gpsprofile
+     integer(i4)                                     :: ngpslev
+     real(dp)                                        :: rLat
+     real(dp)                                        :: rLon
+     real(dp)         , dimension(ngpssize)          :: rHYB
+     real(dp)         , dimension(ngpssize)          :: rTT
+     real(dp)         , dimension(ngpssize)          :: rLQ
+     real(dp)                                        :: rP0
+     real(dp)                                        :: rMT
+     real(dp)                                        :: rPT
+     real(dp)                                        :: rPR
+     real(dp)                                        :: rCF
+
+     logical                                         :: bpst
+     type(gpsdiff)    , dimension(ngpssize)          :: pst
+     logical                                         :: btst
+     type(gpsdiff)    , dimension(ngpssize)          :: tst
+     logical                                         :: bqst
+     type(gpsdiff)    , dimension(ngpssize)          :: qst
+     logical                                         :: brst
+     type(gpsdiff)    , dimension(ngpssize)          :: rst
+     logical                                         :: bgst
+     type(gpsdiff)    , dimension(ngpssize)          :: gst
+  end type gpsprofile
+
+contains
+
+  subroutine gpsstruct1(ngpslev,rLat,rLon,rETA,rTT,rLQ,rP0,rMT,rPT,prf)
+    integer(i4), intent(in) :: ngpslev
+    real(dp)   , intent(in) :: rLat
+    real(dp)   , intent(in) :: rLon
+    real(dp)   , intent(in) :: rETA(ngpssize)
+    real(dp)   , intent(in) :: rTT (ngpssize)
+    real(dp)   , intent(in) :: rLQ (ngpssize)
+    real(dp)   , intent(in) :: rP0
+    real(dp)   , intent(in) :: rMT
+    real(dp)   , intent(in) :: rPT
+    real(dp)                :: rPR
+    real(dp)                :: rCF
+    type(gpsprofile), intent(out) :: prf
+
+    LOGICAL  :: bpst, btst, bqst, brst, bgst
+    TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
+
+    rPR = 80000._dp
+    rCF = 1._dp
+    bpst=.false.
+    btst=.false.
+    bqst=.false.
+    brst=.false.
+    bgst=.false.
+    prf = gpsprofile(ngpslev,rLat,rLon,rETA,rTT,rLQ,rP0,rMT,rPT,rPR,rCF,   &
+         bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
+  end subroutine gpsstruct1
+
+  subroutine gpsstruct1h(ngpslev,rLat,rLon,rHYB,rTT,rLQ,rP0,rMT,rPT,rPR,rCF,prf)
+    integer(i4), intent(in) :: ngpslev
+    real(dp)   , intent(in) :: rLat
+    real(dp)   , intent(in) :: rLon
+    real(dp)   , intent(in) :: rHYB(ngpssize)
+    real(dp)   , intent(in) :: rTT (ngpssize)
+    real(dp)   , intent(in) :: rLQ (ngpssize)
+    real(dp)   , intent(in) :: rP0
+    real(dp)   , intent(in) :: rMT
+    real(dp)   , intent(in) :: rPT
+    real(dp)   , intent(in) :: rPR
+    real(dp)   , intent(in) :: rCF
+    type(gpsprofile), intent(out) :: prf
+
+    LOGICAL  :: bpst, btst, bqst, brst, bgst
+    TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
+
+    bpst=.false.
+    btst=.false.
+    bqst=.false.
+    brst=.false.
+    bgst=.false.
+    prf = gpsprofile(ngpslev,rLat,rLon,rHYB,rTT,rLQ,rP0,rMT,rPT,rPR,rCF, &
+         bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
+  end subroutine gpsstruct1h
+
+end module modgps04profile

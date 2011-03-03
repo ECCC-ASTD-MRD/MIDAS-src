@@ -1,0 +1,407 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+SUBROUTINE TOVS_SETUPALLO(KULOUT)
+#if defined (DOC)
+!
+!  s/r TOVS_SETUPALLO : Memory allocation for the radiative transfer model
+!                 variables.
+!          (original name of routine: sutovalo)
+!
+!Author  : J. Halle *CMDA/AES Oct 1999
+!    -------------------
+!     Purpose: to allocate memory for the radiative transfer model variables.
+!
+! Revision:
+!           S. Pellerin *ARMA/SMC May 2000
+!            - Fix for F90 conversion
+!           C. Chouinard *ARMA/SMC Aug 2000
+!            - remove reference to nincrem in memory allocation
+!           JM Belanger *CMDA/SMC!  aug 2000
+!            - 32 bits conversion
+!           J. Halle *CMDA/AES  dec 2000
+!            - adapt to TOVS level 1b.
+!           J. Halle CMDA/SMC May 2002
+!            - adapt to RTTOV-7 code
+!           J. Halle CMDA/SMC Feb 2003
+!            - add codtyp for AMSUB (=181).
+!           J. Halle CMDA/SMC Nov 2004
+!            - adapt to RTTOV-8;
+!            - convert to Fortran 90.
+!           A. Beaulne CMDA/SMC June 2006
+!            - modifications for AIRS
+!            - allocation of ozone profiles
+!           R. Sarrazin  CMDA   April 2008
+!            - adapt to CSR
+!           S. Heilliette
+!            - adapt to IASI
+!Arguments
+!     i : KULOUT : logical unit for output
+!
+#endif
+
+  Use mod_tovs  
+  use airsch
+  use iasich
+
+  IMPLICIT NONE
+!implicits
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comlun.cdk"
+#include "cvcord.cdk"
+#include "rttov_setup.h"
+
+  INTEGER VERBOSITY_LEVEL
+  Integer :: alloc_status(40)
+  Integer, Allocatable :: setup_errorstatus(:) ! setup return code
+
+  Real*8, Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
+
+  INTEGER no_id, ival, IPLATFORM, ISAT, INSTRUM, KRTID
+
+  INTEGER  KULOUT, JO, IDATYP, ILEN, IER, J, JI, JK, NCMAX
+  INTEGER  JF, IBEGIN, ILAST, IBEGINOB, ILASTOB, ISENS, NC, NL
+  INTEGER  JDATA, IDATA, IDATEND, ICHN, NOSENSOR, INDXCHN
+  INTEGER  ISRCHEQ
+  INTEGER  NOBAIRS
+  INTEGER  NOBIASI
+
+  CHARACTER*2 SENSORTYPE
+
+!     1. Determine the number of radiances to be assimilated.
+!        Construct a list of channels for each sensor.
+!        Construct a list of sensor number for each profile
+!     .  ---------------------------------------------------
+  100  CONTINUE
+  alloc_status(:) = 0
+  allocate (nchan(nsensors),          stat= alloc_status(1))
+  allocate (ichan(jpchus,nsensors),   stat= alloc_status(2))
+  allocate (lsensor(nobtot),          stat= alloc_status(3))
+  allocate (lobsno (nobtot),          stat= alloc_status(4))
+  allocate (ltovsno(nobtot),          stat= alloc_status(5))
+  nchan(:)   = 0 
+  ichan(:,:) = 0
+  ltovsno(:) = 0
+
+  NOBTOV = 0
+  NOBAIRS = 0
+  NOBIASI = 0
+  DO  JF = 1, NFILES
+     IF ( CFAMTYP(JF)  .EQ. 'TO' .AND. &
+          NBEGINTYP(JF).GT. 0          ) THEN
+        IBEGIN   = NBEGINTYP(JF)
+        ILAST    = NENDTYP  (JF)
+        IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+        ILASTOB  = MOBDATA(NCMOBS,ILAST )
+        DO JO = IBEGINOB, ILASTOB
+           IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+           IF ( IDATYP .EQ. 164 .OR. &
+                IDATYP .EQ. 168 .OR. &
+                IDATYP .EQ. 180 .OR. &
+                IDATYP .EQ. 181 .OR. &
+                IDATYP .EQ. 182 .OR. &
+                IDATYP .EQ. 183 .OR. &     
+                IDATYP .EQ. 185 .OR. &     
+                IDATYP .EQ. 186) THEN
+              NOBTOV = NOBTOV + 1
+           IF ( IDATYP .EQ. 183 ) NOBAIRS = NOBAIRS + 1
+           IF ( IDATYP .EQ. 186 ) NOBIASI = NOBIASI + 1
+
+!           Construct list of channels for each sensor:
+!             map burp satellite info to RTTOV-7 platform and satellite.
+              IVAL = MOD(MOBHDR(NCMITY,JO)/1000,1000)
+              CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
+
+!             map burp instrument info to RTTOV-7 instrument.
+              IVAL = MOD(MOBHDR(NCMBOX,JO),10000)
+              CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
+
+!             find sensor number for this obs.
+              DO KRTID = 1, NSENSORS
+                 IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
+                      ISAT      .EQ. SATELLITE (KRTID) .AND. &
+                      INSTRUM   .EQ. INSTRUMENT(KRTID)      ) THEN
+                    NOSENSOR = KRTID
+                    GO TO 110
+                 ENDIF
+              ENDDO
+              WRITE(KULOUT,FMT=9101)
+  9101        FORMAT(' TOVS_SETUPALLO: Invalid Sensor')
+              CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+
+  110         lsensor(nobtov) = nosensor
+              lobsno (nobtov) = jo
+              ltovsno (jo)    = nobtov
+              IDATA   = MOBHDR(NCMRLN,JO)
+              IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+              DO JDATA= IDATA, IDATEND
+                 IF ( MOBDATA(NCMASS,JDATA).EQ.1 ) THEN
+                    ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                    IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) ICHN=ICHN-CHANOFFSET(NOSENSOR)
+
+                    INDXCHN = ISRCHEQ(ichan(:,nosensor),nchan(nosensor),ichn)
+                    if ( indxchn .eq. 0 ) then
+                       nchan(nosensor) = nchan(nosensor) + 1
+                       ichan(nchan(nosensor),nosensor) = ichn
+                    endif
+                 ENDIF
+              ENDDO
+
+           ENDIF
+        ENDDO
+     ENDIF
+  ENDDO
+
+! Sort list of channels in ascending order.Also force at least one channel, if none are found.
+
+  do ji = 1, nsensors
+    call isort(ichan(:,ji),nchan(ji))
+    if ( nchan(ji) .eq. 0 ) then
+        nchan(ji) = 1
+        ichan(1,ji) = 1
+    endif
+  enddo
+
+  write(nulout,*) ' TOVS_SETUPALLO: nobtov = ', nobtov
+
+!-----------------------------------------------------------------------
+
+
+!     3. Initialize TOVS radiance transfer model
+!     .  ---------------------------------------
+
+  300  CONTINUE
+
+  IF     ( CRTMODL .EQ. 'RTTOV' ) THEN
+     WRITE(KULOUT,FMT=9300)
+  9300    FORMAT(//,10x,"-rttov_setup: initializing the TOVS radiative " &
+                   ,"transfer model" )
+
+     allocate (coef(nsensors)              ,stat= alloc_status(6))
+     allocate (list_sensors (3,nsensors)   ,stat= alloc_status(7))
+     allocate (setup_errorstatus(nsensors) ,stat= alloc_status(8))
+     setup_errorstatus(:) = 0
+
+     DO JK=1,NSENSORS
+        LIST_SENSORS(1,JK) = PLATFORM  (JK)
+        LIST_SENSORS(2,JK) = SATELLITE (JK)
+        LIST_SENSORS(3,JK) = INSTRUMENT(JK)
+     ENDDO
+
+! read coefficients using the list of required channels.
+ 
+     VERBOSITY_LEVEL = 0
+     CALL RTTOV_SETUP (setup_errorstatus,KULOUT,VERBOSITY_LEVEL, &
+                       NSENSORS,COEF,LIST_SENSORS,ichan)
+
+     do jk = 1, nsensors
+       if ( instrument(jk) /= 20 ) then
+        nchan(jk) = coef(jk)%fmv_chn
+        ichan(:,jk) = coef(jk)%ff_ori_chn(:)
+       end if
+     enddo
+
+!    .   3.1 Validate RTTOV dimensions
+!     .       -------------------------
+ 310  CONTINUE
+
+!   Verify that all coefficient files have the same number of levels, since
+!   the rest of the processing assumes this!
+
+     nlevels1 =  coef(1)%nlevels
+     do jk = 1, nsensors
+        if ( coef(jk)%nlevels .ne. nlevels1 ) then
+           WRITE(KULOUT,FMT=9311)
+  9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
+                  ' identical in all coef files')
+           CALL ABORT3D(KULOUT,'TOVS_SETUPALLO           ')
+        endif
+     enddo
+
+!   Pressure levels for RTTOV in mbs
+
+     XPRES(:) = coef(1)%ref_prfl_p(:)
+
+!   Reference profile min and max for water vapour (kg/kg)
+
+     OQMIN(1:nlevels1)=coef(1)%lim_prfl_gmin(:,2)/q_mixratio_to_ppmv
+     OQMAX(1:nlevels1)=coef(1)%lim_prfl_gmax(:,2)/q_mixratio_to_ppmv
+
+  ENDIF
+
+
+!-----------------------------------------------------------------------
+
+
+!     2. Memory allocation for radiate tranfer model variables
+!     .  -----------------------------------------------------
+
+  200  CONTINUE
+
+!___ profiles
+
+  allocate(profiles(NOBTOV)         , stat= alloc_status( 9))
+  allocate(profiles_tl(NOBTOV)      , stat= alloc_status(10))
+  allocate(profiles_ad(NOBTOV)      , stat= alloc_status(11))
+  allocate(profiles_qc(NOBTOV)      , stat= alloc_status(12))
+  allocate(rttov_errorstatus(NOBTOV), stat= alloc_status(13))
+
+  no_id = 1
+  do jo = 1, NOBTOV
+     ! allocate model profiles atmospheric arrays with model levels dimension
+     allocate( profiles(jo) % p  ( coef(no_id) % nlevels ) ,stat= alloc_status(14))
+     allocate( profiles(jo) % t  ( coef(no_id) % nlevels ) ,stat= alloc_status(15))
+     allocate( profiles(jo) % q  ( coef(no_id) % nlevels ) ,stat= alloc_status(16))
+     allocate( profiles(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(17))
+
+     ! allocate model tl profiles atmospheric arrays with model levels dimension
+     allocate( profiles_tl(jo) % p  ( coef(no_id) % nlevels ) ,stat= alloc_status(18))
+     allocate( profiles_tl(jo) % t  ( coef(no_id) % nlevels ) ,stat= alloc_status(19))
+     allocate( profiles_tl(jo) % q  ( coef(no_id) % nlevels ) ,stat= alloc_status(20))
+     allocate( profiles_tl(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(21))
+
+     ! allocate model tl profiles atmospheric arrays with model levels dimension
+     allocate( profiles_ad(jo) % p  ( coef(no_id) % nlevels ) ,stat= alloc_status(22))
+     allocate( profiles_ad(jo) % t  ( coef(no_id) % nlevels ) ,stat= alloc_status(23))
+     allocate( profiles_ad(jo) % q  ( coef(no_id) % nlevels ) ,stat= alloc_status(24))
+     allocate( profiles_ad(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(25))
+
+     ! allocate model additionnal profiles atmospheric arrays with model levels dimension
+     allocate( profiles_qc(jo) % z  ( coef(no_id) % nlevels ) ,stat= alloc_status(26))
+        
+     If( any(alloc_status /= 0) ) then
+         WRITE(KULOUT,FMT=9201)
+  9201   FORMAT(' TOVS_SETUPALLO: Memory Allocation Error')
+         CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+     End If
+  end do
+
+!___ radiance by profile
+
+  alloc_status(:) = 0
+  allocate( radiance_d(NOBTOV) ,stat= alloc_status(1))
+  allocate( radiance_tl(NOBTOV),stat= alloc_status(2))
+  allocate( radiance_ad(NOBTOV),stat= alloc_status(3))
+
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nc = nchan(isens)
+     nl = coef(no_id) % nlevels
+
+     !! allocate BT equivalent to total direct, tl and ad radiance output
+     allocate( radiance_d(jo)  % out  ( nc ) ,stat= alloc_status(4))
+     allocate( radiance_tl(jo) % out  ( nc ) ,stat= alloc_status(5))
+     allocate( radiance_ad(jo) % out  ( nc ) ,stat= alloc_status(6))
+
+     !! allocate clear/cloudy sky radiance/BT output and overcast radiance at given cloud top
+     allocate( radiance_d(jo)  % total_out  ( nc ) ,stat= alloc_status(7) )
+     allocate( radiance_d(jo)  % clear_out  ( nc ) ,stat= alloc_status(8) )
+     allocate( radiance_d(jo)  % out_clear  ( nc ) ,stat= alloc_status(9) )
+     allocate( radiance_d(jo)  % overcast  (nl,nc) ,stat= alloc_status(10))
+
+     If( any(alloc_status /= 0) ) then
+         WRITE(KULOUT,FMT=9201)
+         CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+     End If
+  end do
+
+!___ transmission by profile
+
+  alloc_status(:) = 0
+  allocate( transmission_d(NOBTOV),stat= alloc_status(1))
+
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nc = nchan(isens)
+     nl = coef(no_id) % nlevels
+
+     !! allocate transmittance from surface and from pressure levels
+     allocate( transmission_d(jo)  % tau_surf  ( nc ) ,stat= alloc_status(2))
+     allocate( transmission_d(jo)  % tau_layer(nl,nc) ,stat= alloc_status(3))
+
+     If( any(alloc_status /= 0) ) then
+         WRITE(KULOUT,FMT=9201)
+         CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+     End If
+  end do
+
+!___ emissivity by profile
+
+  ncmax = 1
+
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nc = nchan(isens)
+     if (nc>ncmax) ncmax=nc
+  end do
+
+  allocate( emissivity (ncmax,NOBTOV) ,stat=alloc_status(1))
+       
+  If( any(alloc_status /= 0) ) then
+      WRITE(KULOUT,FMT=9201)
+      CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+  End If
+
+!___ new variables to add in airs burp file
+
+  DO KRTID = 1, NSENSORS
+    IF ( PLATFORM(KRTID) == 9 .AND. &
+         SATELLITE (KRTID) == 2 .AND. &
+         INSTRUMENT(KRTID) == 11 ) THEN
+
+      allocate ( airspro(NOBAIRS), stat= alloc_status(1))
+
+      do jo = 1, NOBAIRS
+        allocate ( airspro(jo) % emisfc ( airssnch )   ,stat= alloc_status(2))
+
+        If( any(alloc_status /= 0) ) then
+            WRITE(KULOUT,FMT=9201)
+            CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+        End If
+      end do
+
+      EXIT
+
+    END IF
+
+    IF ( PLATFORM(KRTID) == 10 .AND. &
+         SATELLITE (KRTID) == 2 .AND. &
+         INSTRUMENT(KRTID) == 16 ) THEN
+
+      allocate ( iasipro(NOBIASI), stat= alloc_status(1))
+
+      do jo = 1, NOBIASI
+        allocate ( iasipro(jo) % emisfc ( iasisnch )   ,stat= alloc_status(2))
+
+        If( any(alloc_status /= 0) ) then
+            WRITE(KULOUT,FMT=9201)
+            CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+        End If
+      end do
+
+      EXIT
+
+    END IF
+
+  END DO
+
+END SUBROUTINE TOVS_SETUPALLO

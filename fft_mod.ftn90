@@ -1,0 +1,132 @@
+!--------------------------------------------------------------------------
+! MODULE fft_mod (prefix="fft")
+!
+! Subroutines:
+!    fft_sufft     (public)
+!    fft_fft3dvar  (public)
+!    ngfft
+!
+! Public variables:
+!    NONE
+!
+! Dependencies:
+!
+!--------------------------------------------------------------------------
+module fft_mod
+
+  implicit none
+  save
+  private
+
+  public  :: fft_fft3dvar,fft_sufft
+
+  integer :: nlfft= 1024
+  integer :: ni_l,nj_l
+
+contains
+
+  SUBROUTINE fft_SUFFT(KULOUT,NI_in,NJ_in)
+    IMPLICIT NONE
+
+    integer jk,ni_in,nj_in
+    INTEGER IERR, KULOUT, i
+
+    ni_l=ni_in
+    nj_l=nj_in
+
+    !    1. Allocate memory for the constant arrays required by the FFT
+
+    WRITE(KULOUT,*) 'SUFFT- Memory allocation and initialisation for the fast Fourier transform'
+
+    IF(NLFFT.GT.1024)THEN
+       NLFFT = 1024
+       WRITE(KULOUT,*) '*** The FFT cannot handle more than 1024 transforms at the time. NLFFT reset to ',NLFFT
+    END IF
+
+    !*    2. Initialisation of the constants of the FFT
+
+    i = ni_l
+    call ngfft( i )
+    if ( i.ne.ni_l ) then
+       write(kulout,*) 'SUFFT: NI = ',ni_l,' I = ',i
+       stop
+    else
+       write(kulout,*) 'SUFFT: NI = ',ni_l
+    endif
+
+    call setfft8(ni_l)
+
+    RETURN
+  END SUBROUTINE fft_SUFFT
+
+
+  SUBROUTINE fft_FFT3DVAR(PGD,KIBEG,KIEND,KDIM,KJBEG,KJEND,KFIELD,KDIR)
+    IMPLICIT NONE
+
+    INTEGER KIBEG, KIEND, KJBEG, KJEND, KDIM,KFIELD,KDIR
+    REAL*8 PGD(KIBEG:KIEND,KDIM,KJBEG:KJEND)
+
+    INTEGER  ILATBD,IJUMP,INFFT
+    INTEGER  JLAT,nfftstrid
+
+    IJUMP = KIEND - KIBEG + 1
+    NFFTSTRID=1
+
+    !$OMP PARALLEL PRIVATE (ILATBD,INFFT)
+    !$OMP DO PRIVATE (JLAT)
+    !  DO  JLAT = 1, NJ_l, NFFTSTRID
+    !    ILATBD = MIN(NFFTSTRID,NJ_l - JLAT + 1)
+    DO  JLAT = 1, NJ_l, NFFTSTRID
+       ILATBD = MIN(NFFTSTRID,NJ_l - JLAT + 1)
+       INFFT = KFIELD*ILATBD
+       CALL FFFT8(PGD(1,1,JLAT),1,IJUMP,INFFT,KDIR)
+
+       !*     subroutine ffft8( a, inc, jump, lot, isign )
+       !*     a      is the array containing input & output data
+       !*     fwork  is no longer used.
+       !*     ftrigs is no longer used, -> trigs in 'comfft8'
+       !*     fifax  is no longer used, -> ifax in 'comfft8'
+       !*     inc    is the increment within each data 'vector'
+       !*            (e.g. inc=1 for consecutively stored data)
+       !*     jump   is the increment between the start of each data vector
+       !*     fn     is no longer used, -> n in 'comfft8'
+       !*     lot    is the number of data vectors
+       !*     isign  = +1 for transform from spectral to gridpoint
+       !*            = -1 for transform from gridpoint to spectral
+
+    END DO
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+    RETURN
+  END subroutine fft_fft3dvar
+
+
+  subroutine ngfft( n )
+    implicit none
+    integer n
+
+    integer l
+    parameter ( l = 3 )
+    integer k( l ) , m
+    data m , k / 8 , 2 , 3 , 5 /
+
+    integer i,j
+
+    if ( n.le.m ) n = m + 1
+    n = n - 1
+1   n = n + 1
+    i = n
+2   do 3 j=1,l
+       if( mod(i,k(j)) .eq. 0 ) go to 4
+3   continue
+    go to 1
+4   i = i/k(j)
+    if( i .ne. 1 ) go to 2
+  return
+
+  end subroutine ngfft
+
+
+
+end module fft_mod

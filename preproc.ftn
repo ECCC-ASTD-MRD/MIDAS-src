@@ -1,0 +1,157 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine preproc
+      use mod4dv, only : l4dvar
+#if defined (DOC)
+*
+***s/r preproc  - Control of the preprocessing of the 3D variational assimilation
+*
+*
+*Author  : S. Pellerin *ARMA/AES  Nov., 1999
+*Revision:
+*       : C. Charette *ARMA/AES  Oct 2001
+*         - Added LTOPOFILT
+*         S. Pellerin *ARMA/SMC nov. 2001
+*         - reordering of declaration dependencies (for Linux compilation)
+*         N. Wagneur  *CMDA/SMC Juin 2002
+*         - Ajout du calcul de Jo pour la famille GOES
+*         J. St-James  *CMDA/SMC July 2003
+*         - Add profiler family to Jo
+*         JM Belanger CMDA/SMC Feb 2004
+*                   . Introduce "scatterometer family SC"
+*         D. Anselmo  *ARMA/SMC Oct. 2004
+*         - Add calls to DHUPPP.ftn and DHUSFC.ftn to compute O-P for LQ.
+*         J. Halle  *CMDA/SMC June 2005
+*         - Adapt for RTTOV-8.
+*         J.M. Aparicio *ARMA/MSC* October 2006
+*         - Adapt for GPSRO
+*         P.KOCLAS  *CMDA/MSC* MAR 2008
+*         - Add Background check for GPSRO
+*         S. Pellerin, ARMA, August 2008
+*         - Added calls to 'tmg_*' subroutines
+*    L. Fillion - ARMA/MSC Spring 2005
+*         - Add subasic_gd to initialize background fields necessary for
+*           flow dependent analysis increment variables in grd_typ='LU' mode.
+*    L. Fillion - ARMA/MSC 5 Jul 05
+*     - prepare diabatic operators
+*    L. Fillion - ARMA/EC Apr 06
+*     - Start SW LAM option.
+*    L. Fillion - ARMA/EC 14 Aug 2007 - Update to version v_10_0_3.
+*    L. Fillion - ARMA/EC 17 Mar 2008 - Take into account lldo. Also, correct little error calling printrev
+*    L. Fillion - ARMA/EC 28 Mar 2008 - Introduce subroutine suinnov.ftn to make this sub. cleaner.
+*    L. Fillion - ARMA/EC 01 Apr 2008 - Introduce l1obs option.
+*    L. Fillion - ARMA/EC 16 Apr 2008 - Set uniform ptot matrix at Obs latitude when in l1obs mode.
+*    L. Fillion - ARMA/EC 17 Jul 2009 - Introduce lcva_3d to perform TLNNMI (cf. Fillion et al. 2007 -ECMWF workshop).
+*    L. Fillion - ARMA/EC 17 Jul 2009 - Upgrade to v_11_01_2b.
+*    -------------------
+**    Purpose: to initialize  * the background state
+*     .                       * the observations
+*     .                       * the background error statistics
+*     .                       * write or read (HXb -Z)
+*     .                       * the observation error statistics
+*     .                       * check the consistency between the background and the observations
+*
+*Arguments
+*    -NONE-
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comct0.cdk"
+#include "comdim.cdk"
+#include "com1obs.cdk"
+#include "comlun.cdk"
+#include "comvarqc.cdk"
+#include "comcva.cdk"
+#include "cominterp.cdk"
+#include "comfilt.cdk"
+#include "comgem.cdk"
+#include "comgdpar.cdk"
+#include "comgrd_param.cdk"
+#include "comin.cdk"
+#include "comsim.cdk"
+#include "comcorr.cdk"
+#include "comspg.cdk"
+c
+      logical lldo
+      integer jlev,jobs,jdata,ii,ierr,jk1,jk2,jj
+      real*8 zjo,zjoraob,zjosatem,zjohumsat,zjosatwind,zjosurfc
+      real*8 zjosfcsf,zjosfcua,zjotov,zjogoes,zjoairep,zjosfcsc,zjoprof
+      real*8 zjogpsro
+c
+      call printrev("SUBROUTINE preproc :",20)
+      ldiag4d = .false.
+c
+c
+c Initialization of interpolation parameters
+c
+      lvintbgstat = .false.
+      lhintdelhu  = .true.
+c
+      call readnml('NAMINTERP',IERR)
+      call readnml('NAM1OBS',IERR)
+c
+      call tmg_start(15,'SUCVA')
+      CALL SUCVA(NULOUT)
+      call tmg_stop(15)
+c
+c Read in scaling factors to adjust obs error std dev in cma
+c
+      if(ntunestats.eq.5) then
+!modular1        call rdtunebgobs
+      endif
+c
+c Perturb the observations
+c       
+      if(lpertobs) then
+!modular1        call pertobs
+      endif
+c
+c Reading, horizontal interpolation and unit conversions of the 3D trial
+c fields
+c
+      call tmg_start(16,'SUGOMOBS')
+      call sugomobs
+      call tmg_stop(16)
+!
+! prepare background fields at initial time for flow-dependent control variables
+!
+!     Initialize TRLM grid parameters
+!
+      if(grd_typ.ne.'GU') then
+!modular1        call subggrd
+      endif
+      call subasic_gd
+!
+      if(l1obs) then
+!modular1        call set1lev
+!modular1        call su1obsbg ! initializes background fields at obs location into gomobsg
+      endif
+!
+! prepare diabatic operators
+!
+      if(lcva_3db.or.(.not.l4dvar)) then
+!modular1        call sudiabatic
+      endif
+!
+! prepare observation innovations
+!
+      if(.not.l1obs) call suinnov
+!
+      call prdatabin
+      RETURN
+      END

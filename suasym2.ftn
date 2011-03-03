@@ -1,0 +1,270 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUASYM2(KDIM,PX,PY)
+#if defined (DOC)
+*
+*s/r SUASYM  - SET CERTAIN PARAMETERS FOR THE ASYMMETRIC
+*              CHECK AND FOR VARIATIONAL QUALITY CONTROL
+*
+*Author  : B. BRASNETT CMDA   JUNE 1999
+*Revision:
+*          S. Pellerin ARMA/SMC Nov. 2002
+*             . Elemination of nincrem variable
+*          R. Sarrazin/B. Brasnett CMC March 2004
+*             . tighten rejection on satwinds
+*          J. Hale CMC Sept. 2005
+*             . added MHS (codtyp=182).
+*          S. Macpherson ARMA/CMC Sept. 2007
+*             . add parameters for GB-GPS ZTD
+*
+*Arguments
+*     .  KDIM      : dimension of the model state vector
+*     .  PX(KDIM)  : workspace used to call EVALJO
+*     .  PY(KDIM)
+*
+#endif
+      IMPLICIT NONE
+*implicits
+*
+#include "comdimo.cdk"
+#include "comnumbr.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "comcst.cdk"
+*
+*
+      INTEGER KDIM
+      REAL PX(KDIM), PY(KDIM)
+C
+      INTEGER IFIND
+      INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,ITY,IDBURP
+      INTEGER ITYP,IASS,IFLD,ILEM,IOTHER,JJ,ISTYP,ILEV
+      REAL ZAGZ,ZAHU,ZATT,ZDUV,ZDGZ,ZDTT,ZDHU,ZAUV,ZSLEV,ZAPN,ZDPN
+      REAL ZABT,ZDBT,ZABTB,ZDBTB
+      REAL ZLEV,ZJO,ZVAL,ZSPDO,ZSPDF,ZOFCST,ZOVAL,ZDIFF,ZAASYM,ZOER
+      REAL ZFCST,ZLAT,ZLON,ZTODEG,ZPRIOR,ZAPS,ZDPS,ZAUVRA,ZATTRA,ZATTSYM
+      LOGICAL LLOK
+      REAL ZAZD, ZDZD
+*
+*_____prior probabilities for winds:ZAUV
+*     prior probabilities for scalar variables: zagz and zahu
+*     standard deviation multiple for background check for winds: zduv
+*     standard deviation multiple for background check for heights: zdgz
+*     standard deviation multiple for background check for humidity: zdhu
+*
+      ZTODEG = 180./RPI
+      ZAGZ   = 1.E-12
+      ZATT   = 5.E-2
+*      ZATTRA = 1.E-2
+      ZATTRA = 0.005
+*      ZAUV   = 0.01
+      ZAUV   = 0.02
+*      ZAUVRA = 1.E-3
+      ZAUVRA = 1.E-5
+*      ZAHU   = 0.01
+      ZAHU   = 0.05
+      ZAPN = 1.E-4
+      ZAPS = 1.E-4
+      ZABT   = 1.0E-1
+      ZABTB  = 1.0E-1
+      ZATTSYM = 1.E-1
+      ZAZD = 1.0E-2
+      ZDUV = 5.
+      ZDGZ = 5.
+      ZDTT = 5.
+      ZDHU = 5.
+      ZDPN = 5.
+      ZDPS = 5.
+      ZDBT = 3.
+      ZDBTB = 3.
+      ZDZD = 4.
+*
+*
+      DO JJO = 1, NOBTOT
+         IDATA     = MOBHDR(NCMRLN,JJO)
+         IDATEND   = MOBHDR(NCMNLV,JJO) + IDATA - 1
+         IDATYP    = MOBHDR(NCMOTP,JJO)
+         ITY       = MOBHDR(NCMITY,JJO)
+         IDBURP    = MOD(ITY,1000)
+         ZLAT = ROBHDR(NCMLAT,JJO)*ZTODEG
+         ZLON = ROBHDR(NCMLON,JJO)*ZTODEG
+         DO JDATA  = IDATA, IDATEND
+            ITYP   = MOBDATA(NCMVNM,JDATA)
+            IASS   = MOBDATA(NCMASS,JDATA)
+            ZLEV   = ROBDATA8(NCMPPP,JDATA)*RPATMB
+            ILEM   = IFIND(ITYP)
+            ZOER = ROBDATA8(NCMOER,JDATA)
+            ZVAL = ROBDATA8(NCMVAR,JDATA)
+            ZFCST= ROBDATA8(NCMOMA,JDATA)*ZOER + ZVAL
+C
+            IF (ITYP .EQ. NETS .OR. ITYP .EQ. NEPS .OR.
+     1          ITYP .EQ. NEPN .OR. ITYP .EQ. NESS .OR.
+     2          ITYP .EQ. NEUS .OR. ITYP .EQ. NEVS .OR.
+     3          ITYP .EQ. NEZD) THEN
+               LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1)
+            ELSE
+               LLOK = (IASS .EQ. 1) .AND. ((MOBDATA(NCMXTR,JDATA) .EQ.0)
+     1            .OR. ((MOBDATA(NCMXTR,JDATA) .EQ. 2) .AND.
+     2                  (MOBDATA(NCMVNM,JDATA) .EQ. NVNUMB(3))))
+            ENDIF
+
+            IF (LLOK) THEN
+               IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NVNUMB(2) .OR.
+     1             ITYP .EQ. NEUS      .OR. ITYP .EQ. NEVS) THEN
+                  ZAASYM = 1.0
+                  IOTHER = -1
+                  IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS) THEN
+                    DO JJ=IDATA,JDATA
+                      ISTYP = MOBDATA(NCMVNM,JJ)
+                      ZSLEV = ROBDATA8(NCMPPP,JJ)*RPATMB
+                      IF ((ISTYP .EQ. NVNUMB(2) .OR. ISTYP .EQ. NEVS)
+     1                     .AND. ZLEV .EQ. ZSLEV) THEN
+                        IOTHER = JJ
+                      ENDIF
+                    ENDDO
+                  ELSE
+                    DO JJ=IDATA,JDATA
+                      ISTYP = MOBDATA(NCMVNM,JJ)
+                      ZSLEV = ROBDATA8(NCMPPP,JJ)*RPATMB
+                      IF ((ISTYP .EQ. NVNUMB(1) .OR. ISTYP .EQ. NEUS)
+     1                     .AND. ZLEV .EQ. ZSLEV) THEN
+                        IOTHER = JJ
+                      ENDIF
+                    ENDDO
+                  ENDIF
+                  IF (IOTHER .NE. -1) THEN
+                    ZOER = ROBDATA8(NCMOER,JDATA)
+                    ZOVAL = ROBDATA8(NCMVAR,IOTHER)
+*                       ZOFCST = ROBDATA8(NCMOMF,IOTHER)*ZOER+ZOVAL
+                    ZOFCST = ROBDATA8(NCMOMA,IOTHER)*ZOER+ZOVAL
+                    ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
+                    ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
+                    ZDIFF = ZSPDO - ZSPDF
+                    ILEV = NINT(ZLEV)
+*
+*___________________tighten rejection criterion for satob winds
+*
+                    IF (IDBURP .EQ. 88 .OR. IDBURP .EQ. 188) THEN
+                      IF (ZDIFF .LT. 0.0 .AND. ABS(ZLAT) .GT. 20. .AND.
+     1                     ILEV .LT. 550) THEN
+                         ZAASYM = 0.7*AMAX1(ZSPDF,1.0)
+                         ZPRIOR = ZAASYM*ZAUV
+                         IF (ZPRIOR .GT. 0.99) ZAASYM = 0.99/ZAUV
+*                       WRITE(NULOUT,620)ZAASYM,ILEV,ZLAT,ZLON,ZSPDO,
+*     1                       ZSPDF
+ 620                     FORMAT('ASYMMETRIC TEST. ZAASYM=',f7.1,', LEV=',
+     1                      I4,', LAT=',F5.1,', LON=',F5.1,
+     2                      ', OBSERVED SPEED=',F4.0,', FCST SPEED=',F4.0)
+                      ELSE
+*
+*_______________________zaasym used to specify new criterion for satwinds
+*                       than are not included in the asymmetric test
+*
+                        ZAASYM = 10.
+                      ENDIF
+                    ENDIF
+
+                  ENDIF
+*
+*_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
+*
+                  ROBDATA(NCMPOB,JDATA)=(1. -
+     1               (1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM)))*(2.*RPI)/
+     2              ((1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM))*
+     3                                (2.*ZDUV)*(2.*ZDUV))
+                  IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
+     1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
+     2             ROBDATA(NCMPOB,JDATA)=(1. - (1.-ZAUVRA)*(1.-ZAUVRA))
+     3                    *(2.*RPI)/((1.-ZAUVRA)*(1.-ZAUVRA)*
+     4                                (2.*ZDUV)*(2.*ZDUV))
+               ELSEIF (ITYP .EQ. NVNUMB(3)) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZAGZ*
+     1                SQRT(2.*RPI))/((1.-ZAGZ)*(2.*ZDGZ))
+               ELSEIF (ITYP .EQ. NVNUMB(8)) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZATT*
+     1                SQRT(2.*RPI))/((1.-ZATT)*(2.*ZDTT))
+                  IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
+     1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
+     2              ROBDATA(NCMPOB,JDATA)= (ZATTRA*
+     3                SQRT(2.*RPI))/((1.-ZATTRA)*(2.*ZDTT))
+               ELSEIF (ITYP .EQ. NETS) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZATT*
+     1                SQRT(2.*RPI))/((1.-ZATT)*(2.*ZDTT))
+*
+*                 ASYMMETRIC TEST FOR SHIP TEMPERATURES
+*
+                  IF ((IDBURP .EQ. 13) .AND. (ZVAL .GT. ZFCST)) THEN
+                    ROBDATA(NCMPOB,JDATA)= (ZATTSYM*
+     1                  SQRT(2.*RPI))/((1.-ZATTSYM)*(2.*ZDTT))
+                  ENDIF
+               ELSEIF (ITYP .EQ. NEPN) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZAPN*
+     1                SQRT(2.*RPI))/((1.-ZAPN)*(2.*ZDPN))
+               ELSEIF (ITYP .EQ. NEPS) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZAPS*
+     1                SQRT(2.*RPI))/((1.-ZAPS)*(2.*ZDPS))
+               ELSEIF ( ITYP .EQ. 12062 .OR. ITYP .EQ. 12063 .OR.
+     1                  ITYP .EQ. 12163) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
+*                 TOVS AMSU-A
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZABT*
+     1                SQRT(2.*RPI))/((1.-ZABT)*(2.*ZDBT))
+                  IF (IDBURP .EQ. 181 .OR.
+     1                IDBURP .EQ. 182      ) THEN
+*
+*                   INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
+*
+                    ROBDATA(NCMPOB,JDATA)= (ZABTB*
+     1                  SQRT(2.*RPI))/((1.-ZABTB)*(2.*ZDBTB))
+                  ENDIF
+               ELSEIF (ITYP .EQ. NEZD) THEN
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
+*
+                  ROBDATA(NCMPOB,JDATA)= (ZAZD*
+     1                SQRT(2.*RPI))/((1.-ZAZD)*(2.*ZDZD))
+               ELSE
+*
+*                 INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
+*
+                  ROBDATA(NCMPOB,JDATA)=(ZAHU*
+     1                SQRT(2.*RPI))/((1.-ZAHU)*(2.*ZDHU))
+               ENDIF
+            ENDIF
+         END DO
+C
+      END DO
+      RETURN
+      END

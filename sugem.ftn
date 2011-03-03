@@ -1,0 +1,244 @@
+      SUBROUTINE SUGEM(KULOUT)
+#if defined (DOC)
+C
+C**** *SUGEM * - Definition of the geometry of the model
+C      -----     (reduced Gaussian grid, model levels, etc...)
+C     .          Also: calculation of the eigenvalues of the Laplacian
+C     .                in spectral space.
+C     Initialization of COMGEM
+C
+C
+C     Modifications.
+C     --------------
+*Author : 92-05-29  P. Gauthier *ARMA/AES*
+*Revision:
+*     .  P. Gauthier *ARMA/AES* November 19,1993: correction to support
+*     .              a number of levels that does not exceed JPNFLEV set
+*     .              in PARDIM.
+*     .  P. Koclas  *CMC/AES   September 8 1994: Modifications to allow
+*     .              pressure or sigma coordinates.
+*     .  S. Pellerin *ARMA/AES Oct 97
+*                    -Introduction and computation of NIP1s from COMGEM
+*     .  JM Belanger CMDA/SMC  Aug 2000
+*                   . 32 bits conversion
+*     .  C. Charette - ARMA/SMC - Sep. 2004
+*                    - Conversion to hybrid vertical coordinate
+*     .  L. Fillion - ARMA/SMC - Feb 2005.
+*                    - Add LAM4D limited area analysis option.
+*     .  L. Fillion - ARMA/EC - 15 Aug 2007 - UpdaTE LAM4D TO V_10_0_3.
+*     .  JW Blezius  - ARMA Dec. 2009
+*                    - add namelist, NAMSHARED_AAI_3DV
+#endif
+C
+      use glbspec_mod
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comct0.cdk"
+#include "comcst.cdk"
+#include "comgrd.cdk"
+#include "comgem.cdk"
+#include "comgemla.cdk"
+#include "namgem.cdk"
+#include "comgrd_param.cdk"
+      INTEGER JLAT, KULOUT, JN, JM, ILA
+      INTEGER JLEV,IERR,IMODE, IKIND
+      REAL*8 ZNNP1, Z1SNP1, ZPTOP, ZPS0, ZDELP
+      REAL*8 ZPROF(JPNFLEV),ZPS_BDL
+      CHARACTER*1 CLSTRING
+      LOGICAL LLFOUND
+C
+      WRITE(NULOUT,FMT='(/,'' SUGEM- Geometry of the model'')')
+C
+C*    1. Initialisation of the number of points to be considered on
+C        the latitude circles
+C
+ 100  CONTINUE
+      if(grd_typ.eq.'GU') then
+        DO 101 JLAT = NJBEG, NJEND
+          NILON(JLAT) = NI
+ 101    CONTINUE
+      else
+        do jlat = njbeg, njend
+          nilon(jlat) = ni
+        enddo
+      endif
+C
+C     2. Calculation of the eigenvalues of the Laplacian
+C
+ 200  CONTINUE
+      if(grd_typ.eq.'GU') then
+        RNNP1(1)  = 0.
+        R1SNP1(1) = 0.
+        DO 201 JN = 1, NTRUNC
+           ZNNP1  = -FLOAT(JN)*FLOAT(JN+1)
+           Z1SNP1 =  1./ZNNP1
+           DO 202 JM = 0, JN
+              ILA = gst_NIND(JM) + JN - JM
+              RNNP1(ILA) = ZNNP1
+              R1SNP1(ILA) = Z1SNP1
+ 202       CONTINUE
+ 201    CONTINUE
+      endif
+C
+C     3. Initialisation of the model levels
+C
+ 300  CONTINUE
+C
+C*     3.1 Default values
+C
+      ldyninc = .false.
+      rptopinc = 1000.0
+      rprefinc = 80000.0
+      rcoefinc = 1.0
+      do jlev  = 1 ,nflev
+        vlev(jlev)    = 0.0
+        vhybinc(jlev) = 0.0
+      enddo
+c
+      vlev(1)=0.000
+      vlev(2)=0.011
+      vlev(3)=0.027
+      vlev(4)=0.051
+      vlev(5)=0.075
+      vlev(6)=0.101
+      vlev(7)=0.127
+      vlev(8)=0.155
+      vlev(9)=0.185
+      vlev(10)=0.219
+      vlev(11)=0.258
+      vlev(12)=0.302
+      vlev(13)=0.351
+      vlev(14)=0.405
+      vlev(15)=0.460
+      vlev(16)=0.516
+      vlev(17)=0.574
+      vlev(18)=0.631
+      vlev(19)=0.688
+      vlev(20)=0.744
+      vlev(21)=0.796
+      vlev(22)=0.842
+      vlev(23)=0.884
+      vlev(24)=0.922
+      vlev(25)=0.955
+      vlev(26)=0.980
+      vlev(27)=0.993
+      vlev(28)=1.000
+C
+      CVCORD='ETAGE'
+C
+      nip1_pak_inc= 3           ! Packing increments 15 bits
+      rlimlv_bdl  = 88000.      ! Upper limit of the boundary layer(PA)
+      RHUMIN      = RMINHU
+C
+C*     3.2 Modify the default values by reading NAMELISTs NAMGEM and
+C          NAMSHARED_AAI_3DV
+C
+ 320  CONTINUE
+C
+      IF(NFLEV.GT.JPNFLEV) THEN
+         WRITE(NULOUT,FMT='(//,6X,''Too many levels'')')
+         CALL ABORT3D(NULOUT,'SUGEM. Too many levels')
+      END IF
+C
+      CALL READNML('NAMGEM',IERR)
+      CALL READNML('NAMSHARED_AAI_3DV',IERR)
+      CALL VSORT(VLEV,NFLEV)
+C
+      imode = nip1_pak_inc
+C
+      if(cvcord .eq. 'ETAGE') then
+        ikind = 1
+        do jlev = 1,nflev
+          vhybinc(jlev) = vlev(jlev) + (1.0D0-vlev(jlev))
+     &         *rptopinc/rprefinc
+          call VCONVIP(nip1(jlev),vlev(jlev),ikind
+     &         ,imode,clstring, .false. )
+        enddo
+      else
+        ikind = 5
+        do jlev = 1,nflev
+          vhybinc(jlev) = vlev(jlev)
+          call VCONVIP(nip1(jlev),vlev(jlev),ikind
+     &         ,imode,clstring, .false. )
+        enddo
+      endif
+C
+C*    . 3.3 Levels are sorted in increasing order
+C     .     then truncated to three decimals
+C
+ 330  CONTINUE
+C
+
+C
+C     Initialisation of corresponding NIP1s
+C
+C
+C*     4. Conversion of wind images to physical winds
+C
+ 400  CONTINUE
+      if(grd_typ.eq.'GU') then
+        DO 401 JLAT = 1, NJ
+           CONPHY(JLAT) = RA*gst_R1QM2(JLAT)
+           CONIMA(JLAT) = R1SA*gst_RSQM2(JLAT)
+ 401    CONTINUE
+      else if(grd_typ.eq.'LU') then
+!       done in sugemla after sugem
+      endif
+C
+C*    . 4.1 Determine nearest level of the
+C     .     mean top of the boundary layer
+C
+
+      ZPS_BDL = 101000. 0
+      call calcpres(ZPROF,vhybinc,nflev,ZPS_BDL,rptopinc
+     &             ,rprefinc,rcoefinc,1)
+
+      LLFOUND = .FALSE.
+      DO JLEV = 1, NFLEV
+        IF(.NOT.LLFOUND .AND. (ZPROF(JLEV) .GE. rlimlv_bdl  )) THEN
+          nlev_bdl = JLEV
+          LLFOUND = .TRUE.
+        ENDIF
+      ENDDO
+C
+ 410  CONTINUE
+C
+C*     5. Print the values
+C
+ 500  CONTINUE
+C
+      DO 501 JLEV = 1, NFLEV
+         WRITE(KULOUT,FMT='(4X,"LEVEL NO.",I3,":",2X,"VHYBINC= ",G12.6
+     S     ,2X,"VLEV= ",G12.6,2X,"NIP1 OF VLEV= ",I10)')
+     S        JLEV,VHYBINC(JLEV),VLEV(JLEV),NIP1(JLEV)
+ 501  CONTINUE
+C
+      WRITE(KULOUT,FMT='(6X," NILON: Number of points on the ",I4,
+     S     " latitude circles",/,8(1X,I6))')
+     S     NJ,(NILON(JLAT),JLAT=1,NJ)
+C
+      if(grd_typ.eq.'GU') then
+        WRITE(KULOUT,FMT='(6X," Eigenvalues of the Laplacian *RA**2:",
+     S     /,6(1x,g12.6))')(RNNP1(ILA),ILA=1,NTRUNC+1)
+C
+        WRITE(KULOUT,FMT='(6X," Eigenvalues of the inverse Laplacian",
+     S     "/RA**2:",/,6(1x,g12.6))')(R1SNP1(ILA),ILA=1,NTRUNC+1)
+C
+        WRITE(KULOUT,
+     +  FMT='(/,10x,"Type of vertical coordinate:",10x,a8)') CVCORD
+        WRITE(KULOUT,FMT='(/,10x,"Definition of inc anal levels",/)')
+C
+        WRITE(KULOUT,9502)
+ 9502   FORMAT(/,10x,'CONVERSION OF WIND IMAGES',
+     S     ' INTO PHYSICAL WINDS',/,3X,'JLAT',8X
+     S     ,'CONPHY(JLAT)',7X,'CONIMA(JLAT)')
+        DO 502 JLAT = 1, NJ
+           WRITE(KULOUT,FMT='(4X,I3,":",2(7X,G12.6))')
+     S          JLAT,CONPHY(JLAT),CONIMA(JLAT)
+ 502    CONTINUE
+      endif
+C
+      RETURN
+      END

@@ -1,0 +1,255 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE VCORDADJ(IDTYP,ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      IMPLICIT NONE
+#include "cparbrp.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+      INTEGER KNELE,KNVAL,KINT,KNELOUT
+      INTEGER KLIST(KNELE+2)
+      INTEGER ilemin,ilemout,ielistin(5),ielistou(5),jnel
+      REAL*8 ZVAL(*)
+      INTEGER IMARK(*)
+      CHARACTER*9 CSTNID
+*
+#if defined (DOC)
+************************************************************************
+*
+*      PURPOSE: SEt vertical coordinate parmeters for surface data.
+*               -change 12192 ( t-td) element to 12203 for surface data
+*               -change 11001 ( t-td) element to 11011 for surface data
+*               -change 11002 ( t-td) element to 11012 for surface data
+*               -change 12001 ( t-td) element to 12004 for surface data
+*
+*       AUTHOR:   P. KOCLAS (CMC/CMDA)
+*
+*       Revision :  J. St-James *CMDA/SMC - July 2003
+*                   - Move vcordsf=0. to brpacma subroutine
+*         JM Belanger CMDA/SMC Feb 2004
+*                   . Introduce "scatterometer family SC"
+*
+*    ARGUMENTS:
+*               INPUT:
+*                      -ZVAL    : DATA BLOCK
+*                      -IMARK   : MARKER DATA BLOCK
+*                      -KLIST   : LIST OF BUFR ELEMENTS
+*                      -KNELE   : NUMBER OF ELEMENTS IN DATA BLOCK
+*                      -KNVAL   : NUMBER OF LEVELS IN DATA BLOCK
+*                      -KINT    : THIRD DIMENSION OF INPUT DATA BLOCK
+*                      -KNELOUT : THIRD DIMENSION OF OUTPUT DATA BLOCK
+*
+*               OUTPUT:
+*                      -MODIFIED ZVAL AND KLIST
+*
+*
+************************************************************************
+#endif
+*
+      REAL*8 ZPROEL(JPMXNLV)
+      REAL*8 ZEL
+      INTEGER JJ,JN,IND1,INDEX1,IDTYP,list(254)
+      logical llmis
+*
+************************************************************************
+*
+      KNELOUT=KNELE
+C
+C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
+C
+      do jj=1,254
+         list(jj)=0
+*    Initialization of array "vcordsf" moved to routine BRPACMA
+Cjud         do jn=1,jpnbrelem
+Cjud            vcordsf(jn,jj)=0.
+Cjud         end do
+      end do
+C
+C     UPPER AIR LAND
+C
+      LIST(135)=3
+      LIST(136)=3
+      LIST(137)=3
+      LIST(138)=3
+      LIST(32)=3
+      LIST(34)=3
+      LIST(35)=3
+      LIST(37)=3
+      LIST(38)=3
+      LIST(159)=3
+      LIST(160)=3
+      LIST(161)=3
+      LIST(162)=3
+C
+C     UPPER AIR SHIP
+C
+      LIST(139)=4
+      LIST(140)=4
+      LIST(141)=4
+      LIST(142)=4
+      LIST(33)=4
+      LIST(36)=4
+C
+C     SYNOPS
+C
+      list(12)=1
+      list(14)=1
+      list(146)=1
+C
+C     SHIPS
+C
+      list(13)=2
+      list(18)=2
+      list(145)=2
+      list(147)=2
+C
+C     SCATTEROMETER WINDS
+C
+      list(254)=5
+
+      do jj=1,254
+         if ( jj .eq. idtyp .and. list(jj) .eq. 1 ) then
+C            us,vs,ffs,dds
+            vcordsf(12,jj)=10.0
+            vcordsf(13,jj)=10.0
+            vcordsf(54,jj)=10.0
+            vcordsf(55,jj)=10.0
+C           pnm
+            vcordsf(53,jj)=0.0
+C           ps
+            vcordsf(47,jj)=0.0
+C           ts
+            vcordsf(10,jj)=1.5
+C           t-td
+            vcordsf(9, jj)=1.5
+            vcordsf(11,jj)=1.5
+         else if ( jj .eq. idtyp .and. list(jj) .eq. 2 ) then
+C            us,vs,ffs,dds
+            vcordsf(12,jj)=20.0
+            vcordsf(13,jj)=20.0
+            vcordsf(54,jj)=20.0
+            vcordsf(55,jj)=20.0
+C           pnm
+            vcordsf(53,jj)=0.0
+C           ps
+            vcordsf(47,jj)=0.0
+C           ts
+            vcordsf(10,jj)=11.5
+C           t-td
+            vcordsf(9 ,jj)=11.5
+            vcordsf(11,jj)=11.5
+         else if ( jj .eq. idtyp .and. list(jj) .eq. 3 ) then
+C            us,vs,ffs,dds
+            vcordsf(12,jj)=10.0
+            vcordsf(13,jj)=10.0
+            vcordsf(54,jj)=10.0
+            vcordsf(55,jj)=10.0
+C           pnm
+            vcordsf(53,jj)=0.0
+C           ps
+            vcordsf(47,jj)=0.0
+C           ts
+            vcordsf(10,jj)=1.5
+C           t-td
+            vcordsf(9, jj)=0.0
+            vcordsf(11, jj)=1.5
+         else if ( jj .eq. idtyp .and. list(jj) .eq. 4 ) then
+C            us,vs,ffs,dds
+            vcordsf(12,jj)=20.0
+            vcordsf(13,jj)=20.0
+            vcordsf(54,jj)=20.0
+            vcordsf(55,jj)=20.0
+C           pnm
+            vcordsf(53,jj)=0.0
+C           ps
+            vcordsf(47,jj)=0.0
+C           ts
+            vcordsf(10,jj)=1.5
+C           t-td
+            vcordsf(9, jj)=0.0
+            vcordsf(11, jj)=1.5
+         else if ( jj .eq. idtyp .and. list(jj) .eq. 5 ) then
+            vcordsf(12,jj)=10.0
+            vcordsf(13,jj)=10.0
+            vcordsf(54,jj)=10.0
+            vcordsf(55,jj)=10.0
+         else
+         endif
+      end do
+c
+c     dd
+c
+      ielistin(1)=NEDD
+      ielistou(1)=NEDS
+c
+c     ff
+C
+      ielistin(2)=NEFF
+      ielistou(2)=NEFS
+c
+c     t-td
+c
+      ielistin(3)=NEES
+      ielistou(3)=NESS
+c
+C     temperature
+c
+      ielistin(4)=NETT
+      ielistou(4)=NETS
+c
+C     eliminate gz from cma
+C
+      ielistin(5)=NEGZ
+      ielistou(5)=12345
+c
+      DO 223 JN=1,KINT
+         do jnel=1,5
+            ilemin=ielistin(jnel)
+            ilemout=ielistou(jnel)
+            CALL GETELE(ilemin,JN,KLIST,ZVAL,ZPROEL,KNELE,KNVAL,KINT,IND1)
+            IF ( (IND1 .NE. -1) ) THEN
+*
+************************************************************************
+*        TRANSFORM ilemin element to ilemout ( surface data only)
+************************************************************************
+*
+            DO 334 JJ=1,KNVAL
+*
+               INDEX1=IND1    + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
+               llmis=(  ZPROEL(JJ) .eq. PPMIS )
+               IF ( .NOT. LLMIS .AND. list(idtyp) .ne. 0) THEN
+Cjud     +              .and. nvcordtyp .eq. 1) THEN
+                  KLIST(IND1)=ilemout
+*
+************************************************************************
+*
+                  ZEL=ZPROEL(JJ)
+*=============================================
+C
+                  ZVAL (INDEX1)=ZEL
+               ENDIF
+C
+*=============================================
+  334       CONTINUE
+*
+            ENDIF
+         end do
+  223 CONTINUE
+C
+C
+1234  format( a16,2x,a9,2x,i3,5(f9.3,2x) )
+      RETURN
+      END

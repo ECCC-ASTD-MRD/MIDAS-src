@@ -1,0 +1,5 @@
+#if defined (DOC) 
+C     COMDECK NAMTEMP
+#endif
+      NAMELIST /NAMTEMP/LTEMP,NJN,NJM,RSCVOR,RSCDIV
+     S    ,RSCTT, RSCQ, RSCPS

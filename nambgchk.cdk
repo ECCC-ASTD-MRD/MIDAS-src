@@ -1,0 +1,8 @@
+#if defined (DOC)
+C*
+C AUTHOR P. Koclas *CMC/MSC
+C
+C      CMODEL,bgccrit - USER SPECIFIED BACKGROUND CHECK PARAMETERS
+C
+#endif
+      NAMELIST /NAMBGCHK/CMODEL,bgccrit

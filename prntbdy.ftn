@@ -1,0 +1,114 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE PRNTBDY(KOBS,KULOUT)
+#if defined (DOC)
+*
+***s/r PRNTBDY  - Print all data records associated with an observation
+*
+*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
+*
+*     . C. Charette *ARMA/AES Mar 1996 : format statement
+*     . C. Charette *ARMA/AES Nov 1999 : Added print of flag NCMASS
+*       JM Belanger CMDA/SMC  Jul 2000
+*                   . 32 bits conversion
+*     . S. Pellerin ARMA, January 2008 : Remove NCMOMN print.
+*
+*Arguments
+*     i   KOBS  : No. of observation
+*     i   KULOUT: unit used for printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "comdimo.cdk"
+#include "comoahdr.cdk"
+#include "comoabdy.cdk"
+#include "comoba.cdk"
+*
+      INTEGER KOBS, KULOUT
+      INTEGER IPNT, IDATA, IDATA2, JDATA
+      CHARACTER*10 ccordtyp(2)
+      ccordtyp(1)='HEIGHT   :'
+      ccordtyp(2)='PRESSURE :'
+C
+C*    1. General information
+C
+      IPNT  = MOBHDR(NCMRLN,KOBS)
+      IDATA = MOBHDR(NCMNLV,KOBS)
+C
+      IF(IDATA.EQ.1) THEN
+         WRITE(KULOUT,FMT=9101)IDATA,KOBS,NCMLBO
+      ELSE
+         WRITE(KULOUT,FMT=9100)IDATA,KOBS,NCMLBO
+      END IF
+ 9100 FORMAT(4x,'THERE ARE ',
+     S     I3,1X,'DATA IN OBSERVATION RECORD NO.'
+     S     ,1X,I6,4X,'DATA RECORD''S LENGTH:',I6)
+ 9101 FORMAT(4x,'THERE IS ',
+     S     I3,1X,'DATA IN OBSERVATION RECORD NO.'
+     S     ,1X,I6,4X,'DATA RECORD''S LENGTH:',I6)
+C
+C*    2. Print all data records
+C
+ 200  CONTINUE
+C
+      DO JDATA = IPNT, IPNT + IDATA - 1
+         IDATA2 = JDATA -IPNT + 1
+         if(MOBDATA(NCMASS,JDATA).eq.1) then
+            WRITE(KULOUT,FMT=9201) IDATA2
+     S           ,MOBDATA(NCMVNM,JDATA),ccordtyp( MOBDATA(NCMVCO,JDATA) )
+     S           ,ROBDATA(NCMPPP,JDATA)
+     S           ,ROBDATA(NCMPRL,JDATA),ROBDATA(NCMPOB,JDATA)
+     S           ,ROBDATA(NCMVAR,JDATA),ROBDATA(NCMOMF,JDATA)
+     S           ,ROBDATA(NCMOMA,JDATA),ROBDATA(NCMOMI,JDATA)
+     S           ,ROBDATA(NCMOER,JDATA)
+     S           ,ROBDATA(NCMRER,JDATA),ROBDATA(NCMFGE,JDATA)
+     S           ,ROBDATA(NCMPER,JDATA),MOBDATA(NCMFLG,JDATA)
+     S           ,MOBDATA(NCMASS,JDATA)
+         end if
+C
+      end do
+C
+ 9201 FORMAT(4X,'DATA NO.',I6,/,10x
+c    S,'VARIABLE NO.:',I6,4X,'PRESSURE LEVEL:',G12.6,4X
+     S,'VARIABLE NO.:',I6,4X,A10,G12.6,4X
+     S     ,'REFERENCE LEVEL PRESSURE:',G12.6,4X
+     S     ,/,33X
+     S     ,'PRESSURE/GEOPOTENTIAL:',G12.6,4X
+     S     ,/,10X
+     S     ,'OBSERVE VALUE:',G23.16,15X,'FIRST-GUESS - OBSERVED VALUE:'
+     S     ,G23.16,4X
+     S     ,/,10X
+     S     ,'ANALYZED - OBSERVED VALUE:',G12.6,4X
+     S     ,'INITIALIZED - OBSERVED VALUE:',G23.16
+     S     ,/,10X
+     S     ,'ERROR STANDARD DEVIATIONS FOR'
+     S     ,/,20X
+     S     ,'OBSERVATION:',G12.6,4X,'REPRESENTATIVENESS:',G12.6,4X
+     S     ,/,20X
+     S     ,'FIRST-GUESS:',G12.6,4X,'PERSISTENCE:',G12.6
+     S     ,/,10X
+     S     ,'BURP FLAGS:',I6,4x,'OBS. ASSIMILATED (1-->YES;0-->NO):',I3)
+C
+      RETURN
+      END
+
+
+

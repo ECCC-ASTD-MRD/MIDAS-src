@@ -1,0 +1,48 @@
+#if defined (DOC)
+!*
+!     COMMON COMOABDY - Pseudo-pointers for the body within
+!     .                 CMA observation arrays
+!     (based on the structure of the CMA files of ECMWF)
+!     Author: D. Vasiljevic
+!
+!     WORD NO./ VARIABLE / TYPE /                MEANING               /
+!     --------  --------   ----                  -------
+!     0         NCMLBO       I     Body length (self-defined)
+!     1         NCMVNM       I     Variable number
+!     2         NCMPPP       R     Pressure (vertical coordinate)
+!     3         NCMPRL       R     Reference level pressure
+!     4         NCMPOB       R/I   Original reported pressure/geopotential
+!                                  and its flags
+!     5         NCMVAR       R     Value of variable
+!     6         NCMOMF       R     Observed - First-Guess value
+!     7         NCMOMA       R     Observed - Analysed Value
+!     8         NCMOMI       R     Observed - Initialised value
+!     9         NCMOMN       R     Posterior Probability of Gross Error
+!     10        NCMOER       R     Observation error standard deviation
+!     11        NCMRER       R     Representativeness error standard deviation
+!     12        NCMFGE       R     First-guess error standard deviation
+!     13        NCMPER       R     Persistence error standard deviation
+!     14        NCMFLG       I     Flags
+!     15        NCMPOS       I     Index pointing to variable's position in gomobs
+!     16        NCMLYR       I     An index pointing to the model level
+!                                  immediately above the variable
+!     17        NCMASS       I     Flag to indicate if variable is assimilated
+!     18        NCMXTR       I     Flag to indicate if variable is outside the
+!                                  vertical domain of the model
+!     19        NCMOBS       I     Observation number (same as in header)
+!     20        NCMLOBS      I     Observation positon with respect to a "full sounding"
+!     21        NCMVCO       I     Type of vertical coordinate
+!     22        NCMPRM       I     (Observed - First-Guess value)', used for non-linear
+!                                  assimilation of radiances
+!
+#endif
+      INTEGER NCMLBO, NCMVNM, NCMPPP, NCMPRL, NCMPOB, NCMVAR
+      INTEGER NCMOMF, NCMOMA, NCMOMI, NCMOMN, NCMOER, NCMRER, NCMFGE
+      INTEGER NCMPER, NCMFLG, NCMPOS, NCMLYR, NCMASS, NCMXTR, NCMOBS
+      INTEGER NCMLOBS,NCMVCO, NCMPRM
+
+      COMMON /COMOABDY/NCMLBO, NCMVNM, NCMPPP, NCMPRL, NCMPOB, NCMVAR
+      COMMON /COMOABDY/NCMOMF, NCMOMA, NCMOMI, NCMOMN, NCMOER, NCMRER 
+      COMMON /COMOABDY/NCMFGE, NCMPER, NCMFLG, NCMPOS, NCMLYR, NCMASS 
+      COMMON /COMOABDY/NCMXTR, NCMOBS,NCMLOBS, NCMVCO, NCMPRM
+

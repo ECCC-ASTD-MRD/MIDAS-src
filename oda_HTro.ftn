@@ -1,0 +1,266 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_HTro
+#if defined (DOC)
+*
+***s/r AVGPSRO - Adjoint of the computation of Jo and
+*                the residuals to the GPSRO observations
+*
+*
+*Author  : J. M. Aparicio Jan 2004
+*Revision : S. Pellerin, ARMA, August 2008
+*              . OpenMP parallel region
+*           S. Pellerin - ARMA - Jan. 2009
+*            - Rename the subroutine acording to ODA naming convention
+*            - Use of NCMOMI as index of adjoint residual variable
+*    -------------------
+**    Purpose:
+*
+*Arguments
+*
+#endif
+      use modgps04profile
+      use modgps06gravity
+      use modgps08refop
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+#include "cvcord.cdk"
+#include "comvarqc.cdk"
+*
+      REAL*8 PJOB, PJOM, PJOX
+      REAL*8 DPJO0(ngpscvmx)
+      REAL*8 DPJOB(ngpscvmx)
+      REAL*8 DPJO1(ngpscvmx)
+C
+      REAL*8 ZTODEG
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8 ZETA(JPNFLEV)
+      REAL*8 BTT(JPNFLEV)
+      REAL*8 BHU(JPNFLEV)
+      REAL*8 BGZ(JPNFLEV)
+      REAL*8 BP0
+      REAL*8 BPT, BPR, BCF
+      REAL*8 BMT
+      REAL*8 DH
+      REAL*8 BIAS
+      REAL*8 HNH1, HSF, HTP
+C
+      REAL*8 ZOBS, ZMHX, ZINC, ZOBI, ZMHXL
+      REAL*8 JAC(ngpscvmx)
+      REAL*8 DX (ngpscvmx)
+C
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JV, JH, NQCVAR, NGPSLEV
+C
+      LOGICAL  ASSIM, LUSE
+
+      INTEGER NH, NH1
+      TYPE(GPSPROFILE)           :: PRF
+      REAL(DP)     , ALLOCATABLE :: H   (:)
+      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+C
+C     * 1.  Initializations
+C     *     ---------------
+C
+      ZTODEG = 180.0 / RPI
+C
+C     *     Eta vector:
+C
+      NGPSLEV=NFLEV
+      DO JL = 1, NFLEV
+        ZETA(JL) = VLEV(JL)
+      ENDDO
+C
+C     * QC VAR
+C
+      IF (LVARQC) THEN
+        NQCVAR = 1
+      ELSE
+        NQCVAR = 0
+      ENDIF
+C
+C
+C     Loop over all files
+C
+      DO JF = 1, NFILES
+C
+C     *  Look only files of type Radio Occultation (RO)
+C
+        IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP  (JF)
+          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = MOBDATA(NCMOBS,ILAST )
+C
+C     *     Loop over all observations of the file
+C
+C
+C$omp parallel do default(shared)
+C$omp+private(dpjo0,idatyp,idata,idatend,assim,nh)
+C$omp+private(jdata,luse,lat,lon,zlat,zlon,jl,btt)
+C$omp+private(bhu,bgz,bp0,bpt,bmt,bpr,bcf,dx,prf)
+C$omp+private(h,rstv,nh1,hnh1,zmhx,zobi,zobs)
+C$omp+private(jac,zmhxl,zinc,dpjo1)
+          DO JO = IBEGINOB, ILASTOB
+            DPJO0 = 0._dp
+C
+C     *        Process only refractivity observations (codtyp 169)
+C
+            IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+            IF ( IDATYP .EQ. 169 ) THEN
+C
+C     *           Loops over data in the observation
+C
+              IDATA   = MOBHDR(NCMRLN,JO)
+              IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+              ASSIM = .FALSE.
+C
+C                 Scan for requested assimilations, and count them
+C
+              NH = 0
+              DO JDATA= IDATA, IDATEND
+                LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                IF ( LUSE ) THEN
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+                ENDIF
+              ENDDO
+C
+C     *           If assimilations are requested, apply the observation
+c operator
+C
+              IF (ASSIM) THEN
+C
+C     *              Profile at the observation location:
+C
+                Lat  = ROBHDR(NCMLAT,JO)
+                Lon  = ROBHDR(NCMLON,JO)
+                ZLAT = ROBHDR(NCMLAT,JO) * ZTODEG
+                ZLON = ROBHDR(NCMLON,JO) * ZTODEG
+                DO JL = 1, NFLEV
+C
+C     *                 Profile x_b
+C
+                  BTT(JL) = GOMTG (JL,JO) - 273.15
+                  BHU(JL) = GOMQG (JL,JO)
+                  BGZ(JL) = GOMGZG(JL,JO)
+                ENDDO
+                BP0 = GOMPSG(1,JO)
+                BPT = RPPOBS(1,JO)
+                BMT = BGZ(NFLEV)/RG
+                BMT = gpsgeopotential(Lat, BMT)/RG
+                BPR = rprefinc
+                BCF = rcoefinc
+C
+C     *              GPS profile structure:
+C
+                CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
+     +               BTT,BHU,BP0,BMT,BPT,BPR,BCF,PRF)
+                call gpsgeo(prf)
+C
+C     *              Prepare the vector of all the observations
+C
+                ALLOCATE( H    (NH) )
+                ALLOCATE( RSTV (NH) )
+                NH1 = 0
+                DO JDATA= IDATA, IDATEND
+                  LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                  IF ( LUSE ) THEN
+                    NH1 = NH1 + 1
+                    HNH1  = ROBDATA8(NCMPPP,JDATA)
+                    H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
+                  ENDIF
+                ENDDO
+C
+C     *              Apply the observation operator
+C
+                CALL GPSREFOPV(H, PRF, RSTV)
+C
+C     *              Perform the (H(xb)DX-Y')/S operation
+C
+                NH1 = 0
+                DO JDATA= IDATA, IDATEND
+                  LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                  IF ( LUSE ) THEN
+                    NH1 = NH1 + 1
+C
+C     *                    Observation operator H(x)
+C
+                    ZMHX = RSTV(NH1)%VAR
+C
+C     *                    Observation increment Y'=Y-H(x)
+C
+                    ZOBI = ROBDATA8(NCMVAR,JDATA)
+C
+C     *                    Observation value    Y
+C
+                    ZOBS = ZMHX + ZOBI
+C
+C     *                    Observation jacobian
+C
+                    JAC = RSTV(NH1)%DVAR
+C
+C     *                    Normalized increment
+C
+                    ZINC = ROBDATA8(NCMOMI,JDATA)
+c                    ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMN,JDATA)
+c     &                   * ROBDATA8(NCMOMA,JDATA)
+C
+C                          O-F Tested criteria:
+C
+                    DPJO1 = ZINC * JAC
+C
+C     *                    Accumulate the gradient of the observation
+C     *                    cost function
+C
+                    DPJO0 = DPJO0 + DPJO1
+
+                  ENDIF
+                ENDDO
+                DEALLOCATE( RSTV )
+                DEALLOCATE( H    )
+              ENDIF
+            ENDIF
+C
+C     *        Store H* (HX - Z)/SIGMA in COMMVO
+C
+            DO JL = 1, NFLEV
+              GOMT(JL,JO) = DPJO0(JL)
+              GOMQ(JL,JO) = DPJO0(JL+NFLEV)
+            ENDDO
+            GOMPS  ( 1,JO) = DPJO0(1+2*NFLEV)
+          ENDDO
+C$omp end parallel do
+        ENDIF
+      ENDDO
+      RETURN
+      END

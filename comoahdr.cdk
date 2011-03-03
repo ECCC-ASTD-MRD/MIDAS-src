@@ -1,0 +1,48 @@
+#if defined (DOC)
+C*
+C     COMMON COMOAHDR - Pseudo-pointers for the header of
+C     .                 CMA observation arrays
+C     (based on the structure of the CMA files of ECMWF)
+C     Author: D. Vasiljevic
+C     Revision: A. Beaulne  CMDA/SMC  June 2006
+C               Addition of word no. 20 to 22
+C
+C     WORD NO./ VARIABLE / TYPE /                MEANING               /
+C     --------  --------   ----                  -------
+C     0         NCMLET       I     Header length (self-defined)
+C     1         NCMRLN       I     Report length
+C     2         NCMONM       I     Observation Number
+C     3         NCMBOX       I     Model Box
+C     4         NCMOTP       I     Observation Type
+C     5         NCMITY       I     Code for Instrument and retrieval type
+C     6         NCMLAT       R     Observation lat. in radians (North positive)
+C     7         NCMLON       R     Observation lon. in radians (East positive)
+C     8         NCMDAT       I     Date and synoptic time of observation
+C                                  (YYYYMMDDHHMM)
+C     9         NCMETM       I     Exact time of observations (HHMM)
+C     10        NCMSID       I     Station identifier
+C     11        NCMALT       R/I   Station altitude
+C     12        NCMNLV       I     Number of data at this location
+C     13        NCMOEC       I     Error correlation type
+C     14        NCMOFL       I     Report Status, events
+C     15        NCMST1       I     Report status (site dependent)
+C     16        NCMTLA       R     Transformed latitude
+C     17        NCMTLO       R     Transformed longitude
+C     18        NCMSI2       I     Station identifier (part2)
+C     19        NCMSI3       I     Station identifier (part3)
+C     20        NCMAZA       I     Satellite azimuthal angle
+C     21        NCMSUN       I     Sun zenith angle
+C     22        NCMCLF       I     Cloud fraction
+
+C
+#endif
+      INTEGER NCMLET, NCMRLN, NCMONM, NCMBOX, NCMOTP, NCMITY, NCMLAT
+      INTEGER NCMLON, NCMDAT, NCMETM, NCMSID, NCMALT, NCMNLV, NCMOEC
+      INTEGER NCMOFL, NCMST1, NCMTLA, NCMTLO, NCMSI2, NCMSI3, NCMAZA
+      INTEGER NCMSUN, NCMCLF
+
+      COMMON /COMOAHDR/NCMLET, NCMRLN, NCMONM, NCMBOX, NCMOTP, NCMITY
+      COMMON /COMOAHDR/NCMLAT, NCMLON, NCMDAT, NCMETM, NCMSID, NCMALT
+      COMMON /COMOAHDR/NCMNLV, NCMOEC, NCMOFL, NCMST1, NCMTLA, NCMTLO
+      COMMON /COMOAHDR/NCMSI2, NCMSI3, NCMAZA, NCMSUN, NCMCLF
+

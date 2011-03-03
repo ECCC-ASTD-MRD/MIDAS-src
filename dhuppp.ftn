@@ -1,0 +1,123 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DHUPPP(CDFAM)
+#if defined (DOC)
+*
+***s/r DHUPPP  - Computation of the residuals of the LQ observations
+*                FOR UPPER AIR DATAFILES
+*
+*Author  : D. ANSELMO (MRB/ARMA) October 2004
+*          (modified copy of DOBSPPP.ftn)
+*Revision:
+*
+**    Purpose: - Computation of the LQ innovations.
+*
+*
+*Arguments
+*     CDFAM: FAMILY OF OBSERVATION
+*
+#endif
+      IMPLICIT NONE
+      CHARACTER *2 CDFAM
+*implicits
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+#include "comfilt.cdk"
+#include "cparbrp.cdk"
+*
+      INTEGER IOBS,IK,IBEGIN,ILAST,IPRES
+      INTEGER J,JDATA
+      REAL*8 ZVAR,ZOER
+      REAL*8 ZWB,ZWT
+      REAL*8 ZLEV,ZPT,ZPB
+      LOGICAL LLOK,LLPRINT
+C
+cc      LLPRINT = .TRUE.
+      LLPRINT = .FALSE.
+C
+      IF (LLPRINT) print*,' ---dhuppp----------------'
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+            IBEGIN=NBEGINTYP(J)
+            ILAST=NENDTYP(J)
+C
+C*    1. Computation of (HX - Z)/SIGMA
+C     .  -----------------------------
+C
+ 100  CONTINUE
+C
+C     Process all data within the domain of the model
+C     Exclude levels above RLIMLVHU as it is done with T-Td in s/r suprep
+C
+            DO JDATA=IBEGIN,ILAST
+              IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHU  .AND.
+     &             MOBDATA(NCMXTR,JDATA) .EQ. 0     .AND.
+     &             MOBDATA(NCMVCO,JDATA) .EQ. 2    ) THEN
+                IPRES= NINT(ROBDATA8(NCMPPP,JDATA))
+                ROBDATA8(NCMOMA,JDATA) = PPMIS
+                IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IK   = ROBDATA(NCMLYR,JDATA)
+                  ZPT  = RPPOBSHR(IK,IOBS)
+                  ZPB  = RPPOBSHR(IK+1,IOBS)
+                  ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+                  ZWT  = 1. - ZWB
+C
+                  ROBDATA8(NCMOMA,JDATA) = ( ZWB*GOMQHR(IK+1,IOBS)
+     +                          + ZWT*GOMQHR(IK,IOBS) - ZVAR ) / ZOER
+
+                  IF ( LLPRINT ) THEN
+                    write(nulout,*)' -------------------------'
+                    write(nulout,*)'   jdata  = ',JDATA
+                    write(nulout,*)'   iobs   = ',IOBS
+                    write(nulout,*)'   zlev   = ',ZLEV
+                    write(nulout,*)'   ik     = ',IK
+                    write(nulout,*)'   zvar   = ',ZVAR
+                    write(nulout,*)'   zoer   = ',ZOER
+                    write(nulout,*)'   gomqhr(ik,iobs) = ',GOMQHR(IK,IOBS)
+                    write(nulout,*)'   gomqhr(ik+1,iobs) = ',GOMQHR(IK+1,IOBS)
+                    write(nulout,*)'   O-P    = ',-ROBDATA8(NCMOMA,JDATA)*ZOER
+                    write(nulout,*)' -------------------------'
+                  ENDIF
+
+                ENDIF
+              ENDIF
+C
+            END DO
+ 200  CONTINUE
+C
+C     Process all upper air data data below model's orography
+C
+C   ..section removed not necessary for LQ -armadan Oct 2004
+c
+ 300  CONTINUE
+C
+      ENDIF
+      END DO
+C--------------------------------------------------------------------
+*
+      RETURN
+      END

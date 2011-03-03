@@ -1,0 +1,138 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine matapat ( pvlev, palpha,knlev )
+C
+*S/R MATAPAT:
+C     CALCULE LES ELEMENTS DE LA MATRICE TRIDIAGONALE ASSOCIEE A LA
+C     SOLUTION PAR UN ALGORITHME DU 4EME ORDRE DE L'EQUATION
+C     T*S**ALPHA=D(P)/DS OU T ET P SONT DEUX FONCTIONS ECHANTILLONNEES
+C     AUX N NIVEAUX SIGMA. LES MATRICES GENEREES ICI SERONT UTILISEES
+C     PAR LES SUBR. VTAP ET VPAT. L'ALGORITHME EST DU A J. COTE.
+C     NOTE: ON CALCULE IMMEDIATEMENT DANS LE COMMON comode
+C           LES COEFFICIENTS GENERES PAR LA REDUCTION GAUSSIENNE
+C           LORS DU CALCUL DE T.
+C
+C AUTHOR: Michel Beland  - RPN AVRIL 1984 - ADAPTE AU MODELE SEF
+C
+C Revision: H. Ritchie - RPN JANVIER 1993 - RECODAGE
+C
+C         : L. Fillion - ARMA - Oct 96 - Adapted for 3DVAR
+C         : L. Fillion - ARMA - 10 mar 99 - Add pps argument
+C           C. Charette - ARMA/SMC - Sep. 2004
+C            - Conversion to hybrid vertical coordinate
+C              Replace argument pps by  pvlev,knlev.
+C              Profile of pressure values is now input rather than
+C              being calculated locally.
+C
+C ARGUMENTS:
+C    I - PVLEV   : PROFILE OF PRESSURE VALUES
+C    I - PALPHA  : EXPOSANT DE SIGMA.
+C    I - KNLEV   : NUMBER OF PRESSURE VALUES
+C              New argument knlev
+C
+C NOTE:
+C     VMA(I),VMB(I),VMC(I): DIAG. INF., PRINC., ET SUP. DE LA MAT.
+C
+C
+      IMPLICIT  NONE
+      integer knlev
+      real*8  palpha, pvlev(knlev)
+c
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comode.cdk"
+C
+*implicits
+      logical llprint
+      INTEGER jl,jlev,im, ilen, ierr
+      REAL*8 ZXM,ZX0,ZXP,ZAA,ZBB,ZEX,ZCC,ZQ(3),ZDD,ZDET
+*modules
+*
+**
+      llprint = .false.
+c
+      DO 20 jlev=1,KNLEV
+      ZX0=PVLEV(jlev)
+      IF (jlev.EQ.1) THEN
+        ZXM=PVLEV(1)
+        ZXP=PVLEV(2)
+        ZAA=PVLEV(3)-ZX0
+        ZBB=PVLEV(2)-ZX0
+      ELSEIF (jlev.EQ.KNLEV) THEN
+        ZXM=PVLEV(KNLEV-1)
+        ZXP=PVLEV(KNLEV)
+        ZAA=PVLEV(KNLEV-1)-ZX0
+        ZBB=PVLEV(KNLEV-2)-ZX0
+      ELSE
+        ZXM=PVLEV(jlev-1)
+        ZXP=PVLEV(jlev+1)
+        ZAA=ZXM-ZX0
+        ZBB=ZXP-ZX0
+      ENDIF
+      DO 10 jl=1,3
+      ZEX=PALPHA+FLOAT(jl)
+        IF(ZEX.NE.0.) ZQ(jl)=(ZXP**ZEX-ZXM**ZEX)/ZEX
+        IF(ZEX.EQ.0.) ZQ(jl)=LOG(ZXP/ZXM)
+   10 CONTINUE
+      ZQ(3)=ZQ(3)-ZX0*(2.0*ZQ(2)-ZX0*ZQ(1))
+      ZQ(2)=ZQ(2)-ZX0*ZQ(1)
+      ZCC=ZAA**2
+      ZDD=ZBB**2
+      ZDET=ZAA*ZDD-ZBB*ZCC
+      VMA(jlev)=(ZDD*ZQ(2)-ZBB*ZQ(3))/(2.0*ZDET)
+      VMC(jlev)=(ZAA*ZQ(3)-ZCC*ZQ(2))/(2.0*ZDET)
+      VMB(jlev)=ZQ(1)/2.0-VMA(jlev)-VMC(jlev)
+   20 CONTINUE
+*
+*     COEFFICIENTS DE L'OPERATEUR INVERSE
+*
+      DO 30 jlev=1,KNLEV
+      VMD(jlev)=VMA(jlev)
+      VME(jlev)=VMB(jlev)
+      VMF(jlev)=VMC(jlev)
+   30 CONTINUE
+*
+      VMD(1)=VMD(1)/VMF(2)
+      VME(1)=VME(1)-VMD(1)*VMD(2)
+      VMF(1)=VMF(1)-VMD(1)*VME(2)
+      VMF(KNLEV)=VMF(KNLEV)/VMD(KNLEV-1)
+      VMD(KNLEV)=VMD(KNLEV)-VMF(KNLEV)*VME(KNLEV-1)
+      VME(KNLEV)=VME(KNLEV)-VMF(KNLEV)*VMF(KNLEV-1)
+      VME(1)=1.0/VME(1)
+      DO 31 jlev=2,KNLEV
+      im=jlev-1
+      VMF(im)=VMF(im)*VME(im)
+   31 VME(jlev)=1.0/(VME(jlev)-VMD(jlev)*VMF(im))
+*
+      if(llprint) then
+        write(nulout,*)' '
+        write(nulout,*)'matapat: vma = ',vma
+        write(nulout,*)' '
+        write(nulout,*)'matapat: vmb = ',vmb
+        write(nulout,*)' '
+        write(nulout,*)'matapat: vmc = ',vmc
+        write(nulout,*)' '
+        write(nulout,*)'matapat: vmd = ',vmd
+        write(nulout,*)' '
+        write(nulout,*)'matapat: vme = ',vme
+        write(nulout,*)' '
+        write(nulout,*)'matapat: vmf = ',vmf
+        write(nulout,*)' '
+      endif
+c
+      RETURN
+      END

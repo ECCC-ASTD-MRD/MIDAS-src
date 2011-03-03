@@ -1,0 +1,49 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,nprof,avhrr_surfem1)
+! choisi l'emissivité d'un canal IASI proche pour AVHRR
+! a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
+use avhrr_var_mod , only : NIR
+implicit none
+integer ,intent(in) :: nchaniasi,nprof
+real (8) ,intent (in) :: iasi_surfem1 ( nchaniasi*nprof )
+real (8) ,intent (in) :: freqiasi( nchaniasi )
+real (8) ,intent (out):: avhrr_surfem1( NIR*nprof )
+!****************************
+real (8),parameter :: freqavhrr(NIR)= (/0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03/)
+INTEGER,save :: indxavhrr(NIR)
+LOGICAL ,SAVE :: FIRST=.true.
+integer :: i,j,k,pos(1)
+!*************************************************************8
+IF (FIRST) THEN
+   DO I=1,NIR
+      pos=minloc ( ABS (freqiasi(:)-freqavhrr(I)) )
+      indxavhrr(i)=pos(1)
+   ENDDO
+   FIRST=.false.
+ENDIF
+
+k=1
+
+DO I=1,nprof
+   DO J=1,NIR
+      avhrr_surfem1(k)=iasi_surfem1((I-1)*nchaniasi + indxavhrr(j) )
+      k=k+1
+   ENDDO
+ENDDO
+
+end subroutine get_avhrr_emiss

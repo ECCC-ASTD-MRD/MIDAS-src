@@ -1,0 +1,96 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      FUNCTION VFSTLIR(fld8, iun, ni, nj, nk, datev, etiket,
+     $                    ip1, ip2, ip3, typvar, nomvar)
+*
+#if defined (DOC)
+*
+***s/r VFSTLIR  -real*8 interface for real*4 function FSTLIR.
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*          S. Pellerin *ARMA/SMC Nov. 2001
+*             . Additionnal return key check
+*
+*Arguments:  See FSTLIR code for documentation
+*    Input:
+*      iun
+*      datev
+*      etiket
+*      ip1
+*      ip2
+*      ip3
+*      typvar
+*      nomvar
+*
+*    Output:
+*      fld8
+*      ni
+*      nj
+*      nk
+*
+#endif
+
+      IMPLICIT NONE
+*implicits
+
+      integer vfstlir
+      real*8 fld8(*)
+      integer iun, ni, nj, nk, datev, ip1, ip2, ip3
+      character*8 etiket
+      character*2 nomvar
+      character*1 typvar
+*
+      integer key1,key2, ierr, ilen, jk1, jk2, jk3, la
+      real buffer4
+      pointer (pxbuffer4,buffer4(*))
+*
+      integer fstluk, fstinf
+      external fstluk, fstinf
+*-----7----------------------------------------------------------------
+
+*     Get field dimensions and allow memory for REAL copy of fld8.
+      key1 = fstinf(iun, ni, nj, nk, datev, etiket,
+     $              ip1, ip2, ip3, typvar, nomvar)
+
+      if(key1 >= 0) then
+        ilen = ni*nj*nk
+        call hpalloc(pxbuffer4,max(1,ilen),ierr,1)
+*     Read field
+        key2 = fstluk(buffer4, key1, ni, nj, nk)
+        if(key2 >= 0) then
+          do jk3 = 1,nk
+            do jk2 = 1,nj
+              do jk1 = 1,ni
+                la=jk1+(jk2-1)*ni+(jk3-1)*ni*nj
+                fld8(la) = buffer4(la)
+              enddo
+            enddo
+          enddo
+        endif
+
+        call hpdeallc(pxbuffer4,ierr,1)
+      endif
+
+      vfstlir=key1
+
+      return
+      end
+
+
+
+

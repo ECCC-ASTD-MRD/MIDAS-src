@@ -1,0 +1,117 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine oda_get_radiance_ad
+#if defined (doc)
+!
+!Purpose:
+!Get the adjoint residual and store it radiance_ad structure
+!
+!author        : Simon Pellerin, ARMA, January 2009
+!                Based on subroutine written by J. Halle
+!
+!revision :      Sylvain Heilliette:
+!               add IASI data (codtyp 186)
+!
+#endif
+  use mod_tovs
+
+  implicit none
+!implicits
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "cvcord.cdk"
+
+  integer :: isens, indxchn, indxtovs
+
+  real*8 zoer, zres
+
+  integer j, i, io, jf
+  integer ibegin, ibeginob, ilast, ilastob
+  integer jo, jdata, idata, idatend, idatyp
+  integer jk, jn, ichn, ichncma, jl, indx
+
+  integer  isrcheq
+  external isrcheq
+  external abort3d
+
+  if(nobtov.eq.0) return    ! exit if there are not tovs data
+
+! loop over all files
+
+  do jf = 1, nfiles
+   if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
+     ibegin   = nbegintyp(jf)
+     ilast    = nendtyp  (jf)
+     ibeginob = mobdata(ncmobs,ibegin)
+     ilastob  = mobdata(ncmobs,ilast )
+     do jo = ibeginob, ilastob
+
+!     .  1.1  Extract general information for this observation point
+!     .       ------------------------------------------------------
+
+!      only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
+
+      idatyp = mod(mobhdr(ncmity,jo),1000)
+      if ( idatyp .eq. 164 .or.  &
+           idatyp .eq. 168 .or.  &
+           idatyp .eq. 180 .or.  &
+           idatyp .eq. 181 .or.  &
+           idatyp .eq. 182 .or.  &
+           idatyp .eq. 183 .or.  &
+           idatyp .eq. 185 .or.  &
+           idatyp .eq. 186          ) then
+
+       indxtovs = ltovsno(jo)
+       if ( indxtovs .eq. 0 ) then
+          write(nulout,fmt=9203)
+9203     format(' tovs_calc_jo_ad: error with indxtovs')
+          call abort3d(nulout,'tovs_calc_jo_ad ')
+       endif
+
+       radiance_ad (indxtovs) % out(:) = 0.
+       if (rttov_errorstatus(indxtovs) .lt. 20   ) then
+         idata   = mobhdr(ncmrln,jo)
+         idatend = mobhdr(ncmnlv,jo) + idata - 1
+         isens = lsensor(indxtovs)
+         do jdata= idata, idatend
+            if ( mobdata(ncmass,jdata).eq.1 ) then
+               ichn = nint(robdata8(ncmppp,jdata))
+               ichn    = max(0,min(ichn,jpch+1))
+               ichncma = max(0,min(ichn,jpch+1))
+               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
+               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+               if ( indxchn .eq. 0 ) then
+                  write(nulout,fmt=9202)
+9202              format(' tovs_calc_jo_ad: error with channel number')
+                  call abort3d(nulout,'tovs_calc_jo_ad  ')
+               endif
+               zres = robdata8(ncmomi,jdata)
+               radiance_ad (indxtovs) % out(indxchn) = zres
+            endif
+         enddo
+       endif
+      endif
+     enddo
+   endif
+  enddo
+
+end subroutine oda_get_radiance_ad

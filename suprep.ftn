@@ -1,0 +1,1068 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUPREP
+#if defined (DOC)
+*
+*s/r SUPREP -FILTER CMA BEFORE 3D-VAR ANALYSIS
+*
+*Author  : P. Koclas *CMC/AES  September 1994
+*Revision:
+*          P. Koclas *CMC/AES  August 1995
+*                    -Exclude  T-Td ABOVE 300 Mbs
+*          P. Koclas *CMC/AES  April 1996
+*                     -print more information on rejected elements
+*                     -set NCMLOBS
+*                     -replace comstat by comtstato
+*          C.Charette *ARMA/AES Jan 1997
+*                     -remove readnml. remove default values
+*                      now done in suobs.ftn
+*          S. Pellerin *ARMA/AES Sept 97.
+*                     -Control of the different model state of the 3Dvar
+*                      through COMSTATE, COMSTATEC and COMSTNUM common
+*                      blocks variables (comstate.cdk).
+*          C. Charette *ARMA/AES Oct 98.
+*                     -Adapt code to the fact that pressure coordinate
+*                      is in Pascal instead of Millibar in the CMA
+*          J. Halle    *CMDA/AES Oct 1999
+*                     -processing of TOVS data
+*          P. KOCLAS   *CMC/CMDA JAN 2000
+*                     -PRINT REJECT DATA IN MORE DETAIL
+*          C. Charette *ARMA/AES Jun 2000.
+*                     -Added pointers and tables for surface elements
+*          J. Halle    *CMC/CMDA Dec 2000
+*                     - TOVS level 1B data.
+*          JM Belanger *CMDA/SMC june 2001.
+*                     - 32 bits conversion.
+*          P. KOCLAS  *cmda Sept 2001 .
+*                        -changes to loops that set NCMLOBS PARAMETER
+*                        -allow bogus gz data to analysis ( conf =141)
+*          S. Pellerin *ARMA/SMC Nov. 2001
+*                     - Comment out conflicting ikout* unit
+*          C. Charette *ARMA/SMC Feb. 2002
+*                     - Removed conflicting ikout* unit
+*          J. Halle    *CMDA/SMC May 2002
+*                     - allow T-Td observations up to 70mbs.
+*                     - adapt to RTTOV-7
+*          N. Wagneur  *CMDA/MSC June 2002
+*                     -processing of GOES data
+*          J. Halle  *CMDA/SMC april 2003
+*                     -use RLIMLVHU, which is the top level of humidity analysis (mbs).
+*          C. Charette - ARMA/SMC - Jun. 2003
+*                - Conversion to hybrid vertical coordinate
+*          JM Belanger *CMDA/SMC* Feb 2004
+*                     - Introducing Quikscat surface wind vectors.
+*          D. Anselmo *ARMA/SMC October 2004
+*                     -set NCMASS to exclude assimilation of RAOBS and surface ln q
+*                      added to CMA by estohu.ftn
+*                     -define NCMPOS for ln q, ln q at surface
+*          J. Halle  *CMDA/SMC Sept. 2005
+*                     -added codtyp=182 (MHS).
+*          J. Halle  *CMDA/SMC May  2006
+*                     -adapt to RTTOV-8, by removing check of validity of channel.
+*          A. Beaulne *CMDA/SMC July 2006
+*                      -added codtyp=183 (AIRS)
+*                      -added flag -8 to CREASON
+*          J.M. Aparicio *ARMA/MSC* October 2006
+*                      - Adapt for GPSRO
+*          L. Fillion *ARMA/MSC- 4 Feb 2004 - On v9_5_0 - 24 Apr 2006 - On v10_0_0
+*                     - For Limited-Area option:
+*                       Put (x,y) grid-location of obs into ROBHDR for later use by gd2mvo_la
+*                     - 15 Aug 2007 - Update lam4d to v_10_0_3.
+*          A. Beaulne *CMDA/SMC July 2007
+*                      - add possibility for one channel assimilation for tovs
+*          S. Macpherson  *ARMA/MRD  Sept. 2007
+*                     -added ground-based GPS data
+*          R. Sarrazin CMDA April 2008
+*                      - add idatyp 185
+*          S. Heilliette
+*                      - add idatyp 186
+*          L. Fillion *ARMA/EC- 24 Apr 2008 - Update lam4d to v_10_1_0.
+*          L. Fillion *ARMA/EC- 24 Jan 2009 - Update lam4d to v_10_2_1.
+*          P. Koclas *CMDA/     Jan 2009
+*           remove  search for element 15036 in case of gps data(element
+*           must now be specified in namelist like all other elements)
+*          L. Fillion *ARMA/EC- 7 Oct 2009 - Include Rotated global Gaussian grid option.
+*          L. Fillion *ARMA/EC- 4 May 2010 - Update on v_11_01_2B.
+*
+**    Purpose:
+*             -Select the data in the CMA file which is to be
+C assimilated
+*              by the 3D-var.
+*             -Set "NCMPOS" of CMA as pointers to U V and T of GOMOBS
+*             -Set "Transformed latitude" with ISRCHILA
+*             -Set NCMLOBS: RELATIVE POSTION OF DATA WITH RESPECT TO A
+*                 FULL SOUNDING.   (Dependent on data family)
+*
+*Arguments
+*     none
+*
+#endif
+
+      Use mod_tovs
+      use glbspec_mod
+
+      IMPLICIT NONE
+*implicits
+*
+#include "comct0.cdk"
+#include "comcva.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comnumbr.cdk"
+#include "cparbrp.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "comfilt.cdk"
+#include "comstato.cdk"
+#include "cvcord.cdk"
+#include "pardim.cdk"
+#include "comgem.cdk"
+#include "comcst.cdk"
+#include "comstate.cdk"
+#include "comtovst.cdk"
+#include "comvfiles.cdk"
+#include "cparamgoes.cdk"
+#include "comgoes.cdk"
+#include "comgoesst.cdk"
+#include "com1chn.cdk"
+#include "comgpsgb.cdk"
+#include "comgrd_param.cdk"
+#include "comgrd.cdk"
+#include "comgdpar.cdk"
+#include "comgemla.cdk"
+#include "comsim.cdk"
+
+C
+C  .......  DEFINITION OF A FEW BUFR ELEMENTS ..........................
+C ....
+C           NAME                          BUFR CODE
+C           HEIGHT                         0 10 194
+C           TEMPERATURE                    0 12 001
+C           TEMPERATURE  AT 2M             0 12 004
+C           T - TD                         0 12 192
+C           T - TD AT 2M                   0 12 203
+C           WIND DIRECTION                 0 11 001
+C           WIND SPEED                     0 11 002
+C           U-COMPONENT                    0 11 003
+C           V-COMPONENT                    0 11 004
+C           WIND DIRECTION AT 10M          0 11 011
+C           WIND SPEED     AT 10M          0 11 012
+C           U-COMPONENT    AT 10M          0 11 215
+C           V-COMPONENT    AT 10M          0 11 216
+C           PRESSURE                       0 07 004
+C           MSL PRESSURE                   0 10 051
+C           STATION PRESSURE               0 10 004
+C           BRIGHTNESS TEMPERATURE         0 12 062
+C           BRIGHTNESS TEMPERATURE         0 12 063
+C           BRIGHTNESS TEMPERATURE         0 12 163
+C           GPS ZENITH TROPOSPHERIC DELAY  0 15 031
+C           GPS ZTD ERROR                  0 15 032
+C
+C  ........ Quality control flags bit definitions (see ADE BANCO
+C document)
+C           BIT #
+C                1  'RESERVED    '
+C                2  'RESERVED    '
+C                3  'GENERATED OI'
+C                4  'REJECTION OI'
+C                5  'BLACK LIST  '
+C                6  'RESERVED    '
+C                7  'RESERVED    '
+C                8  'INTERPOL  EL'
+C                9  'DOUBTFUL  EL'
+C               10  'MODIFIED  EL'
+C               11  'CLIMAT  XTRM'
+C               12  'ERRONEOUS EL'
+C               13  'RESERVED    '
+C
+      REAL zlat_4,zlon_4,zx,zy
+      REAL*8 ZZLAT, ZLON, ZLEV, ZVAR
+      REAL*8 ZLAT, GPH
+      REAL*8 DLLAO,dlloo,zdlon
+      INTEGER IZLEV,IZP1,IZXI
+      CHARACTER*2 CLFAM,CLFAMSAV
+      CHARACTER*8 CLFILNAM
+      CHARACTER*35 CREASON(-8:13)
+      CHARACTER*80 CELLIST,CSFLIST
+      INTEGER IOBS,IDATYP,IVCO
+      INTEGER ILA,ISRCHILA,IPRES,IPRESMB
+      INTEGER IERR, JD,JDATA,JO,JJO,JK,J
+      INTEGER IJ,ITY,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT,IBEGIN,ILAST
+      INTEGER IDATA,IDATEND,FNOM,FCLOS
+      INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,ICHN
+      INTEGER INDXSAT,ISAT,INDCH,INDXM
+      integer index,ibin(17),IBINS,isum,INIV(17)
+      LOGICAL LLOK,LLREJ,LLEV,LLBOGUS
+      INTEGER ISRCHEQ
+      EXTERNAL ISRCHEQ
+C
+      INTEGER IKNTDSA,IKNTFSA,IKNTUSA,IKNTVSA,IKNTTSA,IKNTESSA,IKNTPSA
+     &     ,IKNTPNA,IKNTZDA
+      INTEGER IKNTDSR,IKNTFSR,IKNTUSR,IKNTVSR,IKNTTSR,IKNTESSR,IKNTPSR
+     &     ,IKNTPNR,IKNTZDR
+      INTEGER IKNTFFR(17),IKNTDDR(17),IKNTUR(17),IKNTVR(17),IKNTZR(17)
+     &     ,IKNTTR(17),IKNTER(17),IKNTDR(17),IKNTOR(17),IKNTBTR(17)
+      INTEGER IKNTFFA(17),IKNTDDA(17),IKNTUA(17),IKNTVA(17),IKNTZA(17)
+     &     ,IKNTTA(17),IKNTEA(17),IKNTDA(17),IKNTOA(17),IKNTBTA(17)
+      DATA INIV/1000,925,850,700,500,400,300,250,200,150,100,070,050,
+     &     030,020,010,000/
+      DATA CREASON/'JACOBIAN IMPORTANT ABOVE MODEL TOP','ABS OROGRAPH-PHI ','MASQUE TERRE-MER '
+     &     ,'OROGRAPHIE       ','REJECTED BY QCVAR     '
+     &     ,'REJECTED BY BACKGROUND GCHECK '
+     &     ,'BACKGROUND CHECK  LEVEL 3 ','BACKGROUND CHECK  LEVEL 2 '
+     &     ,'BACKGROUND GHECK  LEVEL 1 ','RESERVED    '
+     &     ,'REJECTED BY SELECTION PROCESS ','GENERATED BY OI  '
+     &     ,'REJECTION BY  OI','ELEMENT ON BLACK LIST  ','RESERVED    '
+     &     ,'CORRECTED ELEMENT','INTERPOLATED ELEMENT'
+     &     ,'DOUBTFUL ELEMENT','POSSIBLY ERRONEOUS ELEMENT '
+     &     ,'ERRONEOUS ELEMENT','ELEMENT EXCEEDS CLIMATE EXTREME'
+     &     ,'ELEMENT MODIFIED OR GEN BY  ADE'/
+!
+      character*1 clgr, ctyp, cltypvar
+      character*2 cnom
+      character*8 cetiket,cletiket
+      integer idatet,idt,ipas,ibits,idtyp,ip1,ip2,ip3,
+     &        iswa,ilng,idltf,iubc,ix1,ix2,ix3
+      integer igdid,ier,ikey,ji,jj,ilatrot
+      INTEGER FSTOUV,NUMBLKS,fstinf,fstluk,fstprm
+      INTEGER ezgdef_fmem,gdxyfll,ezqkdef
+      integer ig1,ig2,ig3,ig4,ini,inj,ink
+      integer ig1tic,ig2tic,ig3tic,ig4tic 
+!
+      real zlat1,zlon1,zlat2,zlon2   ! for Lam4d
+      real zlatdeg,zlondeg,zlatransf,zlotransf   ! for Lam4d
+      real ax(ni),ay(nj)
+      real zgrdx4(ni),zgrdy4(nj)
+      real zxlon1_4,zxlat1_4,zxlon2_4,zxlat2_4
+      real znjp1
+      real*8 zlatrot 
+!-----------------------------------------------------------------------
+!!
+      znjp1 = real(nj+1)
+!
+      DO JK=1,17
+        IKNTFFR(JK)=0
+        IKNTDDR(JK)=0
+        IKNTUR(JK)=0
+        IKNTVR(JK)=0
+        IKNTZR(JK)=0
+        IKNTTR(JK)=0
+        IKNTER(JK)=0
+        IKNTDR(JK)=0
+        IKNTOR(JK)=0
+        IKNTBTR(JK)=0
+C
+        IKNTFFA(JK)=0
+        IKNTDDA(JK)=0
+        IKNTUA(JK)=0
+        IKNTVA(JK)=0
+        IKNTZA(JK)=0
+        IKNTTA(JK)=0
+        IKNTEA(JK)=0
+        IKNTDA(JK)=0
+        IKNTOA(JK)=0
+        IKNTBTA(JK)=0
+        IBIN(JK)=0.
+      ENDDO
+      IKNTDSA =0
+      IKNTFSA =0
+      IKNTUSA =0
+      IKNTVSA =0
+      IKNTTSA =0
+      IKNTESSA=0
+      IKNTPSA =0
+      IKNTPNA =0
+      IKNTZDA =0
+C
+      IKNTDSR =0
+      IKNTFSR =0
+      IKNTUSR =0
+      IKNTVSR =0
+      IKNTTSR =0
+      IKNTESSR=0
+      IKNTPSR =0
+      IKNTPNR =0
+      IKNTZDR =0
+      IBINS   =0
+C
+      WRITE(NULOUT,'(1X,"SUBROUTINE SUPREP")')
+      WRITE(NULOUT,'(1X,"-----------------",/)')
+      WRITE(NULOUT,'(1X,"***********************************")')
+      WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
+      WRITE(NULOUT,'(1X,"***********************************")')
+      DO JD=1,NELEMS
+        WRITE(NULOUT,'(15X,I5,/)') NLIST(JD)
+      END DO
+      WRITE(NULOUT,'(1X,"***********************************")')
+      WRITE(NULOUT,*) ' REJECT ELEMENTS WITH REJECT FLAG '
+      WRITE(NULOUT,*)'           BIT :  '
+      DO JD=1,NFLAGS
+        IBIT= NLISTFLG(JD)
+        WRITE(NULOUT,*) IBIT,' ',CREASON(IBIT)
+      END DO
+      WRITE(NULOUT,'(1X,"***********************************")')
+C
+ 100  CONTINUE
+C
+C     2. Put observation number in each data of CMA file. Find
+C     largest number of data contained in any observation(NMAXLEN).
+C
+C     Displace observations located between poles and the last row
+C     of the grid being used to the last row when cvcord not equal to MAM.
+C     For MAM the wind observations are removed.
+
+!
+! 2.1 Set EZ parameters before obs looping and using gdxyfll function
+!
+      if(grd_typ.eq.'LU') then
+        do ji=1,ni
+          zgrdx4(ji)=rlon_an(ji,1)*rrad2deg
+!          write(nulout,*) 'suprep: ji,zgrdx4(ji)=',ji,zgrdx4(ji)
+        enddo
+        do jj=1,nj
+          zgrdy4(jj)=rlat_an(1,jj)*rrad2deg
+!          write(nulout,*) 'suprep: jj,zgrdy4(jj)=',jj,zgrdy4(jj)
+        enddo
+        igdid= ezgdef_fmem(ni,nj,'Z','E',mig1tic, mig2tic,mig3tic,
+     &                     mig4tic,zgrdx4,zgrdy4)
+!        write(nulout,*) 'suprep: ezgdef_fmem: igdid = ',igdid
+!     
+       else if(grd_typ.eq.'GU'.and.grd_roule) then
+!     
+         zxlon1_4 = grd_xlon1
+         zxlat1_4 = grd_xlat1
+         zxlon2_4 = grd_xlon2
+         zxlat2_4 = grd_xlat2
+         write(nulout,*) 'suprep: 1: zxlon1_4 =',zxlon1_4
+         write(nulout,*) 'suprep: 1: zxlat1_4 =',zxlat1_4
+         write(nulout,*) 'suprep: 1: zxlon2_4 =',zxlon2_4
+         write(nulout,*) 'suprep: 1: zxlat2_4 =',zxlat2_4
+!     
+         do ji=1,ni
+           ax(ji)=grd_x_8(ji)
+         enddo
+         do jj=1,nj
+           ay(jj)=grd_y_8(jj)
+         enddo
+!
+        call cxgaig('E',ig1tic,ig2tic,ig3tic,ig4tic,
+     &              zxlat1_4,zxlon1_4,zxlat2_4,zxlon2_4)
+!
+        call cigaxg('E', zxlat1_4, zxlon1_4, zxlat2_4, zxlon2_4,
+     &              ig1tic,ig2tic,ig3tic,ig4tic)
+!
+        write(nulout,*) 'suprep: 2: zxlon1_4 =',zxlon1_4
+        write(nulout,*) 'suprep: 2: zxlat1_4 =',zxlat1_4
+        write(nulout,*) 'suprep: 2: zxlon2_4 =',zxlon2_4
+        write(nulout,*) 'suprep: 2: zxlat2_4 =',zxlat2_4
+!
+        igdid = ezgdef_fmem(ni,nj,'Z','E',ig1tic, ig2tic,ig3tic,ig4tic,
+     &                     ax,ay)
+       endif
+!
+      IF (CVCORD(1:3).NE.'MAM') THEN
+        if(Grd_typ.ne.'LU') then
+          DO JO  = 1, NOBTOT
+            ZLAT    = ROBHDR(NCMLAT,JO)
+            IF(ZLAT .GT. gst_RLATI(1)) THEN
+              ROBHDR(NCMLAT,JO) = gst_RLATI(1)
+            ELSEIF(ZLAT .LT. gst_RLATI(NJ)) THEN
+              ROBHDR(NCMLAT,JO) = gst_RLATI(NJ)
+            ENDIF
+          END DO
+        endif
+      ENDIF
+C
+      IJ=0
+      NMAXLEN=0
+      DO JJO = 1, NOBTOT
+        IDATA   = MOBHDR(NCMRLN,JJO)
+        IDATEND = MOBHDR(NCMNLV,JJO) + IDATA - 1
+        NMAXLEN = MAX( MOBHDR(NCMNLV,JJO),NMAXLEN )
+        DO JDATA= IDATA, IDATEND
+          IJ   = IJ+1
+          MOBDATA(NCMOBS,IJ)= JJO
+          if(nobtot.eq.1) write(nulout,*) 'suprep: IJ,MOBDATA(NCMOBS,IJ)=',IJ,MOBDATA(NCMOBS,IJ)
+        END DO
+C
+        DLLAO=DBLE(ROBHDR(NCMLAT,JJO))
+        DLLOO=DBLE(ROBHDR(NCMLON,JJO))
+!
+        if(grd_typ.eq.'GU') then
+          if(grd_roule) then
+            zlat=rrad2deg*dllao
+            zlon=rrad2deg*dlloo  
+            zlat_4=zlat
+            zlon_4=zlon
+            if(JJO.eq.1) then
+              write(nulout,*) 'suprep: JJO,zlat_4, zlon_4=',
+     &                JJO,zlat_4, zlon_4
+            endif
+            ier = gdxyfll(igdid,zx,zy,zlat_4,zlon_4,1) ! Input (lat,lon) must be real earth (lat,lon)!!!
+            if(jjo.eq.1) then
+              write(nulout,*) 'suprep: zx, zy = ',zx,zy
+            endif
+!
+            if((znjp1-zy).le.0.) then
+              call abort3d(nulout,'suprep: real(nj+1)-zy).le.0.')
+            endif
+            robhdr(ncmtla,jjo)=znjp1-zy  ! i.e. x-y coordinates of Obs on transformed sphere ready for later interpolation
+            robhdr(ncmtlo,jjo)=zx
+            if(jjo.eq.1) then
+              write(nulout,*) 'suprep: robhdr(ncmtla,jjo)=',robhdr(ncmtla,jjo)
+              write(nulout,*) 'suprep: robhdr(ncmtlo,jjo)=',robhdr(ncmtlo,jjo)
+            endif
+            ILA = int(znjp1-zy) - 1
+            if(JJO.eq.1) then
+              mxlocobs = int(zx)
+              mylocobs = int(znjp1-zy)
+              write(nulout,*) 'suprep: JJO,robhdr(ncmtla,jjo)=',
+     &           JJO,robhdr(ncmtla,jjo)
+              write(nulout,*) 'suprep: JJO,robhdr(ncmtlo,jjo)=',
+     &           JJO,robhdr(ncmtlo,jjo)
+              write(nulout,*) 'suprep: mxlocobs = ',mxlocobs
+              write(nulout,*) 'suprep: mylocobs = ',mylocobs
+            endif
+          else
+            ILA = ISRCHILA (DLLAO)
+            MOBHDR(NCMTLA,JJO)=ILA
+          endif
+        else
+          zlat=rrad2deg*dllao
+          zlon=rrad2deg*dlloo
+          zlat_4=zlat
+          zlon_4=zlon
+          if(JJO.eq.1) then
+            write(nulout,*) 'suprep: JJO,zlat_4, zlon_4=',
+     &              JJO,zlat_4, zlon_4
+          endif
+          ier = gdxyfll(igdid,zx,zy,zlat_4,zlon_4,1) ! Input (lat,lon) must be real earth (lat,lon)!!!
+!
+          robhdr(ncmtla,jjo)=zy  ! i.e. x-y coordinates of Obs on transformed sphere ready for later interpolation
+          robhdr(ncmtlo,jjo)=zx
+          if(JJO.eq.1) then
+            mxlocobs = int(zx)
+            mylocobs = int(zy)
+            write(nulout,*) 'suprep: JJO,robhdr(ncmtla,jjo)=',
+     &         JJO,robhdr(ncmtla,jjo)
+            write(nulout,*) 'suprep: JJO,robhdr(ncmtlo,jjo)=',
+     &         JJO,robhdr(ncmtlo,jjo)
+            write(nulout,*) 'suprep: mxlocobs = ',mxlocobs
+            write(nulout,*) 'suprep: mylocobs = ',mylocobs
+          endif
+        endif
+      END DO
+C
+ 200  CONTINUE
+C
+C     3. filter data in CMA file
+C     .  -----------------------
+      IKNT=0
+      CLFAMSAV=CFAMTYP(1)
+      CELLIST
+     &     ='    FF      DD      UU      VV      GZ      TT      ES      DZ      OZ  '
+      CSFLIST
+     &     ='    FS      DS      US     VS      TS      ES      PS      PN      ZD  '
+C
+      DO J = 1,NFILES
+        CLFILNAM='KOUNTR'//CFAMTYP(J)
+        IF (  NBEGINTYP(J) .GT. 0)  THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+          CLFAMSAV =CFAMTYP(J)
+C
+          DO JK=1,17
+            IKNTFFR(JK)=0
+            IKNTDDR(JK)=0
+            IKNTUR(JK)=0
+            IKNTVR(JK)=0
+            IKNTZR(JK)=0
+            IKNTTR(JK)=0
+            IKNTER(JK)=0
+            IKNTDR(JK)=0
+            IKNTOR(JK)=0
+            IKNTBTR(JK)=0
+            IKNTFFA(JK)=0
+            IKNTDDA(JK)=0
+            IKNTUA(JK)=0
+            IKNTVA(JK)=0
+            IKNTZA(JK)=0
+            IKNTTA(JK)=0
+            IKNTEA(JK)=0
+            IKNTDA(JK)=0
+            IKNTOA(JK)=0
+            IKNTBTA(JK)=0
+          END DO
+          IKNTDSA =0
+          IKNTFSA =0
+          IKNTUSA =0
+          IKNTVSA =0
+          IKNTTSA =0
+          IKNTESSA=0
+          IKNTPSA =0
+          IKNTPNA =0
+          IKNTZDA =0
+C
+          IKNTDSR =0
+          IKNTFSR =0
+          IKNTUSR =0
+          IKNTVSR =0
+          IKNTTSR =0
+          IKNTESSR=0
+          IKNTPSR =0
+          IKNTPNR =0
+          IKNTZDR =0
+C
+          DO JDATA=IBEGIN,ILAST
+            ITYP = MOBDATA(NCMVNM,JDATA)
+            IFLG = MOBDATA(NCMFLG,JDATA)
+            IPRES= NINT(ROBDATA8(NCMPPP,JDATA))
+            IOBS = MOBDATA(NCMOBS,JDATA)
+            IVCO = MOBDATA(NCMVCO,JDATA)
+            ITY=MOBHDR(NCMITY,IOBS)
+            IDBURP=MOD(ITY,1000)
+C
+C     a. Unwanted data types via types specified in NLIST
+C
+            LLEV=.TRUE.
+            LLOK = .FALSE.
+            LLBOGUS=(IDBURP .eq. 150 .or. IDBURP .eq. 151 .or. IDBURP
+     &           .eq. 152 .or. IDBURP .eq. 153)
+            DO JD =1,NELEMS
+              LLOK=( (ITYP .EQ. NLIST(JD)) .AND. LLEV )  .OR. LLOK
+            END DO
+*
+*pik       ALLOW GZ FOR BOGUS DATA ONLY in analysis case ( nconf 141)
+*
+            if  ( nconf .eq. 141 .and. llok .and. (ityp .eq. negz) .and.
+     &           .not. llbogus  ) then
+              llok=.false.
+            endif
+*
+*pik
+*
+C
+C           For GPS Radio Occultation data (codtyp 169):
+C           Allow only refractivity observations (ITYP=15036)
+C
+            IF ( IDBURP .EQ. 169 ) THEN
+C
+C     *        Only refractivity data:
+C
+Cpik           IF ( ITYP .EQ. 15036) THEN
+Cpik              LLOK = .TRUE.
+Cpik           ELSE
+Cpik              LLOK = .FALSE.
+Cpik           ENDIF
+C
+C     *        Only heights between 0 and 80000 m:
+C
+               GPH = ROBDATA8(NCMPPP,JDATA)
+               IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
+                  LLOK = .FALSE.
+               ENDIF
+            ENDIF
+C
+C           Ground-based GPS (GP) data (codtyp 189)
+C           LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
+C           Don't want to assimilate ZTD error (NEFE).
+C           If LASSMET = .FALSE. don't want to assimilate Ps (NEPS),
+C           Ts (NETS), or (T-Td)s (NESS)
+C
+            IF ( IDBURP .EQ. 189 ) THEN
+               IF (ITYP .EQ. NEFE) THEN
+                  LLOK = .FALSE.
+               ENDIF
+               IF (.NOT.LASSMET .AND. (ITYP .EQ. NEPS .OR.
+     +              ITYP .EQ. NETS .OR. ITYP .EQ. NESS)) THEN
+                  LLOK = .FALSE.
+               ENDIF
+            ENDIF
+C
+C        Process data reported in pressure coordinate
+            IF (IVCO .EQ. 2 ) THEN
+C
+C     b. Exclude T-Td above level RLIMLVHU (mbs)
+C
+              IF ( (ITYP  .EQ. NEES) .AND.
+     &             (IPRES .LT. NINT(RLIMLVHU*100)) ) LLOK=.FALSE.
+C
+C     c. Bad data with quality control flags via bit list
+C        specified in NLISTFLG
+C
+              IPRESMB=ipres/100
+              if ( IPRESMB .gt. INIV(1) ) then
+                index=1
+              else if (  IPRESMB.le.INIV(1) .and. IPRESMB.gt.INIV(2)
+     &               )then
+                index=1
+              else if (  IPRESMB.le.INIV(2) .and. IPRESMB.gt.INIV(3)
+     &               )then
+                index=2
+              else if (  IPRESMB.le.INIV(3) .and. IPRESMB.gt.INIV(4)
+     &               )then
+                index=3
+              else if (  IPRESMB.le.INIV(4) .and. IPRESMB.gt.INIV(5)
+     &               )then
+                index=4
+              else if (  IPRESMB.le.INIV(5) .and. IPRESMB.gt.INIV(6)
+     &               )then
+                index=5
+              else if (  IPRESMB.le.INIV(6) .and. IPRESMB.gt.INIV(7)
+     &               )then
+                index=6
+              else if (  IPRESMB.le.INIV(7) .and. IPRESMB.gt.INIV(8)
+     &               )then
+                index=7
+              else if (  IPRESMB.le.INIV(8) .and. IPRESMB.gt.INIV(9)
+     &               )then
+                index=8
+              else if (  IPRESMB.le.INIV(9) .and. IPRESMB.gt.INIV(10)
+     &               )then
+                index=9
+              else if (  IPRESMB.le.INIV(10) .and. IPRESMB.gt.INIV(11)
+     &               )then
+                index=10
+              else if (  IPRESMB.le.INIV(11) .and. IPRESMB.gt.INIV(12)
+     &               )then
+                index=11
+              else if (  IPRESMB.le.INIV(12) .and. IPRESMB.gt.INIV(13)
+     &               )then
+                index=12
+              else if (  IPRESMB.le.INIV(13) .and. IPRESMB.gt.INIV(14)
+     &               )then
+                index=13
+              else if (  IPRESMB.le.INIV(14) .and. IPRESMB.gt.INIV(15)
+     &               )then
+                index=14
+              else if (  IPRESMB.le.INIV(15) .and. IPRESMB.gt.INIV(16)
+     &               )then
+                index=15
+              else
+                index=16
+              endif
+              ibin(index)=ibin(index) +1
+            ENDIF
+C
+C      Check rejection bit in datum's FLAG
+C
+            LLREJ = .FALSE.
+            DO JD=1,NFLAGS
+              IBAD= 13-NLISTFLG(JD)
+              LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
+            END DO
+C
+C     d. Filter TOVS data
+C
+            ITYP = MOBDATA(NCMVNM,JDATA)
+            IF ( ITYP .EQ. NBT1 .OR.
+     S           ITYP .EQ. NBT2 .OR.
+     S           ITYP .EQ. NBT3 .AND.
+     S          (IDATYP .EQ. 164 .OR.
+     S           IDATYP .EQ. 181 .OR.
+     S           IDATYP .EQ. 182 .OR.
+     S           IDATYP .EQ. 183 .OR.
+     S           IDATYP .EQ. 185 .OR.
+     S           IDATYP .EQ. 186     )   ) THEN
+C
+C        d.1 Valid channel?
+C
+C           ... channel validity check removed, jh may  2006 ....
+C
+C        d.2 Data from this satellite to be assimilated?
+C
+C             .....this check not done anymore, jh may 2002....
+C
+C        d.3 Invalid land/sea/sea-ice flag, processing technique
+C
+              ILANSEA  = MOBHDR(NCMOFL,IOBS)
+              INDXM = ILANSEA
+              IF (INDXM .EQ. 2 ) INDXM = 0
+              INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
+              IPROCES  = MOBHDR(NCMITY,IOBS)/1000000
+              INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
+              IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
+                LLOK = .FALSE.
+              ENDIF
+C
+C        d.4 Channel not included in list of channels to
+C            be assimilated
+C
+C             .....this check not done anymore, jh may 2002....
+C
+C        d.5 Activation of single channel assimilation
+C
+              IF (LONECHN) THEN
+                ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+                ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                IF ( IDATYP .EQ. NONECODTYP .AND. ICHN .EQ. NONECHN ) THEN
+                  LLOK = .TRUE.
+                ELSE IF ( IDATYP .EQ. NONECODTYP .AND. ICHN. NE. NONECHN ) THEN
+                  LLOK = .FALSE.
+                END IF
+              END IF
+
+            ENDIF
+C
+C
+C     e. Filter GOES data
+C
+            ITYP   = MOBDATA(NCMVNM,JDATA)
+            IDATYP = MOD(MOBHDR(NCMITY,IOBS),1000)
+            IF (     ITYP .EQ. NBT1
+     S          .OR. ITYP .EQ. NBT2
+     S          .OR. ITYP .EQ. NBT3
+     S          .AND. IDATYP .EQ. 180 )  THEN
+C
+C        e.1 Valid channel?
+C
+              ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+              IF ( ICHN .LE. 0    .OR.
+     S             ICHN .GT. JPCHGO      ) THEN
+                LLOK = .FALSE.
+              ENDIF
+C
+C        e.2 Data from this satellite to be assimilated?
+C
+              ISAT    = MOD(MOBHDR(NCMITY,IOBS)/1000,1000)
+              ISAT    = ISAT-244
+              INDXSAT = ISRCHEQ(NIDSATGO,NSATGO,ISAT)
+              IF ( INDXSAT .EQ. 0 ) THEN
+                  LLOK = .FALSE.
+              ENDIF
+C
+C
+C
+C        e.3 Invalid land/sea flag
+C   A modifier selon le canal
+C
+              ILANSEA  = MOBHDR(NCMOFL,IOBS)
+              INDXREG  = ISRCHEQ(MLISREGGO,NREGSTGO,ILANSEA)
+              IPROCES  = MOBHDR(NCMITY,IOBS)/1000000
+              INDXCLD  = ISRCHEQ(MLISCLDGO,NCLDSTGO,IPROCES)
+C
+C        e.4 Channel not included in list of channels to
+C            be assimilated
+              IF (LLOK) THEN
+                 INDCH=ISRCHEQ(MLISCHNAGO(1,INDXCLD,INDXREG,INDXSAT),
+     S                          NCHNAGO(INDXCLD,INDXREG,INDXSAT),ICHN)
+                IF ( INDCH .EQ. 0 ) THEN
+                  LLOK = .FALSE.
+                ENDIF
+              ENDIF
+            ENDIF
+C
+C     f. Exclude RAOBS and surface ln q data added to CMA.
+C
+            IF ( ITYP  .EQ. NEHU .or. ITYP .EQ. NEHS ) LLOK=.FALSE.
+C
+C
+            IF ( LLOK  .AND..NOT. LLREJ ) THEN
+              IF( IVCO .EQ. 2 ) THEN
+                IF( ITYP .EQ. NEFF)  IKNTFFA(INDEX)=IKNTFFA(INDEX) + 1
+                IF( ITYP .EQ. NEDD)  IKNTDDA(INDEX)=IKNTDDA(INDEX) + 1
+                IF( ITYP .EQ. NEUU)  IKNTUA(INDEX)=IKNTUA(INDEX) + 1
+                IF( ITYP .EQ. NEVV)  IKNTVA(INDEX)=IKNTVA(INDEX) + 1
+                IF( ITYP .EQ. NEGZ)  IKNTZA(INDEX)=IKNTZA(INDEX) + 1
+                IF( ITYP .EQ. NETT)  IKNTTA(INDEX)=IKNTTA(INDEX) + 1
+                IF( ITYP .EQ. NEES)  IKNTEA(INDEX)=IKNTEA(INDEX) + 1
+                IF( ITYP .EQ. NEDZ)  IKNTDA(INDEX)=IKNTDA(INDEX) + 1
+                IF( ITYP .EQ. NEOZ)  IKNTOA(INDEX)=IKNTOA(INDEX) + 1
+                IF( ITYP .EQ. NBT1)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
+                IF( ITYP .EQ. NBT2)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
+                IF( ITYP .EQ. NBT3)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
+              ELSEIF( IVCO .EQ. 1 ) THEN
+                IF( ITYP .EQ. NEDS)  IKNTDSA=IKNTDSA + 1
+                IF( ITYP .EQ. NEFS)  IKNTFSA=IKNTFSA + 1
+                IF( ITYP .EQ. NEUS)  IKNTUSA=IKNTUSA + 1
+                IF( ITYP .EQ. NEVS)  IKNTVSA=IKNTVSA + 1
+                IF( ITYP .EQ. NETS)  IKNTTSA=IKNTTSA + 1
+                IF( ITYP .EQ. NESS) IKNTESSA=IKNTESSA + 1
+                IF( ITYP .EQ. NEPS)  IKNTPSA=IKNTPSA + 1
+                IF( ITYP .EQ. NEPN)  IKNTPNA=IKNTPNA + 1
+                IF( ITYP .EQ. NEZD)  IKNTZDA=IKNTZDA + 1
+                IBINS = IBINS + 1
+              ENDIF
+            ELSE IF ( LLOK .AND.  LLREJ ) THEN
+              IF( IVCO .EQ. 2 ) THEN
+                IF( ITYP .EQ. NEFF)  IKNTFFR(INDEX)=IKNTFFR(INDEX) + 1
+                IF( ITYP .EQ. NEDD)  IKNTDDR(INDEX)=IKNTDDR(INDEX) + 1
+                IF( ITYP .EQ. NEUU)  IKNTUR(INDEX)=IKNTUR(INDEX) + 1
+                IF( ITYP .EQ. NEVV)  IKNTVR(INDEX)=IKNTVR(INDEX) + 1
+                IF( ITYP .EQ. NEGZ)  IKNTZR(INDEX)=IKNTZR(INDEX) + 1
+                IF( ITYP .EQ. NETT)  IKNTTR(INDEX)=IKNTTR(INDEX) + 1
+                IF( ITYP .EQ. NEES)  IKNTER(INDEX)=IKNTER(INDEX) + 1
+                IF( ITYP .EQ. NEDZ)  IKNTDR(INDEX)=IKNTDR(INDEX) + 1
+                IF( ITYP .EQ. NEOZ)  IKNTOR(INDEX)=IKNTOR(INDEX) + 1
+                IF( ITYP .EQ. NBT1)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
+                IF( ITYP .EQ. NBT2)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
+                IF( ITYP .EQ. NBT3)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
+              ELSEIF( IVCO .EQ. 1 ) THEN
+                IF( ITYP .EQ. NEDS)  IKNTDSR=IKNTDSR + 1
+                IF( ITYP .EQ. NEFS)  IKNTFSR=IKNTFSR + 1
+                IF( ITYP .EQ. NEUS)  IKNTUSR=IKNTUSR + 1
+                IF( ITYP .EQ. NEVS)  IKNTVSR=IKNTVSR + 1
+                IF( ITYP .EQ. NETS)  IKNTTSR=IKNTTSR + 1
+                IF( ITYP .EQ. NESS) IKNTESSR=IKNTESSR + 1
+                IF( ITYP .EQ. NEPS)  IKNTPSR=IKNTPSR + 1
+                IF( ITYP .EQ. NEPN)  IKNTPNR=IKNTPNR + 1
+                IF( ITYP .EQ. NEZD)  IKNTZDR=IKNTZDR + 1
+                IBINS = IBINS + 1
+              ENDIF
+            ENDIF
+C
+            IF (LLOK .AND. .NOT. LLREJ) THEN
+              MOBDATA(NCMASS,JDATA)=1
+              IKNT= IKNT + 1
+            ELSE
+              MOBDATA(NCMASS,JDATA)=0
+            ENDIF
+CSMP
+CSMP     e. Filter UU, VV data close to poles FOR MAM  (June 18, 2001)
+CSMP
+
+            IF (CVCORD(1:3).EQ.'MAM') THEN
+              ZLAT = ROBHDR(NCMLAT,IOBS)
+              ZZLAT = ZLAT*180./RPI
+              ZLON = ROBHDR(NCMLON,IOBS)*180./RPI
+              ZVAR = ROBDATA(NCMVAR,JDATA)
+              ZLEV = ROBDATA(NCMPPP,JDATA)*0.01
+              IF(ZLAT .GT. gst_RLATI(1) .or. ZLAT .LT. gst_RLATI(NJ)) THEN
+                IF (ITYP .EQ. NEUU .OR. ITYP .EQ. NEVV ) THEN
+                  write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
+                  MOBDATA(NCMASS,JDATA) = 0
+                ENDIF
+              ENDIF
+ 98           format(1x,'SUPREP REMOVED: IOBS,ZLAT,ZLON,ZLEV,ZVAR= '
+     &                  ,I5,2x,2(F8.2,2x),F5.0,2x,F11.4,2x,I6)
+            ENDIF
+C
+          END DO
+C
+        ENDIF
+cpik  END DO
+C
+        write(NULOUT,'(5x,a8,2x,a2,2x,a12)')CBURP(j), CFAMTYP(j)
+     &       ,'DATA  FAMILY'
+        WRITE(NULOUT
+     &       ,'(12x,"                                              ")')
+        WRITE(NULOUT
+     &       ,'(12x,"    NUMBER OF REJECTED DATA PRESSURE COORD")')
+        WRITE(NULOUT
+     &       ,'(12x," =======================================================================")')
+        WRITE(NULOUT,'(12x,A80)')CELLIST
+        WRITE(NULOUT,'(12x,10("  ------"))' )
+C
+        DO JK=1,16
+          WRITE(NULOUT,888)iniv(jk),'-',iniv(jk+1),
+     &         IKNTFFR(JK),IKNTDDR(JK),IKNTUR(JK),IKNTVR(JK),IKNTZR(JK)
+     &         ,IKNTTR(JK),IKNTER(JK),IKNTDR(JK),IKNTOR(JK),IKNTBTR(JK),'
+     &         rej'
+        END DO
+C
+        if ( cfamtyp(j) == 'UA' .OR. cfamtyp(j) == 'SF' .OR.
+     &       cfamtyp(j) == 'SC' .OR. cfamtyp(j) == 'GP' ) then
+          WRITE(NULOUT
+     &         ,'(12x," =======================================================================",/)')
+          WRITE(NULOUT
+     &         ,'(12x,"                                              ")'
+     &         )
+          WRITE(NULOUT,'(12x,"    NUMBER OF REJECTED SURFACE DATA")')
+          WRITE(NULOUT
+     &         ,'(12x," =======================================================================")')
+          WRITE(NULOUT,'(12x,A80)')CSFLIST
+          WRITE(NULOUT,'(12x,9("  ------"))' )
+          WRITE(NULOUT,890)'   sfc   ',
+     &         IKNTFSR,IKNTDSR,IKNTUSR,IKNTVSR,IKNTTSR,IKNTESSR,IKNTPSR
+     &         ,IKNTPNR,IKNTZDR,'rej'
+          WRITE(NULOUT
+     &         ,'(12x," =======================================================================",/)')
+        endif
+C
+        WRITE(NULOUT
+     &       ,'(12x,"                                              ")')
+        WRITE(NULOUT
+     &       ,'(12x,"    NUMBER OF ACCEPTED DATA PRESSURE COORD")')
+        WRITE(NULOUT
+     &       ,'(12x," =======================================================================")')
+        WRITE(NULOUT,'(12x,A80)')CELLIST
+        WRITE(NULOUT,'(12x,10("  ------"))' )
+        DO JK=1,16
+          WRITE(NULOUT,888)iniv(jk),'-',iniv(jk+1),
+     &         IKNTFFA(JK),IKNTDDA(JK),IKNTUA(JK),IKNTVA(JK),IKNTZA(JK)
+     &         ,IKNTTA(JK),IKNTEA(JK),IKNTDA(JK),IKNTOA(JK),IKNTBTA(JK),'
+     &         acc'
+        END DO
+        WRITE(NULOUT
+     &       ,'(12x," =======================================================================",/)')
+C
+        if ( cfamtyp(j) == 'UA' .OR. cfamtyp(j) == 'SF' .OR.
+     &       cfamtyp(j) == 'SC' .OR. cfamtyp(j) .eq. 'GP' ) then
+          WRITE(NULOUT
+     &         ,'(12x,"                                              ")'
+     &         )
+          WRITE(NULOUT,'(12x,"    NUMBER OF ACCEPTED SURFACE DATA")')
+          WRITE(NULOUT
+     &         ,'(12x," =======================================================================")')
+          WRITE(NULOUT,'(12x,A80)')CSFLIST
+          WRITE(NULOUT,'(12x,9("  ------"))' )
+          WRITE(NULOUT,890)'   sfc   ',
+     &         IKNTFSA,IKNTDSA,IKNTUSA,IKNTVSA,IKNTTSA,IKNTESSA,IKNTPSA
+     &         ,IKNTPNA,IKNTZDA,'acc'
+          WRITE(NULOUT
+     &         ,'(12x," =======================================================================",/)')
+        endif
+ 888    FORMAT(1X,i4,a1,i4,10(2x,i6),1x,a3)
+ 890    FORMAT(1X,a9,9(2x,i6),1x,a3)
+      END DO
+
+ 300  CONTINUE
+C
+C-----------------------------------------------------------------------
+      WRITE(NULOUT,'(1x," Number of data assimilated by 3d-var:",i10)')
+     &     IKNT
+C
+C
+C-----------------------------------------------------------------------
+C
+      DO JDATA=1,NDATA
+        ITYP = MOBDATA(NCMVNM,JDATA)
+        IOBS = MOBDATA(NCMOBS,JDATA)
+        IF ( ITYP .EQ. NEUU) MOBDATA(NCMPOS,JDATA) = nouu - 1
+        IF ( ITYP .EQ. NEVV) MOBDATA(NCMPOS,JDATA) = novv - 1
+        IF ( ITYP .EQ. NETT) MOBDATA(NCMPOS,JDATA) = nott - 1
+        IF ( ITYP .EQ. NEDZ) MOBDATA(NCMPOS,JDATA) = nogz - 1
+        IF ( ITYP .EQ. NEES) MOBDATA(NCMPOS,JDATA) = noes - 1
+        IF ( ITYP .EQ. NEHU) MOBDATA(NCMPOS,JDATA) = noq  - 1
+        IF ( ITYP .EQ. NEGZ) MOBDATA(NCMPOS,JDATA) = nogz - 1
+        IF ( ITYP .EQ. NEOZ) MOBDATA(NCMPOS,JDATA) = nooz - 1
+        IF ( ITYP .EQ. NEUS) MOBDATA(NCMPOS,JDATA) = nouu - 1
+        IF ( ITYP .EQ. NEVS) MOBDATA(NCMPOS,JDATA) = novv - 1
+        IF ( ITYP .EQ. NETS) MOBDATA(NCMPOS,JDATA) = nott - 1
+        IF ( ITYP .EQ. NESS) MOBDATA(NCMPOS,JDATA) = noes - 1
+        IF ( ITYP .EQ. NEHS) MOBDATA(NCMPOS,JDATA) = noq  - 1
+        IF ( ITYP .EQ. NEPS) MOBDATA(NCMPOS,JDATA) = nops - 1
+        IF ( ITYP .EQ. NEPN) MOBDATA(NCMPOS,JDATA) = nops - 1
+      END DO
+ 500  CONTINUE
+C-----------------------------------------------------------------------
+C
+C    SET NCMLOBS PARAMETER FOR:
+C
+      if ( nconf .ne. 121 .and. nconf .ne. 101) then
+        DO J = 1,NFILES
+          IF (  NBEGINTYP(J) .GT. 0)  THEN
+            IBEGIN=NBEGINTYP(J)
+            ILAST=NENDTYP(J)
+
+            DO JDATA= IBEGIN,ILAST
+              MOBDATA(NCMLOBS,JDATA)=0
+            END DO
+C
+C  1.    RAOB LEVELS
+            IF (CFAMTYP(J) .EQ. 'UA' ) THEN
+C
+              DO JK=1,JPRLEV
+                IZP1  = NILV(JK )
+                DO JDATA= IBEGIN,ILAST
+                  IZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IDATYP=MOBHDR (NCMOTP,IOBS)
+                  CLFAM =CFAMTYP(IDATYP)
+                  LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+     &                 . 'UA')
+                  IF ( LLOK ) THEN
+                    IZXI=ISIGN( 1,(IZLEV-IZP1) )
+                    MOBDATA(NCMLOBS,JDATA)=MOBDATA(NCMLOBS,JDATA)+MAX(0
+     &                   ,IZXI)
+                  ENDIF
+                END DO
+              END DO
+            ENDIF
+C
+C  2.    HUMSAT LEVELS
+C
+            IF (CFAMTYP(J) .EQ. 'HU' ) THEN
+              DO JK=1,JPHLEV
+                IZP1  = NIHULV(JK )
+                DO JDATA= IBEGIN,ILAST
+                  IZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IDATYP=MOBHDR (NCMOTP,IOBS)
+                  CLFAM =CFAMTYP(IDATYP)
+                  LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+     &                 . 'HU')
+                  IF ( LLOK ) THEN
+                    IZXI=ISIGN( 1,(IZLEV-IZP1) )
+                    MOBDATA(NCMLOBS,JDATA)=MOBDATA(NCMLOBS,JDATA)+MAX(0
+     &                   ,IZXI)
+                  ENDIF
+                END DO
+              END DO
+            ENDIF
+C
+C  3.    SATEM LEVELS
+C
+            IF (CFAMTYP(J) .EQ. 'ST' ) THEN
+              DO JK=1,JPSALEV
+                IZP1  =  NISLV(JK)
+                DO JDATA= IBEGIN,ILAST
+                  IZLEV =  ANINT( ROBDATA8(NCMPPP,JDATA) )
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IDATYP=MOBHDR (NCMOTP,IOBS)
+                  CLFAM =CFAMTYP(IDATYP)
+                  LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+     &                 . 'ST')
+                  IF ( LLOK ) THEN
+                    IZXI=ISIGN( 1,(IZLEV-IZP1) )
+                    MOBDATA(NCMLOBS,JDATA)=MOBDATA(NCMLOBS,JDATA)+MAX(0
+     &                   ,IZXI)
+                  ENDIF
+                END DO
+              END DO
+            ENDIF
+
+          ENDIF
+        enddo
+      endif
+ 600  CONTINUE
+C
+      WRITE(NULOUT,'(1X,"****************************************** ")')
+      WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
+      WRITE(NULOUT,'(1X,"****************************************** ",/)')
+C
+C     SUM OVER ALL BINS SHOULD BE EQUAL TO NDATA
+C
+      isum=0
+      do jk=1,16
+        isum=isum+ibin(jk)
+      enddo
+      ISUM = ISUM + IBINS
+      write(nulout,*) ' isum ndata  ',isum,ndata
+C
+C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
+      IF (IKNT .EQ. 0 ) THEN
+        call abort3d(nulout,'SUPREP. NO DATA TO BE ASSIMILATED')
+      ENDIF
+C
+      RETURN
+      END

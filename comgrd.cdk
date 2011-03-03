@@ -1,0 +1,37 @@
+!
+!copyright (C) 2002  <<< Envrionment Canada LAM4D >>>
+!
+! Author: Luc Fillion - ARMA/EC Feb 2002.
+!
+! Revision:
+!
+      logical grd_uniform_L, grd_gauss_L
+      integer grd_ni, grd_nj, grd_nila, grd_njla
+      integer grd_left, grd_belo
+      integer mig1tic,mig2tic,mig3tic,mig4tic
+      integer mig1flda,mig2flda,mig3flda,mig4flda
+      integer mig1in,mig2in,mig3in  ! ig1,ig2,ig3 for scalar fields on Scalar inner analysis grid
+      integer mig1in_u,mig2in_u,mig3in_u  ! ig1,ig2,ig3 for U fields on U-Grid inner analysis grid
+      integer mig1in_v,mig2in_v,mig3in_v  ! ig1,ig2,ig3 for V fields on U-Grid inner analysis grid
+!
+      real grd_xlon1_4,grd_xlat1_4, grd_xlon2_4, grd_xlat2_4
+!
+      real*8 grd_dxmax, grd_dymax,grd_x0, grd_xl, grd_y0, grd_yl
+      real*8 grd_rot, grd_rcoef, grd_rot_8
+      real*8 dxlam(nila,njla),dylam(nila,njla),coriol(nila,njla)
+      pointer (ptdxlam,dxlam),(ptdylam,dylam),(ptcoriol,coriol)
+!   
+      common / Grd_l / grd_uniform_L, grd_gauss_L
+      common / Grd_i / grd_ni  , grd_nj  , grd_nila, grd_njla, 
+     &                 grd_left, grd_belo,
+     &                 mig1tic,mig2tic,mig3tic,mig4tic,
+     &                 mig1flda,mig2flda,mig3flda,mig4flda,
+     &                 mig1in,mig2in,mig3in,
+     &                 mig1in_u,mig2in_u,mig3in_u,
+     &                 mig1in_v,mig2in_v,mig3in_v
+      common / Grd_r /grd_xlon1_4,grd_xlat1_4, grd_xlon2_4, grd_xlat2_4
+      common / Grd_r8 / grd_rot_8(3,3),
+     &                  grd_dxmax, grd_dymax, 
+     &                  grd_x0, grd_xl, grd_y0, grd_yl,
+     &                  grd_rot(3,3),grd_rcoef
+      common /POMGRD/ptdxlam,ptdylam,ptcoriol

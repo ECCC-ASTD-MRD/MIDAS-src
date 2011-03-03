@@ -1,0 +1,16 @@
+#if defined (DOC) 
+C 
+C     COMMON CBTYP    - DEFINES BLOCKS (BKNAT AND BKTYP) TO READ IN    
+C     ---------------   IN BURP FILE REPORTS
+C
+C
+#endif
+      INTEGER NBKNAUN,NBKNAMU
+      INTEGER NBKTYPA,NBKTYPS
+      INTEGER NBKTYPSSMI
+      INTEGER NBKSTP
+      COMMON/CBTYP/ NBKNAUN,NBKNAMU,NBKTYPA,NBKTYPS,NBKTYPSSMI,
+     +              NBKSTP
+C
+C-----------------------------------------------------------------------
+C

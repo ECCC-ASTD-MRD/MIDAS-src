@@ -1,0 +1,13 @@
+#if defined (DOC)
+C     COMDECK NAMTOV
+C     --------------
+C
+*Author       : J. Halle   *CMDA/AES*  Oct 1999
+*Revision 001 : J. Halle   *CMDA/SMC*  Jun 2002
+*                          -adapt to RTTOV-7.
+*Revision 002 : D. Anselmo *ARMA/SMC*  Feb 2004
+*                          -introduce LNLVTOV.
+#endif
+      NAMELIST /NAMTOV/NSENSORS, CSATID, CINSTRUMENTID
+      NAMELIST /NAMTOV/LTSTTOV, LDBGTOV, LRTNADIR, LEVEL1B 
+      NAMELIST /NAMTOV/LNLVTOV, CRTMODL

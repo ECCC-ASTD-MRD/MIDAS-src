@@ -1,0 +1,8 @@
+#if defined (DOC)
+C*
+C AUTHOR B. Brasnett *CMC/MSC
+C
+C      LVARQC - LOGICAL SWITCH TO ACTIVATE VARIATIONAL QC
+C
+#endif
+      NAMELIST /NAMVARQC/LVARQC,nwoqcv

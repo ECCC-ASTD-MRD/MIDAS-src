@@ -1,0 +1,54 @@
+*
+*     . J. Halle    *CMDA/AES Oct 99.
+*             - Added ground temperature (TG) to the model state.
+*     . M. Tanguay  *ARMN/MSC Jan. 2005
+*             - Introduction of minimizer N1CG1
+*     . L. Fillion  *ARMA/MSC Feb. 2005
+*             - Introduction of lsimulcor
+*     . L. Fillion  *ARMA/EC 26 Apr 2007.
+*             - Introduction of linmi,ldiabatic
+*     . L. Fillion  *ARMA/EC 26 Mar 2008.
+*             - Introduction of lsw (shallow-water option)
+*     . L. Fillion  *ARMA/EC 23 Apr 2008.
+*             - Introduction of cptot for spectral or gridpoint PtoT matrix.
+*     . L. Fillion  *ARMN/EC 3 June 2008
+*             - Introduce lwrthess to allow not writing Hessian (i.e. requires less cpu when debugging...).
+*     . L. Fillion  *ARMA/EC 11 Jul. 2008
+*             - Introduce lgauscor
+*     . L. Fillion  *ARMA/EC 24 Sep. 2008
+*             - Introduce lgausvercor
+*     . L. Fillion  *ARMA/EC 3 oct. 2008
+*             - lunitptot  : .TRUE. uses Unity matrix as PtoT (useful for testing purposes).
+*     . L. Fillion  *ARMA/EC 1st May 2009
+*             - lcva_helm  : .TRUE. uses psi,chi for minimization; .false.: uses vort,div
+*     . L. Fillion  *ARMA/EC 3 Jun 2009
+*             - lcva_hemis : .TRUE. Global-Hemispheric mode; .false.: Both hemispheres.
+*     . L. Fillion  *ARMA/EC 15 Jun 2009
+*             - lcva_euclid : .TRUE. Uses Euclidean geometry.
+*     . L. Fillion  *ARMA/EC 17 Jul 2009
+*             - lcva_3db   : .TRUE. Perform 3D-Var FGAT agremented by a TL-INMI balance approach.
+*     . L. Fillion  *ARMA/EC 17 May 2010
+*             - lcva_hsp   : .TRUE. Hemispheric spectral transform
+*
+      NAMELIST /NAMCVA/N1GC,NVAMAJ,NIMPRES,NITERMAX,NITERJOB,NSIMMAX  
+      NAMELIST /NAMCVA/NGRTEST,NGRANGE,NCNTVAR,NEVALJ
+      NAMELIST /NAMCVA/LTSTSP,LTSTCVA,LNONSEP,REPSG
+      NAMELIST /NAMCVA/LRSTART,LSTAT,RSIGGZ,RSIGOZ
+      NAMELIST /NAMCVA/RSIGTR,RSIGPS,RSIGTG,RSIGQ,RNU2
+      NAMELIST /NAMCVA/RSIGUU,RSIGTT,NANALVAR,RPORVO,RPORDI,RPORTT,RPORQ
+      NAMELIST /NAMCVA/RPORPS,RPORTG,RPORGZ
+      NAMELIST /NAMCVA/RPOROZ,RPORTR,CIMP,CFG,CCOV,CSCAL
+      NAMELIST /NAMCVA/CFGERR,CHUM, NPRECON,rdf1fac,ltlmend,lxbar
+      NAMELIST /NAMCVA/EPSNEG,SELECT0,BFGSB,IMODE3
+      NAMELIST /NAMCVA/LPERTOBS,NTUNESTATS,NFLEVPTOT
+      NAMELIST /NAMCVA/CFLTUNEOBS,CFLTUNEBG,RSCALEPTOT
+      NAMELIST /NAMCVA/LHBHT1,NTRUNC3DSTD,LCOPYPTOT
+      NAMELIST /NAMCVA/LUSE3DSTD,RVLOCBALT,RVLOCPSI,RVLOCCHI,RVLOCPSITT
+      NAMELIST /NAMCVA/RVLOCUNBALT,RVLOCLQ,NLATMIN1
+      NAMELIST /NAMCVA/NLATMAX1,NLATMIN2,NLATMAX2
+      NAMELIST /NAMCVA/lgauscor,lfgsim,linmi,ldiabatic,lsw
+      NAMELIST /NAMCVA/lsdevsim,l1obs,cptot,lwrthess,lobsclip
+      NAMELIST /NAMCVA/lsimulcor,lcorloc,lgausvercor,lcornsmin
+      NAMELIST /NAMCVA/lunitptot,mbal_order,lsetcross,lcva_helm
+      NAMELIST /NAMCVA/lcva_hemis,lcva_euclid,lcva_3db,lcva_hsp
+

@@ -1,0 +1,166 @@
+#if defined (DOC)
+*
+*     . J. Halle    *CMDA/AES Oct 99.
+*             - Added ground temperature (TG) to the model state.
+C
+C     COMDECK: COMSTATE
+C     --------------
+C     . Control of the different model state of the 3Dvar
+C     . -  used by SUDIM  and SUALLO to decide which scalar
+C     .    fields are needed and make the allocation accordingly
+C     . -  used within some subroutines to verify if a field exists
+C     .    or not
+C
+C     State variable numbers
+C     ----------------------
+C     Spectral model variable numbers
+C
+C      nsvor       : vorticity
+C      nsdiv       : divergence
+C      nstt        : temperature
+C      nsq         : specific humidity
+C      nsgz        : geopotential
+C      nsoz        : ozone
+C      nstr        : passive tracer
+C      nsps        : surface pressure
+C      nstg        : ground temperature
+C
+C     Gridpoint  model variable numbers
+C      nguu        : zonal wind image
+C      ngvv        : meridional wind image
+C      ngq         : specific humidity
+C      nggz        : geopotential
+C      ngtt        : temperature
+C      ngoz        : ozone
+C      ngtr        : passive tracer
+C      ngps        : surface pressure
+C      ngtg        : ground temperature
+C
+C     Model state at the observation locations
+C      nouu        : zonal wind
+C      novv        : meridional wind
+C      noq         : specific humidity
+C      nogz        : geopotential
+C      nott        : temperature
+C      nooz        : ozone
+C      notr        : undefined passive tracer
+C      noes        : t - td
+C      nops        : surface pressure
+C      notg        : ground temperature
+C
+C     Spectral model states
+C     ---------------------
+C     NSEXIST(JVAR) = 1 spectral field exists
+C     .               0 spectral field does not exist
+C     NSEXIST(nsvor)    : vorticity
+C     .      (nsdiv)    : divergence
+C     .      (nstt)    : temperature
+C     .      (nsq)    : specific humidity
+C     .      (nsgz)    : geopotential
+C     .      (nsoz)    : ozone
+C     .      (nstr)    : undefined passive tracer
+C     .      (nsps)    : surface pressure
+C     .      (nstg)    : ground temperature
+C     --------------
+C     NSPOSIT       : position within NKSDIM
+C     NSPOSIT(nsvor)    : vorticity
+C     .      (nsdiv)    : divergence
+C     .      (nstt)    : temperature
+C     .      (nsq)    : specific humidity
+C     .      (nsgz)    : geopotential
+C     .      (nsoz)    : ozone
+C     .      (nstr)    : undefined passive tracer
+C     .      (nsps)    : surface pressure
+C     .      (nstg)    : ground temperature
+C     --------------
+C
+C     Gridpoint  model states
+C     ---------------------
+C
+C     NGEXIST(JVAR) = 1 gridpoint field exists
+C     .               0 gridpoint field does not exist
+C     NGEXIST(nguu)    : zonal wind image
+C     .      (ngvv)    : meridional wind image
+C     .      (ngtt)    : temperature
+C     .      (ngq)    : specific humidity
+C     .      (nggz)    : geopotential
+C     .      (ngoz)    : ozone
+C     .      (ngtr)    : undefined passive tracer
+C     .      (ngps)    : surface pressure
+C     .      (ngtg)    : ground temperature
+C     --------------
+C     NGPOSIT       : position within NKSDIM
+C     NGPOSIT(nguu)    : zonal wind image
+C     .      (ngvv)    : meridional wind image
+C     .      (ngtt)    : temperature
+C     .      (ngq)    : specific humidity
+C     .      (nggz)    : geopotential
+C     .      (ngoz)    : ozone
+C     .      (ngtr)    : undefined passive tracer
+C     .      (ngps)    : surface pressure
+C     .      (ngtg)    : ground temperature
+C     --------------
+C
+C     Model state at the observation locations
+C     ---------------------
+C     NMVOEXIST(JVAR) = 1 gridpoint field exists
+C     .                 0 gridpoint field does not exist
+C     NMVOEXIST(nouu)    : zonal wind
+C     .        (novv)    : meridional wind
+C     .        (nott)    : temperature
+C     .        (noq)    : specific humidity
+C     .        (nogz)    : geopotential
+C     .        (nooz)    : ozone
+C     .        (notr)    : undefined passive tracer
+C     .        (noes)    : t - td
+C     .        (nops)    : surface pressure
+C     .        (notg)    : ground temperature
+C     --------------
+C     NMVOPOSIT       : position within NKSDIM
+C     NMVOPOSIT(nouu)    : zonal wind
+C     .        (novv)    : meridional wind
+C     .        (nott)    : temperature
+C     .        (noq)    : specific humidity
+C     .        (nogz)    : geopotential
+C     .        (nooz)    : ozone
+C     .        (notr)    : undefined passive tracer
+C     .        (noes)    : t - td
+C     .        (nops)    : surface pressure
+C     .        (notg)    : ground temperature
+C     --------------
+C
+#endif
+      INTEGER JPNVARMAX
+      PARAMETER (JPNVARMAX=10)
+C
+      INTEGER NSEXIST(JPNVARMAX), NSPOSIT(JPNVARMAX)
+     S     , NGEXIST(JPNVARMAX), NGPOSIT(JPNVARMAX)
+     S     , NMVOEXIST(JPNVARMAX), NMVOPOSIT(JPNVARMAX)
+      INTEGER nsvor,nsdiv,nsq,nsgz,nstt,nsoz,nstr,nsps,nstg
+      INTEGER nguu,ngvv,ngq,nggz,ngtt,ngoz,ngtr,ngps,ngtg
+      INTEGER nouu,novv,noq,nogz,nott,nooz,notr,noes,nops,notg
+
+C
+      CHARACTER*2 CSNEED(JPNVARMAX), CGNEED(JPNVARMAX)
+     S     , CMVONEED(JPNVARMAX)
+C
+      COMMON /COMNSTATE/ NSEXIST, NSPOSIT
+     S     , NGEXIST, NGPOSIT
+     S     , NMVOEXIST, NMVOPOSIT,nsvor,nsdiv,nsq,nsgz,nstt,nsoz,nstr
+     &     ,nsps,nstg,nguu,ngvv,ngq,nggz,ngtt,ngoz,ngtr,ngps,ngtg
+     &     ,nouu,novv,noq,nogz,nott,nooz,notr,noes,nops,notg
+C
+      COMMON /COMCSTATE/CSNEED, CGNEED, CMVONEED
+C
+
+
+
+
+
+
+
+
+
+
+
+

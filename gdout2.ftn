@@ -1,0 +1,470 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE GDOUT2(CPVAR,pptrans,kni,knj,KLEV,lplok,kip1)
+#if defined (DOC)
+*
+***s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
+*     .          standard file. N.B.: It is assumed here that arrays
+*                ut0,vt0 contain wind images on entry.
+*
+*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     P. Gauthier *ARMA/AES  Oct. 22, 1993: control of postprocessing
+*     .                      through the comdeck COMPOST
+*     P. Gauthier *ARMA/AES  May 25, 1993:
+*     .                      Transfer of specific humidity and surface
+*     .                      pressure on file (only if defined in the model
+*     .                      state.
+*     P. Koclas   *CMC/CMDA  February 1994
+*     .                      -ip3 now= KITER in call to fstecr.
+*                            -Add arguments CDTYPV KSTAMP.
+*                            -Replace comdeck "comtrl"  by "compost"
+*     L. Fillion  *ARMA/AES  Nov 1994:
+*                            Output height field in decameters.
+*     C. Charette *ARMA/AES  Jan 96
+*                 -Read RPN standard file parameters from 'compost'
+*     P. Gauthier *ARMA/AES Dec. 1996
+*     .           -Add the variables relative (QR)and absolute (QQ)
+*     .            vorticity, streamfunction (PP), velocity potential
+*     .            (CC) and divergence (DD) in the possible choices for
+*     .            output (these fields are computed within POSTPROC
+*     .            and are transferred to GDOUT via the comdeck
+*     .            "localpost.cdk". This mechanism will allow for the
+*     .            computation of diagnostic quantities and their transfer
+*     .            The control remains the same as before: through NPPCVAR
+*     .            (total number of variables to write) and their names
+*     .            in CPVAR(*) defined in COMPOST.
+*     S. Pellerin *ARMA/AES Sept 97.
+*                  Introduction of Ozone and Passive tracer.
+*     S. Pellerin *ARMA/AES Oct 97
+*                  -Introduction of NIP1s from COMGEM
+*                  -Modification in subroutine parameters (arguments).
+*                  -Output of total ozone O3 (DU)
+*     M Buehner   July 98
+*                  -Get rid of check on level for 2D fields, since this
+*                   caused subroutine to return before writing any 3D fields
+*                   listed after a 2D field
+*                  -Moved IP1= statement inside variables loop
+*     L. Fillion  *ARMA/AES 16 nov 98
+*                  - Adapt GZ and ES diagnostic output
+*     C. Charette *ARMA/AES 26 nov 98
+*                  - Adapt HU, VT diagnostic output
+*     L. Fillion  *ARMA/AES 4 dec 98
+*                  - Allow output of TTB,TTU,GZB,GZU,PSB,PSU
+*     S. Pellerin *ARMA/SMC May 2000
+*                  -Arguments modification for call in varout.ftn
+*     JM Belanger CMDA/SMC  Oct 2000
+*                   . 32 bits conversion
+*     C. Charette *ARMA/SMC - Sept 2004
+*                 - Conversion to hybrid vertical coordinate
+*     L. Fillion  *ARMA/MSC Feb 2005
+*                  - Limited area option added.
+*     L. Fillion  *ARMA/MSC Nov 2006
+*                  - Documentation on wind images as input fileds.
+*                  - Introduce possibility to output wind images on file subsequently to this sub.
+*                    (LAM mode validated). NB.: We normalize our wind images by the earth-radius to be 
+*                    compatible with GEM-LAM definition of wind images (which is the same as the global
+*                    3dvar definition (see Mesovar source book).
+*     L. Fillion  *ARMA/EC 14 Aug 2007 - Update to v_10_0_3.
+*
+*Arguments
+*     i   CPVAR : variable name
+*     i   kni,knj : dimension of vector pptrans
+*     i   KLEV    : index of the level to be transferred
+* OUTPUT
+*     o   pptrans : vector containing the variable
+*     o   lplok   : logical indicating if the variable has been
+*                   implemented
+*     o   kip1    : ip1 of the corresponding level
+
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comgem.cdk"
+#include "comcva.cdk"
+#include "comgd0.cdk"
+#include "compost.cdk"
+#include "comgrd.cdk"
+#include "comgrd_param.cdk"
+*
+      INTEGER kni,knj,klev,kip1
+      real*8 pptrans(kni,knj)
+      character*2 cpvar
+      logical lplok
+*
+      INTEGER JLON, JGL,ig2
+      REAL*8 ZTEMP, ZGEOP, ZDAM, ZCON, un, dix
+#include "localpost.cdk"
+C
+      IG2      =  NIG2
+      kiP1      =  NIP1(kLEV)
+      un = 1.0D0
+      dix = 1.0D1
+!
+! Ensure input dimensions do not exceed GD0 dimensions
+!
+      if(kni.gt.ni.or.knj.gt.nj) then
+        call abort3d(nulout,'GDOUT2: input kni or knj .gt. (ni,nj)')
+      endif
+C
+C     2. Transfer of the fields of COMGD to an internal buffer
+C     .  -----------------------------------------------------
+C
+c  SET DIAGNOSTIC VARIABLES ON IF FIRST VAR IS PP (for GENINCR branch)
+c
+      lplok = .true.
+C
+C     .  2.1 Fields associated with model variables
+C
+      IF(CPVAR.EQ.'TT') THEN
+C
+C     *  Temperature field
+C
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = TT0(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'TB') THEN
+C
+C     *  Balanced Temperature field
+C
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZTTB(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'TU') THEN
+C
+C     *  Unbalanced Temperature field
+C
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZTTU(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'UT') THEN
+C
+C     *  Unbalanced Temperature field for stat
+C
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZTP(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'VT') THEN
+C
+C     *  Virtual temperature field
+C
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZTV(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'GZ') THEN
+C
+C     *  Geopotential field
+C
+        ZGEOP  = dix * RG
+        ZDAM   = un/ZGEOP
+c
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZDAM * zgz(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'ZB') THEN
+C
+C     *  Balanced Geopotential field
+C
+        ZGEOP  = dix * RG
+        ZDAM   = un/ZGEOP
+c
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZDAM * zgzb(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(CPVAR.EQ.'ZU') THEN
+C
+C     *  Unbalanced Geopotential field
+C
+        ZGEOP  = dix * RG
+        ZDAM   = un/ZGEOP
+c
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = ZDAM * zgzu(JLON,KLEV,JGL)
+          END DO
+        END DO
+C
+C     *  Zonal wind-image component (in m/s) on Staggered U-Grid
+C
+      ELSE IF(CPVAR.EQ.'U1') THEN
+        if(grd_typ.eq.'LU') then
+          DO JGL = 1, knj
+            DO JLON = 1, kni  ! reduced U-grid values properly written at varout level subsequently.
+              PPTRANS(JLON,JGL) = UT0(JLON,KLEV,JGL)/ra
+            END DO
+          END DO
+        endif
+C
+C     *  Meridional wind component (in Knots) on Staggered V-Grid
+C
+      ELSE IF(CPVAR.EQ.'V1') THEN
+        if(grd_typ.eq.'LU') then
+          DO JGL = 1, knj
+            DO JLON = 1, kni
+              PPTRANS(JLON,JGL) = VT0(JLON,KLEV,JGL)/ra ! reduced V-grid values properly written at varout level subsequently.
+            END DO
+          END DO
+        endif
+C
+C     *  Zonal wind component (in Knots)
+C
+      ELSE IF(CPVAR.EQ.'UU') THEN
+        DO JGL = 1, knj
+          DO JLON = 1, kni
+            PPTRANS(JLON,JGL) = UT0(JLON,KLEV,JGL)
+     S           *CONPHY(JGL)*RKNTMS
+          END DO
+        END DO
+C
+C     *  Meridional wind component (in Knots)
+C
+      ELSE IF(CPVAR.EQ.'VV') THEN
+        DO JGL = 1, knj
+          DO JLON = 1, kni
+            PPTRANS(JLON,JGL) = VT0(JLON,KLEV,JGL)
+     S           *CONPHY(JGL)*RKNTMS
+          END DO
+        END DO
+C
+C     *  Humidity field
+C
+      ELSE IF(CPVAR.EQ.'ES') THEN
+        if(chum .eq. 'LQ') then
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
+            END DO
+          END DO
+        elseif(chum .eq. 'ES') then
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = Q0(JLON,KLEV,JGL)
+            END DO
+          END DO
+        endif
+C
+      ELSE IF(CPVAR.EQ.'LQ') THEN
+        IF(CHUM .EQ. 'LQ')THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = Q0(JLON,KLEV,JGL)
+            END DO
+          END DO
+        ELSEIF(CHUM .EQ. 'ES')THEN
+          LPLOK = .FALSE.
+          WRITE(NULOUT,*)' ****************************************'
+          WRITE(NULOUT,'(" GDOUT2: THE REQUESTED FIELD LQ IS NOT "
+     &         ,"SUPPORTED WHEN CVCORD= ",A8," AND CHUM= ",A2)')
+     &         CVCORD,CHUM
+          WRITE(NULOUT,*)' ****************************************'
+        ENDIF
+C
+      ELSE IF(CPVAR.EQ.'HU') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = zhu(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C     *    Ozone field
+C
+      ELSE IF(CPVAR.EQ.'OZ') THEN
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = GOZ0(JLON,KLEV,JGL)
+          END DO
+        END DO
+C
+C     *    Passive Tracer field
+C
+      ELSE IF(CPVAR.EQ.'TR') THEN
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = GTR0(JLON,KLEV,JGL)
+          END DO
+        END DO
+C
+C     *    Surface Pressure from units of Pascal to millibar
+C
+      ELSE IF(CPVAR.EQ.'P0') THEN
+        kip1=0
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = GPS0(JLON,1,JGL)*RPATMB
+          END DO
+        END DO
+C
+C     *    Ground temperature in Kelvin
+C
+      ELSE IF(CPVAR.EQ.'TG') THEN
+        kip1=0
+        DO JLON = 1, kni
+          DO JGL = 1, knj
+            PPTRANS(JLON,JGL) = GTG0(JLON,1,JGL)
+          END DO
+        END DO
+c
+      else if (LVARDIAG) then
+C
+C     .  2.2 Diagnostic fields produced in DIAG3DVAR
+C
+ 220    CONTINUE
+C
+C     Relative vorticity
+C
+        IF(CPVAR.EQ.'QR') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZQR(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C    Absolute vorticity
+C
+        ELSE IF(CPVAR.EQ.'QQ') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZQQ(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C    Divergence
+C
+        ELSE IF(CPVAR.EQ.'DD') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZDD(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C    Velocity potential
+C
+        ELSE IF(CPVAR.EQ.'CC') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZCC(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C    Unbalanced Velocity potential
+C
+        ELSE IF(CPVAR.EQ.'UC') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZUC(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C    Stream function
+C
+        ELSE IF(CPVAR.EQ.'PP') THEN
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZPP(JLON,KLEV,JGL)
+            END DO
+          END DO
+C
+C     *  2.3 OTHER SURFACE FIELDS
+C
+C
+ 230      CONTINUE
+        ELSE IF(CPVAR.EQ.'PB') THEN
+C
+C    Balanced surface-pressure
+C
+          kip1 = 0
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = zpsb(JLON,JGL)*RPATMB
+            END DO
+          END DO
+        ELSE IF(CPVAR.EQ.'PU') THEN
+C
+C    Unbalanced surface-pressure
+C
+          kip1 = 0
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = zpsu(JLON,JGL)*RPATMB
+            END DO
+          END DO
+        ELSE IF(CPVAR.EQ.'UP') THEN
+C
+C    Unbalanced surface-pressure for stat
+C
+          kip1 = 0
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZLPP(JLON,1,JGL)*1.0D-2
+            END DO
+          END DO
+        ELSE IF(CPVAR.EQ.'O3') THEN
+          kip1 = 0
+          DO JLON = 1, kni
+            DO JGL = 1, knj
+              PPTRANS(JLON,JGL) = ZO3(JLON,JGL)
+            END DO
+          END DO
+        else
+          LPLOK = .FALSE.
+          WRITE(NULOUT,*)' ****************************************'
+          WRITE(NULOUT,'(" GDOUT2: THE DIAGNOSTIC FIELD IS NOT "
+     &         ,"SUPPORTED  CPVAR= ",A2)')CPVAR
+          WRITE(NULOUT,*)' ****************************************'
+        endif
+      else
+        LPLOK = .FALSE.
+        WRITE(NULOUT,*)' ****************************************'
+        WRITE(NULOUT,'(" GDOUT2: THE FOLLOWING FIELD IS NOT "
+     &       ,"SUPPORTED  CPVAR= ",A2)')CPVAR
+        WRITE(NULOUT,*)' ****************************************'
+      END IF
+C
+      if(grd_typ.ne.'LU') then
+        IF ( IG2 .EQ. 0 .and. lplok) THEN
+          DO 262 JLON   = 1, kni
+            DO 263 JGL = 1, knj/2
+              ZTEMP=PPTRANS(JLON,JGL)
+              PPTRANS(JLON,JGL)=PPTRANS(JLON,knj-JGL+1)
+              PPTRANS(JLON,knj-JGL+1)=ZTEMP
+ 263        CONTINUE
+ 262      CONTINUE
+        ENDIF
+      endif
+C
+      RETURN
+      END

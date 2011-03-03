@@ -1,0 +1,64 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE VSORT(array8,n)
+*
+#if defined (DOC)
+*
+***s/r VSORT  -real*8 interface for RMNLIB real*4 subroutine SORT. 
+*
+*Author  : JM Belanger *CMDA/SMC Sept 2000
+*Revision:
+*
+*Arguments: See SORT code for documentation
+*    Input:
+*      array8   
+*      n        
+*    Output:
+*      array8         
+*
+#endif
+
+      IMPLICIT NONE
+*implicits
+     
+      integer n
+      real*8 array8(n)
+*
+      integer ierr,jk
+      real buffer4
+      pointer (pxbuffer4,buffer4(n))
+*
+      external sort
+*-----7----------------------------------------------------------------
+
+      call hpalloc(pxbuffer4,max(1,n),ierr,1)
+
+      do jk = 1,n
+        buffer4(jk) = array8(jk)
+      enddo
+
+      call sort(buffer4,n)
+
+      do jk = 1,n
+        array8(jk) = buffer4(jk)
+      enddo
+
+      call hpdeallc(pxbuffer4,ierr,1)
+
+      return
+      end
+

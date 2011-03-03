@@ -1,0 +1,139 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine setvatra (v,   nmtra,   nvadim, ntrunc,  iztrl,
+     %                     v_xx,nmtra_xx,nvadim_xx,itrunc,iztrl_xx,
+     %                     lower_L,nksdim,nvamaj,k1gc,klatbin)
+*
+#if defined (DOC)
+*
+***s/r SETVATRA  - Transfer of Hessian from source to working resolutions
+*
+*Author  : M. Tanguay RPN, January, 2005
+*
+*     ----------------------------------------------------------------------------
+*     Transfer of Hessian from source to working resolutions is done according
+*     to the splitting of vatra as described in N1QN3 or N1CG1 (See MODULOPT lib.)
+*     ----------------------------------------------------------------------------
+*
+*Arguments
+*     o   v          : Hessian at working resolution
+*     o   iztrl      : Localisation parameters for Hessian at working res.
+*     i   v_xx       : Hessian at source resolution
+*     i   iztrl_xx   : Localisation parameters for Hessian at source res.
+*     i   nmtra(_xx) : Size of Hessian at working (source) res.
+*     i   nvadim(_xx): Size of Vazx field at working (source) res.
+*     i   lower_L    : .T. if source res. is lower than working res.
+*     i   n(i)trunc  : truncation of working (source) resolution
+*     i   nksdim     : nvar3d*nlev + nvar2d of working field
+*     i   nvamaj     : number of updates in Hessian
+*     i   k1gc       : Minimizer ID (2: m1qn2, 3: m1qn3, 4: m1gc)
+*
+*     --------------------------------------------
+*     CAUTION: When K1GC=3, iztrl assumes DIS mode
+*     --------------------------------------------
+*
+#endif
+      implicit none
+*
+      integer ntrunc,itrunc,nksdim,nvamaj,k1gc,nmtra,nvadim,klatbin,
+     %        nmtra_xx,nvadim_xx,iztrl(10),iztrl_xx(10)
+*
+      real*8 v(nmtra),v_xx(nmtra_xx)
+*
+      logical lower_L
+*
+*implicits
+#include "comlun.cdk"
+*
+      integer n,n_xx
+*
+      integer idiag,iybar,isbar,isize
+      integer idiag_xx,iybar_xx,isbar_xx,isize_xx
+*
+      integer ii,jj,mmemo,mmemo_xx
+*
+*     ----------------------------------------------------------
+*
+      if(lower_L) then
+         write(nulout,*) 'SETVATRA using source resolution lower than working resolution'
+      else
+        write(nulout,*)
+     &       'SETVATRA using source resolution greater or equal than working resolution'
+      endif
+*
+      n    = nvadim
+      n_xx = nvadim_xx
+*
+*     Mmemo = number of (y,s) pairs in core memory
+*     --------------------------------------------
+      mmemo    = NVAMAJ
+*      mmemo_xx = NVAMAJ
+      mmemo_xx = (nmtra_xx - 4*n_xx)/(2*n_xx + 1)
+*
+*     Split Hessian at working resolution
+*     -----------------------------------
+      idiag=1
+      iybar=idiag+n
+c     if(sscale)    iybar=1
+      if(k1gc.eq.4) iybar=1
+      isbar=iybar+n*mmemo
+      isize=isbar+n*mmemo
+*
+*     Split Hessian at source resolution
+*     ----------------------------------
+      idiag_xx=1
+      iybar_xx=idiag_xx+n_xx
+c     if(sscale)    iybar_xx=1
+      if(k1gc.eq.4) iybar_xx=1
+      isbar_xx=iybar_xx+n_xx*mmemo_xx
+      isize_xx=isbar_xx+n_xx*mmemo_xx
+*
+*     Transfer vazx field from source to working resolutions
+*     ------------------------------------------------------
+c     if(sscale)    call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,klatbin)
+      if(k1gc.eq.3) call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,klatbin)
+*
+      do jj = 1,min(mmemo,mmemo_xx)
+         call setvazx (v(iybar+(jj-1)*n),ntrunc,v_xx(iybar_xx+(jj-1)*n_xx),itrunc,lower_L,nksdim,klatbin)
+      enddo
+      do jj = 1,min(mmemo,mmemo_xx)
+         call setvazx (v(isbar+(jj-1)*n),ntrunc,v_xx(isbar_xx+(jj-1)*n_xx),itrunc,lower_L,nksdim,klatbin)
+      enddo
+*
+*     Transfer IZTRL
+*     --------------
+      if(k1gc.eq.3) then
+*
+         iztrl(1) = n
+         iztrl(2) = 0
+c        if(sscale) iztrl(2) = 1
+         iztrl(3) = mmemo
+         iztrl(4) = iztrl_xx(4)
+         iztrl(5) = iztrl_xx(5)
+*
+      elseif(k1gc.eq.4) then
+*
+         do ii=1,10
+            iztrl(ii) = iztrl_xx(ii)
+         enddo
+*
+         v(isize) = v_xx(isize_xx)
+*
+      endif
+*
+      return
+      end

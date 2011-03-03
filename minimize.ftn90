@@ -1,0 +1,65 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine minimize
+  implicit none
+  !
+  !Purpose:
+  ! Set the CMA for a minimization, pickup the appropriate minimizer
+  ! based on CMINMODE value and reset the CMA for post processing
+  !
+  !Author  : S. Pellerin *ARMA/MSC  Sept, 2005
+  !Revision:
+  ! L. Fillion *ARMA/EC  30 Jun 2010 - Avoid call to cprob8to4  and printout hdr.
+  !                                    in 1-Obs case.
+
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comct0.cdk"
+#include "comoba.cdk"
+#include "comcva.cdk"
+
+  !Local declarations
+  integer :: indic,ierr
+
+  call printrev("SUBROUTINE minimize :",21)
+
+  call setcma
+
+!modular1  if (trim(cminmode) == 'VAR') then
+     call minvar
+!modular1  elseif(trim(cminmode) == 'PSAS' .or. trim(cminmode) == 'OSV' )then
+!modular1     call minpsas
+!modular1  endif
+
+!
+  call rsetcma
+!
+!      DEALLOCATE(ROBDATA8,STAT=IERR)
+!      IF(IERR.EQ.0) THEN
+!        WRITE(NULOUT,*) 'minimize:  PTROBDATA8 checked and correct'
+!      ELSE
+!        WRITE(NULOUT,*) 'minimize:  PTROBDATA8 destroyed !!!!!!'
+!      END IF
+  if(.not.l1obs) then
+    call cprob8to4
+    DO INDIC =1,1
+       CALL PRNTHDR(indic,NULOUT)
+       CALL PRNTBDY(indic,NULOUT)
+    END DO
+  endif
+
+end subroutine minimize

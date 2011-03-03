@@ -1,0 +1,42 @@
+#if defined (DOC)
+!copyright (C) 2002  <<< Envrionment Canada LAM4D >>>
+!
+! Author: Luc Fillion - ARMA/EC July 2005.
+!
+! Revision:
+C
+C     COMDECK: COMGEMBGH
+C     ------------------
+C
+C*    Definition of some parameters characterizing the geometry of
+C     the Limited-Area (LA) High-Res. Background grid and associated metric factors
+C
+C     rlat_bgh(-4:nit+4,-4:njt+4): Latitudes of LA gridpoints
+C     rlon_bgh(-4:nit+4,-4:njt+4): Longitudes of LA gridpoints
+C     rdlat_bgh(-4:nit+4,-4:njt+4): Latitude difference of LA gridpoints
+C     rdlon_bgh(-4:nit+4,-4:njt+4): Longitude differences of LA gridpoints
+C     rlath_bgh(-4:njt+4): Latitudes of half grid-points of LA gridpoints in lat-dirention
+C     rrcos_bgh(-4:nit+4,-4:njt+4): 1.0/Cos(Latitudes of LA gridpoints) used by UV2uv 
+C     rdmu_bgh(-4:njt+4)        : Differences of mu=sin(lat)
+C     rdmuh_bgh(-4:njt+4)       : Differences of muh=sin(lath)
+C     r1mmu2_bgh(-4:njt+4)      : (1.-mu**2)
+C     r1mmu2h_bgh(-4:njt+4)     : (1.-muh**2)
+C
+#endif
+      real*8 rlat_bgh(-4:nit+4,-4:njt+4), rlon_bgh(-4:nit+4,-4:njt+4)
+      real*8 rdlat_bgh(-4:nit+4,-4:njt+4), rdlon_bgh(-4:nit+4,-4:njt+4)
+      real*8 rlath_bgh(-4:njt+4)
+      real*8 rrcos_bgh(-4:nit+4,-4:njt+4)
+      real*8 rdmu_bgh(-4:njt+4),rdmuh_bgh(-4:njt+4)
+      real*8 r1mmu2_bgh(-4:njt+4),r1mmu2h_bgh(-4:njt+4)
+!
+      pointer (ptrlat_bgh,rlat_bgh),(ptrlon_bgh,rlon_bgh)
+      pointer (ptrdlat_bgh,rdlat_bgh),(ptrdlon_bgh,rdlon_bgh)
+      pointer (ptrlath_bgh,rlath_bgh)
+      pointer (ptrrcos_bgh,rrcos_bgh)
+      pointer (ptrdmu_bgh,rdmu_bgh),(ptrdmuh_bgh,rdmuh_bgh)
+      pointer (ptr1mmu2_bgh,r1mmu2_bgh),(ptr1mmu2h_bgh,r1mmu2h_bgh)
+C
+      COMMON /POMGEMBGH/ptrlat_bgh,ptrlon_bgh,ptrdlat_bgh,ptrdlon_bgh
+     &     ,ptrlath_bgh,ptrdmu_bgh,ptrdmuh_bgh,ptr1mmu2_bgh
+     &     ,ptr1mmu2h_bgh,ptrrcos_bgh

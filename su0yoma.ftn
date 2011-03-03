@@ -1,0 +1,136 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SU0YOMA
+#if defined (DOC)
+C
+C**** *SU0YOMA*  - INITIALIZE LEVEL 0 COMMONS AND SOME HIGHER (PART 1)
+C
+C
+C     AUTHOR.
+C     -------
+C        based on a subroutine written for ARPEGE/IFS
+C        by  Mats Hamrud and Philippe Courtier  *ECMWF*
+C
+C     MODIFICATIONS.
+C     --------------
+C        ORIGINAL    : 87-10-15
+C	 Modified    : 92-02-4   * P. GAUTHIER - *ARMA/RPN
+*        Modified    : Sept 97.  * S. Pellerin - *ARMA/RPN
+*                      Call to SUSTATE to initialise COMSTATE
+!        L. Fillion/C.Page: ARMA/MSC - 30 Nov 2004 - Introduce Limited-Area option.
+*        L. Fillion ARMA/MSC May 2006: Upgrade to v10_0_0.
+*        L. Fillion ARMA/EC  14 Aug 2007 - Update lam4d to v_10_0_3.
+*        L. Fillion ARMA/EC  19 Jan 2009 - Update lam4d to v_10_2_1.
+*           - Introduction of comgrd_param.cdk.
+*        L. Fillion ARMA/EC  6 Jul 2009 - Reorder sugrd_param after sudim to allow no-modif 
+*              required by global analysis group when LAM4D code installed officially. 
+*              This is validated on v_10_3_1.
+*        L. Fillion ARMA/EC  Sep 2009 - Relocate sugrd_param into sudim.ftn.
+*        Bin He     *ARMA/MRD  
+*           --   Implemented MPI to 3dvar.  
+*        L. Fillion ARMA/EC  8 Oct 2009 - Allow sugrdpar to be called when grd_roule = .true.
+*        L. Fillion ARMA/EC  4 May 2010 - Remove external sumode
+*            
+C     ----------------------------------------------------------------------------
+#endif
+      IMPLICIT NONE
+#include "comgrd_param.cdk"
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comct0.cdk"
+#include "comcva.cdk"
+*
+      EXTERNAL SUCT0,SULUN,SUCST,SUDIM,SUDIMO,SUALLO,SUALOBS
+C     ---------------------------------------------------------------
+C
+C*       1.    INITIALIZE LOGICAL UNITS.
+C              -------------------------
+C
+ 100  CONTINUE
+      CALL SULUN
+C     ---------------------------------------------------------------
+C
+C*       2.   INITIALIZE YOMCT0.
+C             -----------------
+ 200  CONTINUE
+C
+CCbhe       CALL SUCT0(NULOUT)
+C     ------------------------------------------------------------------
+C
+C*       3.    INITIALIZE CONSTANTS.
+C              ---------------------
+C
+ 300  CONTINUE
+      CALL SUCST(NULOUT)
+C     ------------------------------------------------------------------
+C
+C*       3.2   INITIALIZE VARIABLES OF THE MODEL STATES
+C              ----------------------------------------
+C*       3.1    INITIALIZE VARIABLES OF THE MODEL STATES.
+C              ------------------------------------------
+C
+ 310  CONTINUE
+      CALL SUSTATE
+C     ------------------------------------------------------------------
+C     -----------------------------------------------------------------
+C
+C*    4.    INITIALIZE DIMENSIONS & Geometry
+C           --------------------------------
+C*    4.    INITIALIZE DIMENSIONS.
+C           ---------------------
+C
+ 400  CONTINUE
+      CALL SUDIM(NULOUT)   ! n.b.: other namelist e.g. namcva are being read here to allow high-level decisions...
+!
+! 4.1 Initialize TRLM grid parameters
+!
+      if(grd_roule) then
+!modular1        call subgpar 
+      endif
+C
+C*4.2 Initialize observations dimensions
+C*    4.1 Initialize observations dimensions
+C
+ 410  CONTINUE
+      CALL SUCMA (NULOUT)
+      CALL SUDIMO(NULOUT)
+C
+C     ------------------------------------------------------------------
+C
+C*    5.   ALLOCATE MEMORY FOR GRID POINT AND SPECTRAL ARRAYS.
+C          ----------------------------------------
+C
+ 500  CONTINUE
+      CALL SUALLO(NULOUT)
+C
+C*    5.1 Allocate memory for observation arrays
+C
+ 510  CONTINUE
+      CALL SUALOBS(NULOUT)
+!
+!*    6. Initialize LAM Analysis grid fields (rotation matrix, parameters etc)
+!
+      if(grd_roule) then
+!modular1        call sugrdpar
+      endif
+!
+      if(grd_typ.eq.'LU'.and.multi_grd.eq.1) then
+!modular1        call sugrdpar2 ! for embedded LAM grid
+      endif
+C
+      RETURN
+      END

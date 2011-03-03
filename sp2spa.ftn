@@ -1,0 +1,197 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SP2SPA
+      use glbspec_mod
+#if defined (DOC)
+*
+***s/r SP2SPA  - Convert model state increments to analysis variables
+*     .
+* Purpose
+*     .  To build the analysis variables from the model state variables
+*     .  as defined in spectral space
+*     .  IMPORTANT: after a call to SP2SPA, the fields SPVOR and SPDIV
+*     .             may contain PSI and CHI. This will eventually become
+*     .             the default option
+*
+*Author  : P. Gauthier *ARMA/AES  March 25, 1996
+*     .
+*Revision:
+*     .    P. Gauthier *ARMA/AES  August 5, 1996
+*     .         Redefine the balance relationship and reformulate the
+*     .         analysis variable in terms of PSI and CHI instead of
+*     .         vorticity and divergence.
+*     . S. Pellerin *ARMA/AES Sept 97.
+*                   - Control of the different model state of the 3Dvar
+*                     through COMSTATE, COMSTATEC and COMSTNUM common 
+*                     blocks variables (comstate.cdk).
+*     . M. Buehner November 1997
+*     .          Allow for case of NANALVAR=3, but do not include transformation
+*     .          since this subroutine can not be used with current shape of
+*     .          forecast std dev of Gz - results in extreme aliasing - except 
+*     .          for case that SP=0 which is currently the case
+#endif
+C
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comcst.cdk"
+#include "comgem.cdk"
+#include "comcva.cdk"
+#include "comsp.cdk"
+#include "comspg.cdk"
+#include "comgd0.cdk"
+#include "compstat.cdk"
+#include "comstate.cdk"
+C
+      INTEGER ILENSP, ILENGD, IERR
+     S     , ILON, JLEV, JLON, JLAT, JLA
+      REAL*8 Z1MNU2, ZSQRTNU2, ZCORIOLIS
+     S     ,ZNORMPSI, ZNORMCHI
+      REAL*8 DLA2, DL1SA2
+      REAL*8 ZGDPSI(NIBEG:NIEND,2*NFLEV,NJBEG:NJEND)
+     S     ,ZGDCHI(NIBEG:NIEND,2*NFLEV,NJBEG:NJEND)
+      POINTER (PXGDPSI,ZGDPSI), (PXGDCHI,ZGDCHI)
+C
+C     1. Create local arrays for CHI and PSI if needed
+C
+ 100  CONTINUE
+C
+C     .  1.1 Case where the analysis variable is X - Xb
+C     .      (SPA2SP = Identity)
+C
+ 110  CONTINUE
+      IF(NANALVAR.EQ.0) THEN
+         RETURN
+      END IF
+C
+C     .  1.2 Memory allocation
+C
+      IF(NANALVAR.GE.2) THEN
+         ILENGD = (NJEND-NJBEG+1)*2*NFLEV*(NIEND-NIBEG+1)
+         CALL HPALLOC(PXGDPSI,MAX(1,ILENGD),IERR,8)
+         PXGDCHI = LOC(ZGDPSI(NIBEG,NFLEV+1,NJBEG))
+      END IF
+C
+C     .  1.3 Definition of a few constants
+C
+      DLA2 = DBLE(RA)*DBLE(RA)
+      DL1SA2 = 1.D0/DLA2
+C
+C     2. CONTROL VARIABLE DEFINED IN TERMS OF PSI AND CHI
+C     (removed code for nanalvar=1)
+C
+ 200  CONTINUE
+C
+C     . 2.1 Obtain PSI and CHI out of VOR and DIV
+C
+ 210  CONTINUE
+      DO JLEV = 1, NFLEV
+         DO JLA = 1, NLA
+            SPVOR(JLA,1,JLEV) = SPVOR(JLA,1,JLEV)* DLA2*R1SNP1(JLA)
+            SPVOR(JLA,2,JLEV) = SPVOR(JLA,2,JLEV)* DLA2*R1SNP1(JLA)
+            SPDIV(JLA,1,JLEV) = SPDIV(JLA,1,JLEV)* DLA2*R1SNP1(JLA)
+            SPDIV(JLA,2,JLEV) = SPDIV(JLA,2,JLEV)* DLA2*R1SNP1(JLA)
+         END DO
+      END DO
+C
+C     . 2.2 Convert to physical space for scalar fields
+C
+ 220  CONTINUE
+C
+C     . 2.3 Convert PSI and CHI to physical space
+C
+ 230  CONTINUE
+!modular1      CALL SPEREE(NKSDIM,SP,GD
+!modular1     S     ,NLA,NIBEG,NIEND,NJBEG,NJEND,NKSDIM)
+      CALL gst_SPEREE(SP,GD,NKSDIM,NKSDIM)
+C
+C     . 2.4 Define the geostrophic departure from geostrophy
+C     .     in physical space
+C
+ 240  CONTINUE
+      if (ngexist(nggz) .eq. 1) then
+        DO JLEV = 1, NFLEV
+          DO JLAT = 1, NJ
+            ILON = NILON(JLAT)
+            ZCORIOLIS = 2.*ROMEGA*gst_RMU(JLAT)
+            DO JLON = 1, ILON
+              GZ0(JLON,JLEV,JLAT) = GZ0(JLON,JLEV,JLAT)
+     S             - ZCORIOLIS*UT0(JLON,JLEV,JLAT)
+            END DO
+          END DO
+        END DO
+      endif
+C
+C     . 2.5 Normalization by the standard deviations of the
+C     .     background error (IN PHYSICAL SPACE)
+C
+ 250  CONTINUE
+      DO JLEV = 1, NFLEV
+         DO JLAT = 1, NJ
+            ILON = NILON(JLAT)
+            DO JLON = 1, ILON
+               ZGDPSI(JLON,JLEV,JLAT) = UT0(JLON,JLEV,JLAT)
+               ZGDCHI(JLON,JLEV,JLAT) = VT0(JLON,JLEV,JLAT)
+            END DO
+         END DO
+      END DO
+      CALL FGERR('D')
+      DO JLEV = 1, NFLEV
+         DO JLAT = 1, NJ
+            ILON = NILON(JLAT)
+            Z1MNU2 = SQRT(1. - RNU2BG(JLAT,JLEV))
+            ZSQRTNU2 = SQRT(RNU2BG(JLAT,JLEV))
+            ZNORMPSI = Z1MNU2*RGSIGUU(JLAT,JLEV)*RCSCLVO(JLEV)
+            ZNORMCHI = ZSQRTNU2*RGSIGUU(JLAT,JLEV)*RCSCLDI(JLEV)
+            IF(ZNORMPSI.NE.0.)THEN
+               ZNORMPSI = 1./ZNORMPSI
+            ELSE
+               ZNORMPSI = 1.e20
+            END IF
+            IF(ZNORMCHI.NE.0.)THEN
+               ZNORMCHI = 1./ZNORMCHI
+            ELSE
+               ZNORMCHI = 1.e20
+            END IF
+            DO JLON = 1, ILON
+               IF(DAMPLIBG(JLON,JLEV,JLAT).gt.0.0)
+     S           UT0(JLON,JLEV,JLAT)
+     S              = ZGDPSI(JLON,JLEV,JLAT)*ZNORMPSI
+     S              /DAMPLIBG(JLON,JLEV,JLAT)
+               IF(DAMPLIBG(JLON,JLEV+NFLEV,JLAT).gt.0.0)
+     S           VT0(JLON,JLEV,JLAT)
+     S              = ZGDCHI(JLON,JLEV,JLAT)*ZNORMCHI
+     S              /DAMPLIBG(JLON,JLEV+NFLEV,JLAT)
+            END DO
+         END DO
+      END DO
+C
+C     .  2.6 Bring back the result in spectral space
+C
+ 260  CONTINUE
+!modular1      CALL REESPE(NKSDIM,SP,GD
+!modular1     S     ,NLA,NIBEG,NIEND,NJBEG,NJEND,NKSDIM)
+      CALL gst_REESPE(SP,GD,NKSDIM,NKSDIM)
+C
+C     3. Deallocate local arrays
+C
+ 300  CONTINUE
+      IF(NANALVAR.GE.2) THEN
+         CALL HPDEALLC(PXGDPSI,IERR,1)
+      END IF
+      RETURN
+      END

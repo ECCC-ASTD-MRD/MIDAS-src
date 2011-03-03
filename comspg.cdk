@@ -1,0 +1,169 @@
+#if defined (DOC)
+*
+*     . J. Halle    *CMDA/AES Oct 99.
+*             - Added ground temperature (TG) to the model state.
+C
+C     COMDECK: COMSPG
+C     --------------
+C
+C     1. Spectral  model state containing the first-guess and the
+C     .  background error covariance
+C     .  ---------------------------
+C     SPG(NLA,2,NKSDIM):  global state
+C
+C     Splitting of SPG
+C     ----------------
+C     SPVORG(NLA,2,NFLEV)   :   vorticity at all levels of the model
+C     SPDIVG(NLA,2,NFLEV)   :  divergence at all levels of the model
+C     SPTTG (NLA,2,NFLEV)   : temperature at all levels of the model
+C     SPQG  (NLA,2,NFLEV)   : specific humidity at all levels of the model
+C     SPGZG (NLA,2,NFLEV)   : geopotential at all levels of the model
+C     SPOZG (NLA,2,NFLEV)   : ozone at all levels of the model
+C     SPTRG (NLA,2,NFLEV)   : undefined passive tracer
+C     SPPSG (NLA,2,1)       : surface pressure
+C     SPTGG (NLA,2,1)       : ground temperature
+C
+C     2. Spectral  forecast error correlation assumed to be diagonal
+C     .  ----------------------------------------------------------
+C     CORG(NLA,2,NKSDIM):  global state
+C
+C     Splitting of SPG
+C     ----------------
+C     CORVORG(NLA,2,NFLEV)   :   vorticity error correlation
+C     CORDIVG(NLA,2,NFLEV)   :  divergence  error correlation
+C     CORTTG (NLA,2,NFLEV)   : temperature  error correlation
+C     CORQG  (NLA,2,NFLEV)   : specific humidity error correlation
+C     CORGZG (NLA,2,NFLEV)   : geopotential error correlation
+C     COROZG (NLA,2,NFLEV)   : ozone error correlation
+C     CORTRG (NLA,2,NFLEV)   : undefined passive tracer error correlation
+C     CORPSG (NLA,2,1)       : surface pressure
+C     CORTGG (NLA,2,1)       : ground temperature
+C
+C     3. Standard deviation of the forecast error in spectral space
+C     .  ----------------------------------------------------------
+C     RDEVSTD(NKSDIM)        : standard error deviation for all variables
+C
+C     Splitting of RDEVSTD
+C     --------------------
+C     RDEVVOR(NFLEV )        :    "       "      "       "   vorticity
+C     RDEVDIV(NFLEV )        :    "       "      "       "  divergence
+C     RDEVTT (NFLEV )        :    "       "      "       "  temperature
+C     RDEVGZ (NFLEV )        :    "       "      "       "  geopotential
+C     RDEVOZ (NFLEV )        :    "       "      "       "  ozone
+C     RDEVTR (NFLEV )        :    "       "      "       "  passive tracer
+C     RDEVQ  (NFLEV )        :    "       "      "       "  specific humidity
+C     RDEVPS (NFLEV )        :    "       "      "       "  surface pressure
+C     RDEVTG (NFLEV )        :    "       "      "       "  ground temperature
+C
+C
+C
+C     4. Standard deviation of the forecast error in physical space
+C     .  ----------------------------------------------------------
+C     RGSIG(NJBEG:NJEND,NKGDIM)        : standard error deviation for all variables
+C
+C     Splitting of RGSIG
+C     --------------------
+C     RGSIGUU(NJBEG:NJEND,NFLEV )        :    "       "      "       "  zonal wind
+C     RGSIGVV(NJBEG:NJEND,NFLEV )        :    "       "      "       "  meridional wind
+C     RGSIGTT(NJBEG:NJEND,NFLEV )        :    "       "      "       "  temperature
+C     RGSIGGZ (NJBEG:NJEND,NFLEV )       :    "       "      "       "  geopotential
+C     RGSIGOZ (NJBEG:NJEND,NFLEV )       :    "       "      "       "  ozone
+C     RGSIGTR (NJBEG:NJEND,NFLEV )       :    "       "      "       "  passive tracer
+C     RGSIGQ (NJBEG:NJEND,NFLEV )        :    "       "      "       "  specific humidity
+C     RGSIGPS(NJBEG:NJEND,NFLEV )        :    "       "      "       "  surface pressure
+C     RGSIGTG(NJBEG:NJEND,NFLEV )        :    "       "      "       "  ground temperature
+C
+#endif
+      REAL*8  SPG(NLA,2,NKSDIM)
+     S      , SPVORG(NLA,2,NKSDIM)
+     S      , SPDIVG(NLA,2,NKSDIM)
+     S      , SPTTG(NLA,2,NKSDIM)
+     S      , SPQG(NLA,2,NKSDIM)
+     S      , SPGZG (NLA,2,NKSDIM)
+     S      , SPOZG (NLA,2,NKSDIM)
+     S      , SPTRG (NLA,2,NKSDIM)
+     S      , SPPSG(NLA,2,NKSDIM)
+     S      , SPTGG(NLA,2,NKSDIM)
+C
+      POINTER (PTSPG,SPG), (PTSVORG,SPVORG), (PTSDIVG,SPDIVG)
+     S     ,  (PTSTTG,SPTTG)
+     S     , (PTGZG,SPGZG), (PTOZG,SPOZG), (PTTRG,SPTRG)
+     S     , (PTSPQG,SPQG), (PTSPPSG,SPPSG), (PTSPTGG,SPTGG)
+C
+      REAL*8  CORG(NLA,2,NKSDIM)
+     S      , CORVORG(NLA,2,NKSDIM)
+     S      , CORDIVG(NLA,2,NKSDIM)
+     S      , CORTTG (NLA,2,NKSDIM)
+     S      , CORQG  (NLA,2,NKSDIM)
+     S      , CORGZG (NLA,2,NKSDIM)
+     S      , COROZG (NLA,2,NKSDIM)
+     S      , CORTRG (NLA,2,NKSDIM)
+     S      , CORPSG (NLA,2,NKSDIM)
+     S      , CORTGG (NLA,2,NKSDIM)
+C
+      POINTER (PTCORG,CORG), (PTCVORG,CORVORG), (PTCDIVG,CORDIVG)
+     S     ,  (PTCTTG,CORTTG)
+     S     ,  (PTCQG,CORQG)
+     S     ,  (PTCGZG,CORGZG)
+     S     ,  (PTCOZG,COROZG)
+     S     ,  (PTCTRG,CORTRG)
+     S     ,  (PTCPSG,CORPSG)
+     S     ,  (PTCTGG,CORTGG)
+C
+      REAL*8 RDEVSTD(NKSDIM), RDEVVOR(NKSDIM), RDEVDIV(NKSDIM)
+     S     , RDEVTT(NKSDIM), RDEVQ(NKSDIM)
+     S     , RDEVGZ(NKSDIM), RDEVOZ(NKSDIM), RDEVTR(NKSDIM)
+     S     , RDEVPS(NKSDIM), RDEVTG(NKSDIM)
+C
+      POINTER (PTDEVSTD,RDEVSTD),(PTDEVVOR,RDEVVOR)
+     S     ,  (PTDEVDIV,RDEVDIV), (PTDEVTT,RDEVTT)
+     S     , (PTDEVGZ,RDEVGZ), (PTDEVOZ,RDEVOZ), (PTDEVTR,RDEVTR)
+     S     ,(PTDEVQ,RDEVQ)
+     S     ,  (PTDEVPS,RDEVPS),  (PTDEVTG,RDEVTG)
+C
+      REAL*8 RGSIG(NJBEG:NJEND,NKGDIM),RGSIGUU(NJBEG:NJEND,NKGDIM)
+     S     , RGSIGVV(NJBEG:NJEND,NKGDIM),RGSIGTT(NJBEG:NJEND,NKGDIM)
+     S     , RGSIGGZ (NJBEG:NJEND,NKGDIM), RGSIGOZ(NJBEG:NJEND,NKGDIM)
+     S     , RGSIGTR(NJBEG:NJEND,NKGDIM)
+     S     , RGSIGQ(NJBEG:NJEND,NKGDIM),RGSIGPS(NJBEG:NJEND,NKGDIM)
+     S     , RGSIGTG(NJBEG:NJEND,NKGDIM),RGSIGTB(NJBEG:NJEND,NFLEV)
+     S     , RGSIGPSB(NJBEG:NJEND)
+C
+      POINTER (PTSIG,RGSIG),(PTSIGUU,RGSIGUU),(PTSIGVV,RGSIGVV)
+     S     ,(PTSIGTT,RGSIGTT),(PTSIGQ,RGSIGQ)
+     S     ,(PTSIGTR,RGSIGTR), (PTSIGGZ,RGSIGGZ), (PTSIGOZ,RGSIGOZ)
+     S     ,(PTSIGPS,RGSIGPS),(PTSIGTG,RGSIGTG),(PTSIGTB,RGSIGTB)
+     S     ,(PTSIGPSB,RGSIGPSB)
+C
+      REAL*8 RGSIG3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGUU3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGVV3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGTT3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGGZ3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGOZ3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGTR3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGQ3D (NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGPS3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
+     S       RGSIGTG3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+C
+      POINTER (PTSIG3D,RGSIG3D),(PTSIGUU3D,RGSIGUU3D)
+     S     ,(PTSIGVV3D,RGSIGVV3D)
+     S     ,(PTSIGTT3D,RGSIGTT3D),(PTSIGQ3D,RGSIGQ3D)
+     S     ,(PTSIGTR3D,RGSIGTR3D), (PTSIGGZ3D,RGSIGGZ3D)
+     S     ,(PTSIGOZ3D,RGSIGOZ3D)
+     S     ,(PTSIGPS3D,RGSIGPS3D),(PTSIGTG3D,RGSIGTG3D)
+C
+      COMMON /POMSPG/PTSPG,PTSVORG,PTSDIVG,PTSTTG
+     S     , PTSPQG, PTSPPSG, PTSPTGG,PTGZG,PTOZG,PTTRG
+     S     , PTCORG,PTCVORG,PTCDIVG,PTCTTG
+     S     , PTCQG, PTCGZG, PTCOZG, PTCTRG, PTCPSG, PTCTGG
+     S     , PTDEVSTD, PTDEVVOR, PTDEVDIV, PTDEVTT, PTDEVQ
+     S     , PTDEVGZ,PTDEVOZ, PTDEVTR
+     S     , PTDEVPS, PTDEVTG
+     S     , PTSIG, PTSIGUU, PTSIGVV, PTSIGTT, PTSIGQ
+     S     , PTSIGGZ, PTSIGOZ, PTSIGTR, PTSIGTB, PTSIGPSB
+     S     , PTSIGPS, PTSIGTG
+     S     , PTSIG3D, PTSIGUU3D, PTSIGVV3D, PTSIGTT3D, PTSIGQ3D
+     S     , PTSIGGZ3D, PTSIGOZ3D, PTSIGTR3D
+     S     , PTSIGPS3D, PTSIGTG3D
+

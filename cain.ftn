@@ -1,0 +1,114 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE CAIN(KDIM,PX)
+#if defined (DOC)
+*
+***s/r CAIN (canonical injection): transfer of the control variable
+*     .                            to COMSP
+*
+*
+*Author  : P. Gauthier *ARMA/AES  January 27, 1993
+*     .    (based on a subroutine by P.Courtier and M. Hamrud
+*     .    from the ARPEGE/IFS model)
+*Revision:
+*          M. Buehner *ARMA/MSC August 2002
+*          .  Added control variables for SV extension to B
+*          M. Buehner *ARMA May 2008
+*          .  Added control variables when using background
+*             error correlations specified over multiple latitude
+*             bands (NANALVAR=4)
+*          L. Fillion *ARMA/EC sept 2003
+*          .  Lmited Area LAM4D analysis option.
+*          L. Fillion *ARMA/EC 6 Jan 2009 
+*          .  Upgrade to v_10_1_2 3dvar + cosmetic changes (identations).
+*          L. Fillion *ARMA/EC 9 Mar 2009 
+*          .  Introduce nanalvar=4 option in lam4d (somewhat different than global case...).
+*
+*    -------------------
+**    Purpose: identity transformation used to insure a communication
+*     .        link between the model state and the minimization algo-
+*     .        rithm. Also used to define the norm used (see also CAINAD)
+*
+*Arguments
+*     i : KDIM = dimension of the control variable
+*     i : PX   = control variable
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comsp.cdk"
+#include "comcva.cdk"
+*
+      INTEGER KDIM, JDIM, JLEV, JLA, JLATBIN
+      REAL*8 PX(KDIM)
+      EXTERNAL ABORT3D, TRANSFER
+C
+C*    1. Set model state to zero (in COMSP)
+C
+ 100  CONTINUE
+C
+      CALL TRANSFER('ZSP0')
+CC
+C     2. Fill in the spectral model state
+C
+ 200  CONTINUE
+C
+      JDIM = 0
+        if(nanalvar.eq.4) then
+          CALL TRANSFER('ZSPL')
+          DO JLATBIN=1,NLATBIN
+            DO JLEV = 1, NKSDIM
+              DO JLA = 1, NTRUNC + 1
+                JDIM = JDIM + 1
+                SPLAT(JLA,1,JLEV,JLATBIN) = PX(JDIM)
+              ENDDO
+              DO JLA = NTRUNC+2, NLA
+                JDIM = JDIM + 1
+                SPLAT(JLA,1,JLEV,JLATBIN) = PX(JDIM)
+                JDIM = JDIM + 1
+                SPLAT(JLA,2,JLEV,JLATBIN) = PX(JDIM)
+              ENDDO
+            ENDDO
+          ENDDO
+        else
+          DO 201 JLEV = 1, NKSDIM
+            DO 202 JLA = 1, NTRUNC + 1
+              JDIM = JDIM + 1
+              SP(JLA,1,JLEV) = PX(JDIM)
+ 202        CONTINUE
+            DO 203 JLA = NTRUNC+2, NLA
+              JDIM = JDIM + 1
+              SP(JLA,1,JLEV) = PX(JDIM)
+              JDIM = JDIM + 1
+              SP(JLA,2,JLEV) = PX(JDIM)
+ 203        CONTINUE
+ 201      CONTINUE
+        endif
+C
+C     3. Verify the dimension of the control variable
+C
+ 300  CONTINUE
+      IF(JDIM.NE.KDIM) THEN
+         WRITE(NULOUT,FMT=9300) KDIM, JDIM
+         CALL ABORT3D(NULOUT,'ERROR IN CAIN  ')
+      END IF
+ 9300 FORMAT(//,10X,'Error in CAIN. Wrong dimension',
+     S     ' for the control variable. KDIM = ',I8,4X,'JDIM =',I8)
+C
+      RETURN
+      END

@@ -1,0 +1,9 @@
+#if defined (DOC)
+C     COMDECK NAMGOES
+#endif
+      NAMELIST /NAMGOES/ NSATGO, NIDSATGO, LXACTGO,
+     S                   LTSTGO, LDBGGO, LRTNADIRGO,
+     S                   CRTMODLGO, NICLOUD, NIASSIM,
+     S                NEMIFLAG, NIPSFLAG, NKBIAS,NIMODE,
+     S                   NKTUNE, NIB1, NIB2, NNGAS, NIGO
+

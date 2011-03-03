@@ -1,0 +1,208 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUGOESST
+#if defined (DOC)
+*
+***s/r SUGOESST - Read the observation error statistics and
+*                 utilization flag for GOES processing.
+*
+*
+*Author  : N. Wagneur June 2001
+*
+*
+*    -------------------
+**    Purpose: Read the observation error statistics and
+*              utilization flag for GOES processing. This information
+*              resides on an ASCII file and is read using a free format.
+#endif
+      IMPLICIT NONE
+*implicits
+#include "partov.cdk"
+#include "cparamgoes.cdk"
+#include "comgoes.cdk"
+#include "comgoesst.cdk"
+#include "comlun.cdk"
+C
+      INTEGER IER, ILUGO, JI, JJ, JK, JL, INDX
+      INTEGER INUMSAT, INUMCHN, ISAT, ICHN
+      INTEGER FNOM, FCLOS, ISRCHEQ
+      INTEGER ISATID (JPNSATGO)
+      INTEGER IUTILST (JPCHGO,JPMXCLD,JPMXREG,JPNSATGO)
+C
+      CHARACTER*132  CLDUM
+      CHARACTER*13   CLCLD(JPMXCLD)
+      CHARACTER*13   CLREG(JPMXREG)
+C
+      DATA CLCLD / 'CLEAR        ' ,
+     S             'PARTLY CLOUDY' ,
+     S             'CLOUDY       ' /
+cnwa      DATA MLISCLD / 32, 16, 08 /
+      DATA MLISCLDGO / 08, 16, 32 /
+      DATA CLREG / 'OCEAN        ' ,
+     S             'CONTINENT    ' /
+      DATA MLISREGGO / 1, 0 /
+C
+      EXTERNAL FNOM, FCLOS, ISRCHEQ
+      EXTERNAL ABORT3D
+C
+      WRITE(NULOUT,FMT=9000)
+ 9000 FORMAT(//,10x,"-SUGOESST: reading observation error statistics"
+     S     ," required for GOES processing")
+C
+C
+C*    1. Initialize
+C     .  ----------
+C
+ 100  CONTINUE
+      NREGSTGO = 0
+      NCLDSTGO = 0
+      DO JL = 1, JPNSATGO
+         DO JK = 1, JPMXREG
+            DO JJ = 1, JPMXCLD
+               NCHNAGO(JJ,JK,JL) = 0
+               DO JI = 1, JPCHGO
+                  GOERRST(JI,JJ,JK,JL) = 0.D0
+                  IUTILST(JI,JJ,JK,JL) = 0
+                  MLISCHNAGO(JI,JJ,JK,JL) = 0
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+C
+C*    2. Open the file
+C     .  -------------
+C
+ 200  CONTINUE
+      ilugo = 0
+      IER =  FNOM(ILUGO,'stats_goes','SEQ+FMT',0)
+      IF(IER.LT.0)THEN
+         WRITE ( NULOUT, '(" SUGOESST: Problem opening ",
+     S         "file stats_goes ")' )
+         CALL ABORT3D ( NULOUT,'SUGOESST         ')
+      END IF
+C
+C*    3. Print the file contents
+C     .  -----------------------
+C
+ 300  CONTINUE
+C
+      WRITE(NULOUT,'(20X,"ASCII dump of stats_goes file: "//)')
+      DO JI = 1, 9999999
+         READ (ILUGO,'(A)',ERR=900,END=400) CLDUM
+         WRITE(NULOUT,'(A)')   CLDUM
+      ENDDO
+C
+C*    4. Read number of satellites, regions and cloud classes
+C     .  ----------------------------------------------------
+C
+ 400  CONTINUE
+C
+      REWIND(ILUGO)
+      READ (ILUGO,*,ERR=900)
+      READ (ILUGO,*,ERR=900) INUMSAT, NREGSTGO, NCLDSTGO
+C
+C*    5. Read the satellite identification, the number of channels,
+C*    .  the observation errors and the utilization flags
+C     .  ----------------------------------------------------------
+C
+ 500  CONTINUE
+C
+      DO JL = 1, INUMSAT
+         READ (ILUGO,*,ERR=900)
+         READ (ILUGO,*,ERR=900) ISATID(JL), INUMCHN
+         DO JI = 1, 6
+            READ (ILUGO,*,ERR=900)
+         ENDDO
+C
+C**      Is this satellite to be assimilated?
+C
+         ISAT = ISRCHEQ ( NIDSATGO, NSATGO, ISATID(JL) )
+         IF ( ISAT .NE. 0 ) THEN
+            DO JI = 1, INUMCHN
+               READ (ILUGO,*,ERR=900) ICHN,
+     S                   ((GOERRST(ICHN,JJ,JK,ISAT),
+     S                     IUTILST (ICHN,JJ,JK,ISAT),
+     S                     JJ=1,NCLDSTGO), JK=1,NREGSTGO)
+            ENDDO
+         ELSE
+            DO JI = 1, INUMCHN
+               READ (ILUGO,*,ERR=900)
+            ENDDO
+         ENDIF
+      ENDDO
+C
+C**   Check that oberservation error statistics have been defined for
+C*    all the satellites specified in the namelist.
+C
+      DO JL = 1, NSATGO
+         ISAT = ISRCHEQ ( ISATID, INUMSAT, NIDSATGO(JL) )
+         IF ( ISAT .EQ. 0 ) THEN
+            WRITE ( NULOUT, '(" SUGOESST: Observation errors not ",
+     S         "defined for satellite ", I3)' ) NIDSATGO(JL)
+            CALL ABORT3D ( NULOUT,'SUGOESST         ')
+         END IF
+      ENDDO
+C
+C
+C*    6. Construct a list of channels to be assimilated
+C     .  ----------------------------------------------
+C
+ 600  CONTINUE
+C
+      WRITE(NULOUT,'(//5X,"Observation errors of GOES data",
+     S                     " to be assimilated: "/)')
+      DO JL = 1, NSATGO
+         DO JK = 1, JPMXREG
+            DO JJ = 1, JPMXCLD
+               INDX = 0
+               DO JI = 1, JPCHGO
+                  IF ( IUTILST(JI,JJ,JK,JL) .NE. 0 ) THEN
+                     NCHNAGO(JJ,JK,JL) = NCHNAGO(JJ,JK,JL) + 1
+                     INDX = INDX + 1
+                     MLISCHNAGO(INDX,JJ,JK,JL) = JI
+                  ENDIF
+               ENDDO
+               WRITE(NULOUT,'(/7X,"Satellite: ",I2,5X,2A)')
+     S            NIDSATGO(JL), CLREG(JK), CLCLD(JJ)
+               WRITE(NULOUT,'(7X,"Channels   : ",30(T22,27I4/))')
+     S           (MLISCHNAGO(JI,JJ,JK,JL),JI=1,NCHNAGO(JJ,JK,JL))
+               WRITE(NULOUT,'(7X,"Obs. errors: ",30(T22,27(f4.2,X)))')
+     S           (GOERRST(MLISCHNAGO(JI,JJ,JK,JL),JJ,JK,JL),
+     S           JI=1,NCHNAGO(JJ,JK,JL))
+            ENDDO
+         ENDDO
+      ENDDO
+C
+C*    7. Close the file
+C     .  --------------
+C
+ 700  CONTINUE
+C
+      IER = FCLOS(ILUGO)
+      IF(IER.NE.0)THEN
+         CALL ABORT3D ( NULOUT,'SUGOESST         ')
+      END IF
+      RETURN
+C
+C*    Read error
+C
+900   WRITE ( NULOUT, '(" SUGOESST: Problem reading ",
+     S         ,"file stats_goes ")' )
+      CALL ABORT3D ( NULOUT,'SUGOESST         ')
+C
+      RETURN
+      END

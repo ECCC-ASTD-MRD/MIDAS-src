@@ -1,0 +1,151 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE AEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
+c
+c*****aexthum4* - adjoint of extrapolation of upper level humidity profile.
+c                (adapted from exthumad by J. Eyre)
+c
+c     purpose.
+c     --------
+c          ad of routine
+c          to extend mixing ratio profile into stratosphere in
+c          a reasonable way.
+c
+c**   interface.
+c     ----------
+c          *call* *aexthum4(knpf,klapf,ppres,pav,pav5)*
+c               *knpf*:  no. of profiles to be processed.
+c               *klapf*: length of atm. profiles.
+c               *ppres*: pressure levels of atm. profiles.
+c               *pav*:   ad of humidity profiles.
+c               *pav5*:  humidity profiles.
+c
+c     method.
+c     -------
+c          take top tropospheric mixing ratio (e.g. near 300 mb) and
+c          extrapolate with given fall off into lower stratosphere
+c          (e.g. to 70 mb).  constrain mixing ratio to be .ge. zwmin
+c          (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
+c
+c     externals.
+c     ----------
+c          none.
+c
+c     reference.
+c     ----------
+c          ecmwf tech mem 176.
+c
+c     author.
+c     -------
+c          j. halle       *cmc*        99/01/14.
+c
+c     revision.
+c     ---------
+c
+*Revision 001  : J. Halle *CMDA/AES  dec 2000
+*                - adapt to TOVS level 1b.
+*
+*Revision 002  : JM Belanger    *CMDA/SMC*   June 2001
+*                - 32 bits conversion.
+*
+*
+*Revision 003  : J Halle CMDA/SMC  April 2003
+*                - extrapolation now starting at RLIMLVHU (normally 300mbs or
+*                  70mbs) and higher.
+*                - new stratoshperic mixing ratio at RMINHU.
+*
+*Revision 004  : J Halle CMDA/SMC  June 2005
+*                - allow the null extrapolation case, i.e. 
+*                  when PPRES(1).GE.RLIMLVHU.
+*                  Example: stratospheric model with top at 0.1mb
+*                           and RLIMLVHU set at  0.1mb.  
+c
+      IMPLICIT none
+c
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comfilt.cdk"
+c
+      integer :: klapf,knpf
+      REAL*8 PPRES(*),PAV(KLAPF,*), PAV5(KLAPF,*)
+c
+      REAL*8 ZPRES3(KLAPF)
+      POINTER (PTZPRES3,ZPRES3)
+c
+      real*8 ZP1,zwmix,zwb
+      integer :: inlvw,j,jnpf,ierr
+      DATA ZP1/70.0D0/         ! PRESS LIMITS (IN HPA) OF REGION
+c                              ! to be extrapolated
+c
+c     -----------------------------------------------------------------
+C
+C**        0. Dynamic memory allocation for temporary vectors
+C     .       -----------------------------------------------
+C
+ 050  CONTINUE
+C
+      CALL HPALLOC (PTZPRES3,MAX(KLAPF,1),IERR,8)
+C
+c*         1.   extrapolate humidity profile.
+c               ----------- -------- -------
+ 100  CONTINUE
+c
+c          find top level of given profile
+      DO 110 J=KLAPF,1,-1
+           IF (PPRES(J).LT.RLIMLVHU) THEN
+                INLVW=J
+                GOTO 120
+           ENDIF
+ 110  CONTINUE
+c
+c** Null extrapolation case
+c
+      RETURN
+c
+c          constants defining p**3 fall off around tropopause
+ 120  DO 130 J=1,INLVW
+           ZPRES3(J)=(PPRES(J)/PPRES(INLVW+1))**3
+ 130  CONTINUE
+c
+      DO 150 JNPF=1,KNPF
+           ZWB=0.
+           DO 140 J=1,INLVW
+                ZWMIX=PAV(J,JNPF)
+                PAV(J,JNPF)=0.
+                IF (PPRES(J).GE.ZP1) THEN
+                   IF (PAV5(J,JNPF).GT.RMINHU) THEN
+                      ZWB=ZWB+ZWMIX*ZPRES3(J)
+                   ENDIF
+                ENDIF
+ 140       CONTINUE
+      PAV(INLVW+1,JNPF)=PAV(INLVW+1,JNPF)+ZWB
+ 150  CONTINUE
+C
+C*    2.  Deallocate memory
+C     .   -----------------
+C
+200   CONTINUE
+C
+      CALL HPDEALLC(PTZPRES3,IERR,1)
+c
+c     -----------------------------------------------------------------
+c
+      RETURN
+      END
+
+
+

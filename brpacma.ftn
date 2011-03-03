@@ -1,0 +1,978 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE BRPACMA(CDTYPE,indxfile,LDAPPEND,KFILE,KNRECS)
+#if defined (DOC)
+*
+***s/r BRPACMA -CONVERT DATA IN CMC BURP FILES TO CMA.
+*
+*Author    . P. KOCLAS(CMC TEL. 4665)
+*
+*Revision:
+*       . P. Koclas *CMC/AES September 1994:
+*       .  - Removal of inconvenient i/o
+*       .  -"Transformed latitude" is calculated with ISRCHILA
+*       . P. Koclas *CMC/AES February 1995:
+*          - modifications to read "tovs and acars" data
+*            which are stored as "grouped data" recods in BURP
+*            files.
+*       . P. Koclas *CMC/AES April 1996:
+*         - Modifications to read "uni info" bloc in satem reports.
+*       . P. Koclas  AES/CMDA, Jan 1997 (421-4628)
+*         - Modifications necessary for ssmi data
+*       . C. Charette *ARMA/AES Jan 1997:
+*         - New subroutine FLAGWND
+*       . P. Koclas *CMC/CMSV October 1998:
+*             for eta analysis:
+*         - Temporary patch to read postalt markers for airep data.
+*         C. Charette ARMA/AES NOV 1998
+*            - Updates for option cvcord = 'PRESS'
+*       . P. Koclas *CMC/AES June  1999:
+*       .    - Y2K conversion (date element for grouped data)
+*       . J. Halle *CMDA/AES Oct 1999
+*         - Adapt to TOVS.
+*       . P. Koklas *CMDA/AES Feb 2000
+*         - Adapt to read data DERIVAT files for background check
+*       . C. Charette *ARMA/AES Feb 2000
+*         - Adapt to get data of family AI from block derivat in POSTOI files
+*       . S. Pellerin *ARMA/SMC May 2000
+*         - Fix for F90 conversion
+*       . J. Halle *CMDA/AES Dec 2000
+*         - TOVS level 1B data.
+*       . JM Belanger *CMDA/SMC* june 2001
+*         32 bits conversion.
+*       . C. Charette *ARMA/AES Nov 2001:
+*         - Warning messages. Option to abort when CMA is full
+*       . J. Halle *CMDA/AES May 2002:
+*         - Adapt to RTTOV-7: extract terrain type and instrument,
+*                             remove extraction of scan position,
+*                             change coding of sat. zenith angle in cma.
+*       . N. Wagneur *MSC/CMC Juin 2002
+*          - Adapt to GOES radiances
+*       . J. St-James *MSC/CMC July 2003
+*          - Add code for Profiler data
+*       . JM Belanger CMDA/SMC Feb 2004
+*          - Introduce "scatterometer family SC"
+*       . D. Anselmo *MRB/ARMA  October 2004:
+*          - Computation of ln specific humidity (LQ) for RAOBS and surface obs
+*          - Addition of LQ to CMA
+*       . D. Anselmo *MSC/ARMA Feb 2004
+*          - Adapt to SSMI radiances
+*       . A. Beaulne *MSC/CMDA June 2006
+*          - Adapt to AIRS radiances
+*       . J. Halle / C. COTE  *MSC/CMDA July 2007
+*          - Adapt to METOP
+*       . R. Sarrazin CMDA  April 2008
+*          - Adapt to CSR radiances
+*       . S. Heilliette
+*          - Adapt to IASI radiances
+*       . A. Beaulne
+*          - Read element 7025 and 20010 only for AIRS 
+*            (was read by every sat up to 3dvar 10.3.4)
+*       . S. Macpherson *MRD/ARMA September 2009
+*          - Add code for GB-GPS (GP) data
+*       . C. Cote *MSC/CMDA Jan 2010
+*          - Modifier la conversion de NVCORD pour les plateforme tovs 
+*            en utilisant seulement l'instrument comme test.
+*       . Bin He     *MRD/ARMA Mar. 2010 
+*          - Implemented MPI version 
+*       . A. Beaulne CMDA May 2010
+*          - For IASI, do not read two consecutive times elements 7024 and 5021
+*            (it was read two times in 3dvar 10.3.5)
+*       . Luc Fillion & S. Heilliette - ARMA/EC - 9 Aug 2010 - Incorporate Cote & Wagneur's modifs below,
+*                originally incorporated in v_10_4_0 & v_10_5_0 but forgotten in MPI version v_11_01B:
+*               . C. Cote *MSC/CMDA Jan 2010
+*                 - Modifier la conversion de NVCORD pour les plateforme
+*                   tovs en utilisant seulement l'instrument comme test.
+*               . N. Wagneur *MSC/CMDA Jul 2010
+*                 - Modifier la lecture du numero d'instrument pour
+*                   inclure un test sur la valeur de l'element.
+*
+*      PURPOSE:  TO READ ALL DATA BLOCKS IN BURP FILE AND TRANSFER
+*                ALL GOOD DATA TO CMA.
+*
+*
+*    ARGUMENTS:
+*                 INPUT:
+*
+*                       -CDTYPE  : DATA TYPE (I.E: UA=UPPER AIR ...)
+                        - indxfile : the index of the array CFAMTYP(J)  
+*                       -LDAPPEND: .TRUE. -> APPEND DATA TO CMA FILE
+*                                  .FALSE.->  START NEW CMC FILE
+*                       -KFILE   : LOGICAL UNIT NUMBER OF BURP FILE
+*                       -KNRECS  : NUMBER OF RECORDS IN BURP FILE
+*
+*                OUTPUT: NONE
+*
+#endif
+*
+      use common_iasi
+      IMPLICIT NONE
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cbtypes.cdk"
+#include "cparbrp.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+#include "comct0.cdk"
+*
+      INTEGER KFILE,KNRECS,jji,jn,jpnbrelem
+      INTEGER iind2,IIND,IPOS,ILPOS,INELEFD,ISCRAP
+      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF
+      INTEGER ITECH,IMASK,ISAT,ISATCNT,ISATZEN,ITERRAIN
+      INTEGER ISENSOR,INSTRUM,ISATAZIM,ISUNZA,ICLFR
+      INTEGER IGQISFLAGQUAL,IGQISQUALINDEXLOC,ISUNAZIM
+*
+      CHARACTER *(*) CDTYPE
+      INTEGER   indxfile  
+      LOGICAL LDAPPEND,LLSURF
+*
+      INTEGER IER
+      INTEGER IBTYP,IBKNAT,IBKTYP,IBKSTP,ibknatma
+      INTEGER IHANDL,IBKNO,I3D
+      INTEGER INELE,INVAL
+      INTEGER INELEIN
+      INTEGER INELE3D
+      INTEGER IDLT,ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
+     +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
+      INTEGER ISTNID14,ISTNID58,ISTNID99
+      CHARACTER *4 CSID14,CSID58
+      CHARACTER *1 CSID99
+*
+      INTEGER MRFPUT,MRFVOI,MRBTYP,VMRFOPR,MRFOPN,MRFLOC,MRFGET
+     +         ,MRFMXL
+      INTEGER MRBINI,MRBADD,VMRBCVT,MRBXTR,MRBPRM,MRBDCL,MRBHDR
+     +        ,MRBPRML,MRBLOCX,MRBTBL
+*
+      EXTERNAL MRFPUT,MRFVOI,MRBTYP,VMRFOPR,MRFOPN,MRFLOC,MRFGET
+     +         ,MRFMXL
+      EXTERNAL MRBINI,MRBADD,VMRBCVT,MRBXTR,MRBPRM,MRBDCL,MRBHDR
+     +        ,MRBPRML,MRBLOCX,MRBTBL
+*
+*
+      CHARACTER*9 CLSTNID
+*
+      REAL*8 ZPROF(jpmxnlv),ZEXTRA(jpmxnlv)
+      INTEGER ITBL(10,JPMXBK)
+      INTEGER   ILSTM(JPMXNEL)
+      INTEGER ILIST3D(JPMXNEL)
+      INTEGER ILISTIN(JPMXNEL)
+      INTEGER   ILIST(JPMXNEL)
+      INTEGER ILCOD3D(JPMXNEL)
+      INTEGER   ILCOD(JPMXNEL)
+      INTEGER ILCODMA(JPMXNEL)
+      INTEGER ILISTNELE(JPMXNEL)
+*
+      INTEGER ITBLVAL(1)
+      INTEGER  ITBL3D(1)
+      INTEGER ITBLINF(1)
+      INTEGER   IMARK(1)
+      INTEGER    IBUF(1)
+      REAL*8       ZVAL(1)
+      REAL*8     ZVAL3D(1)
+
+      POINTER(PXVAL    ,ZVAL)
+      POINTER(PXVAL3D  ,ZVAL3D)
+      POINTER(PXTABL   ,ITBLVAL)
+      POINTER(PXTABL3D ,ITBL3D)
+      POINTER(PXTABLINF,ITBLINF)
+      POINTER(PXmark   ,Imark)
+      POINTER(PXBUF    ,Ibuf)
+*
+      REAL*8 ZTORAD, XLAT, XLON
+*
+      INTEGER JI,JJ,JK,J3D
+      INTEGER ICHECK,INELM,INVM,INTM,IBKNMA
+      INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL
+      LOGICAL LLERR,LLMA,LLGROUP,LLERROR,LLSAT,LLUNI,LLRESET,LLGO,LLAIRS
+      LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLIASI
+
+      INTEGER :: IfamID  
+
+      IfamID = indxfile  
+
+C
+C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
+C
+      do jj=1,254
+         do jn=1,jpnbrelem
+            vcordsf(jn,jj)=0.
+         end do
+      end do
+*
+************************************************************************
+*    SET BURP RELATED PARAMETERS VIA CALL TO RESUME SUBROUTINE
+************************************************************************
+*
+      WRITE(NULOUT,*)' ------------------------------------------------'
+      WRITE(NULOUT,*)' ---------    BEGIN  BRPACMA      ---------------'
+      WRITE(NULOUT,*)' ------------------------------------------------'
+*
+      ZTORAD=RPI/180.
+*
+************************************************************************
+*    ALLOCATE SPACE FOR DATA BUFFFER AND SET "ATTRIBUTES"
+*    OF DATA TO BE READ VIA CALL TO RESUME ROUTINE
+************************************************************************
+*
+      ILONG=MRFMXL(KFILE)
+      CALL HPALLOC(PXBUF, ILONG + 20,IER,1)
+      IBUF(1)=ILONG + 20
+      IHANDL=MRFLOC(KFILE,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
+      IF ( IHANDL .LT. 0 ) THEN
+         IHANDL=MRFLOC(KFILE,0,'*********',-1,-1,-1,-1,-1,-1,0)
+         IF ( IHANDL .LT. 0 ) THEN
+            WRITE(NULOUT,*)' BRPACMA: IMPOSSIBLE TO FIND VALID HANDLE'
+            RETURN
+         ENDIF
+      ENDIF
+      CALL RESUME(IHANDL,CDTYPE,IBUF)
+      IER=VMRFOPR('MISSING',PPMIS)
+*
+************************************************************************
+*    INITIALIZE DATA COUNTERS THEN BEGIN LOOP TO READ DATA
+************************************************************************
+*
+      IF ( .NOT. LDAPPEND ) THEN
+         NOBTOT  =0
+         NDATA   =0
+      ELSE
+*
+         WRITE(NULOUT,*)' '
+         WRITE(NULOUT,*)'=============================================='
+         WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',NDATA
+         WRITE(NULOUT,*)'=============================================='
+         WRITE(NULOUT,*) ' '
+         IF ( NOBTOT .GE. NMXOBS ) THEN
+            WRITE(NULOUT,*) ' CMA FILE FULL: NO DATA READ'
+            WRITE(NULOUT,*)' ------------------------------------------'
+            WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'
+            WRITE(NULOUT,*)' ------------------------------------------'
+            RETURN
+         ENDIF
+      ENDIF
+*
+      IKOUNT=0
+      IND   =0
+*
+************************************************************************
+*    ALLOCATE SPACE TO READ DATA
+************************************************************************
+*
+      IHANDL=0
+      IMXL=1000
+      IMXL3D=400
+      IMXLINF=400
+      CALL HPALLOC(PXVAL, IMXL,IER,8)
+      CALL HPALLOC(PXVAL3D,IMXL3D,IER,8)
+      CALL HPALLOC(PXTABL,IMXL,IER,1)
+      CALL HPALLOC(PXmark,IMXL,IER,1)
+      CALL HPALLOC(PXTABL3D,IMXL3D,IER,1)
+      CALL HPALLOC(PXTABLINF,IMXLINF,IER,1)
+
+*-----------------------------------------------------------------------
+      DO 1 JI=1,KNRECS
+         LLERR=.FALSE.
+         itbl=0
+*
+************************************************************************
+*    LOCATE AND READ THE OBSERVATION
+************************************************************************
+*
+         IHANDL=MRFLOC(KFILE,IHANDL,'*********',-1,-1,-1,-1,-1,-1,0)
+         IF ( IHANDL .LT. 0 )LLERR=.TRUE.
+*
+         IER=MRFGET(IHANDL,IBUF)
+         IF (IER.LT.0) LLERR=.TRUE.
+*
+************************************************************************
+*    EXTRACT THE HEADER
+************************************************************************
+*
+         IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,ILON,IDX,IDY,
+     &                IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,0,IXAUX,0)
+
+*
+** Re-define NVCORD for SSMI, GOES, AIRS, GeoRad and IASI radiances
+** (IDBURP=168,180,183,185,186)
+** This is done until a more general BURP structure is defined
+** and valid for all radiances from any platform.
+**                       ------------
+*
+         SELECT CASE (IDBURP)
+         CASE (164,181,182)
+            !amsua, amsub, mhs
+            !cas special d'un CLSTNID = UNKNOWN
+            IF (CLSTNID .EQ. 'UNKNOWN' ) THEN
+              NVCORD = 5042
+            ELSE
+              NVCORD = 2150
+            ENDIF
+            CASE (168,180,183,185,186)
+            !ssmi, goes, airs, georad, iasi
+            NVCORD = 5042
+         ENDSELECT
+*
+         IF (IER.LT.0) LLERR=.TRUE.
+*
+************************************************************************
+*    EXTRACT THE DATA AND FLAG BLOCKS
+************************************************************************
+*
+         if ( CLSTNID(1:2) .eq. '>>') LLERR=.TRUE.
+         IF ( .NOT. LLERR ) THEN
+            INBLKS=MRBPRML(IBUF,0,ITBL,10,JPMXBK)
+*
+            IF ( CLSTNID(1:1) .EQ. '^' ) THEN
+               IBKNO=MRBLOCX(IBUF,-1,-1,2,-1,-1,0)
+               IF (IBKNO .LT. 0) IBKNO=MRBLOCX(IBUF,-1,-1,6,-1,-1,0)
+               LLGROUP=.TRUE.
+               IF ( IBKNO .GT. 0 ) THEN
+                  I3D     =ITBL(4,IBKNO)
+                  INELE3D =ITBL(2,IBKNO)
+                  ITOTDAT=I3D*INELE3D
+                  IF ( ITOTDAT .GT. IMXL3D) THEN
+                     IMXL3D=ITOTDAT
+                     CALL HPDEALLC(PXTABL3D,IER,1)
+                     CALL HPDEALLC(PXVAL3D,IER,1)
+                     CALL HPALLOC(PXTABL3D,IMXL3D,IER,1)
+                     CALL HPALLOC(PXVAL3D,IMXL3D,IER,8)
+                  ENDIF
+                  IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBL3D)
+                  IER=VMRBCVT(ILCOD3D,ITBL3D,ZVAL3D,INELE3D,1,I3D,0)
+                  IER=MRBDCL(ILCOD3D,ILIST3D,INELE3D)
+                ENDIF
+            ELSE
+               LLGROUP=.FALSE.
+               I3D=1
+            ENDIF
+*
+*----------------------->
+*    uni info block
+*----------------------->
+*
+            IBKNO =MRBLOCX(IBUF,-1,-1,1,-1,-1,0)
+            IF ( IBKNO .GT. 0 ) THEN
+               INELEIN =ITBL(2,IBKNO)
+               ITOTDAT=I3D*INELEIN
+               IF ( ITOTDAT .GT. IMXLINF) THEN
+                  IMXLINF=ITOTDAT
+                  CALL HPDEALLC(PXTABLINF,IER,1)
+                  CALL HPALLOC(PXTABLINF,IMXLINF,IER,1)
+               ENDIF
+               IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBLINF)
+               IER=MRBDCL(ILCOD3D,ILISTIN,INELEIN)
+               LLUNI=.TRUE.
+            ELSE
+               LLUNI=.FALSE.
+            ENDIF
+*
+*----------------------->
+*    data  blocks
+*----------------------->
+*
+           IPOS=1
+           ILPOS=1
+           ITOTDAT=0
+           DO JK=1,INBLKS
+              LLSURF=.FALSE.
+              IBTYP=ITBL(7,JK)
+              IER=MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+              IF (IBTYP==9217 .and. IDBURP==186) THEN
+                 CALL IASIEXTRACT(IBKNAT,IBKTYP,IBKSTP,IBUF,IBUF(1),ITBL(2,JK),ITBL(3,JK),I3D)
+              ENDIF
+              IBKNMA=-1
+              IF( LCHECNAT(IBKNAT) .AND. LCHECTYP(IBKTYP)
+     +        .AND.  LCHECSTP(IBKSTP) ) THEN
+                 IBKNO =MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+                 INELE =ITBL(2,JK)
+                 INVAL =ITBL(3,JK)
+*  ALLOW 2 EXTRA ELEMENTS IN CASE WE NEED TO ADDP FF DD WIND ARRAYS TO CMA
+*  ALLOW 1 EXTRA ELEMENT FOR LQ
+                 IEXTRAEL=3
+
+                 ibknatma=(IBKNAT + 3)
+                 ITOTDAT=ITOTDAT + (INELE+IEXTRAEL)*INVAL*I3D
+                 IF ( ITOTDAT .GT. IMXL) THEN
+                    IMXL=ITOTDAT
+                    CALL HPDEALLC(PXVAL,IER,1)
+                    CALL HPDEALLC(PXTABL,IER,1)
+                    CALL HPDEALLC(PXmark,IER,1)
+                    CALL  HPALLOC(PXVAL,ITOTDAT,IER,8)
+                    CALL  HPALLOC(PXTABL,ITOTDAT,IER,1)
+                    CALL  HPALLOC(PXmark,ITOTDAT,IER,1)
+                 ENDIF
+                 IER=MRBXTR(IBUF,IBKNO,ILCOD(ILPOS),ITBLVAL(IPOS))
+
+                 do jji =1,INELE*INVAL*I3D
+                    ZVAL(ipos + jji-1)=ITBLVAL(IPOS + jji -1)
+                 end do
+*
+                 IER=VMRBCVT(ILCOD(ILPOS),ITBLVAL(IPOS),ZVAL(ipos),
+     &           INELE,INVAL,I3D,0)
+                 IER=MRBDCL(ILCOD(ILPOS),ILIST(ilpos),INELE)
+*
+                 IBKNMA=MRBLOCX(IBUF,-1,-1,NBKNAUN,IBKTYP,IBKSTP,0)
+                 IF ( IBKNMA .LE. 0 ) THEN
+                    IBKNMA=MRBLOCX(IBUF,-1,-1,NBKNAMU,IBKTYP,IBKSTP,0)
+                 ENDIF
+C
+                 IF ( IBKNMA .GT. 0 ) THEN
+                    IER =MRBXTR(IBUF,IBKNMA,ILCODMA(ILPOS),IMARK(IPOS))
+*
+                    INELM =ITBL(2,IBKNMA)
+                    INVM  =ITBL(3,IBKNMA)
+                    INTM  =ITBL(4,IBKNMA)
+                    IER   =MRBDCL(ILCODMA(ILPOS),ILSTM(ILPOS),INELM)
+                    ICHECK=
+     +              IABS(INELE-INELM)+IABS(INVAL-INVM)+IABS(I3D-INTM)
+                    DO JJ=ILPOS,ILPOS+INELE-1
+                       ICHECK=ICHECK+IABS((ILSTM(JJ)-200000-ILIST(JJ)))
+                    END DO
+                    LLMA= (ICHECK .EQ. 0 )
+                   llma=.true.
+*-----------------------------------------------------------------------
+*                   TRANSFER REJECT FLAGS BETWEEN WIND DIRECTION AND SPEED
+*-----------------------------------------------------------------------
+                    CALL FLAGWND(IMARK(IPOS)
+     +                   ,ILSTM(ILPOS),INELM,INVM,INTM
+     +                   ,CLSTNID,IDBURP,ILAT,ILON)
+*-----------------------------------------------------------------------
+                 ENDIF
+*-----------------------------------------------------------------------
+*                 CONVERT F-D WIND TO U-V COMPONENTS
+*-------------------------------------------------------------------
+
+                 if ( ibknat .eq. 0 .and. cdtype .eq. 'UA') then
+                    nvcordtyp=1
+                    LLSURF = .TRUE.
+                 endif
+
+                 if ( ibknat .eq. 4 .and. cdtype .eq. 'UA')nvcordtyp=2
+
+                 if  ( cdtype == 'SF' .OR. cdtype == 'SC'
+     &                 .OR. LLSURF ) then
+                    CALL VCORDADJ(IDBURP,ZVAL(IPOS),IMARK(IPOS)
+     +                   ,ILIST(ILPOS),INELE,INVAL,I3D,ISCRAP)
+                 endif
+
+                 CALL FDTOUV(ZVAL(IPOS),IMARK(IPOS),ILIST(ILPOS),INELE,
+     +           INVAL,I3D,INELEFD)
+                 ILISTNELE(JK)=INELEfd
+                 INELE=ILISTNELE(JK)
+                    CALL FLAGFDTOUV(IMARK(IPOS)
+     +                   ,ILIST(ILPOS),INELE,INVAL,I3D
+     +                   ,CLSTNID,IDBURP,ILAT,ILON)
+
+*-----------------------------------------------------------------------
+*                 CONVERT ES TO HU
+*-------------------------------------------------------------------
+                 CALL ESTOHU(ZVAL(IPOS),IMARK(IPOS),ILIST(ILPOS),INELE,
+     +                       INVAL,I3D,INELEFD)
+                 ILISTNELE(JK)=INELEfd
+                 INELE=ILISTNELE(JK)
+
+*-------------------------------------------------------------------
+                 ILPOS=INELE + ILPOS
+                 IPOS =INELE*INVAL*I3D + IPOS
+                 IKOUNT=IKOUNT + INELE*INVAL*I3D
+              ENDIF
+           END DO
+*
+************************************************************************
+*    INSERT DATA INTO CMA FILE
+************************************************************************
+*
+           DO J3D=1,I3D
+              IPOS=1
+              ILPOS=1
+              INBON=0
+              IND=0
+              DO 3 JK=1,inblks
+                 LLSURF=.FALSE.
+
+                 IBTYP=ITBL(7,JK)
+                 IER=MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+                 IF( LCHECNAT(IBKNAT) .AND. LCHECTYP(IBKTYP)
+     +             .AND.  LCHECSTP(IBKSTP) ) THEN
+                      if ( ibknat .eq. 0 .and. cdtype .eq. 'UA') then
+                         nvcordtyp=1
+                         LLSURF = .TRUE.
+                      endif
+
+                      if ( ibknat .eq. 4 .and. cdtype .eq. 'UA')
+     +                    nvcordtyp=2
+
+                      INELE =ITBL(2,JK)
+                      INELE =ilistnele(jk)
+                      INVAL =ITBL(3,JK)
+                      CALL GETELE(NVCORD,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                     ZPROF,INELE,INVAL,I3D,IIND)
+                      if  ( cdtype == 'SF' .OR. cdtype == 'SC'
+     &                      .OR. LLSURF ) then
+                         iind=1
+                         zprof(1)=REAL(IALT-400)
+                      endif
+
+*
+*   FOR GB-GPS DATA, USE STATION HEIGHT FOR ZPROF
+*----------------------------------------------------------------------
+                      if  (  cdtype .eq. 'GP'  ) then
+                         iind=1
+                         zprof(1)=REAL(IALT-400)
+                      endif
+
+*
+*   FOR PROFILER DATA, ADD STATION HEIGHT TO ZPROF
+*   FOR USE IN NCMPPP
+*----------------------------------------------------------------------
+*
+
+                      if  (  cdtype .eq. 'PR' ) then
+                         DO jj=1,INVAL
+                            zprof(JJ)=REAL(IALT-400) + zprof(JJ)
+                         END DO
+                      endif
+*
+*   FOR HUMSAT DATA GET THE OBSERVATION ERROR IS
+*   CONTAINED IN THE REPORT DATA BLOCK
+*----------------------------------------------------------------------
+*
+                    IF ( CDTYPE .EQ. 'HU' ) THEN
+                       CALL GETELE(12230,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                 ZEXTRA,INELE,INVAL,I3D,IIND)
+                       LLERROR=.TRUE.
+                    ELSE
+                       LLERROR=.FALSE.
+                    ENDIF
+*
+*   FOR GOES OR AIRS DATA GET THE SURFACE EMISSIVITY WHICH IS
+*   CONTAINED IN THE REPORT DATA BLOCK
+*----------------------------------------------------------------------
+*
+                    IF ( CDTYPE .EQ. 'GO' ) THEN
+                       CALL GETELE(55043,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                 ZEXTRA,INELE,INVAL,I3D,IIND)
+                       LLGO=.TRUE.
+                    ELSE
+                       LLGO=.FALSE.
+                    ENDIF
+
+                    IF ( CLSTNID(1:5) .EQ. '^AQUA' .AND. IDBURP .EQ. 183 ) THEN
+                       IF ( NCONF .NE. 101 ) THEN
+                          CALL GETELE(55043,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                    ZEXTRA,INELE,INVAL,I3D,IIND)
+                          LLAIRS=.TRUE.
+                       ELSE
+                          LLAIRS=.FALSE.
+                       END IF
+                    ELSE
+                       LLAIRS=.FALSE.
+                    ENDIF
+
+                    IF ( CLSTNID(1:6) .EQ. '^METOP' .AND. IDBURP .EQ. 186 ) THEN
+                       IF ( NCONF .NE. 101 ) THEN
+                          CALL GETELE(55043,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                    ZEXTRA,INELE,INVAL,I3D,IIND)
+                          LLIASI=.TRUE.
+                       ELSE
+                          LLIASI=.FALSE.
+                       END IF
+                    ELSE
+                       LLIASI=.FALSE.
+                    ENDIF
+
+
+
+*
+*----------------------------------------------------------------------
+*
+*  FOR SATEMS REFERENCE PRESSSURE IS CONTAINED IN THE REPORT DATA BLOCK
+*----------------------------------------------------------------------
+*
+                    IF ( CDTYPE .EQ. 'ST' ) THEN
+                       CALL GETELE(07193,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                 ZEXTRA,INELE,INVAL,I3D,IIND)
+                       LLSAT=.TRUE.
+                    ELSE
+                       LLSAT=.FALSE.
+                    ENDIF
+*----------------------------------------------------------------------
+*
+                    IF ( IIND .GT. 0 ) THEN
+                       IF (CDTYPE .EQ. 'MI' ) THEN
+                          CALL CMABDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
+     +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
+     +                    -1 ,ZPROF,J3D,IDBURP)
+                       ELSE
+                          CALL CMABDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
+     +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
+     +                    NVCORD,ZPROF,J3D,IDBURP)
+                       ENDIF
+                    ELSE
+                       IF (CDTYPE .NE. 'TO') THEN
+                          write(nulout,*)'for station:',clstnid
+     +                       ,' vertical coordinate not found:',NVCORD
+                       ENDIF
+                       IND =0
+                    ENDIF
+                    ILPOS=INELE + ILPOS
+                    IPOS =INELE*INVAL*I3D + IPOS
+                    INBON =INBON  + IND
+                 ENDIF
+    3         CONTINUE
+
+              IF ( INBON .GT. 0 ) THEN
+*
+************************************************************************
+* for grouped data: get date time  latitude and longitude
+* from 3d description block
+************************************************************************
+*
+              IF (LLGROUP ) THEN
+                 CALL IGETELE
+     +           (55200,J3D,ILIST3D,ITBL3D,IFLGS,INELE3D,1,I3D,IIND)
+                 CALL IGETELE
+     +           (4196,J3D,ILIST3D,ITBL3D,IDATE,INELE3D,1,I3D,IIND)
+                 IF ( IIND .EQ. -1)
+     +              CALL IGETELE
+     +              (4208,J3D,ILIST3D,ITBL3D,IDATE,INELE3D,1,I3D,IIND)
+                 CALL IGETELE
+     +           (4197,J3D,ILIST3D,ITBL3D,ITIME,INELE3D,1,I3D,IIND)
+*
+                 CALL GETELE(5002,J3D,ILIST3D,ZVAL3D,
+     +                       XLAT,INELE3D,1,I3D,IIND)
+                 CALL GETELE(6002,J3D,ILIST3D,ZVAL3D,
+     +                       XLON,INELE3D,1,I3D,IIND)
+*
+** convert from burp units:
+**            latitude : [-90.00, +90.00], longitude : [-180.00,+180.00],
+**         to cma units:
+**            latitude : [     0,  18000], longitude : [      0,  36000].
+*
+                 ILAT = 9000 + NINT(XLAT*100.)
+                 ILON = NINT(XLON*100.)
+                 IF ( ILON .LT. 0 ) ILON = 36000 + ILON
+*
+                 CALL IGETELE
+     +           (4016,J3D,ILIST3D,ITBL3D,IDLT,INELE3D,1,I3D,IIND)
+
+              ENDIF
+*
+*
+************************************************************************
+*  for tovs data: get retrieval technique satellite, satellite number,
+*                 land/sea mask, scan position, satellite zenith angle,
+*                 terrain type and satellite sensor indicator/instrument
+*                 from info block
+************************************************************************
+*
+              IF ( CDTYPE .EQ. 'TO' ) THEN
+*
+               CALL IGETELE
+     +         (2022,J3D,ILISTIN,ITBLINF,ITECH,INELEIN,1,I3D,IIND)
+***************use bit #'s 3,4 and 5; set other bits to zero.
+***************correct for NESDIS BUFR coding error of cloudy path. Correction is:
+***************if clear path bit off or if element not found, then it is assumed cloudy.
+               IF ( IIND .NE. -1 ) THEN
+                  ITECH = AND(ITECH,56)
+                  IF (ITECH .EQ. 0 ) THEN
+                     ITECH = 8
+                  ENDIF
+               ELSE
+                 IF ( IDBURP .EQ. 185 ) then
+                  ITECH = 32
+                 ELSE
+                  ITECH = 8
+                 ENDIF
+               ENDIF
+*
+               CALL IGETELE
+     +         (1007,J3D,ILISTIN,ITBLINF,ISAT,INELEIN,1,I3D,IIND)
+*
+               CALL IGETELE
+     +         (8012,J3D,ILISTIN,ITBLINF,IMASK,INELEIN,1,I3D,IIND)
+*
+**             terrain type
+               CALL IGETELE
+     +         (13039,J3D,ILISTIN,ITBLINF,ITERRAIN,INELEIN,1,I3D,IIND)
+*
+*              Is terrain type sea ice (iterrain=0)?, If so, sert imask=2.
+               IF ( IIND     .NE. -1 .AND.
+     +              ITERRAIN .EQ.  0       ) THEN
+                  IMASK = 2
+               ENDIF
+*
+**             satellite sensor indicator (element #2048) or
+**             satellite instrument (element #2019).
+**             If element #2048 is present, map into element #2019.
+               CALL IGETELE
+     +         (2048,J3D,ILISTIN,ITBLINF,ISENSOR,INELEIN,1,I3D,IIND)
+               IF ( IIND .EQ. -1 .OR. ISENSOR .EQ. -1 ) THEN
+                  CALL IGETELE
+     +            (2019,J3D,ILISTIN,ITBLINF,INSTRUM,INELEIN,1,I3D,IIND)
+                  IF ( IIND .EQ. -1 ) THEN
+                     INSTRUM = 0
+                  ENDIF
+               ELSE
+                  CALL CVT_BURP_INSTRUM(ISENSOR,INSTRUM)
+               ENDIF
+*
+*              Define ISAT for AIRS which has no element #1007
+               IF ( INSTRUM == 420 ) ISAT = 784
+*
+               ISATZEN = 9000
+*
+*              METOP-2 element 1007=4
+*
+               IF ( ISAT .GE. 54 .OR. ISAT .EQ. 4 ) THEN
+*                satellite zenith angle
+                 CALL IGETELE
+     +           (7024,J3D,ILISTIN,ITBLINF,ISATZEN,INELEIN,1,I3D,IIND)
+*                satellite azimuth angle
+                 CALL IGETELE
+     +           (5021,J3D,ILISTIN,ITBLINF,ISATAZIM,INELEIN,1,I3D,IIND)
+               ENDIF
+
+* cas provisoire AIRS
+               IF ( ISAT == 784 .AND. IDBURP == 183 ) THEN               
+*                sun zenith angle
+                 CALL IGETELE
+     +           (7025,J3D,ILISTIN,ITBLINF,ISUNZA,INELEIN,1,I3D,IIND)
+*                cloud fraction
+                 CALL IGETELE
+     +           (20010,J3D,ILISTIN,ITBLINF,ICLFR,INELEIN,1,I3D,IIND)
+               ENDIF
+
+* cas provisoire IASI
+               IF ( ISAT == 4 .AND. IDBURP == 186 ) THEN
+*                sun zenith angle
+                 CALL IGETELE
+     +           (7025,J3D,ILISTIN,ITBLINF,ISUNZA,INELEIN,1,I3D,IIND)
+*                sun azimuth angle
+                 CALL IGETELE
+     +           (5022,J3D,ILISTIN,ITBLINF,ISUNAZIM,INELEIN,1,I3D,IIND)
+
+*                cloud fraction
+                 ICLFR=0
+* GQISFLAGQUAL :
+* The usability of a IASI measurement is indicated by the boolean flag GQisFlagQual.
+* (0=okay,1=bad)
+                 CALL IGETELE
+     +           (33060,J3D,ILISTIN,ITBLINF,IGQISFLAGQUAL,INELEIN,1,
+     +            I3D,IIND)
+* GQISQUALINDEXLOC : 
+* The performance of the co-registration between IASI and AVHRR
+* measurements is given by GQisQualIndexLoc. This value is the
+* semi-major axis of the ellipse error in AVHRR pixel units
+* (estimated by the Level 1 processing for each individual
+* field of regards). GQisQualIndexLoc indicates the
+* co-registration error and therefore small values indicate
+* good quality.
+                 CALL IGETELE
+     +           (33062,J3D,ILISTIN,ITBLINF,IGQISQUALINDEXLOC,INELEIN,1,
+     +            I3D,IIND)
+
+
+               ENDIF
+
+              ELSE IF ( CDTYPE .EQ. 'ST' ) THEN
+                 IF ( LLUNI) THEN
+                    CALL IGETELE
+     +              (2022,J3D,ILISTIN,ITBLINF,ITECH,INELEIN,1,I3D,IIND)
+                 ELSE
+                    ITECH=0
+                 ENDIF
+                 IMASK=0
+                 INSTRUM=0
+                 ISAT =0
+                 ISATZEN  =0
+*
+************************************************************************
+*  for goes data: get retrieval technique satellite, satellite number,
+*                 land/sea mask, satellite zenith angle from info block
+************************************************************************
+*
+              ELSE IF ( CDTYPE .EQ. 'GO' ) THEN
+*
+*              satellite processing technique n/a for goes data atm
+               ITECH = 8
+*
+**             satellite instrument (element #2019).
+c               CALL IGETELE
+c     +         (2019,J3D,ILISTIN,ITBLINF,INSTRUM,INELEIN,1,I3D,IIND)
+c               IF ( IIND .EQ. -1 ) THEN
+                  INSTRUM = 0
+c               ENDIF
+*
+*              satellite identifier number
+               CALL IGETELE
+     +         (1007,J3D,ILISTIN,ITBLINF,ISAT,INELEIN,1,I3D,IIND)
+*
+*              land/sea mask
+               CALL IGETELE
+     +         (8012,J3D,ILISTIN,ITBLINF,IMASK,INELEIN,1,I3D,IIND)
+*
+*              satellite zenith angle
+               CALL IGETELE
+     +         (7024,J3D,ILISTIN,ITBLINF,ISATZEN,INELEIN,1,I3D,IIND)
+*
+              ELSE
+                 ITECH=0
+                 IMASK=0
+                 INSTRUM=0
+                 ISAT =0
+                 ISATZEN  =0
+                 ISATAZIM  =0
+                 ISUNZA = 0
+                 ICLFR = 0
+              ENDIF
+*
+************************************************************************
+*      IF VALID DATA WAS FOUND GENERATE THE CMA HEADER
+*      AND INCREMENT NOBTOT
+************************************************************************
+*
+               IF  ( NOBTOT .LT. NMXOBS) THEN
+                NOBTOT=NOBTOT + 1
+                csid14=CLSTNID(1:4)
+                csid58=CLSTNID(5:8)
+                csid99=CLSTNID(9:9)
+                READ(csid14,'(a4)')ISTNID14
+                READ(csid58,'(a4)')ISTNID58
+                READ(csid99,'(a1)')ISTNID99
+                CSTNID(NOBTOT)=CLSTNID
+                ROBHDR(NCMLON,NOBTOT) = (REAL(ILON)*0.01)*ZTORAD
+                ROBHDR(NCMLAT,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
+                ROBHDR(NCMALT,NOBTOT) = (REAL(IALT)-400)
+                ROBHDR(NCMTLO,NOBTOT) = (REAL(ILON)*0.01)*ZTORAD
+                ROBHDR(NCMTLA,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
+                MOBHDR(NCMNLV,NOBTOT) = INBON
+*
+                IF ( NOBTOT .EQ. 1) THEN
+                   MOBHDR(NCMRLN,1)=1
+                ELSE
+                   MOBHDR(NCMRLN,NOBTOT) = MOBHDR(NCMRLN,NOBTOT-1)
+     +                              + MOBHDR(NCMNLV,NOBTOT-1)
+                ENDIF
+*
+************************************************************************
+*              REMAINDER OF HEADER
+************************************************************************
+*
+*
+                MOBHDR(NCMONM,NOBTOT) = NOBTOT
+                MOBHDR(NCMBOX,NOBTOT) = INSTRUM + ISATZEN*10000
+                MOBHDR(NCMOTP,NOBTOT) = NVTYP
+                MOBHDR(NCMITY,NOBTOT) = IDBURP+ 1000*ISAT+ 1000000*ITECH
+                MOBHDR(NCMDAT,NOBTOT) = IDATE
+                MOBHDR(NCMETM,NOBTOT) = ITIME
+                MOBHDR(NCMSID,NOBTOT) = ISTNID14
+                MOBHDR(NCMSI2,NOBTOT) = ISTNID58
+                MOBHDR(NCMSI3,NOBTOT) = ISTNID99
+                !!bhe MOBHDR(NCMOEC,NOBTOT) = 999
+                MOBHDR(NCMOEC,NOBTOT) = IfamID
+                MOBHDR(NCMOFL,NOBTOT) = IMASK
+                MOBHDR(NCMST1,NOBTOT) = IFLGS
+                MOBHDR(NCMAZA,NOBTOT) = ISATAZIM
+                MOBHDR(NCMSUN,NOBTOT) = ISUNZA
+                MOBHDR(NCMCLF,NOBTOT) = ICLFR
+                
+                IF (IDBURP==186) call index_cma_iasi(NOBTOT,IGQISFLAGQUAL,
+     +           IGQISQUALINDEXLOC,ISUNAZIM)
+                
+               ENDIF
+
+            ELSE
+              WRITE(NULOUT,*)' Warning 3DV:brpacma: NO VALID DATA'
+     &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
+     &             ' LON ', ILON
+            ENDIF
+         IF ( NDATA .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
+            CALL HPDEALLC(PXVAL    ,IER,1)
+            CALL HPDEALLC(PXVAL3D  ,IER,1)
+            CALL HPDEALLC(PXTABL   ,IER,1)
+            CALL HPDEALLC(PXTABL3D ,IER,1)
+            CALL HPDEALLC(PXTABLINF,IER,1)
+            CALL HPDEALLC(PXmark   ,IER,1)
+            CALL HPDEALLC(PXBUF    ,IER,1)
+*
+*-----------------------------------------------------------------------
+            WRITE(NULOUT,*)' ******************************************'
+            WRITE(NULOUT,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
+            WRITE(NULOUT,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
+            WRITE(NULOUT,*)' *                                        *'
+            WRITE(NULOUT,*)' *    CMA FILE FULL: NO MORE DATA READ    *'
+            WRITE(NULOUT,*)' *    ABORT WHEN LABORTFULL = .TRUE.      *'
+            WRITE(NULOUT,*)' *                                        *'
+            WRITE(NULOUT,*)' *    CHECK   NMXOBS, NDATAMX IN NAMELIST *'
+            WRITE(NULOUT,*)' *                                        *'
+            WRITE(NULOUT,*)' *    LABORTFULL = .TRUE.  ==> CALL ABORT *'
+            WRITE(NULOUT,*)' *    LABORTFULL = .FALSE. ===> CONTINUE  *'
+            WRITE(NULOUT,*)' *                                        *'
+            WRITE(NULOUT,*)' ******************************************'
+*
+            WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+            WRITE(NULOUT,*)' Warning 3DV:brpacma: CMA FILE FULL'
+            WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+*
+            WRITE(NULOUT,'(1x,"NDATA = ",I10," NDATAMX",I10)')
+     &                    NDATA, NDATAMX
+            WRITE(NULOUT,'(1x,"NOBTOT= ",I10," NMXOBS = ",I10)')
+     &                    NOBTOT, NMXOBS
+            WRITE(NULOUT,*)' LABORTFULL = ', LABORTFULL
+*
+            CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+*
+            IF (LABORTFULL) THEN
+              WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CALL ABORT3D '
+              call abort3d(nulout,'BRPACMA')
+            ELSE
+              WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CONTINUE '
+            ENDIF
+*
+            WRITE(NULOUT,*)' ------------------------------------------'
+            WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'
+            WRITE(NULOUT,*)' ------------------------------------------'
+            RETURN
+         ENDIF
+    5 END DO
+      ENDIF
+    1 CONTINUE
+
+
+      CALL HPDEALLC(PXVAL    ,IER,1)
+      CALL HPDEALLC(PXVAL3D  ,IER,1)
+      CALL HPDEALLC(PXTABL   ,IER,1)
+      CALL HPDEALLC(PXTABL3D ,IER,1)
+      CALL HPDEALLC(PXTABLINF,IER,1)
+      CALL HPDEALLC(PXmark   ,IER,1)
+      CALL HPDEALLC(PXBUF    ,IER,1)
+*
+*-----------------------------------------------------------------------
+      CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+*
+      WRITE(NULOUT,*)' ------------------------------------------'
+      WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'
+      WRITE(NULOUT,*)' ------------------------------------------'
+*
+      RETURN
+      END

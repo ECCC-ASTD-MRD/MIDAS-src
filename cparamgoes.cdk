@@ -1,0 +1,42 @@
+C          CPARAMGOES.     PARAMETER STATEMENTS FOR MSCFAST SUITE.
+C
+C          N.Wagneur      CMDA/MSC       Avril 2001
+C
+C
+C
+      INTEGER JPCHGO,JPPFGO,JPCHPFGO
+      INTEGER JPNSATGO,JPLEVGO,JPNAVGO
+      INTEGER JPNSAVGO,JPNSSVGO,JPNCVGO
+      INTEGER JPHIRGO
+C
+C
+      INTEGER JPNL, JPNB, JPNGAS, JPNLM, JPNLATO3, JPNLEVO3, JPNTEM
+      INTEGER JPNGP1, JPNFUL, JPNTIN, JPGP1
+C
+      PARAMETER (JPNL     = 13)     ! maxi number of profiles to treat
+      PARAMETER (JPNLM    = 13)     !
+      PARAMETER (JPNB     = 22)      ! maxi number of bands(must b =to NB)
+      PARAMETER (JPNGAS   = 8)       !
+      PARAMETER (JPNGP1   = JPNGAS+1)!
+      PARAMETER (JPNLATO3 = 37)      !
+      PARAMETER (JPNLEVO3 = 40)      !
+      PARAMETER (JPNTEM   = 2)       !
+      PARAMETER (JPNFUL   = 1024)    !
+      PARAMETER (JPNTIN   = 40)      !
+C
+      PARAMETER (JPNSATGO=2)         ! TOTAL MAX TO BE USED
+      PARAMETER (JPNAVGO=4)           ! NO. OF PROFILE VARIABLES
+      PARAMETER (JPNSAVGO=5)          ! NO. OF SURFACE AIR VARIABLES
+      PARAMETER (JPNSSVGO=1)          ! NO. OF SKIN VARIABLES
+      PARAMETER (JPNCVGO=2)           ! NO. OF CLOUD VARIABLES
+C                                    ! 1 except for vector machines)
+*****  conditional compile for testing only *********************
+#if defined (C910)
+      PARAMETER (JPPFGO=13)        !   ! MAX NO. PROFILES
+#else
+      PARAMETER (JPPFGO=13)          ! MAX NO. PROFILES
+#endif
+*****  conditional compile for testing only *********************
+      PARAMETER (JPCHGO=22)           ! MAX. NO. OF GOES IMAGER CHANNELS + HIRS
+      PARAMETER (JPHIRGO=20)          ! MAX. NO. OF HIRS CHANNELS
+      PARAMETER (JPCHPFGO=JPCHGO*JPPFGO)

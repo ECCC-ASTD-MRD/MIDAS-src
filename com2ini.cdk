@@ -1,0 +1,37 @@
+#if defined (DOC)
+C
+C     COMDECK: COM2INI
+C     ---------------
+C     Level 2 control for the random initialisation of the model state
+C
+C     SINVOR : 1. --> Vorticity field is randomly initialized
+C              0. --> Not initialized (SPECTRAL)
+C     SINDIV : 1. --> Divergence field is randomly initialized
+C              0. --> Not initialized (SPECTRAL)
+C     SINTT  : 1. --> Temperature field is randomly initialized
+C              0. --> Not initialized (SPECTRAL)
+C     SINGZ  : 1. --> Geopotential field is randomly initialized
+C              0. --> Not initialized (SPECTRAL)
+C     SINQ   : 1. --> specific humidity field is randomly initialized
+C              0. --> Not initialized (SPECTRAL)
+C     SINPS  : 1. --> surface pressure field is randomly initialized
+C              0. --> Not initialized (SPECTRAL)
+C     -----------------------------------------------------------------
+C
+C     GINUU  : 1. --> Wind fields are randomly initialized
+C              0. --> Not initialized (GRID POINT)
+C     GINTT  : 1. --> Temperature field is randomly initialized
+C              0. --> Not initialized (GRID POINT)
+C     GINGZ  : 1. --> Geopotential field is randomly initialized
+C              0. --> Not initialized (GRID POINT)
+C     GINQ   : 1. --> Temperature field is randomly initialized
+C              0. --> Not initialized (GRID POINT)
+C     GINPS  : 1. --> Temperature field is randomly initialized
+C              0. --> Not initialized (GRID POINT)
+C
+#endif
+      REAL*8 SINVOR, SINDIV, SINTT, SINQ, SINPS
+     S    , GINUU, GINTT, GINQ, GINPS, SINGZ, GINGZ
+C
+      COMMON /COMR2INI/SINVOR, SINDIV, SINTT, SINQ, SINPS
+     S     ,GINUU, GINTT, GINQ, GINPS, SINGZ, GINGZ

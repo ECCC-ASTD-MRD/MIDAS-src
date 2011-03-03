@@ -1,0 +1,74 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUGPSGB(KULOUT)
+#if defined (DOC)
+*
+***s/r SUGPSGB : Initialisation of ground-based GPS
+*
+*Author  : Stephen Macpherson *ARMA/MRD August 2008
+*
+*    -------------------
+**    Purpose: to read and initialize GB-GPS namelist parameters
+*
+*Arguments
+*     i : KULOUT : logical unit for output
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comfilt.cdk"
+#include "comgpsgb.cdk"
+*
+      INTEGER KULOUT
+      INTEGER KIERR, IELE, j
+C
+      LOGICAL LLGP
+C
+C           GPS ZTD burp element
+      DATA IELE / 15031 /
+C
+      LLGP = .FALSE.
+      DO J = 1, NELEMS
+         IF ( NLIST(J) .EQ. IELE ) THEN
+            LLGP = .TRUE.
+         ENDIF
+      ENDDO
+c
+C
+C*    .  1.1 Default values
+C     .      --------------
+C
+      DZMIN  = 2.0
+      DZMAX  = 1000.0
+      YZTDERR = 0.012
+      NJLEVP = 57
+      LASSMET = .TRUE.
+      YSFERRWGT = 1.0
+      L1GPSOBS = .FALSE.
+      CGPSSTN = 'ABCDEFGHI'
+      YZDERRWGT = 1.0
+      RCK1 = 0.776
+      RCK2 = 0.704
+      RCK3 = 3739.0
+c
+      IF ( .NOT. LLGP ) RETURN
+c
+      CALL READNML('NAMGPSGB',KIERR)
+
+      RETURN
+
+      END

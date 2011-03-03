@@ -1,0 +1,148 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE BRPCHECK(KTIME,KDATE,KRUNN)
+      IMPLICIT NONE
+#if defined (DOC)
+*s/r BRPCHECK
+*
+************************************************************************
+*
+*     Author P. KOCLAS (CMC)  FEBRUARY 1994.
+*     Revision:
+*     .      P. Koclas  *CMC/CMDA February 95
+*                   -allow for dynamic allocation of data buffers
+*                    extracted from burp files
+*                   -output defaults to 0 in case where there
+*                    is no data in burp files
+*                    -new data families added
+*     Revision:
+*     .      C. Charette  *ARMA/AES - Jul 95.
+*                   -add family of bogus data 'BO'
+*     .      P. Koclas   *CMC/AES - Apr 96.
+*                   -JPFILES parameter now in cvcord COMMON
+*     .      C. Charette  *ARMA/AES - Apr 96.
+*                   -changed FNOM, added NUMBLKS
+*     .      C. Charette  *ARMA/AES - Oct 96.
+*                   - Split Satems and Humsat in 2 files
+*     .      P. Koclas  *CMC/CMSV   Januaryy 1997
+*                   - common comvfiles (for  burp file names)
+*     .      P. Koclas  *CMC/CMSV   July 1998
+*                   - Y2K conversion
+*                   - default values for output changed to -9999
+*
+*                   -OUTPUT PARAMETERS FROM THE "RESUME" RECORD
+*                    OF A CMC ADE BURP FILE.
+*            S. Pellerin *ARMA/AES - May 2000
+*                   -Dynamic logical unit numbers
+*
+*
+*    ARGUMENTS:
+*              o   KDATE :  BURP FILE DATE OF REPORT    (YYYYMMDD)
+*              o   KTIME :  TIME OF REPORT              (HHMM)
+*              o   KRUNN :  INTERNALLY CODED CMC RUN    (NAME)
+*
+*     NOTE:
+*     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
+*
+************************************************************************
+#endif
+*
+#include "comlun.cdk"
+#include "comvfiles.cdk"
+#include "cvcord.cdk"
+      INTEGER KTIME,KDATE,KRUNN
+*
+      INTEGER IHANDL,ILONG
+      INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
+     +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX,
+     +        INSUP,INXAUX
+*
+      INTEGER IBUF(1)
+      POINTER(PXBUF,IBUF)
+      INTEGER IER,INBLKS,INRECS,IBRP1,IKOUNT
+      INTEGER FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
+     +        ,MRFMXL,NUMBLKS
+*
+      INTEGER       IVALS,J
+      CHARACTER*9   CLSTNID
+*
+      EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
+     +        ,MRFMXL,NUMBLKS
+      EXTERNAL HPALLOC
+*
+*  ------NOTE----------
+* currently supported families of data 'UA' 'AI' 'SF' 'HU' 'BO' 'TO' 'GO'
+*
+*
+************************************************************************
+*     OPEN AND CLOSE BURP FILES. GET DATE TIME AND RUNN FROM FIRST
+*     RECORD OF EACH FILE
+************************************************************************
+*
+      IER =MRFOPC('MSGLVL','FATAL')
+*
+      IVALS=8
+      KDATE=-9999
+      KTIME=-9999
+      KRUNN=-9999
+      NFILES=0
+      IKOUNT=NKOUNT
+      DO J =1,IKOUNT
+        ibrp1 = 0
+         IER=FNOM(IBRP1,CBURP(J),'RND+OLD',0)
+         IF ( IER .EQ. 0 ) THEN
+            INBLKS= -1
+            INBLKS=NUMBLKS(IBRP1)
+            IF ( INBLKS .GT. 0 ) THEN
+               INRECS=MRFOPN(IBRP1,'READ')
+               ILONG =MRFMXL(IBRP1)
+               CALL HPALLOC(PXBUF, ILONG + 20,IER,8)
+               IBUF(1)=ILONG + 20
+               IHANDL  =MRFLOC(IBRP1,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
+               IF ( IHANDL .LT. 0 ) THEN
+                  IHANDL=MRFLOC(IBRP1,0,'*********',-1,-1,-1,-1,-1,-1,0)
+               ENDIF
+               IF ( IHANDL .LT. 0 ) THEN
+                  WRITE(NULOUT,*)
+     1            'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
+               ELSE
+                  NFILES=NFILES + 1
+                  CFILNAM(NFILES)=CBURP(J)
+                  CFAMTYP(NFILES)=CFAM(J)
+                  INSUP=0
+                  INXAUX=0
+                  IER=MRFGET(IHANDL,IBUF)
+                  IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,
+     1            ILON,IDX,IDY, IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,
+     1            ISUP,INSUP,IXAUX,INXAUX)
+*
+*=========================
+                  KTIME=ITIME
+                  KDATE=IDATE
+                  KRUNN=IRUNN
+*=========================
+*
+                  CALL HPDEALLC(PXBUF, IER,1)
+               ENDIF
+               IER=MRFCLS(IBRP1)
+            ENDIF
+         ENDIF
+         IER= FCLOS(IBRP1)
+      END DO
+*
+      RETURN
+      END

@@ -1,0 +1,214 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine subasic_gd
+!
+      use modfgat, only : nstamplist
+      use mod4dv, only : l4dvar
+      IMPLICIT NONE
+#if defined (DOC)
+!
+!s/r subasic_gd : Read Background fields at NLM spatial resolution.
+!                 Also prepares Helmholtz's PSI,CHI and Omega bakground fields.
+! Purpose:
+! Prepare bacic-state fields for TL computations on gridpoint analysis grids.
+!
+!     Author L. Fillion  - ARMA/MSC - 26 oct 2004.
+!Revision: L. Fillion - ARMA/MSC - 4 July 2005 - Omega QG.
+!Revision: L. Fillion - ARMA/EC - 29 April 2008 - Introduce getfstgla to improve 
+!                       treatment of lam trial fields in general; i.e. hintscal
+!                       produced garbage when lam analysis grid (extended grid!)
+!                       had a portion outside lam trial grid. The clean solution is
+!                       to perform the interpolation onto non-extended lam grid and then
+!                       biperiodize the fields..
+!Revision: L. Fillion - ARMA/EC - 22 May 2008 - Upgrade to v_10_1_1
+!Revision: L. Fillion - ARMA/EC - 13 Jan 2009 - Upgrade to v_10_1_2
+!Revision: L. Fillion - ARMA/EC - May 2010 - Improve printout. Improve check on content of
+!                       moisture field before leaving the subroutine to ensure it is OK.
+!
+#endif
+!
+#include "taglam4d.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "rpnstd.cdk"
+#include "comgdpar.cdk"
+#include "namgdpar.cdk"
+#include "compdg.cdk"
+#include "comgem.cdk"
+#include "comgrd_param.cdk"
+#include "comgrd.cdk"
+#include "comsim.cdk"
+#include "cvcord.cdk"
+#include "comcva.cdk"
+!
+!
+      integer ji,jj,jk,jlev,inip1,injp1,iwvx,iwvy,iwvk,ilev
+      integer idum1,idum2,idum3,idum4
+      integer iig1,iig2,iig3
+      integer iip2,iip3,itrlnlev,ip1_pak_trl,ip1_vco_trl,itrlgid,ibrpstamp
+      integer iip1s_trl(jpnflev)
+      integer :: k,koutmpg  !  the unit which has the selected records.
+!
+      real*8  zmin,zmax,zcon,zcscl
+      real*8 zug(ni,nflev,nj)
+      real*8 zvg(ni,nflev,nj)
+      real*8 zttg(ni,nflev,nj)
+      real*8 zgzg(ni,nflev,nj)
+      real*8 zhug(ni,nflev,nj)
+      real*8 zesg(ni,nflev,nj)
+      real*8 zpsg(ni,nj)
+      real*8 zpt(ni,nj)
+      real*8 zu9(0:ni+1,nflev,0:nj+1)
+      real*8 zv9(0:ni+1,nflev,0:nj+1)
+      real*8 zgdpsi9(ni,nflev,nj)
+      real*8 zgdchi9(ni,nflev,nj)
+      real*8 zvort9(ni,nflev,nj)
+      real*8 zdiv9(ni,nflev,nj)
+      real*8 zcorr(ni,nflev,nj)
+      real*8 zwh(ni,nj)
+      real*8 zwh2(ni,nj)
+      real*8 zu2(-1:ni+2,nflev,-1:nj+2)
+      real*8 zv2(-1:ni+2,nflev,-1:nj+2)
+!
+!!
+      write(nulout,*) 'subasic_gd: BEGIN'
+      inip1 = ni+1
+      injp1 = nj+1
+!
+      if(lfgsim) then
+!
+!*1.    Use simulated atmosphere
+!       ------------------------
+!
+        do ji=1,ni
+          do jj=1,nj
+            do jk=1,nflev
+              zcon=cos(jk*rpi/nflev)
+              zug(ji,jk,jj)=1.e0*zcon*cos(ji*rpi/ni)*sin(jj*rpi/nj)
+              zvg(ji,jk,jj)=2.e0*zcon*sin(ji*rpi/ni)*sin(jj*rpi/nj)
+              zttg(ji,jk,jj)=273 + 10.*zcon*sin(ji*rpi/ni)*cos(jj*rpi/nj)
+              zgzg(ji,jk,jj)=1.e4*real(jk)*zcon*sin(ji*rpi/ni)*cos(jj*rpi/nj)
+              zesg(ji,jk,jj)=1.e-3 + 1.e-4*zcon*cos(ji*rpi/ni)*cos(jj*rpi/nj)
+            enddo
+            zpsg(ji,jj)=(1.0e5 + 1.e4*cos(ji*rpi/ni))
+          enddo
+        enddo
+      else
+!
+!*2.    Read Background fields at NLM spatial resolution
+!       ------------------------------------------------
+!
+        write(nulout,*) 'subasic_gd: Start preparation of Background fields on analysis grid'
+!
+        cletiket = ' '
+        CLTYPVAR = 'P'
+        if(l4dvar) then
+          ibrpstamp=nstamplist(1)
+        else
+          ibrpstamp=nbrpstamp
+        endif
+!
+        call getfldprm2(IIP1S_TRL,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &     ,ITRLGID,'UU',ibrpstamp,jpnflev,ninmpg
+     &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
+!
+        if(nkt.ne.nflev) then  ! nlevtrl already initialized in subgpar.ftn
+          write(nulout,*) 'subasic_gd: nkt, nflev = ', nkt, nflev
+          write(nulout,*) 'subasic_gd: Trial & analysis have diff Nb. Levels'
+          if(grd_typ.eq.'LU') then
+          call abort3d(nulout,'SUBASIC_GD: Option not yet implemented in LAM')
+          else
+          call abort3d(nulout,'SUBASIC_GD: Option not yet implemented in non LAM')
+          endif
+        endif
+!
+        if(grd_typ.eq.'LU') then
+!modular1          call getfstgla(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
+          call maxmin(zttg,ni,nj,nflev,zmin,zmax,
+     &      idum1,idum2,idum3,idum4,'subasic_gd     ','ZTG')
+        else
+          call getfstg2(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
+        endif
+!
+        do ji=1,ni
+          do jj=1,nj
+            gpsg(ji,1,jj)=zpsg(ji,jj)
+            do jlev=1,nflev
+              utg(ji,jlev,jj)=zug(ji,jlev,jj)
+              vtg(ji,jlev,jj)=zvg(ji,jlev,jj)
+              ttg(ji,jlev,jj)=zttg(ji,jlev,jj)
+              gzg(ji,jlev,jj)=zgzg(ji,jlev,jj)
+              qg(ji,jlev,jj)=zhug(ji,jlev,jj)
+            enddo
+          enddo
+        enddo
+      endif
+          call maxmin(ttg,ni,nj,nflev,zmin,zmax,
+     &      idum1,idum2,idum3,idum4,'subasic_gd     ','TTG')
+!
+!*3.  When in LA mode, ensure bi-periodicization on analysis grid and rebuild the wind field accordingly
+!     --------------------------------------------------------------------------------------------------
+!
+      if(grd_typ.eq.'LU') then
+        call transfer('GDG1')
+!modular1        call initgdla(zvort9,zdiv9,zgdpsi9,zgdchi9,'S',.false.,.false.)
+        call transfer('GD1G')
+!modular1        call initgdla1(zgzg,nila,njla,nflev)
+!modular1        call initgdla1(zesg,nila,njla,nflev)
+!
+!       N.B.: qg is treated in initgdla but its content here is q, not ln(q)
+        call maxmin(zhug,ni,nj,nflev,zmin,zmax,
+     &              idum1,idum2,idum3,idum4,'postmin        ',
+     &              'HUG')
+        if(zmin.lt.0.0.or.zmax.gt.1.e-1) then
+          write(nulout,*) 'subasic_gd: zmin,zmax=',zmin,zmax
+          call abort3d(nulout,
+     &         'subasic_gd: HU_g is out of physical bounds')
+        endif
+!
+        do ji=1,ni
+          do jj=1,nj
+            zpsg(ji,jj)=gpsg(ji,1,jj)
+            do jlev=1,nflev
+              gzg(ji,jlev,jj)=zgzg(ji,jlev,jj)
+            enddo
+          enddo
+        enddo
+        call maxmin(zpsg,ni,nj,1,zmin,zmax,
+     &              idum1,idum2,idum3,idum4,'subasic_gd     ',
+     &              'P09')
+        if(zmin.le.500.e2.or.zmax.gt.1060.e2) then   ! P0 in hPa at this point...
+          call abort3d(nulout,
+     & 'subasic_gd: Bi-periodicization of P0 is out of physical bounds')
+        endif
+!
+!       Omega
+!
+        do ji=1,ni
+          do jj=1,nj
+            do jlev=1,nflev
+              omegag(ji,jlev,jj)=0.0
+            enddo
+          enddo
+        enddo
+      endif   ! LA mode
+!
+      write(nulout,*) 'subasic_gd: END'
+      return
+      end

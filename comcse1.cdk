@@ -1,0 +1,88 @@
+#if defined (DOC)
+*     COMDECK: COMCSE1
+*     ----------------
+*     Control of the computation of the statistics with the
+*     NMC method
+*Revision:
+*          C. Charette *ARMA/AES Nov 1998
+*          - Changed LDIVBAL to LBALDIV
+*          C. Charette *ARMA/AES Jan 1999
+*          - Added LNODIV
+*          L. Fillion *ARMA/EC 20 Oct 2008
+*          - Added lflt_low,lflt_high,mflt_trunc
+*          L. Fillion *ARMA/EC 29 Oct 2008
+*          - Added lpsifromglb, lpsifromlam
+*          L. Fillion *ARMA/EC 26 Nov 2008
+*          - Added CETIKETERR
+*          L. Fillion *ARMA/EC 11 Dec 2008
+*          - Added cstats_step, lmcstats options for Background error statistics computations.
+*          L. Fillion *ARMA/EC 6 Jan 2009
+*          - Upgrade to v_10_1_2 of 3dvar
+*          L. Fillion *ARMA/EC 22 Jun 2009
+*          - Introduce lhemis, lnorth to be able to produce symmetrized statistics representative of the desired hemisphere.
+*
+*     =====================================================
+*     NFLSTAT    :  number of files to be treated
+*     CETIKETERR :  Etiket of the error sample desired on the error sample file
+*     CFLNAMES(200):  names of the files to be processed (up to 200)
+*     NCSE1      :  parameter used to control the type of processing
+*     .             = 3 normalized increments are used to compute CORNS
+*     .             > 100 post-processing of the statistics
+*     .                 102 - Spectral computations and other things
+*     .                       (POSTCORNS)
+*     LSTATREAD   : .TRUE. files containing CORNS and RSTDDEV
+*     .                    must be read.
+*     .            .FALSE. CORNS is initialized to zero to start
+*     .                    the cumulation from scratch
+*     LSTATCON   : .TRUE.  restore CORNS as an accumulator by multiplying
+*     .                    by SQRT(NENSEMBLE - 1)
+*     .            .FALSE. CORNS will contain the spectral representation
+*     .                    of the correlations C_n(Z_1,Z_2) (see Notes)
+*
+*     NENSEMBLE  : number of cases already treated (read from the stat file)
+*     .            total number of cases treated   (OUTPUT)
+*     NDATESTAT  :  date of the first member of the ensemble used to
+*     .             estimate the correlations
+*     cstats_step:  Char*7: 'ALL    ','MEANGD ','BALANCE','MEANCV ','SPCORR '.
+*     CFLCORNS   :  name of the file containing CORNS
+*     CFLSTDEV   :  name of the file containing CORNS
+*     CFLPTOT    :  name of the file containing P_TO_T operator for balance
+*                   and the turning angle for balanced divergence
+*     LBALDIV    : .TRUE. divergent wind component in control vector is
+*                   actually the unbalanced component to which the balanced
+*                   component is added using the turning angle THETA
+*     LNODIV     :  When .true., all divergence is turned off
+*     LNORMCOR   :  .TRUE. to normalise stats in cse2.ftn
+*     lhelm      :  .TRUE.: PSI,CHI error statistics produced; .false: QQ,DD error statistics produced.
+*     lmcstats   :  .TRUE.: Use fcst error samples file structure as obtained from the Ensemble Kalman Filter CMC files.
+*                   .FALSE.: Use fcst differences files; e.g. NMC method files.
+*     lpsifromglb:  .TRUE.: Uses PSI from Global forecast error samples.
+*     lpsifromlam:  .TRUE.: Uses PSI from LAM4D forecast error samples.
+*     lflt_low   :  .TRUE.: Filters error samples in the horizontal using a spectral filter.
+*                   The low part (long waves) of the spectrum is filtered.
+*     lflt_high  :  .TRUE.: Filters error samples in the horizontal using a spectral filter.
+*                   The high (short wavelength) part of the spectrum is filtered.
+*     lvloc      :  .TRUE.: Ally vertical localization to CORNS.
+*     lhemis     :  .TRUE.: Will symmetrize one hemisphere.
+*     lnorth     :  .TRUE.: Copy Northern Hemisphere into Southern Hemisphere; .false.: opposite
+*     lsqrt_bgstat  :  .TRUE.: set sqrtc(corns) into corns array ready to be used for minimization.
+*     mflt_trunc :  Defines the truncation wavenumber to use with lflt_low or lflt_high option.
+
+#endif
+      INTEGER NFLSTAT, NENSEMBLE, NDATESTAT, NCSE1, NREGION
+      integer mflt_trunc
+      logical lflt_low,lflt_high,lpsifromglb,lpsifromlam,lmcstats
+      logical lsqrt_bgstat,lvloc, lhelm, lhemis,lnorth
+      LOGICAL LSTATCON, LSTATREAD,LPLTCORR,LBALDIV,LNORMCOR,LNODIV
+      REAL*8 MASKLAT(120)
+      CHARACTER*7 cstats_step
+      CHARACTER*8 CETIKETERR
+      CHARACTER*128 CFLNAMES(600)
+      CHARACTER*128 CFLCORNS, CFLSTDEV, CFLPTOT
+      COMMON /COMCSE1/NFLSTAT, NENSEMBLE, NDATESTAT, NCSE1,NREGION
+     &               ,MASKLAT,mflt_trunc
+      COMMON /COMCSE1C/CFLCORNS, CFLSTDEV, CFLPTOT, CFLNAMES, CETIKETERR
+     &                     ,cstats_step
+      COMMON /COMCSE1L/LSTATCON,LSTATREAD,LPLTCORR,LBALDIV,lvloc
+     &                 ,LNORMCOR,LNODIV,LMCSTATS,lflt_low,lflt_high
+     &                 ,lpsifromglb,lpsifromlam,lsqrt_bgstat,lhelm,lhemis,lnorth

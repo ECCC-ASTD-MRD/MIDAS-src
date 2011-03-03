@@ -1,0 +1,264 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine tovs_calc_jo(pjo,llprint)
+#if defined (doc)
+!
+!**s/r tovs_calc_jo  - computation of jo and the residuals to the tovs observations
+!                     (adapted from part of code of dobstovs)
+!
+!
+!author        : j. halle *cmda/aes  december 14, 2004
+!
+!revision 001  : a. beaulne *cmda/smc  june 2006
+!                  -modifications for AIRS (codtyp 183)
+!
+!revision 002  : r. sarrazin cmda  april 2008
+!                  -modifications for CSR (codtyp 185)
+!
+!revision 003  : s. heilliette
+!                  -modifications for IASI (codtyp 186)
+!
+!    -------------------
+!     purpose:
+!
+!arguments
+!     pjo: total value of jo for tovs
+!
+#endif
+  use mod_tovs
+
+  implicit none
+!implicits
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comtovst.cdk"
+#include "cvcord.cdk"
+#include "comvarqc.cdk"
+
+  integer :: isens, indxchn, indxtovs
+
+  real*8 zoer
+  real*8 dlsum
+  real*8 pjo, zdtb
+  real*8 zjon,zgami,zqcarg,zpost
+
+  real*8 zjoch  (0:jpch,jpnsat)
+  real*8 zavgnrm(0:jpch,jpnsat)
+
+  integer j, i, isat, krtid, io, jf, nchanperline, indxs, indxe
+  integer ibegin, ibeginob, ilast, ilastob, jj
+  integer inobsjo, incanjo
+  integer jo, jdata, idata, idatend, idatyp
+  integer jk, jn, ichn, ichncma, jl, indx
+  integer kfailtot
+
+  integer kfail(jppf*jpnsat)
+  integer inobsch(0:jpch,jpnsat)
+  integer lcanjo(jpch)
+
+  logical :: llprint
+
+  integer  isrcheq
+  external isrcheq
+  external abort3d
+
+  if(nobtov.eq.0) return    ! exit if there are not tovs data
+
+!     1.  Computation of (hx - z)/sigma for tovs data only
+!     .   ------------------------------------------------
+
+100  continue
+
+  dlsum    = 0.
+  inobsjo  = 0
+  kfailtot = 0
+  do j = 1, nsensors
+     do i = 0, jpch
+        inobsch(i,j) = 0
+        zjoch  (i,j) = 0.0
+        zavgnrm(i,j) = 0.0
+     enddo
+  enddo
+
+!     loop over all files
+
+  do jf = 1, nfiles
+   if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
+     ibegin   = nbegintyp(jf)
+     ilast    = nendtyp  (jf)
+     ibeginob = mobdata(ncmobs,ibegin)
+     ilastob  = mobdata(ncmobs,ilast )
+     do jo = ibeginob, ilastob
+
+!     .  1.1  Extract general information for this observation point
+!     .       ------------------------------------------------------
+
+!       only process radiance data (data type=[164,168,180,181,182,183,185,186]) to be assimilated?
+
+      idatyp = mod(mobhdr(ncmity,jo),1000)
+      if ( idatyp .eq. 164 .or.  &
+           idatyp .eq. 168 .or.  &
+           idatyp .eq. 180 .or.  &
+           idatyp .eq. 181 .or.  &
+           idatyp .eq. 182 .or.  &
+           idatyp .eq. 183 .or.  &    
+           idatyp .eq. 185 .or.  &    
+           idatyp .eq. 186     ) then
+
+        indxtovs = ltovsno(jo)
+        if ( indxtovs .eq. 0 ) then
+           write(nulout,fmt=9203)
+9203      format(' tovs_calc_jo: error with indxtovs')
+           call abort3d(nulout,'tovs_calc_jo    ')
+        endif
+
+        if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
+         idata   = mobhdr(ncmrln,jo)
+         idatend = mobhdr(ncmnlv,jo) + idata - 1
+         isens = lsensor(indxtovs)
+         do jdata= idata, idatend
+            if ( mobdata(ncmass,jdata).eq.1 ) then
+               ichn = nint(robdata8(ncmppp,jdata))
+               ichn    = max(0,min(ichn,jpch+1))
+               ichncma = max(0,min(ichn,jpch+1))
+               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
+               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+               if ( indxchn .eq. 0 ) then
+                  write(nulout,fmt=9202)
+9202              format(' tovs_calc_jo: error with channel number')
+                  call abort3d(nulout,'tovs_calc_jo    ')
+               endif
+
+               zdtb = radiance_d (indxtovs) % out(indxchn)-robdata8(ncmprm,jdata)
+               if ( ldbgtov ) then
+                  write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
+                           ichn,  radiance_d (indxtovs) % out(indxchn), &
+                           robdata8(ncmprm,jdata), zdtb
+               endif
+
+               zoer = robdata8(ncmoer,jdata)
+               robdata8(ncmoma,jdata) = zdtb/zoer
+               robdata8(ncmomi,jdata) = robdata8(ncmoma,jdata)
+               if (.not. lvarqc) then
+                  dlsum = dlsum &
+                       + (robdata8(ncmoma,jdata)* &
+                          robdata8(ncmoma,jdata))/2.
+                  robdata8(ncmomn,jdata) = &
+                              robdata8(ncmoma,jdata)
+               else
+
+!                 compute contribution of data with varqc
+ 
+                  zgami = robdata(ncmpob,jdata)
+                  zjon = (robdata8(ncmoma,jdata)* &
+                          robdata8(ncmoma,jdata))/2.
+                  zqcarg = zgami + exp(-1.0*zjon)
+                  zpost = zgami/zqcarg
+                  robdata8(ncmomn,jdata) = &
+                  robdata8(ncmoma,jdata)*(1. - zpost)
+                  dlsum= dlsum - log(zqcarg/(zgami+1.))
+               endif
+               inobsjo = inobsjo + 1
+               inobsch(ichncma,isens) = inobsch(ichncma,isens) + 1
+               zjoch(ichncma,isens)   = &
+                      zjoch(ichncma,isens)   + &
+                      robdata8(ncmoma,jdata)* &
+                      robdata8(ncmoma,jdata)
+               zavgnrm(ichncma,isens)   = &
+                      zavgnrm(ichncma,isens) + &
+                      robdata8(ncmoma,jdata)
+            endif
+         enddo
+        else
+         kfailtot = kfailtot + 1
+        endif      
+      endif
+
+
+     enddo
+
+   endif
+  enddo
+
+!     2.  Close up, print summary
+!     .   -----------------------
+
+200 continue
+
+  pjo = dlsum
+
+!    printout of mean jo and normalized average for each sensor.
+
+  nchanperline = 18
+  if ( llprint .and. inobsjo .gt. 0 ) then
+     write(nulout,fmt=9000)
+     do krtid = 1, nsensors
+        do i = 1, jpch
+           inobsch(0,krtid) = inobsch(0,krtid) + &
+                              inobsch(i,krtid)
+           zjoch(0,krtid)   = zjoch(0,krtid) + &
+                              zjoch(i,krtid)
+           zavgnrm(0,krtid) = zavgnrm(0,krtid) + &
+                              zavgnrm(i,krtid)
+        enddo
+     enddo
+     if ( kfailtot .gt. 0 ) then
+        write(nulout,'(/1x," rttov failures : ",i10)')  kfailtot
+     endif
+     do jl = 1, nsensors
+        incanjo = 0
+        do i = 0, jpch
+           if ( inobsch(i,jl) .ne. 0 ) then
+              incanjo = incanjo + 1
+              lcanjo(incanjo) = i
+           endif
+        enddo
+        if ( incanjo .ne. 0 ) then
+           write(nulout,'(/1x,"sensor #",i2,". platform: ",a, &
+                          &   "instrument: ",a)') &
+                          jl, csatid(jl), cinstrumentid(jl)
+           do j = 1, incanjo, nchanperline
+              indxs = j
+              indxe = min(j+nchanperline-1,incanjo)
+              if ( j .eq. 1 ) then
+                 write(nulout,'(1x,"channel",t13,"   all",17i6)') &
+                    (lcanjo(i),i=indxs+1,indxe)
+              else
+                 write(nulout,'(1x,"channel",t13,18i6)') &
+                    (lcanjo(i),i=indxs,indxe)
+              endif
+              write(nulout,'(1x,"no. obs.",t13,18i6)') &
+                 (inobsch(lcanjo(i),jl),i=indxs,indxe)
+              write(nulout,'(1x,"mean jo",t13,18f6.2)') &
+                 (zjoch(lcanjo(i),jl)/max(1,inobsch(lcanjo(i),jl)) &
+                 ,i=indxs,indxe)
+              write(nulout,'(1x,"norm. bias",t13,18f6.2,/)') &
+                 (zavgnrm(lcanjo(i),jl)/max(1,inobsch(lcanjo(i),jl)) &
+                 ,i=indxs,indxe)
+           enddo
+        endif
+     enddo
+  endif
+ 9000 format(//,10x,"-tovs_calc_jo: computing jo and residuals to tovs" &
+        &  ," observations")
+
+end subroutine tovs_calc_jo

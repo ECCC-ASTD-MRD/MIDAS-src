@@ -1,0 +1,55 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE tt2phihr
+#if defined (DOC)
+*
+***s/r tt2phihr - Temperature to geopotential transformation
+*
+*
+*Author  : S. Pellerin *ARMA/AES September 1998
+*Revision: L. Fillion - 10 mar 99 - Pressure option
+*          S. Pellerin - exclusion of commvo1 (regional implementation)
+*           C. Charette - ARMA/SMC - Sep. 2004
+*            - Conversion to hybrid vertical coordinate
+*
+**    Purpose:  -Computation of virtual temperature
+*
+*               -call vtap for Tv to phi transformation
+*
+*
+*Arguments
+*
+#endif
+      IMPLICIT NONE
+*implicits
+c------------------------------------------------------------------------
+#include "comdimo.cdk"
+#include "commvohr.cdk"
+c
+      integer jobs,jlev,ier
+      real*8 zps, alpha
+*
+      alpha=-1.0D0
+**
+c
+      do jobs = 1, nobtot
+        call matapathr(rppobshr(1,jobs),alpha,nlevtrl)
+        call vtap1dhr(jobs)
+      enddo
+c
+      return
+      end

@@ -1,0 +1,109 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE MATAPATST2(S,ALPHA,NCOL,NLEV,VMA,VMB,VMC,VMD,VME,VMF) 
+* 
+****************************************************************
+*     CALCULE LES ELEMENTS DE LA MATRICE TRIDIAGONALE ASSOCIEE A LA 
+*     SOLUTION PAR UN ALGORITHME DU 4EME ORDRE DE L'EQUATION
+*     T*S**ALPHA=D(P)/DS OU T ET P SONT DEUX FONCTIONS ECHANTILLONNEES
+*     AUX N NIVEAUX SIGMA. LES MATRICES GENEREES ICI SERONT UTILISEES 
+*     PAR LES SUBR. VTAP ET VPAT. L'ALGORITHME EST DU A J. COTE.
+*     NOTE: ON CALCULE IMMEDIATEMENT DANS LE COMMON MAPAT 
+*           LES COEFFICIENTS GENERES PAR LA REDUCTION GAUSSIENNE
+*           LORS DU CALCUL DE T.
+*     A(I),B(I),C(I): DIAG. INF., PRINC., ET SUP. DE LA MAT.
+*     ALPHA         : EXPOSANT DE SIGMA.
+*     N             : NOMBRE DE NIVEAUX SIGMA DU MODELE.
+*     ADAPTE AU MODELE SEF PAR MICHEL BELAND, AVRIL 1984. 
+*     RECODAGE PAR HAL RITCHIE, JANVIER 1993.
+*     MODIFIER PAR S. LAROCHE POUR L'ANALYSE REGIONALE DECEMBRE 1996.
+*     Modifier par S. Pellerin pour permettre le calcul d element 2D
+******************************************************************* 
+* 
+* 
+      integer   NLEV,NCOL
+      REAL*8      VMA(NCOL,NLEV), VMB(NCOL,NLEV), VMC(NCOL,NLEV)
+      REAL*8      VMD(NCOL,NLEV), VME(NCOL,NLEV), VMF(NCOL,NLEV)
+      REAL*8      S(NCOL,NLEV),Q(3), ALPHA
+C
+C
+      DO K=1,NLEV
+        do I = 1,NCOL
+          X0=S(I,K)
+          IF (K.EQ.1) THEN
+            XM=S(I,1)
+            XP=S(I,2)
+            AA=S(I,3)-X0
+            BB=S(I,2)-X0
+          ELSEIF (K.EQ.NLEV) THEN
+            XM=S(I,NLEV-1)
+            XP=S(I,NLEV)
+            AA=S(I,NLEV-1)-X0
+            BB=S(I,NLEV-2)-X0
+          ELSE
+            XM=S(I,K-1)
+            XP=S(I,K+1)
+            AA=XM-X0
+            BB=XP-X0
+          ENDIF
+          DO L=1,3
+            EX=ALPHA+FLOAT(L) 
+            IF(EX.NE.0.) Q(L)=(XP**EX-XM**EX)/EX
+            IF(EX.EQ.0.) Q(L)=ALOG(XP/XM) 
+          enddo
+          Q(3)=Q(3)-X0*(2.0*Q(2)-X0*Q(1)) 
+          Q(2)=Q(2)-X0*Q(1) 
+          CC=AA**2
+          DD=BB**2
+          DET=AA*DD-BB*CC 
+          VMA(I,K)=(DD*Q(2)-BB*Q(3))/(2.0*DET)
+          VMC(I,K)=(AA*Q(3)-CC*Q(2))/(2.0*DET)
+          VMB(I,K)=Q(1)/2.0-VMA(I,K)-VMC(I,K) 
+        enddo
+      enddo
+* 
+*     COEFFICIENTS DE L'OPERATEUR INVERSE 
+* 
+      DO K=1,NLEV
+        do i = 1,ncol
+          VMD(I,K)=VMA(I,K) 
+          VME(I,K)=VMB(I,K) 
+          VMF(I,K)=VMC(I,K) 
+        enddo
+      enddo
+* 
+      do i = 1,ncol
+        VMD(I,1)=VMD(I,1)/VMF(I,2)
+        VME(I,1)=VME(I,1)-VMD(I,1)*VMD(I,2) 
+        VMF(I,1)=VMF(I,1)-VMD(I,1)*VME(I,2) 
+        VMF(I,NLEV)=VMF(I,NLEV)/VMD(I,NLEV-1)
+        VMD(I,NLEV)=VMD(I,NLEV)-VMF(I,NLEV)*VME(I,NLEV-1) 
+        VME(I,NLEV)=VME(I,NLEV)-VMF(I,NLEV)*VMF(I,NLEV-1) 
+      enddo
+* 
+      VME(I,1)=1.0/VME(I,1) 
+      DO K=2,NLEV
+        do i = 1,ncol
+          KM=K-1
+          VMF(I,KM)=VMF(I,KM)*VME(I,KM) 
+          VME(I,K)=1.0/(VME(I,K)-VMD(I,K)*VMF(I,KM))
+        enddo
+      enddo
+* 
+*
+      RETURN
+      END

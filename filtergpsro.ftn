@@ -1,0 +1,175 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FILTERGPSRO
+#if defined (DOC)
+*
+***s/r FILTERGPSRO - filter out   GPSRO observations 
+*
+*
+*Author  : J. M. Aparicio Jan 2008
+*    -------------------
+**    Purpose:
+*** - Set bit of cma flag to 11 on to the GPSRO observations for certain conditions
+*
+*Arguments
+*
+#endif
+      use modgps04profile
+      use modgps05refstruct
+      use modgps06gravity
+      use modgps07geostruct
+      use modgps08refop
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comcva.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comct0.cdk"
+#include "comnumbr.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comgpsro.cdk"
+*
+      REAL*8 ZTODEG
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8 ZETA(JPNFLEV)
+      REAL*8 ZTT (JPNFLEV)
+      REAL*8 ZHU (JPNFLEV)
+      REAL*8 ZGZ (JPNFLEV)
+      REAL*8 ZP0
+      REAL*8 ZPT, ZPR, ZCF, ZTP
+      REAL*8 ZMT
+      REAL*8 DH,DDH
+      REAL*8 BIAS
+      REAL*8 HNH1, HSF, HTP, SUM0, SUM1, HGP
+C
+      REAL*8 ZOBS, ZMHX, ZOER, ZINC
+C
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO, JD
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JH,  NGPSLEV
+C
+      LOGICAL  ASSIM
+
+      INTEGER NH, NH1
+      TYPE(GPSPROFILE)           :: PRF 
+
+      WRITE(NULOUT,*)'ENTER FILTERGPSRO'
+C
+C     * 1.  Initializations
+C     *     ---------------
+C
+      ZTODEG = 180.0 / RPI
+C
+C     *    .   1.1  Eta vector
+C     *    .        ----------
+C
+      NGPSLEV=NLEVTRL
+      DO JL = 1, NLEVTRL
+         ZETA(JL) = VLEVHR(JL)
+      ENDDO
+C
+C     Loop over all files
+C
+      DO JF = 1, NFILES
+         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
+            IBEGIN   = NBEGINTYP(JF)
+            ILAST    = NENDTYP  (JF)
+            IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+            ILASTOB  = MOBDATA(NCMOBS,ILAST )
+C
+C     *     Loop over all observations of the file
+C
+            DO JO = IBEGINOB, ILASTOB
+C     
+C     *        Process only refractivity data (codtyp 169)
+C
+               IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+               IF ( IDATYP .EQ. 169 ) THEN
+C
+C                 Loops over data in the observation
+C
+                  IDATA   = MOBHDR(NCMRLN,JO)
+                  IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+                  ASSIM = .FALSE.
+C
+C                 Scan for requested assimilations, and count them
+C
+                  ASSIM = .TRUE.
+                  NH = IDATEND-IDATA+1
+C
+                  Lat  = ROBHDR(NCMLAT,JO)
+                  Lon  = ROBHDR(NCMLON,JO)
+                  ZLAT = Lat * ZTODEG
+                  ZLON = Lon * ZTODEG
+                  DO JL = 1, NLEVTRL
+C
+C     *           Profile x
+C
+                     ZTT(JL) = GOMTHR (JL,JO)-273.15
+                     ZHU(JL) = GOMQHR (JL,JO)
+                     ZGZ(JL) = GOMGZHR(JL,JO)
+                  ENDDO
+                  ZP0 =  GOMPSHR(1,JO)
+                  ZPT = RPPOBSHR(1,JO)
+                  ZMT = ZGZ(NLEVTRL)/RG
+                  ZMT = gpsgeopotential(Lat, ZMT)/RG
+                  ZTP = ZGZ(1)/RG
+                  ZPR = rprefinc
+                  ZCF = rcoefinc
+C     
+C     *           GPS profile structure:
+C
+C                  CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
+C     +                 ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+                  HSF=ZMT+SURFMIN
+                  IF (HSF .LT. HSFMIN) HSF=HSFMIN
+                  HTP=ZTP
+                  IF (HTP .GT. HTPMAX) HTP=HTPMAX
+C
+C     *           Prepare the vector of all the observations:
+C
+                  DO JDATA= IDATA, IDATEND
+                     HNH1= ROBDATA8(NCMPPP,JDATA)
+                     IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
+                        HGP = gpsgeopotential(Lat,HNH1)/9.80616
+                        IF ( HGP.GT.HTP .OR. 
+     +                       HGP.LT.HSF ) THEN
+                           MOBDATA(NCMASS,JDATA) = 0
+                           MOBDATA(NCMFLG,JDATA) = IBSET(MOBDATA(NCMFLG,JDATA),11)
+                        ENDIF
+                     ENDIF
+                  ENDDO
+               ENDIF
+            ENDDO
+         ENDIF
+      ENDDO
+      WRITE(NULOUT,*)'EXIT FILTERGPSRO'
+      RETURN
+      END

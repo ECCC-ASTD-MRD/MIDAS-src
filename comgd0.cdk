@@ -1,0 +1,52 @@
+#if defined (DOC)
+!*
+!*     . J. Halle    *CMDA/AES Oct 99.
+!*             - Added ground temperature (TG) to the model state.
+!C
+!C     COMDECK: COMGD0
+!C     ---------------
+!C     Grid point model state
+!C     ----------------------
+!C     GD(NIBEG:NIEND,NKGDIM,NJBEG:NJEND) : global model state
+!C
+!C     Splitting of GD
+!C     ---------------
+!C     UT0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  zonal wind image
+!C     VT0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  meridional wind image
+!C     TT0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  temperature field
+!C     Q0  (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  specific humidity
+!C     GZ0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) : geopotential at all levels of the model
+!C     GOZ0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND): ozone at all levels of the model
+!C     GTR0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND): undefined passive tracer
+!C
+!C     GPS0(NIBEG:NIEND,    1,NJBEG:NJEND) :  surface pressure
+!C     GTG0(NIBEG:NIEND,    1,NJBEG:NJEND) :  ground temperature
+!C
+#endif
+!C
+      REAL*8 GD  (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 UT0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 VT0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 TT0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 Q0  (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 GZ0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 GOZ0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 GTR0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 GPS0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 GTG0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 TB0(NIBEG:NIEND,NFLEV,NJBEG:NJEND)
+      REAL*8 TB_out(NI,NFLEV,NJ)
+!C
+!C     Pointer statements
+!C
+      POINTER (PTGD,GD),(PTUT0,UT0),(PTVT0,VT0), (PTT0,TT0)
+      POINTER (PTQ0,Q0),(PTGPS0,GPS0),(PTGTG0,GTG0)
+      POINTER (PTGZ0,GZ0),  (PTOZ0,GOZ0), (PTTR0,GTR0)
+      POINTER  (PTTB0,TB0), (PTTB_out,TB_out)
+!C
+!C
+      COMMON /POMGD0/PTGD,PTUT0,PTVT0,PTT0
+      COMMON /POMGD0/PTQ0, PTGPS0, PTGTG0
+      COMMON /POMGD0/PTGZ0, PTOZ0, PTTR0, PTTB0, PTTB_out
+!C
+

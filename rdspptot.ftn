@@ -1,0 +1,323 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+       SUBROUTINE RDSPPTOT(poper,knstatlev,kulbgsto)
+#if defined (DOC)
+*
+**s/r rdspptot -Read in balance operator spectral coefficients
+*     .
+* Purpose
+*     .  Read in coefficients for P_to_T operator and also turning angle
+*        for balanced divergence operator
+*     .  Vertical interpolation of operators
+*
+*Author  : S. Pellerin *ARMA/AES  February, 2000
+*Revision:
+*       JM Belanger CMDA/SMC  Jul 2000
+*                   . 32 bits conversion
+*
+#endif
+      use glbspec_mod
+      IMPLICIT NONE
+*implicits
+*
+*     Global variables
+*
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcorr.cdk"
+#include "rpnstd.cdk"
+#include "cominterp.cdk"
+#include "comcva.cdk"
+*
+*     Local variables
+*
+      integer knstatlev,kulbgsto
+      real*8 poper(nflev,knstatlev)
+*
+      integer jn, jk1, jk2, ikey, ilen,jlat,jcol,inix,injx,inkx
+      real*8 zsptheta, zgrtheta, zleg,zwork
+      real*8 zptotsrc,zspptot,zgrptot,ztheta,zptotecr
+     &     ,zptotmix
+c
+      pointer (pxzsptheta,zsptheta(0:ntrunc,nflev)),(pxzgrtheta
+     &     ,zgrtheta(nj,nflev))
+      pointer (pxzspptot,zspptot(0:ntrunc,nflev+1,nflev))
+      pointer (pxzgrptot,zgrptot(nj,nflev+1,nflev))
+      pointer (pxzleg,zleg(0:ntrunc,nj))
+      pointer (pxzptotecr,zptotecr(nflev+1,nflev,nj))
+*
+      pointer (pxzptotmix,zptotmix(nflev+1,knstatlev))
+*
+      pointer (pxzptotsrc,zptotsrc(knstatlev+1,knstatlev))
+      pointer (pxztheta,ztheta(knstatlev))
+*
+C ------------------------------------------------------
+      write(nulout,*) 'RDSPPTOT - Begin'
+      call vflush(nulout)
+*
+*     Allocating a local array
+*
+      ilen = (ntrunc + 1)*nflev
+      call hpalloc(pxzsptheta,max(1,ilen),ierr,8)
+      ilen = nj * nflev
+      call hpalloc(pxzgrtheta,max(1,ilen),ierr,8)
+      ilen = (ntrunc+1) * (nflev+1) * nflev
+      call hpalloc(pxzspptot,max(1,ilen),ierr,8)
+      ilen = nj * (nflev + 1) * nflev
+      call hpalloc(pxzgrptot,max(1,ilen),ierr,8)
+      ilen = (ntrunc + 1) * nj
+      call hpalloc(pxzleg,max(1,ilen),ierr,8)
+      ilen = nj * (nflev + 1) * nflev
+      call hpalloc(pxzptotecr,max(1,ilen),ierr,8)
+*
+      ilen = (nflev+1) * knstatlev
+      call hpalloc(pxzptotmix,max(1,ilen),ierr,8)
+*
+      ilen = (knstatlev + 1) * knstatlev
+      call hpalloc(pxzptotsrc,max(1,ilen),ierr,8)
+      ilen = knstatlev
+      call hpalloc(pxztheta,max(1,ilen),ierr,8)
+*
+*     set up simple spectral transforms
+*
+      write(nulout,*) 'RDSPPTOT: set up simple spectral transforms'
+      call vflush(nulout)
+
+      call zlegpol(zleg,gst_rmu,nj,ntrunc,ntrunc,nj)
+*
+      ip1 = -1
+      ip3 = -1
+      idateo = -1
+      cletiket = 'SP_THETA'
+      cltypvar = 'X'
+      clnomvar = 'ZZ'
+C
+c read of spectral coefficients for theta
+c
+      write(nulout,*) 'RDSPPTOT: Start reading in THETA from unit:'
+     &     ,nulbgst
+      call vflush(nulout)
+      do jn = 0,ntrunc
+        ip2 = jn
+        ikey = fstinf(nulbgst,inix,injx,inkx,idateo
+     s       ,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+        if(ikey .ge.0 ) then
+          ikey = vfstlir(ztheta,nulbgst,ini,inj,ink
+     &         ,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          if ( kulbgsto .gt. 0 ) then
+            ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits,
+     &           idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp,ig1
+     &           ,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2,iextr3)
+          endif
+        else
+c          CALL ABORT3D(NULOUT
+c     &         ,'RDSPPTOT: Problem with background stat file')
+          write(nulout,*) 'WARNING: CANNOT FIND THETA FOR ',jn
+          write(nulout,*) 'WARNING: SETTING TO ZERO!!!'
+          ztheta(:)=0.0
+        ENDIF
+c
+        if (ini .ne. knstatlev) then
+          CALL ABORT3D(NULOUT
+     &         ,'RDSPPTOT: BG stat levels inconsitencies')
+        endif
+c
+        if(lvintbgstat) then
+c
+c Vertical interpolation O'm = Vmn On
+c
+          call mxmaop1(poper,1,nflev,ztheta,1,knstatlev,zsptheta(jn,1)
+     &         ,ntrunc+1,1,nflev,knstatlev,1)
+        else
+          do jk1 = 1,nflev
+            zsptheta(jn,jk1) = ztheta(jk1)
+          enddo
+        endif
+*
+      enddo
+*
+c converting theta in physical space
+c
+      write(nulout,*) 'RDSPPTOT: converting theta in physical space'
+      call vflush(nulout)
+      call zleginv2(zgrtheta,zsptheta,zleg,ntrunc,nj,nflev,nj,nflev
+     &     ,ntrunc)
+*
+      do jlat = 1, nj
+        do jk1 = 1, nflev
+          theta(jk1,jlat) = zgrtheta(jlat,jk1)
+        end do
+      end do
+c
+      if ( kulbgsto .gt. 0 ) then
+c
+        ini = nflev
+        inj = nj
+        ink = 0
+        ip1 = 0
+        ip2 = 0
+        cletiket = 'THETA'
+c
+        ierr = vfstecr(theta, zwork, -inbits, kulbgsto, idateo, ideet,
+     &       inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar, clnomvar,
+     &       cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
+c
+      endif
+
+      write(nulout,*) 'RDSPPTOT: Start Reading in SP_PtoT from unit:'
+     &     ,nulbgst
+      ip1 = -1
+      ip2 = -1
+      ip3 = -1
+      idateo = -1
+      cletiket = 'SP_PtoT'
+      cltypvar = 'X'
+      clnomvar = 'ZZ'
+C
+c read of spectral coefficients for P to T operator
+c
+      do jn = 0,ntrunc
+        ip2 = jn
+        ikey = fstinf(nulbgst,inix,injx,inkx,idateo
+     s       ,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+        if(ikey .ge.0 ) then
+          ikey = vfstlir(zptotsrc,nulbgst,ini,inj,ink
+     s         ,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          if ( kulbgsto .gt. 0 ) then
+            ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits,
+     &           idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp,ig1
+     &          ,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2,iextr3)
+          endif
+        else
+c          CALL ABORT3D(NULOUT
+c     &         ,'RDSPPTOT: Problem with background stat file')
+          write(nulout,*) 'WARNING: CANNOT FIND P_to_T FOR ',jn
+          write(nulout,*) 'WARNING: SETTING TO ZERO!!!'
+          zptotsrc(:,:)=0.0
+        ENDIF
+c
+        if (ini .ne. knstatlev+1 .or. inj .ne. knstatlev) then
+          call abort3d(nulout
+     &         ,'RDSPPTOT: BG stat levels inconsitencies')
+        endif
+c
+        if(lvintbgstat) then
+c
+c Vertical interpolation of P to T
+c First Vertical interpolation: P'mn = Vmn Pnn
+c
+          call mxmaop1(poper,1,nflev,zptotsrc,1,knstatlev+1,zptotmix,1
+     &         ,nflev+1,nflev,knstatlev,knstatlev)
+c
+c Copy of the bottom row (P to Ps) from zptotsrc to zptotmix
+c
+          do jcol = 1, knstatlev
+            zptotmix(nflev+1,jcol) = zptotsrc(knstatlev+1,jcol)
+          enddo
+c
+c Second Vertical interpolation: P''mm = P'mn (Vnm)
+c
+          call mxmaop1(zptotmix,1,nflev+1,poper,knstatlev,1,zspptot(jn,1
+     &         ,1),ntrunc+1,(ntrunc+1)*(nflev+1),nflev+1,knstatlev,nflev
+     &         )
+c
+        else
+          do jk2 = 1,nflev
+            do jk1 = 1,nflev+1
+              zspptot(jn,jk1,jk2) = zptotsrc(jk1,jk2)
+            enddo
+          enddo
+        endif
+      enddo
+c
+      write(nulout,*) 'RDSPPTOT: converting PtoT in physical space'
+      call vflush(nulout)
+      ilen = nflev*(nflev+1)
+      call zleginv2(zgrptot,zspptot,zleg,ntrunc,nj,ilen,nj,ilen
+     &     ,ntrunc)
+c
+      do jlat = 1, nj
+        do jk2 = 1,nflev
+          do jk1 = 1, nflev+1
+            ptot(jk1,jk2,jlat) = zgrptot(jlat,jk1,jk2)
+          end do
+        end do
+      enddo
+
+c COPY NH PTOT TO SH
+      if(LCOPYPTOT) then
+        do jk1=1,nflev+1
+          do jk2=1,nflev
+            do jlat=1,nj/2
+              ptot(jk1,jk2,nj-jlat+1)=ptot(jk1,jk2,jlat)
+            enddo
+          enddo
+        enddo
+      endif
+c SCALE PTOT
+      do jk1=1,nflev+1
+        do jk2=1,nflev
+          do jlat=1,nj
+            ptot(jk1,jk2,jlat)=ptot(jk1,jk2,jlat)*RSCALEPTOT
+          enddo
+        enddo
+      enddo
+c ---------------------------------------------------
+      if ( kulbgsto .gt. 0 ) then
+c
+        do jlat = 1, nj
+          do jk2 = 1,nflev
+            do jk1 = 1, nflev + 1
+              zptotecr(jk1,jk2,jlat) = ptot(jk1,jk2,nj-jlat+1)
+            end do
+          end do
+        enddo
+c
+        ini = nflev + 1
+        inj = nflev
+        ink = nj
+        ip1 = 0
+        ip2 = 0
+        cletiket = 'P_to_T'
+c
+        ierr = vfstecr(zptotecr, zwork, -inbits, kulbgsto, idateo,
+     &         ideet, inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,
+     &         clnomvar, cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,
+     &         .true.)
+c
+      endif
+c
+*     9. Deallocate local arrays
+*
+      call hpdeallc(pxzleg,ierr,1)
+c
+      call hpdeallc(pxztheta,ierr,1)
+      call hpdeallc(pxzsptheta,ierr,1)
+      call hpdeallc(pxzgrtheta,ierr,1)
+c
+      call hpdeallc(pxzptotsrc,ierr,1)
+      call hpdeallc(pxzptotmix,ierr,1)
+      call hpdeallc(pxzspptot,ierr,1)
+      call hpdeallc(pxzgrptot,ierr,1)
+      call hpdeallc(pxzptotecr,ierr,1)
+*
+      write(nulout,*)'DONE in RDSPTOT'
+c
+      return
+      end

@@ -1,0 +1,294 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE GD2MVOAD (cdvarname,klev)
+      use glbspec_mod
+*
+#if defined (DOC)
+*
+***s/r GD2MVOAD  - Adjoint of the horizontal interpolation of the model variables
+*     .            in grid-point space to observation locations.
+*     .           Simple multiplication by the weights of
+*     .           the horizontal bilinear interpolation.
+*     .           (adapted from BILINAD)
+*
+*
+*Author  : P. GAUTHIER *ARMA/MSC JULY 2002
+*
+*Revision:
+*           Bin He   *ARMA/MRB   JULY 2009
+*           --  MPI version , restore Global array GOMTGR,....    
+*
+**    Purpose:  Update the estimate of GD from the gradient components
+*               at the observation points which have been stored in
+*               GOMOBS
+*
+* Arguments
+*     CDVARNAME: identificator of the variable to be treated
+*     KLEV     : number of levels (typically 1 for 2D-fields and NFLEV for 3D-fields)
+*
+*
+*
+#endif
+
+
+      USE obstag  
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "comgd0.cdk"
+#include "comcst.cdk"
+#include "comoahdr.cdk"
+#include "comoabdy.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+*
+*     Arguments
+*
+      character*2 cdvarname
+      integer klev
+*
+*     Local Variables
+*
+      INTEGER   JLEV, JGL, JLON, JOBS, IOBTYP
+      INTEGER   ILON, ILOS, ILA, IMIDDLE, ISYM, IMAX
+      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
+      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
+*
+      real*8  zfield(nibeg:niend,1:klev,njbeg:njend)
+
+      real*8,pointer,dimension(:,:) :: zprofil
+*
+*     bhe =========
+      integer :: ierr 
+      real*8 ,allocatable,dimension(:,:),target :: GOMARR   
+*     bhe ============
+*     Transfer Grid point field into local array (for generecity)
+*
+      zfield(:,:,:) = 0.0D0
+*
+*
+      allocate(gomarr(klev,nobtotp),stat=ierr )  
+
+      SELECT CASE (CDVARNAME)
+*
+*     2D fields
+*
+      CASE('TG')
+         CALL GetGomarr(GOMARR,GOMTGR)
+      CASE('PS')
+         CALL GetGomarr(GOMARR,GOMPS)
+*
+*     3D fields
+*
+      CASE('TT')
+         CALL GetGomarr(GOMARR,GOMT)
+      CASE('Q0')
+         CALL GetGomarr(GOMARR,GOMQ)
+      CASE('O3')
+         CALL GetGomarr(GOMARR,GOMOZ)
+      CASE('TR')
+         CALL GetGomarr(GOMARR,GOMTR)
+      CASE('UU')
+         CALL GetGomarr(GOMARR,GOMU)
+      CASE('VV')
+         CALL GetGomarr(GOMARR,GOMV)
+      CASE('GZ')
+         CALL GetGomarr(GOMARR,GOMGZ)
+      END SELECT
+C*   set array alian  
+      ZPROFIL => GOMARR(1:KLEV,1:NOBTOTP)
+C
+C*    2. LOOP OVER ALL THE OBSERVATIONS
+C     ---------------------------------
+C
+ 200  CONTINUE
+C
+      Observations: DO JOBS = 1, NOBTOTP
+         DLLAO   = ROBHDR_G(NCMLAT,JOBS)
+         DLLOO   = ROBHDR_G(NCMLON,JOBS)
+         IOBTYP  = MOBHDR_G(NCMOTP,JOBS)
+C
+C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
+C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
+C     TO THE WEST (ILON AND ILOS)
+C
+         ILA=MOBHDR_G(NCMTLA,JOBS)
+
+C
+         IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
+         IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
+         DLDLON = 2.*RPI/NILON(ILA)
+         DLDLOS = 2.*RPI/NILON(ILA+1)
+         ILON = INT(DLLOO/DLDLON) + 1
+         ILOS = INT(DLLOO/DLDLOS) + 1
+C
+C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
+C
+         DLDXN = DLLOO/DLDLON + 1. - ILON
+         DLDXS = DLLOO/DLDLOS + 1. - ILOS
+         DLDY  = (gst_RLATI(ILA)-DLLAO)/(gst_RLATI(ILA)-gst_RLATI(ILA+1))
+         DLW1  = (1.-DLDXN)*(1.-DLDY)
+         DLW2  = DLDXN*(1.-DLDY)
+         DLW3  = (1.-DLDXS)*DLDY
+         DLW4  = DLDXS*DLDY
+C
+         do jlev = 1, klev
+            ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)
+     +           + DLW1 * ZPROFIL(jlev,JOBS)
+            ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)
+     +           + DLW2 * ZPROFIL(jlev,JOBS)
+            ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)
+     +           + DLW3 * ZPROFIL(jlev,JOBS)
+            ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)
+     +           + DLW4 * ZPROFIL(jlev,JOBS)
+C
+         end do
+*
+      end do OBSERVATIONS
+
+*     release the memory 
+      deallocate(gomarr)  
+
+C
+C
+C     1. REARRANGE GRID-POINTS ARRAYS GD0, BY CARRYING GRADIENTS
+C     .  CONTRIBUTIONS OF MERIDIAN 0, NILON(JGL)+1 AND NILON(JGL+2)
+C     .  INTO MERIDIANS NILON(JGL), 1, AND 2. SIMILAR TREATMENT NEAR POLES
+C
+C
+C     1.2  EXTRA PARALLELS
+C
+C     TREATMENT OF GRADIENTS FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
+C
+      LEVELS: DO JLEV = 1, KLEV
+         IMIDDLE = NILON(1) / 2
+         DO JLON = 0, IMIDDLE
+            ISYM = JLON + IMIDDLE
+            ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)
+     +           + ZFIELD(ISYM,jlev,1)
+            ZFIELD(ISYM,jlev,NJ) =  ZFIELD(JLON,jlev,NJ+2)
+     +           + ZFIELD(ISYM,jlev,NJ)
+         END DO
+*
+         IMAX = NILON(1)
+         DO JLON = IMIDDLE + 1, IMAX + 2
+            ISYM = JLON - IMIDDLE
+            ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)
+     +           + ZFIELD(ISYM,JLEV,1)
+            ZFIELD(ISYM,JLEV,NJ) =  ZFIELD(JLON,JLEV,NJ+2)
+     +           + ZFIELD(ISYM,JLEV,NJ)
+         END DO
+C
+C     TREATMENT OF THE GRADIENTS AT NORTH AND SOUTH POLES.
+C
+         DLMEAN = 0.
+         DLMEAS = 0.
+         IMAX = NILON(0)
+         DO JLON = 0, IMAX + 2
+            DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
+            DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ+1)
+         end do
+*
+         DLMEAN = DLMEAN/NILON(1)
+         DLMEAS = DLMEAS/NILON(NJ)
+         IMAX = NILON(1)
+         DO JLON = 1, IMAX
+            ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
+            ZFIELD(JLON,jlev,NJ) = DLMEAS + ZFIELD(JLON,jlev,NJ)
+         end do
+*
+      END DO LEVELS
+C
+C
+C     1.1  EXTRA MERIDIANS
+C
+      DO JGL = 1, NJ
+         IMAX = NILON(JGL)
+         DO JLEV = 1, KLEV
+            ZFIELD(IMAX,JLEV,JGL) =   ZFIELD(0,JLEV,JGL)
+     +           + ZFIELD(IMAX,JLEV,JGL)
+            ZFIELD(1,JLEV,JGL)    =   ZFIELD(IMAX+1,JLEV,JGL)
+     +           + ZFIELD(1,JLEV,JGL)
+            ZFIELD(2,JLEV,JGL)    =   ZFIELD(IMAX+2,JLEV,JGL)
+     +           + ZFIELD(2,JLEV,JGL)
+         END DO
+      END DO
+*
+*     Adjoint of the identity (change of norm)
+*
+      DO JGL = 1, NJ
+         IMAX = NILON(JGL)
+         DO JLEV = 1, KLEV
+            DO JLON = 1, IMAX
+               ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *
+     +              NILON(JGL) / gst_RWT(JGL)
+            END DO
+         END DO
+      END DO
+C
+C     Transfer local results to global array
+C
+      select case (cdvarname)
+*
+*     2D fields
+*
+      case('TG')
+         gtg0(:,1:klev,:) = zfield(:,1:klev,:)
+      case('PS')
+         gps0(:,1:klev,:) = zfield(:,1:klev,:)
+*
+*     3D fields
+*
+      case('TT')
+         tt0(:,1:klev,:) = zfield(:,1:klev,:)
+      case('Q0')
+         q0 (:,1:klev,:) = zfield(:,1:klev,:)
+      case('O3')
+         GOZ0(:,1:klev,:) = zfield(:,1:klev,:)
+      case('TR')
+         GTR0(:,1:klev,:) = zfield(:,1:klev,:)
+      case('UU')
+         UT0(:,1:klev,:) = zfield(:,1:klev,:)
+      case('VV')
+         VT0(:,1:klev,:) = zfield(:,1:klev,:)
+      case ('GZ')
+         GZ0(:,1:klev,:) = zfield(:,1:klev,:)
+      end select
+
+
+      CONTAINS
+         SUBROUTINE GetGOMARR(Arr_g,Arr_l)  
+           REAL*8,DIMENSION(klev,nobtotp) :: arr_g
+           REAL*8,DIMENSION(nkgdimo,nobtot) :: arr_l
+         
+           INTEGER :: i,j,iobs ,ierr  
+           INTEGER :: ArrSize
+           arr_g(1:klev,1:nobtotp)=0.0D0
+           DO i=1,NOBTOT
+             iobs=locObsTag(i)  
+             DO j=1,klev 
+               ARR_g(j,iobs)=arr_l(j,i) 
+             ENDDO 
+           ENDDO 
+           ArrSize=klev*nobtotp  
+           CALL rpn_comm_allreduce(Arr_g,Arr_g,ArrSize,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)   
+         END SUBROUTINE GetGOMARR  
+
+      END SUBROUTINE GD2MVOAD   

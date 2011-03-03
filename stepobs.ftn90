@@ -1,0 +1,63 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine stepobs(KSTEPOBS,kstsyn,kdobs,ktobs,dddt)
+
+  implicit none
+
+  ! Author : Simon Pellerin (ARMA) July 2001
+  !
+  ! Purpose: Compute a step (assimilation) time centered on synoptic time,
+  !          given an observation time, a step time interval and a synoptic
+  !          time
+  !
+  ! Dummies
+
+  integer, intent(in) :: kstsyn    ! Synop CMC date-time stamp
+  integer, intent(in) :: kdobs     ! Obs date YYYYMMDD
+  integer, intent(in) :: ktobs     ! Obs time HHMM
+  real*8,  intent(in) :: dddt      ! Step obs: interval of assimilation (hours)
+
+  integer, intent(out):: kstepobs  ! Step obs time (CMC date-time stamp)
+
+  ! Locals
+  integer :: newdate, istat, imode
+  integer :: istobs    ! Obs CMC date-time stamp
+  integer :: itobs     ! Obs time HHMMSShh
+  integer :: instepobs ! number of stepobs from synop time
+  real*8  :: dlhours   ! Del time from synop time
+
+  ! ----------------------- CODE ---------------------------------------------
+
+  ! Building observation stamp
+
+  imode = 3 ! printable to stamp
+  itobs = ktobs * 10000 + 2900
+  istat = newdate(ISTOBS, kdobs,itobs,imode)
+
+  ! Difference (in hours) between obs time and synop time
+  call difdatr (istobs,kstsyn, DLHOURS)
+
+  instepobs = nint(dlhours/dddt) ! number of step obs from synop time
+
+  ! Delta time between synop time and step obs time
+  dlhours = instepobs * dddt
+
+  ! CMC date time stamp of the step obs time
+
+  call incdatr(KSTEPOBS,kstsyn,dlhours)
+
+end subroutine stepobs

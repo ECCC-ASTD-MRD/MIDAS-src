@@ -1,0 +1,186 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE ltt2phi
+#if defined (DOC)
+*
+***s/r ltt2phi - Temperature increments to geopotential
+*                increments transformation
+*
+*
+*Author  : S. Pellerin *ARMA/AES September 1998
+*
+*Revision: L. Fillion *ARMA/AES - 24 nov 98
+*        - Include ES option
+*          C. Charette *ARMA/AES November 1998
+*                      - Added LLPRINT for diagnostics
+*          L. Fillion *ARMA/AES - 3 feb 1999
+*                      - Introduce ps dependence of TLM
+*          C. Charette *ARMA/AES - 8 feb 1999
+*                      - Replaced zptop by rppobs(1,jobs)
+*                        and zpscon by gompsg(1,jobs)
+*          JM Belanger CMDA/SMC  Nov 2000
+*                   . 32 bits conversion
+*           C. Charette ARMA/SMC FEV. 2002
+*            - Commented out the if(llprint...) statements within
+*              the do loops. They were preventing vectorization.
+*           P. Koclas CMDA/SMC  Apr 2003
+*            - changed loop order  ( gomq ---> gomq1)
+*           C. Charette - ARMA/SMC - Sep. 2004
+*            - Conversion to hybrid vertical coordinate
+*           Bin He  - ARMA   June  2005
+*            - OpenMP optimization.
+*
+**    Purpose:  -Computation of virtual temperature increments from
+*                temperature and logarith of specific humidity
+*                increments
+*
+*               -call lvtap for del vt to del phi transformation
+*
+*
+*Arguments
+*
+#endif
+      IMPLICIT NONE
+*implicits
+c------------------------------------------------------------------------
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comcva.cdk"
+#include "commvo.cdk"
+#include "commvo1.cdk"
+#include "commvog.cdk"
+#include "comgem.cdk"
+#include "comcst.cdk"
+c
+      LOGICAL LLPRINT
+      integer jobs,jlev
+      real*8  zpscon, zcon,zdelps,zdelt,zalpha,zfacps,zfactt
+      INTEGER IERR,ILEN
+      real*8 zpresb,zpresbd,zterm
+
+      INTEGER myid,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
+C
+      LLPRINT = .false.
+*
+**
+c
+c*1   First set delq properly and store in gomq1 ready for Tv
+C computation
+c     ------------------------------------------------------------------
+C -
+c
+ 100  continue
+      if(chum.eq.'ES') then
+c
+c       compute delq from (delt, del(T-Td))
+c
+cpik  ibm changed loop order
+!modular1        call lesahuo
+      else
+        do jobs = 1, nobtot
+          do jlev = 1, nflev
+            gomq1(jlev,jobs) = gomq(jlev,jobs)
+          enddo
+        enddo
+      endif
+c
+c*2   Computation of virtual temperature increments
+c     ---------------------------------------------
+c
+ 200  continue
+!$OMP PARALLEL PRIVATE(jobs,jlev,myid,numthd,zpresb,zterm,zpresbd,zcon)
+!$OMP+ PRIVATE(zfactt,zfacps,zdelt,zdelps)
+      myid=omp_get_thread_num()+1
+      numthd=omp_get_num_threads()
+      do jobs = myid, nobtot,numthd
+        do jlev = 1, nflev
+          gomt1(jlev,jobs) = oltv(1,jlev,jobs)*gomt(jlev,jobs) + oltv(2
+     &         ,jlev,jobs)*gomq1(jlev,jobs)
+***************************************************************
+c       if (LLPRINT .AND.jobs.eq.1) then
+c          write(nulout,*) 'ltt2phi: jobs,nobtot,nflev '
+c     &          ,jobs,nobtot,nflev
+c          write(nulout,*) 'ltt2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
+c     &        , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
+c          write(nulout,*)'ltt2phi:gmt1,GMQ(jlev,jobs),GMT(jlev,jobs) '
+c     &        ,gomt1(jlev,jobs),gomq(jlev,jobs),gomt(jlev,jobs)
+c       endif
+***************************************************************
+        enddo
+!      enddo
+c
+c*3   Prepare r.h.s. for TL-Hydrostatic equation
+c     ------------------------------------------
+c
+ 300  continue
+!      do jobs = 1, nobtot
+        do jlev = 1, nflev
+c
+c      zcon = d(rtapfac)/d(ps)
+c
+          zpresb  = ((vhybinc(jlev) - rptopinc/rprefinc)
+     &               /(1.0D0-rptopinc/rprefinc))**rcoefinc
+          if((rcoefinc-1.0) .lt. RPRECIS) then
+            zterm = 1.0
+          else
+            zterm = ((vhybinc(jlev) - rptopinc/rprefinc)
+     &           /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
+          endif
+          zpresbd = rcoefinc * zterm
+          zcon    =(zpresbd-zpresb*rtapfac(jlev,jobs))/rppobs(jlev,jobs)
+          zfactt  = rtapfac(jlev,jobs)
+          zfacps  = gomtg(jlev,jobs)*zcon
+          zdelt   = rtapfac(jlev,jobs)*gomt1(jlev,jobs)
+          zdelps  = gomtg(jlev,jobs)*zcon * gomps(1,jobs)
+          gomt1(jlev,jobs)=rtapfac(jlev,jobs)*gomt1(jlev,jobs)
+     &         + gomtg(jlev,jobs)*zcon * gomps(1,jobs)
+c
+***************************************************************
+c       if (LLPRINT .AND.jobs.eq.1) then
+c          write(nulout,*) 'ltt2phi: jobs,nobtot,nflev '
+c     &          ,jobs,nobtot,nflev
+c          write(nulout,*)'ltt2phi: jobs,jlev,zfactt,zfacps,zcon'
+c     &        , jobs,jlev,zfactt,zfacps,zcon
+c          write(nulout,*)'ltt2phi: jobs,jlev,zdelt,zdelps'
+c     &        , jobs,jlev,zdelt,zdelps
+c          write(nulout,*)'ltt2phi: jobs,jlev,zpresb,zpresbd '
+c     &           ,jobs,jlev,zpresb,zpresbd
+c       endif
+****************************************************************
+        enddo
+      enddo
+!$OMP END PARALLEL
+c
+c*4   Computation of del(GZ)
+c     ----------------------
+c
+ 400  continue
+
+      zalpha=0.0D0
+      call matapat(vhybinc,zalpha,nflev)
+      call lvtap
+c      if(LLPRINT .AND. nobtot .eq. 1) then
+c         do jlev=1,nflev
+c           write(nulout,*)'ltt2phi: Level, GZ increment = ',jlev
+c     &          ,gomgz(jlev,1)
+c         enddo
+c      endif
+c
+      return
+      end

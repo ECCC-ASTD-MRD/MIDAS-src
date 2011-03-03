@@ -1,0 +1,880 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUALLO(KULOUT)
+#if defined (DOC)
+*
+***s/r SUALLO  - Memory allocation for the model variables
+*
+*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     P. Gauthier *ARMA/AES May 25, 1993
+*     .           -Allocation for specific humidity and surface pressure
+*     .            for spectral/gridpoint model states and forecast
+*     .            error correlation
+*     .           -Allocation of specific humidity is triggered by setting
+*     .           -Allocation of surface pressure is triggered by setting
+*     .            NVSP2D = 1.
+*     .           -SUALLO has also been rearranged by grouping similar states
+*     .            together (e.g., COMSP, COMSP1, COMSPG)
+*     P. Gauthier *ARMA/AES September 28, 1993
+*     .           -Allocation of RDEVSTD in COMSPG
+*     C. Charette *ARMA/AES January 1996
+*                 -Add 'compstat.cdk'.
+*                 -Allocation for prediction error statistics.
+*     S. Pellerin *ARMA/AES Sept 97.
+*                 - Control of the different model state of the 3Dvar
+*                   through COMSTATE, COMSTATEC and COMSTNUM common
+*                   blocks variables (comstate.cdk).
+*     P. Koclas   *CMC/AES Nov 97.
+*                 -alocation of scalpm1 variable
+*     S. Pellerin **ARMA/AES Jan 98.
+*                 -Dynamic allocation of DAMPLIBG (COMPSTAT) previously
+*                  hard coded to 240x120.
+*     L. Fillion  *ARMA/AES (originally Oct 1996)
+*                 -Add 'comode.cdk'.
+*     C. Charette *ARMA/AES  FEV 1999
+*                 -Add 'compdg.cdk'.
+*     C. Charette *ARMA/AES SEP 1999
+*                 - Operator PTOT as a function of latitude
+*     J. Halle    *CMDA/AES Oct 99.
+*                 - Added ground temperature (TG) to the model state.
+*     M. Tanguay  *ARMN/MSC Jan. 2005
+*                 - Introduction of minimizer N1CG1
+*     M. Buehner    *ARMA/MSC Oct 2004.
+*                 - Changed DAMPLIBG to 3D.
+*     M. Buehner    *ARMA May 2008
+*                 - Added variables for new approach with PtoT and
+*                   localized Tb correlations (NANALVAR=4)
+*     L. Fillion/C.Page    ARMA/MSC/UQAM 0ct 2003.
+*                 - Limited-Area LAM4D arrays.: Adaptation to v10_0_0 26 Apr 2006.
+*     L. Fillion   ARMA/MSC - 30 Nov 2004.: Adaptation to v10_0_0 26 Apr 2006.
+*                 - Convection Jacobian arrays
+*     L. Fillion   ARMA/MSC - 18 Mar 2005.: Adaptation to v10_0_0 26 Apr 2006.
+*                 - High-Res. LAM Background geometrical arrays.
+*     L. Fillion   ARMA/MSC - 07 Jul 2005.: Adaptation to v10_0_0 26 Apr 2006.
+*                 - Add dxlam and dxlam arrays.
+*     L. Fillion   ARMA/EC - 24 Mar 2006.: Adaptation to v10_0_0 26 Apr 2006.
+*                 - Add RR9 array for basic-state instantaneous KF convective RR.
+*     L. Fillion   ARMA/EC - 14 Aug 2007 - Update lam4d to v_10_0_3.
+*     L. Fillion   ARMA/EC - 21 Apr 2008 - Introduce spectral ptot matrix in lam4d mode.
+*     L. Fillion   ARMA/EC - 26 Aug 2008 - Introduce horizontal correlation scales based on rstddev arrays.
+*     L. Fillion   ARMA/EC - 19 Sep 2008 - Introduce tile structure of gridpoint PTOT in LAM4D mode.
+*     L. Fillion   ARMA/EC - 12 Jan 2009 - Upgrade lam4d to v_10_1_2.
+*     L. Fillion   ARMA/EC - 27 Feb 2009 - Upgrade lam4d to v_10_2_1 and introduce idim for corns in LU and GU modes.
+*     L. Fillion   ARMA/EC - 12 Oct 2009 - Generalise according to grd_roule rather than grd_typ .eq. 'LU'
+*     L. Fillion   ARMA/EC - 4 May 2010 - Upgrade on v_11_01_2b.
+*     L. Fillion   ARMA/EC - 13 May 2010 - Introduce Hemispheric spectral transforms.
+*
+*Arguments
+*     i   KULOUT: unit used for optional printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comct0.cdk"
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comgd0.cdk"
+#include "comgd1.cdk"
+#include "compdg.cdk"
+#include "comsp.cdk"
+#include "comsp1.cdk"
+#include "comspg.cdk"
+#include "comcorr.cdk"
+#include "comgem.cdk"
+#include "comcva.cdk"
+#include "compstat.cdk"
+#include "comstate.cdk"
+#include "comode.cdk"
+#include "comgemla.cdk"
+#include "comgemla2.cdk"
+#include "comgembgh.cdk"
+#include "comfftla.cdk"
+#include "comgrd_param.cdk"
+#include "comgrd.cdk"
+#include "comgrd2.cdk"
+#include "comconv.cdk"
+#include "comgdpar.cdk"
+#include "comrgsigla.cdk"
+#include "comlap.cdk"
+*
+      INTEGER KULOUT, ILEN, IERR, ILMU, ILENUT0, ILENSPV
+C
+      INTEGER iloc, jvar, idim
+      EXTERNAL HPALLOC
+C
+      WRITE(KULOUT,FMT='(//,6('' ***********''))')
+      WRITE(KULOUT,*)'     suallo:  Memory allocation of 3D',
+     S     ' variational assimilation'
+      WRITE(KULOUT,FMT='(6('' ***********''))')
+C
+C     2. Grid point model state
+C     .  ----------------------
+C
+ 200  CONTINUE
+C
+C     .     2.1 Main states (COMGD0, COMG1) and forecast error standard
+C     .         deviation in physical space (in COMSPG or comrgsigla)
+C     .         -------------------------------------------------------
+C
+ 210  CONTINUE
+C
+      ILEN = (NIEND - NIBEG + 1)*NKGDIM*(NJEND -NJBEG +1)
+      CALL HPALLOC(PTGD,MAX(ILEN,1),IERR,8)
+      IF(NCONF.NE.307) THEN
+         CALL HPALLOC(PTGD1,MAX(ILEN,1),IERR,8)
+C
+         ILEN =   NKGDIM*(NJEND -NJBEG +1)
+         CALL HPALLOC(PTSIG,MAX(ILEN,1),IERR,8)
+         if(grd_typ.eq.'LU') then
+           ILEN =   NI*NKGDIM*NJ
+           CALL HPALLOC(ptsigla,MAX(ILEN,1),IERR,8)
+         endif
+         ILEN =   NKGDIM*(NJEND -NJBEG +1)*(NIEND -NIBEG +1)
+         CALL HPALLOC(PTSIG3D,MAX(ILEN,1),IERR,8)
+cbue
+         ILEN =   NFLEV*(NJEND -NJBEG +1)
+         CALL HPALLOC(PTSIGTB,MAX(ILEN,1),IERR,8)
+         ILEN =   (NJEND -NJBEG +1)
+         CALL HPALLOC(PTSIGPSB,MAX(ILEN,1),IERR,8)
+       END IF
+cbue
+       ILEN=(NJEND -NJBEG +1)*(NIEND -NIBEG +1)*NFLEV
+       CALL HPALLOC(PTTB0,MAX(ILEN,1),IERR,8)
+       CALL HPALLOC(PTTB1,MAX(ILEN,1),IERR,8)
+       ILEN = NLA*2*NFLEV
+       CALL HPALLOC(PTSPTB,MAX(ILEN,1),IERR,8)
+       ILEN = NI*NJ*NFLEV
+       CALL HPALLOC(PTTB_out,MAX(ILEN,1),IERR,8)
+C
+C     .     2.2 Splitting  of states (COMGD0, COMG1) and RSIG in COMSPG
+C     .         -------------------------------------------------------
+C
+ 220  CONTINUE
+C
+C     2.2.1 Pointer initialisations
+C           -----------------------
+C
+      PTUT0 = -1
+      PTUT1 = -1
+      PTSIGUU = -1
+      PTSIGUU3D = -1
+      ptsiglapp = -1
+C
+      PTVT0 = -1
+      PTVT1 = -1
+      PTSIGVV = -1
+      PTSIGVV3D = -1
+      ptsiglacu = -1
+C
+      PTT0 = -1
+      PTT1 = -1
+      PTSIGTT = -1
+      PTSIGTT3D = -1
+      ptsiglatu = -1
+C
+      PTQ0 = -1
+      PTQ1 = -1
+      PTSIGQ = -1
+      PTSIGQ3D = -1
+      ptsiglalq = -1
+C
+      PTGZ0 = -1
+      PTQ1 = -1
+      PTSIGQ = -1
+      PTSIGQ3D = -1
+C
+      PTOZ0 = -1
+      PTOZ1 = -1
+      PTSIGOZ = -1
+      PTSIGOZ3D = -1
+      ptsiglaoz = -1
+C
+      PTTR0 = -1
+      PTTR1 = -1
+      PTSIGTR = -1
+      PTSIGTR3D = -1
+      ptsiglatr = -1
+C
+      PTGPS0 = -1
+      PTGPS1 = -1
+      PTSIGPS = -1
+      PTSIGPS3D = -1
+      ptsiglapu = -1
+C
+      PTGTG0 = -1
+      PTGTG1 = -1
+      PTSIGTG = -1
+      PTSIGTG3D = -1
+      ptsiglatg = -1
+C
+      iloc = 1
+      do jvar = 1,jpnvarmax
+        if(jvar .eq. nguu) then
+          NGPOSIT(nguu)=iloc
+          if(NGEXIST(nguu).eq.1) then
+            PTUT0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTUT1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGUU = LOC(RGSIG(NJBEG,iloc))
+            PTSIGUU3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglapp = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. ngvv) then
+          NGPOSIT(ngvv)=iloc
+          if(NGEXIST(ngvv).eq.1) then
+            PTVT0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTVT1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGVV = LOC(RGSIG(NJBEG,iloc))
+            PTSIGVV3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglacu = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nggz) then
+          NGPOSIT(nggz)=iloc
+          if(NGEXIST(nggz).eq.1) then
+            write(nulout,*) 'suallo: GZ allocated'
+            PTGZ0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTGZ1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGGZ = LOC(RGSIG(NJBEG,iloc))
+            PTSIGGZ3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. ngq) then
+          NGPOSIT(ngq)=iloc
+          if(NGEXIST(ngq).eq.1) then
+            PTQ0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTQ1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGQ = LOC(RGSIG(NJBEG,iloc))
+            PTSIGQ3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglalq = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. ngtt) then
+          NGPOSIT(ngtt)=iloc
+          if(NGEXIST(ngtt).eq.1) then
+            PTT0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTT1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGTT = LOC(RGSIG(NJBEG,iloc))
+            PTSIGTT3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglatu = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. ngoz) then
+          NGPOSIT(ngoz)=iloc
+          if(NGEXIST(ngoz).eq.1) then
+            PTOZ0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTOZ1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGOZ = LOC(RGSIG(NJBEG,iloc))
+            PTSIGOZ3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglaoz = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. ngtr) then
+          NGPOSIT(ngtr)=iloc
+          if(NGEXIST(ngtr).eq.1) then
+            PTTR0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTTR1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGTR = LOC(RGSIG(NJBEG,iloc))
+            PTSIGTR3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglatr = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. ngps) then
+          NGPOSIT(ngps)=iloc
+          if(NGEXIST(ngps).eq.1) then
+            PTGPS0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTGPS1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGPS = LOC(RGSIG(NJBEG,iloc))
+            PTSIGPS3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglapu = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + 1
+          end if
+        elseif(jvar .eq. ngtg) then
+          NGPOSIT(ngtg)=iloc
+          if(NGEXIST(ngtg).eq.1) then
+            PTGTG0   = LOC(GD(NIBEG,iloc,NJBEG))
+            PTGTG1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTSIGTG = LOC(RGSIG(NJBEG,iloc))
+            PTSIGTG3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
+            ptsiglatg = LOC(rgsigla(1,iloc,1))
+            iloc = iloc + 1
+          end if
+        endif
+      enddo
+C
+      ILEN = (NIEND - NIBEG + 1)*NKGDIM*(NJEND -NJBEG +1)
+      ILENUT0 = (NIEND - NIBEG + 1)*NFLEV*(NJEND - NJBEG +1)
+C
+      WRITE(KULOUT,FMT='(/,''  Arrays in COMGD0 are allocated'',
+     S     '' the following space:'')')
+      WRITE(KULOUT,FMT='(''   GD :'',I6,10x
+     S     ,'' (3D-fields):'',I8)')  ILEN,ILENUT0
+C
+      IF(NCONF.NE.307) THEN
+         WRITE(KULOUT,FMT='(/,''  Arrays in COMGD1 are allocated'',
+     S        '' the following space:'')')
+         WRITE(KULOUT,FMT='(''   GD1:'',I6,10x
+     S        ,'' (3D-fields ):'',I8)')  ILEN,ILENUT0
+         ILEN = NKGDIM*(NJEND -NJBEG +1)
+         WRITE(KULOUT,FMT='(/,'' Array RGSIG has been allocated''
+     S        ,'' the following space:'',1x,I6)')ILEN
+      END IF
+C
+C     3.  Spectral model states
+C     .   ---------------------
+C
+ 300  CONTINUE
+C
+C     .     3.1  Main state (COMSP, COMSP1, COMSPG)
+C     .          ---------------------------------
+C
+ 310  CONTINUE
+      ILEN = NLA * 2 * NKSDIM
+      CALL HPALLOC(PTSP  ,MAX(ILEN,1),IERR,8)
+      IF(NCONF.NE.307) THEN
+         CALL HPALLOC(PTSP1 ,MAX(ILEN,1),IERR,8)
+         CALL HPALLOC(PTSPG ,MAX(ILEN,1),IERR,8)
+         CALL HPALLOC(PTCORG,MAX(ILEN,1),IERR,8)
+      END IF
+      ILEN=ILEN*NLATBIN
+      write(kulout,*) 'ALLOCATING SPLAT:',ilen
+      CALL HPALLOC(PTSPLAT,MAX(ILEN,1),IERR,8)
+C
+      CALL HPALLOC(PTDEVSTD,MAX(NKSDIM,1),IERR,8)
+      CALL HPALLOC(PTCORBG, MAX(NFLEV*(NKSDIM-NVSP2D),1),IERR,8)
+C
+C     .     3.2 Splitting  of states (COMSP, COMSP1, COMSPG)
+C     .         --------------------------------------------
+C
+ 320  CONTINUE
+C
+C     2.2.1 Pointer initialisations
+C           -----------------------
+C
+      PTSVOR = -1
+      PTSVOR1 = -1
+      PTSVORG = -1
+      PTCVORG = -1
+      PTDEVVOR= -1
+C
+      PTSDIV = -1
+      PTSDIV1 = -1
+      PTSDIVG = -1
+      PTCDIVG = -1
+      PTDEVDIV = -1
+C
+      PTSTT  = -1
+      PTSTT1  = -1
+      PTSTTG  = -1
+      PTCTTG  = -1
+      PTDEVTT = -1
+C
+      PTSPQ = -1
+      PTSPQ1 = -1
+      PTSPQG = -1
+      PTCQG  = -1
+      PTDEVQ = -1
+C
+      PTSPGZ = -1
+      PTSPGZ1  = -1
+      PTGZG  = -1
+      PTCGZG  = -1
+      PTDEVGZ  = -1
+C
+      PTSPOZ = -1
+      PTSPOZ1  = -1
+      PTOZG  = -1
+      PTCOZG  = -1
+      PTDEVOZ  = -1
+C
+      PTSPTR = -1
+      PTSPTR1  = -1
+      PTTRG  = -1
+      PTCTRG  = -1
+      PTDEVTR  = -1
+C
+      PTSPPS = -1
+      PTSPPS1 = -1
+      PTSPPSG = -1
+      PTCPSG  = -1
+      PTDEVPS = -1
+C
+      PTSPTG = -1
+      PTSPTG1 = -1
+      PTSPTGG = -1
+      PTCTGG  = -1
+      PTDEVTG = -1
+C
+      iloc = 1
+      do jvar = 1,jpnvarmax
+        if(jvar .eq. nsvor) then
+          NSPOSIT(nsvor)=iloc
+          if(NSEXIST(nsvor).eq.1) then
+            PTSVOR   = LOC(SP(1,1,ILOC))
+            PTSVOR1 = LOC(SP1(1,1,ILOC))
+            PTSVORG = LOC(SPG(1,1,ILOC))
+            PTCVORG = LOC(CORG(1,1,ILOC))
+            PTDEVVOR=  LOC(RDEVSTD(ILOC))
+            ptuucorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nsdiv) then
+          NSPOSIT(nsdiv)=iloc
+          if(NSEXIST(nsdiv).eq.1) then
+            PTSDIV  = LOC(SP (1,1,iloc))
+            PTSDIV1 = LOC(SP1(1,1,ILOC))
+            PTSDIVG = LOC(SPG(1,1,ILOC))
+            PTCDIVG = LOC(CORG(1,1,ILOC))
+            PTDEVDIV=  LOC(RDEVSTD(ILOC))
+            ptvvcorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nsgz) then
+          NSPOSIT(nsgz)=iloc
+          if(NSEXIST(nsgz).eq.1) then
+            PTSPGZ  = LOC(SP  (1,1,iloc))
+            PTSPGZ1  = LOC(SP1  (1,1,ILOC))
+            PTGZG  = LOC(SPG  (1,1,ILOC))
+            PTCGZG  = LOC(CORG  (1,1,ILOC))
+            PTDEVGZ  = LOC(RDEVSTD(ILOC))
+            ptgzcorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nsq) then
+          NSPOSIT(nsq)=iloc
+          if(NSEXIST(nsq).eq.1) then
+            PTSPQ  = LOC(SP  (1,1,iloc))
+            PTSPQ1 = LOC(SP1 (1,1,ILOC))
+            PTSPQG = LOC(SPG (1,1,ILOC))
+            PTCQG  = LOC(CORG(1,1,ILOC))
+            PTDEVQ = LOC(RDEVSTD(ILOC))
+            ptqcorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nstt) then
+          NSPOSIT(nstt)=iloc
+          if(NSEXIST(nstt).eq.1) then
+            PTSTT   = LOC(SP (1,1,iloc))
+            PTSTT1  = LOC(SP1(1,1,ILOC))
+            PTSTTG  = LOC(SPG(1,1,ILOC))
+            PTCTTG  = LOC(CORG(1,1,ILOC))
+            PTDEVTT =  LOC(RDEVSTD(ILOC))
+            ptttcorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nsoz) then
+          NSPOSIT(nsoz)=iloc
+          if(NSEXIST(nsoz).eq.1) then
+            PTSPOZ  = LOC(SP  (1,1,iloc))
+            PTSPOZ1  = LOC(SP1  (1,1,ILOC))
+            PTOZG  = LOC(SPG  (1,1,ILOC))
+            PTCOZG  = LOC(CORG  (1,1,ILOC))
+            PTDEVOZ  = LOC(RDEVSTD(ILOC))
+            ptozcorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nstr) then
+          NSPOSIT(nstr)=iloc
+          if(NSEXIST(nstr).eq.1) then
+            PTSPTR  = LOC(SP  (1,1,iloc))
+            PTSPTR1  = LOC(SP1  (1,1,ILOC))
+            PTTRG  = LOC(SPG  (1,1,ILOC))
+            PTCTRG  = LOC(CORG  (1,1,ILOC))
+            PTDEVTR  = LOC(RDEVSTD(ILOC))
+            pttrcorbg= loc(corbg(1,iloc))
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nsps) then
+          NSPOSIT(nsps)=iloc
+          if(NSEXIST(nsps).eq.1) then
+            PTSPPS  = LOC(SP  (1,1,iloc))
+            PTSPPS1 = LOC( SP1(1,1,ILOC))
+            PTSPPSG = LOC( SPG(1,1,ILOC))
+            PTCPSG  = LOC(CORG(1,1,ILOC))
+            PTDEVPS = LOC(RDEVSTD(ILOC))
+            iloc = iloc + 1
+          end if
+        elseif(jvar .eq. nstg) then
+          NSPOSIT(nstg)=iloc
+          if(NSEXIST(nstg).eq.1) then
+            PTSPTG  = LOC(SP  (1,1,iloc))
+            PTSPTG1 = LOC( SP1(1,1,ILOC))
+            PTSPTGG = LOC( SPG(1,1,ILOC))
+            PTCTGG  = LOC(CORG(1,1,ILOC))
+            PTDEVTG = LOC(RDEVSTD(ILOC))
+            iloc = iloc + 1
+          end if
+        endif
+      enddo
+C
+!cluc      ILEN = NI*NJ*NKGDIM   ! replaced by following line for Hemis. spectral mode.
+      ILEN = (NIEND - NIBEG + 1)*NKGDIM*(NJEND -NJBEG +1) 
+      CALL HPALLOC(PTDAMPLIBG,MAX(ILEN,1),IERR,8)
+C
+      ILENSPV = NLA * 2 * NFLEV
+      WRITE(KULOUT,FMT='(/,"  Arrays in COMSP are allocated",
+     S     " the following space:")')
+      WRITE(KULOUT,FMT='(8X,"   SP :",I6,10x
+     S     ," (3D-fields SPXXX):",I8)')  ILEN,ILENSPV
+C
+      IF(NCONF.NE.307) THEN
+         WRITE(KULOUT,FMT='(/,"  Arrays in COMSP1 are allocated",
+     S        " the following space:")')
+         WRITE(KULOUT,FMT='(8X,"   SP1 :",I6,10x
+     S        ," (3D-fields SPXXX1):",I8)')  ILEN,ILENSPV
+C
+         WRITE(KULOUT,FMT='(/,"  Arrays in COMSPG are allocated",
+     S        " the following space:")')
+         WRITE(KULOUT,FMT='(8X,"   SPG :",I6,10x
+     S        ," (3D-fields SPXXXG):",I8)')  ILEN,ILENSPV
+C
+         WRITE(KULOUT,FMT='(8X,"   CORG :",I6,10x
+     S        ," (3D-Fields CORXXXG):",I8)')  ILEN,ILENSPV
+      END IF
+C
+C*    4. Arrays needed to define the geometry of the model (in COMGEM)
+C     .  ------------------------------------------------------------
+C
+ 400  CONTINUE
+      ILEN = (NJEND -NJBEG +1)
+      CALL HPALLOC(PTILON,MAX(ILEN,1),IERR,1)
+C
+      WRITE(KULOUT,FMT='(/,"  Arrays in COMGEM are allocated",
+     S     " the following space:  NILON =",I4)')ILEN
+C
+      ILEN = NLA
+      CALL HPALLOC(PTNNP1, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PT1SNP1,MAX(ILEN,1),IERR,8)
+      WRITE(KULOUT,FMT='(8X," (RNNP1,R1SNP1)  =",I4)')ILEN
+C
+C
+      ILEN = NJEND -NJBEG +1
+      CALL HPALLOC(PTCONPHY,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTCONIMA,MAX(ILEN,1),IERR,8)
+C
+C*    5. Arrays of COMCVA for the control variable
+C     .  -----------------------------------------
+C
+ 500  CONTINUE
+      ILEN = NVADIM
+      IF(NCONF.NE.307)THEN
+         CALL HPALLOC(PTVAZX    , MAX(ILEN,1),IERR,8)
+         CALL HPALLOC(PTVAZXBAR , MAX(ILEN,1),IERR,8)
+         do jvar = 1, ilen
+           vazxbar(jvar) = 0.0
+         enddo
+         CALL HPALLOC(PTVAZG    , MAX(ILEN,1),IERR,8)
+         CALL HPALLOC(PTSCALP   , MAX(ILEN,1),IERR,8)
+         CALL HPALLOC(PTSCALPM1 , MAX(ILEN,1),IERR,8)
+      END IF
+C
+      ILEN = NMTRA
+      IF(NCONF.NE.307)THEN
+        allocate(vatra(nmtra),STAT=ierr)
+        write(nulout,*) 'suallo: after VATRA allocation: ierr = '
+     &     ,ierr
+        if(nmtra.le.0) then
+          call abort3d(nulout,'suallo: nmtra dimension .le. 0')
+        endif
+c         CALL HPALLOC(PTVATRA, MAX(ILEN,1),IERR,8)
+      END IF
+C
+      IF(NCONF.NE.307.AND.N1GC.EQ.4)THEN
+         ILEN = NVADIM
+         CALL HPALLOC(PTVAZB,  MAX(ILEN,1),IERR,8)
+         ILEN = NMTRA
+         CALL HPALLOC(PTVATR1, MAX(ILEN,1),IERR,8)
+         ILEN = NWORK
+         CALL HPALLOC(PTVWORK, MAX(ILEN,1),IERR,8)
+      END IF
+C
+      WRITE(KULOUT,FMT=9401)
+ 9401 FORMAT(/,'  Arrays in COMCVA are allocated',
+     S     ' the following space:')
+      WRITE(KULOUT,FMT=9402) NVADIM,NMTRA
+ 9402 FORMAT(10X,'(VAZX, VAZG, SCALP) :',I13,10x,' VATRA:',1x,I13)
+      IF(N1GC.EQ.4) THEN
+      WRITE(KULOUT,FMT=9403) NVADIM,NMTRA,NWORK
+ 9403 FORMAT(10X,'FOR N1CG1: VAZB :',I13,10x,' VATR1 :',I13,10x,
+     &  ' VWORK :',1xI13)
+      ENDIF
+!
+!*    6. Spectral correlations and balance operators
+!
+!
+      if(grd_typ.eq.'LU') then
+        ILEN = NFLEV*(NFLEV+1)*nbandmax
+        CALL HPALLOC(ptsptot, MAX(ILEN,1),IERR,8)  ! in lam4d mode: allocate also a spectral form of ptot
+        ILEN = ni*nj
+        call hpalloc(ptmtile, max(ilen,1), ierr, 1)
+        ILEN = NFLEV*(NFLEV+1)*maxtiles
+        CALL HPALLOC(ptptotla, MAX(ILEN,1),IERR,8)  ! in lam4d mode: allocate gridpoint ptot
+      endif
+!
+      ILEN = NFLEV*(NFLEV+1)*NJ
+      CALL HPALLOC(PTPtoT, MAX(ILEN,1),IERR,8)
+      ILEN = NFLEV*(NJ)
+      CALL HPALLOC(PTTHETA, MAX(ILEN,1),IERR,8)
+      ILEN = NFLEV*(NJ)*NLATBIN
+      CALL HPALLOC(PTTHETA2, MAX(ILEN,1),IERR,8)
+!
+      write(nulout,*) 'NKSDIM2=',nksdim2
+!
+      if(grd_typ.eq.'LU') then
+        idim = nbandmax
+      else
+        idim = ntrunc+1
+      endif
+!
+      ILEN = NKSDIM2*NKSDIM2*idim*NLATBIN
+      CALL HPALLOC(PTCORNS, MAX(ILEN,1),IERR,8)
+      ILEN = NKSDIM2*idim
+      CALL HPALLOC(PTSTDDEV, MAX(ILEN,1),IERR,8)
+      ILEN = NKSDIM2
+      CALL HPALLOC(pthcorl, MAX(ILEN,1),IERR,8)
+      ILEN = NKSDIM2*NKSDIM2
+      CALL HPALLOC(PTCORVERT, MAX(ILEN,1),IERR,8)
+C
+C*    7. Prediction error  statistics
+C
+ 700  CONTINUE
+c
+      ILEN = NJ*NFLEV
+      CALL HPALLOC(PTUUSTDBG, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTGZSTDBG, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTQSTDBG , MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTOZSTDBG, MAX(ILEN,1),IERR,8)
+      ILEN = NI*NJ
+      CALL HPALLOC(PTTGSTDBG, MAX(ILEN,1),IERR,8)
+C
+C*    8. Arrays required for model coordinate analysis
+C     .  ---------------------------------------------
+C
+ 800  CONTINUE
+      ILEN = NFLEV
+c
+c     arrays for T to P and P to T transforms
+c
+      CALL HPALLOC(PTVMA, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVMB, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVMC, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVMD, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVME, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVMF, MAX(ILEN,1),IERR,8)
+c
+c     arrays for mean T profile and Equivalent-depths
+c
+      ILEN = NFLEV
+      CALL HPALLOC(PTTMEANH, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTEQDEPTH, MAX(ILEN,1),IERR,8)
+c
+c     arrays for vertical mode transform
+c
+      ILEN = NFLEV*NFLEV
+      CALL HPALLOC(PTVMAT, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVINV, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTTVMAT, MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTTVINV, MAX(ILEN,1),IERR,8)
+C
+c
+c     arrays of background-related fields on background grid (compdg)
+c     N.B.: Doesnt assume global structure as GD0,GD1 for instance.   ! WARNING!!!!
+c
+      ILEN = NI*NFLEV*NJ
+      CALL HPALLOC(PTUTG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTVTG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTTG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTQG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTPSIG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTCHIG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTOMEGAG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTGDGZG,MAX(ILEN,1),IERR,8)
+      ILEN = NI*NJ
+      CALL HPALLOC(PTGPSG,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTGPTG,MAX(ILEN,1),IERR,8)
+C
+C*    9. Limited-Area (LU) Arrays
+C
+      if(grd_typ.eq.'LU'.or.multi_grd.gt.0) then
+        ILEN = NILA*NJLA
+        CALL HPALLOC(ptdxlam,MAX(ILEN,1),IERR,8)
+        CALL HPALLOC(ptdylam,MAX(ILEN,1),IERR,8)
+        if(multi_grd.eq.1) then
+          ILEN = NILA2*NJLA2
+          CALL HPALLOC(ptdxlam2,MAX(ILEN,1),IERR,8)
+          CALL HPALLOC(ptdylam2,MAX(ILEN,1),IERR,8)
+        endif
+      endif
+!
+      if(grd_typ.eq.'LU') then
+        ILEN = NILA*NJLA*nflev
+        CALL HPALLOC(ptsigla_tb,MAX(ILEN,1),IERR,8)
+      endif
+!
+      if(grd_typ.eq.'LU') then ! Fourier fields allocated only in LAM mode
+        call hpalloc(ptindxy, max(nfi*(nfj+1),1), ierr, 1)
+        call hpalloc(ptindxy_rpn, max((nila+2)*((njla+2)),1), ierr, 1)
+        call hpalloc(ptmwvnbx, max(nla,1), ierr, 1)
+        call hpalloc(ptmwvnby, max(nla,1), ierr, 1)
+        ilen = nfi*nfj
+        call hpalloc(ptmbandsp, max(ilen+1,1), ierr, 1)
+        call hpalloc(ptmila, max((ilen)*(nbimax+1),1), ierr, 1)
+        ilen = nbimax
+        call hpalloc(ptwvnbtot, max(ilen,1), ierr, 8)
+        ilen = mlen2d
+        call hpalloc(ptsdft2d, max(ilen,1), ierr, 8)
+        ilen = mlen1d
+        call hpalloc(ptsdft1d, max(ilen,1), ierr, 8)
+        ilen = nfi*nfj
+        call hpalloc(ptrbandtot, max(ilen,1), ierr, 8)
+      endif
+!
+      ilen = nila
+      call hpalloc(ptgrd_x_8, max(ilen,1), ierr, 8)
+      call hpalloc(ptgrd_u_x_8, max(ilen,1), ierr, 8)
+      ilen = njla
+      call hpalloc(ptgrd_y_8, max(ilen,1), ierr, 8)
+      call hpalloc(ptgrd_v_y_8, max(ilen,1), ierr, 8)
+      write(nulout,*) 'suallo: nila,njla = ',nila,njla
+c
+c       Lat-Lon High-Res. Background grid and metric factors
+c
+      if(grd_typ.eq.'LU'.or.multi_grd.gt.0) then
+        write(nulout,*) 'suallo: nit,njt=',nit,njt
+        ilen = (nit+9)*(njt+9)
+        call hpalloc(ptrlat_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptrlon_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdlat_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdlon_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptrrcos_bgh, max(ilen,1), ierr, 8)
+        ilen = (njt+9)
+        call hpalloc(ptrlath_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptr1mmu2_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptr1mmu2h_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdmu_bgh, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdmuh_bgh, max(ilen,1), ierr, 8)
+c
+c       Lat-Lon Analysis grid, metric factors, Coriolis factor
+c
+        ilen = (nila+9)*(njla+9)
+        call hpalloc(ptrlat_an, max(ilen,1), ierr, 8)
+        call hpalloc(ptrlon_an, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdlat_an, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdlon_an, max(ilen,1), ierr, 8)
+        call hpalloc(ptrrcos_an, max(ilen,1), ierr, 8)
+        call hpalloc(ptrrcosh_an, max(ilen,1), ierr, 8)
+        ilen = (njla+9)
+        call hpalloc(ptrlath_an, max(ilen,1), ierr, 8)
+        call hpalloc(ptr1mmu2, max(ilen,1), ierr, 8)
+        call hpalloc(ptr1mmu2h, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdmu, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdmuh, max(ilen,1), ierr, 8)
+        ilen = nila*njla
+        call hpalloc(ptcoriol, max(ilen,1), ierr, 8)
+c
+c       a,b,c matrices for tridiagonal solver
+c
+        ilen = njla
+        call hpalloc(ptatris, max(ilen,1), ierr, 8)
+        call hpalloc(ptctris, max(ilen,1), ierr, 8)
+        call hpalloc(ptatrip, max(ilen,1), ierr, 8)
+        call hpalloc(ptctrip, max(ilen,1), ierr, 8)
+        ilen = njla*nfi
+        call hpalloc(ptbtris, max(ilen,1), ierr, 8)
+        call hpalloc(ptbtrip, max(ilen,1), ierr, 8)
+!
+        if(multi_grd.eq.1) then  ! set arrays for 2nd LAM embedded grid
+c
+c         Lat-Lon Analysis grid, metric factors, Coriolis factor
+c
+          ilen = nila2
+          call hpalloc(ptgrd_x_82, max(ilen,1), ierr, 8)
+          ilen = njla2
+          call hpalloc(ptgrd_y_82, max(ilen,1), ierr, 8)
+          ilen = (nila2+9)*(njla2+9)
+          call hpalloc(ptrlat_an2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrlon_an2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrdlat_an2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrdlon_an2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrrcos_an2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrrcosh_an2, max(ilen,1), ierr, 8)
+          ilen = (njla2+9)
+          call hpalloc(ptrlath_an2, max(ilen,1), ierr, 8)
+          call hpalloc(ptr1mmu22, max(ilen,1), ierr, 8)
+          call hpalloc(ptr1mmu2h2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrdmu2, max(ilen,1), ierr, 8)
+          call hpalloc(ptrdmuh2, max(ilen,1), ierr, 8)
+          ilen = nila2*njla2
+          call hpalloc(ptcoriol2, max(ilen,1), ierr, 8)
+c
+c         a,b,c matrices for tridiagonal solver
+c
+          ilen = njla2
+          call hpalloc(ptatris2, max(ilen,1), ierr, 8)
+          call hpalloc(ptctris2, max(ilen,1), ierr, 8)
+          call hpalloc(ptatrip2, max(ilen,1), ierr, 8)
+          call hpalloc(ptctrip2, max(ilen,1), ierr, 8)
+        endif
+!
+        ilen = (nitlap+1)*nfldlap
+        call hpalloc(ptrgamma_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptrdenom_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptra_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptrb_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptadra, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrb, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrgamm, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrdeno, max(ilen,1), ierr, 8)
+!
+        ilen = nla
+        call hpalloc(ptrlapxy, max(ilen,1), ierr, 8)
+        call hpalloc(ptrilapxy, max(ilen,1), ierr, 8)
+!
+        ilen = nila*njla*nflev*(nitlap+1)*nfldlap
+        call hpalloc(ptrz_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptrs_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptrp_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptrq_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptrsol_lap, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrz, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrs, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrp, max(ilen,1), ierr, 8)
+        call hpalloc(ptadrq, max(ilen,1), ierr, 8)
+!       
+      endif
+C
+C*    10. Arrays for Convection
+C
+      ilen=maxconvpt
+      call hpalloc(ptmptikf9, max(ilen,1), ierr, 1)
+      call hpalloc(ptmptjkf9, max(ilen,1), ierr, 1)
+c
+      ilen=nflev*nflev*maxconvpt
+      call hpalloc(ptcfptpt, max(ilen,1), ierr, 8)
+      call hpalloc(ptcfptpq, max(ilen,1), ierr, 8)
+      call hpalloc(ptcfpqpt, max(ilen,1), ierr, 8)
+      call hpalloc(ptcfpqpq, max(ilen,1), ierr, 8)
+      ilen=nflev
+      call hpalloc(ptheat28, max(ilen,1), ierr, 8)
+      ilen=maxconvpt
+      call hpalloc(ptrr9, max(ilen,1), ierr, 8)
+c
+      RETURN
+      END

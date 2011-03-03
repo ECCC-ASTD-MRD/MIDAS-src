@@ -1,0 +1,205 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE reBuildCMA 
+#if defined (DOC)
+*
+***s/r reBuildCMA - re-construct CMA by giving local Obs TAG. 
+*
+*Author    . Bin He (ARMA/MRB )
+*
+*Revision:
+*      PURPOSE:  
+*
+*    ARGUMENTS:
+*                INPUT:  NONE
+*
+*                OUTPUT: NONE
+*
+#endif
+*
+      USE mod4dv, only : l4dvar 
+      USE obstag  
+      IMPLICIT NONE
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+! Declaire Local Variables. 
+      CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
+      REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp,ROBDATA_tmp
+      REAL*8,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
+
+      INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP 
+      INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp 
+      
+*     Declaire local variables. 
+      INTEGER :: i,j,iobs,ierr ,locObsize ,startindx,endindx 
+      INTEGER :: idataend,jj,ifamid,istart,idata,ii 
+      LOGICAL :: lfirst 
+!!---------------------------------------------------------------
+      WRITE(*,*) '============= Enter reBuildCMA =============='
+      locObsize=size(locObsTag) 
+
+      ALLOCATE(cstnid_tmp(locObsize),STAT=ierr) 
+      ALLOCATE(ROBHDR_tmp(NCMLET,locObsize),STAT=ierr) 
+      ALLOCATE(MOBHDR_tmp(NCMLET,locObsize),STAT=ierr) 
+      ALLOCATE(MOBDATA_tmp(NCMLBO,ndata_l),STAT=ierr) 
+      ALLOCATE(ROBDATA_tmp(NCMLBO,ndata_l),STAT=ierr) 
+      ALLOCATE(ROBDATA8_tmp(3:11,ndata_l),STAT=ierr) 
+!  
+      ALLOCATE(MOBHDR_G(NCMLET,nobtot),STAT=ierr) 
+      ALLOCATE(ROBHDR_G(NCMLET,nobtot),STAT=ierr) 
+
+!0.1  Sorting locObsTag according to the family ID. 
+      IF(l4dvar) THEN
+         ALLOCATE(locObsTag_tmp(locObsize),STAT=ierr) 
+         ALLOCATE(ObsTagLoc(nobtot),STAT=ierr) 
+         ALLOCATE(ObsTagLocRev(nobtot),STAT=ierr) 
+         ALLOCATE(locObsTag0(locObsize),STAT=ierr) 
+         ObsTagLoc=0 
+         locObsTag0=locObsTag
+         CALL SORT(locObsTag0,locObsize) 
+         ii=0
+         DO J=1,NFILES
+            DO i=1,locObsize
+               iobs=locObsTag(i) 
+               ifamid=MOBHDR(NCMOEC,iobs) 
+               if(j == ifamid) then
+                 ii=ii+1
+                 locObsTag_tmp(ii) = iobs  
+                 ObsTagLoc(iobs) = ii   
+                 ObsTagLocRev(iobs) = i   
+               endif
+            ENDDO 
+         ENDDO 
+
+         locObsTag=locObsTag_tmp
+         DEALLOCATE(locObsTag_tmp)  
+      ENDIF  
+ !  nobtotp and ndatap are used in CMAABRP of POSTMIN . 
+      nobtotp=nobtot
+      ndatap=ndata
+
+!! keep the Global ROBHDR and MOBHDR
+      DO iobs=1,nobtotp
+        MOBHDR_G(1:NCMLET,iobs)=MOBHDR(1:NCMLET,iobs)
+        ROBHDR_G(1:NCMLET,iobs)=ROBHDR(1:NCMLET,iobs)
+      ENDDO  
+!!
+      DO i=1,locObsize 
+        iobs=locObsTag(i) 
+        ROBHDR_tmp(1:NCMLET,i)=ROBHDR(1:NCMLET,iobs)
+        MOBHDR_tmp(1:NCMLET,i)=MOBHDR(1:NCMLET,iobs)
+        cstnid_tmp(i) = cstnid(iobs) 
+        IF(i== 1) THEN
+           MOBHDR_tmp(NCMRLN,1) = 1
+        ELSE
+           MOBHDR_tmp(NCMRLN,i)=MOBHDR_tmp(NCMRLN,i-1) + MOBHDR_tmp(NCMNLV,i-1) 
+        ENDIF 
+      ENDDO !  
+
+
+      ii=0 
+      DO i=1,locObsize
+        iobs=locObsTag(i) 
+        idata= MOBHDR(NCMRLN,iobs) 
+        idataend = MOBHDR(NCMNLV,iobs) + idata -1 
+        DO j=idata,idataend 
+           ii=ii+1 
+           ROBDATA8_tmp(3:11,ii)=ROBDATA8(3:11,j)
+           MOBDATA_tmp(1:NCMLBO,ii)=MOBDATA(1:NCMLBO,j) 
+           ROBDATA_tmp(1:NCMLBO,ii)=ROBDATA(1:NCMLBO,j) 
+           MOBDATA_tmp(NCMOBS,ii) = i
+        ENDDO 
+      ENDDO 
+   ! 
+      ndata=ndata_l
+      
+
+      deallocate(cstnid)
+      deallocate(ROBHDR)
+      deallocate(MOBHDR)
+      deallocate(ROBDATA8)
+      deallocate(MOBDATA)
+      deallocate(ROBDATA)
+
+!     save the global nobtot and ndata to nobtotp and ndatap 
+      
+      nobtot=locObsize  
+      ndata=ndata_l
+
+      write(*,*) 'NOBTOT= ',nobtot 
+      ALLOCATE(cstnid(nobtot),STAT=ierr) 
+      ALLOCATE(ROBHDR(NCMLET,nobtot),STAT=ierr) 
+      ALLOCATE(ROBDATA(NCMLBO,ndata),STAT=ierr) 
+      ALLOCATE(ROBDATA8(3:11,ndata),STAT=ierr) 
+      ALLOCATE(MOBHDR(NCMLET,nobtot),STAT=ierr) 
+      ALLOCATE(MOBDATA(NCMLBO,ndata),STAT=ierr) 
+      
+      DO i=1,nobtot
+         cstnid(i)=cstnid_tmp(i) 
+         ROBHDR(1:NCMLET,i)=ROBHDR_tmp(1:NCMLET,i)
+         MOBHDR(1:NCMLET,i)=MOBHDR_tmp(1:NCMLET,i) 
+      ENDDO 
+
+      DO i=1,ndata
+         ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
+         MOBDATA(1:NCMLBO,i)=MOBDATA_tmp(1:NCMLBO,i) 
+         ROBDATA(1:NCMLBO,i)=ROBDATA_tmp(1:NCMLBO,i)
+      ENDDO 
+
+      deallocate(cstnid_tmp)
+      deallocate(ROBHDR_tmp)
+      deallocate(MOBHDR_tmp)
+      deallocate(ROBDATA8_tmp)
+      deallocate(MOBDATA_tmp)
+      deallocate(ROBDATA_tmp)
+
+   ! re build NBEGINTYP and NENDTYP  
+ !============================
+      jj=0
+      NBEGINTYP_G=NBEGINTYP
+      NENDTYP_G=NENDTYP
+ 
+      NBEGINTYP=0
+      NENDTYP=0
+      DO j=1,NFILES
+        lfirst=.true. 
+        DO i=1,locObsize
+          istart=MOBHDR(NCMRLN,i)
+          idata=MOBHDR(NCMNLV,i)
+          ifamid=MOBHDR(NCMOEC,i)
+          IF(ifamid == J) THEN
+             IF(lfirst) THEN
+               NBEGINTYP(j) = istart 
+               lfirst=.false. 
+             ENDIF 
+             JJ=JJ+idata 
+          ENDIF 
+        ENDDO 
+        NENDTYP(J) = JJ 
+        IF(NBEGINTYP(j) == 0)  NENDTYP(J) = 0
+        WRITE(*,*) 'J NBEGINTYP(j) NENDTYP(j)= ',J,NBEGINTYP(j), NENDTYP(j),ifamid
+      ENDDO  
+      
+      WRITE(*,*) '============= Leave reBuildCMA =============='
+!!
+      RETURN
+      END

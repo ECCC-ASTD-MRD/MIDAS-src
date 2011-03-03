@@ -1,0 +1,86 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE ZLEGPOL(PLEG,DDMU,KNJ,KTRUNC,KNDIM,KNJDIM)
+*
+#if defined (DOC)
+*
+***s/r ZLEGPOL  - Evaluation of Legendre polynomials restricted to
+*     .           (n,m) = (n,0)
+*
+*Author  : P. Gauthier *ARMA/AES  February 1997
+*Revision:
+*          JM Belanger CMDA/SMC  Feb 2001
+*                   . 32 bits conversion
+*                    (double precision constants as arguments to SQRT)
+*     
+*Arguments
+*     o   PLEG(0:KNDIM,KNJDIM): Legendre functions evaluated at the KNJ Gaussian
+*     .                         latitudes
+*     i   DDMU  (KNJ)          : sin(latitude)
+*     i   KNJ                 : number of Gaussian latitudes
+*     i   KTRUNC              : spectral truncation
+*     i   KNDIM               : dimension for the array PLEG
+*     i   KNJDIM              : dimension for the array PLEG
+#endif
+      IMPLICIT NONE
+#include "comdim.cdk"
+*
+*     Arguments
+*
+      INTEGER KNJ, KTRUNC,  KNJDIM, KNDIM
+      REAL*8    PLEG(0:KNDIM,KNJDIM)
+      REAL*8 DDMU(NJBEG:NJEND)
+*
+*     Local variables
+*
+      INTEGER JN, JLAT, ILEN, IERR
+      REAL*8 DLFACT1, DLFACT2, DLN
+      REAL*8 DLNORM(0:KTRUNC)
+      POINTER (PXNORM,DLNORM)
+*
+*     0. Allocate local arrays
+*
+      ILEN = KTRUNC+1
+      CALL HPALLOC(PXNORM,MAX(ILEN,1),IERR,8)
+*
+      DO JLAT = 1, KNJ
+         PLEG(0,JLAT) = SQRT(0.5D0)
+         PLEG(1,JLAT) = SQRT(1.5D0)*DDMU(JLAT)
+      END DO
+*
+      DO JN = 0, KTRUNC
+         DLN = 1.D0*DFLOAT(JN)
+         DLNORM(JN) = DSQRT((2.*DLN + 1.D0)/2.D0)
+      END DO
+C
+      DO JN = 1, KTRUNC-1
+         DLN = DFLOAT(JN)
+         DLFACT1 = ((2.*DLN+1.)/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN))
+         DLFACT2 = (DLN/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN-1))
+         DO JLAT = 1,KNJ
+            PLEG(JN+1,JLAT) = DLFACT1*DDMU(JLAT)*DBLE(PLEG(JN,JLAT))
+     S           - DLFACT2*DBLE(PLEG(JN-1,JLAT))
+         END DO
+      END DO
+*
+*     9. Deallocate local arrays
+*
+      CALL HPDEALLC(PXNORM,IERR,1)
+*
+      RETURN
+      END
+

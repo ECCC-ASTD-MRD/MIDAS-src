@@ -1,0 +1,152 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DOBSZZZ(PJO,CDFAM)
+#if defined (DOC)
+*
+***s/r DOBSZZZ  - Computation of Jo and the residuals to the observations
+*                 FOR UPPER AIR DATAFILES
+*
+*
+*Author  :  J. St-James, CMDA/SMC July 2003
+*
+*Revision :
+*         C. Charette - ARMA/SMC - Sept 2004
+*          - Conversion to hybrid vertical coordinate
+*
+**    Purpose:  - Interpolate vertically the contents of commvo
+*                 onto the heights (in meters) of the observations.
+*                 Compute Jo.
+*                 A linear interpolation in z is performed.
+*
+*
+*Arguments
+*     PJO:  CONTRIBUTION to Jo
+*     CDFAM: FAMILY OF OBSSERVATION
+*
+#endif
+      IMPLICIT NONE
+      REAL*8 PJO
+      CHARACTER *2 CDFAM
+*implicits
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "comcst.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+*
+      INTEGER IPB,IPT,ITY,IDBURP
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
+      INTEGER J,JDATA
+      REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI
+      REAL*8 ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT,LLNOXTR
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      LLPRINT   = .FALSE.
+c      LLPRINT   = .TRUE.
+      LLNOXTR   = .FALSE.
+      zgamma = 0.0065 / GRAV
+      zexp = RGASD*zgamma
+C
+      DLSUM=0.
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+            IBEGIN=NBEGINTYP(J)
+            ILAST=NENDTYP(J)
+C
+C*    1. Computation of (HX - Z)/SIGMA
+C     .  -----------------------------
+C
+ 100        CONTINUE
+C
+C     Process all data within the domain of the model
+C
+            DO JDATA=IBEGIN,ILAST
+               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &              .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &              .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 1)
+               IF ( LLOK ) THEN
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IPOS = MOBDATA(NCMPOS,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IK   = ROBDATA(NCMLYR,JDATA)
+                  IPT = IK + IPOS*NLEVTRL
+                  IPB = IPT+1
+                  ZPT  = GOMGZHR(IK,IOBS)/RG
+                  ZPB  = GOMGZHR(IK+1,IOBS)/RG
+                  ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
+                  ZWT  = 1. - ZWB
+C
+C     CONTRIBUTION TO Jo
+C
+c***************************************************************
+c                  IF (LLPRINT .AND. CSTNID(IOBS).EQ.'74647') THEN
+c                     zcon= ZWB*GOMOBSHR(IPB,IOBS) + ZWT*
+c     &                    GOMOBSHR(IPT,IOBS)-ZVAR
+c                     write(nulout,*)'dobszzz:jdata,IOBS,stn,ipb,ipt',
+c     &                    ',ZPB,ZPT,ZWB,ZWT,ZVAR=',jdata,IOBS
+c     &                     ,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
+c                     write(nulout,*)'dobszzz: ityp,ik,VHYBHR(IK+1)',
+c     &                    ',VHYBHR(IK),ZLEV= ',MOBDATA(NCMVNM,JDATA),ik
+c     &                    ,VHYBHR(IK+1),VHYBHR(IK),ZLEV
+c                     write(nulout,*)'dobszzz: GOMOBSHR(IPB,IOBS),
+c     &               GOMOBSHR(IPT,IOBS)= ',GOMOBSHR(IPB,IOBS),
+c     &               GOMOBSHR(IPT,IOBS)
+c                     write(nulout,*)'dobszzz: innovation, observation,
+c     &               std-dev-obs = ',zcon,ZVAR,ZOER
+c                  ENDIF
+c***************************************************************
+
+                  ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
+     +                 + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
+                  DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
+     +                 *ROBDATA8(NCMOMA,JDATA)
+                  ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+               ENDIF
+C
+            END DO
+C
+         ENDIF
+      END DO
+C--------------------------------------------------------------------
+      PJO = DLSUM
+C--------------------------------------------------------------------
+*
+      IF(LLNOXTR) THEN
+         WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+         WRITE(NULOUT,*)' Warning 3DV:dobszzz: NO EXTRAPOLATION'
+     &        ,' ALLOWED SEE LISTING FOR MORE DETAILS'
+         WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      ENDIF
+*
+      RETURN
+      END
+

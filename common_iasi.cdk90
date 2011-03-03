@@ -1,0 +1,207 @@
+Module common_iasi
+USE avhrr_var_mod
+Implicit none
+type(avhrr_var),private,allocatable,save :: cma_iasi(:)
+INTEGER ,private,save :: n_cma_iasi=0
+INTEGER ,private,save :: size_cma_iasi
+INTEGER ,private,parameter :: nini_cma_iasi=5000
+
+contains
+
+subroutine index_cma_iasi(index,GQISFLAGQUAL,GQISQUALINDEXLOC,ISUNAZIM)
+integer ,intent(in) :: INDEX,GQISFLAGQUAL,GQISQUALINDEXLOC,ISUNAZIM
+!*
+integer :: i
+DO i=1,n_cma_iasi
+   IF (cma_iasi(i) % CMAINDEX ==-1 ) THEN
+      cma_iasi(i) % CMAINDEX = index
+      cma_iasi(i) % GQISFLAGQUAL = GQISFLAGQUAL
+      cma_iasi(i) % GQISQUALINDEXLOC = GQISQUALINDEXLOC
+      cma_iasi(i) % SUNAZIM = 0.01 * ISUNAZIM
+      RETURN
+   ENDIF
+ENDDO
+
+end subroutine index_cma_iasi
+
+
+subroutine insert_avhrrparam(AVHRR)
+!Insert AVHRR parameters into cma_iasi
+type(avhrr_var) ,INTENT(IN) :: AVHRR
+!********************
+integer :: istat,size_cma_iasi_old
+type(avhrr_var) ,allocatable :: tempo(:)
+
+IF (n_cma_iasi==0) THEN
+   allocate (cma_iasi(nini_cma_iasi),stat=istat)
+   if (istat/=0) then
+      Write(*,*) "Memory allocation error 1 in insert_avhrrparam"
+      Write(*,*) "nini_cma_iasi=",nini_cma_iasi
+      Write(*,*) "istat=",istat
+      STOP
+   endif
+   size_cma_iasi=nini_cma_iasi
+END IF
+
+n_cma_iasi=n_cma_iasi+1
+!print *,"ncmaiasi",n_cma_iasi
+
+IF (n_cma_iasi > size_cma_iasi) THEN
+
+   allocate (tempo(size_cma_iasi),stat=istat)
+   if (istat/=0) then
+      Write(*,*) "Memory allocation error 2 in insert_avhrrparam"
+      Write(*,*) "size_cma_iasi=",size_cma_iasi
+      Write(*,*) "istat=",istat
+      STOP
+   endif
+
+   tempo(:)=cma_iasi(:)
+
+   deallocate (cma_iasi,stat=istat)
+   if (istat/=0) then
+      Write(*,*) "Memory deallocation error 1 in insert_avhrrparam"
+      Write(*,*) "istat=",istat
+      STOP
+   end if
+
+   size_cma_iasi_old=size_cma_iasi
+   size_cma_iasi=size_cma_iasi*2
+
+   allocate (cma_iasi(size_cma_iasi),stat=istat)
+   if (istat/=0) then
+      Write(*,*) "Memory allocation error 3 in insert_avhrrparam"
+      Write(*,*) "size_cma_iasi=",size_cma_iasi
+      Write(*,*) "istat=",istat
+      STOP
+   endif
+
+   cma_iasi(1:size_cma_iasi_old)=tempo(1:size_cma_iasi_old)
+
+   deallocate (tempo,stat=istat)
+   if (istat/=0) then
+      Write(*,*) "Memory deallocation error 2 in insert_avhrrparam"
+      Write(*,*) "istat=",istat
+      STOP
+   end if
+
+ENDIF 
+
+cma_iasi(n_cma_iasi) % CMAINDEX=-1 ! sera initialise plus tard
+cma_iasi(n_cma_iasi) % CFRAC = AVHRR % CFRAC
+cma_iasi(n_cma_iasi) % RADMOY = AVHRR % RADMOY 
+cma_iasi(n_cma_iasi) % RADSTD = AVHRR % RADSTD
+
+end subroutine insert_avhrrparam
+
+
+function find_obs(icma)
+  integer ,intent(in) :: icma
+  INTEGER :: find_obs
+!*****************************
+  INTEGER :: I
+
+  find_obs=-1
+
+  DO I=1,n_cma_iasi
+     IF (cma_iasi(i)%CMAINDEX==icma) THEN
+        find_obs=i
+        RETURN
+     END IF
+  ENDDO
+
+  return
+end function find_obs
+
+subroutine read_avhrrparam(index,out_avhrr_param,access_mode)
+INTEGER ,INTENT (IN) :: index
+INTEGER ,INTENT (IN) :: access_mode ! si accessmode=1
+                                   ! index est interprete comme le numero dans le CMA
+                                   ! si accessmode=2
+                                   ! index est simplement le numero dans le cma_iasi
+type(avhrr_var) ,intent(out) :: out_avhrr_param
+!************
+INTEGER :: I,J
+!*************************************************************************************
+
+IF (access_mode==1) THEN
+   J=find_obs(INDEX)
+   IF (J/=-1) THEN
+      out_avhrr_param=cma_iasi(J)
+      RETURN
+   END IF
+ENDIF
+
+IF (access_mode==2) THEN
+   IF (index<=n_cma_iasi) THEN
+      out_avhrr_param=cma_iasi(INDEX)
+      RETURN
+   END IF
+ENDIF
+
+Write(*,*) "Error in read_avhrrparam"
+Write(*,*) "Unable to find the requested parameter in cma_iasi"
+Write(*,*) "INDEX=",index
+Write(*,*) "access_mode=",access_mode
+STOP
+
+end subroutine read_avhrrparam
+
+subroutine insert_rad_avhrr(index,tbclear,radclear,radov,transm,emiss,sfctau,access_mode)
+Use mod_tovs ,only :jplev
+INTEGER ,INTENT (IN) :: index
+INTEGER ,INTENT (IN) :: access_mode ! si accessmode=1
+                                   ! index est interprete comme le numero dans le CMA
+                                   ! si accessmode=2
+                                   ! index est simplement le numero dans le cma_iasi
+Real (8) ,intent(in) :: tbclear(NIR),radclear(NIR),emiss(NIR),sfctau(NIR)
+Real (8) ,intent(in) :: radov(JPLEV,NIR),transm(JPLEV,NIR)
+
+
+
+!************
+INTEGER :: I,J
+!*************************************************************************************
+
+IF (access_mode<1 .or. access_mode>2 ) GOTO 999
+
+
+IF (access_mode==1) THEN
+   J=find_obs(INDEX)
+   IF (J==-1) GOTO 999
+ENDIF
+
+IF (access_mode==2) THEN
+   IF (index<=n_cma_iasi) THEN
+      J=INDEX
+   ELSE
+      GOTO 999
+   ENDIF
+ENDIF
+
+cma_iasi(J) % RADCLEARCALC(NVIS+1:NVIS+NIR) = radclear(1:NIR)
+cma_iasi(J) % TBCLEARCALC(NVIS+1:NVIS+NIR) = tbclear(1:NIR)
+cma_iasi(J) % RADOVCALC(1:jplev,NVIS+1:NVIS+NIR) = radov(1:JPLEV,1:NIR)
+cma_iasi(J) % TRANSMCALC(1:jplev,NVIS+1:NVIS+NIR) = transm(1:JPLEV,1:NIR)
+cma_iasi(J) % EMISS(NVIS+1:NVIS+NIR) = emiss(1:NIR)
+cma_iasi(J) % TRANSMSURF(NVIS+1:NVIS+NIR) = sfctau(1:NIR)
+
+RETURN
+
+999 CONTINUE
+Write(*,*) "Error in insert_rad_avhrr"
+Write(*,*) "Unable to find the requested parameter in cma_iasi"
+Write(*,*) "INDEX=",index
+Write(*,*) "access_mode=",access_mode
+STOP
+
+end subroutine insert_rad_avhrr
+
+function get_cma_iasi_size()
+  INTEGER :: get_cma_iasi_size
+  get_cma_iasi_size=n_cma_iasi
+  return
+end function get_cma_iasi_size
+
+
+end Module common_iasi

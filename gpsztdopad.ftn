@@ -1,0 +1,421 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE GPSZTDOPAD(PLAT,PLON,PZOBS,PETA,PTT_D,PHU_D,PXP0_D,
+     +                    PXPT,PMT,PGZ,PHX_D,PTT,PHU,PXP0,PHX)
+#if defined (DOC)
+*
+***s/r GPSZTDOPAD - adjoint operator for GPS Zenith Delay ZTD
+*
+*
+*Author  : S. Macpherson *ARMA November 2004
+*    -------------------
+*
+*Arguments
+*     PLAT     Latitude of observation (deg)
+*     PLON     Longitude of observation (deg)
+*     PZOBS    GPS antenna height ASL (m)
+*     PETA     Trial eta level values
+*     PTT_D    Trial temperature profile (K)
+*     PHU_D    Trial specific humidity profile (kg/kg)
+*     PXP0_D   Trial surface pressure (Pa)
+*     PXPT     Trial model top pressure (Pa)
+*     PMT      Trial surface elevation ASL (m)
+*     PGZ      Trial geopotential profile (m**2/s**2)
+*     PHX_D    Value of H(x) = ZTD (m)
+*     PTT      AD of temperature profile (K)
+*     PHU      AD of humidity profile (kg/kg)
+*     PXP0     AD of surface pressure
+*     PHX      AD of H(x) = ZTD (m)
+*
+* Revisions:
+*       : S. Macpherson *ARMA/MSC 2004
+*       : S. Macpherson *ARMA/MRD Oct 2007
+*         - refractivity constants RCK1, RCK2, RCK3 now read from  
+*           NAMGPSGB section of namelist (comgpsgb.cdk)
+*
+#endif
+C
+      IMPLICIT NONE
+C
+*implicits
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "commvohr.cdk"
+#include "comphy.cdk"
+#include "pardim.cdk"
+#include "comcst.cdk"
+#include "comgpsgb.cdk"
+*
+      REAL*8 PLAT
+      REAL*8 PLON
+      REAL*8 PZOBS
+      REAL*8 PETA (NFLEV)
+      REAL*8 PTT_D (NFLEV), PTT (NFLEV)
+      REAL*8 PHU_D (NFLEV), PHU (NFLEV)
+      REAL*8 PGZ (NFLEV)
+      REAL*8 PXP0_D, PXP0
+      REAL*8 PXPT
+      REAL*8 PMT
+      REAL*8 PHX_D, PHX
+C
+      REAL*8 ZDETA (NFLEV-1)
+      REAL*8 ZF3 (NFLEV-1), ZF3_D (NFLEV-1)
+      REAL*8 ZG (NFLEV)
+      REAL*8 ZZK (NFLEV)
+      REAL*8 ZTTB
+      REAL*8 ZQQB
+      REAL*8 ZCLT, ZGRAV, ZLEVB
+      REAL*8 ZGRAVM, ZCON, ZCON1, ZCON2
+      REAL*8 ZFPH, ZCONH, ZCONW, ZINTW, ZZHDV, ZZWDV, ZZTDV, ZDZ
+      REAL*8 ZTVSFC, ZTVOBS, ZPMOBS, ZCON3, ZPBAR, ZTMOBS, ZQMOBS
+      REAL*8 ZTBAR, ZQBAR, ZRMEAN, ZWDCOR, ZZTDVC
+C
+      REAL*8 ZPTA, ZPTB, ZDZ2, ZDZ1, ZDZT
+      REAL*8 ZPA, ZPB
+C  *  Refractivity constants k1, k2', k3 (units = m,Pa,K)
+      REAL*8 PPK1, PPK2P, PPK3
+C
+      REAL*8 ZTTB_D, ZQQB_D, ZINTW_D, ZZHDV_D, ZZWDV_D, ZZTDV_D
+      REAL*8 ZZTDVC_D, ZDPMDP, ZDP1, ZDP2, ZDPMDT, ZDPMDQ
+      REAL*8 ZDDWDP, ZDDWDT, ZDDWDQ, ZDP3, ZDDW, ZZWDVC
+      REAL*8 ZDPMDPC,ZDPMDTC,ZDPMDQC,ZDP1C,ZDP2C,ZDP2C2,ZDP3C2
+      REAL*8 ZZHDVC
+ 
+C
+      INTEGER JLEV, IK, IML, JK, JLEV1, IJLEV
+C
+C  *  Mean column gravity at latitude 45 = PPGM0 (m/s**2)
+C  *  Temperature lapse rate (-dT/dz)    = PPGAM (K/m)
+C
+      REAL*8 PPGM0, PPGAM
+      DATA PPGM0, PPGAM / 9.784, 0.0065 /
+C
+C  *  NAMELIST OPTIONS USED HERE (comgpsgb.cdk, read in PREPROC)
+C     -----------------------------------------------------------------
+C     DZMIN    Min Abs DZ to do DZ adjustment (m)
+C     NJLEVP   Nth level above the surface level (eta = 1)
+C              (used for calculating model Psfc at Zobs)
+C     -----------------------------------------------------------------
+C
+C  *  Refractivity Constants (from namelist and in comgpsgb.cdk)
+C
+      PPK1  = RCK1
+      PPK3  = RCK3
+      PPK2P = RCK2 - (EPS1*RCK1)
+C
+C  *  Height difference DZ between observation and model surface
+      ZDZ = PZOBS - PMT
+C 
+      ZCLT  = COS(2.0*(PI/180.)*PLAT)
+C
+C  *  Gravity at sea level as a function of latitude (GRAV = G0 = 9.80)
+      ZGRAV = GRAV * (1.0 - 2.66E-03*ZCLT)
+C
+C  *  Mean column gravity as a function of latitude and model sfc height
+      ZFPH = (1.0 - 2.66E-03*ZCLT - 2.8E-07*PMT)
+      ZGRAVM = PPGM0 * ZFPH
+C
+C  *  Gravity and (TRIAL) height (ASL) profiles
+C
+      DO JLEV = 1, NFLEV
+        IF ( JLEV .EQ. NFLEV ) THEN
+          ZZK(JLEV) = PMT
+        ELSE
+          ZZK(JLEV) = PGZ(JLEV)/ZGRAV
+        ENDIF
+        ZG(JLEV) = ZGRAV * (RA**2/(RA + ZZK(JLEV))**2)
+      END DO
+C
+C  *  If PZOBS is below ZLEVB, use CMC extrapolation from surface
+C     to get ZPMOBS = Psfc at PZOBS for DZ adjustment (later).
+C
+      IJLEV = NJLEVP
+      IF ( NJLEVP .GE. NFLEV ) IJLEV = NFLEV-1
+      ZLEVB = ZZK(NFLEV-IJLEV)
+C
+C
+C ----------------------------------------------------------------
+C  *  Constants
+C ----------------------------------------------------------------
+      ZCON = 1.0E-06 * RGASD
+      ZCON1 = ZCON * PPK1
+      ZCON2 = ZCON / EPS1
+C      ZCON3 = ZGRAV / (RGASD*PPGAM)
+      ZCON3 = GRAV / (RGASD*PPGAM)
+C     Constant used to compute the ZHD from Ps (Saastamoinen)
+      ZCONH = ZCON1/PPGM0
+C      Value given by Vedel and others (for comparison)
+C      ZCONH = 2.2768E-05
+C     Constant for ZWD computation (Vedel)
+      ZCONW = ZCON2/ZGRAV
+C ----------------------------------------------------------------
+C
+C  *  Set up terms required for vertical integration of HU, TT terms
+C  *  using trapezoidal rule
+C
+      DO JLEV = 1, NFLEV-1
+         ZDETA(JLEV) = PETA(JLEV+1) - PETA(JLEV)
+         ZTTB_D      = (PTT_D(JLEV+1) + PTT_D(JLEV)) * 0.5
+         ZQQB_D      = (PHU_D(JLEV+1) + PHU_D(JLEV)) * 0.5
+         ZF3_D(JLEV) = (ZQQB_D + DELTA*ZQQB_D**2) * 
+     1                 (PPK2P+(PPK3/ZTTB_D))
+      END DO
+C
+C  *  Vertical integration (trapezoidal rule)
+C
+      ZINTW_D = 0.0
+      DO JLEV = 1, NFLEV-1
+         ZINTW_D = ZINTW_D + ZF3_D(JLEV) * ZDETA(JLEV)
+      END DO
+C
+C     ----- ZHD (dry) Part ------
+C
+      ZZHDV_D = (ZCONH / ZFPH) * PXP0_D
+C
+C     ----- ZWD (wet) Part ------
+C
+      ZZWDV_D = ZCONW * (PXP0_D - PXPT) * ZINTW_D
+C
+C  *  Compute ZTD = ZHD + ZWD
+C
+      ZZTDV_D = ZZHDV_D + ZZWDV_D
+      ZZTDVC_D = ZZTDV_D
+C
+C --------------------------------------------------------------------
+C  *  Correction for DZ (if not using SHIFTPROF)
+C --------------------------------------------------------------------
+C
+      IF ( ABS(ZDZ) .GT. DZMIN ) THEN
+C
+C  * ------------ STEP 1:  GET PRESSURE AT HEIGHT PZOBS ---------------
+C
+       IF ( PZOBS .LE. ZLEVB ) THEN
+C
+C  *     CMC EXTRAPOLATION FROM SURFACE TO PZOBS:
+C
+         ZTVSFC = PTT_D(NFLEV) * (1.0 + DELTA*PHU_D(NFLEV))
+         ZTVOBS = ZTVSFC - PPGAM * ZDZ
+         ZPMOBS = PXP0_D * (ZTVOBS/ZTVSFC)**ZCON3
+C
+C  *     TERMS FOR ADJOINT
+C
+         ZDP1   = 1.0 - ((PPGAM*ZDZ)/ZTVSFC)
+         ZDP2   = PXP0_D * ZCON3 * ZDP1**(ZCON3-1.0)
+         ZDPMDP = ZDP1**ZCON3
+         ZDPMDT = ZDP2 * ((PPGAM*ZDZ*(1.0+DELTA*PHU_D(NFLEV))) / 
+     +                  ZTVSFC**2)
+         ZDPMDQ = ZDP2 * (DELTA*PTT_D(NFLEV)*PPGAM*ZDZ) / ZTVSFC**2
+C
+C
+       ELSE
+C
+C  *     INTERPOLATE: 
+C
+C  *    Find eta level above observation height (adpated from routine
+C  *    VOBSLYRS, where result IK is stored in ROBDATA(NCMLYR,JDATA)).
+C  *    If obs height matches height of a model eta level, then
+C  *    set IML=1 (levels match)
+C
+        IK  = 1
+        IML = 0
+C
+        DO JK = 2,NFLEV-1
+          IF( ABS(ZZK(JK)-PZOBS) .LT. 1.0E-06 ) THEN
+            IK = JK
+            IML = 1
+          ELSE
+            IF( PZOBS .LT. ZZK(JK) ) IK = JK
+          ENDIF
+        END DO
+C
+C  *    Linear in z interpolation of LOG P
+C  *         
+C
+        IF ( IML .EQ. 1 ) THEN
+          ZPMOBS = PXP0_D * PETA(IK) + PXPT * (1.0 - PETA(IK))
+        ELSE
+          ZPTA = ZZK(IK)
+          ZPTB = ZZK(IK+1)
+          ZDZ2  = ZPTA - PZOBS
+          ZDZ1  = PZOBS - ZPTB
+          ZDZT  = ZPTA - ZPTB
+          ZPA  = PXP0_D * PETA(IK)   + PXPT * (1.0 - PETA(IK))
+          ZPB  = PXP0_D * PETA(IK+1) + PXPT * (1.0 - PETA(IK+1))
+          ZPMOBS = EXP ( (ZDZ2/ZDZT)*LOG(ZPB) + (ZDZ1/ZDZT)*LOG(ZPA) )
+        ENDIF
+C
+C  *    TERMS FOR ADJOINT
+C
+        IF (IML .EQ. 1) THEN
+           ZDPMDP = PETA(IK)
+           ZDPMDT = 0.0
+           ZDPMDQ = 0.0
+        ELSE
+           ZDP1 = ( (ZDZ2/ZDZT) * PETA(IK+1) ) / ZPB
+           ZDP2 = ( (ZDZ1/ZDZT) * PETA(IK)   ) / ZPA
+           ZDPMDP = ZPMOBS * ( ZDP1 + ZDP2 )
+           ZDPMDT = 0.0
+           ZDPMDQ = 0.0
+        ENDIF
+C
+       ENDIF
+C  *   --------------- END STEP 1 -------------------------------------
+C
+C  *   --------- STEP 2: ADJUST ZTD FOR DZ ----------------------------
+C
+C       - Calculate new ZHD with new Psfc = ZPMOBS
+        ZFPH  = (1.0 - 2.66E-03*ZCLT - 2.8E-07*PZOBS)
+        ZZHDV_D = (ZCONH / ZFPH) * ZPMOBS
+C       - Adjust wet delay using Higgins method (Q constant over DZ layer)
+        ZTMOBS = PTT_D(NFLEV) - (PPGAM * ZDZ)
+        ZQMOBS = PHU_D(NFLEV)
+        ZPBAR  = (ZPMOBS + PXP0_D) * 0.5
+        ZTBAR  = (ZTMOBS + PTT_D(NFLEV)) * 0.5
+        ZQBAR  = (ZQMOBS + PHU_D(NFLEV)) * 0.5
+C       Mean (wet) refractivity of DZ layer
+        ZRMEAN = 1.0E-06 * (PPK2P*((ZPBAR*ZQBAR)/(EPS1*ZTBAR)) +
+     +             PPK3*((ZPBAR*ZQBAR)/(EPS1*ZTBAR**2)))
+        ZWDCOR = ZRMEAN * ZDZ
+        ZZWDV_D  = ZZWDV_D - ZWDCOR
+C
+C  *    TERMS FOR ADJOINT OF DZ ADJUSTMENT 
+C
+        ZDPMDPC = 0.5 * (ZDPMDP + 1.0)
+        ZDPMDTC = 0.5 * ZDPMDT
+        ZDPMDQC = 0.5 * ZDPMDQ
+        ZDP1C   = 1.0E-06 * ZDZ
+        ZDDWDP = ZDP1C * ( ( (PPK2P*ZQBAR)/(EPS1*ZTBAR) + 
+     +                  (PPK3 *ZQBAR)/(EPS1*ZTBAR**2) ) * ZDPMDPC )
+
+        ZDP2C = -(ZQBAR*ZPBAR)  / (EPS1*ZTBAR**2) + 
+     +          (ZQBAR*ZDPMDTC) / (EPS1*ZTBAR)
+        ZDP3 = -(2.0*ZQBAR*ZPBAR) / (EPS1*ZTBAR**3) +
+     +          (ZQBAR*ZDPMDTC) / (EPS1*ZTBAR**2)
+        ZDDWDT = ZDP1C * (PPK2P*ZDP2C + PPK3*ZDP3)
+
+        ZDP2C2 = ZPBAR / (EPS1*ZTBAR) + (ZQBAR*ZDPMDQC) / (EPS1*ZTBAR)
+        ZDP3C2 = ZPBAR / (EPS1*ZTBAR**2) +  
+     +         (ZQBAR*ZDPMDQC) / (EPS1*ZTBAR**2) 
+        ZDDWDQ = ZDP1C * (PPK2P*ZDP2C2 + PPK3*ZDP3C2)
+C
+C
+C  --------------------------------------------------------------------
+C
+C       - Corrected ZTD = new ZHD + adjusted ZWD
+        ZZTDVC_D = ZZHDV_D + ZZWDV_D
+C
+C  *   --------------- END STEP 2 -------------------------------------
+C
+      ENDIF
+C ---------------------------------------------------------------------
+C  *  End  DZ correction 
+C ---------------------------------------------------------------------
+C
+C     Return H(x) and TL H(x)
+C
+      PHX_D = ZZTDVC_D
+C
+C =====================================================================
+C *
+C ---------------------------------------------------------------------
+C *               ADJOINT
+C ---------------------------------------------------------------------
+C *
+C       - Corrected ZTD = new ZHD + adjusted ZWD
+C
+      ZZHDVC = 0.0
+      ZZWDVC = 0.0
+      ZZHDVC = ZZHDVC + PHX
+      ZZWDVC = ZZWDVC + PHX
+      PHX    = 0.0
+C
+      PXP0 = 0.0
+      PTT(:) = 0.0
+      PHU(:) = 0.0
+C
+C --------------------------------------------------------------------
+C  *  Correction for DZ 
+C --------------------------------------------------------------------
+C
+      IF ( ABS(ZDZ) .GT. DZMIN ) THEN
+C
+C       -------- ADJUSTMENT TO WET PART ---------
+        ZDDW  = 0.0
+        ZDDW  = ZDDW  - ZZWDVC
+C       -------- WET PART -----------------------
+        PXP0         = PXP0         + ZDDWDP*ZDDW
+        PTT(NFLEV) = PTT(NFLEV) + ZDDWDT*ZDDW
+        PHU(NFLEV) = PHU(NFLEV) + ZDDWDQ*ZDDW
+C       -------- DRY PART -----------------------
+        PXP0         = PXP0         + (ZCONH/ZFPH)*ZDPMDP*ZZHDVC
+        PTT(NFLEV) = PTT(NFLEV) + (ZCONH/ZFPH)*ZDPMDT*ZZHDVC
+        PHU(NFLEV) = PHU(NFLEV) + (ZCONH/ZFPH)*ZDPMDQ*ZZHDVC
+C
+      ENDIF
+C
+C
+C     ----- ZWD (wet) Part ------
+C
+      ZZWDV = ZZWDVC
+
+      PXP0 = PXP0 + (ZCONW*ZINTW_D)*ZZWDV
+
+      ZINTW = 0.0
+      ZINTW = ZINTW + ZCONW*(PXP0_D-PXPT)*ZZWDV
+      ZZWDV = 0.0
+C
+C  *  Vertical integration (trapezoidal rule)
+C
+      ZF3(:) = 0.0
+      DO JLEV = 1, NFLEV-1
+        ZF3(JLEV) = ZF3(JLEV) + ZDETA(JLEV)*ZINTW
+      ENDDO
+      ZINTW = 0.0
+C
+C  *  Set up terms required for vertical integration of HU, TT terms
+C  *  using trapezoidal rule
+C
+      DO JLEV = NFLEV-1, 1, -1
+        JLEV1 = JLEV+1
+        ZTTB_D      = (PTT_D(JLEV+1) + PTT_D(JLEV)) * 0.5
+        ZQQB_D      = (PHU_D(JLEV+1) + PHU_D(JLEV)) * 0.5        
+        ZQQB = 0.0
+        ZQQB = ZQQB + ((PPK2P+(PPK3/ZTTB_D))*(1.0+2.0*DELTA*ZQQB_D))
+     +                 * ZF3(JLEV)
+        ZTTB = 0.0
+        ZTTB = ZTTB - (PPK3*(ZQQB_D+DELTA*ZQQB_D**2)/ZTTB_D**2) 
+     +                 * ZF3(JLEV)
+        PHU(JLEV1) = PHU(JLEV1) + 0.5 * ZQQB
+        PHU(JLEV)  = PHU(JLEV)  + 0.5 * ZQQB
+        PTT(JLEV1) = PTT(JLEV1) + 0.5 * ZTTB
+        PTT(JLEV)  = PTT(JLEV)  + 0.5 * ZTTB        
+      ENDDO
+      ZF3(:) = 0.0
+C
+C     ----- ZHD (dry) Part -------------
+C
+      IF ( .NOT.(ABS(ZDZ) .GT. DZMIN) ) THEN
+        ZZHDV = ZZHDVC
+        PXP0 = PXP0 + (ZCONH / ZFPH)*ZZHDV
+        ZZHDV = 0.0
+      ENDIF
+C
+C     -----------------------------------
+C
+C
+      RETURN
+      END

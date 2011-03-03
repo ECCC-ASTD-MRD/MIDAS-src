@@ -1,0 +1,290 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUCMA(KULOUT)
+#if defined (DOC)
+*
+***s/r SUCMA  - Definition of pseudo-addresses for positioning
+*     .         within the CMA array ROBSAR/MOBSAR
+*
+*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+*     .    (based on subroutines written by D.Vasiljewic of ECMWF)
+*Revision:
+*          P. KOCLAS CMC   AUGUST 93.
+*          Purpose:
+*
+*          -ADAPTATION FOR BURP VARIABLE TYPES
+*          -NEW COMDECK COMSTDEV CONTAINS OBSERVATION
+*           STANDARD DEVIATION ERRORS
+*
+*          P. KOCLAS CMC   FEBRUARY 94..
+*    .     Change observation standard deviation errors to be
+*          similar to OI code.
+*
+*          P. KOCLAS CMC   SEPTEMBER 94.
+*    .     Additional variables added to CMA to allow efficient
+*    .     vectorization of 3d-var code  (vertical interpolation
+*    .      routnes VINT3D and VINT3DA)
+*
+*          P. KOCLAS CMC   February 95.
+*          -Removal of XSTDEV vector.
+*
+*          P. KOCLAS CMC   August 95.
+*          -ALLOW T-Td DATA (NVNUMB(9)=12192 INSTEAD OF -1).
+*
+*          P. KOCLAS CMC   April 96.
+*    .     Additional variables added to CMA
+*          -NCMLOBS  RELATIVE POSTION OF DATA WITH RESPECT TO A FULL SOUNDING
+*
+*    .     G. Deblonde  *ARMA/AES JUne 17, 1996 :temporary SSMI burp format
+*          -set NVNUMB(6)=013016 for SSM/I Integ. Water Vapor
+*    .     G. Deblonde  *ARMA/AES Oct 22, 1996: permanent SSMI burp format
+*          -set NVNUMB(6)=013208 for SSM/I Integ. Water Vapor
+*    .     S. Pellerin *ARMA/AES Sept 97: Add of Total ozone from TOVS
+*    .     J. Halle    *CMDA/AES Oct 99: Allow NVNUMB(50)=012062 and
+*                                        NVNUMB(7)=012063 radiances from TOVS
+*    .     P. KOCLAS   *CMC/CMDA JAn 2000
+*           -ADDED 12004 8001 8004 ELEMENTS
+*    .     C.CHARETTe  *ARMA/AES Jun 2000
+*           -ADDED surface elements sucma.ftn__Version11215,11216,12203
+*
+*          JM Belanger CMDA/SMC   Jul 2000
+*           . 32 bits conversion
+*           (Switch order of ROBDATA pointers NCMPOB,NCMPPP,NCMPRL
+*           in order for ROBDATA8 elements to be contiguous in memory)
+*    .     J. Halle *CMDA/AES  dec 2000
+*           -adapt to TOVS level 1b.
+*    .     D. Anselmo *ARMA/MSC October 2004
+*           -added 13210,13220 elements for atmospheric and surface ln q.
+*    .     J. Halle *CMDA/MSC May 2006
+*           -inserted one additionnal body related parameter, i.e. NCMPRM, which
+*            contains Z" = H(xb_lr) + Z'
+*                        = H(xb_lr) - H(xb_hr) + Z
+*          A. Beaulne *CMDA/SMC June 2006
+*           -inserted 3 additional header related parameter. i.e. NCMAZA,
+*            NCMSUN and NCMCLF which contain satellite azimuthal angle,
+*            sun zenith angle and cloud fraction
+*          J.M. Aparicio *ARMA/MSC* October 2006
+*           - Adapt for GPSRO
+*    .     S. Macpherson *ARMA/MRD*   September 2009
+*          - added ground-based GPS ZTD (NVNUMB(21)=015031 and NEZD)
+*            and GPS ZTD error (NVNUMB(22)=015032 and NEFE)
+*
+*Arguments
+*     i   KULOUT: unit used for optional printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "comoahdr.cdk"
+#include "comoabdy.cdk"
+#include "comnumbr.cdk"
+*
+      INTEGER KULOUT
+C
+      WRITE(KULOUT,FMT='(//,6('' ***********''))')
+      WRITE(KULOUT,9000)
+ 9000 FORMAT('     SUCMA:  Initialisation of observation',
+     S     ' parameters',/,10x,'(e.g., Obs. types, Header and Body ',
+     S     'pseudo-addresses, etc.)')
+      WRITE(KULOUT,FMT='(6('' ***********''))')
+C
+*
+*     1. Initialize header related parameters
+*
+ 100  CONTINUE
+      NCMLET = 22
+      NCMRLN = 1
+      NCMONM = 2
+      NCMBOX = 3
+      NCMOTP = 4
+      NCMITY = 5
+      NCMLAT = 6
+      NCMLON = 7
+      NCMDAT = 8
+      NCMETM = 9
+      NCMSID = 10
+      NCMALT = 11
+      NCMNLV = 12
+      NCMOEC = 13
+      NCMOFL = 14
+      NCMST1 = 15
+      NCMTLA = 16
+      NCMTLO = 17
+      NCMSI2 = 18
+      NCMSI3 = 19
+      NCMAZA = 20
+      NCMSUN = 21
+      NCMCLF = 22
+C
+      WRITE(KULOUT,*)' Pseudo-addresses of the CMA header'
+      WRITE(UNIT=KULOUT,FMT=9100)
+     S     NCMLET,NCMRLN,NCMONM,NCMBOX,NCMOTP,NCMITY,NCMLAT,NCMLON
+     S     ,NCMDAT,NCMETM,NCMSID,NCMALT,NCMNLV,NCMOEC,NCMOFL, NCMST1
+     S     ,NCMTLA,NCMTLO,NCMSI2,NCMSI3,NCMAZA,NCMSUN,NCMCLF
+ 9100 FORMAT(1X
+     S     ,' NCMLET = ',I6,'  NCMRLN = ',I6,'  NCMONM = ',I6
+     S     ,'  NCMBOX = ',I6,'  NCMOTP = ',I6,'  NCMITY = ',I6,/
+     S     ,'  NCMLAT = ',I6,'  NCMLON = ',I6,'  NCMDAT = ',I6
+     S     ,'  NCMETM = ',I6,'  NCMSID = ',I6,'  NCMALT = ',I6,/
+     S     ,'  NCMNLV = ',I6,'  NCMOEC = ',I6,'  NCMOFL = ',I6
+     S     ,'  NCMST1 = ',I6,'  NCMTLA = ',I6,'  NCMTLO = ',I6,/
+     S     ,'  NCMSI2 = ',I6,'  NCMSI3 = ',I6,'  NCMAZA = ',I6
+     S     ,'  NCMSUN = ',I6,'  NCMCLF = ',I6)
+C
+*
+*     2. Initialize body related parameters
+*
+ 200  CONTINUE
+C
+      NCMLBO = 22
+      NCMVNM = 1
+      NCMPOB = 2
+      NCMPRL = 3
+      NCMPPP = 4
+      NCMVAR = 5
+      NCMOMF = 6
+      NCMOMA = 7
+      NCMOMI = 8
+      NCMOMN = 9
+      NCMOER = 10
+      NCMPRM = 11
+      NCMRER = 12
+      NCMFGE = 13
+      NCMPER = 14
+      NCMFLG = 15
+      NCMPOS = 16
+      NCMLYR = 17
+      NCMASS = 18
+      NCMXTR = 19
+      NCMOBS = 20
+      NCMLOBS = 21
+      NCMVCO = 22
+C
+      WRITE(KULOUT,*)' Pseudo-addresses of the CMA data body'
+      WRITE(UNIT=KULOUT,FMT=9200)
+     S     NCMLBO,NCMVNM,NCMPPP,NCMPRL,NCMPOB,NCMVAR,NCMOMF,NCMOMA
+     S     ,NCMOMI,NCMOMN,NCMOER,NCMPRM,NCMRER,NCMFGE,NCMPER,NCMFLG
+     S     ,NCMPOS,NCMLYR,NCMASS,NCMXTR,NCMOBS,NCMLOBS,NCMVCO
+ 9200 FORMAT(
+     S      '  NCMLBO = ',I6,'  NCMVNM = ',I6,'  NCMPPP = ',I6
+     S     ,'  NCMPRL = ',I6,'  NCMPOB = ',I6,'  NCMVAR = ',I6,/
+     S     ,'  NCMOMF = ',I6,'  NCMOMA = ',I6,'  NCMOMI = ',I6
+     S     ,'  NCMOMN = ',I6,'  NCMOER = ',I6,'  NCMPRM = ',I6,/
+     S     ,'  NCMRER = ',I6,
+     S     ,'  NCMFGE = ',I6,'  NCMPER = ',I6,'  NCMFLG = ',I6
+     S     ,'  NCMPOS = ',I6,'  NCMLYR = ',I6,'  NCMASS = ',I6,/
+     S     ,'  NCMXTR = ',I6,'  NCMOBS = ',I6,'  NCMLOBS= ',I6
+     S     ,'  NCMVCO = ',I6)
+C
+*
+*     3. Initialize variable types
+*
+ 300  CONTINUE
+      NVNUMB( 1) =  011003
+      NVNUMB( 2) =  011004
+      NVNUMB( 3) =  010194
+      NVNUMB( 4) =  57
+      NVNUMB( 4) =  010192
+      NVNUMB( 5) =  29
+      NVNUMB( 6) =  013208
+      NVNUMB( 7) =  012063
+      NVNUMB( 8) =  012001
+      NVNUMB( 9) =  012192
+      NVNUMB(10) =  012004
+      NVNUMB(11) =  012203
+      NVNUMB(12) =  011215
+      NVNUMB(13) =  011216
+      NVNUMB(14) =  013210
+      NVNUMB(15) =  013220
+      NVNUMB(16) =  62
+      NVNUMB(17) =  015001
+      NVNUMB(18) =  64
+      NVNUMB(19) =  65
+      NVNUMB(20) =  015036
+      NVNUMB(21) =  015031
+      NVNUMB(22) =  015032
+      NVNUMB(23) =  69
+      NVNUMB(24) =  70
+      NVNUMB(25) =  71
+      NVNUMB(26) =  72
+      NVNUMB(27) =  73
+      NVNUMB(28) =  74
+      NVNUMB(29) =  75
+      NVNUMB(30) =  76
+      NVNUMB(31) =  77
+      NVNUMB(32) =  78
+      NVNUMB(33) =  79
+      NVNUMB(34) =  80
+      NVNUMB(35) =  81
+      NVNUMB(36) =  82
+      NVNUMB(37) =  83
+      NVNUMB(38) =  84
+      NVNUMB(39) =  85
+      NVNUMB(40) =  86
+      NVNUMB(41) =  87
+      NVNUMB(42) =  88
+      NVNUMB(43) =  89
+      NVNUMB(44) =  90
+      NVNUMB(45) =  91
+      NVNUMB(46) =  012163
+      NVNUMB(47) =  010004
+      NVNUMB(48) =  011001
+      NVNUMB(49) =  011002
+      NVNUMB(50) =  012062
+      NVNUMB(51) =  008001
+      NVNUMB(52) =  008004
+      NVNUMB(53) =  010051
+      NVNUMB(54) =  011011
+      NVNUMB(55) =  011012
+      NVNUMB(56) =  41
+      NVNUMB(57) =  42
+*
+ 400  CONTINUE
+*
+ccc
+      NETT=12001
+ccc
+      NEUU=11003
+      NEVV=11004
+      NEGZ=10194
+      NEES=12192
+      NEDZ=10192
+      NEPP=07004
+      NEFF=11002
+      NEDD=11001
+      NEUS=11215
+      NEVS=11216
+      NETS=12004
+      NESS=12203
+      NEPS=10004
+      NEFS=11012
+      NEDS=11011
+      NEPN=10051
+      NEOZ=15001
+      NBT1=12062
+      NBT2=12063
+      NBT3=12163
+      NEHU=13210
+      NEHS=13220
+      NERF=15036
+      NEZD=15031
+      NEFE=15032
+
+
+      RETURN
+      END

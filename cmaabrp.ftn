@@ -1,0 +1,855 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,KLIST,KNVALS)
+#if defined (DOC)
+*
+***s/r CMAABRP -CONVERT DATA IN CMA FORMAT TO CMC BURP FILES.
+*
+*Author    . P. KOCLAS/CMC
+*
+*Revision   001: J. Halle, AES/CMDA, september 1996 (421-4660)
+*                correct handling of "grouped" data.
+*
+*Revision   002: P. Koclas  AES/CMDA, January 1997 (421-4628)
+*                Modifications necessary for ssmi data.
+*                Change to call sequence to simplify the
+*                output to the BURP file.
+*Revision   003: P. Koclas  AES/CMDA, September 1997 (421-4628)
+*                Eliminate unnecesary call to mrfloc to get record
+*                handles of burp file.
+*Revision   004: P. Koclas  AES/CMDA, November 1997 (421-4628)
+*                ALL VALUES ARE EXTRACTED IN SINGLE CALL TO THIS ROUTINE
+*Revision   005: J. Halle *CMDA/AES Oct 1999
+*                Adapt to TOVS.
+*Revision   006: P. Koclas  CMC/CMDA, March 2000
+*                UPDATE QUALITY CONTROL FLAGS FROM CMA
+*                UPDATE GLOBAL HEADER FLAG FOR REJECTED DATA
+*                FIXES FOR GROUPED DATA ( TOVS)
+*Revision   007: P. Koclas  CMC/CMDA, May 2000
+*                FIX FOR TOVS : -GLOBAL HEADER FLAGS (ELEMENT 55200) updated
+*                               -BUGFIX FOR RESUME RECORD
+*Revision   008: JM Belanger CMDA/SMC  Jul 2000
+*                   . 32 bits conversion
+*
+*Revision   009: J. Halle *CMDA/AES  dec 2000
+*                adapt to TOVS level 1b.
+*Revision   010: P. Koclas *CMDA/AES  SEPT 2001
+*                fix bug for blocks whith bfam .ne. 0
+*Revision   011: C. Charette *ARMA/AES  Oct 2001
+*                Transfer Zmodel in burp postfile.
+*                Added >>BGCKALT. Set bit 12 in global flags of postfile
+*                fix bug for blocks whith bfam .ne. 0
+*Revision   012:. J. Halle *CMDA/AES May 2002:
+*                Adapt to RTTOV-7: re-define NVCORD for GOES radiances.
+*Revision   013:. J. St-James *CMDA/SMC July 2003:
+*                Add code for profiler data.
+*Revision   014:. J. Halle *CMDA/AES nov 2003:
+*                Optimize code in J3D loop.
+**Revision  015:. JM Belanger CMDA/SMC Feb 2004
+*                Introduce "scatterometer family SC"
+*Revision   015:. D. Anselmo *MRB/ARMA  October 2004:
+*                Addition of atmospheric and surface ln specific humidity
+*                O-P, O-A to POSTALT BURP file.
+*Revision   016:. D. Anselmo *ARMA/SMC Jan 2004:
+*                Added codtyp=168 for processing of SSM/I obs.
+*Revision   017:. A. Beaulne *CMDA/SMC July 2006:
+*                Added codtyp=183 for processing of AIRS obs.
+*                In loop on 3rd block dimension, set ibktyp to the one
+*                 found at nt=1 (useful when itopost=/0 with grouped data) 
+*Revision   018:. R. Sarrazin CMDA  April 2008
+*                 Added codtyp 185, CSR fam
+*Revision   019:. S. Heilliette
+*                 Added codtyp 186, IASI fam
+*Revision   020:. C.Cote CMDA Jan 2009
+*                 Adapt to Metop
+*Revision   019:. S. Macpherson *ARMA/MRD September 2009:
+*                Add code for GB-GPS data.
+*Revision   020:. Luc Fillion - ARMA/EC - 11 Aug 2010 -
+*             Incorporate Cote's modifs below,
+*                originally incorporated in v_10_4_0 & v_10_5_0 but
+*                forgotten in MPI version v_11_01B:
+*             Revision   020:. C. Cote *MSC/CMDA Jan 2010
+*                 - Modifier la conversion de NVCORD pour les plateforme tovs
+*                   en utilisant seulement l'instrument comme test.
+*
+*      PURPOSE:  TO READ ALL DATA IN CMA AND TRANSFER
+*                TO POSTFILE OF 3D_VAR IN BURP FORMAT.
+*
+*
+*    ARGUMENTS:
+*                 INPUT:
+*
+*                       -CDTYPE  : DATA TYPE (I.E: UA=UPPER AIR ...)
+*                       -LDAPPEND: .TRUE. -> APPEND DATA TO CMA FILE
+*                                  .FALSE.->  START NEW CMC FILE
+*                       -KFILE   : LOGICAL UNIT NUMBER OF BURP DATA FILE
+*                       -KNRECS  : NUMBERY OF RECORDS IN BURP FILE
+*                       -KLIST   : LIST OF INDICES  POINTING
+*                                   TO VALUES TO BE EXTRACED FROM
+*                                  CMA ( 1 ---> OBS ERROR , 2 ---> O-A )
+*                       -KNVALS  : NUMBER OF VALUES IN KLIST
+*
+*                OUTPUT: NONE
+*
+#endif
+*
+      IMPLICIT NONE
+#include "comlun.cdk"
+#include "comct0.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cbtypes.cdk"
+#include "cparbrp.cdk"
+#include "cvcord.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "commvo.cdk"
+*
+*
+      INTEGER KNVALS,IVAL,jji,ITYPDATA
+      INTEGER KFILE,KNRECS,KLIST(KNVALS)
+      INTEGER IIND,IPOS,ILPOS,inelefd,ideb
+      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF
+      INTEGER ITECH,IMASK,ISAT
+      INTEGER IBIT0,INBIT,IDATYP
+*
+      CHARACTER *(*) CDTYPE
+      LOGICAL LDAPPEND,LLTEST,LLRESET,LLGOOD,LLSURF
+*
+      INTEGER IER,JJEL
+      INTEGER IBTYP,IBTYPblk,IBKNAT,IBKTYP,IBKSTP,IBFAM,IBDESC,IBKNMAOUT,IBKNOUT
+      INTEGER IBKTYPnt1
+      INTEGER IBTYPMA,IBKNATMA,IDATYPMA,INBITMA
+      INTEGER IHANDL,IHANDLP,IBKNO,IBKNO3D,IBKNAD,I3D,ITY
+      INTEGER INELE,INVAL
+      INTEGER INELEIN,IOBTOT,IDATA, IZMODEL, ICOUNT
+      INTEGER INELE3D, IPOSB, ILPOSB, IBTYPB
+      INTEGER ITIME,IDLT,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
+     +       IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
+*
+      INTEGER IFIND
+      INTEGER MRFPUT,MRFVOI,MRBTYP,VMRFOPR,MRFOPN,MRFLOC,MRFGET
+     +         ,MRFMXL,MRFGOC
+      INTEGER MRBINI,MRBADD,VMRBCVT,MRBXTR,MRBPRM,MRBDCL,MRBHDR
+     +        ,MRBPRML,MRBLOCX,MRBTBL,MRBCOL,MRBDEL,MRBREP,MRBUPD
+*
+      EXTERNAL MRFPUT,MRFVOI,MRBTYP,VMRFOPR,MRFOPN,MRFLOC,MRFGET
+     +         ,MRFMXL
+      EXTERNAL MRBINI,MRBADD,VMRBCVT,MRBXTR,MRBPRM,MRBDCL,MRBHDR
+     +        ,MRBPRML,MRBLOCX,MRBTBL,MRBCOL,MRBDEL,MRBREP,MRBUPD,MRFGOC
+*
+*
+      CHARACTER*9 CLSTNID
+*
+      REAL*8 ZPROF(jpmxnlv),ZEXTRA(jpmxnlv)
+      INTEGER IPROF(jpmxnlv)
+      INTEGER ITBL(10,JPMXBK)
+      INTEGER   ILSTM(JPMXNEL)
+      INTEGER ILIST3D(JPMXNEL)
+      INTEGER ILISTIN(JPMXNEL)
+      INTEGER   ILIST(JPMXNEL)
+      INTEGER ILCOD3D(JPMXNEL)
+      INTEGER   ILCOD(JPMXNEL)
+      INTEGER ILCODMA(JPMXNEL)
+      INTEGER ILISTNELE(JPMXNEL)
+*
+      INTEGER ITBLVAL(1)
+      INTEGER  ITBL3D(1)
+      INTEGER ITBLINF(1)
+      INTEGER   IMARK(1)
+      INTEGER    IBUF(1)
+      REAL*8       ZVAL(1)
+      REAL*8       ZVALP(1)
+      POINTER(PXVAL    ,ZVAL)
+      POINTER(PXVALP   ,ZVALP)
+      POINTER(PXTABL   ,ITBLVAL)
+      POINTER(PXTABL3D ,ITBL3D)
+      POINTER(PXTABLINF,ITBLINF)
+      POINTER(PXmark   ,Imark)
+      POINTER(PXBUF    ,IBUF)
+*
+      REAL*8 ZTORAD
+*
+      INTEGER JI,JJ,JK,J3D
+      INTEGER ICHECK,INELM,INVM,INTM,IBKNMA,ITOPOST
+      INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL
+      LOGICAL LLERR,LLMA,LLGROUP,LLERROR,LLSAT
+      LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLRESUM
+      LOGICAL LLTOPOST
+*
+************************************************************************
+*    SET BURP RELATED PARAMETERS VIA CALL TO RESUME SUBROUTINE
+************************************************************************
+*
+      WRITE(NULOUT,*)' ------------------------------------------------'
+      WRITE(NULOUT,*)' ---------    BEGIN  CMAABRP      ---------------'
+      WRITE(NULOUT,*)' ------------------------------------------------'
+*
+      ZTORAD=RPI/180.
+      LLTOPOST = .FALSE.
+*
+************************************************************************
+*    ALLOCATE SPACE FOR DATA BUFFER AND SET "ATTRIBUTES"
+*    OF DATA TO BE READ VIA CALL TO RESUME ROUTINE
+************************************************************************
+*
+      ILONG=MRFMXL(KFILE)
+      CALL HPALLOC(PXBUF,  ILONG*6 ,IER,8)
+      IBUF(1) =ILONG*10
+      LLRESUM=.TRUE.
+      IHANDL=MRFLOC(KFILE,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
+      IF ( IHANDL .LT. 0 ) THEN
+         LLRESUM=.FALSE.
+         IHANDL=MRFLOC(KFILE,0,'*********',-1,-1,-1,-1,-1,-1,0)
+         IF ( IHANDL .LT. 0 ) THEN
+            WRITE(NULOUT,*)' CMAABRP: IMPOSSIBLE TO FIND VALID HANDLE'
+            RETURN
+         ENDIF
+      ENDIF
+*
+************************************************************************
+*     CHANGE THE RESUME RECORD TO POSTALT TYPE
+************************************************************************
+*
+      CALL RESUME(IHANDL,CDTYPE,IBUF)
+      IER=VMRFOPR('MISSING',PPMIS)
+      IER=MRFGOC('ERRTOLR','INFORMATIF')
+*
+      IER=MRFGET(IHANDL,IBUF)
+      IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,ILON,IDX,IDY,
+     &             IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,0,IXAUX,0)
+*
+*      FOR BACKGROUND CHECK THE LAST 6 BITS OF BTYP NEED TO BE CHANGED.
+*      N.B.: FOR TOVS, THERE IS NO BACKGROUND CHECK FOR NOW.
+*            THE CONFIGURATION NCONF=121 FOR TOVS MEANS THAT WE WANT TO
+*                 CALCULATE RADIANCE RESIDUALS,
+*                 WITHOUT SETTING THE "POST" BIT AND
+*                 WITHOUT SETTING THE RESUME STNID TO '>>POSTALT'.
+*            WHEN TOVS ARE FULLY INTEGRATED IN THE BACKGROUND CHECK SYSTEM, THIS
+*                 SPECIAL CASE WILL DISAPPEAR.
+*
+      IF ( CDTYPE .EQ. 'TO' .AND. NCONF .EQ. 121 ) THEN
+         ITOPOST=0
+*
+      ELSE
+         IF ( (NCONF .EQ. 101 .AND. CLSTNID .NE. '>>POSTALT') .OR.
+     &        (NCONF .EQ. 101 .AND. CLSTNID .NE. '>>BGCKALT')  )  THEN
+             ITOPOST=4
+         ELSE
+             ITOPOST=0
+         ENDIF
+*
+         IF ( nconf.eq.141 .OR. NCONF .EQ. 101
+     &        .OR. NINT(NCONF/100.0) .EQ.6) THEN
+            CLSTNID='>>POSTALT'
+            IF ( NCONF .EQ. 101 ) CLSTNID='>>BGCKALT'
+            IF ( LLRESUM) THEN
+               LLTOPOST = .TRUE.
+               IER=MRBUPD(KFILE,IBUF,-1,-1,CLSTNID,-1,-1,-1,-1,-1,
+     &            -1,-1,-1,-1,-1,-1,0,-1,0)
+               IER=MRFPUT(KFILE,IHANDL,IBUF)
+            ELSE
+               WRITE(NULOUT,*)' NO RESUME RECORD FOR CDTYPE :',CDTYPE
+            ENDIF
+         ENDIF
+*
+      ENDIF
+*
+************************************************************************
+*    INITIALIZE DATA COUNTERS THEN BEGIN LOOP TO READ DATA
+************************************************************************
+*
+      IF ( .NOT. LDAPPEND ) THEN
+         NOBTOT  =0
+         NDATA   =0
+      ELSE
+*
+         WRITE(NULOUT,*)' '
+         WRITE(NULOUT,*)'=============================================='
+         WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',NDATA
+         WRITE(NULOUT,*)'=============================================='
+         WRITE(NULOUT,*) ' '
+         IF ( NOBTOT .GE. NMXOBS) THEN
+            WRITE(NULOUT,*) ' CMA FILE FULL: NO DATA READ'
+            WRITE(NULOUT,*)' ------------------------------------------'
+            WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
+            WRITE(NULOUT,*)' ------------------------------------------'
+            RETURN
+         ENDIF
+      ENDIF
+*
+      IKOUNT=0
+      IND   =0
+*
+************************************************************************
+*    ALLOCATE SPACE TO READ DATA
+************************************************************************
+*
+      IHANDL=0
+      IHANDLP=0
+      IMXL=1000
+      IMXL3D=400
+      IMXLINF=400
+      CALL HPALLOC(PXVAL, IMXL,IER,8)
+      CALL HPALLOC(PXVALP,IMXL,IER,8)
+      CALL HPALLOC(PXTABL,IMXL,IER,8)
+      CALL HPALLOC(PXmark,IMXL,IER,8)
+      CALL HPALLOC(PXTABL3D,IMXL3D,IER,8)
+      CALL HPALLOC(PXTABLINF,IMXLINF,IER,8)
+*-----------------------------------------------------------------------
+      DO 1 JI=1,KNRECS
+         LLERR=.FALSE.
+*
+************************************************************************
+*    LOCATE AND READ RECORD ON DATA FILE
+************************************************************************
+*
+         IHANDLP=MRFLOC(KFILE,IHANDLP,'*********',-1,-1,-1,-1,-1,-1,0)
+         IF ( IHANDLP .LT. 0 )LLERR=.TRUE.
+*
+         IER=MRFGET(IHANDLP,IBUF)
+         IF (IER.LT.0) LLERR=.TRUE.
+*
+************************************************************************
+*    EXTRACT THE HEADER
+************************************************************************
+*
+         IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,ILON,IDX,IDY,
+     &                IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,0,IXAUX,0)
+*
+*
+** Re-define NVCORD for SSMI, GOES, AIRS, GeoRad and IASI radiances
+** (IDBURP=168,180,183,185,186)
+** This is done until a more general BURP structure is defined
+** and valid for all radiances from any platform.
+**                       ------------
+*
+          SELECT CASE (IDBURP)
+             CASE (164,181,182)
+                !amsua, amsub, mhs
+                !cas special d'un CLSTNID = UNKNOWN
+                IF (CLSTNID .EQ. 'UNKNOWN' ) THEN
+                  NVCORD = 5042
+                ELSE 
+                  NVCORD = 2150 
+                ENDIF
+             CASE (168,180,183,185,186)
+                !ssmi, goes, airs
+                NVCORD = 5042
+          ENDSELECT
+*
+         IF (IER.LT.0) LLERR=.TRUE.
+*
+************************************************************************
+*    EXTRACT THE DATA AND FLAG BLOCKS
+************************************************************************
+*
+         IF ( CLSTNID(1:2) .eq. '>>')LLERR=.TRUE.
+         IF ( .NOT. LLERR ) THEN
+            INBLKS=MRBPRML(IBUF,0,ITBL,10,JPMXBK)
+*
+            IF ( CLSTNID(1:1) .EQ. '^' ) THEN
+               IBKNO=MRBLOCX(IBUF,-1,-1,2,-1,-1,0)
+               IF (IBKNO .LT. 0) IBKNO=MRBLOCX(IBUF,-1,-1,6,-1,-1,0)
+               LLGROUP=.TRUE.
+               IF ( IBKNO .GT. 0 ) THEN
+                  I3D     =ITBL(4,IBKNO)
+                  INELE3D =ITBL(2,IBKNO)
+                  ITOTDAT=I3D*INELE3D
+                  IBKNO3D=IBKNO
+                  IF ( ITOTDAT .GT. IMXL3D) THEN
+                     IMXL3D=ITOTDAT
+                     CALL HPDEALLC(PXTABL3D,IER,1)
+                     CALL HPALLOC(PXTABL3D,IMXL3D,IER,8)
+                  ENDIF
+                  IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBL3D)
+                  IER=MRBDCL(ILCOD3D,ILIST3D,INELE3D)
+                ENDIF
+            ELSE
+               LLGROUP=.FALSE.
+               I3D=1
+            ENDIF
+*
+*----------------------->
+*    uni info block
+*----------------------->
+*
+            IBKNO =MRBLOCX(IBUF,-1,-1,1,-1,-1,0)
+            IF ( IBKNO .GT. 0 ) THEN
+               INELEIN =ITBL(2,IBKNO)
+               ITOTDAT=I3D*INELEIN
+               IF ( ITOTDAT .GT. IMXLINF) THEN
+                  IMXLINF=ITOTDAT
+                  CALL HPDEALLC(PXTABLINF,IER,1)
+                  CALL HPALLOC(PXTABLINF,IMXLINF,IER,8)
+               ENDIF
+               IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBLINF)
+               IER=MRBDCL(ILCOD3D,ILISTIN,INELEIN)
+            ENDIF
+*
+*----------------------->
+*    data  blocks
+*----------------------->
+*
+           IPOS=1
+           ILPOS=1
+           ITOTDAT=0
+           DO JK=1,INBLKS
+             IBTYP=ITBL(7,JK)
+             IER=MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+             IF( LCHECNAT(IBKNAT) .AND. LCHECTYP(IBKTYP)
+     +        .AND.  LCHECSTP(IBKSTP) ) THEN
+                 IBKNO =MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+                 INELE =ITBL(2,JK)
+                 INVAL =ITBL(3,JK)
+*  ALLOW 2 EXTRA ELEMENTS IN CASE WE NEED TO ADDP FF DD WIND ARRAYS TO CMA
+*  ALLOW 1 EXTRA ELEMENT FOR LQ
+                 IEXTRAEL=3
+                 ibknatma=(IBKNAT + 3)
+                 ITOTDAT=ITOTDAT + (INELE+IEXTRAEL)*INVAL*I3D
+                 IF ( ITOTDAT .GT. IMXL) THEN
+                    IMXL=ITOTDAT
+                    CALL HPDEALLC(PXVAL,IER,1)
+                    CALL HPDEALLC(PXVALP,IER,1)
+                    CALL HPDEALLC(PXTABL,IER,1)
+                    CALL HPDEALLC(PXmark,IER,1)
+                    CALL  HPALLOC(PXVAL,ITOTDAT,IER,8)
+                    CALL  HPALLOC(PXVALP,ITOTDAT,IER,8)
+                    CALL  HPALLOC(PXTABL,ITOTDAT,IER,8)
+                    CALL  HPALLOC(PXmark,ITOTDAT,IER,8)
+                 ENDIF
+C
+C   INITIALIZE TO SOME VALUE FIRST ( BUT NOT PPMIS)
+C
+                 DO JJI =1,INELE*INVAL*I3D
+                   ZVAL(ipos + jji-1)=RINFINI
+                 END DO
+                 IER=MRBXTR(IBUF,IBKNO,ILCOD(ILPOS),ITBLVAL(IPOS))
+*
+** temporary workaround for data which do not require MRBCVT conversion
+** (e.g. element 8001).
+*
+                 do jji =1,INELE*INVAL*I3D
+                    ZVAL(ipos + jji-1)=ITBLVAL(IPOS + jji -1)
+                 end do
+                 IER=VMRBCVT(ILCOD(ILPOS),ITBLVAL(IPOS),ZVAL(ipos),
+     &           INELE,INVAL,I3D,0)
+                 IER=MRBDCL(ILCOD(ILPOS),ILIST(ilpos),INELE)
+Cpik             IBKNMA=MRBLOCX(IBUF,-1,-1,NBKNAUN,IBKTYP,IBKSTP,0)
+Cpik             IF ( IBKNMA .LE. 0 ) THEN
+Cpik                IBKNMA=MRBLOCX(IBUF,-1,-1,NBKNAMU,IBKTYP,IBKSTP,0)
+Cpik             ENDIF
+*
+                 LLMA=.FALSE.
+                 IBKNATMA=IBKNAT+3
+Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
+                 IBKNMA=MRBLOCX(IBUF,-1,-1,ibknatma,IBKTYP,IBKSTP,0)
+                 IF ( IBKNMA .GT. 0 ) THEN
+                    IER =MRBXTR(IBUF,IBKNMA,ILCODMA(ILPOS),IMARK(IPOS))
+*
+                    INELM =ITBL(2,IBKNMA)
+                    INVM  =ITBL(3,IBKNMA)
+                    INTM  =ITBL(4,IBKNMA)
+                    IER   =MRBDCL(ILCODMA(ILPOS),ILSTM(ilpos),INELM)
+                    ICHECK=
+     +              IABS(INELE-INELM)+IABS(INVAL-INVM)+IABS(I3D-INTM)
+                    DO JJ=1,INELE
+                       ICHECK=ICHECK+IABS((ILSTM(JJ)-200000-ILIST(JJ)))
+                    END DO
+                    LLMA= (ICHECK .EQ. 0 )
+                 ENDIF
+*
+*-------------------------------------------------------------------
+*                 CONVERT F-D WIND TO U-V COMPONENTS
+*-------------------------------------------------------------------
+*
+                 CALL FDTOUV(ZVAL(IPOS),IMARK(IPOS),ILIST(ILPOS),INELE,
+     +           INVAL,I3D,INELEFD)
+                 ILISTNELE(JK)=INELEfd
+                 INELE=ILISTNELE(JK)
+*
+*-----------------------------------------------------------------------
+*                 CONVERT ES TO HU
+*-------------------------------------------------------------------
+*
+                 CALL ESTOHU(ZVAL(IPOS),IMARK(IPOS),ILIST(ILPOS),INELE,
+     +                       INVAL,I3D,INELEFD)
+                 ILISTNELE(JK)=INELEfd
+                 INELE=ILISTNELE(JK)
+
+*-------------------------------------------------------------------
+                 ILPOS=INELE + ILPOS
+                 IPOS =INELE*INVAL*I3D + IPOS
+                 IKOUNT=IKOUNT + INELE*INVAL*I3D
+             ENDIF
+           END DO
+*
+************************************************************************
+*    INSERT CMA DATA INTO BURP FILE
+************************************************************************
+*
+           IOBTOT=NOBTOT
+           IDATA=NDATA
+           DO 22 JJEL=1,KNVALS
+              NOBTOT=IOBTOT
+              NDATA=IDATA
+              IPOSB=0
+              ILPOSB=0
+              ICOUNT=0
+              IVAL=KLIST(JJEL)
+*
+** initialize zvalp array to original zval data array
+*
+              do jk = 1, itotdat
+                 zvalp(jk)= zval(jk)
+              enddo
+*
+              ILPOS=1
+              IPOS=1
+              LLGOOD=.FALSE.
+              DO 3 JK=1,inblks
+                 LLSURF=.FALSE.
+                 INBON=0
+                 IND=0
+                 IBTYPblk=ITBL(7,JK)
+                 IER=MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYPblk)
+                 IF( LCHECNAT(IBKNAT) .AND. LCHECTYP(IBKTYP)
+     +               .AND. LCHECSTP(IBKSTP) )THEN
+*
+*      COUNT THE NUMBER OF OBSERVATION BLOCKS PROCESSED
+*
+                   ICOUNT = ICOUNT + 1
+*
+                   if ( ibknat .eq. 0 .and. cdtype .eq. 'UA') then
+                      nvcordtyp=1
+                      LLSURF = .TRUE.
+                   endif
+*
+                    IBKNO=MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+                    IBKNATMA=IBKNAT+3
+Cpik                IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
+                    IBKNMA=MRBLOCX(IBUF,-1,-1,ibknatma,IBKTYP,IBKSTP,0)
+                    INELE =ilistnele(jk)
+                    INVAL =ITBL(3,JK)
+                    IBDESC=ITBL(6,JK)
+                    INBIT =ITBL(8,JK)
+                    IDATYP=ITBL(10,JK)
+
+                    IBKTYPnt1 = IBKTYP
+
+                    DO 5 J3D=1,I3D
+
+                       IBKTYP = IBKTYPnt1
+
+                       CALL GETELE(NVCORD,J3D,ILIST(ILPOS),ZVALP(IPOS),
+     +                 ZPROF,INELE,INVAL,I3D,IIND)
+*
+                      if  (cdtype == 'SF' .OR. cdtype == 'SC' .OR.
+     &                     LLSURF  ) then
+                         iind=1
+                         zprof(1)=REAL(IALT-400)
+                      endif
+c
+                      if  (  cdtype .eq. 'GP' ) then
+                         iind=1
+                         zprof(1)=REAL(IALT-400)
+                      endif
+c
+                       IF ( IIND .GT. 0 ) THEN
+C======================================================================
+                       IF (LLGROUP ) THEN
+C                     *** save starting address of 3d block *****
+                         IF ( IPOSB  .EQ. 0 ) IPOSB  = IPOS
+                         IF ( ILPOSB .EQ. 0 ) ILPOSB = ILPOS
+                       ENDIF
+*
+*----------------------------------------------------------------------
+*  FOR SATEMS REFERENCE PRESSURE IS CONTAINED IN THE REPORT DATA BLOCK
+*----------------------------------------------------------------------
+*
+                       IF ( CDTYPE .EQ. 'ST' ) THEN
+                          LLSAT=.TRUE.
+                       ELSE
+                          LLSAT=.FALSE.
+                       ENDIF
+                       CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
+     +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
+     +                    NVCORD,ZPROF,J3D,IVAL)
+*
+*-----------------------------------------------------------------------
+*                   TRANSFER REJECT FLAGS BETWEEN WIND DIRECTION AND SPEED
+*-----------------------------------------------------------------------
+*
+                       CALL FLAGUVTOFD(IMARK(IPOS)
+     +                   ,ILIST(ILPOS),INELE,INVAL,I3D
+     +                   ,CLSTNID,IDBURP,ILAT,ILON)
+*
+*-----------------------------------------------------------------------
+*                   SET REJECT FLAGS FOR LQ BASED ON ES,TT
+*-----------------------------------------------------------------------
+*
+                       CALL FLAGHU(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
+     &                             INELE,INVAL,I3D,J3D,IVAL)
+*
+                       IF ( CDTYPE .EQ. 'ST' ) THEN
+                          CALL PUTELE(7193,J3D,ILIST(ILPOS),ZVALP(IPOS),
+     +                    zextra,INELE,INVAL,I3D,IIND)
+                       ENDIF
+                       CALL PUTELE(NVCORD,J3D,ILIST(ILPOS),ZVALP(IPOS),
+     +                 ZPROF,INELE,INVAL,I3D,IIND)
+                       IF (CDTYPE .EQ. 'MI') THEN
+                        CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
+     +                  LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
+     +                  -1,ZPROF,J3D,IVAL)
+                       ENDIF
+C======================================================================
+                       DO JJI=ilpos,ilpos +inele-1
+                         ILSTM(JJI)=ILIST(JJI) + 200000
+                       END DO
+                       IER=MRBCOL(ILSTM(ilpos),ILCODMA(ilpos),INELE)
+                       IER=MRBCOL(ILIST(ilpos),ILCOD(ilpos),INELE)
+                       ideb = INELE*INVAL*(J3D-1)
+                       do jji =ideb+1,ideb+INELE*INVAL
+                          IF ( ZVALP(ipos + jji-1) .EQ. PPMIS ) THEN
+                             ITBLVAL(IPOS + jji-1)=-1
+                          ELSE
+                             ITBLVAL(IPOS + jji-1)=ANINT( ZVALP(ipos + jji-1))
+                          ENDIF
+                       ENDDO
+                       IER=VMRBCVT(ILCOD(ILPOS),ITBLVAL(IPOS+ideb),
+     &                     ZVALP(IPOS+ideb),INELE,INVAL,1,1)
+                       IBKNO=MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+                       IBKNATMA=IBKNAT+3
+Cpik                   IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
+                       IBKNMA=MRBLOCX(IBUF,-1,-1,ibknatma,IBKTYP,IBKSTP,0)
+C
+C***********************************************************************
+C
+C                     GET LAST 6 BITS OF BTYP
+C
+C***********************************************************************
+C
+                       LLTEST=BTEST(IBKTYP,6)
+                       IF ( LLTEST) THEN
+                          ITYPDATA=IBKTYP-64 + ITOPOST
+                       ELSE
+                          ITYPDATA=IBKTYP    + ITOPOST
+                       ENDIF
+                       IF (IBKTYP .EQ. NBKTYPS) THEN
+C                     SURFACE BLOCK
+C                     ---------------
+                        IBKTYP=ITYPDATA + 0
+                       ELSE IF (IBKTYP .EQ. NBKTYPA) THEN
+C                     ALTITUDE BLOCK
+C                     ---------------
+                        IBKTYP=ITYPDATA + 64
+                       ELSE IF (IBKTYP .EQ. NBKTYPSSMI) THEN
+C                      SSMI BLOCK
+C                     ---------------
+                        IBKTYP= NBKTYPSSMI
+                       ELSE
+                       ENDIF
+C
+                       IF ( IVAL .EQ. NCMOER) THEN
+C                     OBSERVATION ERRORS BLOCK
+C                     ------------------------
+                         IBKSTP=14
+                         IBFAM=10
+                       ELSE IF ( IVAL .EQ. NCMFGE) THEN
+C                     FORECAST ERRORS
+C                     ------------------------
+                         IBKSTP=15
+                         IBFAM=10
+                       ELSE IF ( IVAL .EQ. NCMOMF) THEN
+C                     RESIDUALS BLOCK
+C                     ------------------------
+                         IBKSTP=10
+                         IBFAM=14
+                         IDATYP=4
+                         IF (CDTYPE .EQ. 'TO' .AND.
+     +                       LRTNADIR              ) THEN
+                            IBFAM=32
+                         ENDIF
+                       ELSE IF ( IVAL .EQ. NCMVAR) THEN
+C                     DATA BLOCK SEEN BY 3D-VAR
+C                     ------------------------
+cpik                     IBKSTP=0
+                         IBFAM=0
+                       ELSE IF ( IVAL .EQ. NCMOMA) THEN
+C                     ANALYSIS INCREMENT BLOCK
+C                     ------------------------
+                         IBKSTP=10
+                         IBFAM=12
+                         IDATYP=4
+                       ELSE
+                       ENDIF
+C
+C***********************************************************************
+C
+                       IBKNATMA=IBKNAT+3
+                       IBTYP=MRBTYP(IBKNAT,IBKTYP,IBKSTP,-1)
+                       IBTYPMA=MRBTYP(IBKNATMA,IBKTYP,IBKSTP,-1)
+                       LLGOOD=.TRUE.
+                       IDATYPMA=2
+                       INBITMA=16
+                       IBTYPB = IBTYP
+                       IF ( (.NOT.LLGROUP) .AND. (IND .GT. 0) ) THEN
+                       IF (  IVAL .EQ. NCMVAR) THEN
+                          IER=MRBDEL(IBUF,IBKNMA)
+                          IER=MRBDEL(IBUF,IBKNO)
+                          IER=MRBADD(IBUF,IBKNOUT,INELE,INVAL,I3D,IBFAM,
+     +                     IBDESC,IBTYP,INBIT,IBIT0,IDATYP,ILCOD(ILPOS),
+     +                     ITBLVAL(IPOS))
+                          IER=MRBADD(IBUF,IBKNMAOUT,INELE,INVAL,I3D,IBFAM,
+     +                     IBDESC,IBTYPMA,INBITMA,IBIT0,IDATYPMA,
+     +                     ILCODMA(ILPOS),IMARK(IPOS))
+                       ELSE
+                          IER=MRBADD(IBUF,IBKNAD,INELE,INVAL,I3D,IBFAM,
+     +                    IBDESC,IBTYP,INBIT,IBIT0,IDATYP,
+     +                    ILCOD(ILPOS),ITBLVAL(IPOS))
+                      ENDIF
+                      ENDIF
+                    ELSE
+                       IND =0
+                    ENDIF
+*----------------------------------------------------------------------
+*
+                    INBON =INBON  + IND
+                    IF ( INd .GT. 0 ) THEN
+*
+************************************************************************
+*      IF VALID DATA WAS FOUND INCREMENT NOBTOT (only one time per burp
+*      record read
+************************************************************************
+*
+                       IF (NOBTOT .LT. NMXOBS) THEN
+*
+
+                          IF(ICOUNT .EQ. 1) THEN
+                            NOBTOT=NOBTOT + 1
+                            IFLGS=MOBHDR(NCMST1,NOBTOT)
+                            IZMODEL= NINT(RMTMOBS(NOBTOT)/RG) + 400
+                            IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
+                          ENDIF
+                          IF ( LLGROUP) THEN
+                             iprof(1)=iflgs
+                             call iputele(55200,J3d,ilist3d,itbl3d,iprof,
+     +                     inele3d,1,i3d,iind)
+                          ENDIF
+                       ENDIF
+                     ENDIF
+*
+** fin boucle 3d
+    5         END DO
+                IF ( INBON .EQ. 0) THEN
+                   IF ( JJEL .EQ. KNVALS)WRITE(NULOUT,*)'OBS ',CLSTNID,
+     +             '   TYPE ',IDBURP,' BLOCK NUMBER: ',JK,' NO VALID DATA'
+                ENDIF
+               ILPOS=INELE + ILPOS
+               IPOS =INELE*INVAL*I3D + IPOS
+      ENDIF
+********************************
+** fin boucle   blocs
+      if ( LLGROUP)ier=mrbrep(ibuf,ibkno3d,itbl3d)
+    3 CONTINUE
+      IF ( LLGOOD  ) THEN
+         IF (LLGROUP ) THEN
+            IF(  IVAL .EQ. NCMVAR) THEN
+               IER=MRBDEL(IBUF,IBKNMA)
+               IER=MRBDEL(IBUF,IBKNO)
+               IER=MRBADD(IBUF,IBKNOUT,INELE,INVAL,I3D,IBFAM,IBDESC
+     +           ,IBTYP,INBIT,IBIT0,IDATYP,ILCOD(ILPOSB),ITBLVAL(IPOSB))
+               IER=MRBADD(IBUF,IBKNMAOUT,INELE,INVAL,I3D,IBFAM,
+     +         IBDESC,IBTYPMA,INBIT,IBIT0,IDATYPMA,
+     +         ILCODMA(ILPOSB),IMARK(IPOSB))
+            ELSE
+               IER = MRBADD(IBUF,IBKNAD,INELE,INVAL,I3D,IBFAM,
+     +                IBDESC,IBTYPB,INBIT,IBIT0,IDATYP,
+     +                ILCOD(ILPOSB),ITBLVAL(IPOSB))
+            ENDIF
+         ENDIF
+      ENDIF
+********************************
+      IF( (NDATA .GE. NDATAP .OR. NOBTOT .GE. NMXOBS)
+     + .AND. JJEL .EQ. KNVALS) THEN
+         IF( LLGOOD ) THEN
+            IF( .NOT. LLGROUP) THEN
+              ier=mrbupd(KFILE,IBUF,-1,iflgs,CLSTNID,
+     +                 -1,-1,-1,-1,-1,-1,-1,-1,IZMODEL,-1,-1,-1,-1,-1)
+            ELSE
+              ier=mrbupd(KFILE,IBUF,-1,iflgs,CLSTNID,
+     +                 -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)
+            ENDIF
+            IER=MRFPUT(KFILE,IHANDLP,IBUF)
+         ENDIF
+         WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
+         CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+         WRITE(NULOUT,*)' ------------------------------------------'
+         WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
+         WRITE(NULOUT,*)' ------------------------------------------'
+         CALL HPDEALLC(PXVAL    ,IER,1)
+         CALL HPDEALLC(PXVALP   ,IER,1)
+         CALL HPDEALLC(PXTABL   ,IER,1)
+         CALL HPDEALLC(PXTABL3D ,IER,1)
+         CALL HPDEALLC(PXTABLINF,IER,1)
+         CALL HPDEALLC(PXmark   ,IER,1)
+         CALL HPDEALLC(PXBUF    ,IER,1)
+         RETURN
+      ENDIF
+********************************
+*
+** knvals
+   22 END DO
+*
+      IF ( LLGOOD ) THEN
+         IF( .NOT. LLGROUP) THEN
+           ier=mrbupd(KFILE,IBUF,-1,iflgs,CLSTNID,
+     +                 -1,-1,-1,-1,-1,-1,-1,-1,IZMODEL,-1,-1,-1,-1,-1)
+         ELSE
+           ier=mrbupd(KFILE,IBUF,-1,iflgs,CLSTNID,
+     +                 -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)
+
+         ENDIF
+         IER=MRFPUT(KFILE,IHANDLP,IBUF)
+      ENDIF
+** handlp >0
+      ENDIF
+*
+** knrecs
+    1 CONTINUE
+      CALL HPDEALLC(PXVAL    ,IER,1)
+      CALL HPDEALLC(PXVALP   ,IER,1)
+      CALL HPDEALLC(PXTABL   ,IER,1)
+      CALL HPDEALLC(PXTABL3D ,IER,1)
+      CALL HPDEALLC(PXTABLINF,IER,1)
+      CALL HPDEALLC(PXmark   ,IER,1)
+      CALL HPDEALLC(PXBUF    ,IER,1)
+*
+*-----------------------------------------------------------------------
+      CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+*
+      WRITE(NULOUT,*)' ------------------------------------------'
+      WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
+      WRITE(NULOUT,*)' ------------------------------------------'
+*
+      RETURN
+      END

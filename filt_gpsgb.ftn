@@ -1,0 +1,132 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FILT_GPSGB
+C
+C**s/r FILT_GPSGB - Filter GPS observations for testing purposes
+C
+C
+C Author  : S. Macpherson *ARMA February 2005
+C    -------------------
+C*    Purpose: Filters GPS observations for testing purposes
+C
+C Arguments
+C     None
+C
+C
+C Notes:
+C  - called by SUCVA (if L1GPSOBS=.TRUE.)
+C  - CGPSSTN in namelist (comgpsgb.cdk) is desired observation site name
+C    for 1 obs case
+C
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comcva.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comct0.cdk"
+#include "comnumbr.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comgpsgb.cdk"
+C
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP, ITYP
+      INTEGER IDATA, IDATEND, JDATA
+C
+      LOGICAL LLFOUND, LLGP
+C
+      write(NULOUT,*)' '
+      write(NULOUT,*)' *****************************************'
+      write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+      write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+      write(NULOUT,*)' *                                       *'
+      write(NULOUT,*)' *     --- ONE OBSERVATION MODE ---      *'
+      write(NULOUT,*)' *                                       *'
+      write(NULOUT,*)' *****************************************'
+      write(NULOUT,*)' ' 
+      write(NULOUT,*)' CGPSSTN = ', CGPSSTN
+      write(NULOUT,*)' '
+C
+C     Loop over all observation files (all observation types)
+C
+      LLGP = .FALSE.
+
+      DO JF = 1, NFILES
+C
+C     *  Process only GROUND-BASED GPS observation files (family = GP)
+C
+      IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
+C
+        IF ( .NOT. LLGP ) LLGP = .TRUE.
+C
+        IBEGIN   = NBEGINTYP(JF)
+        ILAST    = NENDTYP  (JF)
+        IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+        ILASTOB  = MOBDATA(NCMOBS,ILAST )
+C
+C     *  Loop over all GPS observation locations of the file
+C
+        LLFOUND = .FALSE.
+
+        DO JO = IBEGINOB, ILASTOB
+C
+C     *  Process only Ground-Based GPS data (codtyp 189)
+C
+          IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+C
+          IF ( IDATYP .EQ. 189 ) THEN
+            IDATA   = MOBHDR(NCMRLN,JO)
+            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+            IF (CSTNID(JO) .NE. CGPSSTN) THEN
+C     Loop over all observations for the location
+              DO JDATA= IDATA, IDATEND
+                MOBDATA(NCMASS,JDATA) = 0
+              ENDDO
+            ELSE
+              WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 
+     +           CSTNID(JO)
+              LLFOUND = .TRUE.
+            ENDIF
+          ENDIF
+C
+        ENDDO
+C
+      ENDIF
+C
+      ENDDO
+C
+C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
+      IF ( LLGP .AND. (.NOT. LLFOUND) ) THEN
+        WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: ONEOBS SITE =', CGPSSTN 
+        call abort3d(nulout,'FILT_GPSGB: ABORT! ONEOBS GPS SITE NOT FOUND')
+      ENDIF
+      IF ( .NOT. LLGP ) THEN
+        call abort3d(nulout,
+     +  'FILT_GPSGB: GB-GPS ONEOBS OPTION SELECTED BUT NO GP DATA IN CMA!')
+      ENDIF
+c
+      RETURN
+      END

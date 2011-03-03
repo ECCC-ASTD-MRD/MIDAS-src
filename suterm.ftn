@@ -1,0 +1,195 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUTERM(KULOUT)
+
+#if defined (DOC)
+*
+***s/rSUTERM  - Termination of Job (close IO/units, deallocate
+*     .          memory and verification of the integrity of the heap)
+*
+*Author: P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     P. Gauthier *ARMA/AES May 25, 1993
+*     .     Update to take into aacount all the new arrays
+*     .     Arrays allocated by SUALLO and SUALOBS are optionally
+*     .     deallocated when HPCHECK signals an error.
+*     P. Koclas    CMC/CMSV January 1997
+*     .     added call to EXFIN
+*     L. Fillion *ARMA/AES Nov 25, 1998
+*     .     Deallocate arrays needed for TL and ADJ observation operators.
+*     C. Charette *ARMA/AES Fev 1999
+*     .     Deallocate arrays in compdg.cdk
+*     C. Charette *ARMA/AES SEP 1999
+*          - Operator PTOT as a function of latitude
+*     S. Pellerin *ARMA/AES March 2000
+*          - Close nulstato
+*     S. Pellerin *ARMA/SMC May 2000
+*          - Logical unit cleanup
+*          - Fix for F90 conversion:
+*                 .Illimination of pointer to character*9 CSTNID
+*                 .Introduction of distinc pointer for integer
+*                  and real cma arrays (ptmobhdr,ptrobhdr,ptmobdata
+*                  ,ptrobdata)
+*     S. Pellerin *ARMA/SMC Nov. 2001
+*          - Deallocation of MVAR and PEXY (4Dvar book keeping vectors)
+*     Bin He  *ARMA/SMC DEC. 2006
+*          - only keep the release of the memory pointed by PTGD. The remain memory
+*          release moved to subroutine "memfree" which is called before varout   
+*
+*     C.Charette *ARMA/AES  May 23,2007
+*          - With respect to version v10.0.2
+*            1) Added the deallocation of memory of
+*               PTILON, PTNNP1, PT1SNP1, PTCONPHY, PTCONINA
+*            2) Removed the deallocation of memory of PTVATRA
+*
+*    Bin HE   *ARMA/SMC  - Apr. 2008 
+*          - closed multiple trial files.   
+*
+*Arguments
+*     i   KULOUT: unit used for optional printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "comct0.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comgd0.cdk"
+#include "comgd1.cdk"
+#include "compdg.cdk"
+#include "comsp.cdk"
+#include "comsp1.cdk"
+#include "comspg.cdk"
+#include "comcorr.cdk"
+#include "comgem.cdk"
+#include "comcva.cdk"
+C
+C*    Comdecks associated with the observations
+C     ----------------------------------------
+#include "comdimo.cdk"
+#include "comoahdr.cdk"
+#include "comoabdy.cdk"
+#include "commvo.cdk"
+#include "commvo1.cdk"
+#include "commvog.cdk"
+#include "commvohr.cdk"
+#include "comoba.cdk"
+*
+      INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
+      integer  k
+      EXTERNAL HPCHECK, HPDEALLC, FSTFRM,EXFIN
+C
+C*    1. Verify the integrity of the heap
+C
+ 100  CONTINUE
+C
+      WRITE(KULOUT,FMT='(/,10X," JOB TERMINATION BY SUTERM",
+     S     /,20(" *"))')
+C
+C*    4. Close RPN standard files (opened in SULUN)
+C
+      if(nulstd.ne.0) IERR =  FSTFRM(NULSTD)
+      if(nulstat.ne.0) ierr =  fstfrm(nulstat)
+      if(nulbgst.ne.0) ierr =  fstfrm(nulbgst)
+      if(nulinclr.ne.0) ierr =  fstfrm(nulinclr)
+      if(nulinchr.ne.0) ierr =  fstfrm(nulinchr)
+     
+      do k=1,ntrials
+        ierr=fstfrm(ninmpg(k))  
+      enddo
+C
+C Closing an ASCII file used for diagnostics
+C
+c
+      CALL HPCHECK(IERR)
+C
+      IF(IERR.EQ.0)THEN
+        WRITE(KULOUT,FMT='(5X,10("*")," No memory overflow"
+     S       ," detected ",10("*"))')
+      ELSE
+C
+C*    2. Verify the arrays allocated within SUALLO
+C
+ 200    CONTINUE
+        WRITE(KULOUT,1000)IERR
+ 1000   format(10X, 5("*")," Problem with the dynamic memory",
+     &       " allocation. IERR =",I3," returned by HPCHECK")
+C
+#if defined (NEC)
+        CALL VFLUSH(KULOUT)
+#endif
+        CALL HPDEALLC(PTILON,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," NILON checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " NILON. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTNNP1,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," RNNP1 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " RNNP1. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PT1SNP1,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," R1SNP1 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " R1SNP1. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTCONPHY,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," CONPHY checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " CONPHY. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTCONIMA,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," CONIMA checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " CONIMA. IERR =",I3)')IERR
+        END IF
+        CALL HPDEALLC(PTGD,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," GD checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " GD. IERR =",I3)')IERR
+        END IF
+C
+C
+      END IF
+      ISTAMP=EXFIN('3DVAR','FIN','SUTERM')
+C
+      RETURN
+      END

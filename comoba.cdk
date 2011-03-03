@@ -1,0 +1,43 @@
+#if defined (DOC)
+C
+C Revision:
+C     S. Pellerin *ARMA/SMC May 2000
+C            - Fix for F90 conversion:
+*                   .Illimination of pointer to character*9 CSTNID
+*                   .Introduction of distinc pointer for integer
+*                    and real cma arrays (ptmobhdr,ptrobhdr,ptmobdata,ptrobdata) 
+C
+C     JM Belanger CMC Aug 2000
+C            -3Dvar 32 bits conversion. Add ROBDATA8.    
+C  
+C     COMDECK: COMOBA
+C     ---------------
+C     Observation arrays
+C     ----------------------
+C     ROBHDR (NCMLET,NOBTOT) : Real quantities contained in the header of
+C     .                        an observation
+C     MOBHDR (NCMLET,NOBTOT) : as ROBHDR but for integral quantities
+C     ROBDATA(NCMLBO,NDATA)  : Real quantities associated with a single datum
+C     MOBDATA(NCMLBO,NDATA)  : as ROBDATA but for integral quantities
+C
+C     ROBDATA8(7:9,NDATAMX)  : partial real*8 duplicate of real*4 
+C                              cma array ROBDATA(NCMOMA:NCMOMN,*)
+#endif
+      REAL,POINTER,DIMENSION(:,:) :: ROBHDR,ROBDATA
+      REAL,POINTER,DIMENSION(:,:) :: ROBHDR_G  ! bhe
+
+!!cjmb  L'index de la 1ere dimension de ROBDATA8 permet d'utiliser
+!!cjmb  les memes variables (NCMPRL=3,NCMPPP=4,NCMVAR=5,NCMOMF=6,
+!!cjmb  NCMOMA=7,NCMOMI=8,NCMOMN=9,NCMOER=10,NCMPRM=11) que ROBDATA.
+
+      REAL*8,POINTER,DIMENSION(:,:) :: ROBDATA8
+
+      INTEGER,POINTER,DIMENSION(:,:) :: MOBHDR,MOBDATA
+      INTEGER,POINTER,DIMENSION(:,:) :: MOBHDR_G
+      CHARACTER*9,POINTER,DIMENSION(:) ::  CSTNID
+
+      COMMON /POMOBA/robhdr,robdata,mobhdr,mobdata,robdata8
+      COMMON /POMOBA/robhdr_g,mobhdr_g
+
+      common /comobac/cstnid
+

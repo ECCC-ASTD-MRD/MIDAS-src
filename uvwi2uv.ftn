@@ -1,0 +1,72 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine uvwi2uv
+*
+#if defined (DOC)
+*
+*** s/r uvwi2uv: conversion of wind images to physical winds
+*     (Remark: this subroutine is self-adjoint)
+*
+*     Author  : P. GAUTHIER *ARMA/MSC July 2002
+*
+* Revision:
+*     L. Fillion - ARMA/MSC - 6 Jan 05.
+*        : Allow Limited-Area option
+*
+*     .         -------------------------------
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comcva.cdk"
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comgrd_param.cdk"
+#include "comgem.cdk"
+#include "comgemla.cdk"
+#include "comgd0.cdk"
+*
+* Local variables
+*
+      integer ji,jj,jk,idum1,idum2,idum3,idum4
+      INTEGER JLEV, JGL, JLON, IMAX
+      real*8 zmin,zmax
+      real*8 z3d(ni,nflev,nj)
+*
+      if(grd_typ.eq.'GU') then
+        DO JLEV = 1, NFLEV
+         DO JGL = 1, NJ
+            IMAX = NILON(JGL)
+            DO JLON = 1, IMAX
+               UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
+               VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
+            END DO
+         END DO
+        END DO
+      else if (grd_typ.eq.'LU') then
+        do jlev = 1, nflev
+          do jj = 1, nj
+            do ji = 1, ni
+              ut0(ji,jlev,jj) = conphy(jj) * ut0(ji,jlev,jj)
+              vt0(ji,jlev,jj) = conphy(jj) * vt0(ji,jlev,jj)
+            enddo
+          enddo
+        enddo
+      endif
+*
+      RETURN
+      END SUBROUTINE uvwi2uv

@@ -1,0 +1,342 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUTOVST
+#if defined (DOC)
+*
+***s/r SUTOVST  - Read the observation error statistics and
+*                 utilization flag for TOVS processing.
+*
+*
+*Author  : J. Halle *CMDA/AES  May 08, 1996
+*
+*Revision 01  : J. Halle *CMDA/AES  Oct 1999
+*               - change file name to stats_tovs
+*
+*Revision 002  : J. Halle *CMDA/AES  dec 2000
+*                adapt to TOVS level 1b.
+*
+*Revision 003  : J. Halle *CMDA/SMC  may 2002
+*                adapt to RTTOV-7.
+*
+*Revision 004  : J. Halle *CMDA/SMC  sept 2006
+*                adapt to RTTOV-8.
+*
+*Revision 005  : A. Beaulne *CMDA/SMC  fevr 2007
+*                adapt utilization flag for AIRS channels
+*
+*Revision 006  : S. Heilliette
+*                adapt utilization flag for IASI channels
+*
+*    -------------------
+**    Purpose: Read the observation error statistics and
+*              utilization flag for TOVS processing. This information
+*              resides on an ASCII file and is read using a free format.
+#endif
+
+      use airsch
+      use iasich
+
+      IMPLICIT NONE
+
+*implicits
+#include "comlun.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comtovst.cdk"
+#include "comct0.cdk"
+C
+      INTEGER MXPLATFORM, MXINSTRUMENT
+      PARAMETER (MXPLATFORM   = 16)
+      PARAMETER (MXINSTRUMENT = 29)
+C
+      INTEGER IER, ILUTOV, JI, JJ, JK, JL, JM, I
+      INTEGER IPOS1, IPOS2
+      INTEGER INUMSAT, ISAT, IPLF
+      INTEGER FNOM, FCLOS, ISRCHEQ
+      INTEGER IPLATFORM (JPNSATMAX)
+      INTEGER ISATID (JPNSATMAX)
+      INTEGER IINSTRUMENT (JPNSATMAX)
+      INTEGER IUTILST   (JPCHMAX,JPMXCLD,JPMXREG,JPNSATMAX)
+      INTEGER ICHN   (JPCHMAX,JPNSATMAX)
+      INTEGER ICHNIN   (JPCHMAX,JPNSATMAX)
+      INTEGER NUMCHN (JPNSATMAX)
+      INTEGER NUMCHNIN (JPNSATMAX)
+      INTEGER NOPLATFORM(MXPLATFORM)
+      INTEGER NOINSTRUMENT(MXINSTRUMENT)
+*
+      REAL*8    TOVERRIN(JPCHMAX,JPMXCLD,JPMXREG,JPNSATMAX)
+C
+      CHARACTER*132  CLDUM
+      CHARACTER*13   CLCLD(JPMXCLD)
+      CHARACTER*13   CLREG(JPMXREG)
+C
+      CHARACTER*15 CPLATFORM  (MXPLATFORM  )
+      CHARACTER*15 CINSTRUMENT(MXINSTRUMENT)
+
+C
+      DATA CLCLD / 'CLEAR        ' ,
+     S             'PARTLY CLOUDY' ,
+     S             'CLOUDY       ' /
+      DATA CLREG / 'OCEAN        ' ,
+     S             'CONTINENT    ' /
+*
+**                         Tables for Platforms
+**                         --------------------
+*
+      DATA CPLATFORM  / 'NOAA',    'DMSP',   'METEOSAT',     'GOES',
+     &                   'GMS',     'FY2',       'TRMM',      'ERS',
+     &                   'EOS',   'METOP',    'ENVISAT',      'MSG',
+     &                   'FY1',   'ADEOS',      'MTSAT', 'CORIOLIS'/
+*
+      DATA NOPLATFORM /      1,         2,            3,          4,
+     &                       5,         6,            7,          8,
+     &                       9,        10,           11,         12,
+     &                      13,        14,           15,         16/
+*
+**                         Tables for Instruments
+**                         ----------------------
+*
+      DATA CINSTRUMENT  /      'HIRS',       ' MSU',         'SSU',
+     &                        'AMSUA',      'AMSUB',       'AVHRR',
+     &                         'SSMI',      'VTPR1',       'VTPR2',
+     &                          'TMI',      'SSMIS',        'AIRS',
+     &                          'HSB',      'MODIS',        'ATSR',
+     &                          'MHS',       'IASI',        'AMSR',
+     &                        'MVIRI',     'SEVERI',  'GOESIMAGER',
+     &                  'GOESSOUNDER',   'GMSMTSAT',    'FY2VISSR',
+     &                     'FY1MVISR',       'CRIS',       'CMISS',
+     &                        'VIIRS',    'WINDSAT'/               
+*
+      DATA NOINSTRUMENT /           0,            1,             2,
+     &                              3,            4,             5,
+     &                              6,            7,             8,
+     &                              9,           10,            11,
+     &                             12,           13,            14,
+     &                             15,           16,            17,
+     &                             20,           21,            22,
+     &                             23,           24,            25,
+     &                             26,           27,            28,
+     &                             29,           30/               
+C
+      EXTERNAL FNOM, FCLOS, ISRCHEQ
+      EXTERNAL ABORT3D
+C
+      WRITE(NULOUT,FMT=9000)
+ 9000 FORMAT(//,10x,"-SUTOVST: reading observation error statistics"
+     S     ," required for TOVS processing")
+C
+C
+C*    1. Initialize
+C     .  ----------
+C
+ 100  CONTINUE
+      NREGST = 0
+      NCLDST = 0
+      DO JL = 1, JPNSATMAX
+         DO JK = 1, JPMXREG
+            DO JJ = 1, JPMXCLD
+               DO JI = 1, JPCHMAX
+                  TOVERRST(JI,JJ,JK,JL) = 0.0
+                  TOVERRIN(JI,JJ,JK,JL) = 0.0
+                  IUTILST   (JI,JJ,JK,JL) = 0
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+*
+      DO JL = 1, JPNSATMAX
+         IPLATFORM(JL) = 0
+         NUMCHN(JL) = 0
+         NUMCHNIN(JL) = 0
+         DO JI = 1, JPCHMAX
+            ICHN(JI,JL) = 0
+            ICHNIN(JI,JL) = 0
+         ENDDO
+      ENDDO
+C
+C*    2. Open the file
+C     .  -------------
+C
+ 200  CONTINUE
+      ilutov = 0
+      IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
+      IF(IER.LT.0)THEN
+         WRITE ( NULOUT, '(" SUTOVST: Problem opening ",
+     S         "file stats_tovs ")' )
+         CALL ABORT3D ( NULOUT,'SUTOVST         ')
+      END IF
+C
+C*    3. Print the file contents
+C     .  -----------------------
+C
+ 300  CONTINUE
+C
+      WRITE(NULOUT,'(20X,"ASCII dump of stats_tovs file: "//)')
+      DO JI = 1, 9999999
+         READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
+         WRITE(NULOUT,'(A)')   CLDUM
+      ENDDO
+C
+C*    4. Read number of satellites, regions and cloud classes
+C     .  ----------------------------------------------------
+C
+ 400  CONTINUE
+C
+      REWIND(ILUTOV)
+      READ (ILUTOV,*,ERR=900)
+      READ (ILUTOV,*,ERR=900) INUMSAT, NREGST, NCLDST
+C
+C*    5. Read the satellite identification, the number of channels,
+C*    .  the observation errors and the utilization flags
+C     .  ----------------------------------------------------------
+C
+ 500  CONTINUE
+C
+      DO JL = 1, INUMSAT
+         READ (ILUTOV,'(A)',ERR=900) CLDUM
+         READ (ILUTOV,*,ERR=900) ISATID(JL), NUMCHNIN(JL)
+         DO JI = 1, 6
+            READ (ILUTOV,*,ERR=900)
+         ENDDO
+C
+         IPLATFORM(JL) = 1            
+         DO I = 1, MXPLATFORM
+            IPOS1=LEN_TRIM(CPLATFORM(I))
+            IPOS2 = INDEX(CLDUM,CPLATFORM(I)(1:IPOS1))
+            IF ( IPOS2 .NE. 0 ) THEN
+               IPLATFORM(JL) = NOPLATFORM(I)
+               GO TO 510
+            ENDIF
+         ENDDO
+C
+ 510     CONTINUE
+         IINSTRUMENT(JL) = -1    
+         DO I = 1, MXINSTRUMENT
+            IPOS1=LEN_TRIM(CINSTRUMENT(I))
+            IPOS2 = INDEX(CLDUM,CINSTRUMENT(I)(1:IPOS1))
+            IF ( IPOS2 .NE. 0 ) THEN
+               IINSTRUMENT(JL) = NOINSTRUMENT(I)
+               GO TO 520
+            ENDIF
+         ENDDO
+C
+ 520     CONTINUE
+         DO JI = 1, NUMCHNIN(JL)
+            READ (ILUTOV,*,ERR=900) ICHNIN(JI,JL),
+     S                ((TOVERRIN(ICHNIN(JI,JL),JJ,JK,JL),
+     S                  IUTILST (ICHNIN(JI,JL),JJ,JK,JL),
+     S                  JJ=1,NCLDST), JK=1,NREGST)
+         ENDDO
+      ENDDO
+C
+C**   Check that oberservation error statistics have been defined for
+C*    all the satellites specified in the namelist.
+C
+      DO JM= 1, INUMSAT
+        DO JL = 1, NSENSORS
+          IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND.
+     S         SATELLITE(JL) .EQ. ISATID   (JM)       ) THEN
+            IF ( IINSTRUMENT(JM) .EQ. -1       .OR. 
+     S           INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN 
+              NUMCHN(JL)=NUMCHNIN(JM)
+              DO JK = 1, JPMXREG
+                DO JJ = 1, JPMXCLD
+                  DO JI = 1, JPCHMAX
+                    TOVERRST(JI,JJ,JK,JL) = TOVERRIN(JI,JJ,JK,JM)
+                  ENDDO
+                ENDDO
+              ENDDO
+              DO JI = 1, JPCHMAX
+                ICHN(JI,JL) = ICHNIN(JI,JM)
+              ENDDO
+            ENDIF
+          ENDIF
+        ENDDO
+      ENDDO
+C
+      DO JL = 1, NSENSORS
+         IPLF = ISRCHEQ ( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
+         ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
+         IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
+            WRITE ( NULOUT, '(" SUTOVST: Observation errors not ",
+     S         "defined for sensor # ", I3)' ) JL
+            CALL ABORT3D ( NULOUT,'SUTOVST         ')
+         END IF
+      ENDDO
+C
+C**   Utilization flag for AIRS channels
+C
+      IF ( NCONF .EQ. 101 ) THEN
+       IF ( IPLATFORM(1) .EQ. 9 .AND. 
+     &         ISATID(1) .EQ. 2 .AND. 
+     &    IINSTRUMENT(1) .EQ. 11 ) THEN
+         DO JI = 1, NUMCHNIN(1)
+          AIRS_ASSIM(JI) = IUTILST(ICHNIN(JI,1),1,1,1)
+         END DO
+       END IF
+       IF ( IPLATFORM(1) .EQ. 10 .AND. 
+     &         ISATID(1) .EQ.  2 .AND. 
+     &      IINSTRUMENT(1) .EQ. 16 ) THEN
+          DO JI = 1, NUMCHNIN(1)
+             IASI_ASSIM(JI) = IUTILST(ICHNIN(JI,1),1,1,1)
+          END DO
+       END IF
+      END IF
+
+C
+C*    6. Print out observation errors for each sensor
+C     .  --------------------------------------------
+C
+ 600  CONTINUE
+C
+      WRITE(NULOUT,'(//1X,"Radiance observation errors read from file")')
+      WRITE(NULOUT,'(  1X,"------------------------------------------")')
+      DO JL = 1, NSENSORS
+         WRITE(NULOUT,'(/1X,"SENSOR #",I2,". Platform: ",A,
+     &                  "Instrument: ",A)')
+     &                  JL, CSATID(JL), CINSTRUMENTID(JL)
+         WRITE(NULOUT,'(1X,"Channel",T22,"Ocean",T50,
+     &                  "Continent")')
+         WRITE(NULOUT,'(T12,"clear",T20,"p.cloudy",T32,
+     &                  "cloudy",T42,"clear",T50,"p.cloudy",T62,
+     &                  "cloudy")')
+         DO JI = 1, NUMCHN(JL)
+            WRITE (NULOUT,'(I5,25F10.2)') ICHN(JI,JL),
+     S                ((TOVERRST(ICHN(JI,JL),JJ,JK,JL),
+     S                  JJ=1,NCLDST), JK=1,NREGST)
+         ENDDO
+      ENDDO
+C
+C*    7. Close the file
+C     .  --------------
+C
+ 700  CONTINUE
+C
+      IER = FCLOS(ILUTOV)
+      IF(IER.NE.0)THEN
+         CALL ABORT3D ( NULOUT,'SUTOVST         ')
+      END IF
+      RETURN
+C
+C*    Read error
+C
+900   WRITE ( NULOUT, '(" SUTOVST: Problem reading ",
+     S         "file stats_tovs ")' )
+      CALL ABORT3D ( NULOUT,'SUTOVST         ')
+C
+      RETURN
+      END

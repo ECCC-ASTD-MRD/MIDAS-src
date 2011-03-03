@@ -1,0 +1,75 @@
+#if defined (DOC)
+C*
+C     COMMON COMSTATO -  STANDARD ERROR DEVIATIONS AND  VERTICAL
+C                        ERROR CORRELATION MATRICES FOR DIFFERENT
+C                        TYPES OF FAMILIES OF OBSERVATIONS
+C
+C         .     P. Koclas *CMC/AES APRIL  1996:
+C
+C Revision:
+C         .     J. St-James CMDA/SMC July 2003
+C                      Add profiler family
+c         .     JM Belanger *CMDA/SMC* Dec 2003
+C               - extend  jpidbrp to 254 for Quikscat
+C         .     R. Sarrazin *CMC March 2004.
+C                      Addition of xstdevlv dor satwinds errors
+C
+#endif
+C
+C
+C-----------------------------------------------------------------------
+C
+      INTEGER  JPRLEV,JPBANDS,JPCORBANDS
+      INTEGER  JPSATLV,JPNTYP,JPIDBRP
+      INTEGER  JPRALEV,JPHLEV,JPSALEV
+      INTEGER  JPMAXILEV,JPZLEV
+C
+      PARAMETER(JPRLEV=16,JPBANDS=3,JPCORBANDS=1)
+      PARAMETER(JPSATLV=8,JPNTYP=2)
+      PARAMETER(JPRALEV=17,JPHLEV=7,JPSALEV=7)
+cpik  PARAMETER(JPMAXILEV=37,JPIDBRP=200)
+      PARAMETER(JPMAXILEV=47,JPIDBRP=254)
+      PARAMETER(JPZLEV=63)
+C
+C
+C     OBSERVATION  ERROR CORRELATIONS
+C 1.  SATEMS
+*     ---------
+      INTEGER  NISLV(JPSATLV)
+      REAL*8     DZOBSCOR(JPMAXILEV,JPMAXILEV,JPNTYP)
+      REAL*8     XSATDEV(JPSALEV,JPNTYP)
+C
+C 2.  UPPER AIR
+C     ---------
+      INTEGER  NILV(JPRLEV)
+      REAL*8     GZOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
+      REAL*8     UUOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
+      REAL*8     ESOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
+      REAL*8     XOSTDEV(57,JPRLEV,JPBANDS)
+C
+C 3.  HUMSAT
+C     ---------
+      INTEGER  NIHULV(JPHLEV)
+      REAL*8     HUOBSCOR(JPMAXILEV,JPMAXILEV)
+C
+C 4.  AIREP : ASDAR : SATOB
+C     ---------------------
+      REAL*8 XSTDEV(5,4)
+      REAL*8 XSTDEVLV(10,2)
+C
+C 5.  SURFACE
+C     ---------
+      REAL*8     XSFCOBERR(57,1,JPIDBRP)
+C
+C 6.  PROFILER
+C     ---------
+      INTEGER    NILZ(JPZLEV)
+      REAL*8     XPRSTDEV(JPZLEV)
+C
+      COMMON/COMSTATO/
+     +           NILV,NILZ,NIHULV,NISLV,
+     +           GZOBSCOR,UUOBSCOR,ESOBSCOR,
+     +           HUOBSCOR,DZOBSCOR
+C
+      COMMON/COMSTDEV/ XOSTDEV,XSTDEV,XSTDEVLV,XSATDEV,XSFCOBERR,XPRSTDEV
+

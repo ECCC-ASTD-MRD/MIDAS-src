@@ -1,0 +1,31 @@
+#if defined (DOC)
+C
+C     COMDECK COMTOVST
+C     ----------------
+C*    Variables required for the definition of the TOV observation errors
+C*    and their utilization flags
+*
+*Author       : J. Halle   *CMDA/AES*  Oct 1999
+*Revision 001 : J. Halle   *CMDA/SMC*  Jun 2002
+*                          -adapt to RTTOV-7.
+C
+C     NREGST                                      : number of regions
+C     MLISREG(JPMXREG)                            : list   of regions (e.g.: ocean, continent)
+C     NCLDST                                      : number of cloud classes
+C     MLISCLD(JPMXCLD)                            : list   of cloud classes (e.g., clear,
+C                                                   partly cloudy, cloudy)
+C     TOVERRST(JPCHMAX,JPMXCLD,JPMXREG,JPNSATMAX) : observation errors (K)
+C
+#endif
+      INTEGER NREGST, NCLDST
+      INTEGER MLISREG(JPMXREG)
+      INTEGER MLISCLD(JPMXCLD)
+
+      REAL*8    TOVERRST(JPCHMAX,JPMXCLD,JPMXREG,JPNSATMAX)
+
+!                    clear, partly cloudy, cloudy
+      DATA MLISCLD / 32, 16, 08 /
+!                    sea, land
+      DATA MLISREG / 1, 0 /
+
+      COMMON /COMTOVST/ NREGST, NCLDST, TOVERRST

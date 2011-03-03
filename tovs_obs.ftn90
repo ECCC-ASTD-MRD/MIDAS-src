@@ -1,0 +1,124 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine tovs_obs(option,pjo)
+#if defined (doc)
+!
+!**s/r tovs_obs  - Computation of jo and the residuals to the tovs observations
+!
+!
+!author        : j. halle *cmda/aes  april 8, 2005
+!
+!revision 001  : a. beaulne *cmda/smc  mai 26, 2006
+!                    - addition of geopotential field to calls
+!    -------------------
+!     purpose:
+!
+!arguments
+!     option: defines input state:
+!             'HR': High Resolution background state,
+!             'LR': Low  Resolution background state,
+!             'MO': Model state.
+!     pjo: total value of jo for tovs
+!
+#endif
+
+  implicit none
+!implicits
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "commvo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo1.cdk"
+#include "commvog.cdk"
+#include "commvohr.cdk"
+
+  integer jdata
+
+  real*8 pjo
+
+  character(len=2) :: option
+
+  logical :: llprint
+
+
+!     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
+!     .    -----------------------------------------------------------------------------
+!     
+
+  llprint = .true.
+
+  if     ( option .eq. 'HR' ) then
+     call tovs_fill_profiles(gomuhr,gomvhr,gomthr,gomgzhr,gomqhr,gompshr,gomtgrhr, &
+ &                      rppobshr,nkgdimohr,nlevtrl)
+
+  elseif ( option .eq. 'LR' ) then
+     call tovs_fill_profiles(gomug,gomvg,gomtg,gomgzg,gomqg,gompsg,gomtgrg, &
+ &                      rppobs,nkgdimo,nlevtrl)
+     llprint = .false.
+
+  elseif ( option .eq. 'MO' ) then
+!     add gomobs to gomobsg
+     gomobs1(:,:) = gomobsg(:,:) + gomobs(:,:)
+     call tovs_fill_profiles(gomu1,gomv1,gomt1,gomgz1,gomq1,gomps1,gomtgr1, &
+ &                      rppobs,nkgdimo,nlevtrl)
+
+  else
+     WRITE(NULOUT,FMT=9100)
+  9100    FORMAT(' TOVS_OBS: Invalid option for input state')
+     CALL ABORT3D(NULOUT,'TOVS_OBS           ')
+
+  endif
+ 
+
+!     2.   Compute radiance
+!     .    ----------------
+!     
+  call tovs_rttov
+ 
+
+!     3.   Compute Jo and the residuals
+!     .    ----------------------------
+!     
+  if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
+      DO JDATA=1,NDATA
+        ROBDATA8(NCMPRM,JDATA) = ROBDATA8(NCMVAR,JDATA)
+      ENDDO
+  endif
+
+
+  pjo = 0.
+  call tovs_calc_jo (pjo,llprint)
+
+  if ( option .eq. 'LR' ) then
+!    fill ROBDATA8(NCMPRM,..)  with Z'' = Z' + H(xb_lr) 
+     DO JDATA=1,NDATA
+       ROBDATA8(NCMPRM,JDATA) = ROBDATA8(NCMOMA,JDATA)*ROBDATA8(NCMOER  &
+           ,JDATA) + 2*ROBDATA8(NCMVAR,JDATA)
+     ENDDO
+  endif
+
+  if ( option .eq. 'HR' ) then
+     pjo = 2.0 * pjo
+  endif
+ 
+
+  return
+
+end subroutine tovs_obs

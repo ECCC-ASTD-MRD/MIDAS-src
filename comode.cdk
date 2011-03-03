@@ -1,0 +1,65 @@
+#if defined (DOC) 
+C Author: Luc Fillion 1993.
+C     COMDECK COMODE  : parameters and matrices for normal-mode computations.
+C     --------------    Also the sigma levels to be used by rmodes subroutine
+C                       that computes the normal modes.
+C
+C Parameters:
+C
+C LMOD    : Logical parameter, .TRUE. compute the normal modes
+C LPRTMOD : Logical key to print the normal mode information
+C LWRTMOD : Logical key to write normal modes on file.
+C MHEMMOD : Geometry of the normal mode problem:
+C           0 global, 1 Northern hemisphere
+C MTYPMOD : Truncation type used to compute the normal modes:
+C           1 Rhomboidal, 2 Triangular.
+C TSTAR   : Basic-state temperature
+C ALPHA   : Parameter for vertical temperature profile
+C           ALPHA = 2.0 for isothermal profile
+C NVMOD   : Number of vertical normal-modes to be constrained
+C           with a linear-type balance equation for multivariate analysis.
+C BRTPHGT : Barotropic height in meters
+C XPLIM   : Limiting period to select the gravity mode 
+C
+C VMA(NFLEV)    : matrix used to go from T to P, or P to T in MATAPAT
+C VMB(NFLEV)    : "
+C VMC(NFLEV)    : "
+C VMD(NFLEV)    : "
+C VME(NFLEV)    : "
+C VMF(NFLEV)    : "
+C EQDEPTH       : Vector of equivalent depths associated with the vertical modes.
+C VINV          : Matrix to perform a projection from sigma coordinates
+C                 to vertical mode space.
+C TVINV         : Transpose of VINV (useful for adjoint).
+C VMAT          : Matrix to perform an inverse projection from
+C                 vertical mode space to sigma coordinates.
+C TVMAT         : Transpose of VMAT (useful for adjoint).
+C TMEANH        : Basic-state vertical profile of temperature
+C                 used to go from T to P variables.
+C delt_nl       : NL model timestep on analysis grid.
+C delt_tl       : TL model timestep on analysis grid.
+C
+#endif
+      LOGICAL   LMOD, LPRTMOD, LWRTMOD
+      REAL*8      TSTAR, ALPHA, BRTPHGT, XPLIM
+      INTEGER   NVMOD, MHEMMOD, MTYPMOD
+      REAL*8      VMA(NFLEV), VMB(NFLEV), VMC(NFLEV)
+      REAL*8      VMD(NFLEV), VME(NFLEV), VMF(NFLEV)
+      REAL*8      TMEANH(NFLEV), EQDEPTH(NFLEV)
+      REAL*8      VMAT(NFLEV,NFLEV), VINV(NFLEV,NFLEV)
+      REAL*8      TVMAT(NFLEV,NFLEV), TVINV(NFLEV,NFLEV)
+      real*8 delt_nl,delt_tl
+C
+      POINTER (PTVMA,VMA),(PTVMB,VMB),(PTVMC,VMC)
+      POINTER (PTVMD,VMD),(PTVME,VME),(PTVMF,VMF)
+      POINTER (PTTMEANH,TMEANH),(PTEQDEPTH,EQDEPTH)
+      POINTER (PTVMAT,VMAT),(PTVINV,VINV)
+      POINTER (PTTVMAT,TVMAT),(PTTVINV,TVINV)
+C
+      COMMON /COMODE1/LMOD, LPRTMOD, LWRTMOD, MHEMMOD, MTYPMOD,
+     +               TSTAR, ALPHA, BRTPHGT, NVMOD, XPLIM 
+      COMMON /COMODE2/PTVMA, PTVMB, PTVMC, PTVMD, PTVME, PTVMF,
+     +                PTTMEANH, PTEQDEPTH, PTVMAT, PTVINV, PTTVMAT, PTTVINV
+      common/comodel/delt_nl,delt_tl
+!
+!   ------------------------------------------------------------------

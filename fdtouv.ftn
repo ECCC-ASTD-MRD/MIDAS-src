@@ -1,0 +1,227 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FDTOUV(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      IMPLICIT NONE
+#include "comcst.cdk"
+#include "cparbrp.cdk"
+#include "comnumbr.cdk"
+      INTEGER KNELE,KNVAL,KINT,KNELOUT
+      INTEGER KLIST(*)
+      REAL*8 ZVAL(*)
+      INTEGER IMARK(*)
+*
+#if defined (DOC)
+************************************************************************
+*
+*      PURPOSE: TO CHANGE IN-PLACE THE F-D WIND COMPONENTS OF DATA BLOCK
+*               EXTRACTED ROM A BURP FILE TO U-V (EAST-WEST)  COMPONENTS
+*
+*       AUTHOR:   P. KOCLAS (CMC/CMDA)
+*
+*       REVISION: P. KOCLAS (CMC/CMDA) february 1995
+*                  -New call sequence to getele
+*                  -Fix bug  : make sure that both (ff dd) are present
+*                              in data
+*                -P. KOCLAS  CMC/CMDA July 1999
+*                  -FOR 3DVAR o-p o-a configuration (nconf =121 )
+*                    , background check  (nconf=101)
+*                   u,v components are APPENDED to output array.
+*                -P. KOCLAS  CMC/CMDA august 2000
+*                 restrict lladd2=.false. for old config=151
+*                 -allow for treatment of surface wind elements
+*                -J. Halle  CMC/CMDA june 2000
+*                 -use dimension JPLNG
+*
+*    ARGUMENTS:
+*               INPUT:
+*                      -ZVAL    : DATA BLOCK
+*                      -IMARK   : MARKER DATA BLOCK
+*                      -KLIST   : LIST OF BUFR ELEMENTS
+*                      -KNELE   : NUMBER OF ELEMENTS IN DATA BLOCK
+*                      -KNVAL   : NUMBER OF LEVELS IN DATA BLOCK
+*                      -KINT    : THIRD DIMENSION OF INPUT DATA BLOCK
+*                      -KNELOUT : THIRD DIMENSION OF OUTPUT DATA BLOCK
+*
+*               OUTPUT:
+*                      -MODIFIED ZVAL AND KLIST
+*
+*
+************************************************************************
+#endif
+*
+      REAL*8 ZPROFF(JPMXNLV),ZPROFD(JPMXNLV)
+      REAL*8     ZVAL2(JPLNG)
+      INTEGER IMARK2(JPLNG)
+      REAL*8 ZFF,ZDD,ZTORAD
+      INTEGER JJ,JN,INDEX1,INDEX2,J1,J2,J3
+      INTEGER IND1,IND2,IND3,IND4
+      INTEGER IFF,IDD,IUU,IVV
+      logical llmis,lladd2,LLEXPAND
+*
+************************************************************************
+*     BURP FILE ELEMENT NAMES FOR WINDS
+************************************************************************
+*-------------------------------------------------------
+*
+      ZTORAD=RPI/180.
+*
+************************************************************************
+*     GET (F,D) WIND COMPONENTS
+************************************************************************
+*
+      IFF=NEFF
+      IDD=NEDD
+      IUU=NEUU
+      IVV=NEVV
+      lladd2=.true.
+      KNELOUT=KNELE+2
+      CALL GETELE(IFF,1,KLIST,ZVAL,ZPROFF,KNELE,KNVAL,KINT,IND1)
+      CALL GETELE(IDD,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND2)
+      CALL GETELE(IUU,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND3)
+      CALL GETELE(IVV,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND4)
+C
+C        FOR SURFACE (SYNOP ...etc..) WIND at 10 M iS REPORTED
+C
+      IF ( IND1 .EQ. -1 .AND. IND2 .EQ. -1 ) THEN
+         IDD=NEDS
+         IFF=NEFS
+         CALL GETELE(IDD,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND1)
+         CALL GETELE(IFF,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND2)
+         IF ( IND1 .NE. -1 .AND. IND2 .NE. -1 ) THEN
+            IUU=NEUS
+            IVV=NEVS
+            CALL GETELE(IUU,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND3)
+            CALL GETELE(IVV,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND4)
+         ENDIF
+      ENDIF
+C
+      LLEXPAND=.FALSE.
+      IF ( (IND1 .NE. -1) .AND. (IND2 .NE. -1) .AND.
+     +   (IND3 .EQ. -1) .AND. (IND4 .EQ. -1) )THEN
+       LLEXPAND=.TRUE.
+      DO 2 JN=1,KINT
+         CALL GETELE(IFF,JN,KLIST,ZVAL,ZPROFF,KNELE,KNVAL,KINT,IND1)
+         CALL GETELE(IDD,JN,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND2)
+C
+C        FOR SURFACE (SYNOP ...etc..) WIND at 10 M iS REPORTED
+C
+*
+************************************************************************
+*    -IF (F-D) COMPONENTS WERE FOUND CONVERT TO U-V
+*    -REJECT IF :  DIRECTION =0 AND SPEED .NE. 0
+*                  DIRECTION < 0 OR > 360
+*    -CHECK IF MISSING DATA
+*    -SET FLAGS TO 0
+************************************************************************
+*
+*        for residual or background check configuration
+C
+         IF ( lladd2 ) THEN
+            KLIST(KNELE+1)=IUU
+            KLIST(KNELE+2)=IVV
+         ELSE
+            KLIST(IND1)=IUU
+            KLIST(IND2)=IVV
+         ENDIF
+*
+*
+         DO 3 JJ=1,KNVAL
+            IF ( lladd2 ) THEN
+               INDEX1=KNELE+1 + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
+               INDEX2=KNELE+2 + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
+            ELSE
+               INDEX1=IND1    + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
+               INDEX2=IND2    + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
+            ENDIF
+            IMARK2(INDEX1)=0
+            IMARK2(INDEX2)=0
+            zVAL2(INDEX1)=PPMIS
+            zVAL2(INDEX2)=PPMIS
+*
+            IF ((ZPROFD(JJ).GT.360. .OR. ZPROFD(JJ).LT.0.) .OR.
+     &        (ZPROFD(JJ).EQ.0.  .AND. ZPROFF(JJ).GT.0.)) THEN
+               ZPROFD(JJ) = PPMIS
+               ZPROFF(JJ) = PPMIS
+            ENDIF
+            llmis=( ZPROFD(JJ) .eq. PPMIS) .OR. (ZPROFF(JJ) .eq. PPMIS)
+            if ( .NOT. LLMIS) THEN
+*
+*
+************************************************************************
+*      IF SPEED = 0 CALM WIND IS ASSUMED.
+************************************************************************
+*
+                IF (ZPROFF(JJ) .EQ. 0.0) THEN
+                   ZPROFD(JJ) = 0.
+                ENDIF
+*
+                ZFF=ZPROFF(JJ)
+                ZDD=ZPROFD(JJ) + 180.
+                IF ( ZDD .GT. 360.) ZDD=ZDD-360.
+                ZDD=ZDD*ZTORAD
+*=============================================
+C              O-a O-p  bg check CASE
+                IF ( lladd2 ) THEN
+                   ZVAL2(INDEX1)=ZFF*SIN(ZDD)
+                   ZVAL2(INDEX2)=ZFF*COS(ZDD)
+                   IMARK2(INDEX1)=0
+                   IMARK2(INDEX2)=0
+                ELSE
+                   ZVAL (INDEX1)=ZFF*SIN(ZDD)
+                   ZVAL (INDEX2)=ZFF*COS(ZDD)
+                ENDIF
+             else
+                IF ( lladd2 ) THEN
+                   ZVAL2(INDEX1)=ppmis
+                   ZVAL2(INDEX2)=ppmis
+                ELSE
+                   ZVAL (INDEX1)=ppmis
+                   ZVAL (INDEX2)=ppmis
+                ENDIF
+             endif
+C
+*=============================================
+    3    CONTINUE
+*
+    2 CONTINUE
+      ENDIF
+C
+C      TRANSFER BACK TO INPUT ARRAYS
+C
+      IF ( lladd2 .AND. LLEXPAND ) THEN
+         DO J1 =1,KNELE
+            DO J2 =1,KNVAL
+               DO J3 =1,KINT
+                  INDEX1=J1 + (J2-1)*KNELE   +(J3-1)*KNELE*KNVAL
+                  INDEX2=J1 + (J2-1)*KNELOUT +(J3-1)*KNELOUT*KNVAL
+                  ZVAL2 (INDEX2)= ZVAL(INDEX1)
+                  IMARK2(INDEX2)=IMARK(INDEX1)
+               END DO
+            END DO
+         END DO
+C
+         DO JJ =1,KNELOUT*KNVAL*KINT
+            ZVAL (JJ)= ZVAL2(JJ)
+            IMARK(JJ)=IMARK2(JJ)
+         END DO
+      ELSE
+CC    NO WORK DONE BY ROUTINE
+         KNELOUT=KNELE
+      ENDIF
+C
+      RETURN
+      END

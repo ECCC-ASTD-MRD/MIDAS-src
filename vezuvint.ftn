@@ -1,0 +1,83 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE VEZUVINT(duuout, dvvout, duuin, dvvin, nio, nii)
+*
+#if defined (DOC)
+*
+***s/r VEZUVINT  -real*8 interface for real*4 subroutine EZUVINT.
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*          Simon Pellerin *ARMA/SMC June 2001
+*            . elimination of 2nd and 3rd dimensions
+*
+*Arguments
+*    Output:
+*      duuout
+*      dvvout
+*
+*    Input:
+*      duuin
+*      dvvin
+*      nii
+*      nio
+#endif
+
+      IMPLICIT NONE
+*implicits
+
+      real*8 duuout(nio), dvvout(nio),
+     $       duuin(nii) , dvvin(nii)
+      integer iun, nio, nii
+*
+      integer ikey, ierr, ileni, ileno, jk1
+      real bufuuout4, bufvvout4, bufuuin4, bufvvin4
+      pointer (pxbufuuin4, bufuuin4(nii))
+      pointer (pxbufvvin4, bufvvin4(nii))
+      pointer (pxbufuuout4, bufuuout4(nio))
+      pointer (pxbufvvout4, bufvvout4(nio))
+*
+      integer ezuvint
+      external ezuvint
+*-----7----------------------------------------------------------------
+
+      ileni = nii
+      ileno = nio
+      call hpalloc(pxbufuuin4,max(1,ileni),ierr,1)
+      call hpalloc(pxbufvvin4,max(1,ileni),ierr,1)
+      call hpalloc(pxbufuuout4,max(1,ileno),ierr,1)
+      call hpalloc(pxbufvvout4,max(1,ileno),ierr,1)
+
+      do jk1 = 1,nii
+        bufuuin4(jk1) = duuin(jk1)
+        bufvvin4(jk1) = dvvin(jk1)
+      enddo
+
+      ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
+
+      do jk1 = 1,nio
+        duuout(jk1) = bufuuout4(jk1)
+        dvvout(jk1) = bufvvout4(jk1)
+      enddo
+
+      call hpdeallc(pxbufuuin4,ierr,1)
+      call hpdeallc(pxbufvvin4,ierr,1)
+      call hpdeallc(pxbufuuout4,ierr,1)
+      call hpdeallc(pxbufvvout4,ierr,1)
+
+      return
+      end

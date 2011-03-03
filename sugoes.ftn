@@ -1,0 +1,251 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUGOES(KULOUT)
+#if defined (DOC)
+*
+***s/r SUGOES : Initialisation of the RADIANCE processing and
+*     .            radiative transfer model (for GOES atm)
+*
+*Author  : Nicolas Wagneur *CMDA/SMC Avril 2001
+*
+*    -------------------
+**    Purpose: to read in GOES radiance bias corections, surface
+*     .        fields, initialize the MSCFAST radiative transfer model.
+*
+*Arguments
+*     i : KULOUT : logical unit for output
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "cparamgoes.cdk"
+#include "comgoes.cdk"
+#include "cominitrad.cdk"
+#include "comfilt.cdk"
+#include "cvcord.cdk"
+*
+      INTEGER KULOUT,IGO(JPNGAS)
+      INTEGER JK, KIERR, J, K, L, IBT1, IBT2, IBT3
+C
+      INTEGER KLISTE(JPNB,JPNGAS),KLISTB(JPNB),KIDOWN(JPNB)
+c
+      REAL*8 DDFQ(JPNB),DDPIAD(JPNB,JPNGAS)
+      REAL*8 DDZDK(JPNB,JPNGAS),DDVOIGT(JPNB,6)
+      REAL*8 DDACON(JPNB),DDFCON(JPNB),DDFORCON(JPNB),DDTCOF(JPNB,2)
+      REAL*8 DDO2CON(JPNB,2),DDN2CON(JPNB,2)
+      REAL*8 DDCT1(JPNB,JPNGAS,JPNTEM),DDCT2(JPNB,JPNGAS,JPNTEM)
+      REAL*8 DDADJ1(JPNB,JPNGP1),DDADJ2(JPNB,JPNGP1)
+      REAL*8 DDBIA1(JPNB),DDBIA2(JPNB)
+      REAL*8 DDFITB(JPNB,JPNGP1),DDFITC(JPNB,JPNGP1),DDSEC1,DDSEC2
+      REAL PFOZO(JPNLATO3,JPNLEVO3),PTOTOZO(JPNLATO3,12)
+C
+      CHARACTER*6 CDSATNAM
+      CHARACTER*2 CDUM
+      integer :: jf
+C
+      LOGICAL LLGO
+C
+C           Brightness temperature burp element
+      DATA IBT1 / 12062 /
+      DATA IBT2 / 12063 /
+      DATA IBT3 / 12163 /
+      DATA IGO / 1, 1, 1, 1, 1, 1, 1, 1 /
+C
+      INTEGER  I, IDATE, ITIME, IJULIAN, IYEAR, IMONTH, IDAY
+      INTEGER  NEWDATE, RESULT, IPAS
+      REAL     JJULIEN, DELT
+      EXTERNAL RTMSCGETPAR, JJULIEN, DATEC
+      EXTERNAL SUGOESST
+      EXTERNAL ABORT3D, READNML
+C
+      LLGO = .FALSE.
+      DO  JF = 1, NFILES
+        IF ( CFAMTYP(JF)  .EQ. 'GO' .AND. NBEGINTYP(JF).GT. 0) LLGO =
+     &       .TRUE.
+      ENDDO
+      if(.not. llgo) return    ! Exit if there are not GOES data
+C*    .  1.0 Is brightness temperature an element to assimilate ?
+C     .      ----------------------------------------------------
+ 100  CONTINUE
+C
+      LLGO = .FALSE.
+      DO J = 1, NELEMS
+         IF ( NLIST(J) .EQ. IBT1 .OR.
+     S        NLIST(J) .EQ. IBT2 .OR.
+     S        NLIST(J) .EQ. IBT3      ) THEN
+            LLGO = .TRUE.
+         ENDIF
+      ENDDO
+c
+      IF ( .NOT. LLGO ) RETURN
+C
+C*    .  1.1 Default values
+C     .      --------------
+ 110  CONTINUE
+C
+      DO JK=1,JPNSATGO
+         NIDSATGO(JK) = 0
+      END DO
+C
+      NSATGO        =  2
+      DO JK =1, NSATGO
+         NIDSATGO(JK)  =  8 + ( JK-1 )*2
+      ENDDO
+      LTSTGO        = .FALSE.
+      LDBGGO        = .FALSE.
+      LRTNADIRGO    = .FALSE.
+      CRTMODLGO     = 'MSCFAST'
+      NICLOUD       =  1
+      NIASSIM       =  0
+      NEMIFLAG      =  1
+      NIPSFLAG      =  1
+      NKBIAS        =  1
+      NKTUNE        =  1
+      NIB1          =  19
+      NIB2          =  22
+      NIMODE        =  1
+      NNGAS         =  8
+      DO JK =1, NNGAS
+         NIGO         = 1
+      ENDDO
+
+C
+C*    .   1.2 Read the NAMELIST NAMGOES to modify them
+C     .       ---------------------------------------
+ 120  CONTINUE
+      CALL READNML('NAMGOES',KIERR)
+C
+C*    .   1.3 Validate namelist values
+C     .       ------------------------
+ 130  CONTINUE
+C
+      IF ( NSATGO  .GT. JPNSATGO ) THEN
+         WRITE(KULOUT,FMT=9130)
+ 9130    FORMAT(' SUGOES: Number of satellites (NSATGO )',
+     S          ' is greater than maximum allowed (JPNSATGO)')
+         CALL ABORT3D(KULOUT,'SUGOES        ')
+      ENDIF
+C
+      IF ( CRTMODLGO .NE. 'MSCFAST' ) THEN
+         WRITE(KULOUT,FMT=9131)
+ 9131    FORMAT(' SUGOES: Invalid radiation model name')
+         CALL ABORT3D(KULOUT,'SUGOES        ')
+      ENDIF
+C
+C*    .   1.4 Print the content of this NAMELIST
+C     .       ----------------------------------
+C
+ 140  CONTINUE
+      WRITE(KULOUT,FMT=9140) LTSTGO,
+     S                       LDBGGO, LRTNADIRGO, CRTMODLGO
+      WRITE(KULOUT,FMT=9141) NSATGO, (NIDSATGO (JK), JK=1,NSATGO)
+C
+ 9140 FORMAT(/,3X,'- Parameters used for GO processing'
+     S      ,' (read in NAMGO)'
+     S      ,/,3X,'  ----------------------------------'
+     S      ,'------------------'
+     S      ,/,6X,'Testing of adjoints     : ',2X,L1
+     S      ,/,6X,'RADIANCE debug          : ',2X,L1
+     S      ,/,6X,'Nadir calculation       : ',2X,L1
+     S      ,/,6X,'Radiative transfer model: ',2X,A)
+C
+ 9141 FORMAT(/,6X,"Number of satellites    : ",I3
+     S      ,/,6X,"Satellites              : ",10I3)
+C
+      WRITE(KULOUT,FMT=9142)
+ 9142 FORMAT(//,3X,"- Reading and initialization in preparation to the "
+     S     ,"RADIANCE processing",/,5X,64('-'))
+C
+C*    2. Initialize the observation error covariance
+C     .  -------------------------------------------
+C
+ 200  CONTINUE
+C
+      CALL SUGOESST
+C
+C
+C*    3. Initialize MSCFAST radiance transfer model
+C     .  ------------------------------------------
+C
+ 300  CONTINUE
+C
+      IF     ( CRTMODLGO .EQ. 'MSCFAST' ) THEN
+         WRITE(KULOUT,FMT=9300)
+ 9300    FORMAT(//,10x,"-INIRAD: initializing the MSCFAST radiative "
+     S     ,"transfer model" )
+C
+C*        3.1 Jour julien l'anne et le mois de NSTAMP
+C     .       ---------------------------------------
+C
+         DELT  = 0.0
+         IPAS  = 0
+         IJULIAN = JJULIEN(DELT,IPAS,NBRPSTAMP)
+         RESULT  = NEWDATE(NBRPSTAMP,IDATE,ITIME,-3)
+         IYEAR   = IDATE/10000
+         IMONTH  = ( IDATE - IYEAR*10000 ) / 100
+         IDAY    = ( IDATE - ( IYEAR*10000 + IMONTH*100 ) )
+         IF (RESULT.NE.0) THEN
+            WRITE(KULOUT,FMT=9303) KIERR
+ 9303       FORMAT(' SUGOES: Error in NEWDATE', I10)
+            CALL ABORT3D(KULOUT,'SUGOES           ')
+         ENDIF
+C
+C*        3.1.0 On fixe le comdeck cominitrad
+C     .       -------------------------------
+C
+         NJULIAN = IJULIAN
+         NIYEAR  = IYEAR
+         NMONTH  = IMONTH
+         NIDAY   = IDAY
+C
+C*        3.1.1 On fixe les parametres pour MSCFAST
+C     .       -----------------------------------
+         CALL RTMSCGETPAR(JPPFGO,JPNL,JPNB,JPNLATO3,
+     x                   JPNLEVO3,JPNTEM,JPNGP1,
+     x                   NSATGO,NIDSATGO,LXACTGO,LTSTGO,
+     x                   LDBGGO,LRTNADIRGO,CRTMODLGO,NICLOUD,
+     x               NIASSIM,NEMIFLAG,NIPSFLAG,NKBIAS,NIMODE,
+     x                   NKTUNE,NIB1,NIB2,IJULIAN,IYEAR,
+     x                   IMONTH,IDAY,NNGAS,NIGO)
+C
+C
+C
+C*        3.2 Boucle sur les satellites a traiter
+C     .       -----------------------------------
+         DO JK = 1, NSATGO
+C            CDSATNAM = NIDSATGO(JK)
+            IF ( NIDSATGO(JK) .LT. 10 ) THEN
+               WRITE( CDUM, '(I1)' ) NIDSATGO(JK)
+               write(kulout,*) 'CDSATNUM = ',CDUM
+               CDSATNAM = 'GOES0' // CDUM
+            ELSE
+               WRITE( CDUM, '(I2)' ) NIDSATGO(JK)
+               write(kulout,*) 'CDSATNUM = ',CDUM
+               CDSATNAM = 'GOES' // CDUM
+            ENDIF
+            write(kulout,*) 'CDSATNAM = ',CDSATNAM
+c
+            IF ( KIERR .NE. 0 ) THEN
+               WRITE(KULOUT,FMT=9301) KIERR
+ 9301          FORMAT(' SUGOES: Error in RTMSCGETPAR', I10)
+               CALL ABORT3D(KULOUT,'SUGOES           ')
+            ENDIF
+         ENDDO
+      ENDIF
+*
+      RETURN
+      END

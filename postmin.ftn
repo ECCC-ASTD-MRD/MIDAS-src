@@ -1,0 +1,406 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine postmin
+      use mod4dv, only : l4dvar
+!modular1      use modstag, only : lstagwinds
+#if defined (DOC)
+*
+***s/r postmin  - Post-minimization control of the 3Dvar
+*
+*
+*Author  : S. Pellerin *ARMA/SMC  May 2000
+*Revision:
+*	    S. Pellerin: fix to spa2sp/spgd call conditions
+*           C. Charette - ARMA/SMC - Sep. 2004
+*            - Conversion to hybrid vertical coordinate
+*           Bin He  *ARMA/SMC Dec. 2006
+*            - added calling memfree before varout to free some memories
+*              which are not needed in varout.
+*           S. Pellerin August 2008
+*            - Added calls to 'tmg_*' subroutines
+*           L. Fillion - ARMA/SMC - Feb. 2005 - Limited area LAM4D analysis option.
+*           L. Fillion ARMA/EC May 2006: LAM4D upgrade to v10_0_0.
+*           L. Fillion ARMA/EC 21 Feb 2007: Include option to write glb-st-dev on anal incr file (anal res).
+*           L. Fillion ARMA/EC 14 Aug 2007 - Update LAM4D to v_10_0_3.
+*           L. Fillion ARMA/EC 27 Feb 2008 - Include deallocation of vatra array to allow running on pollux.
+*           L. Fillion ARMA/EC 14 Oct 2009 - Comment call to stdevout.ftn ... impacts minimization in v1033 if used in sucov.ftn ...
+*           Bin He   *ARMA/MRB   Oct. 2009 
+*                  - Implemented MPI to 3DVAR  
+*           L. Fillion ARMA/EC Oct 2009 - Include global rotated grid option. Rewrite varout.ftn for rotated regional and 'LU' mode
+*           L. Fillion ARMA/EC 4&20 May 2010 - Upgrade to v_11_01b. Skip
+*                     some preliminary obs-space treatment below when in l1obs mode.
+*                     Improve output of HU field.
+*    -------------------
+**
+*
+*Arguments
+*    -NONE-
+#endif
+      USE procs_topo ,ONLY  :myid 
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comcva.cdk"
+#include "comgem.cdk"
+#include "comgdpar.cdk"
+#include "compost.cdk"
+#include "comgd0.cdk"
+#include "compdg.cdk"
+#include "localpost.cdk"
+#include "comoabdy.cdk"
+#include "comvarqc.cdk"
+#include "comvfiles.cdk"
+#include "comgrd_param.cdk"
+#include "comsim.cdk"
+#include "com1obs.cdk"
+#include "comcorr.cdk"
+#include "comoba.cdk"
+*
+C
+      LOGICAL LLTEST,llstdevout
+      INTEGER IZS(1)
+      REAL*8 ZZS(1)
+      REAL*8 DLDS(1)
+      real*8 zpsig(ni,nflev,nj)
+      real*8 z3d(ni,nflev,nj)
+
+      CHARACTER *8 CSTATUS
+C
+      INTEGER IMPRES, IMODE, ITERMAX, ISIMMAX, INDIC, ISCALE
+      INTEGER IERR,ITERDONE,ITERTOT,JK, JLA,ilen,jj,ji
+      REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS, ZSMACH,ztemp,zy,zr
+      REAL*8 DLGNORM, DLXNORM, DLGNORM0, DLGNORMS
+C
+      integer idum1,idum2,idum3,idum4,ipt,ibeg,iend,jbeg,jend
+      integer ini,index,ii,ij,jk1,jk2
+      real*8 zcon,zcorr,zx,zl
+      real*8  zmin,zmax
+!
+      LOGICAL LSTAGTEMP
+      INTEGER FNOM,FCLOS
+      EXTERNAL FNOM,FCLOS
+      EXTERNAL  TESTSP, M1QN2, M1QN3, ABORT3D
+     S     , SIMQN, SCALQN, CANAB, CANONB, PRSCAL , DEMARRE
+     S     , TRANSFER, SUPOST
+c
+c     if a restart file was writen at the end of minimize.ftn,
+c     lrestart was turn to .true. to avoid postmin exection
+c
+      if (lrestart) return
+c
+      write(nulout,*) 'ENTERING POSTMIN'
+c
+      LVARDIAG=.FALSE.
+      llstdevout = .false.
+!
+      deallocate(vatra,STAT=ierr)
+      IF(IERR.EQ.0) THEN
+        WRITE(NULOUT,FMT='(10X," POSTMIN: VATRA checked and correct",
+     S         ". IERR =",I3)')IERR
+      endif
+!
+      ILEN = NI*NFLEV*NJ
+      CALL HPALLOC(PXTTG,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXGZG,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXHUG,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXUUG,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXVVG,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXPP,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXQQ,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXCC,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXQR,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXDD,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXTTB,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXTTU,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXTV,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXGZ,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXGZB,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXGZU,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXES,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXESG,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXHU,MAX(1,ILEN),IERR,8)
+      CALL HPALLOC(PXO3,MAX(1,NI*NJ),IERR,8)
+      CALL HPALLOC(PXPSG,MAX(1,NI*NJ),IERR,8)
+      CALL HPALLOC(PXPSB,MAX(1,NI*NJ),IERR,8)
+      CALL HPALLOC(PXPSU,MAX(1,NI*NJ),IERR,8)
+      CALL HPALLOC(PXPT,MAX(1,NI*NJ),IERR,8)
+
+*
+      CALL ZERO(ILEN,ZQQ(1,1,1))
+      CALL ZERO(ILEN,ZQR(1,1,1))
+      CALL ZERO(ILEN,ZPP(1,1,1))
+      CALL ZERO(ILEN,ZDD(1,1,1))
+      CALL ZERO(ILEN,ZCC(1,1,1))
+      CALL ZERO(ILEN,ZUUG(1,1,1))
+      CALL ZERO(ILEN,ZVVG(1,1,1))
+      CALL ZERO(ILEN,ZTTG(1,1,1))
+      CALL ZERO(ILEN,ZGZG(1,1,1))
+      CALL ZERO(ILEN,ZTTB(1,1,1))
+      CALL ZERO(ILEN,ZTTU(1,1,1))
+      CALL ZERO(ILEN,ZTV(1,1,1))
+      CALL ZERO(ILEN,ZGZ(1,1,1))
+      CALL ZERO(ILEN,ZGZB(1,1,1))
+      CALL ZERO(ILEN,ZGZU(1,1,1))
+      CALL ZERO(ILEN,ZES(1,1,1))
+      CALL ZERO(ILEN,ZESG(1,1,1))
+      CALL ZERO(ILEN,ZHU(1,1,1))
+      CALL ZERO(ILEN,ZHUG(1,1,1))
+      CALL ZERO(NI*NJ,ZO3(1,1))
+      CALL ZERO(NI*NJ,zpsg(1,1))
+      CALL ZERO(NI*NJ,zpsb(1,1))
+      CALL ZERO(NI*NJ,zpsu(1,1))
+      CALL ZERO(NI*NJ,zpt(1,1))
+
+C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
+C     after minimization has ended. From this point all CMA
+C     references are to ROBDATA.
+
+      if(.not.l1obs) then
+        call cprob8to4
+C
+        IF (LVARQC) CALL LISTREJ
+C
+        CALL VINT3DFD(NCMOMA)
+        CALL VINT3DFD(NCMOMF)
+        CALL SETASSFLG
+        CALL FILBRPPOST
+        !
+!      DEALLOCATE(ROBDATA8,STAT=IERR)   ! problems appears here....
+!      IF(IERR.EQ.0) THEN
+!        WRITE(NULOUT,*) 'postmin:  PTROBDATA8 checked and correct'
+!      ELSE
+!        WRITE(NULOUT,*) 'postmin:  PTROBDATA8 destroyed !!!!!!'
+!      END IF
+c
+        CALL SUPOST  ! problem with nflev = 1
+c
+        NIP2  = NIP2A
+        NIG2  = NIG2A
+        NDEET = NDEETA
+        NPAS  = NPASA
+        NSTAMP= NSTAMPA
+        CVARPOST = 'R'
+      endif
+c
+      WRITE(NULOUT,FMT='(/," POSTMIN - Postprocessing")')
+      WRITE(NULOUT,FMT='(11X,"of the analysis increment (X -Xb)")')
+
+C In l4dvar mode transform of variables has already been done in ENDSIM2
+C at the end of minimize
+      if(.not. l4dvar .or. .not. ltlmend) then
+        call tmg_start(51,'VAR_CH') !
+!
+        if(l1obs) then
+!          if(grd_typ.eq.'GU') call gu_1obs
+!          if(grd_typ.eq.'LU') call lu_1obs
+        endif
+!
+        CALL CAIN(NVADIM,VAZX)
+!
+        if(grd_typ.eq.'GU') then
+          if(lsw) then
+!modular1            call spa2spsw
+!modular1            call spgd
+          else
+            WRITE(NULOUT,*)' postmin: Transform analysis variables to'
+     S       ,' model variables -'
+            if(nanalvar.eq.4) then
+!modular1              LSTAGTEMP=LSTAGWINDS
+!modular1              LSTAGWINDS=.FALSE.
+              CALL SPA2GD
+!modular1              LSTAGWINDS=LSTAGTEMP
+            else
+!modular1              CALL SPA2SP
+!modular1              call spgd
+            endif
+          endif
+        else if (grd_typ.eq.'LU') then
+!modular1          call cv2gd
+        endif
+        call tmg_stop (51)      !
+      endif
+c
+C      Compute increments of HU on analysis grid
+c      This field is compulsary because it is used
+c      to produce the analysis of HU in FELIX
+c
+        do jj=1,nj
+          do jk=1,nflev
+            do ji=1,ni
+              zpsig(ji,jk,jj)=psig(ji,jk,jj)
+              zuug(ji,jk,jj)=utg(ji,jk,jj)
+              zvvg(ji,jk,jj)=vtg(ji,jk,jj)
+              zttg(ji,jk,jj)=ttg(ji,jk,jj)
+              zgzg(ji,jk,jj)=gzg(ji,jk,jj)
+              zhug(ji,jk,jj)=qg(ji,jk,jj)
+            enddo
+          enddo
+        enddo
+        do ji=1,ni
+          do jj=1,nj
+            zpsg(ji,jj)=gpsg(ji,1,jj)
+          enddo
+        enddo
+!
+        do jk = 1,nflev
+          do jj = 1,nj
+            do ji = 1,ni
+              z3d(ji,jk,jj) = ut0(ji,jk,jj)
+            enddo
+          enddo
+        enddo
+        call maxmin(z3d,ni,nj,nflev,zmin,zmax,
+     &              idum1,idum2,idum3,idum4,'postmin        ',
+     &              'U0 ')
+        do jk = 1,nflev
+          do jj = 1,nj
+            do ji = 1,ni
+              z3d(ji,jk,jj) = tt0(ji,jk,jj)
+            enddo
+          enddo
+        enddo
+        call maxmin(z3d,ni,nj,nflev,zmin,zmax,
+     &              idum1,idum2,idum3,idum4,'postmin        ',
+     &              'T0 ')
+!
+        do jk = 1,nflev
+          do jj = 1,nj
+            do ji = 1,ni
+              z3d(ji,jk,jj) = q0(ji,jk,jj)
+            enddo
+          enddo
+        enddo
+        call maxmin(z3d,ni,nj,nflev,zmin,zmax,
+     &              idum1,idum2,idum3,idum4,'postmin        ',
+     &              'Q0 ')
+!
+!
+      if(grd_typ.eq.'LU') then
+!        ibeg = 1+miobsbufw
+!        iend = ni-miobsbufe
+!        jbeg = 1+mjobsbufs
+!        jend = nj-mjobsbufn
+        ibeg = 1
+        iend = ni
+        jbeg = 1
+        jend = nj
+      else
+        ibeg = 1
+        iend = ni
+        jbeg = 1
+        jend = nj
+      endif
+c
+      IF ( CHUM .EQ. 'LQ') THEN
+        zhu(:,:,:) = 0.0
+        if(grd_typ.eq.'LU'.or.lcva_hemis) then  ! better way than std-global... will have to standardize eventually.
+          do jk = 1,nflev
+            do jj = jbeg,jend
+              do ji = ibeg,iend
+                if(q0(ji,jk,jj).gt.10.0) q0(ji,jk,jj) = 10.0   ! set upper bound since this may simply be due to an articicial
+!                                                              problem when output is done after only a few minimization
+!                                                              iterations...
+                zhu(ji,jk,jj) = zhug(ji,jk,jj)*(exp(q0(ji,jk,jj)) - 1.0)
+              enddo
+            enddo
+          enddo
+        else 
+          do jk = 1,nflev
+            do jj = jbeg,jend
+              do ji = ibeg,iend
+                ZTEMP = log(zhug(ji,jk,jj)) + q0(ji,jk,jj)
+                zhu(ji,jk,jj) = EXP(ZTEMP) - zhug(ji,jk,jj)
+              enddo
+            enddo
+           enddo
+        endif
+      endif
+      IF ( CHUM .EQ. 'ES') THEN
+!modular1        call mhuaesgd(zesg,zhug,zttg,zpsg,zpt,ni,nj,nflev)
+!modular1        call lesahugd(zhu,zttg,zhug,zesg,zpsg,zpt,ni,nj,nflev)
+      ENDIF
+!
+      if(grd_typ.eq.'LU') then
+!        if(.not.lsw) call diag3dla
+        if(lsw) then
+!          call varbasic_sw(zpsig,zuug,zvvg,zttg,zhug,zpsg) ! output basic-state fields before memfree...
+        endif
+!        call diagout_la(zpsig,zuug,zvvg,zttg,zhug,zpsg)
+        if(llstdevout) then
+          if(myid == 0) call stdevout_la     ! writing (on anal-res anal incr file) lam st-dev used in this experiment
+        endif
+        call memfree(nulout)
+!
+!modular1        if(myid == 0 ) then
+!modular1          if(grd_roule) then
+!modular1            call varoutlow
+!modular1            call varouthigh
+!modular1          endif
+!modular1        endif
+!cluc        if(myid == 0) call varoutla
+      else
+        if(llstdevout) then
+!cluc validation required...  call stdevout     ! writing (on anal-res anal incr file) global st-dev used in this experiment
+!cluc          call post_regres
+        endif
+        call diag3dvar
+        call memfree(nulout)
+!
+        call tmg_start(99,'VAROUT')
+!
+        if(myid == 0 ) then
+!modular1          if(grd_roule) then
+!modular1            call varoutlow
+!modular1            call varouthigh
+!modular1          else
+            call varout
+!modular1          endif
+        endif
+!
+        call tmg_stop(99)
+      endif
+C
+      CALL HPDEALLC(PXTTG,IERR,1)
+      CALL HPDEALLC(PXHUG,IERR,1)
+      CALL HPDEALLC(PXUUG,IERR,1)
+      CALL HPDEALLC(PXVVG,IERR,1)
+      CALL HPDEALLC(PXPP,IERR,1)
+      CALL HPDEALLC(PXQQ,IERR,1)
+      CALL HPDEALLC(PXCC,IERR,1)
+      CALL HPDEALLC(PXQR,IERR,1)
+      CALL HPDEALLC(PXDD,IERR,1)
+      CALL HPDEALLC(PXTTB,IERR,1)
+      CALL HPDEALLC(PXTTU,IERR,1)
+      CALL HPDEALLC(PXTV,IERR,1)
+      CALL HPDEALLC(PXGZ,IERR,1)
+      CALL HPDEALLC(PXGZB,IERR,1)
+      CALL HPDEALLC(PXGZU,IERR,1)
+      CALL HPDEALLC(PXES,IERR,1)
+      CALL HPDEALLC(PXESG,IERR,1)
+      CALL HPDEALLC(PXHU,IERR,1)
+      CALL HPDEALLC(PXO3,IERR,1)
+      CALL HPDEALLC(PXPSG,IERR,1)
+      CALL HPDEALLC(PXPSB,IERR,1)
+      CALL HPDEALLC(PXPSU,IERR,1)
+      CALL HPDEALLC(PXPT,IERR,1)
+
+      write(nulout,*) 'LEAVING POSTMIN'
+      RETURN
+      END

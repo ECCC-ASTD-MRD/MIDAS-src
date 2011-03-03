@@ -1,0 +1,302 @@
+
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine getfstg2(ptg,pgzg,pqg,pug,pvg,pesg,ppsg,ppt)
+      use mod4dv, only : l4dvar
+*
+#if defined (DOC)
+*
+***s/r getfstg2 - Get some background fields on analysis grid.
+*                 These fields are needed for:
+*                 (1) Defining the balanced part of analysis increments when
+*                     constructing the control vector (and vice-versa: see cv2gd)
+*                 (2) Postprocessing diagnostic analysis increments on the analysis grid
+*                     using TL observation operators.
+*                 (3) On output, pug,pvg contains wind-images.
+*
+*Author  : L. Fillion  *ARMA/AES - 13 nov 98
+*Revision:
+*          C. Charette *ARMA/AES  Nov 1998
+*                       - Added T-Td field
+*          S. Pellerin *ARMA/SMC May 2000
+*                       - Horizontal and vertical interpolation from
+*                         trial grid to analysis grid (and levels)
+*          S. Pellerin *ARMA/SMC Feb. 2002
+*                       - Selection of initial time model cube in 4dvar
+*                         context
+*          C. Charette *ARMA/SMC Sept 2004
+*                       - Conversion to hybrid vertical coordinate
+*                         Remove reading of PT field
+*          C. Charette *ARMA/SMC Dec. 2005
+*                       - Derive locally T-TD from TT and HU 
+*                         Reading of trial fld of T-TD is removed
+*          Bin He     *ARMA/SMC  - Apr. 2008
+*                      - Dealing with multiple trial files.
+*          L. Fillion *ARMA/EC 10 Apr 07 - Add documentation about wind-images.
+*          L. Fillion *ARMA/EC 20 Apr 07 - Correct bug on array pesg present in v_10_0_0.
+*          L. Fillion *ARMA/EC 14 Aug. 2007 - Update to v_10_0_3.
+*          L. Fillion *ARMA/EC 28 Apr. 2008 - Update to v_10_1_0.
+*          L. Fillion *ARMA/EC 22 May  2008 - Update to v_10_1_1.
+*          L. Fillion *ARMA/EC 11 Feb  2010 - Include rotated Gaussian grid option via grd_roule parameter.
+*          L. Fillion *ARMA/EC 11 Feb  2010 - Introduce isgid,iuugid,ivvgid & Cosmetic changes.
+*
+*Arguments
+*
+#endif
+C
+      use modfgat, only : nstamplist
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comct0.cdk"
+#include "comgem.cdk"
+#include "rpnstd.cdk"
+#include "cvcord.cdk"
+#include "comgdpar.cdk"
+#include "comgrd_param.cdk"
+#include "comcva.cdk"
+#include "comgemla.cdk"
+
+*
+      logical llvint
+      REAL*8 SFOQST8,SFOEW8
+      EXTERNAL SFOQST8,SFOEW8
+*
+      INTEGER ibrpstamp
+      real*8 ptg(ni,nflev,nj), pqg(ni,nflev,nj), pesg(ni,nflev,nj)
+      real*8 pug(ni,nflev,nj), pvg(ni,nflev,nj), pgzg(ni,nflev,nj)
+      real*8 ppt(ni,nj),ppsg(ni,nj)
+*
+      character*1 clgr, ctyp
+      character*2 cnom
+      character*3 clvar
+      character*8 cetiket
+      integer idatet,idt,ibits,idtyp
+      integer ilng,ix1,ix2,ix3
+      integer ier,ikey,ji,jj,jk,jlev
+      integer igdgid,ezqkdef,ezgdef_fmem
+      integer isgid,iuugid,ivvgid
+      integer idum1,idum2,idum3,idum4
+      integer iig1,iig2,iig3,iig4,ezgprm,iwindgid,vezsint
+      integer ig1tic,ig2tic,ig3tic,ig4tic
+      real*8 zmin,zmax,zcon
+*
+      LOGICAL ldhu2es
+ccc debug
+      real ax(ni),ay(nj)
+      REAL*8 zqsat
+      REAL*8 ZTRANS(ni,nj,nflev),zvvg(ni,nj,nflev)
+      REAL*8 ZPPG(ni,nj,nflev),zpsg(ni,nj),zpresa,zpresb
+      REAL*8 zttg(ni,nj,nflev),zqqg(ni,nj,nflev)
+      REAL*8 zgzg(ni,nj,nflev)
+!
+      real ax_u(ni),ay_v(nj)
+      real zxlon1_4,zxlat1_4,zxlon2_4,zxlat2_4
+*
+      EXTERNAL ABORT3D
+*
+      WRITE(NULOUT,FMT='(/,4X,"Starting GETFSTG2",//)')
+!
+!!
+      llvint = .true.
+      if(lcva_hemis.or.grd_typ.eq.'LU') llvint = .false.
+!
+      if(l4dvar) then
+        ibrpstamp=nstamplist(1)
+      else
+        ibrpstamp=nbrpstamp
+      endif
+!
+!*1   Define Grids
+!     ************
+!
+      if(.not.grd_roule) then
+        igdgid = ezqkdef(ni, nj, 'G', 0,0,0,0,0)
+!
+!       define grid id info before calling inteprolation subroutine below
+        isgid = igdgid 
+        iuugid  = isgid   ! winds on same grid as other fields
+        ivvgid  = isgid   ! winds on same grid as other fields
+!
+      else  ! Rotated Gaussian grid
+        zxlon1_4 = grd_xlon1
+        zxlat1_4 = grd_xlat1
+        zxlon2_4 = grd_xlon2
+        zxlat2_4 = grd_xlat2
+!
+        do ji=1,ni
+          ax(ji) = grd_x_8(ji)
+        enddo
+!
+        do ji=1,ni-1
+          ax_u(ji) = grd_u_x_8(ji)
+        enddo
+!
+        do jj=1,nj
+         ay(jj) = grd_y_8(jj)
+        enddo
+!
+        do jj=1,nj-1
+          ay_v(jj) = grd_v_y_8(jj)
+        enddo
+!
+        call cxgaig('E',ig1tic,ig2tic,ig3tic,ig4tic,
+     &              zxlat1_4,zxlon1_4,zxlat2_4,zxlon2_4)
+!
+        call cigaxg('E', zxlat1_4, zxlon1_4, zxlat2_4, zxlon2_4,
+     &              ig1tic,ig2tic,ig3tic,ig4tic)
+!
+        isgid = ezgdef_fmem(ni,nj,'Z','E',ig1tic, ig2tic,ig3tic,ig4tic,
+     &                        ax,ay)
+        iuugid = ezgdef_fmem(ni-1,nj,'Z','E',ig1tic, ig2tic,ig3tic,ig4tic,
+     &                         ax_u,ay)
+        ivvgid = ezgdef_fmem(ni,nj-1,'Z','E',ig1tic, ig2tic,ig3tic,ig4tic,
+     &                         ax,ay_v)
+      endif
+!
+!*2.  Read trial fields and interpolate them to analysis grid
+!     -------------------------------------------------------
+!
+      IDATE(1) = -1
+      CLETIKET = ' '
+      CLTYPVAR = 'P'
+!
+!     Surface-pressure
+!
+      write(nulout,*)'getfstg2: reading P0'
+      CLNOMVAR = 'P0'
+!
+      write(nulout,*) 'getfstg2: ibrpstamp = ',ibrpstamp
+!
+      call vhfstfld(zpsg,ni*nj,isgid,zvvg,ni*nj,ivvgid,1
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(ppsg,zpsg,ni,nj,1,0,CLNOMVAR)
+!
+      call maxmin(ppsg,ni,nj,1,zmin,zmax,
+     &            idum1,idum2,idum3,idum4,'getfstg2       ',
+     &            'PSG')
+!
+!      Temperature
+!
+      write(nulout,*)'getfstg2: reading TT'
+      CLNOMVAR = 'TT'
+
+      call vhfstfld(zttg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(ptg,zttg,ni,nj,nflev,0,CLNOMVAR)
+!
+      call maxmin(ptg,ni,nj,nflev,zmin,zmax,
+     &            idum1,idum2,idum3,idum4,'getfstg2       ',
+     &            'TTG')
+!
+!     Geopotential
+!     ------------
+      write(nulout,*)'getfstg2: reading GZ'
+      CLNOMVAR = 'GZ'
+! 
+      call vhfstfld(zgzg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(pgzg,zgzg,ni,nj,nflev,0,CLNOMVAR)
+!
+!      Specific-Humidity
+!
+      write(nulout,*)'getfstg2: reading HU'
+      CLNOMVAR = 'HU'
+!
+      call vhfstfld(zqqg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(pqg,zqqg,ni,nj,nflev,0,CLNOMVAR)
+!
+      cletiket='BASICGD '
+      clvar = 'HU '
+      call maxmin(pqg,ni,nj,nflev,zmin,zmax,
+     &            idum1,idum2,idum3,idum4,'getfstg2       ',
+     &            'HUG')
+!
+!     Dewpoint depression
+!
+      write(nulout,*)' '
+      write(nulout,*)'---------------------------------------'
+      write(nulout,*)'getfstg2: Calculating ES from HU and TT'
+      write(nulout,*)'---------------------------------------'
+      write(nulout,*)' '
+      write(nulout,*)'getfstg2: rptopinc = ',rptopinc
+      write(nulout,*)'getfstg2: rprefinc = ',rprefinc
+      write(nulout,*)'getfstg2: rcoefinc = ',rcoefinc
+      if(rptopinc.eq.rprefinc) then
+        call abort3d(nulout,'getfstg2: rptopinc cant be equal to rprefinc')
+      endif
+!
+      do jlev = 1, nflev
+        write(nulout,*) 'getfstg2: Level = ',jlev
+        write(nulout,*) 'getfstg2: vhybinc(jlev) = ',vhybinc(jlev)
+        zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
+     &           /(1.0D0-rptopinc/rprefinc))**rcoefinc
+        write(nulout,*) 'getfstg2: zpresb = ',zpresb
+        do jj = 1,nj
+          do ji = 1,ni
+            zpresa = rprefinc * (vhybinc(jlev)-zpresb)
+            zppg(ji,jj,jlev) = zpresa + zpresb*zpsg(ji,jj)*100.0D0
+          enddo
+        enddo
+      enddo
+
+!     ES trial fld  calculation (water phase)
+!     pqg = specific humidity;
+!     pug = true temperature in kelvin (work fld)
+!     ptg = true temperature in celsius
+!     pvg = pressure in pascal (work fld)
+      do jlev = 1,nflev
+        do jj = 1, nj
+          do ji = 1, ni
+            zttg(ji,jj,jlev) = zttg(ji,jj,jlev) + 273.16D0
+            zqsat= SFOQST8(zttg(ji,jj,jlev),zppg(ji,jj,jlev))
+            zqqg(ji,jj,jlev)= MIN ( zqsat ,zqqg(ji,jj,jlev) )
+          enddo
+        enddo
+      enddo
+      CALL MHUAESGD2(ztrans,zqqg,zttg,zppg,ni,nj,nflev,.false.)
+      CALL INITGDG2(pesg,ztrans,ni,nj,nflev,0,CLNOMVAR)
+!
+!      U wind-image component
+!
+      write(nulout,*)'getfstg2: reading UU and VV'
+      CLNOMVAR = 'UU'
+!
+      call vhfstfld(ztrans,ni*nj,isgid,zvvg,ni*nj,isgid,nflev  ! ztrans=uu,zvvg=vv interpolated... 
+     &     ,vhybinc,'UV',ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,'LINEAR')
+      CALL INITGDG2(pug,ztrans,ni,nj,nflev,0,CLNOMVAR) ! on output, pug contains U wind-image.
+!
+!      V wind-image component
+!
+      CLNOMVAR = 'VV'
+      CALL INITGDG2(pvg,zvvg,ni,nj,nflev,0,CLNOMVAR) ! on output, pvg contains V wind-image.
+!
+!
+      RETURN
+      END

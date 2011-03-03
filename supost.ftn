@@ -1,0 +1,245 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUPOST
+#if defined (DOC)
+*
+***s/r SUPOST  - initialize the post-processing of the model state
+*     .
+*
+*Author  : P. Gauthier *ARMA/AES  Sept. 20, 1993
+*Revision: C. Charette *ARMA/AES  Jan 96
+*     .       -Initialize RPN standard file parameters
+*           C. Charette *ARMA/AES  Jan 96
+*     .       -Documented the compulsary and diagnostic variables
+*              available for each mode of execution of the 3dvar
+*           L. Fillion *ARMA/MSC  Feb 05
+*     .       -Include LAM4D limited area analysis option.
+*           L. Fillion ARMA/EC May 2006: Mesovar upgrade to v10_0_0.
+*           L. Fillion ARMA/EC 15 Aug 2007: LAM4D upgrade to v10_0_3.
+*           L. Fillion ARMA/EC 4 Nov 2009: mdimppcvar(nppcnvar) contains the nb. vert. levels output for each cppcvar(jvar)...
+*           L. Fillion ARMA/EC 31 May 2010: Improve output of LQ and HU.
+*     .
+*
+*Arguments
+*     - NONE -
+#endif
+C
+      IMPLICIT NONE
+#include "comct0.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "compost.cdk"
+#include "comgrd_param.cdk"
+#include "comgdpar.cdk"
+C
+      INTEGER JLEV, IERR,jvar,ihu,itt,ivt,imin,igz,ip0,ilq
+      WRITE(NULOUT,FMT=9000)
+ 9000 FORMAT(//,1X,6("***********")
+     S     ,/,6X,'SUPOST:  initialization of postprocessing'
+     S     ,1X,6("***********"))
+C
+C*    1. Set default values
+C
+ 100  CONTINUE
+      DO JLEV = 1, NFLEV
+         NPPLEV(JLEV) = 0
+      END DO
+C
+*----------------------------------------------------------------
+*      CVCORD = 'PRESS'
+*      COMPULSARY VARIALBES:'UU','VV','GZ','ES'
+*      DIAGNOSTIC VARIABLES:'PP','CC','QR','QQ','DD','ZB','ZU'
+*----------------------------------------------------------------
+*      CVCORD = 'ETAGE' .AND. CHUM = 'LQ'
+*      COMPULSARY VARIALBES:'UU','VV','TT','HU','P0','LQ'
+*      DIAGNOSTIC VARIABLES:'GZ','ES','VT','QR','DD','QQ','PP','CC',
+*                           'TB','TU','ZB','ZU' 'PB','PU'
+*
+*-----------------------------------------------------------------
+*      CVCORD = 'ETAGE' .AND. CHUM = 'ES'
+*      COMPULSARY VARIALBES:'UU','VV','TT','HU','P0','ES'
+*      DIAGNOSTIC VARIABLES:'GZ','VT','QR','DD','QQ','PP','CC',
+*                           'TB','TU','ZB','ZU' 'PB','PU'
+*
+*-----------------------------------------------------------------
+*     CVCORD = 'PRESS' DEFAULT VALUES
+      do jlev = 1,JPNFLEV
+        NPPLEV(jlev)  =  0
+      enddo
+
+      NPPCVAR=13
+      CPPCVAR(1) = 'UU'
+      CPPCVAR(2) = 'VV'
+      CPPCVAR(3) = 'TT'
+      CPPCVAR(4) = 'LQ'
+      CPPCVAR(5) = 'P0'
+      CPPCVAR(6) = 'TG'
+      CPPCVAR(7) = 'HU'
+      CPPCVAR(8) = 'GZ'
+      CPPCVAR(9) = 'ES'
+      CPPCVAR(10)= 'QR'
+      CPPCVAR(11)= 'DD'
+      CPPCVAR(12)= 'VT'
+      CPPCVAR(13)= 'QQ'
+      CPPCVAR(14)= 'PP'
+      CPPCVAR(15)= 'CC'
+      CPPCVAR(16)= 'TB'
+      CPPCVAR(17)= 'TU'
+      CPPCVAR(18)= 'ZB'
+      CPPCVAR(19)= 'ZU'
+      CPPCVAR(20)= 'PB'
+      NPPLEV(1)  =  -1
+      mdimppcvar(:) = 1
+C
+      lanlhu2es = .false.
+      lswphes   = .false.
+      rlimit_es  = 30.0
+C
+C*    2. Read the parameters from NAMPOST
+C
+ 200  CONTINUE
+C
+      CALL READNML('NAMPOST',IERR)
+C
+      CVARPOST   = 'A'
+      NIP2       =  0
+      NDEET      =  0
+      NPAS       =  0
+      NIDATYP    =  1
+      NPAK       =  -30
+      NSTAMP     =  0101010101
+!
+      if (grd_typ.ne.'LU') then
+        CGRTYP     = 'G'
+        NIG1       =  0
+        NIG2       =  0
+        NIG3       =  0
+        NIG4       =  0
+      else
+        CGRTYP     =  cgrtypa
+        NIG1       =  nig1t
+        NIG2       =  nig2t
+        NIG3       =  nig3t
+        NIG4       =  nig4t
+      endif
+C
+C*    3. Define the levels at which postprocessing is to occur
+C
+ 300  CONTINUE
+C
+c reordering cppcvar for dependent variables in varout.ftn
+c
+      ip0 = 0
+      ihu = 0
+      itt = 0
+      ivt = 0
+      lttout = .false.
+      lhuout = .false.
+      lolqout= .false.
+      lgzout = .false.
+c
+      mdimppcvar(:) = nflev
+!
+      do jvar = 1,nppcvar
+        if(cppcvar(jvar).eq.'TG') then
+          mdimppcvar(jvar) = 1
+        endif
+        if(cppcvar(jvar).eq.'TB') then
+          mdimppcvar(jvar) = 1
+        endif
+        if(cppcvar(jvar).eq.'P0') then
+          ip0 = jvar
+          mdimppcvar(jvar) = 1
+        endif
+        if(cppcvar(jvar).eq.'TT') then
+          itt = jvar
+          lttout = .true.
+        endif
+        if(cppcvar(jvar).eq.'GZ') then
+          igz = jvar
+          lgzout = .true.
+        endif
+        if(cppcvar(jvar).eq.'HU') then
+          ihu = jvar
+          lhuout = .true.
+        endif
+        if(cppcvar(jvar).eq.'VT') then
+          ivt = jvar
+          lvtout = .true.
+        endif
+        if(cppcvar(jvar).eq.'LQ') then
+          ilq = jvar
+          lolqout = .true.
+        endif
+      enddo
+c
+      if((lgzout.or.lvtout).and.ihu.eq.0) then
+c Make sure that HU is part of the list
+        ihu = nppcvar+1
+        cppcvar(ihu) = 'HU'
+        nppcvar = ihu
+        mdimppcvar(ihu) = nflev
+      endif
+c
+      if(ihu.ne.0) then
+c Make sure that TT is part of the list
+        imin = min(itt,ihu)
+        if (imin.eq.0) then
+c TT is not requested: put it in the list before HU
+          cppcvar(ihu) = 'TT'
+          cppcvar(nppcvar+1) = 'HU'
+          nppcvar = nppcvar + 1
+          mdimppcvar(nppcvar) = nflev
+        else
+C TT is requested: make sure that TT is before HU in the list
+          cppcvar(max(itt,ihu)) = 'HU'
+          cppcvar(imin) = 'TT'
+          mdimppcvar(imin) = nflev
+          mdimppcvar(max(itt,ihu)) = nflev
+        endif
+      endif
+c
+      if(ip0 .gt. 1) then
+        do jvar = ip0, 2,-1
+          cppcvar(jvar) = cppcvar(jvar -1)
+          mdimppcvar(jvar) = mdimppcvar(jvar-1)
+        enddo
+        cppcvar(1) = 'P0'
+        mdimppcvar(1) = 1
+      endif
+c
+      IF(NPPLEV(1).EQ.-1) THEN
+         DO JLEV = 1, NFLEV
+            NPPLEV(JLEV) = 1
+         END DO
+      END IF
+C
+C
+C*     4. Print the values
+C
+ 400  CONTINUE
+C
+      DO jvar = 1, NPPCVAR
+        WRITE(NULOUT,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5,2X,"NB LEVELS= ",I3)')
+     S        jvar,CPPCVAR(jvar),mdimppcvar(jvar)
+      ENDDO
+         WRITE(NULOUT,FMT='(4X,"LANLHU2ES=",L5,":",2X,"LSWPHES= ",L5
+     S     ,2X,"RLIMIT_ES= ",G12.6)')
+     S      LANLHU2ES,LSWPHES,RLIMIT_ES
+      RETURN
+      END

@@ -1,0 +1,169 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FILTMATRIX(PA,PROJ,PEIGEN,PEIGENV,KN,PEIGMIN,PALPHA)
+#if defined (DOC) 
+*
+***s/r FILTMATRIX  - Spectral filter of a symmetric matrix and construction
+*     .              of the associated projector onto the eigenvectors
+*     .              associated with the unfiltered eigenvalues
+*
+*
+*Author  : P. Gauthier *ARMA/AES  February 8, 1996
+*Revision:
+*           JM Belanger CMDA/SMC  Jul 2000 
+*                   . 32 bits conversion (HPALLOC, MXMA8, DSYEV)
+*
+*Arguments
+*     .  PA(KN,KN)     :  on entry, the original matrix
+*     .                   on exit,  the filtered matrix
+*     .  PROJ(KN,KN)   :  matrix to project a vector on the eigenvectors
+*     .                   associated with the unfiltered eigenvalues
+*     .  PEIGEN(KN,KN) : matrix of the eigenvectors
+*     .  PEIGENV(KN)   : vector containing the original eigenvalues
+*     .  KN            : order of the matrix
+*     .  PEIGMIN       : all eigenvalues below PEIGMIN are set to zero
+*     .  PALPHA        : value added to the diagonal to remove the
+*     .                  singularity
+#endif
+      IMPLICIT NONE
+*
+* Global variables
+*
+#include "comlun.cdk"
+* Arguments
+*
+      INTEGER KPROJ,KN
+      REAL*8 PA(KN,KN),PEIGENV(KN),PEIGEN(KN,KN),PROJ(KN,KN)
+      REAL*8       PEIGMIN, PALPHA
+*
+* Local variables
+*
+      INTEGER JI, J, INFO, IER, IWORK
+      REAL*8 ZWORK(1), ZRESULT(KN,KN), ZALPHA, ZVARTOTAL, ZVARRES
+     S     , ZFRACT
+      REAL*8 DLRENORM, DLSIGI
+      POINTER(PXWRK,ZWORK)
+      POINTER(PXRES,ZRESULT)
+
+      EXTERNAL DSYEV
+*
+*     0.  Memory allocation and miscellaneous definitions
+*
+      CALL HPALLOC(PXWRK,4*KN,IER,8)
+      CALL HPALLOC(PXRES,KN*KN,IER,8)
+      IWORK=4*KN
+      ZALPHA = PALPHA
+*
+      WRITE(NULOUT,*)' FILTMATRIX-Spectral filter of a symmetric matrix'
+      WRITE(NULOUT,*)'  -----------------------------------------------'
+      WRITE(NULOUT,*)'  '
+      WRITE(NULOUT,'(1x," CUT-OFF VALUE IS     :",F5.2)')PEIGMIN
+      WRITE(NULOUT,'(1x," OFFSET TO DIAGONAL IS:",F5.2)')ZALPHA
+*     
+*     1. Computation of eigenvalues and eigenvectors
+*
+ 100  CONTINUE
+      DO JI=1,KN
+         DO J=1,KN
+            PEIGEN(JI,J)=PA(JI,J)
+         END DO
+      END DO
+      CALL DSYEV('V','U',KN, PEIGEN,KN, PEIGENV,ZWORK, IWORK, INFO )
+*
+      WRITE(NULOUT,'(1x,"ORIGINAL EIGEN VALUES: ")') 
+      WRITE(NULOUT,'(1x,10f7.3)') (PEIGENV(JI),JI=1,KN) 
+*
+      ZVARTOTAL = 0.
+      ZVARRES = 0.
+      DO J = 1, KN
+         IF(PEIGENV(J).GE.PEIGMIN) THEN
+            ZVARRES = ZVARRES + PEIGENV(J)
+         END IF
+         ZVARTOTAL = ZVARTOTAL + PEIGENV(J)
+      END DO
+      ZFRACT = (ZVARRES/ZVARTOTAL)*100.
+*
+*     2.  Filtering the matrix
+*
+ 200  CONTINUE
+      DO JI=1,KN
+         DO J=1,KN
+            PROJ(JI,J)=0.
+         END DO
+      END DO
+*
+      DO JI=1,KN
+         IF (PEIGENV(JI).LT.PEIGMIN) THEN
+            PROJ(JI,JI) = 0.
+         ELSE
+            PROJ(JI,JI)= PEIGENV(JI)
+         END IF
+      END DO
+      WRITE(NULOUT,'(1x,"MODIFIED EIGEN VALUES: ")') 
+      WRITE(NULOUT,'(1x,10f7.3)') (PROJ(JI,JI),JI=1,KN) 
+*
+      CALL MXMA8( PEIGEN,1,KN, PROJ,1,KN,ZRESULT,1,KN,KN,KN,KN)
+      CALL MXMA8(ZRESULT,1,KN,PEIGEN,KN,1, PROJ,1,KN,KN,KN,KN)
+C
+      DO JI = 1, KN
+         PROJ(JI,JI) = ZALPHA + PROJ(JI,JI)
+      END DO
+      DO JI = 1, KN
+         ZWORK(JI) = PROJ(JI,JI)
+      END DO
+      DO JI = 1, KN
+         DLSIGI =DSQRT(DBLE(ZWORK(JI)))
+         DO J = 1, KN
+            DLRENORM = DSQRT(DBLE(ZWORK(J)))*DLSIGI
+            DLRENORM = 1.D0/DLRENORM
+            PA(JI,J) = DBLE(PROJ(JI,J))*DLRENORM
+         END DO
+      END DO
+*
+*     3.  Building the projector
+*
+ 300  CONTINUE
+      DO JI=1,KN
+         DO J=1,KN
+            PROJ(JI,J)=0.
+         END DO
+      END DO
+      DO JI=1,KN
+         IF (PEIGENV(JI).LT.PEIGMIN) THEN
+            PROJ(JI,JI) = 1.0
+         ELSE
+            PROJ(JI,JI) = 1.0
+         END IF
+      END DO
+C
+      CALL MXMA8( PEIGEN,1,KN, PROJ,1,KN,ZRESULT,1,KN,KN,KN,KN)
+      CALL MXMA8(ZRESULT,1,KN,PEIGEN,KN,1, PROJ,1,KN,KN,KN,KN)
+*
+      WRITE(NULOUT,9100)ZVARTOTAL, ZVARRES, ZFRACT
+ 9100 FORMAT(/,1x,'Total variance :',G12.6,4x
+     S     ,'Resolved part (absolute): ',g12.6
+     S     ,4X,'Resolved part (relative): ',G12.6,'%')
+*
+*     4. Deallocate local arrays
+*
+      CALL HPDEALLC(PXWRK,IER,1)
+      CALL HPDEALLC(PXRES, IER,1)
+*
+      WRITE(NULOUT,*)'FILTMATRIX-----------Done--------------- '
+      WRITE(NULOUT,*)' '
+      RETURN
+      END

@@ -1,0 +1,81 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+
+      SUBROUTINE READOZONECLIM
+
+#if defined (DOC)
+!***********************************************************************
+!
+!**ID OZONECLIM -- READ OZONE CLIMATOLOGICAL FIELDS
+!
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
+!
+!       REVISION:
+!
+!       OBJECT:   READ OZONE CLIMATOLOGICAL FIELDS AND PUT IN COMMON DECK
+!
+!       ARGUMENTS:
+!          INPUT:  NONE
+!          OUTPUT: NONE
+!
+!
+!***********************************************************************
+#endif
+
+      Use ozoneclim
+
+      IMPLICIT NONE
+
+!implicits
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "comlun.cdk"
+
+
+      INTEGER            :: IJOUR,IMONTH,IJ,IV,K
+      REAL               :: RDUM(NLATO3,NLEVO3)
+      CHARACTER(len=100) :: CFILE
+      INTEGER            :: NIOZO,NJOZO,NKOZO
+      INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS
+
+      integer            :: IOZTEST
+      integer            :: iv1,iv2,iv3,iv4,iv5,iv6
+
+      IJOUR = MOBHDR(NCMDAT,1)
+
+      IJ= IJOUR/100
+      IMONTH = IJ - (IJ/100)*100
+
+      ioztest=0
+
+!X      CFILE='ozoclim'
+      CFILE='ozoneclim98'
+      IV1=FNOM(IOZTEST,CFILE,'RND+R/O',0)
+      IV2=FSTOUV(IOZTEST,'RND')
+      IV3=FSTLIR(FOZO,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,IMONTH,' ','O3')
+      IV4=FSTLIR(TOTOZO,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,-1,' ','TO')
+      IV5=FSTFRM(IOZTEST)
+      IV6=FCLOS(IOZTEST)
+
+      write(nulout,*) 'LES IV DE READOZONECLIM ',iv1,iv2,iv3,iv4,iv5,iv6
+      write(nulout,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
+
+
+      END SUBROUTINE READOZONECLIM
+

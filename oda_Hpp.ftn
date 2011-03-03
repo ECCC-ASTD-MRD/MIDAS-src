@@ -1,0 +1,129 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_Hpp
+      use modmask, only : lmaskpp_in, lmaskpp_out,ldiagpp
+#if defined (DOC)
+*
+* Purpose: Compute simulated Upper Air observations from profiled model
+*          increments.
+*          It returns Hdx in ROBDATA8(NCMOMA,*)
+*          Interpolate vertically the contents of commvo to
+*          the pressure levels of the observations.
+*          A linear interpolation in ln(p) is performed.
+*
+*Author  : P. Koclas *CMC/AES  September 1994
+*Revision:
+*           P. Koclas *CMC/AES February 1995
+*            - Minor modifications
+*            - Allow for multiple data files.
+*           P. KoCLAS CMC/CMSV AUGUST 1998
+*            - ANALYSYS ON ETA COORDINATE
+*           C. Charette ARMA/AES NOV 1998
+*            - Extrapolation GZ below model orography.
+*            - Adapt code to follow Luc Fillion's notes on 3dvar-eta
+*              analysis. LLPRINT to print diagnostics
+*           C. Charette ARMA/AES JUN 2000
+*            - Added check on type of vertical coordinate
+*              MOBDATA(NCMVCO,)=2 --> PRESSURE COORDINATE
+*           B. Brasnett CMC/CMDA Nov 2000
+*            - Modify functional for variational quality control
+*           C. Charette ARMA/SMC NOV. 2001
+*            - Warning message in case uu,vv,tt,es have to be
+c extrapolated
+*           C. Charette ARMA/SMC FEV. 2002
+*            - Commented out the if(llprint...) statements within
+*              the do loops. They were preventing vectorization.
+*           C. Charette - ARMA/SMC - Sep. 2004
+*            - Conversion to hybrid vertical coordinate
+*           S. Pellerin ARMA, January 2009
+*            - Rename the subroutine acording to ODA naming convention
+*            - Use of mask to process only assimilated data
+*            - Computation of Hdx instead of Jo=sum([Hdx-d]/sigma)
+*            - Withdraw of the QCVAR to be applied outside of the
+*              operator
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+*
+*
+      INTEGER IPB,IPT,IDBURP
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND,NQCVAR
+      INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO
+      REAL*8 ZDADPS,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG
+      REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZPRESBPB,ZPRESBPT
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      zgamma = 0.0065D0 / GRAV
+      zexp = RGASD*zgamma
+C
+      DO JDATA=1,ndata
+        IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
+          IOBS = MOBDATA(NCMOBS,JDATA)
+          IPOS = MOBDATA(NCMPOS,JDATA)
+          ZLEV = ROBDATA8(NCMPPP,JDATA)
+          IDBURP = MOD(MOBHDR(NCMITY,IOBS),1000)
+          IK   = ROBDATA(NCMLYR,JDATA)
+          IPT  = IK + IPOS*NFLEV
+          IPB  = IPT+1
+          ZPT  = RPPOBS(IK,IOBS)
+          ZPB  = RPPOBS(IK+1,IOBS)
+          ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+          ZWT  = 1.0D0 - ZWB
+          zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)
+     &         /(1.0-rptopinc/rprefinc))**rcoefinc
+          zpresbpb = ((vhybinc(ik+1) - rptopinc/rprefinc)
+     &         /(1.0-rptopinc/rprefinc))**rcoefinc
+          ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB)
+     +         -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )
+     +         /LOG(ZPB/ZPT)**2
+C
+          ROBDATA8(NCMOMA,JDATA) =
+     +         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+
+     +         (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*
+     +         ZDADPS*GOMPS(1,IOBS)
+        elseif(lmaskpp_out(jdata)) then
+          IOBS = MOBDATA(NCMOBS,JDATA)
+          IPOS = MOBDATA(NCMPOS,JDATA)
+          ZLEV = ROBDATA8(NCMPPP,JDATA)
+C
+c-----------TL model for height data below model's orography
+c
+          ZLTV = OLTV(1,NFLEV,IOBS)*GOMT(NFLEV,IOBS)
+     &         + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
+          ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
+          ZCON =(ZLEV/GOMPSG(1,IOBS))**ZEXP
+          robdata8(ncmoma,jdata)= (1.-zcon)/zgamma*ZLTV
+     &         + RGASD*ZTVG*zcon*gomps(1,iobs)
+     &         /gompsg(1,iobs)
+        endif
+      END DO
+
+      RETURN
+      END

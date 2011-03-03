@@ -1,0 +1,385 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine suinnov
+      use mod4dv, only : l4dvar
+#if defined (DOC)
+*
+***s/r suinnov  - Initialise Observation Innovations.
+*
+*
+*Author  : Luc Fillion - 28 Mar 2008.
+*Revision:
+*     L. Fillion - ARMA/EC - 22 May 2008 - Upgrade to v_10_1_1.
+*     S. Macpherson -ARMA/MRD   Aug 2008
+*         - Add ground-based GPS family "GP"
+*         S. Pellerin, ARMA, January 2009
+*         - Add call to mask generators
+*     L. Fillion - ARMA/EC 14 Jan 2009
+*         - Upgrade lam4d to v_10_2_1 of 3dvar.
+*         - Comment 'tmg_*' subroutines.
+*     S. Macpherson -ARMA/MRD   Sep 2009
+*         - Add ground-based GPS family "GP"
+*     Bin He   -ARMA/MRD      Feb. 2010 
+*         - Implemented MPI to 3DVAR      
+*    -------------------
+**    Purpose: 
+*
+*Arguments
+*    -NONE-
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comct0.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "com1obs.cdk"
+#include "comlun.cdk"
+#include "comvarqc.cdk"
+#include "comcva.cdk"
+#include "cominterp.cdk"
+#include "comfilt.cdk"
+#include "comgem.cdk"
+#include "comgdpar.cdk"
+#include "comgrd_param.cdk"
+#include "comgrd.cdk"
+#include "comin.cdk"
+#include "comoabdy.cdk"
+#include "comoba.cdk"
+#include "comsim.cdk"
+#include "comoahdr.cdk"
+#include "comgpsgb.cdk"
+c
+      logical lldo
+      integer jlev,jobs,jdata,ii,ierr
+      real*8 zjo,zjoraob,zjosatem,zjohumsat,zjosatwind,zjosurfc
+      real*8 zjosfcsf,zjosfcua,zjotov,zjogoes,zjoairep,zjosfcsc,zjoprof
+      real*8 zjogpsro,zjogpsgb,zjosfcgp
+c
+      call printrev("SUBROUTINE SUINNOV :",20)
+!
+*****************************************************************
+*                                                               *
+* *               COMPUTATION of INNOVATION                   * *
+* * * With COMMVO set to model state on FIRST GUESS levels  * * *
+* * *                                                       * * *
+* *                                                           * *
+*
+C
+c Calculate ES=T-TD from T and Q
+c from GOMQHR and GOMTHR and put it in GOMESHR
+c
+!      call tmg_start(17,'MHUAESVHR')
+      call mhuaesvhr
+!      call tmg_stop(17)
+c
+c Using T, q and PS in GOMOBSHR, computes GZ and stores it in GOMGZHR
+c N.B. uses vlevhr
+c
+      if(.not.lsw) then
+!        call tmg_start(18,'TT2PHIHR')
+        call tt2phihr
+!        call tmg_stop(18)
+      endif
+c
+c     Reject observed elements too far below the surface. Pressure values
+c     for elements slightly below the surface are replaced by the surface
+c     pressure values of the trial field.
+c
+c     GB-GPS (met and ZTD) observations are processed in SOBSSFC
+c
+      lldo = .true.
+!
+      if(.not.lsw) then
+        IF (LTOPOFILT) THEN
+          write(NULOUT,*)' *****************************************'
+          write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+          write(NULOUT,*)' *                                       *'
+          write(NULOUT,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
+          write(NULOUT,*)' *                                       *'
+          write(NULOUT,*)' *****************************************'
+          CALL SOBSSFC
+          CALL SOBSRAOB
+          CALL SOBSHUMSAT
+          CALL SOBSAISW
+          CALL SOBSPROF
+          CALL SOBSCSBT
+        ELSE
+          write(NULOUT,*)' *****************************************'
+          write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+          write(NULOUT,*)' *                                       *'
+          write(NULOUT,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
+          write(NULOUT,*)' *                                       *'
+          write(NULOUT,*)' *****************************************'
+        ENDIF
+
+        IF(NCONF .EQ. 141 .OR. NINT(NCONF/100.0).EQ.6) CALL SFCWNDZAP
+      ENDIF
+c
+c     Find interpolation layer in model profiles and reference level
+c     of thickness data for SATEMS
+c
+      if(lldo) CALL VOBSLYRS('HR')
+c
+c
+c------ Calculate the normalized inovations (Z - H(X))/sigma
+c       and place the results in CMA at NCMOMA references
+C
+C        RAOBS
+C------------------------------
+!
+!      call tmg_start(22,'NL_OBS_OPER')
+      ZJORAOB = 0.0d0
+      CALL DOBSPPP(ZJORAOB,'UA')
+C
+C        HUMSAT
+C--------------------------------
+      ZJOHUMSAT = 0.0d0
+      CALL DOBSPPP(ZJOHUMSAT,'HU')
+c      CALL OBSCORHU(ZJOHUMSAT)
+C
+C        AIREPS
+C--------------------------------
+      ZJOAIREP=0.0D0
+      CALL DOBSPPP(ZJOAIREP,'AI')
+C
+C        SATWINDS
+C--------------------------------
+      ZJOSATWIND=0.0D0
+      CALL DOBSPPP(ZJOSATWIND,'SW')
+!
+      ZJOSURFC=0.0D0
+      ZJOSFCSF=0.0D0
+      ZJOSFCUA=0.0D0
+      ZJOSFCSC=0.0D0
+      ZJOSFCGP=0.0D0
+      ZJOSATEM = 0.0d0
+      ZJOTOV=0.0D0
+      ZJOGOES=0.0D0
+      ZJOGPSRO=0.0D0
+      ZJOGPSGB=0.0D0
+      ZJOPROF = 0.0d0
+!
+      if(.not.lsw) then
+C
+C        SURFACE (SF, UA, SC AND GP FAMILIES)
+C-------------------------------
+        CALL DOBSSFC(ZJOSFCSF,'SF')
+        CALL DOBSSFC(ZJOSFCUA,'UA')
+        CALL DOBSSFC(ZJOSFCSC,'SC')
+        CALL DOBSSFC(ZJOSFCGP,'GP')
+        ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
+C
+C        SATEMS
+C------------------------------
+        CALL DOBSSATEM(ZJOSATEM)
+c        CALL OBSCORST(ZJOSATEM)
+C
+C        TOVS - RADIANCE
+C-------------------------------
+        CALL TOVS_OBS ('HR',ZJOTOV)
+C
+C        GOES - RADIANCE
+C-------------------------------
+        CALL DOBSGOES(ZJOGOES)
+C
+C        PROFILER
+C------------------------------
+        CALL DOBSZZZ(ZJOPROF,'PR')
+C
+C        GPS - RADIO OCCULTATION
+C-------------------------------
+        CALL SETERRGPSRO
+        CALL FILTERGPSRO
+        CALL DOBSGPSRO(ZJOGPSRO)
+C
+C        GPS - GROUND-BASED ZENITH DELAY
+C-------------------------------
+C
+        CALL DOBSGPSGB(ZJOGPSGB)
+
+        if ( ZJOGPSGB .gt. 0.0D0 ) then
+
+C     Options to fix/adjust model ZTD to observation height and
+C     assimilate GPS met data
+C
+          write(NULOUT,*)' '
+          write(NULOUT,*)' *****************************************'
+          write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+          write(NULOUT,*)' *        GB-GPS OBSERVATIONS            *'
+          write(NULOUT,*)' * DZ ADJUSTMENT IN GPSZTDOP IF DZ>DZMIN *'
+          write(NULOUT,*)' *                                       *'
+          write(NULOUT,*)' *****************************************'
+          write(NULOUT,*) ' '
+          write(NULOUT,*) 'DZMIN, DZMAX = ', DZMIN, DZMAX
+          write(NULOUT,*) 'NJLEVP = ', NJLEVP
+          write(NULOUT,*) ' '
+C
+          IF (LASSMET) THEN
+            write(NULOUT,*)' '
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+            write(NULOUT,*)' *     GPS MET DATA ARE ASSIMILATED      *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*) 'YSFERRWGT = ', YSFERRWGT
+            write(NULOUT,*) 'YZDERRWGT = ', YZDERRWGT
+            write(NULOUT,*) ' '
+          ELSE
+            write(NULOUT,*)' '
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+            write(NULOUT,*)' *   GPS MET DATA ARE NOT ASSIMILATED    *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*) 'YZDERRWGT = ', YZDERRWGT
+            write(NULOUT,*) ' '
+          ENDIF
+C
+          IF (YZTDERR .LT. 0.0) THEN
+            write(NULOUT,*)' '
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+            write(NULOUT,*)' *    ZTD OBSERVATION ERROR FROM FERR    *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *****************************************'
+          ELSE IF (YZTDERR .GT. 0.0) THEN
+            write(NULOUT,*)' '
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+            write(NULOUT,*)' *     ZTD OBSERVATION ERROR IS FIXED    *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' '
+            write(NULOUT,*)'YZTDERR (mm) = ', YZTDERR*1000.
+          ELSE
+            write(NULOUT,*)' '
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+            write(NULOUT,*)' *   ZTD OBSERVATION ERROR IS FROM ZTD   *'
+            write(NULOUT,*)' *   USING SD(O-P) STATS (REGRESSION)    *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' '
+          ENDIF
+C
+C-------- FILTER GPS DATA (EXPERIMENTAL)  --------------------
+C
+          IF (L1GPSOBS) THEN 
+            write(NULOUT,*)' '
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *     --- ONE OBSERVATION MODE ---      *'
+            write(NULOUT,*)' *                                       *'
+            write(NULOUT,*)' *****************************************'
+            write(NULOUT,*)' ' 
+            write(NULOUT,*)' CGPSSTN = ', CGPSSTN
+            write(NULOUT,*)' '
+            CALL SUGPSGB(nulout)
+          ENDIF
+c
+        endif
+c
+      endif
+!      call tmg_stop(22)
+c
+c
+C=======================================================================
+      ZJO =  ZJORAOB + ZJOSATEM + ZJOHUMSAT + ZJOAIREP + ZJOSATWIND +
+     $     ZJOSURFC + ZJOTOV + ZJOGOES + ZJOPROF + ZJOGPSRO + ZJOGPSGB
+C=======================================================================
+
+      write(nulout,'(a15,G12.6)') 'JORAOB= ',ZJORAOB
+c      write(nulout,'(a15,G12.6)') 'JOSATEM= ',ZJOSATEM
+c      write(nulout,'(a15,G12.6)') 'JOHUMSAT= ',ZJOHUMSAT
+      write(nulout,'(a15,G12.6)') 'JOAIREP= ',ZJOAIREP
+      write(nulout,'(a15,G12.6)') 'JOSURFC= ',ZJOSURFC
+      write(nulout,'(10X,a15,G12.6)') 'JOSFCSF= ',ZJOSFCSF
+      write(nulout,'(10X,a15,G12.6)') 'JOSFCUA= ',ZJOSFCUA
+      write(nulout,'(10X,a15,G12.6)') 'JOSFCSC= ',ZJOSFCSC
+      write(nulout,'(10X,a15,G12.6)') 'JOSFCGP= ',ZJOSFCGP
+      write(nulout,'(a15,G12.6)') 'JOTOV= ',ZJOTOV
+      write(nulout,'(a15,G12.6)') 'JOGOES= ',ZJOGOES
+      write(nulout,'(a15,G12.6)') 'JOSATWIND= ',ZJOSATWIND
+      write(nulout,'(a15,G12.6)') 'JOPROF= ',ZJOPROF
+      write(nulout,'(a15,G12.6)') 'JOGPSRO= ',ZJOGPSRO
+      write(nulout,'(a15,G12.6)') 'JOGPSGB= ',ZJOGPSGB
+c      write(nulout,'(a15,G12.6)') 'Total Jo = ',ZJO
+
+c
+c------ Calculate the normalized innovations (Z - H(X))/sigma
+c       for ln q for atmospheric and surface obs.
+C
+      if(.not.lsw) CALL DHUPPP('UA')
+      if(.not.lsw) CALL DHUPPP('AI')
+      if(.not.lsw) CALL DHUSFC('UA')
+      if(.not.lsw) CALL DHUSFC('SF')
+      if(.not.lsw) CALL DHUSFC('GP')
+C
+c     Find interpolation layer in model profiles and reference level
+c     of thickness data for SATEMS
+c
+      if(lldo) CALL VOBSLYRS('BG')
+c
+c Generate realization of BG error in obs space to be saved in posv file
+c
+!      call tmg_start(25,'randhbht')
+      IF(NCONF.eq.141.and.LHBHT1) THEN
+!modular1        call randhbht1
+      ENDIF
+!      call tmg_stop(25)
+c
+      IF (LVARQC) THEN
+        CALL SUASYM2(NVADIM,VATRA(1),VATRA(NVADIM+1))
+      endif
+c
+      call oda_masksf('UA')
+      call oda_masksf('SF')
+      call oda_masksf('SC')
+      call oda_masksf('GP')
+      call oda_maskpp('UA')
+      call oda_maskpp('AI')
+      call oda_maskpp('SW')
+      call oda_maskto
+      call oda_maskgo
+      call oda_maskro
+      call oda_maskzp('PR')
+      call oda_maskgp
+!
+!     In Shallow-Water mode: Force all retained data (i.e. cmabdy.ftn using NONELEV)
+!     to have same interpolation layer index for future use by lobsppp_sw etc...
+!
+      if(lsw) then
+!modular1        call set1lev ! set SW analysis level "mk".
+        DO JDATA=1,NDATA
+          if(ROBDATA(NCMLYR,JDATA).ne.0) then
+            ROBDATA(NCMLYR,JDATA) = mk
+          endif
+        ENDDO
+      endif
+       !resotre Global Masks. 
+        IF(NCONF == 141) CALL restoreMasks  
+!
+      RETURN
+      END

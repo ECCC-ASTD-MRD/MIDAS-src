@@ -1,0 +1,10 @@
+#if defined (DOC) 
+C
+C*    COMDECK: PARDIMO
+C     ---------------
+C
+C === Definitions of fixed observation parameters ===
+C
+#endif
+      INTEGER JPSIMO, JPDATA
+      PARAMETER (JPSIMO=10, JPDATA=3)

@@ -1,0 +1,54 @@
+#if defined (DOC)
+!copyright (C) 2002  <<< Envrionment Canada LAM4D >>>
+!
+! Author: Luc Fillion - ARMA/EC 15 May 2009
+!
+! Revision:
+!
+!     COMDECK: COMLAP  Poisson solver on lam grid.
+!     ---------------
+!
+#endif
+      real*8 rgamma_lap(0:nitlap,nfldlap),rdenom_lap(0:nitlap,nfldlap)
+      real*8 ra_lap(0:nitlap,nfldlap), rb_lap(0:nitlap,nfldlap)
+      real*8 rz_lap(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 rs_lap(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 rp_lap(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 rq_lap(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 rsol_lap(ni,nflev,nj,0:nitlap,nfldlap)
+!
+      real*8 adrgamm(0:nitlap,nfldlap),adrdeno(0:nitlap,nfldlap)
+      real*8 adra(0:nitlap,nfldlap),adrb(0:nitlap,nfldlap)
+      real*8 adrz(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 adrs(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 adrp(ni,nflev,nj,0:nitlap,nfldlap)
+      real*8 adrq(ni,nflev,nj,0:nitlap,nfldlap)
+!
+      real*8 rlapxy(nla)
+      real*8 rilapxy(nla)
+!
+      pointer (ptrgamma_lap,rgamma_lap)
+      pointer (ptrdenom_lap,rdenom_lap)
+      pointer (ptra_lap,ra_lap)
+      pointer (ptrb_lap,rb_lap)
+      pointer (ptrz_lap,rz_lap)
+      pointer (ptrs_lap,rs_lap)
+      pointer (ptrp_lap,rp_lap)
+      pointer (ptrq_lap,rq_lap)
+      pointer (ptrsol_lap,rsol_lap)
+      pointer (ptadrgamm,adrgamm)
+      pointer (ptadrdeno,adrdeno)
+      pointer (ptadra,adra)
+      pointer (ptadrb,adrb)
+      pointer (ptadrz,adrz)
+      pointer (ptadrs,adrs)
+      pointer (ptadrp,adrp)
+      pointer (ptadrq,adrq)
+!
+      pointer (ptrlapxy,rlapxy)
+      pointer (ptrilapxy,rilapxy)
+!
+      COMMON /POMLAP/ptrgamma_lap,ptrdenom_lap,ptra_lap,ptrb_lap
+      COMMON /POMLAP/ptrz_lap,ptrs_lap,ptrp_lap,ptrq_lap,ptrsol_lap
+      COMMON /POMLAP/ptadrgamm,ptadrdeno,ptadra,ptadrb
+      COMMON /POMLAP/ptadrz,ptadrs,ptadrp,ptadrq,ptrlapxy,ptrilapxy

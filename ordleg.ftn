@@ -1,0 +1,85 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE ORDLEG8(SX,COA,IR)
+#if defined (DOC)
+*
+************************************************************************
+*   OBJET:
+*
+*     * THIS ROUTINE IS A SUBSET OF BELOUSOVS ALGORITHM
+*     * USED TO CALCULATE ORDINARY LEGENDRE POLYNOMIALS.
+*
+*  ARGUMENTS:
+*
+*        -INPUT  :
+*                - COA = COSINE OF COLATITUDE
+*                -  IR = WAVE NUMBER
+*        -OUTPUT :
+*                 - SX = LEGENDRE POLYNOMIAL EVALUATED AT COA
+*
+*     VERSION "REAL*8"  ... P. KOCLAS AVRIL 1993...
+************************************************************************
+*
+#endif
+*
+      IMPLICIT NONE
+*
+      REAL*8 SX,COA
+      INTEGER IR
+      INTEGER N,KK,K,N1,IRPP,IRPPM
+      REAL*8 PI,SQR2,DELTA,SIA,THETA,C1,C4,S1,ANG,FK,FN,FN2,FN2SQ,A,B
+*
+      PI    = 4.D0*ATAN(1.D0)
+      SQR2  = SQRT(2.D0)
+      IRPP  = IR   + 1
+      IRPPM = IRPP - 1
+      DELTA = ACOS(COA)
+      SIA   = SIN(DELTA)
+*
+      THETA = DELTA
+      C1    = SQR2
+*
+      DO 20 N=1,IRPPM
+         FN2   = DBLE(2*N)
+         FN2SQ = FN2*FN2
+         C1    =  C1*SQRT(1.D0 - 1.D0/FN2SQ)
+ 20   CONTINUE
+*
+      N   = IRPPM
+      FN  = DBLE(N)
+      ANG = FN*THETA
+      S1  = 0.D0
+      C4  = 1.D0
+      A   =-1.D0
+      B   = 0.D0
+      N1  = N+1
+*
+      DO 27 KK=1,N1,2
+         K   = KK-1
+         IF (K.EQ.N) C4 = 0.5D0*C4
+         S1  = S1+C4* COS(ANG)
+         A   =  A+2.D0
+         B   =  B+1.D0
+         FK  = DBLE(K)
+         ANG = THETA*(FN-FK-2.D0)
+         C4  = ( A * (FN-B+1.D0) / (B*(FN2-A)) )*C4
+ 27   CONTINUE
+*
+      SX = S1*C1
+*
+      RETURN
+      END

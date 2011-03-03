@@ -1,0 +1,44 @@
+#if defined (DOC)
+*
+*     . J. Halle    *CMDA/AES Oct 99.
+*             - Added ground temperature (TG) to the model state.
+C
+C     COMDECK: COMMVO1
+C     ---------------
+C     Auxiliary Model state interpolated at the obs. stations
+C     --------------------------------------------------------
+C     GMOBS1(NKGDIMO,NMXOBS)
+C
+C     Splitting of GMOBS
+C     ---------------
+C     GOMU1 (NFLEV,NMXOBS) :  zonal wind
+C     GOMV1 (NFLEV,NMXOBS) :  meridional wind
+C     GOMT1 (NFLEV,NMXOBS) :  temperature field
+C     GOMGZ1(NFLEV,NMXOBS) :  geopotential field
+C     GOMOZ1(NFLEV,NMXOBS) :  ozone field
+C     GOMTR1(NFLEV,NMXOBS) :  undefined tracer
+C     GOMQ1 (NFLEV,NMXOBS) :  specific humidity
+c     gomes1(nflev,nmxobs) :  t - td
+C     GOMPS1(1   ,NMXOBS)  :  surface pressure
+C     GOMTGR1(1  ,NMXOBS)  :  ground temperature
+C
+#endif
+ 
+      REAL*8 GOMOBS1(NKGDIMO,NOBTOT)
+
+      REAL*8 GOMU1(NKGDIMO,NOBTOT), GOMV1(NKGDIMO,NOBTOT)
+      REAL*8 GOMT1(NKGDIMO,NOBTOT), GOMQ1(NKGDIMO,NOBTOT)
+      REAL*8 GOMOZ1(NKGDIMO,NOBTOT), GOMGZ1(NKGDIMO,NOBTOT)
+      REAL*8 GOMTR1(NKGDIMO,NOBTOT), gomes1(nkgdimo,NOBTOT)
+      REAL*8 GOMPS1(NKGDIMO,NOBTOT), GOMTGR1(NKGDIMO,NOBTOT)
+
+      POINTER (PTMOBS1,GOMOBS1), (PTOMU1,GOMU1),(PTOMV1,GOMV1)
+      POINTER (PTOMT1,GOMT1),(PTOMQ1,GOMQ1), (PTOMPS1,GOMPS1)
+      POINTER (PTOMGZ1,GOMGZ1), (PTOMOZ1,GOMOZ1), (PTOMTR1,GOMTR1)
+      POINTER (ptomes1,gomes1),(PTOMTGR1,GOMTGR1)
+
+      COMMON /POMMVO1/PTMOBS1, PTOMU1, PTOMV1, PTOMT1, PTOMQ1, PTOMPS1
+      COMMON /POMMVO1/PTOMGZ1, PTOMOZ1, PTOMTR1, ptomes1, PTOMTGR1
+
+
+

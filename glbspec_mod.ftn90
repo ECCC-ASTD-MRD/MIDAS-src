@@ -1,0 +1,1225 @@
+!--------------------------------------------------------------------------
+! MODULE glbspec_mod (Global Spectral Transform: prefix="gst")
+!
+! Purpose: Perform global spectral transform. Uses the fft_mod module for
+!          the FFT part of the transform.
+!
+! Subroutines:
+!    gst_suglbspec (public)
+!    gst_speree    (public)
+!    gst_reespe    (public)
+!    gst_spgd      (public)
+!    gst_spgda     (public)
+!    spereepar
+!    reespepar
+!    sppar
+!    spgdapar
+!    legdir3
+!    leginv3
+!    allocate_comleg
+!    suleg
+!    gauss8
+!    ordleg8
+!    sualp
+!    getalp
+!    allp
+!    allp2
+!
+! Public variables:
+!    gst_rmu
+!    gst_rwt
+!    gst_nind
+!    gst_rlati
+!    gst_r1qm2
+!    gst_rsqm2
+!
+! Dependencies:
+!    fft_mod
+!--------------------------------------------------------------------------
+module glbspec_mod
+
+  implicit none
+  save
+  private
+
+  ! public variables
+  public :: gst_rmu,gst_rwt,gst_nind,gst_rlati,gst_r1qm2,gst_rsqm2
+  ! public procedures
+  public :: gst_speree,gst_reespe,gst_suglbspec,gst_spgd,gst_spgda
+
+  real*8,allocatable   :: gst_rmu(:),gst_rwt(:),gst_rsqm2(:),gst_r1qm2(:),gst_rlati(:)
+  integer,allocatable  :: gst_nind(:)
+
+  real*8,allocatable   :: dalp(:,:), dealp(:,:)
+  real*8,allocatable   :: rwocs(:)
+  real*8,allocatable   :: r1mu2(:),rcolat(:),r1mui(:),r1mua(:)
+  real*8,allocatable   :: gaus(:,:)
+  integer,allocatable  :: nindrh(:), nclm(:)
+  integer              :: nlatbd = 8
+  integer              :: ni_l,nibeg_l,niend_l,nisur_l,nj_l,njbeg_l,njend_l,njsur_l
+  integer              :: njlath_l
+  integer              :: ntrunc_l, nla_l, nlarh_l
+  real*8               :: rinfini,rpi,r1sa
+  real*8,allocatable   :: r1snp1(:)
+
+contains
+
+  subroutine gst_suglbspec(kulout,nibeg_in,niend_in,njbeg_in,njend_in,ntrunc_in)
+    use fft_mod
+    implicit none
+    integer kulout,ntrunc_in,nibeg_in,niend_in,njbeg_in,njend_in
+    integer jn,jm,ila
+    real*8   :: ra,znnp1,z1snp1
+
+    nibeg_l=nibeg_in
+    niend_l=niend_in
+    njbeg_l=njbeg_in
+    njend_l=njend_in
+    nisur_l=2
+    njsur_l=2
+    ni_l=niend_l-nisur_l
+    nj_l=njend_l-njsur_l
+    njlath_l = (nj_l + 1)/2
+
+    ntrunc_l=ntrunc_in
+    nla_l=(ntrunc_l + 1)*(ntrunc_l +2)/2
+    nlarh_l = (ntrunc_l+1)*(ntrunc_l+1)
+    write(*,*) 'ntrunc_l=',ntrunc_l
+
+    RPI=2.0D0*ASIN(1.0D0)
+    RA=6371229.D0
+    R1SA=1.D0/DBLE(RA)
+    RINFINI = 1.D+35
+
+    write(*,*) 'allocating comleg...'
+    call allocate_comleg
+    write(*,*) 'calling suleg...'
+    call suleg(kulout)
+    write(*,*) 'calling sualp...'
+    call sualp
+    write(*,*) 'calling sufft...'
+    call fft_sufft(6,ni_l,nj_l)
+
+    allocate(r1snp1(nla_l))
+    R1SNP1(1) = 0.
+    DO JN = 1, NTRUNC_l
+       ZNNP1  = -FLOAT(JN)*FLOAT(JN+1)
+       Z1SNP1 =  1./ZNNP1
+       DO JM = 0, JN
+          ILA = gst_NIND(JM) + JN - JM
+          R1SNP1(ILA) = Z1SNP1
+       enddo
+    enddo
+   
+  end subroutine gst_suglbspec
+
+  SUBROUTINE gst_SPGD(sp,gd,kfield,nflev,kdim)
+    IMPLICIT NONE
+
+    integer kfield,nflev,kdim
+    real*8 sp(nla_l,2,kdim), gd(nibeg_l:niend_l,kdim,njbeg_l:njend_l)
+    INTEGER  ji,jj,jla,JGL, JK, JLON, ILONMAX
+    real*8 zfmla(ni_l,kfield,nj_l), zsp(nla_l,2)
+    real*8 zgdxy(ni_l,nj_l)
+
+!*  1. Inverse Legendre transform
+!      --------------------------
+      CALL SPPAR(sp,gd,kfield,nflev,kdim)
+
+!   2.1 Reset to zero the modes that are not part of the truncation
+!       -----------------------------------------------------------
+      ILONMAX = NIEND_l
+      DO JGL = 1, NJ_l
+         DO JLON = 2*(NTRUNC_l+1)+1, ILONMAX
+            DO  JK = 1, kfield
+               GD(JLON,JK,JGL) = 0.
+            END DO
+         END DO
+      END DO
+
+      DO JGL =1,NJ_l
+         DO JK = 1, kfield
+            GD(0,JK,JGL) = 0.
+         END DO
+      END DO
+
+!     2.2 Apply the FFT 
+!         -------------
+      CALL FFT3DVAR(GD,NIBEG_l,NIEND_l,kfield,NJBEG_l,NJEND_l,kfield,+1)
+
+  END SUBROUTINE gst_SPGD
+
+
+  subroutine sppar(sp,gd,kfield,nflev,kdim)
+!**s/r SPPAR  - Inverse spectral transform(PARALLEL LOOP)
+
+    IMPLICIT NONE
+
+    integer kfield,nflev,kdim
+    real*8 sp(nla_l,2,kdim), gd(nibeg_l:niend_l,kdim,njbeg_l:njend_l)
+
+    ! Local variables
+    INTEGER ISIZ
+    INTEGER ILEN, JJ, JLATN, JLATS ,JM, ILONR,ILONIM
+    INTEGER JK ,JN, ILA, INM, JM0, JNS, INS, JK2
+    integer :: i_njlath, i_nj
+
+    REAL*8 ZJM
+    REAL*8 DLALP(0:NTRUNC_l,NJLATH_l), DLDALP(0:NTRUNC_l,NJLATH_l)
+    REAL*8 ZFMS(NJLATH_l+1,2,kfield), ZFMA(NJLATH_l+1,2,kfield)
+    REAL*8 DLSP(0:NTRUNC_l,2,kfield)
+
+    INTEGER  thdid,numthd,omp_get_thread_num,omp_get_num_threads
+
+    ! 1. Set up according to the desired grid (staggered or not)
+    !    ---------------------
+       i_nj = nj_l
+       i_njlath = njlath_l
+
+    ! 2. Inverse Legendre transform
+    !    --------------------------
+
+    !$OMP PARALLEL PRIVATE(DLALP,DLDALP,JM0,DLSP,ZFMS,ZFMA,JLATN,JLATS) &
+    !$OMP  PRIVATE(INM,ILA,JM,JN,JK,JJ,ZJM,JNS,INS,ILONR,ILONIM) &
+    !$OMP  PRIVATE(thdid,numthd)
+    thdid = omp_get_thread_num()
+    numthd= omp_get_num_threads()
+    DO JM0 = thdid, NTRUNC_l/2,numthd
+       INS=1
+       IF(JM0.EQ.NTRUNC_l-JM0) INS = 0
+       DO JNS = 0,INS
+          JM = (1-JNS)*JM0 + JNS*(NTRUNC_l - JM0)
+
+          ! 2.1 Copy global spectral state into local spectral state
+          DO JN = JM, NTRUNC_l
+             ILA = gst_NIND(JM) + JN - JM
+             INM = JN - JM
+             DO JK = 2*NFLEV+1, kfield
+                DLSP(INM,1,JK) = SP(ILA,1,JK)
+                DLSP(INM,2,JK) = SP(ILA,2,JK)
+             END DO
+             DO JK = 1, 2*NFLEV
+                DLSP(INM,1,JK) = SP(ILA,1,JK)*R1SNP1(ILA)
+                DLSP(INM,2,JK) = SP(ILA,2,JK)*R1SNP1(ILA)
+             END DO
+          END DO
+
+          ! 2.2  Get Legendre polynomial (and its derivative) for all latitudes
+          !      but for the chosen value of "m" from the global array
+          CALL GETALP (DLALP,DLDALP,I_NJLATH,NTRUNC_l,NTRUNC_l,JM)
+
+          ! 2.3  Perform the inverse Legendre transform for all fields
+          CALL LEGINV3(JM,ZFMS,ZFMA,DLSP,DLALP,kfield,I_NJLATH,NTRUNC_l,NTRUNC_l)
+
+          ! 2.4 Passage to Fourier space
+          ILONR  = 2*JM + 1
+          ILONIM = 2*JM + 2
+          ZJM = FLOAT(JM)
+          DO JJ = 1, I_NJLATH
+             JLATN = JJ
+             JLATS = I_NJ - JLATN + 1
+             DO  JK = 2*NFLEV+1, kfield
+                GD(ILONR,JK,JLATN) = ZFMS(JJ,1,JK) + ZFMA(JJ,1,JK)
+                GD(ILONIM,JK,JLATN) = ZFMS(JJ,2,JK) + ZFMA(JJ,2,JK)
+                GD(ILONR,JK,JLATS) = ZFMS(JJ,1,JK) - ZFMA(JJ,1,JK)
+                GD(ILONIM,JK,JLATS) = ZFMS(JJ,2,JK) - ZFMA(JJ,2,JK)
+             END DO
+
+             DO JK = 1, NFLEV
+                JK2= JK + NFLEV
+                GD(ILONR,JK,JLATN)  = -ZJM*(ZFMS(JJ,2,JK+NFLEV) + ZFMA(JJ,2,JK+NFLEV))
+                GD(ILONIM,JK,JLATN) = ZJM*(ZFMS(JJ,1,JK+NFLEV) + ZFMA(JJ,1,JK+NFLEV))
+                GD(ILONR,JK,JLATS)  = -ZJM*(ZFMS(JJ,2,JK+NFLEV) - ZFMA(JJ,2,JK+NFLEV))
+                GD(ILONIM,JK,JLATS) = ZJM*(ZFMS(JJ,1,JK+NFLEV) - ZFMA(JJ,1,JK+NFLEV))
+
+                GD(ILONR,JK2,JLATN)  = -ZJM*(ZFMS(JJ,2,JK) + ZFMA(JJ,2,JK))
+                GD(ILONIM,JK2,JLATN) = ZJM*(ZFMS(JJ,1,JK) + ZFMA(JJ,1,JK))
+                GD(ILONR,JK2,JLATS)  = -ZJM*(ZFMS(JJ,2,JK) - ZFMA(JJ,2,JK))
+                GD(ILONIM,JK2,JLATS) = ZJM*(ZFMS(JJ,1,JK) - ZFMA(JJ,1,JK))
+             END DO
+          enddo
+
+          ! 2.5 Completion of the computation of the winds in Fourier space
+          !     -----------------------------------------------------------
+
+          CALL LEGINV3 (JM, ZFMA,ZFMS,DLSP,DLDALP,2*NFLEV, I_NJLATH, NTRUNC_l, NTRUNC_l)
+
+          ILONR  = 2*JM + 1
+          ILONIM = 2*JM + 2
+          ZJM    = FLOAT(JM)
+          DO JJ = 1, I_NJLATH
+             JLATN = JJ
+             JLATS = I_NJ - JLATN + 1
+
+             if(jlatn.ne.jlats) then
+                do jk = 1,nflev
+                   jk2= jk + nflev
+                   ! Northern latitudes
+                   GD(ILONR,JK,JLATN)  = GD(ILONR,JK,JLATN)  -(ZFMS(JJ,1,JK) + ZFMA(JJ,1,JK))
+                   GD(ILONIM,JK,JLATN) = GD(ILONIM,JK,JLATN) -(ZFMS(JJ,2,JK) + ZFMA(JJ,2,JK))
+
+                   GD(ILONR,JK2,JLATN) = GD(ILONR,JK2,JLATN) +(ZFMS(JJ,1,JK+NFLEV) + ZFMA(JJ,1,JK+NFLEV))
+                   GD(ILONIM,JK2,JLATN)= GD(ILONIM,JK2,JLATN)+(ZFMS(JJ,2,JK+NFLEV) + ZFMA(JJ,2,JK+NFLEV))
+                   ! Southern latitudes
+                   GD(ILONR,JK,JLATS) = GD(ILONR,JK,JLATS)   -(ZFMS(JJ,1,JK) - ZFMA(JJ,1,JK))
+                   GD(ILONIM,JK,JLATS)= GD(ILONIM,JK,JLATS)  -(ZFMS(JJ,2,JK) - ZFMA(JJ,2,JK))
+                   GD(ILONR,JK2,JLATS) = GD(ILONR,JK2,JLATS) +(ZFMS(JJ,1,JK+NFLEV) - ZFMA(JJ,1,JK+NFLEV))
+                   GD(ILONIM,JK2,JLATS)= GD(ILONIM,JK2,JLATS)+(ZFMS(JJ,2,JK+NFLEV) - ZFMA(JJ,2,JK+NFLEV))
+                END DO
+             else
+                ! Special case for the equator
+                DO JK = 1, NFLEV
+                   jk2= jk + nflev
+                   GD(ILONR,JK,JLATN)  = GD(ILONR,JK,JLATN)  -(ZFMS(JJ,1,JK) + ZFMA(JJ,1,JK))
+                   GD(ILONIM,JK,JLATN) = GD(ILONIM,JK,JLATN) -(ZFMS(JJ,2,JK)+ ZFMA(JJ,2,JK))
+                   GD(ILONR,JK2,JLATN) = GD(ILONR,JK2,JLATN) +(ZFMS(JJ,1,JK+NFLEV) + ZFMA(JJ,1,JK+NFLEV))
+                   GD(ILONIM,JK2,JLATN)= GD(ILONIM,JK2,JLATN)+(ZFMS(JJ,2,JK+NFLEV)+ ZFMA(JJ,2,JK+NFLEV))
+                end do
+             end if
+          END DO
+
+       end do
+!     End loop on m
+    end do
+    !$OMP END PARALLEL
+
+  END subroutine sppar
+
+
+  SUBROUTINE gst_SPGDA(sp,gd,kfield,nflev,kdim)
+    IMPLICIT NONE
+
+    integer kfield,nflev,kdim
+    real*8 sp(nla_l,2,kdim), gd(nibeg_l:niend_l,kdim,njbeg_l:njend_l)
+
+    INTEGER :: ILEN, JK, JLON, JLAT, INCPU, ISIZ, I_NJ
+    integer ji,jj,jla
+
+    integer idum1,idum2,idum3,idum4
+    real*8 zmin,zmax
+    REAL*8 :: ZFM(NI_l+2,kfield,NJ_l)
+    real*8 zfmla(ni_l,kfield,nj_l), zsp(nla_l,2)
+    real*8 zgdxy(ni_l,nj_l)
+
+!     1. Fourier transform all fields for all latitudes
+!        ----------------------------------------------
+    zfm(:,:,:) = 0.d0
+       i_nj = nj_l
+                                !
+        DO JK = 1, kfield
+           DO JLAT = 1, I_NJ
+              DO JLON = 1, NI_l
+                 ZFM(JLON,JK,JLAT) = GD(JLON,JK,JLAT)
+              END DO
+           END DO
+        END DO
+!
+      CALL FFT3DVAR(ZFM,1,NI_l+2,kfield,1,I_NJ,kfield,-1)
+
+!     2. Direct Legendre transform including wind transformations
+!        --------------------------------------------------------
+      CALL SPGDAPAR(SP,ZFM,kfield,NFLEV,kdim)
+
+  END subroutine gst_spgda
+
+
+  SUBROUTINE SPGDAPAR(SP,ZFM,kfield,nflev,kdim)
+    USE procs_topo
+    IMPLICIT NONE
+
+    INTEGER :: kfield,nflev,kdim
+    REAL*8  :: sp(nla_l,2,kdim),ZFM(NI_l+2,kdim, NJ_l)
+
+    INTEGER ISIZ
+    INTEGER ILEN, JJ, JK, ILONR, ILONI, JM ,ILA, INM, JN, JM0, INS, JNS
+    REAL*8 :: ZJM,DLRWT(NJBEG_l:NJEND_l)
+    REAL*8 ::  DLALP(0:NTRUNC_l,NJLATH_l), DLDALP(0:NTRUNC_l, NJLATH_l)
+    REAL*8 :: DLSP(0:NTRUNC_l,2,kfield),DLSP2(0:NTRUNC_l,2,2*NFLEV)
+    REAL*8 ::  ZFMS( NJLATH_l+1,2,kfield), ZFMA( NJLATH_l+1,2,kfield)
+    integer :: i_njlath, i_nj
+
+    INTEGER thdid,numthd,omp_get_thread_num,omp_get_num_threads
+
+    !    1. Set up according to the desired grid (staggered or not)
+    !       ---------------------
+    IF(myid == 0) THEN
+      write(*,fmt='(/,4x,A)')'SPGDAPAR- Adjoint of the inverse Legendre transform'
+    endif
+                                !
+    i_nj = nj_l
+    i_njlath = njlath_l
+    dlrwt(:) = gst_rwt(:)
+    if (mod(i_nj,2).ne.0) then
+       dlrwt(i_njlath) = dlrwt(i_njlath)/2.d0
+    end if
+
+    ! 2. Fourier transform all fields for all latitudes
+    !$OMP PARALLEL PRIVATE(DLALP,DLDALP,JM0,DLSP,DLSP2,ZFMS,ZFMA) &
+    !$OMP  PRIVATE(INM,ILA,JM,JN,JK,JJ,ZJM,JNS,INS,ILONR,ILONI) &
+    !$OMP  PRIVATE(thdid,numthd)
+    thdid = omp_get_thread_num()
+    numthd= omp_get_num_threads()
+    DO JM0 = thdid, NTRUNC_l/2,numthd
+       INS=1
+       IF(JM0.EQ.NTRUNC_l-JM0) INS = 0
+       DO JNS = 0,INS
+          JM = (1-JNS)*JM0 + JNS*(NTRUNC_l - JM0)
+          ILONR = 2 * JM + 1
+          ILONI = ILONR + 1
+          ZJM   = FLOAT(JM)
+
+          ! 2.1 Fetch the Legendre functions and their derivatives for this choice of "m"
+
+!     CRITICAL
+             CALL GETALP(DLALP,DLDALP,I_NJLATH,NTRUNC_l,NTRUNC_l,JM)
+!     END CRITICAL
+
+          ! 2.2  Build the symmetric and anti-symmetric Fourier coefficients including
+          !      the appropriate quadrature weights (see scientific notes)
+          DO JJ = 1, I_NJLATH
+
+             ! 2.2.1  Coefficients for scalar fields
+             DO JK = 2*NFLEV+1, kfield
+                ! SYMMETRIC COEFFICIENTS
+                ZFMS(JJ,1,JK) = DLRWT(JJ)*(ZFM(ILONR,JK,JJ) + ZFM(ILONR,JK,1+I_NJ-JJ))
+                ZFMS(JJ,2,JK) = DLRWT(JJ)*(ZFM(ILONI,JK,JJ) + ZFM(ILONI,JK,1+I_NJ-JJ))
+                ! ANTISYMMETRIC COEFFICIENTS
+                ZFMA(JJ,1,JK) = DLRWT(JJ)*(ZFM(ILONR,JK,JJ) - ZFM(ILONR,JK,1+I_NJ-JJ))
+                ZFMA(JJ,2,JK) = DLRWT(JJ)*(ZFM(ILONI,JK,JJ) - ZFM(ILONI,JK,1+I_NJ-JJ))
+             END DO
+
+             ! 2.2.2 Coefficients associated with the wind fields
+             DO JK = 1, NFLEV
+                ! VORTICITY: SYMMETRIC COEFFICIENTS
+                ZFMS(JJ,1,JK) = -ZJM*DLRWT(JJ)*(ZFM(ILONI,JK+NFLEV,JJ)+ZFM(ILONI,JK+NFLEV,1+I_NJ-JJ))
+                ZFMS(JJ,2,JK) = ZJM*DLRWT(JJ) *(ZFM(ILONR,JK+NFLEV,JJ)+ZFM(ILONR,JK+NFLEV,1+I_NJ-JJ))
+                ! VORTICITY: ANTISYMMETRIC COEFFICIENTS
+                ZFMA(JJ,1,JK) = -ZJM*DLRWT(JJ) *(ZFM(ILONI,JK+NFLEV,JJ)- ZFM(ILONI,JK+NFLEV,1+I_NJ-JJ))
+                ZFMA(JJ,2,JK) = ZJM*DLRWT(JJ)*(ZFM(ILONR,JK+NFLEV,JJ)- ZFM(ILONR,JK+NFLEV,1+I_NJ-JJ))
+                ! DIVERGENCE: SYMMETRIC COEFFICIENTS
+                ZFMS(JJ,1,JK+NFLEV) = -ZJM*DLRWT(JJ)*(ZFM(ILONI,JK,JJ)+ ZFM(ILONI,JK,1+I_NJ-JJ))
+                ZFMS(JJ,2,JK+NFLEV) = ZJM*DLRWT(JJ)*(ZFM(ILONR,JK,JJ)+ ZFM(ILONR,JK,1+I_NJ-JJ))
+                ! DIVERGENCE: ANTISYMMETRIC COEFFICIENTS
+                ZFMA(JJ,1,JK+NFLEV) = -ZJM*DLRWT(JJ)*(ZFM(ILONI,JK,JJ)- ZFM(ILONI,JK,1+I_NJ-JJ))
+                ZFMA(JJ,2,JK+NFLEV) = ZJM*DLRWT(JJ)*(ZFM(ILONR,JK,JJ)- ZFM(ILONR,JK,1+I_NJ-JJ))
+             END DO
+          END DO
+
+          ! 2.3 First one with ALP for all scalar fields and for half the terms
+          !     required to define the divergence and vorticity
+!      CRITICAL
+          CALL LEGDIR3 (JM,ZFMS,ZFMA,DLSP,DLALP,kfield,I_NJLATH,NTRUNC_l,NTRUNC_l)
+!     END CRITICAL
+                                !
+          ! 2.4  Second transform with DALP to complete the construction of the
+          !      vorticity and divergence fields
+          DO JJ = 1, I_NJLATH
+             DO JK = 1, NFLEV
+                ! Symmetric coefficients for zonal wind
+                ZFMS(JJ,1,JK) = DLRWT(JJ)*(ZFM(ILONR,JK,JJ) + ZFM(ILONR,JK,1+I_NJ - JJ))
+                ZFMS(JJ,2,JK) = DLRWT(JJ)*(ZFM(ILONI,JK,JJ) + ZFM(ILONI,JK,1+I_NJ-JJ))
+                ! Antisymmetric coefficients for zonal wind
+                ZFMA(JJ,1,JK) = DLRWT(JJ)*(ZFM(ILONR,JK,JJ) - ZFM(ILONR,JK,1+I_NJ-JJ))
+                ZFMA(JJ,2,JK) = DLRWT(JJ)*(ZFM(ILONI,JK,JJ) - ZFM(ILONI,JK,1+I_NJ-JJ))
+             END DO
+             DO JK = NFLEV+1, 2*NFLEV
+                ! Symmetric coefficients for meridional wind
+                ZFMS(JJ,1,JK) = -DLRWT(JJ)*(ZFM(ILONR,JK,JJ) + ZFM(ILONR,JK,1+I_NJ-JJ))
+                ZFMS(JJ,2,JK) = -DLRWT(JJ)*(ZFM(ILONI,JK,JJ) + ZFM(ILONI,JK,1+I_NJ-JJ))
+                ! Antisymmetric coefficients for meridional wind
+                ZFMA(JJ,1,JK) = -DLRWT(JJ)*(ZFM(ILONR,JK,JJ) - ZFM(ILONR,JK,1+I_NJ-JJ))
+                ZFMA(JJ,2,JK) = -DLRWT(JJ)*(ZFM(ILONI,JK,JJ) - ZFM(ILONI,JK,1+I_NJ-JJ))
+             END DO
+          END DO
+!      CRITICAL
+          CALL LEGDIR3(JM,ZFMA,ZFMS,DLSP2,DLDALP,2*NFLEV,i_NJLATH,NTRUNC_l,NTRUNC_l)
+!     END CRITICAL
+                                !
+          ! 2.5  Transfer the result in the global state
+          DO JN = JM, NTRUNC_l
+             ILA = gst_NIND(JM) + JN - JM
+             INM = JN - JM
+             DO JK = 1, 2*NFLEV
+                SP(ILA,1,JK) = -R1SNP1(ILA)*(DLSP(INM,1,JK) + DLSP2(INM,1,JK))
+                SP(ILA,2,JK) = -R1SNP1(ILA)*(DLSP(INM,2,JK) + DLSP2(INM,2,JK))
+             END DO
+             DO JK = 2*NFLEV+1,kfield
+                SP(ILA,1,JK) = DLSP(INM,1,JK)
+                SP(ILA,2,JK) = DLSP(INM,2,JK)
+             END DO
+          END DO
+       ! End of loop on zonal wavenumbers
+       END DO
+    END DO
+    !$OMP END PARALLEL
+  END subroutine spgdapar
+
+
+  SUBROUTINE GST_SPEREE(PSP,PGD,KFIELD,KDIM)
+    use fft_mod
+    implicit none
+
+    integer kfield,kdim,itemp,ijump,ilot,julot,infft
+    real*8 psp(nla_l,2,kdim), pgd(nibeg_l:niend_l,kdim,njbeg_l:njend_l)
+    integer ilen, jgl, jk, jlon, ilonmax
+
+    !    1. Inverse Legendre transform
+    !    --------------------------
+    call spereepar(psp,pgd,kfield,kdim)
+
+    !     2. Inverse Fourier transform
+    !        -------------------------
+    !     2.1 Reset to zero the modes that are not part of the truncation
+    !         -----------------------------------------------------------
+    ilonmax = niend_l
+    !$OMP PARALLEL 
+    !$OMP DO PRIVATE (JGL,JLON,JK)
+    do jgl = 1,nj_l
+       do jlon = 2*(ntrunc_l+1)+1, ilonmax
+          do  jk = 1, kfield
+             pgd(jlon,jk,jgl) = 0.
+          end do
+       end do
+
+       do jk = 1, kfield
+          pgd(0,jk,jgl) = 0.
+       end do
+    end do
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+    !     2.2 Apply the FFT 
+    !         -------------
+    !*    . INVERSE FOURIER TRANSFORM
+    !     .  -------------------------
+    call fft_fft3dvar(pgd,nibeg_l,niend_l,kfield,njbeg_l,njend_l,kfield,+1)
+
+    return
+  END SUBROUTINE GST_SPEREE
+
+
+  SUBROUTINE GST_REESPE(PSP,PGD,KFIELD,KDIM)
+    use fft_mod
+    implicit none
+
+    integer :: kfield,kdim
+    real*8 psp(nla_l,2,kdim), pgd(nibeg_l:niend_l,kdim,njbeg_l:njend_l)
+    !
+    integer :: ilen, ji,jj,jk, jlon, jlat,incpu, isiz
+    real*8,pointer  :: zfm(:,:,:)
+    integer value(8)
+    real*8 seconds1,seconds2,seconds3
+
+    allocate(zfm(ni_l+2,kfield,nj_l))
+
+    !     1. Transfer global fields to local array
+    call  date_and_time(values=value)
+    seconds1=0.001d0*value(8)+value(7)+60.0d0*value(6)+3600.0d0*value(5)
+
+    !$OMP PARALLEL 
+    !$OMP DO PRIVATE (JJ,JK,JI)
+    do jj=1,nj_l
+       do jk=1,kfield
+          do ji=1,ni_l
+             zfm(ji,jk,jj) = pgd(ji,jk,jj)
+          enddo
+       enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+    call  date_and_time(values=value)
+    seconds2=0.001d0*value(8)+value(7)+60.0d0*value(6)+3600.0d0*value(5)
+    !  write(*,*) 'in reespe, transfer=',seconds2-seconds1
+
+    !     2. Apply the FFT
+    call  date_and_time(values=value)
+    seconds1=0.001d0*value(8)+value(7)+60.0d0*value(6)+3600.0d0*value(5)
+    call fft_fft3dvar(zfm,1,ni_l+2,kfield,1,nj_l,kfield,-1)
+    call  date_and_time(values=value)
+    seconds2=0.001d0*value(8)+value(7)+60.0d0*value(6)+3600.0d0*value(5)
+
+    ! 3. Direct Legendre transform
+    call reespepar(psp,zfm,kfield,kdim)
+    call  date_and_time(values=value)
+    seconds3=0.001d0*value(8)+value(7)+60.0d0*value(6)+3600.0d0*value(5)
+
+    !  write(*,*) 'in reespe, fft=',seconds2-seconds1
+    !  write(*,*) 'in reespe, leg=',seconds3-seconds2
+
+    deallocate(zfm)
+
+  END SUBROUTINE GST_REESPE
+
+
+  SUBROUTINE SPEREEPAR(PSP,PGD,KFIELD,KDIM)
+    implicit none
+
+    integer kfield,kdim
+    real*8 psp(nla_l,2,kdim), pgd(nibeg_l:niend_l,kdim,njbeg_l:njend_l)
+
+    integer isiz
+    integer ilen,jj,jlatn, jlats,jm
+    integer ilonr,ilonim,jk,jn,ila,inm,jm0,jns,ins
+
+    real*8 dlalp(0:ntrunc_l,njlath_l), dldalp(0:ntrunc_l,njlath_l)
+    real*8 zfms(njlath_l+1,2,kfield), zfma(njlath_l+1,2,kfield)
+    real*8 dlsp(0:ntrunc_l,2,kfield)
+
+    integer  thdid,numthd,omp_get_thread_num,omp_get_num_threads
+
+
+    !$OMP PARALLEL PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA,JLATN,JLATS, &
+    !$OMP INM,ILA,JM,JN,JK,JJ,JNS,INS,ILONR,ILONIM,JM0)
+    thdid = omp_get_thread_num()
+    numthd= omp_get_num_threads()
+    do jm0 = thdid, ntrunc_l/2,numthd
+       ins=1
+       if(jm0.eq.ntrunc_l-jm0) ins = 0
+       do jns = 0,ins
+          jm = (1-jns)*jm0 + jns*(ntrunc_l - jm0)
+
+          !**   .   2.1 Copy global spectral state into local spectral state
+
+          do jn = jm, ntrunc_l
+             ila = gst_nind(jm) + jn - jm
+             inm = jn - jm
+             do jk =1,kfield
+                dlsp(inm,1,jk) = psp(ila,1,jk)
+                dlsp(inm,2,jk) = psp(ila,2,jk)
+             end do
+          end do
+
+          !     .   2.2  Get Legendre polynomial (and its derivative) for all latitudes
+          !     .        but for the chosen value of "m" from the global array
+
+          call getalp(dlalp,dldalp,njlath_l,ntrunc_l,ntrunc_l,jm)
+
+          !     .   2.3  Perform the inverse Legendre transform for all fields
+
+          call leginv3(jm, zfms,zfma,dlsp,dlalp,kfield,njlath_l,ntrunc_l,ntrunc_l)
+
+          !     .   2.4 Passage to Fourier space
+
+          ilonr  = 2*jm + 1
+          ilonim = 2*jm + 2
+          do jj = 1, njlath_l
+             jlatn = jj
+             jlats = nj_l - jj + 1
+             do  jk = 1,kfield
+                pgd(ilonr,jk,jlatn)  = zfms(jj,1,jk) + zfma(jj,1,jk)
+                pgd(ilonim,jk,jlatn) = zfms(jj,2,jk) + zfma(jj,2,jk)
+                pgd(ilonr,jk,jlats)  = zfms(jj,1,jk) - zfma(jj,1,jk)
+                pgd(ilonim,jk,jlats) = zfms(jj,2,jk) - zfma(jj,2,jk)
+             end do
+          enddo
+       enddo
+    enddo
+    !$OMP END PARALLEL
+
+    return
+  END SUBROUTINE SPEREEPAR
+
+
+  SUBROUTINE REESPEPAR(PSP,ZFM,KFIELD,KDIM)
+    implicit none
+
+    integer :: kfield,kdim
+    real*8  :: psp(nla_l,2,kdim)
+    real*8  :: zfm(ni_l+2,kdim, nj_l)
+
+    integer :: ilen, jj, jk,jk2,ilonr, iloni
+    integer :: jm, ila, inm, jn, jm0, ins, jns
+    real*8  ::  dlalp(0:ntrunc_l,njlath_l)
+    real*8  :: dldalp(0:ntrunc_l, njlath_l)
+    real*8  ::  dlsp(0:ntrunc_l,2,kfield)
+    real*8  ::  zfms( njlath_l+1,2,kfield), zfma( njlath_l+1,2,kfield)
+    real*8  :: dlrwt(njbeg_l:njend_l)
+
+    integer :: thdid,numthd,omp_get_thread_num,omp_get_num_threads
+
+    !     1. Adjustment needed when an odd number of latitudes is considered
+    !     --------------------------------------------------------------------
+    dlrwt(:)   = gst_rwt(:)
+    if (mod(nj_l,2).ne.0) then
+       dlrwt(njlath_l)   = dlrwt(njlath_l)/2.d0
+    end if
+
+    !$OMP PARALLEL PRIVATE(DLALP,DLDALP,JM0,DLSP,ZFMS,ZFMA,thdid,numthd, &
+    !$OMP   INM,ILA,JM,JN,JK,JK2,JJ,JNS,INS,ILONR,ILONI)
+    thdid = omp_get_thread_num()
+    numthd= omp_get_num_threads()
+    do jm0 = thdid, ntrunc_l/2,numthd
+       ins=1
+       if(jm0.eq.ntrunc_l-jm0) ins = 0
+       do jns = 0,ins
+          jm = (1-jns)*jm0 + jns*(ntrunc_l - jm0)
+          ilonr = 2 * jm + 1
+          iloni = ilonr + 1
+
+          !**  .  2.1 Fetch the Legendre functions and their derivatives for this choice of "m"
+
+          call getalp(dlalp,dldalp,njlath_l,ntrunc_l,ntrunc_l,jm)
+
+          !    .  2.2  Build the symmetric and anti-symmetric Fourier coefficients including
+          !    .       the appropriate quadrature weights (see scientific notes)
+
+          do jj = 1, njlath_l
+             do jk = 1,kfield
+                !     .                       Symmetric coefficients
+                zfms(jj,1,jk) = dlrwt(jj)*(zfm(ilonr,jk,jj) + zfm(ilonr,jk,1+nj_l-jj))
+                zfms(jj,2,jk) = dlrwt(jj)*(zfm(iloni,jk,jj) + zfm(iloni,jk,1+nj_l-jj))
+                !     .                       Antisymmetric coefficients
+                zfma(jj,1,jk) = dlrwt(jj)*(zfm(ilonr,jk,jj) -  zfm(ilonr,jk,1+nj_l-jj))
+                zfma(jj,2,jk) = dlrwt(jj)*(zfm(iloni,jk,jj) -  zfm(iloni,jk,1+nj_l-jj))
+             end do
+          enddo
+
+          !     .   2.3 First one with ALP for all scalar fields and for half the terms
+          !     .        required to define the divergence and vorticity
+
+          call legdir3 (jm,zfms,zfma,dlsp,dlalp,kfield,njlath_l,ntrunc_l,ntrunc_l)
+
+          !     .    2.5  Transfer the result in the global state
+
+          do jn = jm, ntrunc_l
+             ila = gst_nind(jm) + jn - jm
+             inm = jn - jm
+             do jk2 = 1,kfield
+                psp(ila,1,jk2) = dlsp(inm,1,jk2)
+                psp(ila,2,jk2) = dlsp(inm,2,jk2)
+             end do
+          end do
+
+          !     End of loop on zonal wavenumbers
+
+       enddo
+    enddo
+    !$OMP END PARALLEL
+
+    return
+  END SUBROUTINE REESPEPAR
+
+
+  SUBROUTINE LEGDIR3 (KM,PFMS,PFMA,DDSP,DDALP,KDIM,KLATH,KTRUNC,KTRUNCDIM)
+    IMPLICIT NONE
+
+    INTEGER KM, KDIM, KTRUNC, KTRUNCDIM, KLATH
+    REAL*8    PFMS(NJLATH_L+1,2*KDIM),PFMA(NJLATH_L+1,2*KDIM)
+    REAL*8 DDALP(0:KTRUNCDIM,KLATH)
+    REAL*8  DDSP(0:KTRUNCDIM,2*KDIM)
+
+    INTEGER JK, JLAT, JN, INM, ITRUNC, INMP1, JIND, INK
+
+    ITRUNC = KTRUNC
+    IF(MOD(KTRUNC-KM+1,2).EQ.1) ITRUNC = KTRUNC-1
+
+    IF(KM.NE.KTRUNC)THEN
+       DDSP(0:KTRUNC,1:2*KDIM)=0.d0
+       DO JLAT = 1,KLATH
+          DO JK = 1,2*KDIM
+             DO JN = KM, ITRUNC, 2
+                INM = JN - KM
+                INMP1 = INM + 1
+                DDSP(INM,JK)   = DDSP(INM,JK) +  DDALP(INM  ,JLAT)*PFMS(JLAT,JK)
+                DDSP(INMP1,JK) = DDSP(INMP1,JK)+ DDALP(INMP1,JLAT)*PFMA(JLAT,JK)
+             ENDDO
+          ENDDO
+       ENDDO
+    END IF
+
+    IF(MOD(KTRUNC-KM+1,2).EQ.1) THEN
+       JN = KTRUNC
+       INM = JN - KM
+       DDSP(INM,1:2*KDIM)=0.d0
+
+       DO JLAT = 1,KLATH
+          DO JK = 1,2*KDIM
+             DDSP(INM,JK) = DDSP(INM,JK) + DDALP(INM,JLAT)*PFMS(JLAT,JK )
+          ENDDO
+       ENDDO
+    END IF
+
+    RETURN
+  END SUBROUTINE LEGDIR3
+
+  SUBROUTINE LEGINV3 (KM,PFMS,PFMA,DDSP,DDALP,KDIM, KLATH ,KTRUNC,KTRUNCDIM)
+    IMPLICIT NONE
+
+    INTEGER KM, KDIM, KTRUNC, KTRUNCDIM, KLATH
+    REAL*8 PFMS(NJLATH_L+1,2*KDIM),PFMA(NJLATH_L+1,2*KDIM)
+    REAL*8 DDALP(0:KTRUNCDIM,KLATH)
+    REAL*8  DDSP(0:KTRUNCDIM,2*KDIM)
+
+    INTEGER JK, JLAT, JN, INM, ILEN ,ITRUNC, INMP1, JIND, INK
+    INTEGER I,J
+
+    ILEN=(KLATH+1)*2*KDIM
+    pfms(:,:) = 0.d0
+    pfma(:,:) = 0.d0
+
+    ITRUNC = KTRUNC
+    IF(MOD(KTRUNC-KM+1,2).EQ.1) ITRUNC = KTRUNC-1
+
+    IF(KM.NE.KTRUNC)THEN
+       DO JLAT = 1,klath
+          DO JK = 1,2*KDIM
+             DO JN = KM, ITRUNC, 2
+                INM = JN - KM
+                INMP1  = INM + 1
+                PFMS(JLAT,JK) = PFMS(JLAT,JK) + DDALP(INM,JLAT) * DDSP(INM,JK)
+                PFMA(JLAT,JK) = PFMA(JLAT,JK) + DDALP(INMP1,JLAT) * DDSP(INMP1,JK)
+             ENDDO
+          ENDDO
+       ENDDO
+    END IF
+
+    IF(MOD(KTRUNC-KM+1,2).EQ.1) THEN
+       JN = KTRUNC
+       IF ( KM .NE. KTRUNC) THEN
+          INM = JN - KM
+          DO JLAT = 1,klath
+             DO JK = 1,2*KDIM
+                PFMS(JLAT,JK) = PFMS(JLAT,JK) + DDALP(INM,JLAT) * DDSP(INM,JK)
+             ENDDO
+          ENDDO
+       ELSE
+          INM = JN - KM
+          DO JLAT = 1,klath
+             DO JK = 1,2*KDIM
+                PFMS(JLAT,JK) = DDALP(INM,JLAT) * DDSP(INM,JK)
+             ENDDO
+          ENDDO
+       END IF
+    END IF
+
+    RETURN
+  END SUBROUTINE LEGINV3
+
+
+  subroutine allocate_comleg
+    implicit none
+
+    allocate(gst_RMU(NJBEG_L:NJEND_L))  
+    allocate(gst_RWT(NJBEG_L:NJEND_L))
+    allocate(RWOCS(NJBEG_L:NJEND_L))
+    allocate(R1MU2(NJBEG_L:NJEND_L))
+    allocate(gst_RSQM2(NJBEG_L:NJEND_L))
+    allocate(RCOLAT(NJBEG_L:NJEND_L))
+    allocate(gst_R1QM2(NJBEG_L:NJEND_L))
+    allocate(R1MUI(NJBEG_L:NJEND_L))
+    allocate(R1MUA(NJBEG_L:NJEND_L))
+    allocate(gst_RLATI(NJBEG_L:NJEND_L))
+    allocate(GAUS(NJBEG_L:NJEND_L,10))
+    allocate(gst_NIND(0:NTRUNC_L))
+    allocate(NINDRH(0:NTRUNC_L))
+    allocate(NCLM(0:NTRUNC_L))
+
+  end subroutine allocate_comleg
+
+
+  SUBROUTINE SULEG(KULOUT)
+    !
+    !**s/r SULEG  - Initialisation of Gaussian latitudes, weights and related
+    !     .         quantities
+    IMPLICIT NONE
+
+    INTEGER KULOUT, JLAT, JM
+    REAL*8 ZPISU2
+    EXTERNAL GAUSS
+
+    WRITE(*,FMT='(//,6(" ***********"))')
+    WRITE(*,*)'     SULEG: initialisation of Gaussian', &
+         ' latitudes, weights, etc...'
+    WRITE(*,FMT='(6(" ***********"))')
+
+    !     1. GAUSSIAN LATITUDES AND WEIGHTS OVER AN HEMISPHERE
+    !     -------------------------------------------------
+
+    CALL GAUSS8(NJLATH_L,gst_RMU(1),gst_RWT(1),gst_RSQM2(1),RCOLAT(1),RWOCS(1) &
+         ,gst_R1QM2(1),R1MUI(1),R1MU2(1))
+
+    DO JLAT = 1, NJLATH_L
+       gst_RLATI(JLAT) = ASIN(gst_RMU(JLAT))
+       R1MUA(JLAT) = R1SA*R1MUI(JLAT)
+    ENDDO
+
+    !     2. COMPLETION FOR THE SOUTHERN HEMISPHERE
+    !     --------------------------------------
+
+    DO JLAT = NJLATH_L +1, NJ_L
+       gst_RMU(JLAT)   =  -gst_RMU(2*NJLATH_L +1 - JLAT)
+       RWOCS(JLAT) =   RWOCS(2*NJLATH_L +1 - JLAT)
+       R1MU2(JLAT) =   R1MU2(2*NJLATH_L +1 - JLAT)
+       gst_RSQM2(JLAT) =   gst_RSQM2(2*NJLATH_L +1 - JLAT)
+       gst_R1QM2(JLAT) =   gst_R1QM2(2*NJLATH_L +1 - JLAT)
+       R1MUI(JLAT) =   R1MUI(2*NJLATH_L +1 - JLAT)
+       R1MUA(JLAT) =   R1MUA(2*NJLATH_L +1 - JLAT)
+       gst_RWT(JLAT)   =   gst_RWT(2*NJLATH_L +1 - JLAT)
+       gst_RLATI(JLAT) = - gst_RLATI (2*NJLATH_L +1 - JLAT)
+    ENDDO
+
+    ZPISU2 = RPI/2.
+    DO JLAT = 1, NJ_L
+       RCOLAT(JLAT) = ZPISU2 - gst_RLATI(JLAT)
+    ENDDO
+
+    !*    3. Overdimensioning for interpolation
+
+    IF(NJSUR_L.GE.2) THEN
+       gst_RMU  (-1) =   gst_RMU  (1)
+       R1MU2(-1) =   R1MU2(1)
+       gst_RSQM2(-1) =   gst_RSQM2(1)
+       gst_R1QM2(-1) =   gst_R1QM2(1)
+       R1MUI(-1) =   R1MUI(1)
+       R1MUA(-1) =   R1MUA(1)
+       gst_RLATI(-1) =   RPI-gst_RLATI(1)
+
+       gst_RMU  (0) =   1.
+       R1MU2(0) =   0.
+       gst_RSQM2(0) =   0.
+       gst_R1QM2(0) =   RINFINI
+       R1MUI(0) =   RINFINI
+       R1MUA(0) =   RINFINI
+       gst_RLATI(0) =   RPI*.5
+
+       gst_RMU  (NJ_L+1) =  -1.
+       R1MU2(NJ_L+1) =   0.
+       gst_RSQM2(NJ_L+1) =   0.
+       gst_R1QM2(NJ_L+1) =   RINFINI
+       R1MUI(NJ_L+1) =   RINFINI
+       R1MUA(NJ_L+1) =   RINFINI
+       gst_RLATI(NJ_L+1) =  -RPI*.5
+
+       gst_RMU  (NJ_L+2) =   gst_RMU  (NJ_L)
+       R1MU2(NJ_L+2) =   R1MU2(NJ_L)
+       gst_RSQM2(NJ_L+2) =   gst_RSQM2(NJ_L)
+       gst_R1QM2(NJ_L+2) =   gst_R1QM2(NJ_L)
+       R1MUI(NJ_L+2) =   R1MUI(NJ_L)
+       R1MUA(NJ_L+2) =   R1MUA(NJ_L)
+       gst_RLATI(NJ_L+2) =   -RPI-gst_RLATI(NJ_L)
+    END IF
+
+    !*    4. Print the content of GAUS
+
+    WRITE(*,FMT='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
+    DO JLAT = 1, NJ_L
+       WRITE(*,FMT='(2X,I4,5(2X,G23.16))')  &
+            JLAT,gst_RLATI(JLAT),RCOLAT(JLAT), gst_RMU(JLAT)  &
+            ,gst_RWT(JLAT),RWOCS(JLAT)
+    ENDDO
+
+    WRITE(KULOUT,FMT='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
+
+    DO JLAT = 1, NJ_L
+       WRITE(KULOUT,FMT='(2X,I4,5(2X,G23.16))') JLAT,R1MU2(JLAT),gst_RSQM2(JLAT),gst_R1QM2(JLAT)  &
+            ,R1MUI(JLAT),R1MUA(JLAT)
+    ENDDO
+
+    !*    5.  Positioning within spectral arrays
+
+    DO JM = 0, NTRUNC_L
+       gst_NIND(JM)   = JM*(NTRUNC_L+1) - (JM*(JM-1))/2 + 1
+       NINDRH(JM) = JM*(NTRUNC_L+1) + 1
+       NCLM(JM)   = NTRUNC_L - JM + 1
+    end do
+
+    WRITE(*,FMT='(/," NIND(0:NTRUNC_L):",/,10(2X,I8))')  &
+         (gst_NIND(JM),JM=0,NTRUNC_L)
+    WRITE(*,FMT='(" NINDRH(0:NTRUNC_L):",/,10(2X,I8))')  &
+         (NINDRH(JM),JM=0,NTRUNC_L)
+    WRITE(*,FMT='("   NCLM(0:NTRUNC_L):",/,10(2X,I8))')  &
+         (NCLM(JM),JM=0,NTRUNC_L)
+
+  END subroutine suleg
+
+  SUBROUTINE GAUSS8(NRACP,RACP,PG,SIA,RAD,PGSSIN2,SINM1,SINM2,SIN2)
+    IMPLICIT NONE
+
+    INTEGER NRACP
+    REAL*8 RACP(*),PG(*),RAD(*),PGSSIN2(*),SINM2(*),SIN2(*),SIA(*),SINM1(*)
+!    REAL*8, pointer :: SIA(:),SINM1(:)
+    REAL*8 XLIM,PI,FI,FI1,FN,DOT,DN,DN1,A,B,C,G,GM,GP,GT,RACTEMP,GTEMP
+    INTEGER I,IR,IRM,IRP
+
+    XLIM=1.D-13
+    PI = 4.D0*ATAN(1.D0)
+    IR = 2*NRACP
+    FI=DBLE(IR)
+    FI1=FI+1.D0
+    FN=DBLE(NRACP)
+
+    DO I=1,NRACP
+       DOT=DBLE(I-1)
+       RACP(I)=-PI*.5D0*(DOT+.5D0)/FN + PI*.5D0
+       RACP(I) =  SIN(RACP(I))
+    ENDDO
+
+    DN = FI/SQRT(4.D0*FI*FI-1.D0)
+    DN1=FI1/SQRT(4.D0*FI1*FI1-1.D0)
+    A = DN1*FI
+    B = DN*FI1
+    IRP = IR + 1
+    IRM = IR -1
+
+    DO I=1,NRACP
+42     CALL ORDLEG8(G,RACP(I),IR)
+       CALL ORDLEG8(GM,RACP(I),IRM)
+       CALL ORDLEG8(GP,RACP(I),IRP)
+       GT = (A*GP-B*GM)/(RACP(I)*RACP(I)-1.D0)
+       RACTEMP = RACP(I) - G/GT
+       GTEMP = RACP(I) - RACTEMP
+       RACP(I) = RACTEMP
+       IF( ABS(GTEMP).GT.XLIM) GO TO 42
+    ENDDO
+
+    DO I=1,NRACP
+       A=2.D0*(1.-RACP(I)**2)
+       CALL ORDLEG8(B,RACP(I),IRM)
+       B = B*B*FI*FI
+       PG(I)=A*(FI-.5D0)/B
+       RAD(I) =   ACOS(RACP(I))
+       SIA(I) =  SIN(RAD(I))
+       C=(SIA(I))**2
+       SINM1(I) = 1.D0/SIA(I)
+       SINM2(I) = 1.D0/C
+       PGSSIN2(I) =PG(I)/C
+       SIN2(I)=C
+    ENDDO
+
+    RETURN
+  END SUBROUTINE GAUSS8
+
+  SUBROUTINE ORDLEG8(SX,COA,IR)
+    IMPLICIT NONE
+
+    REAL*8 SX,COA
+    INTEGER IR
+    INTEGER N,KK,K,N1,IRPP,IRPPM
+    REAL*8 PI,SQR2,DELTA,SIA,THETA,C1,C4,S1,ANG,FK,FN,FN2,FN2SQ,A,B
+
+    PI    = 4.D0*ATAN(1.D0)
+    SQR2  = SQRT(2.D0)
+    IRPP  = IR   + 1
+    IRPPM = IRPP - 1
+    DELTA = ACOS(COA)
+    SIA   = SIN(DELTA)
+
+    THETA = DELTA
+    C1    = SQR2
+
+    DO N=1,IRPPM
+       FN2   = DBLE(2*N)
+       FN2SQ = FN2*FN2
+       C1    =  C1*SQRT(1.D0 - 1.D0/FN2SQ)
+    ENDDO
+
+    N   = IRPPM
+    FN  = DBLE(N)
+    ANG = FN*THETA
+    S1  = 0.D0
+    C4  = 1.D0
+    A   =-1.D0
+    B   = 0.D0
+    N1  = N+1
+
+    DO KK=1,N1,2
+       K   = KK-1
+       IF (K.EQ.N) C4 = 0.5D0*C4
+       S1  = S1+C4* COS(ANG)
+       A   =  A+2.D0
+       B   =  B+1.D0
+       FK  = DBLE(K)
+       ANG = THETA*(FN-FK-2.D0)
+       C4  = ( A * (FN-B+1.D0) / (B*(FN2-A)) )*C4
+    ENDDO
+
+    SX = S1*C1
+
+    RETURN
+  END SUBROUTINE ORDLEG8
+
+
+  SUBROUTINE SUALP
+    IMPLICIT NONE
+
+    INTEGER JJ,JGL,JM,JN,ILAT
+    INTEGER ILEN,ILARH,ILA,ILATBD,IERR
+    REAL*8  DLALP(NLARH_L,NLATBD), DLDALP(NLARH_L,NLATBD)
+    REAL*8  DLDELALP(NLARH_L,NLATBD)
+    !     
+    !     Memory allocation for Legendre polynomials
+    !     
+    write(*,*) 'allocating dalp:',nla_l,njlath_l,nla_l*njlath_l
+    ALLOCATE( DALP(NLA_L,NJLATH_L), DEALP(NLA_L,NJLATH_L))
+    write(*,*) 'succeeded'
+
+    Latitudes: DO JGL = 1, NJLATH_L, NLATBD
+       ILATBD = MIN(NLATBD,NJLATH_L - JGL + 1)
+
+       IF(ILATBD.EQ.8) THEN
+          CALL ALLP(DLALP,DLDALP,gst_RMU(JGL),NCLM(0),0,NTRUNC_L,ILATBD)
+       ELSE
+          CALL ALLP2(DLALP,DLDALP,gst_RMU(JGL),NCLM(0),0,NTRUNC_L,ILATBD)
+       ENDIF
+
+       DO JM=0,NTRUNC_L
+          DO JN=JM,NTRUNC_L
+             ILA=gst_NIND(JM) + JN -JM
+             ILARH=NINDRH(JM) + JN-JM
+             DO JJ=1,ILATBD
+                ILAT = JGL+JJ-1
+                DALP (ILA,JGL+JJ-1)=DLALP (ILARH,JJ)
+                DEALP(ILA,JGL+JJ-1)=DLDALP(ILARH,JJ)
+             END DO
+          END DO
+       END DO
+    End Do Latitudes
+
+  END subroutine sualp
+
+
+  SUBROUTINE GETALP(DDALP,DDDALP,KLATH,KTRUNC,KTRUNCDIM ,KM)
+    IMPLICIT NONE
+
+    INTEGER KM,KLATH,KTRUNC, KTRUNCDIM
+    INTEGER ILA,IND
+    INTEGER JLAT,JN, JLEN
+    REAL*8  DDALP(0:KTRUNCDIM,KLATH), DDDALP(0:KTRUNCDIM,KLATH)
+
+    DO JLAT = 1,KLATH
+       DO JLEN = 0, KTRUNC
+          DDALP(JLEN,JLAT) = 0.D0
+          DDDALP(JLEN,JLAT)= 0.D0
+       END DO
+    END DO
+
+    DO JLAT = 1, KLATH
+       DO JN = KM, KTRUNC
+          ILA = gst_NIND(KM) + JN-KM
+          IND=JN-KM
+          DDALP(IND,JLAT) =  DALP(ILA,JLAT)
+          DDDALP(IND,JLAT) = DEALP(ILA,JLAT)
+       END DO
+    END DO
+
+    RETURN
+  END SUBROUTINE GETALP
+
+
+  SUBROUTINE ALLP( P , G , X , LR , HEM , R , NLATP) 
+
+    IMPLICIT NONE 
+    INTEGER R, NLATP, LR(0:R), HEM 
+    REAL *8 P(0:R,0:R,NLATP) , G(0:R,0:R,NLATP) 
+    REAL *8 X(NLATP) 
+
+    REAL*8 onehalf   
+    REAL*8 XP , XP2,  P0, ENM, FNM
+    INTEGER ILAT , M , L , N
+
+    data onehalf /0.5/
+
+    DO ILAT=1,NLATP
+       XP2 = SQRT( 1.0 - X(ILAT) ** 2 ) 
+       P(0,0,ILAT) = SQRT(onehalf) 
+       DO M=1,R 
+          XP = FLOAT(M)
+          P(0,M,ILAT) = SQRT( (2.0*XP+1.0)/(2.0*XP) ) * XP2 * P(0,M-1,ILAT)
+       ENDDO
+    ENDDO
+
+    DO ILAT=1,NLATP
+       DO M=0,R 
+          XP = FLOAT(M)
+          G(0,M,ILAT) = - X(ILAT)*XP * P(0,M,ILAT) 
+       ENDDO
+    ENDDO
+    DO N=1,R
+       DO M=0,LR(N)-1
+          L =  1
+          P0 = FLOAT(M+N)
+          XP = FLOAT(M)
+          ENM = SQRT( ((P0*P0-XP*XP)*(2.0*P0+1.0))/(2.0*P0-1.0) )
+          FNM = SQRT( (2.0*P0+1.0)/((P0*P0-XP*XP)*(2.0*P0-1.0)) )
+
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+          P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) -  G(N-1,M,L) ) * FNM 
+          G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L) 
+          L = L + 1
+       ENDDO
+    ENDDO
+
+    RETURN
+  end subroutine allp
+
+
+  SUBROUTINE ALLP2( P , G , X , LR , HEM , R , NLATP)
+
+    IMPLICIT NONE
+    INTEGER R, NLATP, LR(0:R), HEM, JLAT
+    REAL*8 P(0:R,0:R,NLATP) , G(0:R,0:R,NLATP) 
+    REAL*8 X(NLATP)
+
+    REAL*8 onehalf   
+    REAL*8 XP , XP2,  P0, ENM, FNM
+    INTEGER ILAT , M , L , N
+
+    data onehalf /0.5/
+
+    DO ILAT=1,NLATP
+       XP2 = SQRT( 1.0 - X(ILAT) ** 2 )
+       P(0,0,ILAT) = SQRT(onehalf)
+       DO M=1,R
+          XP = FLOAT(M)
+          P(0,M,ILAT) = SQRT( (2.0*XP+1.0)/(2.0*XP) ) * XP2 * P(0,M-1,ILAT)
+       ENDDO
+    ENDDO
+
+    DO ILAT=1,NLATP
+       DO M=0,R
+          XP = FLOAT(M)
+          G(0,M,ILAT) = - X(ILAT)*XP * P(0,M,ILAT)
+       ENDDO
+    ENDDO
+
+    DO N=1,R
+       DO M=0, R
+          P0 = FLOAT(M+N)
+          XP = FLOAT(M)
+          ENM = SQRT( ((P0*P0-XP*XP)*(2.0*P0+1.0))/(2.0*P0-1.0) )
+          FNM = SQRT( (2.0*P0+1.0)/((P0*P0-XP*XP)*(2.0*P0-1.0)) )
+
+          DO JLAT = 1, NLATP
+             L = JLAT
+             P(N,M,L) = ( X(L) * P0 * P(N-1,M,L) - G(N-1,M,L) ) * FNM
+             G(N,M,L) = ENM * P(N-1,M,L) - X(L) * P0 * P(N,M,L)
+          ENDDO
+       ENDDO
+    ENDDO
+
+    RETURN
+  END subroutine allp2
+
+
+
+end module glbspec_mod

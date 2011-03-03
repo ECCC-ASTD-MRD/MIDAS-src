@@ -1,0 +1,98 @@
+Module airsbgcheck
+
+!************************************************************************
+!*
+!*       COMDECK AIRSBGCHECK
+!*       -------------------
+!*
+!*       PURPOSE: VARIABLES FOR AIRS BACKGROUND CHECK COMPUTATION
+!*
+!*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
+!*
+!*       REVISION:
+!*
+!*
+!************************************************************************
+
+
+! Reference (and alternate) window channel for clear / cloudy profile detection
+! (subroutine cloud_height)
+
+      INTEGER, PARAMETER        :: IWINDOW = 787, IWINDOW_ALT = 950
+
+
+! Number of channels (and their values) to use for cloud top height detection
+! with the "background profile matching" method (subroutine cloud_top)
+
+      INTEGER, PARAMETER        :: NCH = 4
+      INTEGER                   :: ILIST1(NCH)
+
+      DATA ILIST1 / 528, 787, 950, 2209 /
+
+
+! Number of channels (and their values) to use for cloud top height detection
+! with the CO2-slicing method. IREFR is the reference channel number (and alternate).
+! (subroutine co2_slicing)
+
+
+      INTEGER, PARAMETER        :: NCO2 = 13
+      INTEGER, PARAMETER        :: IREFR = 787, IREFR_ALT = 843 
+      INTEGER                   :: ILIST2(NCO2),ILIST2_PAIR(NCO2)
+
+      DATA ILIST2 /      204, 221, 232, 252, 262, 272,  &
+     &                   299, 305, 310, 355, 362, 375, 375 /
+
+      DATA ILIST2_PAIR / 252, 262, 272, 299, 305, 310,  &
+           &             355, 362, 375, 375, 262, 252, 204/
+
+
+! Cloud top units : (1) mb, (2) meters
+! (subroutines cloud_height (IOPT1) and cloud_top (IOPT2))
+
+      INTEGER, PARAMETER        :: IOPT1 = 2   ! verify subr input if iopt1 changes
+      INTEGER, PARAMETER        :: IOPT2 = 1
+
+
+! Cloud top based on which background profile matching (subroutine cloud_top)
+! (0) brightness temperature, (1) radiance, (2) both
+
+      INTEGER, PARAMETER        :: IHGT = 2
+
+
+! Maximum delta temperature allowed between guess and true skin temperature
+! over water (DTW) and land (DTL)   (subroutine airsqc)
+
+      REAL(8), PARAMETER        :: DTW = 1.5
+      REAL(8), PARAMETER        :: DTL = 4.0
+
+
+! Minimum and maximum RTTOV levels for LEV_START variable entering CO2 slicing
+! In mb, between 50mb and 325mb (subroutine co2_slicing)
+
+      INTEGER, PARAMETER        :: CO2MIN = 14, CO2MAX = 25  ! RTTOV8.7 - 43 levels
+
+
+! First channel affected by sun (for channels used only at night)
+! (subroutine airsqc)
+
+      INTEGER, PARAMETER       :: ICHN_SUN = 1865
+
+
+! Minimum solar zenith angle for night (between 90 and 180)
+! (subroutine airsqc)
+
+      REAL(8), PARAMETER       :: NIGHT_ANG = 100.
+
+
+! Maximum number of profiles for one call to airs quality control
+! (subroutine tovs_rttov)
+
+      INTEGER, PARAMETER       :: BUNCH_AIRS = 120
+
+! Highest flag in post files (value of N in 2^N)
+! Currently 21
+
+      INTEGER, PARAMETER       :: BITFLAG = 29
+
+
+End module airsbgcheck

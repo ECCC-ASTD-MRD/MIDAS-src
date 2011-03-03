@@ -1,0 +1,253 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DOBSSATEM(PJO)
+#if defined (DOC)
+*
+***s/r DOBSSATEM  -Computation of Jo and the residuals to the
+C observations
+*                    for SATEM data files.
+*
+*
+*Author  : P. Koclas *CMC/AES  April 1996
+*Revision:
+*           C. Charette ARMA/AES NOV 1998
+*            - Extrapolation GZ below model orography.
+*            - Adapt code to follow Luc Fillion's notes on 3dvar-eta
+*              analysis. LLPRINT to print diagnostics
+*           S. Pellerin *ARMA/SMC May 2000
+*            - Fix for F90 conversion
+*           S. Pellerin ARMA/SMC Sept. 2000
+*            - Change references to GOMOBS for GOMOBSG (regional
+C implementation)
+*           C. Charette ARMA/SMC Oct. 2000
+*            - Accept observations on pressure vertical coordinate
+*
+*
+**    Purpose:  -Interpolate vertically the contents of commvo to
+*                the pressure levels of the observations. Then
+*                compute Jo for satem thicknesses.
+*                A linear interpolation in ln(p) is performed.
+*
+*Arguments
+*     PJO:  CONTRIBUTION to Jo
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comlun.cdk"
+#include "comphy.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+*
+      INTEGER IPB,IPT,IELMDZ
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
+      INTEGER J,JDATA
+      REAL*8 ZVAR,ZOER
+      REAL*8 ZPT,ZPB,ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
+      REAL*8 ZLEV,ZPREF,ZPHIB,ZPHIT
+      REAL*8 ZINC
+      REAL*8 PJO
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT
+      DATA IELMDZ /10192 /
+
+C
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      ZGAMMA = 0.0065 / GRAV
+      ZEXP = RGASD*ZGAMMA
+C
+      LLPRINT = .FALSE.
+      DLSUM=0.
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. 'ST') .AND. ( NBEGINTYP(J) .GT. 0) ) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+C
+C
+C*    1. Computation of (HX - Z)/SIGMA
+C     .  -----------------------------
+C
+C
+ 100      CONTINUE
+C
+C
+C     Process all data within the domain of the model
+C
+          DO JDATA = IBEGIN,ILAST
+            IOBS = MOBDATA(NCMOBS,JDATA)
+            LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &           .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &           .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+            IF ( LLOK ) THEN
+              IPOS = MOBDATA(NCMPOS,JDATA)
+              ZVAR = ROBDATA8(NCMVAR,JDATA)
+              ZOER = ROBDATA8(NCMOER,JDATA)
+              ZLEV = ROBDATA8(NCMPPP,JDATA)
+              ZPREF= ROBDATA8(NCMPRL,JDATA)
+C
+C                 CALCULATE PHI AT REFERENCE LEVEL
+C
+              IK   = ROBDATA(NCMLYR,JDATA)/1000
+              IPT  = IK + IPOS*NLEVTRL
+              IPB  = IPT + 1
+              IF ( IK .EQ. NLEVTRL) THEN
+                ZPHIB =GOMOBSHR(IPB,IOBS)
+***************************************************************
+                IF(LLPRINT .AND. IOBS.EQ.1) THEN
+                  write(nulout,*)
+     &                 'dobssatem: ik=nlevtrl: IOBS,zpref,ZVAR= ',IOBS
+     &                 ,zpref,IK,ZVAR
+                  write(nulout,*)
+     &                 'dobssatem: ik=nlevtrl:ipos,ipb,GOMOBSHR(IPB,IOBS)= ',ik,ipb,GOMOBSHR(IPB,IOBS)
+                  write(nulout,*)
+     &                 'dobssatem: ik=nlevtrl : ipos,zphib,zoer = ',ipos
+     &                 ,zphib,ZOER
+                ENDIF
+**************************************************************
+              ELSE
+                ZPT  = RPPOBSHR(IK,IOBS)
+                ZPB  = RPPOBSHR(IK+1,IOBS)
+                ZWB  = LOG(ZPREF/ZPT)/LOG(ZPB/ZPT)
+                ZWT  = 1. - ZWB
+                ZPHIB = ZWB*GOMOBSHR(IPB,IOBS)+ ZWT*GOMOBSHR(IPT,IOBS)
+***************************************************************
+                IF(LLPRINT .AND. IOBS.EQ.1) THEN
+                  write(nulout,*)
+     &                 'dobssatem: IOBS,zpref,ZPT,ZPB,ZWB,ZWT,ZVAR= '
+     &                 ,IOBS,zpref,ZPT,ZPB,ZWB,ZWT,ZVAR
+                  write(nulout,*)
+     &                 'dobssatem: ik,ipb,ipt,GOMOBSHR(IPB,),GOMOBSHR(IPT)= ',ik,ipb,ipt,GOMOBSHR(IPB,IOBS),GOMOBSHR(IPT,IOBS)
+                  write(nulout,*) 'dobssatem: ipos,zphib,zoer = '
+     &                 ,ipos,zphib,ZOER
+                ENDIF
+***************************************************************
+              ENDIF
+C
+C                 CALCULATE PHI AT PRESSURE  LEVEL
+C
+              IK   = MOD ( ROBDATA(NCMLYR,JDATA),1000. )
+              IPT  = IK + IPOS*NLEVTRL
+              IPB  = IPT + 1
+              ZPT  = RPPOBSHR(IK,IOBS)
+              ZPB  = RPPOBSHR(IK+1,IOBS)
+              ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+              ZWT  = 1. - ZWB
+              ZPHIT = ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)
+***************************************************************
+              IF(LLPRINT .AND. IOBS.EQ.1) THEN
+                zinc =  (ZPHIT - ZPHIB)/GRAV
+                write(nulout,*) 'dobssatem: IOBS,zlev,ZPT,ZPB,ZWB,ZWT= '
+     &               ,IOBS,zpref,ZPT,ZPB,ZWB,ZWT
+                write(nulout,*)
+     &               'dobssatem: ik,ipb,ipt,GMOBSHR(IPb,),GMOBSHR(IPt,)= ',ik,ipb,ipt,GOMOBSHR(IPb,IOBS),GOMOBSHR(IPt,IOBS)
+                write(nulout,*) 'dobssatem: ipos,zphit,dz,zvar,zoer = '
+     &               ,ipos,zphit,zinc,ZVAR,ZOER
+              ENDIF
+***************************************************************
+C
+C                 CONTRIBUTION TO Jo
+C
+              ROBDATA8(NCMOMA,JDATA) =
+     +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
+              DLSUM=DLSUM+ROBDATA8(NCMOMA,JDATA)*
+     &             ROBDATA8(NCMOMA,JDATA)
+              ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+            ENDIF
+          END DO
+ 200      CONTINUE
+C
+C     Process all geopotential data below model's orography
+C
+          DO JDATA = IBEGIN,ILAST
+            IOBS = MOBDATA(NCMOBS,JDATA)
+            LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &           .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &           .AND. (MOBDATA(NCMVNM,JDATA) .EQ. IELMDZ )
+     &           .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2 )
+            IF ( LLOK ) THEN
+              IPOS = MOBDATA(NCMPOS,JDATA)
+              ZVAR = ROBDATA8(NCMVAR,JDATA)
+              ZOER = ROBDATA8(NCMOER,JDATA)
+              ZLEV = ROBDATA8(NCMPPP,JDATA)
+              ZPREF= ROBDATA8(NCMPRL,JDATA)
+C
+C                 CALCULATE PHI AT REFERENCE LEVEL
+C
+c
+c  forward nonlinear model for geopotential data below model's orography
+c
+              ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
+     &             *GOMTHR(NLEVTRL,IOBS)
+              ZPHIB = RMTMOBS(iobs)
+     &             + ZTVG/zgamma
+     &             *(1.-(ZPREF/gompshr(1,iobs))**zexp)
+C
+C                 CALCULATE PHI AT PRESSURE  LEVEL
+C
+              IK   = MOD ( ROBDATA(NCMLYR,JDATA),1000. )
+              IPT  = IK + IPOS*NLEVTRL
+              IPB  = IPT + 1
+              ZPT  = RPPOBSHR(IK,IOBS)
+              ZPB  = RPPOBSHR(IK+1,IOBS)
+              ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+              ZWT  = 1. - ZWB
+              ZPHIT = ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)
+***************************************************************
+              IF(LLPRINT .AND. IOBS.EQ.1) THEN
+                zinc = (ZPHIT - ZPHIB)/GRAV
+                write(nulout,*)
+     &               'dobssatem: IOBS,ZTVG,GOMQHR(NLEVTRL),GOMTHR(NLEVTRL)',IOBS,ZTVG,GOMQHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
+                write(nulout,*)
+     &               'dobssatem: RMTMOBS,ZPREF,zgamma,zexp,gompshr(1,iobs)',RMTMOBS(IOBS),ZPREF,zgamma,zexp,gompshr(1,iobs)
+                write(nulout,*)
+     &               'dobssatem: ZWB,ZWT,ZPT,ZPB,zphiB(m2s-2),zphit(m2s-2)', ZWB,ZWT,ZPT,ZPB,zphiB,zphit
+                write(nulout,*)
+     &               'dobssatem: ik,zlev,ipb,ipt,GOBSHR(IPB,),GOBSHR(IPT,)',ik,zlev,ipt,GOMOBSHR(IPB,IOBS),GOMOBSHR(IPT,IOBS)
+                write(nulout,*)
+     &               'dobssatem: ipos,dzinc(m),dzobs(m),std-dev-obs(m) = ',ipos,zinc,ZVAR,ZOER
+              ENDIF
+***************************************************************
+C
+C                 CONTRIBUTION TO Jo
+C
+              ROBDATA8(NCMOMA,JDATA) =
+     +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
+              DLSUM=DLSUM+ROBDATA8(NCMOMA,JDATA)*
+     &             ROBDATA8(NCMOMA,JDATA)
+              ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+            ENDIF
+          END DO
+C
+
+ 300      CONTINUE
+C--------------------------------------------------------------------
+C
+        ENDIF
+      END DO
+C=====================
+      PJO = DLSUM
+C=====================
+      RETURN
+      END

@@ -1,0 +1,87 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE CVT_BURP_INSTRUM(ELEM2048,ELEM2019)
+#if defined (DOC)
+*
+***s/r CVT_BURP_INSTRUM : Map burp satellite sensor indicator element #2048 to
+*                         burp satellite instrument element #2019.
+*
+*Author  : J. Halle *CMDA/SMC May 2002
+*Revision:
+*
+*    -------------------
+**    Purpose:  Map burp satellite sensor indicator element #2048 to
+*               burp satellite instrument element #2019. This is a more
+*               complete common element, allowing for future expansion.
+*
+*               Table of BURP satellite sensor indicator element #002048
+*               --------------------------------------------------------
+*               Satellite sensor     BURP satellite sensor indicator
+*               ----------------     -------------------------------
+*               HIRS            	0
+*               MSU                	1
+*               SSU                	2
+*               AMSUA              	3
+*               AMSUB              	4
+*               AVHRR              	5
+*               SSMI               	6
+*               NSCAT              	7
+*               SEAWINDS              	8
+*               Reserved               	9-14
+*               Missing value         	15
+*
+*Argumets:
+*     i : ELEM2048 : BURP satellite sensor indicator, element #2048.
+*     o : ELEM2019 : corresponding BURP satellite instrument, element #2019.
+*
+#endif
+      IMPLICIT NONE
+*
+      INTEGER J, ELEM2048, ELEM2019
+*
+      INTEGER MXELEM
+      PARAMETER (MXELEM   =10)
+*
+      INTEGER LIST2048 (MXELEM)
+      INTEGER LIST2019 (MXELEM)
+*
+**            Table of BURP satellite sensor indicator element #002048
+**            --------------------------------------------------------
+*
+      DATA LIST2048 / 000, 001, 002, 003, 004, 005, 006, 007, 008, 015 /
+*
+**            Table of BURP satellite instrument       element #002019
+**            --------------------------------------------------------
+*
+      DATA LIST2019 / 606, 623, 627, 570, 574, 591, 905, 312, 313,2047 /
+C
+C*    .  1.0 Map elements.
+C     .      -------------
+ 100  CONTINUE
+C
+      ELEM2019 = 2047
+      DO J=1, MXELEM
+         IF ( ELEM2048 .EQ. LIST2048(J) ) THEN
+             ELEM2019 = LIST2019(J)
+             RETURN
+         ENDIF
+      ENDDO
+*
+      RETURN
+      END
+
+

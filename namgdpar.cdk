@@ -1,0 +1,7 @@
+      NAMELIST /NAMGDPAR/CETIKETA
+     S     ,CETIKETT
+     +     ,CETIKETI
+     +     ,CETIKETN
+     +     ,CETIKINC
+     S     ,NITER,CMCRUN,NFSTVAR,CFSTVAR,NFSTVAR2D,CFSTVAR2D
+     S     ,NPAKANL, npakinc, ndtinc

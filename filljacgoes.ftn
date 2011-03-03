@@ -1,0 +1,94 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FILLJACGOES(PDRDT,PDRDQ,PDRDPS,PQ,NLX,KCNT)
+C
+C**S/R *FILLJACGOES* -
+C
+C     Purpose.
+C     --------
+C                On remplis la matrice jacobienne totale
+C
+C**   Interface.
+C     ----------
+C      CALL FILLJACGOES
+C
+C
+C     Method.
+C     -------
+C
+C
+C     Externals.
+C     ----------
+C
+C
+C
+C     Reference.
+C     ----------
+C
+C
+C
+C
+C     Author.
+C     -------
+C          Nicolas Wagneur       *CMC/MSC*       Janvier 2002
+C
+C     Rvisions.
+C     ---------
+C
+C
+C     -----------------------------------------------------------------
+      IMPLICIT NONE
+C
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "cparamgoes.cdk"
+#include "comjacgoes.cdk"
+C
+      INTEGER J,JB,JJ,JI,JO,KSAT,KCNT
+      INTEGER NLX, KNPF, NKP2
+C
+C variables de runprof
+C
+      REAL*8 PDRDT(JPNLM,(NFLEV+1),JPNB)
+      REAL*8 PDRDQ(JPNLM,(NFLEV+1),JPNB,JPNGAS)
+      REAL*8 PDRDPS(JPNLM,JPNB)
+      REAL*8 PQ(JPNLM,NFLEV)
+c
+C
+C     -----------------------------------------------------------------
+C*
+C      --- -- ------- ---------
+ 100  CONTINUE
+C
+      NKP2 = (NFLEV+1) * 2
+c      JO = (KPASS-1)*JPNLM
+      DO JB = 1, JPNB
+         DO JJ = 1, NFLEV
+            JI = 0
+            DO JO = KCNT-NLX+1, KCNT
+               JI = JI + 1
+               HJACMSCFAST(JO,JJ,JB)      = PDRDT(JI,JJ,JB)
+               HJACMSCFAST(JO,JJ+(NFLEV+1),JB)= PDRDQ(JI,JJ,JB,1)*PQ(JI,JJ)
+               HJACMSCFAST(JO,(NFLEV+1),JB)   = PDRDT(JI,(NFLEV+1),JB)
+               HJACMSCFAST(JO,NKP2,JB)    = PDRDPS(JI,JB)
+            ENDDO
+         ENDDO
+      ENDDO
+C
+C     -----------------------------------------------------------------
+      RETURN
+      END

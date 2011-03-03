@@ -1,0 +1,127 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE MAP_INSTRUM(INSTRUMBURP,INSTRUM,SENSORTYPE)
+#if defined (DOC)
+*
+***s/r MAP_INSTRUM : Map burp satellite instrument (element #2019)
+*                    to RTTOV-7 instrument.
+*                    Also, provide sensor type, microwave or infrared.
+*
+*Author  : J. Halle *CMDA/SMC May 2002
+*
+*Revision 001: J. Halle *CMDA/SMC Sept. 2005
+*              - add MHS.
+*         002: R Sarrazin CMDA, April 2008
+*              - comment on MTSAT imager instrument number
+*
+*    -------------------
+**    Purpose:  Map burp satellite instrument (element #2019)
+*               to RTTOV-7 instrument.
+**              A negative value is returned, if no match in found.
+*
+*               Table of  RTTOV-7 instrument identifier
+*               ---------------------------------------
+*               Instrument        Instrument identifier  Sensor type
+*               ---------         ---------------------  -----------
+*               HIRS               0                     ir
+*               MSU                1                     mw
+*               SSU                2                     ir
+*               AMSUA              3                     mw
+*               AMSUB              4                     mw
+*               AVHRR              5                     ir
+*               SSMI               6                     mw
+*               VTPR1              7                     ir
+*               VTPR2              8                     ir
+*               TMI                9                     mw
+*               SSMIS             10                     mw
+*               AIRS              11                     ir
+*               MODIS             13                     ir
+*               ATSR              14                     ir
+*               MHS               15                     mw
+*               MVIRI             20                     ir
+*               SEVIRI            21                     ir
+*               GOESIMAGER        22                     ir
+*               GOESSOUNDER       23                     ir
+*               GMS/MTSAT IMAGER  24                     ir
+*               FY2-VISSR         25                     ir
+*               FY1-MVISR         26                     ir
+*
+*Argumets:
+*     i : INSTRUMBURP : burp satellite instrument (element #2019)
+*     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
+*
+#endif
+      IMPLICIT NONE
+*
+      INTEGER J,INSTRUMBURP,INSTRUM
+*
+      INTEGER MXINSTRUMBURP
+      PARAMETER (MXINSTRUMBURP   =28)
+*
+      INTEGER LISTBURP   (MXINSTRUMBURP)
+      INTEGER LISTINSTRUM(MXINSTRUMBURP)
+*
+      CHARACTER*2 CTYPE(MXINSTRUMBURP)
+      CHARACTER*2 SENSORTYPE
+*
+**************
+*      TESTING ONLY: burp 2047 is AIRS.
+**************
+*
+**            Table of BURP satellite sensor identifier element #002019
+**            ----------------------------------------------------------
+*
+      DATA LISTBURP    / 050, 203, 205, 207, 221, 295, 296, 365, 389,
+     &                   420, 570, 571, 572, 573, 574, 590,
+     &                   591, 592, 605, 606, 607, 615, 626,
+     &                   623, 627, 905, 908,2047 /
+*
+**            Table of RTTOV-7 instrument identifier
+**            --------------------------------------
+*
+      DATA LISTINSTRUM / 014, 015, 020, 021, 016, 024, 024, 009, 013,
+     &                   011, 003, 003, 003, 003, 004, 005,
+     &                   005, 005, 000, 000, 000, 022, 023,
+     &                   001, 002, 006, 010, 011 /
+*
+**            Table of sensor type (mw or ir)
+**            --------------------------------------
+*
+      DATA CTYPE       /'ir','mw','ir','ir','ir','ir','ir','mw','ir',
+     &                  'ir','mw','mw','mw','mw','mw','ir',
+     &                  'ir','ir','ir','ir','ir','ir','ir',
+     &                  'mw','ir','mw','mw','ir' /
+C
+C
+C*    .  1.0 Find platform and satellite
+C     .      ---------------------------
+ 100  CONTINUE
+C
+      INSTRUM = -1
+      SENSORTYPE = '  '
+      DO J=1, MXINSTRUMBURP
+         IF ( INSTRUMBURP .EQ. LISTBURP(J) ) THEN
+             INSTRUM    = LISTINSTRUM(J)
+             SENSORTYPE = CTYPE(J)
+             RETURN
+         ENDIF
+      ENDDO
+*
+      RETURN
+      END
+
+

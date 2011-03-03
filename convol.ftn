@@ -1,0 +1,248 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE convol
+#if defined (DOC)
+*
+***s/r convol    - Modify horizontal correlations by damping correlations at
+*                  large separation distances (according to specified length
+*                  scales.
+*
+*
+*Author  : M. Buehner *ARMA/AES October 1998
+*Revision:
+*          S. Pellerin *ARMA/AES March 2000
+*                      .Split of normcorns in convol.ftn and
+*                       setcrosscorr.ftn
+*          Y. Rochon *ARQX/MSC Sept 2004
+*                      .Impose minimum length for Legendre poly
+*                       expansion. Applying a space-limiting filter
+*                       can result in inducing important oscillations
+*                       (Gibbs' effect) when the Legendre poly
+*                       expansion is not long enough.
+*Arguments
+*
+#endif
+      use glbspec_mod
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comcorr.cdk"
+#include "comstate.cdk"
+#include "comcva.cdk"
+*
+*     Local variables
+*
+*
+      INTEGER JPTRUNC,INJ,INJMIN
+      PARAMETER(JPTRUNC=200, INJMIN=120)
+      REAL*8 DLFACT2,DLC,DSUMMED
+      REAL*8 DTLEN,ZR,DLFACT
+      INTEGER ILEN,JN,JLAT,JK
+      REAL*8 ZLEGI(0:JPTRUNC, JPLAT)
+     S     , ZLEG(0:JPTRUNC, JPLAT), ZSP(0:JPTRUNC,4*JPNFLEV),
+     +       ZGR(JPLAT,4*JPNFLEV)
+      REAL*8 DLWTI(JPLAT),ZRMU(JPLAT)
+C
+C     Arrays for call to GAUSS8 routine
+C
+      integer INRACP
+      real*8 ZPG(JPLAT),ZSIA(JPLAT),ZRAD(JPLAT),ZPGSSIN2(JPLAT)
+      real*8 ZSINM1(JPLAT),ZSINM2(JPLAT),ZSIN2(JPLAT),ZSINLAT(JPLAT)
+C
+C     Parameters for calc of ZLEG (use local code instead of ZLEGPOL)
+C     Reason: Specification of ZRMU differs from RMU.
+C
+      REAL*8 DLFACT1, DLN
+      REAL*8 DLNORM(0:NTRUNC)
+*
+c bypass zeroing
+c      goto 999
+c
+*     1. Perform convolution on spectral correlations to limit
+*        lateral extent of impact of observations
+*
+c     1.1 Set up simple spectral transforms
+c
+      IF (NJ.GE.INJMIN) THEN
+C
+C        Extract required parm from SULEG results
+C
+         INJ=NJ
+         DO JLAT = 1, NJ
+            DLWTI(JLAT) = gst_RWT(JLAT)
+            ZRMU(JLAT)  = gst_RMU(JLAT)
+         END DO
+      ELSE
+C
+C        Apply minimum length to Legendre poly expansion.
+C
+         INJ=INJMIN
+         INRACP=INJ/2
+         call GAUSS8(INRACP,ZSINLAT,ZPG,ZSIA,ZRAD,ZPGSSIN2,
+     1        ZSINM1,ZSINM2,ZSIN2)
+         do jn=1,INRACP
+            ZRMU(INRACP+jn)=ZSINLAT(jn)
+            ZRMU(jn)=-ZSINLAT(INRACP+1-jn)
+            DLWTI(INRACP+jn)=ZPG(jn)
+            DLWTI(jn)=ZPG(INRACP+1-jn)
+         enddo
+      END IF
+
+c      CALL ZLEGPOL(ZLEG,ZRMU,INJ,NTRUNC,JPTRUNC,JPLAT)
+      DO JLAT = 1, INJ
+         ZLEG(0,JLAT) = SQRT(0.5)
+         ZLEG(1,JLAT) = SQRT(1.5)*ZRMU(JLAT)
+      END DO
+      DO JN = 0, NTRUNC
+         DLN = 1.D0*DFLOAT(JN)
+         DLNORM(JN) = DSQRT((2.*DLN + 1.D0)/2.D0)
+      END DO
+C
+      DO JN = 1, NTRUNC-1
+         DLN = DFLOAT(JN)
+         DLFACT1 = ((2.*DLN+1.)/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN))
+         DLFACT2 = (DLN/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN-1))
+         DO JLAT = 1,INJ
+            ZLEG(JN+1,JLAT) = DLFACT1*ZRMU(JLAT)*ZLEG(JN,JLAT)
+     S           - DLFACT2*ZLEG(JN-1,JLAT)
+         END DO
+      END DO
+C
+      DO JLAT = 1, INJ
+         DO JN = 0, NTRUNC
+           ZLEGI(JN,JLAT) = ZLEG(JN,JLAT)
+         END DO
+      END DO
+
+c
+c     1.2 CONVERT THE CORRELATIONS IN SPECTRAL SPACE INTO SPECTRAL
+*         COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
+c         SELF-CONVOLVED
+c
+      do jn=0,ntrunc
+        dlfact=((2.0*jn+1)/2.0)**0.25
+        dlfact2=((2.0*JN +1.0)/2.0)**(0.25)
+        do jk=1,nksdim
+          ZSP(jn,jk)=rstddev(jk,jn)*dlfact*dlfact2
+        enddo
+      enddo
+*
+c Transform to physical space
+*
+      CALL ZLEGINV(ZGR,ZSP,ZLEGI,DLWTI,NTRUNC,INJ,NKSDIM
+     S     ,JPLAT,JPNFLEV,JPTRUNC)
+*
+c Truncate in horizontal extent
+*
+c Step function window
+c      do jlat=1,INJ
+c        do jk=1,NKSDIM
+c          DLFACT=1.0
+c          if (jk .gt. NFLEV .and. jk .le. 2*NFLEV) then
+c            if (jlat .gt. 38) DLFACT=0.0
+c          else
+c            if (jlat .gt. 19) DLFACT=0.0
+c          endif
+c          ZGR(jlat,jk)=DLFACT*ZGR(jlat,jk)
+c        enddo
+c      enddo
+c
+* Gaussian window
+c
+      do jk=1,NKSDIM
+c
+        if (jk.ge.nsposit(nsvor).and.
+     +      jk.lt.nsposit(nsvor)+NFLEV) then
+          DTLEN = RPORVO
+        elseif (jk.ge.nsposit(nsdiv).and.
+     +          jk.lt.nsposit(nsdiv)+NFLEV) then
+          DTLEN = RPORDI
+        elseif (jk.ge.nsposit(nstt).and.
+     +          jk.lt.nsposit(nstt)+NFLEV) then
+          DTLEN = RPORTT
+        elseif (jk.ge.nsposit(nsq).and.
+     +          jk.lt.nsposit(nsq)+NFLEV) then
+          DTLEN = RPORQ
+        elseif (jk.eq.nsposit(nsps)) then
+          DTLEN = RPORPS
+        endif
+c
+        if(DTLEN.gt.0.0) then
+          DLC = 1.D0/DBLE(DTLEN)
+          DLC = 0.5*DLC*DLC
+c
+          do jlat=1,INJ
+            ZR = RA * ACOS(ZRMU(jlat))
+            DLFACT = DEXP(-(ZR**2)*DLC)
+            ZGR(jlat,jk)=DLFACT*ZGR(jlat,jk)
+          enddo
+        endif
+c
+        write(NULOUT,*) 'zeroing length (km)=',jk,DTLEN/1000.0
+      enddo
+c
+c Transform back to spectral space
+*
+      CALL ZLEGDIR(ZGR,ZSP,ZLEGI,DLWTI,NTRUNC,INJ,NKSDIM
+     S     ,JPLAT,JPNFLEV,JPTRUNC)
+*
+c Convert back to correlations
+*
+      do jk=1,NKSDIM
+        do jn=0,NTRUNC
+           ZSP(jn,jk)=ZSP(jn,jk)*(2.0/(2.0*jn+1.0))**(0.25)
+        enddo
+      enddo
+c
+c PUT BACK INTO RSTDDEV
+      do JN=0,NTRUNC
+        do JK=1,NKSDIM
+           RSTDDEV(JK,JN)=ZSP(JN,JK)
+        enddo
+      enddo
+c
+c Re-normalize to ensure correlations
+      do JK=1,NKSDIM
+        dsummed=0.d0
+        do JN=0,NTRUNC
+          dsummed=dsummed+
+     +       dble(RSTDDEV(jk,jn)**2)*sqrt(((2.*jn)+1.)/2.)
+        enddo
+        dsummed=sqrt(dsummed)
+        do JN=0,NTRUNC
+          if(dsummed.gt.1.d-30)
+     +      RSTDDEV(jk,jn)=RSTDDEV(jk,jn)/dsummed
+        enddo
+      enddo
+c
+c     CONVERT THE SPECTRAL COEFFICIENTS OF THE CORRELATION FUNCTION
+*     .  BACK INTO CORRELATIONS OF SPECTRAL COMPONENTS
+      do jn=0,ntrunc
+        dlfact=sqrt(0.5)*(1.0/((2.0*jn+1)/2.0))**0.25
+        do jk=1,nksdim
+          rstddev(jk,jn)=rstddev(jk,jn)*dlfact
+        enddo
+      enddo
+*
+      RETURN
+      END
+
+
+

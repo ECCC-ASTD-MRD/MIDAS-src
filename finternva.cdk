@@ -1,0 +1,55 @@
+*
+*   DEFINITION OF ADJOINTS OF THERMODYNAMIC  FUNCTIONS
+*   CONSTANTS AS IN COMMON /CTESDYN/
+*     NOTE: ALL  UNITS S.I.
+*           I.E. PADES IN DEG K, PPRS EN PA, PQQQ EN KG/KG
+*          ***C. Chouinard August 1998 ***
+*
+*    Revision:
+*             S. Pellerin *ARMA/AES - Sept. 98
+*                         -Adjoint of virtual temperature operator
+*
+*      ADJOINT OF LN SPECIFIC  HUM (PQQQ) DUE TO DEWPOINT DEPRESSION CORRECTIONS
+*             - INPUT : PADES ,  ADJOINT OF DEWPOINT DEPRESSION
+*                       PGAMMA,  ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+*                       PQQQ   , SPECIFIC HUMIDITY
+*                       PPRS   , PRESSURE
+*             - OUTPUT: FOEFQA, ADJOINT OF LN SPECIFIC HUMIDITY
+*
+      FOEFQA(PADES,PGAMMA,PQQQ,PPRS) = PADES*PGAMMA*EPS1*PPRS*PQQQ/
+     $                               ((EPS1+EPS2*PQQQ)*(EPS1+EPS2*PQQQ))
+*
+*      ADJOINT OF SURFACE PRESSURE  DUE TO DEWPOINT DEPRESSION CORRECTIONS
+*             - INPUT:  PADES ,  ADJOINT OF DEWPOINT DEPRESSION
+*                       PGAMMA,  ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+*                       PQQQ   , SPECIFIC HUMIDITY
+*                       PNETA   , VALUE OF NETA
+*             - OUTPUT: FOEFQPSA, ADJOINT OF SURFACE PRESSURE
+*
+      FOEFQPSA(PADES,PGAMMA,PQQQ,PNETA) = PADES*PGAMMA*PQQQ*PNETA/
+     $                                    (EPS1+EPS2*PQQQ)
+*
+*     function returning 0/1 depending on the minimum q branch condition
+*     as discussed by Brunet (1996) to prevent getting a vapour pressure that exceeds
+*     the total pressure p when q exceeds 1.
+*
+      FQBRANCH(PQQQ) = 0.5D0+SIGN(0.5D0,1.D0-(PQQQ))
+*
+*--------------------- Adjoint of virtual temperature operator -------------------------
+*
+*     fottva: Adjoint of temperature due to virtual temperature correction
+*     pqqq:   background specific humidity
+*     ptta:   adjoint variable of virtual temperature
+*
+      fottva(pqqq,ptva) = (1D0 + delta*pqqq)*ptva
+*
+*     folnqva: Adjoint of logarithm of specific humidity due to virtual temperature correction
+*     pqqq:   background specific humidity
+*     ptti:   background temperature
+*     ptva:   adjoint variable of virtual temperature
+*
+      folnqva(pqqq,ptti,ptva) = delta*pqqq*ptti*ptva
+
+
+
+

@@ -1,0 +1,170 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DHUSFC(CDFAM)
+#if defined (DOC)
+*
+***s/r DHUSFC  - Computation of the residuals of the LQ observations
+*                FOR SURFACE DATAFILES
+*
+*
+*Author  : D. ANSELMO (MRB/ARMA) October 2004
+*          (modified copy of DOBSSFC.ftn)
+*Revision:
+*           C. Charette ARMA/SMC jan. 2005
+*            - Replaced print statements by write statements
+*
+**    Purpose: - Computation of the LQ innovations at the surface.
+*
+*
+*Arguments
+*     CDFAM: FAMILY OF OBSERVATION
+*
+#endif
+      IMPLICIT NONE
+      CHARACTER *2 CDFAM
+*implicits
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+#include "comlun.cdk"
+*
+      INTEGER NQCVAR
+      INTEGER IOBS,IK,IBEGIN,ILAST,JO
+      INTEGER J,JDATA
+      INTEGER ICOUNT,IERR,ILEN,JCOUNT,IPOINTR(1)
+      REAL*8 ZVAR,ZOER
+      LOGICAL LLPRINT
+      POINTER(PXPOINTR    ,IPOINTR)
+C
+cc      LLPRINT = .TRUE.
+      LLPRINT = .FALSE.
+C
+*      IF (LVARQC) THEN
+*         NQCVAR = 1
+*      ELSE
+*         NQCVAR = 0
+*      ENDIF
+*
+*     variational quality control turned off for now since this routine
+*     is used only to interpolate and not to calculate contributions to
+*     the functional (called as first pass of incremental analysis)
+*
+      IF (LLPRINT) print*,' ---dhusfc----------------'
+      NQCVAR = 0
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+            IBEGIN=NBEGINTYP(J)
+            ILAST=NENDTYP(J)
+C
+C*    1. Computation of (HX - Z)/SIGMA
+C     .  -----------------------------
+C
+ 100        CONTINUE
+C
+C     Process all data within the domain of the model
+C
+C
+***************************************************************
+c            IF(LLPRINT) THEN
+c               print *,'dhusfc:Processing Family '
+c     &              ,CFAMTYP(J)
+c            ENDIF
+***************************************************************
+            ILEN = ILAST - IBEGIN +1
+            CALL HPALLOC(PXPOINTR,ILEN,IERR,8)
+
+              ICOUNT = 0
+              DO JDATA=IBEGIN,ILAST
+                IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHS .AND.
+     &               MOBDATA(NCMVCO,JDATA) .EQ. 1  ) THEN
+                    ICOUNT = ICOUNT + 1
+                    IPOINTR(ICOUNT) = JDATA
+                ENDIF
+              ENDDO
+C--------------T2m,(T-TD)2m,US,VS
+C              In this section we always extrapolate linearly the trial
+C              field at the model surface to the height of the
+C              surface observation whether the observation is above or
+C              below the model surface.
+C              NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
+c
+              IF ( ICOUNT .GT. 0 ) THEN
+
+                DO JCOUNT = 1,ICOUNT
+                  JDATA = IPOINTR(JCOUNT)
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  IK   = ROBDATA(NCMLYR,JDATA)
+***************************************************************
+c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
+c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'
+c     &                   ,'IK,JCOUNT,ICOUNT= '
+c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
+c     &                   ,IK,JCOUNT,ICOUNT
+c                  ENDIF
+***************************************************************
+                  ROBDATA8(NCMOMA,JDATA) = (GOMQHR(NLEVTRL,IOBS)-ZVAR)
+     +                 / ZOER
+
+                  IF ( LLPRINT ) THEN
+                    write(nulout,*)' -------------------------'
+                    write(nulout,*)'   jdata  = ',JDATA
+                    write(nulout,*)'   iobs   = ',IOBS
+                    write(nulout,*)'   zvar   = ',ZVAR
+                    write(nulout,*)'   zoer   = ',ZOER
+                    write(nulout,*)'   ik     = ',IK
+                    write(nulout,*)'   nlevtrl= ',NLEVTRL
+                    write(nulout,*)'   gomqhr(nlevtrl,iobs) = '
+     &                   ,GOMQHR(NLEVTRL,IOBS)
+                    write(nulout,*)'   O-Psfc = '
+     &                   ,-ROBDATA8(NCMOMA,JDATA)*ZOER
+                    write(nulout,*)' -------------------------'
+                  ENDIF
+
+                ENDDO
+
+
+C--------------Surface Pressure Mean sea level Pressure
+C              In this section we always extrapolate linearly the trial
+C              field at the model surface to the height of the
+C              surface observation whether the observation is above or
+C              below the model height
+C   ..section removed not necessary for LQ -armadan Oct 2004
+
+              ENDIF
+            CALL HPDEALLC(PXPOINTR,IERR,1)
+C
+C                 CONTRIBUTION TO Jo
+C   ..section removed not necessary for LQ -armadan Oct 2004
+*
+ 200        CONTINUE
+C
+C     Process all geopotential data below model's orography
+C   ..section removed not necessary for LQ -armadan Oct 2004
+C
+ 300        CONTINUE
+C
+         ENDIF
+      END DO
+C--------------------------------------------------------------------
+      RETURN
+      END

@@ -1,0 +1,65 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine hintscal(psrcvar,kscol,ksrcgid,ptrgvar,ktcol,ktrggid
+     &     ,klev,cddegint)
+#if defined (DOC)
+*
+***s/r HINTSCAL : Scalar horizonal interpolation
+*
+*
+*     Author  : S. Pellerin ARMA/AES Avril 2000
+*     Revision:
+*
+*     JM Belanger CMDA/SMC  Aug 2000 
+*                   . 32 bits conversion 
+*
+**    Purpose: scalar horizontal interpolation
+*
+*
+*Arguments
+*    input:
+*          psrcvar(kscol,klev) : source variable
+*          kscol               : number of collumns of source variable
+*          ksrcgid             : grid id of source variable
+*          ktcol               : number of collumns of target variable
+*          ktrggid             : grid id of target variable
+*          klev                : number of horizontal slabs to interpolate
+*          cddegint            : degree of horizontal interpolation
+*    ouput:
+*          ptrgvar(ktcol,klev) : target variable
+*
+*
+#endif
+      implicit none
+*implicits
+      integer ksrcgid,ktrggid,kscol,ktcol,klev
+      real*8 psrcvar(kscol,klev),ptrgvar(ktcol,klev)
+      character*(*) cddegint
+c
+c----------------------------------------------------------
+c
+      integer ier,ezsetopt,vezsint,ezdefset,jk,iset
+c----------------------------------------------------------
+      ier = ezsetopt('INTERP_DEGREE',cddegint)
+      iset = ezdefset(ktrggid,ksrcgid)
+c
+      do jk = 1,klev
+        ier = vezsint(ptrgvar(1,jk),psrcvar(1,jk),ktcol,1,1,kscol,1,1)
+      enddo
+c
+      return
+      end

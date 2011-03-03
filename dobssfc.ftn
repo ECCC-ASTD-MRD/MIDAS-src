@@ -1,0 +1,481 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DOBSSFC(PJO,CDFAM)
+#if defined (DOC)
+*
+***s/r DOBSSFC  - Computation of Jo and the residuals to the observations
+*                 FOR SURFACE DATAFILES
+*
+*
+*Author  : P. Koclas *CMC/AES  September 1994
+*Revision:
+*           P. Koclas *CMC/AES February 1995
+*            - Minor modifications
+*            - Allow for multiple data files.
+*           P. KoCLAS CMC/CMSV AUGUST 1998
+*            - ANALYSYS ON ETA COORDINATE
+*           C. Charette ARMA/AES NOV 1998
+*            - Extrapolation GZ below model orography.
+*            - Adapt code to follow Luc Fillion's notes on 3dvar-eta
+*              analysis. LLPRINT to print diagnostics
+*           B. Brasnett CMC/CMDA NOV 1999
+*            - Addition of variational quality control
+*           C. Charette ARMA/AES Jun 2000
+*            - Adapt code to process data with height as vertical coordinate.
+*              Special care for surface temperature(12004) and for
+*              sfc pressure(10004) and mean sea level pressure(10051)
+*           C. Charette ARMA/AES Oct 2000
+*            - Process elements 12203,11215,11216 at the reported height
+*              rather than at the model surface. These observations are
+*              no longer displaced to the model surface in SFCADJUSTZ.
+*           C. Charette ARMA/SMC FEV. 2002
+*            - Commented out the if(llprint...) statements within
+*              the do loops. They were preventing vectorization.
+*           S. Macpherson ARMA/MRD Sep 2009
+*            - modifications for GPS surface observations
+*
+**    Purpose:  -Interpolate vertically the contents of commvo to
+*                the pressure levels of the observations. Then
+*                compute Jo.
+*                A linear interpolation in ln(p) is performed.
+*
+*
+*Arguments
+*     PJO  :  CONTRIBUTION to Jo
+*     CDFAM: FAMILY OF OBSERVATION
+*
+#endif
+      IMPLICIT NONE
+      REAL*8 PJO
+      CHARACTER *2 CDFAM
+*implicits
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+#include "comstate.cdk"
+#include "comfilt.cdk"
+*
+      INTEGER NQCVAR
+      INTEGER IPB,IPT,IXTR
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,JO,IDATA,IDATEND
+      INTEGER J,JDATA,IBEGINOB,ILASTOB,ITYP,JJ,ISTYP
+      INTEGER ICOUNT,IERR,ILEN,JLIST,JCOUNT,IPOINTR(1)
+      REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG,ZPPOST
+      REAL*8 ZWB,ZWT,ZEXP,zexpgz,ZGAMMA,ZTVG,ZPSGOBS
+      REAL*8 ZLEV,ZPT,ZPB,ZHHH,ZGAMAZ,ZSLOPE
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT,LLUV
+      POINTER(PXPOINTR    ,IPOINTR)
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      LLPRINT = .FALSE.
+ccc      LLPRINT = .TRUE.
+      ZGAMMA = 0.0065 / GRAV
+      zexp = 1.0/(RGASD*ZGAMMA)
+      ZEXPGZ = RGASD*ZGAMMA
+C
+*      IF (LVARQC) THEN
+*         NQCVAR = 1
+*      ELSE
+*         NQCVAR = 0
+*      ENDIF
+*
+*     variational quality control turned off for now since this routine
+*     is used only to interpolate and not to calculate contributions to
+*     the functional (called as first pass of incremental analysis)
+*
+      NQCVAR = 0
+      DLSUM=0.
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+            IBEGIN=NBEGINTYP(J)
+            ILAST=NENDTYP(J)
+C
+C*    1. Computation of (HX - Z)/SIGMA
+C     .  -----------------------------
+C
+ 100        CONTINUE
+C
+C     Process all data within the domain of the model
+C
+C
+***************************************************************
+c            IF(LLPRINT) THEN
+c               print *,'dobssfc:Processing Family '
+c     &              ,CFAMTYP(J)
+c               print *,'dobssfc:List of elements '
+c     &              ,nelems,(nlist(jlist),jlist=1,nelems)
+c            ENDIF
+***************************************************************
+            ILEN = ILAST - IBEGIN +1
+            CALL HPALLOC(PXPOINTR,ILEN,IERR,8)
+            DO JLIST = 1,NELEMS
+***************************************************************
+c              IF(LLPRINT) THEN
+c                print *,'dobssfc:Processing element= '
+c     &                        ,nlist(jlist)
+c              ENDIF
+***************************************************************
+              ICOUNT = 0
+              DO JDATA=IBEGIN,ILAST
+                LLOK=.FALSE.
+                IF ( MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
+                  ITYP = MOBDATA(NCMVNM,JDATA)
+                  IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS .OR.
+     &                 ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS .OR.
+     &                 ITYP.EQ.NESS  .OR. ITYP.EQ.NEPN) THEN
+                    LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
+     &                   ITYP .EQ. NLIST(JLIST))
+                  ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
+                    LLOK=.FALSE.
+                  ELSE
+                    LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
+     &                   ITYP .EQ. NLIST(JLIST)        .AND.
+     &                   MOBDATA(NCMXTR,JDATA)  .EQ. 0)
+                  ENDIF
+                  IF ( LLOK ) THEN
+                    ICOUNT = ICOUNT + 1
+                    IPOINTR(ICOUNT) = JDATA
+                  ENDIF
+                ENDIF
+              ENDDO
+C--------------T2m,(T-TD)2m,US,VS
+C              In this section we always extrapolate linearly the trial
+C              field at the model surface to the height of the
+C              surface observation whether the observation is above or
+C              below the model surface.
+C              NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
+C
+              IF ((NLIST(JLIST).EQ.NETS .OR. NLIST(JLIST).EQ.NESS .OR.
+     &             NLIST(JLIST).EQ.NEUS .OR. NLIST(JLIST).EQ.NEVS)
+     &                                   .AND. ICOUNT.GT.0)        THEN
+
+                IF(NLIST(JLIST).EQ.NETS) THEN
+                  ZSLOPE = ZGAMMA
+                ELSE
+                  ZSLOPE = 0.0
+                ENDIF
+ccc
+***************************************************************
+c                IF(LLPRINT) THEN
+c                  print *,'dobssfc: TREATEMENT VARIABLE:'
+c     &                 ,NLIST(JLIST)
+c                ENDIF
+***************************************************************
+                DO JCOUNT = 1,ICOUNT
+                  JDATA = IPOINTR(JCOUNT)
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IPOS = MOBDATA(NCMPOS,JDATA)
+                  ITYP = MOBDATA(NCMVNM,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  IK   = ROBDATA(NCMLYR,JDATA)
+                  IXTR = MOBDATA(NCMXTR,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  ZHHH = ZLEV * GRAV
+                  IPT  = NLEVTRL-1 + IPOS*NLEVTRL
+                  IPB  = IPT+1
+***************************************************************
+c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
+c                    print *,'dobssfc:FAM,STN,JDATA,IOBS,TYP,LEV,'
+c     &                   ,'ZHHH,IK,IPOS,IXTR,JCOUNT,ICOUNT= '
+c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
+c     &                   ,ZLEV,ZHHH,IK,IPOS,IXTR,JCOUNT,ICOUNT
+c                  ENDIF
+***************************************************************
+                  ROBDATA8(NCMOMA,JDATA) =(GOMOBSHR(IPB,IOBS)
+     +                 - ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))-ZVAR)
+     +                 / ZOER
+***************************************************************
+c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
+c                    ZCON = (GOMOBSHR(IPB,IOBS)
+c     +                   - ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))-ZVAR)
+c                    ZGAMAZ= ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))
+c                    print *,'dobssfc:gama,gamaz,gzhr(nflv),GOM(IPB='
+c     &                   ,zslope,ZGAMAZ,GOMGZHR(NLEVTRL,IOBS)
+c     &                   ,GOMOBSHR(IPB,IOBS)
+c                    print *,'dobssfc:P-O, obs, std-oer,IK,IPB = '
+c     &                   ,zcon,ZVAR,ZOER,IK,IPB
+c                  ENDIF
+***************************************************************
+                ENDDO
+C--------------Surface Pressure Mean sea level Pressure
+C              In this section we always extrapolate linearly the trial
+C              field at the model surface to the height of the
+C              surface observation whether the observation is above or
+C              below the model height
+              ELSEIF ((NLIST(JLIST).EQ.NEPS .OR.
+     &               NLIST(JLIST).EQ.NEPN).AND. ICOUNT.GT.0) THEN
+***************************************************************
+c                IF(LLPRINT) THEN
+c                  print *,'dobssfc: TREATEMENT VARIABLE:'
+c     &                 ,NLIST(JLIST)
+c                ENDIF
+***************************************************************
+                DO JCOUNT = 1,ICOUNT
+                  JDATA = IPOINTR(JCOUNT)
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IPOS = MOBDATA(NCMPOS,JDATA)
+                  ITYP = MOBDATA(NCMVNM,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  IK   = ROBDATA(NCMLYR,JDATA)
+                  IXTR = MOBDATA(NCMXTR,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  ZHHH = ZLEV * GRAV
+***************************************************************
+c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
+c                    print *,'dobssfc:FAM,STN,JDATA,IOBS,TYP,LEV,'
+c     &                   ,'ZHHH,IK,IXTR,JCOUNT,ICOUNT= '
+c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
+c     &                   ,ZLEV,ZHHH,IK,IXTR,JCOUNT,ICOUNT
+c                  ENDIF
+***************************************************************
+                  ZGAMAZ= ZGAMMA*(ZHHH-GOMGZHR(NLEVTRL,IOBS))
+                  ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
+     &                    *GOMTHR(NLEVTRL,IOBS)
+                  ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
+                  ROBDATA8(NCMOMA,JDATA)=((GOMPSHR(1,IOBS)*ZCON**ZEXP)
+     &                    -ZVAR)/ZOER
+***************************************************************
+c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
+c                    ZPSGOBS = GOMPSHR(1,IOBS)*ZCON**ZEXP
+c                    print *,'dobssfc:[gzg,tg,qg,psg]at Zmodel= '
+c     &                   ,GOMGZHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
+c     &                   ,GOMQHR(NLEVTRL,IOBS),GOMPSHR(1,IOBS)
+c                    print *,'dobssfc:TVG,HHH,GAMA,GAMZ,CON,EXP= '
+c     &                   ,ZTVG,ZHHH,ZGAMMA,ZGAMAZ,ZCON,ZEXP
+c                    ZCON = ((GOMPSHR(1,IOBS)*ZCON**ZEXP)-ZVAR)
+c                    print *,'dobssfc:P-O,obs,std-oer,PSGOBS = '
+c     &                   ,zcon,ZVAR,ZOER,ZPSGOBS
+c                  ENDIF
+***************************************************************
+                ENDDO
+              ENDIF
+            ENDDO
+            CALL HPDEALLC(PXPOINTR,IERR,1)
+C
+C                 CONTRIBUTION TO Jo
+C
+*
+*   observations flagged for the whitelist are accepted unconditionally
+*   and are therefore not subjected to qcvar (test to be added here)
+*
+C
+            IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+            ILASTOB  = MOBDATA(NCMOBS,ILAST)
+            DO 150 JO = IBEGINOB, ILASTOB
+               IDATA   = MOBHDR(NCMRLN,JO)
+               IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+               DO JDATA=IDATA,IDATEND
+                  LLOK=.false.
+                  IF ( MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
+                     ITYP = MOBDATA(NCMVNM,JDATA)
+                     IOBS = MOBDATA(NCMOBS,JDATA)
+                     ZOER = ROBDATA8(NCMOER,JDATA)
+                     IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS .OR.
+     &                   ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS .OR.
+     &                   ITYP.EQ.NESS  .OR. ITYP.EQ.NEPN) THEN
+                        LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+                     ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
+                        LLOK=.FALSE.
+                     ELSE
+                        LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
+     &                        MOBDATA(NCMXTR,JDATA)  .EQ. 0)
+                     ENDIF
+                     IF(LLOK)     THEN
+***************************************************************
+c                        IF(LLPRINT .AND. IOBS.LE.13) THEN
+c                           print *,'dobssfc part2:FAM,STN,JDATA,IOBS,'
+c     &                          ,'TYP,P-O,llok'
+c     &                          ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
+c     &                          ,ROBDATA8(NCMOMA,JDATA)*ZOER,llok
+c                         ENDIF
+***************************************************************
+                        IF (NQCVAR .EQ. 0) THEN
+                           DLSUM=DLSUM+ROBDATA8(NCMOMA,JDATA)*
+     1                           ROBDATA8(NCMOMA,JDATA)
+                           ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMA,JDATA)
+                           ROBDATA8(NCMOMI,JDATA) = ROBDATA8(NCMOMA,JDATA)
+                        ELSE
+C
+C                 CONTRIBUTION TO Jo WITH QCVAR
+C
+                           ZGAMI = ROBDATA(NCMPOB,JDATA)
+                           ITYP = MOBDATA(NCMVNM,JDATA)
+
+                           LLUV = ( (ITYP .EQ. NEUS .AND.
+     &                               NMVOEXIST(NOUU) .EQ. 1) .OR.
+     &                              (ITYP .EQ. NEVS .AND.
+     &                              NMVOEXIST(NOVV) .EQ. 1) )
+                           IF (LLUV) THEN
+                             IF (ITYP .EQ. NEUS) THEN
+C
+C  In order to calculate the contribution to Jo from a wind, the o-a
+C  must be available for both u and v components. Hence, loop over only
+C  data for which o-a has already been calculated
+C
+                                 DO JJ=IDATA, JDATA
+                                    ISTYP = MOBDATA(NCMVNM,JJ)
+                                    ZSLEV = ROBDATA8(NCMPPP,JJ)
+C
+                                    IF ((ISTYP .EQ. NEVS) .AND.
+     2                                   ZSLEV .EQ. ZLEV)       THEN
+
+                                       ZJON = ROBDATA8(NCMOMA,JDATA)*
+     1                                      ROBDATA8(NCMOMA,JDATA) +
+     2                                      ROBDATA8(NCMOMA,JJ)*
+     3                                      ROBDATA8(NCMOMA,JJ)
+                                       ZQCARG = ZGAMI + EXP(-1.0*ZJON)
+                                       ZPPOST = ZGAMI/ZQCARG
+C
+C     Store the value of o-a multiplied by one minus the posterior
+C     probability of gross error (needed for the adjoint calculations)
+C
+                                       ROBDATA8(NCMOMN,JDATA) =
+     1                                      ROBDATA8(NCMOMA,JDATA)*(1. - ZPPOST)
+                                       ROBDATA8(NCMOMN,JJ) =
+     1                                      ROBDATA8(NCMOMA,JJ)*(1. - ZPPOST)
+C
+C     Contribution of both u and v added to the cost function at the
+C     same time (see tech. note by Andersson and Jarvinen)
+C
+                                       DLSUM=DLSUM -LOG(ZQCARG/(ZGAMI+1.))
+                                    ENDIF
+                                 ENDDO
+                              ELSE
+                                 DO JJ=IDATA, JDATA
+                                    ISTYP = MOBDATA(NCMVNM,JJ)
+                                    ZSLEV = ROBDATA8(NCMPPP,JJ)
+C
+                                    IF ((ISTYP .EQ. NEUS) .AND.
+     2                                   ZSLEV .EQ. ZLEV)       THEN
+                                       ZJON = ROBDATA8(NCMOMA,JDATA)*
+     1                                      ROBDATA8(NCMOMA,JDATA) +
+     2                                      ROBDATA8(NCMOMA,JJ)*
+     3                                      ROBDATA8(NCMOMA,JJ)
+                                       ZQCARG = ZGAMI + EXP(-1.0*ZJON)
+                                       ZPPOST = ZGAMI/ZQCARG
+                                       ROBDATA8(NCMOMN,JDATA) =
+     1                                      ROBDATA8(NCMOMA,JDATA)*(1. - ZPPOST)
+                                       ROBDATA8(NCMOMN,JJ) =
+     1                                      ROBDATA8(NCMOMA,JJ)*(1. - ZPPOST)
+                                       DLSUM=DLSUM -LOG(ZQCARG/(ZGAMI+1.))
+                                    ENDIF
+                                 ENDDO
+                              ENDIF
+                           ELSE
+*
+*     calculate contribution for scalars
+*
+                              ZJON = ROBDATA8(NCMOMA,JDATA)*
+     1                             ROBDATA8(NCMOMA,JDATA)
+                              ZQCARG = ZGAMI + EXP(-1.0*ZJON)
+                              ZPPOST = ZGAMI/ZQCARG
+                              ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMA,JDATA)
+     1                                            *(1. - ZPPOST)
+                              DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
+                           ENDIF
+                        ENDIF
+                     ENDIF
+                  ENDIF
+C
+               ENDDO
+
+ 150        CONTINUE
+ 200        CONTINUE
+C
+C     Process all geopotential data below model's orography
+C
+            DO JDATA=IBEGIN,ILAST
+ccc debut
+*cc               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+*cc     &              .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
+*cc     &         .AND. (MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &              .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &         .AND. (MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+     &         .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 1)
+ccc fin
+               IF ( LLOK ) THEN
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  IPOS = MOBDATA(NCMPOS,JDATA)
+                  ZVAR = ROBDATA8(NCMVAR,JDATA)
+                  ZOER = ROBDATA8(NCMOER,JDATA)
+                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+C
+C                 CONTRIBUTION TO Jo
+C
+c
+c  forward nonlinear model for geopotential data below model's orography
+c
+                  ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
+     &                        *GOMTHR(NLEVTRL,IOBS)
+***************************************************************
+c        IF(LLPRINT .AND. IOBS.LE.13) THEN
+c           ZPHI=RMTMOBS(iobs) + ZTVG/zgamma
+c     &             *(1.-(zlev/gompshr(1,iobs))**zexpgz)
+c           zinc = zphi - zvar
+c           print *,'dobssfc: IOBS,ZTVG,GOMQHR(NLEVTRL),GOMTHR(NLEVTRL) '
+c     &                  ,IOBS,ZTVG,GOMQHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
+c           print *,'dobssfc: RMTMOBS(iobs),ZLEV,zgamma,zexpgz,gompsg= '
+c     &                  ,RMTMOBS(iobs),ZLEV,zgamma,zexpgz,gompshr(1,iobs)
+c           print *,'dobssfc: zphi,gzinc, gzobs, std-dev-obs = '
+c     &                 ,ZPHI,zinc,ZVAR,ZOER
+c        ENDIF
+***************************************************************
+                  ROBDATA8(NCMOMA,JDATA)=(RMTMOBS(iobs)
+     &                        + ZTVG/zgamma
+     &                        *(1.-(zlev/gompshr(1,iobs))**zexpgz)
+     &                        - zvar)/zoer
+                  DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
+     +                        *ROBDATA8(NCMOMA,JDATA)
+                  ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                  IF (NQCVAR .EQ. 0) THEN
+                    DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
+     +                                 *ROBDATA8(NCMOMA,JDATA)
+                    ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                    ROBDATA8(NCMOMN,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                  ELSE
+                    ZGAMI = ROBDATA(NCMPOB,JDATA)
+                    ZJON = ROBDATA8(NCMOMA,JDATA)*ROBDATA8(NCMOMA,JDATA)
+                    ZQCARG = ZGAMI + EXP(-1.0*ZJON)
+                    ZPPOST = ZGAMI/ZQCARG
+                    ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMA,JDATA)
+     1                                      *(1. - ZPPOST)
+                    DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
+                  ENDIF
+               ENDIF
+C
+            END DO
+ 300  CONTINUE
+C
+      ENDIF
+      END DO
+C--------------------------------------------------------------------
+      PJO = DLSUM
+C--------------------------------------------------------------------
+      RETURN
+      END

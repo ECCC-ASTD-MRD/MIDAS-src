@@ -1,0 +1,89 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE PRNTHDR(KOBS,KULOUT)
+#if defined (DOC)
+*
+***s/r PRNTHDR  - Printing of the header of an observation record
+*
+*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
+*     . P. Koclas   *CMC:  Format for transformed latitude has been modified
+*     .                    to handle an integer (latitude index of the first
+*     .                    latitude circle north of the observation)
+*Arguments
+*     i   KOBS  : No. of observation
+*     i   KULOUT: unit used for optional printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "comdimo.cdk"
+#include "comoahdr.cdk"
+#include "comoabdy.cdk"
+#include "comoba.cdk"
+*
+      INTEGER KOBS, KULOUT
+      CHARACTER*4 CSID14,CSID58
+      CHARACTER*1 CSID99
+      CHARACTER*9 CCSTNID
+      WRITE(CSID14,'(a4)')MOBHDR(NCMSID,KOBS)
+      WRITE(CSID58,'(a4)')MOBHDR(NCMSI2,KOBS)
+      WRITE(CSID99,'(a1)')MOBHDR(NCMSI3,KOBS)
+      CCSTNID=CSID14//CSID58//CSID99
+C
+C*    1. General information
+C
+ 100  CONTINUE
+      WRITE(KULOUT,FMT=9100)KOBS,NCMLET
+ 9100 FORMAT(//,10x,'-- OBSERVATION RECORD NO.'
+     S     ,1X,I6,3X,'HEADER''S LENGTH:',I6)
+C
+C*    2. PRINT HEADER'S CONTENT
+C
+ 200  CONTINUE
+      WRITE(KULOUT,FMT=9200)
+     S      MOBHDR(NCMRLN,KOBS),MOBHDR(NCMONM,KOBS)
+     S     ,MOBHDR(NCMBOX,KOBS),MOBHDR(NCMOTP,KOBS)
+     S     ,MOBHDR(NCMITY,KOBS)
+     S     ,ROBHDR(NCMLAT,KOBS),ROBHDR(NCMLON,KOBS)
+     S     ,MOBHDR(NCMDAT,KOBS),MOBHDR(NCMETM,KOBS)
+     S     ,CCSTNID            ,ROBHDR(NCMALT,KOBS)
+     S     ,MOBHDR(NCMNLV,KOBS),MOBHDR(NCMOEC,KOBS)
+     S     ,MOBHDR(NCMOFL,KOBS),MOBHDR(NCMST1,KOBS)
+     S     ,MOBHDR(NCMTLA,KOBS)
+C
+ 9200 FORMAT(6X,'Position within ROBDATA:',I6,1X,'OBS. NUMBER:',I6,1X
+     S     ,'MODEL BOX:',I6,1X,'OBS. TYPE:',I6,1X
+     S     ,'INSTR./RETR. TYPE:',I6,1X
+     S     ,/,6X
+     S     ,'OBSERVATION LOCATION. (LAT,LON):',2(F12.6,1X)
+     S     ,'DATE:',I12,1X,'EXACT TIME: ',I6,1X
+     S     ,/,6X
+     S     ,'STATION ID:',A9,1X
+     S     ,'STATION''S ALTITUDE:',G12.6,1X
+     S     ,'NUMBER OF DATA:',I6,1X,'ERROR CORR. TYPE',I6,1X
+     S     ,/,6X
+     S     ,'REPORT STATUS:',I6,5X,'REPORT STATUS 2:',I6,1X
+     S     ,/,6X
+     S     ,'Index of latitude north of the observation:',(1X,I6)
+     S     )
+C
+      RETURN
+      END
+

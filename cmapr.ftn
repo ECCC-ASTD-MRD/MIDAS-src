@@ -1,0 +1,106 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE CMAPR
+#if defined (DOC)
+*
+***s/r CMAPR  -  Print resume of cma
+*
+*
+*Author  : P. Koclas *CMC/AES  April 1996
+*Revision:
+*     .      C. Charette  *ARMA/AES - Oct 96.
+*                   -Changed WRITE statements
+*     .      C. Charette  *ARMA/AES - Oct 2001.
+*                   - check on allowed number of reports only when nconf=141
+*
+**    Purpose:  - Print resume of contents of cma by type
+*                 FOR informative purposes.
+*
+*
+*Arguments
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+#include "comstato.cdk"
+#include "comvcor.cdk"
+#include "comct0.cdk"
+*
+      INTEGER IBEGIN,ILAST,INREPT,IUN
+      INTEGER IBEGINOBS,ILASTOBS
+      INTEGER J
+      LOGICAL LLOK
+C
+      IUN=NULOUT
+      LLOK = .TRUE.
+C
+      WRITE(IUN,'(10X,"******************************************")')
+      WRITE(IUN,'(10X,"        CMAPR: contents of CMA by TYPE ")')
+      WRITE(IUN,'(10X,"******************************************",//)')
+      WRITE(IUN,'(10X,"------------------------------")')
+      WRITE(IUN,'(10X," UA --> UPPER AIR SOUNDINGS    ")')
+      WRITE(IUN,'(10X," ST --> SATEM     SOUNDINGS    ")')
+      WRITE(IUN,'(10X," AI --> AIREP/SATWND REPORTS   ")')
+      WRITE(IUN,'(10X," SF --> SURFACE   REPORTS      ")')
+      WRITE(IUN,'(10X," HU --> HUMSAT    SOUNDINGS    ")')
+      WRITE(IUN,'(10X,"------------------------------",/)')
+C
+      WRITE(IUN,'(10X,"==========================================",/)')
+C
+      DO J=1,NFILES
+         IBEGIN=NBEGINTYP(J)
+         ILAST =NENDTYP(J)
+         IF ( (IBEGIN .GT. 0) .AND. (ILAST .GT. 0) ) THEN
+            IBEGINOBS=MOBDATA(NCMOBS,IBEGIN)
+            ILASTOBS =MOBDATA(NCMOBS, ILAST)
+            INREPT=MAX (ILASTOBS-IBEGINOBS+1,0)
+            WRITE(IUN, '(10X,A14,A8)' ) ' DATA FILE:  ',CFILNAM(J)
+            WRITE(IUN,'(30X,I6,A3,A8)'  )INREPT,CFAMTYP(J),' REPORTS'
+C
+C-----------CHECK FOR MAXIMUM NUMBER OF REPORTS FOR
+C           UPPER AIR, SATEMS, HUMSAT WHEN DOING AN ANALYSIS (NCONF=141)
+C
+            IF( (NCONF .EQ. 141 .OR. NINT(NCONF/100.0) .EQ. 6) .AND.
+     $          (CFAMTYP(J).EQ.'UA' .OR. CFAMTYP(J).EQ.'ST' .OR.
+     $           CFAMTYP(J).EQ.'HU') .AND. (INREPT.GT.JPNMAXPRO)) THEN
+               LLOK = .FALSE.
+               WRITE(IUN,*)'          NUMBER OF REPORTS IN THE ABOVE',
+     $                     ' FILE'
+               WRITE(IUN,*)'          EXCEEDS MAXIMUM ALLOWED'
+               WRITE(IUN,'(10X,A18,I6)')' MAXIMUM ALLOWED= ',JPNMAXPRO
+            ENDIF
+         ENDIF
+      END DO
+      IF(.NOT.LLOK) THEN
+         CALL ABORT3D(IUN,' CMAPR: PROBLEM NUMBER OF REPORTS')
+      ENDIF
+C-----
+C
+      WRITE(IUN,'(10X,"==========================================",/)')
+C
+      WRITE(IUN,'(10X,"******************************************")')
+      WRITE(IUN,'(10X,"  ---END OF CMAPR---")')
+      WRITE(IUN,'(10X,"******************************************",/)')
+C
+      RETURN
+      END

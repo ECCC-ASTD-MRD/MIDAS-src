@@ -1,0 +1,57 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE LINEQ(X1,X2,Y1,Y2,A,B,IER) 
+***subroutine     LINEQ
+*
+*auteur           Louis Garand  - rpn - dorval
+*
+*REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
+*                                 Decembre 1995
+*                 Generaliser pour toutes les plateformes satellitaires.
+*
+*langage          fortran 5
+*
+*objet            calculate slope and intercept of a line.
+*
+*appel            CALL  LINEQ(X1,X2,Y1,Y2,A,B,IER)
+*
+*arguments        x1  - input  - coordinate x of point 1
+*                 x2  - input  - coordinate x of point 2
+*                 y1  - input  - coordinate y of point 1
+*                 y2  - input  - coordinate y of point 2
+*                 a   - output - slope
+*                 b   - output - intercept
+*                 ier - output - error code (0=ok)
+**
+      implicit none
+c
+      integer  ier
+c
+      real  x1, x2, y1, y2, a, b
+c
+      ier = 0
+c
+      IF((X2-X1).EQ.0.)THEN 
+         IER=-1
+         RETURN
+      ENDIF 
+c
+      A=(Y2-Y1)/(X2-X1) 
+      B=Y1-A*X1 
+c
+      RETURN
+      END 

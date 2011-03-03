@@ -1,0 +1,18 @@
+#if defined (DOC)
+!
+!     COMMON COMVFILES   - CARRIES FILE/directory  NAMES FOR 3DVAR/4Dvar
+!     ---------------
+!
+#endif
+      CHARACTER(len=128) :: CBURP(56),CEXC4DV,cpconf
+      CHARACTER (len=2) :: CFAM(56)
+      character(len=10) :: crestart
+      INTEGER NKOUNT
+      logical lpcon,lrestart
+
+      COMMON/COMCVFILES/CBURP,CFAM,CEXC4DV,cpconf,crestart
+      common/comnvfiles/nkount
+      common/comlvfiles/lpcon,lrestart
+!
+!-----------------------------------------------------------------------
+!

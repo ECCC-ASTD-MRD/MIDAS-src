@@ -1,0 +1,68 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine oda_HT
+  implicit none
+  !
+  !Purpose:
+  !Call the several adjoint of observation operators
+  !
+  !Author  : S. Pellerin *ARMA/MRB January 2009
+  !
+  !Revision:
+  ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
+  ! S. Macpherson ARMA  11 Sep 2009
+  !            - added ground-based GPS (ZTD) observation operator
+  !
+  !Local declarations
+
+#include "comdim.cdk"
+#include "comcva.cdk"
+!
+!!
+  if(l1obs) then
+!modular1    call oda_HT1obs
+  else
+    call tmg_start(64,'GPSZTD') !
+    call oda_HTgp
+    call tmg_stop (64)        !
+
+    call tmg_start(63,'ZPROF') !
+    call oda_HTzp
+    call tmg_stop (63)
+
+    call tmg_start(90,'GPSRO') !
+    call oda_HTro
+    call tmg_stop (90)      !     !
+
+    call tmg_start(62,'GOESRAD') !
+    CALL oda_HTgo
+    call tmg_stop (62)      !
+
+    call tmg_start(60,'RTTOV') !
+    call oda_HTto
+    call tmg_stop (60)      !
+
+    call tmg_start(59,'SFC')
+    call oda_HTsf
+    call tmg_stop (59)      !
+
+    call tmg_start(56,'PPROF') !
+    call oda_HTpp
+    call tmg_stop (56)
+  endif
+
+end subroutine oda_HT

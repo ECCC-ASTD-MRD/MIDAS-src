@@ -1,0 +1,233 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE DIAG3DVAR
+      use glbspec_mod
+#if defined (DOC)
+*
+***s/r DIAG3DVAR  - diagnostics in the post-processing of the model state
+*     .             and analysis incrments
+*
+*Author  : P. Gauthier *ARMA/AES  December 2, 1996
+*     .
+*Revision:
+*          S. Pellerin *ARMA/AES  Oct, 1997
+*                      Computation of total ozone O3 (DU) from level
+*                      concentration (ppmv)
+*          L. Fillion *ARMA/AES  16 nov 98
+*                      GZ,ES as diagnostic vrbls in cvcord='ETAGE' mode.
+*          C. Charette *ARMA/AES  19 nov 98
+*                      Moved  call to getfstg into postproc routine
+*          L. Fillion *ARMA/AES  4 dec 98
+*                      Prepare Balanced part of TT,GZ,ps if desired as diagnostic output.
+*          C. Charette *ARMA/AES feb 1999
+*           - Adjust zttg at the top 4 levels in hydrostatic equation
+**
+*          L. Fillion *ARMA/AES  17 feb 1999
+*                      Introduce ltt2phigd.
+*          C. Charette *ARMA/AES oct 1999
+*           - Change  parameter to nlev in do loop to calculate t unbalance
+*          C. Charette - ARMA/SMC - Sept 2004
+*           - Conversion to hybrid vertical coordinate
+*          M. Buehner - ARMA - May 2008
+*           - Modified calculation of Tb when NANALVAR=4
+*
+*Arguments
+*     i-  CDPPTYP :  type of post-processing
+*     .
+*     .              'STAT'      Model state contained in COMSP
+*     .              'GRID'      Grid-point fields contained in COMGD
+*     .
+*     .              'XMXG'      Total analysis increment
+*     .                          (COMSP - COMSPG)
+*     .              'XMXK'      Analysis increment with respect to
+*     .                          a given reference state kept on file
+*     .                          (Current model state is assumed to be in
+*     .                           COMSP)
+#endif
+C
+      use glbspec_mod
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comcva.cdk"
+#include "comgd0.cdk"
+#include "comgd1.cdk"
+#include "comgem.cdk"
+#include "comsp.cdk"
+#include "comsp1.cdk"
+#include "localpost.cdk"
+#include "comstate.cdk"
+#include "comweight.cdk"
+*
+*     Arguments
+*
+      CHARACTER*4 CDPPTYP
+*
+* Local variables
+*
+      INTEGER JLEV, JLA, ILEV,ILEN, JLAT, ILON, JLON, IERR
+      INTEGER IKTOP,IKTTG
+      REAL*8 ZRA2, ZCORIOLIS
+      real*8 zetae1, ztfac, zcon, zttgcon
+C
+      WRITE(NULOUT,FMT='(/,4X,"Starting DIAG3DVAR",//)')
+C
+C     1. Obtain streamfunction and velocity potential locally in physical space
+C
+      IKTOP = 5
+      zttgcon = 300.
+ 100  CONTINUE
+      ZRA2 = RA*RA
+      CALL TRANSFER('ZSP1')
+      CALL TRANSFER('ZGD1')
+*
+      DO JLEV = 1, NFLEV
+         DO JLA = 1, NLA
+            SPVOR1(JLA,1,JLEV)  = SPVOR(JLA,1,JLEV)*R1SNP1(JLA)*ZRA2
+            SPVOR1(JLA,2,JLEV)  = SPVOR(JLA,2,JLEV)*R1SNP1(JLA)*ZRA2
+            SPDIV1(JLA,1,JLEV)  = SPDIV(JLA,1,JLEV)*R1SNP1(JLA)*ZRA2
+            SPDIV1(JLA,2,JLEV)  = SPDIV(JLA,2,JLEV)*R1SNP1(JLA)*ZRA2
+         END DO
+      END DO
+*
+      CALL gst_SPEREE(SP1,GD1,2*NFLEV,NKSDIM)
+C
+C     .  2 Obtain divergence and relative and absolute vorticity in physical space
+C
+ 200  CONTINUE
+      DO JLEV = 1, NFLEV
+         DO JLAT = 1, NJ
+            ILON = NILON(JLAT)
+            DO JLON = 1, ILON
+               ZPP(JLON,JLEV,JLAT) = UT1(JLON,JLEV,JLAT)
+               ZCC(JLON,JLEV,JLAT) = VT1(JLON,JLEV,JLAT)
+            END DO
+         END DO
+      END DO
+      CALL TRANSFER('ZSP1')
+      CALL TRANSFER('ZGD1')
+      DO JLEV = 1, NFLEV
+         DO JLA = 1, NLA
+            SPVOR1(JLA,1,JLEV)  = SPVOR(JLA,1,JLEV)
+            SPVOR1(JLA,2,JLEV)  = SPVOR(JLA,2,JLEV)
+            SPDIV1(JLA,1,JLEV)  = SPDIV(JLA,1,JLEV)
+            SPDIV1(JLA,2,JLEV)  = SPDIV(JLA,2,JLEV)
+         END DO
+      END DO
+*
+      if(nsexist(nsoz) .eq. 1) then
+        DO JLEV = 1, NFLEV
+          DO JLA = 1, NLA
+            spoz1(JLA,1,JLEV)  = SPOZ(JLA,1,JLEV)
+            spoz1(JLA,2,JLEV)  = SPOZ(JLA,2,JLEV)
+          enddo
+        enddo
+      endif
+*
+      CALL gst_SPEREE(SP1,GD1,2*NFLEV,NKSDIM)
+      DO JLEV = 1, NFLEV
+         DO JLAT = 1, NJ
+            ZCORIOLIS = 2.*ROMEGA*gst_RMU(JLAT)
+            ILON = NILON(JLAT)
+            DO JLON = 1, ILON
+               ZQR(JLON,JLEV,JLAT)   = UT1(JLON,JLEV,JLAT)
+               ZDD(JLON,JLEV,JLAT)   = VT1(JLON,JLEV,JLAT)
+               ZQQ(JLON,JLEV,JLAT)   = UT1(JLON,JLEV,JLAT)
+     S              + ZCORIOLIS
+            END DO
+         END DO
+      END DO
+C
+      if (ngexist(ngoz).eq.1) then
+C
+        DO JLAT = 1, NJ
+          ILON = NILON(JLAT)
+          DO JLON = 1, ILON
+            ZO3(JLON,JLAT)=0.
+            DO JLEV = 1, NFLEV-1
+              ZO3(JLON,JLAT) = ZO3(JLON,JLAT) + RO3W(JLEV)*GOZ1(JLON
+     &             ,JLEV,JLAT)
+            enddo
+          enddo
+        enddo
+      endif
+c
+c
+c     *** ES ***
+c
+      if (chum .eq. 'LQ') then
+        call lq2esgd(zes,zttg,zhug,zpsg,zpt,ni,nj,nflev)
+      endif
+c
+c     *** Total GZ ***
+c
+c  arrays zttb,zpsb can be used as work space at this point
+c
+      do jlat = 1, nj
+        do jlon = 1, ni
+          do jlev = 1, nflev
+            zttb(jlon,jlev,jlat) = tt0(jlon,jlev,jlat)
+          enddo
+          zpsb(jlon,jlat) = gps0(jlon,1,jlat)
+        enddo
+      enddo
+      call lt2tvgd(ztv,zttb,zhug,ni,nj,nflev)
+      call ltt2phigd(zgz,ztv,zpsb,zpsg,zpt) ! Total GZ
+c
+c     *** Balanced TT,ps ***
+c
+      if(nanalvar.eq.4) then
+        do jlat = 1, nj
+          ilon = nilon(jlat)
+          do jlon = 1, ilon
+            do jlev = 1, nflev
+              zttb(jlon,jlev,jlat)=tb_out(jlon,jlev,jlat)
+            enddo
+          enddo
+        enddo
+      else
+!modular1        call balptot(zttb,zpsb,zpp,zcc,1,ni,1,nj,nflev)
+      endif
+c
+c     *** Unbalanced TT,ps ***
+c
+      do jlat = 1, nj
+        ilon = nilon(jlat)
+        do jlon = 1, ilon
+          do jlev = 1, nflev
+            zttu(JLON,JLEV,JLAT)=tt0(JLON,JLEV,JLAT)
+     &           -zttb(JLON,JLEV,JLAT)
+          enddo
+          zpsu(JLON,JLAT)=gps0(JLON,1,JLAT)-zpsb(JLON,JLAT)
+        enddo
+      enddo
+c
+c     *** GZ (Balanced, Unbalanced) ***
+c
+c
+c       ETA coordinates
+c       ---------------
+c
+      call ltt2phigd(zgzb,zttb,zpsb,zpsg,zpt) ! Balanced GZ
+      call ltt2phigd(zgzu,zttu,zpsu,zpsg,zpt) ! Unbalanced GZ
+C
+      LVARDIAG=.true.
+C
+      RETURN
+      END

@@ -1,0 +1,282 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine suobsgid
+      use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
+      use mod4dv, only : mvar, l4dvar
+#if defined (DOC)
+*
+***s/r suobsgid  initialize observation Y grid handle.
+*
+*Author  : S. Pellerin *ARMA/AES  Nov., 1999
+*
+*Revision:
+*         JM Belanger CMDA/SMC  Aug 2000
+*                   . 32 bits conversion
+*         S. Pellerin *ARMA/SMC Nov. 2001
+*                   . Management of first guess at appropriate time
+*         S. Pellerin *ARMA/SMC Feb. 2002
+*                   . Writing of PRM_STOB in lalo.prof file
+*         M. Buehner *ARMA/SMC Aug. 2002
+*                   . Changed filename from lalo.prof to init.prof
+*                   . Added simulation number to init.prof (for restart)
+*                   . Write numseg for SV job
+*         L. Fillion ARMA/EC May 2006: LAM4d upgrade to v10_0_0.
+*         L. Fillion ARMA/EC 15 Aug 2007: LAM4d upgrade to v10_0_3.
+*         Bin He     *ARMA/MRB  May,2009 
+*                   . Implementation of MPI Parallelization  
+*         L. Fillion ARMA/EC 4 May 2010: Upgrade on v_11_01_2b.
+*Arguments: none
+*
+#endif
+      USE procs_topo 
+      IMPLICIT NONE
+*implicits
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "comgdpar.cdk"
+#include "cvcord.cdk"
+#include "comfilt.cdk"
+#include "comct0.cdk"
+#include "comvfiles.cdk"
+#include "comsv.cdk"
+#include "comcva.cdk"
+#include <prof_f.h>
+*
+      integer jobs, ig1obs, ig2obs, ig3obs, ig4obs, newdate
+      integer vezgdef, ierr,istepstamp,jstep,istat,ihdl
+      integer :: prof_wrrec,icode,jvar,getprofcode, istepobs, ireslun
+      integer :: idate, itime, idata,idatend, jdata,itimeout,iobs,fnom
+      integer :: fclos
+      real*8 zig1,zig2,zig3,zig4
+*
+      real*8, allocatable, dimension(:,:) ::  dlatfld, dlonfld
+      character (len=512) :: clprof
+      logical llflag,lltimein
+
+      write(nulout,*) ' '
+      write(nulout,*) '-------- ENTERING SUOBSGID ---------'
+      write(nulout,*) ' '
+      write(nulout,*) 'SUOBSGID: Step obs : ',dstepobs,' hours'
+
+* Computute the number of step obs over a 6 hours assimilation window
+      nstepobs = 2*nint((3.d0 - dstepobs/2.d0)/dstepobs) + 1
+      write(nulout,*) 'SUOBSGID: Number of step obs : ',nstepobs
+
+      allocate(nstamplist(nstepobs))
+      allocate(nobs(nstepobs))
+      allocate(nobsgid(nstepobs))
+      allocate(notag(nobtot,nstepobs),stat=ierr)
+
+      allocate(dlatfld(nobtot,nstepobs))
+      allocate(dlonfld(nobtot,nstepobs))
+
+      call getstamplist(NSTAMPLIST,nstepobs,nbrpstamp,dstepobs)
+!
+      do jstep = 1,nstepobs
+        write(nulout,*) 'suobsgid: jstep,nstamplist=',jstep,nstamplist(jstep)
+      enddo
+!
+* Find out lower and upper assimilation window index in nstamplist
+      if (nlwrbin == -1) nlwrbin = 1
+      if (nuprbin == -1) nuprbin = nstepobs
+
+! CMC date time stamp of the step obs time
+
+      do jstep = 1, jpfiles
+        ntimeout(jstep) = 0
+      enddo
+
+      do jstep = 1, nstepobs
+        nobs(jstep) = 0
+      enddo
+
+      do jobs=1, nobtot
+!
+!       return the step stamp associated whit date and time of the observation
+
+        call stepobs(ISTEPSTAMP,nbrpstamp,mobhdr(ncmdat,jobs)
+     &       ,mobhdr(ncmetm,jobs),dstepobs)
+!
+         if(l1obs) then
+           write(nulout,*) 'suobsgid: jobs,ncmdat,ncmetm=',jobs,ncmdat,ncmetm
+           write(nulout,*) 'suobsgid: mobhdr(ncmdat,jobs)=',mobhdr(ncmdat,jobs)
+           write(nulout,*) 'suobsgid: mobhdr(ncmetm,jobs)=',mobhdr(ncmetm,jobs)
+           write(nulout,*) 'suobsgid: istepstamp=',istepstamp
+         endif 
+!
+! building the list of step stamp and counting number of obs in each step
+        lltimein = .false.
+        step : do jstep = nlwrbin,nuprbin
+          if (nstamplist(jstep) == istepstamp) then
+            nobs(jstep) = nobs(jstep) + 1
+            lltimein = .true.
+            exit step
+          endif
+        enddo step
+
+        if (.not. lltimein) then
+          ntimeout(mobhdr(ncmotp,jobs))=ntimeout(mobhdr(ncmotp,jobs))+1
+C          write(nulout,*) 'Report time for obs no. ',jobs
+C     &         ,' out of range : ', mobhdr(ncmdat,jobs),
+C     &         mobhdr(ncmetm,jobs)
+
+! Put the wrong data in the central bin
+          jstep = (nstepobs + 1) / 2
+          nobs(jstep) = nobs(jstep) + 1
+
+! .. flag it as out of (time) domain (bit #5 of header flag
+! .. and turn off its assimilation flag
+
+          idata = mobhdr(ncmrln,jobs)
+          idatend = mobhdr(ncmnlv,jobs) + idata -1
+          do jdata = idata, idatend
+            MOBDATA(NCMASS,JDATA) = 0
+          enddo
+          mobhdr(ncmst1,jobs)= ibset( mobhdr(ncmst1,jobs) , 05)
+        endif
+! building the lat, long and tag vectors for each step
+
+        dlatfld(nobs(jstep),jstep) = robhdr(ncmlat,jobs)
+        dlonfld(nobs(jstep),jstep) = robhdr(ncmlon,jobs)
+        notag(nobs(jstep),jstep) = jobs
+
+! Converting lat long to radian units
+
+        if(dlonfld(nobs(jstep),jstep).lt.0)
+     &       dlonfld(nobs(jstep),jstep) = dlonfld(nobs(jstep),jstep) +
+     &       2*rpi
+        if(dlonfld(nobs(jstep),jstep).ge.2.*rpi)
+     &       dlonfld(nobs(jstep),jstep) =dlonfld(nobs(jstep),jstep) -
+     &       2*rpi
+        dlatfld(nobs(jstep),jstep)=dlatfld(nobs(jstep),jstep)*180./rpi
+        dlonfld(nobs(jstep),jstep)=dlonfld(nobs(jstep),jstep)*180./rpi
+      enddo
+
+      itimeout = 0
+      do jstep = 1,nfiles
+        itimeout = ntimeout(jstep) + itimeout
+      enddo
+
+      if(itimeout > 0) then
+        write(nulout,*) 'Number of reports with time out of range :',
+     &       itimeout
+        write(nulout,*) '  FAMILY       No. of reports'
+        do jstep = 1,nfiles
+          write(nulout,'(4x,a2,11x,i5)') CFAMTYP(jstep),ntimeout(jstep)
+        enddo
+      endif
+
+      zig1 = 0.0D0
+      zig2 = 0.0D0
+      zig3 = 1.0D0
+      zig4 = 1.0D0
+
+      call vcxgaig('L',ig1obs, ig2obs, ig3obs, ig4obs,
+     .             zig1, zig2, zig3, zig4)
+c
+      write(nulout,*) 'STEP OBS NO. -  DATE -  TIME -  Nbr. of obs.'
+      do jstep = 1,nstepobs
+        if (jstep == (nstepobs+1)/2) then
+          iobs = nobs(jstep) - itimeout
+        else
+          iobs = nobs(jstep)
+        endif
+
+        ierr = newdate(nstamplist(jstep),idate,itime,-3)
+        write(nulout,'(6x,i2,5x,i10,2x,i4.4,5x,i5)') jstep,idate,itime
+     &       /10000,iobs
+        if (nobs(jstep) .gt. 0) then
+          nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,
+     &         ig3obs,ig4obs,dlonfld(1:nobs(jstep),jstep)
+     &         ,dlatfld(1:nobs(jstep),jstep))
+        else
+          nobsgid(jstep) = -999
+        endif
+      enddo
+c Write lalo prof file:
+      mvar = 0
+      do jvar=1, nfstvar2d
+        icode = getprofcode(cfstvar2d(jvar))
+        mvar = ibset(mvar,icode)
+      enddo
+
+c      mvar = ibset(mvar,v3d_pres)
+c      mvar = ibset(mvar,v2d_geop) ! Geopotential at surface
+c      mvar = ibset(mvar,v2d_ptop) ! Pressure at model top
+
+      do jvar=1, nfstvar
+        icode = getprofcode(cfstvar(jvar))
+        mvar = ibset(mvar,icode)
+      enddo
+
+      if (l4dvar .and.(.not.lcva_3db) .and. (myid == 0)) then
+        istepobs = nint(dstepobs * 60.)
+        clprof = trim(CEXC4DV) // '/init.prof'
+        ihdl = prof_open(clprof,'WRITE','FILE')
+c
+c Get simulation number if this is a restart job
+c
+        if(niterjob /= -1 .and. lrestart) then
+          ireslun=0
+          ierr = fnom(ireslun,crestart,'FTN+SEQ+UNF+OLD+R/O',0)
+          read(ireslun) nsim3d
+          ierr = fclos(ireslun)
+        else
+          nsim3d = 0
+        endif
+c
+        if(NCONF.eq.601.or.NCONF.eq.605) then
+c For SV job only write out number of segments and simulation number in init file
+          istat = prof_pvar(ihdl,numseg,prm_stob)
+          istat = prof_pvar(ihdl,nsim3d,prm_rstr)
+          istat = prof_wrrec(ihdl)
+c For all other jobs write out lat/lon and other info for obs
+        else
+          do jstep = 1,nstepobs
+            if(nobs(jstep) /= 0) then
+              istat = prof_pvar(ihdl,istepobs,prm_stob)
+              istat = prof_pvar(ihdl,nstamplist(jstep),prm_dtst)
+              istat = prof_pvar(ihdl,nsim3d,prm_rstr)
+              istat = prof_pvar(ihdl,mvar,prm_mvar)
+              istat = prof_pvar(ihdl,notag(1:nobs(jstep),jstep),v2d_otag)
+              istat = prof_pvar(ihdl,dlatfld(1:nobs(jstep),jstep),
+     &                          v2d_lati)
+              istat = prof_pvar(ihdl,dlonfld(1:nobs(jstep),jstep),
+     &                          v2d_long)
+
+              istat = prof_wrrec(ihdl)
+            endif
+          enddo
+        endif
+        istat = prof_close(ihdl)
+      endif
+
+      deallocate(dlatfld)
+      deallocate(dlonfld)
+c
+      write(nulout,*) ' '
+      write(nulout,*) '-------- END OF SUOBSGID ---------'
+      write(nulout,*) ' '
+c
+      return
+      end
+

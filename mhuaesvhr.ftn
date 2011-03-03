@@ -1,0 +1,94 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE MHUAESVHR
+#if defined (DOC)
+***   S/R MHUAES  -  CALCULATE ES=T-TD FROM T AND Q
+*
+*Author
+*          N. Brunet  (Jan91)
+*
+*Revision
+* 001      B. Bilodeau  (August 1991)- Adaptation to UNIX
+*
+* 002      C.CHOUINARD  (August 1998)- ADAPTATION TO 3DVAR
+*
+* 002      C.CHARETTE  (March 1999)- Added llprint and print diagnostics
+*          S.Pellerin  (SEPT. 2000)- Exclude reference to commvo1
+* 003      Y.J. Rochon and Cecilien Charette - SMC - Sept 2004
+*            - Use of new function FOTW8 FOEFQ8(in fintern8.cdk)
+*              Follow WMO convention on T-Td vs HU relationship)
+*
+*Object
+*          to calculate the dew point depression from specific
+*          humidity, temperature and pressure.  No ice phase
+*          is permitted and the pressure vector is given.
+*
+#endif
+      IMPLICIT NONE
+*IMPLICITS
+*         --------------------------------------------------------------------------
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "commvo.cdk"
+#include "commvohr.cdk"
+#include "comcst.cdk"
+*
+      INTEGER JOBS,JLEV
+      REAL*8 ZE, ZTD, ZHU
+      LOGICAL LLPRINT
+*
+#include "comphy.cdk"
+#include "dintern8.cdk"
+#include "fintern8.cdk"
+*
+c
+*
+      LLPRINT = .FALSE.
+*
+      DO JLEV=1,NLEVTRL
+*
+        DO JOBS=1,NOBTOT
+*
+*     get the saturated vapor pressure from q (specific humidity)
+*
+         ZHU = exp(gomqhr(jlev,jobs))
+         ZE = FOEFQ8(ZHU, RPPOBSHR(JLEV,JOBS))
+*
+*     now the dewpoint temperature
+*
+         ZTD=FOTW8(ZE)
+*
+*     finally the dewpoint depression
+*
+         GOMESHR(JLEV,JOBS) = min(GOMTHR(JLEV,JOBS) - ZTD,rmaxes)
+********************************************************************
+c         IF(LLPRINT) THEN
+c           write(nulout,*)'MHUAESVHR:JOBS,JLEV,pobshr,GMESH,GMTH,TD,HU '
+c     &           ,JOBS,JLEV,RPPOBSHR(JLEV,JOBS),GOMESHR(JLEV,JOBS)
+c     &           ,GOMTHR(JLEV,JOBS),ZTD,ZHU
+c         ENDIF
+*******************************************************************
+*
+        ENDDO
+*
+      ENDDO
+*
+      RETURN
+      END

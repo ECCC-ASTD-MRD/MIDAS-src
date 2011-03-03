@@ -1,0 +1,24 @@
+#if defined (DOC)
+!
+!     COMDECK COMCT0
+!     --------------
+!*    Control variables for the job - constant within job
+!
+!     NCONF   : configuration of the job
+!     NLFFT   : maximum number of FFT to be performed in one call
+!     .         to FFT77
+!     NLATBD  : number of latitude bands to be treated simultaneously
+!     .         in spectral transforms
+!     LDEBUG  : logical key controlling statements to be executed while
+!     .         debugging only
+!     LTEST   : used to test the code with a single spectral component
+!     .         specified in COMTEMP and with the namelist NAMTEMP
+!     LSIMOB  : .T. if observations are to be simulated from an actual
+!     .         model state
+!
+#endif
+      INTEGER NCONF, NLFFT, NLATBD
+      LOGICAL LDEBUG,LTEST, LSIMOB
+      character(len=12) :: CMINMODE
+      COMMON /COMCT0/NCONF,NLFFT, NLATBD, LDEBUG, LTEST, LSIMOB
+      common /COMCT0/cminmode

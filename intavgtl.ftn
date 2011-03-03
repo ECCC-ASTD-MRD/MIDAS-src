@@ -1,0 +1,137 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE INTAVGTL (PVLEV,PVI,PVIG,PPS,KNIDIM,KNI,
+     &                     KNPROF,KNO,PPO,PVO)
+C
+#if defined (DOC)
+*
+*--------------------------------------------------------------------
+*
+***s/r INTAVGTL - Application of tangent Linear of piecewise weighted averaging.
+*
+*
+*Author  : Y.J. Rochon *ARQX/EC Nov 2005
+*          Starting points: LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
+*
+*Revisions:
+*          Saroja Polavarapu *ARMA/EC Nov 2005
+*          - Completed split into three routines for consistency with
+*            LINTV2, LLINTV2, and ALINTV2 by J. Halle et al.
+*          S. Pellerin, ARMA, August 2008
+*          - Optimisation, call to LAYERAVG2
+*
+*Arguments
+*     i   PVLEV(KNIDIM,KNPROF)    : Vertical levels, pressure (source)
+*     i   PVI(KNIDIM,KNPROF)      : Increments of vector on input levels
+*     i   PVIG(KNIDIM,KNPROF)     : Vector on input levels (source)
+*     i   PPS(KNPROF)             : Input surface pressure increments
+*     i   KNIDIM                  : Dimension of input levels (source)
+*     i   KNI                     : Number of input levels (source)
+*     i   KNPROF                  : Number of profiles
+*     i   KNO                     : Number of output levels (destination)
+*     i   PPO(KNO)                : Vertical levels, pressure (destination)
+*     o   PVO(KNO,KNPROF)         : Increments of vector on output levels
+*
+*    -------------------
+*
+**Purpose: Application of tangent linear
+*          of piecewise weighted averaging
+*          in log of pressure of one-dimensional vectors.
+*
+* Comments:
+*
+*     1) vlev in eta coordinate associated to pvlev in pressure.
+*
+*     2) Cases:
+*
+*               a) KFLAG=0 for application as forward interpolator
+*
+*                  Y = sum(H*PVI)
+*                    = PVO
+*
+*               with ZPZ=H on output of LAYERAVG
+*
+*               b) KFLAG=1 for TLM case:
+*
+*                  dY = sum(H*PVI) + PPS*sum(PVIG*dH/dPs))
+*                     =     ZPVO    +       ZPVOPS
+*                     = PVO
+*
+*               where 
+*
+*                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
+*                                = sum_k (dH(i)/dZLNPI(k) * zpresb(k)/PVLEV(k))
+*
+*               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
+*                    ZPZ(i)=H(i) on output of LAYERAVG
+*
+*               c) KFLAG=2 for adjoint case:
+*
+*                  PVI(i,jn) = PVI(i,jn) + sum_jo (PVO(jo,jn)*H(i))
+*                            = PVI(i,jn) + sum_jo (ZPZ(jo,i))
+*
+*                  PPS(jn) = PPS(jn) + sum_jo (PVO(jo,jn)*sum_i (PVIG(i,jn)*dH(i)/dPs))
+*                          = PPS(jn) + sum_jo (ZPZPS(jo))
+* 
+*-------------------------------------------------------------------- 
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+*
+      INTEGER  JI, JO, JN
+      INTEGER  KNIDIM, KNI, KNO, KNPROF, KFLAG
+C
+      REAL*8 PVLEV(KNIDIM,KNPROF)
+      REAL*8 PPO(KNO), PVO(KNO,KNPROF)
+      REAL*8 PVI(KNIDIM,KNPROF)
+      REAL*8 PVIG(KNIDIM,KNPROF)
+      REAL*8 PPS(KNPROF)
+C
+      REAL*8  ZLNPI (KNI,knprof),ZPZ(KNI), ZPS(KNI,knprof)
+      REAL*8  ZLNPO (KNO),ZPZPS,ZPVOPS(kno,knprof),PSS,ZPVO(kno,knprof)
+C
+      REAL*8 ZPRESB
+      REAL*8 ZC1,ZC2
+C
+C --- KFLAG defines type of calculation: 0=Forward, 1=TLM, 2=ADJ
+C
+      KFLAG=1
+C
+C --- Apply weighted averaging 
+C
+      ZLNPO(1:KNO)=LOG(PPO(1:KNO))
+      PSS=0.0D0
+C
+      zc1=rptopinc/rprefinc
+      zc2=1.0/(1.0-rptopinc/rprefinc)
+
+      DO JN = 1, KNPROF
+        DO JI = 1, KNI
+          zpresb   = ((vhybinc(ji) - zc1)*zc2)**rcoefinc
+          ZPS(JI,jn)=zpresb/PVLEV(JI,JN)
+          ZLNPI(ji,JN)=LOG(PVLEV(ji,JN))
+        END DO
+      enddo
+
+      CALL LAYERAVG2(KFLAG,ZLNPO,ZLNPI,pvig(1:kni,:),PVI(1:kni,:),KNO
+     &     ,KNI,PPS,ZPVO,ZPZ,ZPS,ZPVOPS,knprof,pvo)
+      RETURN
+      END

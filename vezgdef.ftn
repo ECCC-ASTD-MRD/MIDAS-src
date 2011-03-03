@@ -1,0 +1,94 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      FUNCTION VEZGDEF(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4,
+     &                 ax, ay)
+*
+#if defined (DOC)
+*
+***s/r VEZGDEF  -real*8 interface for real*4 function EZGDEF.
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*
+*Arguments: See EZGDEF code for documentation.
+*    Input:
+*      ni
+*      nj
+*      grtyp
+*      grtypref
+*      ig1
+*      ig2
+*      ig3
+*      ig4
+*      ax
+*      ay
+*
+*    Output:
+*      none
+*
+#endif
+      IMPLICIT NONE
+#include "comlun.cdk"
+*implicits
+
+      integer vezgdef
+
+      integer ni, nj, ig1, ig2, ig3, ig4
+      real*8 ax(*), ay(*)
+      character*1 grtyp, grtypref
+*
+      integer ier1,ier2,jk,ilenx,ileny
+      real bufax4, bufay4
+      pointer (pxabufax4, bufax4(ni))
+      pointer (pxabufay4, bufay4(nj))
+*
+      integer ezgdef
+      external ezgdef
+*-----7----------------------------------------------------------------
+      if      (grtyp .eq. 'Y') then
+        ilenx=max(1,ni*nj)
+        ileny=ilenx
+      else if (grtyp .eq. 'Z') then
+        ilenx=max(1,ni)
+        ileny=max(1,nj)
+      else
+       write(nulout,'()') 'STOP in VEZGDEF: Grid type not supported'
+       STOP
+      endif
+
+      call hpalloc(pxabufax4,ilenx,ier1,1)
+      call hpalloc(pxabufay4,ileny,ier1,1)
+
+      do jk = 1,ilenx
+        bufax4(jk) = ax(jk)
+      enddo
+      do jk = 1,ileny
+        bufay4(jk) = ay(jk)
+      enddo
+
+      ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4,
+     &              bufax4, bufay4)
+
+      call hpdeallc(pxabufax4,ier1,1)
+      call hpdeallc(pxabufay4,ier1,1)
+
+      vezgdef=ier2
+
+      return
+      end
+
+

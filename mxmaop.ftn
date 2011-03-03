@@ -1,0 +1,100 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE MXMAOP(PA,KA,KAD,PB,KB,KBD,PC,KC,KCA,KAR,KAC,KBC)
+C
+C**** *MXMAOP - Optimize call to MXMA8
+C
+C     Purpose.
+C     --------
+C        Make sure MXMA8 is called in a way to insure maximum 
+C        optimization.
+C
+C**   Interface.
+C     ----------
+C        CALL MXMAOP(PA,KA,KAD,PB,KB,KBD,PC,KC,KCA,KAR,KAC,KBC)
+C
+C        Explicit arguments : See MXMA documentaion.
+C        --------------------
+C
+C        Implicit arguments :
+C        --------------------
+C
+C     Method.
+C     -------
+C
+C     Externals.   MXMA8 in library.
+C     ----------
+C
+C     Reference.
+C     ----------
+C        ECMWF research department documentation of the
+C     "in core model"
+C
+C     Author.
+C     -------
+C        Mats Hamrud and Philippe Courtier  *ECMWF*
+C
+C     Modifications.
+C     --------------
+C        Original : 88-01-28
+C        P.Koclas : 96-04-16 conditional compile for use of 
+C        vdrmxma on NEC 
+*        JM Belanger CMDA/SMC Jul 2000  
+*                  . 32 bits conversion (MXMA8, VDRMXMA8)
+
+C-----------------------------------------------------------------------
+      IMPLICIT none
+      integer :: kar,kca,kac,kbc,kad,ka,kb,kc,kbd
+      REAL*8 PA(1),PB(1),PC(2)
+      REAL*8 ONE8,ZERO8
+      data ONE8,ZERO8/1.D0,0.D0/
+      character *1 TRANSA,TRANSB
+      integer :: nulout=6
+C
+C     --------------------------------------------------------------------
+C
+C*       1.       PERFORM LEGENDRE TRANFORM.
+C                 --------------------------
+ 100  CONTINUE
+C          --- SET TRANSA TRANSB ----
+C===========================================================================
+         IF ( KA .NE. 1 ) THEN
+          TRANSA='T'
+         ELSE
+          TRANSA='N'
+         ENDIF
+         
+         IF ( KB .NE. 1 ) THEN
+          TRANSB='T'
+         ELSE
+          TRANSB='N'
+         ENDIF
+
+         IF ( KC .NE. 1 ) THEN
+          CALL ABORT3D(NULOUT,'MXMAOP: Problem with KC ')
+         ENDIF
+C===========================================================================
+         
+c        CALL MXMA8(PA,KA,KAD,PB,KB,KBD,PC,KC,KCA,KAR,KAC,KBC)
+c        print *, ' N M K=',KAR,KAC,KBC
+         CALL DGEMM(TRANSA,TRANSB,KAR,KBC,KAC,ONE8,PA,KAD,PB,KBD,ZERO8,PC,KCA)
+C
+C
+C     ------------------------------------------------------------------
+C
+      RETURN
+      END

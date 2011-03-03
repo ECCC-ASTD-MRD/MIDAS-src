@@ -1,0 +1,14 @@
+****comdeck dinternv (original name dintern), revision C. Chouinard August 1998
+***                          - DOCTOR standards
+*          * REVISION 01 - NOV 98 - L. Fillion/C. Charette
+*                          Added functions foew,foewa,fodle
+      REAL*8 PPRS,PQQQ,PNETA,PGAMMA
+      REAL*8 FOEFQ,FOEFQL,FQBRANCH,FOEFQA,FOEFQPSA
+      REAL*8 PLQQQ,PLPPS,PADES
+      REAL*8 fotvv,ptti
+      REAL*8 fotvvl,pttl,plnql
+      REAL*8 fottva,folnqva,ptva
+      REAL*8 fodle, foew, foewa, pttt
+*
+      INTRINSIC SIGN
+

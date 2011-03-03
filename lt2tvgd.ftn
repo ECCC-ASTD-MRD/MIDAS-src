@@ -1,0 +1,79 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine lt2tvgd(ptv,ptg,pqg,kni,knj,knk)
+#if defined (DOC)
+*
+*S/P lt2tvgd: TL transform from delT to delTv
+*
+* AUTHOR: Luc Fillion - 16 Nov 98
+*
+* REVISION:
+*          C. Charette *ARMA/AES  Nov 1998
+*                       - Add llprint for diagnostics
+*
+#endif
+      IMPLICIT NONE
+      integer kni,knj,knk
+      real*8  ptv(kni,knk,knj), ptg(kni,knk,knj), pqg(kni,knk,knj)
+      real*8  zcon1,zcon2
+*
+      logical llprint
+      integer ji,jj,jk
+
+*implicits
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comphy.cdk"
+#include "comgd0.cdk"
+*modules
+*
+**
+      WRITE(nulout,FMT='(/,4X,"Starting LT2TVGD",//)')
+c
+      llprint = .false.
+c
+*********************************************************
+      if(llprint) then
+        ji = 221
+        jj = 27
+        do jk = 1, knk
+          write(nulout,*) ' lt2tvgd: ji,jj,jk,delta,ptg,ptg '
+     &         ,ji,jj,jk,delta,ptg(ji,jk,jj),pqg(ji,jk,jj)
+        enddo
+      endif
+***********************************************************
+      do jj = 1, knj
+        do jk = 1, knk
+          do ji = 1, kni
+            ptv(ji,jk,jj)=(1.+delta*pqg(ji,jk,jj))*tt0(ji,jk,jj)
+     &           + delta*pqg(ji,jk,jj)*ptg(ji,jk,jj)*q0(ji,jk,jj)
+            if(llprint .and. ji .eq. 221 .and. jj .eq. 27) then
+              zcon1 = 1.+delta*pqg(ji,jk,jj)
+              zcon2 = delta*pqg(ji,jk,jj)*ptg(ji,jk,jj)
+              write(nulout,*) ' lt2tvgd: ji,jj,jk,delta,ptg,ptg '
+     &             ,ji,jj,jk,delta,ptg(ji,jk,jj),pqg(ji,jk,jj)
+              write(nulout,*)
+     &             ' lt2tvgd:ji,jj,jk,delta,tt0,q0,oltv1,oltv2  ',ji,jj
+     &             ,jk,delta,tt0(ji,jk,jj),q0(ji,jk,jj),zcon1,zcon2
+            endif
+          enddo
+        enddo
+      enddo
+C
+C
+      RETURN
+      END

@@ -1,0 +1,542 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine tovs_rttov
+#if defined (doc)
+!
+!**s/r tovs_rttov  - Computation of forward radiance with rttov_direct
+!                   (adapted from part of code of dobstovs)
+!
+!
+!author        : j. halle *cmda/aes  april 19, 2005
+!
+!revision 001  : a. beaulne *cmda/msc  june 2006
+!                  - modifications for AIRS : store new variables and add bgcheck
+!                  - add new surface emissivities for IR sensors
+!revision 002  : r. sarrazin cmda   april 2008
+!                  - adapt to CSR
+!revision 003  : s. heilliette
+!                  - adapt to IASI
+!
+!    -------------------
+!     purpose:
+!
+!arguments
+!
+#endif
+  use mod_tovs
+  use airsbgcheck
+  use iasibgcheck
+
+  implicit none
+  interface
+     subroutine tovs_rttov_AVHRR_for_IASI (nthreads,knpf_th,knpf,profilesdata_th,KULOUT,surfem1_avhrr,nch,iptobs_th )
+! appel séparé de RTTOV pour le calcul des radiances AVHRR
+! (non assimilees mais necessaires au background check IASI)
+       Use mod_tovs ,only : jppf
+       Use rttov_types, only : profile_type 
+implicit none
+integer ,intent(in) :: nthreads
+integer ,intent(in) :: knpf
+integer ,intent(in) :: knpf_th(nthreads)
+integer ,intent (in) :: KULOUT
+integer ,intent (in) :: nch 
+integer ,intent (in) :: iptobs_th(jppf,nthreads)
+real (8) , intent (in) :: surfem1_avhrr(nch)
+type (profile_type) ,intent (in) :: profilesdata_th(knpf,nthreads)
+end subroutine tovs_rttov_AVHRR_for_IASI
+end interface
+!implicits
+#include "pardim.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvohr.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comtovst.cdk"
+#include "cvcord.cdk"
+#include "comct0.cdk"
+
+  real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
+
+  integer :: jpol, joff1, joff2, joff3, ilev, ichn
+  integer :: nbtout, no_id, isurface
+  integer :: nlevels
+  integer :: nfrequencies
+  integer :: nchannels
+  integer :: len_nchannels1
+  integer :: len_nfrequencies1
+  integer :: nfrequencies_max, nchannels_max, nbtout_max
+  integer :: alloc_status(40)
+  integer :: errorstatus(jppf)                     ! rttov error return code
+  integer :: omp_get_num_threads
+  integer :: nthreads, max_nthreads
+  integer :: j, i, krtid, io, jf, iobs, iobs1
+  integer :: ibegin, ibeginob, ilast, ilastob, jj
+  integer :: ival, iplatform, isat, knpf
+  integer :: jo, jdata, idata, idatend, idatyp
+  integer :: jk, jn, jl
+  integer :: instrum, ilen, istride, ith
+  integer :: sensor_type                           ! sensor type (1=infrared; 2=microwave; 3=high resolution)
+  integer :: knpf_tot, ioffset, loop_done_airs, loop_done_iasi,nrank
+  logical :: end_airs,end_iasi
+
+  integer, allocatable :: ncan            (:)      ! number of channels for each profile
+  integer, allocatable :: knpf_th         (:) 
+  integer, allocatable :: iptobs          (:) 
+  integer, allocatable :: nfrequencies_th (:) 
+  integer, allocatable :: nchannels_th    (:) 
+  integer, allocatable :: nbtout_th       (:) 
+  integer, allocatable :: lprofiles_th    (:,:)
+  integer, allocatable :: channels_th     (:,:)
+  integer, allocatable :: polarisations_th(:,:)
+  integer, allocatable :: errorstatus_th  (:,:) 
+  integer, allocatable :: iptobs_th       (:,:) 
+
+  real*8, allocatable :: surfem1_th    (:,:) 
+  real*8, allocatable :: emissivity_th (:,:)
+
+  type(radiance_type)    , allocatable :: radiancedata_d_th(:)   ! radiances full structure buffer used in rttov calls
+  type(transmission_type), allocatable :: transmission_th  (:)   ! transmission
+  type( profile_type )   , allocatable :: profilesdata_th  (:,:) ! profiles buffer used in rttov calls
+
+  logical              :: assim, lcloud
+  logical, allocatable :: calcemis_th  (:,:)
+  real*8, allocatable  :: surfem1 (:)
+  real*8, allocatable  :: avhrr_surfem1 (:)
+  external map_sat, map_instrum, abort3d
+  
+         
+  if(nobtov.eq.0) return                  ! exit if there are not tovs data
+
+!     1.  Get number of threads available and allocate memory for some variables
+!     .   ---------------------------------------------------------------------- 
+!          
+  100 continue   
+  no_id = 1
+  lcloud =.false.
+
+!$omp parallel 
+  max_nthreads = omp_get_num_threads()
+!$omp end parallel
+
+  alloc_status(:) = 0
+  allocate ( knpf_th        (max_nthreads)      ,stat=alloc_status(1))
+  allocate ( iptobs_th      (jppf,max_nthreads) ,stat=alloc_status(2)) 
+  allocate ( errorstatus_th (jppf,max_nthreads) ,stat=alloc_status(3)) 
+  allocate ( nfrequencies_th(max_nthreads)      ,stat=alloc_status(4)) 
+  allocate ( nchannels_th   (max_nthreads)      ,stat=alloc_status(5)) 
+  allocate ( nbtout_th      (max_nthreads)      ,stat=alloc_status(6)) 
+  allocate ( iptobs         (jppf*max_nthreads) ,stat=alloc_status(7)) 
+
+  if( any(alloc_status /= 0) ) then
+     write(nulout,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+     write(nulout,'(" tovs_rttov: arrays #1 memory allocation error")')
+     call abort3d(nulout,'tovs_rttov        ')
+  end if
+
+!     1.1   Read surface information
+!     .     ------------------------
+
+!modular1  if ( nconf .eq. 101 ) call sfc_emiss
+
+!
+!     2.  Computation of hx for tovs data only
+!     .   ------------------------------------
+
+  200  continue
+
+! Loop over all sensors specified by user
+
+  do 295 krtid = 1, nsensors
+   alloc_status(:) = 0
+   sensor_type = coef(krtid) % id_sensor
+   iplatform = coef(krtid) % id_platform
+   isat = coef(krtid) % id_sat
+   instrum = coef(krtid) % id_inst
+
+!  loop over all obs.
+
+   knpf = 0
+   do 290 iobs = 1, nobtov
+      jo = lobsno(iobs)
+
+!    Currently processed sensor?
+
+      if ( lsensor(iobs) .eq. krtid ) then
+         knpf = knpf + 1
+         iptobs(knpf) = iobs
+      endif
+      if ( knpf .le. 0                                        ) go to 290
+      if ( knpf .ne. jppf*max_nthreads .and. iobs .ne. nobtov ) go to 290
+
+!     .  2.1  Separate profiles according to the number of threads and 
+!     .       calculate the actual number of threads which will be used.
+!     .       ----------------------------------------------------------
+
+      ith = 0
+      knpf_th  (:)   = 0
+      iptobs_th(:,:) = 0
+      istride = min(knpf,jppf)
+      do jn = 1, knpf,istride
+         ilen = min (knpf-jn+1,istride)
+         ith = ith + 1
+         knpf_th(ith) =  ilen
+         do i = 1, ilen
+            iptobs_th(i,ith) = iptobs(jn+i-1)
+         enddo
+      enddo
+
+!     set nthreads to actual number of threads which will be used.
+
+      nthreads = min(max_nthreads,ith)
+
+!     .  2.2  Prepare all input variables required by rttov.
+!             for the purposes of using openmp; an additional dimension
+!             is added to most input variables, corresponding
+!             to the number of threads.
+!     .       ---------------------------------------------------------
+
+      allocate (ncan(knpf),stat= alloc_status(1))
+
+      ncan(:) =  nchan(krtid)
+
+!     compute max possible values for nfrequencies, nchannels and nbtout, using knpf, i.e. maximum number of profiles.
+
+      call rttov_setupchan(knpf,ncan,coef(krtid),nfrequencies_max,nchannels_max,nbtout_max) 
+
+      allocate ( surfem1_th      (nchannels_max,nthreads)    ,stat=alloc_status(2))
+      allocate ( lprofiles_th    (nfrequencies_max,nthreads) ,stat=alloc_status(3))
+      allocate ( emissivity_th   (nchannels_max,nthreads)    ,stat=alloc_status(4))
+      allocate ( channels_th     (nfrequencies_max,nthreads) ,stat=alloc_status(5))
+      allocate ( polarisations_th(nchannels_max*3,nthreads)  ,stat=alloc_status(6))
+      allocate ( calcemis_th     (nchannels_max,nthreads)    ,stat=alloc_status(7))
+      allocate ( surfem1         (nchannels_max)             ,stat=alloc_status(8))
+
+!     get AIRS & IASI ir emissivities
+
+      if (instrum.eq.11 .or. instrum.eq.16) then
+        surfem1(:) = 0.
+        if ( nconf .eq. 101 ) then
+!modular1          call new_emiss (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
+        else
+          do jn = 1, knpf
+            iobs1 = iptobs(jn)
+            jo = lobsno(iobs1)
+            idata    = mobhdr(ncmrln,jo)
+            idatend  = mobhdr(ncmnlv,jo) + idata - 1
+            do jdata = idata, idatend
+              if(mobdata(ncmass,jdata).eq.1) then
+                ichn = nint(robdata8(ncmppp,jdata))
+                ichn = max(0,min(ichn,jpch+1))
+                do nrank = 1, nchan(krtid)
+                  if ( ichn == ichan(nrank,krtid) ) exit
+                end do
+                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = robdata8(ncmprl,jdata)
+              end if
+            end do
+          end do
+        end if
+      end if
+
+
+!     loop on threads
+
+      knpf_tot = 0
+      do ith = 1, nthreads
+
+       call rttov_setupchan(knpf_th(ith),ncan,coef(krtid),nfrequencies_th(ith), &
+     &    nchannels_th(ith),nbtout_th(ith))
+
+       knpf_tot = knpf_tot + knpf_th(ith)
+       surfem1_th (:,ith) = 0.
+       do  j = 1 , knpf_th(ith)
+          len_nchannels1 = nchannels_th(ith)/knpf_th(ith)
+          len_nfrequencies1 = nfrequencies_th(ith)/knpf_th(ith)
+          joff1=len_nchannels1*(j-1)
+          joff2=len_nfrequencies1*(j-1)
+          ioffset=len_nfrequencies1*(knpf_tot-knpf_th(ith))
+          isurface = profiles(iptobs_th(j,ith)) % skin % surftype 
+          if     (sensor_type .eq. 2) then
+             if ( isurface .eq. 0 .or. &
+                  isurface .eq. 2      ) then
+                calcemis_th(joff1+1:joff1+len_nchannels1   ,ith) = .false.
+                surfem1_th (joff2+1:joff2+len_nfrequencies1,ith) = 0.75
+             else
+                calcemis_th(joff1+1:joff1+len_nchannels1   ,ith) = .true.
+                surfem1_th (joff2+1:joff2+len_nfrequencies1,ith) = 0.
+             endif
+          elseif ((instrum .eq. 11) .or. (instrum .eq. 16) ) then
+             calcemis_th(joff1+1:joff1+len_nchannels1   ,ith) = .false. 
+             surfem1_th (joff2+1:joff2+len_nfrequencies1,ith) =         &
+     &               surfem1(joff2+1+ioffset:joff2+len_nfrequencies1+ioffset)
+          elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
+     &            (instrum .eq. 22) .or. (instrum .eq. 24) ) then
+             calcemis_th(joff1+1:joff1+len_nchannels1   ,ith) = .true.
+             surfem1_th (joff2+1:joff2+len_nfrequencies1,ith) = 0.
+          else
+             call abort3d(nulout,'tovs_rttov. invalid sensor type')
+          endif
+       enddo
+
+       call rttov_setupindex (ncan,knpf_th(ith),nfrequencies_th(ith),nchannels_th(ith),&
+     &    nbtout_th(ith),coef(krtid),surfem1_th(:,ith),lprofiles_th (:,ith),&
+     &    channels_th(:,ith),polarisations_th(:,ith),emissivity_th(:,ith))
+
+      enddo
+
+      allocate ( radiancedata_d_th(nthreads)      ,stat=alloc_status(9) )  ! radiances full structure buffer used in rttov calls
+      allocate ( transmission_th  (nthreads)      ,stat=alloc_status(10))  ! transmission
+      allocate ( profilesdata_th(istride,nthreads),stat=alloc_status(11))  ! profilesdata
+
+      do ith = 1, nthreads
+
+     ! allocate transmittance structure
+
+       call tovs_allocate_transmission(transmission_th(ith),nchannels_th(ith),coef(krtid) % nlevels)
+
+     ! allocate radiance structure
+
+       call tovs_allocate_radiance(radiancedata_d_th(ith),nchannels_th(ith),coef(krtid) % nlevels,nbtout_th(ith))
+
+     ! allocate profile structure
+
+       do j = 1, knpf_th(ith)
+          call tovs_allocate_profile(profilesdata_th(j,ith),coef(no_id) % nlevels)
+       end do
+
+     !.. fill profilesdata arrays
+
+       do  j = 1 , knpf_th(ith)
+          profilesdata_th(j,ith) % nlevels          = coef(no_id) % nlevels
+          profilesdata_th(j,ith) % ozone_data       = .true.
+          profilesdata_th(j,ith) % co2_data         = .false.
+          profilesdata_th(j,ith) % clw_data         = .false.
+          profilesdata_th(j,ith) % p(:)             = coef(no_id) % ref_prfl_p(:)
+          profilesdata_th(j,ith) % t(:)             = profiles(iptobs_th(j,ith)) % t(:) 
+          profilesdata_th(j,ith) % q(:)             = profiles(iptobs_th(j,ith)) % q(:)  
+          profilesdata_th(j,ith) % o3(:)            = profiles(iptobs_th(j,ith)) % o3(:)
+          profilesdata_th(j,ith) % ctp              = profiles(iptobs_th(j,ith)) % ctp  
+          profilesdata_th(j,ith) % cfraction        = profiles(iptobs_th(j,ith)) % cfraction
+          profilesdata_th(j,ith) % ozone_data       = profiles(iptobs_th(j,ith)) % ozone_data
+          profilesdata_th(j,ith) % co2_data         = profiles(iptobs_th(j,ith)) % co2_data   
+          profilesdata_th(j,ith) % clw_data         = profiles(iptobs_th(j,ith)) % clw_data   
+          profilesdata_th(j,ith) % zenangle         = profiles(iptobs_th(j,ith)) % zenangle  
+          profilesdata_th(j,ith) % azangle          = profiles(iptobs_th(j,ith)) % azangle  
+          profilesdata_th(j,ith) % skin % surftype  = profiles(iptobs_th(j,ith)) % skin % surftype 
+          profilesdata_th(j,ith) % skin % t         = profiles(iptobs_th(j,ith)) % skin % t       
+          profilesdata_th(j,ith) % skin % fastem(:) = profiles(iptobs_th(j,ith)) % skin % fastem(:)
+          profilesdata_th(j,ith) % s2m % t          = profiles(iptobs_th(j,ith)) % s2m % t
+          profilesdata_th(j,ith) % s2m % q          = profiles(iptobs_th(j,ith)) % s2m % q 
+          profilesdata_th(j,ith) % s2m % p          = profiles(iptobs_th(j,ith)) % s2m % p 
+          profilesdata_th(j,ith) % s2m % u          = profiles(iptobs_th(j,ith)) % s2m % u 
+          profilesdata_th(j,ith) % s2m % v          = profiles(iptobs_th(j,ith)) % s2m % v 
+       end do
+
+     !.. climatological moisture clip for profilesdata and profilesdata_tl arrays
+
+       do  j = 1 , knpf_th(ith)
+          do  jl = 1 , coef(no_id) % nlevels
+             if     ( profiles(iptobs_th(j,ith)) % q(jl)  &
+                      .le. oqmin(jl)*q_mixratio_to_ppmv   ) then
+                profilesdata_th(j,ith) % q(jl)  = oqmin(jl)*q_mixratio_to_ppmv
+             elseif ( profiles(iptobs_th(j,ith)) % q(jl)  &
+                      .ge. oqmax(jl)*q_mixratio_to_ppmv   ) then
+                profilesdata_th(j,ith) % q(jl)  = oqmax(jl)*q_mixratio_to_ppmv
+             endif
+          enddo
+       end do
+
+      enddo
+
+      if( any(alloc_status /= 0) ) then
+         write(nulout,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+         write(nulout,'(" tovs_rttov: arrays #2 memory allocation error")')
+         call abort3d(nulout,'tovs_rttov        ')
+      end if
+
+!     .  2.3  Compute radiance with rttov direct
+!     .       ----------------------------------
+
+      errorstatus_th(:,:) = 0
+
+
+!$omp parallel
+!$omp do private(ith)
+      do ith = 1, nthreads
+         call rttov_direct(             &
+            errorstatus_th(:,ith),      & ! out
+            nfrequencies_th(ith),       & ! in
+            nchannels_th(ith),          & ! in
+            nbtout_th(ith),             & ! in
+            knpf_th(ith),               & ! in
+            channels_th(:,ith),         & ! in
+            polarisations_th(:,ith),    & ! in
+            lprofiles_th(:,ith),        & ! in
+            profilesdata_th(:,ith),     & ! in
+            coef(krtid),                & ! in
+            lcloud,                     & ! in
+            calcemis_th(:,ith),         & ! in
+            emissivity_th(:,ith),       & ! inout
+            transmission_th(ith),       & ! inout
+            radiancedata_d_th(ith)  )     ! inout
+      enddo
+!$omp end do
+!$omp end parallel
+
+                                                       
+!     .  2.4  Store hx in the structure radiance_d
+!     .       ------------------------------------
+ 
+      do ith = 1, nthreads
+         do jn = 1, knpf_th(ith)
+            io = iptobs_th(jn,ith)
+            joff1=nbtout_th(ith)/knpf_th(ith)*(jn-1)
+            radiance_d(io) % out(:) =        &
+     &         radiancedata_d_th(ith) % out(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+            radiance_d(io) % total_out(:) =  &
+     &         radiancedata_d_th(ith) % total_out(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+            radiance_d(io) % clear_out(:) =  &
+     &         radiancedata_d_th(ith) % clear_out(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+            radiance_d(io) % out_clear(:) =  &
+     &         radiancedata_d_th(ith) % out_clear(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+            do jl = 1, coef(krtid) % nlevels
+              radiance_d(io) % overcast(jl,:) =   &
+     &           radiancedata_d_th(ith) % overcast(jl,joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+              transmission_d(io) % tau_layer(jl,:) = &
+                 transmission_th(ith) % tau_layer(jl,joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+            end do
+            transmission_d(io) % tau_surf(:) = &
+               transmission_th(ith) % tau_surf(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+            emissivity(1:nchan(krtid),io) = emissivity_th(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith),ith) 
+            rttov_errorstatus(io) = errorstatus_th(jn,ith)
+         enddo
+      enddo
+
+ ! si IASI et mode bgck on appelle RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
+      if ( NCONF==101 .AND. coef(krtid) % id_platform ==  10 .AND. &
+           &         coef(krtid) % id_sat      ==  2 .AND. &
+           &         coef(krtid) % id_inst     == 16 ) then
+         allocate ( avhrr_surfem1   (3 * nchannels_max / coef(krtid) % fmv_chn) ,stat=alloc_status(1))
+         call get_avhrr_emiss(surfem1,coef(krtid) %ff_cwn,coef(krtid) % fmv_chn,knpf,avhrr_surfem1)
+         call tovs_rttov_AVHRR_for_IASI(nthreads,knpf_th,istride,profilesdata_th,NULOUT,avhrr_surfem1, &
+              3 * nchannels_max / coef(krtid) % fmv_chn,iptobs_th )
+         deallocate ( avhrr_surfem1  ,stat=alloc_status(1))
+      end if
+            
+!     de-allocate memory
+
+      alloc_status(:) = 0
+      do ith = 1, nthreads
+
+         call tovs_deallocate_transmission(transmission_th(ith))
+
+         call tovs_deallocate_radiance(radiancedata_d_th(ith))
+
+         do jn = 1, knpf_th(ith)
+            call tovs_deallocate_profile(profilesdata_th(jn,ith))
+         enddo
+      enddo
+      deallocate ( profilesdata_th   ,stat=alloc_status(1) )
+      deallocate ( radiancedata_d_th ,stat=alloc_status(2) )      ! radiances full structure buffer used in rttov calls
+      deallocate ( transmission_th   ,stat=alloc_status(3) )      ! transmission
+      deallocate ( ncan              ,stat=alloc_status(4) )
+      deallocate ( surfem1_th        ,stat=alloc_status(5) )
+      deallocate ( lprofiles_th      ,stat=alloc_status(6) )
+      deallocate ( emissivity_th     ,stat=alloc_status(7) )
+      deallocate ( channels_th       ,stat=alloc_status(8) )
+      deallocate ( polarisations_th  ,stat=alloc_status(9) )
+      deallocate ( calcemis_th       ,stat=alloc_status(10))
+      deallocate ( surfem1           ,stat=alloc_status(11))
+
+      if( any(alloc_status /= 0) ) then
+         write(nulout,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+         write(nulout,'(" tovs_rttov: arrays #2 memory deallocation error")')
+         call abort3d(nulout,'tovs_rttov        ')
+      end if
+
+!   next bunch !
+
+      knpf = 0
+
+   290 continue
+
+  295 continue
+
+!     2.5. AIRS and IASI quality controls
+!     .    ------------------------------
+
+      if ( nconf == 101 ) then
+
+        qcntrl_airs: do krtid = 1, nsensors
+         if ( coef(krtid) % id_platform ==  9 .AND. &
+     &         coef(krtid) % id_sat      ==  2 .AND. &
+     &         coef(krtid) % id_inst     == 11 ) then
+            loop_done_airs = 0
+            end_airs       = .false.
+            do
+!modular1              call AIRSQC ( end_airs, bunch_airs,loop_done_airs )
+              loop_done_airs = loop_done_airs + 1
+              if ( end_airs ) EXIT qcntrl_airs
+            end do
+          end if
+        end do qcntrl_airs
+
+
+        qcntrl_iasi: do krtid = 1, nsensors
+         if ( coef(krtid) % id_platform ==  10 .AND. &
+     &         coef(krtid) % id_sat      ==  2 .AND. &
+     &         coef(krtid) % id_inst     == 16 ) then
+               loop_done_iasi = 0
+               end_iasi       = .false.
+               do
+!modular1                 call IASIQC ( end_iasi, bunch_iasi,loop_done_iasi )
+                 loop_done_iasi = loop_done_iasi + 1
+                 if ( end_iasi ) EXIT qcntrl_iasi
+               end do
+            end if
+         end do qcntrl_iasi
+
+      end if
+
+
+!     3.  Close up
+!     .   --------
+
+! deallocate memory
+
+  alloc_status(:) = 0
+  deallocate ( knpf_th        ,stat=alloc_status(1))
+  deallocate ( iptobs_th      ,stat=alloc_status(2)) 
+  deallocate ( errorstatus_th ,stat=alloc_status(3)) 
+  deallocate ( nfrequencies_th,stat=alloc_status(4)) 
+  deallocate ( nchannels_th   ,stat=alloc_status(5)) 
+  deallocate ( nbtout_th      ,stat=alloc_status(6)) 
+  deallocate ( iptobs         ,stat=alloc_status(7)) 
+
+  if( any(alloc_status /= 0) ) then
+     write(nulout,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+     write(nulout,'(" tovs_rttov: arrays #1 memory deallocation error")')
+     call abort3d(nulout,'tovs_rttov        ')
+  end if
+
+  return
+
+end subroutine tovs_rttov

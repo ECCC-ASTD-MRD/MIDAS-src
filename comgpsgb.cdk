@@ -1,0 +1,40 @@
+#if defined (DOC)
+C
+C     COMDECK COMGPSGB
+C     ----------------
+C*    Control variables for Ground-based GPS (ZTD)
+C
+C     DZMIN:      Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD 
+C                 will be made.
+C     YSFERRWGT:  Weighting factor multiplier for GPS surface met errors (to 
+C                 account for time series observations with error correlations)
+C     DZMAX:      Maximum DZ (m) over which the ZTD data are rejected
+C                 due to topography (used in SOBSSFC when LTOPOFILT = .TRUE.)
+C     YZTDERR:    If < 0 then read ZTD errors from data blocks in input
+C                 files (i.e. the formal errors). 
+C                 If > 0 then use value as a constant error (m) for all ZTD
+C                 observations.
+C                 If = 0 then use compute error as a function of ZTD.
+C     NJLEVP:     Nth level above TRIAL surface; linear interpolation of log(P)
+C                 between model levels will be done to get model surface pressure
+C                 at GPS antenna height (PMOBS) if ZOBS > this level; otherwise
+C                 PMOBS is computed by hydrostatic extrapolation from TRIAL 
+C                 surface(CMC method).
+C     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
+C     L1GPSOBS:   Flag to indicate a one GPS observation (1OBS) experiment
+C     CGPSSTN:    Selected site for 1OBS experiment
+C     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
+C                 for time series observations with error correlations)
+C     RCK1:       Refractivity constant k1  units=(m,Pa,K)
+C     RCK2:       Refractivity constant k2  units=(m,Pa,K)
+C     RCK3:       Refractivity constant k3  units=(m,Pa,K)
+C
+#endif
+      REAL    DZMIN, DZMAX, YZTDERR, YSFERRWGT, YZDERRWGT, 
+     +        RCK1, RCK2, RCK3
+      LOGICAL LASSMET, L1GPSOBS
+      INTEGER NJLEVP
+      CHARACTER*9 CGPSSTN
+      COMMON/COMGPSGB/ DZMIN, DZMAX, YZTDERR, NJLEVP,
+     +   LASSMET, YSFERRWGT, L1GPSOBS, CGPSSTN, YZDERRWGT,
+     +   RCK1, RCK2, RCK3

@@ -1,0 +1,88 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+SUBROUTINE IASIEXTRACT(IBKNAT,IBKTYP,IBKSTP,IBUF,NBUF,inele,inval,i3d)
+use common_iasi
+use avhrr_var_mod
+implicit none
+
+INTEGER ,INTENT(IN) :: IBKNAT,IBKTYP,IBKSTP,NBUF,inele,inval,i3d
+INTEGER ,INTENT(INOUT) ::  IBUF(NBUF)
+INTEGER :: IBKNO,taille
+INTEGER ,EXTERNAL :: MRBLOCX,MRBXTR,VMRBCVT,MRBDCL
+integer ,allocatable :: ITBLVAL(:),LISTE(:),ILIST(:)
+REAL (8) ,allocatable :: ZVAL(:)
+INTEGER :: IER,jji,indx,iclass,ichan,inorm
+TYPE (avhrr_var) :: AVHRR
+LOGICAl :: LINSERT
+
+
+IBKNO =MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+!BKNO=MRBLOC(buf,bfam,bdesc,btyp,blk0)
+!print *,"IBKNO",IBKNO
+!INELE =ITBL(2,JK)
+!INVAL =ITBL(3,JK)
+taille=INELE*INVAL*I3D
+!print *,"taille",taille,INELE,INVAL,I3D
+allocate(ITBLVAL(taille))
+allocate(LISTE(inele))
+allocate(ILIST(inele))
+allocate(ZVAL(taille))
+
+IER=MRBXTR(IBUF,IBKNO,liste(1),ITBLVAL(1))
+
+do jji =1,INELE*INVAL*I3D
+   ZVAL(jji)=ITBLVAL(jji)
+end do
+
+IER=VMRBCVT(LISTE(1),ITBLVAL(1),ZVAL(1),INELE,INVAL,I3D,0)
+
+!conversion a un format decimal (???)
+IER=MRBDCL(LISTE(1),ILIST(1),INELE)
+iclass=1
+LINSERT=.false.
+do jji =1,INELE*INVAL*I3D
+   indx=MOD(jji,inele)
+   if (indx==0) indx=inele
+   SELECT CASE(ILIST(indx))
+      CASE(25085)
+         AVHRR%CFRAC(iclass)=ZVAL(jji)
+      CASE(5042)
+         ICHAN=ITBLVAL(jji)
+      CASE(25142)
+         INORM=ITBLVAL(jji)
+      CASE(14047)
+         AVHRR% RADMOY(iclass,ICHAN)=ZVAL(jji) * 10.d0**(-1.d0 * INORM ) * 100000.d0
+      CASE(14048)
+         AVHRR% RADSTD(iclass,ICHAN)=ZVAL(jji) * 10.d0**(-1.d0 * INORM ) * 100000.d0
+         IF (ICHAN==NCHANAVHRR) iclass=iclass+1
+         IF ( iclass==(NCLASSAVHRR+1) ) THEN
+            iclass=1
+            LINSERT=.true.
+         ENDIF
+   END SELECT
+   IF (LINSERT) THEN
+      call insert_avhrrparam(AVHRR)
+      LINSERT=.false.
+   ENDIF
+end do
+
+deallocate(ITBLVAL)
+deallocate(LISTE)
+deallocate(ILIST)
+deallocate(ZVAL)
+
+END SUBROUTINE IASIEXTRACT

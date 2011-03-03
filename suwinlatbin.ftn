@@ -1,0 +1,71 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUWINLATBIN(ZWINDOW,JLATBIN)
+#if defined (DOC)
+*
+***s/r SUWINLATBIN  - Set-up window used for combining analysis increments
+*                     from multiple latitude bands as specified by namelist
+*                     variable NLATBIN - currently only 1 and 3 bands supported
+*
+*Author  : M. Buehner 2007
+*Revision:
+*
+*    -------------------
+**    Purpose:
+*     .
+*Arguments
+#endif
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comcva.cdk"
+
+      REAL*8 ZWINDOW(NJ)
+      INTEGER JLATBIN,JLAT
+
+      IF(NLATBIN.eq.1) THEN
+        ZWINDOW(:)=1.0d0
+      ELSE
+        IF(JLATBIN.eq.1) THEN
+          DO JLAT=1,(NLATMIN1-1)
+            ZWINDOW(JLAT)=1.0d0
+          ENDDO
+          DO JLAT=NLATMIN1,NLATMAX1
+            ZWINDOW(JLAT)=sqrt(dble(NLATMAX1-JLAT+1)/dble(NLATMAX1-NLATMIN1+2))
+          ENDDO
+        ELSEIF(JLATBIN.eq.2) THEN
+          DO JLAT=(NLATMAX1+1),(NLATMIN2-1)
+            ZWINDOW(JLAT)=1.0d0
+          ENDDO
+          DO JLAT=NLATMIN1,NLATMAX1
+            ZWINDOW(JLAT)=sqrt(dble(JLAT-NLATMIN1+1)/dble(NLATMAX1-NLATMIN1+2))
+          ENDDO
+          DO JLAT=NLATMIN2,NLATMAX2
+            ZWINDOW(JLAT)=sqrt(dble(NLATMAX2-JLAT+1)/dble(NLATMAX2-NLATMIN2+2))
+          ENDDO
+        ELSEIF(JLATBIN.eq.3) THEN
+          DO JLAT=(NLATMAX2+1),NJ
+            ZWINDOW(JLAT)=1.0d0
+          ENDDO
+          DO JLAT=NLATMIN2,NLATMAX2
+            ZWINDOW(JLAT)=sqrt(dble(JLAT-NLATMIN2+1)/dble(NLATMAX2-NLATMIN2+2))
+          ENDDO
+        ENDIF
+      ENDIF
+
+      RETURN
+      END

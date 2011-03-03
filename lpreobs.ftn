@@ -1,0 +1,81 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine lpreobs
+#if defined (DOC)
+*
+***s/r lpreobs  - Build increments of derived fields assimilated. TLM of preobs.
+*
+*
+*Author  : L. Fillion *ARMA/AES  7 oct 98
+*
+*Revision: L. Fillion *ARMA/AES  25 nov 98
+*        - Option ES or LQ humidity analysis
+*Revision: C. Charette *ARMA/AES  09 dec 98
+*        - GOMQ copied to GOMES when humidity analysis variable is T-Td
+*Revision: L. Fillion *ARMA/EC  5 Apr 2006
+*        - Validate Shallow-Water LAM 4dvar.
+*Revision: L. Fillion *ARMA/EC  14 Aug 2007 - Update to v_10_0_3.
+*Revision: L. Fillion *ARMA/EC  10 Feb 2010 - Conditionally calls ltt2phi
+*
+*     -------------------
+**    Purpose: Used in evaluation of Jo and Grad Jo
+*
+*Arguments
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comct0.cdk"
+#include "comdim.cdk"
+#include "comcva.cdk"
+#include "comdimo.cdk"
+#include "commvo.cdk"
+#include "comstate.cdk"
+*modules
+*
+**
+      INTEGER JLEV,JOBS
+C
+C*1   Geopotential increments from Temperature increments
+C     ---------------------------------------------------
+C
+ 100  CONTINUE
+      if((.not.lsw).and.(NMVOEXIST(NOGZ).eq.1)) call ltt2phi
+C
+C*2   Analysis increments of humidity variable
+C     ----------------------------------------------------------------
+C
+ 200  CONTINUE
+C
+C     Analysis increments of ln(specific humidity) to increments of (T-Td)
+C     when analysis variable is lnq
+C
+      if((.not.lsw).and.chum.eq.'LQ') then
+        call lmhu2es
+      endif
+C
+C     Analysis increments of T-Td when analysis variable is T-Td
+C
+      IF(CHUM .EQ. 'ES') THEN
+         DO JLEV=1,NFLEV
+            DO JOBS=1,NOBTOT
+               GOMES(JLEV,JOBS) = GOMQ(JLEV,JOBS)
+            ENDDO
+         ENDDO
+      ENDIF
+C
+      RETURN
+      END

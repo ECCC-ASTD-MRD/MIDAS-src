@@ -1,0 +1,476 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE MEMFREE(KULOUT)
+
+#if defined (DOC)
+*
+***s/rMEMFREE  - Release these memories which are not needed in varout
+*
+*Author: Bin He  *ARMA/AES  Dec. 5,2006
+*Revision:
+*
+*        C.Charette *ARMA/AES  May 23,2007
+*        - With respect to version v10.0.2
+*          1) removed the deallocation of memory of
+*             PTILON, PTNNP1, PT1SNP1, PTCONPHY, PTCONINA
+*          2) Added the deallocation of memory of PTVATRA
+*
+*        L.Fillion *ARMA/EC Feb,2008 - Deallocation of vatra now done before this point by postmin.ftn
+
+*
+*Arguments
+*     i   KULOUT: unit used for optional printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+#include "comct0.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comgd0.cdk"
+#include "comgd1.cdk"
+#include "compdg.cdk"
+#include "comsp.cdk"
+#include "comsp1.cdk"
+#include "comspg.cdk"
+#include "comcorr.cdk"
+#include "comgem.cdk"
+#include "comcva.cdk"
+C
+C*    Comdecks associated with the observations
+C     ----------------------------------------
+#include "comdimo.cdk"
+#include "comoahdr.cdk"
+#include "comoabdy.cdk"
+#include "commvo.cdk"
+#include "commvo1.cdk"
+#include "commvog.cdk"
+#include "commvohr.cdk"
+#include "comoba.cdk"
+*
+      INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
+      EXTERNAL HPDEALLC, FSTFRM,EXFIN
+C
+C*    1. Verify the integrity of the heap
+C
+ 100  CONTINUE
+C
+      WRITE(KULOUT,FMT
+     &     ='(/,10X,"Free the memory which is not needed in varout",/,20
+     &         (" *"))')
+C
+C Closing an ASCII file used for diagnostics
+C
+c
+C
+C*    2. Verify the arrays allocated within SUALLO
+C
+ 200    CONTINUE
+C
+        CALL HPDEALLC(PTGD1,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," GD1 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " GD1. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTSP,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," SP checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " SP. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTSPLAT,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," SPLAT checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " SPLAT. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTSP1,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," SP1 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " SP1. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTSPG,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," SPG checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " SPG. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTCORG,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," CORG checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " CORG. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTDEVSTD,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," RDEVSTD checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " RDEVSTD. IERR =",I3)')IERR
+        END IF
+C
+C
+        CALL HPDEALLC(PTVAZX,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," VAZX checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " VAZX. IERR =",I3)')IERR
+        END IF
+c
+        CALL HPDEALLC(PTVAZXBAR,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," VAZXBAR checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " VAZXBAR. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTVAZG,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," VAZG checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " VAZG. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTSCALP,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," SCALP checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " SCALP. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTSCALPM1,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," SCALPM1 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " SCALPM1. IERR =",I3)')IERR
+        END IF
+!        deallocate(vatra,STAT=ierr)
+!c        CALL HPDEALLC(PTVATRA,IERR,1)
+!        IF(IERR.EQ.0)THEN
+!          WRITE(KULOUT,FMT='(10X," VATRA checked and correct",
+!     S         ". IERR =",I3)')IERR
+!        ELSE
+!          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S         " VATRA. IERR =",I3)')IERR
+!        END IF
+C
+        CALL HPDEALLC(PTCORNS,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTCORNS checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTCORNS. IERR =",I3)')IERR
+        END IF
+
+        CALL HPDEALLC(PTPtoT,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTPtoT checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTPtoT. IERR =",I3)')IERR
+        END IF
+
+        CALL HPDEALLC(PTTHETA,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTTHETA checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTTHETA. IERR =",I3)')IERR
+        END IF
+
+        CALL HPDEALLC(PTTHETA2,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTTHETA2 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTTHETA2. IERR =",I3)')IERR
+        END IF
+
+        CALL HPDEALLC(PTSTDDEV,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTSTDDEV checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTSTDDEV. IERR =",I3)')IERR
+        END IF
+C
+C*    3. Verify the arrays allocated within SUALOBS
+C
+ 300    CONTINUE
+C
+        CALL HPDEALLC(PTMOBS,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTMOBS checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTMOBS. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTMOBS1,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTMOBS1 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTMOBS1. IERR =",I3)')IERR
+        END IF
+C
+C        CALL HPDEALLC(PTROBHDR,IERR,1)
+        DEALLOCATE(ROBHDR,STAT=IERR)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X,
+     &         " PTROBHDR(PTMOBHDR) checked and correct",". IERR =",I3)'
+     &         )IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTROBHDR(PTMOBHDR). IERR =",I3)')IERR
+        END IF
+C
+C        CALL HPDEALLC(PTROBDATA,IERR,1)
+        DEALLOCATE(ROBDATA,STAT=IERR)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X,
+     &         " PTROBDATA(PTMOBDATA) checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTOBDATA(PTMOBDATA). IERR =",I3)')IERR
+        END IF
+C
+C        CALL HPDEALLC(PTROBDATA8,IERR,1)
+        DEALLOCATE(ROBDATA8,STAT=IERR)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X,
+     &         " PTROBDATA8 checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTROBDATA8. IERR =",I3)')IERR
+        END IF
+C
+        CALL HPDEALLC(PTPPOBS,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTPPOBS checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTPPOBS. IERR =",I3)')IERR
+        END IF
+#if defined (NEC)
+        CALL VFLUSH(KULOUT)
+#endif
+        CALL HPDEALLC(PTMTMOBS,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTMTMOBS checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTMTMOBS. IERR =",I3)')IERR
+        END IF
+#if defined (NEC)
+        CALL VFLUSH(KULOUT)
+#endif
+        CALL HPDEALLC(PTMTAG,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTMTAG checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTMTAG. IERR =",I3)')IERR
+        END IF
+#if defined (NEC)
+        CALL VFLUSH(KULOUT)
+#endif
+        CALL HPDEALLC(PTPEXY,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTPEXY checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTPEXY. IERR =",I3)')IERR
+        END IF
+#if defined (NEC)
+        CALL VFLUSH(KULOUT)
+#endif
+        CALL HPDEALLC(PTMTHOBS,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," PTMTHOBS checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " PTMTHOBS. IERR =",I3)')IERR
+        END IF
+#if defined (NEC)
+        CALL VFLUSH(KULOUT)
+#endif
+c
+c deallocate background fields and operators needed in TL and ADJ
+C observation operators
+c
+        CALL HPDEALLC(ptltv,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," ptltv checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " ptltv. IERR =",I3)')IERR
+        END IF
+c
+        CALL HPDEALLC(pttapfac,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," pttapfac checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " pttapfac. IERR =",I3)')IERR
+        END IF
+c
+        if(chum.eq.'ES') then
+          CALL HPDEALLC(ptestdg,IERR,1)
+          IF(IERR.EQ.0)THEN
+            WRITE(KULOUT,FMT='(10X," ptestdg checked and correct",
+     S           ". IERR =",I3)')IERR
+          ELSE
+            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S           " ptestdg. IERR =",I3)')IERR
+          END IF
+c
+          CALL HPDEALLC(ptdlnesg,IERR,1)
+          IF(IERR.EQ.0)THEN
+            WRITE(KULOUT,FMT='(10X," ptdlnesg checked and correct",
+     S           ". IERR =",I3)')IERR
+          ELSE
+            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S           " ptdlnesg. IERR =",I3)')IERR
+          END IF
+c
+          CALL HPDEALLC(ptrqgfac,IERR,1)
+          IF(IERR.EQ.0)THEN
+            WRITE(KULOUT,FMT='(10X," ptrqgfac checked and correct",
+     S           ". IERR =",I3)')IERR
+          ELSE
+            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S           " ptrqgfac. IERR =",I3)')IERR
+          END IF
+        else
+          CALL HPDEALLC(ptlq2es,IERR,1)
+          IF(IERR.EQ.0)THEN
+            WRITE(KULOUT,FMT='(10X," ptlq2es checked and correct",
+     S           ". IERR =",I3)')IERR
+          ELSE
+            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S           " ptlq2es. IERR =",I3)')IERR
+          END IF
+        endif
+c
+c deallocate background fields on analysis grid
+c
+        CALL HPDEALLC(pttg,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," pttg checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " pttg. IERR =",I3)')IERR
+        END IF
+c
+c
+        CALL HPDEALLC(ptqg,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," ptqg checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " ptqg. IERR =",I3)')IERR
+        END IF
+c
+        CALL HPDEALLC(ptgpsg,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," ptgpsg checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " ptgpsg. IERR =",I3)')IERR
+        END IF
+        CALL HPDEALLC(ptgptg,IERR,1)
+        IF(IERR.EQ.0)THEN
+          WRITE(KULOUT,FMT='(10X," ptgptg checked and correct",
+     S         ". IERR =",I3)')IERR
+        ELSE
+          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+     S         " ptgptg. IERR =",I3)')IERR
+        END IF
+
+c
+c
+c deallocate all fields present in commvohr.cdk  They were allocated by
+c locptgomhr.ftn
+c
+        if (nconf .eq. 101 .or. nconf .eq. 121
+     &       .or.  nconf .eq. 141) then
+          call hpdeallc(ptmobshr,ierr,1)
+          call hpdeallc(ptvlevhr,ierr,1)
+          call hpdeallc(ptppobshr,ierr,1)
+          call hpdeallc(ptvmahr,ierr,1)
+          call hpdeallc(ptvmbhr,ierr,1)
+          call hpdeallc(ptvmchr,ierr,1)
+          call hpdeallc(ptvmdhr,ierr,1)
+          call hpdeallc(ptvmehr,ierr,1)
+          call hpdeallc(ptvmfhr,ierr,1)
+        endif
+C
+      RETURN
+      END

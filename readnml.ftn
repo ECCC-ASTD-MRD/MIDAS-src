@@ -1,0 +1,504 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE READNML (CDNAME,KFLAG)
+!modular1      use modstag, only : lstagwinds
+#if defined (DOC)
+*
+***s/r CHECNML - Check if namelist cdname is present on logical unit
+*     .          NULNAM and read it
+*
+*     Author: P. Gauthier *ARMA/AES August 29, 1994
+*     (adapted from CHECNML by MICHEL DESGAGNE OCT      1993 (for MC2))
+*
+*REVISION:
+*     . P. Gauthier *ARMA/AES August 29, 1994
+*     .             Adaptation to the 3Dvar environment
+*     . S. Pellerin *ARMA/AES Sept. 97
+*                   Introduction of NAMSTATE
+*     . C. Charette *ARMA/AES Nov. 98
+*                   Introduction of SU1OBS
+*     . J. Halle    *CMDA/AES Oct1999
+*     .             Introduction of NAMTOV
+*     . B. Brasnett *CMDA/MSC Jan 2000
+*     .             Introduction of NAMVARQC
+*     . S. Pellerin *ARMA/SMC May 2000
+*                   Illimination of NAMBRN : CCARD use only from now on
+*                                            for file name I/O
+*     . J. Halle    *CMDA/AES  dec 2000
+*                   adapt to TOVS level 1b.
+*     . N. Wagneur  *CMDA/MSC June 2001
+*     .             Introduction of NAMGOES
+*     . M. Buehner  *ARMA/MSC  Aug 2002
+*                   Introduction of NAMSV
+*     . P. Koclas  *CMC/CMDA  Apr 2006
+*                   Introduction of NAMBGCHK
+*     . L. Fillion/C. Page   MSC & UQAM, 2003,2005
+*     .             Introduction of NAMGRD to allow Limited-Area or Global analysis LAM4D.
+*       L. Fillion ARMA/MSC May 2006:  LAM4D upgrade to v10_0_0.
+*       L. Fillion ARMA/MSC 14 Aug 2007 - Update lam4d to v_10_0_3.
+*     . A. Beaulne *CMC/CMDA  Jul 2007
+*                   Introduction of NAM1CHN
+*     . S. Macpherson *ARMA/MRD Sep 2007
+*                   Introduction of NAMGPSGB
+*       L. Fillion ARMA/EC 24 Apr 2008 - Update lam4d to v_10_1_0.
+*     . J.M. Aparicio *ARMA/AES Apr 2008
+*                   Introduction of NAMGPSRO
+*       L. Fillion ARMA/EC 21 May 2008 - Update lam4d to v_10_1_1.
+*       C. Charette ARMA/EC Mar 2010 
+*                   Introduction of NAMENKF
+*       L. Fillion ARMA/EC May 2010 - Removal of comgrd2.cdk.
+*     . JW Blezius  *ARMA Aug. 2010
+*                   Add namelist, NAMSHARED_AAI_3DV
+*
+*Arguments
+*     i   CDNAME  : variable character string containing the name of
+*     .             the NAMELIST to be read
+*     o   KFLAG   : flag for error
+*
+**
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comlun.cdk"
+C
+#include "comct0.cdk"
+#include "namct0.cdk"
+C
+#include "comgrd_param.cdk"
+#include "namgrd.cdk"
+#include "namgrd2.cdk"
+C
+#include "comdim.cdk"
+#include "namdim.cdk"
+C
+#include "comdimo.cdk"
+#include "namdimo.cdk"
+C
+#include "comcva.cdk"
+#include "namcva.cdk"
+C
+#include "comfilt.cdk"
+#include "namfilt.cdk"
+C
+#include "comgem.cdk"
+#include "comgemla.cdk"
+#include "namgem.cdk"
+#include "namshared_aai_3dv.cdk"
+C
+#include "comgdpar.cdk"
+#include "namgdpar.cdk"
+C
+#include "comode.cdk"
+#include "namode.cdk"
+C
+#include "comcse1.cdk"
+#include "namcse1.cdk"
+C
+#include "compost.cdk"
+#include "nampost.cdk"
+C
+#include "comtemp.cdk"
+#include "namtemp.cdk"
+C
+#include "compstat.cdk"
+#include "nampstat.cdk"
+C
+#include "combpost.cdk"
+#include "nambpost.cdk"
+C
+C
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "namtov.cdk"
+C
+#include "cparamgoes.cdk"
+#include "comgoes.cdk"
+#include "namgoes.cdk"
+C
+#include "comgpsro.cdk"
+#include "namgpsro.cdk"
+C
+#include "comstate.cdk"
+#include "namstate.cdk"
+C
+#include "commulti.cdk"
+#include "nammulti.cdk"
+C
+#include "com1obs.cdk"
+#include "nam1obs.cdk"
+C
+#include "com1chn.cdk"
+#include "nam1chn.cdk"
+C
+#include "comvarqc.cdk"
+#include "namvarqc.cdk"
+C
+#include "combgchk.cdk"
+#include "nambgchk.cdk"
+C
+#include "cominterp.cdk"
+#include "naminterp.cdk"
+C
+#include "comsv.cdk"
+#include "namsv.cdk"
+C
+#include "comenkf.cdk"
+#include "namenkf.cdk"
+C
+C see use mod4dv above
+!modular1 #include "namstag.cdk"
+C
+#include "comgpsgb.cdk"
+#include "namgpsgb.cdk"
+C
+*
+      CHARACTER*60 CLDUMMY
+*
+      CHARACTER*(*) CDNAME
+      INTEGER KFLAG
+*
+**    1. Position the file to where the NAMELIST is located
+*
+      REWIND(NULNAM)
+ 100  CONTINUE
+      READ (NULNAM,'(2X,A)',END=300,IOSTAT=KFLAG) CLDUMMY
+      IF (CLDUMMY.EQ.CDNAME) THEN
+         BACKSPACE (NULNAM)
+         GOTO 200
+      ELSE
+         GOTO 100
+      ENDIF
+*
+**    2. Read the NAMELIST (if present)
+*
+ 200  CONTINUE
+      WRITE(NULOUT,9200)CDNAME
+ 9200 FORMAT(//,5X,"READNML- reading Namelist ",A)
+C
+C*    2.1
+C
+      IF(CDNAME.EQ.'NAMCT0')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMCT0)
+         WRITE(NULOUT,NML=NAMCT0)
+#else
+         READ(NULNAM,NAMCT0)
+         WRITE(NULOUT,NAMCT0)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMCVA')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMCVA)
+         WRITE(NULOUT,NML=NAMCVA)
+#else
+         READ(NULNAM,NAMCVA)
+         WRITE(NULOUT,NAMCVA)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMDIM')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMDIM)
+         WRITE(NULOUT,NML=NAMDIM)
+#else
+         READ(NULNAM,NAMDIM)
+         WRITE(NULOUT,NAMDIM)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMDIMO')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMDIMO)
+         WRITE(NULOUT,NML=NAMDIMO)
+#else
+         READ(NULNAM,NAMDIMO)
+         WRITE(NULOUT,NAMDIMO)
+#endif
+C
+C
+      ELSE IF(CDNAME.EQ.'NAMFILT')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMFILT)
+         WRITE(NULOUT,NML=NAMFILT)
+#else
+         READ(NULNAM,NAMFILT)
+         WRITE(NULOUT,NAMFILT)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMGEM')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGEM)
+         WRITE(NULOUT,NML=NAMGEM)
+#else
+         READ(NULNAM,NAMGEM)
+         WRITE(NULOUT,NAMGEM)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMSHARED_AAI_3DV')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMSHARED_AAI_3DV)
+         WRITE(NULOUT,NML=NAMSHARED_AAI_3DV)
+#else
+         READ(NULNAM,NAMSHARED_AAI_3DV)
+         WRITE(NULOUT,NAMSHARED_AAI_3DV)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMGDPAR')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGDPAR)
+         WRITE(NULOUT,NML=NAMGDPAR)
+#else
+         READ(NULNAM,NAMGDPAR)
+         WRITE(NULOUT,NAMGDPAR)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMGRD')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGRD)
+         WRITE(NULOUT,NML=NAMGRD)
+#else
+         READ(NULNAM,NAMGRD)
+         WRITE(NULOUT,NAMGRD)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMGRD2')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGRD2)
+         WRITE(NULOUT,NML=NAMGRD2)
+#else
+         READ(NULNAM,NAMGRD2)
+         WRITE(NULOUT,NAMGRD2)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMODE')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMODE)
+         WRITE(NULOUT,NML=NAMODE)
+#else
+         READ(NULNAM,NAMODE)
+         WRITE(NULOUT,NAMODE)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMPOST')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMPOST)
+         WRITE(NULOUT,NML=NAMPOST)
+#else
+         READ(NULNAM,NAMPOST)
+         WRITE(NULOUT,NAMPOST)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMPSTAT')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMPSTAT)
+         WRITE(NULOUT,NML=NAMPSTAT)
+#else
+         READ(NULNAM,NAMPSTAT)
+         WRITE(NULOUT,NAMPSTAT)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMSTATE')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMSTATE)
+         WRITE(NULOUT,NML=NAMSTATE)
+#else
+         READ(NULNAM,NAMSTATE)
+         WRITE(NULOUT,NAMSTATE)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMTEMP')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMTEMP)
+         WRITE(NULOUT,NML=NAMTEMP)
+#else
+         READ(NULNAM,NAMTEMP)
+         WRITE(NULOUT,NAMTEMP)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMCSE1')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMCSE1)
+         if(nconf.ne.141) WRITE(NULOUT,NML=NAMCSE1)
+#else
+         READ(NULNAM,NAMCSE1)
+         WRITE(NULOUT,NAMCSE1)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMCVA')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMCVA)
+         WRITE(NULOUT,NML=NAMCVA)
+#else
+         READ(NULNAM,NAMCVA)
+         WRITE(NULOUT,NAMCVA)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMBPOST')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMBPOST)
+         WRITE(NULOUT,NML=NAMBPOST)
+#else
+         READ(NULNAM,NAMBPOST)
+         WRITE(NULOUT,NAMBPOST)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMTOV')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMTOV)
+         WRITE(NULOUT,NML=NAMTOV)
+#else
+         READ(NULNAM,NAMTOV)
+         WRITE(NULOUT,NAMTOV)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMGOES')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGOES)
+         WRITE(NULOUT,NML=NAMGOES)
+#else
+         READ(NULNAM,NAMGOES)
+         WRITE(NULOUT,NAMGOES)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMGPSRO')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGPSRO)
+         WRITE(NULOUT,NML=NAMGPSRO)
+#else
+         READ(NULNAM,NAMGPSRO)
+         WRITE(NULOUT,NAMGPSRO)
+#endif
+C
+      ELSE IF(CDNAME.EQ.'NAMMULTI')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMMULTI)
+         WRITE(NULOUT,NML=NAMMULTI)
+#else
+         READ(NULNAM,NAMMULTI)
+         WRITE(NULOUT,NAMMULTI)
+#endif
+      ELSE IF(CDNAME.EQ.'NAM1OBS')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAM1OBS)
+         WRITE(NULOUT,NML=NAM1OBS)
+#else
+         READ(NULNAM,NAM1OBS)
+         WRITE(NULOUT,NAM1OBS)
+#endif
+      ELSE IF(CDNAME.EQ.'NAM1CHN')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAM1CHN)
+         WRITE(NULOUT,NML=NAM1CHN)
+#else
+         READ(NULNAM,NAM1CHN)
+         WRITE(NULOUT,NML=NAM1CHN)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMBGCHK')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMBGCHK)
+         WRITE(NULOUT,NML=NAMBGCHK)
+#else
+         READ(NULNAM,NAMBGCHK)
+         WRITE(NULOUT,NAMBGCHK)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMVARQC')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMVARQC)
+         WRITE(NULOUT,NML=NAMVARQC)
+#else
+         READ(NULNAM,NAMVARQC)
+         WRITE(NULOUT,NAMVARQC)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMINTERP')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMINTERP)
+         WRITE(NULOUT,NML=NAMINTERP)
+#else
+         READ(NULNAM,NAMINTERP)
+         WRITE(NULOUT,NAMINTERP)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMSV')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMSV)
+         WRITE(NULOUT,NML=NAMSV)
+#else
+         READ(NULNAM,NAMSV)
+         WRITE(NULOUT,NAMSV)
+#endif
+!modular1      ELSE IF(CDNAME.EQ.'NAMSTAG')THEN
+!modular1C
+!modular1#if defined (C910)
+!modular1         READ(NULNAM,NML=NAMSTAG)
+!modular1         WRITE(NULOUT,NML=NAMSTAG)
+!modular1#else
+!modular1         READ(NULNAM,NAMSTAG)
+!modular1         WRITE(NULOUT,NAMSTAG)
+!modular1#endif
+      ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMGPSGB)
+         WRITE(NULOUT,NML=NAMGPSGB)
+#else
+         READ(NULNAM,NAMGPSGB)
+         WRITE(NULOUT,NAMGPSGB)
+#endif
+      ELSE IF(CDNAME.EQ.'NAMENKF')THEN
+C
+#if defined (C910)
+         READ(NULNAM,NML=NAMENKF)
+         WRITE(NULOUT,NML=NAMENKF)
+#else
+         READ(NULNAM,NAMENKF)
+         WRITE(NULOUT,NAMENKF)
+#endif
+      END IF
+C
+      RETURN
+*
+**    3. Abort the job if the NAMELIST is absent
+*
+ 300  CONTINUE
+      WRITE(NULOUT,9300)CDNAME
+ 9300 FORMAT(//,10X,"-NAMELIST ",A," not found")
+      CALL ABORT3D(NULOUT," READNML       ")
+      END

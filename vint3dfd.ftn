@@ -1,0 +1,160 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE VINT3DFD(KVAL)
+#if defined (DOC)
+*
+***s/r VINT3DFD  - Computation of DIRECTION AND SPEED RESIDUALS
+*
+*
+*Author  : P. Koclas *CMC/AES  September 1999
+*Revision:
+*     1.0  P. Koclas CMC :  September 2000
+*                 -remove quality control flag and (ff dd) component initializtions
+*          JM Belanger CMDA/SMC  Jan 2001
+*                   . 32 bits conversion
+*
+**    Purpose:  -Compute direction and speed residuals from u and
+*                v residuals.
+*
+*
+*Arguments
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comdimo.cdk"
+#include "comnumbr.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+*
+      INTEGER KVAL
+      INTEGER IUU,IVV,IFF,IDD
+      INTEGER IOBS,IBEGIN,ILAST,ISTART,IEND,jwintyp
+      INTEGER J,JDATA,JJOBS
+      REAL*8 ZLEVU
+      REAL*8 MODUL,ANG,UU,VV
+      LOGICAL LLOK
+c     DATA  IUU,IVV,IDD,IFF/11003,11004,11001,11002/
+C-----------------------------------------------------------------------
+C
+      do jwintyp=1,2
+      if (jwintyp .eq. 1) then
+         IUU=NEUU
+         IVV=NEVV
+         IDD=NEDD
+         IFF=NEFF
+      else
+         IUU=NEUS
+         IVV=NEVS
+         IDD=NEDS
+         IFF=NEFS
+      endif
+      DO J = 1,NFILES
+      IF ( ( NBEGINTYP(J) .GT. 0) ) THEN
+         IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+C
+C     .  -----------------------------
+C
+ 100  CONTINUE
+C
+C     Process all data within the domain of the model
+C
+c           DO JDATA=IBEGIN,ILAST
+c              IF ( MOBDATA(NCMVNM,JDATA) .EQ. IFF .OR. MOBDATA(NCMVNM,JDATA) .EQ. IDD) THEN
+c                 ROBDATA(KVAL,JDATA)=PPMIS
+c                 MOBDATA(NCMFLG,JDATA)=-1
+c              ENDIF
+c           END DO
+            DO JDATA=IBEGIN,ILAST
+               LLOK= (MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &         .AND. (MOBDATA(NCMVNM,JDATA) .EQ. IUU)
+               IF ( LLOK ) THEN
+                  IOBS = MOBDATA(NCMOBS,JDATA)
+                  ISTART=MOBHDR(NCMRLN,IOBS)
+                  IEND=MOBHDR(NCMNLV,IOBS) +ISTART-1
+                  ZLEVU = ROBDATA(NCMPPP,JDATA)
+                  UU=ROBDATA(KVAL,JDATA)*ROBDATA(NCMOER,JDATA) +
+     &                 ROBDATA(NCMVAR,JDATA)
+                  DO JJOBS=ISTART,IEND
+                  IF ((MOBDATA(NCMVNM,JJOBS) .EQ. IVV)
+     &            .AND.(ROBDATA(NCMPPP,JJOBS) .EQ. ZLEVU)) THEN
+                    VV=ROBDATA(KVAL,JJOBS)*ROBDATA(NCMOER,JJOBS) +
+     &                   ROBDATA(NCMVAR,JJOBS)
+*
+*****************************************************************************
+*  1-calculate angle
+************************************************************************
+*
+                    MODUL=SQRT((UU**2)+(VV**2))
+                    IF (MODUL.EQ.0.) THEN
+                       ANG=0.0D0
+                    ELSE
+                      ANG=ATAN2(VV,UU)
+                      ANG= (270.0D0 - ANG  * 180.0D0 / pi )
+*
+************************************************************************
+*  2-Change to meteorological definition of wind direction.
+************************************************************************
+*
+                      IF (ANG.GT.360.0D0) ANG=ANG-360.0D0
+                      IF (ANG.LE.0.0D0)   ANG=ANG+360.0D0
+                    ENDIF
+C
+                  ENDIF
+                  END DO
+C
+************************************************************************
+*                insert resduals into CMA
+************************************************************************
+C
+                  DO JJOBS=ISTART,IEND
+                     IF ((MOBDATA(NCMVNM,JJOBS).EQ.IDD)
+     &               .AND. ROBDATA(NCMPPP,JJOBS) .EQ. ZLEVU ) THEN
+                        ROBDATA(KVAL,JJOBS)= ANG - ROBDATA(NCMVAR,JJOBS)*180.0D0/PI
+                        IF ( ROBDATA(KVAL,JJOBS) .gt.  180.0D0)
+     &                  ROBDATA(KVAL,JJOBS)=ROBDATA(KVAL,JJOBS)-360.0D0
+                        IF ( ROBDATA(KVAL,JJOBS) .le. -180.0D0)
+     &                  ROBDATA(KVAL,JJOBS)=ROBDATA(KVAL,JJOBS)+360.0D0
+                        ROBDATA(KVAL,JJOBS)=-1.0D0*ROBDATA(KVAL,JJOBS)*PI/180.0D0
+                        ROBDATA(NCMOER,JJOBS)=1.0D0
+                        MOBDATA(NCMASS,JJOBS) = 1
+                        MOBDATA(NCMFLG,JJOBS) = 0
+                     ENDIF
+                     IF ((MOBDATA(NCMVNM,JJOBS).EQ.IFF)
+     &               .AND. ROBDATA(NCMPPP,JJOBS) .EQ. ZLEVU ) THEN
+                        ROBDATA(KVAL,JJOBS)=MODUL - ROBDATA(NCMVAR,JJOBS)
+                        ROBDATA(NCMOER,JJOBS)=1.0D0
+                        MOBDATA(NCMASS,JJOBS) = 1
+                        MOBDATA(NCMFLG,JJOBS) = 0
+                     ENDIF
+                  END DO
+               ENDIF
+C
+            END DO
+C
+ 300  CONTINUE
+C
+      ENDIF
+      END DO
+C--------------------------------------------------------------------
+      end do
+      RETURN
+      END

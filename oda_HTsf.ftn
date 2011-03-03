@@ -1,0 +1,177 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_HTsf
+      use modmask, only : lmasksf_in,lmasksf_out
+#if defined (DOC)
+*
+***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
+*                  for "SURFACE" data files.
+*
+*
+*
+*Author  : P. Koclas *CMC/AES  April 1996
+*Revision:
+*           P. Koclas *CMC/AES February 1995
+*            - Minor modifications
+*            - Allow for multiple data files.
+*           P. KoCLAS CMC/CMSV AUGUST 1998
+*            - ANALYSYS ON ETA COORDINATE
+*           C. Charette ARMA/AES NOV 1998
+*            - Adapt code to follow Luc Fillion's notes on 3dvar-eta
+*              analysis. LLPRINT to print diagnostics
+*           B. Brasnett CMC/CMDA Oct 1999 - modified gradient for
+*              variational quality control
+*           C. Charette ARMA/AES Jun 2000
+*            - Adapt code to process data with height as vertical
+c coordinate.
+*              Special care for surface temperature(12004) and for
+*              sfc pressure(10004) and mean sea level pressure(10051)
+*           C. Charette ARMA/AES Oct 2000
+*            - Process elements 12203,11215,11216 at the reported height
+*              rather than at the model surface. These observations are
+*              no longer displaced to the model surface in SFCADJUSTZ.
+*           S. Pellerin - ARMA - Jan. 2009
+*            - Rename the subroutine acording to ODA naming convention
+*            - Use of NCMOMI as index of adjoint residual variable
+*            - Use of mask to process assimilated observation only
+*
+*    -------------------
+*
+*     Purpose: based on surfc1dz to build the adjoint of the
+*              vertical interpolation for SURFACE data files.
+*
+*Arguments
+*
+*     CDFAM: FAMILY OF OBSSERVATION
+*
+#endif
+      IMPLICIT NONE
+      CHARACTER *2 CDFAM
+*implicits
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comphy.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+#include "comnumbr.cdk"
+*
+      INTEGER IPB,IPT
+      REAL*8 ZRES
+      REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
+      INTEGER IOBS,IPOS,IK,ISTRIDE,IBEGIN,ILAST
+      INTEGER J,JF,JDATA,ITYP,IXTR
+      LOGICAL LLOK
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      zgamma = 0.0065 / GRAV
+      zexp   = 1.0/(RGASD*zgamma)
+      zexpgz = RGASD*zgamma
+C
+C
+C*    1. Fill in COMMVO by using the adjoint of the "vertical"
+c interpolation
+C     .  ---------------------------------------------------------------
+c ----
+C
+C      TO eliminate dependancies in vector loop, a stride
+C      is chosen so that the data in the inner loop always
+C      comes from different "oservations" of the CMA.
+C      ------------------------------------------------------
+C         stride = first odd number greater than the longest
+C          observation.
+C
+      ISTRIDE=2*(NMAXLEN/2) + 1
+C
+C
+C     Process all data within the domain of the model
+C
+      DO J=1,ISTRIDE
+*vdir nodep
+        DO JDATA=j,ndata,ISTRIDE
+          IF (lmasksf_in(jdata)) THEN
+            IOBS = MOBDATA(NCMOBS,JDATA)
+            IPOS = MOBDATA(NCMPOS,JDATA)
+            ITYP = MOBDATA(NCMVNM,JDATA)
+            IK   = ROBDATA(NCMLYR,JDATA)
+            ZLEV = ROBDATA8(NCMPPP,JDATA)
+            ZHHH = ZLEV * GRAV
+            IPT  = NFLEV-1 + IPOS*NFLEV
+            IPB  = IPT+1
+            ZRES = ROBDATA8(NCMOMI,JDATA)
+c            ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMN,JDATA)
+c     &           * ROBDATA8(NCMOMA,JDATA)
+            IF (ITYP.EQ.NETS .OR. ITYP.EQ.NESS .OR.
+     &           ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS ) THEN
+              GOMOBS(IPB,IOBS)    = GOMOBS(IPB,IOBS) + ZRES
+            ELSEIF (ITYP.EQ.NEPS .OR. ITYP.EQ.NEPN) THEN
+              ZTVG  = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
+              ZGAMAZ= ZGAMMA*(ZHHH-GOMGZG(NFLEV,IOBS))
+              ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
+              ZDELTV= (GOMPSG(1,IOBS)*ZEXP*ZCON**(ZEXP-1))
+     &             *(ZGAMAZ/(ZTVG*ZTVG))
+              ZDELPS= ZCON**ZEXP
+              ZATV  = ZDELTV*ZRES
+              GOMPS(1,IOBS)    = GOMPS(1,IOBS)
+     &             + ZDELPS*ZRES
+              gomt(nflev,iobs) = gomt(nflev,iobs)
+     &             + OLTV(1,NFLEV,IOBS)*ZATV
+              gomq(nflev,iobs)= gomq(nflev,iobs)
+     &             + OLTV(2,NFLEV,IOBS)*ZATV
+            ELSE
+              IPT  = IK + IPOS*NFLEV
+              IPB  = IPT+1
+              ZPT  = GOMGZG(IK,IOBS)
+              ZPB  = GOMGZG(IK+1,IOBS)
+              ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
+              ZWT  = 1. - ZWB
+ccc ATTN ATTN ZDADPS EST A DEFINIR POUR UNE COORDONNEE Z
+              ZDADPS= 0.
+              GOMOBS(IPB,IOBS) = GOMOBS(IPB,IOBS) + ZWB*ZRES
+              GOMOBS(IPT,IOBS) = GOMOBS(IPT,IOBS) + ZWT*ZRES
+              GOMPS(1,IOBS)    = GOMPS(1,IOBS)    +
+     +             (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))
+     +             *ZDADPS*ZRES
+            ENDIF
+            
+          elseif(lmasksf_out(jdata)) then
+            IOBS = MOBDATA(NCMOBS,JDATA)
+            ZRES = ROBDATA8(NCMOMI,JDATA)
+            ZLEV = ROBDATA8(NCMPPP,JDATA)
+C
+c  adjoint of TL of geopotential extrapolation below orography
+c
+            zcon = (zlev/gompsg(1,iobs))**zexpgz
+            ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
+            ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
+c            ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMN,JDATA)
+c     &           * ROBDATA8(NCMOMA,JDATA)
+            gomps(1,iobs)    = gomps(1,iobs)
+     &           + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)
+            gomt(nflev,iobs) = gomt(nflev,iobs)
+     &           + OLTV(1,NFLEV,IOBS)*ZATV
+            gomq(nflev,iobs) = gomq(nflev,iobs)
+     &           + OLTV(2,NFLEV,IOBS)*ZATV                
+          endif
+        END DO
+      END DO
+      RETURN
+      END

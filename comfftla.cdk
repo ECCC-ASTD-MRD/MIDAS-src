@@ -1,0 +1,45 @@
+#if defined (DOC) 
+!copyright (C) 2002  <<< Envrionment Canada LAM4D >>>
+!
+!author: Luc Fillon - ARMA/EC - Fev 2002.
+!Revision:
+C
+C     COMDECK COMFFTLA
+C     ----------------
+C     Comdeck of constants required by NCAR's FFT
+C      (arrays dimensioned in SUFFTLA)
+C     
+C     lrpnfft   : .true.: RPN 2D DFT; .false.: NCAR 2D DFT
+C     mtrunci   : temporary truncation asked when using dft sub.
+C     rwvband   : half-bandwith for Fourier binning in total wavebands
+C                 as used in sufftla.ftn
+C     maxbpop   : Maximum number of spectral components in one spectral band. This band is choosed among all retained spectral bands.
+C     rbandtot  : Total number of spectral elements over the whole annulus for each total wavenumber
+C                 of each band. This is usefull when performing error statistics etc.
+C     rns       : Scaling factor for 2D Fourier spectra (see docum on background error stats)
+C
+#endif
+C
+      logical lrpnfft
+      integer mtrunci
+      integer   fft_handle_2d  ! for NCAR's 2D FFT
+      integer   fft_handle_1d  ! for NCAR's 1D FFT
+      integer mwvnbx(nla), mwvnby(nla)
+      integer mbandsp(0:(nfi*nfj)), mila((nfi*nfj),0:nbimax)
+      integer nbandtot, maxbpop
+      real*8 rwvband,rns
+      real*8 wvnbtot(nbimax)
+      real*8 rbandtot(nbimax)
+      real*8 sdft1d(mlen1d)
+      real*8 sdft2d(mlen2d)
+
+      pointer (ptmwvnbx, mwvnbx), (ptmwvnby, mwvnby),
+     $        (ptwvnbtot, wvnbtot), (ptmbandsp, mbandsp),
+     $        (ptmila, mila), (ptrbandtot,rbandtot)
+      pointer (ptsdft1d, sdft1d),(ptsdft2d, sdft2d)
+C
+      common/comfftl/lrpnfft
+      common/comffti/mtrunci,fft_handle_1d,fft_handle_2d,ptmwvnbx,
+     $     ptmwvnby,ptmbandsp,nbandtot,ptmila,maxbpop
+      common/comfftr/rwvband,rns,ptwvnbtot,ptsdft1d,ptsdft2d,ptrbandtot
+c

@@ -1,0 +1,83 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine aesahuo
+#if defined (DOC)
+*
+***S/R aesahuo  -  Adjoint of lesahuo. Sensitivity on q assumed to be in gomq1 on entry.
+*
+*Author:   L. Fillion - ARMA/CMC - 24 nov 98
+*
+*Revision:
+*          C.Charette - ARMA/SMC - Sept 2004
+*                     -Conversion to hybrid vertical coordinate
+*
+*Arguments:
+*          - Output -
+*     gomq  : sensitivity on (T-Td)
+*          - Input -
+*     gomt  : sensitivity on T
+*     gomq1 : sensitivity on q
+*
+*    -------------------
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "comphy.cdk"
+#include "commvo.cdk"
+#include "commvo1.cdk"
+#include "commvog.cdk"
+      integer jlev, jobs
+      real*8 zadeltd,zadeles,znum1,znum2,zdenom,zpresb
+      logical llprint
+*
+**
+C
+      llprint = .false.
+C
+      do jlev = 1, nflev
+      do jobs = 1, nobtot
+        zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
+     &               /(1.0-rptopinc/rprefinc))**rcoefinc
+        znum1 = eps1*rppobs(JLEV,JOBS)
+        znum2 = eps1*estdg(jlev,jobs)*zpresb
+        zdenom = (rppobs(jlev,jobs)-eps2*estdg(jlev,jobs))**2
+        zadeles = znum1*gomq1(jlev,jobs)/zdenom
+        gomps(1,jobs) = gomps(1,jobs) - rqgfac(jlev,jobs)*
+     &                  znum2*gomq1(jlev,jobs)/zdenom
+        zadeltd = estdg(jlev,jobs)*dlnesg(jlev,jobs)*zadeles
+        gomq(jlev,jobs)=gomq(jlev,jobs)-rqgfac(jlev,jobs)*zadeltd
+        gomt(jlev,jobs)=gomt(jlev,jobs)+rqgfac(jlev,jobs)*zadeltd
+        if(llprint .and. jobs.eq.1) then
+           write(nulout,*)'aesahuo:jobs,jlev,zadeltd,zadeles,gomt,gomq '
+     &       ,jobs,jlev,zadeltd,zadeles,gomt(jlev,jobs),gomq(jlev,jobs)
+           write(nulout,*)'estdg,dlnesg,eps1,eps2,rppobs,vlev '
+     &          ,estdg(jlev,jobs),dlnesg(jlev,jobs),eps1,eps2
+     &          ,rppobs(JLEV,JOBS),vlev(jlev)
+           write(nulout,*)'znum1,znum2,zdenom,gomq1,gomps,rqgfac '
+     &          ,znum1,znum2,zdenom,gomq1(jlev,jobs),gomps(1,jobs)
+     &          ,rqgfac(jlev,jobs)
+        endif
+      enddo
+      enddo
+c
+      return
+      end

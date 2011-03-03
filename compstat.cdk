@@ -1,0 +1,180 @@
+#if defined (DOC)
+*
+*     . J. Halle    *CMDA/AES Oct 99.
+*             - Added ground temperature (TG) to the model state.
+*
+*     . J. Halle    *CMDA/AES April 2003.
+*             - Added RFACTHUM variable in the common block.
+*     . M. Buehner  *ARMA/MSC Sept 2004
+*             - Make DAMPLIBG a 3D field
+*     .  N. Wagneur CMDA Sept 2006
+*             - Added LLIMTG and RLIMSUPTG 
+*               to allow and control upper limit forecast error. 
+C
+C     COMDECK COMPSTAT  :  background error statistics
+C     --------------
+C     1.     INFORMATION CONTAINED WITHIN A STATISTICS FILE
+C     .
+C     a. Forecast error standard deviations as a function of latitude
+C        and altitude.
+C        ----------------------------------
+C     UUSTDBG(NJ,NFLEV) : wind error
+C     GZSTDBG(NJ,NFLEV) : Height error
+C     .                   (currently PHI' but will be changed)
+C     QSTDBG(NJ,NFLEV)  : specific humidity error
+C     TTSTDBG(NJ,NFLEV) : temperature  error(not used)
+C     OZSTDBG(NJ,NFLEV) : ozone error (optional)
+C     TRSTDBG(NJ,NFLEV) : passive tracer
+C     TGSTDBG(NI,NJ   ) : ground temperature
+C
+C     b. Forecast error vertical correlations
+C        ------------------------------------
+C     UUCORBG(NFLEV,NFLEV) : wind correlations
+C     GZCORBG(NFLEV,NFLEV) : height correlations
+C     QCORBG(NFLEV,NFLEV)  : correlations for specific humidity
+C     TTCORBG(NFLEV,NFLEV) : temperature correlations
+C     OZCORBG(NFLEV,NFLEV) : ozone correlations
+C     TRCORBG(NFLEV,NFLEV) : passive tracer correlations
+C
+C     c. Horizontal characteristic lengths as a function of height
+C        ---------------------------------------------------------
+C     RCSCLVO(NFLEV)       : for PSI
+C     RCSCLDI(NFLEV)       : for CHI
+C     RCSCLGZ(NFLEV)       : for PHI'
+C     RCSCLQ(NFLEV)        : for specific humidity
+C     RCSCLTT(NFLEV)       : for temperature
+C     RCSCLOZ(NFLEV)       : for ozone
+C     RCSCLTR(NFLEV)       : for passive tracer
+C     RCSCLPS              : for surface pressure
+C     RCSCLTG              : for ground temperature
+C
+C     d. Miscellaneous
+C        -------------
+C     MLVSTBG(NFLEV)       : list of levels in the statistics file
+C     DAMPLIBG(NI,NKGDIM,NJ) : 3D field used for the amplification
+C     .                      factor
+C     RNU2BG (NJ,NFLEV)    : ratio of divergent component of the
+C     .                      divergent to the total kinetic energy
+C     .                      of the forecast error (see Daley, 1990)
+C
+C     2. NAMELIST CONTROLLED PARAMETERS FOR THE STATISTICS
+C     .  -------------------------------------------------
+C     a.  Horizontal correlation type to be used for the model variable
+C
+C     NXXXCORRTYP : = 1  Gaussian
+C     NXXXCORRTYP : = 2  TOAR
+C     NXXXCORRTYP : = 3  forecast error determined from a lagged
+C     .                  forecast estimate (non-separable statistics)
+C     NPSICORRTYP : correlation type of PSI
+C     NCHICORRTYP : correlation type of CHI
+C     NGZCORRTYP  : correlation type of PHI'
+C     NQCORRTYP   : correlation type of specific humidity
+C     NTTCORRTYP  : correlation type of temperature
+C     NOZCORRTYP  : correlation type of ozone
+C     NTRCORRTYP  : correlation type of passive tracer
+C     NPSCORRTYP  : correlation type of surface pressure
+C     NTGCORRTYP  : correlation type of ground temperature
+C
+C     b.  Error growth factor (or amplification factor)
+C     NAMPLIFACT  :  = 1    none is applied
+C     .              = 2    a 2D field is read from the statistics file
+C     .                     and used for all model variables
+C     .              = 3    a 3D field is read from the statistics file
+C     .                     and used for all model variables
+C     .              = 4    several 3D fields are read from the statistics
+C     .                     file to define the amplification (in 3D) for each
+C     .                     analysis variable.
+C     CETIKETFD   :         label used for the amplification factor field
+C     .                     in the forecast error statistics file
+C     NU2         :  = 1    the constant value of RNU2 specified in the NAMELIST
+C     .                     used to initialize RNU2BG to a constant
+C     .                     (default is set to zero)
+C     .           :  = 2    a latitude-altitude field for RNU2BG is read from file
+C
+C     3. Additional parameters necessary to characterize the correlations
+C
+C     a. Parameters associated with autoregressive correlations
+C     .  (see Mitchell et al., 1990)
+C     NTOAR       :  = 3    (default)
+C     RALPHATOAR  :  = 0.2  (default)
+c
+c  -> Filtering parameters:
+c
+c     leigfilt    : Logical controling eigenvalues filtering of vertical
+c                   correlations. If .true., the following thresholds
+c                   are used on individuals block diagonals
+c threshold values of vercical correlation eigenvalues for block diagonal of ...
+c     reigmintt   : .. unbalance temperature
+c     reigminpsi  : .. streamfunction
+c     reigminchi  : .. unbalance potential velocity
+c     reigminlq   : .. log(q)
+c
+c  N.B. Default values are set to 0
+c
+c  <- End of filtering parameters
+c
+c     lbgsto      : logical that control writing of vertically
+c                   interpated BG stat. in file 'newstat'
+c
+c     RFACTHUM    : factor apllied to the background std errors for LQ. Default= 1.0
+c
+c     RLIMSUPTG   : Limit to background error for ground temperature TG. Default = 3.0
+c     LLIMTG      : Logical value allows the upper limit of TG background error. Default=.false.
+c
+#endif
+C
+      REAL*8     UUSTDBG(NJ,NFLEV), GZSTDBG(NJ,NFLEV), QSTDBG(NJ,NFLEV)
+      REAL*8     TTSTDBG(NJ,NFLEV), OZSTDBG(NJ,NFLEV), TRSTDBG(NJ,NFLEV)
+      REAL*8     TGSTDBG(NI,NJ   )
+      REAL*8     DAMPLIBG(NI,NKGDIM,NJ)
+      REAL*8     RNU2BG(JPLAT,JPNFLEV)
+      CHARACTER*8 CETIKETFD
+C
+      REAL*8     CORBG(NFLEV,NKSDIM-NVSP2D)
+      REAL*8     UUCORBG(NFLEV,NKSDIM-NVSP2D),VVCORBG(NFLEV,NKSDIM-NVSP2D)
+      REAL*8     GZCORBG(NFLEV,NKSDIM-NVSP2D)
+      REAL*8     QCORBG(NFLEV,NKSDIM-NVSP2D), TTCORBG(NFLEV,NKSDIM-NVSP2D)
+      REAL*8     OZCORBG(NFLEV,NKSDIM-NVSP2D),TRCORBG(NFLEV,NKSDIM-NVSP2D)
+      REAL*8     RCSCLVO(JPNFLEV),RCSCLDI(JPNFLEV),RCSCLGZ(JPNFLEV)
+      REAL*8     RCSCLQ(JPNFLEV),RCSCLTT(JPNFLEV),RCSCLOZ(JPNFLEV)
+      REAL*8     RCSCLTR(JPNFLEV)
+      REAL*8     RCSCLPS,RCSCLTG,RFACTHUM,RLIMSUPTG
+      INTEGER  MLVSTBG(JPNFLEV)
+C
+      INTEGER NPSICORRTYP, NCHICORRTYP, NGZCORRTYP, NQCORRTYP
+     S     ,NPSCORRTYP,NTGCORRTYP, NOZCORRTYP, NAMPLIFACT, NU2
+      INTEGER NTOAR, NTRCORRTYP, NTTCORRTYP
+      REAL*8 RALPHATOAR
+      REAL*8 reigmintt,reigminpsi,reigminchi,reigminlq
+      logical leigfilt,lbgsto,LLIMTG
+C
+      POINTER  (PTCORBG,CORBG)
+      POINTER  (PTUUSTDBG,UUSTDBG),(PTGZSTDBG,GZSTDBG), (PTQSTDBG,QSTDBG
+     &     )
+      POINTER  (PTTTSTDBG,TTSTDBG),(PTOZSTDBG,OZSTDBG), (PTTRSTDBG
+     &     ,TRSTDBG)
+      POINTER  (PTTGSTDBG,TGSTDBG)
+      POINTER  (PTUUCORBG,UUCORBG),(PTGZCORBG,GZCORBG), (PTQCORBG,QCORBG
+     &     )
+      POINTER  (PTTTCORBG,TTCORBG),(PTOZCORBG,OZCORBG)
+      POINTER  (PTTRCORBG,TRCORBG),(PTVVCORBG,VVCORBG),(PTDAMPLIBG,DAMPLIBG)
+C
+      COMMON/COMRPSTAT/RCSCLVO,RCSCLDI,RCSCLGZ,RCSCLQ
+     +     ,RCSCLTT,RCSCLOZ,RCSCLTR,RCSCLPS,RCSCLTG
+     +     ,RALPHATOAR,RNU2BG
+     &     ,reigmintt,reigminpsi,reigminchi,reigminlq
+     &     ,RFACTHUM,RLIMSUPTG
+c
+      common/comnpstat/MLVSTBG
+     +     ,NPSICORRTYP, NCHICORRTYP, NGZCORRTYP,NTTCORRTYP
+     +     , NQCORRTYP ,NPSCORRTYP ,NTGCORRTYP, NOZCORRTYP
+     +     , NTRCORRTYP, NAMPLIFACT, NU2, NTOAR
+      COMMON /COMCPSTAT/CETIKETFD
+
+      COMMON/POMPSTAT/PTCORBG,PTUUSTDBG,PTGZSTDBG,PTQSTDBG
+     +                ,PTTTSTDBG,PTOZSTDBG,PTTRSTDBG,PTTGSTDBG
+     +                ,PTUUCORBG,PTGZCORBG,PTQCORBG
+     +                ,PTTTCORBG,PTOZCORBG,PTTRCORBG
+     +                ,PTVVCORBG,PTDAMPLIBG
+      common/comlpstat/leigfilt,lbgsto,LLIMTG
+

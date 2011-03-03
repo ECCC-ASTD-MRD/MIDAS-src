@@ -1,0 +1,118 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUDIMO(KULOUT)
+#if defined (DOC)
+*
+***s/r SUDIMO * - Setting up of the dimensions of obs. related arrays
+*     --------
+*
+*Author:   P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*    .  P.Gauthier *ARMA/AES: Jan. 7, 1993
+*
+*    .  P. KOCLAS CMC AUGUST 93
+*    .    SET VALUES FOR NDATAMX AND NMXOBS FOR CASE LSIMOB=.FALSE.
+*
+*    .  P. KOCLAS CMC September 1994
+*         Reactivate namelist: namdimo
+*    . S. Pellerin *ARMA/AES Sept 97.
+*         Control of the different model state of the 3Dvar
+*         through COMSTATE, COMSTATEC and COMSTNUM common
+*         blocks variables (comstate.cdk).
+*    . C. Charette *ARMA/AES Oct 2001.
+*         Logical switch LABORTFULL (def = true) when CMA is full
+*
+*     Purpose: initialize  COMDIMO
+*
+*Arguments:
+*     i: KULOUT  (logical unit for optional printing i.e. debugging)
+*     o: comdimo.cdk (COMDECK containing the dimensions of the model)
+*
+#endif
+C
+      IMPLICIT NONE
+#include "pardimo.cdk"
+#include "comct0.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+C
+      INTEGER KULOUT
+      INTEGER IERR
+C
+C
+      WRITE(KULOUT,FMT='(//,6('' ***********''))')
+      WRITE(KULOUT,*)'     SUDIMO:  Definition of the dimensions',
+     S     ' of the observation arrays'
+      WRITE(KULOUT,FMT='(6('' ***********''))')
+C
+C      Defaults
+C      ----------
+      NMXOBS=30000
+      NDATAMX=200000
+      LABORTFULL = .TRUE.
+C
+      CALL READNML('NAMDIMO',IERR)
+C
+C*       1. Dimensions associated with the model state
+C           ------------------------------------------
+C
+ 100  CONTINUE
+C
+C*    1.1 Default values and independent parameters
+C     .   -----------------------------------------
+C
+C*    1.2. Initialize the dependent dimensions
+C     .    -----------------------------------
+ 120  CONTINUE
+      NKGDIMO = NVO3D*NFLEV + NVO2D
+C
+      WRITE(KULOUT,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
+      WRITE(UNIT=KULOUT,FMT=9120)
+     S     NVO3D,NVO2D,NKGDIMO
+ 9120 FORMAT(4X,
+     S     '  NVO3D =',I6,' NVO2D    =',I6,' NKGDIMO = ',I6)
+C
+C     2.  Observation arrays of COMOBA
+C
+ 200  CONTINUE
+      IF(LSIMOB.AND.NCONF/100.NE.4) THEN
+         NDATAMX = JPDATA*NMXOBS
+         NMXOBF  = 1
+         NOBTOT  = NMXOBS
+         NDATA   = NDATAMX
+         NOBFNUM = NMXOBF
+      ELSE
+         NMXOBF  = 1
+         NOBTOT  = NMXOBS
+         NDATA   = NDATAMX
+         NOBFNUM = NMXOBF
+C
+C* In this configuration, obs. are read from a file which should contain
+C  all of these parameters in a descriptive record
+C
+C*    ****** NOT YET IMPLEMENTED ************
+C
+      END IF
+C
+      WRITE(KULOUT,*)' DIMENSIONS OF OBSERVATION ARRAYS:'
+      WRITE(UNIT=KULOUT,FMT=9210)
+     S     NMXOBS, NOBTOT, NDATA,NDATAMX, NMXOBF, NOBFNUM
+ 9210 FORMAT(4X,'  NMXOBS =',I6,' NOBTOT    =',I6,' NDATA = ',I6
+     S     ,' NDATAMX =',I6,' NMXOBF =',I6,' NOBFNUM =',I6)
+C
+      RETURN
+      END

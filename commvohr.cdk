@@ -1,0 +1,66 @@
+#if defined (DOC)
+*
+*     . S. Pellerin  *ARMA/SMC SEPT 2000
+C
+C     COMDECK: COMMVO
+C     ---------------
+*Revision   : C. Charette - ARMA/SMC - Sept 2004
+*                Conversion to hybrid vertical coordinate
+*
+C     High res. 3D Variable Model state interpolated at the obs. stations
+C     ----------------------
+C     GOMOBG(nkgdimohr,NOBTOT):  model state at obs. locations
+C     RPPOBG(NLEVTRL,NOBTOT)      :  interpolation weight profiles
+C     NLEVTRL                     :  number of levels of 3D background
+C                                    fields
+C     nkgdimohr                   :  nvo3d*(itrlnlev+1) + nvo2d
+C                                    Note: overdimensionning of GOMOBSHR
+C                                          with ITRLNLEV+1 is for allowing
+C                                          vertical staggering with uneven
+C                                          number of levels. ITRNLEV is
+C                                          the number of levels of the
+C                                          first 3D variable in CFSTVAR
+C                                          list.
+C
+C     Splitting of GOMOBG
+C     ---------------
+C     GOMUHR(NLEVTRL,NOBTOT) :  zonal wind
+C     GOMVHR(NLEVTRL,NOBTOT) :  meridional wind
+C     GOMTHR(NLEVTRL,NOBTOT) :  temperature field
+C     GOMGZHR(NLEVTRL,NOBTOT):  geopotential field
+C     GOMOZHR(NLEVTRL,NOBTOT):  ozone field
+C     GOMTRHR(NLEVTRL,NOBTOT):  undefined tracer
+C     GOMQHR(NLEVTRL,NOBTOT) :  specific humidity
+C     GOMESHR(NLEVTRL,NOBTOT):  t - td
+C     GOMPSHR(1   ,NOBTOT) :  surface pressure
+C     GOMTGRHR(1  ,NOBTOT) :  ground temperature
+C
+#endif
+
+      integer nlevtrl,nkgdimohr
+      real*8 vlevhr(nlevtrl),rppobshr(nlevtrl,nobtot)
+      real*8 gomobshr(nkgdimohr,nobtot),vhybhr(nlevtrl)
+      real*8      vmahr(nlevtrl), vmbhr(nlevtrl), vmchr(nlevtrl)
+      real*8      vmdhr(nlevtrl), vmehr(nlevtrl), vmfhr(nlevtrl)
+      real*8 gomuhr(nkgdimohr,nobtot),gomvhr(nkgdimohr,nobtot)
+      real*8 gomgzhr(nkgdimohr,nobtot),gomqhr(nkgdimohr,nobtot)
+      real*8 gomeshr(nkgdimohr,nobtot),gomthr(nkgdimohr,nobtot)
+      real*8 gomozhr(nkgdimohr,nobtot),gomtrhr(nkgdimohr,nobtot)
+      real*8 gompshr(nkgdimohr,nobtot),gomtgrhr(nkgdimohr,nobtot)
+      pointer (ptmobshr,gomobshr)
+      pointer (ptomuhr,gomuhr),(ptomvhr,gomvhr)
+      pointer (ptomthr,gomthr),(ptomqhr,gomqhr)
+      pointer (ptomgzhr,gomgzhr),(ptomozhr,gomozhr)
+      pointer (ptomeshr,gomeshr),(ptomtrhr,gomtrhr)
+      pointer (ptompshr,gompshr),(ptomtgrhr,gomtgrhr)
+      pointer (ptvlevhr,vlevhr),(ptppobshr,rppobshr)
+      pointer (ptvhybhr,vhybhr)
+      pointer (ptvmahr,vmahr),(ptvmbhr,vmbhr),(ptvmchr,vmchr)
+      pointer (ptvmdhr,vmdhr),(ptvmehr,vmehr),(ptvmfhr,vmfhr)
+      common /compmobhr/ ptmobshr,ptomuhr,ptomvhr,ptomthr,ptomqhr
+      common /compmobhr/ ptomgzhr,ptomozhr,ptomeshr,ptomtrhr,ptompshr
+      common /compmobhr/ ptomtgrhr
+      common /comrmobhr/ptvlevhr,ptppobshr,ptvhybhr
+      common /comimobhr/ nlevtrl,nkgdimohr
+      common /comodehr/ptvmahr, ptvmbhr, ptvmchr, ptvmdhr, ptvmehr
+      common /comodehr/ptvmfhr

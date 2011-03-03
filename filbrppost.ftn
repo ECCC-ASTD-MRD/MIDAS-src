@@ -1,0 +1,225 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FILBRPPOST
+#if defined (DOC)
+**s/r filbrppost
+*
+************************************************************************
+*
+*      PURPOSE: FILL UP POSTALT FILE FOR 3D-VAR
+*
+*
+*    ARGUMENTS:
+*                        NONE
+*
+*
+*       AUTHOR: P. KOCLAS/CMC
+*
+*       Revision:
+*              C. Charette  *ARMA/AES - Feb 96.
+*                   - Changed FNOM to avoid potential problem
+*                     with empty files
+*     .       P. Koclas   *CMC/AES - Apr 96.
+*                   -JPFILES parameter now in cvcord COMMON
+*     .       P. Koclas   *CMC/AES - Jan 97.
+*                   -ADDED NAMELIST AND COMMON:  NAMBPOST COMBPOST
+*                   -CHANGE TO CALL SEQUENCE TO CMAABRP
+*     .       P. Koclas   *CMC/AES - Jun 97.
+*                   -REMOVAL OF CALLS TO EXDB EXFIN
+*     .       P. Koclas   *CMC/AES - Nov 97.
+*                   -SINGLE CALL TO CMAABRP
+*     .       B. Brasnett *CMC/AES - Oct 98
+*                   -ADD LISTING OF REJECTED DATA
+*     .       S. Pellerin *ARMA/SMC
+*                   -Logical unit cleanup
+*             A. Beaulne *CMDA/SMC - July 2006
+*                   -Modifications for AIRS: add more variables to file
+*             Bin He    *ARMA/MRB - Feb.2010 
+*                   - MPI Parallelization  .  
+*
+*
+************************************************************************
+#endif
+*
+      USE procs_topo,ONLY : myid 
+      IMPLICIT NONE
+#include "comlun.cdk"
+#include "cvcord.cdk"
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comvfiles.cdk"
+#include "combpost.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comct0.cdk"
+#include "comoba.cdk"
+*
+      INTEGER IER,INRECS,IBRP1
+      INTEGER INBLKS,IOBTOT,IDATA
+      INTEGER FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
+*
+      INTEGER JVAL,NVALS,J,JJ,JD,KRTID
+*
+      LOGICAL LLAPPEND
+*
+      EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
+*
+      CHARACTER(LEN=90)  :: BURPIN,BURPOUT
+*
+*  ------NOTE----------
+* currently supported families of data 'UA' 'AI' 'SF' 'HU' 'TO'
+*
+*
+************************************************************************
+*     OPEN FILES WHOSE NAMES ARE CONTAINED IN ARRAY CBURP.
+*     OPEN AND APPEND DATA TO "POST" FILES.
+************************************************************************
+*
+*     0. Restore Global Arrays of ROBDATA and MOBDATA. 
+*        --------------------------------------------
+      CALL restoreCMA 
+      IF(myid /= 0) RETURN 
+* 
+C
+C     DEFAULTS
+C     ------------------
+      NELCMA=4
+      CSAV(1)='OMA'
+      CSAV(2)='OMP'
+      CSAV(3)='OER'
+      CSAV(4)='VAR'
+C
+      CALL READNML('NAMBPOST',IER)
+C
+      NSAV(1)=NCMOMA
+      NSAV(2)=NCMOMF
+      NSAV(3)=NCMOER
+      NSAV(4)=NCMVAR
+c
+      DO J=1,NELCMA
+         IF ( CSAV(J) .EQ. 'OMA') NSAV(J)=NCMOMA
+      END DO
+      DO J=1,NELCMA
+         IF ( CSAV(J) .EQ. 'OMP') NSAV(J)=NCMOMF
+      END DO
+      DO J=1,NELCMA
+         IF ( CSAV(J) .EQ. 'OER') NSAV(J)=NCMOER
+      END DO
+      DO J=1,NELCMA
+         IF ( CSAV(J) .EQ. 'FGE') NSAV(J)=NCMFGE
+      END DO
+      DO J=1,NELCMA
+         IF ( CSAV(J) .EQ. 'VAR') NSAV(J)=NCMVAR
+      END DO
+      DO J=1,NELCMA
+         IF ( CSAV(J) .EQ. 'FLG') NSAV(J)=NCMFLG
+      END DO
+
+      NDATA=0
+      NOBTOT=1
+C
+      WRITE(NULOUT,'(1X,"SUBROUTINE FILBRPPOST")')
+      WRITE(NULOUT,'(1X,"-----------------",/)')
+      WRITE(NULOUT,'(1X,"***********************************")')
+      WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR POST_FILE :",/)')
+      WRITE(NULOUT,'(1X,"***********************************")')
+      DO JD=1,NELCMA
+         WRITE(NULOUT,'(15X,A3,/)') CSAV(JD)
+      END DO
+      IER   =MRFOPC('MSGLVL','FATAL')
+*
+      NVALS=NFILES
+      LLAPPEND=.FALSE.
+      NOBTOT=0
+      NDATA=0
+      DO J =1,NKOUNT
+         NVTYP=J
+         CBURP(J)  = CFILNAM(J)
+         ibrp1 = 0
+         IER   =FNOM(IBRP1,CBURP(J),'RND+OLD',0)
+         INBLKS= -1
+         IF ( IER .NE. 0 ) THEN
+            WRITE(NULOUT,*)  ' '
+            WRITE(NULOUT,*)
+     S    '========================================================='
+            WRITE(NULOUT,*)' NO DATA IN POSTALT FILE ',CBURP(J)
+            WRITE(NULOUT,*)
+     S    '========================================================='
+            WRITE(NULOUT,*)  ' '
+         ELSE
+            INBLKS =NUMBLKS(IBRP1)
+            IF ( INBLKS .GT. 0) THEN
+               CFAM(J)=CFAMTYP(J)
+               INRECS=MRFOPN(IBRP1,'APPEND')
+               WRITE(NULOUT,*)  ' '
+               WRITE(NULOUT,*)
+     S       '========================================================='
+               WRITE(NULOUT,*) ' ',INRECS,
+     S       ' ',CFAM(J),' OBSERVATIONS IN BURP FILE ',CBURP(J)
+               WRITE(NULOUT,*)
+     S       '========================================================='
+               WRITE(NULOUT,*)  ' '
+*
+*             -----------------
+*             FILL UP POST FILE
+*             -----------------
+*==========================================================================
+               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,NELCMA)
+*==========================================================================
+*
+               IER=MRFCLS(IBRP1)
+            ENDIF
+            LLAPPEND = .TRUE.
+*
+         ENDIF
+*
+*        CLOSE FILE
+*        -------------
+         IER= FCLOS(IBRP1)
+      END DO
+*
+*     IN BGCHECK MODE, FILL AIRS POSTFILE WITH ADDITIONNAL VARIABLES
+*     --------------------------------------------------------------
+
+      IF ( NCONF .EQ. 101 ) THEN
+        DO KRTID = 1, NSENSORS
+          IF ( PLATFORM(KRTID) .EQ. 9 .AND.
+     &         SATELLITE(KRTID) .EQ. 2 .AND.
+     &         INSTRUMENT(KRTID) .EQ. 11 ) THEN
+            IF ( NKOUNT == 1 ) THEN
+              write(nulout,*) 'INPUT FILE TO AIRSABRP = ', CBURP(NKOUNT)
+!modular1              CALL AIRSABRP(CBURP(NKOUNT))
+            ELSE
+              WRITE(NULOUT,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE AIRS FILE ???'
+            END IF
+          END IF
+          IF ( PLATFORM(KRTID) .EQ. 10 .AND.
+     &         SATELLITE(KRTID) .EQ. 2 .AND.
+     &         INSTRUMENT(KRTID) .EQ. 16 ) THEN
+            IF ( NKOUNT == 1 ) THEN
+              write(nulout,*) 'INPUT FILE TO IASIABRP = ', CBURP(NKOUNT)
+!modular1              CALL IASIABRP(CBURP(NKOUNT))
+            ELSE
+              WRITE(NULOUT,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
+            END IF
+          END IF
+        END DO
+      END IF
+*
+      RETURN
+      END
+

@@ -1,0 +1,134 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE MAP_SAT(ISATBURP,IPLATFORM,ISAT)
+#if defined (DOC)
+*
+***s/r MAP_SAT : Map burp satellite identifier (element #1007)
+*                to RTTOV-7 platform and satellite.
+*
+*Author  :       J. Halle *CMDA/SMC May 2002
+*
+*Revision 001  : J. Halle *CMDA/AES Jul 2005
+*                . add NOAA-18.
+*
+*Revision 002  : J. Halle *CMDA/AES May 2007
+*                . add METOP 1,2,3.
+*
+*Revision 003  : R. Sarrazin CMDA   Apr 2008
+*                  add MTSAT1, GOES13 and MSG2, modif to MSG1
+*
+*Revision 004  : C. Cote  mars 2009
+*                . add NOAA-19.
+*
+*
+*    -------------------
+**    Purpose:  Map burp satellite identifier (element #1007)
+*               to RTTOV-7 platform and satellite.
+**              Negative values are returned, if no match in found.
+*
+*               ---------------------------------------------
+*               Table of  RTTOV-7 platform identifier
+*               ---------------------------------------------
+*               Platform          RTTOV-7 platform identifier
+*               ---------         ---------------------------
+*               NOAA               1
+*               DMSP               2
+*               METEOSAT           3
+*               GOES               4
+*               GMS                5
+*               FY2                6
+*               TRMM               7
+*               ERS                8
+*               EOS                9
+*               METOP             10
+*               ENVISAT           11
+*               MSG               12
+*               FY1               13
+*               ADEOS             14
+*               MTSAT             15
+*               CORIOLIS          16
+*               ---------------------------------------------
+*
+*               Example: NOAA15, which has a burp satellite identifier value of 206,
+*                        is mapped into the following:
+*                                RTTOV-7 platform  =  1,
+*                                RTTOV-7 satellite = 15.
+*
+*
+*
+*Arguments:
+*     i : ISATBURP      : BURP satellite identifier
+*     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
+*     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
+*
+#endif
+      IMPLICIT NONE
+*
+      INTEGER J,ISATBURP,IPLATFORM,ISAT
+*
+      INTEGER MXSATBURP
+      PARAMETER (MXSATBURP   = 42)
+*
+      INTEGER LISTBURP(MXSATBURP)
+      INTEGER LISTPLAT(MXSATBURP)
+      INTEGER LISTSAT (MXSATBURP)
+*
+**            Table of BURP satellite identifier element #001007
+**            --------------------------------------------------
+*
+      DATA LISTBURP / 001, 002, 052, 053, 054, 055, 152, 200, 201, 202,
+     &                203, 204, 205, 206, 207, 241, 242, 243, 244, 245,
+     &                246, 247, 248, 249, 252, 253, 254, 255, 256, 500,
+     &                501, 510, 784, 208, 209, 003, 004, 005, 223, 171, 
+     &                056, 257/
+*
+**            Table of RTTOV-7 platform identifier
+**            ------------------------------------
+*
+      DATA LISTPLAT / 008, 008, 003, 003, 003, 012, 005, 001, 001, 001,
+     &                001, 001, 001, 001, 001, 002, 002, 002, 002, 002,
+     &                002, 002, 002, 002, 004, 004, 004, 004, 004, 013,
+     &                013, 006, 009, 001, 001, 010, 010, 010, 001, 015, 
+     &                012, 004/
+*
+**            Table of RTTOV-7 satellite identifier
+**            ------------------------------------
+*
+      DATA LISTSAT  / 001, 002, 005, 006, 007, 001, 005, 008, 009, 010,
+     &                011, 012, 014, 015, 016, 008, 009, 010, 011, 012,
+     &                013, 014, 015, 016, 008, 009, 010, 011, 012, 003,
+     &                004, 002, 002, 017, 018, 001, 002, 003, 019, 001, 
+     &                002, 013/
+C
+C*    .  1.0 Find platform and satellite
+C     .      ---------------------------
+ 100  CONTINUE
+C
+      IPLATFORM = -1
+      ISAT      = -1
+      DO J=1, MXSATBURP
+         IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
+             IPLATFORM = LISTPLAT(J)
+             ISAT      = LISTSAT (J)
+             RETURN
+         ENDIF
+      ENDDO
+*
+      RETURN
+      END
+
+

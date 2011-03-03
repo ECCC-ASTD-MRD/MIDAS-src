@@ -1,0 +1,111 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE ltt2phigd(pgz,ptt,pps,ppsg,ppt)
+#if defined (DOC)
+*
+***s/r ltt2phigd  - Grid-point version of ltt2phi.ftn
+*
+*Author  : L. Fillion *ARMA/AES  Feb 17, 1999
+*     .
+*Revision: L. Fillion *ARMA/AES - 4 mar 1999
+*              . Changed arguments to lvtapgd.ftn
+*          JM Belanger CMDA/SMC  Nov 2000
+*              . 32 bits conversion
+*           C. Charette - ARMA/SMC - Sep. 2004
+*            - Conversion to hybrid vertical coordinate
+*
+*
+**
+*Arguments
+*     in-
+*   ptt    : 3D Temperature Incr. appearing on r.h.s. of TL-eq.
+*   pps    : Surface-pressure Incr. appearing on r.h.s. of TL-eq.
+*   ppsg   : Basic-state Surface-pressure
+*   ppt    : Model's pressure top (2D field).
+*     out-
+*   pgz    : 3D GZ fields computed from TL-Hydrostatic equation
+#endif
+C
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comgd1.cdk"
+#include "comgem.cdk"
+*
+      real*8 pgz(ni,nflev,nj), ptt(ni,nflev,nj)
+      real*8 pps(ni,nj),ppsg(ni,nj),ppt(ni,nj)
+*
+      INTEGER JLEV, JLA, ILA, ILEV,ILEN, JLAT, ILON, JLON, IERR
+      INTEGER IKTOP,IKTTG
+      real*8  zalpha
+      EXTERNAL HPDEALLC, HPALLOC
+      real*8 zpress(1),zhybm,zprof(jpnflev)
+      pointer (pzpress, zpress)
+      pointer (pzhybm, zhybm)
+*------------------------------------------------------------------
+**
+C
+      WRITE(NULOUT,FMT='(/,4X,"Starting LTT2PHIGD",//)')
+C
+      ILEN=NFLEV*NI
+      CALL HPALLOC(PZPRESS,MAX(ILEN,1),IERR,8)
+      ILEN=NFLEV
+      CALL HPALLOC(PZHYBM ,MAX(ILEN,1),IERR,8)
+c
+      zalpha=-1.0D0
+
+c
+c     Prepare r.h.s. for TL-Hydrostatic equation
+c
+      do jlev = 1, nflev
+        do jlat = 1, nj
+          ilon = ni
+          do jlon = 1, ni
+c             for r.h.s. of balanced part
+c
+            tt1(jlon,jlev,jlat)=ptt(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+      do jlat = 1, nj
+        ilon = ni
+        call calcpres(ZPRESS,vhybinc,nflev,ppsg(1,jlat),rptopinc
+     &                   ,rprefinc,rcoefinc,ni)
+        do jlon = 1, ni
+          do jlev = 1,nflev
+            ila         = jlev+(jlon-1)*nflev
+            zprof(jlev) = zpress(ila)
+          enddo
+          call matapat(zprof,zalpha,nflev)
+          call lvtapgd(pgz,jlon,jlat) ! input  in TT1
+        enddo
+      enddo
+c
+      CALL HPDEALLC(PZPRESS,IERR,1)
+      CALL HPDEALLC(PZHYBM,IERR,1)
+c
+      RETURN
+      END
+
+
+
+
+
+
+
+

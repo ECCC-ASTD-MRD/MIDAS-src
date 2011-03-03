@@ -1,0 +1,72 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+
+      SUBROUTINE MONOTONIC_INVERSION (NINV, tg,tt,gz,nlev,lev)
+
+#if defined (DOC)
+!***********************************************************************
+!
+!**ID MONOTONIC_INVERSION -- DETECT TEMPERATURE INVERSION
+!
+!       SCIENCE:  L. GARAND AND S. NADON
+!       AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   DETERMINE IF THERE IS A PRESENCE (NINV=1) OR NOT (NINV=0)
+!           OF A TEMPERATURE INVERSION GOING FROM THE SURFACE UP TO THE
+!           HEIGHT LEV
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -TG       : SKIN TEMPERATURE (DEG K)
+!            -TT(NLEV) : TEMPERATURE PROFILE (DEG K)
+!            -GZ(NLEV) : HEIGHT PROFILE ABOVE GROUND (M)
+!            -NLEV     : NUMBER OF VERTICAL LEVELS
+!            -LEV      : HEIGHT TO SEARCH FOR TEMPERATURE INVERSION (M)
+!
+!          OUTPUT:
+!            -NINV     : PRESENCE (1) OR NOT (0) OF A TEMPERATURE INVERSION
+!                         FROM THE SURFACE TO HEIGHT LEV
+!
+!
+!***********************************************************************
+#endif
+
+
+      IMPLICIT NONE
+
+      INTEGER   :: NINV,NL,NLEV
+      REAL(8)   :: LEV,TG,TT(NLEV),GZ(NLEV)
+
+
+      NINV = 0
+      IF ( TG - TT(NLEV) < 0. ) THEN
+        NINV = 1
+        DO NL = NLEV-1, 1, -1
+          IF ( GZ(NL) > LEV ) EXIT
+          IF ( TT(NL+1) - TT(NL) > 0. ) THEN
+            NINV = 0
+            EXIT
+          END IF
+        END DO
+      END IF
+
+
+      END SUBROUTINE MONOTONIC_INVERSION
+

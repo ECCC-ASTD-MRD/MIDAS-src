@@ -1,0 +1,69 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_maskgp
+      use modmask, only : lmaskgp, lmask
+#if defined (DOC)
+*
+*Purpose : Defines a mask of assimilated data for GP family ZTD data
+*
+*Author  : S. Macpherson, ARMA, March 2009
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+*
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
+      INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO,IDATYP
+      LOGICAL LLOK
+      CHARACTER *2 CDFAM
+C
+c
+      CDFAM = 'GP'
+c
+c
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = MOBDATA(NCMOBS,ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = MOBHDR(NCMRLN,JO)
+            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+            IDATYP    = MOD(MOBHDR(NCMITY,JO),1000)
+            IF ( IDATYP .EQ. 189 ) THEN
+              DO JDATA=IDATA,IDATEND
+                ITYP = MOBDATA(NCMVNM,JDATA)
+                LLOK = ( (ITYP .EQ. NEZD) .AND.
+     &            (MOBDATA(NCMASS,JDATA) .EQ. 1) )
+                IF ( LLOK ) THEN
+                  lmaskgp(jdata) = .true.
+                ENDIF
+              END DO
+            ENDIF
+          ENDDO
+        ENDIF
+      END DO
+      lmask = lmask .or. lmaskgp
+      RETURN
+      END

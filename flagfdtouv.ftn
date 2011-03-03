@@ -1,0 +1,131 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FLAGFDTOUV(KFLAG,KLIST,KNELE,KNVAL,KINT
+     &                  ,CSTN,KIDBRP,KLAT,KLON)
+      IMPLICIT NONE
+#include "cparbrp.cdk"
+#include "comnumbr.cdk"
+      INTEGER KNELE,KNVAL,KINT,KIDBRP,KLAT,KLON
+      INTEGER KLIST(KNELE),KFLAG(KNELE,KNVAL,KINT)
+      CHARACTER *9 CSTN
+*
+#if defined (DOC)
+************************************************************************
+*
+*      PURPOSE: TO CHECK FLAGS (FROM NAMELIST) OF (FF,DD) WIND COMPONENTS
+*               EXTRACTED FROM A BURP FILE AND TRANSFER ALL THE BITS
+*               OF THE FLAGS TO THE UU VV FLAGS.
+*               PRESENT IN BOTH ELEMENTS.
+*               THIS ASSURES THAT BOTH FF AND DD COMPONENTS WILL
+*               HAVE THE SAME FLAGS.
+*
+*       AUTHOR:   P. KOCLAS (ARMA/AES) OCT 99
+*
+*Revisions:
+*                JM Belanger (CMDA/SMC) Feb 2002
+*                . Correct bug: calls to GETELE replaced by IGETELE
+*
+*    ARGUMENTS:
+*               INPUT:
+*                      -KFLAG   : DATA BLOCK OF FLAGS
+*                      -KLIST   : LIST OF ELEMENTS IN DATA BLOCK
+*                      -KNELE   : NUMBER OF ELEMENTS IN DATA BLOCK
+*                      -KNVAL   : NUMBER OF LEVELS IN DATA BLOCK
+*                      -KINT    : THIRD DIMENSION OF DATA BLOCK
+*                      -CSTN    : NAME OF STATION BEING PROCESS
+*                      -KIDBRP  : ID TYPE OF STATION
+*                      -KLAT    : LATITUDE OF STATION
+*                      -KLON    : LONGITUDE OF STATION
+*
+*               OUTPUT:
+*                      -MODIFIED KFLAG
+*
+*
+************************************************************************
+#endif
+*
+      INTEGER IPROF(JPMXNLV)
+      INTEGER JD,JJ,JN
+      INTEGER IND1,IND2,IND3,IND4,IFIRSTBIT,ILASTBIT
+      INTEGER IFF,IDD,IUU,IVV,IFLG
+*
+************************************************************************
+*     BURP FILE ELEMENT NAMES FOR WINDS
+************************************************************************
+*-------------------------------------------------------
+c     DATA IFF,IDD,IUU,IVV/flagfdtouv.ftn__Version11002,011003,011004/
+*-------------------------------------------------------
+*
+*
+************************************************************************
+*     GET (U,V,FF,DD) WIND COMPONENTS FLAGS
+************************************************************************
+*
+      IFIRSTBIT=0
+      ILASTBIT=20
+      DO 2 JN=1,KINT
+         IUU=NEUU
+         IVV=NEVV
+         IFF=NEFF
+         IDD=NEDD
+         CALL IGETELE(IUU,jn,KLIST,KFLAG,IPROF
+     &             ,KNELE,KNVAL,KINT,IND3)
+         CALL IGETELE(IVV,jn,KLIST,KFLAG,IPROF
+     &             ,KNELE,KNVAL,KINT,IND4)
+         CALL IGETELE(IFF,jn,KLIST,KFLAG,IPROF
+     &             ,KNELE,KNVAL,KINT,IND1)
+         CALL IGETELE(IDD,jn,KLIST,KFLAG,IPROF
+     &             ,KNELE,KNVAL,KINT,IND2)
+*
+C
+         IF ( IND3 .EQ. -1 .AND. IND4 .EQ. -1 ) THEN
+            IUU=NEUS
+            IVV=NEVS
+            CALL IGETELE(IUU,jn,KLIST,KFLAG,IPROF,KNELE,KNVAL,KINT,IND3)
+            CALL IGETELE(IVV,jn,KLIST,KFLAG,IPROF,KNELE,KNVAL,KINT,IND4)
+            IF ( IND3 .NE. -1 .AND. IND4 .NE. -1 ) THEN
+               IDD=NEDS
+               IFF=NEFS
+               CALL IGETELE(IFF,jn,KLIST,KFLAG,IPROF,KNELE,KNVAL,KINT,IND1)
+               CALL IGETELE(IDD,jn,KLIST,KFLAG,IPROF,KNELE,KNVAL,KINT,IND2)
+            ENDIF
+         ENDIF
+C
+         IF ( (IND1 .NE. -1) .AND. (IND2 .NE. -1) .AND. (IND4 .NE. -1) .AND. (IND3 .NE. -1) )THEN
+*
+C
+C          ADD ALL FF DD BITS TO UU VV FLAGS
+C
+
+            DO  JJ=1,KNVAL
+               DO JD = IFIRSTBIT,ILASTBIT
+                  IFLG  = JD
+                  if ( btest(KFLAG(IND1,JJ,JN),iflg)  ) then
+                     KFLAG(IND3,JJ,JN) = ibset( KFLAG(IND3,JJ,JN), iflg)
+                     KFLAG(IND4,JJ,JN) = ibset( KFLAG(IND4,JJ,JN), iflg)
+                  endif
+                  if ( btest (  KFLAG(IND2,JJ,JN) ,iflg)  ) then
+                     KFLAG(IND3,JJ,JN) = ibset( KFLAG(IND3,JJ,JN), iflg)
+                     KFLAG(IND4,JJ,JN) = ibset( KFLAG(IND4,JJ,JN), iflg)
+                  endif
+               ENDDO
+            ENDDO
+         ENDIF
+    2 CONTINUE
+*
+      RETURN
+      END

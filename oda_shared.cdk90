@@ -1,0 +1,4 @@
+module oda_shared
+  save
+  real*8, pointer, dimension(:) :: dg_vbar, dg_ubar
+end module oda_shared

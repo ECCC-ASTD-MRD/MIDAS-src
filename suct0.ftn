@@ -1,0 +1,56 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUCT0(KULOUT)
+#if defined (DOC)
+C
+C*  Initialization of the control of the job
+C   ----------------------------------------
+C     Author: P. GAUTHIER *ARMA/AES* April 13, 1992
+C
+C Revision:
+C             S. Pellerin *ARMA/SMC Oct. 2000
+C                - default values
+*             S. Pellerin *ARMA/SMC nov. 2001
+*                - Introduction of logical l4dvar
+*             S. Pellerin ARMA nov. 2008
+*                - Introduction of CMINMODE variable
+#endif
+      IMPLICIT NONE
+#include "comct0.cdk"
+#include "comlun.cdk"
+C
+      INTEGER KULOUT, IERR
+C
+C*    1. Set the default values
+C
+      NCONF  = 141
+      NLFFT  = 1024
+      NLATBD = 8
+      CMINMODE = 'VAR'
+      LDEBUG = .FALSE.
+      LTEST  = .FALSE.
+      LSIMOB = .FALSE.
+C
+C*    2. Read the NAMELIST to modify these values
+C
+C
+      CALL READNML('NAMCT0',IERR)
+C
+      if (ldebug) nulout=0
+C
+      RETURN
+      END

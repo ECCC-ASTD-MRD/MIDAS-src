@@ -1,0 +1,381 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+       SUBROUTINE ROBSGOES(PJO)
+#if defined (DOC)
+*
+***s/r ROBSGOES  - Refresh computation of Jo and the residuals to the
+*                  radiance (for GOES) observations
+*
+*
+*Author        : N.Wagneur *CMDA/MSC  July, 2002
+*
+*
+*   -------------------
+**    Purpose:
+*
+*Arguments
+*     PJO: total value of Jo for GOES
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+#include "partov.cdk"
+#include "cparamgoes.cdk"
+#include "comgoes.cdk"
+#include "comgoesst.cdk"
+#include "comjacgoes.cdk"
+#include "cvcord.cdk"
+*
+C
+      REAL*8 ZVAR, ZOER
+      REAL*8 ZTODEG
+      REAL*8 DLSUM
+      REAL*8 PJO, ZQMIN, ZJOALL, ZAVGALL
+C
+      REAL*8 ZPS (JPPFGO)
+      REAL*8 ZTG (JPPFGO)
+      REAL*8 ZLAT(JPPFGO),ZO3OBS(JPPFGO)
+      REAL*8 ZVLEV(JPPFGO,NFLEV)
+      REAL*8 ZT   (JPPFGO,NFLEV)
+      REAL*8 ZLQ  (JPPFGO,NFLEV)
+      REAL*8 ZQ   (JPPFGO,NFLEV)
+      REAL*8 PANGL(JPPFGO),PANGS(JPPFGO)
+      REAL*8 ZTBO(JPCHPFGO),ZDTB(JPCHPFGO)
+      REAL*8 ZDTBOM1(JPCHPFGO)
+      REAL*8 ZJOCH  (0:JPCHGO,JPNSATGO)
+      REAL*8 ZAVGNRM(0:JPCHGO,JPNSATGO)
+      REAL*8 PAV(NFLEV,JPNAVGO,JPPFGO),PSAV(JPNSAVGO,JPPFGO)
+      REAL*8 PSSV(JPNSSVGO,JPPFGO),PCV(JPNCVGO,JPPFGO)
+      REAL*8 PEMISGO(JPPFGO,JPCHGO)
+      REAL*8 PGOES(JPCHPFGO),ZPTB(JPCHPFGO)
+      REAL*8 TAUSFC(JPCHPFGO)
+C
+      INTEGER J,JCH,I,ISAT,KSAT,JOFF,IO,JF,ISATON,KCNT
+      INTEGER IBEGIN, IBEGINOB, ILAST, ILASTOB
+      INTEGER ILOWLVL, IMODE
+      INTEGER KNPF, KNCHPF, INOBSJO
+      INTEGER JO, JDATA, IDATA, ITYP, IDATEND, IDATYP
+      INTEGER JK, JN, ICHN, IPROCES, JL, INDX
+      INTEGER ILANSEA, INDXREG, INDXCLD, INUMCHN
+      INTEGER KLENPF,KNAV,KNSAV,KNSSV,KNCV
+C
+      INTEGER KSURF(JPPFGO)
+      INTEGER KCHAN(JPCHPFGO),KPROF(JPCHPFGO)
+      INTEGER KCHNESDIS(JPCHPFGO)
+      INTEGER KFAIL(JPCHPFGO)
+      INTEGER IPTOBS  (JPPFGO)
+      INTEGER IPTDATA (JPCHPFGO)
+      INTEGER IPTCHPF(JPPFGO,JPCHGO)
+      INTEGER IPTREG(JPPFGO)
+      INTEGER IPTCLD(JPPFGO)
+      INTEGER ISCANPOS(JPPFGO)
+      INTEGER ISATZEN(JPPFGO)
+      INTEGER INOBSCH(0:JPCHGO,JPNSATGO)
+      INTEGER IFAIL(JPPFGO,JPNSATGO)
+C
+      INTEGER  ISRCHEQ, MRFVOI, MRFCLS
+      EXTERNAL ISRCHEQ, MRFVOI, MRFCLS
+      EXTERNAL LINTV2, EXTRAP
+C
+      LOGICAL  ASSIM
+C
+      if(nobgoes.eq.0) return
+C
+C*    1.  Initialization
+C     .   --------------
+C
+c
+      KCNT = 0
+C
+      ZTODEG = 180.0 / RPI
+      KLENPF = NFLEV
+      KNAV   = JPNAVGO
+      KNSAV  = JPNSAVGO
+      KNSSV  = JPNSSVGO
+      KNCV   = JPNCVGO
+C
+C
+C*    1.1   Set index for model's lowest level
+C     .     ----------------------------------
+C
+      IF ( VLEV(1) .LT. VLEV(NFLEV) ) THEN
+         ILOWLVL = NFLEV
+      ELSE
+         ILOWLVL = 1
+      ENDIF
+C
+C*    1.2   Initialize RT global common block
+C     .     ---------------------------------
+C
+      DO J = 1, NOBGOES
+         MJOGO(J) = 0
+      ENDDO
+C
+C*    2.  Computation of (HX - Z)/SIGMA for GOES data only
+C     .   ------------------------------------------------
+C
+ 200  CONTINUE
+C
+      DLSUM   = 0.
+      INOBSJO = 0
+      DO J = 1, NSATGO
+         DO I = 0, JPCHGO
+            INOBSCH(I,J) = 0
+            ZJOCH  (I,J) = 0.0
+            ZAVGNRM(I,J) = 0.0
+         ENDDO
+      ENDDO
+      DO I = 0, JPCHGO
+         ZO3OBS(I) = 0.0
+      ENDDO
+C
+C**   Loop over all files
+C
+      DO 295 JF = 1, NFILES
+       IF ( CFAMTYP(JF).EQ.'GO' .AND. NBEGINTYP(JF).GT.0 ) THEN
+        IBEGIN   = NBEGINTYP(JF)
+        ILAST    = NENDTYP  (JF)
+        IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+        ILASTOB  = MOBDATA(NCMOBS,ILAST )
+C
+C**   Loop over all satellites specified by user
+C
+        DO 290 KSAT = 1, NSATGO
+         KNPF=0
+         DO I = 1, JPCHPFGO
+            ZPTB    (I) = 0.
+            PGOES   (I) = 0.
+            ZDTB    (I) = 0.
+            ZTBO    (I) = 0.
+            KFAIL   (I) = 1
+            IPTDATA (I) = 1
+         ENDDO
+         DO I = 1, JPPFGO
+            DO J = 1, NFLEV
+               ZT     (I,J) = 0.
+               ZQ     (I,J) = 0.
+               ZLQ    (I,J) = 0.
+               ZVLEV  (I,J) = 0.
+            ENDDO
+            ZLAT (I)  = 0.
+            ZPS  (I)  = 0.
+            ZTG  (I)  = 0.
+            PANGL(I) = 0.
+            DO J = 1, JPCHGO
+               PEMISGO(I,J) = 0.
+            ENDDO
+         ENDDO
+         DO 290 JO = IBEGINOB, ILASTOB
+C
+C*    .  2.1  Extract general information for this observation point
+C     .       ------------------------------------------------------
+C
+C*          Only process GOES/RADIANCES data (codtype = 180) to be assimilated?
+C
+            IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+            IF ( IDATYP .EQ. 180  ) THEN
+               IDATA   = MOBHDR(NCMRLN,JO)
+               IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+               ASSIM = .FALSE.
+               DO JDATA= IDATA, IDATEND
+                 IF ( MOBDATA(NCMASS,JDATA).EQ.1 ) THEN
+                   ASSIM = .TRUE.
+                 ENDIF
+               ENDDO
+C
+               ISAT = MOD(MOBHDR(NCMITY,JO)/1000,1000)
+cnwa
+C
+C*             Currently processed satellite
+C*             N.B.: 252=GOES08, 253=GOES09, 254=GOES10,
+C*                   255=GOES11, 256=GOES12, etc...
+C
+               ISAT  = ISAT - 244
+C
+               IF ( ASSIM .AND. (ISAT .EQ. NIDSATGO(KSAT)) ) THEN
+C
+                  KCNT = KCNT + 1
+                  KNPF = KNPF + 1
+C
+                  MJOGO(KCNT) = JO
+                  ISATON = ISAT
+C
+C*                Extract Latitude
+C
+                  ZLAT(KNPF) = ROBHDR(NCMLAT,JO) * ZTODEG
+C
+C*                Extract land/sea flag
+C
+                  ILANSEA = MOBHDR(NCMOFL,JO)
+cnwa                  INDXREG = ISRCHEQ ( MLISREG, NREGST, ILANSEA )
+                  KSURF(KNPF) = ILANSEA
+C
+C*                Extract processing technique
+C
+                  IPROCES = MOBHDR(NCMITY,JO)/1000000
+cnwa                  INDXCLD = ISRCHEQ ( MLISCLD, NCLDST, IPROCES )
+C
+C*                Extract scan position
+C
+                  ISCANPOS(KNPF) = MOD(MOBHDR(NCMBOX,JO),100)
+C
+C*                Extract satellite zenith angle
+C
+                  ISATZEN(KNPF) = MOBHDR(NCMBOX,JO)/10000
+                  PANGL(KNPF) = (ISATZEN(KNPF)-9000) / 100.0
+C
+                  IPTCLD(KNPF) = 1
+                  IPTREG(KNPF) = 1
+C
+                  ZTG(KNPF) = GOMTGRG(1,JO) + GOMTGR(1,JO)
+                  ZPS(KNPF) = GOMPSG(1,JO) + GOMPS(1,JO)
+C
+                  DO JL = 1, NFLEV
+                    ZT   (KNPF,JL) = GOMTG(JL,JO) + GOMT(JL,JO)
+                    ZLQ  (KNPF,JL) = GOMQG(JL,JO) + GOMQ(JL,JO)
+                    ZQ   (KNPF,JL) = EXP(ZLQ(KNPF,JL))
+                    ZVLEV(KNPF,JL) = RPPOBS(JL,JO)
+                  ENDDO
+c
+                  IPTOBS(KNPF) = JO
+
+                  DO JDATA = IDATA, IDATEND
+                  ITYP = MOBDATA(NCMVNM,JDATA)
+C
+C                    A emissivity (elements )?
+                     IF ( ITYP.EQ.12163 ) THEN
+                        ZVAR = ROBDATA8(NCMPRL,JDATA)
+                        ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+                        PEMISGO(KNPF,ICHN) = ZVAR
+                     ENDIF
+                  ENDDO
+               ENDIF
+            ENDIF
+            IF ( KNPF .LE. 0                          ) GO TO 290
+            IF ( KNPF .NE. JPPFGO .AND. JO .NE. ILASTOB ) GO TO 290
+C
+C
+C*    .  2.4  Extrapolation of humidity profile above 300mb (kg/kg)
+C     .       -----------------------------------------------------
+C
+cnwa            Not done ....
+C
+            IF ( LDBGGO ) THEN
+               JOFF = 0
+               WRITE(NULOUT,*)'KNPF, KNCHPF, KSAT = ',
+     &                         KNPF, KNCHPF, KSAT
+               DO JN = 1, KNPF
+                  WRITE(NULOUT,*)'KFAIL = ', KFAIL(JN)
+                  WRITE(NULOUT,*)'IPTCLD = ', IPTCLD(JN)
+                  WRITE(NULOUT,*)'IPTREG = ', IPTREG(JN)
+                  WRITE(NULOUT,*)'Temperature profile (K)'
+                  WRITE(NULOUT,*)(JN,I,ZT(JN,I),ZQ(JN,I),I=1,NFLEV)
+                  WRITE(NULOUT,*)'Surface air variables: T(K),',
+     &                           'lnq(kg/kg),Ps(hpa)'
+                  WRITE(NULOUT,*)ZT(JN,28),LOG(ZQ(JN,28)),ZPS(JN)
+                  WRITE(NULOUT,*)'Surface skin variables: Tskin(K)'
+                  WRITE(NULOUT,*)ZTG(JN)
+                  INUMCHN = NCHNAGO(IPTCLD(JN),IPTREG(JN),KSAT)
+                  WRITE(NULOUT,*)'Angles: satzen,satazim,solzen,',
+     &                           'relsolazim(deg)'
+                  WRITE(NULOUT,*) PANGL(JN)
+                  WRITE(NULOUT,*)'Surface type'
+                  WRITE(NULOUT,*) KSURF(JN)
+                  JOFF = JOFF + INUMCHN
+               ENDDO
+            ENDIF
+c 290     CONTINUE
+C
+C*    .  2.6  Forward RT model
+C     .       ----------------
+C
+C*          NIMODE du namelist permet d'activer le calcul de la matrice Jacobienne
+C
+            IMODE = NIMODE 
+C
+            CALL RTGOES(ZPTB,PGOES,ZPS,ZT,ZQ,
+     &  ZTG,PANGL,ZLAT,ZO3OBS,NFLEV,PEMISGO,
+     &  KSURF,KNPF,ZVLEV,NIDSATGO(KSAT),KCNT,IMODE)
+C
+C
+C
+9261        FORMAT(40I3)
+9262        FORMAT(1X,10F8.3)
+9263        FORMAT(1X,10F8.6)
+9264        FORMAT(1X,10F8.6)
+9265        FORMAT(1X,F8.3,1X,F8.6,1X,F8.6)
+
+C
+C
+C
+C** Next bunch !
+c
+ 285        KNPF = 0
+            DO I = 1, JPCHPFGO
+               ZPTB  (I) = 0.
+               PGOES(I) = 0.
+c               ZDTB (I) = 0.
+c               ZTBO (I) = 0.
+            ENDDO
+            DO I = 1, JPPFGO
+               DO J = 1, NFLEV
+                  ZT     (I,J) = 0.
+                  ZQ     (I,J) = 0.
+                  ZLQ    (I,J) = 0.
+                  ZVLEV  (I,J) = 0.
+               ENDDO
+               DO J = 1, JPCHGO
+                  PEMISGO(I,J) = 0.
+               ENDDO
+               ZLAT (I)  = 0.
+               ZPS  (I)  = 0.
+               ZTG  (I)  = 0.
+               PANGL(I) = 0.
+            ENDDO
+C
+ 290     CONTINUE
+C
+        ENDIF
+ 295  CONTINUE
+C
+C*    3.  Close up
+C     .   --------
+C
+300   CONTINUE
+C
+      NGOES = KCNT
+      PJO = 0.0D0
+*
+**    Printout of mean Jo and normalized average for each satellite.
+*
+ 9000 FORMAT(//,10X,"-ROBSGOES: computing Jo and residuals to GOES"
+     S     ," observations")
+C
+ 9001 CONTINUE
+      RETURN
+      END

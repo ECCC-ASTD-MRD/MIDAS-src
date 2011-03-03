@@ -1,0 +1,43 @@
+#if defined (DOC)
+* Revisions:
+*           L. Fillion ARMA/EC 4 Nov 2009: mdimppcvar(nppcnvar) contains the nb. vert. levels output for each cppcvar(jvar)..
+C
+C     COMDECK: COMPOST
+C     --------------
+C     Control of the post-processing
+C     --------------
+C     Variables to be included in the post-processing
+C     .  NSTAMP         : CMCDATESTAMP
+C     .  NPPCVAR        : total number of variables to be post-processed
+C     .  CPPCVAR(7)     : vector containing the names of the variables to
+C     .                   be processed
+C     .  NPPLEV(NLEVPP) : if NPPLEV(JLEV) = 1, this model level is included in the
+C     .                   post-processing, NPPLEV(JLEV) = 0, it is not included.
+C     .  LTTOUT,LVTOUT,LHUOUT,LOLQOUT : logical that control writing in fst
+C                                       file of some dependent variables
+C     .  LANLHU2ES      : .true.: Analysis of T-Td is calculated from
+C                         analysis of specific humidity(see varout.ftn)
+C     .  LSWPHES        : .TRUE. to consider water and ice phase
+C                         .FALSE. to consider water phase only
+C                         in the calculation of T-Td(see mhuaesgd2.ftn)
+C     .  RLIMIT_ES      : upper limit for T-Td
+C     .  RLIMIT_ES      : upper limit for T-Td
+*     .  mdimppcvar(20) : contains the nb. vert. levels output for each cppcvar(jvar)..
+#endif
+      INTEGER          NPPCVAR, NPPLEV(JPNFLEV), NSTAMP
+      INTEGER          NIP2, NDEET, NPAS, NIDATYP, NPAK
+      INTEGER          NIG1, NIG2, NIG3, NIG4
+      integer mdimppcvar(20)
+      REAL*8           RLIMIT_ES
+      CHARACTER*2      CPPCVAR(20)
+      CHARACTER*1      CGRTYP, CVARPOST
+      logical lttout,lvtout,lhuout,lolqout,lgzout
+      logical lanlhu2es,lswphes
+      COMMON /COMPOST/ NPPCVAR, NPPLEV, NSTAMP
+     +     , NIG1, NIG2, NIG3, NIG4
+     +     , NIP2, NDEET, NPAS, NIDATYP, NPAK, mdimppcvar
+      COMMON /COMPOSTC/ CPPCVAR, CGRTYP, CVARPOST
+      common /comlpost/ lttout,lvtout,lhuout,lolqout,lgzout
+     +                 ,lanlhu2es,lswphes
+      common /COMPOSTR/ rlimit_es
+

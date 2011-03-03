@@ -1,0 +1,49 @@
+Module mod_tovs
+
+  Use mod_cparam, only  :  JPPF,JPNSAT,JPLEV,JPCH, &
+                           JPCHUS,JPNAV,JPNSAV, & 
+                           JPNSSV,JPNCV,JPCHPF
+
+  Use rttov_types, only : &
+     rttov_coef          ,&
+     profile_type        ,&
+     transmission_Type   ,&
+     radiance_type
+
+  Use qc_profiles
+
+  Use out_airs
+
+  Use out_iasi
+
+
+
+  type( rttov_coef )  ,     allocatable :: coef(:)           ! coefficients
+  type( profile_Type ),     allocatable :: profilesdata(:)   ! profiles buffer used in rttov calls
+  type( profile_Type ),     allocatable :: profiles(:)       ! profiles, all profiles
+  type( profile_Type ),     allocatable :: profiles_tl(:)    ! tl profiles, all profiles
+  type( profile_Type ),     allocatable :: profiles_ad(:)    ! ad profiles, all profiles
+  type( prof_qc )     ,     allocatable :: profiles_qc(:)    ! profiles buffer used in airsqc call
+  type(radiance_Type)     :: radiancedata_d                  ! radiances full structure buffer used in rttov calls
+  type(radiance_Type) ,     allocatable :: radiance_d(:)     ! radiances organized by profile
+  type(radiance_Type) ,     allocatable :: radiance_tl(:)    ! tl radiances organized by profile
+  type(radiance_Type) ,     allocatable :: radiance_ad(:)    ! tl radiances organized by profile
+  type(transmission_Type) :: transmission                    ! transmissions full structure buffer used in rttov calls
+  type(transmission_Type) , allocatable :: transmission_d(:) ! transmissions organized by profile
+  real(8)                 , allocatable :: emissivity(:,:)   ! surface emissivities organized by profiles and channels
+
+  type(airsoutburp)       , allocatable :: airspro(:)        ! additional variables to add to airs burp file
+  type(iasioutburp)       , allocatable :: iasipro(:)        ! additional variables to add to iasi burp file
+
+  Integer, allocatable :: nchan(:)              ! number of channels per instrument
+  Integer, allocatable :: ichan(:,:)            ! list of channels per instrument
+  Integer, allocatable :: lsensor(:)            ! sensor number for each profile
+  Integer, allocatable :: lobsno (:)            ! observation number in cma for each profile
+  Integer, allocatable :: ltovsno (:)           ! index in TOVS structures for each observation in cma
+  Integer, Allocatable :: list_sensors(:,:)     ! list of platform, satellite and instrument
+  Integer, allocatable :: rttov_errorstatus(:)  ! rttov error status for each profile
+
+  Integer JPMOTOP, JPMOLEV
+
+End Module mod_tovs
+

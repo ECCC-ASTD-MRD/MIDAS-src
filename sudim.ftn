@@ -1,0 +1,653 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUDIM(KULOUT)
+#if defined (DOC)
+*
+***s/r SUDIM * - Setting up of the dimensions
+*     --------
+*
+*Author:   Based on a subroutine written by
+*          Mats Hamrud and Philippe Courtier  *ECMWF*
+*     P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     . P. Gauthier *ARMA/AES May 25,1993: -Dimensions for specific humidity
+*     .                                     and surface pressure
+*     . S. Pellerin *ARMA/AES Sept 97.
+*                   - Control of the different model state of the 3Dvar
+*                     through COMSTATE, COMSTATEC and COMSTNUM common
+*                     blocks variables (comstate.cdk).
+*     . S. Pellerin *ARMA/SMC May 2000
+*                . Introduction of nconf 141
+*     . M. Buehner *ARMA/MSC April 2002
+*                . Read NAMSV and adjust NVADIM to include space for SVs
+*     . M. Tanguay *ARMN/MSC Jan. 2005
+*                . Introduction of minimizer N1CG1
+*     . M. Buehner *ARMA May 2008
+*                . Added namelist variables for vertical localization of
+*                  correlations and using multiple latitude bands
+*                  of correlations and new approach for PtoT and
+*                  localized Tb correlations (NANALVAR=4)
+*     . L.Fillion - ARMA/MSC - 10 Jul 05: Upgrade to v10_0_0 Apr 06
+*                . Added maxconvpt; i.e. maximum allowed convective points on the minimization grid.
+*     . L.Fillion - ARMA/MSC - 15 Jan 06: Upgrade to v10_0_0 Apr 06
+*                . Relocated (nimla,njmla) in namgrd.cdk as new parameters (miobsbuf,mjobsbif).
+*     . L.Fillion - ARMA/MSC - 17 Jan 06: Upgrade to v10_0_0 Apr 06
+*                . Add lsimulcor option to use simulated Horizontal correlations
+*     . L.Fillion - ARMA/EC - 15 Aug 2007 - Update lam4d to v_10_0_3.
+*     . L.Fillion - ARMA/EC - 25 Mar 2008 - Include Shallow-Water option.
+*     . L.Fillion - ARMA/EC - 22 Apr 2008 - Introduce nbandmax.
+*     . L.Fillion - ARMA/EC - 11 Jul 2008 - Introduce use of Gaussian horizontal error correlations if lgauscor
+*     . L.Fillion - ARMA/EC - 3 Oct 2008 - Introduce lunitptot : Useful for testing purposes.
+*     . L.Fillion - ARMA/EC - 3 Nov 2008 - Introduce mbal_order : Order of dynamical balance imposed on anal incr.
+*     . L.Fillion - ARMA/EC - 12 Jan 2009 - Upgrade lam4d to v_10_1_2 of 3dvar.
+*     . L.Fillion - ARMA/EC - 15 May 2009 - Upgrade lam4d to v_10_2_2 of 3dvar and introduction of nitlap,nfldlap.
+*     . L.Fillion - ARMA/EC - Sept 2009 - Include here the call to sugrd_param. Improve printout of parameters.
+*     . L.Fillion - ARMA/EC - 26 Oct 2009 - Initialize nila,njla also when grd_roule = .true.
+*     . L.Fillion - ARMA/EC - 12 Nov 2009 - Introduce lcva_3db to perform 3dvar fgat using TL-INMI.
+*     . L.Fillion - ARMA/EC - 19 Nov 2009 - Enforce grd_roule = .false. for nconf.ne.141 until further development of bgcheck.
+*     . L.Fillion - ARMA/EC - 30 Nov 2009 - Read NAMGRD to get grd_dx, grd_dy to set max. nb. of bi-fourier bands.
+*                                           also: use ntrunc to define the spectral dimensions used.
+*     . Bin He    - ARMA/EC - Oct. 2009
+*                   - Implemented MPI to 3DVAR 
+*     . L.Fillion - ARMA/EC - 4 May 2010 - Upgrade on v_11_01_2b.
+*     . L.Fillion - ARMA/EC - 13 May 2010 - Introduce Hemispheric spectral transform.
+*     . L.Fillion - ARMA/EC - 20 May 2010 - Correct weakness no mni_mach,mnj_mach specification. Lower bounds now ensured.
+*---------------
+* 
+*     Purpose: initialize  COMDIM and read the namelist NAMDIM
+*
+*Arguments:
+*     i: KULOUT  (logical unit for optional printing i.e. debugging)
+*     o: comdim.cdk (COMDECK containing the dimensions of the model
+*
+#endif
+C
+!modular1      use modstag, only: nj_s, njlath_s, level2_staggrid, lstagwinds
+      USE  procs_topo 
+!modular1      USE  spect_mpi 
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comct0.cdk"
+#include "comcva.cdk"
+#include "comsv.cdk"
+#include "comstate.cdk"
+#include "comfftla.cdk"
+#include "comgem.cdk"
+#include "namgem.cdk"
+#include "comgrd_param.cdk"
+#include "comcse1.cdk"
+      INTEGER KULOUT, IAL1, IAL2, IERR, ILEN
+      integer jfi,jfj,ila
+      real*8 zdx,zdy,zlx,zly,zd,zkmax,zk2,zk
+C
+C
+C*       1. SET DEFAULT VALUES AND MODIFY THEM.
+C           -----------------------------------
+C
+ 100  CONTINUE
+C
+C*    1.1 Default values
+C     --------------
+ 110  CONTINUE
+C
+      N1GC = 3
+      NVAMAJ = 6
+      NIMPRES =  5
+      NITERMAX = 400
+      RDF1FAC  = 0.25d0
+      NITERJOB = -1
+      NSIMMAX  = 500
+      NGRTEST  = 0
+      NGRANGE  = 10
+      NCNTVAR  = 2
+      NEVALJ   = 1
+      mni_mach = 10
+      mnj_mach = 10
+      mbal_order = 1
+      grd_typ = 'GU'
+      grd_roule = .false.
+      multi_grd = 0
+      lcva_hsp=.false.
+      lcva_hemis=.false.
+      lcva_euclid=.false.
+      lcva_helm=.true.
+      lcva_3db=.false.
+      lcornsmin=.false.
+      lsimulcor=.false.
+      lsetcross=.true.
+      lcorloc  =.false.
+      lgauscor=.false.
+      lgausvercor=.false.
+      lsw      =.false.
+      l1obs    =.false.
+      lunitptot=.false.
+      lwrthess =.true.
+      lsdevsim =.false.
+      lfgsim   =.false.
+      LINMI    = .false.
+      LDIABATIC= .false.
+      lobsclip = .true.
+      lxbar    = .true.
+      ltlmend  = .false.
+      LTSTSP   = .FALSE.
+      LTSTCVA  = .FALSE.
+      LNONSEP  = .TRUE.
+      REPSG    = 1e-3
+      LRSTART  = .FALSE.
+      LSTAT    = .TRUE.
+      RSIGGZ   =  0.0
+      RSIGOZ   =  1.0
+      RSIGTR   =  1.0
+      RSIGPS   =  1.0
+      RSIGTG   =  1.5
+      RSIGQ    =  1.0
+      RNU2     = 0.0
+      RSIGUU   =  2.92
+      RSIGTT   = 0.0
+      NANALVAR = 3
+      RPORVO   = 6000.E3
+      RPORDI   = 6000.E3
+      RPORTT   = 3000.E3
+      RPORQ    = 3000.E3
+      RPORPS   = 3000.E3
+      RPORTG   = 500.E3
+      RPORGZ   = 1200000.
+      RPOROZ   = 1200000.
+      RPORTR   = 1200000.
+      CIMP     = 'G'
+      CFG      = 'F'
+      CCOV     = 'H'
+      CSCAL    = 'P'
+      CFGERR   = 'G'
+      CHUM     = 'LQ'
+      CPTOT    = 'GD'
+      EPSNEG   = 1e-6
+      SELECT0  = 0
+      BFGSB    = 2
+      IMODE3   = 0
+      NTUNESTATS = 0
+      LPERTOBS = .FALSE.
+      NFLEVPTOT = -999
+      RSCALEPTOT = 1.0
+      LHBHT1   = .FALSE.
+      LUSE3DSTD = .FALSE.
+      NTRUNC3DSTD = 0
+      LCOPYPTOT = .FALSE.
+      CFLTUNEOBS= 'none'
+      CFLTUNEBG = 'none'
+      RVLOCBALT   = 0.0
+      RVLOCPSI    = 0.0
+      RVLOCCHI    = 0.0
+      RVLOCUNBALT = 0.0
+      RVLOCLQ     = 0.0
+      RVLOCPSITT  = 0.0
+      NLATMIN1    = 40
+      NLATMAX1    = 50
+      NLATMIN2    = 71
+      NLATMAX2    = 81
+!
+      WRITE(UNIT=KULOUT,FMT='(//," Modification of the dimensions:"
+     S     ," of the control variable",/,10x
+     S     ,"- reading the namelist NAMCVA in SUDIM")')
+C
+      CALL READNML('NAMCVA',IERR)
+      if(grd_typ.eq.'LU') then
+        CALL READNML('NAMGRD',IERR) ! to get grd_dx, grd_dy for setting maximal nb. of bi-fourier bands
+      endif
+!
+!modular1      level2_staggrid = .false.
+!
+      if(lcva_3db) then
+        linmi = .true.
+        write(nulout,*) 'SUDIM: lcva_3db is true so enfore LINMI = .true.'
+      endif
+!
+      if(mbal_order.eq.0) then
+        lsetcross = .false.
+        write(nulout,*) 'SUDIM: mbal_order = 0, lsetcross forced to FALSE'
+      endif
+!
+      NI=240
+      NIINC=240
+      NJ=120
+      NJINC=120
+      NFLEV=28
+      NISUR=2
+      NJSUR=2
+      NVGAUX=0
+      NTRUNCINC=108
+      NTRUNC=108
+      NVSAUX=0
+!modular1      nprecon=0
+      NLATBIN=1
+C
+ 120  CONTINUE
+      WRITE(UNIT=KULOUT,FMT='(//,'' MODIFICATION OF THE DIMENSIONS:''
+     S     ,''- reading the namelist NAMDIM in SUDIM'')')
+C
+      CALL READNML('NAMDIM',IERR)
+!
+!modular1      if(grd_roule) call sugrd_param
+!
+      write(nulout,*) 'SUDIM: grd_typ = ',grd_typ
+      write(nulout,*) 'SUDIM: multi_grd = ',multi_grd
+      write(nulout,*) 'SUDIM: grd_roule = ',grd_roule
+      write(nulout,*) 'SUDIM: nanalvar = ',nanalvar
+      write(nulout,*) 'SUDIM: multi_grd = ',multi_grd
+      write(nulout,*) 'SUDIM: mbal_order = ',mbal_order
+      write(nulout,*) 'SUDIM: l1obs = ',l1obs
+      write(nulout,*) 'SUDIM: lsetcross = ',lsetcross
+      write(nulout,*) 'SUDIM: lsimulcor = ',lsimulcor
+      write(nulout,*) 'SUDIM: lgauscor = ',lgauscor
+      write(nulout,*) 'SUDIM: lgausvercor = ',lgausvercor
+      write(nulout,*) 'SUDIM: lvloc = ',lvloc
+      write(nulout,*) 'SUDIM: lcorloc = ',lcorloc
+      write(nulout,*) 'SUDIM: lsdevsim = ',lsdevsim
+      write(nulout,*) 'SUDIM: lunitptot = ',lunitptot
+      write(nulout,*) 'SUDIM: lwrthess = ',lwrthess
+      write(nulout,*) 'SUDIM: lcornsmin = ',lcornsmin
+      write(nulout,*) 'SUDIM: lobsclip = ',lobsclip
+      write(nulout,*) 'SUDIM: nflevptot = ',nflevptot
+      write(nulout,*) 'SUDIM: lcva_helm = ',lcva_helm
+      write(nulout,*) 'SUDIM: lcva_hsp = ',lcva_hsp
+      write(nulout,*) 'SUDIM: lcva_hemis = ',lcva_hemis
+      write(nulout,*) 'SUDIM: lcva_euclid = ',lcva_euclid
+      write(nulout,*) 'SUDIM: lcva_3db = ',lcva_3db
+      write(nulout,*) 'SUDIM: mni_mach = ',mni_mach
+      write(nulout,*) 'SUDIM: mnj_mach = ',mnj_mach
+!
+!modular1      write(kulout,fmt='(4x,A,L3)')' LEVEL2_staggrid = ',level2_staggrid
+!
+      if((grd_typ.eq.'LU'.or.lcva_hemis).and.nanalvar.ne.3) then
+        call abort3d(nulout,'SUDIM: LAM3D/4D : NANALVAR must be 3')
+      endif
+!
+      if(grd_typ.eq.'LU'.or.grd_roule) then
+        nila = ni
+        njla = nj
+        write(nulout,*) 'SUDIM: nila = ',nila
+        write(nulout,*) 'SUDIM: njla = ',njla
+        if(multi_grd.eq.1) then
+          write(nulout,*) 'SUDIM: nila2 = ',nila2  ! already set by sugrd_param
+          write(nulout,*) 'SUDIM: njla2 = ',njla2
+        endif
+      endif
+C
+C*    .   1.3 Check the consistency between the number of spectral
+C     .       and gridpoint fields
+C     .       ----------------------------------------------------
+C
+      IF(NFLEVPTOT.lt.0) NFLEVPTOT=NFLEV
+      if(grd_typ.eq.'LU') then
+        nflevptot = nflev
+        write(KULOUT,*) 'sudim: grd_typ.eq. LU, nflevptot reset to nflev !'
+      endif
+ 130  CONTINUE
+      IF(NVGD.NE.NVSP)THEN
+         WRITE(NULOUT,FMT=9130)'  NVGD',NVGD,'  NVSP',NVSP
+         NVGD = NVSP
+      END IF
+      IF(NVG2D.NE.NVSP2D) THEN
+         WRITE(NULOUT,FMT=9130)' NVG2D',NVG2D,'NVSP2D',NVSP2D
+         NVG2D = NVSP2D
+      END IF
+      IF(NVGAUX.NE.NVSAUX) THEN
+         WRITE(NULOUT,FMT=9130)'NVGAUX',NVGAUX,'NVSAUX',NVSAUX
+         NVGAUX = NVSAUX
+      END IF
+ 9130 FORMAT(4X,'-INCONSISTENCY IN THE NUMBER OF FIELDS: ',A6,'= ',I4
+     S     ,4X,A6,'= ',I4,/,8X,'RESET TO THE SPECTRAL VALUES')
+C
+C*    2. Initialize the dimensions (dependent dimensions).
+C
+      NI=NIINC
+      NJ=NJINC
+      NTRUNC=NTRUNCINC
+!
+!
+! set inner (non-extended) LAM analysis grid dimensions
+!
+      if(grd_typ.eq.'LU'.or.multi_grd.gt.0) then
+        if((nila.lt.30).or.(njla.lt.30)) then
+          call abort3d(nulout,'SUDIM: too little grid to be acceptable')
+        else if(njla.eq.45) then
+          call abort3d(nulout,'SUDIM: Choose njla = 40 or 48')
+        else if(njla.eq.75) then
+          call abort3d(nulout,'SUDIM: Choose njla = 72 or 80')
+        else if(njla.eq.125) then
+          call abort3d(nulout,'SUDIM: Choose njla = 120 or 128')
+        else if(njla.eq.135) then
+          call abort3d(nulout,'SUDIM: Choose njla = 128 or 144')
+        else if(njla.eq.225) then
+          call abort3d(nulout,'SUDIM: Choose njla = 216 or 240')
+        else if(njla.eq.243) then
+          call abort3d(nulout,'SUDIM: Choose njla = 240 or 250')
+        else if(njla.eq.375) then
+          call abort3d(nulout,'SUDIM: Choose njla = 360 or 384')
+        endif
+!
+        mni_in = nila-mextendx
+        mnj_in = njla-mextendy
+!
+        if(mni_mach.le.10) then
+          mni_mach = mni_in-2
+          write(kulout,*)' SUDIM: mni_mach too small... reset to ',mni_mach
+        endif
+        if(mnj_mach.le.10) then
+          mnj_mach = mnj_in-2
+          write(kulout,*)' SUDIM: mnj_mach too small... reset to ',mnj_mach
+        endif
+!
+        if(multi_grd.eq.1) then
+          mni_in2 = nila2-mextendx2
+          mnj_in2 = njla2-mextendy2
+          if(mni_mach2.lt.0) mni_mach2 = mni_in2-2
+          if(mnj_mach2.lt.0) mnj_mach2 = mnj_in2-2
+        endif
+      else
+        mni_in = ni
+        mnj_in = nj
+      endif
+!
+! set maximum number of tiles for ptotla regression matix
+!
+      maxtiles = 500
+C
+ 200  CONTINUE
+C
+C*    .   2.1 Collocation grid dimensions.
+C     .       ---------------------------
+C
+ 210  CONTINUE
+!
+      if(grd_typ.ne.'LU') then
+        NJLATH = (NJ + 1)/2
+!modular1        nj_s = nj-1
+!modular1        njlath_s = nj/2
+        NJBEG  = - NJSUR + 1
+        NJEND  = NJ + NJSUR
+        IF(MOD(NJ,2).EQ.0) THEN
+          NJMAX = NJ+1
+        ELSE
+          NJMAX = NJ
+        END IF
+C
+        NIBEG = 0
+        NIEND = NI + NISUR
+      else if(grd_typ.eq.'LU') then
+        NIBEG = 0
+        NIEND = NI + 1
+        NJBEG = 0
+        NJEND = NJ + 1
+        write(nulout,*) ' '
+        write(nulout,*) '*******************************************************'
+        write(nulout,*) 'sudim: nisur and njsur not used in LAM4D: see sudim.ftn'
+        write(nulout,*) '*******************************************************'
+        write(nulout,*) ' '
+      endif
+C
+      WRITE(KULOUT,*)' DIMENSIONS IN GRID SPACE ------:'
+      WRITE(UNIT=KULOUT,FMT=9210)
+     S     NJ  ,NJLATH, NJSUR,NJBEG ,NJEND ,NI ,NISUR, NIBEG
+     S     , NIEND,NFLEV
+ 9210 FORMAT(4X,
+     S     ' NJ    =',I6,' NJLATH  =',I6,
+     S     ' NJSUR =',I6,' NJBEG   =',I6,' NJEND =',I6,/,4X,
+     S     ' NI    =',I6,' NISUR   =',I6,' NIBEG =',I6,
+     S     ' NIEND =',I6,' NFLEV = ',I6)
+!modular1      write(kulout,fmt='(4x,A,i6,A,i6)')'NJ_S = ',nj_s,'  NJLATH_S = ',njlath_s
+      IF(NLATBD.GT.NJLATH) THEN
+         NLATBD = NJLATH
+         WRITE(NULOUT,9211)NLATBD, NJLATH
+      END IF
+ 9211 FORMAT(6X,'Width of latitudinal band is too wide. In SUDIM'
+     S     ,' NLATBD is reset to NJLATH',/10X,'NLATBD = ',I3,4X
+     S     ,'NJLATH = ',I3)
+C
+C*    .   2.2 Spectral dimensions
+C     .       -------------------
+C
+      if (grd_typ.eq.'LU') then
+        lrpnfft=.true.
+        nfi=nila/2+1          ! for Limited-Area (LA) config
+        nfi = min(nfi,ntrunc)
+        if(lrpnfft) then
+          nfj=njla/2+1          ! for Limited-Area (LA) config
+          nfj = min(nfj,ntrunc)
+          mlen1d=2*nila+2     ! A enlever quand dft1d se fera avec RPN dans les operateurs
+        else
+          nfj=njla            ! NCAR DFT
+          mlen1d=2*nila+2      ! for 1D DFT
+          mlen2d=2*nila+2*njla   ! for 2D DFT
+        endif
+!
+        if(multi_grd.eq.1) then
+          lrpnfft=.true.
+          nfi2=nila2/2+1          ! for Limited-Area (LA) config
+          if(lrpnfft) then
+            nfj2=njla2/2+1          ! for Limited-Area (LA) config
+!cluc            mlen1d2=2*njla2+2     ! A enlever quand dft1d se fera avec RPN dans les operateurs
+          else
+            nfj2=njla2            ! NCAR DFT
+!            mlen1d2=2*nila2+2      ! for 1D DFT
+!            mlen2d2=2*nila2+2*njla2   ! for 2D DFT
+          endif
+        endif
+        rwvband=0.5
+!
+        zdx=grd_dx*111.0   ! grd_dx,grd_dy already initialized by sugeom.ftn called by su0yoma.ftn
+        zdy=grd_dy*111.0
+        zlx=(nila-1)*zdx
+        zly=(njla-1)*zdy
+        zd=max(zlx,zly)
+        zkmax=sqrt(real(nfi**2+nfj**2))
+        write(nulout,*) 'sudim: nila,njla,zlx,zly=',nila,njla,zlx,zly
+        zk2=(zkmax/zlx)**2+(zkmax/zly)**2
+        zk=zd*sqrt(zk2)
+        nbimax=nint(zk)
+        write(nulout,*) 'sudim: nbimax = ',nbimax
+        nbandmax = nint(zkmax)
+        write(nulout,*) 'sudim: nbandmax = ',nbandmax
+!
+        if(lrpnfft) then  ! the following spectral count is for RPN 2D FFT (see suwvnb_rpn.ftn)
+          nla=(2*ntrunc+2)*(2*ntrunc+2)
+!cluc          nla=(ni+2)*(nj+2)
+          nla_la = nla
+        else
+          nla = nfi*nfj   ! NCAR FFT2D
+        endif
+        write(nulout,*) 'sudim: grd_typ =',grd_typ
+        write(nulout,*) 'sudim: nfi,nfj=',nfi,nfj
+        write(nulout,*) 'sudim: nla=',nla
+      else
+        NLA = (NTRUNC + 1)*(NTRUNC +2)/2
+        nla_glb = nla
+        NLARH = (NTRUNC+1)*(NTRUNC+1)
+        IF(MOD(NTRUNC+1,2).EQ.0) THEN
+           NTRUNCMX = NTRUNC + 1
+        ELSE
+           NTRUNCMX = NTRUNC
+        END IF
+        IF(MOD(NLA,2).EQ.0) THEN
+           NLADIM = NLA+1
+        ELSE
+           NLADIM = NLA
+        END IF
+!
+        nband = ntrunc +1
+        write(nulout,*) 'sudim: nband = ',nband
+C
+        WRITE(KULOUT,*)' DIMENSIONS IN SPECTRAL SPACE ------:'
+        WRITE(UNIT=KULOUT,FMT=9220)NTRUNC, NTRUNCMX, NLA, NLADIM, NLARH
+ 9220   FORMAT(/,' Triangular truncation of order '
+     S     ,'NTRUNC =',I4,' NTRUNCMX: ',I4,'  NLA:',I8,'  NLADIM:',I8
+     S     ,'   NLARH:',I8)
+C
+C*    .   2.3 Check for aliasing.
+C     .       ------------------
+C
+        IAL1=3*NTRUNC - (2*NJ-1)
+        IF (IAL1 .GT. 0) THEN
+           WRITE(UNIT=KULOUT,
+     S        FMT='('' ******* ALIASING FOR PRODUCTS OF FIELDS ''
+     S        ,'' IN THE N-S DIRECTION  ******** '')')
+*
+           IAL1=2*NTRUNC - (2*NJ-1)
+           IF (IAL1 .GT. 0) THEN
+              WRITE(UNIT=KULOUT,
+     S           FMT='('' ******* ALIASING FOR SPECTRAL TRANSFORMS ''
+     S           ,'' IN THE N-S DIRECTION  ******** '')')
+           ENDIF
+         ENDIF
+*
+        IAL2=3*NTRUNC - (NI-1)
+        IF (IAL2 .GT. 0) THEN
+           WRITE(UNIT=KULOUT,
+     S        FMT='('' ******* ALIASING FOR PRODUCTS OF FIELDS ''
+     S        ,'' IN THE E-W DIRECTION  ******** '')')
+*
+           IAL2=2*NTRUNC - (NI-1)
+           IF (IAL2 .GT. 0) THEN
+              WRITE(UNIT=KULOUT,
+     S           FMT='('' ******* ALIASING FOR SPECTRAL TRANSFORMS ''
+     S           ,'' IN THE E-W DIRECTION  ******** '')')
+           ENDIF
+         ENDIF
+      endif
+C
+C*    3. Initialize the number of fields.
+C     -----------------------------------
+ 300  CONTINUE
+C
+C*    .   3.1  Total number of 2D fields in grid space
+C     .        ---------------------------------------
+C
+ 310  CONTINUE
+C
+      NKGDIM = (NVGD+ NVGAUX)* NFLEV + NVG2D
+C
+      WRITE(UNIT=KULOUT,FMT=9310)
+     S     NVGD,NVGAUX,NVG2D,NKGDIM
+ 9310 FORMAT(/,5X,'Number of variables in grid',
+     S     ' space',/,
+     S     ' NVGD   =',I6,' NVGAUX =',I6,
+     S     ' NVG2D   =',I6,' NKGDIM =',I6)
+C
+C
+C*    .   3.2  Total number of spectral fields
+C     .        -------------------------------
+C
+      nksdim = (NVSP + NVSAUX)*NFLEV + NVSP2D
+!
+      if(grd_typ.eq.'LU') then
+        if(nanalvar.eq.4) then
+          nksdim2 = nksdim+nflev
+        else
+          nksdim2 = nksdim
+        endif
+        write(nulout,*) 'sudim: nksdim,nksdim2 = ',nksdim,nksdim2
+      else
+        if(nconf.ne.300.and.nconf.ne.800.and.nconf.ne.801.and.nconf.ne.500.and.nanalvar.eq.4) then
+          NKSDIM2 = NKSDIM+NFLEV
+        else
+          NKSDIM2 = NKSDIM
+        endif
+      endif
+C
+      WRITE(UNIT=KULOUT,FMT='(/,5X,''Number of variables in SPECTRAL'',
+     S     '' space'',/,
+     S     '' NVSP   ='',I6,'' NVSAUX ='',I6,
+     S     '' NVSP2D   ='',I6,'' NKSDIM ='',I6)')
+     S     NVSP,NVSAUX,NVSP2D,NKSDIM
+
+C  3.x Create process topology and carry out domain decomposition.
+           CALL procstopo(NIBEG,NIEND,NJBEG,NJEND,NKSDIM,NTRUNC,NJSUR)
+
+
+C
+C*    4. Dimension of the control variable
+C     .  ---------------------------------
+C
+ 400  CONTINUE
+C
+C Read NAMSV and adjust adjust NVADIM, if necessary, for incorporating SVs into B
+      CSVNORM='E'
+      NSV=0
+      NUMSEG=1
+      NSVMODE=0
+      IF(NINT(NCONF/100.0).EQ.6) CALL READNML('NAMSV',IERR)
+      ILEN = NSV
+      IF(NSVMODE.eq.1) THEN
+        NVADIM = ILEN
+      ELSEIF(NSVMODE.eq.2) THEN
+        NVADIM = NKSDIM*(2*NLA - NTRUNC -1) + ILEN
+      ELSE
+        if(grd_typ.ne.'LU') then
+          NVADIM = NKSDIM*(2*NLA - NTRUNC -1)
+        else
+          NVADIM = NKSDIM*2*NLA
+        endif
+      ENDIF
+cbue
+cbue      NVADIM=NVADIM+NFLEV*(2*NLA - NTRUNC -1)
+C
+      NVADIM=NVADIM*NLATBIN
+C
+      IF(N1GC.EQ.2) THEN
+         NMTRA = 3*NVADIM + NVAMAJ*(2*NVADIM + 1)
+      ELSE IF(N1GC.EQ.3)THEN
+        write(nulout,*) 'sudim: NVADIM=',NVADIM
+        write(nulout,*) 'sudim: NVAMAJ=',NVAMAJ
+        write(nulout,*) 'sudim: 4*NVADIM=',4*NVADIM
+        write(nulout,*) 'sudim: NVAMAJ*(2*NVADIM + 1)=',NVAMAJ*(2*NVADIM + 1)
+        write(nulout,*) 'sudim: NMTRA=',4*NVADIM + NVAMAJ*(2*NVADIM + 1)
+        NMTRA = 4*NVADIM + NVAMAJ*(2*NVADIM + 1)
+      ELSE IF(N1GC.EQ.4)THEN
+         NMTRA = 1 + NVAMAJ*(2*NVADIM + 1)
+         NWORK = 5*NVADIM + NVAMAJ
+      ELSE
+         NMTRA = NVADIM*2
+      END IF
+      WRITE(KULOUT,9401)N1GC, NVAMAJ,NVADIM,NMTRA
+ 9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3
+     S     ,/5X,"NVADIM =",1x,I14,3X,"NMTRA =",1X,I14)
+      IF(N1GC.EQ.4) THEN
+      WRITE(KULOUT,9402)NWORK
+ 9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
+      ENDIF
+!
+      if(nmtra.le.0.) then
+        call abort3d(nulout,'SUDIM: LAM3D/4D : Wrong dimension for NMTRA')
+      endif
+C
+C*    5. Some dimensions for fields related to physical processes
+C        --------------------------------------------------------
+C
+      maxconvpt = 0.1*(mni_in*mnj_in)
+C
+C*    6. For Poisson solver
+C        --------------------------------------------------------
+C
+      nitlap = 2
+      nfldlap = 2
+C
+      write(nulout,*) 'sudim: nitlap = ',nitlap
+C
+      RETURN
+      END

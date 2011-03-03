@@ -1,0 +1,116 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+***S/R AMHUAESV  -  ADJOINT OF THE CALCULATION ES=T-TD FROM T AND Q
+*
+*
+      SUBROUTINE AMHUAESV
+#if defined (DOC)
+*
+*Author
+
+*
+* 000      C.CHOUINARD  (August 1998)- ADAPTATION AU 3DVAR
+*
+*Object
+*          to calculate the adjoint OF specific humidity surface pressure
+*          and temperature from the adjoint of dew point depression .
+*          No ice phase is considered and the pressure vector is given.
+*
+*Revision: C. Charette *ARMA/AES  mar 99
+*             - Replace gomps1 by gomu1
+*
+*          JM Belanger CMDA/SMC  Dec 2000
+*                   . 32 bits conversion
+*                     (Use of generic intrinsic LOG)
+*          Y.J. Rochon and Cecilien Charette - SMC - Sept 2004
+*            - Conversion to hybrid vertical coordinate
+*            - Use of new functions FOTW8 and FODTW8 (in fintern8.cdk)
+*            - follows WMO convention on T-Td vs HU relationship)
+*
+*
+#endif
+      IMPLICIT NONE
+*IMPLICITES
+*--------------------------------------------------------------------------
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+*
+#include "commvo.cdk"
+#include "commvo1.cdk"
+#include "commvog.cdk"
+*
+      REAL*8 ZE, ZCTE, ZDEN, ZTD, ZTDA,ZHU,ZGAMMA,ZQBRANCH
+      INTEGER JOBS,JLEV,ILEN,IERR
+      REAL*8 zpresb
+      EXTERNAL HPDEALLC, HPALLOC
+C
+*
+#include "comphy.cdk"
+#include "dinternv.cdk"
+#include "finternv.cdk"
+#include "finternva.cdk"
+#include "dintern8.cdk"
+#include "fintern8.cdk"
+*
+*
+c
+      DO JLEV=1,NFLEV
+*
+        DO JOBS=1,NOBTOT
+*
+         ZTDA = GOMES1(JLEV,JOBS)
+*
+*      Forward calculations of saturation vapour pressure and dewpoint temperature
+*      and adjoint of vapour pressure from adjoint of dewpoint temperature
+
+         ZHU = exp(gomqg(jlev,jobs))
+         ZE = FOEFQ(ZHU, RPPOBS(JLEV,JOBS))
+*
+         ZCTE=FOTW8(ZE)
+         ZTD=ZCTE
+         ZGAMMA=FODTW8(ZTD,ZE)
+*
+*      adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
+*
+         ZQBRANCH = FQBRANCH(ZHU)
+         GOMQ1(JLEV,JOBS) = GOMQ1(JLEV,JOBS) -
+     $                 ZQBRANCH*FOEFQA (ZTDA,ZGAMMA,ZHU,
+     $                                  RPPOBS(JLEV,JOBS))
+
+
+         zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
+     &            /(1.0-rptopinc/rprefinc))**rcoefinc
+
+
+         GOMU1(JLEV,JOBS) = GOMU1(JLEV,JOBS)
+     $               -ZQBRANCH*FOEFQPSA(ZTDA,ZGAMMA,ZHU,
+     $                VHYBINC(JLEV))-(1.-ZQBRANCH)*
+     $                (ZGAMMA*zpresb*ZTDA)
+
+         GOMT1(JLEV,JOBS) = GOMT1(JLEV,JOBS) + ZTDA
+*
+*
+        ENDDO
+*
+      ENDDO
+*
+      RETURN
+      END
+
+

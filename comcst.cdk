@@ -1,0 +1,97 @@
+#if defined (DOC)
+!
+!
+!*    Common of physical constants COMCST
+!     -----------------------------------
+!     1. Fundamental constants
+!     .  RPI  : value of PI
+!     .  RCLUM: speed of light
+!     .  RHPLA: Planck s constant
+!     .  RKBOL: Boltzmann s constant
+!     .  RKAVO: Avogadro s number
+!
+!     2. Astronomical constants
+!     .  RDAY  : day (in seconds)
+!     .  REA   : Half g. axis
+!     .  REPSM : mean anomaly
+!     .  RSIYEA: sideral year
+!     .  RSIDAY: sideral day
+!     .  ROMEGA: Omega (2*PI/RA)
+!
+!     3. Geoide
+!     .  RA    : radius of the earth
+!     .  RG    : Gravity (~9.8m/s**2)
+!     .  R1SA  : inverse of the radius of the earth
+!
+!     4. Radiation
+!     .  RSIGMA : Stefan-Boltzmann s constant
+!     .  RI0    : Solar constant
+!
+!     5. Thermodynamic gas phase
+!     .  R      : perfect gas constant
+!     .  RMD    : dry air mass
+!     .  RMV    : vapour mass
+!     .  RD     : dry air constant
+!     .  RV     : vapour constant
+!     .  RCPD   : Cpd
+!     .  RCVD   : Cvd
+!     .  RCVV   : Cvv
+!     .  RKAPPA : Rd/Cpd
+!     .  RETV   : Rv/Rd -1
+!     .  RTRPL  : Triple-point water temperature (K)
+!     .  RCHLC  : Latent heat of condensation (J KG-1)
+!     .  RCHLF  : Latent heat of fusion (J KG-1)
+!     .  RCHLS  : Latent heat of sublimation (J KG-1)
+!
+!       5.1 Thermodynamic liquid phase
+!
+!     .     RHOW   : Density of liquid water
+!
+!       5.2 Useful thermodynamic constants
+!
+!     .     REPSI  : RMD/RMV (~ 0.622)
+!
+!
+!     6. Constants for unit conversions.
+!     .  RKNTMS  : winds from m/s to knots
+!     .  RMSKNT  : winds from knots to m/s
+!     .  RMBTPA  : pressure from millibar to pascal
+!     .  RPATMB  : pressure from pascal to millibar
+!     .  RMINHU  : minimum for specific humidity first guess
+!     .  RMAXES  : maximum for dew point depression for observed values
+!     .  RDECAM  : GZ (m2s-2) to Decameters 
+!     .  RGZ     : From GZ in Decameters to m2s-2.
+!     .  rdeg2rad: Degree to Radians
+!     .  rrad2deg: Radians to Degrees
+!
+!     7. Constants associated with the machine accuracy
+!     .  RINFINI : largest real number representable by the machine
+!     .  RZERO   : smallest real number representable by the machine
+!     .  RPRECIS : machine accuracy (1.E-6 --> 6 significant digits)
+!     .  NR8SIZ  : Size of a REAL*8 word on Current machine
+!
+#endif
+      REAL*8 RPI,RCLUM,RHPLA,RKBOL,RNAVO
+      REAL*8 RDAY,REA,REPSM,RSIYEA,RSIDAY,ROMEGA
+      REAL*8 RA,RG,R1SA
+      REAL*8 RSIGMA,RI0
+      REAL*8 R,RMD,RMV,RD,RV,RCPD,RCPV,RCVD,RCVV
+      REAL*8 RKAPPA,RETV
+      REAL*8 RKNTMS, RMSKNT,RMBTPA,RPATMB, RMINHU, RMAXES
+      REAL*8 RINFINI, RZERO, RPRECIS, RGZ,RDECAM
+      REAL*8 rdeg2rad,rrad2deg
+      REAL*8 RTRPL,RCHLC,RCHLF,RCHLS,RHOW,REPSI
+      INTEGER NR8SIZ
+
+      COMMON/YOMCST/RPI   ,RCLUM ,RHPLA ,RKBOL ,RNAVO
+      COMMON/YOMCST/RDAY  ,REA   ,REPSM ,RSIYEA,RSIDAY,ROMEGA
+      COMMON/YOMCST/RA    ,RG    ,R1SA
+      COMMON/YOMCST/RSIGMA,RI0
+      COMMON/YOMCST/R     ,RMD   ,RMV   ,RD    ,RV    ,RCPD
+      COMMON/YOMCST/RCPV  ,RCVD  ,RCVV  ,RKAPPA,RETV
+      COMMON/YOMCST/RKNTMS, RMSKNT
+      COMMON/YOMCST/RINFINI, RZERO, RPRECIS, NR8SIZ
+      COMMON/YOMCST/RMBTPA,RPATMB,RMINHU,RMAXES
+      COMMON/YOMCST/rdeg2rad,rrad2deg
+      COMMON/YOMCST/RTRPL,RCHLC,RCHLF,RCHLS,RHOW,REPSI
+      COMMON/YOMCST/RGZ,RDECAM

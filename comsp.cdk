@@ -1,0 +1,52 @@
+#if defined (DOC)
+*
+*     . J. Halle    *CMDA/AES Oct 99.
+*             - Added ground temperature (TG) to the model state.
+*     . L. Fillion    *ARMA/MSC - Feb 2005
+*             - Add nindxy array for limited area LAM4D analysis.
+*     . L. Fillion    *ARMA/EC - 23 Jan 2008
+*             - Add nindxy_rpn array
+*     . L. Fillion    *ARMA/EC - 6 Jan 2009
+*             - Upgrade to v_10_1_2 of 3dvar.
+C
+C     COMDECK: COMSP
+C     --------------
+C
+C     Spectral  model state
+C     ----------------------
+C     SP(NLA,2,NKSDIM):  global state
+C
+C     Splitting of SP
+C     ---------------
+C     SPVOR(NLA,2,NFLEV)   :   vorticity at all levels of the model
+C     SPDIV(NLA,2,NFLEV)   :  divergence at all levels of the model
+C     SPTT (NLA,2,NFLEV)   : temperature at all levels of the model
+C     SPQ  (NLA,2,NFLEV)   : specific humidity at all levels of the model
+C     SPGZ (NLA,2,NFLEV)   : geopotential at all levels of the model
+C     SPOZ (NLA,2,NFLEV)   : ozone at all levels of the model
+C     SPTR (NLA,2,NFLEV)   : undefined passive tracer
+C     SPPS (NLA,2,1)       : surface pressure
+C     SPTG (NLA,2,1)       : ground temperature
+C
+#endif
+      integer nindxy(nfi,nfj+1)
+      integer nindxy_rpn(ni+2,nj+2)
+C
+      REAL*8 SP(NLA,2,NKSDIM),SPVOR(NLA,2,NKSDIM)
+     S     , SPDIV(NLA,2,NKSDIM), SPTT(NLA,2,NKSDIM)
+     S     , SPQ(NLA,2,NKSDIM), SPPS(NLA,2,NKSDIM),SPTG(NLA,2,NKSDIM)
+     S     , SPGZ(NLA,2,NKSDIM), SPOZ(NLA,2,NKSDIM), SPTR(NLA,2,NKSDIM), SPTB(NLA,2,NFLEV)
+C
+      REAL*8 SPLAT(NLA,2,NKSDIM,NLATBIN)
+
+      pointer (ptindxy,nindxy)
+      pointer (ptindxy_rpn,nindxy_rpn)
+      POINTER (PTSP,SP), (PTSVOR,SPVOR), (PTSDIV,SPDIV), (PTSTT,SPTT)
+     S     ,  (PTSPQ,SPQ) , (PTSPPS,SPPS), (PTSPTG,SPTG)
+     S     , (PTSPGZ,SPGZ),  (PTSPOZ,SPOZ), (PTSPTR,SPTR), (PTSPTB,SPTB)
+     S     , (PTSPLAT,SPLAT)
+C
+      COMMON /POMSP/PTSP,PTSVOR,PTSDIV,PTSTT
+     S     ,PTSPQ, PTSPPS, PTSPTG
+     S     ,PTSPGZ,PTSPOZ,PTSPTR,PTSPTB,PTSPLAT, ptindxy, ptindxy_rpn
+

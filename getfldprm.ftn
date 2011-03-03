@@ -1,0 +1,181 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid
+     &     ,cdvar,kstampv,knmaxlev,kinmpg,kulout,kip1style,kip1kind)
+      implicit none
+c
+      integer kinmpg,kulout,kstampv,knmaxlev,knlev,kgid
+      integer kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
+      character*(*) cdtypvar
+      character*(*) cdvar
+      character*(*) cdetiket
+#if defined (DOC)
+*
+***s/r getfldprm
+*
+*
+*     Author  : S. Pellerin ARMA/AES Nov. 1999
+*
+*     Revision :
+*               J. Halle *CMDA/AES  dec 2000
+*                 - adapt to TOVS level 1b.
+*               S. Pellerin *ARMA/SMC Nov. 2001
+*                 - clean up write statements
+*               C. Charette *ARMA/SMC Sept 2004
+*                 - Conversion to hybrid vertical coordinate
+*                 - Added arguments kip1style,kip1kind
+
+*
+**    Purpose: Get 3D grid parameters for a specific trial field
+*              and check for consitancies between grid parameters
+*              of the levels.
+*
+*Arguments
+*
+* Input:
+*     cdvar   : variable name to get the vertical levels from
+*     kstampv : valid date time stamp of the variable
+*     knmaxlev: maximum number of levels
+*     kinmpg  : file unit of trial field
+*     kulout  : standard output
+*
+* Output:
+*     kip1s(knmaxlev) : list of ip1s of variable cdvar
+*     kip2            : ip2 for variable cdvar
+*     kip3            : ip3 for variable cdvar
+*     knlev           : number of levels of variable cdvar
+*     cdetiket        : etiket of field cdvar
+*     cdtypvar        : typvar of field cdvar
+*     kgid            : handle of the field descriptor
+*     kip1style       : style in which ip1 is encoded (15 or 31 bits)
+*     kip1kind        : kind of vertical coord encoded in ip1
+*
+#endif
+      integer fstinl,fstprm,ezqkdef,newdate
+      integer ini,inj,ink,ikeys(1),jlev,ier
+      integer idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf,
+     &     iextra1, iextra2, iextra3, iig12, iig22,
+     &     iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4,
+     &     inpas,inpas2, iswa, iubc, iip2, iip3
+c
+      integer ipmode,idate2,idate3,idatefull
+      real    zlev
+      character *12 cletiket
+      character *4 clnomvar
+      character *2 cltypvar
+      character *1 clgrtyp2,clgrtyp,clstring
+      logical llflag
+      pointer (pikeys,ikeys)
+c
+      call hpalloc(pikeys,max(knmaxlev,1),ier,1)
+c
+      knlev = 0
+c
+      ier = fstinl(kinmpg,ini,inj, ink, kstampv, ' ', -1, -1, -1,
+     &     ' ',cdvar,ikeys, knlev, knmaxlev)
+*
+      ier   = newdate(kstampv,idate2,idate3,-3)
+      idatefull = idate2*100 + idate3/1000000
+      idateo = -9999
+      ideet = -9999
+      inpas = -9999
+      cdetiket = '-9999999'
+      clgrtyp = '-'
+      kip2 = -9999
+      kip3 = -9999
+      cdtypvar = '-'
+      idatyp = -9999
+      iig1 = -9999
+      iig2 = -9999
+      iig3 = -9999
+      iig4 = -9999
+      llflag = .true.
+c
+      if (knlev.ne.0) then
+        do jlev = 1, knlev
+          ier = fstprm(ikeys(jlev), idateo2, ideet2, inpas2, ini, inj,
+     &         ink,inbits,idatyp2, kip1s(jlev),iip2, iip3,
+     &         cltypvar,clnomvar,cletiket,clgrtyp2, iig12, iig22,iig32
+     &         ,iig42,iswa,ilng,idltf,iubc,iextra1, iextra2, iextra3)
+          llflag = (llflag.and.(idateo.eq.idateo2.or.idateo.eq.-9999))
+          llflag = (llflag.and.(ideet.eq.ideet2.or.ideet.eq.-9999))
+          llflag = (llflag.and.(inpas.eq.inpas2.or.inpas.eq.-9999))
+          llflag = (llflag.and.(cdetiket.eq.cletiket.or.cdetiket.eq.
+     &         '-9999999'))
+          llflag = (llflag.and.(clgrtyp.eq.clgrtyp2.or.clgrtyp.eq.'-'))
+          llflag = (llflag.and.(kip2.eq.iip2.or.kip2.eq.-9999))
+          llflag = (llflag.and.(kip3.eq.iip3.or.kip3.eq.-9999))
+          llflag = (llflag.and.(cdtypvar.eq.cltypvar.or.cdtypvar.eq.
+     &         '-'))
+          llflag = (llflag.and.(idatyp.eq.idatyp2.or.idatyp.eq.-9999))
+          llflag = (llflag.and.(iig1.eq.iig12.or.iig1.eq.-9999))
+          llflag = (llflag.and.(iig2.eq.iig22.or.iig2.eq.-9999))
+          llflag = (llflag.and.(iig3.eq.iig32.or.iig3.eq.-9999))
+          llflag = (llflag.and.(iig4.eq.iig42.or.iig4.eq.-9999))
+          if (llflag) then
+            idateo = idateo2
+            ideet = ideet2
+            inpas = inpas2
+            cdetiket = cletiket
+            clgrtyp = clgrtyp2
+            kip2 = iip2
+            kip3 = iip3
+            cdtypvar = cltypvar
+            idatyp = idatyp2
+            iig1 = iig12
+            iig2 = iig22
+            iig3 = iig32
+            iig4 = iig42
+          else
+            write(kulout,*)
+     &           '****** Unit ', kinmpg
+     &           ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3'
+     &           ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 '
+     &           ,'for variable ',cdvar,' and datev, ',kstampv
+            CALL ABORT3D(kulout,'GETFLDPRM')
+          endif
+        enddo
+c
+        kgid = ezqkdef(ini,inj,clgrtyp,iig1,iig2,iig3,iig4,kinmpg)
+C
+C-------Determine the style in which ip1 is encoded (15bits or 31 bits)
+C       A value <= 32767 (2**16 -1)  means that ip1 is compacted in 15 bits
+C       Determine the type of P which was encoded in IP1
+C
+        if(kip1s(1) .le. 32767) then
+          kip1style = 3
+        else
+          kip1style = 2
+        endif
+c
+c-------Determine the type of P  (see doc. of convip)
+c
+        ipmode = -1
+        call CONVIP(kip1s(1),zlev,KIP1KIND,
+     &       ipmode,clstring, .false. )
+      else
+        ier = fstinl(kinmpg,ini,inj, ink, -1, ' ', -1, -1, -1,
+     &       ' ',cdvar,ikeys, knlev, knmaxlev)
+        write(kulout,*) 'Error - GETFLDPRM: no record found at time '
+     &       ,idatefull,' for field ',cdvar,' but',knlev,
+     &         ' records found in unit ',kinmpg
+      endif
+c
+      call hpdeallc(pikeys,ier,1)
+c
+      return
+      end

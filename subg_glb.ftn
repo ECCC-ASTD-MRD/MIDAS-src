@@ -1,0 +1,90 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE subg_glb(CDCTL,KULOUT)
+#if defined (DOC)
+*
+***s/r subg_glb  - Initializes the Global analysis Background term.
+*
+*Author  : Luc Fillion - ARMA/EC - 6 Aug 2010 (from v_11_01B sucov.ftn. Refer to it for historic of upgrades).
+*
+*Revision:
+*    -------------------
+*    Purpose: to initialize the inverse forecast error correlation
+*     .        and the forecast error standard deviation
+*
+*Arguments
+*     CDCTL   : 'I' --> identity is used for the correlation in  spectral space
+*     .         'H' --> homegeneous and isotropic error   correlation
+*               '0' --> return no statistics needed
+#endif
+      USE procs_topo
+      IMPLICIT NONE
+*implicits
+#include "comct0.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcva.cdk"
+#include "comspg.cdk"
+#include "comcorr.cdk"
+#include "compstat.cdk"
+*
+      CHARACTER*1 CDCTL
+      INTEGER JLEV, JLA, JK, JGL, KULOUT,ji,jj
+      REAL*8 ZVORSC, ZDIVSC, ZGZSC, ZPSSC, ZTGSC, ZQSC, zozsc
+      REAL*8 ZSIGU, ZSIGV, ZSIGQ, ZSIGPS, ZSIGTG, ZCON, ZGZMIN
+      REAL*8 DLFACT
+      INTEGER :: ierr,gensize 
+!
+!!
+      IF(CDCTL .EQ. '0') THEN
+         WRITE(NULOUT,9000)CDCTL
+         RETURN
+      ENDIF
+ 9000 FORMAT(//,3(" *****************"),/
+     S     ," subg_glb: CDCTL=",A1,"       NO EXECUTION",/
+     S     ,3(" *****************"))
+     !
+      write(nulout,*) 'subg_glb: Initializes the Global analysis Background term'
+!
+!
+!*1.  Prepare background error statistics 
+!     -----------------------------------
+!
+      call sustatsglb
+!
+!*2.  INITIALIZE THE PROJECTION THAT DIAGONALIZES CORNS
+!     -------------------------------------------------
+!
+      if(nanalvar.eq.3) then
+!modular1        if(.not.lcornsmin) call sucorns_3
+      else if(nanalvar.eq.4) THEN
+        IF(myid == 0) THEN
+           call sucorns2
+        ENDIF 
+        gensize=NKSDIM2*NKSDIM2*(NTRUNC+1)*NLATBIN
+        CALL rpn_comm_bcast(corns,gensize,"mpi_double_precision",0,"GRID",ierr)
+
+        gensize=(NJEND -NJBEG +1)
+        CALL rpn_comm_bcast(rgsigpsb,gensize,"mpi_double_precision",0,"GRID",ierr)
+
+        gensize= NFLEV*(NJEND -NJBEG +1)
+        CALL rpn_comm_bcast(rgsigtb,gensize,"mpi_double_precision",0,"GRID",ierr)
+      endif
+!
+      return
+      end

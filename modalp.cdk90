@@ -1,0 +1,12 @@
+module modalp
+  implicit none
+  save
+#if defined (DOC) 
+  !
+  ! Module MODALP:  precomputed Legendre polynomials
+  !
+  !  
+  ! --------------------------------------------------------
+#endif
+  real*8, pointer:: dalp(:,:), dealp(:,:)
+  end module modalp

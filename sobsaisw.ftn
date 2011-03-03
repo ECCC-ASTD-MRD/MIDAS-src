@@ -1,0 +1,148 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SOBSAISW
+#if defined (DOC)
+*
+***s/r  SOBSAISW
+*
+*Author  : R. Sarrazin *CMC/AES  February 2000
+*Revision:
+*          Sept 2000, R. Sarrazin,
+*           - remove bitset 9
+*          P. KOCLAS  *CMDA/SMC  October 2000
+*              -ADD SATWIND FAMILY
+*          R. Sarrazin, Nov 2006
+*              -add ES obs 
+*
+**    Purpose:
+*      Refuse elements which are too close to the surface.
+*
+*Arguments:
+*
+*          none
+#endif
+      IMPLICIT NONE
+*implicits
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvohr.cdk"
+#include "cvcord.cdk"
+*
+      INTEGER JPINEL
+      PARAMETER(JPINEL=4)
+      INTEGER J,JF,JOBS,JDATA,IOBS1,IOBS2
+      LOGICAL LLPRINT
+      REAL*8 ZVAL,ZDIFF
+      INTEGER ITYP,IDATA,IDATEND
+      INTEGER ILEM,IBEGIN,ILAST
+      INTEGER IKOUNTREJ(JPINEL),IKOUNTT
+      INTEGER ILISTEL(JPINEL)
+      DATA    ILISTEL/11003,11004,12001,12192/
+      REAL*8    RLISTCRIT
+      DATA    RLISTCRIT/-50./
+C
+C
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) ' SUBROUTINE SOBSAISW '
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '****************************************************'
+      WRITE(NULOUT,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
+      WRITE(NULOUT,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
+      WRITE(NULOUT,* ) '****************************************************'
+      WRITE(NULOUT,* ) ' '
+      LLPRINT = .FALSE.
+C
+C     SET COUNTERS TO ZERO
+C
+      DO J=1,JPINEL
+         IKOUNTREJ(J)=0
+      END DO
+      IKOUNTT=0
+C
+C     LOOP OVER OBSERVATION FILES
+C
+      DO JF = 1,NFILES
+        IF ( (CFAMTYP(JF) .EQ. 'AI' .OR. CFAMTYP(JF) .EQ. 'SW') .AND.
+     &       (NBEGINTYP(JF) .GT. 0) ) THEN
+         IBEGIN=NBEGINTYP(JF)
+         ILAST=NENDTYP(JF)
+         IOBS1=MOBDATA(NCMOBS,NBEGINTYP(JF))
+         IOBS2=MOBDATA(NCMOBS,NENDTYP(JF))
+         WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
+C
+C
+         DO JOBS=IOBS1,IOBS2
+C
+            IDATA    = MOBHDR(NCMRLN,JOBS)
+            IDATEND  = MOBHDR(NCMNLV,JOBS) + IDATA - 1
+C
+C        REJECT DATA TOO CLOSE TO THEDEL OROGRAPHY ,PUT TO
+C        MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
+C
+            DO JDATA= IDATA, IDATEND
+               IKOUNTT=IKOUNTT+1
+               ZVAL=ROBDATA8(NCMPPP,JDATA)
+               ZDIFF=  (ZVAL- GOMPSHR(1,JOBS) )/100.
+               IF ( ZDIFF .GT. RLISTCRIT ) THEN
+                  ITYP=MOBDATA(NCMVNM,JDATA)
+                  DO J=1,JPINEL
+                     ILEM=ILISTEL(J)
+                     IF ( ITYP .EQ. ILEM ) THEN
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,224) 'Reject OBS '
+     &                       ,jobs,ITYP,ROBDATA8(NCMPPP,JDATA),ZDIFF
+                        ENDIF
+                        MOBDATA(NCMASS,JDATA)=0
+                        IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                        MOBDATA(NCMFLG,JDATA)=
+     &                     ibset( MOBDATA(NCMFLG,JDATA) , 18 )
+                     ENDIF
+                  END DO
+               ENDIF
+            END DO
+C
+      END DO
+C
+C
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* )
+     &     '*****************************************************************'
+      WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,* )
+     &     '*****************************************************************'
+      WRITE(NULOUT,* ) ' '
+  222 FORMAT(2x,a29,5(2x,i5))
+  223 FORMAT(2x,a29,5(2x,f5.0))
+  224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
+C
+      ENDIF
+      END DO
+C
+      IKOUNTT=0
+      DO JDATA=1,NDATA
+         IF ( MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      END DO
+      WRITE(NULOUT
+     &     ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
+      WRITE(NULOUT,* ) ' '
+
+      RETURN
+      END

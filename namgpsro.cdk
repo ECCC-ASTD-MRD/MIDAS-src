@@ -1,0 +1,23 @@
+#if defined (DOC)
+C
+C     COMDECK NAMGPSRO
+C     ----------------
+C
+C     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
+C     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
+C     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
+C     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
+C
+C     Recommended defaults:
+C
+C     SURFMIN  = 1000.
+C     HSFMIN   = 1000.
+C     HTPMAX   = 40000.
+C     BGCKBAND = 0.05
+C
+#endif
+      NAMELIST /NAMGPSRO/
+     $     SURFMIN,
+     $     HSFMIN,
+     $     HTPMAX,
+     $     BGCKBAND

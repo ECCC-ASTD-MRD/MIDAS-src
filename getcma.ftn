@@ -1,0 +1,201 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE GETCMA(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
+     +          KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL)
+      IMPLICIT NONE
+*
+      INTEGER KNDAT,KRVAL
+      INTEGER KELE,KVAL,KNT,KVCORD,KINDEX
+      INTEGER KLIST(KELE)
+      INTEGER KFLAGS(KELE,KVAL,KNT)
+*
+      REAL*8    PVALUES(KELE,KVAL,KNT),PVCORD(KVAL),PROFIL(KVAL)
+*
+      LOGICAL LDFLAG,LDSAT,LDERR
+*
+#if defined (DOC)
+************************************************************************
+*
+****s/r GETCMA -GET BODY OF CMA REPORT
+*
+*Author    . P. KOCLAS(CMC/CMSV TEL. 4628)
+*Revision:
+*            P. KOCLAS   : November 1998
+*            .  Update quality control flags for krval for krval .ne. ncmoma ncmomp
+*            JM Belanger CMDA/SMC  Jan 2001
+*                   . 32 bits conversion
+*          . P. Koclas *CMC/CMDA Dec      2003:
+*                -conversion for surface wind
+*          . D. Anselmo *ARMA/SMC November 2004:
+*                -treatment of ln specific humidity
+*
+*    PURPOSE : TRANSFER  THE IN-CORE FORMAT (CMA) OF THE 3-D VARIATIONAL
+*              ANALYSIS TO VECTORS DIMENSIONED FOR OUTPUT TO CMC
+*              BURP FILES.
+*
+*    ARGUMENTS:
+*     INPUT:
+*
+*           -PVALUES : DATA BLOCK
+*           -KLIST   : LIST OF BUFR ELEMENTS
+*           -KFLAGS  : QUALITY CONTROL FLAGS
+*
+*           -LDFLAG  :  .TRUE. --> INSERT FLAGS IN CMA
+*                      .FALSE. --> INSERT DUMMY VALUE(2**12)
+*           -LDERR   :  .TRUE. --> INSERT OBS ERROR  IN CMA (HUMSAT...)
+*           -LDSAT   :  .TRUE. --> INSERT REFERENCE PRESURE IN CMA
+*           -KELE    : NUMBER OF ELEMENTS IN DATA BLOCK
+*           -KVAL    : NUMBER OF LEVELS IN DATA BLOCK
+*           -KNT     :  THIRD DIMENSION OF DATA BLOCK
+*           -KNDAT   :  THIRD DIMENSION OF DATA BLOCK
+*           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
+*           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
+*           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
+*           -KRVAL   :  INDEX OF ELEMENT IN CMA LIST
+*                          ( 1 ---> OBS ERROR , 2 ---> O-A )
+*
+*    OUTPUT:
+*           -KNDAT   : AMOUNT OF DATA INSERTED IN CMA FILE
+*
+************************************************************************
+#endif
+*
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+#include "cparbrp.cdk"
+#include "comcst.cdk"
+#include "comnumbr.cdk"
+      INTEGER IFIND
+      INTEGER ILEM,IND,IIND,IP,IK,IFLG
+      INTEGER JI,JJ,JDATA
+      LOGICAL LLOMAFI
+*
+      REAL*8 ZTORAD,ZFACT
+      REAL*8 ZERR,ZSTAT,ZPRL
+      real*8 padd,pmul
+*
+************************************************************************
+*     SET BAD FLAG VALUE IIND AND UNIT CONVERSION CONSTANTS
+************************************************************************
+*
+      IIND  =-1
+      ZTORAD=RPI/180.0D0
+*
+      ZFACT =VCONV
+*
+      IP    =NDATA + 1
+      IND   =0
+*
+************************************************************************
+*     PUT ALL NON MISSING DATA IN CMA FILE
+*     EXIT IF THERE IS MORE DATA AVAILABLE THAN ALLOCATED TO CMA FILE
+*     DATA IS CONVERTED TO UNITS USED BY 3D-VAR ANALYSIS.
+************************************************************************
+*
+         LLOMAFI=(KRVAL .EQ. NCMOMF) .OR. (KRVAL .EQ. NCMOMA) .OR. (KRVAL .EQ. NCMOMI)
+         IK= KINDEX
+         IF (LLOMAFI) THEN
+            DO JI=1,KELE
+              ILEM=IFIND(KLIST(JI))
+              DO JJ=1,KVAL
+                 if ( ilem .le. 0 )PVALUES (JI,JJ,IK)=PPMIS
+              END DO
+            END DO
+         ENDIF
+         DO JI=1,KELE
+            ILEM=IFIND(KLIST(JI))
+            IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
+               DO JJ=1,KVAL
+                 if( ldsat ) profil(jj)=ROBDATA(NCMPRL,IP+IND)
+                  IF (  PVCORD(JJ) .NE. PPMIS )  THEN
+Cpik
+                        IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
+                          IF ( IP + IND .LE. NDATAP ) THEN
+                            ZERR=  ROBDATA(NCMOER,IP+IND)
+                            ZSTAT= ROBDATA(KRVAL, IP+IND)
+                            IFLG=  MOBDATA(NCMFLG,IP+IND)
+*
+                            IF ( KRVAL .EQ. NCMOMF .OR. KRVAL .EQ. NCMOMA) THEN
+                              if (MOBDATA(NCMASS,IP+IND) .EQ. 1    .OR.
+     &                           (MOBDATA(NCMVNM,IP+IND) .EQ. NEHU .and.
+     &                                            ZSTAT .NE. PPMIS) .OR.
+     &                            MOBDATA(NCMVNM,IP+IND) .EQ. NEHS) then
+                                PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
+                              else
+                                PVALUES (JI,JJ,IK)=PPMIS
+                              endif
+                            ELSE
+                               PVALUES (JI,JJ,IK)=ZSTAT
+                                KFLAGS (JI,JJ,IK)=IFLG
+                            ENDIF
+                            IF ( PVALUES (JI,JJ,IK) .NE. PPMIS) then
+*                                        CONVERT TO M/S
+                              IF ( ILEM .EQ. 1 ) THEN
+                               padd=0.0D0
+                               pmul=1.0D0
+                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                              ENDIF
+*                                       CONVERT TO M/S
+                              IF ( ILEM .EQ. 2 ) THEN
+                               padd=0.0D0
+                               pmul=1.0D0
+                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                              ENDIF
+*                                        CONVERT TO Z
+                              IF ( ILEM .EQ. 3 ) THEN
+                               padd=0.0D0
+                               pmul=1.0D0/RG
+                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                              ENDIF
+*                                    CONVERT TO KELVIN
+                              IF ( ILEM .EQ. 8 ) THEN
+                               padd=0.0D0
+                               pmul=1.0D0
+                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                              ENDIF
+*                                    CONVERT TO DEGREES
+                              IF ( ILEM .EQ. 48 .OR. ILEM .EQ. 54 ) THEN
+                               padd=0.0D0
+                               pmul=1.0D0/ZTORAD
+                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                              ENDIF
+                            ENDIF
+                            IND=IND + 1
+                         ELSE
+*==================================================
+                            KNDAT = IND
+                            NDATA = NDATA + KNDAT
+*==================================================
+                            RETURN
+                          ENDIF
+Cpik
+                        ENDIF
+                  ENDIF
+               END DO
+            ENDIF
+         END DO
+*=============================
+      KNDAT = IND
+      NDATA = NDATA + KNDAT
+*=============================
+*
+      RETURN
+*
+      END

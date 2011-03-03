@@ -1,0 +1,95 @@
+!-*- F90 -*-
+module modgps07geostruct
+#if defined (DOC)
+  !
+  ! Structure containing the geopotential height and derivatives
+  ! of a model profile.
+  !
+  ! Functions:
+  !      Construct the geop hgt cached profiles.
+  !
+  ! Josep M. Aparicio
+  ! Meteorological Service of Canada, 2003.
+  !
+#endif
+  use modgps00base     , only : i4, dp, ngpssize
+  use modgps03diff
+  use modgps04profile  , only : gpsprofile
+  use modgps05refstruct, only : gpspre, gpstem, gpsQ
+
+  implicit none
+  
+contains
+  
+  subroutine gpsgeo(prf)
+    type(gpsprofile)    :: prf
+    
+    integer(i4)         :: i, ngpslev
+    
+    real(dp), parameter :: Avog  = 6.02214e26_dp
+    real(dp), parameter :: Boltz = 1.38065e-23_dp
+    real(dp), parameter :: mwDAir= 28.966_dp
+    real(dp), parameter :: Rd=Avog*Boltz/mwDAir
+    real(dp), parameter :: Rg=9.80616_dp
+
+    real(dp), parameter :: alpha = -1._dp
+    real(dp), parameter :: rgasd = 287.05_dp
+    real(dp), parameter :: delta = 0.6077686814144_dp
+
+    type(gpsdiff)       :: xi(ngpssize)
+    type(gpsdiff)       :: tv(ngpssize)
+
+    type(gpsdiff)       :: tvp
+    type(gpsdiff)       :: dx
+    type(gpsdiff)       :: z
+    type(gpsdiff)       :: q,p,t,Zd,Zn,Zo,Za,Zw,Zt,Zd0
+
+    if (prf%bgst .EQV. .false.) then
+       call gpspre(prf)
+       call gpstem(prf)
+       call gpsQ  (prf)
+       ngpslev=prf%ngpslev
+
+       do i = 1, ngpslev
+          p=prf%pst(i)
+          t=prf%tst(i)
+          q=prf%qst(i)
+!          Zd = 0.99980_dp+2.5335e-6_dp*p-1.5303e-3_dp*p/t
+!          write(*,*)'aaa',Zd%Var
+          Zd0= 1._dp + (0.035_dp-1.4_dp/(0.08314_dp*t)) * p / (83.14_dp * t)
+          Zn=1._dp+(0.03913_dp-1.408_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+          Zo=1._dp+(0.03183_dp-1.378_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+          Za=1._dp+(0.03219_dp-1.363_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+          Zw=1._dp+(0.03049_dp-5.536_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+          Zd=0.78_dp*Zn+0.21_dp*Zo+0.01_dp*Za
+          Zt=(1._dp-q)*Zd+q*Zw
+!          write(*,'A6,6F16.8')'bbb',Zd0%Var,Zd%Var,Zw%Var,Zt%Var
+          !
+          ! Log(P)
+          !
+          xi(i) = log(p)
+          !
+          ! Virtual temperature (K) (corrected of compressibility)
+          !
+          tv(i) = (1._dp+delta*q) * t * Zt
+       enddo
+       
+       !
+       ! Hydrostatic equation
+       !
+       prf%gst(ngpslev) = prf%rMT
+       do i = ngpslev-1, 1, -1
+          dx  =  xi(i)-xi(i+1)
+          tvp = (tv(i)-tv(i+1))/dx
+          !
+          ! Geopotential height increment
+          !
+          z   = (-Rd/Rg) * (tv(i)*dx - 0.5_dp*tvp*dx**2)
+          prf%gst(i) = prf%gst(i+1) + z
+       enddo
+       prf%bgst = .true.
+    endif
+
+  end subroutine gpsgeo
+
+end module modgps07geostruct

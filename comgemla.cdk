@@ -1,0 +1,67 @@
+#if defined (DOC)
+!copyright (C) 2002  <<< Envrionment Canada LAM4D >>>
+!
+! Author: Luc Fillion - ARMA/EC Feb 2002.
+!
+! Revision:
+! Luc Fillion - ARMA/EC 2 Nov 2009 - Include grd_u_x_8, grd_v_y_8.
+C
+C     COMDECK: COMGEMLA
+C     -----------------
+C
+C     NIMLA, NJMLA       :  margins to exclude observations in 'LA' mode
+C
+C*    Definition of some parameters characterizing the geometry of
+C     the Limited-Area (LA) analysis grid and associated metric factors
+C
+C     rlat_an(-4:nila+4,-4:njla+4): Latitudes of LA  Scalar gridpoints
+C     rlon_an(-4:nila+4,-4:njla+4): Longitudes of LA Scalar gridpoints
+C     rdlat_an(-4:nila+4,-4:njla+4): Latitude difference of LA gridpoints
+C     rdlon_an(-4:nila+4,-4:njla+4): Longitude differences of LA gridpoints
+C     rlath_an(-4:njla+4): Latitudes of half grid-points of LA gridpoints in lat-direction
+C     rrcos_an(-4:nila+4,-4:njla+4): 1.0/Cos(Latitudes of LA gridpoints) used by UV2uv 
+C     rrcosh_an(-4:nila+4,-4:njla+4): 1.0/Cos(Half-Latitudes of LA gridpoints) used by UV2uv 
+C     rdmu(-4:njla+4)        : Differences of mu=sin(lat)
+C     rdmuh(-4:njla+4)       : Differences of muh=sin(lath)
+C     r1mmu2(-4:njla+4)      : (1.-mu**2)
+C     r1mmu2h(-4:njla+4)     : (1.-muh**2)
+C
+#endif
+      integer nimla,njmla,mig1a,mig2a,mig3a
+      real*8 rlat_an(-4:nila+4,-4:njla+4), rlon_an(-4:nila+4,-4:njla+4)
+      real*8 rdlat_an(-4:nila+4,-4:njla+4), rdlon_an(-4:nila+4,-4:njla+4)
+      real*8 rlath_an(-4:njla+4)
+      real*8 rrcos_an(-4:nila+4,-4:njla+4)
+      real*8 rrcosh_an(-4:nila+4,-4:njla+4)
+      real*8 rdmu(-4:njla+4),rdmuh(-4:njla+4)
+      real*8 r1mmu2(-4:njla+4),r1mmu2h(-4:njla+4)
+      real*8 grd_x_8(nila)
+      real*8 grd_u_x_8(nila)
+      real*8 grd_y_8(njla)
+      real*8 grd_v_y_8(njla)
+      real*8 atris(njla),btris(njla,nfi),ctris(njla)
+      real*8 atrip(njla),btrip(njla,nfi),ctrip(njla)
+!
+      pointer (ptrlat_an,rlat_an),(ptrlon_an,rlon_an)
+      pointer (ptrdlat_an,rdlat_an),(ptrdlon_an,rdlon_an)
+      pointer (ptrlath_an,rlath_an)
+      pointer (ptrrcos_an,rrcos_an)
+      pointer (ptrrcosh_an,rrcosh_an)
+      pointer (ptrdmu,rdmu),(ptrdmuh,rdmuh)
+      pointer (ptr1mmu2,r1mmu2),(ptr1mmu2h,r1mmu2h)
+      pointer (ptgrd_x_8,grd_x_8)
+      pointer (ptgrd_u_x_8,grd_u_x_8)
+      pointer (ptgrd_y_8,grd_y_8)
+      pointer (ptgrd_v_y_8,grd_v_y_8)
+      pointer (ptatris,atris)
+      pointer (ptbtris,btris)
+      pointer (ptctris,ctris)
+      pointer (ptatrip,atrip)
+      pointer (ptbtrip,btrip)
+      pointer (ptctrip,ctrip)
+C
+      COMMON /POMGEMLA/ptrlat_an,ptrlon_an,ptrdlat_an,ptrdlon_an
+     &     ,ptrlath_an,ptrdmu,ptrdmuh,ptr1mmu2,ptr1mmu2h,ptrrcos_an
+     &     ,ptrrcosh_an,ptgrd_x_8,ptgrd_y_8,ptgrd_u_x_8,ptgrd_v_y_8
+     &     ,ptatris,ptbtris,ptctris,ptatrip,ptbtrip,ptctrip
+      COMMON /COMGGEMLA/NIMLA, NJMLA,mig1a,mig2a,mig3a

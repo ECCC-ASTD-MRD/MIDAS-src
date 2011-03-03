@@ -1,0 +1,104 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE restoreMasks 
+      use modmask
+      USE procs_topo 
+      USE obstag  
+      implicit none
+c Purpose:
+c Compute the global masks such as lmaskpp_inout_g,lmasksf_inout_g,... 
+c
+c Author  : BIN HE  *ARMA/MRB MAY 2009
+c
+c Revision:
+C   
+
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+*
+! Define Local Variables. 
+      INTEGER :: ierr
+      INTEGER :: nobtot_l
+      LOGICAL,DIMENSION(ndata) :: llmask_l  
+* 
+       nobtot_l=nobtot   
+         
+       ALLOCATE(lmaskpp_inout_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskpp_inout_g')
+       ALLOCATE(lmasksf_inout_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmasksf_inout_g')
+       ALLOCATE(lmaskto_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskto_g')
+
+       ALLOCATE(lmaskgo_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskgo_g')
+
+       ALLOCATE(lmaskro_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskro_g')
+
+       ALLOCATE(lmaskzp_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskzp_g')
+
+       ALLOCATE(lmask_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmask_g')
+
+       ALLOCATE(lmaskgp_g(ndatap),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskgp_g')
+
+       CALL restore_mask(lmask_g,ndatap,lmask,ndata)  
+
+       llmask_l = lmaskpp_in .or. lmaskpp_out
+       CALL restore_mask(lmaskpp_inout_g,ndatap,llmask_l,ndata)  
+
+       llmask_l =  lmasksf_in .or. lmasksf_out
+       CALL restore_mask(lmasksf_inout_g,ndatap,llmask_l,ndata)  
+
+       CALL restore_mask(lmaskto_g,ndatap,lmaskto,ndata)  
+
+       CALL restore_mask(lmaskgo_g,ndatap,lmaskgo,ndata)  
+       CALL restore_mask(lmaskro_g,ndatap,lmaskro,ndata)  
+       CALL restore_mask(lmaskzp_g,ndatap,lmaskzp,ndata)  
+
+       CALL restore_mask(lmaskgp_g,ndatap,lmaskgp,ndata)  
+       CONTAINS
+
+       SUBROUTINE restore_mask(lmask_g,kdata_g,lmask_l,kdata_l)
+        INTEGER :: kdata_l,kdata_g 
+        Logical ,DIMENSION(kdata_g) :: lmask_g 
+        Logical ,DIMENSION(kdata_l) :: lmask_l 
+
+       INTEGER :: i,ii,j ,iobs,idata,idataend,ierr  
+
+       lmask_g=.false.
+       ii=0
+       DO i=1,nobtot
+         iobs=locObsTag(i)
+         idata=MOBHDR_G(NCMRLN,iobs)
+         idataend=MOBHDR_G(NCMNLV,iobs) + idata -1
+         DO j=idata,idataend
+           ii=ii+1
+           lmask_g(j)=lmask_l(ii)
+         ENDDO
+       ENDDO  
+       CALL rpn_comm_allreduce(lmask_g,lmask_g,kdata_g,"MPI_LOGICAL","MPI_LOR","GRID",ierr )
+       END SUBROUTINE   restore_mask
+ 
+      END SUBROUTINE restoreMasks     

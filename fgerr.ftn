@@ -1,0 +1,159 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE FGERR(CDOP)
+#if defined (DOC)
+*
+***s/r FGERR  - Adjustment for the forecast error variance
+*
+*
+*Author  : P. Gauthier *ARMA/AES  September 3, 1993
+*Revision:
+*     .  P. Gauthier *ARMA/AES October 26, 1993: safeguards to prevent
+*     .                        division by zero
+*     .  L. Fillion  *ARMA/AES October 31, 1994: Add 'N', 'O'  options
+*     .  L. Fillion  *ARMA/AES Apr 1995: Bug correction on the use of the
+*                              right correlation scale for LSTAT case.
+*                              Add comstat.cdk.
+*     .  C. Charette *ARMA/AES Jan 1996: Remove all references to
+*                              the key LSTAT. Replace 'comstat.cdk'
+*                              by 'compstat.cdk'
+*     .  S. Pellerin *ARMA/AES Sept 97.
+*                              Change from TT to GZ state variables.
+*     .  S. Pellerin *ARMA/SMC May 2000
+*                              Logical unit cleanup
+*     -------------------
+**    Purpose: Depending on the nature of the control variable and of
+*     .        some options set in COMCVA, the deviation from the first-
+*     .        guess is divided (multiplied) by the forecast error stan-
+*     .        dard deviation.
+*
+*Arguments
+*     CDOP   : = 'M' X is multiplied by SIGMA
+*     .          'D' (X-XG) is divided by SIGMA
+*     .          'N' spectral normalization
+*     .          'O' inverse spectral normalization
+*
+*     It is implicitly assumed that the operand is in
+*     .   COMSP if CFGERR = 'S'
+*     .   COMGD if CFGERR = 'G'
+*
+#endif
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcva.cdk"
+#include "comsp.cdk"
+#include "comgd0.cdk"
+#include "comgd1.cdk"
+#include "comspg.cdk"
+#include "compstat.cdk"
+      CHARACTER*1 CDOP
+      INTEGER JLA, JK, JV, JGL, JLON
+      REAL*8 ZDEV, ZVORSC, ZDIVSC, ZGZSC, ZPSSC, ZQSC
+      REAL*8 ZPORVO, ZPORDI
+*
+**
+C
+C*    1. Operation done in spectral space
+C
+ 100  CONTINUE
+      IF(CDOP.EQ.'O'.OR.CDOP.EQ.'N') THEN
+         ZGZSC  = 1.
+         ZPSSC  = 1.
+         ZQSC   = 1.
+         DO 120 JK = 1, NFLEV
+            ZPORVO = RCSCLVO(JK)
+            ZPORDI = RCSCLDI(JK)
+            ZVORSC = SQRT(8.*(1. - RNU2))/ZPORVO
+            ZDIVSC = SQRT(8.*RNU2)/ZPORDI
+C            ZVORSC = SQRT(1. - RNU2)*ZPORVO
+C            ZDIVSC = SQRT(RNU2)*ZPORDI
+            IF(CDOP.EQ.'N') THEN
+               IF(ZVORSC.EQ.0.) THEN
+                  ZVORSC = 1.0E20
+               ELSE
+                  ZVORSC = 1.0/ZVORSC
+               ENDIF
+               IF(ZDIVSC.EQ.0.) THEN
+                  ZDIVSC = 1.0E20
+               ELSE
+                  ZDIVSC = 1.0/ZDIVSC
+               ENDIF
+            END IF
+            DO JLA = 1, NLA
+               SPVOR(JLA,1,JK) = SPVOR(JLA,1,JK)*ZVORSC
+               SPVOR(JLA,2,JK) = SPVOR(JLA,2,JK)*ZVORSC
+               SPDIV(JLA,1,JK) = SPDIV(JLA,1,JK)*ZDIVSC
+               SPDIV(JLA,2,JK) = SPDIV(JLA,2,JK)*ZDIVSC
+               SPGZ(JLA,1,JK) = SPGZ(JLA,1,JK)*ZGZSC
+               SPGZ(JLA,2,JK) = SPGZ(JLA,2,JK)*ZGZSC
+            END DO
+ 120     CONTINUE
+      END IF
+C
+      IF(CFGERR.EQ.'S') THEN
+         IF(CDOP.EQ.'D') THEN
+            DO 160 JK = 1, NKSDIM
+               IF(RDEVSTD(JK).NE.0.) THEN
+                  ZDEV = 1./RDEVSTD(JK)
+               ELSE
+                  ZDEV = 1.E20
+               END IF
+               DO 150 JLA = 1, NLA
+                  SP(JLA,1,JK) = SP(JLA,1,JK)*ZDEV
+                  SP(JLA,2,JK) = SP(JLA,2,JK)*ZDEV
+ 150           CONTINUE
+ 160        CONTINUE
+         ELSE IF(CDOP.EQ.'M') THEN
+            DO 180 JK = 1, NKSDIM
+               DO 170 JLA = 1, NLA
+                  SP(JLA,1,JK) = SP(JLA,1,JK)*RDEVSTD(JK)
+                  SP(JLA,2,JK) = SP(JLA,2,JK)*RDEVSTD(JK)
+ 170           CONTINUE
+ 180        CONTINUE
+         END IF
+C
+C     *    2. Operation done in physical space
+C
+ 200     CONTINUE
+      ELSE IF(CFGERR.EQ.'G') THEN
+         IF(CDOP.EQ.'M'.OR.CDOP.EQ.'D') THEN
+C
+C     *    2.1  Put in the forecast error variance field (CDOP='M')
+C     .    or its inverse (CDOP = 'D') in COMGD1
+C
+ 210        CONTINUE
+            CALL READGERR(nulbgst,CDOP)
+C
+C     *    2.2 Define the control variable/model state in grid space
+C
+C     220     CONTINUE
+            DO JGL = 1, NJ
+               DO JV = 1, NKGDIM
+                  DO JLON = NIBEG, NIEND
+                     GD(JLON,JV,JGL) = GD(JLON,JV,JGL)*GD1(JLON,JV,JGL)
+                  END DO
+               END DO
+            END DO
+         END IF
+      END IF
+C
+      RETURN
+      END
+

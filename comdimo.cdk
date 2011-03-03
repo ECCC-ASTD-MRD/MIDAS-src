@@ -1,0 +1,42 @@
+#if defined (DOC)
+C
+C     COMDECK COMDIMO  :  Dimensions associated with the model
+C     ---------------     state interpolated at the observation stations
+C
+C     NVO3D   : number of variables defined at all levels
+C     NVO2D   : number of variables defined at a single levels
+C*    NVO3DT  : number of variables defined at all levels (TOVS)
+C*    NVO3DT  : number of variables defined at all levels (TOVS)
+C     NKGDIMO : NVO3D*NFLEV + NVO2D = total number of model variables
+C     .                               evaluated
+C     -------------------
+C     NOBTOT  : Actual number of observations
+C     NOBTOTP : Actual number of observations in POST FILE=NOBTOT
+C     NMXOBS  : maximum number of observations allowed
+C     NDATA   : Actual total number of data to be processed
+C     NDATAP  : Actual total number of data to be processed in POST FILE=NDATA
+C     NDATAMX : max. number of data in memory
+C
+C*    NOBTOV  : Actual number of TOVS observations in ROBHDR
+C*    NOBGOES : Actual number of GOES observations in ROBHDR
+C*    NOBNTV  : Actual number of non-TOVS observations in ROBHDR
+C*    NOBFNUM : Actual number of observation files
+C*    NMXOBF  : Max. number of observation files
+C*
+C*    NLSAT   : Number of levels in the radiative transfer model
+C*    .         for the computation of TOVS radiances
+C     NMAXLEN : Amount of data contained in longest "observation" of CMA
+C     LABORTFULL : Logical switch to abort when CMA is full
+C
+#endif
+      INTEGER NVO3D, NVO2D, NVO3DT, NVO2DT
+      INTEGER NOBTOT,NOBTOTP, NMXOBS, NDATA, NDATAP, NDATAMX
+      INTEGER NKGDIMO, NMAXLEN, NOBGOES
+      INTEGER NOBTOV, NOBNTV, NOBFNUM, NMXOBF, NLSAT
+      LOGICAL LABORTFULL
+      COMMON /COMDIMO/NVO3D, NVO2D, NVO3DT, NVO2DT, NKGDIMO
+      COMMON /COMDIMO/NOBTOT, NOBTOTP, NMXOBS, NDATA, NDATAP, NDATAMX
+      COMMON /COMDIMO/NOBTOV, NOBNTV, NOBFNUM, NMXOBF, NLSAT, NMAXLEN
+      COMMON /COMDIMO/NOBGOES, LABORTFULL
+
+

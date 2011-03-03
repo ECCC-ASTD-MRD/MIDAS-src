@@ -1,0 +1,18 @@
+#if defined (DOC)
+C
+C     COMDECK COMJACGOES
+C     ---------------------
+C*    Variables required for the jocobian calculations of GOES MSCFAST model
+C
+C     NGOES                    : number of GOES observations
+C
+#endif
+C
+      INTEGER NGOES,MJOGO(NOBGOES)
+C
+      REAL*8  HJACMSCFAST(NOBGOES,(NFLEV+1)*2,JPNB)
+C
+      POINTER (PTRTJAC,HJACMSCFAST),(PTMJOGO,MJOGO)
+C
+      COMMON /COMJACGOES/ NGOES, PTRTJAC, PTMJOGO
+C

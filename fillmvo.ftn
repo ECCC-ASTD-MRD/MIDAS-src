@@ -1,0 +1,220 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine fillmvo(cdmvo,cdvar,pvar,knlev,knobs)
+#if defined (DOC)
+*
+***s/r fillmvo - Fill in COMMVOG and/or COMMVOHR
+*
+*
+*     Author  : S. Pellerin ARMA/AES SEPT. 2000
+*     Revision:
+*           JM Belanger CMDA/SMC  Oct 2000
+*                   . 32 bits conversion (Generic LOG)
+*           C. Charette - ARMA/SMC - Sept 2004
+*                   . Conversion to hybrid vertical coordinate
+*
+**    Purpose: Fill in COMMVOG/COMMVOHR with trial profiles
+*
+*Arguments
+*
+*       input:
+*             CDMVO (character*2) : HR fills COMMVOHR
+*                                   BG fills COMMVOG
+*             CDVAR (character*2) : NOMVAR of the state variable
+*             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
+*             KNLEV (integer)     : number of levels of PVAR
+*             KNOBS (integer)     : number of observation profiles in variable PVAR
+*
+#endif
+      implicit none
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+#include "commvohr.cdk"
+#include "comgem.cdk"
+#include "comphy.cdk"
+#include "comcst.cdk"
+c
+      integer knlev,knobs
+      real*8 pvar(knlev,knobs)
+      character*2 cdvar,cdmvo
+c
+      integer jobs,jlev,inlev,istep
+      real*8 zpty(1)
+      pointer (ptr,zpty)
+c
+      if(cdmvo.eq.'HR') then
+        inlev = nlevtrl
+        istep = nkgdimohr
+      else
+        inlev = nflev
+        istep = nkgdimo
+      endif
+c
+      if (cdvar.eq.'PP') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(rppobshr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(rppobs(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1,inlev
+            zpty((jobs-1)*inlev+jlev) = pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'LV') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(vlevhr(1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(vlev(1))
+        endif
+        do jlev = 1,inlev
+          zpty(jlev) = pvar(jlev,1)
+        enddo
+      elseif(cdvar.eq.'HY') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(vhybhr(1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(vhybinc(1))
+        endif
+        do jlev = 1,inlev
+          zpty(jlev) = pvar(jlev,1)
+        enddo
+      elseif(cdvar.eq.'UU') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomuhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomug(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)*rmsknt
+          enddo
+        enddo
+      elseif(cdvar.eq.'VV') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomvhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomvg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)= pvar(jlev,jobs)*rmsknt
+          enddo
+        enddo
+      elseif(cdvar.eq.'GZ') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomgzhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomgzg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)*10.*rg
+          enddo
+        enddo
+      elseif(cdvar.eq.'HU') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomqhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomqg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)= log(max(pvar(jlev,jobs),rhumin))
+          enddo
+        enddo
+      elseif(cdvar.eq.'LQ') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomqhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomqg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev) = pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'ES') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomeshr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomesg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'TT') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomthr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomtg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs) + tcdk
+          enddo
+        enddo
+      elseif(cdvar.eq.'OZ') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomozhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomozg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'TR') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomtrhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomtrg(1,1))
+        endif
+        do jobs = 1,nobtot
+          do jlev = 1, inlev
+            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'P0') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gompshr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gompsg(1,1))
+        endif
+        do jobs = 1,nobtot
+          zpty((jobs-1)*istep+1)=pvar(1,jobs)*rmbtpa
+        enddo
+      elseif(cdvar.eq.'TG') then
+        if(cdmvo.eq.'HR') then
+          ptr = loc(gomtgrhr(1,1))
+        elseif(cdmvo.eq.'BG') then
+          ptr = loc(gomtgrg(1,1))
+        endif
+        do jobs = 1,nobtot
+          zpty((jobs-1)*istep+1)=pvar(1,jobs)
+        enddo
+      endif
+c
+      return
+      end

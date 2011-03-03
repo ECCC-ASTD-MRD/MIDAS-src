@@ -1,0 +1,127 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      PROGRAM CNT0
+#if defined (DOC)
+*
+***   s/r CNT0  - Routine controlling the job at its highest level
+*
+*
+#endif
+      USE procs_topo  
+      IMPLICIT NONE
+*     implicits
+#include "comct0.cdk"
+#include "comlun.cdk"
+#include "comgrd_param.cdk"
+*
+      INTEGER ICONFI,ISTAMP,EXDB,EXFIN
+      character(len=9) :: clmsg
+      INTEGER  :: root,IERR  
+!  0.1 MPI initilization .  
+      CALL init_mpi  
+      root = 0  
+
+      call tmg_init (0, 'TMG_3D-VAR' )
+
+      IF(myid == root) THEN
+         clmsg = 'VAR3D_BEG'
+         call wrstatus(clmsg)
+         ISTAMP=EXDB('3DVAR','DEBUT','NON')
+      ENDIF 
+C
+C
+C     *       1.    Initialize level 0 commons.
+C     ---------------------------
+C
+ 100  CONTINUE
+      CALL SU0YOMA
+C
+C
+      IF(myid == root) call printrev("START OF MAIN PROGRAM CNT0",26)
+C
+C
+      CALL SU0YOMB
+C     ------------------------------------------------------------------
+C
+C     *       2.    Decide on configuration of job.
+C     -------------------------------
+C
+ 200  CONTINUE
+      ICONFI=IABS(NCONF)/100
+C
+C     *       2.0   INTEGRATION JOB: barotropic model configuration.
+C
+ 201  CONTINUE
+      select case (nconf)
+      case(101)
+         IF(myid == root) WRITE(NULOUT,FMT=9203)ICONFI,NCONF
+ 9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
+         call tmg_start(11,'PREMIN')
+         call preproc
+         call tmg_stop(11)
+         call tmg_start(12,'BGCHECK')
+!modular1         CALL BGCHECK
+         call tmg_stop(12)
+      case(121)
+         WRITE(NULOUT,FMT=9204)ICONFI,NCONF
+ 9204    FORMAT(" CNT0- ICONFI NCONF = ",1X,I4,1X,I4," CALLING RESIDUAL
+     &        S")
+         call tmg_start(11,'PREMIN')
+         call preproc
+         call tmg_stop(11)
+         call tmg_start(12,'RESIDUALS')
+!modular1         CALL RESIDUALS
+         call tmg_stop (12)
+      case(141)
+         WRITE(NULOUT,FMT=9401)NCONF
+ 9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING PREPROC")
+         call tmg_start(11,'PREMIN')
+         call preproc
+         call tmg_stop (11)
+         call tmg_start(12,'MIN')
+         call minimize
+         call tmg_stop (12)
+         call tmg_start(13,'POSMIN')
+         call postmin
+         call tmg_stop (13)
+c
+      case(201)
+         WRITE(NULOUT,FMT=9295)NCONF
+ 9295    FORMAT(//,40(" *"),/,4X,"NCONF =",1X,I3,4X
+     S        ,"- RANDOM NUMBER PETURBATIONS"
+     S        ," BASED ON MATRIX B -",/,40(" *"),/)
+c
+!modular1         CALL ENKF_PTURB(nulout)
+
+      case default
+         WRITE(UNIT=NULOUT,FMT='('' ERROR CNT0  JOB'',2I6)')ICONFI,NCONF
+      END select
+C
+C     *    3. Job termination
+C
+ 300  CONTINUE
+C
+      CALL SUTERM(NULOUT)
+C
+      IF(myid == root) THEN
+         clmsg = 'VAR3D_END'
+         call wrstatus(clmsg)
+      ENDIF
+      call tmg_terminate (0, 'TMG_3D-VAR' )
+      CALL RPN_COMM_FINALIZE(ierr) 
+      RETURN
+      END

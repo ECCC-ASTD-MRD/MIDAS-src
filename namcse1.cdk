@@ -1,0 +1,27 @@
+*Revision:
+*   C. Charette *ARMA/AES Nov 1998
+*     - Changed LDIVBAL to LBALDIV
+*   C. Charette *ARMA/AES Jan 1999
+*     - Added LNODIV
+*   L. Fillion *ARMA/EC 25 Aug 2006
+*     - Added LMCSTATS
+*   L. Fillion *ARMA/EC 26 Nov 2008
+*     - Added CETIKETERR
+*   L. Fillion *ARMA/EC 11 Dec 2008
+*     - Added cstats_step options for Backgrouns error statistics computations.
+*   L. Fillion *ARMA/EC 26 Feb 2009
+*     - Added lsqrt_bgstat to prepare sqrtc(corns) ready to be used as is in minimization.
+*   L. Fillion  *ARMA/EC 19 Feb. 2009
+*     - lvloc  : .TRUE. Localizes vertical background error correlations.
+*   L. Fillion  *ARMA/EC 1 May. 2009
+*     - lhelm  : .TRUE. PSI/CHI stats generated; .false: QQ/DD stats generated.
+*   L. Fillion  *ARMA/EC 22 Jun 2009
+*     - introduce lhemis, lnorth
+*
+      NAMELIST /NAMCSE1/ NFLSTAT,NCSE1, mflt_trunc, lvloc, lhelm
+     S     , LSTATCON, LSTATREAD, LBALDIV, LNORMCOR, LNODIV, LMCSTATS
+     S     ,lflt_low, lflt_high, lpsifromglb, lpsifromlam, lsqrt_bgstat
+     S     ,lhemis,lnorth
+     S     ,CFLCORNS, CFLSTDEV, CFLPTOT, CFLNAMES, NREGION
+     S     ,CETIKETERR, cstats_step
+

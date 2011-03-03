@@ -1,0 +1,111 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      subroutine mhuaesgd2(pesg,phug,pttg,ppresg,kni,knj,knk,lswph)
+#if defined (DOC)
+***   S/R mhuaesgd2  -  CALCULATE ES=T-TD FROM T AND Q.  Grid-point version.
+*                      ICE PHASE/No ICE PHASE controlled by switch
+*
+*Author
+*          C. Charette  -ARMA/SMC - Sep. 2004
+*Note      Modified version of mhuaesgd.ftn
+*
+*Revision
+*          Y.J. Rochon and Cecilien Charette - SMC - Sept 2004
+*            - Use of new function FOTW8 (in fintern8.cdk)
+*            - Choice between FO* between FO*CMAM dependent upon cvcord
+*
+*Arguments:
+*          - Output -
+*     pesg  : Grid-point analysis of (T-Td)
+*
+*          - Input -
+*     phug  : Grid-point specific-humidity. (Kg/Kg)
+*     pttg  : Grid-point Temperature (K)
+*     ppresg: Grid-point pressure(PA)
+*     kni   : X-dimension of input grid-point fields.
+*     knj   : Y-dimension of input grid-point fields.
+*     knk   : Vertical-dimension of input grid-point fields.
+*     lswph : .TRUE. to consider water and ice phase
+*             .FALSE. to consider water phase only
+*
+*    -------------------
+*
+*Object:   For postprocessing in variational analysis:
+*          calculate the dew point depression from specific
+*          humidity, temperature and pressure.  Water/ice phase
+*          is controlled by switch LSWPH. Reset negative values to zero.
+*
+#endif
+      IMPLICIT NONE
+      integer kni,knj,knk
+      real*8  pesg(kni,knj,knk),phug(kni,knj,knk),pttg(kni,knj,knk)
+      real*8  ppresg(kni,knj,knk)
+      logical lswph
+*
+*IMPLICITS
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgd0.cdk"
+#include "comgem.cdk"
+*
+      INTEGER ji,jj,jlev
+      REAL*8  ZE, ZCTE, ZTD
+C
+*
+#include "comphy.cdk"
+#include "dinternv.cdk"
+#include "dintern8.cdk"
+#include "fintern8.cdk"
+#include "finternv.cdk"
+*
+**
+      do jlev=1,knk
+        do ji=1,kni
+          do jj=1,knj
+c
+c       get the saturated vapor pressure from q (specific humidity)
+c
+            ZE = FOEFQ8(phug(ji,jj,jlev),ppresg(ji,jj,jlev))
+c
+c       now the dewpoint temperature
+c
+            ZTD=FOTW8(ZE)
+            IF(ZTD.LT.TRPL.AND.LSWPH) ZTD = FOTI8(ZE)
+
+            IF (CVCORD(1:3).EQ.'MAM') THEN
+              ZTD =FOTW8_CMAM(ZE)
+              IF(ZTD.LT.TRPL.AND.LSWPH) THEN
+                ZCTE=FOTI8_CMAM(ZE)
+                ZTD=FOTWI8_CMAM(ZCTE,ZE)
+              ENDIF
+            END IF
+c
+c       finally the dewpoint depression
+c       print warning message if TD is too large w.r.t. TT
+            if(int(pttg(ji,jj,jlev)*1.0D2) .lt. int(ztd*1.0D2) ) then
+              write(nulout,*)'mhuaesgd2:Attn Td > TT:i,j,k,pp,tt,td,hu= '
+     &             ,ji,jj,jlev,ppresg(ji,jj,jlev),pttg(ji,jj,jlev),ZTD
+     &             ,phug(ji,jj,jlev)
+            endif
+            pesg(ji,jj,jlev) = max(pttg(ji,jj,jlev)-ZTD,0.0D0)
+          enddo
+        enddo
+      enddo
+c
+      return
+      end

@@ -1,0 +1,329 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,pgomtgr_tl, &
+ &                          prppobs,knkgdimo,knlev)
+#if defined (doc)
+!
+!**s/r tovs_fill_profiles_tl  - tangent linear of interpolation of obs.space to 43-level rttov space
+!                          (adapted from part of code of lvtov)
+!
+!
+!author        : j. halle *cmda/aes  april 12, 2005
+!
+!revision 001  : a. beaulne *cmda/smc  june 2006
+!                 -add ozone from climatology to all sensors
+!
+!revision 002  : j. halle  *cmda/smc  march 2007
+!                 -fix zvlev for hybrid coordinate
+!
+!    -------------------
+!     purpose: fill tangent linear profiles structure with info from obs. space
+!
+!arguments
+!
+!
+#endif
+  use mod_tovs
+
+  implicit none
+!implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "commvog.cdk"
+#include "commvo1.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comtovst.cdk"
+
+  real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
+
+  integer, allocatable :: iptobs    (:) 
+  integer, allocatable :: iptobscma (:) 
+
+  integer :: alloc_status(40)
+
+  integer :: omp_get_num_threads, nthreads
+  integer :: istride, ilen, imodulo
+  integer :: nlevels, no_id
+  integer :: j, i, krtid, jf, iobs, jj
+  integer :: ilowlvl, knpf, jo
+  integer :: jk, jn, jl, indxm
+  integer :: ilansea, indxreg
+  integer :: knkgdimo, knlev
+
+  real*8 :: pgomu_tl  (knkgdimo,*)
+  real*8 :: pgomv_tl  (knkgdimo,*)
+  real*8 :: pgomt_tl  (knkgdimo,*)
+  real*8 :: pgomq_tl  (knkgdimo,*)
+  real*8 :: pgomps_tl (knkgdimo,*)
+  real*8 :: pgomtgr_tl(knkgdimo,*)
+  real*8 :: prppobs   (knlev   ,*)
+
+  real*8, allocatable :: to_tl    (:,:)
+  real*8, allocatable :: lqo_tl   (:,:)
+  real*8, allocatable :: toext_tl (:,:)
+  real*8, allocatable :: qoext_tl (:,:)
+  real*8, allocatable :: zvlev    (:,:)
+  real*8, allocatable :: zt_tl    (:,:)
+  real*8, allocatable :: zlq_tl   (:,:)
+  real*8, allocatable :: zt       (:,:)
+  real*8, allocatable :: zlq      (:,:)
+  real*8, allocatable :: qoext    (:,:)
+  real*8, allocatable :: zps_tl   (:)
+
+  real*8 :: zptop, zptopmbs
+
+  integer  isrcheq
+  external isrcheq
+!  external lintv2, extrap
+  external intavg, extrap
+  external exthum4
+         
+  if(nobtov.eq.0) return    ! exit if there are not tovs data
+
+
+!     1.    Set index for model's lowest level and model top
+!     .     ------------------------------------------------
+                 
+  100   continue
+
+  if (  prppobs(1,1) .lt. prppobs(knlev,1) ) then
+     ilowlvl = knlev
+  else
+     ilowlvl = 1
+  endif
+
+! find model level top, within 0.000001 mbs.
+
+  zptop    = prppobs(1,1)
+  zptopmbs = zptop/100.
+  zptopmbs = zptopmbs - 0.000001
+
+  jpmotop = 1
+  do jl = 2, jplev
+     if ( zptopmbs .ge. xpres(jl-1) .and.       &
+          zptopmbs .lt. xpres(jl)        ) then
+        jpmotop = jl
+        go to 110
+     endif
+  enddo
+
+  110 continue
+  jpmolev = (jplev-jpmotop+1)
+
+
+!     1.1   Number of threads and memory allocation
+!     .     ---------------------------------------
+
+!$omp parallel 
+  nthreads = omp_get_num_threads()
+!$omp end parallel
+
+  alloc_status(:) = 0
+  allocate (iptobs    (jppf*nthreads)        ,stat= alloc_status(1) )
+  allocate (iptobscma (jppf*nthreads)        ,stat= alloc_status(2) )
+  allocate (to_tl     (jpmolev,jppf*nthreads),stat= alloc_status(3) )
+  allocate (lqo_tl    (jpmolev,jppf*nthreads),stat= alloc_status(4) )
+  allocate (toext_tl  (jplev  ,jppf*nthreads),stat= alloc_status(5) )
+  allocate (qoext_tl  (jplev  ,jppf*nthreads),stat= alloc_status(6) )
+  allocate (zvlev     (jpnflev,jppf*nthreads),stat= alloc_status(7) )
+  allocate (zt_tl     (jpnflev,jppf*nthreads),stat= alloc_status(8) )
+  allocate (zlq_tl    (jpnflev,jppf*nthreads),stat= alloc_status(9) )
+  allocate (zt        (jpnflev,jppf*nthreads),stat= alloc_status(10))
+  allocate (zlq       (jpnflev,jppf*nthreads),stat= alloc_status(11))
+  allocate (qoext     (jplev  ,jppf*nthreads),stat= alloc_status(12))
+  allocate (zps_tl    (jppf*nthreads)        ,stat= alloc_status(13))
+
+  if( any(alloc_status /= 0) ) then
+     write(nulout,*) ' tovs_fill_profiles_tl : memory allocation error'
+     call abort3d(nulout,'tovs_fill_profiles_tl     ')
+  end if
+!
+!     2.  Fill profiles structure
+!     .   -----------------------
+
+  200  continue
+
+! loop over all obs.
+
+  knpf = 0
+  do 290 iobs = 1, nobtov
+     jo = lobsno(iobs)
+
+     knpf = knpf + 1
+!    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
+
+     ilansea = mobhdr(ncmofl,jo)
+     indxm = ilansea
+     if (indxm .eq. 2 ) indxm = 0
+     indxreg = isrcheq ( mlisreg, nregst, indxm )
+
+     zps_tl  (knpf) = pgomps_tl(1,jo)*rpatmb
+     do jl = 1, knlev
+        zt_tl   (jl,knpf) = pgomt_tl(jl,jo)
+        zlq_tl  (jl,knpf) = pgomq_tl(jl,jo)
+        zt   (jl,knpf) = gomt1(jl,jo)
+        zlq  (jl,knpf) = gomq1(jl,jo)
+        zvlev(jl,knpf) = prppobs(jl,jo) * rpatmb
+     enddo
+     iptobs   (knpf) = iobs
+     iptobscma(knpf) = jo
+     if ( knpf .le. 0                                    ) go to 290
+     if ( knpf .ne. jppf*nthreads .and. iobs .ne. nobtov ) go to 290
+ 
+!     .  2.1  Vertical interpolation of model temperature and logarithm of
+!             specific humidity to pressure levels required by tovs rt model
+!     .       --------------------------------------------------------------
+
+     to_tl (:,:) = 0.0
+     lqo_tl(:,:) = 0.0
+
+!$omp parallel private(istride)
+     imodulo = mod(knpf,nthreads)
+     if ( imodulo .eq. 0 ) then
+        istride = max(1,(knpf/nthreads))
+     else
+        istride = max(1,(knpf/nthreads)+1)
+     endif
+!$omp do private(jn,ilen)
+     do jn=1,knpf,istride
+        ilen = min (knpf-jn+1,istride)
+        if ( ilen .gt. 0) then
+
+!            call llintv2 (zvlev(1,jn),zt_tl(1,jn),zt(1,jn), &
+!     &                    zps_tl(jn),jpnflev,knlev,ilen, &
+!     &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
+!            call llintv2 (zvlev(1,jn),zlq_tl(1,jn),zlq(1,jn), &
+!     &                    zps_tl(jn),jpnflev,knlev,ilen, &
+!     &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
+            call intavgtl (zvlev(1,jn),zt_tl(1,jn),zt(1,jn), &
+     &                    zps_tl(jn),jpnflev,knlev,ilen, &
+     &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
+            call intavgtl (zvlev(1,jn),zlq_tl(1,jn),zlq(1,jn), &
+     &                    zps_tl(jn),jpnflev,knlev,ilen, &
+     &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
+
+        endif
+     enddo
+!$omp end do
+!$omp end parallel
+
+!     .  2.2  Extrapolation of temperature profile above 10mb
+!     .       -----------------------------------------------
+
+     toext_tl(:,:) = 0.0
+     call lextrap (to_tl,toext_tl,jpmolev,jplev,knpf)
+
+!     .  2.3  Extrapolation of humidity profile (kg/kg)
+!             above rlimlvhu (normally 300mbs or 70mbs)
+!     .       -----------------------------------------
+
+     do jn = 1, knpf
+        qoext(:,jn) =  profiles(iptobs(jn)) % q(:) / q_mixratio_to_ppmv
+     enddo
+
+     qoext_tl(:,:) = 0.0
+     do jk = 1, jpmolev
+        do jn = 1, knpf
+           qoext_tl(jplev-jpmolev+jk,jn) = qoext(jplev-jpmolev+jk,jn)*lqo_tl(jk,jn)
+        enddo
+     enddo
+     if ( ldbgtov ) then
+        do jn = 1, knpf
+           write(nulout,*)'qoext_tl*1000 avant exthum4    = '
+           write(nulout,9263)(qoext_tl(i,jn)*1000.,i=1,jplev)
+           write(nulout,*)' '
+        enddo
+     endif
+     call lexthum4 (knpf,jplev,xpres,qoext_tl,qoext)
+     if ( ldbgtov ) then
+        do jn = 1, knpf
+           write(nulout,*)'qoext_tl*1000 apres exthum4    = '
+           write(nulout,9263)(qoext_tl(i,jn)*1000.,i=1,jplev)
+           write(nulout,*)' '
+        enddo
+     endif
+
+!     .  2.4  Fill profiles_tl structure
+!     .       --------------------------
+
+     no_id = 1
+     do  j = 1 , knpf 
+        profiles_tl(iptobs(j)) % nlevels         = coef(no_id) % nlevels
+        profiles_tl(iptobs(j)) % p(:)            = coef(no_id) % ref_prfl_p(:)
+        profiles_tl(iptobs(j)) % ozone_data      = .true.
+        profiles_tl(iptobs(j)) % co2_data        = .false.
+        profiles_tl(iptobs(j)) % clw_data        = .false.
+        profiles_tl(iptobs(j)) % t(:)            = toext_tl(:,j)
+        profiles_tl(iptobs(j)) % q(:)            = qoext_tl(:,j) * q_mixratio_to_ppmv
+        profiles_tl(iptobs(j)) % o3(:)           = 0.0
+        profiles_tl(iptobs(j)) % ctp             = 0.0
+        profiles_tl(iptobs(j)) % cfraction       = 0.0
+        profiles_tl(iptobs(j)) % zenangle        = 0.0
+        profiles_tl(iptobs(j)) % azangle         = 0.0
+        profiles_tl(iptobs(j)) % skin % surftype = 0.0
+        profiles_tl(iptobs(j)) % skin % t        = pgomtgr_tl(1,iptobscma(j))
+        profiles_tl(iptobs(j)) % skin % fastem(:)= 0.0
+        profiles_tl(iptobs(j)) % s2m % t         = pgomt_tl(ilowlvl,iptobscma(j))
+        profiles_tl(iptobs(j)) % s2m % q         = qoext(ilowlvl,j) * pgomq_tl(ilowlvl,iptobscma(j)) * q_mixratio_to_ppmv
+        profiles_tl(iptobs(j)) % s2m % p         = pgomps_tl(1,iptobscma(j))*rpatmb
+        profiles_tl(iptobs(j)) % s2m % u         = pgomu_tl(ilowlvl,iptobscma(j))
+        profiles_tl(iptobs(j)) % s2m % v         = pgomv_tl(ilowlvl,iptobscma(j))
+     end do
+ 
+!    next bunch !
+
+     knpf = 0
+
+  290 continue
+
+  alloc_status(:) = 0
+  deallocate (iptobs    ,stat= alloc_status(1) )
+  deallocate (iptobscma ,stat= alloc_status(2) )
+  deallocate (to_tl     ,stat= alloc_status(3) )
+  deallocate (lqo_tl    ,stat= alloc_status(4) )
+  deallocate (toext_tl  ,stat= alloc_status(5) )
+  deallocate (qoext_tl  ,stat= alloc_status(6) )
+  deallocate (zvlev     ,stat= alloc_status(7) )
+  deallocate (zt_tl     ,stat= alloc_status(8) )
+  deallocate (zlq_tl    ,stat= alloc_status(9) )
+  deallocate (zt        ,stat= alloc_status(10))
+  deallocate (zlq       ,stat= alloc_status(11))
+  deallocate (qoext     ,stat= alloc_status(12))
+  deallocate (zps_tl    ,stat= alloc_status(13))
+
+  if( any(alloc_status /= 0) ) then
+     write(nulout,*) ' tovs_fill_profiles_tl : memory deallocation error'
+     call abort3d(nulout,'tovs_fill_profiles_tl        ')
+  end if
+
+  9263 format(1x,10f8.4)
+
+
+!     3.  Close up
+!     .   --------
+
+  return
+
+end subroutine tovs_fill_profiles_tl

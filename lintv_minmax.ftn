@@ -1,0 +1,168 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE LINTV_MINMAX (PVLEV,PVI1,PVI2,KNIDIM,KNI,
+     S                   KNPROF,KNO,PPO,PVO1,PVO2)
+#if defined (DOC)
+*
+***s/r LINTV2  - Linear interpolation and constant value extrapolation.
+*                Input pressure levels can vary for each profile.
+*
+*
+*Author  : J. Halle *CMDA/AES  Oct 1999
+*          (based on lintv)
+*
+*Revision 001  : J. Halle *CMDA/AES  dec 2000
+*                adapt to TOVS level 1b.
+*
+*Revision 002  : JM Belanger  *CMDA/SMC* june 2001
+*                32 bits conversion.
+*
+*Revision 003  : J. Halle     *CMDA/SMC* june 2002
+*                remove unnecessary comdecks.
+*
+*Revision 004: J. Halle CMDA/SMC Feb 2003
+*              replace dynamic memory allocation with automatic arrays.
+*Revision 005: P. Koclas CMDA/SMC Apr 2003
+*              changed loop nesting order for ibm conversion
+*Revision 006: S. Pellerin, ARMA, August 2008
+*              . Argument redefinition (LINTV -> LINTV_MINMAX)
+*              . Loop over profiles and kno to avoid multiple calls
+*              . Compute min and max in a single call
+*              . Introduction of OpenMP over outer profile loop
+*Arguments
+*     i   PVLEV(KNIDIM)    : Vertical levels, pressure (source)
+*     i   PVI(KNIDIM)      : Vector to be interpolated (source)
+*     i   KNIDIM                  : Dimension of input levels (source)
+*     i   KNI                     : Number of input levels (source)
+*     i   KNPROF                  : Number of profiles
+*     i   KNO                     : Number of output levels (destination)
+*     i   PPO(KNPROF,KNO)                : Vertical levels, pressure (destination)
+*     o   PVO(KNPROF,KNO)         : Interpolated profiles (destination)
+*
+*    -------------------
+**    Purpose: Performs the vertical interpolation in log of pressure
+*              and constant value extrapolation of one-dimensional vectors.
+#endif
+      IMPLICIT NONE
+*implicits
+*
+      INTEGER  JI, JK, JO, JN, IK, IORDER
+      INTEGER  KNIDIM, KNI, KNO, KNPROF, ILEN, IERR
+C
+      REAL*8 PVLEV(KNIDIM)
+      REAL*8 PPO(KNPROF,KNO), PVO1(KNPROF,KNO),PVO2(KNPROF,KNO)
+      REAL*8 PVI1(KNIDIM),pvi2(knidim)
+C
+      REAL*8     ZPI (0:KNI+1)
+      REAL*8     ZPO (KNO)
+      REAL*8     ZPVI1(0:KNI+1),ZPVI2(0:KNI+1)
+      INTEGER  IL  (KNO)
+C
+      REAL*8 ZW1, ZW2
+      REAL*8 ZP, XI, ZRT, ZP1, ZP2
+C
+C**   0. Dynamic memory allocation for temporary vectors
+C     .  -----------------------------------------------
+C
+ 050  CONTINUE
+C
+C     ... removed and replaced by automatic arrays, jh feb 2003 ......
+C
+C**   1. Initialization for vertical extrapolation (extra dummy levels)
+C     .  --------------------------------------------------------------
+C
+ 100  CONTINUE
+Cpik
+      ZPI(0)=2000.
+      ZPI(KNI+1)=2000.
+
+C
+C**      1.1 Determine if input pressure levels are in ascending or
+C     .      descending order.
+C     .     -------------------------------------------------------
+C
+      IF ( PVLEV(1) .LT. PVLEV(KNI) ) THEN
+          IORDER = 1
+      ELSE
+          IORDER = -1
+      ENDIF
+C
+C**   2. Compute pressure levels pressure
+C     .  ------------------------------------------------
+C
+200   CONTINUE
+C
+C**   2.1 Source levels
+C     .   -------------
+C
+cpik
+      DO JK = 1, KNI
+        ZPI(JK) = PVLEV(JK)
+        ZPVI1(JK) = PVI1(JK)
+        ZPVI2(JK) = PVI2(JK)
+      ENDDO
+      ZPVI1(0) = PVI1(1)
+      ZPVI1(KNI+1) = PVI1(KNI)
+      ZPVI2(0) = PVI2(1)
+      ZPVI2(KNI+1) = PVI2(KNI)
+C
+C**   2.2 Destination levels
+C     .   ------------------
+c$omp parallel do default(shared)
+c$omp+private(jk,zpo,il,ji,jo,zrt,zp,xi,ik,zp1,zp2,zw1,zw2)
+      DO JN = 1, KNPROF
+
+        DO JK = 1, KNO
+          ZPO(JK) = PPO(JN,JK)
+        ENDDO
+C
+C*    3.  Interpolate in log of pressure or extrapolate with constant value
+C*    .   for each destination pressure level
+C     .   -----------------------------------------------------------------
+C
+C*    .  3.1  Find the adjacent level below
+C     .       -----------------------------
+        IL(:)=0
+C
+        DO JI=1,KNI
+          DO JO=1,KNO
+            ZRT = ZPO(JO)
+            ZP = ZPI(JI)
+            XI = SIGN(1.0D0,IORDER*(ZRT-ZP))
+            IL(JO) = IL(JO) + MAX(0.0D0,XI)
+          ENDDO
+        ENDDO
+C
+C
+C*    .  3.3  Interpolation/extrapolation
+C     .       ---------------------------
+C
+        DO JO=1,KNO
+          IK = IL(JO)
+          ZP = ZPO(JO)
+          ZP1 = ZPI(IK)
+          ZP2 = ZPI(IK+1)
+          ZW1 = LOG(ZP/ZP2)/LOG(ZP1/ZP2)
+          ZW2 = 1. - ZW1
+          PVO1(JN,JO) = ZW1*ZPVI1(IK) +  ZW2*ZPVI1(IK+1)
+          PVO2(JN,JO) = ZW1*ZPVI2(IK) +  ZW2*ZPVI2(IK+1)
+        ENDDO
+      enddo
+c$omp end parallel do
+C
+      RETURN
+      END

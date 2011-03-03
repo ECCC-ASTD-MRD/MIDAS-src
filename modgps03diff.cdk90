@@ -1,0 +1,338 @@
+module modgps03diff
+#if defined (DOC)
+  !
+  ! Structure containing a variable and its derivatives wrt the control
+  ! variables of a model profile.
+  !
+  ! Types:
+  !      gpsdiff:
+  !        Var     :: Value
+  !        DVar    :: List of derivatives of Var wrt the control vars
+  !
+  ! Josep M. Aparicio
+  ! Meteorological Service of Canada, 2003.
+  !
+#endif
+  use modgps00base        , only: i4, dp, ngpscvmx
+  implicit none
+  
+  type gpsdiff
+     real(dp)           :: Var
+     real(dp)           :: DVar(ngpscvmx)
+  end type gpsdiff
+  
+  interface assignment(=)
+     module procedure gpsdiffasfd, gpsdiffasff
+  end interface
+  
+  interface operator(+)
+     module procedure gpsdiffsmfd, gpsdiffsmdf, gpsdiffsmfi, gpsdiffsmif, gpsdiffsmff
+  end interface
+  
+  interface operator(-)
+     module procedure gpsdiffsbfd, gpsdiffsbdf, gpsdiffsbfi, gpsdiffsbif, gpsdiffsbff
+  end interface
+  
+  interface operator(*)
+     module procedure gpsdiffmlfd, gpsdiffmldf, gpsdiffmlfi, gpsdiffmlif, gpsdiffmlff
+  end interface
+  
+  interface operator(/)
+     module procedure gpsdiffdvfd, gpsdiffdvdf, gpsdiffdvfi, gpsdiffdvif, gpsdiffdvff
+  end interface
+  
+  interface operator(**)
+     module procedure gpsdiffpwfd, gpsdiffpwdf, gpsdiffpwfi, gpsdiffpwif, gpsdiffpwff
+  end interface
+
+  interface sqrt
+     module procedure gpsdiffsqr
+  end interface
+
+  interface exp
+     module procedure gpsdiffexp
+  end interface
+  
+  interface log
+     module procedure gpsdifflog
+  end interface
+  
+  private gpsdiffasfd, gpsdiffasff
+  private gpsdiffsmfd, gpsdiffsmdf, gpsdiffsmfi, gpsdiffsmif, gpsdiffsmff
+  private gpsdiffsbfd, gpsdiffsbdf, gpsdiffsbfi, gpsdiffsbif, gpsdiffsbff
+  private gpsdiffmlfd, gpsdiffmldf, gpsdiffmlfi, gpsdiffmlif, gpsdiffmlff
+  private gpsdiffdvfd, gpsdiffdvdf, gpsdiffdvfi, gpsdiffdvif, gpsdiffdvff
+  private gpsdiffpwfd, gpsdiffpwdf, gpsdiffpwfi, gpsdiffpwif, gpsdiffpwff
+  private gpsdiffexp
+  private gpsdifflog
+  
+contains
+  
+  subroutine gpsdiffasfd(gd1, d2)
+    type(gpsdiff), intent(out) :: gd1
+    real(dp)     , intent(in)  :: d2
+    
+    gd1%Var  = d2
+    gd1%DVar = 0._dp
+  end subroutine gpsdiffasfd
+  
+  subroutine gpsdiffasff(gd1, gd2)
+    type(gpsdiff), intent(out) :: gd1
+    type(gpsdiff), intent(in)  :: gd2
+    
+    gd1%Var  = gd2%Var
+    gd1%DVar = gd2%DVar
+  end subroutine gpsdiffasff
+
+  function gpsdiffsmfd(gd1, d2)
+    type(gpsdiff), intent(in)  :: gd1
+    real(dp)     , intent(in)  :: d2
+    type(gpsdiff)              :: gpsdiffsmfd
+    
+    gpsdiffsmfd%Var  = gd1%Var  + d2
+    gpsdiffsmfd%DVar = gd1%DVar
+  end function gpsdiffsmfd
+
+  function gpsdiffsmdf(d1, gd2)
+    real(dp)     , intent(in)  :: d1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffsmdf
+    
+    gpsdiffsmdf%Var  = d1 + gd2%Var
+    gpsdiffsmdf%DVar =      gd2%DVar
+  end function gpsdiffsmdf
+
+  function gpsdiffsmfi(gd1, i2)
+    type(gpsdiff), intent(in)  :: gd1
+    integer(i4)  , intent(in)  :: i2
+    type(gpsdiff)              :: gpsdiffsmfi
+    
+    gpsdiffsmfi%Var  = gd1%Var  + i2
+    gpsdiffsmfi%DVar = gd1%DVar
+  end function gpsdiffsmfi
+
+  function gpsdiffsmif(i1, gd2)
+    integer(i4)  , intent(in)  :: i1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffsmif
+    
+    gpsdiffsmif%Var  = i1 + gd2%Var
+    gpsdiffsmif%DVar =      gd2%DVar
+  end function gpsdiffsmif
+
+  function gpsdiffsmff(gd1, gd2)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffsmff
+    
+    gpsdiffsmff%Var  = gd1%Var  + gd2%Var
+    gpsdiffsmff%DVar = gd1%DVar + gd2%DVar
+  end function gpsdiffsmff
+  
+  function gpsdiffsbfd(gd1, d2)
+    type(gpsdiff), intent(in)  :: gd1
+    real(dp)     , intent(in)  :: d2
+    type(gpsdiff)              :: gpsdiffsbfd
+    
+    gpsdiffsbfd%Var  = gd1%Var  - d2
+    gpsdiffsbfd%DVar = gd1%DVar
+  end function gpsdiffsbfd
+
+  function gpsdiffsbdf(d1, gd2)
+    real(dp)     , intent(in)  :: d1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffsbdf
+    
+    gpsdiffsbdf%Var  = d1 - gd2%Var
+    gpsdiffsbdf%DVar =    - gd2%DVar
+  end function gpsdiffsbdf
+
+  function gpsdiffsbfi(gd1, i2)
+    type(gpsdiff), intent(in)  :: gd1
+    integer(i4)  , intent(in)  :: i2
+    type(gpsdiff)              :: gpsdiffsbfi
+    
+    gpsdiffsbfi%Var  = gd1%Var  - i2
+    gpsdiffsbfi%DVar = gd1%DVar
+  end function gpsdiffsbfi
+
+  function gpsdiffsbif(i1, gd2)
+    integer(i4)  , intent(in)  :: i1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffsbif
+    
+    gpsdiffsbif%Var  = i1 - gd2%Var
+    gpsdiffsbif%DVar =    - gd2%DVar
+  end function gpsdiffsbif
+
+  function gpsdiffsbff(gd1, gd2)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffsbff
+    
+    gpsdiffsbff%Var  = gd1%Var  - gd2%Var
+    gpsdiffsbff%DVar = gd1%DVar - gd2%DVar
+  end function gpsdiffsbff
+
+  function gpsdiffmlfd(gd1, d2)
+    type(gpsdiff), intent(in)  :: gd1
+    real(dp)     , intent(in)  :: d2
+    type(gpsdiff)              :: gpsdiffmlfd
+    
+    gpsdiffmlfd%Var  = gd1%Var  * d2
+    gpsdiffmlfd%DVar = gd1%DVar * d2
+  end function gpsdiffmlfd
+
+  function gpsdiffmldf(d1, gd2)
+    real(dp)     , intent(in)  :: d1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffmldf
+    
+    gpsdiffmldf%Var  = d1 * gd2%Var
+    gpsdiffmldf%DVar = d1 * gd2%DVar
+  end function gpsdiffmldf
+
+  function gpsdiffmlfi(gd1, i2)
+    type(gpsdiff), intent(in)  :: gd1
+    integer(i4)  , intent(in)  :: i2
+    type(gpsdiff)              :: gpsdiffmlfi
+    
+    gpsdiffmlfi%Var  = gd1%Var  * i2
+    gpsdiffmlfi%DVar = gd1%DVar * i2
+  end function gpsdiffmlfi
+
+  function gpsdiffmlif(i1, gd2)
+    integer(i4)  , intent(in)  :: i1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffmlif
+    
+    gpsdiffmlif%Var  = i1 * gd2%Var
+    gpsdiffmlif%DVar = i1 * gd2%DVar
+  end function gpsdiffmlif
+
+  function gpsdiffmlff(gd1, gd2)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffmlff
+    
+    gpsdiffmlff%Var  = gd1%Var * gd2%Var
+    gpsdiffmlff%DVar = (gd2%Var * gd1%DVar) + (gd1%Var * gd2%DVar)
+  end function gpsdiffmlff
+
+  function gpsdiffdvfd(gd1, d2)
+    type(gpsdiff), intent(in)  :: gd1
+    real(dp)     , intent(in)  :: d2
+    type(gpsdiff)              :: gpsdiffdvfd
+    
+    gpsdiffdvfd%Var  = gd1%Var  / d2
+    gpsdiffdvfd%DVar = gd1%DVar / d2
+  end function gpsdiffdvfd
+
+  function gpsdiffdvdf(d1, gd2)
+    real(dp)     , intent(in)  :: d1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffdvdf
+    
+    gpsdiffdvdf%Var  =  d1 / gd2%Var
+    gpsdiffdvdf%DVar = (-d1 / gd2%Var**2) * gd2%DVar
+  end function gpsdiffdvdf
+
+  function gpsdiffdvfi(gd1, i2)
+    type(gpsdiff), intent(in)  :: gd1
+    integer(i4)  , intent(in)  :: i2
+    type(gpsdiff)              :: gpsdiffdvfi
+    
+    gpsdiffdvfi%Var  = gd1%Var  / i2
+    gpsdiffdvfi%DVar = gd1%DVar / i2
+  end function gpsdiffdvfi
+
+  function gpsdiffdvif(i1, gd2)
+    integer(i4)  , intent(in)  :: i1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffdvif
+    
+    gpsdiffdvif%Var  = i1 / gd2%Var
+    gpsdiffdvif%DVar = (-i1 / gd2%Var**2) * gd2%DVar
+  end function gpsdiffdvif
+
+  function gpsdiffdvff(gd1, gd2)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffdvff
+    
+    gpsdiffdvff%Var  = gd1%Var / gd2%Var
+    gpsdiffdvff%DVar = (gd1%DVar * gd2%Var - gd1%Var * gd2%DVar)            &
+         / gd2%Var**2
+  end function gpsdiffdvff
+
+  function gpsdiffpwfd(gd1, d2)
+    type(gpsdiff), intent(in)  :: gd1
+    real(dp)     , intent(in)  :: d2
+    type(gpsdiff)              :: gpsdiffpwfd
+    
+    gpsdiffpwfd%Var  = gd1%Var  ** d2
+    gpsdiffpwfd%DVar = (d2*(gd1%Var**(d2-1._dp))) * gd1%DVar
+  end function gpsdiffpwfd
+
+  function gpsdiffpwdf(d1, gd2)
+    real(dp)     , intent(in)  :: d1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffpwdf
+    
+    gpsdiffpwdf%Var  =  d1 ** gd2%Var
+    gpsdiffpwdf%DVar = (log(d1)*d1**gd2%Var) * gd2%DVar
+  end function gpsdiffpwdf
+
+  function gpsdiffpwfi(gd1, i2)
+    type(gpsdiff), intent(in)  :: gd1
+    integer(i4)  , intent(in)  :: i2
+    type(gpsdiff)              :: gpsdiffpwfi
+    
+    gpsdiffpwfi%Var  = gd1%Var  ** i2
+    gpsdiffpwfi%DVar = (i2*(gd1%Var**(i2-1._dp))) * gd1%DVar
+  end function gpsdiffpwfi
+
+  function gpsdiffpwif(i1, gd2)
+    integer(i4)  , intent(in)  :: i1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffpwif
+    
+    gpsdiffpwif%Var  = i1 ** gd2%Var
+    gpsdiffpwif%DVar = (log(1._dp*i1)*i1**gd2%Var) * gd2%DVar
+  end function gpsdiffpwif
+
+  function gpsdiffpwff(gd1, gd2)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff), intent(in)  :: gd2
+    type(gpsdiff)              :: gpsdiffpwff
+    
+    gpsdiffpwff%Var  = gd1%Var ** gd2%Var
+    gpsdiffpwff%DVar = ( gd2%Var * ( gd1%Var**(gd2%Var-1) ) ) * gd1%DVar +    &
+         (log(gd1%Var)*(gd1%Var**gd2%Var))*gd2%DVar
+  end function gpsdiffpwff
+
+  function gpsdiffsqr(gd1)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff)              :: gpsdiffsqr
+    
+    gpsdiffsqr%Var  = sqrt( gd1%Var )
+    gpsdiffsqr%DVar = 0.5_dp * gd1%DVar / sqrt( gd1%Var )
+  end function gpsdiffsqr
+
+  function gpsdiffexp(gd1)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff)              :: gpsdiffexp
+    
+    gpsdiffexp%Var  = exp(gd1%Var)
+    gpsdiffexp%DVar = gd1%DVar * exp(gd1%Var)
+  end function gpsdiffexp
+  
+  function gpsdifflog(gd1)
+    type(gpsdiff), intent(in)  :: gd1
+    type(gpsdiff)              :: gpsdifflog
+    
+    gpsdifflog%Var  = log(gd1%Var)
+    gpsdifflog%DVar = gd1%DVar / gd1%Var
+  end function gpsdifflog
+  
+end module modgps03diff

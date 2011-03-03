@@ -1,0 +1,136 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUOBS(KULOUT)
+      use mod4dv, only : l4dvar
+#if defined (DOC)
+*
+***s/r SUOBS  - Initialisation of observation parameters and constants
+*
+*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+*Revision:
+*     .    P. Gauthier *ARMA/AES MAY 20,1993
+*     .                -Modification of the CMA files-
+*Revision:
+*          P. KOCLAS CMC   AUGUST 93.
+*     .                -FILL CMA BY CALL TO ROUTINE SETUP
+*                       FOR CASE LSIMOB=.FALSE.
+*          C.CHARETTE *ARMA/AES Jan 97. - READNML. SET DEFAULT VALUES
+*          S. Pellerin *ARMA/AES Aug. 98.
+*                       Reordering of NLIST for reproductability of the
+*                       matrix-vector product in MATVEC
+*          JM Belanger CMDA/SMC  Jul 2000
+*                   . 32 bits conversion
+*          C Charette  ARMA/SMC  Oct 2001
+*                   . Added LTOPOFILT
+*          S. Pellerin *ARMA/SMC nov. 2001
+*                   . Initialisation of dstepobs for fgat/4dvar mode
+*     P. Gauthier *ARMA/MSC March 2003
+*     .       Elimination of simulated observation mode at this level
+*     .       Synthetic observations will go through the same initialization process
+*     .       as for all other observations. Elimination of all related COMDECKs
+*
+*Arguments
+*     i   KULOUT: unit used for optional printing
+*
+#endif
+C
+      IMPLICIT NONE
+*implicits
+* comct0: NCONF
+*
+#include "comlun.cdk"
+#include "comnumbr.cdk"
+#include "comfilt.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+
+**
+      INTEGER KULOUT, JO, IPOINTU, IPOINTV,IPOINTZ,IERR,jelem,j,ielem
+      integer itotelem
+      REAL*8 ZLON, ZLAT,ZUT0,ZVT0, ZPPOBS
+C
+      WRITE(NULOUT,FMT=9000)
+ 9000 FORMAT(/,1x,' SUOBS- Initialisation of observation arrays'
+     S     ,/,1x,3('- -----------'))
+C
+      write(nulout,fmt='(/,12x,A)')'Setting ATOVS parameters from NAMELIST'
+      LEVEL1B=.FALSE.
+      CALL READNML('NAMTOV',IERR)
+C
+C     1.Read Input from namelist
+C     -------------------------
+C     DEFAULTS
+C     ------------------
+      dstepobs = 6.0d0
+      nlwrbin  = -1
+      nuprbin  = -1
+      NONELEV=-1
+      do j = 1, 30
+        nlist(j) = 0
+      enddo
+      NELEMS = 6
+      NLIST(1)=11003
+      NLIST(2)=11004
+      NLIST(3)=10194
+      NLIST(4)=12192
+      NLIST(5)=12062
+      NLIST(6)=12063
+      do j = 1, 15
+        nlistflg(j) = 0
+      enddo
+      NFLAGS=6
+      NLISTFLG(1)=2
+      NLISTFLG(2)=4
+      NLISTFLG(3)=5
+      NLISTFLG(4)=9
+      NLISTFLG(5)=11
+      NLISTFLG(6)=12
+C
+      LTOPOFILT = .TRUE.
+C
+      RLIMLVHU = 300.
+C
+C     Read list of flags from namelist
+C
+      CALL READNML('NAMFILT',IERR)
+C
+c
+c     Force nlist to be in the same sequence as NVNUMB for invariance in
+C     matrix-vector product done in matvec.
+c
+      itotelem = 0
+      do jelem = 1, jpnbrelem
+        do j = 1, nelems
+          if (nlist(j) .eq. nvnumb(jelem)) then
+            itotelem = itotelem + 1
+            ielem = nlist(itotelem)
+            nlist(itotelem) = nlist(j)
+            nlist(j) = ielem
+          endif
+        enddo
+      enddo
+                                !Select calls  BRPCMA
+                                ! 1. Positioning of data records within ROBDATA/MOBDATA
+      CALL SELECT               ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
+                                ! 3. Incrementation of NOBTOT and NDATA based on data selected
+*
+*     4. SYNTHOBS:  a new family, SYNTH is introduced to handle synthetic data on top of existing observations
+*     .             If no other observations are used, it performs the usual single observation experiment.
+*
+!modular1      call setsynthobs
+*
+      END SUBROUTINE SUOBS

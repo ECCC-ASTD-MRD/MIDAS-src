@@ -1,0 +1,238 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE CORRLENGTHGLB(KULSTD,ldoutfile,lduse)
+#if defined (DOC)
+*
+***s/r corrlengthglb:  For global case: calculate and output characteristics length
+*
+*Author  : L. Fillion  ARMA/EC - 1 Jun 2009.
+*Revision:
+*
+*Arguments
+*          kulstd: file number
+*          ldoutfile: .true. will also output correlation scales on RPN standard file.
+*
+#endif
+
+      IMPLICIT NONE
+*implicits
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcst.cdk"
+#include "rpnstd.cdk"
+#include "comcorr.cdk"
+#include "comcse1.cdk"
+#include "comgdpar.cdk"
+#include "compstat.cdk"
+*
+*     Arguments
+*
+      logical ldoutfile,lduse
+      INTEGER KULSTD
+*
+*     Local Variables
+*
+      INTEGER JK, JN
+      REAL*8  ZLPSI(JPNFLEV), ZLCHI(JPNFLEV), ZLTT(JPNFLEV), 
+     +        ZLLQ(JPNFLEV)
+      REAL*8  ZLPS,ZLTG
+      REAL*8  ZLN, ZLTEMP, ZLLENGTH(4*JPNFLEV),
+     +      ZLA(4*JPNFLEV), ZLB(4*JPNFLEV), ZLFACT
+
+      INTEGER VFSTECR
+      EXTERNAL VFSTECR
+*
+*     1. Normalization constants
+*     .  -----------------------
+*
+      WRITE(NULOUT,9000)'CORRLENGTH- Computing correlation lengths'
+      DO JK = 1, NKSDIM
+         ZLA(JK)   = 0.0
+         ZLB(JK)   = 0.0
+      END DO
+*
+      DO JN = 0, NTRUNC
+         ZLN = DBLE(JN)
+         ZLFACT = (2.0D0*ZLN + 1.0D0)/2.0D0
+         DO JK = 1, NKSDIM
+            ZLTEMP  = (RSTDDEV(JK,JN)**2) * ZLFACT
+            ZLA(JK) = ZLA(JK) + ZLTEMP
+            IF(JN.NE.0) THEN
+               ZLB(JK) = ZLB(JK) - ZLTEMP*ZLN*(ZLN+1)
+            END IF
+         END DO
+      END DO
+*
+      DO JK = 1, NKSDIM
+         if(ZLA(JK).gt.0.0.and.ZLB(JK).ne.0.0) then
+           ZLLENGTH(JK) = RA * SQRT(-2.0D0*ZLA(JK)/ZLB(JK))
+         else
+           ZLLENGTH(JK) = 0.0
+         endif
+      END DO
+*
+      DO JK = 1, NFLEV
+         ZLPSI(JK) = ZLLENGTH(JK)
+         ZLCHI(JK) = ZLLENGTH(JK+NFLEV)
+         ZLTT(JK) = ZLLENGTH(JK+2*NFLEV)
+         ZLLQ(JK) = ZLLENGTH(JK+3*NFLEV)
+      END DO
+      IF(NFSTVAR2D.gt.1) THEN
+        ZLPS = ZLLENGTH(NKSDIM-1)
+        ZLTG = ZLLENGTH(NKSDIM)
+      ELSE
+        ZLPS = ZLLENGTH(NKSDIM)
+      ENDIF
+!
+!     Save into arrays for use through 3dvar
+!     --------------------------------------
+!
+      if(lduse) then
+        do jk = 1, nksdim
+           rhcorl(jk) = ZLLENGTH(JK)
+        enddo
+        IF(NFSTVAR2D.gt.1) THEN
+          rhcorl(NKSDIM-1) = ZLPS
+          rhcorl(NKSDIM) = ZLTG
+        ELSE
+          rhcorl(NKSDIM) = ZLPS
+        ENDIF
+      endif
+!
+      do jk=1,nksdim
+        if(rhcorl(jk).lt.0.) then
+          write(nulout,*) 'CORRLENGTH: jk,nksdim = ',jk,nksdim
+          write(nulout,*) 'CORRLENGTH: rhcorl(jk)=',rhcorl(jk)
+          if(jk.eq.nksdim.and.NFSTVAR2D.gt.1) then
+            write(nulout,*) 'CORRLENGTH: TG stats missing probably...'
+            write(nulout,*) 'CORRLENGTH: Will use RCSCLTG from NAMPSTAT'
+            CALL READNML('NAMPSTAT',IERR)
+            ZLTG = RCSCLTG
+            rhcorl(NKSDIM) = ZLTG
+          endif
+          if(jk.ne.nksdim) then
+!cluc            call abort3d(nulout,'CORRLENGTH:
+!     &         Problem with estimated correlation Length')
+          endif
+        endif
+      enddo
+*
+*
+*     PRINT THE RESULTS
+*
+      IF(NFSTVAR2D.gt.1) THEN     
+      WRITE(NULOUT,FMT=9006)'CHARACTERISTIC LENGTHS (KM)',
+     +     'PP', 'UC', 'UT', 'LQ', 'UP', 'TG'
+      DO JK = 1, NFLEV
+         WRITE(NULOUT,FMT=9007) JK,
+     S          ZLPSI(JK)/1000., ZLCHI(JK)/1000., ZLTT(JK)/1000.,
+     S          ZLLQ(JK)/1000., ZLPS/1000., ZLTG/1000.
+      END DO
+      ELSE
+      WRITE(NULOUT,FMT=9004)'CHARACTERISTIC LENGTHS (KM)',
+     +     'PP', 'UC', 'UT', 'LQ', 'UP'
+      DO JK = 1, NFLEV
+         WRITE(NULOUT,FMT=9005) JK,
+     S          ZLPSI(JK)/1000., ZLCHI(JK)/1000., ZLTT(JK)/1000.,
+     S          ZLLQ(JK)/1000., ZLPS/1000.
+      END DO
+      ENDIF
+*
+ 9000 FORMAT(/,8X,A,/)
+ 9004 FORMAT(///,'%%',22X,A,/,2x,'Level (hPa)'
+     S     ,8x,A,14x,A
+     S     ,14x,A,14x,A,14x,A,14x,A,14x,A)
+ 9005 FORMAT('%%',2X,I6,8X,G12.6,4X,G12.6,4X,G12.6,4X,G12.6
+     S     ,4X,G12.6,4X,G12.6,4X,G12.6)
+ 9006 FORMAT(///,'%%',12X,A,/,2x,'Level (hPa)'
+     S     ,6x,A,8x,A
+     S     ,12x,A,10x,A,12x,A,10x,A,10x,A,10x,A)
+ 9007 FORMAT('%%',2X,I6,8X,G12.6,4X,G12.6,4X,G12.6,4X,G12.6
+     S     ,4X,G12.6,4X,G12.6,4X,G12.6,4X,G12.6)
+*
+      if(ldoutfile) then
+!
+c write out the length scales
+      INK     = NFLEV
+      INI     = 1
+      INJ     = 1
+      CLETIKET='LONGCORR'
+      CLGRTYP = 'X'
+      IP1     = 0
+      IP2     = 0
+      IP3     = nensemble
+      idateo  = ndatestat
+      IDEET   = 0
+      IPAS    = 0
+      IG1     = 0
+      IG2     = 0
+      IG3     = 0
+      IG4     = 0
+      IDATYP  = 5
+      CLTYPVAR = 'X'
+      IPAK    = -32
+C
+      IERR = FNOM(KULSTD,CFLSTDEV,'RND',0)
+      IERR = FSTOUV(KULSTD,'RND')
+C
+      CLNOMVAR = CFSTVAR(1)
+      IERR =VFSTECR(ZLPSI,ZLPSI,IPAK,
+     S        KULSTD,IDATEO,IDEET,IPAS,INI,INJ,INK,IP1,IP2,IP3,
+     S        CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP,IG1,IG2,IG3,IG4,
+     S        IDATYP,.TRUE.)
+*
+      CLNOMVAR = CFSTVAR(2)
+      IERR =VFSTECR(ZLCHI,ZLCHI,IPAK,
+     S        KULSTD,IDATEO,IDEET,IPAS,INI,INJ,INK,IP1,IP2,IP3,
+     S        CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP,IG1,IG2,IG3,IG4,
+     S        IDATYP,.TRUE.)
+*
+      CLNOMVAR = CFSTVAR(3)
+      IERR =VFSTECR(ZLTT,ZLTT,IPAK,
+     S        KULSTD,IDATEO,IDEET,IPAS,INI,INJ,INK,IP1,IP2,IP3,
+     S        CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP,IG1,IG2,IG3,IG4,
+     S        IDATYP,.TRUE.)
+*
+      if(nfstvar.ge.4) then
+      CLNOMVAR = CFSTVAR(4)
+      IERR =VFSTECR(ZLLQ,ZLLQ,IPAK,
+     S        KULSTD,IDATEO,IDEET,IPAS,INI,INJ,INK,IP1,IP2,IP3,
+     S        CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP,IG1,IG2,IG3,IG4,
+     S        IDATYP,.TRUE.)
+*
+      endif
+      CLNOMVAR = CFSTVAR2D(1)
+      INK=1
+      IERR =VFSTECR(ZLPS,ZLPS,IPAK,
+     S        KULSTD,IDATEO,IDEET,IPAS,INI,INJ,INK,IP1,IP2,IP3,
+     S        CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP,IG1,IG2,IG3,IG4,
+     S        IDATYP,.TRUE.)
+*
+      IF(NFSTVAR2D.gt.1) THEN
+        CLNOMVAR = CFSTVAR2D(2)
+        INK=1
+        IERR =VFSTECR(ZLTG,ZLTG,IPAK,
+     S        KULSTD,IDATEO,IDEET,IPAS,INI,INJ,INK,IP1,IP2,IP3,
+     S        CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP,IG1,IG2,IG3,IG4,
+     S        IDATYP,.TRUE.)
+      ENDIF
+!
+      endif
+!
+      RETURN
+      END

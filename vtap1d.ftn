@@ -1,0 +1,119 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+*DECK VTAP1D
+      SUBROUTINE VTAP1D(kobs)
+#if defined (DOC)
+C
+*S/P VTAP1D:
+* AUTHOR:  Luc Fillion - ARMA/AES - 10 mar 99
+*
+* REVISION:
+*          S. Pellerin - ARMA/SMC - Sept. 2000
+*                      - exclusion of commvo1
+*                        and local allocation of working
+*                        space for virtual temperature
+*                        regional implementation
+*
+#endif
+      IMPLICIT NONE
+      INTEGER  kobs
+*
+      logical llprint
+      INTEGER  JLON, IKLEVM2, JK, IK,ier
+      REAL*8     ZAK, ZBK, ZCK,ZCON,ztv(1),zhu
+      pointer (pttv,ztv)
+*implicits
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comode.cdk"
+#include "commvo.cdk"
+#include "commvog.cdk"
+#include "comphy.cdk"
+#include "dinternv.cdk"
+#include "finternv.cdk"
+*modules
+*
+**
+      call hpalloc(pttv,nflev,ier,8)
+      do jk = 1, nflev
+        zhu = exp(gomqg(jk,kobs))
+        ztv(jk) = fotvv(gomtg(jk,kobs),zhu)
+      enddo
+      llprint = .false.
+c
+      ZCON = -RGASD
+      ZAK = -2.0*ZCON*VMA(nflev)
+      ZBK = -2.0*ZCON*VMB(nflev)
+      ZCK = -2.0*ZCON*VMC(nflev)
+********************************************************
+c       write(nulout,*)'vtap:nflev,VMA,VMB,VMC ',
+c     &       nflev,VMA(nflev),VMB(nflev),VMC(nflev)
+********************************************************
+      gomgzg(nflev,kobs) = RMTMOBS(kobs)
+      gomgzg(nflev-1,kobs)=
+     $                   ZAK*ztv(nflev-1)+
+     $                   ZBK*ztv(nflev)+
+     &                   ZCK*ztv(nflev-2)+
+cluc     $                   rtapfac(nflev-1,kobs)*ZAK*ztv(nflev-1,kobs)+
+cluc     $                   rtapfac(nflev,kobs)*ZBK*ztv(nflev,kobs)+
+cluc     &                   rtapfac(nflev-2,kobs)*ZCK*ztv(nflev-2,kobs)+
+     $                   gomgzg(nflev,kobs)
+********************************************************
+c       write(nulout,*)'vtap:nflev,kobs,zak,zbk,zck,gomgzg(nflev,)',
+c     &       nflev,kobs,zak,zbk,zck,gomgzg(nflev,kobs)
+c       write(nulout,*)'vtap:nflev-1,kobs,zak,zbk,zck,gomgzg(nflev-1,)',
+c     &       nflev-1,kobs,zak,zbk,zck,gomgzg(nflev-1,kobs)
+********************************************************
+      IKLEVM2 = nflev-2
+      do JK = 1, IKLEVM2
+        IK = nflev-1-JK
+        ZAK = -2.0*ZCON*VMA(IK+1)
+        ZBK = -2.0*ZCON*VMB(IK+1)
+        ZCK = -2.0*ZCON*VMC(IK+1)
+********************************************************
+c       write(nulout,*)'vtap:ik+1,VMA,VMB,VMC ',
+c     &       ik+1,VMA(ik+1),VMB(ik+1),VMC(ik+1)
+********************************************************
+        gomgzg(IK,kobs)=ZAK*ztv(IK)+
+     $                  ZBK*ztv(IK+1)+
+     $                  ZCK*ztv(IK+2)+
+cluc          gomgzg(IK,kobs)=rtapfac(ik,kobs)*ZAK*ztv(IK)+
+cluc     $                    rtapfac(ik+1,kobs)*ZBK*ztv(IK+1)+
+cluc     $                    rtapfac(ik+2,kobs)*ZCK*ztv(IK+2)+
+     +                  gomgzg(IK+2,kobs)
+********************************************************
+c          write(nulout,*)'vtap:ik,kobs,zak,zbk,zck,gomgzg= ',
+c     &       ik,kobs,zak,zbk,zck,gomgzg(ik,kobs)
+c          write(nulout,*)'vtap:ik,kobs,ztv(ik),ztv(ik+1),ztv(ik+2)= '
+c     &       ,ik,kobs,ztv(IK),ztv(IK+1),ztv(IK+2)
+c          write(nulout,*)'vtap:ik,kobs,rtapfac(ik(ik+1)(ik+2)= '
+c     &       ,ik,kobs,rtapfac(ik,kobs),rtapfac(ik+1,kobs),
+c     &       rtapfac(ik+2,kobs)
+**********************************************************
+      enddo
+c
+      if(llprint) then
+        do jk=1,nflev
+          write(nulout,*)'vtap: Level,Trial GZ,TT = ',jk,gomgzg(jk,1)
+     &         ,gomtg(jk,1)
+        enddo
+      endif
+C
+      call hpdeallc(pttv,ier,1)
+      RETURN
+      END

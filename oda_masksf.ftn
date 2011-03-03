@@ -1,0 +1,101 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE oda_masksf(CDFAM)
+      use modmask, only : lmasksf_in, lmasksf_out, lmask, ldiagsf, ldiag
+#if defined (DOC)
+*
+*Purpose : Defines a mask of assimilated data
+*
+*Author  : S. Pellerin, ARMA, January 2009
+*          Based on selection made in observation operator as written by
+*          P. Koclas *CMC/AES in September 1994
+*
+*Revisions:
+*          S. Macpherson, ARMA, September 2009
+*          - modification for surface met data from ground-based GPS (GP) data
+*            (exclude ZTD and ZTD formal error from surface data)
+*
+*
+#endif
+      IMPLICIT NONE
+      REAL*8 PJO
+      CHARACTER *2 CDFAM
+*implicits
+#include "comdimo.cdk"
+#include "comoabdy.cdk"
+#include "comoahdr.cdk"
+#include "comoba.cdk"
+#include "cvcord.cdk"
+#include "comnumbr.cdk"
+*
+      INTEGER IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
+      INTEGER J,JDATA,JO,IDATA,ITYP
+C
+C     Temperature lapse rate for extrapolation of gz below model surface
+C
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0) )
+     &       THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+C
+C     Process all data within the domain of the model
+C
+          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = MOBDATA(NCMOBS,ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = MOBHDR(NCMRLN,JO)
+            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+            DO JDATA=IDATA,IDATEND
+              IF ( MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
+                ITYP = MOBDATA(NCMVNM,JDATA)
+                IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS
+     &               .OR.ITYP.EQ.NEPN .OR. ITYP.EQ.NESS
+     &               .OR.ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS) THEN
+                  LMASKSF_IN(JDATA)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+                ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
+                  LMASKSF_IN(JDATA)= .false.
+                ELSE
+                  LMASKSF_IN(JDATA)=(MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
+     &                 MOBDATA(NCMXTR,JDATA)  .EQ. 0)
+                ENDIF
+                IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHS) then
+                  ldiagsf(jdata) = .true.
+                endif
+              ENDIF
+            END DO
+          enddo
+C
+C     Process all geopotential data below model's orography
+C
+          DO JDATA=IBEGIN,ILAST
+            lmasksf_out(jdata)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &           .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &           .AND. (MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+     &           .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 1)
+C
+          END DO
+C
+        ENDIF
+      END DO
+
+      lmask = lmask .or. lmasksf_in
+      lmask = lmask .or. lmasksf_out
+      ldiag = ldiag .or. ldiagsf
+C--------------------------------------------------------------------
+      RETURN
+      END
