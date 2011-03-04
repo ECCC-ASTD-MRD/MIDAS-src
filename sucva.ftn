@@ -122,8 +122,6 @@
 #include "namcva.cdk"
 #include "comct0.cdk"
 #include "comlun.cdk"
-#include "comgrd_param.cdk"
-#include "comgrd.cdk"
 #include "comcva.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
@@ -217,16 +215,11 @@ C
  9200 FORMAT(//,5x,"-Reading and initialization in preparation to the "
      S     ,"minimization",/,6x,61('-'))
 C
-      WRITE(KULOUT,*) 'SUCVA: grd_typ = ',grd_typ
       WRITE(KULOUT,*) 'SUCVA: namelist CSCAL=',CSCAL
 !
-      if(grd_typ.eq.'LU') then
+      IF(NANALVAR.eq.3.or.NANALVAR.eq.4) THEN
         CSCAL='I'
-      else
-        IF(NANALVAR.eq.3.or.NANALVAR.eq.4) THEN
-          CSCAL='I'
-        ENDIF
-      endif
+      ENDIF
       WRITE(KULOUT,*) 'SUCVA: Enforcing CSCAL=',CSCAL
 C
 C
@@ -405,10 +398,6 @@ C       ----------------------------------
 !     SET FAST WIND ROTATION OBS COEFFICIENTS
 !     ---------------------------------------
 !
-      if (grd_roule) then
-!modular1        call suroto
-      endif
-c
       if (nconf.ne.141.and.NINT(nconf/100.0).ne.6) then
 C
 C     analysis and first-guess dates

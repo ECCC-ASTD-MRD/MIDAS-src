@@ -61,7 +61,6 @@
 #include "comspg.cdk"
 #include "com2ini.cdk"
 #include "comsv.cdk"
-#include "comgrd_param.cdk"
 *
       INTEGER KDIM
       REAL*8 PX(KDIM)
@@ -189,9 +188,7 @@ C
  711     CONTINUE
          endif
 CBUE THIS SUBROUTINE DOES NOT KNOW ABOUT SPLAT, BUT INPUT=OUTPUT=0 ANYWAYS
-         if(grd_typ.eq.'GU') then
-           CALL SP2SPA
-         endif
+         CALL SP2SPA
       END IF
 C
 C Do not call CAININ if only SV's used for B

@@ -83,8 +83,6 @@ C
 #include "commvog.cdk"
 #include "comoba.cdk"
 #include "comstate.cdk"
-#include "comgrd_param.cdk"
-#include "comroto.cdk"
 *
       INTEGER KULOUT, IERR
       INTEGER ILEN, ILENU, ilen8
@@ -153,20 +151,6 @@ C
 ! 9200 FORMAT("   ROBHDR/MOBHDR: ",I10,10x
 !     S     ," ROBDATA/MOBDATA : ",I10,10x
 !     S     ," ROBDATA8 : ",I10,10x)
-!
-!*    3. Arrays for precomputed trigonometric factors for efficient
-!        wind rotation when in 'LU' mode
-!        ----------------------------------------------------------
-      if(Grd_roule) then
-        ilen=NMXOBS
-        call hpalloc(ptrcoslatr, max(ilen,1), ierr, 8)
-        call hpalloc(ptrsinlatr, max(ilen,1), ierr, 8)
-        call hpalloc(ptrcoslonr, max(ilen,1), ierr, 8)
-        call hpalloc(ptrsinlonr, max(ilen,1), ierr, 8)
-        call hpalloc(ptrcoslonob, max(ilen,1), ierr, 8)
-        call hpalloc(ptrsinlonob, max(ilen,1), ierr, 8)
-        call hpalloc(ptrrsinlatob, max(ilen,1), ierr, 8)
-      endif
 !
       RETURN
       END

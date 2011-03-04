@@ -55,8 +55,6 @@
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
-#include "comgrd_param.cdk"
-#include "comgrd.cdk"
 #include "comin.cdk"
 #include "comoabdy.cdk"
 #include "comoba.cdk"

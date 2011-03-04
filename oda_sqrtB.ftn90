@@ -42,42 +42,15 @@ subroutine oda_sqrtB(da_v,na_vdim)
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comsv.cdk"
-#include "comgrd_param.cdk"
   ! Local declarations
 
   call tmg_start(51,'VAR_CH') !
   CALL CAIN(na_vdim,da_v)
   !
   ! Conversion of analysis variables to spectral model state                    !
-  if(grd_typ.eq.'GU') then
-    if(nanalvar.eq.4) then
-       CALL SPA2GD
-!modular1    else
-!modular1      if(lsw) then
-!modular1        call spa2spsw
-!modular1        call spgd
-!modular1      else
-!modular1        if(lcva_hemis) then
-!modular1          call cv2gdgl
-!modular1        else
-!modular1          CALL SPA2SP
-!modular1          call transfer('SP01')
-!modular1          if(lstagwinds) then
-!modular1            write(nulout,*) 'USING STAGWINDS!'
-!modular1            call stagwinds(nulout) ! Winds are put directly on GEM's staggered grid
-!modular1          else
-!modular1            call spgd
-!modular1          endif
-!modular1        endif
-!modular1      endif
-    endif
-  else if (grd_typ.eq.'LU') then
-!modular1    call cv2gd
+  if(nanalvar.eq.4) then
+     CALL SPA2GD
   endif
-  !
-  IF(NSVMODE.gt.0) then     !
-!modular1     CALL SPA2SPSV           ! B matrix with Hessian singular vectors
-  END IF
   !
   call tmg_stop (51)
 

@@ -48,7 +48,6 @@ C	 Modified    : 92-02-4   * P. GAUTHIER - *ARMA/RPN
 C     ----------------------------------------------------------------------------
 #endif
       IMPLICIT NONE
-#include "comgrd_param.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comct0.cdk"
@@ -98,10 +97,6 @@ C
 !
 ! 4.1 Initialize TRLM grid parameters
 !
-      if(grd_roule) then
-!modular1        call subgpar 
-      endif
-C
 C*4.2 Initialize observations dimensions
 C*    4.1 Initialize observations dimensions
 C
@@ -124,13 +119,5 @@ C
 !
 !*    6. Initialize LAM Analysis grid fields (rotation matrix, parameters etc)
 !
-      if(grd_roule) then
-!modular1        call sugrdpar
-      endif
-!
-      if(grd_typ.eq.'LU'.and.multi_grd.eq.1) then
-!modular1        call sugrdpar2 ! for embedded LAM grid
-      endif
-C
       RETURN
       END

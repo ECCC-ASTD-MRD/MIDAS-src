@@ -46,10 +46,7 @@ C                      Introduce normal modes.
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comct0.cdk"
-#include "comgrd_param.cdk"
-#include "comgrd.cdk"
 #include "comcva.cdk"
-#include "comode.cdk"
 *
       integer :: ierr
 !
@@ -62,51 +59,18 @@ C                      Introduce normal modes.
       call gst_suglbspec(nulout,nibeg,niend,njbeg,njend,ntrunc)
 !
 !
-!*    3. For Limited-Area Option:
-!        Initialisation of computational grid for minimization or statistics computations
-!
-!modular1      if(grd_typ.eq.'GU'.and.grd_roule) call sugrdgauss
-!
-      if (grd_typ.eq.'LU'.or.multi_grd.eq.1) then
-!modular1        call sugrdlam
-        if (grd_typ.eq.'LU'.and.multi_grd.eq.1) then
-!modular1          call sugrdlam2
-        endif
-      endif
-!
 !*    4. Initialisation of the geometry
 !
       CALL SUGEM(NULOUT)
-      if (grd_typ.eq.'LU') then
-!modular1        call sugemla ! specific extra fields for LA option
-        if (multi_grd.eq.1) then
-!cluc          call sugemla2 ! eventuellement....
-        endif
-      endif
 !
 !*    6. Set Background fields on Analysis Grid ready for
 !        Basic-State dependent Control Variable definition
-!
-      if (grd_typ.eq.'LU') then
-!modular1        call subggrd
-      endif
 !
 !*    7. Initialization of post-processing
 !
       CALL SUPOST   ! keep delayed in sequence to ensure geometry dependence (Luc)
 !
 !*    8. Initialize normal mode parameters and fields
-!
-      if(lmod.or.linmi) then
-!modular1        call sumode(nulout)
-      endif
-!
-!*    9. Initialization of Coriolis field for Limited-Area option
-!
-      if (grd_typ.eq.'LU') then
-!modular1        call sucoriol
-      endif
-!
 !
       RETURN
       END

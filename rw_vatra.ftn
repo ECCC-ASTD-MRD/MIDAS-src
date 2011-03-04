@@ -18,7 +18,7 @@
      %     nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,
      %     nztrl,vatra,nmtra,
      %     vazxbar,kvadim,
-     %     vazx,ktrunc,kksdim,nvamaj,lxbar,lvazx,k1gc,imode,grd_typ_S)
+     %     vazx,ktrunc,kksdim,nvamaj,lxbar,lvazx,k1gc,imode)
 *
 #if defined (DOC)
 *
@@ -130,14 +130,8 @@
         read(ireslun) cl_version,k1gc,nsim3d,ibrpstamp,zeps1,zdf1
      &       ,itertot,isimtot,ivadim, itrunc
 *
-        if(itrunc .ne. ntrunc .and. grd_typ_S.eq.'LU' ) then
-          write(nulout,*) 'ITRUNC .NE. NTRUNC when reading HESSIAN when LAM'
-          call flush(nulout)
-          call abort3d(nulout," ITRUNC .NE. NTRUNC when reading HESSIAN for LAM")
-        endif
-*
         read(ireslun) imtra,iztrl
-        if(.not. allocated(zvatra).and.grd_typ_S.ne.'LU') then
+        if(.not. allocated(zvatra)) then
           allocate(zvatra(imtra))
           zvatra = 0.d0
         endif
@@ -167,18 +161,11 @@ cBUE
         zvatra = 0.d0
 c
         do jvadim = 1, ictrlvec
-          if(grd_typ_S.ne.'LU') then
           read(ireslun) zvatra((jvadim-1)*ivadim+1:jvadim*ivadim)
-          else
-          read(ireslun)  vatra((jvadim-1)*ivadim+1:jvadim*ivadim)
-          endif
         enddo
 *
 *       Write Residual Hessian (needed when LAM)
 *       ----------------------------------------
-        if (ictrlvec*ivadim.lt.imtra.and.grd_typ_S.eq.'LU')
-     &      read(ireslun)  vatra(ictrlvec*ivadim+1:imtra)
-*
         if(k1gc.eq.4) read(ireslun) zvatra(ictrlvec*ivadim+1:ictrlvec
      &       *ivadim+1)
 c        if(k1gc.eq.3) read(ireslun) iztrl,zvatra(1:(2*imemo+1)*ivadim  )
@@ -187,12 +174,8 @@ c       read(ireslun) iztrl, zvatra
         imemo = nvamaj ! saved for writing
         if(itrunc .ge. ktrunc) then
           write(nulout,*) 'RW_VATRA : setting vatra'
-          if(grd_typ_S.ne.'LU') then
           call setvatra(vatra,nmtra,kvadim,ktrunc,nztrl,zvatra,imtra
      &         ,ivadim,itrunc,iztrl,.false.,kksdim,nvamaj,k1gc,nlatbin)
-          else
-            nztrl = iztrl
-          endif
           imode = 2
         else
           imode = 0
@@ -203,11 +186,7 @@ c       read(ireslun) iztrl, zvatra
           read(ireslun) zvazxbar
           write(nulout,*) 'RW_VATRA : setting vazxbar'
           if(itrunc .ge. ktrunc) then ! Given res. > working res.
-            if(grd_typ_S.ne.'LU') then
             call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.false.,kksdim,nlatbin)
-            else
-            vazxbar = zvazxbar
-            endif
           else
             vazxbar = 0.d0
             call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.true.,kksdim,nlatbin)
@@ -218,11 +197,7 @@ c       read(ireslun) iztrl, zvatra
             if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
             read(ireslun) zvazx
             if(itrunc .ge. ktrunc) then ! Given res. > working res.
-              if(grd_typ_S.ne.'LU') then
               call setvazx(vazx,ktrunc,zvazx,itrunc,.false.,kksdim,nlatbin)
-              else
-              vazx = zvazx
-              endif
             else
               vazx = 0.d0
               call setvazx(vazx,ktrunc,zvazx,itrunc,.true.,kksdim,nlatbin)
@@ -279,7 +254,7 @@ c       write(ireslun) iptrl, pvatra
 *
 *       Write Residual Hessian (needed when LAM)
 *       ----------------------------------------
-        if (ictrlvec*ivadim.lt.imtra.and.grd_typ_S.eq.'LU') write(ireslun) pvatra(ictrlvec*ivadim+1:imtra)
+        if (ictrlvec*ivadim.lt.imtra) write(ireslun) pvatra(ictrlvec*ivadim+1:imtra)
 *
         if(k1gc.eq.4) write(ireslun) pvatra(ictrlvec*ivadim+1:ictrlvec
      &       *ivadim+1)

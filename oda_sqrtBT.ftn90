@@ -38,7 +38,6 @@ subroutine oda_sqrtBT(da_v,na_vdim)
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comsv.cdk"
-#include "comgrd_param.cdk"
 #include "comin.cdk"
 
   ! Local declarations
@@ -49,49 +48,12 @@ subroutine oda_sqrtBT(da_v,na_vdim)
 
   call tmg_start(51,'VAR_CH') !
 !modular1  IF(NSVMODE.gt.0) CALL SPA2SPADSV
-  if(grd_typ.eq.'GU') then
-    if(nanalvar.eq.4) then
-       CALL SPA2GDAD
-!modular1    else
-!modular1      if(lcva_hemis) then
-!modular1        call tmg_start(54,'acv2spgl') !
-!modular1        call acv2gdgl
-!modular1        call tmg_stop(54) !
-!modular1      else
-!modular1        if (lstagwinds) then
-!modular1          call tmg_start(52,'stagwinds_ad') !
-!modular1          call stagwinds_ad(nulout)
-!modular1         call tmg_stop(52) !
-!modular1        else
-!modular1          call tmg_start(53,'SPGDA') !
-!modular1          CALL SPGDA
-!modular1          call tmg_stop(53) !
-!modular1        end if
-!modular1        CALL SPA2SPAD
-!modular1      endif
-    endif
-  else if (grd_typ.eq.'LU') then
-!modular1    call acv2gd
+  if(nanalvar.eq.4) then
+     CALL SPA2GDAD
   endif
   call tmg_start(55,'CAINAD') !
-!modular1  IF(NPRECON.ge.1) THEN
-!modular1     CALL CAINAD(na_vdim,dl_v)
-!modular1     CALL CAINAD2(na_vdim,dl_v,da_v)
-!modular1  ELSE
-     CALL CAINAD(na_vdim,da_v)
-!modular1  ENDIF
+  CALL CAINAD(na_vdim,da_v)
   call tmg_stop(55) !
-!cluc  if(lmin) then
-!    miter=miter+1
-!    call prscal(na_vdim,da_v,da_v,zdlgnorm)
-!    zdlgnorm = sqrt(zdlgnorm)
-!    rgradj(miter)=zdlgnorm
-!    IF(myid == 0) THEN
-!      write(nulout,*) 'oda_sqrtBT: miter, |Grad J| = ',miter,zdlgnorm
-!    endif
-!cluc  else
-!cluc    miter=0
-!cluc  endif
 
   call tmg_stop(51) !
 

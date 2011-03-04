@@ -40,10 +40,11 @@ subroutine oda_LT
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comgd0.cdk"
-#include "comgrd_param.cdk"
   ! Local declarations
   integer :: nl_ilev,nl_err
   integer :: ierr,tgsize,sizegd 
+  integer :: jlat,jlon,jlev
+  real*8 :: zmax
    
   call tmg_start(51,'VAR_CH') !
   call apreobs
@@ -53,13 +54,6 @@ subroutine oda_LT
   GD=0.0D0
   sizegd=size(GD) 
   if(l4dvar.and.(.not.lcva_3db)) then
-    if(grd_roule) then
-      !
-      !         Adjoint of: Rotate tangential wind components to real sphere tangential components
-      !
-!modular1      call auvrot2uv
-    endif
-
      !
      !     Communicate adjoint profiles to the adjoint model
      !     
@@ -69,14 +63,21 @@ subroutine oda_LT
      !     
 !modular1     if(myid == 0) call getdx('A')
      CALL rpn_comm_bcast(GD,sizegd,"mpi_double_precision",0,"GRID",ierr)
-     if(.not.grd_roule.and.grd_typ.eq.'GU') then
-        CALL gd2mvoad('TG',1)
-     else
-!modular1        call gd2mvogenad('TG',1)
-     endif 
+     CALL gd2mvoad('TG',1)
   else
      CALL NEWBILINAD
   endif
   call tmg_stop (76)
+
+  zmax=0.0d0
+  do jlat=1,nj
+    do jlev=1,nkgdim
+      do jlon=1,ni
+        if(abs(gd(jlon,jlev,jlat)).gt.zmax) zmax=abs(gd(jlon,jlev,jlat))
+      enddo
+    enddo
+  enddo
+  write(*,*) 'END OF ODA_LT, max(gd)=',zmax
+
 
 end subroutine oda_LT

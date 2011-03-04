@@ -50,7 +50,6 @@
 #include "comlun.cdk"
 #include "comsp.cdk"
 #include "comcva.cdk"
-#include "comgrd_param.cdk"
 *
       INTEGER KDIM, JDIM, JLEV, JLA, JLATBIN
       REAL*8 PX(KDIM)
@@ -62,7 +61,6 @@ C
 C
       JDIM = 0
 C
-      if(grd_typ.eq.'GU') then
         if(nanalvar.eq.4) then
           DO JLATBIN=1,NLATBIN
             DO JLEV = 1, NKSDIM
@@ -92,27 +90,6 @@ C
  103        CONTINUE
  101      CONTINUE
         endif
-      else if (grd_typ.eq.'LU') then
-        if(nanalvar.eq.4) then
-          do jlev = 1, nksdim
-            do jla = 1,nla
-              jdim = jdim + 1
-              px(jdim) = splat(jla,1,jlev,1)
-              jdim = jdim + 1
-              px(jdim) = splat(jla,2,jlev,1)
-            enddo
-          enddo
-        else
-          do jlev = 1, nksdim
-            do jla = 1,nla
-              jdim = jdim + 1
-              px(jdim) = sp(jla,1,jlev)
-              jdim = jdim + 1
-              px(jdim) = sp(jla,2,jlev)
-            enddo
-          enddo
-        endif
-      endif
 C
 C     2. Verify the dimension of the control variable
 C

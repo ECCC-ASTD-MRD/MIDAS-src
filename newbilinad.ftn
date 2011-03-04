@@ -44,7 +44,6 @@
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comstate.cdk"
-#include "comgrd_param.cdk"
 #include "comsim.cdk"
 #include "comgd0.cdk"
 #include "comcva.cdk"
@@ -60,8 +59,6 @@
       IF(myid == 0) THEN
         write(nulout,*)'NEWBILINAD- active '
       endif
-!
-      if(grd_typ.eq.'GU'.and.(.not.grd_roule)) then  ! i.e. old initial global Gaussian approach
 !
         if(l1obs) then
 !modular1          if(NGEXIST(nguu).eq.1)  call gd2mvoad_1obs('UU',nflev)
@@ -92,30 +89,6 @@
           if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev)
         endif
 !
-      else
-!
-!       Adjoint of: Rotate tangential wind components to real sphere tangential components
-!
-        if(grd_roule) then
-          if((NGEXIST(nguu).eq.1).and.(NGEXIST(ngvv).eq.1)) then
-!modular1            call auvrot2uv
-          endif
-        endif
-!
-!modular1        if(NGEXIST(nguu).eq.1)  call gd2mvogenad('UU',nflev)
-!modular1        if(NGEXIST(ngvv).eq.1)  call gd2mvogenad('VV',nflev)
-!modular1        if(NGEXIST(ngq).eq.1)   call gd2mvogenad('Q0',nflev)
-!modular1        if(NGEXIST(ngtt).eq.1)  call gd2mvogenad('TT',nflev)
-!modular1        if(NGEXIST(ngoz).eq.1)  call gd2mvogenad('OZ',nflev)
-!modular1        if(NGEXIST(ngtr).eq.1)  call gd2mvogenad('TR',nflev)
-!modular1        if(NGEXIST(nggz).eq.1)  call gd2mvogenad('GZ',nflev)
-*
-*         2D fields
-*
-        ilev = 1
-!modular1        if(NGEXIST(ngps).eq.1)  call gd2mvogenad('PS',ilev)
-!modular1        if(NGEXIST(ngtg).eq.1)  call gd2mvogenad('TG',ilev)
-      endif
 *
 *     Conversion of wind images to physical winds
 *

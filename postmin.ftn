@@ -67,7 +67,6 @@
 #include "comoabdy.cdk"
 #include "comvarqc.cdk"
 #include "comvfiles.cdk"
-#include "comgrd_param.cdk"
 #include "comsim.cdk"
 #include "com1obs.cdk"
 #include "comcorr.cdk"
@@ -206,33 +205,18 @@ C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
-!
-        if(l1obs) then
-!          if(grd_typ.eq.'GU') call gu_1obs
-!          if(grd_typ.eq.'LU') call lu_1obs
-        endif
-!
         CALL CAIN(NVADIM,VAZX)
 !
-        if(grd_typ.eq.'GU') then
-          if(lsw) then
-!modular1            call spa2spsw
-!modular1            call spgd
-          else
-            WRITE(NULOUT,*)' postmin: Transform analysis variables to'
+        WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
-            if(nanalvar.eq.4) then
+        if(nanalvar.eq.4) then
 !modular1              LSTAGTEMP=LSTAGWINDS
 !modular1              LSTAGWINDS=.FALSE.
-              CALL SPA2GD
+          CALL SPA2GD
 !modular1              LSTAGWINDS=LSTAGTEMP
-            else
+        else
 !modular1              CALL SPA2SP
 !modular1              call spgd
-            endif
-          endif
-        else if (grd_typ.eq.'LU') then
-!modular1          call cv2gd
         endif
         call tmg_stop (51)      !
       endif
@@ -292,90 +276,37 @@ c
      &              'Q0 ')
 !
 !
-      if(grd_typ.eq.'LU') then
-!        ibeg = 1+miobsbufw
-!        iend = ni-miobsbufe
-!        jbeg = 1+mjobsbufs
-!        jend = nj-mjobsbufn
-        ibeg = 1
-        iend = ni
-        jbeg = 1
-        jend = nj
-      else
-        ibeg = 1
-        iend = ni
-        jbeg = 1
-        jend = nj
-      endif
+      ibeg = 1
+      iend = ni
+      jbeg = 1
+      jend = nj
 c
       IF ( CHUM .EQ. 'LQ') THEN
         zhu(:,:,:) = 0.0
-        if(grd_typ.eq.'LU'.or.lcva_hemis) then  ! better way than std-global... will have to standardize eventually.
-          do jk = 1,nflev
-            do jj = jbeg,jend
-              do ji = ibeg,iend
-                if(q0(ji,jk,jj).gt.10.0) q0(ji,jk,jj) = 10.0   ! set upper bound since this may simply be due to an articicial
-!                                                              problem when output is done after only a few minimization
-!                                                              iterations...
-                zhu(ji,jk,jj) = zhug(ji,jk,jj)*(exp(q0(ji,jk,jj)) - 1.0)
-              enddo
+        do jk = 1,nflev
+          do jj = jbeg,jend
+            do ji = ibeg,iend
+              ZTEMP = log(zhug(ji,jk,jj)) + q0(ji,jk,jj)
+              zhu(ji,jk,jj) = EXP(ZTEMP) - zhug(ji,jk,jj)
             enddo
           enddo
-        else 
-          do jk = 1,nflev
-            do jj = jbeg,jend
-              do ji = ibeg,iend
-                ZTEMP = log(zhug(ji,jk,jj)) + q0(ji,jk,jj)
-                zhu(ji,jk,jj) = EXP(ZTEMP) - zhug(ji,jk,jj)
-              enddo
-            enddo
-           enddo
-        endif
+        enddo
       endif
       IF ( CHUM .EQ. 'ES') THEN
 !modular1        call mhuaesgd(zesg,zhug,zttg,zpsg,zpt,ni,nj,nflev)
 !modular1        call lesahugd(zhu,zttg,zhug,zesg,zpsg,zpt,ni,nj,nflev)
       ENDIF
 !
-      if(grd_typ.eq.'LU') then
-!        if(.not.lsw) call diag3dla
-        if(lsw) then
-!          call varbasic_sw(zpsig,zuug,zvvg,zttg,zhug,zpsg) ! output basic-state fields before memfree...
-        endif
-!        call diagout_la(zpsig,zuug,zvvg,zttg,zhug,zpsg)
-        if(llstdevout) then
-          if(myid == 0) call stdevout_la     ! writing (on anal-res anal incr file) lam st-dev used in this experiment
-        endif
-        call memfree(nulout)
+      call diag3dvar
+      call memfree(nulout)
 !
-!modular1        if(myid == 0 ) then
-!modular1          if(grd_roule) then
-!modular1            call varoutlow
-!modular1            call varouthigh
-!modular1          endif
-!modular1        endif
-!cluc        if(myid == 0) call varoutla
-      else
-        if(llstdevout) then
-!cluc validation required...  call stdevout     ! writing (on anal-res anal incr file) global st-dev used in this experiment
-!cluc          call post_regres
-        endif
-        call diag3dvar
-        call memfree(nulout)
+      call tmg_start(99,'VAROUT')
 !
-        call tmg_start(99,'VAROUT')
-!
-        if(myid == 0 ) then
-!modular1          if(grd_roule) then
-!modular1            call varoutlow
-!modular1            call varouthigh
-!modular1          else
-            call varout
-!modular1          endif
-        endif
-!
-        call tmg_stop(99)
+      if(myid == 0 ) then
+          call varout
       endif
+!
+      call tmg_stop(99)
 C
       CALL HPDEALLC(PXTTG,IERR,1)
       CALL HPDEALLC(PXHUG,IERR,1)

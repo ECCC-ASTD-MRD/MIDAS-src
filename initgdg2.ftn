@@ -52,7 +52,6 @@ C
 #include "comcst.cdk"
 #include "comphy.cdk"
 #include "comgem.cdk"
-#include "comgrd_param.cdk"
 *
       INTEGER  KNI, KNJ,KNK,KIG2
       CHARACTER*2  CDVAR
@@ -64,7 +63,6 @@ C
 *
 **
       CLVAR=CDVAR
-      if(grd_typ.eq.'LU') kig2 = 1
 C
 C*    1. Input field is stored from North to South
 C

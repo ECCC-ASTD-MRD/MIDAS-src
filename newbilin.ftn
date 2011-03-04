@@ -44,7 +44,6 @@
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comstate.cdk"
-#include "comgrd_param.cdk"
 #include "comcva.cdk"
 *
 *     Local variables
@@ -62,7 +61,6 @@
 !
 !     3D fields interpolation
 !
-      if(grd_typ.eq.'GU'.and.(.not.grd_roule)) then      ! i.e. original global Gaussian grid approach
         if(l1obs) then
           if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',nflev)
           if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',nflev)
@@ -91,29 +89,6 @@
           if(NGEXIST(ngps).eq.1)  call gd2mvo('PS',ilev)
           if(NGEXIST(ngtg).eq.1)  call gd2mvo('TG',ilev)
         endif
-      else
-!modular1        if(NGEXIST(nguu).eq.1)  call gd2mvogen('UU',nflev)
-!modular1        if(NGEXIST(ngvv).eq.1)  call gd2mvogen('VV',nflev)
-!modular1        if(NGEXIST(ngq).eq.1)   call gd2mvogen('Q0',nflev)
-!modular1        if(NGEXIST(ngtt).eq.1)  call gd2mvogen('TT',nflev)
-!modular1        if(NGEXIST(ngoz).eq.1)  call gd2mvogen('OZ',nflev)
-!modular1        if(NGEXIST(ngtr).eq.1)  call gd2mvogen('TR',nflev)
-!modular1        if(NGEXIST(nggz).eq.1)  call gd2mvogen('GZ',nflev)
-!
-!       Rotate tangential wind components to real sphere tangential components
-!
-        if(grd_roule) then
-          if((NGEXIST(nguu).eq.1).and.(NGEXIST(ngvv).eq.1)) then
-!modular1            call uvrot2uv
-          endif
-        endif
-*
-*       2D fields
-*
-        ilev = 1
-!modular1        if(NGEXIST(ngps).eq.1)  call gd2mvogen('PS',ilev)
-!modular1        if(NGEXIST(ngtg).eq.1)  call gd2mvogen('TG',ilev)
-      endif
 *
       return
       end subroutine newbilin

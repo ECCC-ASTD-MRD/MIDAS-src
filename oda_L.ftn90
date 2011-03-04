@@ -34,7 +34,6 @@ subroutine oda_L
   !
 #include "comdim.cdk"
 #include "comcva.cdk"
-#include "comgrd_param.cdk"
   ! Local declarations
   integer :: nl_ilev, nl_err
   integer :: ierr
@@ -45,15 +44,7 @@ subroutine oda_L
      call rpn_comm_barrier("GRID",ierr) 
 !modular1     CALL GETPROF
      nl_ilev = 1
-     if(.not.grd_roule.and.grd_typ.eq.'GU') then
-       CALL GD2MVO('TG',nl_ilev)
-     else
-!modular1       call gd2mvogen('TG',nl_ilev)
-     endif
-     if(grd_roule) then
-  !    Rotate tangential wind components to real sphere tangential components
-!modular1       call uvrot2uv
-     endif
+     CALL GD2MVO('TG',nl_ilev)
   else
      CALL NEWBILIN
   endif

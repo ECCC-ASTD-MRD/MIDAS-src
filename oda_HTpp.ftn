@@ -74,7 +74,7 @@
 #include "commvog.cdk"
 *
       INTEGER IPB,IPT, IDBURP,  ITYP
-      REAL*8 ZRES,ZOER
+      REAL*8 ZRES,ZOER,zmax
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
       INTEGER IOBS,IPOS,IK,ISTRIDE,IBEGIN,ILAST
@@ -101,6 +101,7 @@ C         stride = first odd number greater than the longest
 C          observation.
 C
       ISTRIDE=2*(NMAXLEN/2) + 1
+      zmax=0.0d0
 C
 C
 C     Process all data within the domain of the model
@@ -144,6 +145,7 @@ C
             GOMPS(1,IOBS)    = GOMPS(1,IOBS)    +
      +           (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))
      +           *ZDADPS*ZRES
+            if(abs(gomobs(ipb,iobs)).gt.zmax) zmax = abs(gomobs(ipb,iobs))
           elseif (lmaskpp_out(jdata)) THEN
             IOBS = MOBDATA(NCMOBS,JDATA)
             IPOS = MOBDATA(NCMPOS,JDATA)
@@ -171,5 +173,6 @@ c
           ENDIF
         END DO
       END DO
+      write(*,*) 'IN ODA_HTPP, MAX=',zmax
       RETURN
       END

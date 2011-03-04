@@ -104,8 +104,6 @@ C
 #include "comcva.cdk"
 #include "comgd0.cdk"
 #include "compost.cdk"
-#include "comgrd.cdk"
-#include "comgrd_param.cdk"
 *
       INTEGER kni,knj,klev,kip1
       real*8 pptrans(kni,knj)
@@ -221,24 +219,6 @@ C
 C     *  Zonal wind-image component (in m/s) on Staggered U-Grid
 C
       ELSE IF(CPVAR.EQ.'U1') THEN
-        if(grd_typ.eq.'LU') then
-          DO JGL = 1, knj
-            DO JLON = 1, kni  ! reduced U-grid values properly written at varout level subsequently.
-              PPTRANS(JLON,JGL) = UT0(JLON,KLEV,JGL)/ra
-            END DO
-          END DO
-        endif
-C
-C     *  Meridional wind component (in Knots) on Staggered V-Grid
-C
-      ELSE IF(CPVAR.EQ.'V1') THEN
-        if(grd_typ.eq.'LU') then
-          DO JGL = 1, knj
-            DO JLON = 1, kni
-              PPTRANS(JLON,JGL) = VT0(JLON,KLEV,JGL)/ra ! reduced V-grid values properly written at varout level subsequently.
-            END DO
-          END DO
-        endif
 C
 C     *  Zonal wind component (in Knots)
 C
@@ -454,7 +434,6 @@ C
         WRITE(NULOUT,*)' ****************************************'
       END IF
 C
-      if(grd_typ.ne.'LU') then
         IF ( IG2 .EQ. 0 .and. lplok) THEN
           DO 262 JLON   = 1, kni
             DO 263 JGL = 1, knj/2
@@ -464,7 +443,6 @@ C
  263        CONTINUE
  262      CONTINUE
         ENDIF
-      endif
 C
       RETURN
       END

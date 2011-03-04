@@ -145,10 +145,7 @@ C assimilated
 #include "comgoesst.cdk"
 #include "com1chn.cdk"
 #include "comgpsgb.cdk"
-#include "comgrd_param.cdk"
-#include "comgrd.cdk"
 #include "comgdpar.cdk"
-#include "comgemla.cdk"
 #include "comsim.cdk"
 
 C
@@ -333,63 +330,15 @@ C     For MAM the wind observations are removed.
 !
 ! 2.1 Set EZ parameters before obs looping and using gdxyfll function
 !
-      if(grd_typ.eq.'LU') then
-        do ji=1,ni
-          zgrdx4(ji)=rlon_an(ji,1)*rrad2deg
-!          write(nulout,*) 'suprep: ji,zgrdx4(ji)=',ji,zgrdx4(ji)
-        enddo
-        do jj=1,nj
-          zgrdy4(jj)=rlat_an(1,jj)*rrad2deg
-!          write(nulout,*) 'suprep: jj,zgrdy4(jj)=',jj,zgrdy4(jj)
-        enddo
-        igdid= ezgdef_fmem(ni,nj,'Z','E',mig1tic, mig2tic,mig3tic,
-     &                     mig4tic,zgrdx4,zgrdy4)
-!        write(nulout,*) 'suprep: ezgdef_fmem: igdid = ',igdid
-!     
-       else if(grd_typ.eq.'GU'.and.grd_roule) then
-!     
-         zxlon1_4 = grd_xlon1
-         zxlat1_4 = grd_xlat1
-         zxlon2_4 = grd_xlon2
-         zxlat2_4 = grd_xlat2
-         write(nulout,*) 'suprep: 1: zxlon1_4 =',zxlon1_4
-         write(nulout,*) 'suprep: 1: zxlat1_4 =',zxlat1_4
-         write(nulout,*) 'suprep: 1: zxlon2_4 =',zxlon2_4
-         write(nulout,*) 'suprep: 1: zxlat2_4 =',zxlat2_4
-!     
-         do ji=1,ni
-           ax(ji)=grd_x_8(ji)
-         enddo
-         do jj=1,nj
-           ay(jj)=grd_y_8(jj)
-         enddo
-!
-        call cxgaig('E',ig1tic,ig2tic,ig3tic,ig4tic,
-     &              zxlat1_4,zxlon1_4,zxlat2_4,zxlon2_4)
-!
-        call cigaxg('E', zxlat1_4, zxlon1_4, zxlat2_4, zxlon2_4,
-     &              ig1tic,ig2tic,ig3tic,ig4tic)
-!
-        write(nulout,*) 'suprep: 2: zxlon1_4 =',zxlon1_4
-        write(nulout,*) 'suprep: 2: zxlat1_4 =',zxlat1_4
-        write(nulout,*) 'suprep: 2: zxlon2_4 =',zxlon2_4
-        write(nulout,*) 'suprep: 2: zxlat2_4 =',zxlat2_4
-!
-        igdid = ezgdef_fmem(ni,nj,'Z','E',ig1tic, ig2tic,ig3tic,ig4tic,
-     &                     ax,ay)
-       endif
-!
       IF (CVCORD(1:3).NE.'MAM') THEN
-        if(Grd_typ.ne.'LU') then
-          DO JO  = 1, NOBTOT
-            ZLAT    = ROBHDR(NCMLAT,JO)
-            IF(ZLAT .GT. gst_RLATI(1)) THEN
-              ROBHDR(NCMLAT,JO) = gst_RLATI(1)
-            ELSEIF(ZLAT .LT. gst_RLATI(NJ)) THEN
-              ROBHDR(NCMLAT,JO) = gst_RLATI(NJ)
-            ENDIF
-          END DO
-        endif
+        DO JO  = 1, NOBTOT
+          ZLAT    = ROBHDR(NCMLAT,JO)
+          IF(ZLAT .GT. gst_RLATI(1)) THEN
+            ROBHDR(NCMLAT,JO) = gst_RLATI(1)
+          ELSEIF(ZLAT .LT. gst_RLATI(NJ)) THEN
+            ROBHDR(NCMLAT,JO) = gst_RLATI(NJ)
+          ENDIF
+        END DO
       ENDIF
 C
       IJ=0
@@ -407,69 +356,8 @@ C
         DLLAO=DBLE(ROBHDR(NCMLAT,JJO))
         DLLOO=DBLE(ROBHDR(NCMLON,JJO))
 !
-        if(grd_typ.eq.'GU') then
-          if(grd_roule) then
-            zlat=rrad2deg*dllao
-            zlon=rrad2deg*dlloo  
-            zlat_4=zlat
-            zlon_4=zlon
-            if(JJO.eq.1) then
-              write(nulout,*) 'suprep: JJO,zlat_4, zlon_4=',
-     &                JJO,zlat_4, zlon_4
-            endif
-            ier = gdxyfll(igdid,zx,zy,zlat_4,zlon_4,1) ! Input (lat,lon) must be real earth (lat,lon)!!!
-            if(jjo.eq.1) then
-              write(nulout,*) 'suprep: zx, zy = ',zx,zy
-            endif
-!
-            if((znjp1-zy).le.0.) then
-              call abort3d(nulout,'suprep: real(nj+1)-zy).le.0.')
-            endif
-            robhdr(ncmtla,jjo)=znjp1-zy  ! i.e. x-y coordinates of Obs on transformed sphere ready for later interpolation
-            robhdr(ncmtlo,jjo)=zx
-            if(jjo.eq.1) then
-              write(nulout,*) 'suprep: robhdr(ncmtla,jjo)=',robhdr(ncmtla,jjo)
-              write(nulout,*) 'suprep: robhdr(ncmtlo,jjo)=',robhdr(ncmtlo,jjo)
-            endif
-            ILA = int(znjp1-zy) - 1
-            if(JJO.eq.1) then
-              mxlocobs = int(zx)
-              mylocobs = int(znjp1-zy)
-              write(nulout,*) 'suprep: JJO,robhdr(ncmtla,jjo)=',
-     &           JJO,robhdr(ncmtla,jjo)
-              write(nulout,*) 'suprep: JJO,robhdr(ncmtlo,jjo)=',
-     &           JJO,robhdr(ncmtlo,jjo)
-              write(nulout,*) 'suprep: mxlocobs = ',mxlocobs
-              write(nulout,*) 'suprep: mylocobs = ',mylocobs
-            endif
-          else
-            ILA = ISRCHILA (DLLAO)
-            MOBHDR(NCMTLA,JJO)=ILA
-          endif
-        else
-          zlat=rrad2deg*dllao
-          zlon=rrad2deg*dlloo
-          zlat_4=zlat
-          zlon_4=zlon
-          if(JJO.eq.1) then
-            write(nulout,*) 'suprep: JJO,zlat_4, zlon_4=',
-     &              JJO,zlat_4, zlon_4
-          endif
-          ier = gdxyfll(igdid,zx,zy,zlat_4,zlon_4,1) ! Input (lat,lon) must be real earth (lat,lon)!!!
-!
-          robhdr(ncmtla,jjo)=zy  ! i.e. x-y coordinates of Obs on transformed sphere ready for later interpolation
-          robhdr(ncmtlo,jjo)=zx
-          if(JJO.eq.1) then
-            mxlocobs = int(zx)
-            mylocobs = int(zy)
-            write(nulout,*) 'suprep: JJO,robhdr(ncmtla,jjo)=',
-     &         JJO,robhdr(ncmtla,jjo)
-            write(nulout,*) 'suprep: JJO,robhdr(ncmtlo,jjo)=',
-     &         JJO,robhdr(ncmtlo,jjo)
-            write(nulout,*) 'suprep: mxlocobs = ',mxlocobs
-            write(nulout,*) 'suprep: mylocobs = ',mylocobs
-          endif
-        endif
+        ILA = ISRCHILA (DLLAO)
+        MOBHDR(NCMTLA,JJO)=ILA
       END DO
 C
  200  CONTINUE

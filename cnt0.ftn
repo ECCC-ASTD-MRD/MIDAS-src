@@ -26,7 +26,6 @@
 *     implicits
 #include "comct0.cdk"
 #include "comlun.cdk"
-#include "comgrd_param.cdk"
 *
       INTEGER ICONFI,ISTAMP,EXDB,EXFIN
       character(len=9) :: clmsg

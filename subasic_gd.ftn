@@ -51,8 +51,6 @@
 #include "namgdpar.cdk"
 #include "compdg.cdk"
 #include "comgem.cdk"
-#include "comgrd_param.cdk"
-#include "comgrd.cdk"
 #include "comsim.cdk"
 #include "cvcord.cdk"
 #include "comcva.cdk"
@@ -131,20 +129,10 @@
         if(nkt.ne.nflev) then  ! nlevtrl already initialized in subgpar.ftn
           write(nulout,*) 'subasic_gd: nkt, nflev = ', nkt, nflev
           write(nulout,*) 'subasic_gd: Trial & analysis have diff Nb. Levels'
-          if(grd_typ.eq.'LU') then
-          call abort3d(nulout,'SUBASIC_GD: Option not yet implemented in LAM')
-          else
           call abort3d(nulout,'SUBASIC_GD: Option not yet implemented in non LAM')
-          endif
         endif
 !
-        if(grd_typ.eq.'LU') then
-!modular1          call getfstgla(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
-          call maxmin(zttg,ni,nj,nflev,zmin,zmax,
-     &      idum1,idum2,idum3,idum4,'subasic_gd     ','ZTG')
-        else
-          call getfstg2(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
-        endif
+        call getfstg2(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
 !
         do ji=1,ni
           do jj=1,nj
@@ -161,53 +149,6 @@
       endif
           call maxmin(ttg,ni,nj,nflev,zmin,zmax,
      &      idum1,idum2,idum3,idum4,'subasic_gd     ','TTG')
-!
-!*3.  When in LA mode, ensure bi-periodicization on analysis grid and rebuild the wind field accordingly
-!     --------------------------------------------------------------------------------------------------
-!
-      if(grd_typ.eq.'LU') then
-        call transfer('GDG1')
-!modular1        call initgdla(zvort9,zdiv9,zgdpsi9,zgdchi9,'S',.false.,.false.)
-        call transfer('GD1G')
-!modular1        call initgdla1(zgzg,nila,njla,nflev)
-!modular1        call initgdla1(zesg,nila,njla,nflev)
-!
-!       N.B.: qg is treated in initgdla but its content here is q, not ln(q)
-        call maxmin(zhug,ni,nj,nflev,zmin,zmax,
-     &              idum1,idum2,idum3,idum4,'postmin        ',
-     &              'HUG')
-        if(zmin.lt.0.0.or.zmax.gt.1.e-1) then
-          write(nulout,*) 'subasic_gd: zmin,zmax=',zmin,zmax
-          call abort3d(nulout,
-     &         'subasic_gd: HU_g is out of physical bounds')
-        endif
-!
-        do ji=1,ni
-          do jj=1,nj
-            zpsg(ji,jj)=gpsg(ji,1,jj)
-            do jlev=1,nflev
-              gzg(ji,jlev,jj)=zgzg(ji,jlev,jj)
-            enddo
-          enddo
-        enddo
-        call maxmin(zpsg,ni,nj,1,zmin,zmax,
-     &              idum1,idum2,idum3,idum4,'subasic_gd     ',
-     &              'P09')
-        if(zmin.le.500.e2.or.zmax.gt.1060.e2) then   ! P0 in hPa at this point...
-          call abort3d(nulout,
-     & 'subasic_gd: Bi-periodicization of P0 is out of physical bounds')
-        endif
-!
-!       Omega
-!
-        do ji=1,ni
-          do jj=1,nj
-            do jlev=1,nflev
-              omegag(ji,jlev,jj)=0.0
-            enddo
-          enddo
-        enddo
-      endif   ! LA mode
 !
       write(nulout,*) 'subasic_gd: END'
       return

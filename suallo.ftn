@@ -102,13 +102,7 @@ C
 #include "compstat.cdk"
 #include "comstate.cdk"
 #include "comode.cdk"
-#include "comgemla.cdk"
-#include "comgemla2.cdk"
 #include "comgembgh.cdk"
-#include "comfftla.cdk"
-#include "comgrd_param.cdk"
-#include "comgrd.cdk"
-#include "comgrd2.cdk"
 #include "comconv.cdk"
 #include "comgdpar.cdk"
 #include "comrgsigla.cdk"
@@ -142,10 +136,6 @@ C
 C
          ILEN =   NKGDIM*(NJEND -NJBEG +1)
          CALL HPALLOC(PTSIG,MAX(ILEN,1),IERR,8)
-         if(grd_typ.eq.'LU') then
-           ILEN =   NI*NKGDIM*NJ
-           CALL HPALLOC(ptsigla,MAX(ILEN,1),IERR,8)
-         endif
          ILEN =   NKGDIM*(NJEND -NJBEG +1)*(NIEND -NIBEG +1)
          CALL HPALLOC(PTSIG3D,MAX(ILEN,1),IERR,8)
 cbue
@@ -619,15 +609,6 @@ C
 !*    6. Spectral correlations and balance operators
 !
 !
-      if(grd_typ.eq.'LU') then
-        ILEN = NFLEV*(NFLEV+1)*nbandmax
-        CALL HPALLOC(ptsptot, MAX(ILEN,1),IERR,8)  ! in lam4d mode: allocate also a spectral form of ptot
-        ILEN = ni*nj
-        call hpalloc(ptmtile, max(ilen,1), ierr, 1)
-        ILEN = NFLEV*(NFLEV+1)*maxtiles
-        CALL HPALLOC(ptptotla, MAX(ILEN,1),IERR,8)  ! in lam4d mode: allocate gridpoint ptot
-      endif
-!
       ILEN = NFLEV*(NFLEV+1)*NJ
       CALL HPALLOC(PTPtoT, MAX(ILEN,1),IERR,8)
       ILEN = NFLEV*(NJ)
@@ -637,11 +618,7 @@ C
 !
       write(nulout,*) 'NKSDIM2=',nksdim2
 !
-      if(grd_typ.eq.'LU') then
-        idim = nbandmax
-      else
-        idim = ntrunc+1
-      endif
+      idim = ntrunc+1
 !
       ILEN = NKSDIM2*NKSDIM2*idim*NLATBIN
       CALL HPALLOC(PTCORNS, MAX(ILEN,1),IERR,8)
@@ -709,156 +686,6 @@ c
       ILEN = NI*NJ
       CALL HPALLOC(PTGPSG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTGPTG,MAX(ILEN,1),IERR,8)
-C
-C*    9. Limited-Area (LU) Arrays
-C
-      if(grd_typ.eq.'LU'.or.multi_grd.gt.0) then
-        ILEN = NILA*NJLA
-        CALL HPALLOC(ptdxlam,MAX(ILEN,1),IERR,8)
-        CALL HPALLOC(ptdylam,MAX(ILEN,1),IERR,8)
-        if(multi_grd.eq.1) then
-          ILEN = NILA2*NJLA2
-          CALL HPALLOC(ptdxlam2,MAX(ILEN,1),IERR,8)
-          CALL HPALLOC(ptdylam2,MAX(ILEN,1),IERR,8)
-        endif
-      endif
-!
-      if(grd_typ.eq.'LU') then
-        ILEN = NILA*NJLA*nflev
-        CALL HPALLOC(ptsigla_tb,MAX(ILEN,1),IERR,8)
-      endif
-!
-      if(grd_typ.eq.'LU') then ! Fourier fields allocated only in LAM mode
-        call hpalloc(ptindxy, max(nfi*(nfj+1),1), ierr, 1)
-        call hpalloc(ptindxy_rpn, max((nila+2)*((njla+2)),1), ierr, 1)
-        call hpalloc(ptmwvnbx, max(nla,1), ierr, 1)
-        call hpalloc(ptmwvnby, max(nla,1), ierr, 1)
-        ilen = nfi*nfj
-        call hpalloc(ptmbandsp, max(ilen+1,1), ierr, 1)
-        call hpalloc(ptmila, max((ilen)*(nbimax+1),1), ierr, 1)
-        ilen = nbimax
-        call hpalloc(ptwvnbtot, max(ilen,1), ierr, 8)
-        ilen = mlen2d
-        call hpalloc(ptsdft2d, max(ilen,1), ierr, 8)
-        ilen = mlen1d
-        call hpalloc(ptsdft1d, max(ilen,1), ierr, 8)
-        ilen = nfi*nfj
-        call hpalloc(ptrbandtot, max(ilen,1), ierr, 8)
-      endif
-!
-      ilen = nila
-      call hpalloc(ptgrd_x_8, max(ilen,1), ierr, 8)
-      call hpalloc(ptgrd_u_x_8, max(ilen,1), ierr, 8)
-      ilen = njla
-      call hpalloc(ptgrd_y_8, max(ilen,1), ierr, 8)
-      call hpalloc(ptgrd_v_y_8, max(ilen,1), ierr, 8)
-      write(nulout,*) 'suallo: nila,njla = ',nila,njla
-c
-c       Lat-Lon High-Res. Background grid and metric factors
-c
-      if(grd_typ.eq.'LU'.or.multi_grd.gt.0) then
-        write(nulout,*) 'suallo: nit,njt=',nit,njt
-        ilen = (nit+9)*(njt+9)
-        call hpalloc(ptrlat_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptrlon_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdlat_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdlon_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptrrcos_bgh, max(ilen,1), ierr, 8)
-        ilen = (njt+9)
-        call hpalloc(ptrlath_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptr1mmu2_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptr1mmu2h_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdmu_bgh, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdmuh_bgh, max(ilen,1), ierr, 8)
-c
-c       Lat-Lon Analysis grid, metric factors, Coriolis factor
-c
-        ilen = (nila+9)*(njla+9)
-        call hpalloc(ptrlat_an, max(ilen,1), ierr, 8)
-        call hpalloc(ptrlon_an, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdlat_an, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdlon_an, max(ilen,1), ierr, 8)
-        call hpalloc(ptrrcos_an, max(ilen,1), ierr, 8)
-        call hpalloc(ptrrcosh_an, max(ilen,1), ierr, 8)
-        ilen = (njla+9)
-        call hpalloc(ptrlath_an, max(ilen,1), ierr, 8)
-        call hpalloc(ptr1mmu2, max(ilen,1), ierr, 8)
-        call hpalloc(ptr1mmu2h, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdmu, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdmuh, max(ilen,1), ierr, 8)
-        ilen = nila*njla
-        call hpalloc(ptcoriol, max(ilen,1), ierr, 8)
-c
-c       a,b,c matrices for tridiagonal solver
-c
-        ilen = njla
-        call hpalloc(ptatris, max(ilen,1), ierr, 8)
-        call hpalloc(ptctris, max(ilen,1), ierr, 8)
-        call hpalloc(ptatrip, max(ilen,1), ierr, 8)
-        call hpalloc(ptctrip, max(ilen,1), ierr, 8)
-        ilen = njla*nfi
-        call hpalloc(ptbtris, max(ilen,1), ierr, 8)
-        call hpalloc(ptbtrip, max(ilen,1), ierr, 8)
-!
-        if(multi_grd.eq.1) then  ! set arrays for 2nd LAM embedded grid
-c
-c         Lat-Lon Analysis grid, metric factors, Coriolis factor
-c
-          ilen = nila2
-          call hpalloc(ptgrd_x_82, max(ilen,1), ierr, 8)
-          ilen = njla2
-          call hpalloc(ptgrd_y_82, max(ilen,1), ierr, 8)
-          ilen = (nila2+9)*(njla2+9)
-          call hpalloc(ptrlat_an2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrlon_an2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrdlat_an2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrdlon_an2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrrcos_an2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrrcosh_an2, max(ilen,1), ierr, 8)
-          ilen = (njla2+9)
-          call hpalloc(ptrlath_an2, max(ilen,1), ierr, 8)
-          call hpalloc(ptr1mmu22, max(ilen,1), ierr, 8)
-          call hpalloc(ptr1mmu2h2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrdmu2, max(ilen,1), ierr, 8)
-          call hpalloc(ptrdmuh2, max(ilen,1), ierr, 8)
-          ilen = nila2*njla2
-          call hpalloc(ptcoriol2, max(ilen,1), ierr, 8)
-c
-c         a,b,c matrices for tridiagonal solver
-c
-          ilen = njla2
-          call hpalloc(ptatris2, max(ilen,1), ierr, 8)
-          call hpalloc(ptctris2, max(ilen,1), ierr, 8)
-          call hpalloc(ptatrip2, max(ilen,1), ierr, 8)
-          call hpalloc(ptctrip2, max(ilen,1), ierr, 8)
-        endif
-!
-        ilen = (nitlap+1)*nfldlap
-        call hpalloc(ptrgamma_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptrdenom_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptra_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptrb_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptadra, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrb, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrgamm, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrdeno, max(ilen,1), ierr, 8)
-!
-        ilen = nla
-        call hpalloc(ptrlapxy, max(ilen,1), ierr, 8)
-        call hpalloc(ptrilapxy, max(ilen,1), ierr, 8)
-!
-        ilen = nila*njla*nflev*(nitlap+1)*nfldlap
-        call hpalloc(ptrz_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptrs_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptrp_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptrq_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptrsol_lap, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrz, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrs, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrp, max(ilen,1), ierr, 8)
-        call hpalloc(ptadrq, max(ilen,1), ierr, 8)
-!       
-      endif
 C
 C*    10. Arrays for Convection
 C

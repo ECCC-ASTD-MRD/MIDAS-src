@@ -44,7 +44,6 @@ C
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "compost.cdk"
-#include "comgrd_param.cdk"
 #include "comgdpar.cdk"
 C
       INTEGER JLEV, IERR,jvar,ihu,itt,ivt,imin,igz,ip0,ilq
@@ -124,19 +123,11 @@ C
       NPAK       =  -30
       NSTAMP     =  0101010101
 !
-      if (grd_typ.ne.'LU') then
-        CGRTYP     = 'G'
-        NIG1       =  0
-        NIG2       =  0
-        NIG3       =  0
-        NIG4       =  0
-      else
-        CGRTYP     =  cgrtypa
-        NIG1       =  nig1t
-        NIG2       =  nig2t
-        NIG3       =  nig3t
-        NIG4       =  nig4t
-      endif
+      CGRTYP     = 'G'
+      NIG1       =  0
+      NIG2       =  0
+      NIG3       =  0
+      NIG4       =  0
 C
 C*    3. Define the levels at which postprocessing is to occur
 C

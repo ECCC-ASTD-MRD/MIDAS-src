@@ -37,11 +37,8 @@ C
 #include "comlun.cdk"
 #include "comct0.cdk"
 #include "comcst.cdk"
-#include "comgrd.cdk"
 #include "comgem.cdk"
-#include "comgemla.cdk"
 #include "namgem.cdk"
-#include "comgrd_param.cdk"
       INTEGER JLAT, KULOUT, JN, JM, ILA
       INTEGER JLEV,IERR,IMODE, IKIND
       REAL*8 ZNNP1, Z1SNP1, ZPTOP, ZPS0, ZDELP
@@ -55,32 +52,24 @@ C*    1. Initialisation of the number of points to be considered on
 C        the latitude circles
 C
  100  CONTINUE
-      if(grd_typ.eq.'GU') then
-        DO 101 JLAT = NJBEG, NJEND
-          NILON(JLAT) = NI
- 101    CONTINUE
-      else
-        do jlat = njbeg, njend
-          nilon(jlat) = ni
-        enddo
-      endif
+      DO 101 JLAT = NJBEG, NJEND
+        NILON(JLAT) = NI
+ 101  CONTINUE
 C
 C     2. Calculation of the eigenvalues of the Laplacian
 C
  200  CONTINUE
-      if(grd_typ.eq.'GU') then
-        RNNP1(1)  = 0.
-        R1SNP1(1) = 0.
-        DO 201 JN = 1, NTRUNC
-           ZNNP1  = -FLOAT(JN)*FLOAT(JN+1)
-           Z1SNP1 =  1./ZNNP1
-           DO 202 JM = 0, JN
-              ILA = gst_NIND(JM) + JN - JM
-              RNNP1(ILA) = ZNNP1
-              R1SNP1(ILA) = Z1SNP1
- 202       CONTINUE
- 201    CONTINUE
-      endif
+      RNNP1(1)  = 0.
+      R1SNP1(1) = 0.
+      DO 201 JN = 1, NTRUNC
+         ZNNP1  = -FLOAT(JN)*FLOAT(JN+1)
+         Z1SNP1 =  1./ZNNP1
+         DO 202 JM = 0, JN
+            ILA = gst_NIND(JM) + JN - JM
+            RNNP1(ILA) = ZNNP1
+            R1SNP1(ILA) = Z1SNP1
+ 202     CONTINUE
+ 201  CONTINUE
 C
 C     3. Initialisation of the model levels
 C
@@ -178,14 +167,10 @@ C
 C*     4. Conversion of wind images to physical winds
 C
  400  CONTINUE
-      if(grd_typ.eq.'GU') then
-        DO 401 JLAT = 1, NJ
-           CONPHY(JLAT) = RA*gst_R1QM2(JLAT)
-           CONIMA(JLAT) = R1SA*gst_RSQM2(JLAT)
- 401    CONTINUE
-      else if(grd_typ.eq.'LU') then
-!       done in sugemla after sugem
-      endif
+      DO 401 JLAT = 1, NJ
+         CONPHY(JLAT) = RA*gst_R1QM2(JLAT)
+         CONIMA(JLAT) = R1SA*gst_RSQM2(JLAT)
+ 401  CONTINUE
 C
 C*    . 4.1 Determine nearest level of the
 C     .     mean top of the boundary layer
@@ -219,26 +204,24 @@ C
      S     " latitude circles",/,8(1X,I6))')
      S     NJ,(NILON(JLAT),JLAT=1,NJ)
 C
-      if(grd_typ.eq.'GU') then
-        WRITE(KULOUT,FMT='(6X," Eigenvalues of the Laplacian *RA**2:",
+      WRITE(KULOUT,FMT='(6X," Eigenvalues of the Laplacian *RA**2:",
      S     /,6(1x,g12.6))')(RNNP1(ILA),ILA=1,NTRUNC+1)
 C
-        WRITE(KULOUT,FMT='(6X," Eigenvalues of the inverse Laplacian",
+      WRITE(KULOUT,FMT='(6X," Eigenvalues of the inverse Laplacian",
      S     "/RA**2:",/,6(1x,g12.6))')(R1SNP1(ILA),ILA=1,NTRUNC+1)
 C
-        WRITE(KULOUT,
-     +  FMT='(/,10x,"Type of vertical coordinate:",10x,a8)') CVCORD
-        WRITE(KULOUT,FMT='(/,10x,"Definition of inc anal levels",/)')
+      WRITE(KULOUT,
+     +FMT='(/,10x,"Type of vertical coordinate:",10x,a8)') CVCORD
+      WRITE(KULOUT,FMT='(/,10x,"Definition of inc anal levels",/)')
 C
-        WRITE(KULOUT,9502)
- 9502   FORMAT(/,10x,'CONVERSION OF WIND IMAGES',
+      WRITE(KULOUT,9502)
+ 9502 FORMAT(/,10x,'CONVERSION OF WIND IMAGES',
      S     ' INTO PHYSICAL WINDS',/,3X,'JLAT',8X
      S     ,'CONPHY(JLAT)',7X,'CONIMA(JLAT)')
-        DO 502 JLAT = 1, NJ
-           WRITE(KULOUT,FMT='(4X,I3,":",2(7X,G12.6))')
-     S          JLAT,CONPHY(JLAT),CONIMA(JLAT)
- 502    CONTINUE
-      endif
+      DO 502 JLAT = 1, NJ
+         WRITE(KULOUT,FMT='(4X,I3,":",2(7X,G12.6))')
+     S        JLAT,CONPHY(JLAT),CONIMA(JLAT)
+ 502  CONTINUE
 C
       RETURN
       END

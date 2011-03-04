@@ -103,7 +103,6 @@ C 1 (in NAMELIST)
 #include "cvcord.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comgrd_param.cdk"
 #include "comin.cdk"
 *
 C
@@ -219,17 +218,13 @@ c     innovations and test the gradients
           call rw_vatra (clfname,0,
      %       isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000
      &       ,isimdone_000,iztrl,vatra,nmtra,dg_vbar,nvadim,
-     &       vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode,grd_typ)
+     &       vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
 *
         elseif(n1gc.eq.4) then
-          if(grd_typ.eq.'LU') then
-            call abort3d(nulout,'n1gc.eq.4, grd_typ=LU not yet implemented')
-          else
           call rw_vatra (clfname,0,
      %       isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000
      &       ,isimdone_000,ilm0,vatra,nmtra,dg_vbar,nvadim,
-     &       vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode,grd_typ)
-          endif
+     &       vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
         endif
 !
         if(niterjob /= -1 .and. lrestart) then
@@ -476,19 +471,15 @@ C     execution of postmin.
      %     nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,
      %     iztrl,vatra,nmtra,
      %     dg_vbar,nvadim,
-     %     vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode,grd_typ)
+     %     vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
 
         elseif(n1gc.eq.4) then
-          if(grd_typ.eq.'LU') then
-            call abort3d(nulout,'n1gc.eq.4, grd_typ=LU not yet implemented')
-          else
             call rw_vatra (clfname,1,
      %       nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,
      %       ilm1,vatr1,nmtra,
      %       dg_vbar,nvadim,
-     %       vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode,grd_typ)
+     %       vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
           endif
-        endif
       endif
 
       WRITE(NULOUT,FMT=9500) imode,iterdone,itertot-iterdone,itertot

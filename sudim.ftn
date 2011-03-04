@@ -90,7 +90,6 @@ C
 #include "comfftla.cdk"
 #include "comgem.cdk"
 #include "namgem.cdk"
-#include "comgrd_param.cdk"
 #include "comcse1.cdk"
       INTEGER KULOUT, IAL1, IAL2, IERR, ILEN
       integer jfi,jfj,ila
@@ -117,12 +116,7 @@ C
       NGRANGE  = 10
       NCNTVAR  = 2
       NEVALJ   = 1
-      mni_mach = 10
-      mnj_mach = 10
       mbal_order = 1
-      grd_typ = 'GU'
-      grd_roule = .false.
-      multi_grd = 0
       lcva_hsp=.false.
       lcva_hemis=.false.
       lcva_euclid=.false.
@@ -207,9 +201,6 @@ C
      S     ,"- reading the namelist NAMCVA in SUDIM")')
 C
       CALL READNML('NAMCVA',IERR)
-      if(grd_typ.eq.'LU') then
-        CALL READNML('NAMGRD',IERR) ! to get grd_dx, grd_dy for setting maximal nb. of bi-fourier bands
-      endif
 !
 !modular1      level2_staggrid = .false.
 !
@@ -243,13 +234,7 @@ C
 C
       CALL READNML('NAMDIM',IERR)
 !
-!modular1      if(grd_roule) call sugrd_param
-!
-      write(nulout,*) 'SUDIM: grd_typ = ',grd_typ
-      write(nulout,*) 'SUDIM: multi_grd = ',multi_grd
-      write(nulout,*) 'SUDIM: grd_roule = ',grd_roule
       write(nulout,*) 'SUDIM: nanalvar = ',nanalvar
-      write(nulout,*) 'SUDIM: multi_grd = ',multi_grd
       write(nulout,*) 'SUDIM: mbal_order = ',mbal_order
       write(nulout,*) 'SUDIM: l1obs = ',l1obs
       write(nulout,*) 'SUDIM: lsetcross = ',lsetcross
@@ -269,35 +254,14 @@ C
       write(nulout,*) 'SUDIM: lcva_hemis = ',lcva_hemis
       write(nulout,*) 'SUDIM: lcva_euclid = ',lcva_euclid
       write(nulout,*) 'SUDIM: lcva_3db = ',lcva_3db
-      write(nulout,*) 'SUDIM: mni_mach = ',mni_mach
-      write(nulout,*) 'SUDIM: mnj_mach = ',mnj_mach
 !
 !modular1      write(kulout,fmt='(4x,A,L3)')' LEVEL2_staggrid = ',level2_staggrid
 !
-      if((grd_typ.eq.'LU'.or.lcva_hemis).and.nanalvar.ne.3) then
-        call abort3d(nulout,'SUDIM: LAM3D/4D : NANALVAR must be 3')
-      endif
-!
-      if(grd_typ.eq.'LU'.or.grd_roule) then
-        nila = ni
-        njla = nj
-        write(nulout,*) 'SUDIM: nila = ',nila
-        write(nulout,*) 'SUDIM: njla = ',njla
-        if(multi_grd.eq.1) then
-          write(nulout,*) 'SUDIM: nila2 = ',nila2  ! already set by sugrd_param
-          write(nulout,*) 'SUDIM: njla2 = ',njla2
-        endif
-      endif
-C
 C*    .   1.3 Check the consistency between the number of spectral
 C     .       and gridpoint fields
 C     .       ----------------------------------------------------
 C
       IF(NFLEVPTOT.lt.0) NFLEVPTOT=NFLEV
-      if(grd_typ.eq.'LU') then
-        nflevptot = nflev
-        write(KULOUT,*) 'sudim: grd_typ.eq. LU, nflevptot reset to nflev !'
-      endif
  130  CONTINUE
       IF(NVGD.NE.NVSP)THEN
          WRITE(NULOUT,FMT=9130)'  NVGD',NVGD,'  NVSP',NVSP
@@ -320,51 +284,6 @@ C
       NJ=NJINC
       NTRUNC=NTRUNCINC
 !
-!
-! set inner (non-extended) LAM analysis grid dimensions
-!
-      if(grd_typ.eq.'LU'.or.multi_grd.gt.0) then
-        if((nila.lt.30).or.(njla.lt.30)) then
-          call abort3d(nulout,'SUDIM: too little grid to be acceptable')
-        else if(njla.eq.45) then
-          call abort3d(nulout,'SUDIM: Choose njla = 40 or 48')
-        else if(njla.eq.75) then
-          call abort3d(nulout,'SUDIM: Choose njla = 72 or 80')
-        else if(njla.eq.125) then
-          call abort3d(nulout,'SUDIM: Choose njla = 120 or 128')
-        else if(njla.eq.135) then
-          call abort3d(nulout,'SUDIM: Choose njla = 128 or 144')
-        else if(njla.eq.225) then
-          call abort3d(nulout,'SUDIM: Choose njla = 216 or 240')
-        else if(njla.eq.243) then
-          call abort3d(nulout,'SUDIM: Choose njla = 240 or 250')
-        else if(njla.eq.375) then
-          call abort3d(nulout,'SUDIM: Choose njla = 360 or 384')
-        endif
-!
-        mni_in = nila-mextendx
-        mnj_in = njla-mextendy
-!
-        if(mni_mach.le.10) then
-          mni_mach = mni_in-2
-          write(kulout,*)' SUDIM: mni_mach too small... reset to ',mni_mach
-        endif
-        if(mnj_mach.le.10) then
-          mnj_mach = mnj_in-2
-          write(kulout,*)' SUDIM: mnj_mach too small... reset to ',mnj_mach
-        endif
-!
-        if(multi_grd.eq.1) then
-          mni_in2 = nila2-mextendx2
-          mnj_in2 = njla2-mextendy2
-          if(mni_mach2.lt.0) mni_mach2 = mni_in2-2
-          if(mnj_mach2.lt.0) mnj_mach2 = mnj_in2-2
-        endif
-      else
-        mni_in = ni
-        mnj_in = nj
-      endif
-!
 ! set maximum number of tiles for ptotla regression matix
 !
       maxtiles = 500
@@ -376,31 +295,19 @@ C     .       ---------------------------
 C
  210  CONTINUE
 !
-      if(grd_typ.ne.'LU') then
-        NJLATH = (NJ + 1)/2
+      NJLATH = (NJ + 1)/2
 !modular1        nj_s = nj-1
 !modular1        njlath_s = nj/2
-        NJBEG  = - NJSUR + 1
-        NJEND  = NJ + NJSUR
-        IF(MOD(NJ,2).EQ.0) THEN
-          NJMAX = NJ+1
-        ELSE
-          NJMAX = NJ
-        END IF
+      NJBEG  = - NJSUR + 1
+      NJEND  = NJ + NJSUR
+      IF(MOD(NJ,2).EQ.0) THEN
+        NJMAX = NJ+1
+      ELSE
+        NJMAX = NJ
+      END IF
 C
-        NIBEG = 0
-        NIEND = NI + NISUR
-      else if(grd_typ.eq.'LU') then
-        NIBEG = 0
-        NIEND = NI + 1
-        NJBEG = 0
-        NJEND = NJ + 1
-        write(nulout,*) ' '
-        write(nulout,*) '*******************************************************'
-        write(nulout,*) 'sudim: nisur and njsur not used in LAM4D: see sudim.ftn'
-        write(nulout,*) '*******************************************************'
-        write(nulout,*) ' '
-      endif
+      NIBEG = 0
+      NIEND = NI + NISUR
 C
       WRITE(KULOUT,*)' DIMENSIONS IN GRID SPACE ------:'
       WRITE(UNIT=KULOUT,FMT=9210)
@@ -423,59 +330,6 @@ C
 C*    .   2.2 Spectral dimensions
 C     .       -------------------
 C
-      if (grd_typ.eq.'LU') then
-        lrpnfft=.true.
-        nfi=nila/2+1          ! for Limited-Area (LA) config
-        nfi = min(nfi,ntrunc)
-        if(lrpnfft) then
-          nfj=njla/2+1          ! for Limited-Area (LA) config
-          nfj = min(nfj,ntrunc)
-          mlen1d=2*nila+2     ! A enlever quand dft1d se fera avec RPN dans les operateurs
-        else
-          nfj=njla            ! NCAR DFT
-          mlen1d=2*nila+2      ! for 1D DFT
-          mlen2d=2*nila+2*njla   ! for 2D DFT
-        endif
-!
-        if(multi_grd.eq.1) then
-          lrpnfft=.true.
-          nfi2=nila2/2+1          ! for Limited-Area (LA) config
-          if(lrpnfft) then
-            nfj2=njla2/2+1          ! for Limited-Area (LA) config
-!cluc            mlen1d2=2*njla2+2     ! A enlever quand dft1d se fera avec RPN dans les operateurs
-          else
-            nfj2=njla2            ! NCAR DFT
-!            mlen1d2=2*nila2+2      ! for 1D DFT
-!            mlen2d2=2*nila2+2*njla2   ! for 2D DFT
-          endif
-        endif
-        rwvband=0.5
-!
-        zdx=grd_dx*111.0   ! grd_dx,grd_dy already initialized by sugeom.ftn called by su0yoma.ftn
-        zdy=grd_dy*111.0
-        zlx=(nila-1)*zdx
-        zly=(njla-1)*zdy
-        zd=max(zlx,zly)
-        zkmax=sqrt(real(nfi**2+nfj**2))
-        write(nulout,*) 'sudim: nila,njla,zlx,zly=',nila,njla,zlx,zly
-        zk2=(zkmax/zlx)**2+(zkmax/zly)**2
-        zk=zd*sqrt(zk2)
-        nbimax=nint(zk)
-        write(nulout,*) 'sudim: nbimax = ',nbimax
-        nbandmax = nint(zkmax)
-        write(nulout,*) 'sudim: nbandmax = ',nbandmax
-!
-        if(lrpnfft) then  ! the following spectral count is for RPN 2D FFT (see suwvnb_rpn.ftn)
-          nla=(2*ntrunc+2)*(2*ntrunc+2)
-!cluc          nla=(ni+2)*(nj+2)
-          nla_la = nla
-        else
-          nla = nfi*nfj   ! NCAR FFT2D
-        endif
-        write(nulout,*) 'sudim: grd_typ =',grd_typ
-        write(nulout,*) 'sudim: nfi,nfj=',nfi,nfj
-        write(nulout,*) 'sudim: nla=',nla
-      else
         NLA = (NTRUNC + 1)*(NTRUNC +2)/2
         nla_glb = nla
         NLARH = (NTRUNC+1)*(NTRUNC+1)
@@ -513,8 +367,8 @@ C
               WRITE(UNIT=KULOUT,
      S           FMT='('' ******* ALIASING FOR SPECTRAL TRANSFORMS ''
      S           ,'' IN THE N-S DIRECTION  ******** '')')
-           ENDIF
-         ENDIF
+          ENDIF
+        ENDIF
 *
         IAL2=3*NTRUNC - (NI-1)
         IF (IAL2 .GT. 0) THEN
@@ -528,8 +382,7 @@ C
      S           FMT='('' ******* ALIASING FOR SPECTRAL TRANSFORMS ''
      S           ,'' IN THE E-W DIRECTION  ******** '')')
            ENDIF
-         ENDIF
-      endif
+        ENDIF
 C
 C*    3. Initialize the number of fields.
 C     -----------------------------------
@@ -555,20 +408,11 @@ C     .        -------------------------------
 C
       nksdim = (NVSP + NVSAUX)*NFLEV + NVSP2D
 !
-      if(grd_typ.eq.'LU') then
-        if(nanalvar.eq.4) then
-          nksdim2 = nksdim+nflev
-        else
-          nksdim2 = nksdim
-        endif
-        write(nulout,*) 'sudim: nksdim,nksdim2 = ',nksdim,nksdim2
-      else
         if(nconf.ne.300.and.nconf.ne.800.and.nconf.ne.801.and.nconf.ne.500.and.nanalvar.eq.4) then
           NKSDIM2 = NKSDIM+NFLEV
         else
           NKSDIM2 = NKSDIM
         endif
-      endif
 C
       WRITE(UNIT=KULOUT,FMT='(/,5X,''Number of variables in SPECTRAL'',
      S     '' space'',/,
@@ -577,7 +421,7 @@ C
      S     NVSP,NVSAUX,NVSP2D,NKSDIM
 
 C  3.x Create process topology and carry out domain decomposition.
-           CALL procstopo(NIBEG,NIEND,NJBEG,NJEND,NKSDIM,NTRUNC,NJSUR)
+      CALL procstopo(NIBEG,NIEND,NJBEG,NJEND,NKSDIM,NTRUNC,NJSUR)
 
 
 C
@@ -586,27 +430,7 @@ C     .  ---------------------------------
 C
  400  CONTINUE
 C
-C Read NAMSV and adjust adjust NVADIM, if necessary, for incorporating SVs into B
-      CSVNORM='E'
-      NSV=0
-      NUMSEG=1
-      NSVMODE=0
-      IF(NINT(NCONF/100.0).EQ.6) CALL READNML('NAMSV',IERR)
-      ILEN = NSV
-      IF(NSVMODE.eq.1) THEN
-        NVADIM = ILEN
-      ELSEIF(NSVMODE.eq.2) THEN
-        NVADIM = NKSDIM*(2*NLA - NTRUNC -1) + ILEN
-      ELSE
-        if(grd_typ.ne.'LU') then
-          NVADIM = NKSDIM*(2*NLA - NTRUNC -1)
-        else
-          NVADIM = NKSDIM*2*NLA
-        endif
-      ENDIF
-cbue
-cbue      NVADIM=NVADIM+NFLEV*(2*NLA - NTRUNC -1)
-C
+      NVADIM = NKSDIM*(2*NLA - NTRUNC -1)
       NVADIM=NVADIM*NLATBIN
 C
       IF(N1GC.EQ.2) THEN

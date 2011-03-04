@@ -35,38 +35,24 @@
 #include "comcva.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
-#include "comgrd_param.cdk"
 #include "comgem.cdk"
-#include "comgemla.cdk"
 #include "comgd0.cdk"
 *
 * Local variables
 *
-      integer ji,jj,jk,idum1,idum2,idum3,idum4
+      integer ji,jj,jk
       INTEGER JLEV, JGL, JLON, IMAX
       real*8 zmin,zmax
-      real*8 z3d(ni,nflev,nj)
 *
-      if(grd_typ.eq.'GU') then
-        DO JLEV = 1, NFLEV
-         DO JGL = 1, NJ
-            IMAX = NILON(JGL)
-            DO JLON = 1, IMAX
-               UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
-               VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
-            END DO
-         END DO
+      DO JLEV = 1, NFLEV
+        DO JGL = 1, NJ
+          IMAX = NILON(JGL)
+          DO JLON = 1, IMAX
+            UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
+            VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
+          END DO
         END DO
-      else if (grd_typ.eq.'LU') then
-        do jlev = 1, nflev
-          do jj = 1, nj
-            do ji = 1, ni
-              ut0(ji,jlev,jj) = conphy(jj) * ut0(ji,jlev,jj)
-              vt0(ji,jlev,jj) = conphy(jj) * vt0(ji,jlev,jj)
-            enddo
-          enddo
-        enddo
-      endif
+      END DO
 *
       RETURN
       END SUBROUTINE uvwi2uv

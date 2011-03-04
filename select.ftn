@@ -58,7 +58,6 @@
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
-#include "comgrd_param.cdk"
 #include "comcva.cdk"
       INTEGER IER,INBLKS,INRECS,IBRP1,IBEG
       INTEGER EXDB,EXFIN,FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
@@ -111,11 +110,7 @@
 *
                IBEG=NDATA+1
 !
-               if(grd_typ.eq.'LU'.and.(.not.lobsclip)) then
-!modular1                 CALL BRPACMA_LA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
-               else
-                 CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
-               endif
+               CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
                IF ( IBEG .LE. NDATA ) THEN
                   NBEGINTYP(J)=IBEG
                   NENDTYP(J) =NDATA

@@ -79,10 +79,6 @@ C
 #include "comct0.cdk"
 #include "namct0.cdk"
 C
-#include "comgrd_param.cdk"
-#include "namgrd.cdk"
-#include "namgrd2.cdk"
-C
 #include "comdim.cdk"
 #include "namdim.cdk"
 C
@@ -96,7 +92,6 @@ C
 #include "namfilt.cdk"
 C
 #include "comgem.cdk"
-#include "comgemla.cdk"
 #include "namgem.cdk"
 #include "namshared_aai_3dv.cdk"
 C
@@ -270,26 +265,6 @@ C
 #else
          READ(NULNAM,NAMGDPAR)
          WRITE(NULOUT,NAMGDPAR)
-#endif
-C
-      ELSE IF(CDNAME.EQ.'NAMGRD')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGRD)
-         WRITE(NULOUT,NML=NAMGRD)
-#else
-         READ(NULNAM,NAMGRD)
-         WRITE(NULOUT,NAMGRD)
-#endif
-C
-      ELSE IF(CDNAME.EQ.'NAMGRD2')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGRD2)
-         WRITE(NULOUT,NML=NAMGRD2)
-#else
-         READ(NULNAM,NAMGRD2)
-         WRITE(NULOUT,NAMGRD2)
 #endif
 C
       ELSE IF(CDNAME.EQ.'NAMODE')THEN
