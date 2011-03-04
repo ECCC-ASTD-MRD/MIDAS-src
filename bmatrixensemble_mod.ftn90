@@ -1,0 +1,237 @@
+MODULE BmatrixEnsemble_mod ! (prefix = BEN)
+
+  implicit none
+  save
+  private
+
+  public         :: ben_setup,ben_apply,ben_applyAd
+
+  real*8,pointer :: ensLocalCor(:,:)
+  integer        :: ntrunc_l,nibeg_l,niend_l,njbeg_l,njend_l,nflev_l,njsur_l,nisur_l,nj_l,ni_l,nla_l
+
+CONTAINS
+
+  SUBROUTINE BEN_SETUP(ZTLEN_IN,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN)
+    implicit none
+
+    real*8         :: ztlen_in
+    integer        :: ntrunc_in,ni_in,nj_in,nflev_in
+
+
+    nflev_l=nflev_in
+    ntrunc_l=ntrunc_in
+
+    nisur_l=2
+    njsur_l=2
+    ni_l=ni_in
+    nj_l=nj_in
+    nibeg_l=0
+    niend_l=ni_l+nisur_l
+    njbeg_l=1-njsur_l
+    njend_l=nj_l+njsur_l
+    nla_l=(ntrunc_l + 1)*(ntrunc_l +2)/2
+
+    call setupLocalization(ztlen_in)
+
+  END SUBROUTINE BEN_SETUP
+
+
+  SUBROUTINE SETUPLOCALIZATION(ztlen)
+    use glbspec_mod
+    implicit none
+
+    real*8 zlc,zr,zpole,zcorr,ztlen
+    integer ilen,jn,jlat,jla,jlon,jk
+    real*8,pointer :: zsp(:,:,:)
+    real*8,pointer :: zgd(:,:,:)
+    real*8         :: ra = 6371229.D0
+
+    allocate(ensLocalCor(0:ntrunc_l,nflev_l))
+    allocate(zgd(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l))
+    allocate(zsp(nla_l,2,nflev_l))
+
+    ! Calculate 5th Order Correlation Functions in Physical Space
+
+    ztlen=1000.0*ztlen
+    if(ztlen.gt.0.0) then
+       zlc=ztlen/2.0
+       do jk=1,nflev_l
+          do jlat=1,nj_l
+             zr = ra * acos(gst_rmu(jlat))
+             if(zr.le.zlc) then
+                zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4 + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
+             elseif(zr.le.(2.0*zlc)) then
+                zcorr= (1.0/12.0)*(zr/zlc)**5 -0.5*(zr/zlc)**4 + 0.625*(zr/zlc)**3 +(5.0/3.0)*(zr/zlc)**2 -   &
+                     5.0*(zr/zlc) +4.0 -(2.0/3.0)*(zlc/zr) 
+             else
+                zcorr= 0.0
+             endif
+             !write(*,*) 'LOCALIZATION FUNCTION1=',jlat,zr/1000.0,zlc/1000.0,zcorr
+             do jlon=1,ni_l
+                zgd(jlon,jk,jlat)=zcorr
+             enddo
+          enddo
+       enddo
+
+       ! Transform to spectral space
+
+       call gst_reespe(zsp,zgd,nflev_l,nflev_l)
+
+       ! Copy over to EnsLocalCor and truncate to NTRUNC
+
+       do jk=1,nflev_l
+          do jn=0,ntrunc_l
+             ensLocalCor(jn,jk)=zsp(jn+1,1,jk)
+          enddo
+       enddo
+       do jk=1,nflev_l
+          do jn=ntrunc_l+1,nla_l
+             zsp(jn,1,jk)=0.0
+             zsp(jn,2,jk)=0.0
+          enddo
+       enddo
+
+       call gst_speree(zsp,zgd,nflev_l,nflev_l)
+
+       ! Make sure it's one at the pole
+
+       do jk = 1,nflev_l
+          do  jn = 0, ntrunc_l
+             ensLocalCor(jn,jk)=abs(ensLocalCor(jn,jk))
+          end do
+       enddo
+       do jk = 1,nflev_l
+          zpole = 0.
+          do  jn = 0, ntrunc_l
+             zpole = zpole + ensLocalCor(jn,jk)*sqrt((2.*jn+1.)/2.)
+          end do
+          if(zpole.le.0.) then
+             write(*,*)'POLE VALUE NEGATIVE IN SUMASK jk=',jk
+          endif
+          do jn = 0, ntrunc_l
+             ensLocalCor(jn,jk) = ensLocalCor(jn,jk)/zpole
+             !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+          enddo
+       enddo
+       zsp(:,:,:)=0.0d0
+       do jk=1,nflev_l
+          do jn=0,ntrunc_l
+             zsp(jn+1,1,jk)=ensLocalCor(jn,jk)
+          enddo
+       enddo
+       call gst_speree(zsp,zgd,nflev_l,nflev_l)
+
+       ! Convert back to correlations and take sqrt
+
+       do jk=1,nflev_l
+          do jn=0,ntrunc_l
+             ensLocalCor(jn,jk)=sqrt(0.5*ensLocalCor(jn,jk)*((2.0/(2.0*jn+1.0))**0.5))
+             !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+          enddo
+       enddo
+
+    else
+
+       ! NO HORIZONTAL LOCALIZATION, set ensLocalCor to 1.0
+
+       do jk=1,nflev_l
+          ensLocalCor(0,jk)=1.0 
+       enddo
+    endif
+
+    deallocate(zgd)
+    deallocate(zsp)
+
+    write(*,*)'done setting up localization function'
+
+    return
+  END SUBROUTINE SETUPLOCALIZATION
+
+
+  SUBROUTINE BEN_APPLY(SP_IN,GD_OUT)
+    use glbspec_mod
+    implicit none
+
+    real*8, pointer  :: sp_in(:,:,:),gd_out(:,:,:)
+    integer          :: jlev,jn,jm,ila,jla
+    real*8           :: rsq2
+
+    rsq2=sqrt(2.0d0)
+
+    !$OMP PARALLEL 
+    !$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
+    do jlev=1,nflev_l
+       do jn=0,ntrunc_l
+          do jm=0,jn
+             ila = gst_nind(jm)+jn-jm
+             sp_in(ila,1,jlev)=sp_in(ila,1,jlev)*ensLocalCor(jn,jlev)
+             sp_in(ila,2,jlev)=sp_in(ila,2,jlev)*ensLocalCor(jn,jlev)
+          enddo
+       enddo
+       do jla = 1,ntrunc_l+1
+          sp_in(jla,1,jlev) = sp_in(jla,1,jlev)*rsq2
+          sp_in(jla,2,jlev) = 0.0
+       enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+    call gst_speree(sp_in,gd_out,nflev_l,nflev_l)
+
+  end subroutine ben_apply
+
+
+  SUBROUTINE BEN_APPLYAD(SP_OUT,GD_IN)
+    use glbspec_mod
+    implicit none
+
+    real*8, pointer  :: sp_out(:,:,:),gd_in(:,:,:)
+    integer          :: jlev
+    integer          :: jn,jm,ila,jla
+    integer          :: ji,jj
+    real*8           :: rsq2
+
+    rsq2=sqrt(2.0d0)
+
+    ! this is from bilinad
+    !$OMP PARALLEL 
+    !$OMP DO PRIVATE (JJ,JLEV,JI)
+    do jj = 1, nj_l
+       do jlev=1,nflev_l
+          do ji = 1, ni_l
+             gd_in(ji,jlev,jj)=gd_in(ji,jlev,jj)*ni_l/gst_rwt(jj)
+          enddo
+       enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+    call gst_reespe(sp_out,gd_in,nflev_l,nflev_l)
+
+    !$OMP PARALLEL 
+    !$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
+    do jlev=1,nflev_l
+       do jn=0,ntrunc_l
+          do jm=0,jn
+             ila = gst_nind(jm)+jn-jm
+             sp_out(ila,1,jlev)=sp_out(ila,1,jlev)*ensLocalCor(jn,jlev)
+             sp_out(ila,2,jlev)=sp_out(ila,2,jlev)*ensLocalCor(jn,jlev)
+          enddo
+       enddo
+       do jla = 1,ntrunc_l+1
+          sp_out(jla,1,jlev) = sp_out(jla,1,jlev)*rsq2
+          sp_out(jla,2,jlev) = 0.0
+       enddo
+       ! this is from cainad.ftn
+       do jla = ntrunc_l+2,nla_l
+          sp_out(jla,1,jlev) = sp_out(jla,1,jlev)*2.0d0
+          sp_out(jla,2,jlev) = sp_out(jla,2,jlev)*2.0d0
+       enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+  END SUBROUTINE BEN_APPLYAD
+
+END MODULE BMATRIXENSEMBLE_MOD
+
