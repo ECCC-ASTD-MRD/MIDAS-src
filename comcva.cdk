@@ -122,8 +122,6 @@
 !     VATR1(NMTRA)    : N1CG1: workspace used by the minimization
 !     VWORK(NWORK)    : N1CG1: workspace used by the minimization
 !
-!     NPRECON         : number of Hessian eigenvectors to use for
-!                       preconditioning
 !     ltlmend         : Call TLM one more time after M1QN3 (Effective
 !                       only in 4Dvar mode)
 !
@@ -159,7 +157,7 @@
 !
 #endif
       INTEGER NMTRA,N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX
-      integer NCNTVAR, niterjob, nprecon
+      integer NCNTVAR, niterjob
       integer NEVALJ,NINCREM,NANALVAR, NGRTEST, NGRANGE,nsim3d
       integer NWORK,NTUNESTATS,NLATMIN1,NLATMAX1,NLATMIN2,NLATMAX2
       INTEGER SELECT0,BFGSB,IMODE3,NFLEVPTOT,NTRUNC3DSTD,mbal_order
@@ -191,7 +189,7 @@
 !
       COMMON /COMNCVA/NMTRA,N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NCNTVAR
       COMMON /COMNCVA/NEVALJ,NINCREM,NANALVAR,NGRTEST,NGRANGE,nsim3d,niterjob
-      COMMON /COMNCVA/nprecon,ntunestats,NLATMIN1,NLATMAX1,NLATMIN2,NLATMAX2
+      COMMON /COMNCVA/ntunestats,NLATMIN1,NLATMAX1,NLATMIN2,NLATMAX2
       COMMON /COMNCVA/NWORK,SELECT0,BFGSB,IMODE3,NFLEVPTOT,NTRUNC3DSTD
       COMMON /COMNCVA/mbal_order
 

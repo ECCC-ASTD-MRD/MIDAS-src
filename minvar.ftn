@@ -99,7 +99,6 @@ C 1 (in NAMELIST)
 #include "comgdpar.cdk"
 #include "comvarqc.cdk"
 #include "comvfiles.cdk"
-#include "comanl.cdk"
 #include "cvcord.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -197,7 +196,7 @@ c     innovations and test the gradients
         imode = 2
         llvazx = .true.
         llxbar = .true.
-      elseif (lpcon .and. nprecon <= 0) then
+      elseif (lpcon) then
         write(nulout,*) 'Minimize : Preconditioning mode'
         lrdvatra = .true.
         clfname = cpconf
@@ -279,29 +278,10 @@ C
 C     *    2. Set-up the minimization
 C     .  -----------------------
 c
-c     Calculate Hessian Eigenvectors
-c
-!modular1      IF(NPRECON.ge.1) THEN
-!modular1        NCV=2*NPRECON
-!modular1        NCORDIM=NVADIM
-!modular1        ILEN = NCORDIM*NCV
-!modular1        CALL HPALLOC(PTRRNK1,MAX(ILEN,1),IERR,8)
-!modular1        ILEN = NCORDIM*NPRECON
-!modular1        CALL HPALLOC(PTRRNK2,MAX(ILEN,1),IERR,8)
-!modular1        ILEN = NPRECON
-!modular1        CALL HPALLOC(PTHESEVAL,MAX(ILEN,1),IERR,8)
-!modular1        CALL SUPRECON
-!modular1      ENDIF
-C
 C     *    .   Test the gradient again at the initial point WITH PRECON
 C     .   --------------------------------------------------------
 C
 C     .   2.1.4 Test the complete functional
-C
-!modular1      IF(NPRECON.gt.0 .and. ngrtest.ne.0) THEN
-!modular1        WRITE(NULOUT,*) '***STARTING GRTEST WITH PRECON***'
-!modular1        call grtest2(simvar,nulout,nvadim,vazx,ngrange)
-!modular1      ENDIF
 C
 C     *    .   2.2  Compute the value of J(X) and the gradient
 C     .        at the initial point

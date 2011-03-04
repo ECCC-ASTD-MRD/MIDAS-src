@@ -44,41 +44,16 @@
 *implicits
 #include "comdim.cdk"
 #include "comcva.cdk"
-#include "comanl.cdk"
 *
       INTEGER KDIM, J, RR, IERR
       REAL*8 PX(KDIM), PY(KDIM)
       REAL*8 DDSC,TEMPO
       REAL*8 ZPY(KDIM)
 C
-!modular1      IF(NPRECON.ge.1) THEN
-!modular1c SCALP NOT INCLUDED WITH PRECON!!!
-!modular1        DDSC = 0.
-!modular1c CALCULATE PX^T*(I + G1*G1^T)*PY
-!modular1        DO J = 1, KDIM
-!modular1          ZPY(J)= PY(J)
-!modular1        ENDDO
-c
-!modular1        DO RR = 1, NPRECON
-!modular1          TEMPO=0.0
-!modular1          DO J = 1, KDIM
-!modular1            TEMPO = TEMPO + RRNK1(J,RR)*PY(J)
-!modular1          ENDDO
-!modular1          DO J = 1, KDIM
-!modular1            ZPY(J)= ZPY(J) + RRNK1(J,RR)*TEMPO
-!modular1          ENDDO
-!modular1        ENDDO
-c
-!modular1        DO J = 1, KDIM
-!modular1           DDSC = DDSC + PX(J)*ZPY(J)
-!modular1        ENDDO
-c
-!modular1      ELSE
-        DDSC = 0.
-        DO 101 J = 1, KDIM
-           DDSC = DDSC + SCALP(J)*PX(J)*PY(J)
- 101    CONTINUE
-!modular1      ENDIF
+      DDSC = 0.
+      DO 101 J = 1, KDIM
+         DDSC = DDSC + SCALP(J)*PX(J)*PY(J)
+ 101  CONTINUE
 c
       RETURN
       END

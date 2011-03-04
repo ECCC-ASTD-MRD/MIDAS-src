@@ -225,7 +225,6 @@ C
       NTRUNCINC=108
       NTRUNC=108
       NVSAUX=0
-!modular1      nprecon=0
       NLATBIN=1
 C
  120  CONTINUE

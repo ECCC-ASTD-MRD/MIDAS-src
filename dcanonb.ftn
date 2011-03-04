@@ -38,7 +38,6 @@
 *implicits
 #include "comdim.cdk"
 #include "comcva.cdk"
-#include "comanl.cdk"
 *
       INTEGER KDIM, KZS(1)
       REAL PZS(1)
@@ -49,28 +48,9 @@ C
       REAL*8 TEMPO
 C
  100  CONTINUE
-      IF(NPRECON.ge.1) THEN
-c SCALP NOT INCLUDED WITH PRECON!!! (assumed equal to identity)
-c CALCULATE PY =(I + R1*lamsi*R1^T)*PX
-        DO JDIM = 1, KDIM
-          PY(JDIM)= PX(JDIM)
-        ENDDO
-        DO RR = 1, NPRECON
-          TEMPO=0.0
-          DO JDIM = 1, KDIM
-            TEMPO = TEMPO + RRNK1(JDIM,RR)*PX(JDIM)
-          ENDDO
-          TEMPO=TEMPO*(sqrt(HesEval(RR)+1.0d0) - 1.0d0) /
-     +                HesEval(RR)
-          DO JDIM = 1, KDIM
-            PY(JDIM)= PY(JDIM) + RRNK1(JDIM,RR)*TEMPO
-          ENDDO
-        ENDDO
-      ELSE
-        DO 101 JDIM = 1, KDIM
-           PY(JDIM) = PX(JDIM)*DSQRT(SCALP(JDIM))
- 101    CONTINUE
-      ENDIF
+      DO 101 JDIM = 1, KDIM
+         PY(JDIM) = PX(JDIM)*DSQRT(SCALP(JDIM))
+ 101  CONTINUE
 C
       RETURN
       END
