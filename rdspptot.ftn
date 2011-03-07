@@ -97,7 +97,7 @@ C ------------------------------------------------------
       write(nulout,*) 'RDSPPTOT: set up simple spectral transforms'
       call vflush(nulout)
 
-      call zlegpol(zleg,gst_rmu,nj,ntrunc,ntrunc,nj)
+      call gst_zlegpol(zleg)
 *
       ip1 = -1
       ip3 = -1

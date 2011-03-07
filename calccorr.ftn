@@ -58,7 +58,7 @@
           DLC = 0.5*DLC*DLC
 *
           DO  JGL = 1, NJ
-            ZR = RA * ACOS(gst_RMU(JGL))
+            ZR = RA * ACOS(gst_getRmu(JGL))
             INI = NILON(JGL)
             DLCORR = DEXP(-(ZR**2)*DLC)
             DO  JLON = 1, INI
@@ -76,7 +76,7 @@
           DLCSURN = DLC/DLN
           DO  JGL = 1, NJ
             INI = NILON(JGL)
-            ZR = RA * ACOS(gst_RMU(JGL))
+            ZR = RA * ACOS(gst_getRmu(JGL))
             DLCORR = (1.D0 + DLC*ZR + ZR*DLC*ZR*DLC/3.D0)*DEXP(-ZR*DLC)
      S           + DLALPHA*(1.D0 + DLCSURN*ZR + ZR*DLCSURN*ZR*DLCSURN/3
      &           .D0)*DEXP(-ZR*DLCSURN)

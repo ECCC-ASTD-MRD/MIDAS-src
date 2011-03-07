@@ -166,7 +166,7 @@ C
 C*    Transfer Dx from global to working array
 C
          DO JM = 0, JN
-            ILA = gst_NIND(JM) + JN - JM
+            ILA = gst_getNIND(JM) + JN - JM
             DO JK = 1, NKSDIM
                ZSP(JK,1,JM) = SPLAT(ILA,1,JK,JLATBIN)
                ZSP(JK,2,JM) = SPLAT(ILA,2,JK,JLATBIN)
@@ -180,7 +180,7 @@ C
 C
 C*    Transfer from working array to global array
 C
-         ILA = gst_NIND(0) +JN
+         ILA = gst_getNIND(0) +JN
          DO JK = 1, NKSDIM
             SP(ILA,1,JK) = ZSP2(JK,1,0)*SQ2
             SP(ILA,2,JK) = ZSP2(JK,2,0)*SQ2
@@ -191,14 +191,14 @@ C
          END DO
 
          DO JM = 1, JN
-            ILA = gst_NIND(JM) +JN - JM
+            ILA = gst_getNIND(JM) +JN - JM
             DO JK = 1, NKSDIM
                SP(ILA,1,JK) = ZSP2(JK,1,JM)
                SP(ILA,2,JK) = ZSP2(JK,2,JM)
             END DO
          END DO
          DO JM = 1, JN
-            ILA = gst_NIND(JM) +JN - JM
+            ILA = gst_getNIND(JM) +JN - JM
             DO JK = 1, NFLEV
                SPTB(ILA,1,JK) = ZSP2(JK+NKSDIM,1,JM)
                SPTB(ILA,2,JK) = ZSP2(JK+NKSDIM,2,JM)
@@ -246,7 +246,7 @@ C     .  3.3 Obtain the full mass field (TT, Ps)
 C
       DO JLAT = 1, NJ
         ILON = NILON(JLAT)
-        ZCORIOLIS = 2.*ROMEGA*gst_RMU(JLAT)
+        ZCORIOLIS = 2.*ROMEGA*gst_getRMU(JLAT)
         DO JLEV = 1, NFLEVPTOT
           DO JLON = 1, ILON
             zp(JLON,JLEV,JLAT) = ZCORIOLIS*ZGDPSI(JLON,JLEV,JLAT)
@@ -265,7 +265,7 @@ C
       END DO
 C
       DO JLAT = 1, NJ
-         ZCORIOLIS = 2.*ROMEGA*gst_RMU(JLAT)
+         ZCORIOLIS = 2.*ROMEGA*gst_getRMU(JLAT)
          ILON = NILON(JLAT)
          DO JLEV = 1, NFLEV
             DO JLON = 1, ILON

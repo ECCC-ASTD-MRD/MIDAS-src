@@ -106,7 +106,7 @@ c
 *
 *     0. Set up simple spectral transforms
 *
-      call zlegpol(zleg,gst_rmu,nj,ntrunc,ntrunc,nj)
+      call gst_zlegpol(zleg)
 *
       ilen = (njend -njbeg +1)*nkgdim
 *
@@ -282,7 +282,7 @@ c          ENDDO
 c        ENDDO
 c        DO jlevi = NKGDIM+1, NKGDIM+NFLEV
 c          DO jlat=1,NJ
-c            ZCORIOLIS = 2.*ROMEGA*gst_RMU(jlat)
+c            ZCORIOLIS = 2.*ROMEGA*gst_getRMU(jlat)
 c            ZSTDDEV(jlevi,jlat)=CORVERT(jlevi,jlevi)*ZCORIOLIS*RGSIGTB(jlat,jlevi)
 c          ENDDO
 c        ENDDO

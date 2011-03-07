@@ -108,7 +108,7 @@ CONTAINS
        zlc=ztlen/2.0
        do jk=1,nflev_l
           do jlat=1,nj_l
-             zr = ra * acos(gst_rmu(jlat))
+             zr = ra * acos(gst_getrmu(jlat))
              if(zr.le.zlc) then
                 zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4 + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
              elseif(zr.le.(2.0*zlc)) then
@@ -312,7 +312,7 @@ CONTAINS
     do jlev=1,nflev_l
        do jn=0,ntrunc_l
           do jm=0,jn
-             ila = gst_nind(jm)+jn-jm
+             ila = gst_getnind(jm)+jn-jm
              zsp(ila,1,jlev)=ensControlVector_in(ila,1,jlev)*ensLocalCor(jn,jlev)
              zsp(ila,2,jlev)=ensControlVector_in(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo
@@ -350,7 +350,7 @@ CONTAINS
     do jj = 1, nj_l
        do jlev=1,nflev_l
           do ji = 1, ni_l
-             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)*ni_l/gst_rwt(jj)
+             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)*ni_l/gst_getrwt(jj)
           enddo
        enddo
     enddo
@@ -364,7 +364,7 @@ CONTAINS
     do jlev=1,nflev_l
        do jn=0,ntrunc_l
           do jm=0,jn
-             ila = gst_nind(jm)+jn-jm
+             ila = gst_getnind(jm)+jn-jm
              ensControlVector_out(ila,1,jlev)=ensControlVector_out(ila,1,jlev)*ensLocalCor(jn,jlev)
              ensControlVector_out(ila,2,jlev)=ensControlVector_out(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo

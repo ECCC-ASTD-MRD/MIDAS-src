@@ -65,7 +65,7 @@ C
          ZNNP1  = -FLOAT(JN)*FLOAT(JN+1)
          Z1SNP1 =  1./ZNNP1
          DO 202 JM = 0, JN
-            ILA = gst_NIND(JM) + JN - JM
+            ILA = gst_getNIND(JM) + JN - JM
             RNNP1(ILA) = ZNNP1
             R1SNP1(ILA) = Z1SNP1
  202     CONTINUE
@@ -168,8 +168,8 @@ C*     4. Conversion of wind images to physical winds
 C
  400  CONTINUE
       DO 401 JLAT = 1, NJ
-         CONPHY(JLAT) = RA*gst_R1QM2(JLAT)
-         CONIMA(JLAT) = R1SA*gst_RSQM2(JLAT)
+         CONPHY(JLAT) = RA*gst_getR1QM2(JLAT)
+         CONIMA(JLAT) = R1SA*gst_getRSQM2(JLAT)
  401  CONTINUE
 C
 C*    . 4.1 Determine nearest level of the

@@ -51,7 +51,7 @@ C
       IFOUND = 0
       J = NJBEG 
  101  J = J + 1
-      IF(ZLAO.GE.gst_RLATI(J)) THEN
+      IF(ZLAO.GE.gst_getRLATI(J)) THEN
          ISRCHILA = J - 1
          IFOUND = 1
       ENDIF

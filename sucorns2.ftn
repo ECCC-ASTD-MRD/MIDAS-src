@@ -499,7 +499,7 @@ c
         do jk1=1,nflev          
           zfact=corvert(jk1+nksdim,jk1+nksdim)
           do ij=1,nj
-            zcoriolis = abs(2.*romega*gst_rmu(ij))
+            zcoriolis = abs(2.*romega*gst_getrmu(ij))
             if(zfact.gt.0.0.and.zcoriolis.ne.0.0) then
               zfact2=1/(zfact*zcoriolis*zcoriolis)
             else 
@@ -525,7 +525,7 @@ c
           do jk1=1,nflevptot
             zfact=zfact+ptot(NFLEV+1,jk1,klatptot(jlatbin))*zpsips(jk1)
           enddo
-          zcoriolis = abs(2.*romega*gst_rmu(ij))
+          zcoriolis = abs(2.*romega*gst_getrmu(ij))
           if(zfact.gt.0.0.and.zcoriolis.ne.0.0) then
             zfact2=1/(zfact*zcoriolis*zcoriolis)
           else 

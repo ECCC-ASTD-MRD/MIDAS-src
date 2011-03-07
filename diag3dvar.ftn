@@ -143,7 +143,7 @@ C
       CALL gst_SPEREE(SP1,GD1,2*NFLEV,NKSDIM)
       DO JLEV = 1, NFLEV
          DO JLAT = 1, NJ
-            ZCORIOLIS = 2.*ROMEGA*gst_RMU(JLAT)
+            ZCORIOLIS = 2.*ROMEGA*gst_getRMU(JLAT)
             ILON = NILON(JLAT)
             DO JLON = 1, ILON
                ZQR(JLON,JLEV,JLAT)   = UT1(JLON,JLEV,JLAT)

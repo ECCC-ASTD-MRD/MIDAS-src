@@ -143,7 +143,7 @@ C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 C
          DLDXN = DLLOO/DLDLON + 1. - ILON
          DLDXS = DLLOO/DLDLOS + 1. - ILOS
-         DLDY  = (gst_RLATI(ILA)-DLLAO)/(gst_RLATI(ILA)-gst_RLATI(ILA+1))
+         DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
          DLW1  = (1.-DLDXN)*(1.-DLDY)
          DLW2  = DLDXN*(1.-DLDY)
          DLW3  = (1.-DLDXS)*DLDY
@@ -238,7 +238,7 @@ C
          DO JLEV = 1, KLEV
             DO JLON = 1, IMAX
                ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *
-     +              NILON(JGL) / gst_RWT(JGL)
+     +              NILON(JGL) / gst_getRWT(JGL)
             END DO
          END DO
       END DO

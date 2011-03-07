@@ -42,27 +42,89 @@ MODULE GLBSPEC_MOD
   save
   private
 
-  ! public variables
-  public :: gst_rmu,gst_rwt,gst_nind,gst_rlati,gst_r1qm2,gst_rsqm2
-  ! public procedures
-  public :: gst_speree,gst_reespe,gst_setup,gst_spgd,gst_spgda
+  ! public subroutines
+  public :: gst_speree,gst_reespe,gst_setup,gst_spgd,gst_spgda,gst_zlegpol
+  ! public functions
+  public :: gst_getRmu,gst_getRwt,gst_getnind,gst_getrlati,gst_getr1qm2,gst_getrsqm2
 
-  real*8,allocatable   :: gst_rmu(:),gst_rwt(:),gst_rsqm2(:),gst_r1qm2(:),gst_rlati(:)
-  integer,allocatable  :: gst_nind(:)
+!  type  :: T_gst
+    real*8,allocatable   :: gst_rmu(:),gst_rwt(:),gst_rsqm2(:),gst_r1qm2(:),gst_rlati(:)
+    integer,allocatable  :: gst_nind(:)
 
-  real*8,allocatable   :: dalp(:,:), dealp(:,:)
-  real*8,allocatable   :: rwocs(:)
-  real*8,allocatable   :: r1mu2(:),rcolat(:),r1mui(:),r1mua(:)
-  real*8,allocatable   :: gaus(:,:)
-  integer,allocatable  :: nindrh(:), nclm(:)
-  integer              :: nlatbd = 8
-  integer              :: ni_l,nibeg_l,niend_l,nisur_l,nj_l,njbeg_l,njend_l,njsur_l
-  integer              :: njlath_l
-  integer              :: ntrunc_l, nla_l, nlarh_l
-  real*8               :: rinfini,rpi,r1sa
-  real*8,allocatable   :: r1snp1(:)
+    real*8,allocatable   :: dalp(:,:), dealp(:,:)
+    real*8,allocatable   :: rwocs(:)
+    real*8,allocatable   :: r1mu2(:),rcolat(:),r1mui(:),r1mua(:)
+    real*8,allocatable   :: gaus(:,:)
+    integer,allocatable  :: nindrh(:), nclm(:)
+    integer              :: nlatbd = 8
+    integer              :: ni_l,nibeg_l,niend_l,nisur_l,nj_l,njbeg_l,njend_l,njsur_l
+    integer              :: njlath_l
+    integer              :: ntrunc_l, nla_l, nlarh_l
+    real*8               :: rinfini,rpi,r1sa
+    real*8,allocatable   :: r1snp1(:)
+!  end type T_gst
 
 CONTAINS
+
+  real*8 FUNCTION GST_getRmu(latIndex)
+    implicit none
+
+    integer :: latIndex
+  
+    gst_getRmu=gst_rmu(latIndex)
+
+  END FUNCTION GST_getRmu
+
+
+  real*8 FUNCTION GST_getRwt(latIndex)
+    implicit none
+
+    integer :: latIndex
+  
+    gst_getRwt=gst_rwt(latIndex)
+
+  END FUNCTION GST_getRwt
+
+
+  real*8 FUNCTION GST_getNind(latIndex)
+    implicit none
+
+    integer :: latIndex
+  
+    gst_getNind=gst_Nind(latIndex)
+
+  END FUNCTION GST_getNind
+
+
+  real*8 FUNCTION GST_getRlati(latIndex)
+    implicit none
+
+    integer :: latIndex
+  
+    gst_getRlati=gst_Rlati(latIndex)
+
+  END FUNCTION GST_getRlati
+
+
+  real*8 FUNCTION GST_getR1qm2(latIndex)
+    implicit none
+
+    integer :: latIndex
+  
+    gst_getR1qm2=gst_R1qm2(latIndex)
+
+  END FUNCTION GST_getR1qm2
+
+
+  real*8 FUNCTION GST_getRsqm2(latIndex)
+    implicit none
+
+    integer :: latIndex
+  
+    gst_getRsqm2=gst_Rsqm2(latIndex)
+
+  END FUNCTION GST_getRsqm2
+
 
   SUBROUTINE GST_SETUP(KULOUT,NI_IN,NJ_IN,NTRUNC_IN)
     use fft_mod
@@ -1225,5 +1287,40 @@ CONTAINS
     return
   END SUBROUTINE ALLP2
 
+  SUBROUTINE GST_ZLEGPOL(PLEG)
+    !***s/r ZLEGPOL  - Evaluation of Legendre polynomials restricted to
+    !*     .           (n,m) = (n,0)
+    !*Arguments
+    !*     o   PLEG               : Legendre functions evaluated at the KNJ Gaussian latitudes
+    implicit none
+
+    real*8    pleg(0:ntrunc_l,nj_l)
+
+    integer jn, jlat, ilen, ierr
+    real*8 dlfact1, dlfact2, dln
+    real*8 dlnorm(0:ntrunc_l)
+
+    do jlat = 1, nj_l
+       pleg(0,jlat) = sqrt(0.5d0)
+       pleg(1,jlat) = sqrt(1.5d0)*gst_rmu(jlat)
+    enddo
+
+    do jn = 0, ntrunc_l
+       dln = 1.d0*dfloat(jn)
+       dlnorm(jn) = dsqrt((2.*dln + 1.d0)/2.d0)
+    enddo
+
+    do jn = 1, ntrunc_l-1
+       dln = dfloat(jn)
+       dlfact1 = ((2.*dln+1.)/(dln+1.))*(dlnorm(jn+1)/dlnorm(jn))
+       dlfact2 = (dln/(dln+1.))*(dlnorm(jn+1)/dlnorm(jn-1))
+       do jlat = 1,nj_l
+          pleg(jn+1,jlat) = dlfact1*gst_rmu(jlat)*dble(pleg(jn,jlat))   &
+                - dlfact2*dble(pleg(jn-1,jlat))
+       enddo
+    enddo
+
+    return
+  END SUBROUTINE GST_ZLEGPOL
 
 END MODULE GLBSPEC_MOD

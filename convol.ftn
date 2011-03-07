@@ -86,8 +86,8 @@ C        Extract required parm from SULEG results
 C
          INJ=NJ
          DO JLAT = 1, NJ
-            DLWTI(JLAT) = gst_RWT(JLAT)
-            ZRMU(JLAT)  = gst_RMU(JLAT)
+            DLWTI(JLAT) = gst_getRWT(JLAT)
+            ZRMU(JLAT)  = gst_getRMU(JLAT)
          END DO
       ELSE
 C
@@ -105,7 +105,6 @@ C
          enddo
       END IF
 
-c      CALL ZLEGPOL(ZLEG,ZRMU,INJ,NTRUNC,JPTRUNC,JPLAT)
       DO JLAT = 1, INJ
          ZLEG(0,JLAT) = SQRT(0.5)
          ZLEG(1,JLAT) = SQRT(1.5)*ZRMU(JLAT)

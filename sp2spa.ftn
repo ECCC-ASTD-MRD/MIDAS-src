@@ -127,7 +127,7 @@ C
         DO JLEV = 1, NFLEV
           DO JLAT = 1, NJ
             ILON = NILON(JLAT)
-            ZCORIOLIS = 2.*ROMEGA*gst_RMU(JLAT)
+            ZCORIOLIS = 2.*ROMEGA*gst_getRMU(JLAT)
             DO JLON = 1, ILON
               GZ0(JLON,JLEV,JLAT) = GZ0(JLON,JLEV,JLAT)
      S             - ZCORIOLIS*UT0(JLON,JLEV,JLAT)
