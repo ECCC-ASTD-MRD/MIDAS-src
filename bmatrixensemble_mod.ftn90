@@ -1,26 +1,58 @@
-MODULE BmatrixEnsemble_mod ! (prefix = BEN)
+!--------------------------------------------------------------------------
+! MODULE BmatrixEnsemble_mod (Background-error Covariance Matrix estimated
+!                             using ensemble members and spatial localization
+!                             prefix="ben")
+!
+! Purpose: Performs transformation from control vector to analysis increment 
+!          using the spatially localized ensemble covariance matrix
+!
+! Subroutines:
+!    ben_setup (public)
+!    ben_BSqrt (public)
+!    ben_BSqrtAd (public)
+!    setupLocalization
+!    setupEnsemble
+!    cain
+!    cainAd
+!    localizationSqrt
+!    localizationSqrtAd
+!    addEnsMember
+!    addEnsMemberAd
+!
+! Dependencies:
+!    glbspec_mod
+!--------------------------------------------------------------------------
+MODULE BmatrixEnsemble_mod 
 
   implicit none
   save
   private
 
-  public         :: ben_setup,ben_apply,ben_applyAd
+  public             :: ben_Setup,ben_BSqrt,ben_BSqrtAd
 
-  real*8,pointer :: ensLocalCor(:,:)
-  integer        :: ntrunc_l,nibeg_l,niend_l,njbeg_l,njend_l,nflev_l,njsur_l,nisur_l,nj_l,ni_l,nla_l
+  real*8,allocatable :: ensLocalCor(:,:)
+  real*8,allocatable :: ensPerturbations(:,:,:,:,:)
+  integer            :: nibeg_l,niend_l,njbeg_l,njend_l,njsur_l,nisur_l,nj_l,ni_l
+  integer            :: nflev_l,nkgdim_l
+  integer            :: ntrunc_l,nla_l
+  integer            :: nens_l,cvDim_l
+  integer            :: ntime_l
 
 CONTAINS
 
-  SUBROUTINE BEN_SETUP(ZTLEN_IN,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN)
+  SUBROUTINE BEN_setup(ZTLEN_IN,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN,CVDIM_OUT)
     implicit none
 
     real*8         :: ztlen_in
     integer        :: ntrunc_in,ni_in,nj_in,nflev_in
-
+    integer        :: cvDim_out
 
     nflev_l=nflev_in
-    ntrunc_l=ntrunc_in
+    nkgdim_l=4*nflev_l+2  ! assume 4 3d and 2 2d variables
 
+    ntrunc_l=ntrunc_in
+    nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
+    
     nisur_l=2
     njsur_l=2
     ni_l=ni_in
@@ -29,14 +61,33 @@ CONTAINS
     niend_l=ni_l+nisur_l
     njbeg_l=1-njsur_l
     njend_l=nj_l+njsur_l
-    nla_l=(ntrunc_l + 1)*(ntrunc_l +2)/2
 
     call setupLocalization(ztlen_in)
 
-  END SUBROUTINE BEN_SETUP
+    call setupEnsemble
+
+    cvDim_l=nens_l*((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nflev_l
+    cvDim_out=cvDim_l
+
+  END SUBROUTINE BEN_setup
 
 
-  SUBROUTINE SETUPLOCALIZATION(ztlen)
+  SUBROUTINE setupEnsemble
+    implicit none
+
+    ! parameters set from the ensemble member files
+    nens_l=10
+    ntime_l=5
+
+    allocate(ensPerturbations(ni_l,nkgdim_l,nj_l,ntime_l,nens_l))
+
+    ensPerturbations(:,:,:,:,:)=1.0d0
+    ensPerturbations=ensPerturbations/sqrt(dble(nens_l))
+
+  END SUBROUTINE setupEnsemble
+
+
+  SUBROUTINE setupLocalization(ZTLEN)
     use glbspec_mod
     implicit none
 
@@ -66,7 +117,7 @@ CONTAINS
              else
                 zcorr= 0.0
              endif
-             !write(*,*) 'LOCALIZATION FUNCTION1=',jlat,zr/1000.0,zlc/1000.0,zcorr
+             write(300,*) 'LOCALIZATION FUNCTION1=',jk,jlat,zr/1000.0,zlc/1000.0,zcorr
              do jlon=1,ni_l
                 zgd(jlon,jk,jlat)=zcorr
              enddo
@@ -145,14 +196,112 @@ CONTAINS
     write(*,*)'done setting up localization function'
 
     return
-  END SUBROUTINE SETUPLOCALIZATION
+  END SUBROUTINE setupLocalization
 
 
-  SUBROUTINE BEN_APPLY(SP_IN,GD_OUT)
+  SUBROUTINE BEN_BSqrt(controlVector_in,increment_out)
+    implicit none
+
+    real*8    :: controlVector_in(cvDim_l) 
+    real*8    :: increment_out(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l,ntime_l)
+
+    integer   :: memberIndex
+    real*8    :: ensControlVector(nla_l,2,nflev_l)
+    real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
+
+    do memberIndex=1,nens_l
+      call cain(controlVector_in,ensControlVector,memberIndex)
+      call localizationSqrt(ensControlVector,ensAmplitude)
+      call addEnsMember(ensAmplitude,increment_out,memberIndex)
+    enddo
+
+    return
+  END SUBROUTINE BEN_BSqrt
+
+
+  SUBROUTINE BEN_BSqrtAd(increment_in,controlVector_out)
+    implicit none
+
+    real*8    :: controlVector_out(cvDim_l) 
+    real*8    :: increment_in(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+
+    integer   :: memberIndex
+    real*8    :: ensControlVector(nla_l,2,nflev_l) 
+    real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
+
+    do memberIndex=1,nens_l
+      call addEnsMemberAd(increment_in,ensAmplitude,memberIndex)
+      call localizationSqrtAd(ensAmplitude,ensControlVector)
+      call cainAd(ensControlVector,controlVector_out,memberIndex)
+    enddo
+
+    return
+  END SUBROUTINE BEN_BSqrtAd
+
+
+  SUBROUTINE addEnsMember(ensAmplitude_in,increment_out,memberIndex)
+    implicit none
+
+    integer     :: memberIndex
+    real*8      :: ensAmplitude_in(ni_l,nflev_l,nj_l)
+    real*8      :: increment_out(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l,ntime_l)
+
+    integer     :: jk,jlev,jt,jj,ji
+
+    !$OMP PARALLEL
+    !$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
+    do jk=1,nkgdim_l
+      jlev=mod(jk-1,nflev_l)+1
+      do jt=1,ntime_l
+        do jj=1,nj_l
+          do ji=1,ni_l
+            increment_out(ji,jk,jj,jt)=increment_out(ji,jk,jj,jt) +   &
+              ensAmplitude_in(ji,jlev,jj)*ensPerturbations(ji,jk,jj,jt,memberIndex)
+          enddo
+        enddo
+      enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+  END SUBROUTINE addEnsMember
+
+
+  SUBROUTINE addEnsMemberAd(increment_in,ensAmplitude_out,memberIndex)
+    implicit none
+
+    integer     :: memberIndex
+    real*8      :: ensAmplitude_out(ni_l,nflev_l,nj_l)
+    real*8      :: increment_in(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l,ntime_l)
+
+    integer     :: jk,jlev,jt,jj,ji
+
+    !$OMP PARALLEL
+    !$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
+    do jk=1,nkgdim_l
+      jlev=mod(jk-1,nflev_l)+1
+      do jt=1,ntime_l
+        do jj=1,nj_l
+          do ji=1,ni_l
+            ensAmplitude_out(ji,jlev,jj)=ensAmplitude_out(ji,jlev,jj) +   &
+              increment_in(ji,jk,jj,jt)*ensPerturbations(ji,jk,jj,jt,memberIndex)
+          enddo
+        enddo
+      enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+  END SUBROUTINE addEnsMemberAd
+
+
+  SUBROUTINE localizationSqrt(ensControlVector_in,ensAmplitude_out)
     use glbspec_mod
     implicit none
 
-    real*8, pointer  :: sp_in(:,:,:),gd_out(:,:,:)
+    real*8           :: ensControlVector_in(nla_l,2,nflev_l)
+    real*8           :: ensAmplitude_out(ni_l,nflev_l,nj_l)
+    real*8           :: zsp(nla_l,2,nflev_l)
     integer          :: jlev,jn,jm,ila,jla
     real*8           :: rsq2
 
@@ -164,28 +313,30 @@ CONTAINS
        do jn=0,ntrunc_l
           do jm=0,jn
              ila = gst_nind(jm)+jn-jm
-             sp_in(ila,1,jlev)=sp_in(ila,1,jlev)*ensLocalCor(jn,jlev)
-             sp_in(ila,2,jlev)=sp_in(ila,2,jlev)*ensLocalCor(jn,jlev)
+             zsp(ila,1,jlev)=ensControlVector_in(ila,1,jlev)*ensLocalCor(jn,jlev)
+             zsp(ila,2,jlev)=ensControlVector_in(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo
        enddo
        do jla = 1,ntrunc_l+1
-          sp_in(jla,1,jlev) = sp_in(jla,1,jlev)*rsq2
-          sp_in(jla,2,jlev) = 0.0
+          zsp(jla,1,jlev) = ensControlVector_in(jla,1,jlev)*rsq2
+          zsp(jla,2,jlev) = 0.0
        enddo
     enddo
     !$OMP END DO
     !$OMP END PARALLEL
 
-    call gst_speree(sp_in,gd_out,nflev_l,nflev_l)
+    call gst_speree(zsp,ensAmplitude_out,nflev_l,nflev_l)
 
-  end subroutine ben_apply
+  END SUBROUTINE localizationSqrt
 
 
-  SUBROUTINE BEN_APPLYAD(SP_OUT,GD_IN)
+  SUBROUTINE localizationSqrtAd(ensAmplitude_in,ensControlVector_out)
     use glbspec_mod
     implicit none
 
-    real*8, pointer  :: sp_out(:,:,:),gd_in(:,:,:)
+    real*8           :: ensControlVector_out(nla_l,2,nflev_l)
+    real*8           :: ensAmplitude_in(ni_l,nflev_l,nj_l)
+    real*8           :: zgd(ni_l,nflev_l,nj_l)
     integer          :: jlev
     integer          :: jn,jm,ila,jla
     integer          :: ji,jj
@@ -199,14 +350,14 @@ CONTAINS
     do jj = 1, nj_l
        do jlev=1,nflev_l
           do ji = 1, ni_l
-             gd_in(ji,jlev,jj)=gd_in(ji,jlev,jj)*ni_l/gst_rwt(jj)
+             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)*ni_l/gst_rwt(jj)
           enddo
        enddo
     enddo
     !$OMP END DO
     !$OMP END PARALLEL
 
-    call gst_reespe(sp_out,gd_in,nflev_l,nflev_l)
+    call gst_reespe(ensControlVector_out,zgd,nflev_l,nflev_l)
 
     !$OMP PARALLEL 
     !$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
@@ -214,24 +365,75 @@ CONTAINS
        do jn=0,ntrunc_l
           do jm=0,jn
              ila = gst_nind(jm)+jn-jm
-             sp_out(ila,1,jlev)=sp_out(ila,1,jlev)*ensLocalCor(jn,jlev)
-             sp_out(ila,2,jlev)=sp_out(ila,2,jlev)*ensLocalCor(jn,jlev)
+             ensControlVector_out(ila,1,jlev)=ensControlVector_out(ila,1,jlev)*ensLocalCor(jn,jlev)
+             ensControlVector_out(ila,2,jlev)=ensControlVector_out(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo
        enddo
        do jla = 1,ntrunc_l+1
-          sp_out(jla,1,jlev) = sp_out(jla,1,jlev)*rsq2
-          sp_out(jla,2,jlev) = 0.0
-       enddo
-       ! this is from cainad.ftn
-       do jla = ntrunc_l+2,nla_l
-          sp_out(jla,1,jlev) = sp_out(jla,1,jlev)*2.0d0
-          sp_out(jla,2,jlev) = sp_out(jla,2,jlev)*2.0d0
+          ensControlVector_out(jla,1,jlev) = ensControlVector_out(jla,1,jlev)*rsq2
+          ensControlVector_out(jla,2,jlev) = 0.0
        enddo
     enddo
     !$OMP END DO
     !$OMP END PARALLEL
 
-  END SUBROUTINE BEN_APPLYAD
+  END SUBROUTINE localizationSqrtAd
 
-END MODULE BMATRIXENSEMBLE_MOD
+
+  SUBROUTINE cain(controlVector_in,ensControlVector_out,memberIndex)
+    implicit none
+
+    integer   :: memberIndex
+    real*8    :: controlVector_in(cvDim_l)
+    real*8    :: ensControlVector_out(nla_l,2,nflev_l)
+
+    integer   :: jdim,jlev,jla,jvar,jens
+
+    jdim = (memberIndex-1)*((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)
+    do jlev = 1, nflev_l
+      do jla = 1, ntrunc_l + 1
+        jdim = jdim + 1
+        ensControlVector_out(jla,1,jlev) = controlVector_in(jdim)
+        ensControlVector_out(jla,2,jlev) = 0.0
+      enddo
+      do jla = ntrunc_l+2, nla_l
+        jdim = jdim + 1
+        ensControlVector_out(jla,1,jlev) = controlVector_in(jdim)
+        jdim = jdim + 1
+        ensControlVector_out(jla,2,jlev) = controlVector_in(jdim)
+      enddo
+    enddo
+
+    return
+  END SUBROUTINE cain
+
+
+  SUBROUTINE cainAd(ensControlVector_in,controlVector_out,memberIndex)
+    implicit none
+
+    integer    :: memberIndex
+    real*8     :: controlVector_out(cvDim_l)
+    real*8     :: ensControlVector_in(nla_l,2,nflev_l)
+
+    integer kdim,jdim,jlev,jla,jvar,ji,jj
+
+    jdim = (memberIndex-1)*((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)
+    do jlev = 1, nflev_l
+      do jla = 1, ntrunc_l + 1
+        jdim = jdim + 1
+        controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector_in(jla,1,jlev)
+      enddo
+      do jla = ntrunc_l+2, nla_l
+        jdim = jdim + 1
+        controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector_in(jla,1,jlev)*2.0d0
+        jdim = jdim + 1
+        controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector_in(jla,2,jlev)*2.0d0
+      enddo
+    enddo
+
+    return
+  END SUBROUTINE cainAd
+
+
+END MODULE BMatrixEnsemble_mod
 

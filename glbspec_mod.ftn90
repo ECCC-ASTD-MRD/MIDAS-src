@@ -116,6 +116,7 @@ CONTAINS
   END SUBROUTINE GST_SETUP
 
   SUBROUTINE GST_SPGD(SP,GD,KFIELD,NFLEV,KDIM)
+    use fft_mod
     implicit none
 
     integer kfield,nflev,kdim
@@ -147,7 +148,7 @@ CONTAINS
 
 !     2.2 Apply the FFT 
 !         -------------
-      call fft3dvar(gd,nibeg_l,niend_l,kfield,njbeg_l,njend_l,kfield,+1)
+      call fft_fft3dvar(gd,nibeg_l,niend_l,kfield,njbeg_l,njend_l,kfield,+1)
 
   END SUBROUTINE GST_SPGD
 
@@ -289,6 +290,7 @@ CONTAINS
 
 
   SUBROUTINE GST_SPGDA(SP,GD,KFIELD,NFLEV,KDIM)
+    use fft_mod
     implicit none
 
     integer kfield,nflev,kdim
@@ -316,7 +318,7 @@ CONTAINS
        enddo
     enddo
 !
-    call fft3dvar(zfm,1,ni_l+2,kfield,1,i_nj,kfield,-1)
+    call fft_fft3dvar(zfm,1,ni_l+2,kfield,1,i_nj,kfield,-1)
 
 !   2. Direct Legendre transform including wind transformations
 !      --------------------------------------------------------

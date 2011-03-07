@@ -31,6 +31,7 @@
 *               '0' --> return no statistics needed
 #endif
       USE procs_topo
+      use bmatrixensemble_mod
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -40,6 +41,7 @@
 *
       CHARACTER*1 CDCTL
       INTEGER  KULOUT
+      integer  cvdimens
 !
 !!
       IF(CDCTL .EQ. '0') THEN
@@ -51,6 +53,9 @@
      S     ,3(" *****************"))
 !
       call subg_glb
+      write(*,*) 'Setting up the ensemble covariances...'
+      call ben_setup(2800.0d0,ntrunc,NI,NJ,NFLEV,CVDIMENS)
+      write(*,*) 'Dimension of control vector returned:',cvdimens
 !
       return
       end
