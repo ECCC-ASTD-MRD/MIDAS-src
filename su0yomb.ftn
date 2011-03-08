@@ -48,7 +48,7 @@ C                      Introduce normal modes.
 #include "comct0.cdk"
 #include "comcva.cdk"
 *
-      integer :: ierr
+      integer :: ierr,gstID
 !
 !!
       write(nulout,*) 'su0yomb: au debut: nanalvar = ',nanalvar
@@ -56,7 +56,8 @@ C                      Introduce normal modes.
 !
 !modular1: set up the modular global spectral transform object
 !          replaces: suleg,sufft,sualp
-      call gst_setup(nulout,ni,nj,ntrunc)
+      gstID = gst_setup(nulout,ni,nj,ntrunc)
+      write(*,*) 'returned value of gstID=',gstID
 !
 !
 !*    4. Initialisation of the geometry

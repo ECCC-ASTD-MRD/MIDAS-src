@@ -54,7 +54,7 @@
 !
       call subg_glb
       write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(2800.0d0,ntrunc,NI,NJ,NFLEV,CVDIMENS)
+      call ben_setup(2800.0d0,31,NI,NJ,NFLEV,CVDIMENS)
       write(*,*) 'Dimension of control vector returned:',cvdimens
 !
       return

@@ -37,10 +37,12 @@ MODULE BmatrixEnsemble_mod
   integer            :: ntrunc_l,nla_l
   integer            :: nens_l,cvDim_l
   integer            :: ntime_l
+  integer            :: gstID
 
 CONTAINS
 
   SUBROUTINE BEN_setup(ZTLEN_IN,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN,CVDIM_OUT)
+    use glbspec_mod
     implicit none
 
     real*8         :: ztlen_in
@@ -61,6 +63,9 @@ CONTAINS
     niend_l=ni_l+nisur_l
     njbeg_l=1-njsur_l
     njend_l=nj_l+njsur_l
+
+    gstID = gst_setup(6,ni_l,nj_l,ntrunc_l)
+    write(*,*) 'BEN:returned value of gstID=',gstID
 
     call setupLocalization(ztlen_in)
 
@@ -97,6 +102,8 @@ CONTAINS
     real*8,pointer :: zgd(:,:,:)
     real*8         :: ra = 6371229.D0
 
+    call gst_setID(gstID)
+
     allocate(ensLocalCor(0:ntrunc_l,nflev_l))
     allocate(zgd(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l))
     allocate(zsp(nla_l,2,nflev_l))
@@ -108,7 +115,7 @@ CONTAINS
        zlc=ztlen/2.0
        do jk=1,nflev_l
           do jlat=1,nj_l
-             zr = ra * acos(gst_getrmu(jlat))
+             zr = ra * acos(gst_getrmu(jlat,gstID))
              if(zr.le.zlc) then
                 zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4 + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
              elseif(zr.le.(2.0*zlc)) then
@@ -193,6 +200,7 @@ CONTAINS
     deallocate(zgd)
     deallocate(zsp)
 
+    call gst_setToDefaultID
     write(*,*)'done setting up localization function'
 
     return
@@ -312,7 +320,7 @@ CONTAINS
     do jlev=1,nflev_l
        do jn=0,ntrunc_l
           do jm=0,jn
-             ila = gst_getnind(jm)+jn-jm
+             ila = gst_getnind(jm,gstID)+jn-jm
              zsp(ila,1,jlev)=ensControlVector_in(ila,1,jlev)*ensLocalCor(jn,jlev)
              zsp(ila,2,jlev)=ensControlVector_in(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo
@@ -325,7 +333,9 @@ CONTAINS
     !$OMP END DO
     !$OMP END PARALLEL
 
+    call gst_setID(gstID)
     call gst_speree(zsp,ensAmplitude_out,nflev_l,nflev_l)
+    call gst_setToDefaultID
 
   END SUBROUTINE localizationSqrt
 
@@ -350,21 +360,23 @@ CONTAINS
     do jj = 1, nj_l
        do jlev=1,nflev_l
           do ji = 1, ni_l
-             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)*ni_l/gst_getrwt(jj)
+             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)*ni_l/gst_getrwt(jj,gstID)
           enddo
        enddo
     enddo
     !$OMP END DO
     !$OMP END PARALLEL
 
+    call gst_setID(gstID)
     call gst_reespe(ensControlVector_out,zgd,nflev_l,nflev_l)
+    call gst_setToDefaultID
 
     !$OMP PARALLEL 
     !$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
     do jlev=1,nflev_l
        do jn=0,ntrunc_l
           do jm=0,jn
-             ila = gst_getnind(jm)+jn-jm
+             ila = gst_getnind(jm,gstID)+jn-jm
              ensControlVector_out(ila,1,jlev)=ensControlVector_out(ila,1,jlev)*ensLocalCor(jn,jlev)
              ensControlVector_out(ila,2,jlev)=ensControlVector_out(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo
