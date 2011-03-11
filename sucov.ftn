@@ -32,16 +32,19 @@
 #endif
       USE procs_topo
       use bmatrixensemble_mod
+      use bmatrixhi_mod
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comcva.cdk"
+#include "pardim.cdk"
+#include "comgem.cdk"
 *
       CHARACTER*1 CDCTL
       INTEGER  KULOUT
-      integer  cvdimens
+      integer  cvdimens,cvdimhi
 !
 !!
       IF(CDCTL .EQ. '0') THEN
@@ -53,9 +56,15 @@
      S     ,3(" *****************"))
 !
       call subg_glb
-      write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(2800.0d0,31,NI,NJ,NFLEV,CVDIMENS)
-      write(*,*) 'Dimension of control vector returned:',cvdimens
+
+      write(*,*) 'Setting up the modular HI covariances...'
+      call bhi_setup(NTRUNC,NI,NJ,NFLEV,vhybinc,cvdimhi)
+      write(*,*) 'Dimension of control vector returned:',cvdimhi
+
+
+!      write(*,*) 'Setting up the ensemble covariances...'
+!      call ben_setup(2800.0d0,31,NI,NJ,NFLEV,CVDIMENS)
+!      write(*,*) 'Dimension of control vector returned:',cvdimens
 !
       return
       end

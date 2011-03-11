@@ -140,6 +140,7 @@ c
         dlfact2=((2.0*JN +1.0)/2.0)**(0.25)
         do jk=1,nksdim
           ZSP(jn,jk)=rstddev(jk,jn)*dlfact*dlfact2
+          write(560,*) jn,jk,dlfact,dlfact2,zsp(jn,jk)
         enddo
       enddo
 *
@@ -191,6 +192,7 @@ c
             ZR = RA * ACOS(ZRMU(jlat))
             DLFACT = DEXP(-(ZR**2)*DLC)
             ZGR(jlat,jk)=DLFACT*ZGR(jlat,jk)
+            write(570,*) jk,jlat,dlfact,zgr(jlat,jk)
           enddo
         endif
 c
@@ -214,6 +216,7 @@ c PUT BACK INTO RSTDDEV
       do JN=0,NTRUNC
         do JK=1,NKSDIM
            RSTDDEV(JK,JN)=ZSP(JN,JK)
+           write(580,*) jn,jk,rstddev(jk,jn)
         enddo
       enddo
 c
@@ -237,6 +240,7 @@ c     CONVERT THE SPECTRAL COEFFICIENTS OF THE CORRELATION FUNCTION
         dlfact=sqrt(0.5)*(1.0/((2.0*jn+1)/2.0))**0.25
         do jk=1,nksdim
           rstddev(jk,jn)=rstddev(jk,jn)*dlfact
+          write(590,*) jn,jk,dlfact,rstddev(jk,jn)
         enddo
       enddo
 *

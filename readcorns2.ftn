@@ -271,6 +271,7 @@ c
           do jcol = 1,iksdim
             do jrow = 1, iksdim
               corns(jrow,jcol,jn,klatbin) = zcornssrc(jrow,jcol)
+              write(530,*) jn,jcol,jrow,corns(jrow,jcol,jn,klatbin)
             enddo
           enddo
 c
@@ -410,6 +411,7 @@ c
         else
           do jrow = 1, iksdim
             rstddev(jrow,jn) = zstdsrc(jrow)
+            write(540,*) jn,jrow,rstddev(jrow,jn)
           enddo
         endif
 c
@@ -480,7 +482,9 @@ c
 c Re-build of correlation matrix: factorization of corns with convoluted RSTDDEV
 c
         do jcol = 1,nksdim
+          write(520,*) jn,jcol,rstddev(jcol,jn)
           do jrow = 1,nksdim
+            write(510,*) jn,jcol,jrow,corns(jrow,jcol,jn,klatbin)
             corns(jrow,jcol,jn,klatbin) = rstddev(jrow,jn) * corns(jrow,jcol
      &           ,jn,klatbin)* rstddev(jcol,jn)
           enddo

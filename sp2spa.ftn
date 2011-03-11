@@ -168,14 +168,10 @@ C
                ZNORMCHI = 1.e20
             END IF
             DO JLON = 1, ILON
-               IF(DAMPLIBG(JLON,JLEV,JLAT).gt.0.0)
-     S           UT0(JLON,JLEV,JLAT)
+               UT0(JLON,JLEV,JLAT)
      S              = ZGDPSI(JLON,JLEV,JLAT)*ZNORMPSI
-     S              /DAMPLIBG(JLON,JLEV,JLAT)
-               IF(DAMPLIBG(JLON,JLEV+NFLEV,JLAT).gt.0.0)
-     S           VT0(JLON,JLEV,JLAT)
+               VT0(JLON,JLEV,JLAT)
      S              = ZGDCHI(JLON,JLEV,JLAT)*ZNORMCHI
-     S              /DAMPLIBG(JLON,JLEV+NFLEV,JLAT)
             END DO
          END DO
       END DO

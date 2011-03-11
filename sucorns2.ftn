@@ -16,6 +16,7 @@
 !
         SUBROUTINE SUCORNS2
         use glbspec_mod
+        USE procs_topo
         IMPLICIT NONE
 #if defined (DOC)
 *
@@ -86,7 +87,7 @@ C    0.  Memory allocation
 C
         CALL HPALLOC(PXWRK, 2*4*NKSDIM2, IER,8)
         CALL HPALLOC(PXRES,4*NKSDIM2*NKSDIM2, IER,8)
-        CALL HPALLOC(PXRES2,4*NKSDIM2*NKSDIM2, IER,8)
+        CALL HPALLOC(PXRES2,4*NKSDIM*NKSDIM2, IER,8)
         CALL HPALLOC(PXEV,4*NKSDIM2, IER,8)
         CALL HPALLOC(PXE,4*NKSDIM2*NKSDIM2, IER,8)
         CALL HPALLOC(PXSQI,4*NKSDIM2*NKSDIM2, IER,8)
@@ -98,8 +99,10 @@ C
 C
         ILWORK=4*NKSDIM2*2
         iulcorvert = 0
-        ierr = fnom(iulcorvert,'corvert.fst','RND',0)
-        ierr = fstouv(iulcorvert,'RND')
+        if(myid==0) then
+          ierr = fnom(iulcorvert,'corvert.fst','RND',0)
+          ierr = fstouv(iulcorvert,'RND')
+        endif
 c
       if(nlatbin.eq.1) then
         klatptot(1)=1
@@ -186,10 +189,20 @@ c
           ENDDO
         ENDDO
       ENDDO
+
+      do in=0,1
+        do ij=1,nksdim2
+          do ii=1,nksdim2
+            write(456,*) jlatbin,in,ij,ii,corns(ii,ij,in,jlatbin)
+          enddo
+        enddo
+      enddo
+      call flush(456)
 C
 C Apply vertical localization to corrns
 C
       zps = 101000. 0
+      write(*,*) 'sucorns:vgrid=',zps,rptopinc,rprefinc,rcoefinc      
       call calcpres(ZPROF,vhybinc,nflev,ZPS,rptopinc
      &             ,rprefinc,rcoefinc,1)
 C
@@ -438,6 +451,15 @@ c calculate 5'th order function (from Gaspari and Cohn)
           enddo
         enddo
       endif
+
+      do in=0,1
+        do ij=1,nksdim2
+          do ii=1,nksdim2
+            write(450,*) jlatbin,in,ij,ii,corns(ii,ij,in,jlatbin)
+          enddo
+        enddo
+      enddo
+
 c
 c compute total vertical correlations (including for balanced temperature)
 c
@@ -460,7 +482,7 @@ c
           write(702,*) zpsi
         endif
 
-        if(.true.) then
+        if(myid == 0) then
           ikey =fstinf(NULBGST,ini,inj,ink,-1,'CORRNS',-1,0,-1,' ','ZZ')
           ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits
      &         ,idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp
@@ -558,6 +580,17 @@ c
         enddo
       enddo
 
+      do jlatbin=1,nlatbin
+        do in=11,12
+          do ij=1,nksdim2
+            do ii=1,nksdim2
+              write(452,*) jlatbin,in,ij,ii,corns(ii,ij,in,jlatbin)
+            enddo
+          enddo
+        enddo
+      enddo
+
+
       DO JLATBIN=1,NLATBIN
 c
 c compute square-root of corns
@@ -577,11 +610,12 @@ C
         DO IJ=1,NKSDIM2
            DO II=1,NKSDIM2
               SQRTIN(II,IJ)=0.
+              if(in.eq.12) write(458,*) ij,ii,eigen(ii,ij)
            END DO
         END DO
 C
         DO II=1,NKSDIM2
-          if(EIGENV(II).lt.1.0e-15) then
+          if(EIGENV(II).lt.1.0d-15) then
             sqrtin(ii,ii) = 0.0
           else
             SQRTIN(II,II)=SQRT(EIGENV(II))
@@ -595,7 +629,9 @@ c
           SQRTIN2(IJ,IJ)=SQRTIN(NKSDIM2-IJ+1,NKSDIM2-IJ+1)            
           DO II=1,NKSDIM2
             EIGEN2(II,IJ) =EIGEN(II,NKSDIM2-IJ+1)            
+            if(in.eq.12) write(460,*) ii,ij,eigen2(ij,ij)
           ENDDO
+          if(in.eq.12) write(*,*) 'SUCORNS2: E-VALUES2=',ij,sqrtin2(ij,ij)
         ENDDO
 C
 C    2. CALCULATE THE PRODUCT AND STORE IT BACK IN CORNS
@@ -611,6 +647,12 @@ C
 cbue        CALL MXMA8(RESULT2,1,NKSDIM2,  EIGEN,NKSDIM2,1,  RESULT,1,
 cbue     +       NKSDIM2,NKSDIM2,NKSDIM2,NKSDIM2)
 C
+        do ij=1,nksdim
+           do ii=1,nksdim2
+             if(in.eq.12) write(462,*) ij,ii,result2(ii,ij)
+           enddo
+        enddo
+
         DO IJ=1,NKSDIM2
            DO II=1,NKSDIM2
               CORNS(II,IJ,IN,jlatbin)=0.0
@@ -625,8 +667,21 @@ C
       enddo
 c
       enddo ! end loop on jlatbin
+
+      do jlatbin=1,nlatbin
+        do in=11,12
+          do ij=1,nksdim
+            do ii=1,nksdim2
+              write(454,*) jlatbin,in,ij,ii,corns(ii,ij,in,jlatbin)
+            enddo
+          enddo
+        enddo
+      enddo
+      call flush(454)
 c
-      ierr = fstfrm(iulcorvert)
+      if(myid==0) then
+        ierr = fstfrm(iulcorvert)
+      endif
 c
       CALL HPDEALLC(PXWRK, IER,1)
       CALL HPDEALLC(PXRES, IER,1)

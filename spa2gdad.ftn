@@ -227,7 +227,7 @@ C
           DO JLEV = 1, NKGDIM
             DO JLON = 1, NI
               GD(JLON,JLEV,JLAT)=
-     +          GD(JLON,JLEV,JLAT)*damplibg(JLON,JLEV,JLAT)
+     +          GD(JLON,JLEV,JLAT)
             END DO
           END DO
         END DO
@@ -266,9 +266,7 @@ c          ZPSB(JLON,JLAT)=0.0
       END DO
       CALL FGERR('M')
 
-      IF(LBALDIV) THEN
-        CALL ADIVBAL(zgdpsi,zgdchi)
-      ENDIF
+      CALL ADIVBAL(zgdpsi,zgdchi)
 
 !$OMP PARALLEL DO PRIVATE(ILON,ZNORMPSI,ZNORMCHI)
       DO JLAT = 1, NJ

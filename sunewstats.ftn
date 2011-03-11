@@ -182,12 +182,13 @@ c
         ierr = fstouv(iulbgsto,'RND')
       endif
 c
-      call rdstatlev(zlevstattrg,nflev,zlevstatsrc,instatlev,jpnflev
-     &     ,iulbgsto)
+      instatlev=nflev
+!      call rdstatlev(zlevstattrg,nflev,zlevstatsrc,instatlev,jpnflev
+!     &     ,iulbgsto)
 c
-      call hpalloc(pxzoper,nflev*instatlev,ierr,8)
+!      call hpalloc(pxzoper,nflev*instatlev,ierr,8)
 c
-      call suvintoper(zoper,zlevstattrg,nflev,zlevstatsrc,instatlev,1)
+!      call suvintoper(zoper,zlevstattrg,nflev,zlevstatsrc,instatlev,1)
 c
 c     Read in PtoT - operator need for balance
 c
@@ -213,7 +214,7 @@ c
         call rdspstd(zoper,instatlev,iulbgsto)
       ENDIF
 c
-      call hpdeallc(pxzoper,ierr,1)
+!      call hpdeallc(pxzoper,ierr,1)
       call hpdeallc(pxzlevstattrg,ierr,1)
 c
       if(lbgsto) then

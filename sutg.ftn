@@ -117,6 +117,7 @@ C
         do jlat = 1, nj
           do jlon = 1,ni
             tgstdbg(jlon,jlat) = dltg(jlon,nj-jlat+1)
+            write(400,*) jlat,jlon,tgstdbg(jlon,jlat)
           enddo
         enddo
 
@@ -125,6 +126,7 @@ C
         do jlat = 1, nj
           do jlon = 1,ni
             tgstdbg(jlon,jlat) = dltg(jlon,jlat)
+            write(400,*) jlat,jlon,tgstdbg(jlon,jlat)
           enddo
         enddo
 
@@ -144,6 +146,12 @@ C
       if ( llimtg ) then
          where ( tgstdbg > rlimsuptg) tgstdbg = rlimsuptg
       endif
+
+        do jlat = 1, nj
+          do jlon = 1,ni
+            write(410,*) jlat,jlon,tgstdbg(jlon,jlat)
+          enddo
+        enddo
 
 *     0. Allocating local arrays
 C     --------------------------
@@ -252,6 +260,8 @@ C
         ILA = JN + 1
         DO JLATBIN=1,NLATBIN
           CORNS(nsposit(nstg),nsposit(nstg),JN,JLATBIN) = 2.D0*CORTGG(ILA,1,1)
+          write(420,*) jn,nsposit(nstg),jlatbin,corns(nsposit(nstg),
+     +                 nsposit(nstg),jn,jlatbin)
         END DO
       END DO
 *

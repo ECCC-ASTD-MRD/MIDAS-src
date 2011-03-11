@@ -161,6 +161,7 @@ c
       do jlat = 1, nj
         do jk1 = 1, nflev
           theta(jk1,jlat) = zgrtheta(jlat,jk1)
+          write(500,*) jlat,jk1,theta(jk1,jlat)
         end do
       end do
 c

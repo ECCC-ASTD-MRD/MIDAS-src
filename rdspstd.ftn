@@ -180,30 +180,35 @@ c N.B.: LQ values are mutiplied by RFACTHUM
           do jlat = 1, nj
             do jlevo = 1, nflev
               rgsiguu(jlat,jlevo) = zgr(jlat,jlevo)
+              write(430,*) jlat,jlevo,rgsiguu(jlat,jlevo)
             enddo
           enddo
         elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
           do jlat = 1, nj
             do jlevo = 1, nflev
               rgsigvv(jlat,jlevo) = zgr(jlat,jlevo)
+              write(432,*) jlat,jlevo,rgsigvv(jlat,jlevo)
             enddo
           enddo
         elseif(clnomvar .eq. 'UT') then
           do jlat = 1, nj
             do jlevo = 1, nflev
               rgsigtt(jlat,jlevo) = zgr(jlat,jlevo)
+              write(434,*) jlat,jlevo,rgsigtt(jlat,jlevo)
             enddo
           enddo
         elseif(clnomvar .eq. 'TB') then
           do jlat = 1, nj
             do jlevo = 1, nflev
               rgsigtb(jlat,jlevo) = zgr(jlat,jlevo)
+              write(436,*) jlat,jlevo,rgsigtb(jlat,jlevo)
             enddo
           enddo
         elseif(clnomvar .eq. 'LQ') then
           do jlat = 1, nj
             do jlevo = 1, nflev
               rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+              write(438,*) jlat,jlevo,rgsigq(jlat,jlevo)
             enddo
           enddo
         endif
@@ -218,7 +223,7 @@ c
 c
           ierr = vfstecr(zgsig, zwork, -inbits, kulbgsto, idateo, ideet,
      &         inpas, 1, nj, nflev, 0, 0, ip3, 'E', clnomvar,
-     &         'STDDEV',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
+     &         'STDDEV  ',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
 c
         endif
       enddo
@@ -262,12 +267,14 @@ c
           do jlat = 1, nj
             rgsigps(jlat,1) = zgr(jlat,1)*100.0
 c            rgsigps(jlat,1) = 0.0
+            write(440,*) jlat,rgsigps(jlat,1)
           enddo
         endif
         if(clnomvar .eq. 'PB') then
           do jlat = 1, nj
             rgsigpsb(jlat) = zgr(jlat,1)*100.0
 c            rgsigpsb(jlat) = 0.0
+            write(442,*) jlat,rgsigpsb(jlat)
           enddo
         endif
 c
@@ -298,7 +305,7 @@ c
 c
           ierr = vfstecr(zgsig, zwork, -inbits, kulbgsto, idateo, ideet,
      &         inpas, 1, nj, 1, 0, 0, ip3, 'E', clnomvar,
-     &         'STDDEV',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
+     &         'STDDEV  ',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
 c
         endif
       enddo

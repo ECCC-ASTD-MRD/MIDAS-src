@@ -51,7 +51,7 @@
         call sunewstats(0,0) ! n.b.: regression matrices reinitialized in sucva.ftn if l1obs...
       endif
 !
-      call corrlengthglb(999,.false.,.true.) ! final diagnostic and ensure rhcorl array is representative.
+!      call corrlengthglb(999,.false.,.true.) ! final diagnostic and ensure rhcorl array is representative.
 !
       return
       end

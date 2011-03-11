@@ -315,9 +315,7 @@ cpik
         END DO
 !$OMP END PARALLEL DO
 c
-      IF(LBALDIV) THEN
-        CALL DIVBAL(zgdpsi,zgdchi)
-      ENDIF
+      CALL DIVBAL(zgdpsi,zgdchi)
 C
 C     .  3.4 Spectral transform all fields
 C
@@ -338,7 +336,7 @@ C
           DO JLEV = 1, NKGDIM
             DO JLON = 1, NI
               GD(JLON,JLEV,JLAT)=
-     +          GD(JLON,JLEV,JLAT)*damplibg(JLON,JLEV,JLAT)
+     +          GD(JLON,JLEV,JLAT)
             END DO
           END DO
         END DO
@@ -346,7 +344,7 @@ C
           DO JLEV = 1, NFLEV
             DO JLON = 1, NI
               TB0(JLON,JLEV,JLAT)=
-     +          TB0(JLON,JLEV,JLAT)*damplibg(JLON,JLEV,JLAT)
+     +          TB0(JLON,JLEV,JLAT)
             END DO
           END DO
         END DO
