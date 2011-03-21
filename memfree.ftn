@@ -49,7 +49,6 @@ C
 #include "comsp.cdk"
 #include "comsp1.cdk"
 #include "comspg.cdk"
-#include "comcorr.cdk"
 #include "comgem.cdk"
 #include "comcva.cdk"
 C
@@ -190,60 +189,6 @@ C
         ELSE
           WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
      S         " SCALPM1. IERR =",I3)')IERR
-        END IF
-!        deallocate(vatra,STAT=ierr)
-!c        CALL HPDEALLC(PTVATRA,IERR,1)
-!        IF(IERR.EQ.0)THEN
-!          WRITE(KULOUT,FMT='(10X," VATRA checked and correct",
-!     S         ". IERR =",I3)')IERR
-!        ELSE
-!          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-!     S         " VATRA. IERR =",I3)')IERR
-!        END IF
-C
-        CALL HPDEALLC(PTCORNS,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTCORNS checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTCORNS. IERR =",I3)')IERR
-        END IF
-
-        CALL HPDEALLC(PTPtoT,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTPtoT checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTPtoT. IERR =",I3)')IERR
-        END IF
-
-        CALL HPDEALLC(PTTHETA,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTTHETA checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTTHETA. IERR =",I3)')IERR
-        END IF
-
-        CALL HPDEALLC(PTTHETA2,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTTHETA2 checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTTHETA2. IERR =",I3)')IERR
-        END IF
-
-        CALL HPDEALLC(PTSTDDEV,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTSTDDEV checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTSTDDEV. IERR =",I3)')IERR
         END IF
 C
 C*    3. Verify the arrays allocated within SUALOBS

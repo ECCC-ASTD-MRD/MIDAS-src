@@ -38,20 +38,11 @@ subroutine oda_sqrtB(da_v,na_vdim)
   !     L. Fillion ARMA/EC 5 May 2009: Upgrade to v_10_2_2
   !     L. Fillion ARMA/EC 13 Jul 2010: Introduce cv2gdgl for lcva_hemis .true.
   !
-#include "comlun.cdk"
-#include "comdim.cdk"
-#include "comcva.cdk"
-#include "comsv.cdk"
-  ! Local declarations
 
   call tmg_start(51,'VAR_CH') !
-  CALL CAIN(na_vdim,da_v)
-  !
-  ! Conversion of analysis variables to spectral model state                    !
-  if(nanalvar.eq.4) then
-     CALL SPA2GD
-  endif
-  !
+
+  call bhi_bsqrt_interface(na_vdim,da_v)
+
   call tmg_stop (51)
 
 end subroutine oda_sqrtB

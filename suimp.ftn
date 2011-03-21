@@ -60,7 +60,6 @@
 #include "comsp1.cdk"
 #include "comspg.cdk"
 #include "com2ini.cdk"
-#include "comsv.cdk"
 *
       INTEGER KDIM
       REAL*8 PX(KDIM)
@@ -188,14 +187,10 @@ C
  711     CONTINUE
          endif
 CBUE THIS SUBROUTINE DOES NOT KNOW ABOUT SPLAT, BUT INPUT=OUTPUT=0 ANYWAYS
-         CALL SP2SPA
+!         CALL SP2SPA
       END IF
 C
-C Do not call CAININ if only SV's used for B
-C
-      IF(NSVMODE.ne.1) THEN
-        CALL CAININ(KDIM,PX)
-      ENDIF
+      CALL CAININ(KDIM,PX)
 C
       RETURN
       END

@@ -45,7 +45,7 @@ MODULE GLBSPEC_MOD
   ! public subroutines
   public :: gst_speree,gst_reespe,gst_setup,gst_spgd,gst_spgda,gst_zlegpol,gst_setID,gst_setToDefaultID
   ! public functions
-  public :: gst_getRmu,gst_getRwt,gst_getnind,gst_getrlati,gst_getr1qm2,gst_getrsqm2
+  public :: gst_getRmu,gst_getRwt,gst_getnind,gst_getrlati,gst_getr1qm2,gst_getrsqm2,gst_getrnnp1
 
   type  :: T_gst
     real*8,allocatable   :: rmu(:)
@@ -64,6 +64,7 @@ MODULE GLBSPEC_MOD
     real*8,allocatable   :: r1mua(:)
     integer,allocatable  :: nclm(:)
     real*8,allocatable   :: r1snp1(:)
+    real*8,allocatable   :: rnnp1(:)
     integer              :: ntrunc
     integer              :: nla
     integer              :: nlarh
@@ -122,6 +123,23 @@ CONTAINS
     gst_getRmu=gst(gstID_l)%rmu(latIndex)
 
   END FUNCTION GST_getRmu
+
+
+  real*8 FUNCTION GST_getRnnp1(latIndex,gstID_in)
+    implicit none
+
+    integer :: latIndex,gstID_l
+    integer,optional :: gstID_in
+
+    if(present(gstID_in)) then
+      gstID_l=gstID_in
+    else
+      gstID_l=gstIdDefault
+    endif
+
+    gst_getRnnp1=gst(gstID_l)%rnnp1(latIndex)
+
+  END FUNCTION GST_getRnnp1
 
 
   real*8 FUNCTION GST_getRwt(latIndex,gstID_in)
@@ -257,13 +275,16 @@ CONTAINS
     call fft_sufft(6,gst(gstID)%ni,gst(gstID)%nj)
 
     allocate(gst(gstID)%r1snp1(gst(gstID)%nla))
+    allocate(gst(gstID)%rnnp1(gst(gstID)%nla))
     gst(gstID)%r1snp1(1) = 0.
+    gst(gstID)%rnnp1(1) = 0.
     do jn = 1, gst(gstID)%ntrunc
        znnp1  = -float(jn)*float(jn+1)
        z1snp1 =  1./znnp1
        do jm = 0, jn
           ila = gst(gstID)%nind(jm) + jn - jm
           gst(gstID)%r1snp1(ila) = z1snp1
+          gst(gstID)%rnnp1(ila) = znnp1
        enddo
     enddo
     gst_setup=gstID

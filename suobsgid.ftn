@@ -57,7 +57,6 @@
 #include "comfilt.cdk"
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-#include "comsv.cdk"
 #include "comcva.cdk"
 #include <prof_f.h>
 *
@@ -244,13 +243,6 @@ c
           nsim3d = 0
         endif
 c
-        if(NCONF.eq.601.or.NCONF.eq.605) then
-c For SV job only write out number of segments and simulation number in init file
-          istat = prof_pvar(ihdl,numseg,prm_stob)
-          istat = prof_pvar(ihdl,nsim3d,prm_rstr)
-          istat = prof_wrrec(ihdl)
-c For all other jobs write out lat/lon and other info for obs
-        else
           do jstep = 1,nstepobs
             if(nobs(jstep) /= 0) then
               istat = prof_pvar(ihdl,istepobs,prm_stob)
@@ -266,7 +258,6 @@ c For all other jobs write out lat/lon and other info for obs
               istat = prof_wrrec(ihdl)
             endif
           enddo
-        endif
         istat = prof_close(ihdl)
       endif
 

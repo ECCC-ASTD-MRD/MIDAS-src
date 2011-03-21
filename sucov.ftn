@@ -55,11 +55,10 @@
      S     ," SUCOV: CDCTL=",A1,"       NO EXECUTION",/
      S     ,3(" *****************"))
 !
-      call subg_glb
-
       write(*,*) 'Setting up the modular HI covariances...'
       call bhi_setup(NTRUNC,NI,NJ,NFLEV,vhybinc,cvdimhi)
       write(*,*) 'Dimension of control vector returned:',cvdimhi
+      call flush(6)
 
 
 !      write(*,*) 'Setting up the ensemble covariances...'

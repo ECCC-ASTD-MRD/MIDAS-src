@@ -76,7 +76,6 @@ C
 #include "comsp.cdk"
 #include "comsp1.cdk"
 #include "comspg.cdk"
-#include "comcorr.cdk"
 #include "comgem.cdk"
 #include "comcva.cdk"
 C

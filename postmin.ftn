@@ -69,7 +69,6 @@
 #include "comvfiles.cdk"
 #include "comsim.cdk"
 #include "com1obs.cdk"
-#include "comcorr.cdk"
 #include "comoba.cdk"
 *
 C
@@ -205,14 +204,17 @@ C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
-        CALL CAIN(NVADIM,VAZX)
+
+        call bhi_bsqrt_interface(nvadim,vazx)
+
+!        CALL CAIN(NVADIM,VAZX)
 !
         WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
         if(nanalvar.eq.4) then
 !modular1              LSTAGTEMP=LSTAGWINDS
 !modular1              LSTAGWINDS=.FALSE.
-          CALL SPA2GD
+!          CALL SPA2GD
 !modular1              LSTAGWINDS=LSTAGTEMP
         else
 !modular1              CALL SPA2SP

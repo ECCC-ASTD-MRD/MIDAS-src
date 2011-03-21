@@ -34,26 +34,10 @@ subroutine oda_sqrtBT(da_v,na_vdim)
   ! Luc Fillion - ARMA/EC - 13 Jul 2009 - Hemispheric mode implementation.
   ! Luc Fillion - ARMA/EC - 11 May 2010 - Limit printout to processor 0.
   !
-#include "comlun.cdk"
-#include "comdim.cdk"
-#include "comcva.cdk"
-#include "comsv.cdk"
-#include "comin.cdk"
-
-  ! Local declarations
-  real*8, dimension(na_vdim) :: dl_v
-  real*8 zdlgnorm
-
-  dl_v = 0.d0
 
   call tmg_start(51,'VAR_CH') !
-!modular1  IF(NSVMODE.gt.0) CALL SPA2SPADSV
-  if(nanalvar.eq.4) then
-     CALL SPA2GDAD
-  endif
-  call tmg_start(55,'CAINAD') !
-  CALL CAINAD(na_vdim,da_v)
-  call tmg_stop(55) !
+
+  call bhi_bsqrtad_interface(na_vdim,da_v)
 
   call tmg_stop(51) !
 

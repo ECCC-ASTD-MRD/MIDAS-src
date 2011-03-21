@@ -85,7 +85,6 @@ C
 #include "comlun.cdk"
 #include "comct0.cdk"
 #include "comcva.cdk"
-#include "comsv.cdk"
 #include "comstate.cdk"
 #include "comfftla.cdk"
 #include "comgem.cdk"

@@ -83,7 +83,6 @@
 #include "comgdpar.cdk"
 #include "comin.cdk"
 #include "comsim.cdk"
-#include "comcorr.cdk"
 #include "comspg.cdk"
 c
       logical lldo

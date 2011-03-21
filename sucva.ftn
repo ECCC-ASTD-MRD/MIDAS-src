@@ -128,7 +128,6 @@
 #include "comgpsgb.cdk"
 #include "comspg.cdk"
 #include "comsim.cdk"
-#include "comcorr.cdk"
 *
       INTEGER KULOUT
       INTEGER JLEV, ILEV, IERR

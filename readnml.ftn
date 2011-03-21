@@ -149,12 +149,6 @@ C
 #include "cominterp.cdk"
 #include "naminterp.cdk"
 C
-#include "comsv.cdk"
-#include "namsv.cdk"
-C
-#include "comenkf.cdk"
-#include "namenkf.cdk"
-C
 C see use mod4dv above
 !modular1 #include "namstag.cdk"
 C
@@ -430,24 +424,6 @@ C
          READ(NULNAM,NAMINTERP)
          WRITE(NULOUT,NAMINTERP)
 #endif
-      ELSE IF(CDNAME.EQ.'NAMSV')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMSV)
-         WRITE(NULOUT,NML=NAMSV)
-#else
-         READ(NULNAM,NAMSV)
-         WRITE(NULOUT,NAMSV)
-#endif
-!modular1      ELSE IF(CDNAME.EQ.'NAMSTAG')THEN
-!modular1C
-!modular1#if defined (C910)
-!modular1         READ(NULNAM,NML=NAMSTAG)
-!modular1         WRITE(NULOUT,NML=NAMSTAG)
-!modular1#else
-!modular1         READ(NULNAM,NAMSTAG)
-!modular1         WRITE(NULOUT,NAMSTAG)
-!modular1#endif
       ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
 C
 #if defined (C910)
@@ -456,15 +432,6 @@ C
 #else
          READ(NULNAM,NAMGPSGB)
          WRITE(NULOUT,NAMGPSGB)
-#endif
-      ELSE IF(CDNAME.EQ.'NAMENKF')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMENKF)
-         WRITE(NULOUT,NML=NAMENKF)
-#else
-         READ(NULNAM,NAMENKF)
-         WRITE(NULOUT,NAMENKF)
 #endif
       END IF
 C

@@ -45,7 +45,6 @@ c
 #endif
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "comlunla.cdk"
 C
       INTEGER IERR, FNOM, FSTOUV, JFILE
       EXTERNAL FNOM, FSTOUV
@@ -63,7 +62,6 @@ C
       NULINCLR=0
       NULINCHR=0
       ninmpg = 0
-      nutemp = 700
 C
       CALL SUFILNAM
 c

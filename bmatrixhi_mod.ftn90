@@ -34,6 +34,7 @@ MODULE BmatrixHI_mod
   real*8             :: ra = 6371229.D0
   real*8             :: rprecis = 1.d-12
   integer            :: nlatbin_l = 1
+  integer            :: nlev_bdl
 
   real*8,allocatable :: theta(:,:)
   real*8,allocatable :: PtoT(:,:,:)
@@ -67,6 +68,7 @@ MODULE BmatrixHI_mod
   integer            :: nlatmax1    = 50
   integer            :: nlatmin2    = 71
   integer            :: nlatmax2    = 81
+  real*8             :: rlimlv_bdl  = 85000.0
 
   ! this should come from state vector object
   integer            :: numvar3d
@@ -101,7 +103,9 @@ CONTAINS
     integer        :: cvDim_out
     real*8         :: vhybinc_in(100)
 
-    integer        :: gensize
+    real*8         :: zprof(nflev_in),zps_bdl
+    integer        :: gensize,jlev
+    logical        :: llfound
 
     ! temporarily get vhybinc from calling subroutine
     allocate(vhybinc(nflev_in))
@@ -150,20 +154,37 @@ CONTAINS
     allocate(theta(nflev_l,nj_l))
     allocate(rgsig(njbeg_l:njend_l,nkgdim_l))
     allocate(tgstdbg(ni_l,nj_l))
-    rgsiguu => rgsig(njbeg_l:njend_l,1:nflev_l)
-    rgsigvv => rgsig(njbeg_l:njend_l,   nflev_l+1 : 2*nflev_l)
-    rgsigtt => rgsig(njbeg_l:njend_l, 2*nflev_l+1 : 3*nflev_l)
-    rgsigq  => rgsig(njbeg_l:njend_l, 3*nflev_l+1 : 4*nflev_l)
-    rgsigps => rgsig(njbeg_l:njend_l, 4*nflev_l+1)
+    rgsiguu => rgsig(1:nj_l,           1 :   nflev_l)
+    rgsigvv => rgsig(1:nj_l,   nflev_l+1 : 2*nflev_l)
+    rgsigtt => rgsig(1:nj_l, 2*nflev_l+1 : 3*nflev_l)
+    rgsigq  => rgsig(1:nj_l, 3*nflev_l+1 : 4*nflev_l)
+    rgsigps => rgsig(1:nj_l, 4*nflev_l+1)
     allocate(rgsigtb(njbeg_l:njend_l,nflev_l))
     allocate(rgsigpsb(njbeg_l:njend_l))
     allocate(corns(nksdim2_l,nksdim2_l,0:ntrunc_l,nlatbin_l))
     allocate(rstddev(nksdim2_l,0:ntrunc_l))
 
+    zps_bdl = 101000.0
+    call calcpres(zprof,vhybinc,nflev_l,zps_bdl,rptopinc,rprefinc,rcoefinc,1)
+
+    llfound = .false.
+    nlev_bdl=0
+    do jlev = 1, nflev_l
+      if(.not.llfound .and. (zprof(jlev) .ge. rlimlv_bdl  )) then
+        nlev_bdl = jlev
+        llfound = .true.
+      endif
+    enddo
+    write(*,*) 'NLEV_BDL=',nlev_bdl
+    call flush(6)
+
     call BHI_sunewstats
     call BHI_sucorns2
+    write(*,*) 'END OF BHI_SETUP'
+    call flush(6)
 
   END SUBROUTINE BHI_setup
+
 
   SUBROUTINE BHI_SUNEWSTATS
     implicit none
@@ -265,6 +286,8 @@ CONTAINS
       klatptot(2)=nj_l/2
       klatptot(3)=nj_l
     endif
+    zfactpsb(:)=0.0d0
+    zfacttb(:,:)=0.0d0
 
     do jlatbin=1,nlatbin_l
       write(*,*) 'KLATPTOT=',jlatbin,klatptot(jlatbin)
@@ -1703,15 +1726,30 @@ CONTAINS
   END SUBROUTINE BHI_RDSPPTOT
 
 
-
-  SUBROUTINE BHI_bSqrt
+  SUBROUTINE BHI_bSqrt(controlVector_in,gd_out)
     implicit none
+
+    real*8    :: controlVector_in(cvDim_l)
+    real*8    :: gd_out(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+    real*8    :: hiControlVector(nla_l,2,nkgdim_l,nlatbin_l)
+
+    call bhi_cain(controlVector_in,hiControlVector)
+
+    call bhi_spa2gd(hiControlVector,gd_out)
 
   END SUBROUTINE BHI_bSqrt
 
 
-  SUBROUTINE BHI_bSqrtAd
+  SUBROUTINE BHI_bSqrtAd(gd_in,controlVector_out)
     implicit none
+
+    real*8    :: controlVector_out(cvDim_l)
+    real*8    :: gd_in(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+    real*8    :: hiControlVector(nla_l,2,nkgdim_l,nlatbin_l)
+
+    call bhi_spa2gdad(gd_in,hiControlVector)
+
+    call bhi_cainad(hiControlVector,controlVector_out)
 
   END SUBROUTINE BHI_bSqrtAd
 
@@ -1726,7 +1764,7 @@ CONTAINS
     integer jdim, jlev, jla, jlatbin
 
     jdim = 0
-    call transfer('ZSPL')
+    hiControlVector_out(:,:,:,:)=0.0d0
     do jlatbin=1,nlatbin_l
       do jlev = 1, nkgdim_l
         do jla = 1, ntrunc_l + 1
@@ -1773,6 +1811,634 @@ CONTAINS
 
     return
   END SUBROUTINE BHI_cainAd
+
+  SUBROUTINE BHI_SPA2GD(hiControlVector_in,gd)
+    use glbspec_mod
+    IMPLICIT NONE
+
+    real*8    :: hiControlVector_in(nla_l,2,nkgdim_l,nlatbin_l)
+    real*8    :: gd(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+
+    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
+    real*8    :: tb0(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+
+    integer ilen,jn,jm,jk,ila
+    integer ji,jj,idum1,idum2,idum3,idum4
+    real*8 zmin,zmax
+    real*8 sq2
+    real*8 , allocatable,dimension(:,:,:) :: zsp, zsp2
+    real*8 zp(ni_l,nflev_l,nj_l),zp2d(ni_l,1,nj_l)
+    real*8 zwindow(nj_l)
+
+    integer ilensp, ilengd, ierr, ilon, jlev, jlon, jlat, jla, iulout
+    integer jlatbin, jlatmin, jlatmax, klatptot(nlatbin_l)
+    real*8 z1mnu2, zsqrtnu2
+    real*8 zgdpsi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l),zgdchi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+    real*8 dlzsomme, dldsomme, dla2, dl1sa2, dlfact,dlnormpsi, dlnormchi, zcoriolis, zpsb(ni_l,nj_l)
+    real*8 zgd(ni_l,nkgdim_l,nj_l)
+
+    integer :: jn0,ins,jns,ntrunchf
+    integer :: thdid,numthd,omp_get_thread_num,omp_get_num_threads
+    real*8 two
+    data two /2.0d0/
+
+
+    if(nlatbin_l.eq.1) then
+      klatptot(1)=1
+    elseif(nlatbin_l.eq.3) then
+      klatptot(1)=1
+      klatptot(2)=nj_l/2
+      klatptot(3)=nj_l
+    endif
+
+    sq2=sqrt(two)
+    zgd(:,:,:)=0.0d0
+!    tb_out(:,:,:)=0.0d0
+    do jlatbin=1,nlatbin_l
+      ntrunchf=ntrunc_l/2
+      !$OMP PARALLEL PRIVATE(thdid,numthd,jn,jm,jk,ila,ins,jn0,jns,zsp2,zsp)
+      thdid=omp_get_thread_num()
+      numthd=omp_get_num_threads()
+
+      allocate(zsp(nkgdim_l,2,0:ntrunc_l))
+      allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
+      do jn0 = thdid,ntrunchf,numthd
+        ins=1
+        if(jn0 == (ntrunc_l-jn0))ins=0
+        do jns=0,ins
+          jn=(1-jns)*jn0+jns*(ntrunc_l-jn0)
+
+          do jm = 0, jn
+            ila = gst_getNind(jm) + jn - jm
+            do jk = 1, nkgdim_l
+              zsp(jk,1,jm) = hiControlVector_in(ila,1,jk,jlatbin)
+              zsp(jk,2,jm) = hiControlVector_in(ila,2,jk,jlatbin)
+            enddo
+          enddo
+
+          call mxmaop(corns(1,1,jn,jlatbin),1,nksdim2_l,zsp(1,1,0),1,nkgdim_l  &
+                     ,zsp2(1,1,0),1,nksdim2_l,nksdim2_l,nkgdim_l,2*(jn+1))
+
+          ila = gst_getNind(0) +jn
+          do jk = 1, nkgdim_l
+            sp(ila,1,jk) = zsp2(jk,1,0)*sq2
+            sp(ila,2,jk) = zsp2(jk,2,0)*sq2
+          enddo
+          do jk = 1, nflev_l
+            sptb(ila,1,jk) = zsp2(jk+nkgdim_l,1,0)*sq2
+            sptb(ila,2,jk) = zsp2(jk+nkgdim_l,2,0)*sq2
+          enddo
+
+          do jm = 1, jn
+            ila = gst_getNind(jm) +jn - jm
+            do jk = 1, nkgdim_l
+              sp(ila,1,jk) = zsp2(jk,1,jm)
+              sp(ila,2,jk) = zsp2(jk,2,jm)
+            enddo
+          enddo
+          do jm = 1, jn
+            ila = gst_getNind(jm) +jn - jm
+            do jk = 1, nflev_l
+              sptb(ila,1,jk) = zsp2(jk+nkgdim_l,1,jm)
+              sptb(ila,2,jk) = zsp2(jk+nkgdim_l,2,jm)
+            enddo
+          enddo
+
+          do jk=1,nkgdim_l
+            do ila=1,ntrunc_l+1
+              sp(ila,2,jk)=0.0
+            enddo
+          enddo
+          do jk=1,nflev_l
+            do ila=1,ntrunc_l+1
+              sptb(ila,2,jk)=0.0
+            enddo
+          enddo
+        enddo
+      enddo
+      deallocate(zsp)
+      deallocate(zsp2)
+      !$OMP END PARALLEL
+
+      dla2   = dble(ra)*dble(ra)
+      dl1sa2 = 1.d0/dla2
+
+      gd(:,:,:)=0.0d0
+      call gst_speree(sp,gd,nkgdim_l,nkgdim_l)
+      tb0(:,:,:)=0.0d0
+      call gst_speree(sptb,tb0,nflev_l,nflev_l)
+
+      zgdpsi(:,:,:)=0.0d0
+      zgdchi(:,:,:)=0.0d0
+
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            zgdpsi(jlon,jlev,jlat)= gd(jlon,nspositVO+jlev-1,jlat)
+            zgdchi(jlon,jlev,jlat)= gd(jlon,nspositDI+jlev-1,jlat)
+          enddo
+        enddo
+      enddo
+
+      zp(:,:,:)=0.0d0
+      do jlat = 1, nj_l
+        zcoriolis = 2.*romega*gst_getRmu(jlat)
+        do jlev = 1, nflevptot_l
+          do jlon = 1, ni_l
+            zp(jlon,jlev,jlat) = zcoriolis*zgdpsi(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+!      call maxmin(zp,ni_l,nj_l,nflev_l,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','ZP_')
+
+      do jlat = 1, nj_l
+        do jlon = 1, ni_l
+          zpsb(jlon,jlat)=0.0
+          do jlev=1,nflevptot_l
+            zpsb(jlon,jlat)=zpsb(jlon,jlat) + PtoT(nflev_l+1,jlev,klatptot(jlatbin))*zp(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+!      call maxmin(zpsb,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','PSB')
+
+      do jlat = 1, nj_l
+        zcoriolis = 2.*romega*gst_getRmu(jlat)
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            tb0(jlon,jlev,jlat)= zcoriolis*tb0(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+
+      do jlat = 1, nj_l
+        do jlev = 1, (nkgdim_l-1)
+          do jlon = 1,ni_l
+            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
+          enddo
+        enddo
+      enddo
+      do  jlat = 1, nj_l
+        do jlon = 1,ni_l
+          gd(jlon,nspositTG,jlat)=gd(jlon,nspositTG,jlat)*tgstdbg(jlon,jlat)
+        enddo
+      enddo
+
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            tb0(jlon,jlev,jlat)= tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
+            gd(jlon,nspositTT+jlev-1,jlat)= gd(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+      do jlat = 1, nj_l
+        do jlon = 1, ni_l
+          zpsb(jlon,jlat)= zpsb(jlon,jlat)*rgsigpsb(jlat)
+          gd(jlon,nspositPS,jlat)= gd(jlon,nspositPS,jlat)+zpsb(jlon,jlat)
+          zp2d(jlon,1,jlat)=gd(jlon,nspositPS,jlat)
+        enddo
+      enddo
+!      call maxmin(zpsb,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','PSB')
+!      call maxmin(zp2d,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','PS_')
+
+      !$OMP PARALLEL DO PRIVATE(DLNORMPSI,DLNORMCHI,ILON,JLEV,JLAT,JLON)
+      do jlev = 1, nflev_l
+        do jlat = 1, nj_l
+          dlnormpsi = rgsiguu(jlat,jlev)
+          dlnormchi = rgsigvv(jlat,jlev)
+          do jlon = 1, ni_l
+            zgdpsi(jlon,jlev,jlat) = zgdpsi(jlon,jlev,jlat)*dlnormpsi
+            zgdchi(jlon,jlev,jlat) = zgdchi(jlon,jlev,jlat)*dlnormchi
+          enddo
+        enddo
+      enddo
+      !$OMP END PARALLEL DO
+
+      call bhi_divbal(zgdpsi,zgdchi)
+
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            gd(jlon,nspositVO+jlev-1,jlat) = zgdpsi(jlon,jlev,jlat)
+            gd(jlon,nspositDI+jlev-1,jlat) = zgdchi(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+
+      sp(:,:,:)=0.0d0
+      call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
+
+      !$OMP PARALLEL DO
+      do jlev = 1, nflev_l
+        do jla = 1, nla_l
+          sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+          sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+          sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+          sp(jla,2,nspositDI+jlev-1)=sp(jla,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+        enddo
+      enddo
+      !$OMP END PARALLEL DO
+
+      gd(:,:,:)=0.0d0
+      call gst_spgd(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
+
+      zwindow(:)=0.0d0
+      call bhi_suwinlatbin(zwindow,jlatbin)
+
+      do jlat = 1,nj_l
+        do jlev = 1, nkgdim_l
+          do jlon = 1, ni_l
+            zgd(jlon,jlev,jlat)= zgd(jlon,jlev,jlat)+zwindow(jlat)*gd(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+! I think this is only a diagnostic
+!      DO JLAT = 1,NJ
+!        DO JLEV = 1, NFLEV
+!          DO JLON = 1, NI
+!            TB_out(JLON,JLEV,JLAT)= TB_out(JLON,JLEV,JLAT)+ZWINDOW(JLAT)*TB0(JLON,JLEV,JLAT)
+!          ENDDO
+!        ENDDO
+!      ENDDO
+    enddo
+
+    do jlat = 1,nj_l
+      do jlev = 1, nkgdim_l
+        do jlon = 1, ni_l
+          gd(jlon,jlev,jlat)= zgd(jlon,jlev,jlat)
+        enddo
+      enddo
+    enddo
+
+    do jk = 1,nflev_l
+      do jj = 1,nj_l
+        do ji = 1,ni_l
+          zp(ji,jk,jj) = gd(ji,nspositTT+jk-1,jj)
+        enddo
+      enddo
+    enddo
+!    call maxmin(zp,ni_l,nj_l,nflev_l,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','T0_')
+    do jk = 1,nflev_l
+      do jj = 1,nj_l
+        do ji = 1,ni_l
+          zp(ji,jk,jj) = gd(ji,nspositVO+jk-1,jj)
+        enddo
+      enddo
+    enddo
+!    call maxmin(zp,ni_l,nj_l,nflev_l,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','UU_')
+    do jk = 1,nflev_l
+      do jj = 1,nj_l
+        do ji = 1,ni_l
+          zp(ji,jk,jj) = gd(ji,nspositDI+jk-1,jj)
+        enddo
+      enddo
+    enddo
+!    call maxmin(zp,ni_l,nj_l,nflev_l,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','VV_')
+    do jk = 1,nflev_l
+      do jj = 1,nj_l
+        do ji = 1,ni_l
+          zp(ji,jk,jj) = gd(ji,nspositQ+jk-1,jj)
+        enddo
+      enddo
+    enddo
+!    call maxmin(zp,ni_l,nj_l,nflev_l,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','LQ_')
+    do jk = 1,1
+      do jj = 1,nj_l
+        do ji = 1,ni_l
+          zp2d(ji,jk,jj) = gd(ji,nspositPS+jk-1,jj)
+        enddo
+      enddo
+    enddo
+!    call maxmin(zp2d,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','PS_')
+    do jk = 1,1
+      do jj = 1,nj_l
+        do ji = 1,ni_l
+          zp2d(ji,jk,jj) = gd(ji,nspositTG+jk-1,jj)
+        enddo
+      enddo
+    enddo
+!    call maxmin(zp2d,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','TG_')
+
+    write(*,*) 'end of spa2gd!!!'
+
+    return
+  END SUBROUTINE BHI_SPA2GD
+
+
+  SUBROUTINE BHI_SPA2GDAD(gd,hiControlVector_out)
+    use glbspec_mod
+    implicit none
+
+    real*8    :: hiControlVector_out(nla_l,2,nkgdim_l,nlatbin_l)
+    real*8    :: gd(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+
+    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
+    real*8    :: tb0(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+
+    integer jn,jm,jk,ila,jlatbin,jlatmin,jlatmax
+    real*8 sq2
+    real*8 ,allocatable,dimension(:,:,:) :: zsp,zsp2
+    real*8 zp(ni_l,nflev_l,nj_l)
+    real*8 zwindow(nj_l)
+    real*8 zmin,zmax,zmax2,zmax3
+    integer idum1,idum2,idum3,idum4
+
+    integer ierr, ilon, jlev, jlon, jlat, jla, klatptot(nlatbin_l)
+    real*8 dl1sa2,dla2,znormpsi, znormchi, zcoriolis, zpsb(ni_l,nj_l)
+    real*8,allocatable,dimension(:,:,:) :: zgdpsi ,zgdchi
+    real*8 zgd(ni_l,nkgdim_l,nj_l)
+
+    integer :: ntrunchf,jn0,ins,jns,thdid,numthd
+    integer :: omp_get_thread_num, omp_get_num_threads
+
+    real*8 two
+    real*8 one8,zero8
+    data one8,zero8/1.d0,0.d0/
+
+    two = 2.d0
+    dla2   = dble(ra)*dble(ra)
+    dl1sa2 = 1.d0/dla2
+
+    allocate(zgdpsi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l))
+    allocate(zgdchi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l))
+
+    if(nlatbin_l.eq.1) then
+      klatptot(1)=1
+    elseif(nlatbin_l.eq.3) then
+      klatptot(1)=1
+      klatptot(2)=nj_l/2
+      klatptot(3)=nj_l
+    endif
+
+    do jlat = 1,nj_l
+      do jlev = 1, nkgdim_l
+        do jlon = 1, ni_l
+          zgd(jlon,jlev,jlat)= gd(jlon,jlev,jlat)
+        enddo
+      enddo
+    enddo
+    call maxmin(zgd,ni_l,nj_l,nkgdim_l,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gdad       ','GD_')
+    zmax=0.0d0
+    do jlat=1,nj_l
+      do jlev=1,nkgdim_l
+        do jlon=1,ni_l
+          if(abs(gd(jlon,jlev,jlat)).gt.zmax) zmax=abs(gd(jlon,jlev,jlat))
+        enddo
+      enddo
+    enddo
+    write(*,*) 'BEGINNING OF SPA2GDAD, max(gd)=',zmax
+
+    do jlatbin=1,nlatbin_l
+      zwindow(:)=0.0d0
+      call bhi_suwinlatbin(zwindow,jlatbin)
+      call transfer('ZGD0')
+      do jlat = 1,nj_l
+        do jlev = 1, nkgdim_l
+          do jlon = 1, ni_l
+            gd(jlon,jlev,jlat)= zwindow(jlat)*zgd(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+      zmax=0.0d0
+      do jlat=1,nj_l
+        do jlev=1,nkgdim_l
+          do jlon=1,ni_l
+            if(abs(gd(jlon,jlev,jlat)).gt.zmax) zmax=abs(gd(jlon,jlev,jlat))
+          enddo
+        enddo
+      enddo
+      write(*,*) 'AFTER ZWINDOW, max(gd)=',zmax
+
+      call gst_SPGDA(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
+      zmax2=0.0d0
+      do jk=1,nkgdim_l
+        do jla=1,nla_l
+          if(abs(sp(jla,1,jk)).gt.zmax2) zmax2=abs(sp(jla,1,jk))
+        enddo
+      enddo
+      write(*,*) 'AFTER SPGDA, max(sp)=',zmax2
+
+      !$OMP PARALLEL DO
+      do jlev = 1, nflev_l
+        do jla = 1, nla_l
+          sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+          sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+          sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+          sp(jla,2,nspositDI+jlev-1)=sp(jla,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+        enddo
+      enddo
+      !$OMP END PARALLEL DO
+
+      CALL gst_SPEREE(sp,gd,nkgdim_l,nkgdim_l)
+      zmax=0.0d0
+      do jlat=1,nj_l
+        do jlev=1,nkgdim_l
+          do jlon=1,ni_l
+            if(abs(gd(jlon,jlev,jlat)).gt.zmax) zmax=abs(gd(jlon,jlev,jlat))
+          enddo
+        enddo
+      enddo
+      write(*,*) 'AFTER SPEREE, max(gd)=',zmax
+
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            zgdpsi(jlon,jlev,jlat) = gd(jlon,nspositVO+jlev-1,jlat)
+            zgdchi(jlon,jlev,jlat) = gd(jlon,nspositDI+jlev-1,jlat)
+          enddo
+        enddo
+      enddo
+
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            tb0(jlon,jlev,jlat)=gd(jlon,nspositTT+jlev-1,jlat)
+            tb0(jlon,jlev,jlat)=tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
+          enddo
+        enddo
+      enddo
+      do jlat = 1, nj_l
+        do jlon = 1, ni_l
+          zpsb(jlon,jlat)=gd(jlon,nspositPS,jlat)
+          zpsb(jlon,jlat)=zpsb(jlon,jlat)*rgsigpsb(jlat)
+        enddo
+      enddo
+
+      do jlat = 1, nj_l
+        do jlev = 1, (nkgdim_l-1)
+          do jlon = 1,ni_l
+            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
+          enddo
+        enddo
+      enddo
+      do  jlat = 1, nj_l
+        do jlon = 1,ni_l
+          gd(jlon,nspositTG,jlat)=gd(jlon,nspositTG,jlat)*tgstdbg(jlon,jlat)
+        enddo
+      enddo
+
+      call bhi_adivbal(zgdpsi,zgdchi)
+
+      !$OMP PARALLEL DO PRIVATE(ILON,ZNORMPSI,ZNORMCHI)
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          znormpsi = rgsiguu(jlat,jlev)
+          znormchi = rgsigvv(jlat,jlev)
+          do jlon = 1, ni_l
+            zgdpsi(jlon,jlev,jlat) = zgdpsi(jlon,jlev,jlat)*znormpsi
+            zgdchi(jlon,jlev,jlat) = zgdchi(jlon,jlev,jlat)*znormchi
+          enddo
+        enddo
+      enddo
+      !$OMP END PARALLEL DO
+
+      do jlat = 1, nj_l
+        zcoriolis = 2.*romega*gst_getRMU(jlat)
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            tb0(jlon,jlev,jlat)= zcoriolis*tb0(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+
+      do jlat = 1, nj_l
+        do jlon = 1, ni_l
+          do jlev=1,nflevptot_l
+            zp(jlon,jlev,jlat) = PtoT(nflev_l+1,jlev,klatptot(jlatbin))*zpsb(jlon,jlat)
+          enddo
+        enddo
+      enddo
+      do jlat = 1, nj_l
+        zcoriolis = 2.*romega*gst_getRMU(jlat)
+        do jlev = 1, nflevptot_l
+          do jlon = 1, ni_l
+            zgdpsi(jlon,jlev,jlat) = zcoriolis*zp(jlon,jlev,jlat)+zgdpsi(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+
+      do jlat = 1, nj_l
+        do jlev = 1, nflev_l
+          do jlon = 1, ni_l
+            gd(jlon,nspositVO+jlev-1,jlat) = zgdpsi(jlon,jlev,jlat)
+            gd(jlon,nspositDI+jlev-1,jlat) = zgdchi(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+
+      call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
+      call gst_REESPE(sptb,tb0,nflev_l,nflev_l)
+
+      ntrunchf=ntrunc_l/2
+      sq2=sqrt(two)
+      !$OMP PARALLEL PRIVATE(thdid,numthd,JN,JM,JK,ILA,JN0,INS,JNS,zsp,zsp2)
+      thdid=omp_get_thread_num()
+      numthd=omp_get_num_threads()
+
+      allocate(zsp(nkgdim_l,2,0:ntrunc_l))
+      allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
+
+      do jn0 = thdid, ntrunchf,numthd
+        ins=1
+        if(jn0 == (ntrunc_l-jn0))ins=0
+        do jns=0,ins
+          jn=(1-jns)*jn0+jns*(ntrunc_l-jn0)
+
+          do jm = 0, jn
+            ila = gst_getNind(jm) + jn - jm
+            do jk = 1, nkgdim_l
+              zsp2(jk,1,jm) = sp(ila,1,jk)
+              zsp2(jk,2,jm) = sp(ila,2,jk)
+            enddo
+          enddo
+          do jm = 0, jn
+            ila = gst_getNind(jm) + jn - jm
+            do jk = 1, nflev_l
+              zsp2(jk+nkgdim_l,1,jm) = sptb(ila,1,jk)
+              zsp2(jk+nkgdim_l,2,jm) = sptb(ila,2,jk)
+            enddo
+          enddo
+
+          call dgemm('T','N',nkgdim_l,2*(jn+1),nksdim2_l,one8,corns(1,1,jn,jlatbin),nksdim2_l,  &
+                     zsp2(1,1,0),nksdim2_l,zero8,zsp(1,1,0),nkgdim_l)
+
+          ila = gst_getNind(0) +jn
+          do jk = 1, nkgdim_l
+            hiControlVector_out(ila,1,jk,jlatbin) = zsp(jk,1,0)*sq2
+            hiControlVector_out(ila,2,jk,jlatbin) = zsp(jk,2,0)*sq2
+          enddo
+          ila = gst_getNind(0) +jn
+
+          do jm = 1, jn
+            ila = gst_getNind(jm) +jn - jm
+            do jk = 1, nkgdim_l
+              hiControlVector_out(ila,1,jk,jlatbin) = zsp(jk,1,jm)
+              hiControlVector_out(ila,2,jk,jlatbin) = zsp(jk,2,jm)
+              if(abs(zsp(jk,1,jm)).gt.zmax) zmax=abs(zsp(jk,1,jm))
+            enddo
+          enddo
+
+        enddo
+      enddo
+      deallocate(zsp)
+      deallocate(zsp2)
+      !$OMP END PARALLEL
+
+      do jk=1,nkgdim_l
+        do ila=1,ntrunc_l+1
+          hiControlVector_out(ila,2,jk,jlatbin)=0.0
+        enddo
+      enddo
+
+    enddo
+    write(*,*) 'END OF SPA2GDAD, max(sp)=',zmax
+
+    deallocate(zgdpsi)
+    deallocate(zgdchi)
+
+    write(*,*) 'end of spa2gdad!!!'
+    return
+  END SUBROUTINE BHI_SPA2GDAD
+
+
+  SUBROUTINE bhi_divbal(pgdpsi,pgdchi)
+    implicit none
+
+    integer ilon, jk1, jlon, jlat
+    real*8 zfact
+    real*8 pgdpsi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+    real*8 pgdchi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+
+    do jlat = 1, nj_l
+      do jk1=nlev_bdl,nflev_l
+        zfact=-tan(theta(jk1,jlat))
+        do jlon = 1, ni_l
+          pgdchi(jlon,jk1,jlat)=pgdchi(jlon,jk1,jlat) + zfact*pgdpsi(jlon,jk1,jlat)
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE bhi_divbal
+
+
+  SUBROUTINE bhi_adivbal(pgdpsi,pgdchi)
+    implicit none
+
+    integer ilon, jk1, jlon, jlat
+    real*8 zfact
+    real*8 pgdpsi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+    real*8 pgdchi(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+
+    do jlat = 1, nj_l
+      do jk1=nlev_bdl,nflev_l
+        zfact=-tan(theta(jk1,jlat))
+        do jlon = 1, ni_l
+          pgdpsi(jlon,jk1,jlat)=pgdpsi(jlon,jk1,jlat) + zfact*pgdchi(jlon,jk1,jlat)
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE bhi_adivbal
 
 
 END MODULE BmatrixHI_mod

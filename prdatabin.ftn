@@ -30,7 +30,6 @@
 #include "comfilt.cdk"
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-#include "comsv.cdk"
 #include "comcva.cdk"
 
       integer :: jstep,jobs,jfile,jdata,ibeginobs,ilastobs,iobs,idatabeg

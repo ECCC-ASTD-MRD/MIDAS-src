@@ -44,7 +44,6 @@
 #include "comfilt.cdk"
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-#include "comsv.cdk"
 #include "comcva.cdk"
 *
       integer jobs, ig1obs, ig2obs, ig3obs, ig4obs, newdate

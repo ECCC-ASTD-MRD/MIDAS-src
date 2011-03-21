@@ -96,16 +96,13 @@ C
 #include "comsp.cdk"
 #include "comsp1.cdk"
 #include "comspg.cdk"
-#include "comcorr.cdk"
 #include "comgem.cdk"
 #include "comcva.cdk"
 #include "compstat.cdk"
 #include "comstate.cdk"
 #include "comode.cdk"
-#include "comgembgh.cdk"
 #include "comconv.cdk"
 #include "comgdpar.cdk"
-#include "comrgsigla.cdk"
 #include "comlap.cdk"
 *
       INTEGER KULOUT, ILEN, IERR, ILMU, ILENUT0, ILENSPV
@@ -133,16 +130,6 @@ C
       CALL HPALLOC(PTGD,MAX(ILEN,1),IERR,8)
       IF(NCONF.NE.307) THEN
          CALL HPALLOC(PTGD1,MAX(ILEN,1),IERR,8)
-C
-         ILEN =   NKGDIM*(NJEND -NJBEG +1)
-         CALL HPALLOC(PTSIG,MAX(ILEN,1),IERR,8)
-         ILEN =   NKGDIM*(NJEND -NJBEG +1)*(NIEND -NIBEG +1)
-         CALL HPALLOC(PTSIG3D,MAX(ILEN,1),IERR,8)
-cbue
-         ILEN =   NFLEV*(NJEND -NJBEG +1)
-         CALL HPALLOC(PTSIGTB,MAX(ILEN,1),IERR,8)
-         ILEN =   (NJEND -NJBEG +1)
-         CALL HPALLOC(PTSIGPSB,MAX(ILEN,1),IERR,8)
        END IF
 cbue
        ILEN=(NJEND -NJBEG +1)*(NIEND -NIBEG +1)*NFLEV
@@ -163,56 +150,30 @@ C           -----------------------
 C
       PTUT0 = -1
       PTUT1 = -1
-      PTSIGUU = -1
-      PTSIGUU3D = -1
-      ptsiglapp = -1
 C
       PTVT0 = -1
       PTVT1 = -1
-      PTSIGVV = -1
-      PTSIGVV3D = -1
-      ptsiglacu = -1
 C
       PTT0 = -1
       PTT1 = -1
-      PTSIGTT = -1
-      PTSIGTT3D = -1
-      ptsiglatu = -1
 C
       PTQ0 = -1
       PTQ1 = -1
-      PTSIGQ = -1
-      PTSIGQ3D = -1
-      ptsiglalq = -1
 C
       PTGZ0 = -1
       PTQ1 = -1
-      PTSIGQ = -1
-      PTSIGQ3D = -1
 C
       PTOZ0 = -1
       PTOZ1 = -1
-      PTSIGOZ = -1
-      PTSIGOZ3D = -1
-      ptsiglaoz = -1
 C
       PTTR0 = -1
       PTTR1 = -1
-      PTSIGTR = -1
-      PTSIGTR3D = -1
-      ptsiglatr = -1
 C
       PTGPS0 = -1
       PTGPS1 = -1
-      PTSIGPS = -1
-      PTSIGPS3D = -1
-      ptsiglapu = -1
 C
       PTGTG0 = -1
       PTGTG1 = -1
-      PTSIGTG = -1
-      PTSIGTG3D = -1
-      ptsiglatg = -1
 C
       iloc = 1
       do jvar = 1,jpnvarmax
@@ -221,9 +182,6 @@ C
           if(NGEXIST(nguu).eq.1) then
             PTUT0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTUT1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGUU = LOC(RGSIG(NJBEG,iloc))
-            PTSIGUU3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglapp = LOC(rgsigla(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngvv) then
@@ -231,9 +189,6 @@ C
           if(NGEXIST(ngvv).eq.1) then
             PTVT0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTVT1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGVV = LOC(RGSIG(NJBEG,iloc))
-            PTSIGVV3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglacu = LOC(rgsigla(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nggz) then
@@ -242,8 +197,6 @@ C
             write(nulout,*) 'suallo: GZ allocated'
             PTGZ0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTGZ1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGGZ = LOC(RGSIG(NJBEG,iloc))
-            PTSIGGZ3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngq) then
@@ -251,9 +204,6 @@ C
           if(NGEXIST(ngq).eq.1) then
             PTQ0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTQ1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGQ = LOC(RGSIG(NJBEG,iloc))
-            PTSIGQ3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglalq = LOC(rgsigla(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngtt) then
@@ -261,9 +211,6 @@ C
           if(NGEXIST(ngtt).eq.1) then
             PTT0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTT1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGTT = LOC(RGSIG(NJBEG,iloc))
-            PTSIGTT3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglatu = LOC(rgsigla(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngoz) then
@@ -271,9 +218,6 @@ C
           if(NGEXIST(ngoz).eq.1) then
             PTOZ0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTOZ1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGOZ = LOC(RGSIG(NJBEG,iloc))
-            PTSIGOZ3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglaoz = LOC(rgsigla(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngtr) then
@@ -281,9 +225,6 @@ C
           if(NGEXIST(ngtr).eq.1) then
             PTTR0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTTR1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGTR = LOC(RGSIG(NJBEG,iloc))
-            PTSIGTR3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglatr = LOC(rgsigla(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngps) then
@@ -291,9 +232,6 @@ C
           if(NGEXIST(ngps).eq.1) then
             PTGPS0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTGPS1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGPS = LOC(RGSIG(NJBEG,iloc))
-            PTSIGPS3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglapu = LOC(rgsigla(1,iloc,1))
             iloc = iloc + 1
           end if
         elseif(jvar .eq. ngtg) then
@@ -301,9 +239,6 @@ C
           if(NGEXIST(ngtg).eq.1) then
             PTGTG0   = LOC(GD(NIBEG,iloc,NJBEG))
             PTGTG1   = LOC(GD1(NIBEG,iloc,NJBEG))
-            PTSIGTG = LOC(RGSIG(NJBEG,iloc))
-            PTSIGTG3D = LOC(RGSIG3D(NIBEG,iloc,NJBEG))
-            ptsiglatg = LOC(rgsigla(1,iloc,1))
             iloc = iloc + 1
           end if
         endif
@@ -322,9 +257,6 @@ C
      S        '' the following space:'')')
          WRITE(KULOUT,FMT='(''   GD1:'',I6,10x
      S        ,'' (3D-fields ):'',I8)')  ILEN,ILENUT0
-         ILEN = NKGDIM*(NJEND -NJBEG +1)
-         WRITE(KULOUT,FMT='(/,'' Array RGSIG has been allocated''
-     S        ,'' the following space:'',1x,I6)')ILEN
       END IF
 C
 C     3.  Spectral model states
@@ -605,41 +537,6 @@ C
  9403 FORMAT(10X,'FOR N1CG1: VAZB :',I13,10x,' VATR1 :',I13,10x,
      &  ' VWORK :',1xI13)
       ENDIF
-!
-!*    6. Spectral correlations and balance operators
-!
-!
-      ILEN = NFLEV*(NFLEV+1)*NJ
-      CALL HPALLOC(PTPtoT, MAX(ILEN,1),IERR,8)
-      ILEN = NFLEV*(NJ)
-      CALL HPALLOC(PTTHETA, MAX(ILEN,1),IERR,8)
-      ILEN = NFLEV*(NJ)*NLATBIN
-      CALL HPALLOC(PTTHETA2, MAX(ILEN,1),IERR,8)
-!
-      write(nulout,*) 'NKSDIM2=',nksdim2
-!
-      idim = ntrunc+1
-!
-      ILEN = NKSDIM2*NKSDIM2*idim*NLATBIN
-      CALL HPALLOC(PTCORNS, MAX(ILEN,1),IERR,8)
-      ILEN = NKSDIM2*idim
-      CALL HPALLOC(PTSTDDEV, MAX(ILEN,1),IERR,8)
-      ILEN = NKSDIM2
-      CALL HPALLOC(pthcorl, MAX(ILEN,1),IERR,8)
-      ILEN = NKSDIM2*NKSDIM2
-      CALL HPALLOC(PTCORVERT, MAX(ILEN,1),IERR,8)
-C
-C*    7. Prediction error  statistics
-C
- 700  CONTINUE
-c
-      ILEN = NJ*NFLEV
-      CALL HPALLOC(PTUUSTDBG, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTGZSTDBG, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTQSTDBG , MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTOZSTDBG, MAX(ILEN,1),IERR,8)
-      ILEN = NI*NJ
-      CALL HPALLOC(PTTGSTDBG, MAX(ILEN,1),IERR,8)
 C
 C*    8. Arrays required for model coordinate analysis
 C     .  ---------------------------------------------
@@ -679,7 +576,6 @@ c
       CALL HPALLOC(PTVTG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTTG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTQG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTPSIG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTCHIG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTOMEGAG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTGDGZG,MAX(ILEN,1),IERR,8)

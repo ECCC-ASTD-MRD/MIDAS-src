@@ -49,7 +49,6 @@
 #include "comsp.cdk"
 #include "comspg.cdk"
 #include "comstate.cdk"
-#include "comsv.cdk"
 *
       INTEGER JK, JLA, JLEV, JDIM, JLATBIN
       CHARACTER*1 CDCTL
@@ -193,10 +192,6 @@ C
  411  CONTINUE
       ENDIF
 C
-C Do not call CAININ and initialize inner product scaling if only SV's used for B
-C
-      IF(NSVMODE.ne.1) THEN
-c
       CALL CAININ(NVADIM,SCALP)
 C
  500  CONTINUE
@@ -227,8 +222,6 @@ C
  503     CONTINUE
  501  CONTINUE
       ENDDO
-C
-      ENDIF
 C
       RETURN
       END

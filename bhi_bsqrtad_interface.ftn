@@ -1,0 +1,20 @@
+      SUBROUTINE bhi_bsqrtad_interface(na_vdim,da_v)
+      use bmatrixhi_mod
+      implicit none 
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comlun.cdk"
+#include "comcva.cdk"
+#include "comsp.cdk"
+#include "comgd0.cdk"
+#include "comgd1.cdk"
+#include "comspg.cdk"
+#include "compstat.cdk"
+
+      integer na_vdim
+      real*8 da_v(na_vdim)
+
+      call bhi_bsqrtad(gd,da_v)
+
+
+      END
