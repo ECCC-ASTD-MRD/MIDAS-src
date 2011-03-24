@@ -45,6 +45,7 @@
       CHARACTER*1 CDCTL
       INTEGER  KULOUT
       integer  cvdimens,cvdimhi
+      real*8 zps,pressureProfile(nflev)
 !
 !!
       IF(CDCTL .EQ. '0') THEN
@@ -55,8 +56,11 @@
      S     ," SUCOV: CDCTL=",A1,"       NO EXECUTION",/
      S     ,3(" *****************"))
 !
+      zps = 101000.D0
+      call calcpres(pressureProfile,vhybinc,nflev,zps,rptopinc,rprefinc,rcoefinc,1)
+
       write(*,*) 'Setting up the modular HI covariances...'
-      call bhi_setup(NTRUNC,NI,NJ,NFLEV,vhybinc,cvdimhi)
+      call bhi_setup(NTRUNC,NI,NJ,NFLEV,pressureProfile,cvdimhi)
       write(*,*) 'Dimension of control vector returned:',cvdimhi
       call flush(6)
 

@@ -230,7 +230,6 @@ c
         do jj=1,nj
           do jk=1,nflev
             do ji=1,ni
-              zpsig(ji,jk,jj)=psig(ji,jk,jj)
               zuug(ji,jk,jj)=utg(ji,jk,jj)
               zvvg(ji,jk,jj)=vtg(ji,jk,jj)
               zttg(ji,jk,jj)=ttg(ji,jk,jj)
