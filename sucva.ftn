@@ -155,7 +155,7 @@ C
  130  CONTINUE
       WRITE(KULOUT,FMT=9130)N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX
      S     ,REPSG
-     S     , CIMP,CFG,CCOV,CFGERR,CSCAL,CHUM
+     S     , CIMP,CFG,CFGERR,CSCAL,CHUM
      S     ,NCNTVAR,NEVALJ
      S     ,LTSTSP,LTSTCVA,LSTAT
 C
@@ -181,7 +181,6 @@ C
      S     ,'NSIMMAX: ',I4,4X,'REPSG: ',G12.6,4X
      S     ,/,4X,'Initial minimization point     : ',2X,A1
      S     ,/,4X,'First-Guess                    : ',2X,A1
-     S     ,/,4X,'First-Guess error correlation  : ',2X,A1
      S     ,/,4X,'First-Guess error variance     : ',2X,A1
      S     ,/,4X,'Inner product                  : ',2X,A1
      S     ,/,4X,'Control anal variable humidity : ',2X,A2
@@ -296,7 +295,7 @@ C     .      -------------------------------------------
 C
  220  CONTINUE
 C
-      CALL SUCOV(CCOV,KULOUT)
+      CALL SUCOV
 C
 C     *    .  2.21 Initialize the observation error covariance
 C     .      -------------------------------------------
@@ -309,7 +308,9 @@ C     .         -------------------------------------------
 C
  230  CONTINUE
 C
-      CALL SUIMP(NVADIM,VAZX,CIMP)
+      write(*,*) 'NOT CALLING SUIMP, INSTEAD SETTING VAZX=0'
+!!      CALL SUIMP(NVADIM,VAZX,CIMP)
+      vazx(1:NVADIM)=0.0d0
 C
 C
 C     *    .  2.4 Initialize the inner product
@@ -318,7 +319,7 @@ C
  240    CONTINUE
 C
 C
-      CALL SUSCAL(CSCAL)
+!!      CALL SUSCAL(CSCAL)
 C
 C     *    3.   Miscellaneous initializations associated
 C     .    with the observations

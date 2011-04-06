@@ -16,7 +16,7 @@
 !
       subroutine setvatra (v,   nmtra,   nvadim, ntrunc,  iztrl,
      %                     v_xx,nmtra_xx,nvadim_xx,itrunc,iztrl_xx,
-     %                     lower_L,nksdim,nvamaj,k1gc,klatbin)
+     %                     lower_L,nksdim,nvamaj,k1gc)
 *
 #if defined (DOC)
 *
@@ -49,7 +49,7 @@
 #endif
       implicit none
 *
-      integer ntrunc,itrunc,nksdim,nvamaj,k1gc,nmtra,nvadim,klatbin,
+      integer ntrunc,itrunc,nksdim,nvamaj,k1gc,nmtra,nvadim,
      %        nmtra_xx,nvadim_xx,iztrl(10),iztrl_xx(10)
 *
       real*8 v(nmtra),v_xx(nmtra_xx)
@@ -104,14 +104,17 @@ c     if(sscale)    iybar_xx=1
 *
 *     Transfer vazx field from source to working resolutions
 *     ------------------------------------------------------
-c     if(sscale)    call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,klatbin)
-      if(k1gc.eq.3) call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,klatbin)
+c     if(sscale)    call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,nvadim)
+      if(k1gc.eq.3) call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,
+     +                            lower_L,nksdim,nvadim)
 *
       do jj = 1,min(mmemo,mmemo_xx)
-         call setvazx (v(iybar+(jj-1)*n),ntrunc,v_xx(iybar_xx+(jj-1)*n_xx),itrunc,lower_L,nksdim,klatbin)
+         call setvazx (v(iybar+(jj-1)*n),ntrunc,v_xx(iybar_xx+(jj-1)*n_xx),itrunc,
+     +                 lower_L,nksdim,nvadim)
       enddo
       do jj = 1,min(mmemo,mmemo_xx)
-         call setvazx (v(isbar+(jj-1)*n),ntrunc,v_xx(isbar_xx+(jj-1)*n_xx),itrunc,lower_L,nksdim,klatbin)
+         call setvazx (v(isbar+(jj-1)*n),ntrunc,v_xx(isbar_xx+(jj-1)*n_xx),itrunc,
+     +                 lower_L,nksdim,nvadim)
       enddo
 *
 *     Transfer IZTRL

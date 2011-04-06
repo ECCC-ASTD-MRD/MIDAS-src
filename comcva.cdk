@@ -99,7 +99,6 @@
 !     CIMP    : Selection of the initial point of the minimisation
 !     .         (see SUBROUTINE SUIMP)
 !     CFG     : Selection for the first-guess (see SUFG)
-!     CCOV    : Selection for the forecast error covariance (see SUCOV)
 !     CSCAL   : Selection for the definition of the inner product (see SUSCAL)
 !     CHUM   : Selection for the humidity analysis control
 !              variable.
@@ -161,7 +160,7 @@
       integer NEVALJ,NINCREM,NANALVAR, NGRTEST, NGRANGE,nsim3d
       integer NWORK,NTUNESTATS,NLATMIN1,NLATMAX1,NLATMIN2,NLATMAX2
       INTEGER SELECT0,BFGSB,IMODE3,NFLEVPTOT,NTRUNC3DSTD,mbal_order
-      CHARACTER*1 CIMP,CFG,CCOV,CSCAL, CFGERR
+      CHARACTER*1 CIMP,CFG,CSCAL, CFGERR
       CHARACTER*2 CHUM,cptot
       CHARACTER*120 CFLTUNEOBS,CFLTUNEBG
       LOGICAL LTSTSP, LTSTCVA, LNONSEP, LRSTART, LSTAT, LDOBAL, ltlmend
@@ -206,7 +205,7 @@
       common /comlcva/lobsclip,lcva_helm,lcva_hemis,lcva_euclid,lcva_3db
       common /comlcva/lcva_hsp
 !
-      COMMON /COMCVAC/CIMP,CFG,CCOV,CSCAL,CFGERR,CHUM,CFLTUNEOBS,CFLTUNEBG
+      COMMON /COMCVAC/CIMP,CFG,CSCAL,CFGERR,CHUM,CFLTUNEOBS,CFLTUNEBG
       COMMON /COMCVAC/cptot
       COMMON /POMCVA/PTSCALP, PTSCALPM1, PTVAZX, PTVAZG, VATRA
       COMMON /POMCVA/ptvazxbar

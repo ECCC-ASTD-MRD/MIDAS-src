@@ -7,4 +7,4 @@ C
 #endif
       NAMELIST /NAMDIM/NI, NIINC, NJ, NJINC, NFLEV, NISUR, NJSUR
      &     , NVGAUX, NTRUNCINC
-     &     , NTRUNC, NVSAUX, NLATBIN
+     &     , NTRUNC, NVSAUX

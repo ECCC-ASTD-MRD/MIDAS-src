@@ -37,7 +37,7 @@ C
      S     , SPQ(NLA,2,NKSDIM), SPPS(NLA,2,NKSDIM),SPTG(NLA,2,NKSDIM)
      S     , SPGZ(NLA,2,NKSDIM), SPOZ(NLA,2,NKSDIM), SPTR(NLA,2,NKSDIM), SPTB(NLA,2,NFLEV)
 C
-      REAL*8 SPLAT(NLA,2,NKSDIM,NLATBIN)
+      REAL*8 SPLAT(NLA,2,NKSDIM,1)
 
       pointer (ptindxy,nindxy)
       pointer (ptindxy_rpn,nindxy_rpn)

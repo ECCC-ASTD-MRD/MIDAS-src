@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine postmin
+      use glbspec_mod
       use mod4dv, only : l4dvar
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
@@ -62,6 +63,7 @@
 #include "comgdpar.cdk"
 #include "compost.cdk"
 #include "comgd0.cdk"
+#include "comsp.cdk"
 #include "compdg.cdk"
 #include "localpost.cdk"
 #include "comoabdy.cdk"
@@ -205,7 +207,7 @@ C at the end of minimize
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
-        call bhi_bsqrt_interface(nvadim,vazx)
+        call oda_sqrtB(vazx,nvadim)
 
 !        CALL CAIN(NVADIM,VAZX)
 !

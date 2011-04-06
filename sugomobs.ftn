@@ -358,9 +358,11 @@ c---------Encode iip1 from zlev
 c
 c get UU and VV 
 c
+                  call tmg_start(28,'READ_TRL')
                   ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
      &                 nstamplist(jstep),cletiket,iip1,-1,-1,
      &                 cltypvar,'UU')
+                  call tmg_stop(28)
                   if(ier.lt.0)then
                     write(nulout,1001) 'UU',iip1,idate(jstep)
      &                   ,itime(jstep)
@@ -370,17 +372,21 @@ c
 
                   zvar2 = 0.d0
 
+                  call tmg_start(29,'INTRP_TRL')
                   ier = vezuvint(zopart(1:nobs(jstep))
      &                 ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
      &                 ,ini*inj)
+                  call tmg_stop(29)
                   do jobs = 1, nobs(jstep)
                     zmobs(jlev,notag(jobs,jstep)) = zopart(jobs)
                     zmobs2(jlev,notag(jobs,jstep)) = zopart2(jobs)
                   enddo
 
+                  call tmg_start(28,'READ_TRL')
                   ier=vfstlir(zvar2,nultrl(jstep),INI,INJ,INK,
      &                 nstamplist(jstep) ,cletiket,iip1,-1,-1,
      &                 cltypvar,'VV')
+                  call tmg_stop(28)
                   if(ier.lt.0)then
                     write(nulout,1001) 'VV',iip1,idate(jstep)
      &                   ,itime(jstep)
@@ -390,9 +396,11 @@ c
 c
                   zvar = 0.d0
 
+                  call tmg_start(29,'INTRP_TRL')
                   ier = vezuvint(zopart(1:nobs(jstep))
      &                 ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
      &                 ,ini*inj)
+                  call tmg_stop(29)
 
                   do jobs = 1, nobs(jstep)
                     zmobs(jlev,notag(jobs,jstep)) = zmobs(jlev
@@ -406,9 +414,11 @@ C
                   lluv = .false.
 c
                 else
+                  call tmg_start(28,'READ_TRL')
                   ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
      &                 nstamplist(jstep) ,cletiket,iip1,-1,-1,
      &                 cltypvar,cfstvar(jvar))
+                  call tmg_stop(28)
                   if(ier.lt.0)then
                     write(nulout,1001) cfstvar(jvar),iip1,idate(jstep)
      &                   ,itime(jstep)
@@ -416,8 +426,10 @@ c
      &                   ,'SUGOMOBS:Problem with background file')
                   end if
 c
+                  call tmg_start(29,'INTRP_TRL')
                   ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1
      &                 ,1,ini,inj,1)
+                  call tmg_stop(29)
                   do jobs = 1, nobs(jstep)
                     zmobs(jlev,notag(jobs,jstep)) =zopart(jobs)
                   enddo
@@ -446,13 +458,9 @@ c field
           do jobs = 1,nobtot
             zovar(jobs) = gompsg(1,jobs)
           enddo
-          call tmg_start(28,'CALCPRES')
           call calcpres(ZPPOBS,zhybhr,itrlnlev,zovar,zptophr
      &         ,zprefhr,zrcoefhr,nobtot)
-          call tmg_stop(28)
-          call tmg_start(29,'VINTPROF')
           call vintprof(zom,rppobs,nflev,zmobs,zppobs,itrlnlev,nobtot)
-          call tmg_stop(29)
 c
           if(.not.lllochr) then
 c
@@ -490,10 +498,8 @@ c
             call fillmvo('BG','UU',zom,nflev,nobtot)
             call fillmvo('HR','UU',zmobs,itrlnlev,nobtot)
             call tmg_stop(30)
-            call tmg_start(29,'VINTPROF')
             call vintprof(zom,rppobs,nflev,zmobs2,zppobs,itrlnlev
      &           ,nobtot)
-            call tmg_stop(29)
             call tmg_start(30,'FILLMVO')
             call fillmvo('BG','VV',zom,nflev,nobtot)
             call fillmvo('HR','VV',zmobs2,itrlnlev,nobtot)

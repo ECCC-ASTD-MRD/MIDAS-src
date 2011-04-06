@@ -84,7 +84,7 @@
       integer, save :: itrunc = 0
       integer :: jvadim, i1gc,ictrlvec
       integer, dimension(10), target, save :: iztrl
-      integer ilatbin, jlatbin,itemp
+      integer itemp
       real*8, allocatable, dimension(:), target, save :: zvatra
       real*8, allocatable, dimension(:), target, save :: zvazxbar,zvazx
 *
@@ -147,15 +147,6 @@ cBUE
         write(nulout,*) 'imemo=',imemo
         write(nulout,*) 'ictrlvec=',ictrlvec
         write(nulout,*) 'nvamaj=',nvamaj
-        write(nulout,*) 'nlatbin=',nlatbin
-        if(nlatbin.gt.1) then
-          itemp=kvadim/ivadim
-          if(itemp.eq.nlatbin) then
-            write(nulout,*) 'HESSIAN IS FOR ONLY 1 REGION, DUPLICATE FOR EACH REGION'
-          elseif(itemp.eq.1) then
-            write(nulout,*) 'HESSIAN IS ALREADY FOR CORRECT NUMBER OF REGIONS'
-          endif
-        endif
 cBUE
         if(.not. allocated(zvatra)) allocate(zvatra(imtra))
         zvatra = 0.d0
@@ -175,7 +166,7 @@ c       read(ireslun) iztrl, zvatra
         if(itrunc .ge. ktrunc) then
           write(nulout,*) 'RW_VATRA : setting vatra'
           call setvatra(vatra,nmtra,kvadim,ktrunc,nztrl,zvatra,imtra
-     &         ,ivadim,itrunc,iztrl,.false.,kksdim,nvamaj,k1gc,nlatbin)
+     &         ,ivadim,itrunc,iztrl,.false.,kksdim,nvamaj,k1gc)
           imode = 2
         else
           imode = 0
@@ -186,10 +177,10 @@ c       read(ireslun) iztrl, zvatra
           read(ireslun) zvazxbar
           write(nulout,*) 'RW_VATRA : setting vazxbar'
           if(itrunc .ge. ktrunc) then ! Given res. > working res.
-            call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.false.,kksdim,nlatbin)
+            call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.false.,kksdim,kvadim)
           else
             vazxbar = 0.d0
-            call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.true.,kksdim,nlatbin)
+            call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.true.,kksdim,kvadim)
           endif
 
           if(lvazx) then
@@ -197,10 +188,10 @@ c       read(ireslun) iztrl, zvatra
             if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
             read(ireslun) zvazx
             if(itrunc .ge. ktrunc) then ! Given res. > working res.
-              call setvazx(vazx,ktrunc,zvazx,itrunc,.false.,kksdim,nlatbin)
+              call setvazx(vazx,ktrunc,zvazx,itrunc,.false.,kksdim,kvadim)
             else
               vazx = 0.d0
-              call setvazx(vazx,ktrunc,zvazx,itrunc,.true.,kksdim,nlatbin)
+              call setvazx(vazx,ktrunc,zvazx,itrunc,.true.,kksdim,kvadim)
             endif
           endif
 
@@ -231,15 +222,15 @@ c       read(ireslun) iztrl, zvatra
           iptrl => iztrl
           pvatra => zvatra
           call setvatra(pvatra,imtra,ivadim,itrunc,iptrl,vatra,nmtra
-     &         ,kvadim,ktrunc,nztrl,.true.,kksdim,nvamaj,k1gc,nlatbin)
+     &         ,kvadim,ktrunc,nztrl,.true.,kksdim,nvamaj,k1gc)
           if(.not. allocated(zvazxbar)) allocate(zvazxbar(ivadim))
           pvazxbar => zvazxbar
           pvazxbar = 0.d0
-          call setvazx(pvazxbar,itrunc,vazxbar,ktrunc,.true.,kksdim,nlatbin)
+          call setvazx(pvazxbar,itrunc,vazxbar,ktrunc,.true.,kksdim,kvadim)
           if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
           pvazx => zvazx
           pvazx = 0.d0
-          call setvazx(pvazx,itrunc,vazx,ktrunc,.true.,kksdim,nlatbin)
+          call setvazx(pvazx,itrunc,vazx,ktrunc,.true.,kksdim,kvadim)
         endif
         cl_version = 'V2'
         write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot

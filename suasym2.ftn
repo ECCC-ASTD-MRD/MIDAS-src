@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUASYM2(KDIM,PX,PY)
+      SUBROUTINE SUASYM2
 #if defined (DOC)
 *
 *s/r SUASYM  - SET CERTAIN PARAMETERS FOR THE ASYMMETRIC
@@ -32,9 +32,6 @@
 *             . add parameters for GB-GPS ZTD
 *
 *Arguments
-*     .  KDIM      : dimension of the model state vector
-*     .  PX(KDIM)  : workspace used to call EVALJO
-*     .  PY(KDIM)
 *
 #endif
       IMPLICIT NONE
@@ -48,9 +45,6 @@
 #include "comcst.cdk"
 *
 *
-      INTEGER KDIM
-      REAL PX(KDIM), PY(KDIM)
-C
       INTEGER IFIND
       INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,ITY,IDBURP
       INTEGER ITYP,IASS,IFLD,ILEM,IOTHER,JJ,ISTYP,ILEV

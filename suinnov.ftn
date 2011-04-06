@@ -349,7 +349,7 @@ c
 !      call tmg_stop(25)
 c
       IF (LVARQC) THEN
-        CALL SUASYM2(NVADIM,VATRA(1),VATRA(NVADIM+1))
+        CALL SUASYM2
       endif
 c
       call oda_masksf('UA')

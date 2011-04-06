@@ -165,7 +165,6 @@ C
       RPORTR   = 1200000.
       CIMP     = 'G'
       CFG      = 'F'
-      CCOV     = 'H'
       CSCAL    = 'P'
       CFGERR   = 'G'
       CHUM     = 'LQ'
@@ -224,7 +223,6 @@ C
       NTRUNCINC=108
       NTRUNC=108
       NVSAUX=0
-      NLATBIN=1
 C
  120  CONTINUE
       WRITE(UNIT=KULOUT,FMT='(//,'' MODIFICATION OF THE DIMENSIONS:''
@@ -420,43 +418,9 @@ C
 
 C  3.x Create process topology and carry out domain decomposition.
       CALL procstopo(NIBEG,NIEND,NJBEG,NJEND,NKSDIM,NTRUNC,NJSUR)
-
-
-C
-C*    4. Dimension of the control variable
-C     .  ---------------------------------
-C
- 400  CONTINUE
-C
-      NVADIM = NKSDIM*(2*NLA - NTRUNC -1)
-      NVADIM=NVADIM*NLATBIN
-C
-      IF(N1GC.EQ.2) THEN
-         NMTRA = 3*NVADIM + NVAMAJ*(2*NVADIM + 1)
-      ELSE IF(N1GC.EQ.3)THEN
-        write(nulout,*) 'sudim: NVADIM=',NVADIM
-        write(nulout,*) 'sudim: NVAMAJ=',NVAMAJ
-        write(nulout,*) 'sudim: 4*NVADIM=',4*NVADIM
-        write(nulout,*) 'sudim: NVAMAJ*(2*NVADIM + 1)=',NVAMAJ*(2*NVADIM + 1)
-        write(nulout,*) 'sudim: NMTRA=',4*NVADIM + NVAMAJ*(2*NVADIM + 1)
-        NMTRA = 4*NVADIM + NVAMAJ*(2*NVADIM + 1)
-      ELSE IF(N1GC.EQ.4)THEN
-         NMTRA = 1 + NVAMAJ*(2*NVADIM + 1)
-         NWORK = 5*NVADIM + NVAMAJ
-      ELSE
-         NMTRA = NVADIM*2
-      END IF
-      WRITE(KULOUT,9401)N1GC, NVAMAJ,NVADIM,NMTRA
- 9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3
-     S     ,/5X,"NVADIM =",1x,I14,3X,"NMTRA =",1X,I14)
-      IF(N1GC.EQ.4) THEN
-      WRITE(KULOUT,9402)NWORK
- 9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
-      ENDIF
-!
-      if(nmtra.le.0.) then
-        call abort3d(nulout,'SUDIM: LAM3D/4D : Wrong dimension for NMTRA')
-      endif
+!!!
+!!! REMOVED CODE FOR DIMENSIONING THE CONTROL VECTOR, MOVED TO SUCOV
+!!!
 C
 C*    5. Some dimensions for fields related to physical processes
 C        --------------------------------------------------------

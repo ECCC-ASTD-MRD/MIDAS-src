@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine setvazx (f,ntrunc,f_xx,ntrunc_xx,lower_L,nksdim,klatbin)
+      subroutine setvazx (f,ntrunc,f_xx,ntrunc_xx,lower_L,nksdim,nvadim)
 *
 *
 #if defined (DOC)
@@ -35,11 +35,19 @@
 *
       logical lower_L
       real*8 f(*),f_xx(*)
-      integer :: ntrunc, ntrunc_xx, nksdim, klatbin
+      integer :: ntrunc, ntrunc_xx, nksdim, nvadim
 *
 *implicits
 *
-      integer jlev,jdim,jla,m,start,end,rdim,jlatbin
+      integer jlev,jdim,jla,m,start,end,rdim
+
+!modular1 !!!assume resolution is unchanged!!!
+      f(1:nvadim)=f_xx(1:nvadim)
+!modular1 !!!assume resolution is unchanged!!!
+
+
+
+      if(.false.) then
 *
 *     ------------------------------------------------
 *
@@ -93,7 +101,6 @@
 *
         jdim = 0
         rdim = 0
-        do jlatbin=1,klatbin
         do jlev = 1, nksdim
 *
           do jla = 1, ntrunc + 1
@@ -131,8 +138,8 @@
           jdim = jdim + (ntrunc_xx - ntrunc)*(ntrunc_xx - ntrunc + 1)
 *
         enddo
-        enddo
 *
+      endif
       endif
 *
       return

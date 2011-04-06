@@ -37,7 +37,7 @@ subroutine oda_sqrtBT(da_v,na_vdim)
 
   call tmg_start(51,'VAR_CH') !
 
-  call bhi_bsqrtad_interface(na_vdim,da_v)
+  call bsqrtad_interface(na_vdim,da_v)
 
   call tmg_stop(51) !
 

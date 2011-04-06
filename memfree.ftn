@@ -173,24 +173,6 @@ C
      S         " VAZG. IERR =",I3)')IERR
         END IF
 C
-        CALL HPDEALLC(PTSCALP,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," SCALP checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " SCALP. IERR =",I3)')IERR
-        END IF
-C
-        CALL HPDEALLC(PTSCALPM1,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," SCALPM1 checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " SCALPM1. IERR =",I3)')IERR
-        END IF
-C
 C*    3. Verify the arrays allocated within SUALOBS
 C
  300    CONTINUE

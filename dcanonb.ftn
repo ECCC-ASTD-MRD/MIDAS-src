@@ -49,7 +49,8 @@ C
 C
  100  CONTINUE
       DO 101 JDIM = 1, KDIM
-         PY(JDIM) = PX(JDIM)*DSQRT(SCALP(JDIM))
+         PY(JDIM) = PX(JDIM)
+!         PY(JDIM) = PX(JDIM)*DSQRT(SCALP(JDIM))
  101  CONTINUE
 C
       RETURN

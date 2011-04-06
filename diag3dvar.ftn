@@ -82,92 +82,14 @@ C
 * Local variables
 *
       INTEGER JLEV, JLA, ILEV,ILEN, JLAT, ILON, JLON, IERR
-      INTEGER IKTOP,IKTTG
       REAL*8 ZRA2, ZCORIOLIS
-      real*8 zetae1, ztfac, zcon, zttgcon
 C
       WRITE(NULOUT,FMT='(/,4X,"Starting DIAG3DVAR",//)')
-C
-C     1. Obtain streamfunction and velocity potential locally in physical space
-C
-      IKTOP = 5
-      zttgcon = 300.
- 100  CONTINUE
-      ZRA2 = RA*RA
-      CALL TRANSFER('ZSP1')
-      CALL TRANSFER('ZGD1')
-*
-      DO JLEV = 1, NFLEV
-         DO JLA = 1, NLA
-            SPVOR1(JLA,1,JLEV)  = SPVOR(JLA,1,JLEV)*R1SNP1(JLA)*ZRA2
-            SPVOR1(JLA,2,JLEV)  = SPVOR(JLA,2,JLEV)*R1SNP1(JLA)*ZRA2
-            SPDIV1(JLA,1,JLEV)  = SPDIV(JLA,1,JLEV)*R1SNP1(JLA)*ZRA2
-            SPDIV1(JLA,2,JLEV)  = SPDIV(JLA,2,JLEV)*R1SNP1(JLA)*ZRA2
-         END DO
-      END DO
-*
-      CALL gst_SPEREE(SP1,GD1,2*NFLEV,NKSDIM)
-C
-C     .  2 Obtain divergence and relative and absolute vorticity in physical space
-C
- 200  CONTINUE
-      DO JLEV = 1, NFLEV
-         DO JLAT = 1, NJ
-            ILON = NILON(JLAT)
-            DO JLON = 1, ILON
-               ZPP(JLON,JLEV,JLAT) = UT1(JLON,JLEV,JLAT)
-               ZCC(JLON,JLEV,JLAT) = VT1(JLON,JLEV,JLAT)
-            END DO
-         END DO
-      END DO
-      CALL TRANSFER('ZSP1')
-      CALL TRANSFER('ZGD1')
-      DO JLEV = 1, NFLEV
-         DO JLA = 1, NLA
-            SPVOR1(JLA,1,JLEV)  = SPVOR(JLA,1,JLEV)
-            SPVOR1(JLA,2,JLEV)  = SPVOR(JLA,2,JLEV)
-            SPDIV1(JLA,1,JLEV)  = SPDIV(JLA,1,JLEV)
-            SPDIV1(JLA,2,JLEV)  = SPDIV(JLA,2,JLEV)
-         END DO
-      END DO
-*
-      if(nsexist(nsoz) .eq. 1) then
-        DO JLEV = 1, NFLEV
-          DO JLA = 1, NLA
-            spoz1(JLA,1,JLEV)  = SPOZ(JLA,1,JLEV)
-            spoz1(JLA,2,JLEV)  = SPOZ(JLA,2,JLEV)
-          enddo
-        enddo
-      endif
-*
-      CALL gst_SPEREE(SP1,GD1,2*NFLEV,NKSDIM)
-      DO JLEV = 1, NFLEV
-         DO JLAT = 1, NJ
-            ZCORIOLIS = 2.*ROMEGA*gst_getRMU(JLAT)
-            ILON = NILON(JLAT)
-            DO JLON = 1, ILON
-               ZQR(JLON,JLEV,JLAT)   = UT1(JLON,JLEV,JLAT)
-               ZDD(JLON,JLEV,JLAT)   = VT1(JLON,JLEV,JLAT)
-               ZQQ(JLON,JLEV,JLAT)   = UT1(JLON,JLEV,JLAT)
-     S              + ZCORIOLIS
-            END DO
-         END DO
-      END DO
-C
-      if (ngexist(ngoz).eq.1) then
-C
-        DO JLAT = 1, NJ
-          ILON = NILON(JLAT)
-          DO JLON = 1, ILON
-            ZO3(JLON,JLAT)=0.
-            DO JLEV = 1, NFLEV-1
-              ZO3(JLON,JLAT) = ZO3(JLON,JLAT) + RO3W(JLEV)*GOZ1(JLON
-     &             ,JLEV,JLAT)
-            enddo
-          enddo
-        enddo
-      endif
-c
+
+!!!
+!!!  REMOVED CODE TO COMPUTE STREAMFUNCTION/VELOCITY POTENTIAL OR VORT/DIV
+!!!  NO LONGER SIMPLE, WITH ENSEMBLE COVARIANCES (ALSO OZONE)
+!!!
 c
 c     *** ES ***
 c

@@ -1,5 +1,6 @@
-      SUBROUTINE bhi_bsqrtad_interface(na_vdim,da_v)
+      SUBROUTINE bsqrt_interface(na_vdim,da_v)
       use bmatrixhi_mod
+      use bmatrixensemble_mod
       implicit none 
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -14,7 +15,9 @@
       integer na_vdim
       real*8 da_v(na_vdim)
 
-      call bhi_bsqrtad(gd,da_v)
+      gd(:,:,:)=0.0d0
+      call bhi_bsqrt(da_v,gd)
+!      call ben_bsqrt(da_v,gd)
 
 
       END

@@ -275,7 +275,6 @@ C
          CALL HPALLOC(PTSPG ,MAX(ILEN,1),IERR,8)
          CALL HPALLOC(PTCORG,MAX(ILEN,1),IERR,8)
       END IF
-      ILEN=ILEN*NLATBIN
       write(kulout,*) 'ALLOCATING SPLAT:',ilen
       CALL HPALLOC(PTSPLAT,MAX(ILEN,1),IERR,8)
 C
@@ -490,53 +489,9 @@ C
       ILEN = NJEND -NJBEG +1
       CALL HPALLOC(PTCONPHY,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTCONIMA,MAX(ILEN,1),IERR,8)
-C
-C*    5. Arrays of COMCVA for the control variable
-C     .  -----------------------------------------
-C
- 500  CONTINUE
-      ILEN = NVADIM
-      IF(NCONF.NE.307)THEN
-         CALL HPALLOC(PTVAZX    , MAX(ILEN,1),IERR,8)
-         CALL HPALLOC(PTVAZXBAR , MAX(ILEN,1),IERR,8)
-         do jvar = 1, ilen
-           vazxbar(jvar) = 0.0
-         enddo
-         CALL HPALLOC(PTVAZG    , MAX(ILEN,1),IERR,8)
-         CALL HPALLOC(PTSCALP   , MAX(ILEN,1),IERR,8)
-         CALL HPALLOC(PTSCALPM1 , MAX(ILEN,1),IERR,8)
-      END IF
-C
-      ILEN = NMTRA
-      IF(NCONF.NE.307)THEN
-        allocate(vatra(nmtra),STAT=ierr)
-        write(nulout,*) 'suallo: after VATRA allocation: ierr = '
-     &     ,ierr
-        if(nmtra.le.0) then
-          call abort3d(nulout,'suallo: nmtra dimension .le. 0')
-        endif
-c         CALL HPALLOC(PTVATRA, MAX(ILEN,1),IERR,8)
-      END IF
-C
-      IF(NCONF.NE.307.AND.N1GC.EQ.4)THEN
-         ILEN = NVADIM
-         CALL HPALLOC(PTVAZB,  MAX(ILEN,1),IERR,8)
-         ILEN = NMTRA
-         CALL HPALLOC(PTVATR1, MAX(ILEN,1),IERR,8)
-         ILEN = NWORK
-         CALL HPALLOC(PTVWORK, MAX(ILEN,1),IERR,8)
-      END IF
-C
-      WRITE(KULOUT,FMT=9401)
- 9401 FORMAT(/,'  Arrays in COMCVA are allocated',
-     S     ' the following space:')
-      WRITE(KULOUT,FMT=9402) NVADIM,NMTRA
- 9402 FORMAT(10X,'(VAZX, VAZG, SCALP) :',I13,10x,' VATRA:',1x,I13)
-      IF(N1GC.EQ.4) THEN
-      WRITE(KULOUT,FMT=9403) NVADIM,NMTRA,NWORK
- 9403 FORMAT(10X,'FOR N1CG1: VAZB :',I13,10x,' VATR1 :',I13,10x,
-     &  ' VWORK :',1xI13)
-      ENDIF
+!!!
+!!! MOVED CODE FOR CONTROL VECTOR TO SUCOV
+!!!
 C
 C*    8. Arrays required for model coordinate analysis
 C     .  ---------------------------------------------

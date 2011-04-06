@@ -14,21 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUCOV(CDCTL,KULOUT)
+      SUBROUTINE SUCOV
 #if defined (DOC)
 *
 ***s/r SUCOV  - Initializes the analysis Background term for the specific analysis configuration used.
 *
-*Author  : Luc Fillion - ARMA/EC - 6 Aug 2010 (from v_11_01B sucov.ftn. Refer to it for historic of upgrades).
-*
-*
-*Revision:
-!    -------------------
-*
-*Arguments
-*     CDCTL   : 'I' --> identity is used for the correlation in spectral space
-*     .         'H' --> homegeneous and isotropic error correlation
-*               '0' --> return no statistics needed
 #endif
       USE procs_topo
       use bmatrixensemble_mod
@@ -42,32 +32,106 @@
 #include "pardim.cdk"
 #include "comgem.cdk"
 *
-      CHARACTER*1 CDCTL
-      INTEGER  KULOUT
       integer  cvdimens,cvdimhi
       real*8 zps,pressureProfile(nflev)
-!
-!!
-      IF(CDCTL .EQ. '0') THEN
-         WRITE(NULOUT,9000)CDCTL
-         RETURN
-      ENDIF
- 9000 FORMAT(//,3(" *****************"),/
-     S     ," SUCOV: CDCTL=",A1,"       NO EXECUTION",/
-     S     ,3(" *****************"))
-!
+      integer jvar,ilen,ierr
+
+! Initialize the background-error covariances
+
       zps = 101000.D0
       call calcpres(pressureProfile,vhybinc,nflev,zps,rptopinc,rprefinc,rcoefinc,1)
+      cvdimhi=0
+      cvdimens=0
 
       write(*,*) 'Setting up the modular HI covariances...'
       call bhi_setup(NTRUNC,NI,NJ,NFLEV,pressureProfile,cvdimhi)
-      write(*,*) 'Dimension of control vector returned:',cvdimhi
+      write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
       call flush(6)
 
+      write(*,*) 'Setting up the ensemble covariances...'
+      call ben_setup(2800.0d0,31,ni,nj,nflev,nip1,cvdimens)
+      write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+      call flush(6)
 
-!      write(*,*) 'Setting up the ensemble covariances...'
-!      call ben_setup(2800.0d0,31,NI,NJ,NFLEV,CVDIMENS)
-!      write(*,*) 'Dimension of control vector returned:',cvdimens
-!
+!      NVADIM=cvdimhi+cvdimens
+      NVADIM=cvdimhi
+!      NVADIM=cvdimens
+      write(*,*) 'Dimension of TOTAL control vector:',nvadim
+      call flush(6)
+
+C
+C*    4. Dimension of the control variable (taken from sudim)
+C     .  ---------------------------------
+C
+ 400  CONTINUE
+C
+      IF(N1GC.EQ.2) THEN
+         NMTRA = 3*NVADIM + NVAMAJ*(2*NVADIM + 1)
+      ELSE IF(N1GC.EQ.3)THEN
+        write(nulout,*) 'sudim: NVADIM=',NVADIM
+        write(nulout,*) 'sudim: NVAMAJ=',NVAMAJ
+        write(nulout,*) 'sudim: 4*NVADIM=',4*NVADIM
+        write(nulout,*) 'sudim: NVAMAJ*(2*NVADIM + 1)=',NVAMAJ*(2*NVADIM + 1)
+        write(nulout,*) 'sudim: NMTRA=',4*NVADIM + NVAMAJ*(2*NVADIM + 1)
+        NMTRA = 4*NVADIM + NVAMAJ*(2*NVADIM + 1)
+      ELSE IF(N1GC.EQ.4)THEN
+         NMTRA = 1 + NVAMAJ*(2*NVADIM + 1)
+         NWORK = 5*NVADIM + NVAMAJ
+      ELSE
+         NMTRA = NVADIM*2
+      END IF
+      WRITE(NULOUT,9401)N1GC, NVAMAJ,NVADIM,NMTRA
+ 9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3
+     S     ,/5X,"NVADIM =",1x,I14,3X,"NMTRA =",1X,I14)
+      IF(N1GC.EQ.4) THEN
+      WRITE(NULOUT,9402)NWORK
+ 9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
+      ENDIF
+C
+C*    5. Arrays of COMCVA for the control variable (taken from suallo)
+C     .  -----------------------------------------
+C
+ 500  CONTINUE
+      ILEN = NVADIM
+      IF(NCONF.NE.307)THEN
+         CALL HPALLOC(PTVAZX    , MAX(ILEN,1),IERR,8)
+         CALL HPALLOC(PTVAZXBAR , MAX(ILEN,1),IERR,8)
+         do jvar = 1, ilen
+           vazxbar(jvar) = 0.0
+         enddo
+         CALL HPALLOC(PTVAZG    , MAX(ILEN,1),IERR,8)
+      END IF
+C
+      ILEN = NMTRA
+      IF(NCONF.NE.307)THEN
+        allocate(vatra(nmtra),STAT=ierr)
+        write(nulout,*) 'suallo: after VATRA allocation: ierr = '
+     &     ,ierr
+        if(nmtra.le.0) then
+          call abort3d(nulout,'suallo: nmtra dimension .le. 0')
+        endif
+c         CALL HPALLOC(PTVATRA, MAX(ILEN,1),IERR,8)
+      END IF
+C
+      IF(NCONF.NE.307.AND.N1GC.EQ.4)THEN
+         ILEN = NVADIM
+         CALL HPALLOC(PTVAZB,  MAX(ILEN,1),IERR,8)
+         ILEN = NMTRA
+         CALL HPALLOC(PTVATR1, MAX(ILEN,1),IERR,8)
+         ILEN = NWORK
+         CALL HPALLOC(PTVWORK, MAX(ILEN,1),IERR,8)
+      END IF
+C
+      WRITE(NULOUT,FMT=9501)
+ 9501 FORMAT(/,'  Arrays in COMCVA are allocated',
+     S     ' the following space:')
+      WRITE(NULOUT,FMT=9502) NVADIM,NMTRA
+ 9502 FORMAT(10X,'(VAZX, VAZG) :',I13,10x,' VATRA:',1x,I13)
+      IF(N1GC.EQ.4) THEN
+      WRITE(NULOUT,FMT=9503) NVADIM,NMTRA,NWORK
+ 9503 FORMAT(10X,'FOR N1CG1: VAZB :',I13,10x,' VATR1 :',I13,10x,
+     &  ' VWORK :',1xI13)
+      ENDIF
+
       return
       end

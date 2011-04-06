@@ -52,7 +52,8 @@
 C
       DDSC = 0.
       DO 101 J = 1, KDIM
-         DDSC = DDSC + SCALP(J)*PX(J)*PY(J)
+         DDSC = DDSC + PX(J)*PY(J)
+!         DDSC = DDSC + SCALP(J)*PX(J)*PY(J)
  101  CONTINUE
 c
       RETURN
