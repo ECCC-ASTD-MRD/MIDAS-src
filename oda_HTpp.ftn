@@ -74,7 +74,7 @@
 #include "commvog.cdk"
 *
       INTEGER IPB,IPT, IDBURP,  ITYP
-      REAL*8 ZRES,ZOER,zmax
+      REAL*8 ZRES,ZOER,zmax,zmean,zmax2,zmean2
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
       INTEGER IOBS,IPOS,IK,ISTRIDE,IBEGIN,ILAST
@@ -102,6 +102,9 @@ C          observation.
 C
       ISTRIDE=2*(NMAXLEN/2) + 1
       zmax=0.0d0
+      zmean=0.0d0
+      zmax2=0.0d0
+      zmean2=0.0d0
 C
 C
 C     Process all data within the domain of the model
@@ -146,6 +149,7 @@ C
      +           (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))
      +           *ZDADPS*ZRES
             if(abs(gomobs(ipb,iobs)).gt.zmax) zmax = abs(gomobs(ipb,iobs))
+            zmean=zmean+gomobs(ipb,iobs)/dble(ndata)
           elseif (lmaskpp_out(jdata)) THEN
             IOBS = MOBDATA(NCMOBS,JDATA)
             IPOS = MOBDATA(NCMPOS,JDATA)
@@ -170,9 +174,12 @@ c
      &           + OLTV(1,NFLEV,IOBS)*ZATV
             gomq(nflev,iobs) = gomq(nflev,iobs)
      &           + OLTV(2,NFLEV,IOBS)*ZATV
+            if(abs(gomt(nflev,iobs)).gt.zmax2) zmax2 = abs(gomt(nflev,iobs))
+            zmean2=zmean2+gomt(nflev,iobs)/dble(ndata)
           ENDIF
         END DO
       END DO
-      write(*,*) 'IN ODA_HTPP, MAX=',zmax
+      write(*,*) 'IN ODA_HTPP, MAX ,MEAN =',zmax,zmean
+      write(*,*) 'IN ODA_HTPP, MAX2,MEAN2=',zmax2,zmean2
       RETURN
       END

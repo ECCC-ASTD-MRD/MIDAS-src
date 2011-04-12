@@ -7,33 +7,33 @@ C     COMDECK: COMGD1
 C     ---------------
 C     Auxiliary grid point model state
 C     ----------------------
-C     GD1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND) : global model state
+C     GD1(NI,NKGDIM,NJ) : global model state
 C
 C     Splitting of GD
 C     ---------------
-C     UT1(NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  zonal wind image
-C     VT1(NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  meridional wind image
-C     TT1(NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  temperature field
-C     Q1  (NIBEG:NIEND,NFLEV,NJBEG:NJEND):  specific humidity
-C     GZ1 (NIBEG:NIEND,NFLEV,NJBEG:NJEND): geopotential at all levels of the model
-C     GOZ1(NIBEG:NIEND,NFLEV,NJBEG:NJEND): ozone at all levels of the model
-C     GTR1(NIBEG:NIEND,NFLEV,NJBEG:NJEND): undefined passive tracer
-C     GPS1(NIBEG:NIEND,    1,NJBEG:NJEND):  surface pressure
-C     GTG1(NIBEG:NIEND,    1,NJBEG:NJEND):  ground temperature
+C     UT1(NI,NFLEV,NJ) :  zonal wind image
+C     VT1(NI,NFLEV,NJ) :  meridional wind image
+C     TT1(NI,NFLEV,NJ) :  temperature field
+C     Q1  (NI,NFLEV,NJ):  specific humidity
+C     GZ1 (NI,NFLEV,NJ): geopotential at all levels of the model
+C     GOZ1(NI,NFLEV,NJ): ozone at all levels of the model
+C     GTR1(NI,NFLEV,NJ): undefined passive tracer
+C     GPS1(NI,    1,NJ):  surface pressure
+C     GTG1(NI,    1,NJ):  ground temperature
 C
 #endif
 C
-      REAL*8  GD1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,UT1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,VT1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,TT1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,Q1 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,GZ1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,GOZ1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,GTR1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,GPS1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S       ,GTG1(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-     S      ,TB1(NIBEG:NIEND,NFLEV,NJBEG:NJEND)
+      REAL*8  GD1(NI,NKGDIM,NJ)
+     S       ,UT1(NI,NKGDIM,NJ)
+     S       ,VT1(NI,NKGDIM,NJ)
+     S       ,TT1(NI,NKGDIM,NJ)
+     S       ,Q1 (NI,NKGDIM,NJ)
+     S       ,GZ1(NI,NKGDIM,NJ)
+     S       ,GOZ1(NI,NKGDIM,NJ)
+     S       ,GTR1(NI,NKGDIM,NJ)
+     S       ,GPS1(NI,NKGDIM,NJ)
+     S       ,GTG1(NI,NKGDIM,NJ)
+     S      ,TB1(NI,NFLEV,NJ)
 C
 C     Pointer statements
 C

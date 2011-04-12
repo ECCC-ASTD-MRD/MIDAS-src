@@ -217,8 +217,6 @@ C
       NJ=120
       NJINC=120
       NFLEV=28
-      NISUR=2
-      NJSUR=2
       NVGAUX=0
       NTRUNCINC=108
       NTRUNC=108
@@ -294,26 +292,13 @@ C
       NJLATH = (NJ + 1)/2
 !modular1        nj_s = nj-1
 !modular1        njlath_s = nj/2
-      NJBEG  = - NJSUR + 1
-      NJEND  = NJ + NJSUR
-      IF(MOD(NJ,2).EQ.0) THEN
-        NJMAX = NJ+1
-      ELSE
-        NJMAX = NJ
-      END IF
-C
-      NIBEG = 0
-      NIEND = NI + NISUR
 C
       WRITE(KULOUT,*)' DIMENSIONS IN GRID SPACE ------:'
       WRITE(UNIT=KULOUT,FMT=9210)
-     S     NJ  ,NJLATH, NJSUR,NJBEG ,NJEND ,NI ,NISUR, NIBEG
-     S     , NIEND,NFLEV
+     S     NJ  ,NJLATH ,NI ,NFLEV
  9210 FORMAT(4X,
      S     ' NJ    =',I6,' NJLATH  =',I6,
-     S     ' NJSUR =',I6,' NJBEG   =',I6,' NJEND =',I6,/,4X,
-     S     ' NI    =',I6,' NISUR   =',I6,' NIBEG =',I6,
-     S     ' NIEND =',I6,' NFLEV = ',I6)
+     S     ' NI    =',I6,' NFLEV = ',I6)
 !modular1      write(kulout,fmt='(4x,A,i6,A,i6)')'NJ_S = ',nj_s,'  NJLATH_S = ',njlath_s
       IF(NLATBD.GT.NJLATH) THEN
          NLATBD = NJLATH
@@ -348,37 +333,6 @@ C
  9220   FORMAT(/,' Triangular truncation of order '
      S     ,'NTRUNC =',I4,' NTRUNCMX: ',I4,'  NLA:',I8,'  NLADIM:',I8
      S     ,'   NLARH:',I8)
-C
-C*    .   2.3 Check for aliasing.
-C     .       ------------------
-C
-        IAL1=3*NTRUNC - (2*NJ-1)
-        IF (IAL1 .GT. 0) THEN
-           WRITE(UNIT=KULOUT,
-     S        FMT='('' ******* ALIASING FOR PRODUCTS OF FIELDS ''
-     S        ,'' IN THE N-S DIRECTION  ******** '')')
-*
-           IAL1=2*NTRUNC - (2*NJ-1)
-           IF (IAL1 .GT. 0) THEN
-              WRITE(UNIT=KULOUT,
-     S           FMT='('' ******* ALIASING FOR SPECTRAL TRANSFORMS ''
-     S           ,'' IN THE N-S DIRECTION  ******** '')')
-          ENDIF
-        ENDIF
-*
-        IAL2=3*NTRUNC - (NI-1)
-        IF (IAL2 .GT. 0) THEN
-           WRITE(UNIT=KULOUT,
-     S        FMT='('' ******* ALIASING FOR PRODUCTS OF FIELDS ''
-     S        ,'' IN THE E-W DIRECTION  ******** '')')
-*
-           IAL2=2*NTRUNC - (NI-1)
-           IF (IAL2 .GT. 0) THEN
-              WRITE(UNIT=KULOUT,
-     S           FMT='('' ******* ALIASING FOR SPECTRAL TRANSFORMS ''
-     S           ,'' IN THE E-W DIRECTION  ******** '')')
-           ENDIF
-        ENDIF
 C
 C*    3. Initialize the number of fields.
 C     -----------------------------------
@@ -417,7 +371,7 @@ C
      S     NVSP,NVSAUX,NVSP2D,NKSDIM
 
 C  3.x Create process topology and carry out domain decomposition.
-      CALL procstopo(NIBEG,NIEND,NJBEG,NJEND,NKSDIM,NTRUNC,NJSUR)
+      CALL procstopo
 !!!
 !!! REMOVED CODE FOR DIMENSIONING THE CONTROL VECTOR, MOVED TO SUCOV
 !!!
@@ -426,14 +380,6 @@ C*    5. Some dimensions for fields related to physical processes
 C        --------------------------------------------------------
 C
       maxconvpt = 0.1*(mni_in*mnj_in)
-C
-C*    6. For Poisson solver
-C        --------------------------------------------------------
-C
-      nitlap = 2
-      nfldlap = 2
-C
-      write(nulout,*) 'sudim: nitlap = ',nitlap
 C
       RETURN
       END

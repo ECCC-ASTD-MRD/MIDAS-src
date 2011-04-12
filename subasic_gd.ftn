@@ -56,7 +56,7 @@
 #include "comcva.cdk"
 !
 !
-      integer ji,jj,jk,jlev,inip1,injp1,iwvx,iwvy,iwvk,ilev
+      integer ji,jj,jk,jlev,iwvx,iwvy,iwvk,ilev
       integer idum1,idum2,idum3,idum4
       integer iig1,iig2,iig3
       integer iip2,iip3,itrlnlev,ip1_pak_trl,ip1_vco_trl,itrlgid,ibrpstamp
@@ -72,8 +72,6 @@
       real*8 zesg(ni,nflev,nj)
       real*8 zpsg(ni,nj)
       real*8 zpt(ni,nj)
-      real*8 zu9(0:ni+1,nflev,0:nj+1)
-      real*8 zv9(0:ni+1,nflev,0:nj+1)
       real*8 zgdpsi9(ni,nflev,nj)
       real*8 zgdchi9(ni,nflev,nj)
       real*8 zvort9(ni,nflev,nj)
@@ -81,13 +79,9 @@
       real*8 zcorr(ni,nflev,nj)
       real*8 zwh(ni,nj)
       real*8 zwh2(ni,nj)
-      real*8 zu2(-1:ni+2,nflev,-1:nj+2)
-      real*8 zv2(-1:ni+2,nflev,-1:nj+2)
 !
 !!
       write(nulout,*) 'subasic_gd: BEGIN'
-      inip1 = ni+1
-      injp1 = nj+1
 !
       if(lfgsim) then
 !

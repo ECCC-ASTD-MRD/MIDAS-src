@@ -22,26 +22,26 @@
 !           with RPN_COMM  
 !
 !***************************************************************
- SUBROUTINE procstopo(nibeg,niend,njbeg,njend,nksdim,ntrunc,njsur)
+ SUBROUTINE procstopo
  USE procs_topo
 !modular1 USE spect_mpi
  IMPLICIT NONE
- INTEGER ,INTENT(IN) :: nibeg,niend
- INTEGER ,INTENT(IN) :: njbeg,njend
- INTEGER ,INTENT(IN) :: nksdim
- INTEGER ,INTENT(IN) :: ntrunc
- INTEGER ,INTENT(IN) :: njsur
- INTEGER,DIMENSION(2) :: pdims,coords
- LOGICAL,DIMENSION(2) :: peroids
- LOGICAL ::              reorder
- INTEGER :: errcode,ierr,root
- INTEGER :: get_loc_spsize
- INTEGER :: nmlist
- INTEGER :: get_type_size
+! INTEGER ,INTENT(IN) :: nibeg,niend
+! INTEGER ,INTENT(IN) :: njbeg,njend
+! INTEGER ,INTENT(IN) :: nksdim
+! INTEGER ,INTENT(IN) :: ntrunc
+! INTEGER ,INTENT(IN) :: njsur
+! INTEGER,DIMENSION(2) :: pdims,coords
+! LOGICAL,DIMENSION(2) :: peroids
+! LOGICAL ::              reorder
+! INTEGER :: errcode,ierr,root
+! INTEGER :: get_loc_spsize
+! INTEGER :: nmlist
+! INTEGER :: get_type_size
  NAMELIST /ptopo/npex,npey
 
-  DATA peroids /.true.,.false./
-  DATA reorder /.false./
+!  DATA peroids /.true.,.false./
+!  DATA reorder /.false./
 
 ! 2. get myid,myidx,myidy  
  CALL rpn_comm_mype(myid,myidx,myidy) 
@@ -78,5 +78,5 @@
  !ALLOCATE(disploc0(nlaloc))
  !ALLOCATE(disploc1(nlaloc))
  
- print '=========End of subroutine procstopo======'
+ print *,'=========End of subroutine procstopo======'
  END SUBROUTINE procstopo

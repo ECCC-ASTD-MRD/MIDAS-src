@@ -31,9 +31,10 @@ MODULE BmatrixEnsemble_mod
   public             :: ben_Setup,ben_BSqrt,ben_BSqrtAd
 
   real*8,allocatable  :: ensLocalCor(:,:)
-  real*8,allocatable  :: ensPerturbations(:,:,:,:,:)
+  real*8,allocatable  :: ensLocalVert(:,:)
+  real*4,allocatable  :: ensPerturbations(:,:,:,:,:)
   integer,allocatable :: nip1_l(:),verticalLevel(:)
-  integer             :: nibeg_l,niend_l,njbeg_l,njend_l,njsur_l,nisur_l,nj_l,ni_l
+  integer             :: nj_l,ni_l
   integer             :: nflev_l,nkgdim_l
   integer             :: ntrunc_l,nla_l
   integer             :: nens_l,cvDim_l,cvDimPerMember_l
@@ -42,11 +43,11 @@ MODULE BmatrixEnsemble_mod
 
 CONTAINS
 
-  SUBROUTINE BEN_setup(ZTLEN_IN,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN,NIP1_IN,CVDIM_OUT)
+  SUBROUTINE BEN_setup(ZTLEN_IN,verticalScale_in,pressureProfile_in,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN,NIP1_IN,CVDIM_OUT)
     use glbspec_mod
     implicit none
 
-    real*8         :: ztlen_in
+    real*8         :: ztlen_in,verticalScale_in,pressureProfile_in(:)
     integer        :: ntrunc_in,ni_in,nj_in,nflev_in,nip1_in(:)
     integer        :: cvDim_out
     integer        :: jlev
@@ -60,21 +61,14 @@ CONTAINS
       verticalLevel(2*nflev_l+jlev)=jlev ! TT
       verticalLevel(3*nflev_l+jlev)=jlev ! HU
     enddo
-    verticalLevel(1+4*nflev_l)=1  ! P0
-    verticalLevel(2+4*nflev_l)=1  ! TG
+    verticalLevel(1+4*nflev_l)=nflev_l   ! P0
+    verticalLevel(2+4*nflev_l)=nflev_l   ! TG
 
     ntrunc_l=ntrunc_in
     nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
     
-    nisur_l=2
-    njsur_l=2
     ni_l=ni_in
     nj_l=nj_in
-    nibeg_l=0
-    niend_l=ni_l+nisur_l
-    njbeg_l=1-njsur_l
-    njend_l=nj_l+njsur_l
-    write(*,*) 'BEN: nibeg_l,niend_l,njbeg_l,njend_l=',nibeg_l,niend_l,njbeg_l,njend_l
 
     allocate(nip1_l(nflev_l))
     nip1_l(1:nflev_l)=nip1_in(1:nflev_l)
@@ -82,7 +76,7 @@ CONTAINS
     gstID = gst_setup(6,ni_l,nj_l,ntrunc_l)
     write(*,*) 'BEN:returned value of gstID=',gstID
 
-    call setupLocalization(ztlen_in)
+    call setupLocalization(ztlen_in,verticalScale_in,pressureProfile_in)
 
     call setupEnsemble
 
@@ -99,6 +93,7 @@ CONTAINS
  
     real*8 :: gd2d(ni_l,nj_l)
     real*8 :: dnens,dnens3,rmsknt,rmbtpa,r1sa,conima
+    real*8 :: rhumin = 2.5d-6
     integer :: ji,jj,jt,jk,jens
     integer :: kulin
     integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
@@ -110,6 +105,8 @@ CONTAINS
     character*8 cletiket
     character*256 cflensin,cflens(192)
     integer :: vfstlir,fstfrm,fclos,fnom,fstouv
+
+    call tmg_start(48,'setupens')
 
     ! this should come from state vector object
     ngposituu=1
@@ -125,21 +122,112 @@ CONTAINS
     r1sa=1.d0/6371229.d0
 
     ! parameters set from the ensemble member files
-    nens_l=8
+    nens_l=99
     ntime_l=1
-    cflens(1)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_001'
-    cflens(2)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_002'
-    cflens(3)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_003'
-    cflens(4)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_004'
-    cflens(5)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_005'
-    cflens(6)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_006'
-    cflens(7)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_007'
-    cflens(8)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_008'
+    cflens(1) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_001'
+    cflens(2) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_002'
+    cflens(3) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_003'
+    cflens(4) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_004'
+    cflens(5) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_005'
+    cflens(6) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_006'
+    cflens(7) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_007'
+    cflens(8) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_008'
+    cflens(9) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_009'
+    cflens(10)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_010'
+    cflens(11)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_011'
+    cflens(12)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_012'
+    cflens(13)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_013'
+    cflens(14)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_014'
+    cflens(15)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_015'
+    cflens(16)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_016'
+    cflens(17)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_017'
+    cflens(18)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_018'
+    cflens(19)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_019'
+    cflens(20)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_020'
+    cflens(21)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_021'
+    cflens(22)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_022'
+    cflens(23)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_023'
+    cflens(24)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_024'
+    cflens(25)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_025'
+    cflens(26)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_026'
+    cflens(27)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_027'
+    cflens(28)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_028'
+    cflens(29)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_029'
+    cflens(30)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_030'
+    cflens(31)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_031'
+    cflens(32)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_032'
+    cflens(33)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_033'
+    cflens(34)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_034'
+    cflens(35)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_035'
+    cflens(36)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_036'
+    cflens(37)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_037'
+    cflens(38)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_038'
+    cflens(39)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_039'
+    cflens(40)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_040'
+    cflens(41)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_041'
+    cflens(42)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_042'
+    cflens(43)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_043'
+    cflens(44)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_044'
+    cflens(45)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_045'
+    cflens(46)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_046'
+    cflens(47)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_047'
+    cflens(48)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_048'
+    cflens(49)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_049'
+    cflens(50)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_050'
+    cflens(51)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_051'
+    cflens(52)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_052'
+    cflens(53)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_053'
+    cflens(54)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_054'
+    cflens(55)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_055'
+    cflens(56)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_056'
+    cflens(57)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_057'
+    cflens(58)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_058'
+    cflens(59)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_059'
+    cflens(60)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_060'
+    cflens(61)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_061'
+    cflens(62)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_062'
+    cflens(63)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_063'
+    cflens(64)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_064'
+    cflens(65)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_065'
+    cflens(66)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_066'
+    cflens(67)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_067'
+    cflens(68)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_068'
+    cflens(69)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_069'
+    cflens(70)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_070'
+    cflens(71)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_071'
+    cflens(72)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_072'
+    cflens(73)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_073'
+    cflens(74)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_074'
+    cflens(75)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_075'
+    cflens(76)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_076'
+    cflens(77)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_077'
+    cflens(78)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_078'
+    cflens(79)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_079'
+    cflens(80)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_080'
+    cflens(81)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_081'
+    cflens(82)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_082'
+    cflens(83)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_083'
+    cflens(84)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_084'
+    cflens(85)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_085'
+    cflens(86)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_086'
+    cflens(87)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_087'
+    cflens(88)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_088'
+    cflens(89)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_089'
+    cflens(90)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_090'
+    cflens(91)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_091'
+    cflens(92)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_092'
+    cflens(93)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_093'
+    cflens(94)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_094'
+    cflens(95)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_095'
+    cflens(96)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_096'
+    cflens(97)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_097'
+    cflens(98)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_098'
+    cflens(99)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_099'
 
     allocate(ensPerturbations(ni_l,nkgdim_l,nj_l,ntime_l,nens_l))
 
-    !ensPerturbations(:,:,:,:,:)=1.0d0
-    !ensPerturbations=ensPerturbations/sqrt(dble(nens_l))
+    !ensPerturbations(:,:,:,:,:)=1.0
+    !ensPerturbations=ensPerturbations/sqrt(sngl(nens_l))
 
     dnens=1.0d0/dble(nens_l)
     dnens3=1.0d0/sqrt(2.0d0*dble(nens_l-1))
@@ -175,7 +263,7 @@ CONTAINS
         endif
         do jj=1,nj_l
           do ji=1,ni_l
-            ensPerturbations(ji,ngpositps,jj,jt,jens)= gd2d(ji,nj_l+1-jj)*rmbtpa
+            ensPerturbations(ji,ngpositps,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj)*rmbtpa)
           enddo
         enddo
 
@@ -191,7 +279,7 @@ CONTAINS
           call flush(6)
           do jj=1,nj_l
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngposittt,jj,jt,jens)= gd2d(ji,nj_l+1-jj)
+              ensPerturbations(ji,jk-1+ngposittt,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj))
             enddo
           enddo
         enddo
@@ -207,7 +295,7 @@ CONTAINS
           endif
           do jj=1,nj_l
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngpositq,jj,jt,jens)= gd2d(ji,nj_l+1-jj)
+              ensPerturbations(ji,jk-1+ngpositq,jj,jt,jens)= sngl(log(max(gd2d(ji,nj_l+1-jj),rhumin)))
             enddo
           enddo
         enddo
@@ -224,7 +312,7 @@ CONTAINS
           do jj=1,nj_l
             conima=r1sa*gst_getRSQM2(jj,gstID)
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngposituu,jj,jt,jens)= gd2d(ji,nj_l+1-jj)*rmsknt*conima
+              ensPerturbations(ji,jk-1+ngposituu,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt*conima)
             enddo
           enddo
         enddo
@@ -241,7 +329,7 @@ CONTAINS
           do jj=1,nj_l
             conima=r1sa*gst_getRSQM2(jj,gstID)
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngpositvv,jj,jt,jens)= gd2d(ji,nj_l+1-jj)*rmsknt*conima
+              ensPerturbations(ji,jk-1+ngpositvv,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt*conima)
             enddo
           enddo
         enddo
@@ -256,7 +344,7 @@ CONTAINS
         else
           do jj=1,nj_l
             do ji=1,ni_l
-              ensPerturbations(ji,ngposittg,jj,jt,jens)= gd2d(ji,nj_l+1-jj)
+              ensPerturbations(ji,ngposittg,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj))
             enddo
           enddo
         endif
@@ -271,12 +359,14 @@ CONTAINS
 
     ! remove mean and divide by sqrt(2*(NENS_l-1)) - extra 2 is needed?
     do jt=1,ntime_l
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
       do jk=1,nkgdim_l
         gd2d(:,:)=0.0d0
         do jens=1,nens_l
           do jj=1,nj_l
             do ji=1,ni_l
-              gd2d(ji,jj)=gd2d(ji,jj)+ensPerturbations(ji,jk,jj,jt,jens)
+              gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
             enddo
           enddo
         enddo
@@ -288,29 +378,34 @@ CONTAINS
         do jens=1,nens_l
           do jj=1,nj_l
             do ji=1,ni_l
-              ensPerturbations(ji,jk,jj,jt,jens)=(ensPerturbations(ji,jk,jj,jt,jens)-gd2d(ji,jj))*dnens3
+              ensPerturbations(ji,jk,jj,jt,jens)=     &
+                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens3)
             enddo
           enddo
         enddo
       enddo
+!$OMP END DO
+!$OMP END PARALLEL
     enddo
     write(*,*) 'finished adjusting ensemble members...'
     call flush(6)
 
+    call tmg_stop(48)
   END SUBROUTINE setupEnsemble
 
 
-  SUBROUTINE setupLocalization(ZTLEN)
+  SUBROUTINE setupLocalization(ZTLEN,verticalScale,pressureProfile)
     use glbspec_mod
     implicit none
 
-    real*8 zlc,zr,zpole,zcorr,ztlen
-    integer ilen,jn,jlat,jla,jlon,jk
+    real*8 zlc,zr,zpole,zcorr,ztlen,verticalScale,pressureProfile(:)
+    integer ilen,jn,jlat,jla,jlon,jk,jk1,jk2
     real*8         :: zsp(nla_l,2,nflev_l)
-    real*8         :: zgd(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+    real*8         :: zgd(ni_l,nflev_l,nj_l)
     real*8         :: ra = 6371229.D0
 
     allocate(ensLocalCor(0:ntrunc_l,nflev_l))
+    allocate(ensLocalVert(nflev_l,nflev_l))
 
     ! Calculate 5th Order Correlation Functions in Physical Space
 
@@ -321,10 +416,12 @@ CONTAINS
           do jlat=1,nj_l
              zr = ra * acos(gst_getrmu(jlat,gstID))
              if(zr.le.zlc) then
-                zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4 + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
+                zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4               &
+                       + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
              elseif(zr.le.(2.0*zlc)) then
-                zcorr= (1.0/12.0)*(zr/zlc)**5 -0.5*(zr/zlc)**4 + 0.625*(zr/zlc)**3 +(5.0/3.0)*(zr/zlc)**2 -   &
-                     5.0*(zr/zlc) +4.0 -(2.0/3.0)*(zlc/zr) 
+                zcorr= (1.0/12.0)*(zr/zlc)**5 -0.5*(zr/zlc)**4    &
+                      + 0.625*(zr/zlc)**3 +(5.0/3.0)*(zr/zlc)**2  &
+                      - 5.0*(zr/zlc) +4.0 -(2.0/3.0)*(zlc/zr) 
              else
                 zcorr= 0.0
              endif
@@ -407,6 +504,33 @@ CONTAINS
        enddo
     endif
 
+
+    ! Compute vertical localization correlation matrix
+
+    ! calculate 5'th order function
+    ZLC=verticalScale/2.0
+    do jk1=1,nflev_l
+      do jk2=1,nflev_l
+        ZR = abs(log(pressureProfile(jk2)) - log(pressureProfile(jk1)))
+        if(ZR.le.ZLC) then
+          zcorr= -0.250*(ZR/ZLC)**5 + 0.5*(ZR/ZLC)**4 + 0.625*(ZR/ZLC)**3   &
+                 -(5.0/3.0)*(ZR/ZLC)**2 + 1.0
+        elseif(ZR.le.(2.0*ZLC)) then
+          zcorr= (1.0/12.0)*(ZR/ZLC)**5   -0.5*(ZR/ZLC)**4     &
+                   + 0.625*(ZR/ZLC)**3 +(5.0/3.0)*(ZR/ZLC)**2  &
+                   - 5.0*(ZR/ZLC) +4.0 -(2.0/3.0)*(ZLC/ZR) 
+        else
+          zcorr= 0.0
+        endif
+        if(zcorr.lt.0.0) zcorr=0.0
+        write(95,*) 'VERT MASK=',jk1,jk2,zcorr
+        ensLocalVert(jk1,jk2)=zcorr
+      enddo
+    enddo
+
+    ! compute sqrt of the matrix if vertical localization requested
+    call matsqrt(ensLocalVert(1,1),nflev_l,1.0d0)
+
     write(*,*)'done setting up localization function'
 
     return
@@ -418,16 +542,18 @@ CONTAINS
 
     integer   :: memberIndex
     real*8    :: controlVector_in(cvDim_l) 
-    real*8    :: increment_out(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+    real*8    :: increment_out(ni_l,nkgdim_l,nj_l)
 
     real*8    :: ensControlVector(nla_l,2,nflev_l)
     real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
 
+    call tmg_start(46,'BSqrt')
     do memberIndex=1,nens_l
       call cain(controlVector_in,ensControlVector,memberIndex)
       call localizationSqrt(ensControlVector,ensAmplitude)
       call addEnsMember(ensAmplitude,increment_out,memberIndex)
     enddo
+    call tmg_stop(46)
 
     return
   END SUBROUTINE BEN_BSqrt
@@ -437,17 +563,19 @@ CONTAINS
     implicit none
 
     real*8    :: controlVector_out(cvDim_l) 
-    real*8    :: increment_in(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+    real*8    :: increment_in(ni_l,nkgdim_l,nj_l)
 
     integer   :: memberIndex
     real*8    :: ensControlVector(nla_l,2,nflev_l) 
     real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
 
+    call tmg_start(47,'BSqrtAd')
     do memberIndex=1,nens_l
       call addEnsMemberAd(increment_in,ensAmplitude,memberIndex)
       call localizationSqrtAd(ensAmplitude,ensControlVector)
       call cainAd(ensControlVector,controlVector_out,memberIndex)
     enddo
+    call tmg_stop(47)
 
     return
   END SUBROUTINE BEN_BSqrtAd
@@ -458,9 +586,11 @@ CONTAINS
 
     integer,intent(in)     :: memberIndex
     real*8      :: ensAmplitude_in(ni_l,nflev_l,nj_l)
-    real*8      :: increment_out(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+    real*8      :: increment_out(ni_l,nkgdim_l,nj_l)
 
     integer     :: jk,jlev,jt,jj,ji
+
+    call tmg_start(40,'addmem')
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
@@ -470,13 +600,15 @@ CONTAINS
         do jj=1,nj_l
           do ji=1,ni_l
             increment_out(ji,jk,jj)=increment_out(ji,jk,jj) +   &
-              ensAmplitude_in(ji,jlev,jj)*ensPerturbations(ji,jk,jj,jt,memberIndex)
+              ensAmplitude_in(ji,jlev,jj)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
           enddo
         enddo
       enddo
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
+
+    call tmg_stop(40)
 
   END SUBROUTINE addEnsMember
 
@@ -486,9 +618,11 @@ CONTAINS
 
     integer,intent(in)     :: memberIndex
     real*8      :: ensAmplitude_out(ni_l,nflev_l,nj_l)
-    real*8      :: increment_in(nibeg_l:niend_l,nkgdim_l,njbeg_l:njend_l)
+    real*8      :: increment_in(ni_l,nkgdim_l,nj_l)
 
     integer     :: jk,jlev,jt,jj,ji
+
+    ensAmplitude_out(:,:,:)=0.0d0
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
@@ -498,7 +632,7 @@ CONTAINS
         do jj=1,nj_l
           do ji=1,ni_l
             ensAmplitude_out(ji,jlev,jj)=ensAmplitude_out(ji,jlev,jj) +   &
-              increment_in(ji,jk,jj)*ensPerturbations(ji,jk,jj,jt,memberIndex)
+              increment_in(ji,jk,jj)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
           enddo
         enddo
       enddo
@@ -515,36 +649,97 @@ CONTAINS
 
     real*8           :: ensControlVector_in(nla_l,2,nflev_l)
     real*8           :: ensAmplitude_out(ni_l,nflev_l,nj_l)
-    real*8           :: zgd(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
+
+    real*8           :: zgd(ni_l,nflev_l,nj_l)
     real*8           :: zsp(nla_l,2,nflev_l)
+    real*8           :: zsp2(nflev_l,2,nla_l)
+    real*8           :: zsp3(nflev_l,2,nla_l)
     integer          :: jlev,jn,jm,ila,jla,jj,ji
+    integer          :: jn_vec(nla_l)
     real*8           :: rsq2
 
     rsq2=sqrt(2.0d0)
-    zgd(nibeg_l:niend_l,1:nflev_l,njbeg_l:njend_l)=0.0d0
+    zgd(:,:,:)=0.0d0
+
+    call tmg_start(41,'loc1')
+
+!$OMP PARALLEL 
+!$OMP DO PRIVATE (JN,JM,ILA)
+    do jn=0,ntrunc_l
+      do jm=0,jn
+        ila = gst_getnind(jm,gstID)+jn-jm
+        jn_vec(ila)=jn
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
 
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
     do jlev=1,nflev_l
-       do jn=0,ntrunc_l
-          do jm=0,jn
-             ila = gst_getnind(jm,gstID)+jn-jm
-             zsp(ila,1,jlev)=ensControlVector_in(ila,1,jlev)*ensLocalCor(jn,jlev)
-             zsp(ila,2,jlev)=ensControlVector_in(ila,2,jlev)*ensLocalCor(jn,jlev)
-          enddo
+       do jla=1,nla_l
+          zsp(jla,1,jlev)=ensControlVector_in(jla,1,jlev)*ensLocalCor(jn_vec(jla),jlev)
+          zsp(jla,2,jlev)=ensControlVector_in(jla,2,jlev)*ensLocalCor(jn_vec(jla),jlev)
        enddo
        do jla = 1,ntrunc_l+1
-          zsp(jla,1,jlev) = ensControlVector_in(jla,1,jlev)*rsq2
+          zsp(jla,1,jlev) = zsp(jla,1,jlev)*rsq2
           zsp(jla,2,jlev) = 0.0
        enddo
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
 
+    call tmg_stop(41)
+
+    ! Vertical localization
+    call tmg_start(42,'loc2')
+
+!$OMP PARALLEL 
+!$OMP DO PRIVATE (JLA,JLEV)
+    do jla=0,nla_l
+      do jlev=1,nflev_l
+        zsp2(jlev,1,jla)=zsp(jla,1,jlev)
+        zsp2(jlev,2,jla)=zsp(jla,2,jlev)
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    call mxmaop(ensLocalVert(1,1),1,nflev_l,zsp2(1,1,1),1,nflev_l   &
+               ,zsp3(1,1,1),1,nflev_l,nflev_l,nflev_l,2*nla_l)
+!!$OMP PARALLEL DEFAULT(SHARED)
+!!$OMP DO PRIVATE(ila,jk1,jk)
+!    do ila = 1,nla_l
+!      do jk=1,nflev_l
+!        do jk1=1,nflev_l 
+!          zsp3(jk1,1,ila)=zsp3(jk1,1,ila)+ensLocalVert(jk1,jk)*zsp2(jk,1,ila)
+!          zsp3(jk1,2,ila)=zsp3(jk1,2,ila)+ensLocalVert(jk1,jk)*zsp2(jk,2,ila)
+!        enddo
+!      enddo
+!    enddo
+!!$OMP END DO
+!!$OMP END PARALLEL
+
+!$OMP PARALLEL 
+!$OMP DO PRIVATE (JLA,JLEV)
+    do jla=1,nla_l
+      do jlev=1,nflev_l
+        zsp(jla,1,jlev)=zsp3(jlev,1,jla)
+        zsp(jla,2,jlev)=zsp3(jlev,2,jla)
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    call tmg_stop(42)
+
+    ! now transform to grid-point space
+    call tmg_start(43,'loc3')
     call gst_setID(gstID)
     call gst_speree(zsp,zgd,nflev_l,nflev_l)
     call gst_setToDefaultID
+    call tmg_stop(43)
 
+    call tmg_start(44,'loc4')
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JJ,JLEV,JI)
     do jj = 1, nj_l
@@ -556,6 +751,7 @@ CONTAINS
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
+    call tmg_stop(44)
 
   END SUBROUTINE localizationSqrt
 
@@ -566,14 +762,17 @@ CONTAINS
 
     real*8           :: ensControlVector_out(nla_l,2,nflev_l)
     real*8           :: ensAmplitude_in(ni_l,nflev_l,nj_l)
-    real*8           :: zgd(nibeg_l:niend_l,nflev_l,njbeg_l:njend_l)
-    integer          :: jlev
-    integer          :: jn,jm,ila,jla
-    integer          :: ji,jj
+
+    real*8           :: zgd(ni_l,nflev_l,nj_l)
+    real*8           :: zsp(nla_l,2,nflev_l)
+    real*8           :: zsp2(nflev_l,2,nla_l)
+    real*8           :: zsp3(nflev_l,2,nla_l)
+    integer          :: jn,jm,ila,jla,jlev,ji,jj
     real*8           :: rsq2
 
     rsq2=sqrt(2.0d0)
-    zgd(nibeg_l:niend_l,1:nflev_l,njbeg_l:njend_l)=0.0d0
+    zgd(:,:,:)=0.0d0
+    ensControlVector_out(:,:,:)=0.0d0
 
     ! this is from bilinad
 !$OMP PARALLEL 
@@ -590,8 +789,40 @@ CONTAINS
 !$OMP END PARALLEL
 
     call gst_setID(gstID)
-    call gst_reespe(ensControlVector_out,zgd,nflev_l,nflev_l)
+    call gst_reespe(zsp,zgd,nflev_l,nflev_l)
     call gst_setToDefaultID
+
+
+    ! Vertical localization
+
+    do jla=1,nla_l
+      do jlev=1,nflev_l
+        zsp2(jlev,1,jla)=zsp(jla,1,jlev)
+        zsp2(jlev,2,jla)=zsp(jla,2,jlev)
+      enddo
+    enddo
+    zsp3(:,:,:)=0.0d0
+    call mxmaop(ensLocalVert(1,1),1,nflev_l,zsp2(1,1,1),1,nflev_l   &
+               ,zsp3(1,1,1),1,nflev_l,nflev_l,nflev_l,2*nla_l)
+!!$OMP PARALLEL DEFAULT(SHARED)
+!!$OMP DO PRIVATE(ila,jk1,jk)
+!    do ila = 1,nla_l
+!      do jk=1,nflev_l
+!        do jk1=1,nflev_l 
+!          zsp3(jk1,1,ila)=zsp3(jk1,1,ila)+ensLocalVert(jk1,jk)*zsp2(jk,1,ila)
+!          zsp3(jk1,2,ila)=zsp3(jk1,2,ila)+ensLocalVert(jk1,jk)*zsp2(jk,2,ila)
+!        enddo
+!      enddo
+!    enddo
+!!$OMP END DO
+!!$OMP END PARALLEL
+
+    do jla=0,nla_l
+      do jlev=1,nflev_l
+        zsp(jla,1,jlev)=zsp3(jlev,1,jla)
+        zsp(jla,2,jlev)=zsp3(jlev,2,jla)
+      enddo
+    enddo
 
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
@@ -599,8 +830,8 @@ CONTAINS
        do jn=0,ntrunc_l
           do jm=0,jn
              ila = gst_getnind(jm,gstID)+jn-jm
-             ensControlVector_out(ila,1,jlev)=ensControlVector_out(ila,1,jlev)*ensLocalCor(jn,jlev)
-             ensControlVector_out(ila,2,jlev)=ensControlVector_out(ila,2,jlev)*ensLocalCor(jn,jlev)
+             ensControlVector_out(ila,1,jlev)=zsp(ila,1,jlev)*ensLocalCor(jn,jlev)
+             ensControlVector_out(ila,2,jlev)=zsp(ila,2,jlev)*ensLocalCor(jn,jlev)
           enddo
        enddo
        do jla = 1,ntrunc_l+1
@@ -623,6 +854,8 @@ CONTAINS
 
     integer   :: jdim,jlev,jla,jvar,jens
 
+    call tmg_start(45,'cain')
+
     jdim = (memberIndex-1)*cvDimPerMember_l
     do jlev = 1, nflev_l
       do jla = 1, ntrunc_l+1
@@ -643,6 +876,8 @@ CONTAINS
       call flush(6)
       call exit(-1)
     endif
+
+    call tmg_stop(45)
 
     return
   END SUBROUTINE cain

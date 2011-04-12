@@ -71,7 +71,7 @@
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
 *
-      real*8  zfield(nibeg:niend,1:klev,njbeg:njend)
+      real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
 
       real*8,pointer,dimension(:,:) :: zprofil
 *
@@ -130,12 +130,11 @@ C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     TO THE WEST (ILON AND ILOS)
 C
          ILA=MOBHDR_G(NCMTLA,JOBS)
-
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-         DLDLON = 2.*RPI/NILON(ILA)
-         DLDLOS = 2.*RPI/NILON(ILA+1)
+         DLDLON = 2.*RPI/NI
+         DLDLOS = 2.*RPI/NI
          ILON = INT(DLLOO/DLDLON) + 1
          ILOS = INT(DLLOO/DLDLOS) + 1
 C
@@ -178,7 +177,7 @@ C
 C     TREATMENT OF GRADIENTS FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
 C
       LEVELS: DO JLEV = 1, KLEV
-         IMIDDLE = NILON(1) / 2
+         IMIDDLE = NI / 2
          DO JLON = 0, IMIDDLE
             ISYM = JLON + IMIDDLE
             ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)
@@ -187,7 +186,7 @@ C
      +           + ZFIELD(ISYM,jlev,NJ)
          END DO
 *
-         IMAX = NILON(1)
+         IMAX = NI
          DO JLON = IMIDDLE + 1, IMAX + 2
             ISYM = JLON - IMIDDLE
             ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)
@@ -200,15 +199,15 @@ C     TREATMENT OF THE GRADIENTS AT NORTH AND SOUTH POLES.
 C
          DLMEAN = 0.
          DLMEAS = 0.
-         IMAX = NILON(0)
+         IMAX = NI
          DO JLON = 0, IMAX + 2
             DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
             DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ+1)
          end do
 *
-         DLMEAN = DLMEAN/NILON(1)
-         DLMEAS = DLMEAS/NILON(NJ)
-         IMAX = NILON(1)
+         DLMEAN = DLMEAN/NI
+         DLMEAS = DLMEAS/NI
+         IMAX = NI
          DO JLON = 1, IMAX
             ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
             ZFIELD(JLON,jlev,NJ) = DLMEAS + ZFIELD(JLON,jlev,NJ)
@@ -220,7 +219,7 @@ C
 C     1.1  EXTRA MERIDIANS
 C
       DO JGL = 1, NJ
-         IMAX = NILON(JGL)
+         IMAX = NI
          DO JLEV = 1, KLEV
             ZFIELD(IMAX,JLEV,JGL) =   ZFIELD(0,JLEV,JGL)
      +           + ZFIELD(IMAX,JLEV,JGL)
@@ -234,11 +233,11 @@ C
 *     Adjoint of the identity (change of norm)
 *
       DO JGL = 1, NJ
-         IMAX = NILON(JGL)
+         IMAX = NI
          DO JLEV = 1, KLEV
             DO JLON = 1, IMAX
                ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *
-     +              NILON(JGL) / gst_getRWT(JGL)
+     +              NI / gst_getRWT(JGL)
             END DO
          END DO
       END DO
@@ -250,26 +249,26 @@ C
 *     2D fields
 *
       case('TG')
-         gtg0(:,1:klev,:) = zfield(:,1:klev,:)
+         gtg0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case('PS')
-         gps0(:,1:klev,:) = zfield(:,1:klev,:)
+         gps0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
 *
 *     3D fields
 *
       case('TT')
-         tt0(:,1:klev,:) = zfield(:,1:klev,:)
+         tt0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case('Q0')
-         q0 (:,1:klev,:) = zfield(:,1:klev,:)
+         q0 (1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case('O3')
-         GOZ0(:,1:klev,:) = zfield(:,1:klev,:)
+         GOZ0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case('TR')
-         GTR0(:,1:klev,:) = zfield(:,1:klev,:)
+         GTR0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case('UU')
-         UT0(:,1:klev,:) = zfield(:,1:klev,:)
+         UT0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case('VV')
-         VT0(:,1:klev,:) = zfield(:,1:klev,:)
+         VT0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       case ('GZ')
-         GZ0(:,1:klev,:) = zfield(:,1:klev,:)
+         GZ0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
       end select
 
 

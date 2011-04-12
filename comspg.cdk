@@ -59,19 +59,19 @@ C
 C
 C     4. Standard deviation of the forecast error in physical space
 C     .  ----------------------------------------------------------
-C     RGSIG(NJBEG:NJEND,NKGDIM)        : standard error deviation for all variables
+C     RGSIG(NJ,NKGDIM)        : standard error deviation for all variables
 C
 C     Splitting of RGSIG
 C     --------------------
-C     RGSIGUU(NJBEG:NJEND,NFLEV )        :    "       "      "       "  zonal wind
-C     RGSIGVV(NJBEG:NJEND,NFLEV )        :    "       "      "       "  meridional wind
-C     RGSIGTT(NJBEG:NJEND,NFLEV )        :    "       "      "       "  temperature
-C     RGSIGGZ (NJBEG:NJEND,NFLEV )       :    "       "      "       "  geopotential
-C     RGSIGOZ (NJBEG:NJEND,NFLEV )       :    "       "      "       "  ozone
-C     RGSIGTR (NJBEG:NJEND,NFLEV )       :    "       "      "       "  passive tracer
-C     RGSIGQ (NJBEG:NJEND,NFLEV )        :    "       "      "       "  specific humidity
-C     RGSIGPS(NJBEG:NJEND,NFLEV )        :    "       "      "       "  surface pressure
-C     RGSIGTG(NJBEG:NJEND,NFLEV )        :    "       "      "       "  ground temperature
+C     RGSIGUU(NJ,NFLEV )        :    "       "      "       "  zonal wind
+C     RGSIGVV(NJ,NFLEV )        :    "       "      "       "  meridional wind
+C     RGSIGTT(NJ,NFLEV )        :    "       "      "       "  temperature
+C     RGSIGGZ (NJ,NFLEV )       :    "       "      "       "  geopotential
+C     RGSIGOZ (NJ,NFLEV )       :    "       "      "       "  ozone
+C     RGSIGTR (NJ,NFLEV )       :    "       "      "       "  passive tracer
+C     RGSIGQ (NJ,NFLEV )        :    "       "      "       "  specific humidity
+C     RGSIGPS(NJ,NFLEV )        :    "       "      "       "  surface pressure
+C     RGSIGTG(NJ,NFLEV )        :    "       "      "       "  ground temperature
 C
 #endif
       REAL*8  SPG(NLA,2,NKSDIM)
@@ -121,13 +121,13 @@ C
      S     ,(PTDEVQ,RDEVQ)
      S     ,  (PTDEVPS,RDEVPS),  (PTDEVTG,RDEVTG)
 C
-      REAL*8 RGSIG(NJBEG:NJEND,NKGDIM),RGSIGUU(NJBEG:NJEND,NKGDIM)
-     S     , RGSIGVV(NJBEG:NJEND,NKGDIM),RGSIGTT(NJBEG:NJEND,NKGDIM)
-     S     , RGSIGGZ (NJBEG:NJEND,NKGDIM), RGSIGOZ(NJBEG:NJEND,NKGDIM)
-     S     , RGSIGTR(NJBEG:NJEND,NKGDIM)
-     S     , RGSIGQ(NJBEG:NJEND,NKGDIM),RGSIGPS(NJBEG:NJEND,NKGDIM)
-     S     , RGSIGTG(NJBEG:NJEND,NKGDIM),RGSIGTB(NJBEG:NJEND,NFLEV)
-     S     , RGSIGPSB(NJBEG:NJEND)
+      REAL*8 RGSIG(NJ,NKGDIM),RGSIGUU(NJ,NKGDIM)
+     S     , RGSIGVV(NJ,NKGDIM),RGSIGTT(NJ,NKGDIM)
+     S     , RGSIGGZ (NJ,NKGDIM), RGSIGOZ(NJ,NKGDIM)
+     S     , RGSIGTR(NJ,NKGDIM)
+     S     , RGSIGQ(NJ,NKGDIM),RGSIGPS(NJ,NKGDIM)
+     S     , RGSIGTG(NJ,NKGDIM),RGSIGTB(NJ,NFLEV)
+     S     , RGSIGPSB(NJ)
 C
       POINTER (PTSIG,RGSIG),(PTSIGUU,RGSIGUU),(PTSIGVV,RGSIGVV)
      S     ,(PTSIGTT,RGSIGTT),(PTSIGQ,RGSIGQ)
@@ -135,16 +135,16 @@ C
      S     ,(PTSIGPS,RGSIGPS),(PTSIGTG,RGSIGTG),(PTSIGTB,RGSIGTB)
      S     ,(PTSIGPSB,RGSIGPSB)
 C
-      REAL*8 RGSIG3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGUU3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGVV3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGTT3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGGZ3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGOZ3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGTR3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGQ3D (NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGPS3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND),
-     S       RGSIGTG3D(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
+      REAL*8 RGSIG3D(NI,NKGDIM,NJ),
+     S       RGSIGUU3D(NI,NKGDIM,NJ),
+     S       RGSIGVV3D(NI,NKGDIM,NJ),
+     S       RGSIGTT3D(NI,NKGDIM,NJ),
+     S       RGSIGGZ3D(NI,NKGDIM,NJ),
+     S       RGSIGOZ3D(NI,NKGDIM,NJ),
+     S       RGSIGTR3D(NI,NKGDIM,NJ),
+     S       RGSIGQ3D (NI,NKGDIM,NJ),
+     S       RGSIGPS3D(NI,NKGDIM,NJ),
+     S       RGSIGTG3D(NI,NKGDIM,NJ)
 C
       POINTER (PTSIG3D,RGSIG3D),(PTSIGUU3D,RGSIGUU3D)
      S     ,(PTSIGVV3D,RGSIGVV3D)

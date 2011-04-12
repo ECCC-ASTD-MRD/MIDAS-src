@@ -7,34 +7,34 @@
 !C     ---------------
 !C     Grid point model state
 !C     ----------------------
-!C     GD(NIBEG:NIEND,NKGDIM,NJBEG:NJEND) : global model state
+!C     GD(NI,NKGDIM,NJ) : global model state
 !C
 !C     Splitting of GD
 !C     ---------------
-!C     UT0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  zonal wind image
-!C     VT0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  meridional wind image
-!C     TT0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  temperature field
-!C     Q0  (NIBEG:NIEND,NFLEV,NJBEG:NJEND) :  specific humidity
-!C     GZ0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND) : geopotential at all levels of the model
-!C     GOZ0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND): ozone at all levels of the model
-!C     GTR0 (NIBEG:NIEND,NFLEV,NJBEG:NJEND): undefined passive tracer
+!C     UT0 (NI,NFLEV,NJ) :  zonal wind image
+!C     VT0 (NI,NFLEV,NJ) :  meridional wind image
+!C     TT0 (NI,NFLEV,NJ) :  temperature field
+!C     Q0  (NI,NFLEV,NJ) :  specific humidity
+!C     GZ0 (NI,NFLEV,NJ) : geopotential at all levels of the model
+!C     GOZ0 (NI,NFLEV,NJ): ozone at all levels of the model
+!C     GTR0 (NI,NFLEV,NJ): undefined passive tracer
 !C
-!C     GPS0(NIBEG:NIEND,    1,NJBEG:NJEND) :  surface pressure
-!C     GTG0(NIBEG:NIEND,    1,NJBEG:NJEND) :  ground temperature
+!C     GPS0(NI,    1,NJ) :  surface pressure
+!C     GTG0(NI,    1,NJ) :  ground temperature
 !C
 #endif
 !C
-      REAL*8 GD  (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 UT0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 VT0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 TT0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 Q0  (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 GZ0 (NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 GOZ0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 GTR0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 GPS0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 GTG0(NIBEG:NIEND,NKGDIM,NJBEG:NJEND)
-      REAL*8 TB0(NIBEG:NIEND,NFLEV,NJBEG:NJEND)
+      REAL*8 GD  (NI,NKGDIM,NJ)
+      REAL*8 UT0 (NI,NKGDIM,NJ)
+      REAL*8 VT0 (NI,NKGDIM,NJ)
+      REAL*8 TT0 (NI,NKGDIM,NJ)
+      REAL*8 Q0  (NI,NKGDIM,NJ)
+      REAL*8 GZ0 (NI,NKGDIM,NJ)
+      REAL*8 GOZ0(NI,NKGDIM,NJ)
+      REAL*8 GTR0(NI,NKGDIM,NJ)
+      REAL*8 GPS0(NI,NKGDIM,NJ)
+      REAL*8 GTG0(NI,NKGDIM,NJ)
+      REAL*8 TB0(NI,NFLEV,NJ)
       REAL*8 TB_out(NI,NFLEV,NJ)
 !C
 !C     Pointer statements

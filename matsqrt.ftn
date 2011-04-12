@@ -1,0 +1,86 @@
+      SUBROUTINE MATSQRT(PA,KN,ZSIGN)
+#if defined (DOC) 
+*
+***s/r MATSQRT     - Calculate square root of an error covariance
+*     .              matrix
+*
+*Author  : M. Buehner *ARMA/AES  February, 2000
+*Revision:
+*
+*Arguments
+*     .  PA(KN,KN)     :  on entry, the original matrix
+*     .                   on exit,  the sqrt     matrix
+*     .  KN            : order of the matrix
+#endif
+      IMPLICIT NONE
+*
+* Arguments
+*
+      INTEGER KN
+      REAL*8 PA(KN,KN),ZSIGN
+*
+* Local variables
+*
+      INTEGER JI, J, INFO, IER, IWORK
+      REAL*8 ZWORK(1), ZRESULT(KN,KN), ZEIGENV2(KN,KN),
+     +       ZEIGEN(KN,KN), ZEIGENV(KN)
+      POINTER(PXEIG  ,ZEIGEN  )
+      POINTER(PXEIGV ,ZEIGENV )
+      POINTER(PXEIGV2,ZEIGENV2)
+      POINTER(PXWRK,ZWORK)
+      POINTER(PXRES,ZRESULT)
+*
+*     0.  Memory allocation and miscellaneous definitions
+*
+      CALL HPALLOC(PXEIG  ,KN*KN,IER,8)
+      CALL HPALLOC(PXEIGV ,KN   ,IER,8)
+      CALL HPALLOC(PXEIGV2,KN*KN,IER,8)
+      CALL HPALLOC(PXWRK,4*KN,IER,8)
+      CALL HPALLOC(PXRES,KN*KN,IER,8)
+      IWORK=4*KN
+*
+      WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
+      WRITE(*,*)' zsign= ',zsign
+      WRITE(*,*)'  -----------------------------------------------'
+*
+*     1. Computation of eigenvalues and eigenvectors
+*
+ 100  CONTINUE
+      DO JI=1,KN
+         DO J=1,KN
+            ZEIGEN(JI,J)=PA(JI,J)
+         END DO
+      END DO
+      CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
+*
+      WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")') 
+      WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN) 
+*
+*     2.  Take SQRT of eigenvalues
+*
+      DO JI=1,KN
+        DO J=1,KN
+          ZEIGENV2(JI,J)= 0.0d0
+        END DO
+      END DO
+      DO JI=1,KN
+        ZEIGENV2(JI,JI)= ZEIGENV(JI)**(0.5d0*ZSIGN)
+      END DO
+*
+      WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")') 
+      WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN) 
+*
+      CALL MXMA8(ZEIGEN ,1,KN,ZEIGENV2,1 ,KN,ZRESULT,1,KN,KN,KN,KN)
+      CALL MXMA8(ZRESULT,1,KN,ZEIGEN  ,KN,1 ,PA     ,1,KN,KN,KN,KN)
+*
+*     4. Deallocate local arrays
+*
+      CALL HPDEALLC(PXEIG,IER,1)
+      CALL HPDEALLC(PXWRK,IER,1)
+      CALL HPDEALLC(PXRES,IER,1)
+*
+      WRITE(*,*)'MATSQRT-----------Done--------------- '
+      WRITE(*,*)' '
+
+      RETURN
+      END

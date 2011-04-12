@@ -62,8 +62,8 @@
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
 *
-      real*8  zfield(nibeg:niend,1:klev,njbeg:njend)
-     S     , zprofil(1:klev,nobtot)
+      real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
+      real*8  zprofil(1:klev,nobtot)
 *
 *     Transfer Grid point field into local array (for generecity)
 *
@@ -75,26 +75,26 @@
 *     2D fields
 *
       case('TG')
-         zfield(:,1,:)= gtg0(:,1,:)
+         zfield(1:NI,1,1:NJ)= gtg0(1:NI,1,1:NJ)
       case('PS')
-         zfield(:,1,:)= gps0(:,1,:)
+         zfield(1:NI,1,1:NJ)= gps0(1:NI,1,1:NJ)
 *
 *     3D fields
 *
       case('TT')
-         zfield(:,1:klev,:)=  TT0(:,1:KLEV,:)
+         zfield(1:NI,1:klev,1:NJ)=  TT0(1:NI,1:KLEV,1:NJ)
       case('Q0')
-         zfield(:,1:klev,:)=   Q0(:,1:KLEV,:)
+         zfield(1:NI,1:klev,1:NJ)=   Q0(1:NI,1:KLEV,1:NJ)
       case('O3')
-         zfield(:,1:klev,:)= GOZ0(:,1:klev,:)
+         zfield(1:NI,1:klev,1:NJ)= GOZ0(1:NI,1:klev,1:NJ)
       case('TR')
-         zfield(:,1:klev,:)= GTR0(:,1:klev,:)
+         zfield(1:NI,1:klev,1:NJ)= GTR0(1:NI,1:klev,1:NJ)
       case('UU')
-         zfield(:,1:klev,:)=  UT0(:,1:KLEV,:)
+         zfield(1:NI,1:klev,1:NJ)=  UT0(1:NI,1:KLEV,1:NJ)
       case('VV')
-         zfield(:,1:klev,:)=  VT0(:,1:KLEV,:)
+         zfield(1:NI,1:klev,1:NJ)=  VT0(1:NI,1:KLEV,1:NJ)
       case ('GZ')
-         zfield(:,1:klev,:)=  GZ0(:,1:klev,:)
+         zfield(1:NI,1:klev,1:NJ)=  GZ0(1:NI,1:klev,1:NJ)
       end select
 *
 C
@@ -111,7 +111,7 @@ C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
 C
       DO JLEV = 1, KLEV
          DO JGL = 1, NJ
-            IMAX = NILON(JGL)
+            IMAX = NI
             ZFIELD(0     ,jlev,JGL) = ZFIELD(NI,jlev,JGL)
             ZFIELD(IMAX+1,jlev,JGL) = ZFIELD( 1,jlev,JGL)
             ZFIELD(IMAX+2,jlev,JGL) = ZFIELD( 2,jlev,JGL)
@@ -125,14 +125,14 @@ C
       LEVELS: DO JLEV = 1, KLEV
          DLMEAN = 0.
          DLMEAS = 0.
-         IMAX = NILON(1)
+         IMAX = NI
          DO JLON = 1, IMAX
             DLMEAN = DLMEAN + ZFIELD(JLON,jlev,1)
             DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ)
          END DO
-         DLMEAN = DLMEAN / NILON(1)
-         DLMEAS = DLMEAS / NILON(NJ)
-         IMAX = NILON(0)
+         DLMEAN = DLMEAN / NI
+         DLMEAS = DLMEAS / NI
+         IMAX = NI
          DO JLON = 0, IMAX + 2
             ZFIELD(JLON,jlev,0)    = DLMEAN
             ZFIELD(JLON,jlev,NJ+1) = DLMEAS
@@ -140,13 +140,13 @@ C
 C
 C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
 C
-         IMIDDLE = NILON(1) / 2
+         IMIDDLE = NI / 2
          DO JLON = 0, IMIDDLE
             ISYM = JLON + IMIDDLE
             ZFIELD(JLON,jlev,-1)   = ZFIELD(ISYM,jlev,1)
             ZFIELD(JLON,jlev,NJ+2) = ZFIELD(ISYM,jlev,NJ)
          END DO
-         IMAX = NILON(1)
+         IMAX = NI
          DO JLON = IMIDDLE + 1, IMAX + 2
             ISYM = JLON - IMIDDLE
             ZFIELD(JLON,jlev,-1)   = ZFIELD(ISYM,jlev,1)
@@ -172,8 +172,8 @@ C
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-         DLDLON = 2.*RPI/NILON(ILA)
-         DLDLOS = 2.*RPI/NILON(ILA+1)
+         DLDLON = 2.*RPI/NI
+         DLDLOS = 2.*RPI/NI
          ILON = INT(DLLOO/DLDLON) + 1
          ILOS = INT(DLLOO/DLDLOS) + 1
 C

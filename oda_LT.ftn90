@@ -44,7 +44,7 @@ subroutine oda_LT
   integer :: nl_ilev,nl_err
   integer :: ierr,tgsize,sizegd 
   integer :: jlat,jlon,jlev
-  real*8 :: zmax
+  real*8 :: zmax,zmean
    
   call tmg_start(51,'VAR_CH') !
   call apreobs
@@ -70,14 +70,16 @@ subroutine oda_LT
   call tmg_stop (76)
 
   zmax=0.0d0
+  zmean=0.0d0
   do jlat=1,nj
     do jlev=1,nkgdim
       do jlon=1,ni
         if(abs(gd(jlon,jlev,jlat)).gt.zmax) zmax=abs(gd(jlon,jlev,jlat))
+        zmean=zmean+gd(jlon,jlev,jlat)/dble(nkgdim*ni*nj)
       enddo
     enddo
   enddo
-  write(*,*) 'END OF ODA_LT, max(gd)=',zmax
+  write(*,*) 'END OF ODA_LT, max,mean(gd)=',zmax,zmean
 
 
 end subroutine oda_LT

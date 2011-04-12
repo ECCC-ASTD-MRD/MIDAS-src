@@ -49,13 +49,13 @@ C
  100  CONTINUE
       ISRCHILA = 0
       IFOUND = 0
-      J = NJBEG 
+      J = -1 
  101  J = J + 1
       IF(ZLAO.GE.gst_getRLATI(J)) THEN
          ISRCHILA = J - 1
          IFOUND = 1
       ENDIF
-      IF(IFOUND.EQ.0.AND.(J.LT.NJEND)) GO TO 101
+      IF(IFOUND.EQ.0.AND.(J.LT.(NJ+2))) GO TO 101
 C     
       RETURN
       END

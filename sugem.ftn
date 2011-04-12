@@ -52,7 +52,7 @@ C*    1. Initialisation of the number of points to be considered on
 C        the latitude circles
 C
  100  CONTINUE
-      DO 101 JLAT = NJBEG, NJEND
+      DO 101 JLAT = 1,NJ
         NILON(JLAT) = NI
  101  CONTINUE
 C

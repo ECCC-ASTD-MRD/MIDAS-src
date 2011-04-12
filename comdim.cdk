@@ -10,16 +10,10 @@
 !                for increments computation
 ! NJMAX  : overdimensioning of NJ to avoid memory bank conflicts
 ! NJLATH  : number of rows in the northern hemisphere
-! NJSUR  : number of additional rows for semi-lagrangian
-! NJBEG  = -NJSUR+1
-! NJEND  = NJ + NJSUR
 !
 ! NI     : length of a row of latitude
 ! NIINC  : (incremental approach only) length of a row of latitude for low
 !     .     resolution model used for increments computation
-! NISUR  : overdimensioning for interpolation
-! NIBEG  = 0
-! NIEND  = NI + NISUR
 ! mni_in: LAM4D: number of gridpoints in the I-direction of the non-extended (i.e. inner) analysis grid
 ! mnj_in: LAM4D: number of gridpoints in the J-direction of the non-extended (i.e. inner) analysis grid
 ! mni_in2: LAM4D: number of gridpoints in the I-direction of the non-extended (i.e. inner) embedded grid
@@ -84,8 +78,7 @@
 !
 #endif
 
-      INTEGER NI, NIINC, NISUR, NIBEG, NIEND , NJ, NJINC
-      INTEGER NJSUR, NJBEG, NJEND
+      INTEGER NI, NIINC, NJ, NJINC
       INTEGER NJLATH, NJMAX
       INTEGER NFLEV, NVGD, NVG2D, NVGAUX, NKGDIM
       INTEGER NTRUNC, NTRUNCMX, NLA, NLA_LA, NLA_GLB, NLADIM, NLARH
@@ -96,9 +89,9 @@
       INTEGER nitlap,nfldlap
 
 
-      COMMON/COMNDIM/NI, NIINC, NISUR, NIBEG, NIEND
-      COMMON/COMNDIM/NJ, NJINC, NJSUR, NJBEG
-      COMMON/COMNDIM/NJEND, NJLATH,NJMAX,NFLEV
+      COMMON/COMNDIM/NI, NIINC
+      COMMON/COMNDIM/NJ, NJINC
+      COMMON/COMNDIM/NJLATH,NJMAX,NFLEV
       COMMON/COMNDIM/NVGD, NVG2D, NVGAUX,NKGDIM
       COMMON/COMNDIM/NTRUNC, NTRUNCMX, NLA, NLA_LA, NLA_GLB, NLADIM, NLARH
       COMMON/COMNDIM/NVSP, NVSP2D, NVSAUX, NKSDIM, NKSDIM2

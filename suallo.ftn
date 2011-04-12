@@ -126,13 +126,13 @@ C     .         -------------------------------------------------------
 C
  210  CONTINUE
 C
-      ILEN = (NIEND - NIBEG + 1)*NKGDIM*(NJEND -NJBEG +1)
+      ILEN = (NI)*NKGDIM*(NJ)
       CALL HPALLOC(PTGD,MAX(ILEN,1),IERR,8)
       IF(NCONF.NE.307) THEN
          CALL HPALLOC(PTGD1,MAX(ILEN,1),IERR,8)
        END IF
 cbue
-       ILEN=(NJEND -NJBEG +1)*(NIEND -NIBEG +1)*NFLEV
+       ILEN=(NJ)*(NI)*NFLEV
        CALL HPALLOC(PTTB0,MAX(ILEN,1),IERR,8)
        CALL HPALLOC(PTTB1,MAX(ILEN,1),IERR,8)
        ILEN = NLA*2*NFLEV
@@ -180,72 +180,72 @@ C
         if(jvar .eq. nguu) then
           NGPOSIT(nguu)=iloc
           if(NGEXIST(nguu).eq.1) then
-            PTUT0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTUT1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTUT0   = LOC(GD(1,iloc,1))
+            PTUT1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngvv) then
           NGPOSIT(ngvv)=iloc
           if(NGEXIST(ngvv).eq.1) then
-            PTVT0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTVT1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTVT0   = LOC(GD(1,iloc,1))
+            PTVT1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nggz) then
           NGPOSIT(nggz)=iloc
           if(NGEXIST(nggz).eq.1) then
             write(nulout,*) 'suallo: GZ allocated'
-            PTGZ0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTGZ1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTGZ0   = LOC(GD(1,iloc,1))
+            PTGZ1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngq) then
           NGPOSIT(ngq)=iloc
           if(NGEXIST(ngq).eq.1) then
-            PTQ0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTQ1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTQ0   = LOC(GD(1,iloc,1))
+            PTQ1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngtt) then
           NGPOSIT(ngtt)=iloc
           if(NGEXIST(ngtt).eq.1) then
-            PTT0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTT1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTT0   = LOC(GD(1,iloc,1))
+            PTT1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngoz) then
           NGPOSIT(ngoz)=iloc
           if(NGEXIST(ngoz).eq.1) then
-            PTOZ0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTOZ1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTOZ0   = LOC(GD(1,iloc,1))
+            PTOZ1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngtr) then
           NGPOSIT(ngtr)=iloc
           if(NGEXIST(ngtr).eq.1) then
-            PTTR0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTTR1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTTR0   = LOC(GD(1,iloc,1))
+            PTTR1   = LOC(GD1(1,iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. ngps) then
           NGPOSIT(ngps)=iloc
           if(NGEXIST(ngps).eq.1) then
-            PTGPS0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTGPS1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTGPS0   = LOC(GD(1,iloc,1))
+            PTGPS1   = LOC(GD1(1,iloc,1))
             iloc = iloc + 1
           end if
         elseif(jvar .eq. ngtg) then
           NGPOSIT(ngtg)=iloc
           if(NGEXIST(ngtg).eq.1) then
-            PTGTG0   = LOC(GD(NIBEG,iloc,NJBEG))
-            PTGTG1   = LOC(GD1(NIBEG,iloc,NJBEG))
+            PTGTG0   = LOC(GD(1,iloc,1))
+            PTGTG1   = LOC(GD1(1,iloc,1))
             iloc = iloc + 1
           end if
         endif
       enddo
 C
-      ILEN = (NIEND - NIBEG + 1)*NKGDIM*(NJEND -NJBEG +1)
-      ILENUT0 = (NIEND - NIBEG + 1)*NFLEV*(NJEND - NJBEG +1)
+      ILEN = (NI)*NKGDIM*(NJ)
+      ILENUT0 = (NI)*NFLEV*(NJ)
 C
       WRITE(KULOUT,FMT='(/,''  Arrays in COMGD0 are allocated'',
      S     '' the following space:'')')
@@ -446,7 +446,7 @@ C
       enddo
 C
 !cluc      ILEN = NI*NJ*NKGDIM   ! replaced by following line for Hemis. spectral mode.
-      ILEN = (NIEND - NIBEG + 1)*NKGDIM*(NJEND -NJBEG +1) 
+      ILEN = (NI)*NKGDIM*(NJ) 
       CALL HPALLOC(PTDAMPLIBG,MAX(ILEN,1),IERR,8)
 C
       ILENSPV = NLA * 2 * NFLEV
@@ -474,7 +474,7 @@ C*    4. Arrays needed to define the geometry of the model (in COMGEM)
 C     .  ------------------------------------------------------------
 C
  400  CONTINUE
-      ILEN = (NJEND -NJBEG +1)
+      ILEN = NJ
       CALL HPALLOC(PTILON,MAX(ILEN,1),IERR,1)
 C
       WRITE(KULOUT,FMT='(/,"  Arrays in COMGEM are allocated",
@@ -486,7 +486,7 @@ C
       WRITE(KULOUT,FMT='(8X," (RNNP1,R1SNP1)  =",I4)')ILEN
 C
 C
-      ILEN = NJEND -NJBEG +1
+      ILEN = NJ
       CALL HPALLOC(PTCONPHY,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTCONIMA,MAX(ILEN,1),IERR,8)
 !!!
