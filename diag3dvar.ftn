@@ -42,8 +42,6 @@
 *           - Change  parameter to nlev in do loop to calculate t unbalance
 *          C. Charette - ARMA/SMC - Sept 2004
 *           - Conversion to hybrid vertical coordinate
-*          M. Buehner - ARMA - May 2008
-*           - Modified calculation of Tb when NANALVAR=4
 *
 *Arguments
 *     i-  CDPPTYP :  type of post-processing
@@ -73,7 +71,6 @@ C
 #include "comsp1.cdk"
 #include "localpost.cdk"
 #include "comstate.cdk"
-#include "comweight.cdk"
 *
 *     Arguments
 *
@@ -111,34 +108,6 @@ c
       enddo
       call lt2tvgd(ztv,zttb,zhug,ni,nj,nflev)
       call ltt2phigd(zgz,ztv,zpsb,zpsg,zpt) ! Total GZ
-c
-c     *** Balanced TT,ps ***
-c
-      if(nanalvar.eq.4) then
-        do jlat = 1, nj
-          ilon = nilon(jlat)
-          do jlon = 1, ilon
-            do jlev = 1, nflev
-              zttb(jlon,jlev,jlat)=tb_out(jlon,jlev,jlat)
-            enddo
-          enddo
-        enddo
-      else
-!modular1        call balptot(zttb,zpsb,zpp,zcc,1,ni,1,nj,nflev)
-      endif
-c
-c     *** Unbalanced TT,ps ***
-c
-      do jlat = 1, nj
-        ilon = nilon(jlat)
-        do jlon = 1, ilon
-          do jlev = 1, nflev
-            zttu(JLON,JLEV,JLAT)=tt0(JLON,JLEV,JLAT)
-     &           -zttb(JLON,JLEV,JLAT)
-          enddo
-          zpsu(JLON,JLAT)=gps0(JLON,1,JLAT)-zpsb(JLON,JLAT)
-        enddo
-      enddo
 c
 c     *** GZ (Balanced, Unbalanced) ***
 c

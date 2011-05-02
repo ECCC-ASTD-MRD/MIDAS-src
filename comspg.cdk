@@ -23,56 +23,6 @@ C     SPTRG (NLA,2,NFLEV)   : undefined passive tracer
 C     SPPSG (NLA,2,1)       : surface pressure
 C     SPTGG (NLA,2,1)       : ground temperature
 C
-C     2. Spectral  forecast error correlation assumed to be diagonal
-C     .  ----------------------------------------------------------
-C     CORG(NLA,2,NKSDIM):  global state
-C
-C     Splitting of SPG
-C     ----------------
-C     CORVORG(NLA,2,NFLEV)   :   vorticity error correlation
-C     CORDIVG(NLA,2,NFLEV)   :  divergence  error correlation
-C     CORTTG (NLA,2,NFLEV)   : temperature  error correlation
-C     CORQG  (NLA,2,NFLEV)   : specific humidity error correlation
-C     CORGZG (NLA,2,NFLEV)   : geopotential error correlation
-C     COROZG (NLA,2,NFLEV)   : ozone error correlation
-C     CORTRG (NLA,2,NFLEV)   : undefined passive tracer error correlation
-C     CORPSG (NLA,2,1)       : surface pressure
-C     CORTGG (NLA,2,1)       : ground temperature
-C
-C     3. Standard deviation of the forecast error in spectral space
-C     .  ----------------------------------------------------------
-C     RDEVSTD(NKSDIM)        : standard error deviation for all variables
-C
-C     Splitting of RDEVSTD
-C     --------------------
-C     RDEVVOR(NFLEV )        :    "       "      "       "   vorticity
-C     RDEVDIV(NFLEV )        :    "       "      "       "  divergence
-C     RDEVTT (NFLEV )        :    "       "      "       "  temperature
-C     RDEVGZ (NFLEV )        :    "       "      "       "  geopotential
-C     RDEVOZ (NFLEV )        :    "       "      "       "  ozone
-C     RDEVTR (NFLEV )        :    "       "      "       "  passive tracer
-C     RDEVQ  (NFLEV )        :    "       "      "       "  specific humidity
-C     RDEVPS (NFLEV )        :    "       "      "       "  surface pressure
-C     RDEVTG (NFLEV )        :    "       "      "       "  ground temperature
-C
-C
-C
-C     4. Standard deviation of the forecast error in physical space
-C     .  ----------------------------------------------------------
-C     RGSIG(NJ,NKGDIM)        : standard error deviation for all variables
-C
-C     Splitting of RGSIG
-C     --------------------
-C     RGSIGUU(NJ,NFLEV )        :    "       "      "       "  zonal wind
-C     RGSIGVV(NJ,NFLEV )        :    "       "      "       "  meridional wind
-C     RGSIGTT(NJ,NFLEV )        :    "       "      "       "  temperature
-C     RGSIGGZ (NJ,NFLEV )       :    "       "      "       "  geopotential
-C     RGSIGOZ (NJ,NFLEV )       :    "       "      "       "  ozone
-C     RGSIGTR (NJ,NFLEV )       :    "       "      "       "  passive tracer
-C     RGSIGQ (NJ,NFLEV )        :    "       "      "       "  specific humidity
-C     RGSIGPS(NJ,NFLEV )        :    "       "      "       "  surface pressure
-C     RGSIGTG(NJ,NFLEV )        :    "       "      "       "  ground temperature
-C
 #endif
       REAL*8  SPG(NLA,2,NKSDIM)
      S      , SPVORG(NLA,2,NKSDIM)
@@ -90,80 +40,6 @@ C
      S     , (PTGZG,SPGZG), (PTOZG,SPOZG), (PTTRG,SPTRG)
      S     , (PTSPQG,SPQG), (PTSPPSG,SPPSG), (PTSPTGG,SPTGG)
 C
-      REAL*8  CORG(NLA,2,NKSDIM)
-     S      , CORVORG(NLA,2,NKSDIM)
-     S      , CORDIVG(NLA,2,NKSDIM)
-     S      , CORTTG (NLA,2,NKSDIM)
-     S      , CORQG  (NLA,2,NKSDIM)
-     S      , CORGZG (NLA,2,NKSDIM)
-     S      , COROZG (NLA,2,NKSDIM)
-     S      , CORTRG (NLA,2,NKSDIM)
-     S      , CORPSG (NLA,2,NKSDIM)
-     S      , CORTGG (NLA,2,NKSDIM)
-C
-      POINTER (PTCORG,CORG), (PTCVORG,CORVORG), (PTCDIVG,CORDIVG)
-     S     ,  (PTCTTG,CORTTG)
-     S     ,  (PTCQG,CORQG)
-     S     ,  (PTCGZG,CORGZG)
-     S     ,  (PTCOZG,COROZG)
-     S     ,  (PTCTRG,CORTRG)
-     S     ,  (PTCPSG,CORPSG)
-     S     ,  (PTCTGG,CORTGG)
-C
-      REAL*8 RDEVSTD(NKSDIM), RDEVVOR(NKSDIM), RDEVDIV(NKSDIM)
-     S     , RDEVTT(NKSDIM), RDEVQ(NKSDIM)
-     S     , RDEVGZ(NKSDIM), RDEVOZ(NKSDIM), RDEVTR(NKSDIM)
-     S     , RDEVPS(NKSDIM), RDEVTG(NKSDIM)
-C
-      POINTER (PTDEVSTD,RDEVSTD),(PTDEVVOR,RDEVVOR)
-     S     ,  (PTDEVDIV,RDEVDIV), (PTDEVTT,RDEVTT)
-     S     , (PTDEVGZ,RDEVGZ), (PTDEVOZ,RDEVOZ), (PTDEVTR,RDEVTR)
-     S     ,(PTDEVQ,RDEVQ)
-     S     ,  (PTDEVPS,RDEVPS),  (PTDEVTG,RDEVTG)
-C
-      REAL*8 RGSIG(NJ,NKGDIM),RGSIGUU(NJ,NKGDIM)
-     S     , RGSIGVV(NJ,NKGDIM),RGSIGTT(NJ,NKGDIM)
-     S     , RGSIGGZ (NJ,NKGDIM), RGSIGOZ(NJ,NKGDIM)
-     S     , RGSIGTR(NJ,NKGDIM)
-     S     , RGSIGQ(NJ,NKGDIM),RGSIGPS(NJ,NKGDIM)
-     S     , RGSIGTG(NJ,NKGDIM),RGSIGTB(NJ,NFLEV)
-     S     , RGSIGPSB(NJ)
-C
-      POINTER (PTSIG,RGSIG),(PTSIGUU,RGSIGUU),(PTSIGVV,RGSIGVV)
-     S     ,(PTSIGTT,RGSIGTT),(PTSIGQ,RGSIGQ)
-     S     ,(PTSIGTR,RGSIGTR), (PTSIGGZ,RGSIGGZ), (PTSIGOZ,RGSIGOZ)
-     S     ,(PTSIGPS,RGSIGPS),(PTSIGTG,RGSIGTG),(PTSIGTB,RGSIGTB)
-     S     ,(PTSIGPSB,RGSIGPSB)
-C
-      REAL*8 RGSIG3D(NI,NKGDIM,NJ),
-     S       RGSIGUU3D(NI,NKGDIM,NJ),
-     S       RGSIGVV3D(NI,NKGDIM,NJ),
-     S       RGSIGTT3D(NI,NKGDIM,NJ),
-     S       RGSIGGZ3D(NI,NKGDIM,NJ),
-     S       RGSIGOZ3D(NI,NKGDIM,NJ),
-     S       RGSIGTR3D(NI,NKGDIM,NJ),
-     S       RGSIGQ3D (NI,NKGDIM,NJ),
-     S       RGSIGPS3D(NI,NKGDIM,NJ),
-     S       RGSIGTG3D(NI,NKGDIM,NJ)
-C
-      POINTER (PTSIG3D,RGSIG3D),(PTSIGUU3D,RGSIGUU3D)
-     S     ,(PTSIGVV3D,RGSIGVV3D)
-     S     ,(PTSIGTT3D,RGSIGTT3D),(PTSIGQ3D,RGSIGQ3D)
-     S     ,(PTSIGTR3D,RGSIGTR3D), (PTSIGGZ3D,RGSIGGZ3D)
-     S     ,(PTSIGOZ3D,RGSIGOZ3D)
-     S     ,(PTSIGPS3D,RGSIGPS3D),(PTSIGTG3D,RGSIGTG3D)
-C
       COMMON /POMSPG/PTSPG,PTSVORG,PTSDIVG,PTSTTG
      S     , PTSPQG, PTSPPSG, PTSPTGG,PTGZG,PTOZG,PTTRG
-     S     , PTCORG,PTCVORG,PTCDIVG,PTCTTG
-     S     , PTCQG, PTCGZG, PTCOZG, PTCTRG, PTCPSG, PTCTGG
-     S     , PTDEVSTD, PTDEVVOR, PTDEVDIV, PTDEVTT, PTDEVQ
-     S     , PTDEVGZ,PTDEVOZ, PTDEVTR
-     S     , PTDEVPS, PTDEVTG
-     S     , PTSIG, PTSIGUU, PTSIGVV, PTSIGTT, PTSIGQ
-     S     , PTSIGGZ, PTSIGOZ, PTSIGTR, PTSIGTB, PTSIGPSB
-     S     , PTSIGPS, PTSIGTG
-     S     , PTSIG3D, PTSIGUU3D, PTSIGVV3D, PTSIGTT3D, PTSIGQ3D
-     S     , PTSIGGZ3D, PTSIGOZ3D, PTSIGTR3D
-     S     , PTSIGPS3D, PTSIGTG3D
 

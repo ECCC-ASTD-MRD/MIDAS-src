@@ -16,7 +16,6 @@
 !
 subroutine oda_sqrtBT(da_v,na_vdim)
 !modular1  use modstag, only : lstagwinds
-  USE procs_topo 
   implicit none
   ! Dummies
   integer :: na_vdim ! dimension of the model state in error covariance space

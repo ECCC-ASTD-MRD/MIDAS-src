@@ -20,7 +20,6 @@
 ***s/r SUCOV  - Initializes the analysis Background term for the specific analysis configuration used.
 *
 #endif
-      USE procs_topo
       use bmatrixensemble_mod
       use bmatrixhi_mod
       IMPLICIT NONE
@@ -43,15 +42,15 @@
       cvdimhi=0
       cvdimens=0
 
-      write(*,*) 'Setting up the modular HI covariances...'
-      call bhi_setup(NTRUNC,NI,NJ,NFLEV,pressureProfile,cvdimhi)
-      write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
-      call flush(6)
-
-!      write(*,*) 'Setting up the ensemble covariances...'
-!      call ben_setup(2800.0d0,2.0d0,pressureProfile,31,ni,nj,nflev,nip1,cvdimens)
-!      write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+!      write(*,*) 'Setting up the modular HI covariances...'
+!      call bhi_setup(NTRUNC,NI,NJ,NFLEV,pressureProfile,cvdimhi)
+!      write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
 !      call flush(6)
+
+      write(*,*) 'Setting up the ensemble covariances...'
+      call ben_setup(2800.0d0,2.0d0,pressureProfile,31,ni,nj,nflev,nip1,cvdimens)
+      write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+      call flush(6)
 
       NVADIM=cvdimhi+cvdimens
       write(*,*) 'Dimension of TOTAL control vector:',nvadim

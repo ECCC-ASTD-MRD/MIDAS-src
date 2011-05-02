@@ -1,5 +1,4 @@
 #if defined (DOC) 
 C     COMDECK NAMCT0
 #endif
-      NAMELIST /NAMCT0/NCONF,NLFFT, NLATBD, LDEBUG,LTEST, LSIMOB,
-     &     cminmode
+      NAMELIST /NAMCT0/NCONF,cminmode

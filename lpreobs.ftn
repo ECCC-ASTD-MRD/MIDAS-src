@@ -53,7 +53,7 @@ C*1   Geopotential increments from Temperature increments
 C     ---------------------------------------------------
 C
  100  CONTINUE
-      if((.not.lsw).and.(NMVOEXIST(NOGZ).eq.1)) call ltt2phi
+      if(NMVOEXIST(NOGZ).eq.1) call ltt2phi
 C
 C*2   Analysis increments of humidity variable
 C     ----------------------------------------------------------------
@@ -63,7 +63,7 @@ C
 C     Analysis increments of ln(specific humidity) to increments of (T-Td)
 C     when analysis variable is lnq
 C
-      if((.not.lsw).and.chum.eq.'LQ') then
+      if(chum.eq.'LQ') then
         call lmhu2es
       endif
 C

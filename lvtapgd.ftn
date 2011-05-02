@@ -56,23 +56,16 @@ C prepared outside lvtapgd
 #include "comode.cdk"
 #include "comphy.cdk"
 #include "comgd1.cdk"
-#include "com1obs.cdk"
 *modules
 *
       real*8    pgz(ni,nflev,nj)
 *
       logical llprint
-      INTEGER IILOC,IJLOC
 **
 *      WRITE(nulout,FMT='(/,4X,"Starting LVTAPGD1D",//)')
 *      call vflush(nulout)
 
       llprint = .false.
-      if (llprint) then
-        IILOC = NI1OBSLO
-        IJLOC = NI1OBSLA
-        write(nulout,*) 'lvtapgd:iiloc,ijloc= ',iiloc,ijloc
-      endif
 c
 c tt1 : working vector of virtual temperatures.
 c

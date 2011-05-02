@@ -18,7 +18,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
   use oda_shared, only : dg_vbar
   use mod4dv, only : l4dvar
 !modular1  use modstag, only : lstagwinds
-  USE procs_topo
+  USE mpi_mod
   implicit none
   ! Argument declarations
   integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -62,7 +62,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
   if (na_indic .ne. 1) then ! No action taken if na_indic == 1
      nsim3d = nsim3d + 1
 
-     IF(myid == 0) write(nulout,*) 'Entering simvar for simulation ',nsim3d
+     IF(mpi_myid == 0) write(nulout,*) 'Entering simvar for simulation ',nsim3d
 
      dl_v = da_v + dg_vbar      !dg_vbar = sum(v) of previous outer-loops
 
@@ -92,10 +92,10 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
      da_J = dl_Jb + dl_Jo
      if (na_indic .eq. 3) then
         da_J = dl_Jo
-        IF(myid == 0) write(nulout,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') dl_Jo
+        IF(mpi_myid == 0) write(nulout,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') dl_Jo
      else
         da_J = dl_Jb + dl_Jo
-        IF(myid == 0) write(nulout,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
+        IF(mpi_myid == 0) write(nulout,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
      endif
 
      call oda_sqrtRm1(ncmomi,ncmoma)

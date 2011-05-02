@@ -42,7 +42,7 @@
 *Arguments: none
 *
 #endif
-      USE procs_topo 
+      USE mpi_mod
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -227,7 +227,7 @@ c      mvar = ibset(mvar,v2d_ptop) ! Pressure at model top
         mvar = ibset(mvar,icode)
       enddo
 
-      if (l4dvar .and.(.not.lcva_3db) .and. (myid == 0)) then
+      if (l4dvar .and. (mpi_myid == 0)) then
         istepobs = nint(dstepobs * 60.)
         clprof = trim(CEXC4DV) // '/init.prof'
         ihdl = prof_open(clprof,'WRITE','FILE')

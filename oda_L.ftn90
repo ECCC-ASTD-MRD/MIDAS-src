@@ -16,7 +16,7 @@
 !
 subroutine oda_L
   use mod4dv, only : l4dvar
-  USE procs_topo,only   : myid 
+  USE mpi_mod 
   implicit none
   !
   !Purpose: Localisation (3D) / Tangent Linear Model (4D) operator
@@ -26,12 +26,6 @@ subroutine oda_L
   !  ->Results are saved in COMMVO
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
-  !Revision:
-  !
-  ! Luc Fillion - ARMA/EC - Upgrade 3dvar in LU/GU mode to v_10_2_2.
-  ! Luc Fillion - ARMA/EC - 17 Jul 2009 - Introduce lcva_3db for 3dvar-fgat-TL-INMI.
-  ! Luc Fillion - ARMA/EC - 18 Nov 2009 - Introduce rotated Gaussian grid option and gd2mvogenad...
-  !
 #include "comdim.cdk"
 #include "comcva.cdk"
   ! Local declarations
@@ -39,8 +33,8 @@ subroutine oda_L
   integer :: ierr
   !
   call tmg_start (76, 'GD<->PROF')                          !
-  IF(L4DVAR.and.(.not.lcva_3db)) THEN
-!modular1     if(myid == 0) CALL PUTDX2('P')
+  IF(L4DVAR) THEN
+!modular1     if(mpi_myid == 0) CALL PUTDX2('P')
      call rpn_comm_barrier("GRID",ierr) 
 !modular1     CALL GETPROF
      nl_ilev = 1

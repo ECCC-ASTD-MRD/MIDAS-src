@@ -89,13 +89,6 @@ C
 C     2.  Observation arrays of COMOBA
 C
  200  CONTINUE
-      IF(LSIMOB.AND.NCONF/100.NE.4) THEN
-         NDATAMX = JPDATA*NMXOBS
-         NMXOBF  = 1
-         NOBTOT  = NMXOBS
-         NDATA   = NDATAMX
-         NOBFNUM = NMXOBF
-      ELSE
          NMXOBF  = 1
          NOBTOT  = NMXOBS
          NDATA   = NDATAMX
@@ -105,8 +98,6 @@ C* In this configuration, obs. are read from a file which should contain
 C  all of these parameters in a descriptive record
 C
 C*    ****** NOT YET IMPLEMENTED ************
-C
-      END IF
 C
       WRITE(KULOUT,*)' DIMENSIONS OF OBSERVATION ARRAYS:'
       WRITE(UNIT=KULOUT,FMT=9210)

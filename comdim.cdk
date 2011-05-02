@@ -6,18 +6,10 @@
 ! === 1. Dimensions in grid space =====
 !
 ! NJ     : number of rows of latitudes
-! NJINC: (incremental approach only) number of rows for low resolution model used
-!                for increments computation
 ! NJMAX  : overdimensioning of NJ to avoid memory bank conflicts
 ! NJLATH  : number of rows in the northern hemisphere
 !
 ! NI     : length of a row of latitude
-! NIINC  : (incremental approach only) length of a row of latitude for low
-!     .     resolution model used for increments computation
-! mni_in: LAM4D: number of gridpoints in the I-direction of the non-extended (i.e. inner) analysis grid
-! mnj_in: LAM4D: number of gridpoints in the J-direction of the non-extended (i.e. inner) analysis grid
-! mni_in2: LAM4D: number of gridpoints in the I-direction of the non-extended (i.e. inner) embedded grid
-! mnj_in2: LAM4D: number of gridpoints in the J-direction of the non-extended (i.e. inner) embedded grid
 !
 ! NFLEV  : number of levels in the model
 !
@@ -25,20 +17,12 @@
 !    --------------------------------------------
 ! NVGD   : number of basic model variables (found at all levels)
 ! NVG2D  : number of 2D fields (e.g. surface pressure)
-! NVGAUX : number of auxiliary fields (found at some or all levels)
 ! NKGDIM : total number of 2D fields in the model state in grid space
 !
 ! === 2. Dimensions in spectral space ================================
 !
 !     NTRUNC   : triangular truncation order
-!     NTRUNCINC   :  (incremental approach only) triangular truncation order for low resolution model
-!     NTRUNCMX : >= NTRUNC. Used for overdimensioning to avoid memory
-!     .                     bank conflicts
 !     NLA      : number of spectral coefficients (complex)
-!     NLA_LA   : number of spectral coefficients (complex) for LAM grid
-!     NLA_GLB  : number of spectral coefficients (complex) for GLOBAL grid
-!     NLADIM   : >= NLA.   Used for overdimensioning to avoid memory
-!     .                    bank conflicts
 !     NLARH    : number of elements in a spectral array dimensioned
 !     ...        as SPX(0:NTRUNC,0:NTRUNC)
 !
@@ -46,57 +30,25 @@
 !    ------------------------------------------------
 ! NVSP    : number of basic model variables (found at all levels)
 ! NVSP2D  : number of 2D fields (e.g. surface pressure)
-! NVSAUX  : number of auxiliary fields (found at some or all levels)
 ! NKSDIM  : total number of 2D fields in the model state in grid space
-! nband   : Number of spectral total wavenumber bands considered (normally ntrunc+1 for 'GU' mode)
-!           but nband is determined specifically in sufftla.ftn for 'LU mode.
-! === 2.2 Dimensions in Bi-Fourier space  ================================
-!
-! nfi,nfj : Number of Fourier wavenumbers on LAM grid
-! nfi2,nfj2 : Number of Fourier wavenumbers on embedded LAM grid
-! nbimax  :
-! nbandmax:
-! mlen1d  : save space dimension for 1D-FFT NCAR.
-! mlen2d  : save space dimension for 2D-FFT NCAR.
 !
 ! === 3. Dimensions for the control variable  ================================
 !
 ! NVADIM  : dimension of the control variable
 !
-! === 4. Dimensions for fields related to physical processes  ================================
-!
-! maxconvpt  : Maximum allowed convective points on the minimization grid.
-!
-! === 5. Dimensions for ptotla with a tile approach ================================
-!
-! maxtiles  : Maximum allowed horizontal tiles for ptot regression.
-!
-! === 6. Dimensions for Poisson Solver  ================================
-!
-! nitlap  : Number of iterations for the iterative Poisson solver.
-! nfldlap : Number of 3d fields kept for TL/AD iterative Poisson solver.
-!
 #endif
 
-      INTEGER NI, NIINC, NJ, NJINC
+      INTEGER NI, NJ
       INTEGER NJLATH, NJMAX
-      INTEGER NFLEV, NVGD, NVG2D, NVGAUX, NKGDIM
-      INTEGER NTRUNC, NTRUNCMX, NLA, NLA_LA, NLA_GLB, NLADIM, NLARH
-      INTEGER NVSP, NVSP2D, NVSAUX, NKSDIM, NKSDIM2
-      INTEGER NVADIM, NTRUNCINC, nband
-      INTEGER nfi, nfj, nfi2, nfj2, nbimax, mlen1d, mlen2d, maxconvpt
-      INTEGER nbandmax,maxtiles,mni_in,mnj_in,mni_in2,mnj_in2
-      INTEGER nitlap,nfldlap
+      INTEGER NFLEV, NVGD, NVG2D, NKGDIM
+      INTEGER NTRUNC, NLA, NLARH
+      INTEGER NVSP, NVSP2D, NKSDIM, NKSDIM2
+      INTEGER NVADIM
 
-
-      COMMON/COMNDIM/NI, NIINC
-      COMMON/COMNDIM/NJ, NJINC
+      COMMON/COMNDIM/NI
+      COMMON/COMNDIM/NJ
       COMMON/COMNDIM/NJLATH,NJMAX,NFLEV
-      COMMON/COMNDIM/NVGD, NVG2D, NVGAUX,NKGDIM
-      COMMON/COMNDIM/NTRUNC, NTRUNCMX, NLA, NLA_LA, NLA_GLB, NLADIM, NLARH
-      COMMON/COMNDIM/NVSP, NVSP2D, NVSAUX, NKSDIM, NKSDIM2
-      COMMON/COMNDIM/NVADIM, NTRUNCINC, nband
-      COMMON/COMNDIM/nfi, nfj, nfi2, nfj2, nbimax, mlen1d, mlen2d, maxconvpt
-      COMMON/COMNDIM/nbandmax,maxtiles,mni_in,mnj_in,mni_in2,mnj_in2
-      COMMON/COMNDIM/nitlap,nfldlap
-
+      COMMON/COMNDIM/NVGD, NVG2D,NKGDIM
+      COMMON/COMNDIM/NTRUNC, NLA, NLARH
+      COMMON/COMNDIM/NVSP, NVSP2D, NKSDIM, NKSDIM2
+      COMMON/COMNDIM/NVADIM

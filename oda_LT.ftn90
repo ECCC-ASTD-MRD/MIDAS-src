@@ -16,7 +16,7 @@
 !
 subroutine oda_LT
   use mod4dv, only : l4dvar
-  USE procs_topo,only : myid 
+  USE mpi_mod
   implicit none
   !
   !Purpose: Adjoint of Localisation (3D) / Adjoint Model (4D) operator
@@ -32,10 +32,6 @@ subroutine oda_LT
   !
   ! Luc Fillion - ARMA/EC - 5 May 2009 - Upgrade 3dvar LU/GU to v_10_2_2.
   ! Bin HE     - ARMA/MRB  - Oct. 2009 - Implemented MPI to 3DVAR. 
-  ! Luc Fillion - ARMA/EC - 17 Jul 2009 - Introduce lcva_3db for 3dvar-fgat-TL-INMI.
-  ! Luc Fillion - ARMA/EC - 18 Nov 2009 - Introduce rotated Gaussian grid option and gd2mvogenad...
-  ! Luc Fillion - ARMA/EC - 5 May 2010 - Upgrade regional development to v_11_01_2b:
-  !                         - Change logical parameters and introduce general gd2mvogenad.	
   !
 #include "comdim.cdk"
 #include "comcva.cdk"
@@ -53,7 +49,7 @@ subroutine oda_LT
   call tmg_start(76,'GD<->PROF')
   GD=0.0D0
   sizegd=size(GD) 
-  if(l4dvar.and.(.not.lcva_3db)) then
+  if(l4dvar) then
      !
      !     Communicate adjoint profiles to the adjoint model
      !     
@@ -61,7 +57,7 @@ subroutine oda_LT
      !     
      !     and wait for its backward integration (gridded) results
      !     
-!modular1     if(myid == 0) call getdx('A')
+!modular1     if(mpi_myid == 0) call getdx('A')
      CALL rpn_comm_bcast(GD,sizegd,"mpi_double_precision",0,"GRID",ierr)
      CALL gd2mvoad('TG',1)
   else

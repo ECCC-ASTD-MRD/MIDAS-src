@@ -74,7 +74,7 @@ c
       INTEGER IERR,ILEN
       real*8 zpresb,zpresbd,zterm
 
-      INTEGER myid,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
+      INTEGER mythread,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
 C
       LLPRINT = .false.
 *
@@ -104,11 +104,11 @@ c*2   Computation of virtual temperature increments
 c     ---------------------------------------------
 c
  200  continue
-!$OMP PARALLEL PRIVATE(jobs,jlev,myid,numthd,zpresb,zterm,zpresbd,zcon)
-!$OMP+ PRIVATE(zfactt,zfacps,zdelt,zdelps)
-      myid=omp_get_thread_num()+1
+!$OMP PARALLEL PRIVATE(jobs,jlev,mythread,numthd,zpresb,zterm,zpresbd)
+!$OMP+ PRIVATE(zcon,zfactt,zfacps,zdelt,zdelps)
+      mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = myid, nobtot,numthd
+      do jobs = mythread, nobtot,numthd
         do jlev = 1, nflev
           gomt1(jlev,jobs) = oltv(1,jlev,jobs)*gomt(jlev,jobs) + oltv(2
      &         ,jlev,jobs)*gomq1(jlev,jobs)

@@ -21,9 +21,11 @@
 !
 ! Dependencies:
 !    glbspec_mod
+!    matsqrt
+!    mxmaop
 !--------------------------------------------------------------------------
 MODULE BmatrixEnsemble_mod 
-
+  use mpi_mod
   implicit none
   save
   private
@@ -34,7 +36,8 @@ MODULE BmatrixEnsemble_mod
   real*8,allocatable  :: ensLocalVert(:,:)
   real*4,allocatable  :: ensPerturbations(:,:,:,:,:)
   integer,allocatable :: nip1_l(:),verticalLevel(:)
-  integer             :: nj_l,ni_l
+  integer,allocatable :: jn_vec(:)
+  integer             :: nj_l,ni_l,latPerPE,maxLatPerPE,maxLatEnd
   integer             :: nflev_l,nkgdim_l
   integer             :: ntrunc_l,nla_l
   integer             :: nens_l,cvDim_l,cvDimPerMember_l
@@ -50,7 +53,7 @@ CONTAINS
     real*8         :: ztlen_in,verticalScale_in,pressureProfile_in(:)
     integer        :: ntrunc_in,ni_in,nj_in,nflev_in,nip1_in(:)
     integer        :: cvDim_out
-    integer        :: jlev
+    integer        :: jlev,jn,jm,ila,njlath_l,mpiMode
 
     nflev_l=nflev_in
     nkgdim_l=4*nflev_l+2  ! assume 4 3d and 2 2d variables
@@ -70,11 +73,52 @@ CONTAINS
     ni_l=ni_in
     nj_l=nj_in
 
+    if(mpi_myLatBeg.eq.0) then
+      write(*,*) 'setting up local variables for process:',mpi_myid
+      latPerPE=ceiling(dble(nj_l)/dble(mpi_nprocs))
+      mpi_myLatBeg=1+mpi_myid*latPerPE
+      mpi_myLatEnd=(1+mpi_myid)*latPerPE
+      maxLatPerPE=latPerPE
+      maxLatEnd=mpi_myLatEnd
+      if(mpi_myLatEnd>nj_l) then
+        write(*,*) 'WARNING: latitudes not divisible by MPI numprocs!',mpi_myLatEnd,nj_l
+        mpi_myLatEnd=nj_l
+        call flush(6)
+        !call exit(-1)
+        mpi_myLatEnd=nj_l
+        latPerPE=mpi_myLatEnd-mpi_myLatBeg+1
+      endif
+      write(*,*) 'latPerPE=',latPerPE
+      write(*,*) 'mpi_myLatBeg+End=',mpi_myLatBeg,mpi_myLatEnd
+
+      njlath_l = (nj_l + 1)/2
+      if(mpi_myLatBeg<=njlath_l .and. mpi_myLatEnd<=njlath_l) then
+        mpi_myLatHalfBeg=mpi_myLatBeg
+        mpi_myLatHalfEnd=mpi_myLatEnd
+      elseif(mpi_myLatBeg>=njlath_l .and. mpi_myLatEnd>=njlath_l) then
+        mpi_myLatHalfBeg=1+nj_l-mpi_myLatEnd
+        mpi_myLatHalfEnd=1+nj_l-mpi_myLatBeg
+      else
+        mpi_myLatHalfBeg=min(mpi_myLatBeg,1+nj_l-mpi_myLatEnd)
+        mpi_myLatHalfEnd=njlath_l
+      endif  
+      write(*,*) 'mpi_myLatHalfBeg+End=',mpi_myLatHalfBeg,mpi_myLatHalfEnd
+    endif
+
     allocate(nip1_l(nflev_l))
     nip1_l(1:nflev_l)=nip1_in(1:nflev_l)
 
-    gstID = gst_setup(6,ni_l,nj_l,ntrunc_l)
+    mpiMode=1
+    gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
     write(*,*) 'BEN:returned value of gstID=',gstID
+
+    allocate(jn_vec(nla_l))
+    do jn=0,ntrunc_l
+      do jm=0,jn
+        ila = gst_getnind(jm,gstID)+jn-jm
+        jn_vec(ila)=jn
+      enddo
+    enddo
 
     call setupLocalization(ztlen_in,verticalScale_in,pressureProfile_in)
 
@@ -92,14 +136,17 @@ CONTAINS
     implicit none
  
     real*8 :: gd2d(ni_l,nj_l)
-    real*8 :: dnens,dnens3,rmsknt,rmbtpa,r1sa,conima
+    real*4, allocatable :: ensPerturbation1(:,:,:,:) 
+    real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
     real*8 :: rhumin = 2.5d-6
-    integer :: ji,jj,jt,jk,jens
+    integer :: ji,jj,jt,jk,jens,jpe,jlatband
+    integer :: iens,batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin
     integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
+    integer :: readFilePE(192),allLatBeg(192),allLatEnd(192)
 
     ! standard file variables
-    integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo,ikey
+    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo,ikey
     character*1 cltypvar,clgrtyp
     character*2 clnomvar
     character*8 cletiket
@@ -123,7 +170,7 @@ CONTAINS
 
     ! parameters set from the ensemble member files
     nens_l=99
-    ntime_l=1
+    ntime_l=5
     cflens(1) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_001'
     cflens(2) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_002'
     cflens(3) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_003'
@@ -223,163 +270,311 @@ CONTAINS
     cflens(97)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_097'
     cflens(98)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_098'
     cflens(99)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_099'
+    cflens(100)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_100'
+    cflens(101)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_101'
+    cflens(102)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_102'
+    cflens(103)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_103'
+    cflens(104)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_104'
+    cflens(105)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_105'
+    cflens(106)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_106'
+    cflens(107)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_107'
+    cflens(108)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_108'
+    cflens(109)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_109'
+    cflens(110)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_110'
+    cflens(111)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_111'
+    cflens(112)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_112'
+    cflens(113)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_113'
+    cflens(114)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_114'
+    cflens(115)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_115'
+    cflens(116)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_116'
+    cflens(117)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_117'
+    cflens(118)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_118'
+    cflens(119)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_119'
+    cflens(120)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_120'
+    cflens(121)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_121'
+    cflens(122)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_122'
+    cflens(123)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_123'
+    cflens(124)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_124'
+    cflens(125)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_125'
+    cflens(126)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_126'
+    cflens(127)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_127'
+    cflens(128)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_128'
+    cflens(129)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_129'
+    cflens(130)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_130'
+    cflens(131)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_131'
+    cflens(132)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_132'
+    cflens(133)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_133'
+    cflens(134)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_134'
+    cflens(135)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_135'
+    cflens(136)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_136'
+    cflens(137)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_137'
+    cflens(138)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_138'
+    cflens(139)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_139'
+    cflens(140)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_140'
+    cflens(141)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_141'
+    cflens(142)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_142'
+    cflens(143)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_143'
+    cflens(144)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_144'
+    cflens(145)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_145'
+    cflens(146)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_146'
+    cflens(147)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_147'
+    cflens(148)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_148'
+    cflens(149)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_149'
+    cflens(150)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_150'
+    cflens(151)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_151'
+    cflens(152)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_152'
+    cflens(153)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_153'
+    cflens(154)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_154'
+    cflens(155)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_155'
+    cflens(156)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_156'
+    cflens(157)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_157'
+    cflens(158)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_158'
+    cflens(159)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_159'
+    cflens(160)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_160'
+    cflens(161)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_161'
+    cflens(162)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_162'
+    cflens(163)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_163'
+    cflens(164)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_164'
+    cflens(165)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_165'
+    cflens(166)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_166'
+    cflens(167)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_167'
+    cflens(168)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_168'
+    cflens(169)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_169'
+    cflens(170)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_170'
+    cflens(171)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_171'
+    cflens(172)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_172'
+    cflens(173)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_173'
+    cflens(174)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_174'
+    cflens(175)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_175'
+    cflens(176)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_176'
+    cflens(177)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_177'
+    cflens(178)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_178'
+    cflens(179)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_179'
+    cflens(180)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_180'
+    cflens(181)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_181'
+    cflens(182)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_182'
+    cflens(183)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_183'
+    cflens(184)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_184'
+    cflens(185)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_185'
+    cflens(186)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_186'
+    cflens(187)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_187'
+    cflens(188)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_188'
+    cflens(189)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_189'
+    cflens(190)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_190'
+    cflens(191)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_191'
+    cflens(192)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_192'
 
-    allocate(ensPerturbations(ni_l,nkgdim_l,nj_l,ntime_l,nens_l))
-
-    !ensPerturbations(:,:,:,:,:)=1.0
-    !ensPerturbations=ensPerturbations/sqrt(sngl(nens_l))
-
-    dnens=1.0d0/dble(nens_l)
-    dnens3=1.0d0/sqrt(2.0d0*dble(nens_l-1))
+    allocate(ensPerturbations(ni_l,nkgdim_l,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens_l))
+    allocate(ensPerturbation1(ni_l,nkgdim_l,nj_l,ntime_l))
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ - covariances)
-    ip2 = 6  ! 6 for 6h forecasts (3d-var), 3 for 3h forecasts (4d-var)
+    ip2(1) = 3  
+    ip2(2) = 4  
+    ip2(3) = 6  
+    ip2(4) = 7  
+    ip2(5) = 9  
     ip3=-1
     idateo = -1
     cltypvar = ' '
     cletiket = ' '
 
+    CALL rpn_comm_allgather(mpi_myLatBeg,1,"mpi_integer",       &
+                            allLatBeg,1,"mpi_integer","GRID",ierr)
+    CALL rpn_comm_allgather(mpi_myLatEnd,1,"mpi_integer",       &
+                            allLatEnd,1,"mpi_integer","GRID",ierr)
+
     do jens=1,nens_l
-      cflensin=cflens(jens)
-      write(*,*) 'Reading ENS from:',cflensin
+      readFilePE(jens)=mod(jens-1,mpi_nprocs)
+    enddo
 
-      kulin=0
-      ierr = fnom(kulin,cflensin,'RND',0)
-      write(*,*) 'ierr=',ierr,kulin
-      ierr = fstouv(kulin,'RND')
-      write(*,*) 'nens=',nens_l
-      write(*,*) 'TEST: ngposit,...=',ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
-      write(*,*) 'reading member:',jens
-      call flush(6)
+    do jens=1,nens_l
+      if(mpi_myid.eq.readFilePE(jens)) then
 
-      do jt=1,ntime_l  ! read all timesteps
+        cflensin=cflens(jens)
+        write(*,*) 'Reading ENS from:',cflensin
+        call flush(6)
 
-        clnomvar = 'P0' 
-        ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-        if(ikey.lt.0) then
-          write(*,*) 'SUENS: Problem with P0 ENS'
-          call flush(6)
-          call exit(-1)
-        endif
-        do jj=1,nj_l
-          do ji=1,ni_l
-            ensPerturbations(ji,ngpositps,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj)*rmbtpa)
-          enddo
-        enddo
+        kulin=0
+        ierr = fnom(kulin,cflensin,'RND',0)
+        ierr = fstouv(kulin,'RND')
+        write(*,*) 'reading member:',jens
+        call flush(6)
 
-        do jk=1,nflev_l
-          clnomvar = 'TT'
-          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
+        do jt=1,ntime_l  ! read all timesteps
+
+          clnomvar = 'P0' 
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
-            write(*,*) idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
-            write(*,*) 'SUENS: Problem with TT ENS'
-            call flush(6)
-            call exit(-1)
-          endif
-          call flush(6)
-          do jj=1,nj_l
-            do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngposittt,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj))
-            enddo
-          enddo
-        enddo
-
-        do jk=1,nflev_l
-          clnomvar = 'HU' 
-          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) then
-            write(*,*) idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
-            write(*,*) 'SUENS: Problem with HU ENS'
+            write(*,*) 'SUENS: Problem with P0 ENS'
             call flush(6)
             call exit(-1)
           endif
           do jj=1,nj_l
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngpositq,jj,jt,jens)= sngl(log(max(gd2d(ji,nj_l+1-jj),rhumin)))
+              ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmbtpa)
             enddo
           enddo
-        enddo
 
-        do jk=1,nflev_l
-          clnomvar = 'UU' 
-          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) then
-            write(*,*) idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
-            write(*,*) 'SUENS: Problem with UU ENS'
+          do jk=1,nflev_l
+            clnomvar = 'TT'
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with TT ENS'
+              call flush(6)
+              call exit(-1)
+            endif
+            call flush(6)
+            do jj=1,nj_l
+              do ji=1,ni_l
+                ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
+              enddo
+            enddo
+          enddo
+
+          do jk=1,nflev_l
+            clnomvar = 'HU' 
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with HU ENS'
+              call flush(6)
+              call exit(-1)
+            endif
+            do jj=1,nj_l
+              do ji=1,ni_l
+                ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,nj_l+1-jj),rhumin)))
+              enddo
+            enddo
+          enddo
+
+          do jk=1,nflev_l
+            clnomvar = 'UU' 
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with UU ENS'
+              call flush(6)
+              call exit(-1)
+            endif
+            do jj=1,nj_l
+              conima=r1sa*gst_getRSQM2(jj,gstID)
+              do ji=1,ni_l
+                ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt*conima)
+              enddo
+            enddo
+          enddo
+
+          do jk=1,nflev_l
+            clnomvar = 'VV' 
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with VV ENS'
+              call flush(6)
+              call exit(-1)
+            endif
+            do jj=1,nj_l
+              conima=r1sa*gst_getRSQM2(jj,gstID)
+              do ji=1,ni_l
+                ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt*conima)
+              enddo
+            enddo
+          enddo
+
+          clnomvar = 'TG' 
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
+          if(ikey.lt.0)  then
+            write(*,*) idateo,cletiket,ip2(jt),ip3,cltypvar,clnomvar
+            write(*,*) 'SUENS: Problem with TG ENS'
             call flush(6)
             call exit(-1)
-          endif
-          do jj=1,nj_l
-            conima=r1sa*gst_getRSQM2(jj,gstID)
-            do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngposituu,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt*conima)
+          else
+            do jj=1,nj_l
+              do ji=1,ni_l
+                ensPerturbation1(ji,ngposittg,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
+              enddo
             enddo
-          enddo
+          endif
+
         enddo
 
-        do jk=1,nflev_l
-          clnomvar = 'VV' 
-          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) then
-            write(*,*) idateo,cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
-            write(*,*) 'SUENS: Problem with VV ENS'
-            call flush(6)
-            call exit(-1)
-          endif
-          do jj=1,nj_l
-            conima=r1sa*gst_getRSQM2(jj,gstID)
-            do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngpositvv,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt*conima)
-            enddo
+        ierr =  fstfrm(kulin)
+        ierr =  fclos (kulin)
+
+        write(*,*) 'done reading member ',jens
+        call flush(6)
+      endif
+
+      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nens_l) then
+        batchnum=ceiling(dble(jens)/dble(mpi_nprocs))
+
+        ! for each read member, send each latitude band to the appropriate processor
+        do iens=1+(batchnum-1)*mpi_nprocs,jens
+          do jlatband=1,mpi_nprocs
+            pe_src=readFilePE(iens)
+            pe_dest=jlatband-1
+
+            if(pe_src.eq.pe_dest) then
+
+              ! do copy if latband already on appropriate processor
+              if(mpi_myid.eq.pe_src) then
+                ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,iens)=  &
+                ensPerturbation1(:,:,mpi_myLatBeg:mpi_myLatEnd,:)
+              endif
+
+            else
+
+              ! send latitude band to appropriate processor
+              if(mpi_myid.eq.pe_src) then
+                nsize=ni_l*nkgdim_l*(allLatEnd(jlatband)-allLatBeg(jlatband)+1)*ntime_l
+                call rpn_comm_send(ensPerturbation1(:,:,allLatBeg(jlatband):allLatEnd(jlatband),:),   &
+                                   nsize,"mpi_real4",pe_dest,pe_src*100+pe_dest,"GRID", ierr )
+              endif
+
+              ! receive the appropriate latitude band for this processor
+              if(mpi_myid.eq.pe_dest) then
+                nsize=ni_l*nkgdim_l*(allLatEnd(jlatband)-allLatBeg(jlatband)+1)*ntime_l
+                call rpn_comm_recv(ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,iens),  &
+                                   nsize,"mpi_real4",pe_src,pe_src*100+pe_dest,"GRID",status,ierr)
+              endif
+    
+            endif
+
           enddo
         enddo
+      endif
 
-        clnomvar = 'TG' 
-        ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-        if(ikey.lt.0)  then
-          write(*,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-          write(*,*) 'SUENS: Problem with TG ENS'
-          call flush(6)
-          call exit(-1)
-        else
-          do jj=1,nj_l
-            do ji=1,ni_l
-              ensPerturbations(ji,ngposittg,jj,jt,jens)= sngl(gd2d(ji,nj_l+1-jj))
-            enddo
-          enddo
-        endif
-
-      enddo
-
-      ierr =  fstfrm(kulin)
-      ierr =  fclos (kulin)
     enddo
     write(*,*) 'finished reading ensemble members...'
     call flush(6)
 
     ! remove mean and divide by sqrt(2*(NENS_l-1)) - extra 2 is needed?
+    dnens=1.0d0/dble(nens_l)
+    dnens2=1.0d0/sqrt(1.0d0*dble(nens_l-1))
+!    dnens2=1.0d0/sqrt(1.0d0*dble(nens_l))
     do jt=1,ntime_l
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
       do jk=1,nkgdim_l
         gd2d(:,:)=0.0d0
         do jens=1,nens_l
-          do jj=1,nj_l
+          do jj=mpi_myLatBeg,mpi_myLatEnd
             do ji=1,ni_l
               gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
             enddo
           enddo
         enddo
-        do jj=1,nj_l
+        do jj=mpi_myLatBeg,mpi_myLatEnd
           do ji=1,ni_l
             gd2d(ji,jj)=gd2d(ji,jj)*dnens
           enddo
         enddo
         do jens=1,nens_l
-          do jj=1,nj_l
+          do jj=mpi_myLatBeg,mpi_myLatEnd
             do ji=1,ni_l
               ensPerturbations(ji,jk,jj,jt,jens)=     &
-                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens3)
+                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens2)
             enddo
           enddo
         enddo
@@ -391,6 +586,7 @@ CONTAINS
     call flush(6)
 
     call tmg_stop(48)
+
   END SUBROUTINE setupEnsemble
 
 
@@ -399,7 +595,7 @@ CONTAINS
     implicit none
 
     real*8 zlc,zr,zpole,zcorr,ztlen,verticalScale,pressureProfile(:)
-    integer ilen,jn,jlat,jla,jlon,jk,jk1,jk2
+    integer ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
     real*8         :: zsp(nla_l,2,nflev_l)
     real*8         :: zgd(ni_l,nflev_l,nj_l)
     real*8         :: ra = 6371229.D0
@@ -425,7 +621,7 @@ CONTAINS
              else
                 zcorr= 0.0
              endif
-             write(300,*) 'LOCALIZATION FUNCTION1=',jk,jlat,zr/1000.0,zlc/1000.0,zcorr
+             !write(300,*) 'LOCALIZATION FUNCTION1=',jk,jlat,zr/1000.0,zlc/1000.0,zcorr
              do jlon=1,ni_l
                 zgd(jlon,jk,jlat)=zcorr
              enddo
@@ -437,6 +633,8 @@ CONTAINS
        call gst_setID(gstID)
        call gst_reespe(zsp,zgd,nflev_l,nflev_l)
        call gst_setToDefaultID
+       nsize=nla_l*2*nflev_l
+       call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
 
        ! Copy over to EnsLocalCor and truncate to NTRUNC
 
@@ -455,6 +653,8 @@ CONTAINS
        call gst_setID(gstID)
        call gst_speree(zsp,zgd,nflev_l,nflev_l)
        call gst_setToDefaultID
+       nsize=ni_l*nflev_l*nj_l
+       call RPN_COMM_allreduce(zgd,zgd,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
 
        ! Make sure it's one at the pole
 
@@ -476,15 +676,6 @@ CONTAINS
              !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
           enddo
        enddo
-       zsp(:,:,:)=0.0d0
-       do jk=1,nflev_l
-          do jn=0,ntrunc_l
-             zsp(jn+1,1,jk)=ensLocalCor(jn,jk)
-          enddo
-       enddo
-       call gst_setID(gstID)
-       call gst_speree(zsp,zgd,nflev_l,nflev_l)
-       call gst_setToDefaultID
 
        ! Convert back to correlations and take sqrt
 
@@ -523,7 +714,7 @@ CONTAINS
           zcorr= 0.0
         endif
         if(zcorr.lt.0.0) zcorr=0.0
-        write(95,*) 'VERT MASK=',jk1,jk2,zcorr
+        !write(95,*) 'VERT MASK=',jk1,jk2,zcorr
         ensLocalVert(jk1,jk2)=zcorr
       enddo
     enddo
@@ -544,16 +735,72 @@ CONTAINS
     real*8    :: controlVector_in(cvDim_l) 
     real*8    :: increment_out(ni_l,nkgdim_l,nj_l)
 
+    real*8    :: incrementLocal2(ni_l,nkgdim_l,ntime_l,mpi_myLatBeg:maxLatEnd)
+    real*8    :: incrementLocal(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l)
+    real*8    :: incrementMax(ni_l,nkgdim_l,ntime_l,maxLatPerPE*mpi_nprocs)
     real*8    :: ensControlVector(nla_l,2,nflev_l)
     real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
+    integer   :: ierr,nsize,jj,jk,ji,jt
+
+    call tmg_start(38,'comm_gd2')
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JJ,JK,JI)
+    do jj=mpi_myLatBeg,mpi_myLatEnd
+      do jk=1,nkgdim_l
+        do ji=1,ni_l
+          incrementLocal(ji,jk,jj,:)=increment_out(ji,jk,jj)
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    call tmg_stop(38)
 
     call tmg_start(46,'BSqrt')
     do memberIndex=1,nens_l
       call cain(controlVector_in,ensControlVector,memberIndex)
       call localizationSqrt(ensControlVector,ensAmplitude)
-      call addEnsMember(ensAmplitude,increment_out,memberIndex)
+      call addEnsMember(ensAmplitude,incrementLocal,memberIndex)
     enddo
     call tmg_stop(46)
+
+    call tmg_start(38,'comm_gd2')
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JJ,JT,JK,JI)
+    do jj=mpi_myLatBeg,mpi_myLatEnd
+      do jt=1,ntime_l
+        do jk=1,nkgdim_l
+          do ji=1,ni_l
+            incrementLocal2(ji,jk,jt,jj)=incrementLocal(ji,jk,jj,jt)
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    call tmg_stop(38)
+
+    call tmg_start(39,'comm_gd')
+    nsize=ni_l*nkgdim_l*maxLatPerPE*ntime_l
+    CALL rpn_comm_allgather(incrementLocal2,nsize,   &
+                            "mpi_double_precision",       &
+                            incrementMax,nsize,      &
+                            "mpi_double_precision","GRID",ierr)
+    call tmg_stop(39)
+
+    call tmg_start(38,'comm_gd2')
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JJ,JK,JI)
+    do jj=1,nj_l
+      do jk=1,nkgdim_l
+        do ji=1,ni_l
+          increment_out(ji,jk,jj)=incrementMax(ji,jk,3,jj)
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    call tmg_stop(38)
 
     return
   END SUBROUTINE BEN_BSqrt
@@ -565,41 +812,61 @@ CONTAINS
     real*8    :: controlVector_out(cvDim_l) 
     real*8    :: increment_in(ni_l,nkgdim_l,nj_l)
 
-    integer   :: memberIndex
+    real*8    :: incrementLocal(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l)
+    integer   :: memberIndex,jj,jk,ji,nsize,ierr
     real*8    :: ensControlVector(nla_l,2,nflev_l) 
     real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
 
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JJ,JK,JI)
+    do jj=mpi_myLatBeg,mpi_myLatEnd
+      do jk=1,nkgdim_l
+        do ji=1,ni_l
+          incrementLocal(ji,jk,jj,:)=0.0d0
+          incrementLocal(ji,jk,jj,3)=increment_in(ji,jk,jj)
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
     call tmg_start(47,'BSqrtAd')
     do memberIndex=1,nens_l
-      call addEnsMemberAd(increment_in,ensAmplitude,memberIndex)
+      call addEnsMemberAd(incrementLocal,ensAmplitude,memberIndex)
       call localizationSqrtAd(ensAmplitude,ensControlVector)
       call cainAd(ensControlVector,controlVector_out,memberIndex)
     enddo
     call tmg_stop(47)
 
+    call tmg_start(37,'comm_cv')
+    nsize=cvDim_l
+    call RPN_COMM_allreduce(controlVector_out,controlVector_out,nsize,    &
+                            "mpi_double_precision","mpi_sum","GRID",ierr)
+    call tmg_stop(37)
+
     return
   END SUBROUTINE BEN_BSqrtAd
 
 
-  SUBROUTINE addEnsMember(ensAmplitude_in,increment_out,memberIndex)
+  SUBROUTINE addEnsMember(ensAmplitude_in,incrementLocal_out,memberIndex)
     implicit none
 
     integer,intent(in)     :: memberIndex
     real*8      :: ensAmplitude_in(ni_l,nflev_l,nj_l)
-    real*8      :: increment_out(ni_l,nkgdim_l,nj_l)
+    real*8      :: incrementLocal_out(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l)
 
     integer     :: jk,jlev,jt,jj,ji
 
     call tmg_start(40,'addmem')
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
-    do jk=1,nkgdim_l
-      jlev=verticalLevel(jk)
+!$OMP DO PRIVATE (JJ,JT,JK,JLEV,JI)
+    do jj=mpi_myLatBeg,mpi_myLatEnd
       do jt=1,ntime_l
-        do jj=1,nj_l
+        do jk=1,nkgdim_l
+          jlev=verticalLevel(jk)
           do ji=1,ni_l
-            increment_out(ji,jk,jj)=increment_out(ji,jk,jj) +   &
+            incrementLocal_out(ji,jk,jj,jt)=incrementLocal_out(ji,jk,jj,jt) +   &
               ensAmplitude_in(ji,jlev,jj)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
           enddo
         enddo
@@ -613,26 +880,36 @@ CONTAINS
   END SUBROUTINE addEnsMember
 
 
-  SUBROUTINE addEnsMemberAd(increment_in,ensAmplitude_out,memberIndex)
+  SUBROUTINE addEnsMemberAd(incrementLocal_in,ensAmplitude_out,memberIndex)
     implicit none
 
     integer,intent(in)     :: memberIndex
     real*8      :: ensAmplitude_out(ni_l,nflev_l,nj_l)
-    real*8      :: increment_in(ni_l,nkgdim_l,nj_l)
+    real*8      :: incrementLocal_in(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l)
 
     integer     :: jk,jlev,jt,jj,ji
 
-    ensAmplitude_out(:,:,:)=0.0d0
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JJ,JLEV,JI)
+    do jj=mpi_myLatBeg,mpi_myLatEnd
+      do jlev=1,nflev_l
+        do ji=1,ni_l
+          ensAmplitude_out(ji,jlev,jj)=0.0d0
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
-    do jk=1,nkgdim_l
-      jlev=verticalLevel(jk)
+    do jj=mpi_myLatBeg,mpi_myLatEnd
       do jt=1,ntime_l
-        do jj=1,nj_l
+        do jk=1,nkgdim_l
+          jlev=verticalLevel(jk)
           do ji=1,ni_l
             ensAmplitude_out(ji,jlev,jj)=ensAmplitude_out(ji,jlev,jj) +   &
-              increment_in(ji,jk,jj)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
+              incrementLocal_in(ji,jk,jj,jt)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
           enddo
         enddo
       enddo
@@ -650,32 +927,17 @@ CONTAINS
     real*8           :: ensControlVector_in(nla_l,2,nflev_l)
     real*8           :: ensAmplitude_out(ni_l,nflev_l,nj_l)
 
-    real*8           :: zgd(ni_l,nflev_l,nj_l)
     real*8           :: zsp(nla_l,2,nflev_l)
     real*8           :: zsp2(nflev_l,2,nla_l)
     real*8           :: zsp3(nflev_l,2,nla_l)
     integer          :: jlev,jn,jm,ila,jla,jj,ji
-    integer          :: jn_vec(nla_l)
     real*8           :: rsq2
 
     rsq2=sqrt(2.0d0)
-    zgd(:,:,:)=0.0d0
 
     call tmg_start(41,'loc1')
-
 !$OMP PARALLEL 
-!$OMP DO PRIVATE (JN,JM,ILA)
-    do jn=0,ntrunc_l
-      do jm=0,jn
-        ila = gst_getnind(jm,gstID)+jn-jm
-        jn_vec(ila)=jn
-      enddo
-    enddo
-!$OMP END DO
-!$OMP END PARALLEL
-
-!$OMP PARALLEL 
-!$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
+!$OMP DO PRIVATE (JLEV,JN,JM,JLA)
     do jlev=1,nflev_l
        do jla=1,nla_l
           zsp(jla,1,jlev)=ensControlVector_in(jla,1,jlev)*ensLocalCor(jn_vec(jla),jlev)
@@ -688,12 +950,10 @@ CONTAINS
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
-
     call tmg_stop(41)
 
     ! Vertical localization
     call tmg_start(42,'loc2')
-
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLA,JLEV)
     do jla=0,nla_l
@@ -706,19 +966,6 @@ CONTAINS
 !$OMP END PARALLEL
     call mxmaop(ensLocalVert(1,1),1,nflev_l,zsp2(1,1,1),1,nflev_l   &
                ,zsp3(1,1,1),1,nflev_l,nflev_l,nflev_l,2*nla_l)
-!!$OMP PARALLEL DEFAULT(SHARED)
-!!$OMP DO PRIVATE(ila,jk1,jk)
-!    do ila = 1,nla_l
-!      do jk=1,nflev_l
-!        do jk1=1,nflev_l 
-!          zsp3(jk1,1,ila)=zsp3(jk1,1,ila)+ensLocalVert(jk1,jk)*zsp2(jk,1,ila)
-!          zsp3(jk1,2,ila)=zsp3(jk1,2,ila)+ensLocalVert(jk1,jk)*zsp2(jk,2,ila)
-!        enddo
-!      enddo
-!    enddo
-!!$OMP END DO
-!!$OMP END PARALLEL
-
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLA,JLEV)
     do jla=1,nla_l
@@ -729,29 +976,14 @@ CONTAINS
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
-
     call tmg_stop(42)
 
     ! now transform to grid-point space
     call tmg_start(43,'loc3')
     call gst_setID(gstID)
-    call gst_speree(zsp,zgd,nflev_l,nflev_l)
+    call gst_speree(zsp,ensAmplitude_out,nflev_l,nflev_l)
     call gst_setToDefaultID
     call tmg_stop(43)
-
-    call tmg_start(44,'loc4')
-!$OMP PARALLEL 
-!$OMP DO PRIVATE (JJ,JLEV,JI)
-    do jj = 1, nj_l
-      do jlev=1,nflev_l
-        do ji = 1, ni_l
-          ensAmplitude_out(ji,jlev,jj)=zgd(ji,jlev,jj)
-        enddo
-      enddo
-    enddo
-!$OMP END DO
-!$OMP END PARALLEL
-    call tmg_stop(44)
 
   END SUBROUTINE localizationSqrt
 
@@ -763,76 +995,48 @@ CONTAINS
     real*8           :: ensControlVector_out(nla_l,2,nflev_l)
     real*8           :: ensAmplitude_in(ni_l,nflev_l,nj_l)
 
-    real*8           :: zgd(ni_l,nflev_l,nj_l)
     real*8           :: zsp(nla_l,2,nflev_l)
     real*8           :: zsp2(nflev_l,2,nla_l)
     real*8           :: zsp3(nflev_l,2,nla_l)
-    integer          :: jn,jm,ila,jla,jlev,ji,jj
+    integer          :: jn,jm,jla,jlev,ji,jj
     real*8           :: rsq2
 
     rsq2=sqrt(2.0d0)
-    zgd(:,:,:)=0.0d0
-    ensControlVector_out(:,:,:)=0.0d0
-
-    ! this is from bilinad
-!$OMP PARALLEL 
-!$OMP DO PRIVATE (JJ,JLEV,JI)
-    do jj = 1, nj_l
-       do jlev=1,nflev_l
-          do ji = 1, ni_l
-!             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)*ni_l/gst_getrwt(jj,gstID)
-             zgd(ji,jlev,jj)=ensAmplitude_in(ji,jlev,jj)
-          enddo
-       enddo
-    enddo
-!$OMP END DO
-!$OMP END PARALLEL
 
     call gst_setID(gstID)
-    call gst_reespe(zsp,zgd,nflev_l,nflev_l)
+    call gst_reespe(zsp,ensAmplitude_in,nflev_l,nflev_l)
     call gst_setToDefaultID
 
-
     ! Vertical localization
-
+!$OMP PARALLEL 
+!$OMP DO PRIVATE (JLA,JLEV)
     do jla=1,nla_l
       do jlev=1,nflev_l
         zsp2(jlev,1,jla)=zsp(jla,1,jlev)
         zsp2(jlev,2,jla)=zsp(jla,2,jlev)
       enddo
     enddo
-    zsp3(:,:,:)=0.0d0
+!$OMP END DO
+!$OMP END PARALLEL
     call mxmaop(ensLocalVert(1,1),1,nflev_l,zsp2(1,1,1),1,nflev_l   &
                ,zsp3(1,1,1),1,nflev_l,nflev_l,nflev_l,2*nla_l)
-!!$OMP PARALLEL DEFAULT(SHARED)
-!!$OMP DO PRIVATE(ila,jk1,jk)
-!    do ila = 1,nla_l
-!      do jk=1,nflev_l
-!        do jk1=1,nflev_l 
-!          zsp3(jk1,1,ila)=zsp3(jk1,1,ila)+ensLocalVert(jk1,jk)*zsp2(jk,1,ila)
-!          zsp3(jk1,2,ila)=zsp3(jk1,2,ila)+ensLocalVert(jk1,jk)*zsp2(jk,2,ila)
-!        enddo
-!      enddo
-!    enddo
-!!$OMP END DO
-!!$OMP END PARALLEL
-
+!$OMP PARALLEL 
+!$OMP DO PRIVATE (JLA,JLEV)
     do jla=0,nla_l
       do jlev=1,nflev_l
         zsp(jla,1,jlev)=zsp3(jlev,1,jla)
         zsp(jla,2,jlev)=zsp3(jlev,2,jla)
       enddo
     enddo
+!$OMP END DO
+!$OMP END PARALLEL
 
 !$OMP PARALLEL 
-!$OMP DO PRIVATE (JLEV,JN,JM,ILA,JLA)
+!$OMP DO PRIVATE (JLEV,JN,JM,JLA)
     do jlev=1,nflev_l
-       do jn=0,ntrunc_l
-          do jm=0,jn
-             ila = gst_getnind(jm,gstID)+jn-jm
-             ensControlVector_out(ila,1,jlev)=zsp(ila,1,jlev)*ensLocalCor(jn,jlev)
-             ensControlVector_out(ila,2,jlev)=zsp(ila,2,jlev)*ensLocalCor(jn,jlev)
-          enddo
+       do jla=1,nla_l
+          ensControlVector_out(jla,1,jlev)=zsp(jla,1,jlev)*ensLocalCor(jn_vec(jla),jlev)
+          ensControlVector_out(jla,2,jlev)=zsp(jla,2,jlev)*ensLocalCor(jn_vec(jla),jlev)
        enddo
        do jla = 1,ntrunc_l+1
           ensControlVector_out(jla,1,jlev) = ensControlVector_out(jla,1,jlev)*rsq2

@@ -4,20 +4,14 @@
       implicit none 
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comlun.cdk"
-#include "comcva.cdk"
-#include "comsp.cdk"
 #include "comgd0.cdk"
-#include "comgd1.cdk"
-#include "comspg.cdk"
-#include "compstat.cdk"
 
       integer na_vdim
       real*8 da_v(na_vdim)
 
       gd(:,:,:)=0.0d0
-      call bhi_bsqrt(da_v,gd)
-!      call ben_bsqrt(da_v,gd)
+!      call bhi_bsqrt(da_v,gd)
+      call ben_bsqrt(da_v,gd)
 
 
       END

@@ -2,10 +2,6 @@
 *
 *     . J. Halle    *CMDA/AES Oct 99.
 *             - Added ground temperature (TG) to the model state.
-*     . L. Fillion    *ARMA/MSC - Feb 2005
-*             - Add nindxy array for limited area LAM4D analysis.
-*     . L. Fillion    *ARMA/EC - 23 Jan 2008
-*             - Add nindxy_rpn array
 *     . L. Fillion    *ARMA/EC - 6 Jan 2009
 *             - Upgrade to v_10_1_2 of 3dvar.
 C
@@ -29,8 +25,6 @@ C     SPPS (NLA,2,1)       : surface pressure
 C     SPTG (NLA,2,1)       : ground temperature
 C
 #endif
-      integer nindxy(nfi,nfj+1)
-      integer nindxy_rpn(ni+2,nj+2)
 C
       REAL*8 SP(NLA,2,NKSDIM),SPVOR(NLA,2,NKSDIM)
      S     , SPDIV(NLA,2,NKSDIM), SPTT(NLA,2,NKSDIM)
@@ -39,8 +33,6 @@ C
 C
       REAL*8 SPLAT(NLA,2,NKSDIM,1)
 
-      pointer (ptindxy,nindxy)
-      pointer (ptindxy_rpn,nindxy_rpn)
       POINTER (PTSP,SP), (PTSVOR,SPVOR), (PTSDIV,SPDIV), (PTSTT,SPTT)
      S     ,  (PTSPQ,SPQ) , (PTSPPS,SPPS), (PTSPTG,SPTG)
      S     , (PTSPGZ,SPGZ),  (PTSPOZ,SPOZ), (PTSPTR,SPTR), (PTSPTB,SPTB)
@@ -48,5 +40,5 @@ C
 C
       COMMON /POMSP/PTSP,PTSVOR,PTSDIV,PTSTT
      S     ,PTSPQ, PTSPPS, PTSPTG
-     S     ,PTSPGZ,PTSPOZ,PTSPTR,PTSPTB,PTSPLAT, ptindxy, ptindxy_rpn
+     S     ,PTSPGZ,PTSPOZ,PTSPTR,PTSPTB,PTSPLAT
 

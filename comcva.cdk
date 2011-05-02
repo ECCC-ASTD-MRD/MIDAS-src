@@ -35,84 +35,15 @@
 !     IMODE3  : N1CG1: Value of IMODE(3) (see N1CG1 documentation)
 !     EPSNEG  : N1CG1: For quasi-negative curvature verification
 !     ------------
-!     NCNTVAR : = 1 if the model state is the control variable
-!     .         = 2 if the increment (X - Xg)/SIGMA  is the control variable
-!     NINCREM : = 0 Computation of innovations only
-!               = 1 Incremental analysis
-!     .         = 2 Extraction of CMA information (regional analysis)
-!     .         = 3 Computation of innovations followed by incremental
-!     .             analysis (regional analysis)
-!               = 9 Standard 3dvar
-!     CFGERR  : 'S'  standard deviation of the first guess error is set in spectral
-!     .              space
-!     .         'G'  standard deviation of the first guess error is set in
-!     .              physical space
-!     LNONSEP :  .T. correlations are assumed to be of the form Cn(Z1,Z2)
-!     .              a form that allows for a non-separable representation of
-!     .              the correlations even in the multivariate case
-!     .              (see Scientific Notes)
-!     -----------------------------
-!     RNU2    :  parameter measuring the relative importance of the divergent
-!     .          component of the wind increment (RNU2 = 0 for purely rotational
-!     .          wind increment, RNU2 = 1 for purely divergent wind increments)
-!     NANALVAR:  defines the type of analysis variable being used. This has an impact
-!     .          (for now) in SUGERCO, SP2SPA, SPA2SP and SPA2SPAD. It will also
-!     .          introduces modifications in SUSTAT.
-!     .           = 0  Analysis variable is just (X - Xb)
-!     .                (this definition does not make use of the background
-!     .                 error statistics. Useful for POSTVAR3D and ZPRIM)
-!     .           = 1  Geostrophic balance is defined through the linear balance
-!     .                relationship
-!     .           = 2   Geostrophic balance is defined through a local balance
-!     .                relationship
-!     mbal_order  :  0: Use 0th order dynalical balance when constructing BG-Error stats; 1: 1st order bal; 2: 2nd-Order...
-!     RSIGUU  :  standard deviation of the forecast wind error
-!     RSIGTT  :  standard deviation of the forecast temperature error
-!     RSIGGZ  :  standard deviation of the forecast PHI ageo error
-!     RSIGQ   :  standard deviation of the forecast humidity error
-!     RSIGOZ  :  standard deviation of the forecast ozone error
-!     RSIGTR  :  standard deviation of the forecast passive tracer error
-!     RSIGPS  :  standard deviation of the forecast surface pressure error
-!     RSIGTG  :  standard deviation of the forecast ground temperature error
-!     RPORVO  :  correlation characteristic length for the stream function
-!     RPORDI  :  correlation characteristic length for the potential function
-!     RPORGZ  :  correlation characteristic length for PHI ageostophic
-!     RPORTT  :  correlation characteristic length for temperature
-!     RPORQ   :  correlation characteristic length for the humdity
-!     RPOROZ  :  correlation characteristic length for ozone
-!     RPORTR  :  correlation characteristic length for passive tracer
-!     RPORPS  :  correlation characteristic length for the surface pressure
-!     RPORTG  :  correlation characteristic length for the ground temperature
-!     LSTAT   :  .T. a background error statistics file must be read to define
-!     .              the correlation lengths, the variances and the vertical
-!     .              correlations
-!     .          .F.  RGSIGUU, RGSIGTT, etc. are set to the constant values
-!     .               defined in NAMCVA (a default value is also assigned)
-!     .               The correlation lengths are defined by those specified
-!     .               in the NAMELIST
-!     .               The vertical error correlations are set to be the identity
-!     .           are defined
-!     -----------------------------
-!     NEVALJ  : = 1 contribution of Jg and Jo are both considered
-!     .         = 2 only Jg is considered
-!     .         = 3 only Jo is considered
-!     CIMP    : Selection of the initial point of the minimisation
-!     .         (see SUBROUTINE SUIMP)
-!     CFG     : Selection for the first-guess (see SUFG)
-!     CSCAL   : Selection for the definition of the inner product (see SUSCAL)
 !     CHUM   : Selection for the humidity analysis control
 !              variable.
 !              Options: 'LQ'---> lnq ; 'ES'---> T-Td
-!     CPTOT   : 'SP' uses spectral PtoT matrix: 'GD' used gridpoint PtoT matrix.
-!
 !     LRSTART : .T. Restart minimization from last completed iteration
 !     -------------
 !     LTSTSP  : .T. Verification of the spectral transforms and their adjoints
 !     LTSTCVA : .T. Verification of the canonical transforms and their adjoints
 !     -------------
 !
-!     SCALP(NVADIM)   : vector defining the inner product used by the minimization
-!     SCALPM1(NVADIM) : vector containing 1/SCALP
 !     VAZX(NVADIM)    : control variable used by the minimization
 !     VAZXBAR(NVADIM) : control variable from previous outer loop
 !     VAZG(NVADIM)    : gradient of the functional
@@ -126,87 +57,45 @@
 !
 !     lxbar           : default: .true.; Read in vazxbar if restart
 !                       file date are compatible with analysis date
-!     LPERTOBS: .T. Perturb obs by random observation error term
-!     LUSE3DSTD  :  .TRUE. use 3D std dev fields for B matrix
-!     lcornsmin  : .true.: uses precomputed SQRT(CORNS) ready for minimization.
-!     lsimulcor  : .true.: uses simulated horizontal correlation as Gaussian fcts
-!     lsetcross  : .true.: Set to zero cross-correlations in CORNS
-!     lcorloc    : .true.: Localizes horizontal background error correlations
-!     lgauscor   : .true.: will use Gaussian spectral densities rather than densities from BG stats file.
-!     lgausvercor: .true.: will use Prescribed Gaussian Vertical correlations (useful for 1OBS)
-!     lsdevsim   : .TRUE. uses simulated background error st-dev.
-!     lunitptot  : .TRUE. uses Unity matrix as PtoT (useful for testing purposes).
-!     lfgsim     : .TRUE. uses simulated background fields in subasic_gd.ftn.
-!     lsw        : .true.: Shallow-Water option
 !     l1obs      : To allow performing xD-Var with a single observation.
 !     LWRTHESS   : .F. wont write Hessian at end of minimization. Default is .true.
-!     LINMI      :  .true. uses INMI to balance increments during minimization.
-!     LDIABATIC  : .true. uses diabatic effects in the definition of the balanced part of
-!     lobsclip   :  .true. Les OBS ont deja ete clippees avant l'analyse.
-!     lcva_helm  : .TRUE. uses psi,chi for minimization; .false.: uses vort,div
-!     lcva_hsp   : .TRUE. Hemispheric spectral transform
-!     lcva_hemis : .TRUE. Global-Hemispheric mode; .false.: Both hemispheres.
-!     lcva_euclid: .TRUE. Assume Euclidean geometry.
-!     lcva_3db   : .TRUE. Perform 3D-Var FGAT agremented by a TL-INMI balance approach.
-!
-!     NTRUNC3DSTD:  spectral wavenumber at which to truncate horizontal std dev fields
-!     NTUNESTATS:       0 no tuning
-!                       5 tune R and B using specified files:
-!     CFLTUNEOBS,CFLTUNEBG : file names with factors for tuning R and B
-!
 #endif
       INTEGER NMTRA,N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX
-      integer NCNTVAR, niterjob
-      integer NEVALJ,NINCREM,NANALVAR, NGRTEST, NGRANGE,nsim3d
-      integer NWORK,NTUNESTATS,NLATMIN1,NLATMAX1,NLATMIN2,NLATMAX2
-      INTEGER SELECT0,BFGSB,IMODE3,NFLEVPTOT,NTRUNC3DSTD,mbal_order
-      CHARACTER*1 CIMP,CFG,CSCAL, CFGERR
-      CHARACTER*2 CHUM,cptot
-      CHARACTER*120 CFLTUNEOBS,CFLTUNEBG
-      LOGICAL LTSTSP, LTSTCVA, LNONSEP, LRSTART, LSTAT, LDOBAL, ltlmend
-      logical lxbar,LPERTOBS,LHBHT1,LUSE3DSTD,LCOPYPTOT
-      logical lsimulcor,lgauscor,lsdevsim,lfgsim,linmi,ldiabatic,lsw,l1obs
-      logical lwrthess,lcorloc,lgausvercor,lunitptot,lsetcross,lcornsmin
-      logical lobsclip,lcva_helm,lcva_hemis,lcva_euclid,lcva_3db,lcva_hsp
+      integer niterjob
+      integer NGRTEST,NGRANGE,nsim3d
+      integer NWORK
+      INTEGER SELECT0,BFGSB,IMODE3
+      CHARACTER*2 CHUM
+      LOGICAL LTSTSP, LTSTCVA,LRSTART,ltlmend
+      logical lxbar,LHBHT1
+      logical l1obs
+      logical lwrthess
 !
       REAL*8 REPSG
-      real*8 RNU2, RSIGUU, RSIGTT, RSIGQ, RSIGPS, RSIGTG
-      real*8 RPORVO, RPORDI, RPORTT, RPORQ, RPORPS, RPORTG
-      real*8 RSIGGZ, RSIGOZ, RSIGTR, RPORGZ, RPOROZ
-      real*8 RPORTR
-      real*8 EPSNEG , RVLOCBALT,RVLOCPSI,RVLOCCHI
-      real*8 RVLOCUNBALT, RVLOCLQ, RVLOCPSITT
-      REAL*8 SCALP(NVADIM),SCALPM1(NVADIM), rdf1fac, RSCALEPTOT
+      real*8 EPSNEG
+      REAL*8 rdf1fac
       REAL*8 VAZX(NVADIM), vazxbar(nvadim),VAZG(NVADIM)
       real*8 ,pointer, dimension(:) :: vatra
       REAL*8 VATR1(NMTRA),VWORK(NWORK),VAZB(NVADIM)
 !
-      POINTER (PTSCALP,SCALP),(PTSCALPM1,SCALPM1)
       POINTER(PTVAZX,VAZX), (PTVAZG,VAZG)
       pointer (ptvazxbar,vazxbar)
       POINTER (PTVATR1,VATR1),(PTVWORK,VWORK),(PTVAZB,VAZB)
 !
-      COMMON /COMNCVA/NMTRA,N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NCNTVAR
-      COMMON /COMNCVA/NEVALJ,NINCREM,NANALVAR,NGRTEST,NGRANGE,nsim3d,niterjob
-      COMMON /COMNCVA/ntunestats,NLATMIN1,NLATMAX1,NLATMIN2,NLATMAX2
-      COMMON /COMNCVA/NWORK,SELECT0,BFGSB,IMODE3,NFLEVPTOT,NTRUNC3DSTD
-      COMMON /COMNCVA/mbal_order
+      COMMON /COMNCVA/NMTRA,N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX
+      COMMON /COMNCVA/NGRTEST,NGRANGE,nsim3d,niterjob
+      COMMON /COMNCVA/NWORK,SELECT0,BFGSB,IMODE3
 
-      common /comrcva/REPSG,RNU2,RSIGUU,RSIGTT,RSIGGZ,RSIGQ,RSIGPS
-      common /comrcva/RSIGTG,RPORVO,RPORDI,RPORTT,RPORQ,RPORPS,RPORTG,RPORGZ
-      common /comrcva/RSIGOZ,RSIGTR,RPOROZ,RPORTR,rdf1fac
-      common /comrcva/EPSNEG,RSCALEPTOT,RVLOCBALT,RVLOCPSI,RVLOCCHI
-      common /comrcva/RVLOCUNBALT,RVLOCLQ,RVLOCPSITT
+      common /comrcva/REPSG
+      common /comrcva/rdf1fac
+      common /comrcva/EPSNEG
 
-      common /comlcva/LTSTSP,LTSTCVA,LNONSEP,LRSTART,LSTAT,LDOBAL
-      common /comlcva/ltlmend, lxbar,LPERTOBS,LHBHT1,LUSE3DSTD,LCOPYPTOT
-      common /comlcva/lsimulcor,lgauscor,lsdevsim,lfgsim,linmi,ldiabatic,lsw,l1obs
-      common /comlcva/lwrthess,lcorloc,lgausvercor,lunitptot,lsetcross,lcornsmin
-      common /comlcva/lobsclip,lcva_helm,lcva_hemis,lcva_euclid,lcva_3db
-      common /comlcva/lcva_hsp
+      common /comlcva/LTSTSP,LTSTCVA,LRSTART
+      common /comlcva/ltlmend, lxbar,LHBHT1
+      common /comlcva/l1obs
+      common /comlcva/lwrthess
 !
-      COMMON /COMCVAC/CIMP,CFG,CSCAL,CFGERR,CHUM,CFLTUNEOBS,CFLTUNEBG
-      COMMON /COMCVAC/cptot
-      COMMON /POMCVA/PTSCALP, PTSCALPM1, PTVAZX, PTVAZG, VATRA
+      COMMON /COMCVAC/CHUM
+      COMMON /POMCVA/PTVAZX, PTVAZG, VATRA
       COMMON /POMCVA/ptvazxbar
       COMMON /POMCVA/PTVATR1,PTVWORK,PTVAZB

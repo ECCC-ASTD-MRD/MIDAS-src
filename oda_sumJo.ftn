@@ -17,7 +17,7 @@
       SUBROUTINE oda_sumJo(PJO)
       use modmask
       USE obstag 
-      USE procs_topo 
+      USE mpi_mod
       implicit none
       real*8 pjo ! Total observation cost function
 c
@@ -129,7 +129,7 @@ c
           dlsum = dlsum + dlsum1
         end do
 !
-        IF(myid == 0) THEN
+        IF(mpi_myid == 0) THEN
           write(nulout,'(a15,f23.16)') 'Jo(RAOB)   = ',DLJORAOB
           write(nulout,'(a15,f23.16)') 'Jo(AIREP)  = ',DLJOAIREP
           write(nulout,'(a15,f23.16)') 'Jo(SURFC)  = ',DLJOSURFC

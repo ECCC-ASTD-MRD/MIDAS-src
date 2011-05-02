@@ -1,8 +1,0 @@
-#if defined (DOC) 
-C
-C       COMDECK COMMULTI
-C     
-#endif
-C
-C     ------------------------------
-      NAMELIST /NAMMULTI/NCPU

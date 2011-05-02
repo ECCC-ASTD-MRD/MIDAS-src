@@ -38,19 +38,11 @@ C
 C*    1. Set the default values
 C
       NCONF  = 141
-      NLFFT  = 1024
-      NLATBD = 8
       CMINMODE = 'VAR'
-      LDEBUG = .FALSE.
-      LTEST  = .FALSE.
-      LSIMOB = .FALSE.
 C
 C*    2. Read the NAMELIST to modify these values
 C
-C
       CALL READNML('NAMCT0',IERR)
-C
-      if (ldebug) nulout=0
 C
       RETURN
       END

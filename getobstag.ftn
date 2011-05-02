@@ -28,7 +28,7 @@
 *Arguments: none
 *
 #endif
-      USE procs_topo  
+      USE mpi_mod  
       USE obstag 
       IMPLICIT NONE
 *implicits
@@ -60,8 +60,8 @@
 *-------------------------------------------------------------
       write(nulout,*) '-------- Start Getobstag ---------'
       IF(l4dvar) THEN
-         write(cljx,'(i2.2)') myidx
-         write(cljy,'(i2.2)') myidy
+         write(cljx,'(i2.2)') mpi_myidx
+         write(cljy,'(i2.2)') mpi_myidy
 
          clprof = trim(CEXC4DV) // '/obstag_'//cljx//'_'//cljy//'.prof'
          WRITE(*,*) 'Open File: ',clprof 
@@ -83,7 +83,7 @@
       !!! for 3dvar 
       ELSE
         jj=0
-        IF(nprocs == 0) nprocs=1
+        IF(mpi_nprocs == 0) mpi_nprocs=1
         WRITE(nulout,*) 'nobtot= ',nobtot 
         ALLOCATE(locObsTag_tmp(nobtot),STAT=ierr)
         DO J=1,NFILES
@@ -94,15 +94,15 @@
            ilastob = MOBDATA(NCMOBS,ilast)  
            Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
 
-           interv=INT((ilastob-ibeginob+1)/nprocs)  
+           interv=INT((ilastob-ibeginob+1)/mpi_nprocs)  
            IF(interv == 0) THEN
-              IF(myid <= (ilastob-ibeginob)-1) THEN
+              IF(mpi_myid <= (ilastob-ibeginob)-1) THEN
                 interv=1
               ENDIF 
            ENDIF  
-           istart=interv*myid+ibeginob
-           iend=interv*(myid+1)+ibeginob -1 
-           if(myid == nprocs-1) iend=ilastob
+           istart=interv*mpi_myid+ibeginob
+           iend=interv*(mpi_myid+1)+ibeginob -1 
+           if(mpi_myid == mpi_nprocs-1) iend=ilastob
 
            IF( interv == 0) THEN
               istart=ibeginob

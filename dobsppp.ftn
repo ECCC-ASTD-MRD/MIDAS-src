@@ -135,6 +135,21 @@ c         write(nulout,*)'dobsppp: innovation, observation, stdoer= '
 c     &                 ,zcon,ZVAR,ZOER
 c        ENDIF
 ***************************************************************
+! MODIFY OBS VALUE AND SIGMA_OBS FOR SINGLE OBS EXPERIMENT
+!                  ROBDATA8(NCMOER,JDATA)=1.0d0
+!                  ZOER = ROBDATA8(NCMOER,JDATA)
+!                  ROBDATA8(NCMVAR,JDATA) = 
+!     +              ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS) + 1.0d0
+!                  zvar=ROBDATA8(NCMVAR,JDATA)
+!                  write(666,*) 'iobs,jdata=',iobs,jdata
+!                  write(666,*) 'sigma_obs =',zoer
+!                  write(666,*) 'observed  =',zvar
+!                  write(666,*) 'background=',
+!     +              ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)
+!                  write(666,*) 'innovation=',
+!     +              ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR
+!                  call flush(666)
+***************************************************************
                   ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
      +                               + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
                   DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)

@@ -37,14 +37,13 @@
 *  Revision: Luc Fillion - ARMA/EC - 16 Jun 2010 - Introduce 1obs interpolators to avoid treating MPI.
 *
 #endif
-      USE procs_topo
+      USE mpi_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comstate.cdk"
-#include "comsim.cdk"
 #include "comgd0.cdk"
 #include "comcva.cdk"
       integer idum1,idum2,idum3,idum4
@@ -56,7 +55,7 @@
 *
 *     3D fields
 *
-      IF(myid == 0) THEN
+      IF(mpi_myid == 0) THEN
         write(nulout,*)'NEWBILINAD- active '
       endif
 !

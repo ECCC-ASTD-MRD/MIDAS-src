@@ -16,7 +16,6 @@
 !
       SUBROUTINE restoreMasks 
       use modmask
-      USE procs_topo 
       USE obstag  
       implicit none
 c Purpose:

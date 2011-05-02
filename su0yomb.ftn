@@ -48,15 +48,15 @@ C                      Introduce normal modes.
 #include "comct0.cdk"
 #include "comcva.cdk"
 *
-      integer :: ierr,gstID
+      integer :: ierr,gstID,mpiMode
 !
 !!
-      write(nulout,*) 'su0yomb: au debut: nanalvar = ',nanalvar
-      CALL SUMULTI
+      write(nulout,*) 'su0yomb: au debut'
 !
 !modular1: set up the modular global spectral transform object
 !          replaces: suleg,sufft,sualp
-      gstID = gst_setup(nulout,ni,nj,ntrunc)
+      mpiMode=0
+      gstID = gst_setup(nulout,ni,nj,ntrunc,mpiMode)
       write(*,*) 'returned value of gstID=',gstID
 !
 !

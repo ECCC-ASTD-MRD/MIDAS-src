@@ -34,22 +34,17 @@ SUBROUTINE oda_res
 #include "comoahdr.cdk"
 #include "comoba.cdk"
 #include "comcva.cdk"
-#include "com1obs.cdk"
 
   !Local Declarations
 
   integer jdata
 !
 !!
-  if(l1obs) then
-    ROBDATA8(NCMOMA,1) = ROBDATA8(NCMOMA,1)-R1OBSINO
-  else
     DO JDATA=1,ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           ROBDATA8(NCMOMA,JDATA) = ROBDATA8(NCMOMA,JDATA)-ROBDATA8(NCMVAR,JDATA)
        ENDIF
     enddo
-  endif
 !
   return
 END SUBROUTINE oda_res

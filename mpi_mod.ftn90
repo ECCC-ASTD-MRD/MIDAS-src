@@ -1,0 +1,65 @@
+!***************************************************************
+! Name  : procs_topo
+! Author:  Bin He     *ARMA/MSC 
+! Date  :  Nov. 2005 
+! Purpose: Declare MPI related parameters used across the model. 
+!  
+!***************************************************************
+MODULE mpi_mod  
+   INTEGER :: mpi_myid,mpi_nprocs
+   INTEGER :: mpi_npex,mpi_npey,mpi_myidx,mpi_myidy
+   INTEGER :: mpi_myLatBeg,mpi_myLonBeg,mpi_myLatHalfBeg
+   INTEGER :: mpi_myLatEnd,mpi_myLonEnd,mpi_myLatHalfEnd
+
+ CONTAINS
+
+!***************************************************************
+! Name  : mpi_init
+! Author:  Bin He     *ARMA/MSC
+! Date  :  Nov. 2005
+! Purpose: conduct RPN_COMM Initialization . 
+!
+!***************************************************************
+ SUBROUTINE mpi_init()
+ IMPLICIT NONE
+
+ ! 1. Initilize MPI . 
+ mpi_npex=0
+ mpi_npey=0
+ CALL rpn_comm_init(mpi_getptopo,mpi_myid,mpi_nprocs,mpi_npex,mpi_npey)
+ CALL rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
+
+ mpi_myLatBeg=0
+ mpi_myLatEnd=0
+ mpi_myLonBeg=0
+ mpi_myLonEnd=0
+ mpi_myLatHalfBeg=0
+ mpi_myLatHalfEnd=0
+
+ END SUBROUTINE mpi_init
+ 
+ SUBROUTINE mpi_getptopo(pex,pey)
+ IMPLICIT NONE
+ INTEGER,INTENT(OUT) :: pex,pey
+
+ INTEGER :: ierr
+ INTEGER :: npex,npey
+ NAMELIST /ptopo/npex,npey
+ INTEGER :: unnmlist,fnom  
+ CHARACTER(len=10) :: fnptopo
+
+ unnmlist=555
+ npex=1
+ npey=1
+ fnptopo='ptopo_nml'
+ ! OPEN(UNIT=nmlist,FILE='./ptopo_nml',STATUS='OLD',ACTION='READ',IOSTAT=ierr)
+ ierr=FNOM(unnmlist,fnptopo,'FTN+SEQ',0)
+ IF(ierr /= 0) CALL  mpiabort('Can not Open file ptopo_nml! Abort!') 
+ READ(unnmlist,NML=ptopo)
+ CLOSE(unnmlist)
+ pex=npex
+ pey=npey
+
+ END SUBROUTINE mpi_getptopo 
+
+END MODULE mpi_mod  

@@ -58,15 +58,15 @@ C
 #include "comlun.cdk"
 *
 **
-      integer myid,numthd,omp_get_thread_num,omp_get_num_threads
+      integer mythread,numthd,omp_get_thread_num,omp_get_num_threads
 c
       LLPRINT = .FALSE.
       ZCON = -RGASD
       IKLEVM2 = nflev-2
-!$OMP PARALLEL PRIVATE(jobs,jk,myid,numthd,zak,zbk,zck)
-      myid=omp_get_thread_num()+1
+!$OMP PARALLEL PRIVATE(jobs,jk,mythread,numthd,zak,zbk,zck)
+      mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = myid, nobtot,numthd
+      do jobs = mythread, nobtot,numthd
          do jk=1,nflev
             gomt1(jk,jobs) = 0.0
          enddo

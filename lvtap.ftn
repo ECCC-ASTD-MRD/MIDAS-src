@@ -60,7 +60,7 @@
       INTEGER  JLON, IKLEVM2, JK, IK, jobs
       REAL*8     ZAK0, ZBK0, ZCK0
       REAL*8     ZAK, ZBK, ZCK, ZCON
-      INTEGER myid,numthd
+      INTEGER mythread,numthd
       INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
 *implicits
 #include "comdim.cdk"
@@ -80,11 +80,11 @@ c
       ZAK0  = -2.0*ZCON*VMA(nflev)
       ZBK0  = -2.0*ZCON*VMB(nflev)
       ZCK0  = -2.0*ZCON*VMC(nflev)
-!$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,myid,numthd)
+!$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,mythread,numthd)
 !$OMP+ PRIVATE(zak,zbk,zck)
-      myid=omp_get_thread_num()+1
+      mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = myid, nobtot,numthd
+      do jobs = mythread, nobtot,numthd
         gomgz(nflev,jobs) = 0.0
         gomgz(nflev-1,jobs)=ZAK0*gomt1(nflev-1,jobs)+
      $                      ZBK0*gomt1(nflev,jobs)+

@@ -33,7 +33,6 @@ C
       integer kni,knj,knk
       real*8 pmax,pmin,pfield(kni,knk,knj)
 *implicits
-#include "taglam4d.cdk"
 #include "comlun.cdk"
 *
       logical llprint

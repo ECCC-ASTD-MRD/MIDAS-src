@@ -1,6 +1,6 @@
       SUBROUTINE  SUFILNAM
       use mod4dv, only : l4dvar
-      USE procs_topo,ONLY : myid  
+      USE mpi_mod
       IMPLICIT NONE
 #if defined (DOC)
 *s/r  SUFILNAM -INITIALZE INPUT/OUTPUT FILE NAMES FOR 3DVAR.
@@ -203,7 +203,7 @@ C
 C
 C____ INITIALIZE ANALYSYS  FILE NAME
 C
-       IF(myid == 0) THEN   !  CLVALU(4) is output... 
+       IF(mpi_myid == 0) THEN   !  CLVALU(4) is output... 
           IER=FNOM(nulstd,CLVALU(4),'RND',0)
           IF ( IER .EQ. 0 ) THEN
              write(nulout,*) 'OANAL - File :',  clvalu(4)
@@ -227,7 +227,7 @@ c
       ENDIF
 c==============================================================
 
-      IF(myid == 0) THEN
+      IF(mpi_myid == 0) THEN
          ier = fnom(nulinclr,clvalu(6),'RND',0)
          IF ( IER .EQ. 0 ) THEN
             write(nulout,*) 'OINCLR - File :', clvalu(6)
@@ -239,7 +239,7 @@ c==============================================================
       ENDIF 
 c
 
-      IF(myid == 0) THEN
+      IF(mpi_myid == 0) THEN
          ier = fnom(nulinchr,clvalu(7),'RND',0)
          IF ( IER .EQ. 0 ) THEN
             write(nulout,*) 'OINCHR - File :', clvalu(7)

@@ -43,13 +43,14 @@
 #include "comoba.cdk"
 #include "cvcord.cdk"
 #include "comstato.cdk"
-#include "comvcor.cdk"
 #include "comct0.cdk"
 *
       INTEGER IBEGIN,ILAST,INREPT,IUN
       INTEGER IBEGINOBS,ILASTOBS
       INTEGER J
       LOGICAL LLOK
+      INTEGER JPNMAXPRO
+      PARAMETER(JPNMAXPRO=2501)
 C
       IUN=NULOUT
       LLOK = .TRUE.

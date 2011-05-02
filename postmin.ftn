@@ -51,7 +51,7 @@
 *Arguments
 *    -NONE-
 #endif
-      USE procs_topo ,ONLY  :myid 
+      USE mpi_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -69,8 +69,6 @@
 #include "comoabdy.cdk"
 #include "comvarqc.cdk"
 #include "comvfiles.cdk"
-#include "comsim.cdk"
-#include "com1obs.cdk"
 #include "comoba.cdk"
 *
 C
@@ -209,19 +207,9 @@ C at the end of minimize
 
         call oda_sqrtB(vazx,nvadim)
 
-!        CALL CAIN(NVADIM,VAZX)
-!
         WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
-        if(nanalvar.eq.4) then
-!modular1              LSTAGTEMP=LSTAGWINDS
-!modular1              LSTAGWINDS=.FALSE.
-!          CALL SPA2GD
-!modular1              LSTAGWINDS=LSTAGTEMP
-        else
-!modular1              CALL SPA2SP
-!modular1              call spgd
-        endif
+
         call tmg_stop (51)      !
       endif
 c
@@ -305,7 +293,7 @@ c
 !
       call tmg_start(99,'VAROUT')
 !
-      if(myid == 0 ) then
+      if(mpi_myid == 0 ) then
           call varout
       endif
 !

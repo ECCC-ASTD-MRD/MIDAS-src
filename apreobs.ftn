@@ -49,7 +49,7 @@ C*1   Adjoint of ltt2phi
 C     ------------------
 C
  100  CONTINUE
-      if((.not.lsw).and.(NMVOEXIST(NOGZ).eq.1)) call att2phi
+      if((NMVOEXIST(NOGZ).eq.1)) call att2phi
 C
 C*2   Adjoint of sensitivity of (T-Td) to sensitivity on control vector
 C     -----------------------------------------------------------------

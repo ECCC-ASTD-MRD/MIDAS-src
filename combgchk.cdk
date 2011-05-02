@@ -1,6 +1,0 @@
-C     COMDECK: COMBGCHK ( USER SPECIFIED BACKGROUND CHECK PARAMETERS)
-      CHARACTER *8 CMODEL
-      integer :: bgccrit
-C
-      common /comnbgchk/bgccrit
-      COMMON /COMBGCHK/CMODEL

@@ -36,20 +36,15 @@ SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
 #include "comoahdr.cdk"
 #include "comoba.cdk"
 #include "comcva.cdk"
-#include "com1obs.cdk"
 
   INTEGER jdata
 !
 !!
-  if(l1obs) then
-    ROBDATA8(KINDEX2,1) =ROBDATA8(KINDEX1,1)/R1OBSOER
-  else
     DO JDATA=1,ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           ROBDATA8(KINDEX2,JDATA) =ROBDATA8(KINDEX1,JDATA)/ROBDATA8(NCMOER,JDATA)
        ENDIF
     END DO
-  endif
 !
   RETURN
 END SUBROUTINE oda_sqrtRm1

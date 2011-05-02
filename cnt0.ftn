@@ -21,7 +21,7 @@
 *
 *
 #endif
-      USE procs_topo  
+      USE mpi_mod  
       IMPLICIT NONE
 *     implicits
 #include "comct0.cdk"
@@ -31,12 +31,12 @@
       character(len=9) :: clmsg
       INTEGER  :: root,IERR  
 !  0.1 MPI initilization .  
-      CALL init_mpi  
+      CALL mpi_init  
       root = 0  
 
       call tmg_init (0, 'TMG_3D-VAR' )
 
-      IF(myid == root) THEN
+      IF(mpi_myid == root) THEN
          clmsg = 'VAR3D_BEG'
          call wrstatus(clmsg)
          ISTAMP=EXDB('3DVAR','DEBUT','NON')
@@ -50,7 +50,7 @@ C
       CALL SU0YOMA
 C
 C
-      IF(myid == root) call printrev("START OF MAIN PROGRAM CNT0",26)
+      IF(mpi_myid == root) call printrev("START OF MAIN PROGRAM CNT0",26)
 C
 C
       CALL SU0YOMB
@@ -67,7 +67,7 @@ C
  201  CONTINUE
       select case (nconf)
       case(101)
-         IF(myid == root) WRITE(NULOUT,FMT=9203)ICONFI,NCONF
+         IF(mpi_myid == root) WRITE(NULOUT,FMT=9203)ICONFI,NCONF
  9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
          call tmg_start(11,'PREMIN')
          call preproc
@@ -116,7 +116,7 @@ C
 C
       CALL SUTERM(NULOUT)
 C
-      IF(myid == root) THEN
+      IF(mpi_myid == root) THEN
          clmsg = 'VAR3D_END'
          call wrstatus(clmsg)
       ENDIF

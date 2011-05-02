@@ -47,7 +47,6 @@
 #include "comct0.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "com1obs.cdk"
 #include "comlun.cdk"
 #include "comvarqc.cdk"
 #include "comcva.cdk"
@@ -55,10 +54,8 @@
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
-#include "comin.cdk"
 #include "comoabdy.cdk"
 #include "comoba.cdk"
-#include "comsim.cdk"
 #include "comoahdr.cdk"
 #include "comgpsgb.cdk"
 c
@@ -88,11 +85,7 @@ c
 c Using T, q and PS in GOMOBSHR, computes GZ and stores it in GOMGZHR
 c N.B. uses vlevhr
 c
-      if(.not.lsw) then
-!        call tmg_start(18,'TT2PHIHR')
-        call tt2phihr
-!        call tmg_stop(18)
-      endif
+      call tt2phihr
 c
 c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface
@@ -102,7 +95,6 @@ c     GB-GPS (met and ZTD) observations are processed in SOBSSFC
 c
       lldo = .true.
 !
-      if(.not.lsw) then
         IF (LTOPOFILT) THEN
           write(NULOUT,*)' *****************************************'
           write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
@@ -126,7 +118,6 @@ c
         ENDIF
 
         IF(NCONF .EQ. 141 .OR. NINT(NCONF/100.0).EQ.6) CALL SFCWNDZAP
-      ENDIF
 c
 c     Find interpolation layer in model profiles and reference level
 c     of thickness data for SATEMS
@@ -172,7 +163,6 @@ C--------------------------------
       ZJOGPSGB=0.0D0
       ZJOPROF = 0.0d0
 !
-      if(.not.lsw) then
 C
 C        SURFACE (SF, UA, SC AND GP FAMILIES)
 C-------------------------------
@@ -299,7 +289,6 @@ C
 c
         endif
 c
-      endif
 !      call tmg_stop(22)
 c
 c
@@ -329,11 +318,11 @@ c
 c------ Calculate the normalized innovations (Z - H(X))/sigma
 c       for ln q for atmospheric and surface obs.
 C
-      if(.not.lsw) CALL DHUPPP('UA')
-      if(.not.lsw) CALL DHUPPP('AI')
-      if(.not.lsw) CALL DHUSFC('UA')
-      if(.not.lsw) CALL DHUSFC('SF')
-      if(.not.lsw) CALL DHUSFC('GP')
+      CALL DHUPPP('UA')
+      CALL DHUPPP('AI')
+      CALL DHUSFC('UA')
+      CALL DHUSFC('SF')
+      CALL DHUSFC('GP')
 C
 c     Find interpolation layer in model profiles and reference level
 c     of thickness data for SATEMS
@@ -365,17 +354,6 @@ c
       call oda_maskzp('PR')
       call oda_maskgp
 !
-!     In Shallow-Water mode: Force all retained data (i.e. cmabdy.ftn using NONELEV)
-!     to have same interpolation layer index for future use by lobsppp_sw etc...
-!
-      if(lsw) then
-!modular1        call set1lev ! set SW analysis level "mk".
-        DO JDATA=1,NDATA
-          if(ROBDATA(NCMLYR,JDATA).ne.0) then
-            ROBDATA(NCMLYR,JDATA) = mk
-          endif
-        ENDDO
-      endif
        !resotre Global Masks. 
         IF(NCONF == 141) CALL restoreMasks  
 !

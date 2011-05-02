@@ -45,13 +45,13 @@ c
 #include "commvog.cdk"
 c
       integer jobs,jlev
-      INTEGER myid,numthd,omp_get_thread_num,omp_get_num_threads
+      INTEGER mythread,numthd,omp_get_thread_num,omp_get_num_threads
 
 c     Computation of dewpoint depression increments from lnq,ps and t increments
-!$OMP PARALLEL PRIVATE(jobs,jlev,myid,numthd)
-      myid=omp_get_thread_num()+1
+!$OMP PARALLEL PRIVATE(jobs,jlev,mythread,numthd)
+      mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = myid, nobtot,numthd
+      do jobs = mythread, nobtot,numthd
         do jlev = 1, nflev
           gomes(jlev,jobs) =  ollq2es(1,jlev,jobs)*gomq(jlev,jobs) +
      $                        ollq2es(2,jlev,jobs)*gomps(1,jobs) +

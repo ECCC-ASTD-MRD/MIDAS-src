@@ -101,17 +101,8 @@ C
 #include "comode.cdk"
 #include "namode.cdk"
 C
-#include "comcse1.cdk"
-#include "namcse1.cdk"
-C
 #include "compost.cdk"
 #include "nampost.cdk"
-C
-#include "comtemp.cdk"
-#include "namtemp.cdk"
-C
-#include "compstat.cdk"
-#include "nampstat.cdk"
 C
 #include "combpost.cdk"
 #include "nambpost.cdk"
@@ -131,20 +122,11 @@ C
 #include "comstate.cdk"
 #include "namstate.cdk"
 C
-#include "commulti.cdk"
-#include "nammulti.cdk"
-C
-#include "com1obs.cdk"
-#include "nam1obs.cdk"
-C
 #include "com1chn.cdk"
 #include "nam1chn.cdk"
 C
 #include "comvarqc.cdk"
 #include "namvarqc.cdk"
-C
-#include "combgchk.cdk"
-#include "nambgchk.cdk"
 C
 #include "cominterp.cdk"
 #include "naminterp.cdk"
@@ -281,16 +263,6 @@ C
          WRITE(NULOUT,NAMPOST)
 #endif
 C
-      ELSE IF(CDNAME.EQ.'NAMPSTAT')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMPSTAT)
-         WRITE(NULOUT,NML=NAMPSTAT)
-#else
-         READ(NULNAM,NAMPSTAT)
-         WRITE(NULOUT,NAMPSTAT)
-#endif
-C
       ELSE IF(CDNAME.EQ.'NAMSTATE')THEN
 C
 #if defined (C910)
@@ -301,25 +273,6 @@ C
          WRITE(NULOUT,NAMSTATE)
 #endif
 C
-      ELSE IF(CDNAME.EQ.'NAMTEMP')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMTEMP)
-         WRITE(NULOUT,NML=NAMTEMP)
-#else
-         READ(NULNAM,NAMTEMP)
-         WRITE(NULOUT,NAMTEMP)
-#endif
-C
-      ELSE IF(CDNAME.EQ.'NAMCSE1')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMCSE1)
-         if(nconf.ne.141) WRITE(NULOUT,NML=NAMCSE1)
-#else
-         READ(NULNAM,NAMCSE1)
-         WRITE(NULOUT,NAMCSE1)
-#endif
       ELSE IF(CDNAME.EQ.'NAMCVA')THEN
 C
 #if defined (C910)
@@ -370,24 +323,6 @@ C
          WRITE(NULOUT,NAMGPSRO)
 #endif
 C
-      ELSE IF(CDNAME.EQ.'NAMMULTI')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMMULTI)
-         WRITE(NULOUT,NML=NAMMULTI)
-#else
-         READ(NULNAM,NAMMULTI)
-         WRITE(NULOUT,NAMMULTI)
-#endif
-      ELSE IF(CDNAME.EQ.'NAM1OBS')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAM1OBS)
-         WRITE(NULOUT,NML=NAM1OBS)
-#else
-         READ(NULNAM,NAM1OBS)
-         WRITE(NULOUT,NAM1OBS)
-#endif
       ELSE IF(CDNAME.EQ.'NAM1CHN')THEN
 C
 #if defined (C910)
@@ -396,15 +331,6 @@ C
 #else
          READ(NULNAM,NAM1CHN)
          WRITE(NULOUT,NML=NAM1CHN)
-#endif
-      ELSE IF(CDNAME.EQ.'NAMBGCHK')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMBGCHK)
-         WRITE(NULOUT,NML=NAMBGCHK)
-#else
-         READ(NULNAM,NAMBGCHK)
-         WRITE(NULOUT,NAMBGCHK)
 #endif
       ELSE IF(CDNAME.EQ.'NAMVARQC')THEN
 C

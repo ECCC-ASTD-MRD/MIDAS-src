@@ -1,5 +1,0 @@
-      NAMELIST /NAMPSTAT/ NPSICORRTYP, NCHICORRTYP, NGZCORRTYP
-     S     , NQCORRTYP,NPSCORRTYP,NOZCORRTYP, NTRCORRTYP
-     S     , NTOAR, RALPHATOAR, NTTCORRTYP,NTGCORRTYP,RCSCLTG
-     S     , NAMPLIFACT, NU2, CETIKETFD,reigmintt,reigminpsi,reigminchi
-     &     ,reigminlq,leigfilt,lbgsto,rfacthum,llimtg,rlimsuptg

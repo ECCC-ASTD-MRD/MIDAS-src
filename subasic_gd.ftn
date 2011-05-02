@@ -41,7 +41,6 @@
 !
 #endif
 !
-#include "taglam4d.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
@@ -51,7 +50,6 @@
 #include "namgdpar.cdk"
 #include "compdg.cdk"
 #include "comgem.cdk"
-#include "comsim.cdk"
 #include "cvcord.cdk"
 #include "comcva.cdk"
 !
@@ -83,25 +81,6 @@
 !!
       write(nulout,*) 'subasic_gd: BEGIN'
 !
-      if(lfgsim) then
-!
-!*1.    Use simulated atmosphere
-!       ------------------------
-!
-        do ji=1,ni
-          do jj=1,nj
-            do jk=1,nflev
-              zcon=cos(jk*rpi/nflev)
-              zug(ji,jk,jj)=1.e0*zcon*cos(ji*rpi/ni)*sin(jj*rpi/nj)
-              zvg(ji,jk,jj)=2.e0*zcon*sin(ji*rpi/ni)*sin(jj*rpi/nj)
-              zttg(ji,jk,jj)=273 + 10.*zcon*sin(ji*rpi/ni)*cos(jj*rpi/nj)
-              zgzg(ji,jk,jj)=1.e4*real(jk)*zcon*sin(ji*rpi/ni)*cos(jj*rpi/nj)
-              zesg(ji,jk,jj)=1.e-3 + 1.e-4*zcon*cos(ji*rpi/ni)*cos(jj*rpi/nj)
-            enddo
-            zpsg(ji,jj)=(1.0e5 + 1.e4*cos(ji*rpi/ni))
-          enddo
-        enddo
-      else
 !
 !*2.    Read Background fields at NLM spatial resolution
 !       ------------------------------------------------
@@ -140,7 +119,7 @@
             enddo
           enddo
         enddo
-      endif
+
           call maxmin(ttg,ni,nj,nflev,zmin,zmax,
      &      idum1,idum2,idum3,idum4,'subasic_gd     ','TTG')
 !

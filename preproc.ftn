@@ -73,7 +73,6 @@
 #include "pardim.cdk"
 #include "comct0.cdk"
 #include "comdim.cdk"
-#include "com1obs.cdk"
 #include "comlun.cdk"
 #include "comvarqc.cdk"
 #include "comcva.cdk"
@@ -81,8 +80,6 @@
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
-#include "comin.cdk"
-#include "comsim.cdk"
 #include "comspg.cdk"
 c
       logical lldo
@@ -92,7 +89,6 @@ c
       real*8 zjogpsro
 c
       call printrev("SUBROUTINE preproc :",20)
-      ldiag4d = .false.
 c
 c
 c Initialization of interpolation parameters
@@ -101,23 +97,10 @@ c
       lhintdelhu  = .true.
 c
       call readnml('NAMINTERP',IERR)
-      call readnml('NAM1OBS',IERR)
 c
       call tmg_start(15,'SUCVA')
       CALL SUCVA(NULOUT)
       call tmg_stop(15)
-c
-c Read in scaling factors to adjust obs error std dev in cma
-c
-      if(ntunestats.eq.5) then
-!modular1        call rdtunebgobs
-      endif
-c
-c Perturb the observations
-c       
-      if(lpertobs) then
-!modular1        call pertobs
-      endif
 c
 c Reading, horizontal interpolation and unit conversions of the 3D trial
 c fields
@@ -132,20 +115,9 @@ c
 !
       call subasic_gd
 !
-      if(l1obs) then
-!modular1        call set1lev
-!modular1        call su1obsbg ! initializes background fields at obs location into gomobsg
-      endif
-!
-! prepare diabatic operators
-!
-      if(lcva_3db.or.(.not.l4dvar)) then
-!modular1        call sudiabatic
-      endif
-!
 ! prepare observation innovations
 !
-      if(.not.l1obs) call suinnov
+      call suinnov
 !
       call prdatabin
       RETURN

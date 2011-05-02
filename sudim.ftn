@@ -41,15 +41,12 @@
 *                  correlations and using multiple latitude bands
 *                  of correlations and new approach for PtoT and
 *                  localized Tb correlations (NANALVAR=4)
-*     . L.Fillion - ARMA/MSC - 10 Jul 05: Upgrade to v10_0_0 Apr 06
-*                . Added maxconvpt; i.e. maximum allowed convective points on the minimization grid.
 *     . L.Fillion - ARMA/MSC - 15 Jan 06: Upgrade to v10_0_0 Apr 06
 *                . Relocated (nimla,njmla) in namgrd.cdk as new parameters (miobsbuf,mjobsbif).
 *     . L.Fillion - ARMA/MSC - 17 Jan 06: Upgrade to v10_0_0 Apr 06
 *                . Add lsimulcor option to use simulated Horizontal correlations
 *     . L.Fillion - ARMA/EC - 15 Aug 2007 - Update lam4d to v_10_0_3.
 *     . L.Fillion - ARMA/EC - 25 Mar 2008 - Include Shallow-Water option.
-*     . L.Fillion - ARMA/EC - 22 Apr 2008 - Introduce nbandmax.
 *     . L.Fillion - ARMA/EC - 11 Jul 2008 - Introduce use of Gaussian horizontal error correlations if lgauscor
 *     . L.Fillion - ARMA/EC - 3 Oct 2008 - Introduce lunitptot : Useful for testing purposes.
 *     . L.Fillion - ARMA/EC - 3 Nov 2008 - Introduce mbal_order : Order of dynamical balance imposed on anal incr.
@@ -77,7 +74,6 @@
 #endif
 C
 !modular1      use modstag, only: nj_s, njlath_s, level2_staggrid, lstagwinds
-      USE  procs_topo 
 !modular1      USE  spect_mpi 
       IMPLICIT NONE
 #include "pardim.cdk"
@@ -86,10 +82,8 @@ C
 #include "comct0.cdk"
 #include "comcva.cdk"
 #include "comstate.cdk"
-#include "comfftla.cdk"
 #include "comgem.cdk"
 #include "namgem.cdk"
-#include "comcse1.cdk"
       INTEGER KULOUT, IAL1, IAL2, IERR, ILEN
       integer jfi,jfj,ila
       real*8 zdx,zdy,zlx,zly,zd,zkmax,zk2,zk
@@ -113,86 +107,20 @@ C
       NSIMMAX  = 500
       NGRTEST  = 0
       NGRANGE  = 10
-      NCNTVAR  = 2
-      NEVALJ   = 1
-      mbal_order = 1
-      lcva_hsp=.false.
-      lcva_hemis=.false.
-      lcva_euclid=.false.
-      lcva_helm=.true.
-      lcva_3db=.false.
-      lcornsmin=.false.
-      lsimulcor=.false.
-      lsetcross=.true.
-      lcorloc  =.false.
-      lgauscor=.false.
-      lgausvercor=.false.
-      lsw      =.false.
       l1obs    =.false.
-      lunitptot=.false.
       lwrthess =.true.
-      lsdevsim =.false.
-      lfgsim   =.false.
-      LINMI    = .false.
-      LDIABATIC= .false.
-      lobsclip = .true.
       lxbar    = .true.
       ltlmend  = .false.
       LTSTSP   = .FALSE.
       LTSTCVA  = .FALSE.
-      LNONSEP  = .TRUE.
       REPSG    = 1e-3
       LRSTART  = .FALSE.
-      LSTAT    = .TRUE.
-      RSIGGZ   =  0.0
-      RSIGOZ   =  1.0
-      RSIGTR   =  1.0
-      RSIGPS   =  1.0
-      RSIGTG   =  1.5
-      RSIGQ    =  1.0
-      RNU2     = 0.0
-      RSIGUU   =  2.92
-      RSIGTT   = 0.0
-      NANALVAR = 3
-      RPORVO   = 6000.E3
-      RPORDI   = 6000.E3
-      RPORTT   = 3000.E3
-      RPORQ    = 3000.E3
-      RPORPS   = 3000.E3
-      RPORTG   = 500.E3
-      RPORGZ   = 1200000.
-      RPOROZ   = 1200000.
-      RPORTR   = 1200000.
-      CIMP     = 'G'
-      CFG      = 'F'
-      CSCAL    = 'P'
-      CFGERR   = 'G'
       CHUM     = 'LQ'
-      CPTOT    = 'GD'
       EPSNEG   = 1e-6
       SELECT0  = 0
       BFGSB    = 2
       IMODE3   = 0
-      NTUNESTATS = 0
-      LPERTOBS = .FALSE.
-      NFLEVPTOT = -999
-      RSCALEPTOT = 1.0
       LHBHT1   = .FALSE.
-      LUSE3DSTD = .FALSE.
-      NTRUNC3DSTD = 0
-      LCOPYPTOT = .FALSE.
-      CFLTUNEOBS= 'none'
-      CFLTUNEBG = 'none'
-      RVLOCBALT   = 0.0
-      RVLOCPSI    = 0.0
-      RVLOCCHI    = 0.0
-      RVLOCUNBALT = 0.0
-      RVLOCLQ     = 0.0
-      RVLOCPSITT  = 0.0
-      NLATMIN1    = 40
-      NLATMAX1    = 50
-      NLATMIN2    = 71
-      NLATMAX2    = 81
 !
       WRITE(UNIT=KULOUT,FMT='(//," Modification of the dimensions:"
      S     ," of the control variable",/,10x
@@ -202,25 +130,10 @@ C
 !
 !modular1      level2_staggrid = .false.
 !
-      if(lcva_3db) then
-        linmi = .true.
-        write(nulout,*) 'SUDIM: lcva_3db is true so enfore LINMI = .true.'
-      endif
-!
-      if(mbal_order.eq.0) then
-        lsetcross = .false.
-        write(nulout,*) 'SUDIM: mbal_order = 0, lsetcross forced to FALSE'
-      endif
-!
       NI=240
-      NIINC=240
       NJ=120
-      NJINC=120
       NFLEV=28
-      NVGAUX=0
-      NTRUNCINC=108
       NTRUNC=108
-      NVSAUX=0
 C
  120  CONTINUE
       WRITE(UNIT=KULOUT,FMT='(//,'' MODIFICATION OF THE DIMENSIONS:''
@@ -228,26 +141,8 @@ C
 C
       CALL READNML('NAMDIM',IERR)
 !
-      write(nulout,*) 'SUDIM: nanalvar = ',nanalvar
-      write(nulout,*) 'SUDIM: mbal_order = ',mbal_order
       write(nulout,*) 'SUDIM: l1obs = ',l1obs
-      write(nulout,*) 'SUDIM: lsetcross = ',lsetcross
-      write(nulout,*) 'SUDIM: lsimulcor = ',lsimulcor
-      write(nulout,*) 'SUDIM: lgauscor = ',lgauscor
-      write(nulout,*) 'SUDIM: lgausvercor = ',lgausvercor
-      write(nulout,*) 'SUDIM: lvloc = ',lvloc
-      write(nulout,*) 'SUDIM: lcorloc = ',lcorloc
-      write(nulout,*) 'SUDIM: lsdevsim = ',lsdevsim
-      write(nulout,*) 'SUDIM: lunitptot = ',lunitptot
       write(nulout,*) 'SUDIM: lwrthess = ',lwrthess
-      write(nulout,*) 'SUDIM: lcornsmin = ',lcornsmin
-      write(nulout,*) 'SUDIM: lobsclip = ',lobsclip
-      write(nulout,*) 'SUDIM: nflevptot = ',nflevptot
-      write(nulout,*) 'SUDIM: lcva_helm = ',lcva_helm
-      write(nulout,*) 'SUDIM: lcva_hsp = ',lcva_hsp
-      write(nulout,*) 'SUDIM: lcva_hemis = ',lcva_hemis
-      write(nulout,*) 'SUDIM: lcva_euclid = ',lcva_euclid
-      write(nulout,*) 'SUDIM: lcva_3db = ',lcva_3db
 !
 !modular1      write(kulout,fmt='(4x,A,L3)')' LEVEL2_staggrid = ',level2_staggrid
 !
@@ -255,7 +150,6 @@ C*    .   1.3 Check the consistency between the number of spectral
 C     .       and gridpoint fields
 C     .       ----------------------------------------------------
 C
-      IF(NFLEVPTOT.lt.0) NFLEVPTOT=NFLEV
  130  CONTINUE
       IF(NVGD.NE.NVSP)THEN
          WRITE(NULOUT,FMT=9130)'  NVGD',NVGD,'  NVSP',NVSP
@@ -265,22 +159,10 @@ C
          WRITE(NULOUT,FMT=9130)' NVG2D',NVG2D,'NVSP2D',NVSP2D
          NVG2D = NVSP2D
       END IF
-      IF(NVGAUX.NE.NVSAUX) THEN
-         WRITE(NULOUT,FMT=9130)'NVGAUX',NVGAUX,'NVSAUX',NVSAUX
-         NVGAUX = NVSAUX
-      END IF
  9130 FORMAT(4X,'-INCONSISTENCY IN THE NUMBER OF FIELDS: ',A6,'= ',I4
      S     ,4X,A6,'= ',I4,/,8X,'RESET TO THE SPECTRAL VALUES')
 C
 C*    2. Initialize the dimensions (dependent dimensions).
-C
-      NI=NIINC
-      NJ=NJINC
-      NTRUNC=NTRUNCINC
-!
-! set maximum number of tiles for ptotla regression matix
-!
-      maxtiles = 500
 C
  200  CONTINUE
 C
@@ -300,39 +182,17 @@ C
      S     ' NJ    =',I6,' NJLATH  =',I6,
      S     ' NI    =',I6,' NFLEV = ',I6)
 !modular1      write(kulout,fmt='(4x,A,i6,A,i6)')'NJ_S = ',nj_s,'  NJLATH_S = ',njlath_s
-      IF(NLATBD.GT.NJLATH) THEN
-         NLATBD = NJLATH
-         WRITE(NULOUT,9211)NLATBD, NJLATH
-      END IF
- 9211 FORMAT(6X,'Width of latitudinal band is too wide. In SUDIM'
-     S     ,' NLATBD is reset to NJLATH',/10X,'NLATBD = ',I3,4X
-     S     ,'NJLATH = ',I3)
 C
 C*    .   2.2 Spectral dimensions
 C     .       -------------------
 C
         NLA = (NTRUNC + 1)*(NTRUNC +2)/2
-        nla_glb = nla
         NLARH = (NTRUNC+1)*(NTRUNC+1)
-        IF(MOD(NTRUNC+1,2).EQ.0) THEN
-           NTRUNCMX = NTRUNC + 1
-        ELSE
-           NTRUNCMX = NTRUNC
-        END IF
-        IF(MOD(NLA,2).EQ.0) THEN
-           NLADIM = NLA+1
-        ELSE
-           NLADIM = NLA
-        END IF
 !
-        nband = ntrunc +1
-        write(nulout,*) 'sudim: nband = ',nband
-C
         WRITE(KULOUT,*)' DIMENSIONS IN SPECTRAL SPACE ------:'
-        WRITE(UNIT=KULOUT,FMT=9220)NTRUNC, NTRUNCMX, NLA, NLADIM, NLARH
+        WRITE(UNIT=KULOUT,FMT=9220)NTRUNC, NLA, NLARH
  9220   FORMAT(/,' Triangular truncation of order '
-     S     ,'NTRUNC =',I4,' NTRUNCMX: ',I4,'  NLA:',I8,'  NLADIM:',I8
-     S     ,'   NLARH:',I8)
+     S     ,'NTRUNC =',I4,' NLA:',I8,'  NLARH:',I8)
 C
 C*    3. Initialize the number of fields.
 C     -----------------------------------
@@ -343,43 +203,27 @@ C     .        ---------------------------------------
 C
  310  CONTINUE
 C
-      NKGDIM = (NVGD+ NVGAUX)* NFLEV + NVG2D
+      NKGDIM = NVGD* NFLEV + NVG2D
 C
       WRITE(UNIT=KULOUT,FMT=9310)
-     S     NVGD,NVGAUX,NVG2D,NKGDIM
+     S     NVGD,NVG2D,NKGDIM
  9310 FORMAT(/,5X,'Number of variables in grid',
      S     ' space',/,
-     S     ' NVGD   =',I6,' NVGAUX =',I6,
-     S     ' NVG2D   =',I6,' NKGDIM =',I6)
+     S     ' NVGD   =',I6,' NVG2D   =',I6,' NKGDIM =',I6)
 C
 C
 C*    .   3.2  Total number of spectral fields
 C     .        -------------------------------
 C
-      nksdim = (NVSP + NVSAUX)*NFLEV + NVSP2D
+      nksdim = NVSP*NFLEV + NVSP2D
 !
-        if(nconf.ne.300.and.nconf.ne.800.and.nconf.ne.801.and.nconf.ne.500.and.nanalvar.eq.4) then
-          NKSDIM2 = NKSDIM+NFLEV
-        else
-          NKSDIM2 = NKSDIM
-        endif
-C
       WRITE(UNIT=KULOUT,FMT='(/,5X,''Number of variables in SPECTRAL'',
      S     '' space'',/,
-     S     '' NVSP   ='',I6,'' NVSAUX ='',I6,
-     S     '' NVSP2D   ='',I6,'' NKSDIM ='',I6)')
-     S     NVSP,NVSAUX,NVSP2D,NKSDIM
-
-C  3.x Create process topology and carry out domain decomposition.
-      CALL procstopo
+     S     '' NVSP   ='',I6,'' NVSP2D   ='',I6,'' NKSDIM ='',I6)')
+     S     NVSP,NVSP2D,NKSDIM
 !!!
 !!! REMOVED CODE FOR DIMENSIONING THE CONTROL VECTOR, MOVED TO SUCOV
 !!!
-C
-C*    5. Some dimensions for fields related to physical processes
-C        --------------------------------------------------------
-C
-      maxconvpt = 0.1*(mni_in*mnj_in)
 C
       RETURN
       END

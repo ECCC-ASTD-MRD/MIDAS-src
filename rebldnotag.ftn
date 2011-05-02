@@ -29,7 +29,6 @@
 *Arguments: none
 *
 #endif
-      USE procs_topo  
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"

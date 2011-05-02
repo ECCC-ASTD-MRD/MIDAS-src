@@ -102,7 +102,6 @@ C 1 (in NAMELIST)
 #include "cvcord.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comin.cdk"
 *
 C
       INTEGER IZS(1),IZTRL(10)
@@ -264,7 +263,6 @@ c
         if (nwoqcv > 0) lvarqc = .false.
 c
         if(ngrtest.ne.0) then
-          lmin = .true.
           call grtest2(simvar,nulout,nvadim,vazx,ngrange)
         endif
 
@@ -336,7 +334,6 @@ C
 C     *    .   3.3 Beginning the minimization
 C     .       --------------------------
 c
-      lminend = .false.
       llstop = .false.
       if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv) then
         iitnovqc = min(nwoqcv - iterdone,itermax)
@@ -490,8 +487,6 @@ C
       END IF
 
       if(l4dvar) then
-        ldiag4d = .false.
-        lminend = .true.
 !modular1        call endsim2(nvadim,vazx)
       endif
 C

@@ -98,12 +98,9 @@ C
 #include "comspg.cdk"
 #include "comgem.cdk"
 #include "comcva.cdk"
-#include "compstat.cdk"
 #include "comstate.cdk"
 #include "comode.cdk"
-#include "comconv.cdk"
 #include "comgdpar.cdk"
-#include "comlap.cdk"
 *
       INTEGER KULOUT, ILEN, IERR, ILMU, ILENUT0, ILENSPV
 C
@@ -273,13 +270,9 @@ C
       IF(NCONF.NE.307) THEN
          CALL HPALLOC(PTSP1 ,MAX(ILEN,1),IERR,8)
          CALL HPALLOC(PTSPG ,MAX(ILEN,1),IERR,8)
-         CALL HPALLOC(PTCORG,MAX(ILEN,1),IERR,8)
       END IF
       write(kulout,*) 'ALLOCATING SPLAT:',ilen
       CALL HPALLOC(PTSPLAT,MAX(ILEN,1),IERR,8)
-C
-      CALL HPALLOC(PTDEVSTD,MAX(NKSDIM,1),IERR,8)
-      CALL HPALLOC(PTCORBG, MAX(NFLEV*(NKSDIM-NVSP2D),1),IERR,8)
 C
 C     .     3.2 Splitting  of states (COMSP, COMSP1, COMSPG)
 C     .         --------------------------------------------
@@ -292,56 +285,38 @@ C
       PTSVOR = -1
       PTSVOR1 = -1
       PTSVORG = -1
-      PTCVORG = -1
-      PTDEVVOR= -1
 C
       PTSDIV = -1
       PTSDIV1 = -1
       PTSDIVG = -1
-      PTCDIVG = -1
-      PTDEVDIV = -1
 C
       PTSTT  = -1
       PTSTT1  = -1
       PTSTTG  = -1
-      PTCTTG  = -1
-      PTDEVTT = -1
 C
       PTSPQ = -1
       PTSPQ1 = -1
       PTSPQG = -1
-      PTCQG  = -1
-      PTDEVQ = -1
 C
       PTSPGZ = -1
       PTSPGZ1  = -1
       PTGZG  = -1
-      PTCGZG  = -1
-      PTDEVGZ  = -1
 C
       PTSPOZ = -1
       PTSPOZ1  = -1
       PTOZG  = -1
-      PTCOZG  = -1
-      PTDEVOZ  = -1
 C
       PTSPTR = -1
       PTSPTR1  = -1
       PTTRG  = -1
-      PTCTRG  = -1
-      PTDEVTR  = -1
 C
       PTSPPS = -1
       PTSPPS1 = -1
       PTSPPSG = -1
-      PTCPSG  = -1
-      PTDEVPS = -1
 C
       PTSPTG = -1
       PTSPTG1 = -1
       PTSPTGG = -1
-      PTCTGG  = -1
-      PTDEVTG = -1
 C
       iloc = 1
       do jvar = 1,jpnvarmax
@@ -351,9 +326,6 @@ C
             PTSVOR   = LOC(SP(1,1,ILOC))
             PTSVOR1 = LOC(SP1(1,1,ILOC))
             PTSVORG = LOC(SPG(1,1,ILOC))
-            PTCVORG = LOC(CORG(1,1,ILOC))
-            PTDEVVOR=  LOC(RDEVSTD(ILOC))
-            ptuucorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nsdiv) then
@@ -362,9 +334,6 @@ C
             PTSDIV  = LOC(SP (1,1,iloc))
             PTSDIV1 = LOC(SP1(1,1,ILOC))
             PTSDIVG = LOC(SPG(1,1,ILOC))
-            PTCDIVG = LOC(CORG(1,1,ILOC))
-            PTDEVDIV=  LOC(RDEVSTD(ILOC))
-            ptvvcorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nsgz) then
@@ -373,9 +342,6 @@ C
             PTSPGZ  = LOC(SP  (1,1,iloc))
             PTSPGZ1  = LOC(SP1  (1,1,ILOC))
             PTGZG  = LOC(SPG  (1,1,ILOC))
-            PTCGZG  = LOC(CORG  (1,1,ILOC))
-            PTDEVGZ  = LOC(RDEVSTD(ILOC))
-            ptgzcorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nsq) then
@@ -384,9 +350,6 @@ C
             PTSPQ  = LOC(SP  (1,1,iloc))
             PTSPQ1 = LOC(SP1 (1,1,ILOC))
             PTSPQG = LOC(SPG (1,1,ILOC))
-            PTCQG  = LOC(CORG(1,1,ILOC))
-            PTDEVQ = LOC(RDEVSTD(ILOC))
-            ptqcorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nstt) then
@@ -395,9 +358,6 @@ C
             PTSTT   = LOC(SP (1,1,iloc))
             PTSTT1  = LOC(SP1(1,1,ILOC))
             PTSTTG  = LOC(SPG(1,1,ILOC))
-            PTCTTG  = LOC(CORG(1,1,ILOC))
-            PTDEVTT =  LOC(RDEVSTD(ILOC))
-            ptttcorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nsoz) then
@@ -406,9 +366,6 @@ C
             PTSPOZ  = LOC(SP  (1,1,iloc))
             PTSPOZ1  = LOC(SP1  (1,1,ILOC))
             PTOZG  = LOC(SPG  (1,1,ILOC))
-            PTCOZG  = LOC(CORG  (1,1,ILOC))
-            PTDEVOZ  = LOC(RDEVSTD(ILOC))
-            ptozcorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nstr) then
@@ -417,9 +374,6 @@ C
             PTSPTR  = LOC(SP  (1,1,iloc))
             PTSPTR1  = LOC(SP1  (1,1,ILOC))
             PTTRG  = LOC(SPG  (1,1,ILOC))
-            PTCTRG  = LOC(CORG  (1,1,ILOC))
-            PTDEVTR  = LOC(RDEVSTD(ILOC))
-            pttrcorbg= loc(corbg(1,iloc))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nsps) then
@@ -428,8 +382,6 @@ C
             PTSPPS  = LOC(SP  (1,1,iloc))
             PTSPPS1 = LOC( SP1(1,1,ILOC))
             PTSPPSG = LOC( SPG(1,1,ILOC))
-            PTCPSG  = LOC(CORG(1,1,ILOC))
-            PTDEVPS = LOC(RDEVSTD(ILOC))
             iloc = iloc + 1
           end if
         elseif(jvar .eq. nstg) then
@@ -438,16 +390,10 @@ C
             PTSPTG  = LOC(SP  (1,1,iloc))
             PTSPTG1 = LOC( SP1(1,1,ILOC))
             PTSPTGG = LOC( SPG(1,1,ILOC))
-            PTCTGG  = LOC(CORG(1,1,ILOC))
-            PTDEVTG = LOC(RDEVSTD(ILOC))
             iloc = iloc + 1
           end if
         endif
       enddo
-C
-!cluc      ILEN = NI*NJ*NKGDIM   ! replaced by following line for Hemis. spectral mode.
-      ILEN = (NI)*NKGDIM*(NJ) 
-      CALL HPALLOC(PTDAMPLIBG,MAX(ILEN,1),IERR,8)
 C
       ILENSPV = NLA * 2 * NFLEV
       WRITE(KULOUT,FMT='(/,"  Arrays in COMSP are allocated",
@@ -466,8 +412,6 @@ C
          WRITE(KULOUT,FMT='(8X,"   SPG :",I6,10x
      S        ," (3D-fields SPXXXG):",I8)')  ILEN,ILENSPV
 C
-         WRITE(KULOUT,FMT='(8X,"   CORG :",I6,10x
-     S        ," (3D-Fields CORXXXG):",I8)')  ILEN,ILENSPV
       END IF
 C
 C*    4. Arrays needed to define the geometry of the model (in COMGEM)
@@ -538,21 +482,5 @@ c
       CALL HPALLOC(PTGPSG,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTGPTG,MAX(ILEN,1),IERR,8)
 C
-C*    10. Arrays for Convection
-C
-      ilen=maxconvpt
-      call hpalloc(ptmptikf9, max(ilen,1), ierr, 1)
-      call hpalloc(ptmptjkf9, max(ilen,1), ierr, 1)
-c
-      ilen=nflev*nflev*maxconvpt
-      call hpalloc(ptcfptpt, max(ilen,1), ierr, 8)
-      call hpalloc(ptcfptpq, max(ilen,1), ierr, 8)
-      call hpalloc(ptcfpqpt, max(ilen,1), ierr, 8)
-      call hpalloc(ptcfpqpq, max(ilen,1), ierr, 8)
-      ilen=nflev
-      call hpalloc(ptheat28, max(ilen,1), ierr, 8)
-      ilen=maxconvpt
-      call hpalloc(ptrr9, max(ilen,1), ierr, 8)
-c
       RETURN
       END
