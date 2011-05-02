@@ -10,8 +10,8 @@
       real*8 da_v(na_vdim)
 
       gd(:,:,:)=0.0d0
-!      call bhi_bsqrt(da_v,gd)
-      call ben_bsqrt(da_v,gd)
+      call bhi_bsqrt(da_v,gd)
+!      call ben_bsqrt(da_v,gd)
 
 
       END
