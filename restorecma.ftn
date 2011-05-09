@@ -33,14 +33,12 @@
 *
       USE mod4dv, only : l4dvar 
       USE obstag  
+      use obs_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
 #include "cvcord.cdk"
 #include "commvo.cdk"
 ! Declaire Local Variables. 
@@ -57,7 +55,6 @@
 
 !!1.      Release some memorys. 
       print*,'Entering restoreCMA'  
-      DEALLOCATE(ROBDATA8) 
 
 !!1.2 Added restore global array MOBHDR and RMTMOBS
 !     MOBHDR and  RMTMOBS are used in "cmaabrp.ftn"
@@ -72,7 +69,7 @@
       ii=1 
       DO i=1,NOBTOT
          iobs=locObsTag(i)
-         MOBHDR_tmp(1:NCMLET,iobs)=MOBHDR(1:NCMLET,ii)
+         MOBHDR_tmp(1:NCMLET,iobs)=obsSpaceData%MOBHDR(1:NCMLET,ii)
          RMTMOBS_tmp(iobs)=RMTMOBS(ii)
          ii=ii+1
       ENDDO  
@@ -80,11 +77,7 @@
       sizeRMTMOBS=NOBTOTP
       CALL RPN_COMM_ALLReduce(MOBHDR_tmp,MOBHDR_tmp,sizeMOBHDR,"mpi_integer","mpi_sum","GRID",ierr)
       CALL RPN_COMM_ALLReduce(RMTMOBS_tmp,RMTMOBS_tmp,sizeRMTMOBS,"mpi_double_precision","mpi_sum","GRID",ierr)
-      DEALLOCATE(MOBHDR)
-      ALLOCATE(MOBHDR(NCMLET,NOBTOTP),STAT=ierr) 
-      IF(ierr /= 0) CALL ABORT3D(nulout,'Cannt allocate Mem. to MOBHDR,Abort!') 
-      MOBHDR=MOBHDR_tmp
-      DEALLOCATE(MOBHDR_tmp)
+
 
 !!      DEALLOCATE(RMTMOBS)
       CALL  HPDEALLC(PTMTMOBS,IERR,1)
@@ -103,24 +96,18 @@
       IF(ierr /= 0) CALL  ABORT3D(nulout, 'Cannt allocate Mem. to ROBDATA_tmp,Abort!') 
       ROBDATA_tmp=0.0 
 
-
-
 !3.  Re-store the global array MOBDATA and ROBDATA   
       ii=0 
       DO i=1,nobtot
         iobs=locObsTag(i) 
-        idata= MOBHDR_G(NCMRLN,iobs) 
-        idataend = MOBHDR_G(NCMNLV,iobs) + idata -1 
+        idata= obsSpaceData%MOBHDR_G(NCMRLN,iobs) 
+        idataend = obsSpaceData%MOBHDR_G(NCMNLV,iobs) + idata -1 
         DO j=idata,idataend 
            ii=ii+1 
-           MOBDATA_tmp(1:NCMLBO,j)=MOBDATA(1:NCMLBO,ii) 
-           ROBDATA_tmp(1:NCMLBO,j)=ROBDATA(1:NCMLBO,ii) 
+           MOBDATA_tmp(1:NCMLBO,j)=obsSpaceData%MOBDATA(1:NCMLBO,ii) 
+           ROBDATA_tmp(1:NCMLBO,j)=obsSpaceData%ROBDATA(1:NCMLBO,ii) 
         ENDDO 
       ENDDO 
-   ! 
-
-      deallocate(MOBDATA)
-      deallocate(ROBDATA)
    !   
    ! Merge the global array MOBDATA_tmp and ROBDATA_tmp. 
       sizeMOBDATA=size(MOBDATA_tmp) 
@@ -128,19 +115,18 @@
       CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeMOBDATA,"mpi_real","mpi_sum","GRID",ierr)
    !  
 
-      ALLOCATE(ROBDATA(NCMLBO,ndatap),STAT=ierr) 
-      IF(ierr /= 0) CALL ABORT3D(nulout,'Cannt allocate Mem. to ROBDATA,Abort!') 
-      ROBDATA=ROBDATA_tmp 
+      call obs_deallocate(obsSpaceData)
+      call obs_allocate(obsSpaceData,nobtotp,ndatap)
+
+      obsSpaceData%ROBDATA=ROBDATA_tmp 
       DEALLOCATE(ROBDATA_tmp) 
- 
-      ALLOCATE(MOBDATA(NCMLBO,ndatap),STAT=ierr) 
-      IF(ierr /= 0) CALL ABORT3D(nulout,'Cannt allocate Mem. to MOBDATA,Abort!') 
-      MOBDATA=MOBDATA_tmp
+      obsSpaceData%MOBDATA=MOBDATA_tmp
       DEALLOCATE(MOBDATA_tmp)  
+      obsSpaceData%MOBHDR=MOBHDR_tmp
+      DEALLOCATE(MOBHDR_tmp)
       
 !!
-      DEALLOCATE(MOBHDR_G)
-      DEALLOCATE(ROBHDR_G)
+      call obs_deallocateG(obsSpaceData)
       DEALLOCATE(locObsTag)
       IF(l4dvar) THEN
         DEALLOCATE(ObsTagLoc) 

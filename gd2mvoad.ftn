@@ -46,6 +46,7 @@
 
 
       USE obstag  
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -54,9 +55,8 @@
 #include "comgem.cdk"
 #include "comgd0.cdk"
 #include "comcst.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 *
 *     Arguments
@@ -121,15 +121,15 @@ C
  200  CONTINUE
 C
       Observations: DO JOBS = 1, NOBTOTP
-         DLLAO   = ROBHDR_G(NCMLAT,JOBS)
-         DLLOO   = ROBHDR_G(NCMLON,JOBS)
-         IOBTYP  = MOBHDR_G(NCMOTP,JOBS)
+         DLLAO   = obsSpaceData%ROBHDR_G(NCMLAT,JOBS)
+         DLLOO   = obsSpaceData%ROBHDR_G(NCMLON,JOBS)
+         IOBTYP  = obsSpaceData%MOBHDR_G(NCMOTP,JOBS)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     TO THE WEST (ILON AND ILOS)
 C
-         ILA=MOBHDR_G(NCMTLA,JOBS)
+         ILA=obsSpaceData%MOBHDR_G(NCMTLA,JOBS)
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI

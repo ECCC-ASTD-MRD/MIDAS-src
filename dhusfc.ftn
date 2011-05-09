@@ -34,13 +34,13 @@
 *     CDFAM: FAMILY OF OBSERVATION
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
       CHARACTER *2 CDFAM
 *implicits
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvohr.cdk"
 #include "cvcord.cdk"
 #include "comnumbr.cdk"
@@ -93,8 +93,8 @@ c            ENDIF
 
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
-                IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHS .AND.
-     &               MOBDATA(NCMVCO,JDATA) .EQ. 1  ) THEN
+                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHS .AND.
+     &               obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1  ) THEN
                     ICOUNT = ICOUNT + 1
                     IPOINTR(ICOUNT) = JDATA
                 ENDIF
@@ -110,10 +110,10 @@ c
 
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  ZVAR = ROBDATA8(NCMVAR,JDATA)
-                  ZOER = ROBDATA8(NCMOER,JDATA)
-                  IK   = ROBDATA(NCMLYR,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
+                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'
@@ -122,7 +122,7 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
 c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  ROBDATA8(NCMOMA,JDATA) = (GOMQHR(NLEVTRL,IOBS)-ZVAR)
+                  obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (GOMQHR(NLEVTRL,IOBS)-ZVAR)
      +                 / ZOER
 
                   IF ( LLPRINT ) THEN
@@ -136,7 +136,7 @@ c                  ENDIF
                     write(nulout,*)'   gomqhr(nlevtrl,iobs) = '
      &                   ,GOMQHR(NLEVTRL,IOBS)
                     write(nulout,*)'   O-Psfc = '
-     &                   ,-ROBDATA8(NCMOMA,JDATA)*ZOER
+     &                   ,-obsSpaceData%ROBDATA8(NCMOMA,JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 

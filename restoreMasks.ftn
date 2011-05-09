@@ -17,6 +17,7 @@
       SUBROUTINE restoreMasks 
       use modmask
       USE obstag  
+      use obs_mod
       implicit none
 c Purpose:
 c Compute the global masks such as lmaskpp_inout_g,lmasksf_inout_g,... 
@@ -28,9 +29,8 @@ C
 
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 *
 ! Define Local Variables. 
@@ -90,8 +90,8 @@ C
        ii=0
        DO i=1,nobtot
          iobs=locObsTag(i)
-         idata=MOBHDR_G(NCMRLN,iobs)
-         idataend=MOBHDR_G(NCMNLV,iobs) + idata -1
+         idata=obsSpaceData%MOBHDR_G(NCMRLN,iobs)
+         idataend=obsSpaceData%MOBHDR_G(NCMNLV,iobs) + idata -1
          DO j=idata,idataend
            ii=ii+1
            lmask_g(j)=lmask_l(ii)

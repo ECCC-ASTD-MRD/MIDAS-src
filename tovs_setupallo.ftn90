@@ -56,13 +56,13 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
   Use mod_tovs  
   use airsch
   use iasich
+  use obs_mod
 
   IMPLICIT NONE
 !implicits
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comlun.cdk"
@@ -109,10 +109,10 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
           NBEGINTYP(JF).GT. 0          ) THEN
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-        ILASTOB  = MOBDATA(NCMOBS,ILAST )
+        IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+        ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
         DO JO = IBEGINOB, ILASTOB
-           IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+           IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
            IF ( IDATYP .EQ. 164 .OR. &
                 IDATYP .EQ. 168 .OR. &
                 IDATYP .EQ. 180 .OR. &
@@ -127,11 +127,11 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
 
 !           Construct list of channels for each sensor:
 !             map burp satellite info to RTTOV-7 platform and satellite.
-              IVAL = MOD(MOBHDR(NCMITY,JO)/1000,1000)
+              IVAL = MOD(obsSpaceData%MOBHDR(NCMITY,JO)/1000,1000)
               CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
 
 !             map burp instrument info to RTTOV-7 instrument.
-              IVAL = MOD(MOBHDR(NCMBOX,JO),10000)
+              IVAL = MOD(obsSpaceData%MOBHDR(NCMBOX,JO),10000)
               CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
 
 !             find sensor number for this obs.
@@ -150,11 +150,11 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
   110         lsensor(nobtov) = nosensor
               lobsno (nobtov) = jo
               ltovsno (jo)    = nobtov
-              IDATA   = MOBHDR(NCMRLN,JO)
-              IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+              IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+              IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
               DO JDATA= IDATA, IDATEND
-                 IF ( MOBDATA(NCMASS,JDATA).EQ.1 ) THEN
-                    ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+                 IF ( obsSpaceData%MOBDATA(NCMASS,JDATA).EQ.1 ) THEN
+                    ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
                     IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) ICHN=ICHN-CHANOFFSET(NOSENSOR)
 

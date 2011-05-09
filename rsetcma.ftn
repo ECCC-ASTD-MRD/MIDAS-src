@@ -31,27 +31,23 @@
 *Arguments
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
 #include "comnumbr.cdk"
 *
       INTEGER JDATA,II,IASS,ITYP
 C
 C-------     READ H(X)-Z IN zprim.dat
 C
-      II = NCMVAR
-      NCMVAR = NCMOMF
-      NCMOMF = II
+      call obs_swapVarOmf(obsSpaceData)
       do JDATA=1,NDATA
-         IASS   = MOBDATA(NCMASS,JDATA)
-         ITYP   = MOBDATA(NCMVNM,JDATA)
+         IASS   = obsSpaceData%MOBDATA(NCMASS,JDATA)
+         ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
          IF(IASS.EQ.1 .OR. ITYP.EQ.NEHU .OR. ITYP.EQ.NEHS) THEN
-            ROBDATA8(NCMOMF,JDATA)=-ROBDATA8(NCMOMF,JDATA)
-     S           /ROBDATA8(NCMOER,JDATA)
+            obsSpaceData%ROBDATA8(NCMOMF,JDATA)=-obsSpaceData%ROBDATA8(NCMOMF,JDATA)
+     S           /obsSpaceData%ROBDATA8(NCMOER,JDATA)
          ENDIF
       enddo
 C

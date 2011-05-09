@@ -30,6 +30,7 @@
       use modgps04profile
       use modgps06gravity
       use modgps08refop
+      use obs_mod
       IMPLICIT NONE
 
 #include "pardim.cdk"
@@ -37,9 +38,8 @@
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvog.cdk"
 #include "cvcord.cdk"
@@ -99,8 +99,8 @@ C
         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
           IBEGIN   = NBEGINTYP(JF)
           ILAST    = NENDTYP  (JF)
-          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = MOBDATA(NCMOBS,ILAST )
+          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
 
 C
 C     *     Loop over all observations of the file
@@ -115,20 +115,20 @@ C$omp+private(jac,zmhxl,jv)
 C
 C     *        Process only refractivity data (codtyp 169)
 C
-            IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+            IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
             IF ( IDATYP .EQ. 169 ) THEN
 C
 C                 Loops over data in the observation
 C
-              IDATA   = MOBHDR(NCMRLN,JO)
-              IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+              IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+              IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
               ASSIM = .FALSE.
 C
 C                 Scan for requested assimilations, and count them
 C
               NH = 0
               DO JDATA= IDATA, IDATEND
-                LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                LUSE=( obsSpaceData%MOBDATA(NCMASS,JDATA).EQ.1 )
                 IF ( LUSE ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
@@ -142,8 +142,8 @@ C
 C
 C     *              Profile at the observation location:
 C
-                Lat  = ROBHDR(NCMLAT,JO)
-                Lon  = ROBHDR(NCMLON,JO)
+                Lat  = obsSpaceData%ROBHDR(NCMLAT,JO)
+                Lon  = obsSpaceData%ROBHDR(NCMLON,JO)
                 ZLAT = Lat * ZTODEG
                 ZLON = Lon * ZTODEG
                 DO JL = 1, NFLEV
@@ -181,10 +181,10 @@ C
                 ALLOCATE( RSTV (NH) )
                 NH1 = 0
                 DO JDATA= IDATA, IDATEND
-                  LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                  LUSE=( obsSpaceData%MOBDATA(NCMASS,JDATA).EQ.1 )
                   IF ( LUSE ) THEN
                     NH1 = NH1 + 1
-                    HNH1  = ROBDATA8(NCMPPP,JDATA)
+                    HNH1  = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                     H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                   ENDIF
                 ENDDO
@@ -197,7 +197,7 @@ C     *              Perform the (H(xb)DX-Y')/S operation
 C
                 NH1 = 0
                 DO JDATA= IDATA, IDATEND
-                  LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                  LUSE=( obsSpaceData%MOBDATA(NCMASS,JDATA).EQ.1 )
                   IF ( LUSE ) THEN
                     NH1 = NH1 + 1
 C
@@ -221,7 +221,7 @@ c profile):
 C
 C     *                    Store in CMA
 C
-                    ROBDATA8(NCMOMA,JDATA) = ZMHXL
+                    obsSpaceData%ROBDATA8(NCMOMA,JDATA) = ZMHXL
 
                   ENDIF
                 ENDDO

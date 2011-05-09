@@ -16,6 +16,7 @@
 !
 SUBROUTINE oda_res
   use modmask, only : lmask, ldiag
+  use obs_mod
   implicit none
   !
   !Purpose:
@@ -30,9 +31,8 @@ SUBROUTINE oda_res
   !
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comcva.cdk"
 
   !Local Declarations
@@ -42,7 +42,7 @@ SUBROUTINE oda_res
 !!
     DO JDATA=1,ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          ROBDATA8(NCMOMA,JDATA) = ROBDATA8(NCMOMA,JDATA)-ROBDATA8(NCMVAR,JDATA)
+          obsSpaceData%ROBDATA8(NCMOMA,JDATA) = obsSpaceData%ROBDATA8(NCMOMA,JDATA)-obsSpaceData%ROBDATA8(NCMVAR,JDATA)
        ENDIF
     enddo
 !

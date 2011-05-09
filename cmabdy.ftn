@@ -16,6 +16,7 @@
 !
       SUBROUTINE CMABDY(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
      +             LDGO,LDAIRS,LDIASI,KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KIDTYP)
+      use obs_mod
       IMPLICIT NONE
 *
       INTEGER KNDAT
@@ -100,9 +101,7 @@
 #endif
 *
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
 #include "cvcord.cdk"
 #include "cparbrp.cdk"
 #include "comcst.cdk"
@@ -148,12 +147,12 @@
                         IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
                            IF ( IP + IND .LE. NDATAMX ) THEN
 *                                         VERTICAL COORDINATE
-                              ROBDATA8(NCMPPP,IP+IND)=PVCORD(JJ)*ZFACT +vcordsf(ilem,kidtyp)
+                              obsSpaceData%ROBDATA8(NCMPPP,IP+IND)=PVCORD(JJ)*ZFACT +vcordsf(ilem,kidtyp)
 C
 C                             FOR PNM HEIGHT IS SET TO 0
 C                             ----------------------------
                               IF ( ILEM .EQ. 53 ) THEN
-                                 ROBDATA8(NCMPPP,IP+IND)=0.
+                                 obsSpaceData%ROBDATA8(NCMPPP,IP+IND)=0.
                               ENDIF
 C                             ----------------------------
 C
@@ -210,47 +209,47 @@ C
 *                                   (Element assim by 3dvar)
                                  IFLAG = KFLAGS(JI,JJ,IK)
                                  IFLAG = IBCLR(IFLAG,12)
-                                 MOBDATA(NCMFLG,IP+IND)= IFLAG
+                                 obsSpaceData%MOBDATA(NCMFLG,IP+IND)= IFLAG
                               ELSE
-                                 MOBDATA(NCMFLG,IP+IND)= IBAD
+                                 obsSpaceData%MOBDATA(NCMFLG,IP+IND)= IBAD
                               ENDIF
 *
-                              ROBDATA8(NCMVAR,IP+IND)=PVALUES (JI,JJ,IK)
-                              MOBDATA(NCMVNM,IP+IND)=KLIST(JI)
-                              MOBDATA(NCMVCO,IP+IND)=NVCORDTYP
-                              ROBDATA8(NCMOMF,IP+IND)=PPMIS
-                              ROBDATA8(NCMOMA,IP+IND)=PPMIS
-                              ROBDATA8(NCMOMI,IP+IND)=PPMIS
-                              ROBDATA(NCMFGE,IP+IND)=PPMIS
-                              ROBDATA8(NCMOER,IP+IND)=PPMIS
+                              obsSpaceData%ROBDATA8(NCMVAR,IP+IND)=PVALUES (JI,JJ,IK)
+                              obsSpaceData%MOBDATA(NCMVNM,IP+IND)=KLIST(JI)
+                              obsSpaceData%MOBDATA(NCMVCO,IP+IND)=NVCORDTYP
+                              obsSpaceData%ROBDATA8(NCMOMF,IP+IND)=PPMIS
+                              obsSpaceData%ROBDATA8(NCMOMA,IP+IND)=PPMIS
+                              obsSpaceData%ROBDATA8(NCMOMI,IP+IND)=PPMIS
+                              obsSpaceData%ROBDATA(NCMFGE,IP+IND)=PPMIS
+                              obsSpaceData%ROBDATA8(NCMOER,IP+IND)=PPMIS
 *
 *                             OBS ERROR FOR HUMSAT
 *
                               IF ( LDERR ) THEN
-                                ROBDATA8(NCMOER,IP+IND)=PROFIL(JJ)
+                                obsSpaceData%ROBDATA8(NCMOER,IP+IND)=PROFIL(JJ)
                               ENDIF
 *
 *                             REFERENCE LEVEL FOR SATEMS
 *
                               IF ( LDSAT ) THEN
-                                ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)*ZFACT
-                                ROBDATA8(NCMOER,IP+IND)=1.0D0
+                                obsSpaceData%ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)*ZFACT
+                                obsSpaceData%ROBDATA8(NCMOER,IP+IND)=1.0D0
                               ENDIF
 *
 *                             SURFACE EMISSIVITIES FOR GOES AIRS AND IASI RADIANCES
 *
                               IF ( LDGO ) THEN
-                                ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)
+                                obsSpaceData%ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)
      &                               *ZEMFACT
                               ENDIF
 
                               IF ( LDAIRS ) THEN
-                                ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)
+                                obsSpaceData%ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)
      &                               *ZEMFACT
                               END IF
 
                               IF ( LDIASI ) THEN
-                                 ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)
+                                 obsSpaceData%ROBDATA8(NCMPRL,IP+IND)=PROFIL(JJ)
      &                                *ZEMFACT
                               END IF
 

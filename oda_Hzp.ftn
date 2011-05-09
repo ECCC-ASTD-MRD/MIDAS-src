@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_Hzp
       use modmask, only : lmaskzp
+      use obs_mod
 #if defined (DOC)
 *
 * Purpose: Compute simulated profiler observations from profiled model
@@ -40,9 +41,8 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvog.cdk"
 *
@@ -57,10 +57,10 @@
 C
       DO JDATA=1,ndata
         IF (lmaskzp(jdata)) THEN
-          IOBS = MOBDATA(NCMOBS,JDATA)
-          IPOS = MOBDATA(NCMPOS,JDATA)
-          ZLEV = ROBDATA8(NCMPPP,JDATA)
-          IK   = ROBDATA(NCMLYR,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+          IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = GOMGZG(IK,IOBS)/RG
@@ -72,7 +72,7 @@ C
           ZDA1= (ZLEV-ZPB)/(ZDENO**2)
           ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
-          ROBDATA8(NCMOMA,JDATA) =
+          obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
      &         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS) +
      &         (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))*
      &         (ZDA1*GOMGZ(IK,IOBS)/RG + ZDA2*GOMGZ(IK+1,IOBS)/RG)

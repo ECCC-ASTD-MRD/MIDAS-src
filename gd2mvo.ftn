@@ -16,6 +16,7 @@
 !
       SUBROUTINE GD2MVO(CDVARNAME,klev)
       use glbspec_mod
+      use obs_mod
 *
 #if defined (DOC)
 *
@@ -45,9 +46,8 @@
 #include "comgem.cdk"
 #include "comgd0.cdk"
 #include "comcst.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 *
 *     Arguments
@@ -59,8 +59,9 @@
 *
       INTEGER   JLEV, JGL, JLON, JOBS, IOBTYP
       INTEGER   ILON, ILOS, IMIDDLE, ISYM, ILA, IMAX
-      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
+      REAL*8    DLMEAN, DLMEAS, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
+      real*4    DLLAO, DLLOO
 *
       real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
       real*8  zprofil(1:klev,nobtot)
@@ -159,15 +160,19 @@ C*    2. LOOP OVER ALL THE OBSERVATIONS
 C     ---------------------------------
 C
       OBSERVATIONS: DO JOBS = 1, NOBTOT
-         DLLAO   = ROBHDR(NCMLAT,JOBS)
-         DLLOO   = ROBHDR(NCMLON,JOBS)
-         IOBTYP  = MOBHDR(NCMOTP,JOBS)
+         call obs_getHeader(obsSpaceData,jobs,val_LAT=DLLAO)
+         call obs_getHeader(obsSpaceData,jobs,val_LON=DLLOO)
+         call obs_getHeader(obsSpaceData,jobs,val_OTP=IOBTYP)
+!         DLLAO   = obsSpaceData%ROBHDR(NCMLAT,JOBS)
+!         DLLOO   = obsSpaceData%ROBHDR(NCMLON,JOBS)
+!         IOBTYP  = obsSpaceData%MOBHDR(NCMOTP,JOBS)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     *    TO THE WEST (ILON AND ILOS).
 C
-         ILA=MOBHDR(NCMTLA,JOBS)
+         call obs_getHeader(obsSpaceData,jobs,val_TLA=ila)
+!         ILA=obsSpaceData%MOBHDR(NCMTLA,JOBS)
 
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI

@@ -29,7 +29,6 @@ subroutine minimize
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
-#include "comoba.cdk"
 #include "comcva.cdk"
 
   !Local declarations
@@ -47,13 +46,7 @@ subroutine minimize
 
 !
   call rsetcma
-!
-!      DEALLOCATE(ROBDATA8,STAT=IERR)
-!      IF(IERR.EQ.0) THEN
-!        WRITE(NULOUT,*) 'minimize:  PTROBDATA8 checked and correct'
-!      ELSE
-!        WRITE(NULOUT,*) 'minimize:  PTROBDATA8 destroyed !!!!!!'
-!      END IF
+
   if(.not.l1obs) then
     call cprob8to4
     DO INDIC =1,1

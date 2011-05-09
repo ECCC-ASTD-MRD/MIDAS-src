@@ -45,13 +45,13 @@
 *
 ************************************************************************
 #endif
+      use obs_mod
       IMPLICIT NONE
 *
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cparbrp.cdk"
 #include "comnumbr.cdk"
 *

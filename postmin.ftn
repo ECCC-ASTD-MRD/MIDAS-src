@@ -17,6 +17,7 @@
       subroutine postmin
       use glbspec_mod
       use mod4dv, only : l4dvar
+      use obs_mod
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *
@@ -66,10 +67,9 @@
 #include "comsp.cdk"
 #include "compdg.cdk"
 #include "localpost.cdk"
-#include "comoabdy.cdk"
+
 #include "comvarqc.cdk"
 #include "comvfiles.cdk"
-#include "comoba.cdk"
 *
 C
       LOGICAL LLTEST,llstdevout

@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_Hgp
       use modmask, only : lmaskgp
+      use obs_mod
 #if defined (DOC)
 *
 ***s/r  -oda_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
@@ -45,9 +46,8 @@
 #include "comgem.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvog.cdk"
 #include "cvcord.cdk"
@@ -110,15 +110,15 @@ C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-            ILASTOB  = MOBDATA(NCMOBS,ILAST )
+            IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+            ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
 C
 C     *     Loop over all GPS observations (locations) of the file
 C
             DO JO = IBEGINOB, ILASTOB
 C
-               IDATA   = MOBHDR(NCMRLN,JO)
-               IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+               IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+               IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
 C
 c     *     Scan for ZTD assimilation at this location
 c
@@ -127,7 +127,7 @@ c
                DO JDATA= IDATA, IDATEND
                   LLOK = ( lmaskgp(JDATA) )
                   IF ( LLOK ) THEN
-                     ZLEV = ROBDATA8(NCMPPP,JDATA)
+                     ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                      ASSIM = .TRUE.
                      NH = NH + 1
                   ENDIF
@@ -139,8 +139,8 @@ C
 C
 C     *           LR background profile and increments at the observation location x :
 C
-                    ZLAT = ROBHDR(NCMLAT,JO) * ZTODEG
-                    ZLON = ROBHDR(NCMLON,JO) * ZTODEG
+                    ZLAT = obsSpaceData%ROBHDR(NCMLAT,JO) * ZTODEG
+                    ZLON = obsSpaceData%ROBHDR(NCMLON,JO) * ZTODEG
                     DO JL = 1, NFLEV
                       ZTTB(JL) = GOMTG(JL,JO)
                       ZTT(JL)  = GOMT(JL,JO)
@@ -168,7 +168,7 @@ C
                     DO JDATA= IDATA, IDATEND
                       IF ( lmaskgp(JDATA) ) THEN
                           NH1 = NH1 + 1
-                          ROBDATA8(NCMOMA,JDATA) = ZHX
+                          obsSpaceData%ROBDATA8(NCMOMA,JDATA) = ZHX
                       ENDIF
                     ENDDO
 c

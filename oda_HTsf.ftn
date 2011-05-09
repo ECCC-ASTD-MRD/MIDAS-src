@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_HTsf
       use modmask, only : lmasksf_in,lmasksf_out
+      use obs_mod
 #if defined (DOC)
 *
 ***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
@@ -65,9 +66,8 @@ c coordinate.
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comphy.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvog.cdk"
 #include "comnumbr.cdk"
@@ -108,17 +108,17 @@ C
 *vdir nodep
         DO JDATA=j,ndata,ISTRIDE
           IF (lmasksf_in(jdata)) THEN
-            IOBS = MOBDATA(NCMOBS,JDATA)
-            IPOS = MOBDATA(NCMPOS,JDATA)
-            ITYP = MOBDATA(NCMVNM,JDATA)
-            IK   = ROBDATA(NCMLYR,JDATA)
-            ZLEV = ROBDATA8(NCMPPP,JDATA)
+            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+            IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+            ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+            IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+            ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
             ZHHH = ZLEV * GRAV
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
-            ZRES = ROBDATA8(NCMOMI,JDATA)
-c            ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMN,JDATA)
-c     &           * ROBDATA8(NCMOMA,JDATA)
+            ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
+c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
+c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
             IF (ITYP.EQ.NETS .OR. ITYP.EQ.NESS .OR.
      &           ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS ) THEN
               GOMOBS(IPB,IOBS)    = GOMOBS(IPB,IOBS) + ZRES
@@ -153,17 +153,17 @@ ccc ATTN ATTN ZDADPS EST A DEFINIR POUR UNE COORDONNEE Z
             ENDIF
             
           elseif(lmasksf_out(jdata)) then
-            IOBS = MOBDATA(NCMOBS,JDATA)
-            ZRES = ROBDATA8(NCMOMI,JDATA)
-            ZLEV = ROBDATA8(NCMPPP,JDATA)
+            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+            ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
+            ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
 C
 c  adjoint of TL of geopotential extrapolation below orography
 c
             zcon = (zlev/gompsg(1,iobs))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
-c            ROBDATA8(NCMOMN,JDATA) = ROBDATA8(NCMOMN,JDATA)
-c     &           * ROBDATA8(NCMOMA,JDATA)
+c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
+c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
             gomps(1,iobs)    = gomps(1,iobs)
      &           + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)
             gomt(nflev,iobs) = gomt(nflev,iobs)

@@ -38,6 +38,7 @@
 *     CDFAM: FAMILY OF OBSSERVATION
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM
@@ -49,9 +50,8 @@
 #include "comgem.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
@@ -88,16 +88,16 @@ C
 C     Process all data within the domain of the model
 C
             DO JDATA=IBEGIN,ILAST
-               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &              .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
-     &              .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 1)
+               LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &              .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &              .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
                IF ( LLOK ) THEN
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  IPOS = MOBDATA(NCMPOS,JDATA)
-                  ZVAR = ROBDATA8(NCMVAR,JDATA)
-                  ZOER = ROBDATA8(NCMOER,JDATA)
-                  ZLEV = ROBDATA8(NCMPPP,JDATA)
-                  IK   = ROBDATA(NCMLYR,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+                  IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
+                  ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
                   IPT = IK + IPOS*NLEVTRL
                   IPB = IPT+1
                   ZPT  = GOMGZHR(IK,IOBS)/RG
@@ -125,11 +125,11 @@ c     &               std-dev-obs = ',zcon,ZVAR,ZOER
 c                  ENDIF
 c***************************************************************
 
-                  ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
+                  obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
      +                 + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
-                  DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
-     +                 *ROBDATA8(NCMOMA,JDATA)
-                  ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                  DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+     +                 *obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+                  obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
                ENDIF
 C
             END DO

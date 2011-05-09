@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_Hpp
       use modmask, only : lmaskpp_in, lmaskpp_out,ldiagpp
+      use obs_mod
 #if defined (DOC)
 *
 * Purpose: Compute simulated Upper Air observations from profiled model
@@ -64,9 +65,8 @@ c extrapolated
 #include "comdimo.cdk"
 #include "comgem.cdk"
 #include "comphy.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvog.cdk"
 *
@@ -85,11 +85,11 @@ C
 C
       DO JDATA=1,ndata
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
-          IOBS = MOBDATA(NCMOBS,JDATA)
-          IPOS = MOBDATA(NCMPOS,JDATA)
-          ZLEV = ROBDATA8(NCMPPP,JDATA)
-          IDBURP = MOD(MOBHDR(NCMITY,IOBS),1000)
-          IK   = ROBDATA(NCMLYR,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+          IDBURP = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
+          IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = RPPOBS(IK,IOBS)
@@ -104,14 +104,14 @@ C
      +         -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )
      +         /LOG(ZPB/ZPT)**2
 C
-          ROBDATA8(NCMOMA,JDATA) =
+          obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
      +         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+
      +         (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*
      +         ZDADPS*GOMPS(1,IOBS)
         elseif(lmaskpp_out(jdata)) then
-          IOBS = MOBDATA(NCMOBS,JDATA)
-          IPOS = MOBDATA(NCMPOS,JDATA)
-          ZLEV = ROBDATA8(NCMPPP,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
 C
 c-----------TL model for height data below model's orography
 c
@@ -119,7 +119,7 @@ c
      &         + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON =(ZLEV/GOMPSG(1,IOBS))**ZEXP
-          robdata8(ncmoma,jdata)= (1.-zcon)/zgamma*ZLTV
+          obsSpaceData%robdata8(ncmoma,jdata)= (1.-zcon)/zgamma*ZLTV
      &         + RGASD*ZTVG*zcon*gomps(1,iobs)
      &         /gompsg(1,iobs)
         endif

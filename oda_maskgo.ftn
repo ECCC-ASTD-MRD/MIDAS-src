@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_maskgo
       use modmask, only : lmaskgo, lmask
+      use obs_mod
       implicit none
 #if defined (DOC)
 *
@@ -31,9 +32,8 @@
 
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cparamgoes.cdk"
 #include "comjacgoes.cdk"
 * Local declarations
@@ -53,17 +53,17 @@
 C
       DO JN = 1, NGOES
         IO      = MJOGO(JN)
-        IDATA   = MOBHDR(NCMRLN,IO)
-        IDATEND = MOBHDR(NCMNLV,IO)+IDATA - 1
+        IDATA   = obsSpaceData%MOBHDR(NCMRLN,IO)
+        IDATEND = obsSpaceData%MOBHDR(NCMNLV,IO)+IDATA - 1
 
         DO JDATA = IDATA, IDATEND
-          ITYP = MOBDATA(NCMVNM,JDATA)
+          ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
 
           IF (( ITYP.EQ.12062 .OR.
      S         ITYP.EQ.12063 .OR.
-     S         ITYP.EQ.12163).and. MOBDATA(NCMASS,JDATA).NE.0) THEN
+     S         ITYP.EQ.12163).and. obsSpaceData%MOBDATA(NCMASS,JDATA).NE.0) THEN
 C
-            ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+            ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
 C
             MDATA (ICHN,JN) = JDATA
           ENDIF

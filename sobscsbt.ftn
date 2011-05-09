@@ -30,13 +30,13 @@
 *
 *          none
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvohr.cdk"
 #include "cvcord.cdk"
 *
@@ -77,16 +77,16 @@ C
       IF ( (CFAMTYP(JF) .EQ. 'TO') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=MOBDATA(NCMOBS,NBEGINTYP(JF))
-         IOBS2=MOBDATA(NCMOBS,NENDTYP(JF))
+         IOBS1=obsSpaceData%MOBDATA(NCMOBS,NBEGINTYP(JF))
+         IOBS2=obsSpaceData%MOBDATA(NCMOBS,NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 C
 C
         DO JOBS=IOBS1,IOBS2
 C
-          IDATA    = MOBHDR(NCMRLN,JOBS)
-          IDATEND  = MOBHDR(NCMNLV,JOBS) + IDATA - 1
-          IDATYP   = MOD(MOBHDR(NCMITY,JOBS),1000)
+          IDATA    = obsSpaceData%MOBHDR(NCMRLN,JOBS)
+          IDATEND  = obsSpaceData%MOBHDR(NCMNLV,JOBS) + IDATA - 1
+          IDATYP   = MOD(obsSpaceData%MOBHDR(NCMITY,JOBS),1000)
           IF (IDATYP .EQ. 185) THEN
 C
 C        REJECT DATA TOO CLOSE TO THE OROGRAPHY
@@ -95,17 +95,17 @@ C
              IKOUNTT=IKOUNTT+1
              ZDIFF= GOMPSHR(1,JOBS) /100.
              IF ( ZDIFF .LT. RLISTCRIT ) THEN
-               ITYP=MOBDATA(NCMVNM,JDATA)
+               ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
                DO J=1,JPINEL
                  ILEM=ILISTEL(J)
                  IF ( ITYP .EQ. ILEM ) THEN
                    IF(LLPRINT) THEN
                       WRITE(NULOUT,224) 'Reject OBS '
-     &                  ,JOBS,ITYP,ROBDATA8(NCMPPP,JDATA),ZDIFF
+     &                  ,JOBS,ITYP,obsSpaceData%ROBDATA8(NCMPPP,JDATA),ZDIFF
                    ENDIF
-                   MOBDATA(NCMASS,JDATA)=0
+                   obsSpaceData%MOBDATA(NCMASS,JDATA)=0
                    IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                   MOBDATA(NCMFLG,JDATA)=IBSET(MOBDATA(NCMFLG,JDATA),18)
+                   obsSpaceData%MOBDATA(NCMFLG,JDATA)=IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),18)
                  ENDIF
                END DO
              ENDIF
@@ -133,7 +133,7 @@ C
 C
       IKOUNTT=0
       DO JDATA=1,NDATA
-        IF ( MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+        IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT
      &     ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT

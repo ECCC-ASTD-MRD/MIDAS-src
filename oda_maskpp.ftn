@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_maskpp(CDFAM)
       use modmask, only : lmaskpp_in, lmaskpp_out, lmask,ldiagpp, ldiag
+      use obs_mod
       IMPLICIT NONE
 * Argument declarations
       CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)
@@ -34,9 +35,8 @@
 #include "comlun.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 #include "comnumbr.cdk"
 #include "comfilt.cdk"
@@ -58,18 +58,18 @@ C
 C
 C     Process all data within the domain of the model
 C
-          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = MOBDATA(NCMOBS,ILAST)
+          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = MOBHDR(NCMRLN,JO)
-            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              lmaskpp_in(jdata)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &             .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
-     &             .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
-              IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHU  .AND.
-     &             MOBDATA(NCMVCO,JDATA) .EQ. 2   ) THEN
-                IF   ( NINT(ROBDATA8(NCMPPP,JDATA)) .GE. NINT(RLIMLVHU
+              lmaskpp_in(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &             .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &             .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
+              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHU  .AND.
+     &             obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2   ) THEN
+                IF   ( NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA)) .GE. NINT(RLIMLVHU
      &               *100) ) THEN
                   ldiagpp(jdata) = .true.
                 ENDIF
@@ -79,21 +79,21 @@ C
           enddo
 C
           DO JDATA=IBEGIN,ILAST
-            lmaskpp_out(jdata)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &           .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &           .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
-            if (lmaskpp_out(jdata) .and. MOBDATA(NCMVNM,JDATA) .NE.NEGZ)
+            lmaskpp_out(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
+            if (lmaskpp_out(jdata) .and. obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE.NEGZ)
      &           then
               lmaskpp_out(jdata) = .false.
               LLNOXTR   = .true.
               ZTORAD    = 1.D0/(RPI/180.D0)
-              ZLAT      = ROBHDR(NCMLAT,IOBS)*ZTORAD
-              ZLON      = ROBHDR(NCMLON,IOBS)*ZTORAD
-              IDBURP    = MOD(MOBHDR(NCMITY,IOBS),1000)
+              ZLAT      = obsSpaceData%ROBHDR(NCMLAT,IOBS)*ZTORAD
+              ZLON      = obsSpaceData%ROBHDR(NCMLON,IOBS)*ZTORAD
+              IDBURP    = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
 *
               WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '
-     &             ,' OBS ',CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
-     &             , MOBDATA(NCMVNM,JDATA),' LAT ', ZLAT,  ' LON ',
+     &             ,' OBS ',obsSpaceData%CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
+     &             , obsSpaceData%MOBDATA(NCMVNM,JDATA),' LAT ', ZLAT,  ' LON ',
      &             ZLON
             endif
           END DO

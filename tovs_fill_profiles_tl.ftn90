@@ -38,6 +38,7 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
 !
 #endif
   use mod_tovs
+  use obs_mod
 
   implicit none
 !implicits
@@ -47,9 +48,8 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvog.cdk"
 #include "commvo1.cdk"
 #include "partov.cdk"
@@ -174,7 +174,7 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
      knpf = knpf + 1
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
 
-     ilansea = mobhdr(ncmofl,jo)
+     ilansea = obsSpaceData%mobhdr(ncmofl,jo)
      indxm = ilansea
      if (indxm .eq. 2 ) indxm = 0
      indxreg = isrcheq ( mlisreg, nregst, indxm )

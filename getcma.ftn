@@ -16,6 +16,7 @@
 !
       SUBROUTINE GETCMA(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
      +          KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL)
+      use obs_mod
       IMPLICIT NONE
 *
       INTEGER KNDAT,KRVAL
@@ -75,9 +76,8 @@
 #endif
 *
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 #include "cparbrp.cdk"
 #include "comcst.cdk"
@@ -123,20 +123,20 @@
             ILEM=IFIND(KLIST(JI))
             IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
                DO JJ=1,KVAL
-                 if( ldsat ) profil(jj)=ROBDATA(NCMPRL,IP+IND)
+                 if( ldsat ) profil(jj)=obsSpaceData%ROBDATA(NCMPRL,IP+IND)
                   IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 Cpik
                         IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
                           IF ( IP + IND .LE. NDATAP ) THEN
-                            ZERR=  ROBDATA(NCMOER,IP+IND)
-                            ZSTAT= ROBDATA(KRVAL, IP+IND)
-                            IFLG=  MOBDATA(NCMFLG,IP+IND)
+                            ZERR=  obsSpaceData%ROBDATA(NCMOER,IP+IND)
+                            ZSTAT= obsSpaceData%ROBDATA(KRVAL, IP+IND)
+                            IFLG=  obsSpaceData%MOBDATA(NCMFLG,IP+IND)
 *
                             IF ( KRVAL .EQ. NCMOMF .OR. KRVAL .EQ. NCMOMA) THEN
-                              if (MOBDATA(NCMASS,IP+IND) .EQ. 1    .OR.
-     &                           (MOBDATA(NCMVNM,IP+IND) .EQ. NEHU .and.
+                              if (obsSpaceData%MOBDATA(NCMASS,IP+IND) .EQ. 1    .OR.
+     &                           (obsSpaceData%MOBDATA(NCMVNM,IP+IND) .EQ. NEHU .and.
      &                                            ZSTAT .NE. PPMIS) .OR.
-     &                            MOBDATA(NCMVNM,IP+IND) .EQ. NEHS) then
+     &                            obsSpaceData%MOBDATA(NCMVNM,IP+IND) .EQ. NEHS) then
                                 PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
                               else
                                 PVALUES (JI,JJ,IK)=PPMIS

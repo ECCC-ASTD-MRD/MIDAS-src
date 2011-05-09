@@ -37,7 +37,7 @@
 *       NFLEV   = number of LR analysis levels (set in namelist) 
 
 #endif
-
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -49,9 +49,8 @@
 #include "comcst.cdk"
 #include "comct0.cdk"
 #include "comnumbr.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
@@ -113,8 +112,8 @@ C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-            ILASTOB  = MOBDATA(NCMOBS,ILAST )
+            IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+            ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
 C
 C     *     Loop over all GPS observations (locations) of the file
 C
@@ -122,13 +121,13 @@ C
 C     
 C     *    .   Process only zenith delay data (codtyp 189)
 C
-               IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+               IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
                IF ( IDATYP .EQ. 189 ) THEN
 C
 C                 Loops over data in the observations
 C
-                  IDATA   = MOBHDR(NCMRLN,JO)
-                  IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+                  IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+                  IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
                   ASSIM = .FALSE.
 C
 C                 Scan for requested assimilations, and count them.
@@ -136,11 +135,11 @@ C                 Get station height ZLEV
 C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     ITYP = MOBDATA(NCMVNM,JDATA)
+                     ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
                      LLOK = ( (ITYP .EQ. NEZD) .AND. 
-     &                      (MOBDATA(NCMASS,JDATA) .EQ. 1) )
+     &                      (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) )
                      IF ( LLOK ) THEN
-                        ZLEV = ROBDATA8(NCMPPP,JDATA)
+                        ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -152,8 +151,8 @@ C
 C     
 C     *              Profile at the observation location x :
 C
-                     ZLAT = ROBHDR(NCMLAT,JO) * ZTODEG
-                     ZLON = ROBHDR(NCMLON,JO) * ZTODEG
+                     ZLAT = obsSpaceData%ROBHDR(NCMLAT,JO) * ZTODEG
+                     ZLON = obsSpaceData%ROBHDR(NCMLON,JO) * ZTODEG
                      DO JL = 1, NLEVTRL
                         ZTT(JL) =     GOMTHR(JL,JO)
                         ZHU(JL) = EXP(GOMQHR(JL,JO))
@@ -175,27 +174,27 @@ C     *              Perform the (H(x)-Y)/SDERR operation
 C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        ITYP = MOBDATA(NCMVNM,JDATA)
-                        IF ( MOBDATA(NCMASS,JDATA) .EQ. 1 .AND. 
+                        ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                        IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND. 
      +                     ITYP .EQ. NEZD ) THEN
                            NH1 = NH1 + 1
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = ROBDATA8(NCMVAR,JDATA)
+                           ZOBS = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
 C
 C     *                    Observation error    SDERR
 C
-                           ZOER = ROBDATA8(NCMOER,JDATA)
+                           ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
 C
 C     *                    Observation height (m)
 C
-                           ZLEV = ROBDATA8(NCMPPP,JDATA)
+                           ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
 C
 C     *                    Normalized increment
 C
                            ZINC = (ZHX - ZOBS) / ZOER
-                           ROBDATA8(NCMOMA,JDATA) = ZINC
+                           obsSpaceData%ROBDATA8(NCMOMA,JDATA) = ZINC
 C
 C     *                    Contribution to the cost function
 C
@@ -203,17 +202,17 @@ C
 C     
 C     *                    Print data for first observation or single site
                          IF (L1GPSOBS) THEN
-                           IF (CSTNID(JO) .EQ. CGPSSTN) THEN
+                           IF (obsSpaceData%CSTNID(JO) .EQ. CGPSSTN) THEN
                              WRITE(NULOUT,
      +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',CSTNID(JO),ZLAT,ZLON,ZLEV,ZDZ,
+     +                    'DOBSGPSGB: ',obsSpaceData%CSTNID(JO),ZLAT,ZLON,ZLEV,ZDZ,
      +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
                            ENDIF
                          ELSE
                            IF (JO .EQ. IBEGINOB .AND. NH1 .EQ. 1) THEN
                              WRITE(NULOUT,
      +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',CSTNID(JO),ZLAT,ZLON,ZLEV,ZDZ,
+     +                    'DOBSGPSGB: ',obsSpaceData%CSTNID(JO),ZLAT,ZLON,ZLEV,ZDZ,
      +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
                            ENDIF
                          ENDIF

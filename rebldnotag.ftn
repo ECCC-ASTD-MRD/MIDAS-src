@@ -17,6 +17,7 @@
       subroutine rebldnotag
 
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
+      use obs_mod
 #if defined (DOC)
 *
 ***s/r rebldnotag   
@@ -35,9 +36,8 @@
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
@@ -86,8 +86,8 @@
 c spe : for normal use uncomment the call to stepobs and comment the
 C following line (istepstamp = nstamplist(1))
  
-        call stepobs(ISTEPSTAMP,nbrpstamp,mobhdr(ncmdat,jobs)
-     &       ,mobhdr(ncmetm,jobs),dstepobs)
+        call stepobs(ISTEPSTAMP,nbrpstamp,obsSpaceData%mobhdr(ncmdat,jobs)
+     &       ,obsSpaceData%mobhdr(ncmetm,jobs),dstepobs)
 
 c        ISTEPSTAMP = nstamplist(1)
 ! building the list of step stamp and counting number of obs in each step
@@ -101,10 +101,10 @@ c        ISTEPSTAMP = nstamplist(1)
         enddo step
 
         if (.not. lltimein) then
-          ntimeout(mobhdr(ncmotp,jobs))=ntimeout(mobhdr(ncmotp,jobs))+1
+          ntimeout(obsSpaceData%mobhdr(ncmotp,jobs))=ntimeout(obsSpaceData%mobhdr(ncmotp,jobs))+1
           write(nulout,*) 'Report time for obs no. ',jobs
-     &         ,' out of range : ', mobhdr(ncmdat,jobs),
-     &         mobhdr(ncmetm,jobs)
+     &         ,' out of range : ', obsSpaceData%mobhdr(ncmdat,jobs),
+     &         obsSpaceData%mobhdr(ncmetm,jobs)
 
 ! Put put the wrong data in the central bin
           jstep = (nstepobs + 1) / 2
@@ -113,17 +113,17 @@ c        ISTEPSTAMP = nstamplist(1)
 ! .. flag it as out of (time) domain (bit #5 of header flag
 ! .. and turn off its assimilation flag
 
-          idata = mobhdr(ncmrln,jobs)
-          idatend = mobhdr(ncmnlv,jobs) + idata -1
+          idata = obsSpaceData%mobhdr(ncmrln,jobs)
+          idatend = obsSpaceData%mobhdr(ncmnlv,jobs) + idata -1
           do jdata = idata, idatend
-            MOBDATA(NCMASS,JDATA) = 0
+            obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
           enddo
-          mobhdr(ncmst1,jobs)= ibset( mobhdr(ncmst1,jobs) , 05)
+          obsSpaceData%mobhdr(ncmst1,jobs)= ibset( obsSpaceData%mobhdr(ncmst1,jobs) , 05)
         endif
 ! building the lat, long and tag vectors for each step
 
-        dlatfld(nobs(jstep),jstep) = robhdr(ncmlat,jobs)
-        dlonfld(nobs(jstep),jstep) = robhdr(ncmlon,jobs)
+        dlatfld(nobs(jstep),jstep) = obsSpaceData%robhdr(ncmlat,jobs)
+        dlonfld(nobs(jstep),jstep) = obsSpaceData%robhdr(ncmlon,jobs)
         notag(nobs(jstep),jstep) = jobs
 
 ! Converting lat long to radian units

@@ -34,13 +34,12 @@
 *Arguments
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
 #include "cvcord.cdk"
 #include "comstato.cdk"
 #include "comct0.cdk"
@@ -72,8 +71,8 @@ C
          IBEGIN=NBEGINTYP(J)
          ILAST =NENDTYP(J)
          IF ( (IBEGIN .GT. 0) .AND. (ILAST .GT. 0) ) THEN
-            IBEGINOBS=MOBDATA(NCMOBS,IBEGIN)
-            ILASTOBS =MOBDATA(NCMOBS, ILAST)
+            IBEGINOBS=obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+            ILASTOBS =obsSpaceData%MOBDATA(NCMOBS, ILAST)
             INREPT=MAX (ILASTOBS-IBEGINOBS+1,0)
             WRITE(IUN, '(10X,A14,A8)' ) ' DATA FILE:  ',CFILNAM(J)
             WRITE(IUN,'(30X,I6,A3,A8)'  )INREPT,CFAMTYP(J),' REPORTS'

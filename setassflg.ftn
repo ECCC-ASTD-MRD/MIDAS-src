@@ -30,12 +30,12 @@
 *Arguments
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 *
       INTEGER IBEGIN,ILAST
@@ -55,8 +55,8 @@ C
 C     Process all data
 C
       DO JDATA=IBEGIN,ILAST
-         IF (MOBDATA(NCMASS,JDATA) .EQ. 1)  THEN
-            MOBDATA(NCMFLG,JDATA)=ibset( MOBDATA(NCMFLG,JDATA) , 12 )
+         IF (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)  THEN
+            obsSpaceData%MOBDATA(NCMFLG,JDATA)=ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 12 )
          ENDIF
       END DO
 C

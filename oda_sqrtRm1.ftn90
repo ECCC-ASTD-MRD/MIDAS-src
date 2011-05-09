@@ -16,6 +16,7 @@
 !
 SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
   use modmask, only : lmask,ldiag
+  use obs_mod
   ! Arguments
   INTEGER :: kindex2 ! destination index
   Integer :: kindex1 ! source index
@@ -32,9 +33,8 @@ SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
 
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comcva.cdk"
 
   INTEGER jdata
@@ -42,7 +42,7 @@ SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
 !!
     DO JDATA=1,ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          ROBDATA8(KINDEX2,JDATA) =ROBDATA8(KINDEX1,JDATA)/ROBDATA8(NCMOER,JDATA)
+          obsSpaceData%ROBDATA8(KINDEX2,JDATA) =obsSpaceData%ROBDATA8(KINDEX1,JDATA)/obsSpaceData%ROBDATA8(NCMOER,JDATA)
        ENDIF
     END DO
 !

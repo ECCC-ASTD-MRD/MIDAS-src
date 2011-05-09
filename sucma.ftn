@@ -88,10 +88,9 @@
 *
 #endif
 C
+      use obs_mod
       IMPLICIT NONE
 *implicits
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
 #include "comnumbr.cdk"
 *
       INTEGER KULOUT
@@ -124,9 +123,6 @@ C
       NCMOFL = 14
       NCMST1 = 15
       NCMTLA = 16
-      NCMTLO = 17
-      NCMSI2 = 18
-      NCMSI3 = 19
       NCMAZA = 20
       NCMSUN = 21
       NCMCLF = 22
@@ -135,15 +131,15 @@ C
       WRITE(UNIT=KULOUT,FMT=9100)
      S     NCMLET,NCMRLN,NCMONM,NCMBOX,NCMOTP,NCMITY,NCMLAT,NCMLON
      S     ,NCMDAT,NCMETM,NCMSID,NCMALT,NCMNLV,NCMOEC,NCMOFL, NCMST1
-     S     ,NCMTLA,NCMTLO,NCMSI2,NCMSI3,NCMAZA,NCMSUN,NCMCLF
+     S     ,NCMTLA,NCMAZA,NCMSUN,NCMCLF
  9100 FORMAT(1X
      S     ,' NCMLET = ',I6,'  NCMRLN = ',I6,'  NCMONM = ',I6
-     S     ,'  NCMBOX = ',I6,'  NCMOTP = ',I6,'  NCMITY = ',I6,/
+     S     ,'  NCMBOX = ',I6,'  NCMOTP = ',I6,'  NCMITY = ',I6
      S     ,'  NCMLAT = ',I6,'  NCMLON = ',I6,'  NCMDAT = ',I6
-     S     ,'  NCMETM = ',I6,'  NCMSID = ',I6,'  NCMALT = ',I6,/
+     S     ,'  NCMETM = ',I6,'  NCMSID = ',I6,'  NCMALT = ',I6
      S     ,'  NCMNLV = ',I6,'  NCMOEC = ',I6,'  NCMOFL = ',I6
-     S     ,'  NCMST1 = ',I6,'  NCMTLA = ',I6,'  NCMTLO = ',I6,/
-     S     ,'  NCMSI2 = ',I6,'  NCMSI3 = ',I6,'  NCMAZA = ',I6
+     S     ,'  NCMST1 = ',I6,'  NCMTLA = ',I6
+     S     ,'  NCMAZA = ',I6
      S     ,'  NCMSUN = ',I6,'  NCMCLF = ',I6)
 C
 *
@@ -182,12 +178,12 @@ C
      S     ,NCMPOS,NCMLYR,NCMASS,NCMXTR,NCMOBS,NCMLOBS,NCMVCO
  9200 FORMAT(
      S      '  NCMLBO = ',I6,'  NCMVNM = ',I6,'  NCMPPP = ',I6
-     S     ,'  NCMPRL = ',I6,'  NCMPOB = ',I6,'  NCMVAR = ',I6,/
+     S     ,'  NCMPRL = ',I6,'  NCMPOB = ',I6,'  NCMVAR = ',I6
      S     ,'  NCMOMF = ',I6,'  NCMOMA = ',I6,'  NCMOMI = ',I6
-     S     ,'  NCMOMN = ',I6,'  NCMOER = ',I6,'  NCMPRM = ',I6,/
-     S     ,'  NCMRER = ',I6,
+     S     ,'  NCMOMN = ',I6,'  NCMOER = ',I6,'  NCMPRM = ',I6
+     S     ,'  NCMRER = ',I6
      S     ,'  NCMFGE = ',I6,'  NCMPER = ',I6,'  NCMFLG = ',I6
-     S     ,'  NCMPOS = ',I6,'  NCMLYR = ',I6,'  NCMASS = ',I6,/
+     S     ,'  NCMPOS = ',I6,'  NCMLYR = ',I6,'  NCMASS = ',I6
      S     ,'  NCMXTR = ',I6,'  NCMOBS = ',I6,'  NCMLOBS= ',I6
      S     ,'  NCMVCO = ',I6)
 C

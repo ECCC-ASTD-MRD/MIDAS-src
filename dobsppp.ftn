@@ -55,6 +55,7 @@
 *     CDFAM: FAMILY OF OBSSERVATION
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM
@@ -64,9 +65,8 @@
 #include "comdimo.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
@@ -79,40 +79,36 @@
       REAL*8 ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
       REAL*8 DLSUM
+      REAL*4 ZIK
       LOGICAL LLOK, LLPRINT,LLNOXTR
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
       LLPRINT   = .FALSE.
-c      LLPRINT = .TRUE.
       LLNOXTR   = .FALSE.
       zgamma = 0.0065 / GRAV
       zexp = RGASD*zgamma
 C
-      DLSUM=0.
-      DO J = 1,NFILES
-         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
-         IBEGIN=NBEGINTYP(J)
-          ILAST=NENDTYP(J)
-C
 C*    1. Computation of (HX - Z)/SIGMA
 C     .  -----------------------------
 C
- 100  CONTINUE
+      DLSUM=0.
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+            IBEGIN=NBEGINTYP(J)
+            ILAST =NENDTYP(J)
 C
 C     Process all data within the domain of the model
 C
             DO JDATA=IBEGIN,ILAST
-               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &         .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 0)
-     &         .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+               LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &         .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
+     &         .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
                IF ( LLOK ) THEN
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  IPOS = MOBDATA(NCMPOS,JDATA)
-                  ZVAR = ROBDATA8(NCMVAR,JDATA)
-                  ZOER = ROBDATA8(NCMOER,JDATA)
-                  ZLEV = ROBDATA8(NCMPPP,JDATA)
-                  IK   = ROBDATA(NCMLYR,JDATA)
+                  call obs_getbody(obsSpaceData,jdata,
+     &                             val_OBS= IOBS,val_POS= IPOS,val_VAR8=ZVAR,
+     &                             val_OER8=ZOER,val_PPP8=ZLEV,val_LYR =ZIK)
+                  IK   = ZIK
                   IPT = IK + IPOS*NLEVTRL
                   IPB = IPT+1
                   ZPT  = RPPOBSHR(IK,IOBS)
@@ -122,39 +118,13 @@ C
 C
 C                 CONTRIBUTION TO Jo
 C
-***************************************************************
-c        IF(LLPRINT .AND. CSTNID(IOBS).EQ.'71600') THEN
-c         zcon= ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR
-c         write(nulout,*)'dobsppp:jdata,IOBS,st,ib,it,PB,PT,WB,WT,VAR='
-c     &             ,jdata,IOBS,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
-c         write(nulout,*)'dobsppp:ityp,ik,VHYBHR(IK+1),VHYBHR(IK),LEV='
-c     &          ,MOBDATA(NCMVNM,JDATA),ik,VHYBHR(IK+1),VHYBHR(IK),ZLEV
-c         write(nulout,*)'dobsppp:GMOBSHR(IPB,IOBS),GMOBSHR(PT,OBS)='
-c     &                  ,GOMOBSHR(IPB,IOBS),GOMOBSHR(IPT,IOBS)
-c         write(nulout,*)'dobsppp: innovation, observation, stdoer= '
-c     &                 ,zcon,ZVAR,ZOER
-c        ENDIF
-***************************************************************
-! MODIFY OBS VALUE AND SIGMA_OBS FOR SINGLE OBS EXPERIMENT
-!                  ROBDATA8(NCMOER,JDATA)=1.0d0
-!                  ZOER = ROBDATA8(NCMOER,JDATA)
-!                  ROBDATA8(NCMVAR,JDATA) = 
-!     +              ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS) + 1.0d0
-!                  zvar=ROBDATA8(NCMVAR,JDATA)
-!                  write(666,*) 'iobs,jdata=',iobs,jdata
-!                  write(666,*) 'sigma_obs =',zoer
-!                  write(666,*) 'observed  =',zvar
-!                  write(666,*) 'background=',
-!     +              ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)
-!                  write(666,*) 'innovation=',
-!     +              ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR
-!                  call flush(666)
-***************************************************************
-                  ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
-     +                               + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
-                  DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
-     +                        *ROBDATA8(NCMOMA,JDATA)
-                  ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                  call obs_setbody(obsSpaceData,jdata,val_OMA8=(ZWB*GOMOBSHR(IPB,IOBS)
+     +                               + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER)
+!                  obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
+!     +                               + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
+                  DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+     +                        *obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+                  obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
                ENDIF
 C
             END DO
@@ -163,47 +133,34 @@ C
 C     Process all upper air data data below model's orography
 C
             DO JDATA=IBEGIN,ILAST
-               LLOK=(MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &         .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &         .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 2)
+               LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &         .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &         .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
                IF ( LLOK ) THEN
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  IPOS = MOBDATA(NCMPOS,JDATA)
-                  ZVAR = ROBDATA8(NCMVAR,JDATA)
-                  ZOER = ROBDATA8(NCMOER,JDATA)
-                  ZLEV = ROBDATA8(NCMPPP,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+                  IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
+                  ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                   IPT = NLEVTRL-1 + IPOS*NLEVTRL
                   IPB = IPT+1
 C
 C                 CONTRIBUTION TO Jo
 C
-                  IF(MOBDATA(NCMVNM,JDATA) .EQ. NEGZ ) THEN
+                  IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEGZ ) THEN
 c
 c-------------------Forward nonlinear model for geopotential data below
 C                   model's orography
 c
-                    ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
+                     ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
      &                        *GOMTHR(NLEVTRL,IOBS)
-***************************************************************
-c        IF(LLPRINT .AND. CSTNID(IOBS).EQ.'71600') THEN
-c           ZPHI=RMTMOBS(iobs) + ZTVG/zgamma
-c     &          *(1.-(zlev/gompshr(1,iobs))**zexp)
-c           zinc = zphi - zvar
-c           write(nulout,*)'dobsppp:OBS,TVG,GMQH(NLEVTRL),GMTH(NLEVTRL)'
-c     &          ,IOBS,ZTVG,GOMQHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
-c           write(nulout,*)'dobsppp:RMTMOBS,ZLEV,zgama,exp,gmpsh(,obs)='
-c     &                ,RMTMOBS(IOBS),ZLEV,zgamma,zexp,gompshr(1,iobs)
-c           write(nulout,*)'dobsppp: zphi,gzinc, gzobs, std-dev-obs = '
-c     &                 ,ZPHI,zinc,ZVAR,ZOER
-c        ENDIF
-***************************************************************
-                    ROBDATA8(NCMOMA,JDATA)=(RMTMOBS(iobs)
+                     obsSpaceData%ROBDATA8(NCMOMA,JDATA)=(RMTMOBS(iobs)
      &                        + ZTVG/zgamma
      &                        *(1.-(zlev/gompshr(1,iobs))**zexp)
      &                        - zvar)/zoer
-                    DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
-     +                   *ROBDATA8(NCMOMA,JDATA)
-                    ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
+                     DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+     +                   *obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+                     obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
                   ELSE
 c
 c-------------------Forward model for UU,VV,TT,ES below model's orography
@@ -211,42 +168,30 @@ c                   Extrapolation of order zero from model surface
 c                   Allowed at present only for HUMSAT (idburp=158)
 *
 *
-                     IDBURP    = MOD(MOBHDR(NCMITY,IOBS),1000)
+                     IDBURP    = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
                      IF (IDBURP .EQ. 158 .AND.
-     +                         MOBDATA(NCMVNM,JDATA) .EQ. NEES) THEN
-                       ROBDATA8(NCMOMA,JDATA) = (GOMOBSHR(IPB,IOBS)
+     +                         obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEES) THEN
+                       obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (GOMOBSHR(IPB,IOBS)
      +                      -ZVAR)/ZOER
-                       DLSUM =DLSUM+ROBDATA8(NCMOMA,JDATA)
-     +                      *ROBDATA8(NCMOMA,JDATA)
-                       ROBDATA8(NCMOMI,JDATA)=ROBDATA8(NCMOMA,JDATA)
-***************************************************************
-c        IF(LLPRINT .AND. CSTNID(IOBS).EQ.'71600') THEN
-c           zcon= GOMOBSHR(IPB,IOBS)-ZVAR
-c           write(nulout,*)'dobsppp:jdata,IOBS,st,pb,GMOBSHR(PB,),VAR='
-c     &            ,jdata,IOBS,cstnid(iobs),ipb,GOMOBSHR(IPB,IOBS),ZVAR
-c           write(nulout,*)'dobsppp: ityp,ppobshr(NLEVTRL,),ZLEV= '
-c     &          ,MOBDATA(NCMVNM,JDATA),RPPOBSHR(NLEVTRL,IOBS),ZLEV
-c           write(nulout,*)'dobsppp:innovation, observation, stdoer = '
-c     &                 ,zcon,ZVAR,ZOER
-c        ENDIF
-***************************************************************
-                    ELSE
-                      LLNOXTR   = .TRUE.
-                      ZTORAD    = 1.D0/(RPI/180.D0)
-                      ZLAT      = ROBHDR(NCMLAT,IOBS)*ZTORAD
-                      ZLON      = ROBHDR(NCMLON,IOBS)*ZTORAD
-                      IDBURP    = MOD(MOBHDR(NCMITY,IOBS),1000)
-                  WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED '
-     &             ,' OBS ',CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
-     &             , MOBDATA(NCMVNM,JDATA),' LAT ', ZLAT,  ' LON ', ZLON
-                    ENDIF
-                 ENDIF
-                ENDIF
+                       DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+     +                      *obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+                       obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+                     ELSE
+                       LLNOXTR   = .TRUE.
+                       ZTORAD    = 1.D0/(RPI/180.D0)
+                       ZLAT      = obsSpaceData%ROBHDR(NCMLAT,IOBS)*ZTORAD
+                       ZLON      = obsSpaceData%ROBHDR(NCMLON,IOBS)*ZTORAD
+                       IDBURP    = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
+                       WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED '
+     &                  ,' OBS ',obsSpaceData%CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
+     &                  , obsSpaceData%MOBDATA(NCMVNM,JDATA),' LAT ', ZLAT,  ' LON ', ZLON
+                     ENDIF
+                  ENDIF
+               ENDIF
 C
             END DO
- 300  CONTINUE
 C
-      ENDIF
+         ENDIF
       END DO
 C--------------------------------------------------------------------
       PJO = DLSUM

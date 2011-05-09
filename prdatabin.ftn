@@ -17,14 +17,14 @@
       subroutine prdatabin
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use modmask, only : lmask,ldiag,lmaskto
+      use obs_mod
       IMPLICIT NONE
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
@@ -42,16 +42,16 @@
       do jstep = 1,nstepobs
         do jobs = 1, nobs(jstep)
           iobs = notag(jobs,jstep)
-          idatabeg   = mobhdr(ncmrln,iobs)
-          idatend = mobhdr(ncmnlv,iobs) + idatabeg - 1
+          idatabeg   = obsSpaceData%mobhdr(ncmrln,iobs)
+          idatend = obsSpaceData%mobhdr(ncmnlv,iobs) + idatabeg - 1
           
           do jfile = 1, nfiles
             if(nbegintyp(jfile) .gt. 0) then
-              ibeginobs = mobdata(ncmobs,nbegintyp(jfile))
-              ilastobs=mobdata(ncmobs,nendtyp(jfile))
+              ibeginobs = obsSpaceData%mobdata(ncmobs,nbegintyp(jfile))
+              ilastobs=obsSpaceData%mobdata(ncmobs,nendtyp(jfile))
               if(iobs.ge.ibeginobs .and. iobs .le. ilastobs) then
                 do jdata = idatabeg, idatend
-                  if ( mobdata(ncmass,jdata) .eq. 1) then
+                  if ( obsSpaceData%mobdata(ncmass,jdata) .eq. 1) then
                     idataass(jfile,jstep) = idataass(jfile,jstep) + 1
                     idataass(jfile,nstepobs+1) = idataass(jfile,nstepobs
      &                   +1) + 1

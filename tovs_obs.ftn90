@@ -35,6 +35,7 @@ subroutine tovs_obs(option,pjo)
 !     pjo: total value of jo for tovs
 !
 #endif
+  use obs_mod
 
   implicit none
 !implicits
@@ -42,9 +43,8 @@ subroutine tovs_obs(option,pjo)
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "commvo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"
@@ -98,7 +98,7 @@ subroutine tovs_obs(option,pjo)
 !     
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
       DO JDATA=1,NDATA
-        ROBDATA8(NCMPRM,JDATA) = ROBDATA8(NCMVAR,JDATA)
+        obsSpaceData%ROBDATA8(NCMPRM,JDATA) = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
       ENDDO
   endif
 
@@ -109,8 +109,8 @@ subroutine tovs_obs(option,pjo)
   if ( option .eq. 'LR' ) then
 !    fill ROBDATA8(NCMPRM,..)  with Z'' = Z' + H(xb_lr) 
      DO JDATA=1,NDATA
-       ROBDATA8(NCMPRM,JDATA) = ROBDATA8(NCMOMA,JDATA)*ROBDATA8(NCMOER  &
-           ,JDATA) + 2*ROBDATA8(NCMVAR,JDATA)
+       obsSpaceData%ROBDATA8(NCMPRM,JDATA) = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOER  &
+           ,JDATA) + 2*obsSpaceData%ROBDATA8(NCMVAR,JDATA)
      ENDDO
   endif
 

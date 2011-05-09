@@ -36,12 +36,11 @@ C
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comdimo.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
+
+
 #include "commvo.cdk"
 #include "commvo1.cdk"
 #include "commvog.cdk"
-#include "comoba.cdk"
 #include "comstate.cdk"
 *
       INTEGER KULOUT, IERR

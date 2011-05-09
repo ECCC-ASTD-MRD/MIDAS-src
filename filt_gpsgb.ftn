@@ -32,6 +32,7 @@ C  - called by SUCVA (if L1GPSOBS=.TRUE.)
 C  - CGPSSTN in namelist (comgpsgb.cdk) is desired observation site name
 C    for 1 obs case
 C
+      use obs_mod
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -42,9 +43,8 @@ C
 #include "comcst.cdk"
 #include "comct0.cdk"
 #include "comnumbr.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
@@ -84,8 +84,8 @@ C
 C
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-        ILASTOB  = MOBDATA(NCMOBS,ILAST )
+        IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+        ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
 C
 C     *  Loop over all GPS observation locations of the file
 C
@@ -95,19 +95,19 @@ C
 C
 C     *  Process only Ground-Based GPS data (codtyp 189)
 C
-          IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+          IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
 C
           IF ( IDATYP .EQ. 189 ) THEN
-            IDATA   = MOBHDR(NCMRLN,JO)
-            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
-            IF (CSTNID(JO) .NE. CGPSSTN) THEN
+            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
+            IF (obsSpaceData%CSTNID(JO) .NE. CGPSSTN) THEN
 C     Loop over all observations for the location
               DO JDATA= IDATA, IDATEND
-                MOBDATA(NCMASS,JDATA) = 0
+                obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
               ENDDO
             ELSE
               WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 
-     +           CSTNID(JO)
+     +           obsSpaceData%CSTNID(JO)
               LLFOUND = .TRUE.
             ENDIF
           ENDIF

@@ -28,13 +28,13 @@
 *
 *          none
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 #include "comnumbr.cdk"
 *
@@ -79,8 +79,8 @@ C
      &     (CFAMTYP(JF) .EQ. 'UA') .AND.( NBEGINTYP(JF) .GT. 0)  )   THEN
           IBEGIN=NBEGINTYP(JF)
           ILAST=NENDTYP(JF)
-          IOBS1=MOBDATA(NCMOBS,NBEGINTYP(JF))
-          IOBS2=MOBDATA(NCMOBS,NENDTYP(JF))
+          IOBS1=obsSpaceData%MOBDATA(NCMOBS,NBEGINTYP(JF))
+          IOBS2=obsSpaceData%MOBDATA(NCMOBS,NENDTYP(JF))
           WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -89,20 +89,20 @@ C
 ccc            CALL PRNTHDR(JOBS,NULOUT)
 ccc            CALL PRNTBDY(JOBS,NULOUT)
             ENDIF
-            IDATA    = MOBHDR(NCMRLN,JOBS)
-            IDATEND  = MOBHDR(NCMNLV,JOBS) + IDATA - 1
+            IDATA    = obsSpaceData%MOBHDR(NCMRLN,JOBS)
+            IDATEND  = obsSpaceData%MOBHDR(NCMNLV,JOBS) + IDATA - 1
             DO JDATA= IDATA, IDATEND
 C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
-              ITYP=MOBDATA(NCMVNM,JDATA)
-              ITY    = MOBHDR(NCMITY,JOBS)
+              ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+              ITY    = obsSpaceData%MOBHDR(NCMITY,JOBS)
               IDBURP = MOD(ITY,1000)
               IF ( ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS) THEN
                 DO JID = 1, JPIDLND
                   IF(IDBURP .EQ. IDLND(JID) .AND.
-     &                 MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
-                    MOBDATA(NCMFLG,JDATA)=
-     &                   ibset( MOBDATA(NCMFLG,JDATA) , 19 )
-                    MOBDATA(NCMASS,JDATA)=0
+     &                 obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
+                    obsSpaceData%MOBDATA(NCMFLG,JDATA)=
+     &                   ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 19 )
+                    obsSpaceData%MOBDATA(NCMASS,JDATA)=0
                     DO J = 1, JPINEL
                       IF(ITYP .EQ.ILISTEL(J)) THEN
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -110,9 +110,9 @@ C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
                     ENDDO
                     IF(LLPRINT) THEN
                       WRITE(NULOUT,225) 'Rej sfc wind lnd',JOBS,ITYP
-     &                     ,CSTNID(JOBS),IDBURP
-     &                     ,ROBHDR(NCMLAT,JOBS),ROBHDR(NCMLON,JOBS)
-     &                     ,ROBDATA8(NCMPPP,JDATA),ZDIFF
+     &                     ,obsSpaceData%CSTNID(JOBS),IDBURP
+     &                     ,obsSpaceData%ROBHDR(NCMLAT,JOBS),obsSpaceData%ROBHDR(NCMLON,JOBS)
+     &                     ,obsSpaceData%ROBDATA8(NCMPPP,JDATA),ZDIFF
                     ENDIF
                   ENDIF
                 ENDDO
@@ -138,7 +138,7 @@ C
 C
       IKOUNTT=0
       DO JDATA=1,NDATA
-         IF ( MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D"
      &            ,"-VAR AFTER ADJUSTMENTS: ",i10)')IKOUNTT

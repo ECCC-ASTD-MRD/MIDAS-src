@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_Hsf
       use modmask, only : lmasksf_in,lmasksf_out,ldiagsf
+      use obs_mod
 #if defined (DOC)
 *
 * Purpose: Compute simulated surface observations from profiled model
@@ -64,9 +65,8 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comphy.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvog.cdk"
 #include "comnumbr.cdk"
@@ -89,19 +89,19 @@ C     Process all data within the domain of the model
 C
       DO JDATA=1,ndata
         if(lmasksf_in(jdata)) then
-          IOBS = MOBDATA(NCMOBS,JDATA)
-          IPOS = MOBDATA(NCMPOS,JDATA)
-          ITYP = MOBDATA(NCMVNM,JDATA)
-          IXTR = MOBDATA(NCMXTR,JDATA)
-          IK   = ROBDATA(NCMLYR,JDATA)
-          ZLEV = ROBDATA8(NCMPPP,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+          ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+          IXTR = obsSpaceData%MOBDATA(NCMXTR,JDATA)
+          IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
           ZHHH = ZLEV * GRAV
           IPT  = NFLEV-1 + IPOS*NFLEV
           IPB  = IPT+1
 
           IF (ITYP.EQ.NETS .OR. ITYP.EQ.NESS .OR.
      &         ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS .or. ldiagsf(jdata)) THEN
-            ROBDATA8(NCMOMA,JDATA) =GOMOBS(IPB,IOBS)
+            obsSpaceData%ROBDATA8(NCMOMA,JDATA) =GOMOBS(IPB,IOBS)
           ELSEIF (ITYP.EQ.NEPS .OR. ITYP.EQ.NEPN) THEN
             ZLTV  = OLTV(1,NFLEV,IOBS)*GOMT(NFLEV,IOBS)
      &           + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
@@ -111,7 +111,7 @@ C
             ZDELPS= (GOMPS(1,IOBS)*ZCON**ZEXP)
             ZDELTV= ((GOMPSG(1,IOBS)*ZEXP*ZCON**(ZEXP-1))
      &           *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
-            ROBDATA8(NCMOMA,JDATA)= ZDELPS+ZDELTV
+            obsSpaceData%ROBDATA8(NCMOMA,JDATA)= ZDELPS+ZDELTV
           ELSE
             IPT  = IK + IPOS*NFLEV
             IPB  = IPT+1
@@ -119,14 +119,14 @@ C
             ZPB  = GOMGZG(IK+1,IOBS)
             ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
             ZWT  = 1. - ZWB
-            ROBDATA8(NCMOMA,JDATA) =
+            obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
      +           ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+
      +           (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))
           ENDIF
         elseif(lmasksf_out(jdata)) then
-          IOBS = MOBDATA(NCMOBS,JDATA)
-          IPOS = MOBDATA(NCMPOS,JDATA)
-          ZLEV = ROBDATA8(NCMPPP,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
 C
 C                 CONTRIBUTION TO Jo
 C
@@ -136,7 +136,7 @@ c
      &         + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON=(ZLEV/GOMPSG(1,IOBS))**ZEXPGZ
-          robdata8(ncmoma,jdata)=(1.-zcon)/zgamma*ZLTV
+          obsSpaceData%robdata8(ncmoma,jdata)=(1.-zcon)/zgamma*ZLTV
      &         + RGASD*ZTVG*zcon*gomps(1,iobs)
      &         /gompsg(1,iobs)
         endif

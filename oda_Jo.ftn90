@@ -16,6 +16,7 @@
 !
 SUBROUTINE oda_Jo
   use modmask, only : lmask,ldiag
+  use obs_mod
   implicit none
   !
   !Purpose:
@@ -29,9 +30,8 @@ SUBROUTINE oda_Jo
   !
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comcva.cdk"
 
   !Local declarations
@@ -39,13 +39,13 @@ SUBROUTINE oda_Jo
 !
 !!
   if(l1obs) then
-    ROBDATA8(NCMOMI,1)= &
-       (ROBDATA8(NCMOMA,1)*ROBDATA8(NCMOMA,1))/2.
+    obsSpaceData%ROBDATA8(NCMOMI,1)= &
+       (obsSpaceData%ROBDATA8(NCMOMA,1)*obsSpaceData%ROBDATA8(NCMOMA,1))/2.
   else    
     DO JDATA=1,ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          ROBDATA8(NCMOMI,JDATA)= &
-               (ROBDATA8(NCMOMA,JDATA)*ROBDATA8(NCMOMA,JDATA))/2.
+          obsSpaceData%ROBDATA8(NCMOMI,JDATA)= &
+               (obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOMA,JDATA))/2.
        ENDIF
     END DO
   endif

@@ -107,15 +107,14 @@
 *
 #endif
 *
+      use obs_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comct0.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
@@ -746,7 +745,7 @@ C
 
                           IF(ICOUNT .EQ. 1) THEN
                             NOBTOT=NOBTOT + 1
-                            IFLGS=MOBHDR(NCMST1,NOBTOT)
+                            IFLGS=obsSpaceData%MOBHDR(NCMST1,NOBTOT)
                             IZMODEL= NINT(RMTMOBS(NOBTOT)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF

@@ -16,6 +16,7 @@
 !
       SUBROUTINE subasic_obs
 c
+      use obs_mod
       IMPLICIT NONE
 c
 #if defined (DOC)
@@ -66,9 +67,8 @@ c
 #include "commvo.cdk"
 #include "commvo1.cdk"
 #include "commvog.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
-#include "comoba.cdk"
+
+
 
 *
       integer jlev,jobs, ity, idburp, ilen,ierr
@@ -193,7 +193,7 @@ c       Set coefficients for TT and PS to zero for HUMSAT (IDTYP=158)
 c
         DO JLEV=1,NFLEV
            DO JOBS=1,NOBTOT
-              ITY    = MOBHDR(NCMITY,JOBS)
+              ITY    = obsSpaceData%MOBHDR(NCMITY,JOBS)
               IDBURP = MOD(ITY,1000)
 
             IF(IDBURP .EQ. 158) THEN

@@ -17,6 +17,7 @@
       subroutine getobstag 
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use mod4dv, only : mvar, l4dvar
+      use obs_mod
 #if defined (DOC)
 *
 ***s/r read local observation tag from GEM TLM-ADJ .
@@ -36,9 +37,8 @@
 
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
 #include <prof_f.h>
@@ -90,8 +90,8 @@
            ibegin= NBEGINTYP(j)
            ilast = NENDTYP(j) 
 
-           ibeginob= MOBDATA(NCMOBS,ibegin) 
-           ilastob = MOBDATA(NCMOBS,ilast)  
+           ibeginob= obsSpaceData%MOBDATA(NCMOBS,ibegin) 
+           ilastob = obsSpaceData%MOBDATA(NCMOBS,ilast)  
            Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
 
            interv=INT((ilastob-ibeginob+1)/mpi_nprocs)  
@@ -152,7 +152,7 @@
       IF(length_l<=0) CALL ABORT3D(nulout,'Zero lenght of ObsTag,Abort!') 
       DO i=1,length_l
        iobs=locObsTag(i)
-       idata= MOBHDR(NCMNLV,iobs) 
+       idata= obsSpaceData%MOBHDR(NCMNLV,iobs) 
        ndata_l = ndata_l + idata
       ENDDO 
 

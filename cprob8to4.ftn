@@ -31,25 +31,25 @@
 *Arguments
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 *
       INTEGER JDATA
 *-----------------------------------------------------------------
 
       do JDATA=1,NDATA
-        ROBDATA(NCMOMA,JDATA)=ROBDATA8(NCMOMA,JDATA)
-        ROBDATA(NCMOMI,JDATA)=ROBDATA8(NCMOMI,JDATA)
-        ROBDATA(NCMOMN,JDATA)=ROBDATA8(NCMOMN,JDATA)
-        ROBDATA(NCMOMF,JDATA)=ROBDATA8(NCMOMF,JDATA)
-        ROBDATA(NCMVAR,JDATA)=ROBDATA8(NCMVAR,JDATA)
-        ROBDATA(NCMOER,JDATA)=ROBDATA8(NCMOER,JDATA)
-        ROBDATA(NCMPPP,JDATA)=ROBDATA8(NCMPPP,JDATA)
-        ROBDATA(NCMPRL,JDATA)=ROBDATA8(NCMPRL,JDATA)
+        obsSpaceData%ROBDATA(NCMOMA,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+        obsSpaceData%ROBDATA(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMI,JDATA)
+        obsSpaceData%ROBDATA(NCMOMN,JDATA)=obsSpaceData%ROBDATA8(NCMOMN,JDATA)
+        obsSpaceData%ROBDATA(NCMOMF,JDATA)=obsSpaceData%ROBDATA8(NCMOMF,JDATA)
+        obsSpaceData%ROBDATA(NCMVAR,JDATA)=obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+        obsSpaceData%ROBDATA(NCMOER,JDATA)=obsSpaceData%ROBDATA8(NCMOER,JDATA)
+        obsSpaceData%ROBDATA(NCMPPP,JDATA)=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+        obsSpaceData%ROBDATA(NCMPRL,JDATA)=obsSpaceData%ROBDATA8(NCMPRL,JDATA)
       enddo
 
       RETURN

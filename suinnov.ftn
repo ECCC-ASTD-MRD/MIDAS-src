@@ -54,9 +54,8 @@
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
-#include "comoabdy.cdk"
-#include "comoba.cdk"
-#include "comoahdr.cdk"
+
+
 #include "comgpsgb.cdk"
 c
       logical lldo

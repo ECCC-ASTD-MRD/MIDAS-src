@@ -28,14 +28,14 @@ subroutine oda_get_radiance_ad
 !
 #endif
   use mod_tovs
+  use obs_mod
 
   implicit none
 !implicits
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "cvcord.cdk"
@@ -61,8 +61,8 @@ subroutine oda_get_radiance_ad
    if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
      ibegin   = nbegintyp(jf)
      ilast    = nendtyp  (jf)
-     ibeginob = mobdata(ncmobs,ibegin)
-     ilastob  = mobdata(ncmobs,ilast )
+     ibeginob = obsSpaceData%mobdata(ncmobs,ibegin)
+     ilastob  = obsSpaceData%mobdata(ncmobs,ilast )
      do jo = ibeginob, ilastob
 
 !     .  1.1  Extract general information for this observation point
@@ -70,7 +70,7 @@ subroutine oda_get_radiance_ad
 
 !      only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
 
-      idatyp = mod(mobhdr(ncmity,jo),1000)
+      idatyp = mod(obsSpaceData%mobhdr(ncmity,jo),1000)
       if ( idatyp .eq. 164 .or.  &
            idatyp .eq. 168 .or.  &
            idatyp .eq. 180 .or.  &
@@ -89,12 +89,12 @@ subroutine oda_get_radiance_ad
 
        radiance_ad (indxtovs) % out(:) = 0.
        if (rttov_errorstatus(indxtovs) .lt. 20   ) then
-         idata   = mobhdr(ncmrln,jo)
-         idatend = mobhdr(ncmnlv,jo) + idata - 1
+         idata   = obsSpaceData%mobhdr(ncmrln,jo)
+         idatend = obsSpaceData%mobhdr(ncmnlv,jo) + idata - 1
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
-            if ( mobdata(ncmass,jdata).eq.1 ) then
-               ichn = nint(robdata8(ncmppp,jdata))
+            if ( obsSpaceData%mobdata(ncmass,jdata).eq.1 ) then
+               ichn = nint(obsSpaceData%robdata8(ncmppp,jdata))
                ichn    = max(0,min(ichn,jpch+1))
                ichncma = max(0,min(ichn,jpch+1))
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -104,7 +104,7 @@ subroutine oda_get_radiance_ad
 9202              format(' tovs_calc_jo_ad: error with channel number')
                   call abort3d(nulout,'tovs_calc_jo_ad  ')
                endif
-               zres = robdata8(ncmomi,jdata)
+               zres = obsSpaceData%robdata8(ncmomi,jdata)
                radiance_ad (indxtovs) % out(indxchn) = zres
             endif
          enddo

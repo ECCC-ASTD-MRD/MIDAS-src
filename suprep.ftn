@@ -114,6 +114,7 @@ C assimilated
 
       Use mod_tovs
       use glbspec_mod
+      use obs_mod
 
       IMPLICIT NONE
 *implicits
@@ -127,9 +128,8 @@ C assimilated
 #include "comdim.cdk"
 #include "comnumbr.cdk"
 #include "cparbrp.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "comfilt.cdk"
 #include "comstato.cdk"
@@ -193,7 +193,7 @@ C
       REAL zlat_4,zlon_4,zx,zy
       REAL*8 ZZLAT, ZLON, ZLEV, ZVAR
       REAL*8 ZLAT, GPH
-      REAL*8 DLLAO,dlloo,zdlon
+      REAL*4 DLLAO
       INTEGER IZLEV,IZP1,IZXI
       CHARACTER*2 CLFAM,CLFAMSAV
       CHARACTER*8 CLFILNAM
@@ -331,11 +331,11 @@ C     For MAM the wind observations are removed.
 !
       IF (CVCORD(1:3).NE.'MAM') THEN
         DO JO  = 1, NOBTOT
-          ZLAT    = ROBHDR(NCMLAT,JO)
+          ZLAT    = obsSpaceData%ROBHDR(NCMLAT,JO)
           IF(ZLAT .GT. gst_getRLATI(1)) THEN
-            ROBHDR(NCMLAT,JO) = gst_getRLATI(1)
+            obsSpaceData%ROBHDR(NCMLAT,JO) = gst_getRLATI(1)
           ELSEIF(ZLAT .LT. gst_getRLATI(NJ)) THEN
-            ROBHDR(NCMLAT,JO) = gst_getRLATI(NJ)
+            obsSpaceData%ROBHDR(NCMLAT,JO) = gst_getRLATI(NJ)
           ENDIF
         END DO
       ENDIF
@@ -343,20 +343,21 @@ C
       IJ=0
       NMAXLEN=0
       DO JJO = 1, NOBTOT
-        IDATA   = MOBHDR(NCMRLN,JJO)
-        IDATEND = MOBHDR(NCMNLV,JJO) + IDATA - 1
-        NMAXLEN = MAX( MOBHDR(NCMNLV,JJO),NMAXLEN )
+        IDATA   = obsSpaceData%MOBHDR(NCMRLN,JJO)
+        IDATEND = obsSpaceData%MOBHDR(NCMNLV,JJO) + IDATA - 1
+        NMAXLEN = MAX( obsSpaceData%MOBHDR(NCMNLV,JJO),NMAXLEN )
         DO JDATA= IDATA, IDATEND
           IJ   = IJ+1
-          MOBDATA(NCMOBS,IJ)= JJO
-          if(nobtot.eq.1) write(nulout,*) 'suprep: IJ,MOBDATA(NCMOBS,IJ)=',IJ,MOBDATA(NCMOBS,IJ)
+          obsSpaceData%MOBDATA(NCMOBS,IJ)= JJO
+          if(nobtot.eq.1) write(nulout,*) 'suprep: IJ,obsSpaceData%MOBDATA(NCMOBS,IJ)=',IJ,obsSpaceData%MOBDATA(NCMOBS,IJ)
         END DO
 C
-        DLLAO=DBLE(ROBHDR(NCMLAT,JJO))
-        DLLOO=DBLE(ROBHDR(NCMLON,JJO))
+        call obs_getHeader(obsSpaceData,jjo,val_LAT=dllao)
+!        DLLAO=obsSpaceData%ROBHDR(NCMLAT,JJO)
 !
-        ILA = ISRCHILA (DLLAO)
-        MOBHDR(NCMTLA,JJO)=ILA
+        ILA = ISRCHILA (dble(DLLAO))
+        call obs_setHeader(obsSpaceData,jjo,val_TLA=ila)
+!        obsSpaceData%MOBHDR(NCMTLA,JJO)=ILA
       END DO
 C
  200  CONTINUE
@@ -420,12 +421,12 @@ C
           IKNTZDR =0
 C
           DO JDATA=IBEGIN,ILAST
-            ITYP = MOBDATA(NCMVNM,JDATA)
-            IFLG = MOBDATA(NCMFLG,JDATA)
-            IPRES= NINT(ROBDATA8(NCMPPP,JDATA))
-            IOBS = MOBDATA(NCMOBS,JDATA)
-            IVCO = MOBDATA(NCMVCO,JDATA)
-            ITY=MOBHDR(NCMITY,IOBS)
+            ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+            IFLG = obsSpaceData%MOBDATA(NCMFLG,JDATA)
+            IPRES= NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
+            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+            IVCO = obsSpaceData%MOBDATA(NCMVCO,JDATA)
+            ITY=obsSpaceData%MOBHDR(NCMITY,IOBS)
             IDBURP=MOD(ITY,1000)
 C
 C     a. Unwanted data types via types specified in NLIST
@@ -463,7 +464,7 @@ Cpik           ENDIF
 C
 C     *        Only heights between 0 and 80000 m:
 C
-               GPH = ROBDATA8(NCMPPP,JDATA)
+               GPH = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
                   LLOK = .FALSE.
                ENDIF
@@ -560,7 +561,7 @@ C
 C
 C     d. Filter TOVS data
 C
-            ITYP = MOBDATA(NCMVNM,JDATA)
+            ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
             IF ( ITYP .EQ. NBT1 .OR.
      S           ITYP .EQ. NBT2 .OR.
      S           ITYP .EQ. NBT3 .AND.
@@ -581,11 +582,11 @@ C             .....this check not done anymore, jh may 2002....
 C
 C        d.3 Invalid land/sea/sea-ice flag, processing technique
 C
-              ILANSEA  = MOBHDR(NCMOFL,IOBS)
+              ILANSEA  = obsSpaceData%MOBHDR(NCMOFL,IOBS)
               INDXM = ILANSEA
               IF (INDXM .EQ. 2 ) INDXM = 0
               INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
-              IPROCES  = MOBHDR(NCMITY,IOBS)/1000000
+              IPROCES  = obsSpaceData%MOBHDR(NCMITY,IOBS)/1000000
               INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
               IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
                 LLOK = .FALSE.
@@ -599,7 +600,7 @@ C
 C        d.5 Activation of single channel assimilation
 C
               IF (LONECHN) THEN
-                ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+                ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
                 ICHN = MAX(0,MIN(ICHN,JPCH+1))
                 IF ( IDATYP .EQ. NONECODTYP .AND. ICHN .EQ. NONECHN ) THEN
                   LLOK = .TRUE.
@@ -613,8 +614,8 @@ C
 C
 C     e. Filter GOES data
 C
-            ITYP   = MOBDATA(NCMVNM,JDATA)
-            IDATYP = MOD(MOBHDR(NCMITY,IOBS),1000)
+            ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+            IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
             IF (     ITYP .EQ. NBT1
      S          .OR. ITYP .EQ. NBT2
      S          .OR. ITYP .EQ. NBT3
@@ -622,7 +623,7 @@ C
 C
 C        e.1 Valid channel?
 C
-              ICHN = NINT(ROBDATA8(NCMPPP,JDATA))
+              ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
               IF ( ICHN .LE. 0    .OR.
      S             ICHN .GT. JPCHGO      ) THEN
                 LLOK = .FALSE.
@@ -630,7 +631,7 @@ C
 C
 C        e.2 Data from this satellite to be assimilated?
 C
-              ISAT    = MOD(MOBHDR(NCMITY,IOBS)/1000,1000)
+              ISAT    = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS)/1000,1000)
               ISAT    = ISAT-244
               INDXSAT = ISRCHEQ(NIDSATGO,NSATGO,ISAT)
               IF ( INDXSAT .EQ. 0 ) THEN
@@ -642,9 +643,9 @@ C
 C        e.3 Invalid land/sea flag
 C   A modifier selon le canal
 C
-              ILANSEA  = MOBHDR(NCMOFL,IOBS)
+              ILANSEA  = obsSpaceData%MOBHDR(NCMOFL,IOBS)
               INDXREG  = ISRCHEQ(MLISREGGO,NREGSTGO,ILANSEA)
-              IPROCES  = MOBHDR(NCMITY,IOBS)/1000000
+              IPROCES  = obsSpaceData%MOBHDR(NCMITY,IOBS)/1000000
               INDXCLD  = ISRCHEQ(MLISCLDGO,NCLDSTGO,IPROCES)
 C
 C        e.4 Channel not included in list of channels to
@@ -718,25 +719,25 @@ C
             ENDIF
 C
             IF (LLOK .AND. .NOT. LLREJ) THEN
-              MOBDATA(NCMASS,JDATA)=1
+              obsSpaceData%MOBDATA(NCMASS,JDATA)=1
               IKNT= IKNT + 1
             ELSE
-              MOBDATA(NCMASS,JDATA)=0
+              obsSpaceData%MOBDATA(NCMASS,JDATA)=0
             ENDIF
 CSMP
 CSMP     e. Filter UU, VV data close to poles FOR MAM  (June 18, 2001)
 CSMP
 
             IF (CVCORD(1:3).EQ.'MAM') THEN
-              ZLAT = ROBHDR(NCMLAT,IOBS)
+              ZLAT = obsSpaceData%ROBHDR(NCMLAT,IOBS)
               ZZLAT = ZLAT*180./RPI
-              ZLON = ROBHDR(NCMLON,IOBS)*180./RPI
-              ZVAR = ROBDATA(NCMVAR,JDATA)
-              ZLEV = ROBDATA(NCMPPP,JDATA)*0.01
+              ZLON = obsSpaceData%ROBHDR(NCMLON,IOBS)*180./RPI
+              ZVAR = obsSpaceData%ROBDATA(NCMVAR,JDATA)
+              ZLEV = obsSpaceData%ROBDATA(NCMPPP,JDATA)*0.01
               IF(ZLAT .GT. gst_getRLATI(1) .or. ZLAT .LT. gst_getRLATI(NJ)) THEN
                 IF (ITYP .EQ. NEUU .OR. ITYP .EQ. NEVV ) THEN
                   write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
-                  MOBDATA(NCMASS,JDATA) = 0
+                  obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
                 ENDIF
               ENDIF
  98           format(1x,'SUPREP REMOVED: IOBS,ZLAT,ZLON,ZLEV,ZVAR= '
@@ -832,23 +833,23 @@ C
 C-----------------------------------------------------------------------
 C
       DO JDATA=1,NDATA
-        ITYP = MOBDATA(NCMVNM,JDATA)
-        IOBS = MOBDATA(NCMOBS,JDATA)
-        IF ( ITYP .EQ. NEUU) MOBDATA(NCMPOS,JDATA) = nouu - 1
-        IF ( ITYP .EQ. NEVV) MOBDATA(NCMPOS,JDATA) = novv - 1
-        IF ( ITYP .EQ. NETT) MOBDATA(NCMPOS,JDATA) = nott - 1
-        IF ( ITYP .EQ. NEDZ) MOBDATA(NCMPOS,JDATA) = nogz - 1
-        IF ( ITYP .EQ. NEES) MOBDATA(NCMPOS,JDATA) = noes - 1
-        IF ( ITYP .EQ. NEHU) MOBDATA(NCMPOS,JDATA) = noq  - 1
-        IF ( ITYP .EQ. NEGZ) MOBDATA(NCMPOS,JDATA) = nogz - 1
-        IF ( ITYP .EQ. NEOZ) MOBDATA(NCMPOS,JDATA) = nooz - 1
-        IF ( ITYP .EQ. NEUS) MOBDATA(NCMPOS,JDATA) = nouu - 1
-        IF ( ITYP .EQ. NEVS) MOBDATA(NCMPOS,JDATA) = novv - 1
-        IF ( ITYP .EQ. NETS) MOBDATA(NCMPOS,JDATA) = nott - 1
-        IF ( ITYP .EQ. NESS) MOBDATA(NCMPOS,JDATA) = noes - 1
-        IF ( ITYP .EQ. NEHS) MOBDATA(NCMPOS,JDATA) = noq  - 1
-        IF ( ITYP .EQ. NEPS) MOBDATA(NCMPOS,JDATA) = nops - 1
-        IF ( ITYP .EQ. NEPN) MOBDATA(NCMPOS,JDATA) = nops - 1
+        ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+        IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+        IF ( ITYP .EQ. NEUU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
+        IF ( ITYP .EQ. NEVV) obsSpaceData%MOBDATA(NCMPOS,JDATA) = novv - 1
+        IF ( ITYP .EQ. NETT) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nott - 1
+        IF ( ITYP .EQ. NEDZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nogz - 1
+        IF ( ITYP .EQ. NEES) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noes - 1
+        IF ( ITYP .EQ. NEHU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noq  - 1
+        IF ( ITYP .EQ. NEGZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nogz - 1
+        IF ( ITYP .EQ. NEOZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nooz - 1
+        IF ( ITYP .EQ. NEUS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
+        IF ( ITYP .EQ. NEVS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = novv - 1
+        IF ( ITYP .EQ. NETS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nott - 1
+        IF ( ITYP .EQ. NESS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noes - 1
+        IF ( ITYP .EQ. NEHS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noq  - 1
+        IF ( ITYP .EQ. NEPS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nops - 1
+        IF ( ITYP .EQ. NEPN) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nops - 1
       END DO
  500  CONTINUE
 C-----------------------------------------------------------------------
@@ -862,7 +863,7 @@ C
             ILAST=NENDTYP(J)
 
             DO JDATA= IBEGIN,ILAST
-              MOBDATA(NCMLOBS,JDATA)=0
+              obsSpaceData%MOBDATA(NCMLOBS,JDATA)=0
             END DO
 C
 C  1.    RAOB LEVELS
@@ -871,15 +872,15 @@ C
               DO JK=1,JPRLEV
                 IZP1  = NILV(JK )
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV = ROBDATA8(NCMPPP,JDATA)
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  IDATYP=MOBHDR (NCMOTP,IOBS)
+                  IZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+                  IDATYP=obsSpaceData%MOBHDR (NCMOTP,IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'UA')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    MOBDATA(NCMLOBS,JDATA)=MOBDATA(NCMLOBS,JDATA)+MAX(0
+                    obsSpaceData%MOBDATA(NCMLOBS,JDATA)=obsSpaceData%MOBDATA(NCMLOBS,JDATA)+MAX(0
      &                   ,IZXI)
                   ENDIF
                 END DO
@@ -892,15 +893,15 @@ C
               DO JK=1,JPHLEV
                 IZP1  = NIHULV(JK )
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV = ROBDATA8(NCMPPP,JDATA)
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  IDATYP=MOBHDR (NCMOTP,IOBS)
+                  IZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+                  IDATYP=obsSpaceData%MOBHDR (NCMOTP,IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'HU')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    MOBDATA(NCMLOBS,JDATA)=MOBDATA(NCMLOBS,JDATA)+MAX(0
+                    obsSpaceData%MOBDATA(NCMLOBS,JDATA)=obsSpaceData%MOBDATA(NCMLOBS,JDATA)+MAX(0
      &                   ,IZXI)
                   ENDIF
                 END DO
@@ -913,15 +914,15 @@ C
               DO JK=1,JPSALEV
                 IZP1  =  NISLV(JK)
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV =  ANINT( ROBDATA8(NCMPPP,JDATA) )
-                  IOBS = MOBDATA(NCMOBS,JDATA)
-                  IDATYP=MOBHDR (NCMOTP,IOBS)
+                  IZLEV =  ANINT( obsSpaceData%ROBDATA8(NCMPPP,JDATA) )
+                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
+                  IDATYP=obsSpaceData%MOBHDR (NCMOTP,IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'ST')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    MOBDATA(NCMLOBS,JDATA)=MOBDATA(NCMLOBS,JDATA)+MAX(0
+                    obsSpaceData%MOBDATA(NCMLOBS,JDATA)=obsSpaceData%MOBDATA(NCMLOBS,JDATA)+MAX(0
      &                   ,IZXI)
                   ENDIF
                 END DO

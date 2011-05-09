@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_masksf(CDFAM)
       use modmask, only : lmasksf_in, lmasksf_out, lmask, ldiagsf, ldiag
+      use obs_mod
 #if defined (DOC)
 *
 *Purpose : Defines a mask of assimilated data
@@ -36,9 +37,8 @@
       CHARACTER *2 CDFAM
 *implicits
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 #include "comnumbr.cdk"
 *
@@ -55,25 +55,25 @@ C
 C
 C     Process all data within the domain of the model
 C
-          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = MOBDATA(NCMOBS,ILAST)
+          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = MOBHDR(NCMRLN,JO)
-            IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              IF ( MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
-                ITYP = MOBDATA(NCMVNM,JDATA)
+              IF ( obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
+                ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
                 IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS
      &               .OR.ITYP.EQ.NEPN .OR. ITYP.EQ.NESS
      &               .OR.ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS) THEN
-                  LMASKSF_IN(JDATA)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
+                  LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
                 ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
                   LMASKSF_IN(JDATA)= .false.
                 ELSE
-                  LMASKSF_IN(JDATA)=(MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
-     &                 MOBDATA(NCMXTR,JDATA)  .EQ. 0)
+                  LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
+     &                 obsSpaceData%MOBDATA(NCMXTR,JDATA)  .EQ. 0)
                 ENDIF
-                IF ( MOBDATA(NCMVNM,JDATA) .EQ. NEHS) then
+                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHS) then
                   ldiagsf(jdata) = .true.
                 endif
               ENDIF
@@ -83,10 +83,10 @@ C
 C     Process all geopotential data below model's orography
 C
           DO JDATA=IBEGIN,ILAST
-            lmasksf_out(jdata)=(MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &           .AND. (MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &           .AND. (MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
-     &           .AND. (MOBDATA(NCMVCO,JDATA) .EQ. 1)
+            lmasksf_out(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+     &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
+     &           .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+     &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
 C
           END DO
 C

@@ -43,15 +43,15 @@
 *
 #endif
       USE mpi_mod
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
@@ -112,13 +112,13 @@
 !
 !       return the step stamp associated whit date and time of the observation
 
-        call stepobs(ISTEPSTAMP,nbrpstamp,mobhdr(ncmdat,jobs)
-     &       ,mobhdr(ncmetm,jobs),dstepobs)
+        call stepobs(ISTEPSTAMP,nbrpstamp,obsSpaceData%mobhdr(ncmdat,jobs)
+     &       ,obsSpaceData%mobhdr(ncmetm,jobs),dstepobs)
 !
          if(l1obs) then
            write(nulout,*) 'suobsgid: jobs,ncmdat,ncmetm=',jobs,ncmdat,ncmetm
-           write(nulout,*) 'suobsgid: mobhdr(ncmdat,jobs)=',mobhdr(ncmdat,jobs)
-           write(nulout,*) 'suobsgid: mobhdr(ncmetm,jobs)=',mobhdr(ncmetm,jobs)
+           write(nulout,*) 'suobsgid: mobhdr(ncmdat,jobs)=',obsSpaceData%mobhdr(ncmdat,jobs)
+           write(nulout,*) 'suobsgid: mobhdr(ncmetm,jobs)=',obsSpaceData%mobhdr(ncmetm,jobs)
            write(nulout,*) 'suobsgid: istepstamp=',istepstamp
          endif 
 !
@@ -133,10 +133,10 @@
         enddo step
 
         if (.not. lltimein) then
-          ntimeout(mobhdr(ncmotp,jobs))=ntimeout(mobhdr(ncmotp,jobs))+1
+          ntimeout(obsSpaceData%mobhdr(ncmotp,jobs))=ntimeout(obsSpaceData%mobhdr(ncmotp,jobs))+1
 C          write(nulout,*) 'Report time for obs no. ',jobs
-C     &         ,' out of range : ', mobhdr(ncmdat,jobs),
-C     &         mobhdr(ncmetm,jobs)
+C     &         ,' out of range : ', obsSpaceData%mobhdr(ncmdat,jobs),
+C     &         obsSpaceData%mobhdr(ncmetm,jobs)
 
 ! Put the wrong data in the central bin
           jstep = (nstepobs + 1) / 2
@@ -145,17 +145,17 @@ C     &         mobhdr(ncmetm,jobs)
 ! .. flag it as out of (time) domain (bit #5 of header flag
 ! .. and turn off its assimilation flag
 
-          idata = mobhdr(ncmrln,jobs)
-          idatend = mobhdr(ncmnlv,jobs) + idata -1
+          idata = obsSpaceData%mobhdr(ncmrln,jobs)
+          idatend = obsSpaceData%mobhdr(ncmnlv,jobs) + idata -1
           do jdata = idata, idatend
-            MOBDATA(NCMASS,JDATA) = 0
+            obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
           enddo
-          mobhdr(ncmst1,jobs)= ibset( mobhdr(ncmst1,jobs) , 05)
+          obsSpaceData%mobhdr(ncmst1,jobs)= ibset( obsSpaceData%mobhdr(ncmst1,jobs) , 05)
         endif
 ! building the lat, long and tag vectors for each step
 
-        dlatfld(nobs(jstep),jstep) = robhdr(ncmlat,jobs)
-        dlonfld(nobs(jstep),jstep) = robhdr(ncmlon,jobs)
+        dlatfld(nobs(jstep),jstep) = obsSpaceData%robhdr(ncmlat,jobs)
+        dlonfld(nobs(jstep),jstep) = obsSpaceData%robhdr(ncmlon,jobs)
         notag(nobs(jstep),jstep) = jobs
 
 ! Converting lat long to radian units

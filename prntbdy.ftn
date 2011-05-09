@@ -35,12 +35,12 @@
 *
 #endif
 C
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
-#include "comoba.cdk"
+
+
 *
       INTEGER KOBS, KULOUT
       INTEGER IPNT, IDATA, IDATA2, JDATA
@@ -50,8 +50,8 @@ C
 C
 C*    1. General information
 C
-      IPNT  = MOBHDR(NCMRLN,KOBS)
-      IDATA = MOBHDR(NCMNLV,KOBS)
+      IPNT  = obsSpaceData%MOBHDR(NCMRLN,KOBS)
+      IDATA = obsSpaceData%MOBHDR(NCMNLV,KOBS)
 C
       IF(IDATA.EQ.1) THEN
          WRITE(KULOUT,FMT=9101)IDATA,KOBS,NCMLBO
@@ -71,17 +71,17 @@ C
 C
       DO JDATA = IPNT, IPNT + IDATA - 1
          IDATA2 = JDATA -IPNT + 1
-         if(MOBDATA(NCMASS,JDATA).eq.1) then
+         if(obsSpaceData%MOBDATA(NCMASS,JDATA).eq.1) then
             WRITE(KULOUT,FMT=9201) IDATA2
-     S           ,MOBDATA(NCMVNM,JDATA),ccordtyp( MOBDATA(NCMVCO,JDATA) )
-     S           ,ROBDATA(NCMPPP,JDATA)
-     S           ,ROBDATA(NCMPRL,JDATA),ROBDATA(NCMPOB,JDATA)
-     S           ,ROBDATA(NCMVAR,JDATA),ROBDATA(NCMOMF,JDATA)
-     S           ,ROBDATA(NCMOMA,JDATA),ROBDATA(NCMOMI,JDATA)
-     S           ,ROBDATA(NCMOER,JDATA)
-     S           ,ROBDATA(NCMRER,JDATA),ROBDATA(NCMFGE,JDATA)
-     S           ,ROBDATA(NCMPER,JDATA),MOBDATA(NCMFLG,JDATA)
-     S           ,MOBDATA(NCMASS,JDATA)
+     S           ,obsSpaceData%MOBDATA(NCMVNM,JDATA),ccordtyp( obsSpaceData%MOBDATA(NCMVCO,JDATA) )
+     S           ,obsSpaceData%ROBDATA(NCMPPP,JDATA)
+     S           ,obsSpaceData%ROBDATA(NCMPRL,JDATA),obsSpaceData%ROBDATA(NCMPOB,JDATA)
+     S           ,obsSpaceData%ROBDATA(NCMVAR,JDATA),obsSpaceData%ROBDATA(NCMOMF,JDATA)
+     S           ,obsSpaceData%ROBDATA(NCMOMA,JDATA),obsSpaceData%ROBDATA(NCMOMI,JDATA)
+     S           ,obsSpaceData%ROBDATA(NCMOER,JDATA)
+     S           ,obsSpaceData%ROBDATA(NCMRER,JDATA),obsSpaceData%ROBDATA(NCMFGE,JDATA)
+     S           ,obsSpaceData%ROBDATA(NCMPER,JDATA),obsSpaceData%MOBDATA(NCMFLG,JDATA)
+     S           ,obsSpaceData%MOBDATA(NCMASS,JDATA)
          end if
 C
       end do

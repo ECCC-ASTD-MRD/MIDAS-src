@@ -31,21 +31,18 @@
 *
 #endif
 C
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
-#include "comoba.cdk"
+
+
 *
       INTEGER KOBS, KULOUT
-      CHARACTER*4 CSID14,CSID58
-      CHARACTER*1 CSID99
+      CHARACTER*4 CSID14
       CHARACTER*9 CCSTNID
-      WRITE(CSID14,'(a4)')MOBHDR(NCMSID,KOBS)
-      WRITE(CSID58,'(a4)')MOBHDR(NCMSI2,KOBS)
-      WRITE(CSID99,'(a1)')MOBHDR(NCMSI3,KOBS)
-      CCSTNID=CSID14//CSID58//CSID99
+      WRITE(CSID14,'(a4)')obsSpaceData%MOBHDR(NCMSID,KOBS)
+      CCSTNID=CSID14
 C
 C*    1. General information
 C
@@ -58,15 +55,15 @@ C*    2. PRINT HEADER'S CONTENT
 C
  200  CONTINUE
       WRITE(KULOUT,FMT=9200)
-     S      MOBHDR(NCMRLN,KOBS),MOBHDR(NCMONM,KOBS)
-     S     ,MOBHDR(NCMBOX,KOBS),MOBHDR(NCMOTP,KOBS)
-     S     ,MOBHDR(NCMITY,KOBS)
-     S     ,ROBHDR(NCMLAT,KOBS),ROBHDR(NCMLON,KOBS)
-     S     ,MOBHDR(NCMDAT,KOBS),MOBHDR(NCMETM,KOBS)
-     S     ,CCSTNID            ,ROBHDR(NCMALT,KOBS)
-     S     ,MOBHDR(NCMNLV,KOBS),MOBHDR(NCMOEC,KOBS)
-     S     ,MOBHDR(NCMOFL,KOBS),MOBHDR(NCMST1,KOBS)
-     S     ,MOBHDR(NCMTLA,KOBS)
+     S      obsSpaceData%MOBHDR(NCMRLN,KOBS),obsSpaceData%MOBHDR(NCMONM,KOBS)
+     S     ,obsSpaceData%MOBHDR(NCMBOX,KOBS),obsSpaceData%MOBHDR(NCMOTP,KOBS)
+     S     ,obsSpaceData%MOBHDR(NCMITY,KOBS)
+     S     ,obsSpaceData%ROBHDR(NCMLAT,KOBS),obsSpaceData%ROBHDR(NCMLON,KOBS)
+     S     ,obsSpaceData%MOBHDR(NCMDAT,KOBS),obsSpaceData%MOBHDR(NCMETM,KOBS)
+     S     ,CCSTNID            ,obsSpaceData%ROBHDR(NCMALT,KOBS)
+     S     ,obsSpaceData%MOBHDR(NCMNLV,KOBS),obsSpaceData%MOBHDR(NCMOEC,KOBS)
+     S     ,obsSpaceData%MOBHDR(NCMOFL,KOBS),obsSpaceData%MOBHDR(NCMST1,KOBS)
+     S     ,obsSpaceData%MOBHDR(NCMTLA,KOBS)
 C
  9200 FORMAT(6X,'Position within ROBDATA:',I6,1X,'OBS. NUMBER:',I6,1X
      S     ,'MODEL BOX:',I6,1X,'OBS. TYPE:',I6,1X

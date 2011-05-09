@@ -33,6 +33,7 @@
       use modgps06gravity
       use modgps07geostruct
       use modgps08refop
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -44,9 +45,8 @@
 #include "comcst.cdk"
 #include "comct0.cdk"
 #include "comnumbr.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
@@ -101,8 +101,8 @@ C
          IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-            ILASTOB  = MOBDATA(NCMOBS,ILAST )
+            IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+            ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
 C
 C     *     Loop over all observations of the file
 C
@@ -110,13 +110,13 @@ C
 C     
 C     *        Process only refractivity data (codtyp 169)
 C
-               IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+               IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
                IF ( IDATYP .EQ. 169 ) THEN
 C
 C                 Loops over data in the observation
 C
-                  IDATA   = MOBHDR(NCMRLN,JO)
-                  IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+                  IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+                  IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
                   ASSIM = .FALSE.
 C
 C                 Scan for requested assimilations, and count them
@@ -124,8 +124,8 @@ C
                   ASSIM = .TRUE.
                   NH = IDATEND-IDATA+1
 C
-                  Lat  = ROBHDR(NCMLAT,JO)
-                  Lon  = ROBHDR(NCMLON,JO)
+                  Lat  = obsSpaceData%ROBHDR(NCMLAT,JO)
+                  Lon  = obsSpaceData%ROBHDR(NCMLON,JO)
                   ZLAT = Lat * ZTODEG
                   ZLON = Lon * ZTODEG
                   DO JL = 1, NLEVTRL
@@ -156,13 +156,13 @@ C
 C     *           Prepare the vector of all the observations:
 C
                   DO JDATA= IDATA, IDATEND
-                     HNH1= ROBDATA8(NCMPPP,JDATA)
+                     HNH1= obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                      IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                         HGP = gpsgeopotential(Lat,HNH1)/9.80616
                         IF ( HGP.GT.HTP .OR. 
      +                       HGP.LT.HSF ) THEN
-                           MOBDATA(NCMASS,JDATA) = 0
-                           MOBDATA(NCMFLG,JDATA) = IBSET(MOBDATA(NCMFLG,JDATA),11)
+                           obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
+                           obsSpaceData%MOBDATA(NCMFLG,JDATA) = IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),11)
                         ENDIF
                      ENDIF
                   ENDDO

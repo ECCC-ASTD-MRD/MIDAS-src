@@ -56,17 +56,17 @@
 #endif
 *
       USE mpi_mod 
+      use obs_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
+
 #include "comvfiles.cdk"
 #include "combpost.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comct0.cdk"
-#include "comoba.cdk"
 *
       INTEGER IER,INRECS,IBRP1
       INTEGER INBLKS,IOBTOT,IDATA

@@ -18,6 +18,7 @@
       use modmask
       USE obstag 
       USE mpi_mod
+      use obs_mod
       implicit none
       real*8 pjo ! Total observation cost function
 c
@@ -41,9 +42,8 @@ C              and correct bug ROBDATA8(NCMOMI,JDATA)
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 #include "comcva.cdk"
 *
@@ -68,7 +68,7 @@ C
 
 
       if(l1obs) then
-         pjo = ROBDATA8(NCMOMI,1)
+         pjo = obsSpaceData%ROBDATA8(NCMOMI,1)
       else
         CALL restore_robdata8(robdata8_g,ndatap)  
          pjo = pjo + sumJo(1,ndatap,lmask_g)
@@ -169,16 +169,16 @@ c
        INTEGER :: i,ii,j ,iobs,idata,idataend,ierr  
        integer :: aaa ,bbb 
        ii=0
-       aaa=size(MOBHDR_G,1)
-       bbb=size(MOBHDR_G,2)
+       aaa=size(obsSpaceData%MOBHDR_G,1)
+       bbb=size(obsSpaceData%MOBHDR_G,2)
        robdata8_g=0.0D0  
        DO i=1,nobtot
          iobs=locObsTag(i)
-         idata=MOBHDR_G(NCMRLN,iobs)
-         idataend=MOBHDR_G(NCMNLV,iobs)+idata -1 
+         idata=obsSpaceData%MOBHDR_G(NCMRLN,iobs)
+         idataend=obsSpaceData%MOBHDR_G(NCMNLV,iobs)+idata -1 
          DO j=idata,idataend
            ii=ii+1
-           robdata8_g(j)=robdata8(NCMOMI,ii)
+           robdata8_g(j)=obsSpaceData%robdata8(NCMOMI,ii)
          ENDDO
        ENDDO  
        CALL rpn_comm_allreduce(ROBDATA8_g,ROBDATA8_g,kdata,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 

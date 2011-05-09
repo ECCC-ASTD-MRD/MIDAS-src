@@ -18,6 +18,7 @@
       use modmask, only : lmaskpp_in, lmaskpp_out,lmasksf_in,lmasksf_out
       use modmask, only : lmask,lmaskto,lmaskgo,lmaskro,lmaskzp,ldiagpp
       use modmask, only : ldiagsf, ldiag, lmaskgp
+      use obs_mod
 #if defined (DOC)
 *
 ***s/r SUALOBS  - Memory allocation for obs. related arrays
@@ -44,8 +45,6 @@
 *                         and real cma arrays (ptmobhdr,ptrobhdr,ptmobdata,ptrobdata)
 *     JM Belanger CMDA/SMC  Jul 2000
 *                   - 32 bits conversion
-*                    (Memory allocation for ROBDATA8 array declared
-*                     in comoba.cdk)
 *     S. Pellerin *ARMA/SMC nov. 2001
 *                   - Allocation of mvar and pexy vertors for 4Dvar book keeping
 *     J. Halle    *CMDA/SMC mai 2006
@@ -76,12 +75,9 @@ C
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comdimo.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
 #include "commvo.cdk"
 #include "commvo1.cdk"
 #include "commvog.cdk"
-#include "comoba.cdk"
 #include "comstate.cdk"
 *
       INTEGER KULOUT, IERR
@@ -112,20 +108,9 @@ C*    2. Arrays containing the observations themselves
 C     .   (COMDECK COMOBA)
 C     .  ---------------------------------------------
 C
-*     Memory allocation for ROBDATA8.
-
-      ALLOCATE(cstnid(NMXOBS),STAT=ierr)
-      ALLOCATE(ROBHDR(NCMLET,NMXOBS),STAT=ierr)
-      ROBHDR=0.0
-      ALLOCATE(ROBDATA(NCMLBO,NDATAMX),STAT=ierr)
-      ROBDATA=0.0
-      ALLOCATE(ROBDATA8(3:11,NDATAMX),STAT=ierr)
-      ROBDATA8=0.0D0
-      ALLOCATE(MOBHDR(NCMLET,NMXOBS),STAT=ierr)
-      MOBHDR=0
-      ALLOCATE(MOBDATA(NCMLBO,NDATAMX),STAT=ierr)
-      MOBDATA=0
-
+*     Memory allocation for obsSpaceData (except for *_g arrays)
+      call obs_allocate(obsSpaceData,NMXOBS,NDATAMX)
+!
 !
       allocate(lmaskpp_in(ndatamx),lmaskpp_out(ndatamx))
       lmaskpp_in = .false.

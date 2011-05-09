@@ -45,13 +45,13 @@ C            greater than the model surface height.
 *
 *          none
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "commvohr.cdk"
 #include "comcst.cdk"
 #include "comfilt.cdk"
@@ -117,8 +117,8 @@ C
      &     (CFAMTYP(JF) .EQ. 'GP') .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=MOBDATA(NCMOBS,NBEGINTYP(JF))
-         IOBS2=MOBDATA(NCMOBS,NENDTYP(JF))
+         IOBS1=obsSpaceData%MOBDATA(NCMOBS,NBEGINTYP(JF))
+         IOBS2=obsSpaceData%MOBDATA(NCMOBS,NENDTYP(JF))
          WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -127,15 +127,15 @@ C
 ccc            CALL PRNTHDR(JOBS,NULOUT)
 ccc            CALL PRNTBDY(JOBS,NULOUT)
          ENDIF
-         IDATA    = MOBHDR(NCMRLN,JOBS)
-         IDATEND  = MOBHDR(NCMNLV,JOBS) + IDATA - 1
+         IDATA    = obsSpaceData%MOBHDR(NCMRLN,JOBS)
+         IDATEND  = obsSpaceData%MOBHDR(NCMNLV,JOBS) + IDATA - 1
          DO JDATA= IDATA, IDATEND
-            LLOK = MOBDATA(NCMVCO,JDATA) .EQ. 1
+            LLOK = obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1
             IF (LLOK) THEN
             IKOUNTT=IKOUNTT+1
-            IFLG     = MOBDATA(NCMFLG,JDATA)
-            ITYP=MOBDATA(NCMVNM,JDATA)
-            ITY    = MOBHDR(NCMITY,JOBS)
+            IFLG     = obsSpaceData%MOBDATA(NCMFLG,JDATA)
+            ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+            ITY    = obsSpaceData%MOBHDR(NCMITY,JOBS)
             IDBURP = MOD(ITY,1000)
             ZDIFF=99999.
             IF ( (ITYP .eq. NEGZ)  ) THEN
@@ -145,19 +145,19 @@ ccc            CALL PRNTBDY(JOBS,NULOUT)
                   LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
                END DO
                IF ( .NOT. LLREJ ) THEN
-                  ZVAL=ROBDATA8(NCMVAR,JDATA)
+                  ZVAL=obsSpaceData%ROBDATA8(NCMVAR,JDATA)
                   ZDIFF= ABS( ( ZVAL-GOMGZHR(NLEVTRL,JOBS) )/RG )
-                  ZLEV=ROBDATA8(NCMPPP,JDATA)
+                  ZLEV=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                ENDIF
             ELSE
-               ZHHH=ROBDATA8(NCMPPP,JDATA)
-               ITYP=MOBDATA(NCMVNM,JDATA)
+               ZHHH=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+               ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
                ZDIFF=  ABS( ZHHH- GOMGZHR(NLEVTRL,JOBS)/RG )
-               ZLEV=ROBDATA8(NCMPPP,JDATA)
+               ZLEV=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
             ENDIF
-            ZVAL=ROBDATA8(NCMVAR,JDATA)
-            ITYP=MOBDATA(NCMVNM,JDATA)
-            ZLEV2=ROBDATA8(NCMPPP,JDATA)
+            ZVAL=obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+            ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+            ZLEV2=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
 C
 C        APPLY FILTER TO SELECTED ELEMENTS
 C
@@ -166,26 +166,26 @@ C
                ILEM=ILISTEL(J)
                IF (ZLEV .EQ. ZLEV2 .AND. ITYP .EQ. ILEM ) THEN
                  IF ( ZDIFF .LE. ICRIT) THEN
-                   IF ( MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
+                   IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
                      IKOUNTREA(J)=IKOUNTREA(J)+1
                      IF(LLPRINT) THEN
                        ZMODEL = GOMGZHR(NLEVTRL,JOBS)/RG
                        write(nulout,*)'Keep OBS:stnid,jobs,ityp,icrit,'
      &                      ,'zlev,zhhh,zmodel,zdiff '
-     &                      ,CSTNID(JOBS),JOBS,ITYP,ICRIT
+     &                      ,obsSpaceData%CSTNID(JOBS),JOBS,ITYP,ICRIT
      &                      ,zlev,zhhh,zmodel,zdiff
                      ENDIF
                    ENDIF
                  ELSE
-                   IF ( MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
-                     MOBDATA(NCMFLG,JDATA)=
-     &                    ibset( MOBDATA(NCMFLG,JDATA) , 18 )
+                   IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
+                     obsSpaceData%MOBDATA(NCMFLG,JDATA)=
+     &                    ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 18 )
                      IF(LLPRINT) THEN
                        WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP
-     &                      ,CSTNID(JOBS),IDBURP
-     &                      ,ROBHDR(NCMLAT,JOBS),ROBHDR(NCMLON,JOBS)
+     &                      ,obsSpaceData%CSTNID(JOBS),IDBURP
+     &                      ,obsSpaceData%ROBHDR(NCMLAT,JOBS),obsSpaceData%ROBHDR(NCMLON,JOBS)
                      ENDIF
-                     MOBDATA(NCMASS,JDATA)=0
+                     obsSpaceData%MOBDATA(NCMASS,JDATA)=0
                      IKOUNTREJ(J)=IKOUNTREJ(J)+1
                    ENDIF
                  ENDIF
@@ -212,7 +212,7 @@ C
 C
       IKOUNTT=0
       DO JDATA=1,NDATA
-         IF ( MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D"
      &            ,"-VAR AFTER ADJUSTMENTS: ",i10)')IKOUNTT

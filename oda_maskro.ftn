@@ -16,6 +16,7 @@
 !
       SUBROUTINE oda_maskro
       use modmask, only : lmaskro, lmask
+      use obs_mod
 #if defined (DOC)
 *
 *Purpose : Defines a mask of assimilated data
@@ -32,9 +33,8 @@
 *implicits
 #include "pardim.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cvcord.cdk"
 *
       REAL*8 PJO
@@ -79,18 +79,18 @@ C
         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
           IBEGIN   = NBEGINTYP(JF)
           ILAST    = NENDTYP  (JF)
-          IBEGINOB = MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = MOBDATA(NCMOBS,ILAST )
+          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
 C
 C     *     Loop over all observations of the file
 C
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+            IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
             IF ( IDATYP .EQ. 169 ) THEN
-              IDATA   = MOBHDR(NCMRLN,JO)
-              IDATEND = MOBHDR(NCMNLV,JO) + IDATA - 1
+              IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
+              IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
               DO JDATA= IDATA, IDATEND
-                LUSE=( MOBDATA(NCMASS,JDATA).EQ.1 )
+                LUSE=( obsSpaceData%MOBDATA(NCMASS,JDATA).EQ.1 )
                 IF ( LUSE ) THEN
                   lmaskro(jdata) = .true.
                 ENDIF

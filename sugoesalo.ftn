@@ -33,14 +33,14 @@
 *     i : KULOUT : logical unit for output
 *
 #endif
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
 #include "comct0.cdk"
 #include "comdimo.cdk"
-#include "comoabdy.cdk"
-#include "comoahdr.cdk"
-#include "comoba.cdk"
+
+
 #include "cparamgoes.cdk"
 #include "comgoes.cdk"
 #include "comjacgoes.cdk"
@@ -54,7 +54,7 @@ C     .  -----------------------------------------------
  100  CONTINUE
       NOBGOES = 0
       DO JO = 1, NOBTOT
-        IDATYP = MOD(MOBHDR(NCMITY,JO),1000)
+        IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
         IF ( IDATYP .EQ. 180 ) THEN
             NOBGOES = NOBGOES + 1
         ENDIF

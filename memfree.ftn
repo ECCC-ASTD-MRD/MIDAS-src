@@ -37,6 +37,7 @@
 *
 #endif
 C
+      use obs_mod
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -55,13 +56,12 @@ C
 C*    Comdecks associated with the observations
 C     ----------------------------------------
 #include "comdimo.cdk"
-#include "comoahdr.cdk"
-#include "comoabdy.cdk"
+
+
 #include "commvo.cdk"
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"
-#include "comoba.cdk"
 *
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       EXTERNAL HPDEALLC, FSTFRM,EXFIN
@@ -176,38 +176,7 @@ C
      S         " PTMOBS1. IERR =",I3)')IERR
         END IF
 C
-C        CALL HPDEALLC(PTROBHDR,IERR,1)
-        DEALLOCATE(ROBHDR,STAT=IERR)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X,
-     &         " PTROBHDR(PTMOBHDR) checked and correct",". IERR =",I3)'
-     &         )IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTROBHDR(PTMOBHDR). IERR =",I3)')IERR
-        END IF
-C
-C        CALL HPDEALLC(PTROBDATA,IERR,1)
-        DEALLOCATE(ROBDATA,STAT=IERR)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X,
-     &         " PTROBDATA(PTMOBDATA) checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTOBDATA(PTMOBDATA). IERR =",I3)')IERR
-        END IF
-C
-C        CALL HPDEALLC(PTROBDATA8,IERR,1)
-        DEALLOCATE(ROBDATA8,STAT=IERR)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X,
-     &         " PTROBDATA8 checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTROBDATA8. IERR =",I3)')IERR
-        END IF
+        call obs_deallocate(obsSpaceData)
 C
         CALL HPDEALLC(PTPPOBS,IERR,1)
         IF(IERR.EQ.0)THEN
