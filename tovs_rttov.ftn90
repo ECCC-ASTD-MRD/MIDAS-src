@@ -40,7 +40,7 @@ subroutine tovs_rttov
   use mod_tovs
   use airsbgcheck
   use iasibgcheck
-  use obs_mod
+  use obsSpaceData_mod
 
   implicit none
   interface

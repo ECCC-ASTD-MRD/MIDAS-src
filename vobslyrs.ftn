@@ -48,16 +48,14 @@
 *                                   BG PROCESS LO RESOLUTION COMMVOG
 *          none
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-
-
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "commvo.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"
@@ -97,10 +95,10 @@ C     1.1 PPP Vertical coordinate
 C
          DO JDATA= 1,NDATA
             LLOK = ( (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1     .OR.
-     &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHU) .AND.
+     &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU) .AND.
      &                obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE. NEDZ ) THEN
+               IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE. BUFR_NEDZ ) THEN
                   ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                ELSE
                   ZLEV = obsSpaceData%ROBDATA8(NCMPRL,JDATA)
@@ -143,7 +141,7 @@ C
             LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
      &              obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE. NEDZ ) THEN
+               IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE. BUFR_NEDZ ) THEN
                   ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                ELSE
                   ZLEV = obsSpaceData%ROBDATA8(NCMPRL,JDATA)
@@ -191,7 +189,7 @@ C
 C
          DO JDATA= 1,NDATA
             LLOK = ( (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1     .OR.
-     &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHU) .AND.
+     &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU) .AND.
      &                obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
                IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
@@ -230,7 +228,7 @@ C     2.2  ZZZ Vertical coordinate and surface observations
 C
          DO JDATA= 1,NDATA
             LLOK = ( (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1     .OR.
-     &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHS) .AND.
+     &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHS) .AND.
      &                obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
                IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
@@ -242,11 +240,11 @@ C
                    ZPT  = GOMGZHR(JK,IOBS)/RG
                    IF( ZLEV .LT. ZPT ) IK = JK
                  END DO
-                 IF((ITYP.EQ.NEPS .or. ityp .eq. NEPN) ) THEN
+                 IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
                    IK=0
-                 ELSEIF(ITYP.EQ.NETS .or. ityp .eq. NESS .OR.
-     &                  ITYP.EQ.NEUS .or. ityp .eq. NEVS .OR.
-     &                  ITYP.EQ.NEHS ) THEN
+                 ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
+     &                  ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
+     &                  ITYP.EQ.BUFR_NEHS ) THEN
                    IK=NLEVTRL-1
                  ENDIF
                ELSEIF(CDMVO .EQ. 'BG') THEN
@@ -254,11 +252,11 @@ C
                    ZPT  = GOMGZG(JK,IOBS)/RG
                    IF( ZLEV .LT. ZPT ) IK = JK
                  END DO
-                 IF((ITYP.EQ.NEPS .or. ityp .eq. NEPN) ) THEN
+                 IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
                    IK=0
-                 ELSEIF(ITYP.EQ.NETS .or. ityp .eq. NESS .OR.
-     &                  ITYP.EQ.NEUS .or. ityp .eq. NEVS .OR.
-     &                  ITYP.EQ.NEHS ) THEN
+                 ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
+     &                  ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
+     &                  ITYP.EQ.BUFR_NEHS ) THEN
                    IK=NFLEV-1
                  ENDIF
                ENDIF

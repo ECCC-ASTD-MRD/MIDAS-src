@@ -45,15 +45,13 @@
 *
 ************************************************************************
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
-
 #include "cparbrp.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER, INTENT(IN)    :: KELE,KVAL,KNT,KINDEX,KRVAL
       INTEGER, INTENT(IN)    :: KLIST(KELE)
@@ -76,8 +74,8 @@ cc      LLPRINT = .TRUE.
       lqflag(:) = 0
 
       DO JI=1,KELE
-         IF ( KLIST(JI).EQ.NETT .OR. KLIST(JI).EQ.NEES .OR.
-     &        KLIST(JI).EQ.NETS .OR. KLIST(JI).EQ.NESS ) THEN
+         IF ( KLIST(JI).EQ.BUFR_NETT .OR. KLIST(JI).EQ.BUFR_NEES .OR.
+     &        KLIST(JI).EQ.BUFR_NETS .OR. KLIST(JI).EQ.BUFR_NESS ) THEN
             IF (LLPRINT) write(nulout,*) ' --KLIST(JI)= ',KLIST(JI)
 
             DO JJ=1,KVAL
@@ -96,7 +94,7 @@ cc      LLPRINT = .TRUE.
       ENDDO
 
       DO JI=1,KELE
-         IF ( KLIST(JI).EQ.NEHU .OR. KLIST(JI).EQ.NEHS ) THEN
+         IF ( KLIST(JI).EQ.BUFR_NEHU .OR. KLIST(JI).EQ.BUFR_NEHS ) THEN
             IF (LLPRINT) write(nulout,*) ' --KLIST(JI)= ',KLIST(JI)
 
             DO JJ=1,KVAL

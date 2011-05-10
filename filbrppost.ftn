@@ -56,7 +56,7 @@
 #endif
 *
       USE mpi_mod 
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"

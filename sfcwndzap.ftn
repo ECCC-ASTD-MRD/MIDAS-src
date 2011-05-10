@@ -28,15 +28,13 @@
 *
 *          none
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
-
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER JPINEL,JPIDLND
       PARAMETER(JPINEL=2,JPIDLND=9)
@@ -51,8 +49,8 @@ C                     SYNOP(3)     TEMP/PILOT(6)
       DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
 C
 C
-      ILISTEL(1)=NEUS
-      ILISTEL(2)=NEVS
+      ILISTEL(1)=BUFR_NEUS
+      ILISTEL(2)=BUFR_NEVS
       WRITE(NULOUT,* ) ' '
       WRITE(NULOUT,* ) ' SUBROUTINE SFCWNDZAP '
       WRITE(NULOUT,* ) ' '
@@ -96,7 +94,7 @@ C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
               ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
               ITY    = obsSpaceData%MOBHDR(NCMITY,JOBS)
               IDBURP = MOD(ITY,1000)
-              IF ( ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS) THEN
+              IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
                   IF(IDBURP .EQ. IDLND(JID) .AND.
      &                 obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) THEN

@@ -16,7 +16,7 @@
 !
 subroutine oda_maskto
   use modmask, only : lmaskto, lmask
-  use obs_mod
+  use obsSpaceData_mod
 #if defined (doc)
   ! Purpose : Defines a mask of assimilated data
   !

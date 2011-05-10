@@ -40,7 +40,7 @@ subroutine tovs_calc_jo(pjo,llprint)
 !
 #endif
   use mod_tovs
-  use obs_mod
+  use obsSpaceData_mod
 
   implicit none
 !implicits

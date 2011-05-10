@@ -17,7 +17,7 @@
       subroutine prdatabin
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use modmask, only : lmask,ldiag,lmaskto
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "comdim.cdk"
 #include "comdimo.cdk"

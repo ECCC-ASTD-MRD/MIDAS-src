@@ -1,12 +1,11 @@
-MODULE Obs_mod 
+MODULE obsSpaceData_mod 
   implicit none
   save
   private
 
+  ! main observation space data instance
   public           :: obsSpaceData
-  public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
-  public           :: obs_getBody,obs_setBody,obs_getHeader,obs_setHeader
-  public           :: obs_swapVarOmf
+  public           :: OBS_JPNBRELEM
 
   ! header column numbers
   public           :: NCMLET, NCMRLN, NCMONM, NCMBOX, NCMOTP, NCMITY,  &
@@ -19,6 +18,14 @@ MODULE Obs_mod
                       NCMOMF, NCMOMA, NCMOMI, NCMOMN, NCMOER, NCMRER,  &
                       NCMFGE, NCMPER, NCMFLG, NCMPOS, NCMLYR, NCMASS,  &
                       NCMXTR, NCMOBS, NCMLOBS,NCMVCO, NCMPRM
+
+  ! subroutines
+  public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
+  public           :: obs_getBody,obs_setBody,obs_getHeader,obs_setHeader
+  public           :: obs_swapVarOmf,obs_ifind
+
+
+  ! derived type and module variable declarations
 
   type  ::  struct_obs
     character*9,pointer :: cstnid(:)
@@ -34,17 +41,56 @@ MODULE Obs_mod
   type(struct_obs) :: obsSpaceData
 
   ! header column numbers
-  integer          :: NCMLET, NCMRLN, NCMONM, NCMBOX, NCMOTP, NCMITY,  &
-                      NCMLAT, NCMLON, NCMDAT, NCMETM, NCMSID, NCMALT,  &
-                      NCMNLV, NCMOEC, NCMOFL, NCMST1, NCMTLA, NCMAZA,  &
-                      NCMSUN, NCMCLF
+  integer,parameter :: NCMLET = 22
+  integer,parameter :: NCMRLN = 1
+  integer,parameter :: NCMONM = 2
+  integer,parameter :: NCMBOX = 3
+  integer,parameter :: NCMOTP = 4
+  integer,parameter :: NCMITY = 5
+  integer,parameter :: NCMLAT = 6
+  integer,parameter :: NCMLON = 7
+  integer,parameter :: NCMDAT = 8
+  integer,parameter :: NCMETM = 9
+  integer,parameter :: NCMSID = 10
+  integer,parameter :: NCMALT = 11
+  integer,parameter :: NCMNLV = 12
+  integer,parameter :: NCMOEC = 13
+  integer,parameter :: NCMOFL = 14
+  integer,parameter :: NCMST1 = 15
+  integer,parameter :: NCMTLA = 16
+  integer,parameter :: NCMAZA = 20
+  integer,parameter :: NCMSUN = 21
+  integer,parameter :: NCMCLF = 22
 
   ! body column numbers
-  integer          :: NCMLBO, NCMVNM, NCMPPP, NCMPRL, NCMPOB, NCMVAR,  &
-                      NCMOMF, NCMOMA, NCMOMI, NCMOMN, NCMOER, NCMRER,  &
-                      NCMFGE, NCMPER, NCMFLG, NCMPOS, NCMLYR, NCMASS,  &
-                      NCMXTR, NCMOBS, NCMLOBS,NCMVCO, NCMPRM
+  integer,parameter :: NCMLBO = 22
+  integer,parameter :: NCMVNM = 1
+  integer,parameter :: NCMPOB = 2
+  integer,parameter :: NCMPRL = 3
+  integer,parameter :: NCMPPP = 4
+  integer,parameter :: NCMVAR = 5
+  integer,parameter :: NCMOMF = 6
+  integer,parameter :: NCMOMA = 7
+  integer,parameter :: NCMOMI = 8
+  integer,parameter :: NCMOMN = 9
+  integer,parameter :: NCMOER = 10
+  integer,parameter :: NCMPRM = 11
+  integer,parameter :: NCMRER = 12
+  integer,parameter :: NCMFGE = 13
+  integer,parameter :: NCMPER = 14
+  integer,parameter :: NCMFLG = 15
+  integer,parameter :: NCMPOS = 16
+  integer,parameter :: NCMLYR = 17
+  integer,parameter :: NCMASS = 18
+  integer,parameter :: NCMXTR = 19
+  integer,parameter :: NCMOBS = 20
+  integer,parameter :: NCMLOBS = 21
+  integer,parameter :: NCMVCO = 22
+
+  integer, parameter :: OBS_JPNBRELEM = 57
+
   contains
+
 
   subroutine obs_allocate(obs_in,maxNumHdr,maxNumBdy)
     implicit none
@@ -439,4 +485,116 @@ MODULE Obs_mod
 
   end subroutine obs_setBody
 
-end module Obs_mod
+
+ integer function obs_ifind(kbufrn)
+  implicit none
+!
+  integer, intent(in) :: kbufrn
+!
+!      PURPOSE: TO FIND THE INDEX OF THE CMA VARIABLE TYPES LIST ELEMENT
+!               THAT CONTAINS A BUFR ELEMENT NUMBER
+!
+!    ARGUMENTS:
+!               INPUT:
+!                      -KBUFRN: THE BUFR CLASSIFICATION ELEMENT NUMBER
+!                               i.e. known locally as the 'burp variable type'
+!                               i.e. table B of the ECMWF BUFR reference
+!                               BUFR = Binary Universal Form for the
+!                                      Representation of meteorological data
+!
+!               OUTPUT:
+!                      - obs_ifind:
+!                                              THE FOUND INDEX (=-1 IF NOT FOUND)
+!
+!       AUTHOR: P. KOCLAS (CMC TEL. 4665)
+
+  integer indbuf
+  integer, parameter, dimension(OBS_JPNBRELEM) :: nvnumb = (/ &
+    011003, 011004, 010194, 010192,     29, & !  1-10
+    013208, 012063, 012001, 012192, 012004, &
+    012203, 011215, 011216, 013210, 013220, & ! 11-20
+        62, 015001,     64,     65, 015036, &
+    015031, 015032,     69,     70,     71, & ! 21-30
+        72,     73,     74,     75,     76, &
+        77,     78,     79,     80,     81, & ! 31-40
+        82,     83,     84,     85,     86, &
+        87,     88,     89,     90,     91, & ! 41-50
+    012163, 010004, 011001, 011002, 012062, &
+    008001, 008004, 010051, 011011, 011012, & ! 51-57
+        41,     42 /)
+
+
+! OBS. ARRAY VARIABLES NUMBERING IN A BURP FILE
+!   Descriptions taken from 3d variational code (March 2011, revision 11.0.2)
+!
+!  1 =011003 (U COMPONENT)           (m/s)
+!  2 =011004 (V COMPONENT)           (m/s)
+!  3 =010194 (GEOPOTENTIAL IN J/KG)   (z metres)
+!  4 =010192 (THICKNESS IN M)
+!  5 =    29 (RELATIVE HUMIDITY)
+!  6 =013208
+!  7 =012063 BRIGHTNESS TEMPERATURE 1
+!  8 =012001 (TEMPERATURE)            (kelvin)
+!  9 =012192  (DEW-POINT DEPRESSION)              (t-td kelvin)
+! 10 =012004 (2M TEMPERATURE)
+! 11 =012203 (2M DEW-POINT DEPRESSION)
+! 12 =011215 SURFACE U     WIND COMPONENT M/S)
+! 13 =011216 SURFACE V N-S WIND COMPONENT M/S)
+! 14 =013210 (NAPIERIAN LOGARITHM OF SPECIFIC HUMIDITY) LN(KG/KG)
+! 15 =013220 (NAPIERIAN LOGARITHM OF 2M SPECIFIC HUMIDITY) LN(KG/KG)
+! 16 =007006 HEIGHT ABOVE STATION (M)
+! 17 =015001 (Total Ozone from TOVS)
+! 18 =    64 (CM)
+! 19 =    65 (CL)
+! 20 =015036 (GPSRO REFRACTIVITY)
+! 21 =015031 (GPSGB ZTD IN M)
+! 22 =015032 (GPSGB ZTD ERROR IN M)
+! 23 =    69 (C)
+! 24 =    70 (NS)
+! 25 =    71 (S)
+! 26 =    72 (E)
+! 27 =    73 (TGTG)
+! 28 =    74 (SPSP)
+! 29 =    75 (SPSP)
+! 30 =    76 (RS)
+! 31 =    77 (ESES)
+! 32 =    78 (IS)
+! 33 =    79 (TRTR)
+! 34 =    80 (RR)
+! 35 =    81 (JJ)
+! 36 =    82 (VS)
+! 37 =    83 (DS)
+! 38 =    84 (HWHW)
+! 39 =    85 (PWPW)
+! 40 =    86 (DWDW)
+! 41 =    87 (GENERAL CLOUD GROUP)
+! 42 =    88 (RH FROM LOW CLOUDS)
+! 43 =    89 (RH FROM MIDDLE CLOUDS)
+! 44 =    90 (RH FROM HIGH CLOUDS)
+! 45 =    91 (TOTAL AMOUNT OF CLOUDS)
+! 46 =012163 (TOVS LEVEL 1B RADIANCES)
+! 47 =010004(PRESSURE (VERT COORDINATE=Z))   (pascals)
+! 48 =011001(DD (WIND DIRECTION IN RADIANS)) (degrees)
+! 49 =011002(FF (WIND SPEED))                (m/s)
+! 50 =012062 (RAW RADIANCE (BRIGHTNESS TEMPERATURE IN K)
+! 51 =008001
+! 52 =008004
+! 53 =010051
+! 54 =011011
+! 55 =011012
+! 56 =    41 (U AT 10M)
+! 57 =    42 (V AT 10M)
+
+  obs_ifind=-1
+  do indbuf=1,OBS_JPNBRELEM
+   if (nvnumb(indbuf) .EQ. kbufrn ) then
+    obs_ifind=indbuf
+    return
+   endif
+  enddo
+  return
+
+ end function obs_ifind
+
+
+end module obsSpaceData_mod

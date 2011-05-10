@@ -16,7 +16,7 @@
 !
       SUBROUTINE oda_Hgo
       use modmask, only : lmaskgo
-      use obs_mod
+      use obsSpaceData_mod
 #if defined (DOC)
 *
 * Purpose: Compute simulated GOES observations from profiled model increments.

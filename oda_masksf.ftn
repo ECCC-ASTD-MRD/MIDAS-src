@@ -16,7 +16,8 @@
 !
       SUBROUTINE oda_masksf(CDFAM)
       use modmask, only : lmasksf_in, lmasksf_out, lmask, ldiagsf, ldiag
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
 #if defined (DOC)
 *
 *Purpose : Defines a mask of assimilated data
@@ -37,10 +38,7 @@
       CHARACTER *2 CDFAM
 *implicits
 #include "comdimo.cdk"
-
-
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
       INTEGER J,JDATA,JO,IDATA,ITYP
@@ -63,17 +61,17 @@ C
             DO JDATA=IDATA,IDATEND
               IF ( obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
                 ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-                IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS
-     &               .OR.ITYP.EQ.NEPN .OR. ITYP.EQ.NESS
-     &               .OR.ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS) THEN
+                IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS
+     &               .OR.ITYP.EQ.BUFR_NEPN .OR. ITYP.EQ.BUFR_NESS
+     &               .OR.ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
                   LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-                ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
+                ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                   LMASKSF_IN(JDATA)= .false.
                 ELSE
                   LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
      &                 obsSpaceData%MOBDATA(NCMXTR,JDATA)  .EQ. 0)
                 ENDIF
-                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHS) then
+                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHS) then
                   ldiagsf(jdata) = .true.
                 endif
               ENDIF
@@ -85,7 +83,7 @@ C
           DO JDATA=IBEGIN,ILAST
             lmasksf_out(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
      &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &           .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+     &           .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ )
      &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
 C
           END DO

@@ -33,7 +33,7 @@
       use modgps06gravity
       use modgps07geostruct
       use modgps08refop
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -44,16 +44,12 @@
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "comct0.cdk"
-#include "comnumbr.cdk"
-
-
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
 #include "comphy.cdk"
 #include "comvarqc.cdk"
 #include "comgpsro.cdk"
-#include "namgpsro.cdk"
 *
       REAL*8 PJO, PJOB, PJOM, PJOX, PJO1
 C

@@ -128,9 +128,6 @@ C
 #include "comvarqc.cdk"
 #include "namvarqc.cdk"
 C
-#include "cominterp.cdk"
-#include "naminterp.cdk"
-C
 C see use mod4dv above
 !modular1 #include "namstag.cdk"
 C
@@ -340,15 +337,6 @@ C
 #else
          READ(NULNAM,NAMVARQC)
          WRITE(NULOUT,NAMVARQC)
-#endif
-      ELSE IF(CDNAME.EQ.'NAMINTERP')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMINTERP)
-         WRITE(NULOUT,NML=NAMINTERP)
-#else
-         READ(NULNAM,NAMINTERP)
-         WRITE(NULOUT,NAMINTERP)
 #endif
       ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
 C

@@ -31,11 +31,11 @@
 *Arguments
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER JDATA,II,IASS,ITYP
 C
@@ -45,7 +45,7 @@ C
       do JDATA=1,NDATA
          IASS   = obsSpaceData%MOBDATA(NCMASS,JDATA)
          ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-         IF(IASS.EQ.1 .OR. ITYP.EQ.NEHU .OR. ITYP.EQ.NEHS) THEN
+         IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN
             obsSpaceData%ROBDATA8(NCMOMF,JDATA)=-obsSpaceData%ROBDATA8(NCMOMF,JDATA)
      S           /obsSpaceData%ROBDATA8(NCMOER,JDATA)
          ENDIF

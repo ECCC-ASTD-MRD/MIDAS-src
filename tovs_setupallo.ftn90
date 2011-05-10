@@ -56,7 +56,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
   Use mod_tovs  
   use airsch
   use iasich
-  use obs_mod
+  use obsSpaceData_mod
 
   IMPLICIT NONE
 !implicits

@@ -28,7 +28,7 @@ subroutine oda_storeHdx_radiances
   !                 add IASI data (codtyp 186)
 #endif
   use mod_tovs
-  use obs_mod
+  use obsSpaceData_mod
 
   implicit none
   !implicits

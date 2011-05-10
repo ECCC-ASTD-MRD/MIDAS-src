@@ -52,16 +52,14 @@
 ************************************************************************
 #endif
 *
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
-
-
 #include "comcst.cdk"
 #include "comvfiles.cdk"
-#include "comnumbr.cdk"
 #include "comstate.cdk"
 #include "comphy.cdk"
 *
@@ -187,16 +185,16 @@
               ZLON = obsSpaceData%ROBHDR(NCMLON,JREP)*ZTODEG
               DO JDATA=IDATA, IDATEND
                 ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-                IF (ITYP .EQ. NETS .OR. ITYP .EQ. NEPS .OR.
-     1              ITYP .EQ. NEPN .OR. ITYP .EQ. NESS .OR.
-     2              ITYP .EQ. NEUS .OR. ITYP .EQ. NEVS .OR.
-     3              ITYP .EQ. NEZD) THEN
+                IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
+     1              ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.
+     2              ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.
+     3              ITYP .EQ. BUFR_NEZD) THEN
                    LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
                 ELSE
                    LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
      1                     obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0) .OR.
      2                    (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2 .AND.
-     3                     obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NVNUMB(3))
+     3                     obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ)
                 ENDIF
                 IF (LLOK) THEN
                   zpost = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
@@ -225,17 +223,17 @@
                   ZANA = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*ZOER + ZVAR
 *
 *_______________TREAT WINDS AS SPECIAL CASE
-*               NVNUMB( 1) = 011003 (U COMPONENT)           (m/s)
-*               NVNUMB( 2) = 011004 (V COMPONENT)           (m/s)
-*               NEUS       = 011215 (U COMPONENT AT 10 M)   (m/s)
-*               NEVS       = 011216 (V COMPONENT AT 10 M)   (m/s)
+*               BUFR_NEUU       = 011003 (U COMPONENT)           (m/s)
+*               BUFR_NEVV       = 011004 (V COMPONENT)           (m/s)
+*               BUFR_NEUS       = 011215 (U COMPONENT AT 10 M)   (m/s)
+*               BUFR_NEVS       = 011216 (V COMPONENT AT 10 M)   (m/s)
 *
-                  IF (((ITYP.EQ.NVNUMB(1) .OR. ITYP .EQ. NEUS) .AND.
+                  IF (((ITYP.EQ.BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
      1                 NMVOEXIST(NOUU).EQ.1).OR.
-     2                ((ITYP.EQ.NVNUMB(2) .OR. ITYP .EQ. NEVS) .AND.
+     2                ((ITYP.EQ.BUFR_NEVV .OR. ITYP .EQ. BUFR_NEVS) .AND.
      3                 NMVOEXIST(NOVV).EQ.1)) THEN
                     IOTHER = -1
-                    IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS) THEN
+                    IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                       DO JJ=IDATA,JDATA
                         ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
                         IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 2) THEN
@@ -244,7 +242,7 @@
                         IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 1) THEN
                           ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
                         ENDIF
-                        IF ((ISTYP .EQ. NVNUMB(2) .OR. ISTYP .EQ. NEVS)
+                        IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)
      1                       .AND. ZLEV .EQ. ZSLEV) THEN
                           IOTHER = JJ
                         ENDIF
@@ -258,14 +256,14 @@
                         IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 1) THEN
                           ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
                         ENDIF
-                        IF ((ISTYP .EQ. NVNUMB(1) .OR. ISTYP .EQ. NEUS)
+                        IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)
      1                       .AND. ZLEV .EQ. ZSLEV) THEN
                           IOTHER = JJ
                         ENDIF
                       ENDDO
                     ENDIF
                     IF (IOTHER .NE. -1) THEN
-                      IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS) THEN
+                      IF (ITYP .EQ. BUFR_NEVV .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZVAR
                         ZVV = obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
                       ELSE
@@ -282,7 +280,7 @@
                         IF (DEG .LT. 0.)  DEG = DEG + 360.
                         IDIRO = NINT(DEG)
                       ENDIF
-                      IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS) THEN
+                      IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZFCST
                         ZVV = obsSpaceData%ROBDATA8(NCMOMF,IOTHER)*ZOER
      1                      + obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
@@ -301,7 +299,7 @@
                         IF (DEG .LT. 0.)  DEG = DEG + 360.
                         IDIRF = NINT(DEG)
                       ENDIF
-                      IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS) THEN
+                      IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZANA
                         ZVV = obsSpaceData%ROBDATA8(NCMOMA,IOTHER)*ZOER
      1                      + obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
@@ -331,11 +329,11 @@
      1                  IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),17)
                         obsSpaceData%MOBDATA(NCMFLG,IOTHER) =
      1                  IBSET(obsSpaceData%MOBDATA(NCMFLG,IOTHER),17)
-                        IF (ITYP .EQ. NVNUMB(1) .OR.
-     1                      ITYP .EQ. NVNUMB(2)) THEN
+                        IF (ITYP .EQ. BUFR_NEUU .OR.
+     1                      ITYP .EQ. BUFR_NEVV) THEN
                           ICOUNT(1,J) = ICOUNT(1,J) + 1
                         ENDIF
-                        IF (ITYP .EQ. NEUS .OR. ITYP .EQ. NEVS) THEN
+                        IF (ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS) THEN
                           ICOUNT(10,J) = ICOUNT(10,J) + 1
                         ENDIF
                         WRITE(NULOUT,620)
@@ -351,7 +349,7 @@
                     ILEV = NINT(ZLEV)
                     IF (ZPOST .GT. ZCUT) THEN
                       LLELREJ = .TRUE.
-                      IF (ITYP .EQ. NVNUMB(3)) THEN
+                      IF (ITYP .EQ. BUFR_NEGZ) THEN
                         CLDESC = CLITM(3)
                         ICOUNT(3,J) = ICOUNT(3,J) + 1
 *
@@ -361,7 +359,7 @@
                         ZFCST = ZFCST/RG
                         ZANA  = ZANA/RG
                       ENDIF
-                      IF (ITYP .EQ. NVNUMB(8)) THEN
+                      IF (ITYP .EQ. BUFR_NETT) THEN
                         CLDESC = CLITM(4)
                         ICOUNT(4,J) = ICOUNT(4,J) + 1
 *
@@ -371,11 +369,11 @@
                         ZFCST = ZFCST - TCDK
                         ZANA  = ZANA - TCDK
                       ENDIF
-                      IF (ITYP .EQ. NVNUMB(9)) THEN
+                      IF (ITYP .EQ. BUFR_NEES) THEN
                         CLDESC = CLITM(5)
                         ICOUNT(5,J) = ICOUNT(5,J) + 1
                       ENDIF
-                      IF (ITYP .EQ. NEPS) THEN
+                      IF (ITYP .EQ. BUFR_NEPS) THEN
                         CLDESC = CLITM(6)
                         ICOUNT(6,J) = ICOUNT(6,J) + 1
 *
@@ -385,7 +383,7 @@
                         ZANA = ZANA*RPATMB
                         ZFCST = ZFCST*RPATMB
                       ENDIF
-                      IF (ITYP .EQ. NEPN) THEN
+                      IF (ITYP .EQ. BUFR_NEPN) THEN
                         CLDESC = CLITM(7)
                         ICOUNT(7,J) = ICOUNT(7,J) + 1
 *
@@ -395,7 +393,7 @@
                         ZANA = ZANA*RPATMB
                         ZFCST = ZFCST*RPATMB
                       ENDIF
-                      IF (ITYP .EQ. NETS) THEN
+                      IF (ITYP .EQ. BUFR_NETS) THEN
                         CLDESC = CLITM(8)
                         ICOUNT(8,J) = ICOUNT(8,J) + 1
 *
@@ -405,16 +403,16 @@
                         ZFCST = ZFCST - TCDK
                         ZANA  = ZANA - TCDK
                       ENDIF
-                      IF (ITYP .EQ. NESS) THEN
+                      IF (ITYP .EQ. BUFR_NESS) THEN
                         CLDESC = CLITM(9)
                         ICOUNT(9,J) = ICOUNT(9,J) + 1
                       ENDIF
-                      IF ( ITYP.EQ.NBT1 .OR. ITYP.EQ.NBT2 .OR.
-     1                     ITYP.EQ.NBT3      ) THEN
+                      IF ( ITYP.EQ.BUFR_NBT1 .OR. ITYP.EQ.BUFR_NBT2 .OR.
+     1                     ITYP.EQ.BUFR_NBT3      ) THEN
                         CLDESC = CLITM(12)
                         ICOUNT(12,J) = ICOUNT(12,J) + 1
                       ENDIF
-                      IF (ITYP .EQ. NEZD) THEN
+                      IF (ITYP .EQ. BUFR_NEZD) THEN
                         CLDESC = CLITM(13)
                         ICOUNT(13,J) = ICOUNT(13,J) + 1
 *

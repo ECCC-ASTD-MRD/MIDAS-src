@@ -37,7 +37,8 @@
 *       NFLEV   = number of LR analysis levels (set in namelist) 
 
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -48,9 +49,6 @@
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "comct0.cdk"
-#include "comnumbr.cdk"
-
-
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
@@ -136,7 +134,7 @@ C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
                      ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-                     LLOK = ( (ITYP .EQ. NEZD) .AND. 
+                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
      &                      (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) )
                      IF ( LLOK ) THEN
                         ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
@@ -176,7 +174,7 @@ C
                      DO JDATA= IDATA, IDATEND
                         ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
                         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND. 
-     +                     ITYP .EQ. NEZD ) THEN
+     +                     ITYP .EQ. BUFR_NEZD ) THEN
                            NH1 = NH1 + 1
 C
 C     *                    Observation value    Y

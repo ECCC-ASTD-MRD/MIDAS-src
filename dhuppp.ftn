@@ -31,17 +31,15 @@
 *     CDFAM: FAMILY OF OBSERVATION
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
       CHARACTER *2 CDFAM
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
-
 #include "commvohr.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "comfilt.cdk"
 #include "cparbrp.cdk"
 *
@@ -70,7 +68,7 @@ C     Process all data within the domain of the model
 C     Exclude levels above RLIMLVHU as it is done with T-Td in s/r suprep
 C
             DO JDATA=IBEGIN,ILAST
-              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHU  .AND.
+              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU  .AND.
      &             obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0     .AND.
      &             obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2    ) THEN
                 IPRES= NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))

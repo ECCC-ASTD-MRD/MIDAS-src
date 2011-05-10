@@ -16,7 +16,7 @@
 !
       SUBROUTINE CMABDY(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
      +             LDGO,LDAIRS,LDIASI,KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KIDTYP)
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 *
       INTEGER KNDAT
@@ -106,7 +106,6 @@
 #include "cparbrp.cdk"
 #include "comcst.cdk"
 #include "comfilt.cdk"
-      INTEGER IFIND
       INTEGER ILEM,IND,IIND,IP,IK
       INTEGER IBAD,IFLAG
       INTEGER JI,JJ
@@ -139,7 +138,7 @@
 *
       IK= KINDEX
          DO JI=1,KELE
-            ILEM=IFIND(KLIST(JI))
+            ILEM=obs_ifind(KLIST(JI))
             IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
                DO JJ=1,KVAL
                  if(pvcord(jj) .ne. ppmis .and. (nonelev .eq. -1 .or.

@@ -28,7 +28,7 @@ subroutine oda_get_radiance_ad
 !
 #endif
   use mod_tovs
-  use obs_mod
+  use obsSpaceData_mod
 
   implicit none
 !implicits

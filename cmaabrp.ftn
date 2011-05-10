@@ -107,7 +107,7 @@
 *
 #endif
 *
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comct0.cdk"
@@ -144,7 +144,6 @@
       INTEGER ITIME,IDLT,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
      +       IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
 *
-      INTEGER IFIND
       INTEGER MRFPUT,MRFVOI,MRBTYP,VMRFOPR,MRFOPN,MRFLOC,MRFGET
      +         ,MRFMXL,MRFGOC
       INTEGER MRBINI,MRBADD,VMRBCVT,MRBXTR,MRBPRM,MRBDCL,MRBHDR

@@ -35,7 +35,7 @@ subroutine tovs_obs(option,pjo)
 !     pjo: total value of jo for tovs
 !
 #endif
-  use obs_mod
+  use obsSpaceData_mod
 
   implicit none
 !implicits

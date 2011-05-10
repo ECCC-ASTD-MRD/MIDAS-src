@@ -32,7 +32,7 @@ C  - called by SUCVA (if L1GPSOBS=.TRUE.)
 C  - CGPSSTN in namelist (comgpsgb.cdk) is desired observation site name
 C    for 1 obs case
 C
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -42,9 +42,6 @@ C
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "comct0.cdk"
-#include "comnumbr.cdk"
-
-
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"

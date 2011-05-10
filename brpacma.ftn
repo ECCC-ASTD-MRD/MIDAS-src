@@ -119,20 +119,18 @@
 *
 #endif
 *
-      use obs_mod
+      use obsSpaceData_mod
       use common_iasi
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "comct0.cdk"
 *
-      INTEGER KFILE,KNRECS,jji,jn,jpnbrelem
+      INTEGER KFILE,KNRECS,jji,jn
       INTEGER iind2,IIND,IPOS,ILPOS,INELEFD,ISCRAP
       INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF
       INTEGER ITECH,IMASK,ISAT,ISATCNT,ISATZEN,ITERRAIN
@@ -211,7 +209,7 @@ C
 C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
 C
       do jj=1,254
-         do jn=1,jpnbrelem
+         do jn=1,OBS_JPNBRELEM
             vcordsf(jn,jj)=0.
          end do
       end do

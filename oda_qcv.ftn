@@ -16,7 +16,8 @@
 !
       SUBROUTINE oda_qcv
       use modmask, only : lmask,lmaskgo,lmaskro
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *
 *Purpose : 1) Modify Jo [ROBDATA8(NCMOMI,*)] according to
@@ -32,9 +33,6 @@
 *Revisions :
 *
 #include "comdimo.cdk"
-
-
-#include "comnumbr.cdk"
 #include "comstate.cdk"
 *
       integer :: jdata,istyp,jj,jo,ityp,idata
@@ -50,11 +48,11 @@ C
           ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
           zgami = obsSpaceData%robdata(ncmpob,jdata)
           ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-          LLUV = ((ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS) .AND.
-     &         NMVOEXIST(NOUU) .EQ. 1) .OR. ((ITYP .EQ. NVNUMB(2) .OR.
-     &         ITYP .EQ. NEVS).AND. NMVOEXIST(NOVV) .EQ. 1)
+          LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
+     &         NMVOEXIST(NOUU) .EQ. 1) .OR. ((ITYP .EQ. BUFR_NEVV .OR.
+     &         ITYP .EQ. BUFR_NEVS).AND. NMVOEXIST(NOVV) .EQ. 1)
           IF (LLUV) THEN
-            IF (ITYP .EQ. NVNUMB(1) .OR. ITYP .EQ. NEUS)THEN
+            IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS)THEN
 C
 C  In order to calculate the contribution to Jo from a wind, the o-a
 C  must be available for both u and v components. Hence, loop over only
@@ -63,8 +61,8 @@ C
               DO JJ=IDATA, JDATA
                 ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
                 ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
-                IF ((ISTYP .EQ. NVNUMB(2)
-     1               .OR. ISTYP .EQ. NEVS) .AND.
+                IF ((ISTYP .EQ. BUFR_NEVV
+     1               .OR. ISTYP .EQ. BUFR_NEVS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
                   ZJON=obsSpaceData%ROBDATA8(NCMOMI,JDATA)+
      &                 obsSpaceData%ROBDATA8(NCMOMI,JJ)
@@ -91,8 +89,8 @@ C
               DO JJ=IDATA, JDATA
                 ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
                 ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
-                IF ((ISTYP .EQ. NVNUMB(1) .OR.
-     1               ISTYP .EQ. NEUS) .AND.
+                IF ((ISTYP .EQ. BUFR_NEUU .OR.
+     1               ISTYP .EQ. BUFR_NEUS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
                   ZJON=obsSpaceData%ROBDATA8(NCMOMI,JDATA)+
      &                 obsSpaceData%ROBDATA8(NCMOMI,JJ)

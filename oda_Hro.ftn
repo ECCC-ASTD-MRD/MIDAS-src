@@ -30,7 +30,7 @@
       use modgps04profile
       use modgps06gravity
       use modgps08refop
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 
 #include "pardim.cdk"

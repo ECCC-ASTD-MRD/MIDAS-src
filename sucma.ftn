@@ -42,20 +42,10 @@
 *          P. KOCLAS CMC   February 95.
 *          -Removal of XSTDEV vector.
 *
-*          P. KOCLAS CMC   August 95.
-*          -ALLOW T-Td DATA (NVNUMB(9)=12192 INSTEAD OF -1).
-*
 *          P. KOCLAS CMC   April 96.
 *    .     Additional variables added to CMA
 *          -NCMLOBS  RELATIVE POSTION OF DATA WITH RESPECT TO A FULL SOUNDING
 *
-*    .     G. Deblonde  *ARMA/AES JUne 17, 1996 :temporary SSMI burp format
-*          -set NVNUMB(6)=013016 for SSM/I Integ. Water Vapor
-*    .     G. Deblonde  *ARMA/AES Oct 22, 1996: permanent SSMI burp format
-*          -set NVNUMB(6)=013208 for SSM/I Integ. Water Vapor
-*    .     S. Pellerin *ARMA/AES Sept 97: Add of Total ozone from TOVS
-*    .     J. Halle    *CMDA/AES Oct 99: Allow NVNUMB(50)=012062 and
-*                                        NVNUMB(7)=012063 radiances from TOVS
 *    .     P. KOCLAS   *CMC/CMDA JAn 2000
 *           -ADDED 12004 8001 8004 ELEMENTS
 *    .     C.CHARETTe  *ARMA/AES Jun 2000
@@ -79,19 +69,15 @@
 *            sun zenith angle and cloud fraction
 *          J.M. Aparicio *ARMA/MSC* October 2006
 *           - Adapt for GPSRO
-*    .     S. Macpherson *ARMA/MRD*   September 2009
-*          - added ground-based GPS ZTD (NVNUMB(21)=015031 and NEZD)
-*            and GPS ZTD error (NVNUMB(22)=015032 and NEFE)
 *
 *Arguments
 *     i   KULOUT: unit used for optional printing
 *
 #endif
 C
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
-#include "comnumbr.cdk"
 *
       INTEGER KULOUT
 C
@@ -105,28 +91,6 @@ C
 *
 *     1. Initialize header related parameters
 *
- 100  CONTINUE
-      NCMLET = 22
-      NCMRLN = 1
-      NCMONM = 2
-      NCMBOX = 3
-      NCMOTP = 4
-      NCMITY = 5
-      NCMLAT = 6
-      NCMLON = 7
-      NCMDAT = 8
-      NCMETM = 9
-      NCMSID = 10
-      NCMALT = 11
-      NCMNLV = 12
-      NCMOEC = 13
-      NCMOFL = 14
-      NCMST1 = 15
-      NCMTLA = 16
-      NCMAZA = 20
-      NCMSUN = 21
-      NCMCLF = 22
-C
       WRITE(KULOUT,*)' Pseudo-addresses of the CMA header'
       WRITE(UNIT=KULOUT,FMT=9100)
      S     NCMLET,NCMRLN,NCMONM,NCMBOX,NCMOTP,NCMITY,NCMLAT,NCMLON
@@ -145,32 +109,6 @@ C
 *
 *     2. Initialize body related parameters
 *
- 200  CONTINUE
-C
-      NCMLBO = 22
-      NCMVNM = 1
-      NCMPOB = 2
-      NCMPRL = 3
-      NCMPPP = 4
-      NCMVAR = 5
-      NCMOMF = 6
-      NCMOMA = 7
-      NCMOMI = 8
-      NCMOMN = 9
-      NCMOER = 10
-      NCMPRM = 11
-      NCMRER = 12
-      NCMFGE = 13
-      NCMPER = 14
-      NCMFLG = 15
-      NCMPOS = 16
-      NCMLYR = 17
-      NCMASS = 18
-      NCMXTR = 19
-      NCMOBS = 20
-      NCMLOBS = 21
-      NCMVCO = 22
-C
       WRITE(KULOUT,*)' Pseudo-addresses of the CMA data body'
       WRITE(UNIT=KULOUT,FMT=9200)
      S     NCMLBO,NCMVNM,NCMPPP,NCMPRL,NCMPOB,NCMVAR,NCMOMF,NCMOMA
@@ -188,99 +126,5 @@ C
      S     ,'  NCMVCO = ',I6)
 C
 *
-*     3. Initialize variable types
-*
- 300  CONTINUE
-      NVNUMB( 1) =  011003
-      NVNUMB( 2) =  011004
-      NVNUMB( 3) =  010194
-      NVNUMB( 4) =  57
-      NVNUMB( 4) =  010192
-      NVNUMB( 5) =  29
-      NVNUMB( 6) =  013208
-      NVNUMB( 7) =  012063
-      NVNUMB( 8) =  012001
-      NVNUMB( 9) =  012192
-      NVNUMB(10) =  012004
-      NVNUMB(11) =  012203
-      NVNUMB(12) =  011215
-      NVNUMB(13) =  011216
-      NVNUMB(14) =  013210
-      NVNUMB(15) =  013220
-      NVNUMB(16) =  62
-      NVNUMB(17) =  015001
-      NVNUMB(18) =  64
-      NVNUMB(19) =  65
-      NVNUMB(20) =  015036
-      NVNUMB(21) =  015031
-      NVNUMB(22) =  015032
-      NVNUMB(23) =  69
-      NVNUMB(24) =  70
-      NVNUMB(25) =  71
-      NVNUMB(26) =  72
-      NVNUMB(27) =  73
-      NVNUMB(28) =  74
-      NVNUMB(29) =  75
-      NVNUMB(30) =  76
-      NVNUMB(31) =  77
-      NVNUMB(32) =  78
-      NVNUMB(33) =  79
-      NVNUMB(34) =  80
-      NVNUMB(35) =  81
-      NVNUMB(36) =  82
-      NVNUMB(37) =  83
-      NVNUMB(38) =  84
-      NVNUMB(39) =  85
-      NVNUMB(40) =  86
-      NVNUMB(41) =  87
-      NVNUMB(42) =  88
-      NVNUMB(43) =  89
-      NVNUMB(44) =  90
-      NVNUMB(45) =  91
-      NVNUMB(46) =  012163
-      NVNUMB(47) =  010004
-      NVNUMB(48) =  011001
-      NVNUMB(49) =  011002
-      NVNUMB(50) =  012062
-      NVNUMB(51) =  008001
-      NVNUMB(52) =  008004
-      NVNUMB(53) =  010051
-      NVNUMB(54) =  011011
-      NVNUMB(55) =  011012
-      NVNUMB(56) =  41
-      NVNUMB(57) =  42
-*
- 400  CONTINUE
-*
-ccc
-      NETT=12001
-ccc
-      NEUU=11003
-      NEVV=11004
-      NEGZ=10194
-      NEES=12192
-      NEDZ=10192
-      NEPP=07004
-      NEFF=11002
-      NEDD=11001
-      NEUS=11215
-      NEVS=11216
-      NETS=12004
-      NESS=12203
-      NEPS=10004
-      NEFS=11012
-      NEDS=11011
-      NEPN=10051
-      NEOZ=15001
-      NBT1=12062
-      NBT2=12063
-      NBT3=12163
-      NEHU=13210
-      NEHS=13220
-      NERF=15036
-      NEZD=15031
-      NEFE=15032
-
-
       RETURN
       END

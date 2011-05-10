@@ -45,18 +45,16 @@ C            greater than the model surface height.
 *
 *          none
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
-
 #include "commvohr.cdk"
 #include "comcst.cdk"
 #include "comfilt.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "comgpsgb.cdk"
 *
       INTEGER JPINEL,JPIDLND
@@ -79,16 +77,16 @@ C     RESET DZMAX FOR GB GPS ZTD TO VALUE IN NAMELIST FILE
 C
       RLISTCRIT(10) = DZMAX
 C
-      ILISTEL(1)=NEDS
-      ILISTEL(2)=NEFS
-      ILISTEL(3)=NEUS
-      ILISTEL(4)=NEVS
-      ILISTEL(5)=NESS
-      ILISTEL(6)=NETS
-      ILISTEL(7)=NEPS
-      ILISTEL(8)=NEPN
-      ILISTEL(9)=NEGZ
-      ILISTEL(10)=NEZD
+      ILISTEL(1)=BUFR_NEDS
+      ILISTEL(2)=BUFR_NEFS
+      ILISTEL(3)=BUFR_NEUS
+      ILISTEL(4)=BUFR_NEVS
+      ILISTEL(5)=BUFR_NESS
+      ILISTEL(6)=BUFR_NETS
+      ILISTEL(7)=BUFR_NEPS
+      ILISTEL(8)=BUFR_NEPN
+      ILISTEL(9)=BUFR_NEGZ
+      ILISTEL(10)=BUFR_NEZD
 C
       WRITE(NULOUT,* ) ' '
       WRITE(NULOUT,* ) ' SUBROUTINE SOBSSFC '
@@ -138,7 +136,7 @@ ccc            CALL PRNTBDY(JOBS,NULOUT)
             ITY    = obsSpaceData%MOBHDR(NCMITY,JOBS)
             IDBURP = MOD(ITY,1000)
             ZDIFF=99999.
-            IF ( (ITYP .eq. NEGZ)  ) THEN
+            IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
                LLREJ = .FALSE.
                DO JD=1,NFLAGS
                   IBAD= 13-NLISTFLG(JD)

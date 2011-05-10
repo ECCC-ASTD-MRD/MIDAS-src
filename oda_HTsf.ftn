@@ -16,7 +16,8 @@
 !
       SUBROUTINE oda_HTsf
       use modmask, only : lmasksf_in,lmasksf_out
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
 #if defined (DOC)
 *
 ***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
@@ -66,11 +67,8 @@ c coordinate.
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comphy.cdk"
-
-
 #include "commvo.cdk"
 #include "commvog.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER IPB,IPT
       REAL*8 ZRES
@@ -119,10 +117,10 @@ C
             ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
 c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
 c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-            IF (ITYP.EQ.NETS .OR. ITYP.EQ.NESS .OR.
-     &           ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS ) THEN
+            IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.
+     &           ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               GOMOBS(IPB,IOBS)    = GOMOBS(IPB,IOBS) + ZRES
-            ELSEIF (ITYP.EQ.NEPS .OR. ITYP.EQ.NEPN) THEN
+            ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
               ZTVG  = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
               ZGAMAZ= ZGAMMA*(ZHHH-GOMGZG(NFLEV,IOBS))
               ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)

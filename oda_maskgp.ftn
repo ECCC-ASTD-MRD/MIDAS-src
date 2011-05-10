@@ -16,7 +16,8 @@
 !
       SUBROUTINE oda_maskgp
       use modmask, only : lmaskgp, lmask
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
 #if defined (DOC)
 *
 *Purpose : Defines a mask of assimilated data for GP family ZTD data
@@ -27,10 +28,7 @@
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-
-
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
       INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO,IDATYP
@@ -54,7 +52,7 @@ c
             IF ( IDATYP .EQ. 189 ) THEN
               DO JDATA=IDATA,IDATEND
                 ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-                LLOK = ( (ITYP .EQ. NEZD) .AND.
+                LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND.
      &            (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) )
                 IF ( LLOK ) THEN
                   lmaskgp(jdata) = .true.

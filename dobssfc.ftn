@@ -59,7 +59,8 @@
 *     CDFAM: FAMILY OF OBSERVATION
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM
@@ -67,12 +68,9 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comphy.cdk"
-
-
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "comstate.cdk"
 #include "comfilt.cdk"
 *
@@ -143,12 +141,12 @@ c              ENDIF
                 LLOK=.FALSE.
                 IF ( obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
                   ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-                  IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS .OR.
-     &                 ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS .OR.
-     &                 ITYP.EQ.NESS  .OR. ITYP.EQ.NEPN) THEN
+                  IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
+     &                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
+     &                 ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
                     LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
      &                   ITYP .EQ. NLIST(JLIST))
-                  ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
+                  ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                     LLOK=.FALSE.
                   ELSE
                     LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
@@ -168,11 +166,11 @@ C              surface observation whether the observation is above or
 C              below the model surface.
 C              NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 C
-              IF ((NLIST(JLIST).EQ.NETS .OR. NLIST(JLIST).EQ.NESS .OR.
-     &             NLIST(JLIST).EQ.NEUS .OR. NLIST(JLIST).EQ.NEVS)
+              IF ((NLIST(JLIST).EQ.BUFR_NETS .OR. NLIST(JLIST).EQ.BUFR_NESS .OR.
+     &             NLIST(JLIST).EQ.BUFR_NEUS .OR. NLIST(JLIST).EQ.BUFR_NEVS)
      &                                   .AND. ICOUNT.GT.0)        THEN
 
-                IF(NLIST(JLIST).EQ.NETS) THEN
+                IF(NLIST(JLIST).EQ.BUFR_NETS) THEN
                   ZSLOPE = ZGAMMA
                 ELSE
                   ZSLOPE = 0.0
@@ -226,8 +224,8 @@ C              In this section we always extrapolate linearly the trial
 C              field at the model surface to the height of the
 C              surface observation whether the observation is above or
 C              below the model height
-              ELSEIF ((NLIST(JLIST).EQ.NEPS .OR.
-     &               NLIST(JLIST).EQ.NEPN).AND. ICOUNT.GT.0) THEN
+              ELSEIF ((NLIST(JLIST).EQ.BUFR_NEPS .OR.
+     &               NLIST(JLIST).EQ.BUFR_NEPN).AND. ICOUNT.GT.0) THEN
 ***************************************************************
 c                IF(LLPRINT) THEN
 c                  print *,'dobssfc: TREATEMENT VARIABLE:'
@@ -295,11 +293,11 @@ C
                      ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
                      IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
                      ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                     IF (ITYP.EQ.NETS .OR. ITYP.EQ.NEPS .OR.
-     &                   ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS .OR.
-     &                   ITYP.EQ.NESS  .OR. ITYP.EQ.NEPN) THEN
+                     IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
+     &                   ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
+     &                   ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
                         LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-                     ELSE IF (ITYP.EQ.NEZD .OR. ITYP.EQ.NEFE) THEN
+                     ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                         LLOK=.FALSE.
                      ELSE
                         LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
@@ -326,12 +324,12 @@ C
                            ZGAMI = obsSpaceData%ROBDATA(NCMPOB,JDATA)
                            ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
 
-                           LLUV = ( (ITYP .EQ. NEUS .AND.
+                           LLUV = ( (ITYP .EQ. BUFR_NEUS .AND.
      &                               NMVOEXIST(NOUU) .EQ. 1) .OR.
-     &                              (ITYP .EQ. NEVS .AND.
+     &                              (ITYP .EQ. BUFR_NEVS .AND.
      &                              NMVOEXIST(NOVV) .EQ. 1) )
                            IF (LLUV) THEN
-                             IF (ITYP .EQ. NEUS) THEN
+                             IF (ITYP .EQ. BUFR_NEUS) THEN
 C
 C  In order to calculate the contribution to Jo from a wind, the o-a
 C  must be available for both u and v components. Hence, loop over only
@@ -341,7 +339,7 @@ C
                                     ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
                                     ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
 C
-                                    IF ((ISTYP .EQ. NEVS) .AND.
+                                    IF ((ISTYP .EQ. BUFR_NEVS) .AND.
      2                                   ZSLEV .EQ. ZLEV)       THEN
 
                                        ZJON = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*
@@ -370,7 +368,7 @@ C
                                     ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
                                     ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
 C
-                                    IF ((ISTYP .EQ. NEUS) .AND.
+                                    IF ((ISTYP .EQ. BUFR_NEUS) .AND.
      2                                   ZSLEV .EQ. ZLEV)       THEN
                                        ZJON = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*
      1                                      obsSpaceData%ROBDATA8(NCMOMA,JDATA) +
@@ -413,10 +411,10 @@ C
 ccc debut
 *cc               LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
 *cc     &              .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
-*cc     &         .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+*cc     &         .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ )
                LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
      &              .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &         .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEGZ )
+     &         .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ )
      &         .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
 ccc fin
                IF ( LLOK ) THEN

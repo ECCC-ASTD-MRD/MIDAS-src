@@ -15,10 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE VCORDADJ(IDTYP,ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      use bufr
       IMPLICIT NONE
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
       INTEGER KNELE,KNVAL,KINT,KNELOUT
       INTEGER KLIST(KNELE+2)
       INTEGER ilemin,ilemout,ielistin(5),ielistou(5),jnel
@@ -72,10 +72,6 @@ C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
 C
       do jj=1,254
          list(jj)=0
-*    Initialization of array "vcordsf" moved to routine BRPACMA
-Cjud         do jn=1,jpnbrelem
-Cjud            vcordsf(jn,jj)=0.
-Cjud         end do
       end do
 C
 C     UPPER AIR LAND
@@ -192,27 +188,27 @@ C           t-td
 c
 c     dd
 c
-      ielistin(1)=NEDD
-      ielistou(1)=NEDS
+      ielistin(1)=BUFR_NEDD
+      ielistou(1)=BUFR_NEDS
 c
 c     ff
 C
-      ielistin(2)=NEFF
-      ielistou(2)=NEFS
+      ielistin(2)=BUFR_NEFF
+      ielistou(2)=BUFR_NEFS
 c
 c     t-td
 c
-      ielistin(3)=NEES
-      ielistou(3)=NESS
+      ielistin(3)=BUFR_NEES
+      ielistou(3)=BUFR_NESS
 c
 C     temperature
 c
-      ielistin(4)=NETT
-      ielistou(4)=NETS
+      ielistin(4)=BUFR_NETT
+      ielistou(4)=BUFR_NETS
 c
 C     eliminate gz from cma
 C
-      ielistin(5)=NEGZ
+      ielistin(5)=BUFR_NEGZ
       ielistou(5)=12345
 c
       DO 223 JN=1,KINT

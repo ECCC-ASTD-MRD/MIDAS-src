@@ -33,7 +33,7 @@
 *     i : KULOUT : logical unit for output
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"

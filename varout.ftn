@@ -46,7 +46,6 @@ C
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
 #include "comcst.cdk"
-#include "cominterp.cdk"
 *
       integer vfstluk,write_encode_hyb
       integer jvar, jcol
@@ -216,15 +215,6 @@ cprnt     &           ,cppcvar(jvar)
      &       ,nulinclr,ibrpstamp,ndeet,npas,ni,nj,1,iip1s_inclr(jlev)
      &       ,nip2,niter,cltypinc,cppcvar(jvar),cetikinc,cgrtyp,nig1
      &       ,nig2,nig3,nig4,nidatyp,.true.)
-          endif
-c
-          if(cppcvar(jvar).eq.'HU' .and. .not. lhintdelhu) then
-c
-c Get the variable cppcvar(jvar) in zlowvar vector
-c
-            call gdout2('LQ',ZLOWVAR(1,1,jlev),ni,nj
-     &           ,jlev,llimplemented,IIP1S_INCLR(jlev))
-c
           endif
 c
 c If cppcvar is a wind component look for the other component

@@ -55,7 +55,8 @@
 *     CDFAM: FAMILY OF OBSSERVATION
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM
@@ -65,12 +66,9 @@
 #include "comdimo.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-
-
 #include "commvo.cdk"
 #include "commvohr.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER IPB,IPT,ITY,IDBURP
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
@@ -147,7 +145,7 @@ C
 C
 C                 CONTRIBUTION TO Jo
 C
-                  IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEGZ ) THEN
+                  IF(obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ ) THEN
 c
 c-------------------Forward nonlinear model for geopotential data below
 C                   model's orography
@@ -170,7 +168,7 @@ c                   Allowed at present only for HUMSAT (idburp=158)
 *
                      IDBURP    = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
                      IF (IDBURP .EQ. 158 .AND.
-     +                         obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEES) THEN
+     +                         obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEES) THEN
                        obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (GOMOBSHR(IPB,IOBS)
      +                      -ZVAR)/ZOER
                        DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)

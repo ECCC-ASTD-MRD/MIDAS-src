@@ -42,16 +42,14 @@ C           the model surface pressure.
 *
 *          none
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
-
 #include "commvohr.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER JPINEL
       PARAMETER(JPINEL=1)
@@ -67,7 +65,7 @@ ccc      DATA    ILISTEL/12192/
       DATA    RLISTCRIT/50./
 C
 C
-      ILISTEL(1) = NEES
+      ILISTEL(1) = BUFR_NEES
       IELHU =  ILISTEL(1)
       LLPRINT = .FALSE.
 ccc      LLPRINT = .TRUE.

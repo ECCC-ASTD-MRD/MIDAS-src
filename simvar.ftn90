@@ -19,7 +19,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
   use mod4dv, only : l4dvar
 !modular1  use modstag, only : lstagwinds
   USE mpi_mod
-  use obs_mod
+  use obsSpaceData_mod
   implicit none
   ! Argument declarations
   integer :: na_dim ! Dimension of the control vector in forecast error coraviances space

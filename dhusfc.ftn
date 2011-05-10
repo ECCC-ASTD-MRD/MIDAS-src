@@ -34,16 +34,14 @@
 *     CDFAM: FAMILY OF OBSERVATION
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
       CHARACTER *2 CDFAM
 *implicits
 #include "comdimo.cdk"
-
-
 #include "commvohr.cdk"
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "comlun.cdk"
 *
       INTEGER NQCVAR
@@ -93,7 +91,7 @@ c            ENDIF
 
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
-                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHS .AND.
+                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHS .AND.
      &               obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1  ) THEN
                     ICOUNT = ICOUNT + 1
                     IPOINTR(ICOUNT) = JDATA

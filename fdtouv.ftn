@@ -15,10 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE FDTOUV(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      use bufr
       IMPLICIT NONE
 #include "comcst.cdk"
 #include "cparbrp.cdk"
-#include "comnumbr.cdk"
       INTEGER KNELE,KNVAL,KINT,KNELOUT
       INTEGER KLIST(*)
       REAL*8 ZVAL(*)
@@ -83,10 +83,10 @@
 *     GET (F,D) WIND COMPONENTS
 ************************************************************************
 *
-      IFF=NEFF
-      IDD=NEDD
-      IUU=NEUU
-      IVV=NEVV
+      IFF=BUFR_NEFF
+      IDD=BUFR_NEDD
+      IUU=BUFR_NEUU
+      IVV=BUFR_NEVV
       lladd2=.true.
       KNELOUT=KNELE+2
       CALL GETELE(IFF,1,KLIST,ZVAL,ZPROFF,KNELE,KNVAL,KINT,IND1)
@@ -97,13 +97,13 @@ C
 C        FOR SURFACE (SYNOP ...etc..) WIND at 10 M iS REPORTED
 C
       IF ( IND1 .EQ. -1 .AND. IND2 .EQ. -1 ) THEN
-         IDD=NEDS
-         IFF=NEFS
+         IDD=BUFR_NEDS
+         IFF=BUFR_NEFS
          CALL GETELE(IDD,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND1)
          CALL GETELE(IFF,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND2)
          IF ( IND1 .NE. -1 .AND. IND2 .NE. -1 ) THEN
-            IUU=NEUS
-            IVV=NEVS
+            IUU=BUFR_NEUS
+            IVV=BUFR_NEVS
             CALL GETELE(IUU,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND3)
             CALL GETELE(IVV,1,KLIST,ZVAL,ZPROFD,KNELE,KNVAL,KINT,IND4)
          ENDIF

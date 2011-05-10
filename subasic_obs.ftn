@@ -16,7 +16,7 @@
 !
       SUBROUTINE subasic_obs
 c
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 c
 #if defined (DOC)

@@ -75,7 +75,8 @@
 *     none
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 *
@@ -83,8 +84,6 @@
 #include "comcst.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
-
-
 #include "comstato.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -92,7 +91,6 @@
 #include "cparamgoes.cdk"
 #include "comgoes.cdk"
 #include "comgoesst.cdk"
-#include "comnumbr.cdk"
 #include "comgpsgb.cdk"
 *
 C
@@ -103,7 +101,7 @@ C-----------------------------------------------------------------------
 C
       INTEGER JN,JDATA,JJO
       INTEGER ITYP,IFLG,IASS,IDATYP,ILEM,ITY,ilyr
-      INTEGER IDATA,IDATEND,IFIND,IDBURP,ITECH,ISAT,ILVL
+      INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
       INTEGER ILAT1,ILAT2
       INTEGER ILANSEA,ISRCHEQ,INDXREG,INDXCLD,INDXM
       INTEGER INDXSAT,ICHN,ISATNO
@@ -188,7 +186,7 @@ C
             ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
             IFLG   = obsSpaceData%MOBDATA(NCMFLG,JDATA)
             IASS   = obsSpaceData%MOBDATA(NCMASS,JDATA)
-            ILEM   = IFIND(ITYP)
+            ILEM   = obs_ifind(ITYP)
             ZVAL   = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
 C
             IF ( IASS .EQ. 1 .OR. CFAMTYP(IDATYP) .EQ. 'GP') THEN
@@ -214,15 +212,15 @@ C
                      obsSpaceData%MOBDATA(NCMOEC,JDATA)=1
                   ENDIF
 C
-                  IF ( (ITYP .EQ. NEUS) .OR. (ITYP .EQ. NEVS) )THEN
+                  IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
                     obsSpaceData%ROBDATA8(NCMOER,JDATA)= XSFCOBERR(ILEM,1,IDBURP)
-                  ELSE IF (ITYP .EQ. NETS) THEN
+                  ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                     obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                  ELSE IF (ITYP .EQ. NESS) THEN
+                  ELSE IF (ITYP .EQ. BUFR_NESS) THEN
                     obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                  ELSE IF (ITYP .EQ. NEPS ) THEN
+                  ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
                     obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                  ELSE IF (ITYP .EQ. NEPN ) THEN
+                  ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                     obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
                   ELSE
 C
@@ -270,7 +268,7 @@ ccc     &            ,IDBURP,ITYP,ILEM,ilvl,ilat1,ilat2,ZFACTOR
 ccc     &           ,XOSTDEV(ILEM,ILVL,ILAT1),XOSTDEV(ILEM,ILVL,ILAT2)
 ccc debug fin
                   ENDIF
-                  IF( (ITYP .EQ. NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
+                  IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
                     obsSpaceData%ROBDATA8(NCMOER,JDATA) = obsSpaceData%ROBDATA8(NCMOER,JDATA)
      +                                       *SQRT(1.8D0)
                   ENDIF
@@ -280,9 +278,9 @@ C   TOVS DATA
 C***********************************************************************
 C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'TO' ) THEN
-                  IF ( ITYP .EQ. NBT1 .OR.
-     S                 ITYP .EQ. NBT2 .OR.
-     S                 ITYP .EQ. NBT3     )THEN
+                  IF ( ITYP .EQ. BUFR_NBT1 .OR.
+     S                 ITYP .EQ. BUFR_NBT2 .OR.
+     S                 ITYP .EQ. BUFR_NBT3     )THEN
                      ICHN    = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
                      INDXM = ILANSEA
                      IF (INDXM .EQ. 2 ) INDXM = 0
@@ -306,9 +304,9 @@ C   GOES DATA
 C***********************************************************************
 C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'GO' ) THEN
-                  IF ( ITYP .EQ. NBT1 .OR.
-     S                 ITYP .EQ. NBT2 .OR.
-     S                 ITYP .EQ. NBT3     )THEN
+                  IF ( ITYP .EQ. BUFR_NBT1 .OR.
+     S                 ITYP .EQ. BUFR_NBT2 .OR.
+     S                 ITYP .EQ. BUFR_NBT3     )THEN
                      ICHN    = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
                      INDXREG = ISRCHEQ(MLISREGGO,NREGSTGO,ILANSEA)
                      INDXCLD = ISRCHEQ(MLISCLDGO,NCLDSTGO,ITECH)
@@ -333,13 +331,13 @@ C
 C     *              Process only refractivity data (codtyp 169)
 C
                   IF ( MOD(obsSpaceData%MOBHDR(NCMITY,JJO),1000) .EQ. 169 ) THEN
-                     IF ( ITYP .EQ. NEPS ) THEN
+                     IF ( ITYP .EQ. BUFR_NEPS ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA) = 50.
                      ENDIF
-                     IF ( ITYP .EQ. 12001) THEN
+                     IF ( ITYP .EQ. BUFR_NETT) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA) = 10.
                      ENDIF
-                     IF ( ITYP .EQ. 15036) THEN
+                     IF ( ITYP .EQ. BUFR_NERF) THEN
 C     
 C     *                 Observation-estimated geopotential height:
 C
@@ -371,25 +369,25 @@ C   OF TIME-SERIES (YSFERRWGT = 1.0 FOR NORMAL 3D-VAR WITH 3D THINNING)
 C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'GP' ) THEN
 C*                Psfc Error (Pa)
-                  IF ( ITYP .EQ. NEPS ) THEN
+                  IF ( ITYP .EQ. BUFR_NEPS ) THEN
                      obsSpaceData%ROBDATA8(NCMOER,JDATA) = 75. * YSFERRWGT
                   ENDIF
 C*                Tsfc Error (K)
-                  IF ( ITYP .EQ. NETS ) THEN
+                  IF ( ITYP .EQ. BUFR_NETS ) THEN
                      obsSpaceData%ROBDATA8(NCMOER,JDATA) = 2.0 * YSFERRWGT
                   ENDIF
 C*                T-Td Error (K)
-                  IF ( ITYP .EQ. NESS ) THEN
+                  IF ( ITYP .EQ. BUFR_NESS ) THEN
                      obsSpaceData%ROBDATA8(NCMOER,JDATA) = 3.0 * YSFERRWGT
                   ENDIF
 C*                ZTD Error Error (DUMMY VALUE so 3DVar won't abort)
-                  IF ( ITYP .EQ. NEFE ) THEN
+                  IF ( ITYP .EQ. BUFR_NEFE ) THEN
                      obsSpaceData%ROBDATA8(NCMOER,JDATA) = 0.001
                      LLFER = .TRUE.
                      ZTDERR = ZVAL
                   ENDIF
 C*                ZTD Error
-                  IF ( ITYP .EQ. NEZD ) THEN
+                  IF ( ITYP .EQ. BUFR_NEZD ) THEN
                      IF ( LLCZTDE) obsSpaceData%ROBDATA8(NCMOER,JDATA) = YZTDERR
                      ZZTD = ZVAL
                      IZTDJ = JDATA
@@ -418,39 +416,39 @@ C
                       END IF
                     END DO
 
-                    IF ((ITYP .EQ. NEUU) .OR. (ITYP .EQ. NEVV))THEN
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSTDEVLV(ILYR,1)
-                    ELSE IF (ITYP .EQ. NETT )THEN
+                    ELSE IF (ITYP .EQ. BUFR_NETT )THEN
                          obsSpaceData%ROBDATA8(NCMOER,JDATA)= SQRT(XSTDEV(4,1))
                     ENDIF
 C
 C     AIREP
 C
                   ELSE IF (IDBURP .EQ. 128 ) THEN
-                      IF ((ITYP .EQ. NEUU) .OR. (ITYP .EQ. NEVV))THEN
+                      IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
                         IF (  ZLEV .LT. 500.*RMBTPA ) THEN
                           obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(2,2))
                         ELSE
                           obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(1,2))
                         ENDIF
-                      ELSE IF (ITYP .EQ. NETT )THEN
+                      ELSE IF (ITYP .EQ. BUFR_NETT )THEN
                          obsSpaceData%ROBDATA8(NCMOER,JDATA)= SQRT(XSTDEV(4,2))
-                      ELSE IF (ITYP .EQ. NEES )THEN
+                      ELSE IF (ITYP .EQ. BUFR_NEES )THEN
                          obsSpaceData%ROBDATA8(NCMOER,JDATA)= SQRT(XSTDEV(5,2))
                       ENDIF
 C
 C     ASDAR, ACARS + ADS
 C
                   ELSE IF (IDBURP .EQ. 42 .OR. IDBURP .EQ. 157 .OR. IDBURP .EQ. 177) THEN
-                     IF ((ITYP .EQ. NEUU) .OR. (ITYP .EQ. NEVV))THEN
+                     IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
                         IF (  ZLEV .LT. 500.*RMBTPA ) THEN
                           obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(2,3))
                         ELSE
                           obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(1,3))
                        ENDIF
-                     ELSE IF (ITYP .EQ. NETT )THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETT )THEN
                           obsSpaceData%ROBDATA8(NCMOER,JDATA)= SQRT(XSTDEV(4,3))
-                     ELSE IF (ITYP .EQ. NEES )THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEES )THEN
                           obsSpaceData%ROBDATA8(NCMOER,JDATA)= SQRT(XSTDEV(5,3))
                      ENDIF
                   ENDIF
@@ -468,69 +466,69 @@ ccc          print *,' seterr:IDBURP,ITYP,ILEM,XSFCOBERR ',IDBURP,ITYP,ILEM
 ccc     &           ,XSFCOBERR(ILEM,1,IDBURP)
 ccc debug fin
                   IF ( (IDBURP .EQ. 12) .OR. (IDBURP .EQ. 13) ) THEN
-                     IF ( (ITYP .EQ. NEUS) .OR. (ITYP .EQ. NEVS) )THEN
+                     IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)= XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NETS) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NESS) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NESS) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NEPS ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NEPN ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF ( (ITYP .EQ. NEUU) .OR. (ITYP .EQ. NEVV) )THEN
+                     ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(1,4))
-                     ELSE IF (ITYP .EQ. NEGZ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=ZCONGZ*SQRT(XSTDEV(3,4))
-                     ELSE IF (ITYP .EQ. NETT) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETT) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=SQRT(XSTDEV(4,4))
-                     ELSE IF (ITYP .EQ. NEES) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEES) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=SQRT(XSTDEV(5,4))
                      ENDIF
 C
 C                 DRIBU AND DRIFTER
 C
                   ELSE IF( (IDBURP .EQ. 14) .OR. (IDBURP .EQ. 18) )THEN
-                     IF ( (ITYP .EQ. NEUS) .OR. (ITYP .EQ. NEVS) )THEN
+                     IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)= XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NETS) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NESS) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NESS) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NEPS ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NEPN ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF ( (ITYP .EQ. NEUU) .OR. (ITYP .EQ. NEVV) )THEN
+                     ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(1,4))
-                     ELSE IF (ITYP .EQ. NEGZ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=ZCONGZ*SQRT(XSTDEV(3,4))
-                     ELSE IF (ITYP .EQ. NETT) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETT) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=SQRT(XSTDEV(4,4))
-                     ELSE IF (ITYP .EQ. NEES) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEES) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=SQRT(XSTDEV(5,4))
                      ENDIF
 C
 C                 STATION AUTOMATIQUE, PATROL SHIPS
 C
                   ELSE IF((IDBURP .GE. 145) .AND. (IDBURP .LE. 147))THEN
-                     IF ( (ITYP .EQ. NEUS) .OR. (ITYP .EQ. NEVS) )THEN
+                     IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)= XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NETS) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NESS) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NESS) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NEPS ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF (ITYP .EQ. NEPN ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=XSFCOBERR(ILEM,1,IDBURP)
-                     ELSE IF ( (ITYP .EQ. NEUU) .OR. (ITYP .EQ. NEVV) )THEN
+                     ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=RMSKNT*SQRT(XSTDEV(1,4))
-                     ELSE IF (ITYP .EQ. NEGZ) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=ZCONGZ*SQRT(XSTDEV(3,4))
-                     ELSE IF (ITYP .EQ. NETT) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NETT) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=SQRT(XSTDEV(4,4))
-                     ELSE IF (ITYP .EQ. NEES) THEN
+                     ELSE IF (ITYP .EQ. BUFR_NEES) THEN
                         obsSpaceData%ROBDATA8(NCMOER,JDATA)=SQRT(XSTDEV(5,4))
                      ENDIF
                   ENDIF
@@ -607,8 +605,8 @@ C
 
 c  set artificial obs errors for ln q.
               IF ( CFAMTYP(IDATYP) .EQ. 'UA'  .AND.
-     &             ( ITYP          .EQ. NEHU  .OR.
-     &               ITYP          .EQ. NEHS ) ) THEN
+     &             ( ITYP          .EQ. BUFR_NEHU  .OR.
+     &               ITYP          .EQ. BUFR_NEHS ) ) THEN
                  obsSpaceData%ROBDATA8(NCMOER,JDATA) = 888.0
               ENDIF
 C           end of assim=1 or GP family IF

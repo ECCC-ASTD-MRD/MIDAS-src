@@ -36,7 +36,7 @@ subroutine tovs_rttov_ad
 !
 #endif
   use mod_tovs
-  use obs_mod
+  use obsSpaceData_mod
 
   implicit none
 !implicits

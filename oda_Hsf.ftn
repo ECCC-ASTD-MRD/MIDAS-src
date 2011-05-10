@@ -16,7 +16,8 @@
 !
       SUBROUTINE oda_Hsf
       use modmask, only : lmasksf_in,lmasksf_out,ldiagsf
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
 #if defined (DOC)
 *
 * Purpose: Compute simulated surface observations from profiled model
@@ -65,11 +66,8 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comphy.cdk"
-
-
 #include "commvo.cdk"
 #include "commvog.cdk"
-#include "comnumbr.cdk"
 *
       INTEGER IPB,IPT,IXTR
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
@@ -99,10 +97,10 @@ C
           IPT  = NFLEV-1 + IPOS*NFLEV
           IPB  = IPT+1
 
-          IF (ITYP.EQ.NETS .OR. ITYP.EQ.NESS .OR.
-     &         ITYP.EQ.NEUS .OR. ITYP.EQ.NEVS .or. ldiagsf(jdata)) THEN
+          IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.
+     &         ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
             obsSpaceData%ROBDATA8(NCMOMA,JDATA) =GOMOBS(IPB,IOBS)
-          ELSEIF (ITYP.EQ.NEPS .OR. ITYP.EQ.NEPN) THEN
+          ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
             ZLTV  = OLTV(1,NFLEV,IOBS)*GOMT(NFLEV,IOBS)
      &           + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
             ZTVG  = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)

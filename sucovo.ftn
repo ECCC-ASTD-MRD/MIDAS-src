@@ -72,11 +72,12 @@
 *
 #endif
 C
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "comcst.cdk"
-#include "comnumbr.cdk"
 #include "comstato.cdk"
 *
 C
@@ -114,7 +115,6 @@ C
       INTEGER ILYR,ILEMU,ILEMV,ILEMGZ,ILEMTT,ILEMES
       INTEGER ILEMUS,ILEMVS,ILEMTS,ILEMESS,ILEMPS,ILEMPN
       REAL*8 ZLYR, ZLEV, ZCONGZ
-      INTEGER IFIND
 C
 C
 C     AIREP : ASDAR : SATOB
@@ -144,20 +144,20 @@ C
 C*0.  DEFAULT VALUES
 C     ----------------
 C
-      ILEMGZ=IFIND ( NEGZ )
-       ILEMU=IFIND ( NEUU )
-       ILEMV=IFIND ( NEVV )
-      ILEMTT=IFIND ( NETT )
-      ILEMES=IFIND ( NEES )
+      ILEMGZ=obs_ifind ( BUFR_NEGZ )
+       ILEMU=obs_ifind ( BUFR_NEUU )
+       ILEMV=obs_ifind ( BUFR_NEVV )
+      ILEMTT=obs_ifind ( BUFR_NETT )
+      ILEMES=obs_ifind ( BUFR_NEES )
 C
-      ILEMUS=IFIND ( NEUS )
-      ILEMVS=IFIND ( NEVS )
-      ILEMTS=IFIND ( NETS )
-      ILEMESS=IFIND( NESS )
-      ILEMPS=IFIND ( NEPS )
-      ILEMPN=IFIND ( NEPN )
+      ILEMUS=obs_ifind ( BUFR_NEUS )
+      ILEMVS=obs_ifind ( BUFR_NEVS )
+      ILEMTS=obs_ifind ( BUFR_NETS )
+      ILEMESS=obs_ifind( BUFR_NESS )
+      ILEMPS=obs_ifind ( BUFR_NEPS )
+      ILEMPN=obs_ifind ( BUFR_NEPN )
 C
-      DO JELM =1,JPNBRELEM
+      DO JELM =1,OBS_JPNBRELEM
         DO JID  =1,JPIDBRP
           XSFCOBERR(JELM,1,JID) = -1
          END DO
@@ -183,7 +183,7 @@ C             ESS  ---> K
 C             PS,PN---> PA
 C  We assume that the values for wind in the ECMWF document are
 C  for the wind vector. We want values for the wind component.
-      DO JELM =1,JPNBRELEM
+      DO JELM =1,OBS_JPNBRELEM
             IF(ILEMUS .NE. -1 .AND. ILEMVS .NE. -1) THEN
               XSFCOBERR( ILEMUS,1,12) =  3.0D0/SQRT(2.0D0)
               XSFCOBERR( ILEMVS,1,12) =  3.0D0/SQRT(2.0D0)

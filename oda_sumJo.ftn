@@ -18,7 +18,7 @@
       use modmask
       USE obstag 
       USE mpi_mod
-      use obs_mod
+      use obsSpaceData_mod
       implicit none
       real*8 pjo ! Total observation cost function
 c

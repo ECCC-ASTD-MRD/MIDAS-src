@@ -16,7 +16,7 @@
 !
       SUBROUTINE oda_HTgo
       use modmask, only : lmaskgo
-      use obs_mod
+      use obsSpaceData_mod
 #if defined (DOC)
 *
 ***s/r AVGOES  - Adjoint GOES processing, i.e. radiative transfer model

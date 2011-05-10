@@ -33,7 +33,7 @@
 *
       USE mod4dv, only : l4dvar 
       USE obstag  
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comdim.cdk"

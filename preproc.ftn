@@ -76,7 +76,6 @@
 #include "comlun.cdk"
 #include "comvarqc.cdk"
 #include "comcva.cdk"
-#include "cominterp.cdk"
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
@@ -89,14 +88,6 @@ c
       real*8 zjogpsro
 c
       call printrev("SUBROUTINE preproc :",20)
-c
-c
-c Initialization of interpolation parameters
-c
-      lvintbgstat = .false.
-      lhintdelhu  = .true.
-c
-      call readnml('NAMINTERP',IERR)
 c
       call tmg_start(15,'SUCVA')
       CALL SUCVA(NULOUT)

@@ -16,7 +16,8 @@
 !
       SUBROUTINE oda_maskpp(CDFAM)
       use modmask, only : lmaskpp_in, lmaskpp_out, lmask,ldiagpp, ldiag
-      use obs_mod
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 * Argument declarations
       CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)
@@ -35,10 +36,7 @@
 #include "comlun.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-
-
 #include "cvcord.cdk"
-#include "comnumbr.cdk"
 #include "comfilt.cdk"
 * Local declarations
       INTEGER IPB,IPT,IDBURP
@@ -67,7 +65,7 @@ C
               lmaskpp_in(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
      &             .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
      &             .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
-              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. NEHU  .AND.
+              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU  .AND.
      &             obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2   ) THEN
                 IF   ( NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA)) .GE. NINT(RLIMLVHU
      &               *100) ) THEN
@@ -82,7 +80,7 @@ C
             lmaskpp_out(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
      &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
      &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
-            if (lmaskpp_out(jdata) .and. obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE.NEGZ)
+            if (lmaskpp_out(jdata) .and. obsSpaceData%MOBDATA(NCMVNM,JDATA) .NE.BUFR_NEGZ)
      &           then
               lmaskpp_out(jdata) = .false.
               LLNOXTR   = .true.

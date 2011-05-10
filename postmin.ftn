@@ -17,7 +17,7 @@
       subroutine postmin
       use glbspec_mod
       use mod4dv, only : l4dvar
-      use obs_mod
+      use obsSpaceData_mod
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *

@@ -114,8 +114,8 @@ C assimilated
 
       Use mod_tovs
       use glbspec_mod
-      use obs_mod
-
+      use obsSpaceData_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 *
@@ -126,10 +126,7 @@ C assimilated
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
-#include "comnumbr.cdk"
 #include "cparbrp.cdk"
-
-
 #include "commvo.cdk"
 #include "comfilt.cdk"
 #include "comstato.cdk"
@@ -441,7 +438,7 @@ C
 *
 *pik       ALLOW GZ FOR BOGUS DATA ONLY in analysis case ( nconf 141)
 *
-            if  ( nconf .eq. 141 .and. llok .and. (ityp .eq. negz) .and.
+            if  ( nconf .eq. 141 .and. llok .and. (ityp .eq. BUFR_negz) .and.
      &           .not. llbogus  ) then
               llok=.false.
             endif
@@ -472,16 +469,16 @@ C
 C
 C           Ground-based GPS (GP) data (codtyp 189)
 C           LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
-C           Don't want to assimilate ZTD error (NEFE).
-C           If LASSMET = .FALSE. don't want to assimilate Ps (NEPS),
-C           Ts (NETS), or (T-Td)s (NESS)
+C           Don't want to assimilate ZTD error (BUFR_NEFE).
+C           If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
+C           Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
 C
             IF ( IDBURP .EQ. 189 ) THEN
-               IF (ITYP .EQ. NEFE) THEN
+               IF (ITYP .EQ. BUFR_NEFE) THEN
                   LLOK = .FALSE.
                ENDIF
-               IF (.NOT.LASSMET .AND. (ITYP .EQ. NEPS .OR.
-     +              ITYP .EQ. NETS .OR. ITYP .EQ. NESS)) THEN
+               IF (.NOT.LASSMET .AND. (ITYP .EQ. BUFR_NEPS .OR.
+     +              ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NESS)) THEN
                   LLOK = .FALSE.
                ENDIF
             ENDIF
@@ -491,7 +488,7 @@ C        Process data reported in pressure coordinate
 C
 C     b. Exclude T-Td above level RLIMLVHU (mbs)
 C
-              IF ( (ITYP  .EQ. NEES) .AND.
+              IF ( (ITYP  .EQ. BUFR_NEES) .AND.
      &             (IPRES .LT. NINT(RLIMLVHU*100)) ) LLOK=.FALSE.
 C
 C     c. Bad data with quality control flags via bit list
@@ -562,9 +559,9 @@ C
 C     d. Filter TOVS data
 C
             ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-            IF ( ITYP .EQ. NBT1 .OR.
-     S           ITYP .EQ. NBT2 .OR.
-     S           ITYP .EQ. NBT3 .AND.
+            IF ( ITYP .EQ. BUFR_NBT1 .OR.
+     S           ITYP .EQ. BUFR_NBT2 .OR.
+     S           ITYP .EQ. BUFR_NBT3 .AND.
      S          (IDATYP .EQ. 164 .OR.
      S           IDATYP .EQ. 181 .OR.
      S           IDATYP .EQ. 182 .OR.
@@ -616,9 +613,9 @@ C     e. Filter GOES data
 C
             ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
             IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
-            IF (     ITYP .EQ. NBT1
-     S          .OR. ITYP .EQ. NBT2
-     S          .OR. ITYP .EQ. NBT3
+            IF (     ITYP .EQ. BUFR_NBT1
+     S          .OR. ITYP .EQ. BUFR_NBT2
+     S          .OR. ITYP .EQ. BUFR_NBT3
      S          .AND. IDATYP .EQ. 180 )  THEN
 C
 C        e.1 Valid channel?
@@ -661,59 +658,59 @@ C            be assimilated
 C
 C     f. Exclude RAOBS and surface ln q data added to CMA.
 C
-            IF ( ITYP  .EQ. NEHU .or. ITYP .EQ. NEHS ) LLOK=.FALSE.
+            IF ( ITYP  .EQ. BUFR_NEHU .or. ITYP .EQ. BUFR_NEHS ) LLOK=.FALSE.
 C
 C
             IF ( LLOK  .AND..NOT. LLREJ ) THEN
               IF( IVCO .EQ. 2 ) THEN
-                IF( ITYP .EQ. NEFF)  IKNTFFA(INDEX)=IKNTFFA(INDEX) + 1
-                IF( ITYP .EQ. NEDD)  IKNTDDA(INDEX)=IKNTDDA(INDEX) + 1
-                IF( ITYP .EQ. NEUU)  IKNTUA(INDEX)=IKNTUA(INDEX) + 1
-                IF( ITYP .EQ. NEVV)  IKNTVA(INDEX)=IKNTVA(INDEX) + 1
-                IF( ITYP .EQ. NEGZ)  IKNTZA(INDEX)=IKNTZA(INDEX) + 1
-                IF( ITYP .EQ. NETT)  IKNTTA(INDEX)=IKNTTA(INDEX) + 1
-                IF( ITYP .EQ. NEES)  IKNTEA(INDEX)=IKNTEA(INDEX) + 1
-                IF( ITYP .EQ. NEDZ)  IKNTDA(INDEX)=IKNTDA(INDEX) + 1
-                IF( ITYP .EQ. NEOZ)  IKNTOA(INDEX)=IKNTOA(INDEX) + 1
-                IF( ITYP .EQ. NBT1)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
-                IF( ITYP .EQ. NBT2)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
-                IF( ITYP .EQ. NBT3)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEFF)  IKNTFFA(INDEX)=IKNTFFA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEDD)  IKNTDDA(INDEX)=IKNTDDA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEUU)  IKNTUA(INDEX)=IKNTUA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEVV)  IKNTVA(INDEX)=IKNTVA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEGZ)  IKNTZA(INDEX)=IKNTZA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NETT)  IKNTTA(INDEX)=IKNTTA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEES)  IKNTEA(INDEX)=IKNTEA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEDZ)  IKNTDA(INDEX)=IKNTDA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEOZ)  IKNTOA(INDEX)=IKNTOA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NBT1)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NBT2)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NBT3)  IKNTBTA(INDEX)=IKNTBTA(INDEX) + 1
               ELSEIF( IVCO .EQ. 1 ) THEN
-                IF( ITYP .EQ. NEDS)  IKNTDSA=IKNTDSA + 1
-                IF( ITYP .EQ. NEFS)  IKNTFSA=IKNTFSA + 1
-                IF( ITYP .EQ. NEUS)  IKNTUSA=IKNTUSA + 1
-                IF( ITYP .EQ. NEVS)  IKNTVSA=IKNTVSA + 1
-                IF( ITYP .EQ. NETS)  IKNTTSA=IKNTTSA + 1
-                IF( ITYP .EQ. NESS) IKNTESSA=IKNTESSA + 1
-                IF( ITYP .EQ. NEPS)  IKNTPSA=IKNTPSA + 1
-                IF( ITYP .EQ. NEPN)  IKNTPNA=IKNTPNA + 1
-                IF( ITYP .EQ. NEZD)  IKNTZDA=IKNTZDA + 1
+                IF( ITYP .EQ. BUFR_NEDS)  IKNTDSA=IKNTDSA + 1
+                IF( ITYP .EQ. BUFR_NEFS)  IKNTFSA=IKNTFSA + 1
+                IF( ITYP .EQ. BUFR_NEUS)  IKNTUSA=IKNTUSA + 1
+                IF( ITYP .EQ. BUFR_NEVS)  IKNTVSA=IKNTVSA + 1
+                IF( ITYP .EQ. BUFR_NETS)  IKNTTSA=IKNTTSA + 1
+                IF( ITYP .EQ. BUFR_NESS) IKNTESSA=IKNTESSA + 1
+                IF( ITYP .EQ. BUFR_NEPS)  IKNTPSA=IKNTPSA + 1
+                IF( ITYP .EQ. BUFR_NEPN)  IKNTPNA=IKNTPNA + 1
+                IF( ITYP .EQ. BUFR_NEZD)  IKNTZDA=IKNTZDA + 1
                 IBINS = IBINS + 1
               ENDIF
             ELSE IF ( LLOK .AND.  LLREJ ) THEN
               IF( IVCO .EQ. 2 ) THEN
-                IF( ITYP .EQ. NEFF)  IKNTFFR(INDEX)=IKNTFFR(INDEX) + 1
-                IF( ITYP .EQ. NEDD)  IKNTDDR(INDEX)=IKNTDDR(INDEX) + 1
-                IF( ITYP .EQ. NEUU)  IKNTUR(INDEX)=IKNTUR(INDEX) + 1
-                IF( ITYP .EQ. NEVV)  IKNTVR(INDEX)=IKNTVR(INDEX) + 1
-                IF( ITYP .EQ. NEGZ)  IKNTZR(INDEX)=IKNTZR(INDEX) + 1
-                IF( ITYP .EQ. NETT)  IKNTTR(INDEX)=IKNTTR(INDEX) + 1
-                IF( ITYP .EQ. NEES)  IKNTER(INDEX)=IKNTER(INDEX) + 1
-                IF( ITYP .EQ. NEDZ)  IKNTDR(INDEX)=IKNTDR(INDEX) + 1
-                IF( ITYP .EQ. NEOZ)  IKNTOR(INDEX)=IKNTOR(INDEX) + 1
-                IF( ITYP .EQ. NBT1)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
-                IF( ITYP .EQ. NBT2)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
-                IF( ITYP .EQ. NBT3)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEFF)  IKNTFFR(INDEX)=IKNTFFR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEDD)  IKNTDDR(INDEX)=IKNTDDR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEUU)  IKNTUR(INDEX)=IKNTUR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEVV)  IKNTVR(INDEX)=IKNTVR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEGZ)  IKNTZR(INDEX)=IKNTZR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NETT)  IKNTTR(INDEX)=IKNTTR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEES)  IKNTER(INDEX)=IKNTER(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEDZ)  IKNTDR(INDEX)=IKNTDR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NEOZ)  IKNTOR(INDEX)=IKNTOR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NBT1)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NBT2)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
+                IF( ITYP .EQ. BUFR_NBT3)  IKNTBTR(INDEX)=IKNTBTR(INDEX) + 1
               ELSEIF( IVCO .EQ. 1 ) THEN
-                IF( ITYP .EQ. NEDS)  IKNTDSR=IKNTDSR + 1
-                IF( ITYP .EQ. NEFS)  IKNTFSR=IKNTFSR + 1
-                IF( ITYP .EQ. NEUS)  IKNTUSR=IKNTUSR + 1
-                IF( ITYP .EQ. NEVS)  IKNTVSR=IKNTVSR + 1
-                IF( ITYP .EQ. NETS)  IKNTTSR=IKNTTSR + 1
-                IF( ITYP .EQ. NESS) IKNTESSR=IKNTESSR + 1
-                IF( ITYP .EQ. NEPS)  IKNTPSR=IKNTPSR + 1
-                IF( ITYP .EQ. NEPN)  IKNTPNR=IKNTPNR + 1
-                IF( ITYP .EQ. NEZD)  IKNTZDR=IKNTZDR + 1
+                IF( ITYP .EQ. BUFR_NEDS)  IKNTDSR=IKNTDSR + 1
+                IF( ITYP .EQ. BUFR_NEFS)  IKNTFSR=IKNTFSR + 1
+                IF( ITYP .EQ. BUFR_NEUS)  IKNTUSR=IKNTUSR + 1
+                IF( ITYP .EQ. BUFR_NEVS)  IKNTVSR=IKNTVSR + 1
+                IF( ITYP .EQ. BUFR_NETS)  IKNTTSR=IKNTTSR + 1
+                IF( ITYP .EQ. BUFR_NESS) IKNTESSR=IKNTESSR + 1
+                IF( ITYP .EQ. BUFR_NEPS)  IKNTPSR=IKNTPSR + 1
+                IF( ITYP .EQ. BUFR_NEPN)  IKNTPNR=IKNTPNR + 1
+                IF( ITYP .EQ. BUFR_NEZD)  IKNTZDR=IKNTZDR + 1
                 IBINS = IBINS + 1
               ENDIF
             ENDIF
@@ -735,7 +732,7 @@ CSMP
               ZVAR = obsSpaceData%ROBDATA(NCMVAR,JDATA)
               ZLEV = obsSpaceData%ROBDATA(NCMPPP,JDATA)*0.01
               IF(ZLAT .GT. gst_getRLATI(1) .or. ZLAT .LT. gst_getRLATI(NJ)) THEN
-                IF (ITYP .EQ. NEUU .OR. ITYP .EQ. NEVV ) THEN
+                IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV ) THEN
                   write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
                   obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
                 ENDIF
@@ -835,21 +832,21 @@ C
       DO JDATA=1,NDATA
         ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
         IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-        IF ( ITYP .EQ. NEUU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
-        IF ( ITYP .EQ. NEVV) obsSpaceData%MOBDATA(NCMPOS,JDATA) = novv - 1
-        IF ( ITYP .EQ. NETT) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nott - 1
-        IF ( ITYP .EQ. NEDZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nogz - 1
-        IF ( ITYP .EQ. NEES) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noes - 1
-        IF ( ITYP .EQ. NEHU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noq  - 1
-        IF ( ITYP .EQ. NEGZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nogz - 1
-        IF ( ITYP .EQ. NEOZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nooz - 1
-        IF ( ITYP .EQ. NEUS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
-        IF ( ITYP .EQ. NEVS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = novv - 1
-        IF ( ITYP .EQ. NETS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nott - 1
-        IF ( ITYP .EQ. NESS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noes - 1
-        IF ( ITYP .EQ. NEHS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noq  - 1
-        IF ( ITYP .EQ. NEPS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nops - 1
-        IF ( ITYP .EQ. NEPN) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nops - 1
+        IF ( ITYP .EQ. BUFR_NEUU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
+        IF ( ITYP .EQ. BUFR_NEVV) obsSpaceData%MOBDATA(NCMPOS,JDATA) = novv - 1
+        IF ( ITYP .EQ. BUFR_NETT) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nott - 1
+        IF ( ITYP .EQ. BUFR_NEDZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nogz - 1
+        IF ( ITYP .EQ. BUFR_NEES) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noes - 1
+        IF ( ITYP .EQ. BUFR_NEHU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noq  - 1
+        IF ( ITYP .EQ. BUFR_NEGZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nogz - 1
+        IF ( ITYP .EQ. BUFR_NEOZ) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nooz - 1
+        IF ( ITYP .EQ. BUFR_NEUS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
+        IF ( ITYP .EQ. BUFR_NEVS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = novv - 1
+        IF ( ITYP .EQ. BUFR_NETS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nott - 1
+        IF ( ITYP .EQ. BUFR_NESS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noes - 1
+        IF ( ITYP .EQ. BUFR_NEHS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = noq  - 1
+        IF ( ITYP .EQ. BUFR_NEPS) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nops - 1
+        IF ( ITYP .EQ. BUFR_NEPN) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nops - 1
       END DO
  500  CONTINUE
 C-----------------------------------------------------------------------

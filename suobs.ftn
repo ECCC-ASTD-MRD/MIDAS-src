@@ -16,6 +16,7 @@
 !
       SUBROUTINE SUOBS(KULOUT)
       use mod4dv, only : l4dvar
+      use obsSpaceData_mod
 #if defined (DOC)
 *
 ***s/r SUOBS  - Initialisation of observation parameters and constants
@@ -53,7 +54,6 @@ C
 * comct0: NCONF
 *
 #include "comlun.cdk"
-#include "comnumbr.cdk"
 #include "comfilt.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -113,15 +113,16 @@ c     Force nlist to be in the same sequence as NVNUMB for invariance in
 C     matrix-vector product done in matvec.
 c
       itotelem = 0
-      do jelem = 1, jpnbrelem
-        do j = 1, nelems
-          if (nlist(j) .eq. nvnumb(jelem)) then
-            itotelem = itotelem + 1
-            ielem = nlist(itotelem)
-            nlist(itotelem) = nlist(j)
-            nlist(j) = ielem
-          endif
-        enddo
+      do j = 1, nelems
+        jelem=obs_ifind(nlist(j))
+        if (jelem .ne. -1) then
+          itotelem = itotelem + 1
+          ielem = nlist(itotelem)
+          nlist(itotelem) = nlist(j)
+          nlist(j) = ielem
+        else 
+          write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(j)
+        endif
       enddo
                                 !Select calls  BRPCMA
                                 ! 1. Positioning of data records within ROBDATA/MOBDATA

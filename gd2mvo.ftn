@@ -16,7 +16,7 @@
 !
       SUBROUTINE GD2MVO(CDVARNAME,klev)
       use glbspec_mod
-      use obs_mod
+      use obsSpaceData_mod
 *
 #if defined (DOC)
 *

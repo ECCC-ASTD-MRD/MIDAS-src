@@ -15,11 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE ESTOHU(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      use bufr
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "cparbrp.cdk"
-#include "comnumbr.cdk"
 #include "comphy.cdk"
 #include "dintern8.cdk"
 #include "fintern8.cdk"
@@ -80,10 +80,10 @@ cc      LLPRINT = .TRUE.
 *     GET ES,TT,PP
 ************************************************************************
 *
-      IES=NEES
-      ITT=NETT
-      IPP=NEPP
-      IHU=NEHU
+      IES=BUFR_NEES
+      ITT=BUFR_NETT
+      IPP=BUFR_NEPP
+      IHU=BUFR_NEHU
       lladd2=.true.
       KNELOUT=KNELE+1
       CALL GETELE(IES,1,KLIST,ZVAL,ZPROFES,KNELE,KNVAL,KINT,IND1)
@@ -94,14 +94,14 @@ C
 C        FOR SURFACE (SYNOP ...etc..) ES,TT at 2 M iS REPORTED
 C
       IF ( IND1 .EQ. -1 .AND. IND2 .EQ. -1 .AND. IND3 .EQ. -1 ) THEN
-         IES=NESS
-         ITT=NETS
-         IPP=NEPS
+         IES=BUFR_NESS
+         ITT=BUFR_NETS
+         IPP=BUFR_NEPS
          CALL GETELE(IES,1,KLIST,ZVAL,ZPROFES,KNELE,KNVAL,KINT,IND1)
          CALL GETELE(ITT,1,KLIST,ZVAL,ZPROFTT,KNELE,KNVAL,KINT,IND2)
          CALL GETELE(IPP,1,KLIST,ZVAL,ZPROFPP,KNELE,KNVAL,KINT,IND3)
          IF ( IND1 .NE. -1 .AND. IND2 .NE. -1 .AND. IND3 .NE. -1 ) THEN
-            IHU=NEHS
+            IHU=BUFR_NEHS
             CALL GETELE(IHU,1,KLIST,ZVAL,ZPROFHU,KNELE,KNVAL,KINT,IND4)
          ENDIF
       ENDIF

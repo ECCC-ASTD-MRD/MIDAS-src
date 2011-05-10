@@ -18,7 +18,7 @@
       use modmask, only : lmaskpp_in, lmaskpp_out,lmasksf_in,lmasksf_out
       use modmask, only : lmask,lmaskto,lmaskgo,lmaskro,lmaskzp,ldiagpp
       use modmask, only : ldiagsf, ldiag, lmaskgp
-      use obs_mod
+      use obsSpaceData_mod
 #if defined (DOC)
 *
 ***s/r SUALOBS  - Memory allocation for obs. related arrays

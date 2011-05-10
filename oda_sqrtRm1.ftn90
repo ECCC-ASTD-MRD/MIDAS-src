@@ -16,7 +16,7 @@
 !
 SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
   use modmask, only : lmask,ldiag
-  use obs_mod
+  use obsSpaceData_mod
   ! Arguments
   INTEGER :: kindex2 ! destination index
   Integer :: kindex1 ! source index

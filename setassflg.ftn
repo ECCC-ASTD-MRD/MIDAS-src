@@ -30,7 +30,7 @@
 *Arguments
 *
 #endif
-      use obs_mod
+      use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
