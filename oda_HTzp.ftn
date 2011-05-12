@@ -65,13 +65,13 @@ C     Process all data within the domain of the model
 C
       DO J=1,ISTRIDE
 *vdir nodep
-        DO JDATA=J, ndata,ISTRIDE
+        DO JDATA=J, obsSpaceData%ndata,ISTRIDE
           IF (lmaskzp(jdata) ) THEN
             IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
             IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
             ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
             ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-            IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+            IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
             ZPT  = GOMGZG(IK,IOBS)/RG

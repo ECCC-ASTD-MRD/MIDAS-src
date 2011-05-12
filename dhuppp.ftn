@@ -32,7 +32,7 @@
 *
 #endif
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
       CHARACTER *2 CDFAM
 *implicits
@@ -78,7 +78,7 @@ C
                   ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
                   ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
                   ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
                   ZPT  = RPPOBSHR(IK,IOBS)
                   ZPB  = RPPOBSHR(IK+1,IOBS)
                   ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)

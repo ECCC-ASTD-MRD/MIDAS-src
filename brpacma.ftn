@@ -137,7 +137,7 @@
       INTEGER ISENSOR,INSTRUM,ISATAZIM,ISUNZA,ICLFR
       INTEGER IGQISFLAGQUAL,IGQISQUALINDEXLOC,ISUNAZIM
 *
-      CHARACTER *(*) CDTYPE
+      CHARACTER*2 CDTYPE
       INTEGER   indxfile  
       LOGICAL LDAPPEND,LLSURF
 *
@@ -249,13 +249,13 @@ C
 *
       IF ( .NOT. LDAPPEND ) THEN
          NOBTOT  =0
-         NDATA   =0
+         obsSpaceData%ndata   =0
       ELSE
 *
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',NDATA
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%ndata
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS ) THEN
@@ -861,6 +861,7 @@ c               ENDIF
                 obsSpaceData%ROBHDR(NCMLAT,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
                 obsSpaceData%ROBHDR(NCMALT,NOBTOT) = (REAL(IALT)-400)
                 obsSpaceData%MOBHDR(NCMNLV,NOBTOT) = INBON
+                call obs_setFamily(obsSpaceData,cdtype,headerIndex=nobtot)
 *
                 IF ( NOBTOT .EQ. 1) THEN
                    obsSpaceData%MOBHDR(NCMRLN,1)=1
@@ -899,7 +900,7 @@ c               ENDIF
      &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
      &             ' LON ', ILON
             ENDIF
-         IF ( NDATA .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
+         IF ( obsSpaceData%ndata .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
             CALL HPDEALLC(PXVAL    ,IER,1)
             CALL HPDEALLC(PXVAL3D  ,IER,1)
             CALL HPDEALLC(PXTABL   ,IER,1)
@@ -928,12 +929,12 @@ c               ENDIF
             WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 *
             WRITE(NULOUT,'(1x,"NDATA = ",I10," NDATAMX",I10)')
-     &                    NDATA, NDATAMX
+     &                    obsSpaceData%ndata, NDATAMX
             WRITE(NULOUT,'(1x,"NOBTOT= ",I10," NMXOBS = ",I10)')
      &                    NOBTOT, NMXOBS
             WRITE(NULOUT,*)' LABORTFULL = ', LABORTFULL
 *
-            CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+            CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
 *
             IF (LABORTFULL) THEN
               WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CALL ABORT3D '
@@ -961,7 +962,7 @@ c               ENDIF
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'

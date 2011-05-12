@@ -20,8 +20,8 @@
 ***s/r SUCOV  - Initializes the analysis Background term for the specific analysis configuration used.
 *
 #endif
-      use bmatrixensemble_mod
-      use bmatrixhi_mod
+      use bMatrixEnsemble
+      use bMatrixHI
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"

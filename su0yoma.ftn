@@ -101,7 +101,6 @@ C*4.2 Initialize observations dimensions
 C*    4.1 Initialize observations dimensions
 C
  410  CONTINUE
-      CALL SUCMA (NULOUT)
       CALL SUDIMO(NULOUT)
 C
 C     ------------------------------------------------------------------

@@ -16,7 +16,7 @@
 !
       SUBROUTINE FLAGUVTOFD(KFLAG,KLIST,KNELE,KNVAL,KINT
      &                  ,CSTN,KIDBRP,KLAT,KLON)
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 #include "cparbrp.cdk"
       INTEGER KNELE,KNVAL,KINT,KIDBRP,KLAT,KLON

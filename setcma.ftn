@@ -39,7 +39,7 @@ c Revision:
 C
 c-------Fill ROBDATA with Z' = -( H(xb_hr) - Z ) = Z - H(xb_hr)
 c
-      DO JDATA=1,NDATA
+      DO JDATA=1,obsSpaceData%ndata
         obsSpaceData%robdata8(ncmomn,jdata) = 0.d0
         obsSpaceData%ROBDATA8(NCMOMF,JDATA) = -obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOER
      &       ,JDATA)

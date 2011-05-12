@@ -277,13 +277,13 @@
 *
       IF ( .NOT. LDAPPEND ) THEN
          NOBTOT  =0
-         NDATA   =0
+         obsSpaceData%ndata   =0
       ELSE
 *
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',NDATA
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%ndata
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS) THEN
@@ -506,10 +506,10 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
 ************************************************************************
 *
            IOBTOT=NOBTOT
-           IDATA=NDATA
+           IDATA=obsSpaceData%ndata
            DO 22 JJEL=1,KNVALS
               NOBTOT=IOBTOT
-              NDATA=IDATA
+              obsSpaceData%ndata=IDATA
               IPOSB=0
               ILPOSB=0
               ICOUNT=0
@@ -787,7 +787,7 @@ C
          ENDIF
       ENDIF
 ********************************
-      IF( (NDATA .GE. NDATAP .OR. NOBTOT .GE. NMXOBS)
+      IF( (obsSpaceData%ndata .GE. obsSpaceData%ndataP .OR. NOBTOT .GE. NMXOBS)
      + .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN
@@ -800,7 +800,7 @@ C
             IER=MRFPUT(KFILE,IHANDLP,IBUF)
          ENDIF
          WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
-         CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+         CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
          WRITE(NULOUT,*)' ------------------------------------------'
          WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
          WRITE(NULOUT,*)' ------------------------------------------'
@@ -843,7 +843,7 @@ C
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,NDATA)
+      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'

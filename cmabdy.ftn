@@ -127,7 +127,7 @@
 *
       ZESMAX=30.
 *
-      IP=NDATA + 1
+      IP=obsSpaceData%ndata + 1
       IND=0
 *
 ************************************************************************
@@ -257,7 +257,7 @@ C
                            ELSE
 *==================================================
                               KNDAT = IND
-                              NDATA = NDATA + KNDAT
+                              obsSpaceData%ndata = obsSpaceData%ndata + KNDAT
 *==================================================
                               RETURN
                            ENDIF
@@ -268,7 +268,7 @@ C
          END DO
 *=============================
       KNDAT = IND
-      NDATA = NDATA + KNDAT
+      obsSpaceData%ndata = obsSpaceData%ndata + KNDAT
 *=============================
 *
       RETURN

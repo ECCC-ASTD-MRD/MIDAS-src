@@ -94,7 +94,7 @@ C
                   ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
                   ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
                   ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
                   IPT = IK + IPOS*NLEVTRL
                   IPB = IPT+1
                   ZPT  = GOMGZHR(IK,IOBS)/RG

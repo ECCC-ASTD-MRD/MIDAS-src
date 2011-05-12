@@ -40,7 +40,7 @@ SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
   INTEGER jdata
 !
 !!
-    DO JDATA=1,ndata
+    DO JDATA=1,obsSpaceData%ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           obsSpaceData%ROBDATA8(KINDEX2,JDATA) =obsSpaceData%ROBDATA8(KINDEX1,JDATA)/obsSpaceData%ROBDATA8(NCMOER,JDATA)
        ENDIF

@@ -42,7 +42,7 @@ SUBROUTINE oda_Jo
     obsSpaceData%ROBDATA8(NCMOMI,1)= &
        (obsSpaceData%ROBDATA8(NCMOMA,1)*obsSpaceData%ROBDATA8(NCMOMA,1))/2.
   else    
-    DO JDATA=1,ndata
+    DO JDATA=1,obsSpaceData%ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           obsSpaceData%ROBDATA8(NCMOMI,JDATA)= &
                (obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOMA,JDATA))/2.

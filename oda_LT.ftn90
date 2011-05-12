@@ -16,7 +16,7 @@
 !
 subroutine oda_LT
   use mod4dv, only : l4dvar
-  USE mpi_mod
+  use mpi
   implicit none
   !
   !Purpose: Adjoint of Localisation (3D) / Adjoint Model (4D) operator

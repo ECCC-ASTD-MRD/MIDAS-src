@@ -41,7 +41,7 @@
       INTEGER JDATA
 *-----------------------------------------------------------------
 
-      do JDATA=1,NDATA
+      do JDATA=1,obsSpaceData%ndata
         obsSpaceData%ROBDATA(NCMOMA,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
         obsSpaceData%ROBDATA(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMI,JDATA)
         obsSpaceData%ROBDATA(NCMOMN,JDATA)=obsSpaceData%ROBDATA8(NCMOMN,JDATA)

@@ -35,7 +35,7 @@
 *     ZLAO    : LATITUDE (RADIANS) OF THE OBSERVATION POINT
 #endif
 *
-      use glbspec_mod
+      use globalSpectralTransform
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"

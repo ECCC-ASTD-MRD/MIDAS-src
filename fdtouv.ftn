@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE FDTOUV(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 #include "comcst.cdk"
 #include "cparbrp.cdk"

@@ -1,4 +1,4 @@
-MODULE obsSpaceData_mod 
+MODULE obsSpaceData_mod
   implicit none
   save
   private
@@ -22,20 +22,23 @@ MODULE obsSpaceData_mod
   ! subroutines
   public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
   public           :: obs_getBody,obs_setBody,obs_getHeader,obs_setHeader
-  public           :: obs_swapVarOmf,obs_ifind
+  public           :: obs_swapVarOmf,obs_ifind,obs_getStnID,obs_setStnID
+  public           :: obs_getFamily,obs_setFamily
 
 
   ! derived type and module variable declarations
 
   type  ::  struct_obs
+    integer             :: ndata,ndatap,ndata_l
+    character*2,pointer :: cfamily(:)
     character*9,pointer :: cstnid(:)
-    real, pointer     :: robhdr(:,:)
-    real, pointer     :: robhdr_g(:,:)
-    integer, pointer  :: mobhdr(:,:)
-    integer, pointer  :: mobhdr_g(:,:)
-    real, pointer     :: robdata(:,:)
-    real*8, pointer   :: robdata8(:,:)
-    integer, pointer  :: mobdata(:,:)
+    real, pointer       :: robhdr(:,:)
+    real, pointer       :: robhdr_g(:,:)
+    integer, pointer    :: mobhdr(:,:)
+    integer, pointer    :: mobhdr_g(:,:)
+    real, pointer       :: robdata(:,:)
+    real*8, pointer     :: robdata8(:,:)
+    integer, pointer    :: mobdata(:,:)
   end type struct_obs
 
   type(struct_obs) :: obsSpaceData
@@ -97,6 +100,9 @@ MODULE obsSpaceData_mod
 
     type(struct_obs) :: obs_in
     integer          :: maxNumHdr,maxNumBdy,ierr
+
+    ALLOCATE(obs_in%cfamily(maxNumHdr),STAT=ierr)
+    obs_in%cfamily(:)='XX'
 
     ALLOCATE(obs_in%cstnid(maxNumHdr),STAT=ierr)
 
@@ -160,6 +166,13 @@ MODULE obsSpaceData_mod
 
     type(struct_obs) :: obs_in
     integer          :: ierr
+
+    deallocate(obs_in%cfamily,STAT=ierr)
+    if(ierr.eq.0) then
+      write(*,*) 'CFAMILY checked and correct. IERR =',ierr
+    else
+      write(*,*) 'Problem detected in CFAMILY. IERR =',ierr
+    endif
 
     deallocate(obs_in%cstnid,STAT=ierr)
     if(ierr.eq.0) then
@@ -232,6 +245,74 @@ MODULE obsSpaceData_mod
   end subroutine obs_swapVarOmf
 
 
+  function obs_getStnID(obs_in,index_in)
+    implicit none
+
+    type(struct_obs) :: obs_in
+    integer          :: index_in
+    character*9      :: obs_getStnID
+    
+    obs_getStnID=obs_in%cstnid(index_in)
+
+  end function obs_getStnID
+
+
+  subroutine obs_setStnID(obs_in,index_in,StnID_in)
+    implicit none
+
+    type(struct_obs) :: obs_in
+    integer          :: index_in
+    character*9      :: StnID_in
+    
+    obs_in%cstnid(index_in)=StnID_in
+
+  end subroutine obs_setStnID
+
+
+  function obs_getFamily(obs_in,headerIndex,bodyIndex)
+    implicit none
+
+    type(struct_obs) :: obs_in
+    integer,optional :: headerIndex,bodyIndex
+    character*2      :: obs_getFamily
+    integer          :: headerIndex2
+
+    if(present(headerIndex)) then
+      obs_getFamily=obs_in%cfamily(headerIndex)
+    elseif(present(bodyIndex)) then
+      call obs_getBody(obs_in,bodyIndex,val_OBS=headerIndex2)
+      obs_getFamily=obs_in%cfamily(headerIndex2)
+    else
+      write(*,*) 'OBS_GETFAMILY: Header or Body index must be specified!'
+      call flush(6)
+      call exit(-1)
+    endif
+
+  end function obs_getFamily
+
+
+  subroutine obs_setFamily(obs_in,Family_in,headerIndex,bodyIndex)
+    implicit none
+
+    type(struct_obs) :: obs_in
+    integer,optional :: headerIndex,bodyIndex
+    character*2      :: Family_in
+    integer          :: headerIndex2
+    
+    if(present(headerIndex)) then
+      obs_in%cfamily(headerIndex)=Family_in
+    elseif(present(bodyIndex)) then
+      call obs_getBody(obs_in,bodyIndex,val_OBS=headerIndex2)
+      obs_in%cfamily(headerIndex2)=Family_in
+    else
+      write(*,*) 'OBS_SETFAMILY: Header or Body index must be specified!'
+      call flush(6)
+      call exit(-1)
+    endif
+
+  end subroutine obs_setFamily
+
+
   subroutine obs_getHeader(obs_in,index_in,                     &
                            val_RLN, val_ONM, val_BOX,  &
                            val_OTP, val_ITY, val_LAT,  &
@@ -240,7 +321,6 @@ MODULE obsSpaceData_mod
                            val_OEC, val_OFL, val_ST1,  &
                            val_AZA, val_SUN, val_CLF,  &
                            val_TLA)
-
     implicit none
 
     type(struct_obs) :: obs_in
@@ -287,7 +367,6 @@ MODULE obsSpaceData_mod
                            val_OEC, val_OFL, val_ST1,  &
                            val_AZA, val_SUN, val_CLF,  &
                            val_TLA)
-
     implicit none
 
     type(struct_obs) :: obs_in
@@ -336,7 +415,7 @@ MODULE obsSpaceData_mod
                          val_XTR, val_OBS, val_LOBS, &
                          val_VCO, val_PRM,           &
                          val_PPP8,val_PRL8,val_POB8, &
-                         val_VAR8,val_LYR8,val_OMF8, &
+                         val_VAR8,val_OMF8, &
                          val_OMA8,val_OMI8,val_OMN8, &
                          val_OER8,val_RER8,val_FGE8, &
                          val_PER8,val_PRM8)
@@ -346,16 +425,17 @@ MODULE obsSpaceData_mod
     integer          :: index_in
     integer,optional :: val_LBO, val_VNM, val_FLG,  &
                         val_POS, val_ASS, val_XTR,  &
-                        val_OBS, val_LOBS,val_VCO
+                        val_OBS, val_LOBS,val_VCO,  &
+                        val_LYR
 
     real*4,optional  :: val_PPP, val_PRL, val_POB,  &
-                        val_VAR, val_LYR, val_OMF,  &
+                        val_VAR, val_OMF,  &
                         val_OMA, val_OMI, val_OMN,  &
                         val_OER, val_RER, val_FGE,  &
                         val_PER, val_PRM
 
     real*8,optional  :: val_PPP8,val_PRL8,val_POB8,  &
-                        val_VAR8,val_LYR8,val_OMF8,  &
+                        val_VAR8,val_OMF8,  &
                         val_OMA8,val_OMI8,val_OMN8,  &
                         val_OER8,val_RER8,val_FGE8,  &
                         val_PER8,val_PRM8
@@ -370,13 +450,13 @@ MODULE obsSpaceData_mod
     if(present(val_OBS )) val_OBS =obs_in%mobdata (NCMOBS ,index_in)
     if(present(val_LOBS)) val_LOBS=obs_in%mobdata (NCMLOBS,index_in)
     if(present(val_VCO )) val_VCO =obs_in%mobdata (NCMVCO ,index_in)
+    if(present(val_LYR )) val_LYR =obs_in%mobdata (NCMLYR,index_in)
 
     ! single precision values
     if(present(val_PPP )) val_PPP =obs_in%robdata (NCMPPP,index_in)
     if(present(val_PRL )) val_PRL =obs_in%robdata (NCMPRL,index_in)
     if(present(val_POB )) val_POB =obs_in%robdata (NCMPOB,index_in)
     if(present(val_VAR )) val_VAR =obs_in%robdata (NCMVAR,index_in)
-    if(present(val_LYR )) val_LYR =obs_in%robdata (NCMLYR,index_in)
     if(present(val_OMF )) val_OMF =obs_in%robdata (NCMOMF,index_in)
     if(present(val_OMA )) val_OMA =obs_in%robdata (NCMOMA,index_in)
     if(present(val_OMI )) val_OMI =obs_in%robdata (NCMOMI,index_in)
@@ -392,7 +472,6 @@ MODULE obsSpaceData_mod
     if(present(val_PRL8)) val_PRL8=obs_in%robdata8(NCMPRL,index_in)
     if(present(val_POB8)) val_POB8=obs_in%robdata8(NCMPOB,index_in)
     if(present(val_VAR8)) val_VAR8=obs_in%robdata8(NCMVAR,index_in)
-    if(present(val_LYR8)) val_LYR8=obs_in%robdata8(NCMLYR,index_in)
     if(present(val_OMF8)) val_OMF8=obs_in%robdata8(NCMOMF,index_in)
     if(present(val_OMA8)) val_OMA8=obs_in%robdata8(NCMOMA,index_in)
     if(present(val_OMI8)) val_OMI8=obs_in%robdata8(NCMOMI,index_in)
@@ -416,7 +495,7 @@ MODULE obsSpaceData_mod
                          val_XTR, val_OBS, val_LOBS, &
                          val_VCO, val_PRM,           &
                          val_PPP8,val_PRL8,val_POB8, &
-                         val_VAR8,val_LYR8,val_OMF8, &
+                         val_VAR8,val_OMF8, &
                          val_OMA8,val_OMI8,val_OMN8, &
                          val_OER8,val_RER8,val_FGE8, &
                          val_PER8,val_PRM8)
@@ -426,16 +505,17 @@ MODULE obsSpaceData_mod
     integer          :: index_in
     integer,optional :: val_LBO, val_VNM, val_FLG,  &
                         val_POS, val_ASS, val_XTR,  &
-                        val_OBS, val_LOBS,val_VCO
+                        val_OBS, val_LOBS,val_VCO,  &
+                        val_LYR
 
     real*4,optional  :: val_PPP, val_PRL, val_POB,  &
-                        val_VAR, val_LYR, val_OMF,  &
+                        val_VAR, val_OMF,  &
                         val_OMA, val_OMI, val_OMN,  &
                         val_OER, val_RER, val_FGE,  &
                         val_PER, val_PRM
 
     real*8,optional  :: val_PPP8,val_PRL8,val_POB8,  &
-                        val_VAR8,val_LYR8,val_OMF8,  &
+                        val_VAR8,val_OMF8,  &
                         val_OMA8,val_OMI8,val_OMN8,  &
                         val_OER8,val_RER8,val_FGE8,  &
                         val_PER8,val_PRM8
@@ -450,13 +530,13 @@ MODULE obsSpaceData_mod
     if(present(val_OBS )) obs_out%mobdata (NCMOBS ,index_in) =val_OBS
     if(present(val_LOBS)) obs_out%mobdata (NCMLOBS,index_in) =val_LOBS
     if(present(val_VCO )) obs_out%mobdata (NCMVCO ,index_in) =val_VCO
+    if(present(val_LYR )) obs_out%mobdata (NCMLYR,index_in)  =val_LYR
 
     ! single precision values
     if(present(val_PPP )) obs_out%robdata (NCMPPP,index_in) =val_PPP
     if(present(val_PRL )) obs_out%robdata (NCMPRL,index_in) =val_PRL
     if(present(val_POB )) obs_out%robdata (NCMPOB,index_in) =val_POB
     if(present(val_VAR )) obs_out%robdata (NCMVAR,index_in) =val_VAR
-    if(present(val_LYR )) obs_out%robdata (NCMLYR,index_in) =val_LYR
     if(present(val_OMF )) obs_out%robdata (NCMOMF,index_in) =val_OMF
     if(present(val_OMA )) obs_out%robdata (NCMOMA,index_in) =val_OMA
     if(present(val_OMI )) obs_out%robdata (NCMOMI,index_in) =val_OMI
@@ -472,7 +552,6 @@ MODULE obsSpaceData_mod
     if(present(val_PRL8)) obs_out%robdata8(NCMPRL,index_in) =val_PRL8
     if(present(val_POB8)) obs_out%robdata8(NCMPOB,index_in) =val_POB8
     if(present(val_VAR8)) obs_out%robdata8(NCMVAR,index_in) =val_VAR8
-    if(present(val_LYR8)) obs_out%robdata8(NCMLYR,index_in) =val_LYR8
     if(present(val_OMF8)) obs_out%robdata8(NCMOMF,index_in) =val_OMF8
     if(present(val_OMA8)) obs_out%robdata8(NCMOMA,index_in) =val_OMA8
     if(present(val_OMI8)) obs_out%robdata8(NCMOMI,index_in) =val_OMI8

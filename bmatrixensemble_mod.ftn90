@@ -1,7 +1,7 @@
 !--------------------------------------------------------------------------
-! MODULE BmatrixEnsemble_mod (Background-error Covariance Matrix estimated
-!                             using ensemble members and spatial localization
-!                             prefix="ben")
+! MODULE BmatrixEnsemble (Background-error Covariance Matrix estimated
+!                         using ensemble members and spatial localization
+!                         prefix="ben")
 !
 ! Purpose: Performs transformation from control vector to analysis increment 
 !          using the spatially localized ensemble covariance matrix
@@ -20,12 +20,12 @@
 !    addEnsMemberAd
 !
 ! Dependencies:
-!    glbspec_mod
+!    globalSpectralTransform
 !    matsqrt
 !    mxmaop
 !--------------------------------------------------------------------------
-MODULE BmatrixEnsemble_mod 
-  use mpi_mod
+MODULE BmatrixEnsemble
+  use mpi
   implicit none
   save
   private
@@ -47,7 +47,7 @@ MODULE BmatrixEnsemble_mod
 CONTAINS
 
   SUBROUTINE BEN_setup(ZTLEN_IN,verticalScale_in,pressureProfile_in,NTRUNC_IN,NI_IN,NJ_IN,NFLEV_IN,NIP1_IN,CVDIM_OUT)
-    use glbspec_mod
+    use globalSpectralTransform
     implicit none
 
     real*8         :: ztlen_in,verticalScale_in,pressureProfile_in(:)
@@ -132,7 +132,7 @@ CONTAINS
 
 
   SUBROUTINE setupEnsemble
-    use glbspec_mod
+    use globalSpectralTransform
     implicit none
  
     real*8 :: gd2d(ni_l,nj_l)
@@ -591,7 +591,7 @@ CONTAINS
 
 
   SUBROUTINE setupLocalization(ZTLEN,verticalScale,pressureProfile)
-    use glbspec_mod
+    use globalSpectralTransform
     implicit none
 
     real*8 zlc,zr,zpole,zcorr,ztlen,verticalScale,pressureProfile(:)
@@ -921,7 +921,7 @@ CONTAINS
 
 
   SUBROUTINE localizationSqrt(ensControlVector_in,ensAmplitude_out)
-    use glbspec_mod
+    use globalSpectralTransform
     implicit none
 
     real*8           :: ensControlVector_in(nla_l,2,nflev_l)
@@ -989,7 +989,7 @@ CONTAINS
 
 
   SUBROUTINE localizationSqrtAd(ensAmplitude_in,ensControlVector_out)
-    use glbspec_mod
+    use globalSpectralTransform
     implicit none
 
     real*8           :: ensControlVector_out(nla_l,2,nflev_l)
@@ -1120,5 +1120,5 @@ CONTAINS
   END SUBROUTINE cainAd
 
 
-END MODULE BMatrixEnsemble_mod
+END MODULE BMatrixEnsemble
 

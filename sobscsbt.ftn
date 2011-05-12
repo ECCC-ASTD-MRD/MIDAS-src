@@ -132,7 +132,7 @@ C
       END DO
 C
       IKOUNTT=0
-      DO JDATA=1,NDATA
+      DO JDATA=1,obsSpaceData%ndata
         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT

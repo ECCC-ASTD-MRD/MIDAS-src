@@ -1,6 +1,6 @@
       SUBROUTINE bsqrt_interface(na_vdim,da_v)
-      use bmatrixhi_mod
-      use bmatrixensemble_mod
+      use bMatrixHI
+      use bMatrixEnsemble
       implicit none 
 #include "pardim.cdk"
 #include "comdim.cdk"

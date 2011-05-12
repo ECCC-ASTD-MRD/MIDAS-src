@@ -97,7 +97,7 @@ subroutine tovs_obs(option,pjo)
 !     .    ----------------------------
 !     
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
-      DO JDATA=1,NDATA
+      DO JDATA=1,obsSpaceData%ndata
         obsSpaceData%ROBDATA8(NCMPRM,JDATA) = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
       ENDDO
   endif
@@ -108,7 +108,7 @@ subroutine tovs_obs(option,pjo)
 
   if ( option .eq. 'LR' ) then
 !    fill ROBDATA8(NCMPRM,..)  with Z'' = Z' + H(xb_lr) 
-     DO JDATA=1,NDATA
+     DO JDATA=1,obsSpaceData%ndata
        obsSpaceData%ROBDATA8(NCMPRM,JDATA) = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOER  &
            ,JDATA) + 2*obsSpaceData%ROBDATA8(NCMVAR,JDATA)
      ENDDO

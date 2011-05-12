@@ -83,13 +83,13 @@ C
       zgamma = 0.0065D0 / GRAV
       zexp = RGASD*zgamma
 C
-      DO JDATA=1,ndata
+      DO JDATA=1,obsSpaceData%ndata
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
           IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
           IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
           ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
           IDBURP = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
-          IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+          IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = RPPOBS(IK,IOBS)

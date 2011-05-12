@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE VCORDADJ(IDTYP,ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 #include "cparbrp.cdk"
 #include "cvcord.cdk"

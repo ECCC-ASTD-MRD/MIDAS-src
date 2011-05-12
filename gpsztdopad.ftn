@@ -226,7 +226,7 @@ C
 C  *     INTERPOLATE: 
 C
 C  *    Find eta level above observation height (adpated from routine
-C  *    VOBSLYRS, where result IK is stored in ROBDATA(NCMLYR,JDATA)).
+C  *    VOBSLYRS, where result IK is stored in MOBDATA(NCMLYR,JDATA)).
 C  *    If obs height matches height of a model eta level, then
 C  *    set IML=1 (levels match)
 C

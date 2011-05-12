@@ -73,7 +73,7 @@
 #endif
 C
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"

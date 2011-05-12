@@ -55,12 +55,12 @@
       REAL*8 DLSUM
       LOGICAL LLOK, LLPRINT, LLUV
 C
-      DO JDATA=1,ndata
+      DO JDATA=1,obsSpaceData%ndata
         IF (lmaskzp(jdata)) THEN
           IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
           IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
           ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-          IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+          IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = GOMGZG(IK,IOBS)/RG

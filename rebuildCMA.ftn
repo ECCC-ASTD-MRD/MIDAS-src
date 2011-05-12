@@ -41,6 +41,7 @@
 #include "cvcord.cdk"
 ! Declaire Local Variables. 
       CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
+      CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
       REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp,ROBDATA_tmp
       REAL*8,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
 
@@ -55,12 +56,13 @@
       WRITE(*,*) '============= Enter reBuildCMA =============='
       locObsize=size(locObsTag) 
 
+      ALLOCATE(cfamily_tmp(locObsize),STAT=ierr) 
       ALLOCATE(cstnid_tmp(locObsize),STAT=ierr) 
       ALLOCATE(ROBHDR_tmp(NCMLET,locObsize),STAT=ierr) 
       ALLOCATE(MOBHDR_tmp(NCMLET,locObsize),STAT=ierr) 
-      ALLOCATE(MOBDATA_tmp(NCMLBO,ndata_l),STAT=ierr) 
-      ALLOCATE(ROBDATA_tmp(NCMLBO,ndata_l),STAT=ierr) 
-      ALLOCATE(ROBDATA8_tmp(3:11,ndata_l),STAT=ierr) 
+      ALLOCATE(MOBDATA_tmp(NCMLBO,obsSpaceData%ndata_l),STAT=ierr) 
+      ALLOCATE(ROBDATA_tmp(NCMLBO,obsSpaceData%ndata_l),STAT=ierr) 
+      ALLOCATE(ROBDATA8_tmp(3:11,obsSpaceData%ndata_l),STAT=ierr) 
 !  
       call obs_allocateG(obsSpaceData,nobtot)
 !
@@ -90,9 +92,9 @@
          locObsTag=locObsTag_tmp
          DEALLOCATE(locObsTag_tmp)  
       ENDIF  
- !  nobtotp and ndatap are used in CMAABRP of POSTMIN . 
+ !  nobtotp and obsSpaceData%ndatap are used in CMAABRP of POSTMIN . 
       nobtotp=nobtot
-      ndatap=ndata
+      obsSpaceData%ndatap=obsSpaceData%ndata
 
 !! keep the Global ROBHDR and MOBHDR
       DO iobs=1,nobtotp
@@ -105,6 +107,7 @@
         ROBHDR_tmp(1:NCMLET,i)=obsSpaceData%ROBHDR(1:NCMLET,iobs)
         MOBHDR_tmp(1:NCMLET,i)=obsSpaceData%MOBHDR(1:NCMLET,iobs)
         cstnid_tmp(i) = obsSpaceData%cstnid(iobs) 
+        cfamily_tmp(i) = obsSpaceData%cfamily(iobs) 
         IF(i== 1) THEN
            MOBHDR_tmp(NCMRLN,1) = 1
         ELSE
@@ -127,26 +130,28 @@
         ENDDO 
       ENDDO 
  
-!     save the global nobtot and ndata to nobtotp and ndatap 
+!     save the global nobtot and obsSpaceData%ndata to nobtotp and obsSpaceData%ndatap 
       
       nobtot=locObsize  
-      ndata=ndata_l
+      obsSpaceData%ndata=obsSpaceData%ndata_l
       write(*,*) 'NOBTOT= ',nobtot 
       call obs_deallocate(obsSpaceData)
-      call obs_allocate(obsSpaceData,nobtot,ndata)
+      call obs_allocate(obsSpaceData,nobtot,obsSpaceData%ndata)
 !
       DO i=1,nobtot
+         obsSpaceData%cfamily(i)=cfamily_tmp(i) 
          obsSpaceData%cstnid(i)=cstnid_tmp(i) 
          obsSpaceData%ROBHDR(1:NCMLET,i)=ROBHDR_tmp(1:NCMLET,i)
          obsSpaceData%MOBHDR(1:NCMLET,i)=MOBHDR_tmp(1:NCMLET,i) 
       ENDDO 
 
-      DO i=1,ndata
+      DO i=1,obsSpaceData%ndata
          obsSpaceData%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
          obsSpaceData%MOBDATA(1:NCMLBO,i)=MOBDATA_tmp(1:NCMLBO,i) 
          obsSpaceData%ROBDATA(1:NCMLBO,i)=ROBDATA_tmp(1:NCMLBO,i)
       ENDDO 
 
+      deallocate(cfamily_tmp)
       deallocate(cstnid_tmp)
       deallocate(ROBHDR_tmp)
       deallocate(MOBHDR_tmp)

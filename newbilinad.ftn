@@ -37,7 +37,7 @@
 *  Revision: Luc Fillion - ARMA/EC - 16 Jun 2010 - Introduce 1obs interpolators to avoid treating MPI.
 *
 #endif
-      USE mpi_mod
+      use mpi
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"

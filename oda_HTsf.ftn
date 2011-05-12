@@ -17,7 +17,7 @@
       SUBROUTINE oda_HTsf
       use modmask, only : lmasksf_in,lmasksf_out
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
 #if defined (DOC)
 *
 ***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
@@ -104,12 +104,12 @@ C     Process all data within the domain of the model
 C
       DO J=1,ISTRIDE
 *vdir nodep
-        DO JDATA=j,ndata,ISTRIDE
+        DO JDATA=j,obsSpaceData%ndata,ISTRIDE
           IF (lmasksf_in(jdata)) THEN
             IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
             IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
             ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-            IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+            IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
             ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
             ZHHH = ZLEV * GRAV
             IPT  = NFLEV-1 + IPOS*NFLEV

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE ESTOHU(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comcst.cdk"

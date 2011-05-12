@@ -55,7 +55,7 @@
 ************************************************************************
 #endif
 *
-      USE mpi_mod 
+      use mpi 
       use obsSpaceData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
@@ -129,7 +129,7 @@ c
          IF ( CSAV(J) .EQ. 'FLG') NSAV(J)=NCMFLG
       END DO
 
-      NDATA=0
+      obsSpaceData%ndata=0
       NOBTOT=1
 C
       WRITE(NULOUT,'(1X,"SUBROUTINE FILBRPPOST")')
@@ -145,7 +145,7 @@ C
       NVALS=NFILES
       LLAPPEND=.FALSE.
       NOBTOT=0
-      NDATA=0
+      obsSpaceData%ndata=0
       DO J =1,NKOUNT
          NVTYP=J
          CBURP(J)  = CFILNAM(J)

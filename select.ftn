@@ -53,6 +53,7 @@
 ************************************************************************
 #endif
 *
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "comdim.cdk"
 #include "comlun.cdk"
@@ -87,7 +88,7 @@
       NVALS=NFILES
       LLAPPEND=.FALSE.
       NOBTOT=0
-       NDATA=0
+       obsSpaceData%ndata=0
       DO J =1,NVALS
          NVTYP=J
          CLVAL(J) = CFILNAM(J)
@@ -108,12 +109,12 @@
      +       '========================================================='
                WRITE(NULOUT,*)  ' '
 *
-               IBEG=NDATA+1
+               IBEG=obsSpaceData%ndata+1
 !
                CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
-               IF ( IBEG .LE. NDATA ) THEN
+               IF ( IBEG .LE. obsSpaceData%ndata ) THEN
                   NBEGINTYP(J)=IBEG
-                  NENDTYP(J) =NDATA
+                  NENDTYP(J) =obsSpaceData%ndata
                ELSE
                   NBEGINTYP(J)=-999
                   NENDTYP(J)  =-999

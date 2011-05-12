@@ -17,7 +17,7 @@
       SUBROUTINE oda_qcv
       use modmask, only : lmask,lmaskgo,lmaskro
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *
 *Purpose : 1) Modify Jo [ROBDATA8(NCMOMI,*)] according to
@@ -37,11 +37,11 @@
 *
       integer :: jdata,istyp,jj,jo,ityp,idata
       real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
-      logical :: lluv,llmask(ndata)
+      logical :: lluv,llmask(obsSpaceData%ndata)
 C
       llmask = lmask .neqv. lmaskgo  ! Exclusion of GOES QCVAR
       llmask = llmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,ndata
+      DO JDATA=1,obsSpaceData%ndata
         IF (llmask(jdata)) THEN
           jo = obsSpaceData%MOBDATA(NCMOBS,jdata)
           idata = obsSpaceData%MOBHDR(NCMRLN,JO)

@@ -49,7 +49,7 @@
 *          none
 #endif
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
@@ -93,7 +93,7 @@ C        ----------------------------------
 C
 C     1.1 PPP Vertical coordinate
 C
-         DO JDATA= 1,NDATA
+         DO JDATA= 1,obsSpaceData%ndata
             LLOK = ( (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1     .OR.
      &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU) .AND.
      &                obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2 )
@@ -137,7 +137,7 @@ cjmb     conversion (MRBCVT)  of observed pressure.
 C
 C     1.2 ZZZ Vertical coordinate
 C
-         DO JDATA= 1,NDATA
+         DO JDATA= 1,obsSpaceData%ndata
             LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
      &              obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
@@ -183,11 +183,11 @@ C           purposes......
 C
 C     2.1  PPP Vertical coordinate
 C
-         DO JDATA=1,NDATA
-            obsSpaceData%ROBDATA(NCMLYR,JDATA)=0
+         DO JDATA=1,obsSpaceData%ndata
+            obsSpaceData%MOBDATA(NCMLYR,JDATA)=0
          END DO
 C
-         DO JDATA= 1,NDATA
+         DO JDATA= 1,obsSpaceData%ndata
             LLOK = ( (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1     .OR.
      &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU) .AND.
      &                obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2 )
@@ -211,14 +211,14 @@ C
                  ZPT  = RPPOBS(IK,IOBS)
                  zpb=RPPOBS(IK+1,IOBS)
                ENDIF
-               obsSpaceData%ROBDATA(NCMLYR,JDATA)= IK
+               obsSpaceData%MOBDATA(NCMLYR,JDATA)= IK
 ****************************************************************
                if (LLPRINT .AND. obsSpaceData%cstnid(iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs PPP:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',pppobs(ik+1,),pppobs(ik,),rdata(lyr,),CDMVO '
      &                ,jdata,iobs,obsSpaceData%cstnid(iobs),ityp,ik,zlev,ZPB,ZPT
-     &                ,obsSpaceData%ROBDATA(NCMLYR,JDATA),CDMVO
+     &                ,obsSpaceData%MOBDATA(NCMLYR,JDATA),CDMVO
                endif
 *****************************************************************
              ENDIF
@@ -226,7 +226,7 @@ C
 C
 C     2.2  ZZZ Vertical coordinate and surface observations
 C
-         DO JDATA= 1,NDATA
+         DO JDATA= 1,obsSpaceData%ndata
             LLOK = ( (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1     .OR.
      &                obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHS) .AND.
      &                obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 )
@@ -260,14 +260,14 @@ C
                    IK=NFLEV-1
                  ENDIF
                ENDIF
-               obsSpaceData%ROBDATA(NCMLYR,JDATA)= IK
+               obsSpaceData%MOBDATA(NCMLYR,JDATA)= IK
 ****************************************************************
                    if (LLPRINT .AND. obsSpaceData%cstnid(iobs) .eq. '72562') then
                      ZPB  = GOMGZHR(IK+1,IOBS)/RG
                      write(nulout,*) 'vobslyrs ZZZ:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',GZ(ik,),GZ(ik+1,),rdata(lyr,),CDMVO '
      &                    ,jdata,iobs,obsSpaceData%cstnid(iobs),ityp,ik,zlev,ZPT,ZPB
-     &                    ,obsSpaceData%ROBDATA(NCMLYR,JDATA),CDMVO
+     &                    ,obsSpaceData%MOBDATA(NCMLYR,JDATA),CDMVO
                    endif
 *****************************************************************
              ENDIF
@@ -298,7 +298,7 @@ C
                             IF( ZLEV .GT. ZPT ) IK = JK
                           END DO
                         ENDIF
-                        obsSpaceData%ROBDATA(NCMLYR,JDATA)= obsSpaceData%ROBDATA(NCMLYR,JDATA)
+                        obsSpaceData%MOBDATA(NCMLYR,JDATA)= obsSpaceData%MOBDATA(NCMLYR,JDATA)
      &                       + 1000 * IK
                      ENDIF
 ****************************************************************

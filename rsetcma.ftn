@@ -32,7 +32,7 @@
 *
 #endif
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
@@ -42,7 +42,7 @@ C
 C-------     READ H(X)-Z IN zprim.dat
 C
       call obs_swapVarOmf(obsSpaceData)
-      do JDATA=1,NDATA
+      do JDATA=1,obsSpaceData%ndata
          IASS   = obsSpaceData%MOBDATA(NCMASS,JDATA)
          ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
          IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN

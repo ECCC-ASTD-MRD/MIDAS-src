@@ -42,7 +42,7 @@
 *Arguments: none
 *
 #endif
-      USE mpi_mod
+      use mpi
       use obsSpaceData_mod
       IMPLICIT NONE
 *implicits

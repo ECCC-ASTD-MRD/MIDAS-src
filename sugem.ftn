@@ -30,7 +30,7 @@ C     --------------
 *                    - add namelist, NAMSHARED_AAI_3DV
 #endif
 C
-      use glbspec_mod
+      use globalSpectralTransform
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"

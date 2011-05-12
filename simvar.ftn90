@@ -18,7 +18,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
   use oda_shared, only : dg_vbar
   use mod4dv, only : l4dvar
 !modular1  use modstag, only : lstagwinds
-  USE mpi_mod
+  use mpi
   use obsSpaceData_mod
   implicit none
   ! Argument declarations

@@ -35,7 +35,7 @@
 *
 #endif
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
       CHARACTER *2 CDFAM
 *implicits
@@ -111,7 +111,7 @@ c
                   IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
                   ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
                   ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'

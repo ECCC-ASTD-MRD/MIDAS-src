@@ -17,7 +17,7 @@
       SUBROUTINE oda_maskpp(CDFAM)
       use modmask, only : lmaskpp_in, lmaskpp_out, lmask,ldiagpp, ldiag
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 * Argument declarations
       CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)

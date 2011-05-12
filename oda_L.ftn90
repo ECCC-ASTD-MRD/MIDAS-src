@@ -16,7 +16,7 @@
 !
 subroutine oda_L
   use mod4dv, only : l4dvar
-  USE mpi_mod 
+  use mpi 
   implicit none
   !
   !Purpose: Localisation (3D) / Tangent Linear Model (4D) operator

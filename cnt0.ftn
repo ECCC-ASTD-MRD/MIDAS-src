@@ -21,7 +21,7 @@
 *
 *
 #endif
-      USE mpi_mod  
+      use mpi  
       IMPLICIT NONE
 *     implicits
 #include "comct0.cdk"

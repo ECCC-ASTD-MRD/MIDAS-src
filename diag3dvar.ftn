@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE DIAG3DVAR
-      use glbspec_mod
+      use globalSpectralTransform
 #if defined (DOC)
 *
 ***s/r DIAG3DVAR  - diagnostics in the post-processing of the model state
@@ -57,7 +57,7 @@
 *     .                           COMSP)
 #endif
 C
-      use glbspec_mod
+      use globalSpectralTransform
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"

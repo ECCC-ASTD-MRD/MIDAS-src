@@ -46,7 +46,7 @@
 ************************************************************************
 #endif
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *
 #include "comlun.cdk"

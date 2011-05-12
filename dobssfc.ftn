@@ -60,7 +60,7 @@
 *
 #endif
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM
@@ -189,7 +189,7 @@ c                ENDIF
                   ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
                   ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
                   ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
                   IXTR = obsSpaceData%MOBDATA(NCMXTR,JDATA)
                   ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                   ZHHH = ZLEV * GRAV
@@ -239,7 +239,7 @@ c                ENDIF
                   ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
                   ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
                   ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
                   IXTR = obsSpaceData%MOBDATA(NCMXTR,JDATA)
                   ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
                   ZHHH = ZLEV * GRAV

@@ -29,7 +29,7 @@
 *Arguments: none
 *
 #endif
-      USE mpi_mod  
+      use mpi  
       USE obstag 
       IMPLICIT NONE
 *implicits
@@ -148,12 +148,12 @@
       ENDIF !! end if(l4dvar)  
 
    !! Calculate the size of the local obs data  
-      ndata_l=0
+      obsSpaceData%ndata_l=0
       IF(length_l<=0) CALL ABORT3D(nulout,'Zero lenght of ObsTag,Abort!') 
       DO i=1,length_l
        iobs=locObsTag(i)
        idata= obsSpaceData%MOBHDR(NCMNLV,iobs) 
-       ndata_l = ndata_l + idata
+       obsSpaceData%ndata_l = obsSpaceData%ndata_l + idata
       ENDDO 
 
       write(nulout,*) ' '

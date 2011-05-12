@@ -44,6 +44,7 @@
 *
 #endif
 C
+      use obsSpaceData_mod
       IMPLICIT NONE
 #include "pardimo.cdk"
 #include "comct0.cdk"
@@ -91,7 +92,7 @@ C
  200  CONTINUE
          NMXOBF  = 1
          NOBTOT  = NMXOBS
-         NDATA   = NDATAMX
+         obsSpaceData%ndata   = NDATAMX
          NOBFNUM = NMXOBF
 C
 C* In this configuration, obs. are read from a file which should contain
@@ -101,7 +102,7 @@ C*    ****** NOT YET IMPLEMENTED ************
 C
       WRITE(KULOUT,*)' DIMENSIONS OF OBSERVATION ARRAYS:'
       WRITE(UNIT=KULOUT,FMT=9210)
-     S     NMXOBS, NOBTOT, NDATA,NDATAMX, NMXOBF, NOBFNUM
+     S     NMXOBS, NOBTOT, obsSpaceData%ndata,NDATAMX, NMXOBF, NOBFNUM
  9210 FORMAT(4X,'  NMXOBS =',I6,' NOBTOT    =',I6,' NDATA = ',I6
      S     ,' NDATAMX =',I6,' NMXOBF =',I6,' NOBFNUM =',I6)
 C

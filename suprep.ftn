@@ -113,9 +113,9 @@ C assimilated
 #endif
 
       Use mod_tovs
-      use glbspec_mod
+      use globalSpectralTransform
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *implicits
 *
@@ -829,7 +829,7 @@ C
 C
 C-----------------------------------------------------------------------
 C
-      DO JDATA=1,NDATA
+      DO JDATA=1,obsSpaceData%ndata
         ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
         IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
         IF ( ITYP .EQ. BUFR_NEUU) obsSpaceData%MOBDATA(NCMPOS,JDATA) = nouu - 1
@@ -935,14 +935,14 @@ C
       WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
       WRITE(NULOUT,'(1X,"****************************************** ",/)')
 C
-C     SUM OVER ALL BINS SHOULD BE EQUAL TO NDATA
+C     SUM OVER ALL BINS SHOULD BE EQUAL TO obsSpaceData%ndata
 C
       isum=0
       do jk=1,16
         isum=isum+ibin(jk)
       enddo
       ISUM = ISUM + IBINS
-      write(nulout,*) ' isum ndata  ',isum,ndata
+      write(nulout,*) ' isum obsSpaceData%ndata  ',isum,obsSpaceData%ndata
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF (IKNT .EQ. 0 ) THEN

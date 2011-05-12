@@ -39,10 +39,10 @@
 #include "comdimo.cdk"
 *
       INTEGER j,JDATA
-      logical :: llmask(ndata)
+      logical :: llmask(obsSpaceData%ndata)
       llmask = lmask .neqv. lmaskgo  ! Exclusion of GOES QCVAR
       llmask = llmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,ndata
+      DO JDATA=1,obsSpaceData%ndata
         IF (llmask(jdata)) THEN
           obsSpaceData%ROBDATA8(NCMOMI,JDATA) = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
      &         *(1.d0 - obsSpaceData%ROBDATA8(NCMOMN,JDATA))

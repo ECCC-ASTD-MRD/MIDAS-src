@@ -109,7 +109,7 @@ C
 C
 C                 CALCULATE PHI AT REFERENCE LEVEL
 C
-              IK   = obsSpaceData%ROBDATA(NCMLYR,JDATA)/1000
+              IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)/1000
               IPT  = IK + IPOS*NLEVTRL
               IPB  = IPT + 1
               IF ( IK .EQ. NLEVTRL) THEN
@@ -147,7 +147,7 @@ C
 C
 C                 CALCULATE PHI AT PRESSURE  LEVEL
 C
-              IK   = MOD ( obsSpaceData%ROBDATA(NCMLYR,JDATA),1000. )
+              IK   = MOD ( real(obsSpaceData%MOBDATA(NCMLYR,JDATA)),1000. )
               IPT  = IK + IPOS*NLEVTRL
               IPB  = IPT + 1
               ZPT  = RPPOBSHR(IK,IOBS)
@@ -206,7 +206,7 @@ c
 C
 C                 CALCULATE PHI AT PRESSURE  LEVEL
 C
-              IK   = MOD ( obsSpaceData%ROBDATA(NCMLYR,JDATA),1000. )
+              IK   = MOD ( real(obsSpaceData%MOBDATA(NCMLYR,JDATA)),1000. )
               IPT  = IK + IPOS*NLEVTRL
               IPB  = IPT + 1
               ZPT  = RPPOBSHR(IK,IOBS)

@@ -127,7 +127,7 @@ c
                                 !Select calls  BRPCMA
                                 ! 1. Positioning of data records within ROBDATA/MOBDATA
       CALL SELECT               ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
-                                ! 3. Incrementation of NOBTOT and NDATA based on data selected
+                                ! 3. Incrementation of NOBTOT and obsSpaceData%ndata based on data selected
 *
 *     4. SYNTHOBS:  a new family, SYNTH is introduced to handle synthetic data on top of existing observations
 *     .             If no other observations are used, it performs the usual single observation experiment.

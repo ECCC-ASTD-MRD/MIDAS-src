@@ -40,7 +40,7 @@ SUBROUTINE oda_res
   integer jdata
 !
 !!
-    DO JDATA=1,ndata
+    DO JDATA=1,obsSpaceData%ndata
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           obsSpaceData%ROBDATA8(NCMOMA,JDATA) = obsSpaceData%ROBDATA8(NCMOMA,JDATA)-obsSpaceData%ROBDATA8(NCMVAR,JDATA)
        ENDIF

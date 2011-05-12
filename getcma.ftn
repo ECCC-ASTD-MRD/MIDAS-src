@@ -17,7 +17,7 @@
       SUBROUTINE GETCMA(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
      +          KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL)
       use obsSpaceData_mod
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
 *
       INTEGER KNDAT,KRVAL
@@ -97,7 +97,7 @@
 *
       ZFACT =VCONV
 *
-      IP    =NDATA + 1
+      IP    =obsSpaceData%ndata + 1
       IND   =0
 *
 ************************************************************************
@@ -124,7 +124,7 @@
                   IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 Cpik
                         IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
-                          IF ( IP + IND .LE. NDATAP ) THEN
+                          IF ( IP + IND .LE. obsSpaceData%ndataP ) THEN
                             ZERR=  obsSpaceData%ROBDATA(NCMOER,IP+IND)
                             ZSTAT= obsSpaceData%ROBDATA(KRVAL, IP+IND)
                             IFLG=  obsSpaceData%MOBDATA(NCMFLG,IP+IND)
@@ -178,7 +178,7 @@ Cpik
                          ELSE
 *==================================================
                             KNDAT = IND
-                            NDATA = NDATA + KNDAT
+                            obsSpaceData%ndata = obsSpaceData%ndata + KNDAT
 *==================================================
                             RETURN
                           ENDIF
@@ -190,7 +190,7 @@ Cpik
          END DO
 *=============================
       KNDAT = IND
-      NDATA = NDATA + KNDAT
+      obsSpaceData%ndata = obsSpaceData%ndata + KNDAT
 *=============================
 *
       RETURN

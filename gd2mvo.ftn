@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE GD2MVO(CDVARNAME,klev)
-      use glbspec_mod
+      use globalSpectralTransform
       use obsSpaceData_mod
 *
 #if defined (DOC)
@@ -172,8 +172,6 @@ C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     *    TO THE WEST (ILON AND ILOS).
 C
          call obs_getHeader(obsSpaceData,jobs,val_TLA=ila)
-!         ILA=obsSpaceData%MOBHDR(NCMTLA,JOBS)
-
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI

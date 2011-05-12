@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine postmin
-      use glbspec_mod
+      use globalSpectralTransform
       use mod4dv, only : l4dvar
       use obsSpaceData_mod
 !modular1      use modstag, only : lstagwinds
@@ -52,7 +52,7 @@
 *Arguments
 *    -NONE-
 #endif
-      USE mpi_mod
+      use mpi
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"

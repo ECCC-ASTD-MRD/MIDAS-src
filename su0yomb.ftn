@@ -38,7 +38,7 @@ C                      Introduce normal modes.
 *         L. Fillion ARMA/EC  4 May 2010 - Upgrade to v_11_01_2b.
 *
 #endif
-      use glbspec_mod
+      use globalSpectralTransform
       use mod4dv, only : l4dvar
 !modular1      use modstag, only: lstagwinds
       IMPLICIT NONE

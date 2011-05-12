@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE GD2MVOAD (cdvarname,klev)
-      use glbspec_mod
+      use globalSpectralTransform
 *
 #if defined (DOC)
 *
