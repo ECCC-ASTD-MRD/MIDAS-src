@@ -17,7 +17,7 @@
       SUBROUTINE oda_masksf(CDFAM)
       use modmask, only : lmasksf_in, lmasksf_out, lmask, ldiagsf, ldiag
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
 #if defined (DOC)
 *
 *Purpose : Defines a mask of assimilated data

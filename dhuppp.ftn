@@ -32,7 +32,7 @@
 *
 #endif
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
       IMPLICIT NONE
       CHARACTER *2 CDFAM
 *implicits

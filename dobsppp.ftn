@@ -30,7 +30,7 @@
 !
 #endif
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM

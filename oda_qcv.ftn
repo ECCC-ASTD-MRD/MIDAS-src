@@ -17,7 +17,7 @@
       SUBROUTINE oda_qcv
       use modmask, only : lmask,lmaskgo,lmaskro
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
       IMPLICIT NONE
 *
 *Purpose : 1) Modify Jo [ROBDATA8(NCMOMI,*)] according to

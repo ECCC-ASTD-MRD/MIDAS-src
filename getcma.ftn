@@ -17,7 +17,7 @@
       SUBROUTINE GETCMA(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
      +          KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL)
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
       IMPLICIT NONE
 *
       INTEGER KNDAT,KRVAL

@@ -17,7 +17,7 @@
       SUBROUTINE oda_maskgp
       use modmask, only : lmaskgp, lmask
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
 #if defined (DOC)
 *
 *Purpose : Defines a mask of assimilated data for GP family ZTD data

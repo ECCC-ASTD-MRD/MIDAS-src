@@ -115,7 +115,7 @@ C assimilated
       Use mod_tovs
       use globalSpectralTransform
       use obsSpaceData_mod
-      use bufr_mod
+      use bufr
       IMPLICIT NONE
 *implicits
 *
