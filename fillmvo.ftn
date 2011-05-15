@@ -40,12 +40,14 @@
 *             KNOBS (integer)     : number of observation profiles in variable PVAR
 *
 #endif
+      use profileData_mod 
+#include "commvo.cdk"
       implicit none
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 #include "commvohr.cdk"
 #include "comgem.cdk"
@@ -57,8 +59,6 @@ c
       character*2 cdvar,cdmvo
 c
       integer jobs,jlev,inlev,istep
-      real*8 zpty(1)
-      pointer (ptr,zpty)
 c
       if(cdmvo.eq.'HR') then
         inlev = nlevtrl
@@ -70,150 +70,184 @@ c
 c
       if (cdvar.eq.'PP') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(rppobshr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(rppobs(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1,inlev
-            zpty((jobs-1)*inlev+jlev) = pvar(jlev,jobs)
+          do jobs = 1,nobtot
+            do jlev = 1,inlev
+              rppobshr(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1,inlev
+              rppobs(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'LV') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(vlevhr(1))
+          do jlev = 1,inlev
+            vlevhr(jlev) = pvar(jlev,1)
+          enddo
         elseif(cdmvo.eq.'BG') then
-          ptr = loc(vlev(1))
+          do jlev = 1,inlev
+            vlev(jlev) = pvar(jlev,1)
+          enddo
         endif
-        do jlev = 1,inlev
-          zpty(jlev) = pvar(jlev,1)
-        enddo
       elseif(cdvar.eq.'HY') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(vhybhr(1))
+          do jlev = 1,inlev
+            vhybhr(jlev) = pvar(jlev,1)
+          enddo
         elseif(cdmvo.eq.'BG') then
-          ptr = loc(vhybinc(1))
+          do jlev = 1,inlev
+            vhybinc(jlev) = pvar(jlev,1)
+          enddo
         endif
-        do jlev = 1,inlev
-          zpty(jlev) = pvar(jlev,1)
-        enddo
       elseif(cdvar.eq.'UU') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomuhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomug(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)*rmsknt
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomuhr(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomug(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'VV') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomvhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomvg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)= pvar(jlev,jobs)*rmsknt
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomvhr(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomvg(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'GZ') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomgzhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomgzg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)*10.*rg
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomgzhr(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomgzg(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'HU') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomqhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomqg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)= log(max(pvar(jlev,jobs),rhumin))
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomqhr(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomqg(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'LQ') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomqhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomqg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev) = pvar(jlev,jobs)
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomqhr(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomqg(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'ES') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomeshr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomesg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomeshr(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomesg(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'TT') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomthr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomtg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs) + tcdk
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomthr(jlev,jobs) = pvar(jlev,jobs) + tcdk
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomtg(jlev,jobs) = pvar(jlev,jobs) + tcdk
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'OZ') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomozhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomozg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomozhr(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomozg(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'TR') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomtrhr(1,1))
-        elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomtrg(1,1))
-        endif
-        do jobs = 1,nobtot
-          do jlev = 1, inlev
-            zpty((jobs-1)*istep+jlev)=pvar(jlev,jobs)
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomtrhr(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        elseif(cdmvo.eq.'BG') then
+          do jobs = 1,nobtot
+            do jlev = 1, inlev
+              gomtrg(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'P0') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gompshr(1,1))
+          do jobs = 1,nobtot
+            gompshr(1,jobs)=pvar(1,jobs)*rmbtpa
+          enddo
         elseif(cdmvo.eq.'BG') then
-          ptr = loc(gompsg(1,1))
+          do jobs = 1,nobtot
+            gompsg(1,jobs)=pvar(1,jobs)*rmbtpa
+          enddo
         endif
-        do jobs = 1,nobtot
-          zpty((jobs-1)*istep+1)=pvar(1,jobs)*rmbtpa
-        enddo
       elseif(cdvar.eq.'TG') then
         if(cdmvo.eq.'HR') then
-          ptr = loc(gomtgrhr(1,1))
+          do jobs = 1,nobtot
+            gomtgrhr(1,jobs)=pvar(1,jobs)
+          enddo
         elseif(cdmvo.eq.'BG') then
-          ptr = loc(gomtgrg(1,1))
+          do jobs = 1,nobtot
+            gomtgrg(1,jobs)=pvar(1,jobs)
+          enddo
         endif
-        do jobs = 1,nobtot
-          zpty((jobs-1)*istep+1)=pvar(1,jobs)
-        enddo
       endif
 c
       return

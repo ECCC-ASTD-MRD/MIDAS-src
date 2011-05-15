@@ -17,6 +17,8 @@
       SUBROUTINE oda_Hzp
       use modmask, only : lmaskzp
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 * Purpose: Compute simulated profiler observations from profiled model
@@ -43,7 +45,7 @@
 #include "comcst.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 *
       INTEGER IPB,IPT,IDBURP

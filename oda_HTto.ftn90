@@ -32,12 +32,14 @@ subroutine oda_HTto
 !arguments
 !
 #endif
-
+  use profileData_mod 
+#include "commvo.cdk"
   implicit none
 !implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "commvo.cdk"
+
+#include "commvo1.cdk"
 
 !     1.   Getting the adjoint of the residuals
 !     .    ----------------------------------
@@ -53,9 +55,8 @@ subroutine oda_HTto
 !     3.   Adjoint of preparation of atmospheric profiles
 !     .    ----------------------------------------------
 !
+
   call tovs_fill_profiles_ad(gomu,gomv,gomt,gomq,gomps,gomtgr, &
  &                     rppobs,nkgdimo,nflev)
-
-  return
 
 end subroutine oda_HTto

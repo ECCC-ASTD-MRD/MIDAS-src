@@ -44,8 +44,6 @@
 *                 .Introduction of distinc pointer for integer
 *                  and real cma arrays (ptmobhdr,ptrobhdr,ptmobdata
 *                  ,ptrobdata)
-*     S. Pellerin *ARMA/SMC Nov. 2001
-*          - Deallocation of MVAR and PEXY (4Dvar book keeping vectors)
 *     Bin He  *ARMA/SMC DEC. 2006
 *          - only keep the release of the memory pointed by PTGD. The remain memory
 *          release moved to subroutine "memfree" which is called before varout   
@@ -64,6 +62,8 @@
 *
 #endif
 C
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -84,7 +84,7 @@ C     ----------------------------------------
 #include "comdimo.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"

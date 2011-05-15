@@ -33,12 +33,14 @@
 *
 *Arguments
 #endif
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comdimo.cdk"
-#include "commvo.cdk"
+
 #include "comstate.cdk"
 *modules
 *

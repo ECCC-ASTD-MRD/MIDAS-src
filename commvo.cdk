@@ -29,25 +29,22 @@ C     GOMPS(1   ,NMXOBS) :  surface pressure
 C     GOMTGR(1  ,NMXOBS) :  ground temperature
 C
 #endif
- 
-      integer mtag(nmxobs), npexy(nmxobs)
 
-      REAL*8 GOMOBS(NKGDIMO,NOBTOT)
+!      real*8,pointer :: gomobs(:,:)
+!      real*8,pointer :: gomu(:,:)
+!      real*8,pointer :: gomv(:,:)
+!      real*8,pointer :: gomt(:,:)
+!      real*8,pointer :: gomq(:,:)
+!      real*8,pointer :: gomoz(:,:)
+!      real*8,pointer :: gomgz(:,:)
+!      real*8,pointer :: gomtr(:,:)
+!      real*8,pointer :: gomes(:,:)
+!      real*8,pointer :: gomps(:,:)
+!      real*8,pointer :: gomtgr(:,:)
+!      real*8,pointer :: rppobs(:,:)
+!      real*8,pointer :: rmthobs(:)
+!      real*8,pointer :: rmtmobs(:)
 
-      REAL*8 GOMU(NKGDIMO,NOBTOT), GOMV(NKGDIMO,NOBTOT)
-      REAL*8 GOMT(NKGDIMO,NOBTOT), GOMQ(NKGDIMO,NOBTOT)
-      REAL*8 GOMOZ(NKGDIMO,NOBTOT), GOMGZ(NKGDIMO,NOBTOT)
-      REAL*8 GOMTR(NKGDIMO,NOBTOT), gomes(nkgdimo,NOBTOT)
-      REAL*8 GOMPS(NKGDIMO,NOBTOT), RPPOBS(NFLEV,NOBTOT)
-      REAL*8 RMTHOBS(NOBTOT), RMTMOBS(NOBTOT), GOMTGR(NKGDIMO,NOBTOT)
-
-      POINTER (PTMOBS,GOMOBS), (PTOMU,GOMU),(PTOMV,GOMV)
-      POINTER (PTOMT,GOMT),(PTOMQ,GOMQ), (PTOMPS,GOMPS),(ptpexy,npexy)
-      POINTER (PTOMGZ,GOMGZ), (PTOMOZ,GOMOZ), (PTOMTR,GOMTR)
-      POINTER (PTOMES,GOMES),(PTPPOBS,RPPOBS), (ptmtag,mtag)
-      POINTER (PTMTHOBS,RMTHOBS),(PTMTMOBS,RMTMOBS),(PTOMTGR,GOMTGR)
-      COMMON /POMMVO/PTMOBS, PTOMU, PTOMV, PTOMT, PTOMQ, PTOMPS
-
-      COMMON /POMMVO/PTOMGZ, PTOMOZ, PTOMTR, ptomes,PTPPOBS
-      COMMON /POMMVO/PTMTHOBS,PTMTMOBS,PTOMTGR, ptmtag, ptpexy
-
+!      COMMON /POMMVO/GOMOBS, GOMU, GOMV, GOMT, GOMQ, GOMPS
+!      COMMON /POMMVO/GOMGZ, GOMOZ, GOMTR, Gomes,RPPOBS
+!      COMMON /POMMVO/RMTHOBS,RMTMOBS,GOMTGR

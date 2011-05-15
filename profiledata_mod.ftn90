@@ -1,0 +1,28 @@
+module profileData_mod
+  implicit none
+  save
+!  private
+
+!  public :: profileData
+
+!  type struct_profileData
+    real*8,pointer :: gomobs(:,:)
+    real*8,pointer :: gomu(:,:)
+    real*8,pointer :: gomv(:,:)
+    real*8,pointer :: gomt(:,:)
+    real*8,pointer :: gomq(:,:)
+    real*8,pointer :: gomoz(:,:)
+    real*8,pointer :: gomgz(:,:)
+    real*8,pointer :: gomtr(:,:)
+    real*8,pointer :: gomes(:,:)
+    real*8,pointer :: gomps(:,:)
+    real*8,pointer :: gomtgr(:,:)
+    real*8,pointer :: rppobs(:,:)
+    real*8,pointer :: rmthobs(:)
+    real*8,pointer :: rmtmobs(:)
+!  end type struct_profileData
+
+!  type(struct_profileData) :: profileData
+
+
+end module profileData_mod

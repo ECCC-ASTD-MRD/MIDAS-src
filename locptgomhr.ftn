@@ -41,88 +41,108 @@ C
 c
       integer iloc,jvar
 c
-      call hpalloc(ptmobshr,nkgdimohr*nobtot,ier,8)
-      call hpalloc(ptvlevhr,nlevtrl,ier,8)
-      call hpalloc(ptvhybhr,nlevtrl,ier,8)
-      call hpalloc(ptppobshr,nlevtrl*nobtot,ier,8)
+!      call hpalloc(ptmobshr,nkgdimohr*nobtot,ier,8)
+!      call hpalloc(ptvlevhr,nlevtrl,ier,8)
+!      call hpalloc(ptvhybhr,nlevtrl,ier,8)
+!      call hpalloc(ptppobshr,nlevtrl*nobtot,ier,8)
+      allocate(gomobshr(nkgdimohr,nobtot))
+      allocate(vlevhr(nlevtrl))
+      allocate(vhybhr(nlevtrl))
+      allocate(rppobshr(nlevtrl,nobtot))
 c
-      call hpalloc(ptvmahr, nlevtrl,ier,8)
-      call hpalloc(ptvmbhr, nlevtrl,ier,8)
-      call hpalloc(ptvmchr, nlevtrl,ier,8)
-      call hpalloc(ptvmdhr, nlevtrl,ier,8)
-      call hpalloc(ptvmehr, nlevtrl,ier,8)
-      call hpalloc(ptvmfhr, nlevtrl,ier,8)
+!      call hpalloc(ptvmahr, nlevtrl,ier,8)
+!      call hpalloc(ptvmbhr, nlevtrl,ier,8)
+!      call hpalloc(ptvmchr, nlevtrl,ier,8)
+!      call hpalloc(ptvmdhr, nlevtrl,ier,8)
+!      call hpalloc(ptvmehr, nlevtrl,ier,8)
+!      call hpalloc(ptvmfhr, nlevtrl,ier,8)
+      allocate(vmahr(nlevtrl))
+      allocate(vmbhr(nlevtrl))
+      allocate(vmchr(nlevtrl))
+      allocate(vmdhr(nlevtrl))
+      allocate(vmehr(nlevtrl))
+      allocate(vmfhr(nlevtrl))
 c
-      ptomuhr  = -1
-      ptomvhr  = -1
-      ptomthr  = -1
-      ptomqhr  = -1
-      ptomgzhr = -1
-      ptomozhr = -1
-      ptomeshr = -1
-      ptomtrhr = -1
-      ptompshr = -1
-      ptomtgrhr= -1
+!      ptomuhr  = -1
+!      ptomvhr  = -1
+!      ptomthr  = -1
+!      ptomqhr  = -1
+!      ptomgzhr = -1
+!      ptomozhr = -1
+!      ptomeshr = -1
+!      ptomtrhr = -1
+!      ptompshr = -1
+!      ptomtgrhr= -1
 c
       iloc = 1
       do jvar = 1, jpnvarmax
         if(jvar.eq.nouu) then
           if(nmvoexist(nouu).eq.1) then
-            ptomuhr  = loc(gomobshr(iloc,1))
+!            ptomuhr  = loc(gomobshr(iloc,1))
+            gomuhr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.novv) then
           if(nmvoexist(novv).eq.1) then
-            ptomvhr = loc(gomobshr(iloc,1))
+!            ptomvhr = loc(gomobshr(iloc,1))
+            gomvhr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.nogz) then
           if(nmvoexist(nogz).eq.1) then
-            ptomgzhr = loc(gomobshr(iloc,1))
+!            ptomgzhr = loc(gomobshr(iloc,1))
+            gomgzhr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.noq) then
           if(nmvoexist(noq).eq.1) then
-            ptomqhr  = loc(gomobshr(iloc,1))
+!            ptomqhr  = loc(gomobshr(iloc,1))
+            gomqhr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.nott) then
           if(nmvoexist(nott).eq.1) then
-            ptomthr  = loc(gomobshr(iloc,1))
+!            ptomthr  = loc(gomobshr(iloc,1))
+            gomthr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.nooz) then
           if(nmvoexist(nooz).eq.1) then
-            ptomozhr = loc(gomobshr(iloc,1))
+!            ptomozhr = loc(gomobshr(iloc,1))
+            gomozhr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.notr) then
           if(nmvoexist(notr).eq.1) then
-            ptomtrhr = loc(gomobshr(iloc,1))
+!            ptomtrhr = loc(gomobshr(iloc,1))
+            gomtrhr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.noes) then
           if(nmvoexist(noes).eq.1) then
-            ptomeshr = loc(gomobshr(iloc,1))
+!            ptomeshr = loc(gomobshr(iloc,1))
+            gomeshr => gomobshr(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
         if(jvar.eq.nops) then
           if(nmvoexist(nops).eq.1) then
-            ptompshr = loc(gomobshr(iloc,1))
+!            ptompshr = loc(gomobshr(iloc,1))
+            gompshr => gomobshr(iloc:iloc,:)
             iloc = iloc + 1
           endif
         endif
         if(jvar.eq.notg) then
           if(nmvoexist(notg).eq.1) then
-            ptomtgrhr = loc(gomobshr(iloc,1))
+!            ptomtgrhr = loc(gomobshr(iloc,1))
+            gomtgrhr => gomobshr(iloc:iloc,:)
             iloc = iloc + 1
           endif
         endif

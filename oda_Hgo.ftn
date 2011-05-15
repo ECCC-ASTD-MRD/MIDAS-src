@@ -17,6 +17,8 @@
       SUBROUTINE oda_Hgo
       use modmask, only : lmaskgo
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 * Purpose: Compute simulated GOES observations from profiled model increments.
@@ -39,7 +41,7 @@
 #include "comdimo.cdk"
 
 
-#include "commvo.cdk"
+
 #include "cparamgoes.cdk"
 #include "comjacgoes.cdk"
 *

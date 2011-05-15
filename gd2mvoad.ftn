@@ -16,6 +16,7 @@
 !
       SUBROUTINE GD2MVOAD (cdvarname,klev)
       use globalSpectralTransform
+      use profileData_mod 
 *
 #if defined (DOC)
 *
@@ -55,9 +56,10 @@
 #include "comgem.cdk"
 #include "comgd0.cdk"
 #include "comcst.cdk"
-
-
 #include "commvo.cdk"
+
+
+
 *
 *     Arguments
 *
@@ -106,6 +108,7 @@
       CASE('TR')
          CALL GetGomarr(GOMARR,GOMTR)
       CASE('UU')
+!         CALL GetGomarr(GOMARR,profileData%GOMU)
          CALL GetGomarr(GOMARR,GOMU)
       CASE('VV')
          CALL GetGomarr(GOMARR,GOMV)
@@ -275,8 +278,8 @@ C
       CONTAINS
          SUBROUTINE GetGOMARR(Arr_g,Arr_l)  
            REAL*8,DIMENSION(klev,nobtotp) :: arr_g
-           REAL*8,DIMENSION(nkgdimo,nobtot) :: arr_l
-         
+           REAL*8,DIMENSION(klev,nobtot) :: arr_l
+
            INTEGER :: i,j,iobs ,ierr  
            INTEGER :: ArrSize
            arr_g(1:klev,1:nobtotp)=0.0D0

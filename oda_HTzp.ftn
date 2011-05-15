@@ -17,6 +17,8 @@
       SUBROUTINE oda_HTzp
       use modmask, only : lmaskzp
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 ***s/r AOBSZZZ  - Adjoint of the "vertical" interpolation in z
@@ -48,7 +50,7 @@
 #include "comcst.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 *
       INTEGER IPB,IPT, IDBURP,  ITYP

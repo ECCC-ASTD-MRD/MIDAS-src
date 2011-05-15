@@ -33,6 +33,8 @@ C  - CGPSSTN in namelist (comgpsgb.cdk) is desired observation site name
 C    for 1 obs case
 C
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -42,7 +44,7 @@ C
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "comct0.cdk"
-#include "commvo.cdk"
+
 #include "commvohr.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"

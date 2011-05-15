@@ -15,9 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE SUALOBSB(KULOUT)
-!      use modmask, only : lmaskpp_in, lmaskpp_out,lmasksf_in,lmasksf_out
-!      use modmask, only : lmask,lmaskto,lmaskgo,lmaskro,lmaskzp,ldiagpp
-!      use modmask, only : ldiagsf, ldiag
 #if defined (DOC)
 *
 ***s/r SUALOBS  - Memory allocation for obs. related arrays
@@ -31,14 +28,14 @@
 *
 #endif
 C
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comdimo.cdk"
 
-
-#include "commvo.cdk"
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "comstate.cdk"
@@ -57,18 +54,28 @@ C*    1. Model state at observation stations
 C     .  -----------------------------------
 C
  100  CONTINUE
-      call hpalloc( ptmtag,max(nmxobs,1),ierr,0)
-      call hpalloc( ptpexy,max(nmxobs,1),ierr,0)
 
       ILEN = NFLEV*NOBTOT
-      CALL HPALLOC( PTPPOBS,MAX(ILEN,1),IERR,8)
-      ILEN = NKGDIMO*NOBTOT
-      CALL HPALLOC( PTMTHOBS,MAX(NMXOBS,1),IERR,8)
-      CALL HPALLOC( PTMTMOBS,MAX(NMXOBS,1),IERR,8)
+!      CALL HPALLOC( PTPPOBS,MAX(ILEN,1),IERR,8)
+      allocate(RPPOBS(nflev,nobtot))
+      rppobs(:,:)=0.0d0
 
-      CALL HPALLOC( PTMOBS,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTMOBS1,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTMOBSG,MAX(ILEN,1),IERR,8)
+!      CALL HPALLOC( PTMTHOBS,MAX(NMXOBS,1),IERR,8)
+      allocate(RMTHOBS(nmxobs))
+      rmthobs(:)=0.0d0
+!      CALL HPALLOC( PTMTMOBS,MAX(NMXOBS,1),IERR,8)
+      allocate(RMTMOBS(nmxobs))
+      rmtmobs(:)=0.0d0
+
+      ILEN = NKGDIMO*NOBTOT
+!      CALL HPALLOC( PTMOBS,MAX(ILEN,1),IERR,8)
+      allocate(gomobs(nkgdimo,nobtot))
+      gomobs(:,:)=0.0d0
+!      CALL HPALLOC(PTMOBS1,MAX(ILEN,1),IERR,8)
+      allocate(gomobs1(nkgdimo,nobtot))
+!      CALL HPALLOC(PTMOBSG,MAX(ILEN,1),IERR,8)
+      allocate(gomobsg(nkgdimo,nobtot))
+
       ilen = nflev*nobtot*2
       call hpalloc(ptltv,max(ilen,1),IERR,8)
       ilen = nflev*nobtot
@@ -83,126 +90,168 @@ C
         call hpalloc(ptlq2es,max(ilen,1),IERR,8)
       endif
 C
-      PTOMU  = -1
-      PTOMU1  = -1
-      PTOMUG  = -1
+!      PTOMU  = -1
+!      PTOMU1  = -1
+!      PTOMUG  = -1
 C
-      PTOMV  = -1
-      PTOMV1  = -1
-      PTOMVG  = -1
+!      PTOMV  = -1
+!      PTOMV1  = -1
+!      PTOMVG  = -1
 C
-      PTOMT  = -1
-      PTOMT1  = -1
-      PTOMTG  = -1
+!      PTOMT  = -1
+!      PTOMT1  = -1
+!      PTOMTG  = -1
 C
-      PTOMQ  = -1
-      PTOMQ1  = -1
-      PTOMQG  = -1
+!      PTOMQ  = -1
+!      PTOMQ1  = -1
+!      PTOMQG  = -1
 C
-      PTOMGZ = -1
-      PTOMGZ1 = -1
-      PTOMGZG = -1
+!      PTOMGZ = -1
+!      PTOMGZ1 = -1
+!      PTOMGZG = -1
 C
-      PTOMOZ = -1
-      PTOMOZ1 = -1
-      PTOMOZG = -1
+!      PTOMOZ = -1
+!      PTOMOZ1 = -1
+!      PTOMOZG = -1
 C
-      PTOMTR = -1
-      PTOMTR1 = -1
-      PTOMTRG = -1
+!      PTOMTR = -1
+!      PTOMTR1 = -1
+!      PTOMTRG = -1
 c
-      ptomes = -1
-      ptomes1 = -1
-      PTOMESG = -1
+!      ptomes = -1
+!      ptomes1 = -1
+!      PTOMESG = -1
 C
-      PTOMPS = -1
-      PTOMPS1 = -1
-      PTOMPSG = -1
+!      PTOMPS = -1
+!      PTOMPS1 = -1
+!      PTOMPSG = -1
 C
-      PTOMTGR = -1
-      PTOMTGR1 = -1
-      PTOMTGRG = -1
+!      PTOMTGR = -1
+!      PTOMTGR1 = -1
+!      PTOMTGRG = -1
 C
+!      profileData%gomobs=>gomobs
+
       iloc = 1
       do jvar = 1,jpnvarmax
         if(jvar .eq. nouu) then
           NMVOPOSIT(nouu) = iloc
           if(NMVOEXIST(nouu).eq.1) then
-            PTOMU  = LOC(GOMOBS(iloc,1))
-            PTOMU1  = LOC(GOMOBS1(iloc,1))
-            PTOMUG  = LOC(GOMOBSG(iloc,1))
+            gomu => gomobs(iloc:(iloc+nflev-1),:)
+            gomu1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomug => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomu => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMU  = LOC(GOMOBS(iloc,1))
+!            PTOMU1  = LOC(GOMOBS1(iloc,1))
+!            PTOMUG  = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. novv) then
           NMVOPOSIT(novv) = iloc
           if(NMVOEXIST(novv).eq.1) then
-            PTOMV  = LOC(GOMOBS(iloc,1))
-            PTOMV1  = LOC(GOMOBS1(iloc,1))
-            PTOMVG  = LOC(GOMOBSG(iloc,1))
+            gomv => gomobs(iloc:(iloc+nflev-1),:)
+            gomv1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomvg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomv => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMV  = LOC(GOMOBS(iloc,1))
+!            PTOMV1  = LOC(GOMOBS1(iloc,1))
+!            PTOMVG  = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nogz) then
           NMVOPOSIT(nogz) = iloc
           if(NMVOEXIST(nogz).eq.1) then
-            PTOMGZ = LOC(GOMOBS(iloc,1))
-            PTOMGZ1 = LOC(GOMOBS1(iloc,1))
-            PTOMGZG = LOC(GOMOBSG(iloc,1))
+            gomgz => gomobs(iloc:(iloc+nflev-1),:)
+            gomgz1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomgzg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomgz => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMGZ = LOC(GOMOBS(iloc,1))
+!            PTOMGZ1 = LOC(GOMOBS1(iloc,1))
+!            PTOMGZG = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. noq) then
           NMVOPOSIT(noq) = iloc
           if(NMVOEXIST(noq).eq.1) then
-            PTOMQ  = LOC(GOMOBS(iloc,1))
-            PTOMQ1  = LOC(GOMOBS1(iloc,1))
-            PTOMQG  = LOC(GOMOBSG(iloc,1))
+            gomq => gomobs(iloc:(iloc+nflev-1),:)
+            gomq1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomqg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomq => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMQ  = LOC(GOMOBS(iloc,1))
+!            PTOMQ1  = LOC(GOMOBS1(iloc,1))
+!            PTOMQG  = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nott) then
           NMVOPOSIT(nott) = iloc
           if(NMVOEXIST(nott).eq.1) then
-            PTOMT  = LOC(GOMOBS(iloc,1))
-            PTOMT1  = LOC(GOMOBS1(iloc,1))
-            PTOMTG  = LOC(GOMOBSG(iloc,1))
+            gomt => gomobs(iloc:(iloc+nflev-1),:)
+            gomt1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomtg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomt => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMT  = LOC(GOMOBS(iloc,1))
+!            PTOMT1  = LOC(GOMOBS1(iloc,1))
+!            PTOMTG  = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nooz) then
           NMVOPOSIT(nooz) = iloc
           if(NMVOEXIST(nooz).eq.1) then
-            PTOMOZ = LOC(GOMOBS(iloc,1))
-            PTOMOZ1 = LOC(GOMOBS1(iloc,1))
-            PTOMOZG = LOC(GOMOBSG(iloc,1))
+            gomoz => gomobs(iloc:(iloc+nflev-1),:)
+            gomoz1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomozg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomoz => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMOZ = LOC(GOMOBS(iloc,1))
+!            PTOMOZ1 = LOC(GOMOBS1(iloc,1))
+!            PTOMOZG = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. notr) then
           NMVOPOSIT(notr) = iloc
           if(NMVOEXIST(notr).eq.1) then
-            PTOMTR = LOC(GOMOBS(iloc,1))
-            PTOMTR1 = LOC(GOMOBS1(iloc,1))
-            PTOMTRG = LOC(GOMOBSG(iloc,1))
+            gomtr => gomobs(iloc:(iloc+nflev-1),:)
+            gomtr1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomtrg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomtr => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMTR = LOC(GOMOBS(iloc,1))
+!            PTOMTR1 = LOC(GOMOBS1(iloc,1))
+!            PTOMTRG = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. noes) then
           NMVOPOSIT(noes) = iloc
           if(NMVOEXIST(noes).eq.1) then
-            PTOMES = LOC(GOMOBS(iloc,1))
-            PTOMES1 = LOC(GOMOBS1(iloc,1))
-            PTOMESG = LOC(GOMOBSG(iloc,1))
+            gomes => gomobs(iloc:(iloc+nflev-1),:)
+            gomes1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomesg => gomobsg(iloc:(iloc+nflev-1),:)
+!            profileData%gomes => gomobs(iloc:(iloc+nflev-1),:)
+!            PTOMES = LOC(GOMOBS(iloc,1))
+!            PTOMES1 = LOC(GOMOBS1(iloc,1))
+!            PTOMESG = LOC(GOMOBSG(iloc,1))
             iloc = iloc + nflev
           end if
         elseif(jvar .eq. nops) then
           NMVOPOSIT(nops) = iloc
           if(NMVOEXIST(nops).eq.1) then
-            PTOMPS = LOC(GOMOBS(iloc,1))
-            PTOMPS1 = LOC(GOMOBS1(iloc,1))
-            PTOMPSG = LOC(GOMOBSG(iloc,1))
+            gomps => gomobs(iloc:iloc,:)
+            gomps1 => gomobs1(iloc:iloc,:)
+            gompsg => gomobsg(iloc:iloc,:)
+!            profileData%gomps => gomobs(iloc:iloc,:)
+!            PTOMPS = LOC(GOMOBS(iloc,1))
+!            PTOMPS1 = LOC(GOMOBS1(iloc,1))
+!            PTOMPSG = LOC(GOMOBSG(iloc,1))
             iloc = iloc + 1
           end if
         elseif(jvar .eq. notg) then
           NMVOPOSIT(notg) = iloc
           if(NMVOEXIST(notg).eq.1) then
-            PTOMTGR = LOC(GOMOBS(iloc,1))
-            PTOMTGR1 = LOC(GOMOBS1(iloc,1))
-            PTOMTGRG = LOC(GOMOBSG(iloc,1))
+            gomtgr => gomobs(iloc:iloc,:)
+            gomtgr1 => gomobs1(iloc:iloc,:)
+            gomtgrg => gomobsg(iloc:iloc,:)
+!            profileData%gomtgr => gomobs(iloc:iloc,:)
+!            PTOMTGR = LOC(GOMOBS(iloc,1))
+!            PTOMTGR1 = LOC(GOMOBS1(iloc,1))
+!            PTOMTGRG = LOC(GOMOBSG(iloc,1))
             iloc = iloc + 1
           end if
         endif

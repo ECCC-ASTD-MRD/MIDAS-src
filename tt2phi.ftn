@@ -37,13 +37,15 @@
 *Arguments
 *
 #endif
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *implicits
 
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "commvog.cdk"
-#include "commvo.cdk"
+
 c
       integer jobs,jlev,ier
       real*8 alpha

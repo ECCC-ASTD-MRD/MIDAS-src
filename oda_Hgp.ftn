@@ -17,6 +17,8 @@
       SUBROUTINE oda_Hgp
       use modmask, only : lmaskgp
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 ***s/r  -oda_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
@@ -46,7 +48,7 @@
 #include "comgem.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 #include "cvcord.cdk"
 #include "comstate.cdk"

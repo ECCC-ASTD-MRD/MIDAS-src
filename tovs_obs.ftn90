@@ -36,15 +36,13 @@ subroutine tovs_obs(option,pjo)
 !
 #endif
   use obsSpaceData_mod
-
+  use profileData_mod 
   implicit none
 !implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "commvo.cdk"
-
-
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"

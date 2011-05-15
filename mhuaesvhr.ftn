@@ -38,6 +38,8 @@
 *          is permitted and the pressure vector is given.
 *
 #endif
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *IMPLICITS
 *         --------------------------------------------------------------------------
@@ -46,7 +48,7 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "commvo.cdk"
+
 #include "commvohr.cdk"
 #include "comcst.cdk"
 *

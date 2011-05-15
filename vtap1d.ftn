@@ -29,6 +29,8 @@ C
 *                        regional implementation
 *
 #endif
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
       INTEGER  kobs
 *
@@ -41,7 +43,7 @@ C
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comode.cdk"
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 #include "comphy.cdk"
 #include "dinternv.cdk"

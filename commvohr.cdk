@@ -38,29 +38,50 @@ C
 #endif
 
       integer nlevtrl,nkgdimohr
-      real*8 vlevhr(nlevtrl),rppobshr(nlevtrl,nobtot)
-      real*8 gomobshr(nkgdimohr,nobtot),vhybhr(nlevtrl)
-      real*8      vmahr(nlevtrl), vmbhr(nlevtrl), vmchr(nlevtrl)
-      real*8      vmdhr(nlevtrl), vmehr(nlevtrl), vmfhr(nlevtrl)
-      real*8 gomuhr(nkgdimohr,nobtot),gomvhr(nkgdimohr,nobtot)
-      real*8 gomgzhr(nkgdimohr,nobtot),gomqhr(nkgdimohr,nobtot)
-      real*8 gomeshr(nkgdimohr,nobtot),gomthr(nkgdimohr,nobtot)
-      real*8 gomozhr(nkgdimohr,nobtot),gomtrhr(nkgdimohr,nobtot)
-      real*8 gompshr(nkgdimohr,nobtot),gomtgrhr(nkgdimohr,nobtot)
-      pointer (ptmobshr,gomobshr)
-      pointer (ptomuhr,gomuhr),(ptomvhr,gomvhr)
-      pointer (ptomthr,gomthr),(ptomqhr,gomqhr)
-      pointer (ptomgzhr,gomgzhr),(ptomozhr,gomozhr)
-      pointer (ptomeshr,gomeshr),(ptomtrhr,gomtrhr)
-      pointer (ptompshr,gompshr),(ptomtgrhr,gomtgrhr)
-      pointer (ptvlevhr,vlevhr),(ptppobshr,rppobshr)
-      pointer (ptvhybhr,vhybhr)
-      pointer (ptvmahr,vmahr),(ptvmbhr,vmbhr),(ptvmchr,vmchr)
-      pointer (ptvmdhr,vmdhr),(ptvmehr,vmehr),(ptvmfhr,vmfhr)
-      common /compmobhr/ ptmobshr,ptomuhr,ptomvhr,ptomthr,ptomqhr
-      common /compmobhr/ ptomgzhr,ptomozhr,ptomeshr,ptomtrhr,ptompshr
-      common /compmobhr/ ptomtgrhr
-      common /comrmobhr/ptvlevhr,ptppobshr,ptvhybhr
+!      real*8 vlevhr(nlevtrl),rppobshr(nlevtrl,nobtot)
+!      real*8 gomobshr(nkgdimohr,nobtot),vhybhr(nlevtrl)
+!      real*8      vmahr(nlevtrl), vmbhr(nlevtrl), vmchr(nlevtrl)
+!      real*8      vmdhr(nlevtrl), vmehr(nlevtrl), vmfhr(nlevtrl)
+!      real*8 gomuhr(nkgdimohr,nobtot),gomvhr(nkgdimohr,nobtot)
+!      real*8 gomgzhr(nkgdimohr,nobtot),gomqhr(nkgdimohr,nobtot)
+!      real*8 gomeshr(nkgdimohr,nobtot),gomthr(nkgdimohr,nobtot)
+!      real*8 gomozhr(nkgdimohr,nobtot),gomtrhr(nkgdimohr,nobtot)
+!      real*8 gompshr(nkgdimohr,nobtot),gomtgrhr(nkgdimohr,nobtot)
+
+      real*8,pointer ::  vlevhr(:)
+      real*8,pointer ::  rppobshr(:,:)
+      real*8,pointer ::  gomobshr(:,:),vhybhr(:)
+      real*8,pointer ::  vmahr(:), vmbhr(:), vmchr(:)
+      real*8,pointer ::  vmdhr(:), vmehr(:), vmfhr(:)
+      real*8,pointer ::  gomuhr(:,:),gomvhr(:,:)
+      real*8,pointer ::  gomgzhr(:,:),gomqhr(:,:)
+      real*8,pointer ::  gomeshr(:,:),gomthr(:,:)
+      real*8,pointer ::  gomozhr(:,:),gomtrhr(:,:)
+      real*8,pointer ::  gompshr(:,:),gomtgrhr(:,:)
+
+
+!      pointer (ptmobshr,gomobshr)
+!      pointer (ptomuhr,gomuhr),(ptomvhr,gomvhr)
+!      pointer (ptomthr,gomthr),(ptomqhr,gomqhr)
+!      pointer (ptomgzhr,gomgzhr),(ptomozhr,gomozhr)
+!      pointer (ptomeshr,gomeshr),(ptomtrhr,gomtrhr)
+!      pointer (ptompshr,gompshr),(ptomtgrhr,gomtgrhr)
+!      pointer (ptvlevhr,vlevhr),(ptppobshr,rppobshr)
+!      pointer (ptvhybhr,vhybhr)
+!      pointer (ptvmahr,vmahr),(ptvmbhr,vmbhr),(ptvmchr,vmchr)
+!      pointer (ptvmdhr,vmdhr),(ptvmehr,vmehr),(ptvmfhr,vmfhr)
+!      common /compmobhr/ ptmobshr,ptomuhr,ptomvhr,ptomthr,ptomqhr
+!      common /compmobhr/ ptomgzhr,ptomozhr,ptomeshr,ptomtrhr,ptompshr
+!      common /compmobhr/ ptomtgrhr
+!      common /comrmobhr/ptvlevhr,ptppobshr,ptvhybhr
+
+!      common /comodehr/ptvmahr, ptvmbhr, ptvmchr, ptvmdhr, ptvmehr
+!      common /comodehr/ptvmfhr
+
       common /comimobhr/ nlevtrl,nkgdimohr
-      common /comodehr/ptvmahr, ptvmbhr, ptvmchr, ptvmdhr, ptvmehr
-      common /comodehr/ptvmfhr
+      common /compmobhr/ gomobshr,gomuhr,gomvhr,gomthr,gomqhr
+      common /compmobhr/ gomgzhr,gomozhr,gomeshr,gomtrhr,gompshr
+      common /compmobhr/ gomtgrhr
+      common /comrmobhr/vlevhr,rppobshr,vhybhr
+      common /comodehr/vmahr, vmbhr, vmchr, vmdhr, vmehr
+      common /comodehr/vmfhr

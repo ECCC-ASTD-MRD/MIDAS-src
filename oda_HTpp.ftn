@@ -17,6 +17,8 @@
       SUBROUTINE oda_HTpp(CDFAM)
       use modmask, only : lmaskpp_in,lmaskpp_out
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 ***s/r AOBSPPP  - Adjoint of the "vertical" interpolation
@@ -70,7 +72,7 @@
 #include "comphy.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 *
       INTEGER IPB,IPT, IDBURP,  ITYP

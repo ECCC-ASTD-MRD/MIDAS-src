@@ -34,13 +34,15 @@
 *Arguments
 *
 #endif
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *implicits
 c------------------------------------------------------------------------
 #include "comdim.cdk"
 #include "comdimo.cdk"
 c
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 c
       integer jobs,jlev

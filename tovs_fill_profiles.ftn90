@@ -54,8 +54,6 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-
-
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -84,14 +82,22 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
   integer :: ilansea, indxreg
   integer :: knkgdimo, knlev
 
-  real*8 :: pgomu  (knkgdimo,*)
-  real*8 :: pgomv  (knkgdimo,*)
-  real*8 :: pgomt  (knkgdimo,*)
-  real*8 :: pgomgz (knkgdimo,*)
-  real*8 :: pgomq  (knkgdimo,*)
-  real*8 :: pgomps (knkgdimo,*)
-  real*8 :: pgomtgr(knkgdimo,*)
-  real*8 :: prppobs(knlev   ,*)
+!  real*8 :: pgomu  (knkgdimo,*)
+!  real*8 :: pgomv  (knkgdimo,*)
+!  real*8 :: pgomt  (knkgdimo,*)
+!  real*8 :: pgomgz (knkgdimo,*)
+!  real*8 :: pgomq  (knkgdimo,*)
+!  real*8 :: pgomps (knkgdimo,*)
+!  real*8 :: pgomtgr(knkgdimo,*)
+!  real*8 :: prppobs(knlev   ,*)
+  real*8 :: pgomu  (knlev,nobtot)
+  real*8 :: pgomv  (knlev,nobtot)
+  real*8 :: pgomt  (knlev,nobtot)
+  real*8 :: pgomgz (knlev,nobtot)
+  real*8 :: pgomq  (knlev,nobtot)
+  real*8 :: pgomps (1,nobtot)
+  real*8 :: pgomtgr(1,nobtot)
+  real*8 :: prppobs(knlev,nobtot)
 
   real*8, allocatable :: to    (:,:)
   real*8, allocatable :: lqo   (:,:)
@@ -116,13 +122,21 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
   external exthum4
 
   if(nobtov.eq.0) return    ! exit if there are no tovs data
-
   ztodeg = 180.0 / rpi
 
 !     1.    Set index for model's lowest level and model top
 !     .     ------------------------------------------------
                  
   100   continue
+
+  write(*,*) 'size of pgomu=',lbound(pgomu),ubound(pgomu)
+  call flush(6)
+  write(*,*) 'size of prppobs=',lbound(prppobs),ubound(prppobs)
+  call flush(6)
+  write(*,*) 'prppobs(1,1)=',prppobs(1,1)
+  call flush(6)
+  write(*,*) 'prppobs(knlev,1)=',prppobs(knlev,1)
+  call flush(6)
 
   if (  prppobs(1,1) .lt. prppobs(knlev,1) ) then
      ilowlvl = knlev

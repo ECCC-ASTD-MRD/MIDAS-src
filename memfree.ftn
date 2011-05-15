@@ -38,6 +38,8 @@
 #endif
 C
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -58,7 +60,7 @@ C     ----------------------------------------
 #include "comdimo.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"
@@ -158,81 +160,14 @@ C*    3. Verify the arrays allocated within SUALOBS
 C
  300    CONTINUE
 C
-        CALL HPDEALLC(PTMOBS,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTMOBS checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTMOBS. IERR =",I3)')IERR
-        END IF
-C
-        CALL HPDEALLC(PTMOBS1,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTMOBS1 checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTMOBS1. IERR =",I3)')IERR
-        END IF
+        deallocate(gomobs)
+        deallocate(gomobs1)
 C
         call obs_deallocate(obsSpaceData)
 C
-        CALL HPDEALLC(PTPPOBS,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTPPOBS checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTPPOBS. IERR =",I3)')IERR
-        END IF
-#if defined (NEC)
-        CALL VFLUSH(KULOUT)
-#endif
-        CALL HPDEALLC(PTMTMOBS,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTMTMOBS checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTMTMOBS. IERR =",I3)')IERR
-        END IF
-#if defined (NEC)
-        CALL VFLUSH(KULOUT)
-#endif
-        CALL HPDEALLC(PTMTAG,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTMTAG checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTMTAG. IERR =",I3)')IERR
-        END IF
-#if defined (NEC)
-        CALL VFLUSH(KULOUT)
-#endif
-        CALL HPDEALLC(PTPEXY,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTPEXY checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTPEXY. IERR =",I3)')IERR
-        END IF
-#if defined (NEC)
-        CALL VFLUSH(KULOUT)
-#endif
-        CALL HPDEALLC(PTMTHOBS,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," PTMTHOBS checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " PTMTHOBS. IERR =",I3)')IERR
-        END IF
-#if defined (NEC)
-        CALL VFLUSH(KULOUT)
-#endif
+        deallocate(rppobs)
+        deallocate(RMTMOBS)
+        deallocate(RMTHOBS)
 c
 c deallocate background fields and operators needed in TL and ADJ
 C observation operators
@@ -338,15 +273,15 @@ c locptgomhr.ftn
 c
         if (nconf .eq. 101 .or. nconf .eq. 121
      &       .or.  nconf .eq. 141) then
-          call hpdeallc(ptmobshr,ierr,1)
-          call hpdeallc(ptvlevhr,ierr,1)
-          call hpdeallc(ptppobshr,ierr,1)
-          call hpdeallc(ptvmahr,ierr,1)
-          call hpdeallc(ptvmbhr,ierr,1)
-          call hpdeallc(ptvmchr,ierr,1)
-          call hpdeallc(ptvmdhr,ierr,1)
-          call hpdeallc(ptvmehr,ierr,1)
-          call hpdeallc(ptvmfhr,ierr,1)
+!          call hpdeallc(ptmobshr,ierr,1)
+!          call hpdeallc(ptvlevhr,ierr,1)
+!          call hpdeallc(ptppobshr,ierr,1)
+!          call hpdeallc(ptvmahr,ierr,1)
+!          call hpdeallc(ptvmbhr,ierr,1)
+!          call hpdeallc(ptvmchr,ierr,1)
+!          call hpdeallc(ptvmdhr,ierr,1)
+!          call hpdeallc(ptvmehr,ierr,1)
+!          call hpdeallc(ptvmfhr,ierr,1)
         endif
 C
       RETURN

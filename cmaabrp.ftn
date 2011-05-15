@@ -108,6 +108,8 @@
 #endif
 *
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comct0.cdk"
@@ -120,7 +122,7 @@
 #include "cvcord.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "commvo.cdk"
+
 *
 *
       INTEGER KNVALS,IVAL,jji,ITYPDATA

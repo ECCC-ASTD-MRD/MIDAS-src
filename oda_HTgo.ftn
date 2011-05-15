@@ -17,6 +17,8 @@
       SUBROUTINE oda_HTgo
       use modmask, only : lmaskgo
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 ***s/r AVGOES  - Adjoint GOES processing, i.e. radiative transfer model
@@ -42,7 +44,7 @@
 #include "comlun.cdk"
 
 
-#include "commvo.cdk"
+
 #include "cparamgoes.cdk"
 #include "comjacgoes.cdk"
 *

@@ -45,8 +45,6 @@
 *                         and real cma arrays (ptmobhdr,ptrobhdr,ptmobdata,ptrobdata)
 *     JM Belanger CMDA/SMC  Jul 2000
 *                   - 32 bits conversion
-*     S. Pellerin *ARMA/SMC nov. 2001
-*                   - Allocation of mvar and pexy vertors for 4Dvar book keeping
 *     J. Halle    *CMDA/SMC mai 2006
 *                   - Added one additionnal entry for ROBDATA8 (now 9 itemss instead of 8)
 *     L. Fillion   ARMA/MSC - 25 Feb 2005. Limited Area Mesovar option.
@@ -75,9 +73,6 @@ C
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comdimo.cdk"
-#include "commvo.cdk"
-#include "commvo1.cdk"
-#include "commvog.cdk"
 #include "comstate.cdk"
 *
       INTEGER KULOUT, IERR

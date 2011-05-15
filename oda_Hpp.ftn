@@ -17,6 +17,8 @@
       SUBROUTINE oda_Hpp
       use modmask, only : lmaskpp_in, lmaskpp_out,ldiagpp
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
 #if defined (DOC)
 *
 * Purpose: Compute simulated Upper Air observations from profiled model
@@ -67,7 +69,7 @@ c extrapolated
 #include "comphy.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 *
 *

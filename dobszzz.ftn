@@ -39,6 +39,8 @@
 *
 #endif
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER *2 CDFAM
@@ -50,7 +52,7 @@
 #include "comgem.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-#include "commvo.cdk"
+
 #include "commvohr.cdk"
 #include "cvcord.cdk"
 *

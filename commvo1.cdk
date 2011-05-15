@@ -24,21 +24,18 @@ C     GOMTGR1(1  ,NMXOBS)  :  ground temperature
 C
 #endif
  
-      REAL*8 GOMOBS1(NKGDIMO,NOBTOT)
+      real*8,pointer :: gomobs1(:,:)
+      real*8,pointer :: gomu1(:,:)
+      real*8,pointer :: gomv1(:,:)
+      real*8,pointer :: gomt1(:,:)
+      real*8,pointer :: gomq1(:,:)
+      real*8,pointer :: gomoz1(:,:)
+      real*8,pointer :: gomgz1(:,:)
+      real*8,pointer :: gomtr1(:,:)
+      real*8,pointer :: gomes1(:,:)
+      real*8,pointer :: gomps1(:,:)
+      real*8,pointer :: gomtgr1(:,:)
 
-      REAL*8 GOMU1(NKGDIMO,NOBTOT), GOMV1(NKGDIMO,NOBTOT)
-      REAL*8 GOMT1(NKGDIMO,NOBTOT), GOMQ1(NKGDIMO,NOBTOT)
-      REAL*8 GOMOZ1(NKGDIMO,NOBTOT), GOMGZ1(NKGDIMO,NOBTOT)
-      REAL*8 GOMTR1(NKGDIMO,NOBTOT), gomes1(nkgdimo,NOBTOT)
-      REAL*8 GOMPS1(NKGDIMO,NOBTOT), GOMTGR1(NKGDIMO,NOBTOT)
-
-      POINTER (PTMOBS1,GOMOBS1), (PTOMU1,GOMU1),(PTOMV1,GOMV1)
-      POINTER (PTOMT1,GOMT1),(PTOMQ1,GOMQ1), (PTOMPS1,GOMPS1)
-      POINTER (PTOMGZ1,GOMGZ1), (PTOMOZ1,GOMOZ1), (PTOMTR1,GOMTR1)
-      POINTER (ptomes1,gomes1),(PTOMTGR1,GOMTGR1)
-
-      COMMON /POMMVO1/PTMOBS1, PTOMU1, PTOMV1, PTOMT1, PTOMQ1, PTOMPS1
-      COMMON /POMMVO1/PTOMGZ1, PTOMOZ1, PTOMTR1, ptomes1, PTOMTGR1
-
-
+      COMMON /POMMVO1/gomobs1,gomu1,gomv1,gomt1,gomq1,gomoz1,gomgz1,gomtr1
+      COMMON /POMMVO1/gomes1,gomps1,gomtgr1
 

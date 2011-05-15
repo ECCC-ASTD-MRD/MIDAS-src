@@ -31,6 +31,8 @@
       use modgps06gravity
       use modgps08refop
       use obsSpaceData_mod
+      use profileData_mod 
+#include "commvo.cdk"
       IMPLICIT NONE
 
 #include "pardim.cdk"
@@ -40,7 +42,7 @@
 #include "comcst.cdk"
 
 
-#include "commvo.cdk"
+
 #include "commvog.cdk"
 #include "cvcord.cdk"
 *

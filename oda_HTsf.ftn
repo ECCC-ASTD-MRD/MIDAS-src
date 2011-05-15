@@ -17,6 +17,7 @@
       SUBROUTINE oda_HTsf
       use modmask, only : lmasksf_in,lmasksf_out
       use obsSpaceData_mod
+      use profileData_mod 
       use bufr
 #if defined (DOC)
 *
