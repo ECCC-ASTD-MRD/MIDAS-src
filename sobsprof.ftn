@@ -36,6 +36,7 @@
 *          none
 #endif
       use obsSpaceData_mod
+      use profileData_mod
       use bufr
       IMPLICIT NONE
 *implicits

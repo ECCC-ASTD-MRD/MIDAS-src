@@ -37,7 +37,7 @@ C     GOMTGRHR(1  ,NOBTOT) :  ground temperature
 C
 #endif
 
-      integer nlevtrl,nkgdimohr
+!      integer nlevtrl,nkgdimohr
 !      real*8 vlevhr(nlevtrl),rppobshr(nlevtrl,nobtot)
 !      real*8 gomobshr(nkgdimohr,nobtot),vhybhr(nlevtrl)
 !      real*8      vmahr(nlevtrl), vmbhr(nlevtrl), vmchr(nlevtrl)
@@ -48,16 +48,16 @@ C
 !      real*8 gomozhr(nkgdimohr,nobtot),gomtrhr(nkgdimohr,nobtot)
 !      real*8 gompshr(nkgdimohr,nobtot),gomtgrhr(nkgdimohr,nobtot)
 
-      real*8,pointer ::  vlevhr(:)
-      real*8,pointer ::  rppobshr(:,:)
-      real*8,pointer ::  gomobshr(:,:),vhybhr(:)
-      real*8,pointer ::  vmahr(:), vmbhr(:), vmchr(:)
-      real*8,pointer ::  vmdhr(:), vmehr(:), vmfhr(:)
-      real*8,pointer ::  gomuhr(:,:),gomvhr(:,:)
-      real*8,pointer ::  gomgzhr(:,:),gomqhr(:,:)
-      real*8,pointer ::  gomeshr(:,:),gomthr(:,:)
-      real*8,pointer ::  gomozhr(:,:),gomtrhr(:,:)
-      real*8,pointer ::  gompshr(:,:),gomtgrhr(:,:)
+!      real*8,pointer ::  vlevhr(:)
+!      real*8,pointer ::  rppobshr(:,:)
+!      real*8,pointer ::  gomobshr(:,:),vhybhr(:)
+!      real*8,pointer ::  vmahr(:), vmbhr(:), vmchr(:)
+!      real*8,pointer ::  vmdhr(:), vmehr(:), vmfhr(:)
+!      real*8,pointer ::  gomuhr(:,:),gomvhr(:,:)
+!      real*8,pointer ::  gomgzhr(:,:),gomqhr(:,:)
+!      real*8,pointer ::  gomeshr(:,:),gomthr(:,:)
+!      real*8,pointer ::  gomozhr(:,:),gomtrhr(:,:)
+!      real*8,pointer ::  gompshr(:,:),gomtgrhr(:,:)
 
 
 !      pointer (ptmobshr,gomobshr)
@@ -78,10 +78,10 @@ C
 !      common /comodehr/ptvmahr, ptvmbhr, ptvmchr, ptvmdhr, ptvmehr
 !      common /comodehr/ptvmfhr
 
-      common /comimobhr/ nlevtrl,nkgdimohr
-      common /compmobhr/ gomobshr,gomuhr,gomvhr,gomthr,gomqhr
-      common /compmobhr/ gomgzhr,gomozhr,gomeshr,gomtrhr,gompshr
-      common /compmobhr/ gomtgrhr
-      common /comrmobhr/vlevhr,rppobshr,vhybhr
-      common /comodehr/vmahr, vmbhr, vmchr, vmdhr, vmehr
-      common /comodehr/vmfhr
+!      common /comimobhr/ nlevtrl,nkgdimohr
+!      common /compmobhr/ gomobshr,gomuhr,gomvhr,gomthr,gomqhr
+!      common /compmobhr/ gomgzhr,gomozhr,gomeshr,gomtrhr,gompshr
+!      common /compmobhr/ gomtgrhr
+!      common /comrmobhr/vlevhr,rppobshr,vhybhr
+!      common /comodehr/vmahr, vmbhr, vmchr, vmdhr, vmehr
+!      common /comodehr/vmfhr

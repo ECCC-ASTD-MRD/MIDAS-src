@@ -24,18 +24,18 @@ C     GOMTGR1(1  ,NMXOBS)  :  ground temperature
 C
 #endif
  
-      real*8,pointer :: gomobs1(:,:)
-      real*8,pointer :: gomu1(:,:)
-      real*8,pointer :: gomv1(:,:)
-      real*8,pointer :: gomt1(:,:)
-      real*8,pointer :: gomq1(:,:)
-      real*8,pointer :: gomoz1(:,:)
-      real*8,pointer :: gomgz1(:,:)
-      real*8,pointer :: gomtr1(:,:)
-      real*8,pointer :: gomes1(:,:)
-      real*8,pointer :: gomps1(:,:)
-      real*8,pointer :: gomtgr1(:,:)
+!      real*8,pointer :: gomobs1(:,:)
+!      real*8,pointer :: gomu1(:,:)
+!      real*8,pointer :: gomv1(:,:)
+!      real*8,pointer :: gomt1(:,:)
+!      real*8,pointer :: gomq1(:,:)
+!      real*8,pointer :: gomoz1(:,:)
+!      real*8,pointer :: gomgz1(:,:)
+!      real*8,pointer :: gomtr1(:,:)
+!      real*8,pointer :: gomes1(:,:)
+!      real*8,pointer :: gomps1(:,:)
+!      real*8,pointer :: gomtgr1(:,:)
 
-      COMMON /POMMVO1/gomobs1,gomu1,gomv1,gomt1,gomq1,gomoz1,gomgz1,gomtr1
-      COMMON /POMMVO1/gomes1,gomps1,gomtgr1
+!      COMMON /POMMVO1/gomobs1,gomu1,gomv1,gomt1,gomq1,gomoz1,gomgz1,gomtr1
+!      COMMON /POMMVO1/gomes1,gomps1,gomtgr1
 

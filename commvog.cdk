@@ -43,31 +43,30 @@ C     GOMTGRG(1  ,NOBTOT) :  ground temperature
 !      REAL*8 GOMTRG(NKGDIMO,NOBTOT), gomesg(nkgdimo,nmxobs)
 !      REAL*8 GOMPSG(NKGDIMO,NOBTOT), GOMTGRG(NKGDIMO,NOBTOT)
 
-      REAL*8,pointer :: GOMOBSG(:,:)
+!      REAL*8,pointer :: GOMOBSG(:,:)
+!      REAL*8,pointer :: GOMUG(:,:), GOMVG(:,:)
+!      REAL*8,pointer :: GOMTG(:,:), GOMQG(:,:)
+!      REAL*8,pointer :: GOMOZG(:,:), GOMGZG(:,:)
+!      REAL*8,pointer :: GOMTRG(:,:), gomesg(:,:)
+!      REAL*8,pointer :: GOMPSG(:,:), GOMTGRG(:,:)
 
-      REAL*8,pointer :: GOMUG(:,:), GOMVG(:,:)
-      REAL*8,pointer :: GOMTG(:,:), GOMQG(:,:)
-      REAL*8,pointer :: GOMOZG(:,:), GOMGZG(:,:)
-      REAL*8,pointer :: GOMTRG(:,:), gomesg(:,:)
-      REAL*8,pointer :: GOMPSG(:,:), GOMTGRG(:,:)
-
-      real*8 oltv(2,nflev,nobtot),rtapfac(nflev,nobtot)
-      real*8 ollq2es(3,nflev,nobtot)
-      real*8 estdg(NFLEV,NOBTOT), dlnesg(NFLEV,NOBTOT)
-      real*8 rqgfac(NFLEV,NOBTOT)
+!      real*8 oltv(2,nflev,nobtot),rtapfac(nflev,nobtot)
+!      real*8 ollq2es(3,nflev,nobtot)
+!      real*8 estdg(NFLEV,NOBTOT), dlnesg(NFLEV,NOBTOT)
+!      real*8 rqgfac(NFLEV,NOBTOT)
 
 !      POINTER (PTMOBSG,GOMOBSG),(PTOMUG,GOMUG),(PTOMVG,GOMVG)
 !      POINTER (PTOMTG,GOMTG),(PTOMQG,GOMQG), (PTOMPSG,GOMPSG)
 !      POINTER (PTOMGZG,GOMGZG), (PTOMOZG,GOMOZG), (PTOMTRG,GOMTRG)
 !      POINTER (PTOMESG,GOMESG),(PTOMTGRG,GOMTGRG)
 
-      pointer (ptltv,oltv),(pttapfac,rtapfac),(ptlq2es,ollq2es)
-      pointer (ptestdg,estdg),(ptdlnesg,dlnesg),(ptrqgfac,rqgfac)
+!      pointer (ptltv,oltv),(pttapfac,rtapfac),(ptlq2es,ollq2es)
+!      pointer (ptestdg,estdg),(ptdlnesg,dlnesg),(ptrqgfac,rqgfac)
 
 !      COMMON /POMMVOG/PTMOBSG, PTOMUG, PTOMVG, PTOMTG, PTOMQG
 !      COMMON /POMMVOG/PTOMPSG ,PTOMGZG, PTOMOZG, PTOMTRG, ptomesg, PTOMTGRG
 
-      COMMON /POMMVOG/GOMOBSG, GOMUG, GOMVG, GOMTG, GOMQG
-      COMMON /POMMVOG/GOMPSG ,GOMGZG, GOMOZG, GOMTRG, GOMESG, GOMTGRG
+!      COMMON /POMMVOG/GOMOBSG, GOMUG, GOMVG, GOMTG, GOMQG
+!      COMMON /POMMVOG/GOMPSG ,GOMGZG, GOMOZG, GOMTRG, GOMESG, GOMTGRG
 
-      COMMON /POMMVOG/ptltv,pttapfac,ptlq2es,ptestdg,ptdlnesg,ptrqgfac
+!      COMMON /POMMVOG/ptltv,pttapfac,ptlq2es,ptestdg,ptdlnesg,ptrqgfac

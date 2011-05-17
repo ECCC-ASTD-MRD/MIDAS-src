@@ -77,17 +77,24 @@ C
       allocate(gomobsg(nkgdimo,nobtot))
 
       ilen = nflev*nobtot*2
-      call hpalloc(ptltv,max(ilen,1),IERR,8)
+!      call hpalloc(ptltv,max(ilen,1),IERR,8)
+      allocate(oltv(2,nflev,nobtot))
+      oltv(:,:,:)=0.0d0
       ilen = nflev*nobtot
-      call hpalloc(pttapfac,max(ilen,1),IERR,8)
-      if(chum.eq.'ES') then
+!      call hpalloc(pttapfac,max(ilen,1),IERR,8)
+      allocate(rtapfac(nflev,nobtot))
+      if(chum.eq.'ES') then   ! WILL WE EVER NEED CHUM=ES???
         ilen = nflev*nobtot
-        call hpalloc(ptestdg,max(ilen,1),IERR,8)
-        call hpalloc(ptdlnesg,max(ilen,1),IERR,8)
-        call hpalloc(ptrqgfac,max(ilen,1),IERR,8)
+!        call hpalloc(ptestdg,max(ilen,1),IERR,8)
+!        call hpalloc(ptdlnesg,max(ilen,1),IERR,8)
+!        call hpalloc(ptrqgfac,max(ilen,1),IERR,8)
+        allocate(estdg(nflev,nobtot))
+        allocate(dlnesg(nflev,nobtot))
+        allocate(rqgfac(nflev,nobtot))
       else
         ilen = nflev*nobtot*3
-        call hpalloc(ptlq2es,max(ilen,1),IERR,8)
+!        call hpalloc(ptlq2es,max(ilen,1),IERR,8)
+        allocate(ollq2es(3,nflev,nobtot))
       endif
 C
 !      PTOMU  = -1

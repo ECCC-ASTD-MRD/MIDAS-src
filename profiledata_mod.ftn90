@@ -5,7 +5,24 @@ module profileData_mod
 
 !  public :: profileData
 
-!  type struct_profileData
+  type struct_profileData
+    real*8,pointer :: gomobs(:,:)
+    real*8,pointer :: gomu(:,:)
+    real*8,pointer :: gomv(:,:)
+    real*8,pointer :: gomt(:,:)
+    real*8,pointer :: gomq(:,:)
+    real*8,pointer :: gomoz(:,:)
+    real*8,pointer :: gomgz(:,:)
+    real*8,pointer :: gomtr(:,:)
+    real*8,pointer :: gomes(:,:)
+    real*8,pointer :: gomps(:,:)
+    real*8,pointer :: gomtgr(:,:)
+    real*8,pointer :: rppobs(:,:)
+  end type struct_profileData
+
+!  type(struct_profileData) :: profileData
+
+    ! from commvo
     real*8,pointer :: gomobs(:,:)
     real*8,pointer :: gomu(:,:)
     real*8,pointer :: gomv(:,:)
@@ -20,9 +37,60 @@ module profileData_mod
     real*8,pointer :: rppobs(:,:)
     real*8,pointer :: rmthobs(:)
     real*8,pointer :: rmtmobs(:)
-!  end type struct_profileData
 
-!  type(struct_profileData) :: profileData
+    ! from commvo1
+    real*8,pointer :: gomobs1(:,:)
+    real*8,pointer :: gomu1(:,:)
+    real*8,pointer :: gomv1(:,:)
+    real*8,pointer :: gomt1(:,:)
+    real*8,pointer :: gomq1(:,:)
+    real*8,pointer :: gomoz1(:,:)
+    real*8,pointer :: gomgz1(:,:)
+    real*8,pointer :: gomtr1(:,:)
+    real*8,pointer :: gomes1(:,:)
+    real*8,pointer :: gomps1(:,:)
+    real*8,pointer :: gomtgr1(:,:)
 
+    ! from commvog
+    real*8,pointer :: gomobsg(:,:)
+    real*8,pointer :: gomug(:,:)
+    real*8,pointer :: gomvg(:,:)
+    real*8,pointer :: gomtg(:,:)
+    real*8,pointer :: gomqg(:,:)
+    real*8,pointer :: gomozg(:,:)
+    real*8,pointer :: gomgzg(:,:)
+    real*8,pointer :: gomtrg(:,:)
+    real*8,pointer :: gomesg(:,:)
+    real*8,pointer :: gompsg(:,:)
+    real*8,pointer :: gomtgrg(:,:)
+
+    real*8,pointer :: oltv(:,:,:),rtapfac(:,:)
+    real*8,pointer :: ollq2es(:,:,:)
+    real*8,pointer :: estdg(:,:), dlnesg(:,:)
+    real*8,pointer :: rqgfac(:,:)
+
+    ! from commvohr
+    integer nlevtrl,nkgdimohr
+    real*8,pointer ::  gomobshr(:,:)
+    real*8,pointer ::  gomuhr(:,:)
+    real*8,pointer ::  gomvhr(:,:)
+    real*8,pointer ::  gomthr(:,:)
+    real*8,pointer ::  gomqhr(:,:)
+    real*8,pointer ::  gomozhr(:,:)
+    real*8,pointer ::  gomgzhr(:,:)
+    real*8,pointer ::  gomtrhr(:,:)
+    real*8,pointer ::  gomeshr(:,:)
+    real*8,pointer ::  gompshr(:,:)
+    real*8,pointer ::  gomtgrhr(:,:)
+    real*8,pointer ::  rppobshr(:,:)
+
+    real*8,pointer ::  vlevhr(:)
+    real*8,pointer ::  vhybhr(:)
+    real*8,pointer ::  vmahr(:)
+    real*8,pointer ::  vmbhr(:)
+    real*8,pointer ::  vmchr(:)
+    real*8,pointer ::  vmdhr(:)
+    real*8,pointer ::  vmehr(:)
+    real*8,pointer ::  vmfhr(:)
 
 end module profileData_mod

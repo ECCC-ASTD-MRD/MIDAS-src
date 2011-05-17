@@ -47,6 +47,7 @@ C NOTE:
 C     VMA(I),VMBHR(I),VMCHR(I): DIAG. INF., PRINC., ET SUP. DE LA MAT.
 C
 C
+      use profileData_mod
       IMPLICIT  NONE
       integer knlev
       real*8  palpha, pvlev(knlev)

@@ -172,60 +172,60 @@ c
 c deallocate background fields and operators needed in TL and ADJ
 C observation operators
 c
-        CALL HPDEALLC(ptltv,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," ptltv checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " ptltv. IERR =",I3)')IERR
-        END IF
+!        CALL HPDEALLC(ptltv,IERR,1)
+!        IF(IERR.EQ.0)THEN
+!          WRITE(KULOUT,FMT='(10X," ptltv checked and correct",
+!     S         ". IERR =",I3)')IERR
+!        ELSE
+!          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S         " ptltv. IERR =",I3)')IERR
+!        END IF
 c
-        CALL HPDEALLC(pttapfac,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," pttapfac checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " pttapfac. IERR =",I3)')IERR
-        END IF
+!        CALL HPDEALLC(pttapfac,IERR,1)
+!        IF(IERR.EQ.0)THEN
+!          WRITE(KULOUT,FMT='(10X," pttapfac checked and correct",
+!     S         ". IERR =",I3)')IERR
+!        ELSE
+!          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S         " pttapfac. IERR =",I3)')IERR
+!        END IF
 c
         if(chum.eq.'ES') then
-          CALL HPDEALLC(ptestdg,IERR,1)
-          IF(IERR.EQ.0)THEN
-            WRITE(KULOUT,FMT='(10X," ptestdg checked and correct",
-     S           ". IERR =",I3)')IERR
-          ELSE
-            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S           " ptestdg. IERR =",I3)')IERR
-          END IF
+!          CALL HPDEALLC(ptestdg,IERR,1)
+!          IF(IERR.EQ.0)THEN
+!            WRITE(KULOUT,FMT='(10X," ptestdg checked and correct",
+!     S           ". IERR =",I3)')IERR
+!          ELSE
+!            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S           " ptestdg. IERR =",I3)')IERR
+!          END IF
 c
-          CALL HPDEALLC(ptdlnesg,IERR,1)
-          IF(IERR.EQ.0)THEN
-            WRITE(KULOUT,FMT='(10X," ptdlnesg checked and correct",
-     S           ". IERR =",I3)')IERR
-          ELSE
-            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S           " ptdlnesg. IERR =",I3)')IERR
-          END IF
+!          CALL HPDEALLC(ptdlnesg,IERR,1)
+!          IF(IERR.EQ.0)THEN
+!            WRITE(KULOUT,FMT='(10X," ptdlnesg checked and correct",
+!     S           ". IERR =",I3)')IERR
+!          ELSE
+!            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S           " ptdlnesg. IERR =",I3)')IERR
+!          END IF
 c
-          CALL HPDEALLC(ptrqgfac,IERR,1)
-          IF(IERR.EQ.0)THEN
-            WRITE(KULOUT,FMT='(10X," ptrqgfac checked and correct",
-     S           ". IERR =",I3)')IERR
-          ELSE
-            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S           " ptrqgfac. IERR =",I3)')IERR
-          END IF
+!          CALL HPDEALLC(ptrqgfac,IERR,1)
+!          IF(IERR.EQ.0)THEN
+!            WRITE(KULOUT,FMT='(10X," ptrqgfac checked and correct",
+!     S           ". IERR =",I3)')IERR
+!          ELSE
+!            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S           " ptrqgfac. IERR =",I3)')IERR
+!          END IF
         else
-          CALL HPDEALLC(ptlq2es,IERR,1)
-          IF(IERR.EQ.0)THEN
-            WRITE(KULOUT,FMT='(10X," ptlq2es checked and correct",
-     S           ". IERR =",I3)')IERR
-          ELSE
-            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S           " ptlq2es. IERR =",I3)')IERR
-          END IF
+!          CALL HPDEALLC(ptlq2es,IERR,1)
+!          IF(IERR.EQ.0)THEN
+!            WRITE(KULOUT,FMT='(10X," ptlq2es checked and correct",
+!     S           ". IERR =",I3)')IERR
+!          ELSE
+!            WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
+!     S           " ptlq2es. IERR =",I3)')IERR
+!          END IF
         endif
 c
 c deallocate background fields on analysis grid

@@ -34,6 +34,7 @@
 *Arguments
 *
 #endif
+      use profileData_mod
       IMPLICIT NONE
 *implicits
 c------------------------------------------------------------------------

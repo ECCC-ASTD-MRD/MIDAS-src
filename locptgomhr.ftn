@@ -30,6 +30,7 @@
 *
 #endif
 C
+      use profileData_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
