@@ -217,7 +217,7 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
      knpf = knpf + 1
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
 
-     ilansea = obsSpaceData%mobhdr(ncmofl,jo)
+     ilansea = obsSpaceData%mobhdr(NCM_OFL,jo)
      indxm = ilansea
      if (indxm .eq. 2 ) indxm = 0
      indxreg = isrcheq ( mlisreg, nregst, indxm )
@@ -226,12 +226,12 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 !    extract satellite zenith and azimuth angle, 
 !    sun zenith angle, cloud fraction, latitude and longitude
 
-     isatzen(knpf) = obsSpaceData%mobhdr(ncmbox,jo)/10000
-     isatazim(knpf) = obsSpaceData%mobhdr(ncmaza,jo)
-     isunza(knpf) = obsSpaceData%mobhdr(ncmsun,jo)
-     iclfr(knpf) = obsSpaceData%mobhdr(ncmclf,jo)
-     zlat(knpf) = obsSpaceData%robhdr(ncmlat,jo) * ztodeg
-     zlon(knpf) = obsSpaceData%robhdr(ncmlon,jo) * ztodeg
+     isatzen(knpf) = obsSpaceData%mobhdr(NCM_BOX,jo)/10000
+     isatazim(knpf) = obsSpaceData%mobhdr(NCM_AZA,jo)
+     isunza(knpf) = obsSpaceData%mobhdr(NCM_SUN,jo)
+     iclfr(knpf) = obsSpaceData%mobhdr(NCM_CLF,jo)
+     zlat(knpf) = obsSpaceData%robhdr(NCM_LAT,jo) * ztodeg
+     zlon(knpf) = obsSpaceData%robhdr(NCM_LON,jo) * ztodeg
 
      do jl = 1, knlev
         zt   (jl,knpf) = pgomt(jl,jo)

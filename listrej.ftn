@@ -46,7 +46,7 @@
 *          S. Heilliette
 *          - added idtyp 186 for IASI
 *          S. Pellerin (ARMA/MRB) January 2009
-*          - Use of robdata8(ncmomn,*) as zpost value
+*          - Use of robdata8(NCM_OMN,*) as zpost value
 *          S. Macpherson (ARMA/MRD) Sep 2009
 *          - List GP family (GPS) rejects (idtyp 189)
 ************************************************************************
@@ -159,8 +159,8 @@
           IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
           IF (IBEGIN .GT. 0) THEN
-            IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST)
+            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
             WRITE(NULOUT,600)
  600        FORMAT(1X)
             IF (CFAMTYP(J) .NE. 'TO') THEN
@@ -177,50 +177,50 @@
 *
             DO 10 JREP = IBEGINOB, ILASTOB
               LLELREJ = .FALSE.
-              IDATA = obsSpaceData%MOBHDR(NCMRLN,JREP)
-              IDATEND = obsSpaceData%MOBHDR(NCMNLV,JREP) + IDATA -1
-              ITY       = obsSpaceData%MOBHDR(NCMITY,JREP)
+              IDATA = obsSpaceData%MOBHDR(NCM_RLN,JREP)
+              IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JREP) + IDATA -1
+              ITY       = obsSpaceData%MOBHDR(NCM_ITY,JREP)
               IDBURP    = MOD(ITY,1000)
-              ZLAT = obsSpaceData%ROBHDR(NCMLAT,JREP)*ZTODEG
-              ZLON = obsSpaceData%ROBHDR(NCMLON,JREP)*ZTODEG
+              ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JREP)*ZTODEG
+              ZLON = obsSpaceData%ROBHDR(NCM_LON,JREP)*ZTODEG
               DO JDATA=IDATA, IDATEND
-                ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                 IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
      1              ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.
      2              ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.
      3              ITYP .EQ. BUFR_NEZD) THEN
-                   LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+                   LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
                 ELSE
-                   LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
-     1                     obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0) .OR.
-     2                    (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2 .AND.
-     3                     obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ)
+                   LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
+     1                     obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 0) .OR.
+     2                    (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2 .AND.
+     3                     obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEGZ)
                 ENDIF
                 IF (LLOK) THEN
-                  zpost = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
-                  ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)*RPATMB
-                  IF (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2) THEN
-                    ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)*RPATMB
+                  zpost = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)*RPATMB
+                  IF (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2) THEN
+                    ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)*RPATMB
                     CLUNITS = 'MB'
                   ENDIF
-                  IF (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1) THEN
+                  IF (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1) THEN
 *
 *___________________VERTICAL COORDINATE IS HEIGHT
 *
-                    ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                    ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
                     CLUNITS = ' M'
                   ENDIF
-                  IF (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. -1) THEN
+                  IF (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. -1) THEN
 *
 *___________________TOVS CHANNEL NUMBER
 *
-                    ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                    ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
                     CLUNITS = '  '
                   ENDIF
-                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  ZFCST = obsSpaceData%ROBDATA8(NCMOMF,JDATA)*ZOER + ZVAR
-                  ZANA = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*ZOER + ZVAR
+                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                  ZFCST = obsSpaceData%ROBDATA8(NCM_OMF,JDATA)*ZOER + ZVAR
+                  ZANA = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER + ZVAR
 *
 *_______________TREAT WINDS AS SPECIAL CASE
 *               BUFR_NEUU       = 011003 (U COMPONENT)           (m/s)
@@ -235,12 +235,12 @@
                     IOTHER = -1
                     IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                       DO JJ=IDATA,JDATA
-                        ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
-                        IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 2) THEN
-                          ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)*RPATMB
+                        ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
+                        IF (obsSpaceData%MOBDATA(NCM_VCO,JJ) .EQ. 2) THEN
+                          ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)*RPATMB
                         ENDIF
-                        IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 1) THEN
-                          ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
+                        IF (obsSpaceData%MOBDATA(NCM_VCO,JJ) .EQ. 1) THEN
+                          ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
                         ENDIF
                         IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)
      1                       .AND. ZLEV .EQ. ZSLEV) THEN
@@ -249,12 +249,12 @@
                       ENDDO
                     ELSE
                       DO JJ=IDATA,JDATA
-                        ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
-                        IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 2) THEN
-                          ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)*RPATMB
+                        ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
+                        IF (obsSpaceData%MOBDATA(NCM_VCO,JJ) .EQ. 2) THEN
+                          ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)*RPATMB
                         ENDIF
-                        IF (obsSpaceData%MOBDATA(NCMVCO,JJ) .EQ. 1) THEN
-                          ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
+                        IF (obsSpaceData%MOBDATA(NCM_VCO,JJ) .EQ. 1) THEN
+                          ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
                         ENDIF
                         IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)
      1                       .AND. ZLEV .EQ. ZSLEV) THEN
@@ -265,10 +265,10 @@
                     IF (IOTHER .NE. -1) THEN
                       IF (ITYP .EQ. BUFR_NEVV .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZVAR
-                        ZVV = obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
+                        ZVV = obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
                       ELSE
                         ZVV = ZVAR
-                        ZUU = obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
+                        ZUU = obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
                       ENDIF
                       SPD = SQRT(ZUU*ZUU + ZVV*ZVV)
                       ISPDO = NINT(SPD)
@@ -282,12 +282,12 @@
                       ENDIF
                       IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZFCST
-                        ZVV = obsSpaceData%ROBDATA8(NCMOMF,IOTHER)*ZOER
-     1                      + obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
+                        ZVV = obsSpaceData%ROBDATA8(NCM_OMF,IOTHER)*ZOER
+     1                      + obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
                       ELSE
                         ZVV = ZFCST
-                        ZUU = obsSpaceData%ROBDATA8(NCMOMF,IOTHER)*ZOER
-     1                      + obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
+                        ZUU = obsSpaceData%ROBDATA8(NCM_OMF,IOTHER)*ZOER
+     1                      + obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
                       ENDIF
                       SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                       ISPDF = NINT(SPD)
@@ -301,12 +301,12 @@
                       ENDIF
                       IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZANA
-                        ZVV = obsSpaceData%ROBDATA8(NCMOMA,IOTHER)*ZOER
-     1                      + obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
+                        ZVV = obsSpaceData%ROBDATA8(NCM_OMA,IOTHER)*ZOER
+     1                      + obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
                       ELSE
                         ZVV = ZANA
-                        ZUU = obsSpaceData%ROBDATA8(NCMOMA,IOTHER)*ZOER
-     1                      + obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
+                        ZUU = obsSpaceData%ROBDATA8(NCM_OMA,IOTHER)*ZOER
+     1                      + obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
                       ENDIF
                       SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                       ISPDA = NINT(SPD)
@@ -321,14 +321,14 @@
                       ILEV = NINT(ZLEV)
                       IF (ZPOST .GT. ZCUT) THEN
                         LLELREJ = .TRUE.
-                        obsSpaceData%MOBDATA(NCMFLG,JDATA) =
-     1                  IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),9)
-                        obsSpaceData%MOBDATA(NCMFLG,IOTHER) =
-     1                  IBSET(obsSpaceData%MOBDATA(NCMFLG,IOTHER),9)
-                        obsSpaceData%MOBDATA(NCMFLG,JDATA) =
-     1                  IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),17)
-                        obsSpaceData%MOBDATA(NCMFLG,IOTHER) =
-     1                  IBSET(obsSpaceData%MOBDATA(NCMFLG,IOTHER),17)
+                        obsSpaceData%MOBDATA(NCM_FLG,JDATA) =
+     1                  IBSET(obsSpaceData%MOBDATA(NCM_FLG,JDATA),9)
+                        obsSpaceData%MOBDATA(NCM_FLG,IOTHER) =
+     1                  IBSET(obsSpaceData%MOBDATA(NCM_FLG,IOTHER),9)
+                        obsSpaceData%MOBDATA(NCM_FLG,JDATA) =
+     1                  IBSET(obsSpaceData%MOBDATA(NCM_FLG,JDATA),17)
+                        obsSpaceData%MOBDATA(NCM_FLG,IOTHER) =
+     1                  IBSET(obsSpaceData%MOBDATA(NCM_FLG,IOTHER),17)
                         IF (ITYP .EQ. BUFR_NEUU .OR.
      1                      ITYP .EQ. BUFR_NEVV) THEN
                           ICOUNT(1,J) = ICOUNT(1,J) + 1
@@ -339,7 +339,7 @@
                         WRITE(NULOUT,620)
      1                   obsSpaceData%CSTNID(JREP),IDBURP,CLOBTP(IDBURP),ZLAT,ZLON,
      2                   ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,
-     3                   ISPDA,ZPOST,obsSpaceData%MOBHDR(NCMONM,JREP)
+     3                   ISPDA,ZPOST,obsSpaceData%MOBHDR(NCM_ONM,JREP)
  620                    FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      1                   'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,
      2                   '/',I3,2X,F6.4,1X,I5)
@@ -423,13 +423,13 @@
                         ZANA  = ZANA * 1000.
                       ENDIF
 *
-                      obsSpaceData%MOBDATA(NCMFLG,JDATA) =
-     1                IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),9)
-                      obsSpaceData%MOBDATA(NCMFLG,JDATA) =
-     1                IBSET(obsSpaceData%MOBDATA(NCMFLG,JDATA),17)
+                      obsSpaceData%MOBDATA(NCM_FLG,JDATA) =
+     1                IBSET(obsSpaceData%MOBDATA(NCM_FLG,JDATA),9)
+                      obsSpaceData%MOBDATA(NCM_FLG,JDATA) =
+     1                IBSET(obsSpaceData%MOBDATA(NCM_FLG,JDATA),17)
                       WRITE(NULOUT,630) obsSpaceData%CSTNID(JREP),IDBURP,
      1                 CLOBTP(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
-     2                 ZVAR,ZFCST,ZANA,ZPOST,obsSpaceData%MOBHDR(NCMONM,JREP)
+     2                 ZVAR,ZFCST,ZANA,ZPOST,obsSpaceData%MOBHDR(NCM_ONM,JREP)
  630                  FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      2                   A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F6.4,1X,I5,1X)
                     ENDIF
@@ -440,7 +440,7 @@
 *_________NOW SET THE GLOBAL FLAGS IN THE BURP RECORD HEADER
 *
               IF (LLELREJ) THEN
-                obsSpaceData%MOBHDR(NCMST1,JREP)= IBSET( obsSpaceData%MOBHDR(NCMST1,JREP) , 06)
+                obsSpaceData%MOBHDR(NCM_ST1,JREP)= IBSET( obsSpaceData%MOBHDR(NCM_ST1,JREP) , 06)
               ENDIF
  10         CONTINUE
           ENDIF

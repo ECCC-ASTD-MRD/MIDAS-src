@@ -34,7 +34,7 @@
 **    Revision:
 *              S. Pellerin - ARMA, january 2009
 *                - Rename the subroutine acording to ODA naming convention
-*                - Use of NCMOMI as index of adjoint residual variable
+*                - Use of NCM_OMI as index of adjoint residual variable
 *
 #endif
       IMPLICIT NONE
@@ -82,19 +82,19 @@ C*    .  2.1  Extract general information for this observation point
 C     .       ------------------------------------------------------
 C
         JO   = MJOGO(JN)
-        IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-        IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO)+IDATA - 1
+        IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+        IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO)+IDATA - 1
 C
 C*          Loop through data. Extract and store temporarily brightness
 c temps.
 C
         DO JDATA = IDATA, IDATEND
           IF (lmaskgo(jdata)) then
-            ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
-c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
-c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-            obsSpaceData%MOBDATA(NCMXTR,JDATA) = 0
-            PTBO (ICHN,JN) = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
+            ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &           * obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+            obsSpaceData%MOBDATA(NCM_XTR,JDATA) = 0
+            PTBO (ICHN,JN) = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
           ENDIF
         enddo
 C
@@ -106,8 +106,8 @@ C
 C*    .  2.3 Adjoint of radiative transfer model
 C     .      -----------------------------------
 C
-C*          TBAD = (HX)T*(NCMOMA)/SIGMA
-C           avec dans NCMOMA = (HX-Z)/SIGMA calcule dans lvgoes
+C*          TBAD = (HX)T*(NCM_OMA)/SIGMA
+C           avec dans NCM_OMA = (HX-Z)/SIGMA calcule dans lvgoes
 C
       DO K = 1, NGOES
         DO J = 1, 2*(NFLEV+1)

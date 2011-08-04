@@ -19,7 +19,7 @@ subroutine oda_Hto
   !
   ! Purpose: Compute simulated radiances observations from profiled model
   !          increments.
-  !          It returns Hdx in ROBDATA8(NCMOMA,*)
+  !          It returns Hdx in ROBDATA8(NCM_OMA,*)
   !
   !author        : j. halle *cmda/aes  april 8, 2005
   !

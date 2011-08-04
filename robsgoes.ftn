@@ -162,8 +162,8 @@ C
        IF ( CFAMTYP(JF).EQ.'GO' .AND. NBEGINTYP(JF).GT.0 ) THEN
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-        ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
+        IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+        ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
 C
 C**   Loop over all satellites specified by user
 C
@@ -199,18 +199,18 @@ C     .       ------------------------------------------------------
 C
 C*          Only process GOES/RADIANCES data (codtype = 180) to be assimilated?
 C
-            IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
+            IDATYP = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
             IF ( IDATYP .EQ. 180  ) THEN
-               IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-               IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
+               IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+               IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
                ASSIM = .FALSE.
                DO JDATA= IDATA, IDATEND
-                 IF ( obsSpaceData%MOBDATA(NCMASS,JDATA).EQ.1 ) THEN
+                 IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 ) THEN
                    ASSIM = .TRUE.
                  ENDIF
                ENDDO
 C
-               ISAT = MOD(obsSpaceData%MOBHDR(NCMITY,JO)/1000,1000)
+               ISAT = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO)/1000,1000)
 cnwa
 C
 C*             Currently processed satellite
@@ -229,26 +229,26 @@ C
 C
 C*                Extract Latitude
 C
-                  ZLAT(KNPF) = obsSpaceData%ROBHDR(NCMLAT,JO) * ZTODEG
+                  ZLAT(KNPF) = obsSpaceData%ROBHDR(NCM_LAT,JO) * ZTODEG
 C
 C*                Extract land/sea flag
 C
-                  ILANSEA = obsSpaceData%MOBHDR(NCMOFL,JO)
+                  ILANSEA = obsSpaceData%MOBHDR(NCM_OFL,JO)
 cnwa                  INDXREG = ISRCHEQ ( MLISREG, NREGST, ILANSEA )
                   KSURF(KNPF) = ILANSEA
 C
 C*                Extract processing technique
 C
-                  IPROCES = obsSpaceData%MOBHDR(NCMITY,JO)/1000000
+                  IPROCES = obsSpaceData%MOBHDR(NCM_ITY,JO)/1000000
 cnwa                  INDXCLD = ISRCHEQ ( MLISCLD, NCLDST, IPROCES )
 C
 C*                Extract scan position
 C
-                  ISCANPOS(KNPF) = MOD(obsSpaceData%MOBHDR(NCMBOX,JO),100)
+                  ISCANPOS(KNPF) = MOD(obsSpaceData%MOBHDR(NCM_BOX,JO),100)
 C
 C*                Extract satellite zenith angle
 C
-                  ISATZEN(KNPF) = obsSpaceData%MOBHDR(NCMBOX,JO)/10000
+                  ISATZEN(KNPF) = obsSpaceData%MOBHDR(NCM_BOX,JO)/10000
                   PANGL(KNPF) = (ISATZEN(KNPF)-9000) / 100.0
 C
                   IPTCLD(KNPF) = 1
@@ -267,12 +267,12 @@ c
                   IPTOBS(KNPF) = JO
 
                   DO JDATA = IDATA, IDATEND
-                  ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                  ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
 C
 C                    A emissivity (elements )?
                      IF ( ITYP.EQ.12163 ) THEN
-                        ZVAR = obsSpaceData%ROBDATA8(NCMPRL,JDATA)
-                        ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
+                        ZVAR = obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
+                        ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
                         PEMISGO(KNPF,ICHN) = ZVAR
                      ENDIF
                   ENDDO

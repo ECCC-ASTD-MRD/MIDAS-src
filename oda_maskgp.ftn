@@ -43,17 +43,17 @@ c
         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
           IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
-          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST)
+          IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
-            IDATYP    = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
+            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+            IDATYP    = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
             IF ( IDATYP .EQ. 189 ) THEN
               DO JDATA=IDATA,IDATEND
-                ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                 LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND.
-     &            (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) )
+     &            (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) )
                 IF ( LLOK ) THEN
                   lmaskgp(jdata) = .true.
                 ENDIF

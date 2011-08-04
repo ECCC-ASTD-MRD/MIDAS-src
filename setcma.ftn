@@ -21,10 +21,10 @@
 *
 c Purpose:
 c Through indices interchange, the inovation (Z') CMA reference
-C (NCMOMF) is substitute to the observations (Z) CMA reference (NCMVAR).
+C (NCM_OMF) is substitute to the observations (Z) CMA reference (NCM_VAR).
 c This implement the incremental approach with an invariant code
 C downward.
-c Observations (Z) CMA reference is kept in inovation (Z') one (NCMOMF)
+c Observations (Z) CMA reference is kept in inovation (Z') one (NCM_OMF)
 c
 c Author  : S. Pellerin ARMA/AES December 2008
 c
@@ -39,9 +39,9 @@ c Revision:
 C
 c-------Fill ROBDATA with Z' = -( H(xb_hr) - Z ) = Z - H(xb_hr)
 c
-      DO JDATA=1,obsSpaceData%ndata
-        obsSpaceData%robdata8(ncmomn,jdata) = 0.d0
-        obsSpaceData%ROBDATA8(NCMOMF,JDATA) = -obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOER
+      DO JDATA=1,obsSpaceData%numobs_recorded
+        obsSpaceData%robdata8(NCM_OMN,jdata) = 0.d0
+        obsSpaceData%ROBDATA8(NCM_OMF,JDATA) = -obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*obsSpaceData%ROBDATA8(NCM_OER
      &       ,JDATA)
       ENDDO
 c

@@ -41,7 +41,7 @@
 *           -CHANGE HEADER FLAG IN CASE OF REJECT
 *          C. Charette ARMA/AES JUN 2000
 *           - Added check on type of vertical coordinate
-*             MOBDATA(NCMVCO,)=2 --> PRESSURE COORDINATE is considered
+*             MOBDATA(NCM_VCO,)=2 --> PRESSURE COORDINATE is considered
 *           - Move adjustement of surface observations in RAOB
 *             reports to SFCADJUSTZ
 *
@@ -147,17 +147,17 @@ C
          IF ( (CFAMTYP(JF) .EQ. 'UA') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
             IBEGIN=NBEGINTYP(JF)
             ILAST=NENDTYP(JF)
-            IOBS1=obsSpaceData%MOBDATA(NCMOBS,NBEGINTYP(JF))
-            IOBS2=obsSpaceData%MOBDATA(NCMOBS,NENDTYP(JF))
+            IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
+            IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
             WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ',CFAMTYP(JF)
 C
 C
             DO JOBS=IOBS1,IOBS2
-               IDATA    = obsSpaceData%MOBHDR(NCMRLN,JOBS)
-               IDATEND  = obsSpaceData%MOBHDR(NCMNLV,JOBS) + IDATA - 1
-               ZLAT=obsSpaceData%ROBHDR(NCMLAT,JOBS)*ZRADDEG
-               ZLON=obsSpaceData%ROBHDR(NCMLON,JOBS)*ZRADDEG
-               ZSTNALT=obsSpaceData%ROBHDR(NCMALT,JOBS)
+               IDATA    = obsSpaceData%MOBHDR(NCM_RLN,JOBS)
+               IDATEND  = obsSpaceData%MOBHDR(NCM_NLV,JOBS) + IDATA - 1
+               ZLAT=obsSpaceData%ROBHDR(NCM_LAT,JOBS)*ZRADDEG
+               ZLON=obsSpaceData%ROBHDR(NCM_LON,JOBS)*ZRADDEG
+               ZSTNALT=obsSpaceData%ROBHDR(NCM_ALT,JOBS)
                ZDIFALT=  ZSTNALT- GOMGZHR(NLEVTRL,JOBS)/RG
                DO J=1,JPINEL
                   LLALTOK(J) = .FALSE.
@@ -166,19 +166,19 @@ C
 C
 C--------HEIGHT GZ
                DO JDATA= IDATA, IDATEND
-                  ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
-                  IASS=obsSpaceData%MOBDATA(NCMASS,JDATA)
-                  LLOK = obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2
+                  ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                  IASS=obsSpaceData%MOBDATA(NCM_ASS,JDATA)
+                  LLOK = obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2
      &                   .AND. ITYP.EQ.ILISTEL(JPINEL)
      &                   .AND. IASS.EQ.1
                   IF (LLOK )  THEN
                      IKOUNTT=IKOUNTT+1
-                  IFLG     = obsSpaceData%MOBDATA(NCMFLG,JDATA)
-                  ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                  IFLG     = obsSpaceData%MOBDATA(NCM_FLG,JDATA)
+                  ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                   ZDIFF=99999.
-                  ZLEV=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-                  IASS=obsSpaceData%MOBDATA(NCMASS,JDATA)
-                     ZVAL=obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+                  ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  IASS=obsSpaceData%MOBDATA(NCM_ASS,JDATA)
+                     ZVAL=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
                      ZDIFF= ( ZVAL-GOMGZHR(NLEVTRL,JOBS) )/RG
                      ZCRIT= -RLISTCRIT(JPINEL)
                      IF ( ZDIFF .LT. 0.0 ) THEN
@@ -191,16 +191,16 @@ C--------HEIGHT GZ
      &                        ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF,ZCRIT
                            ENDIF
                         ELSE
-                           IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) THEN
-                              obsSpaceData%MOBDATA(NCMFLG,JDATA)=
-     &                              ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 18 )
+                           IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) THEN
+                              obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
+     &                              ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
                               IF(LLPRINT) THEN
                                  WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '
      &                            ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
      &                            ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF
      &                            ,ZCRIT
                               ENDIF
-                              obsSpaceData%MOBDATA(NCMASS,JDATA)=0
+                              obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                               ITOTREJ(JPINEL)=ITOTREJ(JPINEL)+1
                               IGZREJ(JPINEL)=IGZREJ(JPINEL)+1
                            ENDIF
@@ -226,16 +226,16 @@ C              it is treated as if it were for the evaluation step.
 C              Otherwise we use observations of TT that are too far
 C              from the model topography in the verification.
                DO JDATA= IDATA, IDATEND
-                  ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                  ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                   IJ = -1
                   DO J=1,JPINEL-1
                      IF(ITYP.EQ.ILISTEL(J))IJ = J
                   ENDDO
-                  LLOK = obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2
+                  LLOK = obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2
      &                   .AND. ITYP .NE.ILISTEL(JPINEL)
      &                   .AND. IJ .NE. -1
                   IF (LLOK )  THEN
-                     ZLEV=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                     ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
                      ZPB =GOMPSHR(1,JOBS)
                      ZPT =GOMPSHR(1,JOBS)-RSBLCRIT(IJ)
                      ZDELP = 999999.0
@@ -257,20 +257,20 @@ C                    of the trial field
                        ENDIF
                      ENDIF
                      IF(ZLEV .GT. ZPB ) THEN
-                        obsSpaceData%MOBDATA(NCMFLG,JDATA)=
-     &                       ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 18 )
+                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
+     &                       ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '
      &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON
      &                          ,ZLEV,GOMPSHR(1,JOBS)
                         ENDIF
-                        obsSpaceData%MOBDATA(NCMASS,JDATA)=0
+                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
-                        obsSpaceData%MOBDATA(NCMFLG,JDATA)=
-     &                       ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 18 )
+                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
+     &                       ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT '
@@ -279,7 +279,7 @@ C                    of the trial field
      &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
      &                          ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
-                        obsSpaceData%MOBDATA(NCMASS,JDATA)=0
+                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         ISBLREJ(IJ)=ISBLREJ(IJ)+1
                      ENDIF
@@ -309,8 +309,8 @@ C
       END DO
 C
       IKOUNTT=0
-      DO JDATA=1,obsSpaceData%ndata
-         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obsSpaceData%numobs_recorded
+         IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR"
      &          ," AFTER ADJUSTMENTS:",i10)')IKOUNTT

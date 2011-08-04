@@ -90,8 +90,8 @@
            ibegin= NBEGINTYP(j)
            ilast = NENDTYP(j) 
 
-           ibeginob= obsSpaceData%MOBDATA(NCMOBS,ibegin) 
-           ilastob = obsSpaceData%MOBDATA(NCMOBS,ilast)  
+           ibeginob= obsSpaceData%MOBDATA(NCM_OBS,ibegin) 
+           ilastob = obsSpaceData%MOBDATA(NCM_OBS,ilast)  
            Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
 
            interv=INT((ilastob-ibeginob+1)/mpi_nprocs)  
@@ -118,7 +118,7 @@
                     CALL calObsTag(ibeginob,ilastob,jj)
                  CASE('SW')
                     CALL calObsTag(ibeginob,ilastob,jj)
-                 CASE('SF','SC')
+                 CASE('SF')
                     CALL calObsTag(ibeginob,ilastob,jj)
                  CASE('TO') 
                     CALL calObsTag(ibeginob,ilastob,jj)
@@ -148,12 +148,12 @@
       ENDIF !! end if(l4dvar)  
 
    !! Calculate the size of the local obs data  
-      obsSpaceData%ndata_l=0
+      obsSpaceData%numobs_recorded_l=0
       IF(length_l<=0) CALL ABORT3D(nulout,'Zero lenght of ObsTag,Abort!') 
       DO i=1,length_l
        iobs=locObsTag(i)
-       idata= obsSpaceData%MOBHDR(NCMNLV,iobs) 
-       obsSpaceData%ndata_l = obsSpaceData%ndata_l + idata
+       idata= obsSpaceData%MOBHDR(NCM_NLV,iobs) 
+       obsSpaceData%numobs_recorded_l = obsSpaceData%numobs_recorded_l + idata
       ENDDO 
 
       write(nulout,*) ' '

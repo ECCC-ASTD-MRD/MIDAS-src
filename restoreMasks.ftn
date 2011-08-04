@@ -36,47 +36,47 @@ C
 ! Define Local Variables. 
       INTEGER :: ierr
       INTEGER :: nobtot_l
-      LOGICAL,DIMENSION(obsSpaceData%ndata) :: llmask_l  
+      LOGICAL,DIMENSION(obsSpaceData%numobs_recorded) :: llmask_l  
 * 
        nobtot_l=nobtot   
          
-       ALLOCATE(lmaskpp_inout_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmaskpp_inout_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskpp_inout_g')
-       ALLOCATE(lmasksf_inout_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmasksf_inout_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmasksf_inout_g')
-       ALLOCATE(lmaskto_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmaskto_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskto_g')
 
-       ALLOCATE(lmaskgo_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmaskgo_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskgo_g')
 
-       ALLOCATE(lmaskro_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmaskro_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskro_g')
 
-       ALLOCATE(lmaskzp_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmaskzp_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskzp_g')
 
-       ALLOCATE(lmask_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmask_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmask_g')
 
-       ALLOCATE(lmaskgp_g(obsSpaceData%ndatap),STAT=ierr)
+       ALLOCATE(lmaskgp_g(obsSpaceData%mxobstotal),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskgp_g')
 
-       CALL restore_mask(lmask_g,obsSpaceData%ndatap,lmask,obsSpaceData%ndata)  
+       CALL restore_mask(lmask_g,obsSpaceData%mxobstotal,lmask,obsSpaceData%numobs_recorded)  
 
        llmask_l = lmaskpp_in .or. lmaskpp_out
-       CALL restore_mask(lmaskpp_inout_g,obsSpaceData%ndatap,llmask_l,obsSpaceData%ndata)  
+       CALL restore_mask(lmaskpp_inout_g,obsSpaceData%mxobstotal,llmask_l,obsSpaceData%numobs_recorded)  
 
        llmask_l =  lmasksf_in .or. lmasksf_out
-       CALL restore_mask(lmasksf_inout_g,obsSpaceData%ndatap,llmask_l,obsSpaceData%ndata)  
+       CALL restore_mask(lmasksf_inout_g,obsSpaceData%mxobstotal,llmask_l,obsSpaceData%numobs_recorded)  
 
-       CALL restore_mask(lmaskto_g,obsSpaceData%ndatap,lmaskto,obsSpaceData%ndata)  
+       CALL restore_mask(lmaskto_g,obsSpaceData%mxobstotal,lmaskto,obsSpaceData%numobs_recorded)  
 
-       CALL restore_mask(lmaskgo_g,obsSpaceData%ndatap,lmaskgo,obsSpaceData%ndata)  
-       CALL restore_mask(lmaskro_g,obsSpaceData%ndatap,lmaskro,obsSpaceData%ndata)  
-       CALL restore_mask(lmaskzp_g,obsSpaceData%ndatap,lmaskzp,obsSpaceData%ndata)  
+       CALL restore_mask(lmaskgo_g,obsSpaceData%mxobstotal,lmaskgo,obsSpaceData%numobs_recorded)  
+       CALL restore_mask(lmaskro_g,obsSpaceData%mxobstotal,lmaskro,obsSpaceData%numobs_recorded)  
+       CALL restore_mask(lmaskzp_g,obsSpaceData%mxobstotal,lmaskzp,obsSpaceData%numobs_recorded)  
 
-       CALL restore_mask(lmaskgp_g,obsSpaceData%ndatap,lmaskgp,obsSpaceData%ndata)  
+       CALL restore_mask(lmaskgp_g,obsSpaceData%mxobstotal,lmaskgp,obsSpaceData%numobs_recorded)  
        CONTAINS
 
        SUBROUTINE restore_mask(lmask_g,kdata_g,lmask_l,kdata_l)
@@ -90,8 +90,8 @@ C
        ii=0
        DO i=1,nobtot
          iobs=locObsTag(i)
-         idata=obsSpaceData%MOBHDR_G(NCMRLN,iobs)
-         idataend=obsSpaceData%MOBHDR_G(NCMNLV,iobs) + idata -1
+         idata=obsSpaceData%MOBHDR_G(NCM_RLN,iobs)
+         idataend=obsSpaceData%MOBHDR_G(NCM_NLV,iobs) + idata -1
          DO j=idata,idataend
            ii=ii+1
            lmask_g(j)=lmask_l(ii)

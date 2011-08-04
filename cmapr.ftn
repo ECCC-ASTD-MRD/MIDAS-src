@@ -71,8 +71,8 @@ C
          IBEGIN=NBEGINTYP(J)
          ILAST =NENDTYP(J)
          IF ( (IBEGIN .GT. 0) .AND. (ILAST .GT. 0) ) THEN
-            IBEGINOBS=obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-            ILASTOBS =obsSpaceData%MOBDATA(NCMOBS, ILAST)
+            IBEGINOBS=obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+            ILASTOBS =obsSpaceData%MOBDATA(NCM_OBS, ILAST)
             INREPT=MAX (ILASTOBS-IBEGINOBS+1,0)
             WRITE(IUN, '(10X,A14,A8)' ) ' DATA FILE:  ',CFILNAM(J)
             WRITE(IUN,'(30X,I6,A3,A8)'  )INREPT,CFAMTYP(J),' REPORTS'

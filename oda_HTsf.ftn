@@ -49,7 +49,7 @@ c coordinate.
 *              no longer displaced to the model surface in SFCADJUSTZ.
 *           S. Pellerin - ARMA - Jan. 2009
 *            - Rename the subroutine acording to ODA naming convention
-*            - Use of NCMOMI as index of adjoint residual variable
+*            - Use of NCM_OMI as index of adjoint residual variable
 *            - Use of mask to process assimilated observation only
 *
 *    -------------------
@@ -105,19 +105,19 @@ C     Process all data within the domain of the model
 C
       DO J=1,ISTRIDE
 *vdir nodep
-        DO JDATA=j,obsSpaceData%ndata,ISTRIDE
+        DO JDATA=j,obsSpaceData%numobs_recorded,ISTRIDE
           IF (lmasksf_in(jdata)) THEN
-            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-            IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-            ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-            IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
-            ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+            IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+            ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+            IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
+            ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
             ZHHH = ZLEV * GRAV
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
-            ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
-c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
-c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+            ZRES = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
+c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &           * obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.
      &           ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               GOMOBS(IPB,IOBS)    = GOMOBS(IPB,IOBS) + ZRES
@@ -152,17 +152,17 @@ ccc ATTN ATTN ZDADPS EST A DEFINIR POUR UNE COORDONNEE Z
             ENDIF
             
           elseif(lmasksf_out(jdata)) then
-            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-            ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
-            ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+            ZRES = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
+            ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
 C
 c  adjoint of TL of geopotential extrapolation below orography
 c
             zcon = (zlev/gompsg(1,iobs))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
-c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
-c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &           * obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
             gomps(1,iobs)    = gomps(1,iobs)
      &           + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)
             gomt(nflev,iobs) = gomt(nflev,iobs)

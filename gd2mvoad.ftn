@@ -124,15 +124,15 @@ C
  200  CONTINUE
 C
       Observations: DO JOBS = 1, NOBTOTP
-         DLLAO   = obsSpaceData%ROBHDR_G(NCMLAT,JOBS)
-         DLLOO   = obsSpaceData%ROBHDR_G(NCMLON,JOBS)
-         IOBTYP  = obsSpaceData%MOBHDR_G(NCMOTP,JOBS)
+         DLLAO   = obsSpaceData%ROBHDR_G(NCM_LAT,JOBS)
+         DLLOO   = obsSpaceData%ROBHDR_G(NCM_LON,JOBS)
+         IOBTYP  = obsSpaceData%MOBHDR_G(NCM_OTP,JOBS)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     TO THE WEST (ILON AND ILOS)
 C
-         ILA=obsSpaceData%MOBHDR_G(NCMTLA,JOBS)
+         ILA=obsSpaceData%MOBHDR_G(NCM_TLA,JOBS)
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI

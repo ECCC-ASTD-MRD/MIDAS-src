@@ -240,16 +240,16 @@ end interface
           do jn = 1, knpf
             iobs1 = iptobs(jn)
             jo = lobsno(iobs1)
-            idata    = obsSpaceData%mobhdr(ncmrln,jo)
-            idatend  = obsSpaceData%mobhdr(ncmnlv,jo) + idata - 1
+            idata    = obsSpaceData%mobhdr(NCM_RLN,jo)
+            idatend  = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
             do jdata = idata, idatend
-              if(obsSpaceData%mobdata(ncmass,jdata).eq.1) then
-                ichn = nint(obsSpaceData%robdata8(ncmppp,jdata))
+              if(obsSpaceData%mobdata(NCM_ASS,jdata).eq.1) then
+                ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
                 ichn = max(0,min(ichn,jpch+1))
                 do nrank = 1, nchan(krtid)
                   if ( ichn == ichan(nrank,krtid) ) exit
                 end do
-                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obsSpaceData%robdata8(ncmprl,jdata)
+                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obsSpaceData%robdata8(NCM_PRL,jdata)
               end if
             end do
           end do

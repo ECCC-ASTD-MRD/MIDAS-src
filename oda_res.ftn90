@@ -21,8 +21,8 @@ SUBROUTINE oda_res
   !
   !Purpose:
   !Compute residuals to observations for assimilated and diagnosed data
-  !  Modify ROBDATA8(NCMOMA,*) in place :
-  !  NCMOMA contains Hdx as input and residuals as output
+  !  Modify ROBDATA8(NCM_OMA,*) in place :
+  !  NCM_OMA contains Hdx as input and residuals as output
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
@@ -40,9 +40,9 @@ SUBROUTINE oda_res
   integer jdata
 !
 !!
-    DO JDATA=1,obsSpaceData%ndata
+    DO JDATA=1,obsSpaceData%numobs_recorded
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          obsSpaceData%ROBDATA8(NCMOMA,JDATA) = obsSpaceData%ROBDATA8(NCMOMA,JDATA)-obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+          obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)-obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
        ENDIF
     enddo
 !

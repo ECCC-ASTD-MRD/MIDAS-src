@@ -88,7 +88,7 @@
       NVALS=NFILES
       LLAPPEND=.FALSE.
       NOBTOT=0
-       obsSpaceData%ndata=0
+       obsSpaceData%numobs_recorded=0
       DO J =1,NVALS
          NVTYP=J
          CLVAL(J) = CFILNAM(J)
@@ -109,12 +109,12 @@
      +       '========================================================='
                WRITE(NULOUT,*)  ' '
 *
-               IBEG=obsSpaceData%ndata+1
+               IBEG=obsSpaceData%numobs_recorded+1
 !
                CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
-               IF ( IBEG .LE. obsSpaceData%ndata ) THEN
+               IF ( IBEG .LE. obsSpaceData%numobs_recorded ) THEN
                   NBEGINTYP(J)=IBEG
-                  NENDTYP(J) =obsSpaceData%ndata
+                  NENDTYP(J) =obsSpaceData%numobs_recorded
                ELSE
                   NBEGINTYP(J)=-999
                   NENDTYP(J)  =-999

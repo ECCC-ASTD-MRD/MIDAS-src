@@ -98,20 +98,20 @@ C
 C     Process all data within the domain of the model
 C
           DO JDATA = IBEGIN,ILAST
-            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-            LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
-     &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2)
+            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+            LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+     &           .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 0)
+     &           .AND. (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2)
             IF ( LLOK ) THEN
-              IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-              ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-              ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-              ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-              ZPREF= obsSpaceData%ROBDATA8(NCMPRL,JDATA)
+              IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+              ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+              ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+              ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+              ZPREF= obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
 C
 C                 CALCULATE PHI AT REFERENCE LEVEL
 C
-              IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)/1000
+              IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)/1000
               IPT  = IK + IPOS*NLEVTRL
               IPB  = IPT + 1
               IF ( IK .EQ. NLEVTRL) THEN
@@ -149,7 +149,7 @@ C
 C
 C                 CALCULATE PHI AT PRESSURE  LEVEL
 C
-              IK   = MOD ( real(obsSpaceData%MOBDATA(NCMLYR,JDATA)),1000. )
+              IK   = MOD ( real(obsSpaceData%MOBDATA(NCM_LYR,JDATA)),1000. )
               IPT  = IK + IPOS*NLEVTRL
               IPB  = IPT + 1
               ZPT  = RPPOBSHR(IK,IOBS)
@@ -171,11 +171,11 @@ C
 C
 C                 CONTRIBUTION TO Jo
 C
-              obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
+              obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
      +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
-              DLSUM=DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)*
-     &             obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-              obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+              DLSUM=DLSUM+obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*
+     &             obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+              obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
             ENDIF
           END DO
  200      CONTINUE
@@ -183,17 +183,17 @@ C
 C     Process all geopotential data below model's orography
 C
           DO JDATA = IBEGIN,ILAST
-            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-            LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &           .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. IELMDZ )
-     &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2 )
+            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+            LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+     &           .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2)
+     &           .AND. (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. IELMDZ )
+     &           .AND. (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-              IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-              ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-              ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-              ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-              ZPREF= obsSpaceData%ROBDATA8(NCMPRL,JDATA)
+              IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+              ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+              ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+              ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+              ZPREF= obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
 C
 C                 CALCULATE PHI AT REFERENCE LEVEL
 C
@@ -208,7 +208,7 @@ c
 C
 C                 CALCULATE PHI AT PRESSURE  LEVEL
 C
-              IK   = MOD ( real(obsSpaceData%MOBDATA(NCMLYR,JDATA)),1000. )
+              IK   = MOD ( real(obsSpaceData%MOBDATA(NCM_LYR,JDATA)),1000. )
               IPT  = IK + IPOS*NLEVTRL
               IPB  = IPT + 1
               ZPT  = RPPOBSHR(IK,IOBS)
@@ -234,11 +234,11 @@ C
 C
 C                 CONTRIBUTION TO Jo
 C
-              obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
+              obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
      +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
-              DLSUM=DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)*
-     &             obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-              obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+              DLSUM=DLSUM+obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*
+     &             obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+              obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
             ENDIF
           END DO
 C

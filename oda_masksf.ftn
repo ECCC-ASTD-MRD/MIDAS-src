@@ -53,25 +53,25 @@ C
 C
 C     Process all data within the domain of the model
 C
-          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST)
+          IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
+            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              IF ( obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1 ) THEN
-                ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+              IF ( obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1 ) THEN
+                ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                 IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS
      &               .OR.ITYP.EQ.BUFR_NEPN .OR. ITYP.EQ.BUFR_NESS
      &               .OR.ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
-                  LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+                  LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
                 ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                   LMASKSF_IN(JDATA)= .false.
                 ELSE
-                  LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1 .AND.
-     &                 obsSpaceData%MOBDATA(NCMXTR,JDATA)  .EQ. 0)
+                  LMASKSF_IN(JDATA)=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
+     &                 obsSpaceData%MOBDATA(NCM_XTR,JDATA)  .EQ. 0)
                 ENDIF
-                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHS) then
+                IF ( obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHS) then
                   ldiagsf(jdata) = .true.
                 endif
               ENDIF
@@ -81,10 +81,10 @@ C
 C     Process all geopotential data below model's orography
 C
           DO JDATA=IBEGIN,ILAST
-            lmasksf_out(jdata)=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &           .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2)
-     &           .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ )
-     &           .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
+            lmasksf_out(jdata)=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+     &           .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2)
+     &           .AND. (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEGZ )
+     &           .AND. (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1)
 C
           END DO
 C

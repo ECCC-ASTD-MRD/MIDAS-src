@@ -195,7 +195,7 @@ c       Set coefficients for TT and PS to zero for HUMSAT (IDTYP=158)
 c
         DO JLEV=1,NFLEV
            DO JOBS=1,NOBTOT
-              ITY    = obsSpaceData%MOBHDR(NCMITY,JOBS)
+              ITY    = obsSpaceData%MOBHDR(NCM_ITY,JOBS)
               IDBURP = MOD(ITY,1000)
 
             IF(IDBURP .EQ. 158) THEN

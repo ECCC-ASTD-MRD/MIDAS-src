@@ -23,7 +23,7 @@
 *
 * Purpose: Compute simulated profiler observations from profiled model
 *          increments.
-*          It returns Hdx in ROBDATA8(NCMOMA,*)
+*          It returns Hdx in ROBDATA8(NCM_OMA,*)
 *          Interpolate vertically the contents of commvo to heights
 *          (in meters) of the observations.
 *          A linear interpolation in z is performed.
@@ -57,12 +57,12 @@
       REAL*8 DLSUM
       LOGICAL LLOK, LLPRINT, LLUV
 C
-      DO JDATA=1,obsSpaceData%ndata
+      DO JDATA=1,obsSpaceData%numobs_recorded
         IF (lmaskzp(jdata)) THEN
-          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-          IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = GOMGZG(IK,IOBS)/RG
@@ -74,7 +74,7 @@ C
           ZDA1= (ZLEV-ZPB)/(ZDENO**2)
           ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
-          obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
+          obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
      &         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS) +
      &         (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))*
      &         (ZDA1*GOMGZ(IK,IOBS)/RG + ZDA2*GOMGZ(IK+1,IOBS)/RG)

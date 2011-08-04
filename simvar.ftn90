@@ -75,16 +75,16 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
 
      call tmg_start(2,'OBS-OPER') !
 
-     call oda_H ! Modify NCMOMA ! Hdx
+     call oda_H ! Modify NCM_OMA ! Hdx
 
-     call oda_res              ! Modify NCMOMA : Hdx-d
+     call oda_res              ! Modify NCM_OMA : Hdx-d
      
-     call oda_sqrtRm1(ncmoma,ncmoma)  ! Modify NCMOMA : R**-1/2*(Hdx-d)
+     call oda_sqrtRm1(NCM_OMA,NCM_OMA)  ! Modify NCM_OMA : R**-1/2*(Hdx-d)
      
-     call oda_Jo               ! Store J in NCMOMI : R**-1(Hdx-d)**2
+     call oda_Jo               ! Store J in NCM_OMI : R**-1(Hdx-d)**2
      
      IF (LVARQC) THEN
-        ! Store modify J in NCMOMI : -ln((gamma-exp(J))/(gamma+1))
+        ! Store modify J in NCM_OMI : -ln((gamma-exp(J))/(gamma+1))
         call oda_qcv
      endif
 
@@ -99,7 +99,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
         IF(mpi_myid == 0) write(nulout,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
      endif
 
-     call oda_sqrtRm1(ncmomi,ncmoma)
+     call oda_sqrtRm1(NCM_OMI,NCM_OMA)
 
      IF (LVARQC) THEN
         call oda_qcvad

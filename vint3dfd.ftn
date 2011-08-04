@@ -76,26 +76,26 @@ C
 C     Process all data within the domain of the model
 C
 c           DO JDATA=IBEGIN,ILAST
-c              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. IFF .OR. obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. IDD) THEN
+c              IF ( obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. IFF .OR. obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. IDD) THEN
 c                 obsSpaceData%ROBDATA(KVAL,JDATA)=PPMIS
-c                 obsSpaceData%MOBDATA(NCMFLG,JDATA)=-1
+c                 obsSpaceData%MOBDATA(NCM_FLG,JDATA)=-1
 c              ENDIF
 c           END DO
             DO JDATA=IBEGIN,ILAST
-               LLOK= (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &         .AND. (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. IUU)
+               LLOK= (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+     &         .AND. (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. IUU)
                IF ( LLOK ) THEN
-                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-                  ISTART=obsSpaceData%MOBHDR(NCMRLN,IOBS)
-                  IEND=obsSpaceData%MOBHDR(NCMNLV,IOBS) +ISTART-1
-                  ZLEVU = obsSpaceData%ROBDATA(NCMPPP,JDATA)
-                  UU=obsSpaceData%ROBDATA(KVAL,JDATA)*obsSpaceData%ROBDATA(NCMOER,JDATA) +
-     &                 obsSpaceData%ROBDATA(NCMVAR,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  ISTART=obsSpaceData%MOBHDR(NCM_RLN,IOBS)
+                  IEND=obsSpaceData%MOBHDR(NCM_NLV,IOBS) +ISTART-1
+                  ZLEVU = obsSpaceData%ROBDATA(NCM_PPP,JDATA)
+                  UU=obsSpaceData%ROBDATA(KVAL,JDATA)*obsSpaceData%ROBDATA(NCM_OER,JDATA) +
+     &                 obsSpaceData%ROBDATA(NCM_VAR,JDATA)
                   DO JJOBS=ISTART,IEND
-                  IF ((obsSpaceData%MOBDATA(NCMVNM,JJOBS) .EQ. IVV)
-     &            .AND.(obsSpaceData%ROBDATA(NCMPPP,JJOBS) .EQ. ZLEVU)) THEN
-                    VV=obsSpaceData%ROBDATA(KVAL,JJOBS)*obsSpaceData%ROBDATA(NCMOER,JJOBS) +
-     &                   obsSpaceData%ROBDATA(NCMVAR,JJOBS)
+                  IF ((obsSpaceData%MOBDATA(NCM_VNM,JJOBS) .EQ. IVV)
+     &            .AND.(obsSpaceData%ROBDATA(NCM_PPP,JJOBS) .EQ. ZLEVU)) THEN
+                    VV=obsSpaceData%ROBDATA(KVAL,JJOBS)*obsSpaceData%ROBDATA(NCM_OER,JJOBS) +
+     &                   obsSpaceData%ROBDATA(NCM_VAR,JJOBS)
 *
 *****************************************************************************
 *  1-calculate angle
@@ -124,24 +124,24 @@ C
 ************************************************************************
 C
                   DO JJOBS=ISTART,IEND
-                     IF ((obsSpaceData%MOBDATA(NCMVNM,JJOBS).EQ.IDD)
-     &               .AND. obsSpaceData%ROBDATA(NCMPPP,JJOBS) .EQ. ZLEVU ) THEN
-                        obsSpaceData%ROBDATA(KVAL,JJOBS)= ANG - obsSpaceData%ROBDATA(NCMVAR,JJOBS)*180.0D0/PI
+                     IF ((obsSpaceData%MOBDATA(NCM_VNM,JJOBS).EQ.IDD)
+     &               .AND. obsSpaceData%ROBDATA(NCM_PPP,JJOBS) .EQ. ZLEVU ) THEN
+                        obsSpaceData%ROBDATA(KVAL,JJOBS)= ANG - obsSpaceData%ROBDATA(NCM_VAR,JJOBS)*180.0D0/PI
                         IF ( obsSpaceData%ROBDATA(KVAL,JJOBS) .gt.  180.0D0)
      &                  obsSpaceData%ROBDATA(KVAL,JJOBS)=obsSpaceData%ROBDATA(KVAL,JJOBS)-360.0D0
                         IF ( obsSpaceData%ROBDATA(KVAL,JJOBS) .le. -180.0D0)
      &                  obsSpaceData%ROBDATA(KVAL,JJOBS)=obsSpaceData%ROBDATA(KVAL,JJOBS)+360.0D0
                         obsSpaceData%ROBDATA(KVAL,JJOBS)=-1.0D0*obsSpaceData%ROBDATA(KVAL,JJOBS)*PI/180.0D0
-                        obsSpaceData%ROBDATA(NCMOER,JJOBS)=1.0D0
-                        obsSpaceData%MOBDATA(NCMASS,JJOBS) = 1
-                        obsSpaceData%MOBDATA(NCMFLG,JJOBS) = 0
+                        obsSpaceData%ROBDATA(NCM_OER,JJOBS)=1.0D0
+                        obsSpaceData%MOBDATA(NCM_ASS,JJOBS) = 1
+                        obsSpaceData%MOBDATA(NCM_FLG,JJOBS) = 0
                      ENDIF
-                     IF ((obsSpaceData%MOBDATA(NCMVNM,JJOBS).EQ.IFF)
-     &               .AND. obsSpaceData%ROBDATA(NCMPPP,JJOBS) .EQ. ZLEVU ) THEN
-                        obsSpaceData%ROBDATA(KVAL,JJOBS)=MODUL - obsSpaceData%ROBDATA(NCMVAR,JJOBS)
-                        obsSpaceData%ROBDATA(NCMOER,JJOBS)=1.0D0
-                        obsSpaceData%MOBDATA(NCMASS,JJOBS) = 1
-                        obsSpaceData%MOBDATA(NCMFLG,JJOBS) = 0
+                     IF ((obsSpaceData%MOBDATA(NCM_VNM,JJOBS).EQ.IFF)
+     &               .AND. obsSpaceData%ROBDATA(NCM_PPP,JJOBS) .EQ. ZLEVU ) THEN
+                        obsSpaceData%ROBDATA(KVAL,JJOBS)=MODUL - obsSpaceData%ROBDATA(NCM_VAR,JJOBS)
+                        obsSpaceData%ROBDATA(NCM_OER,JJOBS)=1.0D0
+                        obsSpaceData%MOBDATA(NCM_ASS,JJOBS) = 1
+                        obsSpaceData%MOBDATA(NCM_FLG,JJOBS) = 0
                      ENDIF
                   END DO
                ENDIF

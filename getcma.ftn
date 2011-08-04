@@ -37,7 +37,7 @@
 *Author    . P. KOCLAS(CMC/CMSV TEL. 4628)
 *Revision:
 *            P. KOCLAS   : November 1998
-*            .  Update quality control flags for krval for krval .ne. ncmoma ncmomp
+*            .  Update quality control flags for krval for krval .ne. NCM_OMA NCM_OMP
 *            JM Belanger CMDA/SMC  Jan 2001
 *                   . 32 bits conversion
 *          . P. Koclas *CMC/CMDA Dec      2003:
@@ -97,7 +97,7 @@
 *
       ZFACT =VCONV
 *
-      IP    =obsSpaceData%ndata + 1
+      IP    =obsSpaceData%numobs_recorded + 1
       IND   =0
 *
 ************************************************************************
@@ -106,7 +106,7 @@
 *     DATA IS CONVERTED TO UNITS USED BY 3D-VAR ANALYSIS.
 ************************************************************************
 *
-         LLOMAFI=(KRVAL .EQ. NCMOMF) .OR. (KRVAL .EQ. NCMOMA) .OR. (KRVAL .EQ. NCMOMI)
+         LLOMAFI=(KRVAL .EQ. NCM_OMF) .OR. (KRVAL .EQ. NCM_OMA) .OR. (KRVAL .EQ. NCM_OMI)
          IK= KINDEX
          IF (LLOMAFI) THEN
             DO JI=1,KELE
@@ -120,20 +120,20 @@
             ILEM=obs_ifind(KLIST(JI))
             IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
                DO JJ=1,KVAL
-                 if( ldsat ) profil(jj)=obsSpaceData%ROBDATA(NCMPRL,IP+IND)
+                 if( ldsat ) profil(jj)=obsSpaceData%ROBDATA(NCM_PRL,IP+IND)
                   IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 Cpik
                         IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
-                          IF ( IP + IND .LE. obsSpaceData%ndataP ) THEN
-                            ZERR=  obsSpaceData%ROBDATA(NCMOER,IP+IND)
+                          IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
+                            ZERR=  obsSpaceData%ROBDATA(NCM_OER,IP+IND)
                             ZSTAT= obsSpaceData%ROBDATA(KRVAL, IP+IND)
-                            IFLG=  obsSpaceData%MOBDATA(NCMFLG,IP+IND)
+                            IFLG=  obsSpaceData%MOBDATA(NCM_FLG,IP+IND)
 *
-                            IF ( KRVAL .EQ. NCMOMF .OR. KRVAL .EQ. NCMOMA) THEN
-                              if (obsSpaceData%MOBDATA(NCMASS,IP+IND) .EQ. 1    .OR.
-     &                           (obsSpaceData%MOBDATA(NCMVNM,IP+IND) .EQ. BUFR_NEHU .and.
+                            IF ( KRVAL .EQ. NCM_OMF .OR. KRVAL .EQ. NCM_OMA) THEN
+                              if (obsSpaceData%MOBDATA(NCM_ASS,IP+IND) .EQ. 1    .OR.
+     &                           (obsSpaceData%MOBDATA(NCM_VNM,IP+IND) .EQ. BUFR_NEHU .and.
      &                                            ZSTAT .NE. PPMIS) .OR.
-     &                            obsSpaceData%MOBDATA(NCMVNM,IP+IND) .EQ. BUFR_NEHS) then
+     &                            obsSpaceData%MOBDATA(NCM_VNM,IP+IND) .EQ. BUFR_NEHS) then
                                 PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
                               else
                                 PVALUES (JI,JJ,IK)=PPMIS
@@ -178,7 +178,7 @@ Cpik
                          ELSE
 *==================================================
                             KNDAT = IND
-                            obsSpaceData%ndata = obsSpaceData%ndata + KNDAT
+                            obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
 *==================================================
                             RETURN
                           ENDIF
@@ -190,7 +190,7 @@ Cpik
          END DO
 *=============================
       KNDAT = IND
-      obsSpaceData%ndata = obsSpaceData%ndata + KNDAT
+      obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
 *=============================
 *
       RETURN

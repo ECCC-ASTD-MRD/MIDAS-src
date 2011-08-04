@@ -8,87 +8,105 @@ MODULE obsSpaceData_mod
   public           :: OBS_JPNBRELEM
 
   ! header column numbers
-  public           :: NCMLET, NCMRLN, NCMONM, NCMBOX, NCMOTP, NCMITY,  &
-                      NCMLAT, NCMLON, NCMDAT, NCMETM, NCMSID, NCMALT,  &
-                      NCMNLV, NCMOEC, NCMOFL, NCMST1, NCMTLA, NCMAZA,  &
-                      NCMSUN, NCMCLF
+  public           :: NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
+                      NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_SID, NCM_ALT,  &
+                      NCM_NLV, NCM_OEC, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA,  &
+                      NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,   &
+                      NCM_BY,  NCM_BZ
 
   ! body column numbers
-  public           :: NCMLBO, NCMVNM, NCMPPP, NCMPRL, NCMPOB, NCMVAR,  &
-                      NCMOMF, NCMOMA, NCMOMI, NCMOMN, NCMOER, NCMRER,  &
-                      NCMFGE, NCMPER, NCMFLG, NCMPOS, NCMLYR, NCMASS,  &
-                      NCMXTR, NCMOBS, NCMLOBS,NCMVCO, NCMPRM
+  public           :: NCM_LBO, NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR,  &
+                      NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER, NCM_RER,  &
+                      NCM_FGE, NCM_PER, NCM_FLG, NCM_POS, NCM_LYR, NCM_ASS,  &
+                      NCM_XTR, NCM_OBS, NCM_LOBS,NCM_VCO, NCM_PRM, NCM_KFA,  &
+                      NCM_ZHA, NCM_HPHT,NCM_OMP
 
   ! subroutines
   public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
-  public           :: obs_getBody,obs_setBody,obs_getHeader,obs_setHeader
+  public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_setBody,obs_setHeader
   public           :: obs_swapVarOmf,obs_ifind,obs_getStnID,obs_setStnID
   public           :: obs_getFamily,obs_setFamily
 
-
   ! derived type and module variable declarations
 
-  type  ::  struct_obs
-    integer             :: ndata,ndatap,ndata_l
-    character*2,pointer :: cfamily(:)
-    character*9,pointer :: cstnid(:)
-    real, pointer       :: robhdr(:,:)
-    real, pointer       :: robhdr_g(:,:)
-    integer, pointer    :: mobhdr(:,:)
-    integer, pointer    :: mobhdr_g(:,:)
-    real, pointer       :: robdata(:,:)
-    real*8, pointer     :: robdata8(:,:)
-    integer, pointer    :: mobdata(:,:)
+ type struct_obs
+  real(kind=4),      pointer, dimension(:,:) :: robhdr
+  integer,           pointer, dimension(:,:) :: mobhdr
+  character(len=12), pointer, dimension(:)   :: cobhdr
+  real(kind=4),      pointer, dimension(:,:) :: robdata
+  integer,           pointer, dimension(:,:) :: mobdata
+  integer :: numstns_recorded           ! Actual number of stations on record
+  integer :: mxstntotal                 ! maximum number of stations
+  integer :: numobs_recorded            ! Actual total number of data on record
+  integer :: mxobstotal                 ! maximum number observations
+! Added for 3dvar
+  integer             :: numobs_recorded_l
+  character(len=2), pointer, dimension(:)   :: cfamily
+  character(len=9), pointer, dimension(:)   :: cstnid
+  integer,          pointer, dimension(:,:) :: mobhdr_g
+  real(kind=4),     pointer, dimension(:,:) :: robhdr_g
+  real(kind=8),     pointer, dimension(:,:) :: robdata8
   end type struct_obs
 
   type(struct_obs) :: obsSpaceData
 
   ! header column numbers
-  integer,parameter :: NCMLET = 22
-  integer,parameter :: NCMRLN = 1
-  integer,parameter :: NCMONM = 2
-  integer,parameter :: NCMBOX = 3
-  integer,parameter :: NCMOTP = 4
-  integer,parameter :: NCMITY = 5
-  integer,parameter :: NCMLAT = 6
-  integer,parameter :: NCMLON = 7
-  integer,parameter :: NCMDAT = 8
-  integer,parameter :: NCMETM = 9
-  integer,parameter :: NCMSID = 10
-  integer,parameter :: NCMALT = 11
-  integer,parameter :: NCMNLV = 12
-  integer,parameter :: NCMOEC = 13
-  integer,parameter :: NCMOFL = 14
-  integer,parameter :: NCMST1 = 15
-  integer,parameter :: NCMTLA = 16
-  integer,parameter :: NCMAZA = 20
-  integer,parameter :: NCMSUN = 21
-  integer,parameter :: NCMCLF = 22
+  integer,parameter :: NCM_LET = 22
+  integer,parameter :: NCM_RLN = 1
+  integer,parameter :: NCM_ONM = 2
+  integer,parameter :: NCM_BOX = 3
+  integer,parameter :: NCM_OTP = 4
+  integer,parameter :: NCM_ITY = 5
+  integer,parameter :: NCM_LAT = 6
+  integer,parameter :: NCM_LON = 7
+  integer,parameter :: NCM_DAT = 8
+  integer,parameter :: NCM_ETM = 9
+  integer,parameter :: NCM_SID = 10
+  integer,parameter :: NCM_ALT = 11
+  integer,parameter :: NCM_NLV = 12
+  integer,parameter :: NCM_OEC = 13
+  integer,parameter :: NCM_OFL = 14
+  integer,parameter :: NCM_ST1 = 15
+  integer,parameter :: NCM_TLA = 16
+  integer,parameter :: NCM_AZA = 20
+  integer,parameter :: NCM_SUN = 21
+  integer,parameter :: NCM_CLF = 22
+  integer,parameter :: NCM_REG = 23
+  integer,parameter :: NCM_PAS = 24
+  integer,parameter :: NCM_IP  = 25
+  integer,parameter :: NCM_BX  = 26
+  integer,parameter :: NCM_BY  = 27
+  integer,parameter :: NCM_BZ  = 28
 
   ! body column numbers
-  integer,parameter :: NCMLBO = 22
-  integer,parameter :: NCMVNM = 1
-  integer,parameter :: NCMPOB = 2
-  integer,parameter :: NCMPRL = 3
-  integer,parameter :: NCMPPP = 4
-  integer,parameter :: NCMVAR = 5
-  integer,parameter :: NCMOMF = 6
-  integer,parameter :: NCMOMA = 7
-  integer,parameter :: NCMOMI = 8
-  integer,parameter :: NCMOMN = 9
-  integer,parameter :: NCMOER = 10
-  integer,parameter :: NCMPRM = 11
-  integer,parameter :: NCMRER = 12
-  integer,parameter :: NCMFGE = 13
-  integer,parameter :: NCMPER = 14
-  integer,parameter :: NCMFLG = 15
-  integer,parameter :: NCMPOS = 16
-  integer,parameter :: NCMLYR = 17
-  integer,parameter :: NCMASS = 18
-  integer,parameter :: NCMXTR = 19
-  integer,parameter :: NCMOBS = 20
-  integer,parameter :: NCMLOBS = 21
-  integer,parameter :: NCMVCO = 22
+  integer,parameter :: NCM_LBO = 22
+  integer,parameter :: NCM_VNM = 1
+  integer,parameter :: NCM_POB = 2
+  integer,parameter :: NCM_PRL = 3
+  integer,parameter :: NCM_PPP = 4
+  integer,parameter :: NCM_VAR = 5
+  integer,parameter :: NCM_OMF = 6
+  integer,parameter :: NCM_OMA = 7
+  integer,parameter :: NCM_OMI = 8
+  integer,parameter :: NCM_OMN = 9
+  integer,parameter :: NCM_OER = 10
+  integer,parameter :: NCM_PRM = 11
+  integer,parameter :: NCM_RER = 12
+  integer,parameter :: NCM_FGE = 13
+  integer,parameter :: NCM_PER = 14
+  integer,parameter :: NCM_FLG = 15
+  integer,parameter :: NCM_POS = 16
+  integer,parameter :: NCM_LYR = 17
+  integer,parameter :: NCM_ASS = 18
+  integer,parameter :: NCM_XTR = 19
+  integer,parameter :: NCM_OBS = 20
+  integer,parameter :: NCM_LOBS = 21
+  integer,parameter :: NCM_VCO = 22
+! added for EnKF
+  integer,parameter :: NCM_KFA = 23
+  integer,parameter :: NCM_ZHA = 24
+  integer,parameter :: NCM_HPHT= 26
+  integer,parameter :: NCM_OMP = 25
 
   integer, parameter :: OBS_JPNBRELEM = 57
 
@@ -106,19 +124,19 @@ MODULE obsSpaceData_mod
 
     ALLOCATE(obs_in%cstnid(maxNumHdr),STAT=ierr)
 
-    ALLOCATE(obs_in%ROBHDR(NCMLET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obs_in%ROBHDR(NCM_LET,maxNumHdr),STAT=ierr)
     obs_in%ROBHDR=0.0
 
-    ALLOCATE(obs_in%MOBHDR(NCMLET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obs_in%MOBHDR(NCM_LET,maxNumHdr),STAT=ierr)
     obs_in%MOBHDR=0
 
-    ALLOCATE(obs_in%ROBDATA(NCMLBO,maxNumBdy),STAT=ierr)
+    ALLOCATE(obs_in%ROBDATA(NCM_LBO,maxNumBdy),STAT=ierr)
     obs_in%ROBDATA=0.0
 
     ALLOCATE(obs_in%ROBDATA8(3:11,maxNumBdy),STAT=ierr)
     obs_in%ROBDATA8=0.0D0
 
-    ALLOCATE(obs_in%MOBDATA(NCMLBO,maxNumBdy),STAT=ierr)
+    ALLOCATE(obs_in%MOBDATA(NCM_LBO,maxNumBdy),STAT=ierr)
     obs_in%MOBDATA=0
 
   end subroutine obs_allocate
@@ -129,10 +147,10 @@ MODULE obsSpaceData_mod
     type(struct_obs) :: obs_in
     integer          :: maxNumHdr,ierr
 
-    ALLOCATE(obs_in%ROBHDR_g(NCMLET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obs_in%ROBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
     obs_in%ROBHDR_g=0.0
 
-    ALLOCATE(obs_in%MOBHDR_g(NCMLET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obs_in%MOBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
     obs_in%MOBHDR_g=0
 
   end subroutine obs_allocateG
@@ -226,20 +244,20 @@ MODULE obsSpaceData_mod
     real(kind=8),allocatable :: temp_robdata8(:)
     integer                  :: ierr
 
-!    temp = NCMVAR
-!    NCMVAR = NCMOMF
-!    NCMOMF = temp
+!    temp = NCM_VAR
+!    NCM_VAR = NCM_OMF
+!    NCM_OMF = temp
 
     allocate(temp_robdata (lbound(obs_in%robdata ,2):ubound(obs_in%robdata ,2)),stat=ierr)
-    temp_robdata(:)=obs_in%robdata(NCMVAR,:)
-    obs_in%robdata(NCMVAR,:)=obs_in%robdata(NCMOMF,:)
-    obs_in%robdata(NCMOMF,:)=temp_robdata(:)
+    temp_robdata(:)=obs_in%robdata(NCM_VAR,:)
+    obs_in%robdata(NCM_VAR,:)=obs_in%robdata(NCM_OMF,:)
+    obs_in%robdata(NCM_OMF,:)=temp_robdata(:)
     deallocate(temp_robdata)
 
     allocate(temp_robdata8(lbound(obs_in%robdata8,2):ubound(obs_in%robdata8,2)),stat=ierr)
-    temp_robdata8(:)=obs_in%robdata8(NCMVAR,:)
-    obs_in%robdata8(NCMVAR,:)=obs_in%robdata8(NCMOMF,:)
-    obs_in%robdata8(NCMOMF,:)=temp_robdata8(:)
+    temp_robdata8(:)=obs_in%robdata8(NCM_VAR,:)
+    obs_in%robdata8(NCM_VAR,:)=obs_in%robdata8(NCM_OMF,:)
+    obs_in%robdata8(NCM_OMF,:)=temp_robdata8(:)
     deallocate(temp_robdata8)
 
   end subroutine obs_swapVarOmf
@@ -280,7 +298,7 @@ MODULE obsSpaceData_mod
     if(present(headerIndex)) then
       obs_getFamily=obs_in%cfamily(headerIndex)
     elseif(present(bodyIndex)) then
-      call obs_getBody(obs_in,bodyIndex,val_OBS=headerIndex2)
+      headerIndex2=obs_elem_i(obs_in,'OBS ',bodyIndex)
       obs_getFamily=obs_in%cfamily(headerIndex2)
     else
       write(*,*) 'OBS_GETFAMILY: Header or Body index must be specified!'
@@ -302,7 +320,7 @@ MODULE obsSpaceData_mod
     if(present(headerIndex)) then
       obs_in%cfamily(headerIndex)=Family_in
     elseif(present(bodyIndex)) then
-      call obs_getBody(obs_in,bodyIndex,val_OBS=headerIndex2)
+      headerIndex2=obs_elem_i(obs_in,'OBS ',bodyIndex)
       obs_in%cfamily(headerIndex2)=Family_in
     else
       write(*,*) 'OBS_SETFAMILY: Header or Body index must be specified!'
@@ -312,51 +330,117 @@ MODULE obsSpaceData_mod
 
   end subroutine obs_setFamily
 
+ real(kind=4) function obs_elem_r4(cma,name,index) result(value)
+  implicit none
+  type(struct_obs) , intent(in)  :: cma
+  character(len=4), intent(in)  :: name
+  integer         , intent(in)  :: index
 
-  subroutine obs_getHeader(obs_in,index_in,                     &
-                           val_RLN, val_ONM, val_BOX,  &
-                           val_OTP, val_ITY, val_LAT,  &
-                           val_LON, val_DAT, val_ETM,  &
-                           val_SID, val_ALT, val_NLV,  &
-                           val_OEC, val_OFL, val_ST1,  &
-                           val_AZA, val_SUN, val_CLF,  &
-                           val_TLA)
-    implicit none
+  select case (name(1:4))
+  case ('LAT '); value=cma%robhdr(NCM_LAT, index)
+  case ('LON '); value=cma%robhdr(NCM_LON, index)
+  case ('ALT '); value=cma%robhdr(NCM_ALT, index)
+  case ('BX  '); value=cma%robhdr(NCM_BX , index)
+  case ('BY  '); value=cma%robhdr(NCM_BY , index)
+  case ('BZ  '); value=cma%robhdr(NCM_BZ , index)
 
-    type(struct_obs) :: obs_in
-    integer          :: index_in
-    integer,optional :: val_RLN, val_ONM, val_BOX,  &
-                        val_OTP, val_ITY, val_DAT,  &
-                        val_ETM, val_SID, val_NLV,  &
-                        val_OEC, val_OFL, val_ST1,  &
-                        val_AZA, val_SUN, val_CLF,  &
-                        val_TLA
-    real*4,optional  :: val_LAT, val_LON, val_ALT
+  case ('PPP '); value=cma%robdata(NCM_PPP, index)
+  case ('PRL '); value=cma%robdata(NCM_PRL, index)
+  case ('VAR '); value=cma%robdata(NCM_VAR, index)
+  case ('OMP '); value=cma%robdata(NCM_OMP, index)
+  case ('OMA '); value=cma%robdata(NCM_OMA, index)
+  case ('OER '); value=cma%robdata(NCM_OER, index)
+  case ('HPHT'); value=cma%robdata(NCM_HPHT,index)
+  case ('ZHA '); value=cma%robdata(NCM_ZHA, index)
+  ! Added for var3d
+  case ('POB '); value=cma%robdata(NCM_POB, index)
+  case ('OMI '); value=cma%robdata(NCM_OMI, index)
+  case ('OMN '); value=cma%robdata(NCM_OMN, index)
+  case ('RER '); value=cma%robdata(NCM_RER, index)
+  case ('FGE '); value=cma%robdata(NCM_FGE, index)
+  case ('PER '); value=cma%robdata(NCM_PER, index)
+  case ('PRM '); value=cma%robdata(NCM_PRM, index)
 
-    ! integer values
-    if(present(val_RLN )) val_RLN =obs_in%mobhdr (NCMRLN,index_in)
-    if(present(val_ONM )) val_ONM =obs_in%mobhdr (NCMONM,index_in)
-    if(present(val_BOX )) val_BOX =obs_in%mobhdr (NCMBOX,index_in)
-    if(present(val_OTP )) val_OTP =obs_in%mobhdr (NCMOTP,index_in)
-    if(present(val_ITY )) val_ITY =obs_in%mobhdr (NCMITY,index_in)
-    if(present(val_DAT )) val_DAT =obs_in%mobhdr (NCMDAT,index_in)
-    if(present(val_ETM )) val_ETM =obs_in%mobhdr (NCMETM,index_in)
-    if(present(val_SID )) val_SID =obs_in%mobhdr (NCMSID,index_in)
-    if(present(val_NLV )) val_NLV =obs_in%mobhdr (NCMNLV,index_in)
-    if(present(val_OEC )) val_OEC =obs_in%mobhdr (NCMOEC,index_in)
-    if(present(val_OFL )) val_OFL =obs_in%mobhdr (NCMOFL,index_in)
-    if(present(val_ST1 )) val_ST1 =obs_in%mobhdr (NCMST1,index_in)
-    if(present(val_AZA )) val_AZA =obs_in%mobhdr (NCMAZA,index_in)
-    if(present(val_SUN )) val_SUN =obs_in%mobhdr (NCMSUN,index_in)
-    if(present(val_CLF )) val_CLF =obs_in%mobhdr (NCMCLF,index_in)
-    if(present(val_TLA )) val_TLA =obs_in%mobhdr (NCMTLA,index_in)
+  case default
+   write(6,*)"ERROR:  ", name(1:4), " is not a real(4) observation."
+   value=-999.
+  end select
+ end function obs_elem_r4
 
-    ! single precision values
-    if(present(val_LAT )) val_LAT =obs_in%robhdr (NCMLAT,index_in)
-    if(present(val_LON )) val_LON =obs_in%robhdr (NCMLON,index_in)
-    if(present(val_ALT )) val_ALT =obs_in%robhdr (NCMALT,index_in)
+ real(kind=8) function obs_elem_r8(cma,name,index) result(value)
+  implicit none
+  type(struct_obs) , intent(in)  :: cma
+  character(len=4), intent(in)  :: name
+  integer         , intent(in)  :: index
 
-  end subroutine obs_getHeader
+  select case (name(1:4))
+  ! Added for var3d
+  case ('PPP '); value=cma%robdata8(NCM_PPP, index)
+  case ('PRL '); value=cma%robdata8(NCM_PRL, index)
+  case ('POB '); value=cma%robdata8(NCM_POB, index)
+  case ('VAR '); value=cma%robdata8(NCM_VAR, index)
+  case ('OMF '); value=cma%robdata8(NCM_OMF, index)
+  case ('OMA '); value=cma%robdata8(NCM_OMA, index)
+  case ('OMI '); value=cma%robdata8(NCM_OMI, index)
+  case ('OMN '); value=cma%robdata8(NCM_OMN, index)
+  case ('OER '); value=cma%robdata8(NCM_OER, index)
+  case ('RER '); value=cma%robdata8(NCM_RER, index)
+  case ('FGE '); value=cma%robdata8(NCM_FGE, index)
+  case ('PER '); value=cma%robdata8(NCM_PER, index)
+  case ('PRM '); value=cma%robdata8(NCM_PRM, index)
+
+  case default
+   write(6,*)"ERROR:  ", name(1:4), " is not a real(8) observation."
+   value=-999
+  end select
+ end function obs_elem_r8
+
+ integer function obs_elem_i(cma,name,index) result(value)
+  implicit none
+  type(struct_obs) , intent(in)  :: cma
+  character(len=4), intent(in)  :: name
+  integer         , intent(in)  :: index
+
+  select case (name(1:4))
+  case ('RLN '); value=cma%mobhdr(NCM_RLN, index)
+  case ('ONM '); value=cma%mobhdr(NCM_ONM, index)
+  case ('BOX '); value=cma%mobhdr(NCM_BOX, index)
+  case ('OTP '); value=cma%mobhdr(NCM_OTP, index)
+  case ('ITY '); value=cma%mobhdr(NCM_ITY, index)
+  case ('DAT '); value=cma%mobhdr(NCM_DAT, index)
+  case ('ETM '); value=cma%mobhdr(NCM_ETM, index)
+  case ('NLV '); value=cma%mobhdr(NCM_NLV, index)
+  case ('OFL '); value=cma%mobhdr(NCM_OFL, index)
+  case ('PAS '); value=cma%mobhdr(NCM_PAS, index)
+  case ('REG '); value=cma%mobhdr(NCM_REG, index)
+  case ('IP  '); value=cma%mobhdr(NCM_IP , index)
+  case ('AZA '); value=cma%mobhdr(NCM_AZA, index)
+  case ('SUN '); value=cma%mobhdr(NCM_SUN, index)
+  case ('CLF '); value=cma%mobhdr(NCM_CLF, index)
+  ! Added for var3d
+  case ('SID '); value=cma%mobhdr(NCM_SID, index)
+  case ('OEC '); value=cma%mobhdr(NCM_OEC, index)
+  case ('ST1 '); value=cma%mobhdr(NCM_ST1, index)
+  case ('TLA '); value=cma%mobhdr(NCM_TLA, index)
+
+  case ('VNM '); value=cma%mobdata(NCM_VNM, index)
+  case ('FLG '); value=cma%mobdata(NCM_FLG, index)
+  case ('KFA '); value=cma%mobdata(NCM_KFA, index)
+  case ('ASS '); value=cma%mobdata(NCM_ASS, index)
+  case ('OBS '); value=cma%mobdata(NCM_OBS, index)
+  case ('VCO '); value=cma%mobdata(NCM_VCO, index)
+  ! Added for var3d
+  case ('LBO '); value=cma%mobdata(NCM_LBO, index)
+  case ('POS '); value=cma%mobdata(NCM_POS, index)
+  case ('XTR '); value=cma%mobdata(NCM_XTR, index)
+  case ('LOBS'); value=cma%mobdata(NCM_LOBS,index)
+  case ('LYR '); value=cma%mobdata(NCM_LYR, index)
+
+  case default
+   write(6,*)"ERROR:  ", name(1:4)," is not an integer observation."
+   value=-999
+  end select
+ end function obs_elem_i
 
 
   subroutine obs_setHeader(obs_in,index_in,                     &
@@ -380,109 +464,29 @@ MODULE obsSpaceData_mod
     real*4,optional  :: val_LAT, val_LON, val_ALT
 
     ! integer values
-    if(present(val_RLN )) obs_in%mobhdr (NCMRLN,index_in) =val_RLN
-    if(present(val_ONM )) obs_in%mobhdr (NCMONM,index_in) =val_ONM
-    if(present(val_BOX )) obs_in%mobhdr (NCMBOX,index_in) =val_BOX
-    if(present(val_OTP )) obs_in%mobhdr (NCMOTP,index_in) =val_OTP
-    if(present(val_ITY )) obs_in%mobhdr (NCMITY,index_in) =val_ITY
-    if(present(val_DAT )) obs_in%mobhdr (NCMDAT,index_in) =val_DAT
-    if(present(val_ETM )) obs_in%mobhdr (NCMETM,index_in) =val_ETM
-    if(present(val_SID )) obs_in%mobhdr (NCMSID,index_in) =val_SID
-    if(present(val_NLV )) obs_in%mobhdr (NCMNLV,index_in) =val_NLV
-    if(present(val_OEC )) obs_in%mobhdr (NCMOEC,index_in) =val_OEC
-    if(present(val_OFL )) obs_in%mobhdr (NCMOFL,index_in) =val_OFL
-    if(present(val_ST1 )) obs_in%mobhdr (NCMST1,index_in) =val_ST1
-    if(present(val_AZA )) obs_in%mobhdr (NCMAZA,index_in) =val_AZA
-    if(present(val_SUN )) obs_in%mobhdr (NCMSUN,index_in) =val_SUN
-    if(present(val_CLF )) obs_in%mobhdr (NCMCLF,index_in) =val_CLF
-    if(present(val_TLA )) obs_in%mobhdr (NCMTLA,index_in) =val_TLA
+    if(present(val_RLN )) obs_in%mobhdr (NCM_RLN,index_in) =val_RLN
+    if(present(val_ONM )) obs_in%mobhdr (NCM_ONM,index_in) =val_ONM
+    if(present(val_BOX )) obs_in%mobhdr (NCM_BOX,index_in) =val_BOX
+    if(present(val_OTP )) obs_in%mobhdr (NCM_OTP,index_in) =val_OTP
+    if(present(val_ITY )) obs_in%mobhdr (NCM_ITY,index_in) =val_ITY
+    if(present(val_DAT )) obs_in%mobhdr (NCM_DAT,index_in) =val_DAT
+    if(present(val_ETM )) obs_in%mobhdr (NCM_ETM,index_in) =val_ETM
+    if(present(val_SID )) obs_in%mobhdr (NCM_SID,index_in) =val_SID
+    if(present(val_NLV )) obs_in%mobhdr (NCM_NLV,index_in) =val_NLV
+    if(present(val_OEC )) obs_in%mobhdr (NCM_OEC,index_in) =val_OEC
+    if(present(val_OFL )) obs_in%mobhdr (NCM_OFL,index_in) =val_OFL
+    if(present(val_ST1 )) obs_in%mobhdr (NCM_ST1,index_in) =val_ST1
+    if(present(val_AZA )) obs_in%mobhdr (NCM_AZA,index_in) =val_AZA
+    if(present(val_SUN )) obs_in%mobhdr (NCM_SUN,index_in) =val_SUN
+    if(present(val_CLF )) obs_in%mobhdr (NCM_CLF,index_in) =val_CLF
+    if(present(val_TLA )) obs_in%mobhdr (NCM_TLA,index_in) =val_TLA
 
     ! single precision values
-    if(present(val_LAT )) obs_in%robhdr (NCMLAT,index_in) =val_LAT
-    if(present(val_LON )) obs_in%robhdr (NCMLON,index_in) =val_LON
-    if(present(val_ALT )) obs_in%robhdr (NCMALT,index_in) =val_ALT
+    if(present(val_LAT )) obs_in%robhdr (NCM_LAT,index_in) =val_LAT
+    if(present(val_LON )) obs_in%robhdr (NCM_LON,index_in) =val_LON
+    if(present(val_ALT )) obs_in%robhdr (NCM_ALT,index_in) =val_ALT
 
   end subroutine obs_setHeader
-
-
-  subroutine obs_getBody(obs_in,index_in,                     &
-                         val_LBO, val_VNM, val_PPP,  &
-                         val_PRL, val_POB, val_VAR,  &
-                         val_OMF, val_OMA, val_OMI,  &
-                         val_OMN, val_OER, val_RER,  &
-                         val_FGE, val_PER, val_FLG,  &
-                         val_POS, val_LYR, val_ASS,  &
-                         val_XTR, val_OBS, val_LOBS, &
-                         val_VCO, val_PRM,           &
-                         val_PPP8,val_PRL8,val_POB8, &
-                         val_VAR8,val_OMF8, &
-                         val_OMA8,val_OMI8,val_OMN8, &
-                         val_OER8,val_RER8,val_FGE8, &
-                         val_PER8,val_PRM8)
-    implicit none
-
-    type(struct_obs) :: obs_in
-    integer          :: index_in
-    integer,optional :: val_LBO, val_VNM, val_FLG,  &
-                        val_POS, val_ASS, val_XTR,  &
-                        val_OBS, val_LOBS,val_VCO,  &
-                        val_LYR
-
-    real*4,optional  :: val_PPP, val_PRL, val_POB,  &
-                        val_VAR, val_OMF,  &
-                        val_OMA, val_OMI, val_OMN,  &
-                        val_OER, val_RER, val_FGE,  &
-                        val_PER, val_PRM
-
-    real*8,optional  :: val_PPP8,val_PRL8,val_POB8,  &
-                        val_VAR8,val_OMF8,  &
-                        val_OMA8,val_OMI8,val_OMN8,  &
-                        val_OER8,val_RER8,val_FGE8,  &
-                        val_PER8,val_PRM8
-
-    ! integer values
-    if(present(val_LBO )) val_LBO =obs_in%mobdata (NCMLBO ,index_in)
-    if(present(val_VNM )) val_VNM =obs_in%mobdata (NCMVNM ,index_in)
-    if(present(val_FLG )) val_FLG =obs_in%mobdata (NCMFLG ,index_in)
-    if(present(val_POS )) val_POS =obs_in%mobdata (NCMPOS ,index_in)
-    if(present(val_ASS )) val_ASS =obs_in%mobdata (NCMASS ,index_in)
-    if(present(val_XTR )) val_XTR =obs_in%mobdata (NCMXTR ,index_in)
-    if(present(val_OBS )) val_OBS =obs_in%mobdata (NCMOBS ,index_in)
-    if(present(val_LOBS)) val_LOBS=obs_in%mobdata (NCMLOBS,index_in)
-    if(present(val_VCO )) val_VCO =obs_in%mobdata (NCMVCO ,index_in)
-    if(present(val_LYR )) val_LYR =obs_in%mobdata (NCMLYR,index_in)
-
-    ! single precision values
-    if(present(val_PPP )) val_PPP =obs_in%robdata (NCMPPP,index_in)
-    if(present(val_PRL )) val_PRL =obs_in%robdata (NCMPRL,index_in)
-    if(present(val_POB )) val_POB =obs_in%robdata (NCMPOB,index_in)
-    if(present(val_VAR )) val_VAR =obs_in%robdata (NCMVAR,index_in)
-    if(present(val_OMF )) val_OMF =obs_in%robdata (NCMOMF,index_in)
-    if(present(val_OMA )) val_OMA =obs_in%robdata (NCMOMA,index_in)
-    if(present(val_OMI )) val_OMI =obs_in%robdata (NCMOMI,index_in)
-    if(present(val_OMN )) val_OMN =obs_in%robdata (NCMOMN,index_in)
-    if(present(val_OER )) val_OER =obs_in%robdata (NCMOER,index_in)
-    if(present(val_RER )) val_RER =obs_in%robdata (NCMRER,index_in)
-    if(present(val_FGE )) val_FGE =obs_in%robdata (NCMFGE,index_in)
-    if(present(val_PER )) val_PER =obs_in%robdata (NCMPER,index_in)
-    if(present(val_PRM )) val_PRM =obs_in%robdata (NCMPRM,index_in)
-
-    ! double precision values
-    if(present(val_PPP8)) val_PPP8=obs_in%robdata8(NCMPPP,index_in)
-    if(present(val_PRL8)) val_PRL8=obs_in%robdata8(NCMPRL,index_in)
-    if(present(val_POB8)) val_POB8=obs_in%robdata8(NCMPOB,index_in)
-    if(present(val_VAR8)) val_VAR8=obs_in%robdata8(NCMVAR,index_in)
-    if(present(val_OMF8)) val_OMF8=obs_in%robdata8(NCMOMF,index_in)
-    if(present(val_OMA8)) val_OMA8=obs_in%robdata8(NCMOMA,index_in)
-    if(present(val_OMI8)) val_OMI8=obs_in%robdata8(NCMOMI,index_in)
-    if(present(val_OMN8)) val_OMN8=obs_in%robdata8(NCMOMN,index_in)
-    if(present(val_OER8)) val_OER8=obs_in%robdata8(NCMOER,index_in)
-    if(present(val_RER8)) val_RER8=obs_in%robdata8(NCMRER,index_in)
-    if(present(val_FGE8)) val_FGE8=obs_in%robdata8(NCMFGE,index_in)
-    if(present(val_PER8)) val_PER8=obs_in%robdata8(NCMPER,index_in)
-    if(present(val_PRM8)) val_PRM8=obs_in%robdata8(NCMPRM,index_in)
-
-  end subroutine obs_getBody
 
 
   subroutine obs_setBody(obs_out,index_in,                     &
@@ -521,46 +525,46 @@ MODULE obsSpaceData_mod
                         val_PER8,val_PRM8
 
     ! integer values
-    if(present(val_LBO )) obs_out%mobdata (NCMLBO ,index_in) =val_LBO
-    if(present(val_VNM )) obs_out%mobdata (NCMVNM ,index_in) =val_VNM
-    if(present(val_FLG )) obs_out%mobdata (NCMFLG ,index_in) =val_FLG
-    if(present(val_POS )) obs_out%mobdata (NCMPOS ,index_in) =val_POS
-    if(present(val_ASS )) obs_out%mobdata (NCMASS ,index_in) =val_ASS
-    if(present(val_XTR )) obs_out%mobdata (NCMXTR ,index_in) =val_XTR
-    if(present(val_OBS )) obs_out%mobdata (NCMOBS ,index_in) =val_OBS
-    if(present(val_LOBS)) obs_out%mobdata (NCMLOBS,index_in) =val_LOBS
-    if(present(val_VCO )) obs_out%mobdata (NCMVCO ,index_in) =val_VCO
-    if(present(val_LYR )) obs_out%mobdata (NCMLYR,index_in)  =val_LYR
+    if(present(val_LBO )) obs_out%mobdata (NCM_LBO ,index_in) =val_LBO
+    if(present(val_VNM )) obs_out%mobdata (NCM_VNM ,index_in) =val_VNM
+    if(present(val_FLG )) obs_out%mobdata (NCM_FLG ,index_in) =val_FLG
+    if(present(val_POS )) obs_out%mobdata (NCM_POS ,index_in) =val_POS
+    if(present(val_ASS )) obs_out%mobdata (NCM_ASS ,index_in) =val_ASS
+    if(present(val_XTR )) obs_out%mobdata (NCM_XTR ,index_in) =val_XTR
+    if(present(val_OBS )) obs_out%mobdata (NCM_OBS ,index_in) =val_OBS
+    if(present(val_LOBS)) obs_out%mobdata (NCM_LOBS,index_in) =val_LOBS
+    if(present(val_VCO )) obs_out%mobdata (NCM_VCO ,index_in) =val_VCO
+    if(present(val_LYR )) obs_out%mobdata (NCM_LYR,index_in)  =val_LYR
 
     ! single precision values
-    if(present(val_PPP )) obs_out%robdata (NCMPPP,index_in) =val_PPP
-    if(present(val_PRL )) obs_out%robdata (NCMPRL,index_in) =val_PRL
-    if(present(val_POB )) obs_out%robdata (NCMPOB,index_in) =val_POB
-    if(present(val_VAR )) obs_out%robdata (NCMVAR,index_in) =val_VAR
-    if(present(val_OMF )) obs_out%robdata (NCMOMF,index_in) =val_OMF
-    if(present(val_OMA )) obs_out%robdata (NCMOMA,index_in) =val_OMA
-    if(present(val_OMI )) obs_out%robdata (NCMOMI,index_in) =val_OMI
-    if(present(val_OMN )) obs_out%robdata (NCMOMN,index_in) =val_OMN
-    if(present(val_OER )) obs_out%robdata (NCMOER,index_in) =val_OER
-    if(present(val_RER )) obs_out%robdata (NCMRER,index_in) =val_RER
-    if(present(val_FGE )) obs_out%robdata (NCMFGE,index_in) =val_FGE
-    if(present(val_PER )) obs_out%robdata (NCMPER,index_in) =val_PER
-    if(present(val_PRM )) obs_out%robdata (NCMPRM,index_in) =val_PRM
+    if(present(val_PPP )) obs_out%robdata (NCM_PPP,index_in) =val_PPP
+    if(present(val_PRL )) obs_out%robdata (NCM_PRL,index_in) =val_PRL
+    if(present(val_POB )) obs_out%robdata (NCM_POB,index_in) =val_POB
+    if(present(val_VAR )) obs_out%robdata (NCM_VAR,index_in) =val_VAR
+    if(present(val_OMF )) obs_out%robdata (NCM_OMF,index_in) =val_OMF
+    if(present(val_OMA )) obs_out%robdata (NCM_OMA,index_in) =val_OMA
+    if(present(val_OMI )) obs_out%robdata (NCM_OMI,index_in) =val_OMI
+    if(present(val_OMN )) obs_out%robdata (NCM_OMN,index_in) =val_OMN
+    if(present(val_OER )) obs_out%robdata (NCM_OER,index_in) =val_OER
+    if(present(val_RER )) obs_out%robdata (NCM_RER,index_in) =val_RER
+    if(present(val_FGE )) obs_out%robdata (NCM_FGE,index_in) =val_FGE
+    if(present(val_PER )) obs_out%robdata (NCM_PER,index_in) =val_PER
+    if(present(val_PRM )) obs_out%robdata (NCM_PRM,index_in) =val_PRM
 
     ! double precision values
-    if(present(val_PPP8)) obs_out%robdata8(NCMPPP,index_in) =val_PPP8
-    if(present(val_PRL8)) obs_out%robdata8(NCMPRL,index_in) =val_PRL8
-    if(present(val_POB8)) obs_out%robdata8(NCMPOB,index_in) =val_POB8
-    if(present(val_VAR8)) obs_out%robdata8(NCMVAR,index_in) =val_VAR8
-    if(present(val_OMF8)) obs_out%robdata8(NCMOMF,index_in) =val_OMF8
-    if(present(val_OMA8)) obs_out%robdata8(NCMOMA,index_in) =val_OMA8
-    if(present(val_OMI8)) obs_out%robdata8(NCMOMI,index_in) =val_OMI8
-    if(present(val_OMN8)) obs_out%robdata8(NCMOMN,index_in) =val_OMN8
-    if(present(val_OER8)) obs_out%robdata8(NCMOER,index_in) =val_OER8
-    if(present(val_RER8)) obs_out%robdata8(NCMRER,index_in) =val_RER8
-    if(present(val_FGE8)) obs_out%robdata8(NCMFGE,index_in) =val_FGE8
-    if(present(val_PER8)) obs_out%robdata8(NCMPER,index_in) =val_PER8
-    if(present(val_PRM8)) obs_out%robdata8(NCMPRM,index_in) =val_PRM8
+    if(present(val_PPP8)) obs_out%robdata8(NCM_PPP,index_in) =val_PPP8
+    if(present(val_PRL8)) obs_out%robdata8(NCM_PRL,index_in) =val_PRL8
+    if(present(val_POB8)) obs_out%robdata8(NCM_POB,index_in) =val_POB8
+    if(present(val_VAR8)) obs_out%robdata8(NCM_VAR,index_in) =val_VAR8
+    if(present(val_OMF8)) obs_out%robdata8(NCM_OMF,index_in) =val_OMF8
+    if(present(val_OMA8)) obs_out%robdata8(NCM_OMA,index_in) =val_OMA8
+    if(present(val_OMI8)) obs_out%robdata8(NCM_OMI,index_in) =val_OMI8
+    if(present(val_OMN8)) obs_out%robdata8(NCM_OMN,index_in) =val_OMN8
+    if(present(val_OER8)) obs_out%robdata8(NCM_OER,index_in) =val_OER8
+    if(present(val_RER8)) obs_out%robdata8(NCM_RER,index_in) =val_RER8
+    if(present(val_FGE8)) obs_out%robdata8(NCM_FGE,index_in) =val_FGE8
+    if(present(val_PER8)) obs_out%robdata8(NCM_PER,index_in) =val_PER8
+    if(present(val_PRM8)) obs_out%robdata8(NCM_PRM,index_in) =val_PRM8
 
   end subroutine obs_setBody
 

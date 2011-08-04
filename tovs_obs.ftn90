@@ -95,8 +95,8 @@ subroutine tovs_obs(option,pjo)
 !     .    ----------------------------
 !     
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
-      DO JDATA=1,obsSpaceData%ndata
-        obsSpaceData%ROBDATA8(NCMPRM,JDATA) = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+      DO JDATA=1,obsSpaceData%numobs_recorded
+        obsSpaceData%ROBDATA8(NCM_PRM,JDATA) = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
       ENDDO
   endif
 
@@ -105,10 +105,10 @@ subroutine tovs_obs(option,pjo)
   call tovs_calc_jo (pjo,llprint)
 
   if ( option .eq. 'LR' ) then
-!    fill ROBDATA8(NCMPRM,..)  with Z'' = Z' + H(xb_lr) 
-     DO JDATA=1,obsSpaceData%ndata
-       obsSpaceData%ROBDATA8(NCMPRM,JDATA) = obsSpaceData%ROBDATA8(NCMOMA,JDATA)*obsSpaceData%ROBDATA8(NCMOER  &
-           ,JDATA) + 2*obsSpaceData%ROBDATA8(NCMVAR,JDATA)
+!    fill ROBDATA8(NCM_PRM,..)  with Z'' = Z' + H(xb_lr) 
+     DO JDATA=1,obsSpaceData%numobs_recorded
+       obsSpaceData%ROBDATA8(NCM_PRM,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*obsSpaceData%ROBDATA8(NCM_OER  &
+           ,JDATA) + 2*obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
      ENDDO
   endif
 

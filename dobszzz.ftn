@@ -87,16 +87,16 @@ C
 C     Process all data within the domain of the model
 C
             DO JDATA=IBEGIN,ILAST
-               LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &              .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
-     &              .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
+               LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+     &              .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 0)
+     &              .AND. (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1)
                IF ( LLOK ) THEN
-                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-                  IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
                   IPT = IK + IPOS*NLEVTRL
                   IPB = IPT+1
                   ZPT  = GOMGZHR(IK,IOBS)/RG
@@ -114,7 +114,7 @@ c                     write(nulout,*)'dobszzz:jdata,IOBS,stn,ipb,ipt',
 c     &                    ',ZPB,ZPT,ZWB,ZWT,ZVAR=',jdata,IOBS
 c     &                     ,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
 c                     write(nulout,*)'dobszzz: ityp,ik,VHYBHR(IK+1)',
-c     &                    ',VHYBHR(IK),ZLEV= ',MOBDATA(NCMVNM,JDATA),ik
+c     &                    ',VHYBHR(IK),ZLEV= ',MOBDATA(NCM_VNM,JDATA),ik
 c     &                    ,VHYBHR(IK+1),VHYBHR(IK),ZLEV
 c                     write(nulout,*)'dobszzz: GOMOBSHR(IPB,IOBS),
 c     &               GOMOBSHR(IPT,IOBS)= ',GOMOBSHR(IPB,IOBS),
@@ -124,11 +124,11 @@ c     &               std-dev-obs = ',zcon,ZVAR,ZOER
 c                  ENDIF
 c***************************************************************
 
-                  obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
+                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
      +                 + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
-                  DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-     +                 *obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-                  obsSpaceData%ROBDATA8(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+                  DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+     +                 *obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                  obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                ENDIF
 C
             END DO

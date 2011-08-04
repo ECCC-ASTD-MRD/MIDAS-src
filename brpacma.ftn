@@ -249,13 +249,13 @@ C
 *
       IF ( .NOT. LDAPPEND ) THEN
          NOBTOT  =0
-         obsSpaceData%ndata   =0
+         obsSpaceData%numobs_recorded   =0
       ELSE
 *
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%ndata
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%numobs_recorded
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS ) THEN
@@ -539,7 +539,7 @@ C
 
 *
 *   FOR PROFILER DATA, ADD STATION HEIGHT TO ZPROF
-*   FOR USE IN NCMPPP
+*   FOR USE IN NCM_PPP
 *----------------------------------------------------------------------
 *
 
@@ -857,17 +857,17 @@ c               ENDIF
                 READ(csid58,'(a4)')ISTNID58
                 READ(csid99,'(a1)')ISTNID99
                 obsSpaceData%CSTNID(NOBTOT)=CLSTNID
-                obsSpaceData%ROBHDR(NCMLON,NOBTOT) = (REAL(ILON)*0.01)*ZTORAD
-                obsSpaceData%ROBHDR(NCMLAT,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
-                obsSpaceData%ROBHDR(NCMALT,NOBTOT) = (REAL(IALT)-400)
-                obsSpaceData%MOBHDR(NCMNLV,NOBTOT) = INBON
+                obsSpaceData%ROBHDR(NCM_LON,NOBTOT) = (REAL(ILON)*0.01)*ZTORAD
+                obsSpaceData%ROBHDR(NCM_LAT,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
+                obsSpaceData%ROBHDR(NCM_ALT,NOBTOT) = (REAL(IALT)-400)
+                obsSpaceData%MOBHDR(NCM_NLV,NOBTOT) = INBON
                 call obs_setFamily(obsSpaceData,cdtype,headerIndex=nobtot)
 *
                 IF ( NOBTOT .EQ. 1) THEN
-                   obsSpaceData%MOBHDR(NCMRLN,1)=1
+                   obsSpaceData%MOBHDR(NCM_RLN,1)=1
                 ELSE
-                   obsSpaceData%MOBHDR(NCMRLN,NOBTOT) = obsSpaceData%MOBHDR(NCMRLN,NOBTOT-1)
-     +                              + obsSpaceData%MOBHDR(NCMNLV,NOBTOT-1)
+                   obsSpaceData%MOBHDR(NCM_RLN,NOBTOT) = obsSpaceData%MOBHDR(NCM_RLN,NOBTOT-1)
+     +                              + obsSpaceData%MOBHDR(NCM_NLV,NOBTOT-1)
                 ENDIF
 *
 ************************************************************************
@@ -875,20 +875,20 @@ c               ENDIF
 ************************************************************************
 *
 *
-                obsSpaceData%MOBHDR(NCMONM,NOBTOT) = NOBTOT
-                obsSpaceData%MOBHDR(NCMBOX,NOBTOT) = INSTRUM + ISATZEN*10000
-                obsSpaceData%MOBHDR(NCMOTP,NOBTOT) = NVTYP
-                obsSpaceData%MOBHDR(NCMITY,NOBTOT) = IDBURP+ 1000*ISAT+ 1000000*ITECH
-                obsSpaceData%MOBHDR(NCMDAT,NOBTOT) = IDATE
-                obsSpaceData%MOBHDR(NCMETM,NOBTOT) = ITIME
-                obsSpaceData%MOBHDR(NCMSID,NOBTOT) = ISTNID14
-                !!bhe MOBHDR(NCMOEC,NOBTOT) = 999
-                obsSpaceData%MOBHDR(NCMOEC,NOBTOT) = IfamID
-                obsSpaceData%MOBHDR(NCMOFL,NOBTOT) = IMASK
-                obsSpaceData%MOBHDR(NCMST1,NOBTOT) = IFLGS
-                obsSpaceData%MOBHDR(NCMAZA,NOBTOT) = ISATAZIM
-                obsSpaceData%MOBHDR(NCMSUN,NOBTOT) = ISUNZA
-                obsSpaceData%MOBHDR(NCMCLF,NOBTOT) = ICLFR
+                obsSpaceData%MOBHDR(NCM_ONM,NOBTOT) = NOBTOT
+                obsSpaceData%MOBHDR(NCM_BOX,NOBTOT) = INSTRUM + ISATZEN*10000
+                obsSpaceData%MOBHDR(NCM_OTP,NOBTOT) = NVTYP
+                obsSpaceData%MOBHDR(NCM_ITY,NOBTOT) = IDBURP+ 1000*ISAT+ 1000000*ITECH
+                obsSpaceData%MOBHDR(NCM_DAT,NOBTOT) = IDATE
+                obsSpaceData%MOBHDR(NCM_ETM,NOBTOT) = ITIME
+                obsSpaceData%MOBHDR(NCM_SID,NOBTOT) = ISTNID14
+                !!bhe MOBHDR(NCM_OEC,NOBTOT) = 999
+                obsSpaceData%MOBHDR(NCM_OEC,NOBTOT) = IfamID
+                obsSpaceData%MOBHDR(NCM_OFL,NOBTOT) = IMASK
+                obsSpaceData%MOBHDR(NCM_ST1,NOBTOT) = IFLGS
+                obsSpaceData%MOBHDR(NCM_AZA,NOBTOT) = ISATAZIM
+                obsSpaceData%MOBHDR(NCM_SUN,NOBTOT) = ISUNZA
+                obsSpaceData%MOBHDR(NCM_CLF,NOBTOT) = ICLFR
                 
                 IF (IDBURP==186) call index_cma_iasi(NOBTOT,IGQISFLAGQUAL,
      +           IGQISQUALINDEXLOC,ISUNAZIM)
@@ -900,7 +900,7 @@ c               ENDIF
      &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
      &             ' LON ', ILON
             ENDIF
-         IF ( obsSpaceData%ndata .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
+         IF ( obsSpaceData%numobs_recorded .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
             CALL HPDEALLC(PXVAL    ,IER,1)
             CALL HPDEALLC(PXVAL3D  ,IER,1)
             CALL HPDEALLC(PXTABL   ,IER,1)
@@ -929,12 +929,12 @@ c               ENDIF
             WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 *
             WRITE(NULOUT,'(1x,"NDATA = ",I10," NDATAMX",I10)')
-     &                    obsSpaceData%ndata, NDATAMX
+     &                    obsSpaceData%numobs_recorded, NDATAMX
             WRITE(NULOUT,'(1x,"NOBTOT= ",I10," NMXOBS = ",I10)')
      &                    NOBTOT, NMXOBS
             WRITE(NULOUT,*)' LABORTFULL = ', LABORTFULL
 *
-            CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
+            CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
 *
             IF (LABORTFULL) THEN
               WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CALL ABORT3D '
@@ -962,7 +962,7 @@ c               ENDIF
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
+      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'

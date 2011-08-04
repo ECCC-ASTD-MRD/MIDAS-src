@@ -55,8 +55,8 @@ C
 C     Process all data
 C
       DO JDATA=IBEGIN,ILAST
-         IF (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)  THEN
-            obsSpaceData%MOBDATA(NCMFLG,JDATA)=ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 12 )
+         IF (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)  THEN
+            obsSpaceData%MOBDATA(NCM_FLG,JDATA)=ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 12 )
          ENDIF
       END DO
 C

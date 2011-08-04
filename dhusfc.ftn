@@ -92,8 +92,8 @@ c            ENDIF
 
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
-                IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHS .AND.
-     &               obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1  ) THEN
+                IF ( obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHS .AND.
+     &               obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1  ) THEN
                     ICOUNT = ICOUNT + 1
                     IPOINTR(ICOUNT) = JDATA
                 ENDIF
@@ -109,10 +109,10 @@ c
 
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
-                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'
@@ -121,7 +121,7 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
 c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  obsSpaceData%ROBDATA8(NCMOMA,JDATA) = (GOMQHR(NLEVTRL,IOBS)-ZVAR)
+                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = (GOMQHR(NLEVTRL,IOBS)-ZVAR)
      +                 / ZOER
 
                   IF ( LLPRINT ) THEN
@@ -135,7 +135,7 @@ c                  ENDIF
                     write(nulout,*)'   gomqhr(nlevtrl,iobs) = '
      &                   ,GOMQHR(NLEVTRL,IOBS)
                     write(nulout,*)'   O-Psfc = '
-     &                   ,-obsSpaceData%ROBDATA8(NCMOMA,JDATA)*ZOER
+     &                   ,-obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 

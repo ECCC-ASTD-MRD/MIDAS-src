@@ -124,7 +124,7 @@ c
 c
 c
 c------ Calculate the normalized inovations (Z - H(X))/sigma
-c       and place the results in CMA at NCMOMA references
+c       and place the results in CMA at NCM_OMA references
 C
 C        RAOBS
 C------------------------------

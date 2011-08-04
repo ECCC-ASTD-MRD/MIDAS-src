@@ -48,15 +48,15 @@ C
           IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
 
-          IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-          ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST)
+          IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+          ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
+            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              LLOK=(obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
-     &             .AND. (obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0)
-     &             .AND. (obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 1)
+              LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+     &             .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 0)
+     &             .AND. (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1)
               IF ( LLOK ) THEN
                 lmaskzp(jdata) = .true.
               ENDIF

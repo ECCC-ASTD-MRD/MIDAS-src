@@ -20,10 +20,10 @@
       use bufr
       IMPLICIT NONE
 *
-*Purpose : 1) Modify Jo [ROBDATA8(NCMOMI,*)] according to
+*Purpose : 1) Modify Jo [ROBDATA8(NCM_OMI,*)] according to
 *             Andersson and Jarvinen 1999, Variational quality control,
 *             Q.J.R., 125, pp. 697-722.
-*          2) Save the values of (1-Wqc) in ROBDATA8(NCMOMN,*)
+*          2) Save the values of (1-Wqc) in ROBDATA8(NCM_OMN,*)
 *             for gradient factorization and postalt flag criterion.
 *
 *Author  : S. Pellerin, ARMA, January 2009
@@ -37,17 +37,17 @@
 *
       integer :: jdata,istyp,jj,jo,ityp,idata
       real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
-      logical :: lluv,llmask(obsSpaceData%ndata)
+      logical :: lluv,llmask(obsSpaceData%numobs_recorded)
 C
       llmask = lmask .neqv. lmaskgo  ! Exclusion of GOES QCVAR
       llmask = llmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,obsSpaceData%ndata
+      DO JDATA=1,obsSpaceData%numobs_recorded
         IF (llmask(jdata)) THEN
-          jo = obsSpaceData%MOBDATA(NCMOBS,jdata)
-          idata = obsSpaceData%MOBHDR(NCMRLN,JO)
-          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-          zgami = obsSpaceData%robdata(ncmpob,jdata)
-          ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+          jo = obsSpaceData%MOBDATA(NCM_OBS,jdata)
+          idata = obsSpaceData%MOBHDR(NCM_RLN,JO)
+          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          zgami = obsSpaceData%robdata(NCM_POB,jdata)
+          ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
           LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
      &         NMVOEXIST(NOUU) .EQ. 1) .OR. ((ITYP .EQ. BUFR_NEVV .OR.
      &         ITYP .EQ. BUFR_NEVS).AND. NMVOEXIST(NOVV) .EQ. 1)
@@ -59,25 +59,25 @@ C  must be available for both u and v components. Hence, loop over only
 C  data for which o-a has already been calculated
 C
               DO JJ=IDATA, JDATA
-                ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
-                ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
+                ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
+                ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
                 IF ((ISTYP .EQ. BUFR_NEVV
      1               .OR. ISTYP .EQ. BUFR_NEVS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obsSpaceData%ROBDATA8(NCMOMI,JDATA)+
-     &                 obsSpaceData%ROBDATA8(NCMOMI,JJ)
+                  ZJON=obsSpaceData%ROBDATA8(NCM_OMI,JDATA)+
+     &                 obsSpaceData%ROBDATA8(NCM_OMI,JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
 C
 C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
-                  obsSpaceData%ROBDATA8(NCMOMN,JDATA) = ZPPOST
-                  obsSpaceData%ROBDATA8(NCMOMN,JJ) = ZPPOST
+                  obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST
+                  obsSpaceData%ROBDATA8(NCM_OMN,JJ) = ZPPOST
 
-                  obsSpaceData%ROBDATA8(NCMOMI,JDATA)=-LOG(ZQCARG/(ZGAMI+1.))
+                  obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.
-                  obsSpaceData%ROBDATA8(NCMOMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
+                  obsSpaceData%ROBDATA8(NCM_OMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.
 C
 C     Contribution of both u and v added to the cost function at the
@@ -87,30 +87,30 @@ C
               ENDDO
             ELSE
               DO JJ=IDATA, JDATA
-                ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
-                ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)
+                ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
+                ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
                 IF ((ISTYP .EQ. BUFR_NEUU .OR.
      1               ISTYP .EQ. BUFR_NEUS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obsSpaceData%ROBDATA8(NCMOMI,JDATA)+
-     &                 obsSpaceData%ROBDATA8(NCMOMI,JJ)
+                  ZJON=obsSpaceData%ROBDATA8(NCM_OMI,JDATA)+
+     &                 obsSpaceData%ROBDATA8(NCM_OMI,JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
-                  obsSpaceData%ROBDATA8(NCMOMN,JDATA) = ZPPOST
-                  obsSpaceData%ROBDATA8(NCMOMN,JJ) = ZPPOST
-                  obsSpaceData%ROBDATA8(NCMOMI,JDATA)=-LOG(ZQCARG/(ZGAMI+1.))
+                  obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST
+                  obsSpaceData%ROBDATA8(NCM_OMN,JJ) = ZPPOST
+                  obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.
-                  obsSpaceData%ROBDATA8(NCMOMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
+                  obsSpaceData%ROBDATA8(NCM_OMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.
                 ENDIF
               enddo
             endif
           else
-            zjon = obsSpaceData%robdata8(ncmomi,jdata)
+            zjon = obsSpaceData%robdata8(NCM_OMI,jdata)
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
-            obsSpaceData%robdata8(ncmomn,jdata) = zppost
-            obsSpaceData%ROBDATA8(NCMOMI,JDATA)= - log(zqcarg/(zgami+1.))
+            obsSpaceData%robdata8(NCM_OMN,jdata) = zppost
+            obsSpaceData%ROBDATA8(NCM_OMI,JDATA)= - log(zqcarg/(zgami+1.))
           endif
         endif
       enddo

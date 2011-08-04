@@ -279,13 +279,13 @@
 *
       IF ( .NOT. LDAPPEND ) THEN
          NOBTOT  =0
-         obsSpaceData%ndata   =0
+         obsSpaceData%numobs_recorded   =0
       ELSE
 *
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%ndata
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%numobs_recorded
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS) THEN
@@ -508,10 +508,10 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
 ************************************************************************
 *
            IOBTOT=NOBTOT
-           IDATA=obsSpaceData%ndata
+           IDATA=obsSpaceData%numobs_recorded
            DO 22 JJEL=1,KNVALS
               NOBTOT=IOBTOT
-              obsSpaceData%ndata=IDATA
+              obsSpaceData%numobs_recorded=IDATA
               IPOSB=0
               ILPOSB=0
               ICOUNT=0
@@ -669,17 +669,17 @@ C                     ---------------
                        ELSE
                        ENDIF
 C
-                       IF ( IVAL .EQ. NCMOER) THEN
+                       IF ( IVAL .EQ. NCM_OER) THEN
 C                     OBSERVATION ERRORS BLOCK
 C                     ------------------------
                          IBKSTP=14
                          IBFAM=10
-                       ELSE IF ( IVAL .EQ. NCMFGE) THEN
+                       ELSE IF ( IVAL .EQ. NCM_FGE) THEN
 C                     FORECAST ERRORS
 C                     ------------------------
                          IBKSTP=15
                          IBFAM=10
-                       ELSE IF ( IVAL .EQ. NCMOMF) THEN
+                       ELSE IF ( IVAL .EQ. NCM_OMF) THEN
 C                     RESIDUALS BLOCK
 C                     ------------------------
                          IBKSTP=10
@@ -689,12 +689,12 @@ C                     ------------------------
      +                       LRTNADIR              ) THEN
                             IBFAM=32
                          ENDIF
-                       ELSE IF ( IVAL .EQ. NCMVAR) THEN
+                       ELSE IF ( IVAL .EQ. NCM_VAR) THEN
 C                     DATA BLOCK SEEN BY 3D-VAR
 C                     ------------------------
 cpik                     IBKSTP=0
                          IBFAM=0
-                       ELSE IF ( IVAL .EQ. NCMOMA) THEN
+                       ELSE IF ( IVAL .EQ. NCM_OMA) THEN
 C                     ANALYSIS INCREMENT BLOCK
 C                     ------------------------
                          IBKSTP=10
@@ -713,7 +713,7 @@ C
                        INBITMA=16
                        IBTYPB = IBTYP
                        IF ( (.NOT.LLGROUP) .AND. (IND .GT. 0) ) THEN
-                       IF (  IVAL .EQ. NCMVAR) THEN
+                       IF (  IVAL .EQ. NCM_VAR) THEN
                           IER=MRBDEL(IBUF,IBKNMA)
                           IER=MRBDEL(IBUF,IBKNO)
                           IER=MRBADD(IBUF,IBKNOUT,INELE,INVAL,I3D,IBFAM,
@@ -746,7 +746,7 @@ C
 
                           IF(ICOUNT .EQ. 1) THEN
                             NOBTOT=NOBTOT + 1
-                            IFLGS=obsSpaceData%MOBHDR(NCMST1,NOBTOT)
+                            IFLGS=obsSpaceData%MOBHDR(NCM_ST1,NOBTOT)
                             IZMODEL= NINT(RMTMOBS(NOBTOT)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF
@@ -773,7 +773,7 @@ C
     3 CONTINUE
       IF ( LLGOOD  ) THEN
          IF (LLGROUP ) THEN
-            IF(  IVAL .EQ. NCMVAR) THEN
+            IF(  IVAL .EQ. NCM_VAR) THEN
                IER=MRBDEL(IBUF,IBKNMA)
                IER=MRBDEL(IBUF,IBKNO)
                IER=MRBADD(IBUF,IBKNOUT,INELE,INVAL,I3D,IBFAM,IBDESC
@@ -789,7 +789,7 @@ C
          ENDIF
       ENDIF
 ********************************
-      IF( (obsSpaceData%ndata .GE. obsSpaceData%ndataP .OR. NOBTOT .GE. NMXOBS)
+      IF( (obsSpaceData%numobs_recorded .GE. obsSpaceData%mxobstotal .OR. NOBTOT .GE. NMXOBS)
      + .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN
@@ -802,7 +802,7 @@ C
             IER=MRFPUT(KFILE,IHANDLP,IBUF)
          ENDIF
          WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
-         CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
+         CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
          WRITE(NULOUT,*)' ------------------------------------------'
          WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
          WRITE(NULOUT,*)' ------------------------------------------'
@@ -845,7 +845,7 @@ C
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%ndata)
+      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'

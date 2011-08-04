@@ -20,7 +20,7 @@ subroutine oda_H
   !Purpose:
   !Compute simulated observations from profiled model
   !increments.
-  !It returns Hdx in ROBDATA8(NCMOMA,*)
+  !It returns Hdx in ROBDATA8(NCM_OMA,*)
   !Calls the several linear observation operators
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
@@ -40,15 +40,15 @@ subroutine oda_H
 !modular1    call oda_H1obs
   else
     call tmg_start(56,'PPROF') !
-    call oda_Hpp              ! fill in NCMOMA : Hdx
+    call oda_Hpp              ! fill in NCM_OMA : Hdx
     call tmg_stop(56)
 
     call tmg_start(59,'SFC')
-    call oda_Hsf              ! fill in NCMOMA : Hdx
+    call oda_Hsf              ! fill in NCM_OMA : Hdx
     call tmg_stop (59)
 
     call tmg_start(60,'RTTOV') !
-    call oda_Hto              ! fill in NCMOMA : Hdx
+    call oda_Hto              ! fill in NCM_OMA : Hdx
     call tmg_stop (60)
 
     call tmg_start(62,'GOESRAD') !

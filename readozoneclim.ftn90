@@ -57,7 +57,7 @@
       integer            :: IOZTEST
       integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
-      IJOUR = obsSpaceData%MOBHDR(NCMDAT,1)
+      IJOUR = obsSpaceData%MOBHDR(NCM_DAT,1)
 
       IJ= IJOUR/100
       IMONTH = IJ - (IJ/100)*100

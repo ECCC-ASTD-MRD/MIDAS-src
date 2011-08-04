@@ -84,36 +84,36 @@ C
      &       (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obsSpaceData%MOBDATA(NCMOBS,NBEGINTYP(JF))
-         IOBS2=obsSpaceData%MOBDATA(NCMOBS,NENDTYP(JF))
+         IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
+         IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 C
 C
          DO JOBS=IOBS1,IOBS2
 C
-            IDATA    = obsSpaceData%MOBHDR(NCMRLN,JOBS)
-            IDATEND  = obsSpaceData%MOBHDR(NCMNLV,JOBS) + IDATA - 1
+            IDATA    = obsSpaceData%MOBHDR(NCM_RLN,JOBS)
+            IDATEND  = obsSpaceData%MOBHDR(NCM_NLV,JOBS) + IDATA - 1
 C
 C        REJECT DATA TOO CLOSE TO THEDEL OROGRAPHY ,PUT TO
 C        MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 C
             DO JDATA= IDATA, IDATEND
                IKOUNTT=IKOUNTT+1
-               ZVAL=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+               ZVAL=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
                ZDIFF=  (ZVAL- GOMPSHR(1,JOBS) )/100.
                IF ( ZDIFF .GT. RLISTCRIT ) THEN
-                  ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+                  ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                   DO J=1,JPINEL
                      ILEM=ILISTEL(J)
                      IF ( ITYP .EQ. ILEM ) THEN
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,224) 'Reject OBS '
-     &                       ,jobs,ITYP,obsSpaceData%ROBDATA8(NCMPPP,JDATA),ZDIFF
+     &                       ,jobs,ITYP,obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
                         ENDIF
-                        obsSpaceData%MOBDATA(NCMASS,JDATA)=0
+                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        obsSpaceData%MOBDATA(NCMFLG,JDATA)=
-     &                     ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 18 )
+                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
+     &                     ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
                      ENDIF
                   END DO
                ENDIF
@@ -138,8 +138,8 @@ C
       END DO
 C
       IKOUNTT=0
-      DO JDATA=1,obsSpaceData%ndata
-         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obsSpaceData%numobs_recorded
+         IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT
      &     ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT

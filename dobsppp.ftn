@@ -29,7 +29,21 @@
 !     CDFAM: FAMILY OF OBSSERVATION
 !
 #endif
-      use obsSpaceData_mod
+      use obsSpaceData_mod, only: obsSpaceData, 
+     &          NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY, 
+     &          NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_SID, NCM_ALT,
+     &         NCM_NLV, NCM_OEC, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA, 
+     &         NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,  
+     &         NCM_BY,  NCM_BZ, 
+     &         NCM_LBO, NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR, 
+     &         NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER, NCM_RER, 
+     &         NCM_FGE, NCM_PER, NCM_FLG, NCM_POS, NCM_LYR, NCM_ASS, 
+     &         NCM_XTR, NCM_OBS, NCM_LOBS,NCM_VCO, NCM_PRM, NCM_KFA, 
+     &         NCM_ZHA, NCM_HPHT,NCM_OMP, 
+     &      obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG,
+     &  obs_elem_i,obs_elem_r4,obs_elem_r8,obs_setBody,obs_setHeader, 
+     &  obs_swapVarOmf,obs_ifind,obs_getStnID,obs_setStnID, 
+     &  obs_getFamily,obs_setFamily
       use profileData_mod 
       use bufr
       IMPLICIT NONE
@@ -63,16 +77,21 @@
 !     1. Computation of (HX - Z)/SIGMA
 !
       PJO=0.
-      do jdata=1,obsSpaceData%ndata
+      do jdata=1,obsSpaceData%numobs_recorded
          if(obs_getFamily(obsSpaceData,bodyIndex=jdata).eq.CDFAM) then
 !
 ! Process all data within the domain of the model
 !
-            call obs_getbody(obsSpaceData,jdata,
-     &                       val_POS= IPOS,val_VAR8=ZVAR,val_VNM=IVNM,
-     &                       val_OER8=ZOER,val_PPP8=ZLEV,val_LYR =IK,
-     &                       val_ASS=iass,val_XTR=ixtr,val_VCO=ivco,
-     &                       val_OBS= IOBS)
+            IPOS=obs_elem_i (obsSpaceData,'POS ',jdata)
+            ZVAR=obs_elem_r8(obsSpaceData,'VAR ',jdata)
+            IVNM=obs_elem_i (obsSpaceData,'VNM ',jdata)
+            ZOER=obs_elem_r8(obsSpaceData,'OER ',jdata)
+            ZLEV=obs_elem_r8(obsSpaceData,'PPP ',jdata)
+            IK  =obs_elem_i (obsSpaceData,'LYR ',jdata)
+            iass=obs_elem_i (obsSpaceData,'ASS ',jdata)
+            ixtr=obs_elem_i (obsSpaceData,'XTR ',jdata)
+            ivco=obs_elem_i (obsSpaceData,'VCO ',jdata)
+            IOBS=obs_elem_i (obsSpaceData,'OBS ',jdata)
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
                IPT = IK + IPOS*NLEVTRL
                IPB = IPT+1
@@ -104,7 +123,7 @@
 ! Forward model for UU,VV,TT,ES below model's orography Extrapolation of order 
 ! zero from model surface. Allowed at present only for HUMSAT (idburp=158)
 !
-                  call obs_getheader(obsSpaceData,iobs,val_ITY=IITY)
+                  IITY=obs_elem_i(obsSpaceData,'ITY ',iobs)
                   IDBURP    = MOD(IITY,1000)
                   IF (IDBURP .EQ. 158 .AND.
      +                IVNM .EQ. BUFR_NEES) THEN
@@ -114,9 +133,8 @@
                   ELSE
                     LLNOXTR   = .TRUE.
                     ZTORAD    = 1.D0/(RPI/180.D0)
-                    call obs_getheader(obsSpaceData,iobs,val_LAT=ZLAT,val_LON=ZLON)
-                    ZLAT      = ZLAT*ZTORAD
-                    ZLON      = ZLON*ZTORAD
+                    ZLAT = obs_elem_r4(obsSpaceData,'LAT ',iobs) *ZTORAD
+                    ZLON = obs_elem_r4(obsSpaceData,'LONG',iobs) *ZTORAD
                     IDBURP    = MOD(IITY,1000)
                     WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED '
      &               ,' OBS ',obs_getStnID(obsSpaceData,IOBS),' TYPE ',IDBURP, ' ELM '

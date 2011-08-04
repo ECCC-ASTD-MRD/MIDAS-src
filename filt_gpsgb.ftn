@@ -83,8 +83,8 @@ C
 C
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-        ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
+        IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+        ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
 C
 C     *  Loop over all GPS observation locations of the file
 C
@@ -94,15 +94,15 @@ C
 C
 C     *  Process only Ground-Based GPS data (codtyp 189)
 C
-          IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
+          IDATYP = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
 C
           IF ( IDATYP .EQ. 189 ) THEN
-            IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
+            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
             IF (obsSpaceData%CSTNID(JO) .NE. CGPSSTN) THEN
 C     Loop over all observations for the location
               DO JDATA= IDATA, IDATEND
-                obsSpaceData%MOBDATA(NCMASS,JDATA) = 0
+                obsSpaceData%MOBDATA(NCM_ASS,JDATA) = 0
               ENDDO
             ELSE
               WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 

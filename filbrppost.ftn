@@ -105,31 +105,31 @@ C     ------------------
 C
       CALL READNML('NAMBPOST',IER)
 C
-      NSAV(1)=NCMOMA
-      NSAV(2)=NCMOMF
-      NSAV(3)=NCMOER
-      NSAV(4)=NCMVAR
+      NSAV(1)=NCM_OMA
+      NSAV(2)=NCM_OMF
+      NSAV(3)=NCM_OER
+      NSAV(4)=NCM_VAR
 c
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'OMA') NSAV(J)=NCMOMA
+         IF ( CSAV(J) .EQ. 'OMA') NSAV(J)=NCM_OMA
       END DO
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'OMP') NSAV(J)=NCMOMF
+         IF ( CSAV(J) .EQ. 'OMP') NSAV(J)=NCM_OMF
       END DO
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'OER') NSAV(J)=NCMOER
+         IF ( CSAV(J) .EQ. 'OER') NSAV(J)=NCM_OER
       END DO
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'FGE') NSAV(J)=NCMFGE
+         IF ( CSAV(J) .EQ. 'FGE') NSAV(J)=NCM_FGE
       END DO
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'VAR') NSAV(J)=NCMVAR
+         IF ( CSAV(J) .EQ. 'VAR') NSAV(J)=NCM_VAR
       END DO
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'FLG') NSAV(J)=NCMFLG
+         IF ( CSAV(J) .EQ. 'FLG') NSAV(J)=NCM_FLG
       END DO
 
-      obsSpaceData%ndata=0
+      obsSpaceData%numobs_recorded=0
       NOBTOT=1
 C
       WRITE(NULOUT,'(1X,"SUBROUTINE FILBRPPOST")')
@@ -145,7 +145,7 @@ C
       NVALS=NFILES
       LLAPPEND=.FALSE.
       NOBTOT=0
-      obsSpaceData%ndata=0
+      obsSpaceData%numobs_recorded=0
       DO J =1,NKOUNT
          NVTYP=J
          CBURP(J)  = CFILNAM(J)

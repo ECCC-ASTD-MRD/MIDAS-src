@@ -19,7 +19,7 @@ subroutine oda_storeHdx_radiances
   !
   !
   !Purpose:
-  !Store Hdx radiances in ROBDATA8(NCMOMA,*)
+  !Store Hdx radiances in ROBDATA8(NCM_OMA,*)
   !
   !author        : Simon Pellerin, ARMA, January 2009
   !                Based on subroutine written by J. Halle
@@ -55,7 +55,7 @@ subroutine oda_storeHdx_radiances
   integer ibegin, ibeginob, ilast, ilastob, jj
   integer inobsjo, incanjo
   integer jo, jdata, idata, idatend, idatyp
-  integer jk, jn, ichn, ichncma, jl, indx
+  integer jk, jn, ichn, ichNCM_A, jl, indx
   integer kfailtot
 
   integer kfail(jppf*jpnsat)
@@ -90,8 +90,8 @@ subroutine oda_storeHdx_radiances
      if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
         ibegin   = nbegintyp(jf)
         ilast    = nendtyp  (jf)
-        ibeginob = obsSpaceData%mobdata(ncmobs,ibegin)
-        ilastob  = obsSpaceData%mobdata(ncmobs,ilast )
+        ibeginob = obsSpaceData%mobdata(NCM_OBS,ibegin)
+        ilastob  = obsSpaceData%mobdata(NCM_OBS,ilast )
         do jo = ibeginob, ilastob
 
            !     .  1.1  Extract general information for this observation point
@@ -99,7 +99,7 @@ subroutine oda_storeHdx_radiances
 
            !       only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
 
-           idatyp = mod(obsSpaceData%mobhdr(ncmity,jo),1000)
+           idatyp = mod(obsSpaceData%mobhdr(NCM_ITY,jo),1000)
            if ( idatyp .eq. 164 .or.  &
                 idatyp .eq. 168 .or.  &
                 idatyp .eq. 180 .or.  &
@@ -117,14 +117,14 @@ subroutine oda_storeHdx_radiances
               endif
 
               if (rttov_errorstatus(indxtovs) .lt. 20   ) then
-                 idata   = obsSpaceData%mobhdr(ncmrln,jo)
-                 idatend = obsSpaceData%mobhdr(ncmnlv,jo) + idata - 1
+                 idata   = obsSpaceData%mobhdr(NCM_RLN,jo)
+                 idatend = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
                  isens = lsensor(indxtovs)
                  do jdata= idata, idatend
-                    if ( obsSpaceData%mobdata(ncmass,jdata).eq.1 ) then
-                       ichn = nint(obsSpaceData%robdata8(ncmppp,jdata))
+                    if ( obsSpaceData%mobdata(NCM_ASS,jdata).eq.1 ) then
+                       ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
                        ichn    = max(0,min(ichn,jpch+1))
-                       ichncma = max(0,min(ichn,jpch+1))
+                       ichNCM_A = max(0,min(ichn,jpch+1))
                        if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
                        indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
                        if ( indxchn .eq. 0 ) then
@@ -132,11 +132,11 @@ subroutine oda_storeHdx_radiances
 9202                      format(' tovs_calc_jo_tl: error with channel number')
                           call abort3d(nulout,'tovs_calc_jo_tl  ')
                        endif
-                       obsSpaceData%robdata8(ncmoma,jdata) = radiance_tl (indxtovs) % out(indxchn)
+                       obsSpaceData%robdata8(NCM_OMA,jdata) = radiance_tl (indxtovs) % out(indxchn)
                        if ( ldbgtov ) then
                           write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                                ichn,  radiance_tl (indxtovs) % out(indxchn), &
-                               obsSpaceData%robdata8(ncmvar,jdata)
+                               obsSpaceData%robdata8(NCM_VAR,jdata)
                        endif
 
                     endif

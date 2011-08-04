@@ -23,7 +23,7 @@
 *
 * Purpose: Compute simulated Upper Air observations from profiled model
 *          increments.
-*          It returns Hdx in ROBDATA8(NCMOMA,*)
+*          It returns Hdx in ROBDATA8(NCM_OMA,*)
 *          Interpolate vertically the contents of commvo to
 *          the pressure levels of the observations.
 *          A linear interpolation in ln(p) is performed.
@@ -41,7 +41,7 @@
 *              analysis. LLPRINT to print diagnostics
 *           C. Charette ARMA/AES JUN 2000
 *            - Added check on type of vertical coordinate
-*              MOBDATA(NCMVCO,)=2 --> PRESSURE COORDINATE
+*              MOBDATA(NCM_VCO,)=2 --> PRESSURE COORDINATE
 *           B. Brasnett CMC/CMDA Nov 2000
 *            - Modify functional for variational quality control
 *           C. Charette ARMA/SMC NOV. 2001
@@ -85,13 +85,13 @@ C
       zgamma = 0.0065D0 / GRAV
       zexp = RGASD*zgamma
 C
-      DO JDATA=1,obsSpaceData%ndata
+      DO JDATA=1,obsSpaceData%numobs_recorded
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
-          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-          IDBURP = MOD(obsSpaceData%MOBHDR(NCMITY,IOBS),1000)
-          IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          IDBURP = MOD(obsSpaceData%MOBHDR(NCM_ITY,IOBS),1000)
+          IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = RPPOBS(IK,IOBS)
@@ -106,14 +106,14 @@ C
      +         -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )
      +         /LOG(ZPB/ZPT)**2
 C
-          obsSpaceData%ROBDATA8(NCMOMA,JDATA) =
+          obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
      +         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+
      +         (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*
      +         ZDADPS*GOMPS(1,IOBS)
         elseif(lmaskpp_out(jdata)) then
-          IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
 C
 c-----------TL model for height data below model's orography
 c
@@ -121,7 +121,7 @@ c
      &         + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON =(ZLEV/GOMPSG(1,IOBS))**ZEXP
-          obsSpaceData%robdata8(ncmoma,jdata)= (1.-zcon)/zgamma*ZLTV
+          obsSpaceData%robdata8(NCM_OMA,jdata)= (1.-zcon)/zgamma*ZLTV
      &         + RGASD*ZTVG*zcon*gomps(1,iobs)
      &         /gompsg(1,iobs)
         endif

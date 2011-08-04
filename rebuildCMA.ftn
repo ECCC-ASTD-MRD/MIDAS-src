@@ -58,11 +58,11 @@
 
       ALLOCATE(cfamily_tmp(locObsize),STAT=ierr) 
       ALLOCATE(cstnid_tmp(locObsize),STAT=ierr) 
-      ALLOCATE(ROBHDR_tmp(NCMLET,locObsize),STAT=ierr) 
-      ALLOCATE(MOBHDR_tmp(NCMLET,locObsize),STAT=ierr) 
-      ALLOCATE(MOBDATA_tmp(NCMLBO,obsSpaceData%ndata_l),STAT=ierr) 
-      ALLOCATE(ROBDATA_tmp(NCMLBO,obsSpaceData%ndata_l),STAT=ierr) 
-      ALLOCATE(ROBDATA8_tmp(3:11,obsSpaceData%ndata_l),STAT=ierr) 
+      ALLOCATE(ROBHDR_tmp(NCM_LET,locObsize),STAT=ierr) 
+      ALLOCATE(MOBHDR_tmp(NCM_LET,locObsize),STAT=ierr) 
+      ALLOCATE(MOBDATA_tmp(NCM_LBO,obsSpaceData%numobs_recorded_l),STAT=ierr) 
+      ALLOCATE(ROBDATA_tmp(NCM_LBO,obsSpaceData%numobs_recorded_l),STAT=ierr) 
+      ALLOCATE(ROBDATA8_tmp(3:11,obsSpaceData%numobs_recorded_l),STAT=ierr) 
 !  
       call obs_allocateG(obsSpaceData,nobtot)
 !
@@ -79,7 +79,7 @@
          DO J=1,NFILES
             DO i=1,locObsize
                iobs=locObsTag(i) 
-               ifamid=obsSpaceData%MOBHDR(NCMOEC,iobs) 
+               ifamid=obsSpaceData%MOBHDR(NCM_OEC,iobs) 
                if(j == ifamid) then
                  ii=ii+1
                  locObsTag_tmp(ii) = iobs  
@@ -92,26 +92,26 @@
          locObsTag=locObsTag_tmp
          DEALLOCATE(locObsTag_tmp)  
       ENDIF  
- !  nobtotp and obsSpaceData%ndatap are used in CMAABRP of POSTMIN . 
+ !  nobtotp and obsSpaceData%mxobstotal are used in CMAABRP of POSTMIN . 
       nobtotp=nobtot
-      obsSpaceData%ndatap=obsSpaceData%ndata
+      obsSpaceData%mxobstotal=obsSpaceData%numobs_recorded
 
 !! keep the Global ROBHDR and MOBHDR
       DO iobs=1,nobtotp
-        obsSpaceData%MOBHDR_G(1:NCMLET,iobs)=obsSpaceData%MOBHDR(1:NCMLET,iobs)
-        obsSpaceData%ROBHDR_G(1:NCMLET,iobs)=obsSpaceData%ROBHDR(1:NCMLET,iobs)
+        obsSpaceData%MOBHDR_G(1:NCM_LET,iobs)=obsSpaceData%MOBHDR(1:NCM_LET,iobs)
+        obsSpaceData%ROBHDR_G(1:NCM_LET,iobs)=obsSpaceData%ROBHDR(1:NCM_LET,iobs)
       ENDDO  
 !!
       DO i=1,locObsize 
         iobs=locObsTag(i) 
-        ROBHDR_tmp(1:NCMLET,i)=obsSpaceData%ROBHDR(1:NCMLET,iobs)
-        MOBHDR_tmp(1:NCMLET,i)=obsSpaceData%MOBHDR(1:NCMLET,iobs)
+        ROBHDR_tmp(1:NCM_LET,i)=obsSpaceData%ROBHDR(1:NCM_LET,iobs)
+        MOBHDR_tmp(1:NCM_LET,i)=obsSpaceData%MOBHDR(1:NCM_LET,iobs)
         cstnid_tmp(i) = obsSpaceData%cstnid(iobs) 
         cfamily_tmp(i) = obsSpaceData%cfamily(iobs) 
         IF(i== 1) THEN
-           MOBHDR_tmp(NCMRLN,1) = 1
+           MOBHDR_tmp(NCM_RLN,1) = 1
         ELSE
-           MOBHDR_tmp(NCMRLN,i)=MOBHDR_tmp(NCMRLN,i-1) + MOBHDR_tmp(NCMNLV,i-1) 
+           MOBHDR_tmp(NCM_RLN,i)=MOBHDR_tmp(NCM_RLN,i-1) + MOBHDR_tmp(NCM_NLV,i-1) 
         ENDIF 
       ENDDO !  
 
@@ -119,36 +119,36 @@
       ii=0 
       DO i=1,locObsize
         iobs=locObsTag(i) 
-        idata= obsSpaceData%MOBHDR(NCMRLN,iobs) 
-        idataend = obsSpaceData%MOBHDR(NCMNLV,iobs) + idata -1 
+        idata= obsSpaceData%MOBHDR(NCM_RLN,iobs) 
+        idataend = obsSpaceData%MOBHDR(NCM_NLV,iobs) + idata -1 
         DO j=idata,idataend 
            ii=ii+1 
            ROBDATA8_tmp(3:11,ii)=obsSpaceData%ROBDATA8(3:11,j)
-           MOBDATA_tmp(1:NCMLBO,ii)=obsSpaceData%MOBDATA(1:NCMLBO,j) 
-           ROBDATA_tmp(1:NCMLBO,ii)=obsSpaceData%ROBDATA(1:NCMLBO,j) 
-           MOBDATA_tmp(NCMOBS,ii) = i
+           MOBDATA_tmp(1:NCM_LBO,ii)=obsSpaceData%MOBDATA(1:NCM_LBO,j) 
+           ROBDATA_tmp(1:NCM_LBO,ii)=obsSpaceData%ROBDATA(1:NCM_LBO,j) 
+           MOBDATA_tmp(NCM_OBS,ii) = i
         ENDDO 
       ENDDO 
  
-!     save the global nobtot and obsSpaceData%ndata to nobtotp and obsSpaceData%ndatap 
+!     save the global nobtot and obsSpaceData%numobs_recorded to nobtotp and obsSpaceData%mxobstotal 
       
       nobtot=locObsize  
-      obsSpaceData%ndata=obsSpaceData%ndata_l
+      obsSpaceData%numobs_recorded=obsSpaceData%numobs_recorded_l
       write(*,*) 'NOBTOT= ',nobtot 
       call obs_deallocate(obsSpaceData)
-      call obs_allocate(obsSpaceData,nobtot,obsSpaceData%ndata)
+      call obs_allocate(obsSpaceData,nobtot,obsSpaceData%numobs_recorded)
 !
       DO i=1,nobtot
          obsSpaceData%cfamily(i)=cfamily_tmp(i) 
          obsSpaceData%cstnid(i)=cstnid_tmp(i) 
-         obsSpaceData%ROBHDR(1:NCMLET,i)=ROBHDR_tmp(1:NCMLET,i)
-         obsSpaceData%MOBHDR(1:NCMLET,i)=MOBHDR_tmp(1:NCMLET,i) 
+         obsSpaceData%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
+         obsSpaceData%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
       ENDDO 
 
-      DO i=1,obsSpaceData%ndata
+      DO i=1,obsSpaceData%numobs_recorded
          obsSpaceData%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
-         obsSpaceData%MOBDATA(1:NCMLBO,i)=MOBDATA_tmp(1:NCMLBO,i) 
-         obsSpaceData%ROBDATA(1:NCMLBO,i)=ROBDATA_tmp(1:NCMLBO,i)
+         obsSpaceData%MOBDATA(1:NCM_LBO,i)=MOBDATA_tmp(1:NCM_LBO,i) 
+         obsSpaceData%ROBDATA(1:NCM_LBO,i)=ROBDATA_tmp(1:NCM_LBO,i)
       ENDDO 
 
       deallocate(cfamily_tmp)
@@ -170,9 +170,9 @@
       DO j=1,NFILES
         lfirst=.true. 
         DO i=1,locObsize
-          istart=obsSpaceData%MOBHDR(NCMRLN,i)
-          idata=obsSpaceData%MOBHDR(NCMNLV,i)
-          ifamid=obsSpaceData%MOBHDR(NCMOEC,i)
+          istart=obsSpaceData%MOBHDR(NCM_RLN,i)
+          idata=obsSpaceData%MOBHDR(NCM_NLV,i)
+          ifamid=obsSpaceData%MOBHDR(NCM_OEC,i)
           IF(ifamid == J) THEN
              IF(lfirst) THEN
                NBEGINTYP(j) = istart 

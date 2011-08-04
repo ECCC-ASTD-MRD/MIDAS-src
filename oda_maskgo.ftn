@@ -53,17 +53,17 @@
 C
       DO JN = 1, NGOES
         IO      = MJOGO(JN)
-        IDATA   = obsSpaceData%MOBHDR(NCMRLN,IO)
-        IDATEND = obsSpaceData%MOBHDR(NCMNLV,IO)+IDATA - 1
+        IDATA   = obsSpaceData%MOBHDR(NCM_RLN,IO)
+        IDATEND = obsSpaceData%MOBHDR(NCM_NLV,IO)+IDATA - 1
 
         DO JDATA = IDATA, IDATEND
-          ITYP = obsSpaceData%MOBDATA(NCMVNM,JDATA)
+          ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
 
           IF (( ITYP.EQ.12062 .OR.
      S         ITYP.EQ.12063 .OR.
-     S         ITYP.EQ.12163).and. obsSpaceData%MOBDATA(NCMASS,JDATA).NE.0) THEN
+     S         ITYP.EQ.12163).and. obsSpaceData%MOBDATA(NCM_ASS,JDATA).NE.0) THEN
 C
-            ICHN = NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
+            ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
 C
             MDATA (ICHN,JN) = JDATA
           ENDIF

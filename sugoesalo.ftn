@@ -54,7 +54,7 @@ C     .  -----------------------------------------------
  100  CONTINUE
       NOBGOES = 0
       DO JO = 1, NOBTOT
-        IDATYP = MOD(obsSpaceData%MOBHDR(NCMITY,JO),1000)
+        IDATYP = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
         IF ( IDATYP .EQ. 180 ) THEN
             NOBGOES = NOBGOES + 1
         ENDIF

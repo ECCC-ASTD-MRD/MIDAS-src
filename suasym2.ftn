@@ -87,31 +87,31 @@
 *
 *
       DO JJO = 1, NOBTOT
-         IDATA     = obsSpaceData%MOBHDR(NCMRLN,JJO)
-         IDATEND   = obsSpaceData%MOBHDR(NCMNLV,JJO) + IDATA - 1
-         IDATYP    = obsSpaceData%MOBHDR(NCMOTP,JJO)
-         ITY       = obsSpaceData%MOBHDR(NCMITY,JJO)
+         IDATA     = obsSpaceData%MOBHDR(NCM_RLN,JJO)
+         IDATEND   = obsSpaceData%MOBHDR(NCM_NLV,JJO) + IDATA - 1
+         IDATYP    = obsSpaceData%MOBHDR(NCM_OTP,JJO)
+         ITY       = obsSpaceData%MOBHDR(NCM_ITY,JJO)
          IDBURP    = MOD(ITY,1000)
-         ZLAT = obsSpaceData%ROBHDR(NCMLAT,JJO)*ZTODEG
-         ZLON = obsSpaceData%ROBHDR(NCMLON,JJO)*ZTODEG
+         ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JJO)*ZTODEG
+         ZLON = obsSpaceData%ROBHDR(NCM_LON,JJO)*ZTODEG
          DO JDATA  = IDATA, IDATEND
-            ITYP   = obsSpaceData%MOBDATA(NCMVNM,JDATA)
-            IASS   = obsSpaceData%MOBDATA(NCMASS,JDATA)
-            ZLEV   = obsSpaceData%ROBDATA8(NCMPPP,JDATA)*RPATMB
+            ITYP   = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+            IASS   = obsSpaceData%MOBDATA(NCM_ASS,JDATA)
+            ZLEV   = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)*RPATMB
             ILEM   = obs_ifind(ITYP)
-            ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-            ZVAL = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-            ZFCST= obsSpaceData%ROBDATA8(NCMOMA,JDATA)*ZOER + ZVAL
+            ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+            ZVAL = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+            ZFCST= obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER + ZVAL
 C
             IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
      1          ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.
      2          ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.
      3          ITYP .EQ. BUFR_NEZD) THEN
-               LLOK = (obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1)
+               LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
             ELSE
-               LLOK = (IASS .EQ. 1) .AND. ((obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ.0)
-     1            .OR. ((obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 2) .AND.
-     2                  (obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEGZ)))
+               LLOK = (IASS .EQ. 1) .AND. ((obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ.0)
+     1            .OR. ((obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2) .AND.
+     2                  (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEGZ)))
             ENDIF
 
             IF (LLOK) THEN
@@ -121,8 +121,8 @@ C
                   IOTHER = -1
                   IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                     DO JJ=IDATA,JDATA
-                      ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
-                      ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)*RPATMB
+                      ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
+                      ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)*RPATMB
                       IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)
      1                     .AND. ZLEV .EQ. ZSLEV) THEN
                         IOTHER = JJ
@@ -130,8 +130,8 @@ C
                     ENDDO
                   ELSE
                     DO JJ=IDATA,JDATA
-                      ISTYP = obsSpaceData%MOBDATA(NCMVNM,JJ)
-                      ZSLEV = obsSpaceData%ROBDATA8(NCMPPP,JJ)*RPATMB
+                      ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
+                      ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)*RPATMB
                       IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)
      1                     .AND. ZLEV .EQ. ZSLEV) THEN
                         IOTHER = JJ
@@ -139,10 +139,10 @@ C
                     ENDDO
                   ENDIF
                   IF (IOTHER .NE. -1) THEN
-                    ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                    ZOVAL = obsSpaceData%ROBDATA8(NCMVAR,IOTHER)
-*                       ZOFCST = obsSpaceData%ROBDATA8(NCMOMF,IOTHER)*ZOER+ZOVAL
-                    ZOFCST = obsSpaceData%ROBDATA8(NCMOMA,IOTHER)*ZOER+ZOVAL
+                    ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                    ZOVAL = obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
+*                       ZOFCST = obsSpaceData%ROBDATA8(NCM_OMF,IOTHER)*ZOER+ZOVAL
+                    ZOFCST = obsSpaceData%ROBDATA8(NCM_OMA,IOTHER)*ZOER+ZOVAL
                     ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
                     ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
                     ZDIFF = ZSPDO - ZSPDF
@@ -174,55 +174,55 @@ C
 *
 *_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)=(1. -
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)=(1. -
      1               (1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM)))*(2.*RPI)/
      2              ((1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM))*
      3                                (2.*ZDUV)*(2.*ZDUV))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
-     2             obsSpaceData%ROBDATA(NCMPOB,JDATA)=(1. - (1.-ZAUVRA)*(1.-ZAUVRA))
+     2             obsSpaceData%ROBDATA(NCM_POB,JDATA)=(1. - (1.-ZAUVRA)*(1.-ZAUVRA))
      3                    *(2.*RPI)/((1.-ZAUVRA)*(1.-ZAUVRA)*
      4                                (2.*ZDUV)*(2.*ZDUV))
                ELSEIF (ITYP .EQ. BUFR_NEGZ) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZAGZ*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZAGZ*
      1                SQRT(2.*RPI))/((1.-ZAGZ)*(2.*ZDGZ))
                ELSEIF (ITYP .EQ. BUFR_NETT) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZATT*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZATT*
      1                SQRT(2.*RPI))/((1.-ZATT)*(2.*ZDTT))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
-     2              obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZATTRA*
+     2              obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZATTRA*
      3                SQRT(2.*RPI))/((1.-ZATTRA)*(2.*ZDTT))
                ELSEIF (ITYP .EQ. BUFR_NETS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZATT*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZATT*
      1                SQRT(2.*RPI))/((1.-ZATT)*(2.*ZDTT))
 *
 *                 ASYMMETRIC TEST FOR SHIP TEMPERATURES
 *
                   IF ((IDBURP .EQ. 13) .AND. (ZVAL .GT. ZFCST)) THEN
-                    obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZATTSYM*
+                    obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZATTSYM*
      1                  SQRT(2.*RPI))/((1.-ZATTSYM)*(2.*ZDTT))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEPN) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZAPN*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZAPN*
      1                SQRT(2.*RPI))/((1.-ZAPN)*(2.*ZDPN))
                ELSEIF (ITYP .EQ. BUFR_NEPS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZAPS*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZAPS*
      1                SQRT(2.*RPI))/((1.-ZAPS)*(2.*ZDPS))
                ELSEIF ( ITYP .EQ. 12062 .OR. ITYP .EQ. 12063 .OR.
      1                  ITYP .EQ. 12163) THEN
@@ -230,27 +230,27 @@ C
 *                 INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
 *                 TOVS AMSU-A
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZABT*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZABT*
      1                SQRT(2.*RPI))/((1.-ZABT)*(2.*ZDBT))
                   IF (IDBURP .EQ. 181 .OR.
      1                IDBURP .EQ. 182      ) THEN
 *
 *                   INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
 *
-                    obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZABTB*
+                    obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZABTB*
      1                  SQRT(2.*RPI))/((1.-ZABTB)*(2.*ZDBTB))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEZD) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)= (ZAZD*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)= (ZAZD*
      1                SQRT(2.*RPI))/((1.-ZAZD)*(2.*ZDZD))
                ELSE
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
 *
-                  obsSpaceData%ROBDATA(NCMPOB,JDATA)=(ZAHU*
+                  obsSpaceData%ROBDATA(NCM_POB,JDATA)=(ZAHU*
      1                SQRT(2.*RPI))/((1.-ZAHU)*(2.*ZDHU))
                ENDIF
             ENDIF

@@ -44,7 +44,7 @@ IF (n_cma_iasi==0) THEN
 END IF
 
 n_cma_iasi=n_cma_iasi+1
-!print *,"ncmaiasi",n_cma_iasi
+!print *,"NCM_AIAsi",n_cma_iasi
 
 IF (n_cma_iasi > size_cma_iasi) THEN
 

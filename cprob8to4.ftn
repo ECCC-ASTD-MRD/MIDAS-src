@@ -24,9 +24,9 @@
 *Revision:
 *
 **    Purpose: Copy REAL*8 part of CMA back to REAL*4.
-*              ROBDATA8(NCMOMA) to ROBDATA(NCMOMA) 
-*              ROBDATA8(NCMOMI) to ROBDATA(NCMOMI) 
-*              ROBDATA8(NCMOMN) to ROBDATA(NCMOMN) 
+*              ROBDATA8(NCM_OMA) to ROBDATA(NCM_OMA) 
+*              ROBDATA8(NCM_OMI) to ROBDATA(NCM_OMI) 
+*              ROBDATA8(NCM_OMN) to ROBDATA(NCM_OMN) 
 *
 *Arguments
 *
@@ -41,15 +41,15 @@
       INTEGER JDATA
 *-----------------------------------------------------------------
 
-      do JDATA=1,obsSpaceData%ndata
-        obsSpaceData%ROBDATA(NCMOMA,JDATA)=obsSpaceData%ROBDATA8(NCMOMA,JDATA)
-        obsSpaceData%ROBDATA(NCMOMI,JDATA)=obsSpaceData%ROBDATA8(NCMOMI,JDATA)
-        obsSpaceData%ROBDATA(NCMOMN,JDATA)=obsSpaceData%ROBDATA8(NCMOMN,JDATA)
-        obsSpaceData%ROBDATA(NCMOMF,JDATA)=obsSpaceData%ROBDATA8(NCMOMF,JDATA)
-        obsSpaceData%ROBDATA(NCMVAR,JDATA)=obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-        obsSpaceData%ROBDATA(NCMOER,JDATA)=obsSpaceData%ROBDATA8(NCMOER,JDATA)
-        obsSpaceData%ROBDATA(NCMPPP,JDATA)=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-        obsSpaceData%ROBDATA(NCMPRL,JDATA)=obsSpaceData%ROBDATA8(NCMPRL,JDATA)
+      do JDATA=1,obsSpaceData%numobs_recorded
+        obsSpaceData%ROBDATA(NCM_OMA,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+        obsSpaceData%ROBDATA(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
+        obsSpaceData%ROBDATA(NCM_OMN,JDATA)=obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+        obsSpaceData%ROBDATA(NCM_OMF,JDATA)=obsSpaceData%ROBDATA8(NCM_OMF,JDATA)
+        obsSpaceData%ROBDATA(NCM_VAR,JDATA)=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+        obsSpaceData%ROBDATA(NCM_OER,JDATA)=obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+        obsSpaceData%ROBDATA(NCM_PPP,JDATA)=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+        obsSpaceData%ROBDATA(NCM_PRL,JDATA)=obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
       enddo
 
       RETURN

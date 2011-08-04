@@ -109,15 +109,15 @@ C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obsSpaceData%MOBDATA(NCMOBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCMOBS,ILAST )
+            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
+            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
 C
 C     *     Loop over all GPS observations (locations) of the file
 C
             DO JO = IBEGINOB, ILASTOB
 C
-               IDATA   = obsSpaceData%MOBHDR(NCMRLN,JO)
-               IDATEND = obsSpaceData%MOBHDR(NCMNLV,JO) + IDATA - 1
+               IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
+               IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
 C
 c     *     Scan for ZTD assimilation at this location
 c
@@ -126,7 +126,7 @@ c
                DO JDATA= IDATA, IDATEND
                   LLOK = ( lmaskgp(JDATA) )
                   IF ( LLOK ) THEN
-                     ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+                     ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
                      ASSIM = .TRUE.
                      NH = NH + 1
                   ENDIF
@@ -138,8 +138,8 @@ C
 C
 C     *           LR background profile and increments at the observation location x :
 C
-                    ZLAT = obsSpaceData%ROBHDR(NCMLAT,JO) * ZTODEG
-                    ZLON = obsSpaceData%ROBHDR(NCMLON,JO) * ZTODEG
+                    ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JO) * ZTODEG
+                    ZLON = obsSpaceData%ROBHDR(NCM_LON,JO) * ZTODEG
                     DO JL = 1, NFLEV
                       ZTTB(JL) = GOMTG(JL,JO)
                       ZTT(JL)  = GOMT(JL,JO)
@@ -161,13 +161,13 @@ C
                     CALL GPSZTDOPTL(ZLAT,ZLON,ZLEV,ZETA,ZTTB,ZHUB,
      +                    ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZTT,ZHU,ZP0,ZHX)
 C
-C     *        Store ZHX = H'dx in NCMOMA
+C     *        Store ZHX = H'dx in NCM_OMA
 C
                     NH1 = 0
                     DO JDATA= IDATA, IDATEND
                       IF ( lmaskgp(JDATA) ) THEN
                           NH1 = NH1 + 1
-                          obsSpaceData%ROBDATA8(NCMOMA,JDATA) = ZHX
+                          obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = ZHX
                       ENDIF
                     ENDDO
 c

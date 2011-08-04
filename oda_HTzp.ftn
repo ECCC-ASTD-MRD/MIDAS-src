@@ -30,7 +30,7 @@
 *Revision :
 *           S. Pellerin - ARMA - Jan. 2009
 *            - Rename the subroutine acording to ODA naming convention
-*            - Use of NCMOMI as index of adjoint residual variable
+*            - Use of NCM_OMI as index of adjoint residual variable
 *            - Use of mask to process assimilated observation only
 *    -------------------
 *
@@ -67,13 +67,13 @@ C     Process all data within the domain of the model
 C
       DO J=1,ISTRIDE
 *vdir nodep
-        DO JDATA=J, obsSpaceData%ndata,ISTRIDE
+        DO JDATA=J, obsSpaceData%numobs_recorded,ISTRIDE
           IF (lmaskzp(jdata) ) THEN
-            IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-            IPOS = obsSpaceData%MOBDATA(NCMPOS,JDATA)
-            ZRES = obsSpaceData%ROBDATA8(NCMOMI,JDATA)
-            ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-            IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
+            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+            IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
+            ZRES = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
+            ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+            IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
             ZPT  = GOMGZG(IK,IOBS)/RG
@@ -84,8 +84,8 @@ C
 
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
-c            obsSpaceData%ROBDATA8(NCMOMN,JDATA) = obsSpaceData%ROBDATA8(NCMOMN,JDATA)
-c     &           * obsSpaceData%ROBDATA8(NCMOMA,JDATA)
+c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &           * obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
 C
             GOMGZ(IK+1,IOBS) = GOMGZ(IK+1,IOBS) +
      &           (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*ZDA2*ZRES/RG

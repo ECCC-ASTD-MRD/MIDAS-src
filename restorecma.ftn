@@ -60,7 +60,7 @@
 
 !!1.2 Added restore global array MOBHDR and RMTMOBS
 !     MOBHDR and  RMTMOBS are used in "cmaabrp.ftn"
-      ALLOCATE(MOBHDR_tmp(NCMLET,NOBTOTP),STAT=ierr) 
+      ALLOCATE(MOBHDR_tmp(NCM_LET,NOBTOTP),STAT=ierr) 
       IF(ierr /= 0)  CALL ABORT3D(nulout,'Cannt allocate Mem. to MOBHDR_tmp,Abort!') 
       MOBHDR_TMP=0
 
@@ -71,7 +71,7 @@
       ii=1 
       DO i=1,NOBTOT
          iobs=locObsTag(i)
-         MOBHDR_tmp(1:NCMLET,iobs)=obsSpaceData%MOBHDR(1:NCMLET,ii)
+         MOBHDR_tmp(1:NCM_LET,iobs)=obsSpaceData%MOBHDR(1:NCM_LET,ii)
          RMTMOBS_tmp(iobs)=RMTMOBS(ii)
          ii=ii+1
       ENDDO  
@@ -92,11 +92,11 @@
       
 
 !!2.  Allocate memory to the temporol arrays.   
-      ALLOCATE(MOBDATA_tmp(NCMLBO,obsSpaceData%ndatap),STAT=ierr) 
+      ALLOCATE(MOBDATA_tmp(NCM_LBO,obsSpaceData%mxobstotal),STAT=ierr) 
       IF(ierr /= 0)  CALL ABORT3D(nulout,'Cannt allocate Mem. to MOBDATA_tmp,Abort!') 
       MOBDATA_tmp=0 
 
-      ALLOCATE(ROBDATA_tmp(NCMLBO,obsSpaceData%ndatap),STAT=ierr) 
+      ALLOCATE(ROBDATA_tmp(NCM_LBO,obsSpaceData%mxobstotal),STAT=ierr) 
       IF(ierr /= 0) CALL  ABORT3D(nulout, 'Cannt allocate Mem. to ROBDATA_tmp,Abort!') 
       ROBDATA_tmp=0.0 
 
@@ -104,12 +104,12 @@
       ii=0 
       DO i=1,nobtot
         iobs=locObsTag(i) 
-        idata= obsSpaceData%MOBHDR_G(NCMRLN,iobs) 
-        idataend = obsSpaceData%MOBHDR_G(NCMNLV,iobs) + idata -1 
+        idata= obsSpaceData%MOBHDR_G(NCM_RLN,iobs) 
+        idataend = obsSpaceData%MOBHDR_G(NCM_NLV,iobs) + idata -1 
         DO j=idata,idataend 
            ii=ii+1 
-           MOBDATA_tmp(1:NCMLBO,j)=obsSpaceData%MOBDATA(1:NCMLBO,ii) 
-           ROBDATA_tmp(1:NCMLBO,j)=obsSpaceData%ROBDATA(1:NCMLBO,ii) 
+           MOBDATA_tmp(1:NCM_LBO,j)=obsSpaceData%MOBDATA(1:NCM_LBO,ii) 
+           ROBDATA_tmp(1:NCM_LBO,j)=obsSpaceData%ROBDATA(1:NCM_LBO,ii) 
         ENDDO 
       ENDDO 
    !   
@@ -120,7 +120,7 @@
    !  
 
       call obs_deallocate(obsSpaceData)
-      call obs_allocate(obsSpaceData,nobtotp,obsSpaceData%ndatap)
+      call obs_allocate(obsSpaceData,nobtotp,obsSpaceData%mxobstotal)
 
       obsSpaceData%ROBDATA=ROBDATA_tmp 
       DEALLOCATE(ROBDATA_tmp) 

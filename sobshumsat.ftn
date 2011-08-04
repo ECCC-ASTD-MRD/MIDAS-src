@@ -94,21 +94,21 @@ C
       IF ( (CFAMTYP(JF) .EQ. 'HU') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obsSpaceData%MOBDATA(NCMOBS,NBEGINTYP(JF))
-         IOBS2=obsSpaceData%MOBDATA(NCMOBS,NENDTYP(JF))
+         IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
+         IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 C
 C
       DO JOBS=IOBS1,IOBS2
 C
-         IDATA    = obsSpaceData%MOBHDR(NCMRLN,JOBS)
-         IDATEND  = obsSpaceData%MOBHDR(NCMNLV,JOBS) + IDATA - 1
+         IDATA    = obsSpaceData%MOBHDR(NCM_RLN,JOBS)
+         IDATEND  = obsSpaceData%MOBHDR(NCM_NLV,JOBS) + IDATA - 1
 C
 C        REJECT DATA TOO FAR BELOW MODEL OROGRAPHY
 C
          DO JDATA= IDATA, IDATEND
             IKOUNTT=IKOUNTT+1
-            ZVAL=obsSpaceData%ROBDATA8(NCMPPP,JDATA)
+            ZVAL=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
 
 cjmb            ZDIFF=  (ZVAL- GOMPSHR(1,JOBS) )/100.
 cjmb     Surface pressure artificially modified to account 
@@ -123,28 +123,28 @@ cjmb     (Same modification in VOBSLYRS or previously VLAYERS)
      &                       ,ZVAL,GOMPSHR(1,JOBS),ZDIFF
             ENDIF
             IF ( ZDIFF .GT. 0. ) THEN
-               ZVAL=obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-               ITYP=obsSpaceData%MOBDATA(NCMVNM,JDATA)
+               ZVAL=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+               ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                DO J=1,JPINEL
                   ICRIT=RLISTCRIT(J)
                   ILEM=ILISTEL(J)
                   IF ( ITYP .EQ. ILEM ) THEN
                      IF ( ZDIFF .LE. ICRIT) THEN
                         IKOUNTREA(J)=IKOUNTREA(J)+1
-ccc                        obsSpaceData%ROBDATA8(NCMPPP,JDATA)=GOMPSHR(1,JOBS)
+ccc                        obsSpaceData%ROBDATA8(NCM_PPP,JDATA)=GOMPSHR(1,JOBS)
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) ' Keep OBS below sfc ',jobs,ITYP
-     &                        ,obsSpaceData%CSTNID(JOBS),obsSpaceData%ROBDATA8(NCMPPP,JDATA),ZDIFF
+     &                        ,obsSpaceData%CSTNID(JOBS),obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
                         ENDIF
                      ELSE
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) 'Rej OBS below sfc  ',jobs,ITYP
-     &                        ,obsSpaceData%CSTNID(JOBS),obsSpaceData%ROBDATA8(NCMPPP,JDATA),ZDIFF
+     &                        ,obsSpaceData%CSTNID(JOBS),obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
                         ENDIF
-                        obsSpaceData%MOBDATA(NCMASS,JDATA)=0
+                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        obsSpaceData%MOBDATA(NCMFLG,JDATA)=
-     &                     ibset( obsSpaceData%MOBDATA(NCMFLG,JDATA) , 18 )
+                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
+     &                     ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
                      ENDIF
                   ENDIF
                END DO
@@ -169,8 +169,8 @@ C
       END DO
 C
       IKOUNTT=0
-      DO JDATA=1,obsSpaceData%ndata
-         IF ( obsSpaceData%MOBDATA(NCMASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obsSpaceData%numobs_recorded
+         IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR "
      &        ,"AFTER ADJUSTMENTS:",i10)')IKOUNTT

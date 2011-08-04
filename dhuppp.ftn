@@ -69,23 +69,23 @@ C     Process all data within the domain of the model
 C     Exclude levels above RLIMLVHU as it is done with T-Td in s/r suprep
 C
             DO JDATA=IBEGIN,ILAST
-              IF ( obsSpaceData%MOBDATA(NCMVNM,JDATA) .EQ. BUFR_NEHU  .AND.
-     &             obsSpaceData%MOBDATA(NCMXTR,JDATA) .EQ. 0     .AND.
-     &             obsSpaceData%MOBDATA(NCMVCO,JDATA) .EQ. 2    ) THEN
-                IPRES= NINT(obsSpaceData%ROBDATA8(NCMPPP,JDATA))
-                obsSpaceData%ROBDATA8(NCMOMA,JDATA) = PPMIS
+              IF ( obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHU  .AND.
+     &             obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 0     .AND.
+     &             obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2    ) THEN
+                IPRES= NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+                obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = PPMIS
                 IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
-                  IOBS = obsSpaceData%MOBDATA(NCMOBS,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCMVAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCMOER,JDATA)
-                  ZLEV = obsSpaceData%ROBDATA8(NCMPPP,JDATA)
-                  IK   = obsSpaceData%MOBDATA(NCMLYR,JDATA)
+                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
                   ZPT  = RPPOBSHR(IK,IOBS)
                   ZPB  = RPPOBSHR(IK+1,IOBS)
                   ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                   ZWT  = 1. - ZWB
 C
-                  obsSpaceData%ROBDATA8(NCMOMA,JDATA) = ( ZWB*GOMQHR(IK+1,IOBS)
+                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = ( ZWB*GOMQHR(IK+1,IOBS)
      +                          + ZWT*GOMQHR(IK,IOBS) - ZVAR ) / ZOER
 
                   IF ( LLPRINT ) THEN
@@ -98,7 +98,7 @@ C
                     write(nulout,*)'   zoer   = ',ZOER
                     write(nulout,*)'   gomqhr(ik,iobs) = ',GOMQHR(IK,IOBS)
                     write(nulout,*)'   gomqhr(ik+1,iobs) = ',GOMQHR(IK+1,IOBS)
-                    write(nulout,*)'   O-P    = ',-obsSpaceData%ROBDATA8(NCMOMA,JDATA)*ZOER
+                    write(nulout,*)'   O-P    = ',-obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 

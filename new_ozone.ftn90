@@ -89,7 +89,7 @@
 
       DO JN = 1, NPRF
         IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
-          IJOUR = obsSpaceData%MOBHDR(NCMDAT,1)
+          IJOUR = obsSpaceData%MOBHDR(NCM_DAT,1)
           IJ = IJOUR/100
           IMONTH = IJ - (IJ/100)*100
           O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO(NUMLAT(JN),IMONTH)

@@ -99,7 +99,7 @@ cc      LLPRINT = .TRUE.
 
             DO JJ=1,KVAL
                IF (   btest ( lqflag(jj), 18 ) .AND.
-     &              ( KRVAL .EQ. NCMOMF  .OR. KRVAL .EQ. NCMOMA ) ) THEN
+     &              ( KRVAL .EQ. NCM_OMF  .OR. KRVAL .EQ. NCM_OMA ) ) THEN
                   PVALUES(JI,JJ,IK) = PPMIS
                ENDIF
                IF ( PVALUES(JI,JJ,IK) .NE. PPMIS ) THEN
