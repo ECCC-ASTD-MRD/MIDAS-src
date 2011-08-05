@@ -29,21 +29,7 @@
 !     CDFAM: FAMILY OF OBSSERVATION
 !
 #endif
-      use obsSpaceData_mod, only: obsSpaceData, 
-     &          NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY, 
-     &          NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_SID, NCM_ALT,
-     &         NCM_NLV, NCM_OEC, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA, 
-     &         NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,  
-     &         NCM_BY,  NCM_BZ, 
-     &         NCM_LBO, NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR, 
-     &         NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER, NCM_RER, 
-     &         NCM_FGE, NCM_PER, NCM_FLG, NCM_POS, NCM_LYR, NCM_ASS, 
-     &         NCM_XTR, NCM_OBS, NCM_LOBS,NCM_VCO, NCM_PRM, NCM_KFA, 
-     &         NCM_ZHA, NCM_HPHT,NCM_OMP, 
-     &      obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG,
-     &  obs_elem_i,obs_elem_r4,obs_elem_r8,obs_setBody,obs_setHeader, 
-     &  obs_swapVarOmf,obs_ifind,obs_getStnID,obs_setStnID, 
-     &  obs_getFamily,obs_setFamily
+      use obsSpaceData_mod
       use profileData_mod 
       use bufr
       IMPLICIT NONE
@@ -101,7 +87,7 @@
                ZWT  = 1. - ZWB
                zoma = (ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
-               call obs_setbody(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
+               call obs_set(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
 !
 ! Process all upper air data data below model's orography
 !
@@ -117,7 +103,7 @@
                   zoma = ( RMTMOBS(iobs) + ZTVG/zgamma
      &                     *(1.-(zlev/gompshr(1,iobs))**zexp) - zvar )/zoer
                   PJO =PJO+zoma*zoma
-                  call obs_setbody(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
+                  call obs_set(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
                ELSE
 !
 ! Forward model for UU,VV,TT,ES below model's orography Extrapolation of order 
@@ -129,16 +115,16 @@
      +                IVNM .EQ. BUFR_NEES) THEN
                     zoma = (GOMOBSHR(IPB,IOBS)-ZVAR)/ZOER
                     PJO =PJO+zoma*zoma
-                    call obs_setbody(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
+                    call obs_set(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
                   ELSE
                     LLNOXTR   = .TRUE.
                     ZTORAD    = 1.D0/(RPI/180.D0)
                     ZLAT = obs_elem_r4(obsSpaceData,'LAT ',iobs) *ZTORAD
                     ZLON = obs_elem_r4(obsSpaceData,'LONG',iobs) *ZTORAD
                     IDBURP    = MOD(IITY,1000)
-                    WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED '
-     &               ,' OBS ',obs_getStnID(obsSpaceData,IOBS),' TYPE ',IDBURP, ' ELM '
-     &               , IVNM,' LAT ', ZLAT,  ' LON ', ZLON
+                    WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED ',
+     &                ' OBS ',obs_elem_c9(obsSpaceData,'STID',IOBS),' TYPE ',
+     &                IDBURP, ' ELM ', IVNM,' LAT ', ZLAT,  ' LON ', ZLON
                   ENDIF
                ENDIF
             ENDIF

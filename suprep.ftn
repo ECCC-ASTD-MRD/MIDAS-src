@@ -354,7 +354,7 @@ C
 !        DLLAO=obsSpaceData%ROBHDR(NCM_LAT,JJO)
 !
         ILA = ISRCHILA (dble(DLLAO))
-        call obs_setHeader(obsSpaceData,jjo,val_TLA=ila)
+        call obs_set(obsSpaceData,jjo,val_TLA=ila)
 !        obsSpaceData%MOBHDR(NCM_TLA,JJO)=ILA
       END DO
 C
