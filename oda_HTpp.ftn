@@ -120,7 +120,7 @@ C
             ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
             ZRES = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
             ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-            IDBURP = MOD(obsSpaceData%MOBHDR(NCM_ITY,IOBS),1000)
+            IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
             IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
@@ -158,7 +158,7 @@ C
             ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
             ZRES = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
             ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-            IDBURP = MOD(obsSpaceData%MOBHDR(NCM_ITY,IOBS),1000)
+            IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
 c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)

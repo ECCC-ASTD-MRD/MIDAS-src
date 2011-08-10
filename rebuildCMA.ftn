@@ -79,7 +79,7 @@
          DO J=1,NFILES
             DO i=1,locObsize
                iobs=locObsTag(i) 
-               ifamid=obsSpaceData%MOBHDR(NCM_OEC,iobs) 
+               ifamid=obs_elem_i(obsSpaceData,'OEC ',iobs) 
                if(j == ifamid) then
                  ii=ii+1
                  locObsTag_tmp(ii) = iobs  
@@ -119,8 +119,8 @@
       ii=0 
       DO i=1,locObsize
         iobs=locObsTag(i) 
-        idata= obsSpaceData%MOBHDR(NCM_RLN,iobs) 
-        idataend = obsSpaceData%MOBHDR(NCM_NLV,iobs) + idata -1 
+        idata= obs_elem_i(obsSpaceData,'RLN ',iobs) 
+        idataend = obs_elem_i(obsSpaceData,'NLV ',iobs) + idata -1 
         DO j=idata,idataend 
            ii=ii+1 
            ROBDATA8_tmp(3:11,ii)=obsSpaceData%ROBDATA8(3:11,j)
@@ -170,9 +170,9 @@
       DO j=1,NFILES
         lfirst=.true. 
         DO i=1,locObsize
-          istart=obsSpaceData%MOBHDR(NCM_RLN,i)
-          idata=obsSpaceData%MOBHDR(NCM_NLV,i)
-          ifamid=obsSpaceData%MOBHDR(NCM_OEC,i)
+          istart=obs_elem_i(obsSpaceData,'RLN ',i)
+          idata=obs_elem_i(obsSpaceData,'NLV ',i)
+          ifamid=obs_elem_i(obsSpaceData,'OEC ',i)
           IF(ifamid == J) THEN
              IF(lfirst) THEN
                NBEGINTYP(j) = istart 

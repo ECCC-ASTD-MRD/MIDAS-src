@@ -117,13 +117,13 @@ C$omp+private(jac,zmhxl,jv)
 C
 C     *        Process only refractivity data (codtyp 169)
 C
-            IDATYP = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
+            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
             IF ( IDATYP .EQ. 169 ) THEN
 C
 C                 Loops over data in the observation
 C
-              IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-              IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
               ASSIM = .FALSE.
 C
 C                 Scan for requested assimilations, and count them
@@ -144,8 +144,8 @@ C
 C
 C     *              Profile at the observation location:
 C
-                Lat  = obsSpaceData%ROBHDR(NCM_LAT,JO)
-                Lon  = obsSpaceData%ROBHDR(NCM_LON,JO)
+                Lat  = obs_elem_r4(obsSpaceData,'LAT ',JO)
+                Lon  = obs_elem_r4(obsSpaceData,'LON ',JO)
                 ZLAT = Lat * ZTODEG
                 ZLON = Lon * ZTODEG
                 DO JL = 1, NFLEV

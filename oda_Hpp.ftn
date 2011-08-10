@@ -90,7 +90,7 @@ C
           IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
           IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
           ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-          IDBURP = MOD(obsSpaceData%MOBHDR(NCM_ITY,IOBS),1000)
+          IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
           IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1

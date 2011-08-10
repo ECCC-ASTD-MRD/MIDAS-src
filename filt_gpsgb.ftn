@@ -94,11 +94,11 @@ C
 C
 C     *  Process only Ground-Based GPS data (codtyp 189)
 C
-          IDATYP = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
+          IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
 C
           IF ( IDATYP .EQ. 189 ) THEN
-            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
             IF (obsSpaceData%CSTNID(JO) .NE. CGPSSTN) THEN
 C     Loop over all observations for the location
               DO JDATA= IDATA, IDATEND

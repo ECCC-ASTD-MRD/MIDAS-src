@@ -286,8 +286,8 @@ C
             IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
             ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
             DO 150 JO = IBEGINOB, ILASTOB
-               IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-               IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+               IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+               IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
                DO JDATA=IDATA,IDATEND
                   LLOK=.false.
                   IF ( obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1 ) THEN
@@ -322,7 +322,7 @@ c                         ENDIF
 C
 C                 CONTRIBUTION TO Jo WITH QCVAR
 C
-                           ZGAMI = obsSpaceData%ROBDATA(NCM_POB,JDATA)
+                           ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
                            ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
 
                            LLUV = ( (ITYP .EQ. BUFR_NEUS .AND.
@@ -458,7 +458,7 @@ c        ENDIF
                     obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                     obsSpaceData%ROBDATA8(NCM_OMN,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                   ELSE
-                    ZGAMI = obsSpaceData%ROBDATA(NCM_POB,JDATA)
+                    ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
                     ZJON = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                     ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                     ZPPOST = ZGAMI/ZQCARG

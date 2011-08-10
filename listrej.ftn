@@ -177,12 +177,12 @@
 *
             DO 10 JREP = IBEGINOB, ILASTOB
               LLELREJ = .FALSE.
-              IDATA = obsSpaceData%MOBHDR(NCM_RLN,JREP)
-              IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JREP) + IDATA -1
-              ITY       = obsSpaceData%MOBHDR(NCM_ITY,JREP)
+              IDATA = obs_elem_i(obsSpaceData,'RLN ',JREP)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JREP) + IDATA -1
+              ITY       = obs_elem_i(obsSpaceData,'ITY ',JREP)
               IDBURP    = MOD(ITY,1000)
-              ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JREP)*ZTODEG
-              ZLON = obsSpaceData%ROBHDR(NCM_LON,JREP)*ZTODEG
+              ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JREP)*ZTODEG
+              ZLON = obs_elem_r4(obsSpaceData,'LON ',JREP)*ZTODEG
               DO JDATA=IDATA, IDATEND
                 ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
                 IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
@@ -339,7 +339,7 @@
                         WRITE(NULOUT,620)
      1                   obsSpaceData%CSTNID(JREP),IDBURP,CLOBTP(IDBURP),ZLAT,ZLON,
      2                   ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,
-     3                   ISPDA,ZPOST,obsSpaceData%MOBHDR(NCM_ONM,JREP)
+     3                   ISPDA,ZPOST,obs_elem_i(obsSpaceData,'ONM ',JREP)
  620                    FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      1                   'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,
      2                   '/',I3,2X,F6.4,1X,I5)
@@ -429,7 +429,7 @@
      1                IBSET(obsSpaceData%MOBDATA(NCM_FLG,JDATA),17)
                       WRITE(NULOUT,630) obsSpaceData%CSTNID(JREP),IDBURP,
      1                 CLOBTP(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
-     2                 ZVAR,ZFCST,ZANA,ZPOST,obsSpaceData%MOBHDR(NCM_ONM,JREP)
+     2                 ZVAR,ZFCST,ZANA,ZPOST,obs_elem_i(obsSpaceData,'ONM ',JREP)
  630                  FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      2                   A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F6.4,1X,I5,1X)
                     ENDIF

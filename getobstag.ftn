@@ -152,7 +152,7 @@
       IF(length_l<=0) CALL ABORT3D(nulout,'Zero lenght of ObsTag,Abort!') 
       DO i=1,length_l
        iobs=locObsTag(i)
-       idata= obsSpaceData%MOBHDR(NCM_NLV,iobs) 
+       idata= obs_elem_i(obsSpaceData,'NLV ',iobs) 
        obsSpaceData%numobs_recorded_l = obsSpaceData%numobs_recorded_l + idata
       ENDDO 
 

@@ -128,8 +128,8 @@ C
 C
 C             Loop over data in the observations
 C
-              IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-              IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
 C
 C             Scan for requested ZTD assimilation
 C
@@ -149,8 +149,8 @@ C
 C
 C     *       LR background profile:
 C
-                 ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JO) * ZTODEG
-                 ZLON = obsSpaceData%ROBHDR(NCM_LON,JO) * ZTODEG
+                 ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
+                 ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
                  DO JL = 1, NFLEV
                    ZTTB(JL) = GOMTG(JL,JO)
                    ZTT(JL)  = 0.0

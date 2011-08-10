@@ -746,7 +746,7 @@ C
 
                           IF(ICOUNT .EQ. 1) THEN
                             NOBTOT=NOBTOT + 1
-                            IFLGS=obsSpaceData%MOBHDR(NCM_ST1,NOBTOT)
+                            IFLGS=obs_elem_i(obsSpaceData,'ST1 ',NOBTOT)
                             IZMODEL= NINT(RMTMOBS(NOBTOT)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF

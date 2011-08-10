@@ -41,7 +41,7 @@ C
       INTEGER KOBS, KULOUT
       CHARACTER*4 CSID14
       CHARACTER*9 CCSTNID
-      WRITE(CSID14,'(a4)')obsSpaceData%MOBHDR(NCM_SID,KOBS)
+      WRITE(CSID14,'(a4)')obs_elem_i(obsSpaceData,'SID ',KOBS)
       CCSTNID=CSID14
 C
 C*    1. General information
@@ -55,15 +55,15 @@ C*    2. PRINT HEADER'S CONTENT
 C
  200  CONTINUE
       WRITE(KULOUT,FMT=9200)
-     S      obsSpaceData%MOBHDR(NCM_RLN,KOBS),obsSpaceData%MOBHDR(NCM_ONM,KOBS)
-     S     ,obsSpaceData%MOBHDR(NCM_BOX,KOBS),obsSpaceData%MOBHDR(NCM_OTP,KOBS)
-     S     ,obsSpaceData%MOBHDR(NCM_ITY,KOBS)
-     S     ,obsSpaceData%ROBHDR(NCM_LAT,KOBS),obsSpaceData%ROBHDR(NCM_LON,KOBS)
-     S     ,obsSpaceData%MOBHDR(NCM_DAT,KOBS),obsSpaceData%MOBHDR(NCM_ETM,KOBS)
-     S     ,CCSTNID            ,obsSpaceData%ROBHDR(NCM_ALT,KOBS)
-     S     ,obsSpaceData%MOBHDR(NCM_NLV,KOBS),obsSpaceData%MOBHDR(NCM_OEC,KOBS)
-     S     ,obsSpaceData%MOBHDR(NCM_OFL,KOBS),obsSpaceData%MOBHDR(NCM_ST1,KOBS)
-     S     ,obsSpaceData%MOBHDR(NCM_TLA,KOBS)
+     S      obs_elem_i(obsSpaceData,'RLN ',KOBS),obs_elem_i(obsSpaceData,'ONM ',KOBS)
+     S     ,obs_elem_i(obsSpaceData,'BOX ',KOBS),obs_elem_i(obsSpaceData,'OTP ',KOBS)
+     S     ,obs_elem_i(obsSpaceData,'ITY ',KOBS)
+     S     ,obs_elem_r4(obsSpaceData,'LAT ',KOBS),obs_elem_r4(obsSpaceData,'LON ',KOBS)
+     S     ,obs_elem_i(obsSpaceData,'DAT ',KOBS),obs_elem_i(obsSpaceData,'ETM ',KOBS)
+     S     ,CCSTNID            ,obs_elem_r4(obsSpaceData,'ALT ',KOBS)
+     S     ,obs_elem_i(obsSpaceData,'NLV ',KOBS),obs_elem_i(obsSpaceData,'OEC ',KOBS)
+     S     ,obs_elem_i(obsSpaceData,'OFL ',KOBS),obs_elem_i(obsSpaceData,'ST1 ',KOBS)
+     S     ,obs_elem_i(obsSpaceData,'TLA ',KOBS)
 C
  9200 FORMAT(6X,'Position within ROBDATA:',I6,1X,'OBS. NUMBER:',I6,1X
      S     ,'MODEL BOX:',I6,1X,'OBS. TYPE:',I6,1X

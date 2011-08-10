@@ -163,8 +163,8 @@ C*          Boucle sur les Observations GOES dans le CMA
 C
       DO JN = 1, NGOES
         IO      = MJOGO(JN)
-        IDATA   = obsSpaceData%MOBHDR(NCM_RLN,IO)
-        IDATEND = obsSpaceData%MOBHDR(NCM_NLV,IO)+IDATA - 1
+        IDATA   = obs_elem_i(obsSpaceData,'RLN ',IO)
+        IDATEND = obs_elem_i(obsSpaceData,'NLV ',IO)+IDATA - 1
 C
 C*             Loop through data. Extract and store temporarily
 c brightness temps.

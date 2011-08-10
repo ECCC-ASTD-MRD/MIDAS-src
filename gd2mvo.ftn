@@ -165,9 +165,9 @@ C
          DLLAO=obs_elem_r4(obsSpaceData,'LAT ',jobs)
          DLLOO=obs_elem_r4(obsSpaceData,'LON ',jobs)
          IOBTYP=obs_elem_i(obsSpaceData,'OTP ',jobs)
-!         DLLAO   = obsSpaceData%ROBHDR(NCM_LAT,JOBS)
-!         DLLOO   = obsSpaceData%ROBHDR(NCM_LON,JOBS)
-!         IOBTYP  = obsSpaceData%MOBHDR(NCM_OTP,JOBS)
+!         DLLAO   = obs_elem_r4(obsSpaceData,'LAT ',JOBS)
+!         DLLOO   = obs_elem_r4(obsSpaceData,'LON ',JOBS)
+!         IOBTYP  = obs_elem_i(obsSpaceData,'OTP ',JOBS)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY

@@ -116,8 +116,8 @@ C     *     Loop over all GPS observations (locations) of the file
 C
             DO JO = IBEGINOB, ILASTOB
 C
-               IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-               IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+               IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+               IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
 C
 c     *     Scan for ZTD assimilation at this location
 c
@@ -138,8 +138,8 @@ C
 C
 C     *           LR background profile and increments at the observation location x :
 C
-                    ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JO) * ZTODEG
-                    ZLON = obsSpaceData%ROBHDR(NCM_LON,JO) * ZTODEG
+                    ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
+                    ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
                     DO JL = 1, NFLEV
                       ZTTB(JL) = GOMTG(JL,JO)
                       ZTT(JL)  = GOMT(JL,JO)

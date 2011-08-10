@@ -87,12 +87,12 @@ C
 ccc            CALL PRNTHDR(JOBS,NULOUT)
 ccc            CALL PRNTBDY(JOBS,NULOUT)
             ENDIF
-            IDATA    = obsSpaceData%MOBHDR(NCM_RLN,JOBS)
-            IDATEND  = obsSpaceData%MOBHDR(NCM_NLV,JOBS) + IDATA - 1
+            IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+            IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
             DO JDATA= IDATA, IDATEND
 C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
               ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-              ITY    = obsSpaceData%MOBHDR(NCM_ITY,JOBS)
+              ITY    = obs_elem_i(obsSpaceData,'ITY ',JOBS)
               IDBURP = MOD(ITY,1000)
               IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
@@ -109,7 +109,7 @@ C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
                     IF(LLPRINT) THEN
                       WRITE(NULOUT,225) 'Rej sfc wind lnd',JOBS,ITYP
      &                     ,obsSpaceData%CSTNID(JOBS),IDBURP
-     &                     ,obsSpaceData%ROBHDR(NCM_LAT,JOBS),obsSpaceData%ROBHDR(NCM_LON,JOBS)
+     &                     ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
      &                     ,obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
                     ENDIF
                   ENDIF

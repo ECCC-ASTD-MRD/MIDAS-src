@@ -91,8 +91,8 @@ C
 C
          DO JOBS=IOBS1,IOBS2
 C
-            IDATA    = obsSpaceData%MOBHDR(NCM_RLN,JOBS)
-            IDATEND  = obsSpaceData%MOBHDR(NCM_NLV,JOBS) + IDATA - 1
+            IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+            IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
 C
 C        REJECT DATA TOO CLOSE TO THEDEL OROGRAPHY ,PUT TO
 C        MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.

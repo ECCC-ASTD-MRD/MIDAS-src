@@ -46,9 +46,9 @@ c
           IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
           ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
-            IDATYP    = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            IDATYP    = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
             IF ( IDATYP .EQ. 189 ) THEN
               DO JDATA=IDATA,IDATEND
                 ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)

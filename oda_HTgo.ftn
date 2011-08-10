@@ -82,8 +82,8 @@ C*    .  2.1  Extract general information for this observation point
 C     .       ------------------------------------------------------
 C
         JO   = MJOGO(JN)
-        IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-        IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO)+IDATA - 1
+        IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+        IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO)+IDATA - 1
 C
 C*          Loop through data. Extract and store temporarily brightness
 c temps.

@@ -87,13 +87,13 @@
 *
 *
       DO JJO = 1, NOBTOT
-         IDATA     = obsSpaceData%MOBHDR(NCM_RLN,JJO)
-         IDATEND   = obsSpaceData%MOBHDR(NCM_NLV,JJO) + IDATA - 1
-         IDATYP    = obsSpaceData%MOBHDR(NCM_OTP,JJO)
-         ITY       = obsSpaceData%MOBHDR(NCM_ITY,JJO)
+         IDATA     = obs_elem_i(obsSpaceData,'RLN ',JJO)
+         IDATEND   = obs_elem_i(obsSpaceData,'NLV ',JJO) + IDATA - 1
+         IDATYP    = obs_elem_i(obsSpaceData,'OTP ',JJO)
+         ITY       = obs_elem_i(obsSpaceData,'ITY ',JJO)
          IDBURP    = MOD(ITY,1000)
-         ZLAT = obsSpaceData%ROBHDR(NCM_LAT,JJO)*ZTODEG
-         ZLON = obsSpaceData%ROBHDR(NCM_LON,JJO)*ZTODEG
+         ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JJO)*ZTODEG
+         ZLON = obs_elem_r4(obsSpaceData,'LON ',JJO)*ZTODEG
          DO JDATA  = IDATA, IDATEND
             ITYP   = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
             IASS   = obsSpaceData%MOBDATA(NCM_ASS,JDATA)

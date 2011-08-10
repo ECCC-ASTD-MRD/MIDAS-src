@@ -51,8 +51,8 @@ C
           IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
           ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-            IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
               LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
      &             .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 0)

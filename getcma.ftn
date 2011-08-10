@@ -120,12 +120,12 @@
             ILEM=obs_ifind(KLIST(JI))
             IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
                DO JJ=1,KVAL
-                 if( ldsat ) profil(jj)=obsSpaceData%ROBDATA(NCM_PRL,IP+IND)
+                 if( ldsat ) profil(jj)=obs_elem_r4(obsSpaceData,'PRL ',IP+IND)
                   IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 Cpik
                         IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
                           IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
-                            ZERR=  obsSpaceData%ROBDATA(NCM_OER,IP+IND)
+                            ZERR=  obs_elem_r4(obsSpaceData,'OER ',IP+IND)
                             ZSTAT= obsSpaceData%ROBDATA(KRVAL, IP+IND)
                             IFLG=  obsSpaceData%MOBDATA(NCM_FLG,IP+IND)
 *

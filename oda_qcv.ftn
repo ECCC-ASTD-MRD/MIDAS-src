@@ -44,7 +44,7 @@ C
       DO JDATA=1,obsSpaceData%numobs_recorded
         IF (llmask(jdata)) THEN
           jo = obsSpaceData%MOBDATA(NCM_OBS,jdata)
-          idata = obsSpaceData%MOBHDR(NCM_RLN,JO)
+          idata = obs_elem_i(obsSpaceData,'RLN ',JO)
           ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
           zgami = obsSpaceData%robdata(NCM_POB,jdata)
           ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)

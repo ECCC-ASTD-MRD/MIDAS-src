@@ -85,10 +85,10 @@ C
 C     *     Loop over all observations of the file
 C
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(obsSpaceData%MOBHDR(NCM_ITY,JO),1000)
+            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
             IF ( IDATYP .EQ. 169 ) THEN
-              IDATA   = obsSpaceData%MOBHDR(NCM_RLN,JO)
-              IDATEND = obsSpaceData%MOBHDR(NCM_NLV,JO) + IDATA - 1
+              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
               DO JDATA= IDATA, IDATEND
                 LUSE=( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 )
                 IF ( LUSE ) THEN

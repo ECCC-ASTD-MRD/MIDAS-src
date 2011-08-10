@@ -153,11 +153,11 @@ C
 C
 C
             DO JOBS=IOBS1,IOBS2
-               IDATA    = obsSpaceData%MOBHDR(NCM_RLN,JOBS)
-               IDATEND  = obsSpaceData%MOBHDR(NCM_NLV,JOBS) + IDATA - 1
-               ZLAT=obsSpaceData%ROBHDR(NCM_LAT,JOBS)*ZRADDEG
-               ZLON=obsSpaceData%ROBHDR(NCM_LON,JOBS)*ZRADDEG
-               ZSTNALT=obsSpaceData%ROBHDR(NCM_ALT,JOBS)
+               IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+               IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+               ZLAT=obs_elem_r4(obsSpaceData,'LAT ',JOBS)*ZRADDEG
+               ZLON=obs_elem_r4(obsSpaceData,'LON ',JOBS)*ZRADDEG
+               ZSTNALT=obs_elem_r4(obsSpaceData,'ALT ',JOBS)
                ZDIFALT=  ZSTNALT- GOMGZHR(NLEVTRL,JOBS)/RG
                DO J=1,JPINEL
                   LLALTOK(J) = .FALSE.

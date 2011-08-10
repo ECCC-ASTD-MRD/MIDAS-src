@@ -867,7 +867,7 @@ c               ENDIF
                    obsSpaceData%MOBHDR(NCM_RLN,1)=1
                 ELSE
                    obsSpaceData%MOBHDR(NCM_RLN,NOBTOT) = obsSpaceData%MOBHDR(NCM_RLN,NOBTOT-1)
-     +                              + obsSpaceData%MOBHDR(NCM_NLV,NOBTOT-1)
+     +                              + obs_elem_i(obsSpaceData,'NLV ',NOBTOT-1)
                 ENDIF
 *
 ************************************************************************
