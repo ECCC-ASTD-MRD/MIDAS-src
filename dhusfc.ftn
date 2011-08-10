@@ -92,8 +92,8 @@ c            ENDIF
 
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
-                IF ( obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHS .AND.
-     &               obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1  ) THEN
+                IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS .AND.
+     &               obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1  ) THEN
                     ICOUNT = ICOUNT + 1
                     IPOINTR(ICOUNT) = JDATA
                 ENDIF
@@ -109,10 +109,10 @@ c
 
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-                  IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+                  ZVAR = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+                  IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'
@@ -135,7 +135,7 @@ c                  ENDIF
                     write(nulout,*)'   gomqhr(nlevtrl,iobs) = '
      &                   ,GOMQHR(NLEVTRL,IOBS)
                     write(nulout,*)'   O-Psfc = '
-     &                   ,-obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER
+     &                   ,-obs_elem_r8(obsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 

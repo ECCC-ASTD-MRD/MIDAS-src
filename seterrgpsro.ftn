@@ -119,8 +119,8 @@ C
          IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all observations of the file
 C
@@ -141,7 +141,7 @@ C                 Scan for requested assimilations, and count them
 C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     HNH1  = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                     HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                      IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
@@ -188,10 +188,10 @@ C
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        HNH1  = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                        HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                         IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                           HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                            HGT(NH1)= HNH1
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
@@ -206,7 +206,7 @@ C     *              Perform the (H(x)-Y)/S operation
 C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        HNH1  = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                        HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                         IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                            NH1   = NH1 + 1
 C
@@ -216,7 +216,7 @@ C
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                           ZOBS = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
 C
 C     *                    Normalized increment
 C
@@ -248,7 +248,7 @@ C
 
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        HNH1  = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                        HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                         IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                            NH1 = NH1 + 1
 C

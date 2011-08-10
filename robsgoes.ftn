@@ -162,8 +162,8 @@ C
        IF ( CFAMTYP(JF).EQ.'GO' .AND. NBEGINTYP(JF).GT.0 ) THEN
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-        ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+        IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+        ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C**   Loop over all satellites specified by user
 C
@@ -205,7 +205,7 @@ C
                IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
                ASSIM = .FALSE.
                DO JDATA= IDATA, IDATEND
-                 IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 ) THEN
+                 IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                    ASSIM = .TRUE.
                  ENDIF
                ENDDO
@@ -267,12 +267,12 @@ c
                   IPTOBS(KNPF) = JO
 
                   DO JDATA = IDATA, IDATEND
-                  ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                  ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
 C
 C                    A emissivity (elements )?
                      IF ( ITYP.EQ.12163 ) THEN
-                        ZVAR = obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
-                        ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+                        ZVAR = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
+                        ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
                         PEMISGO(KNPF,ICHN) = ZVAR
                      ENDIF
                   ENDDO

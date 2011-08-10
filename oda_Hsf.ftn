@@ -88,12 +88,12 @@ C     Process all data within the domain of the model
 C
       DO JDATA=1,obsSpaceData%numobs_recorded
         if(lmasksf_in(jdata)) then
-          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-          ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-          IXTR = obsSpaceData%MOBDATA(NCM_XTR,JDATA)
-          IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+          IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+          ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+          IXTR = obs_elem_i(obsSpaceData,'XTR ',JDATA)
+          IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
           ZHHH = ZLEV * GRAV
           IPT  = NFLEV-1 + IPOS*NFLEV
           IPB  = IPT+1
@@ -123,9 +123,9 @@ C
      +           (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))
           ENDIF
         elseif(lmasksf_out(jdata)) then
-          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+          IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 C                 CONTRIBUTION TO Jo
 C

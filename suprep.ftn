@@ -419,11 +419,11 @@ C
           IKNTZDR =0
 C
           DO JDATA=IBEGIN,ILAST
-            ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-            IFLG = obsSpaceData%MOBDATA(NCM_FLG,JDATA)
-            IPRES= NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
-            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-            IVCO = obsSpaceData%MOBDATA(NCM_VCO,JDATA)
+            ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            IFLG = obs_elem_i(obsSpaceData,'FLG ',JDATA)
+            IPRES= NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            IVCO = obs_elem_i(obsSpaceData,'VCO ',JDATA)
             ITY=obs_elem_i(obsSpaceData,'ITY ',IOBS)
             IDBURP=MOD(ITY,1000)
 C
@@ -462,7 +462,7 @@ Cpik           ENDIF
 C
 C     *        Only heights between 0 and 80000 m:
 C
-               GPH = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+               GPH = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
                   LLOK = .FALSE.
                ENDIF
@@ -559,7 +559,7 @@ C
 C
 C     d. Filter TOVS data
 C
-            ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+            ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S           ITYP .EQ. BUFR_NBT2 .OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
@@ -598,7 +598,7 @@ C
 C        d.5 Activation of single channel assimilation
 C
               IF (LONECHN) THEN
-                ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+                ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
                 ICHN = MAX(0,MIN(ICHN,JPCH+1))
                 IF ( IDATYP .EQ. NONECODTYP .AND. ICHN .EQ. NONECHN ) THEN
                   LLOK = .TRUE.
@@ -612,7 +612,7 @@ C
 C
 C     e. Filter GOES data
 C
-            ITYP   = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+            ITYP   = obs_elem_i(obsSpaceData,'VNM ',JDATA)
             IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
             IF (     ITYP .EQ. BUFR_NBT1
      S          .OR. ITYP .EQ. BUFR_NBT2
@@ -621,7 +621,7 @@ C
 C
 C        e.1 Valid channel?
 C
-              ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+              ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
               IF ( ICHN .LE. 0    .OR.
      S             ICHN .GT. JPCHGO      ) THEN
                 LLOK = .FALSE.
@@ -831,8 +831,8 @@ C
 C-----------------------------------------------------------------------
 C
       DO JDATA=1,obsSpaceData%numobs_recorded
-        ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-        IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+        ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+        IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
         IF ( ITYP .EQ. BUFR_NEUU) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nouu - 1
         IF ( ITYP .EQ. BUFR_NEVV) obsSpaceData%MOBDATA(NCM_POS,JDATA) = novv - 1
         IF ( ITYP .EQ. BUFR_NETT) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nott - 1
@@ -870,11 +870,11 @@ C
               DO JK=1,JPRLEV
                 IZP1  = NILV(JK )
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  IZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
                   IDATYP=obsSpaceData%MOBHDR (NCM_OTP,IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'UA')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
@@ -891,11 +891,11 @@ C
               DO JK=1,JPHLEV
                 IZP1  = NIHULV(JK )
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  IZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
                   IDATYP=obsSpaceData%MOBHDR (NCM_OTP,IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'HU')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
@@ -912,11 +912,11 @@ C
               DO JK=1,JPSALEV
                 IZP1  =  NISLV(JK)
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV =  ANINT( obsSpaceData%ROBDATA8(NCM_PPP,JDATA) )
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
+                  IZLEV =  ANINT( obs_elem_r8(obsSpaceData,'PPP ',JDATA) )
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
                   IDATYP=obsSpaceData%MOBHDR (NCM_OTP,IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'ST')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )

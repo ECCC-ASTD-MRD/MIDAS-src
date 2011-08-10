@@ -94,8 +94,8 @@ C
       IF ( (CFAMTYP(JF) .EQ. 'HU') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
-         IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -108,7 +108,7 @@ C        REJECT DATA TOO FAR BELOW MODEL OROGRAPHY
 C
          DO JDATA= IDATA, IDATEND
             IKOUNTT=IKOUNTT+1
-            ZVAL=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+            ZVAL=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 
 cjmb            ZDIFF=  (ZVAL- GOMPSHR(1,JOBS) )/100.
 cjmb     Surface pressure artificially modified to account 
@@ -123,8 +123,8 @@ cjmb     (Same modification in VOBSLYRS or previously VLAYERS)
      &                       ,ZVAL,GOMPSHR(1,JOBS),ZDIFF
             ENDIF
             IF ( ZDIFF .GT. 0. ) THEN
-               ZVAL=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-               ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
                DO J=1,JPINEL
                   ICRIT=RLISTCRIT(J)
                   ILEM=ILISTEL(J)
@@ -134,17 +134,17 @@ cjmb     (Same modification in VOBSLYRS or previously VLAYERS)
 ccc                        obsSpaceData%ROBDATA8(NCM_PPP,JDATA)=GOMPSHR(1,JOBS)
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) ' Keep OBS below sfc ',jobs,ITYP
-     &                        ,obsSpaceData%CSTNID(JOBS),obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
+     &                        ,obsSpaceData%CSTNID(JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
                      ELSE
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) 'Rej OBS below sfc  ',jobs,ITYP
-     &                        ,obsSpaceData%CSTNID(JOBS),obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
+     &                        ,obsSpaceData%CSTNID(JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
                         obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
                         obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                     ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
+     &                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
                      ENDIF
                   ENDIF
                END DO

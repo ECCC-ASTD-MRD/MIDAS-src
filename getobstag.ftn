@@ -90,8 +90,8 @@
            ibegin= NBEGINTYP(j)
            ilast = NENDTYP(j) 
 
-           ibeginob= obsSpaceData%MOBDATA(NCM_OBS,ibegin) 
-           ilastob = obsSpaceData%MOBDATA(NCM_OBS,ilast)  
+           ibeginob= obs_elem_i(obsSpaceData,'OBS ',ibegin) 
+           ilastob = obs_elem_i(obsSpaceData,'OBS ',ilast)  
            Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
 
            interv=INT((ilastob-ibeginob+1)/mpi_nprocs)  

@@ -59,10 +59,10 @@
 C
       DO JDATA=1,obsSpaceData%numobs_recorded
         IF (lmaskzp(jdata)) THEN
-          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-          IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
+          IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+          IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+          IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = GOMGZG(IK,IOBS)/RG

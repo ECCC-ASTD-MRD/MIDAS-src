@@ -111,8 +111,8 @@ C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all GPS observations (locations) of the file
 C
@@ -134,11 +134,11 @@ C                 Get station height ZLEV
 C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                     ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                      LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
-     &                      (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) )
+     &                      (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) )
                      IF ( LLOK ) THEN
-                        ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                        ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -173,22 +173,22 @@ C     *              Perform the (H(x)-Y)/SDERR operation
 C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-                        IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND. 
+                        ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                        IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND. 
      +                     ITYP .EQ. BUFR_NEZD ) THEN
                            NH1 = NH1 + 1
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                           ZOBS = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
 C
 C     *                    Observation error    SDERR
 C
-                           ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                           ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
 C
 C     *                    Observation height (m)
 C
-                           ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                           ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 C     *                    Normalized increment
 C

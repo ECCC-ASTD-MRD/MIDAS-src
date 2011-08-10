@@ -109,8 +109,8 @@ C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all GPS observations (locations) of the file
 C
@@ -126,7 +126,7 @@ c
                DO JDATA= IDATA, IDATEND
                   LLOK = ( lmaskgp(JDATA) )
                   IF ( LLOK ) THEN
-                     ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                     ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                      ASSIM = .TRUE.
                      NH = NH + 1
                   ENDIF

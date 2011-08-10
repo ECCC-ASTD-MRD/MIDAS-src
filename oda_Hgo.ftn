@@ -171,7 +171,7 @@ c brightness temps.
 C
         DO JDATA = IDATA, IDATEND
           if(lmaskgo(jdata)) then
-            ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+            ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
             MDATA (ICHN,JN) = JDATA
             MFAIL (ICHN,JN) = 0
           ENDIF

@@ -68,7 +68,7 @@ C
 
 
       if(l1obs) then
-         pjo = obsSpaceData%ROBDATA8(NCM_OMI,1)
+         pjo = obs_elem_r8(obsSpaceData,'OMI ',1)
       else
         CALL restore_robdata8(robdata8_g,obsSpaceData%mxobstotal)  
          pjo = pjo + sumJo(1,obsSpaceData%mxobstotal,lmask_g)

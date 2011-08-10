@@ -112,8 +112,8 @@ C
          IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all observations of the file
 C
@@ -134,7 +134,7 @@ C                 Scan for requested assimilations, and count them
 C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 ) THEN
+                     IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -177,9 +177,9 @@ C
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 ) THEN
+                        IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                           HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
                      ENDDO
@@ -193,7 +193,7 @@ C
                      NH1 = 0
                      PJOB = 0._dp
                      DO JDATA= IDATA, IDATEND
-                        IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 ) THEN
+                        IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                            NH1 = NH1 + 1
 C
 C     *                    Observation operator H(x)
@@ -202,11 +202,11 @@ C
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                           ZOBS = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
 C
 C     *                    Observation error    S
 C
-                           ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                           ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
 C
 C     *                    Normalized increment
 C

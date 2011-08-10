@@ -57,13 +57,13 @@ C
         IDATEND = obs_elem_i(obsSpaceData,'NLV ',IO)+IDATA - 1
 
         DO JDATA = IDATA, IDATEND
-          ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+          ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
 
           IF (( ITYP.EQ.12062 .OR.
      S         ITYP.EQ.12063 .OR.
-     S         ITYP.EQ.12163).and. obsSpaceData%MOBDATA(NCM_ASS,JDATA).NE.0) THEN
+     S         ITYP.EQ.12163).and. obs_elem_i(obsSpaceData,'ASS ',JDATA).NE.0) THEN
 C
-            ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+            ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
 C
             MDATA (ICHN,JN) = JDATA
           ENDIF

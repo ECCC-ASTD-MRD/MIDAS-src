@@ -140,19 +140,19 @@ c              ENDIF
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
                 LLOK=.FALSE.
-                IF ( obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1 ) THEN
-                  ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                IF ( obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 ) THEN
+                  ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                   IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
      &                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &                 ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
-                    LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
+                    LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
      &                   ITYP .EQ. NLIST(JLIST))
                   ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                     LLOK=.FALSE.
                   ELSE
-                    LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
+                    LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
      &                   ITYP .EQ. NLIST(JLIST)        .AND.
-     &                   obsSpaceData%MOBDATA(NCM_XTR,JDATA)  .EQ. 0)
+     &                   obs_elem_i(obsSpaceData,'XTR ',JDATA)  .EQ. 0)
                   ENDIF
                   IF ( LLOK ) THEN
                     ICOUNT = ICOUNT + 1
@@ -185,14 +185,14 @@ c                ENDIF
 ***************************************************************
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-                  IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-                  ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-                  IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
-                  IXTR = obsSpaceData%MOBDATA(NCM_XTR,JDATA)
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+                  IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+                  ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  ZVAR = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+                  IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+                  IXTR = obs_elem_i(obsSpaceData,'XTR ',JDATA)
+                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
                   IPT  = NLEVTRL-1 + IPOS*NLEVTRL
                   IPB  = IPT+1
@@ -235,14 +235,14 @@ c                ENDIF
 ***************************************************************
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-                  IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-                  ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-                  IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
-                  IXTR = obsSpaceData%MOBDATA(NCM_XTR,JDATA)
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+                  IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+                  ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  ZVAR = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+                  IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+                  IXTR = obs_elem_i(obsSpaceData,'XTR ',JDATA)
+                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
@@ -283,26 +283,26 @@ C
 *   and are therefore not subjected to qcvar (test to be added here)
 *
 C
-            IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-            ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST)
+            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
             DO 150 JO = IBEGINOB, ILASTOB
                IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
                IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
                DO JDATA=IDATA,IDATEND
                   LLOK=.false.
-                  IF ( obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1 ) THEN
-                     ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-                     IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-                     ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                  IF ( obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 ) THEN
+                     ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                     IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+                     ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
                      IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
      &                   ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &                   ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
-                        LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+                        LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
                      ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                         LLOK=.FALSE.
                      ELSE
-                        LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
-     &                        obsSpaceData%MOBDATA(NCM_XTR,JDATA)  .EQ. 0)
+                        LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
+     &                        obs_elem_i(obsSpaceData,'XTR ',JDATA)  .EQ. 0)
                      ENDIF
                      IF(LLOK)     THEN
 ***************************************************************
@@ -310,12 +310,12 @@ c                        IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                           print *,'dobssfc part2:FAM,STN,JDATA,IOBS,'
 c     &                          ,'TYP,P-O,llok'
 c     &                          ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
-c     &                          ,obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER,llok
+c     &                          ,obs_elem_r8(obsSpaceData,'OMA ',JDATA)*ZOER,llok
 c                         ENDIF
 ***************************************************************
                         IF (NQCVAR .EQ. 0) THEN
-                           DLSUM=DLSUM+obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*
-     1                           obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                           DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
+     1                           obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                            obsSpaceData%ROBDATA8(NCM_OMI,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                         ELSE
@@ -323,7 +323,7 @@ C
 C                 CONTRIBUTION TO Jo WITH QCVAR
 C
                            ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
-                           ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                           ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
 
                            LLUV = ( (ITYP .EQ. BUFR_NEUS .AND.
      &                               NMVOEXIST(NOUU) .EQ. 1) .OR.
@@ -337,16 +337,16 @@ C  must be available for both u and v components. Hence, loop over only
 C  data for which o-a has already been calculated
 C
                                  DO JJ=IDATA, JDATA
-                                    ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
-                                    ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
+                                    ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
+                                    ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)
 C
                                     IF ((ISTYP .EQ. BUFR_NEVS) .AND.
      2                                   ZSLEV .EQ. ZLEV)       THEN
 
-                                       ZJON = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*
-     1                                      obsSpaceData%ROBDATA8(NCM_OMA,JDATA) +
-     2                                      obsSpaceData%ROBDATA8(NCM_OMA,JJ)*
-     3                                      obsSpaceData%ROBDATA8(NCM_OMA,JJ)
+                                       ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA) +
+     2                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*
+     3                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)
                                        ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                                        ZPPOST = ZGAMI/ZQCARG
 C
@@ -354,9 +354,9 @@ C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
                                        obsSpaceData%ROBDATA8(NCM_OMN,JDATA) =
-     1                                      obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*(1. - ZPPOST)
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA)*(1. - ZPPOST)
                                        obsSpaceData%ROBDATA8(NCM_OMN,JJ) =
-     1                                      obsSpaceData%ROBDATA8(NCM_OMA,JJ)*(1. - ZPPOST)
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*(1. - ZPPOST)
 C
 C     Contribution of both u and v added to the cost function at the
 C     same time (see tech. note by Andersson and Jarvinen)
@@ -366,21 +366,21 @@ C
                                  ENDDO
                               ELSE
                                  DO JJ=IDATA, JDATA
-                                    ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
-                                    ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
+                                    ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
+                                    ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)
 C
                                     IF ((ISTYP .EQ. BUFR_NEUS) .AND.
      2                                   ZSLEV .EQ. ZLEV)       THEN
-                                       ZJON = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*
-     1                                      obsSpaceData%ROBDATA8(NCM_OMA,JDATA) +
-     2                                      obsSpaceData%ROBDATA8(NCM_OMA,JJ)*
-     3                                      obsSpaceData%ROBDATA8(NCM_OMA,JJ)
+                                       ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA) +
+     2                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*
+     3                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)
                                        ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                                        ZPPOST = ZGAMI/ZQCARG
                                        obsSpaceData%ROBDATA8(NCM_OMN,JDATA) =
-     1                                      obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*(1. - ZPPOST)
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA)*(1. - ZPPOST)
                                        obsSpaceData%ROBDATA8(NCM_OMN,JJ) =
-     1                                      obsSpaceData%ROBDATA8(NCM_OMA,JJ)*(1. - ZPPOST)
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*(1. - ZPPOST)
                                        DLSUM=DLSUM -LOG(ZQCARG/(ZGAMI+1.))
                                     ENDIF
                                  ENDDO
@@ -389,8 +389,8 @@ C
 *
 *     calculate contribution for scalars
 *
-                              ZJON = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*
-     1                             obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                              ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
+     1                             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                               ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                               ZPPOST = ZGAMI/ZQCARG
                               obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
@@ -410,20 +410,20 @@ C     Process all geopotential data below model's orography
 C
             DO JDATA=IBEGIN,ILAST
 ccc debut
-*cc               LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
-*cc     &              .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2)
-*cc     &         .AND. (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEGZ )
-               LLOK=(obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
-     &              .AND. (obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2)
-     &         .AND. (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEGZ )
-     &         .AND. (obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1)
+*cc               LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
+*cc     &              .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2)
+*cc     &         .AND. (obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ )
+               LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
+     &              .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2)
+     &         .AND. (obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ )
+     &         .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1)
 ccc fin
                IF ( LLOK ) THEN
-                  IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-                  IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-                  ZVAR = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-                  ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+                  IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+                  ZVAR = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 C                 CONTRIBUTION TO Jo
 C
@@ -449,17 +449,17 @@ c        ENDIF
      &                        + ZTVG/zgamma
      &                        *(1.-(zlev/gompshr(1,iobs))**zexpgz)
      &                        - zvar)/zoer
-                  DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-     +                        *obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                  DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
+     +                        *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                   obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                   IF (NQCVAR .EQ. 0) THEN
-                    DLSUM =DLSUM+obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-     +                                 *obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                    DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
+     +                                 *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                     obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                     obsSpaceData%ROBDATA8(NCM_OMN,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                   ELSE
                     ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
-                    ZJON = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                    ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
                     ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                     ZPPOST = ZGAMI/ZQCARG
                     obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)

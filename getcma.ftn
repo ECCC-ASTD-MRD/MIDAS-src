@@ -127,13 +127,13 @@ Cpik
                           IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
                             ZERR=  obs_elem_r4(obsSpaceData,'OER ',IP+IND)
                             ZSTAT= obsSpaceData%ROBDATA(KRVAL, IP+IND)
-                            IFLG=  obsSpaceData%MOBDATA(NCM_FLG,IP+IND)
+                            IFLG=  obs_elem_i(obsSpaceData,'FLG ',IP+IND)
 *
                             IF ( KRVAL .EQ. NCM_OMF .OR. KRVAL .EQ. NCM_OMA) THEN
-                              if (obsSpaceData%MOBDATA(NCM_ASS,IP+IND) .EQ. 1    .OR.
-     &                           (obsSpaceData%MOBDATA(NCM_VNM,IP+IND) .EQ. BUFR_NEHU .and.
+                              if (obs_elem_i(obsSpaceData,'ASS ',IP+IND) .EQ. 1    .OR.
+     &                           (obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHU .and.
      &                                            ZSTAT .NE. PPMIS) .OR.
-     &                            obsSpaceData%MOBDATA(NCM_VNM,IP+IND) .EQ. BUFR_NEHS) then
+     &                            obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHS) then
                                 PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
                               else
                                 PVALUES (JI,JJ,IK)=PPMIS

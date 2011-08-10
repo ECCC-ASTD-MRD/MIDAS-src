@@ -84,8 +84,8 @@ C
      &       (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
-         IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -99,21 +99,21 @@ C        MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 C
             DO JDATA= IDATA, IDATEND
                IKOUNTT=IKOUNTT+1
-               ZVAL=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+               ZVAL=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                ZDIFF=  (ZVAL- GOMPSHR(1,JOBS) )/100.
                IF ( ZDIFF .GT. RLISTCRIT ) THEN
-                  ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
                   DO J=1,JPINEL
                      ILEM=ILISTEL(J)
                      IF ( ITYP .EQ. ILEM ) THEN
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,224) 'Reject OBS '
-     &                       ,jobs,ITYP,obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
+     &                       ,jobs,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
                         obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
                         obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                     ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
+     &                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
                      ENDIF
                   END DO
                ENDIF

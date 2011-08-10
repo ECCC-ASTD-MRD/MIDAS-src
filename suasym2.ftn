@@ -95,23 +95,23 @@
          ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JJO)*ZTODEG
          ZLON = obs_elem_r4(obsSpaceData,'LON ',JJO)*ZTODEG
          DO JDATA  = IDATA, IDATEND
-            ITYP   = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-            IASS   = obsSpaceData%MOBDATA(NCM_ASS,JDATA)
-            ZLEV   = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)*RPATMB
+            ITYP   = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            IASS   = obs_elem_i(obsSpaceData,'ASS ',JDATA)
+            ZLEV   = obs_elem_r8(obsSpaceData,'PPP ',JDATA)*RPATMB
             ILEM   = obs_ifind(ITYP)
-            ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-            ZVAL = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-            ZFCST= obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*ZOER + ZVAL
+            ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+            ZVAL = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+            ZFCST= obs_elem_r8(obsSpaceData,'OMA ',JDATA)*ZOER + ZVAL
 C
             IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
      1          ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.
      2          ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.
      3          ITYP .EQ. BUFR_NEZD) THEN
-               LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1)
+               LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
             ELSE
-               LLOK = (IASS .EQ. 1) .AND. ((obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ.0)
-     1            .OR. ((obsSpaceData%MOBDATA(NCM_XTR,JDATA) .EQ. 2) .AND.
-     2                  (obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEGZ)))
+               LLOK = (IASS .EQ. 1) .AND. ((obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ.0)
+     1            .OR. ((obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2) .AND.
+     2                  (obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ)))
             ENDIF
 
             IF (LLOK) THEN
@@ -121,8 +121,8 @@ C
                   IOTHER = -1
                   IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                     DO JJ=IDATA,JDATA
-                      ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
-                      ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)*RPATMB
+                      ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
+                      ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)*RPATMB
                       IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)
      1                     .AND. ZLEV .EQ. ZSLEV) THEN
                         IOTHER = JJ
@@ -130,8 +130,8 @@ C
                     ENDDO
                   ELSE
                     DO JJ=IDATA,JDATA
-                      ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
-                      ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)*RPATMB
+                      ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
+                      ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)*RPATMB
                       IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)
      1                     .AND. ZLEV .EQ. ZSLEV) THEN
                         IOTHER = JJ
@@ -139,10 +139,10 @@ C
                     ENDDO
                   ENDIF
                   IF (IOTHER .NE. -1) THEN
-                    ZOER = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-                    ZOVAL = obsSpaceData%ROBDATA8(NCM_VAR,IOTHER)
-*                       ZOFCST = obsSpaceData%ROBDATA8(NCM_OMF,IOTHER)*ZOER+ZOVAL
-                    ZOFCST = obsSpaceData%ROBDATA8(NCM_OMA,IOTHER)*ZOER+ZOVAL
+                    ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+                    ZOVAL = obs_elem_r8(obsSpaceData,'VAR ',IOTHER)
+*                       ZOFCST = obs_elem_r8(obsSpaceData,'OMF ',IOTHER)*ZOER+ZOVAL
+                    ZOFCST = obs_elem_r8(obsSpaceData,'OMA ',IOTHER)*ZOER+ZOVAL
                     ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
                     ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
                     ZDIFF = ZSPDO - ZSPDF

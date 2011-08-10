@@ -183,11 +183,11 @@ C
          LLFER     = .FALSE.
          ZTDERR    = -1.0
          DO JDATA  = IDATA, IDATEND
-            ITYP   = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-            IFLG   = obsSpaceData%MOBDATA(NCM_FLG,JDATA)
-            IASS   = obsSpaceData%MOBDATA(NCM_ASS,JDATA)
+            ITYP   = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            IFLG   = obs_elem_i(obsSpaceData,'FLG ',JDATA)
+            IASS   = obs_elem_i(obsSpaceData,'ASS ',JDATA)
             ILEM   = obs_ifind(ITYP)
-            ZVAL   = obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+            ZVAL   = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
 C
             IF ( IASS .EQ. 1 .OR. CFAMTYP(IDATYP) .EQ. 'GP') THEN
 C
@@ -198,7 +198,7 @@ C
               IF ( (CFAMTYP(IDATYP) .EQ. 'UA') ) THEN
                   CALL LATID(ZFACTOR,ILAT1,ILAT2,ZLAT)
                   ILVL=0
-                  ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   DO JN =1,JPRLEV
                      ZLVL=SIGN(1.0D0,(ZLEV- FLOAT(NILV(JN)) ) )
                      ILVL=ILVL + MAX(0.0D0,ZLVL)
@@ -281,7 +281,7 @@ C
                   IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S                 ITYP .EQ. BUFR_NBT2 .OR.
      S                 ITYP .EQ. BUFR_NBT3     )THEN
-                     ICHN    = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+                     ICHN    = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
                      INDXM = ILANSEA
                      IF (INDXM .EQ. 2 ) INDXM = 0
                      INDXREG = ISRCHEQ(MLISREG,NREGST,INDXM)
@@ -307,7 +307,7 @@ C
                   IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S                 ITYP .EQ. BUFR_NBT2 .OR.
      S                 ITYP .EQ. BUFR_NBT3     )THEN
-                     ICHN    = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+                     ICHN    = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
                      INDXREG = ISRCHEQ(MLISREGGO,NREGSTGO,ILANSEA)
                      INDXCLD = ISRCHEQ(MLISCLDGO,NCLDSTGO,ITECH)
 C
@@ -341,7 +341,7 @@ C
 C     
 C     *                 Observation-estimated geopotential height:
 C
-cc                        H = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+cc                        H = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 C     *                 Gross approximation to the refractivity:
 C
@@ -400,7 +400,7 @@ C***********************************************************************
 C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'AI'
      &              .OR. CFAMTYP(IDATYP) .EQ. 'SW') THEN
-                  ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 C    SATOB
 C
@@ -535,17 +535,17 @@ C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'SC' ) THEN
                  obsSpaceData%ROBDATA8(NCM_OER,JDATA)= XSFCOBERR(ILEM,1,IDBURP)
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'TO' ) THEN
-                 ILVL=INT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+                 ILVL=INT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
                  obsSpaceData%ROBDATA8(NCM_OER,JDATA)= 1.0D0
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'OZ' ) THEN
                  obsSpaceData%ROBDATA8(NCM_OER,JDATA)=
-     s                0.6D0*obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+     s                0.6D0*obs_elem_r8(obsSpaceData,'VAR ',JDATA)
 C
 C                 SATEMS
 C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'ST' ) THEN
                   ILVL=0
-                  ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   DO JN =1,JPSALEV
                      ZLVL=SIGN(1.0D0,(ZLEV-NISLV(JN)) )
                      ILVL=ILVL + MAX(0.0D0,ZLVL)
@@ -573,17 +573,17 @@ C              not. 3dvar will abort in this case.
 C***********************************************************************
 C
                IF (CFAMTYP(IDATYP) .NE. 'GP') THEN
-                 IF(obsSpaceData%ROBDATA8(NCM_OER,JDATA) .LE. 0.0) THEN
+                 IF(obs_elem_r8(obsSpaceData,'OER ',JDATA) .LE. 0.0) THEN
                     LLBAD = .TRUE.
                  ENDIF
 C
                ELSE
 C  GP FAMILY CASE
                  IF (IASS .EQ. 1) THEN
-                   IF ((.NOT. LLZTD) .AND. obsSpaceData%ROBDATA8(NCM_OER,JDATA) .LE. 0.0) THEN
+                   IF ((.NOT. LLZTD) .AND. obs_elem_r8(obsSpaceData,'OER ',JDATA) .LE. 0.0) THEN
                      LLBAD = .TRUE.
                    ENDIF
-                   IF ((LLZTD .AND. LLCZTDE) .AND. obsSpaceData%ROBDATA8(NCM_OER,JDATA) .LE. 0.0) THEN
+                   IF ((LLZTD .AND. LLCZTDE) .AND. obs_elem_r8(obsSpaceData,'OER ',JDATA) .LE. 0.0) THEN
                      LLBAD = .TRUE.
                    ENDIF
                  ENDIF
@@ -598,7 +598,7 @@ C
      &              obsSpaceData%CSTNID(JJO),IDBURP,ZLAT*ZTORAD,ZLON*ZTORAD
                   WRITE(NULOUT,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
      &              " OBSERR = ",E10.2)')
-     &              ITYP,obsSpaceData%ROBDATA8(NCM_PPP,JDATA),obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+     &              ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),obs_elem_r8(obsSpaceData,'OER ',JDATA)
                ENDIF
 
             ELSE

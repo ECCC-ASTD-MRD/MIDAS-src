@@ -79,8 +79,8 @@ C
         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
           IBEGIN   = NBEGINTYP(JF)
           ILAST    = NENDTYP  (JF)
-          IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-          ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all observations of the file
 C
@@ -90,7 +90,7 @@ C
               IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
               IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
               DO JDATA= IDATA, IDATEND
-                LUSE=( obsSpaceData%MOBDATA(NCM_ASS,JDATA).EQ.1 )
+                LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
                 IF ( LUSE ) THEN
                   lmaskro(jdata) = .true.
                 ENDIF

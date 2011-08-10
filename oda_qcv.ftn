@@ -43,11 +43,11 @@ C
       llmask = llmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
       DO JDATA=1,obsSpaceData%numobs_recorded
         IF (llmask(jdata)) THEN
-          jo = obsSpaceData%MOBDATA(NCM_OBS,jdata)
+          jo = obs_elem_i(obsSpaceData,'OBS ',jdata)
           idata = obs_elem_i(obsSpaceData,'RLN ',JO)
-          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
           zgami = obsSpaceData%robdata(NCM_POB,jdata)
-          ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+          ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
           LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
      &         NMVOEXIST(NOUU) .EQ. 1) .OR. ((ITYP .EQ. BUFR_NEVV .OR.
      &         ITYP .EQ. BUFR_NEVS).AND. NMVOEXIST(NOVV) .EQ. 1)
@@ -59,13 +59,13 @@ C  must be available for both u and v components. Hence, loop over only
 C  data for which o-a has already been calculated
 C
               DO JJ=IDATA, JDATA
-                ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
-                ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
+                ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
+                ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)
                 IF ((ISTYP .EQ. BUFR_NEVV
      1               .OR. ISTYP .EQ. BUFR_NEVS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obsSpaceData%ROBDATA8(NCM_OMI,JDATA)+
-     &                 obsSpaceData%ROBDATA8(NCM_OMI,JJ)
+                  ZJON=obs_elem_r8(obsSpaceData,'OMI ',JDATA)+
+     &                 obs_elem_r8(obsSpaceData,'OMI ',JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
 C
@@ -87,13 +87,13 @@ C
               ENDDO
             ELSE
               DO JJ=IDATA, JDATA
-                ISTYP = obsSpaceData%MOBDATA(NCM_VNM,JJ)
-                ZSLEV = obsSpaceData%ROBDATA8(NCM_PPP,JJ)
+                ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
+                ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)
                 IF ((ISTYP .EQ. BUFR_NEUU .OR.
      1               ISTYP .EQ. BUFR_NEUS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obsSpaceData%ROBDATA8(NCM_OMI,JDATA)+
-     &                 obsSpaceData%ROBDATA8(NCM_OMI,JJ)
+                  ZJON=obs_elem_r8(obsSpaceData,'OMI ',JDATA)+
+     &                 obs_elem_r8(obsSpaceData,'OMI ',JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
                   obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST

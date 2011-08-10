@@ -108,7 +108,7 @@ subroutine tovs_obs(option,pjo)
 !    fill ROBDATA8(NCM_PRM,..)  with Z'' = Z' + H(xb_lr) 
      DO JDATA=1,obsSpaceData%numobs_recorded
        obsSpaceData%ROBDATA8(NCM_PRM,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)*obsSpaceData%ROBDATA8(NCM_OER  &
-           ,JDATA) + 2*obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+           ,JDATA) + 2*obs_elem_r8(obsSpaceData,'VAR ',JDATA)
      ENDDO
   endif
 

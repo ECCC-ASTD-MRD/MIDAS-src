@@ -45,7 +45,7 @@
       DO JDATA=1,obsSpaceData%numobs_recorded
         IF (llmask(jdata)) THEN
           obsSpaceData%ROBDATA8(NCM_OMI,JDATA) = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
-     &         *(1.d0 - obsSpaceData%ROBDATA8(NCM_OMN,JDATA))
+     &         *(1.d0 - obs_elem_r8(obsSpaceData,'OMN ',JDATA))
         ENDIF
       END DO
 C--------------------------------------------------------------------

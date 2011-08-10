@@ -95,17 +95,17 @@ C
 C     1.1 PPP Vertical coordinate
 C
          DO JDATA= 1,obsSpaceData%numobs_recorded
-            LLOK = ( (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1     .OR.
-     &                obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHU) .AND.
-     &                obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2 )
+            LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
+     &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
+     &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IF(obsSpaceData%MOBDATA(NCM_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+               IF(obs_elem_i(obsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
+                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                ELSE
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
+                  ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
                ENDIF
-               IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-               ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IF(CDMVO .EQ. 'HR') THEN
                  ZPT= RPPOBSHR(1,IOBS)
                  ZPB= RPPOBSHR(NLEVTRL,IOBS)
@@ -129,8 +129,8 @@ cjmb     conversion (MRBCVT)  of observed pressure.
                  write(nulout,*)
      &                'vobslyrs PPP:jdata,stn,ielm,zlev,ZPT,ZPB'
      &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obsSpaceData%cstnid(iobs)
-     &                ,ityp,zlev,ZPT,ZPB,obsSpaceData%MOBDATA(NCM_XTR,JDATA)
-     &                ,obsSpaceData%MOBDATA(NCM_ASS,JDATA),CDMVO
+     &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(obsSpaceData,'XTR ',JDATA)
+     &                ,obs_elem_i(obsSpaceData,'ASS ',JDATA),CDMVO
                endif
 *****************************************************************
              ENDIF
@@ -139,16 +139,16 @@ C
 C     1.2 ZZZ Vertical coordinate
 C
          DO JDATA= 1,obsSpaceData%numobs_recorded
-            LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
-     &              obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1 )
+            LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
+     &              obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IF(obsSpaceData%MOBDATA(NCM_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+               IF(obs_elem_i(obsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
+                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                ELSE
-                  ZLEV = obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
+                  ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
                ENDIF
-               IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-               ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IF(CDMVO .EQ. 'HR') THEN
                  ZPT= GOMGZHR(1,IOBS)/RG
                  ZPB= GOMGZHR(NLEVTRL,IOBS)/RG
@@ -168,8 +168,8 @@ C
                  write(nulout,*)
      &                'vobslyrs ZZZ:jdata,stn,ielm,zlev,ZPT,ZPB'
      &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obsSpaceData%cstnid(iobs)
-     &                ,ityp,zlev,ZPT,ZPB,obsSpaceData%MOBDATA(NCM_XTR,JDATA)
-     &                ,obsSpaceData%MOBDATA(NCM_ASS,JDATA),CDMVO
+     &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(obsSpaceData,'XTR ',JDATA)
+     &                ,obs_elem_i(obsSpaceData,'ASS ',JDATA),CDMVO
                endif
 *****************************************************************
              ENDIF
@@ -189,13 +189,13 @@ C
          END DO
 C
          DO JDATA= 1,obsSpaceData%numobs_recorded
-            LLOK = ( (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1     .OR.
-     &                obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHU) .AND.
-     &                obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2 )
+            LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
+     &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
+     &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-               ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-               ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+               ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IK = 1
                IF(CDMVO .EQ. 'HR') THEN
                  DO JK = 2,NLEVTRL - 1
@@ -219,7 +219,7 @@ C
      &                'vobslyrs PPP:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',pppobs(ik+1,),pppobs(ik,),rdata(lyr,),CDMVO '
      &                ,jdata,iobs,obsSpaceData%cstnid(iobs),ityp,ik,zlev,ZPB,ZPT
-     &                ,obsSpaceData%MOBDATA(NCM_LYR,JDATA),CDMVO
+     &                ,obs_elem_i(obsSpaceData,'LYR ',JDATA),CDMVO
                endif
 *****************************************************************
              ENDIF
@@ -228,13 +228,13 @@ C
 C     2.2  ZZZ Vertical coordinate and surface observations
 C
          DO JDATA= 1,obsSpaceData%numobs_recorded
-            LLOK = ( (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1     .OR.
-     &                obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. BUFR_NEHS) .AND.
-     &                obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1 )
+            LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
+     &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) .AND.
+     &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-               ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-               ITYP = obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+               ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IK = 1
                IF(CDMVO .EQ. 'HR') THEN
                  DO JK = 2,NLEVTRL - 1
@@ -268,7 +268,7 @@ C
                      write(nulout,*) 'vobslyrs ZZZ:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',GZ(ik,),GZ(ik+1,),rdata(lyr,),CDMVO '
      &                    ,jdata,iobs,obsSpaceData%cstnid(iobs),ityp,ik,zlev,ZPT,ZPB
-     &                    ,obsSpaceData%MOBDATA(NCM_LYR,JDATA),CDMVO
+     &                    ,obs_elem_i(obsSpaceData,'LYR ',JDATA),CDMVO
                    endif
 *****************************************************************
              ENDIF
@@ -282,11 +282,11 @@ C
                   IBEGIN=NBEGINTYP(J)
                   ILAST=NENDTYP(J)
                   DO JDATA= IBEGIN,ILAST
-                     LLOK = (obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1 .AND.
-     &                       obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 2 )
+                     LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
+     &                       obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
                      IF ( LLOK ) THEN
-                        IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-                        ZLEV = obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
+                        IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+                        ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
                         IK = 1
                         IF(CDMVO .EQ. 'HR') THEN
                           DO JK = 2,NLEVTRL - 1

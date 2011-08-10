@@ -90,11 +90,11 @@ c temps.
 C
         DO JDATA = IDATA, IDATEND
           IF (lmaskgo(jdata)) then
-            ICHN = NINT(obsSpaceData%ROBDATA8(NCM_PPP,JDATA))
+            ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
 c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
-c     &           * obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA)
             obsSpaceData%MOBDATA(NCM_XTR,JDATA) = 0
-            PTBO (ICHN,JN) = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
+            PTBO (ICHN,JN) = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
           ENDIF
         enddo
 C

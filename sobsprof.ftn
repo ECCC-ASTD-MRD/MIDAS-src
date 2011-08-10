@@ -125,8 +125,8 @@ C
          IF ( (CFAMTYP(JF) .EQ. 'PR') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
             IBEGIN=NBEGINTYP(JF)
             ILAST=NENDTYP(JF)
-            IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
-            IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
+            IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+            IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
             WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ',CFAMTYP(JF)
 C
 C
@@ -160,16 +160,16 @@ C              Otherwise we use observations of TT that are too far
 C              from the model topography in the verification.
 
                DO JDATA= IDATA, IDATEND
-                  ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
                   IJ = -1
                   DO J=1,JPINEL-1
                      IF(ITYP.EQ.ILISTEL(J))IJ = J
                   ENDDO
-                  LLOK = obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1
+                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1
      &                 .AND. ITYP .NE.ILISTEL(JPINEL)
      &                 .AND. IJ .NE. -1
                   IF (LLOK )  THEN
-                     ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                     ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                      ZPB =GOMGZHR(NLEVTRL,JOBS)/RG
                      ZPT =GOMGZHR(NLEVTRL,JOBS)/RG + RSBLCRIT(IJ)
                      IF (ZDIFALT .GT. 0.0) THEN
@@ -191,7 +191,7 @@ C                    of the trial field
                      ENDIF
                      IF(ZLEV .LT. ZPB ) THEN
                         obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                       ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
+     &                       ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '
@@ -204,7 +204,7 @@ C                    of the trial field
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.GE.ZPB .AND. ZLEV.LT.ZPT ) THEN
                         obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                       ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
+     &                       ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) '%PR REJ SBL ITYP,DALT '

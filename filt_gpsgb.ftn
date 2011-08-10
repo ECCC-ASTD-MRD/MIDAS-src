@@ -83,8 +83,8 @@ C
 C
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = obsSpaceData%MOBDATA(NCM_OBS,IBEGIN)
-        ILASTOB  = obsSpaceData%MOBDATA(NCM_OBS,ILAST )
+        IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+        ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
 C
 C     *  Loop over all GPS observation locations of the file
 C

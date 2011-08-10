@@ -78,8 +78,8 @@ C
       IF ( (CFAMTYP(JF) .EQ. 'TO') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
-         IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -96,13 +96,13 @@ C
              IKOUNTT=IKOUNTT+1
              ZDIFF= GOMPSHR(1,JOBS) /100.
              IF ( ZDIFF .LT. RLISTCRIT ) THEN
-               ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
                DO J=1,JPINEL
                  ILEM=ILISTEL(J)
                  IF ( ITYP .EQ. ILEM ) THEN
                    IF(LLPRINT) THEN
                       WRITE(NULOUT,224) 'Reject OBS '
-     &                  ,JOBS,ITYP,obsSpaceData%ROBDATA8(NCM_PPP,JDATA),ZDIFF
+     &                  ,JOBS,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                    ENDIF
                    obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
                    IKOUNTREJ(J)=IKOUNTREJ(J)+1

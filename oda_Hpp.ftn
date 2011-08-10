@@ -87,11 +87,11 @@ C
 C
       DO JDATA=1,obsSpaceData%numobs_recorded
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
-          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+          IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
           IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
-          IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
+          IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = RPPOBS(IK,IOBS)
@@ -111,9 +111,9 @@ C
      +         (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*
      +         ZDADPS*GOMPS(1,IOBS)
         elseif(lmaskpp_out(jdata)) then
-          IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-          IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-          ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+          IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+          IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 c-----------TL model for height data below model's orography
 c

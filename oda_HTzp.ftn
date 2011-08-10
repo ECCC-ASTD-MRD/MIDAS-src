@@ -69,11 +69,11 @@ C
 *vdir nodep
         DO JDATA=J, obsSpaceData%numobs_recorded,ISTRIDE
           IF (lmaskzp(jdata) ) THEN
-            IOBS = obsSpaceData%MOBDATA(NCM_OBS,JDATA)
-            IPOS = obsSpaceData%MOBDATA(NCM_POS,JDATA)
-            ZRES = obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
-            ZLEV = obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-            IK   = obsSpaceData%MOBDATA(NCM_LYR,JDATA)
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
             ZPT  = GOMGZG(IK,IOBS)/RG
@@ -85,7 +85,7 @@ C
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
-c     &           * obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA)
 C
             GOMGZ(IK+1,IOBS) = GOMGZ(IK+1,IOBS) +
      &           (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*ZDA2*ZRES/RG

@@ -116,8 +116,8 @@ C
      &     (CFAMTYP(JF) .EQ. 'GP') .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obsSpaceData%MOBDATA(NCM_OBS,NBEGINTYP(JF))
-         IOBS2=obsSpaceData%MOBDATA(NCM_OBS,NENDTYP(JF))
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -129,11 +129,11 @@ ccc            CALL PRNTBDY(JOBS,NULOUT)
          IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
          IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
          DO JDATA= IDATA, IDATEND
-            LLOK = obsSpaceData%MOBDATA(NCM_VCO,JDATA) .EQ. 1
+            LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1
             IF (LLOK) THEN
             IKOUNTT=IKOUNTT+1
-            IFLG     = obsSpaceData%MOBDATA(NCM_FLG,JDATA)
-            ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+            IFLG     = obs_elem_i(obsSpaceData,'FLG ',JDATA)
+            ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
             ITY    = obs_elem_i(obsSpaceData,'ITY ',JOBS)
             IDBURP = MOD(ITY,1000)
             ZDIFF=99999.
@@ -144,19 +144,19 @@ ccc            CALL PRNTBDY(JOBS,NULOUT)
                   LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
                END DO
                IF ( .NOT. LLREJ ) THEN
-                  ZVAL=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
+                  ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
                   ZDIFF= ABS( ( ZVAL-GOMGZHR(NLEVTRL,JOBS) )/RG )
-                  ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                ENDIF
             ELSE
-               ZHHH=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-               ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
+               ZHHH=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
                ZDIFF=  ABS( ZHHH- GOMGZHR(NLEVTRL,JOBS)/RG )
-               ZLEV=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+               ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
             ENDIF
-            ZVAL=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-            ITYP=obsSpaceData%MOBDATA(NCM_VNM,JDATA)
-            ZLEV2=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
+            ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+            ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            ZLEV2=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
 C
 C        APPLY FILTER TO SELECTED ELEMENTS
 C
@@ -165,7 +165,7 @@ C
                ILEM=ILISTEL(J)
                IF (ZLEV .EQ. ZLEV2 .AND. ITYP .EQ. ILEM ) THEN
                  IF ( ZDIFF .LE. ICRIT) THEN
-                   IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) THEN
+                   IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
                      IKOUNTREA(J)=IKOUNTREA(J)+1
                      IF(LLPRINT) THEN
                        ZMODEL = GOMGZHR(NLEVTRL,JOBS)/RG
@@ -176,9 +176,9 @@ C
                      ENDIF
                    ENDIF
                  ELSE
-                   IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) THEN
+                   IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
                      obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                    ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 18 )
+     &                    ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
                      IF(LLPRINT) THEN
                        WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP
      &                      ,obsSpaceData%CSTNID(JOBS),IDBURP
