@@ -122,7 +122,7 @@ subroutine oda_storeHdx_radiances
                  isens = lsensor(indxtovs)
                  do jdata= idata, idatend
                     if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-                       ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
+                       ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
                        ichn    = max(0,min(ichn,jpch+1))
                        ichNCM_A = max(0,min(ichn,jpch+1))
                        if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -136,7 +136,7 @@ subroutine oda_storeHdx_radiances
                        if ( ldbgtov ) then
                           write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                                ichn,  radiance_tl (indxtovs) % out(indxchn), &
-                               obsSpaceData%robdata8(NCM_VAR,jdata)
+                               obs_elem_r8(obsSpaceData,'VAR ',jdata)
                        endif
 
                     endif

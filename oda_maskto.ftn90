@@ -121,7 +121,7 @@ subroutine oda_maskto
                  isens = lsensor(indxtovs)
                  do jdata= idata, idatend
                     if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-                       ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
+                       ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
                        ichn    = max(0,min(ichn,jpch+1))
                        ichNCM_A = max(0,min(ichn,jpch+1))
                        if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)

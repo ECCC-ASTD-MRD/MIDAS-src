@@ -94,7 +94,7 @@ subroutine oda_get_radiance_ad
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
             if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-               ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
+               ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
                ichn    = max(0,min(ichn,jpch+1))
                ichNCM_A = max(0,min(ichn,jpch+1))
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -104,7 +104,7 @@ subroutine oda_get_radiance_ad
 9202              format(' tovs_calc_jo_ad: error with channel number')
                   call abort3d(nulout,'tovs_calc_jo_ad  ')
                endif
-               zres = obsSpaceData%robdata8(NCM_OMI,jdata)
+               zres = obs_elem_r8(obsSpaceData,'OMI ',jdata)
                radiance_ad (indxtovs) % out(indxchn) = zres
             endif
          enddo

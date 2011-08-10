@@ -106,7 +106,7 @@ C
               enddo
             endif
           else
-            zjon = obsSpaceData%robdata8(NCM_OMI,jdata)
+            zjon = obs_elem_r8(obsSpaceData,'OMI ',jdata)
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
             obsSpaceData%robdata8(NCM_OMN,jdata) = zppost

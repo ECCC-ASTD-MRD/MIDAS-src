@@ -137,7 +137,7 @@ subroutine tovs_calc_jo(pjo,llprint)
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
             if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-               ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
+               ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
                ichn    = max(0,min(ichn,jpch+1))
                ichNCM_A = max(0,min(ichn,jpch+1))
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -148,44 +148,44 @@ subroutine tovs_calc_jo(pjo,llprint)
                   call abort3d(nulout,'tovs_calc_jo    ')
                endif
 
-               zdtb = radiance_d (indxtovs) % out(indxchn)-obsSpaceData%robdata8(NCM_PRM,jdata)
+               zdtb = radiance_d (indxtovs) % out(indxchn)-obs_elem_r8(obsSpaceData,'PRM ',jdata)
                if ( ldbgtov ) then
                   write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
                            ichn,  radiance_d (indxtovs) % out(indxchn), &
-                           obsSpaceData%robdata8(NCM_PRM,jdata), zdtb
+                           obs_elem_r8(obsSpaceData,'PRM ',jdata), zdtb
                endif
 
-               zoer = obsSpaceData%robdata8(NCM_OER,jdata)
+               zoer = obs_elem_r8(obsSpaceData,'OER ',jdata)
                obsSpaceData%robdata8(NCM_OMA,jdata) = zdtb/zoer
                obsSpaceData%robdata8(NCM_OMI,jdata) = obsSpaceData%robdata8(NCM_OMA,jdata)
                if (.not. lvarqc) then
                   dlsum = dlsum &
-                       + (obsSpaceData%robdata8(NCM_OMA,jdata)* &
-                          obsSpaceData%robdata8(NCM_OMA,jdata))/2.
+                       + (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
+                          obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
                   obsSpaceData%robdata8(NCM_OMN,jdata) = &
-                              obsSpaceData%robdata8(NCM_OMA,jdata)
+                              obs_elem_r8(obsSpaceData,'OMA ',jdata)
                else
 
 !                 compute contribution of data with varqc
  
                   zgami = obsSpaceData%robdata(NCM_POB,jdata)
-                  zjon = (obsSpaceData%robdata8(NCM_OMA,jdata)* &
-                          obsSpaceData%robdata8(NCM_OMA,jdata))/2.
+                  zjon = (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
+                          obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
                   zqcarg = zgami + exp(-1.0*zjon)
                   zpost = zgami/zqcarg
                   obsSpaceData%robdata8(NCM_OMN,jdata) = &
-                  obsSpaceData%robdata8(NCM_OMA,jdata)*(1. - zpost)
+                  obs_elem_r8(obsSpaceData,'OMA ',jdata)*(1. - zpost)
                   dlsum= dlsum - log(zqcarg/(zgami+1.))
                endif
                inobsjo = inobsjo + 1
                inobsch(ichNCM_A,Isens) = inobsch(ichNCM_A,Isens) + 1
                zjoch(ichNCM_A,Isens)   = &
                       zjoch(ichNCM_A,Isens)   + &
-                      obsSpaceData%robdata8(NCM_OMA,jdata)* &
-                      obsSpaceData%robdata8(NCM_OMA,jdata)
+                      obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
+                      obs_elem_r8(obsSpaceData,'OMA ',jdata)
                zavgnrm(ichNCM_A,Isens)   = &
                       zavgnrm(ichNCM_A,Isens) + &
-                      obsSpaceData%robdata8(NCM_OMA,jdata)
+                      obs_elem_r8(obsSpaceData,'OMA ',jdata)
             endif
          enddo
         else

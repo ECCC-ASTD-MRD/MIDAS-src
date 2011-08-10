@@ -178,7 +178,7 @@ c
          idataend=obsSpaceData%MOBHDR_G(NCM_NLV,iobs)+idata -1 
          DO j=idata,idataend
            ii=ii+1
-           robdata8_g(j)=obsSpaceData%robdata8(NCM_OMI,ii)
+           robdata8_g(j)=obs_elem_r8(obsSpaceData,'OMI ',ii)
          ENDDO
        ENDDO  
        CALL rpn_comm_allreduce(ROBDATA8_g,ROBDATA8_g,kdata,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 
