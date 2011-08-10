@@ -47,11 +47,11 @@
           
           do jfile = 1, nfiles
             if(nbegintyp(jfile) .gt. 0) then
-              ibeginobs = obsSpaceData%mobdata(NCM_OBS,nbegintyp(jfile))
-              ilastobs=obsSpaceData%mobdata(NCM_OBS,nendtyp(jfile))
+              ibeginobs = obs_elem_i(obsSpaceData,'OBS ',nbegintyp(jfile))
+              ilastobs=obs_elem_i(obsSpaceData,'OBS ',nendtyp(jfile))
               if(iobs.ge.ibeginobs .and. iobs .le. ilastobs) then
                 do jdata = idatabeg, idatend
-                  if ( obsSpaceData%mobdata(NCM_ASS,jdata) .eq. 1) then
+                  if ( obs_elem_i(obsSpaceData,'ASS ',jdata) .eq. 1) then
                     idataass(jfile,jstep) = idataass(jfile,jstep) + 1
                     idataass(jfile,nstepobs+1) = idataass(jfile,nstepobs
      &                   +1) + 1

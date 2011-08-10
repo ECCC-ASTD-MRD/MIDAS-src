@@ -215,7 +215,7 @@ subroutine tovs_rttov_tl
           idata    = obsSpaceData%mobhdr(NCM_RLN,jo)
           idatend  = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
           do jdata = idata, idatend
-            if(obsSpaceData%mobdata(NCM_ASS,jdata).eq.1) then
+            if(obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1) then
               ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
               ichn = max(0,min(ichn,jpch+1))
               do nrank = 1, nchan(krtid)

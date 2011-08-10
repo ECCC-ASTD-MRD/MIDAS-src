@@ -105,8 +105,8 @@ subroutine tovs_calc_jo(pjo,llprint)
    if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
      ibegin   = nbegintyp(jf)
      ilast    = nendtyp  (jf)
-     ibeginob = obsSpaceData%mobdata(NCM_OBS,ibegin)
-     ilastob  = obsSpaceData%mobdata(NCM_OBS,ilast )
+     ibeginob = obs_elem_i(obsSpaceData,'OBS ',ibegin)
+     ilastob  = obs_elem_i(obsSpaceData,'OBS ',ilast )
      do jo = ibeginob, ilastob
 
 !     .  1.1  Extract general information for this observation point
@@ -136,7 +136,7 @@ subroutine tovs_calc_jo(pjo,llprint)
          idatend = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
-            if ( obsSpaceData%mobdata(NCM_ASS,jdata).eq.1 ) then
+            if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
                ichn = nint(obsSpaceData%robdata8(NCM_PPP,jdata))
                ichn    = max(0,min(ichn,jpch+1))
                ichNCM_A = max(0,min(ichn,jpch+1))
