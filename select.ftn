@@ -109,12 +109,12 @@
      +       '========================================================='
                WRITE(NULOUT,*)  ' '
 *
-               IBEG=obsSpaceData%numobs_recorded+1
+               IBEG=obs_num_obstotal(obsSpaceData)+1
 !
                CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
-               IF ( IBEG .LE. obsSpaceData%numobs_recorded ) THEN
+               IF ( IBEG .LE. obs_num_obstotal(obsSpaceData) ) THEN
                   NBEGINTYP(J)=IBEG
-                  NENDTYP(J) =obsSpaceData%numobs_recorded
+                  NENDTYP(J) =obs_num_obstotal(obsSpaceData)
                ELSE
                   NBEGINTYP(J)=-999
                   NENDTYP(J)  =-999

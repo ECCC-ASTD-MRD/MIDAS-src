@@ -285,7 +285,7 @@
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%numobs_recorded
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_num_obstotal(obsSpaceData)
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS) THEN
@@ -508,7 +508,7 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
 ************************************************************************
 *
            IOBTOT=NOBTOT
-           IDATA=obsSpaceData%numobs_recorded
+           IDATA=obs_num_obstotal(obsSpaceData)
            DO 22 JJEL=1,KNVALS
               NOBTOT=IOBTOT
               obsSpaceData%numobs_recorded=IDATA
@@ -789,7 +789,7 @@ C
          ENDIF
       ENDIF
 ********************************
-      IF( (obsSpaceData%numobs_recorded .GE. obsSpaceData%mxobstotal .OR. NOBTOT .GE. NMXOBS)
+      IF( (obs_num_obstotal(obsSpaceData) .GE. obsSpaceData%mxobstotal .OR. NOBTOT .GE. NMXOBS)
      + .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN
@@ -802,7 +802,7 @@ C
             IER=MRFPUT(KFILE,IHANDLP,IBUF)
          ENDIF
          WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
-         CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
+         CALL PRNTBRP(NOBTOT,IKOUNT,obs_num_obstotal(obsSpaceData))
          WRITE(NULOUT,*)' ------------------------------------------'
          WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
          WRITE(NULOUT,*)' ------------------------------------------'
@@ -845,7 +845,7 @@ C
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
+      CALL PRNTBRP(NOBTOT,IKOUNT,obs_num_obstotal(obsSpaceData))
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'

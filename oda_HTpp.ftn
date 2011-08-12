@@ -113,7 +113,7 @@ C     Process all data within the domain of the model
 C
       DO J=1,ISTRIDE
 *vdir nodep
-        DO JDATA=J,obsSpaceData%numobs_recorded,ISTRIDE
+        DO JDATA=J,obs_num_obstotal(obsSpaceData),ISTRIDE
           IF (lmaskpp_in(jdata)) THEN
             IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
@@ -151,7 +151,7 @@ C
      +           (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))
      +           *ZDADPS*ZRES
             if(abs(gomobs(ipb,iobs)).gt.zmax) zmax = abs(gomobs(ipb,iobs))
-            zmean=zmean+gomobs(ipb,iobs)/dble(obsSpaceData%numobs_recorded)
+            zmean=zmean+gomobs(ipb,iobs)/dble(obs_num_obstotal(obsSpaceData))
           elseif (lmaskpp_out(jdata)) THEN
             IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
@@ -177,7 +177,7 @@ c
             gomq(nflev,iobs) = gomq(nflev,iobs)
      &           + OLTV(2,NFLEV,IOBS)*ZATV
             if(abs(gomt(nflev,iobs)).gt.zmax2) zmax2 = abs(gomt(nflev,iobs))
-            zmean2=zmean2+gomt(nflev,iobs)/dble(obsSpaceData%numobs_recorded)
+            zmean2=zmean2+gomt(nflev,iobs)/dble(obs_num_obstotal(obsSpaceData))
           ENDIF
         END DO
       END DO

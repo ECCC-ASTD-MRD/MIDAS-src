@@ -32,16 +32,20 @@
 *
 *Revisions :
 *
+#include "comlun.cdk"
 #include "comdimo.cdk"
 #include "comstate.cdk"
 *
-      integer :: jdata,istyp,jj,jo,ityp,idata
+      integer :: jdata,istyp,jj,jo,ityp,idata,ierr
       real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
-      logical :: lluv,llmask(obsSpaceData%numobs_recorded)
+      logical :: lluv
+      logical, pointer :: llmask(:)
 C
+      allocate(llmask(ubound(lmask,1)),STAT=ierr)
+      if(ierr /= 0 ) call abort3d(nulout,'cant allocate mem. to lmask,1')
       llmask = lmask .neqv. lmaskgo  ! Exclusion of GOES QCVAR
       llmask = llmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,obsSpaceData%numobs_recorded
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
         IF (llmask(jdata)) THEN
           jo = obs_elem_i(obsSpaceData,'OBS ',jdata)
           idata = obs_elem_i(obsSpaceData,'RLN ',JO)
@@ -114,6 +118,8 @@ C
           endif
         endif
       enddo
+
+      deallocate(llmask)
 
       RETURN
       END

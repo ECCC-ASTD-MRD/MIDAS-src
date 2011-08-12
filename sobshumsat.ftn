@@ -169,7 +169,7 @@ C
       END DO
 C
       IKOUNTT=0
-      DO JDATA=1,obsSpaceData%numobs_recorded
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
          IF ( obsSpaceData%MOBDATA(NCM_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR "

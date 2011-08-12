@@ -255,7 +255,7 @@ C
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obsSpaceData%numobs_recorded
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_num_obstotal(obsSpaceData)
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS ) THEN
@@ -900,7 +900,7 @@ c               ENDIF
      &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
      &             ' LON ', ILON
             ENDIF
-         IF ( obsSpaceData%numobs_recorded .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
+         IF ( obs_num_obstotal(obsSpaceData) .GE. NDATAMX .OR. NOBTOT .GE. NMXOBS ) THEN
             CALL HPDEALLC(PXVAL    ,IER,1)
             CALL HPDEALLC(PXVAL3D  ,IER,1)
             CALL HPDEALLC(PXTABL   ,IER,1)
@@ -929,12 +929,12 @@ c               ENDIF
             WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 *
             WRITE(NULOUT,'(1x,"NDATA = ",I10," NDATAMX",I10)')
-     &                    obsSpaceData%numobs_recorded, NDATAMX
+     &                    obs_num_obstotal(obsSpaceData), NDATAMX
             WRITE(NULOUT,'(1x,"NOBTOT= ",I10," NMXOBS = ",I10)')
      &                    NOBTOT, NMXOBS
             WRITE(NULOUT,*)' LABORTFULL = ', LABORTFULL
 *
-            CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
+            CALL PRNTBRP(NOBTOT,IKOUNT,obs_num_obstotal(obsSpaceData))
 *
             IF (LABORTFULL) THEN
               WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CALL ABORT3D '
@@ -962,7 +962,7 @@ c               ENDIF
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,obsSpaceData%numobs_recorded)
+      CALL PRNTBRP(NOBTOT,IKOUNT,obs_num_obstotal(obsSpaceData))
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'

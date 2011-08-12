@@ -67,7 +67,7 @@ C     Process all data within the domain of the model
 C
       DO J=1,ISTRIDE
 *vdir nodep
-        DO JDATA=J, obsSpaceData%numobs_recorded,ISTRIDE
+        DO JDATA=J, obs_num_obstotal(obsSpaceData),ISTRIDE
           IF (lmaskzp(jdata) ) THEN
             IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)

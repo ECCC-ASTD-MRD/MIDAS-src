@@ -86,7 +86,7 @@ C
 C
 C     Process all data within the domain of the model
 C
-      DO JDATA=1,obsSpaceData%numobs_recorded
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
         if(lmasksf_in(jdata)) then
           IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
           IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)

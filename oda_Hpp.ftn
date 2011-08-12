@@ -85,7 +85,7 @@ C
       zgamma = 0.0065D0 / GRAV
       zexp = RGASD*zgamma
 C
-      DO JDATA=1,obsSpaceData%numobs_recorded
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
           IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
           IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)

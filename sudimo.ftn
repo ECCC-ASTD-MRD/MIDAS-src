@@ -102,7 +102,7 @@ C*    ****** NOT YET IMPLEMENTED ************
 C
       WRITE(KULOUT,*)' DIMENSIONS OF OBSERVATION ARRAYS:'
       WRITE(UNIT=KULOUT,FMT=9210)
-     S     NMXOBS, NOBTOT, obsSpaceData%numobs_recorded,NDATAMX, NMXOBF, NOBFNUM
+     S     NMXOBS, NOBTOT, obs_num_obstotal(obsSpaceData),NDATAMX, NMXOBF, NOBFNUM
  9210 FORMAT(4X,'  NMXOBS =',I6,' NOBTOT    =',I6,' NDATA = ',I6
      S     ,' NDATAMX =',I6,' NMXOBF =',I6,' NOBFNUM =',I6)
 C

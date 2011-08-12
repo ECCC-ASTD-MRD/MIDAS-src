@@ -94,7 +94,7 @@
       ENDIF  
  !  nobtotp and obsSpaceData%mxobstotal are used in CMAABRP of POSTMIN . 
       nobtotp=nobtot
-      obsSpaceData%mxobstotal=obsSpaceData%numobs_recorded
+      obsSpaceData%mxobstotal=obs_num_obstotal(obsSpaceData)
 
 !! keep the Global ROBHDR and MOBHDR
       DO iobs=1,nobtotp
@@ -130,13 +130,13 @@
         ENDDO 
       ENDDO 
  
-!     save the global nobtot and obsSpaceData%numobs_recorded to nobtotp and obsSpaceData%mxobstotal 
+!     save the global nobtot and obs_num_obstotal(obsSpaceData) to nobtotp and obsSpaceData%mxobstotal 
       
       nobtot=locObsize  
       obsSpaceData%numobs_recorded=obsSpaceData%numobs_recorded_l
       write(*,*) 'NOBTOT= ',nobtot 
       call obs_deallocate(obsSpaceData)
-      call obs_allocate(obsSpaceData,nobtot,obsSpaceData%numobs_recorded)
+      call obs_allocate(obsSpaceData,nobtot,obs_num_obstotal(obsSpaceData))
 !
       DO i=1,nobtot
          obsSpaceData%cfamily(i)=cfamily_tmp(i) 
@@ -145,7 +145,7 @@
          obsSpaceData%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
       ENDDO 
 
-      DO i=1,obsSpaceData%numobs_recorded
+      DO i=1,obs_num_obstotal(obsSpaceData)
          obsSpaceData%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
          obsSpaceData%MOBDATA(1:NCM_LBO,i)=MOBDATA_tmp(1:NCM_LBO,i) 
          obsSpaceData%ROBDATA(1:NCM_LBO,i)=ROBDATA_tmp(1:NCM_LBO,i)

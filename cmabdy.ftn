@@ -127,7 +127,7 @@
 *
       ZESMAX=30.
 *
-      IP=obsSpaceData%numobs_recorded + 1
+      IP=obs_num_obstotal(obsSpaceData) + 1
       IND=0
 *
 ************************************************************************

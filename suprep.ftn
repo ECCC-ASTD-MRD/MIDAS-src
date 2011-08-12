@@ -830,7 +830,7 @@ C
 C
 C-----------------------------------------------------------------------
 C
-      DO JDATA=1,obsSpaceData%numobs_recorded
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
         ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
         IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
         IF ( ITYP .EQ. BUFR_NEUU) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nouu - 1
@@ -936,14 +936,14 @@ C
       WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
       WRITE(NULOUT,'(1X,"****************************************** ",/)')
 C
-C     SUM OVER ALL BINS SHOULD BE EQUAL TO obsSpaceData%numobs_recorded
+C     SUM OVER ALL BINS SHOULD BE EQUAL TO obs_num_obstotal(obsSpaceData)
 C
       isum=0
       do jk=1,16
         isum=isum+ibin(jk)
       enddo
       ISUM = ISUM + IBINS
-      write(nulout,*) ' isum obsSpaceData%numobs_recorded  ',isum,obsSpaceData%numobs_recorded
+      write(nulout,*) ' isum obs_num_obstotal(obsSpaceData)  ',isum,obs_num_obstotal(obsSpaceData)
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF (IKNT .EQ. 0 ) THEN

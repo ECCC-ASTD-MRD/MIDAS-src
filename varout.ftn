@@ -116,7 +116,7 @@ c
      &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
       endif
 c ****************************************************************
-c     For a reasong that I (jwb) don't understand, this call to getfldprm2
+c     For a reason that I (jwb) don't understand, this call to getfldprm2
 c     is necessary for the next call to getfldprm to succeed.
       clnomvar = 'P0'
 c

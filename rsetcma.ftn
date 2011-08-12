@@ -42,7 +42,7 @@ C
 C-------     READ H(X)-Z IN zprim.dat
 C
       call obs_swapVarOmf(obsSpaceData)
-      do JDATA=1,obsSpaceData%numobs_recorded
+      do JDATA=1,obs_num_obstotal(obsSpaceData)
          IASS   = obs_elem_i(obsSpaceData,'ASS ',JDATA)
          ITYP   = obs_elem_i(obsSpaceData,'VNM ',JDATA)
          IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN

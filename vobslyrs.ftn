@@ -94,7 +94,7 @@ C        ----------------------------------
 C
 C     1.1 PPP Vertical coordinate
 C
-         DO JDATA= 1,obsSpaceData%numobs_recorded
+         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
             LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
      &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
      &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
@@ -138,7 +138,7 @@ cjmb     conversion (MRBCVT)  of observed pressure.
 C
 C     1.2 ZZZ Vertical coordinate
 C
-         DO JDATA= 1,obsSpaceData%numobs_recorded
+         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
             LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
      &              obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
@@ -184,11 +184,11 @@ C           purposes......
 C
 C     2.1  PPP Vertical coordinate
 C
-         DO JDATA=1,obsSpaceData%numobs_recorded
+         DO JDATA=1,obs_num_obstotal(obsSpaceData)
             obsSpaceData%MOBDATA(NCM_LYR,JDATA)=0
          END DO
 C
-         DO JDATA= 1,obsSpaceData%numobs_recorded
+         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
             LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
      &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
      &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
@@ -227,7 +227,7 @@ C
 C
 C     2.2  ZZZ Vertical coordinate and surface observations
 C
-         DO JDATA= 1,obsSpaceData%numobs_recorded
+         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
             LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
      &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) .AND.
      &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 )

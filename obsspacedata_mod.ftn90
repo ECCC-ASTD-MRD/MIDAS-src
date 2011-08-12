@@ -24,7 +24,7 @@ MODULE obsSpaceData_mod
   ! subroutines
   public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
   public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_elem_c9,obs_set
-  public           :: obs_swapVarOmf,obs_ifind
+  public           :: obs_num_obstotal,obs_num_stn,obs_swapVarOmf,obs_ifind
   public           :: obs_getFamily,obs_setFamily
 
   ! derived type and module variable declarations
@@ -457,6 +457,32 @@ MODULE obsSpaceData_mod
    value='xxxxxxxxx'
   end select
  end function obs_elem_c9
+
+ integer function obs_num_obstotal(obsdat)
+!func obs_num_obstotal - returns the number of observations recorded
+!
+!Author    . J.W. Blezius
+!
+!    PURPOSE:  to provide the number of observations that are currently recorded
+!              in the observation-data object
+!
+  implicit none
+  type(struct_obs) , intent(in)  :: obsdat
+  obs_num_obstotal=obsdat%numobs_recorded
+ end function obs_num_obstotal
+
+ integer function obs_num_stn(obsdat)
+!func obs_num_stn - returns the number of stations recorded
+!
+!Author    . J.W. Blezius
+!
+!    PURPOSE:  to provide the number of stations that are currently recorded
+!              in the observation-data object
+!
+  implicit none
+  type(struct_obs) , intent(in)  :: obsdat
+  obs_num_stn=obsdat%numstns_recorded
+ end function obs_num_stn
 
 
  subroutine obs_set(obsdat, index, &
