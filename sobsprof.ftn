@@ -184,7 +184,7 @@ C                    of the trial field
                         ZPT = GOMGZHR(NLEVTRL-1,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. '
-     &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
+     &                          ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV
      &                          ,GOMGZHR(NLEVTRL,JOBS)/RG,
      &                          GOMGZHR(NLEVTRL-1,JOBS)/RG,ZDIFALT
                         ENDIF
@@ -195,7 +195,7 @@ C                    of the trial field
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '
-     &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON
+     &                          ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON
      &                          ,ZLEV,GOMGZHR(NLEVTRL-1,JOBS)/RG,ZPT
      &                          ,JDATA,ZPB,ZDIFALT
                         ENDIF
@@ -210,7 +210,7 @@ C                    of the trial field
                            WRITE(NULOUT,*) '%PR REJ SBL ITYP,DALT '
      &                          ,ITYP,ZDIFALT
                            WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '
-     &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
+     &                          ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV
      &                          ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
                         call obs_set(obsSpaceData,JDATA,val_ASS=0)

@@ -134,12 +134,12 @@ cjmb     (Same modification in VOBSLYRS or previously VLAYERS)
 ccc                        call obs_set(obsSpaceData,JDATA,val_PPP8=GOMPSHR(1,JOBS))
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) ' Keep OBS below sfc ',jobs,ITYP
-     &                        ,obsSpaceData%CSTNID(JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+     &                        ,obs_elem_c9(obsSpaceData,'STID',JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
                      ELSE
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) 'Rej OBS below sfc  ',jobs,ITYP
-     &                        ,obsSpaceData%CSTNID(JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+     &                        ,obs_elem_c9(obsSpaceData,'STID',JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
                         call obs_set(obsSpaceData,JDATA,val_ASS=0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1

@@ -125,10 +125,10 @@ cjmb     conversion (MRBCVT)  of observed pressure.
                   call obs_set(obsSpaceData,JDATA,val_XTR=0)
                ENDIF
 ****************************************************************
-               if (LLPRINT .AND. obsSpaceData%cstnid(iobs) .eq. '72562') then
+               if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs PPP:jdata,stn,ielm,zlev,ZPT,ZPB'
-     &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obsSpaceData%cstnid(iobs)
+     &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obs_elem_c9(obsSpaceData,'STID',iobs)
      &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(obsSpaceData,'XTR ',JDATA)
      &                ,obs_elem_i(obsSpaceData,'ASS ',JDATA),CDMVO
                endif
@@ -164,10 +164,10 @@ C
                   call obs_set(obsSpaceData,JDATA,val_XTR=0)
                ENDIF
 ****************************************************************
-               if (LLPRINT .AND. obsSpaceData%cstnid(iobs) .eq. '72562') then
+               if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs ZZZ:jdata,stn,ielm,zlev,ZPT,ZPB'
-     &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obsSpaceData%cstnid(iobs)
+     &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obs_elem_c9(obsSpaceData,'STID',iobs)
      &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(obsSpaceData,'XTR ',JDATA)
      &                ,obs_elem_i(obsSpaceData,'ASS ',JDATA),CDMVO
                endif
@@ -214,11 +214,11 @@ C
                ENDIF
                call obs_set(obsSpaceData,JDATA,val_LYR= IK)
 ****************************************************************
-               if (LLPRINT .AND. obsSpaceData%cstnid(iobs) .eq. '72562') then
+               if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs PPP:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',pppobs(ik+1,),pppobs(ik,),rdata(lyr,),CDMVO '
-     &                ,jdata,iobs,obsSpaceData%cstnid(iobs),ityp,ik,zlev,ZPB,ZPT
+     &                ,jdata,iobs,obs_elem_c9(obsSpaceData,'STID',iobs),ityp,ik,zlev,ZPB,ZPT
      &                ,obs_elem_i(obsSpaceData,'LYR ',JDATA),CDMVO
                endif
 *****************************************************************
@@ -263,11 +263,11 @@ C
                ENDIF
                call obs_set(obsSpaceData,JDATA,val_LYR= IK)
 ****************************************************************
-                   if (LLPRINT .AND. obsSpaceData%cstnid(iobs) .eq. '72562') then
+                   if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
                      ZPB  = GOMGZHR(IK+1,IOBS)/RG
                      write(nulout,*) 'vobslyrs ZZZ:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',GZ(ik,),GZ(ik+1,),rdata(lyr,),CDMVO '
-     &                    ,jdata,iobs,obsSpaceData%cstnid(iobs),ityp,ik,zlev,ZPT,ZPB
+     &                    ,jdata,iobs,obs_elem_c9(obsSpaceData,'STID',iobs),ityp,ik,zlev,ZPT,ZPB
      &                    ,obs_elem_i(obsSpaceData,'LYR ',JDATA),CDMVO
                    endif
 *****************************************************************

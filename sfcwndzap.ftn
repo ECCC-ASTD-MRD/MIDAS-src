@@ -108,7 +108,7 @@ C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
                     ENDDO
                     IF(LLPRINT) THEN
                       WRITE(NULOUT,225) 'Rej sfc wind lnd',JOBS,ITYP
-     &                     ,obsSpaceData%CSTNID(JOBS),IDBURP
+     &                     ,obs_elem_c9(obsSpaceData,'STID',JOBS),IDBURP
      &                     ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
      &                     ,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                     ENDIF

@@ -595,7 +595,7 @@ C
                   WRITE(NULOUT,
      &               '(1X,"STNID= ",A10,"IDBURP= ",I5," LAT= ",F10.2
      &              ," LON = ",F10.2)')
-     &              obsSpaceData%CSTNID(JJO),IDBURP,ZLAT*ZTORAD,ZLON*ZTORAD
+     &              obs_elem_c9(obsSpaceData,'STID',JJO),IDBURP,ZLAT*ZTORAD,ZLON*ZTORAD
                   WRITE(NULOUT,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
      &              " OBSERR = ",E10.2)')
      &              ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),obs_elem_r8(obsSpaceData,'OER ',JDATA)

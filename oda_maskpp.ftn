@@ -90,7 +90,7 @@ C
               IDBURP    = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
 *
               WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '
-     &             ,' OBS ',obsSpaceData%CSTNID(IOBS),' TYPE ',IDBURP, ' ELM '
+     &             ,' OBS ',obs_elem_c9(obsSpaceData,'STID',IOBS),' TYPE ',IDBURP, ' ELM '
      &             , obs_elem_i(obsSpaceData,'VNM ',JDATA),' LAT ', ZLAT,  ' LON ',
      &             ZLON
             endif

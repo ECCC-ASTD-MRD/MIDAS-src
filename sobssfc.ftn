@@ -171,7 +171,7 @@ C
                        ZMODEL = GOMGZHR(NLEVTRL,JOBS)/RG
                        write(nulout,*)'Keep OBS:stnid,jobs,ityp,icrit,'
      &                      ,'zlev,zhhh,zmodel,zdiff '
-     &                      ,obsSpaceData%CSTNID(JOBS),JOBS,ITYP,ICRIT
+     &                      ,obs_elem_c9(obsSpaceData,'STID',JOBS),JOBS,ITYP,ICRIT
      &                      ,zlev,zhhh,zmodel,zdiff
                      ENDIF
                    ENDIF
@@ -181,7 +181,7 @@ C
      &                    ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                      IF(LLPRINT) THEN
                        WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP
-     &                      ,obsSpaceData%CSTNID(JOBS),IDBURP
+     &                      ,obs_elem_c9(obsSpaceData,'STID',JOBS),IDBURP
      &                      ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
                      ENDIF
                      call obs_set(obsSpaceData,JDATA,val_ASS=0)

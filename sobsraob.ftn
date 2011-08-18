@@ -187,7 +187,7 @@ C--------HEIGHT GZ
                            IGZACC(JPINEL)=IGZACC(JPINEL)+1
                            IF(LLPRINT) THEN
                               WRITE(NULOUT,*) 'Keep GZ BELOW MODEL SFC '
-     &                        ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
+     &                        ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV
      &                        ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF,ZCRIT
                            ENDIF
                         ELSE
@@ -196,7 +196,7 @@ C--------HEIGHT GZ
      &                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                               IF(LLPRINT) THEN
                                  WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '
-     &                            ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
+     &                            ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV
      &                            ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF
      &                            ,ZCRIT
                               ENDIF
@@ -251,7 +251,7 @@ C                    of the trial field
                        ZPT = RPPOBSHR(NLEVTRL-1,JOBS)
                        IF(LLPRINT) THEN
                          WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. '
-     &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
+     &                          ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV
      &                        ,GOMPSHR(1,JOBS),RPPOBSHR(NLEVTRL-1,JOBS)
      &                        ,ZDIFALT
                        ENDIF
@@ -262,7 +262,7 @@ C                    of the trial field
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '
-     &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON
+     &                          ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON
      &                          ,ZLEV,GOMPSHR(1,JOBS)
                         ENDIF
                         call obs_set(obsSpaceData,JDATA,val_ASS=0)
@@ -276,7 +276,7 @@ C                    of the trial field
                            WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT '
      &                          ,ITYP,ZDIFALT
                            WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '
-     &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
+     &                          ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV
      &                          ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
                         call obs_set(obsSpaceData,JDATA,val_ASS=0)

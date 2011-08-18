@@ -201,17 +201,17 @@ C
 C     
 C     *                    Print data for first observation or single site
                          IF (L1GPSOBS) THEN
-                           IF (obsSpaceData%CSTNID(JO) .EQ. CGPSSTN) THEN
+                           IF (obs_elem_c9(obsSpaceData,'STID',JO) .EQ. CGPSSTN) THEN
                              WRITE(NULOUT,
      +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',obsSpaceData%CSTNID(JO),ZLAT,ZLON,ZLEV,ZDZ,
+     +                    'DOBSGPSGB: ',obs_elem_c9(obsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
      +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
                            ENDIF
                          ELSE
                            IF (JO .EQ. IBEGINOB .AND. NH1 .EQ. 1) THEN
                              WRITE(NULOUT,
      +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',obsSpaceData%CSTNID(JO),ZLAT,ZLON,ZLEV,ZDZ,
+     +                    'DOBSGPSGB: ',obs_elem_c9(obsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
      +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
                            ENDIF
                          ENDIF

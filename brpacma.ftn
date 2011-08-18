@@ -856,7 +856,7 @@ c               ENDIF
                 READ(csid14,'(a4)')ISTNID14
                 READ(csid58,'(a4)')ISTNID58
                 READ(csid99,'(a1)')ISTNID99
-                obsSpaceData%CSTNID(NOBTOT)=CLSTNID
+                call obs_set(obsSpaceData,NOBTOT,val_STID=CLSTNID)
                 obsSpaceData%ROBHDR(NCM_LON,NOBTOT) = (REAL(ILON)*0.01)*ZTORAD
                 obsSpaceData%ROBHDR(NCM_LAT,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
                 obsSpaceData%ROBHDR(NCM_ALT,NOBTOT) = (REAL(IALT)-400)

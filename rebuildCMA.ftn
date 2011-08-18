@@ -106,7 +106,7 @@
         iobs=locObsTag(i) 
         ROBHDR_tmp(1:NCM_LET,i)=obsSpaceData%ROBHDR(1:NCM_LET,iobs)
         MOBHDR_tmp(1:NCM_LET,i)=obsSpaceData%MOBHDR(1:NCM_LET,iobs)
-        cstnid_tmp(i) = obsSpaceData%cstnid(iobs) 
+        cstnid_tmp(i) = obs_elem_c9(obsSpaceData,'STID',iobs) 
         cfamily_tmp(i) = obsSpaceData%cfamily(iobs) 
         IF(i== 1) THEN
            MOBHDR_tmp(NCM_RLN,1) = 1
@@ -140,7 +140,7 @@
 !
       DO i=1,nobtot
          obsSpaceData%cfamily(i)=cfamily_tmp(i) 
-         obsSpaceData%cstnid(i)=cstnid_tmp(i) 
+         call obs_set(obsSpaceData,i,val_STID=cstnid_tmp(i) )
          obsSpaceData%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
          obsSpaceData%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
       ENDDO 
