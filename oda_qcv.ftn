@@ -79,8 +79,8 @@ C
                   obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST
                   obsSpaceData%ROBDATA8(NCM_OMN,JJ) = ZPPOST
 
-                  obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=-LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.
+                  call obs_set(obsSpaceData,JDATA,val_OMI8=-LOG(ZQCARG/(ZGAMI+1.))
+     &                 /2.)
                   obsSpaceData%ROBDATA8(NCM_OMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.
 C
@@ -102,8 +102,8 @@ C
                   ZPPOST = ZGAMI/ZQCARG
                   obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST
                   obsSpaceData%ROBDATA8(NCM_OMN,JJ) = ZPPOST
-                  obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=-LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.
+                  call obs_set(obsSpaceData,JDATA,val_OMI8=-LOG(ZQCARG/(ZGAMI+1.))
+     &                 /2.)
                   obsSpaceData%ROBDATA8(NCM_OMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.
                 ENDIF
@@ -114,7 +114,7 @@ C
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
             obsSpaceData%robdata8(NCM_OMN,jdata) = zppost
-            obsSpaceData%ROBDATA8(NCM_OMI,JDATA)= - log(zqcarg/(zgami+1.))
+            call obs_set(obsSpaceData,JDATA,val_OMI8= - log(zqcarg/(zgami+1.)))
           endif
         endif
       enddo

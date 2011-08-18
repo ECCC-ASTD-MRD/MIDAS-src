@@ -131,7 +131,7 @@ cjmb     (Same modification in VOBSLYRS or previously VLAYERS)
                   IF ( ITYP .EQ. ILEM ) THEN
                      IF ( ZDIFF .LE. ICRIT) THEN
                         IKOUNTREA(J)=IKOUNTREA(J)+1
-ccc                        obsSpaceData%ROBDATA8(NCM_PPP,JDATA)=GOMPSHR(1,JOBS)
+ccc                        call obs_set(obsSpaceData,JDATA,val_PPP8=GOMPSHR(1,JOBS))
                         IF(LLPRINT) THEN
                           WRITE(NULOUT,224) ' Keep OBS below sfc ',jobs,ITYP
      &                        ,obsSpaceData%CSTNID(JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
@@ -141,10 +141,10 @@ ccc                        obsSpaceData%ROBDATA8(NCM_PPP,JDATA)=GOMPSHR(1,JOBS)
                           WRITE(NULOUT,224) 'Rej OBS below sfc  ',jobs,ITYP
      &                        ,obsSpaceData%CSTNID(JOBS),obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
-                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
+                        call obs_set(obsSpaceData,JDATA,val_FLG=
+     &                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                      ENDIF
                   ENDIF
                END DO

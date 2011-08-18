@@ -110,7 +110,7 @@ C
             ZDELPS= (GOMPS(1,IOBS)*ZCON**ZEXP)
             ZDELTV= ((GOMPSG(1,IOBS)*ZEXP*ZCON**(ZEXP-1))
      &           *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
-            obsSpaceData%ROBDATA8(NCM_OMA,JDATA)= ZDELPS+ZDELTV
+            call obs_set(obsSpaceData,JDATA,val_OMA8= ZDELPS+ZDELTV)
           ELSE
             IPT  = IK + IPOS*NFLEV
             IPB  = IPT+1
@@ -135,9 +135,9 @@ c
      &         + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON=(ZLEV/GOMPSG(1,IOBS))**ZEXPGZ
-          obsSpaceData%robdata8(NCM_OMA,jdata)=(1.-zcon)/zgamma*ZLTV
+          call obs_set(obsSpaceData,jdata,val_OMA8=(1.-zcon)/zgamma*ZLTV
      &         + RGASD*ZTVG*zcon*gomps(1,iobs)
-     &         /gompsg(1,iobs)
+     &         /gompsg(1,iobs))
         endif
       enddo
 C--------------------------------------------------------------------

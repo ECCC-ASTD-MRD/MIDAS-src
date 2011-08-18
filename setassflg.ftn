@@ -56,7 +56,7 @@ C     Process all data
 C
       DO JDATA=IBEGIN,ILAST
          IF (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)  THEN
-            obsSpaceData%MOBDATA(NCM_FLG,JDATA)=ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 12 )
+            call obs_set(obsSpaceData,JDATA,val_FLG=ibset( obsSpaceData%MOBDATA(NCM_FLG,JDATA) , 12 ))
          ENDIF
       END DO
 C

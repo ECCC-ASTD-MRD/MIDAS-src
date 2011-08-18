@@ -175,7 +175,7 @@ C
      +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
               DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      &             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-              obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+              call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
             ENDIF
           END DO
  200      CONTINUE
@@ -238,7 +238,7 @@ C
      +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
               DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      &             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-              obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+              call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
             ENDIF
           END DO
 C

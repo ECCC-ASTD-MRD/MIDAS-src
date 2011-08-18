@@ -346,7 +346,7 @@ C
         NMAXLEN = MAX( obs_elem_i(obsSpaceData,'NLV ',JJO),NMAXLEN )
         DO JDATA= IDATA, IDATEND
           IJ   = IJ+1
-          obsSpaceData%MOBDATA(NCM_OBS,IJ)= JJO
+          call obs_set(obsSpaceData,IJ,val_OBS= JJO)
           if(nobtot.eq.1) write(nulout,*) 'suprep: IJ,obsSpaceData%MOBDATA(NCM_OBS,IJ)=',IJ,obsSpaceData%MOBDATA(NCM_OBS,IJ)
         END DO
 C
@@ -355,7 +355,7 @@ C
 !
         ILA = ISRCHILA (dble(DLLAO))
         call obs_set(obsSpaceData,jjo,val_TLA=ila)
-!        obsSpaceData%MOBHDR(NCM_TLA,JJO)=ILA
+!        call obs_set(obsSpaceData,JJO,val_TLA=ILA)
       END DO
 C
  200  CONTINUE
@@ -717,10 +717,10 @@ C
             ENDIF
 C
             IF (LLOK .AND. .NOT. LLREJ) THEN
-              obsSpaceData%MOBDATA(NCM_ASS,JDATA)=1
+              call obs_set(obsSpaceData,JDATA,val_ASS=1)
               IKNT= IKNT + 1
             ELSE
-              obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+              call obs_set(obsSpaceData,JDATA,val_ASS=0)
             ENDIF
 CSMP
 CSMP     e. Filter UU, VV data close to poles FOR MAM  (June 18, 2001)
@@ -861,7 +861,7 @@ C
             ILAST=NENDTYP(J)
 
             DO JDATA= IBEGIN,ILAST
-              obsSpaceData%MOBDATA(NCM_LOBS,JDATA)=0
+              call obs_set(obsSpaceData,JDATA,val_LOBS=0)
             END DO
 C
 C  1.    RAOB LEVELS
@@ -878,8 +878,8 @@ C
      &                 . 'UA')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    obsSpaceData%MOBDATA(NCM_LOBS,JDATA)=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
-     &                   ,IZXI)
+                    call obs_set(obsSpaceData,JDATA,val_LOBS=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
+     &                   ,IZXI))
                   ENDIF
                 END DO
               END DO
@@ -899,8 +899,8 @@ C
      &                 . 'HU')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    obsSpaceData%MOBDATA(NCM_LOBS,JDATA)=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
-     &                   ,IZXI)
+                    call obs_set(obsSpaceData,JDATA,val_LOBS=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
+     &                   ,IZXI))
                   ENDIF
                 END DO
               END DO
@@ -920,8 +920,8 @@ C
      &                 . 'ST')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    obsSpaceData%MOBDATA(NCM_LOBS,JDATA)=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
-     &                   ,IZXI)
+                    call obs_set(obsSpaceData,JDATA,val_LOBS=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
+     &                   ,IZXI))
                   ENDIF
                 END DO
               END DO

@@ -256,8 +256,8 @@ c                  ENDIF
                   ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
      &                    *GOMTHR(NLEVTRL,IOBS)
                   ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
-                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA)=((GOMPSHR(1,IOBS)*ZCON**ZEXP)
-     &                    -ZVAR)/ZOER
+                  call obs_set(obsSpaceData,JDATA,val_OMA8=((GOMPSHR(1,IOBS)*ZCON**ZEXP)
+     &                    -ZVAR)/ZOER)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    ZPSGOBS = GOMPSHR(1,IOBS)*ZCON**ZEXP
@@ -445,18 +445,18 @@ c           print *,'dobssfc: zphi,gzinc, gzobs, std-dev-obs = '
 c     &                 ,ZPHI,zinc,ZVAR,ZOER
 c        ENDIF
 ***************************************************************
-                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA)=(RMTMOBS(iobs)
+                  call obs_set(obsSpaceData,JDATA,val_OMA8=(RMTMOBS(iobs)
      &                        + ZTVG/zgamma
      &                        *(1.-(zlev/gompshr(1,iobs))**zexpgz)
-     &                        - zvar)/zoer
+     &                        - zvar)/zoer)
                   DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                        *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                  obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                  call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
                   IF (NQCVAR .EQ. 0) THEN
                     DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                                 *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                    obsSpaceData%ROBDATA8(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-                    obsSpaceData%ROBDATA8(NCM_OMN,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                    call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
+                    call obs_set(obsSpaceData,JDATA,val_OMN8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
                   ELSE
                     ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
                     ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obsSpaceData%ROBDATA8(NCM_OMA,JDATA)

@@ -42,14 +42,14 @@
 *-----------------------------------------------------------------
 
       do JDATA=1,obs_num_obstotal(obsSpaceData)
-        obsSpaceData%ROBDATA(NCM_OMA,JDATA)=obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-        obsSpaceData%ROBDATA(NCM_OMI,JDATA)=obsSpaceData%ROBDATA8(NCM_OMI,JDATA)
-        obsSpaceData%ROBDATA(NCM_OMN,JDATA)=obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
-        obsSpaceData%ROBDATA(NCM_OMF,JDATA)=obsSpaceData%ROBDATA8(NCM_OMF,JDATA)
-        obsSpaceData%ROBDATA(NCM_VAR,JDATA)=obsSpaceData%ROBDATA8(NCM_VAR,JDATA)
-        obsSpaceData%ROBDATA(NCM_OER,JDATA)=obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-        obsSpaceData%ROBDATA(NCM_PPP,JDATA)=obsSpaceData%ROBDATA8(NCM_PPP,JDATA)
-        obsSpaceData%ROBDATA(NCM_PRL,JDATA)=obsSpaceData%ROBDATA8(NCM_PRL,JDATA)
+        call obs_set(obsSpaceData,JDATA,val_OMA = real(obsSpaceData%ROBDATA8(NCM_OMA,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_OMI = real(obsSpaceData%ROBDATA8(NCM_OMI,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_OMN = real(obsSpaceData%ROBDATA8(NCM_OMN,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_OMF = real(obsSpaceData%ROBDATA8(NCM_OMF,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_VAR = real(obsSpaceData%ROBDATA8(NCM_VAR,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_OER = real(obsSpaceData%ROBDATA8(NCM_OER,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_PPP = real(obsSpaceData%ROBDATA8(NCM_PPP,JDATA)))
+        call obs_set(obsSpaceData,JDATA,val_PRL = real(obsSpaceData%ROBDATA8(NCM_PRL,JDATA)))
       enddo
 
       RETURN

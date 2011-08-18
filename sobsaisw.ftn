@@ -110,10 +110,10 @@ C
                            WRITE(NULOUT,224) 'Reject OBS '
      &                       ,jobs,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
-                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
+                        call obs_set(obsSpaceData,JDATA,val_FLG=
+     &                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                      ENDIF
                   END DO
                ENDIF

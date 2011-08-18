@@ -864,7 +864,7 @@ c               ENDIF
                 call obs_setFamily(obsSpaceData,cdtype,headerIndex=nobtot)
 *
                 IF ( NOBTOT .EQ. 1) THEN
-                   obsSpaceData%MOBHDR(NCM_RLN,1)=1
+                   call obs_set(obsSpaceData,1,val_RLN=1)
                 ELSE
                    obsSpaceData%MOBHDR(NCM_RLN,NOBTOT) = obsSpaceData%MOBHDR(NCM_RLN,NOBTOT-1)
      +                              + obs_elem_i(obsSpaceData,'NLV ',NOBTOT-1)

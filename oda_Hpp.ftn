@@ -121,9 +121,9 @@ c
      &         + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON =(ZLEV/GOMPSG(1,IOBS))**ZEXP
-          obsSpaceData%robdata8(NCM_OMA,jdata)= (1.-zcon)/zgamma*ZLTV
+          call obs_set(obsSpaceData,jdata,val_OMA8= (1.-zcon)/zgamma*ZLTV
      &         + RGASD*ZTVG*zcon*gomps(1,iobs)
-     &         /gompsg(1,iobs)
+     &         /gompsg(1,iobs))
         endif
       END DO
 

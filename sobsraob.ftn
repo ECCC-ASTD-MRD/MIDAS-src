@@ -192,15 +192,15 @@ C--------HEIGHT GZ
                            ENDIF
                         ELSE
                            IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                              obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
+                              call obs_set(obsSpaceData,JDATA,val_FLG=
+     &                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                               IF(LLPRINT) THEN
                                  WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '
      &                            ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
      &                            ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF
      &                            ,ZCRIT
                               ENDIF
-                              obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+                              call obs_set(obsSpaceData,JDATA,val_ASS=0)
                               ITOTREJ(JPINEL)=ITOTREJ(JPINEL)+1
                               IGZREJ(JPINEL)=IGZREJ(JPINEL)+1
                            ENDIF
@@ -257,20 +257,20 @@ C                    of the trial field
                        ENDIF
                      ENDIF
                      IF(ZLEV .GT. ZPB ) THEN
-                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                       ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
+                        call obs_set(obsSpaceData,JDATA,val_FLG=
+     &                       ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '
      &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON
      &                          ,ZLEV,GOMPSHR(1,JOBS)
                         ENDIF
-                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
-                        obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                       ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
+                        call obs_set(obsSpaceData,JDATA,val_FLG=
+     &                       ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT '
@@ -279,7 +279,7 @@ C                    of the trial field
      &                          ,JOBS,ITYP,obsSpaceData%CSTNID(JOBS),ZLAT,ZLON,ZLEV
      &                          ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
-                        obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         ISBLREJ(IJ)=ISBLREJ(IJ)+1
                      ENDIF

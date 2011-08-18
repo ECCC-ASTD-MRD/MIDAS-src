@@ -177,14 +177,14 @@ C
                    ENDIF
                  ELSE
                    IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                     obsSpaceData%MOBDATA(NCM_FLG,JDATA)=
-     &                    ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 )
+                     call obs_set(obsSpaceData,JDATA,val_FLG=
+     &                    ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                      IF(LLPRINT) THEN
                        WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP
      &                      ,obsSpaceData%CSTNID(JOBS),IDBURP
      &                      ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
                      ENDIF
-                     obsSpaceData%MOBDATA(NCM_ASS,JDATA)=0
+                     call obs_set(obsSpaceData,JDATA,val_ASS=0)
                      IKOUNTREJ(J)=IKOUNTREJ(J)+1
                    ENDIF
                  ENDIF
