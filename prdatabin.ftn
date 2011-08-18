@@ -42,8 +42,8 @@
       do jstep = 1,nstepobs
         do jobs = 1, nobs(jstep)
           iobs = notag(jobs,jstep)
-          idatabeg   = obsSpaceData%mobhdr(NCM_RLN,iobs)
-          idatend = obsSpaceData%mobhdr(NCM_NLV,iobs) + idatabeg - 1
+          idatabeg   = obs_elem_i(obsSpaceData,'RLN ',iobs)
+          idatend = obs_elem_i(obsSpaceData,'NLV ',iobs) + idatabeg - 1
           
           do jfile = 1, nfiles
             if(nbegintyp(jfile) .gt. 0) then

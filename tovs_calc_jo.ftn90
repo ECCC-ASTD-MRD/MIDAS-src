@@ -114,7 +114,7 @@ subroutine tovs_calc_jo(pjo,llprint)
 
 !       only process radiance data (data type=[164,168,180,181,182,183,185,186]) to be assimilated?
 
-      idatyp = mod(obsSpaceData%mobhdr(NCM_ITY,jo),1000)
+      idatyp = mod(obs_elem_i(obsSpaceData,'ITY ',jo),1000)
       if ( idatyp .eq. 164 .or.  &
            idatyp .eq. 168 .or.  &
            idatyp .eq. 180 .or.  &
@@ -132,8 +132,8 @@ subroutine tovs_calc_jo(pjo,llprint)
         endif
 
         if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
-         idata   = obsSpaceData%mobhdr(NCM_RLN,jo)
-         idatend = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
+         idata   = obs_elem_i(obsSpaceData,'RLN ',jo)
+         idatend = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
             if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
@@ -168,7 +168,7 @@ subroutine tovs_calc_jo(pjo,llprint)
 
 !                 compute contribution of data with varqc
  
-                  zgami = obsSpaceData%robdata(NCM_POB,jdata)
+                  zgami = obs_elem_r4(obsSpaceData,'POB ',jdata)
                   zjon = (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
                           obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
                   zqcarg = zgami + exp(-1.0*zjon)

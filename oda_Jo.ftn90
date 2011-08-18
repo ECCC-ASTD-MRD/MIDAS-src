@@ -40,12 +40,12 @@ SUBROUTINE oda_Jo
 !!
   if(l1obs) then
     call obs_set(obsSpaceData,1,val_OMI8= &
-       (obs_elem_r8(obsSpaceData,'OMA ',1)*obsSpaceData%ROBDATA8(NCM_OMA,1))/2.)
+       (obs_elem_r8(obsSpaceData,'OMA ',1)*obs_elem_r8(obsSpaceData,'OMA ',1))/2.)
   else    
     DO JDATA=1,obs_num_obstotal(obsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           call obs_set(obsSpaceData,JDATA,val_OMI8= &
-               (obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obsSpaceData%ROBDATA8(NCM_OMA,JDATA))/2.)
+               (obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obs_elem_r8(obsSpaceData,'OMA ',JDATA))/2.)
        ENDIF
     END DO
   endif

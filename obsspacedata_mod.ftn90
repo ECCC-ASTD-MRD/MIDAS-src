@@ -352,6 +352,7 @@ MODULE obsSpaceData_mod
   case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
   ! Added for var3d
   case ('POB '); value=obsdat%robdata(NCM_POB, index)
+  case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
   case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
   case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
   case ('RER '); value=obsdat%robdata(NCM_RER, index)

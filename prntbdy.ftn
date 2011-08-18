@@ -50,8 +50,8 @@ C
 C
 C*    1. General information
 C
-      IPNT  = obsSpaceData%MOBHDR(NCM_RLN,KOBS)
-      IDATA = obsSpaceData%MOBHDR(NCM_NLV,KOBS)
+      IPNT  = obs_elem_i(obsSpaceData,'RLN ',KOBS)
+      IDATA = obs_elem_i(obsSpaceData,'NLV ',KOBS)
 C
       IF(IDATA.EQ.1) THEN
          WRITE(KULOUT,FMT=9101)IDATA,KOBS,NCM_LBO
@@ -73,14 +73,14 @@ C
          IDATA2 = JDATA -IPNT + 1
          if(obs_elem_i(obsSpaceData,'ASS ',JDATA).eq.1) then
             WRITE(KULOUT,FMT=9201) IDATA2
-     S           ,obs_elem_i(obsSpaceData,'VNM ',JDATA),ccordtyp( obsSpaceData%MOBDATA(NCM_VCO,JDATA) )
-     S           ,obsSpaceData%ROBDATA(NCM_PPP,JDATA)
-     S           ,obsSpaceData%ROBDATA(NCM_PRL,JDATA),obsSpaceData%ROBDATA(NCM_POB,JDATA)
-     S           ,obsSpaceData%ROBDATA(NCM_VAR,JDATA),obsSpaceData%ROBDATA(NCM_OMF,JDATA)
-     S           ,obsSpaceData%ROBDATA(NCM_OMA,JDATA),obsSpaceData%ROBDATA(NCM_OMI,JDATA)
-     S           ,obsSpaceData%ROBDATA(NCM_OER,JDATA)
-     S           ,obsSpaceData%ROBDATA(NCM_RER,JDATA),obsSpaceData%ROBDATA(NCM_FGE,JDATA)
-     S           ,obsSpaceData%ROBDATA(NCM_PER,JDATA),obs_elem_i(obsSpaceData,'FLG ',JDATA)
+     S           ,obs_elem_i(obsSpaceData,'VNM ',JDATA),ccordtyp( obs_elem_i(obsSpaceData,'VCO ',JDATA) )
+     S           ,obs_elem_r4(obsSpaceData,'PPP ',JDATA)
+     S           ,obs_elem_r4(obsSpaceData,'PRL ',JDATA),obs_elem_r4(obsSpaceData,'POB ',JDATA)
+     S           ,obs_elem_r4(obsSpaceData,'VAR ',JDATA),obs_elem_r4(obsSpaceData,'OMF ',JDATA)
+     S           ,obs_elem_r4(obsSpaceData,'OMA ',JDATA),obs_elem_r4(obsSpaceData,'OMI ',JDATA)
+     S           ,obs_elem_r4(obsSpaceData,'OER ',JDATA)
+     S           ,obs_elem_r4(obsSpaceData,'RER ',JDATA),obs_elem_r4(obsSpaceData,'FGE ',JDATA)
+     S           ,obs_elem_r4(obsSpaceData,'PER ',JDATA),obs_elem_i(obsSpaceData,'FLG ',JDATA)
      S           ,obs_elem_i(obsSpaceData,'ASS ',JDATA)
          end if
 C

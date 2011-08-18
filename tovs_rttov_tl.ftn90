@@ -212,8 +212,8 @@ subroutine tovs_rttov_tl
         do jn = 1, knpf
           iobs1 = iptobs(jn)
           jo = lobsno(iobs1)
-          idata    = obsSpaceData%mobhdr(NCM_RLN,jo)
-          idatend  = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
+          idata    = obs_elem_i(obsSpaceData,'RLN ',jo)
+          idatend  = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
           do jdata = idata, idatend
             if(obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1) then
               ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))

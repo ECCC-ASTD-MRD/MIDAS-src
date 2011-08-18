@@ -179,7 +179,7 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
      knpf = knpf + 1
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
 
-     ilansea = obsSpaceData%mobhdr(NCM_OFL,jo)
+     ilansea = obs_elem_i(obsSpaceData,'OFL ',jo)
      indxm = ilansea
      if (indxm .eq. 2 ) indxm = 0
      indxreg = isrcheq ( mlisreg, nregst, indxm )

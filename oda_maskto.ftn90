@@ -98,7 +98,7 @@ subroutine oda_maskto
 
            !       only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
 
-           idatyp = mod(obsSpaceData%mobhdr(NCM_ITY,jo),1000)
+           idatyp = mod(obs_elem_i(obsSpaceData,'ITY ',jo),1000)
            if ( idatyp .eq. 164 .or.  &
                 idatyp .eq. 168 .or.  &
                 idatyp .eq. 180 .or.  &
@@ -116,8 +116,8 @@ subroutine oda_maskto
               endif
 
               if (rttov_errorstatus(indxtovs) .lt. 20   ) then
-                 idata   = obsSpaceData%mobhdr(NCM_RLN,jo)
-                 idatend = obsSpaceData%mobhdr(NCM_NLV,jo) + idata - 1
+                 idata   = obs_elem_i(obsSpaceData,'RLN ',jo)
+                 idatend = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
                  isens = lsensor(indxtovs)
                  do jdata= idata, idatend
                     if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then

@@ -76,7 +76,7 @@ C
 C     Process all data within the domain of the model
 C
 c           DO JDATA=IBEGIN,ILAST
-c              IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. IFF .OR. obsSpaceData%MOBDATA(NCM_VNM,JDATA) .EQ. IDD) THEN
+c              IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. IFF .OR. obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. IDD) THEN
 c                 obsSpaceData%ROBDATA(KVAL,JDATA)=PPMIS
 c                 call obs_set(obsSpaceData,JDATA,val_FLG=-1)
 c              ENDIF

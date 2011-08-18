@@ -459,7 +459,7 @@ c        ENDIF
                     call obs_set(obsSpaceData,JDATA,val_OMN8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
                   ELSE
                     ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
-                    ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                    ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                     ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                     ZPPOST = ZGAMI/ZQCARG
                     obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
