@@ -174,8 +174,8 @@ c
        robdata8_g=0.0D0  
        DO i=1,nobtot
          iobs=locObsTag(i)
-         idata=obsSpaceData%MOBHDR_G(NCM_RLN,iobs)
-         idataend=obsSpaceData%MOBHDR_G(NCM_NLV,iobs)+idata -1 
+         idata=obs_elem_i(obsSpaceData,'RLN ',iobs)
+         idataend=obs_elem_i(obsSpaceData,'NLV ',iobs)+idata -1 
          DO j=idata,idataend
            ii=ii+1
            robdata8_g(j)=obs_elem_r8(obsSpaceData,'OMI ',ii)

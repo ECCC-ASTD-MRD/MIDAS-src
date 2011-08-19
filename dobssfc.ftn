@@ -316,8 +316,8 @@ c                         ENDIF
                         IF (NQCVAR .EQ. 0) THEN
                            DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      1                           obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                           call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
-                           call obs_set(obsSpaceData,JDATA,val_OMI8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
+                           call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+                           call obs_set(obsSpaceData,JDATA,val_OMI8= obs_elem_r8(obsSpaceData,'OMA ',JDATA))
                         ELSE
 C
 C                 CONTRIBUTION TO Jo WITH QCVAR
@@ -393,7 +393,7 @@ C
      1                             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                               ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                               ZPPOST = ZGAMI/ZQCARG
-                              call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                              call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      1                                            *(1. - ZPPOST))
                               DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
                            ENDIF
@@ -451,18 +451,18 @@ c        ENDIF
      &                        - zvar)/zoer)
                   DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                        *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                  call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
+                  call obs_set(obsSpaceData,JDATA,val_OMI8=obs_elem_r8(obsSpaceData,'OMA ',JDATA))
                   IF (NQCVAR .EQ. 0) THEN
                     DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                                 *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                    call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
-                    call obs_set(obsSpaceData,JDATA,val_OMN8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
+                    call obs_set(obsSpaceData,JDATA,val_OMI8=obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+                    call obs_set(obsSpaceData,JDATA,val_OMN8=obs_elem_r8(obsSpaceData,'OMA ',JDATA))
                   ELSE
                     ZGAMI = obs_elem_r4(obsSpaceData,'POB ',JDATA)
                     ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                     ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                     ZPPOST = ZGAMI/ZQCARG
-                    call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                    call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      1                                      *(1. - ZPPOST))
                     DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
                   ENDIF

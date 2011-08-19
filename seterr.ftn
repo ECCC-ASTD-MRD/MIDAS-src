@@ -269,7 +269,7 @@ ccc     &           ,XOSTDEV(ILEM,ILVL,ILAT1),XOSTDEV(ILEM,ILVL,ILAT2)
 ccc debug fin
                   ENDIF
                   IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
-                    call obs_set(obsSpaceData,JDATA,val_OER8= obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+                    call obs_set(obsSpaceData,JDATA,val_OER8= obs_elem_r8(obsSpaceData,'OER ',JDATA)
      +                                       *SQRT(1.8D0))
                   ENDIF
 C
@@ -638,7 +638,7 @@ C             statistics SD(O-P)
               ENDIF
             ENDIF
 C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D-VAR)
-            IF (LLZTD) call obs_set(obsSpaceData,IZTDJ,val_OER8= obsSpaceData%ROBDATA8(NCM_OER,IZTDJ)*YZDERRWGT)
+            IF (LLZTD) call obs_set(obsSpaceData,IZTDJ,val_OER8= obs_elem_r8(obsSpaceData,'OER ',IZTDJ)*YZDERRWGT)
          ENDIF
 C     end of JJO loop over locations (obs)
       END DO

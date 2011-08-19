@@ -157,7 +157,7 @@ subroutine tovs_calc_jo(pjo,llprint)
 
                zoer = obs_elem_r8(obsSpaceData,'OER ',jdata)
                call obs_set(obsSpaceData,jdata,val_OMA8= zdtb/zoer)
-               call obs_set(obsSpaceData,jdata,val_OMI8= obsSpaceData%robdata8(NCM_OMA,jdata))
+               call obs_set(obsSpaceData,jdata,val_OMI8= obs_elem_r8(obsSpaceData,'OMA ',jdata))
                if (.not. lvarqc) then
                   dlsum = dlsum &
                        + (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &

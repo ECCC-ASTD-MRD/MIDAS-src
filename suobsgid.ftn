@@ -151,7 +151,7 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
           do jdata = idata, idatend
             call obs_set(obsSpaceData,JDATA,val_ASS= 0)
           enddo
-          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obsSpaceData%mobhdr(NCM_ST1,jobs) , 05))
+          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 

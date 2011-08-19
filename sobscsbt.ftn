@@ -106,7 +106,7 @@ C
                    ENDIF
                    call obs_set(obsSpaceData,JDATA,val_ASS=0)
                    IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                   call obs_set(obsSpaceData,JDATA,val_FLG=IBSET(obsSpaceData%MOBDATA(NCM_FLG,JDATA),18))
+                   call obs_set(obsSpaceData,JDATA,val_FLG=IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),18))
                  ENDIF
                END DO
              ENDIF

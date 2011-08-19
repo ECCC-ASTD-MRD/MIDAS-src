@@ -347,7 +347,7 @@ C
         DO JDATA= IDATA, IDATEND
           IJ   = IJ+1
           call obs_set(obsSpaceData,IJ,val_OBS= JJO)
-          if(nobtot.eq.1) write(nulout,*) 'suprep: IJ,obsSpaceData%MOBDATA(NCM_OBS,IJ)=',IJ,obsSpaceData%MOBDATA(NCM_OBS,IJ)
+          if(nobtot.eq.1) write(nulout,*) "suprep: IJ,obs_elem_i(obsSpaceData,'OBS ',IJ)=",IJ,obs_elem_i(obsSpaceData,'OBS ',IJ)
         END DO
 C
         dllao=obs_elem_r4(obsSpaceData,'LAT ',jjo)
@@ -872,13 +872,13 @@ C
                 DO JDATA= IBEGIN,ILAST
                   IZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IDATYP=obsSpaceData%MOBHDR (NCM_OTP,IOBS)
+                  IDATYP=obs_elem_i(obsSpaceData,'OTP ',IOBS)
                   CLFAM =CFAMTYP(IDATYP)
                   LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'UA')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set(obsSpaceData,JDATA,val_LOBS=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
+                    call obs_set(obsSpaceData,JDATA,val_LOBS=obs_elem_i(obsSpaceData,'LOBS',JDATA)+MAX(0
      &                   ,IZXI))
                   ENDIF
                 END DO
@@ -893,13 +893,13 @@ C
                 DO JDATA= IBEGIN,ILAST
                   IZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IDATYP=obsSpaceData%MOBHDR (NCM_OTP,IOBS)
+                  IDATYP=obs_elem_i(obsSpaceData,'OTP ',IOBS)
                   CLFAM =CFAMTYP(IDATYP)
                   LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'HU')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set(obsSpaceData,JDATA,val_LOBS=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
+                    call obs_set(obsSpaceData,JDATA,val_LOBS=obs_elem_i(obsSpaceData,'LOBS',JDATA)+MAX(0
      &                   ,IZXI))
                   ENDIF
                 END DO
@@ -914,13 +914,13 @@ C
                 DO JDATA= IBEGIN,ILAST
                   IZLEV =  ANINT( obs_elem_r8(obsSpaceData,'PPP ',JDATA) )
                   IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IDATYP=obsSpaceData%MOBHDR (NCM_OTP,IOBS)
+                  IDATYP=obs_elem_i(obsSpaceData,'OTP ',IOBS)
                   CLFAM =CFAMTYP(IDATYP)
                   LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'ST')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set(obsSpaceData,JDATA,val_LOBS=obsSpaceData%MOBDATA(NCM_LOBS,JDATA)+MAX(0
+                    call obs_set(obsSpaceData,JDATA,val_LOBS=obs_elem_i(obsSpaceData,'LOBS',JDATA)+MAX(0
      &                   ,IZXI))
                   ENDIF
                 END DO

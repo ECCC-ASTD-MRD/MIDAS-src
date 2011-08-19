@@ -116,7 +116,7 @@ C
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
             ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-c            call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.
      &           ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
@@ -161,7 +161,7 @@ c
             zcon = (zlev/gompsg(1,iobs))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
-c            call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
             gomps(1,iobs)    = gomps(1,iobs)
      &           + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)

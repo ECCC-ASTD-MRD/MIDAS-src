@@ -84,7 +84,7 @@ C
 
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
-c            call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 C
             GOMGZ(IK+1,IOBS) = GOMGZ(IK+1,IOBS) +

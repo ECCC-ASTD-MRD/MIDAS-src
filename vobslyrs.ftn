@@ -299,7 +299,7 @@ C
                             IF( ZLEV .GT. ZPT ) IK = JK
                           END DO
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_LYR= obsSpaceData%MOBDATA(NCM_LYR,JDATA)
+                        call obs_set(obsSpaceData,JDATA,val_LYR= obs_elem_i(obsSpaceData,'LYR ',JDATA)
      &                       + 1000 * IK)
                      ENDIF
 ****************************************************************

@@ -867,7 +867,7 @@ c               ENDIF
                    call obs_set(obsSpaceData,1,val_RLN=1)
                 ELSE
                    call obs_set(obsSpaceData,NOBTOT,val_RLN= 
-     +                         obsSpaceData%MOBHDR(NCM_RLN,NOBTOT-1)
+     +                         obs_elem_i(obsSpaceData,'RLN ',NOBTOT-1)
      +                       + obs_elem_i(obsSpaceData,'NLV ',NOBTOT-1))
                 ENDIF
 *

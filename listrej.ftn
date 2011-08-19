@@ -440,7 +440,7 @@
 *_________NOW SET THE GLOBAL FLAGS IN THE BURP RECORD HEADER
 *
               IF (LLELREJ) THEN
-                call obs_set(obsSpaceData,JREP,val_ST1= IBSET( obsSpaceData%MOBHDR(NCM_ST1,JREP) , 06))
+                call obs_set(obsSpaceData,JREP,val_ST1= IBSET( obs_elem_i(obsSpaceData,'ST1 ',JREP), 06))
               ENDIF
  10         CONTINUE
           ENDIF

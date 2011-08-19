@@ -101,7 +101,8 @@ c        ISTEPSTAMP = nstamplist(1)
         enddo step
 
         if (.not. lltimein) then
-          ntimeout(obsSpaceData%mobhdr(NCM_OTP,jobs))=ntimeout(obsSpaceData%mobhdr(NCM_OTP,jobs))+1
+          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=
+     &                 ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
           write(nulout,*) 'Report time for obs no. ',jobs
      &         ,' out of range : ', obs_elem_i(obsSpaceData,'DAT ',jobs),
      &         obs_elem_i(obsSpaceData,'ETM ',jobs)
@@ -118,7 +119,7 @@ c        ISTEPSTAMP = nstamplist(1)
           do jdata = idata, idatend
             call obs_set(obsSpaceData,JDATA,val_ASS= 0)
           enddo
-          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obsSpaceData%mobhdr(NCM_ST1,jobs) , 05))
+          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 
