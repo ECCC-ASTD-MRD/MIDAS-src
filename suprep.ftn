@@ -331,9 +331,9 @@ C     For MAM the wind observations are removed.
         DO JO  = 1, NOBTOT
           ZLAT    = obs_elem_r4(obsSpaceData,'LAT ',JO)
           IF(ZLAT .GT. gst_getRLATI(1)) THEN
-            obsSpaceData%ROBHDR(NCM_LAT,JO) = gst_getRLATI(1)
+            call obs_set(obsSpaceData,JO,val_LAT= real(gst_getRLATI(1)))
           ELSEIF(ZLAT .LT. gst_getRLATI(NJ)) THEN
-            obsSpaceData%ROBHDR(NCM_LAT,JO) = gst_getRLATI(NJ)
+            call obs_set(obsSpaceData,JO,val_LAT= real(gst_getRLATI(NJ)))
           ENDIF
         END DO
       ENDIF
@@ -735,7 +735,7 @@ CSMP
               IF(ZLAT .GT. gst_getRLATI(1) .or. ZLAT .LT. gst_getRLATI(NJ)) THEN
                 IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV ) THEN
                   write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
-                  obsSpaceData%MOBDATA(NCM_ASS,JDATA) = 0
+                  call obs_set(obsSpaceData,JDATA,val_ASS= 0)
                 ENDIF
               ENDIF
  98           format(1x,'SUPREP REMOVED: IOBS,ZLAT,ZLON,ZLEV,ZVAR= '
@@ -833,21 +833,21 @@ C
       DO JDATA=1,obs_num_obstotal(obsSpaceData)
         ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
         IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-        IF ( ITYP .EQ. BUFR_NEUU) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nouu - 1
-        IF ( ITYP .EQ. BUFR_NEVV) obsSpaceData%MOBDATA(NCM_POS,JDATA) = novv - 1
-        IF ( ITYP .EQ. BUFR_NETT) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nott - 1
-        IF ( ITYP .EQ. BUFR_NEDZ) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nogz - 1
-        IF ( ITYP .EQ. BUFR_NEES) obsSpaceData%MOBDATA(NCM_POS,JDATA) = noes - 1
-        IF ( ITYP .EQ. BUFR_NEHU) obsSpaceData%MOBDATA(NCM_POS,JDATA) = noq  - 1
-        IF ( ITYP .EQ. BUFR_NEGZ) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nogz - 1
-        IF ( ITYP .EQ. BUFR_NEOZ) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nooz - 1
-        IF ( ITYP .EQ. BUFR_NEUS) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nouu - 1
-        IF ( ITYP .EQ. BUFR_NEVS) obsSpaceData%MOBDATA(NCM_POS,JDATA) = novv - 1
-        IF ( ITYP .EQ. BUFR_NETS) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nott - 1
-        IF ( ITYP .EQ. BUFR_NESS) obsSpaceData%MOBDATA(NCM_POS,JDATA) = noes - 1
-        IF ( ITYP .EQ. BUFR_NEHS) obsSpaceData%MOBDATA(NCM_POS,JDATA) = noq  - 1
-        IF ( ITYP .EQ. BUFR_NEPS) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nops - 1
-        IF ( ITYP .EQ. BUFR_NEPN) obsSpaceData%MOBDATA(NCM_POS,JDATA) = nops - 1
+        IF ( ITYP .EQ. BUFR_NEUU) call obs_set(obsSpaceData,JDATA,val_POS= nouu - 1)
+        IF ( ITYP .EQ. BUFR_NEVV) call obs_set(obsSpaceData,JDATA,val_POS= novv - 1)
+        IF ( ITYP .EQ. BUFR_NETT) call obs_set(obsSpaceData,JDATA,val_POS= nott - 1)
+        IF ( ITYP .EQ. BUFR_NEDZ) call obs_set(obsSpaceData,JDATA,val_POS= nogz - 1)
+        IF ( ITYP .EQ. BUFR_NEES) call obs_set(obsSpaceData,JDATA,val_POS= noes - 1)
+        IF ( ITYP .EQ. BUFR_NEHU) call obs_set(obsSpaceData,JDATA,val_POS= noq  - 1)
+        IF ( ITYP .EQ. BUFR_NEGZ) call obs_set(obsSpaceData,JDATA,val_POS= nogz - 1)
+        IF ( ITYP .EQ. BUFR_NEOZ) call obs_set(obsSpaceData,JDATA,val_POS= nooz - 1)
+        IF ( ITYP .EQ. BUFR_NEUS) call obs_set(obsSpaceData,JDATA,val_POS= nouu - 1)
+        IF ( ITYP .EQ. BUFR_NEVS) call obs_set(obsSpaceData,JDATA,val_POS= novv - 1)
+        IF ( ITYP .EQ. BUFR_NETS) call obs_set(obsSpaceData,JDATA,val_POS= nott - 1)
+        IF ( ITYP .EQ. BUFR_NESS) call obs_set(obsSpaceData,JDATA,val_POS= noes - 1)
+        IF ( ITYP .EQ. BUFR_NEHS) call obs_set(obsSpaceData,JDATA,val_POS= noq  - 1)
+        IF ( ITYP .EQ. BUFR_NEPS) call obs_set(obsSpaceData,JDATA,val_POS= nops - 1)
+        IF ( ITYP .EQ. BUFR_NEPN) call obs_set(obsSpaceData,JDATA,val_POS= nops - 1)
       END DO
  500  CONTINUE
 C-----------------------------------------------------------------------

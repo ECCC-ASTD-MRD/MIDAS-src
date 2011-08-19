@@ -106,10 +106,10 @@ C
      +         -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )
      +         /LOG(ZPB/ZPT)**2
 C
-          obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
+          call obs_set(obsSpaceData,JDATA,val_OMA8=
      +         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+
      +         (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*
-     +         ZDADPS*GOMPS(1,IOBS)
+     +         ZDADPS*GOMPS(1,IOBS))
         elseif(lmaskpp_out(jdata)) then
           IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
           IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)

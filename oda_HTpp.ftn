@@ -128,8 +128,8 @@ C
             ZPB  = RPPOBS(IK+1,IOBS)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
-c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
-c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA)
+c            call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 C
             zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)
      &           /(1.0-rptopinc/rprefinc))**rcoefinc
@@ -161,8 +161,8 @@ C
             IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
-c            obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
-c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA)
+c            call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 c
 c-------------adjoint of TL of geopotential extrapolation below
 c orography

@@ -102,7 +102,7 @@ C
             IF (obs_elem_c9(obsSpaceData,'STID',JO) .NE. CGPSSTN) THEN
 C     Loop over all observations for the location
               DO JDATA= IDATA, IDATEND
-                obsSpaceData%MOBDATA(NCM_ASS,JDATA) = 0
+                call obs_set(obsSpaceData,JDATA,val_ASS= 0)
               ENDDO
             ELSE
               WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 

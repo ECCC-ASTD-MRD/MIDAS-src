@@ -133,7 +133,8 @@
         enddo step
 
         if (.not. lltimein) then
-          ntimeout(obsSpaceData%mobhdr(NCM_OTP,jobs))=ntimeout(obsSpaceData%mobhdr(NCM_OTP,jobs))+1
+          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=
+     &                  ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
 C          write(nulout,*) 'Report time for obs no. ',jobs
 C     &         ,' out of range : ', obs_elem_i(obsSpaceData,'DAT ',jobs),
 C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
@@ -148,7 +149,7 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
           idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
           idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
           do jdata = idata, idatend
-            obsSpaceData%MOBDATA(NCM_ASS,JDATA) = 0
+            call obs_set(obsSpaceData,JDATA,val_ASS= 0)
           enddo
           call obs_set(obsSpaceData,jobs,val_ST1= ibset( obsSpaceData%mobhdr(NCM_ST1,jobs) , 05))
         endif

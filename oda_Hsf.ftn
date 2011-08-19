@@ -100,7 +100,7 @@ C
 
           IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.
      &         ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
-            obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =GOMOBS(IPB,IOBS)
+            call obs_set(obsSpaceData,JDATA,val_OMA8=GOMOBS(IPB,IOBS))
           ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
             ZLTV  = OLTV(1,NFLEV,IOBS)*GOMT(NFLEV,IOBS)
      &           + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
@@ -118,9 +118,9 @@ C
             ZPB  = GOMGZG(IK+1,IOBS)
             ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
             ZWT  = 1. - ZWB
-            obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
+            call obs_set(obsSpaceData,JDATA,val_OMA8=
      +           ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+
-     +           (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))
+     +           (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS)))
           ENDIF
         elseif(lmasksf_out(jdata)) then
           IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)

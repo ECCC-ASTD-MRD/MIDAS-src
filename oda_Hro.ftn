@@ -223,7 +223,7 @@ c profile):
 C
 C     *                    Store in CMA
 C
-                    obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = ZMHXL
+                    call obs_set(obsSpaceData,JDATA,val_OMA8= ZMHXL)
 
                   ENDIF
                 ENDDO

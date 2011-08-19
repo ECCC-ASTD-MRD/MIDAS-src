@@ -133,15 +133,15 @@ C
      &                  obsSpaceData%ROBDATA(KVAL,JJOBS)=obsSpaceData%ROBDATA(KVAL,JJOBS)+360.0D0
                         obsSpaceData%ROBDATA(KVAL,JJOBS)=-1.0D0*obsSpaceData%ROBDATA(KVAL,JJOBS)*PI/180.0D0
                         call obs_set(obsSpaceData,JJOBS,val_OER=1.0)
-                        obsSpaceData%MOBDATA(NCM_ASS,JJOBS) = 1
-                        obsSpaceData%MOBDATA(NCM_FLG,JJOBS) = 0
+                        call obs_set(obsSpaceData,JJOBS,val_ASS= 1)
+                        call obs_set(obsSpaceData,JJOBS,val_FLG= 0)
                      ENDIF
                      IF ((obs_elem_i(obsSpaceData,'VNM ',JJOBS).EQ.IFF)
      &               .AND. obs_elem_r4(obsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
                         obsSpaceData%ROBDATA(KVAL,JJOBS)=MODUL - obsSpaceData%ROBDATA(NCM_VAR,JJOBS)
                         call obs_set(obsSpaceData,JJOBS,val_OER=1.0)
-                        obsSpaceData%MOBDATA(NCM_ASS,JJOBS) = 1
-                        obsSpaceData%MOBDATA(NCM_FLG,JJOBS) = 0
+                        call obs_set(obsSpaceData,JJOBS,val_ASS= 1)
+                        call obs_set(obsSpaceData,JJOBS,val_FLG= 0)
                      ENDIF
                   END DO
                ENDIF

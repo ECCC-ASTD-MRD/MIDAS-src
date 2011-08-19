@@ -181,7 +181,7 @@ C
       DO J = 1, NGOES
         DO I = 1, JPNB
           IF (MDATA(I,J) .NE. 0 ) THEN
-            obsSpaceData%ROBDATA8(NCM_OMA,MDATA(I,J)) = PTBTL(I,J)
+            call obs_set(obsSpaceData,MDATA(I,J),val_OMA8= PTBTL(I,J))
           ENDIF
         ENDDO
       ENDDO

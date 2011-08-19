@@ -74,10 +74,10 @@ C
           ZDA1= (ZLEV-ZPB)/(ZDENO**2)
           ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
-          obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
+          call obs_set(obsSpaceData,JDATA,val_OMA8=
      &         ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS) +
      &         (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))*
-     &         (ZDA1*GOMGZ(IK,IOBS)/RG + ZDA2*GOMGZ(IK+1,IOBS)/RG)
+     &         (ZDA1*GOMGZ(IK,IOBS)/RG + ZDA2*GOMGZ(IK+1,IOBS)/RG))
         ENDIF
       END DO
       RETURN

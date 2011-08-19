@@ -156,14 +156,14 @@ subroutine tovs_calc_jo(pjo,llprint)
                endif
 
                zoer = obs_elem_r8(obsSpaceData,'OER ',jdata)
-               obsSpaceData%robdata8(NCM_OMA,jdata) = zdtb/zoer
-               obsSpaceData%robdata8(NCM_OMI,jdata) = obsSpaceData%robdata8(NCM_OMA,jdata)
+               call obs_set(obsSpaceData,jdata,val_OMA8= zdtb/zoer)
+               call obs_set(obsSpaceData,jdata,val_OMI8= obsSpaceData%robdata8(NCM_OMA,jdata))
                if (.not. lvarqc) then
                   dlsum = dlsum &
                        + (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
                           obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
-                  obsSpaceData%robdata8(NCM_OMN,jdata) = &
-                              obs_elem_r8(obsSpaceData,'OMA ',jdata)
+                  call obs_set(obsSpaceData,jdata,val_OMN8= &
+                              obs_elem_r8(obsSpaceData,'OMA ',jdata))
                else
 
 !                 compute contribution of data with varqc
@@ -173,8 +173,8 @@ subroutine tovs_calc_jo(pjo,llprint)
                           obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
                   zqcarg = zgami + exp(-1.0*zjon)
                   zpost = zgami/zqcarg
-                  obsSpaceData%robdata8(NCM_OMN,jdata) = &
-                  obs_elem_r8(obsSpaceData,'OMA ',jdata)*(1. - zpost)
+                  call obs_set(obsSpaceData,jdata,val_OMN8= &
+                             obs_elem_r8(obsSpaceData,'OMA ',jdata)*(1. - zpost))
                   dlsum= dlsum - log(zqcarg/(zgami+1.))
                endif
                inobsjo = inobsjo + 1

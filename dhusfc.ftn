@@ -121,8 +121,8 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
 c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = (GOMQHR(NLEVTRL,IOBS)-ZVAR)
-     +                 / ZOER
+                  call obs_set(obsSpaceData,JDATA,val_OMA8= (GOMQHR(NLEVTRL,IOBS)-ZVAR)
+     +                 / ZOER)
 
                   IF ( LLPRINT ) THEN
                     write(nulout,*)' -------------------------'

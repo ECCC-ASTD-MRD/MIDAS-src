@@ -234,8 +234,8 @@ C
 C     *                    Normalized increment
 C
                     ZINC = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-c                    obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
-c     &                   * obs_elem_r8(obsSpaceData,'OMA ',JDATA)
+c                    call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMN,JDATA)
+c     &                   * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 C
 C                          O-F Tested criteria:
 C

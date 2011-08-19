@@ -269,8 +269,8 @@ ccc     &           ,XOSTDEV(ILEM,ILVL,ILAT1),XOSTDEV(ILEM,ILVL,ILAT2)
 ccc debug fin
                   ENDIF
                   IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
-                    obsSpaceData%ROBDATA8(NCM_OER,JDATA) = obsSpaceData%ROBDATA8(NCM_OER,JDATA)
-     +                                       *SQRT(1.8D0)
+                    call obs_set(obsSpaceData,JDATA,val_OER8= obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+     +                                       *SQRT(1.8D0))
                   ENDIF
 C
 C***********************************************************************
@@ -292,8 +292,8 @@ C
                         IF ( IPLATFORM .EQ. PLATFORM  (JN) .AND.
      &                       ISAT      .EQ. SATELLITE (JN) .AND.
      &                       INSTRUM   .EQ. INSTRUMENT(JN)      ) THEN
-                           obsSpaceData%ROBDATA8(NCM_OER,JDATA) =
-     S                         TOVERRST(ICHN,INDXCLD,INDXREG,JN)
+                           call obs_set(obsSpaceData,JDATA,val_OER8=
+     S                         TOVERRST(ICHN,INDXCLD,INDXREG,JN))
 
                         ENDIF
                      ENDDO
@@ -318,8 +318,8 @@ C
                      ISATNO  = IPLATF - 244
 C
                      INDXSAT = ISRCHEQ(NIDSATGO,NSATGO,ISATNO)
-                     obsSpaceData%ROBDATA8(NCM_OER,JDATA) =
-     S                   GOERRST(ICHN,INDXCLD,INDXREG,INDXSAT)
+                     call obs_set(obsSpaceData,JDATA,val_OER8=
+     S                   GOERRST(ICHN,INDXCLD,INDXREG,INDXSAT))
                   ENDIF
 C
 C***********************************************************************
@@ -332,10 +332,10 @@ C     *              Process only refractivity data (codtyp 169)
 C
                   IF ( MOD(obs_elem_i(obsSpaceData,'ITY ',JJO),1000) .EQ. 169 ) THEN
                      IF ( ITYP .EQ. BUFR_NEPS ) THEN
-                        obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 50.
+                        call obs_set(obsSpaceData,JDATA,val_OER8= 50.D0)
                      ENDIF
                      IF ( ITYP .EQ. BUFR_NETT) THEN
-                        obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 10.
+                        call obs_set(obsSpaceData,JDATA,val_OER8= 10.D0)
                      ENDIF
                      IF ( ITYP .EQ. BUFR_NERF) THEN
 C     
@@ -353,8 +353,8 @@ cc                        ENDIF
 C     
 C     *                 Observation error    S
 C     
-cc                        obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 0.05 * NAPP
-                        obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 1001.
+cc                        call obs_set(obsSpaceData,JDATA,val_OER8= 0.05 * NAPP)
+                        call obs_set(obsSpaceData,JDATA,val_OER8=1001.D0)
                      ENDIF
                   ENDIF
 C
@@ -370,25 +370,25 @@ C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'GP' ) THEN
 C*                Psfc Error (Pa)
                   IF ( ITYP .EQ. BUFR_NEPS ) THEN
-                     obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 75. * YSFERRWGT
+                     call obs_set(obsSpaceData,JDATA,val_OER8= 75.D0 *  YSFERRWGT)
                   ENDIF
 C*                Tsfc Error (K)
                   IF ( ITYP .EQ. BUFR_NETS ) THEN
-                     obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 2.0 * YSFERRWGT
+                     call obs_set(obsSpaceData,JDATA,val_OER8= 2.0D0 * YSFERRWGT)
                   ENDIF
 C*                T-Td Error (K)
                   IF ( ITYP .EQ. BUFR_NESS ) THEN
-                     obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 3.0 * YSFERRWGT
+                     call obs_set(obsSpaceData,JDATA,val_OER8= 3.0D0 * YSFERRWGT)
                   ENDIF
 C*                ZTD Error Error (DUMMY VALUE so 3DVar won't abort)
                   IF ( ITYP .EQ. BUFR_NEFE ) THEN
-                     obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 0.001
+                     call obs_set(obsSpaceData,JDATA,val_OER8= 0.001D0)
                      LLFER = .TRUE.
                      ZTDERR = ZVAL
                   ENDIF
 C*                ZTD Error
                   IF ( ITYP .EQ. BUFR_NEZD ) THEN
-                     IF ( LLCZTDE) obsSpaceData%ROBDATA8(NCM_OER,JDATA) = YZTDERR
+                     IF ( LLCZTDE) call obs_set(obsSpaceData,JDATA,val_OER8=dble(YZTDERR))
                      ZZTD = ZVAL
                      IZTDJ = JDATA
                      LLZTD = .TRUE.
@@ -607,7 +607,7 @@ c  set artificial obs errors for ln q.
               IF ( CFAMTYP(IDATYP) .EQ. 'UA'  .AND.
      &             ( ITYP          .EQ. BUFR_NEHU  .OR.
      &               ITYP          .EQ. BUFR_NEHS ) ) THEN
-                 obsSpaceData%ROBDATA8(NCM_OER,JDATA) = 888.0
+                 call obs_set(obsSpaceData,JDATA,val_OER8= 888.0d0)
               ENDIF
 C           end of assim=1 or GP family IF
             ENDIF
@@ -627,18 +627,18 @@ C             statistics SD(O-P)
               ZMINZDE = Z3*ZZTD**3 + Z2*ZZTD**2 + Z1*ZZTD + ZC
               ZMINZDE = ZMINZDE * ZOPEFAC * 0.001
                 IF (LLRZTDE) THEN
-                  obsSpaceData%ROBDATA8(NCM_OER,IZTDJ) = MAX(ZZDERMIN, ZMINZDE)
+                  call obs_set(obsSpaceData,IZTDJ,val_OER8= MAX(ZZDERMIN, ZMINZDE))
                 ELSE
                   IF (LLFER) THEN
-                    obsSpaceData%ROBDATA8(NCM_OER,IZTDJ) = MAX(ZZDERMIN, ZTDERR*ZTDERFAC)
+                    call obs_set(obsSpaceData,IZTDJ,val_OER8= MAX(ZZDERMIN, ZTDERR*ZTDERFAC))
                   ELSE
-                    obsSpaceData%ROBDATA8(NCM_OER,IZTDJ) = MAX(ZZDERMIN, ZMINZDE)
+                    call obs_set(obsSpaceData,IZTDJ,val_OER8= MAX(ZZDERMIN, ZMINZDE))
                   ENDIF
                 ENDIF
               ENDIF
             ENDIF
 C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D-VAR)
-            IF (LLZTD) obsSpaceData%ROBDATA8(NCM_OER,IZTDJ) = obsSpaceData%ROBDATA8(NCM_OER,IZTDJ)*YZDERRWGT
+            IF (LLZTD) call obs_set(obsSpaceData,IZTDJ,val_OER8= obsSpaceData%ROBDATA8(NCM_OER,IZTDJ)*YZDERRWGT)
          ENDIF
 C     end of JJO loop over locations (obs)
       END DO

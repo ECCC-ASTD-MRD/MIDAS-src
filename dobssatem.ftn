@@ -171,8 +171,8 @@ C
 C
 C                 CONTRIBUTION TO Jo
 C
-              obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
-     +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
+              call obs_set(obsSpaceData,JDATA,val_OMA8=
+     +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER)
               DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      &             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
               call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
@@ -234,8 +234,8 @@ C
 C
 C                 CONTRIBUTION TO Jo
 C
-              obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =
-     +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER
+              call obs_set(obsSpaceData,JDATA,val_OMA8=
+     +             ( (ZPHIT - ZPHIB)/GRAV - ZVAR )/ZOER)
               DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      &             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
               call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))

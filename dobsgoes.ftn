@@ -358,7 +358,7 @@ C
 C*                   channel to be assimilated?
                      IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.0 ) GO TO 270
 C
-                     obsSpaceData%MOBDATA(NCM_XTR,JDATA) = 0
+                     call obs_set(obsSpaceData,JDATA,val_XTR= 0)
                      INDX = ICHN + (JN-1) * JPCHGO
                      IF ( LDBGGO ) THEN
                         WRITE (NULOUT,*) ' indx,ichn,jn = ',indx,ichn,jn
@@ -389,9 +389,9 @@ c
             DO I = 1, KNCHPF
                IF (IPTDATA(I) .NE. 0 ) THEN
                   ZOER = obs_elem_r8(obsSpaceData,'OER ',IPTDATA(I))
-                  obsSpaceData%ROBDATA8(NCM_OMA,IPTDATA(I)) = ZDTB(I)/ZOER
-                  obsSpaceData%ROBDATA8(NCM_OMI,IPTDATA(I)) =
-     S                   obs_elem_r8(obsSpaceData,'OMA ',IPTDATA(I))
+                  call obs_set(obsSpaceData,IPTDATA(I),val_OMA8= ZDTB(I)/ZOER)
+                  call obs_set(obsSpaceData,IPTDATA(I),val_OMI8=
+     S                   obs_elem_r8(obsSpaceData,'OMA ',IPTDATA(I)))
                   ZDTBOM1(I) = ZDTB(I)/(ZOER*ZOER)
                   DLSUM = DLSUM
      S                    + obs_elem_r8(obsSpaceData,'OMA ',IPTDATA(I))*

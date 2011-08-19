@@ -124,8 +124,8 @@ c     &               std-dev-obs = ',zcon,ZVAR,ZOER
 c                  ENDIF
 c***************************************************************
 
-                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA) = (ZWB*GOMOBSHR(IPB,IOBS)
-     +                 + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
+                  call obs_set(obsSpaceData,JDATA,val_OMA8= (ZWB*GOMOBSHR(IPB,IOBS)
+     +                 + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER)
                   DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                 *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                   call obs_set(obsSpaceData,JDATA,val_OMI8=obsSpaceData%ROBDATA8(NCM_OMA,JDATA))

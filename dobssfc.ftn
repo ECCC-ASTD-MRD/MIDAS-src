@@ -204,9 +204,9 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
 c     &                   ,ZLEV,ZHHH,IK,IPOS,IXTR,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  obsSpaceData%ROBDATA8(NCM_OMA,JDATA) =(GOMOBSHR(IPB,IOBS)
+                  call obs_set(obsSpaceData,JDATA,val_OMA8=(GOMOBSHR(IPB,IOBS)
      +                 - ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))-ZVAR)
-     +                 / ZOER
+     +                 / ZOER)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    ZCON = (GOMOBSHR(IPB,IOBS)
@@ -316,8 +316,8 @@ c                         ENDIF
                         IF (NQCVAR .EQ. 0) THEN
                            DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      1                           obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                           obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-                           obsSpaceData%ROBDATA8(NCM_OMI,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+                           call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
+                           call obs_set(obsSpaceData,JDATA,val_OMI8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA))
                         ELSE
 C
 C                 CONTRIBUTION TO Jo WITH QCVAR
@@ -353,10 +353,10 @@ C
 C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
-                                       obsSpaceData%ROBDATA8(NCM_OMN,JDATA) =
-     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA)*(1. - ZPPOST)
-                                       obsSpaceData%ROBDATA8(NCM_OMN,JJ) =
-     1                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*(1. - ZPPOST)
+                                       call obs_set(obsSpaceData,JDATA,val_OMN8=
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA)*(1. - ZPPOST))
+                                       call obs_set(obsSpaceData,JJ,val_OMN8=
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*(1. - ZPPOST))
 C
 C     Contribution of both u and v added to the cost function at the
 C     same time (see tech. note by Andersson and Jarvinen)
@@ -377,10 +377,10 @@ C
      3                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)
                                        ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                                        ZPPOST = ZGAMI/ZQCARG
-                                       obsSpaceData%ROBDATA8(NCM_OMN,JDATA) =
-     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA)*(1. - ZPPOST)
-                                       obsSpaceData%ROBDATA8(NCM_OMN,JJ) =
-     1                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*(1. - ZPPOST)
+                                       call obs_set(obsSpaceData,JDATA,val_OMN8=
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JDATA)*(1. - ZPPOST))
+                                       call obs_set(obsSpaceData,JJ,val_OMN8=
+     1                                      obs_elem_r8(obsSpaceData,'OMA ',JJ)*(1. - ZPPOST))
                                        DLSUM=DLSUM -LOG(ZQCARG/(ZGAMI+1.))
                                     ENDIF
                                  ENDDO
@@ -393,8 +393,8 @@ C
      1                             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                               ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                               ZPPOST = ZGAMI/ZQCARG
-                              obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-     1                                            *(1. - ZPPOST)
+                              call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+     1                                            *(1. - ZPPOST))
                               DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
                            ENDIF
                         ENDIF
@@ -462,8 +462,8 @@ c        ENDIF
                     ZJON = obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                     ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                     ZPPOST = ZGAMI/ZQCARG
-                    obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
-     1                                      *(1. - ZPPOST)
+                    call obs_set(obsSpaceData,JDATA,val_OMN8= obsSpaceData%ROBDATA8(NCM_OMA,JDATA)
+     1                                      *(1. - ZPPOST))
                     DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
                   ENDIF
                ENDIF

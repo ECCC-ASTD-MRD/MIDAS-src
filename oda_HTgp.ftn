@@ -170,8 +170,8 @@ C
                  DO JDATA= IDATA, IDATEND
                     IF ( lmaskgp(JDATA) ) THEN
                        NH1 = NH1 + 1
-C                      obsSpaceData%ROBDATA8(NCM_OMI,JDATA) = grad(Jo) 
-c                                             = (H'dx - d)/sigma_o^2
+C                      call obs_set(obsSpaceData,JDATA,val_OMI8= grad(Jo) 
+c                                             = (H'dx - d)/sigma_o^2)
                        ZHX = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
 C
 C     *                Observation height (m)

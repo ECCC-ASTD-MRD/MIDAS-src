@@ -857,17 +857,18 @@ c               ENDIF
                 READ(csid58,'(a4)')ISTNID58
                 READ(csid99,'(a1)')ISTNID99
                 call obs_set(obsSpaceData,NOBTOT,val_STID=CLSTNID)
-                obsSpaceData%ROBHDR(NCM_LON,NOBTOT) = (REAL(ILON)*0.01)*ZTORAD
-                obsSpaceData%ROBHDR(NCM_LAT,NOBTOT) = (REAL(ILAT)*0.01-90.)*ZTORAD
-                obsSpaceData%ROBHDR(NCM_ALT,NOBTOT) = (REAL(IALT)-400)
-                obsSpaceData%MOBHDR(NCM_NLV,NOBTOT) = INBON
+                call obs_set(obsSpaceData,NOBTOT,val_LON= REAL((ILON*0.01)*ZTORAD))
+                call obs_set(obsSpaceData,NOBTOT,val_LAT= REAL((ILAT*0.01-90.)*ZTORAD))
+                call obs_set(obsSpaceData,NOBTOT,val_ALT= (REAL(IALT)-400))
+                call obs_set(obsSpaceData,NOBTOT,val_NLV= INBON)
                 call obs_setFamily(obsSpaceData,cdtype,headerIndex=nobtot)
 *
                 IF ( NOBTOT .EQ. 1) THEN
                    call obs_set(obsSpaceData,1,val_RLN=1)
                 ELSE
-                   obsSpaceData%MOBHDR(NCM_RLN,NOBTOT) = obsSpaceData%MOBHDR(NCM_RLN,NOBTOT-1)
-     +                              + obs_elem_i(obsSpaceData,'NLV ',NOBTOT-1)
+                   call obs_set(obsSpaceData,NOBTOT,val_RLN= 
+     +                         obsSpaceData%MOBHDR(NCM_RLN,NOBTOT-1)
+     +                       + obs_elem_i(obsSpaceData,'NLV ',NOBTOT-1))
                 ENDIF
 *
 ************************************************************************
@@ -875,20 +876,20 @@ c               ENDIF
 ************************************************************************
 *
 *
-                obsSpaceData%MOBHDR(NCM_ONM,NOBTOT) = NOBTOT
-                obsSpaceData%MOBHDR(NCM_BOX,NOBTOT) = INSTRUM + ISATZEN*10000
-                obsSpaceData%MOBHDR(NCM_OTP,NOBTOT) = NVTYP
-                obsSpaceData%MOBHDR(NCM_ITY,NOBTOT) = IDBURP+ 1000*ISAT+ 1000000*ITECH
-                obsSpaceData%MOBHDR(NCM_DAT,NOBTOT) = IDATE
-                obsSpaceData%MOBHDR(NCM_ETM,NOBTOT) = ITIME
-                obsSpaceData%MOBHDR(NCM_SID,NOBTOT) = ISTNID14
+                call obs_set(obsSpaceData,NOBTOT,val_ONM= NOBTOT)
+                call obs_set(obsSpaceData,NOBTOT,val_BOX= INSTRUM + ISATZEN*10000)
+                call obs_set(obsSpaceData,NOBTOT,val_OTP= NVTYP)
+                call obs_set(obsSpaceData,NOBTOT,val_ITY= IDBURP+ 1000*ISAT+ 1000000*ITECH)
+                call obs_set(obsSpaceData,NOBTOT,val_DAT= IDATE)
+                call obs_set(obsSpaceData,NOBTOT,val_ETM= ITIME)
+                call obs_set(obsSpaceData,NOBTOT,val_SID= ISTNID14)
                 !!bhe MOBHDR(NCM_OEC,NOBTOT) = 999
-                obsSpaceData%MOBHDR(NCM_OEC,NOBTOT) = IfamID
-                obsSpaceData%MOBHDR(NCM_OFL,NOBTOT) = IMASK
-                obsSpaceData%MOBHDR(NCM_ST1,NOBTOT) = IFLGS
-                obsSpaceData%MOBHDR(NCM_AZA,NOBTOT) = ISATAZIM
-                obsSpaceData%MOBHDR(NCM_SUN,NOBTOT) = ISUNZA
-                obsSpaceData%MOBHDR(NCM_CLF,NOBTOT) = ICLFR
+                call obs_set(obsSpaceData,NOBTOT,val_OEC= IfamID)
+                call obs_set(obsSpaceData,NOBTOT,val_OFL= IMASK)
+                call obs_set(obsSpaceData,NOBTOT,val_ST1= IFLGS)
+                call obs_set(obsSpaceData,NOBTOT,val_AZA= ISATAZIM)
+                call obs_set(obsSpaceData,NOBTOT,val_SUN= ISUNZA)
+                call obs_set(obsSpaceData,NOBTOT,val_CLF= ICLFR)
                 
                 IF (IDBURP==186) call index_cma_iasi(NOBTOT,IGQISFLAGQUAL,
      +           IGQISQUALINDEXLOC,ISUNAZIM)

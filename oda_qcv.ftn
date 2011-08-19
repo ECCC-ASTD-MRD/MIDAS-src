@@ -76,13 +76,13 @@ C
 C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
-                  obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST
-                  obsSpaceData%ROBDATA8(NCM_OMN,JJ) = ZPPOST
+                  call obs_set(obsSpaceData,JDATA,val_OMN8= ZPPOST)
+                  call obs_set(obsSpaceData,JJ,val_OMN8= ZPPOST)
 
                   call obs_set(obsSpaceData,JDATA,val_OMI8=-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  obsSpaceData%ROBDATA8(NCM_OMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.
+                  call obs_set(obsSpaceData,JJ,val_OMI8= -LOG(ZQCARG/(ZGAMI+1.))
+     &                 /2.)
 C
 C     Contribution of both u and v added to the cost function at the
 C     same time (see tech. note by Andersson and Jarvinen)
@@ -100,12 +100,12 @@ C
      &                 obs_elem_r8(obsSpaceData,'OMI ',JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
-                  obsSpaceData%ROBDATA8(NCM_OMN,JDATA) = ZPPOST
-                  obsSpaceData%ROBDATA8(NCM_OMN,JJ) = ZPPOST
+                  call obs_set(obsSpaceData,JDATA,val_OMN8= ZPPOST)
+                  call obs_set(obsSpaceData,JJ,val_OMN8= ZPPOST)
                   call obs_set(obsSpaceData,JDATA,val_OMI8=-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  obsSpaceData%ROBDATA8(NCM_OMI,JJ) = -LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.
+                  call obs_set(obsSpaceData,JJ,val_OMI8= -LOG(ZQCARG/(ZGAMI+1.))
+     &                 /2.)
                 ENDIF
               enddo
             endif
@@ -113,7 +113,7 @@ C
             zjon = obs_elem_r8(obsSpaceData,'OMI ',jdata)
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
-            obsSpaceData%robdata8(NCM_OMN,jdata) = zppost
+            call obs_set(obsSpaceData,jdata,val_OMN8= zppost)
             call obs_set(obsSpaceData,JDATA,val_OMI8= - log(zqcarg/(zgami+1.)))
           endif
         endif
