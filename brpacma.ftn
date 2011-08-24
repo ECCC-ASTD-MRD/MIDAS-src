@@ -618,11 +618,11 @@ C
                        IF (CDTYPE .EQ. 'MI' ) THEN
                           CALL CMABDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
-     +                    -1 ,ZPROF,J3D,IDBURP)
+     +                    -1 ,ZPROF,J3D,IDBURP,PPMIS)
                        ELSE
                           CALL CMABDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
-     +                    NVCORD,ZPROF,J3D,IDBURP)
+     +                    NVCORD,ZPROF,J3D,IDBURP,PPMIS)
                        ENDIF
                     ELSE
                        IF (CDTYPE .NE. 'TO') THEN
