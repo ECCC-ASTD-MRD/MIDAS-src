@@ -175,8 +175,8 @@ C     references are to ROBDATA.
 C
         IF (LVARQC) CALL LISTREJ
 C
-        CALL VINT3DFD(NCM_OMA)
-        CALL VINT3DFD(NCM_OMF)
+        CALL VINT3DFD('OMA ')
+        CALL VINT3DFD('OMF ')
         CALL SETASSFLG
         CALL FILBRPPOST
         !

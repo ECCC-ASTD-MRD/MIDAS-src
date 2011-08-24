@@ -14,15 +14,15 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
+SUBROUTINE oda_sqrtRm1(elem_dest_s,elem_src_s)
   use modmask, only : lmask,ldiag
   use obsSpaceData_mod
   ! Arguments
-  INTEGER :: kindex2 ! destination index
-  Integer :: kindex1 ! source index
+  character(len=4), intent(in)  :: elem_dest_s ! destination index
+  character(len=4), intent(in)  :: elem_src_s  ! source index
   !Purpose:
-  !Applied observation error variances to ROBDATA8(kindex1,*)
-  !and store it in ROBDATA8(kindex2,*)
+  !Applied observation error variances to ROBDATA8(k_src,*)
+  !and store it in ROBDATA8(k_dest,*)
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
@@ -38,11 +38,30 @@ SUBROUTINE oda_sqrtRm1(kindex2,kindex1)
 #include "comcva.cdk"
 
   INTEGER jdata
+  integer :: k_src, k_dest
 !
 !!
+    select case (elem_src_s)
+    case ('OMA '); k_src=NCM_OMA
+    case ('OMI '); k_src=NCM_OMI
+    case default
+       write(6,*)'Internal error in oda_sqrtRm1:  elem_src_s=', elem_src_s, &
+                 ' is not recognized'
+       call exit(2)
+    end select
+
+    select case (elem_dest_s)
+    case ('OMA '); k_dest=NCM_OMA
+    case ('OMI '); k_dest=NCM_OMI
+    case default
+       write(6,*)'Internal error in oda_sqrtRm1:  elem_dest_s=', elem_dest_s, &
+                 ' is not recognized'
+       call exit(2)
+    end select
+
     DO JDATA=1,obs_num_obstotal(obsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          obsSpaceData%ROBDATA8(KINDEX2,JDATA) =obsSpaceData%ROBDATA8(KINDEX1,JDATA)/obsSpaceData%ROBDATA8(NCM_OER,JDATA)
+          obsSpaceData%ROBDATA8(k_dest,JDATA) =obs_elem_r8(obsSpaceData,elem_src_s,JDATA)/obs_elem_r8(obsSpaceData,'OER ',JDATA)
        ENDIF
     END DO
 !

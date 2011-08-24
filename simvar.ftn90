@@ -79,7 +79,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
 
      call oda_res              ! Modify NCM_OMA : Hdx-d
      
-     call oda_sqrtRm1(NCM_OMA,NCM_OMA)  ! Modify NCM_OMA : R**-1/2*(Hdx-d)
+     call oda_sqrtRm1('OMA ','OMA ')  ! Modify NCM_OMA : R**-1/2*(Hdx-d)
      
      call oda_Jo               ! Store J in NCM_OMI : R**-1(Hdx-d)**2
      
@@ -99,7 +99,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
         IF(mpi_myid == 0) write(nulout,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
      endif
 
-     call oda_sqrtRm1(NCM_OMI,NCM_OMA)
+     call oda_sqrtRm1('OMI ','OMA ')
 
      IF (LVARQC) THEN
         call oda_qcvad

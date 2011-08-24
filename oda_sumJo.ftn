@@ -166,11 +166,8 @@ c
         INTEGER :: kdata 
         REAL*8 ,DIMENSION(kdata) :: robdata8_g 
 
-       INTEGER :: i,ii,j ,iobs,idata,idataend,ierr  
-       integer :: aaa ,bbb 
+       INTEGER :: i,ii,j ,iobs,idata,idataend,ierr 
        ii=0
-       aaa=size(obsSpaceData%MOBHDR_G,1)
-       bbb=size(obsSpaceData%MOBHDR_G,2)
        robdata8_g=0.0D0  
        DO i=1,nobtot
          iobs=locObsTag(i)

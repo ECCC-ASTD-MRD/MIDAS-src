@@ -42,7 +42,7 @@ SUBROUTINE oda_res
 !!
     DO JDATA=1,obs_num_obstotal(obsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set(obsSpaceData,JDATA,val_OMA8= obs_elem_r8(obsSpaceData,'OMA ',JDATA)-obsSpaceData%ROBDATA8(NCM_VAR,JDATA))
+          call obs_set(obsSpaceData,JDATA,val_OMA8= obs_elem_r8(obsSpaceData,'OMA ',JDATA)-obs_elem_r8(obsSpaceData,'VAR ',JDATA))
        ENDIF
     enddo
 !
