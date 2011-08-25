@@ -15,20 +15,31 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE CMABDY(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
-                        LDGO,LDAIRS,LDIASI,KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD, &
-                        KINDEX,KIDTYP,PPMIS)
+                        LDGO,LDAIRS,LDIASI,n_elements_in_block, &
+                        n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
+                        KINDEX,KIDTYP,PPMIS,nvcordtyp,vcordsf, &
+                        vcordsf_dims,vconv,nonelev)
       use obsSpaceData_mod
       IMPLICIT NONE
 !
-      INTEGER KNDAT
-      INTEGER KELE,KVAL,KNT,KVCORD,KINDEX,KIDTYP
-      INTEGER KLIST(KELE)
-      INTEGER KFLAGS(KELE,KVAL,KNT)
+      INTEGER, intent(out) :: KNDAT
+      INTEGER, intent(in)  :: n_elements_in_block,n_levels_in_block,KNT
+      INTEGER, intent(in)  :: KVCORD,KINDEX,KIDTYP
+      INTEGER, intent(in)  :: KLIST(n_elements_in_block)
+      INTEGER, intent(in)  :: KFLAGS(n_elements_in_block,n_levels_in_block,KNT)
+      integer, intent(in)  :: nvcordtyp,nonelev
+      integer, intent(in)  :: vcordsf_dims(2)
 !
-      REAL*8    PVALUES(KELE,KVAL,KNT),PVCORD(KVAL),PROFIL(KVAL)
-      REAL(8) PPMIS
+      REAL(kind=8),intent(in)::PVALUES(n_elements_in_block,n_levels_in_block,KNT)
+      REAL(kind=8),intent(in)::PVCORD(n_levels_in_block)
+      REAL(kind=8),intent(in)::PROFIL(n_levels_in_block)
+      REAL(kind=8),intent(in)::PPMIS
+      real(kind=8),intent(in)::vconv
+                                        ! vertical coordinate parameters
+                                        ! for surface data
+      real(kind=8),intent(in)::vcordsf(vcordsf_dims(1),vcordsf_dims(2))
 !
-      LOGICAL LDFLAG,LDERR,LDSAT,LDGO,LDAIRS,LDIASI
+      LOGICAL, intent(in) :: LDFLAG,LDERR,LDSAT,LDGO,LDAIRS,LDIASI
 !
 #if defined (DOC)
 !***********************************************************************
@@ -88,8 +99,8 @@
 !           -LDAIRS  :  .TRUE. --> INSERT EMISSIVITIES IN CMA (AIRS RADIANCES)
 !           -LDIASI  :  .TRUE. --> INSERT EMISSIVITIES IN CMA (IASI RADIANCES)
 !
-!           -KELE    : NUMBER OF ELEMENTS IN DATA BLOCK
-!           -KVAL    : NUMBER OF LEVELS IN DATA BLOCK
+!           -n_elements_in_block  : NUMBER OF ELEMENTS IN DATA BLOCK
+!           -n_levels_in_block    : NUMBER OF LEVELS IN DATA BLOCK
 !           -KNT     :  THIRD DIMENSION OF DATA BLOCK
 !           -KNDAT   :  THIRD DIMENSION OF DATA BLOCK
 !           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
@@ -97,22 +108,19 @@
 !           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
 !
 !    OUTPUT:
-!           -KNDAT   : AMOUNT OF DATA INSERTED IN CMA FILE
+!           -KNDAT   : NUMBER OF DATA INSERTED IN CMA FILE
 !
 !***********************************************************************
 #endif
 
-#include "comdimo.cdk"
-
-#include "cvcord.cdk"
 #include "comcst.cdk"
-#include "comfilt.cdk"
+
       INTEGER ILEM,IND,IIND,IP,IK
       INTEGER IBAD,IFLAG
-      INTEGER JI,JJ
+      INTEGER ielement,ilevel
       INTEGER ZESMAX,ZES
 !
-      REAL*8 ZTORAD,ZFACT,padd,pmul,ZEMFACT
+      REAL(kind=8) ZTORAD,ZFACT,padd,pmul,ZEMFACT,pvalue
 !
 !***********************************************************************
 !     SET BAD FLAG VALUE IIND AND UNIT CONVERSION CONSTANTS
@@ -125,10 +133,9 @@
       ZFACT=VCONV
 !
       ZEMFACT=0.01
-!
       ZESMAX=30.
 !
-      IP=obs_num_obstotal(obsSpaceData) + 1
+      IP=obsSpaceData%numobs_recorded + 1
       IND=0
 !
 !***********************************************************************
@@ -138,119 +145,96 @@
 !***********************************************************************
 !
       IK= KINDEX
-         DO JI=1,KELE
-            ILEM=obs_ifind(KLIST(JI))
-            IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
-               DO JJ=1,KVAL
-                 if(pvcord(jj) .ne. ppmis .and. (nonelev .eq. -1 .or. &
-                      nonelev .eq. nint(pvcord(jj)*zfact))) then
-                        IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
-                           IF ( IP + IND .LE. NDATAMX ) THEN
+         DO ielement=1,n_elements_in_block
+            ILEM=obs_ifind(KLIST(ielement))
+            IF ( (ILEM .GT. 0) .AND. (KLIST(ielement) .NE. KVCORD) ) THEN
+               DO ilevel=1,n_levels_in_block
+                 if(pvcord(ilevel) .ne. ppmis .and. (nonelev .eq. -1 .or. &
+                      nonelev .eq. nint(pvcord(ilevel)*zfact))) then
+                        IF  ( PVALUES (ielement,ilevel,IK) .NE. PPMIS ) THEN
+                           pvalue=PVALUES(ielement,ilevel,IK)
+                           IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
 !                                         VERTICAL COORDINATE
-                              call obs_set(obsSpaceData,IP+IND,val_PPP8=PVCORD(JJ)*ZFACT +vcordsf(ilem,kidtyp))
+                              obsSpaceData%robdata8(NCM_PPP,IP+IND)=PVCORD(ilevel)*ZFACT +vcordsf(ilem,kidtyp)
 !
 !                             FOR PNM HEIGHT IS SET TO 0
 !                             ----------------------------
                               IF ( ILEM .EQ. 53 ) THEN
-                                 call obs_set(obsSpaceData,IP+IND,val_PPP8=0.D0)
+                                 obsSpaceData%robdata8(NCM_PPP,IP+IND)=0.D0
                               ENDIF
 !                             ----------------------------
 !
-                              IF ( ILEM .EQ. 1 ) THEN
-                               padd=0.0D0
-                               pmul=1.0D0
-                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
-                              ENDIF
-!                                          CONVERT TO V
-                              IF ( ILEM .EQ. 2 ) THEN
-                               padd=0.0D0
-                               pmul=1.0D0
-                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
-                              ENDIF
+!                             IF ( ILEM .EQ. 2 ) Units:  V
 !                                          CONVERT TO GZ
                               IF ( ILEM .EQ. 3 ) THEN
-                               padd=0.0D0
-                               pmul=RG
-                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                               pvalue=RG*pvalue
                               ENDIF
-!                                        CONVERT THIKNESSES TO METERS
-                              IF ( ILEM .EQ. 4 ) THEN
-                               padd=0.0D0
-                               pmul=1.0D0
-                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
-                              ENDIF
-!                                      CONVERT TO CELSIUS
-                              IF ( ILEM .EQ. 8 ) THEN
-                               padd=0.0D0
-                               pmul=1.0D0
-                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
-                              ENDIF
+!                             IF ( ILEM .EQ. 4 ) Units: METERS
+!                             IF ( ILEM .EQ. 8 ) Units:  CELSIUS
 !                                    Max value T-Td upper air
                               IF ( ILEM .EQ. 9 ) THEN
-                               IF ( PVALUES(JI,JJ,IK) .GT. ZESMAX) THEN
-                                    PVALUES(JI,JJ,IK)=ZESMAX
+                               IF ( pvalue .GT. ZESMAX) THEN
+                                    pvalue=ZESMAX
                                ENDIF
                               ENDIF
 !                                    Max value T-Td surface
                               IF ( ILEM .EQ. 11 ) THEN
-                               IF ( PVALUES(JI,JJ,IK) .GT. ZESMAX) THEN
-                                    PVALUES(JI,JJ,IK)=ZESMAX
+                               IF ( pvalue .GT. ZESMAX) THEN
+                                    pvalue=ZESMAX
                                ENDIF
                               ENDIF
 !                                      CONVERT TO RADIANS
                               IF ( ILEM .EQ. 48 .OR. ILEM .EQ. 54 ) THEN
-                               padd=0.0D0
-                               pmul=ZTORAD
-                               CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
+                               pvalue=ZTORAD*pvalue
                               ENDIF
 !                                         FLAGS
                               IF  (LDFLAG) THEN
 !                                   SET BIT 12  TO ZERO
 !                                   (Element assim by 3dvar)
-                                 IFLAG = KFLAGS(JI,JJ,IK)
+                                 IFLAG = KFLAGS(ielement,ilevel,IK)
                                  IFLAG = IBCLR(IFLAG,12)
-                                 call obs_set(obsSpaceData,IP+IND,val_FLG= IFLAG)
+                                 obsSpaceData%mobdata(NCM_FLG,IP+IND)= IFLAG
                               ELSE
-                                 call obs_set(obsSpaceData,IP+IND,val_FLG= IBAD)
+                                 obsSpaceData%mobdata(NCM_FLG,IP+IND)= IBAD
                               ENDIF
 !
-                              call obs_set(obsSpaceData,IP+IND,val_VAR8=PVALUES (JI,JJ,IK))
-                              call obs_set(obsSpaceData,IP+IND,val_VNM=KLIST(JI))
-                              call obs_set(obsSpaceData,IP+IND,val_VCO=NVCORDTYP)
-                              call obs_set(obsSpaceData,IP+IND,val_OMF8=PPMIS)
-                              call obs_set(obsSpaceData,IP+IND,val_OMA8=PPMIS)
-                              call obs_set(obsSpaceData,IP+IND,val_OMI8=PPMIS)
-                              call obs_set(obsSpaceData,IP+IND,val_FGE=real(PPMIS))
-                              call obs_set(obsSpaceData,IP+IND,val_OER8=PPMIS)
+                              obsSpaceData%robdata8(NCM_VAR,IP+IND)=pvalue
+                              obsSpaceData%mobdata (NCM_VNM,IP+IND)=KLIST(ielement)
+                              obsSpaceData%mobdata (NCM_VCO,IP+IND)=NVCORDTYP
+                              obsSpaceData%robdata8(NCM_OMF,IP+IND)=PPMIS
+                              obsSpaceData%robdata8(NCM_OMA,IP+IND)=PPMIS
+                              obsSpaceData%robdata8(NCM_OMI,IP+IND)=PPMIS
+                              obsSpaceData%robdata (NCM_FGE,IP+IND)=real(PPMIS)
+                              obsSpaceData%robdata8(NCM_OER,IP+IND)=PPMIS
 !
 !                             OBS ERROR FOR HUMSAT
 !
                               IF ( LDERR ) THEN
-                                call obs_set(obsSpaceData,IP+IND,val_OER8=PROFIL(JJ))
+                                obsSpaceData%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)
                               ENDIF
 !
 !                             REFERENCE LEVEL FOR SATEMS
 !
                               IF ( LDSAT ) THEN
-                                call obs_set(obsSpaceData,IP+IND,       val_PRL8=PROFIL(JJ)*ZFACT)
-                                call obs_set(obsSpaceData,IP+IND,val_OER8=1.0D0)
+                                obsSpaceData%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)*ZFACT
+                                obsSpaceData%robdata8(NCM_OER,IP+IND)=1.0D0
                               ENDIF
 !
 !                             SURFACE EMISSIVITIES FOR GOES AIRS AND IASI RADIANCES
 !
                               IF ( LDGO ) THEN
-                                call obs_set(obsSpaceData,IP+IND,val_PRL8=PROFIL(JJ &
-                                     *ZEMFACT))
+                                obsSpaceData%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
+                                     *ZEMFACT
                               ENDIF
 
                               IF ( LDAIRS ) THEN
-                                call obs_set(obsSpaceData,IP+IND,val_PRL8=PROFIL(JJ) &
-                                     *ZEMFACT)
+                                obsSpaceData%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
+                                     *ZEMFACT
                               END IF
 
                               IF ( LDIASI ) THEN
-                                 call obs_set(obsSpaceData,IP+IND,val_PRL8=PROFIL(JJ) &
-                                      *ZEMFACT)
+                                 obsSpaceData%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
+                                      *ZEMFACT
                               END IF
 
 !
@@ -274,5 +258,5 @@
 !
       RETURN
 !
-      END
+      END SUBROUTINE CMABDY
 
