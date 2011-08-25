@@ -14,98 +14,97 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE GETCMA(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT,
-     +          KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL)
+      SUBROUTINE GETCMA(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
+                KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL,ppmis)
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
-*
+!
       INTEGER KNDAT,KRVAL
       INTEGER KELE,KVAL,KNT,KVCORD,KINDEX
       INTEGER KLIST(KELE)
       INTEGER KFLAGS(KELE,KVAL,KNT)
-*
-      REAL*8    PVALUES(KELE,KVAL,KNT),PVCORD(KVAL),PROFIL(KVAL)
-*
+!
+      REAL*8    PVALUES(KELE,KVAL,KNT),PVCORD(KVAL),PROFIL(KVAL),ppmis
+!
       LOGICAL LDFLAG,LDSAT,LDERR
-*
+!
 #if defined (DOC)
-************************************************************************
-*
-****s/r GETCMA -GET BODY OF CMA REPORT
-*
-*Author    . P. KOCLAS(CMC/CMSV TEL. 4628)
-*Revision:
-*            P. KOCLAS   : November 1998
-*            .  Update quality control flags for krval for krval .ne. NCM_OMA NCM_OMP
-*            JM Belanger CMDA/SMC  Jan 2001
-*                   . 32 bits conversion
-*          . P. Koclas *CMC/CMDA Dec      2003:
-*                -conversion for surface wind
-*          . D. Anselmo *ARMA/SMC November 2004:
-*                -treatment of ln specific humidity
-*
-*    PURPOSE : TRANSFER  THE IN-CORE FORMAT (CMA) OF THE 3-D VARIATIONAL
-*              ANALYSIS TO VECTORS DIMENSIONED FOR OUTPUT TO CMC
-*              BURP FILES.
-*
-*    ARGUMENTS:
-*     INPUT:
-*
-*           -PVALUES : DATA BLOCK
-*           -KLIST   : LIST OF BUFR ELEMENTS
-*           -KFLAGS  : QUALITY CONTROL FLAGS
-*
-*           -LDFLAG  :  .TRUE. --> INSERT FLAGS IN CMA
-*                      .FALSE. --> INSERT DUMMY VALUE(2**12)
-*           -LDERR   :  .TRUE. --> INSERT OBS ERROR  IN CMA (HUMSAT...)
-*           -LDSAT   :  .TRUE. --> INSERT REFERENCE PRESURE IN CMA
-*           -KELE    : NUMBER OF ELEMENTS IN DATA BLOCK
-*           -KVAL    : NUMBER OF LEVELS IN DATA BLOCK
-*           -KNT     :  THIRD DIMENSION OF DATA BLOCK
-*           -KNDAT   :  THIRD DIMENSION OF DATA BLOCK
-*           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
-*           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
-*           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
-*           -KRVAL   :  INDEX OF ELEMENT IN CMA LIST
-*                          ( 1 ---> OBS ERROR , 2 ---> O-A )
-*
-*    OUTPUT:
-*           -KNDAT   : AMOUNT OF DATA INSERTED IN CMA FILE
-*
-************************************************************************
+!***********************************************************************
+!
+!***s/r GETCMA -GET BODY OF CMA REPORT
+!
+!Author    . P. KOCLAS(CMC/CMSV TEL. 4628)
+!Revision:
+!            P. KOCLAS   : November 1998
+!            .  Update quality control flags for krval for krval .ne. NCM_OMA NCM_OMP
+!            JM Belanger CMDA/SMC  Jan 2001
+!                   . 32 bits conversion
+!          . P. Koclas *CMC/CMDA Dec      2003:
+!                -conversion for surface wind
+!          . D. Anselmo *ARMA/SMC November 2004:
+!                -treatment of ln specific humidity
+!
+!    PURPOSE : TRANSFER  THE IN-CORE FORMAT (CMA) OF THE 3-D VARIATIONAL
+!              ANALYSIS TO VECTORS DIMENSIONED FOR OUTPUT TO CMC
+!              BURP FILES.
+!
+!    ARGUMENTS:
+!     INPUT:
+!
+!           -PVALUES : DATA BLOCK
+!           -KLIST   : LIST OF BUFR ELEMENTS
+!           -KFLAGS  : QUALITY CONTROL FLAGS
+!
+!           -LDFLAG  :  .TRUE. --> INSERT FLAGS IN CMA
+!                      .FALSE. --> INSERT DUMMY VALUE(2**12)
+!           -LDERR   :  .TRUE. --> INSERT OBS ERROR  IN CMA (HUMSAT...)
+!           -LDSAT   :  .TRUE. --> INSERT REFERENCE PRESURE IN CMA
+!           -KELE    : NUMBER OF ELEMENTS IN DATA BLOCK
+!           -KVAL    : NUMBER OF LEVELS IN DATA BLOCK
+!           -KNT     :  THIRD DIMENSION OF DATA BLOCK
+!           -KNDAT   :  THIRD DIMENSION OF DATA BLOCK
+!           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
+!           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
+!           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
+!           -KRVAL   :  INDEX OF ELEMENT IN CMA LIST
+!                          ( 1 ---> OBS ERROR , 2 ---> O-A )
+!
+!    OUTPUT:
+!           -KNDAT   : AMOUNT OF DATA INSERTED IN CMA FILE
+!
+!***********************************************************************
 #endif
-*
+!
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-#include "cparbrp.cdk"
 #include "comcst.cdk"
       INTEGER ILEM,IND,IIND,IP,IK,IFLG
       INTEGER JI,JJ,JDATA
       LOGICAL LLOMAFI
-*
+!
       REAL*8 ZTORAD,ZFACT
       REAL*8 ZERR,ZSTAT,ZPRL
       real*8 padd,pmul
-*
-************************************************************************
-*     SET BAD FLAG VALUE IIND AND UNIT CONVERSION CONSTANTS
-************************************************************************
-*
+!
+!***********************************************************************
+!     SET BAD FLAG VALUE IIND AND UNIT CONVERSION CONSTANTS
+!***********************************************************************
+!
       IIND  =-1
       ZTORAD=RPI/180.0D0
-*
+!
       ZFACT =VCONV
-*
+!
       IP    =obs_num_obstotal(obsSpaceData) + 1
       IND   =0
-*
-************************************************************************
-*     PUT ALL NON MISSING DATA IN CMA FILE
-*     EXIT IF THERE IS MORE DATA AVAILABLE THAN ALLOCATED TO CMA FILE
-*     DATA IS CONVERTED TO UNITS USED BY 3D-VAR ANALYSIS.
-************************************************************************
-*
+!
+!***********************************************************************
+!     PUT ALL NON MISSING DATA IN CMA FILE
+!     EXIT IF THERE IS MORE DATA AVAILABLE THAN ALLOCATED TO CMA FILE
+!     DATA IS CONVERTED TO UNITS USED BY 3D-VAR ANALYSIS.
+!***********************************************************************
+!
          LLOMAFI=(KRVAL .EQ. NCM_OMF) .OR. (KRVAL .EQ. NCM_OMA) .OR. (KRVAL .EQ. NCM_OMI)
          IK= KINDEX
          IF (LLOMAFI) THEN
@@ -122,18 +121,18 @@
                DO JJ=1,KVAL
                  if( ldsat ) profil(jj)=obs_elem_r4(obsSpaceData,'PRL ',IP+IND)
                   IF (  PVCORD(JJ) .NE. PPMIS )  THEN
-Cpik
+!pik
                         IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
                           IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
                             ZERR=  obs_elem_r4(obsSpaceData,'OER ',IP+IND)
                             ZSTAT= obsSpaceData%ROBDATA(KRVAL, IP+IND)
                             IFLG=  obs_elem_i(obsSpaceData,'FLG ',IP+IND)
-*
+!
                             IF ( KRVAL .EQ. NCM_OMF .OR. KRVAL .EQ. NCM_OMA) THEN
-                              if (obs_elem_i(obsSpaceData,'ASS ',IP+IND) .EQ. 1    .OR.
-     &                           (obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHU .and.
-     &                                            ZSTAT .NE. PPMIS) .OR.
-     &                            obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHS) then
+                              if (obs_elem_i(obsSpaceData,'ASS ',IP+IND) .EQ. 1    .OR. &
+                                (obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHU .and. &
+                                                  ZSTAT .NE. PPMIS) .OR. &
+                                  obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHS) then
                                 PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
                               else
                                 PVALUES (JI,JJ,IK)=PPMIS
@@ -143,31 +142,31 @@ Cpik
                                 KFLAGS (JI,JJ,IK)=IFLG
                             ENDIF
                             IF ( PVALUES (JI,JJ,IK) .NE. PPMIS) then
-*                                        CONVERT TO M/S
+!                                        CONVERT TO M/S
                               IF ( ILEM .EQ. 1 ) THEN
                                padd=0.0D0
                                pmul=1.0D0
                                CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
                               ENDIF
-*                                       CONVERT TO M/S
+!                                       CONVERT TO M/S
                               IF ( ILEM .EQ. 2 ) THEN
                                padd=0.0D0
                                pmul=1.0D0
                                CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
                               ENDIF
-*                                        CONVERT TO Z
+!                                        CONVERT TO Z
                               IF ( ILEM .EQ. 3 ) THEN
                                padd=0.0D0
                                pmul=1.0D0/RG
                                CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
                               ENDIF
-*                                    CONVERT TO KELVIN
+!                                    CONVERT TO KELVIN
                               IF ( ILEM .EQ. 8 ) THEN
                                padd=0.0D0
                                pmul=1.0D0
                                CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
                               ENDIF
-*                                    CONVERT TO DEGREES
+!                                    CONVERT TO DEGREES
                               IF ( ILEM .EQ. 48 .OR. ILEM .EQ. 54 ) THEN
                                padd=0.0D0
                                pmul=1.0D0/ZTORAD
@@ -176,23 +175,23 @@ Cpik
                             ENDIF
                             IND=IND + 1
                          ELSE
-*==================================================
+!==================================================
                             KNDAT = IND
                             obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
-*==================================================
+!==================================================
                             RETURN
                           ENDIF
-Cpik
+!pik
                         ENDIF
                   ENDIF
                END DO
             ENDIF
          END DO
-*=============================
+!=============================
       KNDAT = IND
       obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
-*=============================
-*
+!=============================
+!
       RETURN
-*
-      END
+!
+      END SUBROUTINE GETCMA

@@ -593,7 +593,7 @@ C                     *** save starting address of 3d block *****
                        ENDIF
                        CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
-     +                    NVCORD,ZPROF,J3D,IVAL)
+     +                    NVCORD,ZPROF,J3D,IVAL,ppmis)
 *
 *-----------------------------------------------------------------------
 *                   TRANSFER REJECT FLAGS BETWEEN WIND DIRECTION AND SPEED
@@ -619,7 +619,7 @@ C                     *** save starting address of 3d block *****
                        IF (CDTYPE .EQ. 'MI') THEN
                         CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                  LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
-     +                  -1,ZPROF,J3D,IVAL)
+     +                  -1,ZPROF,J3D,IVAL,ppmis)
                        ENDIF
 C======================================================================
                        DO JJI=ilpos,ilpos +inele-1
