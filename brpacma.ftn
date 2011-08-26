@@ -620,12 +620,12 @@ C
                           CALL OBS_BDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
      +                    -1 ,ZPROF,J3D,IDBURP,PPMIS,nvcordtyp,vcordsf,
-     +                    ubound(vcordsf),vconv,nonelev)
+     +                    vconv,nonelev)
                        ELSE
                           CALL OBS_BDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
      +                    NVCORD,ZPROF,J3D,IDBURP,PPMIS,nvcordtyp,vcordsf,
-     +                    ubound(vcordsf),vconv,nonelev)
+     +                    vconv,nonelev)
                        ENDIF
                     ELSE
                        IF (CDTYPE .NE. 'TO') THEN

@@ -255,6 +255,44 @@ MODULE obsSpaceData_mod
   end subroutine obs_deallocate
 
 
+  SUBROUTINE CVT3D(PFIELD,PADD,PMULT,KN)
+    IMPLICIT NONE
+    INTEGER KN
+    REAL*8 PFIELD(KN)
+    REAL*8 PADD,PMULT
+!
+!***********************************************************************
+!
+!         PURPOSE: FOR EACH ARRAY ELEMENT
+!                  MULTIPLIES PFIELD BY: PMULT THEN ADDS: PADD
+!
+!    ARGUMENTS:
+!                 INPUT:
+!
+!                       -PFIELD  : INPUT ARRAY
+!                       -PADD    : CONSTANT TO ADD
+!                       -PMULT   : SCALING FACTOR
+!
+!
+!                OUTPUT:
+!
+!                       -PFIELD  : RESULTANT ARRAY
+!
+!
+!       AUTHOR: P. KOCLAS(CMC TEL. 4665)
+!
+!***********************************************************************
+!
+    INTEGER JI
+
+    DO JI =1,KN
+       PFIELD(JI)=  PFIELD(JI)*PMULT + PADD
+    END DO
+
+    RETURN
+  END SUBROUTINE CVT3D
+
+
   subroutine obs_swapVarOmf(obsdat)
     implicit none
 
@@ -333,7 +371,7 @@ MODULE obsSpaceData_mod
                     LDGO,LDAIRS,LDIASI,n_elements_in_block, &
                     n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
                     KINDEX,KIDTYP,PPMIS,nvcordtyp,vcordsf, &
-                    vcordsf_dims,vconv,nonelev)
+                    vconv,nonelev)
     IMPLICIT NONE
 !
     INTEGER, intent(out) :: KNDAT
@@ -342,7 +380,6 @@ MODULE obsSpaceData_mod
     INTEGER, intent(in)  :: KLIST(n_elements_in_block)
     INTEGER, intent(in)  :: KFLAGS(n_elements_in_block,n_levels_in_block,KNT)
     integer, intent(in)  :: nvcordtyp,nonelev
-    integer, intent(in)  :: vcordsf_dims(2)
 !
     REAL(kind=8),intent(in)::PVALUES(n_elements_in_block,n_levels_in_block,KNT)
     REAL(kind=8),intent(in)::PVCORD(n_levels_in_block)
@@ -351,7 +388,7 @@ MODULE obsSpaceData_mod
     real(kind=8),intent(in)::vconv
                                         ! vertical coordinate parameters
                                         ! for surface data
-    real(kind=8),intent(in)::vcordsf(vcordsf_dims(1),vcordsf_dims(2))
+    real(kind=8),intent(in)::vcordsf(:,:)
 !
     LOGICAL, intent(in) :: LDFLAG,LDERR,LDSAT,LDGO,LDAIRS,LDIASI
 !
