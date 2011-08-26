@@ -617,12 +617,12 @@ C
 *
                     IF ( IIND .GT. 0 ) THEN
                        IF (CDTYPE .EQ. 'MI' ) THEN
-                          CALL CMABDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
+                          CALL OBS_BDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
      +                    -1 ,ZPROF,J3D,IDBURP,PPMIS,nvcordtyp,vcordsf,
      +                    ubound(vcordsf),vconv,nonelev)
                        ELSE
-                          CALL CMABDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
+                          CALL OBS_BDY(ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
      +                    NVCORD,ZPROF,J3D,IDBURP,PPMIS,nvcordtyp,vcordsf,
      +                    ubound(vcordsf),vconv,nonelev)

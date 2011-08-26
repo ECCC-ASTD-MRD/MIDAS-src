@@ -591,7 +591,7 @@ C                     *** save starting address of 3d block *****
                        ELSE
                           LLSAT=.FALSE.
                        ENDIF
-                       CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
+                       CALL OBS_GETBDY(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
      +                    NVCORD,ZPROF,J3D,IVAL,ppmis)
 *
@@ -617,7 +617,7 @@ C                     *** save starting address of 3d block *****
                        CALL PUTELE(NVCORD,J3D,ILIST(ILPOS),ZVALP(IPOS),
      +                 ZPROF,INELE,INVAL,I3D,IIND)
                        IF (CDTYPE .EQ. 'MI') THEN
-                        CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
+                        CALL OBS_GETBDY(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                  LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
      +                  -1,ZPROF,J3D,IVAL,ppmis)
                        ENDIF
