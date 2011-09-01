@@ -747,14 +747,15 @@ MODULE obsSpaceData_mod
 
 
   SUBROUTINE obs_getbdy(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
-                KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL,ppmis)
+                KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL,crval,ppmis,ip)
     use bufr
     IMPLICIT NONE
 !
     INTEGER, intent(out) :: KNDAT
-    INTEGER, intent(in) :: KELE,KVAL,KNT,KVCORD,KINDEX,KRVAL
+    INTEGER, intent(in) :: KELE,KVAL,KNT,KVCORD,KINDEX,KRVAL,ip
     INTEGER, intent(in) :: KLIST(KELE)
     INTEGER, intent(inout) :: KFLAGS(KELE,KVAL,KNT)
+    character(len=4), intent(in) :: crval  ! character equivalent of krval
 !
     REAL(kind=8), intent(inout) :: PVALUES(KELE,KVAL,KNT),PROFIL(KVAL)
     REAL(kind=8), intent(in) :: PVCORD(KVAL),ppmis
@@ -802,6 +803,7 @@ MODULE obsSpaceData_mod
 !           -KRVAL   :  INDEX OF ELEMENT IN CMA LIST
 !                          ( 1 ---> OBS ERROR , 2 ---> O-A )
 !           -PPMIS   :  VALUE OF MISSING DATA
+!           -IP      :  STARTING INDEX FOR THIS PASS
 !
 !    OUTPUT:
 !           -KNDAT   : NUMBER OF DATA INSERTED IN CMA FILE
@@ -811,7 +813,7 @@ MODULE obsSpaceData_mod
 !
 #include "comcst.cdk"
 
-    INTEGER ILEM,IND,IIND,IP,IK,IFLG
+    INTEGER ILEM,IND,IIND,IK,IFLG
     INTEGER JI,JJ,JDATA
     LOGICAL LLOMAFI
 !
@@ -826,7 +828,6 @@ MODULE obsSpaceData_mod
     IIND  =-1
     ZTORAD=RPI/180.0D0
 !
-    IP    =obsSpaceData%numobs_recorded + 1
     IND   =0
 !
 !***********************************************************************
@@ -849,20 +850,19 @@ MODULE obsSpaceData_mod
           ILEM=obs_ifind(KLIST(JI))
           IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
              DO JJ=1,KVAL
-               if( ldsat ) profil(jj)=obsSpaceData%robdata(NCM_PRL,IP+IND)
+               if( ldsat ) profil(jj)=obs_elem_r4(obsSpaceData,'PRL ',IP+IND)
                 IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 !pik
                       IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
-                        IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
-                          ZERR=  obsSpaceData%robdata(NCM_OER,IP+IND)
-                          ZSTAT= obsSpaceData%robdata(KRVAL, IP+IND)
-                          IFLG=  obsSpaceData%mobdata(NCM_FLG,IP+IND)
+                          ZERR=  obs_elem_r4(obsSpaceData,'OER ',IP+IND)
+                          ZSTAT= obs_elem_r4(obsSpaceData,CRVAL, IP+IND)
+                          IFLG=  obs_elem_i(obsSpaceData,'FLG ',IP+IND)
 !
                           IF ( KRVAL .EQ. NCM_OMF .OR. KRVAL .EQ. NCM_OMA) THEN
-                            if (obsSpaceData%mobdata(NCM_ASS,IP+IND) .EQ. 1    .OR. &
-                              (obsSpaceData%mobdata(NCM_VNM,IP+IND) .EQ. BUFR_NEHU .and. &
+                            if (obs_elem_i(obsSpaceData,'ASS ',IP+IND) .EQ. 1    .OR. &
+                              (obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHU .and. &
                                                 ZSTAT .NE. PPMIS) .OR. &
-                               obsSpaceData%mobdata(NCM_VNM,IP+IND) .EQ. BUFR_NEHS) then
+                               obs_elem_i(obsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHS) then
                               PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
                             else
                               PVALUES (JI,JJ,IK)=PPMIS
@@ -904,14 +904,6 @@ MODULE obsSpaceData_mod
                             ENDIF
                           ENDIF
                           IND=IND + 1
-                       ELSE
-!==================================================
-                          KNDAT = IND
-                          obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
-!==================================================
-                          RETURN
-                        ENDIF
-!pik
                       ENDIF
                 ENDIF
              END DO
@@ -919,7 +911,6 @@ MODULE obsSpaceData_mod
        END DO
 !=============================
     KNDAT = IND
-    obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
 !=============================
 !
     RETURN

@@ -115,6 +115,7 @@ c
       END DO
       DO J=1,NELCMA
          IF ( CSAV(J) .EQ. 'OMP') NSAV(J)=NCM_OMF
+         IF ( CSAV(J) .EQ. 'OMP') CSAV(J)='OMF'
       END DO
       DO J=1,NELCMA
          IF ( CSAV(J) .EQ. 'OER') NSAV(J)=NCM_OER
@@ -178,7 +179,7 @@ C
 *             FILL UP POST FILE
 *             -----------------
 *==========================================================================
-               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,NELCMA)
+               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,CSAV,NELCMA)
 *==========================================================================
 *
                IER=MRFCLS(IBRP1)

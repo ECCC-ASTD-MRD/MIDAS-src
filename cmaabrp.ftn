@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,KLIST,KNVALS)
+      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,KLIST,CLIST,KNVALS)
 #if defined (DOC)
 *
 ***s/r CMAABRP -CONVERT DATA IN CMA FORMAT TO CMC BURP FILES.
@@ -101,6 +101,7 @@
 *                       -KLIST   : LIST OF INDICES  POINTING
 *                                   TO VALUES TO BE EXTRACED FROM
 *                                  CMA ( 1 ---> OBS ERROR , 2 ---> O-A )
+*                       -CLIST   : CHARACTER EQUIVALENT OF KLIST
 *                       -KNVALS  : NUMBER OF VALUES IN KLIST
 *
 *                OUTPUT: NONE
@@ -133,6 +134,8 @@
       INTEGER IBIT0,INBIT,IDATYP
 *
       CHARACTER *(*) CDTYPE
+      character(len=3) :: CLIST(KNVALS)
+      character(len=4) :: CVAL
       LOGICAL LDAPPEND,LLTEST,LLRESET,LLGOOD,LLSURF
 *
       INTEGER IER,JJEL
@@ -190,7 +193,8 @@
 *
       INTEGER JI,JJ,JK,J3D
       INTEGER ICHECK,INELM,INVM,INTM,IBKNMA,ITOPOST
-      INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL
+      INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL,obs_thisblock
+      integer, save :: obs_posn
       LOGICAL LLERR,LLMA,LLGROUP,LLERROR,LLSAT
       LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLRESUM
       LOGICAL LLTOPOST
@@ -280,12 +284,13 @@
       IF ( .NOT. LDAPPEND ) THEN
          NOBTOT  =0
          obsSpaceData%numobs_recorded   =0
+         obs_posn=1
       ELSE
 *
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_num_obstotal(obsSpaceData)
+         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_posn-1
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
          IF ( NOBTOT .GE. NMXOBS) THEN
@@ -516,6 +521,7 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
               ILPOSB=0
               ICOUNT=0
               IVAL=KLIST(JJEL)
+              CVAL=CLIST(JJEL) // ' '
 *
 ** initialize zvalp array to original zval data array
 *
@@ -526,6 +532,7 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
               ILPOS=1
               IPOS=1
               LLGOOD=.FALSE.
+              obs_thisblock=0
               DO 3 JK=1,inblks
                  LLSURF=.FALSE.
                  INBON=0
@@ -593,7 +600,9 @@ C                     *** save starting address of 3d block *****
                        ENDIF
                        CALL OBS_GETBDY(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
-     +                    NVCORD,ZPROF,J3D,IVAL,ppmis)
+     +                    NVCORD,ZPROF,J3D,IVAL,cval,ppmis,
+     +                    obs_posn+obs_thisblock)
+                       obs_thisblock=obs_thisblock+ind
 *
 *-----------------------------------------------------------------------
 *                   TRANSFER REJECT FLAGS BETWEEN WIND DIRECTION AND SPEED
@@ -618,8 +627,10 @@ C                     *** save starting address of 3d block *****
      +                 ZPROF,INELE,INVAL,I3D,IIND)
                        IF (CDTYPE .EQ. 'MI') THEN
                         CALL OBS_GETBDY(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
-     +                  LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
-     +                  -1,ZPROF,J3D,IVAL,ppmis)
+     +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
+     +                    -1,ZPROF,J3D,IVAL,cval,ppmis,
+     +                    obs_posn+obs_thisblock)
+                        obs_thisblock=obs_thisblock+ind
                        ENDIF
 C======================================================================
                        DO JJI=ilpos,ilpos +inele-1
@@ -790,6 +801,7 @@ C
       ENDIF
 ********************************
       IF( (obs_num_obstotal(obsSpaceData) .GE. obsSpaceData%mxobstotal .OR. NOBTOT .GE. NMXOBS)
+!!JWB IF( (obs_posn+obs_thisblock-1 .GE. obs_num_obstotal(obsSpaceData) .OR. NOBTOT .GE. NMXOBS)
      + .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN
@@ -802,7 +814,7 @@ C
             IER=MRFPUT(KFILE,IHANDLP,IBUF)
          ENDIF
          WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
-         CALL PRNTBRP(NOBTOT,IKOUNT,obs_num_obstotal(obsSpaceData))
+         CALL PRNTBRP(NOBTOT,IKOUNT,obs_posn+obs_thisblock-1)
          WRITE(NULOUT,*)' ------------------------------------------'
          WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
          WRITE(NULOUT,*)' ------------------------------------------'
@@ -819,6 +831,7 @@ C
 *
 ** knvals
    22 END DO
+      obs_posn=obs_posn+obs_thisblock
 *
       IF ( LLGOOD ) THEN
          IF( .NOT. LLGROUP) THEN
@@ -845,7 +858,7 @@ C
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,obs_num_obstotal(obsSpaceData))
+      CALL PRNTBRP(NOBTOT,IKOUNT,obs_posn-1)
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
