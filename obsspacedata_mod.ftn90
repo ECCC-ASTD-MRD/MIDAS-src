@@ -985,21 +985,19 @@ MODULE obsSpaceData_mod
  end function obs_ifind
 
 
- SUBROUTINE obs_reduceToMpiLocal(nobtot, nobtotp, nfiles, nbegintyp, nendtyp, &
-                                 nbegintyp_g, nendtyp_g)
+ SUBROUTINE obs_reduceToMpiLocal(obsdat, nobtot, nobtotp, nfiles, &
+                                 nbegintyp, nendtyp, nbegintyp_g, nendtyp_g)
 #if defined (DOC)
 !
-!**s/r reBuildCMA - re-construct CMA by giving local Obs TAG. 
+!**s/r obs_reduceToMpiLocal - re-construct observation data object by giving 
+!                             local Obs TAG. 
 !
 !Author    . Bin He (ARMA/MRB )
 !
 !Revision:
-!      PURPOSE:  
+!      PURPOSE:  To retain in the observation object only those data that are
+!                pertinent to the present mpi processor.
 !
-!    ARGUMENTS:
-!                INPUT:  NONE
-!
-!                OUTPUT: NONE
 !
 #endif
 
@@ -1007,17 +1005,18 @@ MODULE obsSpaceData_mod
   USE obstag  
   IMPLICIT NONE
 
+  type(struct_obs), intent(inout) :: obsdat
   integer, intent(inout) :: nobtot      ! Actual number of observations
   integer, intent(inout) :: nobtotp     ! Actual no. of obs. in POST FILE=nobtot
   integer, intent(in)    :: nfiles
   integer, intent(inout) :: nbegintyp(:), nendtyp(:)
   integer, intent  (out) :: nbegintyp_g(:), nendtyp_g(:)
 
-! Declaire Local Variables. 
+! Declare Local Variables. 
   CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
   CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
   REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp,ROBDATA_tmp
-  REAL*8,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
+  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP 
   INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp 
@@ -1034,11 +1033,11 @@ MODULE obsSpaceData_mod
   ALLOCATE(cstnid_tmp(locObsize),STAT=ierr) 
   ALLOCATE(ROBHDR_tmp(NCM_LET,locObsize),STAT=ierr) 
   ALLOCATE(MOBHDR_tmp(NCM_LET,locObsize),STAT=ierr) 
-  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsSpaceData%numobs_recorded_l),STAT=ierr) 
-  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsSpaceData%numobs_recorded_l),STAT=ierr) 
-  ALLOCATE(ROBDATA8_tmp(3:11,obsSpaceData%numobs_recorded_l),STAT=ierr) 
+  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%numobs_recorded_l),STAT=ierr) 
+  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsdat%numobs_recorded_l),STAT=ierr) 
+  ALLOCATE(ROBDATA8_tmp(3:11,obsdat%numobs_recorded_l),STAT=ierr) 
 !  
-  call obs_allocateG(obsSpaceData,nobtot)
+  call obs_allocateG(obsdat,nobtot)
 !
 !0.1  Sorting locObsTag according to the family ID. 
   IF(l4dvar) THEN
@@ -1053,7 +1052,7 @@ MODULE obsSpaceData_mod
      DO J=1,NFILES
         DO i=1,locObsize
            iobs=locObsTag(i) 
-           ifamid=obs_elem_i(obsSpaceData,'OEC ',iobs) 
+           ifamid=obsdat%mobhdr(NCM_OEC, iobs)
            if(j == ifamid) then
              ii=ii+1
              locObsTag_tmp(ii) = iobs  
@@ -1066,22 +1065,22 @@ MODULE obsSpaceData_mod
      locObsTag=locObsTag_tmp
      DEALLOCATE(locObsTag_tmp)  
   ENDIF  
- !  nobtotp and obsSpaceData%mxobstotal are used in CMAABRP of POSTMIN . 
+ !  nobtotp and obsdat%mxobstotal are used in CMAABRP of POSTMIN . 
   nobtotp=nobtot
-  obsSpaceData%mxobstotal=obs_num_obstotal(obsSpaceData)
+  obsdat%mxobstotal=obsdat%numobs_recorded
 
 !! keep the Global ROBHDR and MOBHDR
   DO iobs=1,nobtotp
-    obsSpaceData%MOBHDR_G(1:NCM_LET,iobs)=obsSpaceData%MOBHDR(1:NCM_LET,iobs)
-    obsSpaceData%ROBHDR_G(1:NCM_LET,iobs)=obsSpaceData%ROBHDR(1:NCM_LET,iobs)
+    obsdat%MOBHDR_G(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,iobs)
+    obsdat%ROBHDR_G(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,iobs)
   ENDDO  
 !!
   DO i=1,locObsize 
     iobs=locObsTag(i) 
-    ROBHDR_tmp(1:NCM_LET,i)=obsSpaceData%ROBHDR(1:NCM_LET,iobs)
-    MOBHDR_tmp(1:NCM_LET,i)=obsSpaceData%MOBHDR(1:NCM_LET,iobs)
-    cstnid_tmp(i) = obs_elem_c9(obsSpaceData,'STID',iobs) 
-    cfamily_tmp(i) = obsSpaceData%cfamily(iobs) 
+    ROBHDR_tmp(1:NCM_LET,i)=obsdat%ROBHDR(1:NCM_LET,iobs)
+    MOBHDR_tmp(1:NCM_LET,i)=obsdat%MOBHDR(1:NCM_LET,iobs)
+    cstnid_tmp(i) = obsdat%cstnid(iobs)
+    cfamily_tmp(i) = obsdat%cfamily(iobs) 
     IF(i== 1) THEN
        MOBHDR_tmp(NCM_RLN,1) = 1
     ELSE
@@ -1093,36 +1092,36 @@ MODULE obsSpaceData_mod
   ii=0 
   DO i=1,locObsize
     iobs=locObsTag(i) 
-    idata= obs_elem_i(obsSpaceData,'RLN ',iobs) 
-    idataend = obs_elem_i(obsSpaceData,'NLV ',iobs) + idata -1 
+    idata= obsdat%mobhdr(NCM_RLN, iobs)
+    idataend = obsdat%mobhdr(NCM_NLV, iobs) + idata -1 
     DO j=idata,idataend 
        ii=ii+1 
-       ROBDATA8_tmp(3:11,ii)=obsSpaceData%ROBDATA8(3:11,j)
-       MOBDATA_tmp(1:NCM_LBO,ii)=obsSpaceData%MOBDATA(1:NCM_LBO,j) 
-       ROBDATA_tmp(1:NCM_LBO,ii)=obsSpaceData%ROBDATA(1:NCM_LBO,j) 
+       ROBDATA8_tmp(3:11,ii)=obsdat%ROBDATA8(3:11,j)
+       MOBDATA_tmp(1:NCM_LBO,ii)=obsdat%MOBDATA(1:NCM_LBO,j) 
+       ROBDATA_tmp(1:NCM_LBO,ii)=obsdat%ROBDATA(1:NCM_LBO,j) 
        MOBDATA_tmp(NCM_OBS,ii) = i
     ENDDO 
   ENDDO 
  
-!     save the global nobtot and obs_num_obstotal(obsSpaceData) to nobtotp and obsSpaceData%mxobstotal 
+! Save the global nobtot and obsdat%numobs_recorded to nobtotp and obsdat%mxobstotal 
   
   nobtot=locObsize  
-  obsSpaceData%numobs_recorded=obsSpaceData%numobs_recorded_l
+  obsdat%numobs_recorded=obsdat%numobs_recorded_l
   write(*,*) 'NOBTOT= ',nobtot 
-  call obs_deallocate(obsSpaceData)
-  call obs_allocate(obsSpaceData,nobtot,obs_num_obstotal(obsSpaceData))
+  call obs_deallocate(obsdat)
+  call obs_allocate(obsdat,nobtot,obsdat%numobs_recorded)
 !
   DO i=1,nobtot
-     obsSpaceData%cfamily(i)=cfamily_tmp(i) 
-     call obs_set(obsSpaceData,i,val_STID=cstnid_tmp(i) )
-     obsSpaceData%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
-     obsSpaceData%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
+     obsdat%cfamily(i)=cfamily_tmp(i) 
+     obsdat%cstnid(i)=cstnid_tmp(i)
+     obsdat%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
+     obsdat%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
   ENDDO 
 
-  DO i=1,obs_num_obstotal(obsSpaceData)
-     obsSpaceData%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
-     obsSpaceData%MOBDATA(1:NCM_LBO,i)=MOBDATA_tmp(1:NCM_LBO,i) 
-     obsSpaceData%ROBDATA(1:NCM_LBO,i)=ROBDATA_tmp(1:NCM_LBO,i)
+  DO i=1,obsdat%numobs_recorded
+     obsdat%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
+     obsdat%MOBDATA(1:NCM_LBO,i)=MOBDATA_tmp(1:NCM_LBO,i) 
+     obsdat%ROBDATA(1:NCM_LBO,i)=ROBDATA_tmp(1:NCM_LBO,i)
   ENDDO 
 
   deallocate(cfamily_tmp)
@@ -1133,7 +1132,7 @@ MODULE obsSpaceData_mod
   deallocate(MOBDATA_tmp)
   deallocate(ROBDATA_tmp)
 
-   ! re build NBEGINTYP and NENDTYP  
+ ! rebuild NBEGINTYP and NENDTYP  
  !============================
   jj=0
   NBEGINTYP_G=NBEGINTYP
@@ -1144,9 +1143,9 @@ MODULE obsSpaceData_mod
   DO j=1,NFILES
     lfirst=.true. 
     DO i=1,locObsize
-      istart=obs_elem_i(obsSpaceData,'RLN ',i)
-      idata=obs_elem_i(obsSpaceData,'NLV ',i)
-      ifamid=obs_elem_i(obsSpaceData,'OEC ',i)
+      istart=obsdat%mobhdr(NCM_RLN, i)
+      idata=obsdat%mobhdr(NCM_NLV, i)
+      ifamid=obsdat%mobhdr(NCM_OEC, i)
       IF(ifamid == J) THEN
          IF(lfirst) THEN
            NBEGINTYP(j) = istart 
@@ -1166,20 +1165,16 @@ MODULE obsSpaceData_mod
  END SUBROUTINE obs_reduceToMpiLocal
 
 
- SUBROUTINE obs_expandToMpiGlobal(nulout, nobtot, nobtotp)
+ SUBROUTINE obs_expandToMpiGlobal(obsdat, nulout, nobtot, nobtotp)
 #if defined (DOC)
 !
-!**s/r reStoreCMA - restore Global array ROBDATA and MOBDATA. 
+!**s/r obs_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
 !
 !Author    . Bin He (ARMA/MRB )
 !
 !Revision:
-!      PURPOSE:  
-!
-!    ARGUMENTS:
-!                INPUT:  NONE
-!
-!                OUTPUT: NONE
+!      PURPOSE:  To reconstitute the mpi-global observation object by gathering
+!                the necessary data from all processors (to all processors).
 !
 #endif
 
@@ -1188,6 +1183,7 @@ MODULE obsSpaceData_mod
   use profileData_mod 
   IMPLICIT NONE
 
+  type(struct_obs), intent(inout) :: obsdat
   integer, intent(in) :: nulout         ! standard output unit
   integer, intent(in) :: nobtot         ! Actual number of observations
   integer, intent(in) :: nobtotp        ! Actual no. of obs. in POST FILE=nobtot
@@ -1220,7 +1216,7 @@ MODULE obsSpaceData_mod
   ii=1 
   DO i=1,NOBTOT
      iobs=locObsTag(i)
-     MOBHDR_tmp(1:NCM_LET,iobs)=obsSpaceData%MOBHDR(1:NCM_LET,ii)
+     MOBHDR_tmp(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,ii)
      RMTMOBS_tmp(iobs)=RMTMOBS(ii)
      ii=ii+1
   ENDDO  
@@ -1241,11 +1237,11 @@ MODULE obsSpaceData_mod
   
 
 !!2.  Allocate memory to the temporol arrays.   
-  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsSpaceData%mxobstotal),STAT=ierr) 
+  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%mxobstotal),STAT=ierr) 
   IF(ierr /= 0)  CALL ABORT3D(nulout,'Cannt allocate Mem. to MOBDATA_tmp,Abort!') 
   MOBDATA_tmp=0 
 
-  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsSpaceData%mxobstotal),STAT=ierr) 
+  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsdat%mxobstotal),STAT=ierr) 
   IF(ierr /= 0) CALL  ABORT3D(nulout, 'Cannt allocate Mem. to ROBDATA_tmp,Abort!') 
   ROBDATA_tmp=0.0 
 
@@ -1253,12 +1249,12 @@ MODULE obsSpaceData_mod
   ii=0 
   DO i=1,nobtot
     iobs=locObsTag(i) 
-    idata= obs_elem_i(obsSpaceData,'RLN ',iobs) 
-    idataend = obs_elem_i(obsSpaceData,'NLV ',iobs) + idata -1 
+    idata= obsdat%mobhdr(NCM_RLN, iobs)
+    idataend = obsdat%mobhdr(NCM_NLV, iobs) + idata -1 
     DO j=idata,idataend 
        ii=ii+1 
-       MOBDATA_tmp(1:NCM_LBO,j)=obsSpaceData%MOBDATA(1:NCM_LBO,ii) 
-       ROBDATA_tmp(1:NCM_LBO,j)=obsSpaceData%ROBDATA(1:NCM_LBO,ii) 
+       MOBDATA_tmp(1:NCM_LBO,j)=obsdat%MOBDATA(1:NCM_LBO,ii) 
+       ROBDATA_tmp(1:NCM_LBO,j)=obsdat%ROBDATA(1:NCM_LBO,ii) 
     ENDDO 
   ENDDO 
    !   
@@ -1268,18 +1264,18 @@ MODULE obsSpaceData_mod
   CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeMOBDATA,"mpi_real","mpi_sum","GRID",ierr)
    !  
 
-  call obs_deallocate(obsSpaceData)
-  call obs_allocate(obsSpaceData,nobtotp,obsSpaceData%mxobstotal)
+  call obs_deallocate(obsdat)
+  call obs_allocate(obsdat,nobtotp,obsdat%mxobstotal)
 
-  obsSpaceData%ROBDATA=ROBDATA_tmp 
+  obsdat%ROBDATA=ROBDATA_tmp 
   DEALLOCATE(ROBDATA_tmp) 
-  obsSpaceData%MOBDATA=MOBDATA_tmp
+  obsdat%MOBDATA=MOBDATA_tmp
   DEALLOCATE(MOBDATA_tmp)  
-  obsSpaceData%MOBHDR=MOBHDR_tmp
+  obsdat%MOBHDR=MOBHDR_tmp
   DEALLOCATE(MOBHDR_tmp)
   
 !!
-  call obs_deallocateG(obsSpaceData)
+  call obs_deallocateG(obsdat)
   DEALLOCATE(locObsTag)
   IF(l4dvar) THEN
     DEALLOCATE(ObsTagLoc) 

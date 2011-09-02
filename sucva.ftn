@@ -114,7 +114,7 @@
 #endif
 
       USE mod4dv,only : l4dvar 
-      use obsSpaceData_mod, only: obs_reduceToMpiLocal
+      use obsSpaceData_mod, only: obsSpaceData, obs_reduceToMpiLocal
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -323,8 +323,8 @@ C
 !
         CALL getobstag 
 
-        call obs_reduceToMpiLocal(nobtot, nobtotp, nfiles, nbegintyp, 
-     S                            nendtyp,nbegintyp_g, nendtyp_g)
+        call obs_reduceToMpiLocal(obsSpaceData, nobtot, nobtotp, nfiles, 
+     S                            nbegintyp, nendtyp, nbegintyp_g, nendtyp_g)
         call rebldnotag () !! bhe  
 
         call sualobsb(KULOUT)  !  
