@@ -88,7 +88,6 @@
       NVALS=NFILES
       LLAPPEND=.FALSE.
       NOBTOT=0
-       obsSpaceData%numobs_recorded=0
       DO J =1,NVALS
          NVTYP=J
          CLVAL(J) = CFILNAM(J)

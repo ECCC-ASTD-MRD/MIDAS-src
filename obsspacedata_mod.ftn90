@@ -22,6 +22,7 @@ MODULE obsSpaceData_mod
                       NCM_ZHA, NCM_HPHT,NCM_OMP
 
   ! subroutines
+  public           :: obs_initialize
   public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
   public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_elem_c9,obs_set
   public           :: obs_num_obstotal,obs_num_stn,obs_swapVarOmf,obs_ifind
@@ -118,10 +119,21 @@ MODULE obsSpaceData_mod
   contains
 
 
-  subroutine obs_allocate(obsdat,maxNumHdr,maxNumBdy)
+  subroutine obs_initialize(obsdat)
     implicit none
 
     type(struct_obs), intent(out) :: obsdat
+
+    obsdat%numstns_recorded = 0
+    obsdat%numobs_recorded  = 0
+    return
+  end subroutine obs_initialize
+
+
+  subroutine obs_allocate(obsdat,maxNumHdr,maxNumBdy)
+    implicit none
+
+    type(struct_obs), intent(inout) :: obsdat
     integer         , intent(in)  :: maxNumHdr,maxNumBdy
 
     integer :: ierr
@@ -286,7 +298,7 @@ MODULE obsSpaceData_mod
   function obs_getFamily(obsdat,headerIndex,bodyIndex)
     implicit none
 
-    character*2      :: obs_getFamily
+    character(len=2)             :: obs_getFamily
     type(struct_obs), intent(in) :: obsdat
     integer,optional, intent(in) :: headerIndex,bodyIndex
 
@@ -309,8 +321,8 @@ MODULE obsSpaceData_mod
   subroutine obs_setFamily(obsdat,Family_in,headerIndex,bodyIndex)
     implicit none
 
-    character*2      :: Family_in
     type(struct_obs), intent(inout) :: obsdat
+    character(len=2), intent(in)    :: Family_in
     integer,optional, intent(in)    :: headerIndex,bodyIndex
 
     integer          :: headerIndex2
@@ -329,13 +341,14 @@ MODULE obsSpaceData_mod
   end subroutine obs_setFamily
 
 
-  SUBROUTINE obs_bdy(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
+  SUBROUTINE obs_bdy(obsdat,PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
                     LDGO,LDAIRS,LDIASI,n_elements_in_block, &
                     n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
                     KINDEX,KIDTYP,PPMIS,nvcordtyp,vcordsf, &
                     vconv,nonelev)
     IMPLICIT NONE
 !
+    type(struct_obs), intent(inout) :: obsdat
     INTEGER, intent(out) :: KNDAT
     INTEGER, intent(in)  :: n_elements_in_block,n_levels_in_block,KNT
     INTEGER, intent(in)  :: KVCORD,KINDEX,KIDTYP
@@ -450,7 +463,7 @@ MODULE obsSpaceData_mod
     ZEMFACT=0.01
     ZESMAX=30.
 !
-    IP=obsSpaceData%numobs_recorded + 1
+    IP=obsdat%numobs_recorded + 1
     IND=0
 !
 !***********************************************************************
@@ -468,14 +481,14 @@ MODULE obsSpaceData_mod
                     nonelev .eq. nint(pvcord(ilevel)*zfact))) then
                       IF  ( PVALUES (ielement,ilevel,IK) .NE. PPMIS ) THEN
                          pvalue=PVALUES(ielement,ilevel,IK)
-                         IF ( IP + IND .LE. obsSpaceData%mxobstotal ) THEN
+                         IF ( IP + IND .LE. obsdat%mxobstotal ) THEN
 !                                       VERTICAL COORDINATE
-                            obsSpaceData%robdata8(NCM_PPP,IP+IND)=PVCORD(ilevel)*ZFACT +vcordsf(ilem,kidtyp)
+                            obsdat%robdata8(NCM_PPP,IP+IND)=PVCORD(ilevel)*ZFACT +vcordsf(ilem,kidtyp)
 !
 !                           FOR PNM HEIGHT IS SET TO 0
 !                           ----------------------------
                             IF ( ILEM .EQ. 53 ) THEN
-                               obsSpaceData%robdata8(NCM_PPP,IP+IND)=0.D0
+                               obsdat%robdata8(NCM_PPP,IP+IND)=0.D0
                             ENDIF
 !                           ----------------------------
 !
@@ -508,47 +521,47 @@ MODULE obsSpaceData_mod
 !                                 (Element assim by 3dvar)
                                IFLAG = KFLAGS(ielement,ilevel,IK)
                                IFLAG = IBCLR(IFLAG,12)
-                               obsSpaceData%mobdata(NCM_FLG,IP+IND)= IFLAG
+                               obsdat%mobdata(NCM_FLG,IP+IND)= IFLAG
                             ELSE
-                               obsSpaceData%mobdata(NCM_FLG,IP+IND)= IBAD
+                               obsdat%mobdata(NCM_FLG,IP+IND)= IBAD
                             ENDIF
 !
-                            obsSpaceData%robdata8(NCM_VAR,IP+IND)=pvalue
-                            obsSpaceData%mobdata (NCM_VNM,IP+IND)=KLIST(ielement)
-                            obsSpaceData%mobdata (NCM_VCO,IP+IND)=NVCORDTYP
-                            obsSpaceData%robdata8(NCM_OMF,IP+IND)=PPMIS
-                            obsSpaceData%robdata8(NCM_OMA,IP+IND)=PPMIS
-                            obsSpaceData%robdata8(NCM_OMI,IP+IND)=PPMIS
-                            obsSpaceData%robdata (NCM_FGE,IP+IND)=real(PPMIS)
-                            obsSpaceData%robdata8(NCM_OER,IP+IND)=PPMIS
+                            obsdat%robdata8(NCM_VAR,IP+IND)=pvalue
+                            obsdat%mobdata (NCM_VNM,IP+IND)=KLIST(ielement)
+                            obsdat%mobdata (NCM_VCO,IP+IND)=NVCORDTYP
+                            obsdat%robdata8(NCM_OMF,IP+IND)=PPMIS
+                            obsdat%robdata8(NCM_OMA,IP+IND)=PPMIS
+                            obsdat%robdata8(NCM_OMI,IP+IND)=PPMIS
+                            obsdat%robdata (NCM_FGE,IP+IND)=real(PPMIS)
+                            obsdat%robdata8(NCM_OER,IP+IND)=PPMIS
 !
 !                           OBS ERROR FOR HUMSAT
 !
                             IF ( LDERR ) THEN
-                              obsSpaceData%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)
+                              obsdat%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)
                             ENDIF
 !
 !                           REFERENCE LEVEL FOR SATEMS
 !
                             IF ( LDSAT ) THEN
-                              obsSpaceData%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)*ZFACT
-                              obsSpaceData%robdata8(NCM_OER,IP+IND)=1.0D0
+                              obsdat%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)*ZFACT
+                              obsdat%robdata8(NCM_OER,IP+IND)=1.0D0
                             ENDIF
 !
 !                           SURFACE EMISSIVITIES FOR GOES AIRS AND IASI RADIANCES
 !
                             IF ( LDGO ) THEN
-                              obsSpaceData%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
+                              obsdat%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
                                    *ZEMFACT
                             ENDIF
 
                             IF ( LDAIRS ) THEN
-                              obsSpaceData%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
+                              obsdat%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
                                    *ZEMFACT
                             END IF
 
                             IF ( LDIASI ) THEN
-                               obsSpaceData%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
+                               obsdat%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
                                     *ZEMFACT
                             END IF
 
@@ -557,7 +570,7 @@ MODULE obsSpaceData_mod
                          ELSE
 !==================================================
                             KNDAT = IND
-                            obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
+                            obsdat%numobs_recorded = obsdat%numobs_recorded + KNDAT
 !==================================================
                             RETURN
                          ENDIF
@@ -568,7 +581,7 @@ MODULE obsSpaceData_mod
        END DO
 !=============================
     KNDAT = IND
-    obsSpaceData%numobs_recorded = obsSpaceData%numobs_recorded + KNDAT
+    obsdat%numobs_recorded = obsdat%numobs_recorded + KNDAT
 !=============================
 !
     RETURN

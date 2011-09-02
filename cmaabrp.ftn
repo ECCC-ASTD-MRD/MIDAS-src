@@ -144,7 +144,7 @@
       INTEGER IBTYPMA,IBKNATMA,IDATYPMA,INBITMA
       INTEGER IHANDL,IHANDLP,IBKNO,IBKNO3D,IBKNAD,I3D,ITY
       INTEGER INELE,INVAL
-      INTEGER INELEIN,IOBTOT,IDATA, IZMODEL, ICOUNT
+      INTEGER INELEIN,IOBTOT, IZMODEL, ICOUNT
       INTEGER INELE3D, IPOSB, ILPOSB, IBTYPB
       INTEGER ITIME,IDLT,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
      +       IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
@@ -283,7 +283,6 @@
 *
       IF ( .NOT. LDAPPEND ) THEN
          NOBTOT  =0
-         obsSpaceData%numobs_recorded   =0
          obs_posn=1
       ELSE
 *
@@ -513,10 +512,8 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
 ************************************************************************
 *
            IOBTOT=NOBTOT
-           IDATA=obs_num_obstotal(obsSpaceData)
            DO 22 JJEL=1,KNVALS
               NOBTOT=IOBTOT
-              obsSpaceData%numobs_recorded=IDATA
               IPOSB=0
               ILPOSB=0
               ICOUNT=0
@@ -800,8 +797,7 @@ C
          ENDIF
       ENDIF
 ********************************
-      IF( (obs_num_obstotal(obsSpaceData) .GE. obsSpaceData%mxobstotal .OR. NOBTOT .GE. NMXOBS)
-!!JWB IF( (obs_posn+obs_thisblock-1 .GE. obs_num_obstotal(obsSpaceData) .OR. NOBTOT .GE. NMXOBS)
+      IF( (obs_posn+obs_thisblock-1 .GE. obs_num_obstotal(obsSpaceData) .OR. NOBTOT .GE. NMXOBS)
      + .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN

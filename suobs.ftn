@@ -124,6 +124,8 @@ c
           write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(j)
         endif
       enddo
+
+      call obs_initialize(obsSpaceData)
                                 !Select calls  BRPCMA
                                 ! 1. Positioning of data records within ROBDATA/MOBDATA
       CALL SELECT               ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
