@@ -91,7 +91,7 @@
 *
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
-      CALL obs_expandToMpiGlobal() 
+      CALL obs_expandToMpiGlobal(nulout, nobtot, nobtotp) 
       IF(mpi_myid /= 0) RETURN 
 * 
 C

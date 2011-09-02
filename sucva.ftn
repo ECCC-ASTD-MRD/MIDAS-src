@@ -118,6 +118,7 @@
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
+#include "comdimo.cdk"
 #include "namcva.cdk"
 #include "comct0.cdk"
 #include "comlun.cdk"
@@ -322,7 +323,8 @@ C
 !
         CALL getobstag 
 
-        call obs_reduceToMpiLocal() 
+        call obs_reduceToMpiLocal(nobtot, nobtotp, nfiles, nbegintyp, 
+     S                            nendtyp,nbegintyp_g, nendtyp_g)
         call rebldnotag () !! bhe  
 
         call sualobsb(KULOUT)  !  
