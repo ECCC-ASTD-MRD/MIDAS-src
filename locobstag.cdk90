@@ -7,7 +7,4 @@
 !***************************************************************
 MODULE obstag  
    INTEGER ,POINTER,DIMENSION(:) :: locObsTag
-   INTEGER ,POINTER,DIMENSION(:) :: obsTagLoc
-   INTEGER ,POINTER,DIMENSION(:) :: obsTagLocRev
-   INTEGER ,POINTER,DIMENSION(:) :: locObsTag0
 END MODULE obstag  
