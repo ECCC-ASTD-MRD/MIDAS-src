@@ -114,7 +114,7 @@
 #endif
 
       USE mod4dv,only : l4dvar 
-      use obsSpaceData_mod, only: obsSpaceData, obs_reduceToMpiLocal
+      use obsSpaceData_mod, only: obsSpaceData, obs_reduceToMpiLocal, getobstag
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
