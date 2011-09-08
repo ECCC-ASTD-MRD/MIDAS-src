@@ -45,8 +45,7 @@
 *
 #endif
 
-
-      USE obstag  
+ 
       use obsSpaceData_mod
       IMPLICIT NONE
 *implicits

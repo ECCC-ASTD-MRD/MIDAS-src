@@ -109,7 +109,7 @@ module profileData_mod
 !
 #endif
 
-    USE obstag
+    USE obsSpaceData_mod, only: locObsTag
     IMPLICIT NONE
 
     integer, intent(in) :: nulout       ! standard output unit

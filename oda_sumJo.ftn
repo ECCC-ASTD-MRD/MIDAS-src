@@ -16,7 +16,6 @@
 !
       SUBROUTINE oda_sumJo(PJO)
       use modmask
-      USE obstag 
       use mpi
       use obsSpaceData_mod
       implicit none
@@ -164,7 +163,7 @@ c
 
       SUBROUTINE restore_robdata8(robdata8_g,kdata)
         INTEGER :: kdata 
-        REAL*8 ,DIMENSION(kdata) :: robdata8_g 
+        REAL*8 ,DIMENSION(kdata) :: robdata8_g
 
        INTEGER :: i,ii,j ,iobs,idata,idataend,ierr 
        ii=0

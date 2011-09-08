@@ -16,7 +16,6 @@
 !
       SUBROUTINE restoreMasks 
       use modmask
-      USE obstag  
       use obsSpaceData_mod
       implicit none
 c Purpose:

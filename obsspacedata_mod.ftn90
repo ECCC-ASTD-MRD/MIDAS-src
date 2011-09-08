@@ -6,6 +6,7 @@ MODULE obsSpaceData_mod
   ! main observation space data instance
   public           :: obsSpaceData
   public           :: OBS_JPNBRELEM
+  public           :: locObsTag
 
   ! header column numbers
   public           :: NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
@@ -50,6 +51,8 @@ MODULE obsSpaceData_mod
   end type struct_obs
 
   type(struct_obs) :: obsSpaceData
+
+  integer, pointer, dimension(:) :: locObsTag
 
   ! header column numbers
   integer,parameter :: NCM_LET = 22 ! Dimension for var3d
@@ -722,32 +725,30 @@ MODULE obsSpaceData_mod
  end function obs_elem_c9
 
 
- subroutine getobstag 
+ subroutine getobstag(nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp,nendtyp)
   use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
   use mod4dv, only : mvar, l4dvar
 #if defined (DOC)
-*
-***s/r read local observation tag from GEM TLM-ADJ .
-*
-*Author  : Bin He *ARMA/MRB  Feb. 2009
-*
-*Revision:
-*  
-*Arguments: none
-*
+!
+!**s/r read local observation tag from GEM TLM-ADJ .
+!
+!Author  : Bin He *ARMA/MRB  Feb. 2009
+!
+!Revision:
+!  
+!Arguments: none
+!
 #endif
-  use mpi  
-  USE obstag 
+  use mpi
   IMPLICIT NONE
-!implicits
-!!        integer,pointer,dimension(:) :: locObsTag 
 
-#include "comlun.cdk"
-#include "comdimo.cdk"
+  integer, intent(in) :: nulout         ! standard output unit
+  integer, intent(in) :: nobtot         ! Actual number of observations
+  integer, intent(in) :: nfiles
+  character(len=128), intent(in) :: cexc4dv
+  character(len=  2), intent(in) :: cfamtyp(:)
+  integer, intent(in) :: nbegintyp(:), nendtyp(:)
 
-
-#include "comvfiles.cdk"
-#include "cvcord.cdk"
 #include <prof_f.h>
 
 !     Local Variables
@@ -763,7 +764,7 @@ MODULE obsSpaceData_mod
   integer :: ibegin,ilast,ibeginob,ilastob
   integer :: length_l, iobs,idata 
   integer :: count
-  real*8  :: a  
+  real(8) :: a  
 !-------------------------------------------------------------
   write(nulout,*) '-------- Start Getobstag ---------'
   IF(l4dvar) THEN
@@ -1166,7 +1167,6 @@ MODULE obsSpaceData_mod
 #endif
 
   USE mod4dv, only : l4dvar 
-  USE obstag  
   IMPLICIT NONE
 
   type(struct_obs), intent(inout) :: obsdat
@@ -1334,8 +1334,7 @@ MODULE obsSpaceData_mod
 !
 #endif
 
-  USE mod4dv, only : l4dvar 
-  USE obstag  
+  USE mod4dv, only : l4dvar
   IMPLICIT NONE
 
   type(struct_obs), intent(inout) :: obsdat

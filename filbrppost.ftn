@@ -57,7 +57,6 @@
 *
       use mpi 
       use obsSpaceData_mod
-      use obstag
       use profileData_mod
       IMPLICIT NONE
 #include "comlun.cdk"

@@ -127,6 +127,7 @@
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 #include "comspg.cdk"
+#include "comvfiles.cdk"
 *
       INTEGER KULOUT
       INTEGER JLEV, ILEV, IERR
@@ -321,7 +322,7 @@ C
       else
         call suobsgid
 !
-        CALL getobstag 
+        CALL getobstag(nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp,nendtyp)
 
         call obs_reduceToMpiLocal(obsSpaceData, nobtot, nobtotp, nfiles, 
      S                            nbegintyp, nendtyp, nbegintyp_g, nendtyp_g)
