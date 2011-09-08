@@ -44,10 +44,12 @@ MODULE obsSpaceData_mod
   integer :: mxstntotal                 ! maximum number of stations
   integer :: numobs_recorded            ! Actual total number of data on record
   integer :: mxobstotal                 ! maximum number observations
-! Added for 3dvar
+
   integer                                    :: numobs_recorded_l
   integer,           pointer, dimension(:,:) :: mobhdr_g
   real(kind=4),      pointer, dimension(:,:) :: robhdr_g
+
+  logical :: mpi_local                  ! T: keep only data needed by this PE
   end type struct_obs
 
   type(struct_obs) :: obsSpaceData
@@ -130,6 +132,7 @@ MODULE obsSpaceData_mod
 
     obsdat%numstns_recorded = 0
     obsdat%numobs_recorded  = 0
+    obsdat%mpi_local = .false.
     return
   end subroutine obs_initialize
 
@@ -725,9 +728,8 @@ MODULE obsSpaceData_mod
  end function obs_elem_c9
 
 
- subroutine getobstag(nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp,nendtyp)
-  use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-  use mod4dv, only : mvar, l4dvar
+ subroutine getobstag(obsdat,nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp, &
+                      nendtyp,l4dvar)
 #if defined (DOC)
 !
 !**s/r read local observation tag from GEM TLM-ADJ .
@@ -742,12 +744,14 @@ MODULE obsSpaceData_mod
   use mpi
   IMPLICIT NONE
 
+  type(struct_obs), intent(inout) :: obsdat
   integer, intent(in) :: nulout         ! standard output unit
   integer, intent(in) :: nobtot         ! Actual number of observations
   integer, intent(in) :: nfiles
   character(len=128), intent(in) :: cexc4dv
   character(len=  2), intent(in) :: cfamtyp(:)
   integer, intent(in) :: nbegintyp(:), nendtyp(:)
+  logical, intent(in) :: l4dvar         ! Logical control of 3Dvar/4Dvar
 
 #include <prof_f.h>
 
@@ -789,7 +793,7 @@ MODULE obsSpaceData_mod
      length_l=size(locObsTag) 
 !-------------------------------------------------------------
   !!! for 3dvar 
-  ELSE
+  ELSE ! not l4dvar
     jj=0
     IF(mpi_nprocs == 0) mpi_nprocs=1
     WRITE(nulout,*) 'nobtot= ',nobtot 
@@ -798,8 +802,8 @@ MODULE obsSpaceData_mod
        ibegin= NBEGINTYP(j)
        ilast = NENDTYP(j) 
 
-       ibeginob= obs_elem_i(obsSpaceData,'OBS ',ibegin) 
-       ilastob = obs_elem_i(obsSpaceData,'OBS ',ilast)  
+       ibeginob=obsdat%mobdata(NCM_OBS, ibegin)
+       ilastob=obsdat%mobdata(NCM_OBS, ilast) 
        Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
 
        interv=INT((ilastob-ibeginob+1)/mpi_nprocs)  
@@ -856,12 +860,12 @@ MODULE obsSpaceData_mod
   ENDIF !! end if(l4dvar)  
 
    !! Calculate the size of the local obs data  
-  obsSpaceData%numobs_recorded_l=0
-  IF(length_l<=0) CALL ABORT3D(nulout,'Zero lenght of ObsTag,Abort!') 
+  obsdat%numobs_recorded_l=0
+  IF(length_l<=0) CALL ABORT3D(nulout,'Zero length of ObsTag,Abort!') 
   DO i=1,length_l
    iobs=locObsTag(i)
-   idata= obs_elem_i(obsSpaceData,'NLV ',iobs) 
-   obsSpaceData%numobs_recorded_l = obsSpaceData%numobs_recorded_l + idata
+   idata=obsdat%mobhdr(NCM_NLV, iobs)
+   obsdat%numobs_recorded_l = obsdat%numobs_recorded_l + idata
   ENDDO 
 
   write(nulout,*) ' '
@@ -869,7 +873,7 @@ MODULE obsSpaceData_mod
   write(nulout,*) ' '
 
   CONTAINS 
-  subroutine calObsTag(startindx,endindx,jsize)
+    subroutine calObsTag(startindx,endindx,jsize)
      integer,intent(in) :: startindx,endindx
      integer,intent(inout) :: jsize
      !Local variables
@@ -881,7 +885,7 @@ MODULE obsSpaceData_mod
        ENDIF
        
      ENDDO 
-  end subroutine calObsTag 
+    end subroutine calObsTag 
 
  end subroutine getobstag  
 
@@ -1150,8 +1154,8 @@ MODULE obsSpaceData_mod
  end function obs_ifind
 
 
- SUBROUTINE obs_reduceToMpiLocal(obsdat, nobtot, nobtotp, nfiles, &
-                                 nbegintyp, nendtyp, nbegintyp_g, nendtyp_g)
+ SUBROUTINE obs_reduceToMpiLocal(obsdat, nobtot, nobtotp, nfiles, nbegintyp, &
+                                 nendtyp, nbegintyp_g, nendtyp_g, l4dvar)
 #if defined (DOC)
 !
 !**s/r obs_reduceToMpiLocal - re-construct observation data object by giving 
@@ -1166,7 +1170,6 @@ MODULE obsSpaceData_mod
 !
 #endif
 
-  USE mod4dv, only : l4dvar 
   IMPLICIT NONE
 
   type(struct_obs), intent(inout) :: obsdat
@@ -1175,8 +1178,9 @@ MODULE obsSpaceData_mod
   integer, intent(in)    :: nfiles
   integer, intent(inout) :: nbegintyp(:), nendtyp(:)
   integer, intent  (out) :: nbegintyp_g(:), nendtyp_g(:)
+  logical, intent(in)    :: l4dvar      ! Logical control of 3Dvar/4Dvar
 
-! Declare Local Variables. 
+! Declare Local Variables
   CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
   CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
   REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp,ROBDATA_tmp
@@ -1185,12 +1189,19 @@ MODULE obsSpaceData_mod
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP 
   INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp 
   
-!     Declaire local variables. 
   INTEGER :: i,j,iobs,ierr ,locObsize ,startindx,endindx 
   INTEGER :: idataend,jj,ifamid,istart,idata,ii 
   LOGICAL :: lfirst 
 !!---------------------------------------------------------------
   WRITE(*,*) '============= Enter obs_reduceToMpiLocal =============='
+
+  if(obsdat%mpi_local .eqv. .true.)then
+    write(6,*)'ERROR: obs_reduceToMpiLocal() has been called,'
+    write(6,*)'       but the obsSpaceData object is already in mpi-local state'
+    call exit(1)
+  end if
+  obsdat%mpi_local = .true.
+
   locObsize=size(locObsTag) 
 
   ALLOCATE(cfamily_tmp(locObsize),STAT=ierr) 
@@ -1220,10 +1231,9 @@ MODULE obsSpaceData_mod
 
      locObsTag=locObsTag_tmp
      DEALLOCATE(locObsTag_tmp)  
-  ENDIF  
- !  nobtotp and obsdat%mxobstotal are used in CMAABRP of POSTMIN . 
+  ENDIF
+
   nobtotp=nobtot
-  obsdat%mxobstotal=obsdat%numobs_recorded
 
 !! keep the Global ROBHDR and MOBHDR
   DO iobs=1,nobtotp
@@ -1258,8 +1268,6 @@ MODULE obsSpaceData_mod
        MOBDATA_tmp(NCM_OBS,ii) = i
     ENDDO 
   ENDDO 
- 
-! Save the global nobtot and obsdat%numobs_recorded to nobtotp and obsdat%mxobstotal 
   
   nobtot=locObsize  
   obsdat%numobs_recorded=obsdat%numobs_recorded_l
@@ -1334,7 +1342,6 @@ MODULE obsSpaceData_mod
 !
 #endif
 
-  USE mod4dv, only : l4dvar
   IMPLICIT NONE
 
   type(struct_obs), intent(inout) :: obsdat
@@ -1355,6 +1362,13 @@ MODULE obsSpaceData_mod
 
 !!1.      Release some memory
   print*,'Entering obs_expandToMpiGlobal'
+
+  if(obsdat%mpi_local .eqv. .false.)then
+    write(6,*)'ERROR: obs_expandToMpiGlobal() has been called,'
+    write(6,*)'       but the obsSpaceData object is already in mpi-global state'
+    call exit(1)
+  end if
+  obsdat%mpi_local = .false.
 
 !!1.2 Added restore global array MOBHDR
 !     MOBHDR is used in "cmaabrp.ftn"

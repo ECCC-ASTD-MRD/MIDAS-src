@@ -98,7 +98,7 @@ module profileData_mod
     SUBROUTINE prof_expandToMpiGlobal(nulout, nobtot, nobtotp)
 #if defined (DOC)
 !
-!**s/r obs_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
+!**s/r prof_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
 !
 !Original Author    . Bin He (ARMA/MRB )
 !          extracted from Bin's obs_expandToMpiGlobal()
