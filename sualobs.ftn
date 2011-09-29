@@ -104,7 +104,7 @@ C     .   (COMDECK COMOBA)
 C     .  ---------------------------------------------
 C
 *     Memory allocation for obsSpaceData (except for *_g arrays)
-      call obs_allocate(obsSpaceData,NMXOBS,NDATAMX)
+      call obs_initialize(obsSpaceData,NMXOBS,NDATAMX)
 !
 !
       allocate(lmaskpp_in(ndatamx),lmaskpp_out(ndatamx))

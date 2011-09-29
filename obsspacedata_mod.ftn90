@@ -27,7 +27,7 @@ MODULE obsSpaceData_mod
   public           :: obs_allocate,obs_deallocate,obs_allocateG,obs_deallocateG
   public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_elem_c9,obs_set
   public           :: obs_num_obstotal,obs_num_stn,obs_swapVarOmf,obs_ifind
-  public           :: obs_getFamily,obs_setFamily,obs_bdy,getobstag
+  public           :: obs_getFamily,obs_setFamily,obs_bdy,obs_getobstag
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
 
   ! derived type and module variable declarations
@@ -125,51 +125,52 @@ MODULE obsSpaceData_mod
   contains
 
 
-  subroutine obs_initialize(obsdat)
+  subroutine obs_initialize(obsdat,mxstn,mxobs)
     implicit none
 
     type(struct_obs), intent(out) :: obsdat
+    integer, intent(in) :: mxstn        ! maximum number of stations allocated
+    integer, intent(in) :: mxobs        ! maximum no. of observations per source
 
+! TBD - JWB:  this initialization causes var3d to crash
+    obsdat%mxstntotal=mxstn
+    obsdat%mxobstotal=mxobs
     obsdat%numstns_recorded = 0
     obsdat%numobs_recorded  = 0
     obsdat%mpi_local = .false.
+
+    call obs_allocate(obsdat,mxstn,mxobs)
     return
   end subroutine obs_initialize
 
 
-  subroutine obs_allocate(obsdat,maxNumHdr,maxNumBdy)
+  subroutine obs_allocate(obsdat,mxstn,mxobs)
     implicit none
 
     type(struct_obs), intent(inout) :: obsdat
-    integer         , intent(in)  :: maxNumHdr,maxNumBdy
+    integer         , intent(in)  :: mxstn,mxobs
 
     integer :: ierr
 
-! TBD - JWB:  this initialization causes var3d to crash
-!    obsdat%mxstntotal=maxNumHdr
-!    obsdat%mxobstotal=maxNumBdy
-!    obsdat%numstns_recorded=0
-!    obsdat%numobs_recorded=0
-
-    ALLOCATE(obsdat%cfamily(maxNumHdr),STAT=ierr)
+    ALLOCATE(obsdat%cfamily(mxstn),STAT=ierr)
     obsdat%cfamily(:)='XX'
 
-    ALLOCATE(obsdat%cstnid(maxNumHdr),STAT=ierr)
+    ALLOCATE(obsdat%cstnid(mxstn),STAT=ierr)
     obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
-    ALLOCATE(obsdat%ROBHDR(NCM_LET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obsdat%ROBHDR(NCM_LET,mxstn),STAT=ierr)
     obsdat%ROBHDR=0.0
 
-    ALLOCATE(obsdat%MOBHDR(NCM_LET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obsdat%MOBHDR(NCM_LET,mxstn),STAT=ierr)
     obsdat%MOBHDR=0
 
-    ALLOCATE(obsdat%ROBDATA(NCM_LBO,maxNumBdy),STAT=ierr)
+    ALLOCATE(obsdat%ROBDATA(NCM_LBO,mxobs),STAT=ierr)
     obsdat%ROBDATA=0.0
 
-    ALLOCATE(obsdat%ROBDATA8(ROBDATA8_LOWER:ROBDATA8_UPPER,maxNumBdy),STAT=ierr)
+    ALLOCATE(obsdat%ROBDATA8(ROBDATA8_LOWER:ROBDATA8_UPPER,mxobs),STAT=ierr)
     obsdat%ROBDATA8=0.0D0
 
-    ALLOCATE(obsdat%MOBDATA(NCM_LBO,maxNumBdy),STAT=ierr)
+    ALLOCATE(obsdat%MOBDATA(NCM_LBO,mxobs),STAT=ierr)
     obsdat%MOBDATA=0
 
   end subroutine obs_allocate
@@ -728,7 +729,7 @@ MODULE obsSpaceData_mod
  end function obs_elem_c9
 
 
- subroutine getobstag(obsdat,nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp, &
+ subroutine obs_getobstag(obsdat,nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp, &
                       nendtyp,l4dvar)
 #if defined (DOC)
 !
@@ -770,7 +771,7 @@ MODULE obsSpaceData_mod
   integer :: count
   real(8) :: a  
 !-------------------------------------------------------------
-  write(nulout,*) '-------- Start Getobstag ---------'
+  write(nulout,*) '-------- Start obs_getobstag ---------'
   IF(l4dvar) THEN
      write(cljx,'(i2.2)') mpi_myidx
      write(cljy,'(i2.2)') mpi_myidy
@@ -785,14 +786,13 @@ MODULE obsSpaceData_mod
      ENDDO waiting
 
      ihdl= prof_open(clprof,'READ','FILE')
-     If(ihdl < 0) CALL ABORT3D(nulout,'getobstag')
+     If(ihdl < 0) CALL ABORT3D(nulout,'obs_getobstag')
      istat= prof_rdrec(ihdl) 
      istat= prof_gvar(ihdl,locObsTag,V2D_OTAG) 
        
      istat= prof_close(ihdl,.true.) 
      length_l=size(locObsTag) 
 !-------------------------------------------------------------
-  !!! for 3dvar 
   ELSE ! not l4dvar
     jj=0
     IF(mpi_nprocs == 0) mpi_nprocs=1
@@ -869,7 +869,7 @@ MODULE obsSpaceData_mod
   ENDDO 
 
   write(nulout,*) ' '
-  write(nulout,*) '-------- END OF Getobstag ---------'
+  write(nulout,*) '-------- END OF obs_getobstag ---------'
   write(nulout,*) ' '
 
   CONTAINS 
@@ -887,7 +887,7 @@ MODULE obsSpaceData_mod
      ENDDO 
     end subroutine calObsTag 
 
- end subroutine getobstag  
+ end subroutine obs_getobstag  
 
 
 
