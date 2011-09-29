@@ -163,7 +163,7 @@ C
         deallocate(gomobs)
         deallocate(gomobs1)
 C
-        call obs_deallocate(obsSpaceData)
+        call obs_finalize(obsSpaceData)
 C
         deallocate(rppobs)
         deallocate(RMTMOBS)
