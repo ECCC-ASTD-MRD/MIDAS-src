@@ -67,7 +67,7 @@
 *
 *     Local Variables
 *
-      INTEGER   JLEV, JGL, JLON, JOBS, IOBTYP
+      INTEGER   JLEV, JGL, JLON, JOBS
       INTEGER   ILON, ILOS, ILA, IMIDDLE, ISYM, IMAX
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
@@ -123,15 +123,14 @@ C
  200  CONTINUE
 C
       Observations: DO JOBS = 1, NOBTOTP
-         DLLAO   = obsSpaceData%ROBHDR_G(NCM_LAT,JOBS)
-         DLLOO   = obsSpaceData%ROBHDR_G(NCM_LON,JOBS)
-         IOBTYP  = obs_elem_i(obsSpaceData,'OTP ',JOBS)
+         DLLAO   = obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS)
+         DLLOO   = obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     TO THE WEST (ILON AND ILOS)
 C
-         ILA=obs_elem_i(obsSpaceData,'TLA ',JOBS)
+         ILA=obs_elem_mpiglobal_i(obsSpaceData,'TLA ',JOBS)
 C
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI

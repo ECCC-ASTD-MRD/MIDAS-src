@@ -28,6 +28,7 @@ MODULE obsSpaceData_mod
   public           :: obs_num_obstotal,obs_num_stn,obs_swapVarOmf,obs_ifind
   public           :: obs_getFamily,obs_setFamily,obs_bdy,obs_getobstag
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
+  public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
 
   ! private methods
   !                obs_allocate, obs_deallocate, obs_allocateG, obs_deallocateG
@@ -51,6 +52,7 @@ MODULE obsSpaceData_mod
                                         ! Size of the mpi-Local obs data
    integer                                    :: numobs_recorded_l
                                         ! Headers of the mpi-Global obs data
+   integer :: mxstnglobal               !    maximum number of stations (global)
    integer,           pointer, dimension(:,:) :: mobhdr_g
    real(kind=4),      pointer, dimension(:,:) :: robhdr_g
 
@@ -137,13 +139,12 @@ MODULE obsSpaceData_mod
     integer, intent(in) :: mxstn        ! maximum number of stations allocated
     integer, intent(in) :: mxobs        ! maximum no. of observations per source
 
-    obsdat%mxstntotal=mxstn
-    obsdat%mxobstotal=mxobs
     obsdat%numstns_recorded = 0
     obsdat%numobs_recorded  = 0
     obsdat%mpi_local = .false.
 
     obsdat%numobs_recorded_l = 0
+    obsdat%mxstnglobal=0
     nullify(obsdat%mobhdr_g)
     nullify(obsdat%robhdr_g)
 
@@ -168,6 +169,9 @@ MODULE obsSpaceData_mod
     integer         , intent(in)  :: mxstn,mxobs
 
     integer :: ierr
+
+    obsdat%mxstntotal=mxstn
+    obsdat%mxobstotal=mxobs
 
     ALLOCATE(obsdat%cfamily(mxstn),STAT=ierr)
     obsdat%cfamily(:)='XX'
@@ -200,6 +204,8 @@ MODULE obsSpaceData_mod
 
     integer :: ierr
 
+    obsdat%mxstnglobal = maxNumHdr
+
     ALLOCATE(obsdat%ROBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
     obsdat%ROBHDR_g=0.0
 
@@ -215,6 +221,8 @@ MODULE obsSpaceData_mod
     type(struct_obs), intent(inout) :: obsdat
 
     integer :: ierr
+
+    obsdat%mxstnglobal = 0
 
     if (associated(obsdat%robhdr_g)) then
       deallocate(obsdat%robhdr_g,stat=ierr)
@@ -243,6 +251,9 @@ MODULE obsSpaceData_mod
     type(struct_obs), intent(inout) :: obsdat
 
     integer :: ierr
+
+    obsdat%mxstntotal=0
+    obsdat%mxobstotal=0
 
     if (associated(obsdat%cfamily)) then
       deallocate(obsdat%cfamily,STAT=ierr)
@@ -706,6 +717,28 @@ MODULE obsSpaceData_mod
   end select
  end function obs_elem_r4
 
+ real(kind=4) function obs_elem_mpiglobal_r4(obsdat,name,index) result(value)
+  ! This method is supplied for use by those external to the present module who
+  ! are aware of the mpi-local or -global state of this module.
+  implicit none
+  type(struct_obs), intent(in)  :: obsdat
+  character(len=4), intent(in)  :: name
+  integer         , intent(in)  :: index
+
+  select case (name(1:4))
+  case ('LAT '); value=obsdat%robhdr_g(NCM_LAT, index)
+  case ('LON '); value=obsdat%robhdr_g(NCM_LON, index)
+  case ('ALT '); value=obsdat%robhdr_g(NCM_ALT, index)
+  case ('BX  '); value=obsdat%robhdr_g(NCM_BX , index)
+  case ('BY  '); value=obsdat%robhdr_g(NCM_BY , index)
+  case ('BZ  '); value=obsdat%robhdr_g(NCM_BZ , index)
+
+  case default
+   write(*,*)"ERROR:  ", name(1:4)," is not available in the mpi-global context."
+   value=-999.
+  end select
+ end function obs_elem_mpiglobal_r4
+
  real(kind=8) function obs_elem_r8(obsdat,name,index) result(value)
   implicit none
   type(struct_obs), intent(in)  :: obsdat
@@ -780,6 +813,42 @@ MODULE obsSpaceData_mod
    value=-999
   end select
  end function obs_elem_i
+
+ integer function obs_elem_mpiglobal_i(obsdat,name,index) result(value)
+  ! This method is supplied for use by those external to the present module who
+  ! are aware of the mpi-local or -global state of this module.
+  implicit none
+  type(struct_obs), intent(in)  :: obsdat
+  character(len=4), intent(in)  :: nam
+  integer         , intent(in)  :: index
+
+  select case (name(1:4))
+  case ('RLN '); value=obsdat%mobhdr_g(NCM_RLN, index)
+  case ('ONM '); value=obsdat%mobhdr_g(NCM_ONM, index)
+  case ('BOX '); value=obsdat%mobhdr_g(NCM_BOX, index)
+  case ('OTP '); value=obsdat%mobhdr_g(NCM_OTP, index)
+  case ('ITY '); value=obsdat%mobhdr_g(NCM_ITY, index)
+  case ('DAT '); value=obsdat%mobhdr_g(NCM_DAT, index)
+  case ('ETM '); value=obsdat%mobhdr_g(NCM_ETM, index)
+  case ('NLV '); value=obsdat%mobhdr_g(NCM_NLV, index)
+  case ('OFL '); value=obsdat%mobhdr_g(NCM_OFL, index)
+  case ('PAS '); value=obsdat%mobhdr_g(NCM_PAS, index)
+  case ('REG '); value=obsdat%mobhdr_g(NCM_REG, index)
+  case ('IP  '); value=obsdat%mobhdr_g(NCM_IP , index)
+  case ('AZA '); value=obsdat%mobhdr_g(NCM_AZA, index)
+  case ('SUN '); value=obsdat%mobhdr_g(NCM_SUN, index)
+  case ('CLF '); value=obsdat%mobhdr_g(NCM_CLF, index)
+  ! Added for var3d
+  case ('SID '); value=obsdat%mobhdr_g(NCM_SID, index)
+  case ('OEC '); value=obsdat%mobhdr_g(NCM_OEC, index)
+  case ('ST1 '); value=obsdat%mobhdr_g(NCM_ST1, index)
+  case ('TLA '); value=obsdat%mobhdr_g(NCM_TLA, index)
+
+  case default
+   write(*,*)"ERROR:  ", name(1:4)," is not available in the mpi-global context."
+   value=-999
+  end select
+ end function obs_elem_mpiglobal_i
 
 
  function obs_elem_c9(obsdat,name,index) result(value)
