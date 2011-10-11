@@ -1,0 +1,490 @@
+!--------------------------------------------------------------------------
+! MODULE minimization (Minimization for variational assimilation.  prefix="min")
+!
+! Purpose: 
+!
+! Subroutines:
+!    min_setup (public)
+!
+! Dependencies:
+!
+!--------------------------------------------------------------------------
+MODULE minimization
+
+  implicit none
+  save
+  private
+
+  public              :: min_Setup, min_minvar,ltlmend,nsim3d,niterjob,lvarqc
+
+  logical             :: initialized = .false.
+
+  character(len=10)   :: crestart='wrmrestart'
+  integer             :: nulout =6
+  integer             :: nmtra,nwork,nsim3d
+
+  ! namelist variables
+  INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
+  INTEGER NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
+  LOGICAL LRSTART,lxbar,lwrthess,ltlmend
+  REAL*8 REPSG,EPSNEG,rdf1fac
+  LOGICAL LVARQC
+  integer :: nwoqcv
+
+  NAMELIST /NAMMIN/N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NITERJOB  
+  NAMELIST /NAMMIN/NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
+  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess,ltlmend
+  NAMELIST /NAMMIN/REPSG,EPSNEG,rdf1fac
+  NAMELIST /NAMMIN/LVARQC,NWOQCV
+
+CONTAINS
+
+  SUBROUTINE min_setup(nvadim_in)
+    implicit none
+    integer :: nvadim_in
+
+    integer :: ierr,nulnam=0
+    integer :: fnom,fclos
+
+      N1GC = 3
+      NVAMAJ = 6
+      NIMPRES =  5
+      NITERMAX = 400
+      RDF1FAC  = 0.25d0
+      NITERJOB = -1
+      NSIMMAX  = 500
+      NGRTEST  = 0
+      NGRANGE  = 10
+      lwrthess =.true.
+      lxbar    = .true.
+      ltlmend  = .false.
+      REPSG    = 1e-3
+      LRSTART  = .FALSE.
+      EPSNEG   = 1e-6
+      SELECT0  = 0
+      BFGSB    = 2
+      IMODE3   = 0
+      LVARQC   = .false.
+      NWOQCV   = 5
+
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=nammin)
+    write(*,nml=nammin)
+    ierr=fclos(nulnam)
+
+    IF(N1GC.EQ.2) THEN
+       NMTRA = 3*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
+    ELSE IF(N1GC.EQ.3)THEN
+        write(nulout,*) 'sudim: NVADIM_IN=',NVADIM_IN
+        write(nulout,*) 'sudim: NVAMAJ=',NVAMAJ
+        write(nulout,*) 'sudim: 4*NVADIM_IN=',4*NVADIM_IN
+        write(nulout,*) 'sudim: NVAMAJ*(2*NVADIM_IN + 1)=',NVAMAJ*(2*NVADIM_IN + 1)
+        write(nulout,*) 'sudim: NMTRA=',4*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
+        NMTRA = 4*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
+      ELSE IF(N1GC.EQ.4)THEN
+         NMTRA = 1 + NVAMAJ*(2*NVADIM_IN + 1)
+         NWORK = 5*NVADIM_IN + NVAMAJ
+      ELSE
+         NMTRA = NVADIM_IN*2
+      END IF
+      WRITE(NULOUT,9401)N1GC, NVAMAJ,NVADIM_IN,NMTRA
+ 9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NVADIM_IN =",1x,I14,3X,"NMTRA =",1X,I14)
+      IF(N1GC.EQ.4) THEN
+      WRITE(NULOUT,9402)NWORK
+ 9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
+      ENDIF
+
+      IF (LVARQC) WRITE(NULOUT,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
+
+    initialized=.true.
+
+  END SUBROUTINE min_setup
+
+
+  subroutine min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
+      use mod4dv, only : l4dvar
+      use controlVector
+!
+!Purpose:
+!3D/4D VAR minimization
+!
+      IMPLICIT NONE
+       
+      logical lnlvtov,lpcon,lrestart
+      integer ntrunc,nksdim,nbrpstamp,niter
+      CHARACTER(len=128) :: cpconf
+
+      INTEGER IZS(1),IZTRL(10)
+      REAL ZZSUNUSED(1)
+
+      real*8 vazg(nvadim)
+      real*8 vatr1(nmtra)
+      real*8 vatra(nmtra)
+
+      real*8 :: RPRECIS = 1.D-12
+      REAL*8 DLDS(1)
+      LOGICAL LLTEST,llvarqc, llstop, lldf1, lrdvatra, llvazx, llxbar
+
+      INTEGER IMPRES, IMODE, ITERMAX, iterdone, ISIMMAX, INDIC, IITNOVQC, jj
+      INTEGER IERR,ITERTOT,isimdone,isimtot,jdata, ISIMNOVQC
+      integer ireslun,ibrpstamp,isim3d
+      INTEGER IPRECON,ILEN
+      REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS0, ZEPS1
+      REAL*8 DLGNORM, DLXNORM, ZJOTOV
+
+      INTEGER FNOM,FCLOS, remove_c
+      EXTERNAL FNOM,FCLOS
+!modular1      EXTERNAL MVPROD
+      EXTERNAL  N1QN3, DSCALQN, DCANAB, DCANONB, PRSCAL, simvar
+      real*8 :: zeps0_000,zdf1_000
+      integer :: iterdone_000,isimdone_000
+      character(len=128) :: clfname
+
+      logical bid_L
+
+!     Additional parameters for minimization (N1CG1)
+      real*8 xx,bb,a_not_use,r8_not_use,pj0
+      integer in_mode(3),out_mode,i_not_use,nilm,ilm0(10),ilm1(10)
+      integer i_pmat1,nl_stat, dl_bidon
+
+! ---------------------------------------
+!     Initialization and allocation specific to (N1CG1)
+!     -------------------------------------------------
+      if( N1GC.EQ.4.and.lvarqc ) call abort3d(nulout,' MINIMIZE N1CG1 with lvarqc not done ')
+      if( BFGSB.EQ.1 ) call abort3d(nulout,' MINIMIZE n1cg1: option not validated ')
+
+!     Define i_pmat1 even if BFGSB.NE.1 (Otherwise abort in n1cg1)
+!     ------------------------------------------------------------
+      i_pmat1 = NVADIM**2
+
+      in_mode(2) = 0
+      in_mode(3) = IMODE3
+
+      nilm = NVAMAJ + 3
+      if( nilm.gt.10 .and. N1GC.EQ.4)  call abort3d(nulout,' MINIMIZE n1cg1: ilm0,ilm1 incorrect ')
+
+!     -------------------------------------------------
+! Prepare for non-linear processing of 'TO' data:
+!    - fill PZDBLPRIM8 with Z" = H(xb_lr) + Z'
+!                              = H(xb_lr) - H(xb_hr) + Z
+      if ( lnlvtov ) then
+        call tmg_start(60,'RTTOV')
+        call tovs_obs ('LR', ZJOTOV)
+        call tmg_stop(60)
+      endif
+
+      ITERTOT  = 0
+      isimtot = 0
+
+      ZXMIN  =  RPRECIS
+!     *    2. Set-up the minimization
+!     .  -----------------------
+      llvarqc = lvarqc
+
+!     If minimization start without qcvar : turn off varqc to compute
+!     innovations and test the gradients
+
+      ireslun=0
+      lldf1 = .true.
+      if(niterjob /= -1 .and. lrestart) then
+        if( N1GC.EQ.4 ) call abort3d(nulout,' MINIMIZE N1CG1 with restart not done ')
+        write(nulout,*) 'Minimize : Restart mode'
+        lrdvatra = .true.
+        clfname = crestart
+        imode = 2
+        llvazx = .true.
+        llxbar = .true.
+      elseif (lpcon) then
+        write(nulout,*) 'Minimize : Preconditioning mode'
+        lrdvatra = .true.
+        clfname = cpconf
+        imode = 2
+        llvazx = .false.
+        llxbar = lxbar ! from namcva (default is .true.)
+      else
+        lrdvatra = .false.
+        imode = 0
+        zeps0 = repsg
+      endif
+      if(.not.(imode.eq.0.or.imode.eq.2)) call abort3d(nulout,' RW_VATRA not done ')
+
+      if (lrdvatra) then
+        ibrpstamp = nbrpstamp ! ibrpstamp is a I/O argument of rw_vatra
+
+        if(n1gc.eq.3) then
+          call rw_vatra (clfname,0,                            &
+            isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
+            ,isimdone_000,iztrl,vatra,nmtra,dg_vbar,nvadim,    &
+            vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
+
+        elseif(n1gc.eq.4) then
+          call rw_vatra (clfname,0,                            &
+            isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
+            ,isimdone_000,ilm0,vatra,nmtra,dg_vbar,nvadim,     &
+            vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
+        endif
+
+        if(niterjob /= -1 .and. lrestart) then
+          ierr = remove_c(clfname)
+          nsim3d = isim3d
+          write(nulout,*) 'MINVAR : NSIM3D read from precon file: ',nsim3d 
+          zeps0  = zeps0_000
+          zdf1   = zdf1_000
+          lldf1 = .false. ! don't re-compute df1 base on Cost function
+          iterdone = iterdone_000
+          isimdone = isimdone_000 - 1
+          itermax = min(nitermax - iterdone + 1, niterjob)
+          isimmax = nsimmax - isimdone + 1
+          if (iterdone < nwoqcv) lvarqc = .false.
+        else
+          if (ibrpstamp == nbrpstamp .and. lxbar) then
+            zeps0  = zeps0_000
+            zdf1   = zdf1_000
+            lldf1 = .false.     ! don't re-compute df1 base on Cost function
+          else
+            zeps0 = repsg
+            lldf1 = .true.      ! Compute df1 base on Cost function
+          endif
+        endif
+      endif
+
+      if(niterjob == -1 .or. .not. lrestart) then
+        iterdone = 0
+        isimdone = 0
+        if (niterjob /= -1) then
+          itermax = min(nitermax,niterjob)
+        else
+          itermax = nitermax
+        endif
+        isimmax = nsimmax
+
+        if (nwoqcv > 0) lvarqc = .false.
+
+        if(ngrtest.ne.0) then
+          call grtest2(simvar,nulout,nvadim,vazx,ngrange)
+        endif
+
+      endif
+
+      zeps1 = zeps0
+
+      itertot = iterdone
+      isimtot = isimdone
+
+!     *    2. Set-up the minimization
+!     .  -----------------------
+!
+!     *    .   Test the gradient again at the initial point WITH PRECON
+!     .   --------------------------------------------------------
+!
+!     .   2.1.4 Test the complete functional
+!
+!     *    .   2.2  Compute the value of J(X) and the gradient
+!     .        at the initial point
+!
+      INDIC =2
+
+      call simvar(indic,nvadim,vazx,zjsp,vazg)
+
+      if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
+
+!     Put QCVAR logical to its original values
+
+      lvarqc=llvarqc
+
+      CALL PRSCAL(NVADIM,VAZG,VAZG,DLGNORM)
+      DLGNORM = DSQRT(DLGNORM)
+      CALL PRSCAL(NVADIM,VAZX,VAZX,DLXNORM)
+      DLXNORM = DSQRT(DLXNORM)
+      WRITE(NULOUT,*)' |X| = ', DLXNORM
+      WRITE(NULOUT,FMT=9220) ZJSP, DLGNORM
+ 9220 FORMAT(/4X,'J(X) = ',G23.16,4X,'|Grad J(X)| = ',G23.16)
+
+!     *    .   2.4. Constants required by MODULOPT
+!     .        ------------------------------
+
+      IMPRES   =  NIMPRES
+
+!     *    3. Iterations of the minimization algorithm
+!     .  ----------------------------------------
+
+
+!     *    .   3.2 Starting point of the minimization written to
+!     .       RPN standard output file
+
+      IF(N1GC.EQ.3) THEN
+      WRITE(NULOUT,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,NITERMAX,NSIMMAX
+      ELSEIF(N1GC.EQ.4) THEN
+      WRITE(NULOUT,FMT=9321)ZXMIN,ZDF1,ZEPS0,EPSNEG,SELECT0,BFGSB,IMODE3,IMPRES,NITERMAX,NSIMMAX
+      ENDIF
+
+ 9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
+          10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
+          /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3,//  &
+          ,15X,'-STARTING POINT IS WRITTEN TO FILE ...')
+ 9321 FORMAT(//,10X,' Minimization N1CG1 starts ...',/  &
+          10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16,2X,'EPSNEG =',G23.16,/,  &
+          10x,'SELECT0 = ',I3,2X,'BFGSB = ',I3,2X,'IMODE3 = ',I3,  &
+          /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3,2X,'NHESS = ',I3,//  &
+          ,15X,'-STARTING POINT IS WRITTEN TO FILE ...')
+
+!     *    .   3.3 Beginning the minimization
+!     .       --------------------------
+
+      llstop = .false.
+      if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv) then
+        iitnovqc = min(nwoqcv - iterdone,itermax)
+        isimnovqc = isimmax
+        lvarqc = .false.
+        call tmg_start(21,'QN')
+        call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, vazx,     &
+            zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode       &
+            ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, izs, zzsunused  &
+            ,dlds)
+        call tmg_stop (21)
+
+        isimnovqc = isimnovqc - 1
+        itermax = itermax - iitnovqc + 1
+        isimmax = isimmax - isimnovqc + 1
+
+        itertot = itertot + iitnovqc
+        isimtot = isimtot + isimnovqc
+
+        zeps1 = zeps0/zeps1
+        zeps0 = zeps1
+        lvarqc = .true.
+
+        if (imode == 4 .and. itertot < nitermax) then
+          imode = 2
+          INDIC = 2
+          call simvar(indic,nvadim,vazx,zjsp,vazg)
+        else
+          llstop = .true.
+        endif
+      endif
+
+      if (.not. llstop) then
+
+        if(N1GC.EQ.3) then
+
+          call tmg_start(21,'QN')
+          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, vazx,  &
+              zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
+              itermax,isimmax, iztrl, vatra, nmtra, izs, zzsunused,   &
+              dlds)
+          call tmg_stop (21)
+          itertot = itertot + itermax
+          isimtot = isimtot + isimmax
+
+          zeps1 = zeps0/zeps1
+
+        elseif(N1GC.EQ.4) then
+
+!       Set VAZB = - VAZG (Valid only if VAZX = ZERO)
+!       ---------------------------------------------
+!modular1          VAZB = - VAZG
+
+!       Keep constant term in pj0 (Valid only if VAZX = ZERO)
+!       -----------------------------------------------------
+          pj0 = ZJSP
+
+!       Print cost function at iter 0 (Valid only if VAZX = ZERO)
+!       ---------------------------------------------------------
+          WRITE(NULOUT,FMT=9700) 0,0.d0+pj0,pj0,0.d0
+ 9700     FORMAT (4x,"n1cga:",i5,1x,e15.8,1x,e15.8,1x,e15.8)
+
+          if(imode.eq.0) in_mode(1) = 0
+          if(imode.eq.2) in_mode(1) = 1
+
+!modular1          call n1cg1 (mvprod,NVADIM,VAZX,VAZB,a_not_use,pj0,xx,bb,.false
+!modular1     &         .,EPSNEG,zeps1,itermax,impres,NULOUT,in_mode,out_mode
+!modular1     &         ,VWORK,NWORK,imode,r8_not_use,i_not_use,NVAMAJ,ilm0,nilm
+!modular1     &         ,VATRA,NMTRA,BFGSB,r8_not_use,i_pmat1,  NVAMAJ,ilm1,nilm
+!modular1     &         ,VATR1,NMTRA,SELECT0,izs,zzsunused,dlds)
+
+          zeps1 = zeps0/zeps1
+          zeps0 = zeps1
+
+          imode = out_mode
+
+          isimmax = itermax
+
+          itertot = itertot + itermax
+          isimtot = isimtot + isimmax
+
+!       Call 4D-Var simulator without gradient to get ZJSP
+!       --------------------------------------------------
+          INDIC = 2
+          call simvar(indic,nvadim,vazx,zjsp,vazg)
+
+        endif
+
+      endif
+
+!     if lrestart remain false... postmin will execute
+      lrestart = .false.
+      ireslun=0
+      if (niterjob /= -1 .and. itertot < nitermax .and. imode == 4) then
+        clfname = crestart
+!     Careful: lrestart before minimisation was used to trigger a
+!     read of restart file... now it is set to .true. to avoid
+!     execution of postmin.
+        lrestart = .true.
+      else
+        do jdata = 1, nvadim
+          dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
+        enddo
+        clfname = 'pm1q'
+      endif
+
+      if(lwrthess) then
+        if(n1gc.eq.3) then
+        call rw_vatra (clfname,1,  &
+          nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,  &
+          iztrl,vatra,nmtra,  &
+          dg_vbar,nvadim,  &
+          vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
+
+        elseif(n1gc.eq.4) then
+            call rw_vatra (clfname,1,  &
+            nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,  &
+            ilm1,vatr1,nmtra,  &
+            dg_vbar,nvadim,  &
+            vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
+          endif
+      endif
+
+      WRITE(NULOUT,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
+ 9500 FORMAT(//,20X,20('*'),2X    &
+          ,/,20X,'              Minimization ended with MODE:',I4  &
+          ,/,20X,' Number of iterations done in previous job:',I4  &
+          ,/,20X,'          Number of iterations in this job:',I4  &
+          ,/,20X,'                Total number of iterations:',I4  &
+          ,/,20X,'Number of simulations done in previous job:',I4  &
+          ,/,20X,'         Number of simulations in this job:',I4  &
+          ,/,20X,'               Total number of simulations:',I4)
+
+      niter = itertot
+
+!     *    4. Test the gradient at the final point if NGRTEST=1
+!     .  ------------------------------------
+
+ 400  CONTINUE
+
+      if ((NGRTEST.ne.0 .and. IMODE.ne.4 .and. .not. LRSTART)) then
+        WRITE(NULOUT,FMT=9400)
+ 9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
+
+        call grtest2(simvar,nulout,nvadim,vazx,ngrange)
+
+      END IF
+
+      if(l4dvar) then
+!modular1        call endsim2(nvadim,vazx)
+      endif
+
+      RETURN
+  END SUBROUTINE min_minvar
+
+
+END MODULE minimization

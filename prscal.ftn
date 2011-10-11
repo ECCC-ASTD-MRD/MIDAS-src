@@ -41,9 +41,6 @@
 *
 #endif
       IMPLICIT NONE
-*implicits
-#include "comdim.cdk"
-#include "comcva.cdk"
 *
       INTEGER KDIM, J, RR, IERR
       REAL*8 PX(KDIM), PY(KDIM)

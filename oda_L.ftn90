@@ -27,7 +27,6 @@ subroutine oda_L
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
 #include "comdim.cdk"
-#include "comcva.cdk"
   ! Local declarations
   integer :: nl_ilev, nl_err
   integer :: ierr

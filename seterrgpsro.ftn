@@ -40,17 +40,14 @@
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comcva.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "comct0.cdk"
-
 #include "commvohr.cdk"
 #include "cvcord.cdk"
 #include "comphy.cdk"
-#include "comvarqc.cdk"
 #include "comgpsro.cdk"
 *
       REAL*8 PJO, PJOB, PJOM, PJOX, PJO1
@@ -75,7 +72,7 @@ C
       INTEGER IBEGINOB, ILASTOB, JO, JD
       INTEGER IDATYP
       INTEGER IDATA   , IDATEND, JDATA
-      INTEGER JL, JH, NQCVAR, NGPSLEV
+      INTEGER JL, JH, NGPSLEV
 C
       LOGICAL  ASSIM
 
@@ -104,14 +101,6 @@ C*    *        1.2 Read the NAMELIST NAMGGPSRO
 C     *       ---------------------------------------
       CALL READNML('NAMGPSRO',IERR)
       write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
-C
-C     * QC VAR
-C
-      IF (LVARQC) THEN
-         NQCVAR = 1
-      ELSE
-         NQCVAR = 0
-      ENDIF
 C
 C     Loop over all files
 C

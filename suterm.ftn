@@ -52,7 +52,6 @@
 *          - With respect to version v10.0.2
 *            1) Added the deallocation of memory of
 *               PTILON, PTNNP1, PT1SNP1, PTCONPHY, PTCONINA
-*            2) Removed the deallocation of memory of PTVATRA
 *
 *    Bin HE   *ARMA/SMC  - Apr. 2008 
 *          - closed multiple trial files.   
@@ -63,6 +62,7 @@
 #endif
 C
       use profileData_mod 
+      use controlVector
 #include "commvo.cdk"
       IMPLICIT NONE
 *implicits
@@ -77,14 +77,10 @@ C
 #include "comsp1.cdk"
 #include "comspg.cdk"
 #include "comgem.cdk"
-#include "comcva.cdk"
 C
 C*    Comdecks associated with the observations
 C     ----------------------------------------
 #include "comdimo.cdk"
-
-
-
 #include "commvo1.cdk"
 #include "commvog.cdk"
 #include "commvohr.cdk"

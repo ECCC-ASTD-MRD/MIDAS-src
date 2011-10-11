@@ -34,7 +34,6 @@ subroutine oda_LT
   ! Bin HE     - ARMA/MRB  - Oct. 2009 - Implemented MPI to 3DVAR. 
   !
 #include "comdim.cdk"
-#include "comcva.cdk"
 #include "comgd0.cdk"
   ! Local declarations
   integer :: nl_ilev,nl_err

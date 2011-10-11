@@ -69,7 +69,6 @@ C
 #include "rpnstd.cdk"
 #include "cvcord.cdk"
 #include "comgdpar.cdk"
-#include "comcva.cdk"
 *
       logical llvint
       REAL*8 SFOQST8,SFOEW8

@@ -1,0 +1,67 @@
+!--------------------------------------------------------------------------
+! MODULE controlVector (The control vector and related information.  prefix="cvm")
+!
+! Purpose: 
+!
+! Subroutines:
+!    cvm_setup (public)
+!
+! Dependencies:
+!
+!--------------------------------------------------------------------------
+MODULE ControlVector
+
+  implicit none
+  save
+  private
+
+  public              :: cvm_Setup, cvm_getSubVector, vazx, nvadim, dg_vbar
+
+  logical             :: initialized = .false.
+  integer             :: cvm_dimBHI = 0
+  integer             :: cvm_dimBEN = 0
+  integer             :: nvadim
+
+  real*8, allocatable,target :: vazx(:)
+  real*8, pointer            :: dg_vbar(:)
+
+CONTAINS
+
+  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN)
+    implicit none
+
+    integer        :: dimBHI_in,dimBEN_in
+
+    cvm_dimbhi = dimbhi_in
+    cvm_dimben = dimben_in
+    nvadim = cvm_dimben + cvm_dimbhi
+
+    allocate(vazx(nvadim))
+    allocate(dg_vbar(nvadim))
+
+    vazx(:)=0.0d0
+    dg_vbar(:)=0.0d0
+
+    initialized=.true.
+
+  END SUBROUTINE CVM_setup
+
+  FUNCTION CVM_getSubVector(controlVector,subVectorIndex) RESULT(subVector)
+
+    real*8, pointer :: subVector(:)
+    real*8,target   :: controlVector(:)
+    integer         :: subVectorIndex
+
+    nullify(subVector)
+
+    if(subVectorIndex.eq.1 .and. cvm_dimbhi.gt.0) then
+      subVector => controlVector(1:cvm_dimbhi)
+    elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
+      subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
+    else
+      write(*,*) 'CVM_getSubVector: value of subVectorIndex invalid'
+    endif
+
+  END FUNCTION CVM_getSubVector
+
+END MODULE ControlVector

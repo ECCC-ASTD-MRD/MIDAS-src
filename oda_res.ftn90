@@ -32,9 +32,6 @@ SUBROUTINE oda_res
 #include "comdim.cdk"
 #include "comdimo.cdk"
 
-
-#include "comcva.cdk"
-
   !Local Declarations
 
   integer jdata

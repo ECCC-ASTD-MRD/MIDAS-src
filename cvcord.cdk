@@ -1,24 +1,24 @@
 #if defined (DOC)
-C*
-C  Modified by P. Koclas February 1995
-C
-C     - DEFINES VERTICAL COORDINATE TO READ IN
-C     ---------------    IN BURP FILE REPORTS
-C     - CONTAINS DATA FAMILIES EXPECTED IN BURP FILES
-C               ( UPPER AIR,SURFACE,... TOVS...  ETC.)
-C     - CONTAINS BURP FILE NAMES
-C     - CONTAINS INDICES POINTING TO THE BEGINNING
-C       AND END POSITIONS  OF EACH DATA FAMILY IN CMA
-c
-C  S. Pellerin *ARMA/SMC March 2000
-C     - nbrpdate  : valid date extracted from observation files
-c     - nbrphh    : valid hour extracted from observation files
-c     - nbrpstamp : valid datetimestamp computed from nbrpdate
-c                   and nbrphh used as key reserch in trial
-c                   fields file (implicit validity check)
-c     - ntimeout  : counter of observations out of 6 hours time frame
-c  JM Belanger *CMDA/SMC* Dec 2003
-C     - extend 2nd dimension of vcordsf for Quikscat data to 254
+!C*
+!C  Modified by P. Koclas February 1995
+!C
+!C     - DEFINES VERTICAL COORDINATE TO READ IN
+!C     ---------------    IN BURP FILE REPORTS
+!C     - CONTAINS DATA FAMILIES EXPECTED IN BURP FILES
+!C               ( UPPER AIR,SURFACE,... TOVS...  ETC.)
+!C     - CONTAINS BURP FILE NAMES
+!C     - CONTAINS INDICES POINTING TO THE BEGINNING
+!C       AND END POSITIONS  OF EACH DATA FAMILY IN CMA
+!c
+!C  S. Pellerin *ARMA/SMC March 2000
+!C     - nbrpdate  : valid date extracted from observation files
+!c     - nbrphh    : valid hour extracted from observation files
+!c     - nbrpstamp : valid datetimestamp computed from nbrpdate
+!c                   and nbrphh used as key reserch in trial
+!c                   fields file (implicit validity check)
+!c     - ntimeout  : counter of observations out of 6 hours time frame
+!c  JM Belanger *CMDA/SMC* Dec 2003
+!C     - extend 2nd dimension of vcordsf for Quikscat data to 254
 #endif
       INTEGER JPFILES
       PARAMETER (JPFILES=16)

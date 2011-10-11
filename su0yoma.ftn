@@ -51,7 +51,6 @@ C     --------------------------------------------------------------------------
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comct0.cdk"
-#include "comcva.cdk"
 *
       EXTERNAL SUCT0,SULUN,SUCST,SUDIM,SUDIMO,SUALLO,SUALOBS
 C     ---------------------------------------------------------------

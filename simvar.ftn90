@@ -15,11 +15,12 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
-  use oda_shared, only : dg_vbar
   use mod4dv, only : l4dvar
 !modular1  use modstag, only : lstagwinds
   use mpi
   use obsSpaceData_mod
+  use controlVector
+  use minimization
   implicit none
   ! Argument declarations
   integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -48,10 +49,7 @@ subroutine simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
   !
 
 #include "comlun.cdk"
-#include "comvarqc.cdk"
-
 #include "comdim.cdk"
-#include "comcva.cdk"
   ! Local declaration
   integer :: nl_ilev, nl_err
   real*8, dimension(na_dim) :: dl_v

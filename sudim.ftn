@@ -98,29 +98,7 @@ C*    1.1 Default values
 C     --------------
  110  CONTINUE
 C
-      N1GC = 3
-      NVAMAJ = 6
-      NIMPRES =  5
-      NITERMAX = 400
-      RDF1FAC  = 0.25d0
-      NITERJOB = -1
-      NSIMMAX  = 500
-      NGRTEST  = 0
-      NGRANGE  = 10
-      l1obs    =.false.
-      lwrthess =.true.
-      lxbar    = .true.
-      ltlmend  = .false.
-      LTSTSP   = .FALSE.
-      LTSTCVA  = .FALSE.
-      REPSG    = 1e-3
-      LRSTART  = .FALSE.
       CHUM     = 'LQ'
-      EPSNEG   = 1e-6
-      SELECT0  = 0
-      BFGSB    = 2
-      IMODE3   = 0
-      LHBHT1   = .FALSE.
 !
       WRITE(UNIT=KULOUT,FMT='(//," Modification of the dimensions:"
      S     ," of the control variable",/,10x
@@ -140,9 +118,6 @@ C
      S     ,''- reading the namelist NAMDIM in SUDIM'')')
 C
       CALL READNML('NAMDIM',IERR)
-!
-      write(nulout,*) 'SUDIM: l1obs = ',l1obs
-      write(nulout,*) 'SUDIM: lwrthess = ',lwrthess
 !
 !modular1      write(kulout,fmt='(4x,A,L3)')' LEVEL2_staggrid = ',level2_staggrid
 !

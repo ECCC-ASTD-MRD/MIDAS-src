@@ -149,19 +149,19 @@ c
        CFAMI(35)  = ' ' 
 
 c
-      INQUIRE(FILE=CLVALU(1),EXIST=isExist_L)
-      IF ( isExist_L )then
-	write(nulout,*) 'sufilnam:CLVALU(1),NULNAM ',CLVALU(1),NULNAM
-        IER=FNOM(NULNAM,clvalu(1),'FTN+SEQ+R/O',0)
-        IF ( IER .EQ. 0 ) THEN
-          write(nulout,*) 'INML - File :', clvalu(1)
-          write(nulout,*) ' opened as unit file ',nulnam
-        ELSE
-          CALL ABORT3D(NULOUT,'SUFILNAM:Problem opening namelist file!')
-        ENDIF
-      ELSE
-        CALL ABORT3D(NULOUT,'SUFILNAM:No namelist file specified!')
-      ENDIF
+!modular1      INQUIRE(FILE=CLVALU(1),EXIST=isExist_L)
+!modular1      IF ( isExist_L )then
+!modular1	write(nulout,*) 'sufilnam:CLVALU(1),NULNAM ',CLVALU(1),NULNAM
+!modular1        IER=FNOM(NULNAM,clvalu(1),'FTN+SEQ+R/O',0)
+!modular1        IF ( IER .EQ. 0 ) THEN
+!modular1          write(nulout,*) 'INML - File :', clvalu(1)
+!modular1          write(nulout,*) ' opened as unit file ',nulnam
+!modular1        ELSE
+!modular1          CALL ABORT3D(NULOUT,'SUFILNAM:Problem opening namelist file!')
+!modular1        ENDIF
+!modular1      ELSE
+!modular1        CALL ABORT3D(NULOUT,'SUFILNAM:No namelist file specified!')
+!modular1      ENDIF
       
 C
        CALL SUCT0(NULOUT)

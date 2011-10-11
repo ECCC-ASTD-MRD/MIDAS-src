@@ -71,7 +71,6 @@ C
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
-#include "comcva.cdk"
 #include "comdimo.cdk"
 #include "comstate.cdk"
 *

@@ -23,14 +23,11 @@
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-
-
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-#include "comcva.cdk"
 
       integer :: jstep,jobs,jfile,jdata,ibeginobs,ilastobs,iobs,idatabeg
       integer :: idatend

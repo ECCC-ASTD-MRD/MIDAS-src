@@ -16,6 +16,7 @@
 !
       subroutine suinnov
       use mod4dv, only : l4dvar
+      use minimization
 #if defined (DOC)
 *
 ***s/r suinnov  - Initialise Observation Innovations.
@@ -48,8 +49,6 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comvarqc.cdk"
-#include "comcva.cdk"
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
@@ -328,12 +327,6 @@ c
       if(lldo) CALL VOBSLYRS('BG')
 c
 c Generate realization of BG error in obs space to be saved in posv file
-c
-!      call tmg_start(25,'randhbht')
-      IF(NCONF.eq.141.and.LHBHT1) THEN
-!modular1        call randhbht1
-      ENDIF
-!      call tmg_stop(25)
 c
       IF (LVARQC) THEN
         CALL SUASYM2

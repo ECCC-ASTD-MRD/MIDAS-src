@@ -46,12 +46,8 @@
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comcst.cdk"
-
-
-
 #include "commvog.cdk"
 #include "cvcord.cdk"
-#include "comvarqc.cdk"
 *
       REAL*8 PJOB, PJOM, PJOX
       REAL*8 DPJO0(ngpscvmx)
@@ -81,7 +77,7 @@ C
       INTEGER IBEGINOB, ILASTOB, JO
       INTEGER IDATYP
       INTEGER IDATA   , IDATEND, JDATA
-      INTEGER JL, JV, JH, NQCVAR, NGPSLEV
+      INTEGER JL, JV, JH, NGPSLEV
 C
       LOGICAL  ASSIM, LUSE
 
@@ -101,15 +97,6 @@ C
       DO JL = 1, NFLEV
         ZETA(JL) = VLEV(JL)
       ENDDO
-C
-C     * QC VAR
-C
-      IF (LVARQC) THEN
-        NQCVAR = 1
-      ELSE
-        NQCVAR = 0
-      ENDIF
-C
 C
 C     Loop over all files
 C

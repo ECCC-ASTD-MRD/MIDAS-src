@@ -44,7 +44,6 @@
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comstate.cdk"
-#include "comcva.cdk"
 *
 *     Local variables
 *
@@ -61,34 +60,19 @@
 !
 !     3D fields interpolation
 !
-        if(l1obs) then
-          if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',nflev)
-          if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',nflev)
-          if(NGEXIST(ngq).eq.1)   call gd2mvo('Q0',nflev)
-          if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',nflev)
-          if(NGEXIST(ngoz).eq.1)  call gd2mvo('OZ',nflev)
-          if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
-          if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
-        else
-          if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',nflev)
-          if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',nflev)
-          if(NGEXIST(ngq).eq.1)   call gd2mvo('Q0',nflev)
-          if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',nflev)
-          if(NGEXIST(ngoz).eq.1)  call gd2mvo('OZ',nflev)
-          if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
-          if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
-        endif
+        if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',nflev)
+        if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',nflev)
+        if(NGEXIST(ngq).eq.1)   call gd2mvo('Q0',nflev)
+        if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',nflev)
+        if(NGEXIST(ngoz).eq.1)  call gd2mvo('OZ',nflev)
+        if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
+        if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
 *
 *       2D fields interpolation
 *
         ilev = 1
-        if(l1obs) then
-!modular1          if(NGEXIST(ngps).eq.1)  call gd2mvo_1obs('PS',ilev)
-!modular1          if(NGEXIST(ngtg).eq.1)  call gd2mvo_1obs('TG',ilev)
-        else
-          if(NGEXIST(ngps).eq.1)  call gd2mvo('PS',ilev)
-          if(NGEXIST(ngtg).eq.1)  call gd2mvo('TG',ilev)
-        endif
+        if(NGEXIST(ngps).eq.1)  call gd2mvo('PS',ilev)
+        if(NGEXIST(ngtg).eq.1)  call gd2mvo('TG',ilev)
 *
       return
       end subroutine newbilin

@@ -125,9 +125,6 @@ C
 #include "com1chn.cdk"
 #include "nam1chn.cdk"
 C
-#include "comvarqc.cdk"
-#include "namvarqc.cdk"
-C
 C see use mod4dv above
 !modular1 #include "namstag.cdk"
 C
@@ -138,11 +135,25 @@ C
       CHARACTER*60 CLDUMMY
 *
       CHARACTER*(*) CDNAME
-      INTEGER KFLAG
+      INTEGER KFLAG,IER,FNOM,FCLOS
+      logical isExist_L
 *
 **    1. Position the file to where the NAMELIST is located
 *
-      REWIND(NULNAM)
+      INQUIRE(FILE='./flnml',EXIST=isExist_L)
+      IF ( isExist_L )then
+        NULNAM=0
+        IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+        IF ( IER .EQ. 0 ) THEN
+          write(nulout,*) 'INML - File : ./flnml'
+          write(nulout,*) ' opened as unit file ',nulnam
+        ELSE
+          CALL ABORT3D(NULOUT,'SUFILNAM:Problem opening namelist file!')
+        ENDIF
+      ELSE
+        CALL ABORT3D(NULOUT,'SUFILNAM:No namelist file specified!')
+      ENDIF
+
  100  CONTINUE
       READ (NULNAM,'(2X,A)',END=300,IOSTAT=KFLAG) CLDUMMY
       IF (CLDUMMY.EQ.CDNAME) THEN
@@ -329,15 +340,6 @@ C
          READ(NULNAM,NAM1CHN)
          WRITE(NULOUT,NML=NAM1CHN)
 #endif
-      ELSE IF(CDNAME.EQ.'NAMVARQC')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMVARQC)
-         WRITE(NULOUT,NML=NAMVARQC)
-#else
-         READ(NULNAM,NAMVARQC)
-         WRITE(NULOUT,NAMVARQC)
-#endif
       ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
 C
 #if defined (C910)
@@ -349,6 +351,8 @@ C
 #endif
       END IF
 C
+      ier=FCLOS(NULNAM)
+c
       RETURN
 *
 **    3. Abort the job if the NAMELIST is absent

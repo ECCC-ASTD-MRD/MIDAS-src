@@ -116,19 +116,19 @@
       USE mod4dv,only : l4dvar 
       use obsSpaceData_mod, only: obsSpaceData, obs_reduceToMpiLocal, 
      +                            obs_getobstag
+      use controlVector
+      use minimization
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "namcva.cdk"
+#include "comvfiles.cdk"
 #include "comct0.cdk"
 #include "comlun.cdk"
-#include "comcva.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 #include "comspg.cdk"
-#include "comvfiles.cdk"
 *
       INTEGER KULOUT
       INTEGER JLEV, ILEV, IERR
@@ -154,8 +154,7 @@ C
 C     *    .   1.3 Print the content of this NAMELIST
 C
  130  CONTINUE
-      WRITE(KULOUT,FMT=9130)N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,REPSG
-     S     ,CHUM
+!      WRITE(KULOUT,FMT=9130)N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,REPSG,CHUM
 C
  9130 FORMAT(8x,'--Parameters used for the minimization'
      S     ,' (read in NAMCVA)'
@@ -248,6 +247,8 @@ C
  220  CONTINUE
 C
       CALL SUCOV
+
+      call min_setup(nvadim)
 C
 C     *    .  2.21 Initialize the observation error covariance
 C     .      -------------------------------------------
@@ -283,10 +284,6 @@ C
       CALL READNML('NAMGOES',IERR)
       CALL SUOBS(KULOUT)
 C
-C     Determine if Variational QC is required
-C
-      CALL SUVARQC
-C
 C*    Determine if this is a one channel assimilation
 C     -----------------------------------------------
 C
@@ -316,11 +313,6 @@ C     If single GB-GPS observation assimilation, select the observation
 C
       CALL CMAPR
 C
-      if(l1obs) then
-!modular1        call suobs_sim  ! initializes simulated observations
-!modular1        call suobsgid_1obs
-!modular1        call sualobsb(KULOUT)  !  
-      else
         call suobsgid
 !
         CALL obs_getobstag(obsSpaceData,nulout,nobtot,nfiles,cexc4dv,cfamtyp,
@@ -348,8 +340,6 @@ C       ----------------------------------
 
         CALL SETERR
 !
-      endif
-!
 !     SET FAST WIND ROTATION OBS COEFFICIENTS
 !     ---------------------------------------
 !
@@ -368,14 +358,5 @@ C
         WRITE(KULOUT,*)  ' '
       endif
 c
-      IF(LTSTSP) THEN
-         write(kulout,*)'Spectral transforms are being tested. Please wait...'
-!modular1         CALL TESTSP(KULOUT)
-      END IF
-C
-      IF(LTSTCVA)THEN
-         WRITE(KULOUT,FMT='(6X,"--- Test in SUCVA -----")')
-!modular1         CALL TESTCVA(KULOUT,VATRA,VAZG,NVADIM)
-      END IF
       RETURN
       END

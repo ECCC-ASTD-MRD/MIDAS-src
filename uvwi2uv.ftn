@@ -32,7 +32,6 @@
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comcva.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comgem.cdk"

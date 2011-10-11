@@ -16,7 +16,6 @@
 !
       subroutine setvazx (f,ntrunc,f_xx,ntrunc_xx,lower_L,nksdim,nvadim)
 *
-*
 #if defined (DOC)
 *
 ***s/r SETVAZX  - Transfer of Vazx from source to working resolutions

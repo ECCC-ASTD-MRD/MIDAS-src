@@ -32,6 +32,8 @@ MODULE BmatrixEnsemble
 
   public             :: ben_Setup,ben_BSqrt,ben_BSqrtAd
 
+  logical             :: initialized = .false.
+  real*8              :: scaleFactor
   real*8,allocatable  :: ensLocalCor(:,:)
   real*8,allocatable  :: ensLocalVert(:,:)
   real*4,allocatable  :: ensPerturbations(:,:,:,:,:)
@@ -40,7 +42,7 @@ MODULE BmatrixEnsemble
   integer             :: nj_l,ni_l,latPerPE,maxLatPerPE,maxLatEnd
   integer             :: nflev_l,nkgdim_l
   integer             :: ntrunc_l,nla_l
-  integer             :: nens_l,cvDim_l,cvDimPerMember_l
+  integer             :: nens,cvDim_l,cvDimPerMember_l
   integer             :: ntime_l
   integer             :: gstID
 
@@ -54,6 +56,27 @@ CONTAINS
     integer        :: ntrunc_in,ni_in,nj_in,nflev_in,nip1_in(:)
     integer        :: cvDim_out
     integer        :: jlev,jn,jm,ila,njlath_l,mpiMode
+    integer        :: fnom,fclos,ierr,nulnam=0
+
+    !namelist
+    NAMELIST /NAMBEN/nens,scaleFactor
+
+    ! parameters from namelist
+    scaleFactor=0.0d0
+    nens=10
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namben)
+    write(*,nml=namben)
+    ierr=fclos(nulnam)
+    if(scaleFactor.gt.0.0d0) then 
+      scaleFactor=sqrt(scaleFactor)
+    else
+      scaleFactor=0.0d0
+      write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
+      cvdim_out=0
+      initialized = .true.
+      return
+    endif
 
     nflev_l=nflev_in
     nkgdim_l=4*nflev_l+2  ! assume 4 3d and 2 2d variables
@@ -125,8 +148,10 @@ CONTAINS
     call setupEnsemble
 
     cvDimPerMember_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nflev_l
-    cvDim_l=nens_l*cvDimPerMember_l
+    cvDim_l=nens*cvDimPerMember_l
     cvDim_out=cvDim_l
+
+    initialized = .true.
 
   END SUBROUTINE BEN_setup
 
@@ -135,6 +160,8 @@ CONTAINS
     use globalSpectralTransform
     implicit none
  
+    real*8 :: maxpert=0.0d0
+    real*8 :: minpert=0.0d0
     real*8 :: gd2d(ni_l,nj_l)
     real*4, allocatable :: ensPerturbation1(:,:,:,:) 
     real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
@@ -153,6 +180,7 @@ CONTAINS
     character*256 cflensin,cflens(192)
     integer :: vfstlir,fstfrm,fclos,fnom,fstouv
 
+
     call tmg_start(48,'setupens')
 
     ! this should come from state vector object
@@ -168,8 +196,6 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
-    ! parameters set from the ensemble member files
-    nens_l=99
     ntime_l=5
     cflens(1) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_001'
     cflens(2) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_002'
@@ -364,7 +390,7 @@ CONTAINS
     cflens(191)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_191'
     cflens(192)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_192'
 
-    allocate(ensPerturbations(ni_l,nkgdim_l,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens_l))
+    allocate(ensPerturbations(ni_l,nkgdim_l,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens))
     allocate(ensPerturbation1(ni_l,nkgdim_l,nj_l,ntime_l))
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ - covariances)
@@ -383,11 +409,11 @@ CONTAINS
     CALL rpn_comm_allgather(mpi_myLatEnd,1,"mpi_integer",       &
                             allLatEnd,1,"mpi_integer","GRID",ierr)
 
-    do jens=1,nens_l
+    do jens=1,nens
       readFilePE(jens)=mod(jens-1,mpi_nprocs)
     enddo
 
-    do jens=1,nens_l
+    do jens=1,nens
       if(mpi_myid.eq.readFilePE(jens)) then
 
         cflensin=cflens(jens)
@@ -395,8 +421,8 @@ CONTAINS
         call flush(6)
 
         kulin=0
-        ierr = fnom(kulin,cflensin,'RND',0)
-        ierr = fstouv(kulin,'RND')
+        ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+        ierr = fstouv(kulin,'RND+OLD')
         write(*,*) 'reading member:',jens
         call flush(6)
 
@@ -506,7 +532,7 @@ CONTAINS
         call flush(6)
       endif
 
-      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nens_l) then
+      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nens) then
         batchnum=ceiling(dble(jens)/dble(mpi_nprocs))
 
         ! for each read member, send each latitude band to the appropriate processor
@@ -549,16 +575,16 @@ CONTAINS
     write(*,*) 'finished reading ensemble members...'
     call flush(6)
 
-    ! remove mean and divide by sqrt(2*(NENS_l-1)) - extra 2 is needed?
-    dnens=1.0d0/dble(nens_l)
-    dnens2=1.0d0/sqrt(1.0d0*dble(nens_l-1))
-!    dnens2=1.0d0/sqrt(1.0d0*dble(nens_l))
+    ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
+    dnens=1.0d0/dble(nens)
+    dnens2=scaleFactor/sqrt(1.0d0*dble(nens-1))
+!    dnens2=1.0d0/sqrt(1.0d0*dble(nens))
     do jt=1,ntime_l
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
       do jk=1,nkgdim_l
         gd2d(:,:)=0.0d0
-        do jens=1,nens_l
+        do jens=1,nens
           do jj=mpi_myLatBeg,mpi_myLatEnd
             do ji=1,ni_l
               gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
@@ -570,11 +596,13 @@ CONTAINS
             gd2d(ji,jj)=gd2d(ji,jj)*dnens
           enddo
         enddo
-        do jens=1,nens_l
+        do jens=1,nens
           do jj=mpi_myLatBeg,mpi_myLatEnd
             do ji=1,ni_l
               ensPerturbations(ji,jk,jj,jt,jens)=     &
                 sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens2)
+              if(dble(ensPerturbations(ji,jk,jj,jt,jens)).gt.maxpert) maxpert=dble(ensPerturbations(ji,jk,jj,jt,jens))
+              if(dble(ensPerturbations(ji,jk,jj,jt,jens)).lt.minpert) minpert=dble(ensPerturbations(ji,jk,jj,jt,jens))
             enddo
           enddo
         enddo
@@ -584,8 +612,13 @@ CONTAINS
     enddo
     write(*,*) 'finished adjusting ensemble members...'
     call flush(6)
+ 
+    write(*,*) 'maxpert=',maxpert
+    write(*,*) 'minpert=',minpert
 
     call tmg_stop(48)
+
+    ! ensPerturbations(:,:,:,:,:)=0.0 !for testing purposes
 
   END SUBROUTINE setupEnsemble
 
@@ -731,16 +764,34 @@ CONTAINS
   SUBROUTINE BEN_BSqrt(controlVector_in,increment_out)
     implicit none
 
-    integer   :: memberIndex
     real*8    :: controlVector_in(cvDim_l) 
     real*8    :: increment_out(ni_l,nkgdim_l,nj_l)
 
-    real*8    :: incrementLocal2(ni_l,nkgdim_l,ntime_l,mpi_myLatBeg:maxLatEnd)
-    real*8    :: incrementLocal(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l)
-    real*8    :: incrementMax(ni_l,nkgdim_l,ntime_l,maxLatPerPE*mpi_nprocs)
-    real*8    :: ensControlVector(nla_l,2,nflev_l)
+    real*8,allocatable  :: incrementLocal2(:,:,:,:)
+    real*8,allocatable  :: incrementLocal(:,:,:,:)
+    real*8,allocatable  :: incrementMax(:,:,:,:)
+    real*8     :: ensControlVector(nla_l,2,nflev_l)
     real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
+    integer   :: memberIndex
     integer   :: ierr,nsize,jj,jk,ji,jt
+
+    if(.not. initialized) then
+      write(*,*) 'bMatrixEnsemble not initialized'
+      return
+    endif
+
+    if(scaleFactor.eq.0.0d0) then
+      write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrt'
+      return
+    endif
+
+    write(*,*) 'ben_bsqrt, cvdim_l=',cvdim_l
+    write(*,*) ntime_l,ni_l,nj_l,nkgdim_l,mpi_myLatBeg,maxLatEnd,maxLatPerPE,mpi_nprocs,nla_l,nflev_l ! 5 400 200 322 1 200 200 1 528 80
+    call flush(6)
+
+    allocate(incrementLocal2(ni_l,nkgdim_l,ntime_l,mpi_myLatBeg:maxLatEnd))
+    allocate(incrementLocal(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l))
+    allocate(incrementMax(ni_l,nkgdim_l,ntime_l,maxLatPerPE*mpi_nprocs))
 
     call tmg_start(38,'comm_gd2')
 !$OMP PARALLEL
@@ -748,7 +799,8 @@ CONTAINS
     do jj=mpi_myLatBeg,mpi_myLatEnd
       do jk=1,nkgdim_l
         do ji=1,ni_l
-          incrementLocal(ji,jk,jj,:)=increment_out(ji,jk,jj)
+          incrementLocal(ji,jk,jj,:)=0.0d0
+!          incrementLocal(ji,jk,jj,:)=increment_out(ji,jk,jj)
         enddo
       enddo
     enddo
@@ -757,7 +809,7 @@ CONTAINS
     call tmg_stop(38)
 
     call tmg_start(46,'BSqrt')
-    do memberIndex=1,nens_l
+    do memberIndex=1,nens
       call cain(controlVector_in,ensControlVector,memberIndex)
       call localizationSqrt(ensControlVector,ensAmplitude)
       call addEnsMember(ensAmplitude,incrementLocal,memberIndex)
@@ -794,13 +846,17 @@ CONTAINS
     do jj=1,nj_l
       do jk=1,nkgdim_l
         do ji=1,ni_l
-          increment_out(ji,jk,jj)=incrementMax(ji,jk,3,jj)
+          increment_out(ji,jk,jj)=increment_out(ji,jk,jj)+incrementMax(ji,jk,3,jj)
         enddo
       enddo
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
     call tmg_stop(38)
+
+    deallocate(incrementLocal2)
+    deallocate(incrementLocal)
+    deallocate(incrementMax)
 
     return
   END SUBROUTINE BEN_BSqrt
@@ -812,10 +868,22 @@ CONTAINS
     real*8    :: controlVector_out(cvDim_l) 
     real*8    :: increment_in(ni_l,nkgdim_l,nj_l)
 
-    real*8    :: incrementLocal(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l)
-    integer   :: memberIndex,jj,jk,ji,nsize,ierr
+    real*8,allocatable :: incrementLocal(:,:,:,:)
     real*8    :: ensControlVector(nla_l,2,nflev_l) 
     real*8    :: ensAmplitude(ni_l,nflev_l,nj_l)
+    integer   :: memberIndex,jj,jk,ji,nsize,ierr
+
+    if(.not. initialized) then
+      write(*,*) 'bMatrixEnsemble not initialized'
+      return
+    endif
+
+    if(scaleFactor.eq.0.0d0) then
+      write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
+      return
+    endif
+
+    allocate(incrementLocal(ni_l,nkgdim_l,mpi_myLatBeg:maxLatEnd,ntime_l))
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JJ,JK,JI)
@@ -831,7 +899,7 @@ CONTAINS
 !$OMP END PARALLEL
 
     call tmg_start(47,'BSqrtAd')
-    do memberIndex=1,nens_l
+    do memberIndex=1,nens
       call addEnsMemberAd(incrementLocal,ensAmplitude,memberIndex)
       call localizationSqrtAd(ensAmplitude,ensControlVector)
       call cainAd(ensControlVector,controlVector_out,memberIndex)
@@ -843,6 +911,8 @@ CONTAINS
     call RPN_COMM_allreduce(controlVector_out,controlVector_out,nsize,    &
                             "mpi_double_precision","mpi_sum","GRID",ierr)
     call tmg_stop(37)
+
+    deallocate(incrementLocal)
 
     return
   END SUBROUTINE BEN_BSqrtAd

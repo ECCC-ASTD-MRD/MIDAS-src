@@ -41,10 +41,7 @@ C              and correct bug ROBDATA8(NCM_OMI,JDATA)
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
-
 #include "cvcord.cdk"
-#include "comcva.cdk"
 *
       INTEGER IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
       INTEGER J,JDATA,JO,IDATA,ITYP,indata
@@ -66,9 +63,6 @@ C
       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to ROBDATA_g')
 
 
-      if(l1obs) then
-         pjo = obs_elem_r8(obsSpaceData,'OMI ',1)
-      else
         CALL restore_robdata8(robdata8_g,obsSpaceData%mxobstotal)  
          pjo = pjo + sumJo(1,obsSpaceData%mxobstotal,lmask_g)
 c
@@ -141,7 +135,6 @@ c
         endif 
         DEALLOCATE(robdata8_g) 
 !
-      endif
       contains
       function sumJo(kbegin,klast,ll_mask)
 *

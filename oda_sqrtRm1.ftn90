@@ -34,9 +34,6 @@ SUBROUTINE oda_sqrtRm1(elem_dest_s,elem_src_s)
 #include "comdim.cdk"
 #include "comdimo.cdk"
 
-
-#include "comcva.cdk"
-
   INTEGER jdata
   integer :: k_src, k_dest
 !

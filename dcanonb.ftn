@@ -35,10 +35,6 @@
 *    -NONE-
 #endif
       IMPLICIT NONE
-*implicits
-#include "comdim.cdk"
-#include "comcva.cdk"
-*
       INTEGER KDIM, KZS(1)
       REAL PZS(1)
       REAL*8 PX(KDIM), PY(KDIM)

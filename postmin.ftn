@@ -18,6 +18,8 @@
       use globalSpectralTransform
       use mod4dv, only : l4dvar
       use obsSpaceData_mod
+      use controlVector
+      use minimization
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *
@@ -38,7 +40,6 @@
 *           L. Fillion ARMA/EC May 2006: LAM4D upgrade to v10_0_0.
 *           L. Fillion ARMA/EC 21 Feb 2007: Include option to write glb-st-dev on anal incr file (anal res).
 *           L. Fillion ARMA/EC 14 Aug 2007 - Update LAM4D to v_10_0_3.
-*           L. Fillion ARMA/EC 27 Feb 2008 - Include deallocation of vatra array to allow running on pollux.
 *           L. Fillion ARMA/EC 14 Oct 2009 - Comment call to stdevout.ftn ... impacts minimization in v1033 if used in sucov.ftn ...
 *           Bin He   *ARMA/MRB   Oct. 2009 
 *                  - Implemented MPI to 3DVAR  
@@ -53,6 +54,7 @@
 *    -NONE-
 #endif
       use mpi
+      use minimization
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -67,8 +69,6 @@
 #include "comsp.cdk"
 #include "compdg.cdk"
 #include "localpost.cdk"
-
-#include "comvarqc.cdk"
 #include "comvfiles.cdk"
 *
 C
@@ -107,12 +107,6 @@ c
 c
       LVARDIAG=.FALSE.
       llstdevout = .false.
-!
-      deallocate(vatra,STAT=ierr)
-      IF(IERR.EQ.0) THEN
-        WRITE(NULOUT,FMT='(10X," POSTMIN: VATRA checked and correct",
-     S         ". IERR =",I3)')IERR
-      endif
 !
       ILEN = NI*NFLEV*NJ
       CALL HPALLOC(PXTTG,MAX(1,ILEN),IERR,8)
@@ -170,7 +164,6 @@ C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
 C     after minimization has ended. From this point all CMA
 C     references are to ROBDATA.
 
-      if(.not.l1obs) then
         call cprob8to4
 C
         IF (LVARQC) CALL LISTREJ
@@ -195,7 +188,6 @@ c
         NPAS  = NPASA
         NSTAMP= NSTAMPA
         CVARPOST = 'R'
-      endif
 c
       WRITE(NULOUT,FMT='(/," POSTMIN - Postprocessing")')
       WRITE(NULOUT,FMT='(11X,"of the analysis increment (X -Xb)")')

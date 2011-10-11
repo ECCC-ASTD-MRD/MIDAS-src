@@ -172,6 +172,14 @@ C
 
                   ENDIF
 *
+* NOTE: Changes to how the values of POB are set, starting in version 61,
+*       result in slight changes to the results when QCVAR is activated.
+*       Appears to be caused by use of RPI which is double precision in
+*       an equation where the variable being set (ROBDATA) is single precision.
+*       Various attempts to eliminate differences with older code did not work,
+*       including setting a local temporary single precision variable that is 
+*       then passed to "obs_set". (M. Buehner, Oct/2011)
+*
 *_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
 *
                   call obs_set(obsSpaceData,JDATA,val_POB=(1. -

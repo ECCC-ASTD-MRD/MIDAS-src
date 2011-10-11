@@ -51,8 +51,6 @@
 #include "compdg.cdk"
 #include "comgem.cdk"
 #include "cvcord.cdk"
-#include "comcva.cdk"
-!
 !
       integer ji,jj,jk,jlev,iwvx,iwvy,iwvk,ilev
       integer idum1,idum2,idum3,idum4

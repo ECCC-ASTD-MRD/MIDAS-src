@@ -1,6 +1,0 @@
-!     COMDECK: COMVARQC (Switch on variational quality control)
-      LOGICAL LVARQC
-      integer :: nwoqcv
- 
-      common /comnvarqc/nwoqcv
-      COMMON /COMVARQC/LVARQC

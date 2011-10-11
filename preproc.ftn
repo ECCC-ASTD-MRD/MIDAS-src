@@ -74,8 +74,6 @@
 #include "comct0.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comvarqc.cdk"
-#include "comcva.cdk"
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"

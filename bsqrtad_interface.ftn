@@ -1,6 +1,7 @@
       SUBROUTINE bsqrtad_interface(na_vdim,da_v)
       use bMatrixHI
       use bMatrixEnsemble
+      use controlVector
       implicit none 
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -8,10 +9,14 @@
 
       integer na_vdim
       real*8 da_v(na_vdim)
+      real*8,pointer :: cvBhi(:),cvBen(:) 
 
       da_v(:)=0.0d0
-      call bhi_bsqrtad(gd,da_v)
-!      call ben_bsqrtad(gd,da_v)
 
+      cvBhi=>cvm_getSubVector(da_v,1)
+      if(associated(cvBhi)) call bhi_bsqrtad(gd,cvBhi)
+
+      cvBen=>cvm_getSubVector(da_v,2)
+      if(associated(cvBen)) call ben_bsqrtad(gd,cvBen)
 
       END

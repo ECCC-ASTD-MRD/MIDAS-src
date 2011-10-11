@@ -17,6 +17,7 @@
       subroutine suobsgid
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use mod4dv, only : mvar, l4dvar
+      use minimization
 #if defined (DOC)
 *
 ***s/r suobsgid  initialize observation Y grid handle.
@@ -114,13 +115,6 @@
 
         call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
      &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobs)
-!
-         if(l1obs) then
-           write(nulout,*) 'suobsgid: jobs,NCM_DAT,NCM_ETM=',jobs,NCM_DAT,NCM_ETM
-           write(nulout,*) 'suobsgid: mobhdr(NCM_DAT,jobs)=',obs_elem_i(obsSpaceData,'DAT ',jobs)
-           write(nulout,*) 'suobsgid: mobhdr(NCM_ETM,jobs)=',obs_elem_i(obsSpaceData,'ETM ',jobs)
-           write(nulout,*) 'suobsgid: istepstamp=',istepstamp
-         endif 
 !
 ! building the list of step stamp and counting number of obs in each step
         lltimein = .false.

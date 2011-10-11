@@ -30,39 +30,33 @@ subroutine oda_HT
   !Local declarations
 
 #include "comdim.cdk"
-#include "comcva.cdk"
-!
 !!
-  if(l1obs) then
-!modular1    call oda_HT1obs
-  else
-    call tmg_start(64,'GPSZTD') !
-    call oda_HTgp
-    call tmg_stop (64)        !
+  call tmg_start(64,'GPSZTD') !
+  call oda_HTgp
+  call tmg_stop (64)        !
 
-    call tmg_start(63,'ZPROF') !
-    call oda_HTzp
-    call tmg_stop (63)
+  call tmg_start(63,'ZPROF') !
+  call oda_HTzp
+  call tmg_stop (63)
 
-    call tmg_start(90,'GPSRO') !
-    call oda_HTro
-    call tmg_stop (90)      !     !
+  call tmg_start(90,'GPSRO') !
+  call oda_HTro
+  call tmg_stop (90)      !     !
 
-    call tmg_start(62,'GOESRAD') !
-    CALL oda_HTgo
-    call tmg_stop (62)      !
+  call tmg_start(62,'GOESRAD') !
+  CALL oda_HTgo
+  call tmg_stop (62)      !
 
-    call tmg_start(60,'RTTOV') !
-    call oda_HTto
-    call tmg_stop (60)      !
+  call tmg_start(60,'RTTOV') !
+  call oda_HTto
+  call tmg_stop (60)      !
 
-    call tmg_start(59,'SFC')
-    call oda_HTsf
-    call tmg_stop (59)      !
+  call tmg_start(59,'SFC')
+  call oda_HTsf
+  call tmg_stop (59)      !
 
-    call tmg_start(56,'PPROF') !
-    call oda_HTpp
-    call tmg_stop (56)
-  endif
+  call tmg_start(56,'PPROF') !
+  call oda_HTpp
+  call tmg_stop (56)
 
 end subroutine oda_HT

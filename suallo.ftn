@@ -97,7 +97,6 @@ C
 #include "comsp1.cdk"
 #include "comspg.cdk"
 #include "comgem.cdk"
-#include "comcva.cdk"
 #include "comstate.cdk"
 #include "comode.cdk"
 #include "comgdpar.cdk"

@@ -36,14 +36,11 @@
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-
-
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-#include "comcva.cdk"
 *
       integer jobs, ig1obs, ig2obs, ig3obs, ig4obs, newdate
       integer vezgdef, ierr,istepstamp,jstep,istat,ihdl,ihdl01

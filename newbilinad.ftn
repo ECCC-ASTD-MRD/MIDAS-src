@@ -45,7 +45,6 @@
 #include "comlun.cdk"
 #include "comstate.cdk"
 #include "comgd0.cdk"
-#include "comcva.cdk"
       integer idum1,idum2,idum3,idum4
       real*8 zmin,zmax
 *
@@ -59,34 +58,19 @@
         write(nulout,*)'NEWBILINAD- active '
       endif
 !
-        if(l1obs) then
-!modular1          if(NGEXIST(nguu).eq.1)  call gd2mvoad_1obs('UU',nflev)
-!modular1          if(NGEXIST(ngvv).eq.1)  call gd2mvoad_1obs('VV',nflev)
-!modular1          if(NGEXIST(ngq).eq.1)   call gd2mvoad_1obs('Q0',nflev)
-!modular1          if(NGEXIST(ngtt).eq.1)  call gd2mvoad_1obs('TT',nflev)
-!modular1          if(NGEXIST(ngoz).eq.1)  call gd2mvoad_1obs('OZ',nflev)
-!modular1          if(NGEXIST(ngtr).eq.1)  call gd2mvoad_1obs('TR',nflev)
-!modular1          if(NGEXIST(nggz).eq.1)  call gd2mvoad_1obs('GZ',nflev)
-        else
-          if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',nflev)
-          if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',nflev)
-          if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',nflev)
-          if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',nflev)
-          if(NGEXIST(ngoz).eq.1)  call gd2mvoad('OZ',nflev)
-          if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',nflev)
-          if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
-        endif
+      if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',nflev)
+      if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',nflev)
+      if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',nflev)
+      if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',nflev)
+      if(NGEXIST(ngoz).eq.1)  call gd2mvoad('OZ',nflev)
+      if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',nflev)
+      if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
 *
 *         2D fields
 *
-        ilev = 1
-        if(l1obs) then
-!modular1          if(NGEXIST(ngps).eq.1)  call gd2mvoad_1obs('PS',ilev)
-!modular1          if(NGEXIST(ngtg).eq.1)  call gd2mvoad_1obs('TG',ilev)
-        else
-          if(NGEXIST(ngps).eq.1)  call gd2mvoad('PS',ilev)
-          if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev)
-        endif
+      ilev = 1
+      if(NGEXIST(ngps).eq.1)  call gd2mvoad('PS',ilev)
+      if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev)
 !
 *
 *     Conversion of wind images to physical winds

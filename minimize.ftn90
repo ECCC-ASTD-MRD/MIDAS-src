@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine minimize
+  use minimization
   implicit none
   !
   !Purpose:
@@ -29,8 +30,11 @@ subroutine minimize
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
-#include "comcva.cdk"
-
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comvfiles.cdk"
+#include "cvcord.cdk"
+#include "comgdpar.cdk"
   !Local declarations
   integer :: indic,ierr
 
@@ -39,7 +43,8 @@ subroutine minimize
   call setcma
 
 !modular1  if (trim(cminmode) == 'VAR') then
-     call minvar
+!     call minvar(lnlvtov)
+     call min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
 !modular1  elseif(trim(cminmode) == 'PSAS' .or. trim(cminmode) == 'OSV' )then
 !modular1     call minpsas
 !modular1  endif
@@ -47,12 +52,10 @@ subroutine minimize
 !
   call rsetcma
 
-  if(.not.l1obs) then
-    call cprob8to4
-    DO INDIC =1,1
-       CALL PRNTHDR(indic,NULOUT)
-       CALL PRNTBDY(indic,NULOUT)
-    END DO
-  endif
+  call cprob8to4
+  DO INDIC =1,1
+     CALL PRNTHDR(indic,NULOUT)
+     CALL PRNTBDY(indic,NULOUT)
+  END DO
 
 end subroutine minimize
