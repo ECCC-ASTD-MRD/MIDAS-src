@@ -1,0 +1,72 @@
+MODULE BMatrix
+
+contains
+
+  SUBROUTINE oda_sqrtB(da_v,na_vdim,statevector)
+    use bMatrixHI
+    use bMatrixEnsemble
+    use controlVector
+    use gridStateVector
+    implicit none
+    !
+    !Purpose:
+    !Transforms model state from error covariance space to grid point space.
+    !
+    integer na_vdim
+    real*8         :: da_v(na_vdim)
+    real*8,pointer :: cvBhi(:),cvBen(:) 
+    type(struct_gsv) :: statevector
+
+    call tmg_start(51,'VAR_CH') !
+
+    ! set analysis increment to zero
+    call gsv_zero(statevector) 
+
+    ! add contribution to increment from BmatrixHI
+    cvBhi=>cvm_getSubVector(da_v,1)
+    if(associated(cvBhi)) call bhi_bsqrt(cvBhi,statevector%gd)
+
+    ! add contribution to increment from BmatrixEnsemble
+    cvBen=>cvm_getSubVector(da_v,2)
+    if(associated(cvBen)) call ben_bsqrt(cvBen,statevector%gd)
+
+    call tmg_stop (51)
+
+  END SUBROUTINE oda_sqrtB
+
+
+  SUBROUTINE oda_sqrtBT(da_v,na_vdim,statevector)
+    !modular1  use modstag, only : lstagwinds
+    use bMatrixHI
+    use bMatrixEnsemble
+    use controlVector
+    use gridStateVector
+    implicit none
+    !
+    !Purpose:
+    !Transforms model state from grid point space to error covariance space.
+    !
+    integer na_vdim
+    real*8 da_v(na_vdim)
+    real*8,pointer :: cvBhi(:),cvBen(:) 
+    type(struct_gsv) :: statevector
+
+    call tmg_start(51,'VAR_CH') 
+
+    ! set gradient to zero
+    da_v(:)=0.0d0
+
+    ! add contribution to gradient from BmatrixHI
+    cvBhi=>cvm_getSubVector(da_v,1)
+    if(associated(cvBhi)) call bhi_bsqrtad(statevector%gd,cvBhi)
+
+    ! add contribution to gradient from BmatrixEnsemble
+    cvBen=>cvm_getSubVector(da_v,2)
+    if(associated(cvBen)) call ben_bsqrtad(statevector%gd,cvBen)
+
+    call tmg_stop(51) 
+
+  END SUBROUTINE oda_sqrtBT
+
+
+END MODULE BMatrix

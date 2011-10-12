@@ -23,13 +23,9 @@ subroutine minimize
   ! based on CMINMODE value and reset the CMA for post processing
   !
   !Author  : S. Pellerin *ARMA/MSC  Sept, 2005
-  !Revision:
-  ! L. Fillion *ARMA/EC  30 Jun 2010 - Avoid call to cprob8to4  and printout hdr.
   !                                    in 1-Obs case.
-
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comct0.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comvfiles.cdk"
@@ -43,7 +39,6 @@ subroutine minimize
   call setcma
 
 !modular1  if (trim(cminmode) == 'VAR') then
-!     call minvar(lnlvtov)
      call min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
 !modular1  elseif(trim(cminmode) == 'PSAS' .or. trim(cminmode) == 'OSV' )then
 !modular1     call minpsas

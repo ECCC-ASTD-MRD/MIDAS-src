@@ -53,7 +53,7 @@
       call flush(6)
 
       call cvm_setup(cvdimhi,cvdimens)
-      write(*,*) 'Dimension of TOTAL control vector:',nvadim
+      write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
       call flush(6)
 
       return

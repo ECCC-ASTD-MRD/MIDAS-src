@@ -45,6 +45,7 @@ MODULE BmatrixEnsemble
   integer             :: nens,cvDim_l,cvDimPerMember_l
   integer             :: ntime_l
   integer             :: gstID
+  character(len=256)  :: enspathname,ensfilebasename
 
 CONTAINS
 
@@ -59,15 +60,18 @@ CONTAINS
     integer        :: fnom,fclos,ierr,nulnam=0
 
     !namelist
-    NAMELIST /NAMBEN/nens,scaleFactor
+    NAMELIST /NAMBEN/nens,scaleFactor,enspathname,ensfilebasename
 
-    ! parameters from namelist
+    ! parameters from namelist (date in filename should come directly from sequencer?)
     scaleFactor=0.0d0
     nens=10
+    enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
+    ensfilebasename='2009021818_006_'
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namben)
     write(*,nml=namben)
     ierr=fclos(nulnam)
+
     if(scaleFactor.gt.0.0d0) then 
       scaleFactor=sqrt(scaleFactor)
     else
@@ -82,7 +86,7 @@ CONTAINS
     nkgdim_l=4*nflev_l+2  ! assume 4 3d and 2 2d variables
     allocate(verticalLevel(nkgdim_l))
     do jlev=1,nflev_l
-      verticalLevel(jlev)=jlev           ! UU
+      verticalLevel(          jlev)=jlev ! UU
       verticalLevel(1*nflev_l+jlev)=jlev ! VV
       verticalLevel(2*nflev_l+jlev)=jlev ! TT
       verticalLevel(3*nflev_l+jlev)=jlev ! HU
@@ -160,8 +164,6 @@ CONTAINS
     use globalSpectralTransform
     implicit none
  
-    real*8 :: maxpert=0.0d0
-    real*8 :: minpert=0.0d0
     real*8 :: gd2d(ni_l,nj_l)
     real*4, allocatable :: ensPerturbation1(:,:,:,:) 
     real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
@@ -174,10 +176,11 @@ CONTAINS
 
     ! standard file variables
     integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo,ikey
-    character*1 cltypvar,clgrtyp
-    character*2 clnomvar
-    character*8 cletiket
-    character*256 cflensin,cflens(192)
+    character(len=1)   :: cltypvar,clgrtyp
+    character(len=2)   :: clnomvar
+    character(len=8)   :: cletiket
+    character(len=256) :: cflensin
+    character(len=3)   :: censnumber
     integer :: vfstlir,fstfrm,fclos,fnom,fstouv
 
 
@@ -196,204 +199,13 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
+    ! number of time steps used for ensemble covariances
     ntime_l=5
-    cflens(1) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_001'
-    cflens(2) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_002'
-    cflens(3) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_003'
-    cflens(4) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_004'
-    cflens(5) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_005'
-    cflens(6) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_006'
-    cflens(7) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_007'
-    cflens(8) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_008'
-    cflens(9) ='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_009'
-    cflens(10)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_010'
-    cflens(11)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_011'
-    cflens(12)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_012'
-    cflens(13)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_013'
-    cflens(14)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_014'
-    cflens(15)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_015'
-    cflens(16)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_016'
-    cflens(17)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_017'
-    cflens(18)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_018'
-    cflens(19)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_019'
-    cflens(20)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_020'
-    cflens(21)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_021'
-    cflens(22)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_022'
-    cflens(23)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_023'
-    cflens(24)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_024'
-    cflens(25)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_025'
-    cflens(26)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_026'
-    cflens(27)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_027'
-    cflens(28)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_028'
-    cflens(29)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_029'
-    cflens(30)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_030'
-    cflens(31)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_031'
-    cflens(32)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_032'
-    cflens(33)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_033'
-    cflens(34)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_034'
-    cflens(35)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_035'
-    cflens(36)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_036'
-    cflens(37)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_037'
-    cflens(38)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_038'
-    cflens(39)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_039'
-    cflens(40)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_040'
-    cflens(41)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_041'
-    cflens(42)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_042'
-    cflens(43)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_043'
-    cflens(44)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_044'
-    cflens(45)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_045'
-    cflens(46)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_046'
-    cflens(47)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_047'
-    cflens(48)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_048'
-    cflens(49)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_049'
-    cflens(50)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_050'
-    cflens(51)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_051'
-    cflens(52)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_052'
-    cflens(53)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_053'
-    cflens(54)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_054'
-    cflens(55)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_055'
-    cflens(56)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_056'
-    cflens(57)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_057'
-    cflens(58)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_058'
-    cflens(59)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_059'
-    cflens(60)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_060'
-    cflens(61)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_061'
-    cflens(62)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_062'
-    cflens(63)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_063'
-    cflens(64)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_064'
-    cflens(65)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_065'
-    cflens(66)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_066'
-    cflens(67)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_067'
-    cflens(68)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_068'
-    cflens(69)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_069'
-    cflens(70)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_070'
-    cflens(71)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_071'
-    cflens(72)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_072'
-    cflens(73)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_073'
-    cflens(74)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_074'
-    cflens(75)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_075'
-    cflens(76)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_076'
-    cflens(77)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_077'
-    cflens(78)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_078'
-    cflens(79)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_079'
-    cflens(80)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_080'
-    cflens(81)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_081'
-    cflens(82)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_082'
-    cflens(83)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_083'
-    cflens(84)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_084'
-    cflens(85)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_085'
-    cflens(86)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_086'
-    cflens(87)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_087'
-    cflens(88)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_088'
-    cflens(89)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_089'
-    cflens(90)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_090'
-    cflens(91)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_091'
-    cflens(92)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_092'
-    cflens(93)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_093'
-    cflens(94)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_094'
-    cflens(95)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_095'
-    cflens(96)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_096'
-    cflens(97)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_097'
-    cflens(98)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_098'
-    cflens(99)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_099'
-    cflens(100)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_100'
-    cflens(101)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_101'
-    cflens(102)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_102'
-    cflens(103)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_103'
-    cflens(104)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_104'
-    cflens(105)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_105'
-    cflens(106)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_106'
-    cflens(107)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_107'
-    cflens(108)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_108'
-    cflens(109)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_109'
-    cflens(110)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_110'
-    cflens(111)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_111'
-    cflens(112)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_112'
-    cflens(113)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_113'
-    cflens(114)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_114'
-    cflens(115)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_115'
-    cflens(116)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_116'
-    cflens(117)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_117'
-    cflens(118)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_118'
-    cflens(119)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_119'
-    cflens(120)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_120'
-    cflens(121)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_121'
-    cflens(122)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_122'
-    cflens(123)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_123'
-    cflens(124)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_124'
-    cflens(125)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_125'
-    cflens(126)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_126'
-    cflens(127)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_127'
-    cflens(128)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_128'
-    cflens(129)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_129'
-    cflens(130)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_130'
-    cflens(131)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_131'
-    cflens(132)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_132'
-    cflens(133)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_133'
-    cflens(134)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_134'
-    cflens(135)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_135'
-    cflens(136)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_136'
-    cflens(137)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_137'
-    cflens(138)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_138'
-    cflens(139)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_139'
-    cflens(140)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_140'
-    cflens(141)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_141'
-    cflens(142)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_142'
-    cflens(143)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_143'
-    cflens(144)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_144'
-    cflens(145)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_145'
-    cflens(146)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_146'
-    cflens(147)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_147'
-    cflens(148)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_148'
-    cflens(149)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_149'
-    cflens(150)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_150'
-    cflens(151)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_151'
-    cflens(152)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_152'
-    cflens(153)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_153'
-    cflens(154)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_154'
-    cflens(155)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_155'
-    cflens(156)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_156'
-    cflens(157)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_157'
-    cflens(158)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_158'
-    cflens(159)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_159'
-    cflens(160)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_160'
-    cflens(161)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_161'
-    cflens(162)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_162'
-    cflens(163)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_163'
-    cflens(164)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_164'
-    cflens(165)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_165'
-    cflens(166)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_166'
-    cflens(167)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_167'
-    cflens(168)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_168'
-    cflens(169)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_169'
-    cflens(170)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_170'
-    cflens(171)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_171'
-    cflens(172)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_172'
-    cflens(173)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_173'
-    cflens(174)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_174'
-    cflens(175)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_175'
-    cflens(176)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_176'
-    cflens(177)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_177'
-    cflens(178)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_178'
-    cflens(179)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_179'
-    cflens(180)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_180'
-    cflens(181)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_181'
-    cflens(182)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_182'
-    cflens(183)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_183'
-    cflens(184)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_184'
-    cflens(185)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_185'
-    cflens(186)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_186'
-    cflens(187)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_187'
-    cflens(188)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_188'
-    cflens(189)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_189'
-    cflens(190)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_190'
-    cflens(191)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_191'
-    cflens(192)='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/2009021818_006_192'
 
     allocate(ensPerturbations(ni_l,nkgdim_l,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens))
     allocate(ensPerturbation1(ni_l,nkgdim_l,nj_l,ntime_l))
 
-    ! read in raw ensemble (UU,VV,TT,P0,LQ - covariances)
+    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
     ip2(1) = 3  
     ip2(2) = 4  
     ip2(3) = 6  
@@ -416,8 +228,9 @@ CONTAINS
     do jens=1,nens
       if(mpi_myid.eq.readFilePE(jens)) then
 
-        cflensin=cflens(jens)
-        write(*,*) 'Reading ENS from:',cflensin
+        write(censnumber,'(i3.3)') jens
+        cflensin= trim(enspathname) // trim(ensfilebasename) // censnumber
+        write(*,*) 'Reading ensemble member from:',cflensin
         call flush(6)
 
         kulin=0
@@ -572,13 +385,15 @@ CONTAINS
       endif
 
     enddo
+
+    deallocate(ensPerturbation1)
+
     write(*,*) 'finished reading ensemble members...'
     call flush(6)
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
     dnens2=scaleFactor/sqrt(1.0d0*dble(nens-1))
-!    dnens2=1.0d0/sqrt(1.0d0*dble(nens))
     do jt=1,ntime_l
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
@@ -601,8 +416,6 @@ CONTAINS
             do ji=1,ni_l
               ensPerturbations(ji,jk,jj,jt,jens)=     &
                 sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens2)
-              if(dble(ensPerturbations(ji,jk,jj,jt,jens)).gt.maxpert) maxpert=dble(ensPerturbations(ji,jk,jj,jt,jens))
-              if(dble(ensPerturbations(ji,jk,jj,jt,jens)).lt.minpert) minpert=dble(ensPerturbations(ji,jk,jj,jt,jens))
             enddo
           enddo
         enddo
@@ -613,9 +426,6 @@ CONTAINS
     write(*,*) 'finished adjusting ensemble members...'
     call flush(6)
  
-    write(*,*) 'maxpert=',maxpert
-    write(*,*) 'minpert=',minpert
-
     call tmg_stop(48)
 
     ! ensPerturbations(:,:,:,:,:)=0.0 !for testing purposes

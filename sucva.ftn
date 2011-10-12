@@ -248,7 +248,7 @@ C
 C
       CALL SUCOV
 
-      call min_setup(nvadim)
+      call min_setup(cvm_nvadim)
 C
 C     *    .  2.21 Initialize the observation error covariance
 C     .      -------------------------------------------
@@ -261,9 +261,9 @@ C     .         -------------------------------------------
 C
  230  CONTINUE
 C
-      write(*,*) 'NOT CALLING SUIMP, INSTEAD SETTING VAZX=0'
-!!      CALL SUIMP(NVADIM,VAZX,CIMP)
-      vazx(1:NVADIM)=0.0d0
+      write(*,*) 'NOT CALLING SUIMP, INSTEAD SETTING CVM_VAZX=0'
+!!      CALL SUIMP(cvm_NVADIM,cvm_VAZX,CIMP)
+      cvm_vazx(1:cvm_NVADIM)=0.0d0
 C
 C
 C     *    .  2.4 Initialize the inner product

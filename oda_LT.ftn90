@@ -14,9 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_LT
+subroutine oda_LT(statevector)
   use mod4dv, only : l4dvar
   use mpi
+  use gridStateVector
   implicit none
   !
   !Purpose: Adjoint of Localisation (3D) / Adjoint Model (4D) operator
@@ -35,6 +36,7 @@ subroutine oda_LT
   !
 #include "comdim.cdk"
 #include "comgd0.cdk"
+  type(struct_gsv) :: statevector
   ! Local declarations
   integer :: nl_ilev,nl_err
   integer :: ierr,tgsize,sizegd 
@@ -76,5 +78,7 @@ subroutine oda_LT
   enddo
   write(*,*) 'END OF ODA_LT, max,mean(gd)=',zmax,zmean
 
+  ! temporarily copy over the global gd array to the statevector object
+  statevector%gd(1:ni,1:nkgdim,1:nj)=gd(1:ni,1:nkgdim,1:nj)
 
 end subroutine oda_LT

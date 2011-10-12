@@ -15,15 +15,14 @@ MODULE ControlVector
   save
   private
 
-  public              :: cvm_Setup, cvm_getSubVector, vazx, nvadim, dg_vbar
+  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_vazx, cvm_nvadim
 
   logical             :: initialized = .false.
   integer             :: cvm_dimBHI = 0
   integer             :: cvm_dimBEN = 0
-  integer             :: nvadim
+  integer             :: cvm_nvadim
 
-  real*8, allocatable,target :: vazx(:)
-  real*8, pointer            :: dg_vbar(:)
+  real*8, allocatable,target :: cvm_vazx(:)
 
 CONTAINS
 
@@ -34,19 +33,18 @@ CONTAINS
 
     cvm_dimbhi = dimbhi_in
     cvm_dimben = dimben_in
-    nvadim = cvm_dimben + cvm_dimbhi
+    cvm_nvadim = cvm_dimben + cvm_dimbhi
 
-    allocate(vazx(nvadim))
-    allocate(dg_vbar(nvadim))
+    allocate(cvm_vazx(cvm_nvadim))
 
-    vazx(:)=0.0d0
-    dg_vbar(:)=0.0d0
+    cvm_vazx(:)=0.0d0
 
     initialized=.true.
 
   END SUBROUTINE CVM_setup
 
   FUNCTION CVM_getSubVector(controlVector,subVectorIndex) RESULT(subVector)
+    implicit none
 
     real*8, pointer :: subVector(:)
     real*8,target   :: controlVector(:)
@@ -60,8 +58,25 @@ CONTAINS
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
     else
       write(*,*) 'CVM_getSubVector: value of subVectorIndex invalid'
+      call flush(6)
     endif
 
   END FUNCTION CVM_getSubVector
+
+  SUBROUTINE CVM_deallocate
+    implicit none
+
+    integer :: ierr
+
+    if (allocated(cvm_vazx))then
+      deallocate(cvm_vazx,stat=ierr)
+      if(ierr.eq.0) then
+        write(*,*) 'CVM_VAZX checked and correct. IERR =',ierr
+      else
+        write(*,*) 'Problem detected in CVM_VAZX. IERR =',ierr
+      endif
+    end if
+
+  END SUBROUTINE CVM_deallocate
 
 END MODULE ControlVector

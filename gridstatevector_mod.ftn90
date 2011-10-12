@@ -1,0 +1,114 @@
+!--------------------------------------------------------------------------
+! MODULE gridStateVector (The grid-point state vector and related information.  prefix="gsv")
+!
+! Purpose: 
+!
+! Type definitions:
+!    struct_gsv
+!
+! Subroutines:
+!    gsv_setup (public)
+!    gsv_allocate
+!    gsv_deallocate
+!    gsv_zero
+!
+! Dependencies:
+!    none
+!--------------------------------------------------------------------------
+MODULE gridStateVector
+
+  implicit none
+  save
+  private
+
+  public              :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, struct_gsv
+
+  type struct_gsv
+    real*8,pointer :: gd(:,:,:)
+  end type struct_gsv  
+
+  logical             :: initialized = .false.
+  integer             :: ni,nj,nk
+
+CONTAINS
+
+  SUBROUTINE GSV_setup(ni_in,nj_in,nk_in)
+    implicit none
+
+    integer        :: ni_in,nj_in,nk_in
+
+    ni=ni_in
+    nj=nj_in
+    nk=nk_in
+
+    initialized=.true.
+
+  END SUBROUTINE GSV_setup
+
+  SUBROUTINE GSV_allocate(statevector)
+    implicit none
+
+    type(struct_gsv) :: statevector
+    integer        :: ierr
+
+    if(.not.initialized) then
+      write(*,*) 'gridStateVector not yet initialized! Aborting.'
+      call exit(1)
+    endif
+
+    if (associated(statevector%gd))then
+      write(*,*) 'gridStateVector already allocated! Deallocating first.'
+      deallocate(statevector%gd,stat=ierr)
+      if(ierr.eq.0) then
+        write(*,*) 'gridStateVector checked and correct. IERR =',ierr
+      else
+        write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
+      endif
+      call flush(6)
+    end if
+
+    allocate(statevector%gd(ni,nk,nj),stat=ierr)
+    write(*,*) 'allocated statevector:',ni,nj,nk,ierr
+    call flush(6)
+
+  END SUBROUTINE GSV_allocate
+
+
+  SUBROUTINE GSV_zero(statevector)
+    implicit none
+
+    type(struct_gsv) :: statevector
+
+    if(.not.initialized) then
+      write(*,*) 'gridStateVector not yet initialized! Aborting.'
+      call exit(1)
+    endif
+
+    statevector%gd(1:ni,1:nk,1:nj)=0.0d0
+ 
+  END SUBROUTINE GSV_zero
+
+
+  SUBROUTINE GSV_deallocate(statevector)
+    implicit none
+
+    type(struct_gsv) :: statevector
+    integer        :: ierr
+
+    if(.not.initialized) then
+      write(*,*) 'gridStateVector not yet initialized! Aborting.'
+      call exit(1)
+    endif
+
+    if (associated(statevector%gd))then
+      deallocate(statevector%gd,stat=ierr)
+      if(ierr.eq.0) then
+        write(*,*) 'gridStateVector checked and correct. IERR =',ierr
+      else
+        write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
+      endif
+    end if
+
+  END SUBROUTINE GSV_deallocate
+
+END MODULE gridStateVector

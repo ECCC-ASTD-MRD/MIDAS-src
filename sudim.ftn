@@ -75,6 +75,7 @@
 C
 !modular1      use modstag, only: nj_s, njlath_s, level2_staggrid, lstagwinds
 !modular1      USE  spect_mpi 
+      use gridStateVector
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -196,9 +197,8 @@ C
      S     '' space'',/,
      S     '' NVSP   ='',I6,'' NVSP2D   ='',I6,'' NKSDIM ='',I6)')
      S     NVSP,NVSP2D,NKSDIM
-!!!
-!!! REMOVED CODE FOR DIMENSIONING THE CONTROL VECTOR, MOVED TO SUCOV
-!!!
+
+      call gsv_setup(ni,nj,nkgdim)
 C
       RETURN
       END

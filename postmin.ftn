@@ -20,6 +20,7 @@
       use obsSpaceData_mod
       use controlVector
       use minimization
+      use bmatrix
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *
@@ -55,6 +56,7 @@
 #endif
       use mpi
       use minimization
+      use gridStateVector
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -78,6 +80,7 @@ C
       REAL*8 DLDS(1)
       real*8 zpsig(ni,nflev,nj)
       real*8 z3d(ni,nflev,nj)
+      type(struct_gsv) :: statevector
 
       CHARACTER *8 CSTATUS
 C
@@ -94,9 +97,7 @@ C
       LOGICAL LSTAGTEMP
       INTEGER FNOM,FCLOS
       EXTERNAL FNOM,FCLOS
-      EXTERNAL  TESTSP, M1QN2, M1QN3, ABORT3D
-     S     , SIMQN, SCALQN, CANAB, CANONB, PRSCAL , DEMARRE
-     S     , TRANSFER, SUPOST
+      EXTERNAL SUPOST
 c
 c     if a restart file was writen at the end of minimize.ftn,
 c     lrestart was turn to .true. to avoid postmin exection
@@ -197,7 +198,10 @@ C at the end of minimize
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
-        call oda_sqrtB(vazx,nvadim)
+        call gsv_allocate(statevector)
+        call oda_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+        gd(:,:,:)=statevector%gd(:,:,:)
+        call gsv_deallocate(statevector)
 
         WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'

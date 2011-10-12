@@ -18,6 +18,7 @@ MODULE minimization
   public              :: min_Setup, min_minvar,ltlmend,nsim3d,niterjob,lvarqc
 
   logical             :: initialized = .false.
+  real*8, pointer     :: dg_vbar(:)
 
   character(len=10)   :: crestart='wrmrestart'
   integer             :: nulout =6
@@ -72,6 +73,9 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
+    allocate(dg_vbar(nvadim_in))
+    dg_vbar(:)=0.0d0
+
     IF(N1GC.EQ.2) THEN
        NMTRA = 3*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
     ELSE IF(N1GC.EQ.3)THEN
@@ -101,7 +105,7 @@ CONTAINS
   END SUBROUTINE min_setup
 
 
-  subroutine min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
+  SUBROUTINE min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
       use mod4dv, only : l4dvar
       use controlVector
 !
@@ -117,7 +121,7 @@ CONTAINS
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)
 
-      real*8 vazg(nvadim)
+      real*8 vazg(cvm_nvadim)
       real*8 vatr1(nmtra)
       real*8 vatra(nmtra)
 
@@ -134,8 +138,7 @@ CONTAINS
 
       INTEGER FNOM,FCLOS, remove_c
       EXTERNAL FNOM,FCLOS
-!modular1      EXTERNAL MVPROD
-      EXTERNAL  N1QN3, DSCALQN, DCANAB, DCANONB, PRSCAL, simvar
+      EXTERNAL  N1QN3
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
@@ -155,7 +158,7 @@ CONTAINS
 
 !     Define i_pmat1 even if BFGSB.NE.1 (Otherwise abort in n1cg1)
 !     ------------------------------------------------------------
-      i_pmat1 = NVADIM**2
+      i_pmat1 = cvm_NVADIM**2
 
       in_mode(2) = 0
       in_mode(3) = IMODE3
@@ -214,14 +217,14 @@ CONTAINS
         if(n1gc.eq.3) then
           call rw_vatra (clfname,0,                            &
             isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
-            ,isimdone_000,iztrl,vatra,nmtra,dg_vbar,nvadim,    &
-            vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
+            ,isimdone_000,iztrl,vatra,nmtra,dg_vbar,cvm_nvadim,    &
+            cvm_vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
 
         elseif(n1gc.eq.4) then
           call rw_vatra (clfname,0,                            &
             isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
-            ,isimdone_000,ilm0,vatra,nmtra,dg_vbar,nvadim,     &
-            vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
+            ,isimdone_000,ilm0,vatra,nmtra,dg_vbar,cvm_nvadim,     &
+            cvm_vazx,ntrunc,nksdim,nvamaj,llxbar,llvazx,n1gc,imode)
         endif
 
         if(niterjob /= -1 .and. lrestart) then
@@ -261,7 +264,7 @@ CONTAINS
         if (nwoqcv > 0) lvarqc = .false.
 
         if(ngrtest.ne.0) then
-          call grtest2(simvar,nulout,nvadim,vazx,ngrange)
+          call grtest2(simvar,nulout,cvm_nvadim,cvm_vazx,ngrange)
         endif
 
       endif
@@ -284,7 +287,7 @@ CONTAINS
 !
       INDIC =2
 
-      call simvar(indic,nvadim,vazx,zjsp,vazg)
+      call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg)
 
       if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
 
@@ -292,9 +295,9 @@ CONTAINS
 
       lvarqc=llvarqc
 
-      CALL PRSCAL(NVADIM,VAZG,VAZG,DLGNORM)
+      CALL PRSCAL(cvm_NVADIM,VAZG,VAZG,DLGNORM)
       DLGNORM = DSQRT(DLGNORM)
-      CALL PRSCAL(NVADIM,VAZX,VAZX,DLXNORM)
+      CALL PRSCAL(cvm_NVADIM,cvm_VAZX,cvm_VAZX,DLXNORM)
       DLXNORM = DSQRT(DLXNORM)
       WRITE(NULOUT,*)' |X| = ', DLXNORM
       WRITE(NULOUT,FMT=9220) ZJSP, DLGNORM
@@ -337,7 +340,7 @@ CONTAINS
         isimnovqc = isimmax
         lvarqc = .false.
         call tmg_start(21,'QN')
-        call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, vazx,     &
+        call n1qn3(simvar, dscalqn, dcanonb, dcanab, cvm_nvadim, cvm_vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode       &
             ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, izs, zzsunused  &
             ,dlds)
@@ -357,7 +360,7 @@ CONTAINS
         if (imode == 4 .and. itertot < nitermax) then
           imode = 2
           INDIC = 2
-          call simvar(indic,nvadim,vazx,zjsp,vazg)
+          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg)
         else
           llstop = .true.
         endif
@@ -368,7 +371,7 @@ CONTAINS
         if(N1GC.EQ.3) then
 
           call tmg_start(21,'QN')
-          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, vazx,  &
+          call n1qn3(simvar, dscalqn, dcanonb, dcanab, cvm_nvadim, cvm_vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
               itermax,isimmax, iztrl, vatra, nmtra, izs, zzsunused,   &
               dlds)
@@ -396,7 +399,7 @@ CONTAINS
           if(imode.eq.0) in_mode(1) = 0
           if(imode.eq.2) in_mode(1) = 1
 
-!modular1          call n1cg1 (mvprod,NVADIM,VAZX,VAZB,a_not_use,pj0,xx,bb,.false
+!modular1          call n1cg1 (mvprod,cvm_NVADIM,cvm_VAZX,VAZB,a_not_use,pj0,xx,bb,.false
 !modular1     &         .,EPSNEG,zeps1,itermax,impres,NULOUT,in_mode,out_mode
 !modular1     &         ,VWORK,NWORK,imode,r8_not_use,i_not_use,NVAMAJ,ilm0,nilm
 !modular1     &         ,VATRA,NMTRA,BFGSB,r8_not_use,i_pmat1,  NVAMAJ,ilm1,nilm
@@ -415,7 +418,7 @@ CONTAINS
 !       Call 4D-Var simulator without gradient to get ZJSP
 !       --------------------------------------------------
           INDIC = 2
-          call simvar(indic,nvadim,vazx,zjsp,vazg)
+          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg)
 
         endif
 
@@ -431,8 +434,8 @@ CONTAINS
 !     execution of postmin.
         lrestart = .true.
       else
-        do jdata = 1, nvadim
-          dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
+        do jdata = 1, cvm_nvadim
+          dg_vbar(jdata) = cvm_vazx(jdata) + dg_vbar(jdata)
         enddo
         clfname = 'pm1q'
       endif
@@ -442,15 +445,15 @@ CONTAINS
         call rw_vatra (clfname,1,  &
           nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,  &
           iztrl,vatra,nmtra,  &
-          dg_vbar,nvadim,  &
-          vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
+          dg_vbar,cvm_nvadim,  &
+          cvm_vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
 
         elseif(n1gc.eq.4) then
             call rw_vatra (clfname,1,  &
             nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,  &
             ilm1,vatr1,nmtra,  &
-            dg_vbar,nvadim,  &
-            vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
+            dg_vbar,cvm_nvadim,  &
+            cvm_vazx,ntrunc,nksdim,nvamaj,.true.,llvazx,n1gc,imode)
           endif
       endif
 
@@ -475,16 +478,712 @@ CONTAINS
         WRITE(NULOUT,FMT=9400)
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
 
-        call grtest2(simvar,nulout,nvadim,vazx,ngrange)
+        call grtest2(simvar,nulout,cvm_nvadim,cvm_vazx,ngrange)
 
       END IF
 
       if(l4dvar) then
-!modular1        call endsim2(nvadim,vazx)
+!modular1        call endsim2(cvm_nvadim,cvm_vazx)
       endif
 
       RETURN
   END SUBROUTINE min_minvar
+
+
+  SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
+    use mod4dv, only : l4dvar
+    !modular1  use modstag, only : lstagwinds
+    use mpi
+    use obsSpaceData_mod
+    use gridStateVector
+    use bmatrix
+    implicit none
+    ! Argument declarations
+    integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
+    ! Value of na_indic
+    ! Note: 1 and 4 are reserved values for call back from m1qn3.
+    !       For direct calls use other value than 1 and 4.
+    ! =1 No action taken; =4 Both J(u) and its gradient are computed.
+    ! =2 Same as 4 (compute J and gradJ) but do not interrupt timer of the
+    !    minimizer.
+    ! =3 Compute Jo and gradJo only.
+    integer :: na_indic 
+    real*8  :: da_J ! Cost function of the Variational algorithm
+    real*8, dimension(na_dim) :: da_gradJ ! Gradient of the Variational Cost funtion
+    real*8, dimension(na_dim) :: da_v ! Control variable in forecast error covariances space
+    !
+    ! Purpose: Implement the Variational solver as described in
+    ! Courtier, 1997, Dual formulation of four-dimentional variational assimilation,
+    ! Q.J.R., pp2449-2461.
+    !
+    ! Author : Simon Pellerin *ARMA/MSC October 2005
+    !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
+    !
+    ! Local declaration
+    integer :: nl_ilev, nl_err
+    real*8, dimension(na_dim) :: dl_v
+    real*8 :: dl_Jb, dl_Jo
+    type(struct_gsv) :: statevector
+
+    if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop (21)
+
+    call tmg_start(31,'SIMVAR')
+    if (na_indic .ne. 1) then ! No action taken if na_indic == 1
+       nsim3d = nsim3d + 1
+
+       IF(mpi_myid == 0) write(*,*) 'Entering simvar for simulation ',nsim3d
+
+       dl_v = da_v + dg_vbar      !dg_vbar = sum(v) of previous outer-loops
+
+       ! Computation of background term of cost function
+       dl_Jb = dot_product(dl_v,dl_v)/2.d0
+
+       call gsv_allocate(statevector)
+
+       call oda_sqrtB(da_v,na_dim,statevector)
+
+       call oda_L(statevector)
+
+       call tmg_start(2,'OBS-OPER') !
+
+       call oda_H ! Modify NCM_OMA ! Hdx
+
+       call oda_res              ! Modify NCM_OMA : Hdx-d
+     
+       call oda_sqrtRm1('OMA ','OMA ')  ! Modify NCM_OMA : R**-1/2*(Hdx-d)
+     
+       call oda_Jo               ! Store J in NCM_OMI : R**-1(Hdx-d)**2
+     
+       IF (LVARQC) THEN
+          ! Store modify J in NCM_OMI : -ln((gamma-exp(J))/(gamma+1))
+          call oda_qcv
+       endif
+
+       dl_Jo = 0.d0
+       call oda_sumJo(dl_Jo)
+       da_J = dl_Jb + dl_Jo
+       if (na_indic .eq. 3) then
+          da_J = dl_Jo
+          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') dl_Jo
+       else
+          da_J = dl_Jb + dl_Jo
+          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
+       endif
+
+       call oda_sqrtRm1('OMI ','OMA ')
+
+       IF (LVARQC) THEN
+          call oda_qcvad
+       endif
+
+       CALL TRANSFER('ZOB0')
+       call oda_HT
+     
+       call tmg_stop(2)
+
+       CALL TRANSFER('ZGD0')
+       call oda_LT(statevector)
+
+       CALL TRANSFER('ZSP0')
+       da_gradJ = 0.d0
+       call oda_sqrtBT(da_gradJ,na_dim,statevector)
+       call gsv_deallocate(statevector)
+
+       if (na_indic .ne. 3) then
+          da_gradJ = dl_v + da_gradJ
+       endif
+
+    endif
+    call tmg_stop(31)
+    if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(21,'QN')
+
+  END SUBROUTINE simvar
+
+
+  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC,KZS, PZS, DDZS)
+    !***s/r DSCALQN: inner product in canonical space
+    !*    ------------------- 
+    !**    Purpose: interface for the inner product to be used
+    !*     .        by the minimization subroutines N1QN3.
+    !*
+    !*Arguments
+    !*     i : KDIM      : dimension of the vectors
+    !*     i : PX, PY    : vector for which <PX,PY> is being calculated
+    !*     o : DDSC      : result of the inner product
+    !*     --------------
+    !*     i :  KZS(1)   : unused working space for INTEGER  (not used)
+    !*     i :  PZS(1)   : unused working space for REAL     (not used)
+    !*     i : PDZS(1)   : unused working space for REAL*8   (not used)
+    IMPLICIT NONE
+
+    REAL PZS(1)
+    INTEGER KZS(1)
+    REAL*8  DDZS(1)
+
+    INTEGER KDIM
+    REAL*8 PX(KDIM), PY(KDIM)
+    REAL*8 DDSC
+
+    CALL PRSCAL(KDIM,PX,PY,DDSC)
+    RETURN
+  END SUBROUTINE DSCALQN
+
+
+  SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
+    !***s/r PRSCAL: inner product in canonical space
+    !*
+    !*Author  : P. Gauthier *ARMA/AES  January 27, 1993
+    !**    Purpose: evaluation of the inner product used in the
+    !*     .        minimization
+    !*
+    !*Arguments
+    !*     i : KDIM     : dimension of the vectors
+    !*     i : PX, PY   : vector for which <PX,PY> is being calculated
+    !*     o : DDSC     : result of the inner product
+    !*
+    !* Implicit argument: SCALP(KDIM) assumed to be unity
+
+    IMPLICIT NONE
+
+    INTEGER KDIM, J, RR, IERR
+    REAL*8 PX(KDIM), PY(KDIM)
+    REAL*8 DDSC,TEMPO
+    REAL*8 ZPY(KDIM)
+
+    DDSC = 0.
+    DO J = 1, KDIM
+      DDSC = DDSC + PX(J)*PY(J)
+    ENDDO
+
+    RETURN
+  END SUBROUTINE PRSCAL
+
+
+  SUBROUTINE DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
+    !***s/r DCANAB  - Change of variable associated with the canonical
+    !*     .         inner product
+    !*
+    !*Author    JM Belanger CMDA/SMC   May 2001
+    !*     .    Double precision version based on single precision CTCAB.
+    !*          Refered to  as dummy argument DTCAB by N1QN3 minimization
+    !*          package.
+    !*    -------------------
+    !**    Purpose: to compute PX = L^-1 * Py with L related to the inner product
+    !*     .        <PX,PY> = PX^t  L^t  L PY
+    !*     .        (see the modulopt documentation aboutn DTCAB)
+    !*     NOTE: L is assumed to be the identity!
+    IMPLICIT NONE
+
+    INTEGER KDIM, KZS(1)
+    REAL PZS(1)
+    REAL*8 PX(KDIM), PY(KDIM)
+    REAL*8 PDZS(1)
+
+    INTEGER JDIM
+
+    DO JDIM = 1, KDIM
+      PX(JDIM) = PY(JDIM)
+    ENDDO
+
+    RETURN
+  END SUBROUTINE DCANAB
+
+
+  SUBROUTINE DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
+    !***s/r DCANONB  - Change of variable associated with the canonical
+    !*     .          inner product
+    !*
+    !*Author    JM Belanger CMDA/SMC  May 2001
+    !*     .    Double precision version based on single precision CANONB.
+    !*          Refered to as dummy argument DTONB by N1QN3 minimization
+    !*          package.
+    !*    -------------------
+    !**    Purpose: to compute PY = L * PX with L related to the inner product
+    !*     .        <PX,PY> = PX^t  L^t  L PY
+    !*     .        (see the modulopt documentation about DTONB)
+    !*     .
+
+    IMPLICIT NONE
+    INTEGER KDIM, KZS(1)
+    REAL PZS(1)
+    REAL*8 PX(KDIM), PY(KDIM)
+    REAL*8 PDZS(1)
+
+    INTEGER JDIM
+
+    DO JDIM = 1, KDIM
+      PY(JDIM) = PX(JDIM)
+    ENDDO
+
+    RETURN
+  END SUBROUTINE DCANONB
+
+
+  SUBROUTINE setvazx(f,ntrunc,f_xx,ntrunc_xx,lower_L,nksdim,nvadim)
+    !***s/r SETVAZX  - Transfer of Vazx from source to working resolutions
+    !*
+    !*Author  : M. Tanguay RPN, January, 2005
+    !*
+    !*Arguments
+    !*     o   f         : Vazx field at working resolution
+    !*     i   f_xx      : Vazx field at  source resolution
+    !*     i   lower_L   : .T. if source res. is lower than working res.
+    !*     i   n(i)trunc : truncation of working (source) resolution
+    !*     i   nksdim    : nvar3d*nlev + nvar2d of working field
+    !*
+    implicit none
+
+    logical lower_L
+    real*8 f(*),f_xx(*)
+    integer :: ntrunc, ntrunc_xx, nksdim, nvadim
+
+    integer jlev,jdim,jla,m,start,end,rdim
+
+    !modular1 !!!assume resolution is unchanged!!!
+    f(1:nvadim)=f_xx(1:nvadim)
+    !modular1 !!!assume resolution is unchanged!!!
+
+
+
+    if(.false.) then
+
+    !*     If source resolution is lower than working resolution
+    !*     -----------------------------------------------------
+    if(lower_L) then
+
+      jdim = 0
+      rdim = 0
+      do jlev = 1, nksdim
+
+        do jla = 1, ntrunc_xx + 1
+          jdim = jdim + 1
+          rdim = rdim + 1
+          f(jdim) = f_xx(rdim)
+        enddo
+
+        jdim = jdim + ntrunc - ntrunc_xx
+
+        start = ntrunc_xx + 2
+
+        do  m = 2,ntrunc_xx + 1
+
+          end   = start + (ntrunc_xx-(m-1))
+
+          do jla = start, end
+
+            jdim = jdim + 1
+            rdim = rdim + 1
+            f(jdim) = f_xx(rdim)
+
+            jdim = jdim + 1
+            rdim = rdim + 1
+            f(jdim) = f_xx(rdim)
+
+          enddo
+
+          jdim = jdim + 2*(ntrunc - ntrunc_xx)
+
+          start = end + 1
+
+        enddo
+
+        jdim = jdim + (ntrunc - ntrunc_xx)*(ntrunc - ntrunc_xx + 1)
+
+      enddo
+
+      !*     If source resolution is higher than working resolution
+      !*     ------------------------------------------------------
+    else
+
+      jdim = 0
+      rdim = 0
+      do jlev = 1, nksdim
+
+        do jla = 1, ntrunc + 1
+          jdim = jdim + 1
+          rdim = rdim + 1
+          f(rdim) = f_xx(jdim)
+        enddo
+
+        jdim = jdim + ntrunc_xx - ntrunc
+
+        start = ntrunc + 2
+
+        do  m = 2,ntrunc + 1
+
+          end   = start + (ntrunc-(m-1))
+
+          do jla = start, end
+
+            jdim = jdim + 1
+            rdim = rdim + 1
+            f(rdim) = f_xx(jdim)
+
+            jdim = jdim + 1
+            rdim = rdim + 1
+            f(rdim) = f_xx(jdim)
+
+          enddo
+
+          jdim = jdim + 2*(ntrunc_xx - ntrunc)
+
+          start = end + 1
+
+        enddo
+
+        jdim = jdim + (ntrunc_xx - ntrunc)*(ntrunc_xx - ntrunc + 1)
+
+      enddo
+
+    endif
+
+    endif
+
+    return
+  END SUBROUTINE setvazx
+
+
+  SUBROUTINE setvatra (v,   nmtra,   nvadim, ntrunc,  iztrl,    &
+                       v_xx,nmtra_xx,nvadim_xx,itrunc,iztrl_xx, &
+                       lower_L,nksdim,nvamaj,k1gc)
+    !*
+    !***s/r SETVATRA  - Transfer of Hessian from source to working resolutions
+    !*
+    !*Author  : M. Tanguay RPN, January, 2005
+    !*
+    !*     ----------------------------------------------------------------------------
+    !*     Transfer of Hessian from source to working resolutions is done according
+    !*     to the splitting of vatra as described in N1QN3 or N1CG1 (See MODULOPT lib.)
+    !*     ----------------------------------------------------------------------------
+    !*
+    !*Arguments
+    !*     o   v          : Hessian at working resolution
+    !*     o   iztrl      : Localisation parameters for Hessian at working res.
+    !*     i   v_xx       : Hessian at source resolution
+    !*     i   iztrl_xx   : Localisation parameters for Hessian at source res.
+    !*     i   nmtra(_xx) : Size of Hessian at working (source) res.
+    !*     i   nvadim(_xx): Size of Vazx field at working (source) res.
+    !*     i   lower_L    : .T. if source res. is lower than working res.
+    !*     i   n(i)trunc  : truncation of working (source) resolution
+    !*     i   nksdim     : nvar3d*nlev + nvar2d of working field
+    !*     i   nvamaj     : number of updates in Hessian
+    !*     i   k1gc       : Minimizer ID (2: m1qn2, 3: m1qn3, 4: m1gc)
+    !*
+    !*     --------------------------------------------
+    !*     CAUTION: When K1GC=3, iztrl assumes DIS mode
+    !*     --------------------------------------------
+
+    implicit none
+
+    integer ntrunc,itrunc,nksdim,nvamaj,k1gc,nmtra,nvadim
+    integer nmtra_xx,nvadim_xx,iztrl(10),iztrl_xx(10)
+
+    real*8 v(nmtra),v_xx(nmtra_xx)
+    logical lower_L
+    integer n,n_xx
+    integer idiag,iybar,isbar,isize
+    integer idiag_xx,iybar_xx,isbar_xx,isize_xx
+    integer ii,jj,mmemo,mmemo_xx
+
+
+    if(lower_L) then
+       write(nulout,*) 'SETVATRA using source resolution lower than working resolution'
+    else
+      write(nulout,*) 'SETVATRA using source resolution greater or equal than working resolution'
+    endif
+
+    n    = nvadim
+    n_xx = nvadim_xx
+
+    !*     Mmemo = number of (y,s) pairs in core memory
+    !*     --------------------------------------------
+    mmemo    = NVAMAJ
+    !mmemo_xx = NVAMAJ
+    mmemo_xx = (nmtra_xx - 4*n_xx)/(2*n_xx + 1)
+
+    !*     Split Hessian at working resolution
+    !*     -----------------------------------
+    idiag=1
+    iybar=idiag+n
+    !if(sscale)    iybar=1
+    if(k1gc.eq.4) iybar=1
+    isbar=iybar+n*mmemo
+    isize=isbar+n*mmemo
+
+    !*     Split Hessian at source resolution
+    !*     ----------------------------------
+    idiag_xx=1
+    iybar_xx=idiag_xx+n_xx
+    !if(sscale)    iybar_xx=1
+    if(k1gc.eq.4) iybar_xx=1
+    isbar_xx=iybar_xx+n_xx*mmemo_xx
+    isize_xx=isbar_xx+n_xx*mmemo_xx
+
+    !*     Transfer vazx field from source to working resolutions
+    !*     ------------------------------------------------------
+    !if(sscale)    call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,nvadim)
+    if(k1gc.eq.3) call setvazx (v(idiag),ntrunc,v_xx(idiag_xx),itrunc,lower_L,nksdim,nvadim)
+
+    do jj = 1,min(mmemo,mmemo_xx)
+       call setvazx (v(iybar+(jj-1)*n),ntrunc,v_xx(iybar_xx+(jj-1)*n_xx),itrunc,lower_L,nksdim,nvadim)
+    enddo
+    do jj = 1,min(mmemo,mmemo_xx)
+       call setvazx (v(isbar+(jj-1)*n),ntrunc,v_xx(isbar_xx+(jj-1)*n_xx),itrunc,lower_L,nksdim,nvadim)
+    enddo
+
+    !*     Transfer IZTRL
+    !*     --------------
+    if(k1gc.eq.3) then
+
+       iztrl(1) = n
+       iztrl(2) = 0
+       !if(sscale) iztrl(2) = 1
+       iztrl(3) = mmemo
+       iztrl(4) = iztrl_xx(4)
+       iztrl(5) = iztrl_xx(5)
+
+    elseif(k1gc.eq.4) then
+
+       do ii=1,10
+          iztrl(ii) = iztrl_xx(ii)
+       enddo
+
+       v(isize) = v_xx(isize_xx)
+
+    endif
+
+    return
+  END SUBROUTINE setvatra
+
+
+  SUBROUTINE rw_vatra (cfname,status,                       &
+          nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
+          nztrl,vatra,nmtra,                                &
+          vazxbar,kvadim,                                   &
+          vazx,ktrunc,kksdim,nvamaj,lxbar,lvazx,k1gc,imode)
+
+    !***s/r RW_VATRA  - Read-Write VAZXBAR and VATRA on file
+    !*
+    !*
+    !*Author  : M. Tanguay RPN January 2005
+    !*Revision: S. Pellerin (January 2005)
+    !*          . Dynamical Multi-Inc.: Read and write based on date,
+    !*            working and stored resolutions
+    !*          M. Buehner (May 2008)
+    !*          . Added code for dealing with multiple bands of
+    !*            correlations (corns) - changed some argument names
+    !*            to avoid complict with comdecks
+    !*Revision: M. Tanguay  (December 2007)
+    !*          . Lam4d Limited-Area: Add grd_typ in rw_vatra parameters
+    !*Revision: L. Fillion - ARMA/EC - 12 Jan 2009
+    !*          . Upgrade lam4d to v_10_1_2.
+    !*
+    !*Arguments
+    !*     i   cfname    : precon file
+    !*     i   status    : = 0 if READ, = 1 if WRITE
+    !*     i   nsim3d    : Number of simulations in N1QN3
+    !*     io  kbrpstamp : Date
+    !*     i   zeps1     : Parameter in N1QN3
+    !*     i   zdf1      : Parameter in N1QN3
+    !*     i   itertot   : Parameter in N1QN3
+    !*     i   isimtot   : Parameter in N1QN3
+    !*     i   nztrl     : Localisation parameters for Hessian
+    !*     i   vatra     : Hessian
+    !*     i   nmtra     : Size of Hessian
+    !*     i   vazxbar   : Vazx of previous loop
+    !*     i   kvadim    : Dimension of vazxbar
+    !*     i   vazx      : Current state of the minimization
+    !*     i   ktrunc    : truncation of working resolution
+    !*     i   kksdim    : nvar3d*nlev + nvar2d of working field
+    !*     i   nvamaj    : nomber of updates in Hessian
+    !*     i   lxbar     : read in vaxzbar if dates are compatible
+    !*     i   lvazx     : Logical to read vazx
+    !*     i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3, 4: m1gc)
+    !*     o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
+
+    IMPLICIT NONE
+
+    logical lxbar,lvazx
+
+    integer status,kbrpstamp,nsim3d,itertot,isimtot
+    integer, dimension(10), target :: nztrl
+    integer nmtra, kvadim, ktrunc, kksdim, nvamaj, k1gc, imode
+ 
+    real*8 zeps1,zdf1
+
+    real*8, dimension(kvadim), target :: vazxbar, vazx
+    real*8, dimension(nmtra), target :: vatra
+
+!#include "pardim.cdk"
+!#include "comdim.cdk"
+
+    integer isize, ibrpstamp,ireslun, ierr, fnom, fclos
+    integer, save :: ivadim = 0, imtra = 0, itrlsize = 1, imemo = 1
+    integer, save :: itrunc = 0
+    integer :: jvadim, i1gc,ictrlvec
+    integer, dimension(10), target, save :: iztrl
+    integer itemp
+    real*8, allocatable, dimension(:), target, save :: zvatra
+    real*8, allocatable, dimension(:), target, save :: zvazxbar,zvazx
+
+    integer, pointer, dimension(:) :: iptrl
+    real*8, pointer, dimension(:) :: pvatra , pvazxbar, pvazx
+
+    character(len=128) :: cfname
+    character(len=3) :: cl_version
+    character*2 grd_typ_S
+
+    if(status.eq.0) then
+      write(nulout,*) 'Read  VATRA in RW_VATRA'
+    elseif(status.eq.1) then
+      write(nulout,*) 'Write VATRA in RW_VATRA'
+    else
+      call abort3d(nulout," RW_VATRA: status not valid ")
+    endif
+
+    ireslun=0
+
+    !*     Read Hessian
+    !*     ------------
+    if(status.eq.0) then
+
+      ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
+
+      ! Checking version number
+      read (ireslun) cl_version,i1gc
+      if(trim(cl_version) /= 'V2') then
+        call abort3d(nulout," RW_VATRA: invalid Hessian version")
+      endif
+      if (i1gc == 3 .and. i1gc == k1gc) then
+        write(*,*) trim(cl_version),' M1QN3'
+      elseif (i1gc == 4 .and. i1gc == k1gc) then
+        write(*,*) trim(cl_version),' N1CG1'
+      else
+        write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
+        call abort3d(nulout," RW_VATRA: Inconsistant input hessian")
+      endif
+
+      rewind (ireslun)
+
+      read(ireslun) cl_version,k1gc,nsim3d,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim, itrunc
+
+      read(ireslun) imtra,iztrl
+      if(.not. allocated(zvatra)) then
+        allocate(zvatra(imtra))
+        zvatra = 0.d0
+      endif
+      !imemo = nvamaj
+      imemo = (imtra - 4*ivadim)/(2*ivadim + 1)
+      if(k1gc.eq.3) ictrlvec = 2*imemo+1
+      if(k1gc.eq.4) ictrlvec = 2*imemo
+
+      if(.not. allocated(zvatra)) allocate(zvatra(imtra))
+      zvatra = 0.d0
+
+      do jvadim = 1, ictrlvec
+        read(ireslun) zvatra((jvadim-1)*ivadim+1:jvadim*ivadim)
+      enddo
+
+      !*       Write Residual Hessian (needed when LAM)
+      !*       ----------------------------------------
+      if(k1gc.eq.4) read(ireslun) zvatra(ictrlvec*ivadim+1:ictrlvec*ivadim+1)
+      !if(k1gc.eq.3) read(ireslun) iztrl,zvatra(1:(2*imemo+1)*ivadim  )
+      !if(k1gc.eq.4) read(ireslun) iztrl,zvatra(1:(2*imemo)*ivadim+1)
+      !read(ireslun) iztrl, zvatra
+      imemo = nvamaj ! saved for writing
+      if(itrunc .ge. ktrunc) then
+        write(nulout,*) 'RW_VATRA : setting vatra'
+        call setvatra(vatra,nmtra,kvadim,ktrunc,nztrl,zvatra,imtra,ivadim,itrunc,iztrl,.false.,kksdim,nvamaj,k1gc)
+        imode = 2
+      else
+        imode = 0
+      endif
+
+      if(ibrpstamp == kbrpstamp .and. lxbar) then
+        if(.not. allocated(zvazxbar)) allocate(zvazxbar(ivadim))
+        read(ireslun) zvazxbar
+        write(nulout,*) 'RW_VATRA : setting vazxbar'
+        if(itrunc .ge. ktrunc) then ! Given res. > working res.
+          call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.false.,kksdim,kvadim)
+        else
+          vazxbar = 0.d0
+          call setvazx(vazxbar,ktrunc,zvazxbar,itrunc,.true.,kksdim,kvadim)
+        endif
+
+        if(lvazx) then
+          write(nulout,*) 'RW_VATRA : setting vazx'
+          if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
+          read(ireslun) zvazx
+          if(itrunc .ge. ktrunc) then ! Given res. > working res.
+            call setvazx(vazx,ktrunc,zvazx,itrunc,.false.,kksdim,kvadim)
+          else
+            vazx = 0.d0
+            call setvazx(vazx,ktrunc,zvazx,itrunc,.true.,kksdim,kvadim)
+          endif
+        endif
+
+      else
+        kbrpstamp = ibrpstamp
+      endif
+
+      ierr = fclos(ireslun)
+
+      !*     Write Hessian
+      !*     -------------
+    elseif(status.eq.1) then
+      ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
+
+      !if ivadim = 0 then no precon file has been read
+      if (ivadim .le. kvadim) then
+        if (ivadim == 0) imemo = nvamaj
+        ivadim = kvadim
+        itrunc = ktrunc
+        imtra  = nmtra
+        iptrl => nztrl
+        pvatra => vatra
+        pvazxbar => vazxbar
+        pvazx => vazx
+      else
+        if(.not. allocated(zvatra)) allocate(zvatra(imtra))
+
+        iptrl => iztrl
+        pvatra => zvatra
+        call setvatra(pvatra,imtra,ivadim,itrunc,iptrl,vatra,nmtra,kvadim,ktrunc,nztrl,.true.,kksdim,nvamaj,k1gc)
+        if(.not. allocated(zvazxbar)) allocate(zvazxbar(ivadim))
+        pvazxbar => zvazxbar
+        pvazxbar = 0.d0
+        call setvazx(pvazxbar,itrunc,vazxbar,ktrunc,.true.,kksdim,kvadim)
+        if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
+        pvazx => zvazx
+        pvazx = 0.d0
+        call setvazx(pvazx,itrunc,vazx,ktrunc,.true.,kksdim,kvadim)
+      endif
+      cl_version = 'V2'
+      write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,ivadim, itrunc
+      write(ireslun) imtra,iptrl
+      !write(ireslun) iptrl, pvatra
+      if(k1gc.eq.3) ictrlvec = 2*imemo+1
+      if(k1gc.eq.4) ictrlvec = 2*imemo
+      do jvadim = 1, ictrlvec
+        write(ireslun) pvatra((jvadim-1)*ivadim+1:jvadim*ivadim)
+      enddo
+
+      !*       Write Residual Hessian (needed when LAM)
+      !*       ----------------------------------------
+      if (ictrlvec*ivadim.lt.imtra) write(ireslun) pvatra(ictrlvec*ivadim+1:imtra)
+
+      if(k1gc.eq.4) write(ireslun) pvatra(ictrlvec*ivadim+1:ictrlvec*ivadim+1)
+      !if(k1gc.eq.3)  write(ireslun) iptrl, pvatra(1:(2*imemo+1)*ivadim  )
+      !if(k1gc.eq.4)  write(ireslun) iptrl, pvatra(1:(2*imemo)  *ivadim+1)
+      write(ireslun) pvazxbar
+      write(ireslun) pvazx
+      ierr = fclos(ireslun)
+    else
+      call abort3d(nulout," RW_VATRA: status not valid ")
+    endif
+
+    return
+  END SUBROUTINE RW_VATRA
 
 
 END MODULE minimization

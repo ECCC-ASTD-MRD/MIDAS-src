@@ -122,15 +122,7 @@ C
      S         " SPG. IERR =",I3)')IERR
         END IF
 C
-        deallocate(vazx)
-!modular1        CALL HPDEALLC(PTVAZX,IERR,1)
-!modular1        IF(IERR.EQ.0)THEN
-!modular1          WRITE(KULOUT,FMT='(10X," VAZX checked and correct",
-!modular1     S         ". IERR =",I3)')IERR
-!modular1        ELSE
-!modular1          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-!modular1     S         " VAZX. IERR =",I3)')IERR
-!modular1        END IF
+        call cvm_deallocate
 c
 C*    3. Verify the arrays allocated within SUALOBS
 C

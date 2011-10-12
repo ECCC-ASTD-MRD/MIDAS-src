@@ -14,9 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_L
+subroutine oda_L(statevector)
   use mod4dv, only : l4dvar
   use mpi 
+  use gridstatevector
   implicit none
   !
   !Purpose: Localisation (3D) / Tangent Linear Model (4D) operator
@@ -27,9 +28,15 @@ subroutine oda_L
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
 #include "comdim.cdk"
+#include "comgd0.cdk"
+
+  type(struct_gsv) :: statevector
   ! Local declarations
   integer :: nl_ilev, nl_err
   integer :: ierr
+  !
+  ! temporarily copy over the statevector object to the global gd array
+  gd(1:ni,1:nkgdim,1:nj)=statevector%gd(1:ni,1:nkgdim,1:nj)
   !
   call tmg_start (76, 'GD<->PROF')                          !
   IF(L4DVAR) THEN
