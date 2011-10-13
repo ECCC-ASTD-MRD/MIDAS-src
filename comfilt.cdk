@@ -25,7 +25,7 @@ C
       INTEGER NELEMS,NLIST(30)
       INTEGER NFLAGS,NLISTFLG(15)
       LOGICAL LTOPOFILT
-      real*8 dstepobs
+      real*8 dstepobs,dstepobsinc
       real*8 RLIMLVHU
-      COMMON /COMFILT/NONELEV,NELEMS,NLIST,NFLAGS,NLISTFLG,dstepobs
+      COMMON /COMFILT/NONELEV,NELEMS,NLIST,NFLAGS,NLISTFLG,dstepobs,dstepobsinc
       common /comfilt/LTOPOFILT,RLIMLVHU,nlwrbin,nuprbin

@@ -15,9 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine suobsgid
-      use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-      use mod4dv, only : mvar, l4dvar
-      use minimization
 #if defined (DOC)
 *
 ***s/r suobsgid  initialize observation Y grid handle.
@@ -43,6 +40,9 @@
 *Arguments: none
 *
 #endif
+      use modfgat
+      use mod4dv, only : mvar, l4dvar
+      use minimization
       use mpi
       use obsSpaceData_mod
       IMPLICIT NONE
@@ -51,8 +51,6 @@
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
-
-
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
@@ -66,7 +64,7 @@
       integer :: prof_wrrec,icode,jvar,getprofcode, istepobs, ireslun
       integer :: idate, itime, idata,idatend, jdata,itimeout,iobs,fnom
       integer :: fclos
-      real*8 zig1,zig2,zig3,zig4
+      real*8 zig1,zig2,zig3,zig4,deltastepobs
 *
       real*8, allocatable, dimension(:,:) ::  dlatfld, dlonfld
       character (len=512) :: clprof
@@ -75,29 +73,162 @@
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUOBSGID ---------'
       write(nulout,*) ' '
-      write(nulout,*) 'SUOBSGID: Step obs : ',dstepobs,' hours'
+      write(nulout,*) 'SUOBSGID: Step obs      : ',dstepobs,' hours'
+      write(nulout,*) 'SUOBSGID: Step obs inc : ',dstepobsinc,' hours'
 
 * Computute the number of step obs over a 6 hours assimilation window
-      nstepobs = 2*nint((3.d0 - dstepobs/2.d0)/dstepobs) + 1
-      write(nulout,*) 'SUOBSGID: Number of step obs : ',nstepobs
+      nstepobs    = 2*nint((3.d0 - dstepobs/2.d0)/dstepobs) + 1
+      nstepobsinc = 2*nint((3.d0 - dstepobsinc/2.d0)/dstepobsinc) + 1
+      write(nulout,*) 'SUOBSGID: Number of step obs     : ',nstepobs
+      write(nulout,*) 'SUOBSGID: Number of step obs inc : ',nstepobsinc
 
       allocate(nstamplist(nstepobs))
       allocate(nobs(nstepobs))
       allocate(nobsgid(nstepobs))
       allocate(notag(nobtot,nstepobs),stat=ierr)
+      allocate(nstamplistinc(nstepobsinc))
+      allocate(nobsinc(nstepobsinc))
+      allocate(nobsgidinc(nstepobsinc))
+      allocate(notaginc(nobtot,nstepobsinc),stat=ierr)
 
       allocate(dlatfld(nobtot,nstepobs))
       allocate(dlonfld(nobtot,nstepobs))
 
-      call getstamplist(NSTAMPLIST,nstepobs,nbrpstamp,dstepobs)
+      allocate(dobsinterp(nobtot,nstepobsinc))
+
+      dobsinterp(:,:)=0.0d0
+ 
+      call getstamplist(NSTAMPLIST   ,nstepobs   ,nbrpstamp,dstepobs)
+      call getstamplist(NSTAMPLISTINC,nstepobsinc,nbrpstamp,dstepobsinc)
 !
       do jstep = 1,nstepobs
         write(nulout,*) 'suobsgid: jstep,nstamplist=',jstep,nstamplist(jstep)
       enddo
 !
+      do jstep = 1,nstepobsinc
+        write(nulout,*) 'suobsgid: jstep,nstamplistinc=',jstep,nstamplistinc(jstep)
+      enddo
+C
+C DO THE WORK FOR THE INCREMENT ONLY 
+C
 * Find out lower and upper assimilation window index in nstamplist
       if (nlwrbin == -1) nlwrbin = 1
-      if (nuprbin == -1) nuprbin = nstepobs
+      if (nuprbin == -1) nuprbin = nstepobsinc
+
+! CMC date time stamp of the step obs time
+      do jstep = 1, jpfiles
+        ntimeout(jstep) = 0
+      enddo
+
+      do jstep = 1, nstepobsinc
+        nobsinc(jstep) = 0
+      enddo
+
+      do jobs=1, nobtot
+! return the step stamp associated whit date and time of the observation
+
+        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobsinc)
+        call stepobs2(deltastepobs,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobsinc)
+! building the list of step stamp and counting number of obs in each step
+        lltimein = .false.
+        if(nstepobsinc.eq.1) then
+          stepinc1 : do jstep = nlwrbin,nuprbin
+            if (nstamplistinc(jstep) == istepstamp) then
+              nobsinc(jstep) = nobsinc(jstep) + 1
+              dobsinterp(jobs,jstep)=1.0d0
+              lltimein = .true.
+              exit stepinc1
+            endif
+          enddo stepinc1
+        else
+          stepinc : do jstep = nlwrbin,nuprbin
+            istepobs=floor(deltastepobs)+((nstepobsinc+1)/2)
+            if (istepobs == jstep) then
+              dobsinterp(jobs,jstep)=1.0d0-(deltastepobs-floor(deltastepobs))
+            elseif((istepobs+1)==jstep) then
+              dobsinterp(jobs,jstep)=deltastepobs-floor(deltastepobs)
+              if(dobsinterp(jobs,jstep)>=0.5) then
+                nobsinc(jstep) = nobsinc(jstep) + 1
+              elseif(dobsinterp(jobs,jstep-1)>0.5) then
+                nobsinc(jstep-1) = nobsinc(jstep-1) + 1
+              endif
+              lltimein = .true.
+              exit stepinc
+            endif
+          enddo stepinc
+        endif
+
+        if (.not. lltimein) then
+          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
+
+! Put put the wrong data in the central bin
+          jstep = (nstepobsinc + 1) / 2
+          nobsinc(jstep) = nobsinc(jstep) + 1
+
+! .. flag it as out of (time) domain (bit #5 of header flag
+! .. and turn off its assimilation flag
+
+          idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
+          idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
+          do jdata = idata, idatend
+            call obs_set(obsSpaceData,JDATA,val_ASS= 0)
+          enddo
+          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
+        endif
+! building the lat, long and tag vectors for each step
+
+        dlatfld(nobsinc(jstep),jstep) = obs_elem_r4(obsSpaceData,'LAT ',jobs)
+        dlonfld(nobsinc(jstep),jstep) = obs_elem_r4(obsSpaceData,'LON ',jobs)
+        notaginc(nobsinc(jstep),jstep) = jobs
+
+! Converting lat long to radian units
+
+        if(dlonfld(nobsinc(jstep),jstep).lt.0)
+     &       dlonfld(nobsinc(jstep),jstep) = dlonfld(nobsinc(jstep),jstep) +
+     &       2*rpi
+        if(dlonfld(nobsinc(jstep),jstep).ge.2.*rpi)
+     &       dlonfld(nobsinc(jstep),jstep) =dlonfld(nobsinc(jstep),jstep) -
+     &       2*rpi
+        dlatfld(nobsinc(jstep),jstep)=dlatfld(nobsinc(jstep),jstep)*180./rpi
+        dlonfld(nobsinc(jstep),jstep)=dlonfld(nobsinc(jstep),jstep)*180./rpi
+      enddo
+
+      itimeout = 0
+      do jstep = 1,nfiles
+        itimeout = ntimeout(jstep) + itimeout
+      enddo
+
+      if(itimeout > 0) then
+        write(nulout,*) 'Number of reports with time out of range (increment):',
+     &       itimeout
+        write(nulout,*) '  FAMILY       No. of reports'
+        do jstep = 1,nfiles
+          write(nulout,'(4x,a2,11x,i5)') CFAMTYP(jstep),ntimeout(jstep)
+        enddo
+      endif
+c
+      write(nulout,*) 'STEP OBS NO. -  DATE -  TIME -  Nbr. of obs.'
+      do jstep = 1,nstepobsinc
+        if (jstep == (nstepobsinc+1)/2) then
+          iobs = nobsinc(jstep) - itimeout
+        else
+          iobs = nobsinc(jstep)
+        endif
+
+        ierr = newdate(nstamplistinc(jstep),idate,itime,-3)
+        write(nulout,'(6x,i2,5x,i10,2x,i4.4,5x,i5)') jstep,idate,itime
+     &       /10000,iobs
+      enddo
+C
+C NOW DO FROM INNOVATIONS (original code)
+C
+* Find out lower and upper assimilation window index in nstamplist
+CBUE      if (nlwrbin == -1) nlwrbin = 1
+CBUE      if (nuprbin == -1) nuprbin = nstepobs
+      nlwrbin = 1
+      nuprbin = nstepobs
 
 ! CMC date time stamp of the step obs time
 
@@ -171,7 +302,7 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
       enddo
 
       if(itimeout > 0) then
-        write(nulout,*) 'Number of reports with time out of range :',
+        write(nulout,*) 'Number of reports with time out of range (innovation):',
      &       itimeout
         write(nulout,*) '  FAMILY       No. of reports'
         do jstep = 1,nfiles

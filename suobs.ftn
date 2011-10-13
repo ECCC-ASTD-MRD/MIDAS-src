@@ -75,7 +75,8 @@ C     1.Read Input from namelist
 C     -------------------------
 C     DEFAULTS
 C     ------------------
-      dstepobs = 6.0d0
+      dstepobs    = 6.0d0
+      dstepobsinc = 6.0d0      
       nlwrbin  = -1
       nuprbin  = -1
       NONELEV=-1

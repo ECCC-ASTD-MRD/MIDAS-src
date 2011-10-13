@@ -15,8 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE GD2MVOAD (cdvarname,klev)
-      use globalSpectralTransform
-      use profileData_mod 
 *
 #if defined (DOC)
 *
@@ -44,8 +42,9 @@
 *
 *
 #endif
-
- 
+      use globalSpectralTransform
+      use profileData_mod 
+      use modfgat
       use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
@@ -56,9 +55,7 @@
 #include "comgd0.cdk"
 #include "comcst.cdk"
 #include "commvo.cdk"
-
-
-
+#include "comstate.cdk"
 *
 *     Arguments
 *
@@ -67,12 +64,13 @@
 *
 *     Local Variables
 *
-      INTEGER   JLEV, JGL, JLON, JOBS
+      INTEGER   JLEV, JGL, JLON, JOBS, JSTEP, JK, ISHIFT
       INTEGER   ILON, ILOS, ILA, IMIDDLE, ISYM, IMAX
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
 *
       real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
+      real*8 zgd(ni,nkgdim,nj)
 
       real*8,pointer,dimension(:,:) :: zprofil
 *
@@ -82,9 +80,8 @@
 *     bhe ============
 *     Transfer Grid point field into local array (for generecity)
 *
-      zfield(:,:,:) = 0.0D0
-*
-*
+      zgd(:,:,:)=0.0d0
+
       allocate(gomarr(klev,nobtotp),stat=ierr )  
 
       SELECT CASE (CDVARNAME)
@@ -116,56 +113,56 @@
       END SELECT
 C*   set array alian  
       ZPROFIL => GOMARR(1:KLEV,1:NOBTOTP)
+c
+      do jstep=1,nstepobsinc
+
+        zfield(:,:,:) = 0.0D0
 C
 C*    2. LOOP OVER ALL THE OBSERVATIONS
 C     ---------------------------------
 C
- 200  CONTINUE
-C
-      Observations: DO JOBS = 1, NOBTOTP
-         DLLAO   = obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS)
-         DLLOO   = obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS)
+        Observations: DO JOBS = 1, NOBTOTP
+          if(dobsinterp(jobs,jstep).gt.0.0d0) then
+            DLLAO   = obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS)
+            DLLOO   = obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 C     TO THE WEST (ILON AND ILOS)
 C
-         ILA=obs_elem_mpiglobal_i(obsSpaceData,'TLA ',JOBS)
+            ILA=obs_elem_mpiglobal_i(obsSpaceData,'TLA ',JOBS)
 C
-         IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
-         IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-         DLDLON = 2.*RPI/NI
-         DLDLOS = 2.*RPI/NI
-         ILON = INT(DLLOO/DLDLON) + 1
-         ILOS = INT(DLLOO/DLDLOS) + 1
+            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
+            IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
+            DLDLON = 2.*RPI/NI
+            DLDLOS = 2.*RPI/NI
+            ILON = INT(DLLOO/DLDLON) + 1
+            ILOS = INT(DLLOO/DLDLOS) + 1
 C
 C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 C
-         DLDXN = DLLOO/DLDLON + 1. - ILON
-         DLDXS = DLLOO/DLDLOS + 1. - ILOS
-         DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
-         DLW1  = (1.-DLDXN)*(1.-DLDY)
-         DLW2  = DLDXN*(1.-DLDY)
-         DLW3  = (1.-DLDXS)*DLDY
-         DLW4  = DLDXS*DLDY
+            DLDXN = DLLOO/DLDLON + 1. - ILON
+            DLDXS = DLLOO/DLDLOS + 1. - ILOS
+            DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
+            DLW1  = (1.-DLDXN)*(1.-DLDY)
+            DLW2  = DLDXN*(1.-DLDY)
+            DLW3  = (1.-DLDXS)*DLDY
+            DLW4  = DLDXS*DLDY
 C
-         do jlev = 1, klev
-            ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)
-     +           + DLW1 * ZPROFIL(jlev,JOBS)
-            ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)
-     +           + DLW2 * ZPROFIL(jlev,JOBS)
-            ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)
-     +           + DLW3 * ZPROFIL(jlev,JOBS)
-            ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)
-     +           + DLW4 * ZPROFIL(jlev,JOBS)
-C
-         end do
+            do jlev = 1, klev
+              ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)
+     +           + dobsinterp(jobs,jstep) * DLW1 * ZPROFIL(jlev,JOBS)
+              ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)
+     +           + dobsinterp(jobs,jstep) * DLW2 * ZPROFIL(jlev,JOBS)
+              ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)
+     +           + dobsinterp(jobs,jstep) * DLW3 * ZPROFIL(jlev,JOBS)
+              ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)
+     +           + dobsinterp(jobs,jstep) * DLW4 * ZPROFIL(jlev,JOBS)
+            end do
+
+          endif
 *
-      end do OBSERVATIONS
-
-*     release the memory 
-      deallocate(gomarr)  
-
+        end do OBSERVATIONS
 C
 C
 C     1. REARRANGE GRID-POINTS ARRAYS GD0, BY CARRYING GRADIENTS
@@ -177,101 +174,165 @@ C     1.2  EXTRA PARALLELS
 C
 C     TREATMENT OF GRADIENTS FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
 C
-      LEVELS: DO JLEV = 1, KLEV
-         IMIDDLE = NI / 2
-         DO JLON = 0, IMIDDLE
-            ISYM = JLON + IMIDDLE
-            ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)
-     +           + ZFIELD(ISYM,jlev,1)
-            ZFIELD(ISYM,jlev,NJ) =  ZFIELD(JLON,jlev,NJ+2)
-     +           + ZFIELD(ISYM,jlev,NJ)
-         END DO
+        LEVELS: DO JLEV = 1, KLEV
+           IMIDDLE = NI / 2
+           DO JLON = 0, IMIDDLE
+              ISYM = JLON + IMIDDLE
+              ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)
+     +             + ZFIELD(ISYM,jlev,1)
+              ZFIELD(ISYM,jlev,NJ) =  ZFIELD(JLON,jlev,NJ+2)
+     +             + ZFIELD(ISYM,jlev,NJ)
+           END DO
 *
-         IMAX = NI
-         DO JLON = IMIDDLE + 1, IMAX + 2
-            ISYM = JLON - IMIDDLE
-            ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)
-     +           + ZFIELD(ISYM,JLEV,1)
-            ZFIELD(ISYM,JLEV,NJ) =  ZFIELD(JLON,JLEV,NJ+2)
-     +           + ZFIELD(ISYM,JLEV,NJ)
-         END DO
+           IMAX = NI
+           DO JLON = IMIDDLE + 1, IMAX + 2
+              ISYM = JLON - IMIDDLE
+              ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)
+     +             + ZFIELD(ISYM,JLEV,1)
+              ZFIELD(ISYM,JLEV,NJ) =  ZFIELD(JLON,JLEV,NJ+2)
+     +             + ZFIELD(ISYM,JLEV,NJ)
+           END DO
 C
 C     TREATMENT OF THE GRADIENTS AT NORTH AND SOUTH POLES.
 C
-         DLMEAN = 0.
-         DLMEAS = 0.
-         IMAX = NI
-         DO JLON = 0, IMAX + 2
-            DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
-            DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ+1)
-         end do
+           DLMEAN = 0.
+           DLMEAS = 0.
+           IMAX = NI
+           DO JLON = 0, IMAX + 2
+              DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
+              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ+1)
+           end do
 *
-         DLMEAN = DLMEAN/NI
-         DLMEAS = DLMEAS/NI
-         IMAX = NI
-         DO JLON = 1, IMAX
-            ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
-            ZFIELD(JLON,jlev,NJ) = DLMEAS + ZFIELD(JLON,jlev,NJ)
-         end do
+           DLMEAN = DLMEAN/NI
+           DLMEAS = DLMEAS/NI
+           IMAX = NI
+           DO JLON = 1, IMAX  
+              ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
+              ZFIELD(JLON,jlev,NJ) = DLMEAS + ZFIELD(JLON,jlev,NJ)
+           end do
 *
-      END DO LEVELS
+        END DO LEVELS
 C
 C
 C     1.1  EXTRA MERIDIANS
 C
-      DO JGL = 1, NJ
-         IMAX = NI
-         DO JLEV = 1, KLEV
-            ZFIELD(IMAX,JLEV,JGL) =   ZFIELD(0,JLEV,JGL)
-     +           + ZFIELD(IMAX,JLEV,JGL)
-            ZFIELD(1,JLEV,JGL)    =   ZFIELD(IMAX+1,JLEV,JGL)
-     +           + ZFIELD(1,JLEV,JGL)
-            ZFIELD(2,JLEV,JGL)    =   ZFIELD(IMAX+2,JLEV,JGL)
-     +           + ZFIELD(2,JLEV,JGL)
-         END DO
-      END DO
+        DO JGL = 1, NJ
+           IMAX = NI
+           DO JLEV = 1, KLEV
+              ZFIELD(IMAX,JLEV,JGL) =   ZFIELD(0,JLEV,JGL)
+     +             + ZFIELD(IMAX,JLEV,JGL)
+              ZFIELD(1,JLEV,JGL)    =   ZFIELD(IMAX+1,JLEV,JGL)
+     +             + ZFIELD(1,JLEV,JGL)
+              ZFIELD(2,JLEV,JGL)    =   ZFIELD(IMAX+2,JLEV,JGL)
+     +             + ZFIELD(2,JLEV,JGL)
+           END DO
+        END DO
 *
 *     Adjoint of the identity (change of norm)
 *
-      DO JGL = 1, NJ
-         IMAX = NI
-         DO JLEV = 1, KLEV
-            DO JLON = 1, IMAX
-               ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *
-     +              NI / gst_getRWT(JGL)
-            END DO
-         END DO
-      END DO
+        DO JGL = 1, NJ
+           IMAX = NI
+           DO JLEV = 1, KLEV
+              DO JLON = 1, IMAX
+                 ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *
+     +                NI / gst_getRWT(JGL)
+              END DO
+           END DO
+        END DO
 C
 C     Transfer local results to global array
 C
-      select case (cdvarname)
+        select case (cdvarname)
 *
 *     2D fields
 *
-      case('TG')
-         gtg0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case('PS')
-         gps0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+        case('TG')
+           gtg0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngtg)-1
+        case('PS')
+           gps0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngps)-1
 *
 *     3D fields
 *
-      case('TT')
-         tt0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case('Q0')
-         q0 (1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case('O3')
-         GOZ0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case('TR')
-         GTR0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case('UU')
-         UT0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case('VV')
-         VT0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      case ('GZ')
-         GZ0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
-      end select
+        case('TT')
+           tt0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngtt)-1
+        case('Q0')
+           q0 (1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngq)-1
+        case('O3')
+           GOZ0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngoz)-1
+        case('TR')
+           GTR0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngtr)-1
+        case('UU')
+           UT0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(nguu)-1
+        case('VV')
+           VT0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(ngvv)-1
+        case ('GZ')
+           GZ0(1:ni,1:klev,1:nj) = zfield(1:ni,1:klev,1:nj)
+           ishift=ngposit(nggz)-1
+        end select
 
+        select case (cdvarname)
+
+        case('TT','Q0','O3','TR','UU','VV','GZ')
+
+!          write(6,*) 'GD2MVOAD, ishift, cdvarname=',ishift,cdvarname
+          DO JGL = 1, NJ
+            DO JLEV=1,NFLEV
+              JK=JLEV+ishift
+              DO JLON = 1, NI
+!                GD4D(JLON,JK,JGL,JSTEP)=GD(JLON,JK,JGL)
+                ZGD(JLON,JK,JGL)=ZGD(JLON,JK,JGL)+GD(JLON,JK,JGL)
+              ENDDO
+            ENDDO
+          ENDDO
+
+        case('TG','PS')
+
+          DO JGL = 1, NJ
+            JK=1+ishift
+            DO JLON = 1, NI
+!              GD4D(JLON,JK,JGL,JSTEP)=GD(JLON,JK,JGL)
+              ZGD(JLON,JK,JGL)=ZGD(JLON,JK,JGL)+GD(JLON,JK,JGL)
+            ENDDO
+          ENDDO
+
+        end select
+
+      enddo  ! jstep
+
+*     release the memory 
+      deallocate(gomarr)  
+
+      select case (cdvarname)
+
+      case('TT','Q0','O3','TR','UU','VV','GZ')
+
+        DO JGL = 1, NJ
+          DO JLEV=1,NFLEV
+            JK=JLEV+ishift
+            DO JLON = 1, NI
+              GD(JLON,JK,JGL)=ZGD(JLON,JK,JGL)
+            ENDDO
+          ENDDO
+        ENDDO
+
+      case('TG','PS')
+
+        DO JGL = 1, NJ
+          JK=1+ishift
+          DO JLON = 1, NI
+            GD(JLON,JK,JGL)=ZGD(JLON,JK,JGL)
+          ENDDO
+        ENDDO
+
+      end select
 
       CONTAINS
          SUBROUTINE GetGOMARR(Arr_g,Arr_l)  
