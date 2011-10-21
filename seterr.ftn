@@ -49,8 +49,6 @@
 *                       -call abort3d if obserr variance negative
 *          J. Halle    *CMDA/SMC - Ma 2002
 *                       -adapt to RTTOV7
-*        . N. Wagneur  *MSC/CMC  June 2002
-*                       -added GOES observation errors
 *          J. St-James *CMDA/SMC - July 2003
 *                       -add Profiler observation error
 *          JM Belanger *CMDA/SMC - dec 2003
@@ -88,9 +86,6 @@
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
-#include "cparamgoes.cdk"
-#include "comgoes.cdk"
-#include "comgoesst.cdk"
 #include "comgpsgb.cdk"
 *
 C
@@ -297,29 +292,6 @@ C
 
                         ENDIF
                      ENDDO
-                  ENDIF
-C
-C***********************************************************************
-C   GOES DATA
-C***********************************************************************
-C
-               ELSE IF ( CFAMTYP(IDATYP) .EQ. 'GO' ) THEN
-                  IF ( ITYP .EQ. BUFR_NBT1 .OR.
-     S                 ITYP .EQ. BUFR_NBT2 .OR.
-     S                 ITYP .EQ. BUFR_NBT3     )THEN
-                     ICHN    = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
-                     INDXREG = ISRCHEQ(MLISREGGO,NREGSTGO,ILANSEA)
-                     INDXCLD = ISRCHEQ(MLISCLDGO,NCLDSTGO,ITECH)
-C
-C*                   Currently processed satellite
-C*                   N.B.: 252=GOES08, 253=GOES09, 254=GOES10,
-C*                   255=GOES11, 256=GOES12, etc...
-C
-                     ISATNO  = IPLATF - 244
-C
-                     INDXSAT = ISRCHEQ(NIDSATGO,NSATGO,ISATNO)
-                     call obs_set(obsSpaceData,JDATA,val_OER8=
-     S                   GOERRST(ICHN,INDXCLD,INDXREG,INDXSAT))
                   ENDIF
 C
 C***********************************************************************

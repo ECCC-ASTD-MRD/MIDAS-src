@@ -49,7 +49,7 @@ C              and correct bug ROBDATA8(NCM_OMI,JDATA)
       logical, pointer,dimension(:) :: llmask
 
       real*8,target :: dljoraob,dljoairep,dljosatwind,dljosurfc,dljotov
-      real*8,target :: dljogoes,dljoprof,dljogpsro,dljogpsztd
+      real*8,target :: dljoprof,dljogpsro,dljogpsztd
       real*8 :: dlsum1
       real*8, pointer :: dlsum
 C
@@ -75,7 +75,6 @@ c
         dljosatwind = 0.d0
         dljosurfc = 0.d0
         dljotov = 0.d0
-        dljogoes = 0.d0
         dljogpsro = 0.d0
         dljoprof = 0.d0
 
@@ -102,9 +101,6 @@ c
             case('TO')
               llmask => lmaskto_g(1:obsSpaceData%mxobstotal)
               dlsum => dljotov
-            case('GO')
-              llmask => lmaskgo_g(1:obsSpaceData%mxobstotal) 
-              dlsum => dljogoes
             case('RO')
               llmask => lmaskro_g(1:obsSpaceData%mxobstotal)
               dlsum => dljogpsro
@@ -127,7 +123,6 @@ c
           write(nulout,'(a15,f23.16)') 'Jo(AIREP)  = ',DLJOAIREP
           write(nulout,'(a15,f23.16)') 'Jo(SURFC)  = ',DLJOSURFC
           write(nulout,'(a15,f23.16)') 'Jo(ATOV)   = ',DLJOTOV
-          write(nulout,'(a15,f23.16)') 'Jo(GOES)   = ',DLJOGOES
           write(nulout,'(a15,f23.16)') 'Jo(SATWIND)= ',DLJOSATWIND
           write(nulout,'(a15,f23.16)') 'Jo(PROF)   = ',DLJOPROF
           write(nulout,'(a15,f23.16)') 'Jo(GPSRO)  = ',DLJOGPSRO
@@ -164,7 +159,7 @@ c
        DO i=1,nobtot
          iobs=locObsTag(i)
          idata=obs_elem_mpiglobal_i(obsSpaceData,'RLN ',iobs)
-         idataend=obs_elem_mpiglobal_i(obsSpaceData,'NLV ',iobs)+idata -1
+         idataend=obs_elem_mpiglobal_i(obsSpaceData,'NLV ',iobs)+idata -1 
          DO j=idata,idataend
            ii=ii+1
            robdata8_g(j)=obs_elem_r8(obsSpaceData,'OMI ',ii)

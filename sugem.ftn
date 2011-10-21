@@ -48,14 +48,6 @@ C
 C
       WRITE(NULOUT,FMT='(/,'' SUGEM- Geometry of the model'')')
 C
-C*    1. Initialisation of the number of points to be considered on
-C        the latitude circles
-C
- 100  CONTINUE
-      DO 101 JLAT = 1,NJ
-        NILON(JLAT) = NI
- 101  CONTINUE
-C
 C     2. Calculation of the eigenvalues of the Laplacian
 C
  200  CONTINUE
@@ -199,10 +191,6 @@ C
      S     ,2X,"VLEV= ",G12.6,2X,"NIP1 OF VLEV= ",I10)')
      S        JLEV,VHYBINC(JLEV),VLEV(JLEV),NIP1(JLEV)
  501  CONTINUE
-C
-      WRITE(KULOUT,FMT='(6X," NILON: Number of points on the ",I4,
-     S     " latitude circles",/,8(1X,I6))')
-     S     NJ,(NILON(JLAT),JLAT=1,NJ)
 C
       WRITE(KULOUT,FMT='(6X," Eigenvalues of the Laplacian *RA**2:",
      S     /,6(1x,g12.6))')(RNNP1(ILA),ILA=1,NTRUNC+1)

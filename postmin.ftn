@@ -21,6 +21,7 @@
       use controlVector
       use minimization
       use bmatrix
+      use modfgat
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *
@@ -198,9 +199,9 @@ C at the end of minimize
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
-        call gsv_allocate(statevector)
+        call gsv_allocate(statevector,ni,nj,nkgdim,nflev,nstepobsinc)
         call oda_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-        gd(:,:,:)=statevector%gd(:,:,:)
+        gd(:,:,:)=statevector%gd3d(:,:,:)
         call gsv_deallocate(statevector)
 
         WRITE(NULOUT,*)' postmin: Transform analysis variables to'

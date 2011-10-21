@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE oda_qcvad
-      use modmask, only : lmaskgo,lmaskro,lmask
+      use modmask, only : lmaskro,lmask
       use obsSpaceData_mod
 #if defined (DOC)
 *
@@ -44,8 +44,7 @@
 
       allocate(llmask(ubound(lmask,1)),STAT=ierr)
       if(ierr /= 0 ) call abort3d(nulout,'cant allocate mem. to llmask')
-      llmask = lmask .neqv. lmaskgo  ! Exclusion of GOES QCVAR
-      llmask = llmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
+      llmask = lmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
       DO JDATA=1,obs_num_obstotal(obsSpaceData)
         IF (llmask(jdata)) THEN
           call obs_set(obsSpaceData,JDATA,val_OMI8= obs_elem_r8(obsSpaceData,'OMI ',JDATA)

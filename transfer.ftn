@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE TRANSFER (CDCTL)
+      SUBROUTINE TRANSFER3DV (CDCTL)
 #if defined (DOC)
 *
 ***s/r TRANSFER - Transfer of model or observation states in memory

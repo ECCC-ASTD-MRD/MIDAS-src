@@ -555,7 +555,7 @@ C projected on analysis levels.
 c
 c Copy 2D variable from GOMOBSG to GOMOBSHR
 c
-      call transfer('HR2D')
+      call transfer3dv('HR2D')
 c
 c At this point COMMVOHR contains background state on original levels
 c

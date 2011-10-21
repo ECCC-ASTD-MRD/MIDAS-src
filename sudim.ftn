@@ -197,8 +197,6 @@ C
      S     '' space'',/,
      S     '' NVSP   ='',I6,'' NVSP2D   ='',I6,'' NKSDIM ='',I6)')
      S     NVSP,NVSP2D,NKSDIM
-
-      call gsv_setup(ni,nj,nkgdim)
 C
       RETURN
       END

@@ -16,7 +16,7 @@
 !
       SUBROUTINE SUALOBS(KULOUT)
       use modmask, only : lmaskpp_in, lmaskpp_out,lmasksf_in,lmasksf_out
-      use modmask, only : lmask,lmaskto,lmaskgo,lmaskro,lmaskzp,ldiagpp
+      use modmask, only : lmask,lmaskto,lmaskro,lmaskzp,ldiagpp
       use modmask, only : ldiagsf, ldiag, lmaskgp
       use obsSpaceData_mod
 #if defined (DOC)
@@ -112,9 +112,8 @@ C
       allocate(lmasksf_in(ndatamx),lmasksf_out(ndatamx))
       lmasksf_in = .false.
       lmasksf_out = .false.
-      allocate(lmask(ndatamx),lmaskto(ndatamx),lmaskgo(ndatamx))
+      allocate(lmask(ndatamx),lmaskto(ndatamx))
       lmaskto = .false.
-      lmaskgo = .false.
       allocate(lmaskro(ndatamx),lmaskzp(ndatamx),ldiagpp(ndatamx))
       lmaskzp = .false.
       lmaskro = .false.

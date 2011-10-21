@@ -1,10 +1,10 @@
 #if defined (DOC) 
-C
-C*    COMDECK: PARDIM
-C     ---------------
-C
-C === Definitions of parameters ===
-C
+!
+!*    COMDECK: PARDIM
+!     ---------------
+!
+! === Definitions of parameters ===
+!
 #endif
       INTEGER JPDGL, JPLAT, JPDLON, JPNFLEV
       PARAMETER (JPDGL =1,JPLAT=200,JPDLON=1, JPNFLEV=100)

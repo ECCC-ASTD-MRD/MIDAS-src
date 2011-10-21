@@ -137,13 +137,9 @@ C assimilated
 #include "comstate.cdk"
 #include "comtovst.cdk"
 #include "comvfiles.cdk"
-#include "cparamgoes.cdk"
-#include "comgoes.cdk"
-#include "comgoesst.cdk"
 #include "com1chn.cdk"
 #include "comgpsgb.cdk"
 #include "comgdpar.cdk"
-
 C
 C  .......  DEFINITION OF A FEW BUFR ELEMENTS ..........................
 C ....
@@ -608,54 +604,6 @@ C
 
             ENDIF
 C
-C
-C     e. Filter GOES data
-C
-            ITYP   = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
-            IF (     ITYP .EQ. BUFR_NBT1
-     S          .OR. ITYP .EQ. BUFR_NBT2
-     S          .OR. ITYP .EQ. BUFR_NBT3
-     S          .AND. IDATYP .EQ. 180 )  THEN
-C
-C        e.1 Valid channel?
-C
-              ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
-              IF ( ICHN .LE. 0    .OR.
-     S             ICHN .GT. JPCHGO      ) THEN
-                LLOK = .FALSE.
-              ENDIF
-C
-C        e.2 Data from this satellite to be assimilated?
-C
-              ISAT    = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS)/1000,1000)
-              ISAT    = ISAT-244
-              INDXSAT = ISRCHEQ(NIDSATGO,NSATGO,ISAT)
-              IF ( INDXSAT .EQ. 0 ) THEN
-                  LLOK = .FALSE.
-              ENDIF
-C
-C
-C
-C        e.3 Invalid land/sea flag
-C   A modifier selon le canal
-C
-              ILANSEA  = obs_elem_i(obsSpaceData,'OFL ',IOBS)
-              INDXREG  = ISRCHEQ(MLISREGGO,NREGSTGO,ILANSEA)
-              IPROCES  = obs_elem_i(obsSpaceData,'ITY ',IOBS)/1000000
-              INDXCLD  = ISRCHEQ(MLISCLDGO,NCLDSTGO,IPROCES)
-C
-C        e.4 Channel not included in list of channels to
-C            be assimilated
-              IF (LLOK) THEN
-                 INDCH=ISRCHEQ(MLISCHNAGO(1,INDXCLD,INDXREG,INDXSAT),
-     S                          NCHNAGO(INDXCLD,INDXREG,INDXSAT),ICHN)
-                IF ( INDCH .EQ. 0 ) THEN
-                  LLOK = .FALSE.
-                ENDIF
-              ENDIF
-            ENDIF
-C
 C     f. Exclude RAOBS and surface ln q data added to CMA.
 C
             IF ( ITYP  .EQ. BUFR_NEHU .or. ITYP .EQ. BUFR_NEHS ) LLOK=.FALSE.
@@ -884,48 +832,6 @@ C
               END DO
             ENDIF
 C
-C  2.    HUMSAT LEVELS
-C
-            IF (CFAMTYP(J) .EQ. 'HU' ) THEN
-              DO JK=1,JPHLEV
-                IZP1  = NIHULV(JK )
-                DO JDATA= IBEGIN,ILAST
-                  IZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IDATYP=obs_elem_i(obsSpaceData,'OTP ',IOBS)
-                  CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
-     &                 . 'HU')
-                  IF ( LLOK ) THEN
-                    IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set(obsSpaceData,JDATA,val_LOBS=obs_elem_i(obsSpaceData,'LOBS',JDATA)+MAX(0
-     &                   ,IZXI))
-                  ENDIF
-                END DO
-              END DO
-            ENDIF
-C
-C  3.    SATEM LEVELS
-C
-            IF (CFAMTYP(J) .EQ. 'ST' ) THEN
-              DO JK=1,JPSALEV
-                IZP1  =  NISLV(JK)
-                DO JDATA= IBEGIN,ILAST
-                  IZLEV =  ANINT( obs_elem_r8(obsSpaceData,'PPP ',JDATA) )
-                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IDATYP=obs_elem_i(obsSpaceData,'OTP ',IOBS)
-                  CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
-     &                 . 'ST')
-                  IF ( LLOK ) THEN
-                    IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set(obsSpaceData,JDATA,val_LOBS=obs_elem_i(obsSpaceData,'LOBS',JDATA)+MAX(0
-     &                   ,IZXI))
-                  ENDIF
-                END DO
-              END DO
-            ENDIF
-
           ENDIF
         enddo
       endif

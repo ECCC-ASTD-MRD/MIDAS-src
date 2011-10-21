@@ -15,48 +15,12 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine preproc
-      use mod4dv, only : l4dvar
 #if defined (DOC)
 *
 ***s/r preproc  - Control of the preprocessing of the 3D variational assimilation
 *
-*
 *Author  : S. Pellerin *ARMA/AES  Nov., 1999
 *Revision:
-*       : C. Charette *ARMA/AES  Oct 2001
-*         - Added LTOPOFILT
-*         S. Pellerin *ARMA/SMC nov. 2001
-*         - reordering of declaration dependencies (for Linux compilation)
-*         N. Wagneur  *CMDA/SMC Juin 2002
-*         - Ajout du calcul de Jo pour la famille GOES
-*         J. St-James  *CMDA/SMC July 2003
-*         - Add profiler family to Jo
-*         JM Belanger CMDA/SMC Feb 2004
-*                   . Introduce "scatterometer family SC"
-*         D. Anselmo  *ARMA/SMC Oct. 2004
-*         - Add calls to DHUPPP.ftn and DHUSFC.ftn to compute O-P for LQ.
-*         J. Halle  *CMDA/SMC June 2005
-*         - Adapt for RTTOV-8.
-*         J.M. Aparicio *ARMA/MSC* October 2006
-*         - Adapt for GPSRO
-*         P.KOCLAS  *CMDA/MSC* MAR 2008
-*         - Add Background check for GPSRO
-*         S. Pellerin, ARMA, August 2008
-*         - Added calls to 'tmg_*' subroutines
-*    L. Fillion - ARMA/MSC Spring 2005
-*         - Add subasic_gd to initialize background fields necessary for
-*           flow dependent analysis increment variables in grd_typ='LU' mode.
-*    L. Fillion - ARMA/MSC 5 Jul 05
-*     - prepare diabatic operators
-*    L. Fillion - ARMA/EC Apr 06
-*     - Start SW LAM option.
-*    L. Fillion - ARMA/EC 14 Aug 2007 - Update to version v_10_0_3.
-*    L. Fillion - ARMA/EC 17 Mar 2008 - Take into account lldo. Also, correct little error calling printrev
-*    L. Fillion - ARMA/EC 28 Mar 2008 - Introduce subroutine suinnov.ftn to make this sub. cleaner.
-*    L. Fillion - ARMA/EC 01 Apr 2008 - Introduce l1obs option.
-*    L. Fillion - ARMA/EC 16 Apr 2008 - Set uniform ptot matrix at Obs latitude when in l1obs mode.
-*    L. Fillion - ARMA/EC 17 Jul 2009 - Introduce lcva_3d to perform TLNNMI (cf. Fillion et al. 2007 -ECMWF workshop).
-*    L. Fillion - ARMA/EC 17 Jul 2009 - Upgrade to v_11_01_2b.
 *    -------------------
 **    Purpose: to initialize  * the background state
 *     .                       * the observations
@@ -70,20 +34,7 @@
 #endif
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
-#include "comct0.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
-#include "comfilt.cdk"
-#include "comgem.cdk"
-#include "comgdpar.cdk"
-#include "comspg.cdk"
-c
-      logical lldo
-      integer jlev,jobs,jdata,ii,ierr,jk1,jk2,jj
-      real*8 zjo,zjoraob,zjosatem,zjohumsat,zjosatwind,zjosurfc
-      real*8 zjosfcsf,zjosfcua,zjotov,zjogoes,zjoairep,zjosfcsc,zjoprof
-      real*8 zjogpsro
 c
       call printrev("SUBROUTINE preproc :",20)
 c

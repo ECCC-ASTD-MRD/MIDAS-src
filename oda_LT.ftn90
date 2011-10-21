@@ -18,6 +18,10 @@ subroutine oda_LT(statevector)
   use mod4dv, only : l4dvar
   use mpi
   use gridStateVector
+  use globalSpectralTransform
+  use obsSpaceData_mod
+  use profileData_mod 
+  use modfgat
   implicit none
   !
   !Purpose: Adjoint of Localisation (3D) / Adjoint Model (4D) operator
@@ -35,10 +39,13 @@ subroutine oda_LT(statevector)
   ! Bin HE     - ARMA/MRB  - Oct. 2009 - Implemented MPI to 3DVAR. 
   !
 #include "comdim.cdk"
-#include "comgd0.cdk"
+#include "comstate.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+
   type(struct_gsv) :: statevector
   ! Local declarations
-  integer :: nl_ilev,nl_err
+  integer :: ilev,nl_err
   integer :: ierr,tgsize,sizegd 
   integer :: jlat,jlon,jlev
   real*8 :: zmax,zmean
@@ -48,8 +55,9 @@ subroutine oda_LT(statevector)
   call tmg_stop(51)        !
 
   call tmg_start(76,'GD<->PROF')
-  GD=0.0D0
-  sizegd=size(GD) 
+!  GD=0.0D0
+  call gsv_zero(statevector)
+!  sizegd=size(GD) 
   if(l4dvar) then
      !
      !     Communicate adjoint profiles to the adjoint model
@@ -59,26 +67,286 @@ subroutine oda_LT(statevector)
      !     and wait for its backward integration (gridded) results
      !     
 !modular1     if(mpi_myid == 0) call getdx('A')
-     CALL rpn_comm_bcast(GD,sizegd,"mpi_double_precision",0,"GRID",ierr)
-     CALL gd2mvoad('TG',1)
+!modular1     CALL rpn_comm_bcast(GD,sizegd,"mpi_double_precision",0,"GRID",ierr)
+!modular1     CALL gd2mvoad('TG',1)
   else
-     CALL NEWBILINAD
+!
+     IF(mpi_myid == 0) THEN
+       write(*,*)'ODA_LT- Adjoint of horizontal interpolation GD --> MVO'
+     endif
+!
+     call prof_allocateGlobal(nflev,nobtotp)
+     call prof_expandToMpiGlobal2(nflev,nobtot,nobtotp)
+!
+!    3D fields
+!
+!$OMP PARALLEL
+!$OMP SECTIONS
+!$OMP SECTION
+     if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',nflev)
+     if(NGEXIST(ngoz).eq.1)  call gd2mvoad('OZ',nflev)
+!$OMP SECTION
+     if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',nflev)
+     if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',nflev)
+!$OMP SECTION
+     if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',nflev)
+     if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
+!$OMP SECTION
+     if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',nflev)
+!$OMP END SECTIONS
+!$OMP END PARALLEL
+!
+!    2D fields
+!
+     ilev = 1
+     if(NGEXIST(ngps).eq.1)  call gd2mvoad('PS',ilev)
+     if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev)
+!
+!
+!    Conversion of wind images to physical winds
+!
+     call uvwi2uv(statevector)
+
+     call prof_deallocateGlobal
+
   endif
   call tmg_stop (76)
 
-  zmax=0.0d0
-  zmean=0.0d0
-  do jlat=1,nj
-    do jlev=1,nkgdim
-      do jlon=1,ni
-        if(abs(gd(jlon,jlev,jlat)).gt.zmax) zmax=abs(gd(jlon,jlev,jlat))
-        zmean=zmean+gd(jlon,jlev,jlat)/dble(nkgdim*ni*nj)
-      enddo
-    enddo
-  enddo
-  write(*,*) 'END OF ODA_LT, max,mean(gd)=',zmax,zmean
+  CONTAINS
 
-  ! temporarily copy over the global gd array to the statevector object
-  statevector%gd(1:ni,1:nkgdim,1:nj)=gd(1:ni,1:nkgdim,1:nj)
+      SUBROUTINE GD2MVOAD (cdvarname,klev)
+!*
+!***s/r GD2MVOAD  - Adjoint of the horizontal interpolation of the model variables
+!*     .            in grid-point space to observation locations.
+!*     .           Simple multiplication by the weights of
+!*     .           the horizontal bilinear interpolation.
+!*     .           (adapted from BILINAD)
+!*
+!*
+!*Author  : P. GAUTHIER *ARMA/MSC JULY 2002
+!*
+!*Revision:
+!*           Bin He   *ARMA/MRB   JULY 2009
+!*           --  MPI version , restore Global array GOMTGR,....    
+!*
+!**    Purpose:  Update the estimate of GD from the gradient components
+!*               at the observation points which have been stored in
+!*               GOMOBS
+!*
+!* Arguments
+!*     CDVARNAME: identificator of the variable to be treated
+!*     KLEV     : number of levels (typically 1 for 2D-fields and NFLEV for 3D-fields)
+!*
+!*     Arguments
+!*
+      character*2 cdvarname
+      integer klev
+!*
+!*     Local Variables
+!*
+      INTEGER   JLEV, JGL, JLON, JOBS, JSTEP, JK
+      INTEGER   ILON, ILOS, ILA, IMIDDLE, ISYM, IMAX
+      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
+      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
+
+      real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
+      real*8,pointer :: zprofil(:,:)
+!*
+!*     bhe =========
+      integer :: ierr 
+!      real*8 ,allocatable,dimension(:,:),target :: GOMARR   
+      real*8,target :: GOMARR(klev,nobtotp)   
+!*     bhe ============
+!*     Transfer Grid point field into local array (for generecity)
+!*
+!      allocate(gomarr(klev,nobtotp),stat=ierr )  
+
+      SELECT CASE (CDVARNAME)
+!*
+!*     2D fields
+!*
+      CASE('TG')
+         zprofil => gomtgr_g
+      CASE('PS')
+         zprofil => gomps_g
+!*
+!*     3D fields
+!*
+      CASE('TT')
+         zprofil => gomt_g
+      CASE('Q0')
+         zprofil => gomq_g
+      CASE('O3')
+         zprofil => gomoz_g
+      CASE('TR')
+         zprofil => gomtr_g
+      CASE('UU')
+         zprofil => gomu_g
+      CASE('VV')
+         zprofil => gomv_g
+      CASE('GZ')
+         zprofil => gomgz_g
+      END SELECT
+
+      do jstep=1,nstepobsinc
+
+        zfield(:,:,:) = 0.0D0
+!C
+!C*    2. LOOP OVER ALL THE OBSERVATIONS
+!C     ---------------------------------
+!C
+        Observations: DO JOBS = 1, NOBTOTP
+          if(obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep).gt.0.0d0) then
+            DLLAO   = real(obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS), 8)
+            DLLOO   = real(obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS), 8)
+!C
+!C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
+!C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
+!C     TO THE WEST (ILON AND ILOS)
+!C
+            ILA=obs_elem_mpiglobal_i(obsSpaceData,'TLA ',JOBS)
+
+            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
+            IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
+            DLDLON = 2.*RPI/NI
+            DLDLOS = 2.*RPI/NI
+            ILON = INT(DLLOO/DLDLON) + 1
+            ILOS = INT(DLLOO/DLDLOS) + 1
+!C
+!C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
+!C
+            DLDXN = DLLOO/DLDLON + 1. - ILON
+            DLDXS = DLLOO/DLDLOS + 1. - ILOS
+            DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
+            DLW1  = (1.-DLDXN)*(1.-DLDY)
+            DLW2  = DLDXN*(1.-DLDY)
+            DLW3  = (1.-DLDXS)*DLDY
+            DLW4  = DLDXS*DLDY
+
+            do jlev = 1, klev
+              ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)      &
+                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW1 * ZPROFIL(jlev,JOBS)
+              ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)    &
+                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW2 * ZPROFIL(jlev,JOBS)
+              ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)    &
+                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW3 * ZPROFIL(jlev,JOBS)
+              ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)  &
+                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW4 * ZPROFIL(jlev,JOBS)
+            end do
+
+          endif
+
+        end do OBSERVATIONS
+!C
+!C
+!C     1. REARRANGE GRID-POINTS ARRAYS GD0, BY CARRYING GRADIENTS
+!C     .  CONTRIBUTIONS OF MERIDIAN 0, NI+1 AND NI
+!C     .  INTO MERIDIANS NI, 1, AND 2. SIMILAR TREATMENT NEAR POLES
+!C
+!C
+!C     1.2  EXTRA PARALLELS
+!C
+!C     TREATMENT OF GRADIENTS FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
+!C
+        LEVELS: DO JLEV = 1, KLEV
+           IMIDDLE = NI / 2
+           DO JLON = 0, IMIDDLE
+              ISYM = JLON + IMIDDLE
+              ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)   &
+                   + ZFIELD(ISYM,jlev,1)
+              ZFIELD(ISYM,jlev,NJ) =  ZFIELD(JLON,jlev,NJ+2) &
+                   + ZFIELD(ISYM,jlev,NJ)
+           END DO
+
+           IMAX = NI
+           DO JLON = IMIDDLE + 1, IMAX + 2
+              ISYM = JLON - IMIDDLE
+              ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)    &
+                   + ZFIELD(ISYM,JLEV,1)
+              ZFIELD(ISYM,JLEV,NJ) =  ZFIELD(JLON,JLEV,NJ+2)  &
+                   + ZFIELD(ISYM,JLEV,NJ)
+           END DO
+!C
+!C     TREATMENT OF THE GRADIENTS AT NORTH AND SOUTH POLES.
+!C
+           DLMEAN = 0.
+           DLMEAS = 0.
+           IMAX = NI
+           DO JLON = 0, IMAX + 2
+              DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
+              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ+1)
+           end do
+
+           DLMEAN = DLMEAN/NI
+           DLMEAS = DLMEAS/NI
+           IMAX = NI
+           DO JLON = 1, IMAX  
+              ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
+              ZFIELD(JLON,jlev,NJ) = DLMEAS + ZFIELD(JLON,jlev,NJ)
+           end do
+
+        END DO LEVELS
+!C
+!C     1.1  EXTRA MERIDIANS
+!C
+        DO JGL = 1, NJ
+           IMAX = NI
+           DO JLEV = 1, KLEV
+              ZFIELD(IMAX,JLEV,JGL) =   ZFIELD(0,JLEV,JGL)  &
+                   + ZFIELD(IMAX,JLEV,JGL)
+              ZFIELD(1,JLEV,JGL)    =   ZFIELD(IMAX+1,JLEV,JGL) &
+                   + ZFIELD(1,JLEV,JGL)
+              ZFIELD(2,JLEV,JGL)    =   ZFIELD(IMAX+2,JLEV,JGL) &
+                   + ZFIELD(2,JLEV,JGL)
+           END DO
+        END DO
+!*
+!*     Adjoint of the identity (change of norm)
+!*
+        DO JGL = 1, NJ
+           IMAX = NI
+           DO JLEV = 1, KLEV
+              DO JLON = 1, IMAX
+                 ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *  &
+                      NI / gst_getRWT(JGL)
+              END DO
+           END DO
+        END DO
+!C
+!C     Transfer local results to global array
+!C
+        select case (cdvarname)
+!*
+!*     2D fields
+!*
+        case('TG')
+           statevector%tg(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case('PS')
+           statevector%ps(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+!*
+!*     3D fields
+!*
+        case('TT')
+           statevector%tt(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case('Q0')
+           statevector%hu(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case('O3')
+           statevector%oz(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case('TR')
+           statevector%tr(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case('UU')
+           statevector%uu(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case('VV')
+           statevector%vv(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        case ('GZ')
+           statevector%gz(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+        end select
+
+      enddo  ! jstep
+
+!*     release the memory 
+!      deallocate(gomarr)  
+
+      END SUBROUTINE GD2MVOAD   
 
 end subroutine oda_LT

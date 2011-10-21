@@ -15,6 +15,8 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_HT
+  use obsSpaceData_mod
+  use profileData_mod 
   implicit none
   !
   !Purpose:
@@ -22,14 +24,15 @@ subroutine oda_HT
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
-  !Revision:
-  ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
-  ! S. Macpherson ARMA  11 Sep 2009
-  !            - added ground-based GPS (ZTD) observation operator
-  !
-  !Local declarations
-
+#include "pardim.cdk"
 #include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "comphy.cdk"
+#include "comcst.cdk"
+#include "cvcord.cdk"
+#include "comstate.cdk"
+#include "comgpsgb.cdk"
 !!
   call tmg_start(64,'GPSZTD') !
   call oda_HTgp
@@ -43,10 +46,6 @@ subroutine oda_HT
   call oda_HTro
   call tmg_stop (90)      !     !
 
-  call tmg_start(62,'GOESRAD') !
-  CALL oda_HTgo
-  call tmg_stop (62)      !
-
   call tmg_start(60,'RTTOV') !
   call oda_HTto
   call tmg_stop (60)      !
@@ -58,5 +57,724 @@ subroutine oda_HT
   call tmg_start(56,'PPROF') !
   call oda_HTpp
   call tmg_stop (56)
+
+  CONTAINS
+
+      SUBROUTINE oda_HTpp
+      use modmask, only : lmaskpp_in,lmaskpp_out
+!*
+!***s/r AOBSPPP  - Adjoint of the "vertical" interpolation
+!*                  for "UPPER AIR" data files.
+!*
+!*
+!*
+!*Author  : P. Koclas *CMC/AES  April 1996
+!*
+!*     Purpose: based on vint3d to build the adjoint of the
+!*              vertical interpolation for UPPER-AIR data files.
+!*
+      INTEGER IPB,IPT, IDBURP,  ITYP
+      REAL*8 ZRES,ZOER,zmax,zmean,zmax2,zmean2
+      REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
+      INTEGER IOBS,IPOS,IK,ISTRIDE,IBEGIN,ILAST
+      INTEGER J,JF,JDATA
+      LOGICAL LLOK, LLPRINT
+!C
+!C     Temperature lapse rate for extrapolation of gz below model surface
+!C
+      LLPRINT = .FALSE.
+!ccc      LLPRINT = .TRUE.
+      zgamma = 0.0065 / GRAV
+      zexp = RGASD*zgamma
+!C
+!C*    1. Fill in COMMVO by using the adjoint of the "vertical"
+!c interpolation
+!C     .  ---------------------------------------------------------------
+!c ----
+!C
+!C      TO eliminate dependancies in vector loop, a stride
+!C      is chosen so that the data in the inner loop always
+!C      comes from different "oservations" of the CMA.
+!C      ------------------------------------------------------
+!C         stride = first odd number greater than the longest
+!C          observation.
+!C
+      ISTRIDE=2*(NMAXLEN/2) + 1
+      zmax=0.0d0
+      zmean=0.0d0
+      zmax2=0.0d0
+      zmean2=0.0d0
+!C
+!C     Process all data within the domain of the model
+!C
+      DO J=1,ISTRIDE
+!*vdir nodep
+        DO JDATA=J,obs_num_obstotal(obsSpaceData),ISTRIDE
+          IF (lmaskpp_in(jdata)) THEN
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+            ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
+            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+            IPT  = IK  + IPOS*NFLEV
+            IPB  = IPT+1
+            ZPT  = RPPOBS(IK,IOBS)
+            ZPB  = RPPOBS(IK+1,IOBS)
+            ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+            ZWT  = 1.0D0 - ZWB
+!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!C
+            zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)  &
+                 /(1.0-rptopinc/rprefinc))**rcoefinc
+            zpresbpb = ((vhybinc(ik+1) - rptopinc/rprefinc)  &
+                 /(1.0-rptopinc/rprefinc))**rcoefinc
+
+            ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB) &
+                 -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) ) &
+                 /LOG(ZPB/ZPT)**2
+!C
+!C               Set ZDADPS to zero for HUMSAT (idtyp=158)
+            IF (IDBURP .EQ. 158) THEN
+              ZDADPS = 0.0
+            ENDIF
+
+            GOMOBS(IPB,IOBS) = GOMOBS(IPB,IOBS) + ZWB*ZRES
+            GOMOBS(IPT,IOBS) = GOMOBS(IPT,IOBS) + ZWT*ZRES
+            GOMPS(1,IOBS)    = GOMPS(1,IOBS)    +         &
+                 (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))  &
+                 *ZDADPS*ZRES
+            if(abs(gomobs(ipb,iobs)).gt.zmax) zmax = abs(gomobs(ipb,iobs))
+            zmean=zmean+gomobs(ipb,iobs)/dble(obs_num_obstotal(obsSpaceData))
+          elseif (lmaskpp_out(jdata)) THEN
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+            ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
+            IPT  = NFLEV-1 + IPOS*NFLEV
+            IPB  = IPT+1
+!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!c
+!c-------------adjoint of TL of geopotential extrapolation below
+!c orography
+!c
+            zcon = (zlev/gompsg(1,iobs))**zexp
+            ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
+            ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
+            gomps(1,iobs)    = gomps(1,iobs)  &
+                 + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)
+            gomt(nflev,iobs) = gomt(nflev,iobs)  &
+                 + OLTV(1,NFLEV,IOBS)*ZATV
+            gomq(nflev,iobs) = gomq(nflev,iobs)  &
+                 + OLTV(2,NFLEV,IOBS)*ZATV
+            if(abs(gomt(nflev,iobs)).gt.zmax2) zmax2 = abs(gomt(nflev,iobs))
+            zmean2=zmean2+gomt(nflev,iobs)/dble(obs_num_obstotal(obsSpaceData))
+          ENDIF
+        END DO
+      END DO
+      write(*,*) 'IN ODA_HTPP, MAX ,MEAN =',zmax,zmean
+      write(*,*) 'IN ODA_HTPP, MAX2,MEAN2=',zmax2,zmean2
+      RETURN
+      END subroutine oda_HTpp
+
+
+      SUBROUTINE oda_HTsf
+      use modmask, only : lmasksf_in,lmasksf_out
+      use obsSpaceData_mod
+      use profileData_mod 
+      use bufr
+!*
+!***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
+!*                  for "SURFACE" data files.
+!*
+!*Author  : P. Koclas *CMC/AES  April 1996
+!*    -------------------
+!*
+!*     Purpose: based on surfc1dz to build the adjoint of the
+!*              vertical interpolation for SURFACE data files.
+!*
+      INTEGER IPB,IPT
+      REAL*8 ZRES
+      REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
+      INTEGER IOBS,IPOS,IK,ISTRIDE,IBEGIN,ILAST
+      INTEGER J,JF,JDATA,ITYP,IXTR
+      LOGICAL LLOK
+!C
+!C     Temperature lapse rate for extrapolation of gz below model surface
+!C
+      zgamma = 0.0065 / GRAV
+      zexp   = 1.0/(RGASD*zgamma)
+      zexpgz = RGASD*zgamma
+!C
+!C*    1. Fill in COMMVO by using the adjoint of the "vertical"
+!c interpolation
+!C     .  ---------------------------------------------------------------
+!c ----
+!C
+!C      TO eliminate dependancies in vector loop, a stride
+!C      is chosen so that the data in the inner loop always
+!C      comes from different "oservations" of the CMA.
+!C      ------------------------------------------------------
+!C         stride = first odd number greater than the longest
+!C          observation.
+!C
+      ISTRIDE=2*(NMAXLEN/2) + 1
+!C
+!C     Process all data within the domain of the model
+!C
+      DO J=1,ISTRIDE
+!*vdir nodep
+        DO JDATA=j,obs_num_obstotal(obsSpaceData),ISTRIDE
+          IF (lmasksf_in(jdata)) THEN
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+            ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            ZHHH = ZLEV * GRAV
+            IPT  = NFLEV-1 + IPOS*NFLEV
+            IPB  = IPT+1
+            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+            IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
+                ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
+              GOMOBS(IPB,IOBS)    = GOMOBS(IPB,IOBS) + ZRES
+            ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
+              ZTVG  = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
+              ZGAMAZ= ZGAMMA*(ZHHH-GOMGZG(NFLEV,IOBS))
+              ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
+              ZDELTV= (GOMPSG(1,IOBS)*ZEXP*ZCON**(ZEXP-1))  &
+                   *(ZGAMAZ/(ZTVG*ZTVG))
+              ZDELPS= ZCON**ZEXP
+              ZATV  = ZDELTV*ZRES
+              GOMPS(1,IOBS)    = GOMPS(1,IOBS)  &
+                   + ZDELPS*ZRES
+              gomt(nflev,iobs) = gomt(nflev,iobs)  &
+                   + OLTV(1,NFLEV,IOBS)*ZATV
+              gomq(nflev,iobs)= gomq(nflev,iobs)   &
+                   + OLTV(2,NFLEV,IOBS)*ZATV
+            ELSE
+              IPT  = IK + IPOS*NFLEV
+              IPB  = IPT+1
+              ZPT  = GOMGZG(IK,IOBS)
+              ZPB  = GOMGZG(IK+1,IOBS)
+              ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
+              ZWT  = 1. - ZWB
+!ccc ATTN ATTN ZDADPS EST A DEFINIR POUR UNE COORDONNEE Z
+              ZDADPS= 0.
+              GOMOBS(IPB,IOBS) = GOMOBS(IPB,IOBS) + ZWB*ZRES
+              GOMOBS(IPT,IOBS) = GOMOBS(IPT,IOBS) + ZWT*ZRES
+              GOMPS(1,IOBS)    = GOMPS(1,IOBS)    +         &
+                   (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))  &
+                   *ZDADPS*ZRES
+            ENDIF
+            
+          elseif(lmasksf_out(jdata)) then
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+!C
+!c  adjoint of TL of geopotential extrapolation below orography
+!c
+            zcon = (zlev/gompsg(1,iobs))**zexpgz
+            ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
+            ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
+!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+            gomps(1,iobs)    = gomps(1,iobs)     &
+                 + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)
+            gomt(nflev,iobs) = gomt(nflev,iobs)  &
+                 + OLTV(1,NFLEV,IOBS)*ZATV
+            gomq(nflev,iobs) = gomq(nflev,iobs)  &
+                 + OLTV(2,NFLEV,IOBS)*ZATV                
+          endif
+        END DO
+      END DO
+      RETURN
+      END subroutine oda_HTsf
+
+
+subroutine oda_HTto
+!
+!**s/r tovs_obs_ad  - Adjoint of computation of residuals to the tovs observations
+!
+!
+!author        : j. halle *cmda/aes  april 19, 2005
+!
+!revision 001  :
+!                S. Pellerin - ARMA, jan. 2009
+!                - call  to oda_get_radiance_ad
+!
+!    -------------------
+!     purpose:
+!
+!     1.   Getting the adjoint of the residuals
+!     .    ----------------------------------
+!
+  call oda_get_radiance_ad
+
+!     2.   Adjoint of computing radiance
+!     .    -----------------------------
+!
+  call tovs_rttov_ad
+
+
+!     3.   Adjoint of preparation of atmospheric profiles
+!     .    ----------------------------------------------
+!
+
+  call tovs_fill_profiles_ad(gomu,gomv,gomt,gomq,gomps,gomtgr, &
+                             rppobs,nkgdimo,nflev)
+
+end subroutine oda_HTto
+
+
+      SUBROUTINE oda_HTro
+!*
+!***s/r AVGPSRO - Adjoint of the computation of Jo and
+!*                the residuals to the GPSRO observations
+!*
+!*Author  : J. M. Aparicio Jan 2004
+!*    -------------------
+!**    Purpose:
+!*
+      use modgps04profile
+      use modgps06gravity
+      use modgps08refop
+
+      REAL*8 PJOB, PJOM, PJOX
+      REAL*8 DPJO0(ngpscvmx)
+      REAL*8 DPJOB(ngpscvmx)
+      REAL*8 DPJO1(ngpscvmx)
+
+      REAL*8 ZTODEG
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8 ZETA(JPNFLEV)
+      REAL*8 BTT(JPNFLEV)
+      REAL*8 BHU(JPNFLEV)
+      REAL*8 BGZ(JPNFLEV)
+      REAL*8 BP0
+      REAL*8 BPT, BPR, BCF
+      REAL*8 BMT
+      REAL*8 DH
+      REAL*8 BIAS
+      REAL*8 HNH1, HSF, HTP
+
+      REAL*8 ZOBS, ZMHX, ZINC, ZOBI, ZMHXL
+      REAL*8 JAC(ngpscvmx)
+      REAL*8 DX (ngpscvmx)
+
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JV, JH, NGPSLEV
+
+      LOGICAL  ASSIM, LUSE
+
+      INTEGER NH, NH1
+      TYPE(GPSPROFILE)           :: PRF
+      REAL(DP)     , ALLOCATABLE :: H   (:)
+      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
+      ZTODEG = 180.0 / RPI
+!C
+!C     *     Eta vector:
+!C
+      NGPSLEV=NFLEV
+      DO JL = 1, NFLEV
+        ZETA(JL) = VLEV(JL)
+      ENDDO
+!C
+!C     Loop over all files
+!C
+      DO JF = 1, NFILES
+!C
+!C     *  Look only files of type Radio Occultation (RO)
+!C
+        IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP  (JF)
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+!C
+!C     *     Loop over all observations of the file
+!C
+!C
+!$omp parallel do default(shared) &
+!$omp private(dpjo0,idatyp,idata,idatend,assim,nh) &
+!$ompprivate(jdata,luse,lat,lon,zlat,zlon,jl,btt) &
+!$ompprivate(bhu,bgz,bp0,bpt,bmt,bpr,bcf,dx,prf) &
+!$omp private(h,rstv,nh1,hnh1,zmhx,zobi,zobs) &
+!$omp private(jac,zmhxl,zinc,dpjo1)
+          DO JO = IBEGINOB, ILASTOB
+            DPJO0 = 0._dp
+!C
+!C     *        Process only refractivity observations (codtyp 169)
+!C
+            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 169 ) THEN
+!C
+!C     *           Loops over data in the observation
+!C
+              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+              ASSIM = .FALSE.
+!C
+!C                 Scan for requested assimilations, and count them
+!C
+              NH = 0
+              DO JDATA= IDATA, IDATEND
+                LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                IF ( LUSE ) THEN
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+                ENDIF
+              ENDDO
+!C
+!C     *           If assimilations are requested, apply the observation
+!c operator
+!C
+              IF (ASSIM) THEN
+!C
+!C     *              Profile at the observation location:
+!C
+                Lat  = obs_elem_r4(obsSpaceData,'LAT ',JO)
+                Lon  = obs_elem_r4(obsSpaceData,'LON ',JO)
+                ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
+                ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
+                DO JL = 1, NFLEV
+!C
+!C     *                 Profile x_b
+!C
+                  BTT(JL) = GOMTG (JL,JO) - 273.15
+                  BHU(JL) = GOMQG (JL,JO)
+                  BGZ(JL) = GOMGZG(JL,JO)
+                ENDDO
+                BP0 = GOMPSG(1,JO)
+                BPT = RPPOBS(1,JO)
+                BMT = BGZ(NFLEV)/RG
+                BMT = gpsgeopotential(Lat, BMT)/RG
+                BPR = rprefinc
+                BCF = rcoefinc
+!C
+!C     *              GPS profile structure:
+!C
+                CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,  &
+                     BTT,BHU,BP0,BMT,BPT,BPR,BCF,PRF)
+                call gpsgeo(prf)
+!C
+!C     *              Prepare the vector of all the observations
+!C
+                ALLOCATE( H    (NH) )
+                ALLOCATE( RSTV (NH) )
+                NH1 = 0
+                DO JDATA= IDATA, IDATEND
+                  LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                  IF ( LUSE ) THEN
+                    NH1 = NH1 + 1
+                    HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                    H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
+                  ENDIF
+                ENDDO
+!C
+!C     *              Apply the observation operator
+!C
+                CALL GPSREFOPV(H, PRF, RSTV)
+!C
+!C     *              Perform the (H(xb)DX-Y')/S operation
+!C
+                NH1 = 0
+                DO JDATA= IDATA, IDATEND
+                  LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                  IF ( LUSE ) THEN
+                    NH1 = NH1 + 1
+!C
+!C     *                    Observation operator H(x)
+!C
+                    ZMHX = RSTV(NH1)%VAR
+!C
+!C     *                    Observation increment Y'=Y-H(x)
+!C
+                    ZOBI = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+!C
+!C     *                    Observation value    Y
+!C
+                    ZOBS = ZMHX + ZOBI
+!C
+!C     *                    Observation jacobian
+!C
+                    JAC = RSTV(NH1)%DVAR
+!C
+!C     *                    Normalized increment
+!C
+                    ZINC = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+!c                    call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c     &                   * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!C
+!C                          O-F Tested criteria:
+!C
+                    DPJO1 = ZINC * JAC
+!C
+!C     *                    Accumulate the gradient of the observation
+!C     *                    cost function
+!C
+                    DPJO0 = DPJO0 + DPJO1
+
+                  ENDIF
+                ENDDO
+                DEALLOCATE( RSTV )
+                DEALLOCATE( H    )
+              ENDIF
+            ENDIF
+!C
+!C     *        Store H* (HX - Z)/SIGMA in COMMVO
+!C
+            DO JL = 1, NFLEV
+              GOMT(JL,JO) = DPJO0(JL)
+              GOMQ(JL,JO) = DPJO0(JL+NFLEV)
+            ENDDO
+            GOMPS  ( 1,JO) = DPJO0(1+2*NFLEV)
+          ENDDO
+!$omp end parallel do
+        ENDIF
+      ENDDO
+      RETURN
+      END subroutine oda_HTro
+
+
+      SUBROUTINE oda_HTzp
+      use modmask, only : lmaskzp
+!*
+!***s/r AOBSZZZ  - Adjoint of the "vertical" interpolation in z
+!*                 for profiler data.
+!*
+!*Author  : J. St-James *CMDA/SMC  July 2003
+!*Revision :
+!*    -------------------
+!*
+!*     Purpose: based on vint3d to build the adjoint of the
+!*              vertical interpolation for profiler data.
+!*
+      INTEGER IPB,IPT, IDBURP,  ITYP
+      REAL*8 ZRES,ZOER,ZDA1,ZDA2,ZDENO
+      REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB,ZDADPS
+      INTEGER IOBS,IPOS,IK,ISTRIDE,IBEGIN,ILAST
+      INTEGER J,JF,JDATA
+      LOGICAL LLOK, LLPRINT
+
+      ISTRIDE=2*(NMAXLEN/2) + 1
+!C
+!C     Process all data within the domain of the model
+!C
+      DO J=1,ISTRIDE
+!*vdir nodep
+        DO JDATA=J, obs_num_obstotal(obsSpaceData),ISTRIDE
+          IF (lmaskzp(jdata) ) THEN
+            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
+            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+            IPT  = IK  + IPOS*NFLEV
+            IPB  = IPT+1
+            ZPT  = GOMGZG(IK,IOBS)/RG
+            ZPB  = GOMGZG(IK+1,IOBS)/RG
+            ZDENO= ZPT-ZPB
+            ZWB  = (ZPT-ZLEV)/ZDENO
+            ZWT  = 1.0D0 - ZWB
+
+            ZDA1= (ZLEV-ZPB)/(ZDENO**2)
+            ZDA2= (ZPT-ZLEV)/(ZDENO**2)
+!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!C
+            GOMGZ(IK+1,IOBS) = GOMGZ(IK+1,IOBS) +    &
+                 (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*ZDA2*ZRES/RG
+            GOMGZ(IK,IOBS) = GOMGZ(IK,IOBS) +        &
+                 (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*ZDA1*ZRES/RG
+            GOMOBS(IPB,IOBS) = GOMOBS(IPB,IOBS) + ZWB*ZRES
+            GOMOBS(IPT,IOBS) = GOMOBS(IPT,IOBS) + ZWT*ZRES
+
+          ENDIF
+        END DO
+      END DO
+      RETURN
+      END subroutine oda_HTzp
+
+
+      SUBROUTINE oda_HTgp
+      use modmask, only : lmaskgp
+!*
+!***s/r  -oda_HTgp Adjoint of TL routine oda_Hgp
+!*
+!*
+!*Author  : S. Macpherson *ARMA December 2004
+!*    -------------------
+!**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations using
+!*              adjoint of gpsztdop
+!*
+      REAL*8 ZTODEG
+      REAL*8 ZLAT
+      REAL*8 ZLON
+      REAL*8 ZETA(NFLEV)
+      REAL*8 ZTT (NFLEV)
+      REAL*8 ZHU (NFLEV)
+      REAL*8 ZGZ (NFLEV)
+      REAL*8 ZTTB (NFLEV)
+      REAL*8 ZHUB (NFLEV)
+      REAL*8 ZP0
+      REAL*8 ZP0B
+      REAL*8 ZPT
+      REAL*8 ZMT
+
+      REAL*8 ZHX, ZLEV
+      REAL*8 ZDZ
+      REAL*8 ZHXB, ZVAR
+
+      REAL*8 DZTT (NFLEV)
+      REAL*8 DZHU (NFLEV)
+      REAL*8 DZP0
+
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP, ITYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JK
+
+      LOGICAL  ASSIM, LLOK
+
+      INTEGER NH, NH1
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
+      ZTODEG = 180.0 / RPI
+!C
+!C     *    .   1.1  Eta vector
+!C     *    .        ----------
+!C
+      DO JL = 1, NFLEV
+         ZETA(JL) = VLEV(JL)
+      ENDDO
+
+      write(*,fmt='(/,4x,A)') 'AVGPSZTD- Adjoint Version: GPS ZTD observations'
+!C
+!C     Loop over all observation files (all observation types)
+!C
+      DO JF = 1, NFILES
+!C
+!C     *  Process only GPS observation files (family = GP)
+!C
+         IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
+            IBEGIN   = NBEGINTYP(JF)
+            ILAST    = NENDTYP  (JF)
+            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+!C
+!C     *     Loop over all GPS observations (locations) of the file
+!C
+            DO JO = IBEGINOB, ILASTOB
+              DZTT(:) = 0.0
+              DZHU(:) = 0.0
+              DZP0 = 0.0
+!C
+!C             Loop over data in the observations
+!C
+              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+!C
+!C             Scan for requested ZTD assimilation
+!C
+              NH = 0
+              ASSIM = .FALSE.
+              DO JDATA= IDATA, IDATEND
+                 LLOK = ( lmaskgp(JDATA) )
+                 IF ( LLOK ) THEN
+                    ASSIM = .TRUE.
+                    NH = NH + 1
+                 ENDIF
+              ENDDO
+!C
+!C     *       If ZTD assimilation, apply the AD observation operator
+!C
+              IF (ASSIM) THEN
+!C
+!C     *       LR background profile:
+!C
+                 ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
+                 ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
+                 DO JL = 1, NFLEV
+                   ZTTB(JL) = GOMTG(JL,JO)
+                   ZTT(JL)  = 0.0
+                   ZHUB(JL) = EXP(GOMQG(JL,JO))
+                   ZHU(JL)  = 0.0
+                   ZGZ(JL)  = GOMGZG(JL,JO)
+                 ENDDO
+                 ZP0B = GOMPSG(1,JO)
+                 ZP0  = 0.0
+                 ZPT  = RPPOBS(1,JO)
+                 ZMT  = ZGZ(NFLEV)/GRAV
+!C
+!C     *       Apply AD of ZTD observation operator to get 
+!C             Ht*grad(Jo) = Ht*(H'dx - d)/sigma_o^2
+!C
+                 NH1 = 0
+                 DO JDATA= IDATA, IDATEND
+                    IF ( lmaskgp(JDATA) ) THEN
+                       NH1 = NH1 + 1
+!C                      call obs_set(obsSpaceData,JDATA,val_OMI8= grad(Jo) 
+!c                                             = (H'dx - d)/sigma_o^2)
+                       ZHX = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+
+!C     *                Observation height (m)
+                       ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+!C     *                Call GP-ZTD adjoint operator: input = ZHX,
+!c                        output = ZTT,ZHU,ZP0
+                       CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,   &
+                        ZHUB,ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZTT,ZHU,ZP0,ZHX)
+
+                       DZTT(:) = DZTT(:) + ZTT(:)
+!C                      dJo/dQ ---> dJo/d(lnQ) 
+                       DZHU(:) = DZHU(:) + ZHUB(:)*ZHU(:)
+                       DZP0 = DZP0 + ZP0
+                    ENDIF
+                 ENDDO
+
+              ENDIF
+!c
+!C      *   Store Ht*grad(Jo) in COMMVO
+!c
+              DO JL = 1, NFLEV
+                 GOMT(JL,JO) = DZTT(JL)
+                 GOMQ(JL,JO) = DZHU(JL)
+              ENDDO
+              GOMPS(1,JO) = DZP0
+
+            ENDDO
+
+         ENDIF
+
+      ENDDO
+
+      RETURN
+      END subroutine oda_HTgp
+
+
 
 end subroutine oda_HT

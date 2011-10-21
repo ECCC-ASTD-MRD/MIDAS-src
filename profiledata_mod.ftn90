@@ -38,6 +38,17 @@ module profileData_mod
     real*8,pointer :: rmthobs(:)
     real*8,pointer :: rmtmobs(:)
 
+    ! global version of commvo
+    real*8,pointer :: gomu_g(:,:)
+    real*8,pointer :: gomv_g(:,:)
+    real*8,pointer :: gomt_g(:,:)
+    real*8,pointer :: gomq_g(:,:)
+    real*8,pointer :: gomoz_g(:,:)
+    real*8,pointer :: gomgz_g(:,:)
+    real*8,pointer :: gomtr_g(:,:)
+    real*8,pointer :: gomps_g(:,:)
+    real*8,pointer :: gomtgr_g(:,:)
+
     ! from commvo1
     real*8,pointer :: gomobs1(:,:)
     real*8,pointer :: gomu1(:,:)
@@ -94,7 +105,121 @@ module profileData_mod
     real*8,pointer ::  vmfhr(:)
 
   contains
-    
+
+    SUBROUTINE prof_allocateGlobal(klev,nobtotp)
+      implicit none
+      #include "comstate.cdk"
+      integer :: nobtotp,klev
+
+      if(NGEXIST(nguu).eq.1) allocate(gomu_g(klev,nobtotp))
+      if(NGEXIST(ngvv).eq.1) allocate(gomv_g(klev,nobtotp))
+      if(NGEXIST(ngtt).eq.1) allocate(gomt_g(klev,nobtotp))
+      if(NGEXIST(ngq ).eq.1) allocate(gomq_g(klev,nobtotp))
+      if(NGEXIST(ngoz).eq.1) allocate(gomoz_g(klev,nobtotp))
+      if(NGEXIST(nggz).eq.1) allocate(gomgz_g(klev,nobtotp))
+      if(NGEXIST(ngtr).eq.1) allocate(gomtr_g(klev,nobtotp))
+      if(NGEXIST(ngps).eq.1) allocate(gomps_g(1:1,nobtotp))
+      if(NGEXIST(ngtg).eq.1) allocate(gomtgr_g(1:1,nobtotp))
+
+    END SUBROUTINE prof_allocateGlobal 
+
+    SUBROUTINE prof_deallocateGlobal
+      implicit none
+      #include "comstate.cdk"
+
+      if(NGEXIST(nguu).eq.1) deallocate(gomu_g)
+      if(NGEXIST(ngvv).eq.1) deallocate(gomv_g)
+      if(NGEXIST(ngtt).eq.1) deallocate(gomt_g)
+      if(NGEXIST(ngq ).eq.1) deallocate(gomq_g)
+      if(NGEXIST(ngoz).eq.1) deallocate(gomoz_g)
+      if(NGEXIST(nggz).eq.1) deallocate(gomgz_g)
+      if(NGEXIST(ngtr).eq.1) deallocate(gomtr_g)
+      if(NGEXIST(ngps).eq.1) deallocate(gomps_g)
+      if(NGEXIST(ngtg).eq.1) deallocate(gomtgr_g)
+
+    END SUBROUTINE prof_deallocateGlobal 
+
+
+    SUBROUTINE prof_expandToMpiGlobal2(klev,nobtot,nobtotp)
+!
+!**s/r prof_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
+!
+!Original Author    . Bin He (ARMA/MRB )
+!          extracted from Bin's obs_expandToMpiGlobal()
+!
+!Revision:
+!      PURPOSE:  To reconstitute the mpi-global profile object by gathering
+!                the necessary data from all processors (to all processors).
+!
+      USE obsSpaceData_mod, only: locObsTag
+      IMPLICIT NONE
+      #include "comstate.cdk"
+
+      integer, intent(in) :: nobtot       ! Actual number of observations
+      integer, intent(in) :: nobtotp      ! Actual no. of obs. in POST FILE=nobtot
+      integer, intent(in) :: klev
+
+      INTEGER :: i,iobs,ierr,nsize
+
+      print*,'Entering prof_expandToMpiGlobal2:',nobtot,nobtotp  
+
+      if(NGEXIST(nguu).eq.1) gomu_g(:,:)=0.0d0
+      if(NGEXIST(ngvv).eq.1) gomv_g(:,:)=0.0d0
+      if(NGEXIST(ngtt).eq.1) gomt_g(:,:)=0.0d0
+      if(NGEXIST(ngq ).eq.1) gomq_g(:,:)=0.0d0
+      if(NGEXIST(ngoz).eq.1) gomoz_g(:,:)=0.0d0
+      if(NGEXIST(nggz).eq.1) gomgz_g(:,:)=0.0d0
+      if(NGEXIST(ngtr).eq.1) gomtr_g(:,:)=0.0d0
+      if(NGEXIST(ngps).eq.1) gomps_g(:,:)=0.0d0
+      if(NGEXIST(ngtg).eq.1) gomtgr_g(:,:)=0.0d0
+      DO i=1,NOBTOT
+         iobs=locObsTag(i)
+         if(NGEXIST(nguu).eq.1) gomu_g(:,iobs)  =gomu(:,i)
+         if(NGEXIST(ngvv).eq.1) gomv_g(:,iobs)  =gomv(:,i)
+         if(NGEXIST(ngtt).eq.1) gomt_g(:,iobs)  =gomt(:,i)
+         if(NGEXIST(ngq ).eq.1) gomq_g(:,iobs)  =gomq(:,i)
+         if(NGEXIST(ngoz).eq.1) gomoz_g(:,iobs) =gomoz(:,i)
+         if(NGEXIST(nggz).eq.1) gomgz_g(:,iobs) =gomgz(:,i)
+         if(NGEXIST(ngtr).eq.1) gomtr_g(:,iobs) =gomtr(:,i)
+         if(NGEXIST(ngps).eq.1) gomps_g(1,iobs) =gomps(1,i)
+         if(NGEXIST(ngtg).eq.1) gomtgr_g(1,iobs)=gomtgr(1,i)
+      ENDDO  
+      nsize=klev*NOBTOTP
+      if(NGEXIST(nguu).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomu_g,gomu_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(ngvv).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomv_g,gomv_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(ngtt).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomt_g,gomt_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(ngq ).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomq_g,gomq_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(ngoz).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomoz_g,gomoz_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(nggz).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomgz_g,gomgz_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(ngtr).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomtr_g,gomtr_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      nsize=NOBTOTP
+      if(NGEXIST(ngps).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomps_g,gomps_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+      if(NGEXIST(ngtg).eq.1) &
+          CALL RPN_COMM_ALLReduce(gomtgr_g,gomtgr_g,nsize, &
+                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+
+      write(*,*) 'Leaving prof_expandToMpiGlobal2' 
+      RETURN
+
+    END SUBROUTINE prof_expandToMpiGlobal2
+
+ 
     SUBROUTINE prof_expandToMpiGlobal(nulout, nobtot, nobtotp)
 #if defined (DOC)
 !

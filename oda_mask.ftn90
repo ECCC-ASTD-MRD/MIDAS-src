@@ -1,0 +1,557 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+subroutine oda_mask
+  use obsSpaceData_mod
+  use bufr
+  implicit none
+  #include "comct0.cdk"
+  #include "comdimo.cdk"
+  #include "cvcord.cdk"
+  #include "comlun.cdk"
+  #include "comcst.cdk"
+  #include "comfilt.cdk"
+
+  call oda_masksf('UA')
+  call oda_masksf('SF')
+  call oda_masksf('SC')
+  call oda_masksf('GP')
+  call oda_maskpp('UA')
+  call oda_maskpp('AI')
+  call oda_maskpp('SW')
+  call oda_maskto
+  call oda_maskro
+  call oda_maskzp('PR')
+  call oda_maskgp
+
+  !restore Global Masks. 
+  IF(NCONF == 141) CALL restoreMasks  
+
+  CONTAINS
+
+      SUBROUTINE oda_masksf(CDFAM)
+      use modmask, only : lmasksf_in, lmasksf_out, lmask, ldiagsf, ldiag
+!*
+!*Purpose : Defines a mask of assimilated data
+!*
+!*Author  : S. Pellerin, ARMA, January 2009
+!*          Based on selection made in observation operator as written by
+!*          P. Koclas *CMC/AES in September 1994
+!
+      REAL*8 PJO
+      CHARACTER *2 CDFAM
+      INTEGER IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
+      INTEGER J,JDATA,JO,IDATA,ITYP
+!C
+!C     Temperature lapse rate for extrapolation of gz below model surface
+!C
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0) ) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+!C
+!C     Process all data within the domain of the model
+!C
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            DO JDATA=IDATA,IDATEND
+              IF ( obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 ) THEN
+                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS  &
+                     .OR.ITYP.EQ.BUFR_NEPN .OR. ITYP.EQ.BUFR_NESS  &
+                     .OR.ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
+                  LMASKSF_IN(JDATA)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
+                ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
+                  LMASKSF_IN(JDATA)= .false.
+                ELSE
+                  LMASKSF_IN(JDATA)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.  &
+                       obs_elem_i(obsSpaceData,'XTR ',JDATA)  .EQ. 0)
+                ENDIF
+                IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) then
+                  ldiagsf(jdata) = .true.
+                endif
+              ENDIF
+            END DO
+          enddo
+!C
+!C     Process all geopotential data below model's orography
+!C
+          DO JDATA=IBEGIN,ILAST
+            lmasksf_out(jdata)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)  &
+                 .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2)          &
+                 .AND. (obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ ) &
+                 .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1)
+
+          END DO
+
+        ENDIF
+      END DO
+
+      lmask = lmask .or. lmasksf_in
+      lmask = lmask .or. lmasksf_out
+      ldiag = ldiag .or. ldiagsf
+!C--------------------------------------------------------------------
+      RETURN
+      END subroutine oda_masksf
+
+
+      SUBROUTINE oda_maskpp(CDFAM)
+      use modmask, only : lmaskpp_in, lmaskpp_out, lmask,ldiagpp, ldiag
+!* Argument declarations
+      CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)
+!*
+!*Purpose : Defines a mask of assimilated and diagnosed data inside
+!*          and outside the vertical domain
+!*
+!*Author  : S. Pellerin, ARMA, January 2009
+!*          Based on selection made in observation operator as written by
+!*          P. Koclas *CMC/AES in September 1994
+!*
+!* Local declarations
+      INTEGER IPB,IPT,IDBURP
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND,NQCVAR
+      INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO
+      REAL*8 ZVAR,ZOER,ZDADPS,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG
+      REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZPRESBPB,ZPRESBPT
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT, LLUV, LLNOXTR
+      LLNOXTR   = .false.
+
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+!C
+!C     Process all data within the domain of the model
+!C
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            DO JDATA=IDATA,IDATEND
+              lmaskpp_in(jdata)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) &
+                   .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 0)        &
+                   .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2)
+              IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU  .AND.  &
+                   obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2   ) THEN
+                IF   ( NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA)) .GE. NINT(RLIMLVHU  &
+                     *100) ) THEN
+                  ldiagpp(jdata) = .true.
+                ENDIF
+              endif
+
+            END DO
+          enddo
+
+          DO JDATA=IBEGIN,ILAST
+            lmaskpp_out(jdata)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) &
+                 .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2)         &
+                 .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2)
+            if (lmaskpp_out(jdata) .and. obs_elem_i(obsSpaceData,'VNM ',JDATA) .NE.BUFR_NEGZ) then
+              lmaskpp_out(jdata) = .false.
+              LLNOXTR   = .true.
+              ZTORAD    = 1.D0/(RPI/180.D0)
+              ZLAT      = obs_elem_r4(obsSpaceData,'LAT ',IOBS)*ZTORAD
+              ZLON      = obs_elem_r4(obsSpaceData,'LON ',IOBS)*ZTORAD
+              IDBURP    = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
+
+              WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
+                   ,' OBS ',obs_elem_c9(obsSpaceData,'STID',IOBS),' TYPE ',IDBURP, ' ELM ' &
+                   , obs_elem_i(obsSpaceData,'VNM ',JDATA),' LAT ', ZLAT,  ' LON ', &
+                   ZLON
+            endif
+          END DO
+        ENDIF
+      END DO
+      lmask = lmask .or. lmaskpp_in
+      lmask = lmask .or. lmaskpp_out
+      ldiag = ldiag .or. ldiagpp
+!C--------------------------------------------------------------------
+      IF(LLNOXTR) THEN
+        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        WRITE(NULOUT,*)' Warning - ODA_MASKPP: NO EXTRAPOLATION ALLOWED SEE LISTING FOR MORE DETAILS'
+        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      ENDIF
+
+      RETURN
+      END subroutine oda_maskpp
+
+
+subroutine oda_maskto
+  use modmask, only : lmaskto, lmask
+  ! Purpose : Defines a mask of assimilated data
+  !
+  ! Author  : S. Pellerin, ARMA, January 2009
+  !           Based on selection made in observation operator as written by
+  !           j. halle *cmda/aes  in december 2005
+  !
+  !revision :      Sylvain Heilliette:
+  !                 add IASI data (codtyp 186)
+  use mod_tovs
+#include "partov.cdk"
+#include "comtov.cdk"
+
+  integer :: isens, indxchn, indxtovs
+
+  real*8 zoer
+  real*8 dlsum
+  real*8 pjo, zdtb
+  real*8 zjon,zgami,zqcarg,zpost
+  real*8 zjoch  (0:jpch,jpnsat)
+  real*8 zavgnrm(0:jpch,jpnsat)
+
+  integer j, i, isat, krtid, io, jf, nchanperline, indxs, indxe
+  integer ibegin, ibeginob, ilast, ilastob, jj
+  integer inobsjo, incanjo
+  integer jo, jdata, idata, idatend, idatyp
+  integer jk, jn, ichn, ichNCM_A, jl, indx
+  integer kfailtot
+  integer kfail(jppf*jpnsat)
+  integer inobsch(0:jpch,jpnsat)
+  integer lcanjo(jpch)
+  integer  isrcheq
+  external isrcheq
+  external abort3d
+
+  if(nobtov.eq.0) return    ! exit if there are not tovs data
+
+  !     1.  Computation of (hx - z)/sigma for tovs data only
+  !     .   ------------------------------------------------
+
+100 continue
+
+  dlsum    = 0.
+  inobsjo  = 0
+  kfailtot = 0
+  do j = 1, nsensors
+     do i = 0, jpch
+        inobsch(i,j) = 0
+        zjoch  (i,j) = 0.0
+        zavgnrm(i,j) = 0.0
+     enddo
+  enddo
+
+  !     loop over all files
+
+  do jf = 1, nfiles
+     if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
+        ibegin   = nbegintyp(jf)
+        ilast    = nendtyp  (jf)
+        ibeginob = obs_elem_i(obsSpaceData,'OBS ',ibegin)
+        ilastob  = obs_elem_i(obsSpaceData,'OBS ',ilast )
+        do jo = ibeginob, ilastob
+
+           !     .  1.1  Extract general information for this observation point
+           !     .       ------------------------------------------------------
+
+           !       only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
+
+           idatyp = mod(obs_elem_i(obsSpaceData,'ITY ',jo),1000)
+           if ( idatyp .eq. 164 .or.  &
+                idatyp .eq. 168 .or.  &
+                idatyp .eq. 180 .or.  &
+                idatyp .eq. 181 .or.  &
+                idatyp .eq. 182 .or.  &
+                idatyp .eq. 183 .or.  &
+                idatyp .eq. 185 .or.  &
+                idatyp .eq. 186          ) then
+
+              indxtovs = ltovsno(jo)
+              if ( indxtovs .eq. 0 ) then
+                 write(nulout,fmt=9203)
+9203             format(' tovs_calc_jo_tl: error with indxtovs')
+                 call abort3d(nulout,'tovs_calc_jo_tl ')
+              endif
+
+              if (rttov_errorstatus(indxtovs) .lt. 20   ) then
+                 idata   = obs_elem_i(obsSpaceData,'RLN ',jo)
+                 idatend = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
+                 isens = lsensor(indxtovs)
+                 do jdata= idata, idatend
+                    if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
+                       ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
+                       ichn    = max(0,min(ichn,jpch+1))
+                       ichNCM_A = max(0,min(ichn,jpch+1))
+                       if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
+                       indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+                       if ( indxchn .eq. 0 ) then
+                          write(nulout,fmt=9202)
+9202                      format(' tovs_calc_jo_tl: error with channel number')
+                          call abort3d(nulout,'tovs_calc_jo_tl  ')
+                       endif
+!                       print *,"maskto",jdata!,shape(lmaskto(:))
+                       lmaskto(jdata) = .true.
+                    endif
+                 enddo
+              else
+                 kfailtot = kfailtot + 1
+              endif
+           endif
+        enddo
+     endif
+  enddo
+  lmask = lmask .or. lmaskto
+end subroutine oda_maskto
+
+
+      SUBROUTINE oda_maskro
+      use modmask, only : lmaskro, lmask
+!*
+!*Purpose : Defines a mask of assimilated data
+!*
+!*Author  : S. Pellerin, ARMA, January 2009
+!*          Based on selection made in observation operator as written by
+!*          J. M. Aparicio in Jan 2004
+!*
+      use modgps04profile
+      use modgps06gravity
+      use modgps08refop
+
+      REAL*8 PJO
+      REAL*8 PJO0, PJO1
+
+      REAL*8 ZTODEG
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8 BP0
+      REAL*8 BPT, BPR, BCF
+      REAL*8 BMT
+      REAL*8 DH
+      REAL*8 DNUM,SUM1,SUM2,AVG1,AVG2,BIAS,STD,RMS
+      REAL*8 HNH1
+      REAL*8 ZOBS, ZMHX, ZOER, ZINC, ZOBI, ZMHXL
+
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JV, JH, NQCVAR, NGPSLEV
+
+      LOGICAL  ASSIM, LUSE
+
+      INTEGER NH, NH1, index
+      TYPE(GPSPROFILE)           :: PRF
+      REAL(DP)     , ALLOCATABLE :: H   (:)
+      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+
+      DO JF = 1, NFILES
+!C
+!C     *  Look only files of type Radio Occultation (RO)
+!C
+        IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP  (JF)
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+!C
+!C     *     Loop over all observations of the file
+!C
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 169 ) THEN
+              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+              DO JDATA= IDATA, IDATEND
+                LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                IF ( LUSE ) THEN
+                  lmaskro(jdata) = .true.
+                ENDIF
+              ENDDO
+            ENDIF
+          ENDDO
+        ENDIF
+      ENDDO
+      lmask = lmask .or. lmaskro
+      RETURN
+      END subroutine oda_maskro
+
+
+      SUBROUTINE oda_maskzp(CDFAM)
+      use modmask, only : lmaskzp, lmask
+!*
+!*Purpose : Defines a mask of assimilated data
+!*
+!*Author  : S. Pellerin, ARMA, January 2009
+!*          Based on selection made in observation operator as written by
+!*          J. St-James, CMDA/SMC in July 2003
+!*
+      CHARACTER *2 CDFAM
+
+      INTEGER IPB,IPT,IDBURP
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND,NQCVAR
+      INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO
+      REAL*8 ZVAR,ZOER,ZDA1,ZDA2,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG
+      REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZDENO,ZCON1,ZCON2,ZCON3
+      REAL*8 DLSUM
+      LOGICAL LLOK, LLPRINT, LLUV,LLNOXTR
+
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            DO JDATA=IDATA,IDATEND
+              LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)  &
+                   .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 0) &
+                   .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1)
+              IF ( LLOK ) THEN
+                lmaskzp(jdata) = .true.
+              ENDIF
+            END DO
+          enddo
+        endif
+      END DO
+      lmask = lmask .or. lmaskzp
+      RETURN
+      END subroutine oda_maskzp
+
+
+      SUBROUTINE oda_maskgp
+      use modmask, only : lmaskgp, lmask
+!*
+!*Purpose : Defines a mask of assimilated data for GP family ZTD data
+!*
+!*Author  : S. Macpherson, ARMA, March 2009
+!*
+
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
+      INTEGER J,JDATA,IDATA,ITYP,ISTYP,JJ,JO,IDATYP
+      LOGICAL LLOK
+      CHARACTER *2 CDFAM
+
+      CDFAM = 'GP'
+
+      DO J = 1,NFILES
+        IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
+          IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            IDATYP    = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 189 ) THEN
+              DO JDATA=IDATA,IDATEND
+                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND.  &
+                  (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) )
+                IF ( LLOK ) THEN
+                  lmaskgp(jdata) = .true.
+                ENDIF
+              END DO
+            ENDIF
+          ENDDO
+        ENDIF
+      END DO
+      lmask = lmask .or. lmaskgp
+      RETURN
+      END subroutine oda_maskgp
+
+
+      SUBROUTINE restoreMasks 
+      use modmask
+!
+!c Purpose:
+!c Compute the global masks such as lmaskpp_inout_g,lmasksf_inout_g,... 
+!c
+!c Author  : BIN HE  *ARMA/MRB MAY 2009
+!c
+! Define Local Variables. 
+      INTEGER :: ierr
+      INTEGER :: nobtot_l
+      integer :: mask_dim
+      LOGICAL,DIMENSION(:),pointer :: llmask_l  
+
+       nobtot_l=nobtot 
+       mask_dim = ubound(lmaskpp_in,1)  
+         
+       ALLOCATE(lmaskpp_inout_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskpp_inout_g')
+       ALLOCATE(lmasksf_inout_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmasksf_inout_g')
+       ALLOCATE(lmaskto_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskto_g')
+
+       ALLOCATE(lmaskro_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskro_g')
+
+       ALLOCATE(lmaskzp_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskzp_g')
+
+       ALLOCATE(lmask_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmask_g')
+
+       ALLOCATE(lmaskgp_g(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskgp_g')
+
+       ALLOCATE(llmask_l(mask_dim),STAT=ierr)
+       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cant Allocate Mem. to llmask_l')
+
+       CALL restore_mask(lmask_g,obsSpaceData%mxobstotal,lmask,obs_num_obstotal(obsSpaceData))  
+
+       llmask_l = lmaskpp_in .or. lmaskpp_out
+       CALL restore_mask(lmaskpp_inout_g,obsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(obsSpaceData))  
+
+       llmask_l =  lmasksf_in .or. lmasksf_out
+       CALL restore_mask(lmasksf_inout_g,obsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(obsSpaceData))  
+
+       CALL restore_mask(lmaskto_g,obsSpaceData%mxobstotal,lmaskto,obs_num_obstotal(obsSpaceData))  
+
+       CALL restore_mask(lmaskro_g,obsSpaceData%mxobstotal,lmaskro,obs_num_obstotal(obsSpaceData))  
+
+       CALL restore_mask(lmaskzp_g,obsSpaceData%mxobstotal,lmaskzp,obs_num_obstotal(obsSpaceData))  
+
+       CALL restore_mask(lmaskgp_g,obsSpaceData%mxobstotal,lmaskgp,obs_num_obstotal(obsSpaceData))  
+
+      END SUBROUTINE restoreMasks     
+
+
+      SUBROUTINE restore_mask(lmask_g,kdata_g,lmask_l,kdata_l)
+        INTEGER :: kdata_l,kdata_g 
+        Logical ,DIMENSION(kdata_g) :: lmask_g 
+        Logical ,DIMENSION(kdata_l) :: lmask_l 
+
+       INTEGER :: i,ii,j ,iobs,idata,idataend,ierr  
+
+       lmask_g=.false.
+       ii=0
+       DO i=1,nobtot
+         iobs=locObsTag(i)
+         idata=obs_elem_mpiglobal_i(obsSpaceData,'RLN ',iobs)
+         idataend=obs_elem_mpiglobal_i(obsSpaceData,'NLV ',iobs) + idata -1
+         DO j=idata,idataend
+           ii=ii+1
+           lmask_g(j)=lmask_l(ii)
+         ENDDO
+       ENDDO  
+       CALL rpn_comm_allreduce(lmask_g,lmask_g,kdata_g,"MPI_LOGICAL","MPI_LOR","GRID",ierr )
+      END SUBROUTINE   restore_mask
+ 
+
+end subroutine oda_mask

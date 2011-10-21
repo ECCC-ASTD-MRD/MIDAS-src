@@ -58,8 +58,8 @@
 c
       logical lldo
       integer jlev,jobs,jdata,ii,ierr
-      real*8 zjo,zjoraob,zjosatem,zjohumsat,zjosatwind,zjosurfc
-      real*8 zjosfcsf,zjosfcua,zjotov,zjogoes,zjoairep,zjosfcsc,zjoprof
+      real*8 zjo,zjoraob,zjosatwind,zjosurfc
+      real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
 c
       call printrev("SUBROUTINE SUINNOV :",20)
@@ -99,12 +99,7 @@ c
           write(NULOUT,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
           write(NULOUT,*)' *                                       *'
           write(NULOUT,*)' *****************************************'
-          CALL SOBSSFC
-          CALL SOBSRAOB
-          CALL SOBSHUMSAT
-          CALL SOBSAISW
-          CALL SOBSPROF
-          CALL SOBSCSBT
+          call sobs_all
         ELSE
           write(NULOUT,*)' *****************************************'
           write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
@@ -132,12 +127,6 @@ C------------------------------
       ZJORAOB = 0.0d0
       CALL DOBSPPP(ZJORAOB,'UA')
 C
-C        HUMSAT
-C--------------------------------
-      ZJOHUMSAT = 0.0d0
-      CALL DOBSPPP(ZJOHUMSAT,'HU')
-c      CALL OBSCORHU(ZJOHUMSAT)
-C
 C        AIREPS
 C--------------------------------
       ZJOAIREP=0.0D0
@@ -153,9 +142,7 @@ C--------------------------------
       ZJOSFCUA=0.0D0
       ZJOSFCSC=0.0D0
       ZJOSFCGP=0.0D0
-      ZJOSATEM = 0.0d0
       ZJOTOV=0.0D0
-      ZJOGOES=0.0D0
       ZJOGPSRO=0.0D0
       ZJOGPSGB=0.0D0
       ZJOPROF = 0.0d0
@@ -169,18 +156,9 @@ C-------------------------------
         CALL DOBSSFC(ZJOSFCGP,'GP')
         ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
 C
-C        SATEMS
-C------------------------------
-        CALL DOBSSATEM(ZJOSATEM)
-c        CALL OBSCORST(ZJOSATEM)
-C
 C        TOVS - RADIANCE
 C-------------------------------
         CALL TOVS_OBS ('HR',ZJOTOV)
-C
-C        GOES - RADIANCE
-C-------------------------------
-        CALL DOBSGOES(ZJOGOES)
 C
 C        PROFILER
 C------------------------------
@@ -290,13 +268,11 @@ c
 c
 c
 C=======================================================================
-      ZJO =  ZJORAOB + ZJOSATEM + ZJOHUMSAT + ZJOAIREP + ZJOSATWIND +
-     $     ZJOSURFC + ZJOTOV + ZJOGOES + ZJOPROF + ZJOGPSRO + ZJOGPSGB
+      ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND +
+     $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
 C=======================================================================
 
       write(nulout,'(a15,G12.6)') 'JORAOB= ',ZJORAOB
-c      write(nulout,'(a15,G12.6)') 'JOSATEM= ',ZJOSATEM
-c      write(nulout,'(a15,G12.6)') 'JOHUMSAT= ',ZJOHUMSAT
       write(nulout,'(a15,G12.6)') 'JOAIREP= ',ZJOAIREP
       write(nulout,'(a15,G12.6)') 'JOSURFC= ',ZJOSURFC
       write(nulout,'(10X,a15,G12.6)') 'JOSFCSF= ',ZJOSFCSF
@@ -304,7 +280,6 @@ c      write(nulout,'(a15,G12.6)') 'JOHUMSAT= ',ZJOHUMSAT
       write(nulout,'(10X,a15,G12.6)') 'JOSFCSC= ',ZJOSFCSC
       write(nulout,'(10X,a15,G12.6)') 'JOSFCGP= ',ZJOSFCGP
       write(nulout,'(a15,G12.6)') 'JOTOV= ',ZJOTOV
-      write(nulout,'(a15,G12.6)') 'JOGOES= ',ZJOGOES
       write(nulout,'(a15,G12.6)') 'JOSATWIND= ',ZJOSATWIND
       write(nulout,'(a15,G12.6)') 'JOPROF= ',ZJOPROF
       write(nulout,'(a15,G12.6)') 'JOGPSRO= ',ZJOGPSRO
@@ -326,27 +301,11 @@ c     of thickness data for SATEMS
 c
       if(lldo) CALL VOBSLYRS('BG')
 c
-c Generate realization of BG error in obs space to be saved in posv file
-c
       IF (LVARQC) THEN
         CALL SUASYM2
       endif
 c
-      call oda_masksf('UA')
-      call oda_masksf('SF')
-      call oda_masksf('SC')
-      call oda_masksf('GP')
-      call oda_maskpp('UA')
-      call oda_maskpp('AI')
-      call oda_maskpp('SW')
-      call oda_maskto
-      call oda_maskgo
-      call oda_maskro
-      call oda_maskzp('PR')
-      call oda_maskgp
-!
-       !resotre Global Masks. 
-        IF(NCONF == 141) CALL restoreMasks  
+      call oda_mask
 !
       RETURN
       END

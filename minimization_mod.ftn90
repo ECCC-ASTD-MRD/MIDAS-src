@@ -23,6 +23,7 @@ MODULE minimization
   character(len=10)   :: crestart='wrmrestart'
   integer             :: nulout =6
   integer             :: nmtra,nwork,nsim3d
+  integer             :: ni,nj,nk,nlev,nt
 
   ! namelist variables
   INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
@@ -40,36 +41,46 @@ MODULE minimization
 
 CONTAINS
 
-  SUBROUTINE min_setup(nvadim_in)
+  SUBROUTINE min_setup(nvadim_in,ni_in,nj_in,nk_in,nlev_in,nt_in)
     implicit none
-    integer :: nvadim_in
+    integer :: nvadim_in,ni_in,nj_in,nk_in,nlev_in,nt_in
 
-    integer :: ierr,nulnam=0
+    integer :: ierr,nulnam
     integer :: fnom,fclos
 
-      N1GC = 3
-      NVAMAJ = 6
-      NIMPRES =  5
-      NITERMAX = 400
-      RDF1FAC  = 0.25d0
-      NITERJOB = -1
-      NSIMMAX  = 500
-      NGRTEST  = 0
-      NGRANGE  = 10
-      lwrthess =.true.
-      lxbar    = .true.
-      ltlmend  = .false.
-      REPSG    = 1e-3
-      LRSTART  = .FALSE.
-      EPSNEG   = 1e-6
-      SELECT0  = 0
-      BFGSB    = 2
-      IMODE3   = 0
-      LVARQC   = .false.
-      NWOQCV   = 5
+    ni=ni_in
+    nj=nj_in
+    nk=nk_in
+    nlev=nlev_in
+    nt=nt_in
 
+    ! set default values for namelist variables
+    N1GC = 3
+    NVAMAJ = 6
+    NIMPRES =  5
+    NITERMAX = 400
+    RDF1FAC  = 0.25d0
+    NITERJOB = -1
+    NSIMMAX  = 500
+    NGRTEST  = 0
+    NGRANGE  = 10
+    lwrthess =.true.
+    lxbar    = .true.
+    ltlmend  = .false.
+    REPSG    = 1e-3
+    LRSTART  = .FALSE.
+    EPSNEG   = 1e-6
+    SELECT0  = 0
+    BFGSB    = 2
+    IMODE3   = 0
+    LVARQC   = .false.
+    NWOQCV   = 5
+
+    ! read in the namelist NAMMIN
+    nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nammin)
+    read(nulnam,nml=nammin,iostat=ierr)
+    write(*,*) 'minimization: reading namelist, ierr=',ierr
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
@@ -79,26 +90,21 @@ CONTAINS
     IF(N1GC.EQ.2) THEN
        NMTRA = 3*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
     ELSE IF(N1GC.EQ.3)THEN
-        write(nulout,*) 'sudim: NVADIM_IN=',NVADIM_IN
-        write(nulout,*) 'sudim: NVAMAJ=',NVAMAJ
-        write(nulout,*) 'sudim: 4*NVADIM_IN=',4*NVADIM_IN
-        write(nulout,*) 'sudim: NVAMAJ*(2*NVADIM_IN + 1)=',NVAMAJ*(2*NVADIM_IN + 1)
-        write(nulout,*) 'sudim: NMTRA=',4*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
-        NMTRA = 4*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
-      ELSE IF(N1GC.EQ.4)THEN
-         NMTRA = 1 + NVAMAJ*(2*NVADIM_IN + 1)
-         NWORK = 5*NVADIM_IN + NVAMAJ
-      ELSE
-         NMTRA = NVADIM_IN*2
-      END IF
-      WRITE(NULOUT,9401)N1GC, NVAMAJ,NVADIM_IN,NMTRA
+      NMTRA = 4*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
+    ELSE IF(N1GC.EQ.4)THEN
+       NMTRA = 1 + NVAMAJ*(2*NVADIM_IN + 1)
+       NWORK = 5*NVADIM_IN + NVAMAJ
+    ELSE
+       NMTRA = NVADIM_IN*2
+    END IF
+    WRITE(NULOUT,9401)N1GC, NVAMAJ,NVADIM_IN,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NVADIM_IN =",1x,I14,3X,"NMTRA =",1X,I14)
-      IF(N1GC.EQ.4) THEN
-      WRITE(NULOUT,9402)NWORK
+    IF(N1GC.EQ.4) THEN
+    WRITE(NULOUT,9402)NWORK
  9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
-      ENDIF
+    ENDIF
 
-      IF (LVARQC) WRITE(NULOUT,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
+    IF (LVARQC) WRITE(NULOUT,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
     initialized=.true.
 
@@ -108,12 +114,17 @@ CONTAINS
   SUBROUTINE min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
       use mod4dv, only : l4dvar
       use controlVector
+      use obsSpaceData_mod
 !
 !Purpose:
 !3D/4D VAR minimization
 !
       IMPLICIT NONE
-       
+
+      type(struct_obs_ptr) :: obsspacedataptr
+      integer,allocatable :: obs_ptr_int(:) ! obs array used to transmit pointer to obsSpaceData
+      integer :: nsize
+
       logical lnlvtov,lpcon,lrestart
       integer ntrunc,nksdim,nbrpstamp,niter
       CHARACTER(len=128) :: cpconf
@@ -180,6 +191,14 @@ CONTAINS
       isimtot = 0
 
       ZXMIN  =  RPRECIS
+
+      ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
+      obsspacedataptr%ptr => obsSpaceData
+      nsize = size(transfer(obsspacedataptr,obs_ptr_int))
+      allocate(obs_ptr_int(nsize+1))
+      obs_ptr_int(1)=nsize   ! store the size of converted pointer in the first element
+      obs_ptr_int(2:(1+nsize))=transfer(obsspacedataptr,obs_ptr_int)
+
 !     *    2. Set-up the minimization
 !     .  -----------------------
       llvarqc = lvarqc
@@ -287,7 +306,7 @@ CONTAINS
 !
       INDIC =2
 
-      call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg)
+      call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,obs_ptr_int(1))
 
       if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
 
@@ -342,7 +361,7 @@ CONTAINS
         call tmg_start(21,'QN')
         call n1qn3(simvar, dscalqn, dcanonb, dcanab, cvm_nvadim, cvm_vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode       &
-            ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, izs, zzsunused  &
+            ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, obs_ptr_int(1), zzsunused  &
             ,dlds)
         call tmg_stop (21)
 
@@ -360,7 +379,7 @@ CONTAINS
         if (imode == 4 .and. itertot < nitermax) then
           imode = 2
           INDIC = 2
-          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg)
+          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,obs_ptr_int(1))
         else
           llstop = .true.
         endif
@@ -373,7 +392,7 @@ CONTAINS
           call tmg_start(21,'QN')
           call n1qn3(simvar, dscalqn, dcanonb, dcanab, cvm_nvadim, cvm_vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-              itermax,isimmax, iztrl, vatra, nmtra, izs, zzsunused,   &
+              itermax,isimmax, iztrl, vatra, nmtra, obs_ptr_int(1), zzsunused,   &
               dlds)
           call tmg_stop (21)
           itertot = itertot + itermax
@@ -418,7 +437,7 @@ CONTAINS
 !       Call 4D-Var simulator without gradient to get ZJSP
 !       --------------------------------------------------
           INDIC = 2
-          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg)
+          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,obs_ptr_int(1))
 
         endif
 
@@ -490,7 +509,7 @@ CONTAINS
   END SUBROUTINE min_minvar
 
 
-  SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ)
+  SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,obs_ptr_int)
     use mod4dv, only : l4dvar
     !modular1  use modstag, only : lstagwinds
     use mpi
@@ -511,6 +530,7 @@ CONTAINS
     real*8  :: da_J ! Cost function of the Variational algorithm
     real*8, dimension(na_dim) :: da_gradJ ! Gradient of the Variational Cost funtion
     real*8, dimension(na_dim) :: da_v ! Control variable in forecast error covariances space
+    integer :: obs_ptr_int(1)  ! integer work area used to transmit a pointer to the obsSpaceData
     !
     ! Purpose: Implement the Variational solver as described in
     ! Courtier, 1997, Dual formulation of four-dimentional variational assimilation,
@@ -520,10 +540,18 @@ CONTAINS
     !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
     !
     ! Local declaration
-    integer :: nl_ilev, nl_err
+    integer :: nl_ilev, nl_err, nsize
     real*8, dimension(na_dim) :: dl_v
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv) :: statevector
+    type(struct_obs_ptr) :: obsspacedataptr
+
+    ! Convert the integer array obs_ptr_int back into a pointer to the obsSpaceData
+    nsize=obs_ptr_int(1)
+    obsspacedataptr=transfer(obs_ptr_int(2:(1+nsize)),obsspacedataptr)
+
+    write(*,*) 'obsspacedataptr=',obsspacedataptr%ptr%mobhdr(1,1:100)
+    write(*,*) 'obsspacedata=   ',obsspacedata%mobhdr(1,1:100)
 
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop (21)
 
@@ -538,7 +566,7 @@ CONTAINS
        ! Computation of background term of cost function
        dl_Jb = dot_product(dl_v,dl_v)/2.d0
 
-       call gsv_allocate(statevector)
+       call gsv_allocate(statevector,ni,nj,nk,nlev,nt)
 
        call oda_sqrtB(da_v,na_dim,statevector)
 
@@ -576,15 +604,15 @@ CONTAINS
           call oda_qcvad
        endif
 
-       CALL TRANSFER('ZOB0')
+       CALL TRANSFER3DV('ZOB0')
        call oda_HT
      
        call tmg_stop(2)
 
-       CALL TRANSFER('ZGD0')
+       CALL TRANSFER3DV('ZGD0')
        call oda_LT(statevector)
 
-       CALL TRANSFER('ZSP0')
+       CALL TRANSFER3DV('ZSP0')
        da_gradJ = 0.d0
        call oda_sqrtBT(da_gradJ,na_dim,statevector)
        call gsv_deallocate(statevector)

@@ -1,50 +1,48 @@
 #if defined (DOC)
-C
-C     COMDECK: COMGEM
-C     ---------------
-*Revision   : C. Charette - ARMA/SMC - Sept 2004
-*                Conversion to hybrid vertical coordinate
-C
-C*    Definition of some parameters characterizing the geometry of
-C     the increment analysis grid.
-C     - Reduced Gaussian grid
-C     - Vertical levels
-C     - Parameters defining the hybrid vertical coordinate
-C     - Eigenvalues of the Laplacian
-C
-C     This common is initialized by the subroutine SUGEM
-C
-C     CVCORD             :  type of vertical coordinate
-C                           ('ETAGE', 'HYBM', 'MAMHYBM')
-C     NILON(NJ) :  number of points on the corresponding
-C     .                     latitude circle (maximum NI)
-C     RNNP1(NLA)         :  - N(N+1)
-C     R1SNP1(NLA)        :  - 1/N(N+1)
-C     VLEV(NFLEV)        :  Normalised vertical levels of the increment
-C     .                     analysis
-C     VHYBINC(NFLEV)     :  vertical hybrid levels of the increment analysis
-C                           grip
-C     NIP1(NFLEV)        :  IP1 std file values hybrid levels of
-C                           increment analysis grid
-C     NIP1_PAR_INC       :  Packing of IP1 for analysed increments(see convip)
-C     rptopinc           :  Average pressure at the top (Pascal)
-C     rprefinc           :  Pressure at reference level (Pascal)
-C     rcoefinc           :  Transition parameter or Coefficient
-C     ldyninc            :  Switch to read the hybrid coordinate levels
-C                           and parameters from the statistics file
-C     rhumin             :  Minimum value of specific humidity
-C     rlimlv_bdl         :  Mean top level of the boundary layer(PA)
-C     ---------------------
-C     CONPHY(NJ):  conversion of wind images into physical winds
-C     .                     (Units: 1/s to  knots)
-C     CONIMA(NJ):  conversion of physiqcal winds into wind images
-C     .                     (Units: knots to 1/s)
-C     nlev_bdl           :  Number of the analysis level nearest to the top
-C     .                     of the boundary layer
-C
+!
+!     COMDECK: COMGEM
+!     ---------------
+!Revision   : C. Charette - ARMA/SMC - Sept 2004
+!                Conversion to hybrid vertical coordinate
+!
+!*    Definition of some parameters characterizing the geometry of
+!     the increment analysis grid.
+!     - Reduced Gaussian grid
+!     - Vertical levels
+!     - Parameters defining the hybrid vertical coordinate
+!     - Eigenvalues of the Laplacian
+!
+!     This common is initialized by the subroutine SUGEM
+!
+!     CVCORD             :  type of vertical coordinate
+!                           ('ETAGE', 'HYBM', 'MAMHYBM')
+!     RNNP1(NLA)         :  - N(N+1)
+!     R1SNP1(NLA)        :  - 1/N(N+1)
+!     VLEV(NFLEV)        :  Normalised vertical levels of the increment
+!     .                     analysis
+!     VHYBINC(NFLEV)     :  vertical hybrid levels of the increment analysis
+!                           grip
+!     NIP1(NFLEV)        :  IP1 std file values hybrid levels of
+!                           increment analysis grid
+!     NIP1_PAR_INC       :  Packing of IP1 for analysed increments(see convip)
+!     rptopinc           :  Average pressure at the top (Pascal)
+!     rprefinc           :  Pressure at reference level (Pascal)
+!     rcoefinc           :  Transition parameter or Coefficient
+!     ldyninc            :  Switch to read the hybrid coordinate levels
+!                           and parameters from the statistics file
+!     rhumin             :  Minimum value of specific humidity
+!     rlimlv_bdl         :  Mean top level of the boundary layer(PA)
+!     ---------------------
+!     CONPHY(NJ):  conversion of wind images into physical winds
+!     .                     (Units: 1/s to  knots)
+!     CONIMA(NJ):  conversion of physiqcal winds into wind images
+!     .                     (Units: knots to 1/s)
+!     nlev_bdl           :  Number of the analysis level nearest to the top
+!     .                     of the boundary layer
+!
 #endif
       CHARACTER*8 CVCORD
-      INTEGER NILON(NJ),NIP1(JPNFLEV)
+      INTEGER NIP1(JPNFLEV)
       INTEGER nip1_pak_inc, nlev_bdl
       REAL*8  RNNP1(NLA), R1SNP1(NLA), VLEV(JPNFLEV)
       REAL*8  CONPHY(NJ), CONIMA(NJ)
@@ -52,7 +50,7 @@ C
       real*8  rhumin,rlimlv_bdl
       logical ldyninc
 
-      POINTER (PTILON,NILON), (PTNNP1,RNNP1), (PT1SNP1,R1SNP1)
+      POINTER (PTNNP1,RNNP1), (PT1SNP1,R1SNP1)
       POINTER (PTCONPHY,CONPHY),(PTCONIMA,CONIMA)
  
       COMMON /COMRGEM/VLEV,rptopinc,rcoefinc,rprefinc,vhybinc
@@ -60,4 +58,4 @@ C
       COMMON /COMCGEM/CVCORD
       COMMON /COMNGEM/NIP1,nip1_pak_inc,nlev_bdl
       COMMON /COMLGEM/ldyninc
-      COMMON /POMGEM/PTILON, PTNNP1, PT1SNP1,PTCONPHY, PTCONIMA
+      COMMON /POMGEM/PTNNP1, PT1SNP1,PTCONPHY, PTCONIMA

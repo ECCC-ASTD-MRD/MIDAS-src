@@ -417,11 +417,6 @@ C*    4. Arrays needed to define the geometry of the model (in COMGEM)
 C     .  ------------------------------------------------------------
 C
  400  CONTINUE
-      ILEN = NJ
-      CALL HPALLOC(PTILON,MAX(ILEN,1),IERR,1)
-C
-      WRITE(KULOUT,FMT='(/,"  Arrays in COMGEM are allocated",
-     S     " the following space:  NILON =",I4)')ILEN
 C
       ILEN = NLA
       CALL HPALLOC(PTNNP1, MAX(ILEN,1),IERR,8)

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine uvwi2uv
+      subroutine uvwi2uv(statevector)
 *
 #if defined (DOC)
 *
@@ -29,29 +29,34 @@
 *
 *     .         -------------------------------
 #endif
+      use gridStateVector
+      use modfgat
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comlun.cdk"
 #include "comdim.cdk"
 #include "comgem.cdk"
-#include "comgd0.cdk"
+
+      type(struct_gsv) :: statevector
 *
 * Local variables
 *
-      integer ji,jj,jk
-      INTEGER JLEV, JGL, JLON, IMAX
+      integer ji,jj,jk,jstep
+      INTEGER JLEV, JGL, JLON
       real*8 zmin,zmax
 *
-      DO JLEV = 1, NFLEV
-        DO JGL = 1, NJ
-          IMAX = NILON(JGL)
-          DO JLON = 1, IMAX
-            UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
-            VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
+      do jstep=1,nstepobsinc
+        DO JLEV = 1, NFLEV
+          DO JGL = 1, NJ
+            DO JLON = 1, NI
+              statevector%uu(JLON,JLEV,JGL,jstep) = CONPHY(JGL) * statevector%uu(JLON,JLEV,JGL,jstep)
+              statevector%vv(JLON,JLEV,JGL,jstep) = CONPHY(JGL) * statevector%vv(JLON,JLEV,JGL,jstep)
+!              UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
+!              VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
+            END DO
           END DO
         END DO
-      END DO
+      enddo
 *
       RETURN
       END SUBROUTINE uvwi2uv

@@ -12,5 +12,4 @@ module modfgat
   integer, pointer, dimension(:) :: nobsgidinc    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
   integer, pointer, dimension(:) :: nobsinc       ! (nstepobs) number of observation in stepobs bin
   integer, pointer, dimension(:,:) :: notaginc    ! (nobtot,nstepobs) obs tag associated to observations of each bin
-  real*8, pointer :: dobsinterp(:,:)  ! weights for linear temporal interpolation of increment to obs times
 end module modfgat

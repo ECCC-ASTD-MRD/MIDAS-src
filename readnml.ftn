@@ -40,8 +40,6 @@
 *                                            for file name I/O
 *     . J. Halle    *CMDA/AES  dec 2000
 *                   adapt to TOVS level 1b.
-*     . N. Wagneur  *CMDA/MSC June 2001
-*     .             Introduction of NAMGOES
 *     . M. Buehner  *ARMA/MSC  Aug 2002
 *                   Introduction of NAMSV
 *     . P. Koclas  *CMC/CMDA  Apr 2006
@@ -111,10 +109,6 @@ C
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "namtov.cdk"
-C
-#include "cparamgoes.cdk"
-#include "comgoes.cdk"
-#include "namgoes.cdk"
 C
 #include "comgpsro.cdk"
 #include "namgpsro.cdk"
@@ -309,16 +303,6 @@ C
 #else
          READ(NULNAM,NAMTOV)
          WRITE(NULOUT,NAMTOV)
-#endif
-C
-      ELSE IF(CDNAME.EQ.'NAMGOES')THEN
-C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGOES)
-         WRITE(NULOUT,NML=NAMGOES)
-#else
-         READ(NULNAM,NAMGOES)
-         WRITE(NULOUT,NAMGOES)
 #endif
 C
       ELSE IF(CDNAME.EQ.'NAMGPSRO')THEN

@@ -1,0 +1,865 @@
+subroutine sobs_all
+  use obsSpaceData_mod
+  use profileData_mod
+  use bufr
+  implicit none
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "comcst.cdk"
+#include "comfilt.cdk"
+#include "cvcord.cdk"
+#include "comgpsgb.cdk"
+
+  CALL SOBSSFC
+  CALL SOBSRAOB
+  CALL SOBSAISW
+  CALL SOBSPROF
+  CALL SOBSCSBT
+
+
+  CONTAINS
+
+      SUBROUTINE SOBSSFC
+!*
+!***s/r  SOBSSFC
+!*
+!*Author  : P. Koclas *CMC/AES  October  1998
+!*
+!**    Purpose:
+!*      Refuse elements which are too far away from the surface.
+!*      Replace the pressure of elements which are slightly below
+!*      the model surface by the pressure of the trial field.
+!*
+      INTEGER JPINEL,JPIDLND
+      PARAMETER(JPINEL=10,JPIDLND=10)
+      INTEGER J,JD,JF,JID,JOBS,JDATA,IOBS1,IOBS2,IBAD,IFLG
+      LOGICAL LLREJ, LLPRINT, LLOK
+      REAL*8 ZVAL,ZLEV,ZLEV2,ZDIFF,ZHHH,ZMODEL
+      INTEGER ITYP,IDATA,IDATEND,IDBURP,ITY
+      INTEGER ILEM,ICRIT,IBEGIN,ILAST
+      INTEGER ILISTEL(JPINEL),IDLND(JPIDLND)
+      INTEGER IKOUNTREA(JPINEL),IKOUNTREJ(JPINEL),IKOUNTT
+      REAL*8    RLISTCRIT(JPINEL)
+      DATA    RLISTCRIT/50.,50.,50.,50.,50.,800.,800.,800.,800.,1000. /
+!C                     SYNOP(3)     TEMP/PILOT(6)             GPS MET(1)
+      DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138, 189 /
+!C
+!C
+!C     RESET DZMAX FOR GB GPS ZTD TO VALUE IN NAMELIST FILE
+!C
+      RLISTCRIT(10) = DZMAX
+
+      ILISTEL(1)=BUFR_NEDS
+      ILISTEL(2)=BUFR_NEFS
+      ILISTEL(3)=BUFR_NEUS
+      ILISTEL(4)=BUFR_NEVS
+      ILISTEL(5)=BUFR_NESS
+      ILISTEL(6)=BUFR_NETS
+      ILISTEL(7)=BUFR_NEPS
+      ILISTEL(8)=BUFR_NEPN
+      ILISTEL(9)=BUFR_NEGZ
+      ILISTEL(10)=BUFR_NEZD
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) ' SUBROUTINE SOBSSFC '
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '*****************************************************'
+      WRITE(NULOUT,222)'ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(NULOUT,223)'REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
+      WRITE(NULOUT,* ) '*****************************************************'
+      WRITE(NULOUT,* ) ' '
+      LLPRINT = .FALSE.
+!ccc      LLPRINT = .TRUE.
+!C
+!C     SET COUNTERS TO ZERO
+!C
+      DO J=1,JPINEL
+         IKOUNTREJ(J)=0
+         IKOUNTREA(J)=0
+      END DO
+      IKOUNTT=0
+!C
+!C     LOOP OVER OBSERVATIONS
+!C
+      DO JF = 1,NFILES
+      IF ( (CFAMTYP(JF) .EQ. 'SF') .AND.( NBEGINTYP(JF) .GT. 0) .OR.  &
+           (CFAMTYP(JF) .EQ. 'UA') .AND.( NBEGINTYP(JF) .GT. 0) .OR.  &
+           (CFAMTYP(JF) .EQ. 'GP') .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
+         IBEGIN=NBEGINTYP(JF)
+         ILAST=NENDTYP(JF)
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+         WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ',CFAMTYP(JF)
+
+      DO JOBS=IOBS1,IOBS2
+         IF(LLPRINT) THEN
+!ccc            CALL PRNTHDR(JOBS,NULOUT)
+!ccc            CALL PRNTBDY(JOBS,NULOUT)
+         ENDIF
+         IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+         IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+         DO JDATA= IDATA, IDATEND
+            LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1
+            IF (LLOK) THEN
+            IKOUNTT=IKOUNTT+1
+            IFLG     = obs_elem_i(obsSpaceData,'FLG ',JDATA)
+            ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            ITY    = obs_elem_i(obsSpaceData,'ITY ',JOBS)
+            IDBURP = MOD(ITY,1000)
+            ZDIFF=99999.
+            IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
+               LLREJ = .FALSE.
+               DO JD=1,NFLAGS
+                  IBAD= 13-NLISTFLG(JD)
+                  LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
+               END DO
+               IF ( .NOT. LLREJ ) THEN
+                  ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                  ZDIFF= ABS( ( ZVAL-GOMGZHR(NLEVTRL,JOBS) )/RG )
+                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ENDIF
+            ELSE
+               ZHHH=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+               ZDIFF=  ABS( ZHHH- GOMGZHR(NLEVTRL,JOBS)/RG )
+               ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            ENDIF
+            ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+            ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            ZLEV2=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+!C
+!C        APPLY FILTER TO SELECTED ELEMENTS
+!C
+            DO J=1,JPINEL
+               ICRIT=RLISTCRIT(J)
+               ILEM=ILISTEL(J)
+               IF (ZLEV .EQ. ZLEV2 .AND. ITYP .EQ. ILEM ) THEN
+                 IF ( ZDIFF .LE. ICRIT) THEN
+                   IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                     IKOUNTREA(J)=IKOUNTREA(J)+1
+                     IF(LLPRINT) THEN
+                       ZMODEL = GOMGZHR(NLEVTRL,JOBS)/RG
+                       write(nulout,*)'Keep OBS:stnid,jobs,ityp,icrit,' &
+                            ,'zlev,zhhh,zmodel,zdiff ' &
+                            ,obs_elem_c9(obsSpaceData,'STID',JOBS),JOBS,ITYP,ICRIT &
+                            ,zlev,zhhh,zmodel,zdiff
+                     ENDIF
+                   ENDIF
+                 ELSE
+                   IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                     call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                          ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                     IF(LLPRINT) THEN
+                       WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP  &
+                            ,obs_elem_c9(obsSpaceData,'STID',JOBS),IDBURP  &
+                            ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
+                     ENDIF
+                     call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                     IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                   ENDIF
+                 ENDIF
+               ENDIF
+             END DO
+           ENDIF
+         END DO
+      END DO
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '*****************************************************'
+      WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'ACCEPTED  ',(IKOUNTREA(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,* ) '*****************************************************'
+      WRITE(NULOUT,* ) ' '
+  222 FORMAT(2x,a29,10(2x,i5))
+  223 FORMAT(2x,a29,10(2x,f5.0))
+  224 FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
+  225 FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,4(2x,f9.2))
+
+      ENDIF
+      END DO
+
+      IKOUNTT=0
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      END DO
+      WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
+      WRITE(NULOUT,* ) ' '
+
+      RETURN
+      END subroutine sobssfc
+
+
+      SUBROUTINE SOBSRAOB
+!*
+!***s/r  SOBSRAOB
+!*
+!*Author  : P. Koclas *CMC/AES  October  1998
+!*
+!**    Purpose:
+!*      Refuse elements which are too far away from the surface of the model
+!*      Refuse elements which are considered in the free atmosphere of
+!*      the RAOB but fall in the surface boundary layer of the model atmosphere.
+!*
+      INTEGER JPINEL,JPRANGE
+      PARAMETER(JPINEL=7,JPRANGE=10)
+      INTEGER IJ,J,JD,JF,JOBS,JDATA,IOBS1,IOBS2,IBAD,IFLG
+      LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
+      REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
+      REAL*8 ZLAT,ZLON,ZRADDEG,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
+      INTEGER ITYP,IDATA,IDATEND,IASS,ICOUNT
+      INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
+      INTEGER ILEM,IELGZ,IBEGIN,ILAST
+      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL),IFLGEL(JPINEL)
+      INTEGER ITOTACC(JPINEL),ITOTREJ(JPINEL),IKOUNTT
+      INTEGER ISFCACC(JPINEL),ISFCREJ(JPINEL),ISBLREJ(JPINEL)
+      INTEGER IGZACC(JPINEL),IGZREJ(JPINEL),IBNDREJ(JPINEL)
+      INTEGER INEARACC(JPINEL),IRANGE(JPRANGE)
+      REAL*8    ZLMINF(JPRANGE),ZLMSUP(JPRANGE),ZDIFGZ
+      REAL*8    RLISTCRIT(JPINEL),RSBLCRIT(JPINEL),JPMAX(JPINEL)
+      LOGICAL LLPRINT,LLOK
+      DATA    RLISTCRIT/50.,50.,50.,50.,50.,50.,800./
+      DATA    RSBLCRIT /5000.0,5000.0,5000.0,5000.0,5000.0,5000.0,5000.0 /
+      DATA    ZLMINF /-9999.,-300.,-200.,-100.,-50.,0.,50.,100.,200.,300./
+      DATA    ZLMSUP /-300.,-200.,-100.,-50.,0.,50.,100.,200.,300.,9999./
+      ILISTEL(1)=BUFR_NEDD
+      ILISTEL(2)=BUFR_NEFF
+      ILISTEL(3)=BUFR_NEUU
+      ILISTEL(4)=BUFR_NEVV
+      ILISTEL(5)=BUFR_NEES
+      ILISTEL(6)=BUFR_NETT
+      ILISTEL(7)=BUFR_NEGZ
+
+!ccc      LLPRINT = .TRUE.
+      LLPRINT = .FALSE.
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) ' SUBROUTINE SOBSRAOB '
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '************************************************'
+      WRITE(NULOUT,222)'%UA ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(NULOUT,223)'%UA REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
+      WRITE(NULOUT,223)'%UA REJECTION SBL (PASCAL) ',(RSBLCRIT(J),J=1,jpinel)
+      WRITE(NULOUT,* ) '************************************************'
+      WRITE(NULOUT,* ) ' '
+      IELGZ =  ILISTEL(JPINEL)
+      ZRADDEG = 180./RPI
+!C
+!C     SET COUNTERS TO ZERO
+!C
+      DO J=1,JPRANGE
+         IRANGE(J) = 0
+      ENDDO
+      DO J=1,JPINEL
+         ITOTREJ(J)=0
+         ITOTACC(J)=0
+         ISFCACC(J)=0
+         INEARACC(J)=0
+         ISFCREJ(J)=0
+         ISBLREJ(J)=0
+         IGZACC(J)=0
+         IGZREJ(J)=0
+         IBNDREJ(J)=0
+      END DO
+      IKOUNTT=0
+      ICOUNT   =0
+      ICOUNTAL =0
+      ICOUNTAH =0
+      ICOUNTBL =0
+      ICOUNTBH =0
+!C
+!C     LOOP OVER OBSERVATIONS
+!C
+      DO JF = 1,NFILES
+         IF ( (CFAMTYP(JF) .EQ. 'UA') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
+            IBEGIN=NBEGINTYP(JF)
+            ILAST=NENDTYP(JF)
+            IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+            IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+            WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ',CFAMTYP(JF)
+
+            DO JOBS=IOBS1,IOBS2
+               IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+               IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+               ZLAT=obs_elem_r4(obsSpaceData,'LAT ',JOBS)*ZRADDEG
+               ZLON=obs_elem_r4(obsSpaceData,'LON ',JOBS)*ZRADDEG
+               ZSTNALT=obs_elem_r4(obsSpaceData,'ALT ',JOBS)
+               ZDIFALT=  ZSTNALT- GOMGZHR(NLEVTRL,JOBS)/RG
+               DO J=1,JPINEL
+                  LLALTOK(J) = .FALSE.
+                  IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
+               ENDDO
+!C
+!C--------HEIGHT GZ
+               DO JDATA= IDATA, IDATEND
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  IASS=obs_elem_i(obsSpaceData,'ASS ',JDATA)
+                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2  &
+                         .AND. ITYP.EQ.ILISTEL(JPINEL) .AND. IASS.EQ.1
+                  IF (LLOK )  THEN
+                     IKOUNTT=IKOUNTT+1
+                  IFLG     = obs_elem_i(obsSpaceData,'FLG ',JDATA)
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  ZDIFF=99999.
+                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                  IASS=obs_elem_i(obsSpaceData,'ASS ',JDATA)
+                     ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                     ZDIFF= ( ZVAL-GOMGZHR(NLEVTRL,JOBS) )/RG
+                     ZCRIT= -RLISTCRIT(JPINEL)
+                     IF ( ZDIFF .LT. 0.0 ) THEN
+                        IF(ZDIFF .GE. ZCRIT) THEN
+                           ITOTACC(JPINEL)=ITOTACC(JPINEL)+1
+                           IGZACC(JPINEL)=IGZACC(JPINEL)+1
+                           IF(LLPRINT) THEN
+                              WRITE(NULOUT,*) 'Keep GZ BELOW MODEL SFC '  &
+                              ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                              ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF,ZCRIT
+                           ENDIF
+                        ELSE
+                           IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                              call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                                    ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                              IF(LLPRINT) THEN
+                                 WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '  &
+                                  ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                  ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF,ZCRIT
+                              ENDIF
+                              call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                              ITOTREJ(JPINEL)=ITOTREJ(JPINEL)+1
+                              IGZREJ(JPINEL)=IGZREJ(JPINEL)+1
+                           ENDIF
+                        ENDIF
+                     ENDIF
+                  ENDIF
+               ENDDO
+!C
+!C        REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
+!C        AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
+!C        BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
+!C        AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
+!C        ATMOSPHERE
+!C
+!C
+!C--------------Special case if station elevation is above model elevation
+!C              we want to define zpt at a level above the station.
+!C              To approximate that value, we will transform the difference
+!C              between the 2 elevations into a difference in pressure using
+!C              the rule of thumb (1Mb =8 metres)
+!C--------------Even though TT(element=12001) is not assimmilated
+!C              it is treated as if it were for the evaluation step.
+!C              Otherwise we use observations of TT that are too far
+!C              from the model topography in the verification.
+               DO JDATA= IDATA, IDATEND
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  IJ = -1
+                  DO J=1,JPINEL-1
+                     IF(ITYP.EQ.ILISTEL(J))IJ = J
+                  ENDDO
+                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2  &
+                        .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
+                  IF (LLOK )  THEN
+                     ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                     ZPB =GOMPSHR(1,JOBS)
+                     ZPT =GOMPSHR(1,JOBS)-RSBLCRIT(IJ)
+                     ZDELP = 999999.0
+                     IF (ZDIFALT .GT. 0.0) THEN
+                        ZDELP = ZDIFALT * 100. / 8.0
+                        ZPT   = GOMPSHR(1,JOBS)-(ZDELP+RSBLCRIT(IJ))
+                     ENDIF
+                     IF(LLALTOK(IJ)) THEN
+!C--------------------Model surface and station altitude are very close
+!C                    Accept observation if zlev is within the domain
+!C                    of the trial field
+                       ZPB = GOMPSHR(1,JOBS)
+                       ZPT = RPPOBSHR(NLEVTRL-1,JOBS)
+                       IF(LLPRINT) THEN
+                         WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. '  &
+                             ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                             ,GOMPSHR(1,JOBS),RPPOBSHR(NLEVTRL-1,JOBS),ZDIFALT
+                       ENDIF
+                     ENDIF
+                     IF(ZLEV .GT. ZPB ) THEN
+                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
+                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON  &
+                                ,ZLEV,GOMPSHR(1,JOBS)
+                        ENDIF
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        ITOTREJ(IJ)=ITOTREJ(IJ)+1
+                        IBNDREJ(IJ)=IBNDREJ(IJ)+1
+                     ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
+                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT ',ITYP,ZDIFALT
+                           WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '  &
+                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
+                        ENDIF
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        ITOTREJ(IJ)=ITOTREJ(IJ)+1
+                        ISBLREJ(IJ)=ISBLREJ(IJ)+1
+                     ENDIF
+                  ENDIF
+               END DO
+            END DO
+
+            WRITE(NULOUT,* ) ' '
+            WRITE(NULOUT,* ) '%UA***************************************'
+            WRITE(NULOUT,222 )'%UA ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%UA ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%UA ACC GZ EXT  ',(IGZACC(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%UA ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
+            WRITE(NULOUT,* ) '%UA***************************************'
+            WRITE(NULOUT,222)'%UA REJ GZ EXT  ',(IGZREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%UA REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%UA REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%UA REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,* ) '%UA***************************************'
+            WRITE(NULOUT,* ) ' '
+ 222        FORMAT(2x,a29,5(2x,i5))
+ 223        FORMAT(2x,a29,5(2x,f6.0))
+ 224        FORMAT(2x,a31,2x,I6,2X,I5,2(2x,f9.2))
+
+         ENDIF
+      END DO
+
+      IKOUNTT=0
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      END DO
+      WRITE(NULOUT,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
+      WRITE(NULOUT,* ) ' '
+
+      RETURN
+      END subroutine sobsraob
+
+
+      SUBROUTINE SOBSAISW
+!*
+!***s/r  SOBSAISW
+!*
+!*Author  : R. Sarrazin *CMC/AES  February 2000
+!*
+!**    Purpose:
+!*      Refuse elements which are too close to the surface.
+!*
+      INTEGER JPINEL
+      PARAMETER(JPINEL=4)
+      INTEGER J,JF,JOBS,JDATA,IOBS1,IOBS2
+      LOGICAL LLPRINT
+      REAL*8 ZVAL,ZDIFF
+      INTEGER ITYP,IDATA,IDATEND
+      INTEGER ILEM,IBEGIN,ILAST
+      INTEGER IKOUNTREJ(JPINEL),IKOUNTT
+      INTEGER ILISTEL(JPINEL)
+      DATA    ILISTEL/11003,11004,12001,12192/
+      REAL*8    RLISTCRIT
+      DATA    RLISTCRIT/-50./
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) ' SUBROUTINE SOBSAISW '
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '****************************************************'
+      WRITE(NULOUT,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
+      WRITE(NULOUT,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
+      WRITE(NULOUT,* ) '****************************************************'
+      WRITE(NULOUT,* ) ' '
+      LLPRINT = .FALSE.
+!C
+!C     SET COUNTERS TO ZERO
+!C
+      DO J=1,JPINEL
+         IKOUNTREJ(J)=0
+      END DO
+      IKOUNTT=0
+!C
+!C     LOOP OVER OBSERVATION FILES
+!C
+      DO JF = 1,NFILES
+        IF ( (CFAMTYP(JF) .EQ. 'AI' .OR. CFAMTYP(JF) .EQ. 'SW') .AND. &
+             (NBEGINTYP(JF) .GT. 0) ) THEN
+         IBEGIN=NBEGINTYP(JF)
+         ILAST=NENDTYP(JF)
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+         WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
+
+         DO JOBS=IOBS1,IOBS2
+
+            IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+            IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+!C
+!C        REJECT DATA TOO CLOSE TO THEDEL OROGRAPHY ,PUT TO
+!C        MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
+!C
+            DO JDATA= IDATA, IDATEND
+               IKOUNTT=IKOUNTT+1
+               ZVAL=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ZDIFF=  (ZVAL- GOMPSHR(1,JOBS) )/100.
+               IF ( ZDIFF .GT. RLISTCRIT ) THEN
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  DO J=1,JPINEL
+                     ILEM=ILISTEL(J)
+                     IF ( ITYP .EQ. ILEM ) THEN
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,224) 'Reject OBS ' &
+                             ,jobs,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+                        ENDIF
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                           ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                     ENDIF
+                  END DO
+               ENDIF
+            END DO
+
+      END DO
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) &
+           '*****************************************************************'
+      WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,* ) &
+           '*****************************************************************'
+      WRITE(NULOUT,* ) ' '
+  222 FORMAT(2x,a29,5(2x,i5))
+  223 FORMAT(2x,a29,5(2x,f5.0))
+  224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
+
+      ENDIF
+      END DO
+
+      IKOUNTT=0
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      END DO
+      WRITE(NULOUT  &
+           ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
+      WRITE(NULOUT,* ) ' '
+
+      RETURN
+      END subroutine sobsaisw
+
+
+      SUBROUTINE SOBSPROF
+!*
+!***s/r  SOBSPROF
+!*
+!*Author  : J. St-James October 2002
+!*          - Based on the subroutine sobsraob.  Adapt to
+!*            Profiler data
+!*
+!**    Purpose:
+!*      Refuse elements which are too far away from the surface of the model
+!*      Refuse elements which are considered in the free atmosphere of
+!*      the RAOB but fall in the surface boundary layer of the model atmosphere.
+!*
+      INTEGER JPINEL,JPRANGE
+      PARAMETER(JPINEL=7,JPRANGE=10)
+      INTEGER IJ,J,JD,JF,JOBS,JDATA,IOBS1,IOBS2,IBAD,IFLG
+      LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
+      REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
+      REAL*8 ZLAT,ZLON,ZRADDEG,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
+      INTEGER ITYP,IDATA,IDATEND,IASS,ICOUNT
+      INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
+      INTEGER ILEM,IELGZ,IBEGIN,ILAST
+      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL),IFLGEL(JPINEL)
+      INTEGER ITOTACC(JPINEL),ITOTREJ(JPINEL),IKOUNTT
+      INTEGER ISFCACC(JPINEL),ISFCREJ(JPINEL),ISBLREJ(JPINEL)
+      INTEGER IGZACC(JPINEL),IGZREJ(JPINEL),IBNDREJ(JPINEL)
+      INTEGER INEARACC(JPINEL),IRANGE(JPRANGE)
+      REAL*8    ZLMINF(JPRANGE),ZLMSUP(JPRANGE),ZDIFGZ
+      REAL*8    RLISTCRIT(JPINEL),RSBLCRIT(JPINEL),JPMAX(JPINEL)
+      LOGICAL LLPRINT,LLOK
+      DATA    RLISTCRIT/50.,50.,50.,50.,50.,50.,800./
+      DATA    RSBLCRIT /400.0,400.0,400.0,400.0,400.0,400.0,400.0 /
+      DATA    ZLMINF /-9999.,-300.,-200.,-100.,-50.,0.,50.,100.,200.,300./
+      DATA    ZLMSUP /-300.,-200.,-100.,-50.,0.,50.,100.,200.,300.,9999./
+      ILISTEL(1)=BUFR_NEDD
+      ILISTEL(2)=BUFR_NEFF
+      ILISTEL(3)=BUFR_NEUU
+      ILISTEL(4)=BUFR_NEVV
+      ILISTEL(5)=BUFR_NEES
+      ILISTEL(6)=BUFR_NETT
+      ILISTEL(7)=BUFR_NEGZ
+
+!C      LLPRINT = .TRUE.
+      LLPRINT = .FALSE.
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) ' SUBROUTINE SOBSPROF '
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '************************************************'
+      WRITE(NULOUT,222)'%PR ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(NULOUT,223)'%PR REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
+      WRITE(NULOUT,223)'%PR REJECTION SBL (METRE) ',(RSBLCRIT(J),J=1,jpinel)
+      WRITE(NULOUT,* ) '************************************************'
+      WRITE(NULOUT,* ) ' '
+      IELGZ =  ILISTEL(JPINEL)
+      ZRADDEG = 180./RPI
+!C
+!C     SET COUNTERS TO ZERO
+!C
+      DO J=1,JPRANGE
+         IRANGE(J) = 0
+      ENDDO
+      DO J=1,JPINEL
+         ITOTREJ(J)=0
+         ITOTACC(J)=0
+         ISFCACC(J)=0
+         INEARACC(J)=0
+         ISFCREJ(J)=0
+         ISBLREJ(J)=0
+         IGZACC(J)=0
+         IGZREJ(J)=0
+         IBNDREJ(J)=0
+      END DO
+      IKOUNTT=0
+      ICOUNT   =0
+      ICOUNTAL =0
+      ICOUNTAH =0
+      ICOUNTBL =0
+      ICOUNTBH =0
+!C
+!C     LOOP OVER OBSERVATIONS
+!C
+      DO JF = 1,NFILES
+         IF ( (CFAMTYP(JF) .EQ. 'PR') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
+            IBEGIN=NBEGINTYP(JF)
+            ILAST=NENDTYP(JF)
+            IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+            IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+            WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ',CFAMTYP(JF)
+
+            DO JOBS=IOBS1,IOBS2
+               IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+               IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+               ZLAT=obs_elem_r4(obsSpaceData,'LAT ',JOBS)*ZRADDEG
+               ZLON=obs_elem_r4(obsSpaceData,'LON ',JOBS)*ZRADDEG
+               ZSTNALT=obs_elem_r4(obsSpaceData,'ALT ',JOBS)
+               ZDIFALT=  ZSTNALT- GOMGZHR(NLEVTRL,JOBS)/RG
+               DO J=1,JPINEL
+                  LLALTOK(J) = .FALSE.
+                  IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
+               ENDDO
+!C
+!C        REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
+!C        AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
+!C        BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
+!C        AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
+!C        ATMOSPHERE
+!C
+!C
+!C--------------Special case if station elevation is above model elevation
+!C              we want to define zpt at a level above the station.
+!C              To approximate that value, we will transform the difference
+!C              between the 2 elevations into a difference in pressure using
+!C              the rule of thumb (1Mb =8 metres)
+!C--------------Even though TT(element=12001) is not assimmilated
+!C              it is treated as if it were for the evaluation step.
+!C              Otherwise we use observations of TT that are too far
+!C              from the model topography in the verification.
+
+               DO JDATA= IDATA, IDATEND
+                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  IJ = -1
+                  DO J=1,JPINEL-1
+                     IF(ITYP.EQ.ILISTEL(J))IJ = J
+                  ENDDO
+                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1  &
+                      .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
+                  IF (LLOK )  THEN
+                     ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                     ZPB =GOMGZHR(NLEVTRL,JOBS)/RG
+                     ZPT =GOMGZHR(NLEVTRL,JOBS)/RG + RSBLCRIT(IJ)
+                     IF (ZDIFALT .GT. 0.0) THEN
+                        ZPT=GOMGZHR(NLEVTRL,JOBS)/RG + (ZDIFALT+RSBLCRIT(IJ))
+                     ENDIF
+                     IF(LLALTOK(IJ)) THEN
+!C--------------------Model surface and station altitude are very close
+!C                    Accept observation if zlev is within the domain
+!C                    of the trial field
+                        ZPB = GOMGZHR(NLEVTRL,JOBS)/RG
+                        ZPT = GOMGZHR(NLEVTRL-1,JOBS)/RG
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. '  &
+                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                ,GOMGZHR(NLEVTRL,JOBS)/RG,  &
+                                GOMGZHR(NLEVTRL-1,JOBS)/RG,ZDIFALT
+                        ENDIF
+                     ENDIF
+                     IF(ZLEV .LT. ZPB ) THEN
+                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
+                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON  &
+                                ,ZLEV,GOMGZHR(NLEVTRL-1,JOBS)/RG,ZPT  &
+                                ,JDATA,ZPB,ZDIFALT
+                        ENDIF
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        ITOTREJ(IJ)=ITOTREJ(IJ)+1
+                        IBNDREJ(IJ)=IBNDREJ(IJ)+1
+                     ELSEIF(ZLEV.GE.ZPB .AND. ZLEV.LT.ZPT ) THEN
+                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
+                        IF(LLPRINT) THEN
+                           WRITE(NULOUT,*) '%PR REJ SBL ITYP,DALT ',ITYP,ZDIFALT
+                           WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '   &
+                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
+                        ENDIF
+                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        ITOTREJ(IJ)=ITOTREJ(IJ)+1
+                        ISBLREJ(IJ)=ISBLREJ(IJ)+1
+                     ENDIF
+                  ENDIF
+               END DO
+            END DO
+
+            WRITE(NULOUT,* ) ' '
+            WRITE(NULOUT,* ) '%PR***************************************'
+            WRITE(NULOUT,222 )'%PR ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%PR ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%PR ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
+            WRITE(NULOUT,* ) '%PR***************************************'
+            WRITE(NULOUT,222)'%PR REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%PR REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,222)'%PR REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
+            WRITE(NULOUT,* ) '%PR***************************************'
+            WRITE(NULOUT,* ) ' '
+ 222        FORMAT(2x,a29,5(2x,i5))
+ 223        FORMAT(2x,a29,5(2x,f6.0))
+ 224        FORMAT(2x,a31,2x,I6,2X,I5,2(2x,f9.2))
+
+         ENDIF
+      END DO
+
+      IKOUNTT=0
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      END DO
+      WRITE(NULOUT,'(1X,"%PR NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
+      WRITE(NULOUT,* ) ' '
+
+      RETURN
+      END subroutine sobsprof
+
+
+      SUBROUTINE SOBSCSBT
+!*
+!***s/r  SOBSCSBT
+!*
+!*Author  : R. Sarrazin *CMC/AES  June 2008
+!*
+!**    Purpose:
+!*      Refuse data which are too close to the surface.
+!*
+      INTEGER JPINEL
+      PARAMETER(JPINEL=1)
+      INTEGER J,JF,JOBS,JDATA,IOBS1,IOBS2
+      LOGICAL LLPRINT
+      REAL*8 ZVAL,ZDIFF
+      INTEGER ITYP,IDATA,IDATEND,IDATYP
+      INTEGER ILEM,IBEGIN,ILAST
+      INTEGER IKOUNTREJ(JPINEL),IKOUNTT
+      INTEGER ILISTEL(JPINEL)
+      DATA    ILISTEL/12163/
+      REAL*8  RLISTCRIT
+      DATA    RLISTCRIT/800./
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) ' SUBROUTINE SOBSCSBT '
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '****************************************************'
+      WRITE(NULOUT,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
+      WRITE(NULOUT,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
+      WRITE(NULOUT,* ) '****************************************************'
+      WRITE(NULOUT,* ) ' '
+      LLPRINT = .FALSE.
+!C
+!C     SET COUNTERS TO ZERO
+!C
+      DO J=1,JPINEL
+         IKOUNTREJ(J)=0
+      END DO
+      IKOUNTT=0
+!C
+!C     LOOP OVER OBSERVATION FILES
+!C
+      DO JF = 1,NFILES
+      IF ( (CFAMTYP(JF) .EQ. 'TO') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
+         IBEGIN=NBEGINTYP(JF)
+         ILAST=NENDTYP(JF)
+         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+         WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
+
+        DO JOBS=IOBS1,IOBS2
+
+          IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
+          IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+          IDATYP   = MOD(obs_elem_i(obsSpaceData,'ITY ',JOBS),1000)
+          IF (IDATYP .EQ. 185) THEN
+!C
+!C        REJECT DATA TOO CLOSE TO THE OROGRAPHY
+!C
+           DO JDATA= IDATA, IDATEND
+             IKOUNTT=IKOUNTT+1
+             ZDIFF= GOMPSHR(1,JOBS) /100.
+             IF ( ZDIFF .LT. RLISTCRIT ) THEN
+               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+               DO J=1,JPINEL
+                 ILEM=ILISTEL(J)
+                 IF ( ITYP .EQ. ILEM ) THEN
+                   IF(LLPRINT) THEN
+                      WRITE(NULOUT,224) 'Reject OBS ',JOBS,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+                   ENDIF
+                   call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                   IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                   call obs_set(obsSpaceData,JDATA,val_FLG=IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),18))
+                 ENDIF
+               END DO
+             ENDIF
+           END DO
+
+          END IF
+
+        END DO
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* )  &
+           '*****************************************************************'
+      WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,* )  &
+           '*****************************************************************'
+      WRITE(NULOUT,* ) ' '
+  222 FORMAT(2x,a29,5(2x,i5))
+  223 FORMAT(2x,a29,5(2x,f5.0))
+  224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
+
+      END IF
+      END DO
+
+      IKOUNTT=0
+      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+        IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      END DO
+      WRITE(NULOUT  &
+           ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
+      WRITE(NULOUT,* ) ' '
+
+      RETURN
+      END subroutine sobscsbt
+
+end subroutine sobs_all

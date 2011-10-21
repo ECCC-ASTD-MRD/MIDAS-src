@@ -94,10 +94,6 @@
       allocate(dlatfld(nobtot,nstepobs))
       allocate(dlonfld(nobtot,nstepobs))
 
-      allocate(dobsinterp(nobtot,nstepobsinc))
-
-      dobsinterp(:,:)=0.0d0
- 
       call getstamplist(NSTAMPLIST   ,nstepobs   ,nbrpstamp,dstepobs)
       call getstamplist(NSTAMPLISTINC,nstepobsinc,nbrpstamp,dstepobsinc)
 !
@@ -137,7 +133,7 @@ C
           stepinc1 : do jstep = nlwrbin,nuprbin
             if (nstamplistinc(jstep) == istepstamp) then
               nobsinc(jstep) = nobsinc(jstep) + 1
-              dobsinterp(jobs,jstep)=1.0d0
+              call obs_setTimeInterpWeight(obsSpaceData,1.0d0,jobs,jstep)
               lltimein = .true.
               exit stepinc1
             endif
@@ -146,12 +142,14 @@ C
           stepinc : do jstep = nlwrbin,nuprbin
             istepobs=floor(deltastepobs)+((nstepobsinc+1)/2)
             if (istepobs == jstep) then
-              dobsinterp(jobs,jstep)=1.0d0-(deltastepobs-floor(deltastepobs))
+              call obs_setTimeInterpWeight(obsSpaceData,
+     &           1.0d0-(deltastepobs-floor(deltastepobs)),jobs,jstep)
             elseif((istepobs+1)==jstep) then
-              dobsinterp(jobs,jstep)=deltastepobs-floor(deltastepobs)
-              if(dobsinterp(jobs,jstep)>=0.5) then
+              call obs_setTimeInterpWeight(obsSpaceData,
+     &           deltastepobs-floor(deltastepobs),jobs,jstep)
+              if(obs_getTimeInterpWeight(obsSpaceData,jobs,jstep)>=0.5) then
                 nobsinc(jstep) = nobsinc(jstep) + 1
-              elseif(dobsinterp(jobs,jstep-1)>0.5) then
+              elseif(obs_getTimeInterpWeight(obsSpaceData,jobs,jstep-1)>0.5) then
                 nobsinc(jstep-1) = nobsinc(jstep-1) + 1
               endif
               lltimein = .true.
@@ -161,7 +159,8 @@ C
         endif
 
         if (.not. lltimein) then
-          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
+          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=
+     &      ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
 
 ! Put put the wrong data in the central bin
           jstep = (nstepobsinc + 1) / 2
@@ -175,7 +174,8 @@ C
           do jdata = idata, idatend
             call obs_set(obsSpaceData,JDATA,val_ASS= 0)
           enddo
-          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
+          call obs_set(obsSpaceData,jobs,val_ST1= 
+     &      ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 
@@ -205,7 +205,7 @@ C
      &       itimeout
         write(nulout,*) '  FAMILY       No. of reports'
         do jstep = 1,nfiles
-          write(nulout,'(4x,a2,11x,i5)') CFAMTYP(jstep),ntimeout(jstep)
+          write(nulout,'(4x,a2,11x,i10)') CFAMTYP(jstep),ntimeout(jstep)
         enddo
       endif
 c
@@ -218,7 +218,7 @@ c
         endif
 
         ierr = newdate(nstamplistinc(jstep),idate,itime,-3)
-        write(nulout,'(6x,i2,5x,i10,2x,i4.4,5x,i5)') jstep,idate,itime
+        write(nulout,'(6x,i3,5x,i10,2x,i4.4,5x,i10)') jstep,idate,itime
      &       /10000,iobs
       enddo
 C
@@ -276,7 +276,8 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
           do jdata = idata, idatend
             call obs_set(obsSpaceData,JDATA,val_ASS= 0)
           enddo
-          call obs_set(obsSpaceData,jobs,val_ST1= ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
+          call obs_set(obsSpaceData,jobs,val_ST1= 
+     &      ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 
@@ -306,7 +307,7 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
      &       itimeout
         write(nulout,*) '  FAMILY       No. of reports'
         do jstep = 1,nfiles
-          write(nulout,'(4x,a2,11x,i5)') CFAMTYP(jstep),ntimeout(jstep)
+          write(nulout,'(4x,a2,11x,i10)') CFAMTYP(jstep),ntimeout(jstep)
         enddo
       endif
 
@@ -327,7 +328,7 @@ c
         endif
 
         ierr = newdate(nstamplist(jstep),idate,itime,-3)
-        write(nulout,'(6x,i2,5x,i10,2x,i4.4,5x,i5)') jstep,idate,itime
+        write(nulout,'(6x,i3,5x,i10,2x,i4.4,5x,i10)') jstep,idate,itime
      &       /10000,iobs
         if (nobs(jstep) .gt. 0) then
           nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,

@@ -22,7 +22,7 @@ module modmask
   ! ldiag            : global mask of diagnostic data
   !
   logical, pointer, dimension(:) :: lmaskpp_in,lmaskpp_out,lmasksf_in
-  logical, pointer, dimension(:) :: lmasksf_out,lmask,lmaskto,lmaskgo
+  logical, pointer, dimension(:) :: lmasksf_out,lmask,lmaskto
   logical, pointer, dimension(:) :: lmaskro,lmaskzp,ldiagpp,ldiagsf,ldiag
   logical, pointer, dimension(:) :: lmaskgp
 
@@ -30,7 +30,6 @@ module modmask
   logical, pointer,dimension(:) :: lmaskpp_inout_g 
   logical, pointer,dimension(:) :: lmasksf_inout_g 
   logical, pointer,dimension(:) :: lmaskto_g
-  logical, pointer,dimension(:) :: lmaskgo_g
   logical, pointer,dimension(:) :: lmaskro_g
   logical, pointer,dimension(:) :: lmaskzp_g
   logical, pointer,dimension(:) :: lmaskgp_g

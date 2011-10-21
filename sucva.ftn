@@ -118,6 +118,7 @@
      +                            obs_getobstag
       use controlVector
       use minimization
+      use modfgat
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -139,7 +140,7 @@
       integer :: fnom
 C
       EXTERNAL CMAPR, SETERR, SUSCAL, SUIMP, SUFG, SUCOV, SUCOVO,
-     S     SUPREP, TESTSP, TRANSFER, SPGD, SUOBS, POSTPROC, FNOM
+     S     SUPREP, TESTSP, TRANSFER3DV, SPGD, SUOBS, POSTPROC, FNOM
 C
 C     *    1.  Define the parameters for the minimization experiment
 C     .   -----------------------------------------------------
@@ -239,16 +240,7 @@ c      endif
       WRITE(KULOUT,*)  '=================================================='
       WRITE(KULOUT,*)  ' '
 *
-      CALL TRANSFER('ZSPG')
-C
-C     *    .  2.2 Initialize the first-guess error covariance
-C     .      -------------------------------------------
-C
- 220  CONTINUE
-C
-      CALL SUCOV
-
-      call min_setup(cvm_nvadim)
+      CALL TRANSFER3DV('ZSPG')
 C
 C     *    .  2.21 Initialize the observation error covariance
 C     .      -------------------------------------------
@@ -281,7 +273,6 @@ C
  300  CONTINUE
 C
       CALL READNML('NAMTOV',IERR)
-      CALL READNML('NAMGOES',IERR)
       CALL SUOBS(KULOUT)
 C
 C*    Determine if this is a one channel assimilation
@@ -293,11 +284,6 @@ C*    Initialize TOVS processing
 C     --------------------------
 C
       CALL TOVS_SETUP(KULOUT)
-C
-C*    Initialize GOES RADIANCES processing
-C     --------------------------
-C*
-      CALL SUGOES(KULOUT)
 C
 C*    Initialize GB-GPS processing (read NAMGPSGB in namelist file)
 C     --------------------------
@@ -330,15 +316,22 @@ C       -------------------------------------
 C
         CALL TOVS_SETUPALLO(KULOUT)
 C
-C*      Memory allocation for GOES RADIANCES processing
-C       -------------------------------------
-C
-        CALL SUGOESALO(KULOUT)
-C
 C       SET OBSERVATION ERRORS TO CMA FILE
 C       ----------------------------------
 
         CALL SETERR
+C
+C     *    .  2.2 Initialize the first-guess error covariance
+C     .      -------------------------------------------
+C
+ 220  CONTINUE
+C
+      CALL SUCOV
+!
+!     Set up the minimization module, now that the required parameters are known
+!
+      call min_setup(cvm_nvadim,ni,nj,nkgdim,nflev,nstepobsinc)
+
 !
 !     SET FAST WIND ROTATION OBS COEFFICIENTS
 !     ---------------------------------------
