@@ -123,8 +123,8 @@ C     ---------------------------------
 C
         Observations: DO JOBS = 1, NOBTOTP
           if(dobsinterp(jobs,jstep).gt.0.0d0) then
-            DLLAO   = obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS)
-            DLLOO   = obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS)
+            DLLAO = real(obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS), 8)
+            DLLOO = real(obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS), 8)
 C
 C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY

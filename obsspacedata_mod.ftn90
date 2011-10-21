@@ -138,6 +138,8 @@ MODULE obsSpaceData_mod
     integer, intent(in) :: mxstn        ! maximum number of stations allocated
     integer, intent(in) :: mxobs        ! maximum no. of observations per source
 
+    obsdat%mxstntotal=mxstn
+    obsdat%mxobstotal=mxobs
     obsdat%numstns_recorded = 0
     obsdat%numobs_recorded  = 0
     obsdat%mpi_local = .false.
@@ -167,9 +169,6 @@ MODULE obsSpaceData_mod
     integer         , intent(in)  :: mxstn,mxobs
 
     integer :: ierr
-
-    obsdat%mxstntotal=mxstn
-    obsdat%mxobstotal=mxobs
 
     ALLOCATE(obsdat%cfamily(mxstn),STAT=ierr)
     obsdat%cfamily(:)='XX'
@@ -1530,8 +1529,8 @@ MODULE obsSpaceData_mod
   ii=0
   DO i=1,nobtot
     iobs=locObsTag(i)
-    idata= obsdat%mobhdr(NCM_RLN, iobs)
-    idataend = obsdat%mobhdr(NCM_NLV, iobs) + idata -1
+    idata= obsdat%mobhdr_g(NCM_RLN, iobs)
+    idataend = obsdat%mobhdr_g(NCM_NLV, iobs) + idata -1
     DO j=idata,idataend
        ii=ii+1
        MOBDATA_tmp(1:NCM_LBO,j)=obsdat%MOBDATA(1:NCM_LBO,ii)
