@@ -321,13 +321,13 @@
                       ILEV = NINT(ZLEV)
                       IF (ZPOST .GT. ZCUT) THEN
                         LLELREJ = .TRUE.
-                        call obs_set(obsSpaceData,JDATA,val_FLG=
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,
      1                  IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),9))
-                        call obs_set(obsSpaceData,IOTHER,val_FLG=
+                        call obs_set_i(obsSpaceData,'FLG ',IOTHER,
      1                  IBSET(obs_elem_i(obsSpaceData,'FLG ',IOTHER),9))
-                        call obs_set(obsSpaceData,JDATA,val_FLG=
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,
      1                  IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),17))
-                        call obs_set(obsSpaceData,IOTHER,val_FLG=
+                        call obs_set_i(obsSpaceData,'FLG ',IOTHER,
      1                  IBSET(obs_elem_i(obsSpaceData,'FLG ',IOTHER),17))
                         IF (ITYP .EQ. BUFR_NEUU .OR.
      1                      ITYP .EQ. BUFR_NEVV) THEN
@@ -423,9 +423,9 @@
                         ZANA  = ZANA * 1000.
                       ENDIF
 *
-                      call obs_set(obsSpaceData,JDATA,val_FLG=
+                      call obs_set_i(obsSpaceData,'FLG ',JDATA,
      1                IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),9))
-                      call obs_set(obsSpaceData,JDATA,val_FLG=
+                      call obs_set_i(obsSpaceData,'FLG ',JDATA,
      1                IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),17))
                       WRITE(NULOUT,630) obs_elem_c9(obsSpaceData,'STID',JREP),IDBURP,
      1                 CLOBTP(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
@@ -440,7 +440,7 @@
 *_________NOW SET THE GLOBAL FLAGS IN THE BURP RECORD HEADER
 *
               IF (LLELREJ) THEN
-                call obs_set(obsSpaceData,JREP,val_ST1= IBSET( obs_elem_i(obsSpaceData,'ST1 ',JREP), 06))
+                call obs_set_i(obsSpaceData,'ST1 ',JREP, IBSET( obs_elem_i(obsSpaceData,'ST1 ',JREP), 06))
               ENDIF
  10         CONTINUE
           ENDIF

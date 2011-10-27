@@ -182,13 +182,13 @@ C
 *
 *_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(1. -
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(1. -
      1               (1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM)))*(2.*real(RPI))/
      2              ((1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM))*
      3                                (2.*ZDUV)*(2.*ZDUV)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
-     2             call obs_set(obsSpaceData,JDATA,val_POB=
+     2             call obs_set_r4(obsSpaceData,'POB ',JDATA,
      +                    (1. - (1.-ZAUVRA)*(1.-ZAUVRA))
      3                    *(2.*real(RPI))/((1.-ZAUVRA)*(1.-ZAUVRA)*
      4                                (2.*ZDUV)*(2.*ZDUV)))
@@ -196,42 +196,42 @@ C
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZAGZ*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZAGZ*
      1                SQRT(2.*real(RPI)))/((1.-ZAGZ)*(2.*ZDGZ)))
                ELSEIF (ITYP .EQ. BUFR_NETT) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZATT*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZATT*
      1                SQRT(2.*real(RPI)))/((1.-ZATT)*(2.*ZDTT)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
-     2              call obs_set(obsSpaceData,JDATA,val_POB=(ZATTRA*
+     2              call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZATTRA*
      3                SQRT(2.*real(RPI)))/((1.-ZATTRA)*(2.*ZDTT)))
                ELSEIF (ITYP .EQ. BUFR_NETS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZATT*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZATT*
      1                SQRT(2.*real(RPI)))/((1.-ZATT)*(2.*ZDTT)))
 *
 *                 ASYMMETRIC TEST FOR SHIP TEMPERATURES
 *
                   IF ((IDBURP .EQ. 13) .AND. (ZVAL .GT. ZFCST)) THEN
-                    call obs_set(obsSpaceData,JDATA,val_POB=(ZATTSYM*
+                    call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZATTSYM*
      1                  SQRT(2.*real(RPI)))/((1.-ZATTSYM)*(2.*ZDTT)))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEPN) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZAPN*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZAPN*
      1                SQRT(2.*real(RPI)))/((1.-ZAPN)*(2.*ZDPN)))
                ELSEIF (ITYP .EQ. BUFR_NEPS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZAPS*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZAPS*
      1                SQRT(2.*real(RPI)))/((1.-ZAPS)*(2.*ZDPS)))
                ELSEIF ( ITYP .EQ. 12062 .OR. ITYP .EQ. 12063 .OR.
      1                  ITYP .EQ. 12163) THEN
@@ -239,27 +239,27 @@ C
 *                 INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
 *                 TOVS AMSU-A
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZABT*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZABT*
      1                SQRT(2.*real(RPI)))/((1.-ZABT)*(2.*ZDBT)))
                   IF (IDBURP .EQ. 181 .OR.
      1                IDBURP .EQ. 182      ) THEN
 *
 *                   INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
 *
-                    call obs_set(obsSpaceData,JDATA,val_POB=(ZABTB*
+                    call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZABTB*
      1                  SQRT(2.*real(RPI)))/((1.-ZABTB)*(2.*ZDBTB)))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEZD) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZAZD*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZAZD*
      1                SQRT(2.*real(RPI)))/((1.-ZAZD)*(2.*ZDZD)))
                ELSE
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
 *
-                  call obs_set(obsSpaceData,JDATA,val_POB=(ZAHU*
+                  call obs_set_r4(obsSpaceData,'POB ',JDATA,(ZAHU*
      1                SQRT(2.*real(RPI)))/((1.-ZAHU)*(2.*ZDHU)))
                ENDIF
             ENDIF

@@ -192,7 +192,7 @@ C
 C     *                    Normalized increment
 C
                            ZINC = (ZHX - ZOBS) / ZOER
-                           call obs_set(obsSpaceData,JDATA,val_OMA8= ZINC)
+                           call obs_set_r8(obsSpaceData,'OMA ',JDATA, ZINC)
 C
 C     *                    Contribution to the cost function
 C

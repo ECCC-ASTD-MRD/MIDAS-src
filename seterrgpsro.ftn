@@ -247,7 +247,7 @@ C
 C
 C     *                    Observation error    S
 C
-                           call obs_set(obsSpaceData,JDATA,val_OER8= ZERR(NH1) * ZMHX)
+                           call obs_set_r8(obsSpaceData,'OER ',JDATA, ZERR(NH1) * ZMHX)
                         ENDIF
                      ENDDO
                      DEALLOCATE( RSTV )

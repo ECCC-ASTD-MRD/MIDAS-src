@@ -172,9 +172,9 @@ C
           idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
           idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
           do jdata = idata, idatend
-            call obs_set(obsSpaceData,JDATA,val_ASS= 0)
+            call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
           enddo
-          call obs_set(obsSpaceData,jobs,val_ST1= 
+          call obs_set_i(obsSpaceData,'ST1 ',jobs, 
      &      ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
@@ -274,9 +274,9 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
           idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
           idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
           do jdata = idata, idatend
-            call obs_set(obsSpaceData,JDATA,val_ASS= 0)
+            call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
           enddo
-          call obs_set(obsSpaceData,jobs,val_ST1= 
+          call obs_set_i(obsSpaceData,'ST1 ',jobs, 
      &      ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step

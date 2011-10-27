@@ -87,7 +87,8 @@
                ZWT  = 1. - ZWB
                zoma = (ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
-               call obs_set(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
+               call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
+               call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
 !
 ! Process all upper air data data below model's orography
 !
@@ -103,7 +104,8 @@
                   zoma = ( RMTMOBS(iobs) + ZTVG/zgamma
      &                     *(1.-(zlev/gompshr(1,iobs))**zexp) - zvar )/zoer
                   PJO =PJO+zoma*zoma
-                  call obs_set(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
+                  call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
+                  call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
                ELSE
 !
 ! Forward model for UU,VV,TT,ES below model's orography Extrapolation of order 
@@ -115,7 +117,8 @@
      +                IVNM .EQ. BUFR_NEES) THEN
                     zoma = (GOMOBSHR(IPB,IOBS)-ZVAR)/ZOER
                     PJO =PJO+zoma*zoma
-                    call obs_set(obsSpaceData,jdata,val_OMA8=zoma,val_OMI8=zoma)
+                    call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
+                    call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
                   ELSE
                     LLNOXTR   = .TRUE.
                     ZTORAD    = 1.D0/(RPI/180.D0)

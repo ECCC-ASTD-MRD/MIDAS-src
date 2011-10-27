@@ -88,7 +88,7 @@ C
 c           DO JDATA=IBEGIN,ILAST
 c              IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. IFF .OR. obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. IDD) THEN
 c                 obs_elem_r4(obsSpaceData,elem_s,JDATA)=PPMIS
-c                 call obs_set(obsSpaceData,JDATA,val_FLG=-1)
+c                 call obs_set_i(obsSpaceData,'FLG ',JDATA,-1)
 c              ENDIF
 c           END DO
             DO JDATA=IBEGIN,ILAST
@@ -148,17 +148,17 @@ C
                         obsSpaceData%ROBDATA(KVAL,JJOBS)=-1.0*
      &                              obs_elem_r4(obsSpaceData,elem_s,JJOBS)
      &                              *real(PI)/180.0
-                        call obs_set(obsSpaceData,JJOBS,val_OER=1.0)
-                        call obs_set(obsSpaceData,JJOBS,val_ASS= 1)
-                        call obs_set(obsSpaceData,JJOBS,val_FLG= 0)
+                        call obs_set_r4(obsSpaceData,'OER ',JJOBS,1.0)
+                        call obs_set_i(obsSpaceData,'ASS ',JJOBS, 1)
+                        call obs_set_i(obsSpaceData,'FLG ',JJOBS, 0)
                      ENDIF
                      IF ((obs_elem_i(obsSpaceData,'VNM ',JJOBS).EQ.IFF)
      &               .AND. obs_elem_r4(obsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
                         obsSpaceData%ROBDATA(KVAL,JJOBS)=MODUL -
      &                            obs_elem_r4(obsSpaceData,'VAR ',JJOBS)
-                        call obs_set(obsSpaceData,JJOBS,val_OER=1.0)
-                        call obs_set(obsSpaceData,JJOBS,val_ASS= 1)
-                        call obs_set(obsSpaceData,JJOBS,val_FLG= 0)
+                        call obs_set_r4(obsSpaceData,'OER ',JJOBS,1.0)
+                        call obs_set_i(obsSpaceData,'ASS ',JJOBS, 1)
+                        call obs_set_i(obsSpaceData,'FLG ',JJOBS, 0)
                      ENDIF
                   END DO
                ENDIF

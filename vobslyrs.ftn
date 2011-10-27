@@ -118,11 +118,11 @@ cjmb     conversion (MRBCVT)  of observed pressure.
                  ZPB= RPPOBS(NFLEV,IOBS)+ 0.01D0
                ENDIF
                IF ( ZLEV .LT. ZPT ) THEN
-                  call obs_set(obsSpaceData,JDATA,val_XTR=1)
+                  call obs_set_i(obsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .GT. ZPB ) THEN
-                  call obs_set(obsSpaceData,JDATA,val_XTR=2)
+                  call obs_set_i(obsSpaceData,'XTR ',JDATA,2)
                ELSE
-                  call obs_set(obsSpaceData,JDATA,val_XTR=0)
+                  call obs_set_i(obsSpaceData,'XTR ',JDATA,0)
                ENDIF
 ****************************************************************
                if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
@@ -157,11 +157,11 @@ C
                  ZPB= GOMGZG(NFLEV,IOBS)/RG
                ENDIF
                IF ( ZLEV .GT. ZPT ) THEN
-                  call obs_set(obsSpaceData,JDATA,val_XTR=1)
+                  call obs_set_i(obsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .LT. ZPB ) THEN
-                  call obs_set(obsSpaceData,JDATA,val_XTR=2)
+                  call obs_set_i(obsSpaceData,'XTR ',JDATA,2)
                ELSE
-                  call obs_set(obsSpaceData,JDATA,val_XTR=0)
+                  call obs_set_i(obsSpaceData,'XTR ',JDATA,0)
                ENDIF
 ****************************************************************
                if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
@@ -185,7 +185,7 @@ C
 C     2.1  PPP Vertical coordinate
 C
          DO JDATA=1,obs_num_obstotal(obsSpaceData)
-            call obs_set(obsSpaceData,JDATA,val_LYR=0)
+            call obs_set_i(obsSpaceData,'LYR ',JDATA,0)
          END DO
 C
          DO JDATA= 1,obs_num_obstotal(obsSpaceData)
@@ -212,7 +212,7 @@ C
                  ZPT  = RPPOBS(IK,IOBS)
                  zpb=RPPOBS(IK+1,IOBS)
                ENDIF
-               call obs_set(obsSpaceData,JDATA,val_LYR= IK)
+               call obs_set_i(obsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
                if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
@@ -261,7 +261,7 @@ C
                    IK=NFLEV-1
                  ENDIF
                ENDIF
-               call obs_set(obsSpaceData,JDATA,val_LYR= IK)
+               call obs_set_i(obsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
                    if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
                      ZPB  = GOMGZHR(IK+1,IOBS)/RG
@@ -299,7 +299,7 @@ C
                             IF( ZLEV .GT. ZPT ) IK = JK
                           END DO
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_LYR= obs_elem_i(obsSpaceData,'LYR ',JDATA)
+                        call obs_set_i(obsSpaceData,'LYR ',JDATA, obs_elem_i(obsSpaceData,'LYR ',JDATA)
      &                       + 1000 * IK)
                      ENDIF
 ****************************************************************

@@ -40,8 +40,8 @@ C
 c-------Fill ROBDATA with Z' = -( H(xb_hr) - Z ) = Z - H(xb_hr)
 c
       DO JDATA=1,obs_num_obstotal(obsSpaceData)
-        call obs_set(obsSpaceData,jdata,val_OMN8= 0.d0)
-        call obs_set(obsSpaceData,JDATA,val_OMF8= 
+        call obs_set_r8(obsSpaceData,'OMN ',jdata, 0.d0)
+        call obs_set_r8(obsSpaceData,'OMF ',JDATA, 
      &                          -obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      &                          *obs_elem_r8(obsSpaceData,'OER ',JDATA))
       ENDDO

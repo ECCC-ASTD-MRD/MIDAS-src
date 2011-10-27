@@ -42,14 +42,14 @@
 *-----------------------------------------------------------------
 
       do JDATA=1,obs_num_obstotal(obsSpaceData)
-        call obs_set(obsSpaceData,JDATA,val_OMA = real(obs_elem_r8(obsSpaceData,'OMA ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_OMI = real(obs_elem_r8(obsSpaceData,'OMI ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_OMN = real(obs_elem_r8(obsSpaceData,'OMN ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_OMF = real(obs_elem_r8(obsSpaceData,'OMF ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_VAR = real(obs_elem_r8(obsSpaceData,'VAR ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_OER = real(obs_elem_r8(obsSpaceData,'OER ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_PPP = real(obs_elem_r8(obsSpaceData,'PPP ',JDATA)))
-        call obs_set(obsSpaceData,JDATA,val_PRL = real(obs_elem_r8(obsSpaceData,'PRL ',JDATA)))
+        call obs_set_r4(obsSpaceData,'OMA ',JDATA, real(obs_elem_r8(obsSpaceData,'OMA ',JDATA)))
+        call obs_set_r4(obsSpaceData,'OMI ',JDATA, real(obs_elem_r8(obsSpaceData,'OMI ',JDATA)))
+        call obs_set_r4(obsSpaceData,'OMN ',JDATA, real(obs_elem_r8(obsSpaceData,'OMN ',JDATA)))
+        call obs_set_r4(obsSpaceData,'OMF ',JDATA, real(obs_elem_r8(obsSpaceData,'OMF ',JDATA)))
+        call obs_set_r4(obsSpaceData,'VAR ',JDATA, real(obs_elem_r8(obsSpaceData,'VAR ',JDATA)))
+        call obs_set_r4(obsSpaceData,'OER ',JDATA, real(obs_elem_r8(obsSpaceData,'OER ',JDATA)))
+        call obs_set_r4(obsSpaceData,'PPP ',JDATA, real(obs_elem_r8(obsSpaceData,'PPP ',JDATA)))
+        call obs_set_r4(obsSpaceData,'PRL ',JDATA, real(obs_elem_r8(obsSpaceData,'PRL ',JDATA)))
       enddo
 
       RETURN

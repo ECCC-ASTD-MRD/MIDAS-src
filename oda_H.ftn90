@@ -118,7 +118,7 @@ subroutine oda_H
               -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
               /LOG(ZPB/ZPT)**2
 
-          call obs_set(obsSpaceData,JDATA,val_OMA8=   &
+          call obs_set_r8(obsSpaceData,'OMA ',JDATA,   &
                ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+  &
                (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS))*  &
                ZDADPS*GOMPS(1,IOBS))
@@ -133,7 +133,7 @@ subroutine oda_H
                + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON =(ZLEV/GOMPSG(1,IOBS))**ZEXP
-          call obs_set(obsSpaceData,jdata,val_OMA8= (1.-zcon)/zgamma*ZLTV &
+          call obs_set_r8(obsSpaceData,'OMA ',jdata, (1.-zcon)/zgamma*ZLTV &
               + RGASD*ZTVG*zcon*gomps(1,iobs) &
               /gompsg(1,iobs))
         endif
@@ -182,7 +182,7 @@ subroutine oda_H
 
           IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
-            call obs_set(obsSpaceData,JDATA,val_OMA8=GOMOBS(IPB,IOBS))
+            call obs_set_r8(obsSpaceData,'OMA ',JDATA,GOMOBS(IPB,IOBS))
           ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
             ZLTV  = OLTV(1,NFLEV,IOBS)*GOMT(NFLEV,IOBS)  &
                  + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
@@ -192,7 +192,7 @@ subroutine oda_H
             ZDELPS= (GOMPS(1,IOBS)*ZCON**ZEXP)
             ZDELTV= ((GOMPSG(1,IOBS)*ZEXP*ZCON**(ZEXP-1))  &
                  *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
-            call obs_set(obsSpaceData,JDATA,val_OMA8= ZDELPS+ZDELTV)
+            call obs_set_r8(obsSpaceData,'OMA ',JDATA, ZDELPS+ZDELTV)
           ELSE
             IPT  = IK + IPOS*NFLEV
             IPB  = IPT+1
@@ -200,7 +200,7 @@ subroutine oda_H
             ZPB  = GOMGZG(IK+1,IOBS)
             ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
             ZWT  = 1. - ZWB
-            call obs_set(obsSpaceData,JDATA,val_OMA8=  &
+            call obs_set_r8(obsSpaceData,'OMA ',JDATA,  &
                  ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS)+  &
                  (GOMOBSG(IPB,IOBS)-GOMOBSG(IPT,IOBS)))
           ENDIF
@@ -217,7 +217,7 @@ subroutine oda_H
                + OLTV(2,NFLEV,IOBS)*GOMQ(NFLEV,IOBS)
           ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
           ZCON=(ZLEV/GOMPSG(1,IOBS))**ZEXPGZ
-          call obs_set(obsSpaceData,jdata,val_OMA8=(1.-zcon)/zgamma*ZLTV &
+          call obs_set_r8(obsSpaceData,'OMA ',jdata,(1.-zcon)/zgamma*ZLTV &
               + RGASD*ZTVG*zcon*gomps(1,iobs) &
               /gompsg(1,iobs))
         endif
@@ -463,7 +463,7 @@ end subroutine oda_Hto
 !C
 !C     *                    Store in CMA
 !C
-                    call obs_set(obsSpaceData,JDATA,val_OMA8= ZMHXL)
+                    call obs_set_r8(obsSpaceData,'OMA ',JDATA, ZMHXL)
 
                   ENDIF
                 ENDDO
@@ -520,7 +520,7 @@ end subroutine oda_Hto
           ZDA1= (ZLEV-ZPB)/(ZDENO**2)
           ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
-          call obs_set(obsSpaceData,JDATA,val_OMA8=  &
+          call obs_set_r8(obsSpaceData,'OMA ',JDATA,  &
               ZWB*GOMOBS(IPB,IOBS) + ZWT*GOMOBS(IPT,IOBS) +  &
               (GOMOBSG(IPB,IOBS) - GOMOBSG(IPT,IOBS))*  &
               (ZDA1*GOMGZ(IK,IOBS)/RG + ZDA2*GOMGZ(IK+1,IOBS)/RG))
@@ -649,7 +649,7 @@ end subroutine oda_Hto
                     DO JDATA= IDATA, IDATEND
                       IF ( lmaskgp(JDATA) ) THEN
                           NH1 = NH1 + 1
-                          call obs_set(obsSpaceData,JDATA,val_OMA8= ZHX)
+                          call obs_set_r8(obsSpaceData,'OMA ',JDATA, ZHX)
                       ENDIF
                     ENDDO
 

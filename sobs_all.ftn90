@@ -147,14 +147,14 @@ subroutine sobs_all
                    ENDIF
                  ELSE
                    IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                     call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                     call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                           ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                      IF(LLPRINT) THEN
                        WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP  &
                             ,obs_elem_c9(obsSpaceData,'STID',JOBS),IDBURP  &
                             ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
                      ENDIF
-                     call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                     call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                      IKOUNTREJ(J)=IKOUNTREJ(J)+1
                    ENDIF
                  ENDIF
@@ -317,14 +317,14 @@ subroutine sobs_all
                            ENDIF
                         ELSE
                            IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                              call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                              call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                                     ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                               IF(LLPRINT) THEN
                                  WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '  &
                                   ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
                                   ,ZVAL/RG,GOMGZHR(NLEVTRL,JOBS)/RG,ZDIFF,ZCRIT
                               ENDIF
-                              call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                              call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                               ITOTREJ(JPINEL)=ITOTREJ(JPINEL)+1
                               IGZREJ(JPINEL)=IGZREJ(JPINEL)+1
                            ENDIF
@@ -379,7 +379,7 @@ subroutine sobs_all
                        ENDIF
                      ENDIF
                      IF(ZLEV .GT. ZPB ) THEN
-                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
@@ -387,11 +387,11 @@ subroutine sobs_all
                                 ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON  &
                                 ,ZLEV,GOMPSHR(1,JOBS)
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
-                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
@@ -400,7 +400,7 @@ subroutine sobs_all
                                 ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
                                 ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         ISBLREJ(IJ)=ISBLREJ(IJ)+1
                      ENDIF
@@ -510,9 +510,9 @@ subroutine sobs_all
                            WRITE(NULOUT,224) 'Reject OBS ' &
                              ,jobs,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                            ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                      ENDIF
                   END DO
@@ -696,7 +696,7 @@ subroutine sobs_all
                         ENDIF
                      ENDIF
                      IF(ZLEV .LT. ZPB ) THEN
-                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
@@ -705,11 +705,11 @@ subroutine sobs_all
                                 ,ZLEV,GOMGZHR(NLEVTRL-1,JOBS)/RG,ZPT  &
                                 ,JDATA,ZPB,ZDIFALT
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.GE.ZPB .AND. ZLEV.LT.ZPT ) THEN
-                        call obs_set(obsSpaceData,JDATA,val_FLG=  &
+                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
                              ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
                         ZGZG = GOMGZHR(NLEVTRL,JOBS)/RG
                         IF(LLPRINT) THEN
@@ -718,7 +718,7 @@ subroutine sobs_all
                                 ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
                                 ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
-                        call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         ISBLREJ(IJ)=ISBLREJ(IJ)+1
                      ENDIF
@@ -824,9 +824,9 @@ subroutine sobs_all
                    IF(LLPRINT) THEN
                       WRITE(NULOUT,224) 'Reject OBS ',JOBS,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
                    ENDIF
-                   call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                   call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                    IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                   call obs_set(obsSpaceData,JDATA,val_FLG=IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),18))
+                   call obs_set_i(obsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),18))
                  ENDIF
                END DO
              ENDIF

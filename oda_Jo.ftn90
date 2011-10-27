@@ -37,7 +37,7 @@ SUBROUTINE oda_Jo
 !!
     DO JDATA=1,obs_num_obstotal(obsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set(obsSpaceData,JDATA,val_OMI8= &
+          call obs_set_r8(obsSpaceData,'OMI ',JDATA, &
                (obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obs_elem_r8(obsSpaceData,'OMA ',JDATA))/2.)
        ENDIF
     END DO

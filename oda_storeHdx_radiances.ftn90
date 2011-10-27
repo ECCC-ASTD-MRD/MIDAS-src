@@ -132,7 +132,7 @@ subroutine oda_storeHdx_radiances
 9202                      format(' tovs_calc_jo_tl: error with channel number')
                           call abort3d(nulout,'tovs_calc_jo_tl  ')
                        endif
-                       call obs_set(obsSpaceData,jdata,val_OMA8= radiance_tl (indxtovs) % out(indxchn))
+                       call obs_set_r8(obsSpaceData,'OMA ',jdata, radiance_tl (indxtovs) % out(indxchn))
                        if ( ldbgtov ) then
                           write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                                ichn,  radiance_tl (indxtovs) % out(indxchn), &

@@ -98,9 +98,9 @@ C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
                 DO JID = 1, JPIDLND
                   IF(IDBURP .EQ. IDLND(JID) .AND.
      &                 obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                    call obs_set(obsSpaceData,JDATA,val_FLG=
+                    call obs_set_i(obsSpaceData,'FLG ',JDATA,
      &                   ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 19 ))
-                    call obs_set(obsSpaceData,JDATA,val_ASS=0)
+                    call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
                     DO J = 1, JPINEL
                       IF(ITYP .EQ.ILISTEL(J)) THEN
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1

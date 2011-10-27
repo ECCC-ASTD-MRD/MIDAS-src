@@ -159,8 +159,8 @@ C
                         HGP = gpsgeopotential(Lat,HNH1)/9.80616
                         IF ( HGP.GT.HTP .OR. 
      +                       HGP.LT.HSF ) THEN
-                           call obs_set(obsSpaceData,JDATA,val_ASS= 0)
-                           call obs_set(obsSpaceData,JDATA,val_FLG= IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),11))
+                           call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
+                           call obs_set_i(obsSpaceData,'FLG ',JDATA, IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),11))
                         ENDIF
                      ENDIF
                   ENDDO

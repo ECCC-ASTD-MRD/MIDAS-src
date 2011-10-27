@@ -223,9 +223,9 @@ C     * +                           JD,ZMHX,RSTV(NH1)%DVAR(JD)
 C     *                       ENDDO
                            ENDIF
 
-                           call obs_set(obsSpaceData,JDATA,val_OMA8= ZINC)
-                           call obs_set(obsSpaceData,JDATA,val_OMN8= ZINC)
-                           call obs_set(obsSpaceData,JDATA,val_OMI8= ZINC)
+                           call obs_set_r8(obsSpaceData,'OMA ',JDATA, ZINC)
+                           call obs_set_r8(obsSpaceData,'OMN ',JDATA, ZINC)
+                           call obs_set_r8(obsSpaceData,'OMI ',JDATA, ZINC)
                         ENDIF
                      ENDDO
                      DEALLOCATE( RSTV )

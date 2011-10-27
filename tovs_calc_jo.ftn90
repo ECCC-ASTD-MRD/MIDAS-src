@@ -154,13 +154,13 @@ subroutine tovs_calc_jo(pjo,llprint)
                endif
 
                zoer = obs_elem_r8(obsSpaceData,'OER ',jdata)
-               call obs_set(obsSpaceData,jdata,val_OMA8= zdtb/zoer)
-               call obs_set(obsSpaceData,jdata,val_OMI8= obs_elem_r8(obsSpaceData,'OMA ',jdata))
+               call obs_set_r8(obsSpaceData,'OMA ',jdata, zdtb/zoer)
+               call obs_set_r8(obsSpaceData,'OMI ',jdata, obs_elem_r8(obsSpaceData,'OMA ',jdata))
                if (.not. lvarqc) then
                   dlsum = dlsum &
                        + (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
                           obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
-                  call obs_set(obsSpaceData,jdata,val_OMN8= &
+                  call obs_set_r8(obsSpaceData,'OMN ',jdata, &
                               obs_elem_r8(obsSpaceData,'OMA ',jdata))
                else
 
@@ -171,7 +171,7 @@ subroutine tovs_calc_jo(pjo,llprint)
                           obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
                   zqcarg = zgami + exp(-1.0*zjon)
                   zpost = zgami/zqcarg
-                  call obs_set(obsSpaceData,jdata,val_OMN8= &
+                  call obs_set_r8(obsSpaceData,'OMN ',jdata, &
                              obs_elem_r8(obsSpaceData,'OMA ',jdata)*(1. - zpost))
                   dlsum= dlsum - log(zqcarg/(zgami+1.))
                endif

@@ -125,7 +125,7 @@ subroutine oda_HT
             ZPB  = RPPOBS(IK+1,IOBS)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
-!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 !C
             zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)  &
@@ -158,7 +158,7 @@ subroutine oda_HT
             IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
-!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 !c
 !c-------------adjoint of TL of geopotential extrapolation below
@@ -242,7 +242,7 @@ subroutine oda_HT
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
             ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
@@ -287,7 +287,7 @@ subroutine oda_HT
             zcon = (zlev/gompsg(1,iobs))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = OLTV(1,NFLEV,IOBS)*GOMTG(NFLEV,IOBS)
-!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
             gomps(1,iobs)    = gomps(1,iobs)     &
                  + RGASD*ZTVG*zcon*zres/gompsg(1,iobs)
@@ -522,7 +522,7 @@ end subroutine oda_HTto
 !C     *                    Normalized increment
 !C
                     ZINC = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-!c                    call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c                    call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 !c     &                   * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 !C
 !C                          O-F Tested criteria:
@@ -600,7 +600,7 @@ end subroutine oda_HTto
 
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
-!c            call obs_set(obsSpaceData,JDATA,val_OMN8= obs_elem_r8(obsSpaceData,'OMN ',JDATA)
+!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
 !C
             GOMGZ(IK+1,IOBS) = GOMGZ(IK+1,IOBS) +    &
@@ -738,7 +738,7 @@ end subroutine oda_HTto
                  DO JDATA= IDATA, IDATEND
                     IF ( lmaskgp(JDATA) ) THEN
                        NH1 = NH1 + 1
-!C                      call obs_set(obsSpaceData,JDATA,val_OMI8= grad(Jo) 
+!C                      call obs_set_r8(obsSpaceData,'OMI ',JDATA, grad(Jo) 
 !c                                             = (H'dx - d)/sigma_o^2)
                        ZHX = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
 
