@@ -43,7 +43,6 @@
 #include "cvcord.cdk"
 *
       character(len=4), intent(in) :: elem_s
-      INTEGER KVAL
       INTEGER IUU,IVV,IFF,IDD
       INTEGER IOBS,IBEGIN,ILAST,ISTART,IEND,jwintyp
       INTEGER J,JDATA,JJOBS
@@ -53,15 +52,6 @@
 c     DATA  IUU,IVV,IDD,IFF/11003,11004,11001,11002/
 C-----------------------------------------------------------------------
 C
-      select case (elem_s)
-      case ('OMA '); KVAL=NCM_OMA
-      case ('OMF '); KVAL=NCM_OMF
-      case default
-         write(6,*)'Internal error in vint3dfd:  elem_s=', elem_s,
-     &             ' is not recognized'
-         call exit(2)
-      end select
-
       do jwintyp=1,2
       if (jwintyp .eq. 1) then
          IUU=BUFR_NEUU
@@ -136,26 +126,26 @@ C
                   DO JJOBS=ISTART,IEND
                      IF ((obs_elem_i(obsSpaceData,'VNM ',JJOBS).EQ.IDD)
      &               .AND. obs_elem_r4(obsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
-                        obsSpaceData%ROBDATA(KVAL,JJOBS)= real(ANG 
+                        call obs_set_r4(obsSpaceData, elem_s, JJOBS, real(ANG 
      &                          - obs_elem_r4(obsSpaceData,'VAR ',JJOBS)
-     &                           *180.0/PI)
+     &                           *180.0/PI))
                         IF ( obs_elem_r4(obsSpaceData,elem_s,JJOBS) .gt.  180.0)
-     &                  obsSpaceData%ROBDATA(KVAL,JJOBS)=
-     &                        obs_elem_r4(obsSpaceData,elem_s,JJOBS)-360.0
+     &                  call obs_set_r4(obsSpaceData, elem_s, JJOBS, 
+     &                        obs_elem_r4(obsSpaceData,elem_s,JJOBS)-360.0)
                         IF ( obs_elem_r4(obsSpaceData,elem_s,JJOBS) .le. -180.0)
-     &                  obsSpaceData%ROBDATA(KVAL,JJOBS)=
-     &                        obs_elem_r4(obsSpaceData,elem_s,JJOBS)+360.0
-                        obsSpaceData%ROBDATA(KVAL,JJOBS)=-1.0*
+     &                  call obs_set_r4(obsSpaceData, elem_s, JJOBS,
+     &                        obs_elem_r4(obsSpaceData,elem_s,JJOBS)+360.0)
+                        call obs_set_r4(obsSpaceData, elem_s, JJOBS, -1.0*
      &                              obs_elem_r4(obsSpaceData,elem_s,JJOBS)
-     &                              *real(PI)/180.0
+     &                              *real(PI)/180.0)
                         call obs_set_r4(obsSpaceData,'OER ',JJOBS,1.0)
                         call obs_set_i(obsSpaceData,'ASS ',JJOBS, 1)
                         call obs_set_i(obsSpaceData,'FLG ',JJOBS, 0)
                      ENDIF
                      IF ((obs_elem_i(obsSpaceData,'VNM ',JJOBS).EQ.IFF)
      &               .AND. obs_elem_r4(obsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
-                        obsSpaceData%ROBDATA(KVAL,JJOBS)=MODUL -
-     &                            obs_elem_r4(obsSpaceData,'VAR ',JJOBS)
+                        call obs_set_r4(obsSpaceData, elem_s, JJOBS, real(MODUL)
+     &                                  - obs_elem_r4(obsSpaceData,'VAR ',JJOBS))
                         call obs_set_r4(obsSpaceData,'OER ',JJOBS,1.0)
                         call obs_set_i(obsSpaceData,'ASS ',JJOBS, 1)
                         call obs_set_i(obsSpaceData,'FLG ',JJOBS, 0)

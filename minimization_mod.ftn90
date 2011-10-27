@@ -550,9 +550,6 @@ CONTAINS
     nsize=obs_ptr_int(1)
     obsspacedataptr=transfer(obs_ptr_int(2:(1+nsize)),obsspacedataptr)
 
-    write(*,*) 'obsspacedataptr=',obsspacedataptr%ptr%mobhdr(1,1:100)
-    write(*,*) 'obsspacedata=   ',obsspacedata%mobhdr(1,1:100)
-
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop (21)
 
     call tmg_start(31,'SIMVAR')
