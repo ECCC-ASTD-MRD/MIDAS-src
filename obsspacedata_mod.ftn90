@@ -31,7 +31,7 @@ MODULE obsSpaceData_mod
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
   public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
   public           :: obs_setTimeInterpWeight,obs_getTimeInterpWeight
-  public           :: obs_getTimeInterpWeight_mpiglobal
+  public           :: obs_getTimeInterpWeight_mpiglobal,obs_prnthdr, obs_prntbdy
 
   ! private methods
   !                obs_allocate, obs_deallocate, obs_allocateG, obs_deallocateG
@@ -1116,6 +1116,168 @@ MODULE obsSpaceData_mod
   type(struct_obs) , intent(in)  :: obsdat
   obs_num_stn=obsdat%numstns_recorded
  end function obs_num_stn
+
+
+ SUBROUTINE obs_prntbdy(obsdat,KOBS,KULOUT)
+#if defined (DOC)
+!
+!**s/r PRNTBDY  - Print all data records associated with an observation
+!
+!Author  : P. Gauthier *ARMA/AES  June 9, 1992
+!Revision:
+!     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
+!
+!     . C. Charette *ARMA/AES Mar 1996 : format statement
+!     . C. Charette *ARMA/AES Nov 1999 : Added print of flag NCM_ASS
+!       JM Belanger CMDA/SMC  Jul 2000
+!                   . 32 bits conversion
+!     . S. Pellerin ARMA, January 2008 : Remove NCM_OMN print.
+!
+!Arguments
+!     i   KOBS  : No. of observation
+!     i   KULOUT: unit used for printing
+!
+#endif
+
+  implicit none
+
+  type(struct_obs), intent(in) :: obsdat
+  INTEGER         , intent(in) :: KOBS, KULOUT
+
+  INTEGER :: IPNT, IDATA, IDATA2, JDATA
+  CHARACTER(len=10) :: ccordtyp(2)
+
+  ccordtyp(1)='HEIGHT   :'
+  ccordtyp(2)='PRESSURE :'
+!
+! 1. General information
+!
+  IPNT  = obs_elem_i(obsdat,'RLN ',KOBS)
+  IDATA = obs_elem_i(obsdat,'NLV ',KOBS)
+
+  IF(IDATA.EQ.1) THEN
+   WRITE(KULOUT,FMT=9101)IDATA,KOBS,NCM_LBO
+  ELSE
+   WRITE(KULOUT,FMT=9100)IDATA,KOBS,NCM_LBO
+  END IF
+ 9100 FORMAT(4x,'THERE ARE ', &
+           I3,1X,'DATA IN OBSERVATION RECORD NO.' &
+           ,1X,I6,4X,'DATA RECORD''S LENGTH:',I6)
+ 9101 FORMAT(4x,'THERE IS ', &
+           I3,1X,'DATA IN OBSERVATION RECORD NO.' &
+           ,1X,I6,4X,'DATA RECORD''S LENGTH:',I6)
+!
+! 2. Print all data records
+!
+  DO JDATA = IPNT, IPNT + IDATA - 1
+     IDATA2 = JDATA -IPNT + 1
+     if(obs_elem_i(obsdat,'ASS ',JDATA).eq.1) then
+        WRITE(KULOUT,FMT=9201) IDATA2 &
+             ,obs_elem_i (obsdat,'VNM ',JDATA) &
+             ,ccordtyp   (obs_elem_i(obsdat,'VCO ',JDATA) ) &
+             ,obs_elem_r4(obsdat,'PPP ',JDATA) &
+             ,obs_elem_r4(obsdat,'PRL ',JDATA),obs_elem_r4(obsdat,'POB ',JDATA) &
+             ,obs_elem_r4(obsdat,'VAR ',JDATA),obs_elem_r4(obsdat,'OMF ',JDATA) &
+             ,obs_elem_r4(obsdat,'OMA ',JDATA),obs_elem_r4(obsdat,'OMI ',JDATA) &
+             ,obs_elem_r4(obsdat,'OER ',JDATA) &
+             ,obs_elem_r4(obsdat,'RER ',JDATA),obs_elem_r4(obsdat,'FGE ',JDATA) &
+             ,obs_elem_r4(obsdat,'PER ',JDATA),obs_elem_i (obsdat,'FLG ',JDATA) &
+             ,obs_elem_i (obsdat,'ASS ',JDATA)
+     end if
+  end do
+
+ 9201 FORMAT(4X,'DATA NO.',I6,/,10x &
+!     ,'VARIABLE NO.:',I6,4X,'PRESSURE LEVEL:',G12.6,4X &
+      ,'VARIABLE NO.:',I6,4X,A10,G12.6,4X &
+           ,'REFERENCE LEVEL PRESSURE:',G12.6,4X &
+           ,/,33X &
+           ,'PRESSURE/GEOPOTENTIAL:',G12.6,4X &
+           ,/,10X &
+           ,'OBSERVE VALUE:',G23.16,15X,'FIRST-GUESS - OBSERVED VALUE:' &
+           ,G23.16,4X &
+           ,/,10X &
+           ,'ANALYZED - OBSERVED VALUE:',G12.6,4X &
+           ,'INITIALIZED - OBSERVED VALUE:',G23.16 &
+           ,/,10X &
+           ,'ERROR STANDARD DEVIATIONS FOR' &
+           ,/,20X &
+           ,'OBSERVATION:',G12.6,4X,'REPRESENTATIVENESS:',G12.6,4X &
+           ,/,20X &
+           ,'FIRST-GUESS:',G12.6,4X,'PERSISTENCE:',G12.6 &
+           ,/,10X &
+           ,'BURP FLAGS:',I6,4x,'OBS. ASSIMILATED (1-->YES;0-->NO):',I3)
+
+  RETURN
+ END subroutine obs_prntbdy
+
+
+ SUBROUTINE obs_prnthdr(obsdat,KOBS,KULOUT)
+#if defined (DOC)
+!
+!**s/r PRNTHDR  - Printing of the header of an observation record
+!
+!Author  : P. Gauthier *ARMA/AES  June 9, 1992
+!Revision:
+!     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
+!     . P. Koclas   *CMC:  Format for transformed latitude has been modified
+!     .                    to handle an integer (latitude index of the first
+!     .                    latitude circle north of the observation)
+!Arguments
+!     i   KOBS  : No. of observation
+!     i   KULOUT: unit used for optional printing
+!
+#endif
+
+  implicit none
+
+
+  type(struct_obs), intent(in) :: obsdat
+  INTEGER         , intent(in) :: KOBS, KULOUT
+
+  CHARACTER(len=4) :: CSID14
+  CHARACTER(len=9) :: CCSTNID
+
+  WRITE(CSID14,'(a4)')obs_elem_i(obsdat,'SID ',KOBS)
+  CCSTNID=CSID14
+
+!
+! 1. General information
+!
+  WRITE(KULOUT,FMT=9100)KOBS,NCM_LET
+ 9100 FORMAT(//,10x,'-- OBSERVATION RECORD NO.' &
+        ,1X,I6,3X,'HEADER''S LENGTH:',I6)
+!
+! 2. PRINT HEADER'S CONTENT
+!
+  WRITE(KULOUT,FMT=9200)&
+      obs_elem_i (obsdat,'RLN ',KOBS),obs_elem_i (obsdat,'ONM ',KOBS) &
+     ,obs_elem_i (obsdat,'BOX ',KOBS),obs_elem_i (obsdat,'OTP ',KOBS) &
+     ,obs_elem_i (obsdat,'ITY ',KOBS) &
+     ,obs_elem_r4(obsdat,'LAT ',KOBS),obs_elem_r4(obsdat,'LON ',KOBS)&
+     ,obs_elem_i (obsdat,'DAT ',KOBS),obs_elem_i (obsdat,'ETM ',KOBS) &
+     ,CCSTNID                        ,obs_elem_r4(obsdat,'ALT ',KOBS) &
+     ,obs_elem_i (obsdat,'NLV ',KOBS),obs_elem_i (obsdat,'OEC ',KOBS) &
+     ,obs_elem_i (obsdat,'OFL ',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
+     ,obs_elem_i (obsdat,'TLA ',KOBS)
+
+ 9200 FORMAT(6X,'Position within ROBDATA:',I6,1X,'OBS. NUMBER:',I6,1X &
+           ,'MODEL BOX:',I6,1X,'OBS. TYPE:',I6,1X &
+           ,'INSTR./RETR. TYPE:',I6,1X &
+           ,/,6X &
+           ,'OBSERVATION LOCATION. (LAT,LON):',2(F12.6,1X) &
+           ,'DATE:',I12,1X,'EXACT TIME: ',I6,1X &
+           ,/,6X &
+           ,'STATION ID:',A9,1X &
+           ,'STATION''S ALTITUDE:',G12.6,1X &
+           ,'NUMBER OF DATA:',I6,1X,'ERROR CORR. TYPE',I6,1X &
+           ,/,6X &
+           ,'REPORT STATUS:',I6,5X,'REPORT STATUS 2:',I6,1X &
+           ,/,6X &
+           ,'Index of latitude north of the observation:',(1X,I6) &
+           )
+
+  RETURN
+ END SUBROUTINE obs_prnthdr
 
 
  subroutine obs_set_i(obsdat, name, index, value)

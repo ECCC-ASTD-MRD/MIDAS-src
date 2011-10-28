@@ -16,6 +16,7 @@
 !
 subroutine minimize
   use minimization
+  use obsSpaceData_mod
   implicit none
   !
   !Purpose:
@@ -49,8 +50,8 @@ subroutine minimize
 
   call cprob8to4
   DO INDIC =1,1
-     CALL PRNTHDR(indic,NULOUT)
-     CALL PRNTBDY(indic,NULOUT)
+     CALL obs_prnthdr(obsSpaceData,indic,NULOUT)
+     CALL obs_prntbdy(obsSpaceData,indic,NULOUT)
   END DO
 
 end subroutine minimize
