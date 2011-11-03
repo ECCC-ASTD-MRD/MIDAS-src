@@ -30,7 +30,7 @@
 *
 #endif
 C
-      use profileData_mod
+      use columnData_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"

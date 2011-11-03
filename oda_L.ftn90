@@ -20,7 +20,7 @@ subroutine oda_L(statevector)
   use gridstatevector
   use globalSpectralTransform
   use obsSpaceData_mod
-  use profileData_mod 
+  use columnData_mod 
   use modfgat
   implicit none
   !
@@ -292,7 +292,7 @@ subroutine oda_L(statevector)
       CASE('TR')
          GOMTR(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('UU')
-!         profileData%GOMU(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)
+!         columnData%GOMU(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)
          GOMU(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('VV')
          GOMV(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)

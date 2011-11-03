@@ -40,7 +40,7 @@
 *             KNOBS (integer)     : number of observation profiles in variable PVAR
 *
 #endif
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       implicit none
 *implicits

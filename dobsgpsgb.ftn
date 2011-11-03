@@ -38,7 +38,7 @@
 
 #endif
       use obsSpaceData_mod
-      use profileData_mod 
+      use columnData_mod 
       use bufr
       IMPLICIT NONE
 *implicits

@@ -17,7 +17,7 @@
       SUBROUTINE subasic_obs
 c
       use obsSpaceData_mod
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       IMPLICIT NONE
 c

@@ -16,7 +16,7 @@
 !
       subroutine sugomobs
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
 #if defined (DOC)
 *

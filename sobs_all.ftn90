@@ -1,6 +1,6 @@
 subroutine sobs_all
   use obsSpaceData_mod
-  use profileData_mod
+  use columnData_mod
   use bufr
   implicit none
 #include "comlun.cdk"

@@ -34,7 +34,7 @@
 *
 *    -------------------
 #endif
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       IMPLICIT NONE
 *implicits

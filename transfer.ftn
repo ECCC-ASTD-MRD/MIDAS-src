@@ -57,7 +57,7 @@
 *     i :          = 'HR2D' transfer of 2D var of commvo to commvohr
 *
 #endif
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       IMPLICIT NONE
 *implicits

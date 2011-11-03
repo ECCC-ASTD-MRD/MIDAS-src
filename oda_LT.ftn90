@@ -20,7 +20,7 @@ subroutine oda_LT(statevector)
   use gridStateVector
   use globalSpectralTransform
   use obsSpaceData_mod
-  use profileData_mod 
+  use columnData_mod 
   use modfgat
   implicit none
   !
@@ -76,8 +76,8 @@ subroutine oda_LT(statevector)
      endif
 !
      call tmg_start(77,'EXPNDMVO')
-     call prof_allocateGlobal(nflev,nobtotp)
-     call prof_expandToMpiGlobal2(nflev,nobtot,nobtotp)
+     call col_allocateGlobal(nflev,nobtotp)
+     call col_expandToMpiGlobal2(nflev,nobtot,nobtotp)
      call tmg_stop(77)
 !$OMP PARALLEL
 !$OMP SECTIONS PRIVATE(ilev)
@@ -113,7 +113,7 @@ subroutine oda_LT(statevector)
 !
      call uvwi2uv(statevector)
 
-     call prof_deallocateGlobal
+     call col_deallocateGlobal
 
   endif
   call tmg_stop (75)

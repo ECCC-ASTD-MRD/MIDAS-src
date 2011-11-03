@@ -61,7 +61,7 @@
 *
 #endif
 C
-      use profileData_mod 
+      use columnData_mod 
       use controlVector
 #include "commvo.cdk"
       IMPLICIT NONE

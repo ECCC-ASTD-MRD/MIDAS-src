@@ -40,7 +40,7 @@
 *          is permitted and the pressure vector is given.
 *
 #endif
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       IMPLICIT NONE
 *IMPLICITS

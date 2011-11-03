@@ -28,7 +28,7 @@
 *
 #endif
 C
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       IMPLICIT NONE
 *implicits
@@ -137,7 +137,7 @@ C
 !      PTOMTGR1 = -1
 !      PTOMTGRG = -1
 C
-!      profileData%gomobs=>gomobs
+!      columnData%gomobs=>gomobs
 
       iloc = 1
       do jvar = 1,jpnvarmax
@@ -147,7 +147,7 @@ C
             gomu => gomobs(iloc:(iloc+nflev-1),:)
             gomu1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomug => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomu => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomu => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMU  = LOC(GOMOBS(iloc,1))
 !            PTOMU1  = LOC(GOMOBS1(iloc,1))
 !            PTOMUG  = LOC(GOMOBSG(iloc,1))
@@ -159,7 +159,7 @@ C
             gomv => gomobs(iloc:(iloc+nflev-1),:)
             gomv1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomvg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomv => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomv => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMV  = LOC(GOMOBS(iloc,1))
 !            PTOMV1  = LOC(GOMOBS1(iloc,1))
 !            PTOMVG  = LOC(GOMOBSG(iloc,1))
@@ -171,7 +171,7 @@ C
             gomgz => gomobs(iloc:(iloc+nflev-1),:)
             gomgz1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomgzg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomgz => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomgz => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMGZ = LOC(GOMOBS(iloc,1))
 !            PTOMGZ1 = LOC(GOMOBS1(iloc,1))
 !            PTOMGZG = LOC(GOMOBSG(iloc,1))
@@ -183,7 +183,7 @@ C
             gomq => gomobs(iloc:(iloc+nflev-1),:)
             gomq1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomqg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomq => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomq => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMQ  = LOC(GOMOBS(iloc,1))
 !            PTOMQ1  = LOC(GOMOBS1(iloc,1))
 !            PTOMQG  = LOC(GOMOBSG(iloc,1))
@@ -195,7 +195,7 @@ C
             gomt => gomobs(iloc:(iloc+nflev-1),:)
             gomt1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomtg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomt => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomt => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMT  = LOC(GOMOBS(iloc,1))
 !            PTOMT1  = LOC(GOMOBS1(iloc,1))
 !            PTOMTG  = LOC(GOMOBSG(iloc,1))
@@ -207,7 +207,7 @@ C
             gomoz => gomobs(iloc:(iloc+nflev-1),:)
             gomoz1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomozg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomoz => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomoz => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMOZ = LOC(GOMOBS(iloc,1))
 !            PTOMOZ1 = LOC(GOMOBS1(iloc,1))
 !            PTOMOZG = LOC(GOMOBSG(iloc,1))
@@ -219,7 +219,7 @@ C
             gomtr => gomobs(iloc:(iloc+nflev-1),:)
             gomtr1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomtrg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomtr => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomtr => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMTR = LOC(GOMOBS(iloc,1))
 !            PTOMTR1 = LOC(GOMOBS1(iloc,1))
 !            PTOMTRG = LOC(GOMOBSG(iloc,1))
@@ -231,7 +231,7 @@ C
             gomes => gomobs(iloc:(iloc+nflev-1),:)
             gomes1 => gomobs1(iloc:(iloc+nflev-1),:)
             gomesg => gomobsg(iloc:(iloc+nflev-1),:)
-!            profileData%gomes => gomobs(iloc:(iloc+nflev-1),:)
+!            columnData%gomes => gomobs(iloc:(iloc+nflev-1),:)
 !            PTOMES = LOC(GOMOBS(iloc,1))
 !            PTOMES1 = LOC(GOMOBS1(iloc,1))
 !            PTOMESG = LOC(GOMOBSG(iloc,1))
@@ -243,7 +243,7 @@ C
             gomps => gomobs(iloc:iloc,:)
             gomps1 => gomobs1(iloc:iloc,:)
             gompsg => gomobsg(iloc:iloc,:)
-!            profileData%gomps => gomobs(iloc:iloc,:)
+!            columnData%gomps => gomobs(iloc:iloc,:)
 !            PTOMPS = LOC(GOMOBS(iloc,1))
 !            PTOMPS1 = LOC(GOMOBS1(iloc,1))
 !            PTOMPSG = LOC(GOMOBSG(iloc,1))
@@ -255,7 +255,7 @@ C
             gomtgr => gomobs(iloc:iloc,:)
             gomtgr1 => gomobs1(iloc:iloc,:)
             gomtgrg => gomobsg(iloc:iloc,:)
-!            profileData%gomtgr => gomobs(iloc:iloc,:)
+!            columnData%gomtgr => gomobs(iloc:iloc,:)
 !            PTOMTGR = LOC(GOMOBS(iloc,1))
 !            PTOMTGR1 = LOC(GOMOBS1(iloc,1))
 !            PTOMTGRG = LOC(GOMOBSG(iloc,1))

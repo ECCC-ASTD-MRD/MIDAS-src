@@ -16,7 +16,7 @@
 !
 subroutine oda_H
   use obsSpaceData_mod
-  use profileData_mod 
+  use columnData_mod 
   implicit none
   !
   !Purpose:

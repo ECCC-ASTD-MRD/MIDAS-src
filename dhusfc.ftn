@@ -35,7 +35,7 @@
 *
 #endif
       use obsSpaceData_mod
-      use profileData_mod
+      use columnData_mod
       use bufr
       IMPLICIT NONE
       CHARACTER *2 CDFAM

@@ -16,7 +16,7 @@
 !
 subroutine oda_HT
   use obsSpaceData_mod
-  use profileData_mod 
+  use columnData_mod 
   implicit none
   !
   !Purpose:
@@ -187,7 +187,7 @@ subroutine oda_HT
       SUBROUTINE oda_HTsf
       use modmask, only : lmasksf_in,lmasksf_out
       use obsSpaceData_mod
-      use profileData_mod 
+      use columnData_mod 
       use bufr
 !*
 !***s/r AOBSSFC  - Adjoint of the "vertical" interpolation

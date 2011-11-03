@@ -34,7 +34,7 @@
 *Arguments
 *
 #endif
-      use profileData_mod
+      use columnData_mod
       IMPLICIT NONE
 *implicits
 c------------------------------------------------------------------------

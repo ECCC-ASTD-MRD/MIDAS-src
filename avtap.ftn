@@ -43,7 +43,7 @@ C REVISION:
 *           C. Charette ARMA/SMC jan. 2005
 *            - Replaced print statements by write statements
 #endif
-      use profileData_mod 
+      use columnData_mod 
 #include "commvo.cdk"
       IMPLICIT NONE
 C

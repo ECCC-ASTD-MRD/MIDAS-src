@@ -1,11 +1,11 @@
-module profileData_mod
+module columnData_mod
   implicit none
   save
 !  private
 
-!  public :: profileData
+!  public :: columnData
 
-  type struct_profileData
+  type struct_columnData
     real*8,pointer :: gomobs(:,:)
     real*8,pointer :: gomu(:,:)
     real*8,pointer :: gomv(:,:)
@@ -18,9 +18,9 @@ module profileData_mod
     real*8,pointer :: gomps(:,:)
     real*8,pointer :: gomtgr(:,:)
     real*8,pointer :: rppobs(:,:)
-  end type struct_profileData
+  end type struct_columnData
 
-!  type(struct_profileData) :: profileData
+!  type(struct_columnData) :: columnData
 
     ! from commvo
     real*8,pointer :: gomobs(:,:)
@@ -106,7 +106,7 @@ module profileData_mod
 
   contains
 
-    SUBROUTINE prof_allocateGlobal(klev,nobtotp)
+    SUBROUTINE col_allocateGlobal(klev,nobtotp)
       implicit none
       #include "comstate.cdk"
       integer :: nobtotp,klev,ierr
@@ -117,53 +117,53 @@ module profileData_mod
       ierr=0
       if(NGEXIST(nguu).eq.1) allocate(gomu_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=1',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=1',ierr
         call flush(6)
       endif
       if(NGEXIST(ngvv).eq.1) allocate(gomv_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=2',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=2',ierr
         call flush(6)
       endif
       if(NGEXIST(ngtt).eq.1) allocate(gomt_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=3',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=3',ierr
         call flush(6)
       endif
       if(NGEXIST(ngq ).eq.1) allocate(gomq_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=4',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=4',ierr
         call flush(6)
       endif
       if(NGEXIST(ngoz).eq.1) allocate(gomoz_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=5',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=5',ierr
         call flush(6)
       endif
       if(NGEXIST(nggz).eq.1) allocate(gomgz_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=6',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=6',ierr
         call flush(6)
       endif
       if(NGEXIST(ngtr).eq.1) allocate(gomtr_g(klev,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=7',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=7',ierr
         call flush(6)
       endif
       if(NGEXIST(ngps).eq.1) allocate(gomps_g(1:1,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=8',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=8',ierr
         call flush(6)
       endif
       if(NGEXIST(ngtg).eq.1) allocate(gomtgr_g(1:1,nobtotp),stat=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'profileData: Problem allocating memory! id=9',ierr
+        write(*,*) 'columnData: Problem allocating memory! id=9',ierr
         call flush(6)
       endif
 
-    END SUBROUTINE prof_allocateGlobal 
+    END SUBROUTINE col_allocateGlobal 
 
-    SUBROUTINE prof_deallocateGlobal
+    SUBROUTINE col_deallocateGlobal
       implicit none
       #include "comstate.cdk"
 
@@ -177,18 +177,18 @@ module profileData_mod
       if(NGEXIST(ngps).eq.1) deallocate(gomps_g)
       if(NGEXIST(ngtg).eq.1) deallocate(gomtgr_g)
 
-    END SUBROUTINE prof_deallocateGlobal 
+    END SUBROUTINE col_deallocateGlobal 
 
 
-    SUBROUTINE prof_expandToMpiGlobal2(klev,nobtot,nobtotp)
+    SUBROUTINE col_expandToMpiGlobal2(klev,nobtot,nobtotp)
 !
-!**s/r prof_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
+!**s/r col_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
 !
 !Original Author    . Bin He (ARMA/MRB )
 !          extracted from Bin's obs_expandToMpiGlobal()
 !
 !Revision:
-!      PURPOSE:  To reconstitute the mpi-global profile object by gathering
+!      PURPOSE:  To reconstitute the mpi-global column object by gathering
 !                the necessary data from all processors (to all processors).
 !
       USE obsSpaceData_mod, only: locObsTag
@@ -201,7 +201,7 @@ module profileData_mod
 
       INTEGER :: i,iobs,ierr,nsize
 
-      print*,'Entering prof_expandToMpiGlobal2:',nobtot,nobtotp  
+      print*,'Entering col_expandToMpiGlobal2:',nobtot,nobtotp  
       call flush(6)
 
 !$OMP PARALLEL
@@ -320,23 +320,23 @@ module profileData_mod
           CALL RPN_COMM_ALLReduce(gomtgr_g,gomtgr_g,nsize, &
                                   "mpi_double_precision","mpi_sum","GRID",ierr)
 
-      write(*,*) 'Leaving prof_expandToMpiGlobal2' 
+      write(*,*) 'Leaving col_expandToMpiGlobal2' 
       call flush(6)
       RETURN
 
-    END SUBROUTINE prof_expandToMpiGlobal2
+    END SUBROUTINE col_expandToMpiGlobal2
 
  
-    SUBROUTINE prof_expandToMpiGlobal(nulout, nobtot, nobtotp)
+    SUBROUTINE col_expandToMpiGlobal(nulout, nobtot, nobtotp)
 #if defined (DOC)
 !
-!**s/r prof_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
+!**s/r col_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
 !
 !Original Author    . Bin He (ARMA/MRB )
 !          extracted from Bin's obs_expandToMpiGlobal()
 !
 !Revision:
-!      PURPOSE:  To reconstitute the mpi-global profile object by gathering
+!      PURPOSE:  To reconstitute the mpi-global column object by gathering
 !                the necessary data from all processors (to all processors).
 !
 #endif
@@ -355,7 +355,7 @@ module profileData_mod
 !!---------------------------------------------------------------
 
 !!  1.  Release some memory. 
-    print*,'Entering prof_expandToMpiGlobal'  
+    print*,'Entering col_expandToMpiGlobal'  
 
 !!  1.2 Added restore global array RMTMOBS
     ALLOCATE(RMTMOBS_tmp(NOBTOTP),STAT=ierr) 
@@ -378,8 +378,8 @@ module profileData_mod
     RMTMOBS=RMTMOBS_tmp
     DEALLOCATE(RMTMOBS_tmp)
 
-    print*,'Leaving prof_expandToMpiGlobal' 
+    print*,'Leaving col_expandToMpiGlobal' 
     RETURN
-  END SUBROUTINE prof_expandToMpiGlobal
+  END SUBROUTINE col_expandToMpiGlobal
 
-end module profileData_mod
+end module columnData_mod

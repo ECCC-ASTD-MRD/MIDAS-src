@@ -57,7 +57,7 @@
 *
       use mpi 
       use obsSpaceData_mod
-      use profileData_mod
+      use columnData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"
@@ -93,7 +93,7 @@
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
       CALL obs_expandToMpiGlobal(obsSpaceData, nulout, nobtot, nobtotp)
-      CALL prof_expandToMpiGlobal(nulout, nobtot, nobtotp)
+      CALL col_expandToMpiGlobal(nulout, nobtot, nobtotp)
       DEALLOCATE(locObsTag)
       IF(mpi_myid /= 0) RETURN 
 * 
