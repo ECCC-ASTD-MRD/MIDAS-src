@@ -54,7 +54,7 @@ subroutine oda_LT(statevector)
   call apreobs
   call tmg_stop(51)        !
 
-  call tmg_start(76,'GD<->PROF')
+  call tmg_start(75,'PROF->GD')
 !  GD=0.0D0
   call gsv_zero(statevector)
 !  sizegd=size(GD) 
@@ -75,32 +75,38 @@ subroutine oda_LT(statevector)
        write(*,*)'ODA_LT- Adjoint of horizontal interpolation GD --> MVO'
      endif
 !
+     call tmg_start(77,'EXPNDMVO')
      call prof_allocateGlobal(nflev,nobtotp)
      call prof_expandToMpiGlobal2(nflev,nobtot,nobtotp)
+     call tmg_stop(77)
+!$OMP PARALLEL
+!$OMP SECTIONS PRIVATE(ilev)
 !
 !    3D fields
 !
-!$OMP PARALLEL
-!$OMP SECTIONS
 !$OMP SECTION
      if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',nflev)
-     if(NGEXIST(ngoz).eq.1)  call gd2mvoad('OZ',nflev)
 !$OMP SECTION
      if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',nflev)
-     if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',nflev)
 !$OMP SECTION
      if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',nflev)
-     if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
 !$OMP SECTION
      if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',nflev)
-!$OMP END SECTIONS
-!$OMP END PARALLEL
+!$OMP SECTION
+     if(NGEXIST(ngoz).eq.1)  call gd2mvoad('OZ',nflev)
+!$OMP SECTION
+     if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
+!$OMP SECTION
+     if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',nflev)
 !
 !    2D fields
 !
+!$OMP SECTION
      ilev = 1
      if(NGEXIST(ngps).eq.1)  call gd2mvoad('PS',ilev)
      if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev)
+!$OMP END SECTIONS
+!$OMP END PARALLEL
 !
 !
 !    Conversion of wind images to physical winds
@@ -110,7 +116,7 @@ subroutine oda_LT(statevector)
      call prof_deallocateGlobal
 
   endif
-  call tmg_stop (76)
+  call tmg_stop (75)
 
   CONTAINS
 
@@ -146,8 +152,8 @@ subroutine oda_LT(statevector)
 !*
       INTEGER   JLEV, JGL, JLON, JOBS, JSTEP, JK
       INTEGER   ILON, ILOS, ILA, IMIDDLE, ISYM, IMAX
-      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
-      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
+      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS, DLDLON2, DLDLOS2
+      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
 
       real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
       real*8,pointer :: zprofil(:,:)
@@ -188,6 +194,13 @@ subroutine oda_LT(statevector)
          zprofil => gomgz_g
       END SELECT
 
+!            DLDLON = 2.*RPI/NI
+!            DLDLOS = 2.*RPI/NI
+!            ILON = INT(DLLOO/DLDLON) + 1
+!            ILOS = INT(DLLOO/DLDLOS) + 1
+      DLDLON2=1./(2.*RPI/NI)
+      DLDLOS2=1./(2.*RPI/NI)
+
       do jstep=1,nstepobsinc
 
         zfield(:,:,:) = 0.0D0
@@ -208,30 +221,29 @@ subroutine oda_LT(statevector)
 
             IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
             IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-            DLDLON = 2.*RPI/NI
-            DLDLOS = 2.*RPI/NI
-            ILON = INT(DLLOO/DLDLON) + 1
-            ILOS = INT(DLLOO/DLDLOS) + 1
+            ILON = INT(DLLOO*DLDLON2) + 1
+            ILOS = INT(DLLOO*DLDLOS2) + 1
 !C
 !C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 !C
-            DLDXN = DLLOO/DLDLON + 1. - ILON
-            DLDXS = DLLOO/DLDLOS + 1. - ILOS
+            DInterpWeight=obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep)
+            DLDXN = DLLOO*DLDLON2 + 1. - ILON
+            DLDXS = DLLOO*DLDLOS2 + 1. - ILOS
             DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
-            DLW1  = (1.-DLDXN)*(1.-DLDY)
-            DLW2  = DLDXN*(1.-DLDY)
-            DLW3  = (1.-DLDXS)*DLDY
-            DLW4  = DLDXS*DLDY
+            DLW1  = DInterpWeight * (1.-DLDXN)*(1.-DLDY)
+            DLW2  = DInterpWeight * DLDXN*(1.-DLDY)
+            DLW3  = DInterpWeight * (1.-DLDXS)*DLDY
+            DLW4  = DInterpWeight * DLDXS*DLDY
 
             do jlev = 1, klev
               ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)      &
-                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW1 * ZPROFIL(jlev,JOBS)
+                 + DLW1 * ZPROFIL(jlev,JOBS)
               ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)    &
-                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW2 * ZPROFIL(jlev,JOBS)
+                 + DLW2 * ZPROFIL(jlev,JOBS)
               ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)    &
-                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW3 * ZPROFIL(jlev,JOBS)
+                 + DLW3 * ZPROFIL(jlev,JOBS)
               ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)  &
-                 + obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep) * DLW4 * ZPROFIL(jlev,JOBS)
+                 + DLW4 * ZPROFIL(jlev,JOBS)
             end do
 
           endif

@@ -245,14 +245,14 @@ C
 C
       WRITE(KULOUT,FMT='(/,''  Arrays in COMGD0 are allocated'',
      S     '' the following space:'')')
-      WRITE(KULOUT,FMT='(''   GD :'',I6,10x
-     S     ,'' (3D-fields):'',I8)')  ILEN,ILENUT0
+      WRITE(KULOUT,FMT='(''   GD :'',I10,10x
+     S     ,'' (3D-fields):'',I10)')  ILEN,ILENUT0
 C
       IF(NCONF.NE.307) THEN
          WRITE(KULOUT,FMT='(/,''  Arrays in COMGD1 are allocated'',
      S        '' the following space:'')')
-         WRITE(KULOUT,FMT='(''   GD1:'',I6,10x
-     S        ,'' (3D-fields ):'',I8)')  ILEN,ILENUT0
+         WRITE(KULOUT,FMT='(''   GD1:'',I10,10x
+     S        ,'' (3D-fields ):'',I10)')  ILEN,ILENUT0
       END IF
 C
 C     3.  Spectral model states
@@ -270,8 +270,6 @@ C
          CALL HPALLOC(PTSP1 ,MAX(ILEN,1),IERR,8)
          CALL HPALLOC(PTSPG ,MAX(ILEN,1),IERR,8)
       END IF
-      write(kulout,*) 'ALLOCATING SPLAT:',ilen
-      CALL HPALLOC(PTSPLAT,MAX(ILEN,1),IERR,8)
 C
 C     .     3.2 Splitting  of states (COMSP, COMSP1, COMSPG)
 C     .         --------------------------------------------

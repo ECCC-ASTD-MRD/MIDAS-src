@@ -36,6 +36,7 @@ MODULE gridStateVector
     real*8,pointer :: ps(:,:,:,:)
     real*8,pointer :: tg(:,:,:,:)
     integer        :: ni,nj,nk,nlev,nt,anltime
+    logical        :: allocated=.false.
   end type struct_gsv  
 
 CONTAINS
@@ -56,9 +57,10 @@ CONTAINS
 
     write(*,*) 'gsv_allocate: nt,anltime=',statevector%nt,statevector%anltime
 
-    if (associated(statevector%gd))then
+    if (statevector%allocated)then
       write(*,*) 'gridStateVector already allocated! Deallocating first.'
       deallocate(statevector%gd,stat=ierr)
+      statevector%allocated=.false.
       if(ierr.eq.0) then
         write(*,*) 'gridStateVector checked and correct. IERR =',ierr
       else
@@ -68,8 +70,11 @@ CONTAINS
     end if
 
     allocate(statevector%gd(ni,nk,nj,nt),stat=ierr)
-    write(*,*) 'allocated statevector:',ni,nj,nk,ierr
-    call flush(6)
+    if(ierr.ne.0) then
+      write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
+      call flush(6)
+    endif
+    statevector%allocated=.true.
 
     statevector%gd3d => statevector%gd(:,:,:,statevector%anltime)
 
@@ -94,9 +99,9 @@ CONTAINS
 
     type(struct_gsv) :: statevector
 
-    if(.not.associated(statevector%gd)) then
+    if(.not.statevector%allocated) then
       write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call exit(1)
+      call qqexit(1)
     endif
 
     statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%nt)=0.0d0
@@ -110,9 +115,9 @@ CONTAINS
     type(struct_gsv) :: statevector
     integer          :: jstep
 
-    if(.not.associated(statevector%gd)) then
+    if(.not.statevector%allocated) then
       write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call exit(1)
+      call qqexit(1)
     endif
 
     if(statevector%nt.eq.1) return
@@ -132,9 +137,9 @@ CONTAINS
     type(struct_gsv) :: statevector
     integer          :: jstep
 
-    if(.not.associated(statevector%gd)) then
+    if(.not.statevector%allocated) then
       write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call exit(1)
+      call qqexit(1)
     endif
 
     if(statevector%nt.eq.1) return
@@ -155,14 +160,15 @@ CONTAINS
     type(struct_gsv) :: statevector
     integer        :: ierr
 
-    if(.not.associated(statevector%gd)) then
+    if(.not.statevector%allocated) then
       write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call exit(1)
+      call qqexit(1)
     endif
 
-    if (associated(statevector%gd))then
+    if (statevector%allocated) then
       deallocate(statevector%gd,stat=ierr)
       nullify(statevector%gd)
+      statevector%allocated=.false.
       if(ierr.eq.0) then
         write(*,*) 'gridStateVector checked and correct. IERR =',ierr
       else

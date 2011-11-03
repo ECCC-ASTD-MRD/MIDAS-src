@@ -23,8 +23,10 @@ subroutine oda_get_radiance_ad
 !author        : Simon Pellerin, ARMA, January 2009
 !                Based on subroutine written by J. Halle
 !
-!revision :      Sylvain Heilliette:
-!               add IASI data (codtyp 186)
+!revision      : Sylvain Heilliette:
+!                Add IASI data (codtyp 186)
+!              : Alain Beaulne / Real Sarrazin
+!                Add GeoRad data (codtyp 185)
 !
 #endif
   use mod_tovs

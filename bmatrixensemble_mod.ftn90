@@ -94,7 +94,7 @@ CONTAINS
     if(nLevEns.gt.nLevInc_in) then
       write(*,*) 'bmatrixEnsemble: ensemble has more levels than increment - not allowed!'
       call flush(6)
-      call exit(1)
+      call qqexit(1)
     endif
 
     if(nLevEns.lt.nLevInc_in) then
@@ -107,7 +107,11 @@ CONTAINS
     nkgdimEns=4*nLevEns+2  ! assume 4 3d and 2 2d variables
     topLevIndex=nLevInc-nLevEns+1
 
-    allocate(verticalLevel(nkgdimInc))
+    allocate(verticalLevel(nkgdimInc),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=1',ierr
+      call flush(6)
+    endif
     do jlev=1,nLevInc
       verticalLevel(          jlev)=jlev ! UU
       verticalLevel(1*nLevInc+jlev)=jlev ! VV
@@ -117,7 +121,11 @@ CONTAINS
     verticalLevel(4*nLevInc+1)=nLevInc   ! P0
     verticalLevel(4*nLevInc+2)=nLevInc   ! TG
 
-    allocate(verticalLevelEns(nkgdimEns))
+    allocate(verticalLevelEns(nkgdimEns),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=2',ierr
+      call flush(6)
+    endif
     do jlev=1,nLevEns
       verticalLevelEns(           jlev)=jlev ! UU
       verticalLevelEns(1*nLevEns+jlev)=jlev ! VV
@@ -127,7 +135,11 @@ CONTAINS
     verticalLevelEns(4*nLevEns+1)=nLevEns   ! P0
     verticalLevelEns(4*nLevEns+2)=nLevEns   ! TG
 
-    allocate(kIndexInc(nkgdimEns))
+    allocate(kIndexInc(nkgdimEns),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=3',ierr
+      call flush(6)
+    endif
     do jlev=1,nLevEns
       kIndexInc(          jlev)=topLevIndex-1+           jlev ! UU
       kIndexInc(1*nLevEns+jlev)=topLevIndex-1+ 1*nLevInc+jlev ! VV
@@ -148,7 +160,7 @@ CONTAINS
     else
       write(*,*) 'Invalid value for NTIME (choose 1 or 5)!'
       call flush(6)
-      call exit(1)
+      call qqexit(1)
     endif
 
     if(mpi_myLatBeg.eq.0) then
@@ -162,7 +174,7 @@ CONTAINS
         write(*,*) 'WARNING: latitudes not divisible by MPI numprocs!',mpi_myLatEnd,nj_l
         mpi_myLatEnd=nj_l
         call flush(6)
-        !call exit(1)
+        !call qqexit(1)
         mpi_myLatEnd=nj_l
         latPerPE=mpi_myLatEnd-mpi_myLatBeg+1
       endif
@@ -183,14 +195,22 @@ CONTAINS
       write(*,*) 'mpi_myLatHalfBeg+End=',mpi_myLatHalfBeg,mpi_myLatHalfEnd
     endif
 
-    allocate(nip1_l(nLevEns))
+    allocate(nip1_l(nLevEns),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=4',ierr
+      call flush(6)
+    endif
     nip1_l(1:nLevEns)=nip1_in(topLevIndex:nLevInc)
 
     mpiMode=1
     gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
     write(*,*) 'BEN:returned value of gstID=',gstID
 
-    allocate(jn_vec(nla_l))
+    allocate(jn_vec(nla_l),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=5',ierr
+      call flush(6)
+    endif
     do jn=0,ntrunc_l
       do jm=0,jn
         ila = gst_getnind(jm,gstID)+jn-jm
@@ -198,7 +218,11 @@ CONTAINS
       enddo
     enddo
 
-    allocate(pressureProfileEns(nLevEns))
+    allocate(pressureProfileEns(nLevEns),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=6',ierr
+      call flush(6)
+    endif
     pressureProfileEns(1:nLevEns)=pressureProfile_in(topLevIndex:nLevInc)
     call setupLocalization(ztlen_in,verticalScale_in,pressureProfileEns)
     deallocate(pressureProfileEns)
@@ -258,8 +282,16 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
-    allocate(ensPerturbations(ni_l,nkgdimEns,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens))
-    allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l))
+    allocate(ensPerturbations(ni_l,nkgdimEns,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
+      call flush(6)
+    endif
+    allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=8',ierr
+      call flush(6)
+    endif
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
     if(ntime_l.eq.5) then
@@ -314,7 +346,7 @@ CONTAINS
           if(ikey.lt.0) then
             write(*,*) 'SUENS: Problem with P0 ENS'
             call flush(6)
-            call exit(-1)
+            call qqexit(1)
           endif
           do jj=1,nj_l
             do ji=1,ni_l
@@ -329,7 +361,7 @@ CONTAINS
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with TT ENS'
               call flush(6)
-              call exit(-1)
+              call qqexit(1)
             endif
             call flush(6)
             do jj=1,nj_l
@@ -346,7 +378,7 @@ CONTAINS
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with HU ENS'
               call flush(6)
-              call exit(-1)
+              call qqexit(1)
             endif
             do jj=1,nj_l
               do ji=1,ni_l
@@ -362,7 +394,7 @@ CONTAINS
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with UU ENS'
               call flush(6)
-              call exit(-1)
+              call qqexit(1)
             endif
             do jj=1,nj_l
               conima=r1sa*gst_getRSQM2(jj,gstID)
@@ -379,7 +411,7 @@ CONTAINS
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with VV ENS'
               call flush(6)
-              call exit(-1)
+              call qqexit(1)
             endif
             do jj=1,nj_l
               conima=r1sa*gst_getRSQM2(jj,gstID)
@@ -395,7 +427,7 @@ CONTAINS
             write(*,*) idateo,cletiket,ip2(jt),ip3,cltypvar,clnomvar
             write(*,*) 'SUENS: Problem with TG ENS'
             call flush(6)
-            call exit(-1)
+            call qqexit(1)
           else
             do jj=1,nj_l
               do ji=1,ni_l
@@ -511,8 +543,16 @@ CONTAINS
     real*8         :: zgd(ni_l,nLevEns,nj_l)
     real*8         :: ra = 6371229.D0
 
-    allocate(ensLocalCor(0:ntrunc_l,nLevEns))
-    allocate(ensLocalVert(nLevEns,nLevEns))
+    allocate(ensLocalCor(0:ntrunc_l,nLevEns),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=9',ierr
+      call flush(6)
+    endif
+    allocate(ensLocalVert(nLevEns,nLevEns),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
+      call flush(6)
+    endif
 
     ! Calculate 5th Order Correlation Functions in Physical Space
 
@@ -667,9 +707,21 @@ CONTAINS
     write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,mpi_myLatBeg,maxLatEnd,maxLatPerPE,mpi_nprocs,nla_l,nLevInc,nLevEns
     call flush(6)
 
-    allocate(incrementLocal2(ni_l,nkgdimEns,ntime_l,mpi_myLatBeg:maxLatEnd))
-    allocate(incrementLocal(ni_l,nkgdimEns,mpi_myLatBeg:maxLatEnd,ntime_l))
-    allocate(incrementMax(ni_l,nkgdimEns,ntime_l,maxLatPerPE*mpi_nprocs))
+    allocate(incrementLocal2(ni_l,nkgdimEns,ntime_l,mpi_myLatBeg:maxLatEnd),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=11',ierr
+      call flush(6)
+    endif
+    allocate(incrementLocal(ni_l,nkgdimEns,mpi_myLatBeg:maxLatEnd,ntime_l),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=12',ierr
+      call flush(6)
+    endif
+    allocate(incrementMax(ni_l,nkgdimEns,ntime_l,maxLatPerPE*mpi_nprocs),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=13',ierr
+      call flush(6)
+    endif
 
     call tmg_start(38,'comm_gd2')
 !$OMP PARALLEL
@@ -685,13 +737,11 @@ CONTAINS
 !$OMP END PARALLEL
     call tmg_stop(38)
 
-    call tmg_start(46,'BSqrt')
     do memberIndex=1,nens
       call cain(controlVector_in,ensControlVector,memberIndex)
       call localizationSqrt(ensControlVector,ensAmplitude)
       call addEnsMember(ensAmplitude,incrementLocal,memberIndex)
     enddo
-    call tmg_stop(46)
 
     call tmg_start(38,'comm_gd2')
 !$OMP PARALLEL
@@ -763,7 +813,11 @@ CONTAINS
       return
     endif
 
-    allocate(incrementLocal(ni_l,nkgdimEns,mpi_myLatBeg:maxLatEnd,ntime_l))
+    allocate(incrementLocal(ni_l,nkgdimEns,mpi_myLatBeg:maxLatEnd,ntime_l),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=14',ierr
+      call flush(6)
+    endif
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JJ,JT,JK,JI)
@@ -780,13 +834,11 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
 
-    call tmg_start(47,'BSqrtAd')
     do memberIndex=1,nens
       call addEnsMemberAd(incrementLocal,ensAmplitude,memberIndex)
       call localizationSqrtAd(ensAmplitude,ensControlVector)
       call cainAd(ensControlVector,controlVector_out,memberIndex)
     enddo
-    call tmg_stop(47)
 
     call tmg_start(37,'comm_cv')
     nsize=cvDim_l
@@ -1030,7 +1082,7 @@ CONTAINS
     if(jdim.gt.cvDim_l) then
       write(*,*) 'BEN: CAIN: jdim > cvDim! ',jdim,memberIndex,cvDimPerMember_l,cvDim_l
       call flush(6)
-      call exit(-1)
+      call qqexit(1)
     endif
 
     call tmg_stop(45)
@@ -1065,7 +1117,7 @@ CONTAINS
     if(jdim.gt.cvDim_l) then
       write(*,*) 'BEN: CAINAD: jdim > cvDim! ',jdim,memberIndex,cvDimPerMember_l,cvDim_l
       call flush(6)
-      call exit(-1)
+      call qqexit(1)
     endif
 
     return

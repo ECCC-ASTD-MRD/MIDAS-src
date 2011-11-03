@@ -357,7 +357,7 @@
                   NVCORD = 2150 
                 ENDIF
              CASE (168,180,183,185,186)
-                !ssmi, goes, airs
+                !ssmi, goes, airs, georad, iasi
                 NVCORD = 5042
           ENDSELECT
 *

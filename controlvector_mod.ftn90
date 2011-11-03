@@ -30,12 +30,17 @@ CONTAINS
     implicit none
 
     integer        :: dimBHI_in,dimBEN_in
+    integer        :: ierr
 
     cvm_dimbhi = dimbhi_in
     cvm_dimben = dimben_in
     cvm_nvadim = cvm_dimben + cvm_dimbhi
 
-    allocate(cvm_vazx(cvm_nvadim))
+    allocate(cvm_vazx(cvm_nvadim),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'controlVector: Problem allocating memory! id=1',ierr
+      call flush(6)
+    endif
 
     cvm_vazx(:)=0.0d0
 
@@ -57,7 +62,7 @@ CONTAINS
     elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
     else
-      write(*,*) 'CVM_getSubVector: value of subVectorIndex invalid'
+      write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
       call flush(6)
     endif
 

@@ -45,9 +45,11 @@
       INTEGER JLEV, JGL, JLON
       real*8 zmin,zmax
 *
-      do jstep=1,nstepobsinc
-        DO JLEV = 1, NFLEV
-          DO JGL = 1, NJ
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jgl,jstep,jlev,jlon)
+      DO JGL = 1, NJ
+        DO JSTEP=1,NSTEPOBSINC
+          DO JLEV = 1, NFLEV
             DO JLON = 1, NI
               statevector%uu(JLON,JLEV,JGL,jstep) = CONPHY(JGL) * statevector%uu(JLON,JLEV,JGL,jstep)
               statevector%vv(JLON,JLEV,JGL,jstep) = CONPHY(JGL) * statevector%vv(JLON,JLEV,JGL,jstep)
@@ -56,7 +58,9 @@
             END DO
           END DO
         END DO
-      enddo
+      ENDDO
+!$OMP END DO
+!$OMP END PARALLEL
 *
       RETURN
       END SUBROUTINE uvwi2uv

@@ -879,6 +879,15 @@ c               ENDIF
 *
 *
                 call obs_set_i(obsSpaceData,'ONM ',NOBTOT, NOBTOT)
+* Modification S. Heilliette pour traiter le cas ou l'angle
+* est manquant (ISATZEN=-1) pour les donnees AIRS et IASI
+* le 14/07/2011
+                IF (ISATZEN .LT. 0 .AND. 
+     +              (IDBURP==186 .OR. IDBURP==183)) THEN
+* 19000 correspond a un angle de 100 degres impossible
+                   ISATZEN = 19000
+                ENDIF
+* Fin modif
                 call obs_set_i(obsSpaceData,'BOX ',NOBTOT, INSTRUM + ISATZEN*10000)
                 call obs_set_i(obsSpaceData,'OTP ',NOBTOT, NVTYP)
                 call obs_set_i(obsSpaceData,'ITY ',NOBTOT, IDBURP+ 1000*ISAT+ 1000000*ITECH)

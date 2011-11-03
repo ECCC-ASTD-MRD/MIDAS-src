@@ -42,7 +42,7 @@ subroutine oda_L(statevector)
   integer :: nl_ilev, nl_err
   integer :: ierr
   !
-  call tmg_start (76, 'GD<->PROF')                          !
+  call tmg_start (76, 'GD->PROF')                          !
   IF(L4DVAR) THEN
 !modular1     if(mpi_myid == 0) CALL PUTDX2('P')
      call rpn_comm_barrier("GRID",ierr) 
@@ -58,30 +58,34 @@ subroutine oda_L(statevector)
 !    Conversion of wind images to physical winds
 !
      call uvwi2uv(statevector)
+!$OMP PARALLEL
+!$OMP SECTIONS PRIVATE(nl_ilev)
 !
 !    3D fields interpolation
 !
-!$OMP PARALLEL
-!$OMP SECTIONS
 !$OMP SECTION
      if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',nflev)
-     if(NGEXIST(ngoz).eq.1)  call gd2mvo('OZ',nflev)
 !$OMP SECTION
      if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',nflev)
-     if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
 !$OMP SECTION
      if(NGEXIST(ngq).eq.1)   call gd2mvo('Q0',nflev)
-     if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
 !$OMP SECTION
      if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',nflev)
-!$OMP END SECTIONS
-!$OMP END PARALLEL
+!$OMP SECTION
+     if(NGEXIST(ngoz).eq.1)  call gd2mvo('OZ',nflev)
+!$OMP SECTION
+     if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
+!$OMP SECTION
+     if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
 !
 !    2D fields interpolation
 !
+!$OMP SECTION
      nl_ilev = 1
      if(NGEXIST(ngps).eq.1)  call gd2mvo('PS',nl_ilev)
      if(NGEXIST(ngtg).eq.1)  call gd2mvo('TG',nl_ilev)
+!$OMP END SECTIONS
+!$OMP END PARALLEL
 
   endif
   call tmg_stop(76)

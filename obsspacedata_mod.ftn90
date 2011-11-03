@@ -430,7 +430,7 @@ MODULE obsSpaceData_mod
     else
       write(*,*) 'OBS_GETFAMILY: Header or Body index must be specified!'
       call flush(6)
-      call exit(-1)
+      call qqexit(1)
     endif
 
   end function obs_getFamily
@@ -453,7 +453,7 @@ MODULE obsSpaceData_mod
     else
       write(*,*) 'OBS_SETFAMILY: Header or Body index must be specified!'
       call flush(6)
-      call exit(1)
+      call qqexit(1)
     endif
 
   end subroutine obs_setFamily
@@ -1590,7 +1590,7 @@ MODULE obsSpaceData_mod
   if(obsdat%mpi_local .eqv. .true.)then
     write(*,*)'ERROR: obs_reduceToMpiLocal() has been called,'
     write(*,*)'       but the obsSpaceData object is already in mpi-local state'
-    call exit(1)
+    call qqexit(1)
   end if
   obsdat%mpi_local = .true.
 
@@ -1763,7 +1763,7 @@ MODULE obsSpaceData_mod
   if(obsdat%mpi_local .eqv. .false.)then
     write(*,*)'ERROR: obs_expandToMpiGlobal() has been called,'
     write(*,*)'       but the obsSpaceData object is already in mpi-global state'
-    call exit(1)
+    call qqexit(1)
   end if
   obsdat%mpi_local = .false.
 

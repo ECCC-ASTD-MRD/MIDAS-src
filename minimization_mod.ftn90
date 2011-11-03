@@ -84,7 +84,11 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    allocate(dg_vbar(nvadim_in))
+    allocate(dg_vbar(nvadim_in),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'minimization: Problem allocating memory! id=1',ierr
+      call flush(6)
+    endif
     dg_vbar(:)=0.0d0
 
     IF(N1GC.EQ.2) THEN
@@ -132,9 +136,9 @@ CONTAINS
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)
 
-      real*8 vazg(cvm_nvadim)
-      real*8 vatr1(nmtra)
-      real*8 vatra(nmtra)
+      real*8,allocatable :: vazg(:)
+      real*8,allocatable :: vatr1(:)
+      real*8,allocatable :: vatra(:)
 
       real*8 :: RPRECIS = 1.D-12
       REAL*8 DLDS(1)
@@ -160,6 +164,26 @@ CONTAINS
       real*8 xx,bb,a_not_use,r8_not_use,pj0
       integer in_mode(3),out_mode,i_not_use,nilm,ilm0(10),ilm1(10)
       integer i_pmat1,nl_stat, dl_bidon
+! 
+!     allocation (formerly automatic arrays)
+!
+
+      allocate(vazg(cvm_nvadim),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'minimization: Problem allocating memory! id=2',ierr
+        call flush(6)
+      endif
+      allocate(vatr1(nmtra),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'minimization: Problem allocating memory! id=3',ierr
+        call flush(6)
+      endif
+      allocate(vatra(nmtra),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'minimization: Problem allocating memory! id=4',ierr
+        call flush(6)
+      endif
+
 
 ! ---------------------------------------
 !     Initialization and allocation specific to (N1CG1)
@@ -195,7 +219,12 @@ CONTAINS
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
       obsspacedataptr%ptr => obsSpaceData
       nsize = size(transfer(obsspacedataptr,obs_ptr_int))
-      allocate(obs_ptr_int(nsize+1))
+      allocate(obs_ptr_int(nsize+1),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'minimization: Problem allocating memory! id=2',ierr
+        call flush(6)
+      endif
+
       obs_ptr_int(1)=nsize   ! store the size of converted pointer in the first element
       obs_ptr_int(2:(1+nsize))=transfer(obsspacedataptr,obs_ptr_int)
 
@@ -505,6 +534,10 @@ CONTAINS
 !modular1        call endsim2(cvm_nvadim,cvm_vazx)
       endif
 
+      deallocate(vazg,stat=ierr)
+      deallocate(vatr1,stat=ierr)
+      deallocate(vatra,stat=ierr)
+
       RETURN
   END SUBROUTINE min_minvar
 
@@ -560,8 +593,12 @@ CONTAINS
 
        dl_v = da_v + dg_vbar      !dg_vbar = sum(v) of previous outer-loops
 
+       call tmg_start(74,'JB')
+
        ! Computation of background term of cost function
        dl_Jb = dot_product(dl_v,dl_v)/2.d0
+
+       call tmg_stop(74)
 
        call gsv_allocate(statevector,ni,nj,nk,nlev,nt)
 
@@ -606,10 +643,10 @@ CONTAINS
      
        call tmg_stop(2)
 
-       CALL TRANSFER3DV('ZGD0')
+!       CALL TRANSFER3DV('ZGD0')
        call oda_LT(statevector)
 
-       CALL TRANSFER3DV('ZSP0')
+!       CALL TRANSFER3DV('ZSP0')
        da_gradJ = 0.d0
        call oda_sqrtBT(da_gradJ,na_dim,statevector)
        call gsv_deallocate(statevector)
@@ -675,10 +712,14 @@ CONTAINS
     REAL*8 DDSC,TEMPO
     REAL*8 ZPY(KDIM)
 
+    call tmg_start(79,'PRSCAL')
+
     DDSC = 0.
     DO J = 1, KDIM
       DDSC = DDSC + PX(J)*PY(J)
     ENDDO
+
+    call tmg_stop(79)
 
     RETURN
   END SUBROUTINE PRSCAL
@@ -736,9 +777,11 @@ CONTAINS
 
     INTEGER JDIM
 
+    call tmg_start(78,'DCANONB')
     DO JDIM = 1, KDIM
       PY(JDIM) = PX(JDIM)
     ENDDO
+    call tmg_stop(78)
 
     RETURN
   END SUBROUTINE DCANONB
@@ -1094,7 +1137,11 @@ CONTAINS
 
       read(ireslun) imtra,iztrl
       if(.not. allocated(zvatra)) then
-        allocate(zvatra(imtra))
+        allocate(zvatra(imtra),stat=ierr)
+        if(ierr.ne.0) then
+          write(*,*) 'minimization: Problem allocating memory! id=3',ierr
+          call flush(6)
+        endif
         zvatra = 0.d0
       endif
       !imemo = nvamaj
@@ -1102,7 +1149,13 @@ CONTAINS
       if(k1gc.eq.3) ictrlvec = 2*imemo+1
       if(k1gc.eq.4) ictrlvec = 2*imemo
 
-      if(.not. allocated(zvatra)) allocate(zvatra(imtra))
+      if(.not. allocated(zvatra)) then
+        allocate(zvatra(imtra),stat=ierr)
+        if(ierr.ne.0) then
+          write(*,*) 'minimization: Problem allocating memory! id=4',ierr
+          call flush(6)
+        endif
+      endif
       zvatra = 0.d0
 
       do jvadim = 1, ictrlvec
@@ -1125,7 +1178,13 @@ CONTAINS
       endif
 
       if(ibrpstamp == kbrpstamp .and. lxbar) then
-        if(.not. allocated(zvazxbar)) allocate(zvazxbar(ivadim))
+        if(.not. allocated(zvazxbar)) then
+          allocate(zvazxbar(ivadim),stat=ierr)
+          if(ierr.ne.0) then
+            write(*,*) 'minimization: Problem allocating memory! id=5',ierr
+            call flush(6)
+          endif
+        endif
         read(ireslun) zvazxbar
         write(nulout,*) 'RW_VATRA : setting vazxbar'
         if(itrunc .ge. ktrunc) then ! Given res. > working res.
@@ -1137,7 +1196,13 @@ CONTAINS
 
         if(lvazx) then
           write(nulout,*) 'RW_VATRA : setting vazx'
-          if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
+          if(.not. allocated(zvazx)) then
+            allocate(zvazx(ivadim),stat=ierr)
+            if(ierr.ne.0) then
+              write(*,*) 'minimization: Problem allocating memory! id=6',ierr
+              call flush(6)
+            endif
+          endif 
           read(ireslun) zvazx
           if(itrunc .ge. ktrunc) then ! Given res. > working res.
             call setvazx(vazx,ktrunc,zvazx,itrunc,.false.,kksdim,kvadim)
@@ -1169,16 +1234,34 @@ CONTAINS
         pvazxbar => vazxbar
         pvazx => vazx
       else
-        if(.not. allocated(zvatra)) allocate(zvatra(imtra))
+        if(.not. allocated(zvatra)) then
+          allocate(zvatra(imtra),stat=ierr)
+          if(ierr.ne.0) then
+            write(*,*) 'minimization: Problem allocating memory! id=7',ierr
+            call flush(6)
+          endif
+        endif
 
         iptrl => iztrl
         pvatra => zvatra
         call setvatra(pvatra,imtra,ivadim,itrunc,iptrl,vatra,nmtra,kvadim,ktrunc,nztrl,.true.,kksdim,nvamaj,k1gc)
-        if(.not. allocated(zvazxbar)) allocate(zvazxbar(ivadim))
+        if(.not. allocated(zvazxbar)) then
+          allocate(zvazxbar(ivadim),stat=ierr)
+          if(ierr.ne.0) then
+            write(*,*) 'minimization: Problem allocating memory! id=8',ierr
+            call flush(6)
+          endif
+        endif
         pvazxbar => zvazxbar
         pvazxbar = 0.d0
         call setvazx(pvazxbar,itrunc,vazxbar,ktrunc,.true.,kksdim,kvadim)
-        if(.not. allocated(zvazx)) allocate(zvazx(ivadim))
+        if(.not. allocated(zvazx)) then
+          allocate(zvazx(ivadim),stat=ierr)
+          if(ierr.ne.0) then
+            write(*,*) 'minimization: Problem allocating memory! id=9',ierr
+            call flush(6)
+          endif
+        endif
         pvazx => zvazx
         pvazx = 0.d0
         call setvazx(pvazx,itrunc,vazx,ktrunc,.true.,kksdim,kvadim)

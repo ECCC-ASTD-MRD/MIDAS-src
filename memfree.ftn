@@ -95,15 +95,6 @@ C
      S         " SP. IERR =",I3)')IERR
         END IF
 C
-        CALL HPDEALLC(PTSPLAT,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," SPLAT checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " SPLAT. IERR =",I3)')IERR
-        END IF
-C
         CALL HPDEALLC(PTSP1,IERR,1)
         IF(IERR.EQ.0)THEN
           WRITE(KULOUT,FMT='(10X," SP1 checked and correct",

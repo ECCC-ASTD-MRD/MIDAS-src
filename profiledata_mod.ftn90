@@ -109,17 +109,57 @@ module profileData_mod
     SUBROUTINE prof_allocateGlobal(klev,nobtotp)
       implicit none
       #include "comstate.cdk"
-      integer :: nobtotp,klev
+      integer :: nobtotp,klev,ierr
 
-      if(NGEXIST(nguu).eq.1) allocate(gomu_g(klev,nobtotp))
-      if(NGEXIST(ngvv).eq.1) allocate(gomv_g(klev,nobtotp))
-      if(NGEXIST(ngtt).eq.1) allocate(gomt_g(klev,nobtotp))
-      if(NGEXIST(ngq ).eq.1) allocate(gomq_g(klev,nobtotp))
-      if(NGEXIST(ngoz).eq.1) allocate(gomoz_g(klev,nobtotp))
-      if(NGEXIST(nggz).eq.1) allocate(gomgz_g(klev,nobtotp))
-      if(NGEXIST(ngtr).eq.1) allocate(gomtr_g(klev,nobtotp))
-      if(NGEXIST(ngps).eq.1) allocate(gomps_g(1:1,nobtotp))
-      if(NGEXIST(ngtg).eq.1) allocate(gomtgr_g(1:1,nobtotp))
+      write(*,*) 'allocating a global gomobs: ',klev,nobtotp
+      call flush(6)
+
+      ierr=0
+      if(NGEXIST(nguu).eq.1) allocate(gomu_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=1',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngvv).eq.1) allocate(gomv_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=2',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngtt).eq.1) allocate(gomt_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=3',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngq ).eq.1) allocate(gomq_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=4',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngoz).eq.1) allocate(gomoz_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=5',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(nggz).eq.1) allocate(gomgz_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=6',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngtr).eq.1) allocate(gomtr_g(klev,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=7',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngps).eq.1) allocate(gomps_g(1:1,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=8',ierr
+        call flush(6)
+      endif
+      if(NGEXIST(ngtg).eq.1) allocate(gomtgr_g(1:1,nobtotp),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'profileData: Problem allocating memory! id=9',ierr
+        call flush(6)
+      endif
 
     END SUBROUTINE prof_allocateGlobal 
 
@@ -162,28 +202,94 @@ module profileData_mod
       INTEGER :: i,iobs,ierr,nsize
 
       print*,'Entering prof_expandToMpiGlobal2:',nobtot,nobtotp  
+      call flush(6)
 
-      if(NGEXIST(nguu).eq.1) gomu_g(:,:)=0.0d0
-      if(NGEXIST(ngvv).eq.1) gomv_g(:,:)=0.0d0
-      if(NGEXIST(ngtt).eq.1) gomt_g(:,:)=0.0d0
-      if(NGEXIST(ngq ).eq.1) gomq_g(:,:)=0.0d0
-      if(NGEXIST(ngoz).eq.1) gomoz_g(:,:)=0.0d0
-      if(NGEXIST(nggz).eq.1) gomgz_g(:,:)=0.0d0
-      if(NGEXIST(ngtr).eq.1) gomtr_g(:,:)=0.0d0
-      if(NGEXIST(ngps).eq.1) gomps_g(:,:)=0.0d0
-      if(NGEXIST(ngtg).eq.1) gomtgr_g(:,:)=0.0d0
-      DO i=1,NOBTOT
-         iobs=locObsTag(i)
-         if(NGEXIST(nguu).eq.1) gomu_g(:,iobs)  =gomu(:,i)
-         if(NGEXIST(ngvv).eq.1) gomv_g(:,iobs)  =gomv(:,i)
-         if(NGEXIST(ngtt).eq.1) gomt_g(:,iobs)  =gomt(:,i)
-         if(NGEXIST(ngq ).eq.1) gomq_g(:,iobs)  =gomq(:,i)
-         if(NGEXIST(ngoz).eq.1) gomoz_g(:,iobs) =gomoz(:,i)
-         if(NGEXIST(nggz).eq.1) gomgz_g(:,iobs) =gomgz(:,i)
-         if(NGEXIST(ngtr).eq.1) gomtr_g(:,iobs) =gomtr(:,i)
-         if(NGEXIST(ngps).eq.1) gomps_g(1,iobs) =gomps(1,i)
-         if(NGEXIST(ngtg).eq.1) gomtgr_g(1,iobs)=gomtgr(1,i)
-      ENDDO  
+!$OMP PARALLEL
+!$OMP SECTIONS
+!$OMP SECTION
+      if(NGEXIST(nguu).eq.1) then
+        gomu_g(:,:)=0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomu_g(:,iobs)  =gomu(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(ngvv).eq.1) then
+        gomv_g(:,:)=0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomv_g(:,iobs)  =gomv(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(ngtt).eq.1) then
+        gomt_g(:,:)=0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomt_g(:,iobs)  =gomt(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(ngq).eq.1) then
+        gomq_g(:,:)=0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomq_g(:,iobs)  =gomq(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(ngoz).eq.1) then
+        gomoz_g(:,:)  =0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomoz_g(:,iobs)  =gomoz(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(nggz).eq.1) then
+        gomgz_g(:,:)  =0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomgz_g(:,iobs)  =gomgz(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(ngtr).eq.1) then
+        gomtr_g(:,:)  =0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomtr_g(:,iobs)  =gomtr(:,i)
+        ENDDO
+      endif
+
+!$OMP SECTION
+      if(NGEXIST(ngps).eq.1) then
+        gomps_g(1,:)  =0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomps_g(1,iobs)  =gomps(1,i)
+        ENDDO
+      endif
+
+      if(NGEXIST(ngtg).eq.1) then
+        gomtgr_g(1,:)  =0.0d0
+        DO i=1,NOBTOT
+          iobs=locObsTag(i)
+          gomtgr_g(1,iobs)  =gomtgr(1,i)
+        ENDDO
+      endif
+!$OMP END SECTIONS
+!$OMP END PARALLEL
+
+      write(*,*) 'starting allreduce'
+      call flush(6)
       nsize=klev*NOBTOTP
       if(NGEXIST(nguu).eq.1) &
           CALL RPN_COMM_ALLReduce(gomu_g,gomu_g,nsize, &
@@ -215,6 +321,7 @@ module profileData_mod
                                   "mpi_double_precision","mpi_sum","GRID",ierr)
 
       write(*,*) 'Leaving prof_expandToMpiGlobal2' 
+      call flush(6)
       RETURN
 
     END SUBROUTINE prof_expandToMpiGlobal2

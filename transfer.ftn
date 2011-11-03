@@ -24,7 +24,7 @@
 *Revision:
 *     L.Fillion*RPN/AESFeb 93 - Observation state option added
 *     P. Gauthier ARMA/MSC March 2003-  Code cleanup for migration to IBM-p690
-*     M. Buehner ARMA May 2008- Added initialization of TB and SPLAT
+*     M. Buehner ARMA May 2008- Added initialization of TB
 *     L. Fillion: ARMA/EC - 29 May 2008 - Introduce further transfer option: GDG1 and GD1G. Also: Add GZ.
 *     L. Fillion: ARMA/EC - 13 Jan 2009 - Upgrade lam4d to v_10_1_2 of 3dvar.
 *
@@ -105,10 +105,6 @@ C     .     1.2 Set COMSP to zero
 C     .         -----------------
       CASE('ZSP0')
          SP(:,:,:) = 0.d0
-C     .     1.2 Set SPLAT to zero
-C     .         -----------------
-      CASE('ZSPL')
-         SPLAT(:,:,:,:) = 0.d0
 C
 C     .          1.2.1 Set COMSP1 to zero
 C     .              ------------------

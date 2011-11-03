@@ -22,16 +22,20 @@ contains
     ! set analysis increment to zero
     call gsv_zero(statevector) 
 
+    call tmg_start(46,'B_HI')
     ! add 3D contribution to increment from BmatrixHI
     cvBhi=>cvm_getSubVector(da_v,1)
     if(associated(cvBhi)) call bhi_bsqrt(cvBhi,statevector%gd3d)
+    call tmg_stop(46)
 
     ! copy 3D increment to other timesteps to create 4D increment
     call gsv_3dto4d(statevector)
 
+    call tmg_start(47,'B_ENS')
     ! add 4D contribution to increment from BmatrixEnsemble
     cvBen=>cvm_getSubVector(da_v,2)
     if(associated(cvBen)) call ben_bsqrt(cvBen,statevector%gd)
+    call tmg_stop(47)
 
     call tmg_stop (51)
 
@@ -59,16 +63,20 @@ contains
     ! set gradient to zero
     da_v(:)=0.0d0
 
+    call tmg_start(65,'B_ENS_T')
     ! add contribution to gradient from BmatrixEnsemble
     cvBen=>cvm_getSubVector(da_v,2)
     if(associated(cvBen)) call ben_bsqrtad(statevector%gd,cvBen)
+    call tmg_stop(65)
 
     ! adjoint of copy 3D increment to 4D increment
     call gsv_3dto4dAdj(statevector)
 
+    call tmg_start(66,'B_HI_T')
     ! add contribution to gradient from BmatrixHI
     cvBhi=>cvm_getSubVector(da_v,1)
     if(associated(cvBhi)) call bhi_bsqrtad(statevector%gd3d,cvBhi)
+    call tmg_stop(66)
 
     call tmg_stop(51) 
 

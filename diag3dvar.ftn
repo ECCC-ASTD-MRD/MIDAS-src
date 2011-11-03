@@ -68,7 +68,6 @@ C
 #include "comgd1.cdk"
 #include "comgem.cdk"
 #include "comsp.cdk"
-#include "comsp1.cdk"
 #include "localpost.cdk"
 #include "comstate.cdk"
 *
