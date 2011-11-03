@@ -65,7 +65,6 @@ C
 C*       1.       PERFORM LEGENDRE TRANFORM.
 C                 --------------------------
  100  CONTINUE
-!modular1 #if defined (C910) || defined(IBM)
       IF (KAR.GE.KBC) THEN
          CALL MXMA8(PA,KA,KAD,PB,KB,KBD,PC,KC,KCA,KAR,KAC,KBC)
       ELSE

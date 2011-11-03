@@ -237,15 +237,9 @@ C     8. Constants associated with the machine accuracy
 C     .  ----------------------------------------------
  800  CONTINUE
       NR8SIZ=QQQR8SZ()
-#if defined (C910)
-      RINFINI = 1.D+35
-      RZERO   = 1.D-35
-      RPRECIS = 1.D-6
-#else
       RINFINI = 1.D+75
       RZERO   = 1.D-79
       RPRECIS = 1.D-12
-#endif
       RETURN
       END
 

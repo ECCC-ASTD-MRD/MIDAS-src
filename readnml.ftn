@@ -167,172 +167,87 @@ C*    2.1
 C
       IF(CDNAME.EQ.'NAMCT0')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMCT0)
-         WRITE(NULOUT,NML=NAMCT0)
-#else
          READ(NULNAM,NAMCT0)
          WRITE(NULOUT,NAMCT0)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMCVA')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMCVA)
-         WRITE(NULOUT,NML=NAMCVA)
-#else
          READ(NULNAM,NAMCVA)
          WRITE(NULOUT,NAMCVA)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMDIM')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMDIM)
-         WRITE(NULOUT,NML=NAMDIM)
-#else
          READ(NULNAM,NAMDIM)
          WRITE(NULOUT,NAMDIM)
-#endif
       ELSE IF(CDNAME.EQ.'NAMDIMO')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMDIMO)
-         WRITE(NULOUT,NML=NAMDIMO)
-#else
          READ(NULNAM,NAMDIMO)
          WRITE(NULOUT,NAMDIMO)
-#endif
 C
 C
       ELSE IF(CDNAME.EQ.'NAMFILT')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMFILT)
-         WRITE(NULOUT,NML=NAMFILT)
-#else
          READ(NULNAM,NAMFILT)
          WRITE(NULOUT,NAMFILT)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMGEM')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGEM)
-         WRITE(NULOUT,NML=NAMGEM)
-#else
          READ(NULNAM,NAMGEM)
          WRITE(NULOUT,NAMGEM)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMSHARED_AAI_3DV')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMSHARED_AAI_3DV)
-         WRITE(NULOUT,NML=NAMSHARED_AAI_3DV)
-#else
          READ(NULNAM,NAMSHARED_AAI_3DV)
          WRITE(NULOUT,NAMSHARED_AAI_3DV)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMGDPAR')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGDPAR)
-         WRITE(NULOUT,NML=NAMGDPAR)
-#else
          READ(NULNAM,NAMGDPAR)
          WRITE(NULOUT,NAMGDPAR)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMODE')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMODE)
-         WRITE(NULOUT,NML=NAMODE)
-#else
          READ(NULNAM,NAMODE)
          WRITE(NULOUT,NAMODE)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMPOST')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMPOST)
-         WRITE(NULOUT,NML=NAMPOST)
-#else
          READ(NULNAM,NAMPOST)
          WRITE(NULOUT,NAMPOST)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMSTATE')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMSTATE)
-         WRITE(NULOUT,NML=NAMSTATE)
-#else
          READ(NULNAM,NAMSTATE)
          WRITE(NULOUT,NAMSTATE)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMCVA')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMCVA)
-         WRITE(NULOUT,NML=NAMCVA)
-#else
          READ(NULNAM,NAMCVA)
          WRITE(NULOUT,NAMCVA)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMBPOST')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMBPOST)
-         WRITE(NULOUT,NML=NAMBPOST)
-#else
          READ(NULNAM,NAMBPOST)
          WRITE(NULOUT,NAMBPOST)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMTOV')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMTOV)
-         WRITE(NULOUT,NML=NAMTOV)
-#else
          READ(NULNAM,NAMTOV)
          WRITE(NULOUT,NAMTOV)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAMGPSRO')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGPSRO)
-         WRITE(NULOUT,NML=NAMGPSRO)
-#else
          READ(NULNAM,NAMGPSRO)
          WRITE(NULOUT,NAMGPSRO)
-#endif
 C
       ELSE IF(CDNAME.EQ.'NAM1CHN')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAM1CHN)
-         WRITE(NULOUT,NML=NAM1CHN)
-#else
          READ(NULNAM,NAM1CHN)
          WRITE(NULOUT,NML=NAM1CHN)
-#endif
       ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
 C
-#if defined (C910)
-         READ(NULNAM,NML=NAMGPSGB)
-         WRITE(NULOUT,NML=NAMGPSGB)
-#else
          READ(NULNAM,NAMGPSGB)
          WRITE(NULOUT,NAMGPSGB)
-#endif
       END IF
 C
       ier=FCLOS(NULNAM)
