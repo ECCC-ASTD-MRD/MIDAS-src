@@ -57,9 +57,9 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-#include "commvo.cdk"
-#include "commvog.cdk"
-#include "commvohr.cdk"
+ 
+ 
+ 
 #include "comcst.cdk"
 *
       character*2 cdmvo

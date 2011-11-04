@@ -9,7 +9,7 @@
 ! Dependencies:
 !
 !--------------------------------------------------------------------------
-MODULE minimization
+MODULE minimization_mod
 
   implicit none
   save
@@ -117,7 +117,7 @@ CONTAINS
 
   SUBROUTINE min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
       use mod4dv, only : l4dvar
-      use controlVector
+      use controlVector_mod
       use obsSpaceData_mod
 !
 !Purpose:
@@ -1294,4 +1294,4 @@ CONTAINS
   END SUBROUTINE RW_VATRA
 
 
-END MODULE minimization
+END MODULE minimization_mod

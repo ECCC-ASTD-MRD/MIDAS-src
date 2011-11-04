@@ -53,7 +53,7 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
       INTEGER  KILG, KLEV
       REAL*8     PCON
@@ -69,7 +69,7 @@
 #include "comdimo.cdk"
 #include "comode.cdk"
 
-#include "commvo1.cdk"
+ 
 #include "comphy.cdk"
 *modules
 *

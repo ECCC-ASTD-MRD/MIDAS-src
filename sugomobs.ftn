@@ -17,7 +17,7 @@
       subroutine sugomobs
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use columnData_mod 
-#include "commvo.cdk"
+ 
 #if defined (DOC)
 *
 ***s/r sumgomobs
@@ -67,12 +67,12 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 
-#include "commvog.cdk"
+ 
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comcst.cdk"
-#include "commvohr.cdk"
+ 
 c
 c----------------------------------------------------------
 c
@@ -486,7 +486,7 @@ c       fit in GOMOBSHR.  Accordingly, obs operator will have to step
 C       throughout gomobsg with the same step size.
 c
             nkgdimohr = nvo3d*istep + nvo2d
-            call locptgomhr(istep)
+            call col_locptgomhr(istep,nobtot)
             call tmg_start(30,'FILLMVO')
             call fillmvo('HR','PP',zppobs,itrlnlev,nobtot)
             call fillmvo('HR','LV',zlev,itrlnlev,1)

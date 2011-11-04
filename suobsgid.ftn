@@ -42,7 +42,7 @@
 #endif
       use modfgat
       use mod4dv, only : mvar, l4dvar
-      use minimization
+      use minimization_mod
       use mpi
       use obsSpaceData_mod
       IMPLICIT NONE

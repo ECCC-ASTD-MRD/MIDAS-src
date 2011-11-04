@@ -15,13 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine postmin
-      use globalSpectralTransform
-      use mod4dv, only : l4dvar
-      use obsSpaceData_mod
-      use controlVector
-      use minimization
-      use bmatrix
-      use modfgat
 !modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *
@@ -55,8 +48,14 @@
 *Arguments
 *    -NONE-
 #endif
+      use globalSpectralTransform
+      use mod4dv, only : l4dvar
+      use obsSpaceData_mod
+      use controlVector_mod
+      use minimization_mod
+      use bmatrix
+      use modfgat
       use mpi
-      use minimization
       use gridStateVector
       IMPLICIT NONE
 *implicits
@@ -280,10 +279,6 @@ c
           enddo
         enddo
       endif
-      IF ( CHUM .EQ. 'ES') THEN
-!modular1        call mhuaesgd(zesg,zhug,zttg,zpsg,zpt,ni,nj,nflev)
-!modular1        call lesahugd(zhu,zttg,zhug,zesg,zpsg,zpt,ni,nj,nflev)
-      ENDIF
 !
       call diag3dvar
       call memfree(nulout)

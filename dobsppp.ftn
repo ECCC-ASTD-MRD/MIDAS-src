@@ -40,8 +40,8 @@
 #include "comdimo.cdk"
 #include "comcst.cdk"
 #include "comphy.cdk"
-#include "commvo.cdk"
-#include "commvohr.cdk"
+ 
+ 
 #include "cvcord.cdk"
       INTEGER IPB,IPT,ITY,IDBURP
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST

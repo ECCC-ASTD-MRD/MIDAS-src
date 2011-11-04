@@ -55,7 +55,7 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 c------------------------------------------------------------------------
@@ -65,8 +65,8 @@ c------------------------------------------------------------------------
 #include "comdimo.cdk"
 #include "comcva.cdk"
 
-#include "commvo1.cdk"
-#include "commvog.cdk"
+ 
+ 
 #include "comgem.cdk"
 #include "comcst.cdk"
 c
@@ -88,19 +88,11 @@ c     ------------------------------------------------------------------
 C -
 c
  100  continue
-      if(chum.eq.'ES') then
-c
-c       compute delq from (delt, del(T-Td))
-c
-cpik  ibm changed loop order
-!modular1        call lesahuo
-      else
-        do jobs = 1, nobtot
-          do jlev = 1, nflev
-            gomq1(jlev,jobs) = gomq(jlev,jobs)
-          enddo
+      do jobs = 1, nobtot
+        do jlev = 1, nflev
+          gomq1(jlev,jobs) = gomq(jlev,jobs)
         enddo
-      endif
+      enddo
 c
 c*2   Computation of virtual temperature increments
 c     ---------------------------------------------

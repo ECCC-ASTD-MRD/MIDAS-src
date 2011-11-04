@@ -34,7 +34,7 @@ C    for 1 obs case
 C
       use obsSpaceData_mod
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
@@ -44,7 +44,7 @@ C
 #include "comcst.cdk"
 #include "comct0.cdk"
 
-#include "commvohr.cdk"
+ 
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 C

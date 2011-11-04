@@ -41,7 +41,7 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *IMPLICITS
 *         --------------------------------------------------------------------------
@@ -51,7 +51,7 @@
 #include "comdimo.cdk"
 #include "comgem.cdk"
 
-#include "commvog.cdk"
+ 
 #include "comcst.cdk"
 *
       INTEGER JOBS,JLEV

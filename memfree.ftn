@@ -35,8 +35,8 @@
 C
       use obsSpaceData_mod
       use columnData_mod 
-      use controlVector
-#include "commvo.cdk"
+      use controlVector_mod
+ 
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -54,9 +54,9 @@ C
 C*    Comdecks associated with the observations
 C     ----------------------------------------
 #include "comdimo.cdk"
-#include "commvo1.cdk"
-#include "commvog.cdk"
-#include "commvohr.cdk"
+ 
+ 
+ 
 *
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       EXTERNAL HPDEALLC, FSTFRM,EXFIN

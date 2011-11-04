@@ -34,7 +34,7 @@
 *Arguments
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -60,15 +60,6 @@ C
       if(chum.eq.'LQ') then
         call amhu2es
       endif
-C
-      IF(CHUM .EQ. 'ES') THEN
-         DO JOBS=1,NOBTOT
-            DO JLEV=1,NFLEV
-               GOMQ(JLEV,JOBS) = GOMQ(JLEV,JOBS) + GOMES(JLEV,JOBS)
-            ENDDO
-         ENDDO
-      ENDIF
-C
 
       RETURN
       END

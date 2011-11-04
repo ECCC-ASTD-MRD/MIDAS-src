@@ -35,7 +35,7 @@
       use modgps08refop
       use obsSpaceData_mod
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -45,7 +45,7 @@
 #include "comlun.cdk"
 #include "comcst.cdk"
 #include "comct0.cdk"
-#include "commvohr.cdk"
+ 
 #include "cvcord.cdk"
 #include "comphy.cdk"
 *

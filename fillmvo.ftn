@@ -41,15 +41,15 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       implicit none
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 
-#include "commvog.cdk"
-#include "commvohr.cdk"
+ 
+ 
 #include "comgem.cdk"
 #include "comphy.cdk"
 #include "comcst.cdk"

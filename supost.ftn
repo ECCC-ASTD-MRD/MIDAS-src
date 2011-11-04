@@ -70,12 +70,6 @@ C
 *                           'TB','TU','ZB','ZU' 'PB','PU'
 *
 *-----------------------------------------------------------------
-*      CVCORD = 'ETAGE' .AND. CHUM = 'ES'
-*      COMPULSARY VARIALBES:'UU','VV','TT','HU','P0','ES'
-*      DIAGNOSTIC VARIABLES:'GZ','VT','QR','DD','QQ','PP','CC',
-*                           'TB','TU','ZB','ZU' 'PB','PU'
-*
-*-----------------------------------------------------------------
 *     CVCORD = 'PRESS' DEFAULT VALUES
       do jlev = 1,JPNFLEV
         NPPLEV(jlev)  =  0

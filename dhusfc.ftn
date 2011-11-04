@@ -41,7 +41,7 @@
       CHARACTER *2 CDFAM
 *implicits
 #include "comdimo.cdk"
-#include "commvohr.cdk"
+ 
 #include "cvcord.cdk"
 #include "comlun.cdk"
 *

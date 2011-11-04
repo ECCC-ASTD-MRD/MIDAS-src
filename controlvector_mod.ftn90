@@ -9,7 +9,7 @@
 ! Dependencies:
 !
 !--------------------------------------------------------------------------
-MODULE ControlVector
+MODULE ControlVector_mod
 
   implicit none
   save
@@ -84,4 +84,4 @@ CONTAINS
 
   END SUBROUTINE CVM_deallocate
 
-END MODULE ControlVector
+END MODULE ControlVector_mod

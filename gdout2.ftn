@@ -249,12 +249,6 @@ C
               PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
             END DO
           END DO
-        elseif(chum .eq. 'ES') then
-          DO JLON = 1, kni
-            DO JGL = 1, knj
-              PPTRANS(JLON,JGL) = Q0(JLON,KLEV,JGL)
-            END DO
-          END DO
         endif
 C
       ELSE IF(CPVAR.EQ.'LQ') THEN
@@ -264,13 +258,6 @@ C
               PPTRANS(JLON,JGL) = Q0(JLON,KLEV,JGL)
             END DO
           END DO
-        ELSEIF(CHUM .EQ. 'ES')THEN
-          LPLOK = .FALSE.
-          WRITE(NULOUT,*)' ****************************************'
-          WRITE(NULOUT,'(" GDOUT2: THE REQUESTED FIELD LQ IS NOT "
-     &         ,"SUPPORTED WHEN CVCORD= ",A8," AND CHUM= ",A2)')
-     &         CVCORD,CHUM
-          WRITE(NULOUT,*)' ****************************************'
         ENDIF
 C
       ELSE IF(CPVAR.EQ.'HU') THEN

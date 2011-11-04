@@ -58,7 +58,7 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 *------------------------------------------------------------------------
@@ -68,8 +68,8 @@
 #include "comcva.cdk"
 #include "comdimo.cdk"
 
-#include "commvo1.cdk"
-#include "commvog.cdk"
+ 
+ 
 #include "comgem.cdk"
 #include "comcst.cdk"
 *
@@ -138,41 +138,6 @@ c          endif
           enddo
         enddo
 !$OMP END PARALLEL DO
-      else if(chum.eq.'ES') then
-!$OMP PARALLEL DO PRIVATE(jobs,jlev)
-        do jobs = 1, nobtot
-          do jlev = 1, nflev
-            gomt(jlev,jobs) = gomt(jlev,jobs)+
-     &                        oltv(1,jlev,jobs)*gomt1(jlev,jobs)
-            gomq1(jlev,jobs) = oltv(2,jlev,jobs)*gomt1(jlev,jobs)
-***************************************************************
-c          if(llprint .and. jobs.le.15) then
-c             write(nulout,*)'att2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
-c     &            , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
-C             write(nulout,*)'att2phi:gmt1,GMQ1(lev,obs),GMT(lev,obs) '
-c     &            ,gomt1(jlev,jobs),gomq1(jlev,jobs),gomt(jlev,jobs)
-c             call vflush(nulout)
-c          endif
-***************************************************************
-          enddo
-        enddo
-!$OMP END PARALLEL DO
-c
-c       compute (adelt, adel(T-Td)) from adelq
-c
-        call aesahuo
-***************************************************************
-c          if(llprint .and. jobs.le.15) then
-c             write(nulout,*)'att2phi: AFTER CALL AESAHUO '
-c             do jlev = 1, nflev
-c                do jobs = 1, nobtot
-c                   write(nulout,*)'att2phi: jobs,jlev,GOMT1,GOMQ,GOMT '
-c     &               ,gomt1(jlev,jobs),gomq(jlev,jobs),gomt(jlev,jobs)
-c                enddo
-c             enddo
-c             call vflush(nulout)
-c          endif
-***************************************************************
       endif
 c
       return

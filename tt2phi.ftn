@@ -38,13 +38,13 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "commvog.cdk"
+ 
 
 c
       integer jobs,jlev,ier

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine minimize
-  use minimization
+  use minimization_mod
   use obsSpaceData_mod
   implicit none
   !

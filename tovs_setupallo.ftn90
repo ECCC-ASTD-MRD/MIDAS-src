@@ -61,8 +61,6 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
   IMPLICIT NONE
 !implicits
 #include "comdimo.cdk"
-
-
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comlun.cdk"

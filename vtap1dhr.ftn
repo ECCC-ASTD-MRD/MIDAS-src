@@ -30,7 +30,7 @@ C
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
       INTEGER  kobs
 *
@@ -43,7 +43,7 @@ C
 #include "comdim.cdk"
 #include "comdimo.cdk"
 
-#include "commvohr.cdk"
+ 
 #include "comphy.cdk"
 #include "dinternv.cdk"
 #include "finternv.cdk"

@@ -16,7 +16,7 @@
 !
       subroutine suinnov
       use mod4dv, only : l4dvar
-      use minimization
+      use minimization_mod
 #if defined (DOC)
 *
 ***s/r suinnov  - Initialise Observation Innovations.

@@ -116,9 +116,10 @@
       USE mod4dv,only : l4dvar 
       use obsSpaceData_mod, only: obsSpaceData, obs_reduceToMpiLocal, 
      +                            obs_getobstag
-      use controlVector
-      use minimization
+      use controlVector_mod
+      use minimization_mod
       use modfgat
+      use columndata_mod
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -309,7 +310,7 @@ C
      S                            l4dvar)
         call rebldnotag () !! bhe  
 
-        call sualobsb(KULOUT)  !  
+        call col_sualobsb(KULOUT,nflev,nobtot,nkgdimo,nmxobs) 
 
 C*      Memory allocation for TOVS processing
 C       -------------------------------------

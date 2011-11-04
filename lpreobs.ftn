@@ -37,7 +37,7 @@
 *Arguments
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -68,16 +68,6 @@ C
       if(chum.eq.'LQ') then
         call lmhu2es
       endif
-C
-C     Analysis increments of T-Td when analysis variable is T-Td
-C
-      IF(CHUM .EQ. 'ES') THEN
-         DO JLEV=1,NFLEV
-            DO JOBS=1,NOBTOT
-               GOMES(JLEV,JOBS) = GOMQ(JLEV,JOBS)
-            ENDDO
-         ENDDO
-      ENDIF
 C
       RETURN
       END

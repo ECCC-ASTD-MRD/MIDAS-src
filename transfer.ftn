@@ -58,7 +58,7 @@
 *
 #endif
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -71,9 +71,9 @@
 #include "comsp1.cdk"
 #include "comspg.cdk"
 
-#include "commvo1.cdk"
-#include "commvog.cdk"
-#include "commvohr.cdk"
+ 
+ 
+ 
 #include "comstate.cdk"
 *
 C

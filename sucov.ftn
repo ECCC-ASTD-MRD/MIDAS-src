@@ -22,7 +22,7 @@
 #endif
       use bMatrixEnsemble
       use bMatrixHI
-      use controlVector
+      use controlVector_mod
       use modfgat
       IMPLICIT NONE
 !implicits

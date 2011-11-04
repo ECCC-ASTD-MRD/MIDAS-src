@@ -18,7 +18,7 @@
 c
       use obsSpaceData_mod
       use columnData_mod 
-#include "commvo.cdk"
+ 
       IMPLICIT NONE
 c
 #if defined (DOC)
@@ -67,8 +67,8 @@ c
 #include "comgem.cdk"
 #include "comcst.cdk"
 
-#include "commvo1.cdk"
-#include "commvog.cdk"
+ 
+ 
 
 
 
@@ -90,50 +90,6 @@ C
 *--------------------------------------------
 *
 C
-      if(chum.eq.'ES') then
-c
-        ILEN=NFLEV*NOBTOT
-c
-ccc	call calcpresa(rpresa,rpresad,'BG',vlev,ptop,2,nflev,nobtot)
-ccc	call calcpresb(rpresb,rpresbd,'BG',vlev,ptop,2,nflev,nobtot)
-c
-        do jlev = 1, nflev
-          do jobs = 1, nobtot
-            zhu=exp(gomqg(jlev,jobs))
-c
-c           fields for es to q tl transform
-c
-            ztd = gomtg(jlev,jobs) - gomesg(jlev,jobs)
-            dlnesg(jlev,jobs) = fodle(ztd)
-            estdg(jlev,jobs) = foew(ztd)
-            if(zhu.eq.1.) then
-              rqgfac(jlev,jobs) = 0.
-            else
-              rqgfac(jlev,jobs) = 1.
-            endif
-c
-c           fields for Tv to GZ tl transform
-c
-            zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &               /(1.0-rptopinc/rprefinc))**rcoefinc
-            if((rcoefinc-1.0) .lt. RPRECIS) then
-              zterm = 1.0
-            else
-            zterm = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &              /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
-            endif
-            zpresbd= rcoefinc * zterm
-            zpresa = rprefinc * (vhybinc(jlev)-zpresb)
-            zpresad= rprefinc * (1.0-zpresbd)
-            rtapfac(jlev,jobs)= (zpresad+zpresbd*gompsg(1,jobs))
-     &                          /(zpresa+zpresb*gompsg(1,jobs))
-            oltv(1,jlev,jobs) = (1.+delta*zhu)
-            oltv(2,jlev,jobs) = delta*gomtg(jlev,jobs)
-          enddo
-        enddo
-c
-      else
-c
 c       initialize GOMT1 THE ADJOINT to 1.0 to get the operator via the adjoint
 c
         DO JLEV=1,NFLEV
@@ -204,7 +160,6 @@ c
             ENDIF
           ENDDO
         ENDDO
-      endif
 c
       RETURN
       END

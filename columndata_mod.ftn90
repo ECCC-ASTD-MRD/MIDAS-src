@@ -6,6 +6,8 @@ module columnData_mod
 !  public :: columnData
 
   type struct_columnData
+    integer nlev,nkgdimo,nobtot
+    logical :: allocated=.false.
     real*8,pointer :: gomobs(:,:)
     real*8,pointer :: gomu(:,:)
     real*8,pointer :: gomv(:,:)
@@ -17,10 +19,9 @@ module columnData_mod
     real*8,pointer :: gomes(:,:)
     real*8,pointer :: gomps(:,:)
     real*8,pointer :: gomtgr(:,:)
-    real*8,pointer :: rppobs(:,:)
   end type struct_columnData
 
-!  type(struct_columnData) :: columnData
+  type(struct_columnData) :: column,column1,columng,columnhr
 
     ! from commvo
     real*8,pointer :: gomobs(:,:)
@@ -34,20 +35,10 @@ module columnData_mod
     real*8,pointer :: gomes(:,:)
     real*8,pointer :: gomps(:,:)
     real*8,pointer :: gomtgr(:,:)
-    real*8,pointer :: rppobs(:,:)
-    real*8,pointer :: rmthobs(:)
-    real*8,pointer :: rmtmobs(:)
 
-    ! global version of commvo
-    real*8,pointer :: gomu_g(:,:)
-    real*8,pointer :: gomv_g(:,:)
-    real*8,pointer :: gomt_g(:,:)
-    real*8,pointer :: gomq_g(:,:)
-    real*8,pointer :: gomoz_g(:,:)
-    real*8,pointer :: gomgz_g(:,:)
-    real*8,pointer :: gomtr_g(:,:)
-    real*8,pointer :: gomps_g(:,:)
-    real*8,pointer :: gomtgr_g(:,:)
+    real*8,pointer :: rppobs(:,:)
+    real*8,pointer :: rmthobs(:)  ! geopotential height of high resolution topography(m2.s-2)
+    real*8,pointer :: rmtmobs(:)  ! geopotential height of model topography(m2.s-2)
 
     ! from commvo1
     real*8,pointer :: gomobs1(:,:)
@@ -75,13 +66,11 @@ module columnData_mod
     real*8,pointer :: gompsg(:,:)
     real*8,pointer :: gomtgrg(:,:)
 
-    real*8,pointer :: oltv(:,:,:),rtapfac(:,:)
-    real*8,pointer :: ollq2es(:,:,:)
-    real*8,pointer :: estdg(:,:), dlnesg(:,:)
-    real*8,pointer :: rqgfac(:,:)
+    real*8,pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
+    real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi transformation
+    real*8,pointer :: ollq2es(:,:,:) ! Tangent linear operator of lnq to dewpoint conversion
 
     ! from commvohr
-    integer nlevtrl,nkgdimohr
     real*8,pointer ::  gomobshr(:,:)
     real*8,pointer ::  gomuhr(:,:)
     real*8,pointer ::  gomvhr(:,:)
@@ -93,6 +82,8 @@ module columnData_mod
     real*8,pointer ::  gomeshr(:,:)
     real*8,pointer ::  gompshr(:,:)
     real*8,pointer ::  gomtgrhr(:,:)
+
+    integer nlevtrl,nkgdimohr
     real*8,pointer ::  rppobshr(:,:)
 
     real*8,pointer ::  vlevhr(:)
@@ -104,8 +95,337 @@ module columnData_mod
     real*8,pointer ::  vmehr(:)
     real*8,pointer ::  vmfhr(:)
 
+    ! global version of commvo (only used in oda_LT)
+    real*8,pointer :: gomu_g(:,:)
+    real*8,pointer :: gomv_g(:,:)
+    real*8,pointer :: gomt_g(:,:)
+    real*8,pointer :: gomq_g(:,:)
+    real*8,pointer :: gomoz_g(:,:)
+    real*8,pointer :: gomgz_g(:,:)
+    real*8,pointer :: gomtr_g(:,:)
+    real*8,pointer :: gomps_g(:,:)
+    real*8,pointer :: gomtgr_g(:,:)
+
+
   contains
 
+    SUBROUTINE col_SUALOBSB(KULOUT,nflev,nobtot,nkgdimo,nmxobs) 
+!*
+!***s/r SUALOBS  - Memory allocation for obs. related arrays
+!*
+!*Author  : P. Gauthier *ARMA/AES  June 9, 1992
+!*Revision: Bin HE      *ARMA/MRB  Oct. 2009 
+!*            - Implemented MPI to 3DVAR 
+!*             
+!*Arguments
+!*     i   KULOUT: unit used for optional printing
+!*
+      IMPLICIT NONE
+      !implicits
+      #include "comstate.cdk"
+
+      INTEGER KULOUT,nflev,nobtot,nkgdimo,nmxobs
+      INTEGER ILEN, ILENU, IERR
+      INTEGER iloc, jvar
+
+      WRITE(KULOUT,FMT='(//,6(" ***********"))')
+      WRITE(KULOUT,*)'     SUALOBSB:  Memory allocation of the observation arrays'
+      WRITE(KULOUT,FMT='(6(" ***********"))')
+!
+!*    1. Model state at observation stations
+!     .  -----------------------------------
+
+      ILEN = NFLEV*NOBTOT
+      allocate(RPPOBS(nflev,nobtot))
+      rppobs(:,:)=0.0d0
+
+      allocate(RMTHOBS(nmxobs))
+      rmthobs(:)=0.0d0
+      allocate(RMTMOBS(nmxobs))
+      rmtmobs(:)=0.0d0
+
+      ILEN = NKGDIMO*NOBTOT
+      allocate(gomobs(nkgdimo,nobtot))
+      gomobs(:,:)=0.0d0
+      allocate(gomobs1(nkgdimo,nobtot))
+      allocate(gomobsg(nkgdimo,nobtot))
+
+      ilen = nflev*nobtot*2
+      allocate(oltv(2,nflev,nobtot))
+      oltv(:,:,:)=0.0d0
+      ilen = nflev*nobtot
+      allocate(rtapfac(nflev,nobtot))
+      ilen = nflev*nobtot*3
+      allocate(ollq2es(3,nflev,nobtot))
+
+!      column%gomobs=>gomobs
+
+      iloc = 1
+      do jvar = 1,jpnvarmax
+        if(jvar .eq. nouu) then
+          NMVOPOSIT(nouu) = iloc
+          if(NMVOEXIST(nouu).eq.1) then
+            gomu => gomobs(iloc:(iloc+nflev-1),:)
+            gomu1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomug => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomu => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. novv) then
+          NMVOPOSIT(novv) = iloc
+          if(NMVOEXIST(novv).eq.1) then
+            gomv => gomobs(iloc:(iloc+nflev-1),:)
+            gomv1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomvg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomv => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nogz) then
+          NMVOPOSIT(nogz) = iloc
+          if(NMVOEXIST(nogz).eq.1) then
+            gomgz => gomobs(iloc:(iloc+nflev-1),:)
+            gomgz1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomgzg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomgz => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. noq) then
+          NMVOPOSIT(noq) = iloc
+          if(NMVOEXIST(noq).eq.1) then
+            gomq => gomobs(iloc:(iloc+nflev-1),:)
+            gomq1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomqg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomq => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nott) then
+          NMVOPOSIT(nott) = iloc
+          if(NMVOEXIST(nott).eq.1) then
+            gomt => gomobs(iloc:(iloc+nflev-1),:)
+            gomt1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomtg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomt => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nooz) then
+          NMVOPOSIT(nooz) = iloc
+          if(NMVOEXIST(nooz).eq.1) then
+            gomoz => gomobs(iloc:(iloc+nflev-1),:)
+            gomoz1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomozg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomoz => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. notr) then
+          NMVOPOSIT(notr) = iloc
+          if(NMVOEXIST(notr).eq.1) then
+            gomtr => gomobs(iloc:(iloc+nflev-1),:)
+            gomtr1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomtrg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomtr => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. noes) then
+          NMVOPOSIT(noes) = iloc
+          if(NMVOEXIST(noes).eq.1) then
+            gomes => gomobs(iloc:(iloc+nflev-1),:)
+            gomes1 => gomobs1(iloc:(iloc+nflev-1),:)
+            gomesg => gomobsg(iloc:(iloc+nflev-1),:)
+!            column%gomes => gomobs(iloc:(iloc+nflev-1),:)
+            iloc = iloc + nflev
+          end if
+        elseif(jvar .eq. nops) then
+          NMVOPOSIT(nops) = iloc
+          if(NMVOEXIST(nops).eq.1) then
+            gomps => gomobs(iloc:iloc,:)
+            gomps1 => gomobs1(iloc:iloc,:)
+            gompsg => gomobsg(iloc:iloc,:)
+!            column%gomps => gomobs(iloc:iloc,:)
+            iloc = iloc + 1
+          end if
+        elseif(jvar .eq. notg) then
+          NMVOPOSIT(notg) = iloc
+          if(NMVOEXIST(notg).eq.1) then
+            gomtgr => gomobs(iloc:iloc,:)
+            gomtgr1 => gomobs1(iloc:iloc,:)
+            gomtgrg => gomobsg(iloc:iloc,:)
+!            column%gomtgr => gomobs(iloc:iloc,:)
+            iloc = iloc + 1
+          end if
+        endif
+      enddo
+!
+!*    .   1.1 Auxiliary state
+!     .       ---------------
+
+      ILENU  = NMXOBS*NFLEV
+      WRITE(KULOUT,FMT='(/,"Arrays in COMMVO (COMMVO1) are allocated the following space:")')
+      WRITE(KULOUT,FMT=9100)ILEN,ILENU, NMXOBS
+ 9100 FORMAT("   GOMOBS :",I6,10x," (GOMU, GOMV,GOMGZ,GOMQ):",I10," (GOMPS,GOMTGR):",I10)
+
+      RETURN
+    END SUBROUTINE col_sualobsb
+
+
+    SUBROUTINE col_locptgomhr(kstep,nobtot)
+!*
+!***s/r locptgomhr  - Memory allocation and loc of pointer for background
+!*                    state in obs location
+!*
+!*Author  : S. Pellerin *ARMA/SMC  Sept. 2000
+!*Revision:
+!*           C. Charette - ARMA/SMC - Sep. 2004
+!*            - Conversion to hybrid vertical coordinate
+!**
+      IMPLICIT NONE
+      #include "comstate.cdk"
+
+      integer :: kstep,nobtot,nkgdimohr
+      integer :: ier
+      character*2 cdvar
+
+      integer iloc,jvar
+
+      allocate(gomobshr(nkgdimohr,nobtot))
+      allocate(vlevhr(nlevtrl))
+      allocate(vhybhr(nlevtrl))
+      allocate(rppobshr(nlevtrl,nobtot))
+
+      allocate(vmahr(nlevtrl))
+      allocate(vmbhr(nlevtrl))
+      allocate(vmchr(nlevtrl))
+      allocate(vmdhr(nlevtrl))
+      allocate(vmehr(nlevtrl))
+      allocate(vmfhr(nlevtrl))
+
+      iloc = 1
+      do jvar = 1, jpnvarmax
+        if(jvar.eq.nouu) then
+          if(nmvoexist(nouu).eq.1) then
+            gomuhr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.novv) then
+          if(nmvoexist(novv).eq.1) then
+            gomvhr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.nogz) then
+          if(nmvoexist(nogz).eq.1) then
+            gomgzhr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.noq) then
+          if(nmvoexist(noq).eq.1) then
+            gomqhr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.nott) then
+          if(nmvoexist(nott).eq.1) then
+            gomthr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.nooz) then
+          if(nmvoexist(nooz).eq.1) then
+            gomozhr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.notr) then
+          if(nmvoexist(notr).eq.1) then
+            gomtrhr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.noes) then
+          if(nmvoexist(noes).eq.1) then
+            gomeshr => gomobshr(iloc:(iloc+kstep-1),:)
+            iloc = iloc + kstep
+          endif
+        endif
+        if(jvar.eq.nops) then
+          if(nmvoexist(nops).eq.1) then
+            gompshr => gomobshr(iloc:iloc,:)
+            iloc = iloc + 1
+          endif
+        endif
+        if(jvar.eq.notg) then
+          if(nmvoexist(notg).eq.1) then
+            gomtgrhr => gomobshr(iloc:iloc,:)
+            iloc = iloc + 1
+          endif
+        endif
+      enddo
+
+      RETURN
+    END SUBROUTINE col_locptgomhr
+
+ 
+    SUBROUTINE col_expandToMpiGlobal(nulout, nobtot, nobtotp)
+#if defined (DOC)
+!
+!**s/r col_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
+!
+!Original Author    . Bin He (ARMA/MRB )
+!          extracted from Bin's obs_expandToMpiGlobal()
+!
+!Revision:
+!      PURPOSE:  To reconstitute the mpi-global column object by gathering
+!                the necessary data from all processors (to all processors).
+!
+#endif
+
+    USE obsSpaceData_mod, only: locObsTag
+    IMPLICIT NONE
+
+    integer, intent(in) :: nulout       ! standard output unit
+    integer, intent(in) :: nobtot       ! Actual number of observations
+    integer, intent(in) :: nobtotp      ! Actual no. of obs. in POST FILE=nobtot
+
+!   Declare Local Variables. 
+    REAL*8,ALLOCATABLE,DIMENSION(:) :: RMTMOBS_tmp
+    
+    INTEGER :: i,iobs,ierr,sizeRMTMOBS  
+!!---------------------------------------------------------------
+
+!!  1.  Release some memory. 
+    print*,'Entering col_expandToMpiGlobal'  
+
+!!  1.2 Added restore global array RMTMOBS
+    ALLOCATE(RMTMOBS_tmp(NOBTOTP),STAT=ierr) 
+    IF(ierr /= 0)CALL ABORT3D(nulout,'Cant allocate Mem. to RMTMOBS_tmp,Abort!') 
+    RMTMOBS_TMP=0.0D0 
+
+!!  1.3 Retore global RMTMOBS
+    DO i=1,NOBTOT
+       iobs=locObsTag(i)
+       RMTMOBS_tmp(iobs)=RMTMOBS(i)
+    ENDDO  
+    sizeRMTMOBS=NOBTOTP
+    CALL RPN_COMM_ALLReduce(RMTMOBS_tmp,RMTMOBS_tmp,sizeRMTMOBS, &
+                            "mpi_double_precision","mpi_sum","GRID",ierr)
+
+
+!!  DEALLOCATE(RMTMOBS)
+    deallocate(rmtmobs)
+    allocate(rmtmobs(nobtotp))
+    RMTMOBS=RMTMOBS_tmp
+    DEALLOCATE(RMTMOBS_tmp)
+
+    print*,'Leaving col_expandToMpiGlobal' 
+    RETURN
+  END SUBROUTINE col_expandToMpiGlobal
+
+
+
+!
+! FOLLOWING SUBROUTINES RELATED TO GOMOBS_G, ONLY USED IN ODA_LT
+!
     SUBROUTINE col_allocateGlobal(klev,nobtotp)
       implicit none
       #include "comstate.cdk"
@@ -326,60 +646,5 @@ module columnData_mod
 
     END SUBROUTINE col_expandToMpiGlobal2
 
- 
-    SUBROUTINE col_expandToMpiGlobal(nulout, nobtot, nobtotp)
-#if defined (DOC)
-!
-!**s/r col_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
-!
-!Original Author    . Bin He (ARMA/MRB )
-!          extracted from Bin's obs_expandToMpiGlobal()
-!
-!Revision:
-!      PURPOSE:  To reconstitute the mpi-global column object by gathering
-!                the necessary data from all processors (to all processors).
-!
-#endif
-
-    USE obsSpaceData_mod, only: locObsTag
-    IMPLICIT NONE
-
-    integer, intent(in) :: nulout       ! standard output unit
-    integer, intent(in) :: nobtot       ! Actual number of observations
-    integer, intent(in) :: nobtotp      ! Actual no. of obs. in POST FILE=nobtot
-
-!   Declare Local Variables. 
-    REAL*8,ALLOCATABLE,DIMENSION(:) :: RMTMOBS_tmp
-    
-    INTEGER :: i,iobs,ierr,sizeRMTMOBS  
-!!---------------------------------------------------------------
-
-!!  1.  Release some memory. 
-    print*,'Entering col_expandToMpiGlobal'  
-
-!!  1.2 Added restore global array RMTMOBS
-    ALLOCATE(RMTMOBS_tmp(NOBTOTP),STAT=ierr) 
-    IF(ierr /= 0)CALL ABORT3D(nulout,'Cant allocate Mem. to RMTMOBS_tmp,Abort!') 
-    RMTMOBS_TMP=0.0D0 
-
-!!  1.3 Retore global RMTMOBS
-    DO i=1,NOBTOT
-       iobs=locObsTag(i)
-       RMTMOBS_tmp(iobs)=RMTMOBS(i)
-    ENDDO  
-    sizeRMTMOBS=NOBTOTP
-    CALL RPN_COMM_ALLReduce(RMTMOBS_tmp,RMTMOBS_tmp,sizeRMTMOBS, &
-                            "mpi_double_precision","mpi_sum","GRID",ierr)
-
-
-!!  DEALLOCATE(RMTMOBS)
-    deallocate(rmtmobs)
-    allocate(rmtmobs(nobtotp))
-    RMTMOBS=RMTMOBS_tmp
-    DEALLOCATE(RMTMOBS_tmp)
-
-    print*,'Leaving col_expandToMpiGlobal' 
-    RETURN
-  END SUBROUTINE col_expandToMpiGlobal
 
 end module columnData_mod
