@@ -66,8 +66,6 @@
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-
- 
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
@@ -138,11 +136,11 @@ c     Setting degree of horizontal interpolations
 c
       ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
 c
-c------- fill gomobsg with zero
+c------- fill columng with zero
 c
-      do jlev=1,nkgdimo
+      do jlev=1,columng%nkgdimo
         do jobs=1,nobtot
-          gomobsg(jlev,jobs) = 0.
+          columng%all(jlev,jobs) = 0.
         enddo
       enddo
 c
@@ -249,7 +247,7 @@ c
           ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
      &         ,inj,1)
           do jobs = 1, nobs(jstep)
-            rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
+            columng%rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
           enddo
         endif
       enddo
@@ -259,13 +257,14 @@ C     levels(vhybinc), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 
       do jobs = 1,nobtot
-        zovar(jobs) = gompsg(1,jobs)
+        zovar(jobs) = columng%ps(1,jobs)
       enddo
 c
-      call calcpres(RPPOBS(1,1),vhybinc,nflev,zovar,rptopinc
+      call calcpres(columng%rppobs(1,1),vhybinc,nflev,zovar,rptopinc
      &     ,rprefinc,rcoefinc,nobtot)
       do jlev = 1,nflev
-        write(nulout,*) 'sugomobs: jlev, RPPOBS(jlev,1) = ',jlev,RPPOBS(jlev,1)
+        write(nulout,*) 'sugomobs: jlev, COLUMNG%RPPOBS(jlev,1) = ',jlev,COLUMNG%RPPOBS(jlev,1)
+        call flush(nulout)
       enddo
 c
 c ------- Interpolation of the 3D fields
@@ -458,35 +457,34 @@ C         high res. trial field and the surface pressure of the trial
 c field
 
           do jobs = 1,nobtot
-            zovar(jobs) = gompsg(1,jobs)
+            zovar(jobs) = columng%ps(1,jobs)
           enddo
           call calcpres(ZPPOBS,zhybhr,itrlnlev,zovar,zptophr
      &         ,zprefhr,zrcoefhr,nobtot)
-          call vintprof(zom,rppobs,nflev,zmobs,zppobs,itrlnlev,nobtot)
+          call vintprof(zom,columng%rppobs,nflev,zmobs,zppobs,itrlnlev,nobtot)
 c
           if(.not.lllochr) then
 c
 
 c
-c Note: nlevtrl is taken here as the number of levels of the
+c Note: columnhr%nlev is taken here as the number of levels of the
 c       first 3D variable.  To implement properly the vertical
 C staggering,
 c       vlayers and obs operator would need to be advised of the
 c       number of levels for each variable.
-c
+
           nkt = itrlnlev
-          nlevtrl = itrlnlev
+          columnhr%nlev = itrlnlev
 c
             istep = itrlnlev
 c
 c Note: in a vertical staggering implementation istep could be assigned
 C a
 c       value of ITRLNLEV+1 to make sure that any model state variable
-c       fit in GOMOBSHR.  Accordingly, obs operator will have to step
-C       throughout gomobsg with the same step size.
+c       fit in columnhr.  Accordingly, obs operator will have to step
+C       throughout columng with the same step size.
 c
-            nkgdimohr = nvo3d*istep + nvo2d
-            call col_locptgomhr(istep,nobtot)
+            call col_allocate(columnhr,istep,nobtot)
             call tmg_start(30,'FILLMVO')
             call fillmvo('HR','PP',zppobs,itrlnlev,nobtot)
             call fillmvo('HR','LV',zlev,itrlnlev,1)
@@ -500,7 +498,7 @@ c
             call fillmvo('BG','UU',zom,nflev,nobtot)
             call fillmvo('HR','UU',zmobs,itrlnlev,nobtot)
             call tmg_stop(30)
-            call vintprof(zom,rppobs,nflev,zmobs2,zppobs,itrlnlev
+            call vintprof(zom,columng%rppobs,nflev,zmobs2,zppobs,itrlnlev
      &           ,nobtot)
             call tmg_start(30,'FILLMVO')
             call fillmvo('BG','VV',zom,nflev,nobtot)
@@ -530,30 +528,30 @@ c      call wrgomobs
 * *                                                           * *
 *
 c
-c Initialisation of TLM operators using GOMOBS1 as working space
+c Initialisation of TLM operators using column1 as working space
 c
       call tmg_start(32,'SUBASIC')
       call subasic_obs
       call tmg_stop(32)
 c
 c Calculate ES=T-TD from T and Q
-c from GOMQG and GOMTG and put it in GOMESG
+c from columng%hu and columng%tt and put it in columng%es
 c
       call tmg_start(33,'MHUAESV')
       call mhuaesv
       call tmg_stop(33)
 c
-c Using T, q and PS in GOMOBSG, computes GZ and stores it in GOMGZG
+c Using T, q and PS in columng, computes GZ and stores it in columng%gz
 c N.B. uses vlev
 c
       call tmg_start(34,'TT2PHI')
-      call tt2phi
+      call tt2phi(columng)
       call tmg_stop(34)
 c
 c At this point COMMVOG is complete and contains the background state
 C projected on analysis levels.
 c
-c Copy 2D variable from GOMOBSG to GOMOBSHR
+c Copy 2D variables (PS,TG and RMTMOBS) from columng to columnhr
 c
       call transfer3dv('HR2D')
 c

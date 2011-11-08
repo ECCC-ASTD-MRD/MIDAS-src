@@ -8,7 +8,7 @@ C     --------------
 C
 C     Auxiliary Spectral  model state
 C     ----------------------
-C     SP1(NLA,2,NKSDIM):  global state
+C     SP1(NLA,2,NKGDIM):  global state
 C
 C     Splitting of SP
 C     ---------------
@@ -23,12 +23,12 @@ C     SPPS1 (NLA,2,1)       : surface pressure
 C     SPTG1 (NLA,2,1)       : ground temperature
 C
 #endif
-      REAL*8  SP1(NLA,2,NKSDIM), SPVOR1(NLA,2,NKSDIM)
-     S      , SPDIV1(NLA,2,NKSDIM),  SPTT1(NLA,2,NKSDIM)
-     S      , SPQ1(NLA,2,NKSDIM), SPPS1(NLA,2,NKSDIM)
-     S      , SPTG1(NLA,2,NKSDIM)
-     S      , SPGZ1(NLA,2,NKSDIM), SPOZ1(NLA,2,NKSDIM)
-     S      , SPTR1(NLA,2,NKSDIM)
+      REAL*8  SP1(NLA,2,NKGDIM), SPVOR1(NLA,2,NKGDIM)
+     S      , SPDIV1(NLA,2,NKGDIM),  SPTT1(NLA,2,NKGDIM)
+     S      , SPQ1(NLA,2,NKGDIM), SPPS1(NLA,2,NKGDIM)
+     S      , SPTG1(NLA,2,NKGDIM)
+     S      , SPGZ1(NLA,2,NKGDIM), SPOZ1(NLA,2,NKGDIM)
+     S      , SPTR1(NLA,2,NKGDIM)
 C
       POINTER (PTSP1,SP1), (PTSVOR1,SPVOR1), (PTSDIV1,SPDIV1)
      S     , (PTSTT1,SPTT1)

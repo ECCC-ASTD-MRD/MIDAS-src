@@ -13,18 +13,6 @@
 !
 !     State variable numbers
 !     ----------------------
-!     Spectral model variable numbers
-!
-!      nsvor       : vorticity
-!      nsdiv       : divergence
-!      nstt        : temperature
-!      nsq         : specific humidity
-!      nsgz        : geopotential
-!      nsoz        : ozone
-!      nstr        : passive tracer
-!      nsps        : surface pressure
-!      nstg        : ground temperature
-!
 !     Gridpoint  model variable numbers
 !      nguu        : zonal wind image
 !      ngvv        : meridional wind image
@@ -35,47 +23,6 @@
 !      ngtr        : passive tracer
 !      ngps        : surface pressure
 !      ngtg        : ground temperature
-!
-!     Model state at the observation locations
-!      nouu        : zonal wind
-!      novv        : meridional wind
-!      noq         : specific humidity
-!      nogz        : geopotential
-!      nott        : temperature
-!      nooz        : ozone
-!      notr        : undefined passive tracer
-!      noes        : t - td
-!      nops        : surface pressure
-!      notg        : ground temperature
-!
-!     Spectral model states
-!     ---------------------
-!     NSEXIST(JVAR) = 1 spectral field exists
-!     .               0 spectral field does not exist
-!     NSEXIST(nsvor)    : vorticity
-!     .      (nsdiv)    : divergence
-!     .      (nstt)    : temperature
-!     .      (nsq)    : specific humidity
-!     .      (nsgz)    : geopotential
-!     .      (nsoz)    : ozone
-!     .      (nstr)    : undefined passive tracer
-!     .      (nsps)    : surface pressure
-!     .      (nstg)    : ground temperature
-!     --------------
-!     NSPOSIT       : position within NKSDIM
-!     NSPOSIT(nsvor)    : vorticity
-!     .      (nsdiv)    : divergence
-!     .      (nstt)    : temperature
-!     .      (nsq)    : specific humidity
-!     .      (nsgz)    : geopotential
-!     .      (nsoz)    : ozone
-!     .      (nstr)    : undefined passive tracer
-!     .      (nsps)    : surface pressure
-!     .      (nstg)    : ground temperature
-!     --------------
-!
-!     Gridpoint  model states
-!     ---------------------
 !
 !     NGEXIST(JVAR) = 1 gridpoint field exists
 !     .               0 gridpoint field does not exist
@@ -89,7 +36,7 @@
 !     .      (ngps)    : surface pressure
 !     .      (ngtg)    : ground temperature
 !     --------------
-!     NGPOSIT       : position within NKSDIM
+!     NGPOSIT       : position within NKGDIM
 !     NGPOSIT(nguu)    : zonal wind image
 !     .      (ngvv)    : meridional wind image
 !     .      (ngtt)    : temperature
@@ -101,53 +48,19 @@
 !     .      (ngtg)    : ground temperature
 !     --------------
 !
-!     Model state at the observation locations
-!     ---------------------
-!     NMVOEXIST(JVAR) = 1 gridpoint field exists
-!     .                 0 gridpoint field does not exist
-!     NMVOEXIST(nouu)    : zonal wind
-!     .        (novv)    : meridional wind
-!     .        (nott)    : temperature
-!     .        (noq)    : specific humidity
-!     .        (nogz)    : geopotential
-!     .        (nooz)    : ozone
-!     .        (notr)    : undefined passive tracer
-!     .        (noes)    : t - td
-!     .        (nops)    : surface pressure
-!     .        (notg)    : ground temperature
-!     --------------
-!     NMVOPOSIT       : position within NKSDIM
-!     NMVOPOSIT(nouu)    : zonal wind
-!     .        (novv)    : meridional wind
-!     .        (nott)    : temperature
-!     .        (noq)    : specific humidity
-!     .        (nogz)    : geopotential
-!     .        (nooz)    : ozone
-!     .        (notr)    : undefined passive tracer
-!     .        (noes)    : t - td
-!     .        (nops)    : surface pressure
-!     .        (notg)    : ground temperature
-!     --------------
-!
 #endif
       INTEGER JPNVARMAX
       PARAMETER (JPNVARMAX=10)
 
-      INTEGER NSEXIST(JPNVARMAX), NSPOSIT(JPNVARMAX)
       INTEGER NGEXIST(JPNVARMAX), NGPOSIT(JPNVARMAX)
-      INTEGER NMVOEXIST(JPNVARMAX), NMVOPOSIT(JPNVARMAX)
-      INTEGER nsvor,nsdiv,nsq,nsgz,nstt,nsoz,nstr,nsps,nstg
       INTEGER nguu,ngvv,ngq,nggz,ngtt,ngoz,ngtr,ngps,ngtg
-      INTEGER nouu,novv,noq,nogz,nott,nooz,notr,noes,nops,notg
 
-      CHARACTER*2 CSNEED(JPNVARMAX), CGNEED(JPNVARMAX), CMVONEED(JPNVARMAX)
+      CHARACTER*2 CGNEED(JPNVARMAX)
 
-      COMMON /COMNSTATE/ NSEXIST, NSPOSIT, NGEXIST, NGPOSIT, NMVOEXIST, NMVOPOSIT
-      COMMON /COMNSTATE/ nsvor,nsdiv,nsq,nsgz,nstt,nsoz,nstr
-      COMMON /COMNSTATE/ nsps,nstg,nguu,ngvv,ngq,nggz,ngtt,ngoz,ngtr,ngps,ngtg
-      COMMON /COMNSTATE/ nouu,novv,noq,nogz,nott,nooz,notr,noes,nops,notg
+      COMMON /COMNSTATE/ NGEXIST, NGPOSIT
+      COMMON /COMNSTATE/ nguu,ngvv,ngq,nggz,ngtt,ngoz,ngtr,ngps,ngtg
 
-      COMMON /COMCSTATE/CSNEED, CGNEED, CMVONEED
+      COMMON /COMCSTATE/CGNEED
 
 
 

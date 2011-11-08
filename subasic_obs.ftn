@@ -38,7 +38,7 @@ c
 *
 **    Purpose:
 *             - Copy observation space background fields
-*               in GOMOBSG.
+*               in columng.
 *             - Initialisation of tangent linear vitual temperature operator
 *             - Initialisation of tlm and adjoint hydrostatic operators
 *               factors.
@@ -48,7 +48,7 @@ c
 *             - Reorganize to support ES and HU options.
 *     Revision: C. Charette *ARMA/AES  mar 99
 *             - Change module name from subackgrd to subasic
-*               Replace gomps1 by gomu1
+*               Replace column1%ps by column1%uu
 *     Revision: C. Charette *ARMA/AES nov 99
 *             - No projection on TT and PS for T-Td observations
 *     Revision: C. Charette *ARMA/AES mar 2000
@@ -66,12 +66,6 @@ c
 #include "comdimo.cdk"
 #include "comgem.cdk"
 #include "comcst.cdk"
-
- 
- 
-
-
-
 *
       integer jlev,jobs, ity, idburp, ilen,ierr
       real*8 zhu, ztd, zterm
@@ -90,11 +84,11 @@ C
 *--------------------------------------------
 *
 C
-c       initialize GOMT1 THE ADJOINT to 1.0 to get the operator via the adjoint
+c       initialize column1%tt THE ADJOINT to 1.0 to get the operator via the adjoint
 c
         DO JLEV=1,NFLEV
           DO JOBS=1,NOBTOT
-            GOMT1(JLEV,JOBS) = 1.0
+            column1%tt(JLEV,JOBS) = 1.0
           ENDDO
         ENDDO
 c
@@ -102,10 +96,10 @@ c
 c
         do jlev = 1,nflev
           DO JOBS=1,NOBTOT
-            zhu=exp(gomqg(jlev,jobs))
-            oltv(1,jlev,jobs) = fottva(zhu,gomt1(jlev,jobs))
-            oltv(2,jlev,jobs) = folnqva(zhu,gomtg(jlev,jobs),
-     &                                  gomt1(jlev,jobs))
+            zhu=exp(columng%hu(jlev,jobs))
+            oltv(1,jlev,jobs) = fottva(zhu,column1%tt(jlev,jobs))
+            oltv(2,jlev,jobs) = folnqva(zhu,columng%tt(jlev,jobs),
+     &                                  column1%tt(jlev,jobs))
 c
             zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
      &               /(1.0-rptopinc/rprefinc))**rcoefinc
@@ -118,8 +112,8 @@ c
             zpresbd= rcoefinc * zterm
             zpresa = rprefinc * (vhybinc(jlev)-zpresb)
             zpresad= rprefinc * (1.0-zpresbd)
-            rtapfac(jlev,jobs)= (zpresad+zpresbd*gompsg(1,jobs))
-     &                          /(zpresa+zpresb*gompsg(1,jobs))
+            rtapfac(jlev,jobs)= (zpresad+zpresbd*columng%ps(1,jobs))
+     &                          /(zpresa+zpresb*columng%ps(1,jobs))
           enddo
         enddo
 c
@@ -128,10 +122,10 @@ c       initialising the adjoint of t-td=1.0
 c
         DO JLEV=1,NFLEV
         DO JOBS=1,NOBTOT
-          GOMES1(JLEV,JOBS)= 1.0
-          GOMQ1(JLEV,JOBS) = 0.0
-          GOMU1(JLEV,JOBS) = 0.0
-          GOMT1(JLEV,JOBS) = 0.0
+          column1%es(JLEV,JOBS)= 1.0
+          column1%hu(JLEV,JOBS) = 0.0
+          column1%uu(JLEV,JOBS) = 0.0
+          column1%tt(JLEV,JOBS) = 0.0
         ENDDO
         ENDDO
 c
@@ -141,9 +135,9 @@ c       store the coefficients
 c
         DO JLEV=1,NFLEV
           DO JOBS=1,NOBTOT
-          OLLQ2ES(1,JLEV,JOBS) = GOMQ1 (JLEV,JOBS)
-          OLLQ2ES(2,JLEV,JOBS) = GOMU1 (JLEV,JOBS)
-          OLLQ2ES(3,JLEV,JOBS) = GOMT1 (JLEV,JOBS)
+          OLLQ2ES(1,JLEV,JOBS) = column1%hu(JLEV,JOBS)
+          OLLQ2ES(2,JLEV,JOBS) = column1%uu(JLEV,JOBS)
+          OLLQ2ES(3,JLEV,JOBS) = column1%tt(JLEV,JOBS)
           ENDDO
         ENDDO
 c

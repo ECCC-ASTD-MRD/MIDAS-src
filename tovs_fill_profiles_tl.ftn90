@@ -48,8 +48,6 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comcst.cdk"
- 
- 
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -70,13 +68,6 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
   integer :: ilansea, indxreg
   integer :: knkgdimo, knlev
 
-!  real*8 :: pgomu_tl  (knkgdimo,*)
-!  real*8 :: pgomv_tl  (knkgdimo,*)
-!  real*8 :: pgomt_tl  (knkgdimo,*)
-!  real*8 :: pgomq_tl  (knkgdimo,*)
-!  real*8 :: pgomps_tl (knkgdimo,*)
-!  real*8 :: pgomtgr_tl(knkgdimo,*)
-!  real*8 :: prppobs   (knlev   ,*)
   real*8 :: pgomu_tl  (knlev,nobtot)
   real*8 :: pgomv_tl  (knlev,nobtot)
   real*8 :: pgomt_tl  (knlev,nobtot)
@@ -188,8 +179,8 @@ subroutine tovs_fill_profiles_tl(pgomu_tl,pgomv_tl,pgomt_tl,pgomq_tl,pgomps_tl,p
      do jl = 1, knlev
         zt_tl   (jl,knpf) = pgomt_tl(jl,jo)
         zlq_tl  (jl,knpf) = pgomq_tl(jl,jo)
-        zt   (jl,knpf) = gomt1(jl,jo)
-        zlq  (jl,knpf) = gomq1(jl,jo)
+        zt   (jl,knpf) = column1%tt(jl,jo)
+        zlq  (jl,knpf) = column1%hu(jl,jo)
         zvlev(jl,knpf) = prppobs(jl,jo) * rpatmb
      enddo
      iptobs   (knpf) = iobs

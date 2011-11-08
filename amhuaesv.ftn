@@ -31,7 +31,7 @@
 *          No ice phase is considered and the pressure vector is given.
 *
 *Revision: C. Charette *ARMA/AES  mar 99
-*             - Replace gomps1 by gomu1
+*             - Replace column1%ps by column1%u
 *
 *          JM Belanger CMDA/SMC  Dec 2000
 *                   . 32 bits conversion
@@ -76,13 +76,13 @@ c
 *
         DO JOBS=1,NOBTOT
 *
-         ZTDA = GOMES1(JLEV,JOBS)
+         ZTDA = column1%es(JLEV,JOBS)
 *
 *      Forward calculations of saturation vapour pressure and dewpoint temperature
 *      and adjoint of vapour pressure from adjoint of dewpoint temperature
 
-         ZHU = exp(gomqg(jlev,jobs))
-         ZE = FOEFQ(ZHU, RPPOBS(JLEV,JOBS))
+         ZHU = exp(columng%hu(jlev,jobs))
+         ZE = FOEFQ(ZHU, COLUMNG%RPPOBS(JLEV,JOBS))
 *
          ZCTE=FOTW8(ZE)
          ZTD=ZCTE
@@ -91,21 +91,21 @@ c
 *      adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
 *
          ZQBRANCH = FQBRANCH(ZHU)
-         GOMQ1(JLEV,JOBS) = GOMQ1(JLEV,JOBS) -
+         column1%hu(JLEV,JOBS) = column1%hu(JLEV,JOBS) -
      $                 ZQBRANCH*FOEFQA (ZTDA,ZGAMMA,ZHU,
-     $                                  RPPOBS(JLEV,JOBS))
+     $                                  COLUMNG%RPPOBS(JLEV,JOBS))
 
 
          zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
      &            /(1.0-rptopinc/rprefinc))**rcoefinc
 
 
-         GOMU1(JLEV,JOBS) = GOMU1(JLEV,JOBS)
+         column1%uu(JLEV,JOBS) = column1%uu(JLEV,JOBS)
      $               -ZQBRANCH*FOEFQPSA(ZTDA,ZGAMMA,ZHU,
      $                VHYBINC(JLEV))-(1.-ZQBRANCH)*
      $                (ZGAMMA*zpresb*ZTDA)
 
-         GOMT1(JLEV,JOBS) = GOMT1(JLEV,JOBS) + ZTDA
+         column1%tt(JLEV,JOBS) = column1%tt(JLEV,JOBS) + ZTDA
 *
 *
         ENDDO

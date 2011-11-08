@@ -121,7 +121,8 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
 c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, (GOMQHR(NLEVTRL,IOBS)-ZVAR)
+                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, 
+     +                (columnhr%hu(COLUMNHR%NLEV,IOBS)-ZVAR)
      +                 / ZOER)
 
                   IF ( LLPRINT ) THEN
@@ -131,9 +132,9 @@ c                  ENDIF
                     write(nulout,*)'   zvar   = ',ZVAR
                     write(nulout,*)'   zoer   = ',ZOER
                     write(nulout,*)'   ik     = ',IK
-                    write(nulout,*)'   nlevtrl= ',NLEVTRL
-                    write(nulout,*)'   gomqhr(nlevtrl,iobs) = '
-     &                   ,GOMQHR(NLEVTRL,IOBS)
+                    write(nulout,*)'   columnhr%nlev= ',COLUMNHR%NLEV
+                    write(nulout,*)'   columnhr%hu(columnhr%nlev,iobs) = '
+     &                   ,columnhr%hu(COLUMNHR%NLEV,IOBS)
                     write(nulout,*)'   O-Psfc = '
      &                   ,-obs_elem_r8(obsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'

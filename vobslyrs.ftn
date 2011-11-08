@@ -107,15 +107,15 @@ C
                IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IF(CDMVO .EQ. 'HR') THEN
-                 ZPT= RPPOBSHR(1,IOBS)
-                 ZPB= RPPOBSHR(NLEVTRL,IOBS)
+                 ZPT= COLUMNHR%RPPOBS(1,IOBS)
+                 ZPB= COLUMNHR%RPPOBS(COLUMNHR%NLEV,IOBS)
                ELSEIF(CDMVO .EQ. 'BG') THEN
-                 ZPT= RPPOBS(1,IOBS)
-cjmb                 ZPB= RPPOBS(NFLEV,IOBS)
+                 ZPT= COLUMNG%RPPOBS(1,IOBS)
+cjmb                 ZPB= COLUMNG%RPPOBS(NFLEV,IOBS)
 cjmb     Surface pressure artificially modified to account
 cjmb     for difference in rejections caused by 32 bits
 cjmb     conversion (MRBCVT)  of observed pressure.
-                 ZPB= RPPOBS(NFLEV,IOBS)+ 0.01D0
+                 ZPB= COLUMNG%RPPOBS(NFLEV,IOBS)+ 0.01D0
                ENDIF
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_set_i(obsSpaceData,'XTR ',JDATA,1)
@@ -150,11 +150,11 @@ C
                IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IF(CDMVO .EQ. 'HR') THEN
-                 ZPT= GOMGZHR(1,IOBS)/RG
-                 ZPB= GOMGZHR(NLEVTRL,IOBS)/RG
+                 ZPT= columnhr%gz(1,IOBS)/RG
+                 ZPB= columnhr%gz(COLUMNHR%NLEV,IOBS)/RG
                ELSEIF(CDMVO .EQ. 'BG') THEN
-                 ZPT= GOMGZG(1,IOBS)/RG
-                 ZPB= GOMGZG(NFLEV,IOBS)/RG
+                 ZPT= columng%gz(1,IOBS)/RG
+                 ZPB= columng%gz(NFLEV,IOBS)/RG
                ENDIF
                IF ( ZLEV .GT. ZPT ) THEN
                   call obs_set_i(obsSpaceData,'XTR ',JDATA,1)
@@ -198,19 +198,19 @@ C
                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IK = 1
                IF(CDMVO .EQ. 'HR') THEN
-                 DO JK = 2,NLEVTRL - 1
-                   ZPT  = RPPOBSHR(JK,IOBS)
+                 DO JK = 2,COLUMNHR%NLEV - 1
+                   ZPT  = COLUMNHR%RPPOBS(JK,IOBS)
                    IF( ZLEV .GT. ZPT ) IK = JK
                  END DO
-                 ZPT  = RPPOBSHR(IK,IOBS)
-                 zpb=RPPOBSHR(IK+1,IOBS)
+                 ZPT  = COLUMNHR%RPPOBS(IK,IOBS)
+                 zpb=COLUMNHR%RPPOBS(IK+1,IOBS)
                ELSEIF(CDMVO .EQ. 'BG') THEN
                  DO JK = 2,NFLEV - 1
-                   ZPT  = RPPOBS(JK,IOBS)
+                   ZPT  = COLUMNG%RPPOBS(JK,IOBS)
                    IF( ZLEV .GT. ZPT ) IK = JK
                  END DO
-                 ZPT  = RPPOBS(IK,IOBS)
-                 zpb=RPPOBS(IK+1,IOBS)
+                 ZPT  = COLUMNG%RPPOBS(IK,IOBS)
+                 zpb=COLUMNG%RPPOBS(IK+1,IOBS)
                ENDIF
                call obs_set_i(obsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
@@ -237,8 +237,8 @@ C
                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
                IK = 1
                IF(CDMVO .EQ. 'HR') THEN
-                 DO JK = 2,NLEVTRL - 1
-                   ZPT  = GOMGZHR(JK,IOBS)/RG
+                 DO JK = 2,COLUMNHR%NLEV - 1
+                   ZPT  = columnhr%gz(JK,IOBS)/RG
                    IF( ZLEV .LT. ZPT ) IK = JK
                  END DO
                  IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
@@ -246,11 +246,11 @@ C
                  ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
      &                  ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
      &                  ITYP.EQ.BUFR_NEHS ) THEN
-                   IK=NLEVTRL-1
+                   IK=COLUMNHR%NLEV-1
                  ENDIF
                ELSEIF(CDMVO .EQ. 'BG') THEN
                  DO JK = 2,NFLEV - 1
-                   ZPT  = GOMGZG(JK,IOBS)/RG
+                   ZPT  = columng%gz(JK,IOBS)/RG
                    IF( ZLEV .LT. ZPT ) IK = JK
                  END DO
                  IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
@@ -264,7 +264,7 @@ C
                call obs_set_i(obsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
                    if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
-                     ZPB  = GOMGZHR(IK+1,IOBS)/RG
+                     ZPB  = columnhr%gz(IK+1,IOBS)/RG
                      write(nulout,*) 'vobslyrs ZZZ:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',GZ(ik,),GZ(ik+1,),rdata(lyr,),CDMVO '
      &                    ,jdata,iobs,obs_elem_c9(obsSpaceData,'STID',iobs),ityp,ik,zlev,ZPT,ZPB
@@ -289,13 +289,13 @@ C
                         ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
                         IK = 1
                         IF(CDMVO .EQ. 'HR') THEN
-                          DO JK = 2,NLEVTRL - 1
-                            ZPT  = RPPOBSHR(JK,IOBS)
+                          DO JK = 2,COLUMNHR%NLEV - 1
+                            ZPT  = COLUMNHR%RPPOBS(JK,IOBS)
                             IF( ZLEV .GT. ZPT ) IK = JK
                           END DO
                         ELSEIF(CDMVO .EQ. 'BG') THEN
                           DO JK = 2,NFLEV - 1
-                            ZPT  = RPPOBS(JK,IOBS)
+                            ZPT  = COLUMNG%RPPOBS(JK,IOBS)
                             IF( ZLEV .GT. ZPT ) IK = JK
                           END DO
                         ENDIF
@@ -304,7 +304,7 @@ C
                      ENDIF
 ****************************************************************
 c       write(nulout,*) 'vobslyrs PRL:JDATA,iobs,IK,zlev,ZPT,ZPB '
-c     &         ,JDATA,iobs,IK,ZLEV,RPPOBS(IK,IOBS),RPPOBS(IK+1,IOBS)
+c     &         ,JDATA,iobs,IK,ZLEV,COLUMNG%RPPOBS(IK,IOBS),COLUMNG%RPPOBS(IK+1,IOBS)
 *****************************************************************
                   END DO
                ENDIF

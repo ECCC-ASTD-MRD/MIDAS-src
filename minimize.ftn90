@@ -40,7 +40,7 @@ subroutine minimize
   call setcma
 
 !modular1  if (trim(cminmode) == 'VAR') then
-     call min_minvar(ntrunc,nksdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
+     call min_minvar(ntrunc,nkgdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
 !modular1  elseif(trim(cminmode) == 'PSAS' .or. trim(cminmode) == 'OSV' )then
 !modular1     call minpsas
 !modular1  endif

@@ -264,7 +264,7 @@ C     .     3.1  Main state (COMSP, COMSP1, COMSPG)
 C     .          ---------------------------------
 C
  310  CONTINUE
-      ILEN = NLA * 2 * NKSDIM
+      ILEN = NLA * 2 * NKGDIM
       CALL HPALLOC(PTSP  ,MAX(ILEN,1),IERR,8)
       IF(NCONF.NE.307) THEN
          CALL HPALLOC(PTSP1 ,MAX(ILEN,1),IERR,8)
@@ -317,73 +317,73 @@ C
 C
       iloc = 1
       do jvar = 1,jpnvarmax
-        if(jvar .eq. nsvor) then
-          NSPOSIT(nsvor)=iloc
-          if(NSEXIST(nsvor).eq.1) then
+        if(jvar .eq. nguu) then
+          NGPOSIT(nguu)=iloc
+          if(NGEXIST(nguu).eq.1) then
             PTSVOR   = LOC(SP(1,1,ILOC))
             PTSVOR1 = LOC(SP1(1,1,ILOC))
             PTSVORG = LOC(SPG(1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nsdiv) then
-          NSPOSIT(nsdiv)=iloc
-          if(NSEXIST(nsdiv).eq.1) then
+        elseif(jvar .eq. ngvv) then
+          NGPOSIT(ngvv)=iloc
+          if(NGEXIST(ngvv).eq.1) then
             PTSDIV  = LOC(SP (1,1,iloc))
             PTSDIV1 = LOC(SP1(1,1,ILOC))
             PTSDIVG = LOC(SPG(1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nsgz) then
-          NSPOSIT(nsgz)=iloc
-          if(NSEXIST(nsgz).eq.1) then
+        elseif(jvar .eq. nggz) then
+          NGPOSIT(nggz)=iloc
+          if(NGEXIST(nggz).eq.1) then
             PTSPGZ  = LOC(SP  (1,1,iloc))
             PTSPGZ1  = LOC(SP1  (1,1,ILOC))
             PTGZG  = LOC(SPG  (1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nsq) then
-          NSPOSIT(nsq)=iloc
-          if(NSEXIST(nsq).eq.1) then
+        elseif(jvar .eq. ngq) then
+          NGPOSIT(ngq)=iloc
+          if(NGEXIST(ngq).eq.1) then
             PTSPQ  = LOC(SP  (1,1,iloc))
             PTSPQ1 = LOC(SP1 (1,1,ILOC))
             PTSPQG = LOC(SPG (1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nstt) then
-          NSPOSIT(nstt)=iloc
-          if(NSEXIST(nstt).eq.1) then
+        elseif(jvar .eq. ngtt) then
+          NGPOSIT(ngtt)=iloc
+          if(NGEXIST(ngtt).eq.1) then
             PTSTT   = LOC(SP (1,1,iloc))
             PTSTT1  = LOC(SP1(1,1,ILOC))
             PTSTTG  = LOC(SPG(1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nsoz) then
-          NSPOSIT(nsoz)=iloc
-          if(NSEXIST(nsoz).eq.1) then
+        elseif(jvar .eq. ngoz) then
+          NGPOSIT(ngoz)=iloc
+          if(NGEXIST(ngoz).eq.1) then
             PTSPOZ  = LOC(SP  (1,1,iloc))
             PTSPOZ1  = LOC(SP1  (1,1,ILOC))
             PTOZG  = LOC(SPG  (1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nstr) then
-          NSPOSIT(nstr)=iloc
-          if(NSEXIST(nstr).eq.1) then
+        elseif(jvar .eq. ngtr) then
+          NGPOSIT(ngtr)=iloc
+          if(NGEXIST(ngtr).eq.1) then
             PTSPTR  = LOC(SP  (1,1,iloc))
             PTSPTR1  = LOC(SP1  (1,1,ILOC))
             PTTRG  = LOC(SPG  (1,1,ILOC))
             iloc = iloc + nflev
           end if
-        elseif(jvar .eq. nsps) then
-          NSPOSIT(nsps)=iloc
-          if(NSEXIST(nsps).eq.1) then
+        elseif(jvar .eq. ngps) then
+          NGPOSIT(ngps)=iloc
+          if(NGEXIST(ngps).eq.1) then
             PTSPPS  = LOC(SP  (1,1,iloc))
             PTSPPS1 = LOC( SP1(1,1,ILOC))
             PTSPPSG = LOC( SPG(1,1,ILOC))
             iloc = iloc + 1
           end if
-        elseif(jvar .eq. nstg) then
-          NSPOSIT(nstg)=iloc
-          if(NSEXIST(nstg).eq.1) then
+        elseif(jvar .eq. ngtg) then
+          NGPOSIT(ngtg)=iloc
+          if(NGEXIST(ngtg).eq.1) then
             PTSPTG  = LOC(SP  (1,1,iloc))
             PTSPTG1 = LOC( SP1(1,1,ILOC))
             PTSPTGG = LOC( SPG(1,1,ILOC))

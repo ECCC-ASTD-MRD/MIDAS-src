@@ -73,19 +73,19 @@ C
       REAL*8 PLAT
       REAL*8 PLON
       REAL*8 PZOBS
-      REAL*8 PETA(NLEVTRL)
-      REAL*8 PTT (NLEVTRL)
-      REAL*8 PHU (NLEVTRL)
-      REAL*8 PGZ (NLEVTRL)
+      REAL*8 PETA(COLUMNHR%NLEV)
+      REAL*8 PTT (COLUMNHR%NLEV)
+      REAL*8 PHU (COLUMNHR%NLEV)
+      REAL*8 PGZ (COLUMNHR%NLEV)
       REAL*8 PXP0
       REAL*8 PXPT
       REAL*8 PMT
       REAL*8 PHX
 C
-      REAL*8 ZDETA(NLEVTRL-1)
-      REAL*8 ZF3 (NLEVTRL-1)
-      REAL*8 ZG(NLEVTRL)
-      REAL*8 ZZK(NLEVTRL)
+      REAL*8 ZDETA(COLUMNHR%NLEV-1)
+      REAL*8 ZF3 (COLUMNHR%NLEV-1)
+      REAL*8 ZG(COLUMNHR%NLEV)
+      REAL*8 ZZK(COLUMNHR%NLEV)
       REAL*8 ZTTB
       REAL*8 ZQQB
       REAL*8 ZCLT, ZGRAV, ZLEVB
@@ -133,8 +133,8 @@ C  *  Mean column gravity as a function of latitude and model sfc height
 C
 C  *  Gravity and height (ASL) profiles
 C
-      DO JLEV = 1, NLEVTRL
-        IF ( JLEV .EQ. NLEVTRL ) THEN
+      DO JLEV = 1, COLUMNHR%NLEV
+        IF ( JLEV .EQ. COLUMNHR%NLEV ) THEN
           ZZK(JLEV) = PMT
         ELSE
           ZZK(JLEV) = PGZ(JLEV)/ZGRAV
@@ -146,8 +146,8 @@ C  *  If PZOBS is below ZLEVB, use CMC extrapolation from surface
 C     to get ZPMOBS = Psfc at PZOBS for DZ adjustment (later).
 C
       IJLEV = NJLEVP
-      IF ( NJLEVP .GE. NLEVTRL ) IJLEV = NLEVTRL-1
-      ZLEVB = ZZK(NLEVTRL-IJLEV)
+      IF ( NJLEVP .GE. COLUMNHR%NLEV ) IJLEV = COLUMNHR%NLEV-1
+      ZLEVB = ZZK(COLUMNHR%NLEV-IJLEV)
 C
 C
 C ----------------------------------------------------------------
@@ -169,7 +169,7 @@ C
 C  *  Set up terms required for vertical integration of HU, TT terms
 C  *  using trapezoidal rule
 C
-      DO JLEV = 1, NLEVTRL-1
+      DO JLEV = 1, COLUMNHR%NLEV-1
          ZDETA(JLEV) = PETA(JLEV+1) - PETA(JLEV)
          ZTTB  = (PTT(JLEV+1) + PTT(JLEV)) * 0.5
          ZQQB  = (PHU(JLEV+1) + PHU(JLEV)) * 0.5
@@ -179,7 +179,7 @@ C
 C  *  Vertical integration (trapezoidal rule)
 C
       ZINTW  = 0.0
-      DO JLEV = 1, NLEVTRL-1
+      DO JLEV = 1, COLUMNHR%NLEV-1
          ZINTW  = ZINTW  + ZF3(JLEV)*ZDETA(JLEV)
       END DO
 C
@@ -208,7 +208,7 @@ C  * ------------ STEP 1:  GET PRESSURE AT HEIGHT PZOBS ---------------
 C
 C  *     CMC EXTRAPOLATION FROM SURFACE TO PZOBS:
 C
-         ZTVSFC = PTT(NLEVTRL) * (1.0 + DELTA*PHU(NLEVTRL))
+         ZTVSFC = PTT(COLUMNHR%NLEV) * (1.0 + DELTA*PHU(COLUMNHR%NLEV))
          ZTVOBS = ZTVSFC - PPGAM * ZDZ
          ZPMOBS = PXP0 * (ZTVOBS/ZTVSFC)**ZCON3
 C
@@ -224,7 +224,7 @@ C
         IK  = 1
         IML = 0
 C
-        DO JK = 2,NLEVTRL-1
+        DO JK = 2,COLUMNHR%NLEV-1
           IF( ABS(ZZK(JK)-PZOBS) .LT. 1.0E-06 ) THEN
             IK = JK
             IML = 1
@@ -259,11 +259,11 @@ C       - Calculate new ZHD with new Psfc = ZPMOBS
         ZZHDV = (ZCONH / ZFPH) * ZPMOBS
 C
 C       - Adjust wet delay using Higgins method (Q constant over DZ layer)
-        ZTMOBS = PTT(NLEVTRL) - (PPGAM * ZDZ)
-        ZQMOBS = PHU(NLEVTRL)
+        ZTMOBS = PTT(COLUMNHR%NLEV) - (PPGAM * ZDZ)
+        ZQMOBS = PHU(COLUMNHR%NLEV)
         ZPBAR  = (ZPMOBS + PXP0) * 0.5
-        ZTBAR  = (ZTMOBS + PTT(NLEVTRL)) * 0.5
-        ZQBAR  = (ZQMOBS + PHU(NLEVTRL)) * 0.5
+        ZTBAR  = (ZTMOBS + PTT(COLUMNHR%NLEV)) * 0.5
+        ZQBAR  = (ZQMOBS + PHU(COLUMNHR%NLEV)) * 0.5
 C         Mean (wet) refractivity of DZ layer
         ZRMEAN = 1.0E-06 * (PPK2P*((ZPBAR*ZQBAR)/(EPS1*ZTBAR)) +
      +             PPK3*((ZPBAR*ZQBAR)/(EPS1*ZTBAR**2)))

@@ -10,7 +10,7 @@ C     --------------
 C
 C     Spectral  model state
 C     ----------------------
-C     SP(NLA,2,NKSDIM):  global state
+C     SP(NLA,2,NKGDIM):  global state
 C
 C     Splitting of SP
 C     ---------------
@@ -26,10 +26,10 @@ C     SPTG (NLA,2,1)       : ground temperature
 C
 #endif
 C
-      REAL*8 SP(NLA,2,NKSDIM),SPVOR(NLA,2,NKSDIM)
-     S     , SPDIV(NLA,2,NKSDIM), SPTT(NLA,2,NKSDIM)
-     S     , SPQ(NLA,2,NKSDIM), SPPS(NLA,2,NKSDIM),SPTG(NLA,2,NKSDIM)
-     S     , SPGZ(NLA,2,NKSDIM), SPOZ(NLA,2,NKSDIM), SPTR(NLA,2,NKSDIM), SPTB(NLA,2,NFLEV)
+      REAL*8 SP(NLA,2,NKGDIM),SPVOR(NLA,2,NKGDIM)
+     S     , SPDIV(NLA,2,NKGDIM), SPTT(NLA,2,NKGDIM)
+     S     , SPQ(NLA,2,NKGDIM), SPPS(NLA,2,NKGDIM),SPTG(NLA,2,NKGDIM)
+     S     , SPGZ(NLA,2,NKGDIM), SPOZ(NLA,2,NKGDIM), SPTR(NLA,2,NKGDIM), SPTB(NLA,2,NFLEV)
 C
       POINTER (PTSP,SP), (PTSVOR,SPVOR), (PTSDIV,SPDIV), (PTSTT,SPTT)
      S     ,  (PTSPQ,SPQ) , (PTSPPS,SPPS), (PTSPTG,SPTG)

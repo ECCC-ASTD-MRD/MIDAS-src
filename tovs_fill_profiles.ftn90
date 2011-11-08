@@ -82,14 +82,6 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
   integer :: ilansea, indxreg
   integer :: knkgdimo, knlev
 
-!  real*8 :: pgomu  (knkgdimo,*)
-!  real*8 :: pgomv  (knkgdimo,*)
-!  real*8 :: pgomt  (knkgdimo,*)
-!  real*8 :: pgomgz (knkgdimo,*)
-!  real*8 :: pgomq  (knkgdimo,*)
-!  real*8 :: pgomps (knkgdimo,*)
-!  real*8 :: pgomtgr(knkgdimo,*)
-!  real*8 :: prppobs(knlev   ,*)
   real*8 :: pgomu  (knlev,nobtot)
   real*8 :: pgomv  (knlev,nobtot)
   real*8 :: pgomt  (knlev,nobtot)

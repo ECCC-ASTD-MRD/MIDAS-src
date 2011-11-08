@@ -119,15 +119,11 @@ C*    3. Verify the arrays allocated within SUALOBS
 C
  300    CONTINUE
 C
-        deallocate(gomobs)
-        deallocate(gomobs1)
+        call col_deallocate(column)
+        call col_deallocate(column1)
 C
         call obs_finalize(obsSpaceData)
 C
-        deallocate(rppobs)
-        deallocate(RMTMOBS)
-        deallocate(RMTHOBS)
-c
 c deallocate background fields on analysis grid
 c
         CALL HPDEALLC(pttg,IERR,1)
@@ -167,22 +163,5 @@ c
         END IF
 
 c
-c
-c deallocate all fields present in commvohr.cdk  They were allocated by
-c locptgomhr.ftn
-c
-        if (nconf .eq. 101 .or. nconf .eq. 121
-     &       .or.  nconf .eq. 141) then
-!          call hpdeallc(ptmobshr,ierr,1)
-!          call hpdeallc(ptvlevhr,ierr,1)
-!          call hpdeallc(ptppobshr,ierr,1)
-!          call hpdeallc(ptvmahr,ierr,1)
-!          call hpdeallc(ptvmbhr,ierr,1)
-!          call hpdeallc(ptvmchr,ierr,1)
-!          call hpdeallc(ptvmdhr,ierr,1)
-!          call hpdeallc(ptvmehr,ierr,1)
-!          call hpdeallc(ptvmfhr,ierr,1)
-        endif
-C
       RETURN
       END

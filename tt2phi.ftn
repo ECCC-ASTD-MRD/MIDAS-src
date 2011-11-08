@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE tt2phi
+      SUBROUTINE tt2phi(lcolumn)
 #if defined (DOC)
 *
 ***s/r tt2phi - Temperature to geopotential transformation
@@ -23,9 +23,6 @@
 *Author  : S. Pellerin *ARMA/AES September 1998
 *Revision: L. Fillion - 10 mar 99 - Pressure option
 *          S. Pellerin - exclusion of commvo1 (regional implementation)
-*          JM Belanger CMDA/SMC  Jul 2000
-*                   . 32 bits conversion
-*                     (REAL*8 alpha)
 *           C. Charette - ARMA/SMC - Sep. 2004
 *            - Conversion to hybrid vertical coordinate
 *
@@ -37,29 +34,231 @@
 *Arguments
 *
 #endif
-      use columnData_mod 
- 
+      use columnData_mod
       IMPLICIT NONE
-*implicits
-
-#include "comdim.cdk"
-#include "comdimo.cdk"
- 
-
 c
+      type(struct_columnData) :: lcolumn
       integer jobs,jlev,ier
-      real*8 alpha
-*----------------------------------------------------------------------
+      real*8 zps, alpha
+      real*8 ::  vmahr(lcolumn%nlev)
+      real*8 ::  vmbhr(lcolumn%nlev)
+      real*8 ::  vmchr(lcolumn%nlev)
+      real*8 ::  vmdhr(lcolumn%nlev)
+      real*8 ::  vmehr(lcolumn%nlev)
+      real*8 ::  vmfhr(lcolumn%nlev)
+*
       alpha=-1.0D0
+**
 c
-      do jobs = 1, nobtot
-        call matapat(rppobs(1,jobs),alpha,nflev)
-        call vtap1d(jobs)
+      do jobs = 1, lcolumn%nobtot
+        call matapatnew(lcolumn%rppobs(:,jobs),alpha,lcolumn%nlev)
+        call vtap1dnew(jobs)
       enddo
 c
       return
+
+      CONTAINS
+
+      SUBROUTINE matapatnew(pvlev,palpha,knlev)
+C
+*S/R MATAPATNEW:
+C     CALCULE LES ELEMENTS DE LA MATRICE TRIDIAGONALE ASSOCIEE A LA
+C     SOLUTION PAR UN ALGORITHME DU 4EME ORDRE DE L'EQUATION
+C     T*S**ALPHA=D(P)/DS OU T ET P SONT DEUX FONCTIONS ECHANTILLONNEES
+C     AUX N NIVEAUX SIGMA. LES MATRICES GENEREES ICI SERONT UTILISEES
+C     PAR LES SUBR. VTAP ET VPAT. L'ALGORITHME EST DU A J. COTE.
+C     NOTE: ON CALCULE IMMEDIATEMENT DANS LE COMMON comode
+C           LES COEFFICIENTS GENERES PAR LA REDUCTION GAUSSIENNE
+C           LORS DU CALCUL DE T.
+C
+C AUTHOR: Michel Beland  - RPN AVRIL 1984 - ADAPTE AU MODELE SEF
+C
+C Revision: H. Ritchie - RPN JANVIER 1993 - RECODAGE
+C
+C         : L. Fillion - ARMA - Oct 96 - Adapted for 3DVAR
+C         : L. Fillion - ARMA - 10 mar 99 - Add pps argument
+C           C. Charette - ARMA/SMC - Sep. 2004
+C            - Conversion to hybrid vertical coordinate
+C              Replace argument pps by  pvlev, knlev.
+C              Profile of pressure values is now input rather than
+C              being calculated locally.
+C
+C ARGUMENTS:
+C    I - PVLEV   : PROFILE OF PRESSURE VALUES
+C    I - PALPHA  : EXPOSANT DE SIGMA.
+C    I - KNLEV   : NUMBER OF PRESSURE VALUES
+C
+C NOTE:
+C     VMA(I),VMBHR(I),VMCHR(I): DIAG. INF., PRINC., ET SUP. DE LA MAT.
+C
+C
+      IMPLICIT  NONE
+      integer knlev
+      real*8  palpha, pvlev(knlev)
+c
+      logical llprint
+      INTEGER jl,jlev,im, ilen, ierr
+      REAL*8 ZXM,ZX0,ZXP,ZAA,ZBB,ZEX,ZCC,ZQ(3),ZDD,ZDET
+
+      llprint = .false.
+c
+      DO 20 jlev=1,KNLEV
+      ZX0=PVLEV(jlev)
+      IF (jlev.EQ.1) THEN
+        ZXM=PVLEV(1)
+        ZXP=PVLEV(2)
+        ZAA=PVLEV(3)-ZX0
+        ZBB=PVLEV(2)-ZX0
+      ELSEIF (jlev.EQ.KNLEV) THEN
+        ZXM=PVLEV(KNLEV-1)
+        ZXP=PVLEV(KNLEV)
+        ZAA=PVLEV(KNLEV-1)-ZX0
+        ZBB=PVLEV(KNLEV-2)-ZX0
+      ELSE
+        ZXM=PVLEV(jlev-1)
+        ZXP=PVLEV(jlev+1)
+        ZAA=ZXM-ZX0
+        ZBB=ZXP-ZX0
+      ENDIF
+      DO 10 jl=1,3
+      ZEX=PALPHA+FLOAT(jl)
+        IF(ZEX.NE.0.) ZQ(jl)=(ZXP**ZEX-ZXM**ZEX)/ZEX
+        IF(ZEX.EQ.0.) ZQ(jl)=LOG(ZXP/ZXM)
+   10 CONTINUE
+      ZQ(3)=ZQ(3)-ZX0*(2.0*ZQ(2)-ZX0*ZQ(1))
+      ZQ(2)=ZQ(2)-ZX0*ZQ(1)
+      ZCC=ZAA**2
+      ZDD=ZBB**2
+      ZDET=ZAA*ZDD-ZBB*ZCC
+      VMAHR(jlev)=(ZDD*ZQ(2)-ZBB*ZQ(3))/(2.0*ZDET)
+      VMCHR(jlev)=(ZAA*ZQ(3)-ZCC*ZQ(2))/(2.0*ZDET)
+      VMBHR(jlev)=ZQ(1)/2.0-VMAHR(jlev)-VMCHR(jlev)
+   20 CONTINUE
+*
+*     COEFFICIENTS DE L'OPERATEUR INVERSE
+*
+      DO 30 jlev=1,KNLEV
+      VMDHR(jlev)=VMAHR(jlev)
+      VMEHR(jlev)=VMBHR(jlev)
+      VMFHR(jlev)=VMCHR(jlev)
+   30 CONTINUE
+*
+      VMDHR(1)=VMDHR(1)/VMFHR(2)
+      VMEHR(1)=VMEHR(1)-VMDHR(1)*VMDHR(2)
+      VMFHR(1)=VMFHR(1)-VMDHR(1)*VMEHR(2)
+      VMFHR(KNLEV)=VMFHR(KNLEV)/VMDHR(KNLEV-1)
+      VMDHR(KNLEV)=VMDHR(KNLEV)-VMFHR(KNLEV)*VMEHR(KNLEV-1)
+      VMEHR(KNLEV)=VMEHR(KNLEV)-VMFHR(KNLEV)*VMFHR(KNLEV-1)
+*
+      VMEHR(1)=1.0/VMEHR(1)
+      DO 31 jlev=2,KNLEV
+      im=jlev-1
+      VMFHR(im)=VMFHR(im)*VMEHR(im)
+   31 VMEHR(jlev)=1.0/(VMEHR(jlev)-VMDHR(jlev)*VMFHR(im))
+*
+      if(llprint) then
+        write(*,*)' '
+        write(*,*)'matapatnew: vmahr = ',vmahr
+        write(*,*)' '
+        write(*,*)'matapatnew: vmbhr = ',vmbhr
+        write(*,*)' '
+        write(*,*)'matapatnew: vmchr = ',vmchr
+        write(*,*)' '
+        write(*,*)'matapatnew: vmdhr = ',vmdhr
+        write(*,*)' '
+        write(*,*)'matapatnew: vmehr = ',vmehr
+        write(*,*)' '
+        write(*,*)'matapatnew: vmfhr = ',vmfhr
+        write(*,*)' '
+      endif
+c
+      RETURN
+      END SUBROUTINE matapatnew
+
+
+      SUBROUTINE VTAP1DNEW(kobs)
+C
+*S/P VTAP1DNEW:
+* AUTHOR:  Luc Fillion - ARMA/AES - 10 mar 99
+*
+* REVISION:
+*          S. Pellerin - ARMA/SMC - Sept. 2000
+*                      - exclusion of commvo1
+*                        and local allocation of working
+*                        space for virtual temperature
+*                        regional implementation
+*
+      IMPLICIT NONE
+      INTEGER  kobs
+*
+      logical llprint
+      INTEGER  JLON, IKLEVM2, JK, IK,ier
+      REAL*8     ZAK, ZBK, ZCK,ZCON,ztv(1),zhu,fotvv
+      pointer (pttv,ztv)
+*implicits
+#include "comphy.cdk"
+#include "dinternv.cdk"
+#include "finternv.cdk"
+**
+      call hpalloc(pttv,lcolumn%nlev,ier,8)
+      do jk = 1, lcolumn%nlev
+        zhu = exp(lcolumn%hu(jk,kobs))
+        ztv(jk) = fotvv(lcolumn%tt(jk,kobs),zhu)
+      enddo
+      llprint = .false.
+c
+      ZCON = -RGASD
+      ZAK = -2.0*ZCON*VMAHR(lcolumn%nlev)
+      ZBK = -2.0*ZCON*VMBHR(lcolumn%nlev)
+      ZCK = -2.0*ZCON*VMCHR(lcolumn%nlev)
+********************************************************
+c       write(*,*)'vtaphr:lcolumn%nlev,VMAHR,VMBHR,VMCHR ',
+c     &       lcolumn%nlev,VMAHR(lcolumn%nlev),VMBHR(lcolumn%nlev),VMCHR(lcolumn%nlev)
+********************************************************
+      lcolumn%gz(lcolumn%nlev,kobs) = lcolumn%RMTMOBS(kobs)
+      lcolumn%gz(lcolumn%nlev-1,kobs)=
+     $                   ZAK*ztv(lcolumn%nlev-1)+
+     $                   ZBK*ztv(lcolumn%nlev)+
+     &                   ZCK*ztv(lcolumn%nlev-2)+
+     $                   lcolumn%gz(lcolumn%nlev,kobs)
+********************************************************
+c       write(*,*)'vtaphr:lcolumn%nlev,kobs,ak,bk,ck,gmgzhr(lcolumn%nlev)',
+c     &       lcolumn%nlev,kobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev,kobs)
+c       write(*,*)'vtaphr:lcolumn%nlev-1,kobs,ak,bk,ck,gmgzh(lcolumn%nlev-1)'
+c     &       ,lcolumn%nlev-1,kobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev-1,kobs)
+********************************************************
+      IKLEVM2 = lcolumn%nlev-2
+      do JK = 1, IKLEVM2
+        IK = lcolumn%nlev-1-JK
+        ZAK = -2.0*ZCON*VMAHR(IK+1)
+        ZBK = -2.0*ZCON*VMBHR(IK+1)
+        ZCK = -2.0*ZCON*VMCHR(IK+1)
+********************************************************
+c       write(*,*)'vtaphr:ik+1,VMAHR,VMBHR,VMCHR ',
+c     &       ik+1,VMAHR(ik+1),VMBHR(ik+1),VMCHR(ik+1)
+********************************************************
+        lcolumn%gz(IK,kobs)=ZAK*ztv(IK)+
+     $                  ZBK*ztv(IK+1)+
+     $                  ZCK*ztv(IK+2)+
+     +                  lcolumn%gz(IK+2,kobs)
+********************************************************
+c          write(*,*)'vtaphr:ik,kobs,zak,zbk,zck,lcolumn%gz= ',
+c     &       ik,kobs,zak,zbk,zck,lcolumn%gz(ik,kobs)
+c          write(*,*)'vtaphr:ik,kobs,ztv(ik),ztv(ik+1),ztv(ik+2)= '
+c     &       ,ik,kobs,ztv(IK),ztv(IK+1),ztv(IK+2)
+**********************************************************
+      enddo
+c
+      if(llprint) then
+        do jk=1,lcolumn%nlev
+          write(*,*)'vtap1dnew: Level, Background GZ,TT,TV = ',jk
+     &         ,lcolumn%gz(jk,1),lcolumn%tt(jk,1),ztv(jk)
+        enddo
+      endif
+C
+      call hpdeallc(pttv,ier,1)
+      RETURN
+      END SUBROUTINE vtap1dnew
+
+
       end
-
-
-
-

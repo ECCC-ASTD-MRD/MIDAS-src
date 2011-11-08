@@ -20,7 +20,7 @@
 !**s/r DOBSPPP  - Computation of Jo and the residuals to the observations
 !                 for pressure-level observations
 !
-!*    Purpose:  -Interpolate vertically gomobs to
+!*    Purpose:  -Interpolate vertically columnhr to
 !                the pressure levels of the observations. Then compute Jo.
 !                A linear interpolation in ln(p) is performed.
 !
@@ -79,13 +79,13 @@
             ivco=obs_elem_i (obsSpaceData,'VCO ',jdata)
             IOBS=obs_elem_i (obsSpaceData,'OBS ',jdata)
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
-               IPT = IK + IPOS*NLEVTRL
+               IPT = IK + IPOS*COLUMNHR%NLEV
                IPB = IPT+1
-               ZPT  = RPPOBSHR(IK,IOBS)
-               ZPB  = RPPOBSHR(IK+1,IOBS)
+               ZPT  = COLUMNHR%RPPOBS(IK,IOBS)
+               ZPB  = COLUMNHR%RPPOBS(IK+1,IOBS)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1. - ZWB
-               zoma = (ZWB*GOMOBSHR(IPB,IOBS) + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER
+               zoma = (ZWB*columnhr%all(IPB,IOBS) + ZWT*columnhr%all(IPT,IOBS)-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
                call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
                call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
@@ -93,16 +93,16 @@
 ! Process all upper air data data below model's orography
 !
             ELSEIF ( (iass.EQ.1).AND.(ixtr.EQ.2).AND.(ivco.EQ.2) ) THEN
-               IPT = NLEVTRL-1 + IPOS*NLEVTRL
+               IPT = COLUMNHR%NLEV-1 + IPOS*COLUMNHR%NLEV
                IPB = IPT+1
                IF(IVNM .EQ. BUFR_NEGZ ) THEN
 !
 ! Forward nonlinear model for geopotential data below model's orography
 !
-                  ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
-     &                     *GOMTHR(NLEVTRL,IOBS)
-                  zoma = ( RMTMOBS(iobs) + ZTVG/zgamma
-     &                     *(1.-(zlev/gompshr(1,iobs))**zexp) - zvar )/zoer
+                  ZTVG = (1.0 + DELTA * EXP(columnhr%hu(COLUMNHR%NLEV,IOBS)))
+     &                     *columnhr%tt(COLUMNHR%NLEV,IOBS)
+                  zoma = ( columnhr%RMTMOBS(iobs) + ZTVG/zgamma
+     &                     *(1.-(zlev/columnhr%ps(1,iobs))**zexp) - zvar )/zoer
                   PJO =PJO+zoma*zoma
                   call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
                   call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
@@ -115,7 +115,7 @@
                   IDBURP    = MOD(IITY,1000)
                   IF (IDBURP .EQ. 158 .AND.
      +                IVNM .EQ. BUFR_NEES) THEN
-                    zoma = (GOMOBSHR(IPB,IOBS)-ZVAR)/ZOER
+                    zoma = (columnhr%all(IPB,IOBS)-ZVAR)/ZOER
                     PJO =PJO+zoma*zoma
                     call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
                     call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)

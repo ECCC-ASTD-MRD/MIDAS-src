@@ -194,7 +194,7 @@ c                ENDIF
                   IXTR = obs_elem_i(obsSpaceData,'XTR ',JDATA)
                   ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
-                  IPT  = NLEVTRL-1 + IPOS*NLEVTRL
+                  IPT  = COLUMNHR%NLEV-1 + IPOS*COLUMNHR%NLEV
                   IPB  = IPT+1
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
@@ -204,17 +204,18 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
 c     &                   ,ZLEV,ZHHH,IK,IPOS,IXTR,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA,(GOMOBSHR(IPB,IOBS)
-     +                 - ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))-ZVAR)
+                  call obs_set_r8(obsSpaceData,'OMA ',JDATA,
+     +                  (columnhr%all(IPB,IOBS)
+     +                 - ZSLOPE*(ZHHH-columnhr%gz(COLUMNHR%NLEV,IOBS))-ZVAR)
      +                 / ZOER)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
-c                    ZCON = (GOMOBSHR(IPB,IOBS)
-c     +                   - ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))-ZVAR)
-c                    ZGAMAZ= ZSLOPE*(ZHHH-GOMGZHR(NLEVTRL,IOBS))
+c                    ZCON = (columnhr%all(IPB,IOBS)
+c     +                   - ZSLOPE*(ZHHH-columnhr%gz(COLUMNHR%NLEV,IOBS))-ZVAR)
+c                    ZGAMAZ= ZSLOPE*(ZHHH-columnhr%gz(COLUMNHR%NLEV,IOBS))
 c                    print *,'dobssfc:gama,gamaz,gzhr(nflv),GOM(IPB='
-c     &                   ,zslope,ZGAMAZ,GOMGZHR(NLEVTRL,IOBS)
-c     &                   ,GOMOBSHR(IPB,IOBS)
+c     &                   ,zslope,ZGAMAZ,columnhr%gz(COLUMNHR%NLEV,IOBS)
+c     &                   ,columnhr%all(IPB,IOBS)
 c                    print *,'dobssfc:P-O, obs, std-oer,IK,IPB = '
 c     &                   ,zcon,ZVAR,ZOER,IK,IPB
 c                  ENDIF
@@ -252,21 +253,21 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
 c     &                   ,ZLEV,ZHHH,IK,IXTR,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  ZGAMAZ= ZGAMMA*(ZHHH-GOMGZHR(NLEVTRL,IOBS))
-                  ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
-     &                    *GOMTHR(NLEVTRL,IOBS)
+                  ZGAMAZ= ZGAMMA*(ZHHH-columnhr%gz(COLUMNHR%NLEV,IOBS))
+                  ZTVG = (1.0 + DELTA * EXP(columnhr%hu(COLUMNHR%NLEV,IOBS)))
+     &                    *columnhr%tt(COLUMNHR%NLEV,IOBS)
                   ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA,((GOMPSHR(1,IOBS)*ZCON**ZEXP)
-     &                    -ZVAR)/ZOER)
+                  call obs_set_r8(obsSpaceData,'OMA ',JDATA,
+     &                 ((columnhr%ps(1,IOBS)*ZCON**ZEXP)-ZVAR)/ZOER)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
-c                    ZPSGOBS = GOMPSHR(1,IOBS)*ZCON**ZEXP
+c                    ZPSGOBS = columnhr%ps(1,IOBS)*ZCON**ZEXP
 c                    print *,'dobssfc:[gzg,tg,qg,psg]at Zmodel= '
-c     &                   ,GOMGZHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
-c     &                   ,GOMQHR(NLEVTRL,IOBS),GOMPSHR(1,IOBS)
+c     &                   ,columnhr%gz(COLUMNHR%NLEV,IOBS),columnhr%tt(COLUMNHR%NLEV,IOBS)
+c     &                   ,columnhr%hu(COLUMNHR%NLEV,IOBS),columnhr%ps(1,IOBS)
 c                    print *,'dobssfc:TVG,HHH,GAMA,GAMZ,CON,EXP= '
 c     &                   ,ZTVG,ZHHH,ZGAMMA,ZGAMAZ,ZCON,ZEXP
-c                    ZCON = ((GOMPSHR(1,IOBS)*ZCON**ZEXP)-ZVAR)
+c                    ZCON = ((columnhr%ps(1,IOBS)*ZCON**ZEXP)-ZVAR)
 c                    print *,'dobssfc:P-O,obs,std-oer,PSGOBS = '
 c     &                   ,zcon,ZVAR,ZOER,ZPSGOBS
 c                  ENDIF
@@ -316,8 +317,10 @@ c                         ENDIF
                         IF (NQCVAR .EQ. 0) THEN
                            DLSUM=DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)*
      1                           obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                           call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMA ',JDATA))
-                           call obs_set_r8(obsSpaceData,'OMI ',JDATA, obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+                           call obs_set_r8(obsSpaceData,'OMN ',JDATA, 
+     +                       obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+                           call obs_set_r8(obsSpaceData,'OMI ',JDATA, 
+     +                       obs_elem_r8(obsSpaceData,'OMA ',JDATA))
                         ELSE
 C
 C                 CONTRIBUTION TO Jo WITH QCVAR
@@ -393,8 +396,9 @@ C
      1                             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                               ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                               ZPPOST = ZGAMI/ZQCARG
-                              call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-     1                                            *(1. - ZPPOST))
+                              call obs_set_r8(obsSpaceData,'OMN ',JDATA, 
+     +                             obs_elem_r8(obsSpaceData,'OMA ',JDATA)
+     1                             *(1. - ZPPOST))
                               DLSUM= DLSUM - LOG(ZQCARG/(ZGAMI+1.))
                            ENDIF
                         ENDIF
@@ -430,24 +434,24 @@ C
 c
 c  forward nonlinear model for geopotential data below model's orography
 c
-                  ZTVG = (1.0 + DELTA * EXP(GOMQHR(NLEVTRL,IOBS)))
-     &                        *GOMTHR(NLEVTRL,IOBS)
+                  ZTVG = (1.0 + DELTA * EXP(columnhr%hu(COLUMNHR%NLEV,IOBS)))
+     &                        *columnhr%tt(COLUMNHR%NLEV,IOBS)
 ***************************************************************
 c        IF(LLPRINT .AND. IOBS.LE.13) THEN
-c           ZPHI=RMTMOBS(iobs) + ZTVG/zgamma
-c     &             *(1.-(zlev/gompshr(1,iobs))**zexpgz)
+c           ZPHI=columnhr%RMTMOBS(iobs) + ZTVG/zgamma
+c     &             *(1.-(zlev/columnhr%ps(1,iobs))**zexpgz)
 c           zinc = zphi - zvar
-c           print *,'dobssfc: IOBS,ZTVG,GOMQHR(NLEVTRL),GOMTHR(NLEVTRL) '
-c     &                  ,IOBS,ZTVG,GOMQHR(NLEVTRL,IOBS),GOMTHR(NLEVTRL,IOBS)
-c           print *,'dobssfc: RMTMOBS(iobs),ZLEV,zgamma,zexpgz,gompsg= '
-c     &                  ,RMTMOBS(iobs),ZLEV,zgamma,zexpgz,gompshr(1,iobs)
+c           print *,'dobssfc: IOBS,ZTVG,columnhr%hu(COLUMNHR%NLEV),columnhr%tt(COLUMNHR%NLEV) '
+c     &                  ,IOBS,ZTVG,columnhr%hu(COLUMNHR%NLEV,IOBS),columnhr%tt(COLUMNHR%NLEV,IOBS)
+c           print *,'dobssfc: columnhr%RMTMOBS(iobs),ZLEV,zgamma,zexpgz,columnhr%ps= '
+c     &                  ,columnhr%RMTMOBS(iobs),ZLEV,zgamma,zexpgz,columnhr%ps(1,iobs)
 c           print *,'dobssfc: zphi,gzinc, gzobs, std-dev-obs = '
 c     &                 ,ZPHI,zinc,ZVAR,ZOER
 c        ENDIF
 ***************************************************************
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA,(RMTMOBS(iobs)
+                  call obs_set_r8(obsSpaceData,'OMA ',JDATA,(columnhr%RMTMOBS(iobs)
      &                        + ZTVG/zgamma
-     &                        *(1.-(zlev/gompshr(1,iobs))**zexpgz)
+     &                        *(1.-(zlev/columnhr%ps(1,iobs))**zexpgz)
      &                        - zvar)/zoer)
                   DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                        *obs_elem_r8(obsSpaceData,'OMA ',JDATA)

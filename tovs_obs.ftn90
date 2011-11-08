@@ -42,10 +42,6 @@ subroutine tovs_obs(option,pjo)
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
- 
- 
- 
- 
 
   integer jdata
 
@@ -63,19 +59,20 @@ subroutine tovs_obs(option,pjo)
   llprint = .true.
 
   if     ( option .eq. 'HR' ) then
-     call tovs_fill_profiles(gomuhr,gomvhr,gomthr,gomgzhr,gomqhr,gompshr,gomtgrhr, &
- &                      rppobshr,nkgdimohr,nlevtrl)
+     call tovs_fill_profiles(columnhr%uu,columnhr%vv,columnhr%tt,columnhr%gz,  &
+                             columnhr%hu,columnhr%ps,columnhr%tg, &
+                             columnhr%rppobs,columnhr%nkgdimo,columnhr%nlev)
 
   elseif ( option .eq. 'LR' ) then
-     call tovs_fill_profiles(gomug,gomvg,gomtg,gomgzg,gomqg,gompsg,gomtgrg, &
- &                      rppobs,nkgdimo,nlevtrl)
+     call tovs_fill_profiles(columng%uu,columng%vv,columng%tt,columng%gz,columng%hu,  &
+               columng%ps,columng%tg,columng%rppobs,columng%nkgdimo,columnhr%nlev)
      llprint = .false.
 
   elseif ( option .eq. 'MO' ) then
-!     add gomobs to gomobsg
-     gomobs1(:,:) = gomobsg(:,:) + gomobs(:,:)
-     call tovs_fill_profiles(gomu1,gomv1,gomt1,gomgz1,gomq1,gomps1,gomtgr1, &
- &                      rppobs,nkgdimo,nlevtrl)
+!     add column to columng
+     column1%all(:,:) = columng%all(:,:) + column%all(:,:)
+     call tovs_fill_profiles(column1%uu,column1%vv,column1%tt,column1%gz,column1%hu, &
+                             column1%ps,column1%tg,columng%rppobs,columng%nkgdimo,columnhr%nlev)
 
   else
      WRITE(NULOUT,FMT=9100)

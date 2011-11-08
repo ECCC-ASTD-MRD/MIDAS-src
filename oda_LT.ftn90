@@ -76,8 +76,8 @@ subroutine oda_LT(statevector)
      endif
 !
      call tmg_start(77,'EXPNDMVO')
-     call col_allocateGlobal(nflev,nobtotp)
-     call col_expandToMpiGlobal2(nflev,nobtot,nobtotp)
+     call col_allocate(column_g,nflev,nobtotp)
+     call col_expandToMpiGlobal3(column,column_g)
      call tmg_stop(77)
 !$OMP PARALLEL
 !$OMP SECTIONS PRIVATE(ilev)
@@ -92,8 +92,6 @@ subroutine oda_LT(statevector)
      if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',nflev)
 !$OMP SECTION
      if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',nflev)
-!$OMP SECTION
-     if(NGEXIST(ngoz).eq.1)  call gd2mvoad('OZ',nflev)
 !$OMP SECTION
      if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
 !$OMP SECTION
@@ -113,7 +111,7 @@ subroutine oda_LT(statevector)
 !
      call uvwi2uv(statevector)
 
-     call col_deallocateGlobal
+     call col_deallocate(column_g)
 
   endif
   call tmg_stop (75)
@@ -133,11 +131,11 @@ subroutine oda_LT(statevector)
 !*
 !*Revision:
 !*           Bin He   *ARMA/MRB   JULY 2009
-!*           --  MPI version , restore Global array GOMTGR,....    
+!*           --  MPI version , restore Global array     
 !*
 !**    Purpose:  Update the estimate of GD from the gradient components
 !*               at the observation points which have been stored in
-!*               GOMOBS
+!*               column
 !*
 !* Arguments
 !*     CDVARNAME: identificator of the variable to be treated
@@ -172,26 +170,24 @@ subroutine oda_LT(statevector)
 !*     2D fields
 !*
       CASE('TG')
-         zprofil => gomtgr_g
+         zprofil => column_g%tg
       CASE('PS')
-         zprofil => gomps_g
+         zprofil => column_g%ps
 !*
 !*     3D fields
 !*
       CASE('TT')
-         zprofil => gomt_g
+         zprofil => column_g%tt
       CASE('Q0')
-         zprofil => gomq_g
-      CASE('O3')
-         zprofil => gomoz_g
+         zprofil => column_g%hu
       CASE('TR')
-         zprofil => gomtr_g
+         zprofil => column_g%tr
       CASE('UU')
-         zprofil => gomu_g
+         zprofil => column_g%uu
       CASE('VV')
-         zprofil => gomv_g
+         zprofil => column_g%vv
       CASE('GZ')
-         zprofil => gomgz_g
+         zprofil => column_g%gz
       END SELECT
 
 !            DLDLON = 2.*RPI/NI
@@ -342,8 +338,6 @@ subroutine oda_LT(statevector)
            statevector%tt(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
         case('Q0')
            statevector%hu(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
-        case('O3')
-           statevector%oz(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
         case('TR')
            statevector%tr(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
         case('UU')

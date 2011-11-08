@@ -291,6 +291,10 @@ C     --------------------------
 C*
       CALL SUGPSGB(KULOUT)
 C
+C     Basic setup of columnData module (needed in suprep)
+C     --------------------------------
+      call col_setup(nflev)
+C
 C     Filter out data from CMA
 C     -------------------------
       CALL SUPREP
@@ -310,7 +314,10 @@ C
      S                            l4dvar)
         call rebldnotag () !! bhe  
 
-        call col_sualobsb(KULOUT,nflev,nobtot,nkgdimo,nmxobs) 
+        call col_sualobsb(nflev,nobtot) 
+        call col_allocate(column,nflev,nobtot)
+        call col_allocate(columng,nflev,nobtot)
+        call col_allocate(column1,nflev,nobtot)
 
 C*      Memory allocation for TOVS processing
 C       -------------------------------------

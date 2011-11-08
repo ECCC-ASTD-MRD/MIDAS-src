@@ -9,7 +9,7 @@ C
 C     1. Spectral  model state containing the first-guess and the
 C     .  background error covariance
 C     .  ---------------------------
-C     SPG(NLA,2,NKSDIM):  global state
+C     SPG(NLA,2,NKGDIM):  global state
 C
 C     Splitting of SPG
 C     ----------------
@@ -24,16 +24,16 @@ C     SPPSG (NLA,2,1)       : surface pressure
 C     SPTGG (NLA,2,1)       : ground temperature
 C
 #endif
-      REAL*8  SPG(NLA,2,NKSDIM)
-     S      , SPVORG(NLA,2,NKSDIM)
-     S      , SPDIVG(NLA,2,NKSDIM)
-     S      , SPTTG(NLA,2,NKSDIM)
-     S      , SPQG(NLA,2,NKSDIM)
-     S      , SPGZG (NLA,2,NKSDIM)
-     S      , SPOZG (NLA,2,NKSDIM)
-     S      , SPTRG (NLA,2,NKSDIM)
-     S      , SPPSG(NLA,2,NKSDIM)
-     S      , SPTGG(NLA,2,NKSDIM)
+      REAL*8  SPG(NLA,2,NKGDIM)
+     S      , SPVORG(NLA,2,NKGDIM)
+     S      , SPDIVG(NLA,2,NKGDIM)
+     S      , SPTTG(NLA,2,NKGDIM)
+     S      , SPQG(NLA,2,NKGDIM)
+     S      , SPGZG (NLA,2,NKGDIM)
+     S      , SPOZG (NLA,2,NKGDIM)
+     S      , SPTRG (NLA,2,NKGDIM)
+     S      , SPPSG(NLA,2,NKGDIM)
+     S      , SPTGG(NLA,2,NKGDIM)
 C
       POINTER (PTSPG,SPG), (PTSVORG,SPVORG), (PTSDIVG,SPDIVG)
      S     ,  (PTSTTG,SPTTG)

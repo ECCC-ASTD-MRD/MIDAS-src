@@ -29,8 +29,8 @@
 *Revision: L. Fillion *ARMA/AES - 3 feb 1999
 *        - Introduce adjoint of ps dependence of TLM
 *Revision: C. Charette *ARMA/AES - 8 feb 1999
-*        - Replaced zptop by rppobs(1,jobs)
-*          and zpscon by gompsg(1,jobs)
+*        - Replaced zptop by columng%rppobs(1,jobs)
+*          and zpscon by columng%ps(1,jobs)
 *
 *           JM Belanger CMDA/SMC  Dec 2000
 *                   . 32 bits conversion
@@ -49,13 +49,6 @@
 **              -Computation of adjoint temperature variable and
 *                adjoint of logarith of specific humidity due to virtual
 *                temperature increments
-*
-*
-
-*
-*
-*Arguments
-*
 #endif
       use columnData_mod 
  
@@ -67,9 +60,6 @@
 #include "comdim.cdk"
 #include "comcva.cdk"
 #include "comdimo.cdk"
-
- 
- 
 #include "comgem.cdk"
 #include "comcst.cdk"
 *
@@ -107,11 +97,11 @@ c
      &              /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
           endif
           zpresbd= rcoefinc * zterm
-          zcon   = (zpresbd-zpresb*rtapfac(jlev,jobs))/rppobs(jlev,jobs)
-          gomps(1,jobs)=gomps(1,jobs)+
-     &          gomtg(jlev,jobs)*zcon * gomt1(jlev,jobs)
+          zcon   = (zpresbd-zpresb*rtapfac(jlev,jobs))/columng%rppobs(jlev,jobs)
+          column%ps(1,jobs)=column%ps(1,jobs)+
+     &          columng%tt(jlev,jobs)*zcon * column1%tt(jlev,jobs)
 
-          gomt1(jlev,jobs)=rtapfac(jlev,jobs)*gomt1(jlev,jobs)
+          column1%tt(jlev,jobs)=rtapfac(jlev,jobs)*column1%tt(jlev,jobs)
 
         enddo
       enddo
@@ -122,16 +112,16 @@ c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev)
         do jobs = 1, nobtot
           do jlev = 1, nflev
-            gomt(jlev,jobs) = gomt(jlev,jobs)+
-     &                        oltv(1,jlev,jobs)*gomt1(jlev,jobs)
-            gomq(jlev,jobs) = gomq(jlev,jobs)+
-     &                        oltv(2,jlev,jobs)*gomt1(jlev,jobs)
+            column%tt(jlev,jobs) = column%tt(jlev,jobs)+
+     &                        oltv(1,jlev,jobs)*column1%tt(jlev,jobs)
+            column%hu(jlev,jobs) = column%hu(jlev,jobs)+
+     &                        oltv(2,jlev,jobs)*column1%tt(jlev,jobs)
 ***************************************************************
 c          if(llprint .and. jobs.le.15) then
 c             write(nulout,*)'att2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
 c     &            , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
 c             write(nulout,*)'att2phi:gmt1,GMQ(lev,obs),GMT(lev,obs) '
-c     &            ,gomt1(jlev,jobs),gomq(jlev,jobs),gomt(jlev,jobs)
+c     &            ,column1%tt(jlev,jobs),column%hu(jlev,jobs),column%tt(jlev,jobs)
 c             call vflush(nulout)
 c          endif
 ***************************************************************
@@ -141,4 +131,117 @@ c          endif
       endif
 c
       return
+
+      contains
+
+      SUBROUTINE AVTAP
+*S/P AVTAP: Adjoint de VTAP
+C
+C AUTHOR: Luc Fillion - ARMA/AES CAN, 21 jul, 11 sep 98
+C
+C REVISION:
+*           S. Pellerin - Sept 97 - Introduction of site constants
+*                                   common (comphy)
+*                                 - Introduction of surface pressure
+*                                   dependant factor (rtapfac) for eta
+*                                   coordinates
+*                                 - use of column1%tt for virtual temperature
+* revision: Luc Fillion - ARMA/AES CAN, 3 feb 1999
+*                  - Eliminate rtapfac
+*           C.Charette  - ARMA sep 1999
+*                  - Added LLPRINT
+*           S. Pellerin *ARMA/SMC May 2000
+*                  - Fix for F90 conversion
+*           C. Charette ARMA/SMC FEV. 2002
+*            - Commented out the if(llprint...) statements within
+*              the do loops. They were preventing vectorization.
+*           Bin He     - ARMA June 2005
+*            - OpenMP optimization.
+*           C. Charette ARMA/SMC jan. 2005
+*            - Replaced print statements by write statements
+ 
+      IMPLICIT NONE
+C
+      INTEGER  jobs, IKLEVM2, JK, IK
+      REAL*8     ZAK, ZBK, ZCK, ZCON
+      LOGICAL  LLPRINT
+*implicits
+#include "comode.cdk"
+#include "comphy.cdk"
+
+      integer mythread,numthd,omp_get_thread_num,omp_get_num_threads
+c
+      LLPRINT = .FALSE.
+      ZCON = -RGASD
+      IKLEVM2 = nflev-2
+!$OMP PARALLEL PRIVATE(jobs,jk,mythread,numthd,zak,zbk,zck)
+      mythread=omp_get_thread_num()+1
+      numthd=omp_get_num_threads()
+      do jobs = mythread, nobtot,numthd
+         do jk=1,nflev
+            column1%tt(jk,jobs) = 0.0
+         enddo
+c
+      do jk=iklevm2,1,-1
+        ik = nflev-1-jk
+        zak = -2.0*ZCON*vma(ik+1)
+        zbk = -2.0*ZCON*vmb(ik+1)
+        zck = -2.0*ZCON*vmc(ik+1)
+!        do jobs = 1, nobtot
+          column1%tt(ik,jobs)   = column1%tt(ik,jobs)+
+     &                       column%gz(ik,jobs)*zak
+          column1%tt(ik+1,jobs) = column1%tt(ik+1,jobs)+
+     &                       column%gz(ik,jobs)*zbk
+          column1%tt(ik+2,jobs) = column1%tt(ik+2,jobs)+
+     &                       column%gz(ik,jobs)*zck
+           column%gz(ik+2,jobs) = column%gz(ik+2,jobs)+column%gz(ik,jobs)
+          column%gz(ik,jobs)  = 0.0
+********************************************************
+c          IF(LLPRINT .AND. JOBS.EQ.1) THEN
+c             write(nulout,*)'avtap:ik,jobs,zak,zbk,zck= '
+c     &            ,ik,jobs,zak,zbk,zck
+c             write(nulout,*)
+c     &            'avtap:ik,jobs,gmt1(ik,),gmt1(ik+1,),gmt1(ik+2,)= '
+c     &       ,ik,jobs,column1%tt(IK,jobs),column1%tt(IK+1,jobs),column1%tt(IK+2,jobs)
+c             write(nulout,*)'avtap:ik,jobs,column%gz(ik,),column%gz(ik+2,)= '
+c     &            ,ik,jobs,column%gz(ik,jobs),column%gz(ik+2,jobs)
+c             write(nulout,*)'avtap:ik,jobs= ',ik,jobs
+c          ENDIF
+**********************************************************
+        enddo
+
+      ZAK = -2.0*ZCON*VMA(nflev)
+      ZBK = -2.0*ZCON*VMB(nflev)
+      ZCK = -2.0*ZCON*VMC(nflev)
+!      do jobs = 1, nobtot
+        column1%tt(nflev-1,jobs) = column1%tt(nflev-1,jobs)+
+     &             ZAK*column%gz(nflev-1,jobs)
+        column1%tt(nflev,jobs)   = column1%tt(nflev,jobs)+
+     &             ZBK*column%gz(nflev-1,jobs)
+        column1%tt(nflev-2,jobs) = column1%tt(nflev-2,jobs)+
+     &             ZCK*column%gz(nflev-1,jobs)
+        column%gz(nflev-1,jobs)= 0.0
+        column%gz(nflev,jobs)  = 0.0
+********************************************************
+c        IF(LLPRINT .AND. JOBS.EQ.1) THEN
+c           write(nulout,*)'avtap:ik,jobs,zak,zbk,zck= ',
+c     &          ik,jobs,zak,zbk,zck
+c           write(nulout,*)
+c     &        'avtap:ik,jobs,column1%tt(nf,),column1%tt(nf-1,),column1%tt(nf-2,)= '
+c     &          ,nflev,jobs,column1%tt(NFLEV,jobs),column1%tt(NFLEV-1,jobs)
+c     &          ,column1%tt(NFLEV-2,jobs)
+c           write(nulout,*)
+c     &         'avtap:nflev,jobs,column%gz(nflev,),column%gz(nflev-1,)= '
+c     &          ,nflev,jobs,column%gz(nflev,jobs),column%gz(nflev-1,jobs)
+c           write(nulout,*)'avtap:nflev,jobs= ',nflev,jobs
+c        ENDIF
+**********************************************************
+      enddo
+!$OMP END PARALLEL
+C
+C
+      RETURN
+      END SUBROUTINE avtap
+
+
       end

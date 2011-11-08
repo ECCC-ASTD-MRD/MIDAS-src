@@ -51,12 +51,12 @@ c     Computation of adjoints from dewpoint depression adjoint
 
         do jobs = 1, nobtot
            do jlev = 1, nflev
-          gomq (jlev,jobs) = gomq(jlev,jobs)+
-     $                       ollq2es(1,jlev,jobs)*gomes(jlev,jobs)
-          gomps(1,jobs) = gomps(1,jobs)+
-     $                       ollq2es(2,jlev,jobs)*gomes(jlev,jobs)
-          gomt (jlev,jobs) = gomt(jlev,jobs)+
-     $                       ollq2es(3,jlev,jobs)*gomes(jlev,jobs)
+          column%hu (jlev,jobs) = column%hu(jlev,jobs)+
+     $                       ollq2es(1,jlev,jobs)*column%es(jlev,jobs)
+          column%ps(1,jobs) = column%ps(1,jobs)+
+     $                       ollq2es(2,jlev,jobs)*column%es(jlev,jobs)
+          column%tt (jlev,jobs) = column%tt(jlev,jobs)+
+     $                       ollq2es(3,jlev,jobs)*column%es(jlev,jobs)
         enddo
       enddo
 c

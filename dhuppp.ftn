@@ -80,13 +80,14 @@ C
                   ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
                   ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
-                  ZPT  = RPPOBSHR(IK,IOBS)
-                  ZPB  = RPPOBSHR(IK+1,IOBS)
+                  ZPT  = COLUMNHR%RPPOBS(IK,IOBS)
+                  ZPB  = COLUMNHR%RPPOBS(IK+1,IOBS)
                   ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                   ZWT  = 1. - ZWB
 C
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, ( ZWB*GOMQHR(IK+1,IOBS)
-     +                          + ZWT*GOMQHR(IK,IOBS) - ZVAR ) / ZOER)
+                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, 
+     +                          ( ZWB*columnhr%hu(IK+1,IOBS)
+     +                          + ZWT*columnhr%hu(IK,IOBS) - ZVAR ) / ZOER)
 
                   IF ( LLPRINT ) THEN
                     write(nulout,*)' -------------------------'
@@ -96,8 +97,8 @@ C
                     write(nulout,*)'   ik     = ',IK
                     write(nulout,*)'   zvar   = ',ZVAR
                     write(nulout,*)'   zoer   = ',ZOER
-                    write(nulout,*)'   gomqhr(ik,iobs) = ',GOMQHR(IK,IOBS)
-                    write(nulout,*)'   gomqhr(ik+1,iobs) = ',GOMQHR(IK+1,IOBS)
+                    write(nulout,*)'   columnhr%hu(ik,iobs) = ',columnhr%hu(IK,IOBS)
+                    write(nulout,*)'   columnhr%hu(ik+1,iobs) = ',columnhr%hu(IK+1,IOBS)
                     write(nulout,*)'   O-P    = ',-obs_elem_r8(obsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF

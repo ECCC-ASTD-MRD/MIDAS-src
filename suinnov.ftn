@@ -17,6 +17,7 @@
       subroutine suinnov
       use mod4dv, only : l4dvar
       use minimization_mod
+      use columnData_mod
 #if defined (DOC)
 *
 ***s/r suinnov  - Initialise Observation Innovations.
@@ -52,8 +53,6 @@
 #include "comfilt.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
-
-
 #include "comgpsgb.cdk"
 c
       logical lldo
@@ -73,16 +72,16 @@ c
 *
 C
 c Calculate ES=T-TD from T and Q
-c from GOMQHR and GOMTHR and put it in GOMESHR
+c from columnhr%hu and columnhr%tt and put it in columnhr%es
 c
 !      call tmg_start(17,'MHUAESVHR')
       call mhuaesvhr
 !      call tmg_stop(17)
 c
-c Using T, q and PS in GOMOBSHR, computes GZ and stores it in GOMGZHR
-c N.B. uses vlevhr
+c Using T, q and PS in columnhr, computes GZ and stores it in columnhr%gz
+c N.B. uses columnhr%vlev
 c
-      call tt2phihr
+      call tt2phi(columnhr)
 c
 c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface

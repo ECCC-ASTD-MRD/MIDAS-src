@@ -25,7 +25,7 @@
 *Revision: L. Fillion *ARMA/AES  25 nov 98
 *        - Option ES or LQ humidity analysis
 *Revision: C. Charette *ARMA/AES  09 dec 98
-*        - GOMES added to GOMQ when humidity analysis variable is T-Td
+*        - column%es added to column%hu when humidity analysis variable is T-Td
 *Revision: L. Fillion *ARMA/EC  10 Feb 2010 - Conditionally calls att2phi
 *
 *     -------------------

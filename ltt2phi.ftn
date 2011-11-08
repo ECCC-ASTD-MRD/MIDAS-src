@@ -30,15 +30,15 @@
 *          L. Fillion *ARMA/AES - 3 feb 1999
 *                      - Introduce ps dependence of TLM
 *          C. Charette *ARMA/AES - 8 feb 1999
-*                      - Replaced zptop by rppobs(1,jobs)
-*                        and zpscon by gompsg(1,jobs)
+*                      - Replaced zptop by columng%rppobs(1,jobs)
+*                        and zpscon by columng%ps(1,jobs)
 *          JM Belanger CMDA/SMC  Nov 2000
 *                   . 32 bits conversion
 *           C. Charette ARMA/SMC FEV. 2002
 *            - Commented out the if(llprint...) statements within
 *              the do loops. They were preventing vectorization.
 *           P. Koclas CMDA/SMC  Apr 2003
-*            - changed loop order  ( gomq ---> gomq1)
+*            - changed loop order  ( column%hu ---> column1%hu)
 *           C. Charette - ARMA/SMC - Sep. 2004
 *            - Conversion to hybrid vertical coordinate
 *           Bin He  - ARMA   June  2005
@@ -64,9 +64,6 @@ c------------------------------------------------------------------------
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comcva.cdk"
-
- 
- 
 #include "comgem.cdk"
 #include "comcst.cdk"
 c
@@ -82,7 +79,7 @@ C
 *
 **
 c
-c*1   First set delq properly and store in gomq1 ready for Tv
+c*1   First set delq properly and store in column1%hu ready for Tv
 C computation
 c     ------------------------------------------------------------------
 C -
@@ -90,7 +87,7 @@ c
  100  continue
       do jobs = 1, nobtot
         do jlev = 1, nflev
-          gomq1(jlev,jobs) = gomq(jlev,jobs)
+          column1%hu(jlev,jobs) = column%hu(jlev,jobs)
         enddo
       enddo
 c
@@ -104,8 +101,8 @@ c
       numthd=omp_get_num_threads()
       do jobs = mythread, nobtot,numthd
         do jlev = 1, nflev
-          gomt1(jlev,jobs) = oltv(1,jlev,jobs)*gomt(jlev,jobs) + oltv(2
-     &         ,jlev,jobs)*gomq1(jlev,jobs)
+          column1%tt(jlev,jobs) = oltv(1,jlev,jobs)*column%tt(jlev,jobs) + oltv(2
+     &         ,jlev,jobs)*column1%hu(jlev,jobs)
 ***************************************************************
 c       if (LLPRINT .AND.jobs.eq.1) then
 c          write(nulout,*) 'ltt2phi: jobs,nobtot,nflev '
@@ -113,7 +110,7 @@ c     &          ,jobs,nobtot,nflev
 c          write(nulout,*) 'ltt2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
 c     &        , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
 c          write(nulout,*)'ltt2phi:gmt1,GMQ(jlev,jobs),GMT(jlev,jobs) '
-c     &        ,gomt1(jlev,jobs),gomq(jlev,jobs),gomt(jlev,jobs)
+c     &        ,column1%tt(jlev,jobs),column%hu(jlev,jobs),column%tt(jlev,jobs)
 c       endif
 ***************************************************************
         enddo
@@ -137,13 +134,13 @@ c
      &           /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
           endif
           zpresbd = rcoefinc * zterm
-          zcon    =(zpresbd-zpresb*rtapfac(jlev,jobs))/rppobs(jlev,jobs)
+          zcon    =(zpresbd-zpresb*rtapfac(jlev,jobs))/columng%rppobs(jlev,jobs)
           zfactt  = rtapfac(jlev,jobs)
-          zfacps  = gomtg(jlev,jobs)*zcon
-          zdelt   = rtapfac(jlev,jobs)*gomt1(jlev,jobs)
-          zdelps  = gomtg(jlev,jobs)*zcon * gomps(1,jobs)
-          gomt1(jlev,jobs)=rtapfac(jlev,jobs)*gomt1(jlev,jobs)
-     &         + gomtg(jlev,jobs)*zcon * gomps(1,jobs)
+          zfacps  = columng%tt(jlev,jobs)*zcon
+          zdelt   = rtapfac(jlev,jobs)*column1%tt(jlev,jobs)
+          zdelps  = columng%tt(jlev,jobs)*zcon * column%ps(1,jobs)
+          column1%tt(jlev,jobs)=rtapfac(jlev,jobs)*column1%tt(jlev,jobs)
+     &         + columng%tt(jlev,jobs)*zcon * column%ps(1,jobs)
 c
 ***************************************************************
 c       if (LLPRINT .AND.jobs.eq.1) then
@@ -172,9 +169,113 @@ c
 c      if(LLPRINT .AND. nobtot .eq. 1) then
 c         do jlev=1,nflev
 c           write(nulout,*)'ltt2phi: Level, GZ increment = ',jlev
-c     &          ,gomgz(jlev,1)
+c     &          ,column%gz(jlev,1)
 c         enddo
 c      endif
 c
       return
+
+      CONTAINS
+
+      subroutine lvtap
+*S/P LVTAP:
+*         CALCULE Y A PARTIR DE R PAR SOLUTION DE L'EQUATION R*CON=S**E*D(Y)
+*         AVEC UN SCHEME DU 4EME ORDRE DU A J. COTE.
+*         NOTE: CET ALGORITHME EST EXACTEMENT REVERSIBLE (VOIR VPAT).
+*
+*         ON DOIT FOURNIR LA COND
+*         A LA LIMITE INF. Y(N). LA MATRICE MATAP A ETE CALCULEE DANS LA
+*         SUBR. MATAPAT.
+*
+*
+* AUTHOR: MICHEL BELAND - AVRIL 1984 - ADAPTE AU MODELE SEF, AVRIL 1984.
+*
+* REVISION: LUC FILLION - AUG 94 - MODIFIED FOR VARIATIONAL ANALYSIS.
+*           S. Pellerin - Sept 98 - Use of column1%tt for virtual
+*                                   temperatures
+*                                 - GZ(nflev) = 0 (tangent linear
+*                                   version of vtap).
+*                                 - Introduction of surface pressure
+*                                   dependant factor (rtapfac) for eta
+*                                   coordinates
+*                                 - Introduction of site constants
+*                                   common (comphy)
+*          C. Charette *ARMA/AES November 1998
+*                      - Added LLPRINT for diagnostics
+*          L. Fillion *ARMA/AES - 3 Feb 1999
+*                      - remove rtapfac
+*           C. Charette ARMA/SMC FEV. 2002
+*            - Commented out the if(llprint...) statements within
+*              the do loops. They were preventing vectorization.
+*           Bin He  *ARMA      - June 25,2005
+*            -  OpenMP parallelization.
+*
+      IMPLICIT NONE
+      INTEGER  KILG, KLEV
+      REAL*8     PCON
+*
+      LOGICAL  LLPRINT
+      INTEGER  JLON, IKLEVM2, JK, IK, jobs
+      REAL*8     ZAK0, ZBK0, ZCK0
+      REAL*8     ZAK, ZBK, ZCK, ZCON
+      INTEGER mythread,numthd
+      INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
+*implicits
+#include "comode.cdk"
+#include "comphy.cdk"
+c
+c column1%tt : working vector of virtual temperatures.
+c
+      LLPRINT = .FALSE.
+      ZCON = -RGASD
+      ZAK0  = -2.0*ZCON*VMA(nflev)
+      ZBK0  = -2.0*ZCON*VMB(nflev)
+      ZCK0  = -2.0*ZCON*VMC(nflev)
+!$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,mythread,numthd)
+!$OMP+ PRIVATE(zak,zbk,zck)
+      mythread=omp_get_thread_num()+1
+      numthd=omp_get_num_threads()
+      do jobs = mythread, nobtot,numthd
+        column%gz(nflev,jobs) = 0.0
+        column%gz(nflev-1,jobs)=ZAK0*column1%tt(nflev-1,jobs)+
+     $                      ZBK0*column1%tt(nflev,jobs)+
+     &                      ZCK0*column1%tt(nflev-2,jobs)+
+     $                      column%gz(nflev,jobs)
+********************************************************
+c       if (LLPRINT .and. jobs.eq.1) then
+c       print *,'lvtap:nflev,jobs,zak,zbk,zck,column%gz(nflev,) ',
+c     &       nflev,jobs,zak,zbk,zck,column%gz(nflev,jobs)
+c       print *,'lvtap:nflev-1,jobs,zak,zbk,zck,column%gz(nflev-1,) ',
+c     &       nflev-1,jobs,zak,zbk,zck,column%gz(nflev-1,jobs)
+c       endif
+********************************************************
+*
+      IKLEVM2 = nflev-2
+      do JK = 1, IKLEVM2
+        IK = nflev-1-JK
+        ZAK = -2.0*ZCON*VMA(IK+1)
+        ZBK = -2.0*ZCON*VMB(IK+1)
+        ZCK = -2.0*ZCON*VMC(IK+1)
+!        do jobs = 1, nobtot
+          column%gz(ik,jobs)= ZAK*column1%tt(IK,jobs)+
+     $                    ZBK*column1%tt(IK+1,jobs)+
+     $                    ZCK*column1%tt(IK+2,jobs)+
+     +                    column%gz(IK+2,jobs)
+********************************************************
+c       if (LLPRINT .and. jobs.eq.1) then
+c          print *,'lvtap:ik,jobs,zak,zbk,zck column%gz(ik,)= ',
+c     &       ik,jobs,zak,zbk,zck,column%gz(ik,jobs)
+c          print *,'lvtap:ik,jobs,column1%tt(ik,),column1%tt(ik+1,),column1%tt(ik+2,)= '
+c     &       ,ik,jobs,column1%tt(IK,jobs),column1%tt(IK+1,jobs),column1%tt(IK+2,jobs)
+c          print *,'lvtap:ik,jobs= '
+c     &       ,ik,jobs
+c       endif
+**********************************************************
+        enddo
+      enddo
+!$OMP END PARALLEL
+C
+      RETURN
+      END SUBROUTINE lvtap
+
       end

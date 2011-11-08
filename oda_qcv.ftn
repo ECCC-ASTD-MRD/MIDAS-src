@@ -17,6 +17,7 @@
       SUBROUTINE oda_qcv
       use modmask, only : lmask,lmaskro
       use obsSpaceData_mod
+      use columnData_mod
       use bufr
       IMPLICIT NONE
 *

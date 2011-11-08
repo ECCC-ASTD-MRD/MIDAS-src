@@ -25,7 +25,7 @@
 *Revision: L. Fillion *ARMA/AES  25 nov 98
 *        - Option ES or LQ humidity analysis
 *Revision: C. Charette *ARMA/AES  09 dec 98
-*        - GOMQ copied to GOMES when humidity analysis variable is T-Td
+*        - column%hu copied to column%es when humidity analysis variable is T-Td
 *Revision: L. Fillion *ARMA/EC  5 Apr 2006
 *        - Validate Shallow-Water LAM 4dvar.
 *Revision: L. Fillion *ARMA/EC  14 Aug 2007 - Update to v_10_0_3.

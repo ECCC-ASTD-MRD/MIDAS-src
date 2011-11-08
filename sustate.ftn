@@ -50,24 +50,12 @@
 #include "comstate.cdk"
 *
       INTEGER JVAR, IFLAG, IPOS
-      character*53 clmsg
 C
 C*    1. Initialize to default values
 C
  100  CONTINUE
 C
 C     Initialisation of the state variable numbers
-C
-C     Spectral model variable numbers
-      nsvor = 1
-      nsdiv = 2
-      nsgz  = 3
-      nstt  = 4
-      nsq   = 5
-      nsoz  = 6
-      nstr  = 7
-      nsps  = 8
-      nstg  = 9
 C
 C     Gridpoint  model variable numbers
       nguu = 1
@@ -80,17 +68,6 @@ C     Gridpoint  model variable numbers
       ngps = 8
       ngtg = 9
 C
-C     Model state at the observation locations
-      nouu = 1
-      novv = 2
-      nogz = 3
-      nott = 4
-      noq  = 5
-      nooz = 6
-      notr = 7
-      noes = 8
-      nops = 9
-      notg = 10
 C
 C     Initialisation of model state control vertors
 C
@@ -98,9 +75,7 @@ C
 C
 C*    Existence vertors
 C
-         NSEXIST(JVAR) = 0
          NGEXIST(JVAR) = 0
-         NMVOEXIST(JVAR) = 0
 C
        END DO
 C
@@ -108,31 +83,16 @@ C*    . 1.1 Basic state.
 C
  110  CONTINUE
 C
-      NSEXIST(NSVOR)  = 1
-      NSEXIST(NSDIV)  = 1
-C
       NGEXIST(NGUU)  = 1
       NGEXIST(NGVV)  = 1
-C
-      NMVOEXIST(NOUU)  = 1
-      NMVOEXIST(NOVV)  = 1
 C
 C*    2. Read NAMELIST NAMSTATE to find which fields are needed
 C
  200  CONTINUE
 C
       DO JVAR = 1, JPNVARMAX
-        csneed(jvar)   = ' '
         cgneed(jvar)   = ' '
-        cmvoneed(jvar) = ' '
       enddo
-
-      CSNEED(1)   ='QQ'
-      CSNEED(2)   ='DD'
-      CSNEED(3)   ='TT'
-      CSNEED(4)   ='HU'
-      CSNEED(5)   ='P0'
-cjmb      CSNEED(6)   ='TG'
 
       CGNEED(1)   ='UU'
       CGNEED(2)   ='VV'
@@ -141,14 +101,6 @@ cjmb      CSNEED(6)   ='TG'
       CGNEED(5)   ='P0'
 cjmb      CGNEED(6)   ='TG'
 
-      CMVONEED(1)   ='UU'
-      CMVONEED(2)   ='VV'
-      CMVONEED(3)   ='TT'
-      CMVONEED(4)   ='HU'
-      CMVONEED(5)   ='ES'
-      CMVONEED(6)   ='GZ'
-      CMVONEED(7)   ='P0'
-cjmb      CMVONEED(8)   ='TG'
 c
       CALL READNML('NAMSTATE',IFLAG)
 C
@@ -160,41 +112,9 @@ C*    . 3.1 Spectral model state
 C
  310  CONTINUE
 C
-      NVSP   = 0
       NVGD   = 0
-      NVO3D  = 0
-      NVSP2D = 0
       NVG2D  = 0
-      NVO2D  = 0
       DO JVAR = 1, JPNVARMAX
-        IF(CSNEED(JVAR).EQ.'QQ') THEN
-          NSEXIST(NSVOR) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'DD') THEN
-          NSEXIST(NSDIV) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'TT') THEN
-          NSEXIST(NSTT) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'HU') THEN
-          NSEXIST(NSQ) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'GZ') THEN
-          NSEXIST(NSGZ) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'O3') THEN
-          NSEXIST(NSOZ) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'XT') THEN
-          NSEXIST(NSTR) = 1
-          NVSP = NVSP + 1
-        ELSE IF(CSNEED(JVAR).EQ.'P0') THEN
-          NSEXIST(NSPS) = 1
-          NVSP2D = NVSP2D + 1
-        ELSE IF(CSNEED(JVAR).EQ.'TG') THEN
-          NSEXIST(nstg) = 1
-          NVSP2D = NVSP2D + 1
-        END IF
 C
 C*    . 3.2 Grid point model state
 C
@@ -230,174 +150,11 @@ C
           NVG2D = NVG2D + 1
         END IF
 C
-C*    . 3.3 Model state at the observation locations
-C
- 330    CONTINUE
-C
-        IF(CMVONEED(JVAR).EQ.'UU') THEN
-          NMVOEXIST(NOUU) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'VV') THEN
-          NMVOEXIST(NOVV) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'TT') THEN
-          NMVOEXIST(NOTT) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'HU') THEN
-          NMVOEXIST(NOQ) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'GZ') THEN
-          NMVOEXIST(NOGZ) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'O3') THEN
-          NMVOEXIST(NOOZ) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'XT') THEN
-          NMVOEXIST(NOTR) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'ES') THEN
-          NMVOEXIST(noes) = 1
-          NVO3D = NVO3D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'P0') THEN
-          NMVOEXIST(NOPS) = 1
-          NVO2D = NVO2D + 1
-        ELSE IF(CMVONEED(JVAR).EQ.'TG') THEN
-          NMVOEXIST(notg) = 1
-          NVO2D = NVO2D + 1
-        END IF
-C
       END DO
 C
 C     Final evaluation of the pseudo-indices for ...
 C
-C     ... spectral model variable
-C
-      IPOS = 1
-      DO JVAR = 1, JPNVARMAX
-        IF (NSVOR .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSVOR = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSVOR = -9
-          ENDIF
-        ELSEIF(NSDIV .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSDIV = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSDIV = -9
-          ENDIF
-        ELSEIF(NSQ .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSQ = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSQ = -9
-          ENDIF
-        ELSEIF(NSGZ .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSGZ = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSGZ = -9
-          ENDIF
-        ELSEIF(NSTT .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSTT = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSTT = -9
-          ENDIF
-        ELSEIF(NSOZ .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSOZ = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSOZ = -9
-          ENDIF
-        ELSEIF(NSTR .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSTR = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSTR = -9
-          ENDIF
-        ELSEIF(NSPS .EQ. JVAR) THEN
-          IF (NSEXIST(JVAR) .EQ. 1) THEN
-            NSPS = IPOS
-            NSEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NSPS = -9
-          ENDIF
-        elseif(nstg .eq. jvar) then
-          if (NSEXIST(jvar) .eq. 1) then
-            nstg = ipos
-            nsexist(ipos) = 1
-            ipos = ipos + 1
-          else
-            nstg = -9
-          endif
-        ENDIF
-      ENDDO
-C
-      IF(NSVOR .EQ. -9) THEN
-        NSVOR = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSDIV .EQ. -9) THEN
-        NSDIV = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSQ .EQ. -9) THEN
-        NSQ = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSGZ .EQ. -9) THEN
-        NSGZ = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSTT .EQ. -9) THEN
-        NSTT = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSOZ .EQ. -9) THEN
-        NSOZ = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSTR .EQ. -9) THEN
-        NSTR = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NSPS .EQ. -9) THEN
-        NSPS = IPOS
-        NSEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      if(nstg .eq. -9) then
-        nstg = ipos
-        nsexist(ipos) = 0
-        ipos = ipos + 1
-      endif
-C
 C     ... GRIDPOINT MODEL VARIABLE
-C
-      CLMSG = 'SUSTATE: INCONSISTENT CGNEED AND CMVONEED IN NAMSTATE'
 C
       IPOS = 1
       DO JVAR = 1, JPNVARMAX
@@ -406,9 +163,6 @@ C
             NGUU = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOUU) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGUU = -9
           ENDIF
@@ -417,9 +171,6 @@ C
             NGVV = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOVV) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGVV = -9
           ENDIF
@@ -428,9 +179,6 @@ C
             NGQ = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOQ) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGQ = -9
           ENDIF
@@ -439,9 +187,6 @@ C
             NGGZ = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOGZ) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGGZ = -9
           ENDIF
@@ -450,9 +195,6 @@ C
             NGTT = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOTT) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGTT = -9
           ENDIF
@@ -461,9 +203,6 @@ C
             NGOZ = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOOZ) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGOZ = -9
           ENDIF
@@ -472,9 +211,6 @@ C
             NGTR = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOTR) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGTR = -9
           ENDIF
@@ -483,9 +219,6 @@ C
             NGPS = IPOS
             NGEXIST(IPOS) = 1
             IPOS = IPOS + 1
-            IF(NMVOEXIST(NOPS) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           ELSE
             NGPS = -9
           ENDIF
@@ -494,9 +227,6 @@ C
             ngtg = ipos
             ngexist(ipos) = 1
             ipos = ipos + 1
-            IF(NMVOEXIST(NOTG) .EQ. 0) THEN
-              CALL ABORT3D(NULOUT,CLMSG)
-            ENDIF
           else
             ngtg = -9
           endif
@@ -546,144 +276,6 @@ C
       if(ngtg .eq. -9) then
         ngtg = ipos
         ngexist(ipos) = 0
-        ipos = ipos + 1
-      endif
-C
-C     ... MODEL STATE AT THE OBSERVATION LOCATIONS
-C
-      IPOS = 1
-      DO JVAR = 1, JPNVARMAX
-        IF (NOUU .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOUU = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOUU = -9
-          ENDIF
-        ELSEIF(NOVV .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOVV = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOVV = -9
-          ENDIF
-        ELSEIF(NOQ .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOQ = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOQ = -9
-          ENDIF
-        ELSEIF(NOGZ .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOGZ = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOGZ = -9
-          ENDIF
-        ELSEIF(NOTT .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOTT = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOTT = -9
-          ENDIF
-        ELSEIF(NOOZ .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOOZ = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOOZ = -9
-          ENDIF
-        ELSEIF(NOTR .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOTR = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOTR = -9
-          ENDIF
-        ELSEIF(NOES .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOES = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOES = -9
-          ENDIF
-        ELSEIF(NOPS .EQ. JVAR) THEN
-          IF (NMVOEXIST(JVAR) .EQ. 1) THEN
-            NOPS = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-          ELSE
-            NOPS = -9
-          ENDIF
-        elseif(notg .eq. jvar) then
-          if (NMVOEXIST(jvar) .eq. 1) then
-            notg = ipos
-            nmvoexist(ipos) = 1
-            ipos = ipos + 1
-          else
-            notg = -9
-          endif
-        ENDIF
-      ENDDO
-C
-      IF(NOUU .EQ. -9) THEN
-        NOUU = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOVV .EQ. -9) THEN
-        NOVV = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOQ .EQ. -9) THEN
-        NOQ = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOGZ .EQ. -9) THEN
-        NOGZ = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOTT .EQ. -9) THEN
-        NOTT = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOOZ .EQ. -9) THEN
-        NOOZ = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOTR .EQ. -9) THEN
-        NOTR = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOES .EQ. -9) THEN
-        NOES = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOPS .EQ. -9) THEN
-        NOPS = IPOS
-        NMVOEXIST(IPOS) = 0
-        IPOS = IPOS + 1
-      ENDIF
-      if(notg .eq. -9) then
-        notg = ipos
-        nmvoexist(ipos) = 0
         ipos = ipos + 1
       endif
 C

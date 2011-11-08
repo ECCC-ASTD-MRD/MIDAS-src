@@ -90,9 +90,9 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C
-      NGPSLEV=NLEVTRL
-      DO JL = 1, NLEVTRL
-         ZETA(JL) = VLEVHR(JL)
+      NGPSLEV=COLUMNHR%NLEV
+      DO JL = 1, COLUMNHR%NLEV
+         ZETA(JL) = COLUMNHR%VLEV(JL)
       ENDDO
 C
 C     Loop over all files
@@ -139,17 +139,17 @@ C
                      Lon  = obs_elem_r4(obsSpaceData,'LON ',JO)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
-                     DO JL = 1, NLEVTRL
+                     DO JL = 1, COLUMNHR%NLEV
 C
 C     *                 Profile x
 C
-                        ZTT(JL) = GOMTHR (JL,JO)-273.15
-                        ZHU(JL) = GOMQHR (JL,JO)
-                        ZGZ(JL) = GOMGZHR(JL,JO)
+                        ZTT(JL) = columnhr%tt(JL,JO)-273.15
+                        ZHU(JL) = columnhr%hu(JL,JO)
+                        ZGZ(JL) = columnhr%gz(JL,JO)
                      ENDDO
-                     ZP0 =  GOMPSHR(1,JO)
-                     ZPT = RPPOBSHR(1,JO)
-                     ZMT = ZGZ(NLEVTRL)/RG
+                     ZP0 =  columnhr%ps(1,JO)
+                     ZPT = COLUMNHR%RPPOBS(1,JO)
+                     ZMT = ZGZ(COLUMNHR%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPR = rprefinc
                      ZCF = rcoefinc

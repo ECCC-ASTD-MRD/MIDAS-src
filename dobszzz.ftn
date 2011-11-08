@@ -97,10 +97,10 @@ C
                   ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
                   ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
-                  IPT = IK + IPOS*NLEVTRL
+                  IPT = IK + IPOS*COLUMNHR%NLEV
                   IPB = IPT+1
-                  ZPT  = GOMGZHR(IK,IOBS)/RG
-                  ZPB  = GOMGZHR(IK+1,IOBS)/RG
+                  ZPT  = columnhr%gz(IK,IOBS)/RG
+                  ZPB  = columnhr%gz(IK+1,IOBS)/RG
                   ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                   ZWT  = 1. - ZWB
 C
@@ -108,24 +108,24 @@ C     CONTRIBUTION TO Jo
 C
 c***************************************************************
 c                  IF (LLPRINT .AND. CSTNID(IOBS).EQ.'74647') THEN
-c                     zcon= ZWB*GOMOBSHR(IPB,IOBS) + ZWT*
-c     &                    GOMOBSHR(IPT,IOBS)-ZVAR
+c                     zcon= ZWB*columnhr%all(IPB,IOBS) + ZWT*
+c     &                    columnhr%all(IPT,IOBS)-ZVAR
 c                     write(nulout,*)'dobszzz:jdata,IOBS,stn,ipb,ipt',
 c     &                    ',ZPB,ZPT,ZWB,ZWT,ZVAR=',jdata,IOBS
 c     &                     ,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
-c                     write(nulout,*)'dobszzz: ityp,ik,VHYBHR(IK+1)',
-c     &                    ',VHYBHR(IK),ZLEV= ',MOBDATA(NCM_VNM,JDATA),ik
-c     &                    ,VHYBHR(IK+1),VHYBHR(IK),ZLEV
-c                     write(nulout,*)'dobszzz: GOMOBSHR(IPB,IOBS),
-c     &               GOMOBSHR(IPT,IOBS)= ',GOMOBSHR(IPB,IOBS),
-c     &               GOMOBSHR(IPT,IOBS)
+c                     write(nulout,*)'dobszzz: ityp,ik,',
+c     &                    ',ZLEV= ',MOBDATA(NCM_VNM,JDATA),ik,ZLEV
+c                     write(nulout,*)'dobszzz: columnhr%all(IPB,IOBS),
+c     &               columnhr%all(IPT,IOBS)= ',columnhr%all(IPB,IOBS),
+c     &               columnhr%all(IPT,IOBS)
 c                     write(nulout,*)'dobszzz: innovation, observation,
 c     &               std-dev-obs = ',zcon,ZVAR,ZOER
 c                  ENDIF
 c***************************************************************
 
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, (ZWB*GOMOBSHR(IPB,IOBS)
-     +                 + ZWT*GOMOBSHR(IPT,IOBS)-ZVAR)/ZOER)
+                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, 
+     +                  (ZWB*columnhr%all(IPB,IOBS)
+     +                 + ZWT*columnhr%all(IPT,IOBS)-ZVAR)/ZOER)
                   DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
      +                 *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
                   call obs_set_r8(obsSpaceData,'OMI ',JDATA,obs_elem_r8(obsSpaceData,'OMA ',JDATA))

@@ -55,14 +55,14 @@ c     Computation of dewpoint depression increments from lnq,ps and t increments
       numthd=omp_get_num_threads()
       do jobs = mythread, nobtot,numthd
         do jlev = 1, nflev
-          gomes(jlev,jobs) =  ollq2es(1,jlev,jobs)*gomq(jlev,jobs) +
-     $                        ollq2es(2,jlev,jobs)*gomps(1,jobs) +
-     $                        ollq2es(3,jlev,jobs)*gomt(jlev,jobs)
+          column%es(jlev,jobs) =  ollq2es(1,jlev,jobs)*column%hu(jlev,jobs) +
+     $                        ollq2es(2,jlev,jobs)*column%ps(1,jobs) +
+     $                        ollq2es(3,jlev,jobs)*column%tt(jlev,jobs)
 ***************************************************************
 c        if(jobs.eq.1) then
-c           print *,' lmhu2es: jobs,jlev,GOMQ,GOMPS,GOMT,GOMES '
-c     &          ,jobs,jlev,gomq(jlev,jobs),gomps(1,jobs)
-c     &          ,gomt(jlev,jobs),gomes(jlev,jobs)
+c           print *,' lmhu2es: jobs,jlev,column%hu,column%ps,column%tt,column%es '
+c     &          ,jobs,jlev,column%hu(jlev,jobs),column%(1,jobs)
+c     &          ,column%tt(jlev,jobs),column%es(jlev,jobs)
 c           print *,' lmhu2es: ollq2es(1),ollq2es(2),ollq2es(3),'
 c     &          ,ollq2es(1,jlev,jobs),ollq2es(2,jlev,jobs)
 c     &          ,ollq2es(3,jlev,jobs)

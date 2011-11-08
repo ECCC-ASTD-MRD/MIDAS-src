@@ -72,8 +72,6 @@ subroutine oda_L(statevector)
 !$OMP SECTION
      if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',nflev)
 !$OMP SECTION
-     if(NGEXIST(ngoz).eq.1)  call gd2mvo('OZ',nflev)
-!$OMP SECTION
      if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
 !$OMP SECTION
      if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
@@ -110,7 +108,7 @@ subroutine oda_L(statevector)
 !*     .
 !*Revision:
 !*
-!**    Purpose:  Build GOMOBS (in COMMVO) from GD (in COMGD0) using
+!**    Purpose:  Build column from GD (in COMGD0) using
 !*     .         bilinear interpolation.
 !*
 !*     CDVARNAME: identificator of the variable to be treated
@@ -155,8 +153,6 @@ subroutine oda_L(statevector)
            zfield(1:NI,1:klev,1:NJ)=  statevector%TT(1:NI,1:KLEV,1:NJ,jstep)
         case('Q0')
            zfield(1:NI,1:klev,1:NJ)=  statevector%HU(1:NI,1:KLEV,1:NJ,jstep)
-        case('O3')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%OZ(1:NI,1:klev,1:NJ,jstep)
         case('TR')
            zfield(1:NI,1:klev,1:NJ)=  statevector%TR(1:NI,1:klev,1:NJ,jstep)
         case('UU')
@@ -269,35 +265,30 @@ subroutine oda_L(statevector)
         END DO
 
       ENDDO ! JSTEP
-!*
-!*     Transfer to Global Array GOMOBS
-!*
+
       SELECT CASE (CDVARNAME)
 !*
 !*     2D fields
 !*
       CASE('TG')
-         GOMTGR(1:KLEV,1:NOBTOT) = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%tg(1:KLEV,1:NOBTOT) = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('PS')
-         GOMPS(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%ps(1:KLEV,1:NOBTOT) = ZPROFIL(1:KLEV,1:NOBTOT)
 !*
 !*     3D fields
 !*
       CASE('TT')
-         GOMT (1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%tt(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('Q0')
-         GOMQ (1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
-      CASE('O3')
-         GOMOZ(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%hu(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('TR')
-         GOMTR(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%tr(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('UU')
-!         columnData%GOMU(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)
-         GOMU(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%uu(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('VV')
-         GOMV(1:KLEV,1:NOBTOT)   = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%vv(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       CASE('GZ')
-         GOMGZ(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         column%gz(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
       END SELECT
 
       RETURN

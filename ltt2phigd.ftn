@@ -100,6 +100,75 @@ c
       CALL HPDEALLC(PZHYBM,IERR,1)
 c
       RETURN
+
+      CONTAINS
+
+      subroutine lvtapgd(pgz,ki,kj)
+*S/P LVTAPGD:
+*
+*         CALCULE Y A PARTIR DE R PAR SOLUTION DE L'EQUATION R*CON=S**E
+C *D(Y)
+*         AVEC UN SCHEME DU 4EME ORDRE DU A J. COTE.
+*         NOTE: CET ALGORITHME EST EXACTEMENT REVERSIBLE (VOIR VPAT).
+*
+*         ON DOIT FOURNIR LA COND
+*         A LA LIMITE INF. Y(N). LA MATRICE MATAP A ETE CALCULEE DANS LA
+*         SUBR. MATAPAT.
+*
+*
+* AUTHOR: Luc Fillion - 5 Nov 98 - Grid-Point version of lvtap
+C subroutine.
+*
+* REVISION: C.Charette ARMA/AES 18 nov 1998
+*                     - when llprint=.true. calculate grid point
+C coordinates
+*                       closest to  R1OBSLA and R1OBSLO read from the
+*                       namelist.Print debug diagnostics for this point.
+* REVISION: L. Fillion ARMA/AES 11 feb 1999
+*                     - Remove T factor since r.h.s. must now be
+C prepared outside lvtapgd
+*           S. Pellerin *ARMA/SMC Nov. 2001
+*                     - Reordering dependencies for Linux compilation
+      IMPLICIT NONE
+      integer ki,kj
+!
+      INTEGER  IKLEVM2, JK, IK, ilen,ierr
+      REAL*8    ZAK, ZBK, ZCK, ZCON
+
+*implicits
+#include "comode.cdk"
+#include "comphy.cdk"
+*
+      real*8    pgz(ni,nflev,nj)
+c
+c tt1 : working vector of virtual temperatures.
+c
+      ZCON = -RGASD
+      ZAK = -2.0*ZCON*VMA(nflev)
+      ZBK = -2.0*ZCON*VMB(nflev)
+      ZCK = -2.0*ZCON*VMC(nflev)
+      pgz(ki,nflev,kj) = 0.0
+      pgz(ki,nflev-1,kj)=ZAK*tt1(ki,nflev-1,kj)+
+     &     ZBK*tt1(ki,nflev,kj)+
+     &     ZCK*tt1(ki,nflev-2,kj)+
+     &     pgz(ki,nflev,kj)
+*
+      IKLEVM2 = nflev-2
+      do JK = 1, IKLEVM2
+        IK = nflev-1-JK
+        ZAK = -2.0*ZCON*VMA(IK+1)
+        ZBK = -2.0*ZCON*VMB(IK+1)
+        ZCK = -2.0*ZCON*VMC(IK+1)
+        pgz(ki,ik,kj)= ZAK*tt1(ki,IK,kj)+
+     &       ZBK*tt1(ki,IK+1,kj)+
+     &       ZCK*tt1(ki,IK+2,kj)+
+     &       pgz(ki,IK+2,kj)
+      enddo
+C
+      RETURN
+      END SUBROUTINE lvtapgd
+
+
       END
 
 

@@ -47,9 +47,6 @@
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-
- 
- 
 #include "comgem.cdk"
 #include "comphy.cdk"
 #include "comcst.cdk"
@@ -61,31 +58,31 @@ c
       integer jobs,jlev,inlev,istep
 c
       if(cdmvo.eq.'HR') then
-        inlev = nlevtrl
-        istep = nkgdimohr
-      else
-        inlev = nflev
-        istep = nkgdimo
+        inlev = columnhr%nlev
+        istep = columnhr%nkgdimo
+      elseif(cdmvo.eq.'BG') then
+        inlev = columng%nlev
+        istep = columng%nkgdimo
       endif
 c
       if (cdvar.eq.'PP') then
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1,inlev
-              rppobshr(jlev,jobs) = pvar(jlev,jobs)
+              columnhr%rppobs(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1,inlev
-              rppobs(jlev,jobs) = pvar(jlev,jobs)
+              columng%rppobs(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         endif
       elseif(cdvar.eq.'LV') then
         if(cdmvo.eq.'HR') then
           do jlev = 1,inlev
-            vlevhr(jlev) = pvar(jlev,1)
+            columnhr%vlev(jlev) = pvar(jlev,1)
           enddo
         elseif(cdmvo.eq.'BG') then
           do jlev = 1,inlev
@@ -95,7 +92,7 @@ c
       elseif(cdvar.eq.'HY') then
         if(cdmvo.eq.'HR') then
           do jlev = 1,inlev
-            vhybhr(jlev) = pvar(jlev,1)
+            columnhr%vhyb(jlev) = pvar(jlev,1)
           enddo
         elseif(cdmvo.eq.'BG') then
           do jlev = 1,inlev
@@ -106,13 +103,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomuhr(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+              columnhr%uu(jlev,jobs)=pvar(jlev,jobs)*rmsknt
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomug(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+              columng%uu(jlev,jobs)=pvar(jlev,jobs)*rmsknt
             enddo
           enddo
         endif
@@ -120,13 +117,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomvhr(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+              columnhr%vv(jlev,jobs)=pvar(jlev,jobs)*rmsknt
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomvg(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+              columng%vv(jlev,jobs)=pvar(jlev,jobs)*rmsknt
             enddo
           enddo
         endif
@@ -134,13 +131,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomgzhr(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+              columnhr%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomgzg(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+              columng%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
             enddo
           enddo
         endif
@@ -148,13 +145,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomqhr(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
+              columnhr%hu(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomqg(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
+              columng%hu(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
             enddo
           enddo
         endif
@@ -162,13 +159,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomqhr(jlev,jobs) = pvar(jlev,jobs)
+              columnhr%hu(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomqg(jlev,jobs) = pvar(jlev,jobs)
+              columng%hu(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         endif
@@ -176,13 +173,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomeshr(jlev,jobs) = pvar(jlev,jobs)
+              columnhr%es(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomesg(jlev,jobs) = pvar(jlev,jobs)
+              columng%es(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         endif
@@ -190,27 +187,13 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomthr(jlev,jobs) = pvar(jlev,jobs) + tcdk
+              columnhr%tt(jlev,jobs)=pvar(jlev,jobs) + tcdk
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomtg(jlev,jobs) = pvar(jlev,jobs) + tcdk
-            enddo
-          enddo
-        endif
-      elseif(cdvar.eq.'OZ') then
-        if(cdmvo.eq.'HR') then
-          do jobs = 1,nobtot
-            do jlev = 1, inlev
-              gomozhr(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-          enddo
-        elseif(cdmvo.eq.'BG') then
-          do jobs = 1,nobtot
-            do jlev = 1, inlev
-              gomozg(jlev,jobs) = pvar(jlev,jobs)
+              columng%tt(jlev,jobs) = pvar(jlev,jobs) + tcdk
             enddo
           enddo
         endif
@@ -218,34 +201,34 @@ c
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomtrhr(jlev,jobs) = pvar(jlev,jobs)
+              columnhr%tr(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
             do jlev = 1, inlev
-              gomtrg(jlev,jobs) = pvar(jlev,jobs)
+              columng%tr(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         endif
       elseif(cdvar.eq.'P0') then
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
-            gompshr(1,jobs)=pvar(1,jobs)*rmbtpa
+            columnhr%ps(1,jobs)=pvar(1,jobs)*rmbtpa
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
-            gompsg(1,jobs)=pvar(1,jobs)*rmbtpa
+            columng%ps(1,jobs)=pvar(1,jobs)*rmbtpa
           enddo
         endif
       elseif(cdvar.eq.'TG') then
         if(cdmvo.eq.'HR') then
           do jobs = 1,nobtot
-            gomtgrhr(1,jobs)=pvar(1,jobs)
+            columnhr%tg(1,jobs)=pvar(1,jobs)
           enddo
         elseif(cdmvo.eq.'BG') then
           do jobs = 1,nobtot
-            gomtgrg(1,jobs)=pvar(1,jobs)
+            columng%tg(1,jobs)=pvar(1,jobs)
           enddo
         endif
       endif

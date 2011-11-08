@@ -33,7 +33,7 @@
 *           (was not printing anything)
 *
 * Note: JPNFLEV=100 = maximum number of levels (set in pardim.cdk) 
-*       NLEVTRL = actual number of background levels (HR)
+*       COLUMNHR%NLEV = actual number of background levels (HR)
 *       NFLEV   = number of LR analysis levels (set in namelist) 
 
 #endif
@@ -60,10 +60,10 @@ C
       REAL*8 ZTODEG
       REAL*8 ZLAT
       REAL*8 ZLON
-      REAL*8 ZETA(NLEVTRL)
-      REAL*8 ZTT (NLEVTRL)
-      REAL*8 ZHU (NLEVTRL)
-      REAL*8 ZGZ (NLEVTRL)
+      REAL*8 ZETA(COLUMNHR%NLEV)
+      REAL*8 ZTT (COLUMNHR%NLEV)
+      REAL*8 ZHU (COLUMNHR%NLEV)
+      REAL*8 ZGZ (COLUMNHR%NLEV)
       REAL*8 ZP0
       REAL*8 ZPT
       REAL*8 ZMT
@@ -91,8 +91,8 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C      
-      DO JL = 1, NLEVTRL
-         ZETA(JL) = VLEVHR(JL)
+      DO JL = 1, columnhr%nlev
+         ZETA(JL) = columnhr%vlev(JL)
       ENDDO
 C
 C     Loop over all observation files (all observation types)
@@ -151,14 +151,14 @@ C     *              Profile at the observation location x :
 C
                      ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
                      ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
-                     DO JL = 1, NLEVTRL
-                        ZTT(JL) =     GOMTHR(JL,JO)
-                        ZHU(JL) = EXP(GOMQHR(JL,JO))
-                        ZGZ(JL) = GOMGZHR(JL,JO)
+                     DO JL = 1, COLUMNHR%NLEV
+                        ZTT(JL) =     columnhr%tt(JL,JO)
+                        ZHU(JL) = EXP(columnhr%hu(JL,JO))
+                        ZGZ(JL) = columnhr%gz(JL,JO)
                      ENDDO
-                     ZP0 =  GOMPSHR(1,JO)
-                     ZPT = RPPOBSHR(1,JO)
-                     ZMT = ZGZ(NLEVTRL)/GRAV
+                     ZP0 =  columnhr%ps(1,JO)
+                     ZPT = COLUMNHR%RPPOBS(1,JO)
+                     ZMT = ZGZ(COLUMNHR%NLEV)/GRAV
 C
 C     *        Apply the ZTD observation operator ZHX = H(x)
 C 

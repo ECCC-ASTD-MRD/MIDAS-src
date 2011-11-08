@@ -122,21 +122,6 @@ C
 !
 !modular1      write(kulout,fmt='(4x,A,L3)')' LEVEL2_staggrid = ',level2_staggrid
 !
-C*    .   1.3 Check the consistency between the number of spectral
-C     .       and gridpoint fields
-C     .       ----------------------------------------------------
-C
- 130  CONTINUE
-      IF(NVGD.NE.NVSP)THEN
-         WRITE(NULOUT,FMT=9130)'  NVGD',NVGD,'  NVSP',NVSP
-         NVGD = NVSP
-      END IF
-      IF(NVG2D.NE.NVSP2D) THEN
-         WRITE(NULOUT,FMT=9130)' NVG2D',NVG2D,'NVSP2D',NVSP2D
-         NVG2D = NVSP2D
-      END IF
- 9130 FORMAT(4X,'-INCONSISTENCY IN THE NUMBER OF FIELDS: ',A6,'= ',I4
-     S     ,4X,A6,'= ',I4,/,8X,'RESET TO THE SPECTRAL VALUES')
 C
 C*    2. Initialize the dimensions (dependent dimensions).
 C
@@ -187,16 +172,6 @@ C
      S     ' space',/,
      S     ' NVGD   =',I6,' NVG2D   =',I6,' NKGDIM =',I6)
 C
-C
-C*    .   3.2  Total number of spectral fields
-C     .        -------------------------------
-C
-      nksdim = NVSP*NFLEV + NVSP2D
-!
-      WRITE(UNIT=KULOUT,FMT='(/,5X,''Number of variables in SPECTRAL'',
-     S     '' space'',/,
-     S     '' NVSP   ='',I6,'' NVSP2D   ='',I6,'' NKSDIM ='',I6)')
-     S     NVSP,NVSP2D,NKSDIM
 C
       RETURN
       END

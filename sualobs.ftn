@@ -30,8 +30,6 @@
 *                   - Control of the different model state of the 3Dvar
 *                     through COMSTATE, COMSTATEC and COMSTNUM common
 *                     blocks variables (comstate.cdk).
-*     S. Pellerin *ARMA/AES Aug. 98.
-*                   - Allocation (loc) for GOMES
 *     L.Fillion  *ARMA/AES 25 nov 98  - Allocation for background fiels needed in TL and ADJ
 *                 observation operators.
 *     J.Halle    *CMDA/AES Oct 99
@@ -61,7 +59,6 @@
 *     Bin He        *ARMA/MRB  Oct. 2009 
 *                   - Implemented MPI to 3DVAR 
 *     L. Fillion ARMA/EC - 09 Oct 2009 - Allocate obs arrays for fast rotations now based on grd_roule parameter.
-*     L. Fillion ARMA/EC - 4 May 2010 - Upgrade on v_11_01_2b. Comment allocation printout on GOMOBS.	
 *     L. Fillion ARMA/EC - 16 Aug 2010 - Comment printout of allocation dimensions of ROBHDR and MOBHDR since not OK. 
 *Arguments
 *     i   KULOUT: unit used for optional printing
@@ -75,7 +72,7 @@ C
 #include "comstate.cdk"
 *
       INTEGER KULOUT, IERR
-      INTEGER ILEN, ILENU, ilen8
+      INTEGER ILEN, ilen8
       INTEGER iloc, jvar
       EXTERNAL HPALLOC
 C
@@ -88,14 +85,6 @@ C*    .   1.1 Auxiliary state
 C     .       ---------------
 C
  110  CONTINUE
-C
-      ILENU  = NMXOBS*NFLEV
-!      WRITE(KULOUT,FMT='(/,"Arrays in COMMVO (COMMVO1) are allocated",
-!     S     " the following space:")')
-!      WRITE(KULOUT,FMT=9100)ILEN,ILENU, NMXOBS
-! 9100 FORMAT("   GOMOBS :",I6,10x
-!     S     ," (GOMU, GOMV,GOMGZ,GOMQ):",I10
-!     S     ," (GOMPS,GOMTGR):",I10)
 C
 C
 C*    2. Arrays containing the observations themselves
@@ -125,11 +114,7 @@ C
       lmaskgp = .false.
       WRITE(KULOUT,FMT='(/,"  Arrays in COMOBA are allocated",
      S     " the following space:")')
-!      WRITE(KULOUT,FMT=9200)ILEN,ILENU,ilen8
-! 9200 FORMAT("   ROBHDR/MOBHDR: ",I10,10x
-!     S     ," ROBDATA/MOBDATA : ",I10,10x
-!     S     ," ROBDATA8 : ",I10,10x)
-!
+
       RETURN
       END
 

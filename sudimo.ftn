@@ -24,31 +24,15 @@
 *Revision:
 *    .  P.Gauthier *ARMA/AES: Jan. 7, 1993
 *
-*    .  P. KOCLAS CMC AUGUST 93
-*    .    SET VALUES FOR NDATAMX AND NMXOBS FOR CASE LSIMOB=.FALSE.
-*
-*    .  P. KOCLAS CMC September 1994
-*         Reactivate namelist: namdimo
-*    . S. Pellerin *ARMA/AES Sept 97.
-*         Control of the different model state of the 3Dvar
-*         through COMSTATE, COMSTATEC and COMSTNUM common
-*         blocks variables (comstate.cdk).
-*    . C. Charette *ARMA/AES Oct 2001.
-*         Logical switch LABORTFULL (def = true) when CMA is full
-*
 *     Purpose: initialize  COMDIMO
 *
 *Arguments:
 *     i: KULOUT  (logical unit for optional printing i.e. debugging)
-*     o: comdimo.cdk (COMDECK containing the dimensions of the model)
 *
 #endif
 C
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "pardimo.cdk"
-#include "comct0.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 C
       INTEGER KULOUT
@@ -68,43 +52,19 @@ C      ----------
 C
       CALL READNML('NAMDIMO',IERR)
 C
-C*       1. Dimensions associated with the model state
-C           ------------------------------------------
-C
- 100  CONTINUE
-C
-C*    1.1 Default values and independent parameters
-C     .   -----------------------------------------
-C
-C*    1.2. Initialize the dependent dimensions
-C     .    -----------------------------------
- 120  CONTINUE
-      NKGDIMO = NVO3D*NFLEV + NVO2D
-C
-      WRITE(KULOUT,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-      WRITE(UNIT=KULOUT,FMT=9120)
-     S     NVO3D,NVO2D,NKGDIMO
- 9120 FORMAT(4X,
-     S     '  NVO3D =',I6,' NVO2D    =',I6,' NKGDIMO = ',I6)
-C
 C     2.  Observation arrays of COMOBA
 C
- 200  CONTINUE
-         NMXOBF  = 1
          NOBTOT  = NMXOBS
          obsSpaceData%mxobstotal   = NDATAMX
-         NOBFNUM = NMXOBF
 C
 C* In this configuration, obs. are read from a file which should contain
 C  all of these parameters in a descriptive record
 C
-C*    ****** NOT YET IMPLEMENTED ************
-C
       WRITE(KULOUT,*)' DIMENSIONS OF OBSERVATION ARRAYS:'
       WRITE(UNIT=KULOUT,FMT=9210)
-     S     NMXOBS, NOBTOT, obsSpaceData%mxobstotal,NDATAMX, NMXOBF, NOBFNUM
+     S     NMXOBS, NOBTOT, obsSpaceData%mxobstotal,NDATAMX
  9210 FORMAT(4X,'  NMXOBS =',I6,' NOBTOT    =',I6,' NDATA = ',I6
-     S     ,' NDATAMX =',I6,' NMXOBF =',I6,' NOBFNUM =',I6)
+     S     ,' NDATAMX =',I6)
 C
       RETURN
       END

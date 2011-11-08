@@ -64,14 +64,14 @@ c
 *
       LLPRINT = .FALSE.
 *
-      DO JLEV=1,NLEVTRL
+      DO JLEV=1,COLUMNHR%NLEV
 *
         DO JOBS=1,NOBTOT
 *
 *     get the saturated vapor pressure from q (specific humidity)
 *
-         ZHU = exp(gomqhr(jlev,jobs))
-         ZE = FOEFQ8(ZHU, RPPOBSHR(JLEV,JOBS))
+         ZHU = exp(columnhr%hu(jlev,jobs))
+         ZE = FOEFQ8(ZHU, COLUMNHR%RPPOBS(JLEV,JOBS))
 *
 *     now the dewpoint temperature
 *
@@ -79,12 +79,12 @@ c
 *
 *     finally the dewpoint depression
 *
-         GOMESHR(JLEV,JOBS) = min(GOMTHR(JLEV,JOBS) - ZTD,rmaxes)
+         columnhr%es(JLEV,JOBS) = min(columnhr%tt(JLEV,JOBS) - ZTD,rmaxes)
 ********************************************************************
 c         IF(LLPRINT) THEN
 c           write(nulout,*)'MHUAESVHR:JOBS,JLEV,pobshr,GMESH,GMTH,TD,HU '
-c     &           ,JOBS,JLEV,RPPOBSHR(JLEV,JOBS),GOMESHR(JLEV,JOBS)
-c     &           ,GOMTHR(JLEV,JOBS),ZTD,ZHU
+c     &           ,JOBS,JLEV,COLUMNHR%RPPOBS(JLEV,JOBS),columnhr%es(JLEV,JOBS)
+c     &           ,columnhr%tt(JLEV,JOBS),ZTD,ZHU
 c         ENDIF
 *******************************************************************
 *

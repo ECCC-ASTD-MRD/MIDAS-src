@@ -26,12 +26,6 @@
 !     NLARH    : number of elements in a spectral array dimensioned
 !     ...        as SPX(0:NTRUNC,0:NTRUNC)
 !
-!    Number of variables considered in SPECTRAL space
-!    ------------------------------------------------
-! NVSP    : number of basic model variables (found at all levels)
-! NVSP2D  : number of 2D fields (e.g. surface pressure)
-! NKSDIM  : total number of 2D fields in the model state in grid space
-!
 ! === 3. Dimensions for the control variable  ================================
 !
 ! NVADIM  : dimension of the control variable
@@ -42,11 +36,10 @@
       INTEGER NJLATH, NJMAX
       INTEGER NFLEV, NVGD, NVG2D, NKGDIM
       INTEGER NTRUNC, NLA, NLARH
-      INTEGER NVSP, NVSP2D, NKSDIM, NKSDIM2
 
       COMMON/COMNDIM/NI
       COMMON/COMNDIM/NJ
       COMMON/COMNDIM/NJLATH,NJMAX,NFLEV
       COMMON/COMNDIM/NVGD, NVG2D,NKGDIM
       COMMON/COMNDIM/NTRUNC, NLA, NLARH
-      COMMON/COMNDIM/NVSP, NVSP2D, NKSDIM, NKSDIM2
+
