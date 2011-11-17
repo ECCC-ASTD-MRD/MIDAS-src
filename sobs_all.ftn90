@@ -1,11 +1,11 @@
 subroutine sobs_all
+  use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr
   implicit none
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comcst.cdk"
 #include "comfilt.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"

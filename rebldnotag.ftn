@@ -16,6 +16,7 @@
 !
       subroutine rebldnotag
 
+      use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use obsSpaceData_mod
 #if defined (DOC)
@@ -35,7 +36,6 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"

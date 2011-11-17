@@ -54,6 +54,7 @@
 *Arguments
 *
 #endif
+      use MathPhysConstants_mod
       use columnData_mod 
  
       IMPLICIT NONE
@@ -65,7 +66,6 @@ c------------------------------------------------------------------------
 #include "comdimo.cdk"
 #include "comcva.cdk"
 #include "comgem.cdk"
-#include "comcst.cdk"
 c
       LOGICAL LLPRINT
       integer jobs,jlev
@@ -222,7 +222,6 @@ c
       INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
 *implicits
 #include "comode.cdk"
-#include "comphy.cdk"
 c
 c column1%tt : working vector of virtual temperatures.
 c

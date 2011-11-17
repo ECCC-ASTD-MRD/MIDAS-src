@@ -40,6 +40,7 @@
 *Arguments: none
 *
 #endif
+      use MathPhysConstants_mod
       use modfgat
       use mod4dv, only : mvar, l4dvar
       use minimization_mod
@@ -50,7 +51,6 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"

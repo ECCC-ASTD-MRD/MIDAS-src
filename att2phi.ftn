@@ -50,8 +50,9 @@
 *                adjoint of logarith of specific humidity due to virtual
 *                temperature increments
 #endif
+      use MathPhysConstants_mod
       use columnData_mod 
- 
+
       IMPLICIT NONE
 *implicits
 *------------------------------------------------------------------------
@@ -61,7 +62,6 @@
 #include "comcva.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comcst.cdk"
 *
       integer jobs,jlev
       logical llprint
@@ -159,7 +159,8 @@ C REVISION:
 *            - OpenMP optimization.
 *           C. Charette ARMA/SMC jan. 2005
 *            - Replaced print statements by write statements
- 
+
+      use MathPhysConstants_mod
       IMPLICIT NONE
 C
       INTEGER  jobs, IKLEVM2, JK, IK
@@ -167,7 +168,6 @@ C
       LOGICAL  LLPRINT
 *implicits
 #include "comode.cdk"
-#include "comphy.cdk"
 
       integer mythread,numthd,omp_get_thread_num,omp_get_num_threads
 c

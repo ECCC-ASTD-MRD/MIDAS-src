@@ -73,13 +73,13 @@
 *     none
 *
 #endif
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
 *implicits
 *
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
 #include "comstato.cdk"

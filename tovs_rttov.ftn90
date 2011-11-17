@@ -37,6 +37,7 @@ subroutine tovs_rttov
 !arguments
 !
 #endif
+  use MathPhysConstants_mod
   use mod_tovs
   use airsbgcheck
   use iasibgcheck
@@ -64,7 +65,6 @@ end interface
 #include "pardim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 
 
  

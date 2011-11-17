@@ -38,6 +38,7 @@
 *     CDFAM: FAMILY OF OBSSERVATION
 *
 #endif
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod 
  
@@ -50,8 +51,6 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comcst.cdk"
-#include "comphy.cdk"
 
  
 #include "cvcord.cdk"

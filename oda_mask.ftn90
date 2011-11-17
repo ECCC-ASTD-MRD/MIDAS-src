@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_mask
+  use MathPhysConstants_mod
   use obsSpaceData_mod
   use bufr
   implicit none
@@ -22,7 +23,6 @@ subroutine oda_mask
   #include "comdimo.cdk"
   #include "cvcord.cdk"
   #include "comlun.cdk"
-  #include "comcst.cdk"
   #include "comfilt.cdk"
 
   call oda_masksf('UA')

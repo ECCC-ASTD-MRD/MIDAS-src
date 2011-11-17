@@ -50,6 +50,7 @@
 *          is controlled by switch LSWPH. Reset negative values to zero.
 *
 #endif
+      use MathPhysConstants_mod
       IMPLICIT NONE
       integer kni,knj,knk
       real*8  pesg(kni,knj,knk),phug(kni,knj,knk),pttg(kni,knj,knk)
@@ -67,7 +68,6 @@
       REAL*8  ZE, ZCTE, ZTD
 C
 *
-#include "comphy.cdk"
 #include "dinternv.cdk"
 #include "dintern8.cdk"
 #include "fintern8.cdk"

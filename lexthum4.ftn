@@ -69,10 +69,10 @@ c          j. halle       *cmc*        99/10/13.
 *                  Example: stratospheric model with top at 0.1mb
 *                           and RLIMLVHU set at  0.1mb.  
 c
+      use MathPhysConstants_mod
       IMPLICIT none
 c
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comfilt.cdk"
 c
       integer :: klapf, knpf

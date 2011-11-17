@@ -34,13 +34,13 @@
 *Arguments
 *
 #endif
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
 *implicits
 *
 #include "comdimo.cdk"
-#include "comcst.cdk"
 *
 *
       INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,ITY,IDBURP

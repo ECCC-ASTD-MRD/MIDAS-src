@@ -188,6 +188,7 @@ C
 *                        space for virtual temperature
 *                        regional implementation
 *
+      use MathPhysConstants_mod
       IMPLICIT NONE
       INTEGER  kobs
 *
@@ -196,7 +197,6 @@ C
       REAL*8     ZAK, ZBK, ZCK,ZCON,ztv(1),zhu,fotvv
       pointer (pttv,ztv)
 *implicits
-#include "comphy.cdk"
 #include "dinternv.cdk"
 #include "finternv.cdk"
 **

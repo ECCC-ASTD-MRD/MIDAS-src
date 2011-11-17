@@ -112,6 +112,7 @@ C assimilated
 *
 #endif
 
+      use MathPhysConstants_mod
       Use mod_tovs
       use globalSpectralTransform
       use obsSpaceData_mod
@@ -133,7 +134,6 @@ C assimilated
 #include "cvcord.cdk"
 #include "pardim.cdk"
 #include "comgem.cdk"
-#include "comcst.cdk"
 #include "comstate.cdk"
 #include "comtovst.cdk"
 #include "comvfiles.cdk"

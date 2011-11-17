@@ -49,15 +49,14 @@
 *
 #endif
 C
+      use MathPhysConstants_mod
       IMPLICIT NONE
 C
 *implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
  
-#include "comphy.cdk"
 #include "pardim.cdk"
-#include "comcst.cdk"
 #include "comgpsgb.cdk"
 *
       REAL*8 PLAT

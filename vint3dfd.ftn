@@ -34,12 +34,12 @@
 *Arguments
 *
 #endif
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
-#include "comphy.cdk"
 #include "cvcord.cdk"
 *
       character(len=4), intent(in) :: elem_s

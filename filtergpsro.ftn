@@ -28,6 +28,7 @@
 *Arguments
 *
 #endif
+      use MathPhysConstants_mod
       use modgps04profile
       use modgps05refstruct
       use modgps06gravity
@@ -43,7 +44,6 @@
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comct0.cdk"
 
  

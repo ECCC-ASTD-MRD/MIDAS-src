@@ -43,14 +43,13 @@
 *
 #endif
 *
+      use MathPhysConstants_mod
       IMPLICIT NONE
 C
 *
 *IMPLICITS
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comcst.cdk"
-#include "comphy.cdk"
 #include "comgem.cdk"
 *
       INTEGER  KNI, KNJ,KNK,KIG2

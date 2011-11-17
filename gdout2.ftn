@@ -94,12 +94,12 @@
 *
 #endif
 C
+      use MathPhysConstants_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comgem.cdk"
 #include "comcva.cdk"
 #include "comgd0.cdk"

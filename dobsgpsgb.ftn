@@ -37,6 +37,7 @@
 *       NFLEV   = number of LR analysis levels (set in namelist) 
 
 #endif
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod 
       use bufr
@@ -47,12 +48,10 @@
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comct0.cdk"
  
  
 #include "cvcord.cdk"
-#include "comphy.cdk"
 #include "comgpsgb.cdk"
 *
       REAL*8 PJO

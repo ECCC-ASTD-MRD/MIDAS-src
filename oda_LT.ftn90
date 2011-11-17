@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_LT(statevector)
+  use MathPhysConstants_mod
   use mod4dv, only : l4dvar
   use mpi
   use gridStateVector
@@ -41,7 +42,6 @@ subroutine oda_LT(statevector)
 #include "comdim.cdk"
 #include "comstate.cdk"
 #include "comdimo.cdk"
-#include "comcst.cdk"
 
   type(struct_gsv) :: statevector
   ! Local declarations

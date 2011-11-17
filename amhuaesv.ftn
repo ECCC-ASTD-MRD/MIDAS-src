@@ -43,8 +43,9 @@
 *
 *
 #endif
+      use MathPhysConstants_mod
       use columnData_mod 
- 
+
       IMPLICIT NONE
 *IMPLICITES
 *--------------------------------------------------------------------------
@@ -63,7 +64,6 @@
       EXTERNAL HPDEALLC, HPALLOC
 C
 *
-#include "comphy.cdk"
 #include "dinternv.cdk"
 #include "finternv.cdk"
 #include "finternva.cdk"

@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine prdatabin
+      use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use modmask, only : lmask,ldiag,lmaskto
       use obsSpaceData_mod
@@ -22,7 +23,6 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"

@@ -48,6 +48,7 @@
 *Arguments
 *    -NONE-
 #endif
+      use MathPhysConstants_mod
       use globalSpectralTransform
       use mod4dv, only : l4dvar
       use obsSpaceData_mod
@@ -62,7 +63,6 @@
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comcva.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"

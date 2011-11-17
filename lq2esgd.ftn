@@ -49,6 +49,7 @@ C LMHUAESV
 *          CONSIDERED.
 *
 #endif
+      use MathPhysConstants_mod
       IMPLICIT NONE
       integer kni,knj,knk
       real*8 pesinc(kni,knk,knj)
@@ -69,7 +70,6 @@ C LMHUAESV
       real*8 zpresa,zpresb
 C
 *
-#include "comphy.cdk"
 #include "dinternv.cdk"
 #include "finternva.cdk"
 #include "finternvl.cdk"

@@ -40,16 +40,15 @@
 *             KNOBS (integer)     : number of observation profiles in variable PVAR
 *
 #endif
-      use columnData_mod 
- 
+      use MathPhysConstants_mod
+      use columnData_mod
+
       implicit none
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comphy.cdk"
-#include "comcst.cdk"
 c
       integer knlev,knobs
       real*8 pvar(knlev,knobs)

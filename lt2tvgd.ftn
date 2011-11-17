@@ -26,6 +26,7 @@
 *                       - Add llprint for diagnostics
 *
 #endif
+      use MathPhysConstants_mod
       IMPLICIT NONE
       integer kni,knj,knk
       real*8  ptv(kni,knk,knj), ptg(kni,knk,knj), pqg(kni,knk,knj)
@@ -37,7 +38,6 @@
 *implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
-#include "comphy.cdk"
 #include "comgd0.cdk"
 *modules
 *

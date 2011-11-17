@@ -67,13 +67,13 @@
 *
 #endif
 C
+      use MathPhysConstants_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comgem.cdk"
-#include "comcst.cdk"
 ccc#include "comhybprm.cdk"
 #include "rpnstd.cdk"
 *

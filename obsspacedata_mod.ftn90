@@ -495,6 +495,7 @@ MODULE obsSpaceData_mod
                     n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
                     KINDEX,KIDTYP,PPMIS,nvcordtyp,vcordsf, &
                     vconv,nonelev)
+    use MathPhysConstants_mod
     IMPLICIT NONE
 !
     type(struct_obs), intent(inout) :: obsdat
@@ -589,8 +590,6 @@ MODULE obsSpaceData_mod
 !
 !***********************************************************************
 #endif
-
-#include "comcst.cdk"
 
     INTEGER ILEM,IND,IIND,IP,IK
     INTEGER IBAD,IFLAG

@@ -119,12 +119,12 @@
 *
 #endif
 *
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use common_iasi
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comdimo.cdk"
-#include "comcst.cdk"
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"

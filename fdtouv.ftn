@@ -15,9 +15,9 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE FDTOUV(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      use MathPhysConstants_mod
       use bufr
       IMPLICIT NONE
-#include "comcst.cdk"
 #include "cparbrp.cdk"
       INTEGER KNELE,KNVAL,KINT,KNELOUT
       INTEGER KLIST(*)

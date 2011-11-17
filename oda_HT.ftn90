@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_HT
+  use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
   implicit none
@@ -28,8 +29,6 @@ subroutine oda_HT
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comphy.cdk"
-#include "comcst.cdk"
 #include "cvcord.cdk"
 #include "comstate.cdk"
 #include "comgpsgb.cdk"

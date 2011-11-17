@@ -34,6 +34,7 @@ subroutine tovs_rttov_tl
 !arguments
 !
 #endif
+  use MathPhysConstants_mod
   use mod_tovs
   use obsSpaceData_mod
  
@@ -42,7 +43,6 @@ subroutine tovs_rttov_tl
 #include "pardim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 
 
  

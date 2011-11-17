@@ -30,13 +30,13 @@ C     --------------
 *                    - add namelist, NAMSHARED_AAI_3DV
 #endif
 C
+      use MathPhysConstants_mod
       use globalSpectralTransform
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
-#include "comcst.cdk"
 #include "comgem.cdk"
 #include "namgem.cdk"
       INTEGER JLAT, KULOUT, JN, JM, ILA

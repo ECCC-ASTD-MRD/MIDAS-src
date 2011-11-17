@@ -18,6 +18,7 @@
 *
       FUNCTION SFOQST8(TT,PR)
 *
+      use MathPhysConstants_mod
       IMPLICIT NONE
       REAL*8 SFOQST8, TT, PR
 *
@@ -39,11 +40,8 @@
 *
 *IMPLICITES
 *MODULES
-#include "comphy.cdk"
 #include "dintern8.cdk"
 #include "fintern8.cdk"
-
-      EXTERNAL INCTPHYV
 *
 **
 *--------------------------------------------------------------------

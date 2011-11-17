@@ -38,8 +38,9 @@
 *          is permitted and the pressure vector is given.
 *
 #endif
+      use MathPhysConstants_mod
       use columnData_mod 
- 
+
       IMPLICIT NONE
 *IMPLICITS
 *         --------------------------------------------------------------------------
@@ -50,13 +51,11 @@
 #include "comgem.cdk"
 
  
-#include "comcst.cdk"
 *
       INTEGER JOBS,JLEV
       REAL*8 ZE, ZTD, ZHU
       LOGICAL LLPRINT
 *
-#include "comphy.cdk"
 #include "dintern8.cdk"
 #include "fintern8.cdk"
 *

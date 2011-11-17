@@ -47,12 +47,13 @@ C	 Modified    : 92-02-4   * P. GAUTHIER - *ARMA/RPN
 *            
 C     ----------------------------------------------------------------------------
 #endif
+      use MathPhysConstants_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comct0.cdk"
 *
-      EXTERNAL SUCT0,SULUN,SUCST,SUDIM,SUDIMO,SUALLO,SUALOBS
+      EXTERNAL SUCT0,SULUN,SUDIM,SUDIMO,SUALLO,SUALOBS
 C     ---------------------------------------------------------------
 C
 C*       1.    INITIALIZE LOGICAL UNITS.
@@ -73,7 +74,8 @@ C*       3.    INITIALIZE CONSTANTS.
 C              ---------------------
 C
  300  CONTINUE
-      CALL SUCST(NULOUT)
+      call mpc_initialize()
+      call mpc_printConstants(nulout)
 C     ------------------------------------------------------------------
 C
 C*       3.2   INITIALIZE VARIABLES OF THE MODEL STATES

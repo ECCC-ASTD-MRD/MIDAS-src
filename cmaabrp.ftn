@@ -108,6 +108,7 @@
 *
 #endif
 *
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod 
  
@@ -116,7 +117,6 @@
 #include "comct0.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comcst.cdk"
 
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
@@ -445,7 +445,7 @@ C
 C   INITIALIZE TO SOME VALUE FIRST ( BUT NOT PPMIS)
 C
                  DO JJI =1,INELE*INVAL*I3D
-                   ZVAL(ipos + jji-1)=RINFINI
+                   ZVAL(ipos + jji-1)=1.D+75
                  END DO
                  IER=MRBXTR(IBUF,IBKNO,ILCOD(ILPOS),ITBLVAL(IPOS))
 *
@@ -755,7 +755,7 @@ C
                           IF(ICOUNT .EQ. 1) THEN
                             NOBTOT=NOBTOT + 1
                             IFLGS=obs_elem_i(obsSpaceData,'ST1 ',NOBTOT)
-                            IZMODEL= NINT(columnhr%RMTMOBS(NOBTOT)/RG) + 400
+                            IZMODEL= NINT(columng%RMTMOBS(NOBTOT)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF
                           IF ( LLGROUP) THEN

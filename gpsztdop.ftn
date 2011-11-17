@@ -53,23 +53,15 @@
 *
 #endif
 C
+      use MathPhysConstants_mod
       use columnData_mod
       IMPLICIT NONE
 *implicits
 #include "comdimo.cdk"
- 
-#include "comphy.cdk"
+
 #include "pardim.cdk"
-#include "comcst.cdk"
 #include "comgpsgb.cdk"
-*   Constants found in comphy.cdk
-*      REAL*8, PARAMETER :: RGASD=287.05
-*      REAL*8, PARAMETER :: GRAV=9.80616
-*      REAL*8, PARAMETER :: EPS1=0.621948
-*      REAL*8, PARAMETER :: DELTA=0.607769
-*      REAL*8, PARAMETER :: RA=6.37122E+06
-*      REAL*8, PARAMETER :: PI=3.14159265
-*
+
       REAL*8 PLAT
       REAL*8 PLON
       REAL*8 PZOBS

@@ -52,6 +52,7 @@
 ************************************************************************
 #endif
 *
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
       use bufr
@@ -59,10 +60,8 @@
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
-#include "comcst.cdk"
 #include "comvfiles.cdk"
 #include "comstate.cdk"
-#include "comphy.cdk"
 *
 *IMPLICITS:
       INTEGER JPMAXTYP,JPMXITM

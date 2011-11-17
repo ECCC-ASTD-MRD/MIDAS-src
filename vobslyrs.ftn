@@ -48,6 +48,7 @@
 *                                   BG PROCESS LO RESOLUTION COMMVOG
 *          none
 #endif
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod 
       use bufr
@@ -60,7 +61,6 @@
  
  
  
-#include "comcst.cdk"
 *
       character*2 cdmvo
 

@@ -16,6 +16,7 @@
 !
       subroutine subasic_gd
 !
+      use MathPhysConstants_mod
       use modfgat, only : nstamplist
       use mod4dv, only : l4dvar
       IMPLICIT NONE
@@ -44,7 +45,6 @@
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
 #include "namgdpar.cdk"

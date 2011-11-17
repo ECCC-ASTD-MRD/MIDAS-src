@@ -18,6 +18,7 @@
 *
       SUBROUTINE LATID(ZFACTOR,KLAT1,KLAT2,PLAT)
 *
+      use MathPhysConstants_mod
       IMPLICIT NONE
       INTEGER KLAT1,KLAT2
       REAL*8    ZFACTOR,PLAT,ZLAT,ZTORAD
@@ -47,7 +48,6 @@
 #endif
 *-------------------------------------------------------------
 #include "comlun.cdk"
-#include "comcst.cdk"
 *
       ZTORAD=RPI/180.
       ZLAT= PLAT/ZTORAD

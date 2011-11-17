@@ -42,6 +42,7 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 !
 !
 #endif
+  use MathPhysConstants_mod
   use mod_tovs
   use ozoneclim
   use obsSpaceData_mod
@@ -53,7 +54,6 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"

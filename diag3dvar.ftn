@@ -57,12 +57,12 @@
 *     .                           COMSP)
 #endif
 C
+      use MathPhysConstants_mod
       use globalSpectralTransform
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comcva.cdk"
 #include "comgd0.cdk"
 #include "comgd1.cdk"

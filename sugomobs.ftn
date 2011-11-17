@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine sugomobs
+      use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use columnData_mod 
  
@@ -69,7 +70,6 @@
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
-#include "comcst.cdk"
  
 c
 c----------------------------------------------------------

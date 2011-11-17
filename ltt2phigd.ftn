@@ -129,6 +129,7 @@ C coordinates
 C prepared outside lvtapgd
 *           S. Pellerin *ARMA/SMC Nov. 2001
 *                     - Reordering dependencies for Linux compilation
+      use MathPhysConstants_mod
       IMPLICIT NONE
       integer ki,kj
 !
@@ -137,7 +138,6 @@ C prepared outside lvtapgd
 
 *implicits
 #include "comode.cdk"
-#include "comphy.cdk"
 *
       real*8    pgz(ni,nflev,nj)
 c

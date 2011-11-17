@@ -72,12 +72,12 @@
 *
 #endif
 C
+      use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
-#include "comcst.cdk"
 #include "comstato.cdk"
 *
 C

@@ -34,6 +34,7 @@
 *                   . reduce varout to writing rebm; the rest is in AddAnalInc
 #endif
 C
+      use MathPhysConstants_mod
       use modfgat, only : nstamplist
       IMPLICIT NONE
 *implicits
@@ -45,7 +46,6 @@ C
 #include "cvcord.cdk"
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
-#include "comcst.cdk"
 *
       integer vfstluk,write_encode_hyb
       integer jvar, jcol
