@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 
-      SUBROUTINE READOZONECLIM
+      SUBROUTINE READOZONECLIM(lobsSpaceData)
 
 #if defined (DOC)
 !***********************************************************************
@@ -43,11 +43,9 @@
 
 !implicits
 #include "comdimo.cdk"
-
-
 #include "comlun.cdk"
 
-
+      type(struct_obs) :: lobsSpaceData
       INTEGER            :: IJOUR,IMONTH,IJ,IV,K
       REAL               :: RDUM(NLATO3,NLEVO3)
       CHARACTER(len=100) :: CFILE
@@ -57,7 +55,7 @@
       integer            :: IOZTEST
       integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
-      IJOUR = obs_elem_i(obsSpaceData,'DAT ',1)
+      IJOUR = obs_elem_i(lobsSpaceData,'DAT ',1)
 
       IJ= IJOUR/100
       IMONTH = IJ - (IJ/100)*100

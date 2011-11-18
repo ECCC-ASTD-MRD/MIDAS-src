@@ -4,7 +4,6 @@ MODULE obsSpaceData_mod
   private
 
   ! main observation space data instance
-  public           :: obsSpaceData
   public           :: OBS_JPNBRELEM
   public           :: locObsTag
 
@@ -39,7 +38,7 @@ MODULE obsSpaceData_mod
 
   ! derived type and module variable declarations
 
-  public :: struct_obs,struct_obs_ptr
+  public :: struct_obs
 
   type struct_obs
    character(len=9),  pointer, dimension(:)   :: cstnid   !! need len=12 for EnKF
@@ -64,12 +63,6 @@ MODULE obsSpaceData_mod
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
   end type struct_obs
-
-  type struct_obs_ptr
-    type(struct_obs),pointer :: ptr
-  end type struct_obs_ptr
-
-  type(struct_obs),target :: obsSpaceData
 
   integer, pointer, dimension(:) :: locObsTag
 
@@ -966,7 +959,7 @@ MODULE obsSpaceData_mod
   integer ::  i,j, jj,k,ierr,interv,istart,iend   
   integer :: ibegin,ilast,ibeginob,ilastob
   integer :: length_l, iobs,idata 
-  integer :: count
+  integer :: count,nsum
   real(8) :: a  
 !-------------------------------------------------------------
   write(nulout,*) '-------- Start obs_getobstag ---------'
@@ -1000,24 +993,33 @@ MODULE obsSpaceData_mod
        ibegin= NBEGINTYP(j)
        ilast = NENDTYP(j) 
 
-       ibeginob=obsdat%mobdata(NCM_OBS, ibegin)
-       ilastob=obsdat%mobdata(NCM_OBS, ilast) 
-       Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
-
-       interv=INT((ilastob-ibeginob+1)/mpi_nprocs)  
-       IF(interv == 0) THEN
-          IF(mpi_myid <= (ilastob-ibeginob)-1) THEN
-            interv=1
-          ENDIF 
-       ENDIF  
-       istart=interv*mpi_myid+ibeginob
-       iend=interv*(mpi_myid+1)+ibeginob -1 
-       if(mpi_myid == mpi_nprocs-1) iend=ilastob
-
-       IF( interv == 0) THEN
-          istart=ibeginob
-          iend=istart
-       ENDIF
+       IF(ibegin == -999 .and. ilast==-999) THEN
+         ibeginob=0
+         ilastob=-1
+         istart=0
+         iend=0 
+       ELSE
+         ibeginob= obsdat%mobdata(NCM_OBS, ibegin) 
+         ilastob = obsdat%mobdata(NCM_OBS, ilast)  
+         Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
+          
+         nsum=ilastob-ibeginob+1
+         interv=INT(nsum/mpi_nprocs)  
+         IF(interv > 0) THEN
+           istart=interv*mpi_myid+ibeginob
+           iend=interv*(mpi_myid+1)+ibeginob -1 
+           if(mpi_myid == mpi_nprocs-1) iend=ilastob
+         ELSE 
+           IF(mpi_myid<nsum)THEN
+            istart=ibeginob+mpi_myid
+            iend=istart 
+           ELSE
+            istart=0
+            iend=0
+           ENDIF 
+         ENDIF  
+ 
+       ENDIF !! ibegin=-999  
 
        write(*,*)'istart iend= ',istart,iend  
        IF (NBEGINTYP(J) .GT. 0)THEN
@@ -1047,7 +1049,7 @@ MODULE obsSpaceData_mod
          WRITE(nulout,*) 'Zero for Type ',CFAMTYP(J)  
        ENDIF
 
-    ENDDO  ! bhe   
+    ENDDO  ! J=1,NFILES   
     length_l=jj
     ALLOCATE(locObsTag(length_l),STAT=ierr)
 

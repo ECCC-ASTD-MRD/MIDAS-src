@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUPREP
+      SUBROUTINE SUPREP(lobsSpaceData)
 #if defined (DOC)
 *
 *s/r SUPREP -FILTER CMA BEFORE 3D-VAR ANALYSIS
@@ -128,7 +128,6 @@ C assimilated
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "cparbrp.cdk"
- 
 #include "comfilt.cdk"
 #include "comstato.cdk"
 #include "cvcord.cdk"
@@ -137,7 +136,6 @@ C assimilated
 #include "comstate.cdk"
 #include "comtovst.cdk"
 #include "comvfiles.cdk"
-#include "com1chn.cdk"
 #include "comgpsgb.cdk"
 #include "comgdpar.cdk"
 C
@@ -183,6 +181,7 @@ C               11  'CLIMAT  XTRM'
 C               12  'ERRONEOUS EL'
 C               13  'RESERVED    '
 C
+      type(struct_obs) :: lobsSpaceData
       REAL zlat_4,zlon_4,zx,zy
       REAL*8 ZZLAT, ZLON, ZLEV, ZVAR
       REAL*8 ZLAT, GPH
@@ -324,11 +323,11 @@ C     For MAM the wind observations are removed.
 !
       IF (CVCORD(1:3).NE.'MAM') THEN
         DO JO  = 1, NOBTOT
-          ZLAT    = obs_elem_r4(obsSpaceData,'LAT ',JO)
+          ZLAT    = obs_elem_r4(lobsSpaceData,'LAT ',JO)
           IF(ZLAT .GT. gst_getRLATI(1)) THEN
-            call obs_set_r4(obsSpaceData,'LAT ',JO, real(gst_getRLATI(1)))
+            call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gst_getRLATI(1)))
           ELSEIF(ZLAT .LT. gst_getRLATI(NJ)) THEN
-            call obs_set_r4(obsSpaceData,'LAT ',JO, real(gst_getRLATI(NJ)))
+            call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gst_getRLATI(NJ)))
           ENDIF
         END DO
       ENDIF
@@ -336,21 +335,21 @@ C
       IJ=0
       NMAXLEN=0
       DO JJO = 1, NOBTOT
-        IDATA   = obs_elem_i(obsSpaceData,'RLN ',JJO)
-        IDATEND = obs_elem_i(obsSpaceData,'NLV ',JJO) + IDATA - 1
-        NMAXLEN = MAX( obs_elem_i(obsSpaceData,'NLV ',JJO),NMAXLEN )
+        IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JJO)
+        IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
+        NMAXLEN = MAX( obs_elem_i(lobsSpaceData,'NLV ',JJO),NMAXLEN )
         DO JDATA= IDATA, IDATEND
           IJ   = IJ+1
-          call obs_set_i(obsSpaceData,'OBS ',IJ, JJO)
-          if(nobtot.eq.1) write(nulout,*) "suprep: IJ,obs_elem_i(obsSpaceData,'OBS ',IJ)=",IJ,obs_elem_i(obsSpaceData,'OBS ',IJ)
+          call obs_set_i(lobsSpaceData,'OBS ',IJ, JJO)
+          if(nobtot.eq.1) write(nulout,*) "suprep: IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)=",IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)
         END DO
 C
-        dllao=obs_elem_r4(obsSpaceData,'LAT ',jjo)
-!        DLLAO=obs_elem_r4(obsSpaceData,'LAT ',JJO)
+        dllao=obs_elem_r4(lobsSpaceData,'LAT ',jjo)
+!        DLLAO=obs_elem_r4(lobsSpaceData,'LAT ',JJO)
 !
         ILA = ISRCHILA (dble(DLLAO))
-        call obs_set_i(obsSpaceData,'TLA ',jjo,ila)
-!        call obs_set_i(obsSpaceData,'TLA ',JJO,ILA)
+        call obs_set_i(lobsSpaceData,'TLA ',jjo,ila)
+!        call obs_set_i(lobsSpaceData,'TLA ',JJO,ILA)
       END DO
 C
  200  CONTINUE
@@ -414,12 +413,12 @@ C
           IKNTZDR =0
 C
           DO JDATA=IBEGIN,ILAST
-            ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-            IFLG = obs_elem_i(obsSpaceData,'FLG ',JDATA)
-            IPRES= NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
-            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-            IVCO = obs_elem_i(obsSpaceData,'VCO ',JDATA)
-            ITY=obs_elem_i(obsSpaceData,'ITY ',IOBS)
+            ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+            IFLG = obs_elem_i(lobsSpaceData,'FLG ',JDATA)
+            IPRES= NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+            IVCO = obs_elem_i(lobsSpaceData,'VCO ',JDATA)
+            ITY=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
             IDBURP=MOD(ITY,1000)
 C
 C     a. Unwanted data types via types specified in NLIST
@@ -457,7 +456,7 @@ Cpik           ENDIF
 C
 C     *        Only heights between 0 and 80000 m:
 C
-               GPH = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               GPH = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
                   LLOK = .FALSE.
                ENDIF
@@ -554,7 +553,7 @@ C
 C
 C     d. Filter TOVS data
 C
-            ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+            ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S           ITYP .EQ. BUFR_NBT2 .OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
@@ -575,11 +574,11 @@ C             .....this check not done anymore, jh may 2002....
 C
 C        d.3 Invalid land/sea/sea-ice flag, processing technique
 C
-              ILANSEA  = obs_elem_i(obsSpaceData,'OFL ',IOBS)
+              ILANSEA  = obs_elem_i(lobsSpaceData,'OFL ',IOBS)
               INDXM = ILANSEA
               IF (INDXM .EQ. 2 ) INDXM = 0
               INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
-              IPROCES  = obs_elem_i(obsSpaceData,'ITY ',IOBS)/1000000
+              IPROCES  = obs_elem_i(lobsSpaceData,'ITY ',IOBS)/1000000
               INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
               IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
                 LLOK = .FALSE.
@@ -590,18 +589,6 @@ C            be assimilated
 C
 C             .....this check not done anymore, jh may 2002....
 C
-C        d.5 Activation of single channel assimilation
-C
-              IF (LONECHN) THEN
-                ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
-                ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                IF ( IDATYP .EQ. NONECODTYP .AND. ICHN .EQ. NONECHN ) THEN
-                  LLOK = .TRUE.
-                ELSE IF ( IDATYP .EQ. NONECODTYP .AND. ICHN. NE. NONECHN ) THEN
-                  LLOK = .FALSE.
-                END IF
-              END IF
-
             ENDIF
 C
 C     f. Exclude RAOBS and surface ln q data added to CMA.
@@ -664,25 +651,25 @@ C
             ENDIF
 C
             IF (LLOK .AND. .NOT. LLREJ) THEN
-              call obs_set_i(obsSpaceData,'ASS ',JDATA,1)
+              call obs_set_i(lobsSpaceData,'ASS ',JDATA,1)
               IKNT= IKNT + 1
             ELSE
-              call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+              call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
             ENDIF
 CSMP
 CSMP     e. Filter UU, VV data close to poles FOR MAM  (June 18, 2001)
 CSMP
 
             IF (CVCORD(1:3).EQ.'MAM') THEN
-              ZLAT = obs_elem_r4(obsSpaceData,'LAT ',IOBS)
+              ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',IOBS)
               ZZLAT = ZLAT*180./RPI
-              ZLON = obs_elem_r4(obsSpaceData,'LON ',IOBS)*180./RPI
-              ZVAR = obs_elem_r4(obsSpaceData,'VAR ',JDATA)
-              ZLEV = obs_elem_r4(obsSpaceData,'PPP ',JDATA)*0.01
+              ZLON = obs_elem_r4(lobsSpaceData,'LON ',IOBS)*180./RPI
+              ZVAR = obs_elem_r4(lobsSpaceData,'VAR ',JDATA)
+              ZLEV = obs_elem_r4(lobsSpaceData,'PPP ',JDATA)*0.01
               IF(ZLAT .GT. gst_getRLATI(1) .or. ZLAT .LT. gst_getRLATI(NJ)) THEN
                 IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV ) THEN
                   write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
-                  call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
+                  call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
                 ENDIF
               ENDIF
  98           format(1x,'SUPREP REMOVED: IOBS,ZLAT,ZLON,ZLEV,ZVAR= '
@@ -777,23 +764,23 @@ C
 C
 C-----------------------------------------------------------------------
 C
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-        ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-        IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-        IF ( ITYP .EQ. BUFR_NEUU) call obs_set_i(obsSpaceData,'POS ',JDATA, nouu - 1)
-        IF ( ITYP .EQ. BUFR_NEVV) call obs_set_i(obsSpaceData,'POS ',JDATA, novv - 1)
-        IF ( ITYP .EQ. BUFR_NETT) call obs_set_i(obsSpaceData,'POS ',JDATA, nott - 1)
-        IF ( ITYP .EQ. BUFR_NEDZ) call obs_set_i(obsSpaceData,'POS ',JDATA, nogz - 1)
-        IF ( ITYP .EQ. BUFR_NEES) call obs_set_i(obsSpaceData,'POS ',JDATA, noes - 1)
-        IF ( ITYP .EQ. BUFR_NEHU) call obs_set_i(obsSpaceData,'POS ',JDATA, noq  - 1)
-        IF ( ITYP .EQ. BUFR_NEGZ) call obs_set_i(obsSpaceData,'POS ',JDATA, nogz - 1)
-        IF ( ITYP .EQ. BUFR_NEUS) call obs_set_i(obsSpaceData,'POS ',JDATA, nouu - 1)
-        IF ( ITYP .EQ. BUFR_NEVS) call obs_set_i(obsSpaceData,'POS ',JDATA, novv - 1)
-        IF ( ITYP .EQ. BUFR_NETS) call obs_set_i(obsSpaceData,'POS ',JDATA, nott - 1)
-        IF ( ITYP .EQ. BUFR_NESS) call obs_set_i(obsSpaceData,'POS ',JDATA, noes - 1)
-        IF ( ITYP .EQ. BUFR_NEHS) call obs_set_i(obsSpaceData,'POS ',JDATA, noq  - 1)
-        IF ( ITYP .EQ. BUFR_NEPS) call obs_set_i(obsSpaceData,'POS ',JDATA, nops - 1)
-        IF ( ITYP .EQ. BUFR_NEPN) call obs_set_i(obsSpaceData,'POS ',JDATA, nops - 1)
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+        ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+        IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+        IF ( ITYP .EQ. BUFR_NEUU) call obs_set_i(lobsSpaceData,'POS ',JDATA, nouu - 1)
+        IF ( ITYP .EQ. BUFR_NEVV) call obs_set_i(lobsSpaceData,'POS ',JDATA, novv - 1)
+        IF ( ITYP .EQ. BUFR_NETT) call obs_set_i(lobsSpaceData,'POS ',JDATA, nott - 1)
+        IF ( ITYP .EQ. BUFR_NEDZ) call obs_set_i(lobsSpaceData,'POS ',JDATA, nogz - 1)
+        IF ( ITYP .EQ. BUFR_NEES) call obs_set_i(lobsSpaceData,'POS ',JDATA, noes - 1)
+        IF ( ITYP .EQ. BUFR_NEHU) call obs_set_i(lobsSpaceData,'POS ',JDATA, noq  - 1)
+        IF ( ITYP .EQ. BUFR_NEGZ) call obs_set_i(lobsSpaceData,'POS ',JDATA, nogz - 1)
+        IF ( ITYP .EQ. BUFR_NEUS) call obs_set_i(lobsSpaceData,'POS ',JDATA, nouu - 1)
+        IF ( ITYP .EQ. BUFR_NEVS) call obs_set_i(lobsSpaceData,'POS ',JDATA, novv - 1)
+        IF ( ITYP .EQ. BUFR_NETS) call obs_set_i(lobsSpaceData,'POS ',JDATA, nott - 1)
+        IF ( ITYP .EQ. BUFR_NESS) call obs_set_i(lobsSpaceData,'POS ',JDATA, noes - 1)
+        IF ( ITYP .EQ. BUFR_NEHS) call obs_set_i(lobsSpaceData,'POS ',JDATA, noq  - 1)
+        IF ( ITYP .EQ. BUFR_NEPS) call obs_set_i(lobsSpaceData,'POS ',JDATA, nops - 1)
+        IF ( ITYP .EQ. BUFR_NEPN) call obs_set_i(lobsSpaceData,'POS ',JDATA, nops - 1)
       END DO
  500  CONTINUE
 C-----------------------------------------------------------------------
@@ -807,7 +794,7 @@ C
             ILAST=NENDTYP(J)
 
             DO JDATA= IBEGIN,ILAST
-              call obs_set_i(obsSpaceData,'LOBS',JDATA,0)
+              call obs_set_i(lobsSpaceData,'LOBS',JDATA,0)
             END DO
 C
 C  1.    RAOB LEVELS
@@ -816,15 +803,15 @@ C
               DO JK=1,JPRLEV
                 IZP1  = NILV(JK )
                 DO JDATA= IBEGIN,ILAST
-                  IZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IDATYP=obs_elem_i(obsSpaceData,'OTP ',IOBS)
+                  IZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+                  IDATYP=obs_elem_i(lobsSpaceData,'OTP ',IOBS)
                   CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
+                  LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
      &                 . 'UA')
                   IF ( LLOK ) THEN
                     IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set_i(obsSpaceData,'LOBS',JDATA,obs_elem_i(obsSpaceData,'LOBS',JDATA)+MAX(0
+                    call obs_set_i(lobsSpaceData,'LOBS',JDATA,obs_elem_i(lobsSpaceData,'LOBS',JDATA)+MAX(0
      &                   ,IZXI))
                   ENDIF
                 END DO
@@ -840,14 +827,14 @@ C
       WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
       WRITE(NULOUT,'(1X,"****************************************** ",/)')
 C
-C     SUM OVER ALL BINS SHOULD BE EQUAL TO obs_num_obstotal(obsSpaceData)
+C     SUM OVER ALL BINS SHOULD BE EQUAL TO obs_num_obstotal(lobsSpaceData)
 C
       isum=0
       do jk=1,16
         isum=isum+ibin(jk)
       enddo
       ISUM = ISUM + IBINS
-      write(nulout,*) ' isum obs_num_obstotal(obsSpaceData)  ',isum,obs_num_obstotal(obsSpaceData)
+      write(nulout,*) ' isum obs_num_obstotal(lobsSpaceData)  ',isum,obs_num_obstotal(lobsSpaceData)
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF (IKNT .EQ. 0 ) THEN

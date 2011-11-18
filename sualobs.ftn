@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUALOBS(KULOUT)
+      SUBROUTINE SUALOBS(KULOUT,lobsSpaceData)
       use modmask, only : lmaskpp_in, lmaskpp_out,lmasksf_in,lmasksf_out
       use modmask, only : lmask,lmaskto,lmaskro,lmaskzp,ldiagpp
       use modmask, only : ldiagsf, ldiag, lmaskgp
@@ -71,6 +71,7 @@ C
 #include "comdimo.cdk"
 #include "comstate.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER KULOUT, IERR
       INTEGER ILEN, ilen8
       INTEGER iloc, jvar
@@ -91,8 +92,8 @@ C*    2. Arrays containing the observations themselves
 C     .   (COMDECK COMOBA)
 C     .  ---------------------------------------------
 C
-*     Memory allocation for obsSpaceData (except for *_g arrays)
-      call obs_initialize(obsSpaceData,NMXOBS,NDATAMX)
+*     Memory allocation for lobsSpaceData (except for *_g arrays)
+      call obs_initialize(lobsSpaceData,NMXOBS,NDATAMX)
 !
 !
       allocate(lmaskpp_in(ndatamx),lmaskpp_out(ndatamx))

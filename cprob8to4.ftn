@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE CPROB8TO4
+      SUBROUTINE CPROB8TO4(lobsSpaceData)
 #if defined (DOC) 
 *
 ***s/r CPROB8TO4  -
@@ -34,22 +34,21 @@
       use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
-#include "comdimo.cdk"
-
-
+c
+      type(struct_obs) :: lobsSpaceData
 *
       INTEGER JDATA
 *-----------------------------------------------------------------
 
-      do JDATA=1,obs_num_obstotal(obsSpaceData)
-        call obs_set_r4(obsSpaceData,'OMA ',JDATA, real(obs_elem_r8(obsSpaceData,'OMA ',JDATA)))
-        call obs_set_r4(obsSpaceData,'OMI ',JDATA, real(obs_elem_r8(obsSpaceData,'OMI ',JDATA)))
-        call obs_set_r4(obsSpaceData,'OMN ',JDATA, real(obs_elem_r8(obsSpaceData,'OMN ',JDATA)))
-        call obs_set_r4(obsSpaceData,'OMF ',JDATA, real(obs_elem_r8(obsSpaceData,'OMF ',JDATA)))
-        call obs_set_r4(obsSpaceData,'VAR ',JDATA, real(obs_elem_r8(obsSpaceData,'VAR ',JDATA)))
-        call obs_set_r4(obsSpaceData,'OER ',JDATA, real(obs_elem_r8(obsSpaceData,'OER ',JDATA)))
-        call obs_set_r4(obsSpaceData,'PPP ',JDATA, real(obs_elem_r8(obsSpaceData,'PPP ',JDATA)))
-        call obs_set_r4(obsSpaceData,'PRL ',JDATA, real(obs_elem_r8(obsSpaceData,'PRL ',JDATA)))
+      do JDATA=1,obs_num_obstotal(lobsSpaceData)
+        call obs_set_r4(lobsSpaceData,'OMA ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMA ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'OMI ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMI ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'OMN ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMN ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'OMF ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMF ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'VAR ',JDATA, real(obs_elem_r8(lobsSpaceData,'VAR ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'OER ',JDATA, real(obs_elem_r8(lobsSpaceData,'OER ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'PPP ',JDATA, real(obs_elem_r8(lobsSpaceData,'PPP ',JDATA)))
+        call obs_set_r4(lobsSpaceData,'PRL ',JDATA, real(obs_elem_r8(lobsSpaceData,'PRL ',JDATA)))
       enddo
 
       RETURN

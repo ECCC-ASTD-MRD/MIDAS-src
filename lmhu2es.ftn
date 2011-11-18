@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE lmhu2es
+      SUBROUTINE lmhu2es(lcolumn)
 #if defined (DOC)
 *
 ***s/r lmhu2es - Lnq increments to dewpoint depression
@@ -36,16 +36,13 @@
 *
 #endif
       use columnData_mod 
- 
       IMPLICIT NONE
 *implicits
 c------------------------------------------------------------------------
 #include "comdim.cdk"
 #include "comdimo.cdk"
 c
-
- 
-c
+      type(struct_columnData) :: lcolumn
       integer jobs,jlev
       INTEGER mythread,numthd,omp_get_thread_num,omp_get_num_threads
 
@@ -53,16 +50,16 @@ c     Computation of dewpoint depression increments from lnq,ps and t increments
 !$OMP PARALLEL PRIVATE(jobs,jlev,mythread,numthd)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, nobtot,numthd
-        do jlev = 1, nflev
-          column%es(jlev,jobs) =  ollq2es(1,jlev,jobs)*column%hu(jlev,jobs) +
-     $                        ollq2es(2,jlev,jobs)*column%ps(1,jobs) +
-     $                        ollq2es(3,jlev,jobs)*column%tt(jlev,jobs)
+      do jobs = mythread, lcolumn%nobtot,numthd
+        do jlev = 1, lcolumn%nlev
+          lcolumn%es(jlev,jobs) =  ollq2es(1,jlev,jobs)*lcolumn%hu(jlev,jobs) +
+     $                        ollq2es(2,jlev,jobs)*lcolumn%ps(1,jobs) +
+     $                        ollq2es(3,jlev,jobs)*lcolumn%tt(jlev,jobs)
 ***************************************************************
 c        if(jobs.eq.1) then
-c           print *,' lmhu2es: jobs,jlev,column%hu,column%ps,column%tt,column%es '
-c     &          ,jobs,jlev,column%hu(jlev,jobs),column%(1,jobs)
-c     &          ,column%tt(jlev,jobs),column%es(jlev,jobs)
+c           print *,' lmhu2es: jobs,jlev,lcolumn%hu,lcolumn%ps,lcolumn%tt,lcolumn%es '
+c     &          ,jobs,jlev,lcolumn%hu(jlev,jobs),lcolumn%(1,jobs)
+c     &          ,lcolumn%tt(jlev,jobs),lcolumn%es(jlev,jobs)
 c           print *,' lmhu2es: ollq2es(1),ollq2es(2),ollq2es(3),'
 c     &          ,ollq2es(1,jlev,jobs),ollq2es(2,jlev,jobs)
 c     &          ,ollq2es(3,jlev,jobs)

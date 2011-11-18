@@ -14,9 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine minimize
+subroutine minimize(lcolumng,lobsSpaceData)
   use minimization_mod
   use obsSpaceData_mod
+  use columnData_mod
   implicit none
   !
   !Purpose:
@@ -33,25 +34,34 @@ subroutine minimize
 #include "cvcord.cdk"
 #include "comgdpar.cdk"
   !Local declarations
+  type(struct_obs) :: lobsSpaceData
+  type(struct_columnData) :: lcolumn,lcolumng
   integer :: indic,ierr
 
-  call printrev("SUBROUTINE minimize :",21)
+  write(*,*) '--------------------------------'
+  write(*,*) '--Starting subroutine minimize--'
+  write(*,*) '--------------------------------'
 
-  call setcma
+  call col_allocate(lcolumn,lcolumng%nlev,lcolumng%nobtot)
+  call col_zero(lcolumn)
+
+  call setcma(lobsSpaceData)
 
 !modular1  if (trim(cminmode) == 'VAR') then
-     call min_minvar(ntrunc,nkgdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf)
+     call min_minvar(ntrunc,nkgdim,nbrpstamp,lnlvtov,niter,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
 !modular1  elseif(trim(cminmode) == 'PSAS' .or. trim(cminmode) == 'OSV' )then
 !modular1     call minpsas
 !modular1  endif
 
 !
-  call rsetcma
+  call rsetcma(lobsSpaceData)
 
-  call cprob8to4
+  call cprob8to4(lobsSpaceData)
   DO INDIC =1,1
-     CALL obs_prnthdr(obsSpaceData,indic,NULOUT)
-     CALL obs_prntbdy(obsSpaceData,indic,NULOUT)
+     CALL obs_prnthdr(lobsSpaceData,indic,NULOUT)
+     CALL obs_prntbdy(lobsSpaceData,indic,NULOUT)
   END DO
+
+  call col_deallocate(lcolumn)
 
 end subroutine minimize

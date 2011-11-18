@@ -14,8 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine postmin
-!modular1      use modstag, only : lstagwinds
+      subroutine postmin(lcolumng,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r postmin  - Post-minimization control of the 3Dvar
@@ -55,6 +54,7 @@
       use controlVector_mod
       use minimization_mod
       use bmatrix
+      use columnData_mod
       use modfgat
       use mpi
       use gridStateVector
@@ -68,11 +68,12 @@
 #include "comgdpar.cdk"
 #include "compost.cdk"
 #include "comgd0.cdk"
-#include "comsp.cdk"
 #include "compdg.cdk"
 #include "localpost.cdk"
 #include "comvfiles.cdk"
 *
+      type(struct_obs),target :: lobsSpaceData
+      type(struct_columnData),target :: lcolumng
 C
       LOGICAL LLTEST,llstdevout
       INTEGER IZS(1)
@@ -104,7 +105,9 @@ c     lrestart was turn to .true. to avoid postmin exection
 c
       if (lrestart) return
 c
-      write(nulout,*) 'ENTERING POSTMIN'
+      write(*,*) '-------------------------------'
+      write(*,*) '--Starting subroutine postmin--'
+      write(*,*) '-------------------------------'
 c
       LVARDIAG=.FALSE.
       llstdevout = .false.
@@ -165,21 +168,14 @@ C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
 C     after minimization has ended. From this point all CMA
 C     references are to ROBDATA.
 
-        call cprob8to4
+        call cprob8to4(lobsSpaceData)
 C
-        IF (LVARQC) CALL LISTREJ
+        IF (LVARQC) CALL LISTREJ(lobsSpaceData)
 C
-        CALL VINT3DFD('OMA ')
-        CALL VINT3DFD('OMF ')
-        CALL SETASSFLG
-        CALL FILBRPPOST
-        !
-!      DEALLOCATE(ROBDATA8,STAT=IERR)   ! problems appears here....
-!      IF(IERR.EQ.0) THEN
-!        WRITE(NULOUT,*) 'postmin:  PTROBDATA8 checked and correct'
-!      ELSE
-!        WRITE(NULOUT,*) 'postmin:  PTROBDATA8 destroyed !!!!!!'
-!      END IF
+        CALL VINT3DFD('OMA ',lobsSpaceData)
+        CALL VINT3DFD('OMF ',lobsSpaceData)
+        CALL SETASSFLG(lobsSpaceData)
+        CALL FILBRPPOST(lcolumng,lobsSpaceData)
 c
         CALL SUPOST  ! problem with nflev = 1
 c
@@ -190,9 +186,6 @@ c
         NSTAMP= NSTAMPA
         CVARPOST = 'R'
 c
-      WRITE(NULOUT,FMT='(/," POSTMIN - Postprocessing")')
-      WRITE(NULOUT,FMT='(11X,"of the analysis increment (X -Xb)")')
-
 C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
       if(.not. l4dvar .or. .not. ltlmend) then
@@ -262,7 +255,6 @@ c
      &              idum1,idum2,idum3,idum4,'postmin        ',
      &              'Q0 ')
 !
-!
       ibeg = 1
       iend = ni
       jbeg = 1
@@ -281,7 +273,7 @@ c
       endif
 !
       call diag3dvar
-      call memfree(nulout)
+      call memfree(nulout,lobsSpaceData)
 !
       call tmg_start(99,'VAROUT')
 !

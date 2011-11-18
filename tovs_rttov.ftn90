@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_rttov
+subroutine tovs_rttov(lobsSpaceData)
 #if defined (doc)
 !
 !**s/r tovs_rttov  - Computation of forward radiance with rttov_direct
@@ -74,6 +74,7 @@ end interface
 #include "cvcord.cdk"
 #include "comct0.cdk"
 
+  type(struct_obs) :: lobsSpaceData
   real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
 
   integer :: jpol, joff1, joff2, joff3, ilev, ichn
@@ -240,16 +241,16 @@ end interface
           do jn = 1, knpf
             iobs1 = iptobs(jn)
             jo = lobsno(iobs1)
-            idata    = obs_elem_i(obsSpaceData,'RLN ',jo)
-            idatend  = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
+            idata    = obs_elem_i(lobsSpaceData,'RLN ',jo)
+            idatend  = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
             do jdata = idata, idatend
-              if(obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1) then
-                ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
+              if(obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1) then
+                ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
                 ichn = max(0,min(ichn,jpch+1))
                 do nrank = 1, nchan(krtid)
                   if ( ichn == ichan(nrank,krtid) ) exit
                 end do
-                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r8(obsSpaceData,'PRL ',jdata)
+                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r8(lobsSpaceData,'PRL ',jdata)
               end if
             end do
           end do

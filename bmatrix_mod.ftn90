@@ -43,7 +43,6 @@ contains
 
 
   SUBROUTINE oda_sqrtBT(da_v,na_vdim,statevector)
-    !modular1  use modstag, only : lstagwinds
     use bMatrixHI
     use bMatrixEnsemble
     use controlVector_mod

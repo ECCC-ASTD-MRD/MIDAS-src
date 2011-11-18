@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUDIMO(KULOUT)
+      SUBROUTINE SUDIMO(KULOUT,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r SUDIMO * - Setting up of the dimensions of obs. related arrays
@@ -35,6 +35,7 @@ C
       IMPLICIT NONE
 #include "comdimo.cdk"
 C
+      type(struct_obs) :: lobsSpaceData
       INTEGER KULOUT
       INTEGER IERR
 C
@@ -55,14 +56,14 @@ C
 C     2.  Observation arrays of COMOBA
 C
          NOBTOT  = NMXOBS
-         obsSpaceData%mxobstotal   = NDATAMX
+         lobsSpaceData%mxobstotal   = NDATAMX
 C
 C* In this configuration, obs. are read from a file which should contain
 C  all of these parameters in a descriptive record
 C
       WRITE(KULOUT,*)' DIMENSIONS OF OBSERVATION ARRAYS:'
       WRITE(UNIT=KULOUT,FMT=9210)
-     S     NMXOBS, NOBTOT, obsSpaceData%mxobstotal,NDATAMX
+     S     NMXOBS, NOBTOT, lobsSpaceData%mxobstotal,NDATAMX
  9210 FORMAT(4X,'  NMXOBS =',I6,' NOBTOT    =',I6,' NDATA = ',I6
      S     ,' NDATAMX =',I6)
 C

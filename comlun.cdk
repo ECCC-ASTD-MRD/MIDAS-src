@@ -5,21 +5,16 @@
 !     which are defined in SULUN
 !     --------------------------
 !     NULOUT   : standard output unit
-!     NULNAM   : unit for the file containing the namelists
 !     NULSTAT  : Error of observation statistic file unit
-!     NULBGST  : Background errors statistic file unit
 !     NINMPG   : Unit for trial fields file (an array)
-!     NULSTD   : Unit of analysis file (complete variables)
 !     NULINCLR : Unit of low resolution increments file
-!     NULINCHR : Unit of high resolution increments file
 !     NTRIALS  :  number of trial files  . 
 !
 #endif
-      integer nulout,nulnam,nulstat,nulinclr,nulstd,nulbgst
-      integer nulinchr,ntrials 
+      integer nulout,nulstat,nulinclr
+      integer ntrials 
       integer ninmpg(500)  
 
-      COMMON /COMLUN/nulout,nulnam,nulstat,nulinclr,nulstd
-      COMMON /COMLUN/nulbgst,nulinchr
+      COMMON /COMLUN/nulout,nulstat,nulinclr
       COMMON /COMLUN/ninmpg,ntrials
 

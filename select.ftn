@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SELECT
+      SUBROUTINE SELECT(lobsSpaceData)
 #if defined (DOC)
 *
 *
@@ -59,6 +59,7 @@
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
+      type(struct_obs) :: lobsSpaceData
       INTEGER IER,INBLKS,INRECS,IBRP1,IBEG
       INTEGER EXDB,EXFIN,FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
 *
@@ -107,12 +108,12 @@
      +       '========================================================='
                WRITE(NULOUT,*)  ' '
 *
-               IBEG=obs_num_obstotal(obsSpaceData)+1
+               IBEG=obs_num_obstotal(lobsSpaceData)+1
 !
-               CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS)
-               IF ( IBEG .LE. obs_num_obstotal(obsSpaceData) ) THEN
+               CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS,lobsSpaceData)
+               IF ( IBEG .LE. obs_num_obstotal(lobsSpaceData) ) THEN
                   NBEGINTYP(J)=IBEG
-                  NENDTYP(J) =obs_num_obstotal(obsSpaceData)
+                  NENDTYP(J) =obs_num_obstotal(lobsSpaceData)
                ELSE
                   NBEGINTYP(J)=-999
                   NENDTYP(J)  =-999

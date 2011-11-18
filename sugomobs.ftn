@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine sugomobs
+      subroutine sugomobs(lcolumng,lcolumnhr)
       use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use columnData_mod 
@@ -70,10 +70,8 @@
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
- 
 c
-c----------------------------------------------------------
-c
+      type(struct_columnData) :: lcolumng,lcolumnhr
       integer vfstlir,vezuvint,vezsint,ezdefset,ezqkdef,ezgprm,ip1f
       integer ezsetopt,fclos,jstep
 
@@ -113,14 +111,14 @@ c
       write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
       write(nulout,*) ' '
 c
-      call hpalloc(pzom,max(nflev*nobtot,1),ier,8)
-      call hpalloc(pzovar,max(nobtot,1),ier,8)
-      call hpalloc(pzovar2,max(nobtot,1),ier,8)
+      call hpalloc(pzom,max(lcolumng%nlev*lcolumng%nobtot,1),ier,8)
+      call hpalloc(pzovar,max(lcolumng%nobtot,1),ier,8)
+      call hpalloc(pzovar2,max(lcolumng%nobtot,1),ier,8)
       allocate(zopart(maxval(nobs)))
       allocate(zopart2(maxval(nobs)))
       llpt = .false.
       if(llpt) then
-        call hpalloc(pzpt,max(nobtot,1),ier,8)
+        call hpalloc(pzpt,max(lcolumng%nobtot,1),ier,8)
 c-------endif de llpt
       endif
       allocate(idate(nstepobs))
@@ -136,11 +134,11 @@ c     Setting degree of horizontal interpolations
 c
       ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
 c
-c------- fill columng with zero
+c------- fill lcolumng with zero
 c
-      do jlev=1,columng%nkgdimo
-        do jobs=1,nobtot
-          columng%all(jlev,jobs) = 0.
+      do jlev=1,lcolumng%nkgdimo
+        do jobs=1,lcolumng%nobtot
+          lcolumng%all(jlev,jobs) = 0.
         enddo
       enddo
 c
@@ -203,7 +201,11 @@ c
           endif
         enddo
 c
-        call fillmvo('BG',cfstvar2d(jvar),zovar,1,nobtot)
+        write(*,*) 'here1'
+        call flush(6)
+        call col_fillmvo(lcolumng,cfstvar2d(jvar),zovar,1,lcolumng%nobtot)
+        write(*,*) 'here2'
+        call flush(6)
 c
       enddo
 c
@@ -247,7 +249,7 @@ c
           ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
      &         ,inj,1)
           do jobs = 1, nobs(jstep)
-            columng%rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
+            lcolumng%rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
           enddo
         endif
       enddo
@@ -256,14 +258,14 @@ c-----Derive the pressure fields at observation points from the hybrid
 C     levels(vhybinc), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 
-      do jobs = 1,nobtot
-        zovar(jobs) = columng%ps(1,jobs)
+      do jobs = 1,lcolumng%nobtot
+        zovar(jobs) = lcolumng%ps(1,jobs)
       enddo
 c
-      call calcpres(columng%rppobs(1,1),vhybinc,nflev,zovar,rptopinc
-     &     ,rprefinc,rcoefinc,nobtot)
-      do jlev = 1,nflev
-        write(nulout,*) 'sugomobs: jlev, COLUMNG%RPPOBS(jlev,1) = ',jlev,COLUMNG%RPPOBS(jlev,1)
+      call calcpres(lcolumng%rppobs(1,1),vhybinc,lcolumng%nlev,zovar,rptopinc
+     &     ,rprefinc,rcoefinc,lcolumng%nobtot)
+      do jlev = 1,lcolumng%nlev
+        write(nulout,*) 'sugomobs: jlev, LCOLUMNG%RPPOBS(jlev,1) = ',jlev,LCOLUMNG%RPPOBS(jlev,1)
         call flush(nulout)
       enddo
 c
@@ -335,9 +337,9 @@ c
 c
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 c
-          if (.not. allocated(zmobs))  allocate(zmobs(itrlnlev,nobtot))
-          if (.not. allocated(zmobs2)) allocate(zmobs2(itrlnlev,nobtot))
-          if (.not. allocated(zppobs)) allocate(zppobs(itrlnlev,nobtot))
+          if (.not. allocated(zmobs))  allocate(zmobs(itrlnlev,lcolumng%nobtot))
+          if (.not. allocated(zmobs2)) allocate(zmobs2(itrlnlev,lcolumng%nobtot))
+          if (.not. allocated(zppobs)) allocate(zppobs(itrlnlev,lcolumng%nobtot))
 c
 c loop through levels of field jvar
 c
@@ -448,7 +450,7 @@ c         Next, the high resolution profile are interpolated on analysis
 c         levels.
 c
 
-cprnt          write(nulout,*)' sugomobs:nobtot= ',nobtot
+cprnt          write(nulout,*)' sugomobs:lcolumng%nobtot= ',lcolumng%nobtot
 c
 c---------Derive the pressure fields at observation points from the
 c hybrid
@@ -456,58 +458,59 @@ C         levels(zhybhr), the hybrid coordinate parameters of the
 C         high res. trial field and the surface pressure of the trial
 c field
 
-          do jobs = 1,nobtot
-            zovar(jobs) = columng%ps(1,jobs)
+          do jobs = 1,lcolumng%nobtot
+            zovar(jobs) = lcolumng%ps(1,jobs)
           enddo
           call calcpres(ZPPOBS,zhybhr,itrlnlev,zovar,zptophr
-     &         ,zprefhr,zrcoefhr,nobtot)
-          call vintprof(zom,columng%rppobs,nflev,zmobs,zppobs,itrlnlev,nobtot)
+     &         ,zprefhr,zrcoefhr,lcolumng%nobtot)
+          call vintprof(zom,lcolumng%rppobs,lcolumng%nlev,zmobs,zppobs,itrlnlev,lcolumng%nobtot)
 c
           if(.not.lllochr) then
 c
 
 c
-c Note: columnhr%nlev is taken here as the number of levels of the
+c Note: lcolumnhr%nlev is taken here as the number of levels of the
 c       first 3D variable.  To implement properly the vertical
 C staggering,
 c       vlayers and obs operator would need to be advised of the
 c       number of levels for each variable.
 
           nkt = itrlnlev
-          columnhr%nlev = itrlnlev
+          lcolumnhr%nlev = itrlnlev
 c
             istep = itrlnlev
 c
 c Note: in a vertical staggering implementation istep could be assigned
 C a
 c       value of ITRLNLEV+1 to make sure that any model state variable
-c       fit in columnhr.  Accordingly, obs operator will have to step
-C       throughout columng with the same step size.
+c       fit in lcolumnhr.  Accordingly, obs operator will have to step
+C       throughout lcolumng with the same step size.
 c
-            call col_allocate(columnhr,istep,nobtot)
+            call col_allocate(lcolumnhr,istep,lcolumng%nobtot)
+            call col_zero(lcolumnhr)
             call tmg_start(30,'FILLMVO')
-            call fillmvo('HR','PP',zppobs,itrlnlev,nobtot)
-            call fillmvo('HR','LV',zlev,itrlnlev,1)
-            call fillmvo('HR','HY',zhybhr,itrlnlev,1)
+            call col_fillmvo(lcolumnhr,'PP',zppobs,itrlnlev,lcolumng%nobtot)
+            call col_fillmvo(lcolumnhr,'LV',zlev,itrlnlev,1)
+            call col_fillmvo(lcolumnhr,'HY',zhybhr,itrlnlev,1)
             call tmg_stop(30)
             lllochr = .true.
           endif
 c
           if(cfstvar(jvar).eq.'UU'.or.cfstvar(jvar).eq.'VV') then
             call tmg_start(30,'FILLMVO')
-            call fillmvo('BG','UU',zom,nflev,nobtot)
-            call fillmvo('HR','UU',zmobs,itrlnlev,nobtot)
+            call col_fillmvo(lcolumng,'UU',zom,lcolumng%nlev,lcolumng%nobtot)
+            call col_fillmvo(lcolumnhr,'UU',zmobs,itrlnlev,lcolumng%nobtot)
             call tmg_stop(30)
-            call vintprof(zom,columng%rppobs,nflev,zmobs2,zppobs,itrlnlev
-     &           ,nobtot)
+            call vintprof(zom,lcolumng%rppobs,lcolumng%nlev,zmobs2,zppobs,itrlnlev
+     &           ,lcolumng%nobtot)
             call tmg_start(30,'FILLMVO')
-            call fillmvo('BG','VV',zom,nflev,nobtot)
-            call fillmvo('HR','VV',zmobs2,itrlnlev,nobtot)
+            call col_fillmvo(lcolumng,'VV',zom,lcolumng%nlev,lcolumng%nobtot)
+            call col_fillmvo(lcolumnhr,'VV',zmobs2,itrlnlev,lcolumng%nobtot)
             call tmg_stop(30)
           else
             call tmg_start(30,'FILLMVO')
-            call fillmvo('BG',cfstvar(jvar),zom,nflev,nobtot)
-            call fillmvo('HR',cfstvar(jvar),zmobs,itrlnlev,nobtot)
+            call col_fillmvo(lcolumng,cfstvar(jvar),zom,lcolumng%nlev,lcolumng%nobtot)
+            call col_fillmvo(lcolumnhr,cfstvar(jvar),zmobs,itrlnlev,lcolumng%nobtot)
             call tmg_stop(30)
           endif
 c
@@ -528,32 +531,32 @@ c      call wrgomobs
 * *                                                           * *
 *
 c
-c Initialisation of TLM operators using column1 as working space
+c Initialisation of TLM operators
 c
       call tmg_start(32,'SUBASIC')
-      call subasic_obs
+      call subasic_obs(lcolumng)
       call tmg_stop(32)
 c
 c Calculate ES=T-TD from T and Q
-c from columng%hu and columng%tt and put it in columng%es
+c from lcolumng%hu and lcolumng%tt and put it in lcolumng%es
 c
       call tmg_start(33,'MHUAESV')
-      call mhuaesv
+      call mhuaesv(lcolumng)
       call tmg_stop(33)
 c
-c Using T, q and PS in columng, computes GZ and stores it in columng%gz
+c Using T, q and PS in lcolumng, computes GZ and stores it in lcolumng%gz
 c N.B. uses vlev
 c
       call tmg_start(34,'TT2PHI')
-      call tt2phi(columng)
+      call tt2phi(lcolumng)
       call tmg_stop(34)
 c
 c At this point COMMVOG is complete and contains the background state
 C projected on analysis levels.
 c
-c Copy 2D variables (PS,TG and RMTMOBS) from columng to columnhr
+c Copy 2D variables (PS,TG and RMTMOBS) from lcolumng to lcolumnhr
 c
-      call transfer3dv('HR2D')
+      call col_copy2d(lcolumng,lcolumnhr)
 c
 c At this point COMMVOHR contains background state on original levels
 c

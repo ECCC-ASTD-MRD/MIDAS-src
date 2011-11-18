@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine suobsgid
+      subroutine suobsgid(lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r suobsgid  initialize observation Y grid handle.
@@ -59,6 +59,7 @@
 #include "comcva.cdk"
 #include <prof_f.h>
 *
+      type(struct_obs) :: lobsSpaceData
       integer jobs, ig1obs, ig2obs, ig3obs, ig4obs, newdate
       integer vezgdef, ierr,istepstamp,jstep,istat,ihdl
       integer :: prof_wrrec,icode,jvar,getprofcode, istepobs, ireslun
@@ -123,17 +124,17 @@ C
       do jobs=1, nobtot
 ! return the step stamp associated whit date and time of the observation
 
-        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobsinc)
-        call stepobs2(deltastepobs,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobsinc)
+        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobsinc)
+        call stepobs2(deltastepobs,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobsinc)
 ! building the list of step stamp and counting number of obs in each step
         lltimein = .false.
         if(nstepobsinc.eq.1) then
           stepinc1 : do jstep = nlwrbin,nuprbin
             if (nstamplistinc(jstep) == istepstamp) then
               nobsinc(jstep) = nobsinc(jstep) + 1
-              call obs_setTimeInterpWeight(obsSpaceData,1.0d0,jobs,jstep)
+              call obs_setTimeInterpWeight(lobsSpaceData,1.0d0,jobs,jstep)
               lltimein = .true.
               exit stepinc1
             endif
@@ -142,14 +143,14 @@ C
           stepinc : do jstep = nlwrbin,nuprbin
             istepobs=floor(deltastepobs)+((nstepobsinc+1)/2)
             if (istepobs == jstep) then
-              call obs_setTimeInterpWeight(obsSpaceData,
+              call obs_setTimeInterpWeight(lobsSpaceData,
      &           1.0d0-(deltastepobs-floor(deltastepobs)),jobs,jstep)
             elseif((istepobs+1)==jstep) then
-              call obs_setTimeInterpWeight(obsSpaceData,
+              call obs_setTimeInterpWeight(lobsSpaceData,
      &           deltastepobs-floor(deltastepobs),jobs,jstep)
-              if(obs_getTimeInterpWeight(obsSpaceData,jobs,jstep)>=0.5) then
+              if(obs_getTimeInterpWeight(lobsSpaceData,jobs,jstep)>=0.5) then
                 nobsinc(jstep) = nobsinc(jstep) + 1
-              elseif(obs_getTimeInterpWeight(obsSpaceData,jobs,jstep-1)>0.5) then
+              elseif(obs_getTimeInterpWeight(lobsSpaceData,jobs,jstep-1)>0.5) then
                 nobsinc(jstep-1) = nobsinc(jstep-1) + 1
               endif
               lltimein = .true.
@@ -159,8 +160,8 @@ C
         endif
 
         if (.not. lltimein) then
-          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=
-     &      ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
+          ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))=
+     &      ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))+1
 
 ! Put put the wrong data in the central bin
           jstep = (nstepobsinc + 1) / 2
@@ -169,18 +170,18 @@ C
 ! .. flag it as out of (time) domain (bit #5 of header flag
 ! .. and turn off its assimilation flag
 
-          idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
-          idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
+          idata = obs_elem_i(lobsSpaceData,'RLN ',jobs)
+          idatend = obs_elem_i(lobsSpaceData,'NLV ',jobs) + idata -1
           do jdata = idata, idatend
-            call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
+            call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
           enddo
-          call obs_set_i(obsSpaceData,'ST1 ',jobs, 
-     &      ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
+          call obs_set_i(lobsSpaceData,'ST1 ',jobs, 
+     &      ibset( obs_elem_i(lobsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 
-        dlatfld(nobsinc(jstep),jstep) = obs_elem_r4(obsSpaceData,'LAT ',jobs)
-        dlonfld(nobsinc(jstep),jstep) = obs_elem_r4(obsSpaceData,'LON ',jobs)
+        dlatfld(nobsinc(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LAT ',jobs)
+        dlonfld(nobsinc(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LON ',jobs)
         notaginc(nobsinc(jstep),jstep) = jobs
 
 ! Converting lat long to radian units
@@ -244,8 +245,8 @@ CBUE      if (nuprbin == -1) nuprbin = nstepobs
 !
 !       return the step stamp associated whit date and time of the observation
 
-        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobs)
+        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobs)
 !
 ! building the list of step stamp and counting number of obs in each step
         lltimein = .false.
@@ -258,11 +259,11 @@ CBUE      if (nuprbin == -1) nuprbin = nstepobs
         enddo step
 
         if (.not. lltimein) then
-          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=
-     &                  ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
+          ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))=
+     &                  ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))+1
 C          write(nulout,*) 'Report time for obs no. ',jobs
-C     &         ,' out of range : ', obs_elem_i(obsSpaceData,'DAT ',jobs),
-C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
+C     &         ,' out of range : ', obs_elem_i(lobsSpaceData,'DAT ',jobs),
+C     &         obs_elem_i(lobsSpaceData,'ETM ',jobs)
 
 ! Put the wrong data in the central bin
           jstep = (nstepobs + 1) / 2
@@ -271,18 +272,18 @@ C     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
 ! .. flag it as out of (time) domain (bit #5 of header flag
 ! .. and turn off its assimilation flag
 
-          idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
-          idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
+          idata = obs_elem_i(lobsSpaceData,'RLN ',jobs)
+          idatend = obs_elem_i(lobsSpaceData,'NLV ',jobs) + idata -1
           do jdata = idata, idatend
-            call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
+            call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
           enddo
-          call obs_set_i(obsSpaceData,'ST1 ',jobs, 
-     &      ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
+          call obs_set_i(lobsSpaceData,'ST1 ',jobs, 
+     &      ibset( obs_elem_i(lobsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 
-        dlatfld(nobs(jstep),jstep) = obs_elem_r4(obsSpaceData,'LAT ',jobs)
-        dlonfld(nobs(jstep),jstep) = obs_elem_r4(obsSpaceData,'LON ',jobs)
+        dlatfld(nobs(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LAT ',jobs)
+        dlonfld(nobs(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LON ',jobs)
         notag(nobs(jstep),jstep) = jobs
 
 ! Converting lat long to radian units

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_mask
+subroutine oda_mask(lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use bufr
@@ -24,6 +24,7 @@ subroutine oda_mask
   #include "cvcord.cdk"
   #include "comlun.cdk"
   #include "comfilt.cdk"
+  type(struct_obs) :: lobsSpaceData
 
   call oda_masksf('UA')
   call oda_masksf('SF')
@@ -65,25 +66,25 @@ subroutine oda_mask
 !C
 !C     Process all data within the domain of the model
 !C
-          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              IF ( obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 ) THEN
-                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+              IF ( obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 ) THEN
+                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                 IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS  &
                      .OR.ITYP.EQ.BUFR_NEPN .OR. ITYP.EQ.BUFR_NESS  &
                      .OR.ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
-                  LMASKSF_IN(JDATA)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
+                  LMASKSF_IN(JDATA)=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)
                 ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                   LMASKSF_IN(JDATA)= .false.
                 ELSE
-                  LMASKSF_IN(JDATA)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.  &
-                       obs_elem_i(obsSpaceData,'XTR ',JDATA)  .EQ. 0)
+                  LMASKSF_IN(JDATA)=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.  &
+                       obs_elem_i(lobsSpaceData,'XTR ',JDATA)  .EQ. 0)
                 ENDIF
-                IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) then
+                IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) then
                   ldiagsf(jdata) = .true.
                 endif
               ENDIF
@@ -93,10 +94,10 @@ subroutine oda_mask
 !C     Process all geopotential data below model's orography
 !C
           DO JDATA=IBEGIN,ILAST
-            lmasksf_out(jdata)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)  &
-                 .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2)          &
-                 .AND. (obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ ) &
-                 .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1)
+            lmasksf_out(jdata)=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)  &
+                 .AND. (obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 2)          &
+                 .AND. (obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ ) &
+                 .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1)
 
           END DO
 
@@ -141,18 +142,18 @@ subroutine oda_mask
 !C
 !C     Process all data within the domain of the model
 !C
-          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              lmaskpp_in(jdata)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) &
-                   .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 0)        &
-                   .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2)
-              IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU  .AND.  &
-                   obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2   ) THEN
-                IF   ( NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA)) .GE. NINT(RLIMLVHU  &
+              lmaskpp_in(jdata)=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) &
+                   .AND. (obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 0)        &
+                   .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2)
+              IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU  .AND.  &
+                   obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2   ) THEN
+                IF   ( NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA)) .GE. NINT(RLIMLVHU  &
                      *100) ) THEN
                   ldiagpp(jdata) = .true.
                 ENDIF
@@ -162,20 +163,20 @@ subroutine oda_mask
           enddo
 
           DO JDATA=IBEGIN,ILAST
-            lmaskpp_out(jdata)=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) &
-                 .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 2)         &
-                 .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2)
-            if (lmaskpp_out(jdata) .and. obs_elem_i(obsSpaceData,'VNM ',JDATA) .NE.BUFR_NEGZ) then
+            lmaskpp_out(jdata)=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) &
+                 .AND. (obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 2)         &
+                 .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2)
+            if (lmaskpp_out(jdata) .and. obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE.BUFR_NEGZ) then
               lmaskpp_out(jdata) = .false.
               LLNOXTR   = .true.
               ZTORAD    = 1.D0/(RPI/180.D0)
-              ZLAT      = obs_elem_r4(obsSpaceData,'LAT ',IOBS)*ZTORAD
-              ZLON      = obs_elem_r4(obsSpaceData,'LON ',IOBS)*ZTORAD
-              IDBURP    = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
+              ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',IOBS)*ZTORAD
+              ZLON      = obs_elem_r4(lobsSpaceData,'LON ',IOBS)*ZTORAD
+              IDBURP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
 
               WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
-                   ,' OBS ',obs_elem_c9(obsSpaceData,'STID',IOBS),' TYPE ',IDBURP, ' ELM ' &
-                   , obs_elem_i(obsSpaceData,'VNM ',JDATA),' LAT ', ZLAT,  ' LON ', &
+                   ,' OBS ',obs_elem_c9(lobsSpaceData,'STID',IOBS),' TYPE ',IDBURP, ' ELM ' &
+                   , obs_elem_i(lobsSpaceData,'VNM ',JDATA),' LAT ', ZLAT,  ' LON ', &
                    ZLON
             endif
           END DO
@@ -255,8 +256,8 @@ subroutine oda_maskto
      if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
         ibegin   = nbegintyp(jf)
         ilast    = nendtyp  (jf)
-        ibeginob = obs_elem_i(obsSpaceData,'OBS ',ibegin)
-        ilastob  = obs_elem_i(obsSpaceData,'OBS ',ilast )
+        ibeginob = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+        ilastob  = obs_elem_i(lobsSpaceData,'OBS ',ilast )
         do jo = ibeginob, ilastob
 
            !     .  1.1  Extract general information for this observation point
@@ -264,7 +265,7 @@ subroutine oda_maskto
 
            !       only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
 
-           idatyp = mod(obs_elem_i(obsSpaceData,'ITY ',jo),1000)
+           idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',jo),1000)
            if ( idatyp .eq. 164 .or.  &
                 idatyp .eq. 168 .or.  &
                 idatyp .eq. 180 .or.  &
@@ -282,12 +283,12 @@ subroutine oda_maskto
               endif
 
               if (rttov_errorstatus(indxtovs) .lt. 20   ) then
-                 idata   = obs_elem_i(obsSpaceData,'RLN ',jo)
-                 idatend = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
+                 idata   = obs_elem_i(lobsSpaceData,'RLN ',jo)
+                 idatend = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
                  isens = lsensor(indxtovs)
                  do jdata= idata, idatend
-                    if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-                       ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
+                    if ( obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1 ) then
+                       ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
                        ichn    = max(0,min(ichn,jpch+1))
                        ichNCM_A = max(0,min(ichn,jpch+1))
                        if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -360,18 +361,18 @@ end subroutine oda_maskto
         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
           IBEGIN   = NBEGINTYP(JF)
           ILAST    = NENDTYP  (JF)
-          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
 !C
 !C     *     Loop over all observations of the file
 !C
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
             IF ( IDATYP .EQ. 169 ) THEN
-              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+              IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
               DO JDATA= IDATA, IDATEND
-                LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 )
                 IF ( LUSE ) THEN
                   lmaskro(jdata) = .true.
                 ENDIF
@@ -410,15 +411,15 @@ end subroutine oda_maskto
           IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
 
-          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+            IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
             DO JDATA=IDATA,IDATEND
-              LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)  &
-                   .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 0) &
-                   .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1)
+              LLOK=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)  &
+                   .AND. (obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 0) &
+                   .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1)
               IF ( LLOK ) THEN
                 lmaskzp(jdata) = .true.
               ENDIF
@@ -450,17 +451,17 @@ end subroutine oda_maskto
         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
           IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
-          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
-            IDATYP    = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+            IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+            IDATYP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
             IF ( IDATYP .EQ. 189 ) THEN
               DO JDATA=IDATA,IDATEND
-                ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                 LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND.  &
-                  (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) )
+                  (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
                 IF ( LLOK ) THEN
                   lmaskgp(jdata) = .true.
                 ENDIF
@@ -513,21 +514,21 @@ end subroutine oda_maskto
        ALLOCATE(llmask_l(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cant Allocate Mem. to llmask_l')
 
-       CALL restore_mask(lmask_g,obsSpaceData%mxobstotal,lmask,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmask_g,lobsSpaceData%mxobstotal,lmask,obs_num_obstotal(lobsSpaceData))  
 
        llmask_l = lmaskpp_in .or. lmaskpp_out
-       CALL restore_mask(lmaskpp_inout_g,obsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmaskpp_inout_g,lobsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(lobsSpaceData))  
 
        llmask_l =  lmasksf_in .or. lmasksf_out
-       CALL restore_mask(lmasksf_inout_g,obsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmasksf_inout_g,lobsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(lobsSpaceData))  
 
-       CALL restore_mask(lmaskto_g,obsSpaceData%mxobstotal,lmaskto,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmaskto_g,lobsSpaceData%mxobstotal,lmaskto,obs_num_obstotal(lobsSpaceData))  
 
-       CALL restore_mask(lmaskro_g,obsSpaceData%mxobstotal,lmaskro,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmaskro_g,lobsSpaceData%mxobstotal,lmaskro,obs_num_obstotal(lobsSpaceData))  
 
-       CALL restore_mask(lmaskzp_g,obsSpaceData%mxobstotal,lmaskzp,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmaskzp_g,lobsSpaceData%mxobstotal,lmaskzp,obs_num_obstotal(lobsSpaceData))  
 
-       CALL restore_mask(lmaskgp_g,obsSpaceData%mxobstotal,lmaskgp,obs_num_obstotal(obsSpaceData))  
+       CALL restore_mask(lmaskgp_g,lobsSpaceData%mxobstotal,lmaskgp,obs_num_obstotal(lobsSpaceData))  
 
       END SUBROUTINE restoreMasks     
 
@@ -543,8 +544,8 @@ end subroutine oda_maskto
        ii=0
        DO i=1,nobtot
          iobs=locObsTag(i)
-         idata=obs_elem_mpiglobal_i(obsSpaceData,'RLN ',iobs)
-         idataend=obs_elem_mpiglobal_i(obsSpaceData,'NLV ',iobs) + idata -1
+         idata=obs_elem_mpiglobal_i(lobsSpaceData,'RLN ',iobs)
+         idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs) + idata -1
          DO j=idata,idataend
            ii=ii+1
            lmask_g(j)=lmask_l(ii)

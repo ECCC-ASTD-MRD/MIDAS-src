@@ -46,33 +46,29 @@ c
       IMPLICIT NONE
 #include "comlun.cdk"
 C
-      INTEGER IERR, FNOM, FSTOUV, JFILE
-      EXTERNAL FNOM, FSTOUV
-C
 C        1.    Initialize COMLUN.
 C              ------------------
 C
  100  CONTINUE
       NULOUT =  6
-      NULNAM =  0
       NULSTAT = 0
-      NULBGST = 0
       NTRIALS=1 
-      NULSTD  = 0
       NULINCLR=0
-      NULINCHR=0
       ninmpg = 0
-C
+
       CALL SUFILNAM
-c
-      WRITE(UNIT=NULOUT,FMT=9000)nulout,nulnam,ninmpg,nulstat,nulbgst
-     &     ,nulstd,nulinclr,nulinchr
+
+      WRITE(UNIT=NULOUT,FMT=9000)nulout,nulstat
+     &     ,nulinclr
  9000 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
-     S     ,10X,' NULOUT = ',I3,' NULNAM  = ',I3/
-     S     ,10X,' NINMPG = ',I3,' NULSTAT = ',I3,' NULBGST = ',I3
-     S     ,10X,' NULSTD = ',I3,' NULINCLR = ',I3,' NULINCHR = ',I3)
-C
-C     ---------------------------------------------------------------
-C
+     S     ,10X,' NULOUT = ',I3/
+     S     ,10X,' NULSTAT = ',I3
+     S     ,10X,' NULINCLR = ',I3)
+
+      WRITE(UNIT=NULOUT,FMT=9001)ninmpg(1:ntrials)
+     &     ,nulinclr
+ 9001 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
+     S     ,10X,' NINMPG = ',I3)
+
       RETURN
       END

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE MHUAESV
+      SUBROUTINE MHUAESV(lcolumnghr)
 #if defined (DOC)
 ***   S/R MHUAES  -  CALCULATE ES=T-TD FROM T AND Q
 *
@@ -47,12 +47,6 @@
 *IMPLICITS
 *         --------------------------------------------------------------------------
 #include "comlun.cdk"
-#include "pardim.cdk"
-#include "comdim.cdk"
-#include "comdimo.cdk"
-#include "comgem.cdk"
-
-
 *
       INTEGER JOBS,JLEV
       REAL*8 ZE, ZTD, ZHU
@@ -61,33 +55,34 @@
 #include "dintern8.cdk"
 #include "fintern8.cdk"
 *
+      type(struct_columnData) :: lcolumnghr
 c
 *
       LLPRINT = .FALSE.
 *
-      DO JLEV=1,NFLEV
+      DO JLEV=1,lcolumnghr%nlev
 *
-        DO JOBS=1,NOBTOT
+        DO JOBS=1,lcolumnghr%nobtot
 *
 *     get the saturated vapor pressure from q (specific humidity)
 *
-         ZHU = exp(columng%hu(jlev,jobs))
-         ZE = FOEFQ8(ZHU, COLUMNG%RPPOBS(JLEV,JOBS))
+         ZHU = exp(lcolumnghr%hu(jlev,jobs))
+         ZE = FOEFQ8(ZHU, LCOLUMNGHR%RPPOBS(JLEV,JOBS))
 *
 *     now the dewpoint temperature
 *
-            ZTD=FOTW8(ZE)
+         ZTD=FOTW8(ZE)
 *
 *
 *     finally the dewpoint depression
 *
-         columng%es(JLEV,JOBS) = min(columng%tt(JLEV,JOBS) - ZTD,rmaxes)
+         lcolumnghr%es(JLEV,JOBS) = min(lcolumnghr%tt(JLEV,JOBS) - ZTD,rmaxes)
 
 ********************************************************************
 c         IF(LLPRINT) THEN
 c            write(nulout,*)'MHUAESV:JOBS,JLEV,RPOBS,GMESG,GMTG,ZTD,ZHU '
-c     &           ,JOBS,JLEV,COLUMNG%RPPOBS(JLEV,JOBS),columng%es(JLEV,JOBS)
-c     &           ,columng%tt(JLEV,JOBS),ZTD,ZHU
+c     &           ,JOBS,JLEV,LCOLUMNGHR%RPPOBS(JLEV,JOBS),lcolumnghr%es(JLEV,JOBS)
+c     &           ,lcolumnghr%tt(JLEV,JOBS),ZTD,ZHU
 c         ENDIF
 *******************************************************************
 *

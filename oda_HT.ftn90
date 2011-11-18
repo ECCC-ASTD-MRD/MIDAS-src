@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_HT
+subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
@@ -33,6 +33,9 @@ subroutine oda_HT
 #include "comstate.cdk"
 #include "comgpsgb.cdk"
 !!
+  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_obs) :: lobsSpaceData
+!
   call tmg_start(64,'GPSZTD') !
   call oda_HTgp
   call tmg_stop (64)        !
@@ -109,23 +112,23 @@ subroutine oda_HT
 !C
       DO J=1,ISTRIDE
 !*vdir nodep
-        DO JDATA=J,obs_num_obstotal(obsSpaceData),ISTRIDE
+        DO JDATA=J,obs_num_obstotal(lobsSpaceData),ISTRIDE
           IF (lmaskpp_in(jdata)) THEN
-            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
-            ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
-            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-            IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
-            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
+            ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+            ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+            IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
+            IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
-            ZPT  = COLUMNG%RPPOBS(IK,IOBS)
-            ZPB  = COLUMNG%RPPOBS(IK+1,IOBS)
+            ZPT  = LCOLUMNG%RPPOBS(IK,IOBS)
+            ZPB  = LCOLUMNG%RPPOBS(IK+1,IOBS)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
-!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
             zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)  &
                  /(1.0-rptopinc/rprefinc))**rcoefinc
@@ -141,39 +144,39 @@ subroutine oda_HT
               ZDADPS = 0.0
             ENDIF
 
-            COLUMN%ALL(IPB,IOBS) = COLUMN%ALL(IPB,IOBS) + ZWB*ZRES
-            COLUMN%ALL(IPT,IOBS) = COLUMN%ALL(IPT,IOBS) + ZWT*ZRES
-            COLUMN%PS(1,IOBS)    = COLUMN%PS(1,IOBS)    +         &
-                 (columng%all(IPB,IOBS) - columng%all(IPT,IOBS))  &
+            LCOLUMN%ALL(IPB,IOBS) = LCOLUMN%ALL(IPB,IOBS) + ZWB*ZRES
+            LCOLUMN%ALL(IPT,IOBS) = LCOLUMN%ALL(IPT,IOBS) + ZWT*ZRES
+            LCOLUMN%PS(1,IOBS)    = LCOLUMN%PS(1,IOBS)    +         &
+                 (lcolumng%all(IPB,IOBS) - lcolumng%all(IPT,IOBS))  &
                  *ZDADPS*ZRES
-            if(abs(column%all(ipb,iobs)).gt.zmax) zmax = abs(column%all(ipb,iobs))
-            zmean=zmean+column%all(ipb,iobs)/dble(obs_num_obstotal(obsSpaceData))
+            if(abs(lcolumn%all(ipb,iobs)).gt.zmax) zmax = abs(lcolumn%all(ipb,iobs))
+            zmean=zmean+lcolumn%all(ipb,iobs)/dble(obs_num_obstotal(lobsSpaceData))
           elseif (lmaskpp_out(jdata)) THEN
-            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
-            ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
-            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-            IDBURP = MOD(obs_elem_i(obsSpaceData,'ITY ',IOBS),1000)
+            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
+            ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+            ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+            IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
-!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !c
 !c-------------adjoint of TL of geopotential extrapolation below
 !c orography
 !c
-            zcon = (zlev/columng%ps(1,iobs))**zexp
+            zcon = (zlev/lcolumng%ps(1,iobs))**zexp
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = OLTV(1,NFLEV,IOBS)*columng%tt(NFLEV,IOBS)
-            column%ps(1,iobs)    = column%ps(1,iobs)  &
-                 + RGASD*ZTVG*zcon*zres/columng%ps(1,iobs)
-            column%tt(nflev,iobs) = column%tt(nflev,iobs)  &
+            ZTVG = OLTV(1,NFLEV,IOBS)*lcolumng%tt(NFLEV,IOBS)
+            lcolumn%ps(1,iobs)    = lcolumn%ps(1,iobs)  &
+                 + RGASD*ZTVG*zcon*zres/lcolumng%ps(1,iobs)
+            lcolumn%tt(nflev,iobs) = lcolumn%tt(nflev,iobs)  &
                  + OLTV(1,NFLEV,IOBS)*ZATV
-            column%hu(nflev,iobs) = column%hu(nflev,iobs)  &
+            lcolumn%hu(nflev,iobs) = lcolumn%hu(nflev,iobs)  &
                  + OLTV(2,NFLEV,IOBS)*ZATV
-            if(abs(column%tt(nflev,iobs)).gt.zmax2) zmax2 = abs(column%tt(nflev,iobs))
-            zmean2=zmean2+column%tt(nflev,iobs)/dble(obs_num_obstotal(obsSpaceData))
+            if(abs(lcolumn%tt(nflev,iobs)).gt.zmax2) zmax2 = abs(lcolumn%tt(nflev,iobs))
+            zmean2=zmean2+lcolumn%tt(nflev,iobs)/dble(obs_num_obstotal(lobsSpaceData))
           ENDIF
         END DO
       END DO
@@ -185,8 +188,6 @@ subroutine oda_HT
 
       SUBROUTINE oda_HTsf
       use modmask, only : lmasksf_in,lmasksf_out
-      use obsSpaceData_mod
-      use columnData_mod 
       use bufr
 !*
 !***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
@@ -230,69 +231,69 @@ subroutine oda_HT
 !C
       DO J=1,ISTRIDE
 !*vdir nodep
-        DO JDATA=j,obs_num_obstotal(obsSpaceData),ISTRIDE
+        DO JDATA=j,obs_num_obstotal(lobsSpaceData),ISTRIDE
           IF (lmasksf_in(jdata)) THEN
-            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
-            ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
-            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
+            ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+            IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
+            ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             ZHHH = ZLEV * GRAV
             IPT  = NFLEV-1 + IPOS*NFLEV
             IPB  = IPT+1
-            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+            ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
-              COLUMN%ALL(IPB,IOBS)    = COLUMN%ALL(IPB,IOBS) + ZRES
+              LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
-              ZTVG  = OLTV(1,NFLEV,IOBS)*columng%tt(NFLEV,IOBS)
-              ZGAMAZ= ZGAMMA*(ZHHH-columng%gz(NFLEV,IOBS))
+              ZTVG  = OLTV(1,NFLEV,IOBS)*lcolumng%tt(NFLEV,IOBS)
+              ZGAMAZ= ZGAMMA*(ZHHH-lcolumng%gz(NFLEV,IOBS))
               ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
-              ZDELTV= (columng%ps(1,IOBS)*ZEXP*ZCON**(ZEXP-1))  &
+              ZDELTV= (lcolumng%ps(1,IOBS)*ZEXP*ZCON**(ZEXP-1))  &
                    *(ZGAMAZ/(ZTVG*ZTVG))
               ZDELPS= ZCON**ZEXP
               ZATV  = ZDELTV*ZRES
-              COLUMN%PS(1,IOBS)    = COLUMN%PS(1,IOBS)  &
+              LCOLUMN%PS(1,IOBS)    = LCOLUMN%PS(1,IOBS)  &
                    + ZDELPS*ZRES
-              column%tt(nflev,iobs) = column%tt(nflev,iobs)  &
+              lcolumn%tt(nflev,iobs) = lcolumn%tt(nflev,iobs)  &
                    + OLTV(1,NFLEV,IOBS)*ZATV
-              column%hu(nflev,iobs)= column%hu(nflev,iobs)   &
+              lcolumn%hu(nflev,iobs)= lcolumn%hu(nflev,iobs)   &
                    + OLTV(2,NFLEV,IOBS)*ZATV
             ELSE
               IPT  = IK + IPOS*NFLEV
               IPB  = IPT+1
-              ZPT  = columng%gz(IK,IOBS)
-              ZPB  = columng%gz(IK+1,IOBS)
+              ZPT  = lcolumng%gz(IK,IOBS)
+              ZPB  = lcolumng%gz(IK+1,IOBS)
               ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
               ZWT  = 1. - ZWB
 !ccc ATTN ATTN ZDADPS EST A DEFINIR POUR UNE COORDONNEE Z
               ZDADPS= 0.
-              COLUMN%ALL(IPB,IOBS) = COLUMN%ALL(IPB,IOBS) + ZWB*ZRES
-              COLUMN%ALL(IPT,IOBS) = COLUMN%ALL(IPT,IOBS) + ZWT*ZRES
-              COLUMN%PS(1,IOBS)    = COLUMN%PS(1,IOBS)    +         &
-                   (columng%all(IPB,IOBS) - columng%all(IPT,IOBS))  &
+              LCOLUMN%ALL(IPB,IOBS) = LCOLUMN%ALL(IPB,IOBS) + ZWB*ZRES
+              LCOLUMN%ALL(IPT,IOBS) = LCOLUMN%ALL(IPT,IOBS) + ZWT*ZRES
+              LCOLUMN%PS(1,IOBS)    = LCOLUMN%PS(1,IOBS)    +         &
+                   (lcolumng%all(IPB,IOBS) - lcolumng%all(IPT,IOBS))  &
                    *ZDADPS*ZRES
             ENDIF
             
           elseif(lmasksf_out(jdata)) then
-            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+            ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
 !C
 !c  adjoint of TL of geopotential extrapolation below orography
 !c
-            zcon = (zlev/columng%ps(1,iobs))**zexpgz
+            zcon = (zlev/lcolumng%ps(1,iobs))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = OLTV(1,NFLEV,IOBS)*columng%tt(NFLEV,IOBS)
-!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
-            column%ps(1,iobs)    = column%ps(1,iobs)     &
-                 + RGASD*ZTVG*zcon*zres/columng%ps(1,iobs)
-            column%tt(nflev,iobs) = column%tt(nflev,iobs)  &
+            ZTVG = OLTV(1,NFLEV,IOBS)*lcolumng%tt(NFLEV,IOBS)
+!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
+            lcolumn%ps(1,iobs)    = lcolumn%ps(1,iobs)     &
+                 + RGASD*ZTVG*zcon*zres/lcolumng%ps(1,iobs)
+            lcolumn%tt(nflev,iobs) = lcolumn%tt(nflev,iobs)  &
                  + OLTV(1,NFLEV,IOBS)*ZATV
-            column%hu(nflev,iobs) = column%hu(nflev,iobs)  &
+            lcolumn%hu(nflev,iobs) = lcolumn%hu(nflev,iobs)  &
                  + OLTV(2,NFLEV,IOBS)*ZATV                
           endif
         END DO
@@ -318,20 +319,20 @@ subroutine oda_HTto
 !     1.   Getting the adjoint of the residuals
 !     .    ----------------------------------
 !
-  call oda_get_radiance_ad
+  call oda_get_radiance_ad(lobsSpaceData)
 
 !     2.   Adjoint of computing radiance
 !     .    -----------------------------
 !
-  call tovs_rttov_ad
+  call tovs_rttov_ad(lobsSpaceData)
 
 
 !     3.   Adjoint of preparation of atmospheric profiles
 !     .    ----------------------------------------------
 !
 
-  call tovs_fill_profiles_ad(column%uu,column%vv,column%tt,column%hu,column%ps,column%tg, &
-                             columng%rppobs,columng%nkgdimo,nflev)
+  call tovs_fill_profiles_ad(lcolumn%uu,lcolumn%vv,lcolumn%tt,lcolumn%hu,lcolumn%ps,lcolumn%tg, &
+                             lcolumng%rppobs,lcolumng%nkgdimo,nflev,lcolumng)
 
 end subroutine oda_HTto
 
@@ -407,8 +408,8 @@ end subroutine oda_HTto
         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
           IBEGIN   = NBEGINTYP(JF)
           ILAST    = NENDTYP  (JF)
-          IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
 !C
 !C     *     Loop over all observations of the file
 !C
@@ -424,20 +425,20 @@ end subroutine oda_HTto
 !C
 !C     *        Process only refractivity observations (codtyp 169)
 !C
-            IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
             IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C     *           Loops over data in the observation
 !C
-              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+              IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
               ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them
 !C
               NH = 0
               DO JDATA= IDATA, IDATEND
-                LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 )
                 IF ( LUSE ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
@@ -451,20 +452,20 @@ end subroutine oda_HTto
 !C
 !C     *              Profile at the observation location:
 !C
-                Lat  = obs_elem_r4(obsSpaceData,'LAT ',JO)
-                Lon  = obs_elem_r4(obsSpaceData,'LON ',JO)
-                ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
-                ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
+                Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
+                Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
+                ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
+                ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
                 DO JL = 1, NFLEV
 !C
 !C     *                 Profile x_b
 !C
-                  BTT(JL) = columng%tt(JL,JO) - 273.15
-                  BHU(JL) = columng%hu(JL,JO)
-                  BGZ(JL) = columng%gz(JL,JO)
+                  BTT(JL) = lcolumng%tt(JL,JO) - 273.15
+                  BHU(JL) = lcolumng%hu(JL,JO)
+                  BGZ(JL) = lcolumng%gz(JL,JO)
                 ENDDO
-                BP0 = columng%ps(1,JO)
-                BPT = COLUMNG%RPPOBS(1,JO)
+                BP0 = lcolumng%ps(1,JO)
+                BPT = LCOLUMNG%RPPOBS(1,JO)
                 BMT = BGZ(NFLEV)/RG
                 BMT = gpsgeopotential(Lat, BMT)/RG
                 BPR = rprefinc
@@ -482,10 +483,10 @@ end subroutine oda_HTto
                 ALLOCATE( RSTV (NH) )
                 NH1 = 0
                 DO JDATA= IDATA, IDATEND
-                  LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                  LUSE=( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 )
                   IF ( LUSE ) THEN
                     NH1 = NH1 + 1
-                    HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                    HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                     H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                   ENDIF
                 ENDDO
@@ -498,7 +499,7 @@ end subroutine oda_HTto
 !C
                 NH1 = 0
                 DO JDATA= IDATA, IDATEND
-                  LUSE=( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 )
+                  LUSE=( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 )
                   IF ( LUSE ) THEN
                     NH1 = NH1 + 1
 !C
@@ -508,7 +509,7 @@ end subroutine oda_HTto
 !C
 !C     *                    Observation increment Y'=Y-H(x)
 !C
-                    ZOBI = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                    ZOBI = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
 !C
 !C     *                    Observation value    Y
 !C
@@ -520,9 +521,9 @@ end subroutine oda_HTto
 !C
 !C     *                    Normalized increment
 !C
-                    ZINC = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-!c                    call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
-!c     &                   * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+                    ZINC = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+!c                    call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
+!c     &                   * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
 !C                          O-F Tested criteria:
 !C
@@ -543,10 +544,10 @@ end subroutine oda_HTto
 !C     *        Store H* (HX - Z)/SIGMA in COMMVO
 !C
             DO JL = 1, NFLEV
-              COLUMN%TT(JL,JO) = DPJO0(JL)
-              COLUMN%HU(JL,JO) = DPJO0(JL+NFLEV)
+              LCOLUMN%TT(JL,JO) = DPJO0(JL)
+              LCOLUMN%HU(JL,JO) = DPJO0(JL+NFLEV)
             ENDDO
-            COLUMN%PS  ( 1,JO) = DPJO0(1+2*NFLEV)
+            LCOLUMN%PS  ( 1,JO) = DPJO0(1+2*NFLEV)
           ENDDO
 !$omp end parallel do
         ENDIF
@@ -582,32 +583,32 @@ end subroutine oda_HTto
 !C
       DO J=1,ISTRIDE
 !*vdir nodep
-        DO JDATA=J, obs_num_obstotal(obsSpaceData),ISTRIDE
+        DO JDATA=J, obs_num_obstotal(lobsSpaceData),ISTRIDE
           IF (lmaskzp(jdata) ) THEN
-            IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-            IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
-            ZRES = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-            ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-            IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+            IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
+            ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+            ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+            IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
-            ZPT  = columng%gz(IK,IOBS)/RG
-            ZPB  = columng%gz(IK+1,IOBS)/RG
+            ZPT  = lcolumng%gz(IK,IOBS)/RG
+            ZPB  = lcolumng%gz(IK+1,IOBS)/RG
             ZDENO= ZPT-ZPB
             ZWB  = (ZPT-ZLEV)/ZDENO
             ZWT  = 1.0D0 - ZWB
 
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
-!c            call obs_set_r8(obsSpaceData,'OMN ',JDATA, obs_elem_r8(obsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
+!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
-            COLUMN%GZ(IK+1,IOBS) = COLUMN%GZ(IK+1,IOBS) +    &
-                 (columng%all(IPB,IOBS)-columng%all(IPT,IOBS))*ZDA2*ZRES/RG
-            COLUMN%GZ(IK,IOBS) = COLUMN%GZ(IK,IOBS) +        &
-                 (columng%all(IPB,IOBS)-columng%all(IPT,IOBS))*ZDA1*ZRES/RG
-            COLUMN%ALL(IPB,IOBS) = COLUMN%ALL(IPB,IOBS) + ZWB*ZRES
-            COLUMN%ALL(IPT,IOBS) = COLUMN%ALL(IPT,IOBS) + ZWT*ZRES
+            LCOLUMN%GZ(IK+1,IOBS) = LCOLUMN%GZ(IK+1,IOBS) +    &
+                 (lcolumng%all(IPB,IOBS)-lcolumng%all(IPT,IOBS))*ZDA2*ZRES/RG
+            LCOLUMN%GZ(IK,IOBS) = LCOLUMN%GZ(IK,IOBS) +        &
+                 (lcolumng%all(IPB,IOBS)-lcolumng%all(IPT,IOBS))*ZDA1*ZRES/RG
+            LCOLUMN%ALL(IPB,IOBS) = LCOLUMN%ALL(IPB,IOBS) + ZWB*ZRES
+            LCOLUMN%ALL(IPT,IOBS) = LCOLUMN%ALL(IPT,IOBS) + ZWT*ZRES
 
           ENDIF
         END DO
@@ -683,8 +684,8 @@ end subroutine oda_HTto
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
 !C
 !C     *     Loop over all GPS observations (locations) of the file
 !C
@@ -695,8 +696,8 @@ end subroutine oda_HTto
 !C
 !C             Loop over data in the observations
 !C
-              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+              IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
 !C
 !C             Scan for requested ZTD assimilation
 !C
@@ -716,18 +717,18 @@ end subroutine oda_HTto
 !C
 !C     *       LR background profile:
 !C
-                 ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
-                 ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
+                 ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
+                 ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
                  DO JL = 1, NFLEV
-                   ZTTB(JL) = columng%tt(JL,JO)
+                   ZTTB(JL) = lcolumng%tt(JL,JO)
                    ZTT(JL)  = 0.0
-                   ZHUB(JL) = EXP(columng%hu(JL,JO))
+                   ZHUB(JL) = EXP(lcolumng%hu(JL,JO))
                    ZHU(JL)  = 0.0
-                   ZGZ(JL)  = columng%gz(JL,JO)
+                   ZGZ(JL)  = lcolumng%gz(JL,JO)
                  ENDDO
-                 ZP0B = columng%ps(1,JO)
+                 ZP0B = lcolumng%ps(1,JO)
                  ZP0  = 0.0
-                 ZPT  = COLUMNG%RPPOBS(1,JO)
+                 ZPT  = LCOLUMNG%RPPOBS(1,JO)
                  ZMT  = ZGZ(NFLEV)/GRAV
 !C
 !C     *       Apply AD of ZTD observation operator to get 
@@ -737,12 +738,12 @@ end subroutine oda_HTto
                  DO JDATA= IDATA, IDATEND
                     IF ( lmaskgp(JDATA) ) THEN
                        NH1 = NH1 + 1
-!C                      call obs_set_r8(obsSpaceData,'OMI ',JDATA, grad(Jo) 
+!C                      call obs_set_r8(lobsSpaceData,'OMI ',JDATA, grad(Jo) 
 !c                                             = (H'dx - d)/sigma_o^2)
-                       ZHX = obs_elem_r8(obsSpaceData,'OMI ',JDATA)
+                       ZHX = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
 
 !C     *                Observation height (m)
-                       ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                       ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
 !C     *                Call GP-ZTD adjoint operator: input = ZHX,
 !c                        output = ZTT,ZHU,ZP0
                        CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,   &
@@ -760,10 +761,10 @@ end subroutine oda_HTto
 !C      *   Store Ht*grad(Jo) in COMMVO
 !c
               DO JL = 1, NFLEV
-                 COLUMN%TT(JL,JO) = DZTT(JL)
-                 COLUMN%HU(JL,JO) = DZHU(JL)
+                 LCOLUMN%TT(JL,JO) = DZTT(JL)
+                 LCOLUMN%HU(JL,JO) = DZHU(JL)
               ENDDO
-              COLUMN%PS(1,JO) = DZP0
+              LCOLUMN%PS(1,JO) = DZP0
 
             ENDDO
 

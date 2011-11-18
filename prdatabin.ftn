@@ -14,21 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine prdatabin
-      use MathPhysConstants_mod
+      subroutine prdatabin(lobsSpaceData)
+!      use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use modmask, only : lmask,ldiag,lmaskto
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comgdpar.cdk"
 #include "cvcord.cdk"
-#include "comfilt.cdk"
-#include "comct0.cdk"
-#include "comvfiles.cdk"
-
+c
+      type(struct_obs) :: lobsSpaceData
       integer :: jstep,jobs,jfile,jdata,ibeginobs,ilastobs,iobs,idatabeg
       integer :: idatend
       integer, allocatable, dimension(:,:) :: idataass
@@ -39,16 +35,16 @@
       do jstep = 1,nstepobs
         do jobs = 1, nobs(jstep)
           iobs = notag(jobs,jstep)
-          idatabeg   = obs_elem_i(obsSpaceData,'RLN ',iobs)
-          idatend = obs_elem_i(obsSpaceData,'NLV ',iobs) + idatabeg - 1
+          idatabeg   = obs_elem_i(lobsSpaceData,'RLN ',iobs)
+          idatend = obs_elem_i(lobsSpaceData,'NLV ',iobs) + idatabeg - 1
           
           do jfile = 1, nfiles
             if(nbegintyp(jfile) .gt. 0) then
-              ibeginobs = obs_elem_i(obsSpaceData,'OBS ',nbegintyp(jfile))
-              ilastobs=obs_elem_i(obsSpaceData,'OBS ',nendtyp(jfile))
+              ibeginobs = obs_elem_i(lobsSpaceData,'OBS ',nbegintyp(jfile))
+              ilastobs=obs_elem_i(lobsSpaceData,'OBS ',nendtyp(jfile))
               if(iobs.ge.ibeginobs .and. iobs .le. ilastobs) then
                 do jdata = idatabeg, idatend
-                  if ( obs_elem_i(obsSpaceData,'ASS ',jdata) .eq. 1) then
+                  if ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .eq. 1) then
                     idataass(jfile,jstep) = idataass(jfile,jstep) + 1
                     idataass(jfile,nstepobs+1) = idataass(jfile,nstepobs
      &                   +1) + 1

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DOBSGPSGB(PJO)
+      SUBROUTINE DOBSGPSGB(PJO,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r DOBSGPSGB - Computation of Jo and the residuals to the GPSGB observations
@@ -33,7 +33,7 @@
 *           (was not printing anything)
 *
 * Note: JPNFLEV=100 = maximum number of levels (set in pardim.cdk) 
-*       COLUMNHR%NLEV = actual number of background levels (HR)
+*       LCOLUMNHR%NLEV = actual number of background levels (HR)
 *       NFLEV   = number of LR analysis levels (set in namelist) 
 
 #endif
@@ -43,26 +43,21 @@
       use bufr
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
-#include "comdim.cdk"
-#include "comgem.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comct0.cdk"
- 
- 
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 *
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
       REAL*8 PJO
 C
       REAL*8 ZTODEG
       REAL*8 ZLAT
       REAL*8 ZLON
-      REAL*8 ZETA(COLUMNHR%NLEV)
-      REAL*8 ZTT (COLUMNHR%NLEV)
-      REAL*8 ZHU (COLUMNHR%NLEV)
-      REAL*8 ZGZ (COLUMNHR%NLEV)
+      REAL*8 ZETA(LCOLUMNHR%NLEV)
+      REAL*8 ZTT (LCOLUMNHR%NLEV)
+      REAL*8 ZHU (LCOLUMNHR%NLEV)
+      REAL*8 ZGZ (LCOLUMNHR%NLEV)
       REAL*8 ZP0
       REAL*8 ZPT
       REAL*8 ZMT
@@ -90,8 +85,8 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C      
-      DO JL = 1, columnhr%nlev
-         ZETA(JL) = columnhr%vlev(JL)
+      DO JL = 1, lcolumnhr%nlev
+         ZETA(JL) = lcolumnhr%vlev(JL)
       ENDDO
 C
 C     Loop over all observation files (all observation types)
@@ -109,8 +104,8 @@ C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all GPS observations (locations) of the file
 C
@@ -118,13 +113,13 @@ C
 C     
 C     *    .   Process only zenith delay data (codtyp 189)
 C
-               IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
                IF ( IDATYP .EQ. 189 ) THEN
 C
 C                 Loops over data in the observations
 C
-                  IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                   ASSIM = .FALSE.
 C
 C                 Scan for requested assimilations, and count them.
@@ -132,11 +127,11 @@ C                 Get station height ZLEV
 C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                     ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                      LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
-     &                      (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) )
+     &                      (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
                      IF ( LLOK ) THEN
-                        ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                        ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -148,16 +143,16 @@ C
 C     
 C     *              Profile at the observation location x :
 C
-                     ZLAT = obs_elem_r4(obsSpaceData,'LAT ',JO) * ZTODEG
-                     ZLON = obs_elem_r4(obsSpaceData,'LON ',JO) * ZTODEG
-                     DO JL = 1, COLUMNHR%NLEV
-                        ZTT(JL) =     columnhr%tt(JL,JO)
-                        ZHU(JL) = EXP(columnhr%hu(JL,JO))
-                        ZGZ(JL) = columnhr%gz(JL,JO)
+                     ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
+                     ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
+                     DO JL = 1, LCOLUMNHR%NLEV
+                        ZTT(JL) =     lcolumnhr%tt(JL,JO)
+                        ZHU(JL) = EXP(lcolumnhr%hu(JL,JO))
+                        ZGZ(JL) = lcolumnhr%gz(JL,JO)
                      ENDDO
-                     ZP0 =  columnhr%ps(1,JO)
-                     ZPT = COLUMNHR%RPPOBS(1,JO)
-                     ZMT = ZGZ(COLUMNHR%NLEV)/GRAV
+                     ZP0 =  lcolumnhr%ps(1,JO)
+                     ZPT = LCOLUMNHR%RPPOBS(1,JO)
+                     ZMT = ZGZ(LCOLUMNHR%NLEV)/GRAV
 C
 C     *        Apply the ZTD observation operator ZHX = H(x)
 C 
@@ -165,33 +160,33 @@ C
                      ZHX = 0.0
                      ZDZ = ZLEV - ZMT
                      CALL GPSZTDOP(ZLAT,ZLON,ZLEV,ZETA,ZTT,ZHU,ZP0,ZPT,
-     +                    ZMT,ZGZ,ZHX)
+     +                    ZMT,ZGZ,ZHX,LCOLUMNHR)
 C
 C     *              Perform the (H(x)-Y)/SDERR operation
 C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-                        IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND. 
+                        ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND. 
      +                     ITYP .EQ. BUFR_NEZD ) THEN
                            NH1 = NH1 + 1
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
 C
 C     *                    Observation error    SDERR
 C
-                           ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
+                           ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
 C
 C     *                    Observation height (m)
 C
-                           ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
 C
 C     *                    Normalized increment
 C
                            ZINC = (ZHX - ZOBS) / ZOER
-                           call obs_set_r8(obsSpaceData,'OMA ',JDATA, ZINC)
+                           call obs_set_r8(lobsSpaceData,'OMA ',JDATA, ZINC)
 C
 C     *                    Contribution to the cost function
 C
@@ -199,17 +194,17 @@ C
 C     
 C     *                    Print data for first observation or single site
                          IF (L1GPSOBS) THEN
-                           IF (obs_elem_c9(obsSpaceData,'STID',JO) .EQ. CGPSSTN) THEN
+                           IF (obs_elem_c9(lobsSpaceData,'STID',JO) .EQ. CGPSSTN) THEN
                              WRITE(NULOUT,
      +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',obs_elem_c9(obsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
+     +                    'DOBSGPSGB: ',obs_elem_c9(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
      +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
                            ENDIF
                          ELSE
                            IF (JO .EQ. IBEGINOB .AND. NH1 .EQ. 1) THEN
                              WRITE(NULOUT,
      +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',obs_elem_c9(obsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
+     +                    'DOBSGPSGB: ',obs_elem_c9(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
      +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
                            ENDIF
                          ENDIF

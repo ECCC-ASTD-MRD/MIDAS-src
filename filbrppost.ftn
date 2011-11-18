@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE FILBRPPOST
+      SUBROUTINE FILBRPPOST(lcolumng,lobsSpaceData)
 #if defined (DOC)
 **s/r filbrppost
 *
@@ -69,6 +69,8 @@
 #include "comtov.cdk"
 #include "comct0.cdk"
 *
+      type(struct_columnData) :: lcolumng
+      type(struct_obs) :: lobsSpaceData
       INTEGER IER,INRECS,IBRP1
       INTEGER INBLKS,IOBTOT,IDATA
       INTEGER FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
@@ -92,8 +94,8 @@
 *
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
-      CALL obs_expandToMpiGlobal(obsSpaceData, nulout, nobtot, nobtotp)
-      CALL col_expandToMpiGlobal(nulout, nobtot, nobtotp)
+      CALL obs_expandToMpiGlobal(lobsSpaceData, nulout, nobtot, nobtotp)
+      CALL col_expandToMpiGlobal(lcolumng,nulout, nobtot, nobtotp)
       DEALLOCATE(locObsTag)
       IF(mpi_myid /= 0) RETURN 
 * 
@@ -180,7 +182,8 @@ C
 *             FILL UP POST FILE
 *             -----------------
 *==========================================================================
-               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,CSAV,NELCMA)
+               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,CSAV,NELCMA,
+     +                      lcolumng,lobsSpaceData)
 *==========================================================================
 *
                IER=MRFCLS(IBRP1)

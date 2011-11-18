@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
- &                       prppobs,knkgdimo,knlev)
+ &                       prppobs,knkgdimo,knlev,lobsSpaceData)
 #if defined (doc)
 !
 !**s/r tovs_fill_profiles  - interpolation of obs. space to 43-level rttov space
@@ -58,6 +58,7 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 #include "comtov.cdk"
 #include "comtovst.cdk"
 
+  type(struct_obs) :: lobsSpaceData
   real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
 
   integer, allocatable :: ksurf     (:) 
@@ -192,7 +193,7 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 !     1.2   Read ozone climatology
 !     .     ----------------------
 
-  call readozoneclim 
+  call readozoneclim(lobsSpaceData)
 
 !
 !     2.  Fill profiles structure
@@ -209,7 +210,7 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
      knpf = knpf + 1
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
 
-     ilansea = obs_elem_i(obsSpaceData,'OFL ',jo)
+     ilansea = obs_elem_i(lobsSpaceData,'OFL ',jo)
      indxm = ilansea
      if (indxm .eq. 2 ) indxm = 0
      indxreg = isrcheq ( mlisreg, nregst, indxm )
@@ -218,12 +219,12 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
 !    extract satellite zenith and azimuth angle, 
 !    sun zenith angle, cloud fraction, latitude and longitude
 
-     isatzen(knpf) = obs_elem_i(obsSpaceData,'BOX ',jo)/10000
-     isatazim(knpf) = obs_elem_i(obsSpaceData,'AZA ',jo)
-     isunza(knpf) = obs_elem_i(obsSpaceData,'SUN ',jo)
-     iclfr(knpf) = obs_elem_i(obsSpaceData,'CLF ',jo)
-     zlat(knpf) = obs_elem_r4(obsSpaceData,'LAT ',jo) * ztodeg
-     zlon(knpf) = obs_elem_r4(obsSpaceData,'LON ',jo) * ztodeg
+     isatzen(knpf) = obs_elem_i(lobsSpaceData,'BOX ',jo)/10000
+     isatazim(knpf) = obs_elem_i(lobsSpaceData,'AZA ',jo)
+     isunza(knpf) = obs_elem_i(lobsSpaceData,'SUN ',jo)
+     iclfr(knpf) = obs_elem_i(lobsSpaceData,'CLF ',jo)
+     zlat(knpf) = obs_elem_r4(lobsSpaceData,'LAT ',jo) * ztodeg
+     zlon(knpf) = obs_elem_r4(lobsSpaceData,'LON ',jo) * ztodeg
 
      do jl = 1, knlev
         zt   (jl,knpf) = pgomt(jl,jo)
@@ -313,7 +314,7 @@ subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
      toto3obs(:) = 0.
 
      call new_ozone (ozo, fozo,totozo,toto3obs,zlat,  &
-  &                       xpres,jplev,po3,nlato3,nlevo3,knpf)
+  &                       xpres,jplev,po3,nlato3,nlevo3,knpf,lobsSpaceData)
 
      deallocate ( toto3obs )
 

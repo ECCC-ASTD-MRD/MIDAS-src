@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DOBSZZZ(PJO,CDFAM)
+      SUBROUTINE DOBSZZZ(PJO,CDFAM,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r DOBSZZZ  - Computation of Jo and the residuals to the observations
@@ -51,10 +51,10 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-
- 
 #include "cvcord.cdk"
 *
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,ITY,IDBURP
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
       INTEGER J,JDATA
@@ -86,20 +86,20 @@ C
 C     Process all data within the domain of the model
 C
             DO JDATA=IBEGIN,ILAST
-               LLOK=(obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1)
-     &              .AND. (obs_elem_i(obsSpaceData,'XTR ',JDATA) .EQ. 0)
-     &              .AND. (obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1)
+               LLOK=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)
+     &              .AND. (obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 0)
+     &              .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1)
                IF ( LLOK ) THEN
-                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  IPOS = obs_elem_i(obsSpaceData,'POS ',JDATA)
-                  ZVAR = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
-                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-                  IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
-                  IPT = IK + IPOS*COLUMNHR%NLEV
+                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+                  IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
+                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
+                  IPT = IK + IPOS*LCOLUMNHR%NLEV
                   IPB = IPT+1
-                  ZPT  = columnhr%gz(IK,IOBS)/RG
-                  ZPB  = columnhr%gz(IK+1,IOBS)/RG
+                  ZPT  = lcolumnhr%gz(IK,IOBS)/RG
+                  ZPB  = lcolumnhr%gz(IK+1,IOBS)/RG
                   ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                   ZWT  = 1. - ZWB
 C
@@ -107,27 +107,27 @@ C     CONTRIBUTION TO Jo
 C
 c***************************************************************
 c                  IF (LLPRINT .AND. CSTNID(IOBS).EQ.'74647') THEN
-c                     zcon= ZWB*columnhr%all(IPB,IOBS) + ZWT*
-c     &                    columnhr%all(IPT,IOBS)-ZVAR
+c                     zcon= ZWB*lcolumnhr%all(IPB,IOBS) + ZWT*
+c     &                    lcolumnhr%all(IPT,IOBS)-ZVAR
 c                     write(nulout,*)'dobszzz:jdata,IOBS,stn,ipb,ipt',
 c     &                    ',ZPB,ZPT,ZWB,ZWT,ZVAR=',jdata,IOBS
 c     &                     ,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
 c                     write(nulout,*)'dobszzz: ityp,ik,',
 c     &                    ',ZLEV= ',MOBDATA(NCM_VNM,JDATA),ik,ZLEV
-c                     write(nulout,*)'dobszzz: columnhr%all(IPB,IOBS),
-c     &               columnhr%all(IPT,IOBS)= ',columnhr%all(IPB,IOBS),
-c     &               columnhr%all(IPT,IOBS)
+c                     write(nulout,*)'dobszzz: lcolumnhr%all(IPB,IOBS),
+c     &               lcolumnhr%all(IPT,IOBS)= ',lcolumnhr%all(IPB,IOBS),
+c     &               lcolumnhr%all(IPT,IOBS)
 c                     write(nulout,*)'dobszzz: innovation, observation,
 c     &               std-dev-obs = ',zcon,ZVAR,ZOER
 c                  ENDIF
 c***************************************************************
 
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, 
-     +                  (ZWB*columnhr%all(IPB,IOBS)
-     +                 + ZWT*columnhr%all(IPT,IOBS)-ZVAR)/ZOER)
-                  DLSUM =DLSUM+obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-     +                 *obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-                  call obs_set_r8(obsSpaceData,'OMI ',JDATA,obs_elem_r8(obsSpaceData,'OMA ',JDATA))
+                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
+     +                  (ZWB*lcolumnhr%all(IPB,IOBS)
+     +                 + ZWT*lcolumnhr%all(IPT,IOBS)-ZVAR)/ZOER)
+                  DLSUM =DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
+     +                 *obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
+                  call obs_set_r8(lobsSpaceData,'OMI ',JDATA,obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
                ENDIF
 C
             END DO

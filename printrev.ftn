@@ -15,44 +15,21 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE PRINTREV(cdstring,klen)
-#if defined (DOC)
 *
 ***s/r PRINTREV  - Print revision message on stdout
 *
-*
 *Author  : S. Pellerin *ARMA/AES  April 7, 1998
-*Revision:
 *
-*    -------------------
-*Arguments
-*    -NONE-
-#endif
       IMPLICIT NONE
       integer klen
       character*(*) cdstring
-*implicits
-#include "comlun.cdk"
-#include "comrev.cdk"
-*
+      #include "revisionnumber.cdk"
 C
-      character*54 clblank
-      integer ilen
-c
-      DATA CLBLANK
-     &     /'                                                      '/
-c
-      if (klen .le. 52) then
-        ilen = nint((54. - klen)/2.)
-      else
-        ilen=1
-      endif
-c
-      WRITE(NULOUT,FMT=9000) clblank(1:ilen),cdstring(1:klen)
-     &     ,cprev(1:nrevlen)
+      WRITE(*,FMT=9000) cdstring(1:klen),crevision
  9000 FORMAT(/,3(" *****************"),/
-     S     ,a,a,/
+     S     ,a,/
      S     ,14x,"3D VARIATIONAL ASSIMILATION",/
-     S     ,14x,"-- Revised version ",a," --",/
+     S     ,14x,"-- Revision number ",a," --",/
      S     ,3(" *****************"))
 C
       RETURN

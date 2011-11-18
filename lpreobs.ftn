@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine lpreobs
+      subroutine lpreobs(lcolumn,lcolumng)
 #if defined (DOC)
 *
 ***s/r lpreobs  - Build increments of derived fields assimilated. TLM of preobs.
@@ -25,7 +25,7 @@
 *Revision: L. Fillion *ARMA/AES  25 nov 98
 *        - Option ES or LQ humidity analysis
 *Revision: C. Charette *ARMA/AES  09 dec 98
-*        - column%hu copied to column%es when humidity analysis variable is T-Td
+*        - lcolumn%hu copied to lcolumn%es when humidity analysis variable is T-Td
 *Revision: L. Fillion *ARMA/EC  5 Apr 2006
 *        - Validate Shallow-Water LAM 4dvar.
 *Revision: L. Fillion *ARMA/EC  14 Aug 2007 - Update to v_10_0_3.
@@ -40,22 +40,16 @@
  
       IMPLICIT NONE
 *implicits
-#include "comct0.cdk"
-#include "comdim.cdk"
 #include "comcva.cdk"
-#include "comdimo.cdk"
-
-#include "comstate.cdk"
-*modules
 *
-**
+      type(struct_columnData) :: lcolumn,lcolumng
       INTEGER JLEV,JOBS
 C
 C*1   Geopotential increments from Temperature increments
 C     ---------------------------------------------------
 C
  100  CONTINUE
-      if(NMVOEXIST(NOGZ).eq.1) call ltt2phi
+      if(NMVOEXIST(NOGZ).eq.1) call ltt2phi(lcolumn,lcolumng)
 C
 C*2   Analysis increments of humidity variable
 C     ----------------------------------------------------------------
@@ -66,7 +60,7 @@ C     Analysis increments of ln(specific humidity) to increments of (T-Td)
 C     when analysis variable is lnq
 C
       if(chum.eq.'LQ') then
-        call lmhu2es
+        call lmhu2es(lcolumn)
       endif
 C
       RETURN

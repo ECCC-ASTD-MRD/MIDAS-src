@@ -29,9 +29,7 @@
 *     .           -Allocation of surface pressure is triggered by setting
 *     .            NVSP2D = 1.
 *     .           -SUALLO has also been rearranged by grouping similar states
-*     .            together (e.g., COMSP, COMSP1, COMSPG)
-*     P. Gauthier *ARMA/AES September 28, 1993
-*     .           -Allocation of RDEVSTD in COMSPG
+*     .            together (e.g., COMSP)
 *     C. Charette *ARMA/AES January 1996
 *                 -Add 'compstat.cdk'.
 *                 -Allocation for prediction error statistics.
@@ -87,18 +85,13 @@ C
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comct0.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comgd0.cdk"
 #include "comgd1.cdk"
 #include "compdg.cdk"
-#include "comsp.cdk"
-#include "comsp1.cdk"
-#include "comspg.cdk"
 #include "comgem.cdk"
 #include "comstate.cdk"
-#include "comode.cdk"
 #include "comgdpar.cdk"
 *
       INTEGER KULOUT, ILEN, IERR, ILMU, ILENUT0, ILENSPV
@@ -116,27 +109,16 @@ C     .  ----------------------
 C
  200  CONTINUE
 C
-C     .     2.1 Main states (COMGD0, COMG1) and forecast error standard
-C     .         deviation in physical space (in COMSPG or comrgsigla)
+C     .     2.1 Main states (COMGD0, COMG1) 
 C     .         -------------------------------------------------------
 C
  210  CONTINUE
 C
       ILEN = (NI)*NKGDIM*(NJ)
       CALL HPALLOC(PTGD,MAX(ILEN,1),IERR,8)
-      IF(NCONF.NE.307) THEN
-         CALL HPALLOC(PTGD1,MAX(ILEN,1),IERR,8)
-       END IF
-cbue
-       ILEN=(NJ)*(NI)*NFLEV
-       CALL HPALLOC(PTTB0,MAX(ILEN,1),IERR,8)
-       CALL HPALLOC(PTTB1,MAX(ILEN,1),IERR,8)
-       ILEN = NLA*2*NFLEV
-       CALL HPALLOC(PTSPTB,MAX(ILEN,1),IERR,8)
-       ILEN = NI*NJ*NFLEV
-       CALL HPALLOC(PTTB_out,MAX(ILEN,1),IERR,8)
+      CALL HPALLOC(PTGD1,MAX(ILEN,1),IERR,8)
 C
-C     .     2.2 Splitting  of states (COMGD0, COMG1) and RSIG in COMSPG
+C     .     2.2 Splitting  of states (COMGD0, COMG1) 
 C     .         -------------------------------------------------------
 C
  220  CONTINUE
@@ -248,179 +230,15 @@ C
       WRITE(KULOUT,FMT='(''   GD :'',I10,10x
      S     ,'' (3D-fields):'',I10)')  ILEN,ILENUT0
 C
-      IF(NCONF.NE.307) THEN
-         WRITE(KULOUT,FMT='(/,''  Arrays in COMGD1 are allocated'',
+      WRITE(KULOUT,FMT='(/,''  Arrays in COMGD1 are allocated'',
      S        '' the following space:'')')
-         WRITE(KULOUT,FMT='(''   GD1:'',I10,10x
+      WRITE(KULOUT,FMT='(''   GD1:'',I10,10x
      S        ,'' (3D-fields ):'',I10)')  ILEN,ILENUT0
-      END IF
-C
-C     3.  Spectral model states
-C     .   ---------------------
-C
- 300  CONTINUE
-C
-C     .     3.1  Main state (COMSP, COMSP1, COMSPG)
-C     .          ---------------------------------
-C
- 310  CONTINUE
-      ILEN = NLA * 2 * NKGDIM
-      CALL HPALLOC(PTSP  ,MAX(ILEN,1),IERR,8)
-      IF(NCONF.NE.307) THEN
-         CALL HPALLOC(PTSP1 ,MAX(ILEN,1),IERR,8)
-         CALL HPALLOC(PTSPG ,MAX(ILEN,1),IERR,8)
-      END IF
-C
-C     .     3.2 Splitting  of states (COMSP, COMSP1, COMSPG)
-C     .         --------------------------------------------
-C
- 320  CONTINUE
-C
-C     2.2.1 Pointer initialisations
-C           -----------------------
-C
-      PTSVOR = -1
-      PTSVOR1 = -1
-      PTSVORG = -1
-C
-      PTSDIV = -1
-      PTSDIV1 = -1
-      PTSDIVG = -1
-C
-      PTSTT  = -1
-      PTSTT1  = -1
-      PTSTTG  = -1
-C
-      PTSPQ = -1
-      PTSPQ1 = -1
-      PTSPQG = -1
-C
-      PTSPGZ = -1
-      PTSPGZ1  = -1
-      PTGZG  = -1
-C
-      PTSPOZ = -1
-      PTSPOZ1  = -1
-      PTOZG  = -1
-C
-      PTSPTR = -1
-      PTSPTR1  = -1
-      PTTRG  = -1
-C
-      PTSPPS = -1
-      PTSPPS1 = -1
-      PTSPPSG = -1
-C
-      PTSPTG = -1
-      PTSPTG1 = -1
-      PTSPTGG = -1
-C
-      iloc = 1
-      do jvar = 1,jpnvarmax
-        if(jvar .eq. nguu) then
-          NGPOSIT(nguu)=iloc
-          if(NGEXIST(nguu).eq.1) then
-            PTSVOR   = LOC(SP(1,1,ILOC))
-            PTSVOR1 = LOC(SP1(1,1,ILOC))
-            PTSVORG = LOC(SPG(1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. ngvv) then
-          NGPOSIT(ngvv)=iloc
-          if(NGEXIST(ngvv).eq.1) then
-            PTSDIV  = LOC(SP (1,1,iloc))
-            PTSDIV1 = LOC(SP1(1,1,ILOC))
-            PTSDIVG = LOC(SPG(1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. nggz) then
-          NGPOSIT(nggz)=iloc
-          if(NGEXIST(nggz).eq.1) then
-            PTSPGZ  = LOC(SP  (1,1,iloc))
-            PTSPGZ1  = LOC(SP1  (1,1,ILOC))
-            PTGZG  = LOC(SPG  (1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. ngq) then
-          NGPOSIT(ngq)=iloc
-          if(NGEXIST(ngq).eq.1) then
-            PTSPQ  = LOC(SP  (1,1,iloc))
-            PTSPQ1 = LOC(SP1 (1,1,ILOC))
-            PTSPQG = LOC(SPG (1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. ngtt) then
-          NGPOSIT(ngtt)=iloc
-          if(NGEXIST(ngtt).eq.1) then
-            PTSTT   = LOC(SP (1,1,iloc))
-            PTSTT1  = LOC(SP1(1,1,ILOC))
-            PTSTTG  = LOC(SPG(1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. ngoz) then
-          NGPOSIT(ngoz)=iloc
-          if(NGEXIST(ngoz).eq.1) then
-            PTSPOZ  = LOC(SP  (1,1,iloc))
-            PTSPOZ1  = LOC(SP1  (1,1,ILOC))
-            PTOZG  = LOC(SPG  (1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. ngtr) then
-          NGPOSIT(ngtr)=iloc
-          if(NGEXIST(ngtr).eq.1) then
-            PTSPTR  = LOC(SP  (1,1,iloc))
-            PTSPTR1  = LOC(SP1  (1,1,ILOC))
-            PTTRG  = LOC(SPG  (1,1,ILOC))
-            iloc = iloc + nflev
-          end if
-        elseif(jvar .eq. ngps) then
-          NGPOSIT(ngps)=iloc
-          if(NGEXIST(ngps).eq.1) then
-            PTSPPS  = LOC(SP  (1,1,iloc))
-            PTSPPS1 = LOC( SP1(1,1,ILOC))
-            PTSPPSG = LOC( SPG(1,1,ILOC))
-            iloc = iloc + 1
-          end if
-        elseif(jvar .eq. ngtg) then
-          NGPOSIT(ngtg)=iloc
-          if(NGEXIST(ngtg).eq.1) then
-            PTSPTG  = LOC(SP  (1,1,iloc))
-            PTSPTG1 = LOC( SP1(1,1,ILOC))
-            PTSPTGG = LOC( SPG(1,1,ILOC))
-            iloc = iloc + 1
-          end if
-        endif
-      enddo
-C
-      ILENSPV = NLA * 2 * NFLEV
-      WRITE(KULOUT,FMT='(/,"  Arrays in COMSP are allocated",
-     S     " the following space:")')
-      WRITE(KULOUT,FMT='(8X,"   SP :",I6,10x
-     S     ," (3D-fields SPXXX):",I8)')  ILEN,ILENSPV
-C
-      IF(NCONF.NE.307) THEN
-         WRITE(KULOUT,FMT='(/,"  Arrays in COMSP1 are allocated",
-     S        " the following space:")')
-         WRITE(KULOUT,FMT='(8X,"   SP1 :",I6,10x
-     S        ," (3D-fields SPXXX1):",I8)')  ILEN,ILENSPV
-C
-         WRITE(KULOUT,FMT='(/,"  Arrays in COMSPG are allocated",
-     S        " the following space:")')
-         WRITE(KULOUT,FMT='(8X,"   SPG :",I6,10x
-     S        ," (3D-fields SPXXXG):",I8)')  ILEN,ILENSPV
-C
-      END IF
 C
 C*    4. Arrays needed to define the geometry of the model (in COMGEM)
 C     .  ------------------------------------------------------------
 C
  400  CONTINUE
-C
-      ILEN = NLA
-      CALL HPALLOC(PTNNP1, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PT1SNP1,MAX(ILEN,1),IERR,8)
-      WRITE(KULOUT,FMT='(8X," (RNNP1,R1SNP1)  =",I4)')ILEN
-C
 C
       ILEN = NJ
       CALL HPALLOC(PTCONPHY,MAX(ILEN,1),IERR,8)
@@ -431,33 +249,6 @@ C
 C
 C*    8. Arrays required for model coordinate analysis
 C     .  ---------------------------------------------
-C
- 800  CONTINUE
-      ILEN = NFLEV
-c
-c     arrays for T to P and P to T transforms
-c
-      CALL HPALLOC(PTVMA, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVMB, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVMC, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVMD, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVME, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVMF, MAX(ILEN,1),IERR,8)
-c
-c     arrays for mean T profile and Equivalent-depths
-c
-      ILEN = NFLEV
-      CALL HPALLOC(PTTMEANH, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTEQDEPTH, MAX(ILEN,1),IERR,8)
-c
-c     arrays for vertical mode transform
-c
-      ILEN = NFLEV*NFLEV
-      CALL HPALLOC(PTVMAT, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVINV, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTTVMAT, MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTTVINV, MAX(ILEN,1),IERR,8)
-C
 c
 c     arrays of background-related fields on background grid (compdg)
 c     N.B.: Doesnt assume global structure as GD0,GD1 for instance.   ! WARNING!!!!

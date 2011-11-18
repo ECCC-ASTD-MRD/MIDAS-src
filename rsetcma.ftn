@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE RSETCMA
+      SUBROUTINE RSETCMA(lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r RSETCMA  -
@@ -37,17 +37,18 @@
 *implicits
 #include "comdimo.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER JDATA,II,IASS,ITYP
 C
 C-------     READ H(X)-Z IN zprim.dat
 C
-      call obs_swapVarOmf(obsSpaceData)
-      do JDATA=1,obs_num_obstotal(obsSpaceData)
-         IASS   = obs_elem_i(obsSpaceData,'ASS ',JDATA)
-         ITYP   = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+      call obs_swapVarOmf(lobsSpaceData)
+      do JDATA=1,obs_num_obstotal(lobsSpaceData)
+         IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
+         ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
          IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN
-            call obs_set_r8(obsSpaceData,'OMF ',JDATA,-obs_elem_r8(obsSpaceData,'OMF ',JDATA)
-     S           /obs_elem_r8(obsSpaceData,'OER ',JDATA))
+            call obs_set_r8(lobsSpaceData,'OMF ',JDATA,-obs_elem_r8(lobsSpaceData,'OMF ',JDATA)
+     S           /obs_elem_r8(lobsSpaceData,'OER ',JDATA))
          ENDIF
       enddo
 C

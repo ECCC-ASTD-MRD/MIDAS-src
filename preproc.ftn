@@ -14,51 +14,205 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine preproc
-#if defined (DOC)
+      subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData)
 *
 ***s/r preproc  - Control of the preprocessing of the 3D variational assimilation
 *
 *Author  : S. Pellerin *ARMA/AES  Nov., 1999
 *Revision:
-*    -------------------
-**    Purpose: to initialize  * the background state
-*     .                       * the observations
-*     .                       * the background error statistics
-*     .                       * write or read (HXb -Z)
-*     .                       * the observation error statistics
-*     .                       * check the consistency between the background and the observations
 *
-*Arguments
-*    -NONE-
-#endif
+      USE mod4dv,only : l4dvar
+      use MathPhysConstants_mod
+      use obsSpaceData_mod
+      use controlVector_mod
+      use minimization_mod
+      use modfgat
+      use columndata_mod
+      use globalSpectralTransform
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
-c
-      call printrev("SUBROUTINE preproc :",20)
-c
-      call tmg_start(15,'SUCVA')
-      CALL SUCVA(NULOUT)
-      call tmg_stop(15)
-c
-c Reading, horizontal interpolation and unit conversions of the 3D trial
-c fields
-c
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comvfiles.cdk"
+#include "cvcord.cdk"
+#include "comgpsgb.cdk"
+#include "comgdpar.cdk"
+
+      type(struct_obs) :: lobsSpaceData
+      type(struct_columnData) :: lcolumng,lcolumnhr
+      integer :: gstID,mpiMode
+      INTEGER jvar, IERR
+      INTEGER itime,idate,irunn
+      integer inewhh,newdate,istampobs
+      real*8 delhh
+
+      write(*,*) '-------------------------------'
+      write(*,*) '--Starting subroutine preproc--'
+      write(*,*) '-------------------------------'
+!
+!     INITIALIZE LOGICAL UNITS.
+!
+      CALL SULUN
+!
+!     INITIALIZE CONSTANTS.
+!
+      call mpc_initialize()
+      call mpc_printConstants(nulout)
+!
+!     INITIALIZE VARIABLES OF THE MODEL STATES.
+!
+      CALL SUSTATE
+!
+!     INITIALIZE DIMENSIONS.
+!
+      CALL SUDIM(NULOUT)   ! n.b.: other namelist e.g. namcva are being read here to allow high-level decisions...
+!
+!     Initialize observations dimensions
+!
+      CALL SUDIMO(NULOUT,lobsSpaceData)
+!
+!     ALLOCATE MEMORY FOR GRID POINT AND SPECTRAL ARRAYS.
+!
+      CALL SUALLO(NULOUT)
+!
+!     Allocate memory for observation arrays
+!
+      CALL SUALOBS(NULOUT,lobsSpaceData)
+!
+!     Initialize the global spectral transform (needed?)
+!
+      mpiMode=0
+      gstID = gst_setup(nulout,ni,nj,ntrunc,mpiMode)
+      write(*,*) 'returned value of gstID=',gstID
+!
+!     Initialisation of the geometry
+!
+      CALL SUGEM(NULOUT)
+!
+!     Initialization of post-processing
+!
+      CALL SUPOST   ! keep delayed in sequence to ensure geometry dependence (Luc)
+
+      call tmg_start(15,'SUCVA')  ! start of what used to be SUCVA
+!
+!     Reading and initialization in preparation of the minimization
+!
+      WRITE(NULOUT,FMT=9200)
+ 9200 FORMAT(//,5x,"-Reading and initialization in preparation to the "
+     S     ,"minimization",/,6x,61('-'))
+!
+!     NEED TO MOVE THIS TO ANOTHER SUBROUTINE - IS IT ALL STILL NECESSARY?
+!
+      CALL BRPCHECK(ITIME,IDATE,IRUNN)
+      ierr = newdate(istampobs,idate,itime,3)
+      delhh = 3.0
+      call INCDATR (nbrpstamp, istampobs, delhh)
+      ierr = newdate(nbrpstamp,nbrpdate,inewhh,-3)
+      nbrphh=ITIME/100
+      if (nbrphh .ge. 21 .or. nbrphh .lt. 3) then
+        nbrphh = 0
+      elseif(nbrphh .ge. 3 .and. nbrphh .lt. 9) then
+        nbrphh = 6
+      elseif(nbrphh .ge. 9 .and. nbrphh .lt. 15) then
+        nbrphh = 12
+      else
+        nbrphh = 18
+      endif
+      ierr = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
+      WRITE(NULOUT, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
+      WRITE(NULOUT, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+!
+!     Initialize comgdpar
+!
+      CALL SUGDPAR
+!
+!     Initialize the observation error covariance
+!
+      CALL SUCOVO
+!
+!     Create the starting point of the minimization
+!
+      write(*,*) 'NOT CALLING SUIMP, INSTEAD SETTING CVM_VAZX=0'
+      cvm_vazx(1:cvm_NVADIM)=0.0d0
+!
+!     Miscellaneous initializations associated with the observations
+!
+      CALL READNML('NAMTOV',IERR)
+      CALL SUOBS(NULOUT,lobsSpaceData)
+!
+!     Initialize TOVS processing
+!
+      CALL TOVS_SETUP(NULOUT)
+!
+!     Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+!
+      CALL SUGPSGB(NULOUT)
+!
+!     Basic setup of columnData module (nouu, novv, etc. needed in suprep)
+!
+      call col_setup(nflev)
+!
+!     Filter out data from CMA
+!
+      CALL SUPREP(lobsSpaceData)
+!
+!     If single GB-GPS observation assimilation, select the observation
+!
+      IF ( L1GPSOBS ) CALL FILT_GPSGB(lobsSpaceData)
+
+      CALL CMAPR(lobsSpaceData)
+
+      call suobsgid(lobsSpaceData)
+
+      CALL obs_getobstag(lobsSpaceData,nulout,nobtot,nfiles,cexc4dv,cfamtyp,
+     S                   nbegintyp,nendtyp,l4dvar)
+
+      call obs_reduceToMpiLocal(lobsSpaceData, nobtot, nobtotp, nfiles, 
+     S                          nbegintyp, nendtyp, nbegintyp_g, nendtyp_g,
+     S                          l4dvar)
+
+      call rebldnotag(lobsSpaceData)
+!
+!     MEMORY ALLOCATION FOR BACKGROUND COLUMN DATA 
+!
+      call col_sualobsb(nflev,nobtot) 
+      call col_allocate(lcolumng,nflev,nobtot)
+      call col_zero(lcolumng)
+!
+!     Memory allocation for TOVS processing
+!
+      CALL TOVS_SETUPALLO(NULOUT,lobsSpaceData)
+!
+!     SET OBSERVATION ERRORS TO CMA FILE
+!
+      CALL SETERR(lobsSpaceData)
+!
+!     Initialize the background-error covariance
+!
+      CALL SUCOV
+!
+!     Set up the minimization module, now that the required parameters are known
+!
+      call min_setup(cvm_nvadim,ni,nj,nkgdim,nflev,nstepobsinc)
+!
+      call tmg_stop(15)  ! end of what used to be SUCVA
+!
+!     Reading, horizontal interpolation and unit conversions of the 3D trial fields
+!
       call tmg_start(16,'SUGOMOBS')
-      call sugomobs
+      call sugomobs(lcolumng,lcolumnhr)
       call tmg_stop(16)
 !
-! prepare background fields at initial time for flow-dependent control variables
-!
-!     Initialize TRLM grid parameters
+!     Prepare background fields at initial time for flow-dependent control variables
 !
       call subasic_gd
 !
-! prepare observation innovations
+!     Compute observation innovations and prepare obsSpaceData for minimization
 !
-      call suinnov
+      call suinnov(lcolumnhr,lcolumng,lobsSpaceData)
 !
-      call prdatabin
+      call prdatabin(lobsSpaceData)
+!
       RETURN
       END

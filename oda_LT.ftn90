@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_LT(statevector)
+subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use mod4dv, only : l4dvar
   use mpi
@@ -43,15 +43,18 @@ subroutine oda_LT(statevector)
 #include "comstate.cdk"
 #include "comdimo.cdk"
 
+  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_obs) :: lobsSpaceData
   type(struct_gsv) :: statevector
   ! Local declarations
+  type(struct_columnData) :: lcolumn_g
   integer :: ilev,nl_err
   integer :: ierr,tgsize,sizegd 
   integer :: jlat,jlon,jlev
   real*8 :: zmax,zmean
    
   call tmg_start(51,'VAR_CH') !
-  call apreobs
+  call apreobs(lcolumn,lcolumng)
   call tmg_stop(51)        !
 
   call tmg_start(75,'PROF->GD')
@@ -76,8 +79,9 @@ subroutine oda_LT(statevector)
      endif
 !
      call tmg_start(77,'EXPNDMVO')
-     call col_allocate(column_g,nflev,nobtotp)
-     call col_expandToMpiGlobal3(column,column_g)
+     call col_allocate(lcolumn_g,lcolumn%nlev,nobtotp)
+     call col_zero(lcolumn_g)
+     call col_expandToMpiGlobal3(lcolumn,lcolumn_g)
      call tmg_stop(77)
 !$OMP PARALLEL
 !$OMP SECTIONS PRIVATE(ilev)
@@ -85,17 +89,17 @@ subroutine oda_LT(statevector)
 !    3D fields
 !
 !$OMP SECTION
-     if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',nflev)
+     if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',nflev)
+     if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',nflev)
+     if(NGEXIST(ngq).eq.1)   call gd2mvoad('Q0',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',nflev)
+     if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',nflev)
+     if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',nflev)
+     if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',lcolumn%nlev)
 !
 !    2D fields
 !
@@ -111,7 +115,7 @@ subroutine oda_LT(statevector)
 !
      call uvwi2uv(statevector)
 
-     call col_deallocate(column_g)
+     call col_deallocate(lcolumn_g)
 
   endif
   call tmg_stop (75)
@@ -135,11 +139,11 @@ subroutine oda_LT(statevector)
 !*
 !**    Purpose:  Update the estimate of GD from the gradient components
 !*               at the observation points which have been stored in
-!*               column
+!*               lcolumn
 !*
 !* Arguments
 !*     CDVARNAME: identificator of the variable to be treated
-!*     KLEV     : number of levels (typically 1 for 2D-fields and NFLEV for 3D-fields)
+!*     KLEV     : number of levels (typically 1 for 2D-fields and LCOLUMN%NLEV for 3D-fields)
 !*
 !*     Arguments
 !*
@@ -170,24 +174,24 @@ subroutine oda_LT(statevector)
 !*     2D fields
 !*
       CASE('TG')
-         zprofil => column_g%tg
+         zprofil => lcolumn_g%tg
       CASE('PS')
-         zprofil => column_g%ps
+         zprofil => lcolumn_g%ps
 !*
 !*     3D fields
 !*
       CASE('TT')
-         zprofil => column_g%tt
+         zprofil => lcolumn_g%tt
       CASE('Q0')
-         zprofil => column_g%hu
+         zprofil => lcolumn_g%hu
       CASE('TR')
-         zprofil => column_g%tr
+         zprofil => lcolumn_g%tr
       CASE('UU')
-         zprofil => column_g%uu
+         zprofil => lcolumn_g%uu
       CASE('VV')
-         zprofil => column_g%vv
+         zprofil => lcolumn_g%vv
       CASE('GZ')
-         zprofil => column_g%gz
+         zprofil => lcolumn_g%gz
       END SELECT
 
 !            DLDLON = 2.*RPI/NI
@@ -205,15 +209,15 @@ subroutine oda_LT(statevector)
 !C     ---------------------------------
 !C
         Observations: DO JOBS = 1, NOBTOTP
-          if(obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep).gt.0.0d0) then
-            DLLAO   = real(obs_elem_mpiglobal_r4(obsSpaceData,'LAT ',JOBS), 8)
-            DLLOO   = real(obs_elem_mpiglobal_r4(obsSpaceData,'LON ',JOBS), 8)
+          if(obs_getTimeInterpWeight_mpiglobal(lobsSpaceData,jobs,jstep).gt.0.0d0) then
+            DLLAO   = real(obs_elem_mpiglobal_r4(lobsSpaceData,'LAT ',JOBS), 8)
+            DLLOO   = real(obs_elem_mpiglobal_r4(lobsSpaceData,'LON ',JOBS), 8)
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 !C     TO THE WEST (ILON AND ILOS)
 !C
-            ILA=obs_elem_mpiglobal_i(obsSpaceData,'TLA ',JOBS)
+            ILA=obs_elem_mpiglobal_i(lobsSpaceData,'TLA ',JOBS)
 
             IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
             IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
@@ -222,7 +226,7 @@ subroutine oda_LT(statevector)
 !C
 !C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 !C
-            DInterpWeight=obs_getTimeInterpWeight_mpiglobal(obsSpaceData,jobs,jstep)
+            DInterpWeight=obs_getTimeInterpWeight_mpiglobal(lobsSpaceData,jobs,jstep)
             DLDXN = DLLOO*DLDLON2 + 1. - ILON
             DLDXS = DLLOO*DLDLOS2 + 1. - ILOS
             DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))

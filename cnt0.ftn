@@ -15,26 +15,30 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       PROGRAM CNT0
-#if defined (DOC)
 *
 ***   s/r CNT0  - Routine controlling the job at its highest level
 *
-*
-#endif
-      use mpi  
+      use mpi
+      use obsSpaceData_mod
+      use columnData_mod  
       IMPLICIT NONE
 *     implicits
 #include "comct0.cdk"
 #include "comlun.cdk"
-*
-      INTEGER ICONFI,ISTAMP,EXDB,EXFIN
+      INTEGER ISTAMP,EXDB,EXFIN
       character(len=9) :: clmsg
       INTEGER  :: root,IERR  
-!  0.1 MPI initilization .  
+      type(struct_obs),target :: obsSpaceData
+      type(struct_columnData),target :: columng,columnhr
+!
+!     MPI initilization .  
+!
       CALL mpi_init  
       root = 0  
 
-      call tmg_init (0, 'TMG_3D-VAR' )
+      IF(mpi_myid == root) call printrev("START OF MAIN PROGRAM CNT0",26)
+
+      call tmg_init (mpi_myid, 'TMG_3D-VAR' )
 
       IF(mpi_myid == root) THEN
          clmsg = 'VAR3D_BEG'
@@ -42,60 +46,51 @@
          ISTAMP=EXDB('3DVAR','DEBUT','NON')
       ENDIF 
 C
+C     *       1.    Initialize level 0 commons. (NCONF,CMINMODE)
 C
-C     *       1.    Initialize level 0 commons.
-C     ---------------------------
-C
- 100  CONTINUE
-      CALL SU0YOMA
-C
-C
-      IF(mpi_myid == root) call printrev("START OF MAIN PROGRAM CNT0",26)
-C
-C
-      CALL SU0YOMB
-C     ------------------------------------------------------------------
+      call suct0
 C
 C     *       2.    Decide on configuration of job.
-C     -------------------------------
 C
- 200  CONTINUE
-      ICONFI=IABS(NCONF)/100
-C
-C     *       2.0   INTEGRATION JOB: barotropic model configuration.
-C
- 201  CONTINUE
       select case (nconf)
       case(101)
-         IF(mpi_myid == root) WRITE(NULOUT,FMT=9203)ICONFI,NCONF
+         IF(mpi_myid == root) WRITE(NULOUT,FMT=9203) NCONF
  9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
+
          call tmg_start(11,'PREMIN')
-         call preproc
+         call preproc(columng,columnhr,obsSpaceData)
          call tmg_stop(11)
+
          call tmg_start(12,'BGCHECK')
-!modular1         CALL BGCHECK
+         CALL BGCHECK(columng,columnhr,obsSpaceData)
          call tmg_stop(12)
+
       case(121)
-         WRITE(NULOUT,FMT=9204)ICONFI,NCONF
- 9204    FORMAT(" CNT0- ICONFI NCONF = ",1X,I4,1X,I4," CALLING RESIDUAL
+         WRITE(NULOUT,FMT=9204) NCONF
+ 9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL
      &        S")
          call tmg_start(11,'PREMIN')
-         call preproc
+         call preproc(columng,columnhr,obsSpaceData)
          call tmg_stop(11)
+
          call tmg_start(12,'RESIDUALS')
-!modular1         CALL RESIDUALS
+         CALL RESIDUALS(columng,columnhr,obsSpaceData)
          call tmg_stop (12)
+
       case(141)
          WRITE(NULOUT,FMT=9401)NCONF
- 9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING PREPROC")
+ 9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING MINIMIZE")
+
          call tmg_start(11,'PREMIN')
-         call preproc
+         call preproc(columng,columnhr,obsSpaceData)
          call tmg_stop (11)
+
          call tmg_start(12,'MIN')
-         call minimize
+         call minimize(columng,obsSpaceData)
          call tmg_stop (12)
+
          call tmg_start(13,'POSMIN')
-         call postmin
+         call postmin(columng,obsSpaceData)
          call tmg_stop (13)
 c
       case(201)
@@ -107,12 +102,11 @@ c
 !modular1         CALL ENKF_PTURB(nulout)
 
       case default
-         WRITE(UNIT=NULOUT,FMT='('' ERROR CNT0  JOB'',2I6)')ICONFI,NCONF
+         WRITE(UNIT=NULOUT,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF
+
       END select
 C
 C     *    3. Job termination
-C
- 300  CONTINUE
 C
       CALL SUTERM(NULOUT)
 C
@@ -120,7 +114,10 @@ C
          clmsg = 'VAR3D_END'
          call wrstatus(clmsg)
       ENDIF
-      call tmg_terminate (0, 'TMG_3D-VAR' )
+
+      call tmg_terminate (mpi_myid, 'TMG_3D-VAR' )
+
       CALL RPN_COMM_FINALIZE(ierr) 
+
       RETURN
       END

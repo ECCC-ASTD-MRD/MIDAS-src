@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DHUSFC(CDFAM)
+      SUBROUTINE DHUSFC(CDFAM,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r DHUSFC  - Computation of the residuals of the LQ observations
@@ -41,10 +41,11 @@
       CHARACTER *2 CDFAM
 *implicits
 #include "comdimo.cdk"
- 
 #include "cvcord.cdk"
 #include "comlun.cdk"
 *
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
       INTEGER NQCVAR
       INTEGER IOBS,IK,IBEGIN,ILAST,JO
       INTEGER J,JDATA
@@ -92,8 +93,8 @@ c            ENDIF
 
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
-                IF ( obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS .AND.
-     &               obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1  ) THEN
+                IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS .AND.
+     &               obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1  ) THEN
                     ICOUNT = ICOUNT + 1
                     IPOINTR(ICOUNT) = JDATA
                 ENDIF
@@ -109,10 +110,10 @@ c
 
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
-                  IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(obsSpaceData,'OER ',JDATA)
-                  IK   = obs_elem_i(obsSpaceData,'LYR ',JDATA)
+                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                  IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
 c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'
@@ -121,8 +122,8 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
 c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  call obs_set_r8(obsSpaceData,'OMA ',JDATA, 
-     +                (columnhr%hu(COLUMNHR%NLEV,IOBS)-ZVAR)
+                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
+     +                (lcolumnhr%hu(LCOLUMNHR%NLEV,IOBS)-ZVAR)
      +                 / ZOER)
 
                   IF ( LLPRINT ) THEN
@@ -132,11 +133,11 @@ c                  ENDIF
                     write(nulout,*)'   zvar   = ',ZVAR
                     write(nulout,*)'   zoer   = ',ZOER
                     write(nulout,*)'   ik     = ',IK
-                    write(nulout,*)'   columnhr%nlev= ',COLUMNHR%NLEV
-                    write(nulout,*)'   columnhr%hu(columnhr%nlev,iobs) = '
-     &                   ,columnhr%hu(COLUMNHR%NLEV,IOBS)
+                    write(nulout,*)'   lcolumnhr%nlev= ',LCOLUMNHR%NLEV
+                    write(nulout,*)'   lcolumnhr%hu(lcolumnhr%nlev,iobs) = '
+     &                   ,lcolumnhr%hu(LCOLUMNHR%NLEV,IOBS)
                     write(nulout,*)'   O-Psfc = '
-     &                   ,-obs_elem_r8(obsSpaceData,'OMA ',JDATA)*ZOER
+     &                   ,-obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 

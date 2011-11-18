@@ -16,8 +16,6 @@
 !
 !     CVCORD             :  type of vertical coordinate
 !                           ('ETAGE', 'HYBM', 'MAMHYBM')
-!     RNNP1(NLA)         :  - N(N+1)
-!     R1SNP1(NLA)        :  - 1/N(N+1)
 !     VLEV(NFLEV)        :  Normalised vertical levels of the increment
 !     .                     analysis
 !     VHYBINC(NFLEV)     :  vertical hybrid levels of the increment analysis
@@ -28,34 +26,25 @@
 !     rptopinc           :  Average pressure at the top (Pascal)
 !     rprefinc           :  Pressure at reference level (Pascal)
 !     rcoefinc           :  Transition parameter or Coefficient
-!     ldyninc            :  Switch to read the hybrid coordinate levels
-!                           and parameters from the statistics file
 !     rhumin             :  Minimum value of specific humidity
-!     rlimlv_bdl         :  Mean top level of the boundary layer(PA)
 !     ---------------------
 !     CONPHY(NJ):  conversion of wind images into physical winds
 !     .                     (Units: 1/s to  knots)
 !     CONIMA(NJ):  conversion of physiqcal winds into wind images
 !     .                     (Units: knots to 1/s)
-!     nlev_bdl           :  Number of the analysis level nearest to the top
-!     .                     of the boundary layer
-!
 #endif
       CHARACTER*8 CVCORD
       INTEGER NIP1(JPNFLEV)
-      INTEGER nip1_pak_inc, nlev_bdl
-      REAL*8  RNNP1(NLA), R1SNP1(NLA), VLEV(JPNFLEV)
+      INTEGER nip1_pak_inc
+      REAL*8  VLEV(JPNFLEV)
       REAL*8  CONPHY(NJ), CONIMA(NJ)
       real*8  rptopinc,rcoefinc,rprefinc,vhybinc(jpnflev)
-      real*8  rhumin,rlimlv_bdl
-      logical ldyninc
+      real*8  rhumin
 
-      POINTER (PTNNP1,RNNP1), (PT1SNP1,R1SNP1)
       POINTER (PTCONPHY,CONPHY),(PTCONIMA,CONIMA)
  
       COMMON /COMRGEM/VLEV,rptopinc,rcoefinc,rprefinc,vhybinc
-      COMMON /COMRGEM/rhumin,rlimlv_bdl
+      COMMON /COMRGEM/rhumin
       COMMON /COMCGEM/CVCORD
-      COMMON /COMNGEM/NIP1,nip1_pak_inc,nlev_bdl
-      COMMON /COMLGEM/ldyninc
-      COMMON /POMGEM/PTNNP1, PT1SNP1,PTCONPHY, PTCONIMA
+      COMMON /COMNGEM/NIP1,nip1_pak_inc
+      COMMON /POMGEM/PTCONPHY, PTCONIMA

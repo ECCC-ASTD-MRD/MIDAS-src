@@ -73,8 +73,6 @@
 *
 #endif
 C
-!modular1      use modstag, only: nj_s, njlath_s, level2_staggrid, lstagwinds
-!modular1      USE  spect_mpi 
       use gridStateVector
       IMPLICIT NONE
 #include "pardim.cdk"
@@ -132,28 +130,17 @@ C     .       ---------------------------
 C
  210  CONTINUE
 !
-      NJLATH = (NJ + 1)/2
-!modular1        nj_s = nj-1
-!modular1        njlath_s = nj/2
-C
       WRITE(KULOUT,*)' DIMENSIONS IN GRID SPACE ------:'
       WRITE(UNIT=KULOUT,FMT=9210)
-     S     NJ  ,NJLATH ,NI ,NFLEV
+     S     NJ  ,NI ,NFLEV
  9210 FORMAT(4X,
-     S     ' NJ    =',I6,' NJLATH  =',I6,
+     S     ' NJ    =',I6,
      S     ' NI    =',I6,' NFLEV = ',I6)
-!modular1      write(kulout,fmt='(4x,A,i6,A,i6)')'NJ_S = ',nj_s,'  NJLATH_S = ',njlath_s
 C
-C*    .   2.2 Spectral dimensions
-C     .       -------------------
-C
-        NLA = (NTRUNC + 1)*(NTRUNC +2)/2
-        NLARH = (NTRUNC+1)*(NTRUNC+1)
-!
         WRITE(KULOUT,*)' DIMENSIONS IN SPECTRAL SPACE ------:'
-        WRITE(UNIT=KULOUT,FMT=9220)NTRUNC, NLA, NLARH
+        WRITE(UNIT=KULOUT,FMT=9220)NTRUNC
  9220   FORMAT(/,' Triangular truncation of order '
-     S     ,'NTRUNC =',I4,' NLA:',I8,'  NLARH:',I8)
+     S     ,'NTRUNC =',I4)
 C
 C*    3. Initialize the number of fields.
 C     -----------------------------------

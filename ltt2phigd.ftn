@@ -50,6 +50,7 @@ C
       real*8 pgz(ni,nflev,nj), ptt(ni,nflev,nj)
       real*8 pps(ni,nj),ppsg(ni,nj),ppt(ni,nj)
 *
+      real*8  vma(nflev),vmb(nflev),vmc(nflev),vmd(nflev),vme(nflev),vmf(nflev)
       INTEGER JLEV, JLA, ILA, ILEV,ILEN, JLAT, ILON, JLON, IERR
       INTEGER IKTOP,IKTTG
       real*8  zalpha
@@ -91,7 +92,7 @@ c
             ila         = jlev+(jlon-1)*nflev
             zprof(jlev) = zpress(ila)
           enddo
-          call matapat(zprof,zalpha,nflev)
+          call matapat(zprof,zalpha,nflev,vma,vmb,vmc,vmd,vme,vmf)
           call lvtapgd(pgz,jlon,jlat) ! input  in TT1
         enddo
       enddo
@@ -137,7 +138,6 @@ C prepared outside lvtapgd
       REAL*8    ZAK, ZBK, ZCK, ZCON
 
 *implicits
-#include "comode.cdk"
 *
       real*8    pgz(ni,nflev,nj)
 c

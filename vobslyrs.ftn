@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE VOBSLYRS(CDMVO)
+      SUBROUTINE VOBSLYRS(lcolumnghr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r  VOBSLYRS
@@ -44,8 +44,6 @@
 *Arguments
 *
 *       input:
-*             CDMVO (character*2) : HR PROCESS HI RESOLUTION COMMVOHR
-*                                   BG PROCESS LO RESOLUTION COMMVOG
 *          none
 #endif
       use MathPhysConstants_mod
@@ -58,11 +56,9 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
- 
- 
- 
 *
-      character*2 cdmvo
+      type(struct_columnData) :: lcolumnghr
+      type(struct_obs) :: lobsSpaceData
 
       INTEGER J,JK,JDATA
       REAL*8 ZLEV,ZPREF,ZPT,ZPB,ZXI
@@ -73,13 +69,6 @@ C
 C     --------
 C
       LLPRINT = .FALSE.
-C
-C       CHECK VALUE OF CDMVO
-C
-      IF(CDMVO .NE. 'HR' .AND. CDMVO .NE. 'BG') THEN
-        WRITE(NULOUT,*)'VOBSLYRS: CDMVO IS NOT VALID CDMVO= ',CDMVO
-        CALL ABORT3D(NULOUT,'ERR. IN VOBSLYRS')
-      ENDIF
 C
  100  CONTINUE
 C-----------------------------------------------------------------------
@@ -94,43 +83,35 @@ C        ----------------------------------
 C
 C     1.1 PPP Vertical coordinate
 C
-         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
-            LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
-     &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
+         DO JDATA= 1,obs_num_obstotal(lobsSpaceData)
+            LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
+     &                obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
+     &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IF(obs_elem_i(obsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ELSE
-                  ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',JDATA)
                ENDIF
-               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-               IF(CDMVO .EQ. 'HR') THEN
-                 ZPT= COLUMNHR%RPPOBS(1,IOBS)
-                 ZPB= COLUMNHR%RPPOBS(COLUMNHR%NLEV,IOBS)
-               ELSEIF(CDMVO .EQ. 'BG') THEN
-                 ZPT= COLUMNG%RPPOBS(1,IOBS)
-cjmb                 ZPB= COLUMNG%RPPOBS(NFLEV,IOBS)
-cjmb     Surface pressure artificially modified to account
-cjmb     for difference in rejections caused by 32 bits
-cjmb     conversion (MRBCVT)  of observed pressure.
-                 ZPB= COLUMNG%RPPOBS(NFLEV,IOBS)+ 0.01D0
-               ENDIF
+               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               ZPT= LCOLUMNGHR%RPPOBS(1,IOBS)
+               ZPB= LCOLUMNGHR%RPPOBS(LCOLUMNGHR%NLEV,IOBS)
+!               ZPB= LCOLUMNGHR%RPPOBS(LCOLUMNGHR%NFLEV,IOBS)+ 0.01D0 !still needed?
                IF ( ZLEV .LT. ZPT ) THEN
-                  call obs_set_i(obsSpaceData,'XTR ',JDATA,1)
+                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .GT. ZPB ) THEN
-                  call obs_set_i(obsSpaceData,'XTR ',JDATA,2)
+                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,2)
                ELSE
-                  call obs_set_i(obsSpaceData,'XTR ',JDATA,0)
+                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,0)
                ENDIF
 ****************************************************************
-               if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
+               if (LLPRINT .AND. obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs PPP:jdata,stn,ielm,zlev,ZPT,ZPB'
-     &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obs_elem_c9(obsSpaceData,'STID',iobs)
-     &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(obsSpaceData,'XTR ',JDATA)
-     &                ,obs_elem_i(obsSpaceData,'ASS ',JDATA),CDMVO
+     &                ,',MOB(XTR,),MOB(ASS,) ',jdata,obs_elem_c9(lobsSpaceData,'STID',iobs)
+     &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(lobsSpaceData,'XTR ',JDATA)
+     &                ,obs_elem_i(lobsSpaceData,'ASS ',JDATA)
                endif
 *****************************************************************
              ENDIF
@@ -138,38 +119,33 @@ cjmb     conversion (MRBCVT)  of observed pressure.
 C
 C     1.2 ZZZ Vertical coordinate
 C
-         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
-            LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
-     &              obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 )
+         DO JDATA= 1,obs_num_obstotal(lobsSpaceData)
+            LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
+     &              obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IF(obs_elem_i(obsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ELSE
-                  ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',JDATA)
                ENDIF
-               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
-               IF(CDMVO .EQ. 'HR') THEN
-                 ZPT= columnhr%gz(1,IOBS)/RG
-                 ZPB= columnhr%gz(COLUMNHR%NLEV,IOBS)/RG
-               ELSEIF(CDMVO .EQ. 'BG') THEN
-                 ZPT= columng%gz(1,IOBS)/RG
-                 ZPB= columng%gz(NFLEV,IOBS)/RG
-               ENDIF
+               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               ZPT= lcolumnghr%gz(1,IOBS)/RG
+               ZPB= lcolumnghr%gz(LCOLUMNGHR%NLEV,IOBS)/RG
                IF ( ZLEV .GT. ZPT ) THEN
-                  call obs_set_i(obsSpaceData,'XTR ',JDATA,1)
+                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .LT. ZPB ) THEN
-                  call obs_set_i(obsSpaceData,'XTR ',JDATA,2)
+                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,2)
                ELSE
-                  call obs_set_i(obsSpaceData,'XTR ',JDATA,0)
+                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,0)
                ENDIF
 ****************************************************************
-               if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
+               if (LLPRINT .AND. obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs ZZZ:jdata,stn,ielm,zlev,ZPT,ZPB'
-     &                ,',MOB(XTR,),MOB(ASS,),CDMVO ',jdata,obs_elem_c9(obsSpaceData,'STID',iobs)
-     &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(obsSpaceData,'XTR ',JDATA)
-     &                ,obs_elem_i(obsSpaceData,'ASS ',JDATA),CDMVO
+     &                ,',MOB(XTR,),MOB(ASS,) ',jdata,obs_elem_c9(lobsSpaceData,'STID',iobs)
+     &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(lobsSpaceData,'XTR ',JDATA)
+     &                ,obs_elem_i(lobsSpaceData,'ASS ',JDATA)
                endif
 *****************************************************************
              ENDIF
@@ -184,42 +160,33 @@ C           purposes......
 C
 C     2.1  PPP Vertical coordinate
 C
-         DO JDATA=1,obs_num_obstotal(obsSpaceData)
-            call obs_set_i(obsSpaceData,'LYR ',JDATA,0)
+         DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+            call obs_set_i(lobsSpaceData,'LYR ',JDATA,0)
          END DO
 C
-         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
-            LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
-     &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
+         DO JDATA= 1,obs_num_obstotal(lobsSpaceData)
+            LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
+     &                obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
+     &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-               ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+               ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
-               IF(CDMVO .EQ. 'HR') THEN
-                 DO JK = 2,COLUMNHR%NLEV - 1
-                   ZPT  = COLUMNHR%RPPOBS(JK,IOBS)
-                   IF( ZLEV .GT. ZPT ) IK = JK
-                 END DO
-                 ZPT  = COLUMNHR%RPPOBS(IK,IOBS)
-                 zpb=COLUMNHR%RPPOBS(IK+1,IOBS)
-               ELSEIF(CDMVO .EQ. 'BG') THEN
-                 DO JK = 2,NFLEV - 1
-                   ZPT  = COLUMNG%RPPOBS(JK,IOBS)
-                   IF( ZLEV .GT. ZPT ) IK = JK
-                 END DO
-                 ZPT  = COLUMNG%RPPOBS(IK,IOBS)
-                 zpb=COLUMNG%RPPOBS(IK+1,IOBS)
-               ENDIF
-               call obs_set_i(obsSpaceData,'LYR ',JDATA, IK)
+               DO JK = 2,LCOLUMNGHR%NLEV - 1
+                 ZPT  = LCOLUMNGHR%RPPOBS(JK,IOBS)
+                 IF( ZLEV .GT. ZPT ) IK = JK
+               END DO
+               ZPT  = LCOLUMNGHR%RPPOBS(IK,IOBS)
+               zpb=LCOLUMNGHR%RPPOBS(IK+1,IOBS)
+               call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
-               if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
+               if (LLPRINT .AND. obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs PPP:jdata,iobs,stn,ielm,ik,zlev'
-     &                ,',pppobs(ik+1,),pppobs(ik,),rdata(lyr,),CDMVO '
-     &                ,jdata,iobs,obs_elem_c9(obsSpaceData,'STID',iobs),ityp,ik,zlev,ZPB,ZPT
-     &                ,obs_elem_i(obsSpaceData,'LYR ',JDATA),CDMVO
+     &                ,',pppobs(ik+1,),pppobs(ik,),rdata(lyr,) '
+     &                ,jdata,iobs,obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ik,zlev,ZPB,ZPT
+     &                ,obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                endif
 *****************************************************************
              ENDIF
@@ -227,48 +194,34 @@ C
 C
 C     2.2  ZZZ Vertical coordinate and surface observations
 C
-         DO JDATA= 1,obs_num_obstotal(obsSpaceData)
-            LLOK = ( (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(obsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) .AND.
-     &                obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1 )
+         DO JDATA= 1,obs_num_obstotal(lobsSpaceData)
+            LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
+     &                obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) .AND.
+     &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-               ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-               ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+               ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
-               IF(CDMVO .EQ. 'HR') THEN
-                 DO JK = 2,COLUMNHR%NLEV - 1
-                   ZPT  = columnhr%gz(JK,IOBS)/RG
-                   IF( ZLEV .LT. ZPT ) IK = JK
-                 END DO
-                 IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
-                   IK=0
-                 ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
-     &                  ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
-     &                  ITYP.EQ.BUFR_NEHS ) THEN
-                   IK=COLUMNHR%NLEV-1
-                 ENDIF
-               ELSEIF(CDMVO .EQ. 'BG') THEN
-                 DO JK = 2,NFLEV - 1
-                   ZPT  = columng%gz(JK,IOBS)/RG
-                   IF( ZLEV .LT. ZPT ) IK = JK
-                 END DO
-                 IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
-                   IK=0
-                 ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
-     &                  ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
-     &                  ITYP.EQ.BUFR_NEHS ) THEN
-                   IK=NFLEV-1
-                 ENDIF
+               DO JK = 2,LCOLUMNGHR%NLEV - 1
+                 ZPT  = lcolumnghr%gz(JK,IOBS)/RG
+                 IF( ZLEV .LT. ZPT ) IK = JK
+               END DO
+               IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
+                 IK=0
+               ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
+     &                ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
+     &                ITYP.EQ.BUFR_NEHS ) THEN
+                 IK=LCOLUMNGHR%NLEV-1
                ENDIF
-               call obs_set_i(obsSpaceData,'LYR ',JDATA, IK)
+               call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
-                   if (LLPRINT .AND. obs_elem_c9(obsSpaceData,'STID',iobs) .eq. '72562') then
-                     ZPB  = columnhr%gz(IK+1,IOBS)/RG
+                   if (LLPRINT .AND. obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '72562') then
+                     ZPB  = lcolumnghr%gz(IK+1,IOBS)/RG
                      write(nulout,*) 'vobslyrs ZZZ:jdata,iobs,stn,ielm,ik,zlev'
-     &                ,',GZ(ik,),GZ(ik+1,),rdata(lyr,),CDMVO '
-     &                    ,jdata,iobs,obs_elem_c9(obsSpaceData,'STID',iobs),ityp,ik,zlev,ZPT,ZPB
-     &                    ,obs_elem_i(obsSpaceData,'LYR ',JDATA),CDMVO
+     &                ,',GZ(ik,),GZ(ik+1,),rdata(lyr,) '
+     &                    ,jdata,iobs,obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ik,zlev,ZPT,ZPB
+     &                    ,obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                    endif
 *****************************************************************
              ENDIF
@@ -282,29 +235,22 @@ C
                   IBEGIN=NBEGINTYP(J)
                   ILAST=NENDTYP(J)
                   DO JDATA= IBEGIN,ILAST
-                     LLOK = (obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
-     &                       obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2 )
+                     LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
+     &                       obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
                      IF ( LLOK ) THEN
-                        IOBS = obs_elem_i(obsSpaceData,'OBS ',JDATA)
-                        ZLEV = obs_elem_r8(obsSpaceData,'PRL ',JDATA)
+                        IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
+                        ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',JDATA)
                         IK = 1
-                        IF(CDMVO .EQ. 'HR') THEN
-                          DO JK = 2,COLUMNHR%NLEV - 1
-                            ZPT  = COLUMNHR%RPPOBS(JK,IOBS)
-                            IF( ZLEV .GT. ZPT ) IK = JK
-                          END DO
-                        ELSEIF(CDMVO .EQ. 'BG') THEN
-                          DO JK = 2,NFLEV - 1
-                            ZPT  = COLUMNG%RPPOBS(JK,IOBS)
-                            IF( ZLEV .GT. ZPT ) IK = JK
-                          END DO
-                        ENDIF
-                        call obs_set_i(obsSpaceData,'LYR ',JDATA, obs_elem_i(obsSpaceData,'LYR ',JDATA)
+                        DO JK = 2,LCOLUMNGHR%NLEV - 1
+                          ZPT  = LCOLUMNGHR%RPPOBS(JK,IOBS)
+                          IF( ZLEV .GT. ZPT ) IK = JK
+                        END DO
+                        call obs_set_i(lobsSpaceData,'LYR ',JDATA, obs_elem_i(lobsSpaceData,'LYR ',JDATA)
      &                       + 1000 * IK)
                      ENDIF
 ****************************************************************
 c       write(nulout,*) 'vobslyrs PRL:JDATA,iobs,IK,zlev,ZPT,ZPB '
-c     &         ,JDATA,iobs,IK,ZLEV,COLUMNG%RPPOBS(IK,IOBS),COLUMNG%RPPOBS(IK+1,IOBS)
+c     &         ,JDATA,iobs,IK,ZLEV,LCOLUMNGHR%RPPOBS(IK,IOBS),LCOLUMNGHR%RPPOBS(IK+1,IOBS)
 *****************************************************************
                   END DO
                ENDIF

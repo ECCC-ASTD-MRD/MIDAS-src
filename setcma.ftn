@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SETCMA
+      SUBROUTINE SETCMA(lobsSpaceData)
       use modmask, only : lmask
       use obsSpaceData_mod
 #if defined (DOC)
@@ -35,18 +35,19 @@ c Revision:
 *implicits
 #include "comdimo.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER JDATA,II,IASS,ITYP
 C
 c-------Fill ROBDATA with Z' = -( H(xb_hr) - Z ) = Z - H(xb_hr)
 c
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-        call obs_set_r8(obsSpaceData,'OMN ',jdata, 0.d0)
-        call obs_set_r8(obsSpaceData,'OMF ',JDATA, 
-     &                          -obs_elem_r8(obsSpaceData,'OMA ',JDATA)
-     &                          *obs_elem_r8(obsSpaceData,'OER ',JDATA))
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+        call obs_set_r8(lobsSpaceData,'OMN ',jdata, 0.d0)
+        call obs_set_r8(lobsSpaceData,'OMF ',JDATA, 
+     &                          -obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
+     &                          *obs_elem_r8(lobsSpaceData,'OER ',JDATA))
       ENDDO
 c
-      call obs_swapVarOmf(obsSpaceData)
+      call obs_swapVarOmf(lobsSpaceData)
 
       RETURN
       END

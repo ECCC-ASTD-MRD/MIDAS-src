@@ -14,13 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DOBSPPP(PJO,CDFAM)
+      SUBROUTINE DOBSPPP(PJO,CDFAM,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 !
 !**s/r DOBSPPP  - Computation of Jo and the residuals to the observations
 !                 for pressure-level observations
 !
-!*    Purpose:  -Interpolate vertically columnhr to
+!*    Purpose:  -Interpolate vertically lcolumnhr to
 !                the pressure levels of the observations. Then compute Jo.
 !                A linear interpolation in ln(p) is performed.
 !
@@ -39,9 +39,9 @@
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
- 
- 
 #include "cvcord.cdk"
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,ITY,IDBURP
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
       INTEGER J,JDATA
@@ -62,70 +62,70 @@
 !     1. Computation of (HX - Z)/SIGMA
 !
       PJO=0.
-      do jdata=1,obs_num_obstotal(obsSpaceData)
-         if(obs_getFamily(obsSpaceData,bodyIndex=jdata).eq.CDFAM) then
+      do jdata=1,obs_num_obstotal(lobsSpaceData)
+         if(obs_getFamily(lobsSpaceData,bodyIndex=jdata).eq.CDFAM) then
 !
 ! Process all data within the domain of the model
 !
-            IPOS=obs_elem_i (obsSpaceData,'POS ',jdata)
-            ZVAR=obs_elem_r8(obsSpaceData,'VAR ',jdata)
-            IVNM=obs_elem_i (obsSpaceData,'VNM ',jdata)
-            ZOER=obs_elem_r8(obsSpaceData,'OER ',jdata)
-            ZLEV=obs_elem_r8(obsSpaceData,'PPP ',jdata)
-            IK  =obs_elem_i (obsSpaceData,'LYR ',jdata)
-            iass=obs_elem_i (obsSpaceData,'ASS ',jdata)
-            ixtr=obs_elem_i (obsSpaceData,'XTR ',jdata)
-            ivco=obs_elem_i (obsSpaceData,'VCO ',jdata)
-            IOBS=obs_elem_i (obsSpaceData,'OBS ',jdata)
+            IPOS=obs_elem_i (lobsSpaceData,'POS ',jdata)
+            ZVAR=obs_elem_r8(lobsSpaceData,'VAR ',jdata)
+            IVNM=obs_elem_i (lobsSpaceData,'VNM ',jdata)
+            ZOER=obs_elem_r8(lobsSpaceData,'OER ',jdata)
+            ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',jdata)
+            IK  =obs_elem_i (lobsSpaceData,'LYR ',jdata)
+            iass=obs_elem_i (lobsSpaceData,'ASS ',jdata)
+            ixtr=obs_elem_i (lobsSpaceData,'XTR ',jdata)
+            ivco=obs_elem_i (lobsSpaceData,'VCO ',jdata)
+            IOBS=obs_elem_i (lobsSpaceData,'OBS ',jdata)
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
-               IPT = IK + IPOS*COLUMNHR%NLEV
+               IPT = IK + IPOS*LCOLUMNHR%NLEV
                IPB = IPT+1
-               ZPT  = COLUMNHR%RPPOBS(IK,IOBS)
-               ZPB  = COLUMNHR%RPPOBS(IK+1,IOBS)
+               ZPT  = LCOLUMNHR%RPPOBS(IK,IOBS)
+               ZPB  = LCOLUMNHR%RPPOBS(IK+1,IOBS)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1. - ZWB
-               zoma = (ZWB*columnhr%all(IPB,IOBS) + ZWT*columnhr%all(IPT,IOBS)-ZVAR)/ZOER
+               zoma = (ZWB*lcolumnhr%all(IPB,IOBS) + ZWT*lcolumnhr%all(IPT,IOBS)-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
-               call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
-               call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
+               call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
+               call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
 !
 ! Process all upper air data data below model's orography
 !
             ELSEIF ( (iass.EQ.1).AND.(ixtr.EQ.2).AND.(ivco.EQ.2) ) THEN
-               IPT = COLUMNHR%NLEV-1 + IPOS*COLUMNHR%NLEV
+               IPT = LCOLUMNHR%NLEV-1 + IPOS*LCOLUMNHR%NLEV
                IPB = IPT+1
                IF(IVNM .EQ. BUFR_NEGZ ) THEN
 !
 ! Forward nonlinear model for geopotential data below model's orography
 !
-                  ZTVG = (1.0 + DELTA * EXP(columnhr%hu(COLUMNHR%NLEV,IOBS)))
-     &                     *columnhr%tt(COLUMNHR%NLEV,IOBS)
-                  zoma = ( columnhr%RMTMOBS(iobs) + ZTVG/zgamma
-     &                     *(1.-(zlev/columnhr%ps(1,iobs))**zexp) - zvar )/zoer
+                  ZTVG = (1.0 + DELTA * EXP(lcolumnhr%hu(LCOLUMNHR%NLEV,IOBS)))
+     &                     *lcolumnhr%tt(LCOLUMNHR%NLEV,IOBS)
+                  zoma = ( lcolumnhr%RMTMOBS(iobs) + ZTVG/zgamma
+     &                     *(1.-(zlev/lcolumnhr%ps(1,iobs))**zexp) - zvar )/zoer
                   PJO =PJO+zoma*zoma
-                  call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
-                  call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
+                  call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
+                  call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
                ELSE
 !
 ! Forward model for UU,VV,TT,ES below model's orography Extrapolation of order 
 ! zero from model surface. Allowed at present only for HUMSAT (idburp=158)
 !
-                  IITY=obs_elem_i(obsSpaceData,'ITY ',iobs)
+                  IITY=obs_elem_i(lobsSpaceData,'ITY ',iobs)
                   IDBURP    = MOD(IITY,1000)
                   IF (IDBURP .EQ. 158 .AND.
      +                IVNM .EQ. BUFR_NEES) THEN
-                    zoma = (columnhr%all(IPB,IOBS)-ZVAR)/ZOER
+                    zoma = (lcolumnhr%all(IPB,IOBS)-ZVAR)/ZOER
                     PJO =PJO+zoma*zoma
-                    call obs_set_r8(obsSpaceData,'OMA ',jdata,zoma)
-                    call obs_set_r8(obsSpaceData,'OMI ',jdata,zoma)
+                    call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
+                    call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
                   ELSE
                     LLNOXTR   = .TRUE.
                     ZTORAD    = 1.D0/(RPI/180.D0)
-                    ZLAT = obs_elem_r4(obsSpaceData,'LAT ',iobs) *ZTORAD
-                    ZLON = obs_elem_r4(obsSpaceData,'LONG',iobs) *ZTORAD
+                    ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',iobs) *ZTORAD
+                    ZLON = obs_elem_r4(lobsSpaceData,'LONG',iobs) *ZTORAD
                     IDBURP    = MOD(IITY,1000)
                     WRITE(NULOUT,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED ',
-     &                ' OBS ',obs_elem_c9(obsSpaceData,'STID',IOBS),' TYPE ',
+     &                ' OBS ',obs_elem_c9(lobsSpaceData,'STID',IOBS),' TYPE ',
      &                IDBURP, ' ELM ', IVNM,' LAT ', ZLAT,  ' LON ', ZLON
                   ENDIF
                ENDIF

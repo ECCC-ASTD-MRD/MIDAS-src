@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine matapat ( pvlev, palpha,knlev )
+      subroutine matapat ( pvlev, palpha,knlev,vma,vmb,vmc,vmd,vme,vmf )
 C
 *S/R MATAPAT:
 C     CALCULE LES ELEMENTS DE LA MATRICE TRIDIAGONALE ASSOCIEE A LA
@@ -51,10 +51,10 @@ C
       IMPLICIT  NONE
       integer knlev
       real*8  palpha, pvlev(knlev)
+      real*8  vma(knlev),vmb(knlev),vmc(knlev),vmd(knlev),vme(knlev),vmf(knlev)
 c
 #include "comlun.cdk"
 #include "comdim.cdk"
-#include "comode.cdk"
 C
 *implicits
       logical llprint

@@ -16,7 +16,7 @@
 !
 
       SUBROUTINE NEW_OZONE(O3P, fozo,totozo,toto3obs,zlat,  &
-     &                          plev,nlev,po3,nlato3,nlevo3,nprf)
+     &                          plev,nlev,po3,nlato3,nlevo3,nprf,lobsSpaceData)
 
 #if defined (DOC)
 !***********************************************************************
@@ -54,11 +54,9 @@
 
 !implicits
 #include "comdimo.cdk"
-
-
 #include "comlun.cdk"
 
-
+      type(struct_obs) :: lobsSpaceData
       INTEGER   :: JN, K, NLEV, NLATO3, NLEVO3, NPRF, NUMLAT(NPRF)
       INTEGER   :: IJOUR,IJ,IMONTH
       REAL      :: FOZO(NLATO3,NLEVO3), TOTOZO(NLATO3,12)
@@ -89,7 +87,7 @@
 
       DO JN = 1, NPRF
         IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
-          IJOUR = obs_elem_i(obsSpaceData,'DAT ',1)
+          IJOUR = obs_elem_i(lobsSpaceData,'DAT ',1)
           IJ = IJOUR/100
           IMONTH = IJ - (IJ/100)*100
           O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO(NUMLAT(JN),IMONTH)

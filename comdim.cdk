@@ -6,9 +6,6 @@
 ! === 1. Dimensions in grid space =====
 !
 ! NJ     : number of rows of latitudes
-! NJMAX  : overdimensioning of NJ to avoid memory bank conflicts
-! NJLATH  : number of rows in the northern hemisphere
-!
 ! NI     : length of a row of latitude
 !
 ! NFLEV  : number of levels in the model
@@ -22,24 +19,16 @@
 ! === 2. Dimensions in spectral space ================================
 !
 !     NTRUNC   : triangular truncation order
-!     NLA      : number of spectral coefficients (complex)
-!     NLARH    : number of elements in a spectral array dimensioned
-!     ...        as SPX(0:NTRUNC,0:NTRUNC)
-!
-! === 3. Dimensions for the control variable  ================================
-!
-! NVADIM  : dimension of the control variable
 !
 #endif
 
       INTEGER NI, NJ
-      INTEGER NJLATH, NJMAX
       INTEGER NFLEV, NVGD, NVG2D, NKGDIM
-      INTEGER NTRUNC, NLA, NLARH
+      INTEGER NTRUNC
 
       COMMON/COMNDIM/NI
       COMMON/COMNDIM/NJ
-      COMMON/COMNDIM/NJLATH,NJMAX,NFLEV
+      COMMON/COMNDIM/NFLEV
       COMMON/COMNDIM/NVGD, NVG2D,NKGDIM
-      COMMON/COMNDIM/NTRUNC, NLA, NLARH
+      COMMON/COMNDIM/NTRUNC
 

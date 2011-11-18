@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_get_radiance_ad
+subroutine oda_get_radiance_ad(lobsSpaceData)
 #if defined (doc)
 !
 !Purpose:
@@ -36,12 +36,11 @@ subroutine oda_get_radiance_ad
 !implicits
 #include "comdimo.cdk"
 #include "comlun.cdk"
-
-
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "cvcord.cdk"
 
+  type(struct_obs) :: lobsSpaceData
   integer :: isens, indxchn, indxtovs
 
   real*8 zoer, zres
@@ -63,8 +62,8 @@ subroutine oda_get_radiance_ad
    if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
      ibegin   = nbegintyp(jf)
      ilast    = nendtyp  (jf)
-     ibeginob = obs_elem_i(obsSpaceData,'OBS ',ibegin)
-     ilastob  = obs_elem_i(obsSpaceData,'OBS ',ilast )
+     ibeginob = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+     ilastob  = obs_elem_i(lobsSpaceData,'OBS ',ilast )
      do jo = ibeginob, ilastob
 
 !     .  1.1  Extract general information for this observation point
@@ -72,7 +71,7 @@ subroutine oda_get_radiance_ad
 
 !      only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
 
-      idatyp = mod(obs_elem_i(obsSpaceData,'ITY ',jo),1000)
+      idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',jo),1000)
       if ( idatyp .eq. 164 .or.  &
            idatyp .eq. 168 .or.  &
            idatyp .eq. 180 .or.  &
@@ -91,12 +90,12 @@ subroutine oda_get_radiance_ad
 
        radiance_ad (indxtovs) % out(:) = 0.
        if (rttov_errorstatus(indxtovs) .lt. 20   ) then
-         idata   = obs_elem_i(obsSpaceData,'RLN ',jo)
-         idatend = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
+         idata   = obs_elem_i(lobsSpaceData,'RLN ',jo)
+         idatend = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
-            if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-               ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
+            if ( obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1 ) then
+               ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
                ichn    = max(0,min(ichn,jpch+1))
                ichNCM_A = max(0,min(ichn,jpch+1))
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -106,7 +105,7 @@ subroutine oda_get_radiance_ad
 9202              format(' tovs_calc_jo_ad: error with channel number')
                   call abort3d(nulout,'tovs_calc_jo_ad  ')
                endif
-               zres = obs_elem_r8(obsSpaceData,'OMI ',jdata)
+               zres = obs_elem_r8(lobsSpaceData,'OMI ',jdata)
                radiance_ad (indxtovs) % out(indxchn) = zres
             endif
          enddo

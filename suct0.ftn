@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUCT0(KULOUT)
+      SUBROUTINE SUCT0
 #if defined (DOC)
 C
 C*  Initialization of the control of the job
@@ -33,7 +33,7 @@ C                - default values
 #include "comct0.cdk"
 #include "comlun.cdk"
 C
-      INTEGER KULOUT, IERR
+      INTEGER IERR
 C
 C*    1. Set the default values
 C

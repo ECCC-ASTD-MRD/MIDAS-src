@@ -22,8 +22,6 @@ module columnData_mod
     real*8,pointer :: rmtmobs(:)
   end type struct_columnData
 
-  type(struct_columnData) :: column,columng,column1,columnhr,column_g
-
     real*8,pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi transformation
     real*8,pointer :: ollq2es(:,:,:) ! Tangent linear operator of lnq to dewpoint conversion
@@ -246,6 +244,14 @@ module columnData_mod
       RETURN
     END SUBROUTINE col_sualobsb
 
+    SUBROUTINE col_zero(column)
+      IMPLICIT NONE
+      type(struct_columnData) :: column
+
+      column%all(:,:)=0.0d0
+      column%rppobs(:,:)=0.0d0
+      column%rmtmobs(:)=0.0d0      
+    END SUBROUTINE col_zero
 
     SUBROUTINE col_allocate(column,kstep,nobtot)
       IMPLICIT NONE
@@ -267,7 +273,6 @@ module columnData_mod
       allocate(column%vlev(column%nlev))
       allocate(column%vhyb(column%nlev))
       allocate(column%rmtmobs(column%nobtot))
-!      allocate(column%rmtmobs(250000))
       column%all(:,:)=0.0d0
       column%rppobs(:,:)=0.0d0
       column%rmtmobs(:)=0.0d0      
@@ -349,7 +354,132 @@ module columnData_mod
     END SUBROUTINE col_deallocate
 
 
-    SUBROUTINE col_expandToMpiGlobal(nulout, nobtot, nobtotp)
+    SUBROUTINE col_copy2d(column_in,column_out)
+      IMPLICIT NONE
+
+      type(struct_columnData) :: column_in,column_out
+      integer :: jobs,jv,jv_in,jv_out
+ 
+      do jobs = 1, column_in%nobtot
+        do jv = 1, nvo2d
+          jv_in   = jv + nvo3d*column_in%nlev
+          jv_out  = jv + nvo3d*column_out%nlev
+          column_out%all(jv_out,jobs) =  column_in%all(jv_in,jobs)
+        enddo
+      enddo
+      column_out%rmtmobs(:) =  column_in%rmtmobs(:)
+
+    END SUBROUTINE col_copy2d
+
+
+    SUBROUTINE col_fillmvo(lcolumnghr,cdvar,pvar,knlev,knobs)
+!
+!**s/r fillmvo - Fill in COMMVOG and/or COMMVOHR
+!
+!     Author  : S. Pellerin ARMA/AES SEPT. 2000
+!     Revision:
+!
+!*    Purpose: Fill in COMMVOG/COMMVOHR with trial profiles
+!
+!Arguments
+!
+!       input:
+!            lcolumnghr          : HR or BG column object
+!             CDVAR (character*2) : NOMVAR of the state variable
+!             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
+!             KNLEV (integer)     : number of levels of PVAR
+!             KNOBS (integer)     : number of observation profiles in variable PVAR
+!
+    use MathPhysConstants_mod
+    implicit none
+    #include "pardim.cdk"
+    #include "comdim.cdk"
+    #include "comgem.cdk"
+
+    type(struct_columnData) :: lcolumnghr
+    integer knlev,knobs
+    real*8 pvar(knlev,knobs)
+    character*2 cdvar
+
+    integer jobs,jlev
+
+      if (cdvar.eq.'PP') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1,lcolumnghr%nlev
+            lcolumnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'LV') then
+        do jlev = 1,lcolumnghr%nlev
+          lcolumnghr%vlev(jlev) = pvar(jlev,1)
+        enddo
+      elseif(cdvar.eq.'HY') then
+        do jlev = 1,lcolumnghr%nlev
+          lcolumnghr%vhyb(jlev) = pvar(jlev,1)
+        enddo
+      elseif(cdvar.eq.'UU') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%uu(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+          enddo
+        enddo
+      elseif(cdvar.eq.'VV') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%vv(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+          enddo
+        enddo
+      elseif(cdvar.eq.'GZ') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+          enddo
+        enddo
+      elseif(cdvar.eq.'HU') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%hu(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
+          enddo
+        enddo
+      elseif(cdvar.eq.'LQ') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%hu(jlev,jobs)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'ES') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%es(jlev,jobs)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'TT') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%tt(jlev,jobs)=pvar(jlev,jobs) + tcdk
+          enddo
+        enddo
+      elseif(cdvar.eq.'TR') then
+        do jobs = 1,lcolumnghr%nobtot
+          do jlev = 1, lcolumnghr%nlev
+            lcolumnghr%tr(jlev,jobs)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdvar.eq.'P0') then
+        do jobs = 1,lcolumnghr%nobtot
+          lcolumnghr%ps(1,jobs)=pvar(1,jobs)*rmbtpa
+        enddo
+      elseif(cdvar.eq.'TG') then
+        do jobs = 1,lcolumnghr%nobtot
+          lcolumnghr%tg(1,jobs)=pvar(1,jobs)
+        enddo
+      endif
+
+    return
+    END SUBROUTINE col_fillmvo
+
+
+    SUBROUTINE col_expandToMpiGlobal(lcolumng,nulout, nobtot, nobtotp)
 #if defined (DOC)
 !
 !**s/r col_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
@@ -365,7 +495,7 @@ module columnData_mod
 
     USE obsSpaceData_mod, only: locObsTag
     IMPLICIT NONE
-
+    type(struct_columnData) :: lcolumng
     integer, intent(in) :: nulout       ! standard output unit
     integer, intent(in) :: nobtot       ! Actual number of observations
     integer, intent(in) :: nobtotp      ! Actual no. of obs. in POST FILE=nobtot
@@ -387,16 +517,16 @@ module columnData_mod
 !!  1.3 Retore global RMTMOBS
     DO i=1,NOBTOT
        iobs=locObsTag(i)
-       RMTMOBS_tmp(iobs)=columng%RMTMOBS(i)
+       RMTMOBS_tmp(iobs)=lcolumng%RMTMOBS(i)
     ENDDO  
     sizeRMTMOBS=NOBTOTP
     CALL RPN_COMM_ALLReduce(RMTMOBS_tmp,RMTMOBS_tmp,sizeRMTMOBS, &
                             "mpi_double_precision","mpi_sum","GRID",ierr)
 
 !!  DEALLOCATE(RMTMOBS)
-    deallocate(columng%rmtmobs)
-    allocate(columng%rmtmobs(nobtotp))
-    columng%RMTMOBS=RMTMOBS_tmp
+    deallocate(lcolumng%rmtmobs)
+    allocate(lcolumng%rmtmobs(nobtotp))
+    lcolumng%RMTMOBS=RMTMOBS_tmp
     DEALLOCATE(RMTMOBS_tmp)
 
     print*,'Leaving col_expandToMpiGlobal' 

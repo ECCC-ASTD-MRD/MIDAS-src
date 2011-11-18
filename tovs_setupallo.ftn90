@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE TOVS_SETUPALLO(KULOUT)
+SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 #if defined (DOC)
 !
 !  s/r TOVS_SETUPALLO : Memory allocation for the radiative transfer model
@@ -67,6 +67,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
 #include "cvcord.cdk"
 #include "rttov_setup.h"
 
+  type(struct_obs) :: lobsSpaceData
   INTEGER VERBOSITY_LEVEL
   Integer :: alloc_status(40)
   Integer, Allocatable :: setup_errorstatus(:) ! setup return code
@@ -107,10 +108,10 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
           NBEGINTYP(JF).GT. 0          ) THEN
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-        ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
         DO JO = IBEGINOB, ILASTOB
-           IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+           IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
            IF ( IDATYP .EQ. 164 .OR. &
                 IDATYP .EQ. 168 .OR. &
                 IDATYP .EQ. 180 .OR. &
@@ -125,11 +126,11 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
 
 !           Construct list of channels for each sensor:
 !             map burp satellite info to RTTOV-7 platform and satellite.
-              IVAL = MOD(obs_elem_i(obsSpaceData,'ITY ',JO)/1000,1000)
+              IVAL = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO)/1000,1000)
               CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
 
 !             map burp instrument info to RTTOV-7 instrument.
-              IVAL = MOD(obs_elem_i(obsSpaceData,'BOX ',JO),10000)
+              IVAL = MOD(obs_elem_i(lobsSpaceData,'BOX ',JO),10000)
               CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
 
 !             find sensor number for this obs.
@@ -148,11 +149,11 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT)
   110         lsensor(nobtov) = nosensor
               lobsno (nobtov) = jo
               ltovsno (jo)    = nobtov
-              IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-              IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+              IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+              IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
               DO JDATA= IDATA, IDATEND
-                 IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                    ICHN = NINT(obs_elem_r8(obsSpaceData,'PPP ',JDATA))
+                 IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
                     IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) ICHN=ICHN-CHANOFFSET(NOSENSOR)
 

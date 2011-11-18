@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE oda_sqrtRm1(elem_dest_s,elem_src_s)
+SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
   use modmask, only : lmask,ldiag
   use obsSpaceData_mod
   ! Arguments
@@ -22,7 +22,7 @@ SUBROUTINE oda_sqrtRm1(elem_dest_s,elem_src_s)
   character(len=4), intent(in)  :: elem_src_s  ! source index
   !Purpose:
   !Applied observation error variances to ROBDATA8(k_src,*)
-  !and store it in the elem_src_s of obsSpaceData
+  !and store it in the elem_src_s of lobsSpaceData
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
@@ -33,15 +33,15 @@ SUBROUTINE oda_sqrtRm1(elem_dest_s,elem_src_s)
 
 #include "comdim.cdk"
 #include "comdimo.cdk"
-
+  type(struct_obs) :: lobsSpaceData
   INTEGER jdata
 !
 !!
-    DO JDATA=1,obs_num_obstotal(obsSpaceData)
+    DO JDATA=1,obs_num_obstotal(lobsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r8( obsSpaceData, elem_dest_s, JDATA, &
-                           obs_elem_r8(obsSpaceData,elem_src_s,JDATA) &
-                          /obs_elem_r8(obsSpaceData,'OER ',JDATA))
+          call obs_set_r8( lobsSpaceData, elem_dest_s, JDATA, &
+                           obs_elem_r8(lobsSpaceData,elem_src_s,JDATA) &
+                          /obs_elem_r8(lobsSpaceData,'OER ',JDATA))
        ENDIF
     END DO
 !

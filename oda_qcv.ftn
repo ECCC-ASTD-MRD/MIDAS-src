@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE oda_qcv
+      SUBROUTINE oda_qcv(lobsSpaceData)
       use modmask, only : lmask,lmaskro
       use obsSpaceData_mod
       use columnData_mod
@@ -37,6 +37,7 @@
 #include "comdimo.cdk"
 #include "comstate.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       integer :: jdata,istyp,jj,jo,ityp,idata,ierr
       real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
       logical :: lluv
@@ -45,13 +46,13 @@ C
       allocate(llmask(ubound(lmask,1)),STAT=ierr)
       if(ierr /= 0 ) call abort3d(nulout,'cant allocate mem. to lmask,1')
       llmask = lmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
         IF (llmask(jdata)) THEN
-          jo = obs_elem_i(obsSpaceData,'OBS ',jdata)
-          idata = obs_elem_i(obsSpaceData,'RLN ',JO)
-          ZLEV = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-          zgami = obs_elem_r4(obsSpaceData,'POB ',jdata)
-          ITYP = obs_elem_i(obsSpaceData,'VNM ',JDATA)
+          jo = obs_elem_i(lobsSpaceData,'OBS ',jdata)
+          idata = obs_elem_i(lobsSpaceData,'RLN ',JO)
+          ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+          zgami = obs_elem_r4(lobsSpaceData,'POB ',jdata)
+          ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
           LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
      &         NMVOEXIST(NOUU) .EQ. 1) .OR. ((ITYP .EQ. BUFR_NEVV .OR.
      &         ITYP .EQ. BUFR_NEVS).AND. NMVOEXIST(NOVV) .EQ. 1)
@@ -63,25 +64,25 @@ C  must be available for both u and v components. Hence, loop over only
 C  data for which o-a has already been calculated
 C
               DO JJ=IDATA, JDATA
-                ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
-                ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)
+                ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
+                ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)
                 IF ((ISTYP .EQ. BUFR_NEVV
      1               .OR. ISTYP .EQ. BUFR_NEVS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obs_elem_r8(obsSpaceData,'OMI ',JDATA)+
-     &                 obs_elem_r8(obsSpaceData,'OMI ',JJ)
+                  ZJON=obs_elem_r8(lobsSpaceData,'OMI ',JDATA)+
+     &                 obs_elem_r8(lobsSpaceData,'OMI ',JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
 C
 C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
-                  call obs_set_r8(obsSpaceData,'OMN ',JDATA, ZPPOST)
-                  call obs_set_r8(obsSpaceData,'OMN ',JJ, ZPPOST)
+                  call obs_set_r8(lobsSpaceData,'OMN ',JDATA, ZPPOST)
+                  call obs_set_r8(lobsSpaceData,'OMN ',JJ, ZPPOST)
 
-                  call obs_set_r8(obsSpaceData,'OMI ',JDATA,-LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_set_r8(lobsSpaceData,'OMI ',JDATA,-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  call obs_set_r8(obsSpaceData,'OMI ',JJ, -LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_set_r8(lobsSpaceData,'OMI ',JJ, -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
 C
 C     Contribution of both u and v added to the cost function at the
@@ -91,30 +92,30 @@ C
               ENDDO
             ELSE
               DO JJ=IDATA, JDATA
-                ISTYP = obs_elem_i(obsSpaceData,'VNM ',JJ)
-                ZSLEV = obs_elem_r8(obsSpaceData,'PPP ',JJ)
+                ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
+                ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)
                 IF ((ISTYP .EQ. BUFR_NEUU .OR.
      1               ISTYP .EQ. BUFR_NEUS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obs_elem_r8(obsSpaceData,'OMI ',JDATA)+
-     &                 obs_elem_r8(obsSpaceData,'OMI ',JJ)
+                  ZJON=obs_elem_r8(lobsSpaceData,'OMI ',JDATA)+
+     &                 obs_elem_r8(lobsSpaceData,'OMI ',JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
-                  call obs_set_r8(obsSpaceData,'OMN ',JDATA, ZPPOST)
-                  call obs_set_r8(obsSpaceData,'OMN ',JJ, ZPPOST)
-                  call obs_set_r8(obsSpaceData,'OMI ',JDATA,-LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_set_r8(lobsSpaceData,'OMN ',JDATA, ZPPOST)
+                  call obs_set_r8(lobsSpaceData,'OMN ',JJ, ZPPOST)
+                  call obs_set_r8(lobsSpaceData,'OMI ',JDATA,-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  call obs_set_r8(obsSpaceData,'OMI ',JJ, -LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_set_r8(lobsSpaceData,'OMI ',JJ, -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
                 ENDIF
               enddo
             endif
           else
-            zjon = obs_elem_r8(obsSpaceData,'OMI ',jdata)
+            zjon = obs_elem_r8(lobsSpaceData,'OMI ',jdata)
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
-            call obs_set_r8(obsSpaceData,'OMN ',jdata, zppost)
-            call obs_set_r8(obsSpaceData,'OMI ',JDATA, - log(zqcarg/(zgami+1.)))
+            call obs_set_r8(lobsSpaceData,'OMN ',jdata, zppost)
+            call obs_set_r8(lobsSpaceData,'OMI ',JDATA, - log(zqcarg/(zgami+1.)))
           endif
         endif
       enddo

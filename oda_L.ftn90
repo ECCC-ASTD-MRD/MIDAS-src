@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_L(statevector)
+subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use mod4dv, only : l4dvar
   use mpi 
@@ -37,6 +37,8 @@ subroutine oda_L(statevector)
 #include "comstate.cdk"
 #include "comdimo.cdk"
 
+  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_obs) :: lobsSpaceData
   type(struct_gsv) :: statevector
   ! Local declarations
   integer :: nl_ilev, nl_err
@@ -64,17 +66,17 @@ subroutine oda_L(statevector)
 !    3D fields interpolation
 !
 !$OMP SECTION
-     if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',nflev)
+     if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',nflev)
+     if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngq).eq.1)   call gd2mvo('Q0',nflev)
+     if(NGEXIST(ngq).eq.1)   call gd2mvo('Q0',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',nflev)
+     if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',nflev)
+     if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',lcolumn%nlev)
 !$OMP SECTION
-     if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',nflev)
+     if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',lcolumn%nlev)
 !
 !    2D fields interpolation
 !
@@ -91,7 +93,7 @@ subroutine oda_L(statevector)
   !     TL of variable conversions
   !------------------------------
   call tmg_start(51,'VAR_CH') !
-  call lpreobs
+  call lpreobs(lcolumn,lcolumng)
   call tmg_stop(51)
 
 
@@ -108,11 +110,11 @@ subroutine oda_L(statevector)
 !*     .
 !*Revision:
 !*
-!**    Purpose:  Build column from GD (in COMGD0) using
+!**    Purpose:  Build lcolumn from GD (in COMGD0) using
 !*     .         bilinear interpolation.
 !*
 !*     CDVARNAME: identificator of the variable to be treated
-!*     KLEV     : number of levels (typically 1 for 2D-fields and NFLEV for 3D-fields)
+!*     KLEV     : number of levels (typically 1 for 2D-fields and LCOLUMN%NLEV for 3D-fields)
 !*
 !*
 !*     Arguments
@@ -129,7 +131,7 @@ subroutine oda_L(statevector)
       real*4    DLLAO, DLLOO
 
       real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
-      real*8  zprofil(1:klev,nobtot)
+      real*8  zprofil(1:klev,lcolumn%nobtot)
 !*
 !*     Transfer Grid point field into local array (for generecity)
 !*
@@ -223,16 +225,16 @@ subroutine oda_L(statevector)
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-        DO JOBS = 1, NOBTOT
-          if(obs_getTimeInterpWeight(obsSpaceData,jobs,jstep).gt.0.0d0) then
-            DLLAO=obs_elem_r4(obsSpaceData,'LAT ',jobs)
-            DLLOO=obs_elem_r4(obsSpaceData,'LON ',jobs)
+        DO JOBS = 1, LCOLUMN%NOBTOT
+          if(obs_getTimeInterpWeight(lobsSpaceData,jobs,jstep).gt.0.0d0) then
+            DLLAO=obs_elem_r4(lobsSpaceData,'LAT ',jobs)
+            DLLOO=obs_elem_r4(lobsSpaceData,'LON ',jobs)
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 !C     *    TO THE WEST (ILON AND ILOS).
 !C
-            ila=obs_elem_i(obsSpaceData,'TLA ',jobs)
+            ila=obs_elem_i(lobsSpaceData,'TLA ',jobs)
 
             IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
             IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
@@ -255,7 +257,7 @@ subroutine oda_L(statevector)
 !C
             DO JLEV = 1, KLEV
               ZPROFIL(JLEV,JOBS) =   ZPROFIL(JLEV,JOBS) +  &
-                 obs_getTimeInterpWeight(obsSpaceData,jobs,jstep)*  &
+                 obs_getTimeInterpWeight(lobsSpaceData,jobs,jstep)*  &
                  ( DLW1*ZFIELD(ILON,JLEV,ILA)    &
                  + DLW2*ZFIELD(ILON+1,JLEV,ILA)  &
                  + DLW3*ZFIELD(ILOS,JLEV,ILA+1)  &
@@ -271,24 +273,24 @@ subroutine oda_L(statevector)
 !*     2D fields
 !*
       CASE('TG')
-         column%tg(1:KLEV,1:NOBTOT) = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%tg(1:KLEV,1:LCOLUMN%NOBTOT) = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       CASE('PS')
-         column%ps(1:KLEV,1:NOBTOT) = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%ps(1:KLEV,1:LCOLUMN%NOBTOT) = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
 !*
 !*     3D fields
 !*
       CASE('TT')
-         column%tt(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%tt(1:KLEV,1:LCOLUMN%NOBTOT)  = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       CASE('Q0')
-         column%hu(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%hu(1:KLEV,1:LCOLUMN%NOBTOT)  = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       CASE('TR')
-         column%tr(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%tr(1:KLEV,1:LCOLUMN%NOBTOT)  = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       CASE('UU')
-         column%uu(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%uu(1:KLEV,1:LCOLUMN%NOBTOT)  = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       CASE('VV')
-         column%vv(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%vv(1:KLEV,1:LCOLUMN%NOBTOT)  = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       CASE('GZ')
-         column%gz(1:KLEV,1:NOBTOT)  = ZPROFIL(1:KLEV,1:NOBTOT)
+         lcolumn%gz(1:KLEV,1:LCOLUMN%NOBTOT)  = ZPROFIL(1:KLEV,1:LCOLUMN%NOBTOT)
       END SELECT
 
       RETURN

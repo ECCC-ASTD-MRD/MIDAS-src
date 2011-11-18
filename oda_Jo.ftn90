@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE oda_Jo
+SUBROUTINE oda_Jo(lobsSpaceData)
   use modmask, only : lmask,ldiag
   use obsSpaceData_mod
   implicit none
@@ -30,15 +30,15 @@ SUBROUTINE oda_Jo
   !
 #include "comdim.cdk"
 #include "comdimo.cdk"
-
+  type(struct_obs) :: lobsSpaceData
   !Local declarations
   INTEGER JDATA
 !
 !!
-    DO JDATA=1,obs_num_obstotal(obsSpaceData)
+    DO JDATA=1,obs_num_obstotal(lobsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r8(obsSpaceData,'OMI ',JDATA, &
-               (obs_elem_r8(obsSpaceData,'OMA ',JDATA)*obs_elem_r8(obsSpaceData,'OMA ',JDATA))/2.)
+          call obs_set_r8(lobsSpaceData,'OMI ',JDATA, &
+               (obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*obs_elem_r8(lobsSpaceData,'OMA ',JDATA))/2.)
        ENDIF
     END DO
 !

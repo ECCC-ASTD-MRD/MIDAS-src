@@ -17,7 +17,7 @@
 ***S/R AMHUAESV  -  ADJOINT OF THE CALCULATION ES=T-TD FROM T AND Q
 *
 *
-      SUBROUTINE AMHUAESV
+      SUBROUTINE AMHUAESV(lcolumn,lcolumng)
 #if defined (DOC)
 *
 *Author
@@ -31,7 +31,6 @@
 *          No ice phase is considered and the pressure vector is given.
 *
 *Revision: C. Charette *ARMA/AES  mar 99
-*             - Replace column1%ps by column1%u
 *
 *          JM Belanger CMDA/SMC  Dec 2000
 *                   . 32 bits conversion
@@ -51,38 +50,32 @@
 *--------------------------------------------------------------------------
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comdimo.cdk"
 #include "comgem.cdk"
-*
-
- 
- 
 *
       REAL*8 ZE, ZCTE, ZDEN, ZTD, ZTDA,ZHU,ZGAMMA,ZQBRANCH
       INTEGER JOBS,JLEV,ILEN,IERR
       REAL*8 zpresb
       EXTERNAL HPDEALLC, HPALLOC
 C
-*
 #include "dinternv.cdk"
 #include "finternv.cdk"
 #include "finternva.cdk"
 #include "dintern8.cdk"
 #include "fintern8.cdk"
 *
-*
+      type(struct_columnData) :: lcolumn,lcolumng
 c
-      DO JLEV=1,NFLEV
+      DO JLEV=1,lcolumn%NLEV
 *
-        DO JOBS=1,NOBTOT
+        DO JOBS=1,lcolumn%NOBTOT
 *
-         ZTDA = column1%es(JLEV,JOBS)
+         ZTDA = lcolumn%es(JLEV,JOBS)
 *
 *      Forward calculations of saturation vapour pressure and dewpoint temperature
 *      and adjoint of vapour pressure from adjoint of dewpoint temperature
 
-         ZHU = exp(columng%hu(jlev,jobs))
-         ZE = FOEFQ(ZHU, COLUMNG%RPPOBS(JLEV,JOBS))
+         ZHU = exp(lcolumng%hu(jlev,jobs))
+         ZE = FOEFQ(ZHU, LCOLUMNG%RPPOBS(JLEV,JOBS))
 *
          ZCTE=FOTW8(ZE)
          ZTD=ZCTE
@@ -91,21 +84,21 @@ c
 *      adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
 *
          ZQBRANCH = FQBRANCH(ZHU)
-         column1%hu(JLEV,JOBS) = column1%hu(JLEV,JOBS) -
+         lcolumn%hu(JLEV,JOBS) = lcolumn%hu(JLEV,JOBS) -
      $                 ZQBRANCH*FOEFQA (ZTDA,ZGAMMA,ZHU,
-     $                                  COLUMNG%RPPOBS(JLEV,JOBS))
+     $                                  LCOLUMNG%RPPOBS(JLEV,JOBS))
 
 
          zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
      &            /(1.0-rptopinc/rprefinc))**rcoefinc
 
 
-         column1%uu(JLEV,JOBS) = column1%uu(JLEV,JOBS)
+         lcolumn%uu(JLEV,JOBS) = lcolumn%uu(JLEV,JOBS)
      $               -ZQBRANCH*FOEFQPSA(ZTDA,ZGAMMA,ZHU,
      $                VHYBINC(JLEV))-(1.-ZQBRANCH)*
      $                (ZGAMMA*zpresb*ZTDA)
 
-         column1%tt(JLEV,JOBS) = column1%tt(JLEV,JOBS) + ZTDA
+         lcolumn%tt(JLEV,JOBS) = lcolumn%tt(JLEV,JOBS) + ZTDA
 *
 *
         ENDDO

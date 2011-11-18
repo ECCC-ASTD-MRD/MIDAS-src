@@ -1,3 +1,0 @@
-      NAMELIST /NAMODE/LMOD, TSTAR, ALPHA, NVMOD, 
-     +                 XPLIM, BRTPHGT, 
-     +                 LPRTMOD, LWRTMOD, MHEMMOD, MTYPMOD

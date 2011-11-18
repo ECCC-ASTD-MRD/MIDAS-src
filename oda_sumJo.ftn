@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE oda_sumJo(PJO)
+      SUBROUTINE oda_sumJo(lobsSpaceData,PJO)
       use modmask
       use mpi
       use obsSpaceData_mod
@@ -43,6 +43,7 @@ C              and correct bug ROBDATA8(NCM_OMI,JDATA)
 #include "comdimo.cdk"
 #include "cvcord.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
       INTEGER J,JDATA,JO,IDATA,ITYP,indata
       LOGICAL LLOK
@@ -59,12 +60,12 @@ C
 C Compute the observation cost function value based on the sequence of
 c the data array
 C 
-      ALLOCATE(ROBDATA8_g(obsSpaceData%mxobstotal),STAT=ierr)
+      ALLOCATE(ROBDATA8_g(lobsSpaceData%mxobstotal),STAT=ierr)
       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to ROBDATA_g')
 
 
-        CALL restore_robdata8(robdata8_g,obsSpaceData%mxobstotal)  
-         pjo = pjo + sumJo(1,obsSpaceData%mxobstotal,lmask_g)
+        CALL restore_robdata8(robdata8_g,lobsSpaceData%mxobstotal)  
+         pjo = pjo + sumJo(1,lobsSpaceData%mxobstotal,lmask_g)
 c
 c       Compute family contributions for diagnostic purposes
 c       The remaining of the code has no effect on the minimization
@@ -83,35 +84,35 @@ c
           select case(CFAMTYP(J))
             case('UA')
               ! llmask = lmaskpp_in .or. lmaskpp_out
-              llmask => lmaskpp_inout_g(1:obsSpaceData%mxobstotal)
+              llmask => lmaskpp_inout_g(1:lobsSpaceData%mxobstotal)
               dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
               dljoraob = dljoraob + dlsum1
 
-              llmask => lmasksf_inout_g(1:obsSpaceData%mxobstotal)
+              llmask => lmasksf_inout_g(1:lobsSpaceData%mxobstotal)
               dlsum => dljosurfc
             case('AI')
-              llmask => lmaskpp_inout_g(1:obsSpaceData%mxobstotal)
+              llmask => lmaskpp_inout_g(1:lobsSpaceData%mxobstotal)
               dlsum => dljoairep
             case('SW')
-              llmask => lmaskpp_inout_g(1:obsSpaceData%mxobstotal) 
+              llmask => lmaskpp_inout_g(1:lobsSpaceData%mxobstotal) 
               dlsum => dljosatwind
             case('SF','SC')
-              llmask => lmasksf_inout_g(1:obsSpaceData%mxobstotal) 
+              llmask => lmasksf_inout_g(1:lobsSpaceData%mxobstotal) 
               dlsum => dljosurfc
             case('TO')
-              llmask => lmaskto_g(1:obsSpaceData%mxobstotal)
+              llmask => lmaskto_g(1:lobsSpaceData%mxobstotal)
               dlsum => dljotov
             case('RO')
-              llmask => lmaskro_g(1:obsSpaceData%mxobstotal)
+              llmask => lmaskro_g(1:lobsSpaceData%mxobstotal)
               dlsum => dljogpsro
             case('PR')
-              llmask => lmaskzp_g(1:obsSpaceData%mxobstotal)
+              llmask => lmaskzp_g(1:lobsSpaceData%mxobstotal)
               dlsum => dljoprof
             case('GP')
-              llmask => lmaskgp_g(1:obsSpaceData%mxobstotal)
+              llmask => lmaskgp_g(1:lobsSpaceData%mxobstotal)
               dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
               dljogpsztd = dljogpsztd + dlsum1
-              llmask = lmasksf_inout_g(1:obsSpaceData%mxobstotal) 
+              llmask = lmasksf_inout_g(1:lobsSpaceData%mxobstotal) 
               dlsum => dljosurfc
           end select
           dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
@@ -135,7 +136,7 @@ c
 *
       real*8  :: sumJo
       integer, intent(in) :: kbegin,klast
-      logical, intent(in), dimension(obsSpaceData%mxobstotal) :: ll_mask
+      logical, intent(in), dimension(lobsSpaceData%mxobstotal) :: ll_mask
 *
 *     Local variables
 *
@@ -158,11 +159,11 @@ c
        robdata8_g=0.0D0  
        DO i=1,nobtot
          iobs=locObsTag(i)
-         idata=obs_elem_mpiglobal_i(obsSpaceData,'RLN ',iobs)
-         idataend=obs_elem_mpiglobal_i(obsSpaceData,'NLV ',iobs)+idata -1 
+         idata=obs_elem_mpiglobal_i(lobsSpaceData,'RLN ',iobs)
+         idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs)+idata -1 
          DO j=idata,idataend
            ii=ii+1
-           robdata8_g(j)=obs_elem_r8(obsSpaceData,'OMI ',ii)
+           robdata8_g(j)=obs_elem_r8(lobsSpaceData,'OMI ',ii)
          ENDDO
        ENDDO  
        CALL rpn_comm_allreduce(ROBDATA8_g,ROBDATA8_g,kdata,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 

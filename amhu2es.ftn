@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE amhu2es
+      SUBROUTINE amhu2es(lcolumn)
 #if defined (DOC)
 *
 ***s/r amhu2es - Lnq, temperature and sfc pressure adjoints from dewpoint depression
@@ -35,28 +35,20 @@
 *
 #endif
       use columnData_mod 
- 
       IMPLICIT NONE
-*implicits
-c------------------------------------------------------------------------
-#include "comdim.cdk"
-#include "comdimo.cdk"
-c
-
- 
-c
+      type(struct_columnData) :: lcolumn
       integer jobs,jlev
 
 c     Computation of adjoints from dewpoint depression adjoint
 
-        do jobs = 1, nobtot
-           do jlev = 1, nflev
-          column%hu (jlev,jobs) = column%hu(jlev,jobs)+
-     $                       ollq2es(1,jlev,jobs)*column%es(jlev,jobs)
-          column%ps(1,jobs) = column%ps(1,jobs)+
-     $                       ollq2es(2,jlev,jobs)*column%es(jlev,jobs)
-          column%tt (jlev,jobs) = column%tt(jlev,jobs)+
-     $                       ollq2es(3,jlev,jobs)*column%es(jlev,jobs)
+        do jobs = 1, lcolumn%nobtot
+           do jlev = 1, lcolumn%nlev
+          lcolumn%hu (jlev,jobs) = lcolumn%hu(jlev,jobs)+
+     $                       ollq2es(1,jlev,jobs)*lcolumn%es(jlev,jobs)
+          lcolumn%ps(1,jobs) = lcolumn%ps(1,jobs)+
+     $                       ollq2es(2,jlev,jobs)*lcolumn%es(jlev,jobs)
+          lcolumn%tt (jlev,jobs) = lcolumn%tt(jlev,jobs)+
+     $                       ollq2es(3,jlev,jobs)*lcolumn%es(jlev,jobs)
         enddo
       enddo
 c

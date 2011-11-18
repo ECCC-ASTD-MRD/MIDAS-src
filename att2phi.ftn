@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE att2phi
+      SUBROUTINE att2phi(lcolumn,lcolumng)
 #if defined (DOC)
 *
 ***s/r att2phi - adjoint of Temperature to phi transformation
@@ -29,8 +29,8 @@
 *Revision: L. Fillion *ARMA/AES - 3 feb 1999
 *        - Introduce adjoint of ps dependence of TLM
 *Revision: C. Charette *ARMA/AES - 8 feb 1999
-*        - Replaced zptop by columng%rppobs(1,jobs)
-*          and zpscon by columng%ps(1,jobs)
+*        - Replaced zptop by lcolumng%rppobs(1,jobs)
+*          and zpscon by lcolumng%ps(1,jobs)
 *
 *           JM Belanger CMDA/SMC  Dec 2000
 *                   . 32 bits conversion
@@ -63,18 +63,23 @@
 #include "comdimo.cdk"
 #include "comgem.cdk"
 *
+      type(struct_columnData) :: lcolumn,lcolumng
+      type(struct_columnData) :: lcolumnt
       integer jobs,jlev
       logical llprint
       real*8 zcon, zalpha, psurf
       real*8 zpresb,zpresbd,zterm
+      real*8 vma(lcolumn%nlev),vmb(lcolumn%nlev),vmc(lcolumn%nlev)
+      real*8 vmd(lcolumn%nlev),vme(lcolumn%nlev),vmf(lcolumn%nlev)
 *
+      call col_allocate(lcolumnt,lcolumn%nlev,lcolumn%nobtot)
 **
 C
       llprint = .false.
 c      llprint = .true.
 c
       zalpha=0.0D0
-      call matapat(vhybinc,zalpha,nflev)
+      call matapat(vhybinc,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
       call avtap
 c
 c*    Adjoint of preparation r.h.s. for TL-Hydrostatic equation
@@ -82,9 +87,9 @@ c     ---------------------------------------------------------
 c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev,zpresb,zterm,zpresbd,zcon)
 
-      do jobs = 1, nobtot
+      do jobs = 1, lcolumn%nobtot
 
-        do jlev = 1, nflev
+        do jlev = 1, lcolumn%nlev
 c
 c        zcon = d(rtapfac)/d(ps)
 c
@@ -97,11 +102,11 @@ c
      &              /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
           endif
           zpresbd= rcoefinc * zterm
-          zcon   = (zpresbd-zpresb*rtapfac(jlev,jobs))/columng%rppobs(jlev,jobs)
-          column%ps(1,jobs)=column%ps(1,jobs)+
-     &          columng%tt(jlev,jobs)*zcon * column1%tt(jlev,jobs)
+          zcon   = (zpresbd-zpresb*rtapfac(jlev,jobs))/lcolumng%rppobs(jlev,jobs)
+          lcolumn%ps(1,jobs)=lcolumn%ps(1,jobs)+
+     &          lcolumng%tt(jlev,jobs)*zcon * lcolumnt%tt(jlev,jobs)
 
-          column1%tt(jlev,jobs)=rtapfac(jlev,jobs)*column1%tt(jlev,jobs)
+          lcolumnt%tt(jlev,jobs)=rtapfac(jlev,jobs)*lcolumnt%tt(jlev,jobs)
 
         enddo
       enddo
@@ -110,18 +115,18 @@ c
       if(chum.eq.'LQ') then
 c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev)
-        do jobs = 1, nobtot
-          do jlev = 1, nflev
-            column%tt(jlev,jobs) = column%tt(jlev,jobs)+
-     &                        oltv(1,jlev,jobs)*column1%tt(jlev,jobs)
-            column%hu(jlev,jobs) = column%hu(jlev,jobs)+
-     &                        oltv(2,jlev,jobs)*column1%tt(jlev,jobs)
+        do jobs = 1, lcolumn%nobtot
+          do jlev = 1, lcolumn%nlev
+            lcolumn%tt(jlev,jobs) = lcolumn%tt(jlev,jobs)+
+     &                        oltv(1,jlev,jobs)*lcolumnt%tt(jlev,jobs)
+            lcolumn%hu(jlev,jobs) = lcolumn%hu(jlev,jobs)+
+     &                        oltv(2,jlev,jobs)*lcolumnt%tt(jlev,jobs)
 ***************************************************************
 c          if(llprint .and. jobs.le.15) then
 c             write(nulout,*)'att2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
 c     &            , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
 c             write(nulout,*)'att2phi:gmt1,GMQ(lev,obs),GMT(lev,obs) '
-c     &            ,column1%tt(jlev,jobs),column%hu(jlev,jobs),column%tt(jlev,jobs)
+c     &            ,lcolumnt%tt(jlev,jobs),lcolumn%hu(jlev,jobs),lcolumn%tt(jlev,jobs)
 c             call vflush(nulout)
 c          endif
 ***************************************************************
@@ -129,6 +134,8 @@ c          endif
         enddo
 !$OMP END PARALLEL DO
       endif
+
+      call col_deallocate(lcolumnt)
 c
       return
 
@@ -141,11 +148,10 @@ C AUTHOR: Luc Fillion - ARMA/AES CAN, 21 jul, 11 sep 98
 C
 C REVISION:
 *           S. Pellerin - Sept 97 - Introduction of site constants
-*                                   common (comphy)
 *                                 - Introduction of surface pressure
 *                                   dependant factor (rtapfac) for eta
 *                                   coordinates
-*                                 - use of column1%tt for virtual temperature
+*                                 - use of lcolumnt%tt for virtual temperature
 * revision: Luc Fillion - ARMA/AES CAN, 3 feb 1999
 *                  - Eliminate rtapfac
 *           C.Charette  - ARMA sep 1999
@@ -167,73 +173,72 @@ C
       REAL*8     ZAK, ZBK, ZCK, ZCON
       LOGICAL  LLPRINT
 *implicits
-#include "comode.cdk"
 
       integer mythread,numthd,omp_get_thread_num,omp_get_num_threads
 c
       LLPRINT = .FALSE.
       ZCON = -RGASD
-      IKLEVM2 = nflev-2
+      IKLEVM2 = lcolumn%nlev-2
 !$OMP PARALLEL PRIVATE(jobs,jk,mythread,numthd,zak,zbk,zck)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, nobtot,numthd
-         do jk=1,nflev
-            column1%tt(jk,jobs) = 0.0
+      do jobs = mythread, lcolumn%nobtot,numthd
+         do jk=1,lcolumn%nlev
+            lcolumnt%tt(jk,jobs) = 0.0
          enddo
 c
       do jk=iklevm2,1,-1
-        ik = nflev-1-jk
+        ik = lcolumn%nlev-1-jk
         zak = -2.0*ZCON*vma(ik+1)
         zbk = -2.0*ZCON*vmb(ik+1)
         zck = -2.0*ZCON*vmc(ik+1)
-!        do jobs = 1, nobtot
-          column1%tt(ik,jobs)   = column1%tt(ik,jobs)+
-     &                       column%gz(ik,jobs)*zak
-          column1%tt(ik+1,jobs) = column1%tt(ik+1,jobs)+
-     &                       column%gz(ik,jobs)*zbk
-          column1%tt(ik+2,jobs) = column1%tt(ik+2,jobs)+
-     &                       column%gz(ik,jobs)*zck
-           column%gz(ik+2,jobs) = column%gz(ik+2,jobs)+column%gz(ik,jobs)
-          column%gz(ik,jobs)  = 0.0
+!        do jobs = 1, lcolumn%nobtot
+          lcolumnt%tt(ik,jobs)   = lcolumnt%tt(ik,jobs)+
+     &                       lcolumn%gz(ik,jobs)*zak
+          lcolumnt%tt(ik+1,jobs) = lcolumnt%tt(ik+1,jobs)+
+     &                       lcolumn%gz(ik,jobs)*zbk
+          lcolumnt%tt(ik+2,jobs) = lcolumnt%tt(ik+2,jobs)+
+     &                       lcolumn%gz(ik,jobs)*zck
+           lcolumn%gz(ik+2,jobs) = lcolumn%gz(ik+2,jobs)+lcolumn%gz(ik,jobs)
+          lcolumn%gz(ik,jobs)  = 0.0
 ********************************************************
 c          IF(LLPRINT .AND. JOBS.EQ.1) THEN
 c             write(nulout,*)'avtap:ik,jobs,zak,zbk,zck= '
 c     &            ,ik,jobs,zak,zbk,zck
 c             write(nulout,*)
 c     &            'avtap:ik,jobs,gmt1(ik,),gmt1(ik+1,),gmt1(ik+2,)= '
-c     &       ,ik,jobs,column1%tt(IK,jobs),column1%tt(IK+1,jobs),column1%tt(IK+2,jobs)
-c             write(nulout,*)'avtap:ik,jobs,column%gz(ik,),column%gz(ik+2,)= '
-c     &            ,ik,jobs,column%gz(ik,jobs),column%gz(ik+2,jobs)
+c     &       ,ik,jobs,lcolumnt%tt(IK,jobs),lcolumnt%tt(IK+1,jobs),lcolumnt%tt(IK+2,jobs)
+c             write(nulout,*)'avtap:ik,jobs,lcolumn%gz(ik,),lcolumn%gz(ik+2,)= '
+c     &            ,ik,jobs,lcolumn%gz(ik,jobs),lcolumn%gz(ik+2,jobs)
 c             write(nulout,*)'avtap:ik,jobs= ',ik,jobs
 c          ENDIF
 **********************************************************
         enddo
 
-      ZAK = -2.0*ZCON*VMA(nflev)
-      ZBK = -2.0*ZCON*VMB(nflev)
-      ZCK = -2.0*ZCON*VMC(nflev)
-!      do jobs = 1, nobtot
-        column1%tt(nflev-1,jobs) = column1%tt(nflev-1,jobs)+
-     &             ZAK*column%gz(nflev-1,jobs)
-        column1%tt(nflev,jobs)   = column1%tt(nflev,jobs)+
-     &             ZBK*column%gz(nflev-1,jobs)
-        column1%tt(nflev-2,jobs) = column1%tt(nflev-2,jobs)+
-     &             ZCK*column%gz(nflev-1,jobs)
-        column%gz(nflev-1,jobs)= 0.0
-        column%gz(nflev,jobs)  = 0.0
+      ZAK = -2.0*ZCON*VMA(lcolumn%nlev)
+      ZBK = -2.0*ZCON*VMB(lcolumn%nlev)
+      ZCK = -2.0*ZCON*VMC(lcolumn%nlev)
+!      do jobs = 1, lcolumn%nobtot
+        lcolumnt%tt(lcolumn%nlev-1,jobs) = lcolumnt%tt(lcolumn%nlev-1,jobs)+
+     &             ZAK*lcolumn%gz(lcolumn%nlev-1,jobs)
+        lcolumnt%tt(lcolumn%nlev,jobs)   = lcolumnt%tt(lcolumn%nlev,jobs)+
+     &             ZBK*lcolumn%gz(lcolumn%nlev-1,jobs)
+        lcolumnt%tt(lcolumn%nlev-2,jobs) = lcolumnt%tt(lcolumn%nlev-2,jobs)+
+     &             ZCK*lcolumn%gz(lcolumn%nlev-1,jobs)
+        lcolumn%gz(lcolumn%nlev-1,jobs)= 0.0
+        lcolumn%gz(lcolumn%nlev,jobs)  = 0.0
 ********************************************************
 c        IF(LLPRINT .AND. JOBS.EQ.1) THEN
 c           write(nulout,*)'avtap:ik,jobs,zak,zbk,zck= ',
 c     &          ik,jobs,zak,zbk,zck
 c           write(nulout,*)
-c     &        'avtap:ik,jobs,column1%tt(nf,),column1%tt(nf-1,),column1%tt(nf-2,)= '
-c     &          ,nflev,jobs,column1%tt(NFLEV,jobs),column1%tt(NFLEV-1,jobs)
-c     &          ,column1%tt(NFLEV-2,jobs)
+c     &        'avtap:ik,jobs,lcolumnt%tt(nf,),lcolumnt%tt(nf-1,),lcolumnt%tt(nf-2,)= '
+c     &          ,lcolumn%nlev,jobs,lcolumnt%tt(LCOLUMN%NLEV,jobs),lcolumnt%tt(LCOLUMN%NLEV-1,jobs)
+c     &          ,lcolumnt%tt(LCOLUMN%NLEV-2,jobs)
 c           write(nulout,*)
-c     &         'avtap:nflev,jobs,column%gz(nflev,),column%gz(nflev-1,)= '
-c     &          ,nflev,jobs,column%gz(nflev,jobs),column%gz(nflev-1,jobs)
-c           write(nulout,*)'avtap:nflev,jobs= ',nflev,jobs
+c     &         'avtap:lcolumn%nlev,jobs,lcolumn%gz(lcolumn%nlev,),lcolumn%gz(lcolumn%nlev-1,)= '
+c     &          ,lcolumn%nlev,jobs,lcolumn%gz(lcolumn%nlev,jobs),lcolumn%gz(lcolumn%nlev-1,jobs)
+c           write(nulout,*)'avtap:lcolumn%nlev,jobs= ',lcolumn%nlev,jobs
 c        ENDIF
 **********************************************************
       enddo

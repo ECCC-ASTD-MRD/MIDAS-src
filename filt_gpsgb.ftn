@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE FILT_GPSGB
+      SUBROUTINE FILT_GPSGB(lobsSpaceData)
 C
 C**s/r FILT_GPSGB - Filter GPS observations for testing purposes
 C
@@ -43,11 +43,10 @@ C
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
-
- 
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 C
+      type(struct_obs) :: lobsSpaceData
       INTEGER JF
       INTEGER IBEGIN  , ILAST
       INTEGER IBEGINOB, ILASTOB, JO
@@ -82,8 +81,8 @@ C
 C
         IBEGIN   = NBEGINTYP(JF)
         ILAST    = NENDTYP  (JF)
-        IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-        ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
 C
 C     *  Loop over all GPS observation locations of the file
 C
@@ -93,19 +92,19 @@ C
 C
 C     *  Process only Ground-Based GPS data (codtyp 189)
 C
-          IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+          IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
 C
           IF ( IDATYP .EQ. 189 ) THEN
-            IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-            IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
-            IF (obs_elem_c9(obsSpaceData,'STID',JO) .NE. CGPSSTN) THEN
+            IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+            IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+            IF (obs_elem_c9(lobsSpaceData,'STID',JO) .NE. CGPSSTN) THEN
 C     Loop over all observations for the location
               DO JDATA= IDATA, IDATEND
-                call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
+                call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
               ENDDO
             ELSE
               WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 
-     +           obs_elem_c9(obsSpaceData,'STID',JO)
+     +           obs_elem_c9(lobsSpaceData,'STID',JO)
               LLFOUND = .TRUE.
             ENDIF
           ENDIF

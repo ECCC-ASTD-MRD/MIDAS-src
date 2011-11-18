@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE READNML (CDNAME,KFLAG)
-!modular1      use modstag, only : lstagwinds
 #if defined (DOC)
 *
 ***s/r CHECNML - Check if namelist cdname is present on logical unit
@@ -48,8 +47,6 @@
 *     .             Introduction of NAMGRD to allow Limited-Area or Global analysis LAM4D.
 *       L. Fillion ARMA/MSC May 2006:  LAM4D upgrade to v10_0_0.
 *       L. Fillion ARMA/MSC 14 Aug 2007 - Update lam4d to v_10_0_3.
-*     . A. Beaulne *CMC/CMDA  Jul 2007
-*                   Introduction of NAM1CHN
 *     . S. Macpherson *ARMA/MRD Sep 2007
 *                   Introduction of NAMGPSGB
 *       L. Fillion ARMA/EC 24 Apr 2008 - Update lam4d to v_10_1_0.
@@ -96,9 +93,6 @@ C
 #include "comgdpar.cdk"
 #include "namgdpar.cdk"
 C
-#include "comode.cdk"
-#include "namode.cdk"
-C
 #include "compost.cdk"
 #include "nampost.cdk"
 C
@@ -116,12 +110,6 @@ C
 #include "comstate.cdk"
 #include "namstate.cdk"
 C
-#include "com1chn.cdk"
-#include "nam1chn.cdk"
-C
-C see use mod4dv above
-!modular1 #include "namstag.cdk"
-C
 #include "comgpsgb.cdk"
 #include "namgpsgb.cdk"
 C
@@ -129,7 +117,7 @@ C
       CHARACTER*60 CLDUMMY
 *
       CHARACTER*(*) CDNAME
-      INTEGER KFLAG,IER,FNOM,FCLOS
+      INTEGER KFLAG,IER,FNOM,FCLOS,NULNAM
       logical isExist_L
 *
 **    1. Position the file to where the NAMELIST is located
@@ -205,11 +193,6 @@ C
          READ(NULNAM,NAMGDPAR)
          WRITE(NULOUT,NAMGDPAR)
 C
-      ELSE IF(CDNAME.EQ.'NAMODE')THEN
-C
-         READ(NULNAM,NAMODE)
-         WRITE(NULOUT,NAMODE)
-C
       ELSE IF(CDNAME.EQ.'NAMPOST')THEN
 C
          READ(NULNAM,NAMPOST)
@@ -240,10 +223,6 @@ C
          READ(NULNAM,NAMGPSRO)
          WRITE(NULOUT,NAMGPSRO)
 C
-      ELSE IF(CDNAME.EQ.'NAM1CHN')THEN
-C
-         READ(NULNAM,NAM1CHN)
-         WRITE(NULOUT,NML=NAM1CHN)
       ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
 C
          READ(NULNAM,NAMGPSGB)

@@ -14,11 +14,10 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine suinnov
-      use mod4dv, only : l4dvar
+      subroutine suinnov(lcolumnhr,lcolumng,lobsSpaceData)
       use minimization_mod
+      use obsSpaceData_mod
       use columnData_mod
-#if defined (DOC)
 *
 ***s/r suinnov  - Initialise Observation Innovations.
 *
@@ -38,11 +37,7 @@
 *     Bin He   -ARMA/MRD      Feb. 2010 
 *         - Implemented MPI to 3DVAR      
 *    -------------------
-**    Purpose: 
 *
-*Arguments
-*    -NONE-
-#endif
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -55,13 +50,15 @@
 #include "comgdpar.cdk"
 #include "comgpsgb.cdk"
 c
-      logical lldo
+      type(struct_columnData) :: lcolumnhr,lcolumng
+      type(struct_obs) :: lobsSpaceData
+c
       integer jlev,jobs,jdata,ii,ierr
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
 c
-      call printrev("SUBROUTINE SUINNOV :",20)
+      write(*,*) '--Starting subrouting suinnov--'
 !
 *****************************************************************
 *                                                               *
@@ -72,16 +69,14 @@ c
 *
 C
 c Calculate ES=T-TD from T and Q
-c from columnhr%hu and columnhr%tt and put it in columnhr%es
+c from lcolumnhr%hu and lcolumnhr%tt and put it in lcolumnhr%es
 c
-!      call tmg_start(17,'MHUAESVHR')
-      call mhuaesvhr
-!      call tmg_stop(17)
+      call mhuaesv(lcolumnhr)
 c
-c Using T, q and PS in columnhr, computes GZ and stores it in columnhr%gz
-c N.B. uses columnhr%vlev
+c Using T, q and PS in lcolumnhr, computes GZ and stores it in lcolumnhr%gz
+c N.B. uses lcolumnhr%vlev
 c
-      call tt2phi(columnhr)
+      call tt2phi(lcolumnhr)
 c
 c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface
@@ -89,8 +84,6 @@ c     pressure values of the trial field.
 c
 c     GB-GPS (met and ZTD) observations are processed in SOBSSFC
 c
-      lldo = .true.
-!
         IF (LTOPOFILT) THEN
           write(NULOUT,*)' *****************************************'
           write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
@@ -98,7 +91,7 @@ c
           write(NULOUT,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
           write(NULOUT,*)' *                                       *'
           write(NULOUT,*)' *****************************************'
-          call sobs_all
+          call sobs_all(lcolumnhr,lobsSpaceData)
         ELSE
           write(NULOUT,*)' *****************************************'
           write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
@@ -108,12 +101,11 @@ c
           write(NULOUT,*)' *****************************************'
         ENDIF
 
-        IF(NCONF .EQ. 141 .OR. NINT(NCONF/100.0).EQ.6) CALL SFCWNDZAP
+        IF(NCONF .EQ. 141 .OR. NINT(NCONF/100.0).EQ.6) CALL SFCWNDZAP(lobsSpaceData)
 c
-c     Find interpolation layer in model profiles and reference level
-c     of thickness data for SATEMS
+c     Find interpolation layer in model profiles 
 c
-      if(lldo) CALL VOBSLYRS('HR')
+      CALL VOBSLYRS(lcolumnhr,lobsSpaceData)
 c
 c
 c------ Calculate the normalized inovations (Z - H(X))/sigma
@@ -124,57 +116,57 @@ C------------------------------
 !
 !      call tmg_start(22,'NL_OBS_OPER')
       ZJORAOB = 0.0d0
-      CALL DOBSPPP(ZJORAOB,'UA')
+      CALL DOBSPPP(ZJORAOB,'UA',lcolumnhr,lobsSpaceData)
 C
 C        AIREPS
 C--------------------------------
       ZJOAIREP=0.0D0
-      CALL DOBSPPP(ZJOAIREP,'AI')
+      CALL DOBSPPP(ZJOAIREP,'AI',lcolumnhr,lobsSpaceData)
 C
 C        SATWINDS
 C--------------------------------
       ZJOSATWIND=0.0D0
-      CALL DOBSPPP(ZJOSATWIND,'SW')
+      CALL DOBSPPP(ZJOSATWIND,'SW',lcolumnhr,lobsSpaceData)
 !
       ZJOSURFC=0.0D0
       ZJOSFCSF=0.0D0
       ZJOSFCUA=0.0D0
       ZJOSFCSC=0.0D0
       ZJOSFCGP=0.0D0
-      ZJOTOV=0.0D0
-      ZJOGPSRO=0.0D0
-      ZJOGPSGB=0.0D0
-      ZJOPROF = 0.0d0
 !
 C
 C        SURFACE (SF, UA, SC AND GP FAMILIES)
 C-------------------------------
-        CALL DOBSSFC(ZJOSFCSF,'SF')
-        CALL DOBSSFC(ZJOSFCUA,'UA')
-        CALL DOBSSFC(ZJOSFCSC,'SC')
-        CALL DOBSSFC(ZJOSFCGP,'GP')
-        ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
+      CALL DOBSSFC(ZJOSFCSF,'SF',lcolumnhr,lobsSpaceData)
+      CALL DOBSSFC(ZJOSFCUA,'UA',lcolumnhr,lobsSpaceData)
+      CALL DOBSSFC(ZJOSFCSC,'SC',lcolumnhr,lobsSpaceData)
+      CALL DOBSSFC(ZJOSFCGP,'GP',lcolumnhr,lobsSpaceData)
+      ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
 C
 C        TOVS - RADIANCE
 C-------------------------------
-        CALL TOVS_OBS ('HR',ZJOTOV)
+      ZJOTOV=0.0D0
+      CALL TOVS_OBS ('HR',ZJOTOV,lcolumnhr,lcolumng,lobsSpaceData)
 C
 C        PROFILER
 C------------------------------
-        CALL DOBSZZZ(ZJOPROF,'PR')
+      ZJOPROF = 0.0d0
+      CALL DOBSZZZ(ZJOPROF,'PR',lcolumnhr,lobsSpaceData)
 C
 C        GPS - RADIO OCCULTATION
 C-------------------------------
-        CALL SETERRGPSRO
-        CALL FILTERGPSRO
-        CALL DOBSGPSRO(ZJOGPSRO)
+      ZJOGPSRO=0.0D0
+      CALL SETERRGPSRO(lcolumnhr,lobsSpaceData)
+      CALL FILTERGPSRO(lcolumnhr,lobsSpaceData)
+      CALL DOBSGPSRO(ZJOGPSRO,lcolumnhr,lobsSpaceData)
 C
 C        GPS - GROUND-BASED ZENITH DELAY
 C-------------------------------
 C
-        CALL DOBSGPSGB(ZJOGPSGB)
+      ZJOGPSGB=0.0D0
+      CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
 
-        if ( ZJOGPSGB .gt. 0.0D0 ) then
+      if ( ZJOGPSGB .gt. 0.0D0 ) then
 
 C     Options to fix/adjust model ZTD to observation height and
 C     assimilate GPS met data
@@ -261,7 +253,7 @@ C
             CALL SUGPSGB(nulout)
           ENDIF
 c
-        endif
+      endif
 c
 !      call tmg_stop(22)
 c
@@ -289,22 +281,21 @@ c
 c------ Calculate the normalized innovations (Z - H(X))/sigma
 c       for ln q for atmospheric and surface obs.
 C
-      CALL DHUPPP('UA')
-      CALL DHUPPP('AI')
-      CALL DHUSFC('UA')
-      CALL DHUSFC('SF')
-      CALL DHUSFC('GP')
+      CALL DHUPPP('UA',lcolumnhr,lobsSpaceData)
+      CALL DHUPPP('AI',lcolumnhr,lobsSpaceData)
+      CALL DHUSFC('UA',lcolumnhr,lobsSpaceData)
+      CALL DHUSFC('SF',lcolumnhr,lobsSpaceData)
+      CALL DHUSFC('GP',lcolumnhr,lobsSpaceData)
 C
-c     Find interpolation layer in model profiles and reference level
-c     of thickness data for SATEMS
+c     Find interpolation layer in model profiles 
 c
-      if(lldo) CALL VOBSLYRS('BG')
+      CALL VOBSLYRS(lcolumng,lobsSpaceData)
 c
       IF (LVARQC) THEN
-        CALL SUASYM2
+        CALL SUASYM2(lobsSpaceData)
       endif
 c
-      call oda_mask
+      call oda_mask(lobsSpaceData)
 !
       RETURN
       END

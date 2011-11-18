@@ -1,4 +1,4 @@
-subroutine sobs_all
+subroutine sobs_all(lcolumnhr,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -10,12 +10,14 @@ subroutine sobs_all
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 
+  type(struct_columnData) :: lcolumnhr
+  type(struct_obs) :: lobsSpaceData
+
   CALL SOBSSFC
   CALL SOBSRAOB
   CALL SOBSAISW
   CALL SOBSPROF
   CALL SOBSCSBT
-
 
   CONTAINS
 
@@ -87,8 +89,8 @@ subroutine sobs_all
            (CFAMTYP(JF) .EQ. 'GP') .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
-         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+         IOBS1=obs_elem_i(lobsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(lobsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ',CFAMTYP(JF)
 
       DO JOBS=IOBS1,IOBS2
@@ -96,15 +98,15 @@ subroutine sobs_all
 !ccc            CALL PRNTHDR(JOBS,NULOUT)
 !ccc            CALL PRNTBDY(JOBS,NULOUT)
          ENDIF
-         IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
-         IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+         IDATA    = obs_elem_i(lobsSpaceData,'RLN ',JOBS)
+         IDATEND  = obs_elem_i(lobsSpaceData,'NLV ',JOBS) + IDATA - 1
          DO JDATA= IDATA, IDATEND
-            LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1
+            LLOK = obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1
             IF (LLOK) THEN
             IKOUNTT=IKOUNTT+1
-            IFLG     = obs_elem_i(obsSpaceData,'FLG ',JDATA)
-            ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
-            ITY    = obs_elem_i(obsSpaceData,'ITY ',JOBS)
+            IFLG     = obs_elem_i(lobsSpaceData,'FLG ',JDATA)
+            ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+            ITY    = obs_elem_i(lobsSpaceData,'ITY ',JOBS)
             IDBURP = MOD(ITY,1000)
             ZDIFF=99999.
             IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
@@ -114,19 +116,19 @@ subroutine sobs_all
                   LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
                END DO
                IF ( .NOT. LLREJ ) THEN
-                  ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
-                  ZDIFF= ABS( ( ZVAL-columnhr%gz(COLUMNHR%NLEV,JOBS) )/RG )
-                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                  ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                  ZDIFF= ABS( ( ZVAL-lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS) )/RG )
+                  ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ENDIF
             ELSE
-               ZHHH=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
-               ZDIFF=  ABS( ZHHH- columnhr%gz(COLUMNHR%NLEV,JOBS)/RG )
-               ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+               ZHHH=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+               ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               ZDIFF=  ABS( ZHHH- lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG )
+               ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             ENDIF
-            ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
-            ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
-            ZLEV2=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+            ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+            ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+            ZLEV2=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
 !C
 !C        APPLY FILTER TO SELECTED ELEMENTS
 !C
@@ -135,26 +137,26 @@ subroutine sobs_all
                ILEM=ILISTEL(J)
                IF (ZLEV .EQ. ZLEV2 .AND. ITYP .EQ. ILEM ) THEN
                  IF ( ZDIFF .LE. ICRIT) THEN
-                   IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
                      IKOUNTREA(J)=IKOUNTREA(J)+1
                      IF(LLPRINT) THEN
-                       ZMODEL = columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+                       ZMODEL = lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                        write(nulout,*)'Keep OBS:stnid,jobs,ityp,icrit,' &
                             ,'zlev,zhhh,zmodel,zdiff ' &
-                            ,obs_elem_c9(obsSpaceData,'STID',JOBS),JOBS,ITYP,ICRIT &
+                            ,obs_elem_c9(lobsSpaceData,'STID',JOBS),JOBS,ITYP,ICRIT &
                             ,zlev,zhhh,zmodel,zdiff
                      ENDIF
                    ENDIF
                  ELSE
-                   IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                     call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                          ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                     call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                          ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
                      IF(LLPRINT) THEN
                        WRITE(NULOUT,225) 'Reject OBS ',JOBS,ITYP  &
-                            ,obs_elem_c9(obsSpaceData,'STID',JOBS),IDBURP  &
-                            ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
+                            ,obs_elem_c9(lobsSpaceData,'STID',JOBS),IDBURP  &
+                            ,obs_elem_r4(lobsSpaceData,'LAT ',JOBS),obs_elem_r4(lobsSpaceData,'LON ',JOBS)
                      ENDIF
-                     call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                     call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                      IKOUNTREJ(J)=IKOUNTREJ(J)+1
                    ENDIF
                  ENDIF
@@ -180,8 +182,8 @@ subroutine sobs_all
       END DO
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
       WRITE(NULOUT,* ) ' '
@@ -274,17 +276,17 @@ subroutine sobs_all
          IF ( (CFAMTYP(JF) .EQ. 'UA') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
             IBEGIN=NBEGINTYP(JF)
             ILAST=NENDTYP(JF)
-            IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
-            IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+            IOBS1=obs_elem_i(lobsSpaceData,'OBS ',NBEGINTYP(JF))
+            IOBS2=obs_elem_i(lobsSpaceData,'OBS ',NENDTYP(JF))
             WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ',CFAMTYP(JF)
 
             DO JOBS=IOBS1,IOBS2
-               IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
-               IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
-               ZLAT=obs_elem_r4(obsSpaceData,'LAT ',JOBS)*ZRADDEG
-               ZLON=obs_elem_r4(obsSpaceData,'LON ',JOBS)*ZRADDEG
-               ZSTNALT=obs_elem_r4(obsSpaceData,'ALT ',JOBS)
-               ZDIFALT=  ZSTNALT- columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+               IDATA    = obs_elem_i(lobsSpaceData,'RLN ',JOBS)
+               IDATEND  = obs_elem_i(lobsSpaceData,'NLV ',JOBS) + IDATA - 1
+               ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',JOBS)*ZRADDEG
+               ZLON=obs_elem_r4(lobsSpaceData,'LON ',JOBS)*ZRADDEG
+               ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',JOBS)
+               ZDIFALT=  ZSTNALT- lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                DO J=1,JPINEL
                   LLALTOK(J) = .FALSE.
                   IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
@@ -292,19 +294,19 @@ subroutine sobs_all
 !C
 !C--------HEIGHT GZ
                DO JDATA= IDATA, IDATEND
-                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
-                  IASS=obs_elem_i(obsSpaceData,'ASS ',JDATA)
-                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2  &
+                  ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+                  IASS=obs_elem_i(lobsSpaceData,'ASS ',JDATA)
+                  LLOK = obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2  &
                          .AND. ITYP.EQ.ILISTEL(JPINEL) .AND. IASS.EQ.1
                   IF (LLOK )  THEN
                      IKOUNTT=IKOUNTT+1
-                  IFLG     = obs_elem_i(obsSpaceData,'FLG ',JDATA)
-                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  IFLG     = obs_elem_i(lobsSpaceData,'FLG ',JDATA)
+                  ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   ZDIFF=99999.
-                  ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-                  IASS=obs_elem_i(obsSpaceData,'ASS ',JDATA)
-                     ZVAL=obs_elem_r8(obsSpaceData,'VAR ',JDATA)
-                     ZDIFF= ( ZVAL-columnhr%gz(COLUMNHR%NLEV,JOBS) )/RG
+                  ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  IASS=obs_elem_i(lobsSpaceData,'ASS ',JDATA)
+                     ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                     ZDIFF= ( ZVAL-lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS) )/RG
                      ZCRIT= -RLISTCRIT(JPINEL)
                      IF ( ZDIFF .LT. 0.0 ) THEN
                         IF(ZDIFF .GE. ZCRIT) THEN
@@ -312,19 +314,19 @@ subroutine sobs_all
                            IGZACC(JPINEL)=IGZACC(JPINEL)+1
                            IF(LLPRINT) THEN
                               WRITE(NULOUT,*) 'Keep GZ BELOW MODEL SFC '  &
-                              ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
-                              ,ZVAL/RG,columnhr%gz(COLUMNHR%NLEV,JOBS)/RG,ZDIFF,ZCRIT
+                              ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                              ,ZVAL/RG,lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG,ZDIFF,ZCRIT
                            ENDIF
                         ELSE
-                           IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                              call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                                    ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                           IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                              call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                                    ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
                               IF(LLPRINT) THEN
                                  WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '  &
-                                  ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
-                                  ,ZVAL/RG,columnhr%gz(COLUMNHR%NLEV,JOBS)/RG,ZDIFF,ZCRIT
+                                  ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                  ,ZVAL/RG,lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG,ZDIFF,ZCRIT
                               ENDIF
-                              call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                              call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                               ITOTREJ(JPINEL)=ITOTREJ(JPINEL)+1
                               IGZREJ(JPINEL)=IGZREJ(JPINEL)+1
                            ENDIF
@@ -350,57 +352,57 @@ subroutine sobs_all
 !C              Otherwise we use observations of TT that are too far
 !C              from the model topography in the verification.
                DO JDATA= IDATA, IDATEND
-                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   IJ = -1
                   DO J=1,JPINEL-1
                      IF(ITYP.EQ.ILISTEL(J))IJ = J
                   ENDDO
-                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 2  &
+                  LLOK = obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2  &
                         .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
                   IF (LLOK )  THEN
-                     ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-                     ZPB =columnhr%ps(1,JOBS)
-                     ZPT =columnhr%ps(1,JOBS)-RSBLCRIT(IJ)
+                     ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                     ZPB =lcolumnhr%ps(1,JOBS)
+                     ZPT =lcolumnhr%ps(1,JOBS)-RSBLCRIT(IJ)
                      ZDELP = 999999.0
                      IF (ZDIFALT .GT. 0.0) THEN
                         ZDELP = ZDIFALT * 100. / 8.0
-                        ZPT   = columnhr%ps(1,JOBS)-(ZDELP+RSBLCRIT(IJ))
+                        ZPT   = lcolumnhr%ps(1,JOBS)-(ZDELP+RSBLCRIT(IJ))
                      ENDIF
                      IF(LLALTOK(IJ)) THEN
 !C--------------------Model surface and station altitude are very close
 !C                    Accept observation if zlev is within the domain
 !C                    of the trial field
-                       ZPB = columnhr%ps(1,JOBS)
-                       ZPT = COLUMNHR%RPPOBS(COLUMNHR%NLEV-1,JOBS)
+                       ZPB = lcolumnhr%ps(1,JOBS)
+                       ZPT = LCOLUMNHR%RPPOBS(LCOLUMNHR%NLEV-1,JOBS)
                        IF(LLPRINT) THEN
                          WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. '  &
-                             ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
-                             ,columnhr%ps(1,JOBS),COLUMNHR%RPPOBS(COLUMNHR%NLEV-1,JOBS),ZDIFALT
+                             ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                             ,lcolumnhr%ps(1,JOBS),LCOLUMNHR%RPPOBS(LCOLUMNHR%NLEV-1,JOBS),ZDIFALT
                        ENDIF
                      ENDIF
                      IF(ZLEV .GT. ZPB ) THEN
-                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
-                        ZGZG = columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+                        call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                             ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
-                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON  &
-                                ,ZLEV,columnhr%ps(1,JOBS)
+                                ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON  &
+                                ,ZLEV,lcolumnhr%ps(1,JOBS)
                         ENDIF
-                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                        call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
-                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
-                        ZGZG = columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+                        call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                             ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT ',ITYP,ZDIFALT
                            WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '  &
-                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
                                 ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
-                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                        call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         ISBLREJ(IJ)=ISBLREJ(IJ)+1
                      ENDIF
@@ -429,8 +431,8 @@ subroutine sobs_all
       END DO
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
       WRITE(NULOUT,* ) ' '
@@ -485,35 +487,35 @@ subroutine sobs_all
              (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
-         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+         IOBS1=obs_elem_i(lobsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(lobsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 
          DO JOBS=IOBS1,IOBS2
 
-            IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
-            IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+            IDATA    = obs_elem_i(lobsSpaceData,'RLN ',JOBS)
+            IDATEND  = obs_elem_i(lobsSpaceData,'NLV ',JOBS) + IDATA - 1
 !C
 !C        REJECT DATA TOO CLOSE TO THEDEL OROGRAPHY ,PUT TO
 !C        MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 !C
             DO JDATA= IDATA, IDATEND
                IKOUNTT=IKOUNTT+1
-               ZVAL=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-               ZDIFF=  (ZVAL- columnhr%ps(1,JOBS) )/100.
+               ZVAL=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+               ZDIFF=  (ZVAL- lcolumnhr%ps(1,JOBS) )/100.
                IF ( ZDIFF .GT. RLISTCRIT ) THEN
-                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   DO J=1,JPINEL
                      ILEM=ILISTEL(J)
                      IF ( ITYP .EQ. ILEM ) THEN
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,224) 'Reject OBS ' &
-                             ,jobs,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+                             ,jobs,ITYP,obs_elem_r8(lobsSpaceData,'PPP ',JDATA),ZDIFF
                         ENDIF
-                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                        call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                           ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
+                        call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                           ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
                      ENDIF
                   END DO
                ENDIF
@@ -537,8 +539,8 @@ subroutine sobs_all
       END DO
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT  &
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
@@ -634,17 +636,17 @@ subroutine sobs_all
          IF ( (CFAMTYP(JF) .EQ. 'PR') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
             IBEGIN=NBEGINTYP(JF)
             ILAST=NENDTYP(JF)
-            IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
-            IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+            IOBS1=obs_elem_i(lobsSpaceData,'OBS ',NBEGINTYP(JF))
+            IOBS2=obs_elem_i(lobsSpaceData,'OBS ',NENDTYP(JF))
             WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ',CFAMTYP(JF)
 
             DO JOBS=IOBS1,IOBS2
-               IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
-               IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
-               ZLAT=obs_elem_r4(obsSpaceData,'LAT ',JOBS)*ZRADDEG
-               ZLON=obs_elem_r4(obsSpaceData,'LON ',JOBS)*ZRADDEG
-               ZSTNALT=obs_elem_r4(obsSpaceData,'ALT ',JOBS)
-               ZDIFALT=  ZSTNALT- columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+               IDATA    = obs_elem_i(lobsSpaceData,'RLN ',JOBS)
+               IDATEND  = obs_elem_i(lobsSpaceData,'NLV ',JOBS) + IDATA - 1
+               ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',JOBS)*ZRADDEG
+               ZLON=obs_elem_r4(lobsSpaceData,'LON ',JOBS)*ZRADDEG
+               ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',JOBS)
+               ZDIFALT=  ZSTNALT- lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                DO J=1,JPINEL
                   LLALTOK(J) = .FALSE.
                   IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
@@ -668,57 +670,57 @@ subroutine sobs_all
 !C              from the model topography in the verification.
 
                DO JDATA= IDATA, IDATEND
-                  ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+                  ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   IJ = -1
                   DO J=1,JPINEL-1
                      IF(ITYP.EQ.ILISTEL(J))IJ = J
                   ENDDO
-                  LLOK = obs_elem_i(obsSpaceData,'VCO ',JDATA) .EQ. 1  &
+                  LLOK = obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1  &
                       .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
                   IF (LLOK )  THEN
-                     ZLEV=obs_elem_r8(obsSpaceData,'PPP ',JDATA)
-                     ZPB =columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
-                     ZPT =columnhr%gz(COLUMNHR%NLEV,JOBS)/RG + RSBLCRIT(IJ)
+                     ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                     ZPB =lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
+                     ZPT =lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG + RSBLCRIT(IJ)
                      IF (ZDIFALT .GT. 0.0) THEN
-                        ZPT=columnhr%gz(COLUMNHR%NLEV,JOBS)/RG + (ZDIFALT+RSBLCRIT(IJ))
+                        ZPT=lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG + (ZDIFALT+RSBLCRIT(IJ))
                      ENDIF
                      IF(LLALTOK(IJ)) THEN
 !C--------------------Model surface and station altitude are very close
 !C                    Accept observation if zlev is within the domain
 !C                    of the trial field
-                        ZPB = columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
-                        ZPT = columnhr%gz(COLUMNHR%NLEV-1,JOBS)/RG
+                        ZPB = lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
+                        ZPT = lcolumnhr%gz(LCOLUMNHR%NLEV-1,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. '  &
-                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
-                                ,columnhr%gz(COLUMNHR%NLEV,JOBS)/RG,  &
-                                columnhr%gz(COLUMNHR%NLEV-1,JOBS)/RG,ZDIFALT
+                                ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                ,lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG,  &
+                                lcolumnhr%gz(LCOLUMNHR%NLEV-1,JOBS)/RG,ZDIFALT
                         ENDIF
                      ENDIF
                      IF(ZLEV .LT. ZPB ) THEN
-                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
-                        ZGZG = columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+                        call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                             ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
-                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON  &
-                                ,ZLEV,columnhr%gz(COLUMNHR%NLEV-1,JOBS)/RG,ZPT  &
+                                ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON  &
+                                ,ZLEV,lcolumnhr%gz(LCOLUMNHR%NLEV-1,JOBS)/RG,ZPT  &
                                 ,JDATA,ZPB,ZDIFALT
                         ENDIF
-                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                        call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         IBNDREJ(IJ)=IBNDREJ(IJ)+1
                      ELSEIF(ZLEV.GE.ZPB .AND. ZLEV.LT.ZPT ) THEN
-                        call obs_set_i(obsSpaceData,'FLG ',JDATA,  &
-                             ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 18 ))
-                        ZGZG = columnhr%gz(COLUMNHR%NLEV,JOBS)/RG
+                        call obs_set_i(lobsSpaceData,'FLG ',JDATA,  &
+                             ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 18 ))
+                        ZGZG = lcolumnhr%gz(LCOLUMNHR%NLEV,JOBS)/RG
                         IF(LLPRINT) THEN
                            WRITE(NULOUT,*) '%PR REJ SBL ITYP,DALT ',ITYP,ZDIFALT
                            WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '   &
-                                ,JOBS,ITYP,obs_elem_c9(obsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
+                                ,JOBS,ITYP,obs_elem_c9(lobsSpaceData,'STID',JOBS),ZLAT,ZLON,ZLEV  &
                                 ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                         ENDIF
-                        call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                        call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                         ITOTREJ(IJ)=ITOTREJ(IJ)+1
                         ISBLREJ(IJ)=ISBLREJ(IJ)+1
                      ENDIF
@@ -745,8 +747,8 @@ subroutine sobs_all
       END DO
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X,"%PR NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
       WRITE(NULOUT,* ) ' '
@@ -800,33 +802,33 @@ subroutine sobs_all
       IF ( (CFAMTYP(JF) .EQ. 'TO') .AND. (NBEGINTYP(JF) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(JF)
          ILAST=NENDTYP(JF)
-         IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
-         IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+         IOBS1=obs_elem_i(lobsSpaceData,'OBS ',NBEGINTYP(JF))
+         IOBS2=obs_elem_i(lobsSpaceData,'OBS ',NENDTYP(JF))
          WRITE(NULOUT,*)' FAMILY = ',CFAMTYP(JF)
 
         DO JOBS=IOBS1,IOBS2
 
-          IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
-          IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
-          IDATYP   = MOD(obs_elem_i(obsSpaceData,'ITY ',JOBS),1000)
+          IDATA    = obs_elem_i(lobsSpaceData,'RLN ',JOBS)
+          IDATEND  = obs_elem_i(lobsSpaceData,'NLV ',JOBS) + IDATA - 1
+          IDATYP   = MOD(obs_elem_i(lobsSpaceData,'ITY ',JOBS),1000)
           IF (IDATYP .EQ. 185) THEN
 !C
 !C        REJECT DATA TOO CLOSE TO THE OROGRAPHY
 !C
            DO JDATA= IDATA, IDATEND
              IKOUNTT=IKOUNTT+1
-             ZDIFF= columnhr%ps(1,JOBS) /100.
+             ZDIFF= lcolumnhr%ps(1,JOBS) /100.
              IF ( ZDIFF .LT. RLISTCRIT ) THEN
-               ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
+               ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                DO J=1,JPINEL
                  ILEM=ILISTEL(J)
                  IF ( ITYP .EQ. ILEM ) THEN
                    IF(LLPRINT) THEN
-                      WRITE(NULOUT,224) 'Reject OBS ',JOBS,ITYP,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+                      WRITE(NULOUT,224) 'Reject OBS ',JOBS,ITYP,obs_elem_r8(lobsSpaceData,'PPP ',JDATA),ZDIFF
                    ENDIF
-                   call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+                   call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                    IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                   call obs_set_i(obsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(obsSpaceData,'FLG ',JDATA),18))
+                   call obs_set_i(lobsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),18))
                  ENDIF
                END DO
              ENDIF
@@ -852,8 +854,8 @@ subroutine sobs_all
       END DO
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-        IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT  &
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT

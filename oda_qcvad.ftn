@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE oda_qcvad
+      SUBROUTINE oda_qcvad(lobsSpaceData)
       use modmask, only : lmaskro,lmask
       use obsSpaceData_mod
 #if defined (DOC)
@@ -39,16 +39,17 @@
 #include "comlun.cdk"
 #include "comdimo.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER j,JDATA,ierr
       logical, pointer :: llmask(:)
 
       allocate(llmask(ubound(lmask,1)),STAT=ierr)
       if(ierr /= 0 ) call abort3d(nulout,'cant allocate mem. to llmask')
       llmask = lmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
         IF (llmask(jdata)) THEN
-          call obs_set_r8(obsSpaceData,'OMI ',JDATA, obs_elem_r8(obsSpaceData,'OMI ',JDATA)
-     &         *(1.d0 - obs_elem_r8(obsSpaceData,'OMN ',JDATA)))
+          call obs_set_r8(lobsSpaceData,'OMI ',JDATA, obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
+     &         *(1.d0 - obs_elem_r8(lobsSpaceData,'OMN ',JDATA)))
         ENDIF
       END DO
 C--------------------------------------------------------------------

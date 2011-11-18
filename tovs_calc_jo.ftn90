@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_calc_jo(pjo,llprint)
+subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 #if defined (doc)
 !
 !**s/r tovs_calc_jo  - computation of jo and the residuals to the tovs observations
@@ -52,6 +52,7 @@ subroutine tovs_calc_jo(pjo,llprint)
 #include "comtovst.cdk"
 #include "cvcord.cdk"
 
+  type(struct_obs) :: lobsSpaceData
   integer :: isens, indxchn, indxtovs
 
   real*8 zoer
@@ -103,8 +104,8 @@ subroutine tovs_calc_jo(pjo,llprint)
    if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
      ibegin   = nbegintyp(jf)
      ilast    = nendtyp  (jf)
-     ibeginob = obs_elem_i(obsSpaceData,'OBS ',ibegin)
-     ilastob  = obs_elem_i(obsSpaceData,'OBS ',ilast )
+     ibeginob = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+     ilastob  = obs_elem_i(lobsSpaceData,'OBS ',ilast )
      do jo = ibeginob, ilastob
 
 !     .  1.1  Extract general information for this observation point
@@ -112,7 +113,7 @@ subroutine tovs_calc_jo(pjo,llprint)
 
 !       only process radiance data (data type=[164,168,180,181,182,183,185,186]) to be assimilated?
 
-      idatyp = mod(obs_elem_i(obsSpaceData,'ITY ',jo),1000)
+      idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',jo),1000)
       if ( idatyp .eq. 164 .or.  &
            idatyp .eq. 168 .or.  &
            idatyp .eq. 180 .or.  &
@@ -130,12 +131,12 @@ subroutine tovs_calc_jo(pjo,llprint)
         endif
 
         if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
-         idata   = obs_elem_i(obsSpaceData,'RLN ',jo)
-         idatend = obs_elem_i(obsSpaceData,'NLV ',jo) + idata - 1
+         idata   = obs_elem_i(lobsSpaceData,'RLN ',jo)
+         idatend = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
          isens = lsensor(indxtovs)
          do jdata= idata, idatend
-            if ( obs_elem_i(obsSpaceData,'ASS ',jdata).eq.1 ) then
-               ichn = nint(obs_elem_r8(obsSpaceData,'PPP ',jdata))
+            if ( obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1 ) then
+               ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
                ichn    = max(0,min(ichn,jpch+1))
                ichNCM_A = max(0,min(ichn,jpch+1))
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
@@ -146,44 +147,44 @@ subroutine tovs_calc_jo(pjo,llprint)
                   call abort3d(nulout,'tovs_calc_jo    ')
                endif
 
-               zdtb = radiance_d (indxtovs) % out(indxchn)-obs_elem_r8(obsSpaceData,'PRM ',jdata)
+               zdtb = radiance_d (indxtovs) % out(indxchn)-obs_elem_r8(lobsSpaceData,'PRM ',jdata)
                if ( ldbgtov ) then
                   write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
                            ichn,  radiance_d (indxtovs) % out(indxchn), &
-                           obs_elem_r8(obsSpaceData,'PRM ',jdata), zdtb
+                           obs_elem_r8(lobsSpaceData,'PRM ',jdata), zdtb
                endif
 
-               zoer = obs_elem_r8(obsSpaceData,'OER ',jdata)
-               call obs_set_r8(obsSpaceData,'OMA ',jdata, zdtb/zoer)
-               call obs_set_r8(obsSpaceData,'OMI ',jdata, obs_elem_r8(obsSpaceData,'OMA ',jdata))
+               zoer = obs_elem_r8(lobsSpaceData,'OER ',jdata)
+               call obs_set_r8(lobsSpaceData,'OMA ',jdata, zdtb/zoer)
+               call obs_set_r8(lobsSpaceData,'OMI ',jdata, obs_elem_r8(lobsSpaceData,'OMA ',jdata))
                if (.not. lvarqc) then
                   dlsum = dlsum &
-                       + (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
-                          obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
-                  call obs_set_r8(obsSpaceData,'OMN ',jdata, &
-                              obs_elem_r8(obsSpaceData,'OMA ',jdata))
+                       + (obs_elem_r8(lobsSpaceData,'OMA ',jdata)* &
+                          obs_elem_r8(lobsSpaceData,'OMA ',jdata))/2.
+                  call obs_set_r8(lobsSpaceData,'OMN ',jdata, &
+                              obs_elem_r8(lobsSpaceData,'OMA ',jdata))
                else
 
 !                 compute contribution of data with varqc
  
-                  zgami = obs_elem_r4(obsSpaceData,'POB ',jdata)
-                  zjon = (obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
-                          obs_elem_r8(obsSpaceData,'OMA ',jdata))/2.
+                  zgami = obs_elem_r4(lobsSpaceData,'POB ',jdata)
+                  zjon = (obs_elem_r8(lobsSpaceData,'OMA ',jdata)* &
+                          obs_elem_r8(lobsSpaceData,'OMA ',jdata))/2.
                   zqcarg = zgami + exp(-1.0*zjon)
                   zpost = zgami/zqcarg
-                  call obs_set_r8(obsSpaceData,'OMN ',jdata, &
-                             obs_elem_r8(obsSpaceData,'OMA ',jdata)*(1. - zpost))
+                  call obs_set_r8(lobsSpaceData,'OMN ',jdata, &
+                             obs_elem_r8(lobsSpaceData,'OMA ',jdata)*(1. - zpost))
                   dlsum= dlsum - log(zqcarg/(zgami+1.))
                endif
                inobsjo = inobsjo + 1
                inobsch(ichNCM_A,Isens) = inobsch(ichNCM_A,Isens) + 1
                zjoch(ichNCM_A,Isens)   = &
                       zjoch(ichNCM_A,Isens)   + &
-                      obs_elem_r8(obsSpaceData,'OMA ',jdata)* &
-                      obs_elem_r8(obsSpaceData,'OMA ',jdata)
+                      obs_elem_r8(lobsSpaceData,'OMA ',jdata)* &
+                      obs_elem_r8(lobsSpaceData,'OMA ',jdata)
                zavgnrm(ichNCM_A,Isens)   = &
                       zavgnrm(ichNCM_A,Isens) + &
-                      obs_elem_r8(obsSpaceData,'OMA ',jdata)
+                      obs_elem_r8(lobsSpaceData,'OMA ',jdata)
             endif
          enddo
         else

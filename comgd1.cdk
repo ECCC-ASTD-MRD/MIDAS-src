@@ -33,16 +33,15 @@ C
      S       ,GTR1(NI,NKGDIM,NJ)
      S       ,GPS1(NI,NKGDIM,NJ)
      S       ,GTG1(NI,NKGDIM,NJ)
-     S      ,TB1(NI,NFLEV,NJ)
 C
 C     Pointer statements
 C
       POINTER (PTGD1,GD1),(PTUT1,UT1),(PTVT1,VT1), (PTT1,TT1)
      S     ,(PTQ1,Q1),(PTGPS1,GPS1),(PTGTG1,GTG1)
-     S     , (PTGZ1,GZ1),  (PTOZ1,GOZ1), (PTTR1,GTR1), (PTTB1,TB1)
+     S     , (PTGZ1,GZ1),  (PTOZ1,GOZ1), (PTTR1,GTR1)
 C
 C
       COMMON /POMGD1/PTGD1,PTUT1,PTVT1,PTT1
      S     ,PTQ1, PTGPS1, PTGTG1
-     S     ,PTGZ1, PTOZ1, PTTR1, PTTB1
+     S     ,PTGZ1, PTOZ1, PTTR1
 C

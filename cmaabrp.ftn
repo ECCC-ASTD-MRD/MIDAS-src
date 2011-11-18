@@ -14,7 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,KLIST,CLIST,KNVALS)
+      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,KLIST,CLIST,KNVALS,
+     +                   lcolumng,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r CMAABRP -CONVERT DATA IN CMA FORMAT TO CMC BURP FILES.
@@ -111,21 +112,19 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod 
- 
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comct0.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-
 *
-*
+      type(struct_columnData) :: lcolumng
+      type(struct_obs) :: lobsSpaceData
       INTEGER KNVALS,IVAL,jji,ITYPDATA
       INTEGER KFILE,KNRECS,KLIST(KNVALS)
       INTEGER IIND,IPOS,ILPOS,inelefd,ideb
@@ -598,7 +597,7 @@ C                     *** save starting address of 3d block *****
                        CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
      +                    NVCORD,ZPROF,J3D,IVAL,cval,ppmis,
-     +                    obs_posn+obs_thisblock)
+     +                    obs_posn+obs_thisblock,lobsSpaceData)
                        obs_thisblock=obs_thisblock+ind
 *
 *-----------------------------------------------------------------------
@@ -754,8 +753,8 @@ C
 
                           IF(ICOUNT .EQ. 1) THEN
                             NOBTOT=NOBTOT + 1
-                            IFLGS=obs_elem_i(obsSpaceData,'ST1 ',NOBTOT)
-                            IZMODEL= NINT(columng%RMTMOBS(NOBTOT)/RG) + 400
+                            IFLGS=obs_elem_i(lobsSpaceData,'ST1 ',NOBTOT)
+                            IZMODEL= NINT(lcolumng%RMTMOBS(NOBTOT)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF
                           IF ( LLGROUP) THEN
@@ -797,7 +796,7 @@ C
          ENDIF
       ENDIF
 ********************************
-      IF( (obs_posn+obs_thisblock-1 .GE. obs_num_obstotal(obsSpaceData) .OR. NOBTOT .GE. NMXOBS)
+      IF( (obs_posn+obs_thisblock-1 .GE. obs_num_obstotal(lobsSpaceData) .OR. NOBTOT .GE. NMXOBS)
      + .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN

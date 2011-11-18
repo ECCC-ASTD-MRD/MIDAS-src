@@ -41,27 +41,12 @@ C
 #include "namgem.cdk"
       INTEGER JLAT, KULOUT, JN, JM, ILA
       INTEGER JLEV,IERR,IMODE, IKIND
-      REAL*8 ZNNP1, Z1SNP1, ZPTOP, ZPS0, ZDELP
-      REAL*8 ZPROF(JPNFLEV),ZPS_BDL
+      REAL*8 ZPTOP, ZPS0, ZDELP
+      REAL*8 ZPROF(JPNFLEV)
       CHARACTER*1 CLSTRING
       LOGICAL LLFOUND
 C
       WRITE(NULOUT,FMT='(/,'' SUGEM- Geometry of the model'')')
-C
-C     2. Calculation of the eigenvalues of the Laplacian
-C
- 200  CONTINUE
-      RNNP1(1)  = 0.
-      R1SNP1(1) = 0.
-      DO 201 JN = 1, NTRUNC
-         ZNNP1  = -FLOAT(JN)*FLOAT(JN+1)
-         Z1SNP1 =  1./ZNNP1
-         DO 202 JM = 0, JN
-            ILA = gst_getNIND(JM) + JN - JM
-            RNNP1(ILA) = ZNNP1
-            R1SNP1(ILA) = Z1SNP1
- 202     CONTINUE
- 201  CONTINUE
 C
 C     3. Initialisation of the model levels
 C
@@ -69,7 +54,6 @@ C
 C
 C*     3.1 Default values
 C
-      ldyninc = .false.
       rptopinc = 1000.0
       rprefinc = 80000.0
       rcoefinc = 1.0
@@ -110,7 +94,6 @@ C
       CVCORD='ETAGE'
 C
       nip1_pak_inc= 3           ! Packing increments 15 bits
-      rlimlv_bdl  = 88000.      ! Upper limit of the boundary layer(PA)
       RHUMIN      = RMINHU
 C
 C*     3.2 Modify the default values by reading NAMELISTs NAMGEM and
@@ -164,24 +147,6 @@ C
          CONIMA(JLAT) = R1SA*gst_getRSQM2(JLAT)
  401  CONTINUE
 C
-C*    . 4.1 Determine nearest level of the
-C     .     mean top of the boundary layer
-C
-
-      ZPS_BDL = 101000. 0
-      call calcpres(ZPROF,vhybinc,nflev,ZPS_BDL,rptopinc
-     &             ,rprefinc,rcoefinc,1)
-
-      LLFOUND = .FALSE.
-      DO JLEV = 1, NFLEV
-        IF(.NOT.LLFOUND .AND. (ZPROF(JLEV) .GE. rlimlv_bdl  )) THEN
-          nlev_bdl = JLEV
-          LLFOUND = .TRUE.
-        ENDIF
-      ENDDO
-C
- 410  CONTINUE
-C
 C*     5. Print the values
 C
  500  CONTINUE
@@ -191,12 +156,6 @@ C
      S     ,2X,"VLEV= ",G12.6,2X,"NIP1 OF VLEV= ",I10)')
      S        JLEV,VHYBINC(JLEV),VLEV(JLEV),NIP1(JLEV)
  501  CONTINUE
-C
-      WRITE(KULOUT,FMT='(6X," Eigenvalues of the Laplacian *RA**2:",
-     S     /,6(1x,g12.6))')(RNNP1(ILA),ILA=1,NTRUNC+1)
-C
-      WRITE(KULOUT,FMT='(6X," Eigenvalues of the inverse Laplacian",
-     S     "/RA**2:",/,6(1x,g12.6))')(R1SNP1(ILA),ILA=1,NTRUNC+1)
 C
       WRITE(KULOUT,
      +FMT='(/,10x,"Type of vertical coordinate:",10x,a8)') CVCORD

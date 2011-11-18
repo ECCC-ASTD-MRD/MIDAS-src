@@ -44,11 +44,8 @@ C**   .   4.1 RPN standard files (opened in SULUN)
 C
  410  CONTINUE
 C
-      if(nulstd.ne.0) IERR =  FSTFRM(NULSTD)
       if(nulstat.ne.0) ierr =  fstfrm(nulstat)
-      if(nulbgst.ne.0) ierr =  fstfrm(nulbgst)
       if(nulinclr.ne.0) ierr =  fstfrm(nulinclr)
-      if(nulinchr.ne.0) ierr =  fstfrm(nulinchr)
 C
       RETURN
       END

@@ -14,10 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE subasic_obs
+      SUBROUTINE subasic_obs(lcolumng)
 c
       use MathPhysConstants_mod
-      use obsSpaceData_mod
       use columnData_mod 
  
       IMPLICIT NONE
@@ -39,7 +38,7 @@ c
 *
 **    Purpose:
 *             - Copy observation space background fields
-*               in columng.
+*               in lcolumng.
 *             - Initialisation of tangent linear vitual temperature operator
 *             - Initialisation of tlm and adjoint hydrostatic operators
 *               factors.
@@ -49,7 +48,7 @@ c
 *             - Reorganize to support ES and HU options.
 *     Revision: C. Charette *ARMA/AES  mar 99
 *             - Change module name from subackgrd to subasic
-*               Replace column1%ps by column1%uu
+*               Replace lcolumnt%ps by lcolumnt%uu
 *     Revision: C. Charette *ARMA/AES nov 99
 *             - No projection on TT and PS for T-Td observations
 *     Revision: C. Charette *ARMA/AES mar 2000
@@ -64,41 +63,37 @@ c
 *implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comdimo.cdk"
 #include "comgem.cdk"
 *
-      integer jlev,jobs, ity, idburp, ilen,ierr
+      integer jlev,jobs, ity, idburp, ierr
       real*8 zhu, ztd, zterm
       EXTERNAL HPDEALLC, HPALLOC
       real*8 znut,zpresa,zpresb,zpresad,zpresbd
-C
 *
-#include "comcva.cdk"
 #include "dinternv.cdk"
 #include "finternv.cdk"
 #include "finternva.cdk"
 #include "finternvl.cdk"
-
-*
-*--------------------------------------------
-*
-C
-c       initialize column1%tt THE ADJOINT to 1.0 to get the operator via the adjoint
 c
-        DO JLEV=1,NFLEV
-          DO JOBS=1,NOBTOT
-            column1%tt(JLEV,JOBS) = 1.0
+        type(struct_columnData) :: lcolumng,lcolumnt
+c
+        call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%nobtot)
+        call col_zero(lcolumnt)
+C
+c       initialize lcolumnt%tt THE ADJOINT to 1.0 to get the operator via the adjoint
+c
+        DO JLEV=1,LCOLUMNG%NLEV
+          DO JOBS=1,LCOLUMNG%NOBTOT
+            lcolumnt%tt(JLEV,JOBS) = 1.0
           ENDDO
         ENDDO
 c
-        ILEN=NFLEV*NOBTOT
-c
-        do jlev = 1,nflev
-          DO JOBS=1,NOBTOT
-            zhu=exp(columng%hu(jlev,jobs))
-            oltv(1,jlev,jobs) = fottva(zhu,column1%tt(jlev,jobs))
-            oltv(2,jlev,jobs) = folnqva(zhu,columng%tt(jlev,jobs),
-     &                                  column1%tt(jlev,jobs))
+        do jlev = 1,lcolumng%nlev
+          DO JOBS=1,LCOLUMNG%NOBTOT
+            zhu=exp(lcolumng%hu(jlev,jobs))
+            oltv(1,jlev,jobs) = fottva(zhu,lcolumnt%tt(jlev,jobs))
+            oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),
+     &                                  lcolumnt%tt(jlev,jobs))
 c
             zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
      &               /(1.0-rptopinc/rprefinc))**rcoefinc
@@ -111,48 +106,50 @@ c
             zpresbd= rcoefinc * zterm
             zpresa = rprefinc * (vhybinc(jlev)-zpresb)
             zpresad= rprefinc * (1.0-zpresbd)
-            rtapfac(jlev,jobs)= (zpresad+zpresbd*columng%ps(1,jobs))
-     &                          /(zpresa+zpresb*columng%ps(1,jobs))
+            rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
+     &                          /(zpresa+zpresb*lcolumng%ps(1,jobs))
           enddo
         enddo
 c
 c       initialize the operator using the adjoint of the conversion lnq/t to t-td
 c       initialising the adjoint of t-td=1.0
 c
-        DO JLEV=1,NFLEV
-        DO JOBS=1,NOBTOT
-          column1%es(JLEV,JOBS)= 1.0
-          column1%hu(JLEV,JOBS) = 0.0
-          column1%uu(JLEV,JOBS) = 0.0
-          column1%tt(JLEV,JOBS) = 0.0
+        DO JLEV=1,LCOLUMNG%NLEV
+        DO JOBS=1,LCOLUMNG%NOBTOT
+          lcolumnt%es(JLEV,JOBS)= 1.0
+          lcolumnt%hu(JLEV,JOBS) = 0.0
+          lcolumnt%uu(JLEV,JOBS) = 0.0
+          lcolumnt%tt(JLEV,JOBS) = 0.0
         ENDDO
         ENDDO
 c
-        call amhuaesv
+        call amhuaesv(lcolumnt,lcolumng)
 c
 c       store the coefficients
 c
-        DO JLEV=1,NFLEV
-          DO JOBS=1,NOBTOT
-          OLLQ2ES(1,JLEV,JOBS) = column1%hu(JLEV,JOBS)
-          OLLQ2ES(2,JLEV,JOBS) = column1%uu(JLEV,JOBS)
-          OLLQ2ES(3,JLEV,JOBS) = column1%tt(JLEV,JOBS)
+        DO JLEV=1,LCOLUMNG%NLEV
+          DO JOBS=1,LCOLUMNG%NOBTOT
+          OLLQ2ES(1,JLEV,JOBS) = lcolumnt%hu(JLEV,JOBS)
+          OLLQ2ES(2,JLEV,JOBS) = lcolumnt%uu(JLEV,JOBS)
+          OLLQ2ES(3,JLEV,JOBS) = lcolumnt%tt(JLEV,JOBS)
           ENDDO
         ENDDO
 c
 c       Set coefficients for TT and PS to zero for HUMSAT (IDTYP=158)
 c
-        DO JLEV=1,NFLEV
-           DO JOBS=1,NOBTOT
-              ITY    = obs_elem_i(obsSpaceData,'ITY ',JOBS)
-              IDBURP = MOD(ITY,1000)
-
-            IF(IDBURP .EQ. 158) THEN
-              OLLQ2ES(2,JLEV,JOBS) = 0.0
-              OLLQ2ES(3,JLEV,JOBS) = 0.0
-            ENDIF
-          ENDDO
-        ENDDO
+!        DO JLEV=1,LCOLUMNG%NLEV
+!           DO JOBS=1,LCOLUMNG%NOBTOT
+!              ITY    = obs_elem_i(lobsSpaceData,'ITY ',JOBS)
+!              IDBURP = MOD(ITY,1000)
+!
+!            IF(IDBURP .EQ. 158) THEN
+!              OLLQ2ES(2,JLEV,JOBS) = 0.0
+!              OLLQ2ES(3,JLEV,JOBS) = 0.0
+!            ENDIF
+!          ENDDO
+!        ENDDO
+c
+        call col_deallocate(lcolumnt)
 c
       RETURN
       END

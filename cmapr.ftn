@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE CMAPR
+      SUBROUTINE CMAPR(lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r CMAPR  -  Print resume of cma
@@ -39,11 +39,11 @@
 *implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
-
 #include "cvcord.cdk"
 #include "comstato.cdk"
 #include "comct0.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER IBEGIN,ILAST,INREPT,IUN
       INTEGER IBEGINOBS,ILASTOBS
       INTEGER J
@@ -71,8 +71,8 @@ C
          IBEGIN=NBEGINTYP(J)
          ILAST =NENDTYP(J)
          IF ( (IBEGIN .GT. 0) .AND. (ILAST .GT. 0) ) THEN
-            IBEGINOBS=obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-            ILASTOBS =obs_elem_i(obsSpaceData,'OBS ', ILAST)
+            IBEGINOBS=obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+            ILASTOBS =obs_elem_i(lobsSpaceData,'OBS ', ILAST)
             INREPT=MAX (ILASTOBS-IBEGINOBS+1,0)
             WRITE(IUN, '(10X,A14,A8)' ) ' DATA FILE:  ',CFILNAM(J)
             WRITE(IUN,'(30X,I6,A3,A8)'  )INREPT,CFAMTYP(J),' REPORTS'

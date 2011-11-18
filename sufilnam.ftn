@@ -147,24 +147,6 @@ c
        CFAMI(33)  = 'OZ' 
        CFAMI(34)  = 'GP' 
        CFAMI(35)  = ' ' 
-
-c
-!modular1      INQUIRE(FILE=CLVALU(1),EXIST=isExist_L)
-!modular1      IF ( isExist_L )then
-!modular1	write(nulout,*) 'sufilnam:CLVALU(1),NULNAM ',CLVALU(1),NULNAM
-!modular1        IER=FNOM(NULNAM,clvalu(1),'FTN+SEQ+R/O',0)
-!modular1        IF ( IER .EQ. 0 ) THEN
-!modular1          write(nulout,*) 'INML - File :', clvalu(1)
-!modular1          write(nulout,*) ' opened as unit file ',nulnam
-!modular1        ELSE
-!modular1          CALL ABORT3D(NULOUT,'SUFILNAM:Problem opening namelist file!')
-!modular1        ENDIF
-!modular1      ELSE
-!modular1        CALL ABORT3D(NULOUT,'SUFILNAM:No namelist file specified!')
-!modular1      ENDIF
-      
-C
-       CALL SUCT0(NULOUT)
 c
       INQUIRE(FILE=CLVALU(2),EXIST=isExist_L)
       IF ( isExist_L )then
@@ -201,32 +183,6 @@ C
          jj=jj+1
       ENDDO 
 C
-C____ INITIALIZE ANALYSYS  FILE NAME
-C
-       IF(mpi_myid == 0) THEN   !  CLVALU(4) is output... 
-          IER=FNOM(nulstd,CLVALU(4),'RND',0)
-          IF ( IER .EQ. 0 ) THEN
-             write(nulout,*) 'OANAL - File :',  clvalu(4)
-             write(nulout,*) ' opened as unit file ',nulstd
-             IER = FSTOUV(NULSTD,'RND')
-          ELSE
-             CALL ABORT3D(NULOUT,'SUFILNAM:UNABLE TO OPEN ANAL FILE!!')
-          ENDIF
-       ENDIF 
-c
-      INQUIRE(FILE=CLVALU(5),EXIST=isExist_L)
-      IF ( isExist_L )then
-        IER=FNOM(nulbgst,CLVALU(5),'RND+OLD+R/O',0)
-        IF ( IER .EQ. 0 ) THEN
-          write(nulout,*) 'IBGST - File :', clvalu(5)
-          write(nulout,*) ' opened as unit file ',nulbgst
-          ier =  fstouv(nulbgst,'RND+OLD')
-        ELSE
-          CALL ABORT3D(NULOUT,'SUFILNAM:NO BACKGROUND STAT FILE!!')
-        ENDIF
-      ENDIF
-c==============================================================
-
       IF(mpi_myid == 0) THEN
          ier = fnom(nulinclr,clvalu(6),'RND',0)
          IF ( IER .EQ. 0 ) THEN
@@ -236,18 +192,6 @@ c==============================================================
          else
             CALL ABORT3D(NULOUT,'SUFILNAM')
          endif
-      ENDIF 
-c
-
-      IF(mpi_myid == 0) THEN
-         ier = fnom(nulinchr,clvalu(7),'RND',0)
-         IF ( IER .EQ. 0 ) THEN
-            write(nulout,*) 'OINCHR - File :', clvalu(7)
-            write(nulout,*) ' opened as unit file ',nulinchr
-            ier = fstouv(nulinchr,'RND')
-         ELSE 
-            CALL ABORT3D(NULOUT,'SUFILNAM')
-         ENDIF 
       ENDIF 
 c
 !     Get CLVALU(8) through Environment Variables.

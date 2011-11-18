@@ -14,35 +14,41 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE oda_res(lobsSpaceData)
-  use modmask, only : lmask, ldiag
-  use obsSpaceData_mod
-  implicit none
-  !
-  !Purpose:
-  !Compute residuals to observations for assimilated and diagnosed data
-  !  Modify ROBDATA8(NCM_OMA,*) in place :
-  !  NCM_OMA contains Hdx as input and residuals as output
-  !
-  !Author  : S. Pellerin *ARMA/MRB January 2009
-  !
-  !Revision:
-  ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
-  !
-#include "comdim.cdk"
-#include "comdimo.cdk"
-
-  type(struct_obs) :: lobsSpaceData 
-  !Local Declarations
-
-  integer jdata
+      subroutine sugdpar
 !
-!!
-    DO JDATA=1,obs_num_obstotal(lobsSpaceData)
-       IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r8(lobsSpaceData,'OMA ',JDATA, obs_elem_r8(lobsSpaceData,'OMA ',JDATA)-obs_elem_r8(lobsSpaceData,'VAR ',JDATA))
-       ENDIF
-    enddo
+!**s/r sugdpar  - Initialize comgdpar
 !
-  return
-END SUBROUTINE oda_res
+!Author  : M. Buehner Nov., 2011
+!
+      IMPLICIT NONE
+#include "comgdpar.cdk"
+      integer :: jvar,ierr
+
+      CETIKETA = 'SX5PA806'
+      CETIKETT = ' '
+      CETIKETI = 'GVAT108F'
+      CETIKETN = ' '
+      CETIKINC='SX5PA806'
+      NITER   = 0
+      CMCRUN  =' '
+
+      do jvar = 1,7
+        CFSTVAR(jvar) = ' '
+        CFSTVAR2D(jvar) = ' '
+      enddo
+
+      NFSTVAR=4
+      CFSTVAR(1)='UU'
+      CFSTVAR(2)='VV'
+      CFSTVAR(3)='TT'
+      CFSTVAR(4)='HU'
+      NFSTVAR2D = 2
+      CFSTVAR2D(1)='P0'
+      CFSTVAR2D(2)='TG'
+      NPAKANL     = -30
+      NPAKINC = -30
+      ndtinc = 1
+      CALL READNML('NAMGDPAR',IERR)
+
+      RETURN
+      END SUBROUTINE sugdpar

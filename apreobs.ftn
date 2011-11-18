@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine apreobs
+      subroutine apreobs(lcolumn,lcolumng)
 #if defined (DOC)
 *
 ***s/r apreobs  - Build adjoint of derived fields assimilated. ADJ of lpreobs.
@@ -25,7 +25,7 @@
 *Revision: L. Fillion *ARMA/AES  25 nov 98
 *        - Option ES or LQ humidity analysis
 *Revision: C. Charette *ARMA/AES  09 dec 98
-*        - column%es added to column%hu when humidity analysis variable is T-Td
+*        - lcolumn%es added to lcolumn%hu when humidity analysis variable is T-Td
 *Revision: L. Fillion *ARMA/EC  10 Feb 2010 - Conditionally calls att2phi
 *
 *     -------------------
@@ -37,28 +37,23 @@
  
       IMPLICIT NONE
 *implicits
-#include "comdim.cdk"
 #include "comcva.cdk"
-#include "comdimo.cdk"
-
-#include "comstate.cdk"
-*modules
 *
-**
+      type(struct_columnData) :: lcolumn,lcolumng
       INTEGER JLEV,JOBS
 C
 C*1   Adjoint of ltt2phi
 C     ------------------
 C
  100  CONTINUE
-      if((NMVOEXIST(NOGZ).eq.1)) call att2phi
+      if((NMVOEXIST(NOGZ).eq.1)) call att2phi(lcolumn,lcolumng)
 C
 C*2   Adjoint of sensitivity of (T-Td) to sensitivity on control vector
 C     -----------------------------------------------------------------
 C
  200  CONTINUE
       if(chum.eq.'LQ') then
-        call amhu2es
+        call amhu2es(lcolumn)
       endif
 
       RETURN

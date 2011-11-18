@@ -107,7 +107,7 @@ c
      &       ,zptophr,zprefhr,zrcoefhr
 
 c
-      if(nulstd.ne.0) then
+      if(nulinclr.ne.0) then
 cprnt      write(nulout,*)'varout:nIP2,niter,cetikinc,ibrpstamp,ptop,pref,coef '
 cprnt     &       ,nIP2,niter,cetikinc,ibrpstamp,zptop4,zpref4,zrcoef4
         write(nulout,*) 'Writing variable HY on analysis-increment file'

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SETERRGPSRO
+      SUBROUTINE SETERRGPSRO(lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r SETERRGPSRO - Computation of the estimated errors for GPSRO observations
@@ -36,7 +36,6 @@
       use modgps08refop
       use obsSpaceData_mod
       use columnData_mod 
- 
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -45,10 +44,11 @@
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
- 
 #include "cvcord.cdk"
 #include "comgpsro.cdk"
 *
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
       REAL*8 PJO, PJOB, PJOM, PJOX, PJO1
 C
       REAL*8 ZTODEG
@@ -91,9 +91,9 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C
-      NGPSLEV=COLUMNHR%NLEV
-      DO JL = 1, COLUMNHR%NLEV
-         ZETA(JL) = COLUMNHR%VLEV(JL)
+      NGPSLEV=LCOLUMNHR%NLEV
+      DO JL = 1, LCOLUMNHR%NLEV
+         ZETA(JL) = LCOLUMNHR%VLEV(JL)
       ENDDO
 C
 C*    *        1.2 Read the NAMELIST NAMGGPSRO
@@ -107,8 +107,8 @@ C
          IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(obsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(obsSpaceData,'OBS ',ILAST )
+            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
 C
 C     *     Loop over all observations of the file
 C
@@ -116,20 +116,20 @@ C
 C     
 C     *        Process only refractivity data (codtyp 169)
 C
-               IDATYP = MOD(obs_elem_i(obsSpaceData,'ITY ',JO),1000)
+               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
                IF ( IDATYP .EQ. 169 ) THEN
 C
 C                 Loops over data in the observation
 C
-                  IDATA   = obs_elem_i(obsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(obsSpaceData,'NLV ',JO) + IDATA - 1
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                   ASSIM = .FALSE.
 C
 C                 Scan for requested assimilations, and count them
 C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                     HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                      IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
@@ -142,21 +142,21 @@ C
 C     
 C     *              Profile at the observation location:
 C
-                     Lat  = obs_elem_r4(obsSpaceData,'LAT ',JO)
-                     Lon  = obs_elem_r4(obsSpaceData,'LON ',JO)
+                     Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
+                     Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
-                     DO JL = 1, COLUMNHR%NLEV
+                     DO JL = 1, LCOLUMNHR%NLEV
 C
 C     *                 Profile x
 C
-                        ZTT(JL) = columnhr%tt(JL,JO)-273.15
-                        ZHU(JL) = columnhr%hu(JL,JO)
-                        ZGZ(JL) = columnhr%gz(JL,JO)
+                        ZTT(JL) = lcolumnhr%tt(JL,JO)-273.15
+                        ZHU(JL) = lcolumnhr%hu(JL,JO)
+                        ZGZ(JL) = lcolumnhr%gz(JL,JO)
                      ENDDO
-                     ZP0 = columnhr%ps(1,JO)
-                     ZPT = COLUMNHR%RPPOBS(1,JO)
-                     ZMT = ZGZ(COLUMNHR%NLEV)/RG
+                     ZP0 = lcolumnhr%ps(1,JO)
+                     ZPT = LCOLUMNHR%RPPOBS(1,JO)
+                     ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPR = rprefinc
                      ZCF = rcoefinc
@@ -176,10 +176,10 @@ C
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                        HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                         IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                            HGT(NH1)= HNH1
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
@@ -194,7 +194,7 @@ C     *              Perform the (H(x)-Y)/S operation
 C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                        HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                         IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                            NH1   = NH1 + 1
 C
@@ -204,7 +204,7 @@ C
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obs_elem_r8(obsSpaceData,'VAR ',JDATA)
+                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
 C
 C     *                    Normalized increment
 C
@@ -236,7 +236,7 @@ C
 
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        HNH1  = obs_elem_r8(obsSpaceData,'PPP ',JDATA)
+                        HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                         IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                            NH1 = NH1 + 1
 C
@@ -246,7 +246,7 @@ C
 C
 C     *                    Observation error    S
 C
-                           call obs_set_r8(obsSpaceData,'OER ',JDATA, ZERR(NH1) * ZMHX)
+                           call obs_set_r8(lobsSpaceData,'OER ',JDATA, ZERR(NH1) * ZMHX)
                         ENDIF
                      ENDDO
                      DEALLOCATE( RSTV )

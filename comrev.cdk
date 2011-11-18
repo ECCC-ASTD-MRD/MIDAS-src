@@ -1,4 +1,0 @@
-      character*5 CPREV
-      integer nrevlen
-      PARAMETER(nrevlen=5)
-      data CPREV/'11.02'/

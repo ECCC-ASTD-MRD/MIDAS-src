@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE tt2phi(lcolumn)
+      SUBROUTINE tt2phi(lcolumnghr)
 #if defined (DOC)
 *
 ***s/r tt2phi - Temperature to geopotential transformation
@@ -37,21 +37,21 @@
       use columnData_mod
       IMPLICIT NONE
 c
-      type(struct_columnData) :: lcolumn
+      type(struct_columnData) :: lcolumnghr
       integer jobs,jlev,ier
       real*8 zps, alpha
-      real*8 ::  vmahr(lcolumn%nlev)
-      real*8 ::  vmbhr(lcolumn%nlev)
-      real*8 ::  vmchr(lcolumn%nlev)
-      real*8 ::  vmdhr(lcolumn%nlev)
-      real*8 ::  vmehr(lcolumn%nlev)
-      real*8 ::  vmfhr(lcolumn%nlev)
+      real*8 ::  vmahr(lcolumnghr%nlev)
+      real*8 ::  vmbhr(lcolumnghr%nlev)
+      real*8 ::  vmchr(lcolumnghr%nlev)
+      real*8 ::  vmdhr(lcolumnghr%nlev)
+      real*8 ::  vmehr(lcolumnghr%nlev)
+      real*8 ::  vmfhr(lcolumnghr%nlev)
 *
       alpha=-1.0D0
 **
 c
-      do jobs = 1, lcolumn%nobtot
-        call matapatnew(lcolumn%rppobs(:,jobs),alpha,lcolumn%nlev)
+      do jobs = 1, lcolumnghr%nobtot
+        call matapatnew(lcolumnghr%rppobs(:,jobs),alpha,lcolumnghr%nlev)
         call vtap1dnew(jobs)
       enddo
 c
@@ -200,36 +200,36 @@ C
 #include "dinternv.cdk"
 #include "finternv.cdk"
 **
-      call hpalloc(pttv,lcolumn%nlev,ier,8)
-      do jk = 1, lcolumn%nlev
-        zhu = exp(lcolumn%hu(jk,kobs))
-        ztv(jk) = fotvv(lcolumn%tt(jk,kobs),zhu)
+      call hpalloc(pttv,lcolumnghr%nlev,ier,8)
+      do jk = 1, lcolumnghr%nlev
+        zhu = exp(lcolumnghr%hu(jk,kobs))
+        ztv(jk) = fotvv(lcolumnghr%tt(jk,kobs),zhu)
       enddo
       llprint = .false.
 c
       ZCON = -RGASD
-      ZAK = -2.0*ZCON*VMAHR(lcolumn%nlev)
-      ZBK = -2.0*ZCON*VMBHR(lcolumn%nlev)
-      ZCK = -2.0*ZCON*VMCHR(lcolumn%nlev)
+      ZAK = -2.0*ZCON*VMAHR(lcolumnghr%nlev)
+      ZBK = -2.0*ZCON*VMBHR(lcolumnghr%nlev)
+      ZCK = -2.0*ZCON*VMCHR(lcolumnghr%nlev)
 ********************************************************
-c       write(*,*)'vtaphr:lcolumn%nlev,VMAHR,VMBHR,VMCHR ',
-c     &       lcolumn%nlev,VMAHR(lcolumn%nlev),VMBHR(lcolumn%nlev),VMCHR(lcolumn%nlev)
+c       write(*,*)'vtaphr:lcolumnghr%nlev,VMAHR,VMBHR,VMCHR ',
+c     &       lcolumnghr%nlev,VMAHR(lcolumnghr%nlev),VMBHR(lcolumnghr%nlev),VMCHR(lcolumnghr%nlev)
 ********************************************************
-      lcolumn%gz(lcolumn%nlev,kobs) = lcolumn%RMTMOBS(kobs)
-      lcolumn%gz(lcolumn%nlev-1,kobs)=
-     $                   ZAK*ztv(lcolumn%nlev-1)+
-     $                   ZBK*ztv(lcolumn%nlev)+
-     &                   ZCK*ztv(lcolumn%nlev-2)+
-     $                   lcolumn%gz(lcolumn%nlev,kobs)
+      lcolumnghr%gz(lcolumnghr%nlev,kobs) = lcolumnghr%RMTMOBS(kobs)
+      lcolumnghr%gz(lcolumnghr%nlev-1,kobs)=
+     $                   ZAK*ztv(lcolumnghr%nlev-1)+
+     $                   ZBK*ztv(lcolumnghr%nlev)+
+     &                   ZCK*ztv(lcolumnghr%nlev-2)+
+     $                   lcolumnghr%gz(lcolumnghr%nlev,kobs)
 ********************************************************
-c       write(*,*)'vtaphr:lcolumn%nlev,kobs,ak,bk,ck,gmgzhr(lcolumn%nlev)',
-c     &       lcolumn%nlev,kobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev,kobs)
-c       write(*,*)'vtaphr:lcolumn%nlev-1,kobs,ak,bk,ck,gmgzh(lcolumn%nlev-1)'
-c     &       ,lcolumn%nlev-1,kobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev-1,kobs)
+c       write(*,*)'vtaphr:lcolumnghr%nlev,kobs,ak,bk,ck,gmgzhr(lcolumnghr%nlev)',
+c     &       lcolumnghr%nlev,kobs,zak,zbk,zck,lcolumnghr%gz(lcolumnghr%nlev,kobs)
+c       write(*,*)'vtaphr:lcolumnghr%nlev-1,kobs,ak,bk,ck,gmgzh(lcolumnghr%nlev-1)'
+c     &       ,lcolumnghr%nlev-1,kobs,zak,zbk,zck,lcolumnghr%gz(lcolumnghr%nlev-1,kobs)
 ********************************************************
-      IKLEVM2 = lcolumn%nlev-2
+      IKLEVM2 = lcolumnghr%nlev-2
       do JK = 1, IKLEVM2
-        IK = lcolumn%nlev-1-JK
+        IK = lcolumnghr%nlev-1-JK
         ZAK = -2.0*ZCON*VMAHR(IK+1)
         ZBK = -2.0*ZCON*VMBHR(IK+1)
         ZCK = -2.0*ZCON*VMCHR(IK+1)
@@ -237,22 +237,22 @@ c     &       ,lcolumn%nlev-1,kobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev-1,kobs)
 c       write(*,*)'vtaphr:ik+1,VMAHR,VMBHR,VMCHR ',
 c     &       ik+1,VMAHR(ik+1),VMBHR(ik+1),VMCHR(ik+1)
 ********************************************************
-        lcolumn%gz(IK,kobs)=ZAK*ztv(IK)+
+        lcolumnghr%gz(IK,kobs)=ZAK*ztv(IK)+
      $                  ZBK*ztv(IK+1)+
      $                  ZCK*ztv(IK+2)+
-     +                  lcolumn%gz(IK+2,kobs)
+     +                  lcolumnghr%gz(IK+2,kobs)
 ********************************************************
-c          write(*,*)'vtaphr:ik,kobs,zak,zbk,zck,lcolumn%gz= ',
-c     &       ik,kobs,zak,zbk,zck,lcolumn%gz(ik,kobs)
+c          write(*,*)'vtaphr:ik,kobs,zak,zbk,zck,lcolumnghr%gz= ',
+c     &       ik,kobs,zak,zbk,zck,lcolumnghr%gz(ik,kobs)
 c          write(*,*)'vtaphr:ik,kobs,ztv(ik),ztv(ik+1),ztv(ik+2)= '
 c     &       ,ik,kobs,ztv(IK),ztv(IK+1),ztv(IK+2)
 **********************************************************
       enddo
 c
       if(llprint) then
-        do jk=1,lcolumn%nlev
+        do jk=1,lcolumnghr%nlev
           write(*,*)'vtap1dnew: Level, Background GZ,TT,TV = ',jk
-     &         ,lcolumn%gz(jk,1),lcolumn%tt(jk,1),ztv(jk)
+     &         ,lcolumnghr%gz(jk,1),lcolumnghr%tt(jk,1),ztv(jk)
         enddo
       endif
 C

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine rebldnotag
+      subroutine rebldnotag(lobsSpaceData)
 
       use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
@@ -42,6 +42,7 @@
 #include "comct0.cdk"
 #include "comvfiles.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       integer jobs, ig1obs, ig2obs, ig3obs, ig4obs, newdate
       integer vezgdef, ierr,istepstamp,jstep,istat,ihdl,ihdl01
       integer :: icode,jvar,getprofcode, istepobs, ireslun
@@ -83,8 +84,8 @@
 c spe : for normal use uncomment the call to stepobs and comment the
 C following line (istepstamp = nstamplist(1))
  
-        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(obsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(obsSpaceData,'ETM ',jobs),dstepobs)
+        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobs)
 
 c        ISTEPSTAMP = nstamplist(1)
 ! building the list of step stamp and counting number of obs in each step
@@ -98,11 +99,11 @@ c        ISTEPSTAMP = nstamplist(1)
         enddo step
 
         if (.not. lltimein) then
-          ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))=
-     &                 ntimeout(obs_elem_i(obsSpaceData,'OTP ',jobs))+1
+          ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))=
+     &                 ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))+1
           write(nulout,*) 'Report time for obs no. ',jobs
-     &         ,' out of range : ', obs_elem_i(obsSpaceData,'DAT ',jobs),
-     &         obs_elem_i(obsSpaceData,'ETM ',jobs)
+     &         ,' out of range : ', obs_elem_i(lobsSpaceData,'DAT ',jobs),
+     &         obs_elem_i(lobsSpaceData,'ETM ',jobs)
 
 ! Put put the wrong data in the central bin
           jstep = (nstepobs + 1) / 2
@@ -111,17 +112,17 @@ c        ISTEPSTAMP = nstamplist(1)
 ! .. flag it as out of (time) domain (bit #5 of header flag
 ! .. and turn off its assimilation flag
 
-          idata = obs_elem_i(obsSpaceData,'RLN ',jobs)
-          idatend = obs_elem_i(obsSpaceData,'NLV ',jobs) + idata -1
+          idata = obs_elem_i(lobsSpaceData,'RLN ',jobs)
+          idatend = obs_elem_i(lobsSpaceData,'NLV ',jobs) + idata -1
           do jdata = idata, idatend
-            call obs_set_i(obsSpaceData,'ASS ',JDATA, 0)
+            call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
           enddo
-          call obs_set_i(obsSpaceData,'ST1 ',jobs, ibset( obs_elem_i(obsSpaceData,'ST1 ',jobs), 05))
+          call obs_set_i(lobsSpaceData,'ST1 ',jobs, ibset( obs_elem_i(lobsSpaceData,'ST1 ',jobs), 05))
         endif
 ! building the lat, long and tag vectors for each step
 
-        dlatfld(nobs(jstep),jstep) = obs_elem_r4(obsSpaceData,'LAT ',jobs)
-        dlonfld(nobs(jstep),jstep) = obs_elem_r4(obsSpaceData,'LON ',jobs)
+        dlatfld(nobs(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LAT ',jobs)
+        dlonfld(nobs(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LON ',jobs)
         notag(nobs(jstep),jstep) = jobs
 
 ! Converting lat long to radian units

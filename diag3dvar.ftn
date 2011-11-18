@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE DIAG3DVAR
-      use globalSpectralTransform
 #if defined (DOC)
 *
 ***s/r DIAG3DVAR  - diagnostics in the post-processing of the model state
@@ -43,18 +42,6 @@
 *          C. Charette - ARMA/SMC - Sept 2004
 *           - Conversion to hybrid vertical coordinate
 *
-*Arguments
-*     i-  CDPPTYP :  type of post-processing
-*     .
-*     .              'STAT'      Model state contained in COMSP
-*     .              'GRID'      Grid-point fields contained in COMGD
-*     .
-*     .              'XMXG'      Total analysis increment
-*     .                          (COMSP - COMSPG)
-*     .              'XMXK'      Analysis increment with respect to
-*     .                          a given reference state kept on file
-*     .                          (Current model state is assumed to be in
-*     .                           COMSP)
 #endif
 C
       use MathPhysConstants_mod
@@ -67,13 +54,8 @@ C
 #include "comgd0.cdk"
 #include "comgd1.cdk"
 #include "comgem.cdk"
-#include "comsp.cdk"
 #include "localpost.cdk"
 #include "comstate.cdk"
-*
-*     Arguments
-*
-      CHARACTER*4 CDPPTYP
 *
 * Local variables
 *

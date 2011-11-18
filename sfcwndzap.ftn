@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SFCWNDZAP
+      SUBROUTINE SFCWNDZAP(lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r  SFCWNDZAP
@@ -36,6 +36,7 @@
 #include "comdimo.cdk"
 #include "cvcord.cdk"
 *
+      type(struct_obs) :: lobsSpaceData
       INTEGER JPINEL,JPIDLND
       PARAMETER(JPINEL=2,JPIDLND=9)
       INTEGER J,JD,JF,JID,JOBS,JDATA,IOBS1,IOBS2,IBAD,IFLG
@@ -77,8 +78,8 @@ C
      &     (CFAMTYP(JF) .EQ. 'UA') .AND.( NBEGINTYP(JF) .GT. 0)  )   THEN
           IBEGIN=NBEGINTYP(JF)
           ILAST=NENDTYP(JF)
-          IOBS1=obs_elem_i(obsSpaceData,'OBS ',NBEGINTYP(JF))
-          IOBS2=obs_elem_i(obsSpaceData,'OBS ',NENDTYP(JF))
+          IOBS1=obs_elem_i(lobsSpaceData,'OBS ',NBEGINTYP(JF))
+          IOBS2=obs_elem_i(lobsSpaceData,'OBS ',NENDTYP(JF))
           WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ',CFAMTYP(JF)
 C
 C
@@ -87,20 +88,20 @@ C
 ccc            CALL PRNTHDR(JOBS,NULOUT)
 ccc            CALL PRNTBDY(JOBS,NULOUT)
             ENDIF
-            IDATA    = obs_elem_i(obsSpaceData,'RLN ',JOBS)
-            IDATEND  = obs_elem_i(obsSpaceData,'NLV ',JOBS) + IDATA - 1
+            IDATA    = obs_elem_i(lobsSpaceData,'RLN ',JOBS)
+            IDATEND  = obs_elem_i(lobsSpaceData,'NLV ',JOBS) + IDATA - 1
             DO JDATA= IDATA, IDATEND
 C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
-              ITYP=obs_elem_i(obsSpaceData,'VNM ',JDATA)
-              ITY    = obs_elem_i(obsSpaceData,'ITY ',JOBS)
+              ITYP=obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+              ITY    = obs_elem_i(lobsSpaceData,'ITY ',JOBS)
               IDBURP = MOD(ITY,1000)
               IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
                   IF(IDBURP .EQ. IDLND(JID) .AND.
-     &                 obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
-                    call obs_set_i(obsSpaceData,'FLG ',JDATA,
-     &                   ibset( obs_elem_i(obsSpaceData,'FLG ',JDATA), 19 ))
-                    call obs_set_i(obsSpaceData,'ASS ',JDATA,0)
+     &                 obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) THEN
+                    call obs_set_i(lobsSpaceData,'FLG ',JDATA,
+     &                   ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 19 ))
+                    call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
                     DO J = 1, JPINEL
                       IF(ITYP .EQ.ILISTEL(J)) THEN
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -108,9 +109,9 @@ C     UNCONDITIONNALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
                     ENDDO
                     IF(LLPRINT) THEN
                       WRITE(NULOUT,225) 'Rej sfc wind lnd',JOBS,ITYP
-     &                     ,obs_elem_c9(obsSpaceData,'STID',JOBS),IDBURP
-     &                     ,obs_elem_r4(obsSpaceData,'LAT ',JOBS),obs_elem_r4(obsSpaceData,'LON ',JOBS)
-     &                     ,obs_elem_r8(obsSpaceData,'PPP ',JDATA),ZDIFF
+     &                     ,obs_elem_c9(lobsSpaceData,'STID',JOBS),IDBURP
+     &                     ,obs_elem_r4(lobsSpaceData,'LAT ',JOBS),obs_elem_r4(lobsSpaceData,'LON ',JOBS)
+     &                     ,obs_elem_r8(lobsSpaceData,'PPP ',JDATA),ZDIFF
                     ENDIF
                   ENDIF
                 ENDDO
@@ -135,8 +136,8 @@ C
       END DO
 C
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(obsSpaceData)
-         IF ( obs_elem_i(obsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D"
      &            ,"-VAR AFTER ADJUSTMENTS: ",i10)')IKOUNTT
