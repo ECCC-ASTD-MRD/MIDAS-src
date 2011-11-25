@@ -249,6 +249,11 @@ c     &       ,ik,kobs,ztv(IK),ztv(IK+1),ztv(IK+2)
 **********************************************************
       enddo
 c
+! THIS IS PROBABLY NOT NEEDED NOW
+!      do jk=1,lcolumnghr%nlev
+!        lcolumnghr%gz_T(jk,kobs) = lcolumnghr%gz(jk,kobs)
+!        lcolumnghr%gz_M(jk,kobs) = lcolumnghr%gz(jk,kobs)
+!      enddo
       if(llprint) then
         do jk=1,lcolumnghr%nlev
           write(*,*)'vtap1dnew: Level, Background GZ,TT,TV = ',jk

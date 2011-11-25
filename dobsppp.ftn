@@ -51,6 +51,7 @@
       REAL*8 ZLEV,ZPT,ZPB,ZTORAD,ZOMA
       REAL*4 ZLAT,ZLON
       LOGICAL LLPRINT,LLNOXTR
+      CHARACTER*2 CVAR
 !
 !     Temperature lapse rate for extrapolation of gz below model surface
 !
@@ -78,10 +79,20 @@
             ivco=obs_elem_i (lobsSpaceData,'VCO ',jdata)
             IOBS=obs_elem_i (lobsSpaceData,'OBS ',jdata)
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
+               ITY =obs_elem_i (lobsSpaceData,'VNM ',jdata)
                IPT = IK + IPOS*LCOLUMNHR%NLEV
                IPB = IPT+1
-               ZPT  = LCOLUMNHR%RPPOBS(IK,IOBS)
-               ZPB  = LCOLUMNHR%RPPOBS(IK+1,IOBS)
+               CALL GETVARTYPE(ITY,CVAR)
+               IF (CVAR .EQ. 'NA') THEN
+                 ZPT= LCOLUMNHR%RPPOBS(IK,IOBS)
+                 ZPB= LCOLUMNHR%RPPOBS(IK+1,IOBS)
+               ELSEIF (CVAR .EQ. 'TH') THEN
+                 ZPT  = LCOLUMNHR%RPPOBS_T(IK,IOBS)
+                 ZPB  = LCOLUMNHR%RPPOBS_T(IK+1,IOBS)
+               ELSEIF (CVAR .EQ. 'MM' ) THEN
+                 ZPT  = LCOLUMNHR%RPPOBS_M(IK,IOBS)
+                 ZPB  = LCOLUMNHR%RPPOBS_M(IK+1,IOBS)
+               ENDIF
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1. - ZWB
                zoma = (ZWB*lcolumnhr%all(IPB,IOBS) + ZWT*lcolumnhr%all(IPT,IOBS)-ZVAR)/ZOER

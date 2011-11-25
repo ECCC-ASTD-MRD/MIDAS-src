@@ -15,116 +15,73 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine sugomobs(lcolumng,lcolumnhr)
-      use MathPhysConstants_mod
-      use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-      use columnData_mod 
- 
 #if defined (DOC)
 *
 ***s/r sumgomobs
 *
-*
 *     Author  : S. Pellerin ARMA/AES Nov. 1999
 *     Revision:
-*     Revision: C.Chouinard  ARMA/SMC Aout 2000
-*                    Ajouter la lecture de TG champ 2D
-*               JM Belanger CMDA/SMC  Aug 2000
-*                   . 32 bits conversion
-**              S. Pellerin *ARMA/SMC nov. 2001
-*                   . Management of first guess at appropriate time
-*               C. Charette - ARMA/SMC - Sep. 2004
-*                   . Conversion to hybrid vertical coordinate
-*               C. Charette - ARMA/SMC - Apr. 2006
-*                   . Replaced "call subasic" by "call subasic_obs"
-*                     Note subasic_obs is the version of subasic for the
-*                     hybrid coordinate.
-*               Bin He  -  *ARMA/SMC -  Jan. 2008
-*                   . Added reading multiple trial files.
-*               S. Pellerin, ARMA, August 2008
-*                   . Simplification
-*                   . Work on allocation/deallocation (hpalloc -> allocate)
-*                   . Optimisation
-*                   . Remove of the horizontal staggered trials
-*                     mechanism
-*                   . Call to getfldprm2(multiple trial files)
-*               L. Fillion - Jul 08 - Introduce parameter nkt (to complement nit,njt of trial).
-*               S. Pellerin, ARMA, January 2009
-*                   . Remove a debug printout line
-*               L. Fillion - ARMA/EC - 07 May 2009 - Upgrade 3dvar LU and GU mode to v_10_2_2.
 *
-**    Purpose: Fill in GOMOBS with trial profiles
+**    Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
 *
-*
-*
-*
-*
-*Arguments
+*Arguments: COLUMNG, COLUMNHR
 *
 #endif
+      use MathPhysConstants_mod
+      use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use columnData_mod 
       implicit none
-*implicits
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comdimo.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 c
       type(struct_columnData) :: lcolumng,lcolumnhr
-      integer vfstlir,vezuvint,vezsint,ezdefset,ezqkdef,ezgprm,ip1f
-      integer ezsetopt,fclos,jstep
-
-      integer jlev,jobs,ier,iset,jij,gdll
-      integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar,fnom
-      integer ikeys(jpnflev),itrlnlev,itrlnlev2,istep,iultemp
+      integer vfstlir,vezuvint,vezsint,ezdefset,ezgprm
+      integer ezsetopt,jstep
+      integer jlev,jobs,ier,iset
+      integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
+      integer itrlnlev,istep
       character*1 clgrtyp,cltypvar
       character*8 cletiket
-      real*8 zlat(354,415),zlon(354,415)
       real*8, allocatable, dimension(:,:) :: zvar,zvar2,zmobs,zmobs2
-     &     ,zppobs
-      real*8 zovar(1),zovar2(1),zpt(1)
-      real*8, allocatable, dimension(:) :: zopart,zopart2,zlev,zhybhr
-      real*8 zom(1)
-      real*8 vlevf
-      integer VHYBRID_TO_PRES
-      integer ipmode,ipkind,ip1_pak_trl,ip1_vco_trl
+      real*8, allocatable, dimension(:,:) :: zmobs_T,zmobs_M,zmobs2_M
+      real*8, allocatable, dimension(:,:) :: zmobs_MT,zmobs2_MT
+      real*8, allocatable, dimension(:,:) :: zppobs_MT,zppobs_T,zppobs_M
+      real*8 zovar(1)
+      real*8, allocatable, dimension(:) :: zopart,zopart2,zhybhr
+      real*8 zom_T(1),zom_M(1)
+      integer ip1_pak_trl,ip1_vco_trl
       real*8  zptophr,zrcoefhr,zprefhr
-      real    zptop4,zrcoef4,zpref4
-      character*1 clstring
-      logical llpt
-      logical lluv,lllochr
+      integer nlv_T,nlv_M
 c
-      integer itrlgid,itrlgid2,iip1s(jpnflev),iip1,iip2,iip3,ip1_hyb_prm
+      integer itrlgid,iip1s(jpnflev),iip1,iip2,iip3
+      integer iip1s2(jpnflev*2)
 c
       integer, allocatable, dimension(:) :: idate,itime,nultrl
       integer :: newdate,nstepanltime
-      integer :: k              !  the unit which has the selected records.
 
       pointer (pzovar,zovar)
-      pointer (pzovar2,zovar2)
-      pointer (pzpt,zpt),(pzom,zom)
-c
-      lllochr = .false.
+      pointer (pzom_T,zom_T),(pzom_M,zom_M)
 c
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
       write(nulout,*) ' '
 c
-      call hpalloc(pzom,max(lcolumng%nlev*lcolumng%nobtot,1),ier,8)
+      call hpalloc(pzom_T,max(lcolumng%nlev*lcolumng%nobtot,1),ier,8)
+      call hpalloc(pzom_M,max(lcolumng%nlev*lcolumng%nobtot,1),ier,8)
       call hpalloc(pzovar,max(lcolumng%nobtot,1),ier,8)
-      call hpalloc(pzovar2,max(lcolumng%nobtot,1),ier,8)
       allocate(zopart(maxval(nobs)))
       allocate(zopart2(maxval(nobs)))
-      llpt = .false.
-      if(llpt) then
-        call hpalloc(pzpt,max(lcolumng%nobtot,1),ier,8)
-c-------endif de llpt
-      endif
       allocate(idate(nstepobs))
       allocate(itime(nstepobs))
       allocate(nultrl(nstepobs))
+c
 c Computing date and time of step obs for error message
+c
       do jstep = 1,nstepobs
         ier = newdate(nstamplist(jstep),idate(jstep),itime(jstep),-3)
         itime(jstep) = itime(jstep)
@@ -142,15 +99,26 @@ c
         enddo
       enddo
 c
-c     set hybrid vertical coordinate parameters from trial field
+c     Get vertical coordinate parameters from trial field !! structure
 c
-      call gethybprm2 (ninmpg,nulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
-     &     ,ip1_hyb_prm,ntrials)
-      zptophr = zptop4*rmbtpa
-      zprefhr = zpref4*rmbtpa
-      zrcoefhr= zrcoef4
+      nlv_M = tg_vco_trl%ink_M
+      nlv_T = tg_vco_trl%ink_T
+      write(nulout,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
+c      
+      zptophr = tg_vco_trl%dpt_T
+      zprefhr = tg_vco_trl%dprf_T
+      zrcoefhr= tg_vco_trl%drcf2
       write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',zptophr
      &     ,zprefhr,zrcoefhr
+c
+c     Allocation des tableaux a remplir par fillmvo
+c
+      istep = nlv_T
+      lcolumnhr%nlev = nlv_T
+      lcolumnhr%nlev_T = nlv_T
+      lcolumnhr%nlev_M = nlv_M
+      call col_allocate(lcolumnhr,istep,lcolumng%nobtot)
+      call col_zero(lcolumnhr)
 c
 c     reading 2D fields
 c
@@ -201,63 +169,14 @@ c
           endif
         enddo
 c
-        write(*,*) 'here1'
-        call flush(6)
-        call col_fillmvo(lcolumng,cfstvar2d(jvar),zovar,1,lcolumng%nobtot)
-        write(*,*) 'here2'
-        call flush(6)
+        call col_fillmvo(lcolumng,cfstvar2d(jvar),'NA',zovar,1,lcolumng%nobtot)
 c
-      enddo
-c
-*
-*------- Read topography in model coordinates => Boundary condition for
-C GZ
-*
-      do jstep = 1,nstepobs
-        if(nobs(jstep) > 0) then
-          call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,'GZ',nstamplist(jstep),jpnflev,nultrl(jstep)
-     &         ,nulout,ip1_pak_trl,ip1_vco_trl)
-c
-          ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
-c
-c
-c---------Decode and sort the levels of GZ into zlev
-          ipmode = -1
-          if(.not.allocated(zlev)) allocate(zlev(itrlnlev))
-          do jlev = 1,itrlnlev
-            call VCONVIP(iip1s(jlev),ZLEV(jlev),IPKIND
-     &           ,ipmode,clstring, .false. )
-          enddo
-c
-          call vsort(zlev,itrlnlev)
-c---------Read in GZ at the surface (at zlev(itrlnlev)
-          ipmode =  ip1_pak_trl
-          call VCONVIP(IIP1,zlev(itrlnlev),ip1_vco_trl
-     &         ,ipmode,clstring, .false. )
-          ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
-     &         nstamplist(jstep) ,cletiket,iip1,iip2,iip3,
-     &         cltypvar,'GZ')
-          if(ier.lt.0)then
-            write(nulout,1001) 'GZ',iip1,idate(jstep)
-     &           ,itime(jstep)
-            call abort3d(nulout
-     &           ,'SUGOMOBS:Problem with background file')
-          end if
-c
-          iset = ezdefset(nobsgid(jstep),itrlgid)
-          ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
-     &         ,inj,1)
-          do jobs = 1, nobs(jstep)
-            lcolumng%rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
-          enddo
-        endif
       enddo
 c
 c-----Derive the pressure fields at observation points from the hybrid
 C     levels(vhybinc), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
-
+c
       do jobs = 1,lcolumng%nobtot
         zovar(jobs) = lcolumng%ps(1,jobs)
       enddo
@@ -265,319 +184,419 @@ c
       call calcpres(lcolumng%rppobs(1,1),vhybinc,lcolumng%nlev,zovar,rptopinc
      &     ,rprefinc,rcoefinc,lcolumng%nobtot)
       do jlev = 1,lcolumng%nlev
-        write(nulout,*) 'sugomobs: jlev, LCOLUMNG%RPPOBS(jlev,1) = ',jlev,LCOLUMNG%RPPOBS(jlev,1)
+        write(nulout,*) 'sugomobs: jlev, vhybinc(jlev), LCOLUMNG%RPPOBS(jlev,1) = ',
+     +    jlev,vhybinc(jlev),LCOLUMNG%RPPOBS(jlev,1)
         call flush(nulout)
       enddo
 c
-c ------- Interpolation of the 3D fields
+c ------- Prepare for interpolation of the 3D fields
 c
-      lluv = .true.
+      if (.not. allocated(zmobs))     allocate(zmobs(    nlv_T,lcolumng%nobtot))
+      if (.not. allocated(zmobs_T))   allocate(zmobs_T(  nlv_T,lcolumng%nobtot))
+      if (.not. allocated(zmobs_MT))  allocate(zmobs_MT( nlv_T,lcolumng%nobtot))
+      if (.not. allocated(zmobs2_MT)) allocate(zmobs2_MT(nlv_T,lcolumng%nobtot))
+      if (.not. allocated(zppobs_MT)) allocate(zppobs_MT(nlv_T,lcolumng%nobtot))
+      if (.not. allocated(zppobs_T))  allocate(zppobs_T( nlv_T,lcolumng%nobtot))
+      if (.not. allocated(zmobs_M))   allocate(zmobs_M(  nlv_M,lcolumng%nobtot))
+      if (.not. allocated(zmobs2_M))  allocate(zmobs2_M (nlv_M,lcolumng%nobtot))
+      if (.not. allocated(zppobs_M))  allocate(zppobs_M( nlv_M,lcolumng%nobtot))
+      if (.not. allocated(zhybhr))    allocate(zhybhr(   nlv_T))
+c
+c------- Calculate profiles of pressure values at station location
+
+      write(nulout,*) 'sugomobs:iversion= ',tg_vco_trl%iversion
+      write(nulout,*) 'sugomobs:ikind= ',tg_vco_trl%ikind
+      write(nulout,*) 'sugomobs:svcod= ',tg_vco_trl%svcod
+
+c-------Staggered hybrid trial field 
+      if (tg_vco_trl%iversion .eq. 5002) then 
+        call calcpres_vgrid(tg_vgrid_trl,zovar, tg_vco_trl%ip1_M
+     &         ,nlv_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
+        call calcpres_vgrid(tg_vgrid_trl,zovar, tg_vco_trl%ip1_T
+     &         ,nlv_T,lcolumng%nobtot,nulout,zppobs_T(1,1))
+c       Copier le niveaux du bas momentum dans le dernier niveau du
+c       vecteur surdimentionne
+cnwa        zppobs_M(nlv_T,:) = zppobs_M(nlv_M,:)
+c-------ETA  trial field 
+      elseif(tg_vco_trl%iversion .eq. 5001) then
+        call col_pointStagToUnstag(lcolumnhr)
+        call calcpres_vgrid(tg_vgrid_trl,zovar, tg_vco_trl%ip1_M
+     &         ,tg_vco_trl%ink_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
+
+        zptophr = tg_vco_trl%dpt_M
+        zprefhr = tg_vco_trl%dprf_M
+        zrcoefhr= tg_vco_trl%drcf2
+        itrlnlev = tg_vco_trl%ink_M
+        zhybhr = tg_vco_trl%dhyb_M
+        do jlev = 1,nlv_M
+          zhybhr(jlev) = tg_vco_trl%dhyb_M(jlev)
+        enddo
+        call calcpres(zppobs_M,zhybhr,nlv_M,zovar,zptophr
+     &         ,zprefhr,zrcoefhr,lcolumng%nobtot)
+        do jlev   = 1,nlv_M 
+          do jobs = 1,lcolumng%nobtot
+            zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 
+          enddo
+        enddo
+      else
+        call abort3d(nulout
+     &           ,'SUGOMOBS:Problem with vertical lvls in trial file')
+c        
+      endif
+c      
+c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
+      do jlev = 1, nlv_M
+        do jobs = 1, lcolumng%nobtot
+          zppobs_MT(jlev,jobs) = zppobs_M(jlev,jobs)
+        enddo
+      enddo
+      do jobs = 1, lcolumng%nobtot
+        zppobs_MT(nlv_T,jobs) = zppobs_M(nlv_M,jobs)
+      enddo
+c
+c Remplir la pression sur le niveaux du trial au points d'observations
+      call col_fillmvo(lcolumnhr,'PP','MM',zppobs_MT,nlv_T,lcolumng%nobtot)
+      call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T,nlv_T,lcolumng%nobtot)
+      call col_fillmvo(lcolumnhr,'PP','NA',zppobs_T,nlv_T,lcolumng%nobtot)
+c      
+c Remplir les valeur eta ou zeta des niveaux du trial
+c     surdimension (de 1) vecteur des niveaux momentum
+      do jlev = 1,nlv_M
+        zhybhr(jlev) = tg_vco_trl%dhyb_M(jlev)
+      enddo
+c     On copie le dernier niveau pour le niveau suplementaire
+      zhybhr(nlv_T) = zhybhr(nlv_M)
+c
+      call col_fillmvo(lcolumnhr,'HY','MM',zhybhr,nlv_T,1)
+      call col_fillmvo(lcolumnhr,'HY','NA',zhybhr,nlv_T,1)
+c
+      do jlev = 1,nlv_T
+        zhybhr(jlev) = tg_vco_trl%dhyb_T(jlev)
+      enddo
+      call col_fillmvo(lcolumnhr,'HY','TH',zhybhr,nlv_T,1)
+c
+c Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
+c
+      write(nulout,*)' ----- Initializing GZ ----'
+c
+c     Get horizontal field parameters
+c
+      call getfldprm(iip1s2,iip2,iip3,itrlnlev,cletiket,cltypvar
+     &         ,itrlgid,'GZ',nbrpstamp,jpnflev*2
+     &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
+      if(itrlnlev <= 0 ) then
+        write(nulout,1002) 'GZ',idate((nstepobs-1)/2 + 1)
+     &        ,itime((nstepobs-1)/2 + 1)
+        call abort3d(nulout
+     &       ,'SUGOMOBS:Problem with background file')
+      endif
+      write(nulout,*) ' ITRLNLEV =',itrlnlev
+c
+      ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
+c
+c     Lire les GZ des niveaux Momentum
+c
+      do jlev = 1,nlv_M
+        do jstep = 1,nstepobs
+          if(nobs(jstep) > 0) then
+            IIP1 = tg_vco_trl%ip1_M(jlev)
+c
+            ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
+     &          nstamplist(jstep) ,cletiket,iip1,-1,-1,
+     &          cltypvar,'GZ')
+            if(ier.lt.0)then
+              write(nulout,1001) 'GZ',iip1,idate(jstep)
+     &             ,itime(jstep)
+              call abort3d(nulout
+     &            ,'SUGOMOBS:Problem with background file')
+            end if
+c
+            iset = ezdefset(nobsgid(jstep),itrlgid)
+            ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
+     &            ,inj,1)
+            do jobs = 1, nobs(jstep)
+              zmobs((jlev),notag(jobs,jstep)) = zopart(jobs)
+c             Copier le niveaux du bas momentum dans le dernier niveau du
+c             vecteur surdimentionne
+              if ( jlev == nlv_M ) 
+     &        zmobs(nlv_T,notag(jobs,jstep)) = zmobs(jlev,notag(jobs,jstep))
+            enddo
+          endif
+        enddo
+      enddo
+c
+c     remplir gomobsgzhr_M avec la dimention des niveaux thermo 
+          write(nulout,*) 'sugomobs:GZ_M*10.*rg '
+          do jlev = 1,nlv_T
+            write(nulout,*) 'GZ,',jlev
+     &           ,zPPOBS_T(jlev,1),zmobs(jlev,1)*10.*rg
+          enddo
+      call col_fillmvo(lcolumnhr,'GZ','MM',zmobs,nlv_T,lcolumng%nobtot)
+c
+c     remplir aussi columnhr%gz avec le GZ momentum
+      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs,nlv_T,lcolumng%nobtot)
+c
+c     Lire les GZ des niveaux Thermodynamique
+c
+      do jlev = 1, nlv_T
+        do jstep = 1,nstepobs
+          if(nobs(jstep) > 0) then
+            IIP1 = tg_vco_trl%ip1_T(jlev)
+c
+            ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
+     &          nstamplist(jstep) ,cletiket,iip1,-1,-1,
+     &          cltypvar,'GZ')
+            if(ier.lt.0)then
+              write(nulout,1001) 'GZ',iip1,idate(jstep)
+     &             ,itime(jstep)
+              call abort3d(nulout
+     &            ,'SUGOMOBS:Problem with background file')
+            end if
+c
+            iset = ezdefset(nobsgid(jstep),itrlgid)
+            ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
+     &            ,inj,1)
+            do jobs = 1, nobs(jstep)
+c              zmobs(jlev,notag(jobs,jstep)) = zopart(jobs)  *10.*rg
+c             La conversion d unite sa fait dasn col_fillmvo
+              zmobs(jlev,notag(jobs,jstep)) = zopart(jobs) 
+c             On remplis aussi le champs de GZ a la surface rmtmobs 
+              if (jlev == nlv_T) lcolumng%rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
+            enddo
+          endif
+        enddo
+      enddo
+c
+c     remplir gomobsgzhr_T
+          write(nulout,*) 'sugomobs:GZ_TH (*10.*rg)'
+          do jlev = 1,nlv_T
+            write(nulout,*)'GZ,',jlev
+     &           ,zPPOBS_T(jlev,1),zmobs(jlev,1)*10.*rg
+          enddo
+      call col_fillmvo(lcolumnhr,'GZ','TH',zmobs,nlv_T,lcolumng%nobtot)
+c
+c Now all of the other 3D variables
+c
       do jvar=1, nfstvar
+        select case ( cfstvar(jvar) )
 c
-c Get horizontal field parameters
+c Variables sur les niveaux momentum
 c
-        if ((cfstvar(jvar).ne.'UU'.and.
-     &       cfstvar(jvar).ne.'VV').or.lluv) then
-c
+        case ('UU')
           write(nulout,*)' '
-          write(nulout,*)' ----- Initializing ',cfstvar(jvar),' ----'
+          write(nulout,*)' ----- Initializing UU and VV  ----'
           write(nulout,*)' '
+          call flush(nulout)
 c
-          call vflush(nulout)
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,cfstvar(jvar),nbrpstamp,jpnflev
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
-          if(itrlnlev <= 0) then
+          if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
             write(nulout,1002) cfstvar(jvar),idate((nstepobs-1)/2 + 1)
      &           ,itime((nstepobs-1)/2 + 1)
             call abort3d(nulout
      &           ,'SUGOMOBS:Problem with background file')
           endif
-c
-c-------- Decode, sort levels from top to bottom
-          if (.not. allocated(zhybhr)) allocate(zhybhr(itrlnlev))
-          ipmode = -1
-          do jlev = 1,itrlnlev
-            call VCONVIP(iip1s(jlev),zlev(jlev),ip1_vco_trl
-     &           ,ipmode,clstring, .false. )
-          enddo
-c
-          call vsort(zlev,itrlnlev)
-c
-c---------Encode iip1s_trl to match the sorted zlev
-          ipmode = ip1_pak_trl
-          do jlev = 1,itrlnlev
-            call VCONVIP(iip1s(jlev),zlev(jlev),ip1_vco_trl
-     &           ,ipmode,clstring, .false. )
-          enddo
-c
-c---------Compute unnormalized hybrid coordinate at model levels
-c         Type of vertical coord accepted are
-C         ip1_vco_trl = 1 (eta levels or normalised hybride levels)
-c         ip1_vco_trl = 2 (2D fields have value 0.0 in pressure
-c coordinate)
-C         ip1_vco_trl = 5 (hybrid levels)
-c
-          if(ip1_vco_trl .eq. 1 ) then ! trial on eta coord
-            do jlev = 1,itrlnlev
-              zhybhr(jlev) = zlev(jlev) + (1.0D0-zlev(jlev))
-     &             *zptophr/zprefhr
-            enddo
-          elseif(ip1_vco_trl .eq. 5 .or. ip1_vco_trl .eq. 2) then
-            do jlev = 1,itrlnlev
-              zhybhr(jlev) = zlev(jlev)
-            enddo
-          else
-            write(nulout,*)
-     &           ' **** ERROR IN TYPE OF VERTICAL COORD **** '
-            write(nulout,*) 'Variable= ',cfstvar(jvar)
-     &           ,' Type= ',ip1_vco_trl
-            call abort3d(nulout,'SUGOMOBS')
-          endif
-c
+          write(nulout,*) ' ITRLNLEV =',itrlnlev,' nlv_M ',nlv_M
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 c
-          if (.not. allocated(zmobs))  allocate(zmobs(itrlnlev,lcolumng%nobtot))
-          if (.not. allocated(zmobs2)) allocate(zmobs2(itrlnlev,lcolumng%nobtot))
-          if (.not. allocated(zppobs)) allocate(zppobs(itrlnlev,lcolumng%nobtot))
+c loop through levels of UU,VV
 c
-c loop through levels of field jvar
-c
-c
-c Reading 3D fields
-c
-c---------Encode iip1 from zlev
-          ipmode =  ip1_pak_trl
           if (.not. allocated(zvar2)) allocate(zvar2(ini,inj))
           call tmg_start(27,'XHR2XY')
-          do jlev = 1,itrlnlev
-            call VCONVIP(IIP1,zlev(jlev),ip1_vco_trl,ipmode,clstring,
-     &           .false.)
+          do jlev = 1,nlv_M
+            IIP1=tg_vco_trl%ip1_M(jlev)
             do jstep = 1,nstepobs
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
-                if (cfstvar(jvar).eq.'UU'.or. cfstvar(jvar).eq.'VV')
-     &               then
 c
-c get UU and VV 
+                ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
+     &               nstamplist(jstep),cletiket,iip1,-1,-1,
+     &               cltypvar,'UU')
+                if(ier.lt.0)then
+                  write(nulout,1001) 'UU',iip1,idate(jstep)
+     &                 ,itime(jstep)
+                  call abort3d(nulout
+     &                 ,'SUGOMOBS:Problem with background file')
+                end if
 c
-                  call tmg_start(28,'READ_TRL')
-                  ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
-     &                 nstamplist(jstep),cletiket,iip1,-1,-1,
-     &                 cltypvar,'UU')
-                  call tmg_stop(28)
-                  if(ier.lt.0)then
-                    write(nulout,1001) 'UU',iip1,idate(jstep)
-     &                   ,itime(jstep)
-                    call abort3d(nulout
-     &                   ,'SUGOMOBS:Problem with background file')
-                  end if
-
-                  zvar2 = 0.d0
-
-                  call tmg_start(29,'INTRP_TRL')
-                  ier = vezuvint(zopart(1:nobs(jstep))
-     &                 ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
-     &                 ,ini*inj)
-                  call tmg_stop(29)
-                  do jobs = 1, nobs(jstep)
-                    zmobs(jlev,notag(jobs,jstep)) = zopart(jobs)
-                    zmobs2(jlev,notag(jobs,jstep)) = zopart2(jobs)
-                  enddo
-
-                  call tmg_start(28,'READ_TRL')
-                  ier=vfstlir(zvar2,nultrl(jstep),INI,INJ,INK,
-     &                 nstamplist(jstep) ,cletiket,iip1,-1,-1,
-     &                 cltypvar,'VV')
-                  call tmg_stop(28)
-                  if(ier.lt.0)then
-                    write(nulout,1001) 'VV',iip1,idate(jstep)
-     &                   ,itime(jstep)
-                    call abort3d(nulout
-     &                   ,'SUGOMOBS:Problem with background file')
-                  endif
+                zvar2 = 0.d0
+                ier = vezuvint(zopart(1:nobs(jstep))
+     &               ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
+     &               ,ini*inj)
+                do jobs = 1, nobs(jstep)
+                  zmobs_M(jlev,notag(jobs,jstep)) = zopart(jobs)
+                  zmobs2_M(jlev,notag(jobs,jstep)) = zopart2(jobs)
+                enddo
 c
-                  zvar = 0.d0
-
-                  call tmg_start(29,'INTRP_TRL')
-                  ier = vezuvint(zopart(1:nobs(jstep))
-     &                 ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
-     &                 ,ini*inj)
-                  call tmg_stop(29)
-
-                  do jobs = 1, nobs(jstep)
-                    zmobs(jlev,notag(jobs,jstep)) = zmobs(jlev
-     &                   ,notag(jobs,jstep)) + zopart(jobs)
-                    zmobs2(jlev,notag(jobs,jstep)) = zmobs2(jlev
-     &                   ,notag(jobs,jstep)) + zopart2(jobs)
-                  enddo
-c
-c get u anv v true componants on obs locations
-C
-                  lluv = .false.
-c
-                else
-                  call tmg_start(28,'READ_TRL')
-                  ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
-     &                 nstamplist(jstep) ,cletiket,iip1,-1,-1,
-     &                 cltypvar,cfstvar(jvar))
-                  call tmg_stop(28)
-                  if(ier.lt.0)then
-                    write(nulout,1001) cfstvar(jvar),iip1,idate(jstep)
-     &                   ,itime(jstep)
-                    call abort3d(nulout
-     &                   ,'SUGOMOBS:Problem with background file')
-                  end if
-c
-                  call tmg_start(29,'INTRP_TRL')
-                  ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1
-     &                 ,1,ini,inj,1)
-                  call tmg_stop(29)
-                  do jobs = 1, nobs(jstep)
-                    zmobs(jlev,notag(jobs,jstep)) =zopart(jobs)
-                  enddo
+                ier=vfstlir(zvar2,nultrl(jstep),INI,INJ,INK,
+     &               nstamplist(jstep) ,cletiket,iip1,-1,-1,
+     &               cltypvar,'VV')
+                if(ier.lt.0)then
+                  write(nulout,1001) 'VV',iip1,idate(jstep)
+     &                 ,itime(jstep)
+                  call abort3d(nulout
+     &                 ,'SUGOMOBS:Problem with background file')
                 endif
+c
+                zvar = 0.d0
+                ier = vezuvint(zopart(1:nobs(jstep))
+     &               ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
+     &               ,ini*inj)
+c
+                do jobs = 1, nobs(jstep)
+                  zmobs_M(jlev,notag(jobs,jstep)) = zmobs_M(jlev
+     &                 ,notag(jobs,jstep)) + zopart(jobs)
+                  zmobs2_M(jlev,notag(jobs,jstep)) = zmobs2_M(jlev
+     &                 ,notag(jobs,jstep)) + zopart2(jobs)
+                enddo
+              endif
+            enddo
+          enddo
+c         
+          call tmg_start(29,'VINTPROF')
+c
+          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs_M,zppobs_M,nlv_M,lcolumng%nobtot)
+          call col_fillmvo(lcolumng,'UU','NA',zom_M,lcolumng%nlev,lcolumng%nobtot)
+c
+          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs2_M,zppobs_M,nlv_M,lcolumng%nobtot)
+          call col_fillmvo(lcolumng,'VV','NA',zom_M,lcolumng%nlev,lcolumng%nobtot)
+c
+c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
+          do jlev = 1, nlv_M
+            zmobs_MT(jlev,:) = zmobs_M(jlev,:)
+            zmobs2_MT(jlev,:) = zmobs2_M(jlev,:)
+          enddo 
+          zmobs_MT(nlv_T,:) = zmobs_M(nlv_M,:)
+          zmobs2_MT(nlv_T,:) = zmobs2_M(nlv_M,:)
+ccc dbug in
+          write(nulout,*) 'sugomobs: UU ,nlev= ',nlv_T
+          do jlev = 1,nlv_T
+            write(nulout,*) cfstvar(jvar),jvar,jlev
+     &           ,zPPOBS_T(jlev,1),zmobs_MT(jlev,1)
+          enddo
+          write(nulout,*) 'sugomobs: VV ,nlev= ',nlv_T
+          do jlev = 1,nlv_T
+            write(nulout,*) cfstvar(jvar),jvar,jlev
+     &           ,zPPOBS_T(jlev,1),zmobs2_MT(jlev,1)
+          enddo
+ccc dbug out
+          call col_fillmvo(lcolumnhr,'UU','NA',zmobs_MT,nlv_T,lcolumng%nobtot)
+          call col_fillmvo(lcolumnhr,'VV','NA',zmobs2_MT,nlv_T,lcolumng%nobtot)
+c
+          call tmg_stop(29)
+c          
+c Variable sur les niveaux thermodynamiques
+c
+        case ('TT','HU')
+          write(nulout,*)' '
+          write(nulout,*)' ----- Initializing ',cfstvar(jvar),' ----'
+          write(nulout,*)' '
+          call flush(nulout)
+c
+          call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
+     &         ,itrlgid,cfstvar(jvar),nbrpstamp,jpnflev
+     &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
+          if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
+            write(nulout,1002) cfstvar(jvar),idate((nstepobs-1)/2 + 1)
+     &           ,itime((nstepobs-1)/2 + 1)
+            call abort3d(nulout
+     &          ,'SUGOMOBS:Problem with background file')
+          endif
+          write(nulout,*) ' ITRLNLEV =',itrlnlev,' nlv_T ',nlv_T
+c
+          ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
+c
+c loop through levels of field jvar
+c
+c Reading 3D fields
+c
+          call tmg_start(27,'XHR2XY')
+          do jlev = 1,nlv_T
+            IIP1=tg_vco_trl%ip1_T(jlev)
+            do jstep = 1,nstepobs
+              if(nobs(jstep) > 0) then
+                iset = ezdefset(nobsgid(jstep),itrlgid)
+                ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
+     &                nstamplist(jstep) ,cletiket,iip1,-1,-1,
+     &                cltypvar,cfstvar(jvar))
+                if(ier.lt.0)then
+                  write(nulout,1001) cfstvar(jvar),iip1,idate(jstep)
+     &                 ,itime(jstep)
+                  call abort3d(nulout
+     &                 ,'SUGOMOBS:Problem with background file')
+                end if
+c
+                  ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1
+     &               ,1,ini,inj,1)
+                do jobs = 1, nobs(jstep)
+                  zmobs_T(jlev,notag(jobs,jstep)) =zopart(jobs)
+                enddo
               endif
             enddo
           enddo
           call tmg_stop(27)
 c
-c---------At this point zmobs and zmobs2 contains the high vertical
-C         resolution profile of variable zvar and zvar2 on observation
-C         locations.
-C         Also,zppobs contains pressure values of the source levels.
-c         Next, the high resolution profile are interpolated on analysis
-c         levels.
+          zptophr = tg_vco_trl%dpt_T
+          zprefhr = tg_vco_trl%dprf_T
+          zrcoefhr= tg_vco_trl%drcf1
+          itrlnlev = tg_vco_trl%ink_T
 c
-
-cprnt          write(nulout,*)' sugomobs:lcolumng%nobtot= ',lcolumng%nobtot
+          call vintprof(zom_T,lcolumng%rppobs,lcolumng%nlev,zmobs_T,zppobs_T,nlv_T,lcolumng%nobtot)
 c
-c---------Derive the pressure fields at observation points from the
-c hybrid
-C         levels(zhybhr), the hybrid coordinate parameters of the
-C         high res. trial field and the surface pressure of the trial
-c field
-
-          do jobs = 1,lcolumng%nobtot
-            zovar(jobs) = lcolumng%ps(1,jobs)
-          enddo
-          call calcpres(ZPPOBS,zhybhr,itrlnlev,zovar,zptophr
-     &         ,zprefhr,zrcoefhr,lcolumng%nobtot)
-          call vintprof(zom,lcolumng%rppobs,lcolumng%nlev,zmobs,zppobs,itrlnlev,lcolumng%nobtot)
+          call tmg_start(30,'FILLMVO')
+          call col_fillmvo(lcolumng ,cfstvar(jvar),'NA',zom_T,lcolumng%nlev,lcolumng%nobtot)
+          call col_fillmvo(lcolumnhr,cfstvar(jvar),'NA',zmobs_T,nlv_T,lcolumng%nobtot)
+          call tmg_stop(30)
 c
-          if(.not.lllochr) then
-c
-
-c
-c Note: lcolumnhr%nlev is taken here as the number of levels of the
-c       first 3D variable.  To implement properly the vertical
-C staggering,
-c       vlayers and obs operator would need to be advised of the
-c       number of levels for each variable.
-
-          nkt = itrlnlev
-          lcolumnhr%nlev = itrlnlev
-c
-            istep = itrlnlev
-c
-c Note: in a vertical staggering implementation istep could be assigned
-C a
-c       value of ITRLNLEV+1 to make sure that any model state variable
-c       fit in lcolumnhr.  Accordingly, obs operator will have to step
-C       throughout lcolumng with the same step size.
-c
-            call col_allocate(lcolumnhr,istep,lcolumng%nobtot)
-            call col_zero(lcolumnhr)
-            call tmg_start(30,'FILLMVO')
-            call col_fillmvo(lcolumnhr,'PP',zppobs,itrlnlev,lcolumng%nobtot)
-            call col_fillmvo(lcolumnhr,'LV',zlev,itrlnlev,1)
-            call col_fillmvo(lcolumnhr,'HY',zhybhr,itrlnlev,1)
-            call tmg_stop(30)
-            lllochr = .true.
-          endif
-c
-          if(cfstvar(jvar).eq.'UU'.or.cfstvar(jvar).eq.'VV') then
-            call tmg_start(30,'FILLMVO')
-            call col_fillmvo(lcolumng,'UU',zom,lcolumng%nlev,lcolumng%nobtot)
-            call col_fillmvo(lcolumnhr,'UU',zmobs,itrlnlev,lcolumng%nobtot)
-            call tmg_stop(30)
-            call vintprof(zom,lcolumng%rppobs,lcolumng%nlev,zmobs2,zppobs,itrlnlev
-     &           ,lcolumng%nobtot)
-            call tmg_start(30,'FILLMVO')
-            call col_fillmvo(lcolumng,'VV',zom,lcolumng%nlev,lcolumng%nobtot)
-            call col_fillmvo(lcolumnhr,'VV',zmobs2,itrlnlev,lcolumng%nobtot)
-            call tmg_stop(30)
-          else
-            call tmg_start(30,'FILLMVO')
-            call col_fillmvo(lcolumng,cfstvar(jvar),zom,lcolumng%nlev,lcolumng%nobtot)
-            call col_fillmvo(lcolumnhr,cfstvar(jvar),zmobs,itrlnlev,lcolumng%nobtot)
-            call tmg_stop(30)
-          endif
-c
-        endif
+        endselect 
       enddo
-c
-c Uncomment to write profiled model state in prof file (this will abort
-c the
-C execution after closing the prof file)
-c
-c      call wrgomobs
-*
-*****************************************************************
-*                                                               *
-* *                                                           * *
-* * * With COMMVO set to model state on ANALYSIS levels ... * * *
-* * *                                                       * * *
-* *                                                           * *
-*
 c
 c Initialisation of TLM operators
 c
-      call tmg_start(32,'SUBASIC')
       call subasic_obs(lcolumng)
-      call tmg_stop(32)
 c
-c Calculate ES=T-TD from T and Q
-c from lcolumng%hu and lcolumng%tt and put it in lcolumng%es
+c Calculate ES=T-TD from T and Q 
 c
-      call tmg_start(33,'MHUAESV')
       call mhuaesv(lcolumng)
-      call tmg_stop(33)
 c
-c Using T, q and PS in lcolumng, computes GZ and stores it in lcolumng%gz
-c N.B. uses vlev
+c Using T, q and PS to compute GZ 
 c
-      call tmg_start(34,'TT2PHI')
       call tt2phi(lcolumng)
-      call tmg_stop(34)
 c
-c At this point COMMVOG is complete and contains the background state
-C projected on analysis levels.
+c At this point columng is complete
 c
 c Copy 2D variables (PS,TG and RMTMOBS) from lcolumng to lcolumnhr
 c
       call col_copy2d(lcolumng,lcolumnhr)
 c
-c At this point COMMVOHR contains background state on original levels
+c Calculate ES=T-TD from T and Q
 c
-      if(llpt) then
-        call hpdeallc(pzpt,ier,1)
-c-------endif de llpt
+      call mhuaesv(lcolumnhr)
+c
+c Using T, q and PS to compute GZ 
+c
+      if(tg_vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
+        call tt2phi(lcolumnhr)
       endif
 c
-      call hpdeallc(pzom,ier,1)
+c At this point columnhr contains background state on original levels
+c
+      call hpdeallc(pzom_T,ier,1)
+      call hpdeallc(pzom_M,ier,1)
       call hpdeallc(pzovar,ier,1)
-      call hpdeallc(pzovar2,ier,1)
-      deallocate(zvar,zvar2,zlev,zhybhr,zmobs,zmobs2,zppobs,nultrl)
-      deallocate(zopart)
-      deallocate(zopart2)
+      deallocate(zvar,zvar2,zmobs,zmobs_T)
+      deallocate(zmobs_M,zmobs2_M)
+      deallocate(zmobs_MT,zmobs2_MT)
+      deallocate(zppobs_T,zppobs_M,zppobs_MT)
+      deallocate(zopart,zopart2,zhybhr)
+      deallocate(nultrl)
       deallocate(idate)
       deallocate(itime)
 c
       write(nulout,*) ' '
       write(nulout,*) '-------- Leaving SUGOMOBS ---------'
       write(nulout,*) ' '
- 1000 format(1x,f10.5,1x,f10.5)
  1001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level'
      &     ,i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
  1002 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x

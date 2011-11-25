@@ -1,0 +1,147 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+!
+ subroutine calcpres_vgrid(tf_vgrid,dpsfc,ip1_list,nlev,nobs,kulout,dpx)
+!
+!
+   use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
+! 
+   IMPLICIT NONE
+!
+   type(vgrid_descriptor) :: tf_vgrid
+!
+   integer :: nlev,nobs,kulout
+   integer, dimension(nlev)       :: ip1_list
+   real*8 , dimension(nlev,nobs) :: dpx
+   real*8 , dimension(1,nobs)    :: dpsfc
+
+ 
+
+#if defined (DOC)
+!--------------------------------------------------------------------------
+!  s/r CALCPRES_VGRID - Set up 3D pressure fields using  surface pressure
+!                        for the vertical coordinate defined in the 
+!                        structure vgrid. Uses vgd_levels from 
+!                        vgrid_descriptors library.
+!                        NOTE: vgd_levels expects surface pressure in Pascal
+!                              and produces profiles of pressure field in Pascal
+!
+!  Author  : S. Polavarapu C. Charette (DEC 2010)
+!            (adaptation of part 3 of sustagp.ftn90 written by 
+!            S. Polavarapu to create the equivalent version of
+!            calcpres.ftn for staggered version of 3DVAR)
+!    -------------------
+!     Purpose: Set up pressure fields for the number of profiles contained in nobs
+!              
+!
+!  Arguments     : 
+!  Input           tf_vgrid: Structure with vertical coordinate parameters
+!                            (see vgrid_descriptors documentation)
+!                  dpsfc   : List of nobs values surface pressure(1,nobs) in Pascal
+!                  ip1_list: Encoded values of the desired vertical levels
+!                  nlev    : Number of vertical levels
+!                  nobs    : Number of vertical profiles
+!                  kulout  : unit number for output messages
+!
+!  Output        : dpx     : vertical profiles of pressure fields(nlev,nobs) in Pascal
+!
+!--------------------------------------------------------------------------
+#endif
+
+
+
+!implicits
+ 
+   ! --- Local variable declarations
+   integer :: i,j,k,ier,icount,kind
+   integer :: status
+   integer :: nobs_prnt=2
+   integer, dimension(nlev) :: ip1m
+   real, dimension(1,nobs)  :: p0_obs
+   real, dimension(:,:,:), pointer :: pobsm
+   real    :: ppp
+   character(len=4) :: dummy_S
+   logical :: debug=.true.
+   
+   write(kulout,*) '-------- ENTERING CALCPRES_VGRID -----------'
+!
+!------------------------------------------------------------------------------
+!                   Compute pressure fields at obs locations           !
+!------------------------------------------------------------------------------
+   if(debug) then
+      write(kulout,*) 'calcpres_grid:nlev,nobs= ',nlev,nobs
+   endif
+
+   p0_obs(1,1:nobs) = dpsfc(1,1:nobs)
+   ip1m(1:nlev)      = ip1_list(1:nlev)
+
+   if (debug) then
+      write(kulout,*) 'P0 follows at obs loc'
+      do j = 1,nobs
+         if (debug.and.(j.le.nobs_prnt)) then
+            write(kulout,*) j,p0_obs(1,j)
+         endif
+      enddo
+   endif
+   ! ---  Compute Pressure fields at desired levels----------
+   status=vgd_levels(tf_vgrid,ip1_list=ip1m,levels=pobsm,sfc_field=p0_obs,&
+                     in_log=.false.)
+   if(status.ne.VGD_OK)then
+      write(kulout,*) 'ERROR with vgd_levels for desired levels '
+      call exit(1)
+   endif
+
+   !  ---- Save pressure fields in double precision-------------------
+   !       Reverse indexes dpx(k,j) = pobsm(1,j,k)
+
+   do k = 1, nlev
+      do j = 1, nobs
+	 dpx(k,j) = dble(pobsm(1,j,k))
+      enddo
+   enddo
+   !
+   !  --- The following is to make sure  dpx at the surface is the same as dpsfc
+   !      The logic is based on similar test found in the program
+   !      compute_pressure.ftn90 in vgrid_descriptors applications
+   call convip(ip1_list(size(ip1_list)),ppp,kind,-1,dummy_S,.false.)
+
+   if(abs(ppp-1.) <= epsilon(ppp)) then 
+      do j=1,nobs
+         dpx(nlev,j) = dpsfc(1,j)
+      enddo
+   endif
+   !  --- Print pressure levels
+   if (debug) then
+      write(kulout,*)'ppp,epsilon(ppp):',ppp,epsilon(ppp)
+      write(kulout,*)'Check dpx',nlev,nobs
+      write(kulout,*)'obs,j,pobsm dpx,p0_obs,dpsfc follows:' 
+      do j=1,nobs
+         do k = 1,nlev
+         if (debug.and.(j.le.nobs_prnt)) then
+         write(kulout,*) j,k,(pobsm(1,j,k)),dpx(k,j),p0_obs(1,j),dpsfc(1,j)
+         endif
+      enddo
+      enddo
+   endif
+
+!-------------------Clean up and stop------------------------------------------
+
+   write(kulout,*)'-------- LEAVING CALCPRES_VGRID -----------'
+!  call exit(1)
+   return
+   end 
+

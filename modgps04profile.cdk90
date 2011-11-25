@@ -20,6 +20,10 @@ module modgps04profile
   !
   ! Josep M. Aparicio
   ! Meteorological Service of Canada, 2003.
+  ! Revisions:
+  !        C.Charette et J. Aparicio - ARMA Juillet 2011
+  !          . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
+  !          . ayant une grille verticale decalee dite "STAGGERED"
   !
 #endif
   use modgps00base, only:i4,dp,ngpssize
@@ -31,6 +35,8 @@ module modgps04profile
      real(dp)                                        :: rLat
      real(dp)                                        :: rLon
      real(dp)         , dimension(ngpssize)          :: rHYB
+     real(dp)         , dimension(ngpssize)          :: rPP
+     real(dp)         , dimension(ngpssize)          :: rDP
      real(dp)         , dimension(ngpssize)          :: rTT
      real(dp)         , dimension(ngpssize)          :: rLQ
      real(dp)                                        :: rP0
@@ -69,6 +75,7 @@ contains
 
     LOGICAL  :: bpst, btst, bqst, brst, bgst
     TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
+    real(dp)   :: rPP(ngpssize),rDP(ngpssize)
 
     rPR = 80000._dp
     rCF = 1._dp
@@ -77,7 +84,9 @@ contains
     bqst=.false.
     brst=.false.
     bgst=.false.
-    prf = gpsprofile(ngpslev,rLat,rLon,rETA,rTT,rLQ,rP0,rMT,rPT,rPR,rCF,   &
+    rPP=0._dp
+    rDP=0._dp
+    prf = gpsprofile(ngpslev,rLat,rLon,rETA,rPP,rDP,rTT,rLQ,rP0,rMT,rPT,rPR,rCF,   &
          bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
   end subroutine gpsstruct1
 
@@ -96,6 +105,7 @@ contains
     type(gpsprofile), intent(out) :: prf
 
     LOGICAL  :: bpst, btst, bqst, brst, bgst
+    real(dp)   :: rPP(ngpssize),rDP(ngpssize)
     TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
 
     bpst=.false.
@@ -103,8 +113,43 @@ contains
     bqst=.false.
     brst=.false.
     bgst=.false.
-    prf = gpsprofile(ngpslev,rLat,rLon,rHYB,rTT,rLQ,rP0,rMT,rPT,rPR,rCF, &
+    rPP=0._dp
+    rDP=0._dp
+    prf = gpsprofile(ngpslev,rLat,rLon,rHYB,rPP,rDP,rTT,rLQ,rP0,rMT,rPT,rPR,rCF, &
          bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
   end subroutine gpsstruct1h
+
+  subroutine gpsstruct1s(ngpslev,rLat,rLon,rPP,rDP,rTT,rLQ,rMT,prf)
+    integer(i4), intent(in) :: ngpslev
+    real(dp)   , intent(in) :: rLat
+    real(dp)   , intent(in) :: rLon
+    real(dp)   , intent(in) :: rPP (ngpssize)
+    real(dp)   , intent(in) :: rDP (ngpssize)
+    real(dp)   , intent(in) :: rTT (ngpssize)
+    real(dp)   , intent(in) :: rLQ (ngpssize)
+    real(dp)   , intent(in) :: rMT
+
+    real(dp) :: rP0,rHYB(ngpssize)
+    real(dp) :: rPT
+    real(dp) :: rPR
+    real(dp) :: rCF
+
+    type(gpsprofile), intent(out) :: prf
+
+    LOGICAL  :: bpst, btst, bqst, brst, bgst
+    TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
+
+    bpst=.false.
+    btst=.false.
+    bqst=.false.
+    brst=.false.
+    bgst=.false.
+    rP0=rPP(ngpssize)
+    rPT=rPP(1)
+    rPR = 80000._dp
+    rCF = 1._dp
+    prf = gpsprofile(ngpslev,rLat,rLon,rHYB,rPP,rDP,rTT,rLQ,rP0,rMT,rPT,rPR,rCF, &
+         bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
+  end subroutine gpsstruct1s
 
 end module modgps04profile

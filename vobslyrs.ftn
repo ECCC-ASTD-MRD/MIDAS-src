@@ -64,7 +64,7 @@
       REAL*8 ZLEV,ZPREF,ZPT,ZPB,ZXI
       INTEGER IOBS,IDATYP,IBEGIN,ILAST,IK,ITYP
       LOGICAL LLOK, LLPRINT
-      CHARACTER *2 CLFAM
+      CHARACTER *2 CLFAM,cvar
 C
 C     --------
 C
@@ -95,8 +95,17 @@ C
                ENDIF
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-               ZPT= LCOLUMNGHR%RPPOBS(1,IOBS)
-               ZPB= LCOLUMNGHR%RPPOBS(LCOLUMNGHR%NLEV,IOBS)
+               CALL GETVARTYPE(ITYP,CVAR)
+               IF (CVAR .EQ. 'NA') THEN
+                 ZPT= LCOLUMNGHR%RPPOBS(1,IOBS)
+                 ZPB= LCOLUMNGHR%RPPOBS(LCOLUMNGHR%NLEV,IOBS)
+               ELSEIF (CVAR .EQ. 'MM' ) THEN
+                 ZPT= LCOLUMNGHR%RPPOBS_M(1,IOBS)
+                 ZPB= LCOLUMNGHR%RPPOBS_M(LCOLUMNGHR%NLEV,IOBS)
+               ELSEIF (CVAR .EQ. 'TH' ) THEN
+                 ZPT= LCOLUMNGHR%RPPOBS_T(1,IOBS)
+                 ZPB= LCOLUMNGHR%RPPOBS_T(LCOLUMNGHR%NLEV,IOBS)
+               ENDIF   
 !               ZPB= LCOLUMNGHR%RPPOBS(LCOLUMNGHR%NFLEV,IOBS)+ 0.01D0 !still needed?
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
@@ -111,7 +120,7 @@ C
      &                'vobslyrs PPP:jdata,stn,ielm,zlev,ZPT,ZPB'
      &                ,',MOB(XTR,),MOB(ASS,) ',jdata,obs_elem_c9(lobsSpaceData,'STID',iobs)
      &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(lobsSpaceData,'XTR ',JDATA)
-     &                ,obs_elem_i(lobsSpaceData,'ASS ',JDATA)
+     &                ,obs_elem_i(lobsSpaceData,'ASS ',JDATA),CVAR
                endif
 *****************************************************************
              ENDIF
@@ -130,8 +139,19 @@ C
                ENDIF
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-               ZPT= lcolumnghr%gz(1,IOBS)/RG
-               ZPB= lcolumnghr%gz(LCOLUMNGHR%NLEV,IOBS)/RG
+               CALL GETVARTYPE(ITYP,CVAR)
+               IF (CVAR .EQ. 'NA') THEN
+                  ZPT= lcolumnghr%gz(1,IOBS)/RG
+                  ZPB= lcolumnghr%gz(LCOLUMNGHR%NLEV,IOBS)/RG
+               ELSEIF (CVAR .EQ. 'MM' ) THEN
+                  ZPT= lcolumnghr%gz_M(1,IOBS)/RG
+                  ZPB= lcolumnghr%gz_M(LCOLUMNGHR%NLEV_M,IOBS)/RG
+               ELSEIF (CVAR .EQ. 'TH' ) THEN
+                  ZPT= lcolumnghr%gz_T(1,IOBS)/RG
+                  ZPB= lcolumnghr%gz_T(LCOLUMNGHR%NLEV_T,IOBS)/RG
+               ENDIF   
+!               ZPT= lcolumnghr%gz(1,IOBS)/RG
+!               ZPB= lcolumnghr%gz(LCOLUMNGHR%NLEV,IOBS)/RG
                IF ( ZLEV .GT. ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .LT. ZPB ) THEN
@@ -143,9 +163,9 @@ C
                if (LLPRINT .AND. obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '72562') then
                  write(nulout,*)
      &                'vobslyrs ZZZ:jdata,stn,ielm,zlev,ZPT,ZPB'
-     &                ,',MOB(XTR,),MOB(ASS,) ',jdata,obs_elem_c9(lobsSpaceData,'STID',iobs)
+     &                ,',MOB(XTR,),MOB(ASS,),CVAR ',jdata,obs_elem_c9(lobsSpaceData,'STID',iobs)
      &                ,ityp,zlev,ZPT,ZPB,obs_elem_i(lobsSpaceData,'XTR ',JDATA)
-     &                ,obs_elem_i(lobsSpaceData,'ASS ',JDATA)
+     &                ,obs_elem_i(lobsSpaceData,'ASS ',JDATA),CVAR
                endif
 *****************************************************************
              ENDIF
@@ -173,12 +193,35 @@ C
                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
-               DO JK = 2,LCOLUMNGHR%NLEV - 1
-                 ZPT  = LCOLUMNGHR%RPPOBS(JK,IOBS)
-                 IF( ZLEV .GT. ZPT ) IK = JK
-               END DO
-               ZPT  = LCOLUMNGHR%RPPOBS(IK,IOBS)
-               zpb=LCOLUMNGHR%RPPOBS(IK+1,IOBS)
+               CALL GETVARTYPE(ITYP,CVAR)
+               IF (CVAR .EQ. 'NA') THEN
+                  DO JK = 2,LCOLUMNGHR%NLEV - 1
+                     ZPT = LCOLUMNGHR%RPPOBS(JK,IOBS)
+                     IF( ZLEV .GT. ZPT ) IK = JK
+                  END DO
+                  ZPT = LCOLUMNGHR%RPPOBS(IK,IOBS)
+                  ZPB = LCOLUMNGHR%RPPOBS(IK+1,IOBS) 
+               ELSEIF (CVAR .EQ. 'MM' ) THEN
+                  DO JK = 2,LCOLUMNGHR%NLEV_M - 1
+                     ZPT = LCOLUMNGHR%RPPOBS_M(JK,IOBS)
+                     IF( ZLEV .GT. ZPT ) IK = JK
+                  END DO
+                  ZPT = LCOLUMNGHR%RPPOBS_M(IK,IOBS)
+                  ZPB = LCOLUMNGHR%RPPOBS_M(IK+1,IOBS) 
+               ELSEIF (CVAR .EQ. 'TH' ) THEN
+                  DO JK = 2,LCOLUMNGHR%NLEV_T - 1
+                     ZPT = LCOLUMNGHR%RPPOBS_T(JK,IOBS)
+                     IF( ZLEV .GT. ZPT ) IK = JK
+                  END DO
+                  ZPT = LCOLUMNGHR%RPPOBS_T(IK,IOBS)
+                  ZPB = LCOLUMNGHR%RPPOBS_T(IK+1,IOBS) 
+               ENDIF   
+!               DO JK = 2,LCOLUMNGHR%NLEV - 1
+!                 ZPT  = LCOLUMNGHR%RPPOBS(JK,IOBS)
+!                 IF( ZLEV .GT. ZPT ) IK = JK
+!               END DO
+!               ZPT  = LCOLUMNGHR%RPPOBS(IK,IOBS)
+!               zpb=LCOLUMNGHR%RPPOBS(IK+1,IOBS)
                call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
 ****************************************************************
                if (LLPRINT .AND. obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '72562') then
@@ -186,7 +229,7 @@ C
      &                'vobslyrs PPP:jdata,iobs,stn,ielm,ik,zlev'
      &                ,',pppobs(ik+1,),pppobs(ik,),rdata(lyr,) '
      &                ,jdata,iobs,obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ik,zlev,ZPB,ZPT
-     &                ,obs_elem_i(lobsSpaceData,'LYR ',JDATA)
+     &                ,obs_elem_i(lobsSpaceData,'LYR ',JDATA),CVAR
                endif
 *****************************************************************
              ENDIF
@@ -203,10 +246,27 @@ C
                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
-               DO JK = 2,LCOLUMNGHR%NLEV - 1
-                 ZPT  = lcolumnghr%gz(JK,IOBS)/RG
-                 IF( ZLEV .LT. ZPT ) IK = JK
-               END DO
+               CALL GETVARTYPE(ITYP,CVAR)
+               IF (CVAR .EQ. 'NA') THEN
+                  DO JK = 2,LCOLUMNGHR%NLEV - 1
+                     ZPT = lcolumnghr%gz(JK,IOBS)/RG
+                     IF( ZLEV .LT. ZPT ) IK = JK
+                  END DO
+               ELSEIF (CVAR .EQ. 'MM' ) THEN
+                  DO JK = 2,LCOLUMNGHR%NLEV_M - 1
+                     ZPT = lcolumnghr%gz_M(JK,IOBS)/RG
+                     IF( ZLEV .LT. ZPT ) IK = JK
+                  END DO
+               ELSEIF (CVAR .EQ. 'TH' ) THEN
+                  DO JK = 2,LCOLUMNGHR%NLEV_T - 1
+                     ZPT = lcolumnghr%gz_T(JK,IOBS)/RG
+                     IF( ZLEV .LT. ZPT ) IK = JK
+                  END DO
+               ENDIF
+!               DO JK = 2,LCOLUMNGHR%NLEV - 1
+!                 ZPT  = lcolumnghr%gz(JK,IOBS)/RG
+!                 IF( ZLEV .LT. ZPT ) IK = JK
+!               END DO
                IF((ITYP.EQ.BUFR_NEPS .or. ityp .eq. BUFR_NEPN) ) THEN
                  IK=0
                ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.

@@ -1,0 +1,22 @@
+module stag_type
+
+  implicit none
+
+  integer, parameter :: MX_LEV=100  !max number of vertical levels in analysis grid
+  integer, parameter :: MX_VAR=8    !max number of analysis variables
+
+  type vco
+     integer :: iversion          ! code of vert coord from !! record in BG stat file
+     integer :: ikind               ! kind of vertical coordinate(a la convip)
+     character(len=8) :: svcod      ! type of vertical coordinate (cvcord in 3DVAR)
+     integer :: ink_T,ink_M         ! Number of verical levels (Thermo/Moment)
+     real*8  :: dpt_T, dpt_M        ! Pressure at top level    (Thermo/Moment)
+     real*8  :: dprf_T, dprf_M      ! Reference pressure       (Thermo/Moment)
+     real*8  :: drcf1, drcf2        ! Expansion coefficients
+     integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
+     real*8 ,pointer,dimension(:) :: da_T,db_T     ! A, B values for Thermo levels
+     real*8 ,pointer,dimension(:) :: da_M,db_M     ! A, B values for Momentum levels
+     real*8 ,pointer,dimension(:) :: dhyb_T,dhyb_M !decoded IP1 levels (Thermo/Momentum)
+  end type vco
+
+end module stag_type

@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine tovs_rttov(lobsSpaceData)
-#if defined (doc)
 !
 !**s/r tovs_rttov  - Computation of forward radiance with rttov_direct
 !                   (adapted from part of code of dobstovs)
@@ -34,9 +33,6 @@ subroutine tovs_rttov(lobsSpaceData)
 !    -------------------
 !     purpose:
 !
-!arguments
-!
-#endif
   use MathPhysConstants_mod
   use mod_tovs
   use airsbgcheck
@@ -156,7 +152,7 @@ end interface
 !     1.1   Read surface information
 !     .     ------------------------
 
-!modular1  if ( nconf .eq. 101 ) call sfc_emiss
+  if ( nconf .eq. 101 ) call sfc_emiss
 
 !
 !     2.  Computation of hx for tovs data only
@@ -236,7 +232,7 @@ end interface
       if (instrum.eq.11 .or. instrum.eq.16) then
         surfem1(:) = 0.
         if ( nconf .eq. 101 ) then
-!modular1          call new_emiss (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
+          call new_emiss (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
         else
           do jn = 1, knpf
             iobs1 = iptobs(jn)
@@ -500,7 +496,7 @@ end interface
             loop_done_airs = 0
             end_airs       = .false.
             do
-!modular1              call AIRSQC ( end_airs, bunch_airs,loop_done_airs )
+              call AIRSQC ( end_airs, bunch_airs,loop_done_airs )
               loop_done_airs = loop_done_airs + 1
               if ( end_airs ) EXIT qcntrl_airs
             end do
@@ -515,7 +511,7 @@ end interface
                loop_done_iasi = 0
                end_iasi       = .false.
                do
-!modular1                 call IASIQC ( end_iasi, bunch_iasi,loop_done_iasi )
+                 call IASIQC ( end_iasi, bunch_iasi,loop_done_iasi )
                  loop_done_iasi = loop_done_iasi + 1
                  if ( end_iasi ) EXIT qcntrl_iasi
                end do
@@ -548,3 +544,1050 @@ end interface
   return
 
 end subroutine tovs_rttov
+
+
+      SUBROUTINE SFC_EMISS
+!
+!**ID SFC_EMISS -- READ INFORMATION FOR IR SURFACE EMISSIVITIES COMPUTATION
+!
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
+!
+!       OBJECT:   READ INFORMATION ABOUT CERES SURFACE TYPE AND WATER
+!          FRACTION IN ADDITION TO CMC ANALYSES ALBEDO, ICE AND SNOW.
+!
+!       ARGUMENTS:
+!          INPUT:  NONE
+!          OUTPUT: NONE
+!
+      use emissivities
+      IMPLICIT NONE
+#include "comlun.cdk"
+
+      INTEGER            :: IV
+      INTEGER            :: NISF,NJSF,NKSF
+      INTEGER            :: NIWA,NJWA,NKWA
+      INTEGER            :: NI,NJ,NK
+      CHARACTER(len=100) :: CFILE
+      INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,FSTINF,FSTLUK
+
+      integer            :: isftest,isftest1,isftest2
+      integer            :: iv1,iv2,iv3,iv4,iv5,iv6
+      integer            :: iv7,iv8,iv9,iv10,iv11,iv12
+      integer            :: iv13,iv14,iv15,iv16,iv17
+      integer            :: ik1,ik2,ik3
+
+
+      isftest = 0
+      isftest1= 0
+      isftest2= 0
+
+
+!* get surface type and water fraction
+
+      CFILE='ceres_global.std'
+      IV1=FNOM(ISFTEST,CFILE,'RND+R/O',0)
+      IV2=FSTOUV(ISFTEST,'RND')
+      IV3=FSTLIR(JTYPE,ISFTEST,NISF,NJSF,NKSF,-1,'SFC-TYPE',-1,-1,-1,'','TY')
+      IV4=FSTLIR(WATERF,ISFTEST,NIWA,NJWA,NKWA,-1,'WATER_FR',-1,-1,-1,'','W%')
+      IV5=FSTFRM(ISFTEST)
+      IV6=FCLOS(ISFTEST)
+
+      write(nulout,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
+      write(nulout,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+
+       
+!* get ice fraction and snow cover
+
+      CFILE='sfc4airs'
+      IV7=FNOM(ISFTEST1,CFILE,'RND+R/O',0)
+      IV8=FSTOUV(ISFTEST1,'RND')
+
+      IK1=FSTINF(ISFTEST1,DISTXLG,DISTYLG,NK,-1,'',-1,-1,-1,'','LG')
+      IK2=FSTINF(ISFTEST1,DISTXNE,DISTYNE,NK,-1,'',-1,-1,-1,'','NE')
+      
+      ALLOCATE( GLACE (DISTXLG,DISTYLG) )
+      ALLOCATE( NEIGE (DISTXNE,DISTYNE) )
+      
+      IV9=FSTLUK(GLACE,IK1,NI,NJ,NK)
+      IV10=FSTLUK(NEIGE,IK2,NI,NJ,NK)
+
+      IV11=FSTFRM(ISFTEST1)
+      IV12=FCLOS(ISFTEST1)
+
+      write(nulout,*) 'LES IV DE SFC4AIRS ',iv7,iv8,iv9,iv10,iv11,iv12
+      write(nulout,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+
+
+!* get albedo
+
+      CFILE='sfc4airs_newalb'
+      IV13=FNOM(ISFTEST2,CFILE,'RND+R/O',0)
+      IV14=FSTOUV(ISFTEST2,'RND')
+
+      IK3=FSTINF(ISFTEST2,DISTXAL,DISTYAL,NK,-1,'',-1,-1,-1,'','AL')
+      
+      ALLOCATE( ALB (DISTXAL,DISTYAL) )
+      
+      IV15=FSTLUK(ALB,IK3,NI,NJ,NK)
+
+      IV16=FSTFRM(ISFTEST2)
+      IV17=FCLOS(ISFTEST2)
+
+      write(nulout,*) 'LES IV DE SFC4AIRS_NEWOBS ',iv13,iv14,iv15,iv16,iv17
+      write(nulout,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+
+
+      END SUBROUTINE SFC_EMISS
+
+
+      SUBROUTINE NEW_EMISS ( SURFEM1, nchn,krtid,nprf,nchannels_max,iptobs)
+!
+!* This is a subroutine that can apply to any instrument.
+!* However, due to the necessity of specifying the instrument
+!* bands wavenumbers, the use of this subroutine for a new instrument
+!* would require the minor following changes.
+!*
+!*     - Add a .cdk containing wavenumber information for all channels
+!*         Example: airsch.cdk for AIRS, variable AIRSSWN
+!*     - Continue the "find the bands (central) wavenumber" IF loop
+!*         for your specific instrument
+!
+!**ID NEW_EMISS -- ASSIGN NEW IR SURFACE EMISSIVITIES 
+!
+!       SCIENCE:  L. GARAND
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) June 2006
+!
+!       OBJECT:   ASSIGN NEW IR SURFACE EMISSIVITIES BASED ON
+!                 CMC ANALYSIS SURFACE ALBEDO, SEA ICE FRACTION AND SNOW MASK
+!                 IN ADDITION TO CERES SURFACE TYPE AND WATER FRACTION
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -NCHN           : NUMBER OF CHANNELS
+!            -KRTID          : SENSOR NUMBER
+!            -NPRF           : NUMBER OF PROFILES
+!            -NCHANNELS_MAX  : TOTAL NUMBER OF OBSERVATIONS TREATED
+!            -IPTOBS(NPRF)   : PROFILE POSITION NUMBER
+!
+!          OUTPUT:
+!            -SURFEM1(NCHANNELS_MAX)  : IR SURFACE EMISSIVITY ESTIMATE (0-1)
+!
+      use mod_tovs
+      use airsch
+      use iasich
+      use emissivities
+      IMPLICIT NONE
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comlun.cdk"
+      INTEGER :: JC,JN,NPRF,NCHANNELS_MAX,ICHN
+      INTEGER :: NCHN,IPTOBS(NPRF),KRTID
+      INTEGER :: KSURF(NPRF), LTYPE(NPRF)
+      INTEGER :: ILAT(NPRF), ILON(NPRF)
+      REAL    :: ALBEDO(NPRF), ICE(NPRF), SNOW(NPRF), PCNT_WAT(NPRF)
+      REAL(8) :: ZLAT(NPRF), ZLON(NPRF), UWIND(NPRF), VWIND(NPRF), SATZANG(NPRF)
+      REAL(8) :: SURFEM1(NCHANNELS_MAX)
+      REAL    :: WIND_SFC(NPRF),ANGLE(NPRF), F_LOW(NPRF)
+      REAL,ALLOCATABLE :: EM_OC(:,:),EMI_SFC(:,:),EMI_MAT(:,:),WAVEN(:)
+
+
+!* information to extract (transvidage)
+!--------------------------------------
+!
+! ZLAT(NPRF) -- latitude (-90 to 90)
+! ZLON(NPRF) -- longitude (0 to 360)
+! KSURF(NPRF) -- surface type (0, 1)
+! UWIND(NPRF) -- surface u-component wind vector (m/s)
+! VWIND(NPRF) -- surface v-component wind vector (m/s)
+! SATZANG(NPRF) -- satellite zenith angle (deg)
+
+      DO JN = 1, NPRF
+        ZLAT(JN) = PROFILES_QC(IPTOBS(JN))%LAT
+        ZLON(JN) = PROFILES_QC(IPTOBS(JN))%LON
+        KSURF(JN) = PROFILES(IPTOBS(JN))%SKIN%SURFTYPE
+        UWIND(JN) = PROFILES(IPTOBS(JN))%S2M%U
+        VWIND(JN) = PROFILES(IPTOBS(JN))%S2M%V
+        SATZANG(JN) = PROFILES(IPTOBS(JN))%ZENANGLE
+      END DO
+
+!     assign surface properties from grid to profiles
+
+      CALL INTERP_SFC(ILAT,ILON, nprf,zlat,zlon,iptobs)
+
+! ALBEDO(NPRF) -- surface albedo (0-1)
+! ICE(NPRF) -- ice cover (0-1)
+! SNOW(NPRF) -- snow cover (0-1)
+! LTYPE(NPRF) -- surface type (1,...,20)
+! PCNT_WAT(NPRF) -- water percentage in pixel containing profile (0-1) 
+
+      DO JN = 1, NPRF
+        ALBEDO(JN) = PROFILES_QC(IPTOBS(JN))%ALBEDO
+        ICE(JN) = PROFILES_QC(IPTOBS(JN))%ICE
+        SNOW(JN) = PROFILES_QC(IPTOBS(JN))%SNOW
+        LTYPE(JN) = PROFILES_QC(IPTOBS(JN))%LTYPE
+        PCNT_WAT(JN) = PROFILES_QC(IPTOBS(JN))%PCNT_WAT
+      END DO
+
+
+!* find the sensor bands (central) wavenumbers
+
+      ALLOCATE(WAVEN(NCHN))
+
+      IF ( PLATFORM(KRTID) ==  9 .and. &
+          SATELLITE(KRTID) ==  2 .and. &
+         INSTRUMENT(KRTID) == 11 ) THEN !! --AIRS--
+
+        DO JC = 1, NCHN
+          ICHN = ICHAN(JC,KRTID)
+          WAVEN(JC) = AIRSSWN(AIRSSCH(ICHN))
+        END DO
+
+      ELSE IF ( PLATFORM(KRTID) ==  10 .and. &
+                SATELLITE(KRTID) ==  2 .and. &
+                INSTRUMENT(KRTID) == 16 ) THEN !! --IASI--
+
+         DO JC = 1, NCHN
+            ICHN = ICHAN(JC,KRTID)
+            WAVEN(JC) = IASISWN(IASISCH(ICHN))
+         END DO
+
+      END IF
+
+
+!* get the CERES emissivity matrix for all sensor wavenumbers and surface types
+
+      ALLOCATE(EMI_MAT(NCHN,20))
+
+      CALL CERES_EMATRIX(EMI_MAT, waven,nchn)
+
+
+!* refine water emissivities
+
+      ALLOCATE(EM_OC(NCHN,NPRF))
+
+      DO JN = 1, NPRF
+
+!       find surface wind
+
+          WIND_SFC(JN) = MIN(SQRT(REAL(UWIND(JN)**2) + REAL(VWIND(JN)**2) + 1.E-12),15.)
+ 
+!       find satellite viewing angle
+
+          ANGLE(JN) = REAL(SATZANG(JN))
+
+      END DO
+
+!     find new ocean emissivities     
+
+      DO JC = 1, NCHN
+         EM_OC(JC,:)= EMI_MAT(JC,17)
+      END DO
+
+      CALL EMI_SEA (EM_OC, waven,angle,wind_sfc,nprf,nchn)
+
+
+!* get surface emissivities
+
+      ALLOCATE(EMI_SFC(NCHN,NPRF))
+
+      DO JN = 1, NPRF
+
+!       set albedo to 0.6 where snow is present
+
+          IF ( KSURF(JN) == 0 .AND. SNOW(JN) > 0.999 ) ALBEDO(JN) = 0.6
+
+!       if albedo too high no water
+
+          IF ( ALBEDO(JN) >= 0.55 ) PCNT_WAT(JN) = 0.
+
+!       if water and CMC ice present then sea ice
+
+          IF ( KSURF(JN) == 1 .and. ICE(JN) > 0.001 ) LTYPE(JN) = 20
+
+!       if land and CMC snow present then snow
+
+          IF ( KSURF(JN) == 0 .and. SNOW(JN) > 0.999 ) LTYPE(JN) = 15
+
+        DO JC=1,NCHN
+
+          EMI_SFC(JC,JN) = PCNT_WAT(JN)          * EM_OC(JC,JN)          +   &
+                           ( 1. - PCNT_WAT(JN) ) * EMI_MAT(JC,LTYPE(JN))
+
+          SURFEM1((JN-1)*NCHN+JC) = EMI_SFC(JC,JN)
+
+        END DO
+
+      END DO
+
+      DEALLOCATE (WAVEN,EMI_MAT,EM_OC,EMI_SFC)
+
+
+!* update profiles
+
+      DO JN = 1, NPRF
+        PROFILES_QC(IPTOBS(JN))%ALBEDO = ALBEDO(JN)
+        PROFILES_QC(IPTOBS(JN))%PCNT_WAT = PCNT_WAT(JN)
+        PROFILES_QC(IPTOBS(JN))%LTYPE = LTYPE(JN)
+      END DO
+
+ 
+!* find the regional water fraction (here in a 15x15 pixel box centered on profile)
+
+      CALL PCNT_BOX (F_LOW, waterf,nprf,ilat,ilon,kslat,kslon,7)
+
+      DO JN = 1, NPRF
+        PROFILES_QC(IPTOBS(JN))%PCNT_REG = F_LOW(JN)
+      END DO
+
+
+      END SUBROUTINE NEW_EMISS
+
+
+      SUBROUTINE INTERP_SFC (ILAT,ILON, nprf,zlat,zlon,iptobs)
+!
+!**ID INTERP_SFC -- ASSOCIATE SURFACE FIELDS TO OBSERVATION PROFILES
+!
+!       AUTHOR:   L. GARAND
+!                 A. BEAULNE (CMDA/SMC) March 2006  (ADAPT TO 3DVAR)
+!
+!       REVISION:
+!
+!       OBJECT:   ASSOCIATE ALBEDO, ICE AND SNOW FIELDS ON TYPE "A" GRID
+!          AND CERES SURFACE TYPE AND WATER FRACTION TO OBSERVATIONS PROFILES.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -NPRF           : NUMBER OF PROFILES
+!            -ZLAT(NPRF)     : LATITUDE (-90S TO 90N)
+!            -ZLON(NPRF)     : LONGITUDE (0 TO 360)
+!
+!          OUTPUT:
+!            -ILAT(NPRF)     : Y-COORDINATE OF PROFILE
+!            -ILON(NPRF)     : X-COORDINATE OF PROFILE 
+!
+      use mod_tovs
+      use emissivities
+      IMPLICIT NONE
+#include "comlun.cdk"
+
+      INTEGER    :: JN, NPRF, IPTOBS(NPRF)
+      INTEGER    :: ILAT(NPRF), ILON(NPRF),ILAT1,ILON1,ILAT2,ILON2,ILAT3,ILON3
+      REAL       :: ALAT, ALON, ALAT1, ALON1, ALAT2, ALON2, ALAT3, ALON3
+      REAL       :: ZZLAT, ZZLON
+      REAL(8)    :: ZLAT(NPRF), ZLON(NPRF)
+
+
+!* for the surface fields, 
+!* get number of pixels per degree of lat or lon
+
+!     ceres
+      ALAT = FLOAT(KSLAT)/180.
+      ALON = FLOAT(KSLON)/360.
+
+!     albedo
+      ALAT1=FLOAT(DISTYAL)/180.
+      ALON1=FLOAT(DISTXAL)/360.
+
+!     ice 
+      ALAT2=FLOAT(DISTYLG)/180.
+      ALON2=FLOAT(DISTXLG)/360.
+
+!     snow
+      ALAT3=FLOAT(DISTYNE)/180.
+      ALON3=FLOAT(DISTXNE)/360.
+
+
+      DO JN=1,NPRF
+
+!* get lat and lon within limits if necessary
+
+        ZZLAT = MIN(REAL(ZLAT(JN)),89.999)
+        ZZLAT = MAX(ZZLAT,-89.999)
+
+        ZZLON = MIN(REAL(ZLON(JN)),359.999)
+        ZZLON = MAX(ZZLON,0.)
+
+!* find in which surface field pixel is located the observation profile
+
+!* Note : Albedo, ice and snow analysis on type A grid.
+!*        CERES grid at 1/6 resolution 
+!*         N-S : starts at N pole and excludes S pole
+!*         W-E : starts at longitude 0 and excludes longitude 360
+
+!       ceres
+        ILAT(JN) = MAX(NINT((ZZLAT+90.)*ALAT),1) 
+        ILON(JN) = NINT(ZZLON*ALON)+1
+        IF(ILON(JN)>KSLON) ILON(JN)=1
+
+!       albedo
+        ILAT1=MAX(INT((ZZLAT+90.)*ALAT1),1)+1
+        ILON1=NINT(ZZLON*ALON1)+1
+        IF(ILON1>DISTXAL) ILON1=1
+
+!       ice 
+        ILAT2=MAX(INT((ZZLAT+90.)*ALAT2),1)+1
+        ILON2=NINT(ZZLON*ALON2)+1
+        IF(ILON2>DISTXLG) ILON2=1
+
+!       snow
+        ILAT3=MAX(INT((ZZLAT+90.)*ALAT3),1)+1
+        ILON3=NINT(ZZLON*ALON3)+1
+        IF(ILON3>DISTXNE) ILON3=1
+
+
+!* assign surface caracteristics to observation profiles
+
+        PROFILES_QC(IPTOBS(JN))%ALBEDO   = ALB(ILON1,ILAT1)  
+        PROFILES_QC(IPTOBS(JN))%ICE      = GLACE(ILON2,ILAT2) 
+        PROFILES_QC(IPTOBS(JN))%SNOW     = NEIGE(ILON3,ILAT3)
+        PROFILES_QC(IPTOBS(JN))%LTYPE    = JTYPE(ILON(JN),ILAT(JN))
+        PROFILES_QC(IPTOBS(JN))%PCNT_WAT = WATERF(ILON(JN),ILAT(JN))
+
+      END DO
+
+      END SUBROUTINE INTERP_SFC
+
+
+      SUBROUTINE CERES_EMATRIX(EMI_MAT, waven,nchn)
+!
+!**ID CERES_EMATRIX -- SET UP EMISSIVITIES
+!
+!       AUTHOR:   L. GARAND              Sept 2004
+!                 A. BEAULNE (CMDA/SMC) March 2006  (ADAPT TO 3DVAR)
+!
+!       REVISION:
+!
+!       OBJECT:   SET UP EMISSIVITY VERSUS FIXED WAVENUMBERS AND SURFACE TYPES
+!
+!         CERES
+!         -----
+!         Emissivity data available at low spectral resolution: only 14 values 
+!         to cover the entire spectrum. Thus, this can be used as a nominal value.
+!         The error associated with this emissivity can roughly be estimated to
+!         increase with lower emissivity as : (1-EMI)*0.5 
+!         (i.e. as large as 0.10 for EMI=0.80 but better than 0.01 for EMI > 0.98)
+!         -No dependence on viewing angle is assumed.
+!         -Not to be used for oceans uncovered by ice.
+!
+!         Longwave Emmissivities in 12 original Fu bands + 2 extra to cover the range
+!         ---------------------------------------------------------------------------
+!         Longwave spectral intervals [cm-1] for the Fu & Liou code:
+!
+!         Band  1          2          3          4          5          6
+!           2200-1900, 1900-1700, 1700-1400, 1400-1250, 1250-1100, 1100-980,
+!         Band  7          8          9         10         11         12
+!            980-800,   800-670,   670-540,  540-400,    400-280,   280-0 
+!
+!         Two additional LW spectral intervals have been added in beyond 2200cm-1.
+!         Band        13              14
+!                  2500-2200       2850-2500
+!
+!         Emissivity    ems(band(1))   from April data, Table2 of Chen et al
+!         11th Conf Sat Met, Madison, WI, p 514
+!          here regoganized as 14 13 1 2 ... 12 above
+!
+!         20 surface types
+!         ----------------
+!          1= evergreen nleaf  2= evergreen bleaf 3= deciduous nleaf  4= deciduous bleaf
+!          5= mixed forests    6= closed shrubs   7= open shrubs      8= woody savanna
+!          9= savanna         10= grasslands     11= perma wet       12= croplands
+!         13= urban           14= mosaic         15= snow            16= barren (deserts)
+!         17= water           18= toundra        19= fresh snow      20= sea ice
+!
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -WAVEN(NCHN)   : WAVENUMBERS (CM-1)
+!            -NCHN          : NUMBER OF BANDS FOR WHICH EMISSIVITY IS NEEDED
+!
+!          OUTPUT:
+!            -EMI_MAT(NCHN,NTYPE) : EMISSIVITY (0.0-1.0)
+!
+      IMPLICIT NONE
+      INTEGER            :: I, NC, NT, NCHN
+      REAL               :: WAVEN(NCHN), EMI_MAT(NCHN,20), DUM
+
+! CERES bands central wavenumber (covers 3.7 micron to 71.4 mic)
+
+      REAL               :: MID(14)
+
+! CERES emissivity per wavenumber and surface types
+
+      REAL               :: EMI_TAB(14,20)
+
+
+      DATA MID /                                                   &
+     &    2675., 2350., 2050., 1800., 1550., 1325., 1175., 1040.,  &
+     &     890.,  735.,  605.,  470.,  340.,  140. /
+
+      DATA EMI_TAB /                                               &
+     &    0.951, 0.989, 0.989, 0.989, 0.990, 0.991, 0.991, 0.990,  &
+     &    0.990, 0.995, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.956, 0.989, 0.989, 0.989, 0.990, 0.991, 0.991, 0.990,  &
+     &    0.990, 0.995, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.929, 0.985, 0.985, 0.986, 0.984, 0.983, 0.979, 0.980,  &
+     &    0.973, 0.987, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.943, 0.985, 0.985, 0.986, 0.984, 0.983, 0.979, 0.980,  &
+     &    0.973, 0.987, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.945, 0.987, 0.987, 0.987, 0.987, 0.987, 0.985, 0.985,  &
+     &    0.982, 0.991, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.933, 0.949, 0.949, 0.970, 0.974, 0.971, 0.947, 0.958,  &
+     &    0.966, 0.975, 0.984, 0.984, 0.984, 0.984,                &
+     &    0.873, 0.873, 0.873, 0.934, 0.944, 0.939, 0.873, 0.904,  &
+     &    0.936, 0.942, 0.951, 0.951, 0.951, 0.951,                &
+     &    0.930, 0.987, 0.987, 0.990, 0.992, 0.993, 0.983, 0.975,  &
+     &    0.985, 0.993, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.926, 0.987, 0.987, 0.990, 0.992, 0.993, 0.983, 0.975,  &
+     &    0.985, 0.993, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.899, 0.987, 0.987, 0.990, 0.992, 0.993, 0.983, 0.975,  &
+     &    0.985, 0.993, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.951, 0.983, 0.983, 0.987, 0.987, 0.988, 0.983, 0.981,  &
+     &    0.987, 0.982, 0.986, 0.986, 0.986, 0.986,                &
+     &    0.924, 0.987, 0.987, 0.990, 0.992, 0.993, 0.983, 0.975,  &
+     &    0.985, 0.993, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.929, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000,  &
+     &    1.000, 1.000, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.926, 0.987, 0.987, 0.989, 0.989, 0.990, 0.984, 0.980,  &
+     &    0.983, 0.992, 1.000, 1.000, 1.000, 1.000,                &
+     &    0.972, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000,  &
+     &    1.000, 0.999, 0.999, 0.999, 0.999, 0.999,                &
+     &    0.866, 0.835, 0.835, 0.916, 0.934, 0.923, 0.835, 0.877,  &
+     &    0.921, 0.926, 0.934, 0.934, 0.934, 0.934,                &
+     &    0.973, 0.979, 0.979, 0.983, 0.982, 0.982, 0.984, 0.987,  &
+     &    0.989, 0.972, 0.972, 0.972, 0.972, 0.972,                &
+     &    0.968, 0.947, 0.947, 0.967, 0.988, 0.979, 0.975, 0.977,  &
+     &    0.992, 0.989, 0.989, 0.989, 0.989, 0.989,                &
+     &    0.984, 0.988, 0.988, 0.988, 0.988, 0.988, 0.988, 0.988,  &
+     &    0.988, 0.988, 0.988, 0.988, 0.988, 0.988,                &
+     &    0.964, 0.979, 0.979, 0.979, 0.979, 0.979, 0.979, 0.979,  &
+     &    0.979, 0.979, 0.979, 0.979, 0.979, 0.979  /
+
+
+
+      DO NT = 1, 20
+         DO NC = 1, NCHN
+            IF ( WAVEN(NC) > MID(1) ) THEN
+               EMI_MAT(NC,NT) = EMI_TAB(1,NT)
+            ELSE IF ( WAVEN(NC) < MID(14) ) THEN
+               EMI_MAT(NC,NT) = EMI_TAB(14,NT)
+            ELSE
+               DO I = 1, 14-1
+                  IF ( WAVEN(NC) <= MID(I) .AND. WAVEN(NC) >= MID(I+1) ) THEN
+                     DUM = ( WAVEN(NC) - MID(I) ) / ( MID(I+1) - MID(I) )
+                     EMI_MAT(NC,NT) = EMI_TAB(I,NT) + ( EMI_TAB(I+1,NT) - EMI_TAB(I,NT) ) * DUM
+                     EXIT
+                  END IF
+               END DO
+            END IF
+         END DO
+      END DO
+
+
+      END SUBROUTINE CERES_EMATRIX
+
+
+      SUBROUTINE EMI_SEA(EM_OC, wnum,angle,wind,np,nc)
+!
+!**ID EMI_SEA -- GET OCEAN SURFACE EMISSIVITY
+!
+!       AUTHOR:   L. GARAND                March 1999
+!                       improved with IMEM       2004
+!                 A. BEAULNE (CMDA/SMC)    April 2006  (ADAPT TO 3DVAR)
+!
+!       REVISION:
+!
+!       OBJECT:    GET OCEAN SURFACE EMISSIVITY
+!
+!         Note: 
+!         IMEM(NC), set to zero initially, on next call IMEM will have the
+!         right boundary channel to save search time in interpolation.
+!         IOPT=1 means activate IMEM option (all calls ask for same channels)
+!
+!         To get surface ocean emissivity for a group of channels with
+!         wavenumbers WNUM (cm-1) looking at one point with surface
+!         wind speed WIND from angle ANGLE.
+!         Based on Masuda,1988, Remote Sens. of Envir, 313-329.
+!         Coded emissivity routine based on Masuda's data by Tom Kleespies
+!         Covers 650-2857 cm-1 or 3.1-15.4 microns
+!
+!         CAUTION: extrapolated values from 769-650 cm-1
+!          and interpolated values between 2439-1250 cm-1
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -WNUM(NC)       : CHANNEL WAVENUMBERS (CM-1)
+!            -ANGLE          : VIEWING ANGLE (DEG)
+!            -WIND           : SURFACE WIND SPEED (M/S)
+!            -NP             : NUMBER OF PROFILES
+!            -NC             : NUMBER OF CHANNELS
+!
+!          OUTPUT:
+!            -EM_OC(NC,NP)   : OCEAN EMISSIVITIES (0.-1.)
+!
+      IMPLICIT NONE
+#include "comlun.cdk"
+
+      INTEGER      :: I,K,L,NC,NP
+      INTEGER      :: IMEM(NC),IOPT
+      INTEGER      :: MCHAN(2)
+      REAL         :: EM_OC(NC,NP),WNUM(NC),ANGLE(NP),WIND(NP),DUM
+      REAL         :: REFW(19),EMI2(2,NP)
+
+
+!* Masuda's 19 wavelengths converted to wavenumber
+
+      DATA REFW/ 2857.1, 2777.7, 2702.7, 2631.6, 2564.1,  &
+     &           2500.0, 2439.0, 1250.0, 1190.5, 1136.3,  &
+     &           1087.0, 1041.7, 1000.0, 952.38, 909.09,  &
+     &           869.57, 833.33, 800.00, 769.23/
+
+
+!* IMEM options
+
+      IOPT = 1
+      IMEM(:) = 0
+
+
+
+
+      DO I = 1, NC
+
+        IF ( IMEM(I) > 0 .AND. IOPT == 1 ) GO TO 50
+
+!* out of range
+
+        IF ( WNUM(I) < 645. .OR. WNUM(I) > REFW(1) ) THEN
+           WRITE(NULOUT,44) WNUM(I)
+ 44        FORMAT(' fatal: wavenumber out of range in emi_sea',e12.4)
+           STOP
+        END IF
+
+!* extrapolated from 769 cm-1 to 645 cm-1: NOT FROM REAL DATA
+!* nevertheless thought to be much better than unity
+!* this is a region of relatively rapid emissivity change
+!* worst estimates for 700-645 cm-1, but these channels do not
+!* see the surface (strong co2 absorption).
+
+        IF ( WNUM(I) <= REFW(19) .AND. WNUM(I) > 645. ) THEN
+           IMEM(I) = 18
+           GO TO 50
+        END IF
+
+!* CAUTION interpolation on large interval 1250-2439 cm-1
+!* where no data is available except that of ASTER. ASTER
+!* shows a relatively smooth variation with wavelength except
+!* for a sharp drop at 1600 cm-1 with highs at 1550 and 1650 cm-1
+!* with peak-to-peak variation of 1.5% in that narrow range.
+!* Worst estimates would be between 1400-1800 cm-1 in HIRS ch 12
+!* which only in very cold atmospheres sees the surface.
+
+        DO K = 1, 18
+           IF ( WNUM(I) > REFW(K+1) .AND. WNUM(I) <= REFW(K) ) THEN
+              IMEM(I) = K
+              GO TO 50
+           END IF
+        END DO
+
+
+ 50     CONTINUE
+   
+
+        MCHAN(1)= IMEM(I)
+        MCHAN(2)= IMEM(I)+1
+
+        DUM = ( WNUM(I) - REFW(MCHAN(1)) ) / ( REFW(MCHAN(2)) - REFW(MCHAN(1)) )
+
+        CALL COMP_IR_EMISS(EMI2, wind,angle,2,np,mchan)
+
+!* INTERPOLATION/EXTRAPOLATION in wavenumber 
+
+        DO L = 1, NP
+  
+          EM_OC(I,L) = EMI2(1,L) + ( EMI2(2,L) - EMI2(1,L) ) * DUM
+
+        END DO
+
+      END DO
+
+
+      END SUBROUTINE EMI_SEA
+
+
+
+      SUBROUTINE PCNT_BOX(F_LOW, f_high,nprf,ilat,ilon,klat,klon,ireduc)
+!
+!**ID PCNT_BOX -- COMPUTES A LOW_RESOLUTION FEATURE FROM HIGH RESOLUTION
+!
+!       AUTHOR:   L. GARAND (ARMA) AND A. BEAULNE (CMDA/SMC) June 2006
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTES A LOW RESOLUTION FEATURE FORM A HIGH
+!                 RESOLUTION ONE BY AVERAGING.
+!                 EXAMPLE: USE FOR PERCENTAGE OF WATER
+!
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -F_HIGH(KLON,KLAT)   : HIGH RESOLUTION FIELD 
+!            -NPRF                : NUMBER OF PROFILES
+!            -ILAT(NPRF)          : Y-COORDINATE OF PROFILE
+!            -ILON(NPRF)          : X-COORDINATE OF PROFILE
+!            -KLAT                : MAX VALUE OF LATITUDE INDICES
+!            -KLON                : MAX VALUE OF LONGITUDE INDICES
+!            -IREDUC              : MEANS A 2xIREDUC+1 BY 2xIREDUC+1 AVERAGING
+!
+!          OUTPUT:
+!            -FLOW(NPRF)          : LOW RESOLUTION FIELD
+!
+      IMPLICIT NONE
+
+      INTEGER :: NPRF, ILAT(NPRF), ILON(NPRF), KLAT, KLON, IREDUC
+      INTEGER :: NPLON, JDLO1, JDLO2, JLON1, JLON2
+      INTEGER :: NX, ILAT1, ILAT2, ILON1, ILON2, JN, ii, jj
+      REAL    :: F_LOW(NPRF), F_HIGH(KLON,KLAT)
+
+
+      profiles : DO JN = 1,NPRF
+
+         NPLON=0
+
+! normal limits
+
+         ilat1=max(ilat(JN)-IREDUC,1)
+         ilat2=min(ilat(JN)+IREDUC,KLAT)
+         ilon1=max(ilon(JN)-IREDUC,1)
+         ilon2=min(ilon(JN)+IREDUC,KLON)
+
+         IF(ilon1.ne.1.and.ilon2.ne.klon)go to 7
+
+! border cases for longitudes
+
+         JDLO1 = ILON(JN)-IREDUC
+         JDLO2 = ILON(JN)+IREDUC
+
+         IF ( JDLO1.LE.0 ) THEN
+           NPLON=1
+           JLON1= KLON+JDLO1
+           JLON2= KLON
+         ELSE IF ( JDLO2.gt.KLON ) THEN
+           NPLON=1
+           JLON1=1
+           JLON2=JDLO2-KLON
+         END IF
+
+ 7       continue
+
+         NX=0
+         F_LOW(JN)=0.
+
+         DO JJ = ILAT1, ILAT2
+
+           DO II = ILON1, ILON2
+             NX=NX+1
+             F_LOW(JN)=F_LOW(JN)+F_HIGH(II,JJ)         
+           END DO
+
+           IF (NPLON.eq.1) THEN
+! additional cases at border 1-KLON
+             DO II = JLON1, JLON2
+               NX=NX+1
+               F_LOW(JN)=F_LOW(JN)+F_HIGH(II,JJ)         
+             END DO
+           END IF
+
+         END DO
+
+         F_LOW(JN)=F_LOW(JN)/float(NX)
+
+      END DO profiles
+
+
+      END SUBROUTINE PCNT_BOX
+         
+
+      SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
+!
+!**ID GET_TOP -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND                       2004
+!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT AND NUMBER OF POSSIBLE HEIGHTS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BT        : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!                          OR COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+!            -TT(NLEV)  : TEMPERATURE PROFILE (DEG K)
+!                          OR COMPUTED CLOUD RADIANCE FROM EACH LEVEL TO TOP (")
+!            -PP(NLEV)  : PRESSURE (HPA) OR HEIGHTS (M) PROFILE (IOPT=1 OR 2)
+!            -NLEV      : NUMBER OF VERTICAL LEVELS
+!            -IOPT      : HEIGHT UNITS IN HPA (1) OR IN METERS (2)
+!
+!          INPUT/OUTPUT:
+!            -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!                         (IF <= 0, SEARCH & START AT COLDEST LEVEL)
+!
+!          OUTPUT:
+!            -HT(NLEV)  : CLOUD TOP HEIGHT IN HPA OR METERS (IOPT = 1 OR 2)
+!            -NHT       : NUMBER OF POSSIBLE CLOUD HEIGHT SOLUTIONS
+!
+      IMPLICIT NONE
+
+      INTEGER   :: I, NHT, NLEV, IM, LEV_START, IOPT
+      REAL(8)   :: HT(NLEV), BT, TT(NLEV), PP(NLEV), P(NLEV)
+      REAL(8)   :: DT, A, AA, B
+
+      HT(:) = -1.
+
+      IF (IOPT==1) P(:) = LOG(PP(:))
+
+      IM = LEV_START
+
+
+      IF ( LEV_START <= 0 ) THEN
+
+!*      SEARCH INDEX IM WHERE TT IS MINIMUM
+
+        CALL FMIN (IM, tt,nlev)
+  
+        LEV_START = IM
+
+        IF ( IM == NLEV ) THEN
+         LEV_START = MAX(LEV_START,10)
+         NHT = 1
+         HT(1) = PP(NLEV)
+         RETURN
+        ENDIF
+
+      END IF
+
+
+      NHT = 0        
+      
+      DO I = IM, NLEV-1
+        DT = TT(I+1) - TT(I) + 1.E-12
+        IF ( BT > TT(I) .AND. BT <= TT(I+1) ) THEN
+          A    = P(I) + (P(I+1)-P(I))/DT*(BT-TT(I))
+          B    = PP(I) + (PP(I+1)-PP(I))/DT*(BT-TT(I))
+          NHT      = NHT+1
+          IF(IOPT==1) HT(NHT)=EXP(A)
+          IF(IOPT==2) HT(NHT)=B
+        ELSE IF ( BT >= TT(I+1) .AND. BT < TT(I) ) THEN
+          A    = P(I+1)- (P(I+1)-P(I))/DT* (TT(I+1)-BT)
+          B    = PP(I+1)- (PP(I+1)-PP(I))/DT* (TT(I+1)-BT)
+          NHT      = NHT+1
+          IF(IOPT==1) HT(NHT)=EXP(A)
+          IF(IOPT==2) HT(NHT)=B
+        ENDIF
+      END DO
+
+      
+      IF ( NHT == 0 .AND. BT < TT(IM) )  THEN
+        NHT  = 1
+        HT(1) = PP(IM)
+
+      ELSE IF ( NHT == 0 .AND. BT > TT(NLEV) )  THEN
+        NHT   = 1
+        HT(1) = PP(NLEV)
+
+      ENDIF
+
+
+      END SUBROUTINE GET_TOP
+
+
+      SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
+!
+!**ID COMP_IR_EMISS -- INFRARED EMISSIVITY COMPUTATION
+!
+!       AUTHOR:   Thomas J. Kleespies               8 February 1998
+!                 Physics Branch
+!                 Satellite Research Laboratory
+!                 Office of Research and Applications
+!                 NOAA/NESDIS
+!                 301-763-8136 x126
+!                 301-763-8108 FAX
+!                 Mailing Address: 810 NSC E/RA-14
+!                                  NOAA/NESDIS
+!                                  Washington, D.C. 20233
+!                 Email: TKleespies@nesdis.noaa.gov
+!
+!                 L. GARAND     modified for NP points
+!                 A. BEAULNE (CMDA/SMC)       April 2006  (ADAPT TO 3DVAR)
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTES WATER INFRARED EMISSIVITY FOR A SPECIFIC SET OF
+!          CHANNEL INDICES, WIND SPEED AND ZENITH ANGLE.
+!
+!          Restrictions:  Must be compiled with /EXTEND_SOURCE or it's equivalent
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -WIND(NP)         : SURFACE WIND SPEED (M/S)
+!            -ANGLE(NP)        : VIEWING ANGLE (DEG)
+!            -NCHN             : NUMBER OF CHANNELS TO PROCESS
+!            -NP               : NUMBER OF LOCATIONS
+!            -MCHANNELS(NCHN)  : VECTOR OF CHANNEL INDICES TO PROCESS
+!
+!          OUTPUT:
+!            -EMISS(NCHN,NP)   : EMISSIVITIES (0.-1.)
+!
+	Implicit None
+	
+	Integer MaxWn,NP
+	Parameter (MaxWn = 19)	
+
+	Integer Nparm
+	Parameter (Nparm=3)
+	Real Theta(Nparm,MaxWn)
+	Real C(Nparm,2,MaxWn)
+	Integer Nchn
+     
+        real WW
+	Real Wind(NP),Angle(NP)
+	Real Emiss(Nchn,NP)
+
+	Integer Mchannel(Nchn)
+
+	Integer MaxChan
+	Parameter (MaxChan=19)
+	Real A(MaxChan),B(MaxChan),CC(MaxChan)  ! local variables
+
+	Common /IRemis/ A,B,CC
+
+
+	Integer Index,Ichan,IP	
+	
+	Data Theta /                    &
+     &   1700.381, 25.28534, 144.1023,  &
+     &   1738.149, 25.67787, 146.6139,  &
+     &   1769.553, 26.05250, 148.6586,  &
+     &   1778.610, 26.12333, 149.5127,  &
+     &   1794.245, 26.18523, 150.5874,  &
+     &   1791.904, 26.19991, 150.7076,  &
+     &   1806.872, 26.37132, 151.7191,  &
+     &   1926.078, 27.63825, 160.7103,  &
+     &   1969.155, 28.02767, 163.6069,  &
+     &   1975.549, 27.86465, 164.6228,  &
+     &   1991.288, 27.94312, 166.2924,  &
+     &   2082.691, 28.93558, 172.4025,  &
+     &   2182.872, 29.89974, 179.5839,  &
+     &   2338.510, 31.27507, 191.2063,  &
+     &   2164.615, 28.97152, 182.6279,  &
+     &   2099.714, 29.91868, 178.4015,  &
+     &   1857.644, 29.13640, 160.9822,  &
+     &   1610.696, 26.48602, 142.2768,  &
+     &   1503.969, 24.97931, 133.4392 /
+
+        Data C /	                             &
+     &  0.9715104043561414,-1.2034233230944147E-06,  &
+     &  -5.8742655960993913E-07,  &
+     &  0.9263932848727608,-9.4908630939690859E-04,  &
+     &  2.2831134823358876E-05,   &
+     &  0.9732503924722753,-1.2007007329295099E-06,  &
+     &  -5.8767355551283423E-07,  &
+     &  0.9290947860585505,-9.5233413988900161E-04,  &
+     &  2.2640835623043761E-05,   &
+     &  0.9745005204317289, 1.2857517639804244E-06,  &
+     &  -7.1356127087301190E-07,  &
+     &  0.9310852809117095,-9.5453509182819095E-04,  &
+     &  2.2562638663187251E-05,   &
+     &  0.9756204829761132, 1.2979181109743976E-06,  &
+     &  -7.1406809362820139E-07,  &
+     &  0.9329073568177888,-9.5627536945214183E-04,  &
+     &  2.2442358508999558E-05,   &
+     &  0.9764012672766408,-2.0826654381361387E-06,  &
+     &  -4.9103920569405721E-07,  &
+     &  0.9341937281933334,-9.5764423928102976E-04,  &
+     &  2.2326701573603621E-05,   &
+     &  0.9770513558720460, 4.1867599593267133E-07,  &
+     &  -6.1768073971231931E-07,  &
+     &  0.9352981872014672,-9.5833614545300181E-04,  &
+     &  2.2261996883974513E-05,   &
+     &  0.9775970810179080,-1.2289690625562906E-06,  &
+     &  -5.2953762169985775E-07,  &
+     &  0.9362188153954743,-9.5950872922696905E-04,  &
+     &  2.2251301675423482E-05,   &
+     &  0.9830610391451819, 2.7693589475690676E-07,  &
+     &  -5.1580217018207558E-07,  &
+     &  0.9461121192685766,-9.5718115604053031E-04,  &
+     &   2.1087308573177295E-05,  &
+     &  0.9840097930773377,-1.4987900189155091E-06,  &
+     &  -3.8281408128977038E-07,  &
+     &  0.9479758694804105,-9.5451252460440695E-04,  &
+     &  2.0800627740862229E-05,   &
+     &  0.9851056150728580,-6.5768237152417477E-07,  &
+     &  -4.2053769829400935E-07,  &
+     &  0.9502084544618980,-9.4965534997704157E-04,  &
+     &   2.0326602209199427E-05,  &
+     &  0.9862706396188835,-2.3713068057993353E-06,  &
+     &  -2.8671134918457728E-07,  &
+     &  0.9526580467595886,-9.4614505430749598E-04,  &
+     &   2.0001856872595840E-05,  &
+     &  0.9875307221489201, 1.3003462826947714E-07,  &
+     &  -4.1335288320283954E-07,  &
+     &  0.9554195617948236,-9.3806678196435643E-04,  &
+     &   1.9407754748128057E-05,  &
+     &  0.9891153260567763,-8.0730206675976713E-07,  &
+     &  -3.1811320626834656E-07,  &
+     &  0.9590558393678170,-9.2716287670223167E-04,  &
+     &  1.8690586764925213E-05,   &
+     &  0.9913304557147524,-2.1153391229093421E-08,  &
+     &  -3.1094269595901165E-07,  &
+     &  0.9644162604969492,-9.0342753739935612E-04,  &
+     &  1.7274993357160937E-05,   &
+     &  0.9925188366950193,-4.6365959315123653E-07,  &
+     &  -2.7020120347068712E-07,  &
+     &  0.9667877170960085,-9.0665804037922043E-04,  &
+     &  1.7083616616646458E-05,   &
+     &  0.9919408379810360,-2.0563508815953840E-06,  &
+     &  -1.8066722718403761E-07,  &
+     &  0.9627535343397309,-9.7537134133678965E-04,  &
+     &   1.9698263973541952E-05,  &
+     &  0.9889406296815972,-2.3713068057993353E-06,  &
+     &  -2.8671134918457728E-07,  &
+     &  0.9506051906192242,-1.0642902225813857E-03,  &
+     &   2.4235485973033298E-05,  &
+     &  0.9828819693848310,-7.4086701870172759E-07,  &
+     &  -6.2949258820534062E-07,  &
+     &  0.9329616683158125,-1.0728027288012200E-03,  &
+     &  2.7209071863380586E-05,   &
+     &  0.9767410313266288,-9.1750038410238915E-07,  &
+     &  -7.9177921107781349E-07,  &
+     &  0.9192775350344998,-1.0369254272157462E-03,  &
+     &  2.8000594542037504E-05    &
+     &   /
+
+
+	Save Theta,C
+
+
+	Do Ichan = 1 , Nchn
+
+        Index = Mchannel(Ichan)
+
+        DO IP=1,NP
+
+        WW=WIND(IP)
+	 A(Ichan) = C(1,1,Index) + C(2,1,Index)*WW    &  
+     &		                 + C(3,1,Index)*WW*WW
+	 B(Ichan) = C(1,2,Index) + C(2,2,Index)*WW    &
+     &                           + C(3,2,Index)*WW*WW
+
+	 CC(Ichan) = Theta(1,Index) + Theta(2,Index)*WW
+
+	 Emiss(Ichan,IP) = A(Ichan) + (B(Ichan)-A(Ichan)) *   & 
+     &            Exp(( (Theta(3,Index)-60.)**2.              &
+     &        - (Angle(IP)-Theta(3,Index))**2. )/CC(Ichan))
+
+        ENDDO
+
+	EndDo
+
+	Return
+	End

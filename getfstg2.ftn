@@ -143,7 +143,7 @@ ccc debug
       write(nulout,*) 'getfstg2: ibrpstamp = ',ibrpstamp
 !
       call vhfstfld(zpsg,ni*nj,isgid,zvvg,ni*nj,ivvgid,1
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(ppsg,zpsg,ni,nj,1,0,CLNOMVAR)
@@ -158,7 +158,7 @@ ccc debug
       CLNOMVAR = 'TT'
 
       call vhfstfld(zttg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(ptg,zttg,ni,nj,nflev,0,CLNOMVAR)
@@ -173,7 +173,7 @@ ccc debug
       CLNOMVAR = 'GZ'
 ! 
       call vhfstfld(zgzg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(pgzg,zgzg,ni,nj,nflev,0,CLNOMVAR)
@@ -184,7 +184,7 @@ ccc debug
       CLNOMVAR = 'HU'
 !
       call vhfstfld(zqqg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(pqg,zqqg,ni,nj,nflev,0,CLNOMVAR)
@@ -246,7 +246,7 @@ ccc debug
       CLNOMVAR = 'UU'
 !
       call vhfstfld(ztrans,ni*nj,isgid,zvvg,ni*nj,isgid,nflev  ! ztrans=uu,zvvg=vv interpolated... 
-     &     ,vhybinc,'UV',ibrpstamp,ninmpg,ntrials,nulout,nflev,llvint
+     &     ,vhybinc,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
       CALL INITGDG2(pug,ztrans,ni,nj,nflev,0,CLNOMVAR) ! on output, pug contains U wind-image.
 !

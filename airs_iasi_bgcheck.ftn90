@@ -1,0 +1,3703 @@
+      SUBROUTINE AIRSQC ( airs_end, airs_bunch,airs_loop_done, lcolumnhr, lobsSpaceData )
+!
+!**ID AIRSQC -- QUALITY CONTROL OF AIRS OBSERVATIONS
+!
+!       SCIENCE:  L. GARAND
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
+!                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
+!
+!       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -AIRS_BUNCH     : MAXIMUM NUMBER OF PROFILES FOR ONE CALL
+!            -AIRS_LOOP_DONE : NUMBER OF PREVIOUS CALLS TO AIRSQC
+!
+!          OUTPUT:
+!            -AIRS_END       : AT THE END OF THIS CALL TO AIRSQC, DO ALL AIRS
+!                               PROFILES BEEN TREATED (true) OR NOT (false)
+!
+      use MathPhysConstants_mod
+      use mod_tovs
+      use airsch
+      use airsbgcheck
+      use obsSpaceData_mod
+      use columnData_mod
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "cvcord.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+      INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
+      INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBAIRS
+      INTEGER       :: JDATA,IDATA,IDATEND,IDAIRS
+      INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
+      INTEGER       :: DIFFTOP_MIN,IMODTOP
+      INTEGER       :: airs_loop_done,count_airs,airs_bunch
+      REAL(8)       :: T_EFFECTIVE
+      LOGICAL       :: airs_end
+      integer       :: alloc_status(61)
+
+      real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
+      real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
+      real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:)
+      real(8), allocatable :: CLFR(:),TOEXT(:,:),ZHOEXT(:,:),SUNZA(:)
+      real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
+      integer, allocatable :: KSURF(:),LTYPE(:)
+      integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:)
+      integer, allocatable :: CORFLAG(:,:)
+      integer, allocatable :: GNCLDFLAG(:)
+      integer, allocatable :: ICHREF(:)
+      integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
+      integer, allocatable :: NTOP_CO2(:,:),NGOOD(:)
+      real(8), allocatable :: PTOP_EQ(:),PTOP_BT(:,:),PTOP_RD(:,:),PTOP_MB(:)
+      real(8), allocatable :: PTOP_CO2(:,:),FCLOUD_CO2(:,:),HE(:)
+      real(8), allocatable :: ETOP(:),VTOP(:),ECF(:),VCF(:)
+      integer, allocatable :: MINP(:,:),FATE(:,:)
+      real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
+      logical, allocatable :: ASSIM_ALL(:)
+      integer :: cpt
+
+      SAVE :: IMODTOP
+
+
+! ** find sensor number corresponding to AIRS
+
+      DO KRTID = 1, NSENSORS
+        IF ( PLATFORM(KRTID) .EQ. 9 .AND. &
+     &       SATELLITE(KRTID) .EQ. 2 .AND. &
+     &       INSTRUMENT(KRTID) .EQ. 11 ) THEN
+          IDAIRS = KRTID
+          EXIT
+        END IF
+      END DO
+
+
+! ** find number of AIRS profiles (for memory allocation)
+
+      NPRF = 0
+      count_airs = 0
+
+      DO JF = 1, NFILES
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 183) THEN
+              count_airs = count_airs + 1
+              IF ( count_airs > airs_loop_done * airs_bunch .AND.  &
+     &             count_airs <= (airs_loop_done+1) * airs_bunch ) NPRF = NPRF + 1
+            END IF
+          END DO
+        END IF
+      END DO
+
+
+! ** find number of AIRS channels and RTTOV levels
+
+      NCHN = coef(idairs)%fmv_chn
+      NLEV = coef(idairs)%nlevels
+
+      write(nulout,*) ' AIRSQC - nchn ', nchn
+
+! information to extract (transvidage)
+! ------------------------------------
+!
+! ZTG(NPRF) -- guess skin temperatures (deg K)
+! ZPS(NPRF) -- surface pressure (hPa)
+! ZT(NLEVTRL,NPRF) -- temperature profiles on NWP model levels (deg K)
+! ZHT(NLEVTRL,NPRF) -- height profiles on NWP model levels (m)
+! ZPRES(NLEVTRL,NPRF) -- NWP pressure levels 
+! ZLQ(NLEVTRL,NPRF) -- surface specific humidity in ln q (kg/kg)
+! BTOBSERR(AIRSSNCH) -- observation error standard deviation
+! BTOBS(AIRSSNCH,NPRF) -- observed brightness temperatures (deg K)
+! BTCALC(AIRSSNCH,NPRF) -- computed brightness temperatures (deg K)
+! RCAL_CLR(AIRSSNCH,NPRF) -- computed clear radiances (mw/m2/sr/cm-1)
+! SFCTAU(AIRSSNCH,NPRF) -- surface to space transmittances (0-1)
+! RCLD(AIRSSNCH,NPRF,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+! TRANSM(AIRSSNCH,NPRF,NLEV) -- layer to space transmittances (0-1)
+! EMI_SFC(AIRSSNCH,NPRF) -- surface emissivities (0-1)
+! KSURF(NPRF) -- surface type in obs file (0, 1)
+! CLFR(NPRF) -- cloud fraction (%)
+! TOEXT(NLEV,NPRF) -- temperature profiles on RT model levels (deg K)
+! ZHOEXT(NLEV,NPRF) -- height profiles on RT model levels (m)
+! SUNZA(NPRF) -- sun zenith angle (deg)
+! ALBEDO(NPRF) -- surface albedo (0-1)
+! ICE(NPRF) -- ice fraction (0-1)
+! LTYPE(NPRF) -- surface type (1,...,20)
+! PCNT_WAT(NPRF) -- water fraction (0-1)
+! PCNT_REG(NPRF) -- water fraction in the area (0-1)
+! ROBS(AIRSSNCH,NPRF) -- observed radiances (mW/m2/sr/cm-1)
+
+
+      alloc_status(:) = 0
+      allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
+      allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
+      allocate ( ZT(lcolumnhr%nlev,NPRF),                stat= alloc_status(3) )
+      allocate ( ZHT(lcolumnhr%nlev,NPRF),               stat= alloc_status(4) )
+      allocate ( ZLQ(lcolumnhr%nlev,NPRF),               stat= alloc_status(5) )
+      allocate ( BTOBSERR(AIRSSNCH),              stat= alloc_status(6) )
+      allocate ( BTOBS(AIRSSNCH,NPRF),            stat= alloc_status(7) )
+      allocate ( BTCALC(AIRSSNCH,NPRF),           stat= alloc_status(8) )
+      allocate ( RCAL_CLR(AIRSSNCH,NPRF),         stat= alloc_status(9) )
+      allocate ( SFCTAU(AIRSSNCH,NPRF),           stat= alloc_status(10))
+      allocate ( RCLD(AIRSSNCH,NPRF,NLEV),        stat= alloc_status(11))
+      allocate ( TRANSM(AIRSSNCH,NPRF,NLEV),      stat= alloc_status(12))
+      allocate ( EMI_SFC(AIRSSNCH,NPRF),          stat= alloc_status(13))
+      allocate ( KSURF(NPRF),                     stat= alloc_status(14))
+      allocate ( CLFR(NPRF),                      stat= alloc_status(15))
+      allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
+      allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
+      allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
+      allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
+      allocate ( ICE(NPRF),                       stat= alloc_status(20))
+      allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
+      allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
+      allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
+      allocate ( ROBS(AIRSSNCH,NPRF),             stat= alloc_status(24))
+      allocate ( ZTS(NPRF),                       stat= alloc_status(26))
+      allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
+      allocate ( REJFLAG(AIRSSNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
+      allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
+      allocate ( ILIST(AIRSSNCH),                 stat= alloc_status(30))
+      allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
+      allocate ( NTOP_BT(AIRSSNCH,NPRF),          stat= alloc_status(32))
+      allocate ( NTOP_RD(AIRSSNCH,NPRF),          stat= alloc_status(33))
+      allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
+      allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
+      allocate ( PTOP_BT(AIRSSNCH,NPRF),          stat= alloc_status(36))
+      allocate ( PTOP_RD(AIRSSNCH,NPRF),          stat= alloc_status(37))
+      allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
+      allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
+      allocate ( HE(NPRF),                        stat= alloc_status(40))
+      allocate ( ETOP(NPRF),                      stat= alloc_status(41))
+      allocate ( VTOP(NPRF),                      stat= alloc_status(42))
+      allocate ( ECF(NPRF),                       stat= alloc_status(43))
+      allocate ( VCF(NPRF),                       stat= alloc_status(44))
+      allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
+      allocate ( MINP(AIRSSNCH,NPRF),             stat= alloc_status(46))
+      allocate ( PMIN(AIRSSNCH,NPRF),             stat= alloc_status(47))
+      allocate ( DTAUDP1(AIRSSNCH,NPRF),          stat= alloc_status(48))
+      allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
+      allocate ( FATE(AIRSSNCH,NPRF),             stat= alloc_status(50))
+      allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
+      allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
+      allocate ( MAXWF(AIRSSNCH,NPRF),            stat= alloc_status(54))
+      allocate ( ZPRES(lcolumnhr%nlev,NPRF),             stat= alloc_status(55))
+      allocate ( PTOP_MB(NPRF),                   stat= alloc_status(56))
+      allocate ( NTOP_MB(NPRF),                   stat= alloc_status(57))
+      allocate ( CFSUB(NPRF),                     stat= alloc_status(58))
+      allocate ( GNCLDFLAG(NPRF),                 stat= alloc_status(59))
+      allocate ( ILIST_PAIR(AIRSSNCH),            stat= alloc_status(60))
+      allocate ( CORFLAG(AIRSSNCH,NPRF),          stat= alloc_status(61))
+
+      if( any(alloc_status /= 0) ) then
+        write(nulout,*) ' airsqc : memory allocation error'
+        call abort3d(nulout,'airsqc        ')
+      end if
+
+
+      BTOBS(:,:)    = -1.
+      BTCALC(:,:)   = -1.
+      RCAL_CLR(:,:) = -1.
+      SFCTAU(:,:)   = -1.
+      RCLD(:,:,:)   = -1.
+      TRANSM(:,:,:) = -1.
+      EMI_SFC(:,:)  = -1.
+
+      REJFLAG(:,:,:) = 0
+      CORFLAG(:,:)   = 0
+
+      NOBAIRS = 0
+      NOBTOV = 0
+      count_airs = 0
+
+      DO JF = 1, NFILES
+
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
+
+          DO JO = IBEGINOB, ILASTOB
+
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+
+            IF ( IDATYP .EQ. 164 .OR. &
+     &           IDATYP .EQ. 168 .OR. &
+     &           IDATYP .EQ. 180 .OR. &
+     &           IDATYP .EQ. 181 .OR. &
+     &           IDATYP .EQ. 182 .OR. &
+     &           IDATYP .EQ. 183 ) NOBTOV = NOBTOV + 1
+
+            IF ( IDATYP .EQ. 183) THEN
+
+              count_airs = count_airs + 1
+
+              IF ( count_airs > airs_loop_done * airs_bunch .AND.  &
+     &             count_airs <= (airs_loop_done+1) * airs_bunch ) THEN
+
+                NOBAIRS = NOBAIRS + 1
+
+                ZTG(NOBAIRS) = lcolumnhr%tg(1,JO)
+                ZPS(NOBAIRS) = lcolumnhr%ps(1,JO)*RPATMB
+
+                DO JL = 1, lcolumnhr%nlev
+                  ZT(JL,NOBAIRS) = lcolumnhr%tt(JL,JO)
+                  ZHT(JL,NOBAIRS) = lcolumnhr%gz(JL,JO) / RG
+                  ZLQ(JL,NOBAIRS) = lcolumnhr%hu(JL,JO)
+                  ZPRES(JL,NOBAIRS)= lcolumnhr%rppobs(JL,JO) * RPATMB
+                END DO
+
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                DO JDATA= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                    BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                    BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+! *** Flag check on observed BTs ***
+                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+! *** Set if data has been bias corrected (bit 6 set) ***
+                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
+! *** Gross check on observed BTs ***
+                    IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                    IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                   END IF
+                END DO
+
+                DO JC = 1, NCHN
+                  ICHN = ichan(JC,IDAIRS)
+                  BTCALC(AIRSSCH(ICHN),NOBAIRS) = radiance_d(nobtov)%out(jc)
+                  RCAL_CLR(AIRSSCH(ICHN),NOBAIRS) = radiance_d(nobtov)%clear_out(jc)
+                  SFCTAU(AIRSSCH(ICHN),NOBAIRS) = transmission_d(nobtov)%tau_surf(jc)
+                  DO JL = 1, NLEV
+                    RCLD(AIRSSCH(ICHN),NOBAIRS,JL) = radiance_d(nobtov)%overcast(jl,jc)
+                    TRANSM(AIRSSCH(ICHN),NOBAIRS,JL) = transmission_d(nobtov)%tau_layer(jl,jc)
+                  END DO
+                  EMI_SFC(AIRSSCH(ICHN),NOBAIRS) = emissivity(JC,NOBTOV)
+! *** Gross check on computed BTs ***
+                  IF (BTCALC(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                  IF (BTCALC(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                END DO
+
+                KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
+                CLFR(NOBAIRS) = profiles_qc(nobtov)%clfr
+
+                DO JL = 1, NLEV
+                  TOEXT(JL,NOBAIRS) = profiles(nobtov)%t(jl)
+                  ZHOEXT(JL,NOBAIRS) = profiles_qc(nobtov)%z(jl)
+                END DO
+
+                SUNZA(NOBAIRS) = profiles_qc(nobtov)%sunza
+                ALBEDO(NOBAIRS) = profiles_qc(nobtov)%albedo
+                ICE(NOBAIRS) = profiles_qc(nobtov)%ice
+                LTYPE(NOBAIRS) = profiles_qc(nobtov)%ltype
+                 IF(LTYPE(NOBAIRS).EQ.20) KSURF(NOBAIRS)=2
+                PCNT_WAT(NOBAIRS) = profiles_qc(nobtov)%pcnt_wat
+                PCNT_REG(NOBAIRS) = profiles_qc(nobtov)%pcnt_reg
+
+              END IF
+
+            END IF
+
+          END DO
+
+        END IF
+
+      END DO
+
+      IF ( NOBAIRS < airs_bunch ) airs_end = .true.
+
+
+! ** find TOA radiances converted from observed BT's
+
+      ROBS(:,:) = -1.
+
+      profils: DO JN = 1, NPRF
+        channels: DO JC = 1, NCHN
+          ICHN = ichan(JC,IDAIRS)
+          IF ( REJFLAG(AIRSSCH(ICHN),JN,9) == 1 ) CYCLE channels
+          t_effective =  coef(idairs)%ff_bco(jc) &
+     &         + coef(idairs)%ff_bcs(jc) * BTOBS(airssch(ichn),jn)
+          ROBS(airssch(ichn),jn) =  coef(idairs)%planck1(jc) / &
+     &         ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
+        END DO channels
+      END DO profils
+
+
+! ** set height fields to 'height above ground' fields
+
+      DO JN = 1, NPRF
+         DO JL = 1, NLEV
+            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         END DO
+         DO JL = 1, lcolumnhr%nlev
+            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         END DO
+      END DO
+
+
+!**********************************************************************************************
+
+!* ///// ---------------------------------------------------- /////
+!* ///// DETERMINATION OF THE CLEAR/CLOUDY PROFILES (CLDFLAG) /////
+!* ///// ---------------------------------------------------- /////
+
+      CLDFLAG(:) = 0
+
+
+!* -- REFERENCE FOR WINDOW CHANNEL
+
+      IWINDO     = AIRSSCH(IWINDOW)
+      IWINDO_ALT = AIRSSCH(IWINDOW_ALT)
+
+      ICHREF(:)  = IWINDO
+      DO JN = 1, NPRF
+        IF ( REJFLAG(IWINDO,JN,9) == 1 ) THEN
+          ICHREF(JN) = IWINDO_ALT
+          IF ( REJFLAG(IWINDO_ALT,JN,9) == 1 ) THEN
+            ICHREF(JN) = -1
+            CLDFLAG(JN) = -1
+            REJFLAG(:,JN,9) = 1
+            write(nulout,*) 'WARNING'
+            write(nulout,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
+            write(nulout,*) 'HAVE BEEN REJECTED.                             '
+            write(nulout,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
+          END IF
+        END IF
+      END DO
+
+
+!* -- CLOUD TOP BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE
+!* -- AT A REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE (PTOP_EQ)
+!* -- ON GUESS VERTICAL LEVELS.
+
+      LEV_START(:) = 0
+
+!iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
+      CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
+     &                   zht,zps,zpres,lcolumnhr%nlev,airssnch,nprf,ichref,lev_start,iopt2)
+
+!iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
+      CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
+     &                   zht,zps,zpres,lcolumnhr%nlev,airssnch,nprf,ichref,lev_start,iopt1)
+
+
+!* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
+
+      CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
+     &                      zht,lcolumnhr%nlev,airssnch,nprf,ptop_eq,ntop_eq,ichref)
+
+
+!* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
+
+
+! *** TEST # A ***
+! *** In daytime, set cloudy if cloud fraction over 5% ***
+
+!      WHERE ( CLDFLAG(:) == 0 .AND. CLFR(:) > 5. .AND. SUNZA(:) < 90. ) CLDFLAG(:) = 1
+
+      CFSUB(:)=-1.0
+      DO JN =1, NPRF
+         IF ( CLDFLAG(JN) == 0 .AND. CLFR(JN) > 5. .AND. SUNZA(JN) < 90. ) THEN
+            CLDFLAG(JN) = 1
+            CFSUB(JN)=0.01*CLFR(JN) !conversion % -> 0-1
+         ENDIF
+      ENDDO
+
+! *** TEST # B ***
+! *** Set cloudy if temperature difference between guess (ZTG)     ***
+! *** and estimated true (ZTS) skin temperatures is over threshold ***
+
+      CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,btobs,robs, &
+     &              sfctau,cldflag,ichref,airssnch,nchn,nprf,idairs,"AIRS")
+
+
+      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) == 1 &
+     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTW ) CLDFLAG(:) = 1
+      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) /= 1 &
+     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTL ) CLDFLAG(:) = 1
+
+      GNCLDFLAG(:)=CLDFLAG(:)
+
+!* ///// ------------------------------------------------------- /////
+!* ///// DETERMINATION OF THE ASSIMILABLE OBSERVATIONS (REJFLAG) /////
+!* ///// ------------------------------------------------------- /////
+
+!      CLDFLAG(:) = 1
+
+!* -- FIRST TESTS TO REJECT OBSERVATIONS
+
+
+! *** TEST # 1 ***
+! *** Do not assimilate where cloudy ***
+
+      DO JN = 1, NPRF
+        IF ( CLDFLAG(JN) == 1 ) then
+           REJFLAG(:,JN,11) = 1
+           REJFLAG(:,JN,23) = 1
+        endif
+      END DO
+
+
+! *** TEST # 2 ***
+! *** Gross check on valid BTs ***
+
+!     already done
+
+
+!* -- CLOUD TOP BASED ON MATCHING
+!* -- OBSERVED BRIGHTNESS TEMPERATURE WITH BACKGROUND TEMPERATURE PROFILES (PTOP_BT)
+!* -- OR COMPUTED OBSERVED RADIANCES WITH BACKGROUND RADIANCE PROFILES (PTOP_RD)
+!* -- ON 43 RTTOV VERTICAL LEVELS
+
+      LEV_START(:) = 0
+
+      DO JCH = 1, NCH
+        ILIST(JCH) = AIRSSCH(ILIST1(JCH))
+      END DO
+
+      CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
+     &                 btobs,toext,zhoext,rcal_clr,zps,robs,rcld,xpres,nlev, &
+     &                 airssnch,nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch,ilist)
+
+
+!* -- REFERENCE CHANNEL FOR CO2-SLICING
+
+      DO JN = 1, NPRF
+         cpt=0
+         DO JCH=1,NCO2
+            IF ( REJFLAG(ILIST2_PAIR(JCH),JN,9)==1 .or. REJFLAG(ILIST2(JCH),JN,9)==1 ) cpt=cpt+1
+         ENDDO
+         IF (cpt==nco2) THEN
+            CLDFLAG(JN) = -1
+            REJFLAG(:,JN,9) = 1
+            write(nulout,*) 'WARNING'
+            write(nulout,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
+            write(nulout,*) 'HAVE BEEN REJECTED.                             '
+            write(nulout,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
+         ENDIF
+      END DO
+
+!* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
+
+      HE(:) = PTOP_RD(AIRSSCH(ILIST1(2)),:)
+
+      DO JN = 1, NPRF
+        IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD(AIRSSCH(ILIST1(3)),JN)
+      END DO
+
+!* -- CLOUD TOP BASED ON CO2 SLICING
+
+      LEV_START(:) = MAX( MIN(LEV_START(:),CO2MAX), CO2MIN )
+
+      DO JCH = 1, NCO2
+        ILIST(JCH) = AIRSSCH(ILIST2(JCH))
+        ILIST_PAIR(JCH) = AIRSSCH(ILIST2_PAIR(JCH))
+      END DO
+
+      CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
+     &                   rcal_clr,rcld,robs,zps,xpres,nlev,airssnch,nprf,cldflag,rejflag,bitflag, &
+     &                   lev_start,ichref,nco2,ilist,ilist_pair)
+
+!* -- FIND CONSENSUS CLOUD TOP AND FRACTION
+
+      CALL SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ptop_co2,fcloud_co2, &
+           CFSUB,PTOP_MB,zps,cldflag,gncldflag,nprf,nco2 )
+
+!      DO JN=1,NPRF
+!         IF (ECF(JN)==0.0 .AND. ETOP(JN)==ZPS(JN) ) THEN
+!            WHERE (REJFLAG(:,JN,11) == 1) REJFLAG(:,JN,11) = 0
+!         ENDIF
+!      ENDDO
+
+!* -- FIND RADIATIVE TRANSFER MODEL LEVEL NEAREST TO TRIAL TOP (only compute one time)
+
+      IF ( airs_loop_done == 0 ) THEN
+
+        DIFFTOP_MIN = 100000.
+        IMODTOP     = 1
+
+        DO JL = 1, NLEV
+          IF ( ABS(RPTOPINC-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
+            DIFFTOP_MIN = ABS(RPTOPINC-100.*XPRES(JL))
+            IMODTOP = JL
+          END IF
+        END DO
+
+        write(nulout,*) 'TOIT DU MODELE (MB)'
+        write(nulout,*) 0.01*RPTOPINC
+        write(nulout,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
+        write(nulout,*) IMODTOP
+
+      END IF
+
+
+!* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
+
+!      CALL MIN_PRES ( MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,airssnch,nprf,imodtop)
+      CALL MIN_PRES_NEW (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,airssnch,nprf,imodtop)
+
+!* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
+
+! *** TEST # 3 ***
+! *** Assimilation above clouds (refinement of test 1)             ***
+! *** Set security margin to 2x the std on height from CO2-slicing ***
+
+      TAMPON(:) = MAX(50.D0, 2.*VTOP(:))
+
+      DO JC = 1, AIRSSNCH
+        WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .AND. ETOP(:) - TAMPON(:) > PMIN(JC,:) ) 
+           REJFLAG(JC,:,11) = 0
+           REJFLAG(JC,:,23) = 0
+        end WHERE
+      END DO
+
+
+!     LOOK AT THE FATE OF THE OBSERVATIONS
+
+      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)
+
+
+!     FURTHER REASONS TO REJECT OBSERVATIONS
+
+      DO JC = 1, AIRSSNCH
+        DO JN = 1, NPRF
+
+          IF ( FATE(JC,JN) == 0 ) THEN
+
+! *** TEST # 4 ***
+! *** Background check, do not assimilate if O-P > 3sigma ***
+
+            IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
+              REJFLAG(JC,JN,9)  = 1
+              REJFLAG(JC,JN,16) = 1
+            END IF
+
+! *** TEST # 5 ***
+! *** Do not assimilate shortwave channels during the day ***
+
+            IF ( JC >= AIRSSCH(ICHN_SUN) .AND. SUNZA(JN) < NIGHT_ANG ) then
+               REJFLAG(JC,JN,11) = 1
+               REJFLAG(JC,JN,7)  = 1
+            END IF
+
+! *** TEST # 6 ***
+! *** Do not assimilate surface channels over land ***
+
+            IF ( MINP(JC,JN) == NLEV .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+              IF ( KSURF(JN) == 0 ) THEN
+                REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
+                REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
+                IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
+                  REJFLAG(JC,JN,11) = 1
+                  REJFLAG(JC,JN,19) = 1
+                END IF
+
+! *** TEST # 7 ***
+! *** Do not assimilate surface channels over water under conditions ***
+
+              ELSE IF ( KSURF(JN) == 1 ) THEN
+                IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
+     &               ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
+                  REJFLAG(JC,JN,11) = 1
+                  REJFLAG(JC,JN,19) = 1
+                END IF
+
+! *** TEST # 8 ***
+! *** Do not assimilate surface channels over sea ice ***
+
+              ELSE IF ( KSURF(JN) == 2 ) THEN
+                REJFLAG(JC,JN,11) = 1
+                REJFLAG(JC,JN,19) = 1
+
+              END IF
+            END IF
+
+          END IF
+
+! *** TEST # 9 ***
+! *** Do not assimilate if jacobian has a significant contribution over model top ***
+
+          ! Condition valid if model top at 10mb or lower only
+          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1
+            END IF
+          END IF
+       
+          ! Condition valid if model top at 10mb or lower only
+          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1 
+            END IF
+          END IF
+
+          ! Condition valid if model top is higher than 10 mb
+          IF ( NINT(RPTOPINC) < 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1 
+            END IF
+          END IF
+
+! *** TEST # 10 ***
+! *** Do not assimilate blacklisted channels ***
+
+          IF ( AIRS_ASSIM(JC) == 0 ) REJFLAG(JC,JN,8) = 1
+
+        END DO
+      END DO
+
+! *** TEST # 11 ***
+! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
+
+          IF ( AIRS_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+
+!* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
+
+      ASSIM_ALL(:) = .true.
+      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)
+
+      prf: DO JN = 1, NPRF
+        chn: DO JC = 1, AIRSSNCH
+          IF ( REJFLAG(JC,JN,8) == 0 ) THEN
+            IF ( FATE(JC,JN) /= 0 ) THEN
+              ASSIM_ALL(JN) = .false.
+              EXIT chn
+            END IF
+          END IF
+        END DO chn
+      END DO prf
+
+
+!******************************************************************************************
+
+!* -- PUT REJECT FLAGS INTO CMA VARIABLE --
+!* ----------------------------------------
+
+      NOBAIRS = 0
+      count_airs = 0
+
+      DO JF = 1, NFILES
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 183) THEN
+              count_airs = count_airs + 1
+              IF ( count_airs > airs_loop_done * airs_bunch .AND. &
+     &             count_airs <= (airs_loop_done+1) * airs_bunch ) THEN
+                NOBAIRS = NOBAIRS + 1
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                DO JDATA= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                     ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                     DO NFLG = 0, BITFLAG
+                       IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
+     &                  call obs_set_i(lobsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),NFLG))
+                     END DO
+                   END IF
+                END DO
+              END IF
+            END IF
+          END DO
+        END IF
+      END DO
+
+
+!* -- ADDITION OF NEW AIRS INFORMATION IN BURP FILE
+!* ------------------------------------------------
+
+      IPRO = airs_loop_done * airs_bunch + 1
+
+      DO JN = 1, NPRF
+        AIRSPRO(IPRO)%ETOP      = ETOP(JN)
+        AIRSPRO(IPRO)%VTOP      = VTOP(JN)
+        AIRSPRO(IPRO)%ECF       = 100.*ECF(JN)
+        AIRSPRO(IPRO)%VCF       = 100.*VCF(JN)
+        AIRSPRO(IPRO)%HE        = HE(JN)
+        AIRSPRO(IPRO)%ZTS       = ZTS(JN)
+        AIRSPRO(IPRO)%NGOOD     = NGOOD(JN)
+        AIRSPRO(IPRO)%ZT        = ZT(lcolumnhr%nlev,JN)
+        AIRSPRO(IPRO)%ZTG       = ZTG(JN)
+        AIRSPRO(IPRO)%ZLQEXP    = EXP(ZLQ(lcolumnhr%nlev,JN))
+        AIRSPRO(IPRO)%ZPS       = 100.*ZPS(JN)
+        AIRSPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
+        AIRSPRO(IPRO)%SFCTYP    = KSURF(JN)
+        AIRSPRO(IPRO)%ASSIM_ALL = ASSIM_ALL(JN)
+        IPRO = IPRO + 1
+      END DO
+
+
+      deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ)
+      deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU)
+      deallocate (ROBS,RCLD,TRANSM,EMI_SFC)
+      deallocate (CLFR,TOEXT,ZHOEXT,SUNZA)
+      deallocate (ALBEDO,ICE,PCNT_WAT,PCNT_REG)
+      deallocate (KSURF,LTYPE)
+      deallocate (CLDFLAG,REJFLAG,LEV_START,ILIST)
+      deallocate (NTOP_EQ,NTOP_BT,NTOP_RD)
+      deallocate (NTOP_CO2,NGOOD)
+      deallocate (PTOP_EQ,PTOP_BT,PTOP_RD)
+      deallocate (PTOP_CO2,FCLOUD_CO2,HE)
+      deallocate (ETOP,VTOP,ECF,VCF)
+      deallocate (MINP,FATE)
+      deallocate (PMIN,DTAUDP1,TAMPON)
+      deallocate (ICHREF)
+      deallocate (ASSIM_ALL,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
+      deallocate (MAXWF)
+      deallocate (GNCLDFLAG,ILIST_PAIR)
+      deallocate (CORFLAG)
+
+      END SUBROUTINE AIRSQC
+
+
+
+      SUBROUTINE IASIQC ( iasi_end, iasi_bunch,iasi_loop_done, lcolumnhr, lobsSpaceData)
+!
+!**ID IASIQC -- QUALITY CONTROL OF IASI OBSERVATIONS
+!
+!       SCIENCE:  L. GARAND
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
+!                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
+!                 S. HEILLIETTE           February 2008 (adaptation to IASI)
+!
+!       REVISION:
+!
+!       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS 
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -IASI_BUNCH     : MAXIMUM NUMBER OF PROFILES FOR ONE CALL
+!            -IASI_LOOP_DONE : NUMBER OF PREVIOUS CALLS TO IASIQC
+!
+!          OUTPUT:
+!            -IASI_END       : AT THE END OF THIS CALL TO IASIQC, DO ALL IASI
+!                               PROFILES BEEN TREATED (true) OR NOT (false)
+!
+      use MathPhysConstants_mod
+      use mod_tovs
+      use iasich
+      use iasibgcheck
+      use common_iasi
+      use avhrr_var_mod
+      use columnData_mod
+      use obsSpaceData_mod
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "cvcord.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+      INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
+      INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBIASI
+      INTEGER       :: JDATA,IDATA,IDATEND,IDIASI
+      INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
+      INTEGER       :: DIFFTOP_MIN
+      INTEGER ,SAVE :: IMODTOP
+      INTEGER       :: iasi_loop_done,count_iasi,iasi_bunch
+      REAL(8)       :: T_EFFECTIVE
+      LOGICAL       :: iasi_end
+      integer       :: alloc_status(85)
+
+      real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
+      real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
+      real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:) 
+      real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:)
+      real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
+      integer, allocatable :: KSURF(:),LTYPE(:)
+      integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:) 
+      integer, allocatable :: CORFLAG(:,:)
+      integer, allocatable :: GNCLDFLAG(:)
+      integer, allocatable :: ICHREF(:) 
+      integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
+      integer, allocatable :: NTOP_CO2(:,:),NGOOD(:)      
+      real(8), allocatable :: PTOP_EQ(:),PTOP_BT(:,:),PTOP_RD(:,:),PTOP_MB(:)
+      real(8), allocatable :: PTOP_CO2(:,:),FCLOUD_CO2(:,:),HE(:)
+      real(8), allocatable :: ETOP(:),VTOP(:),ECF(:),VCF(:)
+      integer, allocatable :: MINP(:,:),FATE(:,:)
+      real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
+      real(8), allocatable :: ZLAT(:),ZLON(:)
+      logical, allocatable :: ASSIM_ALL(:)
+      real(8), allocatable :: ZTS_AVHRR(:,:),SFCTAU_AVHRR(:,:),EMI_SFC_AVHRR(:,:),RCAL_CLR_AVHRR(:,:)
+      real(8), allocatable :: RCLD_AVHRR(:,:,:),PTOP_BT_AVHRR(:,:,:),PTOP_RD_AVHRR(:,:,:)
+      real(8), allocatable :: BTOBS_AVHRR(:,:,:),ROBS_AVHRR(:,:,:),PTOP_EQ_AVHRR(:,:)
+      real(8), allocatable :: CFRAC_AVHRR(:)
+      integer, allocatable :: CLDFLAG_AVHRR(:,:),LEV_START_AVHRR(:,:),ICHREF_AVHRR(:,:),NTOP_RD_AVHRR(:,:,:)
+      integer, allocatable :: NTOP_BT_AVHRR(:,:,:),NTOP_EQ_AVHRR(:,:)
+      type(avhrr_var), allocatable :: out_avhrr_param(:)
+      integer :: ICL
+      integer ,parameter :: nn=2
+      integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
+      integer :: cpt
+      real (8) :: ztorad
+      logical :: bad
+!seuils detection nuageuse AVHRR
+      Real(8),parameter :: sunzenmax=87.12d0
+      Real(8) :: seuilalb_static(NIR,0:2)
+      Real(8) :: seuil_albed(NIR)
+      Real(8) :: seuilalb_homog(NIR,0:2)
+      Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
+      Real(8) :: minpavhrr(2:3)
+      Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
+      Integer :: ier,ijour,iloc(2:3)
+!**************
+
+      ZTORAD=RPI/180.
+
+! ** find sensor number corresponding to IASI      
+
+      DO KRTID = 1, NSENSORS
+        IF ( PLATFORM(KRTID) .EQ. 10 .AND. &
+     &       SATELLITE(KRTID) .EQ. 2 .AND. &
+     &       INSTRUMENT(KRTID) .EQ. 16 ) THEN
+          IDIASI = KRTID
+          EXIT
+        END IF
+      END DO
+      
+   
+! ** find number of IASI profiles (for memory allocation)
+
+      NPRF = 0
+      count_iasi = 0
+
+      DO JF = 1, NFILES
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            
+            IF ( IDATYP .EQ. 186) THEN
+              count_iasi = count_iasi + 1
+              IF ( count_iasi > iasi_loop_done * iasi_bunch .AND.  &
+     &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) NPRF = NPRF + 1
+            END IF
+          END DO
+        END IF
+      END DO
+
+
+! ** find number of IASI channels and RTTOV levels
+
+      NCHN = coef(idiasi)%fmv_chn
+      NLEV = coef(idiasi)%nlevels    
+
+      write(nulout,*) ' IASIQC - nchn ', nchn
+
+! information to extract (transvidage)
+! ------------------------------------
+!
+! ZTG(NPRF) -- guess skin temperatures (deg K)
+! ZPS(NPRF) -- surface pressure (hPa)
+! ZT(NLEVTRL,NPRF) -- temperature profiles on NWP model levels (deg K)
+! ZHT(NLEVTRL,NPRF) -- height profiles on NWP model levels (m)
+! ZPRES(NLEVTRL,NPRF) -- NWP pressure model levels
+! ZLQ(NLEVTRL,NPRF) -- surface specific humidity in ln q (kg/kg)
+! BTOBSERR(IASISNCH) -- observation error standard deviation
+! BTOBS(IASISNCH,NPRF) -- observed brightness temperatures (deg K)
+! BTCALC(IASISNCH,NPRF) -- computed brightness temperatures (deg K)
+! RCAL_CLR(IASISNCH,NPRF) -- computed clear radiances (mw/m2/sr/cm-1)
+! SFCTAU(IASISNCH,NPRF) -- surface to space transmittances (0-1)
+! RCLD(IASISNCH,NPRF,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+! TRANSM(IASISNCH,NPRF,NLEV) -- layer to space transmittances (0-1)
+! EMI_SFC(IASISNCH,NPRF) -- surface emissivities (0-1)
+! KSURF(NPRF) -- surface type in obs file (0, 1)
+! CLFR(NPRF) -- cloud fraction (%)
+! TOEXT(NLEV,NPRF) -- temperature profiles on RT model levels (deg K)
+! ZHOEXT(NLEV,NPRF) -- height profiles on RT model levels (m)
+! SUNZA(NPRF) -- sun zenith angle (deg)
+! SATAZIM(NPRF) -- satellite azimuth angle (deg)
+! SATZEN(NPRF) -- satellite zenith angle (deg)
+! ALBEDO(NPRF) -- surface albedo (0-1)
+! ICE(NPRF) -- ice fraction (0-1)
+! LTYPE(NPRF) -- surface type (1,...,20)
+! PCNT_WAT(NPRF) -- water fraction (0-1)
+! PCNT_REG(NPRF) -- water fraction in the area (0-1)
+! ROBS(IASISNCH,NPRF) -- observed radiances (mW/m2/sr/cm-1)
+
+
+      alloc_status(:) = 0
+      allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
+      allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
+      allocate ( ZT(lcolumnhr%nlev,NPRF),                stat= alloc_status(3) )
+      allocate ( ZHT(lcolumnhr%nlev,NPRF),               stat= alloc_status(4) )
+      allocate ( ZLQ(lcolumnhr%nlev,NPRF),               stat= alloc_status(5) )
+      allocate ( BTOBSERR(IASISNCH),              stat= alloc_status(6) )
+      allocate ( BTOBS(IASISNCH,NPRF),            stat= alloc_status(7) )
+      allocate ( BTCALC(IASISNCH,NPRF),           stat= alloc_status(8) )
+      allocate ( RCAL_CLR(IASISNCH,NPRF),         stat= alloc_status(9) )
+      allocate ( SFCTAU(IASISNCH,NPRF),           stat= alloc_status(10))
+      allocate ( RCLD(IASISNCH,NPRF,NLEV),        stat= alloc_status(11))
+      allocate ( TRANSM(IASISNCH,NPRF,NLEV),      stat= alloc_status(12))
+      allocate ( EMI_SFC(IASISNCH,NPRF),          stat= alloc_status(13))
+      allocate ( KSURF(NPRF),                     stat= alloc_status(14))
+!      allocate ( CLFR(NPRF),                      stat= alloc_status(15))
+      allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
+      allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
+      allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
+      allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
+      allocate ( ICE(NPRF),                       stat= alloc_status(20))
+      allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
+      allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
+      allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
+      allocate ( ROBS(IASISNCH,NPRF),             stat= alloc_status(24))
+      allocate ( ZTS(NPRF),                       stat= alloc_status(26))
+      allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
+      allocate ( REJFLAG(IASISNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
+      allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
+      allocate ( ILIST(IASISNCH),                 stat= alloc_status(30))
+      allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
+      allocate ( NTOP_BT(IASISNCH,NPRF),          stat= alloc_status(32))
+      allocate ( NTOP_RD(IASISNCH,NPRF),          stat= alloc_status(33))
+      allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
+      allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
+      allocate ( PTOP_BT(IASISNCH,NPRF),          stat= alloc_status(36))
+      allocate ( PTOP_RD(IASISNCH,NPRF),          stat= alloc_status(37))
+      allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
+      allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
+      allocate ( HE(NPRF),                        stat= alloc_status(40))
+      allocate ( ETOP(NPRF),                      stat= alloc_status(41))
+      allocate ( VTOP(NPRF),                      stat= alloc_status(42))
+      allocate ( ECF(NPRF),                       stat= alloc_status(43))
+      allocate ( VCF(NPRF),                       stat= alloc_status(44))
+      allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
+      allocate ( MINP(IASISNCH,NPRF),             stat= alloc_status(46))
+      allocate ( PMIN(IASISNCH,NPRF),             stat= alloc_status(47))
+      allocate ( DTAUDP1(IASISNCH,NPRF),          stat= alloc_status(48))
+      allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
+      allocate ( FATE(IASISNCH,NPRF),             stat= alloc_status(50))
+      allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
+      allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
+      allocate ( out_avhrr_param(NPRF),           stat= alloc_status(54))
+      allocate ( LEV_START_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(55))
+      allocate ( PTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(56))
+      allocate ( NTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(57))
+      allocate ( BTOBS_AVHRR(1:NIR,NPRF,NCLASSAVHRR),stat= alloc_status(58))
+      allocate ( ICHREF_AVHRR(NPRF,NCLASSAVHRR)               ,stat= alloc_status(59))
+      allocate ( CLDFLAG_AVHRR(NPRF,NCLASSAVHRR)               ,stat= alloc_status(60))
+      allocate ( ROBS_AVHRR(1:NIR,NPRF,NCLASSAVHRR),stat= alloc_status(61))
+      allocate ( RCAL_CLR_AVHRR(1:NIR,NPRF),stat= alloc_status(62))
+      allocate ( EMI_SFC_AVHRR(1:NIR,NPRF),stat= alloc_status(63))
+      allocate ( ZTS_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(64))
+      allocate ( SFCTAU_AVHRR(NIR,NPRF),           stat= alloc_status(65))
+      allocate ( PTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(66))
+      allocate ( PTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(67))
+      allocate ( NTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(68))
+      allocate ( NTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(69))
+      allocate ( RCLD_AVHRR(NIR,NPRF,NLEV),                    stat= alloc_status(70))
+      allocate ( ZLAT(NPRF),                    stat= alloc_status(71))
+      allocate ( ZLON(NPRF),                    stat= alloc_status(72))
+      allocate ( maxwf(IASISNCH,NPRF),          stat= alloc_status(73))
+      allocate ( CFRAC_AVHRR(NPRF),             stat= alloc_status(74))
+      allocate ( SATAZIM(NPRF),                 stat= alloc_status(75))
+      allocate ( SATZEN(NPRF),                  stat= alloc_status(76))
+      allocate ( ZPRES(lcolumnhr%nlev,NPRF),           stat= alloc_status(77))
+      allocate ( PTOP_MB(NPRF),                 stat= alloc_status(78))
+      allocate ( NTOP_MB(NPRF),                 stat= alloc_status(79))
+      allocate ( CFSUB(NPRF),                   stat= alloc_status(80))
+      allocate ( GNCLDFLAG(NPRF),               stat= alloc_status(81))
+      allocate ( ILIST_PAIR(IASISNCH),          stat= alloc_status(82))
+      allocate ( CORFLAG(IASISNCH,NPRF),        stat= alloc_status(83))
+
+      if( any(alloc_status /= 0) ) then
+        write(nulout,*) ' iasiqc : memory allocation error'
+        call abort3d(nulout,'iasiqc        ')
+      end if
+
+
+      seuilalb_static(1,0)=70.0
+      seuilalb_static(1,1)=40.0
+      seuilalb_static(1,2)=70.0
+      seuilalb_static(2,0)=67.0
+      seuilalb_static(2,1)=37.0
+      seuilalb_static(2,2)=57.0
+      seuilalb_static(3,0)=50.0
+      seuilalb_static(3,1)=37.0
+      seuilalb_static(3,2)=40.0
+
+      seuilalb_homog(1,0)=15.d0
+      seuilalb_homog(1,1)=9.d0
+      seuilalb_homog(1,2)=18.d0
+      seuilalb_homog(2,0)=18.d0
+      seuilalb_homog(2,1)=10.d0
+      seuilalb_homog(2,2)=16.d0
+      seuilalb_homog(3,0)=13.d0
+      seuilalb_homog(3,1)=10.d0
+      seuilalb_homog(3,2)=10.d0
+
+      seuilbt_homog(NVIS+1,0,1)=5.d0
+      seuilbt_homog(NVIS+1,1,1)=4.d0
+      seuilbt_homog(NVIS+1,2,1)=5.d0
+      seuilbt_homog(NVIS+1,0,2)=5.d0
+      seuilbt_homog(NVIS+1,1,2)=4.d0
+      seuilbt_homog(NVIS+1,2,2)=5.d0
+      
+      seuilbt_homog(NVIS+2,0,1)=4.d0
+      seuilbt_homog(NVIS+2,1,1)=3.d0
+      seuilbt_homog(NVIS+2,2,1)=4.d0
+      seuilbt_homog(NVIS+2,0,2)=5.d0
+      seuilbt_homog(NVIS+2,1,2)=3.d0
+      seuilbt_homog(NVIS+2,2,2)=5.d0
+
+      seuilbt_homog(NVIS+3,0,1)=4.d0
+      seuilbt_homog(NVIS+3,1,1)=3.d0
+      seuilbt_homog(NVIS+3,2,1)=4.d0
+      seuilbt_homog(NVIS+3,0,2)=5.d0
+      seuilbt_homog(NVIS+3,1,2)=3.d0
+      seuilbt_homog(NVIS+3,2,2)=5.d0
+
+      BTOBS(:,:)    = -1.
+      BTCALC(:,:)   = -1.
+      RCAL_CLR(:,:) = -1.
+      SFCTAU(:,:)   = -1.
+      RCLD(:,:,:)   = -1.
+      TRANSM(:,:,:) = -1.
+      EMI_SFC(:,:)  = -1.
+
+      REJFLAG(:,:,:) = 0
+      CORFLAG(:,:)   = 0
+
+      NOBIASI = 0
+      NOBTOV = 0
+      count_iasi = 0
+
+      DO JF = 1, NFILES
+
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
+
+          DO JO = IBEGINOB, ILASTOB
+
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+
+            IF ( IDATYP .EQ. 164 .OR. &
+     &           IDATYP .EQ. 168 .OR. &
+     &           IDATYP .EQ. 180 .OR. &
+     &           IDATYP .EQ. 181 .OR. &
+     &           IDATYP .EQ. 182 .OR. &
+     &           IDATYP .EQ. 183 .OR. &
+     &           IDATYP .EQ. 186 ) NOBTOV = NOBTOV + 1
+
+            IF ( IDATYP .EQ. 186) THEN
+
+              count_iasi = count_iasi + 1
+
+              IF ( count_iasi > iasi_loop_done * iasi_bunch .AND.  &
+     &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) THEN
+
+                NOBIASI = NOBIASI + 1
+
+                call read_avhrrparam(JO,out_avhrr_param(NOBIASI),access_mode=1)
+                call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(JO)%sunza)
+                call stat_avhrr(out_avhrr_param(NOBIASI))
+
+                ZTG(NOBIASI) = lcolumnhr%tg(1,JO)
+                ZPS(NOBIASI) = lcolumnhr%ps(1,JO)*RPATMB
+                ZLAT(NOBIASI) = obs_elem_r4(lobsSpaceData,'LAT ',jo)/ZTORAD
+                ZLON(NOBIASI) = obs_elem_r4(lobsSpaceData,'LON ',jo)/ZTORAD
+
+                DO JL = 1, lcolumnhr%nlev
+                  ZT(JL,NOBIASI) = lcolumnhr%tt(JL,JO)
+                  ZHT(JL,NOBIASI) = lcolumnhr%gz(JL,JO) / RG
+                  ZLQ(JL,NOBIASI) = lcolumnhr%hu(JL,JO)
+                  ZPRES(JL,NOBIASI)= lcolumnhr%RPPOBS(JL,JO) * RPATMB
+                END DO
+
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',jo)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',jo) + IDATA - 1
+
+                BAD=.false.
+                if (out_avhrr_param(NOBIASI)%GQISFLAGQUAL/=0 .or. &
+     &              out_avhrr_param(NOBIASI)%GQISQUALINDEXLOC >1) &
+     &              BAD=.true.
+    
+
+                DO JDATA= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                    BTOBSERR(IASISCH(ICHN)) = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                    BTOBS(IASISCH(ICHN),NOBIASI) = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+! *** Flag check on observed BTs ***
+                    IF (BAD) THEN
+                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                    ENDIF
+
+! *** Set if data has been bias corrected (bit 6 set) ***
+                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),6)) THEN
+                       CORFLAG(IASISCH(ICHN),NOBIASI) = 1
+                    END IF
+
+! *** Gross check on observed BTs ***
+                    IF (BTOBS(IASISCH(ICHN),NOBIASI)<150.) THEN
+                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                    ENDIF
+
+                    IF (BTOBS(IASISCH(ICHN),NOBIASI)>350.) THEN
+                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                    ENDIF
+                 END IF
+                END DO
+
+                DO JC = 1, NCHN
+                  ICHN = ichan(JC,IDIASI)
+                  BTCALC(IASISCH(ICHN),NOBIASI) = radiance_d(nobtov)%out(jc)
+                  RCAL_CLR(IASISCH(ICHN),NOBIASI) = radiance_d(nobtov)%clear_out(jc)
+                  SFCTAU(IASISCH(ICHN),NOBIASI) = transmission_d(nobtov)%tau_surf(jc)
+                  DO JL = 1, NLEV
+                    RCLD(IASISCH(ICHN),NOBIASI,JL) = radiance_d(nobtov)%overcast(jl,jc)
+                    TRANSM(IASISCH(ICHN),NOBIASI,JL) = transmission_d(nobtov)%tau_layer(jl,jc)
+                  END DO
+                  EMI_SFC(IASISCH(ICHN),NOBIASI) = emissivity(JC,NOBTOV)
+! *** Gross check on computed BTs ***
+                  IF (BTCALC(IASISCH(ICHN),NOBIASI)<150.) THEN
+                     REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                  ENDIF
+                  IF (BTCALC(IASISCH(ICHN),NOBIASI)>350.) THEN
+                     REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                  ENDIF
+                END DO
+
+                KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
+
+                DO JL = 1, NLEV
+                  TOEXT(JL,NOBIASI) = profiles(nobtov)%t(jl)
+                  ZHOEXT(JL,NOBIASI) = profiles_qc(nobtov)%z(jl)
+                END DO
+
+                SUNZA(NOBIASI) = profiles_qc(nobtov)%sunza  
+                SATAZIM(NOBIASI) = profiles(nobtov)%azangle 
+                SATZEN(NOBIASI) = profiles(nobtov)%zenangle 
+                ALBEDO(NOBIASI) = profiles_qc(nobtov)%albedo
+                ICE(NOBIASI) = profiles_qc(nobtov)%ice
+                LTYPE(NOBIASI) = profiles_qc(nobtov)%ltype
+                IF(LTYPE(NOBIASI).EQ.20) KSURF(NOBIASI)=2
+                PCNT_WAT(NOBIASI) = profiles_qc(nobtov)%pcnt_wat
+                PCNT_REG(NOBIASI) = profiles_qc(nobtov)%pcnt_reg
+
+              END IF       
+
+            END IF
+
+          END DO
+
+        END IF
+
+      END DO
+
+      IF ( NOBIASI < iasi_bunch ) iasi_end = .true.
+
+
+! ** find TOA radiances converted from observed BT's
+
+      ROBS(:,:) = -1.
+
+      profils: DO JN = 1, NPRF
+        channels: DO JC = 1, NCHN
+          ICHN = ichan(JC,IDIASI)
+          IF ( REJFLAG(IASISCH(ICHN),JN,9) == 1 ) CYCLE channels
+          t_effective =  coef(idiasi)%ff_bco(jc) &
+     &         + coef(idiasi)%ff_bcs(jc) * BTOBS(iasisch(ichn),jn)
+          ROBS(iasisch(ichn),jn) =  coef(idiasi)%planck1(jc) / &
+     &         ( Exp( coef(idiasi)%planck2(jc)/t_effective ) - 1.0 )
+        END DO channels
+      END DO profils
+
+
+! ** set height fields to 'height above ground' fields
+
+      DO JN = 1, NPRF
+         DO JL = 1, NLEV
+            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         END DO
+         DO JL = 1, lcolumnhr%nlev
+            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         END DO
+      END DO
+
+
+!**********************************************************************************************
+
+!* ///// ---------------------------------------------------- /////
+!* ///// DETERMINATION OF THE CLEAR/CLOUDY PROFILES (CLDFLAG) /////
+!* ///// ---------------------------------------------------- /////
+
+      CLDFLAG(:) = 0
+
+
+!* -- REFERENCE FOR WINDOW CHANNEL
+
+      IWINDO     = IASISCH(IWINDOW)
+      IWINDO_ALT = IASISCH(IWINDOW_ALT)
+
+      ICHREF(:)  = IWINDO
+      DO JN = 1, NPRF
+        IF ( REJFLAG(IWINDO,JN,9) == 1 ) THEN
+          ICHREF(JN) = IWINDO_ALT
+          IF ( REJFLAG(IWINDO_ALT,JN,9) == 1 ) THEN
+            ICHREF(JN) = -1
+            CLDFLAG(JN) = -1
+            REJFLAG(:,JN,9) = 1
+            write(nulout,*) 'WARNING'
+            write(nulout,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
+            write(nulout,*) 'HAVE BEEN REJECTED.                             '
+            write(nulout,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
+          END IF
+        END IF
+      END DO
+      
+
+!* -- CLOUD TOP BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE 
+!* -- AT A REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE (PTOP_EQ)
+!* -- ON GUESS VERTICAL LEVELS.
+
+      LEV_START(:) = 0
+
+!iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
+      CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
+           &                   zht,zps,zpres,lcolumnhr%nlev,iasisnch,nprf,ichref,lev_start,iopt2)
+
+!iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
+      CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
+     &                   zht,zps,zpres,lcolumnhr%nlev,iasisnch,nprf,ichref,lev_start,iopt1)
+
+      LEV_START_AVHRR(:,:) = 0
+      cldflag_avhrr(:,:)=0
+      DO JC=1,NCLASSAVHRR
+         DO JN=1,NPRF
+
+            btobs_avhrr(:,JN,JC)= out_avhrr_param(JN) % TBMOY(JC,:)
+            robs_avhrr(1:NIR,JN,JC)= out_avhrr_param(JN) % RADMOY(JC,NVIS+1:NIR+NVIS)
+            RCAL_CLR_AVHRR(:,JN) = out_avhrr_param(JN) % RADCLEARCALC(:)
+            EMI_SFC_AVHRR(:,JN) = out_avhrr_param(JN) % EMISS(:)
+            SFCTAU_AVHRR(:,JN) = out_avhrr_param(JN) % TRANSMSURF(:)
+            DO JL=1,NLEV
+               RCLD_AVHRR(:,JN,JL) = out_avhrr_param(JN) % RADOVCALC(JL,:)
+            ENDDO
+
+            IF (btobs_avhrr(2,JN,JC) >100.d0 ) THEN
+               ichref_avhrr(JN,JC)=2
+            ELSE IF (btobs_avhrr(3,JN,JC) >100.d0 ) THEN
+               ichref_avhrr(JN,JC)=3
+            ELSE
+               ichref_avhrr(JN,JC)=-1
+               cldflag_avhrr(JN,JC)=-1
+            ENDIF
+         ENDDO
+
+         CALL CLOUD_HEIGHT (PTOP_EQ_AVHRR(:,JC),NTOP_EQ_AVHRR(:,JC), btobs_avhrr(:,:,JC),cldflag_avhrr(:,JC),zt, &
+              &                   zht,zps,zpres,lcolumnhr%nlev,NIR,nprf,ichref_avhrr(:,JC),lev_start_avhrr(:,JC),iopt1)
+         
+
+      ENDDO
+      
+!* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
+
+      CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
+     &                      zht,lcolumnhr%nlev,iasisnch,nprf,ptop_eq,ntop_eq,ichref)
+
+      DO JC=1,NCLASSAVHRR
+         
+          CALL GARAND1998NADON (CLDFLAG_AVHRR(:,jC), btobs_avhrr(:,:,JC),ztg,zt, &
+     &                      zht,lcolumnhr%nlev,NIR,nprf,ptop_eq_avhrr(:,JC),ntop_eq_avhrr(:,JC),ichref_avhrr(:,JC))
+      ENDDO
+
+
+
+
+!* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
+
+
+! *** TEST # A ***
+! *** In daytime, set cloudy if cloud fraction over 5% ***
+! A changer avec AVHRR
+!      WHERE ( CLDFLAG(:) == 0 .AND. CLFR(:) > 5. .AND. SUNZA(:) < 90. ) CLDFLAG(:) = 1
+
+
+! *** TEST # B ***
+! *** Set cloudy if temperature difference between guess (ZTG)     ***
+! *** and estimated true (ZTS) skin temperatures is over threshold ***
+
+      CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,btobs,robs, &
+     &              sfctau,cldflag,ichref,iasisnch,nchn,nprf,idiasi,"IASI")
+
+
+      DO JC=1,NCLASSAVHRR
+         CALL ESTIM_TS_AVHRR(ZTS_AVHRR(:,JC), ztg,emi_sfc_avhrr,rcal_clr_avhrr,btobs_avhrr(:,:,JC),robs_avhrr(:,:,JC), &
+              &              sfctau_avhrr,CLDFLAG_AVHRR(:,jC),ichref_avhrr(:,JC),NIR,nprf)
+
+      ENDDO
+
+      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) == 1 &
+     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTW ) CLDFLAG(:) = 1 
+
+      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) /= 1 &
+     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTL ) CLDFLAG(:) = 1
+
+      DO JC=1,NCLASSAVHRR
+         WHERE ( CLDFLAG_AVHRR(:,JC) == 0 .AND. KSURF(:) == 1 &
+              &                        .AND. ABS(ZTS_AVHRR(:,JC)-ZTG(:)) > DTW ) CLDFLAG_AVHRR(:,JC) = 1
+
+         WHERE ( CLDFLAG_AVHRR(:,JC) == 0 .AND. KSURF(:) /= 1 &
+              &                        .AND. ABS(ZTS_AVHRR(:,JC)-ZTG(:)) > DTL ) CLDFLAG_AVHRR(:,JC) = 1
+
+      ENDDO
+
+
+!criteres AVHRR utilisant les canaux visibles (de jour seulement)
+      DO JN=1,NPRF
+         IF (sunza(jn)<sunzenmax) THEN 
+            ANISOT=1.0
+            deltaphi=abs(SATAZIM(JN) - out_avhrr_param(JN) %sunazim )
+            IF (deltaphi>180.) deltaphi=360. - deltaphi
+
+            IF (ALBEDO(JN)<0.17) THEN               
+               CALL VISOCN(sngl(sunza(jn)),sngl(satzen(jn)),deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
+
+               SEUIL_ALBED(1)=10.0*max(1.0,ANISOT) 
+               ! SEUIL_ALBED(1)=20.0*max(1.0,ANISOT) 
+            ELSE
+               SEUIL_ALBED(1)=100.0*ALBEDO(JN) + 10.
+            ENDIF
+
+            IF (ANISOT<1.5) THEN !to avoid sun glint
+
+               SCOS=COS ( sngl( sunza(jn) * ZTORAD) )
+               CALL  DELT ( DEL, SCOS )
+
+               SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
+               DO JC=1,NCLASSAVHRR
+                  IF (out_avhrr_param(JN)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
+                     CLDFLAG_AVHRR(JN,JC) = 1
+                  ENDIF
+                  !static AVHRR thresholds v3
+                  DO JL=1,NVIS
+                     IF (out_avhrr_param(JN)%ALBEDMOY(JC,JL) > seuilalb_static(JL,KSURF(JN)) ) THEN
+                        CLDFLAG_AVHRR(JN,JC) = 1
+                     ENDIF
+                  ENDDO
+               ENDDO
+
+            ENDIF
+         ENDIF
+      ENDDO
+
+!Calcul de la pseudo fraction nuageuse AVHRR
+!      OPEN(Unit=124,file="cfracavhrr_-1",position="append")
+!      OPEN(Unit=125,file="cfracavhrr_0",position="append")
+!      OPEN(Unit=126,file="cfracavhrr_1",position="append")
+
+      DO JN=1,NPRF
+         CFRAC_AVHRR(JN)=0.
+         DO JC=1,NCLASSAVHRR
+            IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + out_avhrr_param(JN)%CFRAC(JC)
+         ENDDO
+!         Write(125+ CLDFLAG(JN),'(e14.6)')  CFRAC_AVHRR(JN)
+      ENDDO
+!      close(124)
+!      close(125)
+!      close(126)
+
+      CFSUB(:)=-1.0
+      DO JN =1, NPRF
+         IF ( CLDFLAG(JN) == 0 .AND. CFRAC_AVHRR(JN) > 5. ) THEN
+            CLDFLAG(JN) = 1
+            CFSUB(JN)=0.01* MIN(CFRAC_AVHRR(JN),100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR(JN)=101
+         ENDIF
+      ENDDO
+
+!seuil differents de jour et de nuit => v4
+!      DO JN=1,NPRF
+!         IF (SUNZA(JN)>=90.0 .AND. CFRAC_AVHRR(JN)>30.d0) CLDFLAG(JN) = 1
+!         IF (SUNZA(JN)<90.0 .AND.  CFRAC_AVHRR(JN)>20.d0) CLDFLAG(JN) = 1
+!      ENDDO
+
+!AVHRR Homogeneity criteria
+      DO JN=1,NPRF
+         IF (CLDFLAG(JN) == 0) THEN
+            IJOUR=1
+            IF (SUNZA(JN)<90.d0) IJOUR=2
+! 1 NUIT
+! 2 JOUR
+            IF (IJOUR==2) THEN
+               DO JC=1,NVIS
+                  IF (out_avhrr_param(JN)%ALBSTD_PIXELIASI(JC)> seuilalb_homog(JC,KSURF(JN)) ) CLDFLAG(JN)=1
+               ENDDO
+            ENDIF
+            DO JC=NVIS+1,NVIS+NIR
+               IF (out_avhrr_param(JN)%TBSTD_PIXELIASI(JC)>seuilbt_homog(JC,KSURF(JN),IJOUR)) CLDFLAG(JN)=1
+            ENDDO
+         ENDIF
+      ENDDO
+
+      GNCLDFLAG(:)=CLDFLAG(:)
+
+!* ///// ------------------------------------------------------- /////
+!* ///// DETERMINATION OF THE ASSIMILABLE OBSERVATIONS (REJFLAG) /////
+!* ///// ------------------------------------------------------- /////
+
+!      CLDFLAG(:) = 1
+
+!* -- FIRST TESTS TO REJECT OBSERVATIONS
+
+
+! *** TEST # 1 ***
+! *** Do not assimilate where cloudy ***
+
+      DO JN = 1, NPRF
+        IF ( CLDFLAG(JN) == 1 ) then
+           REJFLAG(:,JN,11) = 1
+           REJFLAG(:,JN,23) = 1
+        endif
+      END DO
+
+
+! *** TEST # 2 ***
+! *** Gross check on valid BTs ***
+
+!     already done
+
+
+!* -- CLOUD TOP BASED ON MATCHING 
+!* -- OBSERVED BRIGHTNESS TEMPERATURE WITH BACKGROUND TEMPERATURE PROFILES (PTOP_BT)
+!* -- OR COMPUTED OBSERVED RADIANCES WITH BACKGROUND RADIANCE PROFILES (PTOP_RD)
+!* -- ON 43 RTTOV VERTICAL LEVELS
+
+      LEV_START(:) = 0
+
+      DO JCH = 1, NCH
+        ILIST(JCH) = IASISCH(ILIST1(JCH))
+      END DO
+
+      CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
+     &                 btobs,toext,zhoext,rcal_clr,zps,robs,rcld,xpres,nlev, &
+     &                 iasisnch,nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch,ilist)
+
+      LEV_START_AVHRR(:,:) = 0
+
+      DO JC=1,NCLASSAVHRR
+         CALL CLOUD_TOP_AVHRR ( PTOP_BT_AVHRR(:,:,JC),PTOP_RD_AVHRR(:,:,JC),NTOP_BT_AVHRR(:,:,JC),NTOP_RD_AVHRR(:,:,JC), &
+              &                 btobs_avhrr(:,:,JC),toext,zhoext,rcal_clr_avhrr,zps,robs_avhrr(:,:,JC),rcld_avhrr,xpres,nlev, &
+              &                 NIR,nprf,cldflag_avhrr(:,jc),lev_start_avhrr(:,JC),iopt2,ihgt,nn,ilist_avhrr)
+      ENDDO
+
+!* -- REFERENCE CHANNEL FOR CO2-SLICING
+
+      DO JN = 1, NPRF
+         cpt=0
+         DO JCH=1,NCO2
+            IF ( REJFLAG(ILIST2_PAIR(JCH),JN,9)==1 ) cpt=cpt+1
+         ENDDO
+         IF (cpt==nco2) THEN
+            CLDFLAG(JN) = -1
+            REJFLAG(:,JN,9) = 1
+            write(nulout,*) 'WARNING'
+            write(nulout,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
+            write(nulout,*) 'HAVE BEEN REJECTED.                             '
+            write(nulout,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
+         ENDIF
+      END DO
+
+!* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
+
+      HE(:) = PTOP_RD(IASISCH(ILIST1(2)),:)
+
+      DO JN = 1, NPRF
+        IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD(IASISCH(ILIST1(3)),JN)
+      END DO
+
+
+!* -- CLOUD TOP BASED ON CO2 SLICING 
+
+      LEV_START(:) = MAX( MIN(LEV_START(:),CO2MAX), CO2MIN )
+
+      DO JCH = 1, NCO2
+        ILIST(JCH) = IASISCH(ILIST2(JCH))
+        ILIST_PAIR(JCH) = IASISCH(ILIST2_PAIR(JCH))
+      END DO
+
+      CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
+     &                   rcal_clr,rcld,robs,zps,xpres,nlev,iasisnch,nprf,cldflag,rejflag,bitflag, &
+     &                   lev_start,ichref,nco2,ilist,ilist_pair)
+
+
+!* -- FIND CONSENSUS CLOUD TOP AND FRACTION
+     
+      CALL SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ptop_co2,fcloud_co2, &
+           CFSUB,PTOP_MB,zps,cldflag,gncldflag,nprf,nco2 )
+
+!      DO JN=1,NPRF
+!         IF (ECF(JN)==0.0 .AND. ETOP(JN)==ZPS(JN) ) THEN
+!            WHERE (REJFLAG(:,JN,11) == 1) REJFLAG(:,JN,11) = 0
+!         ENDIF
+!      ENDDO
+
+! Correction pour les nuages trop bas:
+! en principe Pco2 < Heff.
+! on cherche les cas pathologiques avec Pco2>Min(Heff(AVHRR))
+      DO JN=1,NPRF
+         minpavhrr(2:3)=12200
+         ILOC(2:3)=-1      ! pour eviter les catastrophes...
+         DO JC=1,NCLASSAVHRR
+            IF (out_avhrr_param(JN)%CFRAC(JC)>0.) THEN
+               IF (PTOP_RD_AVHRR(2,JN,JC)<minpavhrr(2)) THEN
+	             ILOC(2)=JC
+		     minpavhrr(2)=PTOP_RD_AVHRR(2,JN,JC)
+               ENDIF
+               IF (PTOP_RD_AVHRR(3,JN,JC)<minpavhrr(3)) THEN
+	             ILOC(3)=JC
+		     minpavhrr(3)=PTOP_RD_AVHRR(3,JN,JC)
+               ENDIF
+            ENDIF
+         ENDDO
+         IF ( ILOC(2)==-1 .or. ILOC(3)==-1) CYCLE ! pour eviter les catastrophes...
+! on se limite aux cas "surs" ou les deux hauteurs effectives sont > a Pco2
+! et ou un accord raisonnable existe entre les deux hauteurs effectives
+         IF ( ILOC(2)==ILOC(3) .and. &
+	      PTOP_RD_AVHRR(2,JN,ILOC(2)) < ETOP(JN) .and. &
+              PTOP_RD_AVHRR(3,JN,ILOC(3)) < ETOP(JN) .and. &
+              ABS(minpavhrr(2)- minpavhrr(3))<25. .and. &
+              CLDFLAG_AVHRR(JN,ILOC(2))/=-1 .and. CLDFLAG_AVHRR(JN,ILOC(3))/=-1) THEN
+
+            IF (ECF(JN)==0.0 .and. CLDFLAG(JN)==1) THEN
+!cas predetermine nuageux mais ramene a clair 
+               ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
+! cette ligne peut generer des fractions nuageuses inferieures a 20 %. Probleme ?
+               ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+            ENDIF
+
+            IF (ECF(JN)>0.0 .and. CLDFLAG(JN)==1) THEN
+!cas predetermine nuageux pas ramene clair (==normal)
+               ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+            ENDIF
+
+            IF (CLDFLAG(JN)==0) THEN
+               !cas predetermine clair ... que faire
+               CLDFLAG(JN)=1
+               ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+               ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
+            ENDIF
+
+
+         ENDIF
+      ENDDO
+
+!* -- FIND RADIATIVE TRANSFER MODEL LEVEL NEAREST TO TRIAL TOP (only compute one time)
+
+      IF ( iasi_loop_done == 0 ) THEN
+
+        DIFFTOP_MIN = 100000.
+        IMODTOP     = 1
+
+        DO JL = 1, NLEV
+          IF ( ABS(RPTOPINC-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
+            DIFFTOP_MIN = ABS(RPTOPINC-100.*XPRES(JL))
+            IMODTOP = JL
+          END IF
+        END DO
+
+        write(nulout,*) 'TOIT DU MODELE (MB)'
+        write(nulout,*) 0.01*RPTOPINC
+        write(nulout,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
+        write(nulout,*) IMODTOP
+
+      END IF
+
+
+!* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
+
+!      CALL MIN_PRES ( MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,iasisnch,nprf,imodtop )
+      CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,iasisnch,nprf,imodtop )
+
+!* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
+
+! *** TEST # 3 ***
+! *** Assimilation above clouds (refinement of test 1)             ***
+! *** Set security margin to 2x the std on height from CO2-slicing *** 
+
+      TAMPON(:) = MAX(50.D0, 2.*VTOP(:))                                                          
+
+      DO JC = 1, IASISNCH        
+        WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .and. ETOP(:) - TAMPON(:) > PMIN(JC,:) )
+           REJFLAG(JC,:,11) = 0
+           REJFLAG(JC,:,23) = 0
+        end WHERE
+      END DO
+
+
+!     LOOK AT THE FATE OF THE OBSERVATIONS
+
+      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)            
+
+
+!     FURTHER REASONS TO REJECT OBSERVATIONS
+
+      DO JC = 1, IASISNCH
+        DO JN = 1, NPRF
+
+          IF ( FATE(JC,JN) == 0 ) THEN
+
+! *** TEST # 4 ***
+! *** Background check, do not assimilate if O-P > 3sigma ***
+
+            IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
+              REJFLAG(JC,JN,9)  = 1
+              REJFLAG(JC,JN,16) = 1
+            END IF
+
+! *** TEST # 5 ***
+! *** Do not assimilate shortwave channels during the day ***
+
+            IF ( JC >= IASISCH(ICHN_SUN) .AND. SUNZA(JN) < NIGHT_ANG ) then
+               REJFLAG(JC,JN,11) = 1
+               REJFLAG(JC,JN,7)  = 1
+            END IF
+
+! *** TEST # 6 ***
+! *** Do not assimilate surface channels over land ***
+
+            IF ( MINP(JC,JN) == NLEV .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+              IF ( KSURF(JN) == 0 ) THEN
+                REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
+                REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
+                IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
+                  REJFLAG(JC,JN,11) = 1
+                  REJFLAG(JC,JN,19) = 1
+                END IF
+
+! *** TEST # 7 ***
+! *** Do not assimilate surface channels over water under conditions ***
+
+              ELSE IF ( KSURF(JN) == 1 ) THEN
+                IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
+     &               ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
+                  REJFLAG(JC,JN,11) = 1   
+                  REJFLAG(JC,JN,19) = 1   
+                END IF
+
+! *** TEST # 8 ***
+! *** Do not assimilate surface channels over sea ice ***
+   
+              ELSE IF ( KSURF(JN) == 2 ) THEN
+                REJFLAG(JC,JN,11) = 1
+                REJFLAG(JC,JN,19) = 1
+
+              END IF
+            END IF
+
+          END IF
+
+! *** TEST # 9 ***
+! *** Do not assimilate if jacobian has a significant contribution over model top ***
+
+          ! Condition valid if model top at 10mb or lower only
+          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1
+            END IF
+          END IF
+       
+          ! Condition valid if model top at 10mb or lower only
+          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1 
+            END IF
+          END IF
+
+          ! Condition valid if model top is higher than 10 mb
+          IF ( NINT(RPTOPINC) < 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1 
+            END IF
+          END IF
+
+! *** TEST # 10 ***
+! *** Do not assimilate blacklisted channels ***
+          
+          IF ( IASI_ASSIM(JC) == 0 ) REJFLAG(JC,JN,8) = 1
+
+        END DO
+      END DO
+
+! *** TEST # 11 ***
+! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
+
+          IF ( IASI_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+
+!* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
+
+      ASSIM_ALL(:) = .true.
+      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)            
+
+      prf: DO JN = 1, NPRF
+        chn: DO JC = 1, IASISNCH
+          IF ( REJFLAG(JC,JN,8) == 0 ) THEN
+            IF ( FATE(JC,JN) /= 0 ) THEN
+              ASSIM_ALL(JN) = .false.
+              EXIT chn
+            END IF
+          END IF
+        END DO chn
+      END DO prf            
+
+!******************************************************************************************
+
+!* -- PUT REJECT FLAGS INTO CMA VARIABLE --
+!* ----------------------------------------
+
+      NOBIASI = 0
+      count_iasi = 0
+
+      DO JF = 1, NFILES
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 186) THEN
+              count_iasi = count_iasi + 1
+              IF ( count_iasi > iasi_loop_done * iasi_bunch .AND. &
+     &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) THEN 
+                NOBIASI = NOBIASI + 1
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                DO JDATA= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                     ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                     DO NFLG = 0, BITFLAG
+                       IF ( REJFLAG(IASISCH(ICHN),NOBIASI,NFLG) == 1 ) &
+     &                  call obs_set_i(lobsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),NFLG))
+                     END DO
+                   END IF
+                END DO
+              END IF
+            END IF
+          END DO
+        END IF
+      END DO
+
+ 
+!* -- ADDITION OF NEW IASI INFORMATION IN BURP FILE
+!* ------------------------------------------------
+
+      IPRO = iasi_loop_done * iasi_bunch + 1 
+                
+      DO JN = 1, NPRF
+         IASIPRO(IPRO)%ETOP      = ETOP(JN)
+         IASIPRO(IPRO)%VTOP      = VTOP(JN)
+         IASIPRO(IPRO)%ECF       = 100.*ECF(JN)
+         IASIPRO(IPRO)%VCF       = 100.*VCF(JN)
+         IASIPRO(IPRO)%HE        = HE(JN)
+         IASIPRO(IPRO)%ZTS       = ZTS(JN)
+         IASIPRO(IPRO)%NGOOD     = NGOOD(JN)
+         IASIPRO(IPRO)%ZT        = ZT(lcolumnhr%nlev,JN)
+         IASIPRO(IPRO)%ZTG       = ZTG(JN)
+         IASIPRO(IPRO)%ZLQEXP    = EXP(ZLQ(lcolumnhr%nlev,JN))
+         IASIPRO(IPRO)%ZPS       = 100.*ZPS(JN)
+         IASIPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
+         IASIPRO(IPRO)%SFCTYP    = KSURF(JN)
+         IASIPRO(IPRO)%ASSIM_ALL = ASSIM_ALL(JN)
+         IPRO = IPRO + 1
+      END DO
+
+      deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ)
+      deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU)
+      deallocate (ROBS,RCLD,TRANSM,EMI_SFC)
+      deallocate (TOEXT,ZHOEXT,SUNZA)
+      deallocate (ALBEDO,ICE,PCNT_WAT,PCNT_REG)
+      deallocate (KSURF,LTYPE)
+      deallocate (CLDFLAG,REJFLAG,LEV_START,ILIST)
+      deallocate (NTOP_EQ,NTOP_BT,NTOP_RD)
+      deallocate (NTOP_CO2,NGOOD)
+      deallocate (PTOP_EQ,PTOP_BT,PTOP_RD)
+      deallocate (PTOP_CO2,FCLOUD_CO2,HE)
+      deallocate (ETOP,VTOP,ECF,VCF)
+      deallocate (MINP,FATE)
+      deallocate (PMIN,DTAUDP1,TAMPON)
+      deallocate (ICHREF)
+      deallocate (ASSIM_ALL,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
+
+      deallocate (out_avhrr_param)
+      deallocate ( LEV_START_AVHRR,PTOP_EQ_AVHRR,NTOP_EQ_AVHRR,BTOBS_AVHRR)
+      deallocate ( ICHREF_AVHRR )
+      deallocate ( CLDFLAG_AVHRR )
+      deallocate ( ROBS_AVHRR)
+      deallocate ( RCAL_CLR_AVHRR )
+      deallocate ( EMI_SFC_AVHRR)
+      deallocate ( ZTS_AVHRR)
+      deallocate ( SFCTAU_AVHRR)
+      deallocate ( PTOP_BT_AVHRR)
+      deallocate ( PTOP_RD_AVHRR)
+      deallocate ( NTOP_BT_AVHRR)
+      deallocate ( NTOP_RD_AVHRR)
+      deallocate ( RCLD_AVHRR)
+      deallocate ( ZLAT,ZLON)
+      deallocate ( MAXWF,CFRAC_AVHRR )
+      deallocate(satazim,satzen)
+      deallocate (GNCLDFLAG,ILIST_PAIR)
+      deallocate (CORFLAG)
+
+    END SUBROUTINE IASIQC
+
+
+
+      SUBROUTINE CLOUD_HEIGHT (PTOP,NTOP, &
+     &                         btobs,cldflag,tt,gz,ps,plev,nlev, &
+     &                         nchn,nprf,ichref,lev_start,iopt)
+!
+!**ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       SCIENCE:  L. GARAND
+!       AUTHOR:   A. BEAULNE (CMDA/SMC)   August 2004
+!                 A. BEAULNE (CMDA/SMC) February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE AT A 
+!          REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE.
+!          TO USE WITH ONE REFERENCE CHANNEL. USED HERE ON MODEL LEVELS.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF) : OBSERVED BRIGHTNESS TEMPERATURE (DEG K)
+!            -CLDFLAG(NPRF)    : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!            -TT(NLEV,NPRF)    : TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)    : HEIGHT PROFILES ABOVE GROUND (M)
+!            -PS(NPRF)         : SURFACE PRESSURE (HPA)
+!            -PLEV(NLEV,NPRF)  : PRESSURE LEVELS (HPA)
+!            -NLEV             : NUMBER OF VERTICAL LEVELS
+!            -NCHN             : NUMBER OF CHANNELS
+!            -NPRF             : NUMBER OF PROFILES
+!            -ICHREF(NPRF)     : CHOSEN REFERENCE SURFACE CHANNEL
+!            -IOPT             : LEVELS USING PLEV (1) OR GZ (2)
+!
+!
+!          INPUT/OUTPUT:
+!            -LEV_START(NPRF) : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!
+!          OUTPUT:
+!            -PTOP(NPRF)    : CHOSEN EQUIVALENT CLOUD TOPS 
+!                             (IN HPA|M WITH IOPT = 1|2) 
+!            -NTOP(NPRF)    : NUMBER OF POSSIBLE PTOP SOLUTIONS
+!
+!
+      IMPLICIT NONE
+
+      INTEGER     :: JN,NLEV,NCHN,NPRF
+      INTEGER     :: LEV_START(NPRF),IOPT,ITOP
+      INTEGER     :: NTOP(NPRF),NHT
+      INTEGER     :: CLDFLAG(NPRF),ICHREF(NPRF)
+      REAL(8)     :: HT(NLEV)
+      REAL(8)     :: PLEV(NLEV,NPRF),PS(NPRF)
+      REAL(8)     :: PTOP(NPRF)
+      REAL(8)     :: TT(NLEV,NPRF),GZ(NLEV,NPRF)
+      REAL(8)     :: BTOBS(NCHN,NPRF)
+    
+
+
+      profiles: DO JN = 1, NPRF
+
+        IF ( IOPT == 1 ) THEN
+
+          PTOP(JN) = PS(JN)
+          NTOP(JN) = 1      
+
+          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+          CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),plev(:,jn),nlev,lev_start(jn),iopt ) 
+
+          ITOP = 1
+          IF ( NHT >= 2 ) ITOP = 2
+          PTOP(JN) = MIN ( HT(ITOP), PS(JN) )
+          NTOP(JN) = NHT
+
+        ELSE IF ( IOPT == 2 ) THEN
+
+          PTOP(JN) = 0.
+          NTOP(JN) = 1      
+
+          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+          CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt )
+
+          ITOP = 1
+          IF ( NHT >= 2 ) ITOP = 2
+          PTOP(JN) = MAX ( HT(ITOP), 0.D0 )
+          NTOP(JN) = NHT
+
+        END IF
+
+      END DO profiles
+
+
+      END SUBROUTINE CLOUD_HEIGHT
+
+
+      SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
+     &                            nchn,nprf,ptop_eq,ntop_eq,ichref)
+!
+!**ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
+!
+!       SCIENCE:  L. GARAND AND S. NADON
+!       AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   DETERMINE IF THE PROFILES ARE CLEAR OR CLOUDY BASED ON
+!          THE ALGORITHM OF GARAND & NADON 98 J.CLIM V11 PP.1976-1996
+!          WITH CHANNEL IREF
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF) : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!            -TG(NPRF)         : GUESS SKIN TEMPERATURES (DEG K)
+!            -TT(NLEV,NPRF)    : GUESS TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
+!            -NLEV             : NUMBER OF VERTICAL LEVELS
+!            -NCHN             : NUMBER OF CHANNELS
+!            -NPRF             : NUMBER OF PROFILES
+!            -PTOP_EQ(NPRF)    : CHOSEN EQUIVALENT CLOUD TOPS (M)
+!            -NTOP_EQ(NPRF)    : NUMBER OF POSSIBLE PTOP_EQ SOLUTIONS
+!            -ICHREF(NPRF)     : CHOSEN REFERENCE SURFACE CHANNEL
+!
+!          INPUT/OUTPUT:
+!            -CLDFLAG(NPRF)  : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!
+      IMPLICIT NONE
+
+      INTEGER    :: JN,NLEV,NCHN,NPRF,NINV
+      INTEGER    :: CLDFLAG(NPRF),NTOP_EQ(NPRF)
+      INTEGER    :: ICHREF(NPRF)
+      REAL(8)    :: BTOBS(NCHN,NPRF),PTOP_EQ(NPRF)
+      REAL(8)    :: TG(NPRF),GZ(NLEV,NPRF),TT(NLEV,NPRF)
+      REAL(8)    :: LEV(2)
+
+      
+      LEV(1) = 222.
+      LEV(2) = 428.
+
+
+      profiles: DO JN = 1, NPRF
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+        IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-3. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)+3. ) THEN
+         CLDFLAG(JN) = 0
+         CYCLE profiles
+        END IF
+
+        IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-4. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)-3. ) THEN
+         IF ( PTOP_EQ(JN) > 1100. ) THEN
+          CLDFLAG(JN) = 1
+          CYCLE profiles
+         ELSE
+          CLDFLAG(JN) = 0
+          CYCLE profiles
+         END IF
+        END IF
+
+        IF ( PTOP_EQ(JN) > 728. ) THEN
+         CLDFLAG(JN) = 1
+         CYCLE profiles
+        END IF
+
+        IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 8. ) THEN 
+         IF ( NTOP_EQ(JN) >= 3 ) THEN
+          IF ( PTOP_EQ(JN) > 73. ) THEN
+           CLDFLAG(JN)=1
+           CYCLE profiles
+          ELSE
+           CLDFLAG(JN)=0
+           CYCLE profiles
+          END IF
+         ELSE
+          CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(1))
+          IF ( NINV == 1 ) THEN
+           IF ( PTOP_EQ(JN) > 222. ) THEN
+            CLDFLAG(JN) = 1
+            CYCLE profiles
+           ELSE
+            CLDFLAG(JN) = 0 
+            CYCLE profiles
+           END IF
+          ELSE
+           CLDFLAG(JN) = 0
+           CYCLE profiles
+          END IF
+         END IF
+        END IF
+
+        IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 5. ) THEN
+         IF ( NTOP_EQ(JN) >= 3 ) THEN
+          IF ( PTOP_EQ(JN) > 222. ) THEN
+           CLDFLAG(JN) = 1
+           CYCLE profiles
+          ELSE
+           CLDFLAG(JN) = 0
+           CYCLE profiles
+          END IF
+         ELSE
+          CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(2))
+          IF ( NINV == 1) THEN
+           IF( PTOP_EQ(JN) > 428. ) THEN
+            CLDFLAG(JN) = 1
+            CYCLE profiles
+           ELSE
+            CLDFLAG(JN) = 0
+            CYCLE profiles
+           END IF
+          ELSE
+           CLDFLAG(JN) = 0
+          END IF
+         END IF
+        ELSE
+         CLDFLAG(JN)=0
+        END IF
+
+      END DO profiles
+
+
+      END SUBROUTINE GARAND1998NADON
+
+
+      SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
+     &                    ichref,nchn,nchnkept,nprf,idairs,CINST)
+
+!
+!**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
+!
+!       AUTHOR:   L. GARAND                   May 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   GET AN ESTIMATED SKIN TEMPERATURE BY INVERSION OF
+!          RADIATIVE TRANSFER EQUATION ASSUMING GUESS T AND Q PROFILES
+!          ARE PERFECT. DESIGNED FOR A SINGLE CHANNEL ICHREF AND NPRF
+!          PROFILES. ASSUMES A REAL TG (GUESS) OVER OCEANS AND A TG 
+!          WITH HYPOTHESIS OF UNITY EMISSIVITY OVER LAND.
+!      
+!          USES:  RCAL = B(TG)*EMI*SFCTAU + ATMOS_PART
+!             TS = B(TS)*EMI*SFCTAU + ATMOS_PART
+!          SOLVES FOR TS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -TG(NPRF)          : GUESS SKIN TEMPERATURE (DEG K)
+!            -EMI(NCHN,NPRF)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
+!            -RCAL(NCHN,NPRF)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -BTOBS(NCHN,NPRF)  : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!            -RADOBS(NCHN,NPRF) : COMPUTED OBSERVED RADIANCES (")
+!            -SFCTAU(NCHN,NPRF) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
+!            -CLDFLAG(NPRF)     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
+!            -ICHREF(NPRF)      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
+!            -NCHN              : NUMBER OF CHANNELS
+!            -NCHNKEPT          : NUMBER OF CHANNELS KEPT IN CMA
+!            -NPRF              : NUMBER OF PROFILES
+!            -IDAIRS            : AIRS SATELLITE IDENTYFIER
+!            -CINST             : INTRUMENT IASI or AIRS
+!
+!          OUTPUT:
+!            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
+!
+      use mod_tovs
+      use airsch
+      use iasich
+
+      IMPLICIT NONE
+
+      INTEGER    :: JN,JC,NCHN,NCHNKEPT,NPRF,IDAIRS,CLDFLAG(NPRF),IREF
+      INTEGER    :: ICHN,ICHREF(NPRF),INDX
+      REAL(8)    :: BTOBS(NCHN,NPRF),RADOBS(NCHN,NPRF)
+      REAL(8)    :: RTG,TG(NPRF),RADTG(NCHN,NPRF)
+      REAL(8)    :: EMI(NCHN,NPRF),SFCTAU(NCHN,NPRF)
+      REAL(8)    :: RADTS,TS(NPRF),TS1(NCHN,NPRF),RCAL(NCHN,NPRF),tstore,t_effective
+      CHARACTER (LEN=*) :: CINST
+
+
+      TS1(:,:) = -1.
+      TS(:) = -1.
+      RADTG(:,:) = -1.
+
+      IF (CINST(1:4)/="IASI" .AND. CINST(1:4)/="AIRS") THEN
+         Write(*,*) "INVALID CINST VALUE : should be IASI or AIRS",CINST
+         STOP
+      ENDIF
+
+
+!*    transform guess skin temperature to plank radiances 
+
+      DO JN = 1, NPRF
+        IF ( CLDFLAG(JN) == -1 ) CYCLE
+        DO JC = 1, NCHNKEPT
+          ICHN = ichan(JC,IDAIRS)
+          t_effective =  coef(idairs)%ff_bco(jc) + coef(idairs)%ff_bcs(jc) * TG(jn)
+
+          indx=airssch(ichn)
+          IF (CINST=="IASI") indx=iasisch(ichn)
+          RADTG(indx,jn) =  coef(idairs)%planck1(jc) / &
+     &        ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
+        END DO
+      END DO
+
+      DO JN = 1, NPRF
+
+        IF ( CLDFLAG(JN) /= 0 ) CYCLE
+
+!*   compute TOA planck radiances due to guess skin planck radiances
+
+        RTG =   RADTG(ICHREF(JN),JN)*EMI(ICHREF(JN),JN)*SFCTAU(ICHREF(JN),JN)
+
+!*   compute true skin planck radiances due to TOA true planck radiances
+
+        RADTS = ( RADOBS(ICHREF(JN),JN) + RTG - RCAL(ICHREF(JN),JN) ) / &
+    &           ( EMI(ICHREF(JN),JN) * SFCTAU(ICHREF(JN),JN) )
+    
+!*   transform true skin planck radiances to true skin temperatures
+
+        DO JC = 1, NCHNKEPT
+          ICHN = ichan(JC,IDAIRS)
+          tstore = coef(idairs)%planck2(jc) / Log( 1+coef(idairs)%planck1(jc)/RADTS )
+          indx=airssch(ichn)
+          IF (CINST=="IASI") indx=iasisch(ichn)
+          TS1(indx,jn) = ( tstore-coef(idairs)%ff_bco(jc) ) / coef(idairs)%ff_bcs(jc)
+        END DO
+
+        TS(JN) = TS1(ichref(jn),jn)
+
+      END DO
+
+
+      END SUBROUTINE ESTIM_TS
+
+
+      SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
+     &                       btobs,tt,gz,rcal,ps,robs,rcld,plev,nlev,nchn,nprf, &
+     &                       cldflag,rejflag,bitflag,lev_start,iopt,ihgt,ichref,nch,ilist)
+!
+!**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND             August 2004
+!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
+!          BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
+!          RADIANCES WITH BACKGROUND RADIANCE PROFILES.
+!          TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF)     : OBSERVED BRIGHTNESS TEMPERAUTRES (DEG K)
+!            -TT(NLEV,NPRF)        : TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)        : HEIGHT PROFILES ABOVE GROUND (M)
+!            -RCAL(NCHN,NPRF)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -PS(NPRF)             : SURFACE PRESSURE (HPA)
+!            -ROBS(NCHN,NPRF)      : COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+!            -RCLD(NCHN,NPRF,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
+!            -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
+!            -NLEV                 : NUMBER OF VERTICAL LEVELS
+!            -NCHN                 : NUMBER OF CHANNELS
+!            -NPRF                 : NUMBER OF PROFILES
+!            -CLDFLAG(NPRF)        : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!            -REJFLAG(NCHN,NPRF,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
+!            -BITFLAG              : HIGHEST FLAG IN POST FILES (VALUE OF N IN 2^N)
+!            -IOPT                 : LEVELS USING PLEV (1) OR GZ (2)
+!            -IHGT                 : GET *_BT* ONLY (0), *_RD* ONLY (1), BOTH (2)
+!            -ICHREF(NPRF)         : REFERENCE SURFACE CHANNEL (SUBSET VALUE)
+!            -NCH                  : NUMBER OF CHANNELS WE WANT OUTPUTS
+!            -ILIST(NCH)           : LIST OF THE CHANNEL NUMBERS (SUBSET VALUES) 
+!
+!          INPUT/OUTPUT:
+!            -LEV_START(NPRF)      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!
+!          OUTPUT:
+!            -PTOP_BT(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+!                                    BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
+!            -PTOP_RD(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+!                                    RADIANCES (IN HPA|M WITH IOPT = 1|2)
+!            -NTOP_BT(NPRF)       : NUMBER OF POSSIBLE PTOP_BT SOLUTIONS
+!            -NTOP_RD(NPRF)       : NUMBER OF POSSIBLE PTOP_RD SOLUTIONS
+!
+      IMPLICIT NONE
+
+      INTEGER      ::  JN,JCH,JC,NCH,IOPT,IHGT,ITOP,NLEV,NHT
+      INTEGER      ::  ILIST(NCH),LEV_START(NPRF)
+      INTEGER      ::  BITFLAG,SUMREJ
+      INTEGER      ::  NCHN,NPRF,REJFLAG(NCHN,NPRF,0:BITFLAG)
+      INTEGER      ::  CLDFLAG(NPRF),ICHREF(NPRF)
+      INTEGER      ::  NTOP_BT(NCHN,NPRF),NTOP_RD(NCHN,NPRF)
+      REAL(8)      ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
+      REAL(8)      ::  PLEV(NLEV),PS(NPRF)
+      REAL(8)      ::  ROBS(NCHN,NPRF),RCAL(NCHN,NPRF)
+      REAL(8)      ::  BTOBS(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV)
+      REAL(8)      ::  HT(NLEV),TT(NLEV,NPRF),GZ(NLEV,NPRF)
+
+
+      PTOP_BT(:,:) = -10.
+      PTOP_RD(:,:) = -10.
+
+      NTOP_BT(:,:) = 0.
+      NTOP_RD(:,:) = 0.
+
+
+      profiles: DO JN = 1, NPRF
+
+!**     profile not assimilated if data from 2 windows channels bad
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+!**     predetermined clear
+
+        SUMREJ = SUM(REJFLAG(ICHREF(JN),JN,:))
+
+        IF ( SUMREJ == 0 ) THEN
+
+          IF ( IOPT == 1 ) THEN
+            PTOP_BT(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
+            PTOP_RD(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
+          ELSE IF ( IOPT == 2 ) THEN
+            PTOP_BT(:,JN) = 0.
+            PTOP_RD(:,JN) = 0.
+          END IF
+
+          NTOP_BT(:,JN) = 1
+          NTOP_RD(:,JN) = 1
+
+          LEV_START(JN) = MAX ( LEV_START(JN) , 10 )
+
+          CYCLE profiles
+
+        END IF
+
+
+        channels: DO JCH = 1, NCH
+
+          JC = ILIST(JCH)
+
+!**       gross check failure
+
+          IF ( REJFLAG(JC,JN,9) == 1 ) CYCLE channels
+
+!**       no clouds if observed radiance warmer than clear estimate
+
+          IF ( ROBS(JC,JN) > RCAL(JC,JN) ) THEN
+
+            IF ( IOPT == 1 ) THEN
+              PTOP_BT(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
+              PTOP_RD(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
+            ELSE IF ( IOPT == 2 ) THEN
+              PTOP_BT(JC,JN) = 0.
+              PTOP_RD(JC,JN) = 0.
+            END IF
+
+            NTOP_BT(JC,JN) = 1
+            NTOP_RD(JC,JN) = 1
+
+            CYCLE channels
+
+          END IF
+
+!**       cloudy
+
+          IF ( REJFLAG(JC,JN,11) == 1 .and. REJFLAG(JC,JN,23) == 1 ) THEN
+
+            IF ( IOPT == 1 ) THEN
+
+              IF ( IHGT == 0 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, btobs(jc,jn),tt(:,jn),plev,nlev,lev_start(jn),iopt) 
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_BT(JC,JN) = MIN ( HT(ITOP), PS(JN) )
+                NTOP_BT(JC,JN) = NHT
+              END IF
+              
+              IF ( IHGT == 1 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, robs(jc,jn),rcld(jc,jn,:),plev,nlev,lev_start(jn),iopt)
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_RD(JC,JN) = MIN ( HT(ITOP), PS(JN) )
+                NTOP_RD(JC,JN) = NHT
+              END IF
+
+            ELSE IF ( IOPT == 2 ) THEN 
+              
+              IF ( IHGT == 0 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, btobs(jc,jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt) 
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_BT(JC,JN) = MAX ( HT(ITOP), 0.D0 )
+                NTOP_BT(JC,JN) = NHT
+              END IF
+
+              IF ( IHGT == 1 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, robs(jc,jn),rcld(jc,jn,:),gz(:,jn),nlev,lev_start(jn),iopt)
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_RD(JC,JN) = MAX ( HT(ITOP), 0.D0 )
+                NTOP_RD(JC,JN) = NHT
+              END IF
+
+            END IF
+
+          END IF
+
+        END DO channels
+
+      END DO profiles
+
+
+      END SUBROUTINE CLOUD_TOP
+
+
+      SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
+     &                         rcal,rcld,robs,ps,plev,nlev,nchn,nprf,cldflag,rejflag,bitflag, &
+     &                         lev_start,ichref,nco2,ilist,ilist_pair)
+!
+!**ID CO2_SLICING -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND               July 2004
+!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   CLOUD TOP FROM CO2 SLICING AND CLOUD FRACTION ESTIMATE
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -RCAL(NCHN,NPRF)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -RCLD(NCHN,NPRF,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
+!            -ROBS(NCHN,NPRF)      : COMPUTED OBSERVED RADIANCES (")
+!            -PS(NPRF)             : SURFACE PRESSURE (HPA)
+!            -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
+!            -NLEV                 : NUMBER OF VERTICAL LEVELS
+!            -NCHN                 : NUMBER OF CHANNELS
+!            -NPRF                 : NUMBER OF PROFILES
+!            -CLDFLAG(NPRF)        : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
+!            -REJFLAG(NCHN,NPRF,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
+!            -BITFLAG              : HIGHEST FLAG IN POST FILES (VALUE OF N IN 2^N)
+!            -ICHREF(NPRF)         : WINDOW CHANNEL TO PREDETERMINE CLEAR
+!            -NCO2                 : NUMBER OF CHANNELS TO GET ESTIMATES IN
+!                                     COMBINATION WITH ICHREF_CO2 (NOT INCLUDED)
+!            -ILIST(NCO2)          : LIST OF THE CHANNEL NUMBERS, ICHREF_CO2 NOT INCLUDED
+!                                     (SUBSET VALUES)
+!
+!          INPUT/OUTPUT:
+!            -LEV_START(NPRF)      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!
+!          OUTPUT:
+!            -PTOP(NCO2,NPRF)      : CLOUD TOP (HPA)
+!            -FCLOUD(NCO2,NPRF)    : CLOUD FRACTION
+!            -NTOP(NCO2,NPRF)      : NEAREST PRESSURE LEVEL CORRESPONDING TO PTOP
+!                                     (PTOP <= PS)
+!
+      IMPLICIT NONE
+
+      INTEGER     :: JN,J,JCH,JC,NCO2,NLEV,NCHN,NPRF,JPMAX,JMAX
+      INTEGER     :: ICHREF(NPRF),BITFLAG,CLDFLAG(NPRF)
+      INTEGER     :: REJFLAG(NCHN,NPRF,0:BITFLAG),LEV_START(NPRF),SUMREJ
+      INTEGER     :: NTOP(NCO2,NPRF),ILIST(NCO2),ILIST_PAIR(NCO2)
+      REAL(8)     :: PTOP(NCO2,NPRF),FCLOUD(NCO2,NPRF)
+      REAL(8)     :: PLEV(NLEV),PS(NPRF),EPS
+      REAL(8)     :: RCAL(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV),ROBS(NCHN,NPRF)
+      REAL(8)     :: FC(NCHN,NLEV),RAPG,RADP
+      REAL(8)     :: DRAP(NCO2,NLEV),A_DRAP(NLEV)
+      REAL(8)     :: VAL,VAL1,VAL2,VAL3,FCINT
+      REAL(8)     :: EMI_RATIO
+      INTEGER     :: JC_PAIR
+      INTEGER     :: ITER,NITER
+      
+      EPS         = 1.D-12
+
+      PTOP(:,:)   = -1.
+      NTOP(:,:)   = -1
+      FCLOUD(:,:) = -1.
+
+      profiles: DO JN = 1, NPRF
+
+!        DRAP(:,:)   = 9999.
+
+!**     profile not assimilated if data from 2 windows channels bad
+!**     and/or if data from 2 reference co2 channels bad
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+!**     define closest level jpmax to surface pressure ps
+
+        JPMAX = NLEV
+
+        DO J = LEV_START(JN), NLEV
+          IF ( PLEV(J) > PS(JN) ) THEN
+            JPMAX = J
+            EXIT
+          END IF
+        END DO
+
+!**     define jmax as last level for co2-slicing calculations
+
+        JMAX = JPMAX - 1
+
+!**     predetermined clear window channel, all nco2 estimates clear
+
+        SUMREJ = SUM(REJFLAG(ICHREF(JN),JN,:))
+
+        IF ( SUMREJ == 0 ) THEN
+          PTOP(:,JN) = PS(JN)
+          NTOP(:,JN) = JPMAX
+          FCLOUD(:,JN) = 0.
+          CYCLE profiles
+        END IF
+
+        channels: DO JCH = 1, NCO2
+         
+	 JC = ILIST(JCH)
+	 JC_PAIR = ILIST_PAIR(JCH)
+	 FC(JC_PAIR,:) = RCAL(JC_PAIR,JN) - RCLD(JC_PAIR,JN,:)
+	 NITER=1
+	 IF ( JCH > 13) NITER=2 
+
+         iteration: DO ITER = 1, NITER
+	  DRAP(JCH,:)   = 9999.
+	  NTOP(JCH,JN) = -1
+!-------------------------------------------------------------------------------
+!         calcul EMI_RATIO
+	  IF (JCH > 13) THEN
+	   
+	   If ( ITER == 1 ) THEN
+	    EMI_RATIO = 1.0376d0
+	   Else
+            EMI_RATIO = 1.09961d0 - 0.09082d0*FCLOUD(JCH,JN)
+	   Endif
+	   
+	  ELSE
+	   EMI_RATIO = 1.0d0
+	  ENDIF
+!-------------------------------------------------------------------------------
+	  
+          FC(JC,:) = RCAL(JC,JN) - RCLD(JC,JN,:)
+
+!**       gross check failure
+
+          IF ( REJFLAG(JC,JN,9) == 1 ) CYCLE channels
+          IF ( REJFLAG(JC_PAIR,JN,9) == 1 ) CYCLE channels
+	  
+	  IF ( abs(RCAL(JC_PAIR,JN)-ROBS(JC_PAIR,JN)) > EPS ) THEN
+             RAPG = (RCAL(JC,JN)-ROBS(JC,JN)) / (RCAL(JC_PAIR,JN)-ROBS(JC_PAIR,JN))
+	  ELSE
+	     RAPG = 0.0d0
+	  ENDIF
+
+          DO J = LEV_START(JN), JPMAX
+            IF ( FC(JC,J) > 0. .AND. FC(JC_PAIR,J) > 0. )  &
+     &        DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J))*EMI_RATIO
+          END DO
+
+          A_DRAP(:) = ABS(DRAP(JCH,:))
+
+          levels: DO J = LEV_START(JN)+1, JMAX
+
+!**         do not allow fc negative (i.e. drap(jch,j) = 9999.)
+
+            IF ( DRAP(JCH,J) > 9000. .AND. &
+     &           A_DRAP(J-1) < EPS .AND. &
+     &           A_DRAP(J+1) < EPS ) CYCLE channels
+
+            VAL = DRAP(JCH,J) / ( DRAP(JCH,J-1) )
+
+!**         find first, hopefully unique, zero crossing
+
+            IF ( VAL < 0. ) THEN
+
+!**         conditions near zero crossing of isolated minimum need monotonically
+!**         decreasing drap from j-3 to j-1 as well increasing from j to j+1
+
+              VAL1 = DRAP(JCH,J-2) / ( DRAP(JCH,J-1) )
+              VAL2 = DRAP(JCH,J-3) / ( DRAP(JCH,J-1) )
+              VAL3 = DRAP(JCH,J)   / ( DRAP(JCH,J+1) )
+
+              IF ( VAL1 > 0. .AND.  & 
+     &             VAL2 > 0. .AND.  & 
+     &             VAL3 > 0. .AND.  &
+     &             A_DRAP(J-2) > A_DRAP(J-1) .AND.  &
+     &             A_DRAP(J-3) > A_DRAP(J-2) .AND.  &
+     &             A_DRAP(J)   < 9000.       .AND.  &
+     &             A_DRAP(J+1) > A_DRAP(J) )        &
+     &         THEN
+                PTOP(JCH,JN) = PLEV(J)
+                NTOP(JCH,JN) = J
+              END IF
+
+              EXIT levels
+                      
+            END IF
+
+          END DO levels
+
+          J = NTOP(JCH,JN)
+
+!**       special cases of no determination
+
+          IF ( J <= LEV_START(JN) .OR. DRAP(JCH,J) > 9000. ) THEN
+!           IF ( ITER == 1) THEN
+	    PTOP(JCH,JN)   = -1.
+            NTOP(JCH,JN)   = -1
+            FCLOUD(JCH,JN) = -1.
+!	   ENDIF
+           CYCLE channels
+          END IF
+
+          IF ( ABS(RCLD(JC,JN,J)-RCAL(JC,JN)) > 0. )       &
+     &      FCLOUD(JCH,JN) = (ROBS(JC,JN)-RCAL(JC,JN)) /   &
+     &                       (RCLD(JC,JN,J)-RCAL(JC,JN))
+
+!**       find passage to zero if it exists and interpolate to exact pressure
+
+          PTOP(JCH,JN) = PLEV(J-1) - DRAP(JCH,J-1) /                        &
+     &           ( DRAP(JCH,J) - DRAP(JCH,J-1) ) * ( PLEV(J) - PLEV(J-1) )
+!**       find cloud radiance at zero crossing to use to get cloud fraction
+
+          FCINT = FC(JC,J-1) + ( FC(JC,J) - FC(JC,J-1) ) /                  &
+     &           ( PLEV(J) - PLEV(J-1) ) * ( PTOP(JCH,JN) - PLEV(J-1) )
+
+!**       find cloud fraction based on exact cloud top
+
+          IF ( ABS(FCINT) > 0. )                                            &
+     &      FCLOUD(JCH,JN) = ( RCAL(JC,JN) - ROBS(JC,JN) ) / FCINT
+
+          FCLOUD(JCH,JN) = MIN ( FCLOUD(JCH,JN),  1.5D0 )
+          FCLOUD(JCH,JN) = MAX ( FCLOUD(JCH,JN), -0.5D0 )
+	  
+	  IF (FCLOUD(JCH,JN) < 0.0D0 .or. FCLOUD(JCH,JN) > 1.0D0 )  CYCLE channels
+	  
+	 END DO iteration
+
+        END DO channels
+
+      END DO profiles
+      
+
+      END SUBROUTINE CO2_SLICING
+
+
+      SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,gncldflag,nprf,nco2 )
+!
+!**ID SELTOP -- SELECT CLOUD TOP
+!
+!       AUTHOR:   L. GARAND                  July 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   SELECT CLOUD TOP BY AVERAGING CO2-SLICING RESULTS
+!          JUDGED CORRECT. ALL MISSING VALUES ARE -1.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -HE(NPRF)      : EQUIVALENT CLOUD TOP HEIGHTS 
+!                              FROM A WINDOW CHANNEL (HPA)
+!            -HT(NCO2,NPRF) : CLOUD TOPS FROM CO2-SLICING (HPA)
+!            -CF(NCO2,NPRF) : EFFECTIVE CLOUD FRACTION FOR CO2-SLICING
+!            -CFSUB(NPRF)   : visible ("subpixel") cloud fraction
+!            -PTOP_MB(NPRF) : height (mb) from cloud_height subroutine           
+!            -PS(NPRF)      : SURFACE PRESSURE IN (HPA)
+!            -CLDFLAG(NPRF) : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
+!            -NPRF          : NUMBER OF PROFILES
+!            -NCO2          : NUMBER OF CO2-SLICING ESTIMATES
+!
+!          OUTPUT:
+!            -ETOP(NPRF)    : CONSENSUS CLOUD TOP (HPA)
+!            -VTOP(NPRF)    : CORRESPONDING VARIANCE ON ETOP (HPA)
+!            -ECF(NPRF)     : CONSENSUS EFFECTIVE CLOUD FRACTION
+!            -VCF(NPRF)     : CORRESPONDING VARIANCE ON ECF
+!            -NGOOD(NPRF)   : NUMBER OF GOOD ESTIMATES
+!
+      IMPLICIT NONE
+
+      INTEGER    :: JN,NPRF,N,JCH,NCO2
+      INTEGER    :: NGOOD(NPRF), CLDFLAG(NPRF), GNCLDFLAG(NPRF)
+      REAL(8)    :: ETOP(NPRF),VTOP(NPRF),ECF(NPRF),VCF(NPRF)
+      REAL(8)    :: HE(NPRF),HT(NCO2,NPRF),CF(NCO2,NPRF),PS(NPRF),CFSUB(NPRF)
+      REAL(8)    :: PTOP_MB(NPRF)
+      REAL(8)    :: H(NCO2),F(NCO2)
+
+
+      ETOP(:) = -1.D0
+      VTOP(:) = -1.D0
+      ECF(:)  = -1.D0
+      VCF(:)  = -1.D0
+      NGOOD(:)= 0
+
+
+      profiles: DO JN = 1, NPRF
+
+!**     profile not assimilated if data from 2 windows channels bad
+!**     and/or if data from 2 reference co2 channels bad
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+        N = 0
+        H(:) = 0.
+        F(:) = 0.
+
+        DO JCH = 1, NCO2
+
+!*        CHECK FOR ZERO CLOUD FRACTION
+
+          IF ( CF(JCH,JN) > -0.9 .AND. CF(JCH,JN) < 1.D-6 ) THEN
+            N = N + 1
+            H(N) = PS(JN)
+            F(N) = 0.
+          ELSE
+
+
+!*        CONSIDER ONLY VALID VALUES OF CLOUD FRACTION ABOVE SOME THRESHOLD
+
+!         IMPORTANT LOGIC: FOR VALUES ABOVE 1.0 OF CO2-SLICING CLOUD FRACTION,
+!         SET IT TO 1.0 AND FORCE THE TOP EQUAL TO THE EFFECTIVE HEIGHT HE.
+!         CO2-SLICING NOT ALLOWED TO GIVE ESTIMATES BELOW HE, WHICH HAPPENS
+!         FOR CLOUD FRACTION CF > 1.0.
+
+          IF ( HT(JCH,JN) > 0.0 ) THEN
+            N=N+1
+            H(N) = HT(JCH,JN)
+            F(N) = MIN(CF(JCH,JN), 1.0D0)
+            F(N) = MAX(F(N), 0.D0)
+            IF ( CF(JCH,JN) > 1.0 ) H(N) = HE(JN)
+          END IF
+	 ENDIF
+
+        ENDDO
+
+
+        NGOOD(JN) = N
+
+!*      COMPUTE MEAN AND VARIANCE
+
+        IF ( N >= 1 ) THEN
+         
+!         ETOP(JN) = SUM(H(1:N)) / N
+!         ECF(JN)  = SUM(F(1:N)) / N
+
+         call calcul_median_fast(N,NCO2,H,F,ETOP(JN),ECF(JN))
+
+         VTOP(JN) = SQRT ( SUM((H(1:N)-ETOP(JN))**2)/N )
+         VCF(JN)  = SQRT ( SUM((F(1:N)- ECF(JN))**2)/N )         
+
+         IF ( N == 1 ) THEN
+            VTOP(JN) = 50.
+            VCF(JN)  = 0.20
+          END IF
+
+        ELSE
+
+!*      IF NO SOLUTION FROM CO2-SLICING, AND NOT PREDETERMINED CLEAR, 
+!*      ASSUME CLOUDY WITH TOP EQUAL TO EFFECTIVE HEIGHT HE;
+!*      HOWEVER IF HE IS VERY CLOSE TO SURFACE PRESSURE PS, ASSUME CLEAR.
+
+          ETOP(JN) = HE(JN)
+          ECF(JN)  = 1.0
+          IF (CFSUB(JN)>=0.05) THEN
+             ECF(JN)=CFSUB(JN)
+             ETOP(JN)=MIN(MIN(HE(JN),PTOP_MB(JN)),PS(JN)-50.0)
+          ENDIF
+          VTOP(JN) = 50.
+          VCF(JN)  = 0.30
+          IF ( HE(JN) > (PS(JN)-10.) ) ECF(JN) = 0.
+	  IF ( GNCLDFLAG(JN) == 0 ) THEN
+	     ECF(JN)=0.0
+	     ETOP(JN)=PS(JN)
+	  ENDIF
+        END IF
+
+        IF ( ECF(JN) < 0.05 ) THEN
+	     ECF(JN)=0.0
+	     ETOP(JN)=PS(JN)
+        ENDIF
+      END DO profiles
+
+
+      END SUBROUTINE SELTOP
+
+
+      SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,nprf,imodtop)
+!
+!**ID MIN_PRES -- FIND MINIMUM HEIGHT LEVEL OF SENSITIVITY
+!
+!       AUTHOR:   L. GARAND                   May 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   FROM TOTAL TRANSMITTANCE ARRAY, FIND MINIMUM HEIGHT 
+!          LEVEL OF SENSITIVITY FOR A NUMBER OF PROFILES AND CHANNELS.
+!          THIS MAY BE USED TO SELECT FOR ASSIMILATION ONLY THE
+!          OBSERVATIONS WITHOUT SENSITIVITY TO CLOUDS, THAT IS THE
+!          RESPONSE FUNCTION SIGNIFICANT ONLY ABOVE CLOUD LEVEL.
+!          THE CRITERION IS THAT dTAU/dPLEV > 0.01 FOR A 100 MB LAYER.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -PS(NPRF)            : SURFACE PRESSURE (HPA)
+!            -TAU(NCHN,NPRF,NLEV) : LAYER TO SPACE TRANSMITTANCES (0.-1.)
+!            -PLEV(NLEV)          : PRESSURE LEVELS (HPA)
+!            -CLDFLAG(NPRF)       : (0) CLEAR, (1) CLOUDY, (-1) UNDEFINED PROFILE
+!            -NLEV                : NUMBER OF VERTICAL LEVELS
+!            -NCHN                : NUMBER OF CHANNELS
+!            -NPRF                : NUMBER OF PROFILES
+!            -IMODTOP             : RT MODEL LEVEL NEAREST TO MODEL TOP
+!
+!          OUTPUT:
+!            -PMIN(NCHN,NPRF)     : MINIMUM HEIGHT OF SENSITIVITY (HPA)
+!            -MINP(NCHN,NPRF)     : VERTICAL LEVEL CORRESPONDING TO PMIN
+!            -DT1(NCHN,NPRF)      : VALUE OF 'DTAU/DLOGP' AT MODEL TOP
+!            -MAXHEIGHT(NCHN,NPRF): Height (hPa) of the maximum of the weighting function
+!
+      IMPLICIT NONE
+      INTEGER ,INTENT(IN)   :: NCHN,NPRF,NLEV,IMODTOP,CLDFLAG(NPRF)
+      REAL(8), intent(in)   :: PLEV(NLEV),PS(NPRF),TAU(NCHN,NPRF,NLEV)
+      INTEGER, INTENT (out) :: MINP(NCHN,NPRF)
+      REAL(8), intent(out)  :: PMIN(NCHN,NPRF), DT1(NCHN,NPRF),MAXHEIGHT(NCHN,NPRF)
+      REAL(8) :: MAXWF
+      INTEGER   :: J,JC,JN,ipos(1)
+      REAL(8)   :: WFUNC(NLEV-1),RAP(NLEV-1)
+
+      MINP(:,:) = -1
+      PMIN(:,:) = -1.
+      DT1(:,:)  = -1.
+
+      DO J = 1, NLEV-1
+         RAP(J) = LOG( PLEV(J+1) / PLEV(J) )
+      ENDDO
+
+      channels: DO JC = 1, NCHN
+        profiles: DO JN = 1, NPRF
+
+!**       profile not assimilated if data from 2 windows channels bad
+!**       and/or if data from 2 reference co2 channels bad
+          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+
+          DO J = 1, NLEV
+            IF ( TAU(JC,JN,J) < 0.) CYCLE profiles
+          END DO
+
+          MINP(JC,JN) = NLEV
+          PMIN(JC,JN) = MIN(PLEV(NLEV),PS(JN))
+
+
+!*        COMPUTE ENTIRE ARRAY OF dTAU/dlog(P)
+          
+          DO J = 1, NLEV-1
+!            WFUNC(J) = (TAU(JC,JN,J)-TAU(JC,JN,J+1)) / (PLEV(J+1)-PLEV(J)) * 100.
+             WFUNC(J) = (TAU(JC,JN,J)-TAU(JC,JN,J+1)) / ( RAP(J) )
+          END DO
+       
+          DT1(JC,JN) = WFUNC(IMODTOP)
+
+!*        IF CHANNEL SEES THE SURFACE, DON'T RECALCULATE MINP AND PMIN
+
+          IF ( TAU(JC,JN,NLEV) > 0.01 ) CYCLE profiles ! ????????
+
+! Recherche du maximum
+          IPOS=MAXLOC( WFUNC(:) )
+! Calcul de la valeur du maximum
+          MAXWF = WFUNC(IPOS(1))
+! maximum entre les 2 niveaux puisque WF calculee pour une couche finie ( discutable ?)
+          MAXHEIGHT(JC,JN)= 0.5 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1)+1)  )
+
+!*        IF CHANNEL DOESN'T SEE THE SURFACE, SEE WHERE dTAU/dlog(PLEV) BECOMES IMPORTANT
+!*        FOR RECOMPUTATION OF MINP AND PMIN.
+
+          DO J = NLEV-1, IPOS(1), -1
+             IF ( ( WFUNC(J)/ MAXWF ) > 0.01) THEN
+                MINP(JC,JN) = J+1
+                PMIN(JC,JN) = MIN(PLEV(J+1),PS(JN))
+                EXIT
+             END IF
+          ENDDO
+
+
+        END DO profiles
+      END DO channels
+
+    END SUBROUTINE MIN_PRES_NEW
+
+
+subroutine convert_avhrr(avhrr,sunzen)
+! conversion des radiance IR en temperatures de brillance
+! et des radiances visibles en "albedo"
+use avhrr_var_mod
+implicit none
+type (avhrr_var) ,intent(inout) :: avhrr
+real(8) ,intent(in) :: sunzen
+integer :: ICL
+REAL (8) :: tb(NIR),dtbsdrad(NIR)
+REAL (8) :: FREQ(NIR),OFFSET(NIR),SLOPE(NIR)
+
+DATA FREQ / 0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03 /
+DATA OFFSET / 0.2066990000D+01 , 0.5512600000D+00 , 0.3471600000D+00 /
+DATA SLOPE / 0.9965770000D+00  , 0.9985090000D+00  , 0.9989470000D+00 /
+
+DO ICL=1,NCLASSAVHRR
+   call calcbt(avhrr % radmoy(ICL,4:6), tb, dtbsdrad,freq,offset,slope)
+   avhrr % tbmoy(ICL,4:6)=tb(1:3)
+!   avhrr % tbmoy(ICL,5)=avhrr % tbmoy(ICL,5) + 0.3d0 ! application d'une correction de biais plate
+!   avhrr % tbmoy(ICL,6)=avhrr % tbmoy(ICL,6) + 0.6d0 ! a la main (provisoire ?) 
+!mise a jour des radiances pour rester coherent
+!   avhrr %radmoy(ICL,5)=1000.d0*dplanck(freq(2), avhrr % tbmoy(ICL,5) ,offset(2),slope(2))
+!   avhrr %radmoy(ICL,6)=1000.d0*dplanck(freq(3), avhrr % tbmoy(ICL,6) ,offset(3),slope(3))
+   avhrr % tbstd(ICL,4:6)=avhrr % radstd(ICL,4:6) * dtbsdrad(1:3)
+
+   call calcreflect(avhrr % radmoy(ICL,1:3) ,sunzen,avhrr % ALBEDMOY(ICL,1:3) )
+   call calcreflect(avhrr % radstd(ICL,1:3) ,sunzen,avhrr % ALBEDSTD(ICL,1:3) )
+
+ENDDO
+
+contains
+subroutine calcreflect(rad,sunzen,reflect)
+implicit none
+
+!INTEGER ,parameter :: NVIS=3 ! Number of visible channels
+REAL (8) , INTENT(IN) ,dimension(nvis) :: rad
+REAL (8) , INTENT(IN) :: sunzen
+REAL (8) , INTENT(out),dimension(nvis) :: reflect ! reflectivite en %
+!************
+REAL (8) ,DIMENSION(NVIS) :: SOLAR_FILTERED_IRRADIANCE
+DATA SOLAR_FILTERED_IRRADIANCE /139.873215,232.919556,14.016470/
+!# equivalent widths, integrated solar irradiance,  effective central wavelength
+!0.084877,139.873215,0.632815
+!0.229421,232.919556,0.841679
+!0.056998,14.016470,1.606119
+! pour la definition de l'albedo voir http://calval.cr.usgs.gov/PDF/Rao.CRN_IJRS.24.9.2003_Chander.pdf
+REAL (8) :: RADB ! radiance en W/m2/str
+!
+REAL (8) :: PI
+integer :: i
+!**************************************************************
+
+PI=ACOS(-1.0)
+
+Do i = 1, nvis
+   if (rad(i)>= 0.0 ) THEN
+      radb=rad(i) / 1000.0
+      reflect(i)=(PI*radb)/SOLAR_FILTERED_IRRADIANCE(I)
+      IF (sunzen < 90.0 ) reflect(i)= reflect(i) / COS(sunzen*PI/180.0)
+   else
+      reflect(i)=-1
+   end if
+End Do
+
+end subroutine calcreflect
+
+subroutine calcbt(rad,tb,dtbsdrad,freq,offset,slope)
+implicit none
+INTEGER,parameter  :: nchan=3
+Real(8) ,parameter :: c1= 1.19106590D-05   ! first planck constant
+Real(8) ,parameter :: c2= 1.438833D0     ! second planck constant 
+REAL (8) , INTENT(IN) ,dimension(nchan) :: rad,freq,offset,slope
+REAL (8) , INTENT(out) ,dimension(nchan) :: tb,dtbsdrad
+!************
+integer :: i
+REAL (8) ::  radtotal,tstore,planck1,planck2
+
+
+Do i = 1, nchan
+   if (rad(i)>1.d-20) THEN
+      planck2= c2 * freq(I)
+      planck1= c1 * ( freq(I) **3 ) 
+      tstore = planck2 / Log( 1+planck1/rad(i) )
+      tb(i) = ( tstore - offset(i) ) / slope(i)
+     
+      radtotal = rad(i)
+   
+      dtbsdrad(i) = planck1 * tstore**2 / ( planck2 * radtotal * ( radtotal + planck1 ) )
+       
+      dtbsdrad(i) = dtbsdrad(i) / slope(i)
+
+      else
+         tb(i) =0.d0
+         dtbsdrad(i) = 0.d0
+      end if
+
+End Do
+
+end subroutine calcbt
+
+function dplanck(nu,t,offset,slope)
+!    fonction de planck en double precision
+!    nu en cm-1 t en Kelvin  planck en Watt / ( m2 strd cm-1 )
+!    c en m/s  h en J.s  k en J/K
+implicit none
+real (8) :: nu,nu0,t,scale,offset,slope
+real (8) :: dplanck,c,h,k,tt
+
+c=299792458.D0
+k=1.3806505D-23
+h=6.62606876D-34
+scale=100.d0
+dplanck=-1.d0
+
+if (t>0.d0) then
+   nu0=nu*scale
+   tt=t*slope+offset
+   dplanck=scale*2.d0*h*c**2*nu0**3/(dexp(h*c/k*nu0/tt)-1.d0)
+endif
+
+return
+
+end function dplanck
+
+
+end subroutine convert_avhrr
+
+
+
+subroutine stat_avhrr(avhrr)
+! calcul de statistiques
+! sur l'information sous-pixel AVHRR
+use avhrr_var_mod
+implicit none
+type (avhrr_var) ,intent(inout) :: avhrr
+!integer ,parameter :: NVIS=3,NIR=3
+integer :: ICL,ICH
+Real (8) :: SUMFRAC(NVIS+NIR),TBMIN(NVIS+1:NVIS+NIR),TBMAX(NVIS+1:NVIS+NIR),SUMTB(NVIS+1:NVIS+NIR),SUMTB2(NVIS+1:NVIS+NIR)
+Real (8) :: SUMALB(1:NVIS),SUMALB2(1:NVIS)
+!INTEGER :: POSMIN(NVIS+1:NVIS+NIR),POSMAX(NVIS+1:NVIS+NIR)
+!******************************************
+
+SUMFRAC(:)=0.d0
+SUMTB(:)=0.d0
+SUMTB2(:)=0.d0
+SUMALB(:)=0.d0
+SUMALB2(:)=0.d0
+!POSMIN(:)=-1
+!POSMAX(:)=-1
+
+!TBMIN(:)=999.d0
+!TBMAX(:)=-999.d0
+
+DO ICL=1,NCLASSAVHRR
+   IF (avhrr%CFRAC(ICL) > 0.d0 ) THEN
+
+      DO ICH=1,NVIS
+         IF (avhrr%ALBEDMOY(ICL,ICH) >=0.d0 ) THEN
+            SUMFRAC(ICH)=SUMFRAC(ICH)+avhrr%CFRAC(ICL)
+            SUMALB(ICH) = SUMALB(ICH) + avhrr%CFRAC(ICL) * avhrr%ALBEDMOY(ICL,ICH)
+            SUMALB2(ICH) = SUMALB2(ICH) + avhrr%CFRAC(ICL) * ( avhrr%ALBEDMOY(ICL,ICH)**2 + avhrr%ALBEDSTD(ICL,ICH)**2)
+         ENDIF
+      ENDDO
+      DO ICH=1+NVIS,NVIS+NIR
+         IF (avhrr%TBMOY(ICL,ICH) > 0.d0 ) THEN
+!            IF (avhrr%TBMOY(ICL,ICH) > TBMAX (ICH) ) THEN
+!               TBMAX (ICH) = avhrr%TBMOY(ICL,ICH)
+!               POSMAX(ICH) = ICL
+!            ENDIF
+!            IF (avhrr%TBMOY(ICL,ICH) < TBMIN (ICH) ) THEN
+!               TBMIN (ICH) = avhrr%TBMOY(ICL,ICH)
+!               POSMIN(ICH) = ICL
+!            ENDIF
+            SUMFRAC(ICH) = SUMFRAC(ICH) + avhrr%CFRAC(ICL)
+            SUMTB(ICH) = SUMTB(ICH) + avhrr%CFRAC(ICL) * avhrr%TBMOY(ICL,ICH)
+            SUMTB2(ICH) = SUMTB2(ICH) + avhrr%CFRAC(ICL) * (avhrr%TBMOY(ICL,ICH)**2 + avhrr%TBSTD(ICL,ICH)**2 )
+         ENDIF
+      ENDDO
+   ENDIF
+ENDDO
+
+
+DO ICH=1,NVIS
+   IF (SUMFRAC(ICH) >0.d0 ) THEN
+      SUMALB(ICH) = SUMALB(ICH) / SUMFRAC(ICH)
+      SUMALB2(ICH) = SUMALB2(ICH)/SUMFRAC(ICH) - SUMALB(ICH)**2
+      IF (SUMALB2(ICH)>0.d0) THEN
+         SUMALB2(ICH)=SQRT( SUMALB2(ICH) )
+      ELSE
+         SUMALB2(ICH)=0.d0
+      ENDIF
+   ENDIF
+ENDDO
+
+
+
+
+DO ICH=NVIS+1,NVIS+NIR
+   IF (SUMFRAC(ICH) >0.d0 ) THEN
+      SUMTB(ICH) = SUMTB(ICH) / SUMFRAC(ICH)
+      SUMTB2(ICH) = SUMTB2(ICH)/SUMFRAC(ICH) - SUMTB(ICH)**2
+      IF (SUMTB2(ICH)>0.d0) THEN
+         SUMTB2(ICH)=SQRT ( SUMTB2(ICH) )
+      ELSE
+         SUMTB2(ICH)=0.d0
+      ENDIF
+   ENDIF
+ENDDO
+
+!avhrr%POSTBMIN=POSMIN
+!avhrr%POSTBMAX=POSMAX
+!avhrr%TBMOY_PIXELIASI=SUMTB
+!avhrr%ALBMOY_PIXELIASI=SUMALB
+avhrr%TBSTD_PIXELIASI=SUMTB2
+avhrr%ALBSTD_PIXELIASI=SUMALB2
+
+end subroutine stat_avhrr
+
+
+      SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
+     &                    ichref,nchn,nprf)
+!
+!**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
+!
+!       AUTHOR:   L. GARAND                   May 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   GET AN ESTIMATED SKIN TEMPERATURE BY INVERSION OF
+!          RADIATIVE TRANSFER EQUATION ASSUMING GUESS T AND Q PROFILES
+!          ARE PERFECT. DESIGNED FOR A SINGLE CHANNEL ICHREF AND NPRF
+!          PROFILES. ASSUMES A REAL TG (GUESS) OVER OCEANS AND A TG 
+!          WITH HYPOTHESIS OF UNITY EMISSIVITY OVER LAND.
+!      
+!          USES:  RCAL = B(TG)*EMI*SFCTAU + ATMOS_PART
+!             TS = B(TS)*EMI*SFCTAU + ATMOS_PART
+!          SOLVES FOR TS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -TG(NPRF)          : GUESS SKIN TEMPERATURE (DEG K)
+!            -EMI(NCHN,NPRF)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
+!            -RCAL(NCHN,NPRF)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -BTOBS(NCHN,NPRF)  : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!            -RADOBS(NCHN,NPRF) : COMPUTED OBSERVED RADIANCES (")
+!            -SFCTAU(NCHN,NPRF) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
+!            -CLDFLAG(NPRF)     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
+!            -ICHREF(NPRF)      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
+!            -NCHN              : NUMBER OF CHANNELS
+!            -NPRF              : NUMBER OF PROFILES
+!
+!          OUTPUT:
+!            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
+!
+!
+      use mod_tovs
+      use airsch
+      use iasich
+      USE avhrr_var_mod
+
+      IMPLICIT NONE
+
+      INTEGER    :: JN,JC,NCHN,NPRF,CLDFLAG(NPRF),IREF
+      INTEGER    :: ICHN,ICHREF(NPRF)
+      REAL(8)    :: BTOBS(NCHN,NPRF),RADOBS(NCHN,NPRF)
+      REAL(8)    :: RTG,TG(NPRF),RADTG(NCHN,NPRF)
+      REAL(8)    :: EMI(NCHN,NPRF),SFCTAU(NCHN,NPRF)
+      REAL(8)    :: RADTS,TS(NPRF),TS1(NCHN,NPRF),RCAL(NCHN,NPRF),tstore,t_effective
+
+      TS1(:,:) = -1.
+      TS(:) = -1.
+      RADTG(:,:) = -1.
+
+!*    transform guess skin temperature to plank radiances 
+
+      DO JN = 1, NPRF
+        IF ( CLDFLAG(JN) == -1 ) CYCLE
+
+        DO JC = 1, NCHN
+          t_effective =  coeff_avhrr(1)%ff_bco(jc) + coeff_avhrr(1)%ff_bcs(jc) * TG(jn)
+          RADTG(JC,jn) =  coeff_avhrr(1)%planck1(jc) / &
+     &        ( Exp( coeff_avhrr(1)%planck2(jc)/t_effective ) - 1.0 )
+        END DO
+      END DO
+
+      DO JN = 1, NPRF
+
+        IF ( CLDFLAG(JN) /= 0 ) CYCLE
+
+!*   compute TOA planck radiances due to guess skin planck radiances
+
+        RTG =   RADTG(ICHREF(JN),JN)*EMI(ICHREF(JN),JN)*SFCTAU(ICHREF(JN),JN)
+       
+!*   compute true skin planck radiances due to TOA true planck radiances
+
+        RADTS = ( RADOBS(ICHREF(JN),JN) + RTG - RCAL(ICHREF(JN),JN) ) / &
+    &           ( EMI(ICHREF(JN),JN) * SFCTAU(ICHREF(JN),JN) )
+
+!*   transform true skin planck radiances to true skin temperatures
+
+        DO JC = 1, NCHN
+          
+          tstore = coeff_avhrr(1)%planck2(jc) / Log( 1+coeff_avhrr(1)%planck1(jc)/RADTS )
+          TS1(JC,jn) = ( tstore-coeff_avhrr(1)%ff_bco(jc) ) / coeff_avhrr(1)%ff_bcs(jc)
+!          print '(A,1x,i3,1x,i3,1x,2e14.6)',"zx",JC,JN,tstore,TS1(JC,jn)
+        END DO
+!        print '(A,1x,i4,1x,6e14.6)',"ABC",JN,TS1(ichref(jn),jn),btobs(ICHREF(JN),JN)
+        TS(JN) = TS1(ichref(jn),jn)
+
+      END DO
+
+
+    END SUBROUTINE ESTIM_TS_AVHRR
+
+
+      SUBROUTINE VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
+!***subroutine     VISOCN
+!*
+!*auteur           LOUIS GARAND 1985
+!*
+!*REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
+!*                                 Decembre 1995
+!*                 Generaliser pour toutes les plateformes satellitaires.
+!*
+!*objet            THIS ROUTINE PROVIDES THE CORRECTIVE FACTORS FOR THE ANISOTROPY
+!*                 OF REFLECTANCE OVER CLEAR OCEAN.
+!*                 
+!*
+!*appel            CALL VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
+!*
+!*arguments        sz     - input  - SUN ZENITH ANGLE IN DEGREES (0 TO 90)
+!*                 satz   - input  - SATELLITE ZENITH ANGLE (0 TO 90)
+!*                 rz     - input  - RELATIVE   ANGLE IN DEGREES (0 TO 180) WITH
+!*                                   0 AS BACKSCATTERING AND 
+!*                                   180 AS FORWARD SCATTERING
+!*                 anisot - output - ANISOTROPIC CORRECTIVE FACTOR 
+!*                                  (KHI IN MINNIS-HARRISSON)
+!*                 zlamb  - output - CORRECTIVE FACTOR FOR LAMBERTIAN REFLECTANCE
+!*                                   (DELTA """") ZLAMB IS A FUNCTION OF SZ ONLY.
+!*                                   THIS IS FOR OCEAN SURFACE.
+!*                 zcloud - output - SAME AS ZLAMB BUT FOR CLOUD SURFACE
+!*                 ier    - output - error code (0=ok; -1=problem with interpolation)
+!*
+!*notes            OBTAINED FROM DR PAT MINNIS,LANGLEY , AND BASED ON THE WORK
+!*                 OF MINNIS AND HARRISSON,JCAM 1984,P993.
+!*                 THE ROUTINE IS A LOOK UP TABLE ALONG WITH INTERPOLATION ON THE 
+!*                 THREE ANGLES. 
+!**
+      implicit  none
+
+      integer  ier, i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
+
+      real  SZ, SATZ, RZ, ANISOT ,ZLAMB, ZCLOUD
+      real  pi, fac, cc, d1, d2, slop, cept, x1, x2
+      real  g1, g2
+      real  drm, drcld
+      real  VNORM(11,10,13),S(11),V(10),R(13),DA(2),DD(2) 
+
+      external  drcld, drm, lineq
+
+      DATA S/0.0,18.19,31.79,41.41,49.46,56.63,63.26,69.51,75.52,81.37,87.13/ 
+
+      DATA R/0.0,15.0,30.0,45.0,60.0,75.0,90.0,105.0,120.0,135.0,150.0,165.0,180.0/ 
+
+      DATA V/0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0/
+
+      DATA ((VNORM(1,J,K),J=1,10),K=1,13)/  &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
+       2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174/ 
+
+      DATA ((VNORM(2,J,K),J=1,10),K=1,13)/  &
+       1.154, .960, .896, .818, .748, .825, .922,1.018,1.179,1.334, &
+       1.154, .954, .838, .799, .735, .786, .883, .960,1.128,1.250, &
+       1.514, .973, .825, .786, .722, .754,0.838,0.922,1.063,1.160, &
+       1.514,0.967,0.864,0.818,0.715,0.728,0.793,0.876,1.005,1.102, &
+       1.514,0.967,0.896,0.889,0.702,0.696,0.773,0.851,0.954,1.038, &
+       1.514,1.070,0.986,0.922,0.677,0.696,0.754,0.838,0.922,1.012, &
+       1.514,1.270,0.967,0.870,0.677,0.664,0.709,0.773,0.857,0.954, &
+       1.514,1.495,1.166,0.960,0.683,0.690,0.728,0.806,0.896,0.999, &
+       1.514,1.959,1.534,1.025,0.973,0.709,0.754,0.857,0.954,1.050, &
+       1.514,2.165,2.165,1.270,1.038,0.760,0.812,0.902,1.012,1.115, &
+       1.514,2.275,2.262,1.688,1.115,0.780,0.857,0.954,1.070,1.173, &
+       1.514,2.326,2.520,2.172,1.257,0.812,0.883,1.005,1.108,1.212, &
+       1.514,2.359,2.951,2.255,1.411,0.980,0.915,1.050,1.160,1.295/ 
+
+      DATA ((VNORM(3,J,K),J=1,10),K=1,13)/   &
+       0.897,0.792,0.765,0.765,0.778,0.897,0.996,1.095,1.306,1.431, &
+       0.897,0.712,0.739,0.745,0.765,0.891,0.970,1.069,1.214,1.359, &
+       0.897,0.666,0.699,0.745,0.759,0.811,0.917,1.042,1.148,1.306, &
+       0.897,0.646,0.693,0.739,0.693,0.752,0.858,0.989,1.102,1.234, &
+       0.897,0.686,0.679,0.726,0.679,0.693,0.792,0.924,1.049,1.154, &
+       0.897,0.660,0.673,0.693,0.646,0.660,0.759,0.858,1.003,1.102, &
+       0.897,0.673,0.765,0.792,0.712,0.600,0.699,0.811,0.963,1.055, &
+       0.897,0.706,0.772,0.917,0.904,0.613,0.726,0.858,1.055,1.121, &
+       0.897,0.825,0.924,0.996,0.989,0.686,0.778,0.937,1.115,1.181, &
+       0.897,1.036,1.253,1.286,1.260,0.778,0.858,0.996,1.181,1.260, &
+       0.897,1.201,1.788,1.986,1.827,0.884,0.851,1.062,1.227,1.333, &
+       0.897,1.530,2.249,2.546,2.381,1.352,0.891,1.108,1.286,1.405, &
+       0.897,1.854,2.401,3.325,2.559,1.590,0.937,1.168,1.214,1.425/ 
+
+      DATA ((VNORM(4,J,K),J=1,10),K=1,13)/  &
+       0.752,0.800,0.745,0.717,0.759,0.891,1.149,1.309,1.469,1.650, &
+       0.752,0.773,0.717,0.703,0.752,0.835,1.065,1.246,1.406,1.552, &
+       0.752,0.731,0.689,0.703,0.745,0.814,0.988,1.176,1.323,1.476, &
+       0.752,0.689,0.675,0.654,0.696,0.752,0.940,1.100,1.246,1.378, &
+       0.752,0.675,0.661,0.633,0.668,0.717,0.877,1.030,1.176,1.309, &
+       0.752,0.647,0.640,0.620,0.613,0.682,0.814,0.947,1.107,1.232, &
+       0.752,0.633,0.620,0.613,0.606,0.640,0.773,0.898,1.044,1.162, &
+       0.752,0.626,0.626,0.626,0.620,0.654,0.821,0.947,1.128,1.225, &
+       0.752,0.633,0.633,0.633,0.647,0.675,0.877,1.009,1.183,1.274, &
+       0.752,0.682,0.717,0.961,1.023,0.968,0.940,1.142,1.274,1.413, &
+       0.752,0.856,1.037,1.434,1.594,1.441,1.044,1.225,1.323,1.545, &
+       0.752,1.044,1.295,2.207,1.610,2.311,1.385,1.274,1.441,1.636, &
+       0.752,1.079,1.524,2.541,3.564,3.014,1.942,1.462,1.552,1.726/ 
+
+      DATA ((VNORM(5,J,K),J=1,10),K=1,13)/  &
+       0.552,0.588,0.617,0.638,0.724,0.860,1.133,1.362,1.556,1.678, &
+       0.552,0.581,0.602,0.617,0.652,0.803,1.075,1.326,1.484,1.592, &
+       0.552,0.559,0.588,0.595,0.617,0.731,1.018,1.283,1.412,1.527, &
+       0.552,0.531,0.538,0.574,0.595,0.710,0.946,1.240,1.341,1.463, &
+       0.552,0.516,0.523,0.552,0.559,0.695,0.911,1.226,1.291,1.412, &
+       0.552,0.516,0.523,0.538,0.538,0.652,0.882,1.154,1.240,1.348, &
+       0.552,0.516,0.523,0.538,0.523,0.595,0.774,1.075,1.169,1.269, &
+       0.552,0.531,0.545,0.552,0.566,0.609,0.817,1.140,1.248,1.369, &
+       0.552,0.538,0.545,0.566,0.581,0.645,0.911,1.240,1.319,1.441, &
+       0.552,0.566,0.552,0.574,0.710,0.839,0.982,1.298,1.391,2.323, &
+       0.552,0.566,0.559,0.710,1.147,1.176,1.040,1.348,1.671,2.674, &
+       0.552,0.588,1.133,1.355,2.194,2.803,2.201,2.459,2.904,3.126, &
+       0.552,0.710,1.341,1.757,3.026,3.900,4.445,4.503,4.445,4.503/ 
+
+      DATA ((VNORM(6,J,K),J=1,10),K=1,13)/  &
+       0.551,0.627,0.665,0.734,0.826,0.971,1.231,1.537,1.721,1.866, &
+       0.551,0.604,0.619,0.665,0.765,0.895,1.185,1.476,1.568,1.652, &
+       0.551,0.597,0.604,0.619,0.734,0.849,1.101,1.346,1.453,1.568, &
+       0.551,0.581,0.589,0.597,0.665,0.795,1.032,1.262,1.346,1.445, &
+       0.551,0.558,0.558,0.566,0.612,0.727,0.987,1.201,1.262,1.399, &
+       0.551,0.505,0.505,0.512,0.566,0.696,0.925,1.117,1.185,1.308, &
+       0.551,0.474,0.497,0.512,0.535,0.673,0.864,1.048,1.124,1.216, &
+       0.551,0.497,0.505,0.520,0.551,0.681,0.902,1.124,1.201,1.323, &
+       0.551,0.535,0.535,0.551,0.566,0.711,1.017,1.201,1.269,1.422, &
+       0.551,0.535,0.543,0.558,0.704,1.193,1.247,1.285,1.346,1.950, &
+       0.551,0.543,0.551,0.581,0.994,1.545,1.583,1.354,2.019,2.883, &
+       0.551,0.566,0.612,0.788,1.468,2.233,2.340,2.531,2.983,3.365, &
+       0.551,0.658,0.665,1.101,2.134,3.120,4.221,4.856,4.956,5.613/ 
+
+      DATA ((VNORM(7,J,K),J=1,10),K=1,13)/  &
+       0.545,0.606,0.683,0.744,0.798,0.990,1.228,1.704,1.850,2.049, &
+       0.545,0.576,0.583,0.714,0.783,0.952,1.144,1.573,1.758,1.888, &
+       0.545,0.560,0.568,0.629,0.744,0.875,1.105,1.504,1.642,1.788, &
+       0.545,0.553,0.560,0.599,0.629,0.791,1.028,1.420,1.527,1.696, &
+       0.545,0.545,0.553,0.599,0.606,0.714,0.990,1.335,1.451,1.581, &
+       0.545,0.530,0.537,0.568,0.583,0.683,0.890,1.243,1.351,1.489, &
+       0.545,0.491,0.499,0.507,0.576,0.622,0.791,1.182,1.282,1.389, &
+       0.545,0.507,0.514,0.507,0.576,0.675,0.890,1.197,1.328,1.451, &
+       0.545,0.522,0.537,0.522,0.591,0.760,0.944,1.259,1.389,1.527, &
+       0.545,0.537,0.545,0.553,0.614,0.906,1.028,1.389,1.504,2.533, &
+       0.545,0.553,0.553,0.576,0.637,1.036,1.550,1.658,1.934,3.277, &
+       0.545,0.560,0.568,0.606,1.174,1.781,2.563,3.170,3.791,4.966, &
+       0.545,0.591,0.614,1.259,2.065,2.824,3.761,4.498,5.902,6.148/ 
+
+      DATA ((VNORM(8,J,K),J=1,10),K=1,13)/  &
+       0.514,0.539,0.596,0.694,0.832,1.004,1.444,1.869,2.203,2.538, &
+       0.514,0.539,0.571,0.645,0.751,0.906,1.387,1.779,2.056,2.317, &
+       0.514,0.547,0.555,0.612,0.702,0.824,1.281,1.681,1.934,2.203, &
+       0.514,0.539,0.555,0.588,0.653,0.743,1.028,1.404,1.624,2.024, &
+       0.514,0.539,0.547,0.555,0.588,0.710,0.889,1.191,1.420,1.820, &
+       0.514,0.522,0.522,0.539,0.563,0.710,0.849,1.044,1.208,1.534, &
+       0.514,0.481,0.506,0.514,0.539,0.694,0.824,1.028,1.200,1.371, &
+       0.514,0.481,0.514,0.547,0.563,0.702,0.898,1.134,1.297,1.501, &
+       0.514,0.490,0.514,0.555,0.588,0.726,0.955,1.265,1.379,1.648, &
+       0.514,0.547,0.547,0.571,0.604,0.767,1.036,1.355,1.550,3.142, &
+       0.514,0.563,0.579,0.604,0.612,0.832,1.909,2.848,3.917,4.790, &
+       0.514,0.522,0.563,0.677,0.767,1.420,2.040,3.158,4.863,6.291, &
+       0.514,0.588,0.588,0.612,0.824,2.032,3.109,4.969,6.846,7.695/ 
+
+      DATA ((VNORM(9,J,K),J=1,10),K=1,13)/  &
+       0.572,0.608,0.679,0.751,0.831,1.001,1.377,1.913,2.512,2.879, &
+       0.572,0.572,0.608,0.679,0.760,0.930,1.243,1.707,2.369,2.700, &
+       0.572,0.563,0.590,0.644,0.706,0.831,1.171,1.618,2.190,2.378, &
+       0.572,0.554,0.563,0.599,0.662,0.760,1.010,1.502,2.011,2.235, &
+       0.572,0.545,0.563,0.590,0.626,0.715,0.885,1.323,1.815,2.119, &
+       0.572,0.527,0.554,0.572,0.608,0.670,0.724,1.144,1.618,1.868, &
+       0.572,0.545,0.572,0.572,0.599,0.662,0.724,1.117,1.484,1.761, &
+       0.572,0.554,0.590,0.599,0.608,0.679,0.760,1.216,1.582,1.922, &
+       0.572,0.572,0.599,0.608,0.635,0.715,0.822,1.377,1.707,2.056, &
+       0.572,0.590,0.608,0.635,0.662,0.742,0.912,1.529,3.075,4.693, &
+       0.572,0.590,0.626,0.644,0.670,0.760,1.109,1.564,3.111,4.702, &
+       0.572,0.599,0.644,0.662,0.688,0.822,1.788,2.816,5.346,7.295, &
+       0.572,0.608,0.662,0.670,0.715,1.851,3.227,4.810,6.669,9.557/ 
+
+      DATA ((VNORM(10,J,K),J=1,10),K=1,13)/   &
+       0.552,0.606,0.639,0.671,0.704,0.899,1.223,2.479,3.194,3.573, &
+       0.552,0.574,0.606,0.628,0.682,0.855,1.148,2.339,2.642,3.378, &
+       0.552,0.563,0.552,0.595,0.639,0.834,1.061,2.014,2.404,2.891, &
+       0.552,0.563,0.509,0.552,0.628,0.801,0.985,1.689,2.176,2.653, &
+       0.552,0.574,0.509,0.520,0.585,0.747,0.888,1.332,1.970,2.458, &
+       0.552,0.531,0.509,0.509,0.531,0.682,0.801,1.191,1.819,2.425, &
+       0.552,0.498,0.498,0.498,0.520,0.639,0.747,1.126,1.711,2.317, &
+       0.552,0.498,0.509,0.509,0.541,0.671,0.780,1.278,1.862,2.598, &
+       0.552,0.498,0.509,0.520,0.574,0.693,0.812,1.602,2.035,2.793, &
+       0.552,0.520,0.520,0.531,0.595,0.725,0.844,1.916,2.588,3.768, &
+       0.552,0.531,0.541,0.574,0.628,0.780,1.039,2.349,3.313,5.652, &
+       0.552,0.574,0.563,0.606,0.660,0.812,1.797,3.010,5.478,7.492, &
+       0.552,0.650,0.671,0.704,0.801,1.029,2.436,3.465,7.828,10.578/
+
+      DATA ((VNORM(11,J,K),J=1,10),K=1,13)/   &
+       0.518,0.576,0.605,0.633,0.662,0.864,1.238,2.620,3.455,3.887, &
+       0.518,0.547,0.576,0.576,0.633,0.835,1.123,2.447,2.821,3.656, &
+       0.518,0.518,0.518,0.547,0.605,0.806,1.036,2.102,2.533,3.080, &
+       0.518,0.518,0.461,0.518,0.576,0.777,0.950,1.727,2.274,2.821, &
+       0.518,0.547,0.461,0.489,0.547,0.720,0.864,1.353,2.044,2.591, &
+       0.518,0.489,0.461,0.461,0.489,0.662,0.777,1.180,1.871,2.562, &
+       0.518,0.461,0.461,0.461,0.489,0.605,0.720,1.123,1.756,2.418, &
+       0.518,0.461,0.461,0.461,0.518,0.633,0.749,1.296,1.929,2.764, &
+       0.518,0.461,0.461,0.489,0.547,0.662,0.777,1.641,2.130,2.994, &
+       0.518,0.489,0.489,0.489,0.547,0.691,0.806,1.986,2.735,4.117, &
+       0.518,0.489,0.489,0.547,0.576,0.749,1.008,2.476,3.599,6.334, &
+       0.518,0.547,0.518,0.576,0.633,0.777,1.842,3.224,6.132,8.550, &
+       0.518,0.605,0.633,0.662,0.777,1.008,2.562,3.771,8.953,12.293/
+ 
+!C   COMPUTE SUN ZENITH BIN
+      PI  = ACOS(-1.)
+      FAC = PI/180. 
+      CC  = COS(SZ*FAC)
+      I1  = 12.-(CC+0.05)*10.
+      I2  = I1+1 
+      IF(I1.GE.11)I1=11 
+      IF(I1.EQ.11)I2=I1 
+
+!C  COMPUTE SAT ZENITH BIN 
+      J1  = IFIX(SATZ/10.)+1 
+      J2  = J1+1 
+      IF(J1.EQ.10)J2=J1 
+
+!C  COMPUTE RELATIVE AZIMUTH BIN 
+      K1  = RZ/15.+1.
+      K2  = K1+1 
+      IF(K1.EQ.13)K2=K1 
+
+!C  INTERPOLATE
+      IER = 0 
+      DO 30 L=I1,I2 
+         I = L-I1+1
+
+!C     BETWEEN R'S FOR CONSTANT S
+         DO 20 N=K1,K2 
+
+!C        BETWEEN V'S FOR CONSTANT R AND S 
+            M  = N-K1+1
+            D1 = VNORM(L,J1,N)
+            D2 = VNORM(L,J2,N)
+            IF(D1.EQ.D2)THEN
+               DA(M) = D1
+            ELSE
+               CALL LINEQ(V(J1),V(J2),D1,D2,SLOP,CEPT,IER) 
+               DA(M) = SLOP*SATZ+CEPT
+            ENDIF 
+  20     CONTINUE
+         IF(K1.EQ.K2) THEN 
+            DD(I) = DA(1) 
+         ELSE
+            CALL LINEQ(R(K1),R(K2),DA(1),DA(2),SLOP,CEPT,IER) 
+            DD(I) = SLOP*RZ+CEPT
+         ENDIF 
+  30  CONTINUE
+
+!C  BETWEEN S'S USING RESULT OF OTHER INTERPOLATIONS 
+      IF(I1.EQ.I2)THEN
+         ZLAMB  = DRM(I1) 
+         ZCLOUD = DRCLD(I1)
+         ANISOT = DD(1)
+      ELSE
+         X1     = COS(S(I1)*FAC) 
+         X2     = COS(S(I2)*FAC) 
+         CALL LINEQ(X1,X2,DD(1),DD(2),SLOP,CEPT,IER) 
+         ANISOT = SLOP*CC+CEPT 
+         G1     = DRM(I1)
+         G2     = DRM(I2)
+         CALL LINEQ(X1,X2,G1,G2,SLOP,CEPT,IER) 
+         ZLAMB  = SLOP*CC+CEPT
+         G1     = DRCLD(I1)
+         G2     = DRCLD(I2)
+         CALL LINEQ(X1,X2,G1,G2,SLOP,CEPT,IER) 
+         ZCLOUD = SLOP*CC+CEPT 
+      ENDIF 
+
+      IF(ANISOT.LT.0.) THEN 
+         IER    = -1
+         ANISOT = 1. 
+         ZLAMB  = DRM(I1) 
+         ZCLOUD = DRCLD(I1)
+      ENDIF 
+
+      RETURN
+      END 
+
+
+      SUBROUTINE  DELT  ( DEL, SCOS )
+!***subroutine     DELT
+!*
+!*auteur           Louis Garand  - rpn - dorval
+!*
+!*revision 001     Jacques Halle - ddo - dorval - 421-4660
+!*                                 fev 1991
+!*                 adapter au systeme operationel GOES.
+!*
+!*REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
+!*                                 Decembre 1995
+!*                 Generaliser pour toutes les plateformes satellitaires.
+!*
+!*objet            ce sous-programme calcule un facteur de correction
+!*                 pour l'albedo a partir du cosinus de l'angle solaire. 
+!*
+!*appel            CALL DELT  ( DEL, SCOS )
+!*
+!*arguments        del   - output - facteur de correction
+!*                 scos  - input  - cosinus de l'angle solaire
+!**
+      implicit  none
+      integer  i1, i2
+      real  del, scos, pi, fac, x1, x2, g1, g2, a, b
+      real  drcld
+      real  S(11)
+
+      external  drcld, solu
+ 
+      DATA  S / 00.00, 18.19, 31.79, 41.41, 49.46, 56.63, 63.26, 69.51, 75.52, 81.37, 87.13 /
+ 
+      PI  = 3.14159265 
+      FAC = PI/180. 
+      I1  = 12 -( SCOS+0.05)*10. 
+      I2  = I1+1 
+      I1  = MIN0(I1,11)
+      I2  = MIN0(I2,11)
+      X1  = COS ( S(I1)*FAC )  
+      X2  = COS(S(I2)*FAC) 
+      G1  = DRCLD(I1)
+      G2  = DRCLD(I2)
+
+      CALL  SOLU ( G1, X1, G2 ,X2, A, B )
+      DEL = A*SCOS + B
+
+      RETURN
+      END 
+
+
+      SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
+     &                       btobs,tt,gz,rcal,ps,robs,rcld,plev,nlev,nchn,nprf, &
+     &                       cldflag,lev_start,iopt,ihgt,nch,ilist)
+!
+!**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND             August 2004
+!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
+!          BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
+!          RADIANCES WITH BACKGROUND RADIANCE PROFILES.
+!          TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF)     : OBSERVED BRIGHTNESS TEMPERAUTRES (DEG K)
+!            -TT(NLEV,NPRF)        : TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)        : HEIGHT PROFILES ABOVE GROUND (M)
+!            -RCAL(NCHN,NPRF)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -PS(NPRF)             : SURFACE PRESSURE (HPA)
+!            -ROBS(NCHN,NPRF)      : COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+!            -RCLD(NCHN,NPRF,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
+!            -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
+!            -NLEV                 : NUMBER OF VERTICAL LEVELS
+!            -NCHN                 : NUMBER OF CHANNELS
+!            -NPRF                 : NUMBER OF PROFILES
+!            -CLDFLAG(NPRF)        : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!            -IOPT                 : LEVELS USING PLEV (1) OR GZ (2)
+!            -IHGT                 : GET *_BT* ONLY (0), *_RD* ONLY (1), BOTH (2)
+!            -NCH                  : NUMBER OF CHANNELS WE WANT OUTPUTS
+!            -ILIST(NCH)           : LIST OF THE CHANNEL NUMBERS (SUBSET VALUES) 
+!
+!          INPUT/OUTPUT:
+!            -LEV_START(NPRF)      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!
+!          OUTPUT:
+!            -PTOP_BT(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+!                                    BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
+!            -PTOP_RD(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+!                                    RADIANCES (IN HPA|M WITH IOPT = 1|2)
+!            -NTOP_BT(NPRF)       : NUMBER OF POSSIBLE PTOP_BT SOLUTIONS
+!            -NTOP_RD(NPRF)       : NUMBER OF POSSIBLE PTOP_RD SOLUTIONS
+!
+      IMPLICIT NONE
+
+      INTEGER      ::  JN,JCH,JC,NCH,IOPT,IHGT,ITOP,NLEV,NHT
+      INTEGER      ::  ILIST(NCH),LEV_START(NPRF)
+      INTEGER      ::  NCHN,NPRF
+      INTEGER      ::  CLDFLAG(NPRF)
+      INTEGER      ::  NTOP_BT(NCHN,NPRF),NTOP_RD(NCHN,NPRF)
+      REAL(8)      ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
+      REAL(8)      ::  PLEV(NLEV),PS(NPRF)
+      REAL(8)      ::  ROBS(NCHN,NPRF),RCAL(NCHN,NPRF)
+      REAL(8)      ::  BTOBS(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV)
+      REAL(8)      ::  HT(NLEV),TT(NLEV,NPRF),GZ(NLEV,NPRF)
+
+
+      PTOP_BT(:,:) = -10.
+      PTOP_RD(:,:) = -10.
+
+      NTOP_BT(:,:) = 0.
+      NTOP_RD(:,:) = 0.
+!      print *,"l",iopt,ihgt,nch,ilist
+
+      profiles: DO JN = 1, NPRF
+
+!**     profile not assimilated if data from 2 windows channels bad
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+!**     predetermined clear
+
+        
+        IF ( CLDFLAG(JN) ==0 ) THEN
+
+          IF ( IOPT == 1 ) THEN
+            PTOP_BT(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
+            PTOP_RD(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
+          ELSE IF ( IOPT == 2 ) THEN
+            PTOP_BT(:,JN) = 0.
+            PTOP_RD(:,JN) = 0.
+          END IF
+
+          NTOP_BT(:,JN) = 1
+          NTOP_RD(:,JN) = 1
+
+          LEV_START(JN) = MAX ( LEV_START(JN) , 10 )
+
+          CYCLE profiles
+
+        END IF
+
+
+        channels: DO JCH = 1, NCH
+
+          JC = ILIST(JCH)
+
+!**       gross check failure
+
+!          IF ( REJFLAG(JC,JN,9) == 1 ) CYCLE channels
+          IF ( BTOBS(JC,JN)<150.d0 .or. BTOBS(JC,JN)>350.d0) CYCLE channels
+
+!**       no clouds if observed radiance warmer than clear estimate
+
+          IF ( ROBS(JC,JN) > RCAL(JC,JN) ) THEN
+
+            IF ( IOPT == 1 ) THEN
+              PTOP_BT(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
+              PTOP_RD(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
+            ELSE IF ( IOPT == 2 ) THEN
+              PTOP_BT(JC,JN) = 0.
+              PTOP_RD(JC,JN) = 0.
+            END IF
+
+            NTOP_BT(JC,JN) = 1
+            NTOP_RD(JC,JN) = 1
+
+            CYCLE channels
+
+          END IF
+
+!**       cloudy
+
+!          IF ( REJFLAG(JC,JN,11) == 1 ) THEN
+          IF ( CLDFLAG(JN) ==1 ) THEN
+
+            IF ( IOPT == 1 ) THEN
+
+              IF ( IHGT == 0 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, btobs(jc,jn),tt(:,jn),plev,nlev,lev_start(jn),iopt) 
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_BT(JC,JN) = MIN ( HT(ITOP), PS(JN) )
+                NTOP_BT(JC,JN) = NHT
+              END IF
+              
+              IF ( IHGT == 1 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, robs(jc,jn),rcld(jc,jn,:),plev,nlev,lev_start(jn),iopt)
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_RD(JC,JN) = MIN ( HT(ITOP), PS(JN) )
+                NTOP_RD(JC,JN) = NHT
+              END IF
+
+            ELSE IF ( IOPT == 2 ) THEN 
+              
+              IF ( IHGT == 0 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, btobs(jc,jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt) 
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_BT(JC,JN) = MAX ( HT(ITOP), 0.D0 )
+                NTOP_BT(JC,JN) = NHT
+              END IF
+
+              IF ( IHGT == 1 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, robs(jc,jn),rcld(jc,jn,:),gz(:,jn),nlev,lev_start(jn),iopt)
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_RD(JC,JN) = MAX ( HT(ITOP), 0.D0 )
+                NTOP_RD(JC,JN) = NHT
+              END IF
+
+            END IF
+
+          END IF
+
+        END DO channels
+
+      END DO profiles
+
+
+    END SUBROUTINE CLOUD_TOP_AVHRR

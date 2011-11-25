@@ -15,84 +15,53 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE BGCHECK(lcolumng,lcolumnhr,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r BGCHECK  - BACKGROUND CHECK
-*
-*
-*Author  : P. Koclas *CMC/CMDA  Nov 1998
-*Revision:
-*         1.0 P. Koclas
-*         -modifications for version 8.06
-*
-*         1.1 JM Belanger CMDA/SMC  Jan 2001
-*                   . 32 bits conversion
-*         P. KOCLAS Sept 2001
-*                   . eliminate unnessary call to suprep
-*         P. KOCLAS Nov 2001
-*                   . add 'call vint3dfd'
-*         C. Charette ARMA Feb 2002
-*                   . displaced 'call vint3dfd' to the end
-*         J. St-James CMDA/SMC July 2003
-*                   . add profiler family to the background check
-*         JM Belanger CMDA/SMC Feb 2004
-*                   . Introduce "scatterometer family SC"
-*         J.M. Aparicio ARMA Octobre 2006
-*                   . add GPSRO family to the background check
-*         S. Macpherson ARMA/MRD September 2007
-*                   . add GB-GPS (GP) family
-*         L. Fillion ARMA/EC 6 Jul 09 - Call to sigmaop3d.ftn
-*         L. Fillion ARMA/EC Sept 09 - Use sigmaop for grd_typ = 'GU' options.
-*         L. Fillion ARMA/EC May 2010 - Prepare for different sigmaop.ftn if rotated mode.
-*
-*    -------------------
-**    Purpose: DO  a background check on all observations
-*
-*Arguments
-*    -NONE-
-#endif
+!*
+!***s/r BGCHECK  - BACKGROUND CHECK
+!*
+!*
+!*Author  : P. Koclas *CMC/CMDA  Nov 1998
+!*Revision:
+!*
+!*    -------------------
+!**    Purpose: DO  a background check on all observations
+!*
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comcva.cdk"
-*
+
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
       REAL*8 ZJO
-*----------------------------------------------------------------------
+
       WRITE(NULOUT,FMT=9000)
- 9000 FORMAT(//,3(" *****************"),/
-     S     ," BEGIN BACKGROUND CHECK",/
-     S     ,3(" *****************"),/)
-C
-C*    1. Preliminary initializations
-C     .  ---------------------------
-C
-C     Transfer REAL*8 part of CMA to REAL*4
-C
+ 9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
+!C
+!C*    1. Preliminary initializations
+!C     .  ---------------------------
+!C
+!C     Transfer REAL*8 part of CMA to REAL*4
+!C
       call cprob8to4(lobsSpaceData)
-C
-C     TRANSFER O-A to O-P in cma
-C
+!C
+!C     TRANSFER O-A to O-P in cma
+!C
       DO JDATA=1,obs_num_obstotal(lobsSpaceData)  !replaces NDATA
-!         ROBDATA(NCMOMF,JDATA) = ROBDATA(NCMOMA,JDATA)
          call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
       ENDDO
-C
-C      CALCULATE Sigmap AND INNOVATIONS(O-P)
-C     ----------------------------------------------
-C
+!C
+!C      CALCULATE Sigmap AND INNOVATIONS(O-P)
+!C     ----------------------------------------------
+!C
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
-C
-C
-C     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
-C     ----------------------------------------------
-C
+!C
+!C     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
+!C     ----------------------------------------------
+!C
       CALL BGCDATA(ZJO,'UA',lobsSpaceData)
       CALL BGCDATA(ZJO,'AI',lobsSpaceData)
       CALL BGCDATA(ZJO,'HU',lobsSpaceData)
@@ -103,10 +72,9 @@ C
       CALL BGCDATA(ZJO,'PR',lobsSpaceData)
       CALL BGCGPSRO(lcolumnhr,lobsSpaceData)
       CALL BGCDATA(ZJO,'GP',lobsSpaceData)
-C
-C
-C     .   3.4.3 Convert CMA ---> BURP file and write it
-C
+!C
+!C     .   3.4.3 Convert CMA ---> BURP file and write it
+!C
       CALL VINT3DFD('OMF ',lobsSpaceData)	
       CALL FILBRPPOST(lcolumng,lobsSpaceData)
       DO j =1,1
@@ -119,68 +87,44 @@ C
 !
 !
       SUBROUTINE RESIDUALS(lcolumng,lcolumnhr,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r RESIDUALS  - RESIDUALS
-*
-*
-*Author  : P. Koclas *CMC/CMDA  Nov 1998
-*
-*Revision: J. Halle  *CMC/CMDA  Jan 2000
-*          add processing of TOVS radiances
-*        - P. KOclas *CMC/CMDA  Sept 200
-*                   -CHANGES FOR V06 version
-*        - J. Halle  *CMDA/AES  dec 2000
-*                   -adapt to TOVS level 1b.
-*          JM Belanger CMDA/SMC  Jan 2001
-*                   . 32 bits conversion (add call to cprob8to4)
-*         P. KOCLAS Sept 2001
-*                   . eliminate unnecessary call to suprep
-*                   . ad call to sigmaop ( this enables output of fge in post file)
-*         S. Pellerin *ARMA/SMC nov. 2001
-*                   . reordering of declaration dependencies (for Linux compilation)
-*         L. Fillion ARMA/EC 6 Jul 09 - Call to sigmaop3d.ftn
-*
-*    -------------------
-**    Purpose: TRANSFER resduals O-A to O-P for all observations.
-*
-#endif
+!*
+!***s/r RESIDUALS  - RESIDUALS
+!*
+!*Author  : P. Koclas *CMC/CMDA  Nov 1998
+!*
+!**    Purpose: TRANSFER resduals O-A to O-P for all observations.
+!*
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cparbrp.cdk"
-*
+
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
-*---------------------------------------------------------------------
+
       WRITE(NULOUT,FMT=9000)
- 9000 FORMAT(//,3(" *****************"),/
-     S     ," residuals: BEGIN RESIDUAL CALCULATION",/
-     S     ,3(" *****************"),/)
-C
-C*    1. Preliminary initializations
-C     .  ---------------------------
-C
- 100  CONTINUE
-C
+ 9000 FORMAT(//,3(" *****************"),/," residuals: BEGIN RESIDUAL CALCULATION",/,3(" *****************"),/)
+!C
+!C*    1. Preliminary initializations
+!C     .  ---------------------------
+!C
       DO JDATA=1,obs_num_obstotal(lobsSpaceData) 
          call obs_set_r4(lobsSpaceData,'OMF ',jdata,real(PPMIS))
       ENDDO
-!
+
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
-C
-C     Transfer REAL*8 part of CMA to REAL*4
-C     (follows observation operators computations).
+!C
+!C     Transfer REAL*8 part of CMA to REAL*4
+!C     (follows observation operators computations).
 
       call cprob8to4(lobsSpaceData)
-C
+
       CALL VINT3DFD('OMA ',lobsSpaceData)
-C
+
       DO JDATA=1,obs_num_obstotal(lobsSpaceData)
          call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
       ENDDO
@@ -196,25 +140,8 @@ C
 !
       SUBROUTINE SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
 
-#if defined (DOC)
-*Author  : P. Koklas CMDA/SMC
-*
-*Revision:
-*          JM Belanger CMDA/SMC  Jan 2001
-*                   . 32 bits conversion
-*          C Charette ARMA/SMC  Oct 2001
-*                   . Replace logical unit NULSTAT by NULBGST
-*          S. Pellerin *ARMA/SMC nov. 2001
-*                   . reordering of declaration dependencies (for Linux compilation)
-*          J. St-James *CMDA/SMC - July 2003
-*                   . Add code for profiler data
-*          J.M. Aparicio *ARMA/MSC* October 2006
-*                   . Adapt for GPSRO
-*          Luc Fillion *ARMA/EC - 4 Aug 2009
-*                   . Include lcva_hemis option.
-*          S. Macpherson *ARMA/EC - 11 Sep 2009
-*                   . Add code for GB-GPS data
-#endif
+!*Author  : P. Koklas CMDA/SMC
+!*
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
@@ -240,19 +167,19 @@ C
       POINTER (PXZBUFFER,ZBUFFER),(PXTRANS,ZTRANS)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
-     +     ,IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
-     +     ,IUBC,IEXTR1,IEXTR2,IEXTR3
-C----------------------------------------------------------------------
+      INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
+      INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
+
       ILEN = NJ*NFLEV
       CALL HPALLOC(PXZBUFFER,MAX(1,ILEN),IERR,8)
       ILEN = NJ*NI
       CALL HPALLOC(PXTRANS,MAX(1,ILEN),IERR,8)
-C
+
       call col_allocate(lcolumn,nflev,nobtot)
       call col_zero(lcolumn)
-C 
-C     1. Opening the statistics file
-C
+!C 
+!C     1. Opening the statistics file
+!C
       IULSSF=0
       IERR=FNOM(iulssf,'./glbcov','RND+OLD+R/O',0)
       IF ( IERR .EQ. 0 ) THEN
@@ -262,9 +189,9 @@ C
       ELSE
         CALL ABORT3D(NULOUT,'SUFILNAM:NO BACKGROUND STAT FILE!!')
       ENDIF
-C
-C     .  2.1 Background error standard deviations
-C
+!C
+!C     .  2.1 Background error standard deviations
+!C
       CLETIKET = 'STDDEV'
       write(nulout,*) 'sigmaop: CLETIKET = ',CLETIKET
       IDATE    = -1
@@ -273,17 +200,16 @@ C
       IP3      = -1
       CLTYPVAR =' '
       ILEN = NJ*NKGDIM
-C
-C READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
-C
+!C
+!C READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
+!C
       CLNOMVAR = 'UU'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     S     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      IERR = FSTPRM(IKEY,IDATEO,IDEET,INPAS
-     +     ,INI,INJ,INK, INBITS, IDATYP
-     +     ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP
-     +     ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
-     +     ,IUBC,IEXTR1,IEXTR2,IEXTR3)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IERR = FSTPRM(IKEY,IDATEO,IDEET,INPAS   &
+           ,INI,INJ,INK, INBITS, IDATYP       &
+           ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
+           ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
+           ,IUBC,IEXTR1,IEXTR2,IEXTR3)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -296,10 +222,9 @@ C
               END DO
            END DO
        END DO
-C
+
       CLNOMVAR = 'VV'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -313,8 +238,7 @@ C
            END DO
         END DO
       CLNOMVAR = 'ES'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -328,8 +252,7 @@ C
            END DO
         END DO
       CLNOMVAR = 'GZ'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -348,28 +271,33 @@ C
       CALL BILIN(lcolumn,lobsSpaceData)
       lcolumn%es(:,:)=lcolumn%hu(:,:)
       lcolumn%gz(:,:)=lcolumn%tt(:,:)
-C
-C     SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
-C     --------------------------------------------------------------------
-C
+!C
+!C     SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
+!C     --------------------------------------------------------------------
+!C
          CALL SETFGEFAM('AI',lcolumn,lcolumng,lobsSpaceData)
          CALL SETFGEFAM('SW',lcolumn,lcolumng,lobsSpaceData)
          CALL SETFGEFAM('UA',lcolumn,lcolumng,lobsSpaceData)
          CALL SETFGEFAM('SF',lcolumn,lcolumng,lobsSpaceData)
          CALL SETFGEFAM('HU',lcolumn,lcolumng,lobsSpaceData)
          CALL SETFGEFAMZ('PR',lcolumn,lcolumng,lobsSpaceData)
-C
-C     SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
-C     -----------------------------------------------------
-C
-         CALL SETFGEDIF('RO',lcolumnhr,lobsSpaceData)
-C
-C     DO TEMPERATURE FIRST-GUESS ERROR
-C     ---------------------------------
-C
+!C
+!C     SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
+!C     -----------------------------------------------------
+!C
+         write(*,*) 'before setfgedif'
+         call flush(6)
+         CALL SETFGEDIF('RO',lcolumng,lobsSpaceData)
+         write(*,*) 'after setfgedif'
+         call flush(6)
+!C
+!C     DO TEMPERATURE FIRST-GUESS ERROR
+!C     ---------------------------------
+!C
+         write(*,*) 'before reading TT'
+         call flush(6)
       CLNOMVAR = 'TT'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       DO J = 1, NFLEV
          DO JLAT = 1, NJ
             DO JLON=1,NI
@@ -383,13 +311,18 @@ C
          END DO
       END DO
 
+         write(*,*) 'before bilin'
+         call flush(6)
       CALL BILIN(lcolumn,lobsSpaceData)
-      CALL SETFGETT
-C
-C
-C     DO SATEM FIRST-GUESS ERROR
-C     --------------------------
-C
+         write(*,*) 'before setfgett'
+         call flush(6)
+      CALL SETFGETT(lcolumn,lcolumng,lobsSpaceData)
+         write(*,*) 'after setfgett'
+         call flush(6)
+!C
+!C     DO SATEM FIRST-GUESS ERROR
+!C     --------------------------
+!C
 !      if(.not.lcva_hemis) then
 !        CLNOMVAR = 'DZ'
 !        IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
@@ -410,13 +343,12 @@ C
 !        lcolumn%gz(:,:)=lcolumn%tt(:,:)
 !        CALL SETFGEST
 !      endif
-C
-C     RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
-C     ---------------------------------------------
-C
+!C
+!C     RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
+!C     ---------------------------------------------
+!C
       CLNOMVAR = 'P0'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, INK
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -428,10 +360,8 @@ C
               END DO
            END DO
         END DO
-C
       CLNOMVAR = 'UU'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -444,8 +374,7 @@ C
            END DO
         END DO
       CLNOMVAR = 'VV'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -458,8 +387,7 @@ C
            END DO
         END DO
       CLNOMVAR = 'TT'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -472,8 +400,7 @@ C
            END DO
         END DO
       CLNOMVAR = 'ES'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
@@ -487,19 +414,17 @@ C
         END DO
 
       CALL BILIN(lcolumn,lobsSpaceData)
-C
-C     SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
-C     ------------------------------------------------
-C
-      CALL SETFGESURF
+!C
+!C     SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
+!C     ------------------------------------------------
+!C
+      CALL SETFGESURF(lcolumn,lcolumng,lobsSpaceData)
 
-C     READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
-C     ---------------------------------------------
-C
-
+!C     READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
+!C     ---------------------------------------------
+!C
       CLNOMVAR = 'LQ'
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE
-     +     ,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       DO J = 1, NFLEV
         DO JLAT = 1, NJ
           DO JLON=1,NI
@@ -513,12 +438,12 @@ C
       END DO
 
       CALL BILIN(lcolumn,lobsSpaceData)
-C
-C     SET THE FIRST-GUESS ERRORS FOR GB-GPS ZTD DATA
-C     ------------------------------------------------
-C
-      CALL SETFGEGPS
-C
+!C
+!C     SET THE FIRST-GUESS ERRORS FOR GB-GPS ZTD DATA
+!C     ------------------------------------------------
+!C
+      CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
+
       call col_deallocate(lcolumn)
       CALL HPDEALLC(PXZBUFFER,IERR,1)
       CALL HPDEALLC(PXTRANS,IERR,1)
@@ -527,21 +452,17 @@ C
 !
 !
 !
-      SUBROUTINE SETFGEDIF(CDFAM,lcolumnhr,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r SETFGEDIF   - Interpolation of THE FIRST GUESS ERROR VARIANCES
-*                    for data derived through the diff self-differencing variables
-*
-*
-*Author  : J.M. Aparicio *MSC/ARMA November 2004
-*Revision:
-*
-**    Purpose:  -Construct the FIRST GUESS ERROR VARIANCES from the
-*                diff-calculated dependencies and the primary errors.
-*
-*
-#endif
+      SUBROUTINE SETFGEDIF(CDFAM,lcolumng,lobsSpaceData)
+!*
+!***s/r SETFGEDIF   - Interpolation of THE FIRST GUESS ERROR VARIANCES
+!*                    for data derived through the diff self-differencing variables
+!*
+!*
+!*Author  : J.M. Aparicio *MSC/ARMA November 2004
+!*
+!**    Purpose:  -Construct the FIRST GUESS ERROR VARIANCES from the
+!*                diff-calculated dependencies and the primary errors.
+!*
       use MathPhysConstants_mod
       use modgps04profile
       use modgps06gravity
@@ -550,14 +471,13 @@ C
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-*
-      type(struct_columnData) :: lcolumnhr
+
+      type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
       CHARACTER*2 CDFAM
       INTEGER JF
@@ -588,43 +508,43 @@ C
       TYPE(GPSPROFILE)           :: PRF
       REAL(DP)     , ALLOCATABLE :: H   (:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
-C
-C     * 1.  Initializations
-C     *     ---------------
-C
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
       ZTODEG = 180.0 / RPI
-C
-C     *     Eta vector:
-C
-      NGPSLEV=lcolumnhr%NLEV
-      DO JL = 1, lcolumnhr%NLEV
-         ZETA(JL) = lcolumnhr%VLEV(JL)
+!C
+!C     *     Eta vector:
+!C
+      NGPSLEV=lcolumng%NLEV
+      DO JL = 1, lcolumng%NLEV
+         ZETA(JL) = VHYBINC(JL)
       ENDDO  
-C
+
       DO JF = 1,NFILES
          IF ( (CFAMTYP(JF) .EQ. CDFAM ) .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
             IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
             ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
-C
-C     *     Loop over all observations of the file
-C
+!C
+!C     *     Loop over all observations of the file
+!C
             DO JO = IBEGINOB, ILASTOB
-C     
-C     *    .   Process only refractivity data (codtyp 169)
-C
+!C     
+!C     *    .   Process only refractivity data (codtyp 169)
+!C
                IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
                IF ( IDATYP .EQ. 169 ) THEN
-C
-C                 Loops over data in the observation
-C
+!C
+!C                 Loops over data in the observation
+!C
                   IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
                   IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                   ASSIM = .FALSE.
-C
-C                 Scan for requested assimilations, and count them
-C
+!C
+!C                 Scan for requested assimilations, and count them
+!C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
                      IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
@@ -632,51 +552,50 @@ C
                         NH = NH + 1
                      ENDIF
                   ENDDO
-C
-C     *           If assimilations are requested, apply the observation operator
-C
+!C
+!C     *           If assimilations are requested, apply the observation operator
+!C
                   IF (ASSIM) THEN
-C     
-C     *              Profile at the observation location:
-C
+!C     
+!C     *              Profile at the observation location:
+!C
                      Lat  = obs_elem_r4(lobsSpaceData,'LAT ',jo)
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',jo)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
-                     DO JL = 1, lcolumnhr%NLEV
-C
-C     *                 Profile x
-C
-                        ZTT(JL) = lcolumnhr%tt(JL,JO)-273.15
-                        ZHU(JL) = lcolumnhr%hu(JL,JO)
-                        ZGZ(JL) = lcolumnhr%gz(JL,JO)
+                     DO JL = 1, lcolumng%NLEV
+!C
+!C     *                 Profile x
+!C
+                        ZTT(JL) = lcolumng%tt(JL,JO)-273.15
+                        ZHU(JL) = lcolumng%hu(JL,JO)
+                        ZGZ(JL) = lcolumng%gz(JL,JO)
                      ENDDO
-                     ZP0 = lcolumnhr%ps(1,JO)
-                     ZPT = lcolumnhr%RPPOBS(1,JO)
-                     ZMT = ZGZ(lcolumnhr%NLEV)/RG
+                     ZP0 = lcolumng%ps(1,JO)
+                     ZMT = ZGZ(lcolumng%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
-C     
-C     *              GPS profile structure:
-C
-                     CALL GPSSTRUCT1(NGPSLEV,ZLAT,ZLON,ZETA,
-     +                    ZTT,ZHU,ZP0,ZMT,ZPT,PRF)
-C
-C     *              Local error
-C
-                     DO JL = 1, lcolumnhr%NLEV
+                     ZPT = rptopinc
+!C     
+!C     *              GPS profile structure:
+!C
+                     CALL GPSSTRUCT1(NGPSLEV,ZLAT,ZLON,ZETA,ZTT,ZHU,ZP0,ZMT,ZPT,PRF)
+!C
+!C     *              Local error
+!C
+                     DO JL = 1, lcolumng%NLEV
                         DV (        JL) = 1.
-                        DV (lcolumnhr%NLEV+JL) = 1.
+                        DV (lcolumng%NLEV+JL) = 1.
                      ENDDO
-                     DV (2*lcolumnhr%NLEV+1)   = 2.
+                     DV (2*lcolumng%NLEV+1)   = 2.
 
                      IF (JO.EQ.IBEGINOB) THEN
                         DO JL = 1, 2*NFLEV+1
                            WRITE(*,*)'SETFGEDIF', JL, DV(JL)
                         ENDDO
                      ENDIF
-C
-C     *              PREPARE THE VECTOR OF ALL THE OBSERVATIONS
-C
+!C
+!C     *              PREPARE THE VECTOR OF ALL THE OBSERVATIONS
+!C
                      ALLOCATE( H    (NH) )
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
@@ -687,38 +606,37 @@ C
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
                      ENDDO
-C
-C     *              Apply the observation operator
-C  
+!C
+!C     *              Apply the observation operator
+!C  
                      CALL GPSREFOPV(H, PRF, RSTV)
-C
-C     *              Perform the H(xb)DV operation
-C
+!C
+!C     *              Perform the H(xb)DV operation
+!C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
                         IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata).EQ.1 ) THEN
                            NH1 = NH1 + 1
-C
-C     *                    Observation jacobian
-C
+!C
+!C     *                    Observation jacobian
+!C
                            JAC = RSTV(NH1)%DVAR
-C
-C     *                    Evaluate sqrt( H(xb)DV **2 )
-C
+!C
+!C     *                    Evaluate sqrt( H(xb)DV **2 )
+!C
                            ZMHX = 0._dp
                            DO JV = 1, 2*PRF%NGPSLEV+1
                               ZMHX = ZMHX + (JAC(JV) * DV(JV))**2
                            ENDDO
                            ZMHX = SQRT(ZMHX)
-C     
-C     *                    FIRST GUESS ERROR VARIANCE
-C
+!C     
+!C     *                    FIRST GUESS ERROR VARIANCE
+!C
                            call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(ZMHX))
                            IF (JO.EQ.IBEGINOB) THEN
  11                           FORMAT(A12,2I5,2F12.2,2F12.4)
-                              WRITE(*,11)'SETFGEDIFFGE', NH1, NH,
-     +                             H(NH1),RSTV(NH1)%VAR,
-     +                             ZMHX,obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                              WRITE(*,11)'SETFGEDIFFGE', NH1, NH, H(NH1),RSTV(NH1)%VAR,  &
+                                 ZMHX,obs_elem_r8(lobsSpaceData,'OER ',JDATA)
                            ENDIF
                         ENDIF
                      ENDDO
@@ -729,38 +647,33 @@ C
             ENDDO
          ENDIF
       ENDDO
-C
+      write(*,*) 'end of setfgedif'
+      call flush(6)
+
       RETURN
       END
 !
 !
 !
-      sUBROUTINE SETFGEFAM(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r SETFGEFAM   - Interpolation of THE FIRST GUESS ERROR VARIANCES
-*
-*
-*Author  : P. Koclas *CMC/CMSV November 1998
-*Revision:
-*
-**    Purpose:  -Interpolate vertically the contents of commvo to
-*                the pressure levels of the observations. Then
-*                compute THE FIRST GUESS ERROR VARIANCES
-*                A linear interpolation in ln(p) is performed.
-*
-*
-*
-#endif
+      SUBROUTINE SETFGEFAM(CDFAM,lcolumn,lcolumng,lobsSpaceData)
+!*
+!***s/r SETFGEFAM   - Interpolation of THE FIRST GUESS ERROR VARIANCES
+!*
+!*
+!*Author  : P. Koclas *CMC/CMSV November 1998
+!*
+!**    Purpose:  -Interpolate vertically the contents of commvo to
+!*                the pressure levels of the observations. Then
+!*                compute THE FIRST GUESS ERROR VARIANCES
+!*                A linear interpolation in ln(p) is performed.
+!*
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-*
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       CHARACTER*2 CDFAM
@@ -769,23 +682,21 @@ C
       INTEGER J,JDATA
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-C
+
       DO J = 1,NFILES
       IF ( (CFAMTYP(J) .EQ. CDFAM ) .AND.( NBEGINTYP(J) .GT. 0) ) THEN
          IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
-C
-C*    1. Computation of sigmap
-C     .  -----------------------------
-C
- 100  CONTINUE
-C
+!C
+!C*    1. Computation of sigmap
+!C     .  -----------------------------
+!C
         write(nulout,*) 'setfgefam: CDFAM=',CDFAM
         write(nulout,*) 'setfgefam: IBEGIN,ILAST=',IBEGIN,ILAST
          DO JDATA=IBEGIN,ILAST
-ccc            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
-            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.
-     &           obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2      ) then
+!ccc            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
+            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.   &
+                 obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2      ) then
             IF  (obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0) THEN
                IK=NFLEV-1
                IOBS=obs_elem_i(lobsSpaceData,'OBS ',jdata)
@@ -804,11 +715,11 @@ ccc            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
                ZPB  = lcolumng%RPPOBS(IK+1,IOBS)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
-C
-C              FIRST GUESS ERROR VARIANCE
-C
-               call obs_set_r4(lobsSpaceData,'FGE ',jdata,
-     +          real((ZWB*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS))) )
+!C
+!C              FIRST GUESS ERROR VARIANCE
+!C
+               call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
+                    real((ZWB*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS))) )
                if(obs_elem_r4(lobsSpaceData,'FGE ',jdata).le.0.) then
                  write(nulout,*) 'SETFGEFAM: CDFAM = ',CDFAM
                  write(nulout,*) 'SETFGEFAM: lcolumn%all(IPB,IOBS)=',lcolumn%all(IPB,IOBS)
@@ -817,44 +728,36 @@ C
                endif
             ENDIF
             ENDIF
-C
+
          END DO
- 200  CONTINUE
-C
+
       ENDIF
       END DO
-C
+
       RETURN
       END
 !
 !
 !
       SUBROUTINE SETFGEFAMZ(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r SETFGEFAMZ   - Interpolation of THE FIRST GUESS ERROR VARIANCES
-*
-*
-*Author  :  J. St-James, CMDA/SMC November 2002
-*Revision:
-*
-**    Purpose:  -Interpolate vertically the contents of commvo to
-*                the levels of the observations (in meters). Then
-*                compute THE FIRST GUESS ERROR VARIANCES
-*                A linear interpolation in z is performed.
-*
-*
-*
-#endif
+!*
+!***s/r SETFGEFAMZ   - Interpolation of THE FIRST GUESS ERROR VARIANCES
+!*
+!*
+!*Author  :  J. St-James, CMDA/SMC November 2002
+!*
+!**    Purpose:  -Interpolate vertically the contents of commvo to
+!*                the levels of the observations (in meters). Then
+!*                compute THE FIRST GUESS ERROR VARIANCES
+!*                A linear interpolation in z is performed.
+!*
       use MathPhysConstants_mod
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-*
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       CHARACTER*2 CDFAM
@@ -863,21 +766,19 @@ C
       INTEGER J,JDATA
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-C
+
       DO J = 1,NFILES
          IF ((CFAMTYP(J) .EQ. CDFAM).AND.(NBEGINTYP(J).GT.0)) THEN
             IBEGIN=NBEGINTYP(J)
             ILAST=NENDTYP(J)
-C
-C*    1. Computation of sigmap
-C     .  -----------------------------
-C
- 100        CONTINUE
-C
+!C
+!C*    1. Computation of sigmap
+!C     .  -----------------------------
+!C
             DO JDATA=IBEGIN,ILAST
-ccc   IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
-               IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.
-     &              obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 1 ) then
+!ccc   IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
+               IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.   &
+                    obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 1 ) then
                   IF  (obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0) THEN
                      IK=NFLEV-1
                      IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
@@ -896,62 +797,48 @@ ccc   IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
                      ZPB  = lcolumng%gz(IK+1,IOBS)/RG
                      ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                      ZWT  = 1. - ZWB
-
-C
-C     FIRST GUESS ERROR VARIANCE
-C
-                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,
-     +                 real((ZWB*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS))) )
+!C
+!C     FIRST GUESS ERROR VARIANCE
+!C
+                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
+                          real((ZWB*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS))) )
 
                   ENDIF
                ENDIF
-C
+
             END DO
-C
+
          ENDIF
       END DO
-C
+
       RETURN
       END
 !
 !
 !
       SUBROUTINE SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r  -SETFGEGPS Sets first-guess error for all GB-GPS ZTD observations
-*
-*
-*Author  : S. Macpherson *ARMA/MSC  December 2004
-*
-*Revisions:
-*
-*    -------------------
-**    Purpose: Set FGE for all GPS ZTD observations using
-*              adjoint of gpsztdop to get Jacobians
-*
-*Arguments
-*     None
-*
-*
-#endif
+!*
+!***s/r  -SETFGEGPS Sets first-guess error for all GB-GPS ZTD observations
+!*
+!*Author  : S. Macpherson *ARMA/MSC  December 2004
+!*
+!*    -------------------
+!**    Purpose: Set FGE for all GPS ZTD observations using
+!*              adjoint of gpsztdop to get Jacobians
+!*
       use MathPhysConstants_mod
       use bufr
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
 #include "cvcord.cdk"
-!#include "comnumbr.cdk"
 #include "comstate.cdk"
 #include "comgpsgb.cdk"
-*
-C
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       REAL*8 ZTODEG
@@ -968,90 +855,84 @@ C
       REAL*8 ZPT
       REAL*8 ZMT
       REAL*8 ZP0S
-c      REAL*8 ZSBLCRIT(2)
       REAL*8 ZTTS(NFLEV), ZHUS(NFLEV), ZGZS(NFLEV)
-C
+
       REAL*8 ZOER, ZINC, ZHX, ZLEV
       REAL*8 ZDZ
       REAL*8 ZHXB, ZVAR
-C
+
       REAL*8 ZJTT (NFLEV)
       REAL*8 ZJHU (NFLEV)
       REAL*8 ZJP0, ZLSUM
-C
+
       INTEGER JF
       INTEGER IBEGIN  , ILAST
       INTEGER IBEGINOB, ILASTOB, JO
       INTEGER IDATYP, ITYP
       INTEGER IDATA   , IDATEND, JDATA
       INTEGER JL, JK
-C
+
       LOGICAL  ASSIM, LLSHIFT, LLOK
 
       INTEGER NH, NH1
-      
-C
-C     * 1.  Initializations
-C     *     ---------------
-C
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
       ZTODEG = 180.0 / RPI
-C     *  Depth of PBL in Pa for (1) TT and (2) HU
-c      ZSBLCRIT(1) = 5000.0
-c      ZSBLCRIT(2) = 5000.0
-C
-C     *    .   1.1  Eta vector
-C     *    .        ----------
-C      
+!C
+!C     *    .   1.1  Eta vector
+!C     *    .        ----------
+!C      
       DO JL = 1, NFLEV
          ZETA(JL) = VLEV(JL)
       ENDDO
-C
-C     Loop over all observation files (all observation types)
-C
+!C
+!C     Loop over all observation files (all observation types)
+!C
       DO JF = 1, NFILES
-C
-C     *  Process only GPS observation files (family = GP)
-C
+!C
+!C     *  Process only GPS observation files (family = GP)
+!C
          IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
             IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
             ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-C
-C     *     Loop over all GPS observations (locations) of the file
-C
+!C
+!C     *     Loop over all GPS observations (locations) of the file
+!C
             DO JO = IBEGINOB, ILASTOB
-C     
-C     *    .   Process only zenith delay data (codtyp 189 and BUFR_NEZD)
-C
+!C     
+!C     *    .   Process only zenith delay data (codtyp 189 and BUFR_NEZD)
+!C
                IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
                IF ( IDATYP .EQ. 189 ) THEN
-C
-C                 Loop over data in the observations
-C
+!C
+!C                 Loop over data in the observations
+!C
                   IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
                   IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                   ASSIM = .FALSE.
-C
-C                 Scan for requested assimilations, and count them.
-C
+!C
+!C                 Scan for requested assimilations, and count them.
+!C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
                      ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
-     &                      (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
+                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
                      IF ( LLOK ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
                   ENDDO
-C
-C     *           If assimilations are requested, apply the AD observation operator
-C
+!C
+!C     *           If assimilations are requested, apply the AD observation operator
+!C
                   IF (ASSIM) THEN
-C     
-C     *        LR background profile and background errors at the observation location x :
-C
+!C     
+!C     *        LR background profile and background errors at the observation location x :
+!C
                      ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
                      ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
                      DO JL = 1, NFLEV
@@ -1065,55 +946,47 @@ C
                      ZP0  = lcolumn%ps(1,JO)
                      ZPT  = lcolumng%RPPOBS(1,JO)
                      ZMT  = ZGZ(NFLEV)/GRAV
-C
-C     *        Call AD of ZTD observation operator to get Jacobians dH/dX
-C 
-C
-C
+!C
+!C     *        Call AD of ZTD observation operator to get Jacobians dH/dX
+!C 
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
                         ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 .AND. 
-     +                     ITYP.EQ.BUFR_NEZD ) THEN
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 .AND. ITYP.EQ.BUFR_NEZD ) THEN
                            NH1 = NH1 + 1
-C
-C     *                    Observation error    SDERR
-c                           ZOER = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-C
+!C
+!C     *                    Observation error    SDERR
+!c                           ZOER = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+!C
                            ZHX = 1.0
-C
-C     *                    Observation height (m)
+!C
+!C     *                    Observation height (m)
                            ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-C
-                      CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,
-     +                  ZHUB,ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZJTT,ZJHU,ZJP0,ZHX)
-C
-C                          dH/dQ ---> dH/d(lnQ)
+
+                      CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,ZHUB,ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZJTT,ZJHU,ZJP0,ZHX)
+
+!C                          dH/dQ ---> dH/d(lnQ)
                            ZJHU(:) = ZHUB(:)*ZJHU(:)
-C
-C     *        Compute the background ZTD error (HBHt)
+!C
+!C     *        Compute the background ZTD error (HBHt)
                            ZLSUM = 0.0
                            DO JL = 1, NFLEV
-                             ZLSUM = ZLSUM +  (ZJTT(JL)*ZTT(JL))**2 +
-     +                               (ZJHU(JL)*ZHU(JL))**2 
+                             ZLSUM = ZLSUM +  (ZJTT(JL)*ZTT(JL))**2 + (ZJHU(JL)*ZHU(JL))**2 
                            ENDDO
                            ZLSUM = ZLSUM + (ZJP0*ZP0)**2
                            call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(SQRT(ZLSUM)))
-C
+
                            IF (JO.EQ.IBEGINOB .AND. NH1.LE.3) THEN
-                            WRITE(NULOUT,
-     +                      '(A11,A9,3(1x,f7.2))')
-     +                      'SETFGEGPS: ',obs_elem_c9(lobsSpaceData,'STID',JO),
-     +                      ZLAT,ZLON,ZLEV
+                            WRITE(NULOUT,'(A11,A9,3(1x,f7.2))')   &
+                               'SETFGEGPS: ',obs_elem_c9(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV
                             WRITE(NULOUT,*) 'JL JACT JACQ FGE_T FGE_LQ'
                             DO JL = 1, NFLEV
-                             WRITE(NULOUT,
-     +   '(1X,I2,4(1x,E13.6))') JL,ZJTT(JL),ZJHU(JL)/ZHUB(JL),ZTT(JL), ZHU(JL)                           
+                              WRITE(NULOUT,'(1X,I2,4(1x,E13.6))') JL,ZJTT(JL),ZJHU(JL)/ZHUB(JL),ZTT(JL), ZHU(JL)
                             ENDDO                         
                             WRITE(NULOUT,*) 'JACPS FGE_PS'
                             WRITE(NULOUT,'(2(1x,E13.6))') ZJP0, ZP0
                            ENDIF
-C
+
                         ENDIF
                      ENDDO
                   ENDIF
@@ -1123,50 +996,35 @@ C
          ENDIF
 
       ENDDO
-C
-C      WRITE(NULOUT, *) ' '
-C
+
       RETURN
       END
 !
 !
 !
       SUBROUTINE SETFGESURF(lcolumn,lcolumng,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r SURFC1DZ  - Computation of Jo and the residuals to the observations
-*                 FOR SURFACE DATAFILES
-*
-*
-*Author  : P. Koclas *CMC/AES  September 2000
-*Revision:
-*         JM Belanger CMDA/SMC Feb 2004
-*                   . Introduce "scatterometer family SC"
-*          S. Macpherson *ARMA/MRD Sep 2009
-*             - exclude GP family ZTD (FGE is set in SETFGEGPS)
-*
-**    Purpose:  -Interpolate vertically the contents of commvo to
-*                the pressure levels of the observations. Then
-*                compute Jo.
-*                A linear interpolation in ln(p) is performed.
-*
-*
-*Arguments
-*
-#endif
+!*
+!***s/r SURFC1DZ  - Computation of Jo and the residuals to the observations
+!*                 FOR SURFACE DATAFILES
+!*
+!*Author  : P. Koclas *CMC/AES  September 2000
+!*
+!**    Purpose:  -Interpolate vertically the contents of commvo to
+!*                the pressure levels of the observations. Then
+!*                compute Jo.
+!*                A linear interpolation in ln(p) is performed.
+!*
       use MathPhysConstants_mod
       use bufr
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
 !#include "comnumbr.cdk"
 #include "comfilt.cdk"
-*
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,IXTR,IDIM
@@ -1178,37 +1036,29 @@ C
       REAL*8 ZLEV,ZPT,ZPB,ZHHH,ZGAMAZ
       LOGICAL LLOK, LLPRINT,LLUV
       POINTER(PXPOINTR    ,IPOINTR)
-
-C
-C     Temperature lapse rate for extrapolation of gz below model surface
-C
+!C
+!C     Temperature lapse rate for extrapolation of gz below model surface
+!C
       LLPRINT = .FALSE.
-c        LLPRINT = .TRUE.
       ZGAMMA = 0.0065 / GRAV
       zexp = 1/(RGASD*ZGAMMA)
       zexpgz = (RGASD*ZGAMMA)
-C
-      DO J = 1,NFILES
-         IF ( (CFAMTYP(J) == 'SF') .AND.( NBEGINTYP(J) > 0) .OR.
-     &        (CFAMTYP(J) == 'UA') .AND.( NBEGINTYP(J) > 0) .OR.
-     &        (CFAMTYP(J) == 'SC') .AND.( NBEGINTYP(J) > 0) .OR.
-     &        (CFAMTYP(J) == 'GP') .AND.( NBEGINTYP(J) > 0) )   THEN
 
-c ***** debug *********
-c      WRITE(NULOUT,*) 'Setting FGE for SURFACE DATA type ', CFAMTYP(J)
-c ***** debug *********
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) == 'SF') .AND.( NBEGINTYP(J) > 0) .OR.  &
+              (CFAMTYP(J) == 'UA') .AND.( NBEGINTYP(J) > 0) .OR.  &
+              (CFAMTYP(J) == 'SC') .AND.( NBEGINTYP(J) > 0) .OR.  &
+              (CFAMTYP(J) == 'GP') .AND.( NBEGINTYP(J) > 0) )   THEN
+
            IBEGIN=NBEGINTYP(J)
            ILAST=NENDTYP(J)
-C
-C*    1. Computation of (HX - Z)/SIGMA
-C     .  -----------------------------
-C
- 100      CONTINUE
-C
-C     Process all data within the domain of the model (excluding GB-GPS
-C     ZTD and ZTD error data)
-C
-C
+!C
+!C*    1. Computation of (HX - Z)/SIGMA
+!C     .  -----------------------------
+!C
+!C     Process all data within the domain of the model (excluding GB-GPS
+!C     ZTD and ZTD error data)
+!C
           ILEN = ILAST - IBEGIN +1
           CALL HPALLOC(PXPOINTR,ILEN,IERR,1)
           DO JLIST = 1,NELEMS
@@ -1217,15 +1067,13 @@ C
               LLOK=.FALSE.
               IF ( obs_elem_i(lobsSpaceData,'VCO ',jdata) == 1 ) THEN
                 ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
-                IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.
-     &              ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.
-     &              ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
-                  LLOK=(obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.
-     &                 ITYP .EQ. NLIST(JLIST))
+                IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.  &
+                    ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.  &
+                    ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
+                  LLOK=(obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND. ITYP .EQ. NLIST(JLIST))
                 ELSE
-                  LLOK=(obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.
-     &                 ITYP .EQ. NLIST(JLIST)        .AND.
-     &                 obs_elem_i(lobsSpaceData,'XTR ',jdata)  .ge. 0)
+                  LLOK=(obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.  &
+                       ITYP .EQ. NLIST(JLIST) .AND. obs_elem_i(lobsSpaceData,'XTR ',jdata) .ge. 0)
                 ENDIF
                 IF ( ITYP == BUFR_NEZD .OR. ITYP == BUFR_NEFE ) LLOK=.FALSE.
                 IF ( LLOK ) THEN
@@ -1234,9 +1082,9 @@ C
                 ENDIF
               ENDIF
             ENDDO
-C
-C-------------- Surface data and data with height vertical coordinate
-C
+!C
+!C-------------- Surface data and data with height vertical coordinate
+!C
             IF(ICOUNT.GT.0)          THEN
               DO JCOUNT = 1,ICOUNT
                 JDATA = IPOINTR(JCOUNT)
@@ -1249,18 +1097,18 @@ C
                 ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                 ZHHH = ZLEV * GRAV
 
-                IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.
-     &              ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.
-     &              ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
+                IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.   &
+                    ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.   &
+                    ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
 
                   IPT  = IK + IPOS*NFLEV
                   IPB  = IPT+1
                   call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(lcolumn%all(IPB,IOBS)))
-c ***** debug *********
-c                  write(nulout,*) 'stn,ityp,ipt,ipb,fge'
-c                  write(nulout,*) obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ipt,ipb,
-c     &                            obs_elem_r4(lobsSpaceData,'FGE ',jdata)
-c ***** debug *********
+!c ***** debug *********
+!c                  write(nulout,*) 'stn,ityp,ipt,ipb,fge'
+!c                  write(nulout,*) obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ipt,ipb,
+!c     &                            obs_elem_r4(lobsSpaceData,'FGE ',jdata)
+!c ***** debug *********
                 ELSE
                   IPT  = IK + IPOS*NFLEV
                   IPB  = IPT+1
@@ -1269,29 +1117,26 @@ c ***** debug *********
                   ZWB  = idim*(ZPT-ZHHH)/(ZPT-ZPB)
                   ZWT  = 1. - ZWB
                   IF ( obs_elem_i(lobsSpaceData,'XTR ',jdata) .eq. 0) then
-                    call obs_set_r4(lobsSpaceData,'FGE ',jdata, 
-     +                real(zwb*lcolumn%all(IPB,IOBS)
-     +                   + ZWT*lcolumn%all(IPT,IOBS)) )
+                    call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
+                      real(zwb*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS)) )
                   ELSE
-                    call obs_set_r4(lobsSpaceData,'FGE ',jdata, 
-     &                    real(lcolumn%all(IK + IPOS*NFLEV,IOBS)) )
+                    call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
+                      real(lcolumn%all(IK + IPOS*NFLEV,IOBS)) )
                   ENDIF
                 if(obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '99999999') then
-                  write(nulout,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'
-     &                 ,obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,
-     &                  obs_elem_i(lobsSpaceData,'XTR ',jdata),ipt,ipb
-     &                 ,zwt,zwb
-                  write(nulout,*) 'setfgesurf:gobs(ipb),gobs(ipt),fge'
-     &                 ,lcolumn%all(IPB,IOBS),lcolumn%all(IPT,IOBS)
-     &                 ,obs_elem_r4(lobsSpaceData,'FGE ',jdata)
+                  write(nulout,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &
+                       ,obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,    &
+                        obs_elem_i(lobsSpaceData,'XTR ',jdata),ipt,ipb,zwt,zwb
+                  write(nulout,*) 'setfgesurf:gobs(ipb),gobs(ipt),fge'   &
+                       ,lcolumn%all(IPB,IOBS),lcolumn%all(IPT,IOBS)      &
+                       ,obs_elem_r4(lobsSpaceData,'FGE ',jdata)
                 endif
                 ENDIF
               ENDDO
             ENDIF
           ENDDO
           CALL HPDEALLC(PXPOINTR,IERR,1)
-C
-C
+
         ENDIF
       END DO
 
@@ -1301,30 +1146,22 @@ C
 !
 !
       SUBROUTINE SETFGETT(lcolumn,lcolumng,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r SETFGETT   - Interpolation of THE FIRST GUESS ERROR VARIANCES FOR TEMPERATURE
-*
-*
-*Author  : P. Koclas *CMC/CMSV November 1998
-*Revision:
-*
-**    Purpose:  -Interpolate vertically the contents of commvo to
-*                the pressure levels of the observations. Then
-*                compute THE FIRST GUESS ERROR VARIANCES
-*                A linear interpolation in ln(p) is performed.
-*
-*
-*
-#endif
+!*
+!***s/r SETFGETT   - Interpolation of THE FIRST GUESS ERROR VARIANCES FOR TEMPERATURE
+!*
+!*Author  : P. Koclas *CMC/CMSV November 1998
+!
+!**    Purpose:  -Interpolate vertically the contents of commvo to
+!*                the pressure levels of the observations. Then
+!*                compute THE FIRST GUESS ERROR VARIANCES
+!*                A linear interpolation in ln(p) is performed.
+!*
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-*
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT
@@ -1332,23 +1169,21 @@ C
       INTEGER J,JDATA
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-C
+
       DO J = 1,NFILES
       IF (  NBEGINTYP(J) .GT. 0 ) THEN
          IBEGIN=NBEGINTYP(J)
           ILAST=NENDTYP(J)
-C
-C*    1. Computation of sigmap
-C     .  -----------------------------
-C
- 100  CONTINUE
-C
+!C
+!C*    1. Computation of sigmap
+!C     .  -----------------------------
+!C
          DO JDATA=IBEGIN,ILAST
             IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
             IF  ( obs_elem_i(lobsSpaceData,'VNM ',jdata).EQ. 12001 ) THEN
-cpik
-            IF  ( obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0 .and. 
-     +            obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2) THEN
+
+            IF  ( obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0 .and.   &
+                  obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2) THEN
                IK=NFLEV-1
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
@@ -1366,183 +1201,156 @@ cpik
                ZPB  = lcolumng%RPPOBS(IK+1,IOBS)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
-C
-C              FIRST GUESS ERROR VARIANCE
+!C
+!C              FIRST GUESS ERROR VARIANCE
+!
+               call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
+                  real((ZWB*lcolumn%tt(IPB,IOBS) + ZWT*lcolumn%tt(IPT,IOBS))) )
+            ENDIF
+            ENDIF
+            ENDIF
 
-               call obs_set_r4(lobsSpaceData,'FGE ',jdata,
-     +           real((ZWB*lcolumn%tt(IPB,IOBS) + ZWT*lcolumn%tt(IPT,IOBS))) )
-            ENDIF
-            ENDIF
-            ENDIF
-C
          END DO
- 200  CONTINUE
-C
+
       ENDIF
       END DO
-C
+
       RETURN
       END
 !
 !
 !
       SUBROUTINE BILIN(lcolumn,lobsSpaceData)
-*
-#if defined (DOC)
-*
-***s/r BILIN  - Horizontal interpolation of the model variables
-*               in grid-point space to observation points.
-*               Bilinear interpolation from the 4 nearest grid points.
-*     .         (based on HOR4 from the ARPEGE/IFS model)
-*
-*Author  : J. Pailleux  ECMWF    90-01-11
-*     .    Luc Fillion  RPN/AES  Jan 1993
-*Revision:
-*     . P. Gauthier *ARMA/AES October 6,1993: operations performed on the
-*     .                                       global state
-*     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
-*     . P. Gauthier *ARMA/AES May 25,1993: -Treatment of specific humidity
-*     .                                     and  surface pressure
-*     . P. Koclas   *CMC/AES  Sept 08,1994: removal of call to isrchila by
-*                   access to "transormed latitudes" contained in observation
-*                   headers.
-*     . S. Pellerin *ARMA/AES Aug. 11, 1998:
-*                         .  Interpolation performed on
-*                            individual variable and conditional
-*                            to the existance of a variable in GOMOBS
-*                            and GD.
-*                         .  Interpolation of GZ model state to GOMGZ
-*                            when TT is the control variable.
-*     . J. Halle    *CMDA/AES Oct 99.
-*             - Added ground temperature (TG) to the model state.
-*
-**    Purpose:  Build GOMU, GOMV, GOMT, GOMGZ, GOMQ and GOMPS  with the model variables at the
-*               observation points from the model variables in grid-points
-*               space using bilinear interpolation.
-*
-*
-#endif
+!*
+!***s/r BILIN  - Horizontal interpolation of the model variables
+!*               in grid-point space to observation points.
+!*               Bilinear interpolation from the 4 nearest grid points.
+!*     .         (based on HOR4 from the ARPEGE/IFS model)
+!*
+!*Author  : J. Pailleux  ECMWF    90-01-11
+!*     .    Luc Fillion  RPN/AES  Jan 1993
+!
+!**    Purpose:  Build GOMU, GOMV, GOMT, GOMGZ, GOMQ and GOMPS  with the model variables at the
+!*               observation points from the model variables in grid-points
+!*               space using bilinear interpolation.
+!*
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
       use globalSpectralTransform
       IMPLICIT NONE
-*implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
 #include "comgd0.cdk"
 #include "comstate.cdk"
-*
       type(struct_columnData) :: lcolumn
       type(struct_obs) :: lobsSpaceData
       INTEGER   JLEV, JK, JK2, JGL, JLON, JOBS
-      INTEGER   ILON, ILOS, IMIDDLE, ISYM, ILA, IMAX
+      INTEGER   ILON, ILOS, IMIDDLE, ISYM, ILA, IMAX, IERR
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
-      real*8 zgd(0:(ni+2),nkgdim,-1:(nj+2))
-C
-C
-C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
-C     NILON(JGL), 1, AND 2 INTO MERIDIANS 0, NILON(JGL)+1,
-C     AND NILON(JGL+2) AND ALSO TWO PARALLELS NEAR THE POLES.
-C     ----------------------------------------------------------
-C
-C*    1.0 TRANSFORM WIND IMAGES INTO PHYSICAL WINDS
-C
- 100  CONTINUE
-C
-      DO 103 JLEV = 1, NFLEV
-         DO 102 JGL = 1, NJ
-            DO 101  JLON = 1, NI
+      real*8, allocatable ::zgd(:,:,:)
+
+      allocate(zgd(0:(ni+2),1:nkgdim,(-1):(nj+2)),STAT=ierr)
+      write(*,*) 'allocated zgd:',ierr
+      call flush(6)
+!C
+!C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
+!C     NILON(JGL), 1, AND 2 INTO MERIDIANS 0, NILON(JGL)+1,
+!C     AND NILON(JGL+2) AND ALSO TWO PARALLELS NEAR THE POLES.
+!C     ----------------------------------------------------------
+!C
+!C*    1.0 TRANSFORM WIND IMAGES INTO PHYSICAL WINDS
+!C
+      DO JLEV = 1, NFLEV
+         DO JGL = 1, NJ
+            DO JLON = 1, NI
                UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
                VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
- 101        CONTINUE
- 102     CONTINUE
- 103  CONTINUE
-C
+            ENDDO
+         ENDDO
+      ENDDO
+
       ZGD(:,:,:)=0.0d0
       ZGD(1:NI,1:NKGDIM,1:NJ)=GD(1:NI,1:NKGDIM,1:NJ)
-C
-C*    1.1 EXTRA MERIDIANS
-C
-C     MERIDIAN NILON(JGL) DUPLICATED INTO MERIDIAN 0
-C     MERIDIAN 1  DUPLICATED INTO MERIDIAN NILON(JGL) + 1
-C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
-C
-      DO 110 JK = 1, NKGDIM
-         DO 111 JGL = 1, NJ
+!C
+!C*    1.1 EXTRA MERIDIANS
+!C
+!C     MERIDIAN NILON(JGL) DUPLICATED INTO MERIDIAN 0
+!C     MERIDIAN 1  DUPLICATED INTO MERIDIAN NILON(JGL) + 1
+!C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
+!C
+      DO JK = 1, NKGDIM
+         DO JGL = 1, NJ
             IMAX = NI
             ZGD(0     ,JK,JGL) = ZGD(NI,JK,JGL)
             ZGD(IMAX+1,JK,JGL) = ZGD( 1,JK,JGL)
             ZGD(IMAX+2,JK,JGL) = ZGD( 2,JK,JGL)
- 111     CONTINUE
- 110  CONTINUE
-C
-C*    1.2 EXTRA PARALLELS
-C
-      DO 120 JK = 1, NKGDIM
-C
-C     COMPUTATION OF VALUES AT NORTH AND SOUTH POLES.
-C
+         ENDDO
+      ENDDO
+!C
+!C*    1.2 EXTRA PARALLELS
+!C
+      DO JK = 1, NKGDIM
+!C
+!C     COMPUTATION OF VALUES AT NORTH AND SOUTH POLES.
+!C
          DLMEAN = 0.
          DLMEAS = 0.
          IMAX = NI
-         DO 121 JLON = 1, IMAX
+         DO JLON = 1, IMAX
             DLMEAN = DLMEAN + ZGD(JLON,JK,1)
             DLMEAS = DLMEAS + ZGD(JLON,JK,NJ)
- 121     CONTINUE
+         ENDDO
          DLMEAN = DLMEAN / NI
          DLMEAS = DLMEAS / NI
          IMAX = NI
-         DO 122 JLON = 0, IMAX + 2
+         DO JLON = 0, IMAX + 2
             ZGD(JLON,JK,0)    = DLMEAN
             ZGD(JLON,JK,NJ+1) = DLMEAS
- 122     CONTINUE
-C
-C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
-C
+         ENDDO
+!C
+!C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
+!C
          IMIDDLE = NI / 2
-         DO 123 JLON = 0, IMIDDLE
+         DO JLON = 0, IMIDDLE
             ISYM = JLON + IMIDDLE
             ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
             ZGD(JLON,JK,NJ+2) = ZGD(ISYM,JK,NJ)
- 123     CONTINUE
+         ENDDO
          IMAX = NI
-         DO 124 JLON = IMIDDLE + 1, IMAX + 2
+         DO JLON = IMIDDLE + 1, IMAX + 2
             ISYM = JLON - IMIDDLE
             ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
             ZGD(JLON,JK,NJ+2) = ZGD(ISYM,JK,NJ)
- 124     CONTINUE
-C
- 120  CONTINUE
-c
-C
-C*    2. LOOP OVER ALL THE OBSERVATIONS
-C     ---------------------------------
-C
- 200  CONTINUE
-C
-      DO 201 JOBS = 1, NOBTOT
+         ENDDO
+
+      ENDDO
+!C
+!C*    2. LOOP OVER ALL THE OBSERVATIONS
+!C     ---------------------------------
+!C
+      DO JOBS = 1, NOBTOT
          DLLAO   = obs_elem_r4(lobsSpaceData,'LAT ',JOBS)
          DLLOO   = obs_elem_r4(lobsSpaceData,'LON ',JOBS)
-C
-C*    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
-C*    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
-C*    TO THE WEST (ILON AND ILOS).
-C
+!C
+!C*    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
+!C*    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
+!C*    TO THE WEST (ILON AND ILOS).
+!C
          ILA=obs_elem_i(lobsSpaceData,'TLA ',JOBS)
-C
+
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
          DLDLON = 2.*RPI/NI
          DLDLOS = 2.*RPI/NI
          ILON = INT(DLLOO/DLDLON) + 1
          ILOS = INT(DLLOO/DLDLOS) + 1
-C
-C*    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
-C
+!C
+!C*    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
+!C
          DLDXN = DLLOO/DLDLON + 1. - ILON
          DLDXS = DLLOO/DLDLOS + 1. - ILOS
          DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
@@ -1550,116 +1358,104 @@ C
          DLW2  = DLDXN*(1.-DLDY)
          DLW3  = (1.-DLDXS)*DLDY
          DLW4  = DLDXS*DLDY
-C
-C
-C*    2.3 Interpolate the model state to the obs point
-C
+!C
+!C*    2.3 Interpolate the model state to the obs point
+!C
          DO JK = 1, nflev
            if(NGEXIST(nguu).eq.1) then
              jk2=jk+ngposit(nguu)-1
-             lcolumn%uu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)
-     +            + DLW2*zgd(ILON+1,JK2,ILA)
-     +            + DLW3*zgd(ILOS,JK2,ILA+1)
-     +            + DLW4*zgd(ILOS+1,JK2,ILA+1)
+             lcolumn%uu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngvv).eq.1) then
              jk2=jk+ngposit(ngvv)-1
-             lcolumn%vv(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)
-     +            + DLW2*zgd(ILON+1,JK2,ILA)
-     +            + DLW3*zgd(ILOS,JK2,ILA+1)
-     +            + DLW4*zgd(ILOS+1,JK2,ILA+1)
+             lcolumn%vv(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngq).eq.1) then
              jk2=jk+ngposit(ngq)-1
-             lcolumn%hu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)
-     +            + DLW2*zgd(ILON+1,JK2,ILA)
-     +            + DLW3*zgd(ILOS,JK2,ILA+1)
-     +            + DLW4*zgd(ILOS+1,JK2,ILA+1)
+             lcolumn%hu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(nggz).eq.1) then
              jk2=jk+ngposit(nggz)-1
-             lcolumn%gz(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)
-     +            + DLW2*zgd(ILON+1,JK2,ILA)
-     +            + DLW3*zgd(ILOS,JK2,ILA+1)
-     +            + DLW4*zgd(ILOS+1,JK2,ILA+1)
+             lcolumn%gz(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngtt).eq.1) then
              jk2=jk+ngposit(ngtt)-1
-             lcolumn%tt(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)
-     +            + DLW2*zgd(ILON+1,JK2,ILA)
-     +            + DLW3*zgd(ILOS,JK2,ILA+1)
-     +            + DLW4*zgd(ILOS+1,JK2,ILA+1)
+             lcolumn%tt(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngtr).eq.1) then
              jk2=jk+ngposit(ngtr)-1
-             lcolumn%tr(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)
-     +            + DLW2*zgd(ILON+1,JK2,ILA)
-     +            + DLW3*zgd(ILOS,JK2,ILA+1)
-     +            + DLW4*zgd(ILOS+1,JK2,ILA+1)
+             lcolumn%tr(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
          enddo
          if(NGEXIST(ngps).eq.1) then
            jk2=ngposit(ngps)
-           lcolumn%ps(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)
-     +          + DLW2*zgd(ILON+1,jk2,ILA)
-     +          + DLW3*zgd(ILOS,jk2,ILA+1)
-     +          + DLW4*zgd(ILOS+1,jk2,ILA+1)
-          endif
+           lcolumn%ps(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)  &
+                + DLW2*zgd(ILON+1,jk2,ILA)  &
+                + DLW3*zgd(ILOS,jk2,ILA+1)  &
+                + DLW4*zgd(ILOS+1,jk2,ILA+1)
+         endif
          if(NGEXIST(ngtg).eq.1) then
            jk2=ngposit(ngtg)
-           lcolumn%tg(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)
-     +          + DLW2*zgd(ILON+1,jk2,ILA)
-     +          + DLW3*zgd(ILOS,jk2,ILA+1)
-     +          + DLW4*zgd(ILOS+1,jk2,ILA+1)
-          endif
- 201    CONTINUE
-C
+           lcolumn%tg(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)  &
+                + DLW2*zgd(ILON+1,jk2,ILA)  &
+                + DLW3*zgd(ILOS,jk2,ILA+1)  &
+                + DLW4*zgd(ILOS+1,jk2,ILA+1)
+         endif
+      ENDDO
+
+      deallocate(zgd,STAT=ierr)
+      write(*,*) 'deallocated zgd:',ierr
+      call flush(6)
+
       RETURN
       END
 !
 !
 !
       SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r BGCDATA  - Computation OF BACKGROUND CHECK FLAGS
-*
-*
-*Author  : P. Koclas *CMC/CMDA  January 1999
-*Revision:
-*         P. Koclas February 2002
-*          -add argument to isetflag call sequence
-*         C. Charette ARMA February 2002
-*          -remove conflicting ikount* unit.
-*         S. Macpherson ARMA September 2009
-*          -added separate error check for GP family (GB-GPS)
-*          -added more output information from routine
-*          -added GP family specific output
-*
-**    Purpose:  -Calculate a background check for a data family
-*                AND SET the appropriate quality control flags in
-*                the CMA
-*
-*
-#endif
+!*
+!***s/r BGCDATA  - Computation OF BACKGROUND CHECK FLAGS
+!*
+!*Author  : P. Koclas *CMC/CMDA  January 1999
+!*
+!**    Purpose:  -Calculate a background check for a data family
+!*                AND SET the appropriate quality control flags in
+!*                the CMA
+!*
       use MathPhysConstants_mod
       use bufr
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
-*
-C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
-C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
-C       (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
-C       YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
-C
+!*
+!C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
+!C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
+!C       (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
+!C       YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
+!C
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO,zsum,zsumo
-c     REAL*8 PJO
       CHARACTER*2 CDFAM
       INTEGER IFLAG,INAM,ISETFLAG,IOBS,ITY,IDBURP
       INTEGER IBEGIN,ILAST,ierr,fclos,fnom,ITYP
@@ -1668,19 +1464,18 @@ c     REAL*8 PJO
       INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
       LOGICAL LLOK, LLZD, LMODIF1020
-C
       lmodif1020=.false.
-*
+
       WRITE(NULOUT,*)' '
       WRITE(NULOUT,*)' ------------------------------'
       WRITE(NULOUT,*)'  BACKGROUND CHECK FOR'
       WRITE(NULOUT,*)'       ',CDFAM, ' DATA'
       WRITE(NULOUT,*)' ------------------------------'
       WRITE(NULOUT,*)' '
-      WRITE(NULOUT,'(a55,a74)')'  STNID     LATITU LONGITU  ID Elem        Level        ',
-     +' Value        Sigmao       Sigmap         O-P       SigmaOP         qcflag  '
-      WRITE(NULOUT,'(a55,a74)')'  -----     ------ -------  -- ----        -----        ',
-     +' -----        ------       ------         ---       -------         ------  '
+      WRITE(NULOUT,'(a55,a74)')'  STNID     LATITU LONGITU  ID Elem        Level        ',  &
+      ' Value        Sigmao       Sigmap         O-P       SigmaOP         qcflag  '
+      WRITE(NULOUT,'(a55,a74)')'  -----     ------ -------  -- ----        -----        ',  &
+      ' -----        ------       ------         ---       -------         ------  '
       icoun=0
       zsum=0.
       zsumo=0.
@@ -1688,9 +1483,9 @@ C
 
       INOBS=0
       INREJ=0
-C
-C*    Initialize counters for GP family observations
-C
+!C
+!C*    Initialize counters for GP family observations
+!C
       IF (CDFAM .EQ. 'GP') THEN
         INZOBS=0
         INPOBS=0
@@ -1701,17 +1496,15 @@ C
         INTREJ=0
         INDREJ=0
       ENDIF
-C
+
       DO J = 1,NFILES
          IF ( (CFAMTYP(J) .EQ.  CDFAM) .AND.( NBEGINTYP(J) .GT. 0) ) THEN
             IBEGIN=NBEGINTYP(J)
              ILAST=NENDTYP(J)
-C
-C*    1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
-C     .  ----------------------------------------------------
-C
- 100  CONTINUE
-C
+!C
+!C*    1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
+!C     .  ----------------------------------------------------
+!C
             DO JDATA=IBEGIN,ILAST
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
                LLOK=( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1)
@@ -1729,9 +1522,9 @@ C
                   ZOER = obs_elem_r4(lobsSpaceData,'OER ',jdata)
                   ZLAT  = obs_elem_r4(lobsSpaceData,'LAT ',iobs)*180./RPI
                   ZLON  = obs_elem_r4(lobsSpaceData,'LON ',iobs)*180./RPI
-C
-C              BACK GROUND CHECK
-C
+!C
+!C              BACK GROUND CHECK
+!C
                   ZOMP  =-obs_elem_r4(lobsSpaceData,'OMF ',jdata)*obs_elem_r4(lobsSpaceData,'OER ',jdata)
                   ZFGE  = obs_elem_r4(lobsSpaceData,'FGE ',jdata)
                   IF ( CDFAM .EQ. 'GP' ) THEN
@@ -1741,14 +1534,14 @@ C
                       ZOER = ZOER/YSFERRWGT
                     ENDIF
                     IF (ZFGE .LT. 1.E-3 .OR. ZOER .LT. 1.E-3 ) THEN
-                      WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',
-     +                  obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
+                      WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',  &
+                         obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
                       CALL ABORT3D(NULOUT,'BGCDATA: PROBLEM WITH FGE, OER.')
                     ENDIF
                   ELSE
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.e-5)THEN
-                        WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',
-     +                    obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
+                        WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',  &
+                           obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
                         ZFGE=1.E-5
                         ZOER=1.E-5
                     ENDIF
@@ -1757,10 +1550,10 @@ C
                   ibgc=ZBGCHK/1.
                   ibgc=min(ibgc,99)
                   ZSOP = SQRT(ZFGE**2 + ZOER**2)
-C
-C              UPDATE QUALITY CONTROL FLAGS
-C              ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
-C
+!C
+!C              UPDATE QUALITY CONTROL FLAGS
+!C              ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
+!C
                   IOBS =obs_elem_i(lobsSpaceData,'OBS ',jdata)
                   INAM =obs_elem_i(lobsSpaceData,'VNM ',jdata)
                 if( inam.eq.12192 .and. obs_elem_i(lobsSpaceData,'XTR ',jdata).eq.0)then
@@ -1771,9 +1564,9 @@ C
                   ITY=obs_elem_i(lobsSpaceData,'ITY ',jdata)
                   IDBURP=MOD(ITY,1000)
                   IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
-C
-C              CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
-C
+!C
+!C              CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
+!C
                   LLZD = .FALSE.
                   IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD) THEN
                     ZVAR = ZVAR * 1000.0
@@ -1783,12 +1576,12 @@ C
                     ZSOP = ZSOP * 1000.0
                     LLZD = .TRUE.
                   ENDIF
-C
+
                   IF (IFLAG .GE. 2 ) THEN
-                    WRITE(NULOUT,122)
-     &                 obs_elem_c9(lobsSpaceData,'STID',iobs),
-     &                 zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER
-     &                 ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
+                    WRITE(NULOUT,122)  &
+                       obs_elem_c9(lobsSpaceData,'STID',iobs),  &
+                       zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
+                       ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
                     INREJ = INREJ + 1
                     IF (CDFAM .EQ. 'GP') THEN
                       IF (ITYP .EQ. BUFR_NEZD) INZREJ = INZREJ+1
@@ -1797,7 +1590,7 @@ C
                       IF (ITYP .EQ. BUFR_NESS) INDREJ = INDREJ+1
                     ENDIF
                   ENDIF
-C
+
                   IF ( IFLAG .EQ. 1 ) THEN
                      call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),13))
                   ELSEIF ( IFLAG .EQ. 2 ) THEN
@@ -1812,25 +1605,20 @@ C
                      call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),09))
                      call obs_set_i(lobsSpaceData,'ST1 ',iobs,ibset(obs_elem_i(lobsSpaceData,'ST1 ',iobs),06))
                   ENDIF
-  444          continue
                ENDIF
-C
-             END DO
- 200  CONTINUE
+            ENDDO
 122   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
-C
-cpik     ENDIF
-cpik  END DO
-      ENDIF
-      END DO
-C
+
+         ENDIF
+      ENDDO
+
       IF ( INOBS .GT. 0 ) THEN
         WRITE(NULOUT,*)' '
         WRITE(NULOUT,*) '  BGCDATA: FINISHED BGCHECK OF ',CDFAM, ' DATA'
         WRITE(NULOUT,123) 'BGCDATA:   ',INREJ, ' OBSERVATIONS REJECTED OUT OF ', INOBS
         WRITE(NULOUT,*)' '
       ENDIF
-C
+
       IF ( (INOBS .GT. 0) .AND. (CDFAM .EQ. 'GP') ) THEN
         WRITE(NULOUT,*)' '
         WRITE(NULOUT,*) '  BGCDATA:    REPORT FOR GP FAMILY OF OBSERVATIONS'
@@ -1840,9 +1628,9 @@ C
         WRITE(NULOUT,123) 'BGCDATA:   ',INDREJ, ' DPDS OBSERVATIONS REJECTED OUT OF ', INDOBS
         WRITE(NULOUT,*)' '
       ENDIF
-C
+
 123   FORMAT(2X,A,I0,A,I0)
-C
+
       WRITE(NULOUT,*)' '
       WRITE(NULOUT,*)' ---------------------------'
       WRITE(NULOUT,*)'           DONE BGCDATA     '
@@ -1858,20 +1646,15 @@ C
 !
 !
       SUBROUTINE BGCGPSRO(lcolumnhr,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r  BGCGPSRO - Set backcground check flags to the GPSRO observations
-*
-*
-*Author  : P. KOCLAS. Mar 2008
-*    -------------------
-**    Purpose:
-*   calculate (o-p)/p for all ro profiles and set background check flag on if
-*                     ABS(O-P)/P is too large
-*
-*Arguments
-*
-#endif
+!*
+!***s/r  BGCGPSRO - Set backcground check flags to the GPSRO observations
+!*
+!*Author  : P. KOCLAS. Mar 2008
+!*    -------------------
+!**    Purpose:
+!*   calculate (o-p)/p for all ro profiles and set background check flag on if
+!*                     ABS(O-P)/P is too large
+!*
       use MathPhysConstants_mod
       use modgps04profile
       use modgps05refstruct
@@ -1880,8 +1663,8 @@ C
       use modgps08refop
       use columnData_mod
       use obsSpaceData_mod
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
       IMPLICIT NONE
-*implicits
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comcva.cdk"
@@ -1889,17 +1672,15 @@ C
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
-!#include "comnumbr.cdk"
 #include "cvcord.cdk"
 #include "comgpsro.cdk"
-*
-C
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       REAL*8 ZTODEG
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
+      REAL*8 ZPP (JPNFLEV),ZDP (JPNFLEV)
       REAL*8 ZTT (JPNFLEV)
       REAL*8 ZHU (JPNFLEV)
       REAL*8 ZGZ (JPNFLEV)
@@ -1909,9 +1690,9 @@ C
       REAL*8 DH
       REAL*8 BIAS
       REAL*8 HNH1, HSF, HTP
-C
+
       REAL*8 ZOBS, ZMHX
-C
+
       INTEGER JF
       INTEGER IBEGIN  , ILAST
       INTEGER IBEGINOB, ILASTOB, JO, JD
@@ -1919,8 +1700,8 @@ C
       INTEGER IDATA   , IDATEND, JDATA
       INTEGER JL, JH,  NGPSLEV
       INTEGER NH, NH1
-C
-      LOGICAL  ASSIM
+
+      LOGICAL  ASSIM, LSTAG
 
       INTEGER NH
       TYPE(GPSPROFILE)           :: PRF 
@@ -1928,51 +1709,55 @@ C
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
 
       WRITE(NULOUT,*)'ENTER BGCSGPSRO'
-C
-C     * 1.  Initializations
-C     *     ---------------
-C
+      WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
+      WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
+
+      LSTAG = .FALSE.
+      if (tg_vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
       ZTODEG = 180.0 / RPI
-C
-C     *    .   1.1  Eta vector
-C     *    .        ----------
-C
+!C
+!C     *    .   1.1  Eta vector
+!C     *    .        ----------
+!C
       NGPSLEV=lcolumnhr%NLEV
       DO JL = 1, lcolumnhr%NLEV
-         ZETA(JL) = lcolumnhr%VLEV(JL)
+         ZETA(JL) = lcolumnhr%VHYB_T(JL)
       ENDDO
-C
-C*    *        1.2 Read the NAMELIST NAMGGPSRO
-C     *       ---------------------------------------
+!C
+!C*    *        1.2 Read the NAMELIST NAMGGPSRO
+!C     *       ---------------------------------------
       write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
-C
-C
-C     Loop over all files
-C
+!C
+!C     Loop over all files
+!C
       DO JF = 1, NFILES
          IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
             IBEGIN   = NBEGINTYP(JF)
             ILAST    = NENDTYP  (JF)
             IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
             ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-C
-C     *     Loop over all observations of the file
-C
+!C
+!C     *     Loop over all observations of the file
+!C
             DO JO = IBEGINOB, ILASTOB
-C     
-C     *        Process only refractivity data (codtyp 169)
-C
+!C     
+!C     *        Process only refractivity data (codtyp 169)
+!C
                IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
                IF ( IDATYP .EQ. 169 ) THEN
-C
-C                 Loops over data in the observation
-C
+!C
+!C                 Loops over data in the observation
+!C
                   IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
                   IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                   ASSIM = .FALSE.
-C
-C                 Scan for requested assimilations, and count them
-C
+!C
+!C                 Scan for requested assimilations, and count them
+!C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
                      IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
@@ -1980,40 +1765,49 @@ C
                         NH = NH + 1
                      ENDIF
                   ENDDO
-C
-C     *           If assimilations are requested, apply the observation operator
-C
+!C
+!C     *           If assimilations are requested, apply the observation operator
+!C
                   IF (ASSIM) THEN
-C     
-C     *              Profile at the observation location:
-C
+!C     
+!C     *              Profile at the observation location:
+!C
                      Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
+                     ZP0 = lcolumnhr%ps(1,JO)
                      DO JL = 1, lcolumnhr%NLEV
-C
-C     *                 Profile x
-C
+!C
+!C     *                 Profile x
+!C
+                        ZPP(JL) = lcolumnhr%rppobs_t(JL,JO)
+!CCCCCCCCC THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
+                        ZDP(JL) = ZPP(JL)/ZP0
                         ZTT(JL) = lcolumnhr%tt(JL,JO)-273.15
                         ZHU(JL) = lcolumnhr%hu(JL,JO)
-                        ZGZ(JL) = lcolumnhr%gz(JL,JO)
+                        ZGZ(JL) = lcolumnhr%gz_t(JL,JO)
                      ENDDO
                      ZP0 = lcolumnhr%ps(1,JO)
-                     ZPT = lcolumnhr%RPPOBS(1,JO)
+                     ZPT = lcolumnhr%RPPOBS_T(1,JO)
                      ZMT = ZGZ(lcolumnhr%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPR = rprefinc
                      ZCF = rcoefinc
-C     
-C     *              GPS profile structure:
-C
-                     CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
-     +                    ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+!C     
+!C     *              GPS profile structure:
+!C
+                     IF (LSTAG) THEN
+!c     *                 Staggered hybrid trial field 
+                        CALL GPSSTRUCT1S(NGPSLEV,ZLAT,ZLON,ZPP,ZDP,ZTT,ZHU,ZMT,PRF)
+                     ELSE
+!c     *                 ETA or HYBRID NONSTAGGERED trial field 
+                        CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+                     ENDIF
                      CALL GPSGEO(PRF)
-C
-C     *              Prepare the vector of all the observations:
-C
+!C
+!C     *              Prepare the vector of all the observations:
+!C
                      ALLOCATE( H    (NH) )
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
@@ -2024,34 +1818,33 @@ C
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                          ENDIF
                      ENDDO
-C
-C     *              Apply the observation operator:
-C
+!C
+!C     *              Apply the observation operator:
+!C
                      CALL GPSREFOPV (H, PRF, RSTV)
-C
-C     *              Perform the (H(x)-Y)/H operation
-C
+!C
+!C     *              Perform the (H(x)-Y)/H operation
+!C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
                         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                            NH1 = NH1 + 1
-C
-C     *                    Observation operator H(x)
-C
+!C
+!C     *                    Observation operator H(x)
+!C
                            ZMHX = RSTV(NH1)%VAR
-C
-C     *                    Observation value    Y
-C
+!C
+!C     *                    Observation value    Y
+!C
                            ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-C                           
-C                          OMF Tested criteria:
-C
+!C                           
+!C                          OMF Tested criteria:
+!C
                            IF (DABS(ZOBS-ZMHX)/ZMHX.GT.BGCKBAND) THEN
                               call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),16))
                               call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),9))
-                              WRITE(nulout,'(A40,F10.0,3F12.4)')
-     +                             ' REJECT BGCSGPSRO H  O  P (O-P/P) =',
-     +                             H(NH1),ZOBS,ZMHX,(ZOBS-ZMHX)/ZMHX
+                              WRITE(nulout,'(A40,F10.0,3F12.4)')  &
+                                  ' REJECT BGCSGPSRO H  O  P (O-P/P) =',H(NH1),ZOBS,ZMHX,(ZOBS-ZMHX)/ZMHX
                            ENDIF
                         ENDIF
                      ENDDO
@@ -2070,35 +1863,23 @@ C
 !
 !
       function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
-*
-#if defined (DOC)
-*
-***s/r isetflag  - SET BACKGROUND CHECK FLAGS
-*
-*
-*Author  : P. Koclas *CMC/CMSV  September 1998
-*Revision:
-*           P. KOclas
-*           - adjust criterias for winds ( tuneing for background check)
-*           - 02/2002 - adjust criterias for dropsonde  winds
-*           - 02/2006  -adjust criterias for radiosonde < 20Mbars
-*
-*           S. Macpherson ARMA/MRD September 2009
-*           - added criteria for GB-GPS ZTD observations
-*
-**    Purpose:  - Set BACKGROUND CHECK FLAGS According
-*                 to values set in a table
-*                 Original values in table come from ecmwf
-*
-*     Arguments:
-*     KVNAM= VARIABLE NAME ( BURP )
-*     KODTYP=BURP CODE TYPE
-*     CDFAM= FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
-*     ZLEV = LEVEL
-*     zbgchk=NORMALIZED BACKGROUND DEPARTURE
-*     lmodif1020=switch to activate special criteria for backound check (*ua 10-20 mb)
-*
-#endif
+!*
+!***s/r isetflag  - SET BACKGROUND CHECK FLAGS
+!*
+!*Author  : P. Koclas *CMC/CMSV  September 1998
+!*
+!**    Purpose:  - Set BACKGROUND CHECK FLAGS According
+!*                 to values set in a table
+!*                 Original values in table come from ecmwf
+!*
+!*     Arguments:
+!*     KVNAM= VARIABLE NAME ( BURP )
+!*     KODTYP=BURP CODE TYPE
+!*     CDFAM= FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+!*     ZLEV = LEVEL
+!*     zbgchk=NORMALIZED BACKGROUND DEPARTURE
+!*     lmodif1020=switch to activate special criteria for backound check (*ua 10-20 mb)
+!*
       use bufr
       IMPLICIT NONE
 #include "pardim.cdk"
@@ -2110,134 +1891,132 @@ C
       real*8 zbgchk
       character*2 cdfam
       logical lmodif1020
-ccc
+
       real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3)
-     +      ,zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3)
-C
-C-------------------------------------------------------------------------------
-C
+      real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3)
+
       isetflag=0
-C
+
       if(cvcord .eq. 'ETAGE') then
          zttcrit(1) = 5.00D0
          zttcrit(2) = 10.00D0
          zttcrit(3) = 12.00D0
-*
+
          zuvcrit(1) = 8.00D0
          zuvcrit(2) = 14.00D0
          zuvcrit(3) = 20.00D0
-*
+
          zescrit(1) = 9.00D0
          zescrit(2) = 16.00D0
          zescrit(3) = 25.00D0
-*
+
          zpscrit(1) = 9.00D0
          zpscrit(2) = 16.00D0
          zpscrit(3) = 25.00D0
-*
+
          zpncrit(1) = 9.00D0
          zpncrit(2) = 16.00D0
          zpncrit(3) = 25.00D0
-*
+
          zswcrit(1) = 8.00D0
          zswcrit(2) = 14.00D0
          zswcrit(3) = 20.00D0
-*
+
          ztscrit(1) = 2.00D0
          ztscrit(2) = 10.00D0
          ztscrit(3) = 12.00D0
-*
+
          zdzcrit(1) = 2.25D0
          zdzcrit(2) = 5.06D0
          zdzcrit(3) = 7.56D0
-*
+
          zgzcrit(1) = 12.25D0
          zgzcrit(2) = 25.00D0
          zgzcrit(3) = 36.00D0
-*
+
          if ( cdfam .eq. 'UA') then
              if ( kodtyp .eq. 37 ) then
                zuvcrit(2)=18.
              else
                zuvcrit(2)=14.
              endif
-*
-*        ------>>>   TEMPORARILY MODIFY REJECTION LIMITs <<<--------------
-*           FOR RADIOSONDE DATA ABOVE 20Mbars
-*
+!*
+!*        ------>>>   TEMPORARILY MODIFY REJECTION LIMITs <<<--------------
+!*           FOR RADIOSONDE DATA ABOVE 20Mbars
+!*
              if ( lmodif1020 ) then
                 if ( zlev .le. 2000. .and. zlev .gt. 1000. )  then
                   zuvcrit(2)=17.
                   zuvcrit(3)=20.
-*
+
                   zttcrit(2)=17.
                   zttcrit(3)=20.
                 endif
                 if ( zlev .le. 1000. )  then
                   zuvcrit(2)=20.
                   zuvcrit(3)=23.
-*
+
                   zttcrit(2)=23.
                   zttcrit(3)=26.
                 endif
              endif
          endif
-*
+
          zzdcrit(1) = 9.00D0
          zzdcrit(2) = 16.00D0
          zzdcrit(3) = 25.00D0
-*
+
        endif
       if(cvcord(1:3).eq.'MAM' .or.cvcord.eq.'GEMHYB' ) then
          zttcrit(1) = 9.00D0
          zttcrit(2) = 16.00D0
          zttcrit(3) = 25.00D0
-*
+
          zuvcrit(1) = 10.00D0
          zuvcrit(2) = 20.00D0
          zuvcrit(3) = 30.00D0
-*
+
          zescrit(1) = 10.00D0
          zescrit(2) = 20.00D0
          zescrit(3) = 30.00D0
-*
+
          zpscrit(1) = 9.00D0
          zpscrit(2) = 16.00D0
          zpscrit(3) = 25.00D0
-*
+
          zpncrit(1) = 10.00D0
          zpncrit(2) = 20.00D0
          zpncrit(3) = 30.00D0
-*
+
          zswcrit(1) = 10.00D0
          zswcrit(2) = 20.00D0
          zswcrit(3) = 30.00D0
-*
+
          ztscrit(1) = 5.00D0
          ztscrit(2) = 25.00D0
          ztscrit(3) = 30.00D0
-*
+
          zdzcrit(1) = 2.25D0
          zdzcrit(2) = 5.06D0
          zdzcrit(3) = 7.56D0
-*
+
          zgzcrit(1) = 12.25D0
          zgzcrit(2) = 25.00D0
          zgzcrit(3) = 36.00D0
-*
+
          zzdcrit(1) = 9.00D0
          zzdcrit(2) = 16.00D0
          zzdcrit(3) = 25.00D0
-*
+
          if ( kodtyp .eq. 37 ) then
            zuvcrit(2)=25.
          else
            zuvcrit(2)=20.
          endif
        endif
-C
-C     SET FLAG FOR HEIGHTS
-C
+!C
+!C     SET FLAG FOR HEIGHTS
+!C
       if ( kvnam .eq. BUFR_NEGZ ) then
          if (      zbgchk .gt. zgzcrit(1) .and. zbgchk .lt. zgzcrit(2) ) then
            isetflag=1
@@ -2247,9 +2026,9 @@ C
               isetflag =3
          endif
       endif
-C
-C     SET FLAG FOR TEMPERATURE
-C
+!C
+!C     SET FLAG FOR TEMPERATURE
+!C
       if ( kvnam .eq. BUFR_NETT ) then
          if (      zbgchk .gt. zttcrit(1) .and. zbgchk .lt. zttcrit(2) ) then
            isetflag=1
@@ -2259,9 +2038,9 @@ C
               isetflag =3
          endif
       endif
-C
-C     SET FLAG FOR SATEMS
-C
+!C
+!C     SET FLAG FOR SATEMS
+!C
       if ( kvnam .eq. BUFR_NEDZ ) then
          if (      zbgchk .gt. zdzcrit(1) .and. zbgchk .lt. zdzcrit(2) ) then
            isetflag=1
@@ -2271,9 +2050,9 @@ C
               isetflag =3
          endif
       endif
-C
-C     SET FLAG FOR WIND COMPONENTS
-C
+!C
+!C     SET FLAG FOR WIND COMPONENTS
+!C
       if ( kvnam .eq. BUFR_NEUU .or. kvnam .eq. BUFR_NEVV ) then
          if (      zbgchk .gt. zuvcrit(1) .and. zbgchk .lt. zuvcrit(2) ) then
            isetflag=1
@@ -2283,9 +2062,9 @@ C
               isetflag =3
          endif
       endif
-C
-C     SET FLAG FOR SURFACE WIND COMPONENTS
-C
+!C
+!C     SET FLAG FOR SURFACE WIND COMPONENTS
+!C
       if ( kvnam .eq. BUFR_NEUS .or. kvnam .eq. BUFR_NEVS ) then
          if (      zbgchk .gt. zswcrit(1) .and. zbgchk .lt. zswcrit(2) ) then
            isetflag=1
@@ -2295,9 +2074,9 @@ C
               isetflag =3
          endif
       endif
-C
-C     SET FLAG FOR DEW POINT DEPRESSION
-C
+!C
+!C     SET FLAG FOR DEW POINT DEPRESSION
+!C
       if ( kvnam .eq. BUFR_NEES ) then
          if (      zbgchk .gt. zescrit(1) .and. zbgchk .lt. zescrit(2) ) then
            isetflag=1
@@ -2307,9 +2086,9 @@ C
               isetflag =3
          endif
       endif
-C
-C     SET FLAG FOR SURFACE PRESSURE
-C
+!C
+!C     SET FLAG FOR SURFACE PRESSURE
+!C
       if ( kvnam .eq. BUFR_NEPS ) then
          if (      zbgchk .gt. zpscrit(1) .and. zbgchk .lt. zpscrit(2) ) then
            isetflag=1
@@ -2319,10 +2098,9 @@ C
               isetflag =3
          endif
       endif
-ccc
-C
-C     SET FLAG FOR MEAN SEA LEVEL PRESSURE
-C
+!C
+!C     SET FLAG FOR MEAN SEA LEVEL PRESSURE
+!C
       if ( kvnam .eq. BUFR_NEPN ) then
          if (      zbgchk .gt. zpncrit(1) .and. zbgchk .lt. zpncrit(2) ) then
            isetflag=1
@@ -2332,10 +2110,9 @@ C
               isetflag =3
          endif
       endif
-ccc
-C
-C     SET FLAG FOR SURFACE TEMPERATURE
-C
+!C
+!C     SET FLAG FOR SURFACE TEMPERATURE
+!C
       if ( kvnam .eq. BUFR_NETS ) then
          if (      zbgchk .gt. ztscrit(1) .and. zbgchk .lt. ztscrit(2) ) then
            isetflag=1
@@ -2345,10 +2122,9 @@ C
               isetflag =3
          endif
       endif
-ccc
-C
-C     SET FLAG FOR GB-GPS ZENITH DELAY
-C
+!C
+!C     SET FLAG FOR GB-GPS ZENITH DELAY
+!C
       if ( kvnam .eq. BUFR_NEZD ) then
          if (      zbgchk .gt. zzdcrit(1) .and. zbgchk .lt. zzdcrit(2) ) then
            isetflag=1
@@ -2358,6 +2134,9 @@ C
               isetflag =3
          endif
       endif
-C
+
       return
       end
+
+
+

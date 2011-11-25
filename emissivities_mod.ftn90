@@ -1,0 +1,56 @@
+Module emissivities
+
+
+!************************************************************************
+!*
+!*       COMDECK EMISSIVITIES
+!*       --------------------
+!*
+!*       PURPOSE: VARIABLES FOR IR EMISSIVITIES COMPUTATION
+!*
+!*         SURFACE TYPE AND WATER FRACTION ARE FROM CERES DATA.
+!*         ALBEDO, ICE FRACTION AND SNOW COVER ARE FORM CMC ANALYSIS.
+!*     
+!*
+!*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
+!*
+!*       REVISION:
+!*
+!************************************************************************
+
+      IMPLICIT NONE
+
+      SAVE
+
+! CERES file dimension in grid points
+
+      INTEGER, PARAMETER :: KSLON=2160, KSLAT=1080
+
+! CMC albedo analyses dimension in grid points
+
+      INTEGER :: DISTXAL, DISTYAL
+
+! CMC snow analyses dimension in grid points
+
+      INTEGER :: DISTXNE, DISTYNE
+
+! CMC ice analyses dimension in grid points
+
+      INTEGER :: DISTXLG, DISTYLG
+
+
+! Variables on standard files
+
+      INTEGER ::  JTYPE(KSLON,KSLAT)       ! surface type
+      REAL    :: WATERF(KSLON,KSLAT)       ! water fraction
+
+      REAL,ALLOCATABLE,DIMENSION(:,:)   :: ALB       ! surface albedo
+      REAL,ALLOCATABLE,DIMENSION(:,:)   :: GLACE     ! sea ice fraction
+      REAL,ALLOCATABLE,DIMENSION(:,:)   :: NEIGE     ! snow mask
+
+
+!      COMMON /EMISSI/ JTYPE,WATERF,ALB,GLACE,NEIGE, &
+!                     DISTXAL,DISTYAL,DISTXNE,DISTYNE,DISTXLG,DISTYLG
+
+
+End module emissivities

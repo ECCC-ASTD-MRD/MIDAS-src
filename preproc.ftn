@@ -23,6 +23,8 @@
 *
       USE mod4dv,only : l4dvar
       use MathPhysConstants_mod
+      use Vgrid_Descriptors, only: vgrid_descriptor
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
       use obsSpaceData_mod
       use controlVector_mod
       use minimization_mod
@@ -59,6 +61,16 @@
 !
       call mpc_initialize()
       call mpc_printConstants(nulout)
+!
+!     Set vertical coordinate parameters from !! record in trial file
+!
+      write(nulout,*)' su0yoma: Set vcoord parameters for trial grid'
+      call suvco(tg_vgrid_trl,tg_vco_trl,nulout,ninmpg(1))
+      write(nulout,*)'sugomobs: version, kind, svcod ',
+     & tg_vco_trl%iversion,tg_vco_trl%ikind,tg_vco_trl%svcod
+      write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',tg_vco_trl%dpt_M,
+     & tg_vco_trl%dpt_M,tg_vco_trl%dprf_M,tg_vco_trl%drcf1,
+     & tg_vco_trl%dpt_T,tg_vco_trl%dprf_T,tg_vco_trl%drcf2
 !
 !     INITIALIZE VARIABLES OF THE MODEL STATES.
 !
@@ -179,6 +191,10 @@
       call col_sualobsb(nflev,nobtot) 
       call col_allocate(lcolumng,nflev,nobtot)
       call col_zero(lcolumng)
+!
+!     Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng
+!
+      call col_pointStagToUnstag(lcolumng)
 !
 !     Memory allocation for TOVS processing
 !

@@ -39,6 +39,9 @@
 *                   . Call to gethybprm2 and getfstprm2
 *          L. Fillion, ARMA/EC, May 2010
 *                   . Slight improvement in printout
+*          C.Charette - ARMA et N.Wagneur - CMDA - Juillet 2011
+*                  . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
+*                    ayant une grille verticale decalee dite "STAGGERED"
 *                   
 *
 *Arguments
@@ -68,13 +71,13 @@
 #endif
 C
       use MathPhysConstants_mod
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comgem.cdk"
-ccc#include "comhybprm.cdk"
 #include "rpnstd.cdk"
 *
       INTEGER  ktrials
@@ -93,7 +96,8 @@ c
       integer ikind,imode,ip1style,ip1kind
       REAL*8  zeta,zhighvar(1),zpstrl,zpttrl(1),zhighvv(1),zlowvar(1)
       real*8  zpresanl(1),zlowvv(1)
-      real*8  zps,zprestrl(1),zprofi(1),zprofo(1)
+      real*8  zps(1),zprestrl(1),zprofi(1),zprofo(1)
+      real*8  zps_pascal(1)
       real    zptop4, zpref4,zrcoef4
       real*8  zptophr, zprefhr,zrcoefhr
       logical llhy
@@ -102,6 +106,7 @@ c
       pointer (pxprofo,zprofo)
       pointer (pxhighvar,zhighvar),(pxpstrl,zpstrl)
       pointer (pxpresanl,zpresanl),(pxps,zps)
+      pointer(pxps_pascal,zps_pascal)
       pointer (pxprestrl,zprestrl)
       pointer (pxip1s,iip1s(kmaxlev))
       pointer (pxeta,zeta(kmaxlev)),(pxhighvv,zhighvv)
@@ -133,19 +138,33 @@ c
 c *********************************************************
 c     set hybride vertical coordinate parameters from trial field
 c
-      call gethybprm2 (kulfst,kulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
+
+      if(tg_vco_trl%iversion .eq. 5001) then
+        call gethybprm2 (kulfst,kulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
      &                ,ip1_hyb_prm,ktrials)
-      zptophr = zptop4
-      zprefhr = zpref4
-      zrcoefhr= zrcoef4
-      write(nulout,*)'vhfstfld:zptophr,zprefhr,zrcoefhr ',zptophr
-     &     ,zprefhr,zrcoefhr
+        zptophr = zptop4
+        zprefhr = zpref4
+        zrcoefhr= zrcoef4
+      endif
 c
 c     get field parameters from trial field
 c
-      call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &     ,ITRLGID,clnomvar,kstampv,kmaxlev,kulfst
-     &     ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+
+c-----Special case for GZ which is present at both thermo and momentum
+c     levels tiral field file. 
+c     We will process GZ on momentum levels only.
+c     We will therefore get the parameters for UU which is present
+c     on momentum levels.
+
+      if (clnomvar .eq. 'GZ') then
+        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &       ,ITRLGID,'UU',kstampv,kmaxlev,kulfst
+     &       ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+      else
+        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &       ,ITRLGID,clnomvar,kstampv,kmaxlev,kulfst
+     &       ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+      endif
 c
 c-----Convert ip1 to real value P
       imode = -1
@@ -178,8 +197,6 @@ c
 c
       do JLEV = 1,itrlnlev
 c
-!cluc       write(kulout,*)'vhfstfld: jlev, ip1s(jlev)',jlev, iip1s(jlev)
-!
         ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket,
      &       iip1s(jlev), iip2, iip3,cltypvar,clnomvar)
 c
@@ -253,12 +270,12 @@ c
         write(kulout,*)
      &       'vhfstfld: Reading P0 trial field for vertical interpolation'
 c
-        call getfldprm(IIP1S,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR
+        call getfldprm(IIP1,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR
      &       ,IP0GID,'P0',kstampv,kmaxlev,koutmpg
      &       ,kulout,ip1style,ip1kind)
 c
         ikey = FSTINF(koutmpg, INI, INJ, INK, kstampv, cletiket,
-     &       iip1s(1), iip2, iip3,cltypvar,'P0')
+     &       iip1, iip2, iip3,cltypvar,'P0')
 c
         if(ikey.lt.0) then
           write(kulout,*) ' ******* ERROR ******* '
@@ -274,6 +291,7 @@ c
 c
         call hpalloc(pxpresanl,kcol*knk,ierr,8)
         call hpalloc(pxps,kcol,ierr,8)
+        call hpalloc(pxps_pascal,kcol,ierr,8)
         call hpalloc(pxprestrl,kcol*itrlnlev,ierr,8)
         call hpalloc(pxprofi,kcol*itrlnlev,ierr,8)
         call hpalloc(pxprofo,kcol*knk,ierr,8)
@@ -289,8 +307,22 @@ c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-        call calcpres(zprestrl,zeta,itrlnlev,zps,zptophr
+        if(tg_vco_trl%iversion .eq. 5002) then
+          do jcol=1,kcol
+            zps_pascal(jcol) = zps(jcol)*100.
+          enddo
+        call calcpres_vgrid(tg_vgrid_trl,zps_pascal,iip1s
+     &         ,itrlnlev,kcol,kulout,zprestrl)
+        do jlev = 1,itrlnlev
+          do jcol=1,kcol
+            zprestrl((jcol-1)*itrlnlev+ jlev) = zprestrl((jcol-1)
+     &           *itrlnlev+ jlev)/100.
+          enddo
+        enddo
+        else
+          call calcpres(zprestrl,zeta,itrlnlev,zps,zptophr
      &       ,zprefhr,zrcoefhr,kcol)
+        endif
 c
         do jlev = 1, itrlnlev
           do jcol = 1, kcol
@@ -332,8 +364,13 @@ c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
+        if(tg_vco_trl%iversion .eq. 5002) then
+        call calcpres_vgrid(tg_vgrid_trl,zps,iip1s
+     &         ,itrlnlev,kcolvv,kulout,zprestrl)
+        else
           call calcpres(zprestrl,zeta,itrlnlev,zps,zptophr
      &         ,zprefhr,zrcoefhr,kcolvv)
+        endif
 c
           do jlev = 1, itrlnlev
             do jcol = 1, kcolvv

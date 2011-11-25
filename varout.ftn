@@ -98,13 +98,13 @@ c
 c *********************************************************
 c     Set hybride vertical coordinate parameters from trial field
 c
-      call gethybprm2(ninmpg,nulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
-     &     ,iip1_hyb_prm,ntrials)
-      zptophr = zptop4
-      zprefhr = zpref4
-      zrcoefhr= zrcoef4
-      write(nulout,*)'varout:zptop4,zpref4,zrcoef4 '
-     &       ,zptophr,zprefhr,zrcoefhr
+!      call gethybprm2(ninmpg,nulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
+!     &     ,iip1_hyb_prm,ntrials)
+!      zptophr = zptop4
+!      zprefhr = zpref4
+!      zrcoefhr= zrcoef4
+!      write(nulout,*)'varout:zptop4,zpref4,zrcoef4 '
+!     &       ,zptophr,zprefhr,zrcoefhr
 
 c
       if(nulinclr.ne.0) then
@@ -112,6 +112,9 @@ cprnt      write(nulout,*)'varout:nIP2,niter,cetikinc,ibrpstamp,ptop,pref,coef '
 cprnt     &       ,nIP2,niter,cetikinc,ibrpstamp,zptop4,zpref4,zrcoef4
         write(nulout,*) 'Writing variable HY on analysis-increment file'
 c
+        zptop4 = rptopinc*rpatmb
+        zpref4 = rprefinc*rpatmb
+        zrcoef4 = rcoefinc
         ierr    = write_encode_hyb(nulinclr,'HY',nip2,niter,cetikinc
      &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
       endif

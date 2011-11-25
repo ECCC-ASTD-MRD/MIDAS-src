@@ -10,6 +10,11 @@ module modgps05refstruct
   ! Josep M. Aparicio
   ! Meteorological Service of Canada, 2006.
   !
+  ! Revisions:
+  !        C.Charette et J. Aparicio - ARMA Juillet 2011
+  !          . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
+  !          . ayant une grille verticale decalee dite "STAGGERED"
+  !
 #endif
   use modgps00base   , only : i4, dp, ngpssize
   use modgps03diff
@@ -28,26 +33,34 @@ contains
 
     if (prf%bpst .EQV. .false.) then
        ngpslev = prf%ngpslev
-       rpt = prf%rPT
-       rpr = prf%rPR
-       rcf = prf%rCF
-       if ( abs(rcf-1._dp) .lt. 0.01_dp ) then
-          do i = 1, ngpslev
-             prf%pst(i)%Var               = 0.01_dp * (rpt+prf%rHYB(i)*(prf%rP0-rpt))
-             prf%pst(i)%DVar              = 0._dp
-             prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * prf%rHYB(i)
-          enddo
+       if (prf%rPP(ngpslev) <0.01_dp) then
+          rpt = prf%rPT
+          rpr = prf%rPR
+          rcf = prf%rCF
+          if ( abs(rcf-1._dp) .lt. 0.01_dp ) then
+             do i = 1, ngpslev
+                prf%pst(i)%Var               = 0.01_dp * (rpt+prf%rHYB(i)*(prf%rP0-rpt))
+                prf%pst(i)%DVar              = 0._dp
+                prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * prf%rHYB(i)
+             enddo
+          else
+             prf%pst(1)%Var               = 0.01_dp * rpt
+             prf%pst(1)%DVar              = 0._dp
+             prf%pst(1)%DVar(2*ngpslev+1) = 0._dp
+             pr1 = 1._dp/(1._dp - rpt/rpr)
+             do i = 2, ngpslev
+                termB = ( (prf%rHYB(i) - rpt/rpr)*pr1 ) ** rcf
+                termA = rpr * ( prf%rHYB(i) - termB )
+                prf%pst(i)%Var               = 0.01_dp * (termA + termB * prf%rP0)
+                prf%pst(i)%DVar              = 0._dp
+                prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * termB
+             enddo
+          endif
        else
-          prf%pst(1)%Var               = 0.01_dp * rpt
-          prf%pst(1)%DVar              = 0._dp
-          prf%pst(1)%DVar(2*ngpslev+1) = 0._dp
-          pr1 = 1._dp/(1._dp - rpt/rpr)
-          do i = 2, ngpslev
-             termB = ( (prf%rHYB(i) - rpt/rpr)*pr1 ) ** rcf
-             termA = rpr * ( prf%rHYB(i) - termB )
-             prf%pst(i)%Var               = 0.01_dp * (termA + termB * prf%rP0)
+          do i = 1, ngpslev
+             prf%pst(i)%Var               = 0.01_dp * prf%rPP(i)
              prf%pst(i)%DVar              = 0._dp
-             prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * termB
+             prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * prf%rDP(i)
           enddo
        endif
        prf%bpst=.true.

@@ -127,7 +127,7 @@ c             write(nulout,*)'att2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
 c     &            , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
 c             write(nulout,*)'att2phi:gmt1,GMQ(lev,obs),GMT(lev,obs) '
 c     &            ,lcolumnt%tt(jlev,jobs),lcolumn%hu(jlev,jobs),lcolumn%tt(jlev,jobs)
-c             call vflush(nulout)
+c             call flush(nulout)
 c          endif
 ***************************************************************
           enddo

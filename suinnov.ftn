@@ -15,9 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine suinnov(lcolumnhr,lcolumng,lobsSpaceData)
-      use minimization_mod
-      use obsSpaceData_mod
-      use columnData_mod
 *
 ***s/r suinnov  - Initialise Observation Innovations.
 *
@@ -38,45 +35,24 @@
 *         - Implemented MPI to 3DVAR      
 *    -------------------
 *
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use minimization_mod
+      use obsSpaceData_mod
+      use columnData_mod
       IMPLICIT NONE
-*implicits
-#include "pardim.cdk"
 #include "comct0.cdk"
-#include "comdim.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comfilt.cdk"
-#include "comgem.cdk"
-#include "comgdpar.cdk"
 #include "comgpsgb.cdk"
 c
       type(struct_columnData) :: lcolumnhr,lcolumng
       type(struct_obs) :: lobsSpaceData
 c
-      integer jlev,jobs,jdata,ii,ierr
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
 c
       write(*,*) '--Starting subrouting suinnov--'
-!
-*****************************************************************
-*                                                               *
-* *               COMPUTATION of INNOVATION                   * *
-* * * With COMMVO set to model state on FIRST GUESS levels  * * *
-* * *                                                       * * *
-* *                                                           * *
-*
-C
-c Calculate ES=T-TD from T and Q
-c from lcolumnhr%hu and lcolumnhr%tt and put it in lcolumnhr%es
-c
-      call mhuaesv(lcolumnhr)
-c
-c Using T, q and PS in lcolumnhr, computes GZ and stores it in lcolumnhr%gz
-c N.B. uses lcolumnhr%vlev
-c
-      call tt2phi(lcolumnhr)
 c
 c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface
@@ -101,7 +77,7 @@ c
           write(NULOUT,*)' *****************************************'
         ENDIF
 
-        IF(NCONF .EQ. 141 .OR. NINT(NCONF/100.0).EQ.6) CALL SFCWNDZAP(lobsSpaceData)
+        IF(NCONF .EQ. 141) CALL SFCWNDZAP(lobsSpaceData)
 c
 c     Find interpolation layer in model profiles 
 c
@@ -164,7 +140,16 @@ C        GPS - GROUND-BASED ZENITH DELAY
 C-------------------------------
 C
       ZJOGPSGB=0.0D0
-      CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
+!
+!nwa Only in non staggerd mode 
+!ccc According to Stephen MacPherson  
+!ccc There are no GROUND-BASED ZENITH DELAY obs used in the global analysis
+!ccc They are being tested in the regional LAM analysis
+!ccc So DOBSGPSGB was not adapted to staggered at this time 
+!ccc (Jan 18,2011)
+      if(tg_vco_trl%iversion .eq. 5001 ) then
+        CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
+      endif
 
       if ( ZJOGPSGB .gt. 0.0D0 ) then
 

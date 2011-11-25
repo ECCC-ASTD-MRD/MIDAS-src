@@ -67,7 +67,8 @@ c
 *     get the saturated vapor pressure from q (specific humidity)
 *
          ZHU = exp(lcolumnghr%hu(jlev,jobs))
-         ZE = FOEFQ8(ZHU, LCOLUMNGHR%RPPOBS(JLEV,JOBS))
+!         ZE = FOEFQ8(ZHU, LCOLUMNGHR%RPPOBS(JLEV,JOBS))
+         ZE = FOEFQ8(ZHU, LCOLUMNGHR%RPPOBS_T(JLEV,JOBS))
 *
 *     now the dewpoint temperature
 *
@@ -81,7 +82,7 @@ c
 ********************************************************************
 c         IF(LLPRINT) THEN
 c            write(nulout,*)'MHUAESV:JOBS,JLEV,RPOBS,GMESG,GMTG,ZTD,ZHU '
-c     &           ,JOBS,JLEV,LCOLUMNGHR%RPPOBS(JLEV,JOBS),lcolumnghr%es(JLEV,JOBS)
+c     &           ,JOBS,JLEV,LCOLUMNGHR%RPPOBS_T(JLEV,JOBS),lcolumnghr%es(JLEV,JOBS)
 c     &           ,lcolumnghr%tt(JLEV,JOBS),ZTD,ZHU
 c         ENDIF
 *******************************************************************

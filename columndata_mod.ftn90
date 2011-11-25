@@ -4,21 +4,22 @@ module columnData_mod
 !  private
 
   type struct_columnData
-    integer nlev,nkgdimo,nobtot
+    integer :: nlev,nlev_T,nlev_M
+    integer :: nkgdimo,nobtot
     logical :: allocated=.false.
     real*8,pointer :: all(:,:)
     real*8,pointer :: uu(:,:)
     real*8,pointer :: vv(:,:)
     real*8,pointer :: tt(:,:)
     real*8,pointer :: hu(:,:)
-    real*8,pointer :: gz(:,:)
+    real*8,pointer :: gz(:,:),gz_T(:,:),gz_M(:,:)
     real*8,pointer :: tr(:,:)
     real*8,pointer :: es(:,:)
     real*8,pointer :: ps(:,:)
     real*8,pointer :: tg(:,:)
-    real*8,pointer :: rppobs(:,:)
+    real*8,pointer :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
     real*8,pointer :: vlev(:)
-    real*8,pointer :: vhyb(:)
+    real*8,pointer :: vhyb(:),vhyb_T(:),vhyb_M(:)
     real*8,pointer :: rmtmobs(:)
   end type struct_columnData
 
@@ -269,12 +270,27 @@ module columnData_mod
       write(*,*) 'col_allocate: nkgdimo = ',column%nkgdimo
 
       allocate(column%all(column%nkgdimo,column%nobtot))
-      allocate(column%rppobs(column%nlev,column%nobtot))
-      allocate(column%vlev(column%nlev))
-      allocate(column%vhyb(column%nlev))
-      allocate(column%rmtmobs(column%nobtot))
       column%all(:,:)=0.0d0
+
+      allocate(column%gz_T(column%nlev,column%nobtot))
+      allocate(column%gz_M(column%nlev,column%nobtot))
+      column%gz_T(:,:)=0.0d0
+      column%gz_M(:,:)=0.0d0
+
+      allocate(column%rppobs(column%nlev,column%nobtot))
+      allocate(column%rppobs_T(column%nlev,column%nobtot))
+      allocate(column%rppobs_M(column%nlev,column%nobtot))
       column%rppobs(:,:)=0.0d0
+      column%rppobs_T(:,:)=0.0d0
+      column%rppobs_M(:,:)=0.0d0
+
+      allocate(column%vlev(column%nlev))
+
+      allocate(column%vhyb(column%nlev))
+      allocate(column%vhyb_T(column%nlev))
+      allocate(column%vhyb_M(column%nlev))
+
+      allocate(column%rmtmobs(column%nobtot))
       column%rmtmobs(:)=0.0d0      
 
       iloc = 1
@@ -345,9 +361,15 @@ module columnData_mod
       type(struct_columnData) :: column
 
       deallocate(column%all)
+      deallocate(column%gz_T)
+      deallocate(column%gz_M)
       deallocate(column%rppobs)
+      deallocate(column%rppobs_T)
+      deallocate(column%rppobs_M)
       deallocate(column%vlev)
       deallocate(column%vhyb)
+      deallocate(column%vhyb_T)
+      deallocate(column%vhyb_M)
       column%allocated=.false.
 
       RETURN
@@ -372,7 +394,7 @@ module columnData_mod
     END SUBROUTINE col_copy2d
 
 
-    SUBROUTINE col_fillmvo(lcolumnghr,cdvar,pvar,knlev,knobs)
+    SUBROUTINE col_fillmvo(lcolumnghr,cdvar,cdlev,pvar,knlev,knobs)
 !
 !**s/r fillmvo - Fill in COMMVOG and/or COMMVOHR
 !
@@ -399,24 +421,48 @@ module columnData_mod
     type(struct_columnData) :: lcolumnghr
     integer knlev,knobs
     real*8 pvar(knlev,knobs)
-    character*2 cdvar
+    character*2 cdvar,cdlev
 
     integer jobs,jlev
 
       if (cdvar.eq.'PP') then
-        do jobs = 1,lcolumnghr%nobtot
-          do jlev = 1,lcolumnghr%nlev
-            lcolumnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
+        if(cdlev.eq.'TH') then
+          do jobs = 1,lcolumnghr%nobtot
+            do jlev = 1,lcolumnghr%nlev
+              lcolumnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        elseif(cdlev.eq.'MM') then
+          do jobs = 1,lcolumnghr%nobtot
+            do jlev = 1,lcolumnghr%nlev
+              lcolumnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        else
+          do jobs = 1,lcolumnghr%nobtot
+            do jlev = 1,lcolumnghr%nlev
+              lcolumnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'LV') then
         do jlev = 1,lcolumnghr%nlev
           lcolumnghr%vlev(jlev) = pvar(jlev,1)
         enddo
       elseif(cdvar.eq.'HY') then
-        do jlev = 1,lcolumnghr%nlev
-          lcolumnghr%vhyb(jlev) = pvar(jlev,1)
-        enddo
+        if(cdlev.eq.'TH') then
+          do jlev = 1,lcolumnghr%nlev
+            lcolumnghr%vhyb_T(jlev) = pvar(jlev,1)
+          enddo
+        elseif(cdlev.eq.'MM') then
+          do jlev = 1,lcolumnghr%nlev
+            lcolumnghr%vhyb_M(jlev) = pvar(jlev,1)
+          enddo
+        else
+          do jlev = 1,lcolumnghr%nlev
+            lcolumnghr%vhyb(jlev) = pvar(jlev,1)
+          enddo
+        endif
       elseif(cdvar.eq.'UU') then
         do jobs = 1,lcolumnghr%nobtot
           do jlev = 1, lcolumnghr%nlev
@@ -430,11 +476,25 @@ module columnData_mod
           enddo
         enddo
       elseif(cdvar.eq.'GZ') then
-        do jobs = 1,lcolumnghr%nobtot
-          do jlev = 1, lcolumnghr%nlev
-            lcolumnghr%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+        if(cdlev.eq.'TH') then
+          do jobs = 1,lcolumnghr%nobtot
+            do jlev = 1, lcolumnghr%nlev
+              lcolumnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+            enddo
           enddo
-        enddo
+        elseif(cdlev.eq.'MM') then
+          do jobs = 1,lcolumnghr%nobtot
+            do jlev = 1, lcolumnghr%nlev
+              lcolumnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+            enddo
+          enddo
+        else
+          do jobs = 1,lcolumnghr%nobtot
+            do jlev = 1, lcolumnghr%nlev
+              lcolumnghr%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+            enddo
+          enddo
+        endif
       elseif(cdvar.eq.'HU') then
         do jobs = 1,lcolumnghr%nobtot
           do jlev = 1, lcolumnghr%nlev
@@ -477,6 +537,30 @@ module columnData_mod
 
     return
     END SUBROUTINE col_fillmvo
+
+
+    SUBROUTINE col_pointStagToUnstag(lcolumn)
+      IMPLICIT NONE
+      type(struct_columnData) :: lcolumn
+
+      deallocate(lcolumn%gz_T)
+      deallocate(lcolumn%gz_M)
+      deallocate(lcolumn%rppobs_T)
+      deallocate(lcolumn%rppobs_M)
+      deallocate(lcolumn%vhyb_T)
+      deallocate(lcolumn%vhyb_M)
+
+      lcolumn%gz_T => lcolumn%gz
+      lcolumn%gz_M => lcolumn%gz
+      lcolumn%rppobs_T => lcolumn%rppobs
+      lcolumn%rppobs_M => lcolumn%rppobs
+      lcolumn%vhyb_T => lcolumn%vhyb
+      lcolumn%vhyb_M => lcolumn%vhyb
+
+      lcolumn%nlev_T=lcolumn%nlev
+      lcolumn%nlev_M=lcolumn%nlev
+
+    END SUBROUTINE col_pointStagToUnstag
 
 
     SUBROUTINE col_expandToMpiGlobal(lcolumng,nulout, nobtot, nobtotp)

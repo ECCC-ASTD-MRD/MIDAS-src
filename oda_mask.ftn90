@@ -322,23 +322,7 @@ end subroutine oda_maskto
 !*          Based on selection made in observation operator as written by
 !*          J. M. Aparicio in Jan 2004
 !*
-      use modgps04profile
-      use modgps06gravity
-      use modgps08refop
-
-      REAL*8 PJO
-      REAL*8 PJO0, PJO1
-
       REAL*8 ZTODEG
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON, Lon
-      REAL*8 BP0
-      REAL*8 BPT, BPR, BCF
-      REAL*8 BMT
-      REAL*8 DH
-      REAL*8 DNUM,SUM1,SUM2,AVG1,AVG2,BIAS,STD,RMS
-      REAL*8 HNH1
-      REAL*8 ZOBS, ZMHX, ZOER, ZINC, ZOBI, ZMHXL
 
       INTEGER JF
       INTEGER IBEGIN  , ILAST
@@ -350,10 +334,7 @@ end subroutine oda_maskto
       LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1, index
-      TYPE(GPSPROFILE)           :: PRF
-      REAL(DP)     , ALLOCATABLE :: H   (:)
-      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
-
+!C
       DO JF = 1, NFILES
 !C
 !C     *  Look only files of type Radio Occultation (RO)

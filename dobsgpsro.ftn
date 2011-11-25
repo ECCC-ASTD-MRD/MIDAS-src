@@ -29,6 +29,7 @@
 *
 #endif
       use MathPhysConstants_mod
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
       use modgps04profile
       use modgps05refstruct
       use modgps06gravity
@@ -52,6 +53,7 @@ C
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
+      REAL*8 ZPP (JPNFLEV),ZDP (JPNFLEV)
       REAL*8 ZTT (JPNFLEV)
       REAL*8 ZHU (JPNFLEV)
       REAL*8 ZGZ (JPNFLEV)
@@ -70,7 +72,7 @@ C
       INTEGER IDATA   , IDATEND, JDATA
       INTEGER JL, JH, NGPSLEV
 C
-      LOGICAL  ASSIM
+      LOGICAL  ASSIM, LSTAG
 
       INTEGER NH, NH1
       TYPE(GPSPROFILE)           :: PRF 
@@ -78,6 +80,18 @@ C
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
 
       WRITE(NULOUT,*)'ENTER DOBSGPSRO'
+C
+      LSTAG = .FALSE.
+      if (tg_vco_trl%iversion .eq. 5002) then
+         LSTAG = .TRUE. 
+         WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
+         WRITE(NULOUT,*)'VCODE= ',tg_vco_trl%iversion,' LSTAG= ',LSTAG
+         WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
+         WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
+      else
+         WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
+         WRITE(NULOUT,*)'VCODE= ',tg_vco_trl%iversion,' LSTAG= ',LSTAG
+      endif
 C
 C     * 1.  Initializations
 C     *     ---------------
@@ -89,7 +103,7 @@ C     *    .        ----------
 C
       NGPSLEV=LCOLUMNHR%NLEV
       DO JL = 1, LCOLUMNHR%NLEV
-         ZETA(JL) = LCOLUMNHR%VLEV(JL)
+         ZETA(JL) = LCOLUMNHR%VHYB_T(JL)
       ENDDO
 C
 C     Loop over all files
@@ -136,16 +150,19 @@ C
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
+                     ZP0 =  lcolumnhr%ps(1,JO)
                      DO JL = 1, LCOLUMNHR%NLEV
 C
 C     *                 Profile x
 C
+                        ZPP(JL) = LCOLUMNHR%RPPOBS_T(JL,JO)
+CCCCCCCCCCC             THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
+                        ZDP(JL) = ZPP(JL)/ZP0
                         ZTT(JL) = lcolumnhr%tt(JL,JO)-273.15
                         ZHU(JL) = lcolumnhr%hu(JL,JO)
-                        ZGZ(JL) = lcolumnhr%gz(JL,JO)
+                        ZGZ(JL) = lcolumnhr%gz_t(JL,JO)
                      ENDDO
-                     ZP0 =  lcolumnhr%ps(1,JO)
-                     ZPT = LCOLUMNHR%RPPOBS(1,JO)
+                     ZPT = LCOLUMNHR%RPPOBS_T(1,JO)
                      ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPR = rprefinc
@@ -153,8 +170,15 @@ C
 C     
 C     *              GPS profile structure:
 C
-                     CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
-     +                    ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+                     IF (LSTAG) THEN
+c     *                 Staggered hybrid trial field 
+                        CALL GPSSTRUCT1S(NGPSLEV,ZLAT,ZLON,
+     +                       ZPP,ZDP,ZTT,ZHU,ZMT,PRF)
+                     ELSE
+c     *                 ETA or HYBRID NONSTAGGERED trial field 
+                        CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
+     +                       ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+                     ENDIF
                      CALL GPSGEO(PRF)
 C
 C     *              Prepare the vector of all the observations:

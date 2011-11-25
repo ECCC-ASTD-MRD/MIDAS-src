@@ -62,9 +62,9 @@ subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
   llprint = .true.
 
   if     ( option .eq. 'HR' ) then
-     call tovs_fill_profiles(lcolumnhr%uu,lcolumnhr%vv,lcolumnhr%tt,lcolumnhr%gz,  &
+     call tovs_fill_profiles(lcolumnhr%uu,lcolumnhr%vv,lcolumnhr%tt,lcolumnhr%gz_T,  &
                              lcolumnhr%hu,lcolumnhr%ps,lcolumnhr%tg, &
-                             lcolumnhr%rppobs,lcolumnhr%nkgdimo,lcolumnhr%nlev,lobsSpaceData)
+                             lcolumnhr%rppobs_T,lcolumnhr%nkgdimo,lcolumnhr%nlev,lobsSpaceData)
 
   elseif ( option .eq. 'LR' ) then
      call tovs_fill_profiles(lcolumng%uu,lcolumng%vv,lcolumng%tt,lcolumng%gz,lcolumng%hu,  &

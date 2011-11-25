@@ -97,12 +97,6 @@
      &     ,ITRLGID,'UU',ibrpstamp,jpnflev,ninmpg
      &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
 !
-        if(nkt.ne.nflev) then  
-          write(nulout,*) 'subasic_gd: nkt, nflev = ', nkt, nflev
-          write(nulout,*) 'subasic_gd: Trial & analysis have diff Nb. Levels'
-          call abort3d(nulout,'SUBASIC_GD: Option not yet implemented in non LAM')
-        endif
-!
         call getfstg2(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
 !
         do ji=1,ni

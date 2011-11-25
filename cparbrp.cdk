@@ -1,33 +1,28 @@
 #if defined (DOC)
-C*
-C AUTHOR P. Koclas *CMC/AES
-C
-C Revision:
-C       P. Koclas *CMC/AES February  1995:
-C              Changed parameter values
-C       J. Halle  *CMC/AES June 2002:
-C              -decrease JPMXNEL to 100
-C              -increase JPMXNLV to 300
-C              -re-define JPLNG
-C       S. Heilliette  *ARMA February 2008:
-C              -increase JPMXNLV to  620
-C to accomodate iasi in background check mode 
-C
-C      JPMXBK =MAXIMUM NUMBER OF BLOCKS
-C      JPMXNEL=MAXIMUM NUMBER OF ELEMENTS
-C      JPMXNLV=MAXIMUM NUMBER OF LEVELS
-C      JPMX3D =MAXIMUM 3d-DEPTH  OF REPORT
-C      PPMIS  =VALUE OF MISSING DATA
-C
+!C*
+!C AUTHOR P. Koclas *CMC/AES
+!C
+!C Revision:
+!C       P. Koclas *CMC/AES February  1995:
+!C              Changed parameter values
+!C       J. Halle  *CMC/AES June 2002:
+!C              -decrease JPMXNEL to 100
+!C              -increase JPMXNLV to 300
+!C              -re-define JPLNG
+!C       S. Heilliette  *ARMA February 2008:
+!C              -increase JPMXNLV to  620
+!C to accomodate iasi in background check mode 
+!C
+!C      JPMXBK =MAXIMUM NUMBER OF BLOCKS
+!C      JPMXNEL=MAXIMUM NUMBER OF ELEMENTS
+!C      JPMXNLV=MAXIMUM NUMBER OF LEVELS
+!C      JPMX3D =MAXIMUM 3d-DEPTH  OF REPORT
+!C      PPMIS  =VALUE OF MISSING DATA
+!C
 #endif
       INTEGER JPMXBK,JPMXNEL,JPMXNLV,JPMX3D,JPLNG
       REAL*8 PPMIS
-cpik  PARAMETER (JPMXBK=6,JPMXNEL=500,JPMXNLV=40,PPMIS=-999.)
-cjmb      PARAMETER (JPMXBK=6,JPMXNEL=200,JPMXNLV=50,PPMIS=-999.)
-cshe      PARAMETER (JPMXBK=10,JPMXNEL=100,JPMXNLV=300,PPMIS=-999.)
       PARAMETER (JPMXBK=10,JPMXNEL=100,JPMXNLV=620,PPMIS=-999.)
       PARAMETER (JPMX3D=400)
       PARAMETER (JPLNG=MIN(4000000,JPMXNLV*JPMXNEL*JPMX3D))
-C
-C-----------------------------------------------------------------------
-C
+
