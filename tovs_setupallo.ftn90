@@ -64,7 +64,6 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comlun.cdk"
-#include "cvcord.cdk"
 #include "rttov_setup.h"
 
   type(struct_obs) :: lobsSpaceData
@@ -72,24 +71,26 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   Integer :: alloc_status(40)
   Integer, Allocatable :: setup_errorstatus(:) ! setup return code
 
-  Real*8, Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
+  Real(8), Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
 
-  INTEGER no_id, ival, IPLATFORM, ISAT, INSTRUM, KRTID
+  INTEGER :: no_id, ival, IPLATFORM, ISAT, INSTRUM, KRTID
 
-  INTEGER  KULOUT, JO, IDATYP, ILEN, IER, J, JI, JK, NCMAX
-  INTEGER  JF, IBEGIN, ILAST, IBEGINOB, ILASTOB, ISENS, NC, NL
-  INTEGER  JDATA, IDATA, IDATEND, ICHN, NOSENSOR, INDXCHN
-  INTEGER  ISRCHEQ
-  INTEGER  NOBAIRS
-  INTEGER  NOBIASI
+  INTEGER ::  KULOUT, JO, IDATYP, JI, JK, NCMAX
+  INTEGER ::  ISENS, NC, NL
+  INTEGER ::  ICHN, NOSENSOR, INDXCHN
+  INTEGER ::  ISRCHEQ
+  INTEGER ::  NOBAIRS
+  INTEGER ::  NOBIASI
+  integer, dimension(:), allocatable :: list_header, list_body
+  integer :: size_list_header, index_list_header, index_header
+  integer :: size_list_body,   index_list_body,   index_body
 
-  CHARACTER*2 SENSORTYPE
+  CHARACTER(len=2) :: SENSORTYPE
 
 !     1. Determine the number of radiances to be assimilated.
 !        Construct a list of channels for each sensor.
 !        Construct a list of sensor number for each profile
 !     .  ---------------------------------------------------
-  100  CONTINUE
   alloc_status(:) = 0
   allocate (nchan(nsensors),          stat= alloc_status(1))
   allocate (ichan(jpchus,nsensors),   stat= alloc_status(2))
@@ -103,72 +104,75 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   NOBTOV = 0
   NOBAIRS = 0
   NOBIASI = 0
-  DO  JF = 1, NFILES
-     IF ( CFAMTYP(JF)  .EQ. 'TO' .AND. &
-          NBEGINTYP(JF).GT. 0          ) THEN
-        IBEGIN   = NBEGINTYP(JF)
-        ILAST    = NENDTYP  (JF)
-        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-        DO JO = IBEGINOB, ILASTOB
-           IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
-           IF ( IDATYP .EQ. 164 .OR. &
-                IDATYP .EQ. 168 .OR. &
-                IDATYP .EQ. 180 .OR. &
-                IDATYP .EQ. 181 .OR. &
-                IDATYP .EQ. 182 .OR. &
-                IDATYP .EQ. 183 .OR. &     
-                IDATYP .EQ. 185 .OR. &     
-                IDATYP .EQ. 186) THEN
-              NOBTOV = NOBTOV + 1
-           IF ( IDATYP .EQ. 183 ) NOBAIRS = NOBAIRS + 1
-           IF ( IDATYP .EQ. 186 ) NOBIASI = NOBIASI + 1
 
-!           Construct list of channels for each sensor:
-!             map burp satellite info to RTTOV-7 platform and satellite.
-              IVAL = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO)/1000,1000)
-              CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
+  allocate(list_header( obs_num_stn     (lobsSpaceData) ))
+  allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
 
-!             map burp instrument info to RTTOV-7 instrument.
-              IVAL = MOD(obs_elem_i(lobsSpaceData,'BOX ',JO),10000)
-              CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
+  call obs_getHeaderIndices(lobsSpaceData, 'TO', list_header, size_list_header)
+  HEADER_INDEX: &
+  do index_list_header = 1, size_list_header
+     index_header = list_header(index_list_header)
+     IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+     IF ( IDATYP .NE. 164 .AND. &
+          IDATYP .NE. 168 .AND. &
+          IDATYP .NE. 180 .AND. &
+          IDATYP .NE. 181 .AND. &
+          IDATYP .NE. 182 .AND. &
+          IDATYP .NE. 183 .AND. &     
+          IDATYP .NE. 185 .AND. &     
+          IDATYP .NE. 186) THEN
+        cycle                           ! Proceed to the next header_index
+     end if
 
-!             find sensor number for this obs.
-              DO KRTID = 1, NSENSORS
-                 IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
-                      ISAT      .EQ. SATELLITE (KRTID) .AND. &
-                      INSTRUM   .EQ. INSTRUMENT(KRTID)      ) THEN
-                    NOSENSOR = KRTID
-                    GO TO 110
-                 ENDIF
-              ENDDO
-              WRITE(KULOUT,FMT=9101)
-  9101        FORMAT(' TOVS_SETUPALLO: Invalid Sensor')
-              CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+     NOBTOV = NOBTOV + 1
+     IF ( IDATYP .EQ. 183 ) NOBAIRS = NOBAIRS + 1
+     IF ( IDATYP .EQ. 186 ) NOBIASI = NOBIASI + 1
 
-  110         lsensor(nobtov) = nosensor
-              lobsno (nobtov) = jo
-              ltovsno (jo)    = nobtov
-              IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-              IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-              DO JDATA= IDATA, IDATEND
-                 IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
-                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                    IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) ICHN=ICHN-CHANOFFSET(NOSENSOR)
+!    Construct list of channels for each sensor:
+!          map burp satellite info to RTTOV-7 platform and satellite.
+     IVAL = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header)/1000,1000)
+     CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
 
-                    INDXCHN = ISRCHEQ(ichan(:,nosensor),nchan(nosensor),ichn)
-                    if ( indxchn .eq. 0 ) then
-                       nchan(nosensor) = nchan(nosensor) + 1
-                       ichan(nchan(nosensor),nosensor) = ichn
-                    endif
-                 ENDIF
-              ENDDO
+!    map burp instrument info to RTTOV-7 instrument.
+     IVAL = MOD(obs_elem_i(lobsSpaceData,'BOX ',index_header),10000)
+     CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
 
-           ENDIF
-        ENDDO
-     ENDIF
-  ENDDO
+!    find sensor number for this obs.
+     DO KRTID = 1, NSENSORS
+        IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
+             ISAT      .EQ. SATELLITE (KRTID) .AND. &
+             INSTRUM   .EQ. INSTRUMENT(KRTID)      ) THEN
+           NOSENSOR = KRTID
+           GO TO 110
+        ENDIF
+     ENDDO
+     WRITE(KULOUT,FMT=9101)
+9101 FORMAT(' TOVS_SETUPALLO: Invalid Sensor')
+     CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+
+110  lsensor(nobtov) = nosensor
+     lobsno (nobtov) = index_header
+     ltovsno (index_header)    = nobtov
+
+     call obs_getBodyIndices(lobsSpaceData, index_header, &
+                             list_body, size_list_body)
+     BODY_INDEX: &
+     do index_list_body = 1, size_list_body
+        index_body = list_body(index_list_body)
+        IF ( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 ) THEN
+           ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+           ICHN = MAX(0,MIN(ICHN,JPCH+1))
+           IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) &
+              ICHN=ICHN-CHANOFFSET(NOSENSOR)
+
+           INDXCHN = ISRCHEQ(ichan(:,nosensor),nchan(nosensor),ichn)
+           if ( indxchn .eq. 0 ) then
+              nchan(nosensor) = nchan(nosensor) + 1
+              ichan(nchan(nosensor),nosensor) = ichn
+           endif
+        ENDIF
+     ENDDO BODY_INDEX
+  ENDDO HEADER_INDEX
 
 ! Sort list of channels in ascending order.Also force at least one channel, if none are found.
 

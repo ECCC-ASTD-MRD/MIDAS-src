@@ -30,7 +30,14 @@ MODULE obsSpaceData_mod
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
   public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
   public           :: obs_setTimeInterpWeight,obs_getTimeInterpWeight
-  public           :: obs_getTimeInterpWeight_mpiglobal,obs_prnthdr, obs_prntbdy
+  public           :: obs_getTimeInterpWeight_mpiglobal,obs_prnthdr,obs_prntbdy
+  public           :: obs_getHeaderIndices,obs_getBodyIndices
+
+
+  interface obs_getBodyIndices
+   module procedure obs_getBodyIndices_fromHeaderIndex
+   module procedure obs_getBodyIndices_fromFamily
+  end interface
 
   ! private methods
   !                obs_allocate, obs_deallocate, obs_allocateG, obs_deallocateG
@@ -920,6 +927,70 @@ MODULE obsSpaceData_mod
  end function obs_elem_c9
 
 
+ subroutine obs_getHeaderIndices(obsdat, family, list_header, size_list)
+  type(struct_obs), intent(in)  :: obsdat
+  character(len=2), intent(in)  :: family
+  integer, dimension(:), intent(out) :: list_header
+  integer, intent(out) :: size_list
+
+  integer :: header_index
+
+  size_list = 0
+
+  do header_index = 1,obsdat%numstns_recorded
+   if(obsdat%cfamily(header_index) == family) then
+    size_list = size_list + 1
+    list_header(size_list) = header_index
+   end if
+  end do
+ end subroutine obs_getHeaderIndices
+
+
+ subroutine obs_getBodyIndices_fromHeaderIndex(obsdat, header_index, list_body, &
+                                               size_list)
+  type(struct_obs), intent(in)  :: obsdat
+  integer, intent(in) :: header_index
+  integer, dimension(:), intent(out) :: list_body
+  integer, intent(out) :: size_list
+
+  integer :: body_index, body_index_first, body_index_last
+
+  size_list = 0
+
+  body_index_first = obsdat%mobhdr(NCM_RLN, header_index)
+  body_index_last = body_index_first + obsdat%mobhdr(NCM_NLV, header_index) -1
+  do body_index = body_index_first, body_index_last
+   size_list = size_list + 1
+   list_body(size_list) = body_index
+  end do
+ end subroutine obs_getBodyIndices_fromHeaderIndex
+
+
+ subroutine obs_getBodyIndices_fromFamily(obsdat, family, list_body, &
+                                          size_list_body)
+  type(struct_obs), intent(in)  :: obsdat
+  character(len=2), intent(in)  :: family
+  integer, dimension(:), intent(out) :: list_body
+  integer, intent(out) :: size_list_body
+
+  integer, dimension(obsdat%numstns_recorded) :: list_header
+  integer :: header_index, size_list_header
+  integer :: list_index, size_list_body_partial
+
+  size_list_body = 0
+
+  call obs_getHeaderIndices(obsdat, family, list_header, size_list_header)
+  do list_index = 1, size_list_header
+   header_index = list_header(list_index)
+   call obs_getBodyIndices(obsdat, header_index, &
+                           list_body(size_list_body+1 :), size_list_body_partial)
+   size_list_body = size_list_body + size_list_body_partial
+  end do
+
+  
+ end subroutine obs_getBodyIndices_fromFamily
+
+
  subroutine obs_getobstag(obsdat,nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp, &
                       nendtyp,l4dvar)
 #if defined (DOC)
@@ -1665,7 +1736,8 @@ MODULE obsSpaceData_mod
     ENDDO 
   ENDDO 
   
-  nobtot=locObsize  
+  nobtot=locObsize
+  obsdat%numstns_recorded=nobtot
   obsdat%numobs_recorded=obsdat%numobs_recorded_l
   write(*,*) 'NOBTOT= ',nobtot 
   call obs_deallocate(obsdat)

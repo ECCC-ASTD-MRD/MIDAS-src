@@ -55,22 +55,26 @@
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "cvcord.cdk"
+ 
+ 
+ 
 *
       type(struct_columnData) :: lcolumnghr
       type(struct_obs) :: lobsSpaceData
 
-      INTEGER J,JK,JDATA
-      REAL*8 ZLEV,ZPREF,ZPT,ZPB,ZXI
-      INTEGER IOBS,IDATYP,IBEGIN,ILAST,IK,ITYP
-      LOGICAL LLOK, LLPRINT
-      CHARACTER *2 CLFAM,cvar
+      INTEGER :: JK,JDATA
+      REAL(8) :: ZLEV,ZPT,ZPB
+      INTEGER :: IOBS,IK,ITYP
+      LOGICAL :: LLOK, LLPRINT
+      CHARACTER(len=2) :: cvar
+      integer, dimension(:), allocatable :: list_header, list_body
+      integer :: size_list_header, index_list_header, index_header
+      integer :: size_list_body,   index_list_body,   index_body
 C
 C     --------
 C
       LLPRINT = .FALSE.
 C
- 100  CONTINUE
 C-----------------------------------------------------------------------
 C
 C
@@ -290,30 +294,34 @@ C
 C     2.3   Reference ppp level of thickness data (SATEMS)
 C           -----
 C
-            DO J = 1,NFILES
-               IF ((CFAMTYP(J) .EQ. 'ST').AND.(NBEGINTYP(J) .GT. 0))THEN
-                  IBEGIN=NBEGINTYP(J)
-                  ILAST=NENDTYP(J)
-                  DO JDATA= IBEGIN,ILAST
-                     LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
-     &                       obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
-                     IF ( LLOK ) THEN
-                        IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                        ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',JDATA)
-                        IK = 1
-                        DO JK = 2,LCOLUMNGHR%NLEV - 1
-                          ZPT  = LCOLUMNGHR%RPPOBS(JK,IOBS)
-                          IF( ZLEV .GT. ZPT ) IK = JK
-                        END DO
-                        call obs_set_i(lobsSpaceData,'LYR ',JDATA, obs_elem_i(lobsSpaceData,'LYR ',JDATA)
+
+            allocate(list_header( obs_num_stn     (lobsSpaceData) ))
+            allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
+C           loop over all header indices of the 'ST' family
+            call obs_getHeaderIndices(lobsspacedata, 'ST',
+     &                                list_header, size_list_header)
+            do index_list_header = 1, size_list_header
+               index_header = list_header(index_list_header)
+               LLOK = (obs_elem_i(lobsSpaceData,'ASS ',index_header) .EQ. 1 .AND.
+     &                 obs_elem_i(lobsSpaceData,'VCO ',index_header) .EQ. 2 )
+               if ( .not. LLOK ) then
+                  cycle                 ! Proceed to the next index_header
+               end if
+
+               IOBS = obs_elem_i (lobsSpaceData,'OBS ',index_header)
+               ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',index_header)
+               IK = 1
+               DO JK = 2,LCOLUMNGHR%NLEV - 1
+                 ZPT  = LCOLUMNGHR%RPPOBS(JK,IOBS)
+                 IF( ZLEV .GT. ZPT ) IK = JK
+               END DO
+               call obs_set_i(lobsSpaceData,'LYR ',index_header, 
+     &                        obs_elem_i(lobsSpaceData,'LYR ',index_header)
      &                       + 1000 * IK)
-                     ENDIF
 ****************************************************************
-c       write(nulout,*) 'vobslyrs PRL:JDATA,iobs,IK,zlev,ZPT,ZPB '
-c     &         ,JDATA,iobs,IK,ZLEV,LCOLUMNGHR%RPPOBS(IK,IOBS),LCOLUMNGHR%RPPOBS(IK+1,IOBS)
+c       write(nulout,*) 'vobslyrs PRL:index_header,iobs,IK,zlev,ZPT,ZPB '
+c     &         ,index_header,iobs,IK,ZLEV,LCOLUMNGHR%RPPOBS(IK,IOBS),LCOLUMNGHR%RPPOBS(IK+1,IOBS)
 *****************************************************************
-                  END DO
-               ENDIF
             END DO
  300  CONTINUE
 C

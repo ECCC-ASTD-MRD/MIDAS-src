@@ -45,7 +45,6 @@
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
-#include "cvcord.cdk"
 #include "comgpsro.cdk"
 *
       type(struct_columnData) :: lcolumnhr
@@ -68,11 +67,7 @@ C
 C
       REAL*8 ZMHX
 C
-      INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO, JD
       INTEGER IDATYP
-      INTEGER IDATA   , IDATEND, JDATA
       INTEGER JL, JH, NGPSLEV
 C
       LOGICAL  ASSIM, LSTAG
@@ -82,6 +77,10 @@ C
       REAL(DP)     , ALLOCATABLE :: H   (:), HGT(:)
       REAL(DP)     , ALLOCATABLE :: ZOFF(:),ZERR(:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+
+      integer, dimension(:), allocatable :: list_header, list_body
+      integer :: size_list_header, index_list_header, index_header
+      integer :: size_list_body,   index_list_body,   index_body
 
       WRITE(NULOUT,*)'ENTER SETERRGPSRO'
 C
@@ -114,71 +113,71 @@ C*    *        1.2 Read the NAMELIST NAMGGPSRO
 C     *       ---------------------------------------
       CALL READNML('NAMGPSRO',IERR)
       write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
-C
-C     Loop over all files
-C
-      DO JF = 1, NFILES
-         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
-            IBEGIN   = NBEGINTYP(JF)
-            ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-C
-C     *     Loop over all observations of the file
-C
-            DO JO = IBEGINOB, ILASTOB
+
+      allocate(list_header( obs_num_stn     (lobsSpaceData) ))
+      allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
+
+      !
+      ! loop over all header indices of the 'RO' family
+      !
+      call obs_getHeaderIndices(lobsSpaceData, 'RO', list_header,
+     &                          size_list_header)
+      do index_list_header = 1, size_list_header
+         index_header = list_header(index_list_header)
 C     
-C     *        Process only refractivity data (codtyp 169)
+C     *  Process only refractivity data (codtyp 169)
 C
-               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
-               IF ( IDATYP .EQ. 169 ) THEN
+         IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER),1000)
+         IF ( IDATYP .EQ. 169 ) THEN
+            ASSIM = .FALSE.
 C
-C                 Loops over data in the observation
+C           Scan for requested assimilations, and count them
 C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-                  ASSIM = .FALSE.
+            NH = 0
+
+            !
+            ! loop over all body indices (still in the 'RO' family)
+            !
+            call obs_getBodyIndices(lobsSpaceData, index_header, list_body,
+     &                              size_list_body)
+            do index_list_body = 1, size_list_body
+               index_body = list_body(index_list_body)
+               HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+               IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+               ENDIF
+            ENDDO
 C
-C                 Scan for requested assimilations, and count them
+C     *     If assimilations are requested, apply the observation operator
 C
-                  NH = 0
-                  DO JDATA= IDATA, IDATEND
-                     HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                     IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
-                        ASSIM = .TRUE.
-                        NH = NH + 1
-                     ENDIF
-                  ENDDO
-C
-C     *           If assimilations are requested, apply the observation operator
-C
-                  IF (ASSIM) THEN
+            IF (ASSIM) THEN
 C     
-C     *              Profile at the observation location:
+C     *        Profile at the observation location:
 C
-                     Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
-                     Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
-                     ZLAT = Lat * ZTODEG
-                     ZLON = Lon * ZTODEG
-                     ZP0 = lcolumnhr%ps(1,JO)
-                     DO JL = 1, LCOLUMNHR%NLEV
+               Lat  = obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)
+               Lon  = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)
+               ZLAT = Lat * ZTODEG
+               ZLON = Lon * ZTODEG
+                     ZP0 = lcolumnhr%ps(1,INDEX_HEADER)
+               DO JL = 1, LCOLUMNHR%NLEV
 C
-C     *                 Profile x
+C     *           Profile x
 C
-                        ZPP(JL) = LCOLUMNHR%RPPOBS_T(JL,JO)
-CCCCCCCCCCC                THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
-                        ZDP(JL) = ZPP(JL)/ZP0
-                        ZTT(JL) = lcolumnhr%tt(JL,JO)-273.15
-                        ZHU(JL) = lcolumnhr%hu(JL,JO)
-                        ZGZ(JL) = lcolumnhr%gz_T(JL,JO)
-                     ENDDO
-                     ZPT = LCOLUMNHR%RPPOBS_T(1,JO)
-                     ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
-                     ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPR = rprefinc
-                     ZCF = rcoefinc
+                  ZPP(JL) = LCOLUMNHR%RPPOBS_T(JL,INDEX_HEADER)
+CCCCCCCCCCC          THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
+                  ZDP(JL) = ZPP(JL)/ZP0
+                  ZTT(JL) = lcolumnhr%tt(JL,INDEX_HEADER)-273.15
+                  ZHU(JL) = lcolumnhr%hu(JL,INDEX_HEADER)
+                  ZGZ(JL) = lcolumnhr%gz_T(JL,INDEX_HEADER)
+               ENDDO
+               ZPT = LCOLUMNHR%RPPOBS_T(1,INDEX_HEADER)
+               ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
+               ZMT = gpsgeopotential(Lat, ZMT)/RG
+               ZPR = rprefinc
+               ZCF = rcoefinc
 C     
-C     *              GPS profile structure:
+C     *        GPS profile structure:
 C
                      IF (LSTAG) THEN
 c     *                 Staggered hybrid trial field 
@@ -186,104 +185,104 @@ c     *                 Staggered hybrid trial field
      +                       ZPP,ZDP,ZTT,ZHU,ZMT,PRF)
                      ELSE
 c     *                 ETA or HYBRID NONSTAGGERED trial field 
-                        CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
-     +                       ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+               CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
+     +              ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
                      ENDIF
-                     CALL GPSGEO(PRF)
+               CALL GPSGEO(PRF)
 C
-C     *              Prepare the vector of all the observations:
+C     *        Prepare the vector of all the observations:
 C
-                     ALLOCATE( HGT  (NH) )
-                     ALLOCATE( H    (NH) )
-                     ALLOCATE( ZOFF (NH) )
-                     ALLOCATE( ZERR (NH) )
-                     ALLOCATE( RSTV (NH) )
-                     NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                        IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
-                           NH1   = NH1 + 1
-                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                           HGT(NH1)= HNH1
-                           H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
-                        ENDIF
-                     ENDDO
-C
-C     *              Apply the observation operator:
-C  
-                     DH = 5000._dp
-                     CALL GPSREFOPV (H, PRF, RSTV)
-C
-C     *              Perform the (H(x)-Y)/S operation
-C
-                     NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                        IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
-                           NH1   = NH1 + 1
-C
-C     *                    Observation operator H(x)
-C
-                           ZMHX = RSTV(NH1)%VAR
-C
-C     *                    Observation value    Y
-C
-                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-C
-C     *                    Normalized increment
-C
-                           ZOFF(NH1) = (ZOBS - ZMHX) / ZMHX
-                        ENDIF
-                     ENDDO
-C
-C     *              The procedure below is well tested to collectively
-C     *              create error profiles FROM data below 40 km, and
-C     *              intended to be used FOR data below 40 km. The procedure
-C     *              creates also a reasonable estimate for the error
-C     *              profiles FOR data above, but only uses data FROM below
-C     *              HTPMAX as input. Extending input for all HGT requires
-C     *              research on the error characteristics of data above 40 km.
-C
-                     DO NH1 = 1, NH
-                        SUM0=0.
-                        SUM1=0.
-                        DO JH = 1, NH
-                           IF ( HGT(JH) .LT. HTPMAX ) THEN
-                              DDH=H(JH)-H(NH1)
-                              SUM0=SUM0+EXP(-(DDH/DH)**2)
-                              SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
-                           ENDIF
-                        ENDDO
-                        ZERR(NH1)=SQRT(SUM1/SUM0)
-                        IF ( ZERR(NH1) < 0.002 ) ZERR(NH1) = 0.002
-                     ENDDO
-
-                     NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                        IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
-                           NH1 = NH1 + 1
-C
-C     *                    Observation operator H(x)
-C
-                           ZMHX = RSTV(NH1)%VAR
-C
-C     *                    Observation error    S
-C
-                           call obs_set_r8(lobsSpaceData,'OER ',JDATA, ZERR(NH1) * ZMHX)
-                        ENDIF
-                     ENDDO
-                     DEALLOCATE( RSTV )
-                     DEALLOCATE( ZERR )
-                     DEALLOCATE( ZOFF )
-                     DEALLOCATE( H    )
-                     DEALLOCATE( HGT  )
+               ALLOCATE( HGT  (NH) )
+               ALLOCATE( H    (NH) )
+               ALLOCATE( ZOFF (NH) )
+               ALLOCATE( ZERR (NH) )
+               ALLOCATE( RSTV (NH) )
+               NH1 = 0
+               do index_list_body = 1, size_list_body
+                  index_body = list_body(index_list_body)
+                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                  IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
+                     NH1   = NH1 + 1
+                     HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                     HGT(NH1)= HNH1
+                     H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                   ENDIF
-               ENDIF
-            ENDDO
+               ENDDO
+C
+C     *        Apply the observation operator:
+C  
+               DH = 5000._dp
+               CALL GPSREFOPV (H, PRF, RSTV)
+C
+C     *        Perform the (H(x)-Y)/S operation
+C
+               NH1 = 0
+               do index_list_body = 1, size_list_body
+                  index_body = list_body(index_list_body)
+                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                  IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
+                     NH1   = NH1 + 1
+C
+C     *              Observation operator H(x)
+C
+                     ZMHX = RSTV(NH1)%VAR
+C
+C     *              Observation value    Y
+C
+                     ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',index_body)
+C
+C     *              Normalized increment
+C
+                     ZOFF(NH1) = (ZOBS - ZMHX) / ZMHX
+                  ENDIF
+               ENDDO
+C
+C     *        The procedure below is well tested to collectively
+C     *        create error profiles FROM data below 40 km, and
+C     *        intended to be used FOR data below 40 km. The procedure
+C     *        creates also a reasonable estimate for the error
+C     *        profiles FOR data above, but only uses data FROM below
+C     *        HTPMAX as input. Extending input for all HGT requires
+C     *        research on the error characteristics of data above 40 km.
+C
+               DO NH1 = 1, NH
+                  SUM0=0.
+                  SUM1=0.
+                  DO JH = 1, NH
+                     IF ( HGT(JH) .LT. HTPMAX ) THEN
+                        DDH=H(JH)-H(NH1)
+                        SUM0=SUM0+EXP(-(DDH/DH)**2)
+                        SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+                     ENDIF
+                  ENDDO
+                  ZERR(NH1)=SQRT(SUM1/SUM0)
+                  IF ( ZERR(NH1) < 0.002 ) ZERR(NH1) = 0.002
+               ENDDO
 
-         ENDIF
-      ENDDO
+               NH1 = 0
+               do index_list_body = 1, size_list_body
+                  index_body = list_body(index_list_body)
+                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                  IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
+                     NH1 = NH1 + 1
+C
+C     *              Observation operator H(x)
+C
+                     ZMHX = RSTV(NH1)%VAR
+C
+C     *              Observation error    S
+C
+                     call obs_set_r8(lobsSpaceData,'OER ',index_body, ZERR(NH1) * ZMHX)
+                  ENDIF
+               ENDDO
+               DEALLOCATE( RSTV )
+               DEALLOCATE( ZERR )
+               DEALLOCATE( ZOFF )
+               DEALLOCATE( H    )
+               DEALLOCATE( HGT  )
+            ENDIF ! ASSIM
+         ENDIF ! IDATYP .EQ. 169
+      ENDDO ! index_header
       WRITE(NULOUT,*)'EXIT SETERRGPSRO'
       RETURN
       END

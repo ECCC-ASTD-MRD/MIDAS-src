@@ -50,7 +50,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
-#include "cvcord.cdk"
 
   type(struct_obs) :: lobsSpaceData
   integer :: isens, indxchn, indxtovs
@@ -63,16 +62,18 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   real*8 zjoch  (0:jpch,jpnsat)
   real*8 zavgnrm(0:jpch,jpnsat)
 
-  integer j, i, isat, krtid, io, jf, nchanperline, indxs, indxe
-  integer ibegin, ibeginob, ilast, ilastob, jj
+  integer j, i, krtid, nchanperline, indxs, indxe
   integer inobsjo, incanjo
-  integer jo, jdata, idata, idatend, idatyp
-  integer jk, jn, ichn, ichNCM_A, jl, indx
+  integer idatyp
+  integer ichn, ichNCM_A, jl
   integer kfailtot
 
-  integer kfail(jppf*jpnsat)
   integer inobsch(0:jpch,jpnsat)
   integer lcanjo(jpch)
+
+  integer, dimension(:), allocatable :: list_header, list_body
+  integer :: size_list_header, index_list_header, index_header
+  integer :: size_list_body,   index_list_body,   index_body
 
   logical :: llprint
 
@@ -85,8 +86,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 !     1.  Computation of (hx - z)/sigma for tovs data only
 !     .   ------------------------------------------------
 
-100  continue
-
   dlsum    = 0.
   inobsjo  = 0
   kfailtot = 0
@@ -98,105 +97,113 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
      enddo
   enddo
 
-!     loop over all files
+  allocate(list_header( obs_num_stn     (lobsSpaceData) ))
+  allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
 
-  do jf = 1, nfiles
-   if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
-     ibegin   = nbegintyp(jf)
-     ilast    = nendtyp  (jf)
-     ibeginob = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
-     ilastob  = obs_elem_i(lobsSpaceData,'OBS ',ilast )
-     do jo = ibeginob, ilastob
+  ! loop over all header indices of the 'TO' family
+  call obs_getHeaderIndices(lobsSpaceData, 'TO', list_header, size_list_header)
+  HEADER_INDEX: &
+  do index_list_header = 1, size_list_header
+     index_header = list_header(index_list_header)
 
-!     .  1.1  Extract general information for this observation point
-!     .       ------------------------------------------------------
+  !  .  1.1  Extract general information for this observation point
+  !  .       ------------------------------------------------------
 
-!       only process radiance data (data type=[164,168,180,181,182,183,185,186]) to be assimilated?
+  !     process only radiance data to be assimilated?
+  !     (data type=[164,168,180,181,182,183,185,186])
 
-      idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',jo),1000)
-      if ( idatyp .eq. 164 .or.  &
-           idatyp .eq. 168 .or.  &
-           idatyp .eq. 180 .or.  &
-           idatyp .eq. 181 .or.  &
-           idatyp .eq. 182 .or.  &
-           idatyp .eq. 183 .or.  &    
-           idatyp .eq. 185 .or.  &    
-           idatyp .eq. 186     ) then
+     idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+     if ( idatyp .ne. 164 .and.  &
+          idatyp .ne. 168 .and.  &
+          idatyp .ne. 180 .and.  &
+          idatyp .ne. 181 .and.  &
+          idatyp .ne. 182 .and.  &
+          idatyp .ne. 183 .and.  &    
+          idatyp .ne. 185 .and.  &    
+          idatyp .ne. 186     ) then
+        cycle                           ! Proceed to the next header_index
+     end if
 
-        indxtovs = ltovsno(jo)
-        if ( indxtovs .eq. 0 ) then
-           write(nulout,fmt=9203)
-9203      format(' tovs_calc_jo: error with indxtovs')
-           call abort3d(nulout,'tovs_calc_jo    ')
-        endif
+     indxtovs = ltovsno(index_header)
+     if ( indxtovs .eq. 0 ) then
+        write(nulout,fmt=9203)
+9203    format(' tovs_calc_jo: error with indxtovs')
+        call abort3d(nulout,'tovs_calc_jo    ')
+     endif
 
-        if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
-         idata   = obs_elem_i(lobsSpaceData,'RLN ',jo)
-         idatend = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
-         isens = lsensor(indxtovs)
-         do jdata= idata, idatend
-            if ( obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1 ) then
-               ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
-               ichn    = max(0,min(ichn,jpch+1))
-               ichNCM_A = max(0,min(ichn,jpch+1))
-               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
-               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
-               if ( indxchn .eq. 0 ) then
-                  write(nulout,fmt=9202)
-9202              format(' tovs_calc_jo: error with channel number')
-                  call abort3d(nulout,'tovs_calc_jo    ')
-               endif
+     if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
+        isens = lsensor(indxtovs)
 
-               zdtb = radiance_d (indxtovs) % out(indxchn)-obs_elem_r8(lobsSpaceData,'PRM ',jdata)
-               if ( ldbgtov ) then
-                  write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
+        ! loop over all body indices (still in the 'TO' family)
+        call obs_getBodyIndices(lobsSpaceData, index_header, &
+                                list_body, size_list_body)
+        BODY_INDEX: &
+        do index_list_body = 1, size_list_body
+           index_body = list_body(index_list_body)
+           if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).ne.1 ) then
+              cycle                     ! Proceed to the next body_index
+           end if
+
+           ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+           ichn = max(0,min(ichn,jpch+1))
+           ichNCM_A = max(0,min(ichn,jpch+1))
+           if(idatyp.ne.183 .and. idatyp.ne.186) &
+              ichn=ichn-chanoffset(isens)
+           indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+           if ( indxchn .eq. 0 ) then
+              write(nulout,fmt=9202)
+9202          format(' tovs_calc_jo: error with channel number')
+              call abort3d(nulout,'tovs_calc_jo    ')
+           endif
+
+           zdtb =   radiance_d (indxtovs) % out(indxchn) &
+                  - obs_elem_r8(lobsSpaceData,'PRM ',index_body)
+           if ( ldbgtov ) then
+              write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
                            ichn,  radiance_d (indxtovs) % out(indxchn), &
-                           obs_elem_r8(lobsSpaceData,'PRM ',jdata), zdtb
-               endif
+                           obs_elem_r8(lobsSpaceData,'PRM ',index_body), zdtb
+           endif
 
-               zoer = obs_elem_r8(lobsSpaceData,'OER ',jdata)
-               call obs_set_r8(lobsSpaceData,'OMA ',jdata, zdtb/zoer)
-               call obs_set_r8(lobsSpaceData,'OMI ',jdata, obs_elem_r8(lobsSpaceData,'OMA ',jdata))
-               if (.not. lvarqc) then
-                  dlsum = dlsum &
-                       + (obs_elem_r8(lobsSpaceData,'OMA ',jdata)* &
-                          obs_elem_r8(lobsSpaceData,'OMA ',jdata))/2.
-                  call obs_set_r8(lobsSpaceData,'OMN ',jdata, &
-                              obs_elem_r8(lobsSpaceData,'OMA ',jdata))
-               else
+           zoer = obs_elem_r8(lobsSpaceData,'OER ',index_body)
+           call obs_set_r8(lobsSpaceData,'OMA ',index_body, zdtb/zoer)
+           call obs_set_r8(lobsSpaceData,'OMI ',index_body, &
+                           obs_elem_r8(lobsSpaceData,'OMA ',index_body))
 
-!                 compute contribution of data with varqc
+           if (.not. lvarqc) then
+              dlsum =  dlsum &
+                     + (obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
+                        obs_elem_r8(lobsSpaceData,'OMA ',index_body))/2.
+              call obs_set_r8(lobsSpaceData,'OMN ',index_body, &
+                              obs_elem_r8(lobsSpaceData,'OMA ',index_body))
+
+           else
+!             compute contribution of data with varqc
  
-                  zgami = obs_elem_r4(lobsSpaceData,'POB ',jdata)
-                  zjon = (obs_elem_r8(lobsSpaceData,'OMA ',jdata)* &
-                          obs_elem_r8(lobsSpaceData,'OMA ',jdata))/2.
-                  zqcarg = zgami + exp(-1.0*zjon)
-                  zpost = zgami/zqcarg
-                  call obs_set_r8(lobsSpaceData,'OMN ',jdata, &
-                             obs_elem_r8(lobsSpaceData,'OMA ',jdata)*(1. - zpost))
-                  dlsum= dlsum - log(zqcarg/(zgami+1.))
-               endif
-               inobsjo = inobsjo + 1
-               inobsch(ichNCM_A,Isens) = inobsch(ichNCM_A,Isens) + 1
-               zjoch(ichNCM_A,Isens)   = &
-                      zjoch(ichNCM_A,Isens)   + &
-                      obs_elem_r8(lobsSpaceData,'OMA ',jdata)* &
-                      obs_elem_r8(lobsSpaceData,'OMA ',jdata)
-               zavgnrm(ichNCM_A,Isens)   = &
-                      zavgnrm(ichNCM_A,Isens) + &
-                      obs_elem_r8(lobsSpaceData,'OMA ',jdata)
-            endif
-         enddo
-        else
-         kfailtot = kfailtot + 1
-        endif      
-      endif
+              zgami = obs_elem_r4(lobsSpaceData,'POB ',index_body)
+              zjon = (obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
+                      obs_elem_r8(lobsSpaceData,'OMA ',index_body))/2.
+              zqcarg = zgami + exp(-1.0*zjon)
+              zpost = zgami/zqcarg
+              call obs_set_r8(lobsSpaceData,'OMN ',index_body, &
+                       obs_elem_r8(lobsSpaceData,'OMA ',index_body)*(1. - zpost))
+              dlsum= dlsum - log(zqcarg/(zgami+1.))
+           endif
 
+           inobsjo = inobsjo + 1
+           inobsch(ichNCM_A,Isens) = inobsch(ichNCM_A,Isens) + 1
+           zjoch(ichNCM_A,Isens)   = &
+                    zjoch(ichNCM_A,Isens)   + &
+                    obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
+                    obs_elem_r8(lobsSpaceData,'OMA ',index_body)
+           zavgnrm(ichNCM_A,Isens)   = &
+                    zavgnrm(ichNCM_A,Isens) + &
+                    obs_elem_r8(lobsSpaceData,'OMA ',index_body)
+        enddo BODY_INDEX
+     else
+      kfailtot = kfailtot + 1
+     endif
 
-     enddo
-
-   endif
-  enddo
+  enddo HEADER_INDEX
 
 !     2.  Close up, print summary
 !     .   -----------------------
