@@ -1,0 +1,47 @@
+      SUBROUTINE  DELT  ( DEL, SCOS )
+!***subroutine     DELT
+!*
+!*auteur           Louis Garand  - rpn - dorval
+!*
+!*revision 001     Jacques Halle - ddo - dorval - 421-4660
+!*                                 fev 1991
+!*                 adapter au systeme operationel GOES.
+!*
+!*REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
+!*                                 Decembre 1995
+!*                 Generaliser pour toutes les plateformes satellitaires.
+!*
+!*objet            ce sous-programme calcule un facteur de correction
+!*                 pour l'albedo a partir du cosinus de l'angle solaire. 
+!*
+!*appel            CALL DELT  ( DEL, SCOS )
+!*
+!*arguments        del   - output - facteur de correction
+!*                 scos  - input  - cosinus de l'angle solaire
+!**
+      implicit  none
+      integer  i1, i2
+      real  del, scos, pi, fac, x1, x2, g1, g2, a, b
+      real  drcld
+      real  S(11)
+
+      external  drcld, solu
+ 
+      DATA  S / 00.00, 18.19, 31.79, 41.41, 49.46, 56.63, 63.26, 69.51, 75.52, 81.37, 87.13 /
+ 
+      PI  = 3.14159265 
+      FAC = PI/180. 
+      I1  = 12 -( SCOS+0.05)*10. 
+      I2  = I1+1 
+      I1  = MIN0(I1,11)
+      I2  = MIN0(I2,11)
+      X1  = COS ( S(I1)*FAC )  
+      X2  = COS(S(I2)*FAC) 
+      G1  = DRCLD(I1)
+      G2  = DRCLD(I2)
+
+      CALL  SOLU ( G1, X1, G2 ,X2, A, B )
+      DEL = A*SCOS + B
+
+      RETURN
+      END SUBROUTINE DELT

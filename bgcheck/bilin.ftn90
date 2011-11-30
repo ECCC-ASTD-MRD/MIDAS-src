@@ -1,0 +1,207 @@
+      SUBROUTINE BILIN(lcolumn,lobsSpaceData)
+!*
+!***s/r BILIN  - Horizontal interpolation of the model variables
+!*               in grid-point space to observation points.
+!*               Bilinear interpolation from the 4 nearest grid points.
+!*     .         (based on HOR4 from the ARPEGE/IFS model)
+!*
+!*Author  : J. Pailleux  ECMWF    90-01-11
+!*     .    Luc Fillion  RPN/AES  Jan 1993
+!
+!**    Purpose:  Build GOMU, GOMV, GOMT, GOMGZ, GOMQ and GOMPS  with the model variables at the
+!*               observation points from the model variables in grid-points
+!*               space using bilinear interpolation.
+!*
+      use MathPhysConstants_mod
+      use obsSpaceData_mod
+      use columnData_mod
+      use globalSpectralTransform
+      IMPLICIT NONE
+#include "../pardim.cdk"
+#include "../comdim.cdk"
+#include "../comdimo.cdk"
+#include "../comgem.cdk"
+#include "../comgd0.cdk"
+#include "../comstate.cdk"
+      type(struct_columnData) :: lcolumn
+      type(struct_obs) :: lobsSpaceData
+      INTEGER   JLEV, JK, JK2, JGL, JLON, JOBS
+      INTEGER   ILON, ILOS, IMIDDLE, ISYM, ILA, IMAX, IERR
+      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
+      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
+      real*8, allocatable ::zgd(:,:,:)
+
+      allocate(zgd(0:(ni+2),1:nkgdim,(-1):(nj+2)),STAT=ierr)
+      write(*,*) 'allocated zgd:',ierr
+      call flush(6)
+!C
+!C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
+!C     NILON(JGL), 1, AND 2 INTO MERIDIANS 0, NILON(JGL)+1,
+!C     AND NILON(JGL+2) AND ALSO TWO PARALLELS NEAR THE POLES.
+!C     ----------------------------------------------------------
+!C
+!C*    1.0 TRANSFORM WIND IMAGES INTO PHYSICAL WINDS
+!C
+      DO JLEV = 1, NFLEV
+         DO JGL = 1, NJ
+            DO JLON = 1, NI
+               UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
+               VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
+            ENDDO
+         ENDDO
+      ENDDO
+
+      ZGD(:,:,:)=0.0d0
+      ZGD(1:NI,1:NKGDIM,1:NJ)=GD(1:NI,1:NKGDIM,1:NJ)
+!C
+!C*    1.1 EXTRA MERIDIANS
+!C
+!C     MERIDIAN NILON(JGL) DUPLICATED INTO MERIDIAN 0
+!C     MERIDIAN 1  DUPLICATED INTO MERIDIAN NILON(JGL) + 1
+!C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
+!C
+      DO JK = 1, NKGDIM
+         DO JGL = 1, NJ
+            IMAX = NI
+            ZGD(0     ,JK,JGL) = ZGD(NI,JK,JGL)
+            ZGD(IMAX+1,JK,JGL) = ZGD( 1,JK,JGL)
+            ZGD(IMAX+2,JK,JGL) = ZGD( 2,JK,JGL)
+         ENDDO
+      ENDDO
+!C
+!C*    1.2 EXTRA PARALLELS
+!C
+      DO JK = 1, NKGDIM
+!C
+!C     COMPUTATION OF VALUES AT NORTH AND SOUTH POLES.
+!C
+         DLMEAN = 0.
+         DLMEAS = 0.
+         IMAX = NI
+         DO JLON = 1, IMAX
+            DLMEAN = DLMEAN + ZGD(JLON,JK,1)
+            DLMEAS = DLMEAS + ZGD(JLON,JK,NJ)
+         ENDDO
+         DLMEAN = DLMEAN / NI
+         DLMEAS = DLMEAS / NI
+         IMAX = NI
+         DO JLON = 0, IMAX + 2
+            ZGD(JLON,JK,0)    = DLMEAN
+            ZGD(JLON,JK,NJ+1) = DLMEAS
+         ENDDO
+!C
+!C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
+!C
+         IMIDDLE = NI / 2
+         DO JLON = 0, IMIDDLE
+            ISYM = JLON + IMIDDLE
+            ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
+            ZGD(JLON,JK,NJ+2) = ZGD(ISYM,JK,NJ)
+         ENDDO
+         IMAX = NI
+         DO JLON = IMIDDLE + 1, IMAX + 2
+            ISYM = JLON - IMIDDLE
+            ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
+            ZGD(JLON,JK,NJ+2) = ZGD(ISYM,JK,NJ)
+         ENDDO
+
+      ENDDO
+!C
+!C*    2. LOOP OVER ALL THE OBSERVATIONS
+!C     ---------------------------------
+!C
+      DO JOBS = 1, NOBTOT
+         DLLAO   = obs_elem_r4(lobsSpaceData,'LAT ',JOBS)
+         DLLOO   = obs_elem_r4(lobsSpaceData,'LON ',JOBS)
+!C
+!C*    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
+!C*    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
+!C*    TO THE WEST (ILON AND ILOS).
+!C
+         ILA=obs_elem_i(lobsSpaceData,'TLA ',JOBS)
+
+         IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
+         IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
+         DLDLON = 2.*RPI/NI
+         DLDLOS = 2.*RPI/NI
+         ILON = INT(DLLOO/DLDLON) + 1
+         ILOS = INT(DLLOO/DLDLOS) + 1
+!C
+!C*    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
+!C
+         DLDXN = DLLOO/DLDLON + 1. - ILON
+         DLDXS = DLLOO/DLDLOS + 1. - ILOS
+         DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
+         DLW1  = (1.-DLDXN)*(1.-DLDY)
+         DLW2  = DLDXN*(1.-DLDY)
+         DLW3  = (1.-DLDXS)*DLDY
+         DLW4  = DLDXS*DLDY
+!C
+!C*    2.3 Interpolate the model state to the obs point
+!C
+         DO JK = 1, nflev
+           if(NGEXIST(nguu).eq.1) then
+             jk2=jk+ngposit(nguu)-1
+             lcolumn%uu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
+           endif
+           if(NGEXIST(ngvv).eq.1) then
+             jk2=jk+ngposit(ngvv)-1
+             lcolumn%vv(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
+           endif
+           if(NGEXIST(ngq).eq.1) then
+             jk2=jk+ngposit(ngq)-1
+             lcolumn%hu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
+           endif
+           if(NGEXIST(nggz).eq.1) then
+             jk2=jk+ngposit(nggz)-1
+             lcolumn%gz(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
+           endif
+           if(NGEXIST(ngtt).eq.1) then
+             jk2=jk+ngposit(ngtt)-1
+             lcolumn%tt(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
+           endif
+           if(NGEXIST(ngtr).eq.1) then
+             jk2=jk+ngposit(ngtr)-1
+             lcolumn%tr(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+                  + DLW2*zgd(ILON+1,JK2,ILA)  &
+                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
+                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
+           endif
+         enddo
+         if(NGEXIST(ngps).eq.1) then
+           jk2=ngposit(ngps)
+           lcolumn%ps(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)  &
+                + DLW2*zgd(ILON+1,jk2,ILA)  &
+                + DLW3*zgd(ILOS,jk2,ILA+1)  &
+                + DLW4*zgd(ILOS+1,jk2,ILA+1)
+         endif
+         if(NGEXIST(ngtg).eq.1) then
+           jk2=ngposit(ngtg)
+           lcolumn%tg(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)  &
+                + DLW2*zgd(ILON+1,jk2,ILA)  &
+                + DLW3*zgd(ILOS,jk2,ILA+1)  &
+                + DLW4*zgd(ILOS+1,jk2,ILA+1)
+         endif
+      ENDDO
+
+      deallocate(zgd,STAT=ierr)
+      write(*,*) 'deallocated zgd:',ierr
+      call flush(6)
+
+      RETURN
+      END SUBROUTINE BILIN

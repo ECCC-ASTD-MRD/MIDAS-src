@@ -1,0 +1,49 @@
+      SUBROUTINE RESIDUALS(lcolumng,lcolumnhr,lobsSpaceData)
+!*
+!***s/r RESIDUALS  - RESIDUALS
+!*
+!*Author  : P. Koclas *CMC/CMDA  Nov 1998
+!*
+!**    Purpose: TRANSFER resduals O-A to O-P for all observations.
+!*
+      use obsSpaceData_mod
+      use columnData_mod
+      IMPLICIT NONE
+#include "../comlun.cdk"
+#include "../comdim.cdk"
+#include "../comdimo.cdk"
+#include "../cparbrp.cdk"
+
+      type(struct_obs) :: lobsSpaceData
+      type(struct_columnData) :: lcolumng,lcolumnhr
+      INTEGER J,JDATA
+
+      WRITE(NULOUT,FMT=9000)
+ 9000 FORMAT(//,3(" *****************"),/," residuals: BEGIN RESIDUAL CALCULATION",/,3(" *****************"),/)
+!C
+!C*    1. Preliminary initializations
+!C     .  ---------------------------
+!C
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData) 
+         call obs_set_r4(lobsSpaceData,'OMF ',jdata,real(PPMIS))
+      ENDDO
+
+      CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
+!C
+!C     Transfer REAL*8 part of CMA to REAL*4
+!C     (follows observation operators computations).
+
+      call cprob8to4(lobsSpaceData)
+
+      CALL VINT3DFD('OMA ',lobsSpaceData)
+
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+         call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
+      ENDDO
+      DO j =1,1
+         call obs_prnthdr(lobsSpaceData,j,nulout)
+         call obs_prntbdy(lobsSpaceData,j,nulout)
+      END DO
+      CALL  FILBRPPOST(lcolumng,lobsSpaceData)
+      RETURN
+      END SUBROUTINE RESIDUALS

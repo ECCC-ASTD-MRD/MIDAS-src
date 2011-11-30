@@ -58,15 +58,14 @@ C
 
       CALL SUFILNAM
 
-      WRITE(UNIT=NULOUT,FMT=9000)nulout,nulstat
+      WRITE(UNIT=NULOUT,FMT=9000) nulout,nulstat
      &     ,nulinclr
  9000 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
      S     ,10X,' NULOUT = ',I3/
      S     ,10X,' NULSTAT = ',I3
      S     ,10X,' NULINCLR = ',I3)
 
-      WRITE(UNIT=NULOUT,FMT=9001)ninmpg(1:ntrials)
-     &     ,nulinclr
+      WRITE(UNIT=NULOUT,FMT=9001) ninmpg(1:ntrials)
  9001 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
      S     ,10X,' NINMPG = ',I3)
 

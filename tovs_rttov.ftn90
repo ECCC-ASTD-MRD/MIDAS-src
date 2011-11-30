@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_rttov(lobsSpaceData)
+subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
 !
 !**s/r tovs_rttov  - Computation of forward radiance with rttov_direct
 !                   (adapted from part of code of dobstovs)
@@ -38,7 +38,7 @@ subroutine tovs_rttov(lobsSpaceData)
   use airsbgcheck
   use iasibgcheck
   use obsSpaceData_mod
-
+  use columnData_mod
   implicit none
   interface
      subroutine tovs_rttov_AVHRR_for_IASI (nthreads,knpf_th,knpf,profilesdata_th,KULOUT,surfem1_avhrr,nch,iptobs_th )
@@ -61,9 +61,6 @@ end interface
 #include "pardim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-
-
- 
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -71,6 +68,7 @@ end interface
 #include "comct0.cdk"
 
   type(struct_obs) :: lobsSpaceData
+  type(struct_columnData) :: lcolumnhr
   real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
 
   integer :: jpol, joff1, joff2, joff3, ilev, ichn
@@ -153,6 +151,8 @@ end interface
 !     .     ------------------------
 
   if ( nconf .eq. 101 ) call sfc_emiss
+  write(*,*) 'after sfc_emiss'
+  call flush(6)
 
 !
 !     2.  Computation of hx for tovs data only
@@ -163,11 +163,15 @@ end interface
 ! Loop over all sensors specified by user
 
   do 295 krtid = 1, nsensors
+  write(*,*) '1loop 295',krtid
+  call flush(6)
    alloc_status(:) = 0
    sensor_type = coef(krtid) % id_sensor
    iplatform = coef(krtid) % id_platform
    isat = coef(krtid) % id_sat
    instrum = coef(krtid) % id_inst
+  write(*,*) '2loop 295',krtid
+  call flush(6)
 
 !  loop over all obs.
 
@@ -496,7 +500,7 @@ end interface
             loop_done_airs = 0
             end_airs       = .false.
             do
-              call AIRSQC ( end_airs, bunch_airs,loop_done_airs )
+              call AIRSQC ( end_airs, bunch_airs,loop_done_airs,lcolumnhr,lobsSpaceData )
               loop_done_airs = loop_done_airs + 1
               if ( end_airs ) EXIT qcntrl_airs
             end do
@@ -511,7 +515,7 @@ end interface
                loop_done_iasi = 0
                end_iasi       = .false.
                do
-                 call IASIQC ( end_iasi, bunch_iasi,loop_done_iasi )
+                 call IASIQC ( end_iasi, bunch_iasi,loop_done_iasi,lcolumnhr,lobsSpaceData )
                  loop_done_iasi = loop_done_iasi + 1
                  if ( end_iasi ) EXIT qcntrl_iasi
                end do
@@ -540,6 +544,8 @@ end interface
      write(nulout,'(" tovs_rttov: arrays #1 memory deallocation error")')
      call abort3d(nulout,'tovs_rttov        ')
   end if
+  write(*,*) 'after dealloc'
+  call flush(6)
 
   return
 

@@ -1,0 +1,200 @@
+      SUBROUTINE SETFGEDIF(CDFAM,lcolumng,lobsSpaceData)
+!*
+!***s/r SETFGEDIF   - Interpolation of THE FIRST GUESS ERROR VARIANCES
+!*                    for data derived through the diff self-differencing variables
+!*
+!*
+!*Author  : J.M. Aparicio *MSC/ARMA November 2004
+!*
+!**    Purpose:  -Construct the FIRST GUESS ERROR VARIANCES from the
+!*                diff-calculated dependencies and the primary errors.
+!*
+      use MathPhysConstants_mod
+      use modgps04profile
+      use modgps06gravity
+      use modgps07geostruct
+      use modgps08refop
+      use columnData_mod
+      use obsSpaceData_mod
+      IMPLICIT NONE
+#include "../pardim.cdk"
+#include "../comdim.cdk"
+#include "../comgem.cdk"
+#include "../comdimo.cdk"
+#include "../cvcord.cdk"
+
+      type(struct_columnData) :: lcolumng
+      type(struct_obs) :: lobsSpaceData
+      CHARACTER*2 CDFAM
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER NH, NH1
+      INTEGER JL, JV, NGPSLEV
+
+      LOGICAL  ASSIM
+
+      REAL*8 ZTODEG
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8 ZETA(JPNFLEV)
+      REAL*8 ZTT (JPNFLEV)
+      REAL*8 ZHU (JPNFLEV)
+      REAL*8 ZGZ (JPNFLEV)
+      REAL*8 ZP0
+      REAL*8 ZPT
+      REAL*8 ZMT
+      REAL*8 ZMHX
+      REAL*8 HNH1
+
+      REAL*8 JAC(ngpscvmx)
+      REAL*8 DV (ngpscvmx)
+      TYPE(GPSPROFILE)           :: PRF
+      REAL(DP)     , ALLOCATABLE :: H   (:)
+      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
+      ZTODEG = 180.0 / RPI
+!C
+!C     *     Eta vector:
+!C
+      NGPSLEV=lcolumng%NLEV
+      DO JL = 1, lcolumng%NLEV
+         ZETA(JL) = VHYBINC(JL)
+      ENDDO  
+
+      DO JF = 1,NFILES
+         IF ( (CFAMTYP(JF) .EQ. CDFAM ) .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
+            IBEGIN   = NBEGINTYP(JF)
+            ILAST    = NENDTYP  (JF)
+            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
+!C
+!C     *     Loop over all observations of the file
+!C
+            DO JO = IBEGINOB, ILASTOB
+!C     
+!C     *    .   Process only refractivity data (codtyp 169)
+!C
+               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+               IF ( IDATYP .EQ. 169 ) THEN
+!C
+!C                 Loops over data in the observation
+!C
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                  ASSIM = .FALSE.
+!C
+!C                 Scan for requested assimilations, and count them
+!C
+                  NH = 0
+                  DO JDATA= IDATA, IDATEND
+                     IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                        ASSIM = .TRUE.
+                        NH = NH + 1
+                     ENDIF
+                  ENDDO
+!C
+!C     *           If assimilations are requested, apply the observation operator
+!C
+                  IF (ASSIM) THEN
+!C     
+!C     *              Profile at the observation location:
+!C
+                     Lat  = obs_elem_r4(lobsSpaceData,'LAT ',jo)
+                     Lon  = obs_elem_r4(lobsSpaceData,'LON ',jo)
+                     ZLAT = Lat * ZTODEG
+                     ZLON = Lon * ZTODEG
+                     DO JL = 1, lcolumng%NLEV
+!C
+!C     *                 Profile x
+!C
+                        ZTT(JL) = lcolumng%tt(JL,JO)-273.15
+                        ZHU(JL) = lcolumng%hu(JL,JO)
+                        ZGZ(JL) = lcolumng%gz(JL,JO)
+                     ENDDO
+                     ZP0 = lcolumng%ps(1,JO)
+                     ZMT = ZGZ(lcolumng%NLEV)/RG
+                     ZMT = gpsgeopotential(Lat, ZMT)/RG
+                     ZPT = rptopinc
+!C     
+!C     *              GPS profile structure:
+!C
+                     CALL GPSSTRUCT1(NGPSLEV,ZLAT,ZLON,ZETA,ZTT,ZHU,ZP0,ZMT,ZPT,PRF)
+!C
+!C     *              Local error
+!C
+                     DO JL = 1, lcolumng%NLEV
+                        DV (        JL) = 1.
+                        DV (lcolumng%NLEV+JL) = 1.
+                     ENDDO
+                     DV (2*lcolumng%NLEV+1)   = 2.
+
+                     IF (JO.EQ.IBEGINOB) THEN
+                        DO JL = 1, 2*NFLEV+1
+                           WRITE(*,*)'SETFGEDIF', JL, DV(JL)
+                        ENDDO
+                     ENDIF
+!C
+!C     *              PREPARE THE VECTOR OF ALL THE OBSERVATIONS
+!C
+                     ALLOCATE( H    (NH) )
+                     ALLOCATE( RSTV (NH) )
+                     NH1 = 0
+                     DO JDATA= IDATA, IDATEND
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                           NH1   = NH1 + 1
+                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
+                           H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
+                        ENDIF
+                     ENDDO
+!C
+!C     *              Apply the observation operator
+!C  
+                     CALL GPSREFOPV(H, PRF, RSTV)
+!C
+!C     *              Perform the H(xb)DV operation
+!C
+                     NH1 = 0
+                     DO JDATA= IDATA, IDATEND
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata).EQ.1 ) THEN
+                           NH1 = NH1 + 1
+!C
+!C     *                    Observation jacobian
+!C
+                           JAC = RSTV(NH1)%DVAR
+!C
+!C     *                    Evaluate sqrt( H(xb)DV **2 )
+!C
+                           ZMHX = 0._dp
+                           DO JV = 1, 2*PRF%NGPSLEV+1
+                              ZMHX = ZMHX + (JAC(JV) * DV(JV))**2
+                           ENDDO
+                           ZMHX = SQRT(ZMHX)
+!C     
+!C     *                    FIRST GUESS ERROR VARIANCE
+!C
+                           call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(ZMHX))
+                           IF (JO.EQ.IBEGINOB) THEN
+ 11                           FORMAT(A12,2I5,2F12.2,2F12.4)
+                              WRITE(*,11)'SETFGEDIFFGE', NH1, NH, H(NH1),RSTV(NH1)%VAR,  &
+                                 ZMHX,obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                           ENDIF
+                        ENDIF
+                     ENDDO
+                     DEALLOCATE( RSTV )
+                     DEALLOCATE( H    )
+                  ENDIF
+               ENDIF
+            ENDDO
+         ENDIF
+      ENDDO
+      write(*,*) 'end of setfgedif'
+      call flush(6)
+
+      RETURN
+      END SUBROUTINE SETFGEDIF

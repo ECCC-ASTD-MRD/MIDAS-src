@@ -22,7 +22,6 @@
       use obsSpaceData_mod
       use columnData_mod  
       IMPLICIT NONE
-*     implicits
 #include "comct0.cdk"
 #include "comlun.cdk"
       INTEGER ISTAMP,EXDB,EXFIN

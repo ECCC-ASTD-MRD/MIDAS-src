@@ -1,0 +1,126 @@
+      SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
+     &                            nchn,nprf,ptop_eq,ntop_eq,ichref)
+!
+!**ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
+!
+!       SCIENCE:  L. GARAND AND S. NADON
+!       AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   DETERMINE IF THE PROFILES ARE CLEAR OR CLOUDY BASED ON
+!          THE ALGORITHM OF GARAND & NADON 98 J.CLIM V11 PP.1976-1996
+!          WITH CHANNEL IREF
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF) : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!            -TG(NPRF)         : GUESS SKIN TEMPERATURES (DEG K)
+!            -TT(NLEV,NPRF)    : GUESS TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)    : GUESS HEIGHT PROFILE ABOVE GROUND (M)
+!            -NLEV             : NUMBER OF VERTICAL LEVELS
+!            -NCHN             : NUMBER OF CHANNELS
+!            -NPRF             : NUMBER OF PROFILES
+!            -PTOP_EQ(NPRF)    : CHOSEN EQUIVALENT CLOUD TOPS (M)
+!            -NTOP_EQ(NPRF)    : NUMBER OF POSSIBLE PTOP_EQ SOLUTIONS
+!            -ICHREF(NPRF)     : CHOSEN REFERENCE SURFACE CHANNEL
+!
+!          INPUT/OUTPUT:
+!            -CLDFLAG(NPRF)  : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!
+      IMPLICIT NONE
+
+      INTEGER    :: JN,NLEV,NCHN,NPRF,NINV
+      INTEGER    :: CLDFLAG(NPRF),NTOP_EQ(NPRF)
+      INTEGER    :: ICHREF(NPRF)
+      REAL(8)    :: BTOBS(NCHN,NPRF),PTOP_EQ(NPRF)
+      REAL(8)    :: TG(NPRF),GZ(NLEV,NPRF),TT(NLEV,NPRF)
+      REAL(8)    :: LEV(2)
+
+      
+      LEV(1) = 222.
+      LEV(2) = 428.
+
+
+      profiles: DO JN = 1, NPRF
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+        IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-3. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)+3. ) THEN
+         CLDFLAG(JN) = 0
+         CYCLE profiles
+        END IF
+
+        IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-4. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)-3. ) THEN
+         IF ( PTOP_EQ(JN) > 1100. ) THEN
+          CLDFLAG(JN) = 1
+          CYCLE profiles
+         ELSE
+          CLDFLAG(JN) = 0
+          CYCLE profiles
+         END IF
+        END IF
+
+        IF ( PTOP_EQ(JN) > 728. ) THEN
+         CLDFLAG(JN) = 1
+         CYCLE profiles
+        END IF
+
+        IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 8. ) THEN 
+         IF ( NTOP_EQ(JN) >= 3 ) THEN
+          IF ( PTOP_EQ(JN) > 73. ) THEN
+           CLDFLAG(JN)=1
+           CYCLE profiles
+          ELSE
+           CLDFLAG(JN)=0
+           CYCLE profiles
+          END IF
+         ELSE
+          CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(1))
+          IF ( NINV == 1 ) THEN
+           IF ( PTOP_EQ(JN) > 222. ) THEN
+            CLDFLAG(JN) = 1
+            CYCLE profiles
+           ELSE
+            CLDFLAG(JN) = 0 
+            CYCLE profiles
+           END IF
+          ELSE
+           CLDFLAG(JN) = 0
+           CYCLE profiles
+          END IF
+         END IF
+        END IF
+
+        IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 5. ) THEN
+         IF ( NTOP_EQ(JN) >= 3 ) THEN
+          IF ( PTOP_EQ(JN) > 222. ) THEN
+           CLDFLAG(JN) = 1
+           CYCLE profiles
+          ELSE
+           CLDFLAG(JN) = 0
+           CYCLE profiles
+          END IF
+         ELSE
+          CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(2))
+          IF ( NINV == 1) THEN
+           IF( PTOP_EQ(JN) > 428. ) THEN
+            CLDFLAG(JN) = 1
+            CYCLE profiles
+           ELSE
+            CLDFLAG(JN) = 0
+            CYCLE profiles
+           END IF
+          ELSE
+           CLDFLAG(JN) = 0
+          END IF
+         END IF
+        ELSE
+         CLDFLAG(JN)=0
+        END IF
+
+      END DO profiles
+
+
+      END SUBROUTINE GARAND1998NADON

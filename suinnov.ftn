@@ -122,7 +122,7 @@ C
 C        TOVS - RADIANCE
 C-------------------------------
       ZJOTOV=0.0D0
-      CALL TOVS_OBS ('HR',ZJOTOV,lcolumnhr,lcolumng,lobsSpaceData)
+      CALL TOVS_OBS ('HR',ZJOTOV,lcolumnhr,lobsSpaceData)
 C
 C        PROFILER
 C------------------------------

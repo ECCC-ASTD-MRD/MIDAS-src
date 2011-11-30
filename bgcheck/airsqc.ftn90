@@ -1,0 +1,804 @@
+      SUBROUTINE AIRSQC ( airs_end, airs_bunch,airs_loop_done, lcolumnhr, lobsSpaceData )
+!
+!**ID AIRSQC -- QUALITY CONTROL OF AIRS OBSERVATIONS
+!
+!       SCIENCE:  L. GARAND
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
+!                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
+!
+!       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -AIRS_BUNCH     : MAXIMUM NUMBER OF PROFILES FOR ONE CALL
+!            -AIRS_LOOP_DONE : NUMBER OF PREVIOUS CALLS TO AIRSQC
+!
+!          OUTPUT:
+!            -AIRS_END       : AT THE END OF THIS CALL TO AIRSQC, DO ALL AIRS
+!                               PROFILES BEEN TREATED (true) OR NOT (false)
+!
+      use MathPhysConstants_mod
+      use mod_tovs
+      use airsch
+      use airsbgcheck
+      use obsSpaceData_mod
+      use columnData_mod
+      IMPLICIT NONE
+#include "../pardim.cdk"
+#include "../comdimo.cdk"
+#include "../comlun.cdk"
+#include "../partov.cdk"
+#include "../comtov.cdk"
+#include "../cvcord.cdk"
+#include "../comdim.cdk"
+#include "../comgem.cdk"
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+      INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
+      INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBAIRS
+      INTEGER       :: JDATA,IDATA,IDATEND,IDAIRS
+      INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
+      INTEGER       :: DIFFTOP_MIN,IMODTOP
+      INTEGER       :: airs_loop_done,count_airs,airs_bunch
+      REAL(8)       :: T_EFFECTIVE
+      LOGICAL       :: airs_end
+      integer       :: alloc_status(61)
+
+      real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
+      real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
+      real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:)
+      real(8), allocatable :: CLFR(:),TOEXT(:,:),ZHOEXT(:,:),SUNZA(:)
+      real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
+      integer, allocatable :: KSURF(:),LTYPE(:)
+      integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:)
+      integer, allocatable :: CORFLAG(:,:)
+      integer, allocatable :: GNCLDFLAG(:)
+      integer, allocatable :: ICHREF(:)
+      integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
+      integer, allocatable :: NTOP_CO2(:,:),NGOOD(:)
+      real(8), allocatable :: PTOP_EQ(:),PTOP_BT(:,:),PTOP_RD(:,:),PTOP_MB(:)
+      real(8), allocatable :: PTOP_CO2(:,:),FCLOUD_CO2(:,:),HE(:)
+      real(8), allocatable :: ETOP(:),VTOP(:),ECF(:),VCF(:)
+      integer, allocatable :: MINP(:,:),FATE(:,:)
+      real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
+      logical, allocatable :: ASSIM_ALL(:)
+      integer :: cpt
+
+      SAVE :: IMODTOP
+
+
+! ** find sensor number corresponding to AIRS
+
+      DO KRTID = 1, NSENSORS
+        IF ( PLATFORM(KRTID) .EQ. 9 .AND. &
+     &       SATELLITE(KRTID) .EQ. 2 .AND. &
+     &       INSTRUMENT(KRTID) .EQ. 11 ) THEN
+          IDAIRS = KRTID
+          EXIT
+        END IF
+      END DO
+
+
+! ** find number of AIRS profiles (for memory allocation)
+
+      NPRF = 0
+      count_airs = 0
+
+      DO JF = 1, NFILES
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 183) THEN
+              count_airs = count_airs + 1
+              IF ( count_airs > airs_loop_done * airs_bunch .AND.  &
+     &             count_airs <= (airs_loop_done+1) * airs_bunch ) NPRF = NPRF + 1
+            END IF
+          END DO
+        END IF
+      END DO
+
+
+! ** find number of AIRS channels and RTTOV levels
+
+      NCHN = coef(idairs)%fmv_chn
+      NLEV = coef(idairs)%nlevels
+
+      write(nulout,*) ' AIRSQC - nchn ', nchn
+
+! information to extract (transvidage)
+! ------------------------------------
+!
+! ZTG(NPRF) -- guess skin temperatures (deg K)
+! ZPS(NPRF) -- surface pressure (hPa)
+! ZT(NLEVTRL,NPRF) -- temperature profiles on NWP model levels (deg K)
+! ZHT(NLEVTRL,NPRF) -- height profiles on NWP model levels (m)
+! ZPRES(NLEVTRL,NPRF) -- NWP pressure levels 
+! ZLQ(NLEVTRL,NPRF) -- surface specific humidity in ln q (kg/kg)
+! BTOBSERR(AIRSSNCH) -- observation error standard deviation
+! BTOBS(AIRSSNCH,NPRF) -- observed brightness temperatures (deg K)
+! BTCALC(AIRSSNCH,NPRF) -- computed brightness temperatures (deg K)
+! RCAL_CLR(AIRSSNCH,NPRF) -- computed clear radiances (mw/m2/sr/cm-1)
+! SFCTAU(AIRSSNCH,NPRF) -- surface to space transmittances (0-1)
+! RCLD(AIRSSNCH,NPRF,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+! TRANSM(AIRSSNCH,NPRF,NLEV) -- layer to space transmittances (0-1)
+! EMI_SFC(AIRSSNCH,NPRF) -- surface emissivities (0-1)
+! KSURF(NPRF) -- surface type in obs file (0, 1)
+! CLFR(NPRF) -- cloud fraction (%)
+! TOEXT(NLEV,NPRF) -- temperature profiles on RT model levels (deg K)
+! ZHOEXT(NLEV,NPRF) -- height profiles on RT model levels (m)
+! SUNZA(NPRF) -- sun zenith angle (deg)
+! ALBEDO(NPRF) -- surface albedo (0-1)
+! ICE(NPRF) -- ice fraction (0-1)
+! LTYPE(NPRF) -- surface type (1,...,20)
+! PCNT_WAT(NPRF) -- water fraction (0-1)
+! PCNT_REG(NPRF) -- water fraction in the area (0-1)
+! ROBS(AIRSSNCH,NPRF) -- observed radiances (mW/m2/sr/cm-1)
+
+
+      alloc_status(:) = 0
+      allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
+      allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
+      allocate ( ZT(lcolumnhr%nlev,NPRF),                stat= alloc_status(3) )
+      allocate ( ZHT(lcolumnhr%nlev,NPRF),               stat= alloc_status(4) )
+      allocate ( ZLQ(lcolumnhr%nlev,NPRF),               stat= alloc_status(5) )
+      allocate ( BTOBSERR(AIRSSNCH),              stat= alloc_status(6) )
+      allocate ( BTOBS(AIRSSNCH,NPRF),            stat= alloc_status(7) )
+      allocate ( BTCALC(AIRSSNCH,NPRF),           stat= alloc_status(8) )
+      allocate ( RCAL_CLR(AIRSSNCH,NPRF),         stat= alloc_status(9) )
+      allocate ( SFCTAU(AIRSSNCH,NPRF),           stat= alloc_status(10))
+      allocate ( RCLD(AIRSSNCH,NPRF,NLEV),        stat= alloc_status(11))
+      allocate ( TRANSM(AIRSSNCH,NPRF,NLEV),      stat= alloc_status(12))
+      allocate ( EMI_SFC(AIRSSNCH,NPRF),          stat= alloc_status(13))
+      allocate ( KSURF(NPRF),                     stat= alloc_status(14))
+      allocate ( CLFR(NPRF),                      stat= alloc_status(15))
+      allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
+      allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
+      allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
+      allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
+      allocate ( ICE(NPRF),                       stat= alloc_status(20))
+      allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
+      allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
+      allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
+      allocate ( ROBS(AIRSSNCH,NPRF),             stat= alloc_status(24))
+      allocate ( ZTS(NPRF),                       stat= alloc_status(26))
+      allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
+      allocate ( REJFLAG(AIRSSNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
+      allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
+      allocate ( ILIST(AIRSSNCH),                 stat= alloc_status(30))
+      allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
+      allocate ( NTOP_BT(AIRSSNCH,NPRF),          stat= alloc_status(32))
+      allocate ( NTOP_RD(AIRSSNCH,NPRF),          stat= alloc_status(33))
+      allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
+      allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
+      allocate ( PTOP_BT(AIRSSNCH,NPRF),          stat= alloc_status(36))
+      allocate ( PTOP_RD(AIRSSNCH,NPRF),          stat= alloc_status(37))
+      allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
+      allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
+      allocate ( HE(NPRF),                        stat= alloc_status(40))
+      allocate ( ETOP(NPRF),                      stat= alloc_status(41))
+      allocate ( VTOP(NPRF),                      stat= alloc_status(42))
+      allocate ( ECF(NPRF),                       stat= alloc_status(43))
+      allocate ( VCF(NPRF),                       stat= alloc_status(44))
+      allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
+      allocate ( MINP(AIRSSNCH,NPRF),             stat= alloc_status(46))
+      allocate ( PMIN(AIRSSNCH,NPRF),             stat= alloc_status(47))
+      allocate ( DTAUDP1(AIRSSNCH,NPRF),          stat= alloc_status(48))
+      allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
+      allocate ( FATE(AIRSSNCH,NPRF),             stat= alloc_status(50))
+      allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
+      allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
+      allocate ( MAXWF(AIRSSNCH,NPRF),            stat= alloc_status(54))
+      allocate ( ZPRES(lcolumnhr%nlev,NPRF),             stat= alloc_status(55))
+      allocate ( PTOP_MB(NPRF),                   stat= alloc_status(56))
+      allocate ( NTOP_MB(NPRF),                   stat= alloc_status(57))
+      allocate ( CFSUB(NPRF),                     stat= alloc_status(58))
+      allocate ( GNCLDFLAG(NPRF),                 stat= alloc_status(59))
+      allocate ( ILIST_PAIR(AIRSSNCH),            stat= alloc_status(60))
+      allocate ( CORFLAG(AIRSSNCH,NPRF),          stat= alloc_status(61))
+
+      if( any(alloc_status /= 0) ) then
+        write(nulout,*) ' airsqc : memory allocation error'
+        call abort3d(nulout,'airsqc        ')
+      end if
+
+
+      BTOBS(:,:)    = -1.
+      BTCALC(:,:)   = -1.
+      RCAL_CLR(:,:) = -1.
+      SFCTAU(:,:)   = -1.
+      RCLD(:,:,:)   = -1.
+      TRANSM(:,:,:) = -1.
+      EMI_SFC(:,:)  = -1.
+
+      REJFLAG(:,:,:) = 0
+      CORFLAG(:,:)   = 0
+
+      NOBAIRS = 0
+      NOBTOV = 0
+      count_airs = 0
+
+      DO JF = 1, NFILES
+
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
+
+          DO JO = IBEGINOB, ILASTOB
+
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+
+            IF ( IDATYP .EQ. 164 .OR. &
+     &           IDATYP .EQ. 168 .OR. &
+     &           IDATYP .EQ. 180 .OR. &
+     &           IDATYP .EQ. 181 .OR. &
+     &           IDATYP .EQ. 182 .OR. &
+     &           IDATYP .EQ. 183 ) NOBTOV = NOBTOV + 1
+
+            IF ( IDATYP .EQ. 183) THEN
+
+              count_airs = count_airs + 1
+
+              IF ( count_airs > airs_loop_done * airs_bunch .AND.  &
+     &             count_airs <= (airs_loop_done+1) * airs_bunch ) THEN
+
+                NOBAIRS = NOBAIRS + 1
+
+                ZTG(NOBAIRS) = lcolumnhr%tg(1,JO)
+                ZPS(NOBAIRS) = lcolumnhr%ps(1,JO)*RPATMB
+
+                DO JL = 1, lcolumnhr%nlev
+                  ZT(JL,NOBAIRS) = lcolumnhr%tt(JL,JO)
+                  ZHT(JL,NOBAIRS) = lcolumnhr%gz(JL,JO) / RG
+                  ZLQ(JL,NOBAIRS) = lcolumnhr%hu(JL,JO)
+                  ZPRES(JL,NOBAIRS)= lcolumnhr%rppobs(JL,JO) * RPATMB
+                END DO
+
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                DO JDATA= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                    BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                    BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+! *** Flag check on observed BTs ***
+                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+! *** Set if data has been bias corrected (bit 6 set) ***
+                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
+! *** Gross check on observed BTs ***
+                    IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                    IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                   END IF
+                END DO
+
+                DO JC = 1, NCHN
+                  ICHN = ichan(JC,IDAIRS)
+                  BTCALC(AIRSSCH(ICHN),NOBAIRS) = radiance_d(nobtov)%out(jc)
+                  RCAL_CLR(AIRSSCH(ICHN),NOBAIRS) = radiance_d(nobtov)%clear_out(jc)
+                  SFCTAU(AIRSSCH(ICHN),NOBAIRS) = transmission_d(nobtov)%tau_surf(jc)
+                  DO JL = 1, NLEV
+                    RCLD(AIRSSCH(ICHN),NOBAIRS,JL) = radiance_d(nobtov)%overcast(jl,jc)
+                    TRANSM(AIRSSCH(ICHN),NOBAIRS,JL) = transmission_d(nobtov)%tau_layer(jl,jc)
+                  END DO
+                  EMI_SFC(AIRSSCH(ICHN),NOBAIRS) = emissivity(JC,NOBTOV)
+! *** Gross check on computed BTs ***
+                  IF (BTCALC(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                  IF (BTCALC(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                END DO
+
+                KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
+                CLFR(NOBAIRS) = profiles_qc(nobtov)%clfr
+
+                DO JL = 1, NLEV
+                  TOEXT(JL,NOBAIRS) = profiles(nobtov)%t(jl)
+                  ZHOEXT(JL,NOBAIRS) = profiles_qc(nobtov)%z(jl)
+                END DO
+
+                SUNZA(NOBAIRS) = profiles_qc(nobtov)%sunza
+                ALBEDO(NOBAIRS) = profiles_qc(nobtov)%albedo
+                ICE(NOBAIRS) = profiles_qc(nobtov)%ice
+                LTYPE(NOBAIRS) = profiles_qc(nobtov)%ltype
+                 IF(LTYPE(NOBAIRS).EQ.20) KSURF(NOBAIRS)=2
+                PCNT_WAT(NOBAIRS) = profiles_qc(nobtov)%pcnt_wat
+                PCNT_REG(NOBAIRS) = profiles_qc(nobtov)%pcnt_reg
+
+              END IF
+
+            END IF
+
+          END DO
+
+        END IF
+
+      END DO
+
+      IF ( NOBAIRS < airs_bunch ) airs_end = .true.
+
+
+! ** find TOA radiances converted from observed BT's
+
+      ROBS(:,:) = -1.
+
+      profils: DO JN = 1, NPRF
+        channels: DO JC = 1, NCHN
+          ICHN = ichan(JC,IDAIRS)
+          IF ( REJFLAG(AIRSSCH(ICHN),JN,9) == 1 ) CYCLE channels
+          t_effective =  coef(idairs)%ff_bco(jc) &
+     &         + coef(idairs)%ff_bcs(jc) * BTOBS(airssch(ichn),jn)
+          ROBS(airssch(ichn),jn) =  coef(idairs)%planck1(jc) / &
+     &         ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
+        END DO channels
+      END DO profils
+
+
+! ** set height fields to 'height above ground' fields
+
+      DO JN = 1, NPRF
+         DO JL = 1, NLEV
+            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         END DO
+         DO JL = 1, lcolumnhr%nlev
+            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         END DO
+      END DO
+
+
+!**********************************************************************************************
+
+!* ///// ---------------------------------------------------- /////
+!* ///// DETERMINATION OF THE CLEAR/CLOUDY PROFILES (CLDFLAG) /////
+!* ///// ---------------------------------------------------- /////
+
+      CLDFLAG(:) = 0
+
+
+!* -- REFERENCE FOR WINDOW CHANNEL
+
+      IWINDO     = AIRSSCH(IWINDOW)
+      IWINDO_ALT = AIRSSCH(IWINDOW_ALT)
+
+      ICHREF(:)  = IWINDO
+      DO JN = 1, NPRF
+        IF ( REJFLAG(IWINDO,JN,9) == 1 ) THEN
+          ICHREF(JN) = IWINDO_ALT
+          IF ( REJFLAG(IWINDO_ALT,JN,9) == 1 ) THEN
+            ICHREF(JN) = -1
+            CLDFLAG(JN) = -1
+            REJFLAG(:,JN,9) = 1
+            write(nulout,*) 'WARNING'
+            write(nulout,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
+            write(nulout,*) 'HAVE BEEN REJECTED.                             '
+            write(nulout,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
+          END IF
+        END IF
+      END DO
+
+
+!* -- CLOUD TOP BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE
+!* -- AT A REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE (PTOP_EQ)
+!* -- ON GUESS VERTICAL LEVELS.
+
+      LEV_START(:) = 0
+
+!iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
+      CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
+     &                   zht,zps,zpres,lcolumnhr%nlev,airssnch,nprf,ichref,lev_start,iopt2)
+
+!iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
+      CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
+     &                   zht,zps,zpres,lcolumnhr%nlev,airssnch,nprf,ichref,lev_start,iopt1)
+
+
+!* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
+
+      CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
+     &                      zht,lcolumnhr%nlev,airssnch,nprf,ptop_eq,ntop_eq,ichref)
+
+
+!* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
+
+
+! *** TEST # A ***
+! *** In daytime, set cloudy if cloud fraction over 5% ***
+
+!      WHERE ( CLDFLAG(:) == 0 .AND. CLFR(:) > 5. .AND. SUNZA(:) < 90. ) CLDFLAG(:) = 1
+
+      CFSUB(:)=-1.0
+      DO JN =1, NPRF
+         IF ( CLDFLAG(JN) == 0 .AND. CLFR(JN) > 5. .AND. SUNZA(JN) < 90. ) THEN
+            CLDFLAG(JN) = 1
+            CFSUB(JN)=0.01*CLFR(JN) !conversion % -> 0-1
+         ENDIF
+      ENDDO
+
+! *** TEST # B ***
+! *** Set cloudy if temperature difference between guess (ZTG)     ***
+! *** and estimated true (ZTS) skin temperatures is over threshold ***
+
+      CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,btobs,robs, &
+     &              sfctau,cldflag,ichref,airssnch,nchn,nprf,idairs,"AIRS")
+
+
+      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) == 1 &
+     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTW ) CLDFLAG(:) = 1
+      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) /= 1 &
+     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTL ) CLDFLAG(:) = 1
+
+      GNCLDFLAG(:)=CLDFLAG(:)
+
+!* ///// ------------------------------------------------------- /////
+!* ///// DETERMINATION OF THE ASSIMILABLE OBSERVATIONS (REJFLAG) /////
+!* ///// ------------------------------------------------------- /////
+
+!      CLDFLAG(:) = 1
+
+!* -- FIRST TESTS TO REJECT OBSERVATIONS
+
+
+! *** TEST # 1 ***
+! *** Do not assimilate where cloudy ***
+
+      DO JN = 1, NPRF
+        IF ( CLDFLAG(JN) == 1 ) then
+           REJFLAG(:,JN,11) = 1
+           REJFLAG(:,JN,23) = 1
+        endif
+      END DO
+
+
+! *** TEST # 2 ***
+! *** Gross check on valid BTs ***
+
+!     already done
+
+
+!* -- CLOUD TOP BASED ON MATCHING
+!* -- OBSERVED BRIGHTNESS TEMPERATURE WITH BACKGROUND TEMPERATURE PROFILES (PTOP_BT)
+!* -- OR COMPUTED OBSERVED RADIANCES WITH BACKGROUND RADIANCE PROFILES (PTOP_RD)
+!* -- ON 43 RTTOV VERTICAL LEVELS
+
+      LEV_START(:) = 0
+
+      DO JCH = 1, NCH
+        ILIST(JCH) = AIRSSCH(ILIST1(JCH))
+      END DO
+
+      CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
+     &                 btobs,toext,zhoext,rcal_clr,zps,robs,rcld,xpres,nlev, &
+     &                 airssnch,nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch,ilist)
+
+
+!* -- REFERENCE CHANNEL FOR CO2-SLICING
+
+      DO JN = 1, NPRF
+         cpt=0
+         DO JCH=1,NCO2
+            IF ( REJFLAG(ILIST2_PAIR(JCH),JN,9)==1 .or. REJFLAG(ILIST2(JCH),JN,9)==1 ) cpt=cpt+1
+         ENDDO
+         IF (cpt==nco2) THEN
+            CLDFLAG(JN) = -1
+            REJFLAG(:,JN,9) = 1
+            write(nulout,*) 'WARNING'
+            write(nulout,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
+            write(nulout,*) 'HAVE BEEN REJECTED.                             '
+            write(nulout,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
+         ENDIF
+      END DO
+
+!* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
+
+      HE(:) = PTOP_RD(AIRSSCH(ILIST1(2)),:)
+
+      DO JN = 1, NPRF
+        IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD(AIRSSCH(ILIST1(3)),JN)
+      END DO
+
+!* -- CLOUD TOP BASED ON CO2 SLICING
+
+      LEV_START(:) = MAX( MIN(LEV_START(:),CO2MAX), CO2MIN )
+
+      DO JCH = 1, NCO2
+        ILIST(JCH) = AIRSSCH(ILIST2(JCH))
+        ILIST_PAIR(JCH) = AIRSSCH(ILIST2_PAIR(JCH))
+      END DO
+
+      CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
+     &                   rcal_clr,rcld,robs,zps,xpres,nlev,airssnch,nprf,cldflag,rejflag,bitflag, &
+     &                   lev_start,ichref,nco2,ilist,ilist_pair)
+
+!* -- FIND CONSENSUS CLOUD TOP AND FRACTION
+
+      CALL SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ptop_co2,fcloud_co2, &
+           CFSUB,PTOP_MB,zps,cldflag,gncldflag,nprf,nco2 )
+
+!      DO JN=1,NPRF
+!         IF (ECF(JN)==0.0 .AND. ETOP(JN)==ZPS(JN) ) THEN
+!            WHERE (REJFLAG(:,JN,11) == 1) REJFLAG(:,JN,11) = 0
+!         ENDIF
+!      ENDDO
+
+!* -- FIND RADIATIVE TRANSFER MODEL LEVEL NEAREST TO TRIAL TOP (only compute one time)
+
+      IF ( airs_loop_done == 0 ) THEN
+
+        DIFFTOP_MIN = 100000.
+        IMODTOP     = 1
+
+        DO JL = 1, NLEV
+          IF ( ABS(RPTOPINC-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
+            DIFFTOP_MIN = ABS(RPTOPINC-100.*XPRES(JL))
+            IMODTOP = JL
+          END IF
+        END DO
+
+        write(nulout,*) 'TOIT DU MODELE (MB)'
+        write(nulout,*) 0.01*RPTOPINC
+        write(nulout,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
+        write(nulout,*) IMODTOP
+
+      END IF
+
+
+!* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
+
+!      CALL MIN_PRES ( MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,airssnch,nprf,imodtop)
+      CALL MIN_PRES_NEW (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,airssnch,nprf,imodtop)
+
+!* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
+
+! *** TEST # 3 ***
+! *** Assimilation above clouds (refinement of test 1)             ***
+! *** Set security margin to 2x the std on height from CO2-slicing ***
+
+      TAMPON(:) = MAX(50.D0, 2.*VTOP(:))
+
+      DO JC = 1, AIRSSNCH
+        WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .AND. ETOP(:) - TAMPON(:) > PMIN(JC,:) ) 
+           REJFLAG(JC,:,11) = 0
+           REJFLAG(JC,:,23) = 0
+        end WHERE
+      END DO
+
+
+!     LOOK AT THE FATE OF THE OBSERVATIONS
+
+      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)
+
+
+!     FURTHER REASONS TO REJECT OBSERVATIONS
+
+      DO JC = 1, AIRSSNCH
+        DO JN = 1, NPRF
+
+          IF ( FATE(JC,JN) == 0 ) THEN
+
+! *** TEST # 4 ***
+! *** Background check, do not assimilate if O-P > 3sigma ***
+
+            IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
+              REJFLAG(JC,JN,9)  = 1
+              REJFLAG(JC,JN,16) = 1
+            END IF
+
+! *** TEST # 5 ***
+! *** Do not assimilate shortwave channels during the day ***
+
+            IF ( JC >= AIRSSCH(ICHN_SUN) .AND. SUNZA(JN) < NIGHT_ANG ) then
+               REJFLAG(JC,JN,11) = 1
+               REJFLAG(JC,JN,7)  = 1
+            END IF
+
+! *** TEST # 6 ***
+! *** Do not assimilate surface channels over land ***
+
+            IF ( MINP(JC,JN) == NLEV .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+              IF ( KSURF(JN) == 0 ) THEN
+                REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
+                REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
+                IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
+                  REJFLAG(JC,JN,11) = 1
+                  REJFLAG(JC,JN,19) = 1
+                END IF
+
+! *** TEST # 7 ***
+! *** Do not assimilate surface channels over water under conditions ***
+
+              ELSE IF ( KSURF(JN) == 1 ) THEN
+                IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
+     &               ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
+                  REJFLAG(JC,JN,11) = 1
+                  REJFLAG(JC,JN,19) = 1
+                END IF
+
+! *** TEST # 8 ***
+! *** Do not assimilate surface channels over sea ice ***
+
+              ELSE IF ( KSURF(JN) == 2 ) THEN
+                REJFLAG(JC,JN,11) = 1
+                REJFLAG(JC,JN,19) = 1
+
+              END IF
+            END IF
+
+          END IF
+
+! *** TEST # 9 ***
+! *** Do not assimilate if jacobian has a significant contribution over model top ***
+
+          ! Condition valid if model top at 10mb or lower only
+          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1
+            END IF
+          END IF
+       
+          ! Condition valid if model top at 10mb or lower only
+          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1 
+            END IF
+          END IF
+
+          ! Condition valid if model top is higher than 10 mb
+          IF ( NINT(RPTOPINC) < 1000 ) THEN
+            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,21) = 1 
+            END IF
+          END IF
+
+! *** TEST # 10 ***
+! *** Do not assimilate blacklisted channels ***
+
+          IF ( AIRS_ASSIM(JC) == 0 ) REJFLAG(JC,JN,8) = 1
+
+        END DO
+      END DO
+
+! *** TEST # 11 ***
+! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
+
+          IF ( AIRS_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+
+!* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
+
+      ASSIM_ALL(:) = .true.
+      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)
+
+      prf: DO JN = 1, NPRF
+        chn: DO JC = 1, AIRSSNCH
+          IF ( REJFLAG(JC,JN,8) == 0 ) THEN
+            IF ( FATE(JC,JN) /= 0 ) THEN
+              ASSIM_ALL(JN) = .false.
+              EXIT chn
+            END IF
+          END IF
+        END DO chn
+      END DO prf
+
+
+!******************************************************************************************
+
+!* -- PUT REJECT FLAGS INTO CMA VARIABLE --
+!* ----------------------------------------
+
+      NOBAIRS = 0
+      count_airs = 0
+
+      DO JF = 1, NFILES
+        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+          IBEGIN   = NBEGINTYP(JF)
+          ILAST    = NENDTYP(JF)
+          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
+          DO JO = IBEGINOB, ILASTOB
+            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IF ( IDATYP .EQ. 183) THEN
+              count_airs = count_airs + 1
+              IF ( count_airs > airs_loop_done * airs_bunch .AND. &
+     &             count_airs <= (airs_loop_done+1) * airs_bunch ) THEN
+                NOBAIRS = NOBAIRS + 1
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                DO JDATA= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                     ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                     DO NFLG = 0, BITFLAG
+                       IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
+     &                  call obs_set_i(lobsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),NFLG))
+                     END DO
+                   END IF
+                END DO
+              END IF
+            END IF
+          END DO
+        END IF
+      END DO
+
+
+!* -- ADDITION OF NEW AIRS INFORMATION IN BURP FILE
+!* ------------------------------------------------
+
+      IPRO = airs_loop_done * airs_bunch + 1
+
+      DO JN = 1, NPRF
+        AIRSPRO(IPRO)%ETOP      = ETOP(JN)
+        AIRSPRO(IPRO)%VTOP      = VTOP(JN)
+        AIRSPRO(IPRO)%ECF       = 100.*ECF(JN)
+        AIRSPRO(IPRO)%VCF       = 100.*VCF(JN)
+        AIRSPRO(IPRO)%HE        = HE(JN)
+        AIRSPRO(IPRO)%ZTS       = ZTS(JN)
+        AIRSPRO(IPRO)%NGOOD     = NGOOD(JN)
+        AIRSPRO(IPRO)%ZT        = ZT(lcolumnhr%nlev,JN)
+        AIRSPRO(IPRO)%ZTG       = ZTG(JN)
+        AIRSPRO(IPRO)%ZLQEXP    = EXP(ZLQ(lcolumnhr%nlev,JN))
+        AIRSPRO(IPRO)%ZPS       = 100.*ZPS(JN)
+        AIRSPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
+        AIRSPRO(IPRO)%SFCTYP    = KSURF(JN)
+        AIRSPRO(IPRO)%ASSIM_ALL = ASSIM_ALL(JN)
+        IPRO = IPRO + 1
+      END DO
+
+
+      deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ)
+      deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU)
+      deallocate (ROBS,RCLD,TRANSM,EMI_SFC)
+      deallocate (CLFR,TOEXT,ZHOEXT,SUNZA)
+      deallocate (ALBEDO,ICE,PCNT_WAT,PCNT_REG)
+      deallocate (KSURF,LTYPE)
+      deallocate (CLDFLAG,REJFLAG,LEV_START,ILIST)
+      deallocate (NTOP_EQ,NTOP_BT,NTOP_RD)
+      deallocate (NTOP_CO2,NGOOD)
+      deallocate (PTOP_EQ,PTOP_BT,PTOP_RD)
+      deallocate (PTOP_CO2,FCLOUD_CO2,HE)
+      deallocate (ETOP,VTOP,ECF,VCF)
+      deallocate (MINP,FATE)
+      deallocate (PMIN,DTAUDP1,TAMPON)
+      deallocate (ICHREF)
+      deallocate (ASSIM_ALL,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
+      deallocate (MAXWF)
+      deallocate (GNCLDFLAG,ILIST_PAIR)
+      deallocate (CORFLAG)
+
+      END SUBROUTINE AIRSQC
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

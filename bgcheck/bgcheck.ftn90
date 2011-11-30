@@ -1,0 +1,89 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE BGCHECK(lcolumng,lcolumnhr,lobsSpaceData)
+!*
+!***s/r BGCHECK  - BACKGROUND CHECK
+!*
+!*
+!*Author  : P. Koclas *CMC/CMDA  Nov 1998
+!*Revision:
+!*
+!*    -------------------
+!**    Purpose: DO  a background check on all observations
+!*
+      use obsSpaceData_mod
+      use columnData_mod
+      IMPLICIT NONE
+#include "../comlun.cdk"
+#include "../comdim.cdk"
+#include "../comdimo.cdk"
+
+      type(struct_obs) :: lobsSpaceData
+      type(struct_columnData) :: lcolumng,lcolumnhr
+      INTEGER J,JDATA
+      REAL*8 ZJO
+
+      WRITE(NULOUT,FMT=9000)
+ 9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
+!C
+!C*    1. Preliminary initializations
+!C     .  ---------------------------
+!C
+!C     Transfer REAL*8 part of CMA to REAL*4
+!C
+      call cprob8to4(lobsSpaceData)
+!C
+!C     TRANSFER O-A to O-P in cma
+!C
+      DO JDATA=1,obs_num_obstotal(lobsSpaceData)  !replaces NDATA
+         call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
+      ENDDO
+!C
+!C      CALCULATE Sigmap AND INNOVATIONS(O-P)
+!C     ----------------------------------------------
+!C
+      CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
+!C
+!C     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
+!C     ----------------------------------------------
+!C
+      CALL BGCDATA(ZJO,'UA',lobsSpaceData)
+      CALL BGCDATA(ZJO,'AI',lobsSpaceData)
+      CALL BGCDATA(ZJO,'HU',lobsSpaceData)
+      CALL BGCDATA(ZJO,'SF',lobsSpaceData)
+      CALL BGCDATA(ZJO,'ST',lobsSpaceData)
+      CALL BGCDATA(ZJO,'SW',lobsSpaceData)
+      CALL BGCDATA(ZJO,'SC',lobsSpaceData)
+      CALL BGCDATA(ZJO,'PR',lobsSpaceData)
+      CALL BGCGPSRO(lcolumnhr,lobsSpaceData)
+      CALL BGCDATA(ZJO,'GP',lobsSpaceData)
+!C
+!C     .   3.4.3 Convert CMA ---> BURP file and write it
+!C
+      CALL VINT3DFD('OMF ',lobsSpaceData)	
+      CALL FILBRPPOST(lcolumng,lobsSpaceData)
+      DO j =1,1
+         call obs_prnthdr(lobsSpaceData,j,nulout)
+         call obs_prntbdy(lobsSpaceData,j,nulout)
+      END DO
+      RETURN
+      END SUBROUTINE BGCHECK
+
+
+
+
+

@@ -33,6 +33,7 @@
       use globalSpectralTransform
       IMPLICIT NONE
 *implicits
+#include "comct0.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
@@ -143,11 +144,6 @@
 !
       CALL SUCOVO
 !
-!     Create the starting point of the minimization
-!
-      write(*,*) 'NOT CALLING SUIMP, INSTEAD SETTING CVM_VAZX=0'
-      cvm_vazx(1:cvm_NVADIM)=0.0d0
-!
 !     Miscellaneous initializations associated with the observations
 !
       CALL READNML('NAMTOV',IERR)
@@ -206,11 +202,11 @@
 !
 !     Initialize the background-error covariance
 !
-      CALL SUCOV
+      if(nconf.eq.141) CALL SUCOV
 !
 !     Set up the minimization module, now that the required parameters are known
 !
-      call min_setup(cvm_nvadim,ni,nj,nkgdim,nflev,nstepobsinc)
+      if(nconf.eq.141) call min_setup(cvm_nvadim,ni,nj,nkgdim,nflev,nstepobsinc)
 !
       call tmg_stop(15)  ! end of what used to be SUCVA
 !

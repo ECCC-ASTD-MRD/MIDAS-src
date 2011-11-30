@@ -1216,11 +1216,12 @@ MODULE obsSpaceData_mod
   type(struct_obs), intent(in) :: obsdat
   INTEGER         , intent(in) :: KOBS, KULOUT
 
-  INTEGER :: IPNT, IDATA, IDATA2, JDATA
-  CHARACTER(len=10) :: ccordtyp(2)
+  INTEGER :: IPNT, IDATA, IDATA2, JDATA, IVCO
+  CHARACTER(len=13) :: ccordtyp(3)
 
-  ccordtyp(1)='HEIGHT   :'
-  ccordtyp(2)='PRESSURE :'
+  ccordtyp(1)='HEIGHT      :'
+  ccordtyp(2)='PRESSURE    :'
+  ccordtyp(3)='VCO UNDEFINED'
 !
 ! 1. General information
 !
@@ -1244,9 +1245,11 @@ MODULE obsSpaceData_mod
   DO JDATA = IPNT, IPNT + IDATA - 1
      IDATA2 = JDATA -IPNT + 1
      if(obs_elem_i(obsdat,'ASS ',JDATA).eq.1) then
+        ivco=obs_elem_i(obsdat,'VCO ',JDATA)
+        if(ivco.ne.1.and.ivco.ne.2) ivco=3
         WRITE(KULOUT,FMT=9201) IDATA2 &
              ,obs_elem_i (obsdat,'VNM ',JDATA) &
-             ,ccordtyp   (obs_elem_i(obsdat,'VCO ',JDATA) ) &
+             ,ccordtyp   (ivco) &
              ,obs_elem_r4(obsdat,'PPP ',JDATA) &
              ,obs_elem_r4(obsdat,'PRL ',JDATA),obs_elem_r4(obsdat,'POB ',JDATA) &
              ,obs_elem_r4(obsdat,'VAR ',JDATA),obs_elem_r4(obsdat,'OMF ',JDATA) &
@@ -1260,7 +1263,7 @@ MODULE obsSpaceData_mod
 
  9201 FORMAT(4X,'DATA NO.',I6,/,10x &
 !     ,'VARIABLE NO.:',I6,4X,'PRESSURE LEVEL:',G12.6,4X &
-      ,'VARIABLE NO.:',I6,4X,A10,G12.6,4X &
+      ,'VARIABLE NO.:',I6,4X,A13,G12.6,4X &
            ,'REFERENCE LEVEL PRESSURE:',G12.6,4X &
            ,/,33X &
            ,'PRESSURE/GEOPOTENTIAL:',G12.6,4X &

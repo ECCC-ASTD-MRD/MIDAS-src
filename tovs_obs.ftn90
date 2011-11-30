@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
+subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 #if defined (doc)
 !
 !**s/r tovs_obs  - Computation of jo and the residuals to the tovs observations
@@ -43,7 +43,7 @@ subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
 #include "comdim.cdk"
 #include "comdimo.cdk"
 
-  type(struct_columnData) :: lcolumnhr,lcolumng,lcolumnt
+  type(struct_columnData) :: lcolumnghr
   type(struct_obs) :: lobsSpaceData
 
   integer jdata
@@ -59,24 +59,15 @@ subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
 !     .    -----------------------------------------------------------------------------
 !     
 
-  llprint = .true.
-
-  if     ( option .eq. 'HR' ) then
-     call tovs_fill_profiles(lcolumnhr%uu,lcolumnhr%vv,lcolumnhr%tt,lcolumnhr%gz_T,  &
-                             lcolumnhr%hu,lcolumnhr%ps,lcolumnhr%tg, &
-                             lcolumnhr%rppobs_T,lcolumnhr%nkgdimo,lcolumnhr%nlev,lobsSpaceData)
-
-  elseif ( option .eq. 'LR' ) then
-     call tovs_fill_profiles(lcolumng%uu,lcolumng%vv,lcolumng%tt,lcolumng%gz,lcolumng%hu,  &
-               lcolumng%ps,lcolumng%tg,lcolumng%rppobs,lcolumng%nkgdimo,lcolumnhr%nlev,lobsSpaceData)
-     llprint = .false.
+  if     ( option .eq. 'HR' .or. option .eq. 'LR') then
+     call tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 
   elseif ( option .eq. 'MO' ) then
 !     add column to lcolumng
 !     call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%nobtot)
 !     lcolumnt%all(:,:) = lcolumng%all(:,:) + column%all(:,:)
-!     call tovs_fill_profiles(lcolumnt%uu,lcolumnt%vv,lcolumnt%tt,lcolumnt%gz,lcolumnt%hu, &
-!                             lcolumnt%ps,lcolumnt%tg,lcolumng%rppobs,lcolumng%nkgdimo,lcolumnhr%nlev,lobsSpaceData)
+!     lcolumnt%nlev = lcolumnhr%nlev
+!     call tovs_fill_profiles(lcolumnt,lobsSpaceData)
 !     call col_deallocate(lcolumnt)
 !
   else
@@ -90,12 +81,13 @@ subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
 !     2.   Compute radiance
 !     .    ----------------
 !     
-  call tovs_rttov(lobsSpaceData)
+  call tovs_rttov(lcolumnghr,lobsSpaceData)
  
 
 !     3.   Compute Jo and the residuals
 !     .    ----------------------------
 !     
+
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
       DO JDATA=1,obs_num_obstotal(lobsSpaceData)
         call obs_set_r8(lobsSpaceData,'PRM ',JDATA, obs_elem_r8(lobsSpaceData,'VAR ',JDATA))
@@ -103,6 +95,11 @@ subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
   endif
 
 
+  if ( option .eq. 'LR' ) then
+    llprint = .false.
+  else
+    llprint = .true.
+  endif
   pjo = 0.
   call tovs_calc_jo (pjo,llprint,lobsSpaceData)
 
@@ -118,8 +115,8 @@ subroutine tovs_obs(option,pjo,lcolumnhr,lcolumng,lobsSpaceData)
   if ( option .eq. 'HR' ) then
      pjo = 2.0 * pjo
   endif
- 
 
+ 
   return
 
 end subroutine tovs_obs

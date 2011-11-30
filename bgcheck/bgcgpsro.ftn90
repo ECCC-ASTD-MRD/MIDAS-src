@@ -1,0 +1,214 @@
+      SUBROUTINE BGCGPSRO(lcolumnhr,lobsSpaceData)
+!*
+!***s/r  BGCGPSRO - Set backcground check flags to the GPSRO observations
+!*
+!*Author  : P. KOCLAS. Mar 2008
+!*    -------------------
+!**    Purpose:
+!*   calculate (o-p)/p for all ro profiles and set background check flag on if
+!*                     ABS(O-P)/P is too large
+!*
+      use MathPhysConstants_mod
+      use modgps04profile
+      use modgps05refstruct
+      use modgps06gravity
+      use modgps07geostruct
+      use modgps08refop
+      use columnData_mod
+      use obsSpaceData_mod
+      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      IMPLICIT NONE
+#include "../pardim.cdk"
+#include "../comdim.cdk"
+#include "../comgem.cdk"
+#include "../comdimo.cdk"
+#include "../comlun.cdk"
+#include "../comct0.cdk"
+#include "../cvcord.cdk"
+#include "../comgpsro.cdk"
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+      REAL*8 ZTODEG
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8 ZETA(JPNFLEV)
+      REAL*8 ZPP (JPNFLEV),ZDP (JPNFLEV)
+      REAL*8 ZTT (JPNFLEV)
+      REAL*8 ZHU (JPNFLEV)
+      REAL*8 ZGZ (JPNFLEV)
+      REAL*8 ZP0
+      REAL*8 ZPT, ZPR, ZCF
+      REAL*8 ZMT
+      REAL*8 DH
+      REAL*8 BIAS
+      REAL*8 HNH1, HSF, HTP
+
+      REAL*8 ZOBS, ZMHX
+
+      INTEGER JF
+      INTEGER IBEGIN  , ILAST
+      INTEGER IBEGINOB, ILASTOB, JO, JD
+      INTEGER IDATYP
+      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER JL, JH,  NGPSLEV
+      INTEGER NH, NH1
+
+      LOGICAL  ASSIM, LSTAG
+
+      INTEGER NH
+      TYPE(GPSPROFILE)           :: PRF 
+      REAL(DP)     , ALLOCATABLE :: H   (:)
+      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+
+      WRITE(NULOUT,*)'ENTER BGCSGPSRO'
+      WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
+      WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
+
+      LSTAG = .FALSE.
+      if (tg_vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
+!C
+!C     * 1.  Initializations
+!C     *     ---------------
+!C
+      ZTODEG = 180.0 / RPI
+!C
+!C     *    .   1.1  Eta vector
+!C     *    .        ----------
+!C
+      NGPSLEV=lcolumnhr%NLEV
+      DO JL = 1, lcolumnhr%NLEV
+         ZETA(JL) = lcolumnhr%VHYB_T(JL)
+      ENDDO
+!C
+!C*    *        1.2 Read the NAMELIST NAMGGPSRO
+!C     *       ---------------------------------------
+      write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
+!C
+!C     Loop over all files
+!C
+      DO JF = 1, NFILES
+         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
+            IBEGIN   = NBEGINTYP(JF)
+            ILAST    = NENDTYP  (JF)
+            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
+!C
+!C     *     Loop over all observations of the file
+!C
+            DO JO = IBEGINOB, ILASTOB
+!C     
+!C     *        Process only refractivity data (codtyp 169)
+!C
+               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+               IF ( IDATYP .EQ. 169 ) THEN
+!C
+!C                 Loops over data in the observation
+!C
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                  ASSIM = .FALSE.
+!C
+!C                 Scan for requested assimilations, and count them
+!C
+                  NH = 0
+                  DO JDATA= IDATA, IDATEND
+                     IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                        ASSIM = .TRUE.
+                        NH = NH + 1
+                     ENDIF
+                  ENDDO
+!C
+!C     *           If assimilations are requested, apply the observation operator
+!C
+                  IF (ASSIM) THEN
+!C     
+!C     *              Profile at the observation location:
+!C
+                     Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
+                     Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
+                     ZLAT = Lat * ZTODEG
+                     ZLON = Lon * ZTODEG
+                     ZP0 = lcolumnhr%ps(1,JO)
+                     DO JL = 1, lcolumnhr%NLEV
+!C
+!C     *                 Profile x
+!C
+                        ZPP(JL) = lcolumnhr%rppobs_t(JL,JO)
+!CCCCCCCCC THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
+                        ZDP(JL) = ZPP(JL)/ZP0
+                        ZTT(JL) = lcolumnhr%tt(JL,JO)-273.15
+                        ZHU(JL) = lcolumnhr%hu(JL,JO)
+                        ZGZ(JL) = lcolumnhr%gz_t(JL,JO)
+                     ENDDO
+                     ZP0 = lcolumnhr%ps(1,JO)
+                     ZPT = lcolumnhr%RPPOBS_T(1,JO)
+                     ZMT = ZGZ(lcolumnhr%NLEV)/RG
+                     ZMT = gpsgeopotential(Lat, ZMT)/RG
+                     ZPR = rprefinc
+                     ZCF = rcoefinc
+!C     
+!C     *              GPS profile structure:
+!C
+                     IF (LSTAG) THEN
+!c     *                 Staggered hybrid trial field 
+                        CALL GPSSTRUCT1S(NGPSLEV,ZLAT,ZLON,ZPP,ZDP,ZTT,ZHU,ZMT,PRF)
+                     ELSE
+!c     *                 ETA or HYBRID NONSTAGGERED trial field 
+                        CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+                     ENDIF
+                     CALL GPSGEO(PRF)
+!C
+!C     *              Prepare the vector of all the observations:
+!C
+                     ALLOCATE( H    (NH) )
+                     ALLOCATE( RSTV (NH) )
+                     NH1 = 0
+                     DO JDATA= IDATA, IDATEND
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                           NH1   = NH1 + 1
+                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                           H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
+                         ENDIF
+                     ENDDO
+!C
+!C     *              Apply the observation operator:
+!C
+                     CALL GPSREFOPV (H, PRF, RSTV)
+!C
+!C     *              Perform the (H(x)-Y)/H operation
+!C
+                     NH1 = 0
+                     DO JDATA= IDATA, IDATEND
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                           NH1 = NH1 + 1
+!C
+!C     *                    Observation operator H(x)
+!C
+                           ZMHX = RSTV(NH1)%VAR
+!C
+!C     *                    Observation value    Y
+!C
+                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+!C                           
+!C                          OMF Tested criteria:
+!C
+                           IF (DABS(ZOBS-ZMHX)/ZMHX.GT.BGCKBAND) THEN
+                              call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),16))
+                              call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),9))
+                              WRITE(nulout,'(A40,F10.0,3F12.4)')  &
+                                  ' REJECT BGCSGPSRO H  O  P (O-P/P) =',H(NH1),ZOBS,ZMHX,(ZOBS-ZMHX)/ZMHX
+                           ENDIF
+                        ENDIF
+                     ENDDO
+                     DEALLOCATE( RSTV )
+                     DEALLOCATE( H    )
+                  ENDIF
+               ENDIF
+            ENDDO
+
+         ENDIF
+      ENDDO
+      WRITE(NULOUT,*)'EXIT BGCSGPSRO'
+      RETURN
+      END SUBROUTINE BGCGPSRO
+

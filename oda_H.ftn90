@@ -253,10 +253,11 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   ! put lcolumng into column1
 !  column1%all(:,:) = lcolumng%all(:,:)
   if (nbr_call == 0) then
-!     call tovs_fill_profiles(column1%uu,column1%vv,column1%tt,column1%gz,column1%hu,  &
-!                             column1%ps,column1%tg,lcolumng%rppobs,lcolumng%nkgdimo,nflev,lobsSpaceData)
-     call tovs_fill_profiles(lcolumng%uu,lcolumng%vv,lcolumng%tt,lcolumng%gz,lcolumng%hu,  &
-                             lcolumng%ps,lcolumng%tg,lcolumng%rppobs,lcolumng%nkgdimo,nflev,lobsSpaceData)
+!!     call tovs_fill_profiles(column1%uu,column1%vv,column1%tt,column1%gz,column1%hu,  &
+!!                             column1%ps,column1%tg,lcolumng%rppobs,lcolumng%nkgdimo,nflev,lobsSpaceData)
+!     call tovs_fill_profiles(lcolumng%uu,lcolumng%vv,lcolumng%tt,lcolumng%gz,lcolumng%hu,  &
+!                             lcolumng%ps,lcolumng%tg,lcolumng%rppobs,lcolumng%nkgdimo,nflev,lobsSpaceData)
+     call tovs_fill_profiles(lcolumng,lobsSpaceData)
   endif
 
   !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov

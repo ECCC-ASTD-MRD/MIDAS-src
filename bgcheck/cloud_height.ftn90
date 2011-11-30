@@ -1,0 +1,91 @@
+      SUBROUTINE CLOUD_HEIGHT (PTOP,NTOP, &
+     &                         btobs,cldflag,tt,gz,ps,plev,nlev, &
+     &                         nchn,nprf,ichref,lev_start,iopt)
+!
+!**ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       SCIENCE:  L. GARAND
+!       AUTHOR:   A. BEAULNE (CMDA/SMC)   August 2004
+!                 A. BEAULNE (CMDA/SMC) February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE AT A 
+!          REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE.
+!          TO USE WITH ONE REFERENCE CHANNEL. USED HERE ON MODEL LEVELS.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF) : OBSERVED BRIGHTNESS TEMPERATURE (DEG K)
+!            -CLDFLAG(NPRF)    : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!            -TT(NLEV,NPRF)    : TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)    : HEIGHT PROFILES ABOVE GROUND (M)
+!            -PS(NPRF)         : SURFACE PRESSURE (HPA)
+!            -PLEV(NLEV,NPRF)  : PRESSURE LEVELS (HPA)
+!            -NLEV             : NUMBER OF VERTICAL LEVELS
+!            -NCHN             : NUMBER OF CHANNELS
+!            -NPRF             : NUMBER OF PROFILES
+!            -ICHREF(NPRF)     : CHOSEN REFERENCE SURFACE CHANNEL
+!            -IOPT             : LEVELS USING PLEV (1) OR GZ (2)
+!
+!
+!          INPUT/OUTPUT:
+!            -LEV_START(NPRF) : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!
+!          OUTPUT:
+!            -PTOP(NPRF)    : CHOSEN EQUIVALENT CLOUD TOPS 
+!                             (IN HPA|M WITH IOPT = 1|2) 
+!            -NTOP(NPRF)    : NUMBER OF POSSIBLE PTOP SOLUTIONS
+!
+!
+      IMPLICIT NONE
+
+      INTEGER     :: JN,NLEV,NCHN,NPRF
+      INTEGER     :: LEV_START(NPRF),IOPT,ITOP
+      INTEGER     :: NTOP(NPRF),NHT
+      INTEGER     :: CLDFLAG(NPRF),ICHREF(NPRF)
+      REAL(8)     :: HT(NLEV)
+      REAL(8)     :: PLEV(NLEV,NPRF),PS(NPRF)
+      REAL(8)     :: PTOP(NPRF)
+      REAL(8)     :: TT(NLEV,NPRF),GZ(NLEV,NPRF)
+      REAL(8)     :: BTOBS(NCHN,NPRF)
+    
+
+
+      profiles: DO JN = 1, NPRF
+
+        IF ( IOPT == 1 ) THEN
+
+          PTOP(JN) = PS(JN)
+          NTOP(JN) = 1      
+
+          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+          CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),plev(:,jn),nlev,lev_start(jn),iopt ) 
+
+          ITOP = 1
+          IF ( NHT >= 2 ) ITOP = 2
+          PTOP(JN) = MIN ( HT(ITOP), PS(JN) )
+          NTOP(JN) = NHT
+
+        ELSE IF ( IOPT == 2 ) THEN
+
+          PTOP(JN) = 0.
+          NTOP(JN) = 1      
+
+          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+          CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt )
+
+          ITOP = 1
+          IF ( NHT >= 2 ) ITOP = 2
+          PTOP(JN) = MAX ( HT(ITOP), 0.D0 )
+          NTOP(JN) = NHT
+
+        END IF
+
+      END DO profiles
+
+
+      END SUBROUTINE CLOUD_HEIGHT

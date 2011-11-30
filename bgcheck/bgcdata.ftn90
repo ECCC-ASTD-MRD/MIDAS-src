@@ -1,0 +1,212 @@
+      SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData)
+!*
+!***s/r BGCDATA  - Computation OF BACKGROUND CHECK FLAGS
+!*
+!*Author  : P. Koclas *CMC/CMDA  January 1999
+!*
+!**    Purpose:  -Calculate a background check for a data family
+!*                AND SET the appropriate quality control flags in
+!*                the CMA
+!*
+      use MathPhysConstants_mod
+      use bufr
+      use obsSpaceData_mod
+      IMPLICIT NONE
+#include "../comlun.cdk"
+#include "../comdimo.cdk"
+#include "../cvcord.cdk"
+#include "../comgpsgb.cdk"
+!*
+!C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
+!C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
+!C       (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
+!C       YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
+!C
+      type(struct_obs) :: lobsSpaceData
+      REAL*8 PJO,zsum,zsumo
+      CHARACTER*2 CDFAM
+      INTEGER IFLAG,INAM,ISETFLAG,IOBS,ITY,IDBURP
+      INTEGER IBEGIN,ILAST,ierr,fclos,fnom,ITYP
+      INTEGER J,J2,JJ,JD,JDATA,ibgc,icoun
+      INTEGER INOBS, INREJ, INZOBS, INZREJ
+      INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
+      REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
+      LOGICAL LLOK, LLZD, LMODIF1020
+      lmodif1020=.false.
+
+      WRITE(NULOUT,*)' '
+      WRITE(NULOUT,*)' ------------------------------'
+      WRITE(NULOUT,*)'  BACKGROUND CHECK FOR'
+      WRITE(NULOUT,*)'       ',CDFAM, ' DATA'
+      WRITE(NULOUT,*)' ------------------------------'
+      WRITE(NULOUT,*)' '
+      WRITE(NULOUT,'(a55,a74)')'  STNID     LATITU LONGITU  ID Elem        Level        ',  &
+      ' Value        Sigmao       Sigmap         O-P       SigmaOP         qcflag  '
+      WRITE(NULOUT,'(a55,a74)')'  -----     ------ -------  -- ----        -----        ',  &
+      ' -----        ------       ------         ---       -------         ------  '
+      icoun=0
+      zsum=0.
+      zsumo=0.
+      PJO=-99.99
+
+      INOBS=0
+      INREJ=0
+!C
+!C*    Initialize counters for GP family observations
+!C
+      IF (CDFAM .EQ. 'GP') THEN
+        INZOBS=0
+        INPOBS=0
+        INTOBS=0
+        INDOBS=0
+        INZREJ=0
+        INPREJ=0
+        INTREJ=0
+        INDREJ=0
+      ENDIF
+
+      DO J = 1,NFILES
+         IF ( (CFAMTYP(J) .EQ.  CDFAM) .AND.( NBEGINTYP(J) .GT. 0) ) THEN
+            IBEGIN=NBEGINTYP(J)
+             ILAST=NENDTYP(J)
+!C
+!C*    1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
+!C     .  ----------------------------------------------------
+!C
+            DO JDATA=IBEGIN,ILAST
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
+               LLOK=( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1)
+               IF ( LLOK ) THEN
+                  INOBS = INOBS + 1
+                  IF (CDFAM .EQ. 'GP') THEN
+                    IF (ITYP .EQ. BUFR_NEZD) INZOBS = INZOBS+1
+                    IF (ITYP .EQ. BUFR_NEPS) INPOBS = INPOBS+1
+                    IF (ITYP .EQ. BUFR_NETS) INTOBS = INTOBS+1
+                    IF (ITYP .EQ. BUFR_NESS) INDOBS = INDOBS+1
+                  ENDIF
+                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
+                  ZVAR = obs_elem_r4(lobsSpaceData,'VAR ',jdata)
+                  ZLEV = obs_elem_r4(lobsSpaceData,'PPP ',jdata)
+                  ZOER = obs_elem_r4(lobsSpaceData,'OER ',jdata)
+                  ZLAT  = obs_elem_r4(lobsSpaceData,'LAT ',iobs)*180./RPI
+                  ZLON  = obs_elem_r4(lobsSpaceData,'LON ',iobs)*180./RPI
+!C
+!C              BACK GROUND CHECK
+!C
+                  ZOMP  =-obs_elem_r4(lobsSpaceData,'OMF ',jdata)*obs_elem_r4(lobsSpaceData,'OER ',jdata)
+                  ZFGE  = obs_elem_r4(lobsSpaceData,'FGE ',jdata)
+                  IF ( CDFAM .EQ. 'GP' ) THEN
+                    IF (ITYP .EQ. BUFR_NEZD) THEN
+                      ZOER = ZOER/YZDERRWGT
+                    ELSE
+                      ZOER = ZOER/YSFERRWGT
+                    ENDIF
+                    IF (ZFGE .LT. 1.E-3 .OR. ZOER .LT. 1.E-3 ) THEN
+                      WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',  &
+                         obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
+                      CALL ABORT3D(NULOUT,'BGCDATA: PROBLEM WITH FGE, OER.')
+                    ENDIF
+                  ELSE
+                    IF ( ZFGE**2 + ZOER**2 .LT. 1.e-5)THEN
+                        WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',  &
+                           obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
+                        ZFGE=1.E-5
+                        ZOER=1.E-5
+                    ENDIF
+                  ENDIF
+                  ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
+                  ibgc=ZBGCHK/1.
+                  ibgc=min(ibgc,99)
+                  ZSOP = SQRT(ZFGE**2 + ZOER**2)
+!C
+!C              UPDATE QUALITY CONTROL FLAGS
+!C              ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
+!C
+                  IOBS =obs_elem_i(lobsSpaceData,'OBS ',jdata)
+                  INAM =obs_elem_i(lobsSpaceData,'VNM ',jdata)
+                if( inam.eq.12192 .and. obs_elem_i(lobsSpaceData,'XTR ',jdata).eq.0)then
+                   zsum=zsum+zfge*zfge
+                   zsumo=zsumo+zoer*zoer
+                   icoun=icoun+1
+                endif
+                  ITY=obs_elem_i(lobsSpaceData,'ITY ',jdata)
+                  IDBURP=MOD(ITY,1000)
+                  IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
+!C
+!C              CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
+!C
+                  LLZD = .FALSE.
+                  IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD) THEN
+                    ZVAR = ZVAR * 1000.0
+                    ZOER = ZOER * 1000.0
+                    ZFGE = ZFGE * 1000.0
+                    ZOMP = ZOMP * 1000.0
+                    ZSOP = ZSOP * 1000.0
+                    LLZD = .TRUE.
+                  ENDIF
+
+                  IF (IFLAG .GE. 2 ) THEN
+                    WRITE(NULOUT,122)  &
+                       obs_elem_c9(lobsSpaceData,'STID',iobs),  &
+                       zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
+                       ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
+                    INREJ = INREJ + 1
+                    IF (CDFAM .EQ. 'GP') THEN
+                      IF (ITYP .EQ. BUFR_NEZD) INZREJ = INZREJ+1
+                      IF (ITYP .EQ. BUFR_NEPS) INPREJ = INPREJ+1
+                      IF (ITYP .EQ. BUFR_NETS) INTREJ = INTREJ+1
+                      IF (ITYP .EQ. BUFR_NESS) INDREJ = INDREJ+1
+                    ENDIF
+                  ENDIF
+
+                  IF ( IFLAG .EQ. 1 ) THEN
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),13))
+                  ELSEIF ( IFLAG .EQ. 2 ) THEN
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),14))
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),16))
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),09))
+                     call obs_set_i(lobsSpaceData,'ST1 ',iobs,ibset(obs_elem_i(lobsSpaceData,'ST1 ',iobs),06))
+
+                  ELSEIF ( IFLAG .EQ. 3 ) THEN
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),15))
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),16))
+                     call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),09))
+                     call obs_set_i(lobsSpaceData,'ST1 ',iobs,ibset(obs_elem_i(lobsSpaceData,'ST1 ',iobs),06))
+                  ENDIF
+               ENDIF
+            ENDDO
+122   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
+
+         ENDIF
+      ENDDO
+
+      IF ( INOBS .GT. 0 ) THEN
+        WRITE(NULOUT,*)' '
+        WRITE(NULOUT,*) '  BGCDATA: FINISHED BGCHECK OF ',CDFAM, ' DATA'
+        WRITE(NULOUT,123) 'BGCDATA:   ',INREJ, ' OBSERVATIONS REJECTED OUT OF ', INOBS
+        WRITE(NULOUT,*)' '
+      ENDIF
+
+      IF ( (INOBS .GT. 0) .AND. (CDFAM .EQ. 'GP') ) THEN
+        WRITE(NULOUT,*)' '
+        WRITE(NULOUT,*) '  BGCDATA:    REPORT FOR GP FAMILY OF OBSERVATIONS'
+        WRITE(NULOUT,123) 'BGCDATA:   ',INZREJ, ' ZTD  OBSERVATIONS REJECTED OUT OF ', INZOBS
+        WRITE(NULOUT,123) 'BGCDATA:   ',INPREJ, ' PSFC OBSERVATIONS REJECTED OUT OF ', INPOBS
+        WRITE(NULOUT,123) 'BGCDATA:   ',INTREJ, ' TSFC OBSERVATIONS REJECTED OUT OF ', INTOBS
+        WRITE(NULOUT,123) 'BGCDATA:   ',INDREJ, ' DPDS OBSERVATIONS REJECTED OUT OF ', INDOBS
+        WRITE(NULOUT,*)' '
+      ENDIF
+
+123   FORMAT(2X,A,I0,A,I0)
+
+      WRITE(NULOUT,*)' '
+      WRITE(NULOUT,*)' ---------------------------'
+      WRITE(NULOUT,*)'           DONE BGCDATA     '
+      WRITE(NULOUT,*)' ---------------------------'
+      WRITE(NULOUT,*)' '
+      if ( icoun .gt. 0) then
+         write(nulout,*) ' icoun meanfge=',icoun,zsum/icoun
+         write(nulout,*) ' icoun meanzoer',icoun,zsumo/icoun
+      endif
+      RETURN
+      END SUBROUTINE BGCDATA

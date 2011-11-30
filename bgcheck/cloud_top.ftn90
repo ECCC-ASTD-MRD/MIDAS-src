@@ -1,0 +1,179 @@
+      SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
+     &                       btobs,tt,gz,rcal,ps,robs,rcld,plev,nlev,nchn,nprf, &
+     &                       cldflag,rejflag,bitflag,lev_start,iopt,ihgt,ichref,nch,ilist)
+!
+!**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND             August 2004
+!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
+!          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
+!          BACKGROUND TEMPERATURE PROFILES AND/OR COMPUTED OBSERVED
+!          RADIANCES WITH BACKGROUND RADIANCE PROFILES.
+!          TO USE WITH MORE THAN ONE CHANNEL. USED HERE ON RTTOV LEVELS.
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BTOBS(NCHN,NPRF)     : OBSERVED BRIGHTNESS TEMPERAUTRES (DEG K)
+!            -TT(NLEV,NPRF)        : TEMPERATURE PROFILES (DEG K)
+!            -GZ(NLEV,NPRF)        : HEIGHT PROFILES ABOVE GROUND (M)
+!            -RCAL(NCHN,NPRF)      : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -PS(NPRF)             : SURFACE PRESSURE (HPA)
+!            -ROBS(NCHN,NPRF)      : COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+!            -RCLD(NCHN,NPRF,NLEV) : COMPUTED CLOUD RADIANCES FROM EACH LEVEL (")
+!            -PLEV(NLEV)           : PRESSURE LEVELS (HPA)
+!            -NLEV                 : NUMBER OF VERTICAL LEVELS
+!            -NCHN                 : NUMBER OF CHANNELS
+!            -NPRF                 : NUMBER OF PROFILES
+!            -CLDFLAG(NPRF)        : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
+!            -REJFLAG(NCHN,NPRF,0:BITFLAG) : FLAGS FOR REJECTED OBSERVATIONS
+!            -BITFLAG              : HIGHEST FLAG IN POST FILES (VALUE OF N IN 2^N)
+!            -IOPT                 : LEVELS USING PLEV (1) OR GZ (2)
+!            -IHGT                 : GET *_BT* ONLY (0), *_RD* ONLY (1), BOTH (2)
+!            -ICHREF(NPRF)         : REFERENCE SURFACE CHANNEL (SUBSET VALUE)
+!            -NCH                  : NUMBER OF CHANNELS WE WANT OUTPUTS
+!            -ILIST(NCH)           : LIST OF THE CHANNEL NUMBERS (SUBSET VALUES) 
+!
+!          INPUT/OUTPUT:
+!            -LEV_START(NPRF)      : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!
+!          OUTPUT:
+!            -PTOP_BT(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+!                                    BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
+!            -PTOP_RD(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
+!                                    RADIANCES (IN HPA|M WITH IOPT = 1|2)
+!            -NTOP_BT(NPRF)       : NUMBER OF POSSIBLE PTOP_BT SOLUTIONS
+!            -NTOP_RD(NPRF)       : NUMBER OF POSSIBLE PTOP_RD SOLUTIONS
+!
+      IMPLICIT NONE
+
+      INTEGER      ::  JN,JCH,JC,NCH,IOPT,IHGT,ITOP,NLEV,NHT
+      INTEGER      ::  ILIST(NCH),LEV_START(NPRF)
+      INTEGER      ::  BITFLAG,SUMREJ
+      INTEGER      ::  NCHN,NPRF,REJFLAG(NCHN,NPRF,0:BITFLAG)
+      INTEGER      ::  CLDFLAG(NPRF),ICHREF(NPRF)
+      INTEGER      ::  NTOP_BT(NCHN,NPRF),NTOP_RD(NCHN,NPRF)
+      REAL(8)      ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
+      REAL(8)      ::  PLEV(NLEV),PS(NPRF)
+      REAL(8)      ::  ROBS(NCHN,NPRF),RCAL(NCHN,NPRF)
+      REAL(8)      ::  BTOBS(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV)
+      REAL(8)      ::  HT(NLEV),TT(NLEV,NPRF),GZ(NLEV,NPRF)
+
+
+      PTOP_BT(:,:) = -10.
+      PTOP_RD(:,:) = -10.
+
+      NTOP_BT(:,:) = 0.
+      NTOP_RD(:,:) = 0.
+
+
+      profiles: DO JN = 1, NPRF
+
+!**     profile not assimilated if data from 2 windows channels bad
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+!**     predetermined clear
+
+        SUMREJ = SUM(REJFLAG(ICHREF(JN),JN,:))
+
+        IF ( SUMREJ == 0 ) THEN
+
+          IF ( IOPT == 1 ) THEN
+            PTOP_BT(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
+            PTOP_RD(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
+          ELSE IF ( IOPT == 2 ) THEN
+            PTOP_BT(:,JN) = 0.
+            PTOP_RD(:,JN) = 0.
+          END IF
+
+          NTOP_BT(:,JN) = 1
+          NTOP_RD(:,JN) = 1
+
+          LEV_START(JN) = MAX ( LEV_START(JN) , 10 )
+
+          CYCLE profiles
+
+        END IF
+
+
+        channels: DO JCH = 1, NCH
+
+          JC = ILIST(JCH)
+
+!**       gross check failure
+
+          IF ( REJFLAG(JC,JN,9) == 1 ) CYCLE channels
+
+!**       no clouds if observed radiance warmer than clear estimate
+
+          IF ( ROBS(JC,JN) > RCAL(JC,JN) ) THEN
+
+            IF ( IOPT == 1 ) THEN
+              PTOP_BT(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
+              PTOP_RD(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
+            ELSE IF ( IOPT == 2 ) THEN
+              PTOP_BT(JC,JN) = 0.
+              PTOP_RD(JC,JN) = 0.
+            END IF
+
+            NTOP_BT(JC,JN) = 1
+            NTOP_RD(JC,JN) = 1
+
+            CYCLE channels
+
+          END IF
+
+!**       cloudy
+
+          IF ( REJFLAG(JC,JN,11) == 1 .and. REJFLAG(JC,JN,23) == 1 ) THEN
+
+            IF ( IOPT == 1 ) THEN
+
+              IF ( IHGT == 0 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, btobs(jc,jn),tt(:,jn),plev,nlev,lev_start(jn),iopt) 
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_BT(JC,JN) = MIN ( HT(ITOP), PS(JN) )
+                NTOP_BT(JC,JN) = NHT
+              END IF
+              
+              IF ( IHGT == 1 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, robs(jc,jn),rcld(jc,jn,:),plev,nlev,lev_start(jn),iopt)
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_RD(JC,JN) = MIN ( HT(ITOP), PS(JN) )
+                NTOP_RD(JC,JN) = NHT
+              END IF
+
+            ELSE IF ( IOPT == 2 ) THEN 
+              
+              IF ( IHGT == 0 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, btobs(jc,jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt) 
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_BT(JC,JN) = MAX ( HT(ITOP), 0.D0 )
+                NTOP_BT(JC,JN) = NHT
+              END IF
+
+              IF ( IHGT == 1 .OR. IHGT == 2 ) THEN
+                CALL GET_TOP ( HT,NHT, robs(jc,jn),rcld(jc,jn,:),gz(:,jn),nlev,lev_start(jn),iopt)
+                ITOP = 1
+                IF ( NHT >= 2 ) ITOP = 2
+                PTOP_RD(JC,JN) = MAX ( HT(ITOP), 0.D0 )
+                NTOP_RD(JC,JN) = NHT
+              END IF
+
+            END IF
+
+          END IF
+
+        END DO channels
+
+      END DO profiles
+
+
+      END SUBROUTINE CLOUD_TOP

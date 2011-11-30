@@ -218,7 +218,7 @@ CONTAINS
 !                              = H(xb_lr) - H(xb_hr) + Z
       if ( lnlvtov ) then
         call tmg_start(60,'RTTOV')
-        call tovs_obs ('LR', ZJOTOV)
+        call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData)
         call tmg_stop(60)
       endif
 

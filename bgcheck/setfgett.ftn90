@@ -1,0 +1,72 @@
+      SUBROUTINE SETFGETT(lcolumn,lcolumng,lobsSpaceData)
+!*
+!***s/r SETFGETT   - Interpolation of THE FIRST GUESS ERROR VARIANCES FOR TEMPERATURE
+!*
+!*Author  : P. Koclas *CMC/CMSV November 1998
+!
+!**    Purpose:  -Interpolate vertically the contents of commvo to
+!*                the pressure levels of the observations. Then
+!*                compute THE FIRST GUESS ERROR VARIANCES
+!*                A linear interpolation in ln(p) is performed.
+!*
+      use columnData_mod
+      use obsSpaceData_mod
+      IMPLICIT NONE
+#include "../comdim.cdk"
+#include "../comdimo.cdk"
+#include "../cvcord.cdk"
+      type(struct_columnData) :: lcolumn,lcolumng
+      type(struct_obs) :: lobsSpaceData
+      INTEGER IPB,IPT
+      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
+      INTEGER J,JDATA
+      REAL*8 ZWB,ZWT
+      REAL*8 ZLEV,ZPB,ZPT
+
+      DO J = 1,NFILES
+      IF (  NBEGINTYP(J) .GT. 0 ) THEN
+         IBEGIN=NBEGINTYP(J)
+          ILAST=NENDTYP(J)
+!C
+!C*    1. Computation of sigmap
+!C     .  -----------------------------
+!C
+         DO JDATA=IBEGIN,ILAST
+            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
+            IF  ( obs_elem_i(lobsSpaceData,'VNM ',jdata).EQ. 12001 ) THEN
+
+            IF  ( obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0 .and.   &
+                  obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2) THEN
+               IK=NFLEV-1
+               IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
+               IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
+               IPT  = IK + IPOS*NFLEV
+               IPB  = IPT +1
+               call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(lcolumn%all(IPB,IOBS)))
+            ELSE
+               IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
+               IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
+               ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
+               IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
+               IPT  = IK
+               IPB  = IPT+1
+               ZPT  = lcolumng%RPPOBS(IK,IOBS)
+               ZPB  = lcolumng%RPPOBS(IK+1,IOBS)
+               ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+               ZWT  = 1.0D0 - ZWB
+!C
+!C              FIRST GUESS ERROR VARIANCE
+!
+               call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
+                  real((ZWB*lcolumn%tt(IPB,IOBS) + ZWT*lcolumn%tt(IPT,IOBS))) )
+            ENDIF
+            ENDIF
+            ENDIF
+
+         END DO
+
+      ENDIF
+      END DO
+
+      RETURN
+      END SUBROUTINE SETFGETT
