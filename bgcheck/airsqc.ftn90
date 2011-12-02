@@ -24,14 +24,14 @@
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-#include "../pardim.cdk"
-#include "../comdimo.cdk"
-#include "../comlun.cdk"
-#include "../partov.cdk"
-#include "../comtov.cdk"
-#include "../cvcord.cdk"
-#include "../comdim.cdk"
-#include "../comgem.cdk"
+#include "pardim.cdk"
+#include "comdimo.cdk"
+#include "comlun.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "cvcord.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN

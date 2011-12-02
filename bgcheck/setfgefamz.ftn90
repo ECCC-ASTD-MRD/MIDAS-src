@@ -14,9 +14,9 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "../comdim.cdk"
-#include "../comdimo.cdk"
-#include "../cvcord.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "cvcord.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       CHARACTER*2 CDFAM

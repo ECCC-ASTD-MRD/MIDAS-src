@@ -12,10 +12,10 @@
       use bufr
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "../comlun.cdk"
-#include "../comdimo.cdk"
-#include "../cvcord.cdk"
-#include "../comgpsgb.cdk"
+#include "comlun.cdk"
+#include "comdimo.cdk"
+#include "cvcord.cdk"
+#include "comgpsgb.cdk"
 !*
 !C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
 !C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED

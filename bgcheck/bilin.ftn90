@@ -17,12 +17,12 @@
       use columnData_mod
       use globalSpectralTransform
       IMPLICIT NONE
-#include "../pardim.cdk"
-#include "../comdim.cdk"
-#include "../comdimo.cdk"
-#include "../comgem.cdk"
-#include "../comgd0.cdk"
-#include "../comstate.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "comgd0.cdk"
+#include "comstate.cdk"
       type(struct_columnData) :: lcolumn
       type(struct_obs) :: lobsSpaceData
       INTEGER   JLEV, JK, JK2, JGL, JLON, JOBS

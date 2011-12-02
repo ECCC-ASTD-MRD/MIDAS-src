@@ -36,119 +36,93 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 #include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "cvcord.cdk"
 
   type(struct_obs) :: lobsSpaceData
   integer :: isens, indxchn, indxtovs
 
-  real*8 zoer
-  real*8 dlsum
-  real*8 pjo, zdtb
-  real*8 zjon,zgami,zqcarg,zpost
-
-
-  real*8 zjoch  (0:jpch,jpnsat)
-  real*8 zavgnrm(0:jpch,jpnsat)
-
-  integer j, i, isat, krtid, io, jf, nchanperline, indxs, indxe
-  integer ibegin, ibeginob, ilast, ilastob, jj
-  integer inobsjo, incanjo
-  integer jo, jdata, idata, idatend, idatyp
-  integer jk, jn, ichn, ichNCM_A, jl, indx
+  integer j, i
+  integer jdata, idatyp
+  integer ichn
   integer kfailtot
 
-  integer kfail(jppf*jpnsat)
-  integer inobsch(0:jpch,jpnsat)
-  integer lcanjo(jpch)
+  integer, dimension(:), allocatable :: list_header, list_body
+  integer :: size_list_header, index_list_header, index_header
+  integer :: size_list_body,   index_list_body,   index_body
 
   integer  isrcheq
   external isrcheq
   external abort3d
 
-  if(nobtov.eq.0) return    ! exit if there are not tovs data
+  if(nobtov.eq.0) return    ! exit if there are no tovs data
 
   !     1.  Computation of (hx - z)/sigma for tovs data only
   !     .   ------------------------------------------------
 
-100 continue
+  allocate(list_header( obs_num_stn     (lobsSpaceData) ))
+  allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
 
-  dlsum    = 0.
-  inobsjo  = 0
   kfailtot = 0
-  do j = 1, nsensors
-     do i = 0, jpch
-        inobsch(i,j) = 0
-        zjoch  (i,j) = 0.0
-        zavgnrm(i,j) = 0.0
-     enddo
-  enddo
 
-  !     loop over all files
+  ! loop over all header indices of the 'TO' family
+  call obs_getHeaderIndices(lobsSpaceData, 'TO', list_header, size_list_header)
+  HEADER_INDEX: do index_list_header = 1, size_list_header
+     index_header = list_header(index_list_header)
 
-  do jf = 1, nfiles
-     if ( cfamtyp(jf).eq.'TO' .and. nbegintyp(jf).gt.0 ) then
-        ibegin   = nbegintyp(jf)
-        ilast    = nendtyp  (jf)
-        ibeginob = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
-        ilastob  = obs_elem_i(lobsSpaceData,'OBS ',ilast )
-        do jo = ibeginob, ilastob
+     !     .  1.1  Extract general information for this observation point
+     !     .       ------------------------------------------------------
 
-           !     .  1.1  Extract general information for this observation point
-           !     .       ------------------------------------------------------
+     !      process  only radiance data to be assimilated?
+     !      (data type=[164,168,180,181,182,183,185,186])
 
-           !       only process radiance data (data type=[164,168,180,181,182,183]) to be assimilated?
-
-           idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',jo),1000)
-           if ( idatyp .eq. 164 .or.  &
-                idatyp .eq. 168 .or.  &
-                idatyp .eq. 180 .or.  &
-                idatyp .eq. 181 .or.  &
-                idatyp .eq. 182 .or.  &
-                idatyp .eq. 183 .or.  &
-                idatyp .eq. 185 .or.  &
-                idatyp .eq. 186          ) then
-
-              indxtovs = ltovsno(jo)
-              if ( indxtovs .eq. 0 ) then
-                 write(nulout,fmt=9203)
-9203             format(' tovs_calc_jo_tl: error with indxtovs')
-                 call abort3d(nulout,'tovs_calc_jo_tl ')
-              endif
-
-              if (rttov_errorstatus(indxtovs) .lt. 20   ) then
-                 idata   = obs_elem_i(lobsSpaceData,'RLN ',jo)
-                 idatend = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
-                 isens = lsensor(indxtovs)
-                 do jdata= idata, idatend
-                    if ( obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1 ) then
-                       ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
-                       ichn    = max(0,min(ichn,jpch+1))
-                       ichNCM_A = max(0,min(ichn,jpch+1))
-                       if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
-                       indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
-                       if ( indxchn .eq. 0 ) then
-                          write(nulout,fmt=9202)
-9202                      format(' tovs_calc_jo_tl: error with channel number')
-                          call abort3d(nulout,'tovs_calc_jo_tl  ')
-                       endif
-                       call obs_set_r8(lobsSpaceData,'OMA ',jdata, radiance_tl (indxtovs) % out(indxchn))
-                       if ( ldbgtov ) then
-                          write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
-                               ichn,  radiance_tl (indxtovs) % out(indxchn), &
-                               obs_elem_r8(lobsSpaceData,'VAR ',jdata)
-                       endif
-
-                    endif
-                 enddo
-              else
-                 kfailtot = kfailtot + 1
-              endif
-           endif
-
-
-        enddo
-
+     idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+     if ( idatyp .ne. 164 .and.  &
+          idatyp .ne. 168 .and.  &
+          idatyp .ne. 180 .and.  &
+          idatyp .ne. 181 .and.  &
+          idatyp .ne. 182 .and.  &
+          idatyp .ne. 183 .and.  &
+          idatyp .ne. 185 .and.  &
+          idatyp .ne. 186          ) then
+        cycle                           ! Proceed to the next HEADER_INDEX
      endif
-  enddo
+
+     indxtovs = ltovsno(index_header)
+     if ( indxtovs .eq. 0 ) then
+        write(nulout,fmt=9203)
+9203    format(' tovs_calc_jo_tl: error with indxtovs')
+        call abort3d(nulout,'tovs_calc_jo_tl ')
+     endif
+
+     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
+        isens = lsensor(indxtovs)
+        ! loop over all body indices (still in the 'TO' family)
+        call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
+                                size_list_body)
+        BODY_INDEX: do index_list_body = 1, size_list_body
+           index_body = list_body(index_list_body)
+           if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
+              ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+              ichn    = max(0,min(ichn,jpch+1))
+              if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
+              indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+              if ( indxchn .eq. 0 ) then
+                 write(nulout,fmt=9202)
+9202             format(' tovs_calc_jo_tl: error with channel number')
+                 call abort3d(nulout,'tovs_calc_jo_tl  ')
+              endif
+              call obs_set_r8(lobsSpaceData,'OMA ',index_body, &
+                              radiance_tl (indxtovs) % out(indxchn))
+              if ( ldbgtov ) then
+                 write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
+                      ichn,  radiance_tl (indxtovs) % out(indxchn), &
+                      obs_elem_r8(lobsSpaceData,'VAR ',index_body)
+              endif
+
+           endif
+        enddo BODY_INDEX
+     else
+        kfailtot = kfailtot + 1
+     endif ! rttov_errorstatus
+  enddo HEADER_INDEX
 
 end subroutine oda_storeHdx_radiances

@@ -17,11 +17,11 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "../pardim.cdk"
-#include "../comdim.cdk"
-#include "../comgem.cdk"
-#include "../comdimo.cdk"
-#include "../cvcord.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+#include "comdimo.cdk"
+#include "cvcord.cdk"
 
       type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData

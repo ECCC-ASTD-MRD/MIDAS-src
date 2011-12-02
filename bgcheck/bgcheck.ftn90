@@ -28,9 +28,9 @@
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-#include "../comlun.cdk"
-#include "../comdim.cdk"
-#include "../comdimo.cdk"
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr

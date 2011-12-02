@@ -13,14 +13,14 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "../comlun.cdk"
-#include "../pardim.cdk"
-#include "../comdim.cdk"
-#include "../comdimo.cdk"
-#include "../comgem.cdk"
-#include "../cvcord.cdk"
-#include "../comstate.cdk"
-#include "../comgpsgb.cdk"
+#include "comlun.cdk"
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "comgem.cdk"
+#include "cvcord.cdk"
+#include "comstate.cdk"
+#include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       REAL*8 ZTODEG

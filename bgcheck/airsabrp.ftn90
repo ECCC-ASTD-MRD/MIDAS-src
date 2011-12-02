@@ -48,7 +48,7 @@
       use mod_tovs
 
       IMPLICIT NONE
-#include "../comlun.cdk"
+#include "comlun.cdk"
 
       TYPE(BURP_FILE)        :: FILE_IN
       TYPE(BURP_RPT)         :: RPT_IN,CP_RPT

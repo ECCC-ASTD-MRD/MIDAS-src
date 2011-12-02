@@ -15,11 +15,11 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "../comlun.cdk"
-#include "../comdim.cdk"
-#include "../comdimo.cdk"
-#include "../cvcord.cdk"
-#include "../comfilt.cdk"
+#include "comlun.cdk"
+#include "comdim.cdk"
+#include "comdimo.cdk"
+#include "cvcord.cdk"
+#include "comfilt.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,IXTR,IDIM
