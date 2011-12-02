@@ -129,7 +129,7 @@
       write(*,*) 'before bilin'
       call flush(6)
       CALL BILIN(lcolumn,lobsSpaceData)
-      lcolumn%es(:,:)=lcolumn%hu(:,:)
+!???      lcolumn%es(:,:)=lcolumn%hu(:,:)
       lcolumn%gz(:,:)=lcolumn%tt(:,:)
 !C
 !C     SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS

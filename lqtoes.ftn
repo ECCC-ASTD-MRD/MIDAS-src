@@ -14,40 +14,32 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine apreobs(lcolumn,lcolumng)
-#if defined (DOC)
-*
-***s/r apreobs  - Build adjoint of derived fields assimilated. ADJ of lpreobs.
-*
-*
-*Author  : L. Fillion *ARMA/AES  7 oct 98
-*
-*Revision: L. Fillion *ARMA/AES  25 nov 98
-*        - Option ES or LQ humidity analysis
-*Revision: C. Charette *ARMA/AES  09 dec 98
-*        - lcolumn%es added to lcolumn%hu when humidity analysis variable is T-Td
-*Revision: L. Fillion *ARMA/EC  10 Feb 2010 - Conditionally calls att2phi
-*
-*     -------------------
-**    Purpose: Used in evaluation of Jo and Grad Jo
-*
-*Arguments
-#endif
-      use columnData_mod 
- 
-      IMPLICIT NONE
-*implicits
-#include "comcva.cdk"
-*
-      type(struct_columnData) :: lcolumn,lcolumng
-      INTEGER JLEV,JOBS
-C
-C*1   Adjoint of ltt2phi
-C     ------------------
-C
- 100  CONTINUE
-      if((NMVOEXIST(NOGZ).eq.1)) call att2phi(lcolumn,lcolumng)
+      real*8 FUNCTION LQTOES(lq,tt,pressure)
+!
+! Purpose:
+!          to calculate the dew point depression from specific
+!          humidity, temperature and pressure.  No ice phase
+!          is permitted and the pressure vector is given.
+!
+      use MathPhysConstants_mod
+      implicit none
+#include "dintern8.cdk"
+#include "fintern8.cdk"
+      real*8 :: lq,tt,pressure
+      real*8 :: husat,td
+!
+! get the saturated vapor pressure from lq (log of specific humidity)
+!
+      husat = foefq8(exp(lq),pressure)
+!
+! now the dewpoint temperature
+!
+      td = fotw8(husat)
+!
+! finally the dewpoint depression
+!
+      lqtoes = min(tt-td,rmaxes)
 
-      RETURN
-      END
+      return
+      END FUNCTION LQTOES
 

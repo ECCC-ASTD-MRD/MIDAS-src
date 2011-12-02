@@ -407,4 +407,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
   END DO
 
+  deallocate(list_header)
+  deallocate(list_body)
+
 END SUBROUTINE TOVS_SETUPALLO

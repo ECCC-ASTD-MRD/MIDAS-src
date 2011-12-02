@@ -77,6 +77,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
       SUBROUTINE oda_Hpp
       use modmask, only : lmaskpp_in, lmaskpp_out,ldiagpp
+      use bufr
 !*
 !* Purpose: Compute simulated Upper Air observations from profiled model
 !*          increments.
@@ -92,6 +93,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZDADPS,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG
       REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
       REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZPRESBPB,ZPRESBPT
+      REAL*8 columnVarB,columnVarT,columngVarB,columngVarT,lqtoes,lqtoes_tl
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
@@ -104,6 +106,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
           IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
+          ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
@@ -119,9 +122,22 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
               /LOG(ZPB/ZPT)**2
 
+          if(ityp.eq.bufr_nees) then
+            columnVarB=lqtoes_tl(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
+                                 lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vhybinc(IK+1))
+            columnVarT=lqtoes_tl(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
+                                 lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vhybinc(IK  ))
+            columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
+            columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
+          else
+            columnVarB=lcolumn%all(IPB,IOBS)
+            columnVarT=lcolumn%all(IPT,IOBS)
+            columngVarB=lcolumng%all(IPB,IOBS)
+            columngVarT=lcolumng%all(IPT,IOBS)
+          endif
           call obs_set_r8(lobsSpaceData,'OMA ',JDATA,   &
-               ZWB*LCOLUMN%ALL(IPB,IOBS) + ZWT*LCOLUMN%ALL(IPT,IOBS)+  &
-               (lcolumng%all(IPB,IOBS)-lcolumng%all(IPT,IOBS))*  &
+               ZWB*columnVarB + ZWT*columnVarT+  &
+               (columngVarB - columngVarT)*  &
                ZDADPS*LCOLUMN%PS(1,IOBS))
         elseif(lmaskpp_out(jdata)) then
           IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
@@ -160,6 +176,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG
       REAL*8 ZWB,ZWT, ZEXP,ZEXPGZ,ZGAMMA,ZLTV,ZTVG,ZPPOST
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
+      REAL*8 columnVarB,lqtoes_tl
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
@@ -178,12 +195,18 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
           ZHHH = ZLEV * GRAV
-          IPT  = NFLEV-1 + IPOS*NFLEV
+          IPT  = LCOLUMN%NLEV-1 + IPOS*LCOLUMN%NLEV
           IPB  = IPT+1
 
           IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
-               ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
-            call obs_set_r8(lobsSpaceData,'OMA ',JDATA,LCOLUMN%ALL(IPB,IOBS))
+              ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
+            if(ITYP.eq.BUFR_NESS) THEN
+              columnVarB=lqtoes_tl(lcolumn%hu(LCOLUMN%NLEV,IOBS),lcolumn%tt(LCOLUMN%NLEV,IOBS),lcolumn%ps(1,IOBS),  &
+                                   lcolumng%hu(LCOLUMN%NLEV,IOBS),lcolumng%rppobs(LCOLUMN%NLEV,IOBS),vhybinc(LCOLUMN%NLEV))
+            else
+              columnVarB=LCOLUMN%ALL(IPB,IOBS)
+            endif
+            call obs_set_r8(lobsSpaceData,'OMA ',JDATA,columnVarB)
           ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
             ZLTV  = OLTV(1,NFLEV,IOBS)*LCOLUMN%TT(NFLEV,IOBS)  &
                  + OLTV(2,NFLEV,IOBS)*LCOLUMN%HU(NFLEV,IOBS)
@@ -488,6 +511,7 @@ end subroutine oda_Hto
 
       SUBROUTINE oda_Hzp
       use modmask, only : lmaskzp
+      use bufr
 !*
 !* Purpose: Compute simulated profiler observations from profiled model
 !*          increments.
@@ -513,6 +537,7 @@ end subroutine oda_Hto
           IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
+          ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
           IPT  = IK + IPOS*NFLEV
           IPB  = IPT+1
           ZPT  = lcolumng%gz(IK,IOBS)/RG
@@ -524,6 +549,10 @@ end subroutine oda_Hto
           ZDA1= (ZLEV-ZPB)/(ZDENO**2)
           ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 
+          if(ITYP.eq.BUFR_NEES) then
+            write(*,*) 'ABORTING IN ODA_HZP: CANNOT ASSIMILATE ES!!!'
+            call qqexit(1)
+          endif
           call obs_set_r8(lobsSpaceData,'OMA ',JDATA,  &
               ZWB*LCOLUMN%ALL(IPB,IOBS) + ZWT*LCOLUMN%ALL(IPT,IOBS) +  &
               (lcolumng%all(IPB,IOBS) - lcolumng%all(IPT,IOBS))*  &

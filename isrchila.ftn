@@ -35,7 +35,7 @@
 *     ZLAO    : LATITUDE (RADIANS) OF THE OBSERVATION POINT
 #endif
 *
-      use globalSpectralTransform
+      use gaussGrid_mod
       IMPLICIT NONE
 *implicits
 #include "comdim.cdk"
@@ -51,7 +51,7 @@ C
       IFOUND = 0
       J = -1 
  101  J = J + 1
-      IF(ZLAO.GE.gst_getRLATI(J)) THEN
+      IF(ZLAO.GE.gaus_RLATI(J)) THEN
          ISRCHILA = J - 1
          IFOUND = 1
       ENDIF

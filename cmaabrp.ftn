@@ -494,7 +494,7 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
 *                 CONVERT ES TO HU
 *-------------------------------------------------------------------
 *
-                 CALL ESTOHU(ZVAL(IPOS),IMARK(IPOS),ILIST(ILPOS),INELE,
+                 CALL BURP_ESTOHU(ZVAL(IPOS),IMARK(IPOS),ILIST(ILPOS),INELE,
      +                       INVAL,I3D,INELEFD)
                  ILISTNELE(JK)=INELEfd
                  INELE=ILISTNELE(JK)

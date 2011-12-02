@@ -155,5 +155,8 @@ C
      &            ,"-VAR AFTER ADJUSTMENTS: ",i10)')IKOUNTT
       WRITE(NULOUT,* ) ' '
 
+      deallocate(list_header)
+      deallocate(list_body)
+
       RETURN
       END

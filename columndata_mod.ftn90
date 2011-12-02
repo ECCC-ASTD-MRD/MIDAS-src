@@ -14,7 +14,6 @@ module columnData_mod
     real*8,pointer :: hu(:,:)
     real*8,pointer :: gz(:,:),gz_T(:,:),gz_M(:,:)
     real*8,pointer :: tr(:,:)
-    real*8,pointer :: es(:,:)
     real*8,pointer :: ps(:,:)
     real*8,pointer :: tg(:,:)
     real*8,pointer :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
@@ -25,11 +24,10 @@ module columnData_mod
 
     real*8,pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi transformation
-    real*8,pointer :: ollq2es(:,:,:) ! Tangent linear operator of lnq to dewpoint conversion
 
     INTEGER,parameter :: JPNVARMAX=10
     INTEGER NMVOEXIST(JPNVARMAX), NMVOPOSIT(JPNVARMAX)
-    INTEGER nouu,novv,noq,nogz,nott,notr,noes,nops,notg
+    INTEGER nouu,novv,noq,nogz,nott,notr,nops,notg
     integer :: nvo3d,nvo2d
 
   contains
@@ -48,9 +46,8 @@ module columnData_mod
       nott = 4
       noq  = 5
       notr = 6
-      noes = 7
-      nops = 8
-      notg = 9
+      nops = 7
+      notg = 8
 
       DO JVAR = 1, JPNVARMAX
          NMVOEXIST(JVAR) = 0
@@ -66,9 +63,8 @@ module columnData_mod
       CMVONEED(2)   ='VV'
       CMVONEED(3)   ='TT'
       CMVONEED(4)   ='HU'
-      CMVONEED(5)   ='ES'
-      CMVONEED(6)   ='GZ'
-      CMVONEED(7)   ='P0'
+      CMVONEED(5)   ='GZ'
+      CMVONEED(6)   ='P0'
 
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -136,15 +132,6 @@ module columnData_mod
           ELSE
             NOTR = -9
           ENDIF
-        ELSEIF(NOES .EQ. JVAR) THEN
-          IF (VARNEED('ES')) THEN
-            NOES = IPOS
-            NMVOEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVO3D = NVO3D + 1
-          ELSE
-            NOES = -9
-          ENDIF
         ELSEIF(NOPS .EQ. JVAR) THEN
           IF (VARNEED('P0')) THEN
             NOPS = IPOS
@@ -188,10 +175,6 @@ module columnData_mod
       ENDIF
       IF(NOTR .EQ. -9) THEN
         NOTR = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NOES .EQ. -9) THEN
-        NOES = IPOS
         IPOS = IPOS + 1
       ENDIF
       IF(NOPS .EQ. -9) THEN
@@ -240,7 +223,6 @@ module columnData_mod
       allocate(oltv(2,nflev,nobtot))
       oltv(:,:,:)=0.0d0
       allocate(rtapfac(nflev,nobtot))
-      allocate(ollq2es(3,nflev,nobtot))
 
       RETURN
     END SUBROUTINE col_sualobsb
@@ -328,12 +310,6 @@ module columnData_mod
         if(jvar.eq.notr) then
           if(nmvoexist(notr).eq.1) then
             column%tr => column%all(iloc:(iloc+kstep-1),:)
-            iloc = iloc + kstep
-          endif
-        endif
-        if(jvar.eq.noes) then
-          if(nmvoexist(noes).eq.1) then
-            column%es => column%all(iloc:(iloc+kstep-1),:)
             iloc = iloc + kstep
           endif
         endif
@@ -505,12 +481,6 @@ module columnData_mod
         do jobs = 1,lcolumnghr%nobtot
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%hu(jlev,jobs)=pvar(jlev,jobs)
-          enddo
-        enddo
-      elseif(cdvar.eq.'ES') then
-        do jobs = 1,lcolumnghr%nobtot
-          do jlev = 1, lcolumnghr%nlev
-            lcolumnghr%es(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'TT') then

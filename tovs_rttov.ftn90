@@ -151,8 +151,6 @@ end interface
 !     .     ------------------------
 
   if ( nconf .eq. 101 ) call sfc_emiss
-  write(*,*) 'after sfc_emiss'
-  call flush(6)
 
 !
 !     2.  Computation of hx for tovs data only
@@ -163,15 +161,11 @@ end interface
 ! Loop over all sensors specified by user
 
   do 295 krtid = 1, nsensors
-  write(*,*) '1loop 295',krtid
-  call flush(6)
    alloc_status(:) = 0
    sensor_type = coef(krtid) % id_sensor
    iplatform = coef(krtid) % id_platform
    isat = coef(krtid) % id_sat
    instrum = coef(krtid) % id_inst
-  write(*,*) '2loop 295',krtid
-  call flush(6)
 
 !  loop over all obs.
 
@@ -544,8 +538,6 @@ end interface
      write(nulout,'(" tovs_rttov: arrays #1 memory deallocation error")')
      call abort3d(nulout,'tovs_rttov        ')
   end if
-  write(*,*) 'after dealloc'
-  call flush(6)
 
   return
 

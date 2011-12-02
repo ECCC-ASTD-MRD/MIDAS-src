@@ -45,6 +45,9 @@ subroutine oda_mask(lobsSpaceData)
   !restore Global Masks. 
   IF(NCONF == 141) CALL restoreMasks  
 
+  deallocate(list_header)
+  deallocate(list_body)
+
   CONTAINS
 
       SUBROUTINE oda_masksf(CDFAM)
@@ -182,9 +185,9 @@ subroutine oda_mask(lobsSpaceData)
                lmaskpp_out(index_body) = .false.
               LLNOXTR   = .true.
               ZTORAD    = 1.D0/(RPI/180.D0)
-               ZLAT     = obs_elem_r4(lobsSpaceData,'LAT ',index_header)*ZTORAD
-               ZLON     = obs_elem_r4(lobsSpaceData,'LON ',index_header)*ZTORAD
-               IDBURP   = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+              ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',index_header)*ZTORAD
+              ZLON      = obs_elem_r4(lobsSpaceData,'LON ',index_header)*ZTORAD
+              IDBURP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
 
               WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
                    ,' OBS ',obs_elem_c9(lobsSpaceData,'STID',index_header) &

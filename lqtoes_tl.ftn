@@ -1,0 +1,65 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      real*8 FUNCTION LQTOES_TL(LQ,TT,P0,LQ_g,PRES_g,VHYB)
+!
+! Purpose: TLM VERSION
+!          to calculate the dew point depression from specific
+!          humidity, temperature and pressure.  No ice phase
+!          is permitted and the pressure vector is given.
+!
+      use MathPhysConstants_mod
+      IMPLICIT NONE
+#include "pardim.cdk"
+#include "comdim.cdk"
+#include "comgem.cdk"
+      REAL*8 LQ,TT,P0,LQ_g,PRES_g,VHYB
+      REAL*8 ZE, ZTD,ZGAMMA,ZQBRANCH,HU_g
+      REAL*8 zpresb
+      REAL*8 dESdLQ,dESdTT,dESdP0
+#include "dinternv.cdk"
+#include "finternv.cdk"
+#include "finternva.cdk"
+#include "dintern8.cdk"
+#include "fintern8.cdk"
+
+      dESdTT = 1.0d0
+*
+* Forward calculations of saturation vapour pressure and dewpoint temperature
+* and adjoint of vapour pressure from adjoint of dewpoint temperature
+*
+      HU_g = exp(LQ_g)
+      ZE = FOEFQ(HU_g, PRES_g)
+
+      ZTD=FOTW8(ZE)
+      ZGAMMA=FODTW8(ZTD,ZE)
+*
+* adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
+*
+      ZQBRANCH = FQBRANCH(HU_g)
+      dESdLQ = - ZQBRANCH*FOEFQA (dESdTT,ZGAMMA,HU_g,PRES_g)
+
+      zpresb = ((vhyb - rptopinc/rprefinc)
+     &         /(1.0-rptopinc/rprefinc))**rcoefinc
+
+      dESdP0 = - ZQBRANCH*FOEFQPSA(dESdTT,ZGAMMA,HU_g,
+     $           VHYB)-(1.-ZQBRANCH)*
+     $           (ZGAMMA*zpresb*dESdTT)
+
+      lqtoes_tl =  dESdLQ*LQ + dESdP0*P0 + dESdTT*TT
+
+      return
+      END FUNCTION LQTOES_TL

@@ -111,4 +111,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
       endif
    enddo
 
+   deallocate(list_header)
+   deallocate(list_body)
+
 end subroutine oda_get_radiance_ad

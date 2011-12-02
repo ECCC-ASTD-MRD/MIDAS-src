@@ -63,6 +63,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
       SUBROUTINE oda_HTpp
       use modmask, only : lmaskpp_in,lmaskpp_out
+      use bufr
 !*
 !***s/r AOBSPPP  - Adjoint of the "vertical" interpolation
 !*                  for "UPPER AIR" data files.
@@ -74,13 +75,14 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !*     Purpose: based on vint3d to build the adjoint of the
 !*              vertical interpolation for UPPER-AIR data files.
 !*
-      INTEGER IPB,IPT, IDBURP
-      REAL*8 ZRES,ZOER,zmax,zmean,zmax2,zmean2
+      INTEGER IPB,IPT,IDBURP,ITYP
+      REAL*8 ZRES,ZOER
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
       INTEGER IOBS,IPOS,IK,ISTRIDE
       INTEGER J,JDATA
       LOGICAL LLPRINT
+      REAL*8 columngVarT,columngVarB,lqtoes
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
@@ -102,10 +104,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C          observation.
 !C
       ISTRIDE=2*(NMAXLEN/2) + 1
-      zmax=0.0d0
-      zmean=0.0d0
-      zmax2=0.0d0
-      zmean2=0.0d0
 !C
 !C     Process all data within the domain of the model
 !C
@@ -119,6 +117,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
+            ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
             IPT  = IK  + IPOS*NFLEV
             IPB  = IPT+1
@@ -143,13 +142,22 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
               ZDADPS = 0.0
             ENDIF
 
-            LCOLUMN%ALL(IPB,IOBS) = LCOLUMN%ALL(IPB,IOBS) + ZWB*ZRES
-            LCOLUMN%ALL(IPT,IOBS) = LCOLUMN%ALL(IPT,IOBS) + ZWT*ZRES
+            if(ITYP.eq.BUFR_NEES) then
+              call lqtoes_ad(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
+                ZWB*ZRES,lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vhybinc(IK+1))
+              call lqtoes_ad(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
+                ZWT*ZRES,lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vhybinc(IK  ))
+              columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
+              columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
+            else
+              LCOLUMN%ALL(IPB,IOBS) = LCOLUMN%ALL(IPB,IOBS) + ZWB*ZRES
+              LCOLUMN%ALL(IPT,IOBS) = LCOLUMN%ALL(IPT,IOBS) + ZWT*ZRES
+              columngVarB=lcolumng%all(IPB,IOBS)
+              columngVarT=lcolumng%all(IPT,IOBS)
+            endif
             LCOLUMN%PS(1,IOBS)    = LCOLUMN%PS(1,IOBS)    +         &
-                 (lcolumng%all(IPB,IOBS) - lcolumng%all(IPT,IOBS))  &
+                 (columngVarB - columngVarT)  &
                  *ZDADPS*ZRES
-            if(abs(lcolumn%all(ipb,iobs)).gt.zmax) zmax = abs(lcolumn%all(ipb,iobs))
-            zmean=zmean+lcolumn%all(ipb,iobs)/dble(obs_num_obstotal(lobsSpaceData))
           elseif (lmaskpp_out(jdata)) THEN
             IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
@@ -174,13 +182,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                  + OLTV(1,NFLEV,IOBS)*ZATV
             lcolumn%hu(nflev,iobs) = lcolumn%hu(nflev,iobs)  &
                  + OLTV(2,NFLEV,IOBS)*ZATV
-            if(abs(lcolumn%tt(nflev,iobs)).gt.zmax2) zmax2 = abs(lcolumn%tt(nflev,iobs))
-            zmean2=zmean2+lcolumn%tt(nflev,iobs)/dble(obs_num_obstotal(lobsSpaceData))
           ENDIF
         END DO
       END DO
-      write(*,*) 'IN ODA_HTPP, MAX ,MEAN =',zmax,zmean
-      write(*,*) 'IN ODA_HTPP, MAX2,MEAN2=',zmax2,zmean2
       RETURN
       END subroutine oda_HTpp
 
@@ -237,14 +241,19 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             ZHHH = ZLEV * GRAV
-            IPT  = NFLEV-1 + IPOS*NFLEV
+            IPT  = lcolumn%nlev-1 + IPOS*lcolumn%nlev
             IPB  = IPT+1
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
-              LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
+              if(ityp.eq.bufr_ness) then
+                call lqtoes_ad(lcolumn%hu(lcolumn%nlev,IOBS),lcolumn%tt(lcolumn%nlev,IOBS),lcolumn%ps(1,IOBS),  &
+                  ZRES,lcolumng%hu(lcolumn%nlev,IOBS),lcolumng%rppobs(lcolumn%nlev,IOBS),vhybinc(lcolumn%nlev))
+              else
+                LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
+              endif
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
               ZTVG  = OLTV(1,NFLEV,IOBS)*lcolumng%tt(NFLEV,IOBS)
               ZGAMAZ= ZGAMMA*(ZHHH-lcolumng%gz(NFLEV,IOBS))
@@ -527,7 +536,6 @@ end subroutine oda_HTto
              ENDDO BODY_INDEX
              DEALLOCATE( RSTV )
              DEALLOCATE( H    )
-             deallocate(list_body)
            ENDIF ASSIMILATE
          ENDIF DATYP
 !C
@@ -538,8 +546,13 @@ end subroutine oda_HTto
            LCOLUMN%HU(JL,INDEX_HEADER) = DPJO0(JL+NFLEV)
          ENDDO
          LCOLUMN%PS  ( 1,INDEX_HEADER) = DPJO0(1+2*NFLEV)
+
+         deallocate(list_body)
       ENDDO HEADER_INDEX
 !$omp end parallel do
+
+      deallocate(list_header)
+
       RETURN
       END subroutine oda_HTro
 
@@ -742,6 +755,9 @@ end subroutine oda_HTto
          ENDDO
          LCOLUMN%PS(1,INDEX_HEADER) = DZP0
       ENDDO HEADER_LIST
+
+      deallocate(list_header)
+      deallocate(list_body)
 
       RETURN
       END subroutine oda_HTgp

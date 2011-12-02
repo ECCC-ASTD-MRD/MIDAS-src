@@ -25,6 +25,9 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   CALL SOBSPROF
   CALL SOBSCSBT
 
+  deallocate(list_header)
+  deallocate(list_body)
+
   CONTAINS
 
       SUBROUTINE SOBSSFC
@@ -789,22 +792,22 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             ENDIF
          END DO BODY
 
-         WRITE(NULOUT,* ) ' '
-         WRITE(NULOUT,* ) '%PR***************************************'
-         WRITE(NULOUT,222 )'%PR ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
-         WRITE(NULOUT,222)'%PR ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
-         WRITE(NULOUT,222)'%PR ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
-         WRITE(NULOUT,* ) '%PR***************************************'
-         WRITE(NULOUT,222)'%PR REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
-         WRITE(NULOUT,222)'%PR REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
-         WRITE(NULOUT,222)'%PR REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
-         WRITE(NULOUT,* ) '%PR***************************************'
-         WRITE(NULOUT,* ) ' '
- 222     FORMAT(2x,a29,5(2x,i5))
- 223     FORMAT(2x,a29,5(2x,f6.0))
- 224     FORMAT(2x,a31,2x,I6,2X,I5,2(2x,f9.2))
-
       END DO HEADER
+
+      WRITE(NULOUT,* ) ' '
+      WRITE(NULOUT,* ) '%PR***************************************'
+      WRITE(NULOUT,222 )'%PR ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'%PR ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'%PR ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
+      WRITE(NULOUT,* ) '%PR***************************************'
+      WRITE(NULOUT,222)'%PR REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'%PR REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,222)'%PR REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
+      WRITE(NULOUT,* ) '%PR***************************************'
+      WRITE(NULOUT,* ) ' '
+ 222  FORMAT(2x,a29,5(2x,i5))
+ 223  FORMAT(2x,a29,5(2x,f6.0))
+ 224  FORMAT(2x,a31,2x,I6,2X,I5,2(2x,f9.2))
 
       IKOUNTT=0
       DO JDATA=1,obs_num_obstotal(lobsSpaceData)

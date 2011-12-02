@@ -51,17 +51,5 @@ C
  100  CONTINUE
       if(NMVOEXIST(NOGZ).eq.1) call ltt2phi(lcolumn,lcolumng)
 C
-C*2   Analysis increments of humidity variable
-C     ----------------------------------------------------------------
-C
- 200  CONTINUE
-C
-C     Analysis increments of ln(specific humidity) to increments of (T-Td)
-C     when analysis variable is lnq
-C
-      if(chum.eq.'LQ') then
-        call lmhu2es(lcolumn)
-      endif
-C
       RETURN
       END

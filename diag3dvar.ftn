@@ -45,7 +45,6 @@
 #endif
 C
       use MathPhysConstants_mod
-      use globalSpectralTransform
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"

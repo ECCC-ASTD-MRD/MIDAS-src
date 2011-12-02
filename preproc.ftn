@@ -30,7 +30,7 @@
       use minimization_mod
       use modfgat
       use columndata_mod
-      use globalSpectralTransform
+      use gaussGrid_mod
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
@@ -44,7 +44,6 @@
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
-      integer :: gstID,mpiMode
       INTEGER jvar, IERR
       INTEGER itime,idate,irunn
       integer inewhh,newdate,istampobs
@@ -95,9 +94,7 @@
 !
 !     Initialize the global spectral transform (needed?)
 !
-      mpiMode=0
-      gstID = gst_setup(nulout,ni,nj,ntrunc,mpiMode)
-      write(*,*) 'returned value of gstID=',gstID
+      call sugaussgrid(nj)
 !
 !     Initialisation of the geometry
 !

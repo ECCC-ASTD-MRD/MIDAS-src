@@ -50,23 +50,24 @@ MODULE BmatrixEnsemble
 
 CONTAINS
 
-  SUBROUTINE BEN_setup(ZTLEN_IN,verticalScale_in,pressureProfile_in,NTRUNC_IN,NI_IN,NJ_IN,NLEVINC_IN,NTIME_IN,NIP1_IN,stamp_in,CVDIM_OUT)
+  SUBROUTINE BEN_setup(ZTLEN_IN,verticalScale_in,pressureProfile_in,NI_IN,NJ_IN,NLEVINC_IN,NTIME_IN,NIP1_IN,stamp_in,CVDIM_OUT)
     use globalSpectralTransform
     implicit none
 
     real*8         :: ztlen_in,verticalScale_in,pressureProfile_in(:)
     real*8,allocatable :: pressureProfileEns(:)
-    integer        :: ntrunc_in,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
+    integer        :: ntrunc,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
     integer        :: cvDim_out
     integer        :: jlev,jn,jm,ila,njlath_l,mpiMode
     integer        :: fnom,fclos,ierr,nulnam=0
 
     !namelist
-    NAMELIST /NAMBEN/nens,scaleFactor,enspathname,ensfilebasename,nLevEns
+    NAMELIST /NAMBEN/nens,scaleFactor,ntrunc,enspathname,ensfilebasename,nLevEns
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     scaleFactor(:)=0.0d0
     nens=10
+    ntrunc=31
     nLevEns=nLevInc_in
     enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
     ensfilebasename=''
@@ -149,7 +150,7 @@ CONTAINS
     kIndexInc(4*nLevEns+1)= 4*nLevInc+1 ! P0
     kIndexInc(4*nLevEns+2)= 4*nLevInc+2 ! TG
 
-    ntrunc_l=ntrunc_in
+    ntrunc_l=ntrunc
     nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
     
     ni_l=ni_in

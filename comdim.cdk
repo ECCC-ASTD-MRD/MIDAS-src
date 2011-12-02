@@ -16,10 +16,6 @@
 ! NVG2D  : number of 2D fields (e.g. surface pressure)
 ! NKGDIM : total number of 2D fields in the model state in grid space
 !
-! === 2. Dimensions in spectral space ================================
-!
-!     NTRUNC   : triangular truncation order
-!
 #endif
 
       INTEGER NI, NJ
@@ -30,5 +26,4 @@
       COMMON/COMNDIM/NJ
       COMMON/COMNDIM/NFLEV
       COMMON/COMNDIM/NVGD, NVG2D,NKGDIM
-      COMMON/COMNDIM/NTRUNC
 

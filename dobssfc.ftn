@@ -84,6 +84,7 @@
       REAL*8 ZWB,ZWT,ZEXP,zexpgz,ZGAMMA,ZTVG,ZPSGOBS
       REAL*8 ZLEV,ZPT,ZPB,ZHHH,ZGAMAZ,ZSLOPE
       REAL*8 DLSUM
+      REAL*8 columnVarB,LQTOES
       LOGICAL LLOK, LLPRINT,LLUV
       POINTER(PXPOINTR    ,IPOINTR)
 C
@@ -204,8 +205,15 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS,ITYP
 c     &                   ,ZLEV,ZHHH,IK,IPOS,IXTR,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
+                  if(ityp.eq.bufr_ness) then
+                    columnVarB=lqtoes(lcolumnhr%hu(LCOLUMNHR%NLEV,IOBS),
+     +                                lcolumnhr%tt(LCOLUMNHR%NLEV,IOBS),
+     +                                lcolumnhr%rppobs_T(LCOLUMNHR%NLEV,IOBS))
+                  else
+                    columnVarB=lcolumnhr%all(IPB,IOBS)
+                  endif
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
-     +                  (lcolumnhr%all(IPB,IOBS)
+     +                  (columnVarB
      +                 - ZSLOPE*(ZHHH-lcolumnhr%gz(LCOLUMNHR%NLEV,IOBS))-ZVAR)
      +                 / ZOER)
 ***************************************************************

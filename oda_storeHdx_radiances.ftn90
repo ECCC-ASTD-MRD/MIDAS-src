@@ -125,4 +125,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
      endif ! rttov_errorstatus
   enddo HEADER_INDEX
 
+  deallocate(list_header)
+  deallocate(list_body)
+
 end subroutine oda_storeHdx_radiances

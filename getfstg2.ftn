@@ -195,50 +195,9 @@ ccc debug
      &            idum1,idum2,idum3,idum4,'getfstg2       ',
      &            'HUG')
 !
-!     Dewpoint depression
+!       Set Dew-point depression to zero (not used anywhere)
 !
-      write(nulout,*)' '
-      write(nulout,*)'---------------------------------------'
-      write(nulout,*)'getfstg2: Calculating ES from HU and TT'
-      write(nulout,*)'---------------------------------------'
-      write(nulout,*)' '
-      write(nulout,*)'getfstg2: rptopinc = ',rptopinc
-      write(nulout,*)'getfstg2: rprefinc = ',rprefinc
-      write(nulout,*)'getfstg2: rcoefinc = ',rcoefinc
-      if(rptopinc.eq.rprefinc) then
-        call abort3d(nulout,'getfstg2: rptopinc cant be equal to rprefinc')
-      endif
-!
-      do jlev = 1, nflev
-        write(nulout,*) 'getfstg2: Level = ',jlev
-        write(nulout,*) 'getfstg2: vhybinc(jlev) = ',vhybinc(jlev)
-        zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &           /(1.0D0-rptopinc/rprefinc))**rcoefinc
-        write(nulout,*) 'getfstg2: zpresb = ',zpresb
-        do jj = 1,nj
-          do ji = 1,ni
-            zpresa = rprefinc * (vhybinc(jlev)-zpresb)
-            zppg(ji,jj,jlev) = zpresa + zpresb*zpsg(ji,jj)*100.0D0
-          enddo
-        enddo
-      enddo
-
-!     ES trial fld  calculation (water phase)
-!     pqg = specific humidity;
-!     pug = true temperature in kelvin (work fld)
-!     ptg = true temperature in celsius
-!     pvg = pressure in pascal (work fld)
-      do jlev = 1,nflev
-        do jj = 1, nj
-          do ji = 1, ni
-            zttg(ji,jj,jlev) = zttg(ji,jj,jlev) + 273.16D0
-            zqsat= SFOQST8(zttg(ji,jj,jlev),zppg(ji,jj,jlev))
-            zqqg(ji,jj,jlev)= MIN ( zqsat ,zqqg(ji,jj,jlev) )
-          enddo
-        enddo
-      enddo
-      CALL MHUAESGD2(ztrans,zqqg,zttg,zppg,ni,nj,nflev,.false.)
-      CALL INITGDG2(pesg,ztrans,ni,nj,nflev,0,CLNOMVAR)
+       pesg(:,:,:)=0.0d0
 !
 !      U wind-image component
 !

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE ESTOHU(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      SUBROUTINE BURP_ESTOHU(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
       use MathPhysConstants_mod
       use bufr
       IMPLICIT NONE
@@ -133,7 +133,7 @@ C
 *
 *
          DO 3 JJ=1,KNVAL
-            IF (LLPRINT) write(nulout,*)' ----ESTOHU: press= ',ZPROFPP(JJ)
+            IF (LLPRINT) write(nulout,*)' ----BURP_ESTOHU: press= ',ZPROFPP(JJ)
             IF ( lladd2 ) THEN
                INDEX1=KNELE+1 + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
             ELSE

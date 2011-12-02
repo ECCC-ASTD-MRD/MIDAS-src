@@ -48,7 +48,6 @@
 *    -NONE-
 #endif
       use MathPhysConstants_mod
-      use globalSpectralTransform
       use mod4dv, only : l4dvar
       use obsSpaceData_mod
       use controlVector_mod

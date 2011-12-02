@@ -45,6 +45,7 @@
       REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI
       REAL*8 ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZTORAD,ZOMA
+      REAL*8 columnVarB,columnVarT,lqtoes
       REAL*4 ZLAT,ZLON
       LOGICAL LLPRINT,LLNOXTR
       CHARACTER*2 CVAR
@@ -91,7 +92,16 @@
                ENDIF
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1. - ZWB
-               zoma = (ZWB*lcolumnhr%all(IPB,IOBS) + ZWT*lcolumnhr%all(IPT,IOBS)-ZVAR)/ZOER
+               if(ivnm.eq.bufr_nees) then
+                 columnVarB=lqtoes(lcolumnhr%hu(IK+1,IOBS),
+     +              lcolumnhr%tt(IK+1,IOBS),lcolumnhr%rppobs_T(IK+1,IOBS))
+                 columnVarT=lqtoes(lcolumnhr%hu(IK  ,IOBS),
+     +              lcolumnhr%tt(IK  ,IOBS),lcolumnhr%rppobs_T(IK  ,IOBS))
+               else
+                 columnVarB=lcolumnhr%all(IPB,IOBS)
+                 columnVarT=lcolumnhr%all(IPT,IOBS)
+               endif
+               zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
                call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
                call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
@@ -112,29 +122,6 @@
                   PJO =PJO+zoma*zoma
                   call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
                   call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
-               ELSE
-!
-! Forward model for UU,VV,TT,ES below model's orography Extrapolation of order 
-! zero from model surface. Allowed at present only for HUMSAT (idburp=158)
-!
-                  IITY=obs_elem_i(lobsSpaceData,'ITY ',iobs)
-                  IDBURP    = MOD(IITY,1000)
-                  IF (IDBURP .EQ. 158 .AND.
-     +                IVNM .EQ. BUFR_NEES) THEN
-                    zoma = (lcolumnhr%all(IPB,IOBS)-ZVAR)/ZOER
-                    PJO =PJO+zoma*zoma
-                    call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
-                    call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
-                  ELSE
-                    LLNOXTR   = .TRUE.
-                    ZTORAD    = 1.D0/(RPI/180.D0)
-                    ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',iobs) *ZTORAD
-                    ZLON = obs_elem_r4(lobsSpaceData,'LONG',iobs) *ZTORAD
-                    IDBURP    = MOD(IITY,1000)
-                    WRITE(*,*)' DOBSPPP: NO EXTRAPOLATION ALLOWED ',
-     &                ' OBS ',obs_elem_c9(lobsSpaceData,'STID',IOBS),' TYPE ',
-     &                IDBURP, ' ELM ', IVNM,' LAT ', ZLAT,  ' LON ', ZLON
-                  ENDIF
                ENDIF
             ENDIF
          ENDIF

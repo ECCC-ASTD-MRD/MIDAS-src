@@ -556,10 +556,6 @@ c Initialisation of TLM operators
 c
       call subasic_obs(lcolumng)
 c
-c Calculate ES=T-TD from T and Q 
-c
-      call mhuaesv(lcolumng)
-c
 c Using T, q and PS to compute GZ 
 c
       call tt2phi(lcolumng)
@@ -569,10 +565,6 @@ c
 c Copy 2D variables (PS,TG and RMTMOBS) from lcolumng to lcolumnhr
 c
       call col_copy2d(lcolumng,lcolumnhr)
-c
-c Calculate ES=T-TD from T and Q
-c
-      call mhuaesv(lcolumnhr)
 c
 c Using T, q and PS to compute GZ 
 c

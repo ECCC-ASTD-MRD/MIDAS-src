@@ -283,6 +283,10 @@ C
             ENDIF ! ASSIM
          ENDIF ! IDATYP .EQ. 169
       ENDDO ! index_header
+
+      deallocate(list_header)
+      deallocate(list_body)
+
       WRITE(NULOUT,*)'EXIT SETERRGPSRO'
       RETURN
       END

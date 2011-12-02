@@ -19,7 +19,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   use mod4dv, only : l4dvar
   use mpi
   use gridStateVector
-  use globalSpectralTransform
+  use gaussGrid_mod
   use obsSpaceData_mod
   use columnData_mod 
   use modfgat
@@ -229,7 +229,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
             DInterpWeight=obs_getTimeInterpWeight_mpiglobal(lobsSpaceData,jobs,jstep)
             DLDXN = DLLOO*DLDLON2 + 1. - ILON
             DLDXS = DLLOO*DLDLOS2 + 1. - ILOS
-            DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
+            DLDY  = (gaus_RLATI(ILA)-DLLAO)/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
             DLW1  = DInterpWeight * (1.-DLDXN)*(1.-DLDY)
             DLW2  = DInterpWeight * DLDXN*(1.-DLDY)
             DLW3  = DInterpWeight * (1.-DLDXS)*DLDY
@@ -320,7 +320,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
            DO JLEV = 1, KLEV
               DO JLON = 1, IMAX
                  ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *  &
-                      NI / gst_getRWT(JGL)
+                      NI / gaus_RWT(JGL)
               END DO
            END DO
         END DO

@@ -264,6 +264,10 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
         endif
      enddo
   endif
+
+  deallocate(list_header)
+  deallocate(list_body)
+
  9000 format(//,10x,"-tovs_calc_jo: computing jo and residuals to tovs" &
         &  ," observations")
 
