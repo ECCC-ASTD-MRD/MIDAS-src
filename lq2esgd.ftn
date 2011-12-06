@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 *
-      subroutine lq2esgd ( pesinc, ptg, pqg, ppsg, ppt, kni, knj, knk )
+      subroutine lq2esgd ( pesinc, pttinc, phuinc, ppsinc, pqg, ppsg, kni, knj, knk )
 *
 ***S/R lq2esgd  -  Computes increments of ES=T-TD FROM T AND lnq
 *                  increments in Grid-Point Space.
@@ -38,10 +38,8 @@ C LMHUAESV
 * Out:
 *      pesinc : Dew-point depression increment on the analysis grid
 * IN:
-*      ptg    : Background temperature on the analysis grid
 *      pqg    : Background specific-humidity on the analysis grid
 *      ppsg   : Background surface-pressure (Pa) on the analysis grid
-*      ppt    : Pressure (Pa) at the top. (2D grid-point field)
 *
 *Object:   For Postprocessing analysis increment (called by DIAG3DVAR):
 *          calculate the TLM OF dew point depression from TLM specific
@@ -53,17 +51,16 @@ C LMHUAESV
       IMPLICIT NONE
       integer kni,knj,knk
       real*8 pesinc(kni,knk,knj)
-      real*8 ptg(kni,knk,knj),pqg(kni,knk,knj), ppsg(kni,knj)
-      real*8 ppt(kni,knj)
+      real*8 pttinc(kni,knk,knj),phuinc(kni,knk,knj),ppsinc(kni,1,knj)
+      real*8 pqg(kni,knk,knj), ppsg(kni,knj)
 *IMPLICITES
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comgem.cdk"
-#include "comgd0.cdk"
 *
       logical llprint
-      integer ji,jj,jk,jij
+      integer ji,jj,jk
       REAL*8 ZE, ZEL, ZCTE, ZDEN, ZTD, ZTDL, ZGAMMA, zpres
       INTEGER IERR,ILEN
       EXTERNAL HPDEALLC, HPALLOC
@@ -83,7 +80,6 @@ C
       do jk=1,knk
         do ji=1,kni
           do jj=1,knj
-            jij=(ji-1)*knj+jj
             zpresb = ((vhybinc(jk) - rptopinc/rprefinc)
      &                /(1.0-rptopinc/rprefinc))**rcoefinc
             zpresa = rprefinc * (vhybinc(jk)-zpresb)
@@ -96,7 +92,7 @@ C
 *
 *          TLM of the saturated vapor pressure from q (specific humidity)
 *
-            ZEL = FOEFQL(q0(ji,jk,jj),gps0(ji,1,jj)
+            ZEL = FOEFQL(phuinc(ji,jk,jj),ppsinc(ji,1,jj)
      &           ,pqg(ji,jk,jj),zpres,vhybinc(jk))
 *
 *          TLM of the dewpoint temperature calculation
@@ -107,7 +103,7 @@ C
             ZGAMMA=FODTW8(ZTD,ZE)
             ZTDL = ZGAMMA*ZEL
 *
-            pesinc(ji,jk,jj) = tt0(ji,jk,jj) - ZTDL
+            pesinc(ji,jk,jj) = pttinc(ji,jk,jj) - ZTDL
 *
 ********************************************************************
 c           if(llprint .and. ji .eq. 221 .and. jj .eq. 27) then

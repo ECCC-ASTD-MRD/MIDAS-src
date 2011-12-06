@@ -44,7 +44,6 @@ C
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comgd1.cdk"
 #include "comgem.cdk"
 *
       real*8 pgz(ni,nflev,nj), ptt(ni,nflev,nj)
@@ -73,16 +72,6 @@ c
 c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
-      do jlev = 1, nflev
-        do jlat = 1, nj
-          ilon = ni
-          do jlon = 1, ni
-c             for r.h.s. of balanced part
-c
-            tt1(jlon,jlev,jlat)=ptt(jlon,jlev,jlat)
-          enddo
-        enddo
-      enddo
       do jlat = 1, nj
         ilon = ni
         call calcpres(ZPRESS,vhybinc,nflev,ppsg(1,jlat),rptopinc
@@ -93,7 +82,7 @@ c
             zprof(jlev) = zpress(ila)
           enddo
           call matapat(zprof,zalpha,nflev,vma,vmb,vmc,vmd,vme,vmf)
-          call lvtapgd(pgz,jlon,jlat) ! input  in TT1
+          call lvtapgd(pgz,ptt,jlon,jlat) 
         enddo
       enddo
 c
@@ -104,7 +93,7 @@ c
 
       CONTAINS
 
-      subroutine lvtapgd(pgz,ki,kj)
+      subroutine lvtapgd(pgz,ptt,ki,kj)
 *S/P LVTAPGD:
 *
 *         CALCULE Y A PARTIR DE R PAR SOLUTION DE L'EQUATION R*CON=S**E
@@ -139,18 +128,18 @@ C prepared outside lvtapgd
 
 *implicits
 *
-      real*8    pgz(ni,nflev,nj)
+      real*8    pgz(ni,nflev,nj),ptt(ni,nflev,nj)
 c
-c tt1 : working vector of virtual temperatures.
+c ptt : working vector of virtual temperatures.
 c
       ZCON = -RGASD
       ZAK = -2.0*ZCON*VMA(nflev)
       ZBK = -2.0*ZCON*VMB(nflev)
       ZCK = -2.0*ZCON*VMC(nflev)
       pgz(ki,nflev,kj) = 0.0
-      pgz(ki,nflev-1,kj)=ZAK*tt1(ki,nflev-1,kj)+
-     &     ZBK*tt1(ki,nflev,kj)+
-     &     ZCK*tt1(ki,nflev-2,kj)+
+      pgz(ki,nflev-1,kj)=ZAK*ptt(ki,nflev-1,kj)+
+     &     ZBK*ptt(ki,nflev,kj)+
+     &     ZCK*ptt(ki,nflev-2,kj)+
      &     pgz(ki,nflev,kj)
 *
       IKLEVM2 = nflev-2
@@ -159,9 +148,9 @@ c
         ZAK = -2.0*ZCON*VMA(IK+1)
         ZBK = -2.0*ZCON*VMB(IK+1)
         ZCK = -2.0*ZCON*VMC(IK+1)
-        pgz(ki,ik,kj)= ZAK*tt1(ki,IK,kj)+
-     &       ZBK*tt1(ki,IK+1,kj)+
-     &       ZCK*tt1(ki,IK+2,kj)+
+        pgz(ki,ik,kj)= ZAK*ptt(ki,IK,kj)+
+     &       ZBK*ptt(ki,IK+1,kj)+
+     &       ZCK*ptt(ki,IK+2,kj)+
      &       pgz(ki,IK+2,kj)
       enddo
 C

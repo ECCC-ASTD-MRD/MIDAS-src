@@ -133,7 +133,6 @@ C assimilated
 #include "cvcord.cdk"
 #include "pardim.cdk"
 #include "comgem.cdk"
-#include "comstate.cdk"
 #include "comtovst.cdk"
 #include "comvfiles.cdk"
 #include "comgpsgb.cdk"

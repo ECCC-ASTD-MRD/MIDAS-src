@@ -19,7 +19,6 @@
 #include "comdimo.cdk"
 #include "comgem.cdk"
 #include "cvcord.cdk"
-#include "comstate.cdk"
 #include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData

@@ -42,8 +42,6 @@ C
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comgd0.cdk"
-#include "comgd1.cdk"
 #include "compdg.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
@@ -63,15 +61,6 @@ C
 C*    2. Verify the arrays allocated within SUALLO
 C
  200    CONTINUE
-C
-        CALL HPDEALLC(PTGD1,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," GD1 checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " GD1. IERR =",I3)')IERR
-        END IF
 C
         call cvm_deallocate
 C

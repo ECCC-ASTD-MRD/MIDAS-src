@@ -70,7 +70,6 @@
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
-#include "comstate.cdk"
 #include "comfilt.cdk"
 *
       type(struct_columnData) :: lcolumnhr

@@ -31,7 +31,7 @@ MODULE minimization_mod
   character(len=10)   :: crestart='wrmrestart'
   integer             :: nulout =6
   integer             :: nmtra,nwork,nsim3d
-  integer             :: ni,nj,nk,nlev,nt
+  integer             :: ni,nj,nlev,nt
 
   ! namelist variables
   INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
@@ -49,9 +49,9 @@ MODULE minimization_mod
 
 CONTAINS
 
-  SUBROUTINE min_setup(nvadim_in,ni_in,nj_in,nk_in,nlev_in,nt_in)
+  SUBROUTINE min_setup(nvadim_in,ni_in,nj_in,nlev_in,nt_in)
     implicit none
-    integer :: nvadim_in,ni_in,nj_in,nk_in,nlev_in,nt_in
+    integer :: nvadim_in,ni_in,nj_in,nlev_in,nt_in
 
     integer :: ierr,nulnam
     integer :: fnom,fclos
@@ -60,7 +60,6 @@ CONTAINS
 
     ni=ni_in
     nj=nj_in
-    nk=nk_in
     nlev=nlev_in
     nt=nt_in
 
@@ -557,9 +556,9 @@ CONTAINS
   SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
     use mpi
     use obsSpaceData_mod
-    use gridStateVector
+    use gridStateVector_mod
     use columnData_mod
-    use bmatrix
+    use bmatrix_mod
     implicit none
     ! Argument declarations
     integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -616,9 +615,9 @@ CONTAINS
 
        call tmg_stop(74)
 
-       call gsv_allocate(statevector,ni,nj,nk,nlev,nt)
+       call gsv_allocate(statevector,ni,nj,nlev,nt)
 
-       call oda_sqrtB(da_v,na_dim,statevector)
+       call bmat_sqrtB(da_v,na_dim,statevector)
 
        call oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
@@ -662,7 +661,7 @@ CONTAINS
        call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
        da_gradJ = 0.d0
-       call oda_sqrtBT(da_gradJ,na_dim,statevector)
+       call bmat_sqrtBT(da_gradJ,na_dim,statevector)
        call gsv_deallocate(statevector)
 
        if (na_indic .ne. 3) then

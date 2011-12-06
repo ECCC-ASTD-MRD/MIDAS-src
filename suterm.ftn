@@ -70,8 +70,6 @@ C
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comgd0.cdk"
-#include "comgd1.cdk"
 #include "compdg.cdk"
 #include "comgem.cdk"
 C
@@ -141,15 +139,6 @@ C
         ELSE
           WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
      S         " CONIMA. IERR =",I3)')IERR
-        END IF
-        CALL FLUSH(KULOUT)
-        CALL HPDEALLC(PTGD,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," GD checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " GD. IERR =",I3)')IERR
         END IF
         CALL FLUSH(KULOUT)
 C

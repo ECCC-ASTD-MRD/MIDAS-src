@@ -73,14 +73,13 @@
 *
 #endif
 C
-      use gridStateVector
+      use gridStateVector_mod
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
 #include "comcva.cdk"
-#include "comstate.cdk"
 #include "comgem.cdk"
 #include "namgem.cdk"
       INTEGER KULOUT, IAL1, IAL2, IERR, ILEN
@@ -110,7 +109,6 @@ C
       NI=240
       NJ=120
       NFLEV=28
-      NTRUNC=108
 C
  120  CONTINUE
       WRITE(UNIT=KULOUT,FMT='(//,'' MODIFICATION OF THE DIMENSIONS:''
@@ -118,47 +116,11 @@ C
 C
       CALL READNML('NAMDIM',IERR)
 !
-!modular1      write(kulout,fmt='(4x,A,L3)')' LEVEL2_staggrid = ',level2_staggrid
-!
-C
-C*    2. Initialize the dimensions (dependent dimensions).
-C
- 200  CONTINUE
-C
-C*    .   2.1 Collocation grid dimensions.
-C     .       ---------------------------
-C
- 210  CONTINUE
-!
       WRITE(KULOUT,*)' DIMENSIONS IN GRID SPACE ------:'
-      WRITE(UNIT=KULOUT,FMT=9210)
-     S     NJ  ,NI ,NFLEV
+      WRITE(UNIT=KULOUT,FMT=9210) NJ,NI,NFLEV
  9210 FORMAT(4X,
      S     ' NJ    =',I6,
      S     ' NI    =',I6,' NFLEV = ',I6)
-C
-        WRITE(KULOUT,*)' DIMENSIONS IN SPECTRAL SPACE ------:'
-        WRITE(UNIT=KULOUT,FMT=9220)NTRUNC
- 9220   FORMAT(/,' Triangular truncation of order '
-     S     ,'NTRUNC =',I4)
-C
-C*    3. Initialize the number of fields.
-C     -----------------------------------
- 300  CONTINUE
-C
-C*    .   3.1  Total number of 2D fields in grid space
-C     .        ---------------------------------------
-C
- 310  CONTINUE
-C
-      NKGDIM = NVGD* NFLEV + NVG2D
-C
-      WRITE(UNIT=KULOUT,FMT=9310)
-     S     NVGD,NVG2D,NKGDIM
- 9310 FORMAT(/,5X,'Number of variables in grid',
-     S     ' space',/,
-     S     ' NVGD   =',I6,' NVG2D   =',I6,' NKGDIM =',I6)
-C
 C
       RETURN
       END

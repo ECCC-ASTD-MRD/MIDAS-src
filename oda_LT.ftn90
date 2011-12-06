@@ -18,7 +18,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use mod4dv, only : l4dvar
   use mpi
-  use gridStateVector
+  use gridStateVector_mod
   use gaussGrid_mod
   use obsSpaceData_mod
   use columnData_mod 
@@ -40,7 +40,6 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   ! Bin HE     - ARMA/MRB  - Oct. 2009 - Implemented MPI to 3DVAR. 
   !
 #include "comdim.cdk"
-#include "comstate.cdk"
 #include "comdimo.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng

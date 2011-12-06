@@ -29,12 +29,11 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comstate.cdk"
 #include "comgpsgb.cdk"
-!!
+
   type(struct_columnData) :: lcolumn,lcolumng
   type(struct_obs) :: lobsSpaceData
-!
+
   call tmg_start(64,'GPSZTD') !
   call oda_HTgp
   call tmg_stop (64)        !

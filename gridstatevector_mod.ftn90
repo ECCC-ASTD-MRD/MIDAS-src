@@ -15,13 +15,14 @@
 ! Dependencies:
 !    none
 !--------------------------------------------------------------------------
-MODULE gridStateVector
+MODULE gridStateVector_mod
 
   implicit none
   save
   private
 
-  public              :: gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, struct_gsv
+  public  :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, struct_gsv,  &
+             nguu,ngvv,ngq,nggz,ngtt,ngtr,ngps,ngtg,NGEXIST,NGPOSIT,JPNVARMAX,nvgd,nvg2d
 
   type struct_gsv
     real*8,pointer :: gd(:,:,:,:)
@@ -30,27 +31,217 @@ MODULE gridStateVector
     real*8,pointer :: vv(:,:,:,:)
     real*8,pointer :: tt(:,:,:,:)
     real*8,pointer :: hu(:,:,:,:)
-    real*8,pointer :: oz(:,:,:,:)
     real*8,pointer :: tr(:,:,:,:)
     real*8,pointer :: gz(:,:,:,:)
     real*8,pointer :: ps(:,:,:,:)
     real*8,pointer :: tg(:,:,:,:)
+    real*8,pointer :: uu3d(:,:,:)
+    real*8,pointer :: vv3d(:,:,:)
+    real*8,pointer :: tt3d(:,:,:)
+    real*8,pointer :: hu3d(:,:,:)
+    real*8,pointer :: tr3d(:,:,:)
+    real*8,pointer :: gz3d(:,:,:)
+    real*8,pointer :: ps3d(:,:,:)
+    real*8,pointer :: tg3d(:,:,:)
     integer        :: ni,nj,nk,nlev,nt,anltime
     logical        :: allocated=.false.
   end type struct_gsv  
 
+    INTEGER,parameter :: JPNVARMAX=10
+    INTEGER NGEXIST(JPNVARMAX),NGPOSIT(JPNVARMAX)
+    INTEGER nguu,ngvv,ngq,nggz,ngtt,ngtr,ngps,ngtg
+    integer :: nvgd,nvg2d
+
 CONTAINS
 
-  SUBROUTINE GSV_allocate(statevector,ni,nj,nk,nlev,nt)
+  SUBROUTINE GSV_setup
+      implicit none
+      INTEGER JVAR, IFLAG, IPOS
+      integer :: fnom,fclos,nulnam,ierr
+      CHARACTER*2 CGNEED(JPNVARMAX)
+      NAMELIST /NAMSTATE/CGNEED
+!
+!     Initialisation of the state variable numbers
+!
+      nguu = 1
+      ngvv = 2
+      nggz = 3
+      ngtt = 4
+      ngq  = 5
+      ngtr = 7
+      ngps = 8
+      ngtg = 9
+!
+!     Initialisation of model state control vertors
+!
+      DO JVAR = 1, JPNVARMAX
+         NGEXIST(JVAR) = 0
+      END DO
+!
+!    2. Read NAMELIST NAMSTATE to find which fields are needed
+!
+      DO JVAR = 1, JPNVARMAX
+        cgneed(jvar)   = ' '
+      enddo
+
+      CGNEED(1)   ='UU'
+      CGNEED(2)   ='VV'
+      CGNEED(3)   ='TT'
+      CGNEED(4)   ='HU'
+      CGNEED(5)   ='P0'
+
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namstate,iostat=ierr)
+      write(*,*) 'gsv_setup: reading namelist, ierr=',ierr
+      write(*,nml=namstate)
+      ierr=fclos(nulnam)
+!
+!     3. Modify default values
+!
+      NVGD   = 0
+      NVG2D  = 0
+
+      IPOS = 1
+      DO JVAR = 1, JPNVARMAX
+        IF (NGUU .EQ. JVAR) THEN
+          IF (VARNEED('UU')) THEN
+            NGUU = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVGD = NVGD + 1
+          ELSE
+            NGUU = -9
+          ENDIF
+        ELSEIF(NGVV .EQ. JVAR) THEN
+          IF (VARNEED('VV')) THEN
+            NGVV = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVGD = NVGD + 1
+          ELSE
+            NGVV = -9
+          ENDIF
+        ELSEIF(NGQ .EQ. JVAR) THEN
+          IF (VARNEED('HU')) THEN
+            NGQ = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVGD = NVGD + 1
+          ELSE
+            NGQ = -9
+          ENDIF
+        ELSEIF(NGGZ .EQ. JVAR) THEN
+          IF (VARNEED('GZ')) THEN
+            NGGZ = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVGD = NVGD + 1
+          ELSE
+            NGGZ = -9
+          ENDIF
+        ELSEIF(NGTT .EQ. JVAR) THEN
+          IF (VARNEED('TT')) THEN
+            NGTT = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVGD = NVGD + 1
+          ELSE
+            NGTT = -9
+          ENDIF
+        ELSEIF(NGTR .EQ. JVAR) THEN
+          IF (VARNEED('TR')) THEN
+            NGTR = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVGD = NVGD + 1
+          ELSE
+            NGTR = -9
+          ENDIF
+        ELSEIF(NGPS .EQ. JVAR) THEN
+          IF (VARNEED('P0')) THEN
+            NGPS = IPOS
+            NGEXIST(IPOS) = 1
+            IPOS = IPOS + 1
+            NVG2D = NVG2D + 1
+          ELSE
+            NGPS = -9
+          ENDIF
+        elseif(ngtg .eq. jvar) then
+          if (VARNEED('TG')) then
+            ngtg = ipos
+            ngexist(ipos) = 1
+            ipos = ipos + 1
+            NVG2D = NVG2D + 1
+          else
+            ngtg = -9
+          endif
+        ENDIF
+      ENDDO
+
+      IF(NGUU .EQ. -9) THEN
+        NGUU = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      IF(NGVV .EQ. -9) THEN
+        NGVV = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      IF(NGQ .EQ. -9) THEN
+        NGQ = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      IF(NGGZ .EQ. -9) THEN
+        NGGZ = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      IF(NGTT .EQ. -9) THEN
+        NGTT = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      IF(NGTR .EQ. -9) THEN
+        NGTR = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      IF(NGPS .EQ. -9) THEN
+        NGPS = IPOS
+        IPOS = IPOS + 1
+      ENDIF
+      if(ngtg .eq. -9) then
+        ngtg = ipos
+        ipos = ipos + 1
+      endif
+
+      RETURN
+
+      CONTAINS
+
+        LOGICAL FUNCTION VARNEED(VARCHAR)
+          character*2 :: varchar
+          integer :: jvar
+ 
+          varneed=.false.
+          do jvar=1,JPNVARMAX
+            if (varchar.eq.cgneed(jvar)) then
+              varneed=.true.
+            endif
+          enddo
+
+        END FUNCTION VARNEED
+
+  END SUBROUTINE GSV_setup
+
+
+  SUBROUTINE GSV_allocate(statevector,ni,nj,nlev,nt)
     implicit none
 
     type(struct_gsv) :: statevector
-    integer          :: ni,nj,nk,nlev,nt
-    integer          :: ierr,ishift
+    integer          :: ni,nj,nlev,nt
+    integer          :: ierr,ishift,iloc,jvar
 
     statevector%ni=ni
     statevector%nj=nj
-    statevector%nk=nk
+    statevector%nk=nvgd*nlev+nvg2d
     statevector%nlev=nlev
     statevector%nt=nt
     statevector%anltime=nint((real(nt)+1.0)/2.0)
@@ -69,7 +260,7 @@ CONTAINS
       call flush(6)
     end if
 
-    allocate(statevector%gd(ni,nk,nj,nt),stat=ierr)
+    allocate(statevector%gd(ni,statevector%nk,nj,nt),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
       call flush(6)
@@ -78,18 +269,73 @@ CONTAINS
 
     statevector%gd3d => statevector%gd(:,:,:,statevector%anltime)
 
-    ishift=0
-    statevector%uu => statevector%gd(1:ni,(ishift+1):(ishift+nlev),1:nj,1:nt)
-    ishift=ishift+nlev
-    statevector%vv => statevector%gd(1:ni,(ishift+1):(ishift+nlev),1:nj,1:nt)
-    ishift=ishift+nlev
-    statevector%tt => statevector%gd(1:ni,(ishift+1):(ishift+nlev),1:nj,1:nt)
-    ishift=ishift+nlev
-    statevector%hu => statevector%gd(1:ni,(ishift+1):(ishift+nlev),1:nj,1:nt)
-    ishift=ishift+nlev
-    statevector%ps => statevector%gd(1:ni,(ishift+1):(ishift+1),1:nj,1:nt)
-    ishift=ishift+1
-    statevector%tg => statevector%gd(1:ni,(ishift+1):(ishift+1),1:nj,1:nt)
+    iloc = 1
+    do jvar = 1, jpnvarmax
+      if(jvar.eq.nguu) then
+        ngposit(jvar)=iloc
+        if(ngexist(nguu).eq.1) then
+          statevector%uu   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
+          statevector%uu3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
+          iloc = iloc + nlev
+        endif
+      endif
+      if(jvar.eq.ngvv) then
+        ngposit(jvar)=iloc
+        if(ngexist(ngvv).eq.1) then
+          statevector%vv   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
+          statevector%vv3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
+          iloc = iloc + nlev
+        endif
+      endif
+      if(jvar.eq.ngtt) then
+        ngposit(jvar)=iloc
+        if(ngexist(ngtt).eq.1) then
+          statevector%tt   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
+          statevector%tt3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
+          iloc = iloc + nlev
+        endif
+      endif
+      if(jvar.eq.nggz) then
+        ngposit(jvar)=iloc
+        if(ngexist(nggz).eq.1) then
+          statevector%gz   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
+          statevector%gz3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
+          iloc = iloc + nlev
+        endif
+      endif
+      if(jvar.eq.ngq) then
+        ngposit(jvar)=iloc
+        if(ngexist(ngq).eq.1) then
+          statevector%hu   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
+          statevector%hu3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
+          iloc = iloc + nlev
+        endif
+      endif
+      if(jvar.eq.ngtr) then
+        ngposit(jvar)=iloc
+        if(ngexist(ngtr).eq.1) then
+          statevector%tr   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
+          statevector%tr3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
+          iloc = iloc + nlev
+        endif
+      endif
+      if(jvar.eq.ngps) then
+        ngposit(jvar)=iloc
+        if(ngexist(ngps).eq.1) then
+          statevector%ps   => statevector%gd(1:ni,iloc:iloc,1:nj,1:nt)
+          statevector%ps3d => statevector%gd3d(1:ni,iloc:iloc,1:nj)
+          iloc = iloc + 1
+        endif
+      endif
+      if(jvar.eq.ngtg) then
+        ngposit(jvar)=iloc
+        if(ngexist(ngtg).eq.1) then
+          statevector%tg   => statevector%gd(1:ni,iloc:iloc,1:nj,1:nt)
+          statevector%tg3d => statevector%gd3d(1:ni,iloc:iloc,1:nj)
+          iloc = iloc + 1
+        endif
+      endif
+    enddo
 
   END SUBROUTINE GSV_allocate
 
@@ -178,4 +424,4 @@ CONTAINS
 
   END SUBROUTINE GSV_deallocate
 
-END MODULE gridStateVector
+END MODULE gridStateVector_mod

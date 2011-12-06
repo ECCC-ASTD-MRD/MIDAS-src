@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DIAG3DVAR
+      SUBROUTINE DIAG3DVAR(statevector)
 #if defined (DOC)
 *
 ***s/r DIAG3DVAR  - diagnostics in the post-processing of the model state
@@ -45,19 +45,15 @@
 #endif
 C
       use MathPhysConstants_mod
+      use gridStateVector_mod
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comcva.cdk"
-#include "comgd0.cdk"
-#include "comgd1.cdk"
 #include "comgem.cdk"
 #include "localpost.cdk"
-#include "comstate.cdk"
-*
-* Local variables
-*
+      type(struct_gsv) :: statevector
       INTEGER JLEV, JLA, ILEV,ILEN, JLAT, ILON, JLON, IERR
       REAL*8 ZRA2, ZCORIOLIS
 C
@@ -71,33 +67,14 @@ c
 c     *** ES ***
 c
       if (chum .eq. 'LQ') then
-        call lq2esgd(zes,zttg,zhug,zpsg,zpt,ni,nj,nflev)
+        call lq2esgd(zes,statevector%tt3d,statevector%hu3d,statevector%ps3d,zhug,zpsg,ni,nj,nflev)
       endif
 c
 c     *** Total GZ ***
 c
-c  arrays zttb,zpsb can be used as work space at this point
+      call lt2tvgd(ztv,statevector%tt3d,statevector%hu3d,zhug,ni,nj,nflev)
+      call ltt2phigd(zgz,ztv,statevector%ps3d,zpsg,zpt) ! Total GZ
 c
-      do jlat = 1, nj
-        do jlon = 1, ni
-          do jlev = 1, nflev
-            zttb(jlon,jlev,jlat) = tt0(jlon,jlev,jlat)
-          enddo
-          zpsb(jlon,jlat) = gps0(jlon,1,jlat)
-        enddo
-      enddo
-      call lt2tvgd(ztv,zttb,zhug,ni,nj,nflev)
-      call ltt2phigd(zgz,ztv,zpsb,zpsg,zpt) ! Total GZ
-c
-c     *** GZ (Balanced, Unbalanced) ***
-c
-c
-c       ETA coordinates
-c       ---------------
-c
-      call ltt2phigd(zgzb,zttb,zpsb,zpsg,zpt) ! Balanced GZ
-      call ltt2phigd(zgzu,zttu,zpsu,zpsg,zpt) ! Unbalanced GZ
-C
       LVARDIAG=.true.
 C
       RETURN

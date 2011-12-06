@@ -61,7 +61,6 @@
 #include "cvcord.cdk"
 #include "comdimo.cdk"
 #include "comvfiles.cdk"
-#include "comstate.cdk"
 *
       type(struct_obs) :: lobsSpaceData
       INTEGER JPMAXTYP,JPMXITM

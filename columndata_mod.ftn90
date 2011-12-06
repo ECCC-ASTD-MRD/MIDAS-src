@@ -26,15 +26,15 @@ module columnData_mod
     real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi transformation
 
     INTEGER,parameter :: JPNVARMAX=10
-    INTEGER NMVOEXIST(JPNVARMAX), NMVOPOSIT(JPNVARMAX)
+    INTEGER NMVOEXIST(JPNVARMAX)
     INTEGER nouu,novv,noq,nogz,nott,notr,nops,notg
     integer :: nvo3d,nvo2d
 
   contains
 
-    SUBROUTINE col_setup(nflev)
+    SUBROUTINE col_setup
       implicit none
-      INTEGER JVAR, IPOS,NFLEV,nkgdimo
+      INTEGER JVAR, IPOS
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER*2 CMVONEED(JPNVARMAX)
       NAMELIST /NAMSTATEO/CMVONEED
@@ -186,10 +186,9 @@ module columnData_mod
         ipos = ipos + 1
       endif
 
-      NKGDIMO = NVO3D*NFLEV + NVO2D
       WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-      WRITE(*,FMT=9120) NVO3D,NVO2D,NKGDIMO
- 9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6,' NKGDIMO = ',I6)
+      WRITE(*,FMT=9120) NVO3D,NVO2D
+ 9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6)
 
 
       CONTAINS

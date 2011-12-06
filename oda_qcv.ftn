@@ -34,8 +34,6 @@
 *Revisions :
 *
 #include "comlun.cdk"
-#include "comdimo.cdk"
-#include "comstate.cdk"
 *
       type(struct_obs) :: lobsSpaceData
       integer :: jdata,istyp,jj,jo,ityp,idata,ierr

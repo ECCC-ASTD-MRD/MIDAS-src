@@ -10,20 +10,12 @@
 !
 ! NFLEV  : number of levels in the model
 !
-!    Number of variables considered in GRID space
-!    --------------------------------------------
-! NVGD   : number of basic model variables (found at all levels)
-! NVG2D  : number of 2D fields (e.g. surface pressure)
-! NKGDIM : total number of 2D fields in the model state in grid space
-!
 #endif
 
       INTEGER NI, NJ
-      INTEGER NFLEV, NVGD, NVG2D, NKGDIM
-      INTEGER NTRUNC
+      INTEGER NFLEV
 
       COMMON/COMNDIM/NI
       COMMON/COMNDIM/NJ
       COMMON/COMNDIM/NFLEV
-      COMMON/COMNDIM/NVGD, NVG2D,NKGDIM
 

@@ -1,7 +1,0 @@
-#if defined (DOC)
-C
-C     COMDECK NAMSTATE
-C
-#endif
-      NAMELIST /NAMSTATE/CGNEED
-

@@ -52,11 +52,11 @@
       use obsSpaceData_mod
       use controlVector_mod
       use minimization_mod
-      use bmatrix
+      use bmatrix_mod
       use columnData_mod
       use modfgat
       use mpi
-      use gridStateVector
+      use gridStateVector_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -66,7 +66,6 @@
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "compost.cdk"
-#include "comgd0.cdk"
 #include "compdg.cdk"
 #include "localpost.cdk"
 #include "comvfiles.cdk"
@@ -89,7 +88,7 @@ C
       REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS, ZSMACH,ztemp,zy,zr
       REAL*8 DLGNORM, DLXNORM, DLGNORM0, DLGNORMS
 C
-      integer idum1,idum2,idum3,idum4,ipt,ibeg,iend,jbeg,jend
+      integer idum1,idum2,idum3,idum4,ipt
       integer ini,index,ii,ij,jk1,jk2
       real*8 zcon,zcorr,zx,zl
       real*8  zmin,zmax
@@ -187,13 +186,12 @@ c
 c
 C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
+      call gsv_allocate(statevector,ni,nj,nflev,nstepobsinc)
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
-        call gsv_allocate(statevector,ni,nj,nkgdim,nflev,nstepobsinc)
-        call oda_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-        gd(:,:,:)=statevector%gd3d(:,:,:)
-        call gsv_deallocate(statevector)
+        call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+!        gd(:,:,:)=statevector%gd3d(:,:,:)
 
         WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
@@ -222,66 +220,31 @@ c
           enddo
         enddo
 !
-        do jk = 1,nflev
-          do jj = 1,nj
-            do ji = 1,ni
-              z3d(ji,jk,jj) = ut0(ji,jk,jj)
-            enddo
-          enddo
-        enddo
-        call maxmin(z3d,ni,nj,nflev,zmin,zmax,
-     &              idum1,idum2,idum3,idum4,'postmin        ',
-     &              'U0 ')
-        do jk = 1,nflev
-          do jj = 1,nj
-            do ji = 1,ni
-              z3d(ji,jk,jj) = tt0(ji,jk,jj)
-            enddo
-          enddo
-        enddo
-        call maxmin(z3d,ni,nj,nflev,zmin,zmax,
-     &              idum1,idum2,idum3,idum4,'postmin        ',
-     &              'T0 ')
-!
-        do jk = 1,nflev
-          do jj = 1,nj
-            do ji = 1,ni
-              z3d(ji,jk,jj) = q0(ji,jk,jj)
-            enddo
-          enddo
-        enddo
-        call maxmin(z3d,ni,nj,nflev,zmin,zmax,
-     &              idum1,idum2,idum3,idum4,'postmin        ',
-     &              'Q0 ')
-!
-      ibeg = 1
-      iend = ni
-      jbeg = 1
-      jend = nj
-c
       IF ( CHUM .EQ. 'LQ') THEN
         zhu(:,:,:) = 0.0
         do jk = 1,nflev
-          do jj = jbeg,jend
-            do ji = ibeg,iend
-              ZTEMP = log(zhug(ji,jk,jj)) + q0(ji,jk,jj)
+          do jj = 1,nj
+            do ji = 1,ni
+              ZTEMP = log(zhug(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
               zhu(ji,jk,jj) = EXP(ZTEMP) - zhug(ji,jk,jj)
             enddo
           enddo
         enddo
       endif
 !
-      call diag3dvar
+      call diag3dvar(statevector)
+!
       call memfree(nulout,lobsSpaceData)
 !
       call tmg_start(99,'VAROUT')
 !
       if(mpi_myid == 0 ) then
-          call varout
+          call varout(statevector)
       endif
 !
       call tmg_stop(99)
 C
+      call gsv_deallocate(statevector)
       CALL HPDEALLC(PXTTG,IERR,1)
       CALL HPDEALLC(PXHUG,IERR,1)
       CALL HPDEALLC(PXUUG,IERR,1)

@@ -1,12 +1,55 @@
-MODULE BMatrix
+MODULE BMatrix_mod
 
 contains
 
-  SUBROUTINE oda_sqrtB(da_v,na_vdim,statevector)
+  SUBROUTINE bmat_setup
+!
+!**s/r bmat_setup  - Initializes the analysis Background term for the specific analysis configuration used.
+!
+      use bMatrixEnsemble
+      use bMatrixHI
+      use controlVector_mod
+      use modfgat
+      IMPLICIT NONE
+#include "comdim.cdk"
+#include "pardim.cdk"
+#include "comgem.cdk"
+#include "cvcord.cdk"
+!
+      integer  cvdimens,cvdimhi
+      real*8 zps,pressureProfile(nflev)
+      integer jlev
+
+! Initialize the background-error covariances
+
+      zps = 101000.D0
+      call calcpres(pressureProfile,vhybinc,nflev,zps,rptopinc,rprefinc,rcoefinc,1)
+      cvdimhi=0
+      cvdimens=0
+
+      write(*,*) 'Setting up the modular HI covariances...'
+      call bhi_setup(NI,NJ,NFLEV,pressureProfile,cvdimhi)
+      write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
+      call flush(6)
+
+      write(*,*) 'Setting up the ensemble covariances...'
+      call ben_setup(2800.0d0,2.0d0,pressureProfile,ni,nj,nflev,nstepobsinc,nip1,nbrpstamp,cvdimens)
+      write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+      call flush(6)
+
+      call cvm_setup(cvdimhi,cvdimens)
+      write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
+      call flush(6)
+
+      return
+  END SUBROUTINE bmat_setup
+
+
+  SUBROUTINE bmat_sqrtB(da_v,na_vdim,statevector)
     use bMatrixHI
     use bMatrixEnsemble
     use controlVector_mod
-    use gridStateVector
+    use gridStateVector_mod
     implicit none
     !
     !Purpose:
@@ -39,14 +82,14 @@ contains
 
     call tmg_stop (51)
 
-  END SUBROUTINE oda_sqrtB
+  END SUBROUTINE bmat_sqrtB
 
 
-  SUBROUTINE oda_sqrtBT(da_v,na_vdim,statevector)
+  SUBROUTINE bmat_sqrtBT(da_v,na_vdim,statevector)
     use bMatrixHI
     use bMatrixEnsemble
     use controlVector_mod
-    use gridStateVector
+    use gridStateVector_mod
     implicit none
     !
     !Purpose:
@@ -79,7 +122,7 @@ contains
 
     call tmg_stop(51) 
 
-  END SUBROUTINE oda_sqrtBT
+  END SUBROUTINE bmat_sqrtBT
 
 
-END MODULE BMatrix
+END MODULE BMatrix_mod

@@ -107,9 +107,6 @@ C
 #include "comgpsro.cdk"
 #include "namgpsro.cdk"
 C
-#include "comstate.cdk"
-#include "namstate.cdk"
-C
 #include "comgpsgb.cdk"
 #include "namgpsgb.cdk"
 C
@@ -197,11 +194,6 @@ C
 C
          READ(NULNAM,NAMPOST)
          WRITE(NULOUT,NAMPOST)
-C
-      ELSE IF(CDNAME.EQ.'NAMSTATE')THEN
-C
-         READ(NULNAM,NAMSTATE)
-         WRITE(NULOUT,NAMSTATE)
 C
       ELSE IF(CDNAME.EQ.'NAMCVA')THEN
 C

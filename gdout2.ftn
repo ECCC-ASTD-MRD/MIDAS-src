@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE GDOUT2(CPVAR,pptrans,kni,knj,KLEV,lplok,kip1)
+      SUBROUTINE GDOUT2(CPVAR,pptrans,kni,knj,KLEV,lplok,kip1,statevector)
 #if defined (DOC)
 *
 ***s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
@@ -95,6 +95,7 @@
 #endif
 C
       use MathPhysConstants_mod
+      use gridStateVector_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -102,13 +103,13 @@ C
 #include "comlun.cdk"
 #include "comgem.cdk"
 #include "comcva.cdk"
-#include "comgd0.cdk"
 #include "compost.cdk"
 *
       INTEGER kni,knj,klev,kip1
       real*8 pptrans(kni,knj)
       character*2 cpvar
       logical lplok
+      type(struct_gsv) :: statevector
 *
       INTEGER JLON, JGL,ig2
       REAL*8 ZTEMP, ZGEOP, ZDAM, ZCON, un, dix
@@ -140,7 +141,7 @@ C     *  Temperature field
 C
         DO JLON = 1, kni
           DO JGL = 1, knj
-            PPTRANS(JLON,JGL) = TT0(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = statevector%tt3d(JLON,KLEV,JGL)
           END DO
         END DO
       ELSE IF(CPVAR.EQ.'TB') THEN
@@ -225,7 +226,7 @@ C
       ELSE IF(CPVAR.EQ.'UU') THEN
         DO JGL = 1, knj
           DO JLON = 1, kni
-            PPTRANS(JLON,JGL) = UT0(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = statevector%uu3d(JLON,KLEV,JGL)
      S           *CONPHY(JGL)*RKNTMS
           END DO
         END DO
@@ -235,7 +236,7 @@ C
       ELSE IF(CPVAR.EQ.'VV') THEN
         DO JGL = 1, knj
           DO JLON = 1, kni
-            PPTRANS(JLON,JGL) = VT0(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = statevector%vv3d(JLON,KLEV,JGL)
      S           *CONPHY(JGL)*RKNTMS
           END DO
         END DO
@@ -255,7 +256,7 @@ C
         IF(CHUM .EQ. 'LQ')THEN
           DO JLON = 1, kni
             DO JGL = 1, knj
-              PPTRANS(JLON,JGL) = Q0(JLON,KLEV,JGL)
+              PPTRANS(JLON,JGL) = statevector%hu3d(JLON,KLEV,JGL)
             END DO
           END DO
         ENDIF
@@ -267,21 +268,12 @@ C
             END DO
           END DO
 C
-C     *    Ozone field
-C
-      ELSE IF(CPVAR.EQ.'OZ') THEN
-        DO JLON = 1, kni
-          DO JGL = 1, knj
-            PPTRANS(JLON,JGL) = GOZ0(JLON,KLEV,JGL)
-          END DO
-        END DO
-C
 C     *    Passive Tracer field
 C
       ELSE IF(CPVAR.EQ.'TR') THEN
         DO JLON = 1, kni
           DO JGL = 1, knj
-            PPTRANS(JLON,JGL) = GTR0(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = statevector%tr3d(JLON,KLEV,JGL)
           END DO
         END DO
 C
@@ -291,7 +283,7 @@ C
         kip1=0
         DO JLON = 1, kni
           DO JGL = 1, knj
-            PPTRANS(JLON,JGL) = GPS0(JLON,1,JGL)*RPATMB
+            PPTRANS(JLON,JGL) = statevector%ps3d(JLON,1,JGL)*RPATMB
           END DO
         END DO
 C
@@ -301,7 +293,7 @@ C
         kip1=0
         DO JLON = 1, kni
           DO JGL = 1, knj
-            PPTRANS(JLON,JGL) = GTG0(JLON,1,JGL)
+            PPTRANS(JLON,JGL) = statevector%tg3d(JLON,1,JGL)
           END DO
         END DO
 c

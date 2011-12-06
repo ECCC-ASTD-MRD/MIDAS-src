@@ -5,16 +5,16 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
+      use gridStateVector_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comgd0.cdk"
-
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
+      type(struct_gsv) :: statevector
       INTEGER JLAT, JLON ,J
       CHARACTER*8 CLETIKET
       CHARACTER*1 CLTYPVAR,CLGRTYP
@@ -35,6 +35,8 @@
       ILEN = NJ*NI
       CALL HPALLOC(PXTRANS,MAX(1,ILEN),IERR,8)
 
+      call gsv_allocate(statevector,ni,nj,nflev,1)
+      call gsv_zero(statevector)
       call col_allocate(lcolumn,nflev,nobtot)
       call col_zero(lcolumn)
 !C 
@@ -59,7 +61,7 @@
       IP2      = -1
       IP3      = -1
       CLTYPVAR =' '
-      ILEN = NJ*NKGDIM
+      ILEN = NJ*statevector%nk
 !C
 !C READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
 !C
@@ -75,9 +77,9 @@
               DO JLON=1,NI
                  ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)*RMSKNT
                  if(IG2 .eq. 0) then
-                    UT0(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  else
-                    UT0(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
@@ -90,9 +92,9 @@
               DO JLON=1,NI
                  ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)*RMSKNT
                  if(IG2 .eq. 0) then
-                    VT0(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  else
-                    VT0(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
@@ -103,9 +105,9 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    Q0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                    statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
-                    Q0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                    statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
                  ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)
               END DO
@@ -117,9 +119,9 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    TT0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
+                    statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
                  else
-                    TT0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
+                    statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
                  endif
                  ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)
               END DO
@@ -128,7 +130,7 @@
 
       write(*,*) 'before bilin'
       call flush(6)
-      CALL BILIN(lcolumn,lobsSpaceData)
+      CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !???      lcolumn%es(:,:)=lcolumn%hu(:,:)
       lcolumn%gz(:,:)=lcolumn%tt(:,:)
 !C
@@ -162,9 +164,9 @@
          DO JLAT = 1, NJ
             DO JLON=1,NI
                if(IG2 .eq. 0) then
-                  TT0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                  statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                else
-                  TT0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                  statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                endif
                ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)
             END DO
@@ -173,7 +175,7 @@
 
          write(*,*) 'before bilin'
          call flush(6)
-      CALL BILIN(lcolumn,lobsSpaceData)
+      CALL BILIN(lcolumn,statevector,lobsSpaceData)
          write(*,*) 'before setfgett'
          call flush(6)
       CALL SETFGETT(lcolumn,lcolumng,lobsSpaceData)
@@ -189,9 +191,9 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    GPS0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RMBTPA
+                    statevector%ps3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RMBTPA
                  else
-                    GPS0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RMBTPA
+                    statevector%ps3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RMBTPA
                  endif
               END DO
            END DO
@@ -202,9 +204,9 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    UT0(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  else
-                    UT0(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
@@ -215,9 +217,9 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    VT0(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  else
-                    VT0(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
@@ -228,9 +230,9 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    TT0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                    statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
-                    TT0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                    statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
               END DO
            END DO
@@ -241,15 +243,15 @@
            DO JLAT = 1, NJ
               DO JLON=1,NI
                  if(IG2 .eq. 0) then
-                    Q0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                    statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
-                    Q0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                    statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
               END DO
            END DO
         END DO
 
-      CALL BILIN(lcolumn,lobsSpaceData)
+      CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !C
 !C     SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
 !C     ------------------------------------------------
@@ -265,15 +267,15 @@
         DO JLAT = 1, NJ
           DO JLON=1,NI
             if(IG2 .eq. 0) then
-               Q0(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+               statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
             else
-               Q0(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+               statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
             endif
           END DO
         END DO
       END DO
 
-      CALL BILIN(lcolumn,lobsSpaceData)
+      CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !C
 !C     SET THE FIRST-GUESS ERRORS FOR GB-GPS ZTD DATA
 !C     ------------------------------------------------

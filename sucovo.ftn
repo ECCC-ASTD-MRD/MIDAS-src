@@ -23,9 +23,6 @@
 *Revision:
 *     . S. Pellerin *ARMA/AES Sept 97.
 *                   - Change from TT to GZ states variable
-*                   - Control of the different model state of the 3Dvar
-*                     through COMSTATE, COMSTATEC and COMSTNUM common
-*                     blocks variables (comstate.cdk).
 *     . S. Pellerin *ARMA/AES June 98.
 *                   - Bug fix to the opening of stat file
 *                     Now the logical unit NULSTAT is specified and binded to

@@ -25,43 +25,6 @@
 *
 *Author  : P. Gauthier *ARMA/AES  June 9, 1992
 *Revision:
-*     L.Fillion  *RPN/AES Feb 93  - Allocation for auxiliary fields
-*     S. Pellerin *ARMA/AES Sept 97.
-*                   - Control of the different model state of the 3Dvar
-*                     through COMSTATE, COMSTATEC and COMSTNUM common
-*                     blocks variables (comstate.cdk).
-*     L.Fillion  *ARMA/AES 25 nov 98  - Allocation for background fiels needed in TL and ADJ
-*                 observation operators.
-*     J.Halle    *CMDA/AES Oct 99
-*                   - Added ground temperature to(TG) to model state
-*     P. KOCLAS CMC NOV 99
-*                 added stnid field
-*     S. Pellerin *ARMA/SMC May 2000
-*                   - Fix for F90 conversion:
-*                        .Illimination of pointer to character*9 CSTNID
-*                        .Introduction of distinc pointer for integer
-*                         and real cma arrays (ptmobhdr,ptrobhdr,ptmobdata,ptrobdata)
-*     JM Belanger CMDA/SMC  Jul 2000
-*                   - 32 bits conversion
-*     J. Halle    *CMDA/SMC mai 2006
-*                   - Added one additionnal entry for ROBDATA8 (now 9 itemss instead of 8)
-*     L. Fillion   ARMA/MSC - 25 Feb 2005. Limited Area Mesovar option.
-*                 - Precomputed trigonometric factors for efficient wind rotation used when
-*                   Grd_typ='LU'.
-*     L. Fillion ARMA/MSC May 2006: Mesovar upgrade to v10_0_0.
-*     L. Fillion ARMA/EC - 15 Aug 2007 - Update lam4d to v_10_0_3.
-*     S. Pellerin *ARMA/SMC jan. 2009
-*                   - Allocation of data assimilated mask
-*     L. Fillion ARMA/EC - 07 May 2009 - Update 3dvar LU and GU mode to v_10_2_2.
-*
-*     S. Macpherson *ARMA/MRD Sep 2009
-*                   - added allocation of ground-based GPS ZTD data mask
-*     Bin He        *ARMA/MRB  Oct. 2009 
-*                   - Implemented MPI to 3DVAR 
-*     L. Fillion ARMA/EC - 09 Oct 2009 - Allocate obs arrays for fast rotations now based on grd_roule parameter.
-*     L. Fillion ARMA/EC - 16 Aug 2010 - Comment printout of allocation dimensions of ROBHDR and MOBHDR since not OK. 
-*Arguments
-*     i   KULOUT: unit used for optional printing
 *
 #endif
 C
@@ -69,7 +32,6 @@ C
 *implicits
 #include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comstate.cdk"
 *
       type(struct_obs) :: lobsSpaceData
       INTEGER KULOUT, IERR

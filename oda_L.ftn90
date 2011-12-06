@@ -18,7 +18,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use mod4dv, only : l4dvar
   use mpi 
-  use gridstatevector
+  use gridstatevector_mod
   use gaussGrid_mod
   use obsSpaceData_mod
   use columnData_mod 
@@ -34,7 +34,6 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   !
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comstate.cdk"
 #include "comdimo.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng

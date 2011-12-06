@@ -1,4 +1,4 @@
-      SUBROUTINE BILIN(lcolumn,lobsSpaceData)
+      SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
 !*
 !***s/r BILIN  - Horizontal interpolation of the model variables
 !*               in grid-point space to observation points.
@@ -16,14 +16,14 @@
       use obsSpaceData_mod
       use columnData_mod
       use globalSpectralTransform
+      use gridStateVector_mod
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
-#include "comgd0.cdk"
-#include "comstate.cdk"
       type(struct_columnData) :: lcolumn
+      type(struct_gsv) :: statevector
       type(struct_obs) :: lobsSpaceData
       INTEGER   JLEV, JK, JK2, JGL, JLON, JOBS
       INTEGER   ILON, ILOS, IMIDDLE, ISYM, ILA, IMAX, IERR
@@ -31,7 +31,7 @@
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
       real*8, allocatable ::zgd(:,:,:)
 
-      allocate(zgd(0:(ni+2),1:nkgdim,(-1):(nj+2)),STAT=ierr)
+      allocate(zgd(0:(ni+2),1:statevector%nk,(-1):(nj+2)),STAT=ierr)
       write(*,*) 'allocated zgd:',ierr
       call flush(6)
 !C
@@ -45,14 +45,14 @@
       DO JLEV = 1, NFLEV
          DO JGL = 1, NJ
             DO JLON = 1, NI
-               UT0(JLON,JLEV,JGL) = CONPHY(JGL) * UT0(JLON,JLEV,JGL)
-               VT0(JLON,JLEV,JGL) = CONPHY(JGL) * VT0(JLON,JLEV,JGL)
+               statevector%uu3d(JLON,JLEV,JGL) = CONPHY(JGL) * statevector%uu3d(JLON,JLEV,JGL)
+               statevector%vv3d(JLON,JLEV,JGL) = CONPHY(JGL) * statevector%vv3d(JLON,JLEV,JGL)
             ENDDO
          ENDDO
       ENDDO
 
       ZGD(:,:,:)=0.0d0
-      ZGD(1:NI,1:NKGDIM,1:NJ)=GD(1:NI,1:NKGDIM,1:NJ)
+      ZGD(1:NI,1:statevector%nk,1:NJ)=statevector%gd3d(1:NI,1:statevector%nk,1:NJ)
 !C
 !C*    1.1 EXTRA MERIDIANS
 !C
@@ -60,7 +60,7 @@
 !C     MERIDIAN 1  DUPLICATED INTO MERIDIAN NILON(JGL) + 1
 !C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
 !C
-      DO JK = 1, NKGDIM
+      DO JK = 1, statevector%nk
          DO JGL = 1, NJ
             IMAX = NI
             ZGD(0     ,JK,JGL) = ZGD(NI,JK,JGL)
@@ -71,7 +71,7 @@
 !C
 !C*    1.2 EXTRA PARALLELS
 !C
-      DO JK = 1, NKGDIM
+      DO JK = 1, statevector%nk
 !C
 !C     COMPUTATION OF VALUES AT NORTH AND SOUTH POLES.
 !C

@@ -183,7 +183,7 @@ C
          jj=jj+1
       ENDDO 
 C
-      IF(mpi_myid == 0) THEN
+      IF(mpi_myid == 0 .and. NCONF == 141) THEN
          ier = fnom(nulinclr,clvalu(6),'RND',0)
          IF ( IER .EQ. 0 ) THEN
             write(nulout,*) 'OINCLR - File :', clvalu(6)

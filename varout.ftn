@@ -1,4 +1,4 @@
-      SUBROUTINE varout
+      SUBROUTINE varout(statevector)
       use mod4dv, only : l4dvar
 #if defined (DOC)
 *
@@ -36,6 +36,7 @@
 C
       use MathPhysConstants_mod
       use modfgat, only : nstamplist
+      use gridStateVector_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -47,6 +48,7 @@ C
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
 *
+      type(struct_gsv) :: statevector
       integer vfstluk,write_encode_hyb
       integer jvar, jcol
       integer ji,jj,jlev,inbrlev,imode,inbitstr,ilimlvhu
@@ -201,7 +203,7 @@ c
 c Get the variable cppcvar(jvar) in zlowvar vector
 c
           call gdout2(cppcvar(jvar),ZLOWVAR(1,1,jlev),ni,nj
-     &         ,jlev,llimplemented,IIP1S_INCLR(jlev))
+     &         ,jlev,llimplemented,IIP1S_INCLR(jlev),statevector)
 cprnt          write(nulout,*)'apres gdout2',cppcvar(jvar),jvar,jlev
 cprnt     &         ,IIP1S_INCLR(jlev),llimplemented
 c
@@ -225,7 +227,7 @@ c
           if(cppcvar(jvar).eq.'VV'.or.cppcvar(jvar).eq.'UU') then
 c
             call gdout2(clnomvar,ZLOWWIND(1,1,jlev),ni,nj,jlev
-     &           ,llimplemented,IIP1S_INCLR(jlev))
+     &           ,llimplemented,IIP1S_INCLR(jlev),statevector)
 c
             if(nulinclr.ne.0.and.llvarout) then
 ccc        write(nulout,*)'xxx inpak_inc= ',jlev,inpak_inc,clnomvar
