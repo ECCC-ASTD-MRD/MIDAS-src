@@ -87,7 +87,6 @@ C
 #include "pardim.cdk"
 #include "comlun.cdk"
 #include "comdim.cdk"
-#include "compdg.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 *
@@ -101,35 +100,9 @@ C
      S     ' variational assimilation'
       WRITE(KULOUT,FMT='(6('' ***********''))')
 C
-C*    4. Arrays needed to define the geometry of the model (in COMGEM)
-C     .  ------------------------------------------------------------
-C
- 400  CONTINUE
-C
       ILEN = NJ
       CALL HPALLOC(PTCONPHY,MAX(ILEN,1),IERR,8)
       CALL HPALLOC(PTCONIMA,MAX(ILEN,1),IERR,8)
-!!!
-!!! MOVED CODE FOR CONTROL VECTOR TO SUCOV
-!!!
-C
-C*    8. Arrays required for model coordinate analysis
-C     .  ---------------------------------------------
 c
-c     arrays of background-related fields on background grid (compdg)
-c     N.B.: Doesnt assume global structure as GD0,GD1 for instance.   ! WARNING!!!!
-c
-      ILEN = NI*NFLEV*NJ
-      CALL HPALLOC(PTUTG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTVTG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTTG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTQG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTCHIG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTOMEGAG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTGDGZG,MAX(ILEN,1),IERR,8)
-      ILEN = NI*NJ
-      CALL HPALLOC(PTGPSG,MAX(ILEN,1),IERR,8)
-      CALL HPALLOC(PTGPTG,MAX(ILEN,1),IERR,8)
-C
       RETURN
       END

@@ -1,7 +1,0 @@
-#if defined (DOC)
-!     CHUM   : Selection for the humidity analysis control
-!              variable.
-!              Options: 'LQ'---> lnq ; 'ES'---> T-Td
-#endif
-      CHARACTER*2 CHUM
-      COMMON /COMCVAC/CHUM

@@ -59,7 +59,6 @@
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdim.cdk"
-#include "comcva.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
 *
@@ -112,8 +111,6 @@ c
       enddo
 !$OMP END PARALLEL DO
 c
-      if(chum.eq.'LQ') then
-c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev)
         do jobs = 1, lcolumn%nobtot
           do jlev = 1, lcolumn%nlev
@@ -133,7 +130,6 @@ c          endif
           enddo
         enddo
 !$OMP END PARALLEL DO
-      endif
 
       call col_deallocate(lcolumnt)
 c

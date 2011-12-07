@@ -14,11 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine subasic_gd
+      subroutine subasic_gd(statevectorg)
 !
       use MathPhysConstants_mod
       use modfgat, only : nstamplist
       use mod4dv, only : l4dvar
+      use gridStateVector_mod
       IMPLICIT NONE
 #if defined (DOC)
 !
@@ -48,33 +49,22 @@
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
 #include "namgdpar.cdk"
-#include "compdg.cdk"
 #include "comgem.cdk"
 #include "cvcord.cdk"
 !
-      integer ji,jj,jk,jlev,iwvx,iwvy,iwvk,ilev
-      integer idum1,idum2,idum3,idum4
-      integer iig1,iig2,iig3
+      type(struct_gsv) :: statevectorg
+      integer ji,jj,jk,jlev
       integer iip2,iip3,itrlnlev,ip1_pak_trl,ip1_vco_trl,itrlgid,ibrpstamp
       integer iip1s_trl(jpnflev)
       integer :: k,koutmpg  !  the unit which has the selected records.
 !
-      real*8  zmin,zmax,zcon,zcscl
       real*8 zug(ni,nflev,nj)
       real*8 zvg(ni,nflev,nj)
       real*8 zttg(ni,nflev,nj)
       real*8 zgzg(ni,nflev,nj)
       real*8 zhug(ni,nflev,nj)
-      real*8 zesg(ni,nflev,nj)
       real*8 zpsg(ni,nj)
       real*8 zpt(ni,nj)
-      real*8 zgdpsi9(ni,nflev,nj)
-      real*8 zgdchi9(ni,nflev,nj)
-      real*8 zvort9(ni,nflev,nj)
-      real*8 zdiv9(ni,nflev,nj)
-      real*8 zcorr(ni,nflev,nj)
-      real*8 zwh(ni,nj)
-      real*8 zwh2(ni,nj)
 !
 !!
       write(nulout,*) 'subasic_gd: BEGIN'
@@ -97,23 +87,19 @@
      &     ,ITRLGID,'UU',ibrpstamp,jpnflev,ninmpg
      &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
 !
-        call getfstg2(zttg,zgzg,zhug,zug,zvg,zesg,zpsg,zpt)
+        call getfstg2(zttg,zgzg,zhug,zug,zvg,zpsg,zpt)
 !
         do ji=1,ni
           do jj=1,nj
-            gpsg(ji,1,jj)=zpsg(ji,jj)
+            statevectorg%ps3d(ji,1,jj)=zpsg(ji,jj)
             do jlev=1,nflev
-              utg(ji,jlev,jj)=zug(ji,jlev,jj)
-              vtg(ji,jlev,jj)=zvg(ji,jlev,jj)
-              ttg(ji,jlev,jj)=zttg(ji,jlev,jj)
-              gzg(ji,jlev,jj)=zgzg(ji,jlev,jj)
-              qg(ji,jlev,jj)=zhug(ji,jlev,jj)
+              statevectorg%uu3d(ji,jlev,jj)=zug(ji,jlev,jj)
+              statevectorg%vv3d(ji,jlev,jj)=zvg(ji,jlev,jj)
+              statevectorg%tt3d(ji,jlev,jj)=zttg(ji,jlev,jj)
+              statevectorg%hu3d(ji,jlev,jj)=zhug(ji,jlev,jj)
             enddo
           enddo
         enddo
-
-          call maxmin(ttg,ni,nj,nflev,zmin,zmax,
-     &      idum1,idum2,idum3,idum4,'subasic_gd     ','TTG')
 !
       write(nulout,*) 'subasic_gd: END'
       return

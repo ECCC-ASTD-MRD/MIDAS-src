@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DIAG3DVAR(statevector)
+      SUBROUTINE DIAG3DVAR(statevector,statevectorg)
 #if defined (DOC)
 *
 ***s/r DIAG3DVAR  - diagnostics in the post-processing of the model state
@@ -22,26 +22,6 @@
 *
 *Author  : P. Gauthier *ARMA/AES  December 2, 1996
 *     .
-*Revision:
-*          S. Pellerin *ARMA/AES  Oct, 1997
-*                      Computation of total ozone O3 (DU) from level
-*                      concentration (ppmv)
-*          L. Fillion *ARMA/AES  16 nov 98
-*                      GZ,ES as diagnostic vrbls in cvcord='ETAGE' mode.
-*          C. Charette *ARMA/AES  19 nov 98
-*                      Moved  call to getfstg into postproc routine
-*          L. Fillion *ARMA/AES  4 dec 98
-*                      Prepare Balanced part of TT,GZ,ps if desired as diagnostic output.
-*          C. Charette *ARMA/AES feb 1999
-*           - Adjust zttg at the top 4 levels in hydrostatic equation
-**
-*          L. Fillion *ARMA/AES  17 feb 1999
-*                      Introduce ltt2phigd.
-*          C. Charette *ARMA/AES oct 1999
-*           - Change  parameter to nlev in do loop to calculate t unbalance
-*          C. Charette - ARMA/SMC - Sept 2004
-*           - Conversion to hybrid vertical coordinate
-*
 #endif
 C
       use MathPhysConstants_mod
@@ -50,13 +30,10 @@ C
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comcva.cdk"
 #include "comgem.cdk"
 #include "localpost.cdk"
-      type(struct_gsv) :: statevector
-      INTEGER JLEV, JLA, ILEV,ILEN, JLAT, ILON, JLON, IERR
-      REAL*8 ZRA2, ZCORIOLIS
-C
+      type(struct_gsv) :: statevector,statevectorg
+!
       WRITE(NULOUT,FMT='(/,4X,"Starting DIAG3DVAR",//)')
 
 !!!
@@ -66,14 +43,12 @@ C
 c
 c     *** ES ***
 c
-      if (chum .eq. 'LQ') then
-        call lq2esgd(zes,statevector%tt3d,statevector%hu3d,statevector%ps3d,zhug,zpsg,ni,nj,nflev)
-      endif
+      call lq2esgd(zes,statevector%tt3d,statevector%hu3d,statevector%ps3d,statevectorg%hu3d,statevectorg%ps3d,ni,nj,nflev)
 c
 c     *** Total GZ ***
 c
-      call lt2tvgd(ztv,statevector%tt3d,statevector%hu3d,zhug,ni,nj,nflev)
-      call ltt2phigd(zgz,ztv,statevector%ps3d,zpsg,zpt) ! Total GZ
+      call lt2tvgd(ztv,statevector%tt3d,statevector%hu3d,statevectorg%hu3d,ni,nj,nflev)
+      call ltt2phigd(zgz,ztv,statevectorg%ps3d,zpt)
 c
       LVARDIAG=.true.
 C

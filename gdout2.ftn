@@ -102,7 +102,6 @@ C
 #include "comdim.cdk"
 #include "comlun.cdk"
 #include "comgem.cdk"
-#include "comcva.cdk"
 #include "compost.cdk"
 *
       INTEGER kni,knj,klev,kip1
@@ -244,22 +243,18 @@ C
 C     *  Humidity field
 C
       ELSE IF(CPVAR.EQ.'ES') THEN
-        if(chum .eq. 'LQ') then
           DO JLON = 1, kni
             DO JGL = 1, knj
               PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
             END DO
           END DO
-        endif
 C
       ELSE IF(CPVAR.EQ.'LQ') THEN
-        IF(CHUM .EQ. 'LQ')THEN
           DO JLON = 1, kni
             DO JGL = 1, knj
               PPTRANS(JLON,JGL) = statevector%hu3d(JLON,KLEV,JGL)
             END DO
           END DO
-        ENDIF
 C
       ELSE IF(CPVAR.EQ.'HU') THEN
           DO JLON = 1, kni

@@ -59,18 +59,6 @@ C
          NPPLEV(JLEV) = 0
       END DO
 C
-*----------------------------------------------------------------
-*      CVCORD = 'PRESS'
-*      COMPULSARY VARIALBES:'UU','VV','GZ','ES'
-*      DIAGNOSTIC VARIABLES:'PP','CC','QR','QQ','DD','ZB','ZU'
-*----------------------------------------------------------------
-*      CVCORD = 'ETAGE' .AND. CHUM = 'LQ'
-*      COMPULSARY VARIALBES:'UU','VV','TT','HU','P0','LQ'
-*      DIAGNOSTIC VARIABLES:'GZ','ES','VT','QR','DD','QQ','PP','CC',
-*                           'TB','TU','ZB','ZU' 'PB','PU'
-*
-*-----------------------------------------------------------------
-*     CVCORD = 'PRESS' DEFAULT VALUES
       do jlev = 1,JPNFLEV
         NPPLEV(jlev)  =  0
       enddo

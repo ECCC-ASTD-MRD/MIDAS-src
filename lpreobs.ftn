@@ -39,9 +39,6 @@
       use columnData_mod 
  
       IMPLICIT NONE
-*implicits
-#include "comcva.cdk"
-*
       type(struct_columnData) :: lcolumn,lcolumng
       INTEGER JLEV,JOBS
 C

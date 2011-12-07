@@ -70,15 +70,8 @@ C
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "compdg.cdk"
 #include "comgem.cdk"
-C
-C*    Comdecks associated with the observations
-C     ----------------------------------------
 #include "comdimo.cdk"
- 
- 
- 
 *
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       integer  k

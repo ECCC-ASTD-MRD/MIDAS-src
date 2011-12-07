@@ -15,7 +15,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine getfstg2(ptg,pgzg,pqg,pug,pvg,pesg,ppsg,ppt)
+      subroutine getfstg2(ptg,pgzg,pqg,pug,pvg,ppsg,ppt)
       use mod4dv, only : l4dvar
 *
 #if defined (DOC)
@@ -75,7 +75,7 @@ C
       EXTERNAL SFOQST8,SFOEW8
 *
       INTEGER ibrpstamp
-      real*8 ptg(ni,nflev,nj), pqg(ni,nflev,nj), pesg(ni,nflev,nj)
+      real*8 ptg(ni,nflev,nj), pqg(ni,nflev,nj)
       real*8 pug(ni,nflev,nj), pvg(ni,nflev,nj), pgzg(ni,nflev,nj)
       real*8 ppt(ni,nj),ppsg(ni,nj)
 *
@@ -93,17 +93,11 @@ C
       integer ig1tic,ig2tic,ig3tic,ig4tic
       real*8 zmin,zmax,zcon
 *
-      LOGICAL ldhu2es
 ccc debug
-      real ax(ni),ay(nj)
-      REAL*8 zqsat
       REAL*8 ZTRANS(ni,nj,nflev),zvvg(ni,nj,nflev)
-      REAL*8 ZPPG(ni,nj,nflev),zpsg(ni,nj),zpresa,zpresb
+      REAL*8 zpsg(ni,nj),zpresa,zpresb
       REAL*8 zttg(ni,nj,nflev),zqqg(ni,nj,nflev)
       REAL*8 zgzg(ni,nj,nflev)
-!
-      real ax_u(ni),ay_v(nj)
-      real zxlon1_4,zxlat1_4,zxlon2_4,zxlat2_4
 *
       EXTERNAL ABORT3D
 *
@@ -194,10 +188,6 @@ ccc debug
       call maxmin(pqg,ni,nj,nflev,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'getfstg2       ',
      &            'HUG')
-!
-!       Set Dew-point depression to zero (not used anywhere)
-!
-       pesg(:,:,:)=0.0d0
 !
 !      U wind-image component
 !

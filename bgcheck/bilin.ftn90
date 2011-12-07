@@ -15,7 +15,7 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
-      use globalSpectralTransform
+      use gaussGrid_mod
       use gridStateVector_mod
       IMPLICIT NONE
 #include "pardim.cdk"
@@ -32,7 +32,7 @@
       real*8, allocatable ::zgd(:,:,:)
 
       allocate(zgd(0:(ni+2),1:statevector%nk,(-1):(nj+2)),STAT=ierr)
-      write(*,*) 'allocated zgd:',ierr
+      write(*,*) 'allocated zgd:',ierr,ni,nj,statevector%nk,nflev,nobtot
       call flush(6)
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
@@ -106,6 +106,9 @@
          ENDDO
 
       ENDDO
+      write(*,*) 'zgd=',zgd(120,:,60)
+      write(*,*) 'gd3d=',statevector%gd3d(120,:,60)
+      write(*,*) 'uu3d=',statevector%uu3d(120,:,60)
 !C
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
@@ -131,7 +134,7 @@
 !C
          DLDXN = DLLOO/DLDLON + 1. - ILON
          DLDXS = DLLOO/DLDLOS + 1. - ILOS
-         DLDY  = (gst_getRLATI(ILA)-DLLAO)/(gst_getRLATI(ILA)-gst_getRLATI(ILA+1))
+         DLDY  = (gaus_RLATI(ILA)-DLLAO)/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
          DLW1  = (1.-DLDXN)*(1.-DLDY)
          DLW2  = DLDXN*(1.-DLDY)
          DLW3  = (1.-DLDXS)*DLDY

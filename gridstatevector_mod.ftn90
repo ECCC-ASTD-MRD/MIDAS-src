@@ -237,7 +237,7 @@ CONTAINS
 
     type(struct_gsv) :: statevector
     integer          :: ni,nj,nlev,nt
-    integer          :: ierr,ishift,iloc,jvar
+    integer          :: ierr,iloc,jvar
 
     statevector%ni=ni
     statevector%nj=nj

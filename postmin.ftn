@@ -62,11 +62,9 @@
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "comcva.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "compost.cdk"
-#include "compdg.cdk"
 #include "localpost.cdk"
 #include "comvfiles.cdk"
 *
@@ -79,7 +77,7 @@ C
       REAL*8 DLDS(1)
       real*8 zpsig(ni,nflev,nj)
       real*8 z3d(ni,nflev,nj)
-      type(struct_gsv) :: statevector
+      type(struct_gsv) :: statevector,statevectorg
 
       CHARACTER *8 CSTATUS
 C
@@ -111,11 +109,6 @@ c
       llstdevout = .false.
 !
       ILEN = NI*NFLEV*NJ
-      CALL HPALLOC(PXTTG,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXGZG,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXHUG,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXUUG,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXVVG,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXPP,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXQQ,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXCC,MAX(1,ILEN),IERR,8)
@@ -128,7 +121,6 @@ c
       CALL HPALLOC(PXGZB,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXGZU,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXES,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXESG,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXHU,MAX(1,ILEN),IERR,8)
       CALL HPALLOC(PXO3,MAX(1,NI*NJ),IERR,8)
       CALL HPALLOC(PXPSG,MAX(1,NI*NJ),IERR,8)
@@ -142,10 +134,6 @@ c
       CALL ZERO(ILEN,ZPP(1,1,1))
       CALL ZERO(ILEN,ZDD(1,1,1))
       CALL ZERO(ILEN,ZCC(1,1,1))
-      CALL ZERO(ILEN,ZUUG(1,1,1))
-      CALL ZERO(ILEN,ZVVG(1,1,1))
-      CALL ZERO(ILEN,ZTTG(1,1,1))
-      CALL ZERO(ILEN,ZGZG(1,1,1))
       CALL ZERO(ILEN,ZTTB(1,1,1))
       CALL ZERO(ILEN,ZTTU(1,1,1))
       CALL ZERO(ILEN,ZTV(1,1,1))
@@ -153,9 +141,7 @@ c
       CALL ZERO(ILEN,ZGZB(1,1,1))
       CALL ZERO(ILEN,ZGZU(1,1,1))
       CALL ZERO(ILEN,ZES(1,1,1))
-      CALL ZERO(ILEN,ZESG(1,1,1))
       CALL ZERO(ILEN,ZHU(1,1,1))
-      CALL ZERO(ILEN,ZHUG(1,1,1))
       CALL ZERO(NI*NJ,ZO3(1,1))
       CALL ZERO(NI*NJ,zpsg(1,1))
       CALL ZERO(NI*NJ,zpsb(1,1))
@@ -203,36 +189,25 @@ C      Compute increments of HU on analysis grid
 c      This field is compulsary because it is used
 c      to produce the analysis of HU in FELIX
 c
-        do jj=1,nj
-          do jk=1,nflev
-            do ji=1,ni
-              zuug(ji,jk,jj)=utg(ji,jk,jj)
-              zvvg(ji,jk,jj)=vtg(ji,jk,jj)
-              zttg(ji,jk,jj)=ttg(ji,jk,jj)
-              zgzg(ji,jk,jj)=gzg(ji,jk,jj)
-              zhug(ji,jk,jj)=qg(ji,jk,jj)
-            enddo
-          enddo
-        enddo
-        do ji=1,ni
-          do jj=1,nj
-            zpsg(ji,jj)=gpsg(ji,1,jj)
-          enddo
-        enddo
 !
-      IF ( CHUM .EQ. 'LQ') THEN
+!     Prepare background fields at initial time for flow-dependent control variables
+!
+      call gsv_allocate(statevectorg,ni,nj,nflev,1)
+      call subasic_gd(statevectorg)
+!
+! assume HU actually contains LQ
+!
         zhu(:,:,:) = 0.0
         do jk = 1,nflev
           do jj = 1,nj
             do ji = 1,ni
-              ZTEMP = log(zhug(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
-              zhu(ji,jk,jj) = EXP(ZTEMP) - zhug(ji,jk,jj)
+              ZTEMP = log(statevectorg%hu3d(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
+              zhu(ji,jk,jj) = EXP(ZTEMP) - statevectorg%hu3d(ji,jk,jj)
             enddo
           enddo
         enddo
-      endif
 !
-      call diag3dvar(statevector)
+      call diag3dvar(statevector,statevectorg)
 !
       call memfree(nulout,lobsSpaceData)
 !
@@ -245,10 +220,7 @@ c
       call tmg_stop(99)
 C
       call gsv_deallocate(statevector)
-      CALL HPDEALLC(PXTTG,IERR,1)
-      CALL HPDEALLC(PXHUG,IERR,1)
-      CALL HPDEALLC(PXUUG,IERR,1)
-      CALL HPDEALLC(PXVVG,IERR,1)
+      call gsv_deallocate(statevectorg)
       CALL HPDEALLC(PXPP,IERR,1)
       CALL HPDEALLC(PXQQ,IERR,1)
       CALL HPDEALLC(PXCC,IERR,1)
@@ -261,7 +233,6 @@ C
       CALL HPDEALLC(PXGZB,IERR,1)
       CALL HPDEALLC(PXGZU,IERR,1)
       CALL HPDEALLC(PXES,IERR,1)
-      CALL HPDEALLC(PXESG,IERR,1)
       CALL HPDEALLC(PXHU,IERR,1)
       CALL HPDEALLC(PXO3,IERR,1)
       CALL HPDEALLC(PXPSG,IERR,1)

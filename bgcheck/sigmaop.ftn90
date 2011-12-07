@@ -23,8 +23,8 @@
       INTEGER VFSTLIR,FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
       INTEGER IKEY,ILEN,IERR,IDATE
 
-      REAL*8 ZBUFFER(NJ,NFLEV),ZTRANS(NI,NJ),ZJO
-      POINTER (PXZBUFFER,ZBUFFER),(PXTRANS,ZTRANS)
+      REAL*8 ZBUFFER(NJ,NFLEV)
+      POINTER (PXZBUFFER,ZBUFFER)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
@@ -32,8 +32,6 @@
 
       ILEN = NJ*NFLEV
       CALL HPALLOC(PXZBUFFER,MAX(1,ILEN),IERR,8)
-      ILEN = NJ*NI
-      CALL HPALLOC(PXTRANS,MAX(1,ILEN),IERR,8)
 
       call gsv_allocate(statevector,ni,nj,nflev,1)
       call gsv_zero(statevector)
@@ -61,7 +59,6 @@
       IP2      = -1
       IP3      = -1
       CLTYPVAR =' '
-      ILEN = NJ*statevector%nk
 !C
 !C READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
 !C
@@ -75,7 +72,6 @@
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
-                 ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)*RMSKNT
                  if(IG2 .eq. 0) then
                     statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  else
@@ -90,7 +86,6 @@
         DO J = 1, NFLEV
            DO JLAT = 1, NJ
               DO JLON=1,NI
-                 ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)*RMSKNT
                  if(IG2 .eq. 0) then
                     statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
                  else
@@ -109,7 +104,6 @@
                  else
                     statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
-                 ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)
               END DO
            END DO
         END DO
@@ -123,7 +117,6 @@
                  else
                     statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
                  endif
-                 ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)
               END DO
            END DO
         END DO
@@ -168,7 +161,6 @@
                else
                   statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                endif
-               ZTRANS(JLON,JLAT) =       ZBUFFER(JLAT,J)
             END DO
          END DO
       END DO
@@ -284,6 +276,5 @@
 
       call col_deallocate(lcolumn)
       CALL HPDEALLC(PXZBUFFER,IERR,1)
-      CALL HPDEALLC(PXTRANS,IERR,1)
       RETURN
       END SUBROUTINE SIGMAOP

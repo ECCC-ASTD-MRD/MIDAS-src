@@ -215,10 +215,6 @@
       call sugomobs(lcolumng,lcolumnhr)
       call tmg_stop(16)
 !
-!     Prepare background fields at initial time for flow-dependent control variables
-!
-      call subasic_gd
-!
 !     Compute observation innovations and prepare obsSpaceData for minimization
 !
       call suinnov(lcolumnhr,lcolumng,lobsSpaceData)

@@ -56,7 +56,6 @@
 #include "comfilt.cdk"
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-#include "comcva.cdk"
 #include <prof_f.h>
 *
       type(struct_obs) :: lobsSpaceData

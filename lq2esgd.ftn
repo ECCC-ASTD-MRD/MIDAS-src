@@ -52,7 +52,7 @@ C LMHUAESV
       integer kni,knj,knk
       real*8 pesinc(kni,knk,knj)
       real*8 pttinc(kni,knk,knj),phuinc(kni,knk,knj),ppsinc(kni,1,knj)
-      real*8 pqg(kni,knk,knj), ppsg(kni,knj)
+      real*8 pqg(kni,knk,knj), ppsg(kni,1,knj)
 *IMPLICITES
 #include "comlun.cdk"
 #include "pardim.cdk"
@@ -83,7 +83,7 @@ C
             zpresb = ((vhybinc(jk) - rptopinc/rprefinc)
      &                /(1.0-rptopinc/rprefinc))**rcoefinc
             zpresa = rprefinc * (vhybinc(jk)-zpresb)
-            zpres  = zpresa + zpresb*ppsg(ji,jj)
+            zpres  = zpresa + zpresb*ppsg(ji,1,jj)
 *
 *          First do the forward branch to get saturated vapour pressure
 *          from q
@@ -114,7 +114,7 @@ c     &          ,ji,jj,jk,tt0(ji,jk,jj),q0(ji,jk,jj)
 c           write(nulout,*)' lq2esgd:ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL  '
 c     &          ,ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL
 c           write(nulout,*)' lq2esgd:ppsg,pqg,zpres,vhybinc(jk)'
-c     &               ,ppsg(ji,jj),pqg(ji,jk,jj),zpres,vhybinc(jk)
+c     &               ,ppsg(ji,1,jj),pqg(ji,jk,jj),zpres,vhybinc(jk)
 c           write(nulout,*)' lq2esgd:ji,jj,jk,ZGAMMA,ZEL,ZTDL,pesinc  '
 c     &          ,ji,jj,jk,ZGAMMA,ZEL,ZTDL,pesinc(ji,jk,jj)
 c           endif

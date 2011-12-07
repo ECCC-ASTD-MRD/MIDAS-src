@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE ltt2phigd(pgz,ptt,pps,ppsg,ppt)
+      SUBROUTINE ltt2phigd(pgz,ptt,ppsg,ppt)
 #if defined (DOC)
 *
 ***s/r ltt2phigd  - Grid-point version of ltt2phi.ftn
@@ -33,7 +33,6 @@
 *Arguments
 *     in-
 *   ptt    : 3D Temperature Incr. appearing on r.h.s. of TL-eq.
-*   pps    : Surface-pressure Incr. appearing on r.h.s. of TL-eq.
 *   ppsg   : Basic-state Surface-pressure
 *   ppt    : Model's pressure top (2D field).
 *     out-
@@ -47,7 +46,7 @@ C
 #include "comgem.cdk"
 *
       real*8 pgz(ni,nflev,nj), ptt(ni,nflev,nj)
-      real*8 pps(ni,nj),ppsg(ni,nj),ppt(ni,nj)
+      real*8 ppsg(ni,1,nj),ppt(ni,nj)
 *
       real*8  vma(nflev),vmb(nflev),vmc(nflev),vmd(nflev),vme(nflev),vmf(nflev)
       INTEGER JLEV, JLA, ILA, ILEV,ILEN, JLAT, ILON, JLON, IERR
@@ -74,7 +73,7 @@ c     Prepare r.h.s. for TL-Hydrostatic equation
 c
       do jlat = 1, nj
         ilon = ni
-        call calcpres(ZPRESS,vhybinc,nflev,ppsg(1,jlat),rptopinc
+        call calcpres(ZPRESS,vhybinc,nflev,ppsg(1,1,jlat),rptopinc
      &                   ,rprefinc,rcoefinc,ni)
         do jlon = 1, ni
           do jlev = 1,nflev

@@ -22,6 +22,7 @@ MODULE mpi
 !***************************************************************
  SUBROUTINE mpi_init()
  IMPLICIT NONE
+ integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
 
  ! 1. Initilize MPI . 
  mpi_npex=0
@@ -35,6 +36,12 @@ MODULE mpi
  mpi_myLonEnd=0
  mpi_myLatHalfBeg=0
  mpi_myLatHalfEnd=0
+
+!$OMP PARALLEL PRIVATE(numthread,mythread)
+ mythread=omp_get_thread_num()
+ numthread=omp_get_num_threads()
+ if(mythread.eq.0) write(*,*) 'NUMBER OF THREADS=',numthread     
+!$OMP END PARALLEL
 
  END SUBROUTINE mpi_init
  

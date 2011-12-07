@@ -80,9 +80,6 @@ C
 #include "comdimo.cdk"
 #include "namdimo.cdk"
 C
-#include "comcva.cdk"
-#include "namcva.cdk"
-C
 #include "comfilt.cdk"
 #include "namfilt.cdk"
 C
@@ -155,20 +152,15 @@ C
          READ(NULNAM,NAMCT0)
          WRITE(NULOUT,NAMCT0)
 C
-      ELSE IF(CDNAME.EQ.'NAMCVA')THEN
-C
-         READ(NULNAM,NAMCVA)
-         WRITE(NULOUT,NAMCVA)
-C
       ELSE IF(CDNAME.EQ.'NAMDIM')THEN
 C
          READ(NULNAM,NAMDIM)
          WRITE(NULOUT,NAMDIM)
+C
       ELSE IF(CDNAME.EQ.'NAMDIMO')THEN
 C
          READ(NULNAM,NAMDIMO)
          WRITE(NULOUT,NAMDIMO)
-C
 C
       ELSE IF(CDNAME.EQ.'NAMFILT')THEN
 C
@@ -194,11 +186,6 @@ C
 C
          READ(NULNAM,NAMPOST)
          WRITE(NULOUT,NAMPOST)
-C
-      ELSE IF(CDNAME.EQ.'NAMCVA')THEN
-C
-         READ(NULNAM,NAMCVA)
-         WRITE(NULOUT,NAMCVA)
 C
       ELSE IF(CDNAME.EQ.'NAMBPOST')THEN
 C

@@ -42,7 +42,6 @@ C
 #include "pardim.cdk"
 #include "comdim.cdk"
 #include "comlun.cdk"
-#include "compdg.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 *
@@ -50,60 +49,13 @@ C
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       EXTERNAL HPDEALLC, FSTFRM,EXFIN
 C
-C*    1. Verify the integrity of the heap
-C
- 100  CONTINUE
-C
       WRITE(KULOUT,FMT
      &     ='(/,10X,"Free the memory which is not needed in varout",/,20
      &         (" *"))')
 C
-C*    2. Verify the arrays allocated within SUALLO
+      call cvm_deallocate
 C
- 200    CONTINUE
+      call obs_finalize(lobsSpaceData)
 C
-        call cvm_deallocate
-C
-        call obs_finalize(lobsSpaceData)
-C
-c deallocate background fields on analysis grid
-c
-        CALL HPDEALLC(pttg,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," pttg checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " pttg. IERR =",I3)')IERR
-        END IF
-c
-c
-        CALL HPDEALLC(ptqg,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," ptqg checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " ptqg. IERR =",I3)')IERR
-        END IF
-c
-        CALL HPDEALLC(ptgpsg,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," ptgpsg checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " ptgpsg. IERR =",I3)')IERR
-        END IF
-        CALL HPDEALLC(ptgptg,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," ptgptg checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " ptgptg. IERR =",I3)')IERR
-        END IF
-
-c
       RETURN
       END
