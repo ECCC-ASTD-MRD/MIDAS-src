@@ -126,7 +126,6 @@ C assimilated
 #include "comtov.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comdim.cdk"
 #include "cparbrp.cdk"
 #include "comfilt.cdk"
 #include "comstato.cdk"
@@ -181,7 +180,6 @@ C               12  'ERRONEOUS EL'
 C               13  'RESERVED    '
 C
       type(struct_obs) :: lobsSpaceData
-      REAL zlat_4,zlon_4,zx,zy
       REAL*8 ZZLAT, ZLON, ZLEV, ZVAR
       REAL*8 ZLAT, GPH
       REAL*4 DLLAO
@@ -234,17 +232,7 @@ C
       INTEGER ezgdef_fmem,gdxyfll,ezqkdef
       integer ig1,ig2,ig3,ig4,ini,inj,ink
       integer ig1tic,ig2tic,ig3tic,ig4tic 
-!
-      real zlat1,zlon1,zlat2,zlon2   ! for Lam4d
-      real zlatdeg,zlondeg,zlatransf,zlotransf   ! for Lam4d
-      real ax(ni),ay(nj)
-      real zgrdx4(ni),zgrdy4(nj)
-      real zxlon1_4,zxlat1_4,zxlon2_4,zxlat2_4
-      real znjp1
-      real*8 zlatrot 
 !-----------------------------------------------------------------------
-!!
-      znjp1 = real(nj+1)
 !
       DO JK=1,17
         IKNTFFR(JK)=0
@@ -325,8 +313,8 @@ C     For MAM the wind observations are removed.
           ZLAT    = obs_elem_r4(lobsSpaceData,'LAT ',JO)
           IF(ZLAT .GT. gaus_RLATI(1)) THEN
             call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(1)))
-          ELSEIF(ZLAT .LT. gaus_RLATI(NJ)) THEN
-            call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(NJ)))
+          ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
+            call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(gaus_NJ)))
           ENDIF
         END DO
       ENDIF
@@ -665,7 +653,7 @@ CSMP
               ZLON = obs_elem_r4(lobsSpaceData,'LON ',IOBS)*180./RPI
               ZVAR = obs_elem_r4(lobsSpaceData,'VAR ',JDATA)
               ZLEV = obs_elem_r4(lobsSpaceData,'PPP ',JDATA)*0.01
-              IF(ZLAT .GT. gaus_RLATI(1) .or. ZLAT .LT. gaus_RLATI(NJ)) THEN
+              IF(ZLAT .GT. gaus_RLATI(1) .or. ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
                 IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV ) THEN
                   write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
                   call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)

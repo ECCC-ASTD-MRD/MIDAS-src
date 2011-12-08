@@ -19,7 +19,6 @@
       use gridStateVector_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
       type(struct_columnData) :: lcolumn
@@ -31,8 +30,8 @@
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
       real*8, allocatable ::zgd(:,:,:)
 
-      allocate(zgd(0:(ni+2),1:statevector%nk,(-1):(nj+2)),STAT=ierr)
-      write(*,*) 'allocated zgd:',ierr,ni,nj,statevector%nk,nflev,nobtot
+      allocate(zgd(0:(statevector%ni+2),1:statevector%nk,(-1):(statevector%nj+2)),STAT=ierr)
+      write(*,*) 'allocated zgd:',ierr,statevector%ni,statevector%nj,statevector%nk,statevector%nlev,nobtot
       call flush(6)
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
@@ -42,17 +41,17 @@
 !C
 !C*    1.0 TRANSFORM WIND IMAGES INTO PHYSICAL WINDS
 !C
-      DO JLEV = 1, NFLEV
-         DO JGL = 1, NJ
-            DO JLON = 1, NI
-               statevector%uu3d(JLON,JLEV,JGL) = CONPHY(JGL) * statevector%uu3d(JLON,JLEV,JGL)
-               statevector%vv3d(JLON,JLEV,JGL) = CONPHY(JGL) * statevector%vv3d(JLON,JLEV,JGL)
+      DO JLEV = 1, statevector%NLEV
+         DO JGL = 1, statevector%NJ
+            DO JLON = 1, statevector%NI
+               statevector%uu3d(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * statevector%uu3d(JLON,JLEV,JGL)
+               statevector%vv3d(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * statevector%vv3d(JLON,JLEV,JGL)
             ENDDO
          ENDDO
       ENDDO
 
       ZGD(:,:,:)=0.0d0
-      ZGD(1:NI,1:statevector%nk,1:NJ)=statevector%gd3d(1:NI,1:statevector%nk,1:NJ)
+      ZGD(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)=statevector%gd3d(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)
 !C
 !C*    1.1 EXTRA MERIDIANS
 !C
@@ -61,9 +60,9 @@
 !C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
 !C
       DO JK = 1, statevector%nk
-         DO JGL = 1, NJ
-            IMAX = NI
-            ZGD(0     ,JK,JGL) = ZGD(NI,JK,JGL)
+         DO JGL = 1, STATEVECTOR%NJ
+            IMAX = STATEVECTOR%NI
+            ZGD(0     ,JK,JGL) = ZGD(STATEVECTOR%NI,JK,JGL)
             ZGD(IMAX+1,JK,JGL) = ZGD( 1,JK,JGL)
             ZGD(IMAX+2,JK,JGL) = ZGD( 2,JK,JGL)
          ENDDO
@@ -77,32 +76,32 @@
 !C
          DLMEAN = 0.
          DLMEAS = 0.
-         IMAX = NI
+         IMAX = STATEVECTOR%NI
          DO JLON = 1, IMAX
             DLMEAN = DLMEAN + ZGD(JLON,JK,1)
-            DLMEAS = DLMEAS + ZGD(JLON,JK,NJ)
+            DLMEAS = DLMEAS + ZGD(JLON,JK,STATEVECTOR%NJ)
          ENDDO
-         DLMEAN = DLMEAN / NI
-         DLMEAS = DLMEAS / NI
-         IMAX = NI
+         DLMEAN = DLMEAN / STATEVECTOR%NI
+         DLMEAS = DLMEAS / STATEVECTOR%NI
+         IMAX = STATEVECTOR%NI
          DO JLON = 0, IMAX + 2
             ZGD(JLON,JK,0)    = DLMEAN
-            ZGD(JLON,JK,NJ+1) = DLMEAS
+            ZGD(JLON,JK,STATEVECTOR%NJ+1) = DLMEAS
          ENDDO
 !C
 !C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
 !C
-         IMIDDLE = NI / 2
+         IMIDDLE = STATEVECTOR%NI / 2
          DO JLON = 0, IMIDDLE
             ISYM = JLON + IMIDDLE
             ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
-            ZGD(JLON,JK,NJ+2) = ZGD(ISYM,JK,NJ)
+            ZGD(JLON,JK,STATEVECTOR%NJ+2) = ZGD(ISYM,JK,STATEVECTOR%NJ)
          ENDDO
-         IMAX = NI
+         IMAX = STATEVECTOR%NI
          DO JLON = IMIDDLE + 1, IMAX + 2
             ISYM = JLON - IMIDDLE
             ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
-            ZGD(JLON,JK,NJ+2) = ZGD(ISYM,JK,NJ)
+            ZGD(JLON,JK,STATEVECTOR%NJ+2) = ZGD(ISYM,JK,STATEVECTOR%NJ)
          ENDDO
 
       ENDDO
@@ -125,8 +124,8 @@
 
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
          IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-         DLDLON = 2.*RPI/NI
-         DLDLOS = 2.*RPI/NI
+         DLDLON = 2.*RPI/STATEVECTOR%NI
+         DLDLOS = 2.*RPI/STATEVECTOR%NI
          ILON = INT(DLLOO/DLDLON) + 1
          ILOS = INT(DLLOO/DLDLOS) + 1
 !C
@@ -142,7 +141,7 @@
 !C
 !C*    2.3 Interpolate the model state to the obs point
 !C
-         DO JK = 1, nflev
+         DO JK = 1, statevector%nlev
            if(NGEXIST(nguu).eq.1) then
              jk2=jk+ngposit(nguu)-1
              lcolumn%uu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &

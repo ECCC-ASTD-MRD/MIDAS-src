@@ -2,6 +2,7 @@ MODULE GAUSSGRID_MOD
   implicit none
   save
 
+  integer :: gaus_ni,gaus_nj,gaus_nflev
   real*8, allocatable :: gaus_rmu(:)
   real*8, allocatable :: gaus_rwocs(:)
   real*8, allocatable :: gaus_r1mu2(:)
@@ -12,20 +13,37 @@ MODULE GAUSSGRID_MOD
   real*8, allocatable :: gaus_rwt(:)
   real*8, allocatable :: gaus_rlati(:)
   real*8, allocatable :: gaus_rcolat(:)
+  real*8, allocatable :: gaus_conphy(:)
+  real*8, allocatable :: gaus_conima(:)
 
   contains
 
-  SUBROUTINE SUGAUSSGRID(nj)
+  SUBROUTINE GAUS_SETUP
     !
-    !**s/r SUGAUSSGRID  - Initialisation of Gaussian latitudes, weights and related
-    !     .           quantities
+    !**s/r GAUS_SETUP  - Initialisation of Gaussian latitudes, weights and related
+    !     .              quantities
     use MathPhysConstants_mod
     use mpi
     implicit none
-    integer :: nj
+    integer :: ni,nj,nflev,nulnam,fnom,fclos,ierr
     integer njlath,jlat
     real*8 zpisu2
+    NAMELIST /NAMDIM/NI, NJ, NFLEV
 
+    ni=240
+    nj=120
+    nflev=80
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namdim,iostat=ierr)
+    write(*,*) 'gsv_setup: reading namelist, ierr=',ierr
+    write(*,nml=namdim)
+    ierr=fclos(nulnam)
+
+    gaus_ni=ni
+    gaus_nj=nj
+    gaus_nflev=nflev
     allocate(gaus_rmu(nj))  
     allocate(gaus_rwt(nj))
     allocate(gaus_rwocs(nj))
@@ -36,6 +54,8 @@ MODULE GAUSSGRID_MOD
     allocate(gaus_r1mui(nj))
     allocate(gaus_r1mua(nj))
     allocate(gaus_rlati((-1):(nj+2)))
+    allocate(gaus_conphy(nj))
+    allocate(gaus_conima(nj))
 
     njlath = (nj + 1)/2
     if(mpi_myid.eq.0) write(*,fmt='(//,6(" ***********"))')
@@ -81,6 +101,11 @@ MODULE GAUSSGRID_MOD
     gaus_rlati(nj+1) =  -rpi*.5
     gaus_rlati(nj+2) =   -rpi-gaus_rlati(nj)
 
+    do jlat = 1, nj
+         gaus_conphy(jlat) = ra*gaus_r1qm2(jlat)
+         gaus_conima(jlat) = r1sa*gaus_rsqm2(jlat)
+    enddo
+
     !*    4. Print the content of GAUS
 
     if(mpi_myid.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
@@ -97,7 +122,7 @@ MODULE GAUSSGRID_MOD
             ,gaus_r1mui(jlat),gaus_r1mua(jlat)
     enddo
 
-  END SUBROUTINE SUGAUSSGRID
+  END SUBROUTINE GAUS_SETUP
 
   SUBROUTINE GAUSS8(NRACP,RACP,PG,SIA,RAD,PGSSIN2,SINM1,SINM2,SIN2)
 !C     *****************************************************************

@@ -44,14 +44,11 @@
 #endif
 *
       use MathPhysConstants_mod
+      use gaussGrid_mod
       IMPLICIT NONE
 C
 *
 *IMPLICITS
-#include "pardim.cdk"
-#include "comdim.cdk"
-#include "comgem.cdk"
-*
       INTEGER  KNI, KNJ,KNK,KIG2
       CHARACTER*2  CDVAR
       REAL*8 PIN(KNI,KNJ,knk), POUT(KNI,KNK,KNJ)
@@ -71,7 +68,7 @@ C
           do jlev = 1,knk
             do jj = 1, KNJ
               DO JI = 1, KNI
-                pout(ji,jlev,jj) = CONIMA(JJ)*pin(JI,JJ,JLEV)*RMSKNT
+                pout(ji,jlev,jj) = gaus_CONIMA(JJ)*pin(JI,JJ,JLEV)*RMSKNT
               END DO
             END DO
           enddo
@@ -79,7 +76,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                pout(ji,jlev,jj) = CONIMA(JJ)*pin(JI,JJ,JLEV)*RMSKNT
+                pout(ji,jlev,jj) = gaus_CONIMA(JJ)*pin(JI,JJ,JLEV)*RMSKNT
               END DO
             END DO
           enddo
@@ -238,7 +235,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                POUT(JI,JLEV,JJ) = CONIMA(JJ)*RMSKNT
+                POUT(JI,JLEV,JJ) = gaus_CONIMA(JJ)*RMSKNT
      S               *PIN(JI,KNJ-JJ+1,jlev)
               END DO
             END DO
@@ -247,7 +244,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                POUT(JI,JLEV,JJ) = CONIMA(JJ)*RMSKNT
+                POUT(JI,JLEV,JJ) = gaus_CONIMA(JJ)*RMSKNT
      S               *PIN(JI,KNJ-JJ+1,JLEV)
               END DO
             END DO

@@ -67,7 +67,6 @@
       REAL*8 PJO
       CHARACTER *2 CDFAM
 *implicits
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"

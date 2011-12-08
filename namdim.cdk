@@ -1,8 +1,0 @@
-#if defined (DOC)
-! Luc Fillion - ARMA/EC Sept 2009 - Include grd_typ
-! Luc Fillion - ARMA/EC 8 Oct 2009 - Include grd_roule
-C
-C     COMDECK NAMDIM
-C
-#endif
-      NAMELIST /NAMDIM/NI, NJ, NFLEV

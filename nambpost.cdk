@@ -1,7 +1,0 @@
-#if defined (DOC) 
-C 
-C     COMMON COMBPOST  
-C     ---------------   
-C
-#endif
-      NAMELIST /NAMBPOST/NELCMA ,CSAV

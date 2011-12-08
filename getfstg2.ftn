@@ -15,7 +15,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine getfstg2(ptg,pgzg,pqg,pug,pvg,ppsg,ppt)
+      subroutine getfstg2(ptg,pgzg,pqg,pug,pvg,ppsg,ppt,kni,knj,knflev)
       use mod4dv, only : l4dvar
 *
 #if defined (DOC)
@@ -62,22 +62,20 @@ C
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
-#include "comct0.cdk"
 #include "comgem.cdk"
 #include "rpnstd.cdk"
 #include "cvcord.cdk"
-#include "comgdpar.cdk"
 *
       logical llvint
       REAL*8 SFOQST8,SFOEW8
       EXTERNAL SFOQST8,SFOEW8
 *
       INTEGER ibrpstamp
-      real*8 ptg(ni,nflev,nj), pqg(ni,nflev,nj)
-      real*8 pug(ni,nflev,nj), pvg(ni,nflev,nj), pgzg(ni,nflev,nj)
-      real*8 ppt(ni,nj),ppsg(ni,nj)
+      integer kni,knj,knflev
+      real*8 ptg(kni,knflev,knj), pqg(kni,knflev,knj)
+      real*8 pug(kni,knflev,knj), pvg(kni,knflev,knj), pgzg(kni,knflev,knj)
+      real*8 ppt(kni,knj),ppsg(kni,knj)
 *
       character*1 clgr, ctyp
       character*2 cnom
@@ -94,10 +92,10 @@ C
       real*8 zmin,zmax,zcon
 *
 ccc debug
-      REAL*8 ZTRANS(ni,nj,nflev),zvvg(ni,nj,nflev)
-      REAL*8 zpsg(ni,nj),zpresa,zpresb
-      REAL*8 zttg(ni,nj,nflev),zqqg(ni,nj,nflev)
-      REAL*8 zgzg(ni,nj,nflev)
+      REAL*8 ZTRANS(kni,knj,knflev),zvvg(kni,knj,knflev)
+      REAL*8 zpsg(kni,knj),zpresa,zpresb
+      REAL*8 zttg(kni,knj,knflev),zqqg(kni,knj,knflev)
+      REAL*8 zgzg(kni,knj,knflev)
 *
       EXTERNAL ABORT3D
 *
@@ -115,7 +113,7 @@ ccc debug
 !*1   Define Grids
 !     ************
 !
-        igdgid = ezqkdef(ni, nj, 'G', 0,0,0,0,0)
+        igdgid = ezqkdef(kni, knj, 'G', 0,0,0,0,0)
 !
 !       define grid id info before calling inteprolation subroutine below
         isgid = igdgid 
@@ -136,13 +134,13 @@ ccc debug
 !
       write(nulout,*) 'getfstg2: ibrpstamp = ',ibrpstamp
 !
-      call vhfstfld(zpsg,ni*nj,isgid,zvvg,ni*nj,ivvgid,1
+      call vhfstfld(zpsg,kni*knj,isgid,zvvg,kni*knj,ivvgid,1
      &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(ppsg,zpsg,ni,nj,1,0,CLNOMVAR)
+      CALL INITGDG2(ppsg,zpsg,kni,knj,1,0,CLNOMVAR)
 !
-      call maxmin(ppsg,ni,nj,1,zmin,zmax,
+      call maxmin(ppsg,kni,knj,1,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'getfstg2       ',
      &            'PSG')
 !
@@ -151,13 +149,13 @@ ccc debug
       write(nulout,*)'getfstg2: reading TT'
       CLNOMVAR = 'TT'
 
-      call vhfstfld(zttg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
+      call vhfstfld(zttg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
      &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(ptg,zttg,ni,nj,nflev,0,CLNOMVAR)
+      CALL INITGDG2(ptg,zttg,kni,knj,knflev,0,CLNOMVAR)
 !
-      call maxmin(ptg,ni,nj,nflev,zmin,zmax,
+      call maxmin(ptg,kni,knj,knflev,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'getfstg2       ',
      &            'TTG')
 !
@@ -166,26 +164,26 @@ ccc debug
       write(nulout,*)'getfstg2: reading GZ'
       CLNOMVAR = 'GZ'
 ! 
-      call vhfstfld(zgzg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
+      call vhfstfld(zgzg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
      &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(pgzg,zgzg,ni,nj,nflev,0,CLNOMVAR)
+      CALL INITGDG2(pgzg,zgzg,kni,knj,knflev,0,CLNOMVAR)
 !
 !      Specific-Humidity
 !
       write(nulout,*)'getfstg2: reading HU'
       CLNOMVAR = 'HU'
 !
-      call vhfstfld(zqqg,ni*nj,isgid,zvvg,ni*nj,ivvgid,nflev
+      call vhfstfld(zqqg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
      &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(pqg,zqqg,ni,nj,nflev,0,CLNOMVAR)
+      CALL INITGDG2(pqg,zqqg,kni,knj,knflev,0,CLNOMVAR)
 !
       cletiket='BASICGD '
       clvar = 'HU '
-      call maxmin(pqg,ni,nj,nflev,zmin,zmax,
+      call maxmin(pqg,kni,knj,knflev,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'getfstg2       ',
      &            'HUG')
 !
@@ -194,15 +192,15 @@ ccc debug
       write(nulout,*)'getfstg2: reading UU and VV'
       CLNOMVAR = 'UU'
 !
-      call vhfstfld(ztrans,ni*nj,isgid,zvvg,ni*nj,isgid,nflev  ! ztrans=uu,zvvg=vv interpolated... 
+      call vhfstfld(ztrans,kni*knj,isgid,zvvg,kni*knj,isgid,knflev  ! ztrans=uu,zvvg=vv interpolated... 
      &     ,vhybinc,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
-      CALL INITGDG2(pug,ztrans,ni,nj,nflev,0,CLNOMVAR) ! on output, pug contains U wind-image.
+      CALL INITGDG2(pug,ztrans,kni,knj,knflev,0,CLNOMVAR) ! on output, pug contains U wind-image.
 !
 !      V wind-image component
 !
       CLNOMVAR = 'VV'
-      CALL INITGDG2(pvg,zvvg,ni,nj,nflev,0,CLNOMVAR) ! on output, pvg contains V wind-image.
+      CALL INITGDG2(pvg,zvvg,kni,knj,knflev,0,CLNOMVAR) ! on output, pvg contains V wind-image.
 !
 !
       RETURN

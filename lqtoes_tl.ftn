@@ -24,7 +24,6 @@
       use MathPhysConstants_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
       REAL*8 LQ,TT,P0,LQ_g,PRES_g,VHYB
       REAL*8 ZE, ZTD,ZGAMMA,ZQBRANCH,HU_g

@@ -48,13 +48,11 @@
       use obsSpaceData_mod
       IMPLICIT NONE
 *implicits
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
-#include "comct0.cdk"
 #include "comvfiles.cdk"
 #include <prof_f.h>
 *

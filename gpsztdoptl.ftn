@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE GPSZTDOPTL(PLAT,PLON,PZOBS,PETA,PTT_D,PHU_D,PXP0_D,
-     +                    PXPT,PMT,PGZ,PHX_D,PTT,PHU,PXP0,PHX)
+     +                    PXPT,PMT,PGZ,PHX_D,PTT,PHU,PXP0,PHX,knflev)
 #if defined (DOC)
 *
 ***s/r GPSZTDOPTL - tangent linear operator for GPS Zenith Delay ZTD
@@ -53,28 +53,26 @@ C
       IMPLICIT NONE
 C
 *implicits
-#include "comdim.cdk"
 #include "comdimo.cdk"
- 
-#include "pardim.cdk"
 #include "comgpsgb.cdk"
 *
+      integer knflev
       REAL*8 PLAT
       REAL*8 PLON
       REAL*8 PZOBS
-      REAL*8 PETA (NFLEV)
-      REAL*8 PTT_D (NFLEV), PTT (NFLEV)
-      REAL*8 PHU_D (NFLEV), PHU (NFLEV)
-      REAL*8 PGZ (NFLEV)
+      REAL*8 PETA (KNFLEV)
+      REAL*8 PTT_D (KNFLEV), PTT (KNFLEV)
+      REAL*8 PHU_D (KNFLEV), PHU (KNFLEV)
+      REAL*8 PGZ (KNFLEV)
       REAL*8 PXP0_D, PXP0
       REAL*8 PXPT
       REAL*8 PMT
       REAL*8 PHX_D, PHX
 C
-      REAL*8 ZDETA (NFLEV-1)
-      REAL*8 ZF3 (NFLEV-1), ZF3_D (NFLEV-1)
-      REAL*8 ZG (NFLEV)
-      REAL*8 ZZK (NFLEV)
+      REAL*8 ZDETA (KNFLEV-1)
+      REAL*8 ZF3 (KNFLEV-1), ZF3_D (KNFLEV-1)
+      REAL*8 ZG (KNFLEV)
+      REAL*8 ZZK (KNFLEV)
       REAL*8 ZTTB
       REAL*8 ZQQB
       REAL*8 ZCLT, ZGRAV, ZLEVB
@@ -127,8 +125,8 @@ C  *  Mean column gravity as a function of latitude and model sfc height
 C
 C  *  Gravity and (TRIAL) height (ASL) profiles
 C
-      DO JLEV = 1, NFLEV
-        IF ( JLEV .EQ. NFLEV ) THEN
+      DO JLEV = 1, KNFLEV
+        IF ( JLEV .EQ. KNFLEV ) THEN
           ZZK(JLEV) = PMT
         ELSE
           ZZK(JLEV) = PGZ(JLEV)/ZGRAV
@@ -140,8 +138,8 @@ C  *  If PZOBS is below ZLEVB, use CMC extrapolation from surface
 C     to get ZPMOBS = Psfc at PZOBS for DZ adjustment (later).
 C
       IJLEV = NJLEVP
-      IF ( NJLEVP .GE. NFLEV ) IJLEV = NFLEV-1
-      ZLEVB = ZZK(NFLEV-IJLEV)
+      IF ( NJLEVP .GE. KNFLEV ) IJLEV = KNFLEV-1
+      ZLEVB = ZZK(KNFLEV-IJLEV)
 C
 C
 C ----------------------------------------------------------------
@@ -163,7 +161,7 @@ C
 C  *  Set up terms required for vertical integration of HU, TT terms
 C  *  using trapezoidal rule
 C
-      DO JLEV = 1, NFLEV-1
+      DO JLEV = 1, KNFLEV-1
          ZDETA(JLEV) = PETA(JLEV+1) - PETA(JLEV)
          ZTTB_D      = (PTT_D(JLEV+1) + PTT_D(JLEV)) * 0.5
          ZQQB_D      = (PHU_D(JLEV+1) + PHU_D(JLEV)) * 0.5
@@ -181,7 +179,7 @@ C  *  Vertical integration (trapezoidal rule)
 C
       ZINTW   = 0.0
       ZINTW_D = 0.0
-      DO JLEV = 1, NFLEV-1
+      DO JLEV = 1, KNFLEV-1
          ZINTW   = ZINTW   + ZF3  (JLEV) * ZDETA(JLEV)
          ZINTW_D = ZINTW_D + ZF3_D(JLEV) * ZDETA(JLEV)
       END DO
@@ -215,7 +213,7 @@ C
 C
 C  *     CMC EXTRAPOLATION FROM SURFACE TO PZOBS:
 C
-         ZTVSFC = PTT_D(NFLEV) * (1.0 + DELTA*PHU_D(NFLEV))
+         ZTVSFC = PTT_D(KNFLEV) * (1.0 + DELTA*PHU_D(KNFLEV))
          ZTVOBS = ZTVSFC - PPGAM * ZDZ
          ZPMOBS = PXP0_D * (ZTVOBS/ZTVSFC)**ZCON3
 C
@@ -224,9 +222,9 @@ C
          ZDP1   = 1.0 - ((PPGAM*ZDZ)/ZTVSFC)
          ZDP2   = PXP0_D * ZCON3 * ZDP1**(ZCON3-1.0)
          ZDPMDP = ZDP1**ZCON3
-         ZDPMDT = ZDP2 * ((PPGAM*ZDZ*(1.0+DELTA*PHU_D(NFLEV))) / 
+         ZDPMDT = ZDP2 * ((PPGAM*ZDZ*(1.0+DELTA*PHU_D(KNFLEV))) / 
      +                  ZTVSFC**2)
-         ZDPMDQ = ZDP2 * (DELTA*PTT_D(NFLEV)*PPGAM*ZDZ) / ZTVSFC**2
+         ZDPMDQ = ZDP2 * (DELTA*PTT_D(KNFLEV)*PPGAM*ZDZ) / ZTVSFC**2
 C
 C
        ELSE
@@ -241,7 +239,7 @@ C
         IK  = 1
         IML = 0
 C
-        DO JK = 2,NFLEV-1
+        DO JK = 2,KNFLEV-1
           IF( ABS(ZZK(JK)-PZOBS) .LT. 1.0E-06 ) THEN
             IK = JK
             IML = 1
@@ -289,11 +287,11 @@ C       - Calculate new ZHD with new Psfc = ZPMOBS
         ZFPH  = (1.0 - 2.66E-03*ZCLT - 2.8E-07*PZOBS)
         ZZHDV_D = (ZCONH / ZFPH) * ZPMOBS
 C       - Adjust wet delay using Higgins method (Q constant over DZ layer)
-        ZTMOBS = PTT_D(NFLEV) - (PPGAM * ZDZ)
-        ZQMOBS = PHU_D(NFLEV)
+        ZTMOBS = PTT_D(KNFLEV) - (PPGAM * ZDZ)
+        ZQMOBS = PHU_D(KNFLEV)
         ZPBAR  = (ZPMOBS + PXP0_D) * 0.5
-        ZTBAR  = (ZTMOBS + PTT_D(NFLEV)) * 0.5
-        ZQBAR  = (ZQMOBS + PHU_D(NFLEV)) * 0.5
+        ZTBAR  = (ZTMOBS + PTT_D(KNFLEV)) * 0.5
+        ZQBAR  = (ZQMOBS + PHU_D(KNFLEV)) * 0.5
 C       Mean (wet) refractivity of DZ layer
         ZRMEAN = 1.0E-06 * (PPK2P*((ZPBAR*ZQBAR)/(EPS1*ZTBAR)) +
      +             PPK3*((ZPBAR*ZQBAR)/(EPS1*ZTBAR**2)))
@@ -303,7 +301,7 @@ C
 C      ------------- TL CODE FOR ZTD ADJUSTMENT ------------------------
 C
         ZZHDV = (ZCONH / ZFPH) * 
-     +       (ZDPMDP*PXP0 + ZDPMDT*PTT(NFLEV) + ZDPMDQ*PHU(NFLEV))
+     +       (ZDPMDP*PXP0 + ZDPMDT*PTT(KNFLEV) + ZDPMDQ*PHU(KNFLEV))
 C
 C
         ZDPMDP = 0.5 * (ZDPMDP + 1.0)
@@ -324,7 +322,7 @@ C
      +         (ZQBAR*ZDPMDQ) / (EPS1*ZTBAR**2) 
         ZDDWDQ = ZDP1 * (PPK2P*ZDP2 + PPK3*ZDP3)
 C
-        ZDDW = ZDDWDP*PXP0 + ZDDWDT*PTT(NFLEV) + ZDDWDQ*PHU(NFLEV)
+        ZDDW = ZDDWDP*PXP0 + ZDDWDT*PTT(KNFLEV) + ZDDWDQ*PHU(KNFLEV)
         ZZWDV = ZZWDV - ZDDW
 C
 C

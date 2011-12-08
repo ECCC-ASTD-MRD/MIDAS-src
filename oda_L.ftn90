@@ -33,7 +33,6 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng
@@ -129,7 +128,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
       real*4    DLLAO, DLLOO
 
-      real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
+      real*8  zfield(0:(statevector%ni+2),1:klev,(-1):(statevector%nj+2))
       real*8  zprofil(1:klev,lcolumn%nobtot)
 !*
 !*     Transfer Grid point field into local array (for generecity)
@@ -144,24 +143,24 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*     2D fields
 !*
         case('TG')
-           zfield(1:NI,1,1:NJ)= statevector%TG(1:NI,1,1:NJ,jstep)
+           zfield(1:statevector%NI,1,1:statevector%NJ)= statevector%TG(1:statevector%NI,1,1:statevector%NJ,jstep)
         case('PS')
-           zfield(1:NI,1,1:NJ)= statevector%PS(1:NI,1,1:NJ,jstep)
+           zfield(1:statevector%NI,1,1:statevector%NJ)= statevector%PS(1:statevector%NI,1,1:statevector%NJ,jstep)
 !*
 !*     3D fields
 !*
         case('TT')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%TT(1:NI,1:KLEV,1:NJ,jstep)
+           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%TT(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
         case('Q0')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%HU(1:NI,1:KLEV,1:NJ,jstep)
+           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%HU(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
         case('TR')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%TR(1:NI,1:klev,1:NJ,jstep)
+           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%TR(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ,jstep)
         case('UU')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%UU(1:NI,1:KLEV,1:NJ,jstep)
+           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%UU(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
         case('VV')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%VV(1:NI,1:KLEV,1:NJ,jstep)
+           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%VV(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
         case ('GZ')
-           zfield(1:NI,1:klev,1:NJ)=  statevector%GZ(1:NI,1:klev,1:NJ,jstep)
+           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%GZ(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ,jstep)
         end select
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
@@ -176,9 +175,9 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NI + 2
 !C
         DO JLEV = 1, KLEV
-           DO JGL = 1, NJ
-              IMAX = NI
-              ZFIELD(0     ,jlev,JGL) = ZFIELD(NI,jlev,JGL)
+           DO JGL = 1, STATEVECTOR%NJ
+              IMAX = STATEVECTOR%NI
+              ZFIELD(0     ,jlev,JGL) = ZFIELD(STATEVECTOR%NI,jlev,JGL)
               ZFIELD(IMAX+1,jlev,JGL) = ZFIELD( 1,jlev,JGL)
               ZFIELD(IMAX+2,jlev,JGL) = ZFIELD( 2,jlev,JGL)
            END DO
@@ -191,32 +190,32 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
         LEVELS: DO JLEV = 1, KLEV
            DLMEAN = 0.
            DLMEAS = 0.
-           IMAX = NI
+           IMAX = STATEVECTOR%NI
            DO JLON = 1, IMAX
               DLMEAN = DLMEAN + ZFIELD(JLON,jlev,1)
-              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ)
+              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ)
            END DO
-           DLMEAN = DLMEAN / NI
-           DLMEAS = DLMEAS / NI
-           IMAX = NI
+           DLMEAN = DLMEAN / STATEVECTOR%NI
+           DLMEAS = DLMEAS / STATEVECTOR%NI
+           IMAX = STATEVECTOR%NI
            DO JLON = 0, IMAX + 2
               ZFIELD(JLON,jlev,0)    = DLMEAN
-              ZFIELD(JLON,jlev,NJ+1) = DLMEAS
+              ZFIELD(JLON,jlev,STATEVECTOR%NJ+1) = DLMEAS
            END DO
 !C
 !C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
 !C
-           IMIDDLE = NI / 2
+           IMIDDLE = STATEVECTOR%NI / 2
            DO JLON = 0, IMIDDLE
               ISYM = JLON + IMIDDLE
               ZFIELD(JLON,jlev,-1)   = ZFIELD(ISYM,jlev,1)
-              ZFIELD(JLON,jlev,NJ+2) = ZFIELD(ISYM,jlev,NJ)
+              ZFIELD(JLON,jlev,STATEVECTOR%NJ+2) = ZFIELD(ISYM,jlev,STATEVECTOR%NJ)
            END DO
-           IMAX = NI
+           IMAX = STATEVECTOR%NI
            DO JLON = IMIDDLE + 1, IMAX + 2
               ISYM = JLON - IMIDDLE
               ZFIELD(JLON,jlev,-1)   = ZFIELD(ISYM,jlev,1)
-              ZFIELD(JLON,jlev,NJ+2) = ZFIELD(ISYM,jlev,NJ)
+              ZFIELD(JLON,jlev,STATEVECTOR%NJ+2) = ZFIELD(ISYM,jlev,STATEVECTOR%NJ)
            END DO
 
         END DO LEVELS
@@ -237,8 +236,8 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
             IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
             IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-            DLDLON = 2.*RPI/NI
-            DLDLOS = 2.*RPI/NI
+            DLDLON = 2.*RPI/STATEVECTOR%NI
+            DLDLOS = 2.*RPI/STATEVECTOR%NI
             ILON = INT(DLLOO/DLDLON) + 1
             ILOS = INT(DLLOO/DLDLOS) + 1
 !C

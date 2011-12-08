@@ -26,7 +26,6 @@ subroutine minimize(lcolumng,lobsSpaceData)
   !
   !Author  : S. Pellerin *ARMA/MSC  Sept, 2005
   !                                    in 1-Obs case.
-#include "comdim.cdk"
 #include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"

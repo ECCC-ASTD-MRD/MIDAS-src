@@ -40,7 +40,6 @@
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 #include "comlun.cdk"
 #include "cvcord.cdk"

@@ -48,9 +48,7 @@
 *implicits
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
-#include "comgem.cdk"
 #include "cvcord.cdk"
 *
       type(struct_columnData) :: lcolumnhr

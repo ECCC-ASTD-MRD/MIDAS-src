@@ -56,7 +56,6 @@ C LMHUAESV
 *IMPLICITES
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 *
       logical llprint

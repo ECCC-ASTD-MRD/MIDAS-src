@@ -9,31 +9,31 @@ contains
       use bMatrixEnsemble
       use bMatrixHI
       use controlVector_mod
+      use gaussGrid_mod
       use modfgat
       IMPLICIT NONE
-#include "comdim.cdk"
 #include "pardim.cdk"
 #include "comgem.cdk"
 #include "cvcord.cdk"
 !
       integer  cvdimens,cvdimhi
-      real*8 zps,pressureProfile(nflev)
+      real*8 zps,pressureProfile(gaus_nflev)
       integer jlev
 
 ! Initialize the background-error covariances
 
       zps = 101000.D0
-      call calcpres(pressureProfile,vhybinc,nflev,zps,rptopinc,rprefinc,rcoefinc,1)
+      call calcpres(pressureProfile,vhybinc,gaus_nflev,zps,rptopinc,rprefinc,rcoefinc,1)
       cvdimhi=0
       cvdimens=0
 
       write(*,*) 'Setting up the modular HI covariances...'
-      call bhi_setup(NI,NJ,NFLEV,pressureProfile,cvdimhi)
+      call bhi_setup(gaus_NI,gaus_NJ,gaus_NFLEV,pressureProfile,cvdimhi)
       write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
       call flush(6)
 
       write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(2800.0d0,2.0d0,pressureProfile,ni,nj,nflev,nstepobsinc,nip1,nbrpstamp,cvdimens)
+      call ben_setup(2800.0d0,2.0d0,pressureProfile,gaus_ni,gaus_nj,gaus_nflev,nstepobsinc,nip1,nbrpstamp,cvdimens)
       write(*,*) 'Dimension of ENS control vector returned:',cvdimens
       call flush(6)
 

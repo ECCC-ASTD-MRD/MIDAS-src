@@ -10,7 +10,6 @@
       use columnData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cparbrp.cdk"
 

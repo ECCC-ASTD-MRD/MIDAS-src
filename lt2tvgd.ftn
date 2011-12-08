@@ -37,7 +37,6 @@
 
 *implicits
 #include "comlun.cdk"
-#include "comdim.cdk"
 *modules
 *
 **

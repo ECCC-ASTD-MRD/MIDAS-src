@@ -51,14 +51,7 @@
       use columnData_mod 
       use bufr
       IMPLICIT NONE
-*implicits
 #include "comlun.cdk"
-#include "comdim.cdk"
-#include "comdimo.cdk"
- 
- 
- 
-*
       type(struct_columnData) :: lcolumnghr
       type(struct_obs) :: lobsSpaceData
 

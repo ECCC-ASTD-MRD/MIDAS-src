@@ -29,12 +29,7 @@ SUBROUTINE oda_res(lobsSpaceData)
   !Revision:
   ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
   !
-#include "comdim.cdk"
-#include "comdimo.cdk"
-
   type(struct_obs) :: lobsSpaceData 
-  !Local Declarations
-
   integer jdata
 !
 !!

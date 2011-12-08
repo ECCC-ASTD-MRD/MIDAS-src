@@ -50,7 +50,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   use columnData_mod 
   implicit none
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"

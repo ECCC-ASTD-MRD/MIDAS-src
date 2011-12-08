@@ -65,21 +65,11 @@ C
       use controlVector_mod
  
       IMPLICIT NONE
-*implicits
-#include "comct0.cdk"
-#include "pardim.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
-#include "comgem.cdk"
-#include "comdimo.cdk"
 *
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       integer  k
       EXTERNAL HPCHECK, HPDEALLC, FSTFRM,EXFIN
-C
-C*    1. Verify the integrity of the heap
-C
- 100  CONTINUE
 C
       WRITE(KULOUT,FMT='(/,10X," JOB TERMINATION BY SUTERM",
      S     /,20(" *"))')
@@ -94,9 +84,6 @@ C
       enddo
       write(*,*) 'Files have been closed'
       call flush(6)
-C
-C Closing an ASCII file used for diagnostics
-C
 c
       CALL HPCHECK(IERR)
       write(*,*) 'HPCHECK done'
@@ -114,27 +101,6 @@ C
  1000   format(10X, 5("*")," Problem with the dynamic memory",
      &       " allocation. IERR =",I3," returned by HPCHECK")
         CALL FLUSH(KULOUT)
-C
-        CALL HPDEALLC(PTCONPHY,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," CONPHY checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " CONPHY. IERR =",I3)')IERR
-        END IF
-        CALL FLUSH(KULOUT)
-C
-        CALL HPDEALLC(PTCONIMA,IERR,1)
-        IF(IERR.EQ.0)THEN
-          WRITE(KULOUT,FMT='(10X," CONIMA checked and correct",
-     S         ". IERR =",I3)')IERR
-        ELSE
-          WRITE(KULOUT,FMT='(4x,10("*")," Problem detected in",
-     S         " CONIMA. IERR =",I3)')IERR
-        END IF
-        CALL FLUSH(KULOUT)
-C
 C
       END IF
       ISTAMP=EXFIN('3DVAR','FIN','SUTERM')

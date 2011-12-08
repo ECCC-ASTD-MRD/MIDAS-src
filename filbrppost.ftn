@@ -62,9 +62,7 @@
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"
-
 #include "comvfiles.cdk"
-#include "combpost.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comct0.cdk"
@@ -82,6 +80,10 @@
       EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
 *
       CHARACTER(LEN=90)  :: BURPIN,BURPOUT
+      INTEGER NELCMA,NULNAM,IERR
+      CHARACTER *3   CSAV(5)
+      INTEGER        NSAV(5)
+      NAMELIST /NAMBPOST/NELCMA ,CSAV
 *
 *  ------NOTE----------
 * currently supported families of data 'UA' 'AI' 'SF' 'HU' 'TO'
@@ -91,6 +93,9 @@
 *     OPEN FILES WHOSE NAMES ARE CONTAINED IN ARRAY CBURP.
 *     OPEN AND APPEND DATA TO "POST" FILES.
 ************************************************************************
+*
+      WRITE(NULOUT,'(1X,"SUBROUTINE FILBRPPOST")')
+      WRITE(NULOUT,'(1X,"-----------------",/)')
 *
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
@@ -108,7 +113,12 @@ C     ------------------
       CSAV(3)='OER'
       CSAV(4)='VAR'
 C
-      CALL READNML('NAMBPOST',IER)
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=nambpost,iostat=ierr)
+      write(*,*) 'filbrppost: reading namelist, ierr=',ierr
+      write(*,nml=nambpost)
+      ierr=fclos(nulnam)
 C
       NSAV(1)=NCM_OMA
       NSAV(2)=NCM_OMF
@@ -137,8 +147,6 @@ c
 
       NOBTOT=1
 C
-      WRITE(NULOUT,'(1X,"SUBROUTINE FILBRPPOST")')
-      WRITE(NULOUT,'(1X,"-----------------",/)')
       WRITE(NULOUT,'(1X,"***********************************")')
       WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR POST_FILE :",/)')
       WRITE(NULOUT,'(1X,"***********************************")')

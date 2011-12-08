@@ -19,7 +19,6 @@
       use stag_shared, only : tg_vco_trl,tg_vgrid_trl
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"

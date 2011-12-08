@@ -39,7 +39,6 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   ! Luc Fillion - ARMA/EC - 5 May 2009 - Upgrade 3dvar LU/GU to v_10_2_2.
   ! Bin HE     - ARMA/MRB  - Oct. 2009 - Implemented MPI to 3DVAR. 
   !
-#include "comdim.cdk"
 #include "comdimo.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng
@@ -156,7 +155,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS, DLDLON2, DLDLOS2
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
 
-      real*8  zfield(0:(ni+2),1:klev,(-1):(nj+2))
+      real*8  zfield(0:(statevector%ni+2),1:klev,(-1):(statevector%nj+2))
       real*8,pointer :: zprofil(:,:)
 !*
 !*     bhe =========
@@ -197,8 +196,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !            DLDLOS = 2.*RPI/NI
 !            ILON = INT(DLLOO/DLDLON) + 1
 !            ILOS = INT(DLLOO/DLDLOS) + 1
-      DLDLON2=1./(2.*RPI/NI)
-      DLDLOS2=1./(2.*RPI/NI)
+      DLDLON2=1./(2.*RPI/STATEVECTOR%NI)
+      DLDLOS2=1./(2.*RPI/STATEVECTOR%NI)
 
       do jstep=1,nstepobsinc
 
@@ -260,48 +259,48 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C     TREATMENT OF GRADIENTS FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
 !C
         LEVELS: DO JLEV = 1, KLEV
-           IMIDDLE = NI / 2
+           IMIDDLE = STATEVECTOR%NI / 2
            DO JLON = 0, IMIDDLE
               ISYM = JLON + IMIDDLE
               ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)   &
                    + ZFIELD(ISYM,jlev,1)
-              ZFIELD(ISYM,jlev,NJ) =  ZFIELD(JLON,jlev,NJ+2) &
-                   + ZFIELD(ISYM,jlev,NJ)
+              ZFIELD(ISYM,jlev,STATEVECTOR%NJ) =  ZFIELD(JLON,jlev,STATEVECTOR%NJ+2) &
+                   + ZFIELD(ISYM,jlev,STATEVECTOR%NJ)
            END DO
 
-           IMAX = NI
+           IMAX = STATEVECTOR%NI
            DO JLON = IMIDDLE + 1, IMAX + 2
               ISYM = JLON - IMIDDLE
               ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)    &
                    + ZFIELD(ISYM,JLEV,1)
-              ZFIELD(ISYM,JLEV,NJ) =  ZFIELD(JLON,JLEV,NJ+2)  &
-                   + ZFIELD(ISYM,JLEV,NJ)
+              ZFIELD(ISYM,JLEV,STATEVECTOR%NJ) =  ZFIELD(JLON,JLEV,STATEVECTOR%NJ+2)  &
+                   + ZFIELD(ISYM,JLEV,STATEVECTOR%NJ)
            END DO
 !C
 !C     TREATMENT OF THE GRADIENTS AT NORTH AND SOUTH POLES.
 !C
            DLMEAN = 0.
            DLMEAS = 0.
-           IMAX = NI
+           IMAX = STATEVECTOR%NI
            DO JLON = 0, IMAX + 2
               DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
-              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,NJ+1)
+              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ+1)
            end do
 
-           DLMEAN = DLMEAN/NI
-           DLMEAS = DLMEAS/NI
-           IMAX = NI
+           DLMEAN = DLMEAN/STATEVECTOR%NI
+           DLMEAS = DLMEAS/STATEVECTOR%NI
+           IMAX = STATEVECTOR%NI
            DO JLON = 1, IMAX  
               ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
-              ZFIELD(JLON,jlev,NJ) = DLMEAS + ZFIELD(JLON,jlev,NJ)
+              ZFIELD(JLON,jlev,STATEVECTOR%NJ) = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ)
            end do
 
         END DO LEVELS
 !C
 !C     1.1  EXTRA MERIDIANS
 !C
-        DO JGL = 1, NJ
-           IMAX = NI
+        DO JGL = 1, STATEVECTOR%NJ
+           IMAX = STATEVECTOR%NI
            DO JLEV = 1, KLEV
               ZFIELD(IMAX,JLEV,JGL) =   ZFIELD(0,JLEV,JGL)  &
                    + ZFIELD(IMAX,JLEV,JGL)
@@ -314,12 +313,12 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
 !*     Adjoint of the identity (change of norm)
 !*
-        DO JGL = 1, NJ
-           IMAX = NI
+        DO JGL = 1, STATEVECTOR%NJ
+           IMAX = STATEVECTOR%NI
            DO JLEV = 1, KLEV
               DO JLON = 1, IMAX
                  ZFIELD(JLON,JLEV,JGL) = ZFIELD(JLON,JLEV,JGL) *  &
-                      NI / gaus_RWT(JGL)
+                      STATEVECTOR%NI / gaus_RWT(JGL)
               END DO
            END DO
         END DO
@@ -331,24 +330,24 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*     2D fields
 !*
         case('TG')
-           statevector%tg(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%tg(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         case('PS')
-           statevector%ps(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%ps(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
 !*
 !*     3D fields
 !*
         case('TT')
-           statevector%tt(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%tt(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         case('Q0')
-           statevector%hu(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%hu(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         case('TR')
-           statevector%tr(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%tr(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         case('UU')
-           statevector%uu(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%uu(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         case('VV')
-           statevector%vv(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%vv(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         case ('GZ')
-           statevector%gz(1:ni,1:klev,1:nj,jstep) = zfield(1:ni,1:klev,1:nj)
+           statevector%gz(1:statevector%ni,1:klev,1:statevector%nj,jstep) = zfield(1:statevector%ni,1:klev,1:statevector%nj)
         end select
 
       enddo  ! jstep

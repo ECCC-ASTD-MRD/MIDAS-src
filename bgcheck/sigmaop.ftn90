@@ -6,10 +6,10 @@
       use obsSpaceData_mod
       use columnData_mod
       use gridStateVector_mod
+      use gaussGrid_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comgem.cdk"
       type(struct_obs) :: lobsSpaceData
@@ -23,19 +23,19 @@
       INTEGER VFSTLIR,FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
       INTEGER IKEY,ILEN,IERR,IDATE
 
-      REAL*8 ZBUFFER(NJ,NFLEV)
+      REAL*8 ZBUFFER(GAUS_NJ,LCOLUMNG%NLEV)
       POINTER (PXZBUFFER,ZBUFFER)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
       INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
 
-      ILEN = NJ*NFLEV
+      ILEN = GAUS_NJ*LCOLUMNG%NLEV
       CALL HPALLOC(PXZBUFFER,MAX(1,ILEN),IERR,8)
 
-      call gsv_allocate(statevector,ni,nj,nflev,1)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,lcolumng%nlev,1)
       call gsv_zero(statevector)
-      call col_allocate(lcolumn,nflev,nobtot)
+      call col_allocate(lcolumn,lcolumng%nlev,nobtot)
       call col_zero(lcolumn)
 !C 
 !C     1. Opening the statistics file
@@ -69,13 +69,13 @@
            ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
            ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
            ,IUBC,IEXTR1,IEXTR2,IEXTR3)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, gaus_NJ
+              DO JLON=1,gaus_NI
                  if(IG2 .eq. 0) then
-                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  else
-                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
@@ -83,22 +83,22 @@
 
       CLNOMVAR = 'VV'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  else
-                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'ES'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
                     statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
@@ -109,9 +109,9 @@
         END DO
       CLNOMVAR = 'GZ'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
                     statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
                  else
@@ -153,9 +153,9 @@
          call flush(6)
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      DO J = 1, NFLEV
-         DO JLAT = 1, NJ
-            DO JLON=1,NI
+      DO J = 1, LCOLUMNG%NLEV
+         DO JLAT = 1, GAUS_NJ
+            DO JLON=1,GAUS_NI
                if(IG2 .eq. 0) then
                   statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                else
@@ -180,8 +180,8 @@
       CLNOMVAR = 'P0'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
         DO J = 1, INK
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
                     statevector%ps3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RMBTPA
                  else
@@ -192,35 +192,35 @@
         END DO
       CLNOMVAR = 'UU'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  else
-                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'VV'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  else
-                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
                     statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
@@ -231,9 +231,9 @@
         END DO
       CLNOMVAR = 'ES'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, NFLEV
-           DO JLAT = 1, NJ
-              DO JLON=1,NI
+        DO J = 1, LCOLUMNG%NLEV
+           DO JLAT = 1, GAUS_NJ
+              DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
                     statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
@@ -255,9 +255,9 @@
 !C
       CLNOMVAR = 'LQ'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      DO J = 1, NFLEV
-        DO JLAT = 1, NJ
-          DO JLON=1,NI
+      DO J = 1, LCOLUMNG%NLEV
+        DO JLAT = 1, GAUS_NJ
+          DO JLON=1,GAUS_NI
             if(IG2 .eq. 0) then
                statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
             else

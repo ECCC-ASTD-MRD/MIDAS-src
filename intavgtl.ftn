@@ -93,7 +93,6 @@ C
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 *
       INTEGER  JI, JO, JN

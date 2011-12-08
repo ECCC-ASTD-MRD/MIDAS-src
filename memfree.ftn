@@ -34,17 +34,8 @@
 #endif
 C
       use obsSpaceData_mod
-      use columnData_mod 
       use controlVector_mod
       IMPLICIT NONE
-*implicits
-#include "comct0.cdk"
-#include "pardim.cdk"
-#include "comdim.cdk"
-#include "comlun.cdk"
-#include "comgem.cdk"
-#include "comdimo.cdk"
-*
       type(struct_obs) :: lobsSpaceData
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       EXTERNAL HPDEALLC, FSTFRM,EXFIN

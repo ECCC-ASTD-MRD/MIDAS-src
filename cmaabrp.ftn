@@ -115,7 +115,6 @@
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comct0.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
@@ -625,7 +624,7 @@ C                     *** save starting address of 3d block *****
                         CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
      +                    -1,ZPROF,J3D,IVAL,cval,ppmis,
-     +                    obs_posn+obs_thisblock)
+     +                    obs_posn+obs_thisblock,lobsSpaceData)
                         obs_thisblock=obs_thisblock+ind
                        ENDIF
 C======================================================================

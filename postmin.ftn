@@ -19,33 +19,8 @@
 *
 ***s/r postmin  - Post-minimization control of the 3Dvar
 *
-*
 *Author  : S. Pellerin *ARMA/SMC  May 2000
-*Revision:
-*	    S. Pellerin: fix to spa2sp/spgd call conditions
-*           C. Charette - ARMA/SMC - Sep. 2004
-*            - Conversion to hybrid vertical coordinate
-*           Bin He  *ARMA/SMC Dec. 2006
-*            - added calling memfree before varout to free some memories
-*              which are not needed in varout.
-*           S. Pellerin August 2008
-*            - Added calls to 'tmg_*' subroutines
-*           L. Fillion - ARMA/SMC - Feb. 2005 - Limited area LAM4D analysis option.
-*           L. Fillion ARMA/EC May 2006: LAM4D upgrade to v10_0_0.
-*           L. Fillion ARMA/EC 21 Feb 2007: Include option to write glb-st-dev on anal incr file (anal res).
-*           L. Fillion ARMA/EC 14 Aug 2007 - Update LAM4D to v_10_0_3.
-*           L. Fillion ARMA/EC 14 Oct 2009 - Comment call to stdevout.ftn ... impacts minimization in v1033 if used in sucov.ftn ...
-*           Bin He   *ARMA/MRB   Oct. 2009 
-*                  - Implemented MPI to 3DVAR  
-*           L. Fillion ARMA/EC Oct 2009 - Include global rotated grid option. Rewrite varout.ftn for rotated regional and 'LU' mode
-*           L. Fillion ARMA/EC 4&20 May 2010 - Upgrade to v_11_01b. Skip
-*                     some preliminary obs-space treatment below when in l1obs mode.
-*                     Improve output of HU field.
-*    -------------------
-**
 *
-*Arguments
-*    -NONE-
 #endif
       use MathPhysConstants_mod
       use mod4dv, only : l4dvar
@@ -57,26 +32,19 @@
       use modfgat
       use mpi
       use gridStateVector_mod
+      use gaussGrid_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "compost.cdk"
-#include "localpost.cdk"
 #include "comvfiles.cdk"
 *
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng
 C
-      LOGICAL LLTEST,llstdevout
-      INTEGER IZS(1)
-      REAL*8 ZZS(1)
-      REAL*8 DLDS(1)
-      real*8 zpsig(ni,nflev,nj)
-      real*8 z3d(ni,nflev,nj)
       type(struct_gsv) :: statevector,statevectorg
 
       CHARACTER *8 CSTATUS
@@ -90,6 +58,10 @@ C
       integer ini,index,ii,ij,jk1,jk2
       real*8 zcon,zcorr,zx,zl
       real*8  zmin,zmax
+      real*8 :: zes(gaus_ni,gaus_nflev,gaus_nj)
+      real*8 :: ztv(gaus_ni,gaus_nflev,gaus_nj)
+      real*8 :: zgz(gaus_ni,gaus_nflev,gaus_nj)
+      real*8 :: zhu(gaus_ni,gaus_nflev,gaus_nj)
 !
       LOGICAL LSTAGTEMP
       INTEGER FNOM,FCLOS
@@ -105,49 +77,6 @@ c
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'
 c
-      LVARDIAG=.FALSE.
-      llstdevout = .false.
-!
-      ILEN = NI*NFLEV*NJ
-      CALL HPALLOC(PXPP,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXQQ,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXCC,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXQR,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXDD,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXTTB,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXTTU,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXTV,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXGZ,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXGZB,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXGZU,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXES,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXHU,MAX(1,ILEN),IERR,8)
-      CALL HPALLOC(PXO3,MAX(1,NI*NJ),IERR,8)
-      CALL HPALLOC(PXPSG,MAX(1,NI*NJ),IERR,8)
-      CALL HPALLOC(PXPSB,MAX(1,NI*NJ),IERR,8)
-      CALL HPALLOC(PXPSU,MAX(1,NI*NJ),IERR,8)
-      CALL HPALLOC(PXPT,MAX(1,NI*NJ),IERR,8)
-
-*
-      CALL ZERO(ILEN,ZQQ(1,1,1))
-      CALL ZERO(ILEN,ZQR(1,1,1))
-      CALL ZERO(ILEN,ZPP(1,1,1))
-      CALL ZERO(ILEN,ZDD(1,1,1))
-      CALL ZERO(ILEN,ZCC(1,1,1))
-      CALL ZERO(ILEN,ZTTB(1,1,1))
-      CALL ZERO(ILEN,ZTTU(1,1,1))
-      CALL ZERO(ILEN,ZTV(1,1,1))
-      CALL ZERO(ILEN,ZGZ(1,1,1))
-      CALL ZERO(ILEN,ZGZB(1,1,1))
-      CALL ZERO(ILEN,ZGZU(1,1,1))
-      CALL ZERO(ILEN,ZES(1,1,1))
-      CALL ZERO(ILEN,ZHU(1,1,1))
-      CALL ZERO(NI*NJ,ZO3(1,1))
-      CALL ZERO(NI*NJ,zpsg(1,1))
-      CALL ZERO(NI*NJ,zpsb(1,1))
-      CALL ZERO(NI*NJ,zpsu(1,1))
-      CALL ZERO(NI*NJ,zpt(1,1))
-
 C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
 C     after minimization has ended. From this point all CMA
 C     references are to ROBDATA.
@@ -172,7 +101,7 @@ c
 c
 C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
-      call gsv_allocate(statevector,ni,nj,nflev,nstepobsinc)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,gaus_nflev,nstepobsinc)
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
@@ -192,53 +121,46 @@ c
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
-      call gsv_allocate(statevectorg,ni,nj,nflev,1)
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,gaus_nflev,1)
       call subasic_gd(statevectorg)
 !
-! assume HU actually contains LQ
+!     *** Compute increment HU from LQ increment
 !
-        zhu(:,:,:) = 0.0
-        do jk = 1,nflev
-          do jj = 1,nj
-            do ji = 1,ni
-              ZTEMP = log(statevectorg%hu3d(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
-              zhu(ji,jk,jj) = EXP(ZTEMP) - statevectorg%hu3d(ji,jk,jj)
-            enddo
+      zhu(:,:,:) = 0.0
+      do jk = 1,gaus_nflev
+        do jj = 1,gaus_nj
+          do ji = 1,gaus_ni
+            ZTEMP = log(statevectorg%hu3d(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
+            zhu(ji,jk,jj) = EXP(ZTEMP) - statevectorg%hu3d(ji,jk,jj)
           enddo
         enddo
+      enddo
 !
-      call diag3dvar(statevector,statevectorg)
+!     *** ES ***
+!
+      call lq2esgd(zes,statevector%tt3d,statevector%hu3d,
+     +             statevector%ps3d,statevectorg%hu3d,statevectorg%ps3d,
+     +             statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+!
+!     *** Total GZ ***
+!
+      call lt2tvgd(ztv,statevector%tt3d,statevector%hu3d,statevectorg%hu3d,
+     +             statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      call ltt2phigd(zgz,ztv,statevectorg%ps3d,
+     +               statevectorg%ni,statevectorg%nj,statevectorg%nlev)
 !
       call memfree(nulout,lobsSpaceData)
 !
       call tmg_start(99,'VAROUT')
 !
       if(mpi_myid == 0 ) then
-          call varout(statevector)
+          call varout(statevector,zes,ztv,zgz,zhu)
       endif
 !
       call tmg_stop(99)
 C
       call gsv_deallocate(statevector)
       call gsv_deallocate(statevectorg)
-      CALL HPDEALLC(PXPP,IERR,1)
-      CALL HPDEALLC(PXQQ,IERR,1)
-      CALL HPDEALLC(PXCC,IERR,1)
-      CALL HPDEALLC(PXQR,IERR,1)
-      CALL HPDEALLC(PXDD,IERR,1)
-      CALL HPDEALLC(PXTTB,IERR,1)
-      CALL HPDEALLC(PXTTU,IERR,1)
-      CALL HPDEALLC(PXTV,IERR,1)
-      CALL HPDEALLC(PXGZ,IERR,1)
-      CALL HPDEALLC(PXGZB,IERR,1)
-      CALL HPDEALLC(PXGZU,IERR,1)
-      CALL HPDEALLC(PXES,IERR,1)
-      CALL HPDEALLC(PXHU,IERR,1)
-      CALL HPDEALLC(PXO3,IERR,1)
-      CALL HPDEALLC(PXPSG,IERR,1)
-      CALL HPDEALLC(PXPSB,IERR,1)
-      CALL HPDEALLC(PXPSU,IERR,1)
-      CALL HPDEALLC(PXPT,IERR,1)
 
       write(nulout,*) 'LEAVING POSTMIN'
       RETURN

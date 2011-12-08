@@ -30,7 +30,6 @@
 C
       IMPLICIT NONE
 *implicits
-#include "comdim.cdk"
 #include "comdimo.cdk"
 *
       type(struct_obs) :: lobsSpaceData

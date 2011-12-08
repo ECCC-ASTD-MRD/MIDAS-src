@@ -62,7 +62,6 @@ c
 #endif
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 *
       integer jlev,jobs, ity, idburp, ierr

@@ -34,11 +34,8 @@ C
       use gaussGrid_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
-#include "comct0.cdk"
 #include "comgem.cdk"
-#include "namgem.cdk"
       INTEGER JLAT, KULOUT, JN, JM, ILA
       INTEGER JLEV,IERR,IMODE, IKIND
       REAL*8 ZPTOP, ZPS0, ZDELP
@@ -57,10 +54,8 @@ C
       rptopinc = 1000.0
       rprefinc = 80000.0
       rcoefinc = 1.0
-      do jlev  = 1 ,nflev
-        vlev(jlev)    = 0.0
-        vhybinc(jlev) = 0.0
-      enddo
+      vlev(:)    = 0.0
+      vhybinc(:) = 0.0
 c
       vlev(1)=0.000
       vlev(2)=0.011
@@ -101,20 +96,20 @@ C          NAMSHARED_AAI_3DV
 C
  320  CONTINUE
 C
-      IF(NFLEV.GT.JPNFLEV) THEN
+      IF(gaus_NFLEV.GT.JPNFLEV) THEN
          WRITE(NULOUT,FMT='(//,6X,''Too many levels'')')
          CALL ABORT3D(NULOUT,'SUGEM. Too many levels')
       END IF
 C
       CALL READNML('NAMGEM',IERR)
       CALL READNML('NAMSHARED_AAI_3DV',IERR)
-      CALL VSORT(VLEV,NFLEV)
+      CALL VSORT(VLEV,gaus_NFLEV)
 C
       imode = nip1_pak_inc
 C
       if(cvcord .eq. 'ETAGE') then
         ikind = 1
-        do jlev = 1,nflev
+        do jlev = 1,gaus_nflev
           vhybinc(jlev) = vlev(jlev) + (1.0D0-vlev(jlev))
      &         *rptopinc/rprefinc
           call VCONVIP(nip1(jlev),vlev(jlev),ikind
@@ -122,36 +117,18 @@ C
         enddo
       else
         ikind = 5
-        do jlev = 1,nflev
+        do jlev = 1,gaus_nflev
           vhybinc(jlev) = vlev(jlev)
           call VCONVIP(nip1(jlev),vlev(jlev),ikind
      &         ,imode,clstring, .false. )
         enddo
       endif
 C
-C*    . 3.3 Levels are sorted in increasing order
-C     .     then truncated to three decimals
-C
- 330  CONTINUE
-C
-
-C
-C     Initialisation of corresponding NIP1s
-C
-C
-C*     4. Conversion of wind images to physical winds
-C
- 400  CONTINUE
-      DO 401 JLAT = 1, NJ
-         CONPHY(JLAT) = RA*gaus_R1QM2(JLAT)
-         CONIMA(JLAT) = R1SA*gaus_RSQM2(JLAT)
- 401  CONTINUE
-C
 C*     5. Print the values
 C
  500  CONTINUE
 C
-      DO 501 JLEV = 1, NFLEV
+      DO 501 JLEV = 1, gaus_NFLEV
          WRITE(KULOUT,FMT='(4X,"LEVEL NO.",I3,":",2X,"VHYBINC= ",G12.6
      S     ,2X,"VLEV= ",G12.6,2X,"NIP1 OF VLEV= ",I10)')
      S        JLEV,VHYBINC(JLEV),VLEV(JLEV),NIP1(JLEV)
@@ -160,15 +137,6 @@ C
       WRITE(KULOUT,
      +FMT='(/,10x,"Type of vertical coordinate:",10x,a8)') CVCORD
       WRITE(KULOUT,FMT='(/,10x,"Definition of inc anal levels",/)')
-C
-      WRITE(KULOUT,9502)
- 9502 FORMAT(/,10x,'CONVERSION OF WIND IMAGES',
-     S     ' INTO PHYSICAL WINDS',/,3X,'JLAT',8X
-     S     ,'CONPHY(JLAT)',7X,'CONIMA(JLAT)')
-      DO 502 JLAT = 1, NJ
-         WRITE(KULOUT,FMT='(4X,I3,":",2(7X,G12.6))')
-     S        JLAT,CONPHY(JLAT),CONIMA(JLAT)
- 502  CONTINUE
 C
       RETURN
       END

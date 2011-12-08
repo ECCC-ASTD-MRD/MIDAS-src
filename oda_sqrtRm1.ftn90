@@ -30,9 +30,6 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
   ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
   !
   implicit NONE
-
-#include "comdim.cdk"
-#include "comdimo.cdk"
   type(struct_obs) :: lobsSpaceData
   INTEGER jdata
 !

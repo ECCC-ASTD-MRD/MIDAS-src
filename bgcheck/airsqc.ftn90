@@ -30,7 +30,6 @@
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "cvcord.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData

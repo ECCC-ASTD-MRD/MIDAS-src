@@ -97,11 +97,6 @@ C
 *--------------------------------------------------------------------
 #endif
       IMPLICIT NONE
-*implicits
-#include "pardim.cdk"
-#include "comdim.cdk"
-#include "comgem.cdk"
-*
       INTEGER  JI, JO, JN
       INTEGER  KNIDIM, KNI, KNO, KNPROF, KFLAG
 C

@@ -24,7 +24,6 @@
       use MathPhysConstants_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
       REAL*8, intent(inout) :: LQ,TT,P0
       REAL*8, intent(in)  :: ES,LQ_g,PRES_g,VHYB

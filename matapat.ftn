@@ -54,7 +54,6 @@ C
       real*8  vma(knlev),vmb(knlev),vmc(knlev),vmd(knlev),vme(knlev),vmf(knlev)
 c
 #include "comlun.cdk"
-#include "comdim.cdk"
 C
 *implicits
       logical llprint

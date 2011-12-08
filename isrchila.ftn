@@ -30,16 +30,12 @@
 *     .        to the observation points.
 *
 *Arguments
-*     NJSUR   : NUMBER OF LATITUDES IN VECTOR RLATI
 *     RLATI   : LATITUDE (RADIANS, NEGATIVE FOR SOUTHERN HEMISPHERE)
 *     ZLAO    : LATITUDE (RADIANS) OF THE OBSERVATION POINT
 #endif
 *
       use gaussGrid_mod
       IMPLICIT NONE
-*implicits
-#include "comdim.cdk"
-*
 C
       REAL*8     ZLAO
       INTEGER   IFOUND, J, ISRCHILA
@@ -55,7 +51,7 @@ C
          ISRCHILA = J - 1
          IFOUND = 1
       ENDIF
-      IF(IFOUND.EQ.0.AND.(J.LT.(NJ+2))) GO TO 101
+      IF(IFOUND.EQ.0.AND.(J.LT.(gaus_NJ+2))) GO TO 101
 C     
       RETURN
       END

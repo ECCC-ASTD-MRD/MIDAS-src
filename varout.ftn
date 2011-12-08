@@ -1,4 +1,4 @@
-      SUBROUTINE varout(statevector)
+      SUBROUTINE varout(statevector,zes,ztv,zgz,zhu)
       use mod4dv, only : l4dvar
 #if defined (DOC)
 *
@@ -40,7 +40,6 @@ C
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
 #include "comgem.cdk"
 #include "compost.cdk"
@@ -49,11 +48,14 @@ C
 #include "comgdpar.cdk"
 *
       type(struct_gsv) :: statevector
+      real*8 :: zes(statevector%ni,statevector%nlev,statevector%nj)
+      real*8 :: ztv(statevector%ni,statevector%nlev,statevector%nj)
+      real*8 :: zgz(statevector%ni,statevector%nlev,statevector%nj)
+      real*8 :: zhu(statevector%ni,statevector%nlev,statevector%nj)
       integer vfstluk,write_encode_hyb
       integer jvar, jcol
       integer ji,jj,jlev,inbrlev,imode,inbitstr,ilimlvhu
       real*8 zlowvar,zlowwind
-#include "localpost.cdk"
 C
       integer itrlgid,ip0gid,iip1s(jpnflev),iip1,iip2
       integer iip1s_inclr(jpnflev),iip1s_trl(jpnflev)
@@ -73,8 +75,8 @@ C
       integer  k,koutmpg
 
       character*1 clgrtypwind,clstring,cltypinc,cltypanl
-      pointer (pzlowvar,zlowvar(ni,nj,nflev))
-      pointer (pzlowwind,zlowwind(ni,nj,nflev))
+      pointer (pzlowvar,zlowvar(statevector%ni,statevector%nj,statevector%nlev))
+      pointer (pzlowwind,zlowwind(statevector%ni,statevector%nj,statevector%nlev))
       pointer (pxpttrl,zpttrl)
       LOGICAL llimplemented,llvarout,llclip,llp0
       data cltypinc,cltypanl /'R','A'/
@@ -85,7 +87,8 @@ c
 !!
       WRITE(NULOUT,FMT='(/,4X,"Starting VAROUT: v_10_2_1",//)')
 c
-      CALL HPALLOC(PZLOWVAR,MAX(NI*NJ*nflev,1),IERR,8)
+      CALL HPALLOC(PZLOWVAR,MAX(STATEVECTOR%NI*STATEVECTOR%NJ*statevector%nlev,1),IERR,8)
+      call hpalloc(pzlowwind,statevector%ni*statevector%nj*statevector%nlev,ierr,8)
 C
       WRITE(NULOUT,FMT='(/,4X,''Transfer of the gridpoint model'',
      S     '' state on file at iteration No.'',I3)')
@@ -158,7 +161,6 @@ c
       call getfldprm(IIP1S_TRL,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &     ,ITRLGID,'UU',ibrpstamp,jpnflev,koutmpg
      &     ,nulout,ip1_pak_trl,ip1_vco_trl)
-      call hpalloc(pzlowwind,ni*nj*nflev,ierr,8)
 
       do jvar = 1, nppcvar
 c
@@ -182,13 +184,13 @@ c
         if(vlev(1) .eq. 0.0 .or. rptopinc .eq. 0.0) then
 c       ETA or SIGMA levels were read from namelist
           ip1_vco_inclr = 1
-          do jlev = 1,nflev
+          do jlev = 1,statevector%nlev
             zlev_inclr(jlev) = vlev(jlev)
           enddo
         else
 c       HYBRID levels read from namelist
           ip1_vco_inclr = 5
-          do jlev = 1,nflev
+          do jlev = 1,statevector%nlev
             zlev_inclr(jlev) = vhybinc(jlev)
           enddo
         endif
@@ -198,12 +200,12 @@ c
         ip1 = -1
         jlev = 1
 cprnt    write(nulout,*)' avant do while',cppcvar(jvar)
-        do while (jlev.le.nflev.and.ip1.ne.0 )
+        do while (jlev.le.statevector%nlev.and.ip1.ne.0 )
 c
 c Get the variable cppcvar(jvar) in zlowvar vector
 c
-          call gdout2(cppcvar(jvar),ZLOWVAR(1,1,jlev),ni,nj
-     &         ,jlev,llimplemented,IIP1S_INCLR(jlev),statevector)
+          call gdout2(cppcvar(jvar),ZLOWVAR(1,1,jlev),jlev,
+     &         llimplemented,IIP1S_INCLR(jlev),statevector,zes,ztv,zgz,zhu)
 cprnt          write(nulout,*)'apres gdout2',cppcvar(jvar),jvar,jlev
 cprnt     &         ,IIP1S_INCLR(jlev),llimplemented
 c
@@ -214,10 +216,8 @@ c
 c ... otherwise write low resolution residuals to rpn standard file.
 c
           if(nulinclr.ne.0.and.llvarout) then
-cprnt            write(nulout,*)'rebm inpak_inc= ',jlev,inpak_inc
-cprnt     &           ,cppcvar(jvar)
             IERR  = VFSTECR(ZLOWVAR(1,1,jlev),zwork,inpak_inc
-     &       ,nulinclr,ibrpstamp,ndeet,npas,ni,nj,1,iip1s_inclr(jlev)
+     &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
      &       ,nip2,niter,cltypinc,cppcvar(jvar),cetikinc,cgrtyp,nig1
      &       ,nig2,nig3,nig4,nidatyp,.true.)
           endif
@@ -226,13 +226,12 @@ c If cppcvar is a wind component look for the other component
 c
           if(cppcvar(jvar).eq.'VV'.or.cppcvar(jvar).eq.'UU') then
 c
-            call gdout2(clnomvar,ZLOWWIND(1,1,jlev),ni,nj,jlev
-     &           ,llimplemented,IIP1S_INCLR(jlev),statevector)
+            call gdout2(clnomvar,ZLOWWIND(1,1,jlev),jlev,
+     &           llimplemented,IIP1S_INCLR(jlev),statevector,zes,ztv,zgz,zhu)
 c
             if(nulinclr.ne.0.and.llvarout) then
-ccc        write(nulout,*)'xxx inpak_inc= ',jlev,inpak_inc,clnomvar
         IERR  = VFSTECR(zlowwind(1,1,jlev),zwork,inpak_inc
-     &       ,nulinclr,ibrpstamp,ndeet,npas,ni,nj,1,iip1s_inclr(jlev)
+     &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
      &       ,nip2,niter,cltypinc,clnomvar,cetikinc,cgrtyp,nig1,nig2
      &       ,nig3,nig4,nidatyp,.true.)
             endif
@@ -244,14 +243,11 @@ c
         enddo                 ! enddo while
 c
  100    continue
-ccc_mhuaes
-c       At this point the low resolution analysed increments have been
-C       written to the file on unit nulinclr.
-c
+
  200  enddo
 c
-c*    9. Deallocation of local arrays (Abort on error)
-c     .  ---------------------------------------------
+c       At this point the low resolution analysed increments have been
+C       written to the file on unit nulinclr.
 c
       call hpdeallc(pzlowvar,ierr,1)
       call hpdeallc(pzlowwind,ierr,1)

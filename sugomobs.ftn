@@ -34,7 +34,6 @@
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"

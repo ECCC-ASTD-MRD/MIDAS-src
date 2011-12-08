@@ -44,12 +44,8 @@
 #endif
 !
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comlun.cdk"
 #include "rpnstd.cdk"
-#include "comgdpar.cdk"
-#include "namgdpar.cdk"
-#include "comgem.cdk"
 #include "cvcord.cdk"
 !
       type(struct_gsv) :: statevectorg
@@ -58,13 +54,13 @@
       integer iip1s_trl(jpnflev)
       integer :: k,koutmpg  !  the unit which has the selected records.
 !
-      real*8 zug(ni,nflev,nj)
-      real*8 zvg(ni,nflev,nj)
-      real*8 zttg(ni,nflev,nj)
-      real*8 zgzg(ni,nflev,nj)
-      real*8 zhug(ni,nflev,nj)
-      real*8 zpsg(ni,nj)
-      real*8 zpt(ni,nj)
+      real*8 zug(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8 zvg(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8 zttg(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8 zgzg(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8 zhug(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8 zpsg(statevectorg%ni,statevectorg%nj)
+      real*8 zpt(statevectorg%ni,statevectorg%nj)
 !
 !!
       write(nulout,*) 'subasic_gd: BEGIN'
@@ -87,12 +83,13 @@
      &     ,ITRLGID,'UU',ibrpstamp,jpnflev,ninmpg
      &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
 !
-        call getfstg2(zttg,zgzg,zhug,zug,zvg,zpsg,zpt)
+        call getfstg2(zttg,zgzg,zhug,zug,zvg,zpsg,zpt,
+     +       statevectorg%ni,statevectorg%nj,statevectorg%nlev)
 !
-        do ji=1,ni
-          do jj=1,nj
+        do ji=1,statevectorg%ni
+          do jj=1,statevectorg%nj
             statevectorg%ps3d(ji,1,jj)=zpsg(ji,jj)
-            do jlev=1,nflev
+            do jlev=1,statevectorg%nlev
               statevectorg%uu3d(ji,jlev,jj)=zug(ji,jlev,jj)
               statevectorg%vv3d(ji,jlev,jj)=zvg(ji,jlev,jj)
               statevectorg%tt3d(ji,jlev,jj)=zttg(ji,jlev,jj)

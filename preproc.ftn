@@ -37,12 +37,10 @@
 *implicits
 #include "comct0.cdk"
 #include "comlun.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
-#include "comgdpar.cdk"
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
@@ -80,23 +78,15 @@
 !
 !     INITIALIZE DIMENSIONS.
 !
-      CALL SUDIM(NULOUT)   ! n.b.: other namelist e.g. namcva are being read here to allow high-level decisions...
+      call gaus_setup
 !
 !     Initialize observations dimensions
 !
       CALL SUDIMO(NULOUT,lobsSpaceData)
 !
-!     ALLOCATE MEMORY FOR GRID POINT AND SPECTRAL ARRAYS.
-!
-      CALL SUALLO(NULOUT)
-!
 !     Allocate memory for observation arrays
 !
       CALL SUALOBS(NULOUT,lobsSpaceData)
-!
-!     Initialize the global spectral transform (needed?)
-!
-      call sugaussgrid(nj)
 !
 !     Initialisation of the geometry
 !
@@ -183,8 +173,8 @@
 !
 !     MEMORY ALLOCATION FOR BACKGROUND COLUMN DATA 
 !
-      call col_sualobsb(nflev,nobtot) 
-      call col_allocate(lcolumng,nflev,nobtot)
+      call col_sualobsb(gaus_nflev,nobtot) 
+      call col_allocate(lcolumng,gaus_nflev,nobtot)
       call col_zero(lcolumng)
 !
 !     Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng
@@ -205,7 +195,7 @@
 !
 !     Set up the minimization module, now that the required parameters are known
 !
-      if(nconf.eq.141) call min_setup(cvm_nvadim,ni,nj,nflev,nstepobsinc)
+      if(nconf.eq.141) call min_setup(cvm_nvadim,gaus_ni,gaus_nj,gaus_nflev,nstepobsinc)
 !
       call tmg_stop(15)  ! end of what used to be SUCVA
 !

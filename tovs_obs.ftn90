@@ -40,8 +40,6 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
   implicit none
 !implicits
 #include "comlun.cdk"
-#include "comdim.cdk"
-#include "comdimo.cdk"
 
   type(struct_columnData) :: lcolumnghr
   type(struct_obs) :: lobsSpaceData

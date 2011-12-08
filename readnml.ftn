@@ -74,9 +74,6 @@ C
 #include "comct0.cdk"
 #include "namct0.cdk"
 C
-#include "comdim.cdk"
-#include "namdim.cdk"
-C
 #include "comdimo.cdk"
 #include "namdimo.cdk"
 C
@@ -92,10 +89,6 @@ C
 C
 #include "compost.cdk"
 #include "nampost.cdk"
-C
-#include "combpost.cdk"
-#include "nambpost.cdk"
-C
 C
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -152,11 +145,6 @@ C
          READ(NULNAM,NAMCT0)
          WRITE(NULOUT,NAMCT0)
 C
-      ELSE IF(CDNAME.EQ.'NAMDIM')THEN
-C
-         READ(NULNAM,NAMDIM)
-         WRITE(NULOUT,NAMDIM)
-C
       ELSE IF(CDNAME.EQ.'NAMDIMO')THEN
 C
          READ(NULNAM,NAMDIMO)
@@ -186,11 +174,6 @@ C
 C
          READ(NULNAM,NAMPOST)
          WRITE(NULOUT,NAMPOST)
-C
-      ELSE IF(CDNAME.EQ.'NAMBPOST')THEN
-C
-         READ(NULNAM,NAMBPOST)
-         WRITE(NULOUT,NAMBPOST)
 C
       ELSE IF(CDNAME.EQ.'NAMTOV')THEN
 C

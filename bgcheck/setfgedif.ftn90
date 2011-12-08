@@ -18,7 +18,6 @@
       use obsSpaceData_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
@@ -135,7 +134,7 @@
                      DV (2*lcolumng%NLEV+1)   = 2.
 
                      IF (JO.EQ.IBEGINOB) THEN
-                        DO JL = 1, 2*NFLEV+1
+                        DO JL = 1, 2*LCOLUMNG%NLEV+1
                            WRITE(*,*)'SETFGEDIF', JL, DV(JL)
                         ENDDO
                      ENDIF

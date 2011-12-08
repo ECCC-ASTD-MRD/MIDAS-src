@@ -55,7 +55,6 @@
 *
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comdim.cdk"
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comdimo.cdk"

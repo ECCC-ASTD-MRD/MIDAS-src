@@ -38,7 +38,6 @@ c L. Fillion, ARMA/EC, 11 May 2010. Limit printout to processor 0.
 c L. Fillion, ARMA/EC, 20 May 2010. Relocate call to restore_robdata8
 C              and correct bug ROBDATA8(NCM_OMI,JDATA)
 
-#include "comdim.cdk"
 #include "comlun.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"

@@ -19,7 +19,6 @@
       use bufr
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
       integer isetflag
       integer kvnam,kodtyp

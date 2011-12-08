@@ -16,7 +16,6 @@
       use obsSpaceData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "comdim.cdk"
 #include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
@@ -96,7 +95,7 @@
                     ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.   &
                     ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
 
-                  IPT  = IK + IPOS*NFLEV
+                  IPT  = IK + IPOS*LCOLUMNG%NLEV
                   IPB  = IPT+1
                   call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(lcolumn%all(IPB,IOBS)))
 !c ***** debug *********
@@ -105,7 +104,7 @@
 !c     &                            obs_elem_r4(lobsSpaceData,'FGE ',jdata)
 !c ***** debug *********
                 ELSE
-                  IPT  = IK + IPOS*NFLEV
+                  IPT  = IK + IPOS*LCOLUMNG%NLEV
                   IPB  = IPT+1
                   ZPT  = lcolumng%GZ(IK,IOBS)
                   ZPB  = lcolumng%GZ(IK+1,IOBS)
@@ -116,7 +115,7 @@
                       real(zwb*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS)) )
                   ELSE
                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
-                      real(lcolumn%all(IK + IPOS*NFLEV,IOBS)) )
+                      real(lcolumn%all(IK + IPOS*LCOLUMNG%NLEV,IOBS)) )
                   ENDIF
                 if(obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '99999999') then
                   write(nulout,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &

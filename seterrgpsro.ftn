@@ -40,11 +40,9 @@
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdim.cdk"
 #include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
-#include "comct0.cdk"
 #include "comgpsro.cdk"
 *
       type(struct_columnData) :: lcolumnhr

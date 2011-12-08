@@ -62,8 +62,6 @@
 c------------------------------------------------------------------------
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comdim.cdk"
-#include "comdimo.cdk"
 #include "comgem.cdk"
 c
       type(struct_columnData) :: lcolumn,lcolumng
