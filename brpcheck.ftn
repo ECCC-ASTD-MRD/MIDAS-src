@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE BRPCHECK(KTIME,KDATE,KRUNN)
+      SUBROUTINE BRPCHECK
       IMPLICIT NONE
 #if defined (DOC)
 *s/r BRPCHECK
@@ -77,6 +77,8 @@
       INTEGER FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
      +        ,MRFMXL,NUMBLKS
 *
+      INTEGER NBRPDATE,NBRPHH,ISTAMPOBS,INEWHH,NEWDATE
+      REAL*8 DELHH
       INTEGER       IVALS,J
       CHARACTER*9   CLSTNID
 *
@@ -144,5 +146,23 @@
          IER= FCLOS(IBRP1)
       END DO
 *
+      ier = newdate(istampobs,kdate,ktime,3)
+      delhh = 3.0
+      call INCDATR (nbrpstamp, istampobs, delhh)
+      ier = newdate(nbrpstamp,nbrpdate,inewhh,-3)
+      nbrphh=KTIME/100
+      if (nbrphh .ge. 21 .or. nbrphh .lt. 3) then
+        nbrphh = 0
+      elseif(nbrphh .ge. 3 .and. nbrphh .lt. 9) then
+        nbrphh = 6
+      elseif(nbrphh .ge. 9 .and. nbrphh .lt. 15) then
+        nbrphh = 12
+      else
+        nbrphh = 18
+      endif
+      ier = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
+      WRITE(NULOUT, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
+      WRITE(NULOUT, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+
       RETURN
       END

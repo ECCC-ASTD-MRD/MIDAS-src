@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE SETCMA(lobsSpaceData)
-      use modmask, only : lmask
       use obsSpaceData_mod
 #if defined (DOC)
 *

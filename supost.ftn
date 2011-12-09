@@ -71,28 +71,11 @@ C
       CPPCVAR(19)= 'ZU'
       CPPCVAR(20)= 'PB'
 C
-      lanlhu2es = .false.
-      lswphes   = .false.
-C
 C*    2. Read the parameters from NAMPOST
 C
  200  CONTINUE
 C
       CALL READNML('NAMPOST',IERR)
-C
-      CVARPOST   = 'A'
-      NIP2       =  0
-      NDEET      =  0
-      NPAS       =  0
-      NIDATYP    =  1
-      NPAK       =  -30
-      NSTAMP     =  0101010101
-!
-      CGRTYP     = 'G'
-      NIG1       =  0
-      NIG2       =  0
-      NIG3       =  0
-      NIG4       =  0
 C
 C*    3. Define the levels at which postprocessing is to occur
 C
@@ -106,7 +89,6 @@ c
       ivt = 0
       lttout = .false.
       lhuout = .false.
-      lolqout= .false.
       lgzout = .false.
 c
 !
@@ -132,7 +114,6 @@ c
         endif
         if(cppcvar(jvar).eq.'LQ') then
           ilq = jvar
-          lolqout = .true.
         endif
       enddo
 c
@@ -173,7 +154,5 @@ C
         WRITE(NULOUT,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5)')
      S        jvar,CPPCVAR(jvar)
       ENDDO
-         WRITE(NULOUT,FMT='(4X,"LANLHU2ES=",L5,":",2X,"LSWPHES= ",L5)')
-     S      LANLHU2ES,LSWPHES
       RETURN
       END

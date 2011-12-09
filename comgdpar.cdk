@@ -2,76 +2,19 @@
 !     COMMON BLOCKS NEEDED TO:
 !
 !     1. READ FIELDS STORED INTO RPN STANDARD FILES
-!        AND AND DATA STORED INTO CMC ADE BURP FILES.
-!     2. OUTPUT TO ANALYSIS FILE.
-!
-!Revision:
-!     .  C. Charette *ARMA/AES Feb 2002
-!        Added npakanl
-!     .  L. Fillion *ARMA/EC Feb 2005
-!        Added trial dimensions nit,njt,nkt=nlevtrl and some grid arrays useful for Limited Area analysis.
-!        and outputing fields at the end of the minimization.
-!-----------------------------------------------------------------------
-!
-!                  --------   ----------- --------------------------
-!                  Analysis   First Guess Initial Mini-    Normalized
-!     .                                   misation point   Increment
-!                  --------   ----------- --------------------------
-!    DATESTAMPS:      *          *            *               *
-!   .              NSTAMPA    NSTAMPT      NSTAMPI.        NSTAMPN
-!                     *          *            *               *
-!    TYPVARS:         *          *            *               *
-!   .             CTYPVARA    CTYPVART     CTYPVARI.       CTYPVARN
-!                     *          *            *               *
-!    ETIQUETTES:      *          *            *               *
-!   .             CETIKETA    CETIKETT     CETIKETI        CETIKETN
-!
-!-----------------------------------------------------------------------
 !
 !     .    CETIKINC: ETIQUETTE OF ANALYSED INCREMENTS
-!     .     NIG    : STORAGE DESCRIPTOR  0: S-N 1: N-S  (..IG2..)
-!     .     NITER  : NUMBER OF ITERATIONS               (..IP3..)
 !     .     NFSTVAR: NUMBER OF VARIABLES
 !     .     CFSTVAR:  NAME OF VARIABLES                (..NOMVAR..)
-!     .     CMCRUN : CMC RUN NAME ( 'r112' 'g112' 'g206' etc...)
-!     .    NPAKANL : PACKING OF FIELDS IN ANALYSIS FILE (= -nbits)
-!                    NPAKANL= -30  (DEFAULT) 
-!                    NPAKANL= -999 (SAME AS IN TRIAL FIELD FILE) 
 !
 #endif
-      INTEGER     NIG, NFSTVAR, NFSTVAR2D, NITER
-      INTEGER     NSTAMPA, NSTAMPT, NSTAMPI, NSTAMPN
-      INTEGER     NIP2A, NIP2T, NIP2I,NIP2N, NPAKANL
-      INTEGER     NDEETA, NDEETT, NDEETI, NDEETN
-      INTEGER     NPASA, NPAST, NPASI, NPASN
-      INTEGER     NIG2A,  NIG2I, NIG2N
-      INTEGER     NIG1T, NIG2T, NIG3T, NIG4T
-      INTEGER     NIG1RBG, NIG2RBG, NIG3RBG, NIG4RBG
-      INTEGER     NIT, NJT, nkt
-      integer     NPAKINC, ndtinc
-      integer     NIGDGID,ngid_an,ngid_in,ngidu_in,ngidv_in
-      integer     ngid_an2,ngid_in2,ngidu_in2,ngidv_in2
+      INTEGER     NFSTVAR, NFSTVAR2D
 
       CHARACTER*2 CFSTVAR(7),CFSTVAR2D(7)
-      CHARACTER*4 CMCRUN
-      CHARACTER*1 CTYPVARA,CTYPVART,CTYPVARI,CTYPVARN
-      CHARACTER*8 CETIKETA,CETIKETT,CETIKETI,CETIKETN
       CHARACTER*8 CETIKINC
-      CHARACTER*1 CGRTYPT, cgrtypa
 
-      real*8 dx, dy
-      real rlat1bg, rlon1bg, rlat2bg, rlon2bg
-
-      COMMON/COMFST3DC/CTYPVARA, CTYPVART, CTYPVARI, CTYPVARN
-      COMMON/COMFST3DC/CETIKETA, CETIKETT, CETIKETI, CETIKETN, CMCRUN, CFSTVAR,CFSTVAR2D
-      COMMON/COMFST3DC/CETIKINC,CGRTYPT,CGRTYPA
-      COMMON/COMFST3D/NSTAMPA,  NSTAMPT,  NSTAMPI, NSTAMPN
-      COMMON/COMFST3D/NIP2A, NIP2T, NIP2I, NIP2N, NDEETA, NDEETT, NDEETI, NDEETN
-      COMMON/COMFST3D/NPASA, NPAST, NPASI, NPASN, NIG2A, NIG2I, NIG2N, NIG, NITER
-      COMMON/COMFST3D/NFSTVAR,NFSTVAR2D,NPAKANL, NIG1T, NIG2T, NIG3T, NIG4T
-      COMMON/COMFST3D/NIT, NJT, nkt, NIGDGID ,ngid_an, ngid_in, ngidu_in, ngidv_in
-      COMMON/COMFST3D/ngid_an2,ngid_in2,ngidu_in2,ngidv_in2 
-      COMMON/COMFST3D/npakinc, ndtinc, NIG1RBG, NIG2RBG, NIG3RBG, NIG4RBG
-      COMMON/COMFST3DR/rlat1bg, rlon1bg, rlat2bg, rlon2bg
+      COMMON/COMFST3DC/CFSTVAR,CFSTVAR2D
+      COMMON/COMFST3DC/CETIKINC
+      COMMON/COMFST3D/NFSTVAR,NFSTVAR2D
 
 

@@ -44,10 +44,7 @@
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
-      INTEGER jvar, IERR
-      INTEGER itime,idate,irunn
-      integer inewhh,newdate,istampobs
-      real*8 delhh
+      INTEGER IERR
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine preproc--'
@@ -104,26 +101,9 @@
  9200 FORMAT(//,5x,"-Reading and initialization in preparation to the "
      S     ,"minimization",/,6x,61('-'))
 !
-!     NEED TO MOVE THIS TO ANOTHER SUBROUTINE - IS IT ALL STILL NECESSARY?
+!     Check the date of the burp files (set nbrpstamp)
 !
-      CALL BRPCHECK(ITIME,IDATE,IRUNN)
-      ierr = newdate(istampobs,idate,itime,3)
-      delhh = 3.0
-      call INCDATR (nbrpstamp, istampobs, delhh)
-      ierr = newdate(nbrpstamp,nbrpdate,inewhh,-3)
-      nbrphh=ITIME/100
-      if (nbrphh .ge. 21 .or. nbrphh .lt. 3) then
-        nbrphh = 0
-      elseif(nbrphh .ge. 3 .and. nbrphh .lt. 9) then
-        nbrphh = 6
-      elseif(nbrphh .ge. 9 .and. nbrphh .lt. 15) then
-        nbrphh = 12
-      else
-        nbrphh = 18
-      endif
-      ierr = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
-      WRITE(NULOUT, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
-      WRITE(NULOUT, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+      CALL BRPCHECK
 !
 !     Initialize comgdpar
 !

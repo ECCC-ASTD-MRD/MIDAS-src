@@ -91,7 +91,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   !     TL of variable conversions
   !------------------------------
   call tmg_start(51,'VAR_CH') !
-  call lpreobs(lcolumn,lcolumng)
+  if(NMVOEXIST(NOGZ).eq.1) call ltt2phi(lcolumn,lcolumng)
   call tmg_stop(51)
 
 

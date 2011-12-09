@@ -38,8 +38,6 @@
 *       . P. Koclas *CMC/CMSV October 1998:
 *             for eta analysis:
 *         - Temporary patch to read postalt markers for airep data.
-*         C. Charette ARMA/AES NOV 1998
-*            - Updates for option cvcord = 'PRESS'
 *       . P. Koclas *CMC/AES June  1999:
 *       .    - Y2K conversion (date element for grouped data)
 *       . J. Halle *CMDA/AES Oct 1999

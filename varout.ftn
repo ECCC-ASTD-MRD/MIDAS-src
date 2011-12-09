@@ -17,9 +17,6 @@
 *          S. Pellerin *ARMA/SMC Jul. 2005
 *                   . Logical switch llvint to do vertical interpolation
 *                     only vhen necessary
-*          C. Charette - ARMA/SMC - Nov. 2005
-*                   . INI,INJ,INK are no longer overwritten when npakanl=-999
-*                   . Introduced logical switch llgettrl
 *          Bin He     - ARMA/SMC - Apr. 2008
 *                   . Added reading multiple trial files.
 *          S. Pellerin, ARMA, August 2008
@@ -37,6 +34,7 @@ C
       use MathPhysConstants_mod
       use modfgat, only : nstamplist
       use gridStateVector_mod
+      use minimization_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
@@ -73,6 +71,8 @@ C
       real*8 zptophr, zprefhr,zrcoefhr
 
       integer  k,koutmpg
+      integer ndeet,nip2,npas,nidatyp,nig1,nig2,nig3,nig4
+      character*1 CGRTYP
 
       character*1 clgrtypwind,clstring,cltypinc,cltypanl
       pointer (pzlowvar,zlowvar(statevector%ni,statevector%nj,statevector%nlev))
@@ -92,13 +92,23 @@ c
 C
       WRITE(NULOUT,FMT='(/,4X,''Transfer of the gridpoint model'',
      S     '' state on file at iteration No.'',I3)')
-     S     NITER
+     S     min_niter
 c
       if(l4dvar) then
         ibrpstamp=nstamplist(1)
       else
         ibrpstamp=nbrpstamp
       endif
+
+      ndeet=0
+      NIP2       =  0
+      NPAS       =  0
+      NIDATYP    =  1
+      CGRTYP     = 'G'
+      NIG1       =  0
+      NIG2       =  0
+      NIG3       =  0
+      NIG4       =  0
 
 c *********************************************************
 c     Set hybride vertical coordinate parameters from trial field
@@ -113,14 +123,14 @@ c
 
 c
       if(nulinclr.ne.0) then
-cprnt      write(nulout,*)'varout:nIP2,niter,cetikinc,ibrpstamp,ptop,pref,coef '
-cprnt     &       ,nIP2,niter,cetikinc,ibrpstamp,zptop4,zpref4,zrcoef4
+cprnt      write(nulout,*)'varout:nIP2,min_niter,cetikinc,ibrpstamp,ptop,pref,coef '
+cprnt     &       ,nIP2,min_niter,cetikinc,ibrpstamp,zptop4,zpref4,zrcoef4
         write(nulout,*) 'Writing variable HY on analysis-increment file'
 c
         zptop4 = rptopinc*rpatmb
         zpref4 = rprefinc*rpatmb
         zrcoef4 = rcoefinc
-        ierr    = write_encode_hyb(nulinclr,'HY',nip2,niter,cetikinc
+        ierr    = write_encode_hyb(nulinclr,'HY',nip2,min_niter,cetikinc
      &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
       endif
 c ****************************************************************
@@ -205,7 +215,7 @@ c
 c Get the variable cppcvar(jvar) in zlowvar vector
 c
           call gdout2(cppcvar(jvar),ZLOWVAR(1,1,jlev),jlev,
-     &         llimplemented,IIP1S_INCLR(jlev),statevector,zes,ztv,zgz,zhu)
+     &         llimplemented,IIP1S_INCLR(jlev),nig2,statevector,zes,ztv,zgz,zhu)
 cprnt          write(nulout,*)'apres gdout2',cppcvar(jvar),jvar,jlev
 cprnt     &         ,IIP1S_INCLR(jlev),llimplemented
 c
@@ -218,7 +228,7 @@ c
           if(nulinclr.ne.0.and.llvarout) then
             IERR  = VFSTECR(ZLOWVAR(1,1,jlev),zwork,inpak_inc
      &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
-     &       ,nip2,niter,cltypinc,cppcvar(jvar),cetikinc,cgrtyp,nig1
+     &       ,nip2,min_niter,cltypinc,cppcvar(jvar),cetikinc,cgrtyp,nig1
      &       ,nig2,nig3,nig4,nidatyp,.true.)
           endif
 c
@@ -227,12 +237,12 @@ c
           if(cppcvar(jvar).eq.'VV'.or.cppcvar(jvar).eq.'UU') then
 c
             call gdout2(clnomvar,ZLOWWIND(1,1,jlev),jlev,
-     &           llimplemented,IIP1S_INCLR(jlev),statevector,zes,ztv,zgz,zhu)
+     &           llimplemented,IIP1S_INCLR(jlev),nig2,statevector,zes,ztv,zgz,zhu)
 c
             if(nulinclr.ne.0.and.llvarout) then
         IERR  = VFSTECR(zlowwind(1,1,jlev),zwork,inpak_inc
      &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
-     &       ,nip2,niter,cltypinc,clnomvar,cetikinc,cgrtyp,nig1,nig2
+     &       ,nip2,min_niter,cltypinc,clnomvar,cetikinc,cgrtyp,nig1,nig2
      &       ,nig3,nig4,nidatyp,.true.)
             endif
 c

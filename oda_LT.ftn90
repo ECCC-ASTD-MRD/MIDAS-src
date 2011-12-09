@@ -51,9 +51,9 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   integer :: jlat,jlon,jlev
   real*8 :: zmax,zmean
    
-  call tmg_start(51,'VAR_CH') !
-  call apreobs(lcolumn,lcolumng)
-  call tmg_stop(51)        !
+  call tmg_start(51,'VAR_CH')
+  if((NMVOEXIST(NOGZ).eq.1)) call att2phi(lcolumn,lcolumng)
+  call tmg_stop(51)
 
   call tmg_start(75,'PROF->GD')
 !  GD=0.0D0

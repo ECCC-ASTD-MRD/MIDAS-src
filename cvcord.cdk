@@ -10,12 +10,9 @@
 !C       AND END POSITIONS  OF EACH DATA FAMILY IN CMA
 !c
 !C  S. Pellerin *ARMA/SMC March 2000
-!C     - nbrpdate  : valid date extracted from observation files
-!c     - nbrphh    : valid hour extracted from observation files
 !c     - nbrpstamp : valid datetimestamp computed from nbrpdate
 !c                   and nbrphh used as key reserch in trial
 !c                   fields file (implicit validity check)
-!c     - ntimeout  : counter of observations out of 6 hours time frame
 !c  JM Belanger *CMDA/SMC* Dec 2003
 !C     - extend 2nd dimension of vcordsf for Quikscat data to 254
 
@@ -27,11 +24,11 @@
       CHARACTER *128 CFILNAM(JPFILES)
       INTEGER      NBEGINTYP(JPFILES),NENDTYP(JPFILES)
       INTEGER      NBEGINTYP_G(JPFILES),NENDTYP_G(JPFILES)
-      integer nbrpdate,nbrphh,nbrpstamp, NVCORDTYP
-      integer ntimeout(jpfiles)
-      COMMON/COMNCVCORD/ NVCORD, NVTYP, NFILES, nbrpdate,nbrphh
+      integer nbrpstamp, NVCORDTYP
+
+      COMMON/COMNCVCORD/ NVCORD, NVTYP, NFILES
       COMMON/COMNCVCORD/ nbrpstamp,NVCORDTYP
       common/comrcvcord/ vconv,VCORDSF
-      COMMON/COMNDATFAM/NBEGINTYP ,NENDTYP, ntimeout
+      COMMON/COMNDATFAM/NBEGINTYP ,NENDTYP
       COMMON/COMNDATFAM/NBEGINTYP_G ,NENDTYP_G
       common/comcdatfam/CFAMTYP, CFILNAM

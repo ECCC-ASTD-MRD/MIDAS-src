@@ -359,7 +359,6 @@ C
           enddo
         ELSEIF(CLVAR.EQ.'P0') THEN
           zcon = 1.e2
-          if('cvcord'.eq.'PRESS') zcon = 1.0
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -369,7 +368,6 @@ C
           enddo
         ELSEIF(CLVAR.EQ.'PT') THEN
           zcon = 1.e2
-          if('cvcord'.eq.'PRESS') zcon = 1.0
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI

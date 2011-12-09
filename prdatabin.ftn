@@ -15,9 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine prdatabin(lobsSpaceData)
-!      use MathPhysConstants_mod
-      use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-      use modmask, only : lmask,ldiag,lmaskto
+      use modfgat, only : nobs, notag, nstepobs
       use obsSpaceData_mod
       IMPLICIT NONE
 #include "comdimo.cdk"

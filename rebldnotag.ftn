@@ -47,6 +47,7 @@
       real*8 zig1,zig2,zig3,zig4
 *
       real*8, allocatable, dimension(:,:) ::  dlatfld, dlonfld
+      integer, allocatable :: ntimeout(:)
       
       logical :: llflag,lltimein
 
@@ -55,6 +56,7 @@
       write(nulout,*) 'ReBldNobtag: Number of step obs : ',nstepobs
 
 
+      allocate(ntimeout(nstepobs))
       allocate(nstamplist(nstepobs))
       allocate(nobs(nstepobs))
       allocate(nobsgid(nstepobs))
@@ -65,9 +67,7 @@
 
       call getstamplist(NSTAMPLIST,nstepobs,nbrpstamp,dstepobs)
 
-      do jstep = 1, jpfiles
-        ntimeout(jstep) = 0
-      enddo
+      ntimeout(:) = 0
 
       do jstep = 1, nstepobs
         nobs(jstep) = 0
@@ -177,6 +177,7 @@ c
 
       deallocate(dlatfld)
       deallocate(dlonfld)
+      deallocate(ntimeout)
 c
       write(nulout,*) ' '
       write(nulout,*) '-------- END OF ReBldNobtag ---------'

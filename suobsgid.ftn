@@ -65,6 +65,7 @@
       real*8 zig1,zig2,zig3,zig4,deltastepobs
 *
       real*8, allocatable, dimension(:,:) ::  dlatfld, dlonfld
+      integer, allocatable :: ntimeout(:)
       character (len=512) :: clprof
       logical llflag,lltimein
 
@@ -80,6 +81,7 @@
       write(nulout,*) 'SUOBSGID: Number of step obs     : ',nstepobs
       write(nulout,*) 'SUOBSGID: Number of step obs inc : ',nstepobsinc
 
+      allocate(ntimeout(nstepobs))
       allocate(nstamplist(nstepobs))
       allocate(nobs(nstepobs))
       allocate(nobsgid(nstepobs))
@@ -388,6 +390,7 @@ c
 
       deallocate(dlatfld)
       deallocate(dlonfld)
+      deallocate(ntimeout)
 c
       write(nulout,*) ' '
       write(nulout,*) '-------- END OF SUOBSGID ---------'

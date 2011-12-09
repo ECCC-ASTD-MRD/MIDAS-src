@@ -6,29 +6,17 @@ C     --------------
 C     Control of the post-processing
 C     --------------
 C     Variables to be included in the post-processing
-C     .  NSTAMP         : CMCDATESTAMP
 C     .  NPPCVAR        : total number of variables to be post-processed
 C     .  CPPCVAR(7)     : vector containing the names of the variables to
 C     .                   be processed
-C     .  LTTOUT,LVTOUT,LHUOUT,LOLQOUT : logical that control writing in fst
+C     .  LTTOUT,LVTOUT,LHUOUT : logical that control writing in fst
 C                                       file of some dependent variables
-C     .  LANLHU2ES      : .true.: Analysis of T-Td is calculated from
-C                         analysis of specific humidity(see varout.ftn)
-C     .  LSWPHES        : .TRUE. to consider water and ice phase
-C                         .FALSE. to consider water phase only
-C                         in the calculation of T-Td(see mhuaesgd2.ftn)
 #endif
-      INTEGER          NPPCVAR, NSTAMP
-      INTEGER          NIP2, NDEET, NPAS, NIDATYP, NPAK
-      INTEGER          NIG1, NIG2, NIG3, NIG4
+      INTEGER          NPPCVAR
       CHARACTER*2      CPPCVAR(20)
-      CHARACTER*1      CGRTYP, CVARPOST
-      logical lttout,lvtout,lhuout,lolqout,lgzout
-      logical lanlhu2es,lswphes
-      COMMON /COMPOST/ NPPCVAR, NSTAMP
-     +     , NIG1, NIG2, NIG3, NIG4
-     +     , NIP2, NDEET, NPAS, NIDATYP, NPAK
-      COMMON /COMPOSTC/ CPPCVAR, CGRTYP, CVARPOST
-      common /comlpost/ lttout,lvtout,lhuout,lolqout,lgzout
-     +                 ,lanlhu2es,lswphes
+      logical lttout,lvtout,lhuout,lgzout
+
+      COMMON /COMPOST/ NPPCVAR
+      COMMON /COMPOSTC/ CPPCVAR
+      common /comlpost/ lttout,lvtout,lhuout,lgzout
 

@@ -81,23 +81,16 @@ C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
 C     after minimization has ended. From this point all CMA
 C     references are to ROBDATA.
 
-        call cprob8to4(lobsSpaceData)
+      call cprob8to4(lobsSpaceData)
 C
-        IF (LVARQC) CALL LISTREJ(lobsSpaceData)
+      IF (LVARQC) CALL LISTREJ(lobsSpaceData)
 C
-        CALL VINT3DFD('OMA ',lobsSpaceData)
-        CALL VINT3DFD('OMF ',lobsSpaceData)
-        CALL SETASSFLG(lobsSpaceData)
-        CALL FILBRPPOST(lcolumng,lobsSpaceData)
+      CALL VINT3DFD('OMA ',lobsSpaceData)
+      CALL VINT3DFD('OMF ',lobsSpaceData)
+      CALL SETASSFLG(lobsSpaceData)
+      CALL FILBRPPOST(lcolumng,lobsSpaceData)
 c
-        CALL SUPOST  ! problem with nflev = 1
-c
-        NIP2  = NIP2A
-        NIG2  = NIG2A
-        NDEET = NDEETA
-        NPAS  = NPASA
-        NSTAMP= NSTAMPA
-        CVARPOST = 'R'
+      CALL SUPOST  ! problem with nflev = 1
 c
 C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
