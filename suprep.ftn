@@ -131,7 +131,6 @@ C assimilated
 #include "comstato.cdk"
 #include "cvcord.cdk"
 #include "pardim.cdk"
-#include "comgem.cdk"
 #include "comtovst.cdk"
 #include "comvfiles.cdk"
 #include "comgpsgb.cdk"
@@ -302,22 +301,20 @@ C     2. Put observation number in each data of CMA file. Find
 C     largest number of data contained in any observation(NMAXLEN).
 C
 C     Displace observations located between poles and the last row
-C     of the grid being used to the last row when cvcord not equal to MAM.
-C     For MAM the wind observations are removed.
+C     of the grid being used to the last row. (Do always now, used 
+C     to not do when cvcord=MAM
 
 !
 ! 2.1 Set EZ parameters before obs looping and using gdxyfll function
 !
-      IF (CVCORD(1:3).NE.'MAM') THEN
-        DO JO  = 1, NOBTOT
-          ZLAT    = obs_elem_r4(lobsSpaceData,'LAT ',JO)
-          IF(ZLAT .GT. gaus_RLATI(1)) THEN
-            call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(1)))
-          ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
-            call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(gaus_NJ)))
-          ENDIF
-        END DO
-      ENDIF
+      DO JO  = 1, NOBTOT
+        ZLAT    = obs_elem_r4(lobsSpaceData,'LAT ',JO)
+        IF(ZLAT .GT. gaus_RLATI(1)) THEN
+          call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(1)))
+        ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
+          call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(gaus_NJ)))
+        ENDIF
+      END DO
 C
       IJ=0
       NMAXLEN=0
@@ -642,25 +639,6 @@ C
               IKNT= IKNT + 1
             ELSE
               call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
-            ENDIF
-CSMP
-CSMP     e. Filter UU, VV data close to poles FOR MAM  (June 18, 2001)
-CSMP
-
-            IF (CVCORD(1:3).EQ.'MAM') THEN
-              ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',IOBS)
-              ZZLAT = ZLAT*180./RPI
-              ZLON = obs_elem_r4(lobsSpaceData,'LON ',IOBS)*180./RPI
-              ZVAR = obs_elem_r4(lobsSpaceData,'VAR ',JDATA)
-              ZLEV = obs_elem_r4(lobsSpaceData,'PPP ',JDATA)*0.01
-              IF(ZLAT .GT. gaus_RLATI(1) .or. ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
-                IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV ) THEN
-                  write(NULOUT,98) IOBS,ZZLAT,ZLON,ZLEV,ZVAR,ITYP
-                  call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
-                ENDIF
-              ENDIF
- 98           format(1x,'SUPREP REMOVED: IOBS,ZLAT,ZLON,ZLEV,ZVAR= '
-     &                  ,I5,2x,2(F8.2,2x),F5.0,2x,F11.4,2x,I6)
             ENDIF
 C
           END DO

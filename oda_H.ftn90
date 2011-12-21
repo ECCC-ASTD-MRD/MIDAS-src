@@ -18,6 +18,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
+  use verticalCoord_mod
+  use bufr
   implicit none
   !
   !Purpose:
@@ -38,7 +40,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   real*8 :: dl_bidon
 #include "pardim.cdk"
 #include "comdimo.cdk"
-#include "comgem.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
   type(struct_columnData) :: lcolumn,lcolumng
@@ -75,7 +76,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
       SUBROUTINE oda_Hpp
       use modmask, only : lmaskpp_in, lmaskpp_out,ldiagpp
-      use bufr
 !*
 !* Purpose: Compute simulated Upper Air observations from profiled model
 !*          increments.
@@ -112,19 +112,19 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           ZPB  = LCOLUMNG%RPPOBS(IK+1,IOBS)
           ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
           ZWT  = 1.0D0 - ZWB
-          zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)  &
-              /(1.0-rptopinc/rprefinc))**rcoefinc
-          zpresbpb = ((vhybinc(ik+1) - rptopinc/rprefinc)  &
-              /(1.0-rptopinc/rprefinc))**rcoefinc
+          zpresbpt = ((vco_anl%dhyb_m(ik) - vco_anl%dpt_M/vco_anl%dprf_M)  &
+              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+          zpresbpb = ((vco_anl%dhyb_m(ik+1) - vco_anl%dpt_M/vco_anl%dprf_M)  &
+              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
           ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB)  &
               -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
               /LOG(ZPB/ZPT)**2
 
           if(ityp.eq.bufr_nees) then
             columnVarB=lqtoes_tl(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
-                                 lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vhybinc(IK+1))
+                                 lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vco_anl%dhyb_m(IK+1))
             columnVarT=lqtoes_tl(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
-                                 lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vhybinc(IK  ))
+                                 lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vco_anl%dhyb_m(IK  ))
             columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
             columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
           else
@@ -159,7 +159,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
       SUBROUTINE oda_Hsf
       use modmask, only : lmasksf_in,lmasksf_out,ldiagsf
-      use bufr
 !*
 !* Purpose: Compute simulated surface observations from profiled model
 !*          increments.
@@ -200,7 +199,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
             if(ITYP.eq.BUFR_NESS) THEN
               columnVarB=lqtoes_tl(lcolumn%hu(LCOLUMN%NLEV,IOBS),lcolumn%tt(LCOLUMN%NLEV,IOBS),lcolumn%ps(1,IOBS),  &
-                                   lcolumng%hu(LCOLUMN%NLEV,IOBS),lcolumng%rppobs(LCOLUMN%NLEV,IOBS),vhybinc(LCOLUMN%NLEV))
+                                   lcolumng%hu(LCOLUMN%NLEV,IOBS),lcolumng%rppobs(LCOLUMN%NLEV,IOBS),vco_anl%dhyb_m(LCOLUMN%NLEV))
             else
               columnVarB=LCOLUMN%ALL(IPB,IOBS)
             endif
@@ -354,7 +353,7 @@ end subroutine oda_Hto
 !C
       NGPSLEV=LCOLUMN%NLEV
       DO JL = 1, LCOLUMN%NLEV
-        ZETA(JL) = VLEV(JL)
+        ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 !C
 !C     Loop over all files
@@ -425,8 +424,8 @@ end subroutine oda_Hto
                 BPT = LCOLUMNG%RPPOBS(1,JO)
                 BMT = BGZ(LCOLUMN%NLEV)/RG
                 BMT = gpsgeopotential(Lat, BMT)/RG
-                BPR = rprefinc
-                BCF = rcoefinc
+                BPR = vco_anl%dprf_M
+                BCF = vco_anl%drcf1
 !C
 !C     *              Local vector state
 !C
@@ -509,7 +508,6 @@ end subroutine oda_Hto
 
       SUBROUTINE oda_Hzp
       use modmask, only : lmaskzp
-      use bufr
 !*
 !* Purpose: Compute simulated profiler observations from profiled model
 !*          increments.
@@ -610,7 +608,7 @@ end subroutine oda_Hto
 !C     *    .        ----------
 !C
       DO JL = 1, LCOLUMN%NLEV
-         ZETA(JL) = VLEV(JL)
+         ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
       write(*,fmt='(/,4x,A)') 'LVGPSZTD- Linear Version: GPS ZTD observations'

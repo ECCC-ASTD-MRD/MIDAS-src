@@ -1,2 +1,0 @@
-      NAMELIST /NAMGEM/VLEV,rptopinc,rcoefinc,rprefinc,vhybinc
-     &                 ,nip1_pak_inc,rhumin

@@ -48,6 +48,7 @@ C LMHUAESV
 *
 #endif
       use MathPhysConstants_mod
+      use verticalCoord_mod
       IMPLICIT NONE
       integer kni,knj,knk
       real*8 pesinc(kni,knk,knj)
@@ -56,7 +57,6 @@ C LMHUAESV
 *IMPLICITES
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comgem.cdk"
 *
       logical llprint
       integer ji,jj,jk
@@ -79,9 +79,9 @@ C
       do jk=1,knk
         do ji=1,kni
           do jj=1,knj
-            zpresb = ((vhybinc(jk) - rptopinc/rprefinc)
-     &                /(1.0-rptopinc/rprefinc))**rcoefinc
-            zpresa = rprefinc * (vhybinc(jk)-zpresb)
+            zpresb = ((vco_anl%dhyb_m(jk) - vco_anl%dpt_M/vco_anl%dprf_M)
+     &                /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+            zpresa = vco_anl%dprf_M * (vco_anl%dhyb_m(jk)-zpresb)
             zpres  = zpresa + zpresb*ppsg(ji,1,jj)
 *
 *          First do the forward branch to get saturated vapour pressure
@@ -92,7 +92,7 @@ C
 *          TLM of the saturated vapor pressure from q (specific humidity)
 *
             ZEL = FOEFQL(phuinc(ji,jk,jj),ppsinc(ji,1,jj)
-     &           ,pqg(ji,jk,jj),zpres,vhybinc(jk))
+     &           ,pqg(ji,jk,jj),zpres,vco_anl%dhyb_m(jk))
 *
 *          TLM of the dewpoint temperature calculation
 *
@@ -112,8 +112,8 @@ c           write(nulout,*)' lq2esgd: ji,jj,jk,tt0,q0 '
 c     &          ,ji,jj,jk,tt0(ji,jk,jj),q0(ji,jk,jj)
 c           write(nulout,*)' lq2esgd:ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL  '
 c     &          ,ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL
-c           write(nulout,*)' lq2esgd:ppsg,pqg,zpres,vhybinc(jk)'
-c     &               ,ppsg(ji,1,jj),pqg(ji,jk,jj),zpres,vhybinc(jk)
+c           write(nulout,*)' lq2esgd:ppsg,pqg,zpres,vco_anl%dhyb_m(jk)'
+c     &               ,ppsg(ji,1,jj),pqg(ji,jk,jj),zpres,vco_anl%dhyb_m(jk)
 c           write(nulout,*)' lq2esgd:ji,jj,jk,ZGAMMA,ZEL,ZTDL,pesinc  '
 c     &          ,ji,jj,jk,ZGAMMA,ZEL,ZTDL,pesinc(ji,jk,jj)
 c           endif

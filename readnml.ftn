@@ -56,8 +56,6 @@
 *       C. Charette ARMA/EC Mar 2010 
 *                   Introduction of NAMENKF
 *       L. Fillion ARMA/EC May 2010 - Removal of comgrd2.cdk.
-*     . JW Blezius  *ARMA Aug. 2010
-*                   Add namelist, NAMSHARED_AAI_3DV
 *
 *Arguments
 *     i   CDNAME  : variable character string containing the name of
@@ -79,10 +77,6 @@ C
 C
 #include "comfilt.cdk"
 #include "namfilt.cdk"
-C
-#include "comgem.cdk"
-#include "namgem.cdk"
-#include "namshared_aai_3dv.cdk"
 C
 #include "comgdpar.cdk"
 #include "namgdpar.cdk"
@@ -154,16 +148,6 @@ C
 C
          READ(NULNAM,NAMFILT)
          WRITE(NULOUT,NAMFILT)
-C
-      ELSE IF(CDNAME.EQ.'NAMGEM')THEN
-C
-         READ(NULNAM,NAMGEM)
-         WRITE(NULOUT,NAMGEM)
-C
-      ELSE IF(CDNAME.EQ.'NAMSHARED_AAI_3DV')THEN
-C
-         READ(NULNAM,NAMSHARED_AAI_3DV)
-         WRITE(NULOUT,NAMSHARED_AAI_3DV)
 C
       ELSE IF(CDNAME.EQ.'NAMGDPAR')THEN
 C

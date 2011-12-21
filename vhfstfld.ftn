@@ -71,12 +71,11 @@
 #endif
 C
       use MathPhysConstants_mod
-      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comgem.cdk"
 #include "rpnstd.cdk"
 *
       INTEGER  ktrials
@@ -138,7 +137,7 @@ c *********************************************************
 c     set hybride vertical coordinate parameters from trial field
 c
 
-      if(tg_vco_trl%iversion .eq. 5001) then
+      if(vco_trl%iversion .eq. 5001) then
         call gethybprm2 (kulfst,kulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
      &                ,ip1_hyb_prm,ktrials)
         zptophr = zptop4
@@ -300,17 +299,17 @@ c
         ierr = ezsetopt('INTERP_DEGREE','LINEAR')
         iset = ezdefset(ktrggid,ip0gid)
         ierr = vezsint(zps,zpstrl,kcol,1,1,ini,inj,1)
-        call calcpres(zpresanl,ptrglev,knk,zps,rptopinc*rpatmb
-     &       ,rprefinc*rpatmb,rcoefinc,kcol)
+        call calcpres(zpresanl,ptrglev,knk,zps,vco_anl%dpt_M*rpatmb
+     &       ,vco_anl%dprf_M*rpatmb,vco_anl%drcf1,kcol)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-        if(tg_vco_trl%iversion .eq. 5002) then
+        if(vco_trl%iversion .eq. 5002) then
           do jcol=1,kcol
             zps_pascal(jcol) = zps(jcol)*100.
           enddo
-        call calcpres_vgrid(tg_vgrid_trl,zps_pascal,iip1s
+        call calcpres_vgrid(vgrid_trl,zps_pascal,iip1s
      &         ,itrlnlev,kcol,kulout,zprestrl)
         do jlev = 1,itrlnlev
           do jcol=1,kcol
@@ -357,14 +356,14 @@ c
           ierr = ezsetopt('INTERP_DEGREE','LINEAR')
           iset = ezdefset(kvvgid,ip0gid)
           ierr = vezsint(zps,zpstrl,kcolvv,1,1,ini,inj,1)
-          call calcpres(zpresanl,ptrglev,knk,zps,rptopinc*rpatmb
-     &         ,rprefinc*rpatmb,rcoefinc,kcolvv)
+          call calcpres(zpresanl,ptrglev,knk,zps,vco_anl%dpt_M*rpatmb
+     &         ,vco_anl%dprf_M*rpatmb,vco_anl%drcf1,kcolvv)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-        if(tg_vco_trl%iversion .eq. 5002) then
-        call calcpres_vgrid(tg_vgrid_trl,zps,iip1s
+        if(vco_trl%iversion .eq. 5002) then
+        call calcpres_vgrid(vgrid_trl,zps,iip1s
      &         ,itrlnlev,kcolvv,kulout,zprestrl)
         else
           call calcpres(zprestrl,zeta,itrlnlev,zps,zptophr

@@ -29,7 +29,7 @@
 *
 #endif
       use MathPhysConstants_mod
-      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use verticalCoord_mod
       use modgps04profile
       use modgps05refstruct
       use modgps06gravity
@@ -40,7 +40,6 @@
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comgpsro.cdk"
@@ -83,15 +82,15 @@ C
       WRITE(NULOUT,*)'ENTER SETERRGPSRO'
 C
       LSTAG = .FALSE.
-      if (tg_vco_trl%iversion .eq. 5002) then
+      if (vco_trl%iversion .eq. 5002) then
         LSTAG = .TRUE. 
         WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-        WRITE(NULOUT,*)'VCODE= ',tg_vco_trl%iversion,' LSTAG= ',LSTAG
+        WRITE(NULOUT,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
         WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
         WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
       else
         WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-        WRITE(NULOUT,*)'VCODE= ',tg_vco_trl%iversion,' LSTAG= ',LSTAG
+        WRITE(NULOUT,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
       endif
 C
 C     * 1.  Initializations
@@ -172,8 +171,8 @@ CCCCCCCCCCC          THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
                ZPT = LCOLUMNHR%RPPOBS_T(1,INDEX_HEADER)
                ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
                ZMT = gpsgeopotential(Lat, ZMT)/RG
-               ZPR = rprefinc
-               ZCF = rcoefinc
+               ZPR = vco_anl%dprf_M
+               ZCF = vco_anl%drcf1
 C     
 C     *        GPS profile structure:
 C

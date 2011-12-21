@@ -26,20 +26,17 @@
       use mod4dv, only : l4dvar
       use obsSpaceData_mod
       use controlVector_mod
+      use columnData_mod
       use minimization_mod
       use bmatrix_mod
-      use columnData_mod
       use modfgat
       use mpi
       use gridStateVector_mod
       use gaussGrid_mod
+      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
 #include "comlun.cdk"
-#include "comgem.cdk"
-#include "comgdpar.cdk"
-#include "compost.cdk"
 #include "comvfiles.cdk"
 *
       type(struct_obs),target :: lobsSpaceData
@@ -49,8 +46,8 @@ C
 
       CHARACTER *8 CSTATUS
 C
-      INTEGER IMPRES, IMODE, ITERMAX, ISIMMAX, INDIC, ISCALE
-      INTEGER IERR,ITERDONE,ITERTOT,JK, JLA,ilen,jj,ji
+      INTEGER IMPRES, IMODE, ISIMMAX, INDIC, ISCALE
+      INTEGER IERR,JK, JLA,ilen,jj,ji
       REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS, ZSMACH,ztemp,zy,zr
       REAL*8 DLGNORM, DLXNORM, DLGNORM0, DLGNORMS
 C
@@ -58,10 +55,10 @@ C
       integer ini,index,ii,ij,jk1,jk2
       real*8 zcon,zcorr,zx,zl
       real*8  zmin,zmax
-      real*8 :: zes(gaus_ni,gaus_nflev,gaus_nj)
-      real*8 :: ztv(gaus_ni,gaus_nflev,gaus_nj)
-      real*8 :: zgz(gaus_ni,gaus_nflev,gaus_nj)
-      real*8 :: zhu(gaus_ni,gaus_nflev,gaus_nj)
+      real*8 :: zes(gaus_ni,vco_anl%nlev_M,gaus_nj)
+      real*8 :: ztv(gaus_ni,vco_anl%nlev_M,gaus_nj)
+      real*8 :: zgz(gaus_ni,vco_anl%nlev_M,gaus_nj)
+      real*8 :: zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)
 !
       LOGICAL LSTAGTEMP
       INTEGER FNOM,FCLOS
@@ -94,7 +91,7 @@ c
 c
 C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,gaus_nflev,nstepobsinc)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc)
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
@@ -114,13 +111,13 @@ c
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,gaus_nflev,1)
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,vco_anl%nlev_M,1)
       call subasic_gd(statevectorg)
 !
 !     *** Compute increment HU from LQ increment
 !
       zhu(:,:,:) = 0.0
-      do jk = 1,gaus_nflev
+      do jk = 1,vco_anl%nlev_M
         do jj = 1,gaus_nj
           do ji = 1,gaus_ni
             ZTEMP = log(statevectorg%hu3d(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)

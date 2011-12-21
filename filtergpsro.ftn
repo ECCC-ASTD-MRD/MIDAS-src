@@ -36,10 +36,10 @@
       use modgps08refop
       use obsSpaceData_mod
       use columnData_mod 
+      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "cvcord.cdk"
@@ -137,8 +137,8 @@ C
                   ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
                   ZMT = gpsgeopotential(Lat, ZMT)/RG
                   ZTP = ZGZ(1)/RG
-                  ZPR = rprefinc
-                  ZCF = rcoefinc
+                  ZPR = vco_anl%dprf_M
+                  ZCF = vco_anl%drcf1
 C     
 C     *           GPS profile structure:
 C

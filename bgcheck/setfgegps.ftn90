@@ -12,11 +12,11 @@
       use bufr
       use columnData_mod
       use obsSpaceData_mod
+      use verticalCoord_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdimo.cdk"
-#include "comgem.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
@@ -65,7 +65,7 @@
 !C     *    .        ----------
 !C      
       DO JL = 1, LCOLUMNG%NLEV
-         ZETA(JL) = VLEV(JL)
+         ZETA(JL) = VCO_ANL%DHYB_M(JL)
       ENDDO
 !C
 !C     Loop over all observation files (all observation types)

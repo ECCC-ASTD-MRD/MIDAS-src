@@ -1,66 +1,94 @@
-!-------------------------------------- LICENCE BEGIN ------------------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+module verticalCoord_mod
+
+  use Vgrid_Descriptors
+  implicit none
+
+
+  type vco
+     integer :: iversion          ! code of vert coord from !! record in BG stat file
+     integer :: ikind               ! kind of vertical coordinate(a la convip)
+     character(len=8) :: svcod      ! type of vertical coordinate (cvcord in 3DVAR)
+     integer :: nlev_T,nlev_M         ! Number of vertical levels (Thermo/Moment)
+     real*8  :: dpt_T, dpt_M        ! Pressure at top level    (Thermo/Moment)
+     real*8  :: dprf_T, dprf_M      ! Reference pressure       (Thermo/Moment)
+     real*8  :: drcf1, drcf2        ! Expansion coefficients
+     integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
+     real*8 ,pointer,dimension(:) :: da_T,db_T     ! A, B values for Thermo levels
+     real*8 ,pointer,dimension(:) :: da_M,db_M     ! A, B values for Momentum levels
+     real*8 ,pointer,dimension(:) :: dhyb_T,dhyb_M !decoded IP1 levels (Thermo/Momentum)
+  end type vco
+
+  type(vco)  :: vco_anl,vco_trl
+  type(vgrid_descriptor) :: vgrid_anl,vgrid_trl
+  save :: vgrid_anl,vgrid_trl,vco_anl,vco_trl
+
+  contains
+
+  subroutine vco_allocate(tf_vco)
+    implicit none
+    type(vco) :: tf_vco
+    integer :: ilnk,stat,nl_stat
+
+    stat        = 0
+
+    ilnk        = tf_vco%nlev_m
+    allocate (tf_vco%ip1_m(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%da_m(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%db_m(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%dhyb_m(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+
+    ilnk        = tf_vco%nlev_t
+    allocate (tf_vco%ip1_t(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%da_t(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%db_t(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%dhyb_t(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+
+    if(stat .ne. 0 ) then
+       write(*,*)' suvco: problem with allocate in tf_vco '
+       call flush(6)
+       call qqexit(1)
+    endif
+
+  end subroutine vco_allocate
+
+      subroutine vco_SetupFromFile(tf_vgrid,tf_vco,kulfst)
 !
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END --------------------------------------
-!
-      subroutine suvco(tf_vgrid,tf_vco,kulout,kulfst)
-!
-#if defined (DOC)
 !--------------------------------------------------------------------------
-!  s/r SUVCO - Initialize structure for trial field using vgrid_descriptors library.
+!  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
 !
 !  Author  : C. Charette ARMA (DEC 2010)
 !
 !    -------------------
-!     Purpose: Set up pressure fields for the number of profiles contained in nobs
-!              
 !
 !  Arguments     : 
 !  Input           tf_vgrid: Structure with vertical coordinate parameters
 !                            (see vgrid_descriptors documentation)
-!                  dpsfc   : List of nobs values surface pressure(1,nobs) in Pascal
-!                  ip1_list: Encoded values of the desired vertical levels
-!                  nlev    : Number of vertical levels
-!                  nobs    : Number of vertical profiles
-!                  kulout  : unit number for output messages
-!
-!  Output        : dpx     : vertical profiles of pressure fields(nlev,nobs) in Pascal
-!
 !--------------------------------------------------------------------------
-#endif
-!
       !
-      use Vgrid_Descriptors, only: vgrid_descriptor,vgd_new,vgd_print,vgd_get,VGD_OK
-      use stag_type,         only: vco
       implicit none
       type(vgrid_descriptor) :: tf_vgrid
       type(vco) :: tf_vco
-      integer ::  kulout,kulfst
-      logical ::  BF_OK
+      integer ::  kulfst
 
 !     Local variables
 !
-      integer :: ilnk,ivcode,kind,j,stat,nl_stat
+      integer :: ivcode,kind,j,stat
       integer,   dimension(:), pointer :: my_ip1
       real    :: hyb
       real*8  :: dl_ptM,dl_ptT,dl_pref,dl_rcf1,dl_rcf2
       real*8,    dimension(:), pointer :: my_a, my_b
       character(len=10) :: blk_S
-      logical :: ok
 
   !==========================================================================
-  ! Get vertical coordinate descriptors from stat file(vgd_new reads "!!" record)
+  ! Get vertical coordinate descriptors from standard file(vgd_new reads "!!" record)
   
    stat = vgd_new(tf_vgrid,unit=kulfst,format="fst",ip1=-1,ip2=-1)
    if(stat.ne.VGD_OK)then
@@ -74,7 +102,6 @@
       print*,'ERROR with vgd_print'
       call exit(1)
    endif
-      BF_OK = .true.
       !==========================================================================
       ! Get version of the vertical coordinate
 
@@ -82,7 +109,6 @@
       stat = vgd_get(tf_vgrid,key='ig_1 - vertical coord code',value=ivcode)
       if(stat.ne.VGD_OK) then
          print*,"suvco: problem with vgd_get: key='ig_1 - vertical coord code'"
-         BF_OK = .false.
          return
       endif
 
@@ -129,23 +155,16 @@
 !cnwa      
       if(stat.ne.0) then
          print*,'suvco: problem with vgd_get'
-         BF_OK = .false.
          return
       endif
 
-      ok=.false.
       if(size(my_a).gt.0 .and. size(my_b).gt.0 .and. size(my_ip1).gt.0 )then 
-         ok=.true.
          print*,'suvco: size(a,b,ip1)(m)= ',size(my_a),size(my_b),size(my_ip1)
       else
          print*,'suvco: problem with size(a,b,ip1)(m) in vgd_get'
-         BF_OK = .false.
          return
       endif
-      print*,'suvco: sizes ok ',ok
 
-
-      tf_vco%ink_m = size(my_ip1)
 !cnwa
       tf_vco%dpt_M  = dl_ptM
       tf_vco%dprf_M = dl_pref
@@ -153,23 +172,21 @@
 !cnwa      
 
       !==========================================================================
-      ! Allocate arrays for momentum levels
+      ! Set the number of vertical levels and allocate tf_vco arrays
 
-      ilnk        = tf_vco%ink_m
-      stat        = 0
-      allocate (tf_vco%ip1_m(ilnk),stat=nl_stat)
-      stat = stat + nl_stat
-      allocate (tf_vco%da_m(ilnk),stat=nl_stat)
-      stat = stat + nl_stat
-      allocate (tf_vco%db_m(ilnk),stat=nl_stat)
-      stat = stat + nl_stat
-      allocate (tf_vco%dhyb_m(ilnk),stat=nl_stat)
-      stat = stat + nl_stat
-      if(stat .ne. 0 ) then
-         write(kulout,*)' suvco: problem with allocate in tf_vco '
-         BF_OK = .false.
-         return
-      endif
+      tf_vco%nlev_m = size(my_ip1)
+      select case (ivcode)
+      case (5001)
+         tf_vco%nlev_t = tf_vco%nlev_m
+      case (5002)
+         stat = vgd_get(tf_vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
+         tf_vco%nlev_t = size(my_ip1)
+      end select
+      call vco_allocate(tf_vco)
+
+      !==========================================================================
+      ! Assign values for Momentum levels
+
       print*,'suvco: size(hyb)= ',size(tf_vco%dhyb_m)
       do j = 1, size(my_ip1)
          tf_vco%ip1_m(j) = my_ip1(j)
@@ -178,7 +195,7 @@
          call convip(my_ip1(j),hyb,kind,-1,blk_s,.false.)
          tf_vco%dhyb_m(j) = hyb
          print*,'suvco: j,nk,ip1,hyb(moment)= ' & 
-               ,j,tf_vco%ink_m,tf_vco%ip1_m(j),tf_vco%dhyb_m(j)
+               ,j,tf_vco%nlev_m,tf_vco%ip1_m(j),tf_vco%dhyb_m(j)
       enddo
 
       !==========================================================================
@@ -189,7 +206,6 @@
          ! For this case the parameters of the momentum levels 
          ! are copied to the thermodynamics levels
          !
-         tf_vco%ink_t = tf_vco%ink_m
 !cnwa
          tf_vco%dpt_T  = tf_vco%dpt_M  ! dl_ptM
          tf_vco%dprf_T = tf_vco%dprf_M ! dl_pref
@@ -197,35 +213,13 @@
 !cnwa      
          !
          !==========================================================================
-         ! allocate arrays for thermodynamic levels
-
-         ilnk        = tf_vco%ink_t
-         stat        = 0
-         allocate (tf_vco%ip1_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         !
-         allocate (tf_vco%da_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         !
-         allocate (tf_vco%db_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         !
-         allocate (tf_vco%dhyb_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         !
-         if(stat .ne. 0 ) then
-            write(kulout,*)' suvco: problem with allocate in tf_vco '
-            BF_OK = .false.
-            return
-         endif
-
-         do j = 1, size(my_ip1)
+         do j = 1, tf_vco%nlev_m
             tf_vco%ip1_t(j)  = tf_vco%ip1_m(j)
             tf_vco%da_t(j)   = tf_vco%da_m(j)
             tf_vco%db_t(j)   = tf_vco%db_m(j)
             tf_vco%dhyb_t(j) = tf_vco%dhyb_m(j)
             print*,'suvco: j,nk,ip1,hyb(thermo)= ' &
-                  ,j,tf_vco%ink_t,tf_vco%ip1_t(j),tf_vco%dhyb_t(j)
+                  ,j,tf_vco%nlev_t,tf_vco%ip1_t(j),tf_vco%dhyb_t(j)
          enddo
       case (5002)
          stat = 0
@@ -240,55 +234,28 @@
          print*,'suvco: vgd_get vipt vgd_ok= ',VGD_OK
          if(stat.ne.0) then
             print*,'suvco: problem with vgd_get'
-            BF_OK = .false.
             return
          endif
 
-         tf_vco%ink_t = size(my_ip1)
-         !
-         !==========================================================================
-         ! allocate arrays for thermodynamic levels
-
-         ilnk        = tf_vco%ink_t
-         stat        = 0
-         allocate (tf_vco%ip1_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         allocate (tf_vco%da_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         allocate (tf_vco%db_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         allocate (tf_vco%dhyb_t(ilnk),stat=nl_stat)
-         stat = stat + nl_stat
-         if(stat .ne. 0 ) then
-            write(kulout,*)' suvco: problem with allocate in tf_vco '
-            BF_OK = .false.
-            return
-         endif
-         
-
-         ok=.false.
          if(size(my_a).gt.0 .and. size(my_b).gt.0 .and. size(my_ip1).gt.0 )then 
-            ok=.true.
             print*,'suvco: size(a,b,ip1)(t)= ',size(my_a),size(my_b),size(my_ip1)
          else
             print*,'suvco: problem with size(a,b,ip1)(t) in vgd_get'
-            BF_OK = .false.
             return
          endif
-         print*,'suvco: sizes ok ',ok
 
-         tf_vco%ink_t = size(my_ip1)
-         do j = 1, size(my_ip1)
+         do j = 1,tf_vco%nlev_t
             tf_vco%ip1_t(j)  = my_ip1(j)
             tf_vco%da_t(j)   = my_a(j)
             tf_vco%db_t(j)   = my_b(j)
             call convip(my_ip1(j),hyb,kind,-1,blk_s,.false.)
             tf_vco%dhyb_t(j) = hyb
             print*,'suvco: j,nk,ip1,hyb(thermo)= ' &
-                  ,j,tf_vco%ink_t,tf_vco%ip1_t(j),tf_vco%dhyb_t(j)
+                  ,j,tf_vco%nlev_t,tf_vco%ip1_t(j),tf_vco%dhyb_t(j)
          enddo
       end select
-      print*,'suvco dbug: tf_vco%ink_t = ',tf_vco%ink_t
+      print*,'suvco dbug: tf_vco%nlev_t = ',tf_vco%nlev_t
 
-      end subroutine suvco
+      end subroutine vco_SetupFromFile
 
+end module VerticalCoord_mod

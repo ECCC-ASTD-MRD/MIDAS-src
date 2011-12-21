@@ -59,11 +59,11 @@
 #endif
 C
       use modfgat, only : nstamplist
+      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
 #include "comlun.cdk"
-#include "comgem.cdk"
 #include "rpnstd.cdk"
 #include "cvcord.cdk"
 *
@@ -135,7 +135,7 @@ ccc debug
       write(nulout,*) 'getfstg2: ibrpstamp = ',ibrpstamp
 !
       call vhfstfld(zpsg,kni*knj,isgid,zvvg,kni*knj,ivvgid,1
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(ppsg,zpsg,kni,knj,1,0,CLNOMVAR)
@@ -150,7 +150,7 @@ ccc debug
       CLNOMVAR = 'TT'
 
       call vhfstfld(zttg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(ptg,zttg,kni,knj,knflev,0,CLNOMVAR)
@@ -165,7 +165,7 @@ ccc debug
       CLNOMVAR = 'GZ'
 ! 
       call vhfstfld(zgzg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(pgzg,zgzg,kni,knj,knflev,0,CLNOMVAR)
@@ -176,7 +176,7 @@ ccc debug
       CLNOMVAR = 'HU'
 !
       call vhfstfld(zqqg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
-     &     ,vhybinc,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(pqg,zqqg,kni,knj,knflev,0,CLNOMVAR)
@@ -193,7 +193,7 @@ ccc debug
       CLNOMVAR = 'UU'
 !
       call vhfstfld(ztrans,kni*knj,isgid,zvvg,kni*knj,isgid,knflev  ! ztrans=uu,zvvg=vv interpolated... 
-     &     ,vhybinc,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,vco_anl%dhyb_m,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
       CALL INITGDG2(pug,ztrans,kni,knj,knflev,0,CLNOMVAR) ! on output, pug contains U wind-image.
 !

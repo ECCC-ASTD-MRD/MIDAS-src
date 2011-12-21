@@ -38,10 +38,10 @@
 *   pgz    : 3D GZ fields computed from TL-Hydrostatic equation
 #endif
 C
+      use verticalCoord_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comgem.cdk"
 *
       integer kni,knj,knflev
       real*8 pgz(kni,knflev,knj), ptt(kni,knflev,knj)
@@ -72,8 +72,8 @@ c     Prepare r.h.s. for TL-Hydrostatic equation
 c
       do jlat = 1, knj
         ilon = kni
-        call calcpres(ZPRESS,vhybinc,knflev,ppsg(1,1,jlat),rptopinc
-     &                   ,rprefinc,rcoefinc,kni)
+        call calcpres(ZPRESS,vco_anl%dhyb_m,knflev,ppsg(1,1,jlat),vco_anl%dpt_M
+     &                   ,vco_anl%dprf_M,vco_anl%drcf1,kni)
         do jlon = 1, kni
           do jlev = 1,knflev
             ila         = jlev+(jlon-1)*knflev

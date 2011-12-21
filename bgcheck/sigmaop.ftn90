@@ -11,7 +11,6 @@
 #include "comlun.cdk"
 #include "pardim.cdk"
 #include "comdimo.cdk"
-#include "comgem.cdk"
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
       type(struct_gsv) :: statevector

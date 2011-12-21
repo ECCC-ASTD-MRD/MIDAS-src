@@ -29,12 +29,12 @@
 #endif
       use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use verticalCoord_mod
       use columnData_mod 
+      use verticalCoord_mod
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comgem.cdk"
 #include "comgdpar.cdk"
 #include "cvcord.cdk"
 c
@@ -100,13 +100,13 @@ c
 c
 c     Get vertical coordinate parameters from trial field !! structure
 c
-      nlv_M = tg_vco_trl%ink_M
-      nlv_T = tg_vco_trl%ink_T
+      nlv_M = vco_trl%nlev_M
+      nlv_T = vco_trl%nlev_T
       write(nulout,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
 c      
-      zptophr = tg_vco_trl%dpt_T
-      zprefhr = tg_vco_trl%dprf_T
-      zrcoefhr= tg_vco_trl%drcf2
+      zptophr = vco_trl%dpt_T
+      zprefhr = vco_trl%dprf_T
+      zrcoefhr= vco_trl%drcf2
       write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',zptophr
      &     ,zprefhr,zrcoefhr
 c
@@ -173,18 +173,18 @@ c
       enddo
 c
 c-----Derive the pressure fields at observation points from the hybrid
-C     levels(vhybinc), the hybrid coordinate parameters of the
+C     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 c
       do jobs = 1,lcolumng%nobtot
         zovar(jobs) = lcolumng%ps(1,jobs)
       enddo
 c
-      call calcpres(lcolumng%rppobs(1,1),vhybinc,lcolumng%nlev,zovar,rptopinc
-     &     ,rprefinc,rcoefinc,lcolumng%nobtot)
+      call calcpres(lcolumng%rppobs(1,1),vco_anl%dhyb_m,lcolumng%nlev,zovar,vco_anl%dpt_M
+     &     ,vco_anl%dprf_M,vco_anl%drcf1,lcolumng%nobtot)
       do jlev = 1,lcolumng%nlev
-        write(nulout,*) 'sugomobs: jlev, vhybinc(jlev), LCOLUMNG%RPPOBS(jlev,1) = ',
-     +    jlev,vhybinc(jlev),LCOLUMNG%RPPOBS(jlev,1)
+        write(nulout,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), LCOLUMNG%RPPOBS(jlev,1) = ',
+     +    jlev,vco_anl%dhyb_m(jlev),LCOLUMNG%RPPOBS(jlev,1)
         call flush(nulout)
       enddo
 c
@@ -203,32 +203,32 @@ c
 c
 c------- Calculate profiles of pressure values at station location
 
-      write(nulout,*) 'sugomobs:iversion= ',tg_vco_trl%iversion
-      write(nulout,*) 'sugomobs:ikind= ',tg_vco_trl%ikind
-      write(nulout,*) 'sugomobs:svcod= ',tg_vco_trl%svcod
+      write(nulout,*) 'sugomobs:iversion= ',vco_trl%iversion
+      write(nulout,*) 'sugomobs:ikind= ',vco_trl%ikind
+      write(nulout,*) 'sugomobs:svcod= ',vco_trl%svcod
 
 c-------Staggered hybrid trial field 
-      if (tg_vco_trl%iversion .eq. 5002) then 
-        call calcpres_vgrid(tg_vgrid_trl,zovar, tg_vco_trl%ip1_M
+      if (vco_trl%iversion .eq. 5002) then 
+        call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_M
      &         ,nlv_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
-        call calcpres_vgrid(tg_vgrid_trl,zovar, tg_vco_trl%ip1_T
+        call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_T
      &         ,nlv_T,lcolumng%nobtot,nulout,zppobs_T(1,1))
 c       Copier le niveaux du bas momentum dans le dernier niveau du
 c       vecteur surdimentionne
 cnwa        zppobs_M(nlv_T,:) = zppobs_M(nlv_M,:)
 c-------ETA  trial field 
-      elseif(tg_vco_trl%iversion .eq. 5001) then
+      elseif(vco_trl%iversion .eq. 5001) then
         call col_pointStagToUnstag(lcolumnhr)
-        call calcpres_vgrid(tg_vgrid_trl,zovar, tg_vco_trl%ip1_M
-     &         ,tg_vco_trl%ink_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
+        call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_M
+     &         ,vco_trl%nlev_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
 
-        zptophr = tg_vco_trl%dpt_M
-        zprefhr = tg_vco_trl%dprf_M
-        zrcoefhr= tg_vco_trl%drcf2
-        itrlnlev = tg_vco_trl%ink_M
-        zhybhr = tg_vco_trl%dhyb_M
+        zptophr = vco_trl%dpt_M
+        zprefhr = vco_trl%dprf_M
+        zrcoefhr= vco_trl%drcf2
+        itrlnlev = vco_trl%nlev_M
+        zhybhr = vco_trl%dhyb_M
         do jlev = 1,nlv_M
-          zhybhr(jlev) = tg_vco_trl%dhyb_M(jlev)
+          zhybhr(jlev) = vco_trl%dhyb_M(jlev)
         enddo
         call calcpres(zppobs_M,zhybhr,nlv_M,zovar,zptophr
      &         ,zprefhr,zrcoefhr,lcolumng%nobtot)
@@ -261,7 +261,7 @@ c
 c Remplir les valeur eta ou zeta des niveaux du trial
 c     surdimension (de 1) vecteur des niveaux momentum
       do jlev = 1,nlv_M
-        zhybhr(jlev) = tg_vco_trl%dhyb_M(jlev)
+        zhybhr(jlev) = vco_trl%dhyb_M(jlev)
       enddo
 c     On copie le dernier niveau pour le niveau suplementaire
       zhybhr(nlv_T) = zhybhr(nlv_M)
@@ -270,7 +270,7 @@ c
       call col_fillmvo(lcolumnhr,'HY','NA',zhybhr,nlv_T,1)
 c
       do jlev = 1,nlv_T
-        zhybhr(jlev) = tg_vco_trl%dhyb_T(jlev)
+        zhybhr(jlev) = vco_trl%dhyb_T(jlev)
       enddo
       call col_fillmvo(lcolumnhr,'HY','TH',zhybhr,nlv_T,1)
 c
@@ -298,7 +298,7 @@ c
       do jlev = 1,nlv_M
         do jstep = 1,nstepobs
           if(nobs(jstep) > 0) then
-            IIP1 = tg_vco_trl%ip1_M(jlev)
+            IIP1 = vco_trl%ip1_M(jlev)
 c
             ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
      &          nstamplist(jstep) ,cletiket,iip1,-1,-1,
@@ -340,7 +340,7 @@ c
       do jlev = 1, nlv_T
         do jstep = 1,nstepobs
           if(nobs(jstep) > 0) then
-            IIP1 = tg_vco_trl%ip1_T(jlev)
+            IIP1 = vco_trl%ip1_T(jlev)
 c
             ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
      &          nstamplist(jstep) ,cletiket,iip1,-1,-1,
@@ -404,7 +404,7 @@ c
           if (.not. allocated(zvar2)) allocate(zvar2(ini,inj))
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_M
-            IIP1=tg_vco_trl%ip1_M(jlev)
+            IIP1=vco_trl%ip1_M(jlev)
             do jstep = 1,nstepobs
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
@@ -512,7 +512,7 @@ c Reading 3D fields
 c
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_T
-            IIP1=tg_vco_trl%ip1_T(jlev)
+            IIP1=vco_trl%ip1_T(jlev)
             do jstep = 1,nstepobs
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
@@ -536,10 +536,10 @@ c
           enddo
           call tmg_stop(27)
 c
-          zptophr = tg_vco_trl%dpt_T
-          zprefhr = tg_vco_trl%dprf_T
-          zrcoefhr= tg_vco_trl%drcf1
-          itrlnlev = tg_vco_trl%ink_T
+          zptophr = vco_trl%dpt_T
+          zprefhr = vco_trl%dprf_T
+          zrcoefhr= vco_trl%drcf1
+          itrlnlev = vco_trl%nlev_T
 c
           call vintprof(zom_T,lcolumng%rppobs,lcolumng%nlev,zmobs_T,zppobs_T,nlv_T,lcolumng%nobtot)
 c
@@ -567,7 +567,7 @@ c
 c
 c Using T, q and PS to compute GZ 
 c
-      if(tg_vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
+      if(vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
         call tt2phi(lcolumnhr)
       endif
 c

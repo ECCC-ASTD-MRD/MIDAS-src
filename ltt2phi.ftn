@@ -56,13 +56,13 @@
 #endif
       use MathPhysConstants_mod
       use columnData_mod 
+      use verticalCoord_mod
  
       IMPLICIT NONE
 *implicits
 c------------------------------------------------------------------------
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comgem.cdk"
 c
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_columnData) :: lcolumnt
@@ -126,15 +126,15 @@ c
 c
 c      zcon = d(rtapfac)/d(ps)
 c
-          zpresb  = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &               /(1.0D0-rptopinc/rprefinc))**rcoefinc
-          if((rcoefinc-1.0) .lt. RPRECIS) then
+          zpresb  = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
+     &               /(1.0D0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+          if((vco_anl%drcf1-1.0) .lt. RPRECIS) then
             zterm = 1.0
           else
-            zterm = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &           /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
+            zterm = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
+     &           /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**(vco_anl%drcf1-1.0)
           endif
-          zpresbd = rcoefinc * zterm
+          zpresbd = vco_anl%drcf1 * zterm
           zcon    =(zpresbd-zpresb*rtapfac(jlev,jobs))/lcolumng%rppobs(jlev,jobs)
           zfactt  = rtapfac(jlev,jobs)
           zfacps  = lcolumng%tt(jlev,jobs)*zcon
@@ -165,7 +165,7 @@ c
  400  continue
 
       zalpha=0.0D0
-      call matapat(vhybinc,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(vco_anl%dhyb_m,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
       call lvtap
 
       call col_deallocate(lcolumnt)

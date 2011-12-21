@@ -18,6 +18,7 @@
 c
       use MathPhysConstants_mod
       use columnData_mod 
+      use verticalCoord_mod
  
       IMPLICIT NONE
 c
@@ -62,7 +63,6 @@ c
 #endif
 *implicits
 #include "pardim.cdk"
-#include "comgem.cdk"
 *
       integer jlev,jobs, ity, idburp, ierr
       real*8 zhu, ztd, zterm
@@ -94,17 +94,17 @@ c
             oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),
      &                                  lcolumnt%tt(jlev,jobs))
 c
-            zpresb = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &               /(1.0-rptopinc/rprefinc))**rcoefinc
-            if((rcoefinc-1.0) .lt. RPRECIS) then
+            zpresb = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
+     &               /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+            if((vco_anl%drcf1-1.0) .lt. RPRECIS) then
               zterm = 1.0
             else
-            zterm = ((vhybinc(jlev) - rptopinc/rprefinc)
-     &              /(1.0-rptopinc/rprefinc))**(rcoefinc-1.0)
+            zterm = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
+     &              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**(vco_anl%drcf1-1.0)
             endif
-            zpresbd= rcoefinc * zterm
-            zpresa = rprefinc * (vhybinc(jlev)-zpresb)
-            zpresad= rprefinc * (1.0-zpresbd)
+            zpresbd= vco_anl%drcf1 * zterm
+            zpresa = vco_anl%dprf_M * (vco_anl%dhyb_m(jlev)-zpresb)
+            zpresad= vco_anl%dprf_M * (1.0-zpresbd)
             rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
      &                          /(zpresa+zpresb*lcolumng%ps(1,jobs))
           enddo

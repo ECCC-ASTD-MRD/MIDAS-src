@@ -86,7 +86,7 @@ C     *    .   1.1  Eta vector
 C     *    .        ----------
 C      
       DO JL = 1, lcolumnhr%nlev
-         ZETA(JL) = lcolumnhr%vlev(JL)
+         ZETA(JL) = lcolumnhr%vhyb_T(JL)
       ENDDO
 C
 C     Loop over all observation files (all observation types)

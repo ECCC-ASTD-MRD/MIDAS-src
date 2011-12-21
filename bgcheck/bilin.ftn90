@@ -20,7 +20,6 @@
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdimo.cdk"
-#include "comgem.cdk"
       type(struct_columnData) :: lcolumn
       type(struct_gsv) :: statevector
       type(struct_obs) :: lobsSpaceData

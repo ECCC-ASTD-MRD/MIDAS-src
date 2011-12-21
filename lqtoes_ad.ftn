@@ -22,9 +22,9 @@
 !          is permitted and the pressure vector is given.
 !
       use MathPhysConstants_mod
+      use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comgem.cdk"
       REAL*8, intent(inout) :: LQ,TT,P0
       REAL*8, intent(in)  :: ES,LQ_g,PRES_g,VHYB
       REAL*8 ZE, ZTD,ZGAMMA,ZQBRANCH,HU_g
@@ -52,8 +52,8 @@
       ZQBRANCH = FQBRANCH(HU_g)
       dESdLQ = - ZQBRANCH*FOEFQA (dESdTT,ZGAMMA,HU_g,PRES_g)
 
-      zpresb = ((vhyb - rptopinc/rprefinc)
-     &         /(1.0-rptopinc/rprefinc))**rcoefinc
+      zpresb = ((vhyb - vco_anl%dpt_M/vco_anl%dprf_M)
+     &         /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
 
       dESdP0 = - ZQBRANCH*FOEFQPSA(dESdTT,ZGAMMA,HU_g,
      $           VHYB)-(1.-ZQBRANCH)*

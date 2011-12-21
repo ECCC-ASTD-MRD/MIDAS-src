@@ -28,6 +28,7 @@
       use avhrr_var_mod
       use columnData_mod
       use obsSpaceData_mod
+      use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
 #include "comdimo.cdk"
@@ -35,7 +36,6 @@
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "cvcord.cdk"
-#include "comgem.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
@@ -847,14 +847,14 @@
         IMODTOP     = 1
 
         DO JL = 1, NLEV
-          IF ( ABS(RPTOPINC-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
-            DIFFTOP_MIN = ABS(RPTOPINC-100.*XPRES(JL))
+          IF ( ABS(VCO_ANL%DPT_M-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
+            DIFFTOP_MIN = ABS(VCO_ANL%DPT_M-100.*XPRES(JL))
             IMODTOP = JL
           END IF
         END DO
 
         write(nulout,*) 'TOIT DU MODELE (MB)'
-        write(nulout,*) 0.01*RPTOPINC
+        write(nulout,*) 0.01*VCO_ANL%DPT_M
         write(nulout,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
         write(nulout,*) IMODTOP
 
@@ -948,7 +948,7 @@
 ! *** Do not assimilate if jacobian has a significant contribution over model top ***
 
           ! Condition valid if model top at 10mb or lower only
-          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+          IF ( NINT(VCO_ANL%DPT_M) >= 1000 ) THEN
             IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1
@@ -956,7 +956,7 @@
           END IF
        
           ! Condition valid if model top at 10mb or lower only
-          IF ( NINT(RPTOPINC) >= 1000 ) THEN
+          IF ( NINT(VCO_ANL%DPT_M) >= 1000 ) THEN
             IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
@@ -964,7 +964,7 @@
           END IF
 
           ! Condition valid if model top is higher than 10 mb
-          IF ( NINT(RPTOPINC) < 1000 ) THEN
+          IF ( NINT(VCO_ANL%DPT_M) < 1000 ) THEN
             IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 

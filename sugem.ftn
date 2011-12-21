@@ -1,142 +1,75 @@
       SUBROUTINE SUGEM(KULOUT)
-#if defined (DOC)
-C
-C**** *SUGEM * - Definition of the geometry of the model
-C      -----     (reduced Gaussian grid, model levels, etc...)
-C     .          Also: calculation of the eigenvalues of the Laplacian
-C     .                in spectral space.
-C     Initialization of COMGEM
-C
-C
-C     Modifications.
-C     --------------
-*Author : 92-05-29  P. Gauthier *ARMA/AES*
-*Revision:
-*     .  P. Gauthier *ARMA/AES* November 19,1993: correction to support
-*     .              a number of levels that does not exceed JPNFLEV set
-*     .              in PARDIM.
-*     .  P. Koclas  *CMC/AES   September 8 1994: Modifications to allow
-*     .              pressure or sigma coordinates.
-*     .  S. Pellerin *ARMA/AES Oct 97
-*                    -Introduction and computation of NIP1s from COMGEM
-*     .  JM Belanger CMDA/SMC  Aug 2000
-*                   . 32 bits conversion
-*     .  C. Charette - ARMA/SMC - Sep. 2004
-*                    - Conversion to hybrid vertical coordinate
-*     .  L. Fillion - ARMA/SMC - Feb 2005.
-*                    - Add LAM4D limited area analysis option.
-*     .  L. Fillion - ARMA/EC - 15 Aug 2007 - UpdaTE LAM4D TO V_10_0_3.
-*     .  JW Blezius  - ARMA Dec. 2009
-*                    - add namelist, NAMSHARED_AAI_3DV
-#endif
-C
+!
+!**** *SUGEM * 
+!
+!     Initialization of vertical coordinate for analysis grid
+!
       use MathPhysConstants_mod
       use gaussGrid_mod
+      use verticalCoord_mod
       IMPLICIT NONE
-#include "pardim.cdk"
-#include "comlun.cdk"
-#include "comgem.cdk"
-      INTEGER JLAT, KULOUT, JN, JM, ILA
-      INTEGER JLEV,IERR,IMODE, IKIND
-      REAL*8 ZPTOP, ZPS0, ZDELP
-      REAL*8 ZPROF(JPNFLEV)
-      CHARACTER*1 CLSTRING
-      LOGICAL LLFOUND
-C
-      WRITE(NULOUT,FMT='(/,'' SUGEM- Geometry of the model'')')
-C
-C     3. Initialisation of the model levels
-C
- 300  CONTINUE
-C
-C*     3.1 Default values
-C
-      rptopinc = 1000.0
-      rprefinc = 80000.0
-      rcoefinc = 1.0
-      vlev(:)    = 0.0
-      vhybinc(:) = 0.0
-c
-      vlev(1)=0.000
-      vlev(2)=0.011
-      vlev(3)=0.027
-      vlev(4)=0.051
-      vlev(5)=0.075
-      vlev(6)=0.101
-      vlev(7)=0.127
-      vlev(8)=0.155
-      vlev(9)=0.185
-      vlev(10)=0.219
-      vlev(11)=0.258
-      vlev(12)=0.302
-      vlev(13)=0.351
-      vlev(14)=0.405
-      vlev(15)=0.460
-      vlev(16)=0.516
-      vlev(17)=0.574
-      vlev(18)=0.631
-      vlev(19)=0.688
-      vlev(20)=0.744
-      vlev(21)=0.796
-      vlev(22)=0.842
-      vlev(23)=0.884
-      vlev(24)=0.922
-      vlev(25)=0.955
-      vlev(26)=0.980
-      vlev(27)=0.993
-      vlev(28)=1.000
-C
-      CVCORD='ETAGE'
-C
-      nip1_pak_inc= 3           ! Packing increments 15 bits
-      RHUMIN      = RMINHU
-C
-C*     3.2 Modify the default values by reading NAMELISTs NAMGEM and
-C          NAMSHARED_AAI_3DV
-C
- 320  CONTINUE
-C
-      IF(gaus_NFLEV.GT.JPNFLEV) THEN
-         WRITE(NULOUT,FMT='(//,6X,''Too many levels'')')
-         CALL ABORT3D(NULOUT,'SUGEM. Too many levels')
-      END IF
-C
-      CALL READNML('NAMGEM',IERR)
-      CALL READNML('NAMSHARED_AAI_3DV',IERR)
-      CALL VSORT(VLEV,gaus_NFLEV)
-C
-      imode = nip1_pak_inc
-C
-      if(cvcord .eq. 'ETAGE') then
-        ikind = 1
-        do jlev = 1,gaus_nflev
-          vhybinc(jlev) = vlev(jlev) + (1.0D0-vlev(jlev))
-     &         *rptopinc/rprefinc
-          call VCONVIP(nip1(jlev),vlev(jlev),ikind
-     &         ,imode,clstring, .false. )
-        enddo
-      else
-        ikind = 5
-        do jlev = 1,gaus_nflev
-          vhybinc(jlev) = vlev(jlev)
-          call VCONVIP(nip1(jlev),vlev(jlev),ikind
-     &         ,imode,clstring, .false. )
-        enddo
+      INTEGER KULOUT
+      INTEGER JLEV,IERR,NULTEMPLATE
+      REAL*8 precision
+      INTEGER fstfrm,fclos,fstouv,fnom,nulnam
+      LOGICAL isExist_L
+      character*128 templatefile
+      NAMELIST /NAMGEM/templatefile
+
+      WRITE(KULOUT,FMT='(/,'' SUGEM- Define vertical coordinate for analysis grid'')')
+!
+! Read namelist to get the template file name (temporary)
+!
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namgem,iostat=ierr)
+      write(*,*) 'SUGEM: reading namelist, ierr=',ierr
+      write(*,nml=namgem)
+      ierr=fclos(nulnam)
+!
+! Get vertical coordinate parameters from the "template file"
+!
+      INQUIRE(FILE=templatefile,EXIST=isExist_L)
+      IF ( isExist_L )then
+        NULTEMPLATE=0
+        IERR=FNOM(NULTEMPLATE,templatefile,'RND+OLD+R/O',0)
+        IF ( IERR .EQ. 0 ) THEN
+          write(*,*) ' TEMPLATEFILE=', templatefile
+          write(*,*) ' opened as unit file ',nultemplate
+          ierr =  fstouv(nultemplate,'RND+OLD')
+          call vco_SetupFromFile(vgrid_anl,vco_anl,nultemplate)
+          ierr =  fstfrm(nultemplate)
+          ierr =  fclos (nultemplate)
+        ELSE
+          CALL ABORT3D(kulout,'SUGEM:CANNOT OPEN TEMPLATE FILE!!')
+        ENDIF
+      ELSE
+        write(*,*) 'SUGEM: NO TEMPLATE FILE FOUND!'
+      ENDIF
+!
+! Make sure the vertical coord is GEMHYB for analysis grid
+!
+      if(vco_anl%ikind.ne.5) then
+        write(*,*) 'SUGEM: unknown vertical coord kind = ',vco_anl%ikind
+        call flush(6)
+        call qqexit(1)
       endif
-C
-C*     5. Print the values
-C
- 500  CONTINUE
-C
-      DO 501 JLEV = 1, gaus_NFLEV
+!
+! Set to zero the non-significant bits (due to conversion from real*4)
+!
+      precision=1000000.0d0
+      vco_anl%dpt_M = real(nint(precision*vco_anl%dpt_M),8)/precision
+      vco_anl%drcf1 = real(nint(precision*vco_anl%drcf1),8)/precision
+!
+! Print the values
+!
+      write(*,*) 'SUGEM: Type of vertical coordinate:',vco_anl%svcod
+      write(*,*) 'SUGEM: rptopinc,rprefinc,rcoefinc=',vco_anl%dpt_M,vco_anl%dprf_M,vco_anl%drcf1
+      do jlev = 1, vco_anl%nlev_M
          WRITE(KULOUT,FMT='(4X,"LEVEL NO.",I3,":",2X,"VHYBINC= ",G12.6
      S     ,2X,"VLEV= ",G12.6,2X,"NIP1 OF VLEV= ",I10)')
-     S        JLEV,VHYBINC(JLEV),VLEV(JLEV),NIP1(JLEV)
- 501  CONTINUE
-C
-      WRITE(KULOUT,
-     +FMT='(/,10x,"Type of vertical coordinate:",10x,a8)') CVCORD
-      WRITE(KULOUT,FMT='(/,10x,"Definition of inc anal levels",/)')
-C
+     S        JLEV,vco_anl%dhyb_m(jlev),vco_anl%ip1_M(jlev)
+      enddo
+!
       RETURN
       END

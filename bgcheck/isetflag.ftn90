@@ -19,7 +19,6 @@
       use bufr
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comgem.cdk"
       integer isetflag
       integer kvnam,kodtyp
       real*8 zlev
@@ -32,77 +31,7 @@
 
       isetflag=0
 
-      if(cvcord .eq. 'ETAGE') then
-         zttcrit(1) = 5.00D0
-         zttcrit(2) = 10.00D0
-         zttcrit(3) = 12.00D0
-
-         zuvcrit(1) = 8.00D0
-         zuvcrit(2) = 14.00D0
-         zuvcrit(3) = 20.00D0
-
-         zescrit(1) = 9.00D0
-         zescrit(2) = 16.00D0
-         zescrit(3) = 25.00D0
-
-         zpscrit(1) = 9.00D0
-         zpscrit(2) = 16.00D0
-         zpscrit(3) = 25.00D0
-
-         zpncrit(1) = 9.00D0
-         zpncrit(2) = 16.00D0
-         zpncrit(3) = 25.00D0
-
-         zswcrit(1) = 8.00D0
-         zswcrit(2) = 14.00D0
-         zswcrit(3) = 20.00D0
-
-         ztscrit(1) = 2.00D0
-         ztscrit(2) = 10.00D0
-         ztscrit(3) = 12.00D0
-
-         zdzcrit(1) = 2.25D0
-         zdzcrit(2) = 5.06D0
-         zdzcrit(3) = 7.56D0
-
-         zgzcrit(1) = 12.25D0
-         zgzcrit(2) = 25.00D0
-         zgzcrit(3) = 36.00D0
-
-         if ( cdfam .eq. 'UA') then
-             if ( kodtyp .eq. 37 ) then
-               zuvcrit(2)=18.
-             else
-               zuvcrit(2)=14.
-             endif
-!*
-!*        ------>>>   TEMPORARILY MODIFY REJECTION LIMITs <<<--------------
-!*           FOR RADIOSONDE DATA ABOVE 20Mbars
-!*
-             if ( lmodif1020 ) then
-                if ( zlev .le. 2000. .and. zlev .gt. 1000. )  then
-                  zuvcrit(2)=17.
-                  zuvcrit(3)=20.
-
-                  zttcrit(2)=17.
-                  zttcrit(3)=20.
-                endif
-                if ( zlev .le. 1000. )  then
-                  zuvcrit(2)=20.
-                  zuvcrit(3)=23.
-
-                  zttcrit(2)=23.
-                  zttcrit(3)=26.
-                endif
-             endif
-         endif
-
-         zzdcrit(1) = 9.00D0
-         zzdcrit(2) = 16.00D0
-         zzdcrit(3) = 25.00D0
-
-       endif
-      if(cvcord(1:3).eq.'MAM' .or.cvcord.eq.'GEMHYB' ) then
+! ASSUME CVCORD = GEMHYB
          zttcrit(1) = 9.00D0
          zttcrit(2) = 16.00D0
          zttcrit(3) = 25.00D0
@@ -148,7 +77,6 @@
          else
            zuvcrit(2)=20.
          endif
-       endif
 !C
 !C     SET FLAG FOR HEIGHTS
 !C

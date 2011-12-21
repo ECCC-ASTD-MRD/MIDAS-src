@@ -2,7 +2,7 @@ MODULE GAUSSGRID_MOD
   implicit none
   save
 
-  integer :: gaus_ni,gaus_nj,gaus_nflev
+  integer :: gaus_ni,gaus_nj
   real*8, allocatable :: gaus_rmu(:)
   real*8, allocatable :: gaus_rwocs(:)
   real*8, allocatable :: gaus_r1mu2(:)
@@ -25,14 +25,13 @@ MODULE GAUSSGRID_MOD
     use MathPhysConstants_mod
     use mpi
     implicit none
-    integer :: ni,nj,nflev,nulnam,fnom,fclos,ierr
+    integer :: ni,nj,nulnam,fnom,fclos,ierr
     integer njlath,jlat
     real*8 zpisu2
-    NAMELIST /NAMDIM/NI, NJ, NFLEV
+    NAMELIST /NAMDIM/NI, NJ
 
     ni=240
     nj=120
-    nflev=80
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -43,7 +42,6 @@ MODULE GAUSSGRID_MOD
 
     gaus_ni=ni
     gaus_nj=nj
-    gaus_nflev=nflev
     allocate(gaus_rmu(nj))  
     allocate(gaus_rwt(nj))
     allocate(gaus_rwocs(nj))

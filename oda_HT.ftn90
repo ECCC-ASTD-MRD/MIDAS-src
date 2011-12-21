@@ -18,6 +18,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
+  use verticalCoord_mod
+  use bufr
   implicit none
   !
   !Purpose:
@@ -27,7 +29,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   !
 #include "pardim.cdk"
 #include "comdimo.cdk"
-#include "comgem.cdk"
 #include "comgpsgb.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng
@@ -61,7 +62,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
       SUBROUTINE oda_HTpp
       use modmask, only : lmaskpp_in,lmaskpp_out
-      use bufr
 !*
 !***s/r AOBSPPP  - Adjoint of the "vertical" interpolation
 !*                  for "UPPER AIR" data files.
@@ -126,10 +126,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
-            zpresbpt = ((vhybinc(ik) - rptopinc/rprefinc)  &
-                 /(1.0-rptopinc/rprefinc))**rcoefinc
-            zpresbpb = ((vhybinc(ik+1) - rptopinc/rprefinc)  &
-                 /(1.0-rptopinc/rprefinc))**rcoefinc
+            zpresbpt = ((vco_anl%dhyb_m(ik) - vco_anl%dpt_M/vco_anl%dprf_M)  &
+                 /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+            zpresbpb = ((vco_anl%dhyb_m(ik+1) - vco_anl%dpt_M/vco_anl%dprf_M)  &
+                 /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
 
             ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB) &
                  -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) ) &
@@ -142,9 +142,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
             if(ITYP.eq.BUFR_NEES) then
               call lqtoes_ad(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
-                ZWB*ZRES,lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vhybinc(IK+1))
+                ZWB*ZRES,lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vco_anl%dhyb_m(IK+1))
               call lqtoes_ad(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
-                ZWT*ZRES,lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vhybinc(IK  ))
+                ZWT*ZRES,lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vco_anl%dhyb_m(IK  ))
               columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
               columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
             else
@@ -248,7 +248,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
                 call lqtoes_ad(lcolumn%hu(lcolumn%nlev,IOBS),lcolumn%tt(lcolumn%nlev,IOBS),lcolumn%ps(1,IOBS),  &
-                  ZRES,lcolumng%hu(lcolumn%nlev,IOBS),lcolumng%rppobs(lcolumn%nlev,IOBS),vhybinc(lcolumn%nlev))
+                  ZRES,lcolumng%hu(lcolumn%nlev,IOBS),lcolumng%rppobs(lcolumn%nlev,IOBS),vco_anl%dhyb_m(lcolumn%nlev))
               else
                 LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
               endif
@@ -396,7 +396,7 @@ end subroutine oda_HTto
 !C
       NGPSLEV=LCOLUMN%NLEV
       DO JL = 1, LCOLUMN%NLEV
-        ZETA(JL) = VLEV(JL)
+        ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
       !
@@ -460,8 +460,8 @@ end subroutine oda_HTto
              BPT = LCOLUMNG%RPPOBS(1,INDEX_HEADER)
              BMT = BGZ(LCOLUMN%NLEV)/RG
              BMT = gpsgeopotential(Lat, BMT)/RG
-             BPR = rprefinc
-             BCF = rcoefinc
+             BPR = vco_anl%dprf_M
+             BCF = vco_anl%drcf1
 !C
 !C     *           GPS profile structure:
 !C
@@ -667,7 +667,7 @@ end subroutine oda_HTto
 !C     *    .        ----------
 !C
       DO JL = 1, LCOLUMN%NLEV
-         ZETA(JL) = VLEV(JL)
+         ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
       write(*,fmt='(/,4x,A)') 'AVGPSZTD- Adjoint Version: GPS ZTD observations'

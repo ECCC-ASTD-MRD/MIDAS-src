@@ -35,7 +35,7 @@
 *         - Implemented MPI to 3DVAR      
 *    -------------------
 *
-      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use verticalCoord_mod
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod
@@ -147,7 +147,7 @@ C
 !ccc They are being tested in the regional LAM analysis
 !ccc So DOBSGPSGB was not adapted to staggered at this time 
 !ccc (Jan 18,2011)
-      if(tg_vco_trl%iversion .eq. 5001 ) then
+      if(vco_trl%iversion .eq. 5001 ) then
         CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
       endif
 

@@ -17,7 +17,6 @@ module columnData_mod
     real*8,pointer :: ps(:,:)
     real*8,pointer :: tg(:,:)
     real*8,pointer :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
-    real*8,pointer :: vlev(:)
     real*8,pointer :: vhyb(:),vhyb_T(:),vhyb_M(:)
     real*8,pointer :: rmtmobs(:)
   end type struct_columnData
@@ -29,6 +28,7 @@ module columnData_mod
     INTEGER NMVOEXIST(JPNVARMAX)
     INTEGER nouu,novv,noq,nogz,nott,notr,nops,notg
     integer :: nvo3d,nvo2d
+    real*8 :: rhumin
 
   contains
 
@@ -37,7 +37,7 @@ module columnData_mod
       INTEGER JVAR, IPOS
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER*2 CMVONEED(JPNVARMAX)
-      NAMELIST /NAMSTATEO/CMVONEED
+      NAMELIST /NAMSTATEO/CMVONEED,rhumin
 
 !     Model state at the observation locations
       nouu = 1
@@ -265,8 +265,6 @@ module columnData_mod
       column%rppobs_T(:,:)=0.0d0
       column%rppobs_M(:,:)=0.0d0
 
-      allocate(column%vlev(column%nlev))
-
       allocate(column%vhyb(column%nlev))
       allocate(column%vhyb_T(column%nlev))
       allocate(column%vhyb_M(column%nlev))
@@ -341,7 +339,6 @@ module columnData_mod
       deallocate(column%rppobs)
       deallocate(column%rppobs_T)
       deallocate(column%rppobs_M)
-      deallocate(column%vlev)
       deallocate(column%vhyb)
       deallocate(column%vhyb_T)
       deallocate(column%vhyb_M)
@@ -389,8 +386,6 @@ module columnData_mod
 !
     use MathPhysConstants_mod
     implicit none
-    #include "pardim.cdk"
-    #include "comgem.cdk"
 
     type(struct_columnData) :: lcolumnghr
     integer knlev,knobs
@@ -419,10 +414,6 @@ module columnData_mod
             enddo
           enddo
         endif
-      elseif(cdvar.eq.'LV') then
-        do jlev = 1,lcolumnghr%nlev
-          lcolumnghr%vlev(jlev) = pvar(jlev,1)
-        enddo
       elseif(cdvar.eq.'HY') then
         if(cdlev.eq.'TH') then
           do jlev = 1,lcolumnghr%nlev

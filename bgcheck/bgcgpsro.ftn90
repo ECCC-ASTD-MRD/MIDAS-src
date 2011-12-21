@@ -16,10 +16,9 @@
       use modgps08refop
       use columnData_mod
       use obsSpaceData_mod
-      use stag_shared, only : tg_vco_trl,tg_vgrid_trl
+      use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comgem.cdk"
 #include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
@@ -64,7 +63,7 @@
       WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
 
       LSTAG = .FALSE.
-      if (tg_vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
+      if (vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
@@ -143,8 +142,8 @@
                      ZPT = lcolumnhr%RPPOBS_T(1,JO)
                      ZMT = ZGZ(lcolumnhr%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPR = rprefinc
-                     ZCF = rcoefinc
+                     ZPR = vco_anl%dprf_M
+                     ZCF = vco_anl%drcf1
 !C     
 !C     *              GPS profile structure:
 !C
