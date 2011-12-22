@@ -13,21 +13,11 @@
       REAL*8 precision
       INTEGER fstfrm,fclos,fstouv,fnom,nulnam
       LOGICAL isExist_L
-      character*128 templatefile
-      NAMELIST /NAMGEM/templatefile
+      character*8 :: templatefile='./glbcov'
 
       WRITE(KULOUT,FMT='(/,'' SUGEM- Define vertical coordinate for analysis grid'')')
 !
-! Read namelist to get the template file name (temporary)
-!
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namgem,iostat=ierr)
-      write(*,*) 'SUGEM: reading namelist, ierr=',ierr
-      write(*,nml=namgem)
-      ierr=fclos(nulnam)
-!
-! Get vertical coordinate parameters from the "template file"
+! Get vertical coordinate parameters from the Bnmc file
 !
       INQUIRE(FILE=templatefile,EXIST=isExist_L)
       IF ( isExist_L )then
