@@ -68,40 +68,24 @@ C
 #include "cvcord.cdk"
 *
       logical llvint
-      REAL*8 SFOQST8,SFOEW8
-      EXTERNAL SFOQST8,SFOEW8
 *
       INTEGER ibrpstamp
       integer kni,knj,knflev
       real*8 ptg(kni,knflev,knj), pqg(kni,knflev,knj)
       real*8 pug(kni,knflev,knj), pvg(kni,knflev,knj), pgzg(kni,knflev,knj)
       real*8 ppt(kni,knj),ppsg(kni,knj)
-*
-      character*1 clgr, ctyp
-      character*2 cnom
-      character*3 clvar
-      character*8 cetiket
-      integer idatet,idt,ibits,idtyp
-      integer ilng,ix1,ix2,ix3
-      integer ier,ikey,ji,jj,jk,jlev
-      integer igdgid,ezqkdef,ezgdef_fmem
+      integer igdgid,ezqkdef
       integer isgid,iuugid,ivvgid
       integer idum1,idum2,idum3,idum4
-      integer iig1,iig2,iig3,iig4,ezgprm,iwindgid,vezsint
-      integer ig1tic,ig2tic,ig3tic,ig4tic
-      real*8 zmin,zmax,zcon
-*
-ccc debug
+      real*8 zmin,zmax
       REAL*8 ZTRANS(kni,knj,knflev),zvvg(kni,knj,knflev)
       REAL*8 zpsg(kni,knj),zpresa,zpresb
       REAL*8 zttg(kni,knj,knflev),zqqg(kni,knj,knflev)
       REAL*8 zgzg(kni,knj,knflev)
-*
       EXTERNAL ABORT3D
 *
       WRITE(NULOUT,FMT='(/,4X,"Starting GETFSTG2",//)')
 !
-!!
       llvint = .true.
 !
       if(l4dvar) then
@@ -135,7 +119,7 @@ ccc debug
       write(nulout,*) 'getfstg2: ibrpstamp = ',ibrpstamp
 !
       call vhfstfld(zpsg,kni*knj,isgid,zvvg,kni*knj,ivvgid,1
-     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(ppsg,zpsg,kni,knj,1,0,CLNOMVAR)
@@ -150,7 +134,7 @@ ccc debug
       CLNOMVAR = 'TT'
 
       call vhfstfld(zttg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
-     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(ptg,zttg,kni,knj,knflev,0,CLNOMVAR)
@@ -165,7 +149,7 @@ ccc debug
       CLNOMVAR = 'GZ'
 ! 
       call vhfstfld(zgzg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
-     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(pgzg,zgzg,kni,knj,knflev,0,CLNOMVAR)
@@ -176,13 +160,11 @@ ccc debug
       CLNOMVAR = 'HU'
 !
       call vhfstfld(zqqg,kni*knj,isgid,zvvg,kni*knj,ivvgid,knflev
-     &     ,vco_anl%dhyb_m,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
       CALL INITGDG2(pqg,zqqg,kni,knj,knflev,0,CLNOMVAR)
 !
-      cletiket='BASICGD '
-      clvar = 'HU '
       call maxmin(pqg,kni,knj,knflev,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'getfstg2       ',
      &            'HUG')
@@ -193,7 +175,7 @@ ccc debug
       CLNOMVAR = 'UU'
 !
       call vhfstfld(ztrans,kni*knj,isgid,zvvg,kni*knj,isgid,knflev  ! ztrans=uu,zvvg=vv interpolated... 
-     &     ,vco_anl%dhyb_m,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
       CALL INITGDG2(pug,ztrans,kni,knj,knflev,0,CLNOMVAR) ! on output, pug contains U wind-image.
 !

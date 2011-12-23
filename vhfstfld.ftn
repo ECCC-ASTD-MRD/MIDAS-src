@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine vhfstfld(pvar,kcol,ktrggid,pvv,kcolvv,kvvgid,knk
-     &     ,ptrglev,cdnomvar,kstampv,kulfst,ktrials,kulout,
+     &     ,cdnomvar,kstampv,kulfst,ktrials,kulout,
      &      kmaxlev,ldvint ,cddgint)
 *
 #if defined (DOC)
@@ -26,23 +26,6 @@
 *                  TL observation operators.
 *
 *Author  : S. Pellerin *ARMA/SMC May 2000
-*Revision:
-*          JM Belanger CMDA/SMC  Jul 2000
-*                   . 32 bits conversion
-*          M. Buehner *ARMA/SMC Feb. 2002
-*                   . Fix to wind interpolations
-*          C. Charette - ARMA/SMC - Sep. 2004
-*                   . Conversion to hybrid vertical coordinate
-*          Bin He      - ARMA/SMC - Apr. 2008
-*                   . Dealing with multiple trial files.
-*          S. Pellerin, ARMA, August 2008
-*                   . Call to gethybprm2 and getfstprm2
-*          L. Fillion, ARMA/EC, May 2010
-*                   . Slight improvement in printout
-*          C.Charette - ARMA et N.Wagneur - CMDA - Juillet 2011
-*                  . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
-*                    ayant une grille verticale decalee dite "STAGGERED"
-*                   
 *
 *Arguments
 *    Output:
@@ -55,7 +38,6 @@
 *      kcolvv         : Number of collums for V
 *      kvvgid         : Grid descriptor of targeted V grid
 *      knk            : Number of level of targetted variable
-*      ptrglev        : values  hybrid coord levels of targetted variable
 *      cdnomvar       : Variable nomvar (UV if vectorial interpolation desired)
 *      kstampv        : Valid CMC date-time stamp values for reserch in
 *                       fst source file
@@ -82,7 +64,7 @@ C
       INTEGER kulfst(ktrials)
       INTEGER KCOL,KNK,ktrggid,kstampv,kulout,kmaxlev,kcolvv
       integer kvvgid,inlev
-      real*8 pvar(kcol,knk), pvv(kcolvv,knk),ptrglev(knk)
+      real*8 pvar(kcol,knk), pvv(kcolvv,knk)
       character*2 cdnomvar
       character*(*) cddgint
       logical ldvint
@@ -92,17 +74,17 @@ c
       integer ikey,ezgprm,ip0gid,iptgid,vfstluk,ezqkdef,ezsetopt
       integer ezdefset,iset,vezsint,jcol,ivvgid,inivv,injvv,jlen
       integer ikind,imode,ip1style,ip1kind
-      REAL*8  zeta,zhighvar(1),zpstrl,zpttrl(1),zhighvv(1),zlowvar(1)
+      REAL*8  zeta,zhighvar(1),zpttrl(1),zhighvv(1),zlowvar(1)
       real*8  zpresanl(1),zlowvv(1)
       real*8  zps(1),zprestrl(1),zprofi(1),zprofo(1)
       real*8  zps_pascal(1)
       real    zptop4, zpref4,zrcoef4
-      real*8  zptophr, zprefhr,zrcoefhr
+      real*8,allocatable :: zpstrl(:,:)
       logical llhy
       character*1 clstring
       POINTER (pxprofi,zprofi)
       pointer (pxprofo,zprofo)
-      pointer (pxhighvar,zhighvar),(pxpstrl,zpstrl)
+      pointer (pxhighvar,zhighvar)
       pointer (pxpresanl,zpresanl),(pxps,zps)
       pointer(pxps_pascal,zps_pascal)
       pointer (pxprestrl,zprestrl)
@@ -134,20 +116,8 @@ c*    3. Read desired fields
 c     .  -------------------
 c
 c *********************************************************
-c     set hybride vertical coordinate parameters from trial field
-c
-
-      if(vco_trl%iversion .eq. 5001) then
-        call gethybprm2 (kulfst,kulout,-1,-1,' ',-1,zptop4,zpref4,zrcoef4
-     &                ,ip1_hyb_prm,ktrials)
-        zptophr = zptop4
-        zprefhr = zpref4
-        zrcoefhr= zrcoef4
-      endif
-c
 c     get field parameters from trial field
 c
-
 c-----Special case for GZ which is present at both thermo and momentum
 c     levels tiral field file. 
 c     We will process GZ on momentum levels only.
@@ -185,9 +155,24 @@ c-----Denormalize zeta if the type of  vertical coord is ETA
       if(ip1kind .eq. 1 ) then
             do jlev = 1,itrlnlev
               zeta(jlev) = zeta(jlev) + (1.0D0-zeta(jlev))
-     &                       *zptophr/zprefhr
+     &                       *vco_trl%dpt_M/vco_trl%dprf_M
             enddo
           endif
+c
+c get vertical levels from vco_trl instead of from file (to replace above code)
+c
+!      if (clnomvar.eq.'GZ'.or.clnomvar.eq.'UU'.or.clnomvar.eq.'VV') then
+!        itrlnlev=vco_trl%nlev_M
+!        do jlev = 1,itrlnlev
+!          zeta(jlev) = vco_trl%dhyb_M(jlev)
+!        enddo
+!      else
+!        itrlnlev=vco_trl%nlev_T
+!        do jlev = 1,itrlnlev
+!          zeta(jlev) = vco_trl%dhyb_T(jlev)
+!        enddo
+!      endif
+
       ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
       call hpalloc(pxhighvar,ini*inj*itrlnlev,ierr,8)
 c
@@ -283,9 +268,10 @@ c
 c
         ierr = ezgprm(ip0gid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
 c
-        call hpalloc(pxpstrl,ini*inj,ierr,8)
+        allocate(zpstrl(ini,inj))
 c
         ikey = VFSTLUK(zpstrl, ikey, INI, INJ, INK)
+        zpstrl(:,:)=zpstrl(:,:)*rmbtpa
 c
         call hpalloc(pxpresanl,kcol*knk,ierr,8)
         call hpalloc(pxps,kcol,ierr,8)
@@ -299,27 +285,24 @@ c
         ierr = ezsetopt('INTERP_DEGREE','LINEAR')
         iset = ezdefset(ktrggid,ip0gid)
         ierr = vezsint(zps,zpstrl,kcol,1,1,ini,inj,1)
-        call calcpres(zpresanl,ptrglev,knk,zps,vco_anl%dpt_M*rpatmb
-     &       ,vco_anl%dprf_M*rpatmb,vco_anl%drcf1,kcol)
+        call calcpres(zpresanl,vco_anl%dhyb_M,knk,zps,vco_anl%dpt_M
+     &       ,vco_anl%dprf_M,vco_anl%drcf1,kcol)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
         if(vco_trl%iversion .eq. 5002) then
-          do jcol=1,kcol
-            zps_pascal(jcol) = zps(jcol)*100.
-          enddo
-        call calcpres_vgrid(vgrid_trl,zps_pascal,iip1s
+        call calcpres_vgrid(vgrid_trl,zps,iip1s
      &         ,itrlnlev,kcol,kulout,zprestrl)
         do jlev = 1,itrlnlev
           do jcol=1,kcol
             zprestrl((jcol-1)*itrlnlev+ jlev) = zprestrl((jcol-1)
-     &           *itrlnlev+ jlev)/100.
+     &           *itrlnlev+ jlev)
           enddo
         enddo
         else
-          call calcpres(zprestrl,zeta,itrlnlev,zps,zptophr
-     &       ,zprefhr,zrcoefhr,kcol)
+          call calcpres(zprestrl,zeta,itrlnlev,zps,vco_trl%dpt_M
+     &       ,vco_trl%dprf_M,vco_trl%drcf1,kcol)
         endif
 c
         do jlev = 1, itrlnlev
@@ -356,8 +339,8 @@ c
           ierr = ezsetopt('INTERP_DEGREE','LINEAR')
           iset = ezdefset(kvvgid,ip0gid)
           ierr = vezsint(zps,zpstrl,kcolvv,1,1,ini,inj,1)
-          call calcpres(zpresanl,ptrglev,knk,zps,vco_anl%dpt_M*rpatmb
-     &         ,vco_anl%dprf_M*rpatmb,vco_anl%drcf1,kcolvv)
+          call calcpres(zpresanl,vco_anl%dhyb_M,knk,zps,vco_anl%dpt_M
+     &         ,vco_anl%dprf_M,vco_anl%drcf1,kcolvv)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
@@ -366,8 +349,8 @@ c
         call calcpres_vgrid(vgrid_trl,zps,iip1s
      &         ,itrlnlev,kcolvv,kulout,zprestrl)
         else
-          call calcpres(zprestrl,zeta,itrlnlev,zps,zptophr
-     &         ,zprefhr,zrcoefhr,kcolvv)
+          call calcpres(zprestrl,zeta,itrlnlev,zps,vco_trl%dpt_M
+     &         ,vco_trl%dprf_M,vco_trl%drcf1,kcolvv)
         endif
 c
           do jlev = 1, itrlnlev
@@ -393,8 +376,6 @@ c
           call hpdeallc(pxprofi,ierr,1)
           call hpdeallc(pxprofo,ierr,1)
         endif
-c
-        call hpdeallc(pxpstrl,ierr,1)
 c
       else
         if (knk.ne.itrlnlev) then

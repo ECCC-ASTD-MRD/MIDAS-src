@@ -54,12 +54,9 @@ c
       real*8, allocatable, dimension(:) :: zopart,zopart2,zhybhr
       real*8 zom_T(1),zom_M(1)
       integer ip1_pak_trl,ip1_vco_trl
-      real*8  zptophr,zrcoefhr,zprefhr
       integer nlv_T,nlv_M
-c
       integer itrlgid,iip1s(jpnflev),iip1,iip2,iip3
       integer iip1s2(jpnflev*2)
-c
       integer, allocatable, dimension(:) :: idate,itime,nultrl
       integer :: newdate,nstepanltime
 
@@ -104,11 +101,8 @@ c
       nlv_T = vco_trl%nlev_T
       write(nulout,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
 c      
-      zptophr = vco_trl%dpt_T
-      zprefhr = vco_trl%dprf_T
-      zrcoefhr= vco_trl%drcf2
-      write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',zptophr
-     &     ,zprefhr,zrcoefhr
+      write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',vco_trl%dpt_T
+     &     ,vco_trl%dprf_T,vco_trl%drcf1
 c
 c     Allocation des tableaux a remplir par fillmvo
 c
@@ -222,16 +216,8 @@ c-------ETA  trial field
         call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_M
      &         ,vco_trl%nlev_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
 
-        zptophr = vco_trl%dpt_M
-        zprefhr = vco_trl%dprf_M
-        zrcoefhr= vco_trl%drcf2
-        itrlnlev = vco_trl%nlev_M
-        zhybhr = vco_trl%dhyb_M
-        do jlev = 1,nlv_M
-          zhybhr(jlev) = vco_trl%dhyb_M(jlev)
-        enddo
-        call calcpres(zppobs_M,zhybhr,nlv_M,zovar,zptophr
-     &         ,zprefhr,zrcoefhr,lcolumng%nobtot)
+        call calcpres(zppobs_M,vco_trl%dhyb_M,nlv_M,zovar,vco_trl%dpt_M
+     &         ,vco_trl%dprf_M,vco_trl%drcf1,lcolumng%nobtot)
         do jlev   = 1,nlv_M 
           do jobs = 1,lcolumng%nobtot
             zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 
@@ -535,11 +521,6 @@ c
             enddo
           enddo
           call tmg_stop(27)
-c
-          zptophr = vco_trl%dpt_T
-          zprefhr = vco_trl%dprf_T
-          zrcoefhr= vco_trl%drcf1
-          itrlnlev = vco_trl%nlev_T
 c
           call vintprof(zom_T,lcolumng%rppobs,lcolumng%nlev,zmobs_T,zppobs_T,nlv_T,lcolumng%nobtot)
 c

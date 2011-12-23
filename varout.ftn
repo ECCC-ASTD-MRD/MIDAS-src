@@ -6,29 +6,7 @@
 *     .          standard file
 *
 *Author  : S. Pellerin *ARMA/AES  April 2000
-*Revision:
-*          JM Belanger CMDA/SMC  Aug 2000
-*                   . 32 bits conversion
-*          S. Pellerin *ARMA/SMC Feb. 2002
-*                   . Analysis packing based on trials
-*                   . Sum of apropriate model cube in 4Dvar mode
-*          C. Charette - ARMA/SMC - Sep. 2004
-*                   . Conversion to hybrid vertical coordinate
-*          S. Pellerin *ARMA/SMC Jul. 2005
-*                   . Logical switch llvint to do vertical interpolation
-*                     only vhen necessary
-*          Bin He     - ARMA/SMC - Apr. 2008
-*                   . Added reading multiple trial files.
-*          S. Pellerin, ARMA, August 2008
-*                   . Call to gethybprm2 and getfldprm2
-*                   . Avoid loop over trial files and multiple call to fstinf
-*                   . Call to 'tmg_' subroutines
-*                   . Remove useless call to calgz
-*          L. Fillion - ARMA/EC - 04 Apr 2008
-*                   . introduce lladjhum.
-*          L. Fillion - ARMA/EC - Upgrade lam4d to v_10_1_2 3dvar.
-*          J.W. Blezius - ARMA - Aug. 2010
-*                   . reduce varout to writing rebm; the rest is in AddAnalInc
+*
 #endif
 C
       use MathPhysConstants_mod
