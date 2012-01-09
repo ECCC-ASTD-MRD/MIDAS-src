@@ -37,7 +37,6 @@ C
       use MathPhysConstants_mod
       use gridStateVector_mod
       use gaussGrid_mod
-      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"

@@ -1,3 +1,4 @@
+
 !-------------------------------------- LICENCE BEGIN ------------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
@@ -15,89 +16,515 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine subasic_gd(statevectorg)
-!
-      use MathPhysConstants_mod
-      use modfgat, only : nstamplist
       use mod4dv, only : l4dvar
       use gridStateVector_mod
-      IMPLICIT NONE
+*
 #if defined (DOC)
-!
-!s/r subasic_gd : Read Background fields at NLM spatial resolution.
-!                 Also prepares Helmholtz's PSI,CHI and Omega bakground fields.
-! Purpose:
-! Prepare bacic-state fields for TL computations on gridpoint analysis grids.
-!
-!     Author L. Fillion  - ARMA/MSC - 26 oct 2004.
-!Revision: L. Fillion - ARMA/MSC - 4 July 2005 - Omega QG.
-!Revision: L. Fillion - ARMA/EC - 29 April 2008 - Introduce getfstgla to improve 
-!                       treatment of lam trial fields in general; i.e. hintscal
-!                       produced garbage when lam analysis grid (extended grid!)
-!                       had a portion outside lam trial grid. The clean solution is
-!                       to perform the interpolation onto non-extended lam grid and then
-!                       biperiodize the fields..
-!Revision: L. Fillion - ARMA/EC - 22 May 2008 - Upgrade to v_10_1_1
-!Revision: L. Fillion - ARMA/EC - 13 Jan 2009 - Upgrade to v_10_1_2
-!Revision: L. Fillion - ARMA/EC - May 2010 - Improve printout. Improve check on content of
-!                       moisture field before leaving the subroutine to ensure it is OK.
-!
+*
+***s/r subasic_gd - Get some background fields on analysis grid.
+*                   These fields are needed for:
+*                   Postprocessing diagnostic analysis increments on the analysis grid
+*                   using TL observation operators.
+*                   Note: On output, uu, vv contain wind-images.
+*
+*Author  : L. Fillion  *ARMA/AES - 13 nov 98
+*          (used to be getfstg2.ftn)
+*Arguments
+*
 #endif
-!
+C
+      use modfgat, only : nstamplist
+      IMPLICIT NONE
+*implicits
 #include "pardim.cdk"
 #include "comlun.cdk"
 #include "rpnstd.cdk"
 #include "cvcord.cdk"
-!
+*
       type(struct_gsv) :: statevectorg
-      integer ji,jj,jk,jlev
-      integer iip2,iip3,itrlnlev,ip1_pak_trl,ip1_vco_trl,itrlgid,ibrpstamp
-      integer iip1s_trl(jpnflev)
-      integer :: k,koutmpg  !  the unit which has the selected records.
+
+      logical llvint
+      INTEGER ibrpstamp
+      integer igdgid,ezqkdef
+      integer isgid,iuugid,ivvgid
+      integer idum1,idum2,idum3,idum4
+      real*8 zmin,zmax
+      REAL*8 ZTRANS(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      REAL*8 zvvg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      REAL*8 zpsg(statevectorg%ni,statevectorg%nj)
+      REAL*8 zttg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      REAL*8 zqqg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      REAL*8 zgzg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      EXTERNAL ABORT3D
+*
+      WRITE(NULOUT,FMT='(/,4X,"Starting SUBASIC_GD",//)')
 !
-      real*8 zug(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
-      real*8 zvg(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
-      real*8 zttg(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
-      real*8 zgzg(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
-      real*8 zhug(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
-      real*8 zpsg(statevectorg%ni,statevectorg%nj)
-      real*8 zpt(statevectorg%ni,statevectorg%nj)
+      llvint = .true.
 !
-!!
-      write(nulout,*) 'subasic_gd: BEGIN'
+      if(l4dvar) then
+        ibrpstamp=nstamplist(1)
+      else
+        ibrpstamp=nbrpstamp
+      endif
 !
+!*1   Define Grids
+!     ************
 !
-!*2.    Read Background fields at NLM spatial resolution
-!       ------------------------------------------------
+        igdgid = ezqkdef(statevectorg%ni, statevectorg%nj, 'G', 0,0,0,0,0)
 !
-        write(nulout,*) 'subasic_gd: Start preparation of Background fields on analysis grid'
+!       define grid id info before calling inteprolation subroutine below
+        isgid = igdgid 
+        iuugid  = isgid   ! winds on same grid as other fields
+        ivvgid  = isgid   ! winds on same grid as other fields
 !
-        cletiket = ' '
-        CLTYPVAR = 'P'
-        if(l4dvar) then
-          ibrpstamp=nstamplist(1)
-        else
-          ibrpstamp=nbrpstamp
+!*2.  Read trial fields and interpolate them to analysis grid
+!     -------------------------------------------------------
+!
+      IDATE(1) = -1
+      CLETIKET = ' '
+      CLTYPVAR = 'P'
+!
+!     Surface-pressure
+!
+      write(nulout,*)'subasic_gd: reading P0'
+      CLNOMVAR = 'P0'
+!
+      write(nulout,*) 'subasic_gd: ibrpstamp = ',ibrpstamp
+!
+      call vhfstfld(zpsg,statevectorg%ni*statevectorg%nj,isgid,zvvg
+     &     ,statevectorg%ni*statevectorg%nj,ivvgid,1
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(statevectorg%ps3d,zpsg,
+     &              statevectorg%ni,statevectorg%nj,1,0,CLNOMVAR)
+!
+      call maxmin(statevectorg%ps3d,statevectorg%ni,statevectorg%nj,1,zmin,zmax,
+     &            idum1,idum2,idum3,idum4,'subasic_gd     ',
+     &            'PSG')
+!
+!      Temperature
+!
+      write(nulout,*)'subasic_gd: reading TT'
+      CLNOMVAR = 'TT'
+
+      call vhfstfld(zttg,statevectorg%ni*statevectorg%nj,isgid,zvvg
+     &     ,statevectorg%ni*statevectorg%nj,ivvgid,statevectorg%nlev
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(statevectorg%tt3d,zttg,
+     &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
+!
+      call maxmin(statevectorg%tt3d,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
+     &            idum1,idum2,idum3,idum4,'subasic_gd     ',
+     &            'TTG')
+!
+!      Specific-Humidity
+!
+      write(nulout,*)'subasic_gd: reading HU'
+      CLNOMVAR = 'HU'
+!
+      call vhfstfld(zqqg,statevectorg%ni*statevectorg%nj,isgid,zvvg
+     &     ,statevectorg%ni*statevectorg%nj,ivvgid,statevectorg%nlev
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,'LINEAR')
+!
+      CALL INITGDG2(statevectorg%hu3d,zqqg,
+     &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
+!
+      call maxmin(statevectorg%hu3d,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
+     &            idum1,idum2,idum3,idum4,'subasic_gd     ',
+     &            'HUG')
+!
+!      U wind-image component
+!
+      write(nulout,*)'subasic_gd: reading UU and VV'
+      CLNOMVAR = 'UU'
+!
+!     ztrans=uu,zvvg=vv interpolated... 
+      call vhfstfld(ztrans,statevectorg%ni*statevectorg%nj,isgid,zvvg
+     &     ,statevectorg%ni*statevectorg%nj,isgid,statevectorg%nlev  
+     &     ,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,'LINEAR')
+!     on output, uu contains U wind-image.
+      CALL INITGDG2(statevectorg%uu3d,ztrans,
+     &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR) 
+!
+!      V wind-image component
+!
+      CLNOMVAR = 'VV'
+!     on output, vv contains V wind-image.
+      CALL INITGDG2(statevectorg%vv3d,zvvg,
+     &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR) 
+!
+      RETURN
+!-----------------------------------------------------------------------------------------------
+      CONTAINS
+
+      subroutine vhfstfld(pvar,kcol,ktrggid,pvv,kcolvv,kvvgid,knk
+     &     ,cdnomvar,kstampv,kulfst,ktrials,kulout,
+     &      kmaxlev,ldvint ,cddgint)
+*
+#if defined (DOC)
+*
+***s/r vhfstfld  - Interpolate background fields on analysis grid.
+*                  These fields are need for posprocessing diagnostic
+*                  analysis increments on the analysis grid using
+*                  TL observation operators.
+*
+*Author  : S. Pellerin *ARMA/SMC May 2000
+*
+*Arguments
+*    Output:
+*      pvar(kcol,knk) : Interpolated Output variable (contains UU if
+*                       cdnomvar = UV)
+*      pvv(kcolvv,knk): Interpolated Output V componant (if cdnomvar = UV)
+*    Input:
+*      kcol           : Number of collums
+*      ktrggid        : grid id of output variable
+*      kcolvv         : Number of collums for V
+*      kvvgid         : Grid descriptor of targeted V grid
+*      knk            : Number of level of targetted variable
+*      cdnomvar       : Variable nomvar (UV if vectorial interpolation desired)
+*      kstampv        : Valid CMC date-time stamp values for reserch in
+*                       fst source file
+*      kulfst         : Unit of pre-opened standard file containing src fields
+*      ktrials        :  number of trial files.
+*      kulout         : Standard output printout messages
+*      kmaxlev        : Max number of levels that can be found in the
+*                       source file
+*      ldvint         : Logical that control if vertical interpolation
+*                       is wanted
+*      cddgint        : Degree of interpolation for horizontal interpolation
+*
+#endif
+C
+      use MathPhysConstants_mod
+      IMPLICIT NONE
+*implicits
+#include "comlun.cdk"
+#include "rpnstd.cdk"
+*
+      INTEGER ktrials
+      INTEGER kulfst(ktrials)
+      INTEGER KCOL,KNK,ktrggid,kstampv,kulout,kmaxlev,kcolvv
+      integer kvvgid,inlev
+      real*8 pvar(kcol,knk), pvv(kcolvv,knk)
+      character*2 cdnomvar
+      character*(*) cddgint
+      logical ldvint
+c
+      integer jlev,iip1s,iip1,iip2,iip3,itrlnlev,itrlgid
+      integer ikey,ezgprm,ip0gid,vfstluk,ezsetopt
+      integer ezdefset,iset,vezsint,jcol,ivvgid,inivv,injvv
+      integer ikind,imode,ip1style,ip1kind
+      integer koutmpg
+      real*8  zeta,zhighvar(1),zhighvv(1),zlowvar(1)
+      real*8  zpresanl(1),zlowvv(1)
+      real*8  zps(1),zprestrl(1),zprofi(1),zprofo(1)
+      real*8,allocatable :: zpstrl(:,:)
+      character*1 clstring
+      pointer (pxprofi,zprofi)
+      pointer (pxprofo,zprofo)
+      pointer (pxhighvar,zhighvar)
+      pointer (pxpresanl,zpresanl),(pxps,zps)
+      pointer (pxprestrl,zprestrl)
+      pointer (pxip1s,iip1s(kmaxlev))
+      pointer (pxeta,zeta(kmaxlev)),(pxhighvv,zhighvv)
+      pointer (pxlowvar,zlowvar),(pxlowvv,zlowvv)
+C
+      WRITE(KULOUT,FMT='(/,4X,"Starting VHFSTFLD",//)')
+c
+      if (cdnomvar .eq. 'UV') then
+        clnomvar = 'UU'
+      else
+        clnomvar = cdnomvar
+      endif
+C
+C*    2 Allocate space for the buffer
+C       -----------------------------
+C
+      call hpalloc(pxeta,kmaxlev,ierr,8)
+      call hpalloc(pxip1s,kmaxlev,ierr,8)
+c
+c
+c*    3. Read desired fields
+c     .  -------------------
+c
+c *********************************************************
+c     get field parameters from trial field
+c
+c-----Special case for GZ which is present at both thermo and momentum
+c     levels tiral field file. 
+c     We will process GZ on momentum levels only.
+c     We will therefore get the parameters for UU which is present
+c     on momentum levels.
+
+      if (clnomvar .eq. 'GZ') then
+        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &       ,ITRLGID,'UU',kstampv,kmaxlev,kulfst
+     &       ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+      else
+        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &       ,ITRLGID,clnomvar,kstampv,kmaxlev,kulfst
+     &       ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+      endif
+c
+c-----Convert ip1 to real value P
+      imode = -1
+      ikind = ip1kind
+      do jlev = 1,itrlnlev
+        call VCONVIP( iip1s(jlev), zeta(jlev), ikind, imode, clstring,
+     &       .false. )
+      enddo
+c
+      call vsort(zeta,itrlnlev)
+c
+c-----Convert real value P to IP
+      imode = ip1style
+      ikind = ip1kind
+      do jlev = 1,itrlnlev
+        call VCONVIP(iip1s(jlev),zeta(jlev),ikind,imode,clstring,.false.)
+      enddo
+
+      ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
+      call hpalloc(pxhighvar,ini*inj*itrlnlev,ierr,8)
+c
+      write(kulout,*)'vhfstfld: reading ',clnomvar
+c
+      do JLEV = 1,itrlnlev
+c
+        ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket,
+     &       iip1s(jlev), iip2, iip3,cltypvar,clnomvar)
+c
+        if (ikey.lt.0) then
+          write(kulout,*) 'Problems finding variable '
+     &         ,clnomvar,' at level ',iip1s(jlev),' in trial file'
+          call abort3d(kulout,'VHFSTFLD')
         endif
-!
-        call getfldprm2(IIP1S_TRL,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &     ,ITRLGID,'UU',ibrpstamp,jpnflev,ninmpg
-     &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
-!
-        call getfstg2(zttg,zgzg,zhug,zug,zvg,zpsg,zpt,
-     +       statevectorg%ni,statevectorg%nj,statevectorg%nlev)
-!
-        do ji=1,statevectorg%ni
-          do jj=1,statevectorg%nj
-            statevectorg%ps3d(ji,1,jj)=zpsg(ji,jj)
-            do jlev=1,statevectorg%nlev
-              statevectorg%uu3d(ji,jlev,jj)=zug(ji,jlev,jj)
-              statevectorg%vv3d(ji,jlev,jj)=zvg(ji,jlev,jj)
-              statevectorg%tt3d(ji,jlev,jj)=zttg(ji,jlev,jj)
-              statevectorg%hu3d(ji,jlev,jj)=zhug(ji,jlev,jj)
+c
+        ikey = VFSTLUK(zhighvar((jlev-1)*ini*inj+1),ikey,INI,INJ,INK)
+c
+      enddo
+c
+      call hpalloc(pxlowvar,kcol*itrlnlev,ierr,8)
+c
+      if(cdnomvar.ne.'UV') then
+c
+c Horizontal interpolation
+c
+        call hintscal(zhighvar,ini*inj,itrlgid,zlowvar,kcol,ktrggid
+     &       ,itrlnlev,cddgint)
+c
+      else
+c
+c Get VV component
+c
+        call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &       ,IVVGID,'VV',kstampv,kmaxlev,koutmpg
+     &       ,kulout,ip1style,ip1kind)
+c
+        ierr = ezgprm(ivvgid,clgrtyp,inivv,injvv,ig1,ig2,ig3,ig4)
+        call hpalloc(pxhighvv,inivv*injvv*itrlnlev,ierr,8)
+c
+        write(kulout,*)'vhfstfld: reading ','VV'
+c
+        do JLEV = 1,itrlnlev
+c
+          ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket,
+     &         iip1s(jlev), iip2, iip3,cltypvar,'VV')
+c
+          if (ikey.lt.0) then
+            write(kulout,*) 'Problems finding variable '
+     &           ,'VV',' at level ',iip1s(jlev)
+     &           ,' in trial file'
+            call abort3d(kulout,'VHFSTFLD')
+          endif
+c
+          ikey = VFSTLUK(zhighvv((jlev-1)*inivv*injvv+1),ikey,INI
+     &         ,INJ,INK)
+c
+        enddo
+c
+c Horizontal interpolation
+c
+        call hpalloc(pxlowvv,kcolvv*itrlnlev,ierr,8)
+c
+        call hintvec(zhighvar,ini*inj,itrlgid
+     &       ,zhighvv,inivv*injvv,ivvgid,zlowvar
+     &       ,kcol,ktrggid,zlowvv,kcolvv
+     &       ,kvvgid,itrlnlev,cddgint)
+c
+        call hpdeallc(pxhighvv,ierr,1)
+      endif
+c
+      call hpdeallc(pxhighvar,ierr,1)
+c
+c Vertical interpolation:
+c
+      if (itrlnlev.gt.1.and.ldvint) then
+c
+        write(kulout,*)
+     &       'vhfstfld: Reading P0 trial field for vertical interpolation'
+c
+        call getfldprm(IIP1,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR
+     &       ,IP0GID,'P0',kstampv,kmaxlev,koutmpg
+     &       ,kulout,ip1style,ip1kind)
+c
+        ikey = FSTINF(koutmpg, INI, INJ, INK, kstampv, cletiket,
+     &       iip1, iip2, iip3,cltypvar,'P0')
+c
+        if(ikey.lt.0) then
+          write(kulout,*) ' ******* ERROR ******* '
+          write(kulout,*) 'No P0 found in ',koutmpg
+          call abort3d(kulout,'VHFSTFLD')
+        endif
+c
+        ierr = ezgprm(ip0gid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
+c
+        allocate(zpstrl(ini,inj))
+c
+        ikey = VFSTLUK(zpstrl, ikey, INI, INJ, INK)
+        zpstrl(:,:)=zpstrl(:,:)*rmbtpa
+c
+        call hpalloc(pxpresanl,kcol*knk,ierr,8)
+        call hpalloc(pxps,kcol,ierr,8)
+        call hpalloc(pxprestrl,kcol*itrlnlev,ierr,8)
+        call hpalloc(pxprofi,kcol*itrlnlev,ierr,8)
+        call hpalloc(pxprofo,kcol*knk,ierr,8)
+c
+c Interpolation of high res. P0 to low res. variable grid
+c
+        ierr = ezsetopt('INTERP_DEGREE','LINEAR')
+        iset = ezdefset(ktrggid,ip0gid)
+        ierr = vezsint(zps,zpstrl,kcol,1,1,ini,inj,1)
+        call vco_calcpres(vco_anl,zpresanl,knk,zps,kcol)
+c
+c Computation of pressure values on trial profiles of the high
+c resolution horizonal grid
+c
+        if(vco_trl%iversion .eq. 5002) then
+          call calcpres_vgrid(vgrid_trl,zps,iip1s
+     &           ,itrlnlev,kcol,kulout,zprestrl)
+          do jlev = 1,itrlnlev
+            do jcol=1,kcol
+              zprestrl((jcol-1)*itrlnlev+ jlev) = zprestrl((jcol-1)
+     &             *itrlnlev+ jlev)
             enddo
           enddo
+        else ! trial has unstaggered levels
+          call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcol)
+        endif
+c
+        do jlev = 1, itrlnlev
+          do jcol = 1, kcol
+            zprofi((jcol-1)*itrlnlev + jlev) =
+     &           zlowvar((jlev-1)*kcol+jcol)
+          enddo
         enddo
-!
-      write(nulout,*) 'subasic_gd: END'
+c
+        call vintprof(zprofo,zpresanl,knk,zprofi,zprestrl,itrlnlev,kcol)
+c
+        do jlev = 1, knk
+          do jcol = 1, kcol
+            pvar(jcol,jlev) = zprofo((jcol-1)*knk+jlev)
+          enddo
+        enddo
+c
+        call hpdeallc(pxpresanl,ierr,1)
+        call hpdeallc(pxps,ierr,1)
+        call hpdeallc(pxprestrl,ierr,1)
+        call hpdeallc(pxprofi,ierr,1)
+        call hpdeallc(pxprofo,ierr,1)
+c
+        if (cdnomvar.eq.'UV') then
+c
+          call hpalloc(pxpresanl,kcolvv*knk,ierr,8)
+          call hpalloc(pxps,kcolvv,ierr,8)
+          call hpalloc(pxprestrl,kcolvv*itrlnlev,ierr,8)
+          call hpalloc(pxprofi,kcolvv*itrlnlev,ierr,8)
+          call hpalloc(pxprofo,kcolvv*knk,ierr,8)
+c
+c Interpolation of high res. P0 to high res. variable grid
+c
+          ierr = ezsetopt('INTERP_DEGREE','LINEAR')
+          iset = ezdefset(kvvgid,ip0gid)
+          ierr = vezsint(zps,zpstrl,kcolvv,1,1,ini,inj,1)
+          call vco_calcpres(vco_anl,zpresanl,knk,zps,kcolvv)
+c
+c Computation of pressure values on trial profiles of the high
+c resolution horizonal grid
+c
+          if(vco_trl%iversion .eq. 5002) then
+            call calcpres_vgrid(vgrid_trl,zps,iip1s
+     &           ,itrlnlev,kcolvv,kulout,zprestrl)
+          else
+            call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcolvv)
+          endif
+c
+          do jlev = 1, itrlnlev
+            do jcol = 1, kcolvv
+              zprofi((jcol-1)*itrlnlev + jlev) =
+     &             zlowvv((jlev-1)*kcolvv+jcol)
+            enddo
+          enddo
+c
+          call vintprof(zprofo,zpresanl,knk,zprofi,zprestrl,itrlnlev
+     &         ,kcolvv)
+c
+          do jlev = 1, knk
+            do jcol = 1, kcolvv
+              pvv(jcol,jlev) = zprofo((jcol-1)*knk+jlev)
+            enddo
+          enddo
+c
+          call hpdeallc(pxlowvv,ierr,1)
+          call hpdeallc(pxpresanl,ierr,1)
+          call hpdeallc(pxps,ierr,1)
+          call hpdeallc(pxprestrl,ierr,1)
+          call hpdeallc(pxprofi,ierr,1)
+          call hpdeallc(pxprofo,ierr,1)
+        endif
+c
+      else
+        if (knk.ne.itrlnlev) then
+          write(kulout,*) ' *********** ERROR ***********'
+          write(kulout,*) 'Number of level inconsistancies'
+          write(kulout,*) knk,' levels asked on output and '
+          write(kulout,*) itrlnlev,' levels found in standard file'
+          write(kulout,*) ' *********** ERROR ***********'
+          call abort3d(kulout,'VHFSTFLD')
+        else
+          do jlev = 1, knk
+            do jcol = 1, kcol
+              pvar(jcol,jlev) = zlowvar((jlev-1)*kcol+jcol)
+            enddo
+          enddo
+c
+          if (cdnomvar.eq.'UV') then
+            do jlev = 1, knk
+              do jcol = 1, kcolvv
+                pvv(jcol,jlev) = zlowvv((jlev-1)*kcol+jcol)
+              enddo
+            enddo
+            call hpdeallc(pxlowvv,ierr,1)
+          endif
+        endif
+      endif
+c
+c End of vertical interpolation
+c
+c     .  ---------------------------------
+c
+      call hpdeallc(pxlowvar,ierr,1)
+      call hpdeallc(pxip1s,ierr,1)
+      call hpdeallc(pxeta,ierr,1)
+c
+      write(kulout,*) 'END of VHFSTFLD'
+c
       return
-      end
+      END SUBROUTINE VHFSTFLD
+
+
+      END SUBROUTINE SUBASIC_GD

@@ -36,7 +36,6 @@
       use modgps08refop
       use obsSpaceData_mod
       use columnData_mod 
-      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"

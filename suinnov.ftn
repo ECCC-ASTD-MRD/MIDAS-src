@@ -35,7 +35,6 @@
 *         - Implemented MPI to 3DVAR      
 *    -------------------
 *
-      use verticalCoord_mod
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod

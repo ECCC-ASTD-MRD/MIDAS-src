@@ -18,7 +18,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
-  use verticalCoord_mod
   use bufr
   implicit none
   !
@@ -112,19 +111,19 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           ZPB  = LCOLUMNG%RPPOBS(IK+1,IOBS)
           ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
           ZWT  = 1.0D0 - ZWB
-          zpresbpt = ((vco_anl%dhyb_m(ik) - vco_anl%dpt_M/vco_anl%dprf_M)  &
-              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
-          zpresbpb = ((vco_anl%dhyb_m(ik+1) - vco_anl%dpt_M/vco_anl%dprf_M)  &
-              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+          zpresbpt = vco_anl%db_M(ik)
+          zpresbpb = vco_anl%db_M(ik+1)
           ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB)  &
               -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
               /LOG(ZPB/ZPT)**2
 
           if(ityp.eq.bufr_nees) then
             columnVarB=lqtoes_tl(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
-                                 lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vco_anl%dhyb_m(IK+1))
+                                 lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),  &
+                                 vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
             columnVarT=lqtoes_tl(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
-                                 lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vco_anl%dhyb_m(IK  ))
+                                 lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),  &
+                                 vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
             columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
             columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
           else
@@ -199,7 +198,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .or. ldiagsf(jdata)) THEN
             if(ITYP.eq.BUFR_NESS) THEN
               columnVarB=lqtoes_tl(lcolumn%hu(LCOLUMN%NLEV,IOBS),lcolumn%tt(LCOLUMN%NLEV,IOBS),lcolumn%ps(1,IOBS),  &
-                                   lcolumng%hu(LCOLUMN%NLEV,IOBS),lcolumng%rppobs(LCOLUMN%NLEV,IOBS),vco_anl%dhyb_m(LCOLUMN%NLEV))
+                                   lcolumng%hu(LCOLUMN%NLEV,IOBS),lcolumng%rppobs(LCOLUMN%NLEV,IOBS),  &
+                                   vco_anl%dhyb_m(LCOLUMN%NLEV),vco_anl%db_m(LCOLUMN%NLEV))
             else
               columnVarB=LCOLUMN%ALL(IPB,IOBS)
             endif
@@ -270,21 +270,16 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
   !     .    -----------------------------------------------------------------------------
   !
-  ! put lcolumng into column1
+  ! put lcolumng into column1  (why?)
 !  column1%all(:,:) = lcolumng%all(:,:)
   if (nbr_call == 0) then
-!!     call tovs_fill_profiles(column1%uu,column1%vv,column1%tt,column1%gz,column1%hu,  &
-!!                             column1%ps,column1%tg,lcolumng%rppobs,lcolumng%nkgdimo,lcolumn%nlev,lobsSpaceData)
-!     call tovs_fill_profiles(lcolumng%uu,lcolumng%vv,lcolumng%tt,lcolumng%gz,lcolumng%hu,  &
-!                             lcolumng%ps,lcolumng%tg,lcolumng%rppobs,lcolumng%nkgdimo,lcolumn%nlev,lobsSpaceData)
      call tovs_fill_profiles(lcolumng,lobsSpaceData)
   endif
 
   !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov
   !     .    --------------------------------------------------------------------------------
   !
-  call tovs_fill_profiles_tl(lcolumn%uu,lcolumn%vv,lcolumn%tt,lcolumn%hu,lcolumn%ps,lcolumn%tg, &
-                             lcolumng%rppobs,lcolumng%nkgdimo,lcolumn%nlev,lcolumng,lobsSpaceData)
+  call tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 
   !     3.   Compute radiance
   !     .    ----------------

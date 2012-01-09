@@ -29,9 +29,7 @@
 #endif
       use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
-      use verticalCoord_mod
       use columnData_mod 
-      use verticalCoord_mod
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
@@ -174,8 +172,7 @@ c
         zovar(jobs) = lcolumng%ps(1,jobs)
       enddo
 c
-      call calcpres(lcolumng%rppobs(1,1),vco_anl%dhyb_m,lcolumng%nlev,zovar,vco_anl%dpt_M
-     &     ,vco_anl%dprf_M,vco_anl%drcf1,lcolumng%nobtot)
+      call vco_calcpres(vco_anl,lcolumng%rppobs,lcolumng%nlev,zovar,lcolumng%nobtot)
       do jlev = 1,lcolumng%nlev
         write(nulout,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), LCOLUMNG%RPPOBS(jlev,1) = ',
      +    jlev,vco_anl%dhyb_m(jlev),LCOLUMNG%RPPOBS(jlev,1)
@@ -216,8 +213,7 @@ c-------ETA  trial field
         call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_M
      &         ,vco_trl%nlev_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
 
-        call calcpres(zppobs_M,vco_trl%dhyb_M,nlv_M,zovar,vco_trl%dpt_M
-     &         ,vco_trl%dprf_M,vco_trl%drcf1,lcolumng%nobtot)
+        call vco_calcpres(vco_trl,zppobs_M,nlv_M,zovar,lcolumng%nobtot)
         do jlev   = 1,nlv_M 
           do jobs = 1,lcolumng%nobtot
             zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 

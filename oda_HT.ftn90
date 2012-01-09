@@ -18,7 +18,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
-  use verticalCoord_mod
   use bufr
   implicit none
   !
@@ -126,10 +125,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
-            zpresbpt = ((vco_anl%dhyb_m(ik) - vco_anl%dpt_M/vco_anl%dprf_M)  &
-                 /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
-            zpresbpb = ((vco_anl%dhyb_m(ik+1) - vco_anl%dpt_M/vco_anl%dprf_M)  &
-                 /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
+            zpresbpt = vco_anl%db_M(ik)
+            zpresbpb = vco_anl%db_M(ik+1)
 
             ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB) &
                  -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) ) &
@@ -142,9 +139,11 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
             if(ITYP.eq.BUFR_NEES) then
               call lqtoes_ad(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
-                ZWB*ZRES,lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),vco_anl%dhyb_m(IK+1))
+                ZWB*ZRES,lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),  &
+                vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
               call lqtoes_ad(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
-                ZWT*ZRES,lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),vco_anl%dhyb_m(IK  ))
+                ZWT*ZRES,lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),  &
+                vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
               columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
               columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
             else
@@ -248,7 +247,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
                 call lqtoes_ad(lcolumn%hu(lcolumn%nlev,IOBS),lcolumn%tt(lcolumn%nlev,IOBS),lcolumn%ps(1,IOBS),  &
-                  ZRES,lcolumng%hu(lcolumn%nlev,IOBS),lcolumng%rppobs(lcolumn%nlev,IOBS),vco_anl%dhyb_m(lcolumn%nlev))
+                  ZRES,lcolumng%hu(lcolumn%nlev,IOBS),lcolumng%rppobs(lcolumn%nlev,IOBS),  &
+                  vco_anl%dhyb_m(lcolumn%nlev),vco_anl%db_m(lcolumn%nlev))
               else
                 LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
               endif
@@ -335,9 +335,7 @@ subroutine oda_HTto
 !     3.   Adjoint of preparation of atmospheric profiles
 !     .    ----------------------------------------------
 !
-
-  call tovs_fill_profiles_ad(lcolumn%uu,lcolumn%vv,lcolumn%tt,lcolumn%hu,lcolumn%ps,lcolumn%tg, &
-                             lcolumng%rppobs,lcolumng%nkgdimo,lcolumn%nlev,lcolumng)
+  call tovs_fill_profiles_ad(lcolumn,lcolumng)
 
 end subroutine oda_HTto
 

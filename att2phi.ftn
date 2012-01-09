@@ -52,20 +52,16 @@
 #endif
       use MathPhysConstants_mod
       use columnData_mod 
-      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 *------------------------------------------------------------------------
 #include "comlun.cdk"
-#include "pardim.cdk"
-#include "comdimo.cdk"
 *
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_columnData) :: lcolumnt
       integer jobs,jlev
       logical llprint
       real*8 zcon, zalpha, psurf
-      real*8 zpresb,zpresbd,zterm
       real*8 vma(lcolumn%nlev),vmb(lcolumn%nlev),vmc(lcolumn%nlev)
       real*8 vmd(lcolumn%nlev),vme(lcolumn%nlev),vmf(lcolumn%nlev)
 *
@@ -82,7 +78,7 @@ c
 c*    Adjoint of preparation r.h.s. for TL-Hydrostatic equation
 c     ---------------------------------------------------------
 c
-!$OMP PARALLEL DO PRIVATE(jobs,jlev,zpresb,zterm,zpresbd,zcon)
+!$OMP PARALLEL DO PRIVATE(jobs,jlev,zcon)
 
       do jobs = 1, lcolumn%nobtot
 
@@ -90,16 +86,7 @@ c
 c
 c        zcon = d(rtapfac)/d(ps)
 c
-          zpresb = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
-     &               /(1.0D0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
-          if((vco_anl%drcf1-1.0) .lt. RPRECIS) then
-            zterm = 1.0
-          else
-            zterm = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
-     &              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**(vco_anl%drcf1-1.0)
-          endif
-          zpresbd= vco_anl%drcf1 * zterm
-          zcon   = (zpresbd-zpresb*rtapfac(jlev,jobs))/lcolumng%rppobs(jlev,jobs)
+          zcon   = (vco_anl%dpresbd_M(jlev)-vco_anl%db_M(jlev)*rtapfac(jlev,jobs))/lcolumng%rppobs(jlev,jobs)
           lcolumn%ps(1,jobs)=lcolumn%ps(1,jobs)+
      &          lcolumng%tt(jlev,jobs)*zcon * lcolumnt%tt(jlev,jobs)
 

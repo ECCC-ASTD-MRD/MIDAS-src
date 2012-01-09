@@ -15,6 +15,7 @@ module verticalCoord_mod
      integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
      real*8 ,pointer,dimension(:) :: da_T,db_T     ! A, B values for Thermo levels
      real*8 ,pointer,dimension(:) :: da_M,db_M     ! A, B values for Momentum levels
+     real*8 ,pointer,dimension(:) :: dpresbd_M,dpresbd_T  ! factor needed for TLM/AD of tt2phi
      real*8 ,pointer,dimension(:) :: dhyb_T,dhyb_M !decoded IP1 levels (Thermo/Momentum)
   end type vco
 
@@ -31,24 +32,28 @@ module verticalCoord_mod
 
     stat        = 0
 
-    ilnk        = tf_vco%nlev_m
-    allocate (tf_vco%ip1_m(ilnk),stat=nl_stat)
+    ilnk        = tf_vco%nlev_M
+    allocate (tf_vco%ip1_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%da_m(ilnk),stat=nl_stat)
+    allocate (tf_vco%da_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%db_m(ilnk),stat=nl_stat)
+    allocate (tf_vco%db_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%dhyb_m(ilnk),stat=nl_stat)
+    allocate (tf_vco%dpresbd_M(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%dhyb_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
-    ilnk        = tf_vco%nlev_t
-    allocate (tf_vco%ip1_t(ilnk),stat=nl_stat)
+    ilnk        = tf_vco%nlev_T
+    allocate (tf_vco%ip1_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%da_t(ilnk),stat=nl_stat)
+    allocate (tf_vco%da_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%db_t(ilnk),stat=nl_stat)
+    allocate (tf_vco%db_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%dhyb_t(ilnk),stat=nl_stat)
+    allocate (tf_vco%dpresbd_T(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
     if(stat .ne. 0 ) then
@@ -59,7 +64,7 @@ module verticalCoord_mod
 
   end subroutine vco_allocate
 
-      subroutine vco_SetupFromFile(tf_vgrid,tf_vco,kulfst)
+      subroutine vco_SetupFromFile(tf_vgrid,tf_vco,kulfst,lprecision)
 !
 !--------------------------------------------------------------------------
 !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
@@ -73,18 +78,21 @@ module verticalCoord_mod
 !                            (see vgrid_descriptors documentation)
 !--------------------------------------------------------------------------
       !
+      use MathPhysConstants_mod
       implicit none
       type(vgrid_descriptor) :: tf_vgrid
       type(vco) :: tf_vco
       integer ::  kulfst
+      logical :: lprecision
 
 !     Local variables
 !
-      integer :: ivcode,kind,j,stat
+      integer :: ivcode,kind,jlev,stat,sigdigits
       integer,   dimension(:), pointer :: my_ip1
       real    :: hyb
-      real*8  :: dl_ptM,dl_ptT,dl_pref,dl_rcf1,dl_rcf2
+      real*8  :: dl_ptM,dl_ptT,dl_pref,dl_rcf1,dl_rcf2,zterm
       real*8,    dimension(:), pointer :: my_a, my_b
+      REAL*8 precision
       character(len=10) :: blk_S
 
   !==========================================================================
@@ -139,7 +147,6 @@ module verticalCoord_mod
       stat = stat + VGD_OK
       print*,'suvco: vgd_get vipm vgd_ok= ',VGD_OK
       !
-!cnwa
       stat = vgd_get(tf_vgrid,key='ptop - pressure at top level (m)',value=dl_ptM)
       stat = stat + VGD_OK
       print*,'suvco: vgd_get vipm vgd_ok= ',VGD_OK
@@ -152,7 +159,6 @@ module verticalCoord_mod
       stat = stat + VGD_OK
       print*,'suvco: vgd_get vipm vgd_ok= ',VGD_OK
       !
-!cnwa      
       if(stat.ne.0) then
          print*,'suvco: problem with vgd_get'
          return
@@ -165,61 +171,84 @@ module verticalCoord_mod
          return
       endif
 
-!cnwa
       tf_vco%dpt_M  = dl_ptM
       tf_vco%dprf_M = dl_pref
       tf_vco%drcf1  = dl_rcf1
-!cnwa      
+!
+! Set to zero the non-significant digits (due to conversion from real*4)
+!
+      if(lprecision) then
+        sigdigits=7
+        precision=10.0d0**(sigdigits-int(log10(tf_vco%dpt_M)))
+        tf_vco%dpt_M = real(nint(precision*tf_vco%dpt_M),8)/precision
+        precision=10.0d0**(sigdigits-int(log10(tf_vco%dprf_M)))
+        tf_vco%dprf_M = real(nint(precision*tf_vco%dprf_M),8)/precision
+        precision=10.0d0**(sigdigits-int(log10(tf_vco%drcf1)))
+        tf_vco%drcf1 = real(nint(precision*tf_vco%drcf1),8)/precision
+      endif
 
       !==========================================================================
       ! Set the number of vertical levels and allocate tf_vco arrays
 
-      tf_vco%nlev_m = size(my_ip1)
+      tf_vco%nlev_M = size(my_ip1)
       select case (ivcode)
       case (5001)
-         tf_vco%nlev_t = tf_vco%nlev_m
+         tf_vco%nlev_T = tf_vco%nlev_M
       case (5002)
          stat = vgd_get(tf_vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
-         tf_vco%nlev_t = size(my_ip1)
+         tf_vco%nlev_T = size(my_ip1)
       end select
       call vco_allocate(tf_vco)
 
       !==========================================================================
       ! Assign values for Momentum levels
 
-      print*,'suvco: size(hyb)= ',size(tf_vco%dhyb_m)
-      do j = 1, size(my_ip1)
-         tf_vco%ip1_m(j) = my_ip1(j)
-         tf_vco%da_m(j)   = my_a(j)
-         tf_vco%db_m(j)   = my_b(j)
-         call convip(my_ip1(j),hyb,kind,-1,blk_s,.false.)
-         tf_vco%dhyb_m(j) = hyb
-         print*,'suvco: j,nk,ip1,hyb(moment)= ' & 
-               ,j,tf_vco%nlev_m,tf_vco%ip1_m(j),tf_vco%dhyb_m(j)
+      print*,'suvco: size(hyb)= ',size(tf_vco%dhyb_M)
+      do jlev = 1, size(my_ip1)
+         tf_vco%ip1_M(jlev) = my_ip1(jlev)
+         call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
+         tf_vco%dhyb_M(jlev) = hyb
+         print*,'suvco: jlev,nk,ip1,hyb(moment)= ' & 
+               ,jlev,tf_vco%nlev_M,tf_vco%ip1_M(jlev),tf_vco%dhyb_M(jlev)
+
+         if(ivcode.eq.5001) then
+           tf_vco%db_M(jlev) = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M)  &
+                     /(1.0D0-tf_vco%dpt_M/tf_vco%dprf_M))**tf_vco%drcf1
+           tf_vco%da_M(jlev)= tf_vco%dprf_M * (tf_vco%dhyb_M(jlev)-tf_vco%db_M(jlev))
+         else
+           tf_vco%da_M(jlev)   = my_a(jlev)
+           tf_vco%db_M(jlev)   = my_b(jlev)
+         endif
+
+         if((tf_vco%drcf1-1.0) .lt. RPRECIS) then
+           zterm = 1.0d0
+         else
+           zterm = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M) &
+                    /(1.0d0-tf_vco%dpt_M/tf_vco%dprf_M))**(tf_vco%drcf1-1.0d0)
+         endif
+         tf_vco%dpresbd_M(jlev)= vco_anl%drcf1 * zterm
+
       enddo
 
       !==========================================================================
       ! Process thermodynamic levels 
 
+      ! not sure if these will ever be different for thermo levels
+      tf_vco%dpt_T  = tf_vco%dpt_M  ! dl_ptM
+      tf_vco%dprf_T = tf_vco%dprf_M ! dl_pref
+
       select case (ivcode)
       case (5001)          ! unstaggered hybride
          ! For this case the parameters of the momentum levels 
          ! are copied to the thermodynamics levels
-         !
-!cnwa
-         tf_vco%dpt_T  = tf_vco%dpt_M  ! dl_ptM
-         tf_vco%dprf_T = tf_vco%dprf_M ! dl_pref
-         tf_vco%drcf2  = tf_vco%drcf1  ! dl_rcf1
-!cnwa      
-         !
          !==========================================================================
-         do j = 1, tf_vco%nlev_m
-            tf_vco%ip1_t(j)  = tf_vco%ip1_m(j)
-            tf_vco%da_t(j)   = tf_vco%da_m(j)
-            tf_vco%db_t(j)   = tf_vco%db_m(j)
-            tf_vco%dhyb_t(j) = tf_vco%dhyb_m(j)
-            print*,'suvco: j,nk,ip1,hyb(thermo)= ' &
-                  ,j,tf_vco%nlev_t,tf_vco%ip1_t(j),tf_vco%dhyb_t(j)
+         do jlev = 1, tf_vco%nlev_M
+            tf_vco%ip1_T(jlev)  = tf_vco%ip1_M(jlev)
+            tf_vco%da_T(jlev)   = tf_vco%da_M(jlev)
+            tf_vco%db_T(jlev)   = tf_vco%db_M(jlev)
+            tf_vco%dhyb_T(jlev) = tf_vco%dhyb_M(jlev)
+            print*,'suvco: jlev,nk,ip1,hyb(thermo)= ' &
+                  ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
          enddo
       case (5002)
          stat = 0
@@ -244,18 +273,114 @@ module verticalCoord_mod
             return
          endif
 
-         do j = 1,tf_vco%nlev_t
-            tf_vco%ip1_t(j)  = my_ip1(j)
-            tf_vco%da_t(j)   = my_a(j)
-            tf_vco%db_t(j)   = my_b(j)
-            call convip(my_ip1(j),hyb,kind,-1,blk_s,.false.)
-            tf_vco%dhyb_t(j) = hyb
-            print*,'suvco: j,nk,ip1,hyb(thermo)= ' &
-                  ,j,tf_vco%nlev_t,tf_vco%ip1_t(j),tf_vco%dhyb_t(j)
+         do jlev = 1,tf_vco%nlev_T
+            tf_vco%ip1_T(jlev)  = my_ip1(jlev)
+            tf_vco%da_T(jlev)   = my_a(jlev)
+            tf_vco%db_T(jlev)   = my_b(jlev)
+            call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
+            tf_vco%dhyb_T(jlev) = hyb
+            print*,'suvco: jlev,nk,ip1,hyb(thermo)= ' &
+                  ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
          enddo
       end select
-      print*,'suvco dbug: tf_vco%nlev_t = ',tf_vco%nlev_t
+      print*,'suvco dbug: tf_vco%nlev_T = ',tf_vco%nlev_T
 
       end subroutine vco_SetupFromFile
+
+
+      subroutine vco_calcpres(tf_vco,ppres,knbrlev,pps,kprof)
+!
+!**s/r CALCPRES - Computes pressure values on eta levels
+!
+!Author  : S. Pellerin *ARMA/AES April 2000
+!Revision:
+!           C. Charette - ARMA/SMC - Sept 2004
+!            - Conversion to hybrid vertical coordinate
+!
+!    -------------------
+!*    Purpose: Computes pressure values associated with profiles
+!              of constant eta levels given 2 dimensionnal surface
+!              pressure and top pressure values.
+!
+!Arguments
+!    Onput :
+!           ppres(knbrlev,kprof) : profiles of pressure values
+!    Input :
+!           knbrlev              : number of levels
+!           pps(kprof)           : surface pressure values
+!           kprof                : number of profiles
+!
+      implicit none
+      type(vco) :: tf_vco
+      integer knbrlev,kprof,jlev
+      real*8 ppres(knbrlev,kprof),pps(kprof)
+      integer jprof
+      real*8 zpresa,zpresb
+
+      do jprof   = 1, kprof
+        do jlev  = 1,knbrlev
+          zpresa = tf_vco%da_M(jlev)
+          zpresb = tf_vco%db_M(jlev)
+          ppres(jlev,jprof) = zpresa + zpresb*pps(jprof)
+        enddo
+      enddo
+
+      return
+      end subroutine vco_calcpres
+
+
+      SUBROUTINE vco_AnlInit(KULOUT)
+!
+!     Initialization of vertical coordinate for analysis grid
+!
+      use MathPhysConstants_mod
+      IMPLICIT NONE
+      INTEGER KULOUT
+      INTEGER JLEV,IERR,NULTEMPLATE
+      INTEGER fstfrm,fclos,fstouv,fnom,nulnam
+      LOGICAL isExist_L
+      character*8 :: templatefile='./glbcov'
+
+      WRITE(KULOUT,FMT='(/,'' SUGEM- Define vertical coordinate for analysis grid'')')
+!
+! Get vertical coordinate parameters from the Bnmc file
+!
+      INQUIRE(FILE=templatefile,EXIST=isExist_L)
+      IF ( isExist_L )then
+        NULTEMPLATE=0
+        IERR=FNOM(NULTEMPLATE,templatefile,'RND+OLD+R/O',0)
+        IF ( IERR .EQ. 0 ) THEN
+          write(*,*) ' TEMPLATEFILE=', templatefile
+          write(*,*) ' opened as unit file ',nultemplate
+          ierr =  fstouv(nultemplate,'RND+OLD')
+          call vco_SetupFromFile(vgrid_anl,vco_anl,nultemplate,.true.)
+          ierr =  fstfrm(nultemplate)
+          ierr =  fclos (nultemplate)
+        ELSE
+          CALL ABORT3D(kulout,'SUGEM:CANNOT OPEN TEMPLATE FILE!!')
+        ENDIF
+      ELSE
+        write(*,*) 'SUGEM: NO TEMPLATE FILE FOUND!'
+      ENDIF
+!
+! Make sure the vertical coord is GEMHYB for analysis grid
+!
+      if(vco_anl%ikind.ne.5) then
+        write(*,*) 'SUGEM: unknown vertical coord kind = ',vco_anl%ikind
+        call flush(6)
+        call qqexit(1)
+      endif
+!
+! Print the values
+!
+      write(*,*) 'SUGEM: Type of vertical coordinate:',vco_anl%svcod
+      write(*,*) 'SUGEM: rptopinc,rprefinc,rcoefinc=',vco_anl%dpt_M,vco_anl%dprf_M,vco_anl%drcf1
+      do jlev = 1, vco_anl%nlev_M
+         WRITE(*,FMT='(4X,"LEVEL NO.",I3,":",2X,"VHYBINC= ",G12.6,2X,"NIP1 OF VLEV= ",I10)') &
+           JLEV,vco_anl%dhyb_m(jlev),vco_anl%ip1_M(jlev)
+      enddo
+!
+      RETURN
+      END SUBROUTINE vco_AnlInit
 
 end module VerticalCoord_mod

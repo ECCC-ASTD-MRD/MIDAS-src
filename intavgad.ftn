@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE INTAVGAD (PVLEV,PVI,PVIG,PPS,KNIDIM,KNI,
+      SUBROUTINE INTAVGAD (PVLEV,PRESB,PVI,PVIG,PPS,KNIDIM,KNI,
      &                     KNPROF,KNO,PPO,PVO)
 C
 #if defined (DOC)
@@ -90,15 +90,12 @@ C
 *--------------------------------------------------------------------  
 *
 #endif
-      use verticalCoord_mod
       IMPLICIT NONE
-*implicits
-#include "pardim.cdk"
-*
       INTEGER  JI, JO, JN
       INTEGER  KNIDIM, KNI, KNO, KNPROF, KFLAG
 C
       REAL*8 PVLEV(KNIDIM,KNPROF)
+      REAL*8 PRESB(KNI)
       REAL*8 PPO(KNO), PVO(KNO,KNPROF)
       REAL*8 PVI(KNIDIM,KNPROF)
       REAL*8 PVIG(KNIDIM,KNPROF)
@@ -107,9 +104,6 @@ C
       REAL*8  ZLNPI (KNI,knprof),ZPZ(KNI),ZPG(KNI,knprof)
      &     ,ZPS(KNI,knprof),zpvo(kno,knprof)
       REAL*8  ZLNPO (KNO),ZPZPS(kno,knprof),ZPVOPS(kno,knprof)
-C
-      REAL*8 ZPRESB
-      REAL*8 ZC1,ZC2
 C
 C --- KFLAG defines type of calculation: 0=Forward, 1=TLM, 2=ADJ
 C
@@ -121,12 +115,9 @@ C
       ZPG(1:KNI,:)=0.0
       PVI(:,:)=0.0
 C
-      zc1=vco_anl%dpt_M/vco_anl%dprf_M                  
-      zc2=1.0/(1.0-vco_anl%dpt_M/vco_anl%dprf_M)       
       DO JN = 1, KNPROF
         DO JI = 1, KNI
-          zpresb   = ((vco_anl%dhyb_m(ji) - zc1)*zc2)**vco_anl%drcf1
-          ZPS(JI,jn)=zpresb/PVLEV(JI,JN)
+          ZPS(JI,jn)=presb(ji)/PVLEV(JI,JN)
           ZLNPI(ji,jn)=LOG(PVLEV(ji,JN))
         END DO
       enddo

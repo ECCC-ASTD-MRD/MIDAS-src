@@ -14,8 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,pgomtgr_ad, &
- &                          prppobs,knkgdimo,knlev,lcolumng)
+subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 #if defined (doc)
 !
 !**s/r tovs_fill_profiles_ad  - adjoint of interpolation of obs.space to 43-level rttov space
@@ -46,7 +45,7 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
 #include "comtov.cdk"
 #include "comtovst.cdk"
 
-  type(struct_columnData) :: lcolumng
+  type(struct_columnData) :: lcolumn,lcolumng
   real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
 
   integer, allocatable :: iptobs    (:) 
@@ -60,15 +59,6 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
   integer :: j, i, krtid, jf, iobs, jj
   integer :: ilowlvl, knpf, jo
   integer :: jk, jn, jl
-  integer :: knkgdimo, knlev
-
-  real*8 :: pgomu_ad  (knlev,nobtot)
-  real*8 :: pgomv_ad  (knlev,nobtot)
-  real*8 :: pgomt_ad  (knlev,nobtot)
-  real*8 :: pgomq_ad  (knlev,nobtot)
-  real*8 :: pgomps_ad (1,nobtot)
-  real*8 :: pgomtgr_ad(1,nobtot)
-  real*8 :: prppobs(knlev,nobtot)
 
   real*8, allocatable :: to_ad    (:,:)
   real*8, allocatable :: lqo_ad   (:,:)
@@ -96,15 +86,15 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
                  
   100   continue
 
-  if (  prppobs(1,1) .lt. prppobs(knlev,1) ) then
-     ilowlvl = knlev
+  if (  lcolumng%rppobs(1,1) .lt. lcolumng%rppobs(lcolumng%nlev,1) ) then
+     ilowlvl = lcolumng%nlev
   else
      ilowlvl = 1
   endif
 
 ! find model level top, within 0.000001 mbs.
 
-  zptop    = prppobs(1,1)
+  zptop    = lcolumng%rppobs(1,1)
   zptopmbs = zptop/100.
   zptopmbs = zptopmbs - 0.000001
 
@@ -161,10 +151,10 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
 
      knpf = knpf + 1
 
-     do jl = 1, knlev
+     do jl = 1, lcolumng%nlev
         zt   (jl,knpf) = lcolumng%tt(jl,jo)
         zlq  (jl,knpf) = lcolumng%hu(jl,jo)
-        zvlev(jl,knpf) = prppobs(jl,jo) * rpatmb
+        zvlev(jl,knpf) = lcolumng%rppobs(jl,jo) * rpatmb
      enddo
 
      iptobs   (knpf) = iobs
@@ -182,14 +172,14 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
      do  j = 1 , knpf 
         toext_ad(:,j)                  = profiles_ad(iptobs(j)) % t(:)
         qoext_ad(:,j)                  = profiles_ad(iptobs(j)) % q(:) * q_mixratio_to_ppmv
-        pgomps_ad(1,iptobscma(j))      = profiles_ad(iptobs(j)) % s2m % p * rpatmb
-        pgomtgr_ad(1,iptobscma(j))     = profiles_ad(iptobs(j)) % skin % t
-        pgomt_ad(ilowlvl,iptobscma(j)) = profiles_ad(iptobs(j)) % s2m % t
-!!!        pgomq_ad(ilowlvl,iptobscma(j)) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
-!!!        pgomq_ad(ilowlvl,iptobscma(j)) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q 
-        pgomq_ad(ilowlvl,iptobscma(j)) = 0. 
-        pgomu_ad(ilowlvl,iptobscma(j)) = profiles_ad(iptobs(j)) % s2m % u
-        pgomv_ad(ilowlvl,iptobscma(j)) = profiles_ad(iptobs(j)) % s2m % v
+        lcolumn%ps(1,iptobscma(j))     = profiles_ad(iptobs(j)) % s2m % p * rpatmb
+        lcolumn%tg(1,iptobscma(j))     = profiles_ad(iptobs(j)) % skin % t
+        lcolumn%tt(ilowlvl,iptobscma(j)) = profiles_ad(iptobs(j)) % s2m % t
+!!!        lcolumn%hu(ilowlvl,iptobscma(j)) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
+!!!        lcolumn%hu(ilowlvl,iptobscma(j)) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q 
+        lcolumn%hu(ilowlvl,iptobscma(j)) = 0. 
+        lcolumn%uu(ilowlvl,iptobscma(j)) = profiles_ad(iptobs(j)) % s2m % u
+        lcolumn%vv(ilowlvl,iptobscma(j)) = profiles_ad(iptobs(j)) % s2m % v
      end do
 
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
@@ -253,11 +243,11 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
 !            call alintv2 (zvlev(1,jn),zlq_ad(1,jn),zlq(1,jn), &
 !     &                    zps_ad(jn),jpnflev,knlev,ilen, &
 !     &                    jpmolev,xpres(jpmotop),lqo_ad(1,jn))
-            call intavgad (zvlev(1,jn),zt_ad(1,jn),zt(1,jn), &
-     &                    zps_ad(jn),jpnflev,knlev,ilen, &
+            call intavgad (zvlev(1,jn),vco_anl%db_m,zt_ad(1,jn),zt(1,jn), &
+     &                    zps_ad(jn),jpnflev,lcolumn%nlev,ilen, &
      &                    jpmolev,xpres(jpmotop),to_ad(1,jn))
-            call intavgad (zvlev(1,jn),zlq_ad(1,jn),zlq(1,jn), &
-     &                    zps_ad(jn),jpnflev,knlev,ilen, &
+            call intavgad (zvlev(1,jn),vco_anl%db_m,zlq_ad(1,jn),zlq(1,jn), &
+     &                    zps_ad(jn),jpnflev,lcolumn%nlev,ilen, &
      &                    jpmolev,xpres(jpmotop),lqo_ad(1,jn))
         endif
      enddo
@@ -268,10 +258,10 @@ subroutine tovs_fill_profiles_ad(pgomu_ad,pgomv_ad,pgomt_ad,pgomq_ad,pgomps_ad,p
 !     .       ------------------------
 
      do  jn = 1 , knpf 
-        pgomps_ad(1,iptobscma(jn)) = pgomps_ad(1,iptobscma(jn)) + zps_ad  (jn) * rpatmb
-        do jl = 1, knlev
-           pgomt_ad(jl,iptobscma(jn)) = pgomt_ad(jl,iptobscma(jn)) + zt_ad  (jl,jn)
-           pgomq_ad(jl,iptobscma(jn)) = pgomq_ad(jl,iptobscma(jn)) + zlq_ad (jl,jn)
+        lcolumn%ps(1,iptobscma(jn)) = lcolumn%ps(1,iptobscma(jn)) + zps_ad  (jn) * rpatmb
+        do jl = 1, lcolumn%nlev
+           lcolumn%tt(jl,iptobscma(jn)) = lcolumn%tt(jl,iptobscma(jn)) + zt_ad  (jl,jn)
+           lcolumn%hu(jl,iptobscma(jn)) = lcolumn%hu(jl,iptobscma(jn)) + zlq_ad (jl,jn)
         enddo
      enddo
  

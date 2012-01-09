@@ -29,11 +29,9 @@
       use columnData_mod
       use minimization_mod
       use bmatrix_mod
-      use modfgat
       use mpi
       use gridStateVector_mod
       use gaussGrid_mod
-      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
@@ -96,7 +94,6 @@ C at the end of minimize
         call tmg_start(51,'VAR_CH') !
 
         call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-!        gd(:,:,:)=statevector%gd3d(:,:,:)
 
         WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
@@ -128,16 +125,13 @@ c
 !
 !     *** ES ***
 !
-      call lq2esgd(zes,statevector%tt3d,statevector%hu3d,
-     +             statevector%ps3d,statevectorg%hu3d,statevectorg%ps3d,
-     +             statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      call lq2esgd(zes,statevector,statevectorg)
 !
 !     *** Total GZ ***
 !
       call lt2tvgd(ztv,statevector%tt3d,statevector%hu3d,statevectorg%hu3d,
      +             statevectorg%ni,statevectorg%nj,statevectorg%nlev)
-      call ltt2phigd(zgz,ztv,statevectorg%ps3d,
-     +               statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      call ltt2phigd(zgz,ztv,statevectorg)
 !
       call memfree(nulout,lobsSpaceData)
 !
@@ -154,4 +148,4 @@ C
 
       write(nulout,*) 'LEAVING POSTMIN'
       RETURN
-      END
+      END SUBROUTINE POSTMIN

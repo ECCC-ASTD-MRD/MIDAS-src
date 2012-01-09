@@ -18,8 +18,6 @@
 c
       use MathPhysConstants_mod
       use columnData_mod 
-      use verticalCoord_mod
- 
       IMPLICIT NONE
 c
 #if defined (DOC)
@@ -94,16 +92,9 @@ c
             oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),
      &                                  lcolumnt%tt(jlev,jobs))
 c
-            zpresb = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
-     &               /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
-            if((vco_anl%drcf1-1.0) .lt. RPRECIS) then
-              zterm = 1.0
-            else
-            zterm = ((vco_anl%dhyb_m(jlev) - vco_anl%dpt_M/vco_anl%dprf_M)
-     &              /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**(vco_anl%drcf1-1.0)
-            endif
-            zpresbd= vco_anl%drcf1 * zterm
-            zpresa = vco_anl%dprf_M * (vco_anl%dhyb_m(jlev)-zpresb)
+            zpresb = vco_anl%db_M(jlev)
+            zpresbd = vco_anl%dpresbd_M(jlev)
+            zpresa = vco_anl%da_M(jlev)
             zpresad= vco_anl%dprf_M * (1.0-zpresbd)
             rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
      &                          /(zpresa+zpresb*lcolumng%ps(1,jobs))

@@ -24,7 +24,6 @@
       USE mod4dv,only : l4dvar
       use MathPhysConstants_mod
       use Vgrid_Descriptors, only: vgrid_descriptor
-      use verticalCoord_mod
       use obsSpaceData_mod
       use controlVector_mod
       use gridStateVector_mod
@@ -62,13 +61,13 @@
 !     Set vertical coordinate parameters from !! record in trial file
 !
       write(nulout,*)' preproc: Set vcoord parameters for trial grid'
-      call vco_SetupFromFile(vgrid_trl,vco_trl,ninmpg(1))
+      call vco_SetupFromFile(vgrid_trl,vco_trl,ninmpg(1),.false.)
 !
       write(nulout,*)'preproc: version, kind, svcod ',
      & vco_trl%iversion,vco_trl%ikind,vco_trl%svcod
       write(nulout,*)'preproc:zptophr,zprefhr,zrcoefhr ',vco_trl%dpt_M,
-     & vco_trl%dpt_M,vco_trl%dprf_M,vco_trl%drcf1,
-     & vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf2
+     & vco_trl%dprf_M,vco_trl%drcf1,
+     & vco_trl%dpt_T,vco_trl%dprf_T
 !
 !     INITIALIZE VARIABLES OF THE MODEL STATES.
 !
@@ -88,7 +87,7 @@
 !
 !     Initialisation of the geometry
 !
-      CALL SUGEM(NULOUT)
+      CALL vco_AnlInit(NULOUT)
 !
 !     Initialization of post-processing
 !

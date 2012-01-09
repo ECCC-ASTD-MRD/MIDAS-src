@@ -13,7 +13,6 @@ C
       use modfgat, only : nstamplist
       use gridStateVector_mod
       use minimization_mod
-      use verticalCoord_mod
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"

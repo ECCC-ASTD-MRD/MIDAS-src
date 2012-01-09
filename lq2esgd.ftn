@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 *
-      subroutine lq2esgd ( pesinc, pttinc, phuinc, ppsinc, pqg, ppsg, kni, knj, knk )
+      subroutine lq2esgd(pesinc,statevector,statevectorg)
 *
 ***S/R lq2esgd  -  Computes increments of ES=T-TD FROM T AND lnq
 *                  increments in Grid-Point Space.
@@ -26,8 +26,6 @@
 C LMHUAESV
 *
 *Revision:
-*          C. Charette *ARMA/AES  Nov 1998
-*                       - Add llprint for diagnostics
 *          Y.J. Rochon and Cecilien Charette - SMC - Sept 2004
 *            - Conversion to hybrid vertical coordinate
 *            - Use of new function FOTW8 FODTW8(in fintern8.cdk)
@@ -38,8 +36,8 @@ C LMHUAESV
 * Out:
 *      pesinc : Dew-point depression increment on the analysis grid
 * IN:
-*      pqg    : Background specific-humidity on the analysis grid
-*      ppsg   : Background surface-pressure (Pa) on the analysis grid
+*      statevector    : increment
+*      statevectorg   : Background state on analysis grid
 *
 *Object:   For Postprocessing analysis increment (called by DIAG3DVAR):
 *          calculate the TLM OF dew point depression from TLM specific
@@ -48,23 +46,12 @@ C LMHUAESV
 *
 #endif
       use MathPhysConstants_mod
-      use verticalCoord_mod
+      use gridStateVector_mod
       IMPLICIT NONE
-      integer kni,knj,knk
-      real*8 pesinc(kni,knk,knj)
-      real*8 pttinc(kni,knk,knj),phuinc(kni,knk,knj),ppsinc(kni,1,knj)
-      real*8 pqg(kni,knk,knj), ppsg(kni,1,knj)
-*IMPLICITES
-#include "comlun.cdk"
-#include "pardim.cdk"
-*
-      logical llprint
+      type(struct_gsv) :: statevector,statevectorg
+      real*8 pesinc(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
       integer ji,jj,jk
-      REAL*8 ZE, ZEL, ZCTE, ZDEN, ZTD, ZTDL, ZGAMMA, zpres
-      INTEGER IERR,ILEN
-      EXTERNAL HPDEALLC, HPALLOC
-      real*8 zpresa,zpresb
-C
+      REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA, zpres
 *
 #include "dinternv.cdk"
 #include "finternva.cdk"
@@ -72,27 +59,24 @@ C
 #include "dintern8.cdk"
 #include "fintern8.cdk"
 **
-      WRITE(nulout,FMT='(/,4X,"Starting LQ2ESGD",//)')
+      WRITE(*,FMT='(/,4X,"Starting LQ2ESGD",//)')
 *
-      llprint = .false.
-*
-      do jk=1,knk
-        do ji=1,kni
-          do jj=1,knj
-            zpresb = ((vco_anl%dhyb_m(jk) - vco_anl%dpt_M/vco_anl%dprf_M)
-     &                /(1.0-vco_anl%dpt_M/vco_anl%dprf_M))**vco_anl%drcf1
-            zpresa = vco_anl%dprf_M * (vco_anl%dhyb_m(jk)-zpresb)
-            zpres  = zpresa + zpresb*ppsg(ji,1,jj)
+      do jk=1,statevectorg%nlev
+        do ji=1,statevectorg%ni
+          do jj=1,statevectorg%nj
+            zpres  = vco_anl%da_M(jk) + vco_anl%db_M(jk)*statevectorg%ps3d(ji,1,jj)
 *
 *          First do the forward branch to get saturated vapour pressure
 *          from q
 *
-            ZE = FOEFQ8(pqg(ji,jk,jj), zpres)
+            ZE = FOEFQ8(statevectorg%hu3d(ji,jk,jj), zpres)
 *
 *          TLM of the saturated vapor pressure from q (specific humidity)
 *
-            ZEL = FOEFQL(phuinc(ji,jk,jj),ppsinc(ji,1,jj)
-     &           ,pqg(ji,jk,jj),zpres,vco_anl%dhyb_m(jk))
+            ZEL = FOEFQL(statevector%hu3d(ji,jk,jj),statevector%ps3d(ji,1,jj)
+     &           ,statevectorg%hu3d(ji,jk,jj),zpres,vco_anl%dhyb_m(jk))
+!            ZEL = FOEFQL(statevector%hu3d(ji,jk,jj),statevector%ps3d(ji,1,jj)
+!     &           ,statevectorg%hu3d(ji,jk,jj),zpres,vco_anl%db_m(jk))
 *
 *          TLM of the dewpoint temperature calculation
 *
@@ -102,22 +86,7 @@ C
             ZGAMMA=FODTW8(ZTD,ZE)
             ZTDL = ZGAMMA*ZEL
 *
-            pesinc(ji,jk,jj) = pttinc(ji,jk,jj) - ZTDL
-*
-********************************************************************
-c           if(llprint .and. ji .eq. 221 .and. jj .eq. 27) then
-c           write(nulout,*)' lq2esgd:ji,jj,jk,ZTD  '
-c     &          ,ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL
-c           write(nulout,*)' lq2esgd: ji,jj,jk,tt0,q0 '
-c     &          ,ji,jj,jk,tt0(ji,jk,jj),q0(ji,jk,jj)
-c           write(nulout,*)' lq2esgd:ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL  '
-c     &          ,ji,jj,jk,ZE,ZCTE,ZDEN,ZTD,TRPL
-c           write(nulout,*)' lq2esgd:ppsg,pqg,zpres,vco_anl%dhyb_m(jk)'
-c     &               ,ppsg(ji,1,jj),pqg(ji,jk,jj),zpres,vco_anl%dhyb_m(jk)
-c           write(nulout,*)' lq2esgd:ji,jj,jk,ZGAMMA,ZEL,ZTDL,pesinc  '
-c     &          ,ji,jj,jk,ZGAMMA,ZEL,ZTDL,pesinc(ji,jk,jj)
-c           endif
-*********************************************************************
+            pesinc(ji,jk,jj) = statevector%tt3d(ji,jk,jj) - ZTDL
 *
           enddo
         enddo

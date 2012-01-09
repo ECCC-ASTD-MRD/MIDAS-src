@@ -29,7 +29,6 @@
 *
 #endif
       use MathPhysConstants_mod
-      use verticalCoord_mod
       use modgps04profile
       use modgps05refstruct
       use modgps06gravity

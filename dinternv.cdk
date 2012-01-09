@@ -9,6 +9,4 @@
       REAL*8 fotvvl,pttl,plnql
       REAL*8 fottva,folnqva,ptva
       REAL*8 fodle, foew, foewa, pttt
-*
-      INTRINSIC SIGN
 

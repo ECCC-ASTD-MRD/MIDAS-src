@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE ltt2phigd(pgz,ptt,ppsg,kni,knj,knflev)
+      SUBROUTINE ltt2phigd(pgz,ptt,statevectorg)
 #if defined (DOC)
 *
 ***s/r ltt2phigd  - Grid-point version of ltt2phi.ftn
@@ -33,59 +33,47 @@
 *Arguments
 *     in-
 *   ptt    : 3D Temperature Incr. appearing on r.h.s. of TL-eq.
-*   ppsg   : Basic-state Surface-pressure
 *     out-
 *   pgz    : 3D GZ fields computed from TL-Hydrostatic equation
 #endif
 C
-      use verticalCoord_mod
+      use gridStateVector_mod
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
 *
-      integer kni,knj,knflev
-      real*8 pgz(kni,knflev,knj), ptt(kni,knflev,knj)
-      real*8 ppsg(kni,1,knj)
+      type(struct_gsv) :: statevectorg
+      real*8 pgz(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8 ptt(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
 *
-      real*8  vma(knflev),vmb(knflev),vmc(knflev),vmd(knflev),vme(knflev),vmf(knflev)
-      INTEGER JLEV, JLA, ILA, ILEV,ILEN, JLAT, ILON, JLON, IERR
-      INTEGER IKTOP,IKTTG
+      real*8  vma(statevectorg%nlev),vmb(statevectorg%nlev)
+      real*8  vmc(statevectorg%nlev),vmd(statevectorg%nlev)
+      real*8  vme(statevectorg%nlev),vmf(statevectorg%nlev)
+      INTEGER JLEV, JLA, ILA, ILEV, JLAT, JLON
       real*8  zalpha
-      EXTERNAL HPDEALLC, HPALLOC
-      real*8 zpress(1),zhybm,zprof(jpnflev)
-      pointer (pzpress, zpress)
-      pointer (pzhybm, zhybm)
+      real*8 zpress(statevectorg%nlev,statevectorg%ni),zprof(jpnflev)
 *------------------------------------------------------------------
 **
 C
       WRITE(NULOUT,FMT='(/,4X,"Starting LTT2PHIGD",//)')
 C
-      ILEN=KNFLEV*KNI
-      CALL HPALLOC(PZPRESS,MAX(ILEN,1),IERR,8)
-      ILEN=KNFLEV
-      CALL HPALLOC(PZHYBM ,MAX(ILEN,1),IERR,8)
-c
       zalpha=-1.0D0
 
 c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
-      do jlat = 1, knj
-        ilon = kni
-        call calcpres(ZPRESS,vco_anl%dhyb_m,knflev,ppsg(1,1,jlat),vco_anl%dpt_M
-     &                   ,vco_anl%dprf_M,vco_anl%drcf1,kni)
-        do jlon = 1, kni
-          do jlev = 1,knflev
-            ila         = jlev+(jlon-1)*knflev
-            zprof(jlev) = zpress(ila)
+      do jlat = 1, statevectorg%nj
+        call vco_calcpres(vco_anl,ZPRESS,statevectorg%nlev,
+     &                    statevectorg%ps3d(:,1,jlat),statevectorg%ni)
+        do jlon = 1, statevectorg%ni
+          do jlev = 1,statevectorg%nlev
+            ila         = jlev+(jlon-1)*statevectorg%nlev
+            zprof(jlev) = zpress(jlev,jlon)
           enddo
-          call matapat(zprof,zalpha,knflev,vma,vmb,vmc,vmd,vme,vmf)
+          call matapat(zprof,zalpha,statevectorg%nlev,vma,vmb,vmc,vmd,vme,vmf)
           call lvtapgd(pgz,ptt,jlon,jlat) 
         enddo
       enddo
-c
-      CALL HPDEALLC(PZPRESS,IERR,1)
-      CALL HPDEALLC(PZHYBM,IERR,1)
 c
       RETURN
 
@@ -121,28 +109,29 @@ C prepared outside lvtapgd
       IMPLICIT NONE
       integer ki,kj
 !
-      INTEGER  IKLEVM2, JK, IK, ilen,ierr
+      INTEGER  IKLEVM2, JK, IK
       REAL*8    ZAK, ZBK, ZCK, ZCON
 
 *implicits
 *
-      real*8    pgz(kni,knflev,knj),ptt(kni,knflev,knj)
+      real*8    pgz(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
+      real*8    ptt(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
 c
 c ptt : working vector of virtual temperatures.
 c
       ZCON = -RGASD
-      ZAK = -2.0*ZCON*VMA(knflev)
-      ZBK = -2.0*ZCON*VMB(knflev)
-      ZCK = -2.0*ZCON*VMC(knflev)
-      pgz(ki,knflev,kj) = 0.0
-      pgz(ki,knflev-1,kj)=ZAK*ptt(ki,knflev-1,kj)+
-     &     ZBK*ptt(ki,knflev,kj)+
-     &     ZCK*ptt(ki,knflev-2,kj)+
-     &     pgz(ki,knflev,kj)
+      ZAK = -2.0*ZCON*VMA(statevectorg%nlev)
+      ZBK = -2.0*ZCON*VMB(statevectorg%nlev)
+      ZCK = -2.0*ZCON*VMC(statevectorg%nlev)
+      pgz(ki,statevectorg%nlev,kj) = 0.0
+      pgz(ki,statevectorg%nlev-1,kj)=ZAK*ptt(ki,statevectorg%nlev-1,kj)+
+     &     ZBK*ptt(ki,statevectorg%nlev,kj)+
+     &     ZCK*ptt(ki,statevectorg%nlev-2,kj)+
+     &     pgz(ki,statevectorg%nlev,kj)
 *
-      IKLEVM2 = knflev-2
+      IKLEVM2 = statevectorg%nlev-2
       do JK = 1, IKLEVM2
-        IK = knflev-1-JK
+        IK = statevectorg%nlev-1-JK
         ZAK = -2.0*ZCON*VMA(IK+1)
         ZBK = -2.0*ZCON*VMB(IK+1)
         ZCK = -2.0*ZCON*VMC(IK+1)
