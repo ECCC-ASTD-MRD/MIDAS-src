@@ -60,9 +60,7 @@
       INTEGER :: IOBS,IK,ITYP
       LOGICAL :: LLOK, LLPRINT
       CHARACTER(len=2) :: cvar
-      integer, dimension(:), allocatable :: list_header, list_body
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
 C
 C     --------
 C
@@ -288,17 +286,18 @@ C     2.3   Reference ppp level of thickness data (SATEMS)
 C           -----
 C
 
-         allocate(list_header( obs_num_stn     (lobsSpaceData) ))
-         allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
 C        loop over all header indices of the 'ST' family
-         call obs_getHeaderIndices(lobsspacedata, 'ST',
-     &                             list_header, size_list_header)
-         do index_list_header = 1, size_list_header
-            index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_header_list(lobsSpaceData,'ST')
+         HEADER: do
+            index_header = obs_getHeaderIndex(lobsSpaceData)
+            if (index_header < 0) exit HEADER
+
             LLOK = (obs_elem_i(lobsSpaceData,'ASS ',index_header) .EQ. 1 .AND.
      &              obs_elem_i(lobsSpaceData,'VCO ',index_header) .EQ. 2 )
             if ( .not. LLOK ) then
-               cycle                 ! Proceed to the next index_header
+               cycle HEADER             ! Proceed to the next index_header
             end if
 
             IOBS = obs_elem_i (lobsSpaceData,'OBS ',index_header)
@@ -315,9 +314,7 @@ C        loop over all header indices of the 'ST' family
 c       write(nulout,*) 'vobslyrs PRL:index_header,iobs,IK,zlev,ZPT,ZPB '
 c     &         ,index_header,iobs,IK,ZLEV,LCOLUMNGHR%RPPOBS(IK,IOBS),LCOLUMNGHR%RPPOBS(IK+1,IOBS)
 *****************************************************************
-         END DO
-         deallocate(list_header)
-         deallocate(list_body)
+         END DO HEADER
 C
       RETURN
       END

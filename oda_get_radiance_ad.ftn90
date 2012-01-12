@@ -44,9 +44,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
    real(8) :: zres
    integer idatyp
    integer ichn
-   integer, dimension(:), allocatable :: list_header, list_body
-   integer :: size_list_header, index_list_header, index_header
-   integer :: size_list_body,   index_list_body,   index_body
+   integer :: index_header, index_body
 
    integer  isrcheq
    external isrcheq
@@ -54,13 +52,13 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
    if(nobtov.eq.0) return    ! exit if there are no tovs data
 
-   allocate(list_header( obs_num_stn     (lobsSpaceData) ))
-   allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
-
    ! loop over all header indices of the 'TO' family
-   call obs_getHeaderIndices(lobsSpaceData, 'TO', list_header, size_list_header)
-   do index_list_header = 1, size_list_header
-      index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+   call obs_set_current_header_list(lobsSpaceData,'TO')
+   HEADER: do
+      index_header = obs_getHeaderIndex(lobsSpaceData)
+      if (index_header < 0) exit HEADER
   !  .  1.1  Extract general information for this observation point
   !  .       ------------------------------------------------------
 
@@ -75,7 +73,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
            idatyp .ne. 183 .and.  &
            idatyp .ne. 185 .and.  &
            idatyp .ne. 186          ) then
-         cycle                          ! Proceed to the next index_header
+         cycle HEADER                   ! Proceed to the next index
       end if
 
       indxtovs = ltovsno(index_header)
@@ -90,10 +88,13 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
          isens = lsensor(indxtovs)
 
          ! loop over all body indices (still in the 'TO' family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, &
-                                 list_body, size_list_body)
-         do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
             if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
                ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
                ichn = max(0,min(ichn,jpch+1))
@@ -107,11 +108,8 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
                zres = obs_elem_r8(lobsSpaceData,'OMI ',index_body)
                radiance_ad (indxtovs) % out(indxchn) = zres
             endif
-         enddo
+         enddo BODY
       endif
-   enddo
-
-   deallocate(list_header)
-   deallocate(list_body)
+   enddo HEADER
 
 end subroutine oda_get_radiance_ad

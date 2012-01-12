@@ -26,10 +26,6 @@ subroutine oda_mask(lobsSpaceData)
   #include "comfilt.cdk"
   type(struct_obs) :: lobsSpaceData
 
-  integer, dimension(:), allocatable :: list_header, list_body
-  allocate(list_header( obs_num_stn     (lobsSpaceData) ))
-  allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
-
   call oda_masksf('UA')
   call oda_masksf('SF')
   call oda_masksf('SC')
@@ -43,10 +39,7 @@ subroutine oda_mask(lobsSpaceData)
   call oda_maskgp
 
   !restore Global Masks. 
-  IF(NCONF == 141) CALL restoreMasks  
-
-  deallocate(list_header)
-  deallocate(list_body)
+  IF(NCONF == 141) CALL restoreMasks 
 
   CONTAINS
 
@@ -61,25 +54,28 @@ subroutine oda_mask(lobsSpaceData)
 !
       CHARACTER(len=2) :: CDFAM
       INTEGER ITYP
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
 
       ! loop over all header indices of the CDFAM family
-      call obs_getHeaderIndices(lobsSpaceData, CDFAM, list_header, &
-                                size_list_header)
-      do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 !C
 !C     Process all data within the domain of the model
 !C
          ! loop over all body indices (still in the CDFAM family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                 size_list_body)
-         BODY_INDEX: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
 
             IF ( obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 1 ) THEN
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',index_body)
@@ -101,22 +97,27 @@ subroutine oda_mask(lobsSpaceData)
                   ldiagsf(index_body) = .true.
                 endif
             ENDIF ! VC0 .EQ. 1
-         end do BODY_INDEX
+         end do BODY
 
 !C
 !C     Process all geopotential data below model's orography
 !C
-         BODY_INDEX_2: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+         ! loop over all body indices (still in the CDFAM family)
+                                        ! Start at the beginning of the list
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY_2: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY_2
+
             lmasksf_out(index_body)= &
                            (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
                      .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 2) &
                      .AND. (obs_elem_i(lobsSpaceData,'VNM ',index_body) &
                                                                .EQ. BUFR_NEGZ ) &
                      .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 1)
-         enddo BODY_INDEX_2
+         enddo BODY_2
 
-      END DO
+      END DO HEADER
 
       lmask = lmask .or. lmasksf_in
       lmask = lmask .or. lmasksf_out
@@ -140,24 +141,29 @@ subroutine oda_mask(lobsSpaceData)
 !*
 !* Local declarations
       INTEGER IDBURP
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
       REAL(8) :: ZLAT,ZLON,ZTORAD
       LOGICAL LLNOXTR
       LLNOXTR   = .false.
 
       ! loop over all header indices of the CDFAM family
-      call obs_getHeaderIndices(lobsSpaceData, CDFAM, list_header, size_list_header)
-      HEADER_INDEX: do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 !C
 !C     Process all data within the domain of the model
 !C
          ! loop over all body indices (still in the CDFAM family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                 size_list_body)
-         BODY_INDEX: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
             lmaskpp_in(index_body)= &
                            (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
                      .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 0) &
@@ -168,13 +174,17 @@ subroutine oda_mask(lobsSpaceData)
                IF (     NINT(obs_elem_r8(lobsSpaceData,'PPP ',index_body)) &
                    .GE. NINT(RLIMLVHU *100) ) THEN
                   ldiagpp(index_body) = .true.
-                ENDIF
-              endif
+               ENDIF
+            endif
+         END DO BODY
 
-         END DO BODY_INDEX
+         ! loop over all body indices (still in the CDFAM family)
+                                        ! Start at the beginning of the list
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY_2: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY_2
 
-         BODY_INDEX_2: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
             lmaskpp_out(index_body)= &
                          (obs_elem_i(lobsSpaceData,'ASS ',index_header) .EQ. 1) &
                    .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_header) .EQ. 2) &
@@ -195,8 +205,8 @@ subroutine oda_mask(lobsSpaceData)
                    , obs_elem_i(lobsSpaceData,'VNM ',index_header),' LAT ' &
                    , ZLAT,  ' LON ', ZLON
             endif
-         END DO BODY_INDEX_2
-      END DO HEADER_INDEX
+         END DO BODY_2
+      END DO HEADER
       lmask = lmask .or. lmaskpp_in
       lmask = lmask .or. lmaskpp_out
       ldiag = ldiag .or. ldiagpp
@@ -228,8 +238,7 @@ subroutine oda_maskto
   integer :: isens, indxchn, indxtovs
   integer idatyp
   integer ichn
-  integer :: size_list_header, index_list_header, index_header
-  integer :: size_list_body,   index_list_body,   index_body
+  integer :: index_header, index_body
   integer  isrcheq
   external isrcheq
   external abort3d
@@ -240,10 +249,12 @@ subroutine oda_maskto
   !     .   ------------------------------------------------
 
   ! loop over all header indices of the 'TO' family
-  call obs_getHeaderIndices(lobsSpaceData, 'TO', list_header, size_list_header)
-  HEADER_INDEX: do index_list_header = 1, size_list_header
-     index_header = list_header(index_list_header)
-
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER
            !     .  1.1  Extract general information for this observation point
            !     .       ------------------------------------------------------
 
@@ -259,41 +270,44 @@ subroutine oda_maskto
                 idatyp .ne. 183 .and.  &
                 idatyp .ne. 185 .and.  &
                 idatyp .ne. 186          ) then
-        cycle                     ! Proceed to the next HEADER_INDEX
+        cycle HEADER                    ! Proceed to the next HEADER
      end if
 
      indxtovs = ltovsno(index_header)
-              if ( indxtovs .eq. 0 ) then
-                 write(nulout,fmt=9203)
-9203             format(' tovs_calc_jo_tl: error with indxtovs')
-                 call abort3d(nulout,'tovs_calc_jo_tl ')
-              endif
+     if ( indxtovs .eq. 0 ) then
+        write(nulout,fmt=9203)
+9203    format(' tovs_calc_jo_tl: error with indxtovs')
+        call abort3d(nulout,'tovs_calc_jo_tl ')
+     endif
 
-              if (rttov_errorstatus(indxtovs) .lt. 20   ) then
+     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
         ! loop over all body indices (still in the 'TO' family)
-        call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                size_list_body)
-                 isens = lsensor(indxtovs)
-        BODY_INDEX: do index_list_body = 1, size_list_body
-           index_body = list_body(index_list_body)
+        isens = lsensor(indxtovs)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+        call obs_set_current_body_list(lobsSpaceData, index_header)
+        BODY: do 
+           index_body = obs_getBodyIndex(lobsSpaceData)
+           if (index_body < 0) exit BODY
+
            if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
               ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
-                       ichn    = max(0,min(ichn,jpch+1))
-                       if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
-                       indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
-                       if ( indxchn .eq. 0 ) then
-                          write(nulout,fmt=9202)
-9202                      format(' tovs_calc_jo_tl: error with channel number')
-                          call abort3d(nulout,'tovs_calc_jo_tl  ')
-                       endif
+              ichn    = max(0,min(ichn,jpch+1))
+              if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
+              indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+              if ( indxchn .eq. 0 ) then
+                 write(nulout,fmt=9202)
+9202             format(' tovs_calc_jo_tl: error with channel number')
+                 call abort3d(nulout,'tovs_calc_jo_tl  ')
+              endif
 !              print *,"maskto",index_body!,shape(lmaskto(:))
               lmaskto(index_body) = .true.
            endif
-        enddo BODY_INDEX
+        enddo BODY
 !    else
 !       kfailtot = kfailtot + 1
      endif
-  enddo HEADER_INDEX
+  enddo HEADER
   lmask = lmask .or. lmaskto
 end subroutine oda_maskto
 
@@ -311,30 +325,35 @@ end subroutine oda_maskto
 
       LOGICAL  LUSE
 
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
 
       ! loop over all header indices of the 'RO' family (Radio Occultation)
-      call obs_getHeaderIndices(lobsSpaceData, 'RO', list_header, &
-                                size_list_header)
-      HEADER_INDEX: do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
          IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
          IF ( IDATYP .NE. 169 ) THEN
-            cycle                       ! Proceed to the next HEADER_INDEX
-            ENDIF
+            cycle HEADER                ! Proceed to the next HEADER
+         ENDIF
 
          ! loop over all body indices (still in the 'RO' family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                 size_list_body)
-         BODY_INDEX: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
             LUSE=( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 )
             IF ( LUSE ) THEN
               lmaskro(index_body) = .true.
-        ENDIF
-         ENDDO BODY_INDEX
-      ENDDO HEADER_INDEX
+            ENDIF
+         ENDDO BODY
+      ENDDO HEADER
       lmask = lmask .or. lmaskro
       RETURN
       END subroutine oda_maskro
@@ -351,29 +370,33 @@ end subroutine oda_maskto
 !*
       CHARACTER *2 CDFAM
 
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
       LOGICAL LLOK
 
       ! loop over all header indices of the CDFAM family
-      call obs_getHeaderIndices(lobsSpaceData, CDFAM, list_header, &
-                                size_list_header)
-      HEADER_INDEX: do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 
          ! loop over all body indices (still in the CDFAM family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                 size_list_body)
-         BODY_INDEX: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
             LLOK=       (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)  &
                   .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0) &
                   .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)
               IF ( LLOK ) THEN
                lmaskzp(index_body) = .true.
               ENDIF
-         END DO BODY_INDEX
-      END DO HEADER_INDEX
+         END DO BODY
+      END DO HEADER
       lmask = lmask .or. lmaskzp
       RETURN
       END subroutine oda_maskzp
@@ -388,33 +411,38 @@ end subroutine oda_maskto
 !*
 
       INTEGER ITYP,IDATYP
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
       LOGICAL LLOK
 
       ! loop over all header indices of the 'GP' family
-      call obs_getHeaderIndices(lobsSpaceData, 'GP', list_header, &
-                                size_list_header)
-      HEADER_INDEX: do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'GP')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
          IDATYP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER),1000)
             IF ( IDATYP .NE. 189 ) THEN
-            cycle                       ! Proceed to the next HEADER_INDEX
+            cycle HEADER                ! Proceed to the next HEADER
          ENDIF
 
          ! loop over all body indices (still in the 'GP' family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                 size_list_body)
-         BODY_INDEX: do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
             ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
                 LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND.  &
                      (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1) )
                 IF ( LLOK ) THEN
-               lmaskgp(index_body) = .true.
-        ENDIF
-          ENDDO BODY_INDEX
-      END DO HEADER_INDEX
+                   lmaskgp(index_body) = .true.
+                ENDIF
+          ENDDO BODY
+      END DO HEADER
       lmask = lmask .or. lmaskgp
       RETURN
       END subroutine oda_maskgp

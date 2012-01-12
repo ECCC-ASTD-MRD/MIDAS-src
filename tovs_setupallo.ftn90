@@ -81,9 +81,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   INTEGER ::  ISRCHEQ
   INTEGER ::  NOBAIRS
   INTEGER ::  NOBIASI
-  integer, dimension(:), allocatable :: list_header, list_body
-  integer :: size_list_header, index_list_header, index_header
-  integer :: size_list_body,   index_list_body,   index_body
+  integer ::  index_header, index_body
 
   CHARACTER(len=2) :: SENSORTYPE
 
@@ -105,13 +103,14 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   NOBAIRS = 0
   NOBIASI = 0
 
-  allocate(list_header( obs_num_stn     (lobsSpaceData) ))
-  allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
+  ! loop over all header indices of the 'TO' family
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER
 
-  call obs_getHeaderIndices(lobsSpaceData, 'TO', list_header, size_list_header)
-  HEADER_INDEX: &
-  do index_list_header = 1, size_list_header
-     index_header = list_header(index_list_header)
      IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
      IF ( IDATYP .NE. 164 .AND. &
           IDATYP .NE. 168 .AND. &
@@ -121,7 +120,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
           IDATYP .NE. 183 .AND. &     
           IDATYP .NE. 185 .AND. &     
           IDATYP .NE. 186) THEN
-        cycle                           ! Proceed to the next header_index
+        cycle HEADER                    ! Proceed to the next header_index
      end if
 
      NOBTOV = NOBTOV + 1
@@ -154,11 +153,14 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      lobsno (nobtov) = index_header
      ltovsno (index_header)    = nobtov
 
-     call obs_getBodyIndices(lobsSpaceData, index_header, &
-                             list_body, size_list_body)
-     BODY_INDEX: &
-     do index_list_body = 1, size_list_body
-        index_body = list_body(index_list_body)
+     ! loop over all body indices (still in the 'TO' family)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+     call obs_set_current_body_list(lobsSpaceData, index_header)
+     BODY: do 
+        index_body = obs_getBodyIndex(lobsSpaceData)
+        if (index_body < 0) exit BODY
+
         IF ( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 ) THEN
            ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
            ICHN = MAX(0,MIN(ICHN,JPCH+1))
@@ -171,8 +173,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
               ichan(nchan(nosensor),nosensor) = ichn
            endif
         ENDIF
-     ENDDO BODY_INDEX
-  ENDDO HEADER_INDEX
+     ENDDO BODY
+  ENDDO HEADER
 
 ! Sort list of channels in ascending order.Also force at least one channel, if none are found.
 
@@ -406,8 +408,5 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
     END IF
 
   END DO
-
-  deallocate(list_header)
-  deallocate(list_body)
 
 END SUBROUTINE TOVS_SETUPALLO

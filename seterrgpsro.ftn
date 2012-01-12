@@ -74,9 +74,7 @@ C
       REAL(DP)     , ALLOCATABLE :: ZOFF(:),ZERR(:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
 
-      integer, dimension(:), allocatable :: list_header, list_body
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
 
       WRITE(NULOUT,*)'ENTER SETERRGPSRO'
 C
@@ -110,16 +108,16 @@ C     *       ---------------------------------------
       CALL READNML('NAMGPSRO',IERR)
       write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
 
-      allocate(list_header( obs_num_stn     (lobsSpaceData) ))
-      allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
-
       !
       ! loop over all header indices of the 'RO' family
       !
-      call obs_getHeaderIndices(lobsSpaceData, 'RO', list_header,
-     &                          size_list_header)
-      do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
 C     
 C     *  Process only refractivity data (codtyp 169)
 C
@@ -134,16 +132,19 @@ C
             !
             ! loop over all body indices (still in the 'RO' family)
             !
-            call obs_getBodyIndices(lobsSpaceData, index_header, list_body,
-     &                              size_list_body)
-            do index_list_body = 1, size_list_body
-               index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+            call obs_set_current_body_list(lobsSpaceData, index_header)
+            BODY: do 
+               index_body = obs_getBodyIndex(lobsSpaceData)
+               if (index_body < 0) exit BODY
+
                HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
                IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
                ENDIF
-            ENDDO
+            ENDDO BODY
 C
 C     *     If assimilations are requested, apply the observation operator
 C
@@ -193,9 +194,15 @@ C
                ALLOCATE( ZOFF (NH) )
                ALLOCATE( ZERR (NH) )
                ALLOCATE( RSTV (NH) )
+
                NH1 = 0
-               do index_list_body = 1, size_list_body
-                  index_body = list_body(index_list_body)
+               ! loop over all body indices (still in the 'RO' family)
+                                        ! Start at the beginning of the list
+               call obs_set_current_body_list(lobsSpaceData, index_header)
+               BODY_2: do 
+                  index_body = obs_getBodyIndex(lobsSpaceData)
+                  if (index_body < 0) exit BODY_2
+
                   HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
                   IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                      NH1   = NH1 + 1
@@ -203,7 +210,7 @@ C
                      HGT(NH1)= HNH1
                      H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                   ENDIF
-               ENDDO
+               ENDDO BODY_2
 C
 C     *        Apply the observation operator:
 C  
@@ -213,8 +220,13 @@ C
 C     *        Perform the (H(x)-Y)/S operation
 C
                NH1 = 0
-               do index_list_body = 1, size_list_body
-                  index_body = list_body(index_list_body)
+               ! loop over all body indices (still in the 'RO' family)
+                                        ! Start at the beginning of the list
+               call obs_set_current_body_list(lobsSpaceData, index_header)
+               BODY_3: do 
+                  index_body = obs_getBodyIndex(lobsSpaceData)
+                  if (index_body < 0) exit BODY_3
+
                   HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
                   IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                      NH1   = NH1 + 1
@@ -231,7 +243,7 @@ C     *              Normalized increment
 C
                      ZOFF(NH1) = (ZOBS - ZMHX) / ZMHX
                   ENDIF
-               ENDDO
+               ENDDO BODY_3
 C
 C     *        The procedure below is well tested to collectively
 C     *        create error profiles FROM data below 40 km, and
@@ -256,8 +268,13 @@ C
                ENDDO
 
                NH1 = 0
-               do index_list_body = 1, size_list_body
-                  index_body = list_body(index_list_body)
+               ! loop over all body indices (still in the 'RO' family)
+                                        ! Start at the beginning of the list
+               call obs_set_current_body_list(lobsSpaceData, index_header)
+               BODY_4: do 
+                  index_body = obs_getBodyIndex(lobsSpaceData)
+                  if (index_body < 0) exit BODY_4
+
                   HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
                   IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                      NH1 = NH1 + 1
@@ -270,7 +287,7 @@ C     *              Observation error    S
 C
                      call obs_set_r8(lobsSpaceData,'OER ',index_body, ZERR(NH1) * ZMHX)
                   ENDIF
-               ENDDO
+               ENDDO BODY_4
                DEALLOCATE( RSTV )
                DEALLOCATE( ZERR )
                DEALLOCATE( ZOFF )
@@ -278,10 +295,7 @@ C
                DEALLOCATE( HGT  )
             ENDIF ! ASSIM
          ENDIF ! IDATYP .EQ. 169
-      ENDDO ! index_header
-
-      deallocate(list_header)
-      deallocate(list_body)
+      ENDDO HEADER
 
       WRITE(NULOUT,*)'EXIT SETERRGPSRO'
       RETURN

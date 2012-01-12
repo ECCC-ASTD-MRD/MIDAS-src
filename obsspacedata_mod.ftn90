@@ -1,4 +1,5 @@
 MODULE obsSpaceData_mod
+  use IndexListDepot_mod
   implicit none
   save
   private
@@ -32,6 +33,8 @@ MODULE obsSpaceData_mod
   public           :: obs_setTimeInterpWeight,obs_getTimeInterpWeight
   public           :: obs_getTimeInterpWeight_mpiglobal,obs_prnthdr,obs_prntbdy
   public           :: obs_getHeaderIndices,obs_getBodyIndices
+  public           :: obs_set_current_header_list, obs_getHeaderIndex
+  public           :: obs_set_current_body_list,   obs_getBodyIndex
 
 
   interface obs_getBodyIndices
@@ -42,12 +45,15 @@ MODULE obsSpaceData_mod
   ! private methods
   !                obs_allocate, obs_deallocate, obs_allocateG, obs_deallocateG
   !                obs_abort
+  !                obs_set_current_index_list
 
   ! derived type and module variable declarations
 
   public :: struct_obs
 
   type struct_obs
+   type(struct_index_list_depot) :: header_index_list_depot
+   type(struct_index_list_depot) :: body_index_list_depot
    character(len=9),  pointer, dimension(:)   :: cstnid   !! need len=12 for EnKF
    character(len=2),  pointer, dimension(:)   :: cfamily
    real(kind=4),      pointer, dimension(:,:) :: robhdr
@@ -163,6 +169,8 @@ MODULE obsSpaceData_mod
     nullify(obsdat%timeInterpWeight_mpiglobal)
 
     call obs_allocate(obsdat,mxstn,mxobs)
+    call ild_initialize(obsdat%header_index_list_depot, obsdat%mxstntotal)
+    call ild_initialize(obsdat%body_index_list_depot,   obsdat%mxstntotal)
     return
   end subroutine obs_initialize
 
@@ -470,8 +478,9 @@ MODULE obsSpaceData_mod
   end SUBROUTINE obs_setTimeInterpWeight
 
 
-  real(kind=8) FUNCTION obs_getTimeInterpWeight(obsdat,headerIndex,stepObs) result(weight_out)
+  FUNCTION obs_getTimeInterpWeight(obsdat,headerIndex,stepObs) result(weight_out)
     implicit none
+    real(kind=8) weight_out
     type(struct_obs),intent(in) :: obsdat
     integer,intent(in)          :: headerIndex,stepObs
 
@@ -480,8 +489,9 @@ MODULE obsSpaceData_mod
   end FUNCTION obs_getTimeInterpWeight
 
 
-  real(kind=8) FUNCTION obs_getTimeInterpWeight_mpiglobal(obsdat,headerIndex,stepObs) result(weight_out)
+  FUNCTION obs_getTimeInterpWeight_mpiglobal(obsdat,headerIndex,stepObs) result(weight_out)
     implicit none
+    real(kind=8) weight_out
     type(struct_obs),intent(in) :: obsdat
     integer,intent(in)          :: headerIndex,stepObs
 
@@ -737,8 +747,9 @@ MODULE obsSpaceData_mod
   END SUBROUTINE obs_bdy
 
 
- real(kind=4) function obs_elem_r4(obsdat,name,index) result(value)
+ function obs_elem_r4(obsdat,name,index) result(value)
   implicit none
+  real(kind=4) value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -775,10 +786,11 @@ MODULE obsSpaceData_mod
   end select
  end function obs_elem_r4
 
- real(kind=4) function obs_elem_mpiglobal_r4(obsdat,name,index) result(value)
+ function obs_elem_mpiglobal_r4(obsdat,name,index) result(value)
   ! This method is supplied for use by those external to the present module who
   ! are aware of the mpi-local or -global state of this module.
   implicit none
+  real(kind=4) value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -797,8 +809,9 @@ MODULE obsSpaceData_mod
   end select
  end function obs_elem_mpiglobal_r4
 
- real(kind=8) function obs_elem_r8(obsdat,name,index) result(value)
+ function obs_elem_r8(obsdat,name,index) result(value)
   implicit none
+  real(kind=8) value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -825,8 +838,9 @@ MODULE obsSpaceData_mod
   end select
  end function obs_elem_r8
 
- integer function obs_elem_i(obsdat,name,index) result(value)
+ function obs_elem_i(obsdat,name,index) result(value)
   implicit none
+  integer value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -872,10 +886,11 @@ MODULE obsSpaceData_mod
   end select
  end function obs_elem_i
 
- integer function obs_elem_mpiglobal_i(obsdat,name,index) result(value)
+ function obs_elem_mpiglobal_i(obsdat,name,index) result(value)
   ! This method is supplied for use by those external to the present module who
   ! are aware of the mpi-local or -global state of this module.
   implicit none
+  integer value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -927,7 +942,112 @@ MODULE obsSpaceData_mod
  end function obs_elem_c9
 
 
+    subroutine obs_set_current_header_list(obsdat, family)
+     ! Method internal to obsSpaceData_mod:  Find or create an index list for the
+     !        indicated family within the header depot.
+     implicit none
+     type(struct_obs), intent(inout), target :: obsdat
+     character(len=2), intent(in) :: family
+
+     type(struct_index_list_depot), pointer :: depot
+     type(struct_index_list), pointer :: index_list
+     integer :: list, list_index, item_index
+
+     nullify(index_list)
+     depot => obsdat%header_index_list_depot
+
+     ! Search for an existing list
+     do list = 1, NUMBER_OF_LISTS
+      if (depot%index_lists(list)%family == family) then
+       index_list => depot%index_lists(list)
+       index_list%current_element = 0   ! Start at the beginning of the list
+       exit                             ! Don't look any further
+      end if
+     end do
+
+                                        ! If the list does not already exist
+     if (.not. associated(index_list)) then
+      ! Create a new list
+      index_list => ild_get_empty_index_list(depot)
+      index_list%family = family
+
+      ! Populate the list
+      list_index = 1
+      do item_index = 1, obsdat%numstns_recorded
+                                        ! If the station is of the right family
+       if(obsdat%cfamily(item_index) == family) then
+                                        ! Add the item_index to the list
+        index_list%indices(list_index) = item_index
+        list_index = list_index + 1
+       end if
+      end do
+     end if ! list does not already exist
+
+     index_list%current_element = 0     ! Set pointer to the start of the list
+     depot%current_list => index_list   ! Note the current list
+    end subroutine obs_set_current_header_list
+
+
+    subroutine obs_set_current_body_list(obsdat, header, list_is_empty)
+     ! Method internal to obsSpaceData_mod:  Create an index list from the
+     !        indicated header within the body depot.
+     implicit none
+     type(struct_obs), intent(inout), target :: obsdat
+     integer, intent(in) :: header
+     logical, intent(out), optional :: list_is_empty
+
+     type(struct_index_list_depot), pointer :: depot
+     type(struct_index_list), pointer :: index_list
+     integer :: list_index, item_index
+     integer :: first, last
+
+     ! Obtain an empty list
+     depot => obsdat%body_index_list_depot
+     index_list => ild_get_empty_index_list(depot)
+     index_list%family = 'xx'           ! not used
+
+     ! Populate the list
+     first= obs_elem_i(obsdat,'RLN ',header)
+     last = obs_elem_i(obsdat,'NLV ',header) + first - 1
+     list_index = 1
+     do item_index=first,last           ! For each item indicated in the header
+                                        ! Add the item_index to the list
+        index_list%indices(list_index) = item_index
+        list_index = list_index + 1
+     end do
+
+     index_list%current_element = 0     ! Set pointer to the start of the list
+     depot%current_list => index_list   ! Note the current list
+
+     if(present(list_is_empty)) then
+                                        ! Return whether the list is empty
+      list_is_empty = (ild_get_next_index(depot, no_advance=.true.) < 0)
+     end if
+    end subroutine obs_set_current_body_list
+
+
+  function obs_getHeaderIndex(obsdat) result(index)
+  ! Return the next element from the current header list
+  implicit none
+  integer :: index
+  type(struct_obs), intent(inout) :: obsdat
+
+  index = ild_get_next_index(obsdat%header_index_list_depot)
+ end function obs_getHeaderIndex
+
+
+ function obs_getBodyIndex(obsdat) result(index)
+  ! Return the next element from the current body list
+  implicit none
+  integer :: index
+  type(struct_obs), intent(inout) :: obsdat
+
+  index = ild_get_next_index(obsdat%body_index_list_depot)
+ end function obs_getBodyIndex
+
+
  subroutine obs_getHeaderIndices(obsdat, family, list_header, size_list)
+  implicit none
   type(struct_obs), intent(in)  :: obsdat
   character(len=2), intent(in)  :: family
   integer, dimension(:), intent(out) :: list_header
@@ -948,6 +1068,7 @@ MODULE obsSpaceData_mod
 
  subroutine obs_getBodyIndices_fromHeaderIndex(obsdat, header_index, list_body, &
                                                size_list)
+  implicit none
   type(struct_obs), intent(in)  :: obsdat
   integer, intent(in) :: header_index
   integer, dimension(:), intent(out) :: list_body
@@ -968,6 +1089,7 @@ MODULE obsSpaceData_mod
 
  subroutine obs_getBodyIndices_fromFamily(obsdat, family, list_body, &
                                           size_list_body)
+  implicit none
   type(struct_obs), intent(in)  :: obsdat
   character(len=2), intent(in)  :: family
   integer, dimension(:), intent(out) :: list_body
@@ -1145,6 +1267,7 @@ MODULE obsSpaceData_mod
 
   CONTAINS 
     subroutine calObsTag(startindx,endindx,jsize)
+     implicit none
      integer,intent(in) :: startindx,endindx
      integer,intent(inout) :: jsize
      !Local variables

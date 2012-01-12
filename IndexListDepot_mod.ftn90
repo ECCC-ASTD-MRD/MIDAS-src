@@ -1,0 +1,107 @@
+  MODULE IndexListDepot_mod
+    ! This is not a fully fledged module.  It is more like a structure definition
+    ! with a couple of helpful methods.  It is intended that clients read/write
+    ! directly from/to instances of these structures.  The intended client is
+    ! obsSpaceData_mod.
+
+    implicit none
+    save
+    public
+
+    ! methods
+    public :: ild_initialize, ild_get_empty_index_list, ild_get_next_index
+
+    integer, parameter :: NUMBER_OF_LISTS = 10
+
+    type struct_index_list
+      ! a list of integers, not to say indices into a struct_obs
+      character(len=2) :: family        ! the family of the struct_obs
+      integer :: current_element        ! the element that has just been returned
+
+                                        ! the actual list of integers
+                                        ! N.B.:  that which is an index to a
+                                        !        client of this module is an
+                                        !        element to this module
+      integer, dimension(:), allocatable :: indices
+    end type struct_index_list
+
+    type struct_index_list_depot
+      ! A collection of lists, either empty or populated
+                                        ! the collection of lists
+      type(struct_index_list), dimension(NUMBER_OF_LISTS) :: index_lists
+      integer :: list_last_attributed   ! list that was populated most recently
+                                        ! list that was   used    most recently
+      type(struct_index_list), pointer :: current_list
+    end type struct_index_list_depot
+
+
+  contains
+    subroutine ild_initialize(depot, mxstn)
+      ! Initialize the indicated list depot
+      implicit none
+      type(struct_index_list_depot), intent(inout) :: depot
+      integer , intent(in) :: mxstn     ! max size of struct_obs & hence of depot
+
+      integer :: list                   ! an index
+
+      ! Allocate each list
+      do list = 1,NUMBER_OF_LISTS
+        allocate(depot%index_lists(list)%indices(mxstn))
+        depot%list_last_attributed = 0
+      end do
+    end subroutine ild_initialize
+
+    
+    function ild_get_empty_index_list(depot) result(empty_index_list)
+      ! From the given depot, return an index-list structure that contains no
+      ! data, as a pointer.
+      !
+      ! In other words, clear data from the (cyclicly) next (i.e. oldest) list
+      ! and return a pointer to it.
+      implicit none
+      type(struct_index_list), pointer :: empty_index_list
+      type(struct_index_list_depot), intent(inout), target :: depot
+
+      ! Increment (cyclicly) the index to the next list
+      depot%list_last_attributed = depot%list_last_attributed + 1
+      if (depot%list_last_attributed > NUMBER_OF_LISTS) &
+        depot%list_last_attributed = 1
+
+      ! Set the return pointer
+      empty_index_list => depot%index_lists(depot%list_last_attributed)
+
+      ! Initialize some values in the list
+      empty_index_list%indices(:) = -1
+      empty_index_list%family = '  '
+      empty_index_list%current_element = 0
+
+      return
+    end function ild_get_empty_index_list
+
+
+    function ild_get_next_index(depot, no_advance) result(next_index)
+      ! From the given depot, increment the index to the current element, and
+      ! return the element itself, the new current element.
+      implicit none
+      integer :: next_index
+      type(struct_index_list_depot), intent(inout), target :: depot
+                                        ! Do not increment current_element,
+                                        ! just return the next one
+      logical, intent(in), optional :: no_advance
+
+                                        ! current list of the depot
+      type(struct_index_list), pointer :: current_list
+      integer :: next_element           ! next element of the current list
+
+      current_list => depot%current_list
+                                        ! Obtain the next element from the list
+      next_element = current_list%current_element + 1
+      next_index = current_list%indices(next_element)
+
+      if(.not. present(no_advance)) then
+                                        ! Increment the current element
+        current_list%current_element = next_element
+      end if
+    end function ild_get_next_index
+
+  end MODULE IndexListDepot_mod
