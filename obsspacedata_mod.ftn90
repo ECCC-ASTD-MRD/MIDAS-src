@@ -943,8 +943,8 @@ MODULE obsSpaceData_mod
 
 
     subroutine obs_set_current_header_list(obsdat, family)
-     ! Method internal to obsSpaceData_mod:  Find or create an index list for the
-     !        indicated family within the header depot.
+     ! Find or create an index list for the indicated family and place it in the
+     ! header depot.
      implicit none
      type(struct_obs), intent(inout), target :: obsdat
      character(len=2), intent(in) :: family
@@ -970,15 +970,16 @@ MODULE obsSpaceData_mod
       ! Create a new list
       index_list => ild_get_empty_index_list(depot)
       index_list%family = family
+      index_list%header = -1
 
       ! Populate the list
-      list_index = 1
+      list_index = 0
       do item_index = 1, obsdat%numstns_recorded
                                         ! If the station is of the right family
        if(obsdat%cfamily(item_index) == family) then
                                         ! Add the item_index to the list
-        index_list%indices(list_index) = item_index
         list_index = list_index + 1
+        index_list%indices(list_index) = item_index
        end if
       end do
      end if ! list does not already exist
@@ -988,33 +989,70 @@ MODULE obsSpaceData_mod
     end subroutine obs_set_current_header_list
 
 
-    subroutine obs_set_current_body_list(obsdat, header, list_is_empty)
-     ! Method internal to obsSpaceData_mod:  Create an index list from the
-     !        indicated header within the body depot.
+    subroutine obs_set_current_body_list(obsdat, header, list_is_empty, &
+                                         current_list)
+     ! Create an index list from the indicated header and place it in the body
+     ! depot.
      implicit none
      type(struct_obs), intent(inout), target :: obsdat
      integer, intent(in) :: header
      logical, intent(out), optional :: list_is_empty
+     type(struct_index_list), pointer, intent(out), optional :: current_list
 
      type(struct_index_list_depot), pointer :: depot
      type(struct_index_list), pointer :: index_list
-     integer :: list_index, item_index
+     integer :: list, list_index, item_index
      integer :: first, last
 
-     ! Obtain an empty list
+     nullify(index_list)
      depot => obsdat%body_index_list_depot
-     index_list => ild_get_empty_index_list(depot)
-     index_list%family = 'xx'           ! not used
 
-     ! Populate the list
-     first= obs_elem_i(obsdat,'RLN ',header)
-     last = obs_elem_i(obsdat,'NLV ',header) + first - 1
-     list_index = 1
-     do item_index=first,last           ! For each item indicated in the header
+     ! Search for an existing list
+     if(present(current_list)) then
+      if(associated(current_list)) then
+       if (current_list%header == header) then
+        index_list => current_list
+! JWB:  delete this:
+        index_list%current_element = 0  ! Start at the beginning of the list
+       end if ! header matches
+      end if ! associated
+
+     else ! not present(current_list)
+      do list = 1, NUMBER_OF_LISTS
+       if (depot%index_lists(list)%header == header) then
+        index_list => depot%index_lists(list)
+! JWB:  delete this:
+        index_list%current_element = 0  ! Start at the beginning of the list
+        exit                            ! Don't look any further
+       end if
+      end do
+     end if
+
+                                        ! If the list does not already exist
+     if (.not. associated(index_list)) then
+
+      ! Acquire memory for the list
+      if(present(current_list)) then
+       ! This is an OMP thread.  Re-use the same physical memory for the list
+       index_list => ild_get_empty_index_list(depot, current_list)
+      else
+       index_list => ild_get_empty_index_list(depot)
+      end if
+
+      ! Initialize the new list
+      index_list%family = 'xx'           ! not used
+      index_list%header = header
+
+      ! Populate the list
+      first= obs_elem_i(obsdat,'RLN ',header)
+      last = obs_elem_i(obsdat,'NLV ',header) + first - 1
+      list_index = 1
+      do item_index=first,last          ! For each item indicated in the header
                                         ! Add the item_index to the list
-        index_list%indices(list_index) = item_index
-        list_index = list_index + 1
-     end do
+       index_list%indices(list_index) = item_index
+       list_index = list_index + 1
+      end do
+     end if ! list does not already exist
 
      index_list%current_element = 0     ! Set pointer to the start of the list
      depot%current_list => index_list   ! Note the current list
@@ -1022,6 +1060,12 @@ MODULE obsSpaceData_mod
      if(present(list_is_empty)) then
                                         ! Return whether the list is empty
       list_is_empty = (ild_get_next_index(depot, no_advance=.true.) < 0)
+     end if
+
+     if(present(current_list)) then
+                                        ! Return a pointer to the current list
+      current_list => index_list
+!write(6,*)"JWB:  assigned body list ", current_list%id
      end if
     end subroutine obs_set_current_body_list
 
@@ -1036,13 +1080,20 @@ MODULE obsSpaceData_mod
  end function obs_getHeaderIndex
 
 
- function obs_getBodyIndex(obsdat) result(index)
+ function obs_getBodyIndex(obsdat, private_list) result(index)
   ! Return the next element from the current body list
   implicit none
   integer :: index
   type(struct_obs), intent(inout) :: obsdat
+  type(struct_index_list), pointer, intent(inout), optional :: private_list
 
-  index = ild_get_next_index(obsdat%body_index_list_depot)
+  if(present(private_list)) then
+   index = ild_get_next_index(obsdat%body_index_list_depot, &
+                              private_list=private_list)
+!write(6,*)"JWB:  index from body list ", private_list%id
+  else
+   index = ild_get_next_index(obsdat%body_index_list_depot)
+  end if
  end function obs_getBodyIndex
 
 

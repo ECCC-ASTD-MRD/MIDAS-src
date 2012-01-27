@@ -11,11 +11,17 @@
     ! methods
     public :: ild_initialize, ild_get_empty_index_list, ild_get_next_index
 
-    integer, parameter :: NUMBER_OF_LISTS = 10
+                                       ! This dimension must accommodate the
+                                       ! maximum number of OMP processors 
+    integer, parameter :: NUMBER_OF_LISTS = 16
 
     type struct_index_list
+integer :: id
       ! a list of integers, not to say indices into a struct_obs
-      character(len=2) :: family        ! the family of the struct_obs
+                                        ! Used only for a header list:
+      character(len=2) :: family        ! current_element's belong to this family
+                                        ! Used only for a body list:
+      integer :: header                 ! current_element's belong to this header
       integer :: current_element        ! the element that has just been returned
 
                                         ! the actual list of integers
@@ -47,12 +53,14 @@
       ! Allocate each list
       do list = 1,NUMBER_OF_LISTS
         allocate(depot%index_lists(list)%indices(mxstn))
+depot%index_lists(list)%id=list
         depot%list_last_attributed = 0
       end do
     end subroutine ild_initialize
 
     
-    function ild_get_empty_index_list(depot) result(empty_index_list)
+    function ild_get_empty_index_list(depot, list_in_memory) &
+                                                         result(empty_index_list)
       ! From the given depot, return an index-list structure that contains no
       ! data, as a pointer.
       !
@@ -61,39 +69,61 @@
       implicit none
       type(struct_index_list), pointer :: empty_index_list
       type(struct_index_list_depot), intent(inout), target :: depot
+      type(struct_index_list), pointer, intent(inout), optional :: list_in_memory
 
-      ! Increment (cyclicly) the index to the next list
-      depot%list_last_attributed = depot%list_last_attributed + 1
-      if (depot%list_last_attributed > NUMBER_OF_LISTS) &
-        depot%list_last_attributed = 1
+      nullify(empty_index_list)
+      
+      if(present(list_in_memory)) then
+       ! This is an OMP thread
+       if(associated(list_in_memory)) then
+        ! Memory has already been assigned for that thread.  Re-use it.
+        empty_index_list => list_in_memory ! Set the return pointer
+       end if
+      end if
 
-      ! Set the return pointer
-      empty_index_list => depot%index_lists(depot%list_last_attributed)
+      if(.not. associated(empty_index_list)) then
+       ! Increment (cyclicly) the index to the next list
+       depot%list_last_attributed = depot%list_last_attributed + 1
+       if (depot%list_last_attributed > NUMBER_OF_LISTS) &
+         depot%list_last_attributed = 1
+
+       ! Set the return pointer
+       empty_index_list => depot%index_lists(depot%list_last_attributed)
+      end if
 
       ! Initialize some values in the list
       empty_index_list%indices(:) = -1
       empty_index_list%family = '  '
+      empty_index_list%header = -1
       empty_index_list%current_element = 0
 
       return
     end function ild_get_empty_index_list
 
 
-    function ild_get_next_index(depot, no_advance) result(next_index)
+    function ild_get_next_index(depot, no_advance, private_list) &
+                                                               result(next_index)
       ! From the given depot, increment the index to the current element, and
       ! return the element itself, the new current element.
       implicit none
       integer :: next_index
+                                        ! N.B.:  depot is not used when
+                                        !        private_list is present
       type(struct_index_list_depot), intent(inout), target :: depot
                                         ! Do not increment current_element,
                                         ! just return the next one
       logical, intent(in), optional :: no_advance
+      type(struct_index_list), pointer, intent(inout), optional :: private_list
 
                                         ! current list of the depot
       type(struct_index_list), pointer :: current_list
       integer :: next_element           ! next element of the current list
 
-      current_list => depot%current_list
+      if(present(private_list)) then
+       current_list => private_list
+      else
+       current_list => depot%current_list
+      end if
                                         ! Obtain the next element from the list
       next_element = current_list%current_element + 1
       next_index = current_list%indices(next_element)

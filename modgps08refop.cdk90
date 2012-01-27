@@ -21,7 +21,7 @@ contains
 
   subroutine gpsrefopv(hv, prf, refopv)
     real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: refopv(:)
     
     integer(i4)                       :: iSize, i, ngpslev
@@ -89,7 +89,7 @@ contains
 
   subroutine gpsrefWopv(hv, prf, refWopv)
     real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: refWopv(:)
     type(gpsdiff)        , allocatable:: NWA(:)
     
@@ -161,7 +161,7 @@ contains
 
   subroutine gpstemgrdop(dh, prf, grd)
     real(dp)             , intent(in) :: dh
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: grd
     
     integer(i4)                       :: iSize, i, ngpslev
@@ -225,7 +225,7 @@ contains
 
   subroutine gpshgtopv(pr, prf, hgtopv)
     real(dp)             , intent(in) :: pr
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: hgtopv
     
     type(gpsdiff)                     :: gst(ngpssize)
@@ -293,7 +293,7 @@ contains
 
   subroutine gpsZTDopv(hv, prf, ZTDopv)
     real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)     , intent(in) :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: ZTDopv(:)
     
     type(gpsdiff)                     :: ZTDS(ngpssize)
@@ -366,7 +366,7 @@ contains
   end subroutine gpsZTDopv
   
   subroutine gpsZTDS(prf, ZTDS)
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: ZTDS(:)
 
     type(gpsdiff)                     :: ZTD(ngpssize)
@@ -384,7 +384,7 @@ contains
   
   subroutine gpsscatpotopv(hv, prf, scpot1v, scpot2v)
     real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(inout) :: prf
     type(gpsdiff)        , intent(out):: scpot1v(:)
     type(gpsdiff)        , intent(out):: scpot2v(:)
     

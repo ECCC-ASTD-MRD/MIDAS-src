@@ -20,7 +20,7 @@ contains
   subroutine gpsimpactop(radius, geoid, prf, imp)
     real(dp)             , intent(in) :: radius
     real(dp)             , intent(in) :: geoid
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(in) :: prf
     type(gpsdiff)        , intent(out):: imp(:)
 
     integer                           :: i,j, ngpslev
@@ -42,7 +42,7 @@ contains
 
   subroutine gpsbendop2(imp, prf, bnd)
     type(gpsdiff)        , intent(in) :: imp(:)
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(in) :: prf
     type(gpsdiff)        , intent(out):: bnd(:)
 
     type(gpsdiff)                     :: rst0, rst1, rst2
@@ -108,7 +108,7 @@ contains
 
   subroutine gpsbendop5(imp, prf, bnd)
     type(gpsdiff)        , intent(in) :: imp(:)
-    type(gpsprofile)                  :: prf
+    type(gpsprofile)     , intent(in) :: prf
     type(gpsdiff)        , intent(out):: bnd(:)
     
     type(gpsdiff)                     :: rst0, rst1, rst2, rst3, rst4, rst5

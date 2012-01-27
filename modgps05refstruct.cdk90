@@ -26,7 +26,7 @@ module modgps05refstruct
 contains
 
   subroutine gpspre(prf)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
 
     integer(i4)      :: i, ngpslev
     real(dp)         :: rpt, rpr, rcf, pr1, termA, termB
@@ -68,7 +68,7 @@ contains
   end subroutine gpspre
 
   subroutine gpstem(prf)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
 
     integer(i4)      :: i, ngpslev
 
@@ -84,7 +84,7 @@ contains
   end subroutine gpstem
 
   subroutine gpsQ(prf)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
 
     integer(i4)      :: i, ngpslev
 
@@ -100,7 +100,7 @@ contains
   end subroutine gpsQ
 
   subroutine gpsref(prf)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
 
     integer(i4)      :: i, ngpslev
 
@@ -133,7 +133,7 @@ contains
   end subroutine gpsref
 
   subroutine gpsprew(prf, prew)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
     type(gpsdiff)   , intent(out):: prew(:)
 
     integer(i4)      :: i, ngpslev
@@ -154,7 +154,7 @@ contains
   end subroutine gpsprew
 
   subroutine gpsiprew(prf, iprew)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
     type(gpsdiff)   , intent(out):: iprew
 
     integer(i4)      :: i, ngpslev
@@ -178,7 +178,7 @@ contains
   end subroutine gpsiprew
 
   subroutine gpsrefw(prf, refw)
-    type(gpsprofile) :: prf
+    type(gpsprofile), intent(inout) :: prf
     type(gpsdiff)   , intent(out):: refw(:)
 
     integer(i4)      :: i, ngpslev
@@ -213,7 +213,7 @@ contains
   end subroutine gpsrefw
 
   subroutine gpsZTD(prf, ZTD)
-    type(gpsprofile)             :: prf
+    type(gpsprofile), intent(inout) :: prf
     type(gpsdiff)   , intent(out):: ZTD(:)
 
     real(dp)        , parameter  :: Avog  = 6.02214e26_dp
@@ -237,7 +237,7 @@ contains
   end subroutine gpsZTD
 
   subroutine gpssat(prf, sat)
-    type(gpsprofile)             :: prf
+    type(gpsprofile), intent(inout) :: prf
     type(gpsdiff)   , intent(out):: sat(:)
 
     real(dp)        , parameter  :: lnPw0 = 1.809926_dp;

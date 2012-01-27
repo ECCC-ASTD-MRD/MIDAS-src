@@ -22,7 +22,7 @@ module modgps07geostruct
 contains
   
   subroutine gpsgeo(prf)
-    type(gpsprofile)    :: prf
+    type(gpsprofile), intent(inout) :: prf
     
     integer(i4)         :: i, ngpslev
     

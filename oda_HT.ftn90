@@ -352,6 +352,7 @@ end subroutine oda_HTto
       use modgps04profile
       use modgps06gravity
       use modgps08refop
+      use IndexListDepot_mod, only:  struct_index_list
 
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 DPJO1(ngpscvmx)
@@ -373,9 +374,10 @@ end subroutine oda_HTto
 
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
-      integer, dimension(:), allocatable :: list_header, list_body
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body, num_headers, head_counter
+      type(struct_index_list), pointer :: local_current_list
+      integer, dimension(ubound(lobsSpaceData%header_index_list_depot%index_lists,1)) &
+               :: head_indices
 
       LOGICAL  ASSIM, LUSE
 
@@ -387,7 +389,6 @@ end subroutine oda_HTto
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      allocate(list_header( obs_num_stn     (lobsSpaceData) ))
       ZTODEG = 180.0 / RPI
 !C
 !C     *     Eta vector:
@@ -400,19 +401,26 @@ end subroutine oda_HTto
       !
       ! loop over all header indices of the 'RO' family (Radio Occultation)
       !
-      call obs_getHeaderIndices(lobsSpaceData, 'RO', list_header, &
-                                size_list_header)
-!$omp parallel do default(shared) &
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+!$omp parallel default(shared) &
 !$omp private(dpjo0,idatyp,assim,nh) &
 !$omp private(luse,lat,lon,zlat,zlon,jl,btt) &
 !$omp private(bhu,bgz,bp0,bpt,bmt,bpr,bcf,prf) &
 !$omp private(h,rstv,nh1,hnh1,zmhx,zobi,zobs) &
 !$omp private(jac,zinc,dpjo1) &
-!$omp private(index_header,list_body,size_list_body,index_list_body,index_body)
-      HEADER_INDEX: do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+!$omp private(index_header,index_body, local_current_list)
+
+      nullify(local_current_list)
+
+      HEADER: do
+!$omp critical
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+!$omp end critical
+         if (index_header < 0) exit HEADER
+
          DPJO0 = 0._dp
-         allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
 !C
 !C     *    Calculate DPJO0 only for refractivity observations (codtyp 169)
 !C
@@ -424,16 +432,23 @@ end subroutine oda_HTto
 !C
            NH = 0
            ! loop over all body indices (still in the 'RO' family)
-           call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                   size_list_body)
-           do index_list_body = 1, size_list_body
-              index_body = list_body(index_list_body)
+                                        ! Obtain the body list
+                                        ! (& start at the beginning of the list)
+!$omp critical
+           call obs_set_current_body_list(lobsSpaceData, index_header, &
+                                          current_list=local_current_list)
+!$omp end critical
+           BODY: do 
+              index_body = obs_getBodyIndex(lobsSpaceData, &
+                                            private_list=local_current_list)
+              if (index_body < 0) exit BODY
+
              LUSE=( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 )
              IF ( LUSE ) THEN
                ASSIM = .TRUE.
                NH = NH + 1
              ENDIF
-           ENDDO
+           ENDDO BODY
 !C
 !C     *           If assimilations are requested, apply the observation
 !c operator
@@ -473,15 +488,23 @@ end subroutine oda_HTto
              ALLOCATE( RSTV (NH) )
              NH1 = 0
              ! loop over all body indices (still in the 'RO' family)
-             do index_list_body = 1, size_list_body
-                index_body = list_body(index_list_body)
+                                        ! Start at the beginning of the list
+!$omp critical
+             call obs_set_current_body_list(lobsSpaceData, index_header, &
+                                            current_list=local_current_list)
+!$omp end critical
+             BODY_2: do 
+                index_body = obs_getBodyIndex(lobsSpaceData, &
+                                              private_list=local_current_list)
+                if (index_body < 0) exit BODY_2
+
                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 )
                IF ( LUSE ) THEN
                  NH1 = NH1 + 1
                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                  H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                ENDIF
-             ENDDO
+             ENDDO BODY_2
 !C
 !C     *           Apply the observation operator
 !C
@@ -491,8 +514,16 @@ end subroutine oda_HTto
 !C
              NH1 = 0
              ! loop over all body indices (still in the 'RO' family)
-             BODY_INDEX: do index_list_body = 1, size_list_body
-                index_body = list_body(index_list_body)
+                                        ! Start at the beginning of the list
+!$omp critical
+             call obs_set_current_body_list(lobsSpaceData, index_header, &
+                                            current_list=local_current_list)
+!$omp end critical
+             BODY_3: do 
+                index_body = obs_getBodyIndex(lobsSpaceData, &
+                                              private_list=local_current_list)
+                if (index_body < 0) exit BODY_3
+
                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 )
                IF ( LUSE ) THEN
                  NH1 = NH1 + 1
@@ -529,7 +560,7 @@ end subroutine oda_HTto
                  DPJO0 = DPJO0 + DPJO1
 
                ENDIF
-             ENDDO BODY_INDEX
+             ENDDO BODY_3
              DEALLOCATE( RSTV )
              DEALLOCATE( H    )
            ENDIF ASSIMILATE
@@ -543,11 +574,8 @@ end subroutine oda_HTto
          ENDDO
          LCOLUMN%PS  ( 1,INDEX_HEADER) = DPJO0(1+2*LCOLUMN%NLEV)
 
-         deallocate(list_body)
-      ENDDO HEADER_INDEX
-!$omp end parallel do
-
-      deallocate(list_header)
+      ENDDO HEADER
+!$omp end parallel
 
       RETURN
       END subroutine oda_HTro
@@ -646,9 +674,7 @@ end subroutine oda_HTto
       REAL*8 DZP0
 
       INTEGER JL
-      integer, dimension(:), allocatable :: list_header, list_body
-      integer :: size_list_header, index_list_header, index_header
-      integer :: size_list_body,   index_list_body,   index_body
+      integer :: index_header, index_body
 
       LOGICAL  ASSIM, LLOK
 
@@ -658,8 +684,6 @@ end subroutine oda_HTto
 !C     *     ---------------
 !C
       ZTODEG= 180.0 / RPI
-      allocate(list_header( obs_num_stn     (lobsSpaceData) ))
-      allocate(list_body  ( obs_num_obstotal(lobsSpaceData) ))
 !C
 !C     *    .   1.1  Eta vector
 !C     *    .        ----------
@@ -671,10 +695,13 @@ end subroutine oda_HTto
       write(*,fmt='(/,4x,A)') 'AVGPSZTD- Adjoint Version: GPS ZTD observations'
 
       ! loop over all header indices of the 'GP' family (GPS observations)
-      call obs_getHeaderIndices(lobsSpaceData, 'GP', list_header, &
-                                size_list_header)
-      HEADER_LIST: do index_list_header = 1, size_list_header
-         index_header = list_header(index_list_header)
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'GP')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
          DZTT(:) = 0.0
          DZHU(:) = 0.0
          DZP0 = 0.0
@@ -684,16 +711,19 @@ end subroutine oda_HTto
          NH = 0
          ASSIM = .FALSE.
          ! loop over all body indices (still in the 'GP' family)
-         call obs_getBodyIndices(lobsSpaceData, index_header, list_body, &
-                                 size_list_body)
-         do index_list_body = 1, size_list_body
-            index_body = list_body(index_list_body)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
             LLOK = ( lmaskgp(INDEX_BODY) )
             IF ( LLOK ) THEN
                ASSIM = .TRUE.
                NH = NH + 1
             ENDIF
-         ENDDO
+         ENDDO BODY
 !C
 !C     * If ZTD assimilation, apply the AD observation operator
 !C
@@ -719,8 +749,13 @@ end subroutine oda_HTto
 !C             Ht*grad(Index_header) = Ht*(H'dx - d)/sigma_o^2
 !C
             NH1 = 0
-            do index_list_body = 1, size_list_body
-               index_body = list_body(index_list_body)
+            ! loop over all body indices (still in the 'GP' family)
+                                        ! Start at the beginning of the list)
+            call obs_set_current_body_list(lobsSpaceData, index_header)
+            BODY_2: do 
+               index_body = obs_getBodyIndex(lobsSpaceData)
+               if (index_body < 0) exit BODY_2
+
                IF ( lmaskgp(INDEX_BODY) ) THEN
                   NH1 = NH1 + 1
 !C                call obs_set_r8(lobsSpaceData,'OMI ',INDEX_BODY, grad(Index_header) 
@@ -739,7 +774,7 @@ end subroutine oda_HTto
                   DZHU(:) = DZHU(:) + ZHUB(:)*ZHU(:)
                   DZP0 = DZP0 + ZP0
                ENDIF
-            ENDDO
+            ENDDO BODY_2
 
          ENDIF ! ASSIM
 !c
@@ -750,10 +785,7 @@ end subroutine oda_HTto
             LCOLUMN%HU(JL,INDEX_HEADER) = DZHU(JL)
          ENDDO
          LCOLUMN%PS(1,INDEX_HEADER) = DZP0
-      ENDDO HEADER_LIST
-
-      deallocate(list_header)
-      deallocate(list_body)
+      ENDDO HEADER
 
       RETURN
       END subroutine oda_HTgp
