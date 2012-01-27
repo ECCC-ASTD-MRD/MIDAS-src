@@ -1,3 +1,170 @@
+  MODULE IndexListDepot_mod
+    ! This is not a fully fledged module.  It is more like a structure definition
+    ! with a couple of helpful methods.  It is intended that clients read/write
+    ! directly from/to instances of these structures.  The intended client is
+    ! obsSpaceData_mod.
+
+    implicit none
+    save
+    public
+
+    ! methods
+    public :: ild_initialize, ild_get_empty_index_list, ild_get_next_index
+
+    interface ild_get_next_index
+      module procedure ild_get_next_index_depot
+      module procedure ild_get_next_index_private
+    end interface
+
+                                       ! This dimension must accommodate the
+                                       ! maximum number of OMP processors 
+    integer, parameter :: NUMBER_OF_LISTS = 16
+
+    type struct_index_list
+      ! a list of integers, not to say indices into a struct_obs
+                                        ! Used only for a header list:
+      character(len=2) :: family        ! current_element's belong to this family
+                                        ! Used only for a body list:
+      integer :: header                 ! current_element's belong to this header
+      integer :: current_element        ! the element that has just been returned
+
+                                        ! the actual list of integers
+                                        ! N.B.:  that which is an index to a
+                                        !        client of this module is an
+                                        !        element to this module
+      integer, dimension(:), allocatable :: indices
+    end type struct_index_list
+
+    type struct_index_list_depot
+      ! A collection of lists, either empty or populated
+                                        ! the collection of lists
+      type(struct_index_list), dimension(NUMBER_OF_LISTS) :: index_lists
+      integer :: list_last_attributed   ! list that was populated most recently
+                                        ! list that was   used    most recently
+      type(struct_index_list), pointer :: current_list
+    end type struct_index_list_depot
+
+
+  contains
+    subroutine ild_initialize(depot, mxstn)
+      ! Initialize the indicated list depot
+      implicit none
+      type(struct_index_list_depot), intent(inout) :: depot
+      integer , intent(in) :: mxstn     ! max size of struct_obs & hence of depot
+
+      integer :: list                   ! an index
+
+      ! Allocate each list
+      do list = 1,NUMBER_OF_LISTS
+        allocate(depot%index_lists(list)%indices(mxstn))
+        depot%list_last_attributed = 0
+      end do
+    end subroutine ild_initialize
+
+    
+    function ild_get_empty_index_list(depot, private_list) &
+                                                         result(empty_index_list)
+      ! From the given depot, return an index-list structure that contains no
+      ! data, as a pointer.
+      !
+      ! In other words, clear data from the (cyclicly) next (i.e. oldest) list
+      ! and return a pointer to it.
+      implicit none
+      type(struct_index_list), pointer :: empty_index_list
+      type(struct_index_list_depot), intent(inout), target :: depot
+      type(struct_index_list), pointer, intent(inout), optional :: private_list
+
+      nullify(empty_index_list)
+      
+      if(present(private_list)) then
+       ! This is an OMP thread
+       if(associated(private_list)) then
+        ! Memory has already been assigned for that thread.  Re-use it.
+        empty_index_list => private_list ! Set the return pointer
+       end if
+      end if
+
+      if(.not. associated(empty_index_list)) then
+!$omp critical
+       ! Increment (cyclicly) the index to the next list
+       depot%list_last_attributed = depot%list_last_attributed + 1
+       if (depot%list_last_attributed > NUMBER_OF_LISTS) &
+         depot%list_last_attributed = 1
+
+       ! Set the return pointer
+       empty_index_list => depot%index_lists(depot%list_last_attributed)
+!$omp end critical
+      end if
+
+      ! Initialize some values in the list
+      ! empty_index_list%indices(:) = -1 --> No, the array is too big.
+      empty_index_list%family = '  '
+      empty_index_list%header = -1
+      empty_index_list%current_element = 0
+
+      return
+    end function ild_get_empty_index_list
+
+
+    function ild_get_next_index_depot(depot, no_advance) result(next_index)
+      ! From the given depot, increment the index to the current element, and
+      ! return the element itself, the new current element.
+      implicit none
+      integer :: next_index
+      type(struct_index_list_depot), intent(inout), target :: depot
+                                        ! Do not increment current_element,
+                                        ! just return the next one
+      logical, intent(in), optional :: no_advance
+
+                                        ! current list of the depot
+      type(struct_index_list), pointer :: current_list
+      integer :: next_element           ! next element of the current list
+
+      current_list => depot%current_list
+!$omp critical
+                                        ! Obtain the next element from the list
+      next_element = current_list%current_element + 1
+      next_index = current_list%indices(next_element)
+
+      if(.not. present(no_advance) .and. next_index .ne. -1) then
+                                        ! Increment the current element
+        current_list%current_element = next_element
+      end if
+!$omp end critical
+    end function ild_get_next_index_depot
+
+
+    function ild_get_next_index_private(private_list, no_advance) &
+                                                               result(next_index)
+      ! From the given list, increment the index to the current element, and
+      ! return the element itself, the new current element.
+      implicit none
+      integer :: next_index
+      type(struct_index_list), pointer, intent(inout) :: private_list
+                                        ! Do not increment current_element,
+                                        ! just return the next one
+      logical, intent(in), optional :: no_advance
+
+      integer :: next_element           ! next element of the list
+
+                                        ! Obtain the next element from the list
+      next_element = private_list%current_element + 1
+      next_index = private_list%indices(next_element)
+
+      if(.not. present(no_advance) .and. next_index .ne. -1) then
+                                        ! Increment the current element
+        private_list%current_element = next_element
+      end if
+    end function ild_get_next_index_private
+
+  end MODULE IndexListDepot_mod
+
+
+
+
+
+
+
 MODULE obsSpaceData_mod
   use IndexListDepot_mod
   implicit none
@@ -32,15 +199,13 @@ MODULE obsSpaceData_mod
   public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
   public           :: obs_setTimeInterpWeight,obs_getTimeInterpWeight
   public           :: obs_getTimeInterpWeight_mpiglobal,obs_prnthdr,obs_prntbdy
-  public           :: obs_getHeaderIndices,obs_getBodyIndices
   public           :: obs_set_current_header_list, obs_getHeaderIndex
   public           :: obs_set_current_body_list,   obs_getBodyIndex
 
-
-  interface obs_getBodyIndices
-   module procedure obs_getBodyIndices_fromHeaderIndex
-   module procedure obs_getBodyIndices_fromFamily
-  end interface
+  interface obs_getBodyIndex
+   module procedure obs_getBodyIndex_depot
+   module procedure obs_getBodyIndex_private
+  end interface obs_getBodyIndex
 
   ! private methods
   !                obs_allocate, obs_deallocate, obs_allocateG, obs_deallocateG
@@ -64,7 +229,7 @@ MODULE obsSpaceData_mod
    integer :: numstns_recorded          ! Actual number of stations on record
    integer :: mxstntotal                ! maximum number of stations
    integer :: numobs_recorded           ! Actual total number of data on record
-   integer :: mxobstotal                ! maximum number observations
+   integer :: mxobstotal                ! maximum number observations (i.e. data)
 
                                         ! Size of the mpi-Local obs data
    integer                                    :: numobs_recorded_l
@@ -170,7 +335,7 @@ MODULE obsSpaceData_mod
 
     call obs_allocate(obsdat,mxstn,mxobs)
     call ild_initialize(obsdat%header_index_list_depot, obsdat%mxstntotal)
-    call ild_initialize(obsdat%body_index_list_depot,   obsdat%mxstntotal)
+    call ild_initialize(obsdat%body_index_list_depot,   obsdat%mxobstotal)
     return
   end subroutine obs_initialize
 
@@ -982,6 +1147,8 @@ MODULE obsSpaceData_mod
         index_list%indices(list_index) = item_index
        end if
       end do
+      index_list%indices(list_index+1) = -1  ! Flag the end of the list ...
+      index_list%indices(list_index+2) = -1  ! ... clearly
      end if ! list does not already exist
 
      index_list%current_element = 0     ! Set pointer to the start of the list
@@ -1012,8 +1179,6 @@ MODULE obsSpaceData_mod
       if(associated(current_list)) then
        if (current_list%header == header) then
         index_list => current_list
-! JWB:  delete this:
-        index_list%current_element = 0  ! Start at the beginning of the list
        end if ! header matches
       end if ! associated
 
@@ -1021,8 +1186,6 @@ MODULE obsSpaceData_mod
       do list = 1, NUMBER_OF_LISTS
        if (depot%index_lists(list)%header == header) then
         index_list => depot%index_lists(list)
-! JWB:  delete this:
-        index_list%current_element = 0  ! Start at the beginning of the list
         exit                            ! Don't look any further
        end if
       end do
@@ -1046,12 +1209,14 @@ MODULE obsSpaceData_mod
       ! Populate the list
       first= obs_elem_i(obsdat,'RLN ',header)
       last = obs_elem_i(obsdat,'NLV ',header) + first - 1
-      list_index = 1
+      list_index = 0
       do item_index=first,last          ! For each item indicated in the header
                                         ! Add the item_index to the list
-       index_list%indices(list_index) = item_index
        list_index = list_index + 1
+       index_list%indices(list_index) = item_index
       end do
+      index_list%indices(list_index+1) = -1  ! Flag the end of the list ...
+      index_list%indices(list_index+2) = -1  ! ... clearly
      end if ! list does not already exist
 
      index_list%current_element = 0     ! Set pointer to the start of the list
@@ -1065,7 +1230,6 @@ MODULE obsSpaceData_mod
      if(present(current_list)) then
                                         ! Return a pointer to the current list
       current_list => index_list
-!write(6,*)"JWB:  assigned body list ", current_list%id
      end if
     end subroutine obs_set_current_body_list
 
@@ -1080,88 +1244,24 @@ MODULE obsSpaceData_mod
  end function obs_getHeaderIndex
 
 
- function obs_getBodyIndex(obsdat, private_list) result(index)
+ function obs_getBodyIndex_depot(obsdat) result(index)
   ! Return the next element from the current body list
   implicit none
   integer :: index
   type(struct_obs), intent(inout) :: obsdat
-  type(struct_index_list), pointer, intent(inout), optional :: private_list
 
-  if(present(private_list)) then
-   index = ild_get_next_index(obsdat%body_index_list_depot, &
-                              private_list=private_list)
-!write(6,*)"JWB:  index from body list ", private_list%id
-  else
-   index = ild_get_next_index(obsdat%body_index_list_depot)
-  end if
- end function obs_getBodyIndex
+  index = ild_get_next_index(obsdat%body_index_list_depot)
+ end function obs_getBodyIndex_depot
 
 
- subroutine obs_getHeaderIndices(obsdat, family, list_header, size_list)
+ function obs_getBodyIndex_private(private_list) result(index)
+  ! Return the next element from the current body list
   implicit none
-  type(struct_obs), intent(in)  :: obsdat
-  character(len=2), intent(in)  :: family
-  integer, dimension(:), intent(out) :: list_header
-  integer, intent(out) :: size_list
+  integer :: index
+  type(struct_index_list), pointer, intent(inout) :: private_list
 
-  integer :: header_index
-
-  size_list = 0
-
-  do header_index = 1,obsdat%numstns_recorded
-   if(obsdat%cfamily(header_index) == family) then
-    size_list = size_list + 1
-    list_header(size_list) = header_index
-   end if
-  end do
- end subroutine obs_getHeaderIndices
-
-
- subroutine obs_getBodyIndices_fromHeaderIndex(obsdat, header_index, list_body, &
-                                               size_list)
-  implicit none
-  type(struct_obs), intent(in)  :: obsdat
-  integer, intent(in) :: header_index
-  integer, dimension(:), intent(out) :: list_body
-  integer, intent(out) :: size_list
-
-  integer :: body_index, body_index_first, body_index_last
-
-  size_list = 0
-
-  body_index_first = obsdat%mobhdr(NCM_RLN, header_index)
-  body_index_last = body_index_first + obsdat%mobhdr(NCM_NLV, header_index) -1
-  do body_index = body_index_first, body_index_last
-   size_list = size_list + 1
-   list_body(size_list) = body_index
-  end do
- end subroutine obs_getBodyIndices_fromHeaderIndex
-
-
- subroutine obs_getBodyIndices_fromFamily(obsdat, family, list_body, &
-                                          size_list_body)
-  implicit none
-  type(struct_obs), intent(in)  :: obsdat
-  character(len=2), intent(in)  :: family
-  integer, dimension(:), intent(out) :: list_body
-  integer, intent(out) :: size_list_body
-
-  integer, dimension(obsdat%numstns_recorded) :: list_header
-  integer :: header_index, size_list_header
-  integer :: list_index, size_list_body_partial
-
-  size_list_body = 0
-
-  call obs_getHeaderIndices(obsdat, family, list_header, size_list_header)
-  do list_index = 1, size_list_header
-   header_index = list_header(list_index)
-   call obs_getBodyIndices(obsdat, header_index, &
-                           list_body(size_list_body+1 :), size_list_body_partial)
-   size_list_body = size_list_body + size_list_body_partial
-  end do
-
-  
- end subroutine obs_getBodyIndices_fromFamily
+  index = ild_get_next_index(private_list)
+ end function obs_getBodyIndex_private
 
 
  subroutine obs_getobstag(obsdat,nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp, &

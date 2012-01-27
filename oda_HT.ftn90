@@ -374,10 +374,8 @@ end subroutine oda_HTto
 
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
-      integer :: index_header, index_body, num_headers, head_counter
+      integer :: index_header, index_body
       type(struct_index_list), pointer :: local_current_list
-      integer, dimension(ubound(lobsSpaceData%header_index_list_depot%index_lists,1)) &
-               :: head_indices
 
       LOGICAL  ASSIM, LUSE
 
@@ -415,9 +413,7 @@ end subroutine oda_HTto
       nullify(local_current_list)
 
       HEADER: do
-!$omp critical
          index_header = obs_getHeaderIndex(lobsSpaceData)
-!$omp end critical
          if (index_header < 0) exit HEADER
 
          DPJO0 = 0._dp
@@ -434,13 +430,10 @@ end subroutine oda_HTto
            ! loop over all body indices (still in the 'RO' family)
                                         ! Obtain the body list
                                         ! (& start at the beginning of the list)
-!$omp critical
            call obs_set_current_body_list(lobsSpaceData, index_header, &
                                           current_list=local_current_list)
-!$omp end critical
            BODY: do 
-              index_body = obs_getBodyIndex(lobsSpaceData, &
-                                            private_list=local_current_list)
+              index_body = obs_getBodyIndex(local_current_list)
               if (index_body < 0) exit BODY
 
              LUSE=( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 )
@@ -489,13 +482,10 @@ end subroutine oda_HTto
              NH1 = 0
              ! loop over all body indices (still in the 'RO' family)
                                         ! Start at the beginning of the list
-!$omp critical
              call obs_set_current_body_list(lobsSpaceData, index_header, &
                                             current_list=local_current_list)
-!$omp end critical
              BODY_2: do 
-                index_body = obs_getBodyIndex(lobsSpaceData, &
-                                              private_list=local_current_list)
+                index_body = obs_getBodyIndex(local_current_list)
                 if (index_body < 0) exit BODY_2
 
                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 )
@@ -515,13 +505,10 @@ end subroutine oda_HTto
              NH1 = 0
              ! loop over all body indices (still in the 'RO' family)
                                         ! Start at the beginning of the list
-!$omp critical
              call obs_set_current_body_list(lobsSpaceData, index_header, &
                                             current_list=local_current_list)
-!$omp end critical
              BODY_3: do 
-                index_body = obs_getBodyIndex(lobsSpaceData, &
-                                              private_list=local_current_list)
+                index_body = obs_getBodyIndex(local_current_list)
                 if (index_body < 0) exit BODY_3
 
                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 )
