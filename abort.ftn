@@ -50,7 +50,7 @@ C     .  and close the IO/units
 C
  100  CONTINUE
 C
-      CALL SUTERMF(KULOUT)
+!      CALL SUTERMF(KULOUT)
       CALL qqexit(1)
 C
       STOP

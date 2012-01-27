@@ -25,7 +25,7 @@
 *Author  : P. Gauthier *ARMA/AES  February 8, 1996
 *Revision:
 *           JM Belanger CMDA/SMC  Jul 2000 
-*                   . 32 bits conversion (HPALLOC, MXMA8, DSYEV)
+*                   . 32 bits conversion (HPALLOC, DSYEV)
 *
 *Arguments
 *     .  PA(KN,KN)     :  on entry, the original matrix
@@ -116,8 +116,8 @@
       WRITE(NULOUT,'(1x,"MODIFIED EIGEN VALUES: ")') 
       WRITE(NULOUT,'(1x,10f7.3)') (PROJ(JI,JI),JI=1,KN) 
 *
-      CALL MXMA8( PEIGEN,1,KN, PROJ,1,KN,ZRESULT,1,KN,KN,KN,KN)
-      CALL MXMA8(ZRESULT,1,KN,PEIGEN,KN,1, PROJ,1,KN,KN,KN,KN)
+      CALL DGEMUL(PEIGEN,KN,'N',PROJ,KN,'N',ZRESULT,KN,KN,KN,KN)      
+      CALL DGEMUL(ZRESULT,KN,'N',PEIGEN,KN,'T',PROJ,KN,KN,KN,KN)
 C
       DO JI = 1, KN
          PROJ(JI,JI) = ZALPHA + PROJ(JI,JI)
@@ -150,8 +150,8 @@ C
          END IF
       END DO
 C
-      CALL MXMA8( PEIGEN,1,KN, PROJ,1,KN,ZRESULT,1,KN,KN,KN,KN)
-      CALL MXMA8(ZRESULT,1,KN,PEIGEN,KN,1, PROJ,1,KN,KN,KN,KN)
+      CALL DGEMUL(PEIGEN,KN,'N',PROJ,KN,'N',ZRESULT,KN,KN,KN,KN) 
+      CALL DGEMUL(ZRESULT,KN,'N',PEIGEN,KN,'T',PROJ,KN,KN,KN,KN)
 *
       WRITE(NULOUT,9100)ZVARTOTAL, ZVARRES, ZFRACT
  9100 FORMAT(/,1x,'Total variance :',G12.6,4x

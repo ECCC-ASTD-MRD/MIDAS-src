@@ -93,9 +93,9 @@ c
      &                                  lcolumnt%tt(jlev,jobs))
 c
             zpresb = vco_anl%db_M(jlev)
-            zpresbd = vco_anl%dpresbd_M(jlev)
+            zpresbd= vco_anl%db_dhyb_M(jlev)
             zpresa = vco_anl%da_M(jlev)
-            zpresad= vco_anl%dprf_M * (1.0-zpresbd)
+            zpresad= vco_anl%da_dhyb_M(jlev)
             rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
      &                          /(zpresa+zpresb*lcolumng%ps(1,jobs))
           enddo

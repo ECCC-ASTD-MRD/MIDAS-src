@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine sugomobs(lcolumng,lcolumnhr)
+      subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r sumgomobs
@@ -30,6 +30,7 @@
       use MathPhysConstants_mod
       use modfgat, only : nstamplist, nobsgid, nobs, notag, nstepobs
       use columnData_mod 
+      use obsSpaceData_mod
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
@@ -37,11 +38,13 @@
 #include "cvcord.cdk"
 c
       type(struct_columnData) :: lcolumng,lcolumnhr
+      type(struct_obs) :: lobsSpaceData
       integer vfstlir,vezuvint,vezsint,ezdefset,ezgprm
-      integer ezsetopt,jstep
+      integer ezsetopt,ezsetval,jstep
       integer jlev,jobs,ier,iset
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
       integer itrlnlev,istep
+      integer idata,idatend,jdata
       character*1 clgrtyp,cltypvar
       character*8 cletiket
       real*8, allocatable, dimension(:,:) :: zvar,zvar2,zmobs,zmobs2
@@ -110,6 +113,58 @@ c
       lcolumnhr%nlev_M = nlv_M
       call col_allocate(lcolumnhr,istep,lcolumng%nobtot)
       call col_zero(lcolumnhr)
+c
+c     Deactivate assimilate flag for obs outside of trial field grid
+c
+      ier = ezsetval('EXTRAP_VALUE', -999.0)
+      ier = ezsetopt('EXTRAP_DEGREE', 'VALUE')
+c
+      nultrl=0
+      jvar=1
+      do jstep = 1,nstepobs
+        if(nultrl(jstep) == 0) then
+          call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &         ,ITRLGID,cfstvar2d(jvar),nstamplist(jstep),jpnflev
+     &         ,ninmpg,nulout,ip1_pak_trl,ip1_vco_trl,ntrials
+     &         ,nultrl(jstep))
+        else
+          call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
+     &         ,CLETIKET,CLTYPVAR,ITRLGID,cfstvar2d(jvar)
+     &         ,nstamplist(jstep),jpnflev,nultrl(jstep),nulout
+     &         ,ip1_pak_trl,ip1_vco_trl)
+        endif
+        if(nobs(jstep) > 0) then
+          if(itrlnlev <= 0) then
+            call abort3d(nulout,'SUGOMOBS:Problem with background file')
+          endif
+c
+          ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
+c
+          if (.not. allocated(zvar)) allocate(zvar(ini,inj))
+c
+          ier=vfstlir(zvar,nultrl(jstep),ini,inj,ink,
+     &         nstamplist(jstep) ,cletiket,iip1s(1),iip2,iip3,
+     &         cltypvar,cfstvar2d(jvar))
+          if(ier.lt.0)then
+            call abort3d(nulout,'SUGOMOBS:Problem with background file')
+          end if
+c
+          iset = ezdefset(nobsgid(jstep),itrlgid)
+          ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
+     &         ,inj,1)
+          do jobs = 1, nobs(jstep)
+            if(zopart(jobs).eq.-999.0d0) then
+              idata = obs_elem_i(lobsSpaceData,'RLN ',notag(jobs,jstep))
+              idatend = obs_elem_i(lobsSpaceData,'NLV ',notag(jobs,jstep)) + idata -1
+              do jdata = idata, idatend
+                call obs_set_i(lobsSpaceData,'ASS ',jdata, 0)
+              enddo
+            endif
+          enddo
+        endif
+      enddo
+c
+      ier = ezsetopt('EXTRAP_DEGREE', 'MINIMUM')
 c
 c     reading 2D fields
 c

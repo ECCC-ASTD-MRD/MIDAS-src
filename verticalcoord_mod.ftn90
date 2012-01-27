@@ -15,7 +15,8 @@ module verticalCoord_mod
      integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
      real*8 ,pointer,dimension(:) :: da_T,db_T     ! A, B values for Thermo levels
      real*8 ,pointer,dimension(:) :: da_M,db_M     ! A, B values for Momentum levels
-     real*8 ,pointer,dimension(:) :: dpresbd_M,dpresbd_T  ! factor needed for TLM/AD of tt2phi
+     real*8 ,pointer,dimension(:) :: db_dhyb_M,db_dhyb_T  ! factor needed for TLM/AD of tt2phi
+     real*8 ,pointer,dimension(:) :: da_dhyb_M,da_dhyb_T  ! factor needed for TLM/AD of tt2phi
      real*8 ,pointer,dimension(:) :: dhyb_T,dhyb_M !decoded IP1 levels (Thermo/Momentum)
   end type vco
 
@@ -39,7 +40,9 @@ module verticalCoord_mod
     stat = stat + nl_stat
     allocate (tf_vco%db_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%dpresbd_M(ilnk),stat=nl_stat)
+    allocate (tf_vco%da_dhyb_M(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%db_dhyb_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
     allocate (tf_vco%dhyb_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
@@ -51,7 +54,9 @@ module verticalCoord_mod
     stat = stat + nl_stat
     allocate (tf_vco%db_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%dpresbd_T(ilnk),stat=nl_stat)
+    allocate (tf_vco%da_dhyb_T(ilnk),stat=nl_stat)
+    stat = stat + nl_stat
+    allocate (tf_vco%db_dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
     allocate (tf_vco%dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
@@ -131,6 +136,25 @@ module verticalCoord_mod
       print*,'suvco: vcode,kind,cvcod ',ivcode,tf_vco%ikind,tf_vco%svcod
 
       !==========================================================================
+      ! Set the number of vertical levels and allocate tf_vco arrays
+
+      stat = 0
+      stat = vgd_get(tf_vgrid,key='vipm - vertical levels (m)',value=my_ip1)
+      stat = stat + VGD_OK
+      print*,'suvco: vgd_get vipm vgd_ok= ',VGD_OK
+      tf_vco%nlev_M = size(my_ip1)
+      select case (ivcode)
+      case (5001)
+         tf_vco%nlev_T = tf_vco%nlev_M
+      case (5002)
+         stat = vgd_get(tf_vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
+         stat = stat + VGD_OK
+         print*,'suvco: vgd_get vipt vgd_ok= ',VGD_OK
+         tf_vco%nlev_T = size(my_ip1)
+      end select
+      call vco_allocate(tf_vco)
+
+      !==========================================================================
       ! Process momentum levels (ip1, A, B)
       ! (unstaggered  vertical coord are stored in momentum levels in "!!" records)
 
@@ -145,11 +169,11 @@ module verticalCoord_mod
       !
       stat = vgd_get(tf_vgrid,key='vipm - vertical levels (m)',value=my_ip1)
       stat = stat + VGD_OK
-      print*,'suvco: vgd_get vipm vgd_ok= ',VGD_OK
+      print*,'suvco: vgd_get ip1m vgd_ok= ',VGD_OK
       !
       stat = vgd_get(tf_vgrid,key='ptop - pressure at top level (m)',value=dl_ptM)
       stat = stat + VGD_OK
-      print*,'suvco: vgd_get vipm vgd_ok= ',VGD_OK
+      print*,'suvco: vgd_get ptm vgd_ok= ',VGD_OK
       !
       stat = vgd_get(tf_vgrid,key='pref - reference pressure (m)',value=dl_pref)
       stat = stat + VGD_OK
@@ -188,19 +212,6 @@ module verticalCoord_mod
       endif
 
       !==========================================================================
-      ! Set the number of vertical levels and allocate tf_vco arrays
-
-      tf_vco%nlev_M = size(my_ip1)
-      select case (ivcode)
-      case (5001)
-         tf_vco%nlev_T = tf_vco%nlev_M
-      case (5002)
-         stat = vgd_get(tf_vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
-         tf_vco%nlev_T = size(my_ip1)
-      end select
-      call vco_allocate(tf_vco)
-
-      !==========================================================================
       ! Assign values for Momentum levels
 
       print*,'suvco: size(hyb)= ',size(tf_vco%dhyb_M)
@@ -226,7 +237,8 @@ module verticalCoord_mod
            zterm = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M) &
                     /(1.0d0-tf_vco%dpt_M/tf_vco%dprf_M))**(tf_vco%drcf1-1.0d0)
          endif
-         tf_vco%dpresbd_M(jlev)= vco_anl%drcf1 * zterm
+         tf_vco%db_dhyb_M(jlev)= tf_vco%drcf1 * zterm
+         tf_vco%da_dhyb_M(jlev)= tf_vco%dprf_M*(1.0d0 - tf_vco%db_dhyb_M(jlev))
 
       enddo
 
@@ -275,12 +287,23 @@ module verticalCoord_mod
 
          do jlev = 1,tf_vco%nlev_T
             tf_vco%ip1_T(jlev)  = my_ip1(jlev)
-            tf_vco%da_T(jlev)   = my_a(jlev)
-            tf_vco%db_T(jlev)   = my_b(jlev)
             call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
             tf_vco%dhyb_T(jlev) = hyb
             print*,'suvco: jlev,nk,ip1,hyb(thermo)= ' &
                   ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
+
+            tf_vco%da_T(jlev)   = my_a(jlev)
+            tf_vco%db_T(jlev)   = my_b(jlev)
+
+            if((tf_vco%drcf1-1.0) .lt. RPRECIS) then
+              zterm = 1.0d0
+            else
+              zterm = ((tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T) &
+                       /(1.0d0-tf_vco%dpt_T/tf_vco%dprf_T))**(tf_vco%drcf1-1.0d0)
+            endif
+            tf_vco%db_dhyb_T(jlev)= tf_vco%drcf1 * zterm
+            tf_vco%da_dhyb_T(jlev)= tf_vco%dprf_T*(1.0d0 - tf_vco%db_dhyb_T(jlev))
+
          enddo
       end select
       print*,'suvco dbug: tf_vco%nlev_T = ',tf_vco%nlev_T

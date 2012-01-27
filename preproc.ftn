@@ -181,7 +181,7 @@
 !     Reading, horizontal interpolation and unit conversions of the 3D trial fields
 !
       call tmg_start(16,'SUGOMOBS')
-      call sugomobs(lcolumng,lcolumnhr)
+      call sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
       call tmg_stop(16)
 !
 !     Compute observation innovations and prepare obsSpaceData for minimization

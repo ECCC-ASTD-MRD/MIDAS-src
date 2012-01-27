@@ -22,7 +22,6 @@
 ! Dependencies:
 !    globalSpectralTransform
 !    matsqrt
-!    mxmaop
 !--------------------------------------------------------------------------
 MODULE BmatrixEnsemble
   use mpi
@@ -961,7 +960,7 @@ CONTAINS
     call tmg_start(42,'loc2')
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLA,JLEV)
-    do jla=0,nla_l
+    do jla=1,nla_l
       do jlev=1,nLevEns
         zsp2(jlev,1,jla)=zsp(jla,1,jlev)
         zsp2(jlev,2,jla)=zsp(jla,2,jlev)
@@ -969,8 +968,9 @@ CONTAINS
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
-    call mxmaop(ensLocalVert(1,1),1,nLevEns,zsp2(1,1,1),1,nLevEns   &
-               ,zsp3(1,1,1),1,nLevEns,nLevEns,nLevEns,2*nla_l)
+
+    call dgemul(ensLocalVert(1,1),nLevEns,'N',zsp2(1,1,1),nLevEns,'N',zsp3(1,1,1),nLevEns,nLevEns,nLevEns,2*nla_l)
+
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLA,JLEV)
     do jla=1,nla_l
@@ -1023,11 +1023,12 @@ CONTAINS
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
-    call mxmaop(ensLocalVert(1,1),1,nLevEns,zsp2(1,1,1),1,nLevEns   &
-               ,zsp3(1,1,1),1,nLevEns,nLevEns,nLevEns,2*nla_l)
+
+    call dgemul(ensLocalVert(1,1),nLevEns,'N',zsp2(1,1,1),nLevEns,'N',zsp3(1,1,1),nLevEns,nLevEns,nLevEns,2*nla_l)
+
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLA,JLEV)
-    do jla=0,nla_l
+    do jla=1,nla_l
       do jlev=1,nLevEns
         zsp(jla,1,jlev)=zsp3(jlev,1,jla)
         zsp(jla,2,jlev)=zsp3(jlev,2,jla)

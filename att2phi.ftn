@@ -86,7 +86,7 @@ c
 c
 c        zcon = d(rtapfac)/d(ps)
 c
-          zcon   = (vco_anl%dpresbd_M(jlev)-vco_anl%db_M(jlev)*rtapfac(jlev,jobs))/lcolumng%rppobs(jlev,jobs)
+          zcon   = (vco_anl%db_dhyb_M(jlev)-vco_anl%db_M(jlev)*rtapfac(jlev,jobs))/lcolumng%rppobs(jlev,jobs)
           lcolumn%ps(1,jobs)=lcolumn%ps(1,jobs)+
      &          lcolumng%tt(jlev,jobs)*zcon * lcolumnt%tt(jlev,jobs)
 
