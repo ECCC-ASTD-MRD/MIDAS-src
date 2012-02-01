@@ -34,7 +34,7 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
   INTEGER jdata
 !
 !!
-    DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+    DO JDATA=1,obs_numbody(lobsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
           call obs_set_r8( lobsSpaceData, elem_dest_s, JDATA, &
                            obs_elem_r8(lobsSpaceData,elem_src_s,JDATA) &

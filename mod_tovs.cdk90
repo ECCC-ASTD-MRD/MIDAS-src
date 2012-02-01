@@ -43,7 +43,7 @@ Module mod_tovs
   Integer, Allocatable :: list_sensors(:,:)     ! list of platform, satellite and instrument
   Integer, allocatable :: rttov_errorstatus(:)  ! rttov error status for each profile
 
-  Integer JPMOTOP, JPMOLEV
+  Integer JPMOTOP, JPMOLEV, nobtov
 
 End Module mod_tovs
 

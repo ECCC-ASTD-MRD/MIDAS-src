@@ -57,8 +57,6 @@ C
       use columnData_mod
       IMPLICIT NONE
 *implicits
-#include "comdimo.cdk"
-
 #include "pardim.cdk"
 #include "comgpsgb.cdk"
 

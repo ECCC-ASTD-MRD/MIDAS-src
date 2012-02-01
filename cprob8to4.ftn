@@ -40,7 +40,7 @@ c
       INTEGER JDATA
 *-----------------------------------------------------------------
 
-      do JDATA=1,obs_num_obstotal(lobsSpaceData)
+      do JDATA=1,obs_numbody(lobsSpaceData)
         call obs_set_r4(lobsSpaceData,'OMA ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMA ',JDATA)))
         call obs_set_r4(lobsSpaceData,'OMI ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMI ',JDATA)))
         call obs_set_r4(lobsSpaceData,'OMN ',JDATA, real(obs_elem_r8(lobsSpaceData,'OMN ',JDATA)))

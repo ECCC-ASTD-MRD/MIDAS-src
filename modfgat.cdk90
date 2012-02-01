@@ -8,8 +8,4 @@ module modfgat
   integer, pointer, dimension(:) :: nobsgid    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
   integer, pointer, dimension(:) :: nobs       ! (nstepobs) number of observation in stepobs bin
   integer, pointer, dimension(:,:) :: notag    ! (nobtot,nstepobs) obs tag associated to observations of each bin
-  integer, pointer, dimension(:) :: nstamplistinc ! (nstepobs) list of stamps corresponding at stepobs bin
-  integer, pointer, dimension(:) :: nobsgidinc    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
-  integer, pointer, dimension(:) :: nobsinc       ! (nstepobs) number of observation in stepobs bin
-  integer, pointer, dimension(:,:) :: notaginc    ! (nobtot,nstepobs) obs tag associated to observations of each bin
 end module modfgat

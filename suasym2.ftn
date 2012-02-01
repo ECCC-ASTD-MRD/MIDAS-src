@@ -38,10 +38,6 @@
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
-*implicits
-*
-#include "comdimo.cdk"
-*
       type(struct_obs) :: lobsSpaceData
 *
       INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,ITY,IDBURP
@@ -87,7 +83,7 @@
       ZDZD = 4.
 *
 *
-      DO JJO = 1, NOBTOT
+      DO JJO = 1, obs_numheader(lobsSpaceData)
          IDATA     = obs_elem_i(lobsSpaceData,'RLN ',JJO)
          IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
          IDATYP    = obs_elem_i(lobsSpaceData,'OTP ',JJO)

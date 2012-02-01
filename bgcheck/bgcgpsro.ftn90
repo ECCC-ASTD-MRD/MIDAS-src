@@ -19,7 +19,6 @@
       use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comct0.cdk"
 #include "cvcord.cdk"

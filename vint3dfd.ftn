@@ -39,7 +39,6 @@
       use bufr
       IMPLICIT NONE
 *implicits
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 *
       type(struct_obs) :: lobsSpaceData

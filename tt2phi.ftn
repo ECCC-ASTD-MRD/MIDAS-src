@@ -50,7 +50,7 @@ c
       alpha=-1.0D0
 **
 c
-      do jobs = 1, lcolumnghr%nobtot
+      do jobs = 1, lcolumnghr%numObsHeader
         call matapatnew(lcolumnghr%rppobs(:,jobs),alpha,lcolumnghr%nlev)
         call vtap1dnew(jobs)
       enddo

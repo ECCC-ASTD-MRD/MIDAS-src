@@ -38,7 +38,6 @@
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comstato.cdk"
 #include "comct0.cdk"

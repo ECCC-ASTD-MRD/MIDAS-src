@@ -34,7 +34,6 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
    implicit none
 !implicits
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -50,7 +49,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
    external isrcheq
    external abort3d
 
-   if(nobtov.eq.0) return    ! exit if there are no tovs data
+   if(NOBTOV.eq.0) return    ! exit if there are no tovs data
 
    ! loop over all header indices of the 'TO' family
                                         ! Set the header list

@@ -81,7 +81,6 @@
 *
 #include "comlun.cdk"
 #include "cvcord.cdk"
-#include "comdimo.cdk"
 #include "comstato.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -161,7 +160,7 @@ C
       ZCONGZ=10.D0*RG
       ZTORAD=1.D0/(RPI/180.D0)
       LLBAD = .FALSE.
-      DO JJO = 1, NOBTOT
+      DO JJO = 1, obs_numheader(lobsSpaceData)
          IDATA     = obs_elem_i(lobsSpaceData,'RLN ',JJO)
          IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
          IDATYP    = obs_elem_i(lobsSpaceData,'OTP ',JJO)

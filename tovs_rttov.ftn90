@@ -59,7 +59,6 @@ end subroutine tovs_rttov_AVHRR_for_IASI
 end interface
 !implicits
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -119,7 +118,7 @@ end interface
   external map_sat, map_instrum, abort3d
   
          
-  if(nobtov.eq.0) return                  ! exit if there are not tovs data
+  if(NOBTOV.eq.0) return                  ! exit if there are not tovs data
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
@@ -170,7 +169,7 @@ end interface
 !  loop over all obs.
 
    knpf = 0
-   do 290 iobs = 1, nobtov
+   do 290 iobs = 1, NOBTOV
       jo = lobsno(iobs)
 
 !    Currently processed sensor?
@@ -180,7 +179,7 @@ end interface
          iptobs(knpf) = iobs
       endif
       if ( knpf .le. 0                                        ) go to 290
-      if ( knpf .ne. jppf*max_nthreads .and. iobs .ne. nobtov ) go to 290
+      if ( knpf .ne. jppf*max_nthreads .and. iobs .ne. NOBTOV ) go to 290
 
 !     .  2.1  Separate profiles according to the number of threads and 
 !     .       calculate the actual number of threads which will be used.

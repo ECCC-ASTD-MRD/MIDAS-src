@@ -13,7 +13,6 @@
       use obsSpaceData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
 !*

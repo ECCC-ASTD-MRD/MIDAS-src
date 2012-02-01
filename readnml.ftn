@@ -72,9 +72,6 @@ C
 #include "comct0.cdk"
 #include "namct0.cdk"
 C
-#include "comdimo.cdk"
-#include "namdimo.cdk"
-C
 #include "comfilt.cdk"
 #include "namfilt.cdk"
 C
@@ -138,11 +135,6 @@ C
 C
          READ(NULNAM,NAMCT0)
          WRITE(NULOUT,NAMCT0)
-C
-      ELSE IF(CDNAME.EQ.'NAMDIMO')THEN
-C
-         READ(NULNAM,NAMDIMO)
-         WRITE(NULOUT,NAMDIMO)
 C
       ELSE IF(CDNAME.EQ.'NAMFILT')THEN
 C

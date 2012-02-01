@@ -43,7 +43,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   implicit none
 !implicits
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -87,7 +86,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   external intavg, extrap
   external exthum4
          
-  if(nobtov.eq.0) return    ! exit if there are not tovs data
+  if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
 
 !     1.    Set index for model's lowest level and model top
@@ -155,7 +154,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 ! loop over all obs.
 
   knpf = 0
-  do 290 iobs = 1, nobtov
+  do 290 iobs = 1, NOBTOV
      jo = lobsno(iobs)
 
      knpf = knpf + 1
@@ -177,7 +176,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
      iptobs   (knpf) = iobs
      iptobscma(knpf) = jo
      if ( knpf .le. 0                                    ) go to 290
-     if ( knpf .ne. jppf*nthreads .and. iobs .ne. nobtov ) go to 290
+     if ( knpf .ne. jppf*nthreads .and. iobs .ne. NOBTOV ) go to 290
  
 !     .  2.1  Vertical interpolation of model temperature and logarithm of
 !             specific humidity to pressure levels required by tovs rt model

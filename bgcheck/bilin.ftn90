@@ -19,7 +19,6 @@
       use gridStateVector_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdimo.cdk"
       type(struct_columnData) :: lcolumn
       type(struct_gsv) :: statevector
       type(struct_obs) :: lobsSpaceData
@@ -30,7 +29,7 @@
       real*8, allocatable ::zgd(:,:,:)
 
       allocate(zgd(0:(statevector%ni+2),1:statevector%nk,(-1):(statevector%nj+2)),STAT=ierr)
-      write(*,*) 'allocated zgd:',ierr,statevector%ni,statevector%nj,statevector%nk,statevector%nlev,nobtot
+      write(*,*) 'allocated zgd:',ierr,statevector%ni,statevector%nj,statevector%nk,statevector%nlev,lcolumn%numObsHeader
       call flush(6)
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
@@ -111,7 +110,7 @@
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-      DO JOBS = 1, NOBTOT
+      DO JOBS = 1, lcolumn%numObsHeader
          DLLAO   = obs_elem_r4(lobsSpaceData,'LAT ',JOBS)
          DLLOO   = obs_elem_r4(lobsSpaceData,'LON ',JOBS)
 !C

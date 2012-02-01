@@ -46,17 +46,17 @@
 
 
   contains
-    subroutine ild_initialize(depot, mxstn)
+    subroutine ild_initialize(depot, numheader_max)
       ! Initialize the indicated list depot
       implicit none
       type(struct_index_list_depot), intent(inout) :: depot
-      integer , intent(in) :: mxstn     ! max size of struct_obs & hence of depot
+      integer , intent(in) :: numheader_max   ! max size of struct_obs & hence of depot
 
       integer :: list                   ! an index
 
       ! Allocate each list
       do list = 1,NUMBER_OF_LISTS
-        allocate(depot%index_lists(list)%indices(mxstn))
+        allocate(depot%index_lists(list)%indices(numheader_max))
         depot%list_last_attributed = 0
       end do
     end subroutine ild_initialize
@@ -173,7 +173,6 @@ MODULE obsSpaceData_mod
 
   ! main observation space data instance
   public           :: OBS_JPNBRELEM
-  public           :: locObsTag
 
   ! header column numbers
   public           :: NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
@@ -192,9 +191,10 @@ MODULE obsSpaceData_mod
   ! methods
   public           :: obs_initialize,obs_finalize
   public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_elem_c9
-  public           ::  obs_set_i, obs_set_r4, obs_set_r8, obs_set_c9
-  public           :: obs_num_obstotal,obs_num_stn,obs_swapVarOmf,obs_ifind
-  public           :: obs_getFamily,obs_setFamily,obs_bdy,obs_getobstag
+  public           :: obs_set_i, obs_set_r4, obs_set_r8, obs_set_c9
+  public           :: obs_numbody,obs_numheader,obs_numbody_max,obs_numheader_max,obs_numheader_mpiglobal
+  public           :: obs_swapVarOmf,obs_ifind
+  public           :: obs_getFamily,obs_setFamily,obs_bdy
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
   public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
   public           :: obs_setTimeInterpWeight,obs_getTimeInterpWeight
@@ -226,23 +226,21 @@ MODULE obsSpaceData_mod
    real(kind=4),      pointer, dimension(:,:) :: robdata
    real(kind=8),      pointer, dimension(:,:) :: robdata8
    integer,           pointer, dimension(:,:) :: mobdata
-   integer :: numstns_recorded          ! Actual number of stations on record
-   integer :: mxstntotal                ! maximum number of stations
-   integer :: numobs_recorded           ! Actual total number of data on record
-   integer :: mxobstotal                ! maximum number observations (i.e. data)
+   integer :: numheader          ! Actual number of stations on record
+   integer :: numheader_max              ! maximum number of stations
+   integer :: numbody           ! Actual total number of data on record
+   integer :: numbody_max                ! maximum number observations (i.e. data)
+   integer :: numheader_mpiglobal  ! Actual number of stations on record
 
-                                        ! Size of the mpi-Local obs data
-   integer                                    :: numobs_recorded_l
                                         ! Headers of the mpi-Global obs data
    integer,           pointer, dimension(:,:) :: mobhdr_g
    real(kind=4),      pointer, dimension(:,:) :: robhdr_g
    real*8, pointer :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
    real*8, pointer :: timeInterpWeight_mpiglobal(:,:)  ! weights for linear temporal interpolation of increment to obs times
+   integer, pointer, dimension(:) :: locObsTag
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
   end type struct_obs
-
-  integer, pointer, dimension(:) :: locObsTag
 
   ! header column numbers
   integer,parameter :: NCM_LET = 22 ! Dimension for var3d
@@ -315,27 +313,41 @@ MODULE obsSpaceData_mod
   contains
 
 
-  subroutine obs_initialize(obsdat,mxstn,mxobs)
+  subroutine obs_initialize(obsdat)
     implicit none
 
     type(struct_obs), intent(out) :: obsdat
-    integer, intent(in) :: mxstn        ! maximum number of stations allocated
-    integer, intent(in) :: mxobs        ! maximum no. of observations per source
+    integer :: nulnam,fnom,fclos,ierr
+    integer :: nmxobs,ndatamx
+    namelist /namdimo/nmxobs,ndatamx
 
-    obsdat%mxstntotal=mxstn
-    obsdat%mxobstotal=mxobs
-    obsdat%numstns_recorded = 0
-    obsdat%numobs_recorded  = 0
+    nmxobs=30000
+    ndatamx=200000
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namdimo,iostat=ierr)
+    write(*,*) 'col_setup: reading namelist, ierr=',ierr
+    write(*,nml=namdimo)
+    ierr=fclos(nulnam)
+
+    write(*,*) ' DIMENSIONS OF OBSERVATION ARRAYS:'
+    write(*,*) ' NMXOBS = ',NMXOBS,'  NDATAMX = ',NDATAMX
+
+    obsdat%numheader_max=nmxobs
+    obsdat%numbody_max=ndatamx
+    obsdat%numheader = 0
+    obsdat%numbody  = 0
+    obsdat%numheader_mpiglobal = 0
     obsdat%mpi_local = .false.
 
-    obsdat%numobs_recorded_l = 0
     nullify(obsdat%mobhdr_g)
     nullify(obsdat%robhdr_g)
     nullify(obsdat%timeInterpWeight_mpiglobal)
 
-    call obs_allocate(obsdat,mxstn,mxobs)
-    call ild_initialize(obsdat%header_index_list_depot, obsdat%mxstntotal)
-    call ild_initialize(obsdat%body_index_list_depot,   obsdat%mxobstotal)
+    call obs_allocate(obsdat,obsdat%numheader_max,obsdat%numbody_max)
+    call ild_initialize(obsdat%header_index_list_depot, obsdat%numheader_max)
+    call ild_initialize(obsdat%body_index_list_depot,   obsdat%numbody_max)
     return
   end subroutine obs_initialize
 
@@ -349,36 +361,36 @@ MODULE obsSpaceData_mod
   end subroutine obs_finalize
 
 
-  subroutine obs_allocate(obsdat,mxstn,mxobs)
+  subroutine obs_allocate(obsdat,numheader_max,numbody_max)
     implicit none
 
     type(struct_obs), intent(inout) :: obsdat
-    integer         , intent(in)  :: mxstn,mxobs
+    integer         , intent(in)  :: numheader_max,numbody_max
 
     integer :: ierr
 
-    ALLOCATE(obsdat%cfamily(mxstn),STAT=ierr)
+    ALLOCATE(obsdat%cfamily(numheader_max),STAT=ierr)
     obsdat%cfamily(:)='XX'
 
-    ALLOCATE(obsdat%cstnid(mxstn),STAT=ierr)
+    ALLOCATE(obsdat%cstnid(numheader_max),STAT=ierr)
     obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
-    ALLOCATE(obsdat%ROBHDR(NCM_LET,mxstn),STAT=ierr)
+    ALLOCATE(obsdat%ROBHDR(NCM_LET,numheader_max),STAT=ierr)
     obsdat%ROBHDR=0.0
 
-    ALLOCATE(obsdat%MOBHDR(NCM_LET,mxstn),STAT=ierr)
+    ALLOCATE(obsdat%MOBHDR(NCM_LET,numheader_max),STAT=ierr)
     obsdat%MOBHDR=0
 
-    ALLOCATE(obsdat%ROBDATA(NCM_LBO,mxobs),STAT=ierr)
+    ALLOCATE(obsdat%ROBDATA(NCM_LBO,numbody_max),STAT=ierr)
     obsdat%ROBDATA=0.0
 
-    ALLOCATE(obsdat%ROBDATA8(ROBDATA8_LOWER:ROBDATA8_UPPER,mxobs),STAT=ierr)
+    ALLOCATE(obsdat%ROBDATA8(ROBDATA8_LOWER:ROBDATA8_UPPER,numbody_max),STAT=ierr)
     obsdat%ROBDATA8=0.0D0
 
-    ALLOCATE(obsdat%MOBDATA(NCM_LBO,mxobs),STAT=ierr)
+    ALLOCATE(obsdat%MOBDATA(NCM_LBO,numbody_max),STAT=ierr)
     obsdat%MOBDATA=0
 
-    ALLOCATE(obsdat%timeInterpWeight(mxobs,mxstepobs),STAT=ierr)
+    ALLOCATE(obsdat%timeInterpWeight(numbody_max,mxstepobs),STAT=ierr)
     obsdat%timeInterpWeight=0.0d0
 
   end subroutine obs_allocate
@@ -786,7 +798,7 @@ MODULE obsSpaceData_mod
     ZEMFACT=0.01
     ZESMAX=30.
 !
-    IP=obsdat%numobs_recorded + 1
+    IP=obsdat%numbody + 1
     IND=0
 !
 !***********************************************************************
@@ -804,7 +816,7 @@ MODULE obsSpaceData_mod
                     nonelev .eq. nint(pvcord(ilevel)*zfact))) then
                       IF  ( PVALUES (ielement,ilevel,IK) .NE. PPMIS ) THEN
                          pvalue=PVALUES(ielement,ilevel,IK)
-                         IF ( IP + IND .LE. obsdat%mxobstotal ) THEN
+                         IF ( IP + IND .LE. obsdat%numbody_max ) THEN
 !                                       VERTICAL COORDINATE
                             obsdat%robdata8(NCM_PPP,IP+IND)=PVCORD(ilevel)*ZFACT +vcordsf(ilem,kidtyp)
 !
@@ -893,7 +905,7 @@ MODULE obsSpaceData_mod
                          ELSE
 !==================================================
                             KNDAT = IND
-                            obsdat%numobs_recorded = obsdat%numobs_recorded + KNDAT
+                            obsdat%numbody = obsdat%numbody + KNDAT
 !==================================================
                             RETURN
                          ENDIF
@@ -904,7 +916,7 @@ MODULE obsSpaceData_mod
        END DO
 !=============================
     KNDAT = IND
-    obsdat%numobs_recorded = obsdat%numobs_recorded + KNDAT
+    obsdat%numbody = obsdat%numbody + KNDAT
 !=============================
 !
     RETURN
@@ -1139,7 +1151,7 @@ MODULE obsSpaceData_mod
 
       ! Populate the list
       list_index = 0
-      do item_index = 1, obsdat%numstns_recorded
+      do item_index = 1, obsdat%numheader
                                         ! If the station is of the right family
        if(obsdat%cfamily(item_index) == family) then
                                         ! Add the item_index to the list
@@ -1264,9 +1276,7 @@ MODULE obsSpaceData_mod
  end function obs_getBodyIndex_private
 
 
- subroutine obs_getobstag(obsdat,nulout,nobtot,nfiles,cexc4dv,cfamtyp,nbegintyp, &
-                      nendtyp,l4dvar)
-#if defined (DOC)
+ subroutine obs_getobstag(obsdat)
 !
 !**s/r read local observation tag from GEM TLM-ADJ .
 !
@@ -1276,168 +1286,40 @@ MODULE obsSpaceData_mod
 !  
 !Arguments: none
 !
-#endif
   use mpi
-  IMPLICIT NONE
-
+  implicit none
   type(struct_obs), intent(inout) :: obsdat
-  integer, intent(in) :: nulout         ! standard output unit
-  integer, intent(in) :: nobtot         ! Actual number of observations
-  integer, intent(in) :: nfiles
-  character(len=128), intent(in) :: cexc4dv
-  character(len=  2), intent(in) :: cfamtyp(:)
-  integer, intent(in) :: nbegintyp(:), nendtyp(:)
-  logical, intent(in) :: l4dvar         ! Logical control of 3Dvar/4Dvar
 
-#include <prof_f.h>
+  integer, allocatable :: locObsTag_tmp(:)
+  integer ::  iobs_mpiglobal,ierr
+  integer :: numheader_mpilocal 
 
-!     Local Variables
-  integer :: prof_wrrec,prof_rdrec
-  integer :: ihdl,istat  
-  character(len=2) :: cljx,cljy 
-  character(len=512) :: clprof 
+  write(*,*) '-------- Start obs_getobstag ---------'
+  numheader_mpilocal=0
+  if(mpi_nprocs == 0) mpi_nprocs=1
+  write(*,*) 'numheader= ',obsdat%numheader 
+  allocate(locObsTag_tmp(obsdat%numheader),stat=ierr)
 
-  integer ,allocatable,dimension(:) :: locObsTag_tmp  
+  do iobs_mpiglobal=(mpi_myid+1),obsdat%numheader,mpi_nprocs
+    numheader_mpilocal=numheader_mpilocal+1
+    locObsTag_tmp(numheader_mpilocal)=iobs_mpiglobal
+  enddo
+  if(numheader_mpilocal<=0) call obs_abort('Zero length of ObsTag,Abort!') 
 
-  logical :: isExist_L
-  integer ::  i,j, jj,k,ierr,interv,istart,iend   
-  integer :: ibegin,ilast,ibeginob,ilastob
-  integer :: length_l, iobs,idata 
-  integer :: count,nsum
-  real(8) :: a  
-!-------------------------------------------------------------
-  write(nulout,*) '-------- Start obs_getobstag ---------'
-  IF(l4dvar) THEN
-     write(cljx,'(i2.2)') mpi_myidx
-     write(cljy,'(i2.2)') mpi_myidy
+  allocate(obsdat%locObsTag(numheader_mpilocal),stat=ierr)
 
-     clprof = trim(CEXC4DV) // '/obstag_'//cljx//'_'//cljy//'.prof'
-     WRITE(*,*) 'Open File: ',clprof 
-     count=0
-     waiting: DO 
-        INQUIRE(FILE=clprof,EXIST=isExist_L)
-        if(isExist_L .and. (count>50000) ) EXIT 
-        count=count+1
-     ENDDO waiting
+  obsdat%locObsTag(1:numheader_mpilocal)=locObsTag_tmp(1:numheader_mpilocal)
 
-     ihdl= prof_open(clprof,'READ','FILE')
-     If(ihdl < 0) call obs_abort('obs_getobstag')
-     istat= prof_rdrec(ihdl) 
-     istat= prof_gvar(ihdl,locObsTag,V2D_OTAG) 
-       
-     istat= prof_close(ihdl,.true.) 
-     length_l=size(locObsTag) 
-!-------------------------------------------------------------
-  ELSE ! not l4dvar
-    jj=0
-    IF(mpi_nprocs == 0) mpi_nprocs=1
-    WRITE(nulout,*) 'nobtot= ',nobtot 
-    ALLOCATE(locObsTag_tmp(nobtot),STAT=ierr)
-    DO J=1,NFILES
-       ibegin= NBEGINTYP(j)
-       ilast = NENDTYP(j) 
+  deallocate(locObsTag_tmp) 
 
-       IF(ibegin == -999 .and. ilast==-999) THEN
-         ibeginob=0
-         ilastob=-1
-         istart=0
-         iend=0 
-       ELSE
-         ibeginob= obsdat%mobdata(NCM_OBS, ibegin) 
-         ilastob = obsdat%mobdata(NCM_OBS, ilast)  
-         Write(*,*) 'J ibeginob ilastob= ',j,ibeginob,ilastob 
-          
-         nsum=ilastob-ibeginob+1
-         interv=INT(nsum/mpi_nprocs)  
-         IF(interv > 0) THEN
-           istart=interv*mpi_myid+ibeginob
-           iend=interv*(mpi_myid+1)+ibeginob -1 
-           if(mpi_myid == mpi_nprocs-1) iend=ilastob
-         ELSE 
-           IF(mpi_myid<nsum)THEN
-            istart=ibeginob+mpi_myid
-            iend=istart 
-           ELSE
-            istart=0
-            iend=0
-           ENDIF 
-         ENDIF  
- 
-       ENDIF !! ibegin=-999  
-
-       write(*,*)'istart iend= ',istart,iend  
-       IF (NBEGINTYP(J) .GT. 0)THEN
-          SELECT CASE(CFAMTYP(J)) 
-             CASE('UA') 
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('AI')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('SW')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('SF')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('TO') 
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('GO')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('RO')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('PR')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('SC')
-                CALL calObsTag(ibeginob,ilastob,jj)
-             CASE('GP')
-                CALL calObsTag(ibeginob,ilastob,jj)
-           END SELECT
-       ELSE
-         WRITE(nulout,*) 'Zero for Type ',CFAMTYP(J)  
-       ENDIF
-
-    ENDDO  ! J=1,NFILES   
-    length_l=jj
-    ALLOCATE(locObsTag(length_l),STAT=ierr)
-
-    locObsTag(1:length_l)=locObsTag_tmp(1:length_l)
-
-    DEALLOCATE(locObsTag_tmp) 
-
-  ENDIF !! end if(l4dvar)  
-
-   !! Calculate the size of the local obs data  
-  obsdat%numobs_recorded_l=0
-  IF(length_l<=0) call obs_abort('Zero length of ObsTag,Abort!') 
-  DO i=1,length_l
-   iobs=locObsTag(i)
-   idata=obsdat%mobhdr(NCM_NLV, iobs)
-   obsdat%numobs_recorded_l = obsdat%numobs_recorded_l + idata
-  ENDDO 
-
-  write(nulout,*) ' '
-  write(nulout,*) '-------- END OF obs_getobstag ---------'
-  write(nulout,*) ' '
-
-  CONTAINS 
-    subroutine calObsTag(startindx,endindx,jsize)
-     implicit none
-     integer,intent(in) :: startindx,endindx
-     integer,intent(inout) :: jsize
-     !Local variables
-     integer :: k 
-     DO k=startindx,endindx
-       IF(k>=ISTART .and.k<= IEND) THEN
-          jsize=jsize+1
-          locObsTag_tmp(jsize)=k
-       ENDIF
-       
-     ENDDO 
-    end subroutine calObsTag 
+  write(*,*) '-------- END OF obs_getobstag ---------'
+  write(*,*) ' '
 
  end subroutine obs_getobstag  
 
 
-
- integer function obs_num_obstotal(obsdat)
-!func obs_num_obstotal - returns the number of observations recorded
+ integer function obs_numbody(obsdat)
+!func obs_numbody - returns the number of observations recorded
 !
 !Author    . J.W. Blezius
 !
@@ -1446,12 +1328,26 @@ MODULE obsSpaceData_mod
 !
   implicit none
   type(struct_obs) , intent(in)  :: obsdat
-  obs_num_obstotal=obsdat%numobs_recorded
- end function obs_num_obstotal
+  obs_numbody=obsdat%numbody
+ end function obs_numbody
 
 
- integer function obs_num_stn(obsdat)
-!func obs_num_stn - returns the number of stations recorded
+ integer function obs_numbody_max(obsdat)
+!func obs_numbody_max - returns the number of observations recorded
+!
+!Author    . J.W. Blezius
+!
+!    PURPOSE:  to provide the number of observations that are currently recorded
+!              in the observation-data object
+!
+  implicit none
+  type(struct_obs) , intent(in)  :: obsdat
+  obs_numbody_max=obsdat%numbody_max
+ end function obs_numbody_max
+
+
+ integer function obs_numheader(obsdat)
+!func obs_numheader - returns the number of stations recorded
 !
 !Author    . J.W. Blezius
 !
@@ -1460,12 +1356,39 @@ MODULE obsSpaceData_mod
 !
   implicit none
   type(struct_obs) , intent(in)  :: obsdat
-  obs_num_stn=obsdat%numstns_recorded
- end function obs_num_stn
+  obs_numheader=obsdat%numheader
+ end function obs_numheader
+
+
+ integer function obs_numheader_max(obsdat)
+!func obs_numheader_max - returns the number of stations recorded
+!
+!Author    . J.W. Blezius
+!
+!    PURPOSE:  to provide the number of stations that are currently recorded
+!              in the observation-data object
+!
+  implicit none
+  type(struct_obs) , intent(in)  :: obsdat
+  obs_numheader_max=obsdat%numheader_max
+ end function obs_numheader_max
+
+
+ integer function obs_numheader_mpiglobal(obsdat)
+!func obs_numheader_mpiglobal - returns the number of stations recorded
+!
+!Author    . J.W. Blezius
+!
+!    PURPOSE:  to provide the number of stations that are currently recorded
+!              in the observation-data object
+!
+  implicit none
+  type(struct_obs) , intent(in)  :: obsdat
+  obs_numheader_mpiglobal=obsdat%numheader_mpiglobal
+ end function obs_numheader_mpiglobal
 
 
  SUBROUTINE obs_prntbdy(obsdat,KOBS,KULOUT)
-#if defined (DOC)
 !
 !**s/r PRNTBDY  - Print all data records associated with an observation
 !
@@ -1483,8 +1406,6 @@ MODULE obsSpaceData_mod
 !     i   KOBS  : No. of observation
 !     i   KULOUT: unit used for printing
 !
-#endif
-
   implicit none
 
   type(struct_obs), intent(in) :: obsdat
@@ -1894,9 +1815,8 @@ MODULE obsSpaceData_mod
  end function obs_ifind
 
 
- SUBROUTINE obs_reduceToMpiLocal(obsdat, nobtot, nobtotp, nfiles, nbegintyp, &
-                                 nendtyp, nbegintyp_g, nendtyp_g, l4dvar)
-#if defined (DOC)
+ SUBROUTINE obs_reduceToMpiLocal(obsdat, nfiles, nbegintyp, &
+                                 nendtyp, nbegintyp_g, nendtyp_g)
 !
 !**s/r obs_reduceToMpiLocal - re-construct observation data object by giving 
 !                             local Obs TAG. 
@@ -1907,18 +1827,12 @@ MODULE obsSpaceData_mod
 !      PURPOSE:  To retain in the observation object only those data that are
 !                pertinent to the present mpi processor.
 !
-!
-#endif
-
   IMPLICIT NONE
 
   type(struct_obs), intent(inout) :: obsdat
-  integer, intent(inout) :: nobtot      ! Actual number of observations
-  integer, intent(inout) :: nobtotp     ! Actual no. of obs. in POST FILE=nobtot
   integer, intent(in)    :: nfiles
   integer, intent(inout) :: nbegintyp(:), nendtyp(:)
   integer, intent  (out) :: nbegintyp_g(:), nendtyp_g(:)
-  logical, intent(in)    :: l4dvar      ! Logical control of 3Dvar/4Dvar
 
 ! Declare Local Variables
   CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
@@ -1929,13 +1843,17 @@ MODULE obsSpaceData_mod
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP
   INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp
-  integer :: numobs_recorded_l_tmp
+  integer :: numbody_mpilocal
   
-  INTEGER :: i,j,iobs,ierr ,locObsize ,startindx,endindx 
+  INTEGER :: i,j,iobs,ierr ,numheader_mpilocal ,startindx,endindx 
   INTEGER :: idataend,jj,ifamid,istart,idata,ii 
   LOGICAL :: lfirst 
 !!---------------------------------------------------------------
   WRITE(*,*) '============= Enter obs_reduceToMpiLocal =============='
+
+  call obs_getobstag(obsdat)
+
+  write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody
 
   if(obsdat%mpi_local .eqv. .true.)then
     write(*,*)'ERROR: obs_reduceToMpiLocal() has been called,'
@@ -1944,49 +1862,38 @@ MODULE obsSpaceData_mod
   end if
   obsdat%mpi_local = .true.
 
-  locObsize=size(locObsTag) 
+  numheader_mpilocal=size(obsdat%locObsTag) 
 
-  ALLOCATE(cfamily_tmp(locObsize),STAT=ierr) 
-  ALLOCATE(cstnid_tmp(locObsize),STAT=ierr) 
-  ALLOCATE(ROBHDR_tmp(NCM_LET,locObsize),STAT=ierr) 
-  ALLOCATE(MOBHDR_tmp(NCM_LET,locObsize),STAT=ierr) 
-  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%numobs_recorded_l),STAT=ierr) 
-  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsdat%numobs_recorded_l),STAT=ierr) 
-  ALLOCATE(ROBDATA8_tmp(3:11,obsdat%numobs_recorded_l),STAT=ierr) 
-  ALLOCATE(timeInterpWeight_tmp(locObsize,mxstepobs),STAT=ierr) 
+  ! Calculate the size of the local obs data  
+  numbody_mpilocal=0
+  DO i=1,numheader_mpilocal
+   iobs=obsdat%locObsTag(i)
+   idata=obsdat%mobhdr(NCM_NLV, iobs)
+   numbody_mpilocal = numbody_mpilocal + idata
+  ENDDO 
+
+  ALLOCATE(cfamily_tmp(numheader_mpilocal),STAT=ierr) 
+  ALLOCATE(cstnid_tmp(numheader_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBHDR_tmp(NCM_LET,numheader_mpilocal),STAT=ierr) 
+  ALLOCATE(MOBHDR_tmp(NCM_LET,numheader_mpilocal),STAT=ierr) 
+  ALLOCATE(MOBDATA_tmp(NCM_LBO,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBDATA_tmp(NCM_LBO,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBDATA8_tmp(3:11,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(timeInterpWeight_tmp(numheader_mpilocal,mxstepobs),STAT=ierr) 
 !  
-  call obs_allocateG(obsdat,nobtot)
+  call obs_allocateG(obsdat,obsdat%numheader)
 !
-!0.1  Sorting locObsTag according to the family ID. 
-  IF(l4dvar) THEN
-     ALLOCATE(locObsTag_tmp(locObsize),STAT=ierr)
-     ii=0
-     DO J=1,NFILES
-        DO i=1,locObsize
-           iobs=locObsTag(i) 
-           ifamid=obsdat%mobhdr(NCM_OEC, iobs)
-           if(j == ifamid) then
-             ii=ii+1
-             locObsTag_tmp(ii) = iobs 
-           endif
-        ENDDO 
-     ENDDO 
-
-     locObsTag=locObsTag_tmp
-     DEALLOCATE(locObsTag_tmp)  
-  ENDIF
-
-  nobtotp=nobtot
+  obsdat%numheader_mpiglobal=obsdat%numheader
 
 !! keep the Global ROBHDR and MOBHDR
-  DO iobs=1,nobtotp
+  DO iobs=1,obsdat%numheader_mpiglobal
     obsdat%MOBHDR_G(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,iobs)
     obsdat%ROBHDR_G(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,iobs)
     obsdat%timeInterpWeight_mpiglobal(iobs,:)=obsdat%timeInterpWeight(iobs,:)
   ENDDO  
 !!
-  DO i=1,locObsize 
-    iobs=locObsTag(i) 
+  DO i=1,numheader_mpilocal 
+    iobs=obsdat%locObsTag(i) 
     ROBHDR_tmp(1:NCM_LET,i)=obsdat%ROBHDR(1:NCM_LET,iobs)
     MOBHDR_tmp(1:NCM_LET,i)=obsdat%MOBHDR(1:NCM_LET,iobs)
     cstnid_tmp(i) = obsdat%cstnid(iobs)
@@ -1997,12 +1904,11 @@ MODULE obsSpaceData_mod
     ELSE
        MOBHDR_tmp(NCM_RLN,i)=MOBHDR_tmp(NCM_RLN,i-1) + MOBHDR_tmp(NCM_NLV,i-1) 
     ENDIF 
-  ENDDO !  
-
+  ENDDO
 
   ii=0 
-  DO i=1,locObsize
-    iobs=locObsTag(i) 
+  DO i=1,numheader_mpilocal
+    iobs=obsdat%locObsTag(i) 
     idata= obsdat%mobhdr(NCM_RLN, iobs)
     idataend = obsdat%mobhdr(NCM_NLV, iobs) + idata -1 
     DO j=idata,idataend 
@@ -2014,14 +1920,13 @@ MODULE obsSpaceData_mod
     ENDDO 
   ENDDO 
   
-  nobtot=locObsize
-  obsdat%numstns_recorded=nobtot
-  obsdat%numobs_recorded=obsdat%numobs_recorded_l
-  write(*,*) 'NOBTOT= ',nobtot 
+  obsdat%numheader=numheader_mpilocal
+  obsdat%numbody=numbody_mpilocal
+  write(*,*) 'NUMHEADER= ',obsdat%numheader 
   call obs_deallocate(obsdat)
-  call obs_allocate(obsdat,nobtot,obsdat%numobs_recorded)
+  call obs_allocate(obsdat,obsdat%numheader,obsdat%numbody)
 !
-  DO i=1,nobtot
+  DO i=1,obsdat%numheader
      obsdat%cfamily(i)=cfamily_tmp(i) 
      obsdat%cstnid(i)=cstnid_tmp(i)
      obsdat%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
@@ -2029,7 +1934,7 @@ MODULE obsSpaceData_mod
      obsdat%timeInterpWeight(i,:)=timeInterpWeight_tmp(i,:)
   ENDDO 
 
-  DO i=1,obsdat%numobs_recorded
+  DO i=1,obsdat%numbody
      obsdat%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
      obsdat%MOBDATA(1:NCM_LBO,i)=MOBDATA_tmp(1:NCM_LBO,i) 
      obsdat%ROBDATA(1:NCM_LBO,i)=ROBDATA_tmp(1:NCM_LBO,i)
@@ -2054,7 +1959,7 @@ MODULE obsSpaceData_mod
   NENDTYP=0
   DO j=1,NFILES
     lfirst=.true. 
-    DO i=1,locObsize
+    DO i=1,numheader_mpilocal
       istart=obsdat%mobhdr(NCM_RLN, i)
       idata=obsdat%mobhdr(NCM_NLV, i)
       ifamid=obsdat%mobhdr(NCM_OEC, i)
@@ -2071,13 +1976,14 @@ MODULE obsSpaceData_mod
     WRITE(*,*) 'J NBEGINTYP(j) NENDTYP(j)= ',J,NBEGINTYP(j), NENDTYP(j),ifamid
   ENDDO  
   
+  write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody
   WRITE(*,*) '============= Leave obs_reduceToMpiLocal =============='
-!!
+
   RETURN
  END SUBROUTINE obs_reduceToMpiLocal
 
 
- SUBROUTINE obs_expandToMpiGlobal(obsdat, nulout, nobtot, nobtotp)
+ SUBROUTINE obs_expandToMpiGlobal(obsdat)
 #if defined (DOC)
 !
 !**s/r obs_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
@@ -2093,9 +1999,6 @@ MODULE obsSpaceData_mod
   IMPLICIT NONE
 
   type(struct_obs), intent(inout) :: obsdat
-  integer, intent(in) :: nulout         ! standard output unit
-  integer, intent(in) :: nobtot         ! Actual number of observations
-  integer, intent(in) :: nobtotp        ! Actual no. of obs. in POST FILE=nobtot
 
 ! Declaire Local Variables. 
   REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
@@ -2103,13 +2006,13 @@ MODULE obsSpaceData_mod
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_TMP 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp 
   
-  INTEGER :: i,j,iobs,ierr ,locObsize ,startindx,endindx 
+  INTEGER :: i,j,iobs,ierr,startindx,endindx 
   INTEGER :: idataend,jj,idata,ii,sizeMOBDATA  
   INTEGER ::sizeMOBHDR  
 !!---------------------------------------------------------------
 
 !!1.      Release some memory
-  print*,'Entering obs_expandToMpiGlobal'
+  write(*,*) 'Entering obs_expandToMpiGlobal'
 
   if(obsdat%mpi_local .eqv. .false.)then
     write(*,*)'ERROR: obs_expandToMpiGlobal() has been called,'
@@ -2120,13 +2023,13 @@ MODULE obsSpaceData_mod
 
 !!1.2 Added restore global array MOBHDR
 !     MOBHDR is used in "cmaabrp.ftn"
-  ALLOCATE(MOBHDR_tmp(NCM_LET,NOBTOTP),STAT=ierr)
+  ALLOCATE(MOBHDR_tmp(NCM_LET,obsdat%numheader_mpiglobal),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBHDR_tmp,Abort!')
   MOBHDR_TMP=0
 
 ! 1.3 retore global MOBHDR
-  DO i=1,NOBTOT
-     iobs=locObsTag(i)
+  DO i=1,obsdat%numheader
+     iobs=obsdat%locObsTag(i)
      MOBHDR_tmp(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,i)
   ENDDO
   sizeMOBHDR=size(MOBHDR_tmp)
@@ -2135,18 +2038,18 @@ MODULE obsSpaceData_mod
 
 
 !!2.  Allocate memory for the temporary arrays.
-  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%mxobstotal),STAT=ierr)
+  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBDATA_tmp,Abort!')
   MOBDATA_tmp=0
 
-  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsdat%mxobstotal),STAT=ierr)
+  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
   ROBDATA_tmp=0.0
 
 !3.  Restore the global arrays MOBDATA and ROBDATA
   ii=0
-  DO i=1,nobtot
-    iobs=locObsTag(i)
+  DO i=1,obsdat%numheader
+    iobs=obsdat%locObsTag(i)
     idata= obsdat%mobhdr_g(NCM_RLN, iobs)
     idataend = obsdat%mobhdr_g(NCM_NLV, iobs) + idata -1
     DO j=idata,idataend
@@ -2165,7 +2068,7 @@ MODULE obsSpaceData_mod
    !
 
   call obs_deallocate(obsdat)
-  call obs_allocate(obsdat,nobtotp,obsdat%mxobstotal)
+  call obs_allocate(obsdat,obsdat%numheader_mpiglobal,obsdat%numbody_max)
 
   obsdat%ROBDATA=ROBDATA_tmp
   DEALLOCATE(ROBDATA_tmp)
@@ -2174,13 +2077,9 @@ MODULE obsSpaceData_mod
   obsdat%MOBHDR=MOBHDR_tmp
   DEALLOCATE(MOBHDR_tmp)
 
-! obsdat%numstns_recorded=obsdat%nobtot_g
-! obsdat%numobs_recorded=obsdat%numobs_recorded_g
-
-!!
   call obs_deallocateG(obsdat)
-!!
-  print*,'Leaving obs_expandToMpiGlobal'
+
+  write(*,*) 'Leaving obs_expandToMpiGlobal'
   RETURN
  END SUBROUTINE obs_expandToMpiGlobal
 

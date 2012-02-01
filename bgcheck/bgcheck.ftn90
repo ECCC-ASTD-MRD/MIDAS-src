@@ -29,7 +29,6 @@
       use columnData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "comdimo.cdk"
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
@@ -48,7 +47,7 @@
 !C
 !C     TRANSFER O-A to O-P in cma
 !C
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)  !replaces NDATA
+      DO JDATA=1,obs_numbody(lobsSpaceData)  !replaces NDATA
          call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
       ENDDO
 !C

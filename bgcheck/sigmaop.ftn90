@@ -10,7 +10,6 @@
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comdimo.cdk"
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
       type(struct_gsv) :: statevector
@@ -34,7 +33,7 @@
 
       call gsv_allocate(statevector,gaus_ni,gaus_nj,lcolumng%nlev,1)
       call gsv_zero(statevector)
-      call col_allocate(lcolumn,lcolumng%nlev,nobtot)
+      call col_allocate(lcolumn,lcolumng%nlev,lcolumng%numObsHeader)
       call col_zero(lcolumn)
 !C 
 !C     1. Opening the statistics file

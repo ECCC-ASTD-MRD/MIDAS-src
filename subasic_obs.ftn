@@ -74,19 +74,19 @@ c
 c
         type(struct_columnData) :: lcolumng,lcolumnt
 c
-        call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%nobtot)
+        call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%numObsHeader)
         call col_zero(lcolumnt)
 C
 c       initialize lcolumnt%tt THE ADJOINT to 1.0 to get the operator via the adjoint
 c
         DO JLEV=1,LCOLUMNG%NLEV
-          DO JOBS=1,LCOLUMNG%NOBTOT
+          DO JOBS=1,LCOLUMNG%numObsHeader
             lcolumnt%tt(JLEV,JOBS) = 1.0
           ENDDO
         ENDDO
 c
         do jlev = 1,lcolumng%nlev
-          DO JOBS=1,LCOLUMNG%NOBTOT
+          DO JOBS=1,LCOLUMNG%numObsHeader
             zhu=exp(lcolumng%hu(jlev,jobs))
             oltv(1,jlev,jobs) = fottva(zhu,lcolumnt%tt(jlev,jobs))
             oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),

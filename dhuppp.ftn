@@ -38,7 +38,6 @@
       CHARACTER *2 CDFAM
 *implicits
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
 #include "cparbrp.cdk"

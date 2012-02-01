@@ -36,7 +36,6 @@
 *implicits
 #include "comct0.cdk"
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
@@ -76,10 +75,6 @@
 !     INITIALIZE DIMENSIONS OF THE GAUSSIAN GRID.
 !
       call gaus_setup
-!
-!     Initialize observations dimensions
-!
-      CALL SUDIMO(NULOUT,lobsSpaceData)
 !
 !     Allocate memory for observation arrays
 !
@@ -123,7 +118,7 @@
 !
 !     Initialize GB-GPS processing (read NAMGPSGB in namelist file)
 !
-      CALL SUGPSGB(NULOUT)
+      call sugpsgb(nulout)
 !
 !     Basic setup of columnData module (nouu, novv, etc. needed in suprep)
 !
@@ -131,29 +126,25 @@
 !
 !     Filter out data from CMA
 !
-      CALL SUPREP(lobsSpaceData)
+      call suprep(lobsSpaceData)
 !
 !     If single GB-GPS observation assimilation, select the observation
 !
       IF ( L1GPSOBS ) CALL FILT_GPSGB(lobsSpaceData)
 
-      CALL CMAPR(lobsSpaceData)
+      call cmapr(lobsSpaceData)
+
+      call sutimeinterp(lobsSpaceData)
+
+      call obs_reduceToMpiLocal(lobsSpaceData,nfiles,
+     +                          nbegintyp,nendtyp,nbegintyp_g,nendtyp_g)
 
       call suobsgid(lobsSpaceData)
-
-      CALL obs_getobstag(lobsSpaceData,nulout,nobtot,nfiles,cexc4dv,cfamtyp,
-     S                   nbegintyp,nendtyp,l4dvar)
-
-      call obs_reduceToMpiLocal(lobsSpaceData, nobtot, nobtotp, nfiles, 
-     S                          nbegintyp, nendtyp, nbegintyp_g, nendtyp_g,
-     S                          l4dvar)
-
-      call rebldnotag(lobsSpaceData)
 !
 !     MEMORY ALLOCATION FOR BACKGROUND COLUMN DATA 
 !
-      call col_sualobsb(vco_anl%nlev_M,nobtot) 
-      call col_allocate(lcolumng,vco_anl%nlev_M,nobtot)
+      call col_sualobsb(vco_anl%nlev_M,obs_numheader(lobsSpaceData)) 
+      call col_allocate(lcolumng,vco_anl%nlev_M,obs_numheader(lobsSpaceData))
       call col_zero(lcolumng)
 !
 !     Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng

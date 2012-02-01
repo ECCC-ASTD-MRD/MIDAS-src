@@ -19,7 +19,6 @@
       use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 
       type(struct_columnData) :: lcolumng

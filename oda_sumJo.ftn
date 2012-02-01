@@ -39,7 +39,6 @@ c L. Fillion, ARMA/EC, 20 May 2010. Relocate call to restore_robdata8
 C              and correct bug ROBDATA8(NCM_OMI,JDATA)
 
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 *
       type(struct_obs) :: lobsSpaceData
@@ -59,12 +58,12 @@ C
 C Compute the observation cost function value based on the sequence of
 c the data array
 C 
-      ALLOCATE(ROBDATA8_g(lobsSpaceData%mxobstotal),STAT=ierr)
+      ALLOCATE(ROBDATA8_g(lobsSpaceData%numbody_max),STAT=ierr)
       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to ROBDATA_g')
 
 
-        CALL restore_robdata8(robdata8_g,lobsSpaceData%mxobstotal)  
-         pjo = pjo + sumJo(1,lobsSpaceData%mxobstotal,lmask_g)
+        CALL restore_robdata8(robdata8_g,lobsSpaceData%numbody_max)  
+         pjo = pjo + sumJo(1,lobsSpaceData%numbody_max,lmask_g)
 c
 c       Compute family contributions for diagnostic purposes
 c       The remaining of the code has no effect on the minimization
@@ -83,35 +82,35 @@ c
           select case(CFAMTYP(J))
             case('UA')
               ! llmask = lmaskpp_in .or. lmaskpp_out
-              llmask => lmaskpp_inout_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmaskpp_inout_g(1:lobsSpaceData%numbody_max)
               dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
               dljoraob = dljoraob + dlsum1
 
-              llmask => lmasksf_inout_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmasksf_inout_g(1:lobsSpaceData%numbody_max)
               dlsum => dljosurfc
             case('AI')
-              llmask => lmaskpp_inout_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmaskpp_inout_g(1:lobsSpaceData%numbody_max)
               dlsum => dljoairep
             case('SW')
-              llmask => lmaskpp_inout_g(1:lobsSpaceData%mxobstotal) 
+              llmask => lmaskpp_inout_g(1:lobsSpaceData%numbody_max) 
               dlsum => dljosatwind
             case('SF','SC')
-              llmask => lmasksf_inout_g(1:lobsSpaceData%mxobstotal) 
+              llmask => lmasksf_inout_g(1:lobsSpaceData%numbody_max) 
               dlsum => dljosurfc
             case('TO')
-              llmask => lmaskto_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmaskto_g(1:lobsSpaceData%numbody_max)
               dlsum => dljotov
             case('RO')
-              llmask => lmaskro_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmaskro_g(1:lobsSpaceData%numbody_max)
               dlsum => dljogpsro
             case('PR')
-              llmask => lmaskzp_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmaskzp_g(1:lobsSpaceData%numbody_max)
               dlsum => dljoprof
             case('GP')
-              llmask => lmaskgp_g(1:lobsSpaceData%mxobstotal)
+              llmask => lmaskgp_g(1:lobsSpaceData%numbody_max)
               dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
               dljogpsztd = dljogpsztd + dlsum1
-              llmask = lmasksf_inout_g(1:lobsSpaceData%mxobstotal) 
+              llmask = lmasksf_inout_g(1:lobsSpaceData%numbody_max) 
               dlsum => dljosurfc
           end select
           dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
@@ -135,7 +134,7 @@ c
 *
       real*8  :: sumJo
       integer, intent(in) :: kbegin,klast
-      logical, intent(in), dimension(lobsSpaceData%mxobstotal) :: ll_mask
+      logical, intent(in), dimension(lobsSpaceData%numbody_max) :: ll_mask
 *
 *     Local variables
 *
@@ -156,8 +155,8 @@ c
        INTEGER :: i,ii,j ,iobs,idata,idataend,ierr 
        ii=0
        robdata8_g=0.0D0  
-       DO i=1,nobtot
-         iobs=locObsTag(i)
+       DO i=1,obs_numheader(lobsSpaceData)
+         iobs=lobsSpaceData%locObsTag(i)
          idata=obs_elem_mpiglobal_i(lobsSpaceData,'RLN ',iobs)
          idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs)+idata -1 
          DO j=idata,idataend

@@ -62,7 +62,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   elseif ( option .eq. 'MO' ) then
 !     add column to lcolumng
-!     call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%nobtot)
+!     call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%numObsHeader)
 !     lcolumnt%all(:,:) = lcolumng%all(:,:) + column%all(:,:)
 !     lcolumnt%nlev = lcolumnhr%nlev
 !     call tovs_fill_profiles(lcolumnt,lobsSpaceData)
@@ -87,7 +87,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 !     
 
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         call obs_set_r8(lobsSpaceData,'PRM ',JDATA, obs_elem_r8(lobsSpaceData,'VAR ',JDATA))
       ENDDO
   endif
@@ -103,7 +103,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   if ( option .eq. 'LR' ) then
 !    fill ROBDATA8(NCM_PRM,..)  with Z'' = Z' + H(xb_lr) 
-     DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+     DO JDATA=1,obs_numbody(lobsSpaceData)
        call obs_set_r8(lobsSpaceData,'PRM ',JDATA, obs_elem_r8(lobsSpaceData,'OMA ',JDATA) &
                                                 *obs_elem_r8(lobsSpaceData,'OER ',JDATA) &
                                              + 2*obs_elem_r8(lobsSpaceData,'VAR ',JDATA))

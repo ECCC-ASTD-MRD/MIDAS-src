@@ -59,7 +59,6 @@
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"
-#include "comdimo.cdk"
 #include "comvfiles.cdk"
 *
       type(struct_obs) :: lobsSpaceData

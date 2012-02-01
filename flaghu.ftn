@@ -50,7 +50,6 @@
       IMPLICIT NONE
 *
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "cparbrp.cdk"
 *
       INTEGER, INTENT(IN)    :: KELE,KVAL,KNT,KINDEX,KRVAL

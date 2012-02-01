@@ -65,7 +65,7 @@
       real*8 vma(lcolumn%nlev),vmb(lcolumn%nlev),vmc(lcolumn%nlev)
       real*8 vmd(lcolumn%nlev),vme(lcolumn%nlev),vmf(lcolumn%nlev)
 *
-      call col_allocate(lcolumnt,lcolumn%nlev,lcolumn%nobtot)
+      call col_allocate(lcolumnt,lcolumn%nlev,lcolumn%numObsHeader)
 **
 C
       llprint = .false.
@@ -80,7 +80,7 @@ c     ---------------------------------------------------------
 c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev,zcon)
 
-      do jobs = 1, lcolumn%nobtot
+      do jobs = 1, lcolumn%numObsHeader
 
         do jlev = 1, lcolumn%nlev
 c
@@ -97,7 +97,7 @@ c
 !$OMP END PARALLEL DO
 c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev)
-        do jobs = 1, lcolumn%nobtot
+        do jobs = 1, lcolumn%numObsHeader
           do jlev = 1, lcolumn%nlev
             lcolumn%tt(jlev,jobs) = lcolumn%tt(jlev,jobs)+
      &                        oltv(1,jlev,jobs)*lcolumnt%tt(jlev,jobs)
@@ -163,7 +163,7 @@ c
 !$OMP PARALLEL PRIVATE(jobs,jk,mythread,numthd,zak,zbk,zck)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, lcolumn%nobtot,numthd
+      do jobs = mythread, lcolumn%numObsHeader,numthd
          do jk=1,lcolumn%nlev
             lcolumnt%tt(jk,jobs) = 0.0
          enddo
@@ -173,7 +173,7 @@ c
         zak = -2.0*ZCON*vma(ik+1)
         zbk = -2.0*ZCON*vmb(ik+1)
         zck = -2.0*ZCON*vmc(ik+1)
-!        do jobs = 1, lcolumn%nobtot
+!        do jobs = 1, lcolumn%numObsHeader
           lcolumnt%tt(ik,jobs)   = lcolumnt%tt(ik,jobs)+
      &                       lcolumn%gz(ik,jobs)*zak
           lcolumnt%tt(ik+1,jobs) = lcolumnt%tt(ik+1,jobs)+
@@ -199,7 +199,7 @@ c          ENDIF
       ZAK = -2.0*ZCON*VMA(lcolumn%nlev)
       ZBK = -2.0*ZCON*VMB(lcolumn%nlev)
       ZCK = -2.0*ZCON*VMC(lcolumn%nlev)
-!      do jobs = 1, lcolumn%nobtot
+!      do jobs = 1, lcolumn%numObsHeader
         lcolumnt%tt(lcolumn%nlev-1,jobs) = lcolumnt%tt(lcolumn%nlev-1,jobs)+
      &             ZAK*lcolumn%gz(lcolumn%nlev-1,jobs)
         lcolumnt%tt(lcolumn%nlev,jobs)   = lcolumnt%tt(lcolumn%nlev,jobs)+

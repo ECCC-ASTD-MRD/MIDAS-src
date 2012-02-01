@@ -124,7 +124,6 @@ C assimilated
 #include "comct0.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "cparbrp.cdk"
 #include "comfilt.cdk"
@@ -297,8 +296,7 @@ C
 C
  100  CONTINUE
 C
-C     2. Put observation number in each data of CMA file. Find
-C     largest number of data contained in any observation(NMAXLEN).
+C     2. Put observation number in each data of CMA file.
 C
 C     Displace observations located between poles and the last row
 C     of the grid being used to the last row. (Do always now, used 
@@ -307,7 +305,7 @@ C     to not do when cvcord=MAM
 !
 ! 2.1 Set EZ parameters before obs looping and using gdxyfll function
 !
-      DO JO  = 1, NOBTOT
+      DO JO  = 1, obs_numheader(lobsSpaceData)
         ZLAT    = obs_elem_r4(lobsSpaceData,'LAT ',JO)
         IF(ZLAT .GT. gaus_RLATI(1)) THEN
           call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(1)))
@@ -317,15 +315,15 @@ C     to not do when cvcord=MAM
       END DO
 C
       IJ=0
-      NMAXLEN=0
-      DO JJO = 1, NOBTOT
+      DO JJO = 1, obs_numheader(lobsSpaceData)
         IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JJO)
         IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
-        NMAXLEN = MAX( obs_elem_i(lobsSpaceData,'NLV ',JJO),NMAXLEN )
         DO JDATA= IDATA, IDATEND
           IJ   = IJ+1
           call obs_set_i(lobsSpaceData,'OBS ',IJ, JJO)
-          if(nobtot.eq.1) write(nulout,*) "suprep: IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)=",IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)
+          if(obs_numheader(lobsSpaceData).eq.1) 
+     +      write(nulout,*) "suprep: IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)=",
+     +                      IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)
         END DO
 C
         dllao=obs_elem_r4(lobsSpaceData,'LAT ',jjo)
@@ -729,7 +727,7 @@ C
 C
 C-----------------------------------------------------------------------
 C
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
         IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
         IF ( ITYP .EQ. BUFR_NEUU) call obs_set_i(lobsSpaceData,'POS ',JDATA, nouu - 1)
@@ -792,14 +790,14 @@ C
       WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
       WRITE(NULOUT,'(1X,"****************************************** ",/)')
 C
-C     SUM OVER ALL BINS SHOULD BE EQUAL TO obs_num_obstotal(lobsSpaceData)
+C     SUM OVER ALL BINS SHOULD BE EQUAL TO obs_numbody(lobsSpaceData)
 C
       isum=0
       do jk=1,16
         isum=isum+ibin(jk)
       enddo
       ISUM = ISUM + IBINS
-      write(nulout,*) ' isum obs_num_obstotal(lobsSpaceData)  ',isum,obs_num_obstotal(lobsSpaceData)
+      write(nulout,*) ' isum obs_numbody(lobsSpaceData)  ',isum,obs_numbody(lobsSpaceData)
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF (IKNT .EQ. 0 ) THEN

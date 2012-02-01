@@ -61,13 +61,12 @@
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"
-#include "comdimo.cdk"
 #include "comvfiles.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comct0.cdk"
 *
-      type(struct_columnData) :: lcolumng
+      type(struct_columnData) :: lcolumng,lcolumng_mpiglobal
       type(struct_obs) :: lobsSpaceData
       INTEGER IER,INRECS,IBRP1
       INTEGER INBLKS,IOBTOT,IDATA
@@ -99,9 +98,9 @@
 *
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
-      CALL obs_expandToMpiGlobal(lobsSpaceData, nulout, nobtot, nobtotp)
-      CALL col_expandToMpiGlobal(lcolumng,nulout, nobtot, nobtotp)
-      DEALLOCATE(locObsTag)
+      CALL obs_expandToMpiGlobal(lobsSpaceData)
+      call col_allocate(lcolumng_mpiglobal,lcolumng%nlev,obs_numheader_mpiglobal(lobsSpaceData))
+      CALL col_expandToMpiGlobal(lcolumng,lcolumng_mpiglobal,lobsSpaceData)
       IF(mpi_myid /= 0) RETURN 
 * 
 C
@@ -144,8 +143,6 @@ c
       DO J=1,NELCMA
          IF ( CSAV(J) .EQ. 'FLG') NSAV(J)=NCM_FLG
       END DO
-
-      NOBTOT=1
 C
       WRITE(NULOUT,'(1X,"***********************************")')
       WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR POST_FILE :",/)')
@@ -157,7 +154,7 @@ C
 *
       NVALS=NFILES
       LLAPPEND=.FALSE.
-      NOBTOT=0
+      lobsSpaceData%numheader=0
       DO J =1,NKOUNT
          NVTYP=J
          CBURP(J)  = CFILNAM(J)
@@ -191,7 +188,7 @@ C
 *             -----------------
 *==========================================================================
                CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,CSAV,NELCMA,
-     +                      lcolumng,lobsSpaceData)
+     +                      lcolumng_mpiglobal,lobsSpaceData)
 *==========================================================================
 *
                IER=MRFCLS(IBRP1)

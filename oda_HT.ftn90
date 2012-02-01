@@ -27,7 +27,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "comgpsgb.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng
@@ -76,7 +75,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZRES,ZOER
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
-      INTEGER IOBS,IPOS,IK,ISTRIDE
+      INTEGER IOBS,IPOS,IK
       INTEGER J,JDATA
       LOGICAL LLPRINT
       REAL*8 columngVarT,columngVarB,lqtoes
@@ -90,23 +89,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C
 !C*    1. Fill in COMMVO by using the adjoint of the "vertical"
 !c interpolation
-!C     .  ---------------------------------------------------------------
-!c ----
-!C
-!C      TO eliminate dependancies in vector loop, a stride
-!C      is chosen so that the data in the inner loop always
-!C      comes from different "oservations" of the CMA.
-!C      ------------------------------------------------------
-!C         stride = first odd number greater than the longest
-!C          observation.
-!C
-      ISTRIDE=2*(NMAXLEN/2) + 1
 !C
 !C     Process all data within the domain of the model
 !C
-      DO J=1,ISTRIDE
-!*vdir nodep
-        DO JDATA=J,obs_num_obstotal(lobsSpaceData),ISTRIDE
+        DO JDATA=1,obs_numbody(lobsSpaceData)
           IF (lmaskpp_in(jdata)) THEN
             IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
@@ -181,7 +167,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                  + OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV
           ENDIF
         END DO
-      END DO
       RETURN
       END subroutine oda_HTpp
 
@@ -203,7 +188,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
-      INTEGER IOBS,IPOS,IK,ISTRIDE
+      INTEGER IOBS,IPOS,IK
       INTEGER J,JDATA,ITYP
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
@@ -215,22 +200,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C*    1. Fill in COMMVO by using the adjoint of the "vertical"
 !c interpolation
 !C     .  ---------------------------------------------------------------
-!c ----
-!C
-!C      TO eliminate dependancies in vector loop, a stride
-!C      is chosen so that the data in the inner loop always
-!C      comes from different "oservations" of the CMA.
-!C      ------------------------------------------------------
-!C         stride = first odd number greater than the longest
-!C          observation.
-!C
-      ISTRIDE=2*(NMAXLEN/2) + 1
 !C
 !C     Process all data within the domain of the model
 !C
-      DO J=1,ISTRIDE
-!*vdir nodep
-        DO JDATA=j,obs_num_obstotal(lobsSpaceData),ISTRIDE
+        DO JDATA=1,obs_numbody(lobsSpaceData)
           IF (lmasksf_in(jdata)) THEN
             IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
@@ -302,7 +275,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                  + OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV                
           endif
         END DO
-      END DO
       RETURN
       END subroutine oda_HTsf
 
@@ -335,7 +307,7 @@ subroutine oda_HTto
 !     3.   Adjoint of preparation of atmospheric profiles
 !     .    ----------------------------------------------
 !
-  call tovs_fill_profiles_ad(lcolumn,lcolumng)
+  call tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
 
 end subroutine oda_HTto
 
@@ -585,16 +557,13 @@ end subroutine oda_HTto
       REAL*8 ZRES,ZDA1,ZDA2,ZDENO
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPT,ZPB
-      INTEGER IOBS,IPOS,IK,ISTRIDE
+      INTEGER IOBS,IPOS,IK
       INTEGER J,JDATA
 
-      ISTRIDE=2*(NMAXLEN/2) + 1
 !C
 !C     Process all data within the domain of the model
 !C
-      DO J=1,ISTRIDE
-!*vdir nodep
-        DO JDATA=J, obs_num_obstotal(lobsSpaceData),ISTRIDE
+        DO JDATA=1, obs_numbody(lobsSpaceData)
           IF (lmaskzp(jdata) ) THEN
             IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
             IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
@@ -623,7 +592,6 @@ end subroutine oda_HTto
 
           ENDIF
         END DO
-      END DO
       RETURN
       END subroutine oda_HTzp
 

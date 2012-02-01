@@ -18,37 +18,42 @@
       use modfgat, only : nobs, notag, nstepobs
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comdimo.cdk"
 #include "comlun.cdk"
-#include "cvcord.cdk"
 c
       type(struct_obs) :: lobsSpaceData
-      integer :: jstep,jobs,jfile,jdata,ibeginobs,ilastobs,iobs,idatabeg
-      integer :: idatend
+      integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend
       integer, allocatable, dimension(:,:) :: idataass
+      integer, parameter :: nfamily=9
+      character*2 :: familylist(nfamily)
 
-      allocate(idataass(nfiles,nstepobs+1))
+      allocate(idataass(nfamily,nstepobs+1))
+      idataass(:,:) = 0
 
-      idataass = 0
+      familylist(1)='UA'
+      familylist(2)='AI'
+      familylist(3)='SF'
+      familylist(4)='TO'
+      familylist(5)='SW'
+      familylist(6)='SC'
+      familylist(7)='PR'
+      familylist(8)='RO'
+      familylist(9)='GP'
+ 
       do jstep = 1,nstepobs
         do jobs = 1, nobs(jstep)
           iobs = notag(jobs,jstep)
           idatabeg   = obs_elem_i(lobsSpaceData,'RLN ',iobs)
           idatend = obs_elem_i(lobsSpaceData,'NLV ',iobs) + idatabeg - 1
           
-          do jfile = 1, nfiles
-            if(nbegintyp(jfile) .gt. 0) then
-              ibeginobs = obs_elem_i(lobsSpaceData,'OBS ',nbegintyp(jfile))
-              ilastobs=obs_elem_i(lobsSpaceData,'OBS ',nendtyp(jfile))
-              if(iobs.ge.ibeginobs .and. iobs .le. ilastobs) then
-                do jdata = idatabeg, idatend
-                  if ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .eq. 1) then
-                    idataass(jfile,jstep) = idataass(jfile,jstep) + 1
-                    idataass(jfile,nstepobs+1) = idataass(jfile,nstepobs
+          do jfamily = 1, nfamily
+            if(obs_getfamily(lobsSpaceData,iobs).eq.familylist(jfamily)) then
+              do jdata = idatabeg, idatend
+                if ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .eq. 1) then
+                  idataass(jfamily,jstep) = idataass(jfamily,jstep) + 1
+                  idataass(jfamily,nstepobs+1) = idataass(jfamily,nstepobs
      &                   +1) + 1
-                  endif
-                enddo
-              endif
+                endif
+              enddo
             endif
           enddo
         enddo
@@ -56,18 +61,9 @@ c
 
       write(nulout,*)'Distribution of assimilated data over stepobs'
       write(nulout,*)'Bin# :',(jstep,jstep=1,nstepobs),'Total'
-      do jfile = 1, nfiles
-        if(nbegintyp(jfile) .gt. 0) then
-          if(cfamtyp(jfile) .ne. cfamtyp(jfile+1)) then
-            write(nulout,*) cfamtyp(jfile),':',(idataass(jfile,jstep)
+      do jfamily = 1, nfamily
+        write(nulout,*) familylist(jfamily),':',(idataass(jfamily,jstep)
      &           ,jstep=1,nstepobs+1)
-          else
-            do jstep = 1,nstepobs+1
-              idataass(jfile+1,jstep) = idataass(jfile,jstep) +
-     &             idataass(jfile+1,jstep)
-            enddo
-          endif
-        endif
       enddo
       write(nulout,*)'_______________________________________________'
 

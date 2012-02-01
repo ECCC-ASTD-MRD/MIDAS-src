@@ -16,16 +16,14 @@ C     .               in Quality Control Flag.
 C      LTOPOFILT   : If true, apply filter of observations because
 C                    model topography differs from station topography
 C      DSTEPOBS    : Time step (in hours) of data assimilation (fgat/4Dvar)
-c      NLWRBIN     : Bin number of the lower assimilation window boundery
-c      NUPRBIN     : Bin number of the upper assimilation window boundery
 C      RLIMLVHU    : Top level of humidity analysis (mbs).
 C
 #endif
-      INTEGER NONELEV,nlwrbin,nuprbin
+      INTEGER NONELEV
       INTEGER NELEMS,NLIST(30)
       INTEGER NFLAGS,NLISTFLG(15)
       LOGICAL LTOPOFILT
       real*8 dstepobs,dstepobsinc
       real*8 RLIMLVHU
       COMMON /COMFILT/NONELEV,NELEMS,NLIST,NFLAGS,NLISTFLG,dstepobs,dstepobsinc
-      common /comfilt/LTOPOFILT,RLIMLVHU,nlwrbin,nuprbin
+      common /comfilt/LTOPOFILT,RLIMLVHU

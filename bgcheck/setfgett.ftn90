@@ -12,7 +12,6 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comdimo.cdk"
 #include "cvcord.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData

@@ -6,7 +6,7 @@ module columnData_mod
 
   type struct_columnData
     integer :: nlev,nlev_T,nlev_M
-    integer :: nkgdimo,nobtot
+    integer :: nkgdimo,numObsHeader
     logical :: allocated=.false.
     real*8,pointer :: all(:,:)
     real*8,pointer :: uu(:,:)
@@ -210,22 +210,23 @@ module columnData_mod
     END SUBROUTINE col_setup
 
 
-    SUBROUTINE col_SUALOBSB(nflev,nobtot) 
+    SUBROUTINE col_SUALOBSB(nflev,numObsHeader) 
       IMPLICIT NONE
 
-      INTEGER nflev,nobtot
+      INTEGER nflev,numObsHeader
       INTEGER IERR
 
       WRITE(*,FMT='(//,6(" ***********"))')
       WRITE(*,*)'     SUALOBSB:  Memory allocation of the observation arrays'
       WRITE(*,FMT='(6(" ***********"))')
 
-      allocate(oltv(2,nflev,nobtot))
+      allocate(oltv(2,nflev,numObsHeader))
       oltv(:,:,:)=0.0d0
-      allocate(rtapfac(nflev,nobtot))
+      allocate(rtapfac(nflev,numObsHeader))
 
       RETURN
     END SUBROUTINE col_sualobsb
+
 
     SUBROUTINE col_zero(column)
       IMPLICIT NONE
@@ -236,32 +237,33 @@ module columnData_mod
       column%rmtmobs(:)=0.0d0      
     END SUBROUTINE col_zero
 
-    SUBROUTINE col_allocate(column,kstep,nobtot)
+
+    SUBROUTINE col_allocate(column,kstep,numObsHeader)
       IMPLICIT NONE
 
       type(struct_columnData) :: column
-      integer :: kstep,nobtot
+      integer :: kstep,numObsHeader
       integer :: ier
 
       integer iloc,jvar
 
       column%allocated=.true.
       column%nkgdimo = nvo3d*kstep + nvo2d
-      column%nobtot = nobtot
+      column%numObsHeader = numObsHeader
       column%nlev = kstep
       write(*,*) 'col_allocate: nkgdimo = ',column%nkgdimo
 
-      allocate(column%all(column%nkgdimo,column%nobtot))
+      allocate(column%all(column%nkgdimo,column%numObsHeader))
       column%all(:,:)=0.0d0
 
-      allocate(column%gz_T(column%nlev,column%nobtot))
-      allocate(column%gz_M(column%nlev,column%nobtot))
+      allocate(column%gz_T(column%nlev,column%numObsHeader))
+      allocate(column%gz_M(column%nlev,column%numObsHeader))
       column%gz_T(:,:)=0.0d0
       column%gz_M(:,:)=0.0d0
 
-      allocate(column%rppobs(column%nlev,column%nobtot))
-      allocate(column%rppobs_T(column%nlev,column%nobtot))
-      allocate(column%rppobs_M(column%nlev,column%nobtot))
+      allocate(column%rppobs(column%nlev,column%numObsHeader))
+      allocate(column%rppobs_T(column%nlev,column%numObsHeader))
+      allocate(column%rppobs_M(column%nlev,column%numObsHeader))
       column%rppobs(:,:)=0.0d0
       column%rppobs_T(:,:)=0.0d0
       column%rppobs_M(:,:)=0.0d0
@@ -270,7 +272,7 @@ module columnData_mod
       allocate(column%vhyb_T(column%nlev))
       allocate(column%vhyb_M(column%nlev))
 
-      allocate(column%rmtmobs(column%nobtot))
+      allocate(column%rmtmobs(column%numObsHeader))
       column%rmtmobs(:)=0.0d0      
 
       iloc = 1
@@ -355,7 +357,7 @@ module columnData_mod
       type(struct_columnData) :: column_in,column_out
       integer :: jobs,jv,jv_in,jv_out
  
-      do jobs = 1, column_in%nobtot
+      do jobs = 1, column_in%numObsHeader
         do jv = 1, nvo2d
           jv_in   = jv + nvo3d*column_in%nlev
           jv_out  = jv + nvo3d*column_out%nlev
@@ -397,19 +399,19 @@ module columnData_mod
 
       if (cdvar.eq.'PP') then
         if(cdlev.eq.'TH') then
-          do jobs = 1,lcolumnghr%nobtot
+          do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1,lcolumnghr%nlev
               lcolumnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         elseif(cdlev.eq.'MM') then
-          do jobs = 1,lcolumnghr%nobtot
+          do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1,lcolumnghr%nlev
               lcolumnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         else
-          do jobs = 1,lcolumnghr%nobtot
+          do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1,lcolumnghr%nlev
               lcolumnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
             enddo
@@ -430,67 +432,67 @@ module columnData_mod
           enddo
         endif
       elseif(cdvar.eq.'UU') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%uu(jlev,jobs)=pvar(jlev,jobs)*rmsknt
           enddo
         enddo
       elseif(cdvar.eq.'VV') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%vv(jlev,jobs)=pvar(jlev,jobs)*rmsknt
           enddo
         enddo
       elseif(cdvar.eq.'GZ') then
         if(cdlev.eq.'TH') then
-          do jobs = 1,lcolumnghr%nobtot
+          do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1, lcolumnghr%nlev
               lcolumnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)*10.*rg
             enddo
           enddo
         elseif(cdlev.eq.'MM') then
-          do jobs = 1,lcolumnghr%nobtot
+          do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1, lcolumnghr%nlev
               lcolumnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)*10.*rg
             enddo
           enddo
         else
-          do jobs = 1,lcolumnghr%nobtot
+          do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1, lcolumnghr%nlev
               lcolumnghr%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
             enddo
           enddo
         endif
       elseif(cdvar.eq.'HU') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%hu(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
           enddo
         enddo
       elseif(cdvar.eq.'LQ') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%hu(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'TT') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%tt(jlev,jobs)=pvar(jlev,jobs) + tcdk
           enddo
         enddo
       elseif(cdvar.eq.'TR') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
             lcolumnghr%tr(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'P0') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           lcolumnghr%ps(1,jobs)=pvar(1,jobs)*rmbtpa
         enddo
       elseif(cdvar.eq.'TG') then
-        do jobs = 1,lcolumnghr%nobtot
+        do jobs = 1,lcolumnghr%numObsHeader
           lcolumnghr%tg(1,jobs)=pvar(1,jobs)
         enddo
       endif
@@ -523,89 +525,38 @@ module columnData_mod
     END SUBROUTINE col_pointStagToUnstag
 
 
-    SUBROUTINE col_expandToMpiGlobal(lcolumng,nulout, nobtot, nobtotp)
-#if defined (DOC)
-!
-!**s/r col_expandToMpiGlobal - restore Global array ROBDATA and MOBDATA. 
-!
-!Original Author    . Bin He (ARMA/MRB )
-!          extracted from Bin's obs_expandToMpiGlobal()
-!
-!Revision:
-!      PURPOSE:  To reconstitute the mpi-global column object by gathering
-!                the necessary data from all processors (to all processors).
-!
-#endif
-
-    USE obsSpaceData_mod, only: locObsTag
-    IMPLICIT NONE
-    type(struct_columnData) :: lcolumng
-    integer, intent(in) :: nulout       ! standard output unit
-    integer, intent(in) :: nobtot       ! Actual number of observations
-    integer, intent(in) :: nobtotp      ! Actual no. of obs. in POST FILE=nobtot
-
-!   Declare Local Variables. 
-    REAL*8,ALLOCATABLE,DIMENSION(:) :: RMTMOBS_tmp
-    
-    INTEGER :: i,iobs,ierr,sizeRMTMOBS  
-!!---------------------------------------------------------------
-
-!!  1.  Release some memory. 
-    print*,'Entering col_expandToMpiGlobal'  
-
-!!  1.2 Added restore global array RMTMOBS
-    ALLOCATE(RMTMOBS_tmp(NOBTOTP),STAT=ierr) 
-    IF(ierr /= 0)CALL ABORT3D(nulout,'Cant allocate Mem. to RMTMOBS_tmp,Abort!') 
-    RMTMOBS_TMP=0.0D0 
-
-!!  1.3 Retore global RMTMOBS
-    DO i=1,NOBTOT
-       iobs=locObsTag(i)
-       RMTMOBS_tmp(iobs)=lcolumng%RMTMOBS(i)
-    ENDDO  
-    sizeRMTMOBS=NOBTOTP
-    CALL RPN_COMM_ALLReduce(RMTMOBS_tmp,RMTMOBS_tmp,sizeRMTMOBS, &
-                            "mpi_double_precision","mpi_sum","GRID",ierr)
-
-!!  DEALLOCATE(RMTMOBS)
-    deallocate(lcolumng%rmtmobs)
-    allocate(lcolumng%rmtmobs(nobtotp))
-    lcolumng%RMTMOBS=RMTMOBS_tmp
-    DEALLOCATE(RMTMOBS_tmp)
-
-    print*,'Leaving col_expandToMpiGlobal' 
-    RETURN
-  END SUBROUTINE col_expandToMpiGlobal
-
-
-    SUBROUTINE col_expandToMpiGlobal3(column_local,column_global)
-      USE obsSpaceData_mod, only: locObsTag
-      IMPLICIT NONE
+    SUBROUTINE col_expandToMpiGlobal(column_local,column_global,lobsSpaceData)
+      use obsSpaceData_mod
+      implicit none
 
       type(struct_columnData) :: column_local,column_global
+      type(struct_obs) :: lobsSpaceData
 
-      INTEGER :: i,iobs,ierr,nsize
+      integer :: iobs_local,iobs_global,ierr,nsize
 
-      print*,'Entering col_expandToMpiGlobal3:',  &
-             column_local%nobtot,column_global%nobtot  
+      print*,'Entering col_expandToMpiGlobal:',  &
+             column_local%numObsHeader,column_global%numObsHeader  
       call flush(6)
 
-      column_global%all(:,:)=0.0d0
-      DO i=1,column_local%nobtot
-        iobs=locObsTag(i)
-        column_global%all(:,iobs)  =column_local%all(:,i)
-      ENDDO
+      do iobs_local=1,column_local%numObsHeader
+        iobs_global=lobsSpaceData%locObsTag(iobs_local)
+        column_global%all(:,iobs_global)    =column_local%all(:,iobs_local)
+        column_global%rmtmobs(iobs_global)  =column_local%rmtmobs(iobs_local)
+      enddo
 
       write(*,*) 'starting allreduce'
       call flush(6)
-      nsize=column_global%nkgdimo*column_global%nobtot
-      CALL RPN_COMM_ALLReduce(column_global%all,column_global%all,nsize, &
+      nsize=column_global%nkgdimo*column_global%numObsHeader
+      call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
+                              "mpi_double_precision","mpi_sum","GRID",ierr)
+      nsize=column_global%numObsHeader
+      call rpn_comm_allreduce(column_global%rmtmobs,column_global%rmtmobs,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
 
-      write(*,*) 'Leaving col_expandToMpiGlobal3' 
+      write(*,*) 'Leaving col_expandToMpiGlobal' 
       call flush(6)
-      RETURN
+      return
 
-    END SUBROUTINE col_expandToMpiGlobal3
+    END SUBROUTINE col_expandToMpiGlobal
 
 end module columnData_mod

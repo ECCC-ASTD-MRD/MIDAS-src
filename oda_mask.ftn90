@@ -20,7 +20,6 @@ subroutine oda_mask(lobsSpaceData)
   use bufr
   implicit none
   #include "comct0.cdk"
-  #include "comdimo.cdk"
   #include "cvcord.cdk"
   #include "comlun.cdk"
   #include "comfilt.cdk"
@@ -243,7 +242,7 @@ subroutine oda_maskto
   external isrcheq
   external abort3d
 
-  if(nobtov.eq.0) return    ! exit if there are not tovs data
+  if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
   !     1.  Computation of (hx - z)/sigma for tovs data only
   !     .   ------------------------------------------------
@@ -458,11 +457,9 @@ end subroutine oda_maskto
 !c
 ! Define Local Variables. 
       INTEGER :: ierr
-      INTEGER :: nobtot_l
       integer :: mask_dim
       LOGICAL,DIMENSION(:),pointer :: llmask_l  
 
-       nobtot_l=nobtot 
        mask_dim = ubound(lmaskpp_in,1)  
          
        ALLOCATE(lmaskpp_inout_g(mask_dim),STAT=ierr)
@@ -487,21 +484,21 @@ end subroutine oda_maskto
        ALLOCATE(llmask_l(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cant Allocate Mem. to llmask_l')
 
-       CALL restore_mask(lmask_g,lobsSpaceData%mxobstotal,lmask,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmask_g,lobsSpaceData%numbody_max,lmask,obs_numbody(lobsSpaceData))  
 
        llmask_l = lmaskpp_in .or. lmaskpp_out
-       CALL restore_mask(lmaskpp_inout_g,lobsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmaskpp_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
 
        llmask_l =  lmasksf_in .or. lmasksf_out
-       CALL restore_mask(lmasksf_inout_g,lobsSpaceData%mxobstotal,llmask_l,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmasksf_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskto_g,lobsSpaceData%mxobstotal,lmaskto,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmaskto_g,lobsSpaceData%numbody_max,lmaskto,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskro_g,lobsSpaceData%mxobstotal,lmaskro,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmaskro_g,lobsSpaceData%numbody_max,lmaskro,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskzp_g,lobsSpaceData%mxobstotal,lmaskzp,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmaskzp_g,lobsSpaceData%numbody_max,lmaskzp,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskgp_g,lobsSpaceData%mxobstotal,lmaskgp,obs_num_obstotal(lobsSpaceData))  
+       CALL restore_mask(lmaskgp_g,lobsSpaceData%numbody_max,lmaskgp,obs_numbody(lobsSpaceData))  
 
       END SUBROUTINE restoreMasks     
 
@@ -515,8 +512,8 @@ end subroutine oda_maskto
 
        lmask_g=.false.
        ii=0
-       DO i=1,nobtot
-         iobs=locObsTag(i)
+       DO i=1,obs_numheader(lobsSpaceData)
+         iobs=lobsSpaceData%locObsTag(i)
          idata=obs_elem_mpiglobal_i(lobsSpaceData,'RLN ',iobs)
          idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs) + idata -1
          DO j=idata,idataend

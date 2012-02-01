@@ -37,7 +37,6 @@ C
       use columnData_mod 
  
       IMPLICIT NONE
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"

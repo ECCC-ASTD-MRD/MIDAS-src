@@ -115,7 +115,6 @@
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "comct0.cdk"
-#include "comdimo.cdk"
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
@@ -127,7 +126,7 @@
       INTEGER KNVALS,IVAL,jji,ITYPDATA
       INTEGER KFILE,KNRECS,KLIST(KNVALS)
       INTEGER IIND,IPOS,ILPOS,inelefd,ideb
-      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF
+      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF,NUMHEADER
       INTEGER ITECH,IMASK,ISAT
       INTEGER IBIT0,INBIT,IDATYP
 *
@@ -280,17 +279,18 @@
 ************************************************************************
 *
       IF ( .NOT. LDAPPEND ) THEN
-         NOBTOT  =0
+         NUMHEADER  =0
          obs_posn=1
       ELSE
 *
+         NUMHEADER =obs_numheader(lobsSpaceData)
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
-         WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NOBTOT
+         WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NUMHEADER
          WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_posn-1
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*) ' '
-         IF ( NOBTOT .GE. NMXOBS) THEN
+         IF ( NUMHEADER .GE. obs_numheader_max(lobsSpaceData)) THEN
             WRITE(NULOUT,*) ' CMA FILE FULL: NO DATA READ'
             WRITE(NULOUT,*)' ------------------------------------------'
             WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
@@ -509,9 +509,9 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
 *    INSERT CMA DATA INTO BURP FILE
 ************************************************************************
 *
-           IOBTOT=NOBTOT
+           IOBTOT=NUMHEADER
            DO 22 JJEL=1,KNVALS
-              NOBTOT=IOBTOT
+              NUMHEADER=IOBTOT
               IPOSB=0
               ILPOSB=0
               ICOUNT=0
@@ -743,19 +743,19 @@ C
                     IF ( INd .GT. 0 ) THEN
 *
 ************************************************************************
-*      IF VALID DATA WAS FOUND INCREMENT NOBTOT (only one time per burp
+*      IF VALID DATA WAS FOUND INCREMENT NUMHEADER (only one time per burp
 *      record read
 ************************************************************************
 *
-                       IF (NOBTOT .LT. NMXOBS) THEN
+                       IF (NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
 *
 
                           IF(ICOUNT .EQ. 1) THEN
-                            NOBTOT=NOBTOT + 1
+                            NUMHEADER=NUMHEADER + 1
                                         ! Record the value also in obsSpaceData
-                            lobsSpaceData%numstns_recorded = NOBTOT
-                            IFLGS=obs_elem_i(lobsSpaceData,'ST1 ',NOBTOT)
-                            IZMODEL= NINT(lcolumng%RMTMOBS(NOBTOT)/RG) + 400
+                            lobsSpaceData%numheader = NUMHEADER
+                            IFLGS=obs_elem_i(lobsSpaceData,'ST1 ',NUMHEADER)
+                            IZMODEL= NINT(lcolumng%RMTMOBS(NUMHEADER)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF
                           IF ( LLGROUP) THEN
@@ -797,8 +797,9 @@ C
          ENDIF
       ENDIF
 ********************************
-      IF( (obs_posn+obs_thisblock-1 .GE. obs_num_obstotal(lobsSpaceData) .OR. NOBTOT .GE. NMXOBS)
-     + .AND. JJEL .EQ. KNVALS) THEN
+      IF( (obs_posn+obs_thisblock-1 .GE. obs_numbody(lobsSpaceData) 
+     +   .OR. NUMHEADER .GE. obs_numheader_max(lobsSpaceData))
+     +   .AND. JJEL .EQ. KNVALS) THEN
          IF( LLGOOD ) THEN
             IF( .NOT. LLGROUP) THEN
               ier=mrbupd(KFILE,IBUF,-1,iflgs,CLSTNID,
@@ -810,7 +811,7 @@ C
             IER=MRFPUT(KFILE,IHANDLP,IBUF)
          ENDIF
          WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
-         CALL PRNTBRP(NOBTOT,IKOUNT,obs_posn+obs_thisblock-1)
+         CALL PRNTBRP(NUMHEADER,IKOUNT,obs_posn+obs_thisblock-1)
          WRITE(NULOUT,*)' ------------------------------------------'
          WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
          WRITE(NULOUT,*)' ------------------------------------------'
@@ -854,7 +855,7 @@ C
       CALL HPDEALLC(PXBUF    ,IER,1)
 *
 *-----------------------------------------------------------------------
-      CALL PRNTBRP(NOBTOT,IKOUNT,obs_posn-1)
+      CALL PRNTBRP(NUMHEADER,IKOUNT,obs_posn-1)
 *
       WRITE(NULOUT,*)' ------------------------------------------'
       WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'

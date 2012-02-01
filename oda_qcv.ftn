@@ -44,7 +44,7 @@ C
       allocate(llmask(ubound(lmask,1)),STAT=ierr)
       if(ierr /= 0 ) call abort3d(nulout,'cant allocate mem. to lmask,1')
       llmask = lmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         IF (llmask(jdata)) THEN
           jo = obs_elem_i(lobsSpaceData,'OBS ',jdata)
           idata = obs_elem_i(lobsSpaceData,'RLN ',JO)

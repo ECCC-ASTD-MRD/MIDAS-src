@@ -57,7 +57,6 @@
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "cvcord.cdk"
-#include "comdimo.cdk"
       type(struct_obs) :: lobsSpaceData
       INTEGER IER,INBLKS,INRECS,IBRP1,IBEG
       INTEGER EXDB,EXFIN,FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
@@ -86,7 +85,7 @@
 *
       NVALS=NFILES
       LLAPPEND=.FALSE.
-      NOBTOT=0
+!!BUE      lobsSpaceData%numheader=0
       DO J =1,NVALS
          NVTYP=J
          CLVAL(J) = CFILNAM(J)
@@ -107,12 +106,12 @@
      +       '========================================================='
                WRITE(NULOUT,*)  ' '
 *
-               IBEG=obs_num_obstotal(lobsSpaceData)+1
+               IBEG=obs_numbody(lobsSpaceData)+1
 !
                CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS,lobsSpaceData)
-               IF ( IBEG .LE. obs_num_obstotal(lobsSpaceData) ) THEN
+               IF ( IBEG .LE. obs_numbody(lobsSpaceData) ) THEN
                   NBEGINTYP(J)=IBEG
-                  NENDTYP(J) =obs_num_obstotal(lobsSpaceData)
+                  NENDTYP(J) =obs_numbody(lobsSpaceData)
                ELSE
                   NBEGINTYP(J)=-999
                   NENDTYP(J)  =-999
@@ -125,7 +124,7 @@
          IER= FCLOS(IBRP1)
       END DO
 *
-      write(nulout,*) 'SELECT: NOBTOT = ',NOBTOT
+      write(nulout,*) 'SELECT: NUMHEADER = ',obs_numheader(lobsSpaceData)
       WRITE(NULOUT,*)' '
       WRITE(NULOUT,*)'================================================='
       WRITE(NULOUT,*)'                SELECT     END                   '

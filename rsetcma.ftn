@@ -34,16 +34,13 @@
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
-*implicits
-#include "comdimo.cdk"
-*
       type(struct_obs) :: lobsSpaceData
       INTEGER JDATA,II,IASS,ITYP
 C
 C-------     READ H(X)-Z IN zprim.dat
 C
       call obs_swapVarOmf(lobsSpaceData)
-      do JDATA=1,obs_num_obstotal(lobsSpaceData)
+      do JDATA=1,obs_numbody(lobsSpaceData)
          IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
          ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
          IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN

@@ -31,27 +31,26 @@
 #endif
       use gridStateVector_mod
       use gaussGrid_mod
-      use modfgat
-      IMPLICIT NONE
+      implicit none
       type(struct_gsv) :: statevector
 *
 * Local variables
 *
       integer ji,jj,jk,jstep
-      INTEGER JLEV, JLAT, JLON
+      integer jlev, jlat, jlon
 *
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
-      DO JLAT = 1, statevector%NJ
-        DO JSTEP=1,NSTEPOBSINC
-          DO JLEV = 1, statevector%NLEV
-            DO JLON = 1, statevector%NI
-              statevector%uu(JLON,JLEV,JLAT,jstep) = gaus_CONPHY(JLAT) * statevector%uu(JLON,JLEV,JLAT,jstep)
-              statevector%vv(JLON,JLEV,JLAT,jstep) = gaus_CONPHY(JLAT) * statevector%vv(JLON,JLEV,JLAT,jstep)
-            END DO
-          END DO
-        END DO
-      ENDDO
+      do jlat = 1, statevector%nj
+        do jstep=1, statevector%nt
+          do jlev = 1, statevector%nlev
+            do jlon = 1, statevector%ni
+              statevector%uu(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * statevector%uu(jlon,jlev,jlat,jstep)
+              statevector%vv(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * statevector%vv(jlon,jlev,jlat,jstep)
+            enddo
+          enddo
+        enddo
+      enddo
 !$OMP END DO
 !$OMP END PARALLEL
 *

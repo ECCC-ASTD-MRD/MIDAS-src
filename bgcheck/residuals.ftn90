@@ -10,7 +10,6 @@
       use columnData_mod
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "cparbrp.cdk"
 
       type(struct_obs) :: lobsSpaceData
@@ -23,7 +22,7 @@
 !C*    1. Preliminary initializations
 !C     .  ---------------------------
 !C
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData) 
+      DO JDATA=1,obs_numbody(lobsSpaceData) 
          call obs_set_r4(lobsSpaceData,'OMF ',jdata,real(PPMIS))
       ENDDO
 
@@ -36,7 +35,7 @@
 
       CALL VINT3DFD('OMA ',lobsSpaceData)
 
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
          call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
       ENDDO
       DO j =1,1

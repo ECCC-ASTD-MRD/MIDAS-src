@@ -38,7 +38,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   integer, save :: nl_ncall = 0
   real*8 :: dl_bidon
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
   type(struct_columnData) :: lcolumn,lcolumng
@@ -97,7 +96,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       zgamma = 0.0065D0 / GRAV
       zexp = RGASD*zgamma
 
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
           IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
           IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
@@ -182,7 +181,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     Process all data within the domain of the model
 !C
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         if(lmasksf_in(jdata)) then
           IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
           IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
@@ -522,7 +521,7 @@ end subroutine oda_Hto
       REAL*8 DLSUM
       LOGICAL LLOK, LLPRINT, LLUV
 
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         IF (lmaskzp(jdata)) THEN
           IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
           IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)

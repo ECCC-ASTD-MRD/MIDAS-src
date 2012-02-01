@@ -68,9 +68,9 @@ c
       write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
       write(nulout,*) ' '
 c
-      call hpalloc(pzom_T,max(lcolumng%nlev*lcolumng%nobtot,1),ier,8)
-      call hpalloc(pzom_M,max(lcolumng%nlev*lcolumng%nobtot,1),ier,8)
-      call hpalloc(pzovar,max(lcolumng%nobtot,1),ier,8)
+      call hpalloc(pzom_T,max(lcolumng%nlev*lcolumng%numObsHeader,1),ier,8)
+      call hpalloc(pzom_M,max(lcolumng%nlev*lcolumng%numObsHeader,1),ier,8)
+      call hpalloc(pzovar,max(lcolumng%numObsHeader,1),ier,8)
       allocate(zopart(maxval(nobs)))
       allocate(zopart2(maxval(nobs)))
       allocate(idate(nstepobs))
@@ -91,7 +91,7 @@ c
 c------- fill lcolumng with zero
 c
       do jlev=1,lcolumng%nkgdimo
-        do jobs=1,lcolumng%nobtot
+        do jobs=1,lcolumng%numObsHeader
           lcolumng%all(jlev,jobs) = 0.
         enddo
       enddo
@@ -111,7 +111,7 @@ c
       lcolumnhr%nlev = nlv_T
       lcolumnhr%nlev_T = nlv_T
       lcolumnhr%nlev_M = nlv_M
-      call col_allocate(lcolumnhr,istep,lcolumng%nobtot)
+      call col_allocate(lcolumnhr,istep,lcolumng%numObsHeader)
       call col_zero(lcolumnhr)
 c
 c     Deactivate assimilate flag for obs outside of trial field grid
@@ -215,7 +215,7 @@ c
           endif
         enddo
 c
-        call col_fillmvo(lcolumng,cfstvar2d(jvar),'NA',zovar,1,lcolumng%nobtot)
+        call col_fillmvo(lcolumng,cfstvar2d(jvar),'NA',zovar,1,lcolumng%numObsHeader)
 c
       enddo
 c
@@ -223,11 +223,11 @@ c-----Derive the pressure fields at observation points from the hybrid
 C     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 c
-      do jobs = 1,lcolumng%nobtot
+      do jobs = 1,lcolumng%numObsHeader
         zovar(jobs) = lcolumng%ps(1,jobs)
       enddo
 c
-      call vco_calcpres(vco_anl,lcolumng%rppobs,lcolumng%nlev,zovar,lcolumng%nobtot)
+      call vco_calcpres(vco_anl,lcolumng%rppobs,lcolumng%nlev,zovar,lcolumng%numObsHeader)
       do jlev = 1,lcolumng%nlev
         write(nulout,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), LCOLUMNG%RPPOBS(jlev,1) = ',
      +    jlev,vco_anl%dhyb_m(jlev),LCOLUMNG%RPPOBS(jlev,1)
@@ -236,15 +236,15 @@ c
 c
 c ------- Prepare for interpolation of the 3D fields
 c
-      if (.not. allocated(zmobs))     allocate(zmobs(    nlv_T,lcolumng%nobtot))
-      if (.not. allocated(zmobs_T))   allocate(zmobs_T(  nlv_T,lcolumng%nobtot))
-      if (.not. allocated(zmobs_MT))  allocate(zmobs_MT( nlv_T,lcolumng%nobtot))
-      if (.not. allocated(zmobs2_MT)) allocate(zmobs2_MT(nlv_T,lcolumng%nobtot))
-      if (.not. allocated(zppobs_MT)) allocate(zppobs_MT(nlv_T,lcolumng%nobtot))
-      if (.not. allocated(zppobs_T))  allocate(zppobs_T( nlv_T,lcolumng%nobtot))
-      if (.not. allocated(zmobs_M))   allocate(zmobs_M(  nlv_M,lcolumng%nobtot))
-      if (.not. allocated(zmobs2_M))  allocate(zmobs2_M (nlv_M,lcolumng%nobtot))
-      if (.not. allocated(zppobs_M))  allocate(zppobs_M( nlv_M,lcolumng%nobtot))
+      if (.not. allocated(zmobs))     allocate(zmobs(    nlv_T,lcolumng%numObsHeader))
+      if (.not. allocated(zmobs_T))   allocate(zmobs_T(  nlv_T,lcolumng%numObsHeader))
+      if (.not. allocated(zmobs_MT))  allocate(zmobs_MT( nlv_T,lcolumng%numObsHeader))
+      if (.not. allocated(zmobs2_MT)) allocate(zmobs2_MT(nlv_T,lcolumng%numObsHeader))
+      if (.not. allocated(zppobs_MT)) allocate(zppobs_MT(nlv_T,lcolumng%numObsHeader))
+      if (.not. allocated(zppobs_T))  allocate(zppobs_T( nlv_T,lcolumng%numObsHeader))
+      if (.not. allocated(zmobs_M))   allocate(zmobs_M(  nlv_M,lcolumng%numObsHeader))
+      if (.not. allocated(zmobs2_M))  allocate(zmobs2_M (nlv_M,lcolumng%numObsHeader))
+      if (.not. allocated(zppobs_M))  allocate(zppobs_M( nlv_M,lcolumng%numObsHeader))
       if (.not. allocated(zhybhr))    allocate(zhybhr(   nlv_T))
 c
 c------- Calculate profiles of pressure values at station location
@@ -256,9 +256,9 @@ c------- Calculate profiles of pressure values at station location
 c-------Staggered hybrid trial field 
       if (vco_trl%iversion .eq. 5002) then 
         call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_M
-     &         ,nlv_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
+     &         ,nlv_M,lcolumng%numObsHeader,nulout,zppobs_M(1,1))
         call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_T
-     &         ,nlv_T,lcolumng%nobtot,nulout,zppobs_T(1,1))
+     &         ,nlv_T,lcolumng%numObsHeader,nulout,zppobs_T(1,1))
 c       Copier le niveaux du bas momentum dans le dernier niveau du
 c       vecteur surdimentionne
 cnwa        zppobs_M(nlv_T,:) = zppobs_M(nlv_M,:)
@@ -266,11 +266,11 @@ c-------ETA  trial field
       elseif(vco_trl%iversion .eq. 5001) then
         call col_pointStagToUnstag(lcolumnhr)
         call calcpres_vgrid(vgrid_trl,zovar, vco_trl%ip1_M
-     &         ,vco_trl%nlev_M,lcolumng%nobtot,nulout,zppobs_M(1,1))
+     &         ,vco_trl%nlev_M,lcolumng%numObsHeader,nulout,zppobs_M(1,1))
 
-        call vco_calcpres(vco_trl,zppobs_M,nlv_M,zovar,lcolumng%nobtot)
+        call vco_calcpres(vco_trl,zppobs_M,nlv_M,zovar,lcolumng%numObsHeader)
         do jlev   = 1,nlv_M 
-          do jobs = 1,lcolumng%nobtot
+          do jobs = 1,lcolumng%numObsHeader
             zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 
           enddo
         enddo
@@ -282,18 +282,18 @@ c
 c      
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
       do jlev = 1, nlv_M
-        do jobs = 1, lcolumng%nobtot
+        do jobs = 1, lcolumng%numObsHeader
           zppobs_MT(jlev,jobs) = zppobs_M(jlev,jobs)
         enddo
       enddo
-      do jobs = 1, lcolumng%nobtot
+      do jobs = 1, lcolumng%numObsHeader
         zppobs_MT(nlv_T,jobs) = zppobs_M(nlv_M,jobs)
       enddo
 c
 c Remplir la pression sur le niveaux du trial au points d'observations
-      call col_fillmvo(lcolumnhr,'PP','MM',zppobs_MT,nlv_T,lcolumng%nobtot)
-      call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T,nlv_T,lcolumng%nobtot)
-      call col_fillmvo(lcolumnhr,'PP','NA',zppobs_T,nlv_T,lcolumng%nobtot)
+      call col_fillmvo(lcolumnhr,'PP','MM',zppobs_MT,nlv_T,lcolumng%numObsHeader)
+      call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T,nlv_T,lcolumng%numObsHeader)
+      call col_fillmvo(lcolumnhr,'PP','NA',zppobs_T,nlv_T,lcolumng%numObsHeader)
 c      
 c Remplir les valeur eta ou zeta des niveaux du trial
 c     surdimension (de 1) vecteur des niveaux momentum
@@ -367,10 +367,10 @@ c     remplir gomobsgzhr_M avec la dimention des niveaux thermo
             write(nulout,*) 'GZ,',jlev
      &           ,zPPOBS_T(jlev,1),zmobs(jlev,1)*10.*rg
           enddo
-      call col_fillmvo(lcolumnhr,'GZ','MM',zmobs,nlv_T,lcolumng%nobtot)
+      call col_fillmvo(lcolumnhr,'GZ','MM',zmobs,nlv_T,lcolumng%numObsHeader)
 c
 c     remplir aussi columnhr%gz avec le GZ momentum
-      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs,nlv_T,lcolumng%nobtot)
+      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs,nlv_T,lcolumng%numObsHeader)
 c
 c     Lire les GZ des niveaux Thermodynamique
 c
@@ -409,7 +409,7 @@ c     remplir gomobsgzhr_T
             write(nulout,*)'GZ,',jlev
      &           ,zPPOBS_T(jlev,1),zmobs(jlev,1)*10.*rg
           enddo
-      call col_fillmvo(lcolumnhr,'GZ','TH',zmobs,nlv_T,lcolumng%nobtot)
+      call col_fillmvo(lcolumnhr,'GZ','TH',zmobs,nlv_T,lcolumng%numObsHeader)
 c
 c Now all of the other 3D variables
 c
@@ -492,11 +492,11 @@ c
 c         
           call tmg_start(29,'VINTPROF')
 c
-          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs_M,zppobs_M,nlv_M,lcolumng%nobtot)
-          call col_fillmvo(lcolumng,'UU','NA',zom_M,lcolumng%nlev,lcolumng%nobtot)
+          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs_M,zppobs_M,nlv_M,lcolumng%numObsHeader)
+          call col_fillmvo(lcolumng,'UU','NA',zom_M,lcolumng%nlev,lcolumng%numObsHeader)
 c
-          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs2_M,zppobs_M,nlv_M,lcolumng%nobtot)
-          call col_fillmvo(lcolumng,'VV','NA',zom_M,lcolumng%nlev,lcolumng%nobtot)
+          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs2_M,zppobs_M,nlv_M,lcolumng%numObsHeader)
+          call col_fillmvo(lcolumng,'VV','NA',zom_M,lcolumng%nlev,lcolumng%numObsHeader)
 c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
           do jlev = 1, nlv_M
@@ -517,8 +517,8 @@ ccc dbug in
      &           ,zPPOBS_T(jlev,1),zmobs2_MT(jlev,1)
           enddo
 ccc dbug out
-          call col_fillmvo(lcolumnhr,'UU','NA',zmobs_MT,nlv_T,lcolumng%nobtot)
-          call col_fillmvo(lcolumnhr,'VV','NA',zmobs2_MT,nlv_T,lcolumng%nobtot)
+          call col_fillmvo(lcolumnhr,'UU','NA',zmobs_MT,nlv_T,lcolumng%numObsHeader)
+          call col_fillmvo(lcolumnhr,'VV','NA',zmobs2_MT,nlv_T,lcolumng%numObsHeader)
 c
           call tmg_stop(29)
 c          
@@ -573,11 +573,11 @@ c
           enddo
           call tmg_stop(27)
 c
-          call vintprof(zom_T,lcolumng%rppobs,lcolumng%nlev,zmobs_T,zppobs_T,nlv_T,lcolumng%nobtot)
+          call vintprof(zom_T,lcolumng%rppobs,lcolumng%nlev,zmobs_T,zppobs_T,nlv_T,lcolumng%numObsHeader)
 c
           call tmg_start(30,'FILLMVO')
-          call col_fillmvo(lcolumng ,cfstvar(jvar),'NA',zom_T,lcolumng%nlev,lcolumng%nobtot)
-          call col_fillmvo(lcolumnhr,cfstvar(jvar),'NA',zmobs_T,nlv_T,lcolumng%nobtot)
+          call col_fillmvo(lcolumng ,cfstvar(jvar),'NA',zom_T,lcolumng%nlev,lcolumng%numObsHeader)
+          call col_fillmvo(lcolumnhr,cfstvar(jvar),'NA',zmobs_T,nlv_T,lcolumng%numObsHeader)
           call tmg_stop(30)
 c
         endselect 

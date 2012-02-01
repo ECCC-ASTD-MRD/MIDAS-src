@@ -5,7 +5,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   use bufr
   implicit none
 #include "comlun.cdk"
-#include "comdimo.cdk"
 #include "comfilt.cdk"
 #include "comgpsgb.cdk"
 
@@ -213,7 +212,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       END DO FAMILY
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
@@ -486,7 +485,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
  223  FORMAT(2x,a29,5(2x,f6.0))
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
@@ -604,7 +603,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT  &
@@ -830,7 +829,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
  224  FORMAT(2x,a31,2x,I6,2X,I5,2(2x,f9.2))
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X,"%PR NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
@@ -944,7 +943,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
 
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT  &

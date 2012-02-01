@@ -29,14 +29,10 @@
 #endif
 C
       IMPLICIT NONE
-*implicits
-#include "comdimo.cdk"
-*
       type(struct_obs) :: lobsSpaceData
       INTEGER KULOUT, IERR
       INTEGER ILEN, ilen8
       INTEGER iloc, jvar
-      EXTERNAL HPALLOC
 C
       WRITE(KULOUT,FMT='(//,6(" ***********"))')
       WRITE(KULOUT,*)'     SUALOBS:  Memory allocation of the',
@@ -54,25 +50,30 @@ C     .   (COMDECK COMOBA)
 C     .  ---------------------------------------------
 C
 *     Memory allocation for lobsSpaceData (except for *_g arrays)
-      call obs_initialize(lobsSpaceData,NMXOBS,NDATAMX)
+      call obs_initialize(lobsSpaceData)
 !
-!
-      allocate(lmaskpp_in(ndatamx),lmaskpp_out(ndatamx))
+      allocate(lmaskpp_in(obs_numbody_max(lobsSpaceData)))
+      allocate(lmaskpp_out(obs_numbody_max(lobsSpaceData)))
       lmaskpp_in = .false.
       lmaskpp_out = .false.
-      allocate(lmasksf_in(ndatamx),lmasksf_out(ndatamx))
+      allocate(lmasksf_in(obs_numbody_max(lobsSpaceData)))
+      allocate(lmasksf_out(obs_numbody_max(lobsSpaceData)))
       lmasksf_in = .false.
       lmasksf_out = .false.
-      allocate(lmask(ndatamx),lmaskto(ndatamx))
+      allocate(lmask(obs_numbody_max(lobsSpaceData)))
+      allocate(lmaskto(obs_numbody_max(lobsSpaceData)))
       lmaskto = .false.
-      allocate(lmaskro(ndatamx),lmaskzp(ndatamx),ldiagpp(ndatamx))
+      allocate(lmaskro(obs_numbody_max(lobsSpaceData)))
+      allocate(lmaskzp(obs_numbody_max(lobsSpaceData)))
+      allocate(ldiagpp(obs_numbody_max(lobsSpaceData)))
       lmaskzp = .false.
       lmaskro = .false.
       ldiagpp = .false.
-      allocate(ldiagsf(ndatamx),ldiag(ndatamx))
+      allocate(ldiagsf(obs_numbody_max(lobsSpaceData)))
+      allocate(ldiag(obs_numbody_max(lobsSpaceData)))
       ldiagsf = .false.
       ldiag = .false.
-      allocate(lmaskgp(ndatamx))
+      allocate(lmaskgp(obs_numbody_max(lobsSpaceData)))
       lmaskgp = .false.
       WRITE(KULOUT,FMT='(/,"  Arrays in COMOBA are allocated",
      S     " the following space:")')

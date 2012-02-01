@@ -60,7 +60,7 @@
 !     1. Computation of (HX - Z)/SIGMA
 !
       PJO=0.
-      do jdata=1,obs_num_obstotal(lobsSpaceData)
+      do jdata=1,obs_numbody(lobsSpaceData)
          if(obs_getFamily(lobsSpaceData,bodyIndex=jdata).eq.CDFAM) then
 !
 ! Process all data within the domain of the model

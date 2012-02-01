@@ -41,7 +41,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   write(*,*) '--Starting subroutine minimize--'
   write(*,*) '--------------------------------'
 
-  call col_allocate(lcolumn,lcolumng%nlev,lcolumng%nobtot)
+  call col_allocate(lcolumn,lcolumng%nlev,lcolumng%numObsHeader)
   call col_zero(lcolumn)
 
   call setcma(lobsSpaceData)

@@ -33,8 +33,6 @@
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
-#include "comdimo.cdk"
-*
       type(struct_obs) :: lobsSpaceData
       INTEGER JPINEL,JPIDLND
       PARAMETER(JPINEL=2,JPIDLND=9)
@@ -149,7 +147,7 @@ C
       END DO ! family
 C
       IKOUNTT=0
-      DO JDATA=1,obs_num_obstotal(lobsSpaceData)
+      DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       END DO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D"

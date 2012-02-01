@@ -42,7 +42,6 @@
       IMPLICIT NONE
 
 !implicits
-#include "comdimo.cdk"
 #include "comlun.cdk"
 
       type(struct_obs) :: lobsSpaceData

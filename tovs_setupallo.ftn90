@@ -60,7 +60,6 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
   IMPLICIT NONE
 !implicits
-#include "comdimo.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comlun.cdk"
@@ -90,11 +89,11 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 !        Construct a list of sensor number for each profile
 !     .  ---------------------------------------------------
   alloc_status(:) = 0
-  allocate (nchan(nsensors),          stat= alloc_status(1))
-  allocate (ichan(jpchus,nsensors),   stat= alloc_status(2))
-  allocate (lsensor(nobtot),          stat= alloc_status(3))
-  allocate (lobsno (nobtot),          stat= alloc_status(4))
-  allocate (ltovsno(nobtot),          stat= alloc_status(5))
+  allocate (nchan(nsensors),                       stat= alloc_status(1))
+  allocate (ichan(jpchus,nsensors),                stat= alloc_status(2))
+  allocate (lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
+  allocate (lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
+  allocate (ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
   nchan(:)   = 0 
   ichan(:,:) = 0
   ltovsno(:) = 0

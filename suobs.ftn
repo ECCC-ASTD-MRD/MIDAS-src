@@ -66,7 +66,15 @@ C
      S     ,/,1x,3('- -----------'))
 C
       write(nulout,fmt='(/,12x,A)')'Setting ATOVS parameters from NAMELIST'
-      LEVEL1B=.FALSE.
+      NSENSORS   = 1
+      CSATID(:)  = '***UNDEFINED***'
+      CINSTRUMENTID(:) = '***UNDEFINED***'
+      LTSTTOV   = .FALSE.
+      LDBGTOV   = .FALSE.
+      LRTNADIR  = .FALSE.
+      LEVEL1B   = .FALSE.
+      LNLVTOV   = .FALSE.
+      CRTMODL   = 'RTTOV'
       CALL READNML('NAMTOV',IERR)
 C
 C     1.Read Input from namelist
@@ -75,8 +83,6 @@ C     DEFAULTS
 C     ------------------
       dstepobs    = 6.0d0
       dstepobsinc = 6.0d0      
-      nlwrbin  = -1
-      nuprbin  = -1
       NONELEV=-1
       do j = 1, 30
         nlist(j) = 0
@@ -126,11 +132,6 @@ c
                                  !Select calls  BRPCMA
                                  ! 1. Positioning of data records within ROBDATA/MOBDATA
       CALL SELECT(lobsSpaceData) ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
-                                 ! 3. Incrementation of NOBTOT and obs_num_obstotal(lobsSpaceData) based on data selected
-*
-*     4. SYNTHOBS:  a new family, SYNTH is introduced to handle synthetic data on top of existing observations
-*     .             If no other observations are used, it performs the usual single observation experiment.
-*
-!modular1      call setsynthobs
-*
+                                 ! 3. Incrementation of obsSpaceData%numheader and obsSpaceData%numbody based on data selected
+
       END SUBROUTINE SUOBS

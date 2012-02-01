@@ -39,7 +39,6 @@
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
-#include "comdimo.cdk"
 #include "comlun.cdk"
 #include "comgpsro.cdk"
 *

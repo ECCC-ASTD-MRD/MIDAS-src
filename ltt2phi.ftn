@@ -75,7 +75,7 @@ c
 C
       LLPRINT = .false.
 *
-      call col_allocate(lcolumnt,lcolumn%nlev,lcolumn%nobtot)
+      call col_allocate(lcolumnt,lcolumn%nlev,lcolumn%numObsHeader)
 **
 c
 c*1   First set delq properly and store in lcolumnt%hu ready for Tv
@@ -84,7 +84,7 @@ c     ------------------------------------------------------------------
 C -
 c
  100  continue
-      do jobs = 1, lcolumn%nobtot
+      do jobs = 1, lcolumn%numObsHeader
         do jlev = 1, lcolumn%nlev
           lcolumnt%hu(jlev,jobs) = lcolumn%hu(jlev,jobs)
         enddo
@@ -98,14 +98,14 @@ c
 !$OMP+ PRIVATE(zcon,zfactt,zfacps,zdelt,zdelps)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, lcolumn%nobtot,numthd
+      do jobs = mythread, lcolumn%numObsHeader,numthd
         do jlev = 1, lcolumn%nlev
           lcolumnt%tt(jlev,jobs) = oltv(1,jlev,jobs)*lcolumn%tt(jlev,jobs) + oltv(2
      &         ,jlev,jobs)*lcolumnt%hu(jlev,jobs)
 ***************************************************************
 c       if (LLPRINT .AND.jobs.eq.1) then
-c          write(nulout,*) 'ltt2phi: jobs,lcolumn%nobtot,lcolumn%nlev '
-c     &          ,jobs,lcolumn%nobtot,lcolumn%nlev
+c          write(nulout,*) 'ltt2phi: jobs,lcolumn%numObsHeader,lcolumn%nlev '
+c     &          ,jobs,lcolumn%numObsHeader,lcolumn%nlev
 c          write(nulout,*) 'ltt2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
 c     &        , jobs,jlev,OLTV(1,jlev,jobs),OLTV(2,jlev,jobs)
 c          write(nulout,*)'ltt2phi:gmt1,GMQ(jlev,jobs),GMT(jlev,jobs) '
@@ -119,7 +119,7 @@ c*3   Prepare r.h.s. for TL-Hydrostatic equation
 c     ------------------------------------------
 c
  300  continue
-!      do jobs = 1, lcolumn%nobtot
+!      do jobs = 1, lcolumn%numObsHeader
         do jlev = 1, lcolumn%nlev
 c
 c      zcon = d(rtapfac)/d(ps)
@@ -135,8 +135,8 @@ c
 c
 ***************************************************************
 c       if (LLPRINT .AND.jobs.eq.1) then
-c          write(nulout,*) 'ltt2phi: jobs,lcolumn%nobtot,lcolumn%nlev '
-c     &          ,jobs,lcolumn%nobtot,lcolumn%nlev
+c          write(nulout,*) 'ltt2phi: jobs,lcolumn%numObsHeader,lcolumn%nlev '
+c     &          ,jobs,lcolumn%numObsHeader,lcolumn%nlev
 c          write(nulout,*)'ltt2phi: jobs,jlev,zfactt,zfacps,zcon'
 c     &        , jobs,jlev,zfactt,zfacps,zcon
 c          write(nulout,*)'ltt2phi: jobs,jlev,zdelt,zdelps'
@@ -219,7 +219,7 @@ c
 !$OMP+ PRIVATE(zak,zbk,zck)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, lcolumn%nobtot,numthd
+      do jobs = mythread, lcolumn%numObsHeader,numthd
         lcolumn%gz(lcolumn%nlev,jobs) = 0.0
         lcolumn%gz(lcolumn%nlev-1,jobs)=ZAK0*lcolumnt%tt(lcolumn%nlev-1,jobs)+
      $                      ZBK0*lcolumnt%tt(lcolumn%nlev,jobs)+
@@ -240,7 +240,7 @@ c       endif
         ZAK = -2.0*ZCON*VMA(IK+1)
         ZBK = -2.0*ZCON*VMB(IK+1)
         ZCK = -2.0*ZCON*VMC(IK+1)
-!        do jobs = 1, lcolumn%nobtot
+!        do jobs = 1, lcolumn%numObsHeader
           lcolumn%gz(ik,jobs)= ZAK*lcolumnt%tt(IK,jobs)+
      $                    ZBK*lcolumnt%tt(IK+1,jobs)+
      $                    ZCK*lcolumnt%tt(IK+2,jobs)+
