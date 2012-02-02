@@ -544,50 +544,40 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       FAMILY: do index_family = 1,2
          WRITE(NULOUT,*)' FAMILY = ',list_family(index_family)
          !
-         ! loop over all header indices of each family
+         ! loop over all body indices of each family
          !
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_header_list(lobsSpaceData, &
-                                          list_family(index_family))
-         HEADER: do
-            index_header = obs_getHeaderIndex(lobsSpaceData)
-            if (index_header < 0) exit HEADER
-
-            ! loop over all body indices (still in the same family)
                                         ! Set the body list
                                         ! (& start at the beginning of the list)
-            call obs_set_current_body_list(lobsSpaceData, index_header)
-            BODY: do 
-               index_body = obs_getBodyIndex(lobsSpaceData)
-               if (index_body < 0) exit BODY
+         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
 
 !C
-!C             REJECT DATA TOO CLOSE TO THEDEL OROGRAPHY ,PUT TO
-!C             MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
+!C          REJECT DATA TOO CLOSE TO THE MODEL OROGRAPHY ,PUT TO
+!C          MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 !C
-               IKOUNTT=IKOUNTT+1
-               ZVAL=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
-               ZDIFF=  (ZVAL- lcolumnhr%ps(1,INDEX_HEADER) )/100.
-               IF ( ZDIFF .GT. RLISTCRIT ) THEN
-                  ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-                  DO J=1,JPINEL
-                     ILEM=ILISTEL(J)
-                     IF ( ITYP .EQ. ILEM ) THEN
-                        IF(LLPRINT) THEN
-                           WRITE(NULOUT,224) 'Reject OBS ',index_header,ITYP &
-                             ,obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY),ZDIFF
-                        ENDIF
-                        call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
-                        IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                        call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
-                              ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),&
-                                    18 ))
+            IKOUNTT=IKOUNTT+1
+            ZVAL=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+            ZDIFF=  (ZVAL- lcolumnhr%ps(1,INDEX_HEADER) )/100.
+            IF ( ZDIFF .GT. RLISTCRIT ) THEN
+               ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+               DO J=1,JPINEL
+                  ILEM=ILISTEL(J)
+                  IF ( ITYP .EQ. ILEM ) THEN
+                     IF(LLPRINT) THEN
+                        WRITE(NULOUT,224) 'Reject OBS ',index_header,ITYP &
+                          ,obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY),ZDIFF
                      ENDIF
-                  END DO
-               ENDIF
-            END DO BODY
-         END DO HEADER
+                     call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
+                     IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                     call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
+                           ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),&
+                                 18 ))
+                  ENDIF
+               END DO
+            ENDIF
+         END DO BODY
       END DO FAMILY
 
       WRITE(NULOUT,* ) ' '
