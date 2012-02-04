@@ -553,7 +553,7 @@ module columnData_mod
       call flush(6)
 
       do iobs_local=1,column_local%numObsHeader
-        iobs_global=lobsSpaceData%locObsTag(iobs_local)
+        iobs_global=obs_elem_i(lobsSpaceData,'GHI ',iobs_local)
         column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
         column_global%rmtmobs(iobs_global)            = column_local%rmtmobs(iobs_local)
         column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)

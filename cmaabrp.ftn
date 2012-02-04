@@ -126,7 +126,8 @@
       INTEGER KNVALS,IVAL,jji,ITYPDATA
       INTEGER KFILE,KNRECS,KLIST(KNVALS)
       INTEGER IIND,IPOS,ILPOS,inelefd,ideb
-      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF,NUMHEADER
+      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF
+      INTEGER, save :: NUMHEADER=0
       INTEGER ITECH,IMASK,ISAT
       INTEGER IBIT0,INBIT,IDATYP
 *
@@ -283,7 +284,6 @@
          obs_posn=1
       ELSE
 *
-         NUMHEADER =obs_numheader(lobsSpaceData)
          WRITE(NULOUT,*)' '
          WRITE(NULOUT,*)'=============================================='
          WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NUMHEADER
@@ -753,7 +753,6 @@ C
                           IF(ICOUNT .EQ. 1) THEN
                             NUMHEADER=NUMHEADER + 1
                                         ! Record the value also in obsSpaceData
-                            lobsSpaceData%numheader = NUMHEADER
                             IFLGS=obs_elem_i(lobsSpaceData,'ST1 ',NUMHEADER)
                             IZMODEL= NINT(lcolumng%RMTMOBS(NUMHEADER)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )

@@ -539,21 +539,21 @@ end subroutine oda_maskto
        ALLOCATE(llmask_l(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(6,'Cant Allocate Mem. to llmask_l')
 
-       CALL restore_mask(lobsSpaceData,lmask_g,lobsSpaceData%numbody_max,lmask,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmask_g,obs_numbody_max(lobsSpaceData),lmask,obs_numbody(lobsSpaceData))  
 
        llmask_l = lmaskpp_in .or. lmaskpp_out
-       CALL restore_mask(lobsSpaceData,lmaskpp_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskpp_inout_g,obs_numbody_max(lobsSpaceData),llmask_l,obs_numbody(lobsSpaceData))  
 
        llmask_l =  lmasksf_in .or. lmasksf_out
-       CALL restore_mask(lobsSpaceData,lmasksf_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmasksf_inout_g,obs_numbody_max(lobsSpaceData),llmask_l,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lobsSpaceData,lmaskto_g,lobsSpaceData%numbody_max,lmaskto,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskto_g,obs_numbody_max(lobsSpaceData),lmaskto,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lobsSpaceData,lmaskro_g,lobsSpaceData%numbody_max,lmaskro,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskro_g,obs_numbody_max(lobsSpaceData),lmaskro,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lobsSpaceData,lmaskzp_g,lobsSpaceData%numbody_max,lmaskzp,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskzp_g,obs_numbody_max(lobsSpaceData),lmaskzp,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lobsSpaceData,lmaskgp_g,lobsSpaceData%numbody_max,lmaskgp,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskgp_g,obs_numbody_max(lobsSpaceData),lmaskgp,obs_numbody(lobsSpaceData))  
 
       END SUBROUTINE restoreMasks     
 
@@ -569,7 +569,7 @@ end subroutine oda_maskto
        lmask_g=.false.
        ii=0
        DO i=1,obs_numheader(lobsSpaceData)
-         iobs=lobsSpaceData%locObsTag(i)
+         iobs=obs_elem_i(lobsSpaceData,'GHI ',i)
          idata=obs_elem_mpiglobal_i(lobsSpaceData,'RLN ',iobs)
          idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs) + idata -1
          DO j=idata,idataend

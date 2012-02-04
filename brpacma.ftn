@@ -851,7 +851,6 @@ c               ENDIF
 *
                IF  ( NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
                 NUMHEADER=NUMHEADER + 1
-                lobsSpaceData%numheader = NUMHEADER
                 csid14=CLSTNID(1:4)
                 csid58=CLSTNID(5:8)
                 csid99=CLSTNID(9:9)

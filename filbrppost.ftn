@@ -154,7 +154,6 @@ C
 *
       NVALS=NFILES
       LLAPPEND=.FALSE.
-      lobsSpaceData%numheader=0
       DO J =1,NKOUNT
          NVTYP=J
          CBURP(J)  = CFILNAM(J)

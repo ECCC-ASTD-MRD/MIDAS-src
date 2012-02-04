@@ -222,6 +222,7 @@ MODULE obsSpaceData_mod
   public :: struct_obs
 
   type struct_obs
+   private
    type(struct_index_list_depot) :: header_index_list_depot
    type(struct_index_list_depot) :: body_index_list_depot
    character(len=9),  pointer, dimension(:)   :: cstnid   !! need len=12 for EnKF
@@ -609,10 +610,16 @@ MODULE obsSpaceData_mod
     
     if(present(headerIndex)) then
       obsdat%cfamily(headerIndex)=Family_in
+      if(headerIndex.eq.(obsdat%numheader+1)) then
+        obsdat%numheader=obsdat%numheader+1
+      endif
     elseif(present(bodyIndex)) then
       headerIndex2=obs_elem_i(obsdat,'OBS ',bodyIndex)
       obsdat%cfamily(headerIndex2)=Family_in
-    else
+      if(headerIndex2.eq.(obsdat%numheader+1)) then
+        obsdat%numheader=obsdat%numheader+1
+      endif
+     else
       write(*,*) 'OBS_SETFAMILY: Header or Body index must be specified!'
       call flush(6)
       call qqexit(1)
@@ -987,6 +994,7 @@ MODULE obsSpaceData_mod
   case ('OEC '); value=obsdat%mobhdr(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr(NCM_TLA, index)
+  case ('GHI '); value=obsdat%locObsTag(index)
 
   case ('VNM '); value=obsdat%mobdata(NCM_VNM, index)
   case ('FLG '); value=obsdat%mobdata(NCM_FLG, index)
