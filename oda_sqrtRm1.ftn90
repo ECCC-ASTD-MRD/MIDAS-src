@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
-  use modmask, only : lmask,ldiag
+  use masks_mod
   use obsSpaceData_mod
   ! Arguments
   character(len=4), intent(in)  :: elem_dest_s ! destination index

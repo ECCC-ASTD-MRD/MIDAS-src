@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE oda_sumJo(lobsSpaceData,PJO)
-      use modmask
+      use masks_mod
       use mpi
       use obsSpaceData_mod
       implicit none

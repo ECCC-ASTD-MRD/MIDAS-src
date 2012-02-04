@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE oda_qcvad(lobsSpaceData)
-      use modmask, only : lmaskro,lmask
+      use masks_mod
       use obsSpaceData_mod
 #if defined (DOC)
 *

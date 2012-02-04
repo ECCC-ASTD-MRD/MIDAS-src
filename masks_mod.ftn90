@@ -1,49 +1,109 @@
-!-------------------------------------- LICENCE BEGIN ------------------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
-!
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END --------------------------------------
-!
-subroutine oda_mask(lobsSpaceData)
+module masks_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
+  use mod_tovs
   use bufr
+  use mpi
   implicit none
-  #include "comct0.cdk"
-  #include "cvcord.cdk"
-  #include "comlun.cdk"
   #include "comfilt.cdk"
+  #include "partov.cdk"
+  #include "comtov.cdk"
+  save
+  !Purpose:
+  !Mask of assimilated data for various type of observations
+  !
+  !Author  : S. Pellerin ARMA, January 2009
+  !
+  !Revision:
+  !          S. Macpherson ARMA, September 2009
+  !            -- add mask lmaskgp for ground-based GPS ZTD data
+  !
+  ! Mask should be set to .true. if data is assimilated
+  ! lmaskpp_in       : mask for pressure profile inside the vertical domain
+  ! lmaskpp_out      : mask for pressure profile below the surface
+  ! lmasksf_in       : mask for surface data
+  ! lmasksf_out      : mask for suface data below the model topography
+  ! lmaskto/go/ro/zp : mask for tovs/goes/gpsro/profiler data
+  ! lmaskgp          : mask for ground based GPS ZTD data
+  ! lmask            : global (all obs type) mask of assimilated data
+  ! ldiagpp/sf       : mask of diagnostic pressure profile/suface data
+  ! ldiag            : global mask of diagnostic data
+  !
+  logical, pointer, dimension(:) :: lmaskpp_in,lmaskpp_out,lmasksf_in
+  logical, pointer, dimension(:) :: lmasksf_out,lmask,lmaskto
+  logical, pointer, dimension(:) :: lmaskro,lmaskzp,ldiagpp,ldiagsf,ldiag
+  logical, pointer, dimension(:) :: lmaskgp
+
+  logical, pointer,dimension(:) :: lmask_g 
+  logical, pointer,dimension(:) :: lmaskpp_inout_g 
+  logical, pointer,dimension(:) :: lmasksf_inout_g 
+  logical, pointer,dimension(:) :: lmaskto_g
+  logical, pointer,dimension(:) :: lmaskro_g
+  logical, pointer,dimension(:) :: lmaskzp_g
+  logical, pointer,dimension(:) :: lmaskgp_g
+
+  contains
+
+  subroutine oda_mask(lobsSpaceData)
+  implicit none
+
   type(struct_obs) :: lobsSpaceData
 
-  call oda_masksf('UA')
-  call oda_masksf('SF')
-  call oda_masksf('SC')
-  call oda_masksf('GP')
-  call oda_maskpp('UA')
-  call oda_maskpp('AI')
-  call oda_maskpp('SW')
-  call oda_maskto
-  call oda_maskro
-  call oda_maskzp('PR')
-  call oda_maskgp
+  allocate(lmask(obs_numbody_max(lobsSpaceData)))
+  lmask = .false.
+
+  allocate(lmaskpp_in(obs_numbody_max(lobsSpaceData)))
+  lmaskpp_in = .false.
+
+  allocate(lmaskpp_out(obs_numbody_max(lobsSpaceData)))
+  lmaskpp_out = .false.
+
+  allocate(lmasksf_in(obs_numbody_max(lobsSpaceData)))
+  lmasksf_in = .false.
+
+  allocate(lmasksf_out(obs_numbody_max(lobsSpaceData)))
+  lmasksf_out = .false.
+
+  allocate(lmaskto(obs_numbody_max(lobsSpaceData)))
+  lmaskto = .false.
+
+  allocate(lmaskro(obs_numbody_max(lobsSpaceData)))
+  lmaskro = .false.
+
+  allocate(lmaskzp(obs_numbody_max(lobsSpaceData)))
+  lmaskzp = .false.
+
+  allocate(lmaskgp(obs_numbody_max(lobsSpaceData)))
+  lmaskgp = .false.
+
+  allocate(ldiag(obs_numbody_max(lobsSpaceData)))
+  ldiag = .false.
+
+  allocate(ldiagpp(obs_numbody_max(lobsSpaceData)))
+  ldiagpp = .false.
+
+  allocate(ldiagsf(obs_numbody_max(lobsSpaceData)))
+  ldiagsf = .false.
+
+  call oda_masksf(lobsSpaceData,'UA')
+  call oda_masksf(lobsSpaceData,'SF')
+  call oda_masksf(lobsSpaceData,'SC')
+  call oda_masksf(lobsSpaceData,'GP')
+  call oda_maskpp(lobsSpaceData,'UA')
+  call oda_maskpp(lobsSpaceData,'AI')
+  call oda_maskpp(lobsSpaceData,'SW')
+  call oda_maskto(lobsSpaceData)
+  call oda_maskro(lobsSpaceData)
+  call oda_maskzp(lobsSpaceData,'PR')
+  call oda_maskgp(lobsSpaceData)
 
   !restore Global Masks. 
-  IF(NCONF == 141) CALL restoreMasks 
+!!  IF(NCONF == 141) CALL restoreMasks(lobsSpaceData) 
+  IF(mpi_nprocs.gt.1) CALL restoreMasks(lobsSpaceData) 
 
-  CONTAINS
+  end subroutine oda_mask
 
-      SUBROUTINE oda_masksf(CDFAM)
-      use modmask, only : lmasksf_in, lmasksf_out, lmask, ldiagsf, ldiag
+      SUBROUTINE oda_masksf(lobsSpaceData,CDFAM)
 !*
 !*Purpose : Defines a mask of assimilated data
 !*
@@ -51,6 +111,7 @@ subroutine oda_mask(lobsSpaceData)
 !*          Based on selection made in observation operator as written by
 !*          P. Koclas *CMC/AES in September 1994
 !
+      type(struct_obs) :: lobsSpaceData
       CHARACTER(len=2) :: CDFAM
       INTEGER ITYP
       integer :: index_header, index_body
@@ -126,9 +187,9 @@ subroutine oda_mask(lobsSpaceData)
       END subroutine oda_masksf
 
 
-      SUBROUTINE oda_maskpp(CDFAM)
-      use modmask, only : lmaskpp_in, lmaskpp_out, lmask,ldiagpp, ldiag
+      SUBROUTINE oda_maskpp(lobsSpaceData,CDFAM)
 !* Argument declarations
+      type(struct_obs) :: lobsSpaceData
       CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)
 !*
 !*Purpose : Defines a mask of assimilated and diagnosed data inside
@@ -198,7 +259,7 @@ subroutine oda_mask(lobsSpaceData)
               ZLON      = obs_elem_r4(lobsSpaceData,'LON ',index_header)*ZTORAD
               IDBURP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
 
-              WRITE(NULOUT,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
+              WRITE(*,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
                    ,' OBS ',obs_elem_c9(lobsSpaceData,'STID',index_header) &
                    ,' TYPE ',IDBURP, ' ELM ' &
                    , obs_elem_i(lobsSpaceData,'VNM ',index_header),' LAT ' &
@@ -211,17 +272,16 @@ subroutine oda_mask(lobsSpaceData)
       ldiag = ldiag .or. ldiagpp
 !C--------------------------------------------------------------------
       IF(LLNOXTR) THEN
-        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-        WRITE(NULOUT,*)' Warning - ODA_MASKPP: NO EXTRAPOLATION ALLOWED SEE LISTING FOR MORE DETAILS'
-        WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        WRITE(*,*)' Warning - ODA_MASKPP: NO EXTRAPOLATION ALLOWED SEE LISTING FOR MORE DETAILS'
+        WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
       ENDIF
 
       RETURN
       END subroutine oda_maskpp
 
 
-subroutine oda_maskto
-  use modmask, only : lmaskto, lmask
+subroutine oda_maskto(lobsSpaceData)
   ! Purpose : Defines a mask of assimilated data
   !
   ! Author  : S. Pellerin, ARMA, January 2009
@@ -230,10 +290,8 @@ subroutine oda_maskto
   !
   !revision :      Sylvain Heilliette:
   !                 add IASI data (codtyp 186)
-  use mod_tovs
-#include "partov.cdk"
-#include "comtov.cdk"
 
+  type(struct_obs) :: lobsSpaceData
   integer :: isens, indxchn, indxtovs
   integer idatyp
   integer ichn
@@ -274,9 +332,9 @@ subroutine oda_maskto
 
      indxtovs = ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
-        write(nulout,fmt=9203)
+        write(*,fmt=9203)
 9203    format(' tovs_calc_jo_tl: error with indxtovs')
-        call abort3d(nulout,'tovs_calc_jo_tl ')
+        call abort3d(6,'tovs_calc_jo_tl ')
      endif
 
      if (rttov_errorstatus(indxtovs) .lt. 20   ) then
@@ -295,9 +353,9 @@ subroutine oda_maskto
               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
               if ( indxchn .eq. 0 ) then
-                 write(nulout,fmt=9202)
+                 write(*,fmt=9202)
 9202             format(' tovs_calc_jo_tl: error with channel number')
-                 call abort3d(nulout,'tovs_calc_jo_tl  ')
+                 call abort3d(6,'tovs_calc_jo_tl  ')
               endif
 !              print *,"maskto",index_body!,shape(lmaskto(:))
               lmaskto(index_body) = .true.
@@ -311,8 +369,7 @@ subroutine oda_maskto
 end subroutine oda_maskto
 
 
-      SUBROUTINE oda_maskro
-      use modmask, only : lmaskro, lmask
+      SUBROUTINE oda_maskro(lobsSpaceData)
 !*
 !*Purpose : Defines a mask of assimilated data
 !*
@@ -320,10 +377,9 @@ end subroutine oda_maskto
 !*          Based on selection made in observation operator as written by
 !*          J. M. Aparicio in Jan 2004
 !*
+      type(struct_obs) :: lobsSpaceData
       INTEGER IDATYP
-
       LOGICAL  LUSE
-
       integer :: index_header, index_body
 
       ! loop over all header indices of the 'RO' family (Radio Occultation)
@@ -358,8 +414,7 @@ end subroutine oda_maskto
       END subroutine oda_maskro
 
 
-      SUBROUTINE oda_maskzp(CDFAM)
-      use modmask, only : lmaskzp, lmask
+      SUBROUTINE oda_maskzp(lobsSpaceData,CDFAM)
 !*
 !*Purpose : Defines a mask of assimilated data
 !*
@@ -367,6 +422,7 @@ end subroutine oda_maskto
 !*          Based on selection made in observation operator as written by
 !*          J. St-James, CMDA/SMC in July 2003
 !*
+      type(struct_obs) :: lobsSpaceData
       CHARACTER *2 CDFAM
 
       integer :: index_header, index_body
@@ -401,13 +457,13 @@ end subroutine oda_maskto
       END subroutine oda_maskzp
 
 
-      SUBROUTINE oda_maskgp
-      use modmask, only : lmaskgp, lmask
+      SUBROUTINE oda_maskgp(lobsSpaceData)
 !*
 !*Purpose : Defines a mask of assimilated data for GP family ZTD data
 !*
 !*Author  : S. Macpherson, ARMA, March 2009
 !*
+      type(struct_obs) :: lobsSpaceData
 
       INTEGER ITYP,IDATYP
       integer :: index_header, index_body
@@ -447,15 +503,14 @@ end subroutine oda_maskto
       END subroutine oda_maskgp
 
 
-      SUBROUTINE restoreMasks 
-      use modmask
+      SUBROUTINE restoreMasks(lobsSpaceData)
 !
 !c Purpose:
 !c Compute the global masks such as lmaskpp_inout_g,lmasksf_inout_g,... 
 !c
 !c Author  : BIN HE  *ARMA/MRB MAY 2009
 !c
-! Define Local Variables. 
+      type(struct_obs) :: lobsSpaceData
       INTEGER :: ierr
       integer :: mask_dim
       LOGICAL,DIMENSION(:),pointer :: llmask_l  
@@ -463,47 +518,48 @@ end subroutine oda_maskto
        mask_dim = ubound(lmaskpp_in,1)  
          
        ALLOCATE(lmaskpp_inout_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskpp_inout_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskpp_inout_g')
        ALLOCATE(lmasksf_inout_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmasksf_inout_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmasksf_inout_g')
        ALLOCATE(lmaskto_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskto_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskto_g')
 
        ALLOCATE(lmaskro_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskro_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskro_g')
 
        ALLOCATE(lmaskzp_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskzp_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskzp_g')
 
        ALLOCATE(lmask_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmask_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmask_g')
 
        ALLOCATE(lmaskgp_g(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to lmaskgp_g')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskgp_g')
 
        ALLOCATE(llmask_l(mask_dim),STAT=ierr)
-       IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cant Allocate Mem. to llmask_l')
+       IF(ierr /= 0 ) CALL ABORT3D(6,'Cant Allocate Mem. to llmask_l')
 
-       CALL restore_mask(lmask_g,lobsSpaceData%numbody_max,lmask,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmask_g,lobsSpaceData%numbody_max,lmask,obs_numbody(lobsSpaceData))  
 
        llmask_l = lmaskpp_in .or. lmaskpp_out
-       CALL restore_mask(lmaskpp_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskpp_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
 
        llmask_l =  lmasksf_in .or. lmasksf_out
-       CALL restore_mask(lmasksf_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmasksf_inout_g,lobsSpaceData%numbody_max,llmask_l,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskto_g,lobsSpaceData%numbody_max,lmaskto,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskto_g,lobsSpaceData%numbody_max,lmaskto,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskro_g,lobsSpaceData%numbody_max,lmaskro,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskro_g,lobsSpaceData%numbody_max,lmaskro,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskzp_g,lobsSpaceData%numbody_max,lmaskzp,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskzp_g,lobsSpaceData%numbody_max,lmaskzp,obs_numbody(lobsSpaceData))  
 
-       CALL restore_mask(lmaskgp_g,lobsSpaceData%numbody_max,lmaskgp,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskgp_g,lobsSpaceData%numbody_max,lmaskgp,obs_numbody(lobsSpaceData))  
 
       END SUBROUTINE restoreMasks     
 
 
-      SUBROUTINE restore_mask(lmask_g,kdata_g,lmask_l,kdata_l)
+      SUBROUTINE restore_mask(lobsSpaceData,lmask_g,kdata_g,lmask_l,kdata_l)
+        type(struct_obs) :: lobsSpaceData
         INTEGER :: kdata_l,kdata_g 
         Logical ,DIMENSION(kdata_g) :: lmask_g 
         Logical ,DIMENSION(kdata_l) :: lmask_l 
@@ -522,7 +578,6 @@ end subroutine oda_maskto
          ENDDO
        ENDDO  
        CALL rpn_comm_allreduce(lmask_g,lmask_g,kdata_g,"MPI_LOGICAL","MPI_LOR","GRID",ierr )
-      END SUBROUTINE   restore_mask
- 
-
-end subroutine oda_mask
+      END SUBROUTINE restore_mask
+  !
+end module masks_mod

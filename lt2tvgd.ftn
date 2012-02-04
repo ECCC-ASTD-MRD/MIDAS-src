@@ -22,8 +22,6 @@
 * AUTHOR: Luc Fillion - 16 Nov 98
 *
 * REVISION:
-*          C. Charette *ARMA/AES  Nov 1998
-*                       - Add llprint for diagnostics
 *
 #endif
       use MathPhysConstants_mod
@@ -32,42 +30,15 @@
       real*8  ptv(kni,knk,knj), phuinc(kni,knk,knj), pttinc(kni,knk,knj), pqg(kni,knk,knj)
       real*8  zcon1,zcon2
 *
-      logical llprint
       integer ji,jj,jk
 
-*implicits
-#include "comlun.cdk"
-*modules
-*
-**
-      WRITE(nulout,FMT='(/,4X,"Starting LT2TVGD",//)')
+      WRITE(*,FMT='(/,4X,"Starting LT2TVGD",//)')
 c
-      llprint = .false.
-c
-*********************************************************
-      if(llprint) then
-        ji = 221
-        jj = 27
-        do jk = 1, knk
-          write(nulout,*) ' lt2tvgd: ji,jj,jk,delta,pttinc,pqg '
-     &         ,ji,jj,jk,delta,pttinc(ji,jk,jj),pqg(ji,jk,jj)
-        enddo
-      endif
-***********************************************************
       do jj = 1, knj
         do jk = 1, knk
           do ji = 1, kni
             ptv(ji,jk,jj)=(1.+delta*pqg(ji,jk,jj))*pttinc(ji,jk,jj)
      &           + delta*pqg(ji,jk,jj)*pttinc(ji,jk,jj)*phuinc(ji,jk,jj)
-            if(llprint .and. ji .eq. 221 .and. jj .eq. 27) then
-              zcon1 = 1.+delta*pqg(ji,jk,jj)
-              zcon2 = delta*pqg(ji,jk,jj)*pttinc(ji,jk,jj)
-              write(nulout,*) ' lt2tvgd: ji,jj,jk,delta,pttinc,pqg '
-     &             ,ji,jj,jk,delta,pttinc(ji,jk,jj),pqg(ji,jk,jj)
-              write(nulout,*)
-     &             ' lt2tvgd:ji,jj,jk,delta,pttinc,phuinc,oltv1,oltv2  ',ji,jj
-     &             ,jk,delta,pttinc(ji,jk,jj),phuinc(ji,jk,jj),zcon1,zcon2
-            endif
           enddo
         enddo
       enddo

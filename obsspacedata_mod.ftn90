@@ -198,8 +198,7 @@ MODULE obsSpaceData_mod
   public           :: obs_getFamily,obs_setFamily,obs_bdy
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
   public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
-  public           :: obs_setTimeInterpWeight,obs_getTimeInterpWeight
-  public           :: obs_getTimeInterpWeight_mpiglobal,obs_prnthdr,obs_prntbdy
+  public           :: obs_prnthdr,obs_prntbdy
   public           :: obs_set_current_header_list, obs_getHeaderIndex
   public           :: obs_set_current_body_list,   obs_getBodyIndex
 
@@ -241,8 +240,6 @@ MODULE obsSpaceData_mod
                                         ! Headers of the mpi-Global obs data
    integer,           pointer, dimension(:,:) :: mobhdr_g
    real(kind=4),      pointer, dimension(:,:) :: robhdr_g
-   real*8, pointer :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
-   real*8, pointer :: timeInterpWeight_mpiglobal(:,:)  ! weights for linear temporal interpolation of increment to obs times
    integer, pointer, dimension(:) :: locObsTag
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
@@ -314,7 +311,6 @@ MODULE obsSpaceData_mod
   integer, parameter :: ROBDATA8_LOWER = NCM_POB
   integer, parameter :: ROBDATA8_UPPER = NCM_PER
 
-  integer, parameter :: mxstepobs=9 ! temporarily specify max number of step obs for allocation
 
   contains
 
@@ -349,7 +345,6 @@ MODULE obsSpaceData_mod
 
     nullify(obsdat%mobhdr_g)
     nullify(obsdat%robhdr_g)
-    nullify(obsdat%timeInterpWeight_mpiglobal)
 
     call obs_allocate(obsdat,obsdat%numheader_max,obsdat%numbody_max)
     call ild_initialize(obsdat%header_index_list_depot, obsdat%numheader_max)
@@ -396,9 +391,6 @@ MODULE obsSpaceData_mod
     ALLOCATE(obsdat%MOBDATA(NCM_LBO,numbody_max),STAT=ierr)
     obsdat%MOBDATA=0
 
-    ALLOCATE(obsdat%timeInterpWeight(numbody_max,mxstepobs),STAT=ierr)
-    obsdat%timeInterpWeight=0.0d0
-
   end subroutine obs_allocate
 
   subroutine obs_allocateG(obsdat,maxNumHdr)
@@ -414,9 +406,6 @@ MODULE obsSpaceData_mod
 
     ALLOCATE(obsdat%MOBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
     obsdat%MOBHDR_g=0
-
-    ALLOCATE(obsdat%timeInterpWeight_mpiglobal(maxNumHdr,mxstepobs),STAT=ierr)
-    obsdat%timeInterpWeight_mpiglobal=0.0d0
 
   end subroutine obs_allocateG
 
@@ -443,15 +432,6 @@ MODULE obsSpaceData_mod
         write(*,*) 'MOBHDR_g checked and correct. IERR =',ierr
       else
         write(*,*) 'Problem detected in MOBHDR_g. IERR =',ierr
-      endif
-    end if
-
-    if (associated(obsdat%timeInterpWeight_mpiglobal))then
-      deallocate(obsdat%timeInterpWeight_mpiglobal,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'timeInterpWeight_mpiglobal checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in timeInterpWeight_mpiglobal. IERR =',ierr
       endif
     end if
 
@@ -525,15 +505,6 @@ MODULE obsSpaceData_mod
         write(*,*) 'MOBDATA checked and correct. IERR =',ierr
       else
         write(*,*) 'Problem detected in MOBDATA. IERR =',ierr
-      endif
-    end if
-
-    if (associated(obsdat%timeInterpWeight))then
-      deallocate(obsdat%timeInterpWeight,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'timeInterpWeight checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in timeInterpWeight. IERR =',ierr
       endif
     end if
 
@@ -650,39 +621,6 @@ MODULE obsSpaceData_mod
   end subroutine obs_setFamily
 
   
-  SUBROUTINE obs_setTimeInterpWeight(obsdat,weight_in,headerIndex,stepObs)
-    implicit none
-    type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)    :: headerIndex,stepObs
-    real(kind=8),intent(in):: weight_in
-
-    obsdat%timeInterpWeight(headerIndex,stepObs)=weight_in
-
-  end SUBROUTINE obs_setTimeInterpWeight
-
-
-  FUNCTION obs_getTimeInterpWeight(obsdat,headerIndex,stepObs) result(weight_out)
-    implicit none
-    real(kind=8) weight_out
-    type(struct_obs),intent(in) :: obsdat
-    integer,intent(in)          :: headerIndex,stepObs
-
-    weight_out=obsdat%timeInterpWeight(headerIndex,stepObs)
-
-  end FUNCTION obs_getTimeInterpWeight
-
-
-  FUNCTION obs_getTimeInterpWeight_mpiglobal(obsdat,headerIndex,stepObs) result(weight_out)
-    implicit none
-    real(kind=8) weight_out
-    type(struct_obs),intent(in) :: obsdat
-    integer,intent(in)          :: headerIndex,stepObs
-
-    weight_out=obsdat%timeInterpWeight_mpiglobal(headerIndex,stepObs)
-
-  end FUNCTION obs_getTimeInterpWeight_mpiglobal
-
-
   SUBROUTINE obs_bdy(obsdat,PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
                     LDGO,LDAIRS,LDIASI,n_elements_in_block, &
                     n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
@@ -1392,13 +1330,13 @@ MODULE obsSpaceData_mod
   if(mpi_nprocs == 0) mpi_nprocs=1
   write(*,*) 'numheader= ',obsdat%numheader 
   allocate(locObsTag_tmp(obsdat%numheader),stat=ierr)
-          
+
   do iobs_mpiglobal=(mpi_myid+1),obsdat%numheader,mpi_nprocs
     numheader_mpilocal=numheader_mpilocal+1
     locObsTag_tmp(numheader_mpilocal)=iobs_mpiglobal
   enddo
   if(numheader_mpilocal<=0) call obs_abort('Zero length of ObsTag,Abort!') 
- 
+
   allocate(obsdat%locObsTag(numheader_mpilocal),stat=ierr)
 
   obsdat%locObsTag(1:numheader_mpilocal)=locObsTag_tmp(1:numheader_mpilocal)
@@ -1433,7 +1371,7 @@ MODULE obsSpaceData_mod
 !    PURPOSE:  to provide the number of observations that are currently recorded
 !              in the observation-data object
 !
-     implicit none
+  implicit none
   type(struct_obs) , intent(in)  :: obsdat
   obs_numbody_max=obsdat%numbody_max
  end function obs_numbody_max
@@ -1932,7 +1870,6 @@ MODULE obsSpaceData_mod
   CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
   REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp,ROBDATA_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
-  REAL(8),allocatable :: timeInterpWeight_tmp(:,:)
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP
   INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp
@@ -1963,7 +1900,7 @@ MODULE obsSpaceData_mod
    iobs=obsdat%locObsTag(i)
    idata=obsdat%mobhdr(NCM_NLV, iobs)
    numbody_mpilocal = numbody_mpilocal + idata
-     ENDDO 
+  ENDDO 
 
   ALLOCATE(cfamily_tmp(numheader_mpilocal),STAT=ierr) 
   ALLOCATE(cstnid_tmp(numheader_mpilocal),STAT=ierr) 
@@ -1972,7 +1909,6 @@ MODULE obsSpaceData_mod
   ALLOCATE(MOBDATA_tmp(NCM_LBO,numbody_mpilocal),STAT=ierr) 
   ALLOCATE(ROBDATA_tmp(NCM_LBO,numbody_mpilocal),STAT=ierr) 
   ALLOCATE(ROBDATA8_tmp(3:11,numbody_mpilocal),STAT=ierr) 
-  ALLOCATE(timeInterpWeight_tmp(numheader_mpilocal,mxstepobs),STAT=ierr) 
 !  
   call obs_allocateG(obsdat,obsdat%numheader)
 !
@@ -1982,7 +1918,6 @@ MODULE obsSpaceData_mod
   DO iobs=1,obsdat%numheader_mpiglobal
     obsdat%MOBHDR_G(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,iobs)
     obsdat%ROBHDR_G(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,iobs)
-    obsdat%timeInterpWeight_mpiglobal(iobs,:)=obsdat%timeInterpWeight(iobs,:)
   ENDDO  
 !!
   DO i=1,numheader_mpilocal 
@@ -1991,7 +1926,6 @@ MODULE obsSpaceData_mod
     MOBHDR_tmp(1:NCM_LET,i)=obsdat%MOBHDR(1:NCM_LET,iobs)
     cstnid_tmp(i) = obsdat%cstnid(iobs)
     cfamily_tmp(i) = obsdat%cfamily(iobs) 
-    timeInterpWeight_tmp(i,:)=obsdat%timeInterpWeight(iobs,:)
     IF(i== 1) THEN
        MOBHDR_tmp(NCM_RLN,1) = 1
     ELSE
@@ -2024,7 +1958,6 @@ MODULE obsSpaceData_mod
      obsdat%cstnid(i)=cstnid_tmp(i)
      obsdat%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
      obsdat%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
-     obsdat%timeInterpWeight(i,:)=timeInterpWeight_tmp(i,:)
   ENDDO 
 
   DO i=1,obsdat%numbody
@@ -2040,7 +1973,6 @@ MODULE obsSpaceData_mod
   deallocate(ROBDATA8_tmp)
   deallocate(MOBDATA_tmp)
   deallocate(ROBDATA_tmp)
-  deallocate(timeInterpWeight_tmp)
 
  ! rebuild NBEGINTYP and NENDTYP  
  !============================

@@ -18,6 +18,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
+  use masks_mod
   use bufr
   implicit none
   !
@@ -59,7 +60,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   CONTAINS
 
       SUBROUTINE oda_HTpp
-      use modmask, only : lmaskpp_in,lmaskpp_out
 !*
 !***s/r AOBSPPP  - Adjoint of the "vertical" interpolation
 !*                  for "UPPER AIR" data files.
@@ -158,13 +158,13 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c
             zcon = (zlev/lcolumng%ps(1,iobs))**zexp
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
+            ZTVG = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
             lcolumn%ps(1,iobs)    = lcolumn%ps(1,iobs)  &
                  + RGASD*ZTVG*zcon*zres/lcolumng%ps(1,iobs)
             lcolumn%tt(lcolumn%nlev,iobs) = lcolumn%tt(lcolumn%nlev,iobs)  &
-                 + OLTV(1,LCOLUMN%NLEV,IOBS)*ZATV
+                 + lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*ZATV
             lcolumn%hu(lcolumn%nlev,iobs) = lcolumn%hu(lcolumn%nlev,iobs)  &
-                 + OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV
+                 + lcolumng%OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV
           ENDIF
         END DO
       RETURN
@@ -172,8 +172,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
 
       SUBROUTINE oda_HTsf
-      use modmask, only : lmasksf_in,lmasksf_out
-      use bufr
 !*
 !***s/r AOBSSFC  - Adjoint of the "vertical" interpolation
 !*                  for "SURFACE" data files.
@@ -226,7 +224,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                 LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
               endif
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
-              ZTVG  = OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
+              ZTVG  = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
               ZGAMAZ= ZGAMMA*(ZHHH-lcolumng%gz(LCOLUMN%NLEV,IOBS))
               ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
               ZDELTV= (lcolumng%ps(1,IOBS)*ZEXP*ZCON**(ZEXP-1))  &
@@ -236,9 +234,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
               LCOLUMN%PS(1,IOBS)    = LCOLUMN%PS(1,IOBS)  &
                    + ZDELPS*ZRES
               lcolumn%tt(lcolumn%nlev,iobs) = lcolumn%tt(lcolumn%nlev,iobs)  &
-                   + OLTV(1,LCOLUMN%NLEV,IOBS)*ZATV
+                   + lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*ZATV
               lcolumn%hu(lcolumn%nlev,iobs)= lcolumn%hu(lcolumn%nlev,iobs)   &
-                   + OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV
+                   + lcolumng%OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV
             ELSE
               IPT  = IK + IPOS*LCOLUMN%NLEV
               IPB  = IPT+1
@@ -264,15 +262,15 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c
             zcon = (zlev/lcolumng%ps(1,iobs))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
+            ZTVG = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
             lcolumn%ps(1,iobs)    = lcolumn%ps(1,iobs)     &
                  + RGASD*ZTVG*zcon*zres/lcolumng%ps(1,iobs)
             lcolumn%tt(lcolumn%nlev,iobs) = lcolumn%tt(lcolumn%nlev,iobs)  &
-                 + OLTV(1,LCOLUMN%NLEV,IOBS)*ZATV
+                 + lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*ZATV
             lcolumn%hu(lcolumn%nlev,iobs) = lcolumn%hu(lcolumn%nlev,iobs)  &
-                 + OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV                
+                 + lcolumng%OLTV(2,LCOLUMN%NLEV,IOBS)*ZATV                
           endif
         END DO
       RETURN
@@ -541,7 +539,6 @@ end subroutine oda_HTto
 
 
       SUBROUTINE oda_HTzp
-      use modmask, only : lmaskzp
 !*
 !***s/r AOBSZZZ  - Adjoint of the "vertical" interpolation in z
 !*                 for profiler data.
@@ -597,7 +594,6 @@ end subroutine oda_HTto
 
 
       SUBROUTINE oda_HTgp
-      use modmask, only : lmaskgp
 !*
 !***s/r  -oda_HTgp Adjoint of TL routine oda_Hgp
 !*

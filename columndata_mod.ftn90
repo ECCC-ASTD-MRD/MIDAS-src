@@ -20,16 +20,18 @@ module columnData_mod
     real*8,pointer :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
     real*8,pointer :: vhyb(:),vhyb_T(:),vhyb_M(:)
     real*8,pointer :: rmtmobs(:)
-  end type struct_columnData
-
+    real*8,pointer :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
     real*8,pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi transformation
+  end type struct_columnData
+
 
     INTEGER,parameter :: JPNVARMAX=10
     INTEGER NMVOEXIST(JPNVARMAX)
     INTEGER nouu,novv,noq,nogz,nott,notr,nops,notg
     integer :: nvo3d,nvo2d
     real*8 :: rhumin
+    integer, parameter :: mxstepobs=9 ! temporarily specify max number of step obs for allocation
 
   contains
 
@@ -210,24 +212,6 @@ module columnData_mod
     END SUBROUTINE col_setup
 
 
-    SUBROUTINE col_SUALOBSB(nflev,numObsHeader) 
-      IMPLICIT NONE
-
-      INTEGER nflev,numObsHeader
-      INTEGER IERR
-
-      WRITE(*,FMT='(//,6(" ***********"))')
-      WRITE(*,*)'     SUALOBSB:  Memory allocation of the observation arrays'
-      WRITE(*,FMT='(6(" ***********"))')
-
-      allocate(oltv(2,nflev,numObsHeader))
-      oltv(:,:,:)=0.0d0
-      allocate(rtapfac(nflev,numObsHeader))
-
-      RETURN
-    END SUBROUTINE col_sualobsb
-
-
     SUBROUTINE col_zero(column)
       IMPLICIT NONE
       type(struct_columnData) :: column
@@ -274,6 +258,13 @@ module columnData_mod
 
       allocate(column%rmtmobs(column%numObsHeader))
       column%rmtmobs(:)=0.0d0      
+      allocate(column%oltv(2,column%nlev,numObsHeader))
+      column%oltv(:,:,:)=0.0d0
+      allocate(column%rtapfac(column%nlev,numObsHeader))
+      column%rtapfac(:,:)=0.0d0
+
+      allocate(column%timeInterpWeight(column%numObsHeader,mxstepobs))
+      column%timeInterpWeight(:,:)=0.0d0
 
       iloc = 1
       do jvar = 1, jpnvarmax
@@ -345,10 +336,33 @@ module columnData_mod
       deallocate(column%vhyb)
       deallocate(column%vhyb_T)
       deallocate(column%vhyb_M)
+      deallocate(column%timeInterpWeight)
       column%allocated=.false.
 
       RETURN
     END SUBROUTINE col_deallocate
+
+
+    SUBROUTINE col_setTimeInterpWeight(column,weight_in,headerIndex,stepObs)
+      implicit none
+      type(struct_columnData), intent(inout) :: column
+      integer, intent(in)    :: headerIndex,stepObs
+      real(kind=8),intent(in):: weight_in
+
+      column%timeInterpWeight(headerIndex,stepObs)=weight_in
+
+    end SUBROUTINE col_setTimeInterpWeight
+
+
+    FUNCTION col_getTimeInterpWeight(column,headerIndex,stepObs) result(weight_out)
+      implicit none
+      real(kind=8) weight_out
+      type(struct_columnData),intent(in) :: column
+      integer,intent(in)          :: headerIndex,stepObs
+
+      weight_out=column%timeInterpWeight(headerIndex,stepObs)
+
+    end FUNCTION col_getTimeInterpWeight
 
 
     SUBROUTINE col_copy2d(column_in,column_out)
@@ -540,8 +554,9 @@ module columnData_mod
 
       do iobs_local=1,column_local%numObsHeader
         iobs_global=lobsSpaceData%locObsTag(iobs_local)
-        column_global%all(:,iobs_global)    =column_local%all(:,iobs_local)
-        column_global%rmtmobs(iobs_global)  =column_local%rmtmobs(iobs_local)
+        column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
+        column_global%rmtmobs(iobs_global)            = column_local%rmtmobs(iobs_local)
+        column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
       enddo
 
       write(*,*) 'starting allreduce'
@@ -551,6 +566,9 @@ module columnData_mod
                               "mpi_double_precision","mpi_sum","GRID",ierr)
       nsize=column_global%numObsHeader
       call rpn_comm_allreduce(column_global%rmtmobs,column_global%rmtmobs,nsize, &
+                              "mpi_double_precision","mpi_sum","GRID",ierr)
+      nsize=column_global%numObsHeader*mxStepObs
+      call rpn_comm_allreduce(column_global%timeInterpWeight,column_global%timeInterpWeight,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
 
       write(*,*) 'Leaving col_expandToMpiGlobal' 

@@ -165,7 +165,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C     ---------------------------------
 !C
         Observations: DO JOBS = 1, numheader_mpiglobal
-          if(obs_getTimeInterpWeight_mpiglobal(lobsSpaceData,jobs,jstep).gt.0.0d0) then
+          if(col_getTimeInterpWeight(lcolumn_g,jobs,jstep).gt.0.0d0) then
             DLLAO   = real(obs_elem_mpiglobal_r4(lobsSpaceData,'LAT ',JOBS), 8)
             DLLOO   = real(obs_elem_mpiglobal_r4(lobsSpaceData,'LON ',JOBS), 8)
 !C
@@ -182,7 +182,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 !C
-            DInterpWeight=obs_getTimeInterpWeight_mpiglobal(lobsSpaceData,jobs,jstep)
+            DInterpWeight=col_getTimeInterpWeight(lcolumn_g,jobs,jstep)
             DLDXN = DLLOO*DLDLON2 + 1. - ILON
             DLDXS = DLLOO*DLDLOS2 + 1. - ILOS
             DLDY  = (gaus_RLATI(ILA)-DLLAO)*DLDLAT2(ILA)

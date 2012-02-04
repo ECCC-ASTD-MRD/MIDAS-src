@@ -204,7 +204,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C     ---------------------------------
 !C
         DO JOBS = 1, LCOLUMN%numObsHeader
-          if(obs_getTimeInterpWeight(lobsSpaceData,jobs,jstep).gt.0.0d0) then
+          if(col_getTimeInterpWeight(lcolumn,jobs,jstep).gt.0.0d0) then
             DLLAO=real(obs_elem_r4(lobsSpaceData,'LAT ',jobs),8)
             DLLOO=real(obs_elem_r4(lobsSpaceData,'LON ',jobs),8)
 !C
@@ -235,7 +235,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
             DO JLEV = 1, KLEV
               ZPROFIL(JLEV,JOBS) =   ZPROFIL(JLEV,JOBS) +  &
-                 obs_getTimeInterpWeight(lobsSpaceData,jobs,jstep)*  &
+                 col_getTimeInterpWeight(lcolumn,jobs,jstep)*  &
                  ( DLW1*ZFIELD(ILON,JLEV,ILA)    &
                  + DLW2*ZFIELD(ILON+1,JLEV,ILA)  &
                  + DLW3*ZFIELD(ILOS,JLEV,ILA+1)  &

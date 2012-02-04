@@ -1,8 +1,9 @@
-      subroutine sutimeinterp(lobsSpaceData)
+      subroutine sutimeinterp(lobsSpaceData,lcolumn)
 *
 ***s/r sutimeinterp  
 *
       use obsSpaceData_mod
+      use columnData_mod
       use modfgat
       IMPLICIT NONE
 #include "comlun.cdk"
@@ -10,6 +11,7 @@
 #include "comfilt.cdk"
 *
       type(struct_obs) :: lobsSpaceData
+      type(struct_columnData) :: lcolumn
       integer :: jobs,istepstamp,jstep,istepobs
       real*8 :: deltastepobs
       integer, allocatable :: nstamplistinc(:),nobsinc(:)
@@ -45,7 +47,7 @@ C
           stepinc1 : do jstep = 1,nstepobsinc
             if (nstamplistinc(jstep) == istepstamp) then
               nobsinc(jstep) = nobsinc(jstep) + 1
-              call obs_setTimeInterpWeight(lobsSpaceData,1.0d0,jobs,jstep)
+              call col_setTimeInterpWeight(lcolumn,1.0d0,jobs,jstep)
               exit stepinc1
             endif
           enddo stepinc1
@@ -53,10 +55,10 @@ C
           stepinc : do jstep = 1,nstepobsinc
             istepobs=floor(deltastepobs)+((nstepobsinc+1)/2)
             if (istepobs == jstep) then
-              call obs_setTimeInterpWeight(lobsSpaceData,
+              call col_setTimeInterpWeight(lcolumn,
      &           1.0d0-(deltastepobs-floor(deltastepobs)),jobs,jstep)
             elseif((istepobs+1)==jstep) then
-              call obs_setTimeInterpWeight(lobsSpaceData,
+              call col_setTimeInterpWeight(lcolumn,
      &           deltastepobs-floor(deltastepobs),jobs,jstep)
               exit stepinc
             endif

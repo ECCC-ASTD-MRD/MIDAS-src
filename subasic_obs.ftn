@@ -14,13 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE subasic_obs(lcolumng)
+      subroutine subasic_obs(lcolumng)
 c
       use MathPhysConstants_mod
       use columnData_mod 
-      IMPLICIT NONE
-c
-#if defined (DOC)
+      implicit none
 *
 ***s/r SUBASIC_OBS
 *     OBJECT: Initialise background state dependant factors
@@ -29,79 +27,28 @@ c
 *
 *     Author  : S. Pellerin *ARMA/AES Sept. 98
 *
-*     Note    : C. Charette *ARMA/AES Apr. 2006
-*               This is the version of the module "subasic" 
-*               for the hybrid vertical coordinate of the 3DVAR
-*               The new name was chosen to indicate that it operates at
-*               the location of the observations.
-*
-**    Purpose:
-*             - Copy observation space background fields
-*               in lcolumng.
-*             - Initialisation of tangent linear vitual temperature operator
-*             - Initialisation of tlm and adjoint hydrostatic operators
-*               factors.
-*     Revision: C. Chouinard *ARMA/AES Sept. 98
-*             - add definition of TLM and ADJ operators for T-Td conversions
-*     Revision: L. Filllion *ARMA/AES 24 nov 98
-*             - Reorganize to support ES and HU options.
-*     Revision: C. Charette *ARMA/AES  mar 99
-*             - Change module name from subackgrd to subasic
-*               Replace lcolumnt%ps by lcolumnt%uu
-*     Revision: C. Charette *ARMA/AES nov 99
-*             - No projection on TT and PS for T-Td observations
-*     Revision: C. Charette *ARMA/AES mar 2000
-*             - No projection on TT and PS for T-Td observations
-*               from HUMSAT only.
-*     Revision: C. Charette - ARMA/SMC - Sep. 2004
-*             - Conversion to hybrid vertical coordinate
-*               Remove argument PTOP
-*Arguments
-*
-#endif
-*implicits
-#include "pardim.cdk"
-*
-      integer jlev,jobs, ity, idburp, ierr
-      real*8 zhu, ztd, zterm
-      EXTERNAL HPDEALLC, HPALLOC
-      real*8 znut,zpresa,zpresb,zpresad,zpresbd
 *
 #include "dinternv.cdk"
-#include "finternv.cdk"
 #include "finternva.cdk"
-#include "finternvl.cdk"
-c
-        type(struct_columnData) :: lcolumng,lcolumnt
-c
-        call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%numObsHeader)
-        call col_zero(lcolumnt)
-C
-c       initialize lcolumnt%tt THE ADJOINT to 1.0 to get the operator via the adjoint
-c
-        DO JLEV=1,LCOLUMNG%NLEV
-          DO JOBS=1,LCOLUMNG%numObsHeader
-            lcolumnt%tt(JLEV,JOBS) = 1.0
-          ENDDO
-        ENDDO
-c
-        do jlev = 1,lcolumng%nlev
-          DO JOBS=1,LCOLUMNG%numObsHeader
-            zhu=exp(lcolumng%hu(jlev,jobs))
-            oltv(1,jlev,jobs) = fottva(zhu,lcolumnt%tt(jlev,jobs))
-            oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),
-     &                                  lcolumnt%tt(jlev,jobs))
-c
-            zpresb = vco_anl%db_M(jlev)
-            zpresbd= vco_anl%db_dhyb_M(jlev)
-            zpresa = vco_anl%da_M(jlev)
-            zpresad= vco_anl%da_dhyb_M(jlev)
-            rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
-     &                          /(zpresa+zpresb*lcolumng%ps(1,jobs))
-          enddo
+      type(struct_columnData) :: lcolumng
+      integer jlev,jobs
+      real*8 zhu,one,zpresa,zpresb,zpresad,zpresbd
+
+      one=1.0
+      do jlev = 1,lcolumng%nlev
+        do jobs=1,lcolumng%numObsHeader
+          zhu=exp(lcolumng%hu(jlev,jobs))
+          lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
+          lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),one)
+
+          zpresb = vco_anl%db_M(jlev)
+          zpresbd= vco_anl%db_dhyb_M(jlev)
+          zpresa = vco_anl%da_M(jlev)
+          zpresad= vco_anl%da_dhyb_M(jlev)
+          lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
+     &                        /(zpresa+zpresb*lcolumng%ps(1,jobs))
         enddo
-c
-        call col_deallocate(lcolumnt)
-c
-      RETURN
-      END
+      enddo
+
+      return
+      end subroutine subasic_obs

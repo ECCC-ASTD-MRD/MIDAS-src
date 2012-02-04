@@ -38,6 +38,7 @@
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod
+      use masks_mod
       IMPLICIT NONE
 #include "comct0.cdk"
 #include "comlun.cdk"

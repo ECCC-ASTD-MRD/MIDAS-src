@@ -18,6 +18,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
+  use masks_mod
   use bufr
   implicit none
   !
@@ -73,7 +74,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   CONTAINS
 
       SUBROUTINE oda_Hpp
-      use modmask, only : lmaskpp_in, lmaskpp_out,ldiagpp
 !*
 !* Purpose: Compute simulated Upper Air observations from profiled model
 !*          increments.
@@ -142,9 +142,9 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !C
 !c-----------TL model for height data below model's orography
 !c
-          ZLTV = OLTV(1,LCOLUMN%NLEV,IOBS)*LCOLUMN%TT(LCOLUMN%NLEV,IOBS) &
-               + OLTV(2,LCOLUMN%NLEV,IOBS)*LCOLUMN%HU(LCOLUMN%NLEV,IOBS)
-          ZTVG = OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
+          ZLTV = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*LCOLUMN%TT(LCOLUMN%NLEV,IOBS) &
+               + lcolumng%OLTV(2,LCOLUMN%NLEV,IOBS)*LCOLUMN%HU(LCOLUMN%NLEV,IOBS)
+          ZTVG = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
           ZCON =(ZLEV/lcolumng%ps(1,IOBS))**ZEXP
           call obs_set_r8(lobsSpaceData,'OMA ',jdata, (1.-zcon)/zgamma*ZLTV &
               + RGASD*ZTVG*zcon*lcolumn%ps(1,iobs) &
@@ -156,7 +156,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
 
       SUBROUTINE oda_Hsf
-      use modmask, only : lmasksf_in,lmasksf_out,ldiagsf
 !*
 !* Purpose: Compute simulated surface observations from profiled model
 !*          increments.
@@ -204,9 +203,9 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             endif
             call obs_set_r8(lobsSpaceData,'OMA ',JDATA,columnVarB)
           ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
-            ZLTV  = OLTV(1,LCOLUMN%NLEV,IOBS)*LCOLUMN%TT(LCOLUMN%NLEV,IOBS)  &
-                 + OLTV(2,LCOLUMN%NLEV,IOBS)*LCOLUMN%HU(LCOLUMN%NLEV,IOBS)
-            ZTVG  = OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
+            ZLTV  = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*LCOLUMN%TT(LCOLUMN%NLEV,IOBS)  &
+                 + lcolumng%OLTV(2,LCOLUMN%NLEV,IOBS)*LCOLUMN%HU(LCOLUMN%NLEV,IOBS)
+            ZTVG  = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
             ZGAMAZ= ZGAMMA*(ZHHH-lcolumng%gz(LCOLUMN%NLEV,IOBS))
             ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
             ZDELPS= (LCOLUMN%PS(1,IOBS)*ZCON**ZEXP)
@@ -233,9 +232,9 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !C
 !c  TL model for height data below model's orography
 !c
-          ZLTV = OLTV(1,LCOLUMN%NLEV,IOBS)*LCOLUMN%TT(LCOLUMN%NLEV,IOBS) &
-               + OLTV(2,LCOLUMN%NLEV,IOBS)*LCOLUMN%HU(LCOLUMN%NLEV,IOBS)
-          ZTVG = OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
+          ZLTV = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*LCOLUMN%TT(LCOLUMN%NLEV,IOBS) &
+               + lcolumng%OLTV(2,LCOLUMN%NLEV,IOBS)*LCOLUMN%HU(LCOLUMN%NLEV,IOBS)
+          ZTVG = lcolumng%OLTV(1,LCOLUMN%NLEV,IOBS)*lcolumng%tt(LCOLUMN%NLEV,IOBS)
           ZCON=(ZLEV/lcolumng%ps(1,IOBS))**ZEXPGZ
           call obs_set_r8(lobsSpaceData,'OMA ',jdata,(1.-zcon)/zgamma*ZLTV &
               + RGASD*ZTVG*zcon*lcolumn%ps(1,iobs) &
@@ -501,7 +500,6 @@ end subroutine oda_Hto
 
 
       SUBROUTINE oda_Hzp
-      use modmask, only : lmaskzp
 !*
 !* Purpose: Compute simulated profiler observations from profiled model
 !*          increments.
@@ -554,7 +552,6 @@ end subroutine oda_Hto
 
 
       SUBROUTINE oda_Hgp
-      use modmask, only : lmaskgp
 !*
 !***s/r  -oda_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
 !*
