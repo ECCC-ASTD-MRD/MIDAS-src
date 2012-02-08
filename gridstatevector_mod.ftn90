@@ -52,6 +52,7 @@ MODULE gridStateVector_mod
     INTEGER NGEXIST(JPNVARMAX),NGPOSIT(JPNVARMAX)
     INTEGER nguu,ngvv,ngq,nggz,ngtt,ngtr,ngps,ngtg
     integer :: nvgd,nvg2d
+    CHARACTER*8 ANLTIME_BIN
 
 CONTAINS
 
@@ -60,7 +61,7 @@ CONTAINS
       INTEGER JVAR, IFLAG, IPOS
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER*2 CGNEED(JPNVARMAX)
-      NAMELIST /NAMSTATE/CGNEED
+      NAMELIST /NAMSTATE/CGNEED,ANLTIME_BIN
 !
 !     Initialisation of the state variable numbers
 !
@@ -90,6 +91,8 @@ CONTAINS
       CGNEED(3)   ='TT'
       CGNEED(4)   ='HU'
       CGNEED(5)   ='P0'
+
+      ANLTIME_BIN = 'MIDDLE'
 
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -212,6 +215,14 @@ CONTAINS
         ngtg = ipos
         ipos = ipos + 1
       endif
+!
+!     Check value for ANLTIME_BIN
+!
+      if (ANLTIME_BIN .ne. 'MIDDLE' .and. ANLTIME_BIN .ne. 'FIRST' .and.  ANLTIME_BIN .ne. 'LAST') then
+         write(*,*) 'gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist. Aborting!'
+         call flush(6)
+         call qqexit(1)
+      endif
 
       RETURN
 
@@ -245,7 +256,15 @@ CONTAINS
     statevector%nk=nvgd*nlev+nvg2d
     statevector%nlev=nlev
     statevector%nt=nt
-    statevector%anltime=nint((real(nt)+1.0)/2.0)
+    select case (ANLTIME_BIN)
+    case ("FIRST")
+       statevector%anltime=1
+    case ("MIDDLE")
+       statevector%anltime=nint((real(nt)+1.0)/2.0)
+    case ("LAST")
+       statevector%anltime=nt
+    end select
+          
 
     write(*,*) 'gsv_allocate: nt,anltime=',statevector%nt,statevector%anltime
 
@@ -383,6 +402,7 @@ CONTAINS
 
     type(struct_gsv) :: statevector
     integer          :: jstep
+    real(8),dimension(statevector%ni,statevector%nk,statevector%nj) :: gd3d_tmp
 
     if(.not.statevector%allocated) then
       write(*,*) 'gridStateVector not yet allocated! Aborting.'
@@ -391,12 +411,14 @@ CONTAINS
 
     if(statevector%nt.eq.1) return
 
+    gd3d_tmp(:,:,:) = 0.0d0
+
     do jstep=1,statevector%nt
-      if(jstep.ne.statevector%anltime) then
-        statevector%gd3d(:,:,:)= statevector%gd3d(:,:,:) +   &
+        gd3d_tmp(:,:,:) = gd3d_tmp(:,:,:) +   &
                                  statevector%gd(:,:,:,jstep)
-      endif
     enddo
+
+    statevector%gd3d(:,:,:) = gd3d_tmp(:,:,:)
 
   END SUBROUTINE GSV_3dto4dAdj
 

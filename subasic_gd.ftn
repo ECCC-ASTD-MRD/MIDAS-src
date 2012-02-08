@@ -16,7 +16,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine subasic_gd(statevectorg)
-      use mod4dv, only : l4dvar
       use gridStateVector_mod
 *
 #if defined (DOC)
@@ -61,11 +60,7 @@ C
 !
       llvint = .true.
 !
-      if(l4dvar) then
-        ibrpstamp=nstamplist(1)
-      else
-        ibrpstamp=nbrpstamp
-      endif
+      ibrpstamp=nstamplist(statevectorg%anltime)
 !
 !*1   Define Grids
 !     ************

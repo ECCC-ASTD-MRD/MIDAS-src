@@ -1,5 +1,4 @@
       SUBROUTINE varout(statevector,zes,ztv,zgz,zhu)
-      use mod4dv, only : l4dvar
 #if defined (DOC)
 *
 ***s/r varout  - Transfert of the content of COMGD0 on a RPN
@@ -10,7 +9,7 @@
 #endif
 C
       use MathPhysConstants_mod
-      use modfgat, only : nstamplist
+      use modfgat, only : nstepobsinc
       use gridStateVector_mod
       use minimization_mod
       IMPLICIT NONE
@@ -19,6 +18,7 @@ C
 #include "comlun.cdk"
 #include "compost.cdk"
 #include "cvcord.cdk"
+#include "comfilt.cdk"
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
 *
@@ -45,6 +45,7 @@ C
       pointer (pzlowvar,zlowvar(statevector%ni,statevector%nj,statevector%nlev))
       pointer (pzlowwind,zlowwind(statevector%ni,statevector%nj,statevector%nlev))
       LOGICAL llimplemented,llvarout
+      integer, allocatable :: nstamplistinc(:)
       data cltypinc /'R'/
 !
       WRITE(NULOUT,FMT='(/,4X,"Starting VAROUT: v_10_2_1",//)')
@@ -56,11 +57,12 @@ C
      S     '' state on file at iteration No.'',I3)')
      S     min_niter
 c
-      if(l4dvar) then
-        ibrpstamp=nstamplist(1)
-      else
-        ibrpstamp=nbrpstamp
-      endif
+      allocate(nstamplistinc(nstepobsinc))
+      call getstamplist(NSTAMPLISTINC,nstepobsinc,nbrpstamp,dstepobsinc)      
+      ibrpstamp=nstamplistinc(statevector%anltime)
+      deallocate(nstamplistinc)
+
+      write(nulout,*) 'Writing fields for ibrpstamp= ',ibrpstamp
 
       ndeet=0
       NIP2       =  0

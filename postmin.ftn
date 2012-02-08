@@ -108,7 +108,7 @@ c
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,vco_anl%nlev_M,1)
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobs)
       call subasic_gd(statevectorg)
 !
 !     *** Compute increment HU from LQ increment
