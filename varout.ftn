@@ -9,7 +9,6 @@
 #endif
 C
       use MathPhysConstants_mod
-      use modfgat, only : nstepobsinc
       use gridStateVector_mod
       use minimization_mod
       IMPLICIT NONE
@@ -17,8 +16,6 @@ C
 #include "pardim.cdk"
 #include "comlun.cdk"
 #include "compost.cdk"
-#include "cvcord.cdk"
-#include "comfilt.cdk"
 #include "rpnstd.cdk"
 #include "comgdpar.cdk"
 *
@@ -45,7 +42,6 @@ C
       pointer (pzlowvar,zlowvar(statevector%ni,statevector%nj,statevector%nlev))
       pointer (pzlowwind,zlowwind(statevector%ni,statevector%nj,statevector%nlev))
       LOGICAL llimplemented,llvarout
-      integer, allocatable :: nstamplistinc(:)
       data cltypinc /'R'/
 !
       WRITE(NULOUT,FMT='(/,4X,"Starting VAROUT: v_10_2_1",//)')
@@ -57,10 +53,7 @@ C
      S     '' state on file at iteration No.'',I3)')
      S     min_niter
 c
-      allocate(nstamplistinc(nstepobsinc))
-      call getstamplist(NSTAMPLISTINC,nstepobsinc,nbrpstamp,dstepobsinc)      
-      ibrpstamp=nstamplistinc(statevector%anltime)
-      deallocate(nstamplistinc)
+      ibrpstamp=statevector%datestamp3d
 
       write(nulout,*) 'Writing fields for ibrpstamp= ',ibrpstamp
 
@@ -77,9 +70,9 @@ c
       if(nulinclr.ne.0) then
         write(nulout,*) 'Writing variable HY on analysis-increment file'
 c
-        zptop4 = vco_anl%dpt_M*rpatmb
-        zpref4 = vco_anl%dprf_M*rpatmb
-        zrcoef4 = vco_anl%drcf1
+        zptop4 = statevector%vco%dpt_M*rpatmb
+        zpref4 = statevector%vco%dprf_M*rpatmb
+        zrcoef4 = statevector%vco%drcf1
         ierr    = write_encode_hyb(nulinclr,'HY',nip2,min_niter,cetikinc
      &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
       endif
@@ -102,9 +95,9 @@ c
       write(nulout,*)
      &     ' The hybride coordinate parameters from increment'
      &     ,' analysis  grid are:'
-      write(nulout,*) ' PTOP = ',vco_anl%dpt_M*rpatmb,' MB'
-      write(nulout,*) ' PREF = ',vco_anl%dprf_M*rpatmb,' MB'
-      write(nulout,*) ' RCOEF= ',vco_anl%drcf1
+      write(nulout,*) ' PTOP = ',statevector%vco%dpt_M*rpatmb,' MB'
+      write(nulout,*) ' PREF = ',statevector%vco%dprf_M*rpatmb,' MB'
+      write(nulout,*) ' RCOEF= ',statevector%vco%drcf1
       write(nulout,*)'************************************** '
       write(nulout,*)' '
 c
@@ -141,17 +134,17 @@ c
 c-------Do setup and write the analysed increments on the unit
 C       nulinclr (low resolution working grid of the 3dvar)
 c
-        if(vco_anl%dhyb_m(1) .eq. 0.0 .or. vco_anl%dpt_M .eq. 0.0) then
+        if(statevector%vco%dhyb_m(1) .eq. 0.0 .or. statevector%vco%dpt_M .eq. 0.0) then
 c       ETA or SIGMA levels were read from namelist
           ip1_vco_inclr = 1
           do jlev = 1,statevector%nlev
-            zlev_inclr(jlev) = vco_anl%dhyb_m(jlev)
+            zlev_inclr(jlev) = statevector%vco%dhyb_m(jlev)
           enddo
         else
 c       HYBRID levels read from namelist
           ip1_vco_inclr = 5
           do jlev = 1,statevector%nlev
-            zlev_inclr(jlev) = vco_anl%dhyb_m(jlev)
+            zlev_inclr(jlev) = statevector%vco%dhyb_m(jlev)
           enddo
         endif
 c

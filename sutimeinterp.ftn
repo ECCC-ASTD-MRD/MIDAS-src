@@ -1,75 +1,52 @@
       subroutine sutimeinterp(lobsSpaceData,lcolumn)
-*
-***s/r sutimeinterp  
-*
+!*
+!***s/r sutimeinterp  
+!*
       use obsSpaceData_mod
       use columnData_mod
-      use modfgat
       IMPLICIT NONE
 #include "comlun.cdk"
-#include "cvcord.cdk"
 #include "comfilt.cdk"
-*
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn
-      integer :: jobs,istepstamp,jstep,istepobs
-      real*8 :: deltastepobs
-      integer, allocatable :: nstamplistinc(:),nobsinc(:)
+      integer :: jobs,jstep
+      real*8 :: stepObsIndex
 
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUTIMEINTERP ---------'
       write(nulout,*) ' '
-      write(nulout,*) 'SUOBSGID: Step obs inc : ',dstepobsinc,' hours'
 
-* Compute the number of step obs over a 6 hours assimilation window
-      nstepobsinc = 2*nint((3.d0 - dstepobsinc/2.d0)/dstepobsinc) + 1
-      write(nulout,*) 'SUOBSGID: Number of step obs inc : ',nstepobsinc
-      allocate(nstamplistinc(nstepobsinc))
-      allocate(nobsinc(nstepobsinc))
+! Compute the number of step obs over a 6 hours assimilation window
+      write(nulout,*) 'SUTIMEINTERP: Number of step obs inc : ',nstepobsinc
 
-      call getstamplist(NSTAMPLISTINC,nstepobsinc,nbrpstamp,dstepobsinc)
-!
-      do jstep = 1,nstepobsinc
-        write(nulout,*) 'suobsgid: jstep,nstamplistinc=',jstep,nstamplistinc(jstep)
-      enddo
-C
-C DO THE WORK FOR THE INCREMENT ONLY 
-C
       do jobs=1, obs_numheader(lobsSpaceData)
 ! return the step stamp associated whit date and time of the observation
 
-        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobsinc)
-        call stepobs2(deltastepobs,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobsinc)
 ! building the list of step stamp and counting number of obs in each step
         if(nstepobsinc.eq.1) then
-          stepinc1 : do jstep = 1,nstepobsinc
-            if (nstamplistinc(jstep) == istepstamp) then
-              nobsinc(jstep) = nobsinc(jstep) + 1
-              call col_setTimeInterpWeight(lcolumn,1.0d0,jobs,jstep)
-              exit stepinc1
-            endif
-          enddo stepinc1
+          call col_setTimeInterpWeight(lcolumn,1.0d0,jobs,1)
         else
-          stepinc : do jstep = 1,nstepobsinc
-            istepobs=floor(deltastepobs)+((nstepobsinc+1)/2)
-            if (istepobs == jstep) then
-              call col_setTimeInterpWeight(lcolumn,
-     &           1.0d0-(deltastepobs-floor(deltastepobs)),jobs,jstep)
-            elseif((istepobs+1)==jstep) then
-              call col_setTimeInterpWeight(lcolumn,
-     &           deltastepobs-floor(deltastepobs),jobs,jstep)
-              exit stepinc
-            endif
-          enddo stepinc
+          call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
+     &                         obs_elem_i(lobsSpaceData,'DAT ',jobs)
+     &         ,obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobsinc)
+          if(floor(stepObsIndex).ge.nstepobsinc) then
+            write(*,*) 'stepObsIndex too big=',jobs,stepObsIndex
+            call col_setTimeInterpWeight(lcolumn,
+     &           1.0d0,jobs,nstepobsinc)
+          elseif(floor(stepObsIndex).le.0) then
+            write(*,*) 'stepObsIndex too small=',jobs,stepObsIndex
+            call col_setTimeInterpWeight(lcolumn,
+     &           1.0d0,jobs,1)
+          else
+            call col_setTimeInterpWeight(lcolumn,
+     &         1.0d0-(stepObsIndex-floor(stepObsIndex)),jobs,floor(stepObsIndex))
+            call col_setTimeInterpWeight(lcolumn,
+     &         stepObsIndex-floor(stepObsIndex),jobs,floor(stepObsIndex)+1)
+          endif
         endif
 
       enddo
 
-      deallocate(nstamplistinc)
-      deallocate(nobsinc)
-c
       write(nulout,*) ' '
       write(nulout,*) '-------- END OF SUTIMEINTERP ---------'
       write(nulout,*) ' '

@@ -32,6 +32,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
 #include "comgdpar.cdk"
+#include "comfilt.cdk"
   !Local declarations
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumn,lcolumng
@@ -44,11 +45,13 @@ subroutine minimize(lcolumng,lobsSpaceData)
   call col_allocate(lcolumn,lcolumng%nlev,lcolumng%numObsHeader)
   call col_zero(lcolumn)
 
+  write(*,*) 'PRDATABIN: For 4D increment'
+  call prdatabin(lobsSpaceData,nstepobsinc)
   call sutimeinterp(lobsSpaceData,lcolumn)
 
   call setcma(lobsSpaceData)
 
-  call min_minvar(nbrpstamp,lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
+  call min_minvar(lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
 
   call rsetcma(lobsSpaceData)
 

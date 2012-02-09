@@ -72,7 +72,7 @@ C
 c      llprint = .true.
 c
       zalpha=0.0D0
-      call matapat(vco_anl%dhyb_m,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(lcolumng%vco%dhyb_m,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
       call avtap
 c
 c*    Adjoint of preparation r.h.s. for TL-Hydrostatic equation
@@ -86,8 +86,8 @@ c
 c
 c        zcon = d(lcolumng%rtapfac)/d(ps)
 c
-          zcon   = (vco_anl%db_dhyb_M(jlev)-
-     +              vco_anl%db_M(jlev)*lcolumng%rtapfac(jlev,jobs))/
+          zcon   = (lcolumng%vco%db_dhyb_M(jlev)-
+     +              lcolumng%vco%db_M(jlev)*lcolumng%rtapfac(jlev,jobs))/
      +              lcolumng%rppobs(jlev,jobs)
           lcolumn%ps(1,jobs)=lcolumn%ps(1,jobs)+
      &          lcolumng%tt(jlev,jobs)*zcon * lcolumnt%tt(jlev,jobs)

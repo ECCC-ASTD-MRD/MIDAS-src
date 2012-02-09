@@ -14,20 +14,23 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine prdatabin(lobsSpaceData)
-      use modfgat, only : nobs, notag, nstepobs
+      subroutine prdatabin(lobsSpaceData,nstepobs)
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
-c
       type(struct_obs) :: lobsSpaceData
+      integer :: nstepobs
+
       integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend
-      integer, allocatable, dimension(:,:) :: idataass
+      integer, allocatable, dimension(:,:) :: idataass,inumheader
       integer, parameter :: nfamily=9
       character*2 :: familylist(nfamily)
+      character*128 :: formatspec,formatspec2
+      real*8 :: stepObsIndex
 
-      allocate(idataass(nfamily,nstepobs+1))
+      allocate(idataass(nfamily,nStepObs+1))
       idataass(:,:) = 0
+      allocate(inumheader(nfamily,nStepObs+1))
+      inumheader(:,:) = 0
 
       familylist(1)='UA'
       familylist(2)='AI'
@@ -39,32 +42,60 @@ c
       familylist(8)='RO'
       familylist(9)='GP'
  
-      do jstep = 1,nstepobs
-        do jobs = 1, nobs(jstep)
-          iobs = notag(jobs,jstep)
-          idatabeg   = obs_elem_i(lobsSpaceData,'RLN ',iobs)
-          idatend = obs_elem_i(lobsSpaceData,'NLV ',iobs) + idatabeg - 1
-          
+      do jobs = 1, obs_numheader(lobsSpaceData)
+        call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
+     &        obs_elem_i(lobsSpaceData,'DAT ',jobs),
+     &        obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobs)
+        if(stepObsIndex.gt.0.0d0) then
+          jstep=nint(stepObsIndex)
+          idatabeg   = obs_elem_i(lobsSpaceData,'RLN ',jobs)
+          idatend = obs_elem_i(lobsSpaceData,'NLV ',jobs) + idatabeg - 1          
           do jfamily = 1, nfamily
-            if(obs_getfamily(lobsSpaceData,iobs).eq.familylist(jfamily)) then
+            if(obs_getfamily(lobsSpaceData,jobs).eq.familylist(jfamily)) then
+              inumheader(jfamily,jstep)=inumheader(jfamily,jstep)+1
+              inumheader(jfamily,nStepObs+1)=inumheader(jfamily,nStepObs+1)+1
               do jdata = idatabeg, idatend
                 if ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .eq. 1) then
                   idataass(jfamily,jstep) = idataass(jfamily,jstep) + 1
-                  idataass(jfamily,nstepobs+1) = idataass(jfamily,nstepobs
-     &                   +1) + 1
+                  idataass(jfamily,nStepObs+1) = 
+     &               idataass(jfamily,nStepObs+1) + 1
                 endif
               enddo
             endif
           enddo
-        enddo
+        else
+          write(*,*) 'PRDATABIN: observation outside time window:',jobs,stepObsIndex
+        endif
       enddo
 
-      write(nulout,*)'Distribution of assimilated data over stepobs'
-      write(nulout,*)'Bin# :',(jstep,jstep=1,nstepobs),'Total'
-      do jfamily = 1, nfamily
-        write(nulout,*) familylist(jfamily),':',(idataass(jfamily,jstep)
-     &           ,jstep=1,nstepobs+1)
+      formatspec='(1X,A6,":"'
+      do jstep=1,nStepObs+1
+        formatspec=trim(formatspec)//',1X,I8'
       enddo
-      write(nulout,*)'_______________________________________________'
+      formatspec=trim(formatspec)//')'
+
+      formatspec2='(1X,A6,":"'
+      do jstep=1,nStepObs
+        formatspec2=trim(formatspec2)//',1X,I8'
+      enddo
+      formatspec2=trim(formatspec2)//',1X,A8)'
+
+      write(*,*)'-----------------------------------------------------'
+      write(*,*)'Distribution of number of headers over stepobs'
+      write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+      do jfamily = 1, nfamily
+        write(*,trim(formatspec)) familylist(jfamily),(inumheader(jfamily,jstep)
+     &           ,jstep=1,nStepObs+1)
+      enddo
+      write(*,trim(formatspec)) 'ALL',(sum(inumheader(:,jstep)),jstep=1,nStepObs+1)
+      write(*,*)'-----------------------------------------------------'
+      write(*,*)'Distribution of assimilated data over stepobs'
+      write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+      do jfamily = 1, nfamily
+        write(*,trim(formatspec)) familylist(jfamily),(idataass(jfamily,jstep)
+     &           ,jstep=1,nStepObs+1)
+      enddo
+      write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
+      write(*,*)'-----------------------------------------------------'
 
       end subroutine

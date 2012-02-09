@@ -62,7 +62,7 @@
 !C
       NGPSLEV=lcolumng%NLEV
       DO JL = 1, lcolumng%NLEV
-         ZETA(JL) = VCO_ANL%DHYB_M(JL)
+         ZETA(JL) = lcolumng%VCO%DHYB_M(JL)
       ENDDO  
 
       DO JF = 1,NFILES
@@ -118,7 +118,7 @@
                      ZP0 = lcolumng%ps(1,JO)
                      ZMT = ZGZ(lcolumng%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPT = vco_anl%dpt_M
+                     ZPT = lcolumng%vco%dpt_M
 !C     
 !C     *              GPS profile structure:
 !C

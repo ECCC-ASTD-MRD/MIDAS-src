@@ -62,7 +62,7 @@
       WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
 
       LSTAG = .FALSE.
-      if (vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
+      if (lcolumnhr%vco%iversion .eq. 5002) LSTAG = .TRUE. 
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
@@ -74,7 +74,7 @@
 !C
       NGPSLEV=lcolumnhr%NLEV
       DO JL = 1, lcolumnhr%NLEV
-         ZETA(JL) = lcolumnhr%VHYB_T(JL)
+         ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
       ENDDO
 !C
 !C*    *        1.2 Read the NAMELIST NAMGGPSRO
@@ -141,8 +141,8 @@
                      ZPT = lcolumnhr%RPPOBS_T(1,JO)
                      ZMT = ZGZ(lcolumnhr%NLEV)/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPR = vco_anl%dprf_M
-                     ZCF = vco_anl%drcf1
+                     ZPR = lcolumnhr%vco%dprf_M
+                     ZCF = lcolumnhr%vco%drcf1
 !C     
 !C     *              GPS profile structure:
 !C

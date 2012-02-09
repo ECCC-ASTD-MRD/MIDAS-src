@@ -64,7 +64,7 @@ C LMHUAESV
       do jk=1,statevectorg%nlev
         do ji=1,statevectorg%ni
           do jj=1,statevectorg%nj
-            zpres  = vco_anl%da_M(jk) + vco_anl%db_M(jk)*statevectorg%ps3d(ji,1,jj)
+            zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*statevectorg%ps3d(ji,1,jj)
 *
 *          First do the forward branch to get saturated vapour pressure
 *          from q
@@ -74,9 +74,9 @@ C LMHUAESV
 *          TLM of the saturated vapor pressure from q (specific humidity)
 *
             ZEL = FOEFQL(statevector%hu3d(ji,jk,jj),statevector%ps3d(ji,1,jj)
-     &           ,statevectorg%hu3d(ji,jk,jj),zpres,vco_anl%dhyb_m(jk))
+     &           ,statevectorg%hu3d(ji,jk,jj),zpres,statevectorg%vco%dhyb_m(jk))
 !            ZEL = FOEFQL(statevector%hu3d(ji,jk,jj),statevector%ps3d(ji,1,jj)
-!     &           ,statevectorg%hu3d(ji,jk,jj),zpres,vco_anl%db_m(jk))
+!     &           ,statevectorg%hu3d(ji,jk,jj),zpres,statevectorg%vco%db_m(jk))
 *
 *          TLM of the dewpoint temperature calculation
 *

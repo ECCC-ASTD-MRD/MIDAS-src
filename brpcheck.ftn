@@ -14,7 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE BRPCHECK
+      SUBROUTINE BRPCHECK(lobsSpaceData)
+      use obsSpaceData_mod
       IMPLICIT NONE
 #if defined (DOC)
 *s/r BRPCHECK
@@ -64,9 +65,10 @@
 #include "comlun.cdk"
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
+      type(struct_obs) :: lobsSpaceData
       INTEGER KTIME,KDATE,KRUNN
 *
-      INTEGER IHANDL,ILONG
+      INTEGER IHANDL,ILONG,NBRPSTAMP
       INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
      +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX,
      +        INSUP,INXAUX
@@ -163,6 +165,7 @@
       ier = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
       WRITE(NULOUT, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
       WRITE(NULOUT, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+      call obs_set_datestamp(lobsSpaceData,nbrpstamp)
 
       RETURN
       END

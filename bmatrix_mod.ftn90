@@ -3,38 +3,38 @@ MODULE BMatrix_mod
     use bMatrixEnsemble
     use controlVector_mod
     use gridStateVector_mod
+    use columnData_mod
     use gaussGrid_mod
-    use modfgat
 
 contains
 
-  SUBROUTINE bmat_setup
+  SUBROUTINE bmat_setup(lcolumng,datestamp)
 !
 !**s/r bmat_setup  - Initializes the analysis Background term for the specific analysis configuration used.
 !
       IMPLICIT NONE
-#include "pardim.cdk"
-#include "cvcord.cdk"
+#include "comfilt.cdk"
 !
-      integer  cvdimens,cvdimhi
-      real*8 zps(1),pressureProfile(vco_anl%nlev_M,1),pressureProfile1(vco_anl%nlev_M)
+      type(struct_columnData) :: lcolumng
+      integer  cvdimens,cvdimhi,datestamp
+      real*8 zps(1),pressureProfile(lcolumng%vco%nlev_M,1),pressureProfile1(lcolumng%vco%nlev_M)
       integer jlev
 
 ! Initialize the background-error covariances
 
       zps(1) = 101000.D0
-      call vco_calcpres(vco_anl,pressureProfile,vco_anl%nlev_M,zps,1)
+      call vco_calcpres(lcolumng%vco,pressureProfile,lcolumng%vco%nlev_M,zps,1)
       pressureProfile1(:)=pressureProfile(:,1)
       cvdimhi=0
       cvdimens=0
 
       write(*,*) 'Setting up the modular HI covariances...'
-      call bhi_setup(gaus_NI,gaus_NJ,vco_anl%nlev_M,pressureProfile1,cvdimhi)
+      call bhi_setup(gaus_NI,gaus_NJ,lcolumng%vco%nlev_M,pressureProfile1,cvdimhi)
       write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
       call flush(6)
 
       write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(2800.0d0,2.0d0,pressureProfile1,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,nbrpstamp,cvdimens)
+      call ben_setup(2800.0d0,2.0d0,pressureProfile1,gaus_ni,gaus_nj,lcolumng%vco%nlev_M,nstepobsinc,lcolumng%vco%ip1_M,datestamp,cvdimens)
       write(*,*) 'Dimension of ENS control vector returned:',cvdimens
       call flush(6)
 

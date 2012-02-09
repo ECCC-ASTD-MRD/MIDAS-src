@@ -147,7 +147,7 @@ C
 !ccc They are being tested in the regional LAM analysis
 !ccc So DOBSGPSGB was not adapted to staggered at this time 
 !ccc (Jan 18,2011)
-      if(vco_trl%iversion .eq. 5001 ) then
+      if(lcolumnhr%vco%iversion .eq. 5001 ) then
         CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
       endif
 

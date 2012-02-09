@@ -12,6 +12,10 @@
 MODULE minimization_mod
   use columnData_mod
   use obsSpaceData_mod
+  use controlVector_mod
+  use mpi
+  use gridStateVector_mod
+  use bmatrix_mod
 
   implicit none
   save
@@ -125,9 +129,7 @@ CONTAINS
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(nbrpstamp,lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
-      use controlVector_mod
-      use obsSpaceData_mod
+  SUBROUTINE min_minvar(lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
 !
 !Purpose:
 !3D/4D VAR minimization
@@ -141,7 +143,6 @@ CONTAINS
       integer :: nsize
 
       logical lnlvtov,lpcon,lrestart
-      integer nbrpstamp
       CHARACTER(len=128) :: cpconf
 
       INTEGER IZS(1),IZTRL(10)
@@ -175,6 +176,7 @@ CONTAINS
       real*8 xx,bb,a_not_use,r8_not_use,pj0
       integer in_mode(3),out_mode,i_not_use,nilm,ilm0(10),ilm1(10)
       integer i_pmat1,nl_stat, dl_bidon
+
 ! 
 !     allocation (formerly automatic arrays)
 !
@@ -276,7 +278,7 @@ CONTAINS
       if(.not.(imode.eq.0.or.imode.eq.2)) call abort3d(nulout,' RW_VATRA not done ')
 
       if (lrdvatra) then
-        ibrpstamp = nbrpstamp ! ibrpstamp is a I/O argument of rw_vatra
+        ibrpstamp = obs_get_datestamp(lobsSpaceData) ! ibrpstamp is a I/O argument of rw_vatra
 
         if(n1gc.eq.3) then
           call rw_vatra (clfname,0,                            &
@@ -304,7 +306,7 @@ CONTAINS
           isimmax = nsimmax - isimdone + 1
           if (iterdone < nwoqcv) lvarqc = .false.
         else
-          if (ibrpstamp == nbrpstamp .and. lxbar) then
+          if (ibrpstamp == obs_get_datestamp(lobsSpaceData) .and. lxbar) then
             zeps0  = zeps0_000
             zdf1   = zdf1_000
             lldf1 = .false.     ! don't re-compute df1 base on Cost function
@@ -507,14 +509,14 @@ CONTAINS
       if(lwrthess) then
         if(n1gc.eq.3) then
         call rw_vatra (clfname,1,  &
-          nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,  &
+          nsim3d,obs_get_datestamp(lobsSpaceData),zeps1,zdf1,itertot,isimtot,  &
           iztrl,vatra,nmtra,  &
           dg_vbar,cvm_nvadim,  &
           cvm_vazx,nvamaj,.true.,llvazx,n1gc,imode)
 
 ! no conjgrad        elseif(n1gc.eq.4) then
 !            call rw_vatra (clfname,1,  &
-!            nsim3d,nbrpstamp,zeps1,zdf1,itertot,isimtot,  &
+!            nsim3d,obs_get_datestamp(lobsSpaceData),zeps1,zdf1,itertot,isimtot,  &
 !            ilm1,vatr1,nmtra,  &
 !            dg_vbar,cvm_nvadim,  &
 !            cvm_vazx,nvamaj,.true.,llvazx,n1gc,imode)
@@ -555,11 +557,6 @@ CONTAINS
 
 
   SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
-    use mpi
-    use obsSpaceData_mod
-    use gridStateVector_mod
-    use columnData_mod
-    use bmatrix_mod
     implicit none
     ! Argument declarations
     integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -616,7 +613,8 @@ CONTAINS
 
        call tmg_stop(74)
 
-       call gsv_allocate(statevector,ni,nj,nlev,nt)
+       call gsv_allocate(statevector,ni,nj,nlev,nt,obs_get_datestamp(lobsSpaceData))
+       statevector%vco => lcolumng%vco
 
        call bmat_sqrtB(da_v,na_dim,statevector)
 
@@ -832,8 +830,6 @@ CONTAINS
     !*     i   lvazx     : Logical to read vazx
     !*     i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3, 4: m1gc)
     !*     o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
-
-    use mpi
     IMPLICIT NONE
 
     logical lxbar,lvazx

@@ -203,10 +203,10 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !            call llintv2 (zvlev(1,jn),zlq_tl(1,jn),zlq(1,jn), &
 !     &                    zps_tl(jn),jpnflev,lcolumn%nlev,ilen, &
 !     &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
-            call intavgtl (zvlev(1,jn),vco_anl%db_m,zt_tl(1,jn),zt(1,jn), &
+            call intavgtl (zvlev(1,jn),lcolumng%vco%db_m,zt_tl(1,jn),zt(1,jn), &
      &                    zps_tl(jn),jpnflev,lcolumn%nlev,ilen, &
      &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
-            call intavgtl (zvlev(1,jn),vco_anl%db_m,zlq_tl(1,jn),zlq(1,jn), &
+            call intavgtl (zvlev(1,jn),lcolumng%vco%db_m,zlq_tl(1,jn),zlq(1,jn), &
      &                    zps_tl(jn),jpnflev,lcolumn%nlev,ilen, &
      &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
 

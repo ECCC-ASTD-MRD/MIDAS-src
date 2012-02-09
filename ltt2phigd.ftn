@@ -63,7 +63,7 @@ c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
       do jlat = 1, statevectorg%nj
-        call vco_calcpres(vco_anl,ZPRESS,statevectorg%nlev,
+        call vco_calcpres(statevectorg%vco,ZPRESS,statevectorg%nlev,
      &                    statevectorg%ps3d(:,1,jlat),statevectorg%ni)
         do jlon = 1, statevectorg%ni
           do jlev = 1,statevectorg%nlev

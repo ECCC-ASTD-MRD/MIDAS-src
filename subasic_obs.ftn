@@ -41,10 +41,10 @@ c
           lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
           lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),one)
 
-          zpresb = vco_anl%db_M(jlev)
-          zpresbd= vco_anl%db_dhyb_M(jlev)
-          zpresa = vco_anl%da_M(jlev)
-          zpresad= vco_anl%da_dhyb_M(jlev)
+          zpresb = lcolumng%vco%db_M(jlev)
+          zpresbd= lcolumng%vco%db_dhyb_M(jlev)
+          zpresa = lcolumng%vco%da_M(jlev)
+          zpresad= lcolumng%vco%da_dhyb_M(jlev)
           lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
      &                        /(zpresa+zpresb*lcolumng%ps(1,jobs))
         enddo

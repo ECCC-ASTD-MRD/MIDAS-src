@@ -6,7 +6,7 @@ module columnData_mod
 
   type struct_columnData
     integer :: nlev,nlev_T,nlev_M
-    integer :: nkgdimo,numObsHeader
+    integer :: nkgdimo,numObsHeader,nStepObs
     logical :: allocated=.false.
     real*8,pointer :: all(:,:)
     real*8,pointer :: uu(:,:)
@@ -18,20 +18,20 @@ module columnData_mod
     real*8,pointer :: ps(:,:)
     real*8,pointer :: tg(:,:)
     real*8,pointer :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
-    real*8,pointer :: vhyb(:),vhyb_T(:),vhyb_M(:)
     real*8,pointer :: rmtmobs(:)
     real*8,pointer :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
     real*8,pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi transformation
+    real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
+    type(vco)      :: vco
   end type struct_columnData
 
 
-    INTEGER,parameter :: JPNVARMAX=10
-    INTEGER NMVOEXIST(JPNVARMAX)
-    INTEGER nouu,novv,noq,nogz,nott,notr,nops,notg
-    integer :: nvo3d,nvo2d
-    real*8 :: rhumin
-    integer, parameter :: mxstepobs=9 ! temporarily specify max number of step obs for allocation
+  integer,parameter :: jpnvarmax=10
+  integer nmvoexist(jpnvarmax)
+  integer nouu,novv,noq,nogz,nott,notr,nops,notg
+  integer :: nvo3d,nvo2d
+  real*8 :: rhumin
+  integer, parameter :: mxstepobs=9 ! temporarily specify max number of step obs for allocation
 
   contains
 
@@ -252,10 +252,6 @@ module columnData_mod
       column%rppobs_T(:,:)=0.0d0
       column%rppobs_M(:,:)=0.0d0
 
-      allocate(column%vhyb(column%nlev))
-      allocate(column%vhyb_T(column%nlev))
-      allocate(column%vhyb_M(column%nlev))
-
       allocate(column%rmtmobs(column%numObsHeader))
       column%rmtmobs(:)=0.0d0      
       allocate(column%oltv(2,column%nlev,numObsHeader))
@@ -265,7 +261,7 @@ module columnData_mod
 
       allocate(column%timeInterpWeight(column%numObsHeader,mxstepobs))
       column%timeInterpWeight(:,:)=0.0d0
-
+ 
       iloc = 1
       do jvar = 1, jpnvarmax
         if(jvar.eq.nouu) then
@@ -333,9 +329,9 @@ module columnData_mod
       deallocate(column%rppobs)
       deallocate(column%rppobs_T)
       deallocate(column%rppobs_M)
-      deallocate(column%vhyb)
-      deallocate(column%vhyb_T)
-      deallocate(column%vhyb_M)
+      deallocate(column%rmtmobs)
+      deallocate(column%oltv)
+      deallocate(column%rtapfac)
       deallocate(column%timeInterpWeight)
       column%allocated=.false.
 
@@ -431,20 +427,6 @@ module columnData_mod
             enddo
           enddo
         endif
-      elseif(cdvar.eq.'HY') then
-        if(cdlev.eq.'TH') then
-          do jlev = 1,lcolumnghr%nlev
-            lcolumnghr%vhyb_T(jlev) = pvar(jlev,1)
-          enddo
-        elseif(cdlev.eq.'MM') then
-          do jlev = 1,lcolumnghr%nlev
-            lcolumnghr%vhyb_M(jlev) = pvar(jlev,1)
-          enddo
-        else
-          do jlev = 1,lcolumnghr%nlev
-            lcolumnghr%vhyb(jlev) = pvar(jlev,1)
-          enddo
-        endif
       elseif(cdvar.eq.'UU') then
         do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
@@ -523,15 +505,11 @@ module columnData_mod
       deallocate(lcolumn%gz_M)
       deallocate(lcolumn%rppobs_T)
       deallocate(lcolumn%rppobs_M)
-      deallocate(lcolumn%vhyb_T)
-      deallocate(lcolumn%vhyb_M)
 
       lcolumn%gz_T => lcolumn%gz
       lcolumn%gz_M => lcolumn%gz
       lcolumn%rppobs_T => lcolumn%rppobs
       lcolumn%rppobs_M => lcolumn%rppobs
-      lcolumn%vhyb_T => lcolumn%vhyb
-      lcolumn%vhyb_M => lcolumn%vhyb
 
       lcolumn%nlev_T=lcolumn%nlev
       lcolumn%nlev_M=lcolumn%nlev

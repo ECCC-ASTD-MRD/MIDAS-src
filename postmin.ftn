@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine postmin(lcolumng,lobsSpaceData)
+      subroutine postmin(lcolumng,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r postmin  - Post-minimization control of the 3Dvar
@@ -36,9 +36,11 @@
 *implicits
 #include "comlun.cdk"
 #include "comvfiles.cdk"
+#include "comfilt.cdk"
+#include "cvcord.cdk"
 *
       type(struct_obs),target :: lobsSpaceData
-      type(struct_columnData),target :: lcolumng
+      type(struct_columnData),target :: lcolumng,lcolumnhr
 C
       type(struct_gsv) :: statevector,statevectorg
 
@@ -53,10 +55,10 @@ C
       integer ini,index,ii,ij,jk1,jk2
       real*8 zcon,zcorr,zx,zl
       real*8  zmin,zmax
-      real*8 :: zes(gaus_ni,vco_anl%nlev_M,gaus_nj)
-      real*8 :: ztv(gaus_ni,vco_anl%nlev_M,gaus_nj)
-      real*8 :: zgz(gaus_ni,vco_anl%nlev_M,gaus_nj)
-      real*8 :: zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)
+      real*8 :: zes(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
+      real*8 :: ztv(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
+      real*8 :: zgz(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
+      real*8 :: zhu(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
 !
       LOGICAL LSTAGTEMP
       INTEGER FNOM,FCLOS
@@ -89,7 +91,9 @@ c
 c
 C In l4dvar mode transform of variables has already been done in ENDSIM2
 C at the end of minimize
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,lcolumng%vco%nlev_M,
+     +                  nstepobsinc,obs_get_datestamp(lobsSpaceData))
+      statevector%vco => lcolumng%vco
       if(.not. l4dvar .or. .not. ltlmend) then
         call tmg_start(51,'VAR_CH') !
 
@@ -108,15 +112,17 @@ c
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobs)
-      call subasic_gd(statevectorg)
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,lcolumng%vco%nlev_M,
+     +                  nstepobs,obs_get_datestamp(lobsSpaceData))
+      statevectorg%vco => lcolumng%vco
+      call subasic_gd(statevectorg,lcolumnhr)
 !
 !     *** Compute increment HU from LQ increment
 !
       zhu(:,:,:) = 0.0
-      do jk = 1,vco_anl%nlev_M
-        do jj = 1,gaus_nj
-          do ji = 1,gaus_ni
+      do jk = 1,statevectorg%vco%nlev_M
+        do jj = 1,statevectorg%nj
+          do ji = 1,statevectorg%ni
             ZTEMP = log(statevectorg%hu3d(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
             zhu(ji,jk,jj) = EXP(ZTEMP) - statevectorg%hu3d(ji,jk,jj)
           enddo

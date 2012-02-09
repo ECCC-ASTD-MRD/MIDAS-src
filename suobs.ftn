@@ -113,6 +113,12 @@ C     Read list of flags from namelist
 C
       CALL READNML('NAMFILT',IERR)
 C
+      nstepobs    = 2*nint((3.d0 - dstepobs/2.d0)/dstepobs) + 1
+      nstepobsinc = 2*nint((3.d0 - dstepobsinc/2.d0)/dstepobsinc) + 1
+      write(*,*) 'SUOBS: dstepobs   =',dstepobs
+      write(*,*) 'SUOBS: nstepobs   =',nstepobs
+      write(*,*) 'SUOBS: dstepobsinc=',dstepobsinc
+      write(*,*) 'SUOBS: nstepobsinc=',nstepobsinc
 c
 c     Force nlist to be in the same sequence as NVNUMB for invariance in
 C     matrix-vector product done in matvec.

@@ -64,7 +64,7 @@
 !C     *    .        ----------
 !C      
       DO JL = 1, LCOLUMNG%NLEV
-         ZETA(JL) = VCO_ANL%DHYB_M(JL)
+         ZETA(JL) = lcolumng%VCO%DHYB_M(JL)
       ENDDO
 !C
 !C     Loop over all observation files (all observation types)

@@ -124,8 +124,8 @@ c
 c
 c      zcon = d(lcolumng%rtapfac)/d(ps)
 c
-          zpresb = vco_anl%db_M(jlev)
-          zcon    =(vco_anl%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
+          zpresb = lcolumng%vco%db_M(jlev)
+          zcon    =(lcolumng%vco%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
      &             lcolumng%rppobs(jlev,jobs)
           zfactt  = lcolumng%rtapfac(jlev,jobs)
           zfacps  = lcolumng%tt(jlev,jobs)*zcon
@@ -156,7 +156,7 @@ c
  400  continue
 
       zalpha=0.0D0
-      call matapat(vco_anl%dhyb_m,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(lcolumng%vco%dhyb_m,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
       call lvtap
 
       call col_deallocate(lcolumnt)

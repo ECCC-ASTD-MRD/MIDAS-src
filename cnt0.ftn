@@ -89,7 +89,7 @@ C
          call tmg_stop (12)
 
          call tmg_start(13,'POSMIN')
-         call postmin(columng,obsSpaceData)
+         call postmin(columng,columnhr,obsSpaceData)
          call tmg_stop (13)
 c
       case(201)

@@ -28,7 +28,6 @@
       use controlVector_mod
       use gridStateVector_mod
       use minimization_mod
-      use modfgat
       use columndata_mod
       use gaussGrid_mod
       use bmatrix_mod
@@ -39,10 +38,10 @@
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
 #include "comgpsgb.cdk"
+#include "comfilt.cdk"
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
-      INTEGER IERR
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine preproc--'
@@ -50,7 +49,7 @@
 !
 !     INITIALIZE LOGICAL UNITS.
 !
-      CALL SULUN
+      call sulun
 !
 !     INITIALIZE CONSTANTS.
 !
@@ -60,13 +59,7 @@
 !     Set vertical coordinate parameters from !! record in trial file
 !
       write(nulout,*)' preproc: Set vcoord parameters for trial grid'
-      call vco_SetupFromFile(vgrid_trl,vco_trl,ninmpg(1),.false.)
-!
-      write(nulout,*)'preproc: version, kind, svcod ',
-     & vco_trl%iversion,vco_trl%ikind,vco_trl%svcod
-      write(nulout,*)'preproc:zptophr,zprefhr,zrcoefhr ',vco_trl%dpt_M,
-     & vco_trl%dprf_M,vco_trl%drcf1,
-     & vco_trl%dpt_T,vco_trl%dprf_T
+      call vco_SetupFromFile(lcolumnhr%vco,ninmpg(1),.false.)
 !
 !     INITIALIZE VARIABLES OF THE MODEL STATES.
 !
@@ -78,44 +71,43 @@
 !
 !     Allocate memory for observation arrays
 !
-!      CALL SUALOBS(NULOUT,lobsSpaceData)
       call obs_initialize(lobsSpaceData)
 !
 !     Initialisation of the geometry
 !
-      CALL vco_AnlInit(NULOUT)
+      call vco_AnlInit(lcolumng%vco)
 !
 !     Initialization of post-processing
 !
-      CALL SUPOST   ! keep delayed in sequence to ensure geometry dependence (Luc)
+      call supost   ! keep delayed in sequence to ensure geometry dependence (Luc)
 
       call tmg_start(15,'SUCVA')  ! start of what used to be SUCVA
 !
 !     Reading and initialization in preparation of the minimization
 !
-      WRITE(NULOUT,FMT=9200)
- 9200 FORMAT(//,5x,"-Reading and initialization in preparation to the "
+      write(nulout,fmt=9200)
+ 9200 format(//,5x,"-Reading and initialization in preparation to the "
      S     ,"minimization",/,6x,61('-'))
 !
-!     Check the date of the burp files (set nbrpstamp)
+!     Check the date of the burp files (set datestamp)
 !
-      CALL BRPCHECK
+      call brpcheck(lobsSpaceData)
 !
 !     Initialize comgdpar
 !
-      CALL SUGDPAR
+      call sugdpar
 !
 !     Initialize the observation error covariance
 !
-      CALL SUCOVO
+      call sucovo
 !
 !     Miscellaneous initializations associated with the observations
 !
-      CALL SUOBS(NULOUT,lobsSpaceData)
+      call suobs(nulout,lobsSpaceData)
 !
 !     Initialize TOVS processing
 !
-      CALL TOVS_SETUP(NULOUT)
+      call tovs_setup(nulout)
 !
 !     Initialize GB-GPS processing (read NAMGPSGB in namelist file)
 !
@@ -138,11 +130,10 @@
       call obs_reduceToMpiLocal(lobsSpaceData,nfiles,
      +                          nbegintyp,nendtyp,nbegintyp_g,nendtyp_g)
 
-      call suobsgid(lobsSpaceData)
 !
-!     Memory allocation for background column data 
+!     Memory allocation for background column data
 !
-      call col_allocate(lcolumng,vco_anl%nlev_M,obs_numheader(lobsSpaceData))
+      call col_allocate(lcolumng,lcolumng%vco%nlev_M,obs_numheader(lobsSpaceData))
 !
 !     Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng
 !
@@ -150,19 +141,20 @@
 !
 !     Memory allocation for TOVS processing
 !
-      CALL TOVS_SETUPALLO(NULOUT,lobsSpaceData)
+      call tovs_setupallo(nulout,lobsSpaceData)
 !
 !     SET OBSERVATION ERRORS TO CMA FILE
 !
-      CALL SETERR(lobsSpaceData)
+      call seterr(lobsSpaceData)
 !
 !     Initialize the background-error covariance
 !
-      if(nconf.eq.141) CALL bmat_setup
+      if(nconf.eq.141) CALL bmat_setup(lcolumng,obs_get_datestamp(lobsSpaceData))
 !
 !     Set up the minimization module, now that the required parameters are known
 !
-      if(nconf.eq.141) call min_setup(cvm_nvadim,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc)
+      if(nconf.eq.141) call min_setup(cvm_nvadim,gaus_ni,gaus_nj,
+     +                                lcolumng%vco%nlev_M,nstepobsinc)
 !
       call tmg_stop(15)  ! end of what used to be SUCVA
 !
@@ -171,12 +163,16 @@
       call tmg_start(16,'SUGOMOBS')
       call sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
       call tmg_stop(16)
+
+      write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
+      call prdatabin(lobsSpaceData,nstepobs)
 !
 !     Compute observation innovations and prepare obsSpaceData for minimization
 !
       call suinnov(lcolumnhr,lcolumng,lobsSpaceData)
 !
-      call prdatabin(lobsSpaceData)
+      write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
+      call prdatabin(lobsSpaceData,nstepobs)
 !
-      RETURN
-      END
+      return
+      end

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine suobsgid(lobsSpaceData)
+      subroutine suobsgid(lobsSpaceData,lcolumng,nobsgid,notag,nobs)
 #if defined (DOC)
 *
 ***s/r suobsgid  initialize observation Y grid handle.
@@ -41,11 +41,10 @@
 *
 #endif
       use MathPhysConstants_mod
-      use modfgat
-      use mod4dv, only : mvar, l4dvar
       use minimization_mod
       use mpi
       use obsSpaceData_mod
+      use columnData_mod
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
@@ -53,156 +52,39 @@
 #include "cvcord.cdk"
 #include "comfilt.cdk"
 #include "comvfiles.cdk"
-#include <prof_f.h>
 *
+      type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
-      integer jobs, ig1obs, ig2obs, ig3obs, ig4obs, newdate
-      integer vezgdef, ierr,istepstamp,jstep,istat,ihdl
-      integer :: prof_wrrec,icode,jvar,getprofcode, istepobs, ireslun
-      integer :: idate, itime, idata,idatend, jdata,itimeout,iobs,fnom
-      integer :: fclos
-      real*8 zig1,zig2,zig3,zig4,deltastepobs
+      integer :: nobsgid(nstepobs)
+      integer :: notag(lcolumng%numObsHeader,nstepobs)
+      integer :: nobs(nstepobs)
+      integer jobs, ig1obs, ig2obs, ig3obs, ig4obs
+      integer vezgdef,jstep,jfile
+      integer :: istepobs
+      integer :: idata,idatend,jdata,itimeout,iobs
+      real*8 zig1,zig2,zig3,zig4,stepObsIndex
 *
       real*8, allocatable, dimension(:,:) ::  dlatfld, dlonfld
-      integer, allocatable :: ntimeout(:),nstamplistinc(:),nobsinc(:)
-      character (len=512) :: clprof
-      logical llflag,lltimein
+      integer :: ntimeout(nfiles)
 
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUOBSGID ---------'
       write(nulout,*) ' '
-      write(nulout,*) 'SUOBSGID: Step obs      : ',dstepobs,' hours'
-      write(nulout,*) 'SUOBSGID: Step obs inc : ',dstepobsinc,' hours'
 
 * Compute the number of step obs over a 6 hours assimilation window
-      nstepobs    = 2*nint((3.d0 - dstepobs/2.d0)/dstepobs) + 1
-      nstepobsinc = 2*nint((3.d0 - dstepobsinc/2.d0)/dstepobsinc) + 1
-      write(nulout,*) 'SUOBSGID: Number of step obs     : ',nstepobs
-      write(nulout,*) 'SUOBSGID: Number of step obs inc : ',nstepobsinc
+      lcolumng%nStepObs    = nstepobs   ! from comfilt.cdk
+      write(nulout,*) 'SUOBSGID: Number of step obs     : ',lcolumng%nStepObs
 
-      allocate(ntimeout(nstepobs))
-      allocate(nstamplist(nstepobs))
-      allocate(nobs(nstepobs))
-      allocate(nobsgid(nstepobs))
-      allocate(notag(obs_numheader(lobsSpaceData),nstepobs),stat=ierr)
-      allocate(nstamplistinc(nstepobsinc))
-      allocate(nobsinc(nstepobsinc))
-
-      allocate(dlatfld(obs_numheader(lobsSpaceData),nstepobs))
-      allocate(dlonfld(obs_numheader(lobsSpaceData),nstepobs))
-
-      call getstamplist(NSTAMPLIST   ,nstepobs   ,nbrpstamp,dstepobs)
-      call getstamplist(NSTAMPLISTINC,nstepobsinc,nbrpstamp,dstepobsinc)
-!
-      do jstep = 1,nstepobs
-        write(nulout,*) 'suobsgid: jstep,nstamplist=',jstep,nstamplist(jstep)
-      enddo
-!
-      do jstep = 1,nstepobsinc
-        write(nulout,*) 'suobsgid: jstep,nstamplistinc=',jstep,nstamplistinc(jstep)
-      enddo
-C
-C DO THE WORK FOR THE INCREMENT ONLY 
-C
-
-! CMC date time stamp of the step obs time
-      do jstep = 1, jpfiles
-        ntimeout(jstep) = 0
-      enddo
-
-      do jstep = 1, nstepobsinc
-        nobsinc(jstep) = 0
-      enddo
-
-      do jobs=1, obs_numheader(lobsSpaceData)
-! return the step stamp associated whit date and time of the observation
-
-        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobsinc)
-!
-! building the list of step stamp and counting number of obs in each step
-        lltimein = .false.
-        stepinc : do jstep = 1,nstepobsinc
-          if (nstamplistinc(jstep) == istepstamp) then
-            nobsinc(jstep) = nobsinc(jstep) + 1
-            lltimein = .true.
-            exit stepinc
-          endif
-        enddo stepinc
-
-        if (.not. lltimein) then
-          ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))=
-     &      ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))+1
-
-! Put put the wrong data in the central bin
-          jstep = (nstepobsinc + 1) / 2
-          nobsinc(jstep) = nobsinc(jstep) + 1
-
-! .. flag it as out of (time) domain (bit #5 of header flag
-! .. and turn off its assimilation flag
-
-          idata = obs_elem_i(lobsSpaceData,'RLN ',jobs)
-          idatend = obs_elem_i(lobsSpaceData,'NLV ',jobs) + idata -1
-          do jdata = idata, idatend
-            call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
-          enddo
-          call obs_set_i(lobsSpaceData,'ST1 ',jobs, 
-     &      ibset( obs_elem_i(lobsSpaceData,'ST1 ',jobs), 05))
-        endif
-! building the lat, long and tag vectors for each step
-
-        dlatfld(nobsinc(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LAT ',jobs)
-        dlonfld(nobsinc(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LON ',jobs)
-
-! Converting lat long to radian units
-
-        if(dlonfld(nobsinc(jstep),jstep).lt.0)
-     &       dlonfld(nobsinc(jstep),jstep) = dlonfld(nobsinc(jstep),jstep) +
-     &       2*rpi
-        if(dlonfld(nobsinc(jstep),jstep).ge.2.*rpi)
-     &       dlonfld(nobsinc(jstep),jstep) =dlonfld(nobsinc(jstep),jstep) -
-     &       2*rpi
-        dlatfld(nobsinc(jstep),jstep)=dlatfld(nobsinc(jstep),jstep)*180./rpi
-        dlonfld(nobsinc(jstep),jstep)=dlonfld(nobsinc(jstep),jstep)*180./rpi
-      enddo
-
-      itimeout = 0
-      do jstep = 1,nfiles
-        itimeout = ntimeout(jstep) + itimeout
-      enddo
-
-      if(itimeout > 0) then
-        write(nulout,*) 'Number of reports with time out of range (increment):',
-     &       itimeout
-        write(nulout,*) '  FAMILY       No. of reports'
-        do jstep = 1,nfiles
-          write(nulout,'(4x,a2,11x,i10)') CFAMTYP(jstep),ntimeout(jstep)
-        enddo
-      endif
-c
-      write(nulout,*) 'STEP OBS NO. -  DATE -  TIME -  Nbr. of obs.'
-      do jstep = 1,nstepobsinc
-        if (jstep == (nstepobsinc+1)/2) then
-          iobs = nobsinc(jstep) - itimeout
-        else
-          iobs = nobsinc(jstep)
-        endif
-
-        ierr = newdate(nstamplistinc(jstep),idate,itime,-3)
-        write(nulout,'(6x,i3,5x,i10,2x,i4.4,5x,i10)') jstep,idate,itime
-     &       /10000,iobs
-      enddo
-C
-C NOW DO FOR INNOVATIONS (original code)
-C
+      allocate(dlatfld(obs_numheader(lobsSpaceData),lcolumng%nStepObs))
+      allocate(dlonfld(obs_numheader(lobsSpaceData),lcolumng%nStepObs))
 
 ! CMC date time stamp of the step obs time
 
-      do jstep = 1, jpfiles
-        ntimeout(jstep) = 0
+      do jfile = 1, nfiles
+        ntimeout(jfile) = 0
       enddo
 
-      do jstep = 1, nstepobs
+      do jstep = 1, lcolumng%nStepObs
         nobs(jstep) = 0
       enddo
 
@@ -210,28 +92,14 @@ C
 !
 !       return the step stamp associated whit date and time of the observation
 
-        call stepobs(ISTEPSTAMP,nbrpstamp,obs_elem_i(lobsSpaceData,'DAT ',jobs)
-     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),dstepobs)
-!
-! building the list of step stamp and counting number of obs in each step
-        lltimein = .false.
-        step : do jstep = 1,nstepobs
-          if (nstamplist(jstep) == istepstamp) then
-            nobs(jstep) = nobs(jstep) + 1
-            lltimein = .true.
-            exit step
-          endif
-        enddo step
-
-        if (.not. lltimein) then
+        call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),obs_elem_i(lobsSpaceData,'DAT ',jobs)
+     &       ,obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobs)
+        if(stepObsIndex.lt.0.0d0) then
           ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))=
      &                  ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))+1
-C          write(nulout,*) 'Report time for obs no. ',jobs
-C     &         ,' out of range : ', obs_elem_i(lobsSpaceData,'DAT ',jobs),
-C     &         obs_elem_i(lobsSpaceData,'ETM ',jobs)
 
 ! Put the wrong data in the central bin
-          jstep = (nstepobs + 1) / 2
+          jstep = (lcolumng%nStepObs + 1) / 2
           nobs(jstep) = nobs(jstep) + 1
 
 ! .. flag it as out of (time) domain (bit #5 of header flag
@@ -244,7 +112,11 @@ C     &         obs_elem_i(lobsSpaceData,'ETM ',jobs)
           enddo
           call obs_set_i(lobsSpaceData,'ST1 ',jobs, 
      &      ibset( obs_elem_i(lobsSpaceData,'ST1 ',jobs), 05))
+        else
+          jstep = nint(stepObsIndex)
+          nobs(jstep) = nobs(jstep) + 1
         endif
+
 ! building the lat, long and tag vectors for each step
 
         dlatfld(nobs(jstep),jstep) = obs_elem_r4(lobsSpaceData,'LAT ',jobs)
@@ -264,16 +136,16 @@ C     &         obs_elem_i(lobsSpaceData,'ETM ',jobs)
       enddo
 
       itimeout = 0
-      do jstep = 1,nfiles
-        itimeout = ntimeout(jstep) + itimeout
+      do jfile = 1,nfiles
+        itimeout = ntimeout(jfile) + itimeout
       enddo
 
       if(itimeout > 0) then
         write(nulout,*) 'Number of reports with time out of range (innovation):',
      &       itimeout
         write(nulout,*) '  FAMILY       No. of reports'
-        do jstep = 1,nfiles
-          write(nulout,'(4x,a2,11x,i10)') CFAMTYP(jstep),ntimeout(jstep)
+        do jfile = 1,nfiles
+          write(nulout,'(4x,a2,11x,i10)') CFAMTYP(jfile),ntimeout(jfile)
         enddo
       endif
 
@@ -284,18 +156,8 @@ C     &         obs_elem_i(lobsSpaceData,'ETM ',jobs)
 
       call vcxgaig('L',ig1obs, ig2obs, ig3obs, ig4obs,
      .             zig1, zig2, zig3, zig4)
-c
-      write(nulout,*) 'STEP OBS NO. -  DATE -  TIME -  Nbr. of obs.'
-      do jstep = 1,nstepobs
-        if (jstep == (nstepobs+1)/2) then
-          iobs = nobs(jstep) - itimeout
-        else
-          iobs = nobs(jstep)
-        endif
 
-        ierr = newdate(nstamplist(jstep),idate,itime,-3)
-        write(nulout,'(6x,i3,5x,i10,2x,i4.4,5x,i10)') jstep,idate,itime
-     &       /10000,iobs
+      do jstep = 1,lcolumng%nStepObs
         if (nobs(jstep) .gt. 0) then
           nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,
      &         ig3obs,ig4obs,dlonfld(1:nobs(jstep),jstep)
@@ -304,66 +166,14 @@ c
           nobsgid(jstep) = -999
         endif
       enddo
-c Write lalo prof file:
-      mvar = 0
-      do jvar=1, nfstvar2d
-        icode = getprofcode(cfstvar2d(jvar))
-        mvar = ibset(mvar,icode)
-      enddo
-
-c      mvar = ibset(mvar,v3d_pres)
-c      mvar = ibset(mvar,v2d_geop) ! Geopotential at surface
-c      mvar = ibset(mvar,v2d_ptop) ! Pressure at model top
-
-      do jvar=1, nfstvar
-        icode = getprofcode(cfstvar(jvar))
-        mvar = ibset(mvar,icode)
-      enddo
-
-      if (l4dvar .and. (mpi_myid == 0)) then
-        istepobs = nint(dstepobs * 60.)
-        clprof = trim(CEXC4DV) // '/init.prof'
-        ihdl = prof_open(clprof,'WRITE','FILE')
-c
-c Get simulation number if this is a restart job
-c
-        if(niterjob /= -1 .and. lrestart) then
-          ireslun=0
-          ierr = fnom(ireslun,crestart,'FTN+SEQ+UNF+OLD+R/O',0)
-          read(ireslun) nsim3d
-          ierr = fclos(ireslun)
-        else
-          nsim3d = 0
-        endif
-c
-          do jstep = 1,nstepobs
-            if(nobs(jstep) /= 0) then
-              istat = prof_pvar(ihdl,istepobs,prm_stob)
-              istat = prof_pvar(ihdl,nstamplist(jstep),prm_dtst)
-              istat = prof_pvar(ihdl,nsim3d,prm_rstr)
-              istat = prof_pvar(ihdl,mvar,prm_mvar)
-              istat = prof_pvar(ihdl,notag(1:nobs(jstep),jstep),v2d_otag)
-              istat = prof_pvar(ihdl,dlatfld(1:nobs(jstep),jstep),
-     &                          v2d_lati)
-              istat = prof_pvar(ihdl,dlonfld(1:nobs(jstep),jstep),
-     &                          v2d_long)
-
-              istat = prof_wrrec(ihdl)
-            endif
-          enddo
-        istat = prof_close(ihdl)
-      endif
 
       deallocate(dlatfld)
       deallocate(dlonfld)
-      deallocate(ntimeout)
-      deallocate(nstamplistinc)
-      deallocate(nobsinc)
-c
+
       write(nulout,*) ' '
       write(nulout,*) '-------- END OF SUOBSGID ---------'
       write(nulout,*) ' '
-c
+
       return
       end
 

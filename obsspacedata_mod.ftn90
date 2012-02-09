@@ -201,6 +201,7 @@ MODULE obsSpaceData_mod
   public           :: obs_prnthdr,obs_prntbdy
   public           :: obs_set_current_header_list, obs_getHeaderIndex
   public           :: obs_set_current_body_list,   obs_getBodyIndex
+  public           :: obs_set_datestamp,obs_get_datestamp
 
   interface obs_getBodyIndex
    module procedure obs_getBodyIndex_depot
@@ -244,6 +245,7 @@ MODULE obsSpaceData_mod
    integer, pointer, dimension(:) :: locObsTag
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
+   integer :: datestamp
   end type struct_obs
 
   ! header column numbers
@@ -597,6 +599,26 @@ MODULE obsSpaceData_mod
     endif
 
   end function obs_getFamily
+
+
+  subroutine obs_set_datestamp(obsdat,datestamp)
+    implicit none
+    type(struct_obs), intent(inout) :: obsdat
+    integer, intent(in) :: datestamp
+
+    obsdat%datestamp = datestamp
+
+  end subroutine obs_set_datestamp
+
+
+  function obs_get_datestamp(obsdat) result(datestamp)
+    implicit none
+    type(struct_obs), intent(inout) :: obsdat
+    integer :: datestamp
+
+    datestamp = obsdat%datestamp
+
+  end function obs_get_datestamp
 
 
   subroutine obs_setFamily(obsdat,Family_in,headerIndex,bodyIndex)

@@ -110,8 +110,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           ZPB  = LCOLUMNG%RPPOBS(IK+1,IOBS)
           ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
           ZWT  = 1.0D0 - ZWB
-          zpresbpt = vco_anl%db_M(ik)
-          zpresbpb = vco_anl%db_M(ik+1)
+          zpresbpt = lcolumng%vco%db_M(ik)
+          zpresbpb = lcolumng%vco%db_M(ik+1)
           ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB)  &
               -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
               /LOG(ZPB/ZPT)**2
@@ -119,10 +119,10 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           if(ityp.eq.bufr_nees) then
             columnVarB=lqtoes_tl(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
                                  lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),  &
-                                 vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
+                                 lcolumng%vco%dhyb_m(IK+1),lcolumng%vco%db_m(IK+1))
             columnVarT=lqtoes_tl(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
                                  lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),  &
-                                 vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
+                                 lcolumng%vco%dhyb_m(IK  ),lcolumng%vco%db_m(IK  ))
             columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
             columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
           else
@@ -197,7 +197,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             if(ITYP.eq.BUFR_NESS) THEN
               columnVarB=lqtoes_tl(lcolumn%hu(LCOLUMN%NLEV,IOBS),lcolumn%tt(LCOLUMN%NLEV,IOBS),lcolumn%ps(1,IOBS),  &
                                    lcolumng%hu(LCOLUMN%NLEV,IOBS),lcolumng%rppobs(LCOLUMN%NLEV,IOBS),  &
-                                   vco_anl%dhyb_m(LCOLUMN%NLEV),vco_anl%db_m(LCOLUMN%NLEV))
+                                   lcolumng%vco%dhyb_m(LCOLUMN%NLEV),lcolumng%vco%db_m(LCOLUMN%NLEV))
             else
               columnVarB=LCOLUMN%ALL(IPB,IOBS)
             endif
@@ -346,7 +346,7 @@ end subroutine oda_Hto
 !C
       NGPSLEV=LCOLUMN%NLEV
       DO JL = 1, LCOLUMN%NLEV
-        ZETA(JL) = vco_anl%dhyb_m(JL)
+        ZETA(JL) = lcolumng%vco%dhyb_m(JL)
       ENDDO
 !C
 !C     Loop over all files
@@ -417,8 +417,8 @@ end subroutine oda_Hto
                 BPT = LCOLUMNG%RPPOBS(1,JO)
                 BMT = BGZ(LCOLUMN%NLEV)/RG
                 BMT = gpsgeopotential(Lat, BMT)/RG
-                BPR = vco_anl%dprf_M
-                BCF = vco_anl%drcf1
+                BPR = lcolumng%vco%dprf_M
+                BCF = lcolumng%vco%drcf1
 !C
 !C     *              Local vector state
 !C
@@ -599,7 +599,7 @@ end subroutine oda_Hto
 !C     *    .        ----------
 !C
       DO JL = 1, LCOLUMN%NLEV
-         ZETA(JL) = vco_anl%dhyb_m(JL)
+         ZETA(JL) = lcolumng%vco%dhyb_m(JL)
       ENDDO
 
       write(*,fmt='(/,4x,A)') 'LVGPSZTD- Linear Version: GPS ZTD observations'

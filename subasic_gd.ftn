@@ -15,8 +15,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine subasic_gd(statevectorg)
+      subroutine subasic_gd(statevectorg,lcolumnhr)
       use gridStateVector_mod
+      use columnData_mod
 *
 #if defined (DOC)
 *
@@ -32,15 +33,14 @@
 *
 #endif
 C
-      use modfgat, only : nstamplist
       IMPLICIT NONE
 *implicits
 #include "pardim.cdk"
 #include "comlun.cdk"
 #include "rpnstd.cdk"
-#include "cvcord.cdk"
 *
       type(struct_gsv) :: statevectorg
+      type(struct_columnData) :: lcolumnhr
 
       logical llvint
       INTEGER ibrpstamp
@@ -60,7 +60,7 @@ C
 !
       llvint = .true.
 !
-      ibrpstamp=nstamplist(statevectorg%anltime)
+      ibrpstamp=statevectorg%datestamp3d
 !
 !*1   Define Grids
 !     ************
@@ -394,13 +394,13 @@ c
         ierr = ezsetopt('INTERP_DEGREE','LINEAR')
         iset = ezdefset(ktrggid,ip0gid)
         ierr = vezsint(zps,zpstrl,kcol,1,1,ini,inj,1)
-        call vco_calcpres(vco_anl,zpresanl,knk,zps,kcol)
+        call vco_calcpres(statevectorg%vco,zpresanl,knk,zps,kcol)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-        if(vco_trl%iversion .eq. 5002) then
-          call calcpres_vgrid(vgrid_trl,zps,iip1s
+        if(lcolumnhr%vco%iversion .eq. 5002) then
+          call calcpres_vgrid(lcolumnhr%vco%vgrid,zps,iip1s
      &           ,itrlnlev,kcol,kulout,zprestrl)
           do jlev = 1,itrlnlev
             do jcol=1,kcol
@@ -409,7 +409,7 @@ c
             enddo
           enddo
         else ! trial has unstaggered levels
-          call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcol)
+          call vco_calcpres(lcolumnhr%vco,zprestrl,itrlnlev,zps,kcol)
         endif
 c
         do jlev = 1, itrlnlev
@@ -446,16 +446,16 @@ c
           ierr = ezsetopt('INTERP_DEGREE','LINEAR')
           iset = ezdefset(kvvgid,ip0gid)
           ierr = vezsint(zps,zpstrl,kcolvv,1,1,ini,inj,1)
-          call vco_calcpres(vco_anl,zpresanl,knk,zps,kcolvv)
+          call vco_calcpres(statevectorg%vco,zpresanl,knk,zps,kcolvv)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-          if(vco_trl%iversion .eq. 5002) then
-            call calcpres_vgrid(vgrid_trl,zps,iip1s
+          if(lcolumnhr%vco%iversion .eq. 5002) then
+            call calcpres_vgrid(lcolumnhr%vco%vgrid,zps,iip1s
      &           ,itrlnlev,kcolvv,kulout,zprestrl)
           else
-            call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcolvv)
+            call vco_calcpres(lcolumnhr%vco,zprestrl,itrlnlev,zps,kcolvv)
           endif
 c
           do jlev = 1, itrlnlev

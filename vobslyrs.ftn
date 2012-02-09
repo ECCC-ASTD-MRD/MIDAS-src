@@ -101,7 +101,6 @@ C
                  ZPT= LCOLUMNGHR%RPPOBS_T(1,IOBS)
                  ZPB= LCOLUMNGHR%RPPOBS_T(LCOLUMNGHR%NLEV,IOBS)
                ENDIF   
-!               ZPB= LCOLUMNGHR%RPPOBS(LCOLUMNGHR%NFLEV,IOBS)+ 0.01D0 !still needed?
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .GT. ZPB ) THEN

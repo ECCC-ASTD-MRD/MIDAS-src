@@ -111,8 +111,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
-            zpresbpt = vco_anl%db_M(ik)
-            zpresbpb = vco_anl%db_M(ik+1)
+            zpresbpt = lcolumng%vco%db_M(ik)
+            zpresbpb = lcolumng%vco%db_M(ik+1)
 
             ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB) &
                  -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) ) &
@@ -126,10 +126,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             if(ITYP.eq.BUFR_NEES) then
               call lqtoes_ad(lcolumn%hu(IK+1,IOBS),lcolumn%tt(IK+1,IOBS),lcolumn%ps(1,IOBS),  &
                 ZWB*ZRES,lcolumng%hu(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS),  &
-                vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
+                lcolumng%vco%dhyb_m(IK+1),lcolumng%vco%db_m(IK+1))
               call lqtoes_ad(lcolumn%hu(IK  ,IOBS),lcolumn%tt(IK  ,IOBS),lcolumn%ps(1,IOBS),  &
                 ZWT*ZRES,lcolumng%hu(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS),  &
-                vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
+                lcolumng%vco%dhyb_m(IK  ),lcolumng%vco%db_m(IK  ))
               columngVarB=lqtoes(lcolumng%hu(IK+1,IOBS),lcolumng%tt(IK+1,IOBS),lcolumng%rppobs(IK+1,IOBS))
               columngVarT=lqtoes(lcolumng%hu(IK  ,IOBS),lcolumng%tt(IK  ,IOBS),lcolumng%rppobs(IK  ,IOBS))
             else
@@ -219,7 +219,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
               if(ityp.eq.bufr_ness) then
                 call lqtoes_ad(lcolumn%hu(lcolumn%nlev,IOBS),lcolumn%tt(lcolumn%nlev,IOBS),lcolumn%ps(1,IOBS),  &
                   ZRES,lcolumng%hu(lcolumn%nlev,IOBS),lcolumng%rppobs(lcolumn%nlev,IOBS),  &
-                  vco_anl%dhyb_m(lcolumn%nlev),vco_anl%db_m(lcolumn%nlev))
+                  lcolumng%vco%dhyb_m(lcolumn%nlev),lcolumng%vco%db_m(lcolumn%nlev))
               else
                 LCOLUMN%ALL(IPB,IOBS)    = LCOLUMN%ALL(IPB,IOBS) + ZRES
               endif
@@ -363,7 +363,7 @@ end subroutine oda_HTto
 !C
       NGPSLEV=LCOLUMN%NLEV
       DO JL = 1, LCOLUMN%NLEV
-        ZETA(JL) = vco_anl%dhyb_m(JL)
+        ZETA(JL) = lcolumng%vco%dhyb_m(JL)
       ENDDO
 
       !
@@ -436,8 +436,8 @@ end subroutine oda_HTto
              BPT = LCOLUMNG%RPPOBS(1,INDEX_HEADER)
              BMT = BGZ(LCOLUMN%NLEV)/RG
              BMT = gpsgeopotential(Lat, BMT)/RG
-             BPR = vco_anl%dprf_M
-             BCF = vco_anl%drcf1
+             BPR = lcolumng%vco%dprf_M
+             BCF = lcolumng%vco%drcf1
 !C
 !C     *           GPS profile structure:
 !C
@@ -640,7 +640,7 @@ end subroutine oda_HTto
 !C     *    .        ----------
 !C
       DO JL = 1, LCOLUMN%NLEV
-         ZETA(JL) = vco_anl%dhyb_m(JL)
+         ZETA(JL) = lcolumng%vco%dhyb_m(JL)
       ENDDO
 
       write(*,fmt='(/,4x,A)') 'AVGPSZTD- Adjoint Version: GPS ZTD observations'

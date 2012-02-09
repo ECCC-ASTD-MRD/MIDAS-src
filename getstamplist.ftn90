@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine getstamplist(KSTAMPLIST,kstep,ksystamp,dtstep)
+subroutine getstamplist(datestamplist,kstep,ksystamp)
   implicit none
   !
   ! Author: Simon Pellerin *ARMA/SMC Nov. 2001
@@ -23,18 +23,24 @@ subroutine getstamplist(KSTAMPLIST,kstep,ksystamp,dtstep)
   ! Dummies
   integer, intent(in) :: kstep ! number of step obs
   integer, intent(in) :: ksystamp ! Synoptic time
-  real*8, intent(in) :: dtstep ! Del Time in hours between step obs
 
-  integer, intent(out), dimension(kstep) :: kstamplist
+  integer, intent(out), dimension(kstep) :: datestamplist
 
   ! Locals
 
   integer :: jstep
   real*8 :: dldelt
+  real*8 :: dtstep ! Del Time in hours between step obs
+
+  if(kstep.gt.1) then
+    dtstep = 6.0d0/(real(kstep-1,8))
+  else
+    dtstep = 6.0d0
+  endif
 
   do jstep = 1,kstep
      dldelt = (jstep - ((kstep-1)/2+1)) * dtstep
-     call incdatr (kstamplist(jstep),ksystamp, dldelt)
+     call incdatr (datestamplist(jstep),ksystamp, dldelt)
   enddo
   return
 end subroutine getstamplist
