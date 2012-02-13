@@ -33,8 +33,7 @@
 *           (was not printing anything)
 *
 * Note: JPNFLEV=100 = maximum number of levels (set in pardim.cdk) 
-*       LCOLUMNHR%NLEV = actual number of background levels (HR)
-*       NFLEV   = number of LR analysis levels (set in namelist) 
+*       columnhr_NLEV = actual number of background levels (HR)
 
 #endif
       use MathPhysConstants_mod
@@ -54,10 +53,10 @@ C
       REAL*8 ZTODEG
       REAL*8 ZLAT
       REAL*8 ZLON
-      REAL*8 ZETA(LCOLUMNHR%NLEV)
-      REAL*8 ZTT (LCOLUMNHR%NLEV)
-      REAL*8 ZHU (LCOLUMNHR%NLEV)
-      REAL*8 ZGZ (LCOLUMNHR%NLEV)
+      REAL*8, allocatable :: ZETA(:)
+      REAL*8, allocatable :: ZTT (:)
+      REAL*8, allocatable :: ZHU (:)
+      REAL*8, allocatable :: ZGZ (:)
       REAL*8 ZP0
       REAL*8 ZPT
       REAL*8 ZMT
@@ -81,11 +80,15 @@ C     * 1.  Initializations
 C     *     ---------------
 C
       ZTODEG = 180.0 / RPI
+      allocate(zeta(col_getNumLev(lcolumnhr)))
+      allocate(ztt(col_getNumLev(lcolumnhr)))
+      allocate(zhu(col_getNumLev(lcolumnhr)))
+      allocate(zgz(col_getNumLev(lcolumnhr)))
 C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C      
-      DO JL = 1, lcolumnhr%nlev
+      DO JL = 1, col_getNumLev(lcolumnhr)
          ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
       ENDDO
 C
@@ -145,14 +148,16 @@ C     *              Profile at the observation location x :
 C
                      ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
                      ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
-                     DO JL = 1, LCOLUMNHR%NLEV
-                        ZTT(JL) =     lcolumnhr%tt(JL,JO)
-                        ZHU(JL) = EXP(lcolumnhr%hu(JL,JO))
-                        ZGZ(JL) = lcolumnhr%gz(JL,JO)
+                     DO JL = 1, col_getNumLev(LCOLUMNHR)
+                        ZTT(JL) =     col_getElem(lcolumnhr,JL,JO,'TT')
+                        ZHU(JL) = EXP(col_getElem(lcolumnhr,JL,JO,'HU'))
+                        ! BUE: ORIGINALLY GZ, SHOULD PROBABLY BY GZ_T???
+                        ZGZ(JL) = col_getHeight(lcolumnhr,JL,JO,'TH') 
                      ENDDO
-                     ZP0 =  lcolumnhr%ps(1,JO)
-                     ZPT = LCOLUMNHR%RPPOBS(1,JO)
-                     ZMT = ZGZ(LCOLUMNHR%NLEV)/GRAV
+                     ZP0 =  col_getElem(lcolumnhr,1,JO,'PS')
+                     ! BUE: ORIGINALLY RPPOBS, SHOULD PROBABLY BY RPPOBS_T???
+                     ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
+                     ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/GRAV
 C
 C     *        Apply the ZTD observation operator ZHX = H(x)
 C 
@@ -219,6 +224,11 @@ C
 
       ENDDO
 C
+      deallocate(zeta)
+      deallocate(ztt)
+      deallocate(zhu)
+      deallocate(zgz)
+
       WRITE(NULOUT, *) ' '
       RETURN
       END

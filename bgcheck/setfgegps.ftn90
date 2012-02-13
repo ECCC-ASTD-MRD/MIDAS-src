@@ -23,25 +23,25 @@
       REAL*8 ZTODEG
       REAL*8 ZLAT
       REAL*8 ZLON
-      REAL*8 ZETA(LCOLUMNG%NLEV)
-      REAL*8 ZTT (LCOLUMNG%NLEV)
-      REAL*8 ZHU (LCOLUMNG%NLEV)
-      REAL*8 ZGZ (LCOLUMNG%NLEV)
-      REAL*8 ZTTB (LCOLUMNG%NLEV)
-      REAL*8 ZHUB (LCOLUMNG%NLEV)
+      REAL*8, allocatable :: ZETA(:)
+      REAL*8, allocatable :: ZTT (:)
+      REAL*8, allocatable :: ZHU (:)
+      REAL*8, allocatable :: ZGZ (:)
+      REAL*8, allocatable :: ZTTB (:)
+      REAL*8, allocatable :: ZHUB (:)
       REAL*8 ZP0
       REAL*8 ZP0B
       REAL*8 ZPT
       REAL*8 ZMT
       REAL*8 ZP0S
-      REAL*8 ZTTS(LCOLUMNG%NLEV), ZHUS(LCOLUMNG%NLEV), ZGZS(LCOLUMNG%NLEV)
+      REAL*8, allocatable :: ZTTS(:), ZHUS(:), ZGZS(:)
 
       REAL*8 ZOER, ZINC, ZHX, ZLEV
       REAL*8 ZDZ
       REAL*8 ZHXB, ZVAR
 
-      REAL*8 ZJTT (LCOLUMNG%NLEV)
-      REAL*8 ZJHU (LCOLUMNG%NLEV)
+      REAL*8, allocatable :: ZJTT (:)
+      REAL*8, allocatable :: ZJHU (:)
       REAL*8 ZJP0, ZLSUM
 
       INTEGER JF
@@ -59,11 +59,22 @@
 !C     *     ---------------
 !C
       ZTODEG = 180.0 / RPI
+      allocate(ZETA(col_getNumLev(lcolumng)))
+      allocate(ZTT(col_getNumLev(lcolumng)))
+      allocate(ZHU(col_getNumLev(lcolumng)))
+      allocate(ZGZ(col_getNumLev(lcolumng)))
+      allocate(ZTTB(col_getNumLev(lcolumng)))
+      allocate(ZHUB(col_getNumLev(lcolumng)))
+      allocate(ZTTS(col_getNumLev(lcolumng)))
+      allocate(ZHUS(col_getNumLev(lcolumng)))
+      allocate(ZGZS(col_getNumLev(lcolumng)))
+      allocate(ZJTT(col_getNumLev(lcolumng)))
+      allocate(ZJHU(col_getNumLev(lcolumng)))
 !C
 !C     *    .   1.1  Eta vector
 !C     *    .        ----------
 !C      
-      DO JL = 1, LCOLUMNG%NLEV
+      DO JL = 1, col_getNumLev(LCOLUMNG)
          ZETA(JL) = lcolumng%VCO%DHYB_M(JL)
       ENDDO
 !C
@@ -114,17 +125,17 @@
 !C
                      ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
                      ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
-                     DO JL = 1, LCOLUMNG%NLEV
-                       ZTTB(JL) = lcolumng%tt(JL,JO)
-                       ZTT(JL)  = lcolumn%tt(JL,JO)
-                       ZHUB(JL) = EXP(lcolumng%hu(JL,JO))
-                       ZHU(JL)  = lcolumn%hu(JL,JO)
-                       ZGZ(JL)  = lcolumng%gz(JL,JO)
+                     DO JL = 1, col_getNumLev(LCOLUMNG)
+                       ZTTB(JL) = col_getElem(lcolumng,JL,JO,'TT')
+                       ZTT(JL)  = col_getElem(lcolumn,JL,JO,'TT')
+                       ZHUB(JL) = EXP(col_getElem(lcolumng,JL,JO,'HU'))
+                       ZHU(JL)  = col_getElem(lcolumn,JL,JO,'HU')
+                       ZGZ(JL)  = col_getElem(lcolumng,JL,JO,'GZ')
                      ENDDO
-                     ZP0B = lcolumng%ps(1,JO)
-                     ZP0  = lcolumn%ps(1,JO)
-                     ZPT  = lcolumng%RPPOBS(1,JO)
-                     ZMT  = ZGZ(LCOLUMNG%NLEV)/GRAV
+                     ZP0B = col_getElem(lcolumng,1,JO,'PS')
+                     ZP0  = col_getElem(lcolumn,1,JO,'PS')
+                     ZPT  = col_getPressure(lcolumng,1,JO,'NA')
+                     ZMT  = ZGZ(col_getNumLev(LCOLUMNG))/GRAV
 !C
 !C     *        Call AD of ZTD observation operator to get Jacobians dH/dX
 !C 
@@ -149,7 +160,7 @@
 !C
 !C     *        Compute the background ZTD error (HBHt)
                            ZLSUM = 0.0
-                           DO JL = 1, LCOLUMNG%NLEV
+                           DO JL = 1, col_getNumLev(LCOLUMNG)
                              ZLSUM = ZLSUM +  (ZJTT(JL)*ZTT(JL))**2 + (ZJHU(JL)*ZHU(JL))**2 
                            ENDDO
                            ZLSUM = ZLSUM + (ZJP0*ZP0)**2
@@ -159,7 +170,7 @@
                             WRITE(NULOUT,'(A11,A9,3(1x,f7.2))')   &
                                'SETFGEGPS: ',obs_elem_c9(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV
                             WRITE(NULOUT,*) 'JL JACT JACQ FGE_T FGE_LQ'
-                            DO JL = 1, LCOLUMNG%NLEV
+                            DO JL = 1, col_getNumLev(LCOLUMNG)
                               WRITE(NULOUT,'(1X,I2,4(1x,E13.6))') JL,ZJTT(JL),ZJHU(JL)/ZHUB(JL),ZTT(JL), ZHU(JL)
                             ENDDO                         
                             WRITE(NULOUT,*) 'JACPS FGE_PS'
@@ -175,6 +186,18 @@
          ENDIF
 
       ENDDO
+
+      deallocate(ZETA)
+      deallocate(ZTT)
+      deallocate(ZHU)
+      deallocate(ZGZ)
+      deallocate(ZTTB)
+      deallocate(ZHUB)
+      deallocate(ZTTS)
+      deallocate(ZHUS)
+      deallocate(ZGZS)
+      deallocate(ZJTT)
+      deallocate(ZJHU)
 
       RETURN
       END SUBROUTINE SETFGEGPS

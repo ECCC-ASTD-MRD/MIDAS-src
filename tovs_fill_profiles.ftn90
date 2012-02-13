@@ -14,8 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-!subroutine tovs_fill_profiles(pgomu,pgomv,pgomt,pgomgz,pgomq,pgomps,pgomtgr, &
-! &                       prppobs,knkgdimo,knlev,lobsSpaceData)
 subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 #if defined (doc)
 !
@@ -79,16 +77,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   integer :: ilowlvl, knpf, jo
   integer :: jk, jn, jl, indxm
   integer :: ilansea, indxreg
-  integer :: knkgdimo, knlev
-
-  real*8,pointer :: pgomu  (:,:)
-  real*8,pointer :: pgomv  (:,:)
-  real*8,pointer :: pgomt  (:,:)
-  real*8,pointer :: pgomgz (:,:)
-  real*8,pointer :: pgomq  (:,:)
-  real*8,pointer :: pgomps (:,:)
-  real*8,pointer :: pgomtgr(:,:)
-  real*8,pointer :: prppobs(:,:)
+  integer :: knlev
 
   real*8, allocatable :: to    (:,:)
   real*8, allocatable :: lqo   (:,:)
@@ -115,32 +104,14 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   if(NOBTOV.eq.0) return    ! exit if there are no tovs data
   ztodeg = 180.0 / rpi
 
-  pgomu   => lcolumnghr%uu
-  pgomv   => lcolumnghr%vv
-  pgomt   => lcolumnghr%tt
-  pgomgz  => lcolumnghr%gz_T
-  pgomq   => lcolumnghr%hu
-  pgomps  => lcolumnghr%ps
-  pgomtgr => lcolumnghr%tg
-  prppobs => lcolumnghr%rppobs_T
-  knkgdimo = lcolumnghr%nkgdimo
-  knlev    = lcolumnghr%nlev
+  knlev    = col_getNumLev(lcolumnghr)
 !
 !     1.    Set index for model's lowest level and model top
 !     .     ------------------------------------------------
                  
   100   continue
 
-  write(*,*) 'size of pgomu=',lbound(pgomu),ubound(pgomu)
-  call flush(6)
-  write(*,*) 'size of prppobs=',lbound(prppobs),ubound(prppobs)
-  call flush(6)
-  write(*,*) 'prppobs(1,1)=',prppobs(1,1)
-  call flush(6)
-  write(*,*) 'prppobs(knlev,1)=',prppobs(knlev,1)
-  call flush(6)
-
-  if (  prppobs(1,1) .lt. prppobs(knlev,1) ) then
+  if (  col_getPressure(lcolumnghr,1,1,'TH') .lt. col_getPressure(lcolumnghr,knlev,1,'TH') ) then
      ilowlvl = knlev
   else
      ilowlvl = 1
@@ -148,7 +119,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 
 ! find model level top, within 0.000001 mbs.
 
-  zptop    = prppobs(1,1)
+  zptop    = col_getPressure(lcolumnghr,1,1,'TH')
   zptopmbs = zptop/100.
   zptopmbs = zptopmbs - 0.000001
 
@@ -236,10 +207,10 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
      zlon(knpf) = obs_elem_r4(lobsSpaceData,'LON ',jo) * ztodeg
 
      do jl = 1, knlev
-        zt   (jl,knpf) = pgomt(jl,jo)
-        zlq  (jl,knpf) = pgomq(jl,jo)
-        zvlev(jl,knpf) = prppobs(jl,jo) * rpatmb
-        zht  (jl,knpf) = pgomgz(jl,jo) / rg
+        zt   (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'TT')
+        zlq  (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'HU')
+        zvlev(jl,knpf) = col_getPressure(lcolumnghr,jl,jo,'TH') * rpatmb
+        zht  (jl,knpf) = col_getHeight(lcolumnghr,jl,jo,'TH') / rg
      enddo
      iptobs   (knpf) = iobs
      iptobscma(knpf) = jo
@@ -345,13 +316,13 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
         profiles(iptobs(j)) % zenangle        = (isatzen(j)-9000)/100.0
         profiles(iptobs(j)) % azangle         = isatazim(j)/100.0 
         profiles(iptobs(j)) % skin % surftype = ksurf(j)
-        profiles(iptobs(j)) % skin % t        = pgomtgr(1,iptobscma(j))
+        profiles(iptobs(j)) % skin % t        = col_getElem(lcolumnghr,1,iptobscma(j),'TG')
         profiles(iptobs(j)) % skin % fastem(:)= 0.0
-        profiles(iptobs(j)) % s2m % t         = pgomt(ilowlvl,iptobscma(j))
-        profiles(iptobs(j)) % s2m % q         = exp(pgomq(ilowlvl,iptobscma(j))) * q_mixratio_to_ppmv
-        profiles(iptobs(j)) % s2m % p         = pgomps(1,iptobscma(j))*rpatmb
-        profiles(iptobs(j)) % s2m % u         = pgomu(ilowlvl,iptobscma(j))
-        profiles(iptobs(j)) % s2m % v         = pgomv(ilowlvl,iptobscma(j))
+        profiles(iptobs(j)) % s2m % t         = col_getElem(lcolumnghr,ilowlvl,iptobscma(j),'TT')
+        profiles(iptobs(j)) % s2m % q         = exp(col_getElem(lcolumnghr,ilowlvl,iptobscma(j),'HU')) * q_mixratio_to_ppmv
+        profiles(iptobs(j)) % s2m % p         = col_getElem(lcolumnghr,1      ,iptobscma(j),'PS')*rpatmb
+        profiles(iptobs(j)) % s2m % u         = col_getElem(lcolumnghr,ilowlvl,iptobscma(j),'UU')
+        profiles(iptobs(j)) % s2m % v         = col_getElem(lcolumnghr,ilowlvl,iptobscma(j),'VV')
         profiles_qc(iptobs(j)) % lat          = zlat(j)
         profiles_qc(iptobs(j)) % lon          = zlon(j)
         profiles_qc(iptobs(j)) % z(:)         = zhoext(:,j)

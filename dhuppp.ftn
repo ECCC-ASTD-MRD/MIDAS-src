@@ -80,14 +80,14 @@ C
                   ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-                  ZPT  = LCOLUMNHR%RPPOBS_T(IK,IOBS)
-                  ZPB  = LCOLUMNHR%RPPOBS_T(IK+1,IOBS)
+                  ZPT  = col_getPressure(LCOLUMNHR,IK  ,IOBS,'TH')
+                  ZPB  = col_getPressure(LCOLUMNHR,IK+1,IOBS,'TH')
                   ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                   ZWT  = 1. - ZWB
 C
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
-     +                          ( ZWB*lcolumnhr%hu(IK+1,IOBS)
-     +                          + ZWT*lcolumnhr%hu(IK,IOBS) - ZVAR ) / ZOER)
+     +                          ( ZWB*col_getElem(lcolumnhr,IK+1,IOBS,'HU')
+     +                          + ZWT*col_getElem(lcolumnhr,IK  ,IOBS,'HU') - ZVAR ) / ZOER)
 
                   IF ( LLPRINT ) THEN
                     write(nulout,*)' -------------------------'
@@ -97,8 +97,8 @@ C
                     write(nulout,*)'   ik     = ',IK
                     write(nulout,*)'   zvar   = ',ZVAR
                     write(nulout,*)'   zoer   = ',ZOER
-                    write(nulout,*)'   lcolumnhr%hu(ik,iobs) = ',lcolumnhr%hu(IK,IOBS)
-                    write(nulout,*)'   lcolumnhr%hu(ik+1,iobs) = ',lcolumnhr%hu(IK+1,IOBS)
+                    write(nulout,*)'   col_getElem(lcolumnhr,ik  ,iobs,HU) = ',col_getElem(lcolumnhr,IK  ,IOBS,'HU')
+                    write(nulout,*)'   col_getElem(lcolumnhr,ik+1,iobs,HU) = ',col_getElem(lcolumnhr,IK+1,IOBS,'HU')
                     write(nulout,*)'   O-P    = ',-obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF

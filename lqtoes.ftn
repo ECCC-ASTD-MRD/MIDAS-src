@@ -25,7 +25,7 @@
       implicit none
 #include "dintern8.cdk"
 #include "fintern8.cdk"
-      real*8 :: lq,tt,pressure
+      real*8, intent(in) :: lq,tt,pressure
       real*8 :: husat,td
 !
 ! get the saturated vapor pressure from lq (log of specific humidity)

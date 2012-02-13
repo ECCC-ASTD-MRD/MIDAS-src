@@ -18,7 +18,6 @@ module columnData_mod
     real*8,pointer :: ps(:,:)
     real*8,pointer :: tg(:,:)
     real*8,pointer :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
-    real*8,pointer :: rmtmobs(:)
     real*8,pointer :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
     real*8,pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
@@ -127,7 +126,7 @@ module columnData_mod
             NOTT = -9
           ENDIF
         ELSEIF(NOTR .EQ. JVAR) THEN
-          IF (VARNEED('XT')) THEN
+          IF (VARNEED('TR')) THEN
             NOTR = IPOS
             NMVOEXIST(IPOS) = 1
             IPOS = IPOS + 1
@@ -218,7 +217,6 @@ module columnData_mod
 
       column%all(:,:)=0.0d0
       column%rppobs(:,:)=0.0d0
-      column%rmtmobs(:)=0.0d0      
     END SUBROUTINE col_zero
 
 
@@ -235,6 +233,8 @@ module columnData_mod
       column%nkgdimo = nvo3d*kstep + nvo2d
       column%numObsHeader = numObsHeader
       column%nlev = kstep
+      column%nlev_M = kstep
+      column%nlev_T = kstep
       write(*,*) 'col_allocate: nkgdimo = ',column%nkgdimo
 
       allocate(column%all(column%nkgdimo,column%numObsHeader))
@@ -252,8 +252,6 @@ module columnData_mod
       column%rppobs_T(:,:)=0.0d0
       column%rppobs_M(:,:)=0.0d0
 
-      allocate(column%rmtmobs(column%numObsHeader))
-      column%rmtmobs(:)=0.0d0      
       allocate(column%oltv(2,column%nlev,numObsHeader))
       column%oltv(:,:,:)=0.0d0
       allocate(column%rtapfac(column%nlev,numObsHeader))
@@ -329,7 +327,6 @@ module columnData_mod
       deallocate(column%rppobs)
       deallocate(column%rppobs_T)
       deallocate(column%rppobs_M)
-      deallocate(column%rmtmobs)
       deallocate(column%oltv)
       deallocate(column%rtapfac)
       deallocate(column%timeInterpWeight)
@@ -373,30 +370,29 @@ module columnData_mod
           jv_out  = jv + nvo3d*column_out%nlev
           column_out%all(jv_out,jobs) =  column_in%all(jv_in,jobs)
         enddo
+        ! also copy the mountain field
+        column_out%gz_t(column_out%nlev_t,jobs)=column_in%gz_t(column_in%nlev_t,jobs)
       enddo
-      column_out%rmtmobs(:) =  column_in%rmtmobs(:)
 
     END SUBROUTINE col_copy2d
 
 
     SUBROUTINE col_fillmvo(lcolumnghr,cdvar,cdlev,pvar,knlev,knobs)
-!
-!**s/r fillmvo - Fill in COMMVOG and/or COMMVOHR
-!
-!     Author  : S. Pellerin ARMA/AES SEPT. 2000
-!     Revision:
-!
-!*    Purpose: Fill in COMMVOG/COMMVOHR with trial profiles
-!
-!Arguments
-!
-!       input:
-!            lcolumnghr          : HR or BG column object
-!             CDVAR (character*2) : NOMVAR of the state variable
-!             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
-!             KNLEV (integer)     : number of levels of PVAR
-!             KNOBS (integer)     : number of observation profiles in variable PVAR
-!
+    !
+    !**s/r fillmvo - Fill in COMMVOG and/or COMMVOHR
+    !
+    !     Author  : S. Pellerin ARMA/AES SEPT. 2000
+    !
+    !*    Purpose: Fill in COMMVOG/COMMVOHR with trial profiles
+    !
+    !Arguments
+    !
+    !       input:
+    !            lcolumnghr          : HR or BG column object
+    !             CDVAR (character*2) : NOMVAR of the state variable
+    !             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
+    !             KNLEV (integer)     : number of levels of PVAR
+    !             KNOBS (integer)     : number of observation profiles in variable PVAR
     use MathPhysConstants_mod
     implicit none
 
@@ -430,39 +426,39 @@ module columnData_mod
       elseif(cdvar.eq.'UU') then
         do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
-            lcolumnghr%uu(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+            lcolumnghr%uu(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'VV') then
         do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
-            lcolumnghr%vv(jlev,jobs)=pvar(jlev,jobs)*rmsknt
+            lcolumnghr%vv(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'GZ') then
         if(cdlev.eq.'TH') then
           do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1, lcolumnghr%nlev
-              lcolumnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+              lcolumnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         elseif(cdlev.eq.'MM') then
           do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1, lcolumnghr%nlev
-              lcolumnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+              lcolumnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         else
           do jobs = 1,lcolumnghr%numObsHeader
             do jlev = 1, lcolumnghr%nlev
-              lcolumnghr%gz(jlev,jobs)=pvar(jlev,jobs)*10.*rg
+              lcolumnghr%gz(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         endif
       elseif(cdvar.eq.'HU') then
         do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
-            lcolumnghr%hu(jlev,jobs)=log(max(pvar(jlev,jobs),rhumin))
+            lcolumnghr%hu(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'LQ') then
@@ -474,7 +470,7 @@ module columnData_mod
       elseif(cdvar.eq.'TT') then
         do jobs = 1,lcolumnghr%numObsHeader
           do jlev = 1, lcolumnghr%nlev
-            lcolumnghr%tt(jlev,jobs)=pvar(jlev,jobs) + tcdk
+            lcolumnghr%tt(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(cdvar.eq.'TR') then
@@ -483,14 +479,18 @@ module columnData_mod
             lcolumnghr%tr(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
-      elseif(cdvar.eq.'P0') then
+      elseif(cdvar.eq.'P0'.or.cdvar.eq.'PS') then
         do jobs = 1,lcolumnghr%numObsHeader
-          lcolumnghr%ps(1,jobs)=pvar(1,jobs)*rmbtpa
+          lcolumnghr%ps(1,jobs)=pvar(1,jobs)
         enddo
       elseif(cdvar.eq.'TG') then
         do jobs = 1,lcolumnghr%numObsHeader
           lcolumnghr%tg(1,jobs)=pvar(1,jobs)
         enddo
+      else
+        write(*,*) 'col_fillmvo: Unknown variable name: ',cdvar
+        call flush(6)
+        call qqexit(1)
       endif
 
     return
@@ -525,34 +525,236 @@ module columnData_mod
       type(struct_obs) :: lobsSpaceData
 
       integer :: iobs_local,iobs_global,ierr,nsize
+      real*8  :: mountain(column_global%numObsHeader)
 
       print*,'Entering col_expandToMpiGlobal:',  &
              column_local%numObsHeader,column_global%numObsHeader  
       call flush(6)
 
+      mountain(:)=0.0d0
       do iobs_local=1,column_local%numObsHeader
         iobs_global=obs_elem_i(lobsSpaceData,'GHI ',iobs_local)
         column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
-        column_global%rmtmobs(iobs_global)            = column_local%rmtmobs(iobs_local)
         column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
+        mountain(iobs_global)                         = column_local%gz_t(column_local%nlev_t,iobs_local)
       enddo
 
       write(*,*) 'starting allreduce'
       call flush(6)
+
       nsize=column_global%nkgdimo*column_global%numObsHeader
       call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
+
       nsize=column_global%numObsHeader
-      call rpn_comm_allreduce(column_global%rmtmobs,column_global%rmtmobs,nsize, &
+      call rpn_comm_allreduce(mountain,mountain,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
+
       nsize=column_global%numObsHeader*mxStepObs
       call rpn_comm_allreduce(column_global%timeInterpWeight,column_global%timeInterpWeight,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
+
+      do iobs_global=1,column_global%numObsHeader
+        column_global%gz_t(column_global%nlev_t,iobs_global) = mountain(iobs_global)
+      enddo
 
       write(*,*) 'Leaving col_expandToMpiGlobal' 
       call flush(6)
       return
 
     END SUBROUTINE col_expandToMpiGlobal
+
+
+  function col_getPressure(column,ilev,headerIndex,cvar) result(pressure)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer, intent(in)                 :: ilev,headerIndex
+    character*2, intent(in)             :: cvar
+    real*8                              :: pressure
+
+    if (cvar .eq. 'NA') then
+      pressure = column%rppobs(ilev,headerIndex)
+    elseif (cvar .eq. 'TH') then
+      pressure = column%rppobs_t(ilev,headerIndex)
+    elseif (cvar .eq. 'MM' ) then
+      pressure = column%rppobs_m(ilev,headerIndex)
+    elseif (cvar .eq. 'SF' ) then
+      pressure = column%rppobs_t(column%nlev_t,headerIndex)
+    else
+      write(*,*) 'col_getPressure: Unknown variable type: ',cvar
+      call flush(6)
+      call qqexit(1)
+    endif
+
+  end function col_getPressure
+ 
+
+  function col_getHeight(column,ilev,headerIndex,cvar) result(height)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer, intent(in)                 :: ilev,headerIndex
+    character*2, intent(in)             :: cvar
+    real*8                              :: height
+
+    if (cvar .eq. 'NA') then
+      height = column%gz(ilev,headerIndex)
+    elseif (cvar .eq. 'TH') then
+      height = column%gz_t(ilev,headerIndex)
+    elseif (cvar .eq. 'MM' ) then
+      height = column%gz_m(ilev,headerIndex)
+    elseif (cvar .eq. 'SF' ) then
+      height = column%gz_t(column%nlev_t,headerIndex)
+    endif
+
+  end function col_getHeight
+
+
+  function col_getMountain(column,headerIndex) result(height)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer, intent(in)                 :: headerIndex
+    real*8                              :: height
+
+    height = column%gz_t(column%nlev_t,headerIndex)
+
+  end function col_getMountain
+
+
+  subroutine col_setMountain(column,headerIndex,height)
+    implicit none
+    type(struct_columnData)             :: column
+    integer, intent(in)                 :: headerIndex
+    real*8, intent(in)                  :: height
+
+    column%gz_t(column%nlev_t,headerIndex) = height
+
+  end subroutine col_setMountain
+
+
+  function col_getColumn(column,headerIndex,cvar) result(onecolumn)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer, intent(in)                 :: headerIndex
+    character*2, intent(in), optional   :: cvar
+    real*8,pointer                      :: onecolumn(:)
+
+    if(present(cvar)) then
+      if(cvar.eq.'UU') then
+        onecolumn => column%uu(:,headerIndex)
+      elseif(cvar.eq.'VV') then
+        onecolumn => column%vv(:,headerIndex)
+      elseif(cvar.eq.'TT') then
+        onecolumn => column%tt(:,headerIndex)
+      elseif(cvar.eq.'HU') then
+        onecolumn => column%hu(:,headerIndex)
+      elseif(cvar.eq.'GZ') then
+        onecolumn => column%gz(:,headerIndex)
+      elseif(cvar.eq.'TR') then
+        onecolumn => column%tr(:,headerIndex)
+      elseif(cvar.eq.'PS'.or.cvar.eq.'P0') then
+        onecolumn => column%ps(1:1,headerIndex)
+      elseif(cvar.eq.'TG') then
+        onecolumn => column%tg(1:1,headerIndex)
+      else
+        write(*,*) 'col_getColumn: Unknown variable! ',cvar
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      onecolumn => column%all(:,headerIndex)
+    endif
+
+  end function col_getColumn
+
+
+  function col_getElem(column,ilev,headerIndex,cvar) result(value)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer, intent(in)                 :: ilev
+    integer, intent(in)                 :: headerIndex
+    character*2, intent(in), optional   :: cvar
+    real*8                              :: value
+
+    if(present(cvar)) then
+      if(cvar.eq.'UU') then
+        value = column%uu(ilev,headerIndex)
+      elseif(cvar.eq.'VV') then
+        value = column%vv(ilev,headerIndex)
+      elseif(cvar.eq.'TT') then
+        value = column%tt(ilev,headerIndex)
+      elseif(cvar.eq.'HU') then
+        value = column%hu(ilev,headerIndex)
+      elseif(cvar.eq.'GZ') then
+        value = column%gz(ilev,headerIndex)
+      elseif(cvar.eq.'TR') then
+        value = column%tr(ilev,headerIndex)
+      elseif(cvar.eq.'PS'.or.cvar.eq.'P0') then
+        value = column%ps(1,headerIndex)
+      elseif(cvar.eq.'TG') then
+        value = column%tg(1,headerIndex)
+      else
+        write(*,*) 'col_getElem: Unknown variable! ',cvar
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      value = column%all(ilev,headerIndex)
+    endif
+
+  end function col_getElem
+
+
+  function col_getNumLev(column,cvar) result(nlev)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    character*2, intent(in), optional   :: cvar
+    integer                             :: nlev
+
+    if(present(cvar)) then
+      if(cvar.eq.'MM') then
+        nlev = column%nlev_m
+      elseif(cvar.eq.'TH') then
+        nlev = column%nlev_t
+      elseif(cvar.eq.'SF') then
+        nlev = 1
+      else
+        write(*,*) 'col_getNumLev: Unknown variable type! ',cvar
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      nlev = column%nlev
+    endif
+
+  end function col_getNumLev
+
+  function col_getNumCol(column) result(numColumn)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer                             :: numColumn
+
+    numColumn = column%numObsHeader
+
+  end function col_getNumCol
+
+
+  function col_getNumStep(column) result(numStep)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer                             :: numStep
+
+    numStep = column%nStepObs
+
+  end function col_getNumStep
+
+
+  subroutine col_setNumStep(column,numStep)
+    implicit none
+    type(struct_columnData), intent(inout) :: column
+    integer, intent(in)                    :: numStep
+
+    column%nStepObs = numStep
+
+  end subroutine col_setNumStep
 
 end module columnData_mod

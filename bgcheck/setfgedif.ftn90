@@ -60,8 +60,8 @@
 !C
 !C     *     Eta vector:
 !C
-      NGPSLEV=lcolumng%NLEV
-      DO JL = 1, lcolumng%NLEV
+      NGPSLEV=col_getNumLev(lcolumng)
+      DO JL = 1, col_getNumLev(lcolumng)
          ZETA(JL) = lcolumng%VCO%DHYB_M(JL)
       ENDDO  
 
@@ -107,16 +107,16 @@
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',jo)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
-                     DO JL = 1, lcolumng%NLEV
+                     DO JL = 1, col_getNumLev(lcolumng)
 !C
 !C     *                 Profile x
 !C
-                        ZTT(JL) = lcolumng%tt(JL,JO)-273.15
-                        ZHU(JL) = lcolumng%hu(JL,JO)
-                        ZGZ(JL) = lcolumng%gz(JL,JO)
+                        ZTT(JL) = col_getElem(lcolumng,JL,JO,'TT')-273.15
+                        ZHU(JL) = col_getElem(lcolumng,JL,JO,'HU')
+                        ZGZ(JL) = col_getElem(lcolumng,JL,JO,'GZ')
                      ENDDO
-                     ZP0 = lcolumng%ps(1,JO)
-                     ZMT = ZGZ(lcolumng%NLEV)/RG
+                     ZP0 = col_getElem(lcolumng,1,JO,'PS')
+                     ZMT = ZGZ(col_getNumLev(lcolumng))/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPT = lcolumng%vco%dpt_M
 !C     
@@ -126,14 +126,14 @@
 !C
 !C     *              Local error
 !C
-                     DO JL = 1, lcolumng%NLEV
+                     DO JL = 1, col_getNumLev(lcolumng)
                         DV (        JL) = 1.
-                        DV (lcolumng%NLEV+JL) = 1.
+                        DV (col_getNumLev(lcolumng)+JL) = 1.
                      ENDDO
-                     DV (2*lcolumng%NLEV+1)   = 2.
+                     DV (2*col_getNumLev(lcolumng)+1)   = 2.
 
                      IF (JO.EQ.IBEGINOB) THEN
-                        DO JL = 1, 2*LCOLUMNG%NLEV+1
+                        DO JL = 1, 2*col_getNumLev(LCOLUMNG)+1
                            WRITE(*,*)'SETFGEDIF', JL, DV(JL)
                         ENDDO
                      ENDIF

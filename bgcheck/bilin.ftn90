@@ -27,9 +27,11 @@
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
       real*8, allocatable ::zgd(:,:,:)
+      real*8, pointer :: uu_column(:),vv_column(:),hu_column(:),gz_column(:)
+      real*8, pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
 
       allocate(zgd(0:(statevector%ni+2),1:statevector%nk,(-1):(statevector%nj+2)),STAT=ierr)
-      write(*,*) 'allocated zgd:',ierr,statevector%ni,statevector%nj,statevector%nk,statevector%nlev,lcolumn%numObsHeader
+      write(*,*) 'allocated zgd:',ierr,statevector%ni,statevector%nj,statevector%nk,statevector%nlev,col_getNumCol(lcolumn)
       call flush(6)
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
@@ -110,7 +112,7 @@
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-      DO JOBS = 1, lcolumn%numObsHeader
+      DO JOBS = 1, col_getNumCol(lcolumn)
          DLLAO   = obs_elem_r4(lobsSpaceData,'LAT ',JOBS)
          DLLOO   = obs_elem_r4(lobsSpaceData,'LON ',JOBS)
 !C
@@ -139,45 +141,53 @@
 !C
 !C*    2.3 Interpolate the model state to the obs point
 !C
+         uu_column => col_getColumn(lcolumn,jobs,'UU')
+         vv_column => col_getColumn(lcolumn,jobs,'VV')
+         hu_column => col_getColumn(lcolumn,jobs,'HU')
+         gz_column => col_getColumn(lcolumn,jobs,'GZ')
+         tt_column => col_getColumn(lcolumn,jobs,'TT')
+         tr_column => col_getColumn(lcolumn,jobs,'TR')
+         ps_column => col_getColumn(lcolumn,jobs,'PS')
+         tg_column => col_getColumn(lcolumn,jobs,'TG')
          DO JK = 1, statevector%nlev
            if(NGEXIST(nguu).eq.1) then
              jk2=jk+ngposit(nguu)-1
-             lcolumn%uu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+             uu_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngvv).eq.1) then
              jk2=jk+ngposit(ngvv)-1
-             lcolumn%vv(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+             vv_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngq).eq.1) then
              jk2=jk+ngposit(ngq)-1
-             lcolumn%hu(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+             hu_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(nggz).eq.1) then
              jk2=jk+ngposit(nggz)-1
-             lcolumn%gz(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+             gz_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngtt).eq.1) then
              jk2=jk+ngposit(ngtt)-1
-             lcolumn%tt(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+             tt_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
            if(NGEXIST(ngtr).eq.1) then
              jk2=jk+ngposit(ngtr)-1
-             lcolumn%tr(JK,JOBS) =   DLW1*zgd(ILON,JK2,ILA)  &
+             tr_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
@@ -185,14 +195,14 @@
          enddo
          if(NGEXIST(ngps).eq.1) then
            jk2=ngposit(ngps)
-           lcolumn%ps(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)  &
+           ps_column(1) =   DLW1*zgd(ILON,jk2,ILA)  &
                 + DLW2*zgd(ILON+1,jk2,ILA)  &
                 + DLW3*zgd(ILOS,jk2,ILA+1)  &
                 + DLW4*zgd(ILOS+1,jk2,ILA+1)
          endif
          if(NGEXIST(ngtg).eq.1) then
            jk2=ngposit(ngtg)
-           lcolumn%tg(1,JOBS) =   DLW1*zgd(ILON,jk2,ILA)  &
+           tg_column(1) =   DLW1*zgd(ILON,jk2,ILA)  &
                 + DLW2*zgd(ILON+1,jk2,ILA)  &
                 + DLW3*zgd(ILOS,jk2,ILA+1)  &
                 + DLW4*zgd(ILOS+1,jk2,ILA+1)

@@ -21,19 +21,17 @@
       INTEGER VFSTLIR,FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
       INTEGER IKEY,ILEN,IERR,IDATE
 
-      REAL*8 ZBUFFER(GAUS_NJ,LCOLUMNG%NLEV)
-      POINTER (PXZBUFFER,ZBUFFER)
+      REAL*8, allocatable :: ZBUFFER(:,:)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
       INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
 
-      ILEN = GAUS_NJ*LCOLUMNG%NLEV
-      CALL HPALLOC(PXZBUFFER,MAX(1,ILEN),IERR,8)
+      allocate(ZBUFFER(GAUS_NJ,col_getNumLev(lcolumng)))
 
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,lcolumng%nlev,1)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,col_getNumLev(lcolumng),1)
       call gsv_zero(statevector)
-      call col_allocate(lcolumn,lcolumng%nlev,lcolumng%numObsHeader)
+      call col_allocate(lcolumn,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
       call col_zero(lcolumn)
 !C 
 !C     1. Opening the statistics file
@@ -67,7 +65,7 @@
            ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
            ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
            ,IUBC,IEXTR1,IEXTR2,IEXTR3)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, gaus_NJ
               DO JLON=1,gaus_NI
                  if(IG2 .eq. 0) then
@@ -81,7 +79,7 @@
 
       CLNOMVAR = 'VV'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -94,7 +92,7 @@
         END DO
       CLNOMVAR = 'ES'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -107,7 +105,7 @@
         END DO
       CLNOMVAR = 'GZ'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -151,7 +149,7 @@
          call flush(6)
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      DO J = 1, LCOLUMNG%NLEV
+      DO J = 1, col_getNumLev(LCOLUMNG)
          DO JLAT = 1, GAUS_NJ
             DO JLON=1,GAUS_NI
                if(IG2 .eq. 0) then
@@ -190,7 +188,7 @@
         END DO
       CLNOMVAR = 'UU'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -203,7 +201,7 @@
         END DO
       CLNOMVAR = 'VV'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -216,7 +214,7 @@
         END DO
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -229,7 +227,7 @@
         END DO
       CLNOMVAR = 'ES'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-        DO J = 1, LCOLUMNG%NLEV
+        DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
@@ -253,7 +251,7 @@
 !C
       CLNOMVAR = 'LQ'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      DO J = 1, LCOLUMNG%NLEV
+      DO J = 1, col_getNumLev(LCOLUMNG)
         DO JLAT = 1, GAUS_NJ
           DO JLON=1,GAUS_NI
             if(IG2 .eq. 0) then
@@ -273,6 +271,6 @@
       CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
 
       call col_deallocate(lcolumn)
-      CALL HPDEALLC(PXZBUFFER,IERR,1)
+      deallocate(ZBUFFER)
       RETURN
       END SUBROUTINE SIGMAOP

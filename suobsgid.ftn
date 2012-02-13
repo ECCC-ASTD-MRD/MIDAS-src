@@ -55,9 +55,9 @@
 *
       type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
-      integer :: nobsgid(nstepobs)
-      integer :: notag(lcolumng%numObsHeader,nstepobs)
-      integer :: nobs(nstepobs)
+      integer :: nobsgid(:)
+      integer :: notag(:,:)
+      integer :: nobs(:)
       integer jobs, ig1obs, ig2obs, ig3obs, ig4obs
       integer vezgdef,jstep,jfile
       integer :: istepobs
@@ -71,12 +71,8 @@
       write(nulout,*) '-------- ENTERING SUOBSGID ---------'
       write(nulout,*) ' '
 
-* Compute the number of step obs over a 6 hours assimilation window
-      lcolumng%nStepObs    = nstepobs   ! from comfilt.cdk
-      write(nulout,*) 'SUOBSGID: Number of step obs     : ',lcolumng%nStepObs
-
-      allocate(dlatfld(obs_numheader(lobsSpaceData),lcolumng%nStepObs))
-      allocate(dlonfld(obs_numheader(lobsSpaceData),lcolumng%nStepObs))
+      allocate(dlatfld(obs_numheader(lobsSpaceData),col_getNumStep(lcolumng)))
+      allocate(dlonfld(obs_numheader(lobsSpaceData),col_getNumStep(lcolumng)))
 
 ! CMC date time stamp of the step obs time
 
@@ -84,7 +80,7 @@
         ntimeout(jfile) = 0
       enddo
 
-      do jstep = 1, lcolumng%nStepObs
+      do jstep = 1, col_getNumStep(lcolumng)
         nobs(jstep) = 0
       enddo
 
@@ -99,7 +95,7 @@
      &                  ntimeout(obs_elem_i(lobsSpaceData,'OTP ',jobs))+1
 
 ! Put the wrong data in the central bin
-          jstep = (lcolumng%nStepObs + 1) / 2
+          jstep = (col_getNumStep(lcolumng) + 1) / 2
           nobs(jstep) = nobs(jstep) + 1
 
 ! .. flag it as out of (time) domain (bit #5 of header flag
@@ -157,7 +153,7 @@
       call vcxgaig('L',ig1obs, ig2obs, ig3obs, ig4obs,
      .             zig1, zig2, zig3, zig4)
 
-      do jstep = 1,lcolumng%nStepObs
+      do jstep = 1,col_getNumStep(lcolumng)
         if (nobs(jstep) .gt. 0) then
           nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,
      &         ig3obs,ig4obs,dlonfld(1:nobs(jstep),jstep)

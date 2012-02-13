@@ -62,7 +62,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   elseif ( option .eq. 'MO' ) then
 !     add column to lcolumng
-!     call col_allocate(lcolumnt,lcolumng%nlev,lcolumng%numObsHeader)
+!     call col_allocate(lcolumnt,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
 !     lcolumnt%all(:,:) = lcolumng%all(:,:) + column%all(:,:)
 !     lcolumnt%nlev = lcolumnhr%nlev
 !     call tovs_fill_profiles(lcolumnt,lobsSpaceData)

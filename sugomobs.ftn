@@ -51,43 +51,60 @@ c
       real*8, allocatable, dimension(:,:) :: zmobs_T,zmobs_M,zmobs2_M
       real*8, allocatable, dimension(:,:) :: zmobs_MT,zmobs2_MT
       real*8, allocatable, dimension(:,:) :: zppobs_MT,zppobs_T,zppobs_M
-      real*8 zovar(1)
+      real*8, allocatable, dimension(:,:) :: zovar
       real*8, allocatable, dimension(:) :: zopart,zopart2,zhybhr
-      real*8 zom_T(1),zom_M(1)
+      real*8, allocatable :: zom_T(:,:),zom_M(:,:)
       integer ip1_pak_trl,ip1_vco_trl
       integer nlv_T,nlv_M
       integer itrlgid,iip1s(jpnflev),iip1,iip2,iip3
       integer iip1s2(jpnflev*2)
+      real*8, allocatable :: zppobsg(:,:)
       integer, allocatable, dimension(:) :: idate,itime,nultrl
       integer :: newdate,nstepanltime
-      integer :: nobsgid(nstepobs)    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
-      integer :: notag(lcolumng%numObsHeader,nstepobs) ! (nobtot,nstepobs) obs tag associated to observations of each bin
-      integer :: nobs(nstepobs) ! number of headers for each stepobs bin
-      integer :: datestamplist(nstepobs)
+      integer, allocatable :: nobsgid(:)    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
+      integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
+      integer, allocatable :: nobs(:) ! number of headers for each stepobs bin
+      integer, allocatable :: datestamplist(:)
 
-      pointer (pzovar,zovar)
-      pointer (pzom_T,zom_T),(pzom_M,zom_M)
-c
+      interface
+        subroutine suobsgid(lobsSpaceData,lcolumng,nobsgid,notag,nobs)
+          use columnData_mod
+          use obsSpaceData_mod
+          type(struct_columnData) :: lcolumng
+          type(struct_obs) :: lobsSpaceData
+          integer :: nobsgid(:)
+          integer :: notag(:,:)
+          integer :: nobs(:)
+        end subroutine suobsgid
+      end interface
+
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
       write(nulout,*) ' '
       write(nulout,*) 'nstepobs=',nstepobs
+      call col_setNumStep(lcolumng,nstepobs)   ! from comfilt.cdk
+c
+      allocate(nobsgid(col_getNumStep(lcolumng)))
+      allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
+      allocate(nobs(col_getNumStep(lcolumng)))
 c
       call suobsgid(lobsSpaceData,lcolumng,nobsgid,notag,nobs)
 c
-      call hpalloc(pzom_T,max(lcolumng%nlev*lcolumng%numObsHeader,1),ier,8)
-      call hpalloc(pzom_M,max(lcolumng%nlev*lcolumng%numObsHeader,1),ier,8)
-      call hpalloc(pzovar,max(lcolumng%numObsHeader,1),ier,8)
+      allocate(datestamplist(col_getNumStep(lcolumng)))
+      allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+      allocate(zom_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+      allocate(zom_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+      allocate(zovar(1,col_getNumCol(lcolumng)))
       allocate(zopart(maxval(nobs)))
       allocate(zopart2(maxval(nobs)))
-      allocate(idate(lcolumng%nStepObs))
-      allocate(itime(lcolumng%nStepObs))
-      allocate(nultrl(lcolumng%nStepObs))
+      allocate(idate(col_getNumStep(lcolumng)))
+      allocate(itime(col_getNumStep(lcolumng)))
+      allocate(nultrl(col_getNumStep(lcolumng)))
 c
 c Computing date and time of step obs for error message
 c
-      call getstamplist(datestamplist,lcolumng%nStepObs,obs_get_datestamp(lobsSpaceData))
-      do jstep = 1,lcolumng%nStepObs
+      call getstamplist(datestamplist,col_getNumStep(lcolumng),obs_get_datestamp(lobsSpaceData))
+      do jstep = 1,col_getNumStep(lcolumng)
         ier = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
         write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
       enddo
@@ -95,14 +112,6 @@ c
 c     Setting degree of horizontal interpolations
 c
       ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
-c
-c------- fill lcolumng with zero
-c
-      do jlev=1,lcolumng%nkgdimo
-        do jobs=1,lcolumng%numObsHeader
-          lcolumng%all(jlev,jobs) = 0.
-        enddo
-      enddo
 c
 c     Get vertical coordinate parameters from trial field !! structure
 c
@@ -117,9 +126,9 @@ c     Allocation des tableaux a remplir par fillmvo
 c
       istep = nlv_T
       lcolumnhr%nlev = nlv_T
+      call col_allocate(lcolumnhr,istep,col_getNumCol(lcolumng))
       lcolumnhr%nlev_T = nlv_T
       lcolumnhr%nlev_M = nlv_M
-      call col_allocate(lcolumnhr,istep,lcolumng%numObsHeader)
       call col_zero(lcolumnhr)
 c
 c     Deactivate assimilate flag for obs outside of trial field grid
@@ -129,7 +138,7 @@ c
 c
       nultrl=0
       jvar=1
-      do jstep = 1,lcolumng%nStepObs
+      do jstep = 1,col_getNumStep(lcolumng)
         if(nultrl(jstep) == 0) then
           call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &         ,ITRLGID,cfstvar2d(jvar),datestamplist(jstep),jpnflev
@@ -178,7 +187,7 @@ c     reading 2D fields
 c
       nultrl=0
       do jvar=1, nfstvar2d
-        do jstep = 1,lcolumng%nStepObs
+        do jstep = 1,col_getNumStep(lcolumng)
           if(datestamplist(jstep) == obs_get_datestamp(lobsSpaceData)) nstepanltime = jstep
           if(nultrl(jstep) == 0) then
             call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
@@ -218,12 +227,15 @@ c
             ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
      &           ,inj,1)
             do jobs = 1, nobs(jstep)
-              zovar(notag(jobs,jstep)) = zopart(jobs)
+              zovar(1,notag(jobs,jstep)) = zopart(jobs)
             enddo
           endif
         enddo
 c
-        call col_fillmvo(lcolumng,cfstvar2d(jvar),'NA',zovar,1,lcolumng%numObsHeader)
+        if(cfstvar2d(jvar).eq.'P0') then
+          zovar(:,:)=zovar(:,:)*rmbtpa
+        endif
+        call col_fillmvo(lcolumng,cfstvar2d(jvar),'NA',zovar,1,col_getNumCol(lcolumng))
 c
       enddo
 c
@@ -231,28 +243,29 @@ c-----Derive the pressure fields at observation points from the hybrid
 C     levels(lcolumng%vco%dhyb_m), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 c
-      do jobs = 1,lcolumng%numObsHeader
-        zovar(jobs) = lcolumng%ps(1,jobs)
+      do jobs = 1,col_getNumCol(lcolumng)
+        zovar(1,jobs) = col_getElem(lcolumng,1,jobs,'PS')
       enddo
 c
-      call vco_calcpres(lcolumng%vco,lcolumng%rppobs,lcolumng%nlev,zovar,lcolumng%numObsHeader)
-      do jlev = 1,lcolumng%nlev
-        write(nulout,*) 'sugomobs: jlev, lcolumng%vco%dhyb_m(jlev), LCOLUMNG%RPPOBS(jlev,1) = ',
-     +    jlev,lcolumng%vco%dhyb_m(jlev),LCOLUMNG%RPPOBS(jlev,1)
+      call vco_calcpres(lcolumng%vco,zppobsg,col_getNumLev(lcolumng),zovar,col_getNumCol(lcolumng))
+      call col_fillmvo(lcolumng,'PP','NA',zppobsg,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
+      do jlev = 1,col_getNumLev(lcolumng)
+        write(nulout,*) 'sugomobs: jlev, lcolumng%vco%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
+     +    jlev,lcolumng%vco%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
         call flush(nulout)
       enddo
 c
 c ------- Prepare for interpolation of the 3D fields
 c
-      if (.not. allocated(zmobs))     allocate(zmobs(    nlv_T,lcolumng%numObsHeader))
-      if (.not. allocated(zmobs_T))   allocate(zmobs_T(  nlv_T,lcolumng%numObsHeader))
-      if (.not. allocated(zmobs_MT))  allocate(zmobs_MT( nlv_T,lcolumng%numObsHeader))
-      if (.not. allocated(zmobs2_MT)) allocate(zmobs2_MT(nlv_T,lcolumng%numObsHeader))
-      if (.not. allocated(zppobs_MT)) allocate(zppobs_MT(nlv_T,lcolumng%numObsHeader))
-      if (.not. allocated(zppobs_T))  allocate(zppobs_T( nlv_T,lcolumng%numObsHeader))
-      if (.not. allocated(zmobs_M))   allocate(zmobs_M(  nlv_M,lcolumng%numObsHeader))
-      if (.not. allocated(zmobs2_M))  allocate(zmobs2_M (nlv_M,lcolumng%numObsHeader))
-      if (.not. allocated(zppobs_M))  allocate(zppobs_M( nlv_M,lcolumng%numObsHeader))
+      if (.not. allocated(zmobs))     allocate(zmobs(    nlv_T,col_getNumCol(lcolumng)))
+      if (.not. allocated(zmobs_T))   allocate(zmobs_T(  nlv_T,col_getNumCol(lcolumng)))
+      if (.not. allocated(zmobs_MT))  allocate(zmobs_MT( nlv_T,col_getNumCol(lcolumng)))
+      if (.not. allocated(zmobs2_MT)) allocate(zmobs2_MT(nlv_T,col_getNumCol(lcolumng)))
+      if (.not. allocated(zppobs_MT)) allocate(zppobs_MT(nlv_T,col_getNumCol(lcolumng)))
+      if (.not. allocated(zppobs_T))  allocate(zppobs_T( nlv_T,col_getNumCol(lcolumng)))
+      if (.not. allocated(zmobs_M))   allocate(zmobs_M(  nlv_M,col_getNumCol(lcolumng)))
+      if (.not. allocated(zmobs2_M))  allocate(zmobs2_M (nlv_M,col_getNumCol(lcolumng)))
+      if (.not. allocated(zppobs_M))  allocate(zppobs_M( nlv_M,col_getNumCol(lcolumng)))
       if (.not. allocated(zhybhr))    allocate(zhybhr(   nlv_T))
 c
 c------- Calculate profiles of pressure values at station location
@@ -264,9 +277,9 @@ c------- Calculate profiles of pressure values at station location
 c-------Staggered hybrid trial field 
       if (lcolumnhr%vco%iversion .eq. 5002) then 
         call calcpres_vgrid(lcolumnhr%vco%vgrid,zovar, lcolumnhr%vco%ip1_M
-     &         ,nlv_M,lcolumng%numObsHeader,nulout,zppobs_M(1,1))
+     &         ,nlv_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
         call calcpres_vgrid(lcolumnhr%vco%vgrid,zovar, lcolumnhr%vco%ip1_T
-     &         ,nlv_T,lcolumng%numObsHeader,nulout,zppobs_T(1,1))
+     &         ,nlv_T,col_getNumCol(lcolumng),nulout,zppobs_T(1,1))
 c       Copier le niveaux du bas momentum dans le dernier niveau du
 c       vecteur surdimentionne
 cnwa        zppobs_M(nlv_T,:) = zppobs_M(nlv_M,:)
@@ -274,11 +287,11 @@ c-------ETA  trial field
       elseif(lcolumnhr%vco%iversion .eq. 5001) then
         call col_pointStagToUnstag(lcolumnhr)
         call calcpres_vgrid(lcolumnhr%vco%vgrid,zovar, lcolumnhr%vco%ip1_M
-     &         ,lcolumnhr%vco%nlev_M,lcolumng%numObsHeader,nulout,zppobs_M(1,1))
+     &         ,lcolumnhr%vco%nlev_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
 
-        call vco_calcpres(lcolumnhr%vco,zppobs_M,nlv_M,zovar,lcolumng%numObsHeader)
+        call vco_calcpres(lcolumnhr%vco,zppobs_M,nlv_M,zovar,col_getNumCol(lcolumng))
         do jlev   = 1,nlv_M 
-          do jobs = 1,lcolumng%numObsHeader
+          do jobs = 1,col_getNumCol(lcolumng)
             zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 
           enddo
         enddo
@@ -290,18 +303,18 @@ c
 c      
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
       do jlev = 1, nlv_M
-        do jobs = 1, lcolumng%numObsHeader
+        do jobs = 1, col_getNumCol(lcolumng)
           zppobs_MT(jlev,jobs) = zppobs_M(jlev,jobs)
         enddo
       enddo
-      do jobs = 1, lcolumng%numObsHeader
+      do jobs = 1, col_getNumCol(lcolumng)
         zppobs_MT(nlv_T,jobs) = zppobs_M(nlv_M,jobs)
       enddo
 c
 c Remplir la pression sur le niveaux du trial au points d'observations
-      call col_fillmvo(lcolumnhr,'PP','MM',zppobs_MT,nlv_T,lcolumng%numObsHeader)
-      call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T,nlv_T,lcolumng%numObsHeader)
-      call col_fillmvo(lcolumnhr,'PP','NA',zppobs_T,nlv_T,lcolumng%numObsHeader)
+      call col_fillmvo(lcolumnhr,'PP','MM',zppobs_MT,nlv_T,col_getNumCol(lcolumng))
+      call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T,nlv_T,col_getNumCol(lcolumng))
+      call col_fillmvo(lcolumnhr,'PP','NA',zppobs_T,nlv_T,col_getNumCol(lcolumng))
 c      
 c Remplir les valeur eta ou zeta des niveaux du trial
 c     surdimension (de 1) vecteur des niveaux momentum
@@ -329,8 +342,8 @@ c
      &         ,itrlgid,'GZ',obs_get_datestamp(lobsSpaceData),jpnflev*2
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
       if(itrlnlev <= 0 ) then
-        write(nulout,1002) 'GZ',idate((lcolumng%nStepObs-1)/2 + 1)
-     &        ,itime((lcolumng%nStepObs-1)/2 + 1)
+        write(nulout,1002) 'GZ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
+     &        ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
         call abort3d(nulout
      &       ,'SUGOMOBS:Problem with background file')
       endif
@@ -341,7 +354,7 @@ c
 c     Lire les GZ des niveaux Momentum
 c
       do jlev = 1,nlv_M
-        do jstep = 1,lcolumng%nStepObs
+        do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep) > 0) then
             IIP1 = lcolumnhr%vco%ip1_M(jlev)
 c
@@ -375,15 +388,16 @@ c     remplir gomobsgzhr_M avec la dimention des niveaux thermo
             write(nulout,*) 'GZ,',jlev
      &           ,zPPOBS_T(jlev,1),zmobs(jlev,1)*10.*rg
           enddo
-      call col_fillmvo(lcolumnhr,'GZ','MM',zmobs,nlv_T,lcolumng%numObsHeader)
+      zmobs(:,:)=zmobs(:,:)*10.0d0*RG
+      call col_fillmvo(lcolumnhr,'GZ','MM',zmobs,nlv_T,col_getNumCol(lcolumng))
 c
-c     remplir aussi columnhr%gz avec le GZ momentum
-      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs,nlv_T,lcolumng%numObsHeader)
+c     remplir aussi columnhr_gz avec le GZ momentum
+      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs,nlv_T,col_getNumCol(lcolumng))
 c
 c     Lire les GZ des niveaux Thermodynamique
 c
       do jlev = 1, nlv_T
-        do jstep = 1,lcolumng%nStepObs
+        do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep) > 0) then
             IIP1 = lcolumnhr%vco%ip1_T(jlev)
 c
@@ -401,11 +415,7 @@ c
             ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
      &            ,inj,1)
             do jobs = 1, nobs(jstep)
-c              zmobs(jlev,notag(jobs,jstep)) = zopart(jobs)  *10.*rg
-c             La conversion d unite sa fait dasn col_fillmvo
               zmobs(jlev,notag(jobs,jstep)) = zopart(jobs) 
-c             On remplis aussi le champs de GZ a la surface rmtmobs 
-              if (jlev == nlv_T) lcolumng%rmtmobs(notag(jobs,jstep)) = zopart(jobs) *10.*rg
             enddo
           endif
         enddo
@@ -417,7 +427,8 @@ c     remplir gomobsgzhr_T
             write(nulout,*)'GZ,',jlev
      &           ,zPPOBS_T(jlev,1),zmobs(jlev,1)*10.*rg
           enddo
-      call col_fillmvo(lcolumnhr,'GZ','TH',zmobs,nlv_T,lcolumng%numObsHeader)
+      zmobs(:,:)=zmobs(:,:)*10.0d0*RG
+      call col_fillmvo(lcolumnhr,'GZ','TH',zmobs,nlv_T,col_getNumCol(lcolumng))
 c
 c Now all of the other 3D variables
 c
@@ -436,8 +447,8 @@ c
      &         ,itrlgid,cfstvar(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
-            write(nulout,1002) cfstvar(jvar),idate((lcolumng%nStepObs-1)/2 + 1)
-     &           ,itime((lcolumng%nStepObs-1)/2 + 1)
+            write(nulout,1002) cfstvar(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
+     &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
             call abort3d(nulout
      &           ,'SUGOMOBS:Problem with background file')
           endif
@@ -450,7 +461,7 @@ c
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_M
             IIP1=lcolumnhr%vco%ip1_M(jlev)
-            do jstep = 1,lcolumng%nStepObs
+            do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
 c
@@ -500,11 +511,13 @@ c
 c         
           call tmg_start(29,'VINTPROF')
 c
-          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs_M,zppobs_M,nlv_M,lcolumng%numObsHeader)
-          call col_fillmvo(lcolumng,'UU','NA',zom_M,lcolumng%nlev,lcolumng%numObsHeader)
+          call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
+          zom_M(:,:)=zom_M(:,:)*rmsknt
+          call col_fillmvo(lcolumng,'UU','NA',zom_M,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
 c
-          call vintprof(zom_M,lcolumng%rppobs,lcolumng%nlev,zmobs2_M,zppobs_M,nlv_M,lcolumng%numObsHeader)
-          call col_fillmvo(lcolumng,'VV','NA',zom_M,lcolumng%nlev,lcolumng%numObsHeader)
+          call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs2_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
+          zom_M(:,:)=zom_M(:,:)*rmsknt
+          call col_fillmvo(lcolumng,'VV','NA',zom_M,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
 c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
           do jlev = 1, nlv_M
@@ -525,8 +538,10 @@ ccc dbug in
      &           ,zPPOBS_T(jlev,1),zmobs2_MT(jlev,1)
           enddo
 ccc dbug out
-          call col_fillmvo(lcolumnhr,'UU','NA',zmobs_MT,nlv_T,lcolumng%numObsHeader)
-          call col_fillmvo(lcolumnhr,'VV','NA',zmobs2_MT,nlv_T,lcolumng%numObsHeader)
+          zmobs_MT(:,:)=zmobs_MT(:,:)*rmsknt
+          call col_fillmvo(lcolumnhr,'UU','NA',zmobs_MT,nlv_T,col_getNumCol(lcolumng))
+          zmobs2_MT(:,:)=zmobs2_MT(:,:)*rmsknt
+          call col_fillmvo(lcolumnhr,'VV','NA',zmobs2_MT,nlv_T,col_getNumCol(lcolumng))
 c
           call tmg_stop(29)
 c          
@@ -542,8 +557,8 @@ c
      &         ,itrlgid,cfstvar(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
-            write(nulout,1002) cfstvar(jvar),idate((lcolumng%nStepObs-1)/2 + 1)
-     &           ,itime((lcolumng%nStepObs-1)/2 + 1)
+            write(nulout,1002) cfstvar(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
+     &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
             call abort3d(nulout
      &          ,'SUGOMOBS:Problem with background file')
           endif
@@ -558,7 +573,7 @@ c
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_T
             IIP1=lcolumnhr%vco%ip1_T(jlev)
-            do jstep = 1,lcolumng%nStepObs
+            do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
                 ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
@@ -581,11 +596,24 @@ c
           enddo
           call tmg_stop(27)
 c
-          call vintprof(zom_T,lcolumng%rppobs,lcolumng%nlev,zmobs_T,zppobs_T,nlv_T,lcolumng%numObsHeader)
+          call vintprof(zom_T,zppobsg,col_getNumLev(lcolumng),zmobs_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
 c
           call tmg_start(30,'FILLMVO')
-          call col_fillmvo(lcolumng ,cfstvar(jvar),'NA',zom_T,lcolumng%nlev,lcolumng%numObsHeader)
-          call col_fillmvo(lcolumnhr,cfstvar(jvar),'NA',zmobs_T,nlv_T,lcolumng%numObsHeader)
+          if(cfstvar(jvar).eq.'TT') then
+            zom_T(:,:)=zom_T(:,:)+tcdk
+            zmobs_T(:,:)=zmobs_T(:,:)+tcdk
+          elseif(cfstvar(jvar).eq.'HU') then
+            do jobs=1,col_getNumCol(lcolumng)
+              do jlev=1,col_getNumLev(lcolumng)
+                zom_T(jlev,jobs)=log(max(zom_T(jlev,jobs),rhumin))
+              enddo
+              do jlev=1,nlv_T
+                zmobs_T(jlev,jobs)=log(max(zmobs_T(jlev,jobs),rhumin))
+              enddo
+            enddo
+          endif
+          call col_fillmvo(lcolumng ,cfstvar(jvar),'NA',zom_T,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
+          call col_fillmvo(lcolumnhr,cfstvar(jvar),'NA',zmobs_T,nlv_T,col_getNumCol(lcolumng))
           call tmg_stop(30)
 c
         endselect 
@@ -597,11 +625,14 @@ c
 c
 c Using T, q and PS to compute GZ 
 c
+      do jobs = 1, col_getNumCol(lcolumng)
+        call col_setMountain(lcolumng,jobs,col_getMountain(lcolumnhr,jobs))
+      enddo
       call tt2phi(lcolumng)
 c
 c At this point columng is complete
 c
-c Copy 2D variables (PS,TG and RMTMOBS) from lcolumng to lcolumnhr
+c Copy 2D variables (PS,TG and GZ(nlev)) from lcolumng to lcolumnhr
 c
       call col_copy2d(lcolumng,lcolumnhr)
 c
@@ -611,11 +642,14 @@ c
         call tt2phi(lcolumnhr)
       endif
 c
-c At this point columnhr contains background state on original levels
-c
-      call hpdeallc(pzom_T,ier,1)
-      call hpdeallc(pzom_M,ier,1)
-      call hpdeallc(pzovar,ier,1)
+      deallocate(datestamplist)
+      deallocate(nobsgid)
+      deallocate(notag)
+      deallocate(nobs)
+      deallocate(zppobsg)
+      deallocate(zom_T)
+      deallocate(zom_M)
+      deallocate(zovar)
       deallocate(zvar,zvar2,zmobs,zmobs_T)
       deallocate(zmobs_M,zmobs2_M)
       deallocate(zmobs_MT,zmobs2_MT)

@@ -65,19 +65,18 @@ C
       REAL*8 PLAT
       REAL*8 PLON
       REAL*8 PZOBS
-      REAL*8 PETA(LCOLUMNHR%NLEV)
-      REAL*8 PTT (LCOLUMNHR%NLEV)
-      REAL*8 PHU (LCOLUMNHR%NLEV)
-      REAL*8 PGZ (LCOLUMNHR%NLEV)
+      REAL*8 :: PETA(:)
+      REAL*8 :: PTT (:)
+      REAL*8 :: PHU (:)
+      REAL*8 :: PGZ (:)
       REAL*8 PXP0
       REAL*8 PXPT
       REAL*8 PMT
       REAL*8 PHX
 C
-      REAL*8 ZDETA(LCOLUMNHR%NLEV-1)
-      REAL*8 ZF3 (LCOLUMNHR%NLEV-1)
-      REAL*8 ZG(LCOLUMNHR%NLEV)
-      REAL*8 ZZK(LCOLUMNHR%NLEV)
+      REAL*8,allocatable :: ZDETA(:)
+      REAL*8,allocatable :: ZF3(:)
+      REAL*8,allocatable :: ZZK(:)
       REAL*8 ZTTB
       REAL*8 ZQQB
       REAL*8 ZCLT, ZGRAV, ZLEVB
@@ -97,6 +96,10 @@ C  *  Mean column gravity at latitude 45 = PPGM0 (m/s**2)
 C  *  Temperature lapse rate (-dT/dz)    = PPGAM (K/m)
       REAL*8 PPGM0, PPGAM
       DATA PPGM0, PPGAM / 9.784, 0.0065 /
+C
+      allocate(ZDETA(col_getNumLev(LCOLUMNHR)-1))
+      allocate(ZF3(col_getNumLev(LCOLUMNHR)-1))
+      allocate(ZZK(col_getNumLev(LCOLUMNHR)))
 C
 C  *  NAMELIST OPTIONS USED HERE (comgpsgb.cdk, read in PREPROC)
 C     -----------------------------------------------------------------
@@ -125,21 +128,20 @@ C  *  Mean column gravity as a function of latitude and model sfc height
 C
 C  *  Gravity and height (ASL) profiles
 C
-      DO JLEV = 1, LCOLUMNHR%NLEV
-        IF ( JLEV .EQ. LCOLUMNHR%NLEV ) THEN
+      DO JLEV = 1, col_getNumLev(LCOLUMNHR)
+        IF ( JLEV .EQ. col_getNumLev(LCOLUMNHR) ) THEN
           ZZK(JLEV) = PMT
         ELSE
           ZZK(JLEV) = PGZ(JLEV)/ZGRAV
         ENDIF
-        ZG(JLEV) = ZGRAV * (RA**2/(RA + ZZK(JLEV))**2)
       END DO
 C
 C  *  If PZOBS is below ZLEVB, use CMC extrapolation from surface
 C     to get ZPMOBS = Psfc at PZOBS for DZ adjustment (later).
 C
       IJLEV = NJLEVP
-      IF ( NJLEVP .GE. LCOLUMNHR%NLEV ) IJLEV = LCOLUMNHR%NLEV-1
-      ZLEVB = ZZK(LCOLUMNHR%NLEV-IJLEV)
+      IF ( NJLEVP .GE. col_getNumLev(LCOLUMNHR) ) IJLEV = col_getNumLev(LCOLUMNHR)-1
+      ZLEVB = ZZK(col_getNumLev(LCOLUMNHR)-IJLEV)
 C
 C
 C ----------------------------------------------------------------
@@ -161,7 +163,7 @@ C
 C  *  Set up terms required for vertical integration of HU, TT terms
 C  *  using trapezoidal rule
 C
-      DO JLEV = 1, LCOLUMNHR%NLEV-1
+      DO JLEV = 1, col_getNumLev(LCOLUMNHR)-1
          ZDETA(JLEV) = PETA(JLEV+1) - PETA(JLEV)
          ZTTB  = (PTT(JLEV+1) + PTT(JLEV)) * 0.5
          ZQQB  = (PHU(JLEV+1) + PHU(JLEV)) * 0.5
@@ -171,7 +173,7 @@ C
 C  *  Vertical integration (trapezoidal rule)
 C
       ZINTW  = 0.0
-      DO JLEV = 1, LCOLUMNHR%NLEV-1
+      DO JLEV = 1, col_getNumLev(LCOLUMNHR)-1
          ZINTW  = ZINTW  + ZF3(JLEV)*ZDETA(JLEV)
       END DO
 C
@@ -200,7 +202,7 @@ C  * ------------ STEP 1:  GET PRESSURE AT HEIGHT PZOBS ---------------
 C
 C  *     CMC EXTRAPOLATION FROM SURFACE TO PZOBS:
 C
-         ZTVSFC = PTT(LCOLUMNHR%NLEV) * (1.0 + DELTA*PHU(LCOLUMNHR%NLEV))
+         ZTVSFC = PTT(col_getNumLev(LCOLUMNHR)) * (1.0 + DELTA*PHU(col_getNumLev(LCOLUMNHR)))
          ZTVOBS = ZTVSFC - PPGAM * ZDZ
          ZPMOBS = PXP0 * (ZTVOBS/ZTVSFC)**ZCON3
 C
@@ -216,7 +218,7 @@ C
         IK  = 1
         IML = 0
 C
-        DO JK = 2,LCOLUMNHR%NLEV-1
+        DO JK = 2,col_getNumLev(LCOLUMNHR)-1
           IF( ABS(ZZK(JK)-PZOBS) .LT. 1.0E-06 ) THEN
             IK = JK
             IML = 1
@@ -251,11 +253,11 @@ C       - Calculate new ZHD with new Psfc = ZPMOBS
         ZZHDV = (ZCONH / ZFPH) * ZPMOBS
 C
 C       - Adjust wet delay using Higgins method (Q constant over DZ layer)
-        ZTMOBS = PTT(LCOLUMNHR%NLEV) - (PPGAM * ZDZ)
-        ZQMOBS = PHU(LCOLUMNHR%NLEV)
+        ZTMOBS = PTT(col_getNumLev(LCOLUMNHR)) - (PPGAM * ZDZ)
+        ZQMOBS = PHU(col_getNumLev(LCOLUMNHR))
         ZPBAR  = (ZPMOBS + PXP0) * 0.5
-        ZTBAR  = (ZTMOBS + PTT(LCOLUMNHR%NLEV)) * 0.5
-        ZQBAR  = (ZQMOBS + PHU(LCOLUMNHR%NLEV)) * 0.5
+        ZTBAR  = (ZTMOBS + PTT(col_getNumLev(LCOLUMNHR))) * 0.5
+        ZQBAR  = (ZQMOBS + PHU(col_getNumLev(LCOLUMNHR))) * 0.5
 C         Mean (wet) refractivity of DZ layer
         ZRMEAN = 1.0E-06 * (PPK2P*((ZPBAR*ZQBAR)/(EPS1*ZTBAR)) +
      +             PPK3*((ZPBAR*ZQBAR)/(EPS1*ZTBAR**2)))
@@ -275,6 +277,10 @@ C
 C     Return H(x)
 C
       PHX = ZZTDVC
+C
+      deallocate(ZDETA)
+      deallocate(ZF3)
+      deallocate(ZZK)
 C
       RETURN
       END

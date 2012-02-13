@@ -171,9 +171,9 @@
       alloc_status(:) = 0
       allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
       allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
-      allocate ( ZT(lcolumnhr%nlev,NPRF),                stat= alloc_status(3) )
-      allocate ( ZHT(lcolumnhr%nlev,NPRF),               stat= alloc_status(4) )
-      allocate ( ZLQ(lcolumnhr%nlev,NPRF),               stat= alloc_status(5) )
+      allocate ( ZT(col_getNumLev(lcolumnhr),NPRF),                stat= alloc_status(3) )
+      allocate ( ZHT(col_getNumLev(lcolumnhr),NPRF),               stat= alloc_status(4) )
+      allocate ( ZLQ(col_getNumLev(lcolumnhr),NPRF),               stat= alloc_status(5) )
       allocate ( BTOBSERR(IASISNCH),              stat= alloc_status(6) )
       allocate ( BTOBS(IASISNCH,NPRF),            stat= alloc_status(7) )
       allocate ( BTCALC(IASISNCH,NPRF),           stat= alloc_status(8) )
@@ -243,7 +243,7 @@
       allocate ( CFRAC_AVHRR(NPRF),             stat= alloc_status(74))
       allocate ( SATAZIM(NPRF),                 stat= alloc_status(75))
       allocate ( SATZEN(NPRF),                  stat= alloc_status(76))
-      allocate ( ZPRES(lcolumnhr%nlev,NPRF),           stat= alloc_status(77))
+      allocate ( ZPRES(col_getNumLev(lcolumnhr),NPRF),           stat= alloc_status(77))
       allocate ( PTOP_MB(NPRF),                 stat= alloc_status(78))
       allocate ( NTOP_MB(NPRF),                 stat= alloc_status(79))
       allocate ( CFSUB(NPRF),                   stat= alloc_status(80))
@@ -347,16 +347,16 @@
                 call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(JO)%sunza)
                 call stat_avhrr(out_avhrr_param(NOBIASI))
 
-                ZTG(NOBIASI) = lcolumnhr%tg(1,JO)
-                ZPS(NOBIASI) = lcolumnhr%ps(1,JO)*RPATMB
+                ZTG(NOBIASI) = col_getElem(lcolumnhr,1,JO,'TG')
+                ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'PS')*RPATMB
                 ZLAT(NOBIASI) = obs_elem_r4(lobsSpaceData,'LAT ',jo)/ZTORAD
                 ZLON(NOBIASI) = obs_elem_r4(lobsSpaceData,'LON ',jo)/ZTORAD
 
-                DO JL = 1, lcolumnhr%nlev
-                  ZT(JL,NOBIASI) = lcolumnhr%tt(JL,JO)
-                  ZHT(JL,NOBIASI) = lcolumnhr%gz(JL,JO) / RG
-                  ZLQ(JL,NOBIASI) = lcolumnhr%hu(JL,JO)
-                  ZPRES(JL,NOBIASI)= lcolumnhr%RPPOBS(JL,JO) * RPATMB
+                DO JL = 1, col_getNumLev(lcolumnhr)
+                  ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'TT')
+                  ZHT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'GZ') / RG
+                  ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'HU')
+                  ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,JO,'NA') * RPATMB
                 END DO
 
                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',jo)
@@ -464,10 +464,10 @@
 
       DO JN = 1, NPRF
          DO JL = 1, NLEV
-            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(col_getNumLev(lcolumnhr),JN)
          END DO
-         DO JL = 1, lcolumnhr%nlev
-            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(lcolumnhr%nlev,JN)
+         DO JL = 1, col_getNumLev(lcolumnhr)
+            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(col_getNumLev(lcolumnhr),JN)
          END DO
       END DO
 
@@ -511,11 +511,11 @@
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
       CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-           &                   zht,zps,zpres,lcolumnhr%nlev,iasisnch,nprf,ichref,lev_start,iopt2)
+           &                   zht,zps,zpres,col_getNumLev(lcolumnhr),iasisnch,nprf,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
       CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-     &                   zht,zps,zpres,lcolumnhr%nlev,iasisnch,nprf,ichref,lev_start,iopt1)
+     &                   zht,zps,zpres,col_getNumLev(lcolumnhr),iasisnch,nprf,ichref,lev_start,iopt1)
 
       LEV_START_AVHRR(:,:) = 0
       cldflag_avhrr(:,:)=0
@@ -542,7 +542,7 @@
          ENDDO
 
          CALL CLOUD_HEIGHT (PTOP_EQ_AVHRR(:,JC),NTOP_EQ_AVHRR(:,JC), btobs_avhrr(:,:,JC),cldflag_avhrr(:,JC),zt, &
-              &                   zht,zps,zpres,lcolumnhr%nlev,NIR,nprf,ichref_avhrr(:,JC),lev_start_avhrr(:,JC),iopt1)
+              &                   zht,zps,zpres,col_getNumLev(lcolumnhr),NIR,nprf,ichref_avhrr(:,JC),lev_start_avhrr(:,JC),iopt1)
          
 
       ENDDO
@@ -550,12 +550,12 @@
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
       CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-     &                      zht,lcolumnhr%nlev,iasisnch,nprf,ptop_eq,ntop_eq,ichref)
+     &                      zht,col_getNumLev(lcolumnhr),iasisnch,nprf,ptop_eq,ntop_eq,ichref)
 
       DO JC=1,NCLASSAVHRR
          
           CALL GARAND1998NADON (CLDFLAG_AVHRR(:,jC), btobs_avhrr(:,:,JC),ztg,zt, &
-     &                      zht,lcolumnhr%nlev,NIR,nprf,ptop_eq_avhrr(:,JC),ntop_eq_avhrr(:,JC),ichref_avhrr(:,JC))
+     &                      zht,col_getNumLev(lcolumnhr),NIR,nprf,ptop_eq_avhrr(:,JC),ntop_eq_avhrr(:,JC),ichref_avhrr(:,JC))
       ENDDO
 
 
@@ -1052,9 +1052,9 @@
          IASIPRO(IPRO)%HE        = HE(JN)
          IASIPRO(IPRO)%ZTS       = ZTS(JN)
          IASIPRO(IPRO)%NGOOD     = NGOOD(JN)
-         IASIPRO(IPRO)%ZT        = ZT(lcolumnhr%nlev,JN)
+         IASIPRO(IPRO)%ZT        = ZT(col_getNumLev(lcolumnhr),JN)
          IASIPRO(IPRO)%ZTG       = ZTG(JN)
-         IASIPRO(IPRO)%ZLQEXP    = EXP(ZLQ(lcolumnhr%nlev,JN))
+         IASIPRO(IPRO)%ZLQEXP    = EXP(ZLQ(col_getNumLev(lcolumnhr),JN))
          IASIPRO(IPRO)%ZPS       = 100.*ZPS(JN)
          IASIPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
          IASIPRO(IPRO)%SFCTYP    = KSURF(JN)

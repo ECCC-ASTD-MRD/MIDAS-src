@@ -45,7 +45,6 @@
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
-      INTEGER NQCVAR
       INTEGER IOBS,IK,IBEGIN,ILAST,JO
       INTEGER J,JDATA
       INTEGER ICOUNT,IERR,ILEN,JCOUNT,IPOINTR(1)
@@ -56,18 +55,7 @@ C
 cc      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
 C
-*      IF (LVARQC) THEN
-*         NQCVAR = 1
-*      ELSE
-*         NQCVAR = 0
-*      ENDIF
-*
-*     variational quality control turned off for now since this routine
-*     is used only to interpolate and not to calculate contributions to
-*     the functional (called as first pass of incremental analysis)
-*
       IF (LLPRINT) print*,' ---dhusfc----------------'
-      NQCVAR = 0
       DO J = 1,NFILES
          IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
             IBEGIN=NBEGINTYP(J)
@@ -122,7 +110,7 @@ c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
-     +                (lcolumnhr%hu(LCOLUMNHR%NLEV,IOBS)-ZVAR)
+     +                (col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')-ZVAR)
      +                 / ZOER)
 
                   IF ( LLPRINT ) THEN
@@ -132,9 +120,9 @@ c                  ENDIF
                     write(nulout,*)'   zvar   = ',ZVAR
                     write(nulout,*)'   zoer   = ',ZOER
                     write(nulout,*)'   ik     = ',IK
-                    write(nulout,*)'   lcolumnhr%nlev= ',LCOLUMNHR%NLEV
-                    write(nulout,*)'   lcolumnhr%hu(lcolumnhr%nlev,iobs) = '
-     &                   ,lcolumnhr%hu(LCOLUMNHR%NLEV,IOBS)
+                    write(nulout,*)'   lcolumnhr_nlev= ',col_getNumLev(LCOLUMNHR)
+                    write(nulout,*)'   lcolumnhr_hu(lcolumnhr_nlev,iobs) = '
+     &                   ,col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')
                     write(nulout,*)'   O-Psfc = '
      &                   ,-obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'

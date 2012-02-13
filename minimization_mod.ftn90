@@ -21,7 +21,7 @@ MODULE minimization_mod
   save
   private
 
-  public              :: min_Setup, min_minvar,ltlmend,nsim3d,niterjob,lvarqc,min_niter
+  public              :: min_Setup, min_minvar,lvarqc,min_niter
 
   type struct_dataptr
     type(struct_obs),pointer        :: lobsSpaceData
@@ -41,14 +41,14 @@ MODULE minimization_mod
   ! namelist variables
   INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
   INTEGER NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
-  LOGICAL LRSTART,lxbar,lwrthess,ltlmend
+  LOGICAL LRSTART,lxbar,lwrthess
   REAL*8 REPSG,EPSNEG,rdf1fac
   LOGICAL LVARQC
   integer :: nwoqcv
 
   NAMELIST /NAMMIN/N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NITERJOB  
   NAMELIST /NAMMIN/NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
-  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess,ltlmend
+  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess
   NAMELIST /NAMMIN/REPSG,EPSNEG,rdf1fac
   NAMELIST /NAMMIN/LVARQC,NWOQCV
 
@@ -80,7 +80,6 @@ CONTAINS
     NGRANGE  = 10
     lwrthess =.true.
     lxbar    = .true.
-    ltlmend  = .false.
     REPSG    = 1e-3
     LRSTART  = .FALSE.
     EPSNEG   = 1e-6

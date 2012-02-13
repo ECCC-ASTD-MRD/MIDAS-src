@@ -87,15 +87,15 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
                  
   100   continue
 
-  if (  lcolumng%rppobs(1,1) .lt. lcolumng%rppobs(lcolumng%nlev,1) ) then
-     ilowlvl = lcolumng%nlev
+  if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,col_getNumLev(lcolumng),1,'NA') ) then
+     ilowlvl = col_getNumLev(lcolumng)
   else
      ilowlvl = 1
   endif
 
 ! find model level top, within 0.000001 mbs.
 
-  zptop    = lcolumng%rppobs(1,1)
+  zptop    = col_getPressure(lcolumng,1,1,'NA')
   zptopmbs = zptop/100.
   zptopmbs = zptopmbs - 0.000001
 
@@ -152,10 +152,10 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
 
      knpf = knpf + 1
 
-     do jl = 1, lcolumng%nlev
-        zt   (jl,knpf) = lcolumng%tt(jl,jo)
-        zlq  (jl,knpf) = lcolumng%hu(jl,jo)
-        zvlev(jl,knpf) = lcolumng%rppobs(jl,jo) * rpatmb
+     do jl = 1, col_getNumLev(lcolumng)
+        zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
+        zlq  (jl,knpf) = col_getElem(lcolumng,jl,jo,'HU')
+        zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'NA') * rpatmb
      enddo
 
      iptobs   (knpf) = iobs

@@ -42,7 +42,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   write(*,*) '--Starting subroutine minimize--'
   write(*,*) '--------------------------------'
 
-  call col_allocate(lcolumn,lcolumng%nlev,lcolumng%numObsHeader)
+  call col_allocate(lcolumn,col_getNumLev(lcolumng),col_getNumCol(lcolumng))
   call col_zero(lcolumn)
 
   write(*,*) 'PRDATABIN: For 4D increment'

@@ -47,11 +47,11 @@
       write(*,*) '--Starting subroutine preproc--'
       write(*,*) '-------------------------------'
 !
-!     INITIALIZE LOGICAL UNITS.
+!     Initialize logical units
 !
       call sulun
 !
-!     INITIALIZE CONSTANTS.
+!     Initialize constants
 !
       call mpc_initialize()
       call mpc_printConstants(nulout)
@@ -61,11 +61,11 @@
       write(nulout,*)' preproc: Set vcoord parameters for trial grid'
       call vco_SetupFromFile(lcolumnhr%vco,ninmpg(1),.false.)
 !
-!     INITIALIZE VARIABLES OF THE MODEL STATES.
+!     Initialize variables of the model states
 !
       call gsv_setup
 !
-!     INITIALIZE DIMENSIONS OF THE GAUSSIAN GRID.
+!     Initialize dimensions of the gaussian grid (analysis grid)
 !
       call gaus_setup
 !
@@ -73,21 +73,13 @@
 !
       call obs_initialize(lobsSpaceData)
 !
-!     Initialisation of the geometry
+!     Initialisation of the analysis grid vertical coordinate
 !
       call vco_AnlInit(lcolumng%vco)
 !
 !     Initialization of post-processing
 !
-      call supost   ! keep delayed in sequence to ensure geometry dependence (Luc)
-
-      call tmg_start(15,'SUCVA')  ! start of what used to be SUCVA
-!
-!     Reading and initialization in preparation of the minimization
-!
-      write(nulout,fmt=9200)
- 9200 format(//,5x,"-Reading and initialization in preparation to the "
-     S     ,"minimization",/,6x,61('-'))
+      call supost
 !
 !     Check the date of the burp files (set datestamp)
 !
@@ -124,12 +116,11 @@
 !     If single GB-GPS observation assimilation, select the observation
 !
       IF ( L1GPSOBS ) CALL FILT_GPSGB(lobsSpaceData)
-
-      call cmapr(lobsSpaceData)
-
+!
+!     Distribute observations over MPI processes
+!
       call obs_reduceToMpiLocal(lobsSpaceData,nfiles,
      +                          nbegintyp,nendtyp,nbegintyp_g,nendtyp_g)
-
 !
 !     Memory allocation for background column data
 !
@@ -152,18 +143,17 @@
       if(nconf.eq.141) CALL bmat_setup(lcolumng,obs_get_datestamp(lobsSpaceData))
 !
 !     Set up the minimization module, now that the required parameters are known
+!     NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs
 !
       if(nconf.eq.141) call min_setup(cvm_nvadim,gaus_ni,gaus_nj,
      +                                lcolumng%vco%nlev_M,nstepobsinc)
-!
-      call tmg_stop(15)  ! end of what used to be SUCVA
 !
 !     Reading, horizontal interpolation and unit conversions of the 3D trial fields
 !
       call tmg_start(16,'SUGOMOBS')
       call sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
       call tmg_stop(16)
-
+!
       write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
       call prdatabin(lobsSpaceData,nstepobs)
 !

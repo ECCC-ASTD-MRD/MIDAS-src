@@ -515,12 +515,14 @@ end subroutine oda_maskto
       integer :: mask_dim
       LOGICAL,DIMENSION(:),pointer :: llmask_l  
 
-       mask_dim = ubound(lmaskpp_in,1)  
+       mask_dim = obs_numbody_max(lobsSpaceData)
          
        ALLOCATE(lmaskpp_inout_g(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskpp_inout_g')
+
        ALLOCATE(lmasksf_inout_g(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmasksf_inout_g')
+
        ALLOCATE(lmaskto_g(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(6,'Cannt Allocate Mem. to lmaskto_g')
 
@@ -539,30 +541,32 @@ end subroutine oda_maskto
        ALLOCATE(llmask_l(mask_dim),STAT=ierr)
        IF(ierr /= 0 ) CALL ABORT3D(6,'Cant Allocate Mem. to llmask_l')
 
-       CALL restore_mask(lobsSpaceData,lmask_g,obs_numbody_max(lobsSpaceData),lmask,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmask_g,lmask,mask_dim)  
 
        llmask_l = lmaskpp_in .or. lmaskpp_out
-       CALL restore_mask(lobsSpaceData,lmaskpp_inout_g,obs_numbody_max(lobsSpaceData),llmask_l,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskpp_inout_g,llmask_l,mask_dim)  
 
        llmask_l =  lmasksf_in .or. lmasksf_out
-       CALL restore_mask(lobsSpaceData,lmasksf_inout_g,obs_numbody_max(lobsSpaceData),llmask_l,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmasksf_inout_g,llmask_l,mask_dim)  
 
-       CALL restore_mask(lobsSpaceData,lmaskto_g,obs_numbody_max(lobsSpaceData),lmaskto,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskto_g,lmaskto,mask_dim)  
 
-       CALL restore_mask(lobsSpaceData,lmaskro_g,obs_numbody_max(lobsSpaceData),lmaskro,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskro_g,lmaskro,mask_dim)  
 
-       CALL restore_mask(lobsSpaceData,lmaskzp_g,obs_numbody_max(lobsSpaceData),lmaskzp,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskzp_g,lmaskzp,mask_dim)  
 
-       CALL restore_mask(lobsSpaceData,lmaskgp_g,obs_numbody_max(lobsSpaceData),lmaskgp,obs_numbody(lobsSpaceData))  
+       CALL restore_mask(lobsSpaceData,lmaskgp_g,lmaskgp,mask_dim)  
+
+       deallocate(llmask_l)
 
       END SUBROUTINE restoreMasks     
 
 
-      SUBROUTINE restore_mask(lobsSpaceData,lmask_g,kdata_g,lmask_l,kdata_l)
+      SUBROUTINE restore_mask(lobsSpaceData,lmask_g,lmask_l,kdata_g)
         type(struct_obs) :: lobsSpaceData
-        INTEGER :: kdata_l,kdata_g 
-        Logical ,DIMENSION(kdata_g) :: lmask_g 
-        Logical ,DIMENSION(kdata_l) :: lmask_l 
+        INTEGER :: kdata_g 
+        Logical :: lmask_g(:) 
+        Logical :: lmask_l(:) 
 
        INTEGER :: i,ii,j ,iobs,idata,idataend,ierr  
 

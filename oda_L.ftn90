@@ -51,17 +51,17 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   ! 3D fields interpolation
 !$OMP SECTION
-  if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',lcolumn%nlev)
+  if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',lcolumn%nlev)
+  if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngq).eq.1)   call gd2mvo('HU',lcolumn%nlev)
+  if(NGEXIST(ngq).eq.1)   call gd2mvo('HU',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',lcolumn%nlev)
+  if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',lcolumn%nlev)
+  if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',lcolumn%nlev)
+  if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',col_getNumLev(lcolumn))
 
   ! 2D fields interpolation
 !$OMP SECTION
@@ -97,7 +97,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*     .         bilinear interpolation.
 !*
 !*     CDVARNAME: identificator of the variable to be treated
-!*     KLEV     : number of levels (typically 1 for 2D-fields and LCOLUMN%NLEV for 3D-fields)
+!*     KLEV     : number of levels (typically 1 for 2D-fields and COL_GETNUMLEV(LCOLUMN) for 3D-fields)
 !*
 !*
 !*     Arguments
@@ -113,7 +113,9 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4, DLLAO, DLLOO
 
       real*8  zfield(0:(statevector%ni+2),1:klev,(-1):(statevector%nj+2))
-      real*8  zprofil(1:klev,lcolumn%numObsHeader)
+      real*8, allocatable :: zprofil(:,:)
+
+      allocate(zprofil(klev,col_getNumCol(lcolumn)))
 !*
 !*     Transfer Grid point field into local array (for generecity)
 !*
@@ -203,7 +205,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-        DO JOBS = 1, LCOLUMN%numObsHeader
+        DO JOBS = 1, col_getNumCol(LCOLUMN)
           if(col_getTimeInterpWeight(lcolumn,jobs,jstep).gt.0.0d0) then
             DLLAO=real(obs_elem_r4(lobsSpaceData,'LAT ',jobs),8)
             DLLOO=real(obs_elem_r4(lobsSpaceData,'LON ',jobs),8)
@@ -246,30 +248,9 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
       ENDDO ! JSTEP
 
-      SELECT CASE (CDVARNAME)
-!*
-!*     2D fields
-!*
-      CASE('TG')
-         lcolumn%tg(1:KLEV,1:LCOLUMN%numObsHeader) = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      CASE('PS')
-         lcolumn%ps(1:KLEV,1:LCOLUMN%numObsHeader) = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-!*
-!*     3D fields
-!*
-      CASE('TT')
-         lcolumn%tt(1:KLEV,1:LCOLUMN%numObsHeader)  = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      CASE('HU')
-         lcolumn%hu(1:KLEV,1:LCOLUMN%numObsHeader)  = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      CASE('TR')
-         lcolumn%tr(1:KLEV,1:LCOLUMN%numObsHeader)  = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      CASE('UU')
-         lcolumn%uu(1:KLEV,1:LCOLUMN%numObsHeader)  = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      CASE('VV')
-         lcolumn%vv(1:KLEV,1:LCOLUMN%numObsHeader)  = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      CASE('GZ')
-         lcolumn%gz(1:KLEV,1:LCOLUMN%numObsHeader)  = ZPROFIL(1:KLEV,1:LCOLUMN%numObsHeader)
-      END SELECT
+      call col_fillmvo(lcolumn,CDVARNAME,'NA',zprofil,klev,col_getNumCol(lcolumn))
+
+      deallocate(zprofil)
 
       RETURN
       END subroutine gd2mvo

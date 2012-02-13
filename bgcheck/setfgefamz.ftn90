@@ -37,28 +37,28 @@
                IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.   &
                     obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 1 ) then
                   IF  (obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0) THEN
-                     IK=LCOLUMNG%NLEV-1
+                     IK=col_getNumLev(LCOLUMNG)-1
                      IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                      IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
-                     IPT  = IK + IPOS*LCOLUMNG%NLEV
+                     IPT  = IK + IPOS*col_getNumLev(LCOLUMNG)
                      IPB  = IPT +1
-                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(lcolumn%all(IPB,IOBS)))
+                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
                   ELSE
                      IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                      IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
                      ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                      IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
-                     IPT  = IK + IPOS*LCOLUMNG%NLEV
+                     IPT  = IK + IPOS*col_getNumLev(LCOLUMNG)
                      IPB  = IPT+1
-                     ZPT  = lcolumng%gz(IK,IOBS)/RG
-                     ZPB  = lcolumng%gz(IK+1,IOBS)/RG
+                     ZPT  = col_getHeight(lcolumng,IK  ,IOBS,'NA')/RG
+                     ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')/RG
                      ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                      ZWT  = 1. - ZWB
 !C
 !C     FIRST GUESS ERROR VARIANCE
 !C
                      call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
-                          real((ZWB*lcolumn%all(IPB,IOBS) + ZWT*lcolumn%all(IPT,IOBS))) )
+                          real((ZWB*col_getElem(lcolumn,IPB,IOBS) + ZWT*col_getElem(lcolumn,IPT,IOBS))) )
 
                   ENDIF
                ENDIF

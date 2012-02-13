@@ -21,10 +21,6 @@
 *
 *
 *Author  : S. Pellerin *ARMA/AES September 1998
-*Revision: L. Fillion - 10 mar 99 - Pressure option
-*          S. Pellerin - exclusion of commvo1 (regional implementation)
-*           C. Charette - ARMA/SMC - Sep. 2004
-*            - Conversion to hybrid vertical coordinate
 *
 **    Purpose:  -Computation of virtual temperature
 *
@@ -46,12 +42,16 @@ c
       real*8 ::  vmdhr(lcolumnghr%nlev)
       real*8 ::  vmehr(lcolumnghr%nlev)
       real*8 ::  vmfhr(lcolumnghr%nlev)
+      real*8 ::  pressure(lcolumnghr%nlev)
 *
       alpha=-1.0D0
 **
 c
       do jobs = 1, lcolumnghr%numObsHeader
-        call matapatnew(lcolumnghr%rppobs(:,jobs),alpha,lcolumnghr%nlev)
+        do jlev = 1, lcolumnghr%nlev
+          pressure(jlev)=col_getPressure(lcolumnghr,jlev,jobs,'NA')
+        enddo
+        call matapatnew(pressure,alpha,lcolumnghr%nlev)
         call vtap1dnew(jobs)
       enddo
 c
@@ -72,16 +72,6 @@ C           LES COEFFICIENTS GENERES PAR LA REDUCTION GAUSSIENNE
 C           LORS DU CALCUL DE T.
 C
 C AUTHOR: Michel Beland  - RPN AVRIL 1984 - ADAPTE AU MODELE SEF
-C
-C Revision: H. Ritchie - RPN JANVIER 1993 - RECODAGE
-C
-C         : L. Fillion - ARMA - Oct 96 - Adapted for 3DVAR
-C         : L. Fillion - ARMA - 10 mar 99 - Add pps argument
-C           C. Charette - ARMA/SMC - Sep. 2004
-C            - Conversion to hybrid vertical coordinate
-C              Replace argument pps by  pvlev, knlev.
-C              Profile of pressure values is now input rather than
-C              being calculated locally.
 C
 C ARGUMENTS:
 C    I - PVLEV   : PROFILE OF PRESSURE VALUES
@@ -181,89 +171,44 @@ C
 *S/P VTAP1DNEW:
 * AUTHOR:  Luc Fillion - ARMA/AES - 10 mar 99
 *
-* REVISION:
-*          S. Pellerin - ARMA/SMC - Sept. 2000
-*                      - exclusion of commvo1
-*                        and local allocation of working
-*                        space for virtual temperature
-*                        regional implementation
-*
       use MathPhysConstants_mod
       IMPLICIT NONE
       INTEGER  kobs
 *
-      logical llprint
       INTEGER  JLON, IKLEVM2, JK, IK,ier
-      REAL*8     ZAK, ZBK, ZCK,ZCON,ztv(1),zhu,fotvv
-      pointer (pttv,ztv)
-*implicits
+      REAL*8   ZAK, ZBK, ZCK,ZCON,ztv(lcolumnghr%nlev),zhu,fotvv
 #include "dinternv.cdk"
 #include "finternv.cdk"
 **
-      call hpalloc(pttv,lcolumnghr%nlev,ier,8)
       do jk = 1, lcolumnghr%nlev
         zhu = exp(lcolumnghr%hu(jk,kobs))
         ztv(jk) = fotvv(lcolumnghr%tt(jk,kobs),zhu)
       enddo
-      llprint = .false.
 c
       ZCON = -RGASD
       ZAK = -2.0*ZCON*VMAHR(lcolumnghr%nlev)
       ZBK = -2.0*ZCON*VMBHR(lcolumnghr%nlev)
       ZCK = -2.0*ZCON*VMCHR(lcolumnghr%nlev)
-********************************************************
-c       write(*,*)'vtaphr:lcolumnghr%nlev,VMAHR,VMBHR,VMCHR ',
-c     &       lcolumnghr%nlev,VMAHR(lcolumnghr%nlev),VMBHR(lcolumnghr%nlev),VMCHR(lcolumnghr%nlev)
-********************************************************
-      lcolumnghr%gz(lcolumnghr%nlev,kobs) = lcolumnghr%RMTMOBS(kobs)
+      lcolumnghr%gz(lcolumnghr%nlev,kobs) = col_getMountain(lcolumnghr,kobs)
       lcolumnghr%gz(lcolumnghr%nlev-1,kobs)=
      $                   ZAK*ztv(lcolumnghr%nlev-1)+
      $                   ZBK*ztv(lcolumnghr%nlev)+
      &                   ZCK*ztv(lcolumnghr%nlev-2)+
      $                   lcolumnghr%gz(lcolumnghr%nlev,kobs)
-********************************************************
-c       write(*,*)'vtaphr:lcolumnghr%nlev,kobs,ak,bk,ck,gmgzhr(lcolumnghr%nlev)',
-c     &       lcolumnghr%nlev,kobs,zak,zbk,zck,lcolumnghr%gz(lcolumnghr%nlev,kobs)
-c       write(*,*)'vtaphr:lcolumnghr%nlev-1,kobs,ak,bk,ck,gmgzh(lcolumnghr%nlev-1)'
-c     &       ,lcolumnghr%nlev-1,kobs,zak,zbk,zck,lcolumnghr%gz(lcolumnghr%nlev-1,kobs)
-********************************************************
       IKLEVM2 = lcolumnghr%nlev-2
       do JK = 1, IKLEVM2
         IK = lcolumnghr%nlev-1-JK
         ZAK = -2.0*ZCON*VMAHR(IK+1)
         ZBK = -2.0*ZCON*VMBHR(IK+1)
         ZCK = -2.0*ZCON*VMCHR(IK+1)
-********************************************************
-c       write(*,*)'vtaphr:ik+1,VMAHR,VMBHR,VMCHR ',
-c     &       ik+1,VMAHR(ik+1),VMBHR(ik+1),VMCHR(ik+1)
-********************************************************
         lcolumnghr%gz(IK,kobs)=ZAK*ztv(IK)+
      $                  ZBK*ztv(IK+1)+
      $                  ZCK*ztv(IK+2)+
      +                  lcolumnghr%gz(IK+2,kobs)
-********************************************************
-c          write(*,*)'vtaphr:ik,kobs,zak,zbk,zck,lcolumnghr%gz= ',
-c     &       ik,kobs,zak,zbk,zck,lcolumnghr%gz(ik,kobs)
-c          write(*,*)'vtaphr:ik,kobs,ztv(ik),ztv(ik+1),ztv(ik+2)= '
-c     &       ,ik,kobs,ztv(IK),ztv(IK+1),ztv(IK+2)
-**********************************************************
       enddo
 c
-! THIS IS PROBABLY NOT NEEDED NOW
-!      do jk=1,lcolumnghr%nlev
-!        lcolumnghr%gz_T(jk,kobs) = lcolumnghr%gz(jk,kobs)
-!        lcolumnghr%gz_M(jk,kobs) = lcolumnghr%gz(jk,kobs)
-!      enddo
-      if(llprint) then
-        do jk=1,lcolumnghr%nlev
-          write(*,*)'vtap1dnew: Level, Background GZ,TT,TV = ',jk
-     &         ,lcolumnghr%gz(jk,1),lcolumnghr%tt(jk,1),ztv(jk)
-        enddo
-      endif
-C
-      call hpdeallc(pttv,ier,1)
-      RETURN
-      END SUBROUTINE vtap1dnew
+      return
+      end subroutine vtap1dnew
 
 
       end

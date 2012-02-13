@@ -23,7 +23,6 @@
 *
 #endif
       use MathPhysConstants_mod
-      use mod4dv, only : l4dvar
       use obsSpaceData_mod
       use controlVector_mod
       use columnData_mod
@@ -89,21 +88,17 @@ C
 c
       CALL SUPOST  ! problem with nflev = 1
 c
-C In l4dvar mode transform of variables has already been done in ENDSIM2
-C at the end of minimize
       call gsv_allocate(statevector,gaus_ni,gaus_nj,lcolumng%vco%nlev_M,
      +                  nstepobsinc,obs_get_datestamp(lobsSpaceData))
       statevector%vco => lcolumng%vco
-      if(.not. l4dvar .or. .not. ltlmend) then
-        call tmg_start(51,'VAR_CH') !
 
-        call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+      call tmg_start(51,'VAR_CH') !
+      call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+      call tmg_stop (51)      !
 
-        WRITE(NULOUT,*)' postmin: Transform analysis variables to'
+      WRITE(NULOUT,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
 
-        call tmg_stop (51)      !
-      endif
 c
 C      Compute increments of HU on analysis grid
 c      This field is compulsary because it is used

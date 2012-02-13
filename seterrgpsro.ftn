@@ -97,8 +97,8 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C
-      NGPSLEV=LCOLUMNHR%NLEV
-      DO JL = 1, LCOLUMNHR%NLEV
+      NGPSLEV=col_getNumLev(LCOLUMNHR)
+      DO JL = 1, NGPSLEV
          ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
       ENDDO
 C
@@ -155,20 +155,20 @@ C
                Lon  = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)
                ZLAT = Lat * ZTODEG
                ZLON = Lon * ZTODEG
-                     ZP0 = lcolumnhr%ps(1,INDEX_HEADER)
-               DO JL = 1, LCOLUMNHR%NLEV
+                     ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'PS')
+               DO JL = 1, col_getNumLev(LCOLUMNHR)
 C
 C     *           Profile x
 C
-                  ZPP(JL) = LCOLUMNHR%RPPOBS_T(JL,INDEX_HEADER)
+                  ZPP(JL) = col_getPressure(LCOLUMNHR,JL,INDEX_HEADER,'TH')
 CCCCCCCCCCC          THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
                   ZDP(JL) = ZPP(JL)/ZP0
-                  ZTT(JL) = lcolumnhr%tt(JL,INDEX_HEADER)-273.15
-                  ZHU(JL) = lcolumnhr%hu(JL,INDEX_HEADER)
-                  ZGZ(JL) = lcolumnhr%gz_T(JL,INDEX_HEADER)
+                  ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-273.15
+                  ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+                  ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
                ENDDO
-               ZPT = LCOLUMNHR%RPPOBS_T(1,INDEX_HEADER)
-               ZMT = ZGZ(LCOLUMNHR%NLEV)/RG
+               ZPT = col_getPressure(LCOLUMNHR,1,INDEX_HEADER,'TH')
+               ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/RG
                ZMT = gpsgeopotential(Lat, ZMT)/RG
 !!               ZPR = vco_anl%dprf_M
 !!               ZCF = vco_anl%drcf1

@@ -35,18 +35,18 @@ c
       real*8 zhu,one,zpresa,zpresb,zpresad,zpresbd
 
       one=1.0
-      do jlev = 1,lcolumng%nlev
-        do jobs=1,lcolumng%numObsHeader
-          zhu=exp(lcolumng%hu(jlev,jobs))
+      do jlev = 1,col_getNumLev(lcolumng)
+        do jobs=1,col_getNumCol(lcolumng)
+          zhu=exp(col_getElem(lcolumng,jlev,jobs,'HU'))
           lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
-          lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,lcolumng%tt(jlev,jobs),one)
+          lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(lcolumng,jlev,jobs,'TT'),one)
 
           zpresb = lcolumng%vco%db_M(jlev)
           zpresbd= lcolumng%vco%db_dhyb_M(jlev)
           zpresa = lcolumng%vco%da_M(jlev)
           zpresad= lcolumng%vco%da_dhyb_M(jlev)
-          lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*lcolumng%ps(1,jobs))
-     &                        /(zpresa+zpresb*lcolumng%ps(1,jobs))
+          lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*col_getElem(lcolumng,1,jobs,'PS'))
+     &                        /(zpresa+zpresb*col_getElem(lcolumng,1,jobs,'PS'))
         enddo
       enddo
 

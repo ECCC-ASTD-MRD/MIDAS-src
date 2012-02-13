@@ -52,7 +52,7 @@
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
-      INTEGER IPB,IPT,ITY,IDBURP,ITYP
+      INTEGER IPB,IPT,ITY,IDBURP,IVNM
       INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
       INTEGER J,JDATA
       REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI
@@ -60,6 +60,7 @@
       REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
       REAL*8 DLSUM
       LOGICAL LLOK, LLPRINT,LLNOXTR
+      CHARACTER*2 CVAR
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
@@ -93,40 +94,24 @@ C
                   ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-                  ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                  IPT = IK + IPOS*LCOLUMNHR%NLEV
+                  IVNM = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+                  IPT = IK + IPOS*col_getNumLev(LCOLUMNHR)
                   IPB = IPT+1
-                  ZPT  = lcolumnhr%gz(IK,IOBS)/RG
-                  ZPB  = lcolumnhr%gz(IK+1,IOBS)/RG
+                  CALL GETVARTYPE(IVNM,CVAR)
+                  ZPT= col_getHeight(lcolumnhr,ik  ,iobs,cvar)/RG
+                  ZPB= col_getHeight(lcolumnhr,ik+1,iobs,cvar)/RG
                   ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                   ZWT  = 1. - ZWB
-                  if(ityp.eq.bufr_nees) then
+                  if(ivnm.eq.bufr_nees) then
                     write(*,*) 'DOBSZZZ: CANNOT ASSIMILATE ES!!!'
                     call qqexit(1)
                   endif
 C
 C     CONTRIBUTION TO Jo
 C
-c***************************************************************
-c                  IF (LLPRINT .AND. CSTNID(IOBS).EQ.'74647') THEN
-c                     zcon= ZWB*lcolumnhr%all(IPB,IOBS) + ZWT*
-c     &                    lcolumnhr%all(IPT,IOBS)-ZVAR
-c                     write(nulout,*)'dobszzz:jdata,IOBS,stn,ipb,ipt',
-c     &                    ',ZPB,ZPT,ZWB,ZWT,ZVAR=',jdata,IOBS
-c     &                     ,cstnid(iobs),ipb,ipt,ZPB,ZPT,ZWB,ZWT,ZVAR
-c                     write(nulout,*)'dobszzz: ityp,ik,',
-c     &                    ',ZLEV= ',MOBDATA(NCM_VNM,JDATA),ik,ZLEV
-c                     write(nulout,*)'dobszzz: lcolumnhr%all(IPB,IOBS),
-c     &               lcolumnhr%all(IPT,IOBS)= ',lcolumnhr%all(IPB,IOBS),
-c     &               lcolumnhr%all(IPT,IOBS)
-c                     write(nulout,*)'dobszzz: innovation, observation,
-c     &               std-dev-obs = ',zcon,ZVAR,ZOER
-c                  ENDIF
-c***************************************************************
-
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
-     +                  (ZWB*lcolumnhr%all(IPB,IOBS)
-     +                 + ZWT*lcolumnhr%all(IPT,IOBS)-ZVAR)/ZOER)
+     +                  (ZWB*col_getElem(lcolumnhr,IPB,IOBS)
+     +                 + ZWT*col_getElem(lcolumnhr,IPT,IOBS)-ZVAR)/ZOER)
                   DLSUM =DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
      +                 *obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
                   call obs_set_r8(lobsSpaceData,'OMI ',JDATA,obs_elem_r8(lobsSpaceData,'OMA ',JDATA))

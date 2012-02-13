@@ -137,8 +137,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   END DO
                   IF ( .NOT. LLREJ ) THEN
                      ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
-                     ZDIFF= ABS( ( ZVAL-lcolumnhr%gz(LCOLUMNHR%NLEV, &
-                                                     INDEX_HEADER) &
+                     ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR), &
+                                                     INDEX_HEADER,'NA') &
                                  )/RG )
                      ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                   ENDIF
@@ -146,7 +146,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                ELSE
                   ZHHH=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                   ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-                  ZDIFF= ABS( ZHHH- lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)&
+                  ZDIFF= ABS( ZHHH- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA') &
                                     /RG )
                   ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                ENDIF
@@ -165,7 +165,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                       IF (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)THEN
                         IKOUNTREA(J)=IKOUNTREA(J)+1
                         IF(LLPRINT) THEN
-                          ZMODEL =lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)/RG
+                          ZMODEL =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
                           write(nulout,*)'Keep OBS:stnid,index_header,ityp,',&
                                'icrit,zlev,zhhh,zmodel,zdiff ', &
                                obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER)&
@@ -315,7 +315,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)*ZRADDEG
          ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)*ZRADDEG
          ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
-         ZDIFALT=  ZSTNALT- lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)/RG
+         ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.
             IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
@@ -348,7 +348,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
             IASS=obs_elem_i (lobsSpaceData,'ASS ',INDEX_BODY)
             ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
-            ZDIFF= ( ZVAL-lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER) )/RG
+            ZDIFF= ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA') )/RG
             ZCRIT= -RLISTCRIT(JPINEL)
             IF ( ZDIFF .LT. 0.0 ) THEN
                ZDIF: IF(ZDIFF .GE. ZCRIT) THEN
@@ -359,7 +359,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                            ,INDEX_HEADER,ITYP &
                            ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER) &
                            ,ZLAT,ZLON,ZLEV,ZVAL/RG  &
-                           ,lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)/RG &
+                           ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG &
                            ,ZDIFF,ZCRIT
                   ENDIF
                ELSE
@@ -371,7 +371,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                          ,INDEX_HEADER,ITYP &
                          ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER)  &
                          ,ZLAT,ZLON,ZLEV,ZVAL/RG &
-                         ,lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)/RG &
+                         ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG &
                          ,ZDIFF,ZCRIT
                      ENDIF
                      call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
@@ -415,37 +415,35 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
             IF (LLOK )  THEN
                ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
-               ZPB =lcolumnhr%ps(1,INDEX_HEADER)
-               ZPT =lcolumnhr%ps(1,INDEX_HEADER)-RSBLCRIT(IJ)
+               ZPB =col_getElem(lcolumnhr,1,INDEX_HEADER,'PS')
+               ZPT =ZPB-RSBLCRIT(IJ)
                ZDELP = 999999.0
                IF (ZDIFALT .GT. 0.0) THEN
                   ZDELP = ZDIFALT * 100. / 8.0
-                  ZPT   = lcolumnhr%ps(1,INDEX_HEADER)-(ZDELP+RSBLCRIT(IJ))
+                  ZPT   = ZPB-(ZDELP+RSBLCRIT(IJ))
                ENDIF
                IF(LLALTOK(IJ)) THEN
 !C--------------------Model surface and station altitude are very close
 !C              Accept observation if zlev is within the domain
 !C              of the trial field
-                 ZPB = lcolumnhr%ps(1,INDEX_HEADER)
-                 ZPT = LCOLUMNHR%RPPOBS_M(LCOLUMNHR%NLEV_M-1,INDEX_HEADER)
+                 ZPB = col_getElem(lcolumnhr,1,INDEX_HEADER,'PS')
+                 ZPT = col_getPressure(LCOLUMNHR,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')
                  IF(LLPRINT) THEN
                    WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
                        ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
-                       ,ZLON,ZLEV,lcolumnhr%ps(1,INDEX_HEADER) &
-                       ,LCOLUMNHR%RPPOBS_M(LCOLUMNHR%NLEV_M-1,INDEX_HEADER) &
-                       ,ZDIFALT
+                       ,ZLON,ZLEV,ZPB,ZPT,ZDIFALT
                  ENDIF
                ENDIF
                IF(ZLEV .GT. ZPB ) THEN
                   call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                               ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),&
                                     18 ))
-                  ZGZG = lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)/RG
+                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
                   IF(LLPRINT) THEN
                      WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
                           ,INDEX_HEADER,ITYP &
                           ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
-                          ,ZLON,ZLEV,lcolumnhr%ps(1,INDEX_HEADER)
+                          ,ZLON,ZLEV,ZPB
                   ENDIF
                   call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
                   ITOTREJ(IJ)=ITOTREJ(IJ)+1
@@ -453,7 +451,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                        ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
-                  ZGZG = lcolumnhr%gz(LCOLUMNHR%NLEV,INDEX_HEADER)/RG
+                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
                   IF(LLPRINT) THEN
                      WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT ',ITYP,ZDIFALT
                      WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '  &
@@ -559,7 +557,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !C
             IKOUNTT=IKOUNTT+1
             ZVAL=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
-            ZDIFF=  (ZVAL- lcolumnhr%ps(1,INDEX_HEADER) )/100.
+            ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'PS') )/100.
             IF ( ZDIFF .GT. RLISTCRIT ) THEN
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
                DO J=1,JPINEL
@@ -708,7 +706,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)*ZRADDEG
          ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)*ZRADDEG
          ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
-         ZDIFALT=  ZSTNALT- lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG
+         ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.
             IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
@@ -750,36 +748,36 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             end if
 
             ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
-            ZPB =lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG
-            ZPT =lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG + RSBLCRIT(IJ)
+            ZPB =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
+            ZPT =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG + RSBLCRIT(IJ)
             IF (ZDIFALT .GT. 0.0) THEN
-               ZPT=  lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG &
+               ZPT=  col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
                    + (ZDIFALT+RSBLCRIT(IJ))
             ENDIF
             IF(LLALTOK(IJ)) THEN
 !C--------------------Model surface and station altitude are very close
 !C                    Accept observation if zlev is within the domain
 !C                    of the trial field
-               ZPB = lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG
-               ZPT = lcolumnhr%gz_m(LCOLUMNHR%NLEV_M-1,INDEX_HEADER)/RG
+               ZPB = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
+               ZPT = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG
                IF(LLPRINT) THEN
                   WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
                        ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER),ZLAT &
                        ,ZLON,ZLEV  &
-                       ,lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG  &
-                       ,lcolumnhr%gz_m(LCOLUMNHR%NLEV_M-1,INDEX_HEADER)/RG &
+                       ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG  &
+                       ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG &
                        ,ZDIFALT
                ENDIF
             ENDIF
             IF(ZLEV .LT. ZPB ) THEN
                call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                     ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
-               ZGZG = lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG
+               ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                IF(LLPRINT) THEN
                   WRITE(NULOUT,*) 'Rej Obs below model sfc ',INDEX_HEADER,ITYP  &
                        ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
                        ,ZLON,ZLEV &
-                       ,lcolumnhr%gz_m(LCOLUMNHR%NLEV_M-1,INDEX_HEADER)/RG,ZPT  &
+                       ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG,ZPT  &
                        ,INDEX_BODY,ZPB,ZDIFALT
                ENDIF
                call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
@@ -789,7 +787,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             ELSEIF(ZLEV.GE.ZPB .AND. ZLEV.LT.ZPT ) THEN
                call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                     ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
-               ZGZG = lcolumnhr%gz_m(LCOLUMNHR%NLEV_M,INDEX_HEADER)/RG
+               ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                IF(LLPRINT) THEN
                   WRITE(NULOUT,*) '%PR REJ SBL ITYP,DALT ',ITYP,ZDIFALT
                   WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '   &
@@ -899,7 +897,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             if (index_body < 0) exit BODY
 
             IKOUNTT=IKOUNTT+1
-            ZDIFF= lcolumnhr%ps(1,INDEX_HEADER) /100.
+            ZDIFF= col_getElem(lcolumnhr,1,INDEX_HEADER,'PS') /100.
             IF ( ZDIFF .LT. RLISTCRIT ) THEN
               ITYP=obs_elem_i(lobsSpaceData,'VNM ',index_body)
                DO J=1,JPINEL

@@ -54,16 +54,16 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   numheader_mpiglobal=obs_numheader_mpiglobal(lobsSpaceData)
   call tmg_start(77,'EXPNDMVO')
-  call col_allocate(lcolumn_g,lcolumn%nlev,numheader_mpiglobal)
+  call col_allocate(lcolumn_g,col_getNumLev(lcolumn),numheader_mpiglobal)
   call col_expandToMpiGlobal(lcolumn,lcolumn_g,lobsSpaceData)
   call tmg_stop(77)
 
 !$OMP PARALLEL PRIVATE(ilev1,ilev2,deltalev,mythread,numthread)
   mythread=omp_get_thread_num()+1
   numthread=omp_get_num_threads()
-  deltalev=ceiling(real(lcolumn%nlev)/real(numthread))
+  deltalev=ceiling(real(col_getNumLev(lcolumn))/real(numthread))
   ilev1=1+(mythread-1)*deltalev
-  ilev2=min(lcolumn%nlev,mythread*deltalev)
+  ilev2=min(col_getNumLev(lcolumn),mythread*deltalev)
   if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',ilev1,ilev2)
   if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',ilev1,ilev2)
   if(NGEXIST(ngq).eq.1)   call gd2mvoad('HU',ilev1,ilev2)
@@ -107,7 +107,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
 !* Arguments
 !*     CDVARNAME: identificator of the variable to be treated
-!*     KLEV     : number of levels (typically 1 for 2D-fields and LCOLUMN%NLEV for 3D-fields)
+!*     KLEV     : number of levels (typically 1 for 2D-fields and LCOLUMN_NLEV for 3D-fields)
 !*
 !*     Arguments
 !*
@@ -122,33 +122,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
 
       real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(-1):(statevector%nj+2))
-      real*8,pointer :: zprofil(:,:)
+      real*8,pointer :: zprofil(:)
       real*8 :: dldlat2(-1:gaus_nj)
-
-      SELECT CASE (CDVARNAME)
-!*
-!*     2D fields
-!*
-      CASE('TG')
-         zprofil => lcolumn_g%tg
-      CASE('PS')
-         zprofil => lcolumn_g%ps
-!*
-!*     3D fields
-!*
-      CASE('TT')
-         zprofil => lcolumn_g%tt
-      CASE('HU')
-         zprofil => lcolumn_g%hu
-      CASE('TR')
-         zprofil => lcolumn_g%tr
-      CASE('UU')
-         zprofil => lcolumn_g%uu
-      CASE('VV')
-         zprofil => lcolumn_g%vv
-      CASE('GZ')
-         zprofil => lcolumn_g%gz
-      END SELECT
 
       DLDLON2=1./(2.*RPI/STATEVECTOR%NI)
       DLDLOS2=1./(2.*RPI/STATEVECTOR%NI)
@@ -166,6 +141,9 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
         Observations: DO JOBS = 1, numheader_mpiglobal
           if(col_getTimeInterpWeight(lcolumn_g,jobs,jstep).gt.0.0d0) then
+
+            zprofil => col_getColumn(lcolumn_g,jobs,cdvarname)
+
             DLLAO   = real(obs_elem_mpiglobal_r4(lobsSpaceData,'LAT ',JOBS), 8)
             DLLOO   = real(obs_elem_mpiglobal_r4(lobsSpaceData,'LON ',JOBS), 8)
 !C
@@ -193,13 +171,13 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
             do jlev = klev1, klev2
               ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)      &
-                 + DLW1 * ZPROFIL(jlev,JOBS)
+                 + DLW1 * ZPROFIL(jlev)
               ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)    &
-                 + DLW2 * ZPROFIL(jlev,JOBS)
+                 + DLW2 * ZPROFIL(jlev)
               ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)    &
-                 + DLW3 * ZPROFIL(jlev,JOBS)
+                 + DLW3 * ZPROFIL(jlev)
               ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)  &
-                 + DLW4 * ZPROFIL(jlev,JOBS)
+                 + DLW4 * ZPROFIL(jlev)
             enddo
 
           endif

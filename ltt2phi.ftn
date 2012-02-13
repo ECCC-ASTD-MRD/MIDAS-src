@@ -23,143 +23,84 @@
 *
 *Author  : S. Pellerin *ARMA/AES September 1998
 *
-*Revision: L. Fillion *ARMA/AES - 24 nov 98
-*        - Include ES option
-*          C. Charette *ARMA/AES November 1998
-*                      - Added LLPRINT for diagnostics
-*          L. Fillion *ARMA/AES - 3 feb 1999
-*                      - Introduce ps dependence of TLM
-*          C. Charette *ARMA/AES - 8 feb 1999
-*                      - Replaced zptop by lcolumng%rppobs(1,jobs)
-*                        and zpscon by lcolumng%ps(1,jobs)
-*          JM Belanger CMDA/SMC  Nov 2000
-*                   . 32 bits conversion
-*           C. Charette ARMA/SMC FEV. 2002
-*            - Commented out the if(llprint...) statements within
-*              the do loops. They were preventing vectorization.
-*           P. Koclas CMDA/SMC  Apr 2003
-*            - changed loop order  ( lcolumn%hu ---> lcolumnt%hu)
-*           C. Charette - ARMA/SMC - Sep. 2004
-*            - Conversion to hybrid vertical coordinate
-*           Bin He  - ARMA   June  2005
-*            - OpenMP optimization.
-*
 **    Purpose:  -Computation of virtual temperature increments from
 *                temperature and logarith of specific humidity
 *                increments
 *
 *               -call lvtap for del vt to del phi transformation
-*
-*
-*Arguments
-*
 #endif
       use MathPhysConstants_mod
       use columnData_mod 
       IMPLICIT NONE
-*implicits
-c------------------------------------------------------------------------
 #include "comlun.cdk"
 #include "pardim.cdk"
 c
       type(struct_columnData) :: lcolumn,lcolumng
-      type(struct_columnData) :: lcolumnt
-      LOGICAL LLPRINT
       integer jobs,jlev
       real*8  zpscon, zcon,zdelps,zdelt,zalpha,zfacps,zfactt
       INTEGER IERR,ILEN
       real*8 zpresb
       INTEGER mythread,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
-      real*8 vma(lcolumn%nlev),vmb(lcolumn%nlev),vmc(lcolumn%nlev)
-      real*8 vmd(lcolumn%nlev),vme(lcolumn%nlev),vmf(lcolumn%nlev)
-C
-      LLPRINT = .false.
-*
-      call col_allocate(lcolumnt,lcolumn%nlev,lcolumn%numObsHeader)
-**
+      real*8, allocatable :: vma(:),vmb(:),vmc(:)
+      real*8, allocatable :: vmd(:),vme(:),vmf(:)
+      real*8, pointer :: gz_column(:)
+      real*8, allocatable :: tv_tmp(:,:)
+
+      allocate(vma(col_getNumLev(lcolumn)))
+      allocate(vmb(col_getNumLev(lcolumn)))
+      allocate(vmc(col_getNumLev(lcolumn)))
+      allocate(vmd(col_getNumLev(lcolumn)))
+      allocate(vme(col_getNumLev(lcolumn)))
+      allocate(vmf(col_getNumLev(lcolumn)))
+      allocate(tv_tmp(col_getNumLev(lcolumn),col_getNumCol(lcolumn)))
 c
-c*1   First set delq properly and store in lcolumnt%hu ready for Tv
-C computation
-c     ------------------------------------------------------------------
-C -
-c
- 100  continue
-      do jobs = 1, lcolumn%numObsHeader
-        do jlev = 1, lcolumn%nlev
-          lcolumnt%hu(jlev,jobs) = lcolumn%hu(jlev,jobs)
-        enddo
-      enddo
-c
-c*2   Computation of virtual temperature increments
+c     Computation of virtual temperature increments
 c     ---------------------------------------------
 c
- 200  continue
 !$OMP PARALLEL PRIVATE(jobs,jlev,mythread,numthd,zpresb)
 !$OMP+ PRIVATE(zcon,zfactt,zfacps,zdelt,zdelps)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, lcolumn%numObsHeader,numthd
-        do jlev = 1, lcolumn%nlev
-          lcolumnt%tt(jlev,jobs) = lcolumng%oltv(1,jlev,jobs)*lcolumn%tt(jlev,jobs) + 
-     &                             lcolumng%oltv(2,jlev,jobs)*lcolumnt%hu(jlev,jobs)
-***************************************************************
-c       if (LLPRINT .AND.jobs.eq.1) then
-c          write(nulout,*) 'ltt2phi: jobs,lcolumn%numObsHeader,lcolumn%nlev '
-c     &          ,jobs,lcolumn%numObsHeader,lcolumn%nlev
-c          write(nulout,*) 'ltt2phi: jobs,jlev,OLTV(1,,),OLTV(2,,)'
-c     &        , jobs,jlev,lcolumng%OLTV(1,jlev,jobs),lcolumng%OLTV(2,jlev,jobs)
-c          write(nulout,*)'ltt2phi:gmt1,GMQ(jlev,jobs),GMT(jlev,jobs) '
-c     &        ,lcolumnt%tt(jlev,jobs),lcolumn%hu(jlev,jobs),lcolumn%tt(jlev,jobs)
-c       endif
-***************************************************************
+      do jobs = mythread, col_getNumCol(lcolumn),numthd
+        do jlev = 1, col_getNumLev(lcolumn)
+          tv_tmp(jlev,jobs) = lcolumng%oltv(1,jlev,jobs)*col_getElem(lcolumn,jlev,jobs,'TT') + 
+     &                             lcolumng%oltv(2,jlev,jobs)*col_getElem(lcolumn,jlev,jobs,'HU')
         enddo
-!      enddo
 c
-c*3   Prepare r.h.s. for TL-Hydrostatic equation
+c     Prepare r.h.s. for TL-Hydrostatic equation
 c     ------------------------------------------
 c
- 300  continue
-!      do jobs = 1, lcolumn%numObsHeader
-        do jlev = 1, lcolumn%nlev
+        do jlev = 1, col_getNumLev(lcolumn)
 c
-c      zcon = d(lcolumng%rtapfac)/d(ps)
+c       zcon = d(lcolumng%rtapfac)/d(ps)
 c
           zpresb = lcolumng%vco%db_M(jlev)
           zcon    =(lcolumng%vco%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
-     &             lcolumng%rppobs(jlev,jobs)
+     &             col_getPressure(lcolumng,jlev,jobs,'NA')
           zfactt  = lcolumng%rtapfac(jlev,jobs)
-          zfacps  = lcolumng%tt(jlev,jobs)*zcon
-          zdelt   = lcolumng%rtapfac(jlev,jobs)*lcolumnt%tt(jlev,jobs)
-          zdelps  = lcolumng%tt(jlev,jobs)*zcon * lcolumn%ps(1,jobs)
-          lcolumnt%tt(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*lcolumnt%tt(jlev,jobs)
-     &         + lcolumng%tt(jlev,jobs)*zcon * lcolumn%ps(1,jobs)
-c
-***************************************************************
-c       if (LLPRINT .AND.jobs.eq.1) then
-c          write(nulout,*) 'ltt2phi: jobs,lcolumn%numObsHeader,lcolumn%nlev '
-c     &          ,jobs,lcolumn%numObsHeader,lcolumn%nlev
-c          write(nulout,*)'ltt2phi: jobs,jlev,zfactt,zfacps,zcon'
-c     &        , jobs,jlev,zfactt,zfacps,zcon
-c          write(nulout,*)'ltt2phi: jobs,jlev,zdelt,zdelps'
-c     &        , jobs,jlev,zdelt,zdelps
-c          write(nulout,*)'ltt2phi: jobs,jlev,zpresb '
-c     &           ,jobs,jlev,zpresb
-c       endif
-****************************************************************
+          zfacps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon
+          zdelt   = lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
+          zdelps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'PS')
+          tv_tmp(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
+     &         + col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'PS')
         enddo
       enddo
 !$OMP END PARALLEL
 c
-c*4   Computation of del(GZ)
+c     Computation of del(GZ)
 c     ----------------------
 c
- 400  continue
-
       zalpha=0.0D0
-      call matapat(lcolumng%vco%dhyb_m,zalpha,lcolumn%nlev,vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(lcolumng%vco%dhyb_m,zalpha,col_getNumLev(lcolumn),vma,vmb,vmc,vmd,vme,vmf)
       call lvtap
 
-      call col_deallocate(lcolumnt)
+      deallocate(vma)
+      deallocate(vmb)
+      deallocate(vmc)
+      deallocate(vmd)
+      deallocate(vme)
+      deallocate(vmf)
+      deallocate(tv_tmp)
 
       return
 
@@ -175,92 +116,49 @@ c
 *         A LA LIMITE INF. Y(N). LA MATRICE MATAP A ETE CALCULEE DANS LA
 *         SUBR. MATAPAT.
 *
-*
 * AUTHOR: MICHEL BELAND - AVRIL 1984 - ADAPTE AU MODELE SEF, AVRIL 1984.
-*
-* REVISION: LUC FILLION - AUG 94 - MODIFIED FOR VARIATIONAL ANALYSIS.
-*           S. Pellerin - Sept 98 - Use of lcolumnt%tt for virtual
-*                                   temperatures
-*                                 - GZ(lcolumn%nlev) = 0 (tangent linear
-*                                   version of vtap).
-*                                 - Introduction of surface pressure
-*                                   dependant factor (rtapfac) for eta
-*                                   coordinates
-*                                 - Introduction of site constants
-*          C. Charette *ARMA/AES November 1998
-*                      - Added LLPRINT for diagnostics
-*          L. Fillion *ARMA/AES - 3 Feb 1999
-*                      - remove rtapfac
-*           C. Charette ARMA/SMC FEV. 2002
-*            - Commented out the if(llprint...) statements within
-*              the do loops. They were preventing vectorization.
-*           Bin He  *ARMA      - June 25,2005
-*            -  OpenMP parallelization.
 *
       IMPLICIT NONE
       INTEGER  KILG, KLEV
       REAL*8     PCON
-*
-      LOGICAL  LLPRINT
       INTEGER  JLON, IKLEVM2, JK, IK, jobs
       REAL*8     ZAK0, ZBK0, ZCK0
       REAL*8     ZAK, ZBK, ZCK, ZCON
       INTEGER mythread,numthd
       INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
-*implicits
-c
-c lcolumnt%tt : working vector of virtual temperatures.
-c
-      LLPRINT = .FALSE.
+
       ZCON = -RGASD
-      ZAK0  = -2.0*ZCON*VMA(lcolumn%nlev)
-      ZBK0  = -2.0*ZCON*VMB(lcolumn%nlev)
-      ZCK0  = -2.0*ZCON*VMC(lcolumn%nlev)
+      ZAK0  = -2.0*ZCON*VMA(col_getNumLev(lcolumn))
+      ZBK0  = -2.0*ZCON*VMB(col_getNumLev(lcolumn))
+      ZCK0  = -2.0*ZCON*VMC(col_getNumLev(lcolumn))
 !$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,mythread,numthd)
-!$OMP+ PRIVATE(zak,zbk,zck)
+!$OMP+ PRIVATE(zak,zbk,zck,gz_column)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
-      do jobs = mythread, lcolumn%numObsHeader,numthd
-        lcolumn%gz(lcolumn%nlev,jobs) = 0.0
-        lcolumn%gz(lcolumn%nlev-1,jobs)=ZAK0*lcolumnt%tt(lcolumn%nlev-1,jobs)+
-     $                      ZBK0*lcolumnt%tt(lcolumn%nlev,jobs)+
-     &                      ZCK0*lcolumnt%tt(lcolumn%nlev-2,jobs)+
-     $                      lcolumn%gz(lcolumn%nlev,jobs)
-********************************************************
-c       if (LLPRINT .and. jobs.eq.1) then
-c       print *,'lvtap:lcolumn%nlev,jobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev,) ',
-c     &       lcolumn%nlev,jobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev,jobs)
-c       print *,'lvtap:lcolumn%nlev-1,jobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev-1,) ',
-c     &       lcolumn%nlev-1,jobs,zak,zbk,zck,lcolumn%gz(lcolumn%nlev-1,jobs)
-c       endif
-********************************************************
-*
-      IKLEVM2 = lcolumn%nlev-2
-      do JK = 1, IKLEVM2
-        IK = lcolumn%nlev-1-JK
-        ZAK = -2.0*ZCON*VMA(IK+1)
-        ZBK = -2.0*ZCON*VMB(IK+1)
-        ZCK = -2.0*ZCON*VMC(IK+1)
-!        do jobs = 1, lcolumn%numObsHeader
-          lcolumn%gz(ik,jobs)= ZAK*lcolumnt%tt(IK,jobs)+
-     $                    ZBK*lcolumnt%tt(IK+1,jobs)+
-     $                    ZCK*lcolumnt%tt(IK+2,jobs)+
-     +                    lcolumn%gz(IK+2,jobs)
-********************************************************
-c       if (LLPRINT .and. jobs.eq.1) then
-c          print *,'lvtap:ik,jobs,zak,zbk,zck lcolumn%gz(ik,)= ',
-c     &       ik,jobs,zak,zbk,zck,lcolumn%gz(ik,jobs)
-c          print *,'lvtap:ik,jobs,lcolumnt%tt(ik,),lcolumnt%tt(ik+1,),lcolumnt%tt(ik+2,)= '
-c     &       ,ik,jobs,lcolumnt%tt(IK,jobs),lcolumnt%tt(IK+1,jobs),lcolumnt%tt(IK+2,jobs)
-c          print *,'lvtap:ik,jobs= '
-c     &       ,ik,jobs
-c       endif
-**********************************************************
+      do jobs = mythread, col_getNumCol(lcolumn),numthd
+        gz_column => col_getColumn(lcolumn,jobs,'GZ')
+        gz_column(col_getNumLev(lcolumn)) = 0.0
+        gz_column(col_getNumLev(lcolumn)-1)=ZAK0*tv_tmp(col_getNumLev(lcolumn)-1,jobs)+
+     $                      ZBK0*tv_tmp(col_getNumLev(lcolumn),jobs)+
+     &                      ZCK0*tv_tmp(col_getNumLev(lcolumn)-2,jobs)+
+     $                      gz_column(col_getNumLev(lcolumn))
+        IKLEVM2 = col_getNumLev(lcolumn)-2
+
+        do JK = 1, IKLEVM2
+          IK = col_getNumLev(lcolumn)-1-JK
+          ZAK = -2.0*ZCON*VMA(IK+1)
+          ZBK = -2.0*ZCON*VMB(IK+1)
+          ZCK = -2.0*ZCON*VMC(IK+1)
+          gz_column(ik)= ZAK*tv_tmp(IK,jobs)+
+     $                     ZBK*tv_tmp(IK+1,jobs)+
+     $                     ZCK*tv_tmp(IK+2,jobs)+
+     +                     gz_column(IK+2)
         enddo
+
       enddo
 !$OMP END PARALLEL
-C
-      RETURN
-      END SUBROUTINE lvtap
+
+      return
+      end subroutine lvtap
 
       end
