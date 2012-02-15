@@ -54,7 +54,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   numheader_mpiglobal=obs_numheader_mpiglobal(lobsSpaceData)
   call tmg_start(77,'EXPNDMVO')
-  call col_allocate(lcolumn_g,col_getNumLev(lcolumn),numheader_mpiglobal)
+  call col_allocate(lcolumn_g,numheader_mpiglobal,col_getNumLev(lcolumn,'MM'),col_getNumLev(lcolumn,'TH'))
   call col_expandToMpiGlobal(lcolumn,lcolumn_g,lobsSpaceData)
   call tmg_stop(77)
 

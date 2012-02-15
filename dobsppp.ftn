@@ -69,6 +69,7 @@
             iass=obs_elem_i (lobsSpaceData,'ASS ',jdata)
             ixtr=obs_elem_i (lobsSpaceData,'XTR ',jdata)
             ivco=obs_elem_i (lobsSpaceData,'VCO ',jdata)
+
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
                ZVAR=obs_elem_r8(lobsSpaceData,'VAR ',jdata)
                IVNM=obs_elem_i (lobsSpaceData,'VNM ',jdata)
@@ -76,7 +77,7 @@
                ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                IK  =obs_elem_i (lobsSpaceData,'LYR ',jdata)
                IOBS=obs_elem_i (lobsSpaceData,'OBS ',jdata)
-               IPT = IK + col_varOffset(lcolumnhr,ivnm)
+               IPT = IK + col_varnoOffset(lcolumnhr,ivnm)
                IPB = IPT+1
                CALL GETVARTYPE(IVNM,CVAR)
                ZPT= col_getPressure(lcolumnhr,ik  ,iobs,cvar)
@@ -101,14 +102,14 @@
 ! Process all upper air data data below model's orography
 !
             ELSEIF ( (iass.EQ.1).AND.(ixtr.EQ.2).AND.(ivco.EQ.2) ) THEN
-               IPT = col_getNumLev(LCOLUMNHR)-1 + col_varOffset(lcolumnhr,ivnm)
-               IPB = IPT+1
                IF(IVNM .EQ. BUFR_NEGZ ) THEN
 !
 ! Forward nonlinear model for geopotential data below model's orography
 !
-                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')))
-     &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'TT')
+                  IPT = col_getNumLev(LCOLUMNHR,'TH')-1 + col_varnoOffset(lcolumnhr,ivnm)
+                  IPB = IPT+1
+                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
+     &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
                   zoma = ( col_getMountain(lcolumnhr,iobs) + ZTVG/zgamma
      &                     *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'P0'))**zexp) - zvar )/zoer
                   PJO =PJO+zoma*zoma

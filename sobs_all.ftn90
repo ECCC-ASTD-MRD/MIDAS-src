@@ -75,7 +75,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       WRITE(NULOUT,* ) '*****************************************************'
       WRITE(NULOUT,* ) ' '
       LLPRINT = .FALSE.
-!ccc      LLPRINT = .TRUE.
 !C
 !C     SET COUNTERS TO ZERO
 !C
@@ -137,8 +136,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   END DO
                   IF ( .NOT. LLREJ ) THEN
                      ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
-                     ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR), &
-                                                     INDEX_HEADER,'NA') &
+                     ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'), &
+                                                     INDEX_HEADER,'MM') &
                                  )/RG )
                      ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                   ENDIF
@@ -146,7 +145,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                ELSE
                   ZHHH=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                   ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-                  ZDIFF= ABS( ZHHH- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA') &
+                  ZDIFF= ABS( ZHHH- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') &
                                     /RG )
                   ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
                ENDIF
@@ -165,7 +164,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                       IF (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)THEN
                         IKOUNTREA(J)=IKOUNTREA(J)+1
                         IF(LLPRINT) THEN
-                          ZMODEL =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
+                          ZMODEL =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                           write(nulout,*)'Keep OBS:stnid,index_header,ityp,',&
                                'icrit,zlev,zhhh,zmodel,zdiff ', &
                                obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER)&
@@ -263,7 +262,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       ILISTEL(6)=BUFR_NETT
       ILISTEL(7)=BUFR_NEGZ
 
-!ccc      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
 
       WRITE(NULOUT,* ) ' '
@@ -315,7 +313,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)*ZRADDEG
          ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)*ZRADDEG
          ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
-         ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
+         ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.
             IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
@@ -348,7 +346,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
             IASS=obs_elem_i (lobsSpaceData,'ASS ',INDEX_BODY)
             ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
-            ZDIFF= ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA') )/RG
+            ZDIFF= ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') )/RG
             ZCRIT= -RLISTCRIT(JPINEL)
             IF ( ZDIFF .LT. 0.0 ) THEN
                ZDIF: IF(ZDIFF .GE. ZCRIT) THEN
@@ -359,7 +357,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                            ,INDEX_HEADER,ITYP &
                            ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER) &
                            ,ZLAT,ZLON,ZLEV,ZVAL/RG  &
-                           ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG &
+                           ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
                            ,ZDIFF,ZCRIT
                   ENDIF
                ELSE
@@ -371,7 +369,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                          ,INDEX_HEADER,ITYP &
                          ,obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER)  &
                          ,ZLAT,ZLON,ZLEV,ZVAL/RG &
-                         ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG &
+                         ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
                          ,ZDIFF,ZCRIT
                      ENDIF
                      call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
@@ -438,7 +436,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                               ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),&
                                     18 ))
-                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
+                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                   IF(LLPRINT) THEN
                      WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
                           ,INDEX_HEADER,ITYP &
@@ -451,7 +449,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                        ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
-                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),INDEX_HEADER,'NA')/RG
+                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                   IF(LLPRINT) THEN
                      WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT ',ITYP,ZDIFALT
                      WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '  &

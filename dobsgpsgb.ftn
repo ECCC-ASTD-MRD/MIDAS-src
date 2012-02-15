@@ -69,7 +69,7 @@ C
       INTEGER IBEGINOB, ILASTOB, JO
       INTEGER IDATYP, ITYP
       INTEGER IDATA   , IDATEND, JDATA
-      INTEGER JL, JK
+      INTEGER JL, JK, nlev_T
 C
       LOGICAL  ASSIM, LLOK
 
@@ -80,15 +80,16 @@ C     * 1.  Initializations
 C     *     ---------------
 C
       ZTODEG = 180.0 / RPI
-      allocate(zeta(col_getNumLev(lcolumnhr)))
-      allocate(ztt(col_getNumLev(lcolumnhr)))
-      allocate(zhu(col_getNumLev(lcolumnhr)))
-      allocate(zgz(col_getNumLev(lcolumnhr)))
+      nlev_T=col_getNumLev(lcolumnhr,'TH')
+      allocate(zeta(nlev_T))
+      allocate(ztt(nlev_T))
+      allocate(zhu(nlev_T))
+      allocate(zgz(nlev_T))
 C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C      
-      DO JL = 1, col_getNumLev(lcolumnhr)
+      DO JL = 1, nlev_T
          ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
       ENDDO
 C
@@ -148,7 +149,7 @@ C     *              Profile at the observation location x :
 C
                      ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
                      ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
-                     DO JL = 1, col_getNumLev(LCOLUMNHR)
+                     DO JL = 1, nlev_T
                         ZTT(JL) =     col_getElem(lcolumnhr,JL,JO,'TT')
                         ZHU(JL) = EXP(col_getElem(lcolumnhr,JL,JO,'HU'))
                         ! BUE: ORIGINALLY GZ, SHOULD PROBABLY BY GZ_T???
@@ -157,7 +158,7 @@ C
                      ZP0 =  col_getElem(lcolumnhr,1,JO,'P0')
                      ! BUE: ORIGINALLY RPPOBS, SHOULD PROBABLY BY RPPOBS_T???
                      ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
-                     ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/GRAV
+                     ZMT = ZGZ(nlev_T)/GRAV
 C
 C     *        Apply the ZTD observation operator ZHX = H(x)
 C 

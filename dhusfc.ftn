@@ -110,7 +110,7 @@ c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
-     +                (col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')-ZVAR)
+     +                (col_getElem(lcolumnhr,col_getVarNumLev(LCOLUMNHR,'HU'),IOBS,'HU')-ZVAR)
      +                 / ZOER)
 
                   IF ( LLPRINT ) THEN
@@ -120,9 +120,9 @@ c                  ENDIF
                     write(nulout,*)'   zvar   = ',ZVAR
                     write(nulout,*)'   zoer   = ',ZOER
                     write(nulout,*)'   ik     = ',IK
-                    write(nulout,*)'   lcolumnhr_nlev= ',col_getNumLev(LCOLUMNHR)
+                    write(nulout,*)'   lcolumnhr_nlev= ',col_getVarNumLev(LCOLUMNHR,'HU')
                     write(nulout,*)'   lcolumnhr_hu(lcolumnhr_nlev,iobs) = '
-     &                   ,col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')
+     &                   ,col_getElem(lcolumnhr,col_getVarNumLev(LCOLUMNHR,'HU'),IOBS,'HU')
                     write(nulout,*)'   O-Psfc = '
      &                   ,-obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'

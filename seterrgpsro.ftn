@@ -97,7 +97,7 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C
-      NGPSLEV=col_getNumLev(LCOLUMNHR)
+      NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
       DO JL = 1, NGPSLEV
          ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
       ENDDO
@@ -156,7 +156,7 @@ C
                ZLAT = Lat * ZTODEG
                ZLON = Lon * ZTODEG
                      ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               DO JL = 1, col_getNumLev(LCOLUMNHR)
+               DO JL = 1, col_getNumLev(LCOLUMNHR,'TH')
 C
 C     *           Profile x
 C
@@ -168,7 +168,7 @@ CCCCCCCCCCC          THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
                   ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
                ENDDO
                ZPT = col_getPressure(LCOLUMNHR,1,INDEX_HEADER,'TH')
-               ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/RG
+               ZMT = ZGZ(col_getNumLev(LCOLUMNHR,'TH'))/RG
                ZMT = gpsgeopotential(Lat, ZMT)/RG
 !!               ZPR = vco_anl%dprf_M
 !!               ZCF = vco_anl%drcf1

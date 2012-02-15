@@ -94,7 +94,7 @@ C
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                   IVNM = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                  IPT = IK + col_varOffset(lcolumnhr,ivnm)
+                  IPT = IK + col_varnoOffset(lcolumnhr,ivnm)
                   IPB = IPT+1
                   CALL GETVARTYPE(IVNM,CVAR)
                   ZPT= col_getHeight(lcolumnhr,ik  ,iobs,cvar)/RG

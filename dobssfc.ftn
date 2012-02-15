@@ -159,17 +159,17 @@ C
                   IXTR = obs_elem_i(lobsSpaceData,'XTR ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
-                  IPT  = col_getNumLev(LCOLUMNHR)-1 + col_varOffset(lcolumnhr,ityp)
-                  IPB  = IPT+1
                   CALL GETVARTYPE(ITYP,CVAR)
+                  IPT  = col_getNumLev(LCOLUMNHR,cvar)-1 + col_varnoOffset(lcolumnhr,ityp)
+                  IPB  = IPT+1
                   if(ityp.eq.bufr_ness) then
-                    columnVarB=lqtoes(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU'),
-     +                                col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'TT'),
-     +                                col_getPressure(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,cvar))
+                    columnVarB=lqtoes(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU'),
+     +                                col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT'),
+     +                                col_getPressure(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TH'))
                   else
                     columnVarB=col_getElem(lcolumnhr,IPB,IOBS)
                   endif
-                  GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,cvar)
+                  GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,cvar),IOBS,cvar)
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
      +                  (columnVarB
      +                 - ZSLOPE*(ZHHH-GZHR)-ZVAR)
@@ -193,9 +193,9 @@ C              below the model height
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
                   CALL GETVARTYPE(ITYP,CVAR)
-                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,cvar))
-                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')))
-     &                    *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'TT')
+                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,cvar),IOBS,cvar))
+                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
+     &                    *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
                   ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
      &                 ((col_getElem(lcolumnhr,1,IOBS,'P0')*ZCON**ZEXP)-ZVAR)/ZOER)
@@ -265,8 +265,8 @@ C
 c
 c  forward nonlinear model for geopotential data below model's orography
 c
-                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'HU')))
-     &                        *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'TT')
+                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
+     &                        *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,(col_getMountain(lcolumnhr,iobs)
      &                        + ZTVG/zgamma
      &                        *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'P0'))**zexpgz)

@@ -5,6 +5,7 @@ module verticalCoord_mod
 
 
   type vco
+     logical :: initialized=.false.
      integer :: iversion          ! code of vert coord from !! record in BG stat file
      integer :: ikind               ! kind of vertical coordinate(a la convip)
      character(len=8) :: svcod      ! type of vertical coordinate (cvcord in 3DVAR)
@@ -81,6 +82,8 @@ module verticalCoord_mod
     real*8,    dimension(:), pointer :: my_a, my_b
     REAL*8 precision
     character(len=10) :: blk_S
+
+!    if(.not.associated(tf_vco)) allocate(tf_vco)
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file(vgd_new reads "!!" record)
@@ -289,6 +292,8 @@ module verticalCoord_mod
       enddo
     end select
     print*,'vco: dbug: tf_vco%nlev_T = ',tf_vco%nlev_T
+
+    tf_vco%initialized=.true.
 
   end subroutine vco_SetupFromFile
 

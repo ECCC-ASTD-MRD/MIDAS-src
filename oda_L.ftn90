@@ -248,7 +248,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
       ENDDO ! JSTEP
 
-      call col_fillmvo(lcolumn,CDVARNAME,'NA',zprofil,klev,col_getNumCol(lcolumn))
+      call col_fillmvo(lcolumn,CDVARNAME,'NA',zprofil)
 
       deallocate(zprofil)
 

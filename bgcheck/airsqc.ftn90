@@ -251,9 +251,9 @@
                 ZTG(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'TG')
                 ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'P0')*RPATMB
 
-                DO JL = 1, col_getNumLev(lcolumnhr)
+                DO JL = 1, col_getNumLev(lcolumnhr,'TH')
                   ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'TT')
-                  ZHT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'GZ') / RG
+                  ZHT(JL,NOBAIRS) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
                   ZLQ(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'HU')
                   ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,JO,'NA') * RPATMB
                 END DO

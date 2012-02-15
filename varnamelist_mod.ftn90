@@ -5,7 +5,7 @@ module varNameList_mod
   integer, parameter          :: jpnvarmax3D=6,jpnvarmax2D=2
   character(len=2), parameter :: varNameList3D(jpnvarmax3D) = (/'UU','VV','GZ','TT','HU','TR'/)
   character(len=2), parameter :: varNameList2D(jpnvarmax2D) = (/'P0','TG'/)
-  character(len=2), parameter :: varTypeList3D(jpnvarmax3D) = (/'MM','MM','TH','TH','TH','TH'/)
+  character(len=2), parameter :: varTypeList3D(jpnvarmax3D) = (/'MM','MM','MM','TH','TH','TH'/)
   character(len=2), parameter :: varTypeList2D(jpnvarmax2D) = (/'SF','SF'/)
 
   integer, parameter          :: jpnvarmax=jpnvarmax3D+jpnvarmax2D

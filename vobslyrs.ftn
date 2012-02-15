@@ -86,7 +86,7 @@ C
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                CALL GETVARTYPE(ITYP,CVAR)
                ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,cvar)
-               ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR),IOBS,cvar)
+               ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,cvar),IOBS,cvar)
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .GT. ZPB ) THEN
@@ -180,41 +180,11 @@ C
                ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
      &                ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
      &                ITYP.EQ.BUFR_NEHS ) THEN
-                 IK=COL_GETNUMLEV(LCOLUMNGHR)-1
+                 IK=nlev-1
                ENDIF
                call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
             ENDIF
          END DO
-C
-C     2.3   Reference ppp level of thickness data (SATEMS)
-C           -----
-C
-
-C        loop over all header indices of the 'ST' family
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_header_list(lobsSpaceData,'ST')
-         HEADER: do
-            index_header = obs_getHeaderIndex(lobsSpaceData)
-            if (index_header < 0) exit HEADER
-
-            LLOK = (obs_elem_i(lobsSpaceData,'ASS ',index_header) .EQ. 1 .AND.
-     &              obs_elem_i(lobsSpaceData,'VCO ',index_header) .EQ. 2 )
-            if ( .not. LLOK ) then
-               cycle HEADER             ! Proceed to the next index_header
-            end if
-
-            IOBS = obs_elem_i (lobsSpaceData,'OBS ',index_header)
-            ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',index_header)
-            IK = 1
-            DO JK = 2,COL_GETNUMLEV(LCOLUMNGHR) - 1
-              ZPT  = col_getPressure(LCOLUMNGHR,JK,IOBS,'NA')
-              IF( ZLEV .GT. ZPT ) IK = JK
-            END DO
-            call obs_set_i(lobsSpaceData,'LYR ',index_header, 
-     &                     obs_elem_i(lobsSpaceData,'LYR ',index_header)
-     &                    + 1000 * IK)
-         END DO HEADER
 C
       RETURN
       END

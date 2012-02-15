@@ -352,9 +352,9 @@
                 ZLAT(NOBIASI) = obs_elem_r4(lobsSpaceData,'LAT ',jo)/ZTORAD
                 ZLON(NOBIASI) = obs_elem_r4(lobsSpaceData,'LON ',jo)/ZTORAD
 
-                DO JL = 1, col_getNumLev(lcolumnhr)
+                DO JL = 1, col_getNumLev(lcolumnhr,'TH')
                   ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'TT')
-                  ZHT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'GZ') / RG
+                  ZHT(JL,NOBIASI) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
                   ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'HU')
                   ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,JO,'NA') * RPATMB
                 END DO

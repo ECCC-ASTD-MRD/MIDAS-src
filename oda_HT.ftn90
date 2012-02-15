@@ -102,7 +102,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
             ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-            IPT  = IK  + col_varOffset(lcolumng,ityp)
+            IPT  = IK  + col_varnoOffset(lcolumng,ityp)
             IPB  = IPT+1
             ZPT  = col_getPressure(LCOLUMNG,IK,IOBS,'NA')
             ZPB  = col_getPressure(LCOLUMNG,IK+1,IOBS,'NA')
@@ -151,7 +151,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
-            IPT  = col_getNumLev(lcolumn)-1 + col_varOffset(lcolumng,ityp)
+            IPT  = col_getNumLev(lcolumn)-1 + col_varnoOffset(lcolumng,ityp)
             IPB  = IPT+1
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
 !c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
@@ -216,7 +216,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             ZHHH = ZLEV * GRAV
-            IPT  = col_getNumLev(lcolumn)-1 + col_varOffset(lcolumng,ityp)
+            IPT  = col_getNumLev(lcolumn)-1 + col_varnoOffset(lcolumng,ityp)
             IPB  = IPT+1
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
 !c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
@@ -244,7 +244,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
               hu_column(col_getNumLev(lcolumn))= hu_column(col_getNumLev(lcolumn))   &
                    + lcolumng%OLTV(2,col_getNumLev(lcolumn),IOBS)*ZATV
             ELSE
-              IPT  = IK + col_varOffset(lcolumng,ityp)
+              IPT  = IK + col_varnoOffset(lcolumng,ityp)
               IPB  = IPT+1
               ZPT  = col_getHeight(lcolumng,IK  ,IOBS,'NA')
               ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')
@@ -579,7 +579,7 @@ end subroutine oda_HTto
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
             IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-            IPT  = IK  + col_varOffset(lcolumng,ityp)
+            IPT  = IK  + col_varnoOffset(lcolumng,ityp)
             IPB  = IPT+1
             ZPT  = col_getHeight(lcolumng,IK,IOBS,'NA')/RG
             ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')/RG

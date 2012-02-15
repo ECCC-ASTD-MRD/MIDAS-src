@@ -6,17 +6,17 @@ module columnData_mod
 !  private
 
   type struct_columnData
-    integer         :: nlev,nlev_T,nlev_M
-    integer         :: nkgdimo,numObsHeader,nStepObs
-    logical         :: allocated=.false.
-    real*8,pointer  :: all(:,:)
-    real*8,pointer  :: gz_T(:,:),gz_M(:,:)
-    real*8,pointer  :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
-    real*8,pointer  :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
-    real*8,pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    real*8,pointer  :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
-    type(vco)       :: vco
-    integer,pointer :: varOffset(:),varNumLev(:)
+    integer           :: nlev,nlev_T,nlev_M
+    integer           :: nkgdimo,numObsHeader,nStepObs
+    logical           :: allocated=.false.
+    real*8,pointer    :: all(:,:)
+    real*8,pointer    :: gz_T(:,:),gz_M(:,:)
+    real*8,pointer    :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
+    real*8,pointer    :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
+    real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
+    real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
+    type(vco)         :: vco
+    integer,pointer   :: varOffset(:),varNumLev(:)
   end type struct_columnData
 
   logical nmvoexist(jpnvarmax)
@@ -41,7 +41,7 @@ module columnData_mod
     end function col_varExist
 
 
-    function col_varOffset(column,varnum) result(offset)
+    function col_varnoOffset(column,varnum) result(offset)
       implicit none
       type(struct_columnData) :: column
       integer, intent(in)     :: varnum
@@ -49,10 +49,10 @@ module columnData_mod
 
       offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
 
-    end function col_varOffset
+    end function col_varnoOffset
 
 
-    function col_varNumLev(column,varName) result(nlev)
+    function col_getVarNumLev(column,varName) result(nlev)
       implicit none
       type(struct_columnData) :: column
       character(len=2), intent(in) :: varName
@@ -65,12 +65,12 @@ module columnData_mod
       elseif(varTypeList(vnl_varListIndex(varName)).eq.'SF') then
         nlev=1
       else
-        write(*,*) 'col_varNumLev: Unknown number of levels! ',varTypeList(vnl_varListIndex(varName))
+        write(*,*) 'col_getVarNumLev: Unknown number of levels! ',varTypeList(vnl_varListIndex(varName))
         call flush(6)
         call qqexit(1)
       endif
 
-    end function col_varNumLev
+    end function col_getVarNumLev
 
 
     function col_varnoNumLev(column,varNumber) result(nlev)
@@ -79,7 +79,7 @@ module columnData_mod
       integer, intent(in)     :: varNumber
       integer                 :: nlev
 
-      nlev=col_varNumLev(column,vnl_varnameFromVarnum(varNumber))
+      nlev=col_getVarNumLev(column,vnl_varnameFromVarnum(varNumber))
 
     end function col_varnoNumLev
 
@@ -137,7 +137,6 @@ module columnData_mod
       WRITE(*,FMT=9120) NVO3D,NVO2D
  9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6)
 
-
       CONTAINS
 
         LOGICAL FUNCTION VARNEED(VARCHAR)
@@ -165,39 +164,68 @@ module columnData_mod
     END SUBROUTINE col_zero
 
 
-    SUBROUTINE col_allocate(column,kstep,numObsHeader)
+    SUBROUTINE col_allocate(column,numObsHeader,nlev_M,nlev_T)
       IMPLICIT NONE
 
       type(struct_columnData) :: column
-      integer :: kstep,numObsHeader
-      integer :: ier,nlev
+      integer, intent(in)           :: numObsHeader
+      integer, intent(in), optional :: nlev_M,nlev_T
+      integer :: ier
 
       integer iloc,jvar,jvar2
 
-      column%allocated=.true.
-      column%nkgdimo = nvo3d*kstep + nvo2d
       column%numObsHeader = numObsHeader
-      column%nlev = kstep
-      column%nlev_M = kstep
-      column%nlev_T = kstep
-      write(*,*) 'col_allocate: nkgdimo = ',column%nkgdimo
+
+      if( (.not.present(nlev_M)) .and. (.not.present(nlev_T)) ) then
+        if(column%vco%initialized) then
+          column%nlev = max(column%vco%nlev_M,column%vco%nlev_T)
+          column%nlev_M = column%vco%nlev_M
+          column%nlev_T = column%vco%nlev_T
+        else
+          write(*,*) 'col_allocate: VerticalCoord has not been initialized!'
+          call flush(6)
+          call qqexit(1)
+        endif
+      else
+        column%nlev = max(nlev_M,nlev_T)
+        column%nlev_M = nlev_M
+        column%nlev_T = nlev_T
+      endif
 
       allocate(column%varOffset(jpnvarmax))
       column%varOffset(:)=0
       allocate(column%varNumLev(jpnvarmax))
       column%varNumLev(:)=0
 
+      iloc=0
+      do jvar = 1, jpnvarmax3d
+        if(nmvoexist(jvar)) then
+          column%varOffset(jvar)=iloc
+          column%varNumLev(jvar)=col_getVarNumLev(column,varNameList(jvar))
+          iloc = iloc + col_getVarNumLev(column,varNameList(jvar))
+        endif
+      enddo
+      do jvar2 = 1, jpnvarmax2d
+        jvar=jvar2+jpnvarmax3d
+        if(nmvoexist(jvar)) then
+          column%varOffset(jvar)=iloc
+          column%varNumLev(jvar)=1
+          iloc = iloc + 1
+        endif
+      enddo
+      column%nkgdimo=iloc
+
       allocate(column%all(column%nkgdimo,column%numObsHeader))
       column%all(:,:)=0.0d0
 
-      allocate(column%gz_T(column%nlev,column%numObsHeader))
-      allocate(column%gz_M(column%nlev,column%numObsHeader))
+      allocate(column%gz_T(column%nlev_T,column%numObsHeader))
+      allocate(column%gz_M(column%nlev_M,column%numObsHeader))
       column%gz_T(:,:)=0.0d0
       column%gz_M(:,:)=0.0d0
 
-      allocate(column%rppobs(column%nlev,column%numObsHeader))
-      allocate(column%rppobs_T(column%nlev,column%numObsHeader))
-      allocate(column%rppobs_M(column%nlev,column%numObsHeader))
+      allocate(column%rppobs  (column%nlev  ,column%numObsHeader))
+      allocate(column%rppobs_T(column%nlev_T,column%numObsHeader))
+      allocate(column%rppobs_M(column%nlev_M,column%numObsHeader))
       column%rppobs(:,:)=0.0d0
       column%rppobs_T(:,:)=0.0d0
       column%rppobs_M(:,:)=0.0d0
@@ -210,25 +238,11 @@ module columnData_mod
       allocate(column%timeInterpWeight(column%numObsHeader,mxstepobs))
       column%timeInterpWeight(:,:)=0.0d0
  
-      iloc=0
-      do jvar = 1, jpnvarmax3d
-        if(nmvoexist(jvar)) then
-          column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=kstep
-          iloc = iloc + kstep
-        endif
-      enddo
-      do jvar2 = 1, jpnvarmax2d
-        jvar=jvar2+jpnvarmax3d
-        if(nmvoexist(jvar)) then
-          column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=1
-          iloc = iloc + 1
-        endif
-      enddo
-
+      write(*,*) 'col_allocate: nkgdimo = ',column%nkgdimo
       write(*,*) 'col_allocate: varOffset=',column%varOffset
       write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+
+      column%allocated=.true.
 
       RETURN
     END SUBROUTINE col_allocate
@@ -278,26 +292,7 @@ module columnData_mod
     end FUNCTION col_getTimeInterpWeight
 
 
-    SUBROUTINE col_copy2d(column_in,column_out)
-      IMPLICIT NONE
-
-      type(struct_columnData) :: column_in,column_out
-      integer :: jobs,jv,jv_in,jv_out
- 
-      do jobs = 1, column_in%numObsHeader
-        do jv = 1, nvo2d
-          jv_in   = jv + nvo3d*column_in%nlev
-          jv_out  = jv + nvo3d*column_out%nlev
-          column_out%all(jv_out,jobs) =  column_in%all(jv_in,jobs)
-        enddo
-        ! also copy the mountain field
-        column_out%gz_t(column_out%nlev_t,jobs)=column_in%gz_t(column_in%nlev_t,jobs)
-      enddo
-
-    END SUBROUTINE col_copy2d
-
-
-    SUBROUTINE col_fillmvo(columnghr,cdvar,cdlev,pvar,knlev,knobs)
+    SUBROUTINE col_fillmvo(columnghr,cdvar,cdlev,pvar)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
     !
@@ -313,104 +308,74 @@ module columnData_mod
     implicit none
 
     type(struct_columnData) :: columnghr
-    integer knlev,knobs
-    real*8 pvar(knlev,knobs)
+    real*8 pvar(:,:)
     character*2 cdvar,cdlev
 
-    integer jobs,jlev
+    integer jobs,jlev,nlev
     real*8, pointer :: column_ptr(:)
 
-      if (cdvar.eq.'PP') then
-        if(cdlev.eq.'TH') then
-          do jobs = 1,columnghr%numObsHeader
-            do jlev = 1,columnghr%nlev
-              columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-          enddo
-        elseif(cdlev.eq.'MM') then
-          do jobs = 1,columnghr%numObsHeader
-            do jlev = 1,columnghr%nlev
-              columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-          enddo
-        else
-          do jobs = 1,columnghr%numObsHeader
-            do jlev = 1,columnghr%nlev
-              columnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
-            enddo
-          enddo
-        endif
-      elseif(cdvar.eq.'UU') then
+    ! Pressure
+    if (cdvar.eq.'PP') then
+      if(cdlev.eq.'TH') then
         do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          do jlev = 1, columnghr%nlev
-            column_ptr(jlev)=pvar(jlev,jobs)
+          do jlev = 1,columnghr%nlev_T
+            columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
           enddo
         enddo
-      elseif(cdvar.eq.'VV') then
+      elseif(cdlev.eq.'MM') then
         do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          do jlev = 1, columnghr%nlev
-            column_ptr(jlev)=pvar(jlev,jobs)
+          do jlev = 1,columnghr%nlev_M
+            columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
           enddo
-        enddo
-      elseif(cdvar.eq.'GZ') then
-        if(cdlev.eq.'TH') then
-          do jobs = 1,columnghr%numObsHeader
-            do jlev = 1, columnghr%nlev
-              columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
-            enddo
-          enddo
-        elseif(cdlev.eq.'MM') then
-          do jobs = 1,columnghr%numObsHeader
-            do jlev = 1, columnghr%nlev
-              columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
-            enddo
-          enddo
-        else
-          do jobs = 1,columnghr%numObsHeader
-            column_ptr => col_getColumn(columnghr,jobs,cdvar)
-            do jlev = 1, columnghr%nlev
-              column_ptr(jlev)=pvar(jlev,jobs)
-            enddo
-          enddo
-        endif
-      elseif(cdvar.eq.'HU') then
-        do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          do jlev = 1, columnghr%nlev
-            column_ptr(jlev)=pvar(jlev,jobs)
-          enddo
-        enddo
-      elseif(cdvar.eq.'TT') then
-        do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          do jlev = 1, columnghr%nlev
-            column_ptr(jlev)=pvar(jlev,jobs)
-          enddo
-        enddo
-      elseif(cdvar.eq.'TR') then
-        do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          do jlev = 1, columnghr%nlev
-            column_ptr(jlev)=pvar(jlev,jobs)
-          enddo
-        enddo
-      elseif(cdvar.eq.'P0') then
-        do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          column_ptr(1)=pvar(1,jobs)
-        enddo
-      elseif(cdvar.eq.'TG') then
-        do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
-          column_ptr(1)=pvar(1,jobs)
         enddo
       else
-        write(*,*) 'col_fillmvo: Unknown variable name: ',cdvar
-        call flush(6)
-        call qqexit(1)
+        do jobs = 1,columnghr%numObsHeader
+          do jlev = 1,columnghr%nlev
+            columnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
+          enddo
+        enddo
       endif
+
+    ! Height
+    elseif(cdvar.eq.'GZ') then
+      if(cdlev.eq.'TH') then
+        do jobs = 1,columnghr%numObsHeader
+          do jlev = 1, columnghr%nlev_T
+            columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
+          enddo
+        enddo
+      elseif(cdlev.eq.'MM') then
+        do jobs = 1,columnghr%numObsHeader
+          do jlev = 1, columnghr%nlev_M
+            columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
+          enddo
+        enddo
+      else
+        nlev = col_getVarNumLev(columnghr,cdvar)
+        do jobs = 1,columnghr%numObsHeader
+          column_ptr => col_getColumn(columnghr,jobs,cdvar)
+          do jlev = 1, nlev
+            column_ptr(jlev)=pvar(jlev,jobs)
+          enddo
+        enddo
+      endif
+
+    ! All the other variables that are stored in column%all
+    elseif(col_varExist(cdvar)) then
+      nlev = col_getVarNumLev(columnghr,cdvar)
+      do jobs = 1,columnghr%numObsHeader
+        column_ptr => col_getColumn(columnghr,jobs,cdvar)
+        do jlev = 1, nlev
+          column_ptr(jlev)=pvar(jlev,jobs)
+        enddo
+      enddo
+
+    ! Unknown variable name
+    else
+      write(*,*) 'col_fillmvo: Unknown variable name: ',cdvar
+      call flush(6)
+      call qqexit(1)
+    endif
 
     return
     END SUBROUTINE col_fillmvo

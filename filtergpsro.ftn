@@ -84,7 +84,7 @@ C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
 C
-      NGPSLEV=col_getNumLev(LCOLUMNHR)
+      NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
       DO JL = 1, NGPSLEV
          ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
       ENDDO
@@ -122,7 +122,7 @@ C
                   Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
                   ZLAT = Lat * ZTODEG
                   ZLON = Lon * ZTODEG
-                  DO JL = 1, col_getNumLev(LCOLUMNHR)
+                  DO JL = 1, col_getNumLev(LCOLUMNHR,'TH')
 C
 C     *           Profile x
 C
@@ -132,7 +132,7 @@ C
                   ENDDO
                   ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
                   ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
-                  ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/RG
+                  ZMT = ZGZ(col_getNumLev(LCOLUMNHR,'TH'))/RG
                   ZMT = gpsgeopotential(Lat, ZMT)/RG
                   ZTP = ZGZ(1)/RG
                   ZPR = lcolumnhr%vco%dprf_M
