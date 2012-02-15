@@ -36,24 +36,42 @@ c
       type(struct_columnData) :: lcolumnghr
       integer jobs,jlev,ier
       real*8 zps, alpha
-      real*8 ::  vmahr(lcolumnghr%nlev)
-      real*8 ::  vmbhr(lcolumnghr%nlev)
-      real*8 ::  vmchr(lcolumnghr%nlev)
-      real*8 ::  vmdhr(lcolumnghr%nlev)
-      real*8 ::  vmehr(lcolumnghr%nlev)
-      real*8 ::  vmfhr(lcolumnghr%nlev)
-      real*8 ::  pressure(lcolumnghr%nlev)
+      real*8, allocatable ::  vmahr(:)
+      real*8, allocatable ::  vmbhr(:)
+      real*8, allocatable ::  vmchr(:)
+      real*8, allocatable ::  vmdhr(:)
+      real*8, allocatable ::  vmehr(:)
+      real*8, allocatable ::  vmfhr(:)
+      real*8, allocatable ::  pressure(:)
+      real*8, allocatable ::  ztv(:)
+*
+      allocate(vmahr(col_getNumLev(lcolumnghr)))
+      allocate(vmbhr(col_getNumLev(lcolumnghr)))
+      allocate(vmchr(col_getNumLev(lcolumnghr)))
+      allocate(vmdhr(col_getNumLev(lcolumnghr)))
+      allocate(vmehr(col_getNumLev(lcolumnghr)))
+      allocate(vmfhr(col_getNumLev(lcolumnghr)))
+      allocate(pressure(col_getNumLev(lcolumnghr)))
+      allocate(ztv(col_getNumLev(lcolumnghr)))
 *
       alpha=-1.0D0
-**
 c
-      do jobs = 1, lcolumnghr%numObsHeader
-        do jlev = 1, lcolumnghr%nlev
+      do jobs = 1, col_getNumCol(lcolumnghr)
+        do jlev = 1, col_getNumLev(lcolumnghr)
           pressure(jlev)=col_getPressure(lcolumnghr,jlev,jobs,'NA')
         enddo
-        call matapatnew(pressure,alpha,lcolumnghr%nlev)
+        call matapatnew(pressure,alpha,col_getNumLev(lcolumnghr))
         call vtap1dnew(jobs)
       enddo
+c
+      deallocate(vmahr)
+      deallocate(vmbhr)
+      deallocate(vmchr)
+      deallocate(vmdhr)
+      deallocate(vmehr)
+      deallocate(vmfhr)
+      deallocate(pressure)
+      deallocate(ztv)
 c
       return
 
@@ -176,35 +194,37 @@ C
       INTEGER  kobs
 *
       INTEGER  JLON, IKLEVM2, JK, IK,ier
-      REAL*8   ZAK, ZBK, ZCK,ZCON,ztv(lcolumnghr%nlev),zhu,fotvv
+      REAL*8   ZAK, ZBK, ZCK,ZCON,zhu
+      real*8, pointer :: gz_column(:)
 #include "dinternv.cdk"
 #include "finternv.cdk"
 **
-      do jk = 1, lcolumnghr%nlev
-        zhu = exp(lcolumnghr%hu(jk,kobs))
-        ztv(jk) = fotvv(lcolumnghr%tt(jk,kobs),zhu)
+      do jk = 1, col_getNumLev(lcolumnghr)
+        zhu = exp(col_getElem(lcolumnghr,jk,kobs,'HU'))
+        ztv(jk) = fotvv(col_getElem(lcolumnghr,jk,kobs,'TT'),zhu)
       enddo
 c
       ZCON = -RGASD
-      ZAK = -2.0*ZCON*VMAHR(lcolumnghr%nlev)
-      ZBK = -2.0*ZCON*VMBHR(lcolumnghr%nlev)
-      ZCK = -2.0*ZCON*VMCHR(lcolumnghr%nlev)
-      lcolumnghr%gz(lcolumnghr%nlev,kobs) = col_getMountain(lcolumnghr,kobs)
-      lcolumnghr%gz(lcolumnghr%nlev-1,kobs)=
-     $                   ZAK*ztv(lcolumnghr%nlev-1)+
-     $                   ZBK*ztv(lcolumnghr%nlev)+
-     &                   ZCK*ztv(lcolumnghr%nlev-2)+
-     $                   lcolumnghr%gz(lcolumnghr%nlev,kobs)
-      IKLEVM2 = lcolumnghr%nlev-2
+      ZAK = -2.0*ZCON*VMAHR(col_getNumLev(lcolumnghr))
+      ZBK = -2.0*ZCON*VMBHR(col_getNumLev(lcolumnghr))
+      ZCK = -2.0*ZCON*VMCHR(col_getNumLev(lcolumnghr))
+      gz_column => col_getColumn(lcolumnghr,kobs,'GZ')
+      gz_column(col_getNumLev(lcolumnghr)) = col_getMountain(lcolumnghr,kobs)
+      gz_column(col_getNumLev(lcolumnghr)-1)=
+     $                   ZAK*ztv(col_getNumLev(lcolumnghr)-1)+
+     $                   ZBK*ztv(col_getNumLev(lcolumnghr))+
+     &                   ZCK*ztv(col_getNumLev(lcolumnghr)-2)+
+     $                   gz_column(col_getNumLev(lcolumnghr))
+      IKLEVM2 = col_getNumLev(lcolumnghr)-2
       do JK = 1, IKLEVM2
-        IK = lcolumnghr%nlev-1-JK
+        IK = col_getNumLev(lcolumnghr)-1-JK
         ZAK = -2.0*ZCON*VMAHR(IK+1)
         ZBK = -2.0*ZCON*VMBHR(IK+1)
         ZCK = -2.0*ZCON*VMCHR(IK+1)
-        lcolumnghr%gz(IK,kobs)=ZAK*ztv(IK)+
+        gz_column(IK)=ZAK*ztv(IK)+
      $                  ZBK*ztv(IK+1)+
      $                  ZCK*ztv(IK+2)+
-     +                  lcolumnghr%gz(IK+2,kobs)
+     +                  gz_column(IK+2)
       enddo
 c
       return

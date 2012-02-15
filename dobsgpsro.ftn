@@ -147,7 +147,7 @@ C
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
                      ZLAT = Lat * ZTODEG
                      ZLON = Lon * ZTODEG
-                     ZP0 =  col_getElem(lcolumnhr,1,JO,'PS')
+                     ZP0 =  col_getElem(lcolumnhr,1,JO,'P0')
                      DO JL = 1, col_getNumLev(LCOLUMNHR)
 C
 C     *                 Profile x

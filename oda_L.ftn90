@@ -66,7 +66,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   ! 2D fields interpolation
 !$OMP SECTION
   nl_ilev = 1
-  if(NGEXIST(ngps).eq.1)  call gd2mvo('PS',nl_ilev)
+  if(NGEXIST(ngps).eq.1)  call gd2mvo('P0',nl_ilev)
   if(NGEXIST(ngtg).eq.1)  call gd2mvo('TG',nl_ilev)
 
 !$OMP END SECTIONS
@@ -76,7 +76,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   
   ! TL of variable conversions
   call tmg_start(51,'VAR_CH') !
-  if(NMVOEXIST(NOGZ).eq.1) call ltt2phi(lcolumn,lcolumng)
+  if(col_varExist('GZ')) call ltt2phi(lcolumn,lcolumng)
   call tmg_stop(51)
 
 
@@ -130,7 +130,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
         case('TG')
            zfield(1:statevector%NI,1,1:statevector%NJ)= statevector%TG(1:statevector%NI,1,1:statevector%NJ,jstep)
-        case('PS')
+        case('P0')
            zfield(1:statevector%NI,1,1:statevector%NJ)= statevector%PS(1:statevector%NI,1,1:statevector%NJ,jstep)
 !*
 !*     3D fields

@@ -332,7 +332,7 @@ MODULE obsSpaceData_mod
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namdimo,iostat=ierr)
-    write(*,*) 'col_setup: reading namelist, ierr=',ierr
+    write(*,*) 'obs_initialize: reading namelist, ierr=',ierr
     write(*,nml=namdimo)
     ierr=fclos(nulnam)
 

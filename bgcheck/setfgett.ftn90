@@ -16,7 +16,7 @@
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT
-      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST
+      INTEGER IOBS,ITYP,IK,IBEGIN,ILAST
       INTEGER J,JDATA
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
@@ -37,13 +37,12 @@
                   obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2) THEN
                IK=col_getNumLev(lcolumng)-1
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-               IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
-               IPT  = IK + IPOS*col_getNumLev(lcolumng)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
+               IPT  = IK + col_varOffset(lcolumng,ityp)
                IPB  = IPT +1
                call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
             ELSE
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-               IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
                IPT  = IK

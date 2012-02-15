@@ -21,7 +21,7 @@
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,IXTR,IDIM
-      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,JO,IDATA,IDATEND
+      INTEGER IOBS,IK,IBEGIN,ILAST,JO,IDATA,IDATEND
       INTEGER J,JDATA,IBEGINOB,ILASTOB,ITYP,JJ,ISTYP,JDATA2
       INTEGER ICOUNT,IERR,ILEN,JLIST,JCOUNT,IPOINTR(1)
       REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG,ZPPOST
@@ -83,9 +83,9 @@
                 JDATA = IPOINTR(JCOUNT)
                 IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                 ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
-                IPOS = obs_elem_i(lobsSpaceData,'POS ',jdata)
                 idim=1
-                if ( ipos .gt. 5 )idim=0
+!                if ( ipos .gt. 5 )idim=0   !! is this a check for surface variable or something else?
+                if (col_varnoNumLev(lcolumng,ityp).eq.1) idim=0
                 IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
                 ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                 ZHHH = ZLEV * GRAV
@@ -94,7 +94,7 @@
                     ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.   &
                     ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
 
-                  IPT  = IK + IPOS*col_getNumLev(lcolumng)
+                  IPT  = IK + col_varOffset(lcolumng,ityp)
                   IPB  = IPT+1
                   call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
 !c ***** debug *********
@@ -103,7 +103,7 @@
 !c     &                            obs_elem_r4(lobsSpaceData,'FGE ',jdata)
 !c ***** debug *********
                 ELSE
-                  IPT  = IK + IPOS*col_getNumLev(lcolumng)
+                  IPT  = IK + col_varOffset(lcolumng,ityp)
                   IPB  = IPT+1
                   ZPT  = col_getHeight(lcolumng,IK,IOBS,'NA')
                   ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')
@@ -114,7 +114,7 @@
                       real(zwb*col_getElem(lcolumn,IPB,IOBS) + ZWT*col_getElem(lcolumn,IPT,IOBS)) )
                   ELSE
                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
-                      real(col_getElem(lcolumn,IK + IPOS*col_getNumLev(lcolumng),IOBS)) )
+                      real(col_getElem(lcolumn,IK + col_varOffset(lcolumng,ityp),IOBS)) )
                   ENDIF
                 if(obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '99999999') then
                   write(nulout,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &

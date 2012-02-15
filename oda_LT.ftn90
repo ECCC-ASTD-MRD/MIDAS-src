@@ -42,7 +42,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   integer :: mythread,numthread,omp_get_num_threads,omp_get_thread_num
    
   call tmg_start(51,'VAR_CH')
-  if((NMVOEXIST(NOGZ).eq.1)) call att2phi(lcolumn,lcolumng)
+  if(col_varExist('GZ')) call att2phi(lcolumn,lcolumng)
   call tmg_stop(51)
 
   call tmg_start(75,'PROF->GD')
@@ -74,7 +74,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   ilev1=1
   ilev2=1
-  if(NGEXIST(ngps).eq.1)  call gd2mvoad('PS',ilev1,ilev2)
+  if(NGEXIST(ngps).eq.1)  call gd2mvoad('P0',ilev1,ilev2)
   if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev1,ilev2)
 
   ! Conversion of wind images to physical winds
@@ -262,7 +262,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
         case('TG')
            statevector%tg(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('PS')
+        case('P0')
            statevector%ps(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
 !*
 !*     3D fields

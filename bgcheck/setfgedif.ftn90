@@ -115,7 +115,7 @@
                         ZHU(JL) = col_getElem(lcolumng,JL,JO,'HU')
                         ZGZ(JL) = col_getElem(lcolumng,JL,JO,'GZ')
                      ENDDO
-                     ZP0 = col_getElem(lcolumng,1,JO,'PS')
+                     ZP0 = col_getElem(lcolumng,1,JO,'P0')
                      ZMT = ZGZ(col_getNumLev(lcolumng))/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPT = lcolumng%vco%dpt_M

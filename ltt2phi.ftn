@@ -80,9 +80,9 @@ c
           zfactt  = lcolumng%rtapfac(jlev,jobs)
           zfacps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon
           zdelt   = lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
-          zdelps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'PS')
+          zdelps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
           tv_tmp(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
-     &         + col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'PS')
+     &         + col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
         enddo
       enddo
 !$OMP END PARALLEL

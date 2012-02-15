@@ -147,7 +147,7 @@
          gz_column => col_getColumn(lcolumn,jobs,'GZ')
          tt_column => col_getColumn(lcolumn,jobs,'TT')
          tr_column => col_getColumn(lcolumn,jobs,'TR')
-         ps_column => col_getColumn(lcolumn,jobs,'PS')
+         ps_column => col_getColumn(lcolumn,jobs,'P0')
          tg_column => col_getColumn(lcolumn,jobs,'TG')
          DO JK = 1, statevector%nlev
            if(NGEXIST(nguu).eq.1) then

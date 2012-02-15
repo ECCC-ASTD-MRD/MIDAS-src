@@ -68,7 +68,6 @@
 *          D. Anselmo *ARMA/SMC October 2004
 *                     -set NCM_ASS to exclude assimilation of RAOBS and surface ln q
 *                      added to CMA by burp_estohu.ftn
-*                     -define NCM_POS for ln q, ln q at surface
 *          J. Halle  *CMDA/SMC Sept. 2005
 *                     -added codtyp=182 (MHS).
 *          J. Halle  *CMDA/SMC May  2006
@@ -102,7 +101,6 @@
 *             -Select the data in the CMA file which is to be
 C assimilated
 *              by the 3D-var.
-*             -Set "NCM_POS" of CMA as pointers to U V and T in column
 *             -Set "Transformed latitude" with ISRCHILA
 *             -Set NCM_LOBS: RELATIVE POSTION OF DATA WITH RESPECT TO A
 *                 FULL SOUNDING.   (Dependent on data family)
@@ -327,11 +325,9 @@ C
         END DO
 C
         dllao=obs_elem_r4(lobsSpaceData,'LAT ',jjo)
-!        DLLAO=obs_elem_r4(lobsSpaceData,'LAT ',JJO)
 !
         ILA = ISRCHILA (dble(DLLAO))
         call obs_set_i(lobsSpaceData,'TLA ',jjo,ila)
-!        call obs_set_i(lobsSpaceData,'TLA ',JJO,ILA)
       END DO
 C
  200  CONTINUE
@@ -725,27 +721,6 @@ C-----------------------------------------------------------------------
      &     IKNT
 C
 C
-C-----------------------------------------------------------------------
-C
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-        ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-        IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-        IF ( ITYP .EQ. BUFR_NEUU) call obs_set_i(lobsSpaceData,'POS ',JDATA, nouu - 1)
-        IF ( ITYP .EQ. BUFR_NEVV) call obs_set_i(lobsSpaceData,'POS ',JDATA, novv - 1)
-        IF ( ITYP .EQ. BUFR_NETT) call obs_set_i(lobsSpaceData,'POS ',JDATA, nott - 1)
-        IF ( ITYP .EQ. BUFR_NEDZ) call obs_set_i(lobsSpaceData,'POS ',JDATA, nogz - 1)
-        IF ( ITYP .EQ. BUFR_NEHU) call obs_set_i(lobsSpaceData,'POS ',JDATA, noq  - 1)
-        IF ( ITYP .EQ. BUFR_NEES) call obs_set_i(lobsSpaceData,'POS ',JDATA, noq  - 1) !THIS IS FOR BGCHECK!
-        IF ( ITYP .EQ. BUFR_NEGZ) call obs_set_i(lobsSpaceData,'POS ',JDATA, nogz - 1)
-        IF ( ITYP .EQ. BUFR_NEUS) call obs_set_i(lobsSpaceData,'POS ',JDATA, nouu - 1)
-        IF ( ITYP .EQ. BUFR_NEVS) call obs_set_i(lobsSpaceData,'POS ',JDATA, novv - 1)
-        IF ( ITYP .EQ. BUFR_NETS) call obs_set_i(lobsSpaceData,'POS ',JDATA, nott - 1)
-        IF ( ITYP .EQ. BUFR_NEHS) call obs_set_i(lobsSpaceData,'POS ',JDATA, noq  - 1)
-        IF ( ITYP .EQ. BUFR_NESS) call obs_set_i(lobsSpaceData,'POS ',JDATA, noq  - 1) !THIS IS FOR BGCHECK!
-        IF ( ITYP .EQ. BUFR_NEPS) call obs_set_i(lobsSpaceData,'POS ',JDATA, nops - 1)
-        IF ( ITYP .EQ. BUFR_NEPN) call obs_set_i(lobsSpaceData,'POS ',JDATA, nops - 1)
-      END DO
- 500  CONTINUE
 C-----------------------------------------------------------------------
 C
 C    SET NCM_LOBS PARAMETER FOR:

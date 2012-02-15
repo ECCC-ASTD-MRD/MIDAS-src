@@ -227,9 +227,9 @@
 *               BUFR_NEVS       = 011216 (V COMPONENT AT 10 M)   (m/s)
 *
                   IF (((ITYP.EQ.BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
-     1                 NMVOEXIST(NOUU).EQ.1).OR.
+     1                 col_varExist('UU')).OR.
      2                ((ITYP.EQ.BUFR_NEVV .OR. ITYP .EQ. BUFR_NEVS) .AND.
-     3                 NMVOEXIST(NOVV).EQ.1)) THEN
+     3                 col_varExist('VV'))) THEN
                     IOTHER = -1
                     IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                       DO JJ=IDATA,JDATA

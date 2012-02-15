@@ -13,7 +13,7 @@
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
       type(struct_gsv) :: statevector
-      INTEGER JLAT, JLON ,J
+      INTEGER JLAT, JLON, J, JOBS
       CHARACTER*8 CLETIKET
       CHARACTER*1 CLTYPVAR,CLGRTYP
       CHARACTER*2 CLNOMVAR
@@ -22,6 +22,7 @@
       INTEGER IKEY,ILEN,IERR,IDATE
 
       REAL*8, allocatable :: ZBUFFER(:,:)
+      real*8, pointer     :: gz_column(:), tt_column(:)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
@@ -121,7 +122,13 @@
       call flush(6)
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !???      lcolumn%es(:,:)=lcolumn%hu(:,:)
-      lcolumn%gz(:,:)=lcolumn%tt(:,:)
+      do jobs= 1, col_getNumCol(lcolumn)
+        gz_column => col_getColumn(lcolumn,jobs,'GZ')
+        tt_column => col_getColumn(lcolumn,jobs,'TT')
+        do j = 1,col_getNumLev(lcolumn)
+          gz_column(j)=tt_column(j)
+        enddo
+      enddo
 !C
 !C     SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
 !C     --------------------------------------------------------------------

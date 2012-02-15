@@ -86,7 +86,7 @@ C
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                CALL GETVARTYPE(ITYP,CVAR)
                ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,cvar)
-               ZPB= col_getPressure(LCOLUMNGHR,LCOLUMNGHR%NLEV,IOBS,cvar)
+               ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR),IOBS,cvar)
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
                ELSE IF ( ZLEV .GT. ZPB ) THEN
@@ -111,13 +111,7 @@ C
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                CALL GETVARTYPE(ITYP,CVAR)
-               IF (CVAR .EQ. 'NA') THEN
-                  nlev=LCOLUMNGHR%NLEV
-               ELSEIF (CVAR .EQ. 'MM' ) THEN
-                  nlev=LCOLUMNGHR%NLEV_M
-               ELSEIF (CVAR .EQ. 'TH' ) THEN
-                  nlev=LCOLUMNGHR%NLEV_T
-               ENDIF   
+               nlev=COL_GETNUMLEV(LCOLUMNGHR,cvar)
                ZPT= col_getHeight(lcolumnghr,1,IOBS,cvar)/RG
                ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,cvar)/RG
                IF ( ZLEV .GT. ZPT ) THEN
@@ -153,13 +147,7 @@ C
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
                CALL GETVARTYPE(ITYP,CVAR)
-               IF (CVAR .EQ. 'NA') THEN
-                  nlev=LCOLUMNGHR%NLEV
-               ELSEIF (CVAR .EQ. 'MM' ) THEN
-                  nlev=LCOLUMNGHR%NLEV_M
-               ELSEIF (CVAR .EQ. 'TH' ) THEN
-                  nlev=LCOLUMNGHR%NLEV_T
-               ENDIF   
+               nlev=COL_GETNUMLEV(LCOLUMNGHR,cvar)
                DO JK = 2,NLEV - 1
                   ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,cvar)
                   IF( ZLEV .GT. ZPT ) IK = JK
@@ -182,13 +170,7 @@ C
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
                CALL GETVARTYPE(ITYP,CVAR)
-               IF (CVAR .EQ. 'NA') THEN
-                  nlev=LCOLUMNGHR%NLEV
-               ELSEIF (CVAR .EQ. 'MM' ) THEN
-                  nlev=LCOLUMNGHR%NLEV_M
-               ELSEIF (CVAR .EQ. 'TH' ) THEN
-                  nlev=LCOLUMNGHR%NLEV_T
-               ENDIF   
+               nlev=COL_GETNUMLEV(LCOLUMNGHR,cvar)
                DO JK = 2,NLEV - 1
                  ZPT = col_getHeight(lcolumnghr,JK,IOBS,cvar)/RG
                  IF( ZLEV .LT. ZPT ) IK = JK
@@ -198,7 +180,7 @@ C
                ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
      &                ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
      &                ITYP.EQ.BUFR_NEHS ) THEN
-                 IK=LCOLUMNGHR%NLEV-1
+                 IK=COL_GETNUMLEV(LCOLUMNGHR)-1
                ENDIF
                call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
             ENDIF
@@ -225,7 +207,7 @@ C        loop over all header indices of the 'ST' family
             IOBS = obs_elem_i (lobsSpaceData,'OBS ',index_header)
             ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',index_header)
             IK = 1
-            DO JK = 2,LCOLUMNGHR%NLEV - 1
+            DO JK = 2,COL_GETNUMLEV(LCOLUMNGHR) - 1
               ZPT  = col_getPressure(LCOLUMNGHR,JK,IOBS,'NA')
               IF( ZLEV .GT. ZPT ) IK = JK
             END DO

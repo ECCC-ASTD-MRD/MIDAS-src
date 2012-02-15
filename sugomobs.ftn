@@ -244,7 +244,7 @@ C     levels(lcolumng%vco%dhyb_m), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 c
       do jobs = 1,col_getNumCol(lcolumng)
-        zovar(1,jobs) = col_getElem(lcolumng,1,jobs,'PS')
+        zovar(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
       enddo
 c
       call vco_calcpres(lcolumng%vco,zppobsg,col_getNumLev(lcolumng),zovar,col_getNumCol(lcolumng))

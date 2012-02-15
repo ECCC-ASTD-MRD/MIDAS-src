@@ -415,7 +415,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
             IF (LLOK )  THEN
                ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
-               ZPB =col_getElem(lcolumnhr,1,INDEX_HEADER,'PS')
+               ZPB =col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                ZPT =ZPB-RSBLCRIT(IJ)
                ZDELP = 999999.0
                IF (ZDIFALT .GT. 0.0) THEN
@@ -426,7 +426,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !C--------------------Model surface and station altitude are very close
 !C              Accept observation if zlev is within the domain
 !C              of the trial field
-                 ZPB = col_getElem(lcolumnhr,1,INDEX_HEADER,'PS')
+                 ZPB = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                  ZPT = col_getPressure(LCOLUMNHR,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')
                  IF(LLPRINT) THEN
                    WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
@@ -557,7 +557,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !C
             IKOUNTT=IKOUNTT+1
             ZVAL=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
-            ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'PS') )/100.
+            ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.
             IF ( ZDIFF .GT. RLISTCRIT ) THEN
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
                DO J=1,JPINEL
@@ -897,7 +897,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             if (index_body < 0) exit BODY
 
             IKOUNTT=IKOUNTT+1
-            ZDIFF= col_getElem(lcolumnhr,1,INDEX_HEADER,'PS') /100.
+            ZDIFF= col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') /100.
             IF ( ZDIFF .LT. RLISTCRIT ) THEN
               ITYP=obs_elem_i(lobsSpaceData,'VNM ',index_body)
                DO J=1,JPINEL

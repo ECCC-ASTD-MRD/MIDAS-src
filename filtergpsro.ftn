@@ -130,7 +130,7 @@ C
                      ZHU(JL) = col_getElem(lcolumnhr,JL,JO,'HU')
                      ZGZ(JL) = col_getHeight(lcolumnhr,JL,JO,'TH')
                   ENDDO
-                  ZP0 = col_getElem(lcolumnhr,1,JO,'PS')
+                  ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
                   ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
                   ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/RG
                   ZMT = gpsgeopotential(Lat, ZMT)/RG

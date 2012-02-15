@@ -73,7 +73,7 @@
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,IXTR
-      INTEGER IOBS,IPOS,IK,IBEGIN,ILAST,JO,IDATA,IDATEND
+      INTEGER IOBS,IK,IBEGIN,ILAST,JO,IDATA,IDATEND
       INTEGER J,JDATA,IBEGINOB,ILASTOB,ITYP,JJ,ISTYP
       INTEGER ICOUNT,IERR,ILEN,JLIST,JCOUNT,IPOINTR(1)
       REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG,ZPPOST
@@ -152,7 +152,6 @@ C
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
                   ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
                   ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
@@ -160,7 +159,7 @@ C
                   IXTR = obs_elem_i(lobsSpaceData,'XTR ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
-                  IPT  = col_getNumLev(LCOLUMNHR)-1 + IPOS*col_getNumLev(LCOLUMNHR)
+                  IPT  = col_getNumLev(LCOLUMNHR)-1 + col_varOffset(lcolumnhr,ityp)
                   IPB  = IPT+1
                   CALL GETVARTYPE(ITYP,CVAR)
                   if(ityp.eq.bufr_ness) then
@@ -186,7 +185,6 @@ C              below the model height
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
                   ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
                   ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
@@ -200,7 +198,7 @@ C              below the model height
      &                    *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'TT')
                   ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
-     &                 ((col_getElem(lcolumnhr,1,IOBS,'PS')*ZCON**ZEXP)-ZVAR)/ZOER)
+     &                 ((col_getElem(lcolumnhr,1,IOBS,'P0')*ZCON**ZEXP)-ZVAR)/ZOER)
                 ENDDO
               ENDIF
             ENDDO
@@ -258,7 +256,6 @@ ccc debut
 ccc fin
                IF ( LLOK ) THEN
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  IPOS = obs_elem_i(lobsSpaceData,'POS ',JDATA)
                   ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
                   ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
@@ -272,7 +269,7 @@ c
      &                        *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR),IOBS,'TT')
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,(col_getMountain(lcolumnhr,iobs)
      &                        + ZTVG/zgamma
-     &                        *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'PS'))**zexpgz)
+     &                        *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'P0'))**zexpgz)
      &                        - zvar)/zoer)
                   DLSUM =DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
      +                        *obs_elem_r8(lobsSpaceData,'OMA ',JDATA)

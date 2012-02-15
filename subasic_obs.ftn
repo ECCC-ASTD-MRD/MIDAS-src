@@ -45,8 +45,8 @@ c
           zpresbd= lcolumng%vco%db_dhyb_M(jlev)
           zpresa = lcolumng%vco%da_M(jlev)
           zpresad= lcolumng%vco%da_dhyb_M(jlev)
-          lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*col_getElem(lcolumng,1,jobs,'PS'))
-     &                        /(zpresa+zpresb*col_getElem(lcolumng,1,jobs,'PS'))
+          lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*col_getElem(lcolumng,1,jobs,'P0'))
+     &                        /(zpresa+zpresb*col_getElem(lcolumng,1,jobs,'P0'))
         enddo
       enddo
 

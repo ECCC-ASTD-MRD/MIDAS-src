@@ -56,7 +56,7 @@ c
         tt_column => col_getColumn(lcolumn,jobs,'TT')
         hu_column => col_getColumn(lcolumn,jobs,'HU')
         gz_column => col_getColumn(lcolumn,jobs,'GZ')
-        ps_column => col_getColumn(lcolumn,jobs,'PS')
+        ps_column => col_getColumn(lcolumn,jobs,'P0')
 
         do jlev = 1, col_getNumLev(lcolumn)
 c

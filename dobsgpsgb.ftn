@@ -154,7 +154,7 @@ C
                         ! BUE: ORIGINALLY GZ, SHOULD PROBABLY BY GZ_T???
                         ZGZ(JL) = col_getHeight(lcolumnhr,JL,JO,'TH') 
                      ENDDO
-                     ZP0 =  col_getElem(lcolumnhr,1,JO,'PS')
+                     ZP0 =  col_getElem(lcolumnhr,1,JO,'P0')
                      ! BUE: ORIGINALLY RPPOBS, SHOULD PROBABLY BY RPPOBS_T???
                      ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
                      ZMT = ZGZ(col_getNumLev(LCOLUMNHR))/GRAV

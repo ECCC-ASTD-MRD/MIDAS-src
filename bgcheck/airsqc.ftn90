@@ -249,7 +249,7 @@
                 NOBAIRS = NOBAIRS + 1
 
                 ZTG(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'TG')
-                ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'PS')*RPATMB
+                ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'P0')*RPATMB
 
                 DO JL = 1, col_getNumLev(lcolumnhr)
                   ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'TT')

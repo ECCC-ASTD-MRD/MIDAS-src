@@ -1,0 +1,110 @@
+module varNameList_mod
+  implicit none
+  save
+
+  integer, parameter          :: jpnvarmax3D=6,jpnvarmax2D=2
+  character(len=2), parameter :: varNameList3D(jpnvarmax3D) = (/'UU','VV','GZ','TT','HU','TR'/)
+  character(len=2), parameter :: varNameList2D(jpnvarmax2D) = (/'P0','TG'/)
+  character(len=2), parameter :: varTypeList3D(jpnvarmax3D) = (/'MM','MM','TH','TH','TH','TH'/)
+  character(len=2), parameter :: varTypeList2D(jpnvarmax2D) = (/'SF','SF'/)
+
+  integer, parameter          :: jpnvarmax=jpnvarmax3D+jpnvarmax2D
+  character(len=2), parameter :: varNameList(jpnvarmax) = (/ varNameList3D, varNameList2D /)
+  character(len=2), parameter :: varTypeList(jpnvarmax) = (/ varTypeList3D, varTypeList2D /)
+
+  contains
+
+    function vnl_varListIndex3d(varName) result(listIndex)
+      implicit none
+      character(len=2), intent(in) :: varName
+      integer                      :: jvar,listIndex
+
+      listIndex=-1
+      do jvar=1,jpnvarmax3D
+        if(varName.eq.varNameList3d(jvar)) then
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex.le.0) then
+        write(*,*) 'vnl_varListIndex3D: Unknown variable name! ',varName
+        call flush(6)
+        call qqexit(1)
+      endif
+
+    end function vnl_varListIndex3d
+
+
+    function vnl_varListIndex2d(varName) result(listIndex)
+      implicit none
+      character(len=2), intent(in) :: varName
+      integer                      :: jvar,listIndex
+
+      listIndex=-1
+      do jvar=1,jpnvarmax2D
+        if(varName.eq.varNameList2d(jvar)) then 
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex.le.0) then
+        write(*,*) 'vnl_varListIndex2D: Unknown variable name! ',varName
+        call flush(6)
+        call qqexit(1)
+      endif
+
+    end function vnl_varListIndex2d
+
+
+    function vnl_varListIndex(varName) result(listIndex)
+      implicit none
+      character(len=2), intent(in) :: varName
+      integer                      :: jvar,listIndex
+
+      listIndex=-1
+      do jvar=1,jpnvarmax
+        if(varName.eq.varNameList(jvar)) then 
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex.le.0) then
+        write(*,*) 'vnl_varListIndex: Unknown variable name! ',varName
+        call flush(6)
+        call qqexit(1)
+      endif
+
+    end function vnl_varListIndex
+
+
+    function vnl_varnameFromVarnum(varNumber) result(varName)
+      use bufr
+      implicit none
+      integer, intent(in) :: varNumber
+      character(len=2)    :: varName
+
+      select case (varNumber)
+      case(BUFR_NEUU,BUFR_NEUS)
+        varName='UU'
+      case(BUFR_NEVV,BUFR_NEVS)
+        varName='VV'
+      case(BUFR_NETT,BUFR_NETS)
+        varName='TT'
+      case(BUFR_NEDZ,BUFR_NEGZ)
+        varName='GZ'
+      case(BUFR_NEHU,BUFR_NEHS,BUFR_NEES,BUFR_NESS)
+        varName='HU'
+      case(BUFR_NEPS,BUFR_NEPN)
+        varName='P0'
+      case default
+        write(*,*) 'column: varname_from_varnum: Unknown variable number! ',varNumber
+        call flush(6)
+        call qqexit(1)
+      end select
+
+    end function vnl_varnameFromVarnum
+
+end module varNameList_mod

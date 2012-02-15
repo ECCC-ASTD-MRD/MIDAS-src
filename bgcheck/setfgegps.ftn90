@@ -132,8 +132,8 @@
                        ZHU(JL)  = col_getElem(lcolumn,JL,JO,'HU')
                        ZGZ(JL)  = col_getElem(lcolumng,JL,JO,'GZ')
                      ENDDO
-                     ZP0B = col_getElem(lcolumng,1,JO,'PS')
-                     ZP0  = col_getElem(lcolumn,1,JO,'PS')
+                     ZP0B = col_getElem(lcolumng,1,JO,'P0')
+                     ZP0  = col_getElem(lcolumn,1,JO,'P0')
                      ZPT  = col_getPressure(lcolumng,1,JO,'NA')
                      ZMT  = ZGZ(col_getNumLev(LCOLUMNG))/GRAV
 !C
