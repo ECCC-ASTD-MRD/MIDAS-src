@@ -187,8 +187,6 @@
       POINTER(PXmark   ,Imark)
       POINTER(PXBUF    ,IBUF)
 *
-      REAL*8 ZTORAD
-*
       INTEGER JI,JJ,JK,J3D
       INTEGER ICHECK,INELM,INVM,INTM,IBKNMA,ITOPOST
       INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL,obs_thisblock
@@ -205,7 +203,6 @@
       WRITE(NULOUT,*)' ---------    BEGIN  CMAABRP      ---------------'
       WRITE(NULOUT,*)' ------------------------------------------------'
 *
-      ZTORAD=RPI/180.
       LLTOPOST = .FALSE.
 *
 ************************************************************************

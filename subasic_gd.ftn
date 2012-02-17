@@ -381,7 +381,7 @@ c
         allocate(zpstrl(ini,inj))
 c
         ikey = VFSTLUK(zpstrl, ikey, INI, INJ, INK)
-        zpstrl(:,:)=zpstrl(:,:)*rmbtpa
+        zpstrl(:,:)=zpstrl(:,:)*MPC_PA_PER_MBAR_R8
 c
         call hpalloc(pxpresanl,kcol*knk,ierr,8)
         call hpalloc(pxps,kcol,ierr,8)

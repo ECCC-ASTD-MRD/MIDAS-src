@@ -227,7 +227,7 @@ c
         enddo
 c
         if(cfstvar2d(jvar).eq.'P0') then
-          zovar(:,:)=zovar(:,:)*rmbtpa
+          zovar(:,:)=zovar(:,:)*MPC_PA_PER_MBAR_R8
         endif
         call col_fillmvo(lcolumng ,cfstvar2d(jvar),'NA',zovar)
         call col_fillmvo(lcolumnhr,cfstvar2d(jvar),'NA',zovar)
@@ -467,11 +467,11 @@ c
           call tmg_start(29,'VINTPROF')
 c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-          zom_M(:,:)=zom_M(:,:)*rmsknt
+          zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
           call col_fillmvo(lcolumng,'UU','NA',zom_M)
 c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs2_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-          zom_M(:,:)=zom_M(:,:)*rmsknt
+          zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
           call col_fillmvo(lcolumng,'VV','NA',zom_M)
 c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
@@ -486,9 +486,9 @@ c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
      &           ,zPPOBS_M(jlev,1),zmobs2_M(jlev,1)
           enddo
 ccc dbug out
-          zmobs_M(:,:)=zmobs_M(:,:)*rmsknt
+          zmobs_M(:,:)=zmobs_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
           call col_fillmvo(lcolumnhr,'UU','MM',zmobs_M)
-          zmobs2_M(:,:)=zmobs2_M(:,:)*rmsknt
+          zmobs2_M(:,:)=zmobs2_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
           call col_fillmvo(lcolumnhr,'VV','MM',zmobs2_M)
 c
           call tmg_stop(29)
@@ -548,8 +548,8 @@ c
 c
           call tmg_start(30,'FILLMVO')
           if(cfstvar(jvar).eq.'TT') then
-            zom_T(:,:)=zom_T(:,:)+tcdk
-            zmobs_T(:,:)=zmobs_T(:,:)+tcdk
+            zom_T(:,:)=zom_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
+            zmobs_T(:,:)=zmobs_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
           elseif(cfstvar(jvar).eq.'HU') then
             do jobs=1,col_getNumCol(lcolumng)
               do jlev=1,col_getNumLev(lcolumng)

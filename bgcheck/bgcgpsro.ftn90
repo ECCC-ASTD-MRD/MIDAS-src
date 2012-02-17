@@ -25,7 +25,6 @@
 #include "comgpsro.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
-      REAL*8 ZTODEG
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
@@ -67,7 +66,7 @@
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      ZTODEG = 180.0 / RPI
+
 !C
 !C     *    .   1.1  Eta vector
 !C     *    .        ----------
@@ -123,8 +122,8 @@
 !C
                      Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
-                     ZLAT = Lat * ZTODEG
-                     ZLON = Lon * ZTODEG
+                     ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+                     ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
                      DO JL = 1, col_getNumLev(lcolumnhr)
 !C

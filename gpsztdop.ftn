@@ -113,12 +113,12 @@ C  *  Refractivity Constants (from namelist and in comgpsgb.cdk)
 C
       PPK1  = RCK1
       PPK3  = RCK3
-      PPK2P = RCK2 - (EPS1*RCK1)
+      PPK2P = RCK2 - (MPC_EPS1_R8*RCK1)
 C
 C  *  Height difference DZ between observation and model surface
       ZDZ = PZOBS - PMT
 C 
-      ZCLT  = COS(2.0*(PI/180.)*PLAT)
+      ZCLT  = COS(2.0*(MPC_PI_R8_OLD/180.)*PLAT)
 C
 C  *  Gravity at sea level as a function of latitude (GRAV = G0 = 9.80)
       ZGRAV = GRAV * (1.0 - 2.66E-03*ZCLT)
@@ -148,11 +148,11 @@ C
 C ----------------------------------------------------------------
 C  *  Constants
 C ----------------------------------------------------------------
-      ZCON = 1.0E-06 * RGASD
+      ZCON = 1.0E-06 * MPC_RGAS_DRY_AIR_R8
       ZCON1 = ZCON * PPK1
-      ZCON2 = ZCON / EPS1
-C      ZCON3 = ZGRAV / (RGASD*PPGAM)
-      ZCON3 = GRAV / (RGASD*PPGAM)
+      ZCON2 = ZCON / MPC_EPS1_R8
+C      ZCON3 = ZGRAV / (MPC_RGAS_DRY_AIR_R8*PPGAM)
+      ZCON3 = GRAV / (MPC_RGAS_DRY_AIR_R8*PPGAM)
 C     Constant used to compute the ZHD from Ps (Saastamoinen)
       ZCONH = ZCON1/PPGM0
 C      Value given by Vedel and others (for comparison)
@@ -168,7 +168,7 @@ C
          ZDETA(JLEV) = PETA(JLEV+1) - PETA(JLEV)
          ZTTB  = (PTT(JLEV+1) + PTT(JLEV)) * 0.5
          ZQQB  = (PHU(JLEV+1) + PHU(JLEV)) * 0.5
-         ZF3(JLEV) = (ZQQB + DELTA*ZQQB**2) * (PPK2P+(PPK3/ZTTB))
+         ZF3(JLEV) = (ZQQB + MPC_DELTA_R8*ZQQB**2) * (PPK2P+(PPK3/ZTTB))
       END DO
 C
 C  *  Vertical integration (trapezoidal rule)
@@ -203,7 +203,7 @@ C  * ------------ STEP 1:  GET PRESSURE AT HEIGHT PZOBS ---------------
 C
 C  *     CMC EXTRAPOLATION FROM SURFACE TO PZOBS:
 C
-         ZTVSFC = PTT(nlev_T) * (1.0 + DELTA*PHU(nlev_T))
+         ZTVSFC = PTT(nlev_T) * (1.0 + MPC_DELTA_R8*PHU(nlev_T))
          ZTVOBS = ZTVSFC - PPGAM * ZDZ
          ZPMOBS = PXP0 * (ZTVOBS/ZTVSFC)**ZCON3
 C
@@ -260,8 +260,8 @@ C       - Adjust wet delay using Higgins method (Q constant over DZ layer)
         ZTBAR  = (ZTMOBS + PTT(nlev_T)) * 0.5
         ZQBAR  = (ZQMOBS + PHU(nlev_T)) * 0.5
 C         Mean (wet) refractivity of DZ layer
-        ZRMEAN = 1.0E-06 * (PPK2P*((ZPBAR*ZQBAR)/(EPS1*ZTBAR)) +
-     +             PPK3*((ZPBAR*ZQBAR)/(EPS1*ZTBAR**2)))
+        ZRMEAN = 1.0E-06 * (PPK2P*((ZPBAR*ZQBAR)/(MPC_EPS1_R8*ZTBAR)) +
+     +             PPK3*((ZPBAR*ZQBAR)/(MPC_EPS1_R8*ZTBAR**2)))
         ZWDCOR = ZRMEAN * ZDZ
         ZZWDV  = ZZWDV - ZWDCOR
 C

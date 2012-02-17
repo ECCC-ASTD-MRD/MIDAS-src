@@ -87,8 +87,10 @@
                   ZVAR = obs_elem_r4(lobsSpaceData,'VAR ',jdata)
                   ZLEV = obs_elem_r4(lobsSpaceData,'PPP ',jdata)
                   ZOER = obs_elem_r4(lobsSpaceData,'OER ',jdata)
-                  ZLAT  = obs_elem_r4(lobsSpaceData,'LAT ',iobs)*180./RPI
-                  ZLON  = obs_elem_r4(lobsSpaceData,'LON ',iobs)*180./RPI
+                  ZLAT  = obs_elem_r4(lobsSpaceData,'LAT ',iobs) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+                  ZLON  = obs_elem_r4(lobsSpaceData,'LON ',iobs) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
 !C
 !C              BACK GROUND CHECK
 !C

@@ -72,7 +72,7 @@
       INTEGER ITY,JDATA,IDATEND,ITYP,ISTYP
       INTEGER ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
       INTEGER IDBURP,IOTHER,IBEGIN,IBEGINOB,ILAST,ILASTOB
-      REAL*8    ZVAR,ZFCST,ZOER,ZANA,ZPOST,ZTODEG,ZLAT,ZLON,ZUU,ZVV
+      REAL*8    ZVAR,ZFCST,ZOER,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
       REAL*8    SPD,DEG,ZLEV,ZSLEV,ZCUT
       CHARACTER *4 CLITM(JPMXITM),CLDESC
       CHARACTER *2 CLUNITS
@@ -139,8 +139,6 @@
       DATA       CLOBTP(189),      CLOBTP(254)   
      1  / 'GB-GPS',  'SCATTEROMETER'/
 *
-      ZTODEG = 180./RPI
-*
       DO J=1,NKOUNT
         DO JJJ=1,JPMXITM
           ICOUNT(JJJ,J) = 0
@@ -179,8 +177,8 @@
               IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JREP) + IDATA -1
               ITY       = obs_elem_i(lobsSpaceData,'ITY ',JREP)
               IDBURP    = MOD(ITY,1000)
-              ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JREP)*ZTODEG
-              ZLON = obs_elem_r4(lobsSpaceData,'LON ',JREP)*ZTODEG
+              ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JREP)*MPC_DEGREES_PER_RADIAN_R8
+              ZLON = obs_elem_r4(lobsSpaceData,'LON ',JREP)*MPC_DEGREES_PER_RADIAN_R8
               DO JDATA=IDATA, IDATEND
                 ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                 IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
@@ -196,9 +194,9 @@
                 ENDIF
                 IF (LLOK) THEN
                   zpost = obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)*RPATMB
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
                   IF (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2) THEN
-                    ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)*RPATMB
+                    ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
                     CLUNITS = 'MB'
                   ENDIF
                   IF (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1) THEN
@@ -235,7 +233,7 @@
                       DO JJ=IDATA,JDATA
                         ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 2) THEN
-                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)*RPATMB
+                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
                         ENDIF
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 1) THEN
                           ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)
@@ -249,7 +247,7 @@
                       DO JJ=IDATA,JDATA
                         ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 2) THEN
-                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)*RPATMB
+                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
                         ENDIF
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 1) THEN
                           ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)
@@ -273,7 +271,7 @@
                       IF (ZUU.EQ.0. .AND. ZVV.EQ.0.)THEN
                         IDIRO = 999
                       ELSE
-                        DEG = 270. - ATAN2(ZVV,ZUU)*ZTODEG
+                        DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
                         IF (DEG .GT. 360.)DEG = DEG - 360.
                         IF (DEG .LT. 0.)  DEG = DEG + 360.
                         IDIRO = NINT(DEG)
@@ -292,7 +290,7 @@
                       IF (ZUU .EQ. 0. .AND. ZVV .EQ. 0.) THEN
                         IDIRF = 999
                       ELSE
-                        DEG = 270. - ATAN2(ZVV,ZUU)*ZTODEG
+                        DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
                         IF (DEG .GT. 360.)DEG = DEG - 360.
                         IF (DEG .LT. 0.)  DEG = DEG + 360.
                         IDIRF = NINT(DEG)
@@ -311,7 +309,7 @@
                       IF (ZUU.EQ.0. .AND. ZVV.EQ.0.) THEN
                         IDIRA = 999
                       ELSE
-                        DEG = 270. - ATAN2(ZVV,ZUU)*ZTODEG
+                        DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
                         IF (DEG .GT. 360.)DEG = DEG - 360.
                         IF (DEG .LT. 0.)  DEG = DEG + 360.
                         IDIRA = NINT(DEG)
@@ -363,9 +361,9 @@
 *
 *___________________CONVERT FROM KELVIN TO CELCIUS
 *
-                        ZVAR = ZVAR - TCDK
-                        ZFCST = ZFCST - TCDK
-                        ZANA  = ZANA - TCDK
+                        ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
+                        ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
+                        ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
                       ENDIF
                       IF (ITYP .EQ. BUFR_NEES) THEN
                         CLDESC = CLITM(5)
@@ -377,9 +375,9 @@
 *
 *___________________CONVERT FROM PASCALS TO MILLIBARS
 *
-                        ZVAR = ZVAR*RPATMB
-                        ZANA = ZANA*RPATMB
-                        ZFCST = ZFCST*RPATMB
+                        ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
+                        ZANA = ZANA*MPC_MBAR_PER_PA_R8
+                        ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
                       ENDIF
                       IF (ITYP .EQ. BUFR_NEPN) THEN
                         CLDESC = CLITM(7)
@@ -387,9 +385,9 @@
 *
 *___________________CONVERT FROM PASCALS TO MILLIBARS
 *
-                        ZVAR = ZVAR*RPATMB
-                        ZANA = ZANA*RPATMB
-                        ZFCST = ZFCST*RPATMB
+                        ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
+                        ZANA = ZANA*MPC_MBAR_PER_PA_R8
+                        ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
                       ENDIF
                       IF (ITYP .EQ. BUFR_NETS) THEN
                         CLDESC = CLITM(8)
@@ -397,9 +395,9 @@
 *
 *___________________CONVERT FROM KELVIN TO CELCIUS
 *
-                        ZVAR = ZVAR - TCDK
-                        ZFCST = ZFCST - TCDK
-                        ZANA  = ZANA - TCDK
+                        ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
+                        ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
+                        ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
                       ENDIF
                       IF (ITYP .EQ. BUFR_NESS) THEN
                         CLDESC = CLITM(9)

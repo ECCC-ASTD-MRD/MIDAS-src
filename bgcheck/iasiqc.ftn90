@@ -78,7 +78,6 @@
       integer ,parameter :: nn=2
       integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
       integer :: cpt
-      real (8) :: ztorad
       logical :: bad
 !seuils detection nuageuse AVHRR
       Real(8),parameter :: sunzenmax=87.12d0
@@ -90,8 +89,6 @@
       Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
       Integer :: ier,ijour,iloc(2:3)
 !**************
-
-      ZTORAD=RPI/180.
 
 ! ** find sensor number corresponding to IASI      
 
@@ -348,15 +345,19 @@
                 call stat_avhrr(out_avhrr_param(NOBIASI))
 
                 ZTG(NOBIASI) = col_getElem(lcolumnhr,1,JO,'TG')
-                ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'P0')*RPATMB
-                ZLAT(NOBIASI) = obs_elem_r4(lobsSpaceData,'LAT ',jo)/ZTORAD
-                ZLON(NOBIASI) = obs_elem_r4(lobsSpaceData,'LON ',jo)/ZTORAD
+                ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'P0') &
+                                                             * MPC_MBAR_PER_PA_R8
+                ZLAT(NOBIASI) = obs_elem_r4(lobsSpaceData,'LAT ',jo) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+                ZLON(NOBIASI) = obs_elem_r4(lobsSpaceData,'LON ',jo) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')
                   ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'TT')
                   ZHT(JL,NOBIASI) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
                   ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'HU')
-                  ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,JO,'NA') * RPATMB
+                  ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,JO,'NA') &
+                                                             * MPC_MBAR_PER_PA_R8
                 END DO
 
                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',jo)
@@ -618,7 +619,7 @@
 
             IF (ANISOT<1.5) THEN !to avoid sun glint
 
-               SCOS=COS ( sngl( sunza(jn) * ZTORAD) )
+               SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
                CALL  DELT ( DEL, SCOS )
 
                SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL

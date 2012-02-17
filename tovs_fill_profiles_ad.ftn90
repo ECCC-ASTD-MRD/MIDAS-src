@@ -157,7 +157,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
      do jl = 1, col_getNumLev(lcolumng)
         zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
         zlq  (jl,knpf) = col_getElem(lcolumng,jl,jo,'HU')
-        zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'NA') * rpatmb
+        zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'NA') *MPC_MBAR_PER_PA_R8
      enddo
 
      iptobs   (knpf) = iobs
@@ -182,7 +182,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
 
         toext_ad(:,j)      = profiles_ad(iptobs(j)) % t(:)
         qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) * q_mixratio_to_ppmv
-        ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p * rpatmb
+        ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p *MPC_MBAR_PER_PA_R8
         tg_column(1)       = profiles_ad(iptobs(j)) % skin % t
         tt_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % t
 !!!        hu_column(ilowlvl) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
@@ -272,7 +272,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
         tt_column => col_getColumn(lcolumn,iptobscma(jn),'TT')
         hu_column => col_getColumn(lcolumn,iptobscma(jn),'HU')
 
-        ps_column(1) = ps_column(1) + zps_ad  (jn) * rpatmb
+        ps_column(1) = ps_column(1) + zps_ad  (jn) * MPC_MBAR_PER_PA_R8
         do jl = 1, col_getNumLev(lcolumn)
            tt_column(jl) = tt_column(jl) + zt_ad  (jl,jn)
            hu_column(jl) = hu_column(jl) + zlq_ad (jl,jn)

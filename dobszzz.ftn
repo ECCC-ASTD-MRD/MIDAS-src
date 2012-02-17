@@ -68,7 +68,7 @@ C
 c      LLPRINT   = .TRUE.
       LLNOXTR   = .FALSE.
       zgamma = 0.0065 / GRAV
-      zexp = RGASD*zgamma
+      zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 C
       DLSUM=0.
       DO J = 1,NFILES

@@ -56,7 +56,7 @@
       LLPRINT   = .FALSE.
       LLNOXTR   = .FALSE.
       zgamma = 0.0065 / GRAV
-      zexp = RGASD*zgamma
+      zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 !
 !     1. Computation of (HX - Z)/SIGMA
 !
@@ -108,7 +108,7 @@
 !
                   IPT = col_getNumLev(LCOLUMNHR,'TH')-1 + col_varnoOffset(lcolumnhr,ivnm)
                   IPB = IPT+1
-                  ZTVG = (1.0 + DELTA * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
+                  ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
      &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
                   zoma = ( col_getMountain(lcolumnhr,iobs) + ZTVG/zgamma
      &                     *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'P0'))**zexp) - zvar )/zoer

@@ -87,7 +87,6 @@
     INTEGER JI,JJ,JDATA
     LOGICAL LLOMAFI
 !
-    REAL*8 ZTORAD
     REAL*8 ZERR,ZSTAT,ZPRL
     real*8 padd,pmul
 !
@@ -96,7 +95,6 @@
 !***********************************************************************
 !
     IIND  =-1
-    ZTORAD=RPI/180.0D0
 !
     IND   =0
 !
@@ -169,7 +167,7 @@
 !                                       CONVERT TO DEGREES
                             IF ( ILEM .EQ. 48 .OR. ILEM .EQ. 54 ) THEN
                              padd=0.0D0
-                             pmul=1.0D0/ZTORAD
+                             pmul=MPC_DEGREES_PER_RADIAN_R8
                              CALL CVT3D(PVALUES(JI,JJ,IK),padd,pmul,1)
                             ENDIF
                           ENDIF

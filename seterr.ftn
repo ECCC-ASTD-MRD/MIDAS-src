@@ -102,7 +102,7 @@ C
       INTEGER INDXSAT,ICHN,ISATNO
       INTEGER ICHN,IPLATF,INSTR,IPLATFORM,INSTRUM
       REAL*8 DELTAP, DELTAPMIN
-      REAL*8 ZLAT, ZLON, ZFACTOR, ZTORAD, H, NAPP, NERR
+      REAL*8 ZLAT, ZLON, ZFACTOR, H, NAPP, NERR
       REAL*8 ZLEV,ZFACT,ZLVL,ZCONGZ,ZVAL,zpb,zpt,zwb,zwt,zcof1,zcof2
       logical llinterp, LLBAD
       CHARACTER*2 SENSORTYPE
@@ -158,7 +158,6 @@ C
  100  CONTINUE
       ZFACT=VCONV
       ZCONGZ=10.D0*RG
-      ZTORAD=1.D0/(RPI/180.D0)
       LLBAD = .FALSE.
       DO JJO = 1, obs_numheader(lobsSpaceData)
          IDATA     = obs_elem_i(lobsSpaceData,'RLN ',JJO)
@@ -199,9 +198,9 @@ C
                      ILVL=ILVL + MAX(0.0D0,ZLVL)
                   END DO
 C
-                  IF(ZLAT*ZTORAD .GE. 30. )THEN
+                  IF(ZLAT*MPC_DEGREES_PER_RADIAN_R8 .GE. 30. )THEN
                      call obs_set_i(lobsSpaceData,'OEC ',JDATA,1)
-                  ELSEIF(ZLAT*ZTORAD.GT.-30..AND.ZLAT*ZTORAD.LT.30.)THEN
+                  ELSEIF(ZLAT*MPC_DEGREES_PER_RADIAN_R8.GT.-30..AND.ZLAT*MPC_DEGREES_PER_RADIAN_R8.LT.30.)THEN
                      call obs_set_i(lobsSpaceData,'OEC ',JDATA,1)
                   ELSE
                      call obs_set_i(lobsSpaceData,'OEC ',JDATA,1)
@@ -378,10 +377,10 @@ C    SATOB
 C
                   IF ( IDBURP .EQ. 88 .OR. IDBURP .EQ. 188 ) THEN
 
-                    DELTAPMIN = ABS(LOG(ZLEV*RPATMB)-LOG(XSTDEVLV(1,2)))
+                    DELTAPMIN = ABS(LOG(ZLEV*MPC_MBAR_PER_PA_R8)-LOG(XSTDEVLV(1,2)))
                     ILYR = 1
                     DO JN = 2, 10
-                      DELTAP = ABS(LOG(ZLEV*RPATMB)-LOG(XSTDEVLV(JN,2)))
+                      DELTAP = ABS(LOG(ZLEV*MPC_MBAR_PER_PA_R8)-LOG(XSTDEVLV(JN,2)))
                       IF ( DELTAP < DELTAPMIN ) THEN
                         DELTAPMIN = DELTAP
                         ILYR = JN
@@ -398,10 +397,10 @@ C     AIREP
 C
                   ELSE IF (IDBURP .EQ. 128 ) THEN
                       IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
-                        IF (  ZLEV .LT. 500.*RMBTPA ) THEN
-                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(2,2)))
+                        IF (  ZLEV .LT. 500.*MPC_PA_PER_MBAR_R8 ) THEN
+                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(2,2)))
                         ELSE
-                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(1,2)))
+                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(1,2)))
                         ENDIF
                       ELSE IF (ITYP .EQ. BUFR_NETT )THEN
                          call obs_set_r8(lobsSpaceData,'OER ',JDATA, SQRT(XSTDEV(4,2)))
@@ -413,10 +412,10 @@ C     ASDAR, ACARS + ADS
 C
                   ELSE IF (IDBURP .EQ. 42 .OR. IDBURP .EQ. 157 .OR. IDBURP .EQ. 177) THEN
                      IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
-                        IF (  ZLEV .LT. 500.*RMBTPA ) THEN
-                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(2,3)))
+                        IF (  ZLEV .LT. 500.*MPC_PA_PER_MBAR_R8 ) THEN
+                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(2,3)))
                         ELSE
-                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(1,3)))
+                          call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(1,3)))
                        ENDIF
                      ELSE IF (ITYP .EQ. BUFR_NETT )THEN
                           call obs_set_r8(lobsSpaceData,'OER ',JDATA, SQRT(XSTDEV(4,3)))
@@ -449,7 +448,7 @@ ccc debug fin
                      ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
-                        call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(1,4)))
+                        call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(1,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA,ZCONGZ*SQRT(XSTDEV(3,4)))
                      ELSE IF (ITYP .EQ. BUFR_NETT) THEN
@@ -472,7 +471,7 @@ C
                      ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
-                        call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(1,4)))
+                        call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(1,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA,ZCONGZ*SQRT(XSTDEV(3,4)))
                      ELSE IF (ITYP .EQ. BUFR_NETT) THEN
@@ -495,7 +494,7 @@ C
                      ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
-                        call obs_set_r8(lobsSpaceData,'OER ',JDATA,RMSKNT*SQRT(XSTDEV(1,4)))
+                        call obs_set_r8(lobsSpaceData,'OER ',JDATA,MPC_M_PER_S__PER__KNOT_R8*SQRT(XSTDEV(1,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA,ZCONGZ*SQRT(XSTDEV(3,4)))
                      ELSE IF (ITYP .EQ. BUFR_NETT) THEN
@@ -567,7 +566,7 @@ C
                   WRITE(NULOUT,
      &               '(1X,"STNID= ",A10,"IDBURP= ",I5," LAT= ",F10.2
      &              ," LON = ",F10.2)')
-     &              obs_elem_c9(lobsSpaceData,'STID',JJO),IDBURP,ZLAT*ZTORAD,ZLON*ZTORAD
+     &              obs_elem_c9(lobsSpaceData,'STID',JJO),IDBURP,ZLAT*MPC_DEGREES_PER_RADIAN_R8,ZLON*MPC_DEGREES_PER_RADIAN_R8
                   WRITE(NULOUT,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
      &              " OBSERR = ",E10.2)')
      &              ITYP,obs_elem_r8(lobsSpaceData,'PPP ',JDATA),obs_elem_r8(lobsSpaceData,'OER ',JDATA)

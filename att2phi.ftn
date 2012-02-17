@@ -103,7 +103,7 @@ C
       REAL*8     ZAK, ZBK, ZCK, ZCON2
       integer mythread,numthd,omp_get_thread_num,omp_get_num_threads
 c
-      ZCON2 = -RGASD
+      ZCON2 = -MPC_RGAS_DRY_AIR_R8
       IKLEVM2 = col_getNumLev(lcolumn)-2
 !$OMP PARALLEL PRIVATE(jobs,ik,jk,mythread,numthd,zak,zbk,zck,gz_column)
       mythread=omp_get_thread_num()+1

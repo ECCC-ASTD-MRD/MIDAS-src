@@ -123,12 +123,12 @@
 
         if(dlonfld(nobs(jstep),jstep).lt.0)
      &       dlonfld(nobs(jstep),jstep) = dlonfld(nobs(jstep),jstep) +
-     &       2*rpi
-        if(dlonfld(nobs(jstep),jstep).ge.2.*rpi)
+     &       2*MPC_PI_R8
+        if(dlonfld(nobs(jstep),jstep).ge.2.*MPC_PI_R8)
      &       dlonfld(nobs(jstep),jstep) =dlonfld(nobs(jstep),jstep) -
-     &       2*rpi
-        dlatfld(nobs(jstep),jstep)=dlatfld(nobs(jstep),jstep)*180./rpi
-        dlonfld(nobs(jstep),jstep)=dlonfld(nobs(jstep),jstep)*180./rpi
+     &       2*MPC_PI_R8
+        dlatfld(nobs(jstep),jstep)=dlatfld(nobs(jstep),jstep)*MPC_DEGREES_PER_RADIAN_R8
+        dlonfld(nobs(jstep),jstep)=dlonfld(nobs(jstep),jstep)*MPC_DEGREES_PER_RADIAN_R8
       enddo
 
       itimeout = 0

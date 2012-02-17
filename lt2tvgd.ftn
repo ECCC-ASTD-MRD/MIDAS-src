@@ -37,8 +37,8 @@ c
       do jj = 1, knj
         do jk = 1, knk
           do ji = 1, kni
-            ptv(ji,jk,jj)=(1.+delta*pqg(ji,jk,jj))*pttinc(ji,jk,jj)
-     &           + delta*pqg(ji,jk,jj)*pttinc(ji,jk,jj)*phuinc(ji,jk,jj)
+            ptv(ji,jk,jj)=(1.+MPC_DELTA_R8*pqg(ji,jk,jj))*pttinc(ji,jk,jj)
+     &           + MPC_DELTA_R8*pqg(ji,jk,jj)*pttinc(ji,jk,jj)*phuinc(ji,jk,jj)
           enddo
         enddo
       enddo

@@ -216,10 +216,10 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
             ila=obs_elem_i(lobsSpaceData,'TLA ',jobs)
 
-            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
-            IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
-            DLDLON = 2.*RPI/STATEVECTOR%NI
-            DLDLOS = 2.*RPI/STATEVECTOR%NI
+            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
+            IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8
+            DLDLON = 2.*MPC_PI_R8/STATEVECTOR%NI
+            DLDLOS = 2.*MPC_PI_R8/STATEVECTOR%NI
             ILON = INT(DLLOO/DLDLON) + 1
             ILOS = INT(DLLOO/DLDLOS) + 1
 !C

@@ -119,7 +119,7 @@ C prepared outside lvtapgd
 c
 c ptt : working vector of virtual temperatures.
 c
-      ZCON = -RGASD
+      ZCON = -MPC_RGAS_DRY_AIR_R8
       ZAK = -2.0*ZCON*VMA(statevectorg%nlev)
       ZBK = -2.0*ZCON*VMB(statevectorg%nlev)
       ZCK = -2.0*ZCON*VMC(statevectorg%nlev)

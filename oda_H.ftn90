@@ -94,7 +94,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
       zgamma = 0.0065D0 / GRAV
-      zexp = RGASD*zgamma
+      zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
       DO JDATA=1,obs_numbody(lobsSpaceData)
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
@@ -145,7 +145,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           ZTVG = lcolumng%OLTV(1,col_getNumLev(LCOLUMN),IOBS)*col_getElem(lcolumng,col_getNumLev(LCOLUMN),IOBS,'TT')
           ZCON =(ZLEV/col_getElem(lcolumng,1,IOBS,'P0'))**ZEXP
           call obs_set_r8(lobsSpaceData,'OMA ',jdata, (1.-zcon)/zgamma*ZLTV &
-              + RGASD*ZTVG*zcon*col_getElem(lcolumn,1,iobs,'P0') &
+              + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,iobs,'P0') &
               /col_getElem(lcolumng,1,iobs,'P0'))
         endif
       END DO
@@ -173,8 +173,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
       zgamma = 0.0065 / GRAV
-      zexp   = 1.0/(RGASD*zgamma)
-      zexpGZ = RGASD*zgamma
+      zexp   = 1.0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+      zexpGZ = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
 !C     Process all data within the domain of the model
 !C
@@ -233,7 +233,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),IOBS)*col_getElem(lcolumng,col_getNumLev(lcolumn),IOBS,'TT')
           ZCON=(ZLEV/col_getElem(lcolumng,1,IOBS,'P0'))**ZEXPGZ
           call obs_set_r8(lobsSpaceData,'OMA ',jdata,(1.-zcon)/zgamma*ZLTV &
-              + RGASD*ZTVG*zcon*col_getElem(lcolumn,1,iobs,'P0') &
+              + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,iobs,'P0') &
               /col_getElem(lcolumng,1,iobs,'P0'))
         endif
       enddo
@@ -301,7 +301,6 @@ end subroutine oda_Hto
       use modgps06gravity
       use modgps08refop
 
-      REAL*8 ZTODEG
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
@@ -336,7 +335,6 @@ end subroutine oda_Hto
 !C     * 1.  Initializations
 !C     *     ---------------
 
-      ZTODEG = 180.0 / RPI
 !C
 !C     *     Eta vector:
 !C
@@ -399,8 +397,8 @@ end subroutine oda_Hto
 !C
                 Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
                 Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
-                ZLAT = Lat * ZTODEG
-                ZLON = Lon * ZTODEG
+                ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+                ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                 DO JL = 1, col_getNumLev(lcolumn)
 !C
 !C     *                 Profile x_b
@@ -556,7 +554,6 @@ end subroutine oda_Hto
 !**    Purpose: Compute H'dx for all GPS ZTD observations using TL of gpsztdop
 !*
 
-      REAL*8 ZTODEG
       REAL*8 ZLAT
       REAL*8 ZLON
       REAL*8, allocatable :: ZETA(:)
@@ -588,7 +585,6 @@ end subroutine oda_Hto
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      ZTODEG = 180.0 / RPI
       allocate(ZETA(col_getNumLev(lcolumn)))
       allocate(ZTT(col_getNumLev(lcolumn)))
       allocate(ZHU(col_getNumLev(lcolumn)))
@@ -641,8 +637,10 @@ end subroutine oda_Hto
 !C
 !C     *           LR background profile and increments at the observation location x :
 !C
-                    ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
-                    ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
+                    ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+                    ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
                     DO JL = 1, col_getNumLev(lcolumn)
                       ZTTB(JL) = col_getElem(lcolumng,JL,JO,'TT')
                       ZTT(JL)  = col_getElem(LCOLUMN,JL,JO,'TT')

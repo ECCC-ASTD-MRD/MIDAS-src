@@ -106,7 +106,7 @@ C
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
             PPTRANS(JLON,JGL) = statevector%uu3d(JLON,KLEV,JGL)
-     S           *gaus_CONPHY(JGL)*RKNTMS
+     S           *gaus_CONPHY(JGL)*MPC_KNOTS__PER__M_PER_S_R8
           END DO
         END DO
 C
@@ -116,7 +116,7 @@ C
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
             PPTRANS(JLON,JGL) = statevector%vv3d(JLON,KLEV,JGL)
-     S           *gaus_CONPHY(JGL)*RKNTMS
+     S           *gaus_CONPHY(JGL)*MPC_KNOTS__PER__M_PER_S_R8
           END DO
         END DO
 C
@@ -158,7 +158,7 @@ C
         kip1=0
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = statevector%ps3d(JLON,1,JGL)*RPATMB
+            PPTRANS(JLON,JGL) = statevector%ps3d(JLON,1,JGL)*MPC_MBAR_PER_PA_R8
           END DO
         END DO
 C

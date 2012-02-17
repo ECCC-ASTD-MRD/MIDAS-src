@@ -127,7 +127,7 @@ c
       INTEGER mythread,numthd
       INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
 
-      ZCON = -RGASD
+      ZCON = -MPC_RGAS_DRY_AIR_R8
       ZAK0  = -2.0*ZCON*VMA(col_getNumLev(lcolumn))
       ZBK0  = -2.0*ZCON*VMB(col_getNumLev(lcolumn))
       ZCK0  = -2.0*ZCON*VMC(col_getNumLev(lcolumn))

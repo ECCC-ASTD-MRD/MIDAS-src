@@ -46,7 +46,6 @@
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO, PJOB, PJOM, PJOX, PJO1
 C
-      REAL*8 ZTODEG
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
@@ -91,8 +90,6 @@ C
 C
 C     * 1.  Initializations
 C     *     ---------------
-C
-      ZTODEG = 180.0 / RPI
 C
 C     *    .   1.1  Eta vector
 C     *    .        ----------
@@ -153,8 +150,8 @@ C     *        Profile at the observation location:
 C
                Lat  = obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)
                Lon  = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)
-               ZLAT = Lat * ZTODEG
-               ZLON = Lon * ZTODEG
+               ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+               ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                DO JL = 1, col_getNumLev(LCOLUMNHR,'TH')
 C

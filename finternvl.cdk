@@ -19,8 +19,8 @@
 *             - OUTPUT: FOEFQL,  PERTURBATION  OF VAPOUR PRESSURE
 *
       FOEFQL(PLQQQ,PLPPS,PQQQ,PPRS,PNETA) = FQBRANCH(PQQQ)
-     $     * ((PLQQQ*EPS1*PPRS*PQQQ/(EPS1+EPS2*PQQQ)
-     $     +  PLPPS*PNETA*PQQQ)/(EPS1+EPS2*PQQQ))
+     $     * ((PLQQQ*MPC_EPS1_R8*PPRS*PQQQ/(MPC_EPS1_R8+MPC_EPS2_R8*PQQQ)
+     $     +  PLPPS*PNETA*PQQQ)/(MPC_EPS1_R8+MPC_EPS2_R8*PQQQ))
      $     + (1.0D0 - FQBRANCH(PQQQ))*PLPPS*PNETA
 *
 *
@@ -31,7 +31,7 @@
 *     pttl: temperature increment
 *     plnql: increment of logarithm specific humidity  (del(ln q))
 *
-      fotvvl(pqqq,ptti,pttl,plnql)=(1 + delta*pqqq)*pttl + delta*pqqq
+      fotvvl(pqqq,ptti,pttl,plnql)=(1 + MPC_DELTA_R8*pqqq)*pttl + MPC_DELTA_R8*pqqq
      &     *ptti*plnql
 
 

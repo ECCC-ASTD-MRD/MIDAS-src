@@ -34,8 +34,8 @@
 !C
       LLPRINT = .FALSE.
       ZGAMMA = 0.0065 / GRAV
-      zexp = 1/(RGASD*ZGAMMA)
-      zexpgz = (RGASD*ZGAMMA)
+      zexp = 1/(MPC_RGAS_DRY_AIR_R8*ZGAMMA)
+      zexpgz = (MPC_RGAS_DRY_AIR_R8*ZGAMMA)
 
       DO J = 1,NFILES
          IF ( (CFAMTYP(J) == 'SF') .AND.( NBEGINTYP(J) > 0) .OR.  &

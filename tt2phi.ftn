@@ -204,7 +204,7 @@ C
         ztv(jk) = fotvv(col_getElem(lcolumnghr,jk,kobs,'TT'),zhu)
       enddo
 c
-      ZCON = -RGASD
+      ZCON = -MPC_RGAS_DRY_AIR_R8
       ZAK = -2.0*ZCON*VMAHR(col_getNumLev(lcolumnghr))
       ZBK = -2.0*ZCON*VMBHR(col_getNumLev(lcolumnghr))
       ZCK = -2.0*ZCON*VMCHR(col_getNumLev(lcolumnghr))

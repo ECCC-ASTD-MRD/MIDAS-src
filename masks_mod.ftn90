@@ -202,7 +202,7 @@ module masks_mod
 !* Local declarations
       INTEGER IDBURP
       integer :: index_header, index_body
-      REAL(8) :: ZLAT,ZLON,ZTORAD
+      REAL(8) :: ZLAT,ZLON
       LOGICAL LLNOXTR
       LLNOXTR   = .false.
 
@@ -254,9 +254,10 @@ module masks_mod
                 obs_elem_i(lobsSpaceData,'VNM ',index_header) .NE.BUFR_NEGZ) then
                lmaskpp_out(index_body) = .false.
               LLNOXTR   = .true.
-              ZTORAD    = 1.D0/(RPI/180.D0)
-              ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',index_header)*ZTORAD
-              ZLON      = obs_elem_r4(lobsSpaceData,'LON ',index_header)*ZTORAD
+              ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',index_header) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+              ZLON      = obs_elem_r4(lobsSpaceData,'LON ',index_header) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
               IDBURP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
 
               WRITE(*,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &

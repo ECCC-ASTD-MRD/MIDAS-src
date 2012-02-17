@@ -68,7 +68,7 @@ C
           do jlev = 1,knk
             do jj = 1, KNJ
               DO JI = 1, KNI
-                pout(ji,jlev,jj) = gaus_CONIMA(JJ)*pin(JI,JJ,JLEV)*RMSKNT
+                pout(ji,jlev,jj) = gaus_CONIMA(JJ)*pin(JI,JJ,JLEV)*MPC_M_PER_S__PER__KNOT_R8
               END DO
             END DO
           enddo
@@ -76,7 +76,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                pout(ji,jlev,jj) = gaus_CONIMA(JJ)*pin(JI,JJ,JLEV)*RMSKNT
+                pout(ji,jlev,jj) = gaus_CONIMA(JJ)*pin(JI,JJ,JLEV)*MPC_M_PER_S__PER__KNOT_R8
               END DO
             END DO
           enddo
@@ -116,7 +116,7 @@ C
             END DO
           enddo
         ELSEIF(CLVAR.EQ.'TT') THEN
-          ZCON = TCDK
+          ZCON = MPC_K_C_DEGREE_OFFSET_R8
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -235,7 +235,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                POUT(JI,JLEV,JJ) = gaus_CONIMA(JJ)*RMSKNT
+                POUT(JI,JLEV,JJ) = gaus_CONIMA(JJ)*MPC_M_PER_S__PER__KNOT_R8
      S               *PIN(JI,KNJ-JJ+1,jlev)
               END DO
             END DO
@@ -244,7 +244,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                POUT(JI,JLEV,JJ) = gaus_CONIMA(JJ)*RMSKNT
+                POUT(JI,JLEV,JJ) = gaus_CONIMA(JJ)*MPC_M_PER_S__PER__KNOT_R8
      S               *PIN(JI,KNJ-JJ+1,JLEV)
               END DO
             END DO
@@ -266,7 +266,7 @@ C
             END DO
           enddo
         ELSEIF(CLVAR.EQ.'TT') THEN
-          ZCON = TCDK
+          ZCON = MPC_K_C_DEGREE_OFFSET_R8
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI

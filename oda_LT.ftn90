@@ -125,8 +125,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       real*8,pointer :: zprofil(:)
       real*8 :: dldlat2(-1:gaus_nj)
 
-      DLDLON2=1./(2.*RPI/STATEVECTOR%NI)
-      DLDLOS2=1./(2.*RPI/STATEVECTOR%NI)
+      DLDLON2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
+      DLDLOS2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
 
       do ila=-1,(gaus_nj+1)
         DLDLAT2(ILA)=1.0d0/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
@@ -153,8 +153,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
             ILA=obs_elem_mpiglobal_i(lobsSpaceData,'TLA ',JOBS)
 
-            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*RPI
-            IF(DLLOO.GE.2.*RPI) DLLOO = DLLOO - 2.*RPI
+            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
+            IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8
             ILON = INT(DLLOO*DLDLON2) + 1
             ILOS = INT(DLLOO*DLDLOS2) + 1
 !C

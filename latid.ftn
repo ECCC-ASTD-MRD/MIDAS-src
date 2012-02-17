@@ -21,7 +21,7 @@
       use MathPhysConstants_mod
       IMPLICIT NONE
       INTEGER KLAT1,KLAT2
-      REAL*8    ZFACTOR,PLAT,ZLAT,ZTORAD
+      REAL*8    ZFACTOR,PLAT,ZLAT
 *
 #if defined (DOC)
 *AUTHOR   - M. VALIN  RPN OCT 1984
@@ -49,8 +49,7 @@
 *-------------------------------------------------------------
 #include "comlun.cdk"
 *
-      ZTORAD=RPI/180.
-      ZLAT= PLAT/ZTORAD
+      ZLAT= PLAT / MPC_RADIANS_PER_DEGREE_R8
       IF(ZLAT .GE. 30.)THEN
         KLAT1   = 1
         KLAT2   = 1

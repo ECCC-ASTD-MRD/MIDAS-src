@@ -165,13 +165,13 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
      if (indxm .eq. 2 ) indxm = 0
      indxreg = isrcheq ( mlisreg, nregst, indxm )
 
-     zps_tl  (knpf) = col_getElem(lcolumn,1,jo,'P0')*rpatmb
+     zps_tl  (knpf) = col_getElem(lcolumn,1,jo,'P0')*MPC_MBAR_PER_PA_R8
      do jl = 1, col_getNumLev(lcolumn)
         zt_tl   (jl,knpf) = col_getElem(lcolumn,jl,jo,'TT')
         zlq_tl  (jl,knpf) = col_getElem(lcolumn,jl,jo,'HU')
         zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
         zlq  (jl,knpf) = col_getElem(lcolumng,jl,jo,'HU')
-        zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'NA') * rpatmb
+        zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'NA') *MPC_MBAR_PER_PA_R8
      enddo
      iptobs   (knpf) = iobs
      iptobscma(knpf) = jo
@@ -273,7 +273,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
         profiles_tl(iptobs(j)) % skin % fastem(:)= 0.0
         profiles_tl(iptobs(j)) % s2m % t         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'TT')
         profiles_tl(iptobs(j)) % s2m % q         = qoext(ilowlvl,j) * col_getElem(lcolumn,ilowlvl,iptobscma(j),'HU') * q_mixratio_to_ppmv
-        profiles_tl(iptobs(j)) % s2m % p         = col_getElem(lcolumn,1,iptobscma(j),'P0')*rpatmb
+        profiles_tl(iptobs(j)) % s2m % p         = col_getElem(lcolumn,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
         profiles_tl(iptobs(j)) % s2m % u         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'UU')
         profiles_tl(iptobs(j)) % s2m % v         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'VV')
      end do

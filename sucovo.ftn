@@ -302,7 +302,7 @@ C
         CALL INCDATR(IDATE,ISTAMP,DHEURES)
 C
         DO JLEV = 1,JPRLEV
-          NILV(JLEV) = NILV(JLEV)*RMBTPA
+          NILV(JLEV) = NILV(JLEV)*MPC_PA_PER_MBAR_R8
         END DO
 C
 C     SORT LEVELS SO THAT THEY ARE STORED IN INCREASING ORDER
@@ -511,7 +511,7 @@ C
      +               IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM)
 C
       DO JLEV = 1,JPSATLV
-         NISLV(JLEV) =NISLV(JLEV)*RMBTPA
+         NISLV(JLEV) =NISLV(JLEV)*MPC_PA_PER_MBAR_R8
       END DO
 C
 C     =========================
@@ -582,7 +582,7 @@ C
       LLPRESNT = (IKEY .GE. 0)
 C
       DO JLEV = 1,JPHLEV
-         NIHULV(JLEV) = NIHULV(JLEV)*RMBTPA
+         NIHULV(JLEV) = NIHULV(JLEV)*MPC_PA_PER_MBAR_R8
       END DO
 C-----------------------------------------------------------------------
       CTYPVAR='O'

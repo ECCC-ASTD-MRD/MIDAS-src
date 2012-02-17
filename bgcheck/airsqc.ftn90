@@ -249,13 +249,15 @@
                 NOBAIRS = NOBAIRS + 1
 
                 ZTG(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'TG')
-                ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'P0')*RPATMB
+                ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'P0') &
+                                                             * MPC_PA_PER_MBAR_R8
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')
                   ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'TT')
                   ZHT(JL,NOBAIRS) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
                   ZLQ(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'HU')
-                  ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,JO,'NA') * RPATMB
+                  ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,JO,'NA') &
+                                                             * MPC_PA_PER_MBAR_R8
                 END DO
 
                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)

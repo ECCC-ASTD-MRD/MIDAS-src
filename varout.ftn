@@ -70,8 +70,8 @@ c
       if(nulinclr.ne.0) then
         write(nulout,*) 'Writing variable HY on analysis-increment file'
 c
-        zptop4 = statevector%vco%dpt_M*rpatmb
-        zpref4 = statevector%vco%dprf_M*rpatmb
+        zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
+        zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
         zrcoef4 = statevector%vco%drcf1
         ierr    = write_encode_hyb(nulinclr,'HY',nip2,min_niter,cetikinc
      &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
@@ -95,8 +95,8 @@ c
       write(nulout,*)
      &     ' The hybride coordinate parameters from increment'
      &     ,' analysis  grid are:'
-      write(nulout,*) ' PTOP = ',statevector%vco%dpt_M*rpatmb,' MB'
-      write(nulout,*) ' PREF = ',statevector%vco%dprf_M*rpatmb,' MB'
+      write(nulout,*) ' PTOP = ',statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(nulout,*) ' PREF = ',statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8,' MB'
       write(nulout,*) ' RCOEF= ',statevector%vco%drcf1
       write(nulout,*)'************************************** '
       write(nulout,*)' '

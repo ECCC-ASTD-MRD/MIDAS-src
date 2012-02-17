@@ -756,7 +756,7 @@ MODULE obsSpaceData_mod
     INTEGER ielement,ilevel
     INTEGER ZESMAX,ZES
 !
-    REAL(kind=8) ZTORAD,ZFACT,padd,pmul,ZEMFACT,pvalue
+    REAL(kind=8) ZFACT,padd,pmul,ZEMFACT,pvalue
 !
 !***********************************************************************
 !     SET BAD FLAG VALUE IIND AND UNIT CONVERSION CONSTANTS
@@ -764,7 +764,6 @@ MODULE obsSpaceData_mod
 !
     IIND  =-1
     IBAD=2**11
-    ZTORAD=RPI/180.
 !
     ZFACT=VCONV
 !
@@ -821,7 +820,7 @@ MODULE obsSpaceData_mod
                             ENDIF
 !                                    CONVERT TO RADIANS
                             IF ( ILEM .EQ. 48 .OR. ILEM .EQ. 54 ) THEN
-                             pvalue=ZTORAD*pvalue
+                             pvalue=MPC_RADIANS_PER_DEGREE_R8*pvalue
                             ENDIF
 !                                       FLAGS
                             IF  (LDFLAG) THEN

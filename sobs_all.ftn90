@@ -237,7 +237,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       INTEGER IJ,J,JD,JDATA,IBAD,IFLG
       LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
       REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
-      REAL*8 ZLAT,ZLON,ZRADDEG,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
+      REAL*8 ZLAT,ZLON,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
       INTEGER ITYP,IASS,ICOUNT
       INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
       INTEGER ILEM,IELGZ
@@ -274,7 +274,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       WRITE(NULOUT,* ) '************************************************'
       WRITE(NULOUT,* ) ' '
       IELGZ =  ILISTEL(JPINEL)
-      ZRADDEG = 180./RPI
 !C
 !C     SET COUNTERS TO ZERO
 !C
@@ -310,8 +309,10 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)*ZRADDEG
-         ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)*ZRADDEG
+         ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+         ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
          ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
          ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
@@ -618,7 +619,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       INTEGER IJ,J,JD,JDATA,IBAD,IFLG
       LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
       REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
-      REAL*8 ZLAT,ZLON,ZRADDEG,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
+      REAL*8 ZLAT,ZLON,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
       INTEGER ITYP,IASS,ICOUNT
       INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
       INTEGER ILEM,IELGZ
@@ -657,7 +658,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       WRITE(NULOUT,* ) '************************************************'
       WRITE(NULOUT,* ) ' '
       IELGZ =  ILISTEL(JPINEL)
-      ZRADDEG = 180./RPI
 !C
 !C     SET COUNTERS TO ZERO
 !C
@@ -701,8 +701,10 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
            cycle HEADER                 ! Proceed to the next HEADER
          end if
 
-         ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)*ZRADDEG
-         ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)*ZRADDEG
+         ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+         ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
          ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
          ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL

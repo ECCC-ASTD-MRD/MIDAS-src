@@ -70,9 +70,9 @@
            DO JLAT = 1, gaus_NJ
               DO JLON=1,gaus_NI
                  if(IG2 .eq. 0) then
-                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
@@ -84,9 +84,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
@@ -186,9 +186,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%ps3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RMBTPA
+                    statevector%ps3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
                  else
-                    statevector%ps3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RMBTPA
+                    statevector%ps3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
                  endif
               END DO
            END DO
@@ -199,9 +199,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
@@ -212,9 +212,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*RMSKNT
+                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO

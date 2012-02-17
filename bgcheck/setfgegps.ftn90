@@ -20,7 +20,6 @@
 #include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
-      REAL*8 ZTODEG
       REAL*8 ZLAT
       REAL*8 ZLON
       REAL*8, allocatable :: ZETA(:)
@@ -58,7 +57,6 @@
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      ZTODEG = 180.0 / RPI
       allocate(ZETA(col_getNumLev(lcolumng)))
       allocate(ZTT(col_getNumLev(lcolumng)))
       allocate(ZHU(col_getNumLev(lcolumng)))
@@ -123,8 +121,10 @@
 !C     
 !C     *        LR background profile and background errors at the observation location x :
 !C
-                     ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) * ZTODEG
-                     ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) * ZTODEG
+                     ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
+                     ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) &
+                                                      * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(LCOLUMNG)
                        ZTTB(JL) = col_getElem(lcolumng,JL,JO,'TT')
                        ZTT(JL)  = col_getElem(lcolumn,JL,JO,'TT')

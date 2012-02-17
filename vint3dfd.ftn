@@ -106,7 +106,7 @@ c           END DO
                        ANG=0.0D0
                     ELSE
                       ANG=ATAN2(VV,UU)
-                      ANG= (270.0D0 - ANG  * 180.0D0 / pi )
+                      ANG= (270.0D0 - ANG  * 180.0D0 / MPC_PI_R8_OLD )
 *
 ************************************************************************
 *  2-Change to meteorological definition of wind direction.
@@ -128,7 +128,7 @@ C
      &               .AND. obs_elem_r4(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
                         call obs_set_r4(lobsSpaceData, elem_s, JJOBS, real(ANG 
      &                          - obs_elem_r4(lobsSpaceData,'VAR ',JJOBS)
-     &                           *180.0/PI))
+     &                           *180.0 / MPC_PI_R8_OLD))
                         IF ( obs_elem_r4(lobsSpaceData,elem_s,JJOBS) .gt.  180.0)
      &                  call obs_set_r4(lobsSpaceData, elem_s, JJOBS, 
      &                        obs_elem_r4(lobsSpaceData,elem_s,JJOBS)-360.0)
@@ -137,7 +137,7 @@ C
      &                        obs_elem_r4(lobsSpaceData,elem_s,JJOBS)+360.0)
                         call obs_set_r4(lobsSpaceData, elem_s, JJOBS, -1.0*
      &                              obs_elem_r4(lobsSpaceData,elem_s,JJOBS)
-     &                              *real(PI)/180.0)
+     &                              *MPC_PI_R4 / 180.0)
                         call obs_set_r4(lobsSpaceData,'OER ',JJOBS,1.0)
                         call obs_set_i(lobsSpaceData,'ASS ',JJOBS, 1)
                         call obs_set_i(lobsSpaceData,'FLG ',JJOBS, 0)

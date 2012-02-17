@@ -34,7 +34,6 @@
 
       LOGICAL  ASSIM
 
-      REAL*8 ZTODEG
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
@@ -55,8 +54,6 @@
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
-!C
-      ZTODEG = 180.0 / RPI
 !C
 !C     *     Eta vector:
 !C
@@ -105,8 +102,8 @@
 !C
                      Lat  = obs_elem_r4(lobsSpaceData,'LAT ',jo)
                      Lon  = obs_elem_r4(lobsSpaceData,'LON ',jo)
-                     ZLAT = Lat * ZTODEG
-                     ZLON = Lon * ZTODEG
+                     ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+                     ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(lcolumng)
 !C
 !C     *                 Profile x
