@@ -130,7 +130,7 @@
                    zsumo=zsumo+zoer*zoer
                    icoun=icoun+1
                 endif
-                  ITY=obs_elem_i(lobsSpaceData,'ITY ',jdata)
+                  ITY=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
                   IDBURP=MOD(ITY,1000)
                   IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
 !C

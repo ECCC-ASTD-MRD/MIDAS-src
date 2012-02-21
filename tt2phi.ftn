@@ -194,7 +194,7 @@ C
       INTEGER  kobs
 *
       INTEGER  JLON, IKLEVM2, JK, IK,ier
-      REAL*8   ZAK, ZBK, ZCK,ZCON,zhu
+      REAL*8   ZAK, ZBK, ZCK,ZCON,zhu,mountain
       real*8, pointer :: gz_column(:)
 #include "dinternv.cdk"
 #include "finternv.cdk"
@@ -209,7 +209,8 @@ c
       ZBK = -2.0*ZCON*VMBHR(col_getNumLev(lcolumnghr))
       ZCK = -2.0*ZCON*VMCHR(col_getNumLev(lcolumnghr))
       gz_column => col_getColumn(lcolumnghr,kobs,'GZ')
-      gz_column(col_getNumLev(lcolumnghr)) = col_getMountain(lcolumnghr,kobs)
+      mountain = col_getMountain(lcolumnghr,kobs)
+      gz_column(col_getNumLev(lcolumnghr)) = mountain
       gz_column(col_getNumLev(lcolumnghr)-1)=
      $                   ZAK*ztv(col_getNumLev(lcolumnghr)-1)+
      $                   ZBK*ztv(col_getNumLev(lcolumnghr))+

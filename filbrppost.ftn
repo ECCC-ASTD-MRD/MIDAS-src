@@ -111,6 +111,7 @@ C     ------------------
       CSAV(2)='OMP'
       CSAV(3)='OER'
       CSAV(4)='VAR'
+      CSAV(5)='FGE'
 C
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

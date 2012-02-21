@@ -149,8 +149,6 @@
       INTEGER IDLT,ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
      +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
       INTEGER ISTNID14,ISTNID58,ISTNID99
-      CHARACTER *4 CSID14,CSID58
-      CHARACTER *1 CSID99
 *
       INTEGER MRFPUT,MRFVOI,MRBTYP,VMRFOPR,MRFOPN,MRFLOC,MRFGET
      +         ,MRFMXL
@@ -849,12 +847,6 @@ c               ENDIF
 *
                IF  ( NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
                 NUMHEADER=NUMHEADER + 1
-                csid14=CLSTNID(1:4)
-                csid58=CLSTNID(5:8)
-                csid99=CLSTNID(9:9)
-                READ(csid14,'(a4)')ISTNID14
-                READ(csid58,'(a4)')ISTNID58
-                READ(csid99,'(a1)')ISTNID99
                 call obs_set_c9(lobsSpaceData,'STID',NUMHEADER,CLSTNID)
                 call obs_set_r4(lobsSpaceData,'LON ',NUMHEADER, REAL((ILON*0.01)*MPC_RADIANS_PER_DEGREE_R8))
                 call obs_set_r4(lobsSpaceData,'LAT ',NUMHEADER, REAL((ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8))
@@ -890,7 +882,6 @@ c               ENDIF
                 call obs_set_i(lobsSpaceData,'ITY ',NUMHEADER, IDBURP+ 1000*ISAT+ 1000000*ITECH)
                 call obs_set_i(lobsSpaceData,'DAT ',NUMHEADER, IDATE)
                 call obs_set_i(lobsSpaceData,'ETM ',NUMHEADER, ITIME)
-                call obs_set_i(lobsSpaceData,'SID ',NUMHEADER, ISTNID14)
                 !!bhe MOBHDR(NCM_OEC,NUMHEADER) = 999
                 call obs_set_i(lobsSpaceData,'OEC ',NUMHEADER, IfamID)
                 call obs_set_i(lobsSpaceData,'OFL ',NUMHEADER, IMASK)

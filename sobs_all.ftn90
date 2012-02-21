@@ -545,10 +545,12 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          !
                                         ! Set the body list
                                         ! (& start at the beginning of the list)
-         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
+!         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
+         BODY: do index_body=1,obs_numbody(lobsSpaceData)
+!            index_body = obs_getBodyIndex(lobsSpaceData)
+!            if (index_body < 0) exit BODY
+            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+            if(obs_getFamily(lobsSpaceData,index_header).eq.list_family(index_family)) then
 
 !C
 !C          REJECT DATA TOO CLOSE TO THE MODEL OROGRAPHY ,PUT TO
@@ -573,6 +575,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                                  18 ))
                   ENDIF
                END DO
+            ENDIF
             ENDIF
          END DO BODY
       END DO FAMILY

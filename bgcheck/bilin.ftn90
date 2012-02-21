@@ -31,8 +31,6 @@
       real*8, pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
 
       allocate(zgd(0:(statevector%ni+2),1:statevector%nk,(-1):(statevector%nj+2)),STAT=ierr)
-      write(*,*) 'allocated zgd:',ierr,statevector%ni,statevector%nj,statevector%nk,statevector%nlev,col_getNumCol(lcolumn)
-      call flush(6)
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
 !C     NILON(JGL), 1, AND 2 INTO MERIDIANS 0, NILON(JGL)+1,
@@ -105,9 +103,6 @@
          ENDDO
 
       ENDDO
-      write(*,*) 'zgd=',zgd(120,:,60)
-      write(*,*) 'gd3d=',statevector%gd3d(120,:,60)
-      write(*,*) 'uu3d=',statevector%uu3d(120,:,60)
 !C
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
@@ -141,14 +136,14 @@
 !C
 !C*    2.3 Interpolate the model state to the obs point
 !C
-         uu_column => col_getColumn(lcolumn,jobs,'UU')
-         vv_column => col_getColumn(lcolumn,jobs,'VV')
-         hu_column => col_getColumn(lcolumn,jobs,'HU')
-         gz_column => col_getColumn(lcolumn,jobs,'GZ')
-         tt_column => col_getColumn(lcolumn,jobs,'TT')
-         tr_column => col_getColumn(lcolumn,jobs,'TR')
-         ps_column => col_getColumn(lcolumn,jobs,'P0')
-         tg_column => col_getColumn(lcolumn,jobs,'TG')
+         if(col_varExist('UU')) uu_column => col_getColumn(lcolumn,jobs,'UU')
+         if(col_varExist('VV')) vv_column => col_getColumn(lcolumn,jobs,'VV')
+         if(col_varExist('HU')) hu_column => col_getColumn(lcolumn,jobs,'HU')
+         if(col_varExist('GZ')) gz_column => col_getColumn(lcolumn,jobs,'GZ')
+         if(col_varExist('TT')) tt_column => col_getColumn(lcolumn,jobs,'TT')
+         if(col_varExist('TR')) tr_column => col_getColumn(lcolumn,jobs,'TR')
+         if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
+         if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
          DO JK = 1, statevector%nlev
            if(NGEXIST(nguu).eq.1) then
              jk2=jk+ngposit(nguu)-1
@@ -210,8 +205,6 @@
       ENDDO
 
       deallocate(zgd,STAT=ierr)
-      write(*,*) 'deallocated zgd:',ierr
-      call flush(6)
 
       RETURN
       END SUBROUTINE BILIN

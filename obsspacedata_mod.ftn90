@@ -177,7 +177,7 @@ MODULE obsSpaceData_mod
 
   ! header column numbers
   public           :: NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
-                      NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_SID, NCM_ALT,  &
+                      NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_ALT,  &
                       NCM_NLV, NCM_OEC, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA,  &
                       NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,   &
                       NCM_BY,  NCM_BZ
@@ -242,6 +242,7 @@ MODULE obsSpaceData_mod
                                         ! Headers of the mpi-Global obs data
    integer,           pointer, dimension(:,:) :: mobhdr_g
    real(kind=4),      pointer, dimension(:,:) :: robhdr_g
+   character(len=9),  pointer, dimension(:)   :: cstnid_g
    integer, pointer, dimension(:) :: locObsTag
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
@@ -259,7 +260,6 @@ MODULE obsSpaceData_mod
   integer,parameter :: NCM_LON = 7
   integer,parameter :: NCM_DAT = 8
   integer,parameter :: NCM_ETM = 9
-  integer,parameter :: NCM_SID = 10
   integer,parameter :: NCM_ALT = 11
   integer,parameter :: NCM_NLV = 12
   integer,parameter :: NCM_OEC = 13
@@ -348,6 +348,7 @@ MODULE obsSpaceData_mod
 
     nullify(obsdat%mobhdr_g)
     nullify(obsdat%robhdr_g)
+    nullify(obsdat%cstnid_g)
 
     call obs_allocate(obsdat,obsdat%numheader_max,obsdat%numbody_max)
     call ild_initialize(obsdat%header_index_list_depot, obsdat%numheader_max)
@@ -404,6 +405,9 @@ MODULE obsSpaceData_mod
 
     integer :: ierr
 
+    ALLOCATE(obsdat%cstnid_g(maxNumHdr),STAT=ierr)
+    obsdat%cstnid_g(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
+
     ALLOCATE(obsdat%ROBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
     obsdat%ROBHDR_g=0.0
 
@@ -419,6 +423,15 @@ MODULE obsSpaceData_mod
     type(struct_obs), intent(inout) :: obsdat
 
     integer :: ierr
+
+    if (associated(obsdat%cstnid_g)) then
+      deallocate(obsdat%cstnid_g,stat=ierr)
+      if(ierr.eq.0) then
+        write(*,*) 'CSTNID_g checked and correct. IERR =',ierr
+      else
+        write(*,*) 'Problem detected in CSTNID_g. IERR =',ierr
+      endif
+    end if
 
     if (associated(obsdat%robhdr_g)) then
       deallocate(obsdat%robhdr_g,stat=ierr)
@@ -543,6 +556,7 @@ MODULE obsSpaceData_mod
       character(len=*) cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
+      call flush(6)
 
       call qqexit(1)
 
@@ -1011,7 +1025,6 @@ MODULE obsSpaceData_mod
   case ('SUN '); value=obsdat%mobhdr(NCM_SUN, index)
   case ('CLF '); value=obsdat%mobhdr(NCM_CLF, index)
   ! Added for var3d
-  case ('SID '); value=obsdat%mobhdr(NCM_SID, index)
   case ('OEC '); value=obsdat%mobhdr(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr(NCM_TLA, index)
@@ -1062,7 +1075,6 @@ MODULE obsSpaceData_mod
   case ('SUN '); value=obsdat%mobhdr_g(NCM_SUN, index)
   case ('CLF '); value=obsdat%mobhdr_g(NCM_CLF, index)
   ! Added for var3d
-  case ('SID '); value=obsdat%mobhdr_g(NCM_SID, index)
   case ('OEC '); value=obsdat%mobhdr_g(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr_g(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr_g(NCM_TLA, index)
@@ -1564,12 +1576,6 @@ MODULE obsSpaceData_mod
   type(struct_obs), intent(in) :: obsdat
   INTEGER         , intent(in) :: KOBS, KULOUT
 
-  CHARACTER(len=4) :: CSID14
-  CHARACTER(len=9) :: CCSTNID
-
-  WRITE(CSID14,'(a4)')obs_elem_i(obsdat,'SID ',KOBS)
-  CCSTNID=CSID14
-
 !
 ! 1. General information
 !
@@ -1585,7 +1591,7 @@ MODULE obsSpaceData_mod
      ,obs_elem_i (obsdat,'ITY ',KOBS) &
      ,obs_elem_r4(obsdat,'LAT ',KOBS),obs_elem_r4(obsdat,'LON ',KOBS)&
      ,obs_elem_i (obsdat,'DAT ',KOBS),obs_elem_i (obsdat,'ETM ',KOBS) &
-     ,CCSTNID                        ,obs_elem_r4(obsdat,'ALT ',KOBS) &
+     ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r4(obsdat,'ALT ',KOBS) &
      ,obs_elem_i (obsdat,'NLV ',KOBS),obs_elem_i (obsdat,'OEC ',KOBS) &
      ,obs_elem_i (obsdat,'OFL ',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
      ,obs_elem_i (obsdat,'TLA ',KOBS)
@@ -1640,7 +1646,6 @@ MODULE obsSpaceData_mod
   case ('SUN '); obsdat%mobhdr (NCM_SUN, index) = value
   case ('CLF '); obsdat%mobhdr (NCM_CLF, index) = value
   ! Added for var3d
-  case ('SID '); obsdat%mobhdr (NCM_SID, index) = value
   case ('OEC '); obsdat%mobhdr (NCM_OEC, index) = value
   case ('ST1 '); obsdat%mobhdr (NCM_ST1, index) = value
   case ('TLA '); obsdat%mobhdr (NCM_TLA, index) = value
@@ -1945,6 +1950,7 @@ MODULE obsSpaceData_mod
 
 !! keep the Global ROBHDR and MOBHDR
   DO iobs=1,obsdat%numheader_mpiglobal
+    obsdat%CSTNID_G(iobs)=obsdat%CSTNID(iobs)
     obsdat%MOBHDR_G(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,iobs)
     obsdat%ROBHDR_G(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,iobs)
   ENDDO  
@@ -2054,18 +2060,19 @@ MODULE obsSpaceData_mod
 
   type(struct_obs), intent(inout) :: obsdat
 
-! Declaire Local Variables. 
-  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
+  CHARACTER(len=9),ALLOCATABLE    :: cstnid_tmp(:)
 
-  INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_TMP 
+  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
+  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
+
+  INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_tmp
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp 
   
   INTEGER :: i,j,iobs,ierr,startindx,endindx 
-  INTEGER :: idataend,jj,idata,ii,sizeMOBDATA  
-  INTEGER ::sizeMOBHDR  
+  INTEGER :: idataend,idata,ii  
+  INTEGER :: sizeMOBHDR,sizeROBHDR,sizeMOBDATA,sizeROBDATA  
 !!---------------------------------------------------------------
 
-!!1.      Release some memory
   write(*,*) 'Entering obs_expandToMpiGlobal'
 
   if(obsdat%mpi_local .eqv. .false.)then
@@ -2075,23 +2082,37 @@ MODULE obsSpaceData_mod
   end if
   obsdat%mpi_local = .false.
 
-!!1.2 Added restore global array MOBHDR
-!     MOBHDR is used in "cmaabrp.ftn"
+  ! Restore header elements
   ALLOCATE(MOBHDR_tmp(NCM_LET,obsdat%numheader_mpiglobal),STAT=ierr)
-  IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBHDR_tmp,Abort!')
+  IF(ierr /= 0)  call obs_abort('Cannot allocate mobhdr_tmp!')
   MOBHDR_TMP=0
 
-! 1.3 retore global MOBHDR
+  ALLOCATE(ROBHDR_tmp(NCM_LET,obsdat%numheader_mpiglobal),STAT=ierr)
+  IF(ierr /= 0)  call obs_abort('Cannot allocate robhdr_tmp!')
+  ROBHDR_TMP=0
+
   DO i=1,obsdat%numheader
      iobs=obsdat%locObsTag(i)
      MOBHDR_tmp(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,i)
+     ROBHDR_tmp(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,i)
   ENDDO
+
   sizeMOBHDR=size(MOBHDR_tmp)
   CALL RPN_COMM_ALLReduce(MOBHDR_tmp,MOBHDR_tmp,sizeMOBHDR,"mpi_integer", &
                           "mpi_sum","GRID",ierr)
 
+  sizeROBHDR=size(ROBHDR_tmp)
+  CALL RPN_COMM_ALLReduce(ROBHDR_tmp,ROBHDR_tmp,sizeROBHDR,"mpi_real", &
+                          "mpi_sum","GRID",ierr)
 
-!!2.  Allocate memory for the temporary arrays.
+  ! Get the cstnid from the global copy
+  ALLOCATE(cstnid_tmp(obsdat%numheader_mpiglobal),STAT=ierr)
+  IF(ierr /= 0)  call obs_abort('Cannot allocate cstnid_tmp!')
+  do i=1,obsdat%numheader_mpiglobal
+    cstnid_tmp(i)=obsdat%cstnid_g(i)
+  enddo
+
+  ! Allocate memory for the temporary arrays.
   ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBDATA_tmp,Abort!')
   MOBDATA_tmp=0
@@ -2100,7 +2121,7 @@ MODULE obsSpaceData_mod
   IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
   ROBDATA_tmp=0.0
 
-!3.  Restore the global arrays MOBDATA and ROBDATA
+  ! Restore the global arrays MOBDATA and ROBDATA
   ii=0
   DO i=1,obsdat%numheader
     iobs=obsdat%locObsTag(i)
@@ -2117,19 +2138,25 @@ MODULE obsSpaceData_mod
   sizeMOBDATA=size(MOBDATA_tmp)
   CALL RPN_COMM_ALLReduce(MOBDATA_tmp,MOBDATA_tmp,sizeMOBDATA,"mpi_integer",&
                           "mpi_sum","GRID",ierr)
-  CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeMOBDATA,"mpi_real",&
+  sizeROBDATA=size(ROBDATA_tmp)
+  CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeROBDATA,"mpi_real",&
                           "mpi_sum","GRID",ierr)
    !
 
   call obs_deallocate(obsdat)
   call obs_allocate(obsdat,obsdat%numheader_mpiglobal,obsdat%numbody_max)
 
-  obsdat%ROBDATA=ROBDATA_tmp
-  DEALLOCATE(ROBDATA_tmp)
-  obsdat%MOBDATA=MOBDATA_tmp
-  DEALLOCATE(MOBDATA_tmp)
+  obsdat%cstnid=cstnid_tmp
+  obsdat%ROBHDR=ROBHDR_tmp
   obsdat%MOBHDR=MOBHDR_tmp
+  obsdat%ROBDATA=ROBDATA_tmp
+  obsdat%MOBDATA=MOBDATA_tmp
+
+  DEALLOCATE(cstnid_tmp)
+  DEALLOCATE(ROBHDR_tmp)
   DEALLOCATE(MOBHDR_tmp)
+  DEALLOCATE(ROBDATA_tmp)
+  DEALLOCATE(MOBDATA_tmp)
 
   call obs_deallocateG(obsdat)
 

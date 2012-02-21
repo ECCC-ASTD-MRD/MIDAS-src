@@ -1,6 +1,7 @@
 module columnData_mod
   use varNameList_mod
   use verticalCoord_mod
+  use MathPhysConstants_mod
   implicit none
   save
 !  private
@@ -22,7 +23,7 @@ module columnData_mod
   logical nmvoexist(jpnvarmax)
   integer :: nvo3d,nvo2d
   real*8 :: rhumin
-  integer, parameter :: mxstepobs=9 ! temporarily specify max number of step obs for allocation
+  integer, parameter :: mxstepobs=9 
 
   contains
 
@@ -101,6 +102,7 @@ module columnData_mod
       DO JVAR = 1, JPNVARMAX
         cmvoneed(jvar) = '  '
       enddo
+      rhumin = rminhu
 
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

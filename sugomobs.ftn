@@ -346,8 +346,8 @@ c
       zmobs_M(:,:)=zmobs_M(:,:)*10.0d0*RG
       call col_fillmvo(lcolumnhr,'GZ','MM',zmobs_M)
 c
-c     remplir aussi columnhr_gz avec le GZ momentum (I don't think this is needed)
-!      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs_M,nlv_M,col_getNumCol(lcolumng))
+c     remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
+      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs_M)
 c
 c     Lire les GZ des niveaux Thermodynamique
 c
@@ -575,7 +575,6 @@ c Using T, q and PS to compute GZ for columng
 c
       do jobs = 1, col_getNumCol(lcolumng)
         call col_setMountain(lcolumng ,jobs,col_getMountain(lcolumnhr,jobs))
-        call col_setMountain(lcolumnhr,jobs,col_getMountain(lcolumnhr,jobs))
       enddo
       call tt2phi(lcolumng)
 c
