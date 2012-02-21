@@ -99,6 +99,8 @@ module varNameList_mod
         varName='HU'
       case(BUFR_NEPS,BUFR_NEPN)
         varName='P0'
+      case(BUFR_NERF)
+        varName='TT'   ! temporarily associate refractivity with temperature
       case default
         write(*,*) 'column: varname_from_varnum: Unknown variable number! ',varNumber
         call flush(6)
@@ -106,5 +108,48 @@ module varNameList_mod
       end select
 
     end function vnl_varnameFromVarnum
+
+
+    function vnl_vartypeFromVarnum(varNumber) result(varType)
+      use bufr
+      implicit none
+
+      integer,          intent(in)  :: varNumber
+      character(len=2)              :: varType,varName
+
+      varName = vnl_varnameFromVarnum(varNumber)
+      varType = varTypeList(vnl_varListIndex(varName))
+
+!      varType = 'NA'
+!      if ( varNumber .EQ. BUFR_NEUU .OR.  &
+!           varNumber .EQ. BUFR_NEVV .OR.  &
+!           varNumber .EQ. BUFR_NEUS .OR.  &
+!           varNumber .EQ. BUFR_NEVS .OR.  &
+!           varNumber .EQ. BUFR_NEFS .OR.  &
+!           varNumber .EQ. BUFR_NEGZ .OR.  &
+!           varNumber .EQ. BUFR_NEDS       ) then
+!        varType = 'MM' 
+!      elseif ( varNumber .EQ. BUFR_NETT .OR.   &
+!               varNumber .EQ. BUFR_NEES .OR.   &
+!               varNumber .EQ. BUFR_NEHU .OR.   &
+!               varNumber .EQ. BUFR_NEHS .OR.   &
+!               varNumber .EQ. BUFR_NETS .OR.   &
+!               varNumber .EQ. BUFR_NESS .OR.   &
+!               varNumber .EQ. BUFR_NERF        ) then
+!        varType = 'TH'
+!      elseif ( varNumber .EQ. BUFR_NEPS .OR.   &
+!               varNumber .EQ. BUFR_NEPN        ) then
+!               varType = 'SF'
+!      else
+!           WRITE(*,*) ' '
+!           WRITE(*,*) 'VARIABLE NUMBER NOT MOMENTUM OR THERMO TYPE'
+!           WRITE(*,*)  varNumber
+!           WRITE(*,*) ' '
+!           call flush(6)
+!           call qqexit(1)
+!      endif    
+      return
+    end function vnl_vartypeFromVarnum
+
 
 end module varNameList_mod

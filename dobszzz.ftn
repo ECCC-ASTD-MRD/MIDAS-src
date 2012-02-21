@@ -96,7 +96,7 @@ C
                   IVNM = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   IPT = IK + col_varnoOffset(lcolumnhr,ivnm)
                   IPB = IPT+1
-                  CALL GETVARTYPE(IVNM,CVAR)
+                  cvar = vnl_vartypeFromVarnum(IVNM)
                   ZPT= col_getHeight(lcolumnhr,ik  ,iobs,cvar)/RG
                   ZPB= col_getHeight(lcolumnhr,ik+1,iobs,cvar)/RG
                   ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)

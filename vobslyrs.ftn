@@ -84,7 +84,7 @@ C
                ENDIF
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-               CALL GETVARTYPE(ITYP,CVAR)
+               cvar = vnl_vartypeFromVarnum(ITYP)
                ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,cvar)
                ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,cvar),IOBS,cvar)
                IF ( ZLEV .LT. ZPT ) THEN
@@ -110,7 +110,7 @@ C
                ENDIF
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-               CALL GETVARTYPE(ITYP,CVAR)
+               cvar = vnl_vartypeFromVarnum(ITYP)
                nlev=COL_GETNUMLEV(LCOLUMNGHR,cvar)
                ZPT= col_getHeight(lcolumnghr,1,IOBS,cvar)/RG
                ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,cvar)/RG
@@ -146,7 +146,7 @@ C
                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
-               CALL GETVARTYPE(ITYP,CVAR)
+               cvar = vnl_vartypeFromVarnum(ITYP)
                nlev=COL_GETNUMLEV(LCOLUMNGHR,cvar)
                DO JK = 2,NLEV - 1
                   ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,cvar)
@@ -169,7 +169,7 @@ C
                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
-               CALL GETVARTYPE(ITYP,CVAR)
+               cvar = vnl_vartypeFromVarnum(ITYP)
                nlev=COL_GETNUMLEV(LCOLUMNGHR,cvar)
                DO JK = 2,NLEV - 1
                  ZPT = col_getHeight(lcolumnghr,JK,IOBS,cvar)/RG

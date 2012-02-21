@@ -85,7 +85,7 @@
                 ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
                 idim=1
 !                if ( ipos .gt. 5 )idim=0   !! is this a check for surface variable or something else?
-                if (col_varnoNumLev(lcolumng,ityp).eq.1) idim=0
+                if (vnl_vartypeFromVarnum(ityp).eq.'SF') idim=0
                 IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
                 ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                 ZHHH = ZLEV * GRAV

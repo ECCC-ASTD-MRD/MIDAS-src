@@ -48,7 +48,7 @@
       REAL*8 columnVarB,columnVarT,lqtoes
       REAL*4 ZLAT,ZLON
       LOGICAL LLPRINT,LLNOXTR
-      CHARACTER*2 CVAR
+      CHARACTER*2 varType,varName
       real*8,pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
 !
 !     Temperature lapse rate for extrapolation of gz below model surface
@@ -77,11 +77,10 @@
 
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
                IK  =obs_elem_i (lobsSpaceData,'LYR ',jdata)
-               IPT = IK + col_varnoOffset(lcolumnhr,ivnm)
-               IPB = IPT+1
-               CALL GETVARTYPE(IVNM,CVAR)
-               ZPT= col_getPressure(lcolumnhr,ik  ,iobs,cvar)
-               ZPB= col_getPressure(lcolumnhr,ik+1,iobs,cvar)
+               varName = vnl_varnameFromVarnum(ivnm)
+               varType = vnl_vartypeFromVarnum(IVNM)
+               ZPT= col_getPressure(lcolumnhr,ik  ,iobs,varType)
+               ZPB= col_getPressure(lcolumnhr,ik+1,iobs,varType)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1. - ZWB
                if(ivnm.eq.bufr_nees) then
@@ -90,9 +89,9 @@
                  columnVarB=lqtoes(col_ptr_hu(IK+1),col_ptr_tt(IK+1),ZPB)
                  columnVarT=lqtoes(col_ptr_hu(IK  ),col_ptr_tt(IK  ),ZPT)
                else
-                 col_ptr=>col_getColumn(lcolumnhr,iobs)
-                 columnVarB=col_ptr(IPB)
-                 columnVarT=col_ptr(IPT)
+                 col_ptr=>col_getColumn(lcolumnhr,iobs,varName)
+                 columnVarB=col_ptr(IK+1)
+                 columnVarT=col_ptr(IK  )
                endif
                zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
