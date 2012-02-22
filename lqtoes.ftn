@@ -38,7 +38,7 @@
 !
 ! finally the dewpoint depression
 !
-      lqtoes = min(tt-td,rmaxes)
+      lqtoes = min(tt-td,MPC_MAXIMUM_ES_R8)
 
       return
       END FUNCTION LQTOES

@@ -102,7 +102,7 @@ module columnData_mod
       DO JVAR = 1, JPNVARMAX
         cmvoneed(jvar) = '  '
       enddo
-      rhumin = rminhu
+      rhumin = MPC_MINIMUM_HU_R8
 
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)

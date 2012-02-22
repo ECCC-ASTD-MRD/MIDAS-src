@@ -1,4 +1,5 @@
 subroutine sobs_all(lcolumnhr,lobsSpaceData)
+  use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod

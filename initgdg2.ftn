@@ -169,7 +169,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                pout(ji,jlev,jj)= max(pin(JI,JJ,JLEV),rminhu)
+                pout(ji,jlev,jj)= max(pin(JI,JJ,JLEV),MPC_MINIMUM_HU_R8)
               END DO
             END DO
           enddo
@@ -329,7 +329,7 @@ C
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
-                POUT(JI,JLEV,JJ)= max(PIN(JI,KNJ-JJ+1,JLEV),rminhu)
+                POUT(JI,JLEV,JJ)= max(PIN(JI,KNJ-JJ+1,JLEV),MPC_MINIMUM_HU_R8)
               END DO
             END DO
           enddo

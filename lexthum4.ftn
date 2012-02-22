@@ -123,7 +123,7 @@ c
                 IF (PPRES(J).LT.ZP1) THEN
                      PAV(J,JNPF)=0.
                 ELSE
-                   IF ( ZWB5*ZPRES3(J) .LE. RMINHU ) THEN
+                   IF ( ZWB5*ZPRES3(J) .LE. MPC_MINIMUM_HU_R8 ) THEN
                      PAV(J,JNPF)=0.
                    ELSE
                      PAV(J,JNPF)=ZWB*ZPRES3(J)

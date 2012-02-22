@@ -28,6 +28,7 @@
 *     PJO: total value of Jo for GPSRO
 *
 #endif
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use modgps04profile
       use modgps05refstruct

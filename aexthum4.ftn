@@ -127,7 +127,7 @@ c
                 ZWMIX=PAV(J,JNPF)
                 PAV(J,JNPF)=0.
                 IF (PPRES(J).GE.ZP1) THEN
-                   IF (PAV5(J,JNPF).GT.RMINHU) THEN
+                   IF (PAV5(J,JNPF).GT.MPC_MINIMUM_HU_R8) THEN
                       ZWB=ZWB+ZWMIX*ZPRES3(J)
                    ENDIF
                 ENDIF

@@ -8,6 +8,7 @@
 !**    Purpose: Set FGE for all GPS ZTD observations using
 !*              adjoint of gpsztdop to get Jacobians
 !*
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use bufr
       use columnData_mod

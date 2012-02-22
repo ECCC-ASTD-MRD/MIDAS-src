@@ -1,4 +1,5 @@
 MODULE GAUSSGRID_MOD
+  use EarthConstants_mod
   implicit none
   save
 

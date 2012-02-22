@@ -669,6 +669,7 @@ MODULE obsSpaceData_mod
                     n_levels_in_block,KNT,KNDAT,KVCORD,PVCORD, &
                     KINDEX,KIDTYP,PPMIS,nvcordtyp,vcordsf, &
                     vconv,nonelev)
+    use EarthConstants_mod
     use MathPhysConstants_mod
     IMPLICIT NONE
 !

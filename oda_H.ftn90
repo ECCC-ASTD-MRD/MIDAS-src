@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
+  use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 

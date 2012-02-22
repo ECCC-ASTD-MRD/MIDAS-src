@@ -9,6 +9,7 @@
 !**    Purpose:  -Construct the FIRST GUESS ERROR VARIANCES from the
 !*                diff-calculated dependencies and the primary errors.
 !*
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use modgps04profile
       use modgps06gravity

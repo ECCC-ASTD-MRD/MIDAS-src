@@ -16,6 +16,7 @@
 !
   SUBROUTINE getcma(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
              KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL,crval,ppmis,ip,lobsSpaceData)
+    use EarthConstants_mod
     use MathPhysConstants_mod
     use bufr
     use obsSpaceData_mod

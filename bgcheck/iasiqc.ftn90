@@ -20,6 +20,7 @@
 !            -IASI_END       : AT THE END OF THIS CALL TO IASIQC, DO ALL IASI
 !                               PROFILES BEEN TREATED (true) OR NOT (false)
 !
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use mod_tovs
       use iasich

@@ -73,6 +73,7 @@
 *     none
 *
 #endif
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr

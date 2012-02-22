@@ -17,6 +17,7 @@
 !            -AIRS_END       : AT THE END OF THIS CALL TO AIRSQC, DO ALL AIRS
 !                               PROFILES BEEN TREATED (true) OR NOT (false)
 !
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use mod_tovs
       use airsch

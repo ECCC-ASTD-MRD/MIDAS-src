@@ -10,6 +10,7 @@
 !*                compute Jo.
 !*                A linear interpolation in ln(p) is performed.
 !*
+      use EarthConstants_mod
       use MathPhysConstants_mod
       use bufr
       use columnData_mod

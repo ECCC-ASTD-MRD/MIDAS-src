@@ -49,6 +49,7 @@
 *
 #endif
 C
+      use EarthConstants_mod
       use MathPhysConstants_mod
       IMPLICIT NONE
 C
@@ -113,7 +114,7 @@ C
 C  *  Height difference DZ between observation and model surface
       ZDZ = PZOBS - PMT
 C 
-      ZCLT  = COS(2.0*(MPC_PI_R8_OLD/180.)*PLAT)
+      ZCLT  = COS(2.0*MPC_RADIANS_PER_DEGREE_R8*PLAT)
 C
 C  *  Gravity at sea level as a function of latitude (GRAV = G0 = 9.80)
       ZGRAV = GRAV * (1.0 - 2.66E-03*ZCLT)
