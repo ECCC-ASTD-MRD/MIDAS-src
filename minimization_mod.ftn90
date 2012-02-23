@@ -10,6 +10,7 @@
 !
 !--------------------------------------------------------------------------
 MODULE minimization_mod
+  use MathPhysConstants_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
@@ -151,7 +152,6 @@ CONTAINS
 ! no conjgrad      real*8,allocatable :: vatr1(:)
       real*8,allocatable :: vatra(:)
 
-      real*8 :: RPRECIS = 1.D-12
       REAL*8 DLDS(1)
       LOGICAL LLTEST,llvarqc, llstop, lldf1, lrdvatra, llvazx, llxbar
 
@@ -229,7 +229,7 @@ CONTAINS
       ITERTOT  = 0
       isimtot = 0
 
-      ZXMIN  =  RPRECIS
+      ZXMIN  =  MPC_PRECISION_OF_ZERO_R8
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
       dataptr%lobsSpaceData => lobsSpaceData
