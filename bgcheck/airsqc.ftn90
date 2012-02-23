@@ -141,9 +141,9 @@
       alloc_status(:) = 0
       allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
       allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
-      allocate ( ZT(col_getNumLev(lcolumnhr),NPRF),                stat= alloc_status(3) )
-      allocate ( ZHT(col_getNumLev(lcolumnhr),NPRF),               stat= alloc_status(4) )
-      allocate ( ZLQ(col_getNumLev(lcolumnhr),NPRF),               stat= alloc_status(5) )
+      allocate ( ZT(col_getNumLev(lcolumnhr,'TH'),NPRF),                stat= alloc_status(3) )
+      allocate ( ZHT(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(4) )
+      allocate ( ZLQ(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(5) )
       allocate ( BTOBSERR(AIRSSNCH),              stat= alloc_status(6) )
       allocate ( BTOBS(AIRSSNCH,NPRF),            stat= alloc_status(7) )
       allocate ( BTCALC(AIRSSNCH,NPRF),           stat= alloc_status(8) )
@@ -191,7 +191,7 @@
       allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
       allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
       allocate ( MAXWF(AIRSSNCH,NPRF),            stat= alloc_status(54))
-      allocate ( ZPRES(col_getNumLev(lcolumnhr),NPRF),             stat= alloc_status(55))
+      allocate ( ZPRES(col_getNumLev(lcolumnhr,'TH'),NPRF),             stat= alloc_status(55))
       allocate ( PTOP_MB(NPRF),                   stat= alloc_status(56))
       allocate ( NTOP_MB(NPRF),                   stat= alloc_status(57))
       allocate ( CFSUB(NPRF),                     stat= alloc_status(58))
@@ -251,14 +251,14 @@
 
                 ZTG(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'TG')
                 ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'P0') &
-                                                             * MPC_PA_PER_MBAR_R8
+                                                             * MPC_MBAR_PER_PA_R8
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')
                   ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'TT')
                   ZHT(JL,NOBAIRS) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
                   ZLQ(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'HU')
-                  ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,JO,'NA') &
-                                                             * MPC_PA_PER_MBAR_R8
+                  ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,JO,'TH') &
+                                                             * MPC_MBAR_PER_PA_R8
                 END DO
 
                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
@@ -343,10 +343,10 @@
 
       DO JN = 1, NPRF
          DO JL = 1, NLEV
-            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(col_getNumLev(lcolumnhr),JN)
+            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
          END DO
-         DO JL = 1, col_getNumLev(lcolumnhr)
-            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(col_getNumLev(lcolumnhr),JN)
+         DO JL = 1, col_getNumLev(lcolumnhr,'TH')
+            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
          END DO
       END DO
 
@@ -390,17 +390,17 @@
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
       CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-     &                   zht,zps,zpres,col_getNumLev(lcolumnhr),airssnch,nprf,ichref,lev_start,iopt2)
+     &                   zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),airssnch,nprf,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
       CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-     &                   zht,zps,zpres,col_getNumLev(lcolumnhr),airssnch,nprf,ichref,lev_start,iopt1)
+     &                   zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),airssnch,nprf,ichref,lev_start,iopt1)
 
 
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
       CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-     &                      zht,col_getNumLev(lcolumnhr),airssnch,nprf,ptop_eq,ntop_eq,ichref)
+     &                      zht,col_getNumLev(lcolumnhr,'TH'),airssnch,nprf,ptop_eq,ntop_eq,ichref)
 
 
 !* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
@@ -740,9 +740,9 @@
         AIRSPRO(IPRO)%HE        = HE(JN)
         AIRSPRO(IPRO)%ZTS       = ZTS(JN)
         AIRSPRO(IPRO)%NGOOD     = NGOOD(JN)
-        AIRSPRO(IPRO)%ZT        = ZT(col_getNumLev(lcolumnhr),JN)
+        AIRSPRO(IPRO)%ZT        = ZT(col_getNumLev(lcolumnhr,'TH'),JN)
         AIRSPRO(IPRO)%ZTG       = ZTG(JN)
-        AIRSPRO(IPRO)%ZLQEXP    = EXP(ZLQ(col_getNumLev(lcolumnhr),JN))
+        AIRSPRO(IPRO)%ZLQEXP    = EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN))
         AIRSPRO(IPRO)%ZPS       = 100.*ZPS(JN)
         AIRSPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
         AIRSPRO(IPRO)%SFCTYP    = KSURF(JN)
