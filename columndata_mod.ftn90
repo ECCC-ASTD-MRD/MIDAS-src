@@ -4,7 +4,22 @@ module columnData_mod
   use MathPhysConstants_mod
   implicit none
   save
-!  private
+  private
+
+  ! public variables and types
+  public :: rhumin, struct_columnData
+
+  ! public subroutines and functions
+  public :: col_setup, col_allocate, col_deallocate, col_pointStagToUnstag, col_expandToMpiGlobal
+  public :: col_varExist, col_getOffsetFromVarno
+  public :: col_getNumLev, col_getNumCol, col_getNumStep, col_setNumStep
+  public :: col_getTimeInterpWeight, col_setTimeInterpWeight
+  public :: col_getPressure, col_getHeight, col_getMountain, col_setMountain
+  public :: col_zero, col_fillmvo, col_getColumn, col_getElem
+
+  ! public entities accessed through inheritance
+  public :: struct_vco, vco_calcpres, vco_AnlInit, vco_SetupFromFile
+  public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
 
   type struct_columnData
     integer           :: nlev,nlev_T,nlev_M
@@ -16,73 +31,16 @@ module columnData_mod
     real*8,pointer    :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
-    type(vco)         :: vco
+    type(struct_vco)  :: vco
     integer,pointer   :: varOffset(:),varNumLev(:)
   end type struct_columnData
 
+  real*8 :: rhumin
   logical nmvoexist(jpnvarmax)
   integer :: nvo3d,nvo2d
-  real*8 :: rhumin
   integer, parameter :: mxstepobs=9 
 
   contains
-
-
-    function col_varExist(varName) result(varExist)
-      implicit none
-      character(len=2), intent(in) :: varName
-      logical                      :: varExist 
-
-      if(nmvoexist(vnl_varListIndex(varName))) then
-        varExist = .true.
-      else
-        varExist = .false.
-      endif
-
-    end function col_varExist
-
-
-    function col_varnoOffset(column,varnum) result(offset)
-      implicit none
-      type(struct_columnData) :: column
-      integer, intent(in)     :: varnum
-      integer                 :: offset
-
-      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
-
-    end function col_varnoOffset
-
-
-    function col_getVarNumLev(column,varName) result(nlev)
-      implicit none
-      type(struct_columnData) :: column
-      character(len=2), intent(in) :: varName
-      integer                      :: nlev
-
-      if(varTypeList(vnl_varListIndex(varName)).eq.'MM') then
-        nlev=column%nlev_M
-      elseif(varTypeList(vnl_varListIndex(varName)).eq.'TH') then
-        nlev=column%nlev_T
-      elseif(varTypeList(vnl_varListIndex(varName)).eq.'SF') then
-        nlev=1
-      else
-        write(*,*) 'col_getVarNumLev: Unknown number of levels! ',varTypeList(vnl_varListIndex(varName))
-        call flush(6)
-        call qqexit(1)
-      endif
-
-    end function col_getVarNumLev
-
-
-    function col_varnoNumLev(column,varNumber) result(nlev)
-      implicit none
-      type(struct_columnData) :: column
-      integer, intent(in)     :: varNumber
-      integer                 :: nlev
-
-      nlev=col_getVarNumLev(column,vnl_varnameFromVarnum(varNumber))
-
-    end function col_varnoNumLev
 
 
     SUBROUTINE col_setup
@@ -203,8 +161,8 @@ module columnData_mod
       do jvar = 1, jpnvarmax3d
         if(nmvoexist(jvar)) then
           column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=col_getVarNumLev(column,varNameList(jvar))
-          iloc = iloc + col_getVarNumLev(column,varNameList(jvar))
+          column%varNumLev(jvar)=col_getNumLev(column,vnl_vartypeFromVarname(varNameList(jvar)))
+          iloc = iloc + column%varNumLev(jvar)
         endif
       enddo
       do jvar2 = 1, jpnvarmax2d
@@ -272,28 +230,6 @@ module columnData_mod
     END SUBROUTINE col_deallocate
 
 
-    SUBROUTINE col_setTimeInterpWeight(column,weight_in,headerIndex,stepObs)
-      implicit none
-      type(struct_columnData), intent(inout) :: column
-      integer, intent(in)    :: headerIndex,stepObs
-      real(kind=8),intent(in):: weight_in
-
-      column%timeInterpWeight(headerIndex,stepObs)=weight_in
-
-    end SUBROUTINE col_setTimeInterpWeight
-
-
-    FUNCTION col_getTimeInterpWeight(column,headerIndex,stepObs) result(weight_out)
-      implicit none
-      real(kind=8) weight_out
-      type(struct_columnData),intent(in) :: column
-      integer,intent(in)          :: headerIndex,stepObs
-
-      weight_out=column%timeInterpWeight(headerIndex,stepObs)
-
-    end FUNCTION col_getTimeInterpWeight
-
-
     SUBROUTINE col_fillmvo(columnghr,cdvar,cdlev,pvar)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
@@ -353,7 +289,7 @@ module columnData_mod
           enddo
         enddo
       else
-        nlev = col_getVarNumLev(columnghr,cdvar)
+        nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(cdvar))
         do jobs = 1,columnghr%numObsHeader
           column_ptr => col_getColumn(columnghr,jobs,cdvar)
           do jlev = 1, nlev
@@ -364,7 +300,7 @@ module columnData_mod
 
     ! All the other variables that are stored in column%all
     elseif(col_varExist(cdvar)) then
-      nlev = col_getVarNumLev(columnghr,cdvar)
+      nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(cdvar))
       do jobs = 1,columnghr%numObsHeader
         column_ptr => col_getColumn(columnghr,jobs,cdvar)
         do jlev = 1, nlev
@@ -457,6 +393,52 @@ module columnData_mod
       return
 
     END SUBROUTINE col_expandToMpiGlobal
+
+    function col_varExist(varName) result(varExist)
+      implicit none
+      character(len=2), intent(in) :: varName
+      logical                      :: varExist 
+
+      if(nmvoexist(vnl_varListIndex(varName))) then
+        varExist = .true.
+      else
+        varExist = .false.
+      endif
+
+    end function col_varExist
+
+
+    function col_getOffsetFromVarno(column,varnum) result(offset)
+      implicit none
+      type(struct_columnData) :: column
+      integer, intent(in)     :: varnum
+      integer                 :: offset
+
+      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
+
+    end function col_getOffsetFromVarno
+
+
+    SUBROUTINE col_setTimeInterpWeight(column,weight_in,headerIndex,stepObs)
+      implicit none
+      type(struct_columnData), intent(inout) :: column
+      integer, intent(in)    :: headerIndex,stepObs
+      real(kind=8),intent(in):: weight_in
+
+      column%timeInterpWeight(headerIndex,stepObs)=weight_in
+
+    end SUBROUTINE col_setTimeInterpWeight
+
+
+    FUNCTION col_getTimeInterpWeight(column,headerIndex,stepObs) result(weight_out)
+      implicit none
+      real(kind=8) weight_out
+      type(struct_columnData),intent(in) :: column
+      integer,intent(in)          :: headerIndex,stepObs
+
+      weight_out=column%timeInterpWeight(headerIndex,stepObs)
+
+    end FUNCTION col_getTimeInterpWeight
 
 
   function col_getPressure(column,ilev,headerIndex,cvar) result(pressure)
@@ -592,6 +574,7 @@ module columnData_mod
     endif
 
   end function col_getNumLev
+
 
   function col_getNumCol(column) result(numColumn)
     implicit none

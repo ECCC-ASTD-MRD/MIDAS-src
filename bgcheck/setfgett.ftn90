@@ -38,7 +38,7 @@
                IK=col_getNumLev(lcolumng)-1
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
-               IPT  = IK + col_varnoOffset(lcolumng,ityp)
+               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
                call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
             ELSE

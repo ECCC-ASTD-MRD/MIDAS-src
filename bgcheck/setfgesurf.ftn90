@@ -95,7 +95,7 @@
                     ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.   &
                     ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
 
-                  IPT  = IK + col_varnoOffset(lcolumng,ityp)
+                  IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                   IPB  = IPT+1
                   call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
 !c ***** debug *********
@@ -104,7 +104,7 @@
 !c     &                            obs_elem_r4(lobsSpaceData,'FGE ',jdata)
 !c ***** debug *********
                 ELSE
-                  IPT  = IK + col_varnoOffset(lcolumng,ityp)
+                  IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                   IPB  = IPT+1
                   ZPT  = col_getHeight(lcolumng,IK,IOBS,'NA')
                   ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')
@@ -115,7 +115,7 @@
                       real(zwb*col_getElem(lcolumn,IPB,IOBS) + ZWT*col_getElem(lcolumn,IPT,IOBS)) )
                   ELSE
                     call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
-                      real(col_getElem(lcolumn,IK + col_varnoOffset(lcolumng,ityp),IOBS)) )
+                      real(col_getElem(lcolumn,IK + col_getOffsetFromVarno(lcolumng,ityp),IOBS)) )
                   ENDIF
                 if(obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '99999999') then
                   write(nulout,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &

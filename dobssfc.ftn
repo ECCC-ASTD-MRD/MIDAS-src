@@ -161,7 +161,7 @@ C
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
                   cvar = vnl_vartypeFromVarnum(ITYP)
-                  IPT  = col_getNumLev(LCOLUMNHR,cvar)-1 + col_varnoOffset(lcolumnhr,ityp)
+                  IPT  = col_getNumLev(LCOLUMNHR,cvar)-1 + col_getOffsetFromVarno(lcolumnhr,ityp)
                   IPB  = IPT+1
                   if(ityp.eq.bufr_ness) then
                     columnVarB=lqtoes(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU'),

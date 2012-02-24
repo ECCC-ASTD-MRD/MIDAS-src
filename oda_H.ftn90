@@ -104,7 +104,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
           ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-          IPT  = IK + col_varnoOffset(lcolumng,ityp)
+          IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
           IPB  = IPT+1
           ZPT  = col_getPressure(LCOLUMNG,IK  ,IOBS,'NA')
           ZPB  = col_getPressure(LCOLUMNG,IK+1,IOBS,'NA')
@@ -187,7 +187,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
           ZHHH = ZLEV * GRAV
-          IPT  = col_getNumLev(LCOLUMN)-1 + col_varnoOffset(lcolumng,ityp)
+          IPT  = col_getNumLev(LCOLUMN)-1 + col_getOffsetFromVarno(lcolumng,ityp)
           IPB  = IPT+1
 
           IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
@@ -211,7 +211,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                  *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
             call obs_set_r8(lobsSpaceData,'OMA ',JDATA, ZDELPS+ZDELTV)
           ELSE
-            IPT  = IK + col_varnoOffset(lcolumng,ityp)
+            IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
             ZPT  = col_getHeight(lcolumng,IK,IOBS,'NA')
             ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')
@@ -520,7 +520,7 @@ end subroutine oda_Hto
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
           ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-          IPT  = IK + col_varnoOffset(lcolumng,ityp)
+          IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
           IPB  = IPT+1
           ZPT  = col_getHeight(lcolumng,IK  ,IOBS,'NA')/RG
           ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')/RG

@@ -48,7 +48,7 @@ MODULE gridStateVector_mod
     integer, pointer :: datestamplist(:)
     integer, pointer :: datestamp3d
     logical        :: allocated=.false.
-    type(vco),pointer :: vco
+    type(struct_vco),pointer :: vco
   end type struct_gsv  
 
     INTEGER,parameter :: JPNVARMAX=10

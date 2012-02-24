@@ -41,7 +41,7 @@
                      ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
                      IK=col_getNumLev(LCOLUMNG)-1
                      IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-                     IPT  = IK + col_varnoOffset(lcolumng,ityp)
+                     IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                      IPB  = IPT +1
                      call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
                   ELSE
@@ -49,7 +49,7 @@
                      IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                      ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
                      IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
-                     IPT  = IK + col_varnoOffset(lcolumng,ityp)
+                     IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                      IPB  = IPT+1
                      ZPT  = col_getHeight(lcolumng,IK  ,IOBS,'NA')/RG
                      ZPB  = col_getHeight(lcolumng,IK+1,IOBS,'NA')/RG
