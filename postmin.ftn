@@ -32,37 +32,21 @@
       use gridStateVector_mod
       use gaussGrid_mod
       IMPLICIT NONE
-*implicits
-#include "comlun.cdk"
 #include "comvfiles.cdk"
 #include "comfilt.cdk"
-#include "cvcord.cdk"
 *
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
 C
       type(struct_gsv) :: statevector,statevectorg
 
-      CHARACTER *8 CSTATUS
-C
-      INTEGER IMPRES, IMODE, ISIMMAX, INDIC, ISCALE
-      INTEGER IERR,JK, JLA,ilen,jj,ji
-      REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS, ZSMACH,ztemp,zy,zr
-      REAL*8 DLGNORM, DLXNORM, DLGNORM0, DLGNORMS
-C
-      integer idum1,idum2,idum3,idum4,ipt
-      integer ini,index,ii,ij,jk1,jk2
-      real*8 zcon,zcorr,zx,zl
-      real*8  zmin,zmax
+      integer jk,jj,ji
+      real*8 ztemp
       real*8 :: zes(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
       real*8 :: ztv(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
       real*8 :: zgz(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
       real*8 :: zhu(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
-!
-      LOGICAL LSTAGTEMP
-      INTEGER FNOM,FCLOS
-      EXTERNAL FNOM,FCLOS
-      EXTERNAL SUPOST
+      real*8, pointer :: hu3d_inc_ptr(:,:,:),hu3d_trl_ptr(:,:,:)
 c
 c     if a restart file was writen at the end of minimize.ftn,
 c     lrestart was turn to .true. to avoid postmin exection
@@ -88,15 +72,14 @@ C
 c
       CALL SUPOST  ! problem with nflev = 1
 c
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,lcolumng%vco%nlev_M,
-     +                  nstepobsinc,obs_get_datestamp(lobsSpaceData))
       statevector%vco => lcolumng%vco
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=obs_get_datestamp(lobsSpaceData))
 
       call tmg_start(51,'VAR_CH') !
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
       call tmg_stop (51)      !
 
-      WRITE(NULOUT,*)' postmin: Transform analysis variables to'
+      WRITE(*,*)' postmin: Transform analysis variables to'
      S       ,' model variables -'
 
 c
@@ -107,19 +90,20 @@ c
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,lcolumng%vco%nlev_M,
-     +                  nstepobs,obs_get_datestamp(lobsSpaceData))
       statevectorg%vco => lcolumng%vco
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=obs_get_datestamp(lobsSpaceData))
       call subasic_gd(statevectorg,lcolumnhr)
 !
 !     *** Compute increment HU from LQ increment
 !
+      hu3d_trl_ptr => gsv_getField3D(statevectorg,'HU')
+      hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
       zhu(:,:,:) = 0.0
       do jk = 1,statevectorg%vco%nlev_M
         do jj = 1,statevectorg%nj
           do ji = 1,statevectorg%ni
-            ZTEMP = log(statevectorg%hu3d(ji,jk,jj)) + statevector%hu3d(ji,jk,jj)
-            zhu(ji,jk,jj) = EXP(ZTEMP) - statevectorg%hu3d(ji,jk,jj)
+            ZTEMP = log(hu3d_trl_ptr(ji,jk,jj)) + hu3d_inc_ptr(ji,jk,jj)
+            zhu(ji,jk,jj) = EXP(ZTEMP) - hu3d_trl_ptr(ji,jk,jj)
           enddo
         enddo
       enddo
@@ -130,11 +114,10 @@ c
 !
 !     *** Total GZ ***
 !
-      call lt2tvgd(ztv,statevector%tt3d,statevector%hu3d,statevectorg%hu3d,
-     +             statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      call lt2tvgd(ztv,statevector,statevectorg)
       call ltt2phigd(zgz,ztv,statevectorg)
 !
-      call memfree(nulout,lobsSpaceData)
+      call memfree(lobsSpaceData)
 !
       call tmg_start(99,'VAROUT')
 !
@@ -147,6 +130,6 @@ C
       call gsv_deallocate(statevector)
       call gsv_deallocate(statevectorg)
 
-      write(nulout,*) 'LEAVING POSTMIN'
+      write(*,*) 'LEAVING POSTMIN'
       RETURN
       END SUBROUTINE POSTMIN

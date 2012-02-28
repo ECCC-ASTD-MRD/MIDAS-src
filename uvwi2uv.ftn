@@ -38,15 +38,19 @@
 *
       integer ji,jj,jk,jstep
       integer jlev, jlat, jlon
-*
+      real*8, pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
+
+      uu_ptr => gsv_getField(statevector,'UU')
+      vv_ptr => gsv_getField(statevector,'VV')
+
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
       do jlat = 1, statevector%nj
-        do jstep=1, statevector%nt
+        do jstep=1, statevector%numStep
           do jlev = 1, statevector%nlev
             do jlon = 1, statevector%ni
-              statevector%uu(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * statevector%uu(jlon,jlev,jlat,jstep)
-              statevector%vv(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * statevector%vv(jlon,jlev,jlat,jstep)
+              uu_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * uu_ptr(jlon,jlev,jlat,jstep)
+              vv_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * vv_ptr(jlon,jlev,jlat,jstep)
             enddo
           enddo
         enddo

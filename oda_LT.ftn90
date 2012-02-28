@@ -64,18 +64,17 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   deltalev=ceiling(real(col_getNumLev(lcolumn))/real(numthread))
   ilev1=1+(mythread-1)*deltalev
   ilev2=min(col_getNumLev(lcolumn),mythread*deltalev)
-  if(NGEXIST(nguu).eq.1)  call gd2mvoad('UU',ilev1,ilev2)
-  if(NGEXIST(ngvv).eq.1)  call gd2mvoad('VV',ilev1,ilev2)
-  if(NGEXIST(ngq).eq.1)   call gd2mvoad('HU',ilev1,ilev2)
-  if(NGEXIST(ngtt).eq.1)  call gd2mvoad('TT',ilev1,ilev2)
-  if(NGEXIST(nggz).eq.1)  call gd2mvoad('GZ',ilev1,ilev2)
-  if(NGEXIST(ngtr).eq.1)  call gd2mvoad('TR',ilev1,ilev2)
+  if(gsv_varExist('UU'))  call gd2mvoad('UU',ilev1,ilev2)
+  if(gsv_varExist('VV'))  call gd2mvoad('VV',ilev1,ilev2)
+  if(gsv_varExist('HU'))  call gd2mvoad('HU',ilev1,ilev2)
+  if(gsv_varExist('TT'))  call gd2mvoad('TT',ilev1,ilev2)
+  if(gsv_varExist('GZ'))  call gd2mvoad('GZ',ilev1,ilev2)
 !$OMP END PARALLEL
 
   ilev1=1
   ilev2=1
-  if(NGEXIST(ngps).eq.1)  call gd2mvoad('P0',ilev1,ilev2)
-  if(NGEXIST(ngtg).eq.1)  call gd2mvoad('TG',ilev1,ilev2)
+  if(gsv_varExist('P0'))  call gd2mvoad('P0',ilev1,ilev2)
+  if(gsv_varExist('TG'))  call gd2mvoad('TG',ilev1,ilev2)
 
   ! Conversion of wind images to physical winds
   call uvwi2uv(statevector)
@@ -122,8 +121,11 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
 
       real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(-1):(statevector%nj+2))
+      real*8, pointer :: field_ptr(:,:,:,:)
       real*8,pointer :: zprofil(:)
       real*8 :: dldlat2(-1:gaus_nj)
+
+      field_ptr => gsv_getField(statevector,cdvarname)
 
       DLDLON2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
       DLDLOS2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
@@ -132,7 +134,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
         DLDLAT2(ILA)=1.0d0/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
       enddo
 
-      do jstep=1,statevector%nt
+      do jstep=1,statevector%numStep
 
         zfield(:,:,:) = 0.0D0
 !C
@@ -256,30 +258,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     Transfer local results to global array
 !C
-        select case (cdvarname)
-!*
-!*     2D fields
-!*
-        case('TG')
-           statevector%tg(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('P0')
-           statevector%ps(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-!*
-!*     3D fields
-!*
-        case('TT')
-           statevector%tt(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('HU')
-           statevector%hu(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('TR')
-           statevector%tr(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('UU')
-           statevector%uu(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('VV')
-           statevector%vv(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        case('GZ')
-           statevector%gz(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
-        end select
+        field_ptr(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
 
       enddo  ! jstep
 

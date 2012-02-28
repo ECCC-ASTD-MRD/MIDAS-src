@@ -36,7 +36,7 @@ module columnData_mod
   end type struct_columnData
 
   real*8 :: rhumin
-  logical nmvoexist(jpnvarmax)
+  logical nmvoexist(vnl_numvarmax)
   integer :: nvo3d,nvo2d
   integer, parameter :: mxstepobs=9 
 
@@ -47,7 +47,7 @@ module columnData_mod
       implicit none
       INTEGER JVAR, IPOS
       integer :: fnom,fclos,nulnam,ierr
-      CHARACTER(len=2) :: CMVONEED(JPNVARMAX)
+      CHARACTER(len=4) :: CMVONEED(VNL_NUMVARMAX)
       NAMELIST /NAMSTATEO/CMVONEED,rhumin
 
       write(*,*) 'col_setup: List of known (valid) variable names'
@@ -57,9 +57,7 @@ module columnData_mod
 
 !     Read NAMELIST NAMSTATEO to find which fields are needed
 
-      DO JVAR = 1, JPNVARMAX
-        cmvoneed(jvar) = '  '
-      enddo
+      cmvoneed(:) = '    '
       rhumin = MPC_MINIMUM_HU_R8
 
       nulnam=0
@@ -72,7 +70,7 @@ module columnData_mod
       nvo3d  = 0
       nvo2d  = 0
 
-      do jvar = 1, jpnvarmax3D
+      do jvar = 1, vnl_numvarmax3D
         if (varneed(varNameList3D(jvar))) then
           nmvoexist(jvar) = .true.
           nvo3d = nvo3d + 1
@@ -81,12 +79,12 @@ module columnData_mod
         endif
       enddo
 
-      do jvar = 1, jpnvarmax2D
+      do jvar = 1, vnl_numvarmax2D
         if (varneed(varNameList2D(jvar))) then
-          nmvoexist(jvar+jpnvarmax3D) = .true.
+          nmvoexist(jvar+vnl_numvarmax3D) = .true.
           nvo2d = nvo2d + 1
         else
-          nmvoexist(jvar+jpnvarmax3D) = .false.
+          nmvoexist(jvar+vnl_numvarmax3D) = .false.
         endif
       enddo
 
@@ -99,13 +97,13 @@ module columnData_mod
 
       CONTAINS
 
-        LOGICAL FUNCTION VARNEED(VARCHAR)
-          character*2 :: varchar
+        LOGICAL FUNCTION VARNEED(varName)
+          character(len=*) :: varName
           integer :: jvar
  
           varneed=.false.
-          do jvar=1,JPNVARMAX
-            if (varchar.eq.cmvoneed(jvar)) then
+          do jvar=1,VNL_NUMVARMAX
+            if (trim(varName).eq.trim(cmvoneed(jvar))) then
               varneed=.true.
             endif
           enddo
@@ -152,21 +150,21 @@ module columnData_mod
         column%nlev_T = nlev_T
       endif
 
-      allocate(column%varOffset(jpnvarmax))
+      allocate(column%varOffset(vnl_numvarmax))
       column%varOffset(:)=0
-      allocate(column%varNumLev(jpnvarmax))
+      allocate(column%varNumLev(vnl_numvarmax))
       column%varNumLev(:)=0
 
       iloc=0
-      do jvar = 1, jpnvarmax3d
+      do jvar = 1, vnl_numvarmax3d
         if(nmvoexist(jvar)) then
           column%varOffset(jvar)=iloc
           column%varNumLev(jvar)=col_getNumLev(column,vnl_vartypeFromVarname(varNameList(jvar)))
           iloc = iloc + column%varNumLev(jvar)
         endif
       enddo
-      do jvar2 = 1, jpnvarmax2d
-        jvar=jvar2+jpnvarmax3d
+      do jvar2 = 1, vnl_numvarmax2d
+        jvar=jvar2+vnl_numvarmax3d
         if(nmvoexist(jvar)) then
           column%varOffset(jvar)=iloc
           column%varNumLev(jvar)=1
@@ -230,7 +228,7 @@ module columnData_mod
     END SUBROUTINE col_deallocate
 
 
-    SUBROUTINE col_fillmvo(columnghr,cdvar,cdlev,pvar)
+    SUBROUTINE col_fillmvo(columnghr,varName,varType,pvar)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
     !
@@ -238,7 +236,7 @@ module columnData_mod
     !
     !       input:
     !            columnghr          : HR or BG column object
-    !             CDVAR (character*2) : NOMVAR of the state variable
+    !             VARNAME (character*4): NOMVAR of the state variable
     !             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
     !             KNLEV (integer)     : number of levels of PVAR
     !             KNOBS (integer)     : number of observation profiles in variable PVAR
@@ -247,20 +245,22 @@ module columnData_mod
 
     type(struct_columnData) :: columnghr
     real*8 pvar(:,:)
-    character*2 cdvar,cdlev
+    character(len=*) :: varName
+    character(len=2) :: varType
 
     integer jobs,jlev,nlev
     real*8, pointer :: column_ptr(:)
 
     ! Pressure
-    if (cdvar.eq.'PP') then
-      if(cdlev.eq.'TH') then
+    select case(trim(varName))
+    case('PP')
+      if(varType.eq.'TH') then
         do jobs = 1,columnghr%numObsHeader
           do jlev = 1,columnghr%nlev_T
             columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
           enddo
         enddo
-      elseif(cdlev.eq.'MM') then
+      elseif(varType.eq.'MM') then
         do jobs = 1,columnghr%numObsHeader
           do jlev = 1,columnghr%nlev_M
             columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
@@ -275,23 +275,23 @@ module columnData_mod
       endif
 
     ! Height
-    elseif(cdvar.eq.'GZ') then
-      if(cdlev.eq.'TH') then
+    case('GZ')
+      if(varType.eq.'TH') then
         do jobs = 1,columnghr%numObsHeader
           do jlev = 1, columnghr%nlev_T
             columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
-      elseif(cdlev.eq.'MM') then
+      elseif(varType.eq.'MM') then
         do jobs = 1,columnghr%numObsHeader
           do jlev = 1, columnghr%nlev_M
             columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       else
-        nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(cdvar))
+        nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
         do jobs = 1,columnghr%numObsHeader
-          column_ptr => col_getColumn(columnghr,jobs,cdvar)
+          column_ptr => col_getColumn(columnghr,jobs,varName)
           do jlev = 1, nlev
             column_ptr(jlev)=pvar(jlev,jobs)
           enddo
@@ -299,21 +299,24 @@ module columnData_mod
       endif
 
     ! All the other variables that are stored in column%all
-    elseif(col_varExist(cdvar)) then
-      nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(cdvar))
-      do jobs = 1,columnghr%numObsHeader
-        column_ptr => col_getColumn(columnghr,jobs,cdvar)
-        do jlev = 1, nlev
-          column_ptr(jlev)=pvar(jlev,jobs)
+    case default
+      if(col_varExist(varName)) then
+        nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
+        do jobs = 1,columnghr%numObsHeader
+          column_ptr => col_getColumn(columnghr,jobs,varName)
+          do jlev = 1, nlev
+            column_ptr(jlev)=pvar(jlev,jobs) 
+          enddo
         enddo
-      enddo
 
-    ! Unknown variable name
-    else
-      write(*,*) 'col_fillmvo: Unknown variable name: ',cdvar
-      call flush(6)
-      call qqexit(1)
-    endif
+      ! Unknown variable name
+      else
+        write(*,*) 'col_fillmvo: Unknown variable name: ',varName
+        call flush(6)
+        call qqexit(1)
+      endif
+
+    end select
 
     return
     END SUBROUTINE col_fillmvo
@@ -396,7 +399,7 @@ module columnData_mod
 
     function col_varExist(varName) result(varExist)
       implicit none
-      character(len=2), intent(in) :: varName
+      character(len=*), intent(in) :: varName
       logical                      :: varExist 
 
       if(nmvoexist(vnl_varListIndex(varName))) then
@@ -441,23 +444,23 @@ module columnData_mod
     end FUNCTION col_getTimeInterpWeight
 
 
-  function col_getPressure(column,ilev,headerIndex,cvar) result(pressure)
+  function col_getPressure(column,ilev,headerIndex,varType) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character*2, intent(in)             :: cvar
+    character*2, intent(in)             :: varType
     real*8                              :: pressure
 
-    if (cvar .eq. 'NA') then
+    if (varType .eq. 'NA') then
       pressure = column%rppobs(ilev,headerIndex)
-    elseif (cvar .eq. 'TH') then
+    elseif (varType .eq. 'TH') then
       pressure = column%rppobs_t(ilev,headerIndex)
-    elseif (cvar .eq. 'MM' ) then
+    elseif (varType .eq. 'MM' ) then
       pressure = column%rppobs_m(ilev,headerIndex)
-    elseif (cvar .eq. 'SF' ) then
+    elseif (varType .eq. 'SF' ) then
       pressure = column%rppobs_t(column%nlev_t,headerIndex)
     else
-      write(*,*) 'col_getPressure: Unknown variable type: ',cvar
+      write(*,*) 'col_getPressure: Unknown variable type: ',varType
       call flush(6)
       call qqexit(1)
     endif
@@ -465,22 +468,22 @@ module columnData_mod
   end function col_getPressure
  
 
-  function col_getHeight(column,ilev,headerIndex,cvar) result(height)
+  function col_getHeight(column,ilev,headerIndex,varType) result(height)
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character*2, intent(in)             :: cvar
+    character(len=2), intent(in)        :: varType
     real*8                              :: height
     integer                             :: ilev1
 
-    if (cvar .eq. 'NA') then
+    if (varType .eq. 'NA') then
       ilev1 = column%varOffset(vnl_varListIndex('GZ'))+ilev
       height = column%all(ilev1,headerIndex)
-    elseif (cvar .eq. 'TH') then
+    elseif (varType .eq. 'TH') then
       height = column%gz_t(ilev,headerIndex)
-    elseif (cvar .eq. 'MM' ) then
+    elseif (varType .eq. 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
-    elseif (cvar .eq. 'SF' ) then
+    elseif (varType .eq. 'SF' ) then
       height = column%gz_t(column%nlev_t,headerIndex)
     endif
 
@@ -509,21 +512,21 @@ module columnData_mod
   end subroutine col_setMountain
 
 
-  function col_getColumn(column,headerIndex,cvar) result(onecolumn)
+  function col_getColumn(column,headerIndex,varName) result(onecolumn)
     implicit none
-    type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: headerIndex
-    character*2, intent(in), optional   :: cvar
-    real*8,pointer                      :: onecolumn(:)
-    integer                             :: ilev1,ilev2
+    type(struct_columnData), intent(in)    :: column
+    integer, intent(in)                    :: headerIndex
+    character(len=*), intent(in), optional :: varName
+    real*8,pointer                         :: onecolumn(:)
+    integer                                :: ilev1,ilev2
 
-    if(present(cvar)) then
-      if(col_varExist(cvar)) then
-        ilev1 = column%varOffset(vnl_varListIndex(cvar))+1
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(cvar))
+    if(present(varName)) then
+      if(col_varExist(varName)) then
+        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
         onecolumn => column%all(ilev1:ilev2,headerIndex)
       else
-        write(*,*) 'col_getColumn: Unknown variable name! ',cvar
+        write(*,*) 'col_getColumn: Unknown variable name! ',varName
         call flush(6)
         call qqexit(1)
       endif
@@ -534,16 +537,16 @@ module columnData_mod
   end function col_getColumn
 
 
-  function col_getElem(column,ilev,headerIndex,cvar) result(value)
+  function col_getElem(column,ilev,headerIndex,varName) result(value)
     implicit none
-    type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: ilev
-    integer, intent(in)                 :: headerIndex
-    character*2, intent(in), optional   :: cvar
-    real*8                              :: value
+    type(struct_columnData), intent(in)    :: column
+    integer, intent(in)                    :: ilev
+    integer, intent(in)                    :: headerIndex
+    character(len=*), intent(in), optional :: varName
+    real*8                                 :: value
 
-    if(present(cvar)) then
-      value = column%all(column%varOffset(vnl_varListIndex(cvar))+ilev,headerIndex)
+    if(present(varName)) then
+      value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)
     endif
@@ -551,21 +554,21 @@ module columnData_mod
   end function col_getElem
 
 
-  function col_getNumLev(column,cvar) result(nlev)
+  function col_getNumLev(column,varType) result(nlev)
     implicit none
-    type(struct_columnData), intent(in) :: column
-    character*2, intent(in), optional   :: cvar
-    integer                             :: nlev
+    type(struct_columnData), intent(in)    :: column
+    character(len=2), intent(in), optional :: varType
+    integer                                :: nlev
 
-    if(present(cvar)) then
-      if(cvar.eq.'MM') then
+    if(present(varType)) then
+      if(varType.eq.'MM') then
         nlev = column%nlev_m
-      elseif(cvar.eq.'TH') then
+      elseif(varType.eq.'TH') then
         nlev = column%nlev_t
-      elseif(cvar.eq.'SF') then
+      elseif(varType.eq.'SF') then
         nlev = 1
       else
-        write(*,*) 'col_getNumLev: Unknown variable type! ',cvar
+        write(*,*) 'col_getNumLev: Unknown variable type! ',varType
         call flush(6)
         call qqexit(1)
       endif

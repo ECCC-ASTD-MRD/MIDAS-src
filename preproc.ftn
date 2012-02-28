@@ -144,8 +144,7 @@
 !     Set up the minimization module, now that the required parameters are known
 !     NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs
 !
-      if(nconf.eq.141) call min_setup(cvm_nvadim,gaus_ni,gaus_nj,
-     +                                lcolumng%vco%nlev_M,nstepobsinc)
+      if(nconf.eq.141) call min_setup(cvm_nvadim,gaus_ni,gaus_nj,nstepobsinc)
 !
 !     Reading, horizontal interpolation and unit conversions of the 3D trial fields
 !

@@ -22,7 +22,7 @@
       INTEGER IKEY,ILEN,IERR,IDATE
 
       REAL*8, allocatable :: ZBUFFER(:,:)
-      real*8, pointer     :: gz_column(:), tt_column(:)
+      real*8, pointer     :: gz_column(:), tt_column(:), field_ptr(:,:,:)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
@@ -65,13 +65,14 @@
            ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
            ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
            ,IUBC,IEXTR1,IEXTR2,IEXTR3)
+        field_ptr => gsv_getField3D(statevector,'UU')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, gaus_NJ
               DO JLON=1,gaus_NI
                  if(IG2 .eq. 0) then
-                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
@@ -79,39 +80,42 @@
 
       CLNOMVAR = 'VV'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+        field_ptr => gsv_getField3D(statevector,'VV')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'ES'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+        field_ptr => gsv_getField3D(statevector,'HU')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
-                    statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'GZ'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+        field_ptr => gsv_getField3D(statevector,'TT')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
+                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
                  else
-                    statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
+                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
                  endif
               END DO
            END DO
@@ -155,13 +159,14 @@
          call flush(6)
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'TT')
       DO J = 1, col_getNumLev(LCOLUMNG)
          DO JLAT = 1, GAUS_NJ
             DO JLON=1,GAUS_NI
                if(IG2 .eq. 0) then
-                  statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                else
-                  statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                endif
             END DO
          END DO
@@ -181,65 +186,70 @@
 !C
       CLNOMVAR = 'P0'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'P0')
         DO J = 1, INK
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%ps3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
                  else
-                    statevector%ps3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
+                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'UU'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'UU')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%uu3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%uu3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'VV'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'VV')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%vv3d(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  else
-                    statevector%vv3d(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'TT')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%tt3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
-                    statevector%tt3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
               END DO
            END DO
         END DO
       CLNOMVAR = 'ES'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'HU')
         DO J = 1, col_getNumLev(LCOLUMNG)
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
                  else
-                    statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
                  endif
               END DO
            END DO
@@ -257,13 +267,14 @@
 !C
       CLNOMVAR = 'LQ'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      field_ptr => gsv_getField3D(statevector,'HU')
       DO J = 1, col_getNumLev(LCOLUMNG)
         DO JLAT = 1, GAUS_NJ
           DO JLON=1,GAUS_NI
             if(IG2 .eq. 0) then
-               statevector%hu3d(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+               field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
             else
-               statevector%hu3d(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+               field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
             endif
           END DO
         END DO

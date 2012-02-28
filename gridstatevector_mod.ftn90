@@ -7,94 +7,114 @@
 !    struct_gsv
 !
 ! Subroutines:
-!    gsv_setup (public)
-!    gsv_allocate
-!    gsv_deallocate
-!    gsv_zero
+!    (see "public" statements for publicly accessible subroutines and functions)
 !
 ! Dependencies:
-!    none
+!    varNameList_mod
+!    verticalCoord_mod
+!    MathPhysConstants_mod
+!    getStampList
+!
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
+  use varNameList_mod
   use verticalCoord_mod
+  use MathPhysConstants_mod
   implicit none
   save
   private
 
-  public  :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, struct_gsv,  &
-             nguu,ngvv,ngq,nggz,ngtt,ngtr,ngps,ngtg,NGEXIST,NGPOSIT,JPNVARMAX,nvgd,nvg2d,  &
-             vco_calcpres,vco_setupfromfile
+  ! public structure definition
+  public :: struct_gsv
+
+  ! public subroutines and functions
+  public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist, gsv_getOffsetFromVarName
+  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev
+
+  ! public entities accessed through inheritance
+  public :: struct_vco, vco_calcpres, vco_AnlInit, vco_SetupFromFile
+  public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
 
   type struct_gsv
-    real*8,pointer :: gd(:,:,:,:)
-    real*8,pointer :: gd3d(:,:,:)
-    real*8,pointer :: uu(:,:,:,:)
-    real*8,pointer :: vv(:,:,:,:)
-    real*8,pointer :: tt(:,:,:,:)
-    real*8,pointer :: hu(:,:,:,:)
-    real*8,pointer :: tr(:,:,:,:)
-    real*8,pointer :: gz(:,:,:,:)
-    real*8,pointer :: ps(:,:,:,:)
-    real*8,pointer :: tg(:,:,:,:)
-    real*8,pointer :: uu3d(:,:,:)
-    real*8,pointer :: vv3d(:,:,:)
-    real*8,pointer :: tt3d(:,:,:)
-    real*8,pointer :: hu3d(:,:,:)
-    real*8,pointer :: tr3d(:,:,:)
-    real*8,pointer :: gz3d(:,:,:)
-    real*8,pointer :: ps3d(:,:,:)
-    real*8,pointer :: tg3d(:,:,:)
-    integer        :: ni,nj,nk,nlev,nt,anltime
-    integer, pointer :: datestamplist(:)
-    integer, pointer :: datestamp3d
-    logical        :: allocated=.false.
-    type(struct_vco),pointer :: vco
+    real*8,pointer      :: gd(:,:,:,:)
+    real*8,pointer      :: gd3d(:,:,:)
+    integer             :: nlev,nlev_T,nlev_M
+    integer             :: ni,nj,nk,numStep,anltime
+    integer, pointer    :: dateStampList(:)
+    integer, pointer    :: dateStamp3d
+    logical             :: allocated=.false.
+    type(struct_vco),pointer   :: vco
+    integer,pointer     :: varOffset(:),varNumLev(:)
   end type struct_gsv  
 
-    INTEGER,parameter :: JPNVARMAX=10
-    INTEGER NGEXIST(JPNVARMAX),NGPOSIT(JPNVARMAX)
-    INTEGER nguu,ngvv,ngq,nggz,ngtt,ngtr,ngps,ngtg
-    integer :: nvgd,nvg2d
-    CHARACTER*8 ANLTIME_BIN
+  logical :: NGEXIST(VNL_NUMVARMAX)
+  character(len=8) :: ANLTIME_BIN
 
-CONTAINS
+  CONTAINS
 
-  SUBROUTINE GSV_setup
+    function gsv_getOffsetFromVarName(statevector,varName) result(offset)
       implicit none
-      INTEGER JVAR, IFLAG, IPOS
+      type(struct_gsv)             :: statevector
+      character(len=*), intent(in) :: varName
+      integer                      :: offset
+
+      offset=statevector%varOffset(vnl_varListIndex(varName))
+
+    end function gsv_getOffsetFromVarName
+
+    function gsv_varExist(varName) result(varExist)
+      implicit none
+      character(len=*), intent(in) :: varName
+      logical                      :: varExist 
+
+      if(ngexist(vnl_varListIndex(varName))) then
+        varExist = .true.
+      else
+        varExist = .false.
+      endif
+
+    end function gsv_varExist
+
+  function gsv_getNumLev(statevector,varType) result(nlev)
+    implicit none
+    type(struct_gsv), intent(in)           :: statevector
+    character(len=2), intent(in), optional :: varType
+    integer                                :: nlev
+
+    if(present(varType)) then
+      if(varType.eq.'MM') then
+        nlev = statevector%nlev_m
+      elseif(varType.eq.'TH') then
+        nlev = statevector%nlev_t
+      elseif(varType.eq.'SF') then
+        nlev = 1
+      else
+        write(*,*) 'gsv_getNumLev: Unknown variable type! ',varType
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      nlev = statevector%nlev
+    endif
+
+  end function gsv_getNumLev
+
+
+  SUBROUTINE gsv_setup
+      implicit none
+      INTEGER JVAR, IPOS
       integer :: fnom,fclos,nulnam,ierr
-      CHARACTER*2 CGNEED(JPNVARMAX)
+      CHARACTER(len=4) :: CGNEED(VNL_NUMVARMAX)
       NAMELIST /NAMSTATE/CGNEED,ANLTIME_BIN
-!
-!     Initialisation of the state variable numbers
-!
-      nguu = 1
-      ngvv = 2
-      nggz = 3
-      ngtt = 4
-      ngq  = 5
-      ngtr = 7
-      ngps = 8
-      ngtg = 9
-!
-!     Initialisation of model state control vertors
-!
-      DO JVAR = 1, JPNVARMAX
-         NGEXIST(JVAR) = 0
-      END DO
-!
-!    2. Read NAMELIST NAMSTATE to find which fields are needed
-!
-      DO JVAR = 1, JPNVARMAX
-        cgneed(jvar)   = ' '
-      enddo
 
-      CGNEED(1)   ='UU'
-      CGNEED(2)   ='VV'
-      CGNEED(3)   ='TT'
-      CGNEED(4)   ='HU'
-      CGNEED(5)   ='P0'
+      write(*,*) 'gsv_setup: List of known (valid) variable names'
+      write(*,*) 'gsv_setup: varNameList3D=',varNameList3D
+      write(*,*) 'gsv_setup: varNameList2D=',varNameList2D
+      write(*,*) 'gsv_setup: varNameList  =',varNameList
 
+!     Read NAMELIST NAMSTATE to find which fields are needed
+
+      cgneed(1:vnl_numvarmax) = '    '
       ANLTIME_BIN = 'MIDDLE'
 
       nulnam=0
@@ -103,121 +123,25 @@ CONTAINS
       write(*,*) 'gsv_setup: reading namelist, ierr=',ierr
       write(*,nml=namstate)
       ierr=fclos(nulnam)
-!
-!     3. Modify default values
-!
-      NVGD   = 0
-      NVG2D  = 0
 
-      IPOS = 1
-      DO JVAR = 1, JPNVARMAX
-        IF (NGUU .EQ. JVAR) THEN
-          IF (VARNEED('UU')) THEN
-            NGUU = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVGD = NVGD + 1
-          ELSE
-            NGUU = -9
-          ENDIF
-        ELSEIF(NGVV .EQ. JVAR) THEN
-          IF (VARNEED('VV')) THEN
-            NGVV = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVGD = NVGD + 1
-          ELSE
-            NGVV = -9
-          ENDIF
-        ELSEIF(NGQ .EQ. JVAR) THEN
-          IF (VARNEED('HU')) THEN
-            NGQ = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVGD = NVGD + 1
-          ELSE
-            NGQ = -9
-          ENDIF
-        ELSEIF(NGGZ .EQ. JVAR) THEN
-          IF (VARNEED('GZ')) THEN
-            NGGZ = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVGD = NVGD + 1
-          ELSE
-            NGGZ = -9
-          ENDIF
-        ELSEIF(NGTT .EQ. JVAR) THEN
-          IF (VARNEED('TT')) THEN
-            NGTT = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVGD = NVGD + 1
-          ELSE
-            NGTT = -9
-          ENDIF
-        ELSEIF(NGTR .EQ. JVAR) THEN
-          IF (VARNEED('TR')) THEN
-            NGTR = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVGD = NVGD + 1
-          ELSE
-            NGTR = -9
-          ENDIF
-        ELSEIF(NGPS .EQ. JVAR) THEN
-          IF (VARNEED('P0')) THEN
-            NGPS = IPOS
-            NGEXIST(IPOS) = 1
-            IPOS = IPOS + 1
-            NVG2D = NVG2D + 1
-          ELSE
-            NGPS = -9
-          ENDIF
-        elseif(ngtg .eq. jvar) then
-          if (VARNEED('TG')) then
-            ngtg = ipos
-            ngexist(ipos) = 1
-            ipos = ipos + 1
-            NVG2D = NVG2D + 1
-          else
-            ngtg = -9
-          endif
-        ENDIF
-      ENDDO
+      do jvar = 1, vnl_numvarmax3D
+        if (varneed(varNameList3D(jvar))) then
+          ngexist(jvar) = .true.
+        else
+          ngexist(jvar) = .false.
+        endif
+      enddo
 
-      IF(NGUU .EQ. -9) THEN
-        NGUU = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NGVV .EQ. -9) THEN
-        NGVV = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NGQ .EQ. -9) THEN
-        NGQ = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NGGZ .EQ. -9) THEN
-        NGGZ = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NGTT .EQ. -9) THEN
-        NGTT = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NGTR .EQ. -9) THEN
-        NGTR = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      IF(NGPS .EQ. -9) THEN
-        NGPS = IPOS
-        IPOS = IPOS + 1
-      ENDIF
-      if(ngtg .eq. -9) then
-        ngtg = ipos
-        ipos = ipos + 1
-      endif
+      do jvar = 1, vnl_numvarmax2D
+        if (varneed(varNameList2D(jvar))) then
+          ngexist(jvar+vnl_numvarmax3D) = .true.
+        else
+          ngexist(jvar+vnl_numvarmax3D) = .false.
+        endif
+      enddo
+
+      write(*,*) 'gsv_setup: ngexist =',ngexist
+
 !
 !     Check value for ANLTIME_BIN
 !
@@ -231,72 +155,108 @@ CONTAINS
 
       CONTAINS
 
-        LOGICAL FUNCTION VARNEED(VARCHAR)
-          character*2 :: varchar
+        LOGICAL FUNCTION VARNEED(varName)
+          character(len=*) :: varName
           integer :: jvar
  
           varneed=.false.
-          do jvar=1,JPNVARMAX
-            if (varchar.eq.cgneed(jvar)) then
+          do jvar=1,VNL_NUMVARMAX
+            if (trim(varName).eq.trim(cgneed(jvar))) then
               varneed=.true.
             endif
           enddo
 
         END FUNCTION VARNEED
 
-  END SUBROUTINE GSV_setup
+  END SUBROUTINE gsv_setup
 
 
-  SUBROUTINE GSV_allocate(statevector,ni,nj,nlev,nt,datestamp)
+  SUBROUTINE gsv_allocate(statevector,ni,nj,numStep,nlev_M,nlev_T,dateStamp)
     implicit none
 
-    type(struct_gsv)  :: statevector
-    integer           :: ni,nj,nlev,nt
-    integer, optional :: datestamp
-    integer           :: ierr,iloc,jvar,jstep
+    type(struct_gsv)    :: statevector
+    integer, intent(in) :: ni,nj,numStep
+    integer, optional   :: nlev_M,nlev_T,dateStamp
+    integer             :: ierr,iloc,jvar,jvar2,jstep
 
     statevector%ni=ni
     statevector%nj=nj
-    statevector%nk=nvgd*nlev+nvg2d
-    statevector%nlev=nlev
-    statevector%nt=nt
+    statevector%numStep=numStep
+    
     select case (ANLTIME_BIN)
     case ("FIRST")
        statevector%anltime=1
     case ("MIDDLE")
-       statevector%anltime=nint((real(nt)+1.0)/2.0)
+       statevector%anltime=nint((real(numStep)+1.0)/2.0)
     case ("LAST")
-       statevector%anltime=nt
-    end select
-          
+       statevector%anltime=numStep
+    end select          
 
-    write(*,*) 'gsv_allocate: nt,anltime=',statevector%nt,statevector%anltime
+    write(*,*) 'gsv_allocate: numStep,anltime=',statevector%numStep,statevector%anltime
+
+    if( (.not.present(nlev_M)) .and. (.not.present(nlev_T)) ) then
+        if(statevector%vco%initialized) then
+          statevector%nlev = max(statevector%vco%nlev_M,statevector%vco%nlev_T)
+          statevector%nlev_M = statevector%vco%nlev_M
+          statevector%nlev_T = statevector%vco%nlev_T
+        else
+          write(*,*) 'statevector_allocate: VerticalCoord has not been initialized!'
+          call flush(6)
+          call qqexit(1)
+        endif
+    else
+        statevector%nlev = max(nlev_M,nlev_T)
+        statevector%nlev_M = nlev_M
+        statevector%nlev_T = nlev_T
+    endif
 
     if (statevector%allocated)then
       write(*,*) 'gridStateVector already allocated! Deallocating first.'
-      deallocate(statevector%gd,stat=ierr)
+      call gsv_deallocate(statevector)
       statevector%allocated=.false.
-      if(ierr.eq.0) then
-        write(*,*) 'gridStateVector checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
-      endif
-      call flush(6)
     end if
 
-    if(present(datestamp)) then
-      allocate(statevector%datestamplist(nt))
-      call getstamplist(statevector%datestamplist,nt,datestamp)
-      do jstep = 1,nt
-        write(*,*) 'gsv_allocate: jstep,datestamplist=',jstep,statevector%datestamplist(jstep)
+    if(present(dateStamp)) then
+      allocate(statevector%dateStampList(numStep))
+      call getstamplist(statevector%dateStampList,numStep,dateStamp)
+      do jstep = 1,numStep
+        write(*,*) 'gsv_allocate: jstep,dateStampList=',jstep,statevector%dateStampList(jstep)
       enddo
-      statevector%datestamp3d => statevector%datestamplist(statevector%anltime)
-      write(*,*) 'gsv_allocate: datestamp3d=',statevector%datestamp3d
+      statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
+      write(*,*) 'gsv_allocate: dateStamp3d=',statevector%dateStamp3d
     else
-      write(*,*) 'gsv_allocate: no date stamp supplied, datestamplist not available!'
+      nullify(statevector%dateStamplist)
+      write(*,*) 'gsv_allocate: no date stamp supplied, dateStampList not available!'
     endif
 
-    allocate(statevector%gd(ni,statevector%nk,nj,nt),stat=ierr)
+    allocate(statevector%varOffset(vnl_numvarmax))
+    statevector%varOffset(:)=0
+    allocate(statevector%varNumLev(vnl_numvarmax))
+    statevector%varNumLev(:)=0
+
+    iloc=0
+    do jvar = 1, vnl_numvarmax3d
+        if(ngexist(jvar)) then
+          statevector%varOffset(jvar)=iloc
+          statevector%varNumLev(jvar)=gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
+          iloc = iloc + statevector%varNumLev(jvar)
+        endif
+    enddo
+    do jvar2 = 1, vnl_numvarmax2d
+        jvar=jvar2+vnl_numvarmax3d
+        if(ngexist(jvar)) then
+          statevector%varOffset(jvar)=iloc
+          statevector%varNumLev(jvar)=1
+          iloc = iloc + 1
+        endif
+    enddo
+    statevector%nk=iloc
+
+    write(*,*) 'gsv_allocate: varNames =',varNameList(:)
+    write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev(:)
+    write(*,*) 'gsv_allocate: varOffset=',statevector%varOffset(:)
+
+    allocate(statevector%gd(ni,statevector%nk,nj,numStep),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
       call flush(6)
@@ -305,80 +265,11 @@ CONTAINS
 
     statevector%gd3d => statevector%gd(:,:,:,statevector%anltime)
 
-    iloc = 1
-    do jvar = 1, jpnvarmax
-      if(jvar.eq.nguu) then
-        ngposit(jvar)=iloc
-        if(ngexist(nguu).eq.1) then
-          statevector%uu   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
-          statevector%uu3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
-          iloc = iloc + nlev
-        endif
-      endif
-      if(jvar.eq.ngvv) then
-        ngposit(jvar)=iloc
-        if(ngexist(ngvv).eq.1) then
-          statevector%vv   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
-          statevector%vv3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
-          iloc = iloc + nlev
-        endif
-      endif
-      if(jvar.eq.ngtt) then
-        ngposit(jvar)=iloc
-        if(ngexist(ngtt).eq.1) then
-          statevector%tt   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
-          statevector%tt3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
-          iloc = iloc + nlev
-        endif
-      endif
-      if(jvar.eq.nggz) then
-        ngposit(jvar)=iloc
-        if(ngexist(nggz).eq.1) then
-          statevector%gz   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
-          statevector%gz3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
-          iloc = iloc + nlev
-        endif
-      endif
-      if(jvar.eq.ngq) then
-        ngposit(jvar)=iloc
-        if(ngexist(ngq).eq.1) then
-          statevector%hu   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
-          statevector%hu3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
-          iloc = iloc + nlev
-        endif
-      endif
-      if(jvar.eq.ngtr) then
-        ngposit(jvar)=iloc
-        if(ngexist(ngtr).eq.1) then
-          statevector%tr   => statevector%gd(1:ni,iloc:(iloc+nlev-1),1:nj,1:nt)
-          statevector%tr3d => statevector%gd3d(1:ni,iloc:(iloc+nlev-1),1:nj)
-          iloc = iloc + nlev
-        endif
-      endif
-      if(jvar.eq.ngps) then
-        ngposit(jvar)=iloc
-        if(ngexist(ngps).eq.1) then
-          statevector%ps   => statevector%gd(1:ni,iloc:iloc,1:nj,1:nt)
-          statevector%ps3d => statevector%gd3d(1:ni,iloc:iloc,1:nj)
-          iloc = iloc + 1
-        endif
-      endif
-      if(jvar.eq.ngtg) then
-        ngposit(jvar)=iloc
-        if(ngexist(ngtg).eq.1) then
-          statevector%tg   => statevector%gd(1:ni,iloc:iloc,1:nj,1:nt)
-          statevector%tg3d => statevector%gd3d(1:ni,iloc:iloc,1:nj)
-          iloc = iloc + 1
-        endif
-      endif
-    enddo
-
   END SUBROUTINE GSV_allocate
 
 
   SUBROUTINE GSV_zero(statevector)
     implicit none
-
     type(struct_gsv) :: statevector
 
     if(.not.statevector%allocated) then
@@ -386,14 +277,13 @@ CONTAINS
       call qqexit(1)
     endif
 
-    statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%nt)=0.0d0
+    statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%numStep)=0.0d0
  
   END SUBROUTINE GSV_zero
 
 
   SUBROUTINE GSV_3dto4d(statevector)
     implicit none
-
     type(struct_gsv) :: statevector
     integer          :: jstep
 
@@ -402,9 +292,9 @@ CONTAINS
       call qqexit(1)
     endif
 
-    if(statevector%nt.eq.1) return
+    if(statevector%numStep.eq.1) return
 
-    do jstep=1,statevector%nt
+    do jstep=1,statevector%numStep
       if(jstep.ne.statevector%anltime) then
         statevector%gd(:,:,:,jstep)= statevector%gd3d(:,:,:)
       endif
@@ -415,7 +305,6 @@ CONTAINS
 
   SUBROUTINE GSV_3dto4dAdj(statevector)
     implicit none
-
     type(struct_gsv) :: statevector
     integer          :: jstep
     real(8),dimension(statevector%ni,statevector%nk,statevector%nj) :: gd3d_tmp
@@ -425,11 +314,11 @@ CONTAINS
       call qqexit(1)
     endif
 
-    if(statevector%nt.eq.1) return
+    if(statevector%numStep.eq.1) return
 
     gd3d_tmp(:,:,:) = 0.0d0
 
-    do jstep=1,statevector%nt
+    do jstep=1,statevector%numStep
         gd3d_tmp(:,:,:) = gd3d_tmp(:,:,:) +   &
                                  statevector%gd(:,:,:,jstep)
     enddo
@@ -450,17 +339,93 @@ CONTAINS
       call qqexit(1)
     endif
 
-    if (statevector%allocated) then
-      deallocate(statevector%gd,stat=ierr)
-      nullify(statevector%gd)
-      statevector%allocated=.false.
-      if(ierr.eq.0) then
-        write(*,*) 'gridStateVector checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
-      endif
-    end if
+    statevector%allocated=.false.
 
+    deallocate(statevector%gd,stat=ierr)
+    nullify(statevector%gd)
+    if(ierr.ne.0) then
+        write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
+    endif
+
+    if(associated(statevector%dateStampList)) deallocate(statevector%dateStampList)
+    deallocate(statevector%varOffset)
+    deallocate(statevector%varNumLev)
+    
   END SUBROUTINE GSV_deallocate
+
+
+  function gsv_getField(statevector,varName) result(field)
+    implicit none
+    type(struct_gsv), intent(in)           :: statevector
+    character(len=*), intent(in), optional :: varName
+    real*8,pointer                         :: field(:,:,:,:)
+    integer                                :: ilev1,ilev2
+
+    if(present(varName)) then
+      if(gsv_varExist(varName)) then
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
+        field => statevector%gd(:,ilev1:ilev2,:,:)
+      else
+        write(*,*) 'gsv_getField: Unknown variable name! ',varName
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      field => statevector%gd(:,:,:,:)
+    endif
+
+  end function gsv_getField
+
+
+  function gsv_getField3D(statevector,varName) result(field3D)
+    implicit none
+    type(struct_gsv), intent(in)           :: statevector
+    character(len=*), intent(in), optional :: varName
+    real*8,pointer                         :: field3D(:,:,:)
+    integer                                :: ilev1,ilev2
+
+    if(present(varName)) then
+      if(gsv_varExist(varName)) then
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
+        field3D => statevector%gd3d(:,ilev1:ilev2,:)
+      else
+        write(*,*) 'gsv_getField: Unknown variable name! ',varName
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      field3D => statevector%gd3d(:,:,:)
+    endif
+
+  end function gsv_getField3D
+
+
+  function gsv_getDateStamp(statevector,step) result(dateStamp)
+    implicit none
+    type(struct_gsv), intent(in)   :: statevector
+    integer, intent(in), optional  :: step 
+    integer                        :: dateStamp
+
+    if(associated(statevector%dateStampList)) then
+      if(present(step)) then
+        if(step.gt.0.and.step.le.statevector%numStep) then
+          dateStamp=statevector%dateStampList(step)
+        else
+          write(*,*) 'gsv_getDateStamp: requested step is out of range! Step,numStep=',step,statevector%numStep
+          call flush(6)
+          call qqexit(1)
+        endif    
+      else
+        dateStamp=statevector%dateStamp3D
+      endif
+    else
+      write(*,*) 'gsv_getDateStamp: dateStampList was not created during allocation!'
+      call flush(6)
+      call qqexit(1)
+    endif
+
+  end function gsv_getDateStamp
 
 END MODULE gridStateVector_mod

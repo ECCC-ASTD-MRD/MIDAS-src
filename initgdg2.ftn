@@ -181,14 +181,6 @@ C
               enddo
             enddo
           enddo
-        ELSEIF(CLVAR.EQ.'TR') THEN
-          DO JLEV = 1,KNK
-            DO JJ = 1, KNJ
-              DO JI = 1, KNI
-                pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-              enddo
-            enddo
-          enddo
         ELSEIF(CLVAR.EQ.'P0') THEN
           zcon = 1.e2
           DO JLEV = 1,KNK
@@ -342,14 +334,6 @@ C
             END DO
           enddo
         ELSEIF(CLVAR.EQ.'O3') THEN
-          DO JLEV = 1,KNK
-            DO JJ = 1, KNJ
-              DO JI = 1, KNI
-                POUT(JI,JLEV,JJ)=PIN(JI,KNJ-JJ+1,JLEV)
-              enddo
-            enddo
-          enddo
-        ELSEIF(CLVAR.EQ.'TR') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI

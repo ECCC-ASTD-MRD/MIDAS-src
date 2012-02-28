@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE MEMFREE(KULOUT,lobsSpaceData)
+      SUBROUTINE MEMFREE(lobsSpaceData)
 
 #if defined (DOC)
 *
@@ -28,19 +28,16 @@
 *          1) removed the deallocation of memory of
 *             PTILON, PTNNP1, PT1SNP1, PTCONPHY, PTCONINA
 *
-*Arguments
-*     i   KULOUT: unit used for optional printing
-*
 #endif
 C
       use obsSpaceData_mod
       use controlVector_mod
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
-      INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
+      INTEGER ISTAMP,IERR, FSTFRM,EXFIN, fclos
       EXTERNAL HPDEALLC, FSTFRM,EXFIN
 C
-      WRITE(KULOUT,FMT
+      WRITE(*,FMT
      &     ='(/,10X,"Free the memory which is not needed in varout",/,20
      &         (" *"))')
 C

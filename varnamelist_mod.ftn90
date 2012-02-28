@@ -2,25 +2,31 @@ module varNameList_mod
   implicit none
   save
 
-  integer, parameter          :: jpnvarmax3D=6,jpnvarmax2D=2
-  character(len=2), parameter :: varNameList3D(jpnvarmax3D) = (/'UU','VV','GZ','TT','HU','TR'/)
-  character(len=2), parameter :: varNameList2D(jpnvarmax2D) = (/'P0','TG'/)
-  character(len=2), parameter :: varTypeList3D(jpnvarmax3D) = (/'MM','MM','MM','TH','TH','TH'/)
-  character(len=2), parameter :: varTypeList2D(jpnvarmax2D) = (/'SF','SF'/)
+  integer, parameter          :: vnl_numvarmax3D=15,vnl_numvarmax2D=2
 
-  integer, parameter          :: jpnvarmax=jpnvarmax3D+jpnvarmax2D
-  character(len=2), parameter :: varNameList(jpnvarmax) = (/ varNameList3D, varNameList2D /)
-  character(len=2), parameter :: varTypeList(jpnvarmax) = (/ varTypeList3D, varTypeList2D /)
+  character(len=4), parameter :: varNameList3D(vnl_numvarmax3D) = (/'UU  ','VV  ','GZ  ','TT  ','HU  ', &
+                                 'DW  ','O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ','NH3 ' /)
+
+  character(len=2), parameter :: varTypeList3D(vnl_numvarmax3D) = (/'MM','MM','MM','TH','TH', &
+                                 'TH','TH','TH','TH','TH','TH','TH','TH','TH','TH'/)
+
+  character(len=4), parameter :: varNameList2D(vnl_numvarmax2D) = (/'P0  ','TG  '/)
+
+  character(len=2), parameter :: varTypeList2D(vnl_numvarmax2D) = (/'SF','SF'/)
+
+  integer, parameter          :: vnl_numvarmax=vnl_numvarmax3D+vnl_numvarmax2D
+  character(len=4), parameter :: varNameList(vnl_numvarmax) = (/ varNameList3D, varNameList2D /)
+  character(len=2), parameter :: varTypeList(vnl_numvarmax) = (/ varTypeList3D, varTypeList2D /)
 
   contains
 
     function vnl_varListIndex3d(varName) result(listIndex)
       implicit none
-      character(len=2), intent(in) :: varName
+      character(len=*), intent(in) :: varName
       integer                      :: jvar,listIndex
 
       listIndex=-1
-      do jvar=1,jpnvarmax3D
+      do jvar=1,vnl_numvarmax3D
         if(varName.eq.varNameList3d(jvar)) then
           listIndex=jvar
           exit
@@ -38,11 +44,11 @@ module varNameList_mod
 
     function vnl_varListIndex2d(varName) result(listIndex)
       implicit none
-      character(len=2), intent(in) :: varName
+      character(len=*), intent(in) :: varName
       integer                      :: jvar,listIndex
 
       listIndex=-1
-      do jvar=1,jpnvarmax2D
+      do jvar=1,vnl_numvarmax2D
         if(varName.eq.varNameList2d(jvar)) then 
           listIndex=jvar
           exit
@@ -60,11 +66,11 @@ module varNameList_mod
 
     function vnl_varListIndex(varName) result(listIndex)
       implicit none
-      character(len=2), intent(in) :: varName
+      character(len=*), intent(in) :: varName
       integer                      :: jvar,listIndex
 
       listIndex=-1
-      do jvar=1,jpnvarmax
+      do jvar=1,vnl_numvarmax
         if(varName.eq.varNameList(jvar)) then 
           listIndex=jvar
           exit
@@ -80,12 +86,14 @@ module varNameList_mod
     end function vnl_varListIndex
 
 
-    function vnl_varnameFromVarnum(varNumber) result(varName)
+    function vnl_varnameFromVarnum(varNumber,varTrNumber) result(varName)
       use bufr
       implicit none
       integer, intent(in) :: varNumber
-      character(len=2)    :: varName
+      integer, intent(in), optional :: varTrNumber
+      character(len=4)    :: varName
 
+      varName='    '
       select case (varNumber)
       case(BUFR_NEUU,BUFR_NEUS)
         varName='UU'
@@ -101,8 +109,41 @@ module varNameList_mod
         varName='P0'
       case(BUFR_NERF)
         varName='TT'   ! temporarily associate refractivity with temperature
+      case(BUFR_NEDW)
+        varName='DW'
+      case(BUFR_NETR)
+        if (present(varTrNumber)) then      
+           select case (varTrNumber)
+           case(BUFR_NETR_O3)
+              varname='O3'
+           case(BUFR_NETR_H2O)
+              varname='HU'
+           case(BUFR_NETR_CH4)
+              varname='CH4'
+           case(BUFR_NETR_CO2)
+              varname='CO2'
+           case(BUFR_NETR_CO)
+              varname='CO'
+           case(BUFR_NETR_NO2)
+              varname='NO2'
+           case(BUFR_NETR_N2O)
+              varname='N2O'
+           case(BUFR_NETR_HCHO)
+              varname='HCHO'
+           case(BUFR_NETR_SO2)
+              varname='SO2'
+           case default
+              write(*,*) 'vnl_varnameFromVarnum: Unknown TR variable number! ',varTrNumber
+              call flush(6)
+              call qqexit(1)
+           end select
+        else
+           write(*,*) 'vnl_varnameFromVarnum: Missing TR variable number '
+           call flush(6)
+           call qqexit(1)
+        endif 
       case default
-        write(*,*) 'column: varname_from_varnum: Unknown variable number! ',varNumber
+        write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
         call flush(6)
         call qqexit(1)
       end select
@@ -114,26 +155,30 @@ module varNameList_mod
       use bufr
       implicit none
 
-      character(len=2), intent(in)   :: varName
-      character(len=2), intent(in)   :: varType
+      character(len=*), intent(in)   :: varName
+      character(len=2)               :: varType
 
       varType = varTypeList(vnl_varListIndex(varName))
 
-      return
     end function vnl_vartypeFromVarname
 
 
-    function vnl_vartypeFromVarnum(varNumber) result(varType)
+    function vnl_vartypeFromVarnum(varNumber,varTrNumber) result(varType)
       use bufr
       implicit none
 
-      integer,          intent(in)  :: varNumber
-      character(len=2)              :: varType,varName
+      integer, intent(in)           :: varNumber
+      integer, intent(in), optional :: varTrNumber
+      character(len=2)              :: varType
+      character(len=4)              :: varName
 
-      varName = vnl_varnameFromVarnum(varNumber)
+      if (present(varTrNumber)) then      
+         varName = vnl_varnameFromVarnum(varNumber,varTrNumber)
+      else 
+         varName = vnl_varnameFromVarnum(varNumber)
+      endif 
       varType = varTypeList(vnl_varListIndex(varName))
 
-      return
     end function vnl_vartypeFromVarnum
 
 

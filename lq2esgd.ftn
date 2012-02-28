@@ -52,6 +52,7 @@ C LMHUAESV
       real*8 pesinc(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
       integer ji,jj,jk
       REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA, zpres
+      real*8, pointer :: ps3d_trl_ptr(:,:,:),ps3d_inc_ptr(:,:,:),hu3d_trl_ptr(:,:,:),hu3d_inc_ptr(:,:,:),tt3d_inc_ptr(:,:,:)
 *
 #include "dinternv.cdk"
 #include "finternva.cdk"
@@ -60,23 +61,28 @@ C LMHUAESV
 #include "fintern8.cdk"
 **
       WRITE(*,FMT='(/,4X,"Starting LQ2ESGD",//)')
+      ps3d_trl_ptr => gsv_getField3D(statevectorg,'P0')
+      ps3d_inc_ptr => gsv_getField3D(statevector ,'P0')
+      hu3d_trl_ptr => gsv_getField3D(statevectorg,'HU')
+      hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
+      tt3d_inc_ptr => gsv_getField3D(statevector ,'TT')
 *
       do jk=1,statevectorg%nlev
         do ji=1,statevectorg%ni
           do jj=1,statevectorg%nj
-            zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*statevectorg%ps3d(ji,1,jj)
+            zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*ps3d_trl_ptr(ji,1,jj)
 *
 *          First do the forward branch to get saturated vapour pressure
 *          from q
 *
-            ZE = FOEFQ8(statevectorg%hu3d(ji,jk,jj), zpres)
+            ZE = FOEFQ8(hu3d_trl_ptr(ji,jk,jj), zpres)
 *
 *          TLM of the saturated vapor pressure from q (specific humidity)
 *
-            ZEL = FOEFQL(statevector%hu3d(ji,jk,jj),statevector%ps3d(ji,1,jj)
-     &           ,statevectorg%hu3d(ji,jk,jj),zpres,statevectorg%vco%dhyb_m(jk))
-!            ZEL = FOEFQL(statevector%hu3d(ji,jk,jj),statevector%ps3d(ji,1,jj)
-!     &           ,statevectorg%hu3d(ji,jk,jj),zpres,statevectorg%vco%db_m(jk))
+            ZEL = FOEFQL(hu3d_inc_ptr(ji,jk,jj),ps3d_inc_ptr(ji,1,jj)
+     &           ,hu3d_trl_ptr(ji,jk,jj),zpres,statevectorg%vco%dhyb_m(jk))
+!            ZEL = FOEFQL(hu3d_inc_ptr(ji,jk,jj),ps3d_inc_ptr(ji,1,jj)
+!     &           ,hu3d_trl_ptr(ji,jk,jj),zpres,statevectorg%vco%db_m(jk))
 *
 *          TLM of the dewpoint temperature calculation
 *
@@ -86,7 +92,7 @@ C
             ZGAMMA=FODTW8(ZTD,ZE)
             ZTDL = ZGAMMA*ZEL
 *
-            pesinc(ji,jk,jj) = statevector%tt3d(ji,jk,jj) - ZTDL
+            pesinc(ji,jk,jj) = tt3d_inc_ptr(ji,jk,jj) - ZTDL
 *
           enddo
         enddo

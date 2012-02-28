@@ -51,23 +51,21 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   ! 3D fields interpolation
 !$OMP SECTION
-  if(NGEXIST(nguu).eq.1)  call gd2mvo('UU',col_getNumLev(lcolumn))
+  if(gsv_varExist('UU'))  call gd2mvo('UU',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngvv).eq.1)  call gd2mvo('VV',col_getNumLev(lcolumn))
+  if(gsv_varExist('VV'))  call gd2mvo('VV',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngq).eq.1)   call gd2mvo('HU',col_getNumLev(lcolumn))
+  if(gsv_varExist('HU'))   call gd2mvo('HU',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(ngtt).eq.1)  call gd2mvo('TT',col_getNumLev(lcolumn))
+  if(gsv_varExist('TT'))  call gd2mvo('TT',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(NGEXIST(nggz).eq.1)  call gd2mvo('GZ',col_getNumLev(lcolumn))
-!$OMP SECTION
-  if(NGEXIST(ngtr).eq.1)  call gd2mvo('TR',col_getNumLev(lcolumn))
+  if(gsv_varExist('GZ'))  call gd2mvo('GZ',col_getNumLev(lcolumn))
 
   ! 2D fields interpolation
 !$OMP SECTION
   nl_ilev = 1
-  if(NGEXIST(ngps).eq.1)  call gd2mvo('P0',nl_ilev)
-  if(NGEXIST(ngtg).eq.1)  call gd2mvo('TG',nl_ilev)
+  if(gsv_varExist('P0'))  call gd2mvo('P0',nl_ilev)
+  if(gsv_varExist('TG'))  call gd2mvo('TG',nl_ilev)
 
 !$OMP END SECTIONS
 !$OMP END PARALLEL
@@ -114,40 +112,19 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
       real*8  zfield(0:(statevector%ni+2),1:klev,(-1):(statevector%nj+2))
       real*8, allocatable :: zprofil(:,:)
+      real*8, pointer :: field_ptr(:,:,:,:)
 
       allocate(zprofil(klev,col_getNumCol(lcolumn)))
+      field_ptr => gsv_getField(statevector,cdvarname)
 !*
 !*     Transfer Grid point field into local array (for generecity)
 !*
       zfield(:,:,:) = 0.
       zprofil(:,:)  = 0.
 
-      do jstep=1,statevector%nt
+      do jstep=1,statevector%numStep
 
-        select case (cdvarname)
-!*
-!*     2D fields
-!*
-        case('TG')
-           zfield(1:statevector%NI,1,1:statevector%NJ)= statevector%TG(1:statevector%NI,1,1:statevector%NJ,jstep)
-        case('P0')
-           zfield(1:statevector%NI,1,1:statevector%NJ)= statevector%PS(1:statevector%NI,1,1:statevector%NJ,jstep)
-!*
-!*     3D fields
-!*
-        case('TT')
-           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%TT(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
-        case('HU')
-           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%HU(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
-        case('TR')
-           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%TR(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ,jstep)
-        case('UU')
-           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%UU(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
-        case('VV')
-           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%VV(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
-        case ('GZ')
-           zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  statevector%GZ(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ,jstep)
-        end select
+        zfield(1:STATEVECTOR%NI,1:klev,1:STATEVECTOR%NJ)=  field_ptr(1:STATEVECTOR%NI,1:KLEV,1:STATEVECTOR%NJ,jstep)
 !C
 !C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
 !C     NI, 1, AND 2 INTO MERIDIANS 0, NI+1,

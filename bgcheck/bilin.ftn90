@@ -29,6 +29,7 @@
       real*8, allocatable ::zgd(:,:,:)
       real*8, pointer :: uu_column(:),vv_column(:),hu_column(:),gz_column(:)
       real*8, pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
+      real*8, pointer :: field_ptr(:,:,:), uu_ptr(:,:,:), vv_ptr(:,:,:)
 
       allocate(zgd(0:(statevector%ni+2),1:statevector%nk,(-1):(statevector%nj+2)),STAT=ierr)
 !C
@@ -39,17 +40,20 @@
 !C
 !C*    1.0 TRANSFORM WIND IMAGES INTO PHYSICAL WINDS
 !C
+      uu_ptr => gsv_getField3D(statevector,'UU')
+      vv_ptr => gsv_getField3D(statevector,'VV')
       DO JLEV = 1, statevector%NLEV
          DO JGL = 1, statevector%NJ
             DO JLON = 1, statevector%NI
-               statevector%uu3d(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * statevector%uu3d(JLON,JLEV,JGL)
-               statevector%vv3d(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * statevector%vv3d(JLON,JLEV,JGL)
+               uu_ptr(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * uu_ptr(JLON,JLEV,JGL)
+               vv_ptr(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * vv_ptr(JLON,JLEV,JGL)
             ENDDO
          ENDDO
       ENDDO
 
       ZGD(:,:,:)=0.0d0
-      ZGD(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)=statevector%gd3d(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)
+      field_ptr => gsv_getField3D(statevector)
+      ZGD(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)=field_ptr(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)
 !C
 !C*    1.1 EXTRA MERIDIANS
 !C
@@ -145,58 +149,58 @@
          if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
          if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
          DO JK = 1, statevector%nlev
-           if(NGEXIST(nguu).eq.1) then
-             jk2=jk+ngposit(nguu)-1
+           if(gsv_varExist('UU')) then
+             jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
              uu_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
-           if(NGEXIST(ngvv).eq.1) then
-             jk2=jk+ngposit(ngvv)-1
+           if(gsv_varExist('VV')) then
+             jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
              vv_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
-           if(NGEXIST(ngq).eq.1) then
-             jk2=jk+ngposit(ngq)-1
+           if(gsv_varExist('HU')) then
+             jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
              hu_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
-           if(NGEXIST(nggz).eq.1) then
-             jk2=jk+ngposit(nggz)-1
+           if(gsv_varExist('GZ')) then
+             jk2=jk+gsv_getOffsetFromVarName(statevector,'GZ')
              gz_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
-           if(NGEXIST(ngtt).eq.1) then
-             jk2=jk+ngposit(ngtt)-1
+           if(gsv_varExist('TT')) then
+             jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
              tt_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
-           if(NGEXIST(ngtr).eq.1) then
-             jk2=jk+ngposit(ngtr)-1
+           if(gsv_varExist('TR')) then
+             jk2=jk+gsv_getOffsetFromVarName(statevector,'TR')
              tr_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
            endif
          enddo
-         if(NGEXIST(ngps).eq.1) then
-           jk2=ngposit(ngps)
+         if(gsv_varExist('P0')) then
+           jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
            ps_column(1) =   DLW1*zgd(ILON,jk2,ILA)  &
                 + DLW2*zgd(ILON+1,jk2,ILA)  &
                 + DLW3*zgd(ILOS,jk2,ILA+1)  &
                 + DLW4*zgd(ILOS+1,jk2,ILA+1)
          endif
-         if(NGEXIST(ngtg).eq.1) then
-           jk2=ngposit(ngtg)
+         if(gsv_varExist('TG')) then
+           jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
            tg_column(1) =   DLW1*zgd(ILON,jk2,ILA)  &
                 + DLW2*zgd(ILON+1,jk2,ILA)  &
                 + DLW3*zgd(ILOS,jk2,ILA+1)  &

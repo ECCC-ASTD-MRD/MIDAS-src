@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE GDOUT2(CPVAR,pptrans,KLEV,lplok,kip1,ig2,statevector,zes,ztv,zgz,zhu)
+      SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,ig2,statevector,zes,ztv,zgz,zhu)
 #if defined (DOC)
 *
 ***s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
@@ -24,7 +24,7 @@
 *Author  : P. Gauthier *ARMA/AES  June 9, 1992
 *
 *Arguments
-*     i   CPVAR : variable name
+*     i   varName : variable name
 *     i   KLEV    : index of the level to be transferred
 * OUTPUT
 *     o   pptrans : vector containing the variable
@@ -38,11 +38,6 @@ C
       use gridStateVector_mod
       use gaussGrid_mod
       IMPLICIT NONE
-*implicits
-#include "comlun.cdk"
-#include "pardim.cdk"
-#include "compost.cdk"
-*
       INTEGER klev,kip1
       type(struct_gsv) :: statevector
       real*8 :: pptrans(statevector%ni,statevector%nj)
@@ -50,7 +45,8 @@ C
       real*8 :: ztv(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: zgz(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: zhu(statevector%ni,statevector%nlev,statevector%nj)
-      character*2 cpvar
+      real*8, pointer :: field3d_ptr(:,:,:)
+      character(len=*) :: varName
       logical lplok
 *
       INTEGER JLON, JGL,ig2
@@ -69,16 +65,7 @@ c
 C
 C     .  2.1 Fields associated with model variables
 C
-      IF(CPVAR.EQ.'TT') THEN
-C
-C     *  Temperature field
-C
-        DO JLON = 1, statevector%ni
-          DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = statevector%tt3d(JLON,KLEV,JGL)
-          END DO
-        END DO
-      ELSE IF(CPVAR.EQ.'VT') THEN
+      IF(trim(varName).EQ.'VT') THEN
 C
 C     *  Virtual temperature field
 C
@@ -87,13 +74,12 @@ C
             PPTRANS(JLON,JGL) = ZTV(JLON,KLEV,JGL)
           END DO
         END DO
-      ELSE IF(CPVAR.EQ.'GZ') THEN
+      ELSE IF(trim(varName).EQ.'GZ') THEN
 C
 C     *  Geopotential field
 C
         ZGEOP  = dix * RG
         ZDAM   = un/ZGEOP
-c
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
             PPTRANS(JLON,JGL) = ZDAM * zgz(JLON,KLEV,JGL)
@@ -102,83 +88,88 @@ c
 C
 C     *  Zonal wind component (in Knots)
 C
-      ELSE IF(CPVAR.EQ.'UU') THEN
+      ELSE IF(trim(varName).EQ.'UU') THEN
+        field3d_ptr => gsv_getField3D(statevector,varName)
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
-            PPTRANS(JLON,JGL) = statevector%uu3d(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
      S           *gaus_CONPHY(JGL)*MPC_KNOTS__PER__M_PER_S_R8
           END DO
         END DO
 C
 C     *  Meridional wind component (in Knots)
 C
-      ELSE IF(CPVAR.EQ.'VV') THEN
+      ELSE IF(trim(varName).EQ.'VV') THEN
+        field3d_ptr => gsv_getField3D(statevector,varName)
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
-            PPTRANS(JLON,JGL) = statevector%vv3d(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
      S           *gaus_CONPHY(JGL)*MPC_KNOTS__PER__M_PER_S_R8
           END DO
         END DO
 C
 C     *  Humidity field
 C
-      ELSE IF(CPVAR.EQ.'ES') THEN
-          DO JLON = 1, statevector%ni
-            DO JGL = 1, statevector%nj
-              PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
-            END DO
+      ELSE IF(trim(varName).EQ.'ES') THEN
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
           END DO
+        END DO
 C
-      ELSE IF(CPVAR.EQ.'LQ') THEN
-          DO JLON = 1, statevector%ni
-            DO JGL = 1, statevector%nj
-              PPTRANS(JLON,JGL) = statevector%hu3d(JLON,KLEV,JGL)
-            END DO
+      ELSE IF(trim(varName).EQ.'LQ') THEN
+        field3d_ptr => gsv_getField3D(statevector,'HU')
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
           END DO
+        END DO
 C
-      ELSE IF(CPVAR.EQ.'HU') THEN
+      ELSE IF(trim(varName).EQ.'HU') THEN
           DO JLON = 1, statevector%ni
             DO JGL = 1, statevector%nj
               PPTRANS(JLON,JGL) = zhu(JLON,KLEV,JGL)
             END DO
           END DO
 C
-C     *    Passive Tracer field
-C
-      ELSE IF(CPVAR.EQ.'TR') THEN
-        DO JLON = 1, statevector%ni
-          DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = statevector%tr3d(JLON,KLEV,JGL)
-          END DO
-        END DO
-C
 C     *    Surface Pressure from units of Pascal to millibar
 C
-      ELSE IF(CPVAR.EQ.'P0') THEN
+      ELSE IF(trim(varName).EQ.'P0') THEN
+        field3d_ptr => gsv_getField3D(statevector,varName)
         kip1=0
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = statevector%ps3d(JLON,1,JGL)*MPC_MBAR_PER_PA_R8
+            PPTRANS(JLON,JGL) = field3d_ptr(JLON,1,JGL)*MPC_MBAR_PER_PA_R8
           END DO
         END DO
 C
-C     *    Ground temperature in Kelvin
+C     *    All remaining 2D and 3D variables that do not require unit conversions
 C
-      ELSE IF(CPVAR.EQ.'TG') THEN
-        kip1=0
-        DO JLON = 1, statevector%ni
-          DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = statevector%tg3d(JLON,1,JGL)
-          END DO
-        END DO
-c
       else
-        LPLOK = .FALSE.
-        WRITE(NULOUT,*)' ****************************************'
-        WRITE(NULOUT,'(" GDOUT2: THE FOLLOWING FIELD IS NOT "
-     &       ,"SUPPORTED  CPVAR= ",A2)')CPVAR
-        WRITE(NULOUT,*)' ****************************************'
-      END IF
+        if(gsv_varExist(varName)) then
+          field3d_ptr => gsv_getField3D(statevector,varName)
+          if(gsv_getNumLev(statevector,vnl_vartypeFromVarname(varName)).eq.1) then
+            kip1=0
+            do jlon = 1, statevector%ni
+              do jgl = 1, statevector%nj
+                pptrans(jlon,jgl) = field3d_ptr(jlon,1,jgl)
+              enddo
+            enddo
+          else
+            do jlon = 1, statevector%ni
+              do jgl = 1, statevector%nj
+                pptrans(jlon,jgl) = field3d_ptr(jlon,klev,jgl)
+              enddo
+            enddo
+          endif
+        else
+          LPLOK = .FALSE.
+          WRITE(*,*)' ****************************************'
+          WRITE(*,'(" GDOUT2: THE FOLLOWING FIELD IS NOT "
+     &         ,"SUPPORTED  varName= ",A2)')varName
+          WRITE(*,*)' ****************************************'
+        endif
+      ENDIF
 C
       IF ( IG2 .EQ. 0 .and. lplok) THEN
         DO JLON   = 1, statevector%ni

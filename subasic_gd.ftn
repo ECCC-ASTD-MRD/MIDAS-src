@@ -54,13 +54,14 @@ C
       REAL*8 zttg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       REAL*8 zqqg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       REAL*8 zgzg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      real*8, pointer :: ps3d_ptr(:,:,:),tt3d_ptr(:,:,:),hu3d_ptr(:,:,:),uu3d_ptr(:,:,:),vv3d_ptr(:,:,:)
       EXTERNAL ABORT3D
 *
       WRITE(NULOUT,FMT='(/,4X,"Starting SUBASIC_GD",//)')
 !
       llvint = .true.
 !
-      ibrpstamp=statevectorg%datestamp3d
+      ibrpstamp=gsv_getDateStamp(statevectorg)
 !
 !*1   Define Grids
 !     ************
@@ -91,10 +92,11 @@ C
      &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(statevectorg%ps3d,zpsg,
+      ps3d_ptr => gsv_getField3D(statevectorg,'P0')
+      CALL INITGDG2(ps3d_ptr,zpsg,
      &              statevectorg%ni,statevectorg%nj,1,0,CLNOMVAR)
 !
-      call maxmin(statevectorg%ps3d,statevectorg%ni,statevectorg%nj,1,zmin,zmax,
+      call maxmin(ps3d_ptr,statevectorg%ni,statevectorg%nj,1,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'subasic_gd     ',
      &            'PSG')
 !
@@ -108,10 +110,11 @@ C
      &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(statevectorg%tt3d,zttg,
+      tt3d_ptr => gsv_getField3D(statevectorg,'TT')
+      CALL INITGDG2(tt3d_ptr,zttg,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
 !
-      call maxmin(statevectorg%tt3d,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
+      call maxmin(tt3d_ptr,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'subasic_gd     ',
      &            'TTG')
 !
@@ -125,10 +128,11 @@ C
      &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !
-      CALL INITGDG2(statevectorg%hu3d,zqqg,
+      hu3d_ptr => gsv_getField3D(statevectorg,'HU')
+      CALL INITGDG2(hu3d_ptr,zqqg,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
 !
-      call maxmin(statevectorg%hu3d,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
+      call maxmin(hu3d_ptr,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
      &            idum1,idum2,idum3,idum4,'subasic_gd     ',
      &            'HUG')
 !
@@ -143,14 +147,16 @@ C
      &     ,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
      &     ,'LINEAR')
 !     on output, uu contains U wind-image.
-      CALL INITGDG2(statevectorg%uu3d,ztrans,
+      uu3d_ptr => gsv_getField3D(statevectorg,'UU')
+      CALL INITGDG2(uu3d_ptr,ztrans,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR) 
 !
 !      V wind-image component
 !
       CLNOMVAR = 'VV'
 !     on output, vv contains V wind-image.
-      CALL INITGDG2(statevectorg%vv3d,zvvg,
+      vv3d_ptr => gsv_getField3D(statevectorg,'VV')
+      CALL INITGDG2(vv3d_ptr,zvvg,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR) 
 !
       RETURN

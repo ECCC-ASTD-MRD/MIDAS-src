@@ -52,6 +52,7 @@ C
       INTEGER JLEV, JLA, ILA, ILEV, JLAT, JLON
       real*8  zalpha
       real*8 zpress(statevectorg%nlev,statevectorg%ni),zprof(jpnflev)
+      real*8, pointer :: ps3d_ptr(:,:,:)
 *------------------------------------------------------------------
 **
 C
@@ -62,9 +63,10 @@ C
 c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
+      ps3d_ptr => gsv_getField3D(statevectorg,'P0')
       do jlat = 1, statevectorg%nj
         call vco_calcpres(statevectorg%vco,ZPRESS,statevectorg%nlev,
-     &                    statevectorg%ps3d(:,1,jlat),statevectorg%ni)
+     &                    ps3d_ptr(:,1,jlat),statevectorg%ni)
         do jlon = 1, statevectorg%ni
           do jlev = 1,statevectorg%nlev
             ila         = jlev+(jlon-1)*statevectorg%nlev

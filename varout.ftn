@@ -53,7 +53,7 @@ C
      S     '' state on file at iteration No.'',I3)')
      S     min_niter
 c
-      ibrpstamp=statevector%datestamp3d
+      ibrpstamp=gsv_getDateStamp(statevector)
 
       write(nulout,*) 'Writing fields for ibrpstamp= ',ibrpstamp
 
