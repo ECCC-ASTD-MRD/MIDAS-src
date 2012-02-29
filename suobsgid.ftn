@@ -48,7 +48,6 @@
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
-#include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
 #include "comvfiles.cdk"

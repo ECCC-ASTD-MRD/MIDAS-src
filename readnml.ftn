@@ -75,9 +75,6 @@ C
 #include "comfilt.cdk"
 #include "namfilt.cdk"
 C
-#include "comgdpar.cdk"
-#include "namgdpar.cdk"
-C
 #include "compost.cdk"
 #include "nampost.cdk"
 C
@@ -140,11 +137,6 @@ C
 C
          READ(NULNAM,NAMFILT)
          WRITE(NULOUT,NAMFILT)
-C
-      ELSE IF(CDNAME.EQ.'NAMGDPAR')THEN
-C
-         READ(NULNAM,NAMGDPAR)
-         WRITE(NULOUT,NAMGDPAR)
 C
       ELSE IF(CDNAME.EQ.'NAMPOST')THEN
 C

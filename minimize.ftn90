@@ -31,7 +31,6 @@ subroutine minimize(lcolumng,lobsSpaceData)
 #include "comtov.cdk"
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
-#include "comgdpar.cdk"
 #include "comfilt.cdk"
   !Local declarations
   type(struct_obs) :: lobsSpaceData

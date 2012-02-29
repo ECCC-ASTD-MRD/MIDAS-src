@@ -84,10 +84,6 @@
 !
       call brpcheck(lobsSpaceData)
 !
-!     Initialize comgdpar
-!
-      call sugdpar
-!
 !     Initialize the observation error covariance
 !
       call sucovo

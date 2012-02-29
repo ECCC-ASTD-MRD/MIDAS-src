@@ -31,10 +31,10 @@
       use MathPhysConstants_mod
       use columnData_mod 
       use obsSpaceData_mod
+      use gridStateVector_mod
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "comgdpar.cdk"
 #include "cvcord.cdk"
 #include "comfilt.cdk"
 c
@@ -126,25 +126,23 @@ c     Allocation des tableaux a remplir par fillmvo
 c
       call col_allocate(lcolumnhr,col_getNumCol(lcolumng))
 c
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c     Deactivate assimilate flag for obs outside of trial field grid
-c
+c     (SHOULD BE A SIMPLER WAY TO DO THIS)
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ier = ezsetval('EXTRAP_VALUE', -999.0)
       ier = ezsetopt('EXTRAP_DEGREE', 'VALUE')
 c
-      nultrl=0
-      jvar=1
+      nultrl(:)=0
+      do jvar=1,vnl_numvarmax2D
+        if(gsv_varExist(varNameList2D(jvar))) exit          
+      enddo
+      write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
       do jstep = 1,col_getNumStep(lcolumng)
-        if(nultrl(jstep) == 0) then
-          call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &         ,ITRLGID,cfstvar2d(jvar),datestamplist(jstep),jpnflev
-     &         ,ninmpg,nulout,ip1_pak_trl,ip1_vco_trl,ntrials
-     &         ,nultrl(jstep))
-        else
-          call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
-     &         ,CLETIKET,CLTYPVAR,ITRLGID,cfstvar2d(jvar)
-     &         ,datestamplist(jstep),jpnflev,nultrl(jstep),nulout
-     &         ,ip1_pak_trl,ip1_vco_trl)
-        endif
+        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+     &       ,ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev
+     &       ,ninmpg,nulout,ip1_pak_trl,ip1_vco_trl,ntrials
+     &       ,nultrl(jstep))
         if(nobs(jstep) > 0) then
           if(itrlnlev <= 0) then
             call abort3d(nulout,'SUGOMOBS:Problem with background file')
@@ -156,7 +154,7 @@ c
 c
           ier=vfstlir(zvar,nultrl(jstep),ini,inj,ink,
      &         datestamplist(jstep) ,cletiket,iip1s(1),iip2,iip3,
-     &         cltypvar,cfstvar2d(jvar))
+     &         cltypvar,varNameList2D(jvar))
           if(ier.lt.0)then
             call abort3d(nulout,'SUGOMOBS:Problem with background file')
           end if
@@ -175,29 +173,33 @@ c
           enddo
         endif
       enddo
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c     Finished deactivating assimilate flag for obs outside of trial field grid
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c
       ier = ezsetopt('EXTRAP_DEGREE', 'MINIMUM')
 c
 c     reading 2D fields
 c
-      nultrl=0
-      do jvar=1, nfstvar2d
+      nultrl(:)=0
+      do jvar=1,vnl_numvarmax2D
+        if(.not.gsv_varExist(varNameList2D(jvar))) cycle
         do jstep = 1,col_getNumStep(lcolumng)
           if(datestamplist(jstep) == obs_get_datestamp(lobsSpaceData)) nstepanltime = jstep
           if(nultrl(jstep) == 0) then
             call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &           ,ITRLGID,cfstvar2d(jvar),datestamplist(jstep),jpnflev
+     &           ,ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev
      &           ,ninmpg,nulout,ip1_pak_trl,ip1_vco_trl,ntrials
      &           ,nultrl(jstep))
           else
             call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
-     &           ,CLETIKET,CLTYPVAR,ITRLGID,cfstvar2d(jvar)
+     &           ,CLETIKET,CLTYPVAR,ITRLGID,varNameList2D(jvar)
      &           ,datestamplist(jstep),jpnflev,nultrl(jstep),nulout
      &           ,ip1_pak_trl,ip1_vco_trl)
           endif
           if(nobs(jstep) > 0) then
             if(itrlnlev <= 0) then
-              write(nulout,1002) cfstvar2d(jvar),idate(jstep)
+              write(nulout,1002) varNameList2D(jvar),idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &             ,'SUGOMOBS:Problem with background file')
@@ -209,9 +211,9 @@ c
 c
             ier=vfstlir(zvar,nultrl(jstep),ini,inj,ink,
      &           datestamplist(jstep) ,cletiket,iip1s(1),iip2,iip3,
-     &           cltypvar,cfstvar2d(jvar))
+     &           cltypvar,varNameList2D(jvar))
             if(ier.lt.0)then
-              write(nulout,1001) cfstvar2d(jvar),iip1s(1),idate(jstep)
+              write(nulout,1001) varNameList2D(jvar),iip1s(1),idate(jstep)
      &             ,itime(jstep)
 
               call abort3d(nulout
@@ -227,11 +229,11 @@ c
           endif
         enddo
 c
-        if(cfstvar2d(jvar).eq.'P0') then
+        if(varNameList2D(jvar).eq.'P0') then
           zovar(:,:)=zovar(:,:)*MPC_PA_PER_MBAR_R8
         endif
-        call col_fillmvo(lcolumng ,cfstvar2d(jvar),'NA',zovar)
-        call col_fillmvo(lcolumnhr,cfstvar2d(jvar),'NA',zovar)
+        call col_fillmvo(lcolumng ,varNameList2D(jvar),'NA',zovar)
+        call col_fillmvo(lcolumnhr,varNameList2D(jvar),'NA',zovar)
 c
       enddo
 c
@@ -388,8 +390,10 @@ c     remplir gomobsgzhr_T
 c
 c Now all of the other 3D variables
 c
-      do jvar=1, nfstvar
-        select case ( cfstvar(jvar) )
+      do jvar=1, vnl_numvarmax3D
+        if(.not.gsv_varExist(varNameList3D(jvar))) cycle
+
+        select case ( varNameList3D(jvar) )
 c
 c Variables sur les niveaux momentum
 c
@@ -400,10 +404,10 @@ c
           call flush(nulout)
 c
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,cfstvar(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
+     &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
-            write(nulout,1002) cfstvar(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
+            write(nulout,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
             call abort3d(nulout
      &           ,'SUGOMOBS:Problem with background file')
@@ -478,12 +482,12 @@ c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
           write(nulout,*) 'sugomobs: UU ,nlev= ',nlv_M
           do jlev = 1,nlv_M
-            write(nulout,*) cfstvar(jvar),jvar,jlev
+            write(nulout,*) varNameList3D(jvar),jvar,jlev
      &           ,zPPOBS_M(jlev,1),zmobs_M(jlev,1)
           enddo
           write(nulout,*) 'sugomobs: VV ,nlev= ',nlv_M
           do jlev = 1,nlv_M
-            write(nulout,*) cfstvar(jvar),jvar,jlev
+            write(nulout,*) varNameList3D(jvar),jvar,jlev
      &           ,zPPOBS_M(jlev,1),zmobs2_M(jlev,1)
           enddo
 ccc dbug out
@@ -498,15 +502,15 @@ c Variable sur les niveaux thermodynamiques
 c
         case ('TT','HU')
           write(nulout,*)' '
-          write(nulout,*)' ----- Initializing ',cfstvar(jvar),' ----'
+          write(nulout,*)' ----- Initializing ',varNameList3D(jvar),' ----'
           write(nulout,*)' '
           call flush(nulout)
 c
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,cfstvar(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
+     &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
-            write(nulout,1002) cfstvar(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
+            write(nulout,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
             call abort3d(nulout
      &          ,'SUGOMOBS:Problem with background file')
@@ -527,9 +531,9 @@ c
                 iset = ezdefset(nobsgid(jstep),itrlgid)
                 ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
      &                datestamplist(jstep) ,cletiket,iip1,-1,-1,
-     &                cltypvar,cfstvar(jvar))
+     &                cltypvar,varNameList3D(jvar))
                 if(ier.lt.0)then
-                  write(nulout,1001) cfstvar(jvar),iip1,idate(jstep)
+                  write(nulout,1001) varNameList3D(jvar),iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
@@ -548,10 +552,10 @@ c
           call vintprof(zom_T,zppobsg,col_getNumLev(lcolumng),zmobs_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
 c
           call tmg_start(30,'FILLMVO')
-          if(cfstvar(jvar).eq.'TT') then
+          if(varNameList3D(jvar).eq.'TT') then
             zom_T(:,:)=zom_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
             zmobs_T(:,:)=zmobs_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
-          elseif(cfstvar(jvar).eq.'HU') then
+          elseif(varNameList3D(jvar).eq.'HU') then
             do jobs=1,col_getNumCol(lcolumng)
               do jlev=1,col_getNumLev(lcolumng)
                 zom_T(jlev,jobs)=log(max(zom_T(jlev,jobs),rhumin))
@@ -561,8 +565,8 @@ c
               enddo
             enddo
           endif
-          call col_fillmvo(lcolumng ,cfstvar(jvar),'NA',zom_T)
-          call col_fillmvo(lcolumnhr,cfstvar(jvar),'NA',zmobs_T)
+          call col_fillmvo(lcolumng ,varNameList3D(jvar),'NA',zom_T)
+          call col_fillmvo(lcolumnhr,varNameList3D(jvar),'NA',zmobs_T)
           call tmg_stop(30)
 c
         endselect 

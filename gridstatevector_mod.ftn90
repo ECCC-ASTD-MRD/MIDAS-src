@@ -34,6 +34,8 @@ MODULE gridStateVector_mod
   ! public entities accessed through inheritance
   public :: struct_vco, vco_calcpres, vco_AnlInit, vco_SetupFromFile
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
+  public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
+  public :: varNameList2d, varNameList3d, varNameList
 
   type struct_gsv
     real*8,pointer      :: gd(:,:,:,:)

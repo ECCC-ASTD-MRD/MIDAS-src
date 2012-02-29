@@ -131,7 +131,6 @@ C assimilated
 #include "comtovst.cdk"
 #include "comvfiles.cdk"
 #include "comgpsgb.cdk"
-#include "comgdpar.cdk"
 C
 C  .......  DEFINITION OF A FEW BUFR ELEMENTS ..........................
 C ....

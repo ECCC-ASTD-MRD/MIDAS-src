@@ -17,7 +17,6 @@ C
 #include "comlun.cdk"
 #include "compost.cdk"
 #include "rpnstd.cdk"
-#include "comgdpar.cdk"
 *
       type(struct_gsv) :: statevector
       real*8 :: zes(statevector%ni,statevector%nlev,statevector%nj)
@@ -67,15 +66,6 @@ c
       NIG3       =  0
       NIG4       =  0
 c
-      if(nulinclr.ne.0) then
-        write(nulout,*) 'Writing variable HY on analysis-increment file'
-c
-        zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
-        zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
-        zrcoef4 = statevector%vco%drcf1
-        ierr    = write_encode_hyb(nulinclr,'HY',nip2,min_niter,cetikinc
-     &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
-      endif
 c ****************************************************************
 c     For a reason that I (jwb) don't understand, this call to getfldprm2
 c     is necessary for the next call to getfldprm to succeed.
@@ -86,6 +76,16 @@ c
      &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
 c
 c ****************************************************************
+c
+      if(nulinclr.ne.0) then
+        write(nulout,*) 'Writing variable HY on analysis-increment file'
+c
+        zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
+        zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+        zrcoef4 = statevector%vco%drcf1
+        ierr    = write_encode_hyb(nulinclr,'HY',nip2,min_niter,cletiket
+     &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
+      endif
 c
 c-----Analysis grid hybride vertical coordinate parameters
 c
@@ -169,7 +169,7 @@ c
           if(nulinclr.ne.0.and.llvarout) then
             IERR  = VFSTECR(ZLOWVAR(1,1,jlev),zwork,inpak_inc
      &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
-     &       ,nip2,min_niter,cltypinc,cppcvar(jvar),cetikinc,cgrtyp,nig1
+     &       ,nip2,min_niter,cltypinc,cppcvar(jvar),cletiket,cgrtyp,nig1
      &       ,nig2,nig3,nig4,nidatyp,.true.)
           endif
 c
@@ -183,7 +183,7 @@ c
             if(nulinclr.ne.0.and.llvarout) then
         IERR  = VFSTECR(zlowwind(1,1,jlev),zwork,inpak_inc
      &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
-     &       ,nip2,min_niter,cltypinc,clnomvar,cetikinc,cgrtyp,nig1,nig2
+     &       ,nip2,min_niter,cltypinc,clnomvar,cletiket,cgrtyp,nig1,nig2
      &       ,nig3,nig4,nidatyp,.true.)
             endif
 c
