@@ -75,6 +75,10 @@ c
      &     ,IP0GID,clnomvar,ibrpstamp,jpnflev,ninmpg
      &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
 c
+      if(cetikinc.ne.'UNDEFINED***') then
+        cletiket=cetikinc
+      endif
+c
 c ****************************************************************
 c
       if(nulinclr.ne.0) then
@@ -114,7 +118,11 @@ c
       call getfldprm(IIP1S_TRL,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &     ,ITRLGID,'UU',ibrpstamp,jpnflev,koutmpg
      &     ,nulout,ip1_pak_trl,ip1_vco_trl)
-
+c
+      if(cetikinc.ne.'UNDEFINED***') then
+        cletiket=cetikinc
+      endif
+c
       do jvar = 1, nppcvar
 c
 c Some variable may be request for other to be computed but not

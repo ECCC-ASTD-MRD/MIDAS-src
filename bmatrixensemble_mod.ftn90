@@ -257,9 +257,10 @@ CONTAINS
 
     ! standard file variables
     integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo,ikey
-    character(len=1)   :: cltypvar,clgrtyp
-    character(len=2)   :: clnomvar
-    character(len=8)   :: cletiket
+    character(len=2)   :: cltypvar
+    character(len=1)   :: clgrtyp
+    character(len=4)   :: clnomvar
+    character(len=12)  :: cletiket
     character(len=256) :: cflensin
     character(len=3)   :: censnumber
     character(len=8)   :: datestr_last

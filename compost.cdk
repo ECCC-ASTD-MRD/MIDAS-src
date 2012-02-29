@@ -13,10 +13,11 @@ C     .  LTTOUT,LVTOUT,LHUOUT : logical that control writing in fst
 C                                       file of some dependent variables
 #endif
       INTEGER          NPPCVAR
-      CHARACTER*2      CPPCVAR(20)
+      CHARACTER*4      CPPCVAR(20)
+      character*12     CETIKINC
       logical lttout,lvtout,lhuout,lgzout
 
       COMMON /COMPOST/ NPPCVAR
-      COMMON /COMPOSTC/ CPPCVAR
+      COMMON /COMPOSTC/ CPPCVAR,CETIKINC
       common /comlpost/ lttout,lvtout,lhuout,lgzout
 

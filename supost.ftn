@@ -49,27 +49,15 @@ C
 C
 C*    1. Set default values
 C
-      NPPCVAR=13
+      CETIKINC = 'UNDEFINED***'
+      NPPCVAR=6
+      CPPCVAR(:) = '    '
       CPPCVAR(1) = 'UU'
       CPPCVAR(2) = 'VV'
       CPPCVAR(3) = 'TT'
       CPPCVAR(4) = 'LQ'
       CPPCVAR(5) = 'P0'
       CPPCVAR(6) = 'TG'
-      CPPCVAR(7) = 'HU'
-      CPPCVAR(8) = 'GZ'
-      CPPCVAR(9) = 'ES'
-      CPPCVAR(10)= 'QR'
-      CPPCVAR(11)= 'DD'
-      CPPCVAR(12)= 'VT'
-      CPPCVAR(13)= 'QQ'
-      CPPCVAR(14)= 'PP'
-      CPPCVAR(15)= 'CC'
-      CPPCVAR(16)= 'TB'
-      CPPCVAR(17)= 'TU'
-      CPPCVAR(18)= 'ZB'
-      CPPCVAR(19)= 'ZU'
-      CPPCVAR(20)= 'PB'
 C
 C*    2. Read the parameters from NAMPOST
 C

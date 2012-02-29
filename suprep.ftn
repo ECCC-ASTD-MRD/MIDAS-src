@@ -216,17 +216,6 @@ C
      &     ,'DOUBTFUL ELEMENT','POSSIBLY ERRONEOUS ELEMENT '
      &     ,'ERRONEOUS ELEMENT','ELEMENT EXCEEDS CLIMATE EXTREME'
      &     ,'ELEMENT MODIFIED OR GEN BY  ADE'/
-!
-      character*1 clgr, ctyp, cltypvar
-      character*2 cnom
-      character*8 cetiket,cletiket
-      integer idatet,idt,ipas,ibits,idtyp,ip1,ip2,ip3,
-     &        iswa,ilng,idltf,iubc,ix1,ix2,ix3
-      integer igdid,ier,ikey,ji,jj,ilatrot
-      INTEGER FSTOUV,NUMBLKS,fstinf,fstluk,fstprm
-      INTEGER ezgdef_fmem,gdxyfll,ezqkdef
-      integer ig1,ig2,ig3,ig4,ini,inj,ink
-      integer ig1tic,ig2tic,ig3tic,ig4tic 
 !-----------------------------------------------------------------------
 !
       DO JK=1,17

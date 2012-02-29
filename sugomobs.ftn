@@ -46,8 +46,9 @@ c
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
       integer itrlnlev
       integer idata,idatend,jdata
-      character*1 clgrtyp,cltypvar
-      character*8 cletiket
+      character*1 clgrtyp
+      character*2 cltypvar
+      character*12 cletiket
       real*8, allocatable, dimension(:,:) :: zvar,zvar2
       real*8, allocatable, dimension(:,:) :: zmobs_T,zmobs_M,zmobs2_M
       real*8, allocatable, dimension(:,:) :: zppobs_T,zppobs_M
@@ -302,10 +303,10 @@ c
 c     Get horizontal field parameters
 c
       call getfldprm(iip1s2,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,'GZ',obs_get_datestamp(lobsSpaceData),jpnflev*2
+     &         ,itrlgid,'GZ  ',obs_get_datestamp(lobsSpaceData),jpnflev*2
      &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
       if(itrlnlev <= 0 ) then
-        write(nulout,1002) 'GZ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
+        write(nulout,1002) 'GZ  ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &        ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
         call abort3d(nulout
      &       ,'SUGOMOBS:Problem with background file')
@@ -323,9 +324,9 @@ c
 c
             ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
      &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
-     &          cltypvar,'GZ')
+     &          cltypvar,'GZ  ')
             if(ier.lt.0)then
-              write(nulout,1001) 'GZ',iip1,idate(jstep)
+              write(nulout,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &            ,'SUGOMOBS:Problem with background file')
@@ -347,10 +348,10 @@ c
      &           ,zPPOBS_M(jlev,1),zmobs_M(jlev,1)*10.*rg
           enddo
       zmobs_M(:,:)=zmobs_M(:,:)*10.0d0*RG
-      call col_fillmvo(lcolumnhr,'GZ','MM',zmobs_M)
+      call col_fillmvo(lcolumnhr,'GZ  ','MM',zmobs_M)
 c
 c     remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
-      call col_fillmvo(lcolumnhr,'GZ','NA',zmobs_M)
+      call col_fillmvo(lcolumnhr,'GZ  ','NA',zmobs_M)
 c
 c     Lire les GZ des niveaux Thermodynamique
 c
@@ -361,9 +362,9 @@ c
 c
             ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
      &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
-     &          cltypvar,'GZ')
+     &          cltypvar,'GZ  ')
             if(ier.lt.0)then
-              write(nulout,1001) 'GZ',iip1,idate(jstep)
+              write(nulout,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &            ,'SUGOMOBS:Problem with background file')
@@ -386,7 +387,7 @@ c     remplir gomobsgzhr_T
      &           ,zPPOBS_T(jlev,1),zmobs_T(jlev,1)*10.*rg
           enddo
       zmobs_T(:,:)=zmobs_T(:,:)*10.0d0*RG
-      call col_fillmvo(lcolumnhr,'GZ','TH',zmobs_T)
+      call col_fillmvo(lcolumnhr,'GZ  ','TH',zmobs_T)
 c
 c Now all of the other 3D variables
 c
@@ -427,9 +428,9 @@ c
 c
                 ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
      &               datestamplist(jstep),cletiket,iip1,-1,-1,
-     &               cltypvar,'UU')
+     &               cltypvar,'UU  ')
                 if(ier.lt.0)then
-                  write(nulout,1001) 'UU',iip1,idate(jstep)
+                  write(nulout,1001) 'UU  ',iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
@@ -446,9 +447,9 @@ c
 c
                 ier=vfstlir(zvar2,nultrl(jstep),INI,INJ,INK,
      &               datestamplist(jstep) ,cletiket,iip1,-1,-1,
-     &               cltypvar,'VV')
+     &               cltypvar,'VV  ')
                 if(ier.lt.0)then
-                  write(nulout,1001) 'VV',iip1,idate(jstep)
+                  write(nulout,1001) 'VV  ',iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
@@ -473,11 +474,11 @@ c
 c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
           zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
-          call col_fillmvo(lcolumng,'UU','NA',zom_M)
+          call col_fillmvo(lcolumng,'UU  ','NA',zom_M)
 c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs2_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
           zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
-          call col_fillmvo(lcolumng,'VV','NA',zom_M)
+          call col_fillmvo(lcolumng,'VV  ','NA',zom_M)
 c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
           write(nulout,*) 'sugomobs: UU ,nlev= ',nlv_M
@@ -492,9 +493,9 @@ c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
           enddo
 ccc dbug out
           zmobs_M(:,:)=zmobs_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
-          call col_fillmvo(lcolumnhr,'UU','MM',zmobs_M)
+          call col_fillmvo(lcolumnhr,'UU  ','MM',zmobs_M)
           zmobs2_M(:,:)=zmobs2_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
-          call col_fillmvo(lcolumnhr,'VV','MM',zmobs2_M)
+          call col_fillmvo(lcolumnhr,'VV  ','MM',zmobs2_M)
 c
           call tmg_stop(29)
 c          
