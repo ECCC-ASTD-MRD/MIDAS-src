@@ -176,14 +176,14 @@ MODULE obsSpaceData_mod
   public           :: OBS_JPNBRELEM
 
   ! header column numbers
-  public           :: NCM_LET, NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
+  public           :: NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
                       NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_ALT,  &
                       NCM_NLV, NCM_OEC, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA,  &
                       NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,   &
                       NCM_BY,  NCM_BZ
 
   ! body column numbers
-  public           :: NCM_LBO, NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR,  &
+  public           :: NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR,  &
                       NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER, NCM_RER,  &
                       NCM_FGE, NCM_PER, NCM_FLG, NCM_POS, NCM_LYR, NCM_ASS,  &
                       NCM_XTR, NCM_OBS, NCM_LOBS,NCM_VCO, NCM_PRM, NCM_KFA,  &
@@ -193,7 +193,8 @@ MODULE obsSpaceData_mod
   public           :: obs_initialize,obs_finalize
   public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_elem_c9
   public           ::  obs_set_i, obs_set_r4, obs_set_r8, obs_set_c9
-  public           :: obs_numbody,obs_numheader,obs_numbody_max,obs_numheader_max,obs_numheader_mpiglobal
+  public           :: obs_numbody,obs_numheader,obs_numbody_max
+  public           :: obs_numheader_max,obs_numheader_mpiglobal
   public           :: obs_swapVarOmf,obs_ifind
   public           :: obs_getFamily,obs_setFamily,obs_bdy
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
@@ -215,8 +216,7 @@ MODULE obsSpaceData_mod
 
   ! private methods
   !                obs_allocate, obs_deallocate, obs_allocateG, obs_deallocateG
-  !                obs_abort
-  !                obs_set_current_index_list
+  !                obs_abort, obs_getobstag
 
   ! derived type and module variable declarations
 
@@ -249,92 +249,124 @@ MODULE obsSpaceData_mod
    integer :: datestamp
   end type struct_obs
 
-  ! header column numbers
-  integer,parameter :: NCM_LET = 22 ! Dimension for var3d
-  integer,parameter :: NCM_RLN = 1
-  integer,parameter :: NCM_ONM = 2
-  integer,parameter :: NCM_BOX = 3
-  integer,parameter :: NCM_OTP = 4
-  integer,parameter :: NCM_ITY = 5
-  integer,parameter :: NCM_LAT = 6
-  integer,parameter :: NCM_LON = 7
-  integer,parameter :: NCM_DAT = 8
-  integer,parameter :: NCM_ETM = 9
-  integer,parameter :: NCM_ALT = 11
-  integer,parameter :: NCM_NLV = 12
-  integer,parameter :: NCM_OEC = 13
-  integer,parameter :: NCM_OFL = 14
-  integer,parameter :: NCM_ST1 = 15
-  integer,parameter :: NCM_TLA = 16
-  integer,parameter :: NCM_AZA = 20
-  integer,parameter :: NCM_SUN = 21
-  integer,parameter :: NCM_CLF = 22
+!
+! INTEGER-HEADER COLUMN NUMBERS
+!  
+ integer, parameter :: NCM_RLN = 1          ! report location
+ integer, parameter :: NCM_ONM = NCM_RLN+1  ! unique (within cma) station id no.
+ integer, parameter :: NCM_BOX = NCM_ONM+1  ! model Box (used by TOVS) 
+ integer, parameter :: NCM_OTP = NCM_BOX+1  ! observation Type
+ integer, parameter :: NCM_ITY = NCM_OTP+1  ! code for Instrument and retrieval type
+ integer, parameter :: NCM_DAT = NCM_ITY+1  ! date YYYYMMD
+ integer, parameter :: NCM_ETM = NCM_DAT+1  ! time HHMM
+ integer, parameter :: NCM_NLV = NCM_ETM+1  ! number of data at this location
+ integer, parameter :: NCM_OFL = NCM_NLV+1  ! report status events
+ integer, parameter :: NCM_PAS = NCM_OFL+1  ! batch number in sequential analysis
+ integer, parameter :: NCM_REG = NCM_PAS+1  ! region number in the batch
+ integer, parameter :: NCM_IP  = NCM_REG+1  ! number of processor
+ integer, parameter :: NCM_AZA = NCM_IP+1   ! satellite azimuthal angle
+ integer, parameter :: NCM_SUN = NCM_AZA+1  ! sun zenith angle
+ integer, parameter :: NCM_CLF = NCM_SUN+1  ! cloud fraction
+ integer, parameter :: NCM_OEC = NCM_CLF+1
+ integer, parameter :: NCM_ST1 = NCM_OEC+1
+ integer, parameter :: NCM_TLA = NCM_ST1+1
+
+! the number of integer variables defined just above
+ integer, parameter :: NHDR_INT = NCM_TLA
+
+
+! REAL-HEADER COLUMN NUMBERS
+
+ integer, parameter :: NCM_LAT = 1           ! latitude in radians (North positive)
+ integer, parameter :: NCM_LON = NCM_LAT + 1 ! longitude in radians (East positive)
+ integer, parameter :: NCM_ALT = NCM_LON + 1 ! station altitude
+ integer, parameter :: NCM_BX  = NCM_ALT   + 1 ! x-coordinate of block in R3
+ integer, parameter :: NCM_BY  = NCM_BX  + 1 ! y-coordinate of block in R3
+ integer, parameter :: NCM_BZ  = NCM_BY  + 1 ! z-coordinate of block in R3
+
+! the number of real variables defined just above
+ integer, parameter :: NHDR_REAL = NCM_BZ
+
+
+! INTEGER-BODY COLUMN NUMBERS
+
+ integer, parameter :: NCM_VNM = 1           ! variable number
+ integer, parameter :: NCM_FLG = NCM_VNM + 1 ! flags
+ integer, parameter :: NCM_KFA = NCM_FLG + 1 ! marker for forward interpolation problems
+ integer, parameter :: NCM_ASS = NCM_KFA + 1 ! flag to indicate if assimilated
+ integer, parameter :: NCM_OBS = NCM_ASS + 1 ! observation number (as in header)
+ integer, parameter :: NCM_VCO = NCM_OBS + 1 ! type of vertical coordinate
+ integer, parameter :: NCM_POS = NCM_VCO + 1
+ integer, parameter :: NCM_LYR = NCM_POS + 1
+ integer, parameter :: NCM_XTR = NCM_LYR + 1
+ integer, parameter :: NCM_LOBS= NCM_XTR + 1
+
+! the number of integer variables defined just above
+ integer, parameter :: NBDY_INT = NCM_LOBS
+
+
+! REAL-BODY COLUMN NUMBERS
+
+ integer, parameter :: NCM_PPP = 1            ! Pressure (vertical coordinate)
+ integer, parameter :: NCM_PRL = NCM_PPP  + 1 ! reference level pressure
+ integer, parameter :: NCM_VAR = NCM_PRL  + 1 ! value of the observation
+ integer, parameter :: NCM_OMP = NCM_VAR  + 1 ! obs - H (trial field)
+ integer, parameter :: NCM_OMA = NCM_OMP  + 1 ! obs - H (analysis)
+ integer, parameter :: NCM_OER = NCM_OMA  + 1 ! sigma(obs)
+ integer, parameter :: NCM_HPHT= NCM_OER  + 1 ! root of (hpht with hx scalar)
+ integer, parameter :: NCM_ZHA = NCM_HPHT + 1 ! vertical coordinate for Schur product
+ integer, parameter :: NCM_OMP6= NCM_ZHA  + 1 ! obs - H (6-h trial field)
+ integer, parameter :: NCM_POB = NCM_OMP6 + 1
+ integer, parameter :: NCM_OMF = NCM_POB  + 1
+ integer, parameter :: NCM_OMI = NCM_OMF  + 1
+ integer, parameter :: NCM_OMN = NCM_OMI  + 1
+ integer, parameter :: NCM_PRM = NCM_OMN  + 1
+ integer, parameter :: NCM_RER = NCM_PRM  + 1
+ integer, parameter :: NCM_FGE = NCM_RER  + 1
+ integer, parameter :: NCM_PER = NCM_FGE  + 1
+
+! the number of real variables defined just above
+ integer, parameter :: NBDY_REAL = NCM_PER
+
+
 ! integer,parameter :: NCM_STID=    ! Not needed since only 1 cstnid exists
 ! integer,parameter :: NCM_FAM =    ! Not needed since only 1 cfamily exists
-! These values are used only by EnKF, and not by var3d
-  integer,parameter :: NCM_REG = 23
-  integer,parameter :: NCM_PAS = 24
-  integer,parameter :: NCM_IP  = 25
-  integer,parameter :: NCM_BX  = 26
-  integer,parameter :: NCM_BY  = 27
-  integer,parameter :: NCM_BZ  = 28
-
-  ! body column numbers
-  integer,parameter :: NCM_LBO = 22
-  integer,parameter :: NCM_VNM = 1
-  integer,parameter :: NCM_POB = 2
-  integer,parameter :: NCM_PRL = 3
-  integer,parameter :: NCM_PPP = 4
-  integer,parameter :: NCM_VAR = 5
-  integer,parameter :: NCM_OMF = 6
-  integer,parameter :: NCM_OMA = 7
-  integer,parameter :: NCM_OMI = 8
-  integer,parameter :: NCM_OMN = 9
-  integer,parameter :: NCM_OER = 10
-  integer,parameter :: NCM_PRM = 11
-  integer,parameter :: NCM_RER = 12
-  integer,parameter :: NCM_FGE = 13
-  integer,parameter :: NCM_PER = 14
-  integer,parameter :: NCM_FLG = 15
-  integer,parameter :: NCM_POS = 16
-  integer,parameter :: NCM_LYR = 17
-  integer,parameter :: NCM_ASS = 18
-  integer,parameter :: NCM_XTR = 19
-  integer,parameter :: NCM_OBS = 20
-  integer,parameter :: NCM_LOBS= 21
-  integer,parameter :: NCM_VCO = 22
-! added for EnKF
-  integer,parameter :: NCM_KFA = 23
-  integer,parameter :: NCM_ZHA = 24
-  integer,parameter :: NCM_HPHT= 26
-  integer,parameter :: NCM_OMP = 25
 
   integer, parameter :: OBS_JPNBRELEM = 57
-
-  integer, parameter :: ROBDATA8_LOWER = NCM_POB
-  integer, parameter :: ROBDATA8_UPPER = NCM_PER
 
 
   contains
 
 
-  subroutine obs_initialize(obsdat)
+  subroutine obs_initialize(obsdat, header_max, body_max)
     implicit none
-
+                                        ! number of header elements allocated
+    integer, optional, intent(in) :: header_max
+                                        ! total no. of body elements allocated
+    integer, optional, intent(in) :: body_max
     type(struct_obs), intent(out) :: obsdat
+
     integer :: nulnam,fnom,fclos,ierr
     integer :: nmxobs,ndatamx
     namelist /namdimo/nmxobs,ndatamx
 
-    nmxobs=30000
-    ndatamx=200000
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namdimo,iostat=ierr)
-    write(*,*) 'obs_initialize: reading namelist, ierr=',ierr
-    write(*,nml=namdimo)
-    ierr=fclos(nulnam)
+    if(present(header_max)) then
+      ! body_max is necessarily also present
+      nmxobs = header_max
+      ndatamx = body_max
+
+    else
+      nmxobs=30000                      ! These default values will be used
+      ndatamx=200000                    ! if namdimo does not supply values
+
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namdimo,iostat=ierr)
+      write(*,*) 'obs_initialize: reading namelist, ierr=',ierr
+      write(*,nml=namdimo)
+      ierr=fclos(nulnam)
+    end if
 
     write(*,*) ' DIMENSIONS OF OBSERVATION ARRAYS:'
     write(*,*) ' NMXOBS = ',NMXOBS,'  NDATAMX = ',NDATAMX
@@ -380,19 +412,19 @@ MODULE obsSpaceData_mod
     ALLOCATE(obsdat%cstnid(numheader_max),STAT=ierr)
     obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
-    ALLOCATE(obsdat%ROBHDR(NCM_LET,numheader_max),STAT=ierr)
+    ALLOCATE(obsdat%ROBHDR(NHDR_REAL,numheader_max),STAT=ierr)
     obsdat%ROBHDR=0.0
 
-    ALLOCATE(obsdat%MOBHDR(NCM_LET,numheader_max),STAT=ierr)
+    ALLOCATE(obsdat%MOBHDR(NHDR_INT,numheader_max),STAT=ierr)
     obsdat%MOBHDR=0
 
-    ALLOCATE(obsdat%ROBDATA(NCM_LBO,numbody_max),STAT=ierr)
+    ALLOCATE(obsdat%ROBDATA(NBDY_REAL,numbody_max),STAT=ierr)
     obsdat%ROBDATA=0.0
 
-    ALLOCATE(obsdat%ROBDATA8(ROBDATA8_LOWER:ROBDATA8_UPPER,numbody_max),STAT=ierr)
+    ALLOCATE(obsdat%ROBDATA8(NBDY_REAL,numbody_max),STAT=ierr)
     obsdat%ROBDATA8=0.0D0
 
-    ALLOCATE(obsdat%MOBDATA(NCM_LBO,numbody_max),STAT=ierr)
+    ALLOCATE(obsdat%MOBDATA(NBDY_INT,numbody_max),STAT=ierr)
     obsdat%MOBDATA=0
 
   end subroutine obs_allocate
@@ -408,10 +440,10 @@ MODULE obsSpaceData_mod
     ALLOCATE(obsdat%cstnid_g(maxNumHdr),STAT=ierr)
     obsdat%cstnid_g(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
-    ALLOCATE(obsdat%ROBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obsdat%ROBHDR_g(NHDR_REAL,maxNumHdr),STAT=ierr)
     obsdat%ROBHDR_g=0.0
 
-    ALLOCATE(obsdat%MOBHDR_g(NCM_LET,maxNumHdr),STAT=ierr)
+    ALLOCATE(obsdat%MOBHDR_g(NHDR_INT,maxNumHdr),STAT=ierr)
     obsdat%MOBHDR_g=0
 
   end subroutine obs_allocateG
@@ -934,7 +966,6 @@ MODULE obsSpaceData_mod
   case ('OER '); value=obsdat%robdata(NCM_OER, index)
   case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
   case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
-  ! Added for var3d
   case ('POB '); value=obsdat%robdata(NCM_POB, index)
   case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
   case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
@@ -981,7 +1012,6 @@ MODULE obsSpaceData_mod
   integer         , intent(in)  :: index
 
   select case (name(1:4))
-  ! Added for var3d
   case ('PPP '); value=obsdat%robdata8(NCM_PPP, index)
   case ('PRL '); value=obsdat%robdata8(NCM_PRL, index)
   case ('POB '); value=obsdat%robdata8(NCM_POB, index)
@@ -1025,7 +1055,6 @@ MODULE obsSpaceData_mod
   case ('AZA '); value=obsdat%mobhdr(NCM_AZA, index)
   case ('SUN '); value=obsdat%mobhdr(NCM_SUN, index)
   case ('CLF '); value=obsdat%mobhdr(NCM_CLF, index)
-  ! Added for var3d
   case ('OEC '); value=obsdat%mobhdr(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr(NCM_TLA, index)
@@ -1037,8 +1066,6 @@ MODULE obsSpaceData_mod
   case ('ASS '); value=obsdat%mobdata(NCM_ASS, index)
   case ('OBS '); value=obsdat%mobdata(NCM_OBS, index)
   case ('VCO '); value=obsdat%mobdata(NCM_VCO, index)
-  ! Added for var3d
-  case ('LBO '); value=obsdat%mobdata(NCM_LBO, index)
   case ('POS '); value=obsdat%mobdata(NCM_POS, index)
   case ('XTR '); value=obsdat%mobdata(NCM_XTR, index)
   case ('LOBS'); value=obsdat%mobdata(NCM_LOBS,index)
@@ -1075,7 +1102,6 @@ MODULE obsSpaceData_mod
   case ('AZA '); value=obsdat%mobhdr_g(NCM_AZA, index)
   case ('SUN '); value=obsdat%mobhdr_g(NCM_SUN, index)
   case ('CLF '); value=obsdat%mobhdr_g(NCM_CLF, index)
-  ! Added for var3d
   case ('OEC '); value=obsdat%mobhdr_g(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr_g(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr_g(NCM_TLA, index)
@@ -1497,9 +1523,9 @@ MODULE obsSpaceData_mod
   IDATA = obs_elem_i(obsdat,'NLV ',KOBS)
 
   IF(IDATA.EQ.1) THEN
-   WRITE(KULOUT,FMT=9101)IDATA,KOBS,NCM_LBO
+   WRITE(KULOUT,FMT=9101)IDATA,KOBS, NBDY_INT + NBDY_REAL
   ELSE
-   WRITE(KULOUT,FMT=9100)IDATA,KOBS,NCM_LBO
+   WRITE(KULOUT,FMT=9100)IDATA,KOBS, NBDY_INT + NBDY_REAL
   END IF
  9100 FORMAT(4x,'THERE ARE ', &
            I3,1X,'DATA IN OBSERVATION RECORD NO.' &
@@ -1580,7 +1606,7 @@ MODULE obsSpaceData_mod
 !
 ! 1. General information
 !
-  WRITE(KULOUT,FMT=9100)KOBS,NCM_LET
+  WRITE(KULOUT,FMT=9100)KOBS, NHDR_INT + NHDR_REAL
  9100 FORMAT(//,10x,'-- OBSERVATION RECORD NO.' &
         ,1X,I6,3X,'HEADER''S LENGTH:',I6)
 !
@@ -1646,7 +1672,6 @@ MODULE obsSpaceData_mod
   case ('AZA '); obsdat%mobhdr (NCM_AZA, index) = value
   case ('SUN '); obsdat%mobhdr (NCM_SUN, index) = value
   case ('CLF '); obsdat%mobhdr (NCM_CLF, index) = value
-  ! Added for var3d
   case ('OEC '); obsdat%mobhdr (NCM_OEC, index) = value
   case ('ST1 '); obsdat%mobhdr (NCM_ST1, index) = value
   case ('TLA '); obsdat%mobhdr (NCM_TLA, index) = value
@@ -1658,7 +1683,6 @@ MODULE obsSpaceData_mod
   case ('ASS '); obsdat%mobdata(NCM_ASS, index) = value
   case ('OBS '); obsdat%mobdata(NCM_OBS, index) = value
   case ('VCO '); obsdat%mobdata(NCM_VCO, index) = value
-  case ('LBO '); obsdat%mobdata(NCM_LBO, index) = value
   case ('POS '); obsdat%mobdata(NCM_POS, index) = value
   case ('LYR '); obsdat%mobdata(NCM_LYR, index) = value
   case ('XTR '); obsdat%mobdata(NCM_XTR, index) = value
@@ -1939,11 +1963,11 @@ MODULE obsSpaceData_mod
 
   ALLOCATE(cfamily_tmp(numheader_mpilocal),STAT=ierr) 
   ALLOCATE(cstnid_tmp(numheader_mpilocal),STAT=ierr) 
-  ALLOCATE(ROBHDR_tmp(NCM_LET,numheader_mpilocal),STAT=ierr) 
-  ALLOCATE(MOBHDR_tmp(NCM_LET,numheader_mpilocal),STAT=ierr) 
-  ALLOCATE(MOBDATA_tmp(NCM_LBO,numbody_mpilocal),STAT=ierr) 
-  ALLOCATE(ROBDATA_tmp(NCM_LBO,numbody_mpilocal),STAT=ierr) 
-  ALLOCATE(ROBDATA8_tmp(3:11,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBHDR_tmp(NHDR_REAL,numheader_mpilocal),STAT=ierr) 
+  ALLOCATE(MOBHDR_tmp(NHDR_INT,numheader_mpilocal),STAT=ierr) 
+  ALLOCATE(MOBDATA_tmp(NBDY_INT,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBDATA_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBDATA8_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
 !  
   call obs_allocateG(obsdat,obsdat%numheader)
 !
@@ -1952,14 +1976,14 @@ MODULE obsSpaceData_mod
 !! keep the Global ROBHDR and MOBHDR
   DO iobs=1,obsdat%numheader_mpiglobal
     obsdat%CSTNID_G(iobs)=obsdat%CSTNID(iobs)
-    obsdat%MOBHDR_G(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,iobs)
-    obsdat%ROBHDR_G(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,iobs)
+    obsdat%MOBHDR_G(:,iobs)=obsdat%MOBHDR(:,iobs)
+    obsdat%ROBHDR_G(:,iobs)=obsdat%ROBHDR(:,iobs)
   ENDDO  
 !!
   DO i=1,numheader_mpilocal 
     iobs=obsdat%locObsTag(i) 
-    ROBHDR_tmp(1:NCM_LET,i)=obsdat%ROBHDR(1:NCM_LET,iobs)
-    MOBHDR_tmp(1:NCM_LET,i)=obsdat%MOBHDR(1:NCM_LET,iobs)
+    ROBHDR_tmp(:,i)=obsdat%ROBHDR(:,iobs)
+    MOBHDR_tmp(:,i)=obsdat%MOBHDR(:,iobs)
     cstnid_tmp(i) = obsdat%cstnid(iobs)
     cfamily_tmp(i) = obsdat%cfamily(iobs) 
     IF(i== 1) THEN
@@ -1976,9 +2000,9 @@ MODULE obsSpaceData_mod
     idataend = obsdat%mobhdr(NCM_NLV, iobs) + idata -1 
     DO j=idata,idataend 
        ii=ii+1 
-       ROBDATA8_tmp(3:11,ii)=obsdat%ROBDATA8(3:11,j)
-       MOBDATA_tmp(1:NCM_LBO,ii)=obsdat%MOBDATA(1:NCM_LBO,j) 
-       ROBDATA_tmp(1:NCM_LBO,ii)=obsdat%ROBDATA(1:NCM_LBO,j) 
+       ROBDATA8_tmp(:,ii)=obsdat%ROBDATA8(:,j)
+       MOBDATA_tmp(:,ii)=obsdat%MOBDATA(:,j) 
+       ROBDATA_tmp(:,ii)=obsdat%ROBDATA(:,j) 
        MOBDATA_tmp(NCM_OBS,ii) = i
     ENDDO 
   ENDDO 
@@ -1992,14 +2016,14 @@ MODULE obsSpaceData_mod
   DO i=1,obsdat%numheader
      obsdat%cfamily(i)=cfamily_tmp(i) 
      obsdat%cstnid(i)=cstnid_tmp(i)
-     obsdat%ROBHDR(1:NCM_LET,i)=ROBHDR_tmp(1:NCM_LET,i)
-     obsdat%MOBHDR(1:NCM_LET,i)=MOBHDR_tmp(1:NCM_LET,i) 
+     obsdat%ROBHDR(:,i)=ROBHDR_tmp(:,i)
+     obsdat%MOBHDR(:,i)=MOBHDR_tmp(:,i) 
   ENDDO 
 
   DO i=1,obsdat%numbody
-     obsdat%ROBDATA8(3:11,i)=ROBDATA8_tmp(3:11,i) 
-     obsdat%MOBDATA(1:NCM_LBO,i)=MOBDATA_tmp(1:NCM_LBO,i) 
-     obsdat%ROBDATA(1:NCM_LBO,i)=ROBDATA_tmp(1:NCM_LBO,i)
+     obsdat%ROBDATA8(:,i)=ROBDATA8_tmp(:,i) 
+     obsdat%MOBDATA(:,i)=MOBDATA_tmp(:,i) 
+     obsdat%ROBDATA(:,i)=ROBDATA_tmp(:,i)
   ENDDO 
 
   deallocate(cfamily_tmp)
@@ -2084,18 +2108,18 @@ MODULE obsSpaceData_mod
   obsdat%mpi_local = .false.
 
   ! Restore header elements
-  ALLOCATE(MOBHDR_tmp(NCM_LET,obsdat%numheader_mpiglobal),STAT=ierr)
+  ALLOCATE(MOBHDR_tmp(NHDR_INT,obsdat%numheader_mpiglobal),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cannot allocate mobhdr_tmp!')
   MOBHDR_TMP=0
 
-  ALLOCATE(ROBHDR_tmp(NCM_LET,obsdat%numheader_mpiglobal),STAT=ierr)
+  ALLOCATE(ROBHDR_tmp(NHDR_REAL,obsdat%numheader_mpiglobal),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cannot allocate robhdr_tmp!')
   ROBHDR_TMP=0
 
   DO i=1,obsdat%numheader
      iobs=obsdat%locObsTag(i)
-     MOBHDR_tmp(1:NCM_LET,iobs)=obsdat%MOBHDR(1:NCM_LET,i)
-     ROBHDR_tmp(1:NCM_LET,iobs)=obsdat%ROBHDR(1:NCM_LET,i)
+     MOBHDR_tmp(1:NHDR_INT,iobs)=obsdat%MOBHDR(1:NHDR_INT,i)
+     ROBHDR_tmp(1:NHDR_REAL,iobs)=obsdat%ROBHDR(1:NHDR_REAL,i)
   ENDDO
 
   sizeMOBHDR=size(MOBHDR_tmp)
@@ -2114,11 +2138,11 @@ MODULE obsSpaceData_mod
   enddo
 
   ! Allocate memory for the temporary arrays.
-  ALLOCATE(MOBDATA_tmp(NCM_LBO,obsdat%numbody_max),STAT=ierr)
+  ALLOCATE(MOBDATA_tmp(NBDY_INT,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBDATA_tmp,Abort!')
   MOBDATA_tmp=0
 
-  ALLOCATE(ROBDATA_tmp(NCM_LBO,obsdat%numbody_max),STAT=ierr)
+  ALLOCATE(ROBDATA_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
   ROBDATA_tmp=0.0
 
@@ -2130,8 +2154,8 @@ MODULE obsSpaceData_mod
     idataend = obsdat%mobhdr_g(NCM_NLV, iobs) + idata -1
     DO j=idata,idataend
        ii=ii+1
-       MOBDATA_tmp(1:NCM_LBO,j)=obsdat%MOBDATA(1:NCM_LBO,ii)
-       ROBDATA_tmp(1:NCM_LBO,j)=obsdat%ROBDATA(1:NCM_LBO,ii)
+       MOBDATA_tmp(1:NBDY_INT,j)=obsdat%MOBDATA(1:NBDY_INT,ii)
+       ROBDATA_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA(1:NBDY_REAL,ii)
     ENDDO
   ENDDO
    !
