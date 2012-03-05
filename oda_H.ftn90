@@ -44,6 +44,9 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 #include "comgpsgb.cdk"
   type(struct_columnData) :: lcolumn,lcolumng
   type(struct_obs) :: lobsSpaceData
+  type(struct_vco), pointer :: vco_anl
+
+  vco_anl => col_getVco(lcolumng)
 
   nl_ncall = nl_ncall + 1
 
@@ -110,8 +113,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           ZPB  = col_getPressure(LCOLUMNG,IK+1,IOBS,'NA')
           ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
           ZWT  = 1.0D0 - ZWB
-          zpresbpt = lcolumng%vco%db_M(ik)
-          zpresbpb = lcolumng%vco%db_M(ik+1)
+          zpresbpt = vco_anl%db_M(ik)
+          zpresbpb = vco_anl%db_M(ik+1)
           ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB)  &
               -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
               /LOG(ZPB/ZPT)**2
@@ -119,10 +122,10 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           if(ityp.eq.bufr_nees) then
             columnVarB=lqtoes_tl(col_getElem(lcolumn,IK+1,IOBS,'HU'),col_getElem(lcolumn,IK+1,IOBS,'TT'),col_getElem(lcolumn,1,IOBS,'P0'),  &
                                  col_getElem(lcolumng,IK+1,IOBS,'HU'),col_getPressure(lcolumng,IK+1,IOBS,'NA'),  &
-                                 lcolumng%vco%dhyb_m(IK+1),lcolumng%vco%db_m(IK+1))
+                                 vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
             columnVarT=lqtoes_tl(col_getElem(lcolumn,IK  ,IOBS,'HU'),col_getElem(lcolumn,IK  ,IOBS,'TT'),col_getElem(lcolumn,1,IOBS,'P0'),  &
                                  col_getElem(lcolumng,IK  ,IOBS,'HU'),col_getPressure(lcolumng,IK  ,IOBS,'NA'),  &
-                                 lcolumng%vco%dhyb_m(IK  ),lcolumng%vco%db_m(IK  ))
+                                 vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
             columngVarB=lqtoes(col_getElem(lcolumng,IK+1,IOBS,'HU'),col_getElem(lcolumng,IK+1,IOBS,'TT'),col_getPressure(lcolumng,IK+1,IOBS,'NA'))
             columngVarT=lqtoes(col_getElem(lcolumng,IK  ,IOBS,'HU'),col_getElem(lcolumng,IK  ,IOBS,'TT'),col_getPressure(lcolumng,IK  ,IOBS,'NA'))
           else
@@ -195,7 +198,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             if(ITYP.eq.BUFR_NESS) THEN
               columnVarB=lqtoes_tl(col_getElem(lcolumn,col_getNumLev(lcolumn),IOBS,'HU'),col_getElem(lcolumn,col_getNumLev(lcolumn),IOBS,'TT'),col_getElem(lcolumn,1,IOBS,'P0'),  &
                                    col_getElem(lcolumng,col_getNumLev(lcolumn),IOBS,'HU'),col_getPressure(lcolumng,col_getNumLev(lcolumn),IOBS,'NA'),  &
-                                   lcolumng%vco%dhyb_m(col_getNumLev(lcolumn)),lcolumng%vco%db_m(col_getNumLev(lcolumn)))
+                                   vco_anl%dhyb_m(col_getNumLev(lcolumn)),vco_anl%db_m(col_getNumLev(lcolumn)))
             else
               columnVarB=col_getElem(LCOLUMN,IPB,IOBS)
             endif
@@ -341,7 +344,7 @@ end subroutine oda_Hto
 !C
       NGPSLEV=col_getNumLev(lcolumn)
       DO JL = 1, col_getNumLev(lcolumn)
-        ZETA(JL) = lcolumng%vco%dhyb_m(JL)
+        ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 !C
 !C     Loop over all files
@@ -412,8 +415,8 @@ end subroutine oda_Hto
                 BPT = col_getPressure(LCOLUMNG,1,JO,'NA')
                 BMT = BGZ(col_getNumLev(lcolumn))/RG
                 BMT = gpsgeopotential(Lat, BMT)/RG
-                BPR = lcolumng%vco%dprf_M
-                BCF = lcolumng%vco%drcf1
+                BPR = vco_anl%dprf_M
+                BCF = vco_anl%drcf1
 !C
 !C     *              Local vector state
 !C
@@ -597,7 +600,7 @@ end subroutine oda_Hto
 !C     *    .        ----------
 !C
       DO JL = 1, col_getNumLev(lcolumn)
-         ZETA(JL) = lcolumng%vco%dhyb_m(JL)
+         ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
       write(*,fmt='(/,4x,A)') 'LVGPSZTD- Linear Version: GPS ZTD observations'

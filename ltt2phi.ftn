@@ -36,6 +36,7 @@
 #include "pardim.cdk"
 c
       type(struct_columnData) :: lcolumn,lcolumng
+      type(struct_vco), pointer :: vco_anl
       integer jobs,jlev
       real*8  zpscon, zcon,zdelps,zdelt,zalpha,zfacps,zfactt
       INTEGER IERR,ILEN
@@ -53,6 +54,7 @@ c
       allocate(vme(col_getNumLev(lcolumn)))
       allocate(vmf(col_getNumLev(lcolumn)))
       allocate(tv_tmp(col_getNumLev(lcolumn),col_getNumCol(lcolumn)))
+      vco_anl => col_getVco(lcolumng)
 c
 c     Computation of virtual temperature increments
 c     ---------------------------------------------
@@ -74,8 +76,8 @@ c
 c
 c       zcon = d(lcolumng%rtapfac)/d(ps)
 c
-          zpresb = lcolumng%vco%db_M(jlev)
-          zcon    =(lcolumng%vco%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
+          zpresb = vco_anl%db_M(jlev)
+          zcon    =(vco_anl%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
      &             col_getPressure(lcolumng,jlev,jobs,'NA')
           zfactt  = lcolumng%rtapfac(jlev,jobs)
           zfacps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon
@@ -91,7 +93,7 @@ c     Computation of del(GZ)
 c     ----------------------
 c
       zalpha=0.0D0
-      call matapat(lcolumng%vco%dhyb_m,zalpha,col_getNumLev(lcolumn),vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(vco_anl%dhyb_m,zalpha,col_getNumLev(lcolumn),vma,vmb,vmc,vmd,vme,vmf)
       call lvtap
 
       deallocate(vma)

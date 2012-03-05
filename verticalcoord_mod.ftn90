@@ -26,7 +26,7 @@ module verticalCoord_mod
 
   subroutine vco_allocate(tf_vco)
     implicit none
-    type(struct_vco) :: tf_vco
+    type(struct_vco), pointer :: tf_vco
     integer :: ilnk,stat,nl_stat
 
     stat        = 0
@@ -71,7 +71,7 @@ module verticalCoord_mod
 !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     use MathPhysConstants_mod
     implicit none
-    type(struct_vco) :: tf_vco
+    type(struct_vco),pointer :: tf_vco
     integer ::  kulfst
     logical :: lprecision
 
@@ -83,7 +83,7 @@ module verticalCoord_mod
     REAL*8 precision
     character(len=10) :: blk_S
 
-!    if(.not.associated(tf_vco)) allocate(tf_vco)
+    if(.not.associated(tf_vco)) allocate(tf_vco)
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file(vgd_new reads "!!" record)
@@ -321,7 +321,7 @@ module verticalCoord_mod
 !           kprof                : number of profiles
 !
       implicit none
-      type(struct_vco) :: tf_vco
+      type(struct_vco), pointer :: tf_vco
       integer knbrlev,kprof,jlev
       real*8 ppres(knbrlev,kprof),pps(kprof)
       integer jprof
@@ -345,7 +345,7 @@ module verticalCoord_mod
 
       use MathPhysConstants_mod
       implicit none
-      type(struct_vco) :: tf_vco
+      type(struct_vco), pointer :: tf_vco
       integer jlev,ierr,nultemplate
       integer fstfrm,fclos,fstouv,fnom,nulnam
       logical isExist_L

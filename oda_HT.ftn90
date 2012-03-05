@@ -33,6 +33,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
   type(struct_columnData) :: lcolumn,lcolumng
   type(struct_obs) :: lobsSpaceData
+  type(struct_vco), pointer :: vco_anl
+
+  vco_anl => col_getVco(lcolumng)
 
   call tmg_start(64,'GPSZTD') !
   call oda_HTgp
@@ -109,11 +112,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ZPB  = col_getPressure(LCOLUMNG,IK+1,IOBS,'NA')
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
-!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
-!C
-            zpresbpt = lcolumng%vco%db_M(ik)
-            zpresbpb = lcolumng%vco%db_M(ik+1)
+            zpresbpt = vco_anl%db_M(ik)
+            zpresbpb = vco_anl%db_M(ik+1)
 
             ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB) &
                  -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) ) &
@@ -131,10 +131,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             if(ITYP.eq.BUFR_NEES) then
               call lqtoes_ad(hu_column(IK+1),tt_column(IK+1),ps_column(1),  &
                 ZWB*ZRES,col_getElem(lcolumng,IK+1,IOBS,'HU'),col_getPressure(lcolumng,IK+1,IOBS,'NA'),  &
-                lcolumng%vco%dhyb_m(IK+1),lcolumng%vco%db_m(IK+1))
+                vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
               call lqtoes_ad(hu_column(IK  ),tt_column(IK  ),ps_column(1),  &
                 ZWT*ZRES,col_getElem(lcolumng,IK  ,IOBS,'HU'),col_getPressure(lcolumng,IK  ,IOBS,'NA'),  &
-                lcolumng%vco%dhyb_m(IK  ),lcolumng%vco%db_m(IK  ))
+                vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
               columngVarB=lqtoes(col_getElem(lcolumng,IK+1,IOBS,'HU'),col_getElem(lcolumng,IK+1,IOBS,'TT'),col_getPressure(lcolumng,IK+1,IOBS,'NA'))
               columngVarT=lqtoes(col_getElem(lcolumng,IK  ,IOBS,'HU'),col_getElem(lcolumng,IK  ,IOBS,'TT'),col_getPressure(lcolumng,IK  ,IOBS,'NA'))
             else
@@ -154,8 +154,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
             IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
-!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !c
 !c-------------adjoint of TL of geopotential extrapolation below
 !c orography
@@ -221,14 +219,12 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
-!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
                 call lqtoes_ad(hu_column(col_getNumLev(lcolumn)),tt_column(col_getNumLev(lcolumn)),ps_column(1),  &
                   ZRES,col_getElem(lcolumng,col_getNumLev(lcolumn),IOBS,'HU'),col_getPressure(lcolumng,col_getNumLev(lcolumn),IOBS,'NA'),  &
-                  lcolumng%vco%dhyb_m(col_getNumLev(lcolumn)),lcolumng%vco%db_m(col_getNumLev(lcolumn)))
+                  vco_anl%dhyb_m(col_getNumLev(lcolumn)),vco_anl%db_m(col_getNumLev(lcolumn)))
               else
                 all_column(IPB) = all_column(IPB) + ZRES
               endif
@@ -271,8 +267,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             zcon = (zlev/col_getElem(lcolumng,1,iobs,'P0'))**zexpgz
             ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),IOBS)*col_getElem(lcolumng,col_getNumLev(lcolumn),IOBS,'TT')
-!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
             ps_column(1)    = ps_column(1)     &
                  + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &
                  / col_getElem(lcolumng,1,iobs,'P0')
@@ -372,7 +366,7 @@ end subroutine oda_HTto
 !C
       NGPSLEV=col_getNumLev(lcolumn)
       DO JL = 1, col_getNumLev(lcolumn)
-        ZETA(JL) = lcolumng%vco%dhyb_m(JL)
+        ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
       !
@@ -447,8 +441,8 @@ end subroutine oda_HTto
              BPT = col_getPressure(LCOLUMNG,1,INDEX_HEADER,'NA')
              BMT = BGZ(col_getNumLev(lcolumn))/RG
              BMT = gpsgeopotential(Lat, BMT)/RG
-             BPR = lcolumng%vco%dprf_M
-             BCF = lcolumng%vco%drcf1
+             BPR = vco_anl%dprf_M
+             BCF = vco_anl%drcf1
 !C
 !C     *           GPS profile structure:
 !C
@@ -515,8 +509,6 @@ end subroutine oda_HTto
 !C     *                 Normalized increment
 !C
                  ZINC = obs_elem_r8(lobsSpaceData,'OMI ',INDEX_BODY)
-!c                 call obs_set_r8(lobsSpaceData,'OMN ',INDEX_BODY, obs_elem_r8(lobsSpaceData,'OMN ',INDEX_BODY)
-!c     &                * obs_elem_r8(lobsSpaceData,'OMA ',INDEX_BODY))
 !C
 !C                       O-F Tested criteria:
 !C
@@ -593,8 +585,6 @@ end subroutine oda_HTto
 
             ZDA1= (ZLEV-ZPB)/(ZDENO**2)
             ZDA2= (ZPT-ZLEV)/(ZDENO**2)
-!c            call obs_set_r8(lobsSpaceData,'OMN ',JDATA, obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-!c     &           * obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
 !C
             gz_column(IK+1) = gz_column(IK+1) +    &
                  (col_getElem(lcolumng,IPB,IOBS)-col_getElem(lcolumng,IPT,IOBS))*ZDA2*ZRES/RG
@@ -658,7 +648,7 @@ end subroutine oda_HTto
 !C     *    .        ----------
 !C
       DO JL = 1, col_getNumLev(lcolumn)
-         ZETA(JL) = lcolumng%vco%dhyb_m(JL)
+         ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
       write(*,fmt='(/,4x,A)') 'AVGPSZTD- Adjoint Version: GPS ZTD observations'

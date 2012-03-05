@@ -31,7 +31,8 @@
 
       allocate(ZBUFFER(GAUS_NJ,col_getNumLev(lcolumng)))
 
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,col_getNumLev(lcolumng),1)
+      statevector%vco => lcolumng%vco
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,1)
       call gsv_zero(statevector)
       call col_allocate(lcolumn,col_getNumCol(lcolumng),col_getNumLev(lcolumng),col_getNumLev(lcolumng))
 !C 

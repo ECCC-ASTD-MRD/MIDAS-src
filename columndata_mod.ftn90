@@ -15,7 +15,7 @@ module columnData_mod
   public :: col_getNumLev, col_getNumCol, col_getNumStep, col_setNumStep
   public :: col_getTimeInterpWeight, col_setTimeInterpWeight
   public :: col_getPressure, col_getHeight, col_getMountain, col_setMountain
-  public :: col_zero, col_fillmvo, col_getColumn, col_getElem
+  public :: col_zero, col_fillmvo, col_getColumn, col_getElem, col_getVco
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_calcpres, vco_AnlInit, vco_SetupFromFile
@@ -31,7 +31,7 @@ module columnData_mod
     real*8,pointer    :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
-    type(struct_vco)  :: vco
+    type(struct_vco), pointer  :: vco => null()
     integer,pointer   :: varOffset(:),varNumLev(:)
   end type struct_columnData
 
@@ -607,5 +607,15 @@ module columnData_mod
     column%nStepObs = numStep
 
   end subroutine col_setNumStep
+
+
+  function col_getVco(column) result(vco_ptr)
+    implicit none
+    type(struct_columnData)   :: column
+    type(struct_vco), pointer :: vco_ptr
+
+    vco_ptr => column%vco
+
+  end function col_getVco
 
 end module columnData_mod

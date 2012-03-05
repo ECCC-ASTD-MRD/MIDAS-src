@@ -40,6 +40,7 @@
 c
       type(struct_columnData) :: lcolumng,lcolumnhr
       type(struct_obs) :: lobsSpaceData
+      type(struct_vco), pointer :: vco_anl, vco_trl
       integer vfstlir,vezuvint,vezsint,ezdefset,ezgprm
       integer ezsetopt,ezsetval,jstep
       integer jlev,jobs,ier,iset
@@ -85,6 +86,9 @@ c
       write(nulout,*) 'nstepobs=',nstepobs
       call col_setNumStep(lcolumng,nstepobs)   ! from comfilt.cdk
 c
+      vco_anl => col_getVco(lcolumng)
+      vco_trl => col_getVco(lcolumnhr)
+c
       allocate(nobsgid(col_getNumStep(lcolumng)))
       allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
       allocate(nobs(col_getNumStep(lcolumng)))
@@ -116,12 +120,12 @@ c
 c
 c     Get vertical coordinate parameters from trial field !! structure
 c
-      nlv_M = lcolumnhr%vco%nlev_M
-      nlv_T = lcolumnhr%vco%nlev_T
+      nlv_M = vco_trl%nlev_M
+      nlv_T = vco_trl%nlev_T
       write(nulout,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
 c      
-      write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',lcolumnhr%vco%dpt_T
-     &     ,lcolumnhr%vco%dprf_T,lcolumnhr%vco%drcf1
+      write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',vco_trl%dpt_T
+     &     ,vco_trl%dprf_T,vco_trl%drcf1
 c
 c     Allocation des tableaux a remplir par fillmvo
 c
@@ -239,18 +243,18 @@ c
       enddo
 c
 c-----Derive the pressure fields at observation points from the hybrid
-C     levels(lcolumng%vco%dhyb_m), the hybrid coordinate parameters of the
+C     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
 C     increment analysis and the surface pressure of the trial field
 c
       do jobs = 1,col_getNumCol(lcolumng)
         zovar(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
       enddo
 c
-      call vco_calcpres(lcolumng%vco,zppobsg,col_getNumLev(lcolumng),zovar,col_getNumCol(lcolumng))
+      call vco_calcpres(vco_anl,zppobsg,col_getNumLev(lcolumng),zovar,col_getNumCol(lcolumng))
       call col_fillmvo(lcolumng,'PP','NA',zppobsg)
       do jlev = 1,col_getNumLev(lcolumng)
-        write(nulout,*) 'sugomobs: jlev, lcolumng%vco%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
-     +    jlev,lcolumng%vco%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
+        write(nulout,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
+     +    jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
         call flush(nulout)
       enddo
 c
@@ -264,23 +268,23 @@ c
 c
 c------- Calculate profiles of pressure values at station location
 
-      write(nulout,*) 'sugomobs:iversion= ',lcolumnhr%vco%iversion
-      write(nulout,*) 'sugomobs:ikind= ',lcolumnhr%vco%ikind
-      write(nulout,*) 'sugomobs:svcod= ',lcolumnhr%vco%svcod
+      write(nulout,*) 'sugomobs:iversion= ',vco_trl%iversion
+      write(nulout,*) 'sugomobs:ikind= ',vco_trl%ikind
+      write(nulout,*) 'sugomobs:svcod= ',vco_trl%svcod
 
 c-------Staggered hybrid trial field 
-      if (lcolumnhr%vco%iversion .eq. 5002) then 
-        call calcpres_vgrid(lcolumnhr%vco%vgrid,zovar, lcolumnhr%vco%ip1_M
+      if (vco_trl%iversion .eq. 5002) then 
+        call calcpres_vgrid(vco_trl%vgrid,zovar, vco_trl%ip1_M
      &         ,nlv_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
-        call calcpres_vgrid(lcolumnhr%vco%vgrid,zovar, lcolumnhr%vco%ip1_T
+        call calcpres_vgrid(vco_trl%vgrid,zovar, vco_trl%ip1_T
      &         ,nlv_T,col_getNumCol(lcolumng),nulout,zppobs_T(1,1))
 c-------ETA  trial field 
-      elseif(lcolumnhr%vco%iversion .eq. 5001) then
+      elseif(vco_trl%iversion .eq. 5001) then
         call col_pointStagToUnstag(lcolumnhr)
-        call calcpres_vgrid(lcolumnhr%vco%vgrid,zovar, lcolumnhr%vco%ip1_M
-     &         ,lcolumnhr%vco%nlev_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
+        call calcpres_vgrid(vco_trl%vgrid,zovar, vco_trl%ip1_M
+     &         ,vco_trl%nlev_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
 
-        call vco_calcpres(lcolumnhr%vco,zppobs_M,nlv_M,zovar,col_getNumCol(lcolumng))
+        call vco_calcpres(vco_trl,zppobs_M,nlv_M,zovar,col_getNumCol(lcolumng))
         do jlev   = 1,nlv_M 
           do jobs = 1,col_getNumCol(lcolumng)
             zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 
@@ -320,7 +324,7 @@ c
       do jlev = 1,nlv_M
         do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep) > 0) then
-            IIP1 = lcolumnhr%vco%ip1_M(jlev)
+            IIP1 = vco_trl%ip1_M(jlev)
 c
             ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
      &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
@@ -358,7 +362,7 @@ c
       do jlev = 1, nlv_T
         do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep) > 0) then
-            IIP1 = lcolumnhr%vco%ip1_T(jlev)
+            IIP1 = vco_trl%ip1_T(jlev)
 c
             ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
      &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
@@ -421,7 +425,7 @@ c
           if (.not. allocated(zvar2)) allocate(zvar2(ini,inj))
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_M
-            IIP1=lcolumnhr%vco%ip1_M(jlev)
+            IIP1=vco_trl%ip1_M(jlev)
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
@@ -526,7 +530,7 @@ c Reading 3D fields
 c
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_T
-            IIP1=lcolumnhr%vco%ip1_T(jlev)
+            IIP1=vco_trl%ip1_T(jlev)
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep) > 0) then
                 iset = ezdefset(nobsgid(jstep),itrlgid)
@@ -586,7 +590,7 @@ c
 c
 c Using T, q and PS to compute GZ for columnhr
 c
-      if(lcolumnhr%vco%iversion .eq. 5001 ) then  ! only in non-staggered mode
+      if(vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
         call tt2phi(lcolumnhr)
       endif
 c

@@ -38,14 +38,15 @@
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
 C
+      type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
 
       integer jk,jj,ji
       real*8 ztemp
-      real*8 :: zes(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
-      real*8 :: ztv(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
-      real*8 :: zgz(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
-      real*8 :: zhu(gaus_ni,lcolumng%vco%nlev_M,gaus_nj)
+      real*8, allocatable :: zes(:,:,:)
+      real*8, allocatable :: ztv(:,:,:)
+      real*8, allocatable :: zgz(:,:,:)
+      real*8, allocatable :: zhu(:,:,:)
       real*8, pointer :: hu3d_inc_ptr(:,:,:),hu3d_trl_ptr(:,:,:)
 c
 c     if a restart file was writen at the end of minimize.ftn,
@@ -56,6 +57,12 @@ c
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'
+
+      vco_anl => col_getVco(lcolumng)
+      allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
 c
 C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
 C     after minimization has ended. From this point all CMA
@@ -72,7 +79,7 @@ C
 c
       CALL SUPOST  ! problem with nflev = 1
 c
-      statevector%vco => lcolumng%vco
+      call gsv_setVco(statevector,vco_anl)
       call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=obs_get_datestamp(lobsSpaceData))
 
       call tmg_start(51,'VAR_CH') !
@@ -90,7 +97,7 @@ c
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
-      statevectorg%vco => lcolumng%vco
+      call gsv_setVco(statevectorg,vco_anl)
       call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=obs_get_datestamp(lobsSpaceData))
       call subasic_gd(statevectorg,lcolumnhr)
 !
@@ -130,6 +137,11 @@ C
       call gsv_deallocate(statevector)
       call gsv_deallocate(statevectorg)
 
+      deallocate(zes)
+      deallocate(ztv)
+      deallocate(zgz)
+      deallocate(zhu)
+c
       write(*,*) 'LEAVING POSTMIN'
       RETURN
       END SUBROUTINE POSTMIN

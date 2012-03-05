@@ -25,6 +25,7 @@
       use columnData_mod 
       IMPLICIT NONE
       type(struct_columnData) :: lcolumn,lcolumng
+      type(struct_vco), pointer :: vco_anl
       integer jobs,jlev,nlev
       real*8 :: zcon, zalpha
       real*8, allocatable :: vma(:),vmb(:),vmc(:)
@@ -40,9 +41,10 @@
       allocate(vmf(col_getNumLev(lcolumn)))
       allocate(tv_tmp(col_getNumLev(lcolumn),col_getNumCol(lcolumn)))
 
+      vco_anl => col_getVco(lcolumng)
       zalpha=0.0D0
       nlev=col_getNumLev(lcolumn)
-      call matapat(lcolumng%vco%dhyb_m,zalpha,nLev,vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(vco_anl%dhyb_m,zalpha,nLev,vma,vmb,vmc,vmd,vme,vmf)
 
       call avtap
 c
@@ -62,8 +64,8 @@ c
 c
 c         zcon = d(lcolumng%rtapfac)/d(ps)
 c
-          zcon   = (lcolumng%vco%db_dhyb_M(jlev)-
-     +              lcolumng%vco%db_M(jlev)*lcolumng%rtapfac(jlev,jobs))/
+          zcon   = (vco_anl%db_dhyb_M(jlev)-
+     +              vco_anl%db_M(jlev)*lcolumng%rtapfac(jlev,jobs))/
      +              col_getPressure(lcolumng,jlev,jobs,'NA')
           ps_column(1)=ps_column(1)+
      &          col_getElem(lcolumng,jlev,jobs,'TT')*zcon * tv_tmp(jlev,jobs)

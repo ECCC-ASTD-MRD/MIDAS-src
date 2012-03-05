@@ -155,10 +155,10 @@ CONTAINS
     ni_l=ni_in
     nj_l=nj_in
 
-    if(ntime_in.eq.1.or.ntime_in.eq.5) then
+    if(ntime_in.eq.1.or.ntime_in.eq.5.or.ntime_in.eq.7) then
       ntime_l=ntime_in
     else
-      write(*,*) 'Invalid value for NTIME (choose 1 or 5)!'
+      write(*,*) 'Invalid value for NTIME (choose 1 or 5 or 7)!'
       call flush(6)
       call qqexit(1)
     endif
@@ -301,6 +301,14 @@ CONTAINS
       ip2(3) = 6  
       ip2(4) = 7  
       ip2(5) = 9  
+    elseif(ntime_l.eq.7) then
+      ip2(1) = 3  
+      ip2(2) = 4  
+      ip2(3) = 5  
+      ip2(4) = 6  
+      ip2(5) = 7  
+      ip2(6) = 8  
+      ip2(7) = 9  
     else
       ip2(1) = 6
     endif

@@ -46,6 +46,7 @@
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
+      type(struct_vco), pointer :: vco_trl
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
@@ -85,8 +86,9 @@ C     *    .   1.1  Eta vector
 C     *    .        ----------
 C
       NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
+      vco_trl => col_getVco(lcolumnhr)
       DO JL = 1, NGPSLEV
-         ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
+         ZETA(JL) = vco_trl%dhyb_T(JL)
       ENDDO
 C
 C     Loop over all files
@@ -135,8 +137,8 @@ C
                   ZMT = ZGZ(col_getNumLev(LCOLUMNHR,'TH'))/RG
                   ZMT = gpsgeopotential(Lat, ZMT)/RG
                   ZTP = ZGZ(1)/RG
-                  ZPR = lcolumnhr%vco%dprf_M
-                  ZCF = lcolumnhr%vco%drcf1
+                  ZPR = vco_trl%dprf_M
+                  ZCF = vco_trl%drcf1
 C     
 C     *           GPS profile structure:
 C

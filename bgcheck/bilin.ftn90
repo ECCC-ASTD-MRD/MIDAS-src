@@ -145,7 +145,6 @@
          if(col_varExist('HU')) hu_column => col_getColumn(lcolumn,jobs,'HU')
          if(col_varExist('GZ')) gz_column => col_getColumn(lcolumn,jobs,'GZ')
          if(col_varExist('TT')) tt_column => col_getColumn(lcolumn,jobs,'TT')
-         if(col_varExist('TR')) tr_column => col_getColumn(lcolumn,jobs,'TR')
          if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
          if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
          DO JK = 1, statevector%nlev
@@ -180,13 +179,6 @@
            if(gsv_varExist('TT')) then
              jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
              tt_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
-                  + DLW2*zgd(ILON+1,JK2,ILA)  &
-                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
-                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
-           endif
-           if(gsv_varExist('TR')) then
-             jk2=jk+gsv_getOffsetFromVarName(statevector,'TR')
-             tr_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
                   + DLW2*zgd(ILON+1,JK2,ILA)  &
                   + DLW3*zgd(ILOS,JK2,ILA+1)  &
                   + DLW4*zgd(ILOS+1,JK2,ILA+1)
