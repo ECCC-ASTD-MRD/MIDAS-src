@@ -31,9 +31,11 @@ c
 #include "dinternv.cdk"
 #include "finternva.cdk"
       type(struct_columnData) :: lcolumng
+      type(struct_vco), pointer :: vco_anl
       integer jlev,jobs
       real*8 zhu,one,zpresa,zpresb,zpresad,zpresbd
 
+      vco_anl => col_getVco(lcolumng)
       one=1.0
       do jlev = 1,col_getNumLev(lcolumng)
         do jobs=1,col_getNumCol(lcolumng)
@@ -41,10 +43,10 @@ c
           lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
           lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(lcolumng,jlev,jobs,'TT'),one)
 
-          zpresb = lcolumng%vco%db_M(jlev)
-          zpresbd= lcolumng%vco%db_dhyb_M(jlev)
-          zpresa = lcolumng%vco%da_M(jlev)
-          zpresad= lcolumng%vco%da_dhyb_M(jlev)
+          zpresb = vco_anl%db_M(jlev)
+          zpresbd= vco_anl%db_dhyb_M(jlev)
+          zpresa = vco_anl%da_M(jlev)
+          zpresad= vco_anl%da_dhyb_M(jlev)
           lcolumng%rtapfac(jlev,jobs)= (zpresad+zpresbd*col_getElem(lcolumng,1,jobs,'P0'))
      &                        /(zpresa+zpresb*col_getElem(lcolumng,1,jobs,'P0'))
         enddo

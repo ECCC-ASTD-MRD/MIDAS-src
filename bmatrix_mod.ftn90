@@ -62,14 +62,13 @@ contains
     !
     integer na_vdim
     real*8         :: da_v(na_vdim)
-    real*8,pointer :: cvBhi(:),cvBen(:),field(:,:,:,:)
+    real*8,pointer :: cvBhi(:),cvBen(:)
     type(struct_gsv) :: statevector
 
     call tmg_start(51,'VAR_CH') !
 
     ! set analysis increment to zero
     call gsv_zero(statevector) 
-    field   => gsv_getField(statevector)
 
     call tmg_start(46,'B_HI')
     ! add 3D contribution to increment from BmatrixHI
@@ -83,7 +82,7 @@ contains
     call tmg_start(47,'B_ENS')
     ! add 4D contribution to increment from BmatrixEnsemble
     cvBen=>cvm_getSubVector(da_v,2)
-    if(associated(cvBen)) call ben_bsqrt(cvBen,field)
+    if(associated(cvBen)) call ben_bsqrt(cvBen,statevector)
     call tmg_stop(47)
 
     call tmg_stop (51)
@@ -99,19 +98,18 @@ contains
     !
     integer na_vdim
     real*8 da_v(na_vdim)
-    real*8,pointer :: cvBhi(:),cvBen(:),field(:,:,:,:) 
+    real*8,pointer :: cvBhi(:),cvBen(:)
     type(struct_gsv) :: statevector
 
     call tmg_start(51,'VAR_CH') 
 
     ! set gradient to zero
     da_v(:)=0.0d0
-    field   => gsv_getField(statevector)
 
     call tmg_start(65,'B_ENS_T')
     ! add contribution to gradient from BmatrixEnsemble
     cvBen=>cvm_getSubVector(da_v,2)
-    if(associated(cvBen)) call ben_bsqrtad(field,cvBen)
+    if(associated(cvBen)) call ben_bsqrtad(statevector,cvBen)
     call tmg_stop(65)
 
     ! adjoint of copy 3D increment to 4D increment

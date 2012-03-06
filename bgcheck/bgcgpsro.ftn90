@@ -26,6 +26,7 @@
 #include "comgpsro.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
+      type(struct_vco), pointer :: vco_trl
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
       REAL*8 ZETA(JPNFLEV)
@@ -62,7 +63,8 @@
       WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
 
       LSTAG = .FALSE.
-      if (lcolumnhr%vco%iversion .eq. 5002) LSTAG = .TRUE. 
+      vco_trl => col_getVco(lcolumnhr)
+      if (vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
@@ -74,7 +76,7 @@
 !C
       NGPSLEV=col_getNumLev(lcolumnhr)
       DO JL = 1, col_getNumLev(lcolumnhr)
-         ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
+         ZETA(JL) = vco_trl%dhyb_T(JL)
       ENDDO
 !C
 !C*    *        1.2 Read the NAMELIST NAMGGPSRO
@@ -141,8 +143,8 @@
                      ZPT = col_getPressure(lcolumnhr,1,JO,'TH')
                      ZMT = ZGZ(col_getNumLev(lcolumnhr))/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPR = lcolumnhr%vco%dprf_M
-                     ZCF = lcolumnhr%vco%drcf1
+                     ZPR = vco_trl%dprf_M
+                     ZCF = vco_trl%drcf1
 !C     
 !C     *              GPS profile structure:
 !C

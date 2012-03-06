@@ -287,7 +287,7 @@ MODULE gridStateVector_mod
   SUBROUTINE GSV_3dto4d(statevector)
     implicit none
     type(struct_gsv) :: statevector
-    integer          :: jstep
+    integer          :: jstep,jlon,jlev,jlat
 
     if(.not.statevector%allocated) then
       write(*,*) 'gridStateVector not yet allocated! Aborting.'
@@ -296,11 +296,21 @@ MODULE gridStateVector_mod
 
     if(statevector%numStep.eq.1) return
 
-    do jstep=1,statevector%numStep
-      if(jstep.ne.statevector%anltime) then
-        statevector%gd(:,:,:,jstep)= statevector%gd3d(:,:,:)
-      endif
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+    do jlat=1,statevector%nj
+      do jstep=1,statevector%numStep
+        if(jstep.ne.statevector%anltime) then
+          do jlev=1,statevector%nk
+            do jlon=1,statevector%ni
+              statevector%gd(jlon,jlev,jlat,jstep)= statevector%gd3d(jlon,jlev,jlat)
+            enddo
+          enddo
+        endif
+      enddo
     enddo
+!$OMP END DO
+!$OMP END PARALLEL
 
   END SUBROUTINE GSV_3dto4d
 
@@ -308,7 +318,7 @@ MODULE gridStateVector_mod
   SUBROUTINE GSV_3dto4dAdj(statevector)
     implicit none
     type(struct_gsv) :: statevector
-    integer          :: jstep
+    integer          :: jstep,jlon,jlev,jlat
     real(8),dimension(statevector%ni,statevector%nk,statevector%nj) :: gd3d_tmp
 
     if(.not.statevector%allocated) then
@@ -318,14 +328,38 @@ MODULE gridStateVector_mod
 
     if(statevector%numStep.eq.1) return
 
-    gd3d_tmp(:,:,:) = 0.0d0
-
-    do jstep=1,statevector%numStep
-        gd3d_tmp(:,:,:) = gd3d_tmp(:,:,:) +   &
-                                 statevector%gd(:,:,:,jstep)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jlat,jlev,jlon)    
+    do jlat=1,statevector%nj
+      do jlev=1,statevector%nk
+        do jlon=1,statevector%ni
+          gd3d_tmp(jlon,jlev,jlat) = 0.0d0
+        enddo
+      enddo
     enddo
-
-    statevector%gd3d(:,:,:) = gd3d_tmp(:,:,:)
+!$OMP END DO
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+    do jlat=1,statevector%nj
+      do jstep=1,statevector%numStep
+        do jlev=1,statevector%nk
+          do jlon=1,statevector%ni
+            gd3d_tmp(jlon,jlev,jlat) = gd3d_tmp(jlon,jlev,jlat) +   &
+                                       statevector%gd(jlon,jlev,jlat,jstep)
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP DO PRIVATE (jlat,jlev,jlon)    
+    do jlat=1,statevector%nj
+      do jlev=1,statevector%nk
+        do jlon=1,statevector%ni
+          statevector%gd3d(jlon,jlev,jlat) = gd3d_tmp(jlon,jlev,jlat)
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
 
   END SUBROUTINE GSV_3dto4dAdj
 

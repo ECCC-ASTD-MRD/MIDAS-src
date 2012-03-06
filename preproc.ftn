@@ -42,6 +42,8 @@
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
+      type(struct_vco), pointer :: vco_anl => null()
+      type(struct_vco), pointer :: vco_trl => null()
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine preproc--'
@@ -58,7 +60,8 @@
 !     Set vertical coordinate parameters from !! record in trial file
 !
       write(nulout,*)' preproc: Set vcoord parameters for trial grid'
-      call vco_SetupFromFile(lcolumnhr%vco,ninmpg(1),.false.)
+      call vco_SetupFromFile(vco_trl,ninmpg(1),.false.)
+      call col_setVco(lcolumnhr,vco_trl)
 !
 !     Initialize variables of the model states
 !
@@ -74,7 +77,8 @@
 !
 !     Initialisation of the analysis grid vertical coordinate
 !
-      call vco_AnlInit(lcolumng%vco)
+      call vco_AnlInit(vco_anl)
+      call col_setVco(lcolumng,vco_anl)
 !
 !     Initialization of post-processing
 !

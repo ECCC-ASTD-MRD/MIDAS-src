@@ -1671,67 +1671,23 @@ CONTAINS
       write(*,*) 'bMatrixHI not initialized'
       return
     endif
-    write(*,*) 'BHI_bSqrt: starting'
+
+    write(*,*) 'bhi_bsqrt: starting'
     call flush(6)
 
     call bhi_cain(controlVector_in,hiControlVector)
 
-    do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(varnamelist(jvar))) then
-        field => gsv_getField3D(statevector,varnamelist(jvar))
-        if(varnamelist(jvar).eq.'UU  ') then
-          ilev1=nspositVO
-        elseif(varnamelist(jvar).eq.'VV  ') then
-          ilev1=nspositDI
-        elseif(varnamelist(jvar).eq.'TT  ') then
-          ilev1=nspositTT
-        elseif(varnamelist(jvar).eq.'HU  ') then
-          ilev1=nspositQ
-        elseif(varnamelist(jvar).eq.'P0  ') then
-          ilev1=nspositPS
-        elseif(varnamelist(jvar).eq.'TG  ') then
-          ilev1=nspositTG
-        else
-          write(*,*) 'bhi_bsqrt: No covariances available for variable:',varnamelist(jvar)
-          call flush(6)
-          call qqexit(1)
-        endif
-        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
-        gd_out(:,ilev1:ilev2,:)=field(:,:,:)
-      endif
-    enddo
+    call copyFromStatevector(statevector,gd_out)
 
     call bhi_spa2gd(hiControlVector,gd_out)
 
-    do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(varnamelist(jvar))) then
-        field => gsv_getField3D(statevector,varnamelist(jvar))
-        if(varnamelist(jvar).eq.'UU  ') then
-          ilev1=nspositVO
-        elseif(varnamelist(jvar).eq.'VV  ') then
-          ilev1=nspositDI
-        elseif(varnamelist(jvar).eq.'TT  ') then
-          ilev1=nspositTT
-        elseif(varnamelist(jvar).eq.'HU  ') then
-          ilev1=nspositQ
-        elseif(varnamelist(jvar).eq.'P0  ') then
-          ilev1=nspositPS
-        elseif(varnamelist(jvar).eq.'TG  ') then
-          ilev1=nspositTG
-        else
-          write(*,*) 'bhi_bsqrt: No covariances available for variable:',varnamelist(jvar)
-          call flush(6)
-          call qqexit(1)
-        endif
-        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
-        field(:,:,:)=gd_out(:,ilev1:ilev2,:)
-      endif
-    enddo
+    call copyToStatevector(statevector,gd_out)
 
     deallocate(gd_out)
 
-    write(*,*) 'BHI_bSqrt: finished'
+    write(*,*) 'bhi_bsqrt: done'
     call flush(6)
+
   END SUBROUTINE BHI_bSqrt
 
 
@@ -1750,7 +1706,31 @@ CONTAINS
       return
     endif
 
+    write(*,*) 'bhi_bsqrtad: starting'
+    call flush(6)
+
     allocate(gd_in(ni_l,nkgdim_l,nj_l))
+
+    call copyFromStatevector(statevector,gd_in)
+
+    call bhi_spa2gdad(gd_in,hiControlVector)
+
+    call bhi_cainad(hiControlVector,controlVector_out)
+
+    deallocate(gd_in)
+
+    write(*,*) 'bhi_bsqrtad: done'
+    call flush(6)
+
+  END SUBROUTINE BHI_bSqrtAd
+
+
+  SUBROUTINE copyToStatevector(statevector,gd)
+    implicit none
+    type(struct_gsv) :: statevector
+    real*8          :: gd(:,:,:)
+    integer :: jvar, ilev1, ilev2
+    real*8, pointer :: field(:,:,:)
 
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(varnamelist(jvar))) then
@@ -1768,23 +1748,51 @@ CONTAINS
         elseif(varnamelist(jvar).eq.'TG  ') then
           ilev1=nspositTG
         else
-          write(*,*) 'bhi_bsqrtad: No covariances available for variable:',varnamelist(jvar)
+          write(*,*) 'bmatrixhi_mod: copyToStatevector: No covariances available for variable:',varnamelist(jvar)
           call flush(6)
           call qqexit(1)
         endif
         ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
-        gd_in(:,ilev1:ilev2,:)=field(:,:,:)
+        field(:,:,:)=gd(:,ilev1:ilev2,:)
       endif
     enddo
 
-    call bhi_spa2gdad(gd_in,hiControlVector)
+  END SUBROUTINE copyToStatevector
 
-    call bhi_cainad(hiControlVector,controlVector_out)
 
-    deallocate(gd_in)
+  SUBROUTINE copyFromStatevector(statevector,gd)
+    implicit none
+    type(struct_gsv) :: statevector
+    real*8          :: gd(:,:,:)
+    integer :: jvar, ilev1, ilev2
+    real*8, pointer :: field(:,:,:)
 
-  END SUBROUTINE BHI_bSqrtAd
+    do jvar=1,vnl_numvarmax 
+      if(gsv_varExist(varnamelist(jvar))) then
+        field => gsv_getField3D(statevector,varnamelist(jvar))
+        if(varnamelist(jvar).eq.'UU  ') then
+          ilev1=nspositVO
+        elseif(varnamelist(jvar).eq.'VV  ') then
+          ilev1=nspositDI
+        elseif(varnamelist(jvar).eq.'TT  ') then
+          ilev1=nspositTT
+        elseif(varnamelist(jvar).eq.'HU  ') then
+          ilev1=nspositQ
+        elseif(varnamelist(jvar).eq.'P0  ') then
+          ilev1=nspositPS
+        elseif(varnamelist(jvar).eq.'TG  ') then
+          ilev1=nspositTG
+        else
+          write(*,*) 'bmatrixhi_mod: copyFromStatevector: No covariances available for variable:',varnamelist(jvar)
+          call flush(6)
+          call qqexit(1)
+        endif
+        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
+        gd(:,ilev1:ilev2,:)=field(:,:,:)
+      endif
+    enddo
 
+  END SUBROUTINE copyFromStatevector
 
 
   SUBROUTINE BHI_cain(controlVector_in,hiControlVector_out)

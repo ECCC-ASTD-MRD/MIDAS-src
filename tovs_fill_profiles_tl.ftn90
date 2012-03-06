@@ -52,6 +52,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   type(struct_columnData) :: lcolumn,lcolumng
   real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
 
+  type(struct_vco), pointer :: vco_anl
   integer, allocatable :: iptobs    (:) 
   integer, allocatable :: iptobscma (:) 
 
@@ -93,6 +94,8 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !     .     ------------------------------------------------
                  
   100   continue
+
+  vco_anl => col_getVco(lcolumng)
 
   if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,col_getNumLev(lcolumn),1,'NA') ) then
      ilowlvl = col_getNumLev(lcolumn)
@@ -203,10 +206,10 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !            call llintv2 (zvlev(1,jn),zlq_tl(1,jn),zlq(1,jn), &
 !     &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
 !     &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
-            call intavgtl (zvlev(1,jn),lcolumng%vco%db_m,zt_tl(1,jn),zt(1,jn), &
+            call intavgtl (zvlev(1,jn),vco_anl%db_m,zt_tl(1,jn),zt(1,jn), &
      &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
      &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
-            call intavgtl (zvlev(1,jn),lcolumng%vco%db_m,zlq_tl(1,jn),zlq(1,jn), &
+            call intavgtl (zvlev(1,jn),vco_anl%db_m,zlq_tl(1,jn),zlq(1,jn), &
      &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
      &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
 

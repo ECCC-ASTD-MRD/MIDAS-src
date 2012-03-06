@@ -1,3 +1,206 @@
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE VEZUVINT(duuout, dvvout, duuin, dvvin, nio, nii)
+*
+#if defined (DOC)
+*
+***s/r VEZUVINT  -real*8 interface for real*4 subroutine EZUVINT.
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*          Simon Pellerin *ARMA/SMC June 2001
+*            . elimination of 2nd and 3rd dimensions
+*
+*Arguments
+*    Output:
+*      duuout
+*      dvvout
+*
+*    Input:
+*      duuin
+*      dvvin
+*      nii
+*      nio
+#endif
+
+      IMPLICIT NONE
+*implicits
+
+      real*8 duuout(nio), dvvout(nio),
+     $       duuin(nii) , dvvin(nii)
+      integer iun, nio, nii
+*
+      integer ikey, ierr, ileni, ileno, jk1
+      real bufuuout4, bufvvout4, bufuuin4, bufvvin4
+      pointer (pxbufuuin4, bufuuin4(nii))
+      pointer (pxbufvvin4, bufvvin4(nii))
+      pointer (pxbufuuout4, bufuuout4(nio))
+      pointer (pxbufvvout4, bufvvout4(nio))
+*
+      integer ezuvint
+      external ezuvint
+*-----7----------------------------------------------------------------
+
+      ileni = nii
+      ileno = nio
+      call hpalloc(pxbufuuin4,max(1,ileni),ierr,1)
+      call hpalloc(pxbufvvin4,max(1,ileni),ierr,1)
+      call hpalloc(pxbufuuout4,max(1,ileno),ierr,1)
+      call hpalloc(pxbufvvout4,max(1,ileno),ierr,1)
+
+      do jk1 = 1,nii
+        bufuuin4(jk1) = duuin(jk1)
+        bufvvin4(jk1) = dvvin(jk1)
+      enddo
+
+      ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
+
+      do jk1 = 1,nio
+        duuout(jk1) = bufuuout4(jk1)
+        dvvout(jk1) = bufvvout4(jk1)
+      enddo
+
+      call hpdeallc(pxbufuuin4,ierr,1)
+      call hpdeallc(pxbufvvin4,ierr,1)
+      call hpdeallc(pxbufuuout4,ierr,1)
+      call hpdeallc(pxbufvvout4,ierr,1)
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      FUNCTION VEZGDEF(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4,
+     &                 ax, ay)
+*
+#if defined (DOC)
+*
+***s/r VEZGDEF  -real*8 interface for real*4 function EZGDEF.
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*
+*Arguments: See EZGDEF code for documentation.
+*    Input:
+*      ni
+*      nj
+*      grtyp
+*      grtypref
+*      ig1
+*      ig2
+*      ig3
+*      ig4
+*      ax
+*      ay
+*
+*    Output:
+*      none
+*
+#endif
+      IMPLICIT NONE
+#include "comlun.cdk"
+*implicits
+
+      integer vezgdef
+
+      integer ni, nj, ig1, ig2, ig3, ig4
+      real*8 ax(*), ay(*)
+      character*1 grtyp, grtypref
+*
+      integer ier1,ier2,jk,ilenx,ileny
+      real bufax4, bufay4
+      pointer (pxabufax4, bufax4(ni))
+      pointer (pxabufay4, bufay4(nj))
+*
+      integer ezgdef
+      external ezgdef
+*-----7----------------------------------------------------------------
+      if      (grtyp .eq. 'Y') then
+        ilenx=max(1,ni*nj)
+        ileny=ilenx
+      else if (grtyp .eq. 'Z') then
+        ilenx=max(1,ni)
+        ileny=max(1,nj)
+      else
+       write(nulout,'()') 'STOP in VEZGDEF: Grid type not supported'
+       STOP
+      endif
+
+      call hpalloc(pxabufax4,ilenx,ier1,1)
+      call hpalloc(pxabufay4,ileny,ier1,1)
+
+      do jk = 1,ilenx
+        bufax4(jk) = ax(jk)
+      enddo
+      do jk = 1,ileny
+        bufay4(jk) = ay(jk)
+      enddo
+
+      ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4,
+     &              bufax4, bufay4)
+
+      call hpdeallc(pxabufax4,ier1,1)
+      call hpdeallc(pxabufay4,ier1,1)
+
+      vezgdef=ier2
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE VCXGAIG(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, 
+     $                 dlat, dlon) 
+*
+#if defined (DOC)
+*
+***s/r vcxgaig  -real*8 interface for real*4 subroutine CXGAIG. 
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*
+*Arguments: See CXGAIG code for documentation
+*
+*    Input:
+*      grtyp
+*      xlat0 
+*      xlon0
+*      dlat
+*      dlon
+*
+*    Output:
+*      ig1      
+*      ig2
+*      ig3
+*      ig4 
+#endif
+
+      IMPLICIT NONE
+*implicits
+     
+      integer ig1, ig2, ig3, ig4   
+      real*8 xlat0, xlon0, dlat, dlon 
+      character*1 grtyp 
+* 
+      real xlat04, xlon04, dlat4, dlon4
+*
+      external cxgaig 
+*-----7----------------------------------------------------------------
+
+      xlat04=xlat0
+      xlon04=xlon0
+      dlat4=dlat
+      dlon4=dlon
+
+      call cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat04, xlon04,
+     $            dlat4, dlon4)
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       FUNCTION VFSTLIR(fld8, iun, ni, nj, nk, datev, etiket,
      $                    ip1, ip2, ip3, typvar, nomvar)
 *
@@ -74,7 +277,9 @@
 
       return
       end
-
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       FUNCTION VFSTECR(fld8, work, npak, iun, dateo, deet, 
      $                    npas, ni, nj, nk, ip1, ip2, ip3, typvar, 
      $                    nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, 
@@ -138,217 +343,277 @@
 
       return
       end
-
-      subroutine getfldprm2(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid
-     &     ,cdvar,kstampv,knmaxlev,kinmpg,kulout,kip1style,kip1kind,
-     &      ktrials,koutmpg)
-      implicit none
-c
-      integer kulout,kstampv,knmaxlev,knlev,kgid
-      integer kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
-      integer ktrials, koutmpg  
-      integer kinmpg(ktrials)
-      character*(*) cdtypvar
-      character*(*) cdvar
-      character*(*) cdetiket
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      FUNCTION VFSTLUK(fld8, key, ni, nj, nk)
+*
 #if defined (DOC)
 *
-***s/r getfldprm2
+***s/r VFSTLUK  -real*8 interface for real*4 function FSTLUK. 
 *
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
 *
-*     Author  : S. Pellerin ARMA/AES Nov. 1999
-*
-*     Revision :
-*               J. Halle *CMDA/AES  dec 2000
-*                 - adapt to TOVS level 1b.
-*               S. Pellerin *ARMA/SMC Nov. 2001
-*                 - clean up write statements
-*               C. Charette *ARMA/SMC Sept 2004
-*                 - Conversion to hybrid vertical coordinate
-*                 - Added arguments kip1style,kip1kind
-*               Bin He   *ARMA/SMC* Jan.2008 
-*                  - added reading multiple trial files.  
-*               S. Pellerin, ARMA, August 2008
-*                  - Introduction of version 2
-*               L. Fillion - ARMA/EC - 20 May 2008 - Update to v_10_1_1.
-*               L. Fillion - ARMA/EC - 28 May 2008
-*               - Change declaration/allocation of ikeys array. -qcheck compiling option OK on IBM.
-*               L. Fillion - ARMA/EC - 9 Jan 2009 - Upgrade to v_10_1_2 of 3dvar. 
-*               L. Fillion - ARMA/EC - 9 FEB 2010 - Cosmetic.
-*
-**    Purpose: Get 3D grid parameters for a specific trial field
-*              and check for consitancies between grid parameters
-*              of the levels.
-*
-*Arguments
-*
-* Input:
-*     cdvar   : variable name to get the vertical levels from
-*     kstampv : valid date time stamp of the variable
-*     knmaxlev: maximum number of levels
-*     kinmpg  : file unit of trial field
-*     kulout  : standard output
-*     ktrials :  number of trial files.  
-*
-* Output:
-*     kip1s(knmaxlev) : list of ip1s of variable cdvar
-*     kip2            : ip2 for variable cdvar
-*     kip3            : ip3 for variable cdvar
-*     knlev           : number of levels of variable cdvar
-*     cdetiket        : etiket of field cdvar
-*     cdtypvar        : typvar of field cdvar
-*     kgid            : handle of the field descriptor
-*     kip1style       : style in which ip1 is encoded (15 or 31 bits)
-*     kip1kind        : kind of vertical coord encoded in ip1
-*     koutmpg         :  the unit which contains the selected records.  
+*Arguments: See FSTLUK code for documentation
+*    Input:
+*      key         
+*      
+*    Output:
+*      fld8
+*      ni
+*      nj
+*      nk
 *
 #endif
-      integer fstinl,fstprm,ezqkdef,newdate
-      integer ini,inj,ink,jlev,ier
-      integer idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf,
-     &     iextra1, iextra2, iextra3, iig12, iig22,
-     &     iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4,
-     &     inpas,inpas2, iswa, iubc, iip2, iip3
-c
-      integer ipmode,idate2,idate3,idatefull
-      integer k,ier1 
-      real    zlev
-      character *12 cletiket
-      character *4 clnomvar
-      character *3 clnomvar_3
-      character *2 cltypvar
-      character *1 clgrtyp2,clgrtyp,clstring
-      logical llflag
-      integer ikeys(knmaxlev)
-c
-      knlev = 0
-c
-      do k=1,ktrials
-         if(cdvar.eq.'U1') then
-           clnomvar_3='UT1'
-           ier = fstinl(kinmpg(k),INI,INJ, INK, kstampv, ' ', -1, -1, -1,
-     &       ' ',clnomvar_3,ikeys, knlev, knmaxlev)
-         else if(cdvar.eq.'V1') then
-           clnomvar_3='VT1'
-           ier = fstinl(kinmpg(k),ini,inj, ink, kstampv, ' ', -1, -1, -1,
-     &       ' ',clnomvar_3,ikeys, knlev, knmaxlev)
-         else
-!           write(kulout,*) 'getfldprm2: k = ',k
-!           write(kulout,*) 'getfldprm2: kinmpg(k) = ',kinmpg(k)
-!           write(kulout,*) 'getfldprm2: kstampv = ',kstampv
-!           write(kulout,*) 'getfldprm2: cdvar = ',cdvar
-!
-           ier = fstinl(kinmpg(k),INI,INJ, INK, kstampv, ' ', -1, -1, -1,
-     &       ' ',cdvar,IKEYS, KNLEV, knmaxlev)
-!
-!           write(kulout,*) 'getfldprm2: INI = ',INI
-!           write(kulout,*) 'getfldprm2: INJ = ',INJ
-!           write(kulout,*) 'getfldprm2: INK = ',INK
-!           write(kulout,*) 'getfldprm2: IKEYS = ',IKEYS
-!           write(kulout,*) 'getfldprm2: KNLEV = ',KNLEV
-         endif
-*
-         if(knlev > 0 ) then
-          ier1   = newdate(kstampv,idate2,idate3,-3)
 
-          idatefull = idate2*100 + idate3/1000000
-          idateo = -9999
-          ideet = -9999
-          inpas = -9999
-          cdetiket = '-9999999'
-          clgrtyp = '-'
-          kip2 = -9999
-          kip3 = -9999
-          cdtypvar = '-'
-          idatyp = -9999
-          iig1 = -9999
-          iig2 = -9999
-          iig3 = -9999
-          iig4 = -9999
-          llflag = .true.
-          koutmpg = kinmpg(k) 
-          exit 
-         endif  
-      enddo !! End of loop k   
-c
-      if (knlev.gt.0) then
-C      if (knlev.ne.0) then
-        do jlev = 1, knlev
-          ier = fstprm(ikeys(jlev), idateo2, ideet2, inpas2, ini, inj,
-     &         ink,inbits,idatyp2, kip1s(jlev),iip2, iip3,
-     &         cltypvar,clnomvar,cletiket,clgrtyp2, iig12, iig22,iig32
-     &         ,iig42,iswa,ilng,idltf,iubc,iextra1, iextra2, iextra3)
-          llflag = (llflag.and.(idateo.eq.idateo2.or.idateo.eq.-9999))
-          llflag = (llflag.and.(ideet.eq.ideet2.or.ideet.eq.-9999))
-          llflag = (llflag.and.(inpas.eq.inpas2.or.inpas.eq.-9999))
-!          llflag = (llflag.and.(cdetiket.eq.cletiket.or.cdetiket.eq.
-!     &         '-9999999'))
-          llflag = (llflag.and.(clgrtyp.eq.clgrtyp2.or.clgrtyp.eq.'-'))
-          llflag = (llflag.and.(kip2.eq.iip2.or.kip2.eq.-9999))
-          llflag = (llflag.and.(kip3.eq.iip3.or.kip3.eq.-9999))
-          llflag = (llflag.and.(cdtypvar.eq.cltypvar.or.cdtypvar.eq.
-     &         '-'))
-          llflag = (llflag.and.(idatyp.eq.idatyp2.or.idatyp.eq.-9999))
-          llflag = (llflag.and.(iig1.eq.iig12.or.iig1.eq.-9999))
-          llflag = (llflag.and.(iig2.eq.iig22.or.iig2.eq.-9999))
-          llflag = (llflag.and.(iig3.eq.iig32.or.iig3.eq.-9999))
-          llflag = (llflag.and.(iig4.eq.iig42.or.iig4.eq.-9999))
-          if (llflag) then
-            idateo = idateo2
-            ideet = ideet2
-            inpas = inpas2
-            cdetiket = cletiket
-            clgrtyp = clgrtyp2
-            kip2 = iip2
-            kip3 = iip3
-            cdtypvar = cltypvar
-            idatyp = idatyp2
-            iig1 = iig12
-            iig2 = iig22
-            iig3 = iig32
-            iig4 = iig42
-          else
-            write(kulout,*)
-     &           '****** Unit ', kinmpg
-     &           ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3'
-     &           ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 '
-     &           ,'for variable ',cdvar,' and datev, ',kstampv
-            write(*,*) 'aborting in getfldprm2!'
-            call exit(1)
-          endif
+      IMPLICIT NONE
+*implicits
+     
+      integer vfstluk
+      real*8 fld8(ni,nj,nk)
+      integer key, ni, nj, nk
+*
+      integer ikey, ierr, ilen, jk1, jk2, jk3
+      real buffer4
+      pointer (pxbuffer4,buffer4(ni,nj,nk))
+*
+      integer fstluk
+      external fstluk
+*-----7----------------------------------------------------------------
+
+      ilen = ni*nj*nk
+      call hpalloc(pxbuffer4,max(1,ilen),ierr,1)
+
+      ikey = fstluk(buffer4, key, ni, nj, nk)
+
+      do jk3 = 1,nk
+        do jk2 = 1,nj
+          do jk1 = 1,ni
+            fld8(jk1,jk2,jk3) = buffer4(jk1,jk2,jk3)
+          enddo
         enddo
-c
-        kgid = ezqkdef(ini,inj,clgrtyp,iig1,iig2,iig3,iig4,koutmpg)
-C
-C-------Determine the style in which ip1 is encoded (15bits or 31 bits)
-C       A value <= 32767 (2**16 -1)  means that ip1 is compacted in 15 bits
-C       Determine the type of P which was encoded in IP1
-C
-        if(kip1s(1) .le. 32767) then
-          kip1style = 3
-        else
-          kip1style = 2
-        endif
-c
-c-------Determine the type of P  (see doc. of convip)
-c
-        ipmode = -1
-        call CONVIP(kip1s(1),zlev,KIP1KIND,
-     &       ipmode,clstring, .false. )
-      else
-        do k=1,ktrials
-           ier = fstinl(kinmpg(k),ini,inj, ink, -1, ' ', -1, -1, -1,
-     &       ' ',cdvar,ikeys, knlev, knmaxlev)
-        enddo
-        write(kulout,*) 'Error - getfldprm2: no record found at time '
-     &       ,idatefull,' for field ',cdvar,' but',knlev,
-     &         ' records found in unit ',kinmpg(k)
-      endif
-c
+      enddo
+
+      call hpdeallc(pxbuffer4,ierr,1)
+
+      vfstluk=ikey 
+
       return
       end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE VCONVIP(ip, p8, kind, mode, string, flag)
+*
+#if defined (DOC)
+*
+***s/r VCONVIP  -real*8 interface for rmnlib real*4 subroutine CONVIP. 
+*
+*Author  : JM Belanger *CMDA/SMC Sept 2000
+*Revision:
+*
+*Arguments:  See CONVIP code for documentation.
+*
+*    Input:
+*      kind
+*      mode
+*      string
+*
+*    Output:
+*      flag
+*
+*    Input/Output:
+*      ip (mode < 0 / mode > 0)
+*      p8 (mode > 0 / mode < 0)      
+* 
+#endif
+
+      IMPLICIT NONE
+*implicits
+     
+      integer ip, kind, mode
+      real*8 p8
+      character*(*) string 
+      logical flag
+* 
+      real p4
+*
+      external convip 
+*-----7----------------------------------------------------------------
+
+*     conversion p --> ip
+      if (mode .gt. 0) then
+        p4=p8
+        call convip(ip, p4, kind, mode, string, flag)
+      endif
+
+*     conversion ip --> p
+      if (mode .lt. 0) then
+        call convip(ip, p4, kind, mode, string, flag)
+        p8=p4
+      endif
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE VSORT(array8,n)
+*
+#if defined (DOC)
+*
+***s/r VSORT  -real*8 interface for RMNLIB real*4 subroutine SORT. 
+*
+*Author  : JM Belanger *CMDA/SMC Sept 2000
+*Revision:
+*
+*Arguments: See SORT code for documentation
+*    Input:
+*      array8   
+*      n        
+*    Output:
+*      array8         
+*
+#endif
+
+      IMPLICIT NONE
+*implicits
+     
+      integer n
+      real*8 array8(n)
+*
+      integer ierr,jk
+      real buffer4
+      pointer (pxbuffer4,buffer4(n))
+*
+      external sort
+*-----7----------------------------------------------------------------
+
+      call hpalloc(pxbuffer4,max(1,n),ierr,1)
+
+      do jk = 1,n
+        buffer4(jk) = array8(jk)
+      enddo
+
+      call sort(buffer4,n)
+
+      do jk = 1,n
+        array8(jk) = buffer4(jk)
+      enddo
+
+      call hpdeallc(pxbuffer4,ierr,1)
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      FUNCTION VMRFOPR(optnom,opvalr8)
+*
+#if defined (DOC)
+*
+***s/r VMRFOPR  -real*8 interface for real*4 function MRFOPR. 
+*
+*Author  : JM Belanger *CMDA/SMC Sept 2000
+*Revision:
+*
+*Arguments: See MRFOPR code for documentation
+*    Input:
+*      optnom
+*      opvalr8
+*    Output:
+*      none
+#endif
+      IMPLICIT NONE
+*implicits
+
+      integer VMRFOPR 
+      real*8 opvalr8
+      character*(*) optnom
+*
+      integer ier
+      real opvalr4
+*
+      integer MRFOPR
+      external MRFOPR
+*-----7----------------------------------------------------------------
+      opvalr4=opvalr8 
+
+      ier = MRFOPR(optnom,opvalr4)
+
+      vmrfopr=ier
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      FUNCTION VMRBCVT(liste,tblval,rval8,nele,nval,nt,mode)
+*
+#if defined (DOC)
+*
+***s/r VMRBCVT  -real*8 interface for real*8 function MRBCVT. 
+*
+*Author  : JM Belanger *CMDA/SMC Sept 2000
+*Revision:
+*
+*Arguments: See MRBCVT code for documentation
+*    Input:
+*      liste
+*      nele
+*      nval
+*      nt
+*      mode
+*    Output:
+*
+*    Input/Output
+*      rval8  (mode=1/mode=0)
+*      tblval (mode=0/mode=1)
+*
+#endif
+      IMPLICIT NONE
+*implicits
+
+      integer VMRBCVT 
+
+      integer nele,nval,nt,mode
+      integer liste(nele),tblval(nele,nval,nt)
+      real*8 rval8(nele,nval,nt)
+*
+      integer ier1,ier2,j1,j2,j3,ilen
+      real rval4
+      pointer (pxrval4, rval4(nele,nval,nt))
+*
+      integer mrbcvt
+      external mrbcvt
+*-----7----------------------------------------------------------------
+      ilen=nele*nval*nt
+      call hpalloc(pxrval4,max(1,ilen),ier1,1)
+
+*     rval8 ---> tblval
+         if (mode .eq. 1) then
+         rval4(:,:,:) = rval8(:,:,:)
+         ier2 = mrbcvt(liste,tblval,rval4,nele,nval,nt,mode)
+      endif
 
 
+*     tblval ---> rval8
+      if (mode .eq. 0) then
+         rval4(:,:,:)=tblval(:,:,:)
+         ier2 = mrbcvt(liste,tblval,rval4,nele,nval,nt,mode)
+         rval8(:,:,:) = rval4(:,:,:)
+      endif
+
+      call hpdeallc(pxrval4,ier1,1)
+
+      vmrbcvt=ier2
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       SUBROUTINE VEZSINT(zout8, zin8, nio, njo, nko, nii, nji, nki)
 *
 #if defined (DOC)

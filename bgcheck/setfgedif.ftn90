@@ -24,6 +24,7 @@
 
       type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
+      type(struct_vco), pointer :: vco_anl
       CHARACTER*2 CDFAM
       INTEGER JF
       INTEGER IBEGIN  , ILAST
@@ -58,9 +59,10 @@
 !C
 !C     *     Eta vector:
 !C
+      vco_anl => col_getVco(lcolumng)
       NGPSLEV=col_getNumLev(lcolumng)
       DO JL = 1, col_getNumLev(lcolumng)
-         ZETA(JL) = lcolumng%VCO%DHYB_M(JL)
+         ZETA(JL) = vco_anl%DHYB_M(JL)
       ENDDO  
 
       DO JF = 1,NFILES
@@ -116,7 +118,7 @@
                      ZP0 = col_getElem(lcolumng,1,JO,'P0')
                      ZMT = ZGZ(col_getNumLev(lcolumng))/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPT = lcolumng%vco%dpt_M
+                     ZPT = vco_anl%dpt_M
 !C     
 !C     *              GPS profile structure:
 !C

@@ -25,6 +25,7 @@
 !--------------------------------------------------------------------------
 MODULE BmatrixEnsemble
   use mpi
+  use gridStateVector_mod
   implicit none
   save
   private
@@ -44,6 +45,7 @@ MODULE BmatrixEnsemble
   integer             :: ntrunc_l,nla_l
   integer             :: nens,cvDim_l,cvDimPerMember_l
   integer             :: ntime_l
+  integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
   character(len=256)  :: enspathname,ensfilebasename
 
@@ -250,7 +252,6 @@ CONTAINS
     integer :: ji,jj,jt,jk,jens,jpe,jlatband
     integer :: iens,batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
-    integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
     integer :: readFilePE(192),allLatBeg(192),allLatEnd(192)
     integer :: stamp_last,newdate
     real*8  :: delhh
@@ -688,19 +689,19 @@ CONTAINS
   END SUBROUTINE setupLocalization
 
 
-  SUBROUTINE BEN_BSqrt(controlVector_in,increment_out)
+  SUBROUTINE BEN_BSqrt(controlVector_in,statevector)
     implicit none
 
     real*8    :: controlVector_in(cvDim_l) 
-    real*8    :: increment_out(ni_l,nkgdimInc,nj_l,ntime_l)
-
+    type(struct_gsv) :: statevector
     real*8,allocatable  :: incrementLocal2(:,:,:,:)
     real*8,allocatable  :: incrementLocal(:,:,:,:)
     real*8,allocatable  :: incrementMax(:,:,:,:)
-    real*8     :: ensControlVector(nla_l,2,nLevEns)
+    real*8    :: ensControlVector(nla_l,2,nLevEns)
     real*8    :: ensAmplitude(ni_l,nLevEns,nj_l)
+    real*8, pointer :: field(:,:,:,:)
     integer   :: memberIndex
-    integer   :: ierr,nsize,jj,jk,ji,jt,jkInc
+    integer   :: ierr,nsize,jj,jk,ji,jt,jkInc,jvar,ilev1,ilev2,topLevOffset
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -712,7 +713,7 @@ CONTAINS
       return
     endif
 
-    write(*,*) 'ben_bsqrt, cvdim_l=',cvdim_l
+    write(*,*) 'ben_bsqrt: starting'
     write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,mpi_myLatBeg,maxLatEnd,maxLatPerPE,mpi_nprocs,nla_l,nLevInc,nLevEns
     call flush(6)
 
@@ -778,15 +779,44 @@ CONTAINS
 
     call tmg_start(38,'comm_gd2')
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JT,JJ,JK,JI)
+!$OMP DO PRIVATE (JT,JJ,JK,JI,JVAR,ILEV1,ILEV2,jkInc,field,topLevOffset)
     do jj=1,nj_l
-      do jt=1,ntime_l
-        do jk=1,nkgdimEns
-          jkInc=kIndexInc(jk)
-          do ji=1,ni_l
-            increment_out(ji,jkInc,jj,jt)=increment_out(ji,jkInc,jj,jt)+incrementMax(ji,jk,jt,jj)
+      do jvar=1,vnl_numvarmax 
+        if(gsv_varExist(varnamelist(jvar))) then
+          field => gsv_getField(statevector,varnamelist(jvar))
+          if(varnamelist(jvar).eq.'UU  ') then
+            ilev1=ngposituu
+          elseif(varnamelist(jvar).eq.'VV  ') then
+            ilev1=ngpositvv
+          elseif(varnamelist(jvar).eq.'TT  ') then
+            ilev1=ngposittt
+          elseif(varnamelist(jvar).eq.'HU  ') then
+            ilev1=ngpositq
+          elseif(varnamelist(jvar).eq.'P0  ') then
+            ilev1=ngpositps
+          elseif(varnamelist(jvar).eq.'TG  ') then
+            ilev1=ngposittg
+          else
+            write(*,*) 'ben_bsqrt: No covariances available for variable:',varnamelist(jvar)
+            call flush(6)
+            call qqexit(1)
+          endif
+          if(vnl_vartypeFromVarname(varNameList(jvar)).eq.'SF') then
+            ilev2=ilev1
+            topLevOffset=1
+          else
+            ilev2=ilev1 - 1 + nlevEns
+            topLevOffset= topLevIndex
+          endif
+          do jt=1,ntime_l
+            do jk=ilev1,ilev2
+              jkInc=jk-ilev1 + topLevOffset
+              do ji=1,ni_l
+                field(ji,jkInc,jj,jt)=field(ji,jkInc,jj,jt)+incrementMax(ji,jk,jt,jj)
+              enddo
+            enddo
           enddo
-        enddo
+        endif
       enddo
     enddo
 !$OMP END DO
@@ -797,20 +827,27 @@ CONTAINS
     deallocate(incrementLocal)
     deallocate(incrementMax)
 
+    write(*,*) 'ben_bsqrt: done'
+    call flush(6)
+
     return
   END SUBROUTINE BEN_BSqrt
 
 
-  SUBROUTINE BEN_BSqrtAd(increment_in,controlVector_out)
+  SUBROUTINE BEN_BSqrtAd(statevector,controlVector_out)
     implicit none
 
     real*8    :: controlVector_out(cvDim_l) 
-    real*8    :: increment_in(ni_l,nkgdimInc,nj_l,ntime_l)
+    type(struct_gsv) :: statevector
 
+    real*8, pointer :: field(:,:,:,:)
     real*8,allocatable :: incrementLocal(:,:,:,:)
     real*8    :: ensControlVector(nla_l,2,nLevEns) 
     real*8    :: ensAmplitude(ni_l,nLevEns,nj_l)
-    integer   :: memberIndex,jj,jk,ji,jt,jkinc,nsize,ierr
+    integer   :: memberIndex,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
+
+    write(*,*) 'ben_bsqrtad: starting'
+    call flush(6)
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -829,15 +866,44 @@ CONTAINS
     endif
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JJ,JT,JK,JI)
+!$OMP DO PRIVATE (JJ,JT,JK,JI,JVAR,ILEV1,ILEV2,jkInc,field,topLevOffset)
     do jj=mpi_myLatBeg,mpi_myLatEnd
-      do jt=1,ntime_l
-        do jk=1,nkgdimEns
-          jkInc=kIndexInc(jk)
-          do ji=1,ni_l
-            incrementLocal(ji,jk,jj,jt)=increment_in(ji,jkInc,jj,jt)
+      do jvar=1,vnl_numvarmax 
+        if(gsv_varExist(varnamelist(jvar))) then
+          field => gsv_getField(statevector,varnamelist(jvar))
+          if(varnamelist(jvar).eq.'UU  ') then
+            ilev1=ngposituu
+          elseif(varnamelist(jvar).eq.'VV  ') then
+            ilev1=ngpositvv
+          elseif(varnamelist(jvar).eq.'TT  ') then
+            ilev1=ngposittt
+          elseif(varnamelist(jvar).eq.'HU  ') then
+            ilev1=ngpositq
+          elseif(varnamelist(jvar).eq.'P0  ') then
+            ilev1=ngpositps
+          elseif(varnamelist(jvar).eq.'TG  ') then
+            ilev1=ngposittg
+          else
+            write(*,*) 'ben_bsqrtad: No covariances available for variable:',varnamelist(jvar)
+            call flush(6)
+            call qqexit(1)
+          endif
+          if(vnl_vartypeFromVarname(varNameList(jvar)).eq.'SF') then
+            ilev2=ilev1
+            topLevOffset=1
+          else
+            ilev2=ilev1 - 1 + nlevEns
+            topLevOffset= topLevIndex
+          endif
+          do jt=1,ntime_l
+            do jk=ilev1,ilev2
+              jkInc=jk-ilev1 + topLevOffset
+              do ji=1,ni_l
+                incrementLocal(ji,jk,jj,jt)=field(ji,jkInc,jj,jt)
+              enddo
+            enddo
           enddo
-        enddo
+        endif
       enddo
     enddo
 !$OMP END DO
@@ -856,6 +922,9 @@ CONTAINS
     call tmg_stop(37)
 
     deallocate(incrementLocal)
+
+    write(*,*) 'ben_bsqrtad: done'
+    call flush(6)
 
     return
   END SUBROUTINE BEN_BSqrtAd

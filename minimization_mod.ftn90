@@ -611,7 +611,7 @@ CONTAINS
 
        call tmg_stop(74)
 
-       statevector%vco => lcolumng%vco
+       call gsv_setVco(statevector,col_getVco(lcolumng))
        call gsv_allocate(statevector,ni,nj,nt)
 
        call bmat_sqrtB(da_v,na_dim,statevector)

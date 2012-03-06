@@ -46,6 +46,7 @@
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO, PJOB, PJOM, PJOX, PJO1
+      type(struct_vco), pointer :: vco_trl
 C
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
@@ -77,16 +78,17 @@ C
 
       WRITE(NULOUT,*)'ENTER SETERRGPSRO'
 C
+      vco_trl => col_getVco(lcolumnhr)
       LSTAG = .FALSE.
-      if (lcolumnhr%vco%iversion .eq. 5002) then
+      if (vco_trl%iversion .eq. 5002) then
         LSTAG = .TRUE. 
         WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-        WRITE(NULOUT,*)'VCODE= ',lcolumnhr%vco%iversion,' LSTAG= ',LSTAG
+        WRITE(NULOUT,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
         WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
         WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
       else
         WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-        WRITE(NULOUT,*)'VCODE= ',lcolumnhr%vco%iversion,' LSTAG= ',LSTAG
+        WRITE(NULOUT,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
       endif
 C
 C     * 1.  Initializations
@@ -97,7 +99,7 @@ C     *    .        ----------
 C
       NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
       DO JL = 1, NGPSLEV
-         ZETA(JL) = lcolumnhr%vco%dhyb_T(JL)
+         ZETA(JL) = vco_trl%dhyb_T(JL)
       ENDDO
 C
 C*    *        1.2 Read the NAMELIST NAMGGPSRO
@@ -168,10 +170,8 @@ CCCCCCCCCCC          THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
                ZPT = col_getPressure(LCOLUMNHR,1,INDEX_HEADER,'TH')
                ZMT = ZGZ(col_getNumLev(LCOLUMNHR,'TH'))/RG
                ZMT = gpsgeopotential(Lat, ZMT)/RG
-!!               ZPR = vco_anl%dprf_M
-!!               ZCF = vco_anl%drcf1
-               ZPR = lcolumnhr%vco%dprf_M
-               ZCF = lcolumnhr%vco%drcf1
+               ZPR = vco_trl%dprf_M
+               ZCF = vco_trl%drcf1
 C     
 C     *        GPS profile structure:
 C

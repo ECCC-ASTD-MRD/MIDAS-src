@@ -42,6 +42,7 @@ C
       type(struct_gsv) :: statevectorg
       type(struct_columnData) :: lcolumnhr
 
+      type(struct_vco), pointer :: vco_anl, vco_trl
       logical llvint
       INTEGER ibrpstamp
       integer igdgid,ezqkdef
@@ -62,6 +63,9 @@ C
       llvint = .true.
 !
       ibrpstamp=gsv_getDateStamp(statevectorg)
+!
+      vco_anl => gsv_getVco(statevectorg)
+      vco_trl => col_getVco(lcolumnhr)
 !
 !*1   Define Grids
 !     ************
@@ -400,13 +404,13 @@ c
         ierr = ezsetopt('INTERP_DEGREE','LINEAR')
         iset = ezdefset(ktrggid,ip0gid)
         ierr = vezsint(zps,zpstrl,kcol,1,1,ini,inj,1)
-        call vco_calcpres(statevectorg%vco,zpresanl,knk,zps,kcol)
+        call vco_calcpres(vco_anl,zpresanl,knk,zps,kcol)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-        if(lcolumnhr%vco%iversion .eq. 5002) then
-          call calcpres_vgrid(lcolumnhr%vco%vgrid,zps,iip1s
+        if(vco_trl%iversion .eq. 5002) then
+          call calcpres_vgrid(vco_trl%vgrid,zps,iip1s
      &           ,itrlnlev,kcol,kulout,zprestrl)
           do jlev = 1,itrlnlev
             do jcol=1,kcol
@@ -415,7 +419,7 @@ c
             enddo
           enddo
         else ! trial has unstaggered levels
-          call vco_calcpres(lcolumnhr%vco,zprestrl,itrlnlev,zps,kcol)
+          call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcol)
         endif
 c
         do jlev = 1, itrlnlev
@@ -452,16 +456,16 @@ c
           ierr = ezsetopt('INTERP_DEGREE','LINEAR')
           iset = ezdefset(kvvgid,ip0gid)
           ierr = vezsint(zps,zpstrl,kcolvv,1,1,ini,inj,1)
-          call vco_calcpres(statevectorg%vco,zpresanl,knk,zps,kcolvv)
+          call vco_calcpres(vco_anl,zpresanl,knk,zps,kcolvv)
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-          if(lcolumnhr%vco%iversion .eq. 5002) then
-            call calcpres_vgrid(lcolumnhr%vco%vgrid,zps,iip1s
+          if(vco_trl%iversion .eq. 5002) then
+            call calcpres_vgrid(vco_trl%vgrid,zps,iip1s
      &           ,itrlnlev,kcolvv,kulout,zprestrl)
           else
-            call vco_calcpres(lcolumnhr%vco,zprestrl,itrlnlev,zps,kcolvv)
+            call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcolvv)
           endif
 c
           do jlev = 1, itrlnlev

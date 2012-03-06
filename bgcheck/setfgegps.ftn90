@@ -21,6 +21,7 @@
 #include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
+      type(struct_vco), pointer :: vco_anl
       REAL*8 ZLAT
       REAL*8 ZLON
       REAL*8, allocatable :: ZETA(:)
@@ -73,8 +74,9 @@
 !C     *    .   1.1  Eta vector
 !C     *    .        ----------
 !C      
+      vco_anl => col_getVco(lcolumng)
       DO JL = 1, col_getNumLev(LCOLUMNG)
-         ZETA(JL) = lcolumng%VCO%DHYB_M(JL)
+         ZETA(JL) = vco_anl%DHYB_M(JL)
       ENDDO
 !C
 !C     Loop over all observation files (all observation types)

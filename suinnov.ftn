@@ -48,6 +48,7 @@ c
       type(struct_columnData) :: lcolumnhr,lcolumng
       type(struct_obs) :: lobsSpaceData
 c
+      type(struct_vco), pointer :: vco_trl
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
@@ -147,7 +148,8 @@ C
 !ccc They are being tested in the regional LAM analysis
 !ccc So DOBSGPSGB was not adapted to staggered at this time 
 !ccc (Jan 18,2011)
-      if(lcolumnhr%vco%iversion .eq. 5001 ) then
+      vco_trl => col_getVco(lcolumnhr)
+      if(vco_trl%iversion .eq. 5001 ) then
         CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
       endif
 
