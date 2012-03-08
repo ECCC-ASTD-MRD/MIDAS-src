@@ -7,14 +7,13 @@
 !     NULOUT   : standard output unit
 !     NULSTAT  : Error of observation statistic file unit
 !     NINMPG   : Unit for trial fields file (an array)
-!     NULINCLR : Unit of low resolution increments file
 !     NTRIALS  :  number of trial files  . 
 !
 #endif
-      integer nulout,nulstat,nulinclr
+      integer nulout,nulstat
       integer ntrials 
       integer ninmpg(500)  
 
-      COMMON /COMLUN/nulout,nulstat,nulinclr
+      COMMON /COMLUN/nulout,nulstat
       COMMON /COMLUN/ninmpg,ntrials
 

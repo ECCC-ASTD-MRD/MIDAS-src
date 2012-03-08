@@ -112,7 +112,7 @@ module masks_mod
 !*          P. Koclas *CMC/AES in September 1994
 !
       type(struct_obs) :: lobsSpaceData
-      CHARACTER(len=2) :: CDFAM
+      CHARACTER(len=*) :: CDFAM
       INTEGER ITYP
       integer :: index_header, index_body
 !C
@@ -190,7 +190,7 @@ module masks_mod
       SUBROUTINE oda_maskpp(lobsSpaceData,CDFAM)
 !* Argument declarations
       type(struct_obs) :: lobsSpaceData
-      CHARACTER *2 CDFAM ! Family code to process (UA,SW,AI)
+      CHARACTER(len=*) :: CDFAM ! Family code to process (UA,SW,AI)
 !*
 !*Purpose : Defines a mask of assimilated and diagnosed data inside
 !*          and outside the vertical domain
@@ -424,7 +424,7 @@ end subroutine oda_maskto
 !*          J. St-James, CMDA/SMC in July 2003
 !*
       type(struct_obs) :: lobsSpaceData
-      CHARACTER *2 CDFAM
+      CHARACTER(len=*) :: CDFAM
 
       integer :: index_header, index_body
       LOGICAL LLOK

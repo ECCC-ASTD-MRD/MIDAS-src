@@ -298,10 +298,10 @@ CONTAINS
            ,ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf  &
            ,iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
     integer iliste(100),idate(100),idimax,infon,iheures,idateo
-    character*2 cltypvar
-    character*1 clgrtyp
-    character*4 clnomvar
-    character*12 cletiket
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
     integer vfstlir,vfstecr,fstprm,fstinf
     integer fnom,fstouv,fstfrm,fclos
 
@@ -1313,7 +1313,7 @@ CONTAINS
     integer ikey, jlevo, jlat
     real*8 zsp(0:ntrunc_l,nflev_l),zspbuf(nflev_l),zwork
     real*8 zleg(0:ntrunc_l,nj_l),zgr(nj_l,nflev_l),zgsig(1,nj_l,nflev_l),zstddev(nksdim2_l,nj_l)
-    character*2 clvar3d(inbrvar3d),clvar2d(inbrvar2d)
+    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
     integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
@@ -1326,8 +1326,8 @@ CONTAINS
     character*12 cletiket
     integer vfstlir,vfstecr,fstprm,fstinf
 
-    data clvar3d/'PP','UC','UT','LQ','TB'/
-    data clvar2d/'UP','PB'/
+    data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
+    data varName2d/'UP  ','PB  '/
 
     call gst_zlegpol(zleg)
 
@@ -1347,7 +1347,7 @@ CONTAINS
 
     !write(*,*) 'Reading 3D variables'
     do jvar = 1, inbrvar3d
-      clnomvar = clvar3d(jvar)
+      clnomvar = varName3d(jvar)
       !write(*,*)'Reading ',clnomvar
       do jn = 0,ntrunc_l
         ip2 = jn
@@ -1428,7 +1428,7 @@ CONTAINS
 
     !write(*,*) 'Reading 2D variables'
     do jvar = 1, inbrvar2d
-      clnomvar = clvar2d(jvar)
+      clnomvar = varName2d(jvar)
       !write(*,*)'Reading ',clnomvar
       do jn = 0,ntrunc_l
         ip2 = jn

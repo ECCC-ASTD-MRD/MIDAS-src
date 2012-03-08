@@ -36,7 +36,7 @@
       use bufr
       IMPLICIT NONE
       REAL*8 PJO
-      CHARACTER *2 CDFAM
+      CHARACTER(len=*) :: CDFAM
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,IDBURP
@@ -49,7 +49,8 @@
       REAL*8 columnVarB,columnVarT,lqtoes
       REAL*4 ZLAT,ZLON
       LOGICAL LLPRINT,LLNOXTR
-      CHARACTER*2 varType,varName
+      CHARACTER(len=4) :: varName
+      CHARACTER(len=2) :: varType
       real*8,pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
 !
 !     Temperature lapse rate for extrapolation of gz below model surface

@@ -27,8 +27,8 @@ C
 * L. Fillion - ARMA/EC - 16 Sept 2009 - Print kni,knj,knk to facilitate understanding of printout!.
 *
       IMPLICIT NONE
-      character*15 cdsub
-      character*3 cdfield
+      character(len=*) :: cdsub
+      character(len=*) :: cdfield
       integer kimax,kjmax,kkmax,kimin,kjmin,kkmin
       integer kni,knj,knk
       real*8 pmax,pmin,pfield(kni,knk,knj)

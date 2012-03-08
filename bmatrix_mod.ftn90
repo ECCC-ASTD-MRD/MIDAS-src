@@ -8,21 +8,19 @@ MODULE BMatrix_mod
 
 contains
 
-  SUBROUTINE bmat_setup(lcolumng,datestamp)
+  SUBROUTINE bmat_setup(vco_anl,datestamp)
 !
 !**s/r bmat_setup  - Initializes the analysis Background term for the specific analysis configuration used.
 !
       IMPLICIT NONE
 #include "comfilt.cdk"
 !
-      type(struct_columnData) :: lcolumng
       type(struct_vco), pointer :: vco_anl
       integer  cvdimens,cvdimhi,datestamp
       real*8 zps(1)
       real*8, pointer :: pressureProfile(:,:),pressureProfile1(:)
       integer jlev
 
-      vco_anl => col_getVco(lcolumng)
       allocate(pressureProfile(vco_anl%nlev_M,1))
       pressureProfile1 => pressureProfile(:,1)
 

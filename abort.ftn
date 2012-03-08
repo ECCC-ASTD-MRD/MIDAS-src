@@ -38,7 +38,7 @@
 *     i     CDMESSAGE: message to be printed
 #endif
       IMPLICIT NONE
-      CHARACTER*(*) CDMESSAGE
+      CHARACTER(len=*) :: CDMESSAGE
       INTEGER KULOUT
 C
       WRITE(KULOUT,9000)CDMESSAGE

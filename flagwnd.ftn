@@ -23,7 +23,7 @@
 CCC
       INTEGER KNELE,KNVAL,KINT,KIDBRP,KLAT,KLON
       INTEGER KLIST(KNELE),KFLAG(KNELE,KNVAL,KINT)
-      CHARACTER *9 CSTN
+      CHARACTER(len=*) :: CSTN
 *
 #if defined (DOC)
 ************************************************************************

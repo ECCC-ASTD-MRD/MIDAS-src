@@ -1,4 +1,4 @@
-      SUBROUTINE varout(statevector,zes,ztv,zgz,zhu)
+      SUBROUTINE varout(kulfile,statevector,zes,ztv,zgz,zhu)
 #if defined (DOC)
 *
 ***s/r varout  - Transfert of the content of COMGD0 on a RPN
@@ -12,207 +12,115 @@ C
       use gridStateVector_mod
       use minimization_mod
       IMPLICIT NONE
-*implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
 #include "compost.cdk"
-#include "rpnstd.cdk"
-*
+      integer kulfile
       type(struct_gsv) :: statevector
       real*8 :: zes(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: ztv(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: zgz(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: zhu(statevector%ni,statevector%nlev,statevector%nj)
-      integer write_encode_hyb
-      integer jvar,jlev
-      real*8 zlowvar,zlowwind
-      integer itrlgid,ip0gid,iip2,iip3
-      integer iip1s_inclr(jpnflev),iip1s_trl(jpnflev)
-      integer ip1_pak_trl,ip1_vco_trl
-      integer ip1_vco_inclr,iip1_hyb_prm
-      integer itrlnlev,ibrpstamp,inpak_inc
+      integer write_encode_hyb,vfstecr
+      integer jvar,jlev,ierr
+      integer ibrpstamp,inpak_inc
       real*8 zwork
-      real*8 zlev_inclr(jpnflev)
       real   zptop4, zpref4,zrcoef4,zdummy
-      integer  koutmpg
-      integer ndeet,nip2,npas,nidatyp,nig1,nig2,nig3,nig4
-      character*1 CGRTYP
-      character*1 cltypinc
-      pointer (pzlowvar,zlowvar(statevector%ni,statevector%nj,statevector%nlev))
-      pointer (pzlowwind,zlowwind(statevector%ni,statevector%nj,statevector%nlev))
+      integer nip1,nip2,nip3,ndeet,npas,nidatyp,nig1,nig2,nig3,nig4
+      character(len=1)  :: cgrtyp
+      character(len=2)  :: cltypinc
+      character(len=12) :: cletiket
+      real*8 :: zlowvar(statevector%ni,statevector%nj)
       LOGICAL llimplemented,llvarout
-      data cltypinc /'R'/
 !
-      WRITE(NULOUT,FMT='(/,4X,"Starting VAROUT: v_10_2_1",//)')
+      WRITE(*,FMT='(/,4X,"Starting VAROUT",//)')
 c
-      CALL HPALLOC(PZLOWVAR,MAX(STATEVECTOR%NI*STATEVECTOR%NJ*statevector%nlev,1),IERR,8)
-      call hpalloc(pzlowwind,statevector%ni*statevector%nj*statevector%nlev,ierr,8)
-C
-      WRITE(NULOUT,FMT='(/,4X,''Transfer of the gridpoint model'',
+      if(kulfile.eq.0) then
+        write(*,*) 'varout: unit number for rebm file not valid!'
+        return
+      endif
+
+      WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model'',
      S     '' state on file at iteration No.'',I3)')
      S     min_niter
 c
-      ibrpstamp=gsv_getDateStamp(statevector)
-
-      write(nulout,*) 'Writing fields for ibrpstamp= ',ibrpstamp
-
       ndeet=0
       NIP2       =  0
+      NIP3       =  min_niter
       NPAS       =  0
       NIDATYP    =  1
       CGRTYP     = 'G'
+      CLTYPINC   = 'R'
       NIG1       =  0
       NIG2       =  0
       NIG3       =  0
       NIG4       =  0
-c
-c ****************************************************************
-c     For a reason that I (jwb) don't understand, this call to getfldprm2
-c     is necessary for the next call to getfldprm to succeed.
-      clnomvar = 'P0'
-c
-      call getfldprm2(IIP1S_TRL,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &     ,IP0GID,clnomvar,ibrpstamp,jpnflev,ninmpg
-     &     ,nulout,ip1_pak_trl,ip1_vco_trl,ntrials,koutmpg)
-c
-      if(cetikinc.ne.'UNDEFINED***') then
-        cletiket=cetikinc
-      endif
+      cletiket=cetikinc
+      ibrpstamp=gsv_getDateStamp(statevector)
+
+      write(*,*) 'Writing fields for ibrpstamp= ',ibrpstamp
 c
 c ****************************************************************
 c
-      if(nulinclr.ne.0) then
-        write(nulout,*) 'Writing variable HY on analysis-increment file'
+      write(*,*) 'Writing variable HY on analysis-increment file'
 c
-        zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
-        zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
-        zrcoef4 = statevector%vco%drcf1
-        ierr    = write_encode_hyb(nulinclr,'HY',nip2,min_niter,cletiket
+      zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
+      zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+      zrcoef4 = statevector%vco%drcf1
+      ierr    = write_encode_hyb(kulfile,'HY',nip2,nip3,cletiket
      &              ,ibrpstamp,zptop4,zpref4,zrcoef4)
-      endif
 c
 c-----Analysis grid hybride vertical coordinate parameters
 c
 
-      write(nulout,*)' '
-      write(nulout,*)'************************************** '
-      write(nulout,*)
+      write(*,*)' '
+      write(*,*)'************************************** '
+      write(*,*)
      &     ' The hybride coordinate parameters from increment'
      &     ,' analysis  grid are:'
-      write(nulout,*) ' PTOP = ',statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8,' MB'
-      write(nulout,*) ' PREF = ',statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8,' MB'
-      write(nulout,*) ' RCOEF= ',statevector%vco%drcf1
-      write(nulout,*)'************************************** '
-      write(nulout,*)' '
+      write(*,*) ' PTOP = ',statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' PREF = ',statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' RCOEF= ',statevector%vco%drcf1
+      write(*,*)'************************************** '
+      write(*,*)' '
 c
 c-----Setup packing for each variable
 c
       inpak_inc  = -32                  ! 32 bits are needed by AAI
-      write(nulout,*)' '
-      write(nulout,*)'************************************** '
-      write(nulout,*)
-      write(nulout,*) 'PACKING for increments   is ',inpak_inc
-      write(nulout,*)' '
-      write(nulout,*)'************************************** '
-c
-      call getfldprm(IIP1S_TRL,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &     ,ITRLGID,'UU',ibrpstamp,jpnflev,koutmpg
-     &     ,nulout,ip1_pak_trl,ip1_vco_trl)
-c
-      if(cetikinc.ne.'UNDEFINED***') then
-        cletiket=cetikinc
-      endif
+      write(*,*)' '
+      write(*,*)'************************************** '
+      write(*,*)
+      write(*,*) 'PACKING for increments   is ',inpak_inc
+      write(*,*)' '
+      write(*,*)'************************************** '
 c
       do jvar = 1, nppcvar
 c
 c Some variable may be request for other to be computed but not
 c necessaraly wanted as output..
 c
-        llvarout = .true.
-        if(cppcvar(jvar).eq.'TT'.and..not.lttout) llvarout = .false.
-        if(cppcvar(jvar).eq.'HU'.and..not.lhuout) llvarout = .false.
+        if(cppcvar(jvar).eq.'TT'.and..not.lttout) cycle
+        if(cppcvar(jvar).eq.'HU'.and..not.lhuout) cycle
 c
         llimplemented = .true.
 c
-        write(nulout,*) 'Writing variable ',cppcvar(jvar)
+        write(*,*) 'Writing variable ',cppcvar(jvar)
 c
-C   .  2.1 Fields associated with model variables
+        do jlev=1,statevector%nlev
+          call gdout2(cppcvar(jvar),ZLOWVAR,jlev,
+     &         llimplemented,nip1,nig2,statevector,zes,ztv,zgz,zhu)
+          if(.not.llimplemented) exit
 c
-c
-c-------Do setup and write the analysed increments on the unit
-C       nulinclr (low resolution working grid of the 3dvar)
-c
-        if(statevector%vco%dhyb_m(1) .eq. 0.0 .or. statevector%vco%dpt_M .eq. 0.0) then
-c       ETA or SIGMA levels were read from namelist
-          ip1_vco_inclr = 1
-          do jlev = 1,statevector%nlev
-            zlev_inclr(jlev) = statevector%vco%dhyb_m(jlev)
-          enddo
-        else
-c       HYBRID levels read from namelist
-          ip1_vco_inclr = 5
-          do jlev = 1,statevector%nlev
-            zlev_inclr(jlev) = statevector%vco%dhyb_m(jlev)
-          enddo
-        endif
-c
-        ip1 = -1
-        jlev = 1
-cprnt    write(nulout,*)' avant do while',cppcvar(jvar)
-        do while (jlev.le.statevector%nlev.and.ip1.ne.0 )
-c
-c Get the variable cppcvar(jvar) in zlowvar vector
-c
-          call gdout2(cppcvar(jvar),ZLOWVAR(1,1,jlev),jlev,
-     &         llimplemented,IIP1S_INCLR(jlev),nig2,statevector,zes,ztv,zgz,zhu)
-cprnt          write(nulout,*)'apres gdout2',cppcvar(jvar),jvar,jlev
-cprnt     &         ,IIP1S_INCLR(jlev),llimplemented
-c
-c If variable cppcvar is not implemented skip to the next variable
-c
-          if (.not.llimplemented) goto 200
-c
-c ... otherwise write low resolution residuals to rpn standard file.
-c
-          if(nulinclr.ne.0.and.llvarout) then
-            IERR  = VFSTECR(ZLOWVAR(1,1,jlev),zwork,inpak_inc
-     &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
-     &       ,nip2,min_niter,cltypinc,cppcvar(jvar),cletiket,cgrtyp,nig1
+          IERR  = VFSTECR(ZLOWVAR,zwork,inpak_inc
+     &       ,kulfile,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,nip1
+     &       ,nip2,nip3,cltypinc,cppcvar(jvar),cletiket,cgrtyp,nig1
      &       ,nig2,nig3,nig4,nidatyp,.true.)
-          endif
 c
-c If cppcvar is a wind component look for the other component
+          if(nip1.eq.0) exit
 c
-          if(cppcvar(jvar).eq.'VV'.or.cppcvar(jvar).eq.'UU') then
+        enddo
 c
-            call gdout2(clnomvar,ZLOWWIND(1,1,jlev),jlev,
-     &           llimplemented,IIP1S_INCLR(jlev),nig2,statevector,zes,ztv,zgz,zhu)
+      enddo
 c
-            if(nulinclr.ne.0.and.llvarout) then
-        IERR  = VFSTECR(zlowwind(1,1,jlev),zwork,inpak_inc
-     &       ,nulinclr,ibrpstamp,ndeet,npas,statevector%ni,statevector%nj,1,iip1s_inclr(jlev)
-     &       ,nip2,min_niter,cltypinc,clnomvar,cletiket,cgrtyp,nig1,nig2
-     &       ,nig3,nig4,nidatyp,.true.)
-            endif
-c
-          endif
-c
-          jlev = jlev + 1
-c
-        enddo                 ! enddo while
-c
- 100    continue
-
- 200  enddo
-c
-c       At this point the low resolution analysed increments have been
-C       written to the file on unit nulinclr.
-c
-      call hpdeallc(pzlowvar,ierr,1)
-      call hpdeallc(pzlowwind,ierr,1)
-
-c
-      write(nulout,*) 'END of VAROUT'
+      write(*,*) 'END of VAROUT'
 c
       RETURN
       END

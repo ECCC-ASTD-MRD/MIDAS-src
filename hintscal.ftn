@@ -48,7 +48,7 @@
 *implicits
       integer ksrcgid,ktrggid,kscol,ktcol,klev
       real*8 psrcvar(kscol,klev),ptrgvar(ktcol,klev)
-      character*(*) cddegint
+      character(len=*) :: cddegint
 c
 c----------------------------------------------------------
 c

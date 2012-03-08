@@ -27,7 +27,7 @@
     INTEGER, intent(in) :: KELE,KVAL,KNT,KVCORD,KINDEX,KRVAL,ip
     INTEGER, intent(in) :: KLIST(KELE)
     INTEGER, intent(inout) :: KFLAGS(KELE,KVAL,KNT)
-    character(len=4), intent(in) :: crval  ! character equivalent of krval
+    character(len=*), intent(in) :: crval  ! character equivalent of krval
 !
     REAL(kind=8), intent(inout) :: PVALUES(KELE,KVAL,KNT),PROFIL(KVAL)
     REAL(kind=8), intent(in) :: PVCORD(KVAL),ppmis

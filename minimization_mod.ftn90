@@ -142,7 +142,7 @@ CONTAINS
       integer :: nsize
 
       logical lnlvtov,lpcon,lrestart
-      CHARACTER(len=128) :: cpconf
+      CHARACTER(len=*) :: cpconf
 
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)
@@ -844,9 +844,8 @@ CONTAINS
     integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl
 
-    character(len=128) :: cfname
+    character(len=*) :: cfname
     character(len=3) :: cl_version
-    character*2 grd_typ_S
 
     if(status.eq.0) then
       write(nulout,*) 'Read  VATRA in RW_VATRA'

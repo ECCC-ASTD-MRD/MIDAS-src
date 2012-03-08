@@ -57,7 +57,7 @@
       integer kscolu,kscolv,ktcolu,ktcolv,klev
       real*8 psrcuu(kscolu,klev),ptrguu(ktcolu,klev),psrcvv(kscolv,klev)
       real*8 ptrgvv(ktcolv,klev)
-      character*(*) cddegint
+      character(len=*) :: cddegint
 c
 c----------------------------------------------------------
 c

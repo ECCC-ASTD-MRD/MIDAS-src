@@ -53,17 +53,14 @@ C
       NULOUT =  6
       NULSTAT = 0
       NTRIALS=1 
-      NULINCLR=0
       ninmpg = 0
 
       CALL SUFILNAM
 
       WRITE(UNIT=NULOUT,FMT=9000) nulout,nulstat
-     &     ,nulinclr
  9000 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
      S     ,10X,' NULOUT = ',I3/
-     S     ,10X,' NULSTAT = ',I3
-     S     ,10X,' NULINCLR = ',I3)
+     S     ,10X,' NULSTAT = ',I3)
 
       WRITE(UNIT=NULOUT,FMT=9001) ninmpg(1:ntrials)
  9001 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/

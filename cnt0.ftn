@@ -98,7 +98,7 @@ c
      S        ,"- RANDOM NUMBER PETURBATIONS"
      S        ," BASED ON MATRIX B -",/,40(" *"),/)
 c
-!modular1         CALL ENKF_PTURB(nulout)
+         CALL ENKF_PTURB(nulout)
 
       case default
          WRITE(UNIT=NULOUT,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF

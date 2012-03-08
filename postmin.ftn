@@ -34,14 +34,12 @@
       IMPLICIT NONE
 #include "comvfiles.cdk"
 #include "comfilt.cdk"
-*
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
 C
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
-
-      integer jk,jj,ji
+      integer jk,jj,ji,nulfile,ierr,fnom,fstouv,fstfrm,fclos
       real*8 ztemp
       real*8, allocatable :: zes(:,:,:)
       real*8, allocatable :: ztv(:,:,:)
@@ -129,7 +127,21 @@ c
       call tmg_start(99,'VAROUT')
 !
       if(mpi_myid == 0 ) then
-          call varout(statevector,zes,ztv,zgz,zhu)
+        nulfile = 0
+        ierr    = fnom(nulfile,'./rebm','RND',0)
+        if(ierr.ge.0)then
+          write(*,*)'postmin: rebm file opened with unit number ',nulfile
+          ierr  =  fstouv(nulfile,'RND')
+        else
+          write(*,*)'postmin: problem opening rebmh file, aborting!'
+          call flush(6)
+          call qqexit(1)
+        end if
+
+        call varout(nulfile,statevector,zes,ztv,zgz,zhu)
+
+        ierr =  fstfrm(nulfile)
+        ierr =  fclos(nulfile)        
       endif
 !
       call tmg_stop(99)

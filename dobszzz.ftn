@@ -45,7 +45,7 @@
       use bufr 
       IMPLICIT NONE
       REAL*8 PJO
-      CHARACTER *2 CDFAM
+      CHARACTER(len=*) :: CDFAM
 *implicits
 #include "comlun.cdk"
 #include "pardim.cdk"

@@ -132,8 +132,8 @@
       INTEGER ITECH,IMASK,ISAT
       INTEGER IBIT0,INBIT,IDATYP
 *
-      CHARACTER *(*) CDTYPE
-      character(len=3) :: CLIST(KNVALS)
+      CHARACTER(len=*) :: CDTYPE
+      character(len=*) :: CLIST(KNVALS)
       character(len=4) :: CVAL
       LOGICAL LDAPPEND,LLTEST,LLRESET,LLGOOD,LLSURF
 *

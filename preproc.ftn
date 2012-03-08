@@ -139,7 +139,7 @@
 !
 !     Initialize the background-error covariance
 !
-      if(nconf.eq.141) CALL bmat_setup(lcolumng,obs_get_datestamp(lobsSpaceData))
+      if(nconf.eq.141) CALL bmat_setup(vco_anl,obs_get_datestamp(lobsSpaceData))
 !
 !     Set up the minimization module, now that the required parameters are known
 !     NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs

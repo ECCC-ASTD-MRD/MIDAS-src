@@ -246,7 +246,7 @@ module columnData_mod
     type(struct_columnData) :: columnghr
     real*8 pvar(:,:)
     character(len=*) :: varName
-    character(len=2) :: varType
+    character(len=*) :: varType
 
     integer jobs,jlev,nlev
     real*8, pointer :: column_ptr(:)
@@ -448,7 +448,7 @@ module columnData_mod
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character*2, intent(in)             :: varType
+    character(len=*), intent(in)        :: varType
     real*8                              :: pressure
 
     if (varType .eq. 'NA') then
@@ -472,7 +472,7 @@ module columnData_mod
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character(len=2), intent(in)        :: varType
+    character(len=*), intent(in)        :: varType
     real*8                              :: height
     integer                             :: ilev1
 
@@ -557,7 +557,7 @@ module columnData_mod
   function col_getNumLev(column,varType) result(nlev)
     implicit none
     type(struct_columnData), intent(in)    :: column
-    character(len=2), intent(in), optional :: varType
+    character(len=*), intent(in), optional :: varType
     integer                                :: nlev
 
     if(present(varType)) then

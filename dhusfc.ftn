@@ -38,7 +38,7 @@
       use columnData_mod
       use bufr
       IMPLICIT NONE
-      CHARACTER *2 CDFAM
+      CHARACTER(len=*) :: CDFAM
 *implicits
 #include "cvcord.cdk"
 #include "comlun.cdk"

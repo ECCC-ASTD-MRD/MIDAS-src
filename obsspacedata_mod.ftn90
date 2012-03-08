@@ -671,7 +671,7 @@ MODULE obsSpaceData_mod
     implicit none
 
     type(struct_obs), intent(inout) :: obsdat
-    character(len=2), intent(in)    :: Family_in
+    character(len=*), intent(in)    :: Family_in
     integer,optional, intent(in)    :: headerIndex,bodyIndex
 
     integer          :: headerIndex2
@@ -1136,7 +1136,7 @@ MODULE obsSpaceData_mod
   ! header depot.
   implicit none
   type(struct_obs), intent(inout), target :: obsdat
-  character(len=2), intent(in) :: family
+  character(len=*), intent(in) :: family
 
   type(struct_index_list_depot), pointer :: depot
   type(struct_index_list), pointer :: index_list
@@ -1264,7 +1264,7 @@ MODULE obsSpaceData_mod
   ! depot.
   implicit none
   type(struct_obs), intent(inout), target :: obsdat
-  character(len=2), intent(in) :: family
+  character(len=*), intent(in) :: family
   logical, intent(out), optional :: list_is_empty
   type(struct_index_list), pointer, intent(out), optional :: current_list
 
@@ -1783,10 +1783,10 @@ MODULE obsSpaceData_mod
   type(struct_obs), intent(inout)  :: obsdat
   character(len=4), intent(in)     :: name
   integer         , intent(in)     :: index
-  character(len=9), intent(in)     :: value
+  character(len=*), intent(in)     :: value
 
   select case (name(1:4))
-  case ('STID'); obsdat%cstnid (index) = value !! // '   '
+  case ('STID'); obsdat%cstnid (index) = value 
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not a character(len=9) observation."

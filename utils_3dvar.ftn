@@ -106,7 +106,7 @@
 
       integer ni, nj, ig1, ig2, ig3, ig4
       real*8 ax(*), ay(*)
-      character*1 grtyp, grtypref
+      character(len=*) :: grtyp, grtypref
 *
       integer ier1,ier2,jk,ilenx,ileny
       real bufax4, bufay4
@@ -181,7 +181,7 @@
      
       integer ig1, ig2, ig3, ig4   
       real*8 xlat0, xlon0, dlat, dlon 
-      character*1 grtyp 
+      character(len=*) :: grtyp 
 * 
       real xlat04, xlon04, dlat4, dlon4
 *
@@ -238,9 +238,9 @@
       integer vfstlir
       real*8 fld8(*)
       integer iun, ni, nj, nk, datev, ip1, ip2, ip3
-      character*12 etiket
-      character*4 nomvar
-      character*2 typvar
+      character(len=*) :: etiket
+      character(len=*) :: nomvar
+      character(len=*) :: typvar
 *
       integer key1,key2, ierr, ilen, jk1, jk2, jk3, la
       real buffer4
@@ -309,10 +309,10 @@
       real*8 fld8(ni,nj,nk)
       integer iun, ni, nj, nk, datev, ip1, ip2, ip3, ig1, ig2, ig3, ig4
       integer npak, dateo, deet, npas, datyp, rewrit  
-      character*12 etiket 
-      character*2 typvar
-      character*1 grtyp 
-      character*4 nomvar            
+      character(len=*) :: etiket 
+      character(len=*) :: typvar
+      character(len=*) :: grtyp 
+      character(len=*) :: nomvar            
 * 
       integer ikey, ierr, ilen, jk1, jk2, jk3
       real buffer4
@@ -434,7 +434,7 @@
      
       integer ip, kind, mode
       real*8 p8
-      character*(*) string 
+      character(len=*) :: string 
       logical flag
 * 
       real p4
@@ -530,7 +530,7 @@
 
       integer VMRFOPR 
       real*8 opvalr8
-      character*(*) optnom
+      character(len=*) :: optnom
 *
       integer ier
       real opvalr4

@@ -77,7 +77,6 @@ C
 C*    4. Close RPN standard files (opened in SULUN)
 C
       if(nulstat.ne.0) ierr =  fstfrm(nulstat)
-      if(nulinclr.ne.0) ierr =  fstfrm(nulinclr)
      
       do k=1,ntrials
         ierr=fstfrm(ninmpg(k))  

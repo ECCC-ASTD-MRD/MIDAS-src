@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,KIG2,CDVAR)
+      SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,KIG2,varName)
 *
 #if defined (DOC)
 *
@@ -37,7 +37,7 @@
 *     i : KNI, KNJ,KNK     : equivalent to NI, NJ. Used to dimension PTRANS
 *     i : KIG2             : grid type according to the parameter IG2 of the
 *                            RPN standard files.
-*     i : CDVAR            : variable type being transfer
+*     i : varName            : variable type being transfer
 *
 *     o : POUT(KNI,KNK,KNJ) : field to be filled
 *
@@ -50,21 +50,18 @@ C
 *
 *IMPLICITS
       INTEGER  KNI, KNJ,KNK,KIG2
-      CHARACTER*2  CDVAR
+      CHARACTER(len=*) :: varName
       REAL*8 PIN(KNI,KNJ,knk), POUT(KNI,KNK,KNJ)
 C
-      CHARACTER*2  CLVAR
       INTEGER JI, JJ,jlev
       REAL*8 ZCON
 *
-**
-      CLVAR=CDVAR
 C
 C*    1. Input field is stored from North to South
 C
  100  continue
       IF(KIG2.EQ.1) THEN
-        IF(CLVAR.EQ.'UU') THEN
+        IF(trim(varName).EQ.'UU') THEN
           do jlev = 1,knk
             do jj = 1, KNJ
               DO JI = 1, KNI
@@ -72,7 +69,7 @@ C
               END DO
             END DO
           enddo
-        elseif(CLVAR.EQ.'VV') THEN
+        elseif(trim(varName).EQ.'VV') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -80,7 +77,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'CC') THEN
+        ELSEIF(trim(varName).EQ.'CC') THEN
 
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -89,7 +86,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'PP') THEN
+        ELSEIF(trim(varName).EQ.'PP') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -97,7 +94,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'GP') THEN
+        ELSEIF(trim(varName).EQ.'GP') THEN
           ZCON = 10.*RG
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -106,7 +103,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'GB') THEN
+        ELSEIF(trim(varName).EQ.'GB') THEN
           ZCON = 10.*RG
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -115,7 +112,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'TT') THEN
+        ELSEIF(trim(varName).EQ.'TT') THEN
           ZCON = MPC_K_C_DEGREE_OFFSET_R8
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -124,7 +121,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'UT') THEN
+        ELSEIF(trim(varName).EQ.'UT') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -132,7 +129,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'VT') THEN
+        ELSEIF(trim(varName).EQ.'VT') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -140,7 +137,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'GZ') THEN
+        ELSEIF(trim(varName).EQ.'GZ') THEN
           ZCON = 10.*RG
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -149,7 +146,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'ES') THEN
+        ELSEIF(trim(varName).EQ.'ES') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -157,7 +154,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'LQ') THEN
+        ELSEIF(trim(varName).EQ.'LQ') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -165,7 +162,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'HU') THEN
+        ELSEIF(trim(varName).EQ.'HU') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -173,7 +170,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'O3') THEN
+        ELSEIF(trim(varName).EQ.'O3') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -181,7 +178,7 @@ C
               enddo
             enddo
           enddo
-        ELSEIF(CLVAR.EQ.'P0') THEN
+        ELSEIF(trim(varName).EQ.'P0') THEN
           zcon = 1.e2
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -190,7 +187,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'PT') THEN
+        ELSEIF(trim(varName).EQ.'PT') THEN
           zcon = 1.e2
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -199,7 +196,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'LP') THEN
+        ELSEIF(trim(varName).EQ.'LP') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -207,7 +204,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'UP') THEN
+        ELSEIF(trim(varName).EQ.'UP') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -223,7 +220,7 @@ C*    2. Input field is stored from South to North
 C
  200    CONTINUE
 C
-        IF(CLVAR.EQ.'UU') THEN
+        IF(trim(varName).EQ.'UU') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -232,7 +229,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'VV') THEN
+        ELSEIF(trim(varName).EQ.'VV') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -241,7 +238,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'CC') THEN
+        ELSEIF(trim(varName).EQ.'CC') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -249,7 +246,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'PP') THEN
+        ELSEIF(trim(varName).EQ.'PP') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -257,7 +254,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'TT') THEN
+        ELSEIF(trim(varName).EQ.'TT') THEN
           ZCON = MPC_K_C_DEGREE_OFFSET_R8
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -266,7 +263,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'UT') THEN
+        ELSEIF(trim(varName).EQ.'UT') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -274,7 +271,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'VT') THEN
+        ELSEIF(trim(varName).EQ.'VT') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -282,7 +279,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'GZ') THEN
+        ELSEIF(trim(varName).EQ.'GZ') THEN
           ZCON = 10.*RG
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -291,7 +288,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'GP') THEN
+        ELSEIF(trim(varName).EQ.'GP') THEN
           ZCON = 10.*RG
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -300,7 +297,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'GB') THEN
+        ELSEIF(trim(varName).EQ.'GB') THEN
           ZCON = 10.*RG
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -309,7 +306,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'ES') THEN
+        ELSEIF(trim(varName).EQ.'ES') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -317,7 +314,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'HU') THEN
+        ELSEIF(trim(varName).EQ.'HU') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -325,7 +322,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'LQ') THEN
+        ELSEIF(trim(varName).EQ.'LQ') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -333,7 +330,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'O3') THEN
+        ELSEIF(trim(varName).EQ.'O3') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -341,7 +338,7 @@ C
               enddo
             enddo
           enddo
-        ELSEIF(CLVAR.EQ.'P0') THEN
+        ELSEIF(trim(varName).EQ.'P0') THEN
           zcon = 1.e2
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -350,7 +347,7 @@ C
               ENDDO
             ENDDO
           enddo
-        ELSEIF(CLVAR.EQ.'PT') THEN
+        ELSEIF(trim(varName).EQ.'PT') THEN
           zcon = 1.e2
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
@@ -359,7 +356,7 @@ C
               END DO
             END DO
           enddo
-        ELSEIF(CLVAR.EQ.'LP') THEN
+        ELSEIF(trim(varName).EQ.'LP') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI
@@ -367,7 +364,7 @@ C
               enddo
             enddo
           enddo
-        ELSEIF(CLVAR.EQ.'UP') THEN
+        ELSEIF(trim(varName).EQ.'UP') THEN
           DO JLEV = 1,KNK
             DO JJ = 1, KNJ
               DO JI = 1, KNI

@@ -85,7 +85,7 @@ c
        CLVALU(3) = './trlm'  
        CLVALU(4) = './anlm_defunct'
        CLVALU(5) = './glbcov'  
-       CLVALU(6) = './rebm'  
+       CLVALU(6) = './rebm_notused'  
        CLVALU(7) = './rehm_defunct'  
        CLVALU(8) = '' 
        CLVALU(9) = './preconin'  
@@ -183,17 +183,6 @@ C
          jj=jj+1
       ENDDO 
 C
-      IF(mpi_myid == 0 .and. NCONF == 141) THEN
-         ier = fnom(nulinclr,clvalu(6),'RND',0)
-         IF ( IER .EQ. 0 ) THEN
-            write(nulout,*) 'OINCLR - File :', clvalu(6)
-            write(nulout,*) ' opened as unit file ',nulinclr
-            ier = fstouv(nulinclr,'RND')
-         else
-            CALL ABORT3D(NULOUT,'SUFILNAM')
-         endif
-      ENDIF 
-c
 !     Get CLVALU(8) through Environment Variables.
       CALL  get_environment_variable('ARMA_EXEC4DV',CLVALU(8),
      +       chlength,istatus,.true.) 

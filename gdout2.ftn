@@ -148,7 +148,7 @@ C
       else
         if(gsv_varExist(varName)) then
           field3d_ptr => gsv_getField3D(statevector,varName)
-          if(gsv_getNumLev(statevector,vnl_vartypeFromVarname(varName)).eq.1) then
+          if(vnl_vartypeFromVarname(varName).eq.'SF') then
             kip1=0
             do jlon = 1, statevector%ni
               do jgl = 1, statevector%nj

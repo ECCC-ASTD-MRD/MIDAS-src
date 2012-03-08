@@ -188,7 +188,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
      to_tl (:,:) = 0.0
      lqo_tl(:,:) = 0.0
 
-!$omp parallel private(istride)
+!$omp parallel private(istride,imodulo)
      imodulo = mod(knpf,nthreads)
      if ( imodulo .eq. 0 ) then
         istride = max(1,(knpf/nthreads))

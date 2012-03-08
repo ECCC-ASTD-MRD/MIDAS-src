@@ -1,0 +1,243 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE enkf_pturb
+#if defined (DOC)
+*
+***   s/r enkf_pturb  - Routine to prepare random perturbations for ENKF
+*
+*     Author  : C. Charette *ARMA/AES  Mar , 2010
+*     Revision:
+*
+#endif
+      use MathPhysConstants_mod
+      use controlVector_mod
+      use gridStateVector_mod
+      use gaussGrid_mod
+      use bmatrix_mod
+      use verticalCoord_mod
+      use minimization_mod
+      IMPLICIT NONE
+#include "compost.cdk"
+      type(struct_gsv) :: statevector
+      type(struct_vco), pointer :: vco_anl => null()
+      real*8, pointer :: field(:,:,:)
+      integer  fclos,fnom,fstouv,fstfrm,nulfile,newdate,nstamp
+      integer  ierr,iseed,istatus
+      integer  ji,jj,jmem,jni,jnj,jnk,nkgdim
+      integer  idate,itime,ndate,nulnam
+      real*8   gasdev,zdum
+      real*8, allocatable :: gdmean(:,:,:)
+      real*8, allocatable :: zes(:,:,:)
+      real*8, allocatable :: ztv(:,:,:)
+      real*8, allocatable :: zgz(:,:,:)
+      real*8, allocatable :: zhu(:,:,:)
+      real*4, allocatable :: ensemble(:,:,:,:)
+      character*4 clprefix
+      character*10 cldate
+      character*3 clmember
+      character*25 clfiname
+
+      INTEGER          NENKFMEM,NRANDSEED,NDATE_PTURB
+      NAMELIST /NAMENKF/NENKFMEM,NRANDSEED,NDATE_PTURB
+
+      write(*,*) ' --------------------------------'
+      write(*,*) ' ENKF_PTURB STARTS'
+      write(*,*) ' --------------------------------'
+C
+C*    1. Set default values for namelist NAMENKF parameters
+C
+      NENKFMEM    = 10
+      NRANDSEED   = 1
+      NDATE_PTURB = 0101010101
+C
+C*    2. Read the parameters from NAMENKF
+C
+      ! read in the namelist NAMENKF
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namenkf,iostat=ierr)
+      write(*,*) 'enkf_pturb: reading namelist, ierr=',ierr
+      write(*,nml=namenkf)
+      ierr=fclos(nulnam)
+c
+      ndate   = NDATE_PTURB
+      write(cldate,'(I10)') ndate
+c
+c-----Decompose ndate(yyyymmddhh) into date(YYYYMMDD) time(HHMMSShh)
+c     calculate date-time stamp for postproc.ftn 
+c
+      idate   = ndate/100
+      itime   = (ndate-idate*100)*1000000
+      ierr    = newdate(nstamp,idate,itime,3)
+      write(*,*)' idate= ',idate,' time= ',itime
+      write(*,*)' date= ',ndate,' stamp= ',nstamp
+!
+!     Initialize variables of the model states
+!
+      call gsv_setup
+!
+!     Initialize dimensions of the gaussian grid (analysis grid)
+!
+      call gaus_setup
+!
+!     Initialize the vertical coordinate from the statistics file
+!
+      call vco_AnlInit(vco_anl)
+!
+!     Allocate the statevector
+!
+      call gsv_setVco(statevector,vco_anl)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,1,dateStamp=nstamp)
+      nkgdim = statevector%nk
+      allocate(ensemble(gaus_ni,statevector%nk,gaus_nj,nenkfmem))
+!
+!     Allocate auxillary variables
+!
+      allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
+      zes(:,:,:)=0.0d0
+      ztv(:,:,:)=0.0d0
+      zgz(:,:,:)=0.0d0
+      zhu(:,:,:)=0.0d0
+C
+      allocate(gdmean(gaus_ni,nkgdim,gaus_nj),STAT=istatus)
+      if(istatus .ne. 0) then
+         write(*,*) 'enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN'
+         call flush(6)
+         call qqexit(1)
+      endif
+         
+      write(*,*)' call supost'
+      call supost
+
+      CALL bmat_setup(vco_anl,nstamp)
+
+      write(*,*) '******************'
+      write(*,*) 'COMPUTE the mean of the random perturbations'
+     &                ,' of all the members'
+
+      iseed     = ABS(nrandseed)
+
+      zdum      = gasdev(-iseed)
+
+      gdmean(:,:,:) = 0.0
+      field => gsv_getField3d(statevector)
+      do jmem = 1,NENKFMEM
+        write(*,*) ' computing member number= ',jmem
+        do jj = 1,cvm_nvadim
+          cvm_vazx(jj)=gasdev(1)
+        enddo
+        call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jni,jnj,jnk)    
+        do jni     = 1,gaus_ni
+          do jnj   = 1,gaus_nj
+            do jnk = 1,nkgdim
+              ensemble(jni,jnk,jnj,jmem)=field(jni,jnk,jnj)
+              gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj)+field(jni,jnk,jnj)
+            enddo
+          enddo
+        enddo
+!$OMP END DO
+!$OMP END PARALLEL
+      enddo
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jni,jnj,jnk)    
+      do jni     = 1,gaus_ni
+        do jnj   = 1,gaus_nj
+          do jnk = 1,nkgdim
+            gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj)/real(NENKFMEM,8)
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jni,jmem,jnj,jnk)    
+      do jni     = 1,gaus_ni
+        do jmem = 1,NENKFMEM
+          do jnj   = 1,gaus_nj
+            do jnk = 1,nkgdim
+              ensemble(jni,jnk,jnj,jmem)=ensemble(jni,jnk,jnj,jmem)-gdmean(jni,jnk,jnj)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+      clprefix= 'ptbm'
+      do jmem = 1,NENKFMEM
+        write(clmember,'(I3.3)') jmem
+        clfiname = clprefix(1:4)//cldate(1:10) // '_' // clmember(1:3)
+        write(6,*)'ENKF_PTURB: PROCESSING clfiname= ',clfiname
+        nulfile = 0
+        ierr    = fnom(nulfile,trim(clfiname),'RND',0)
+        if(ierr.ge.0)then
+          write(*,*)' fstouv nulfile= ',nulfile
+          ierr  =  fstouv(nulfile,'RND')
+        else
+          write(*,*)'ENKF_PTURB:problem with file= ',clfiname
+          call flush(6)
+          call qqexit(1)
+        end if
+c
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jni,jnj,jnk)    
+        do jni     = 1,gaus_ni
+          do jnj   = 1,gaus_nj
+            do jnk = 1,nkgdim
+              field(jni,jnk,jnj) = ensemble(jni,jnk,jnj,jmem)
+            enddo
+          enddo
+        enddo
+!$OMP END DO
+!$OMP END PARALLEL
+c
+c-------write perturbations in output file
+c
+        write(*,*) ' writing member number= ',jmem
+        min_niter=0
+        call varout(nulfile,statevector,zes,ztv,zgz,zhu)
+        ierr =  fstfrm(nulfile)
+        ierr =  fclos(nulfile)
+      enddo
+
+      deallocate(gdmean,STAT=istatus)
+      if(istatus .ne. 0) then
+         write(*,*) 'enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN'
+         call flush(6)
+         call qqexit(1)
+      endif
+
+      call gsv_deallocate(statevector)
+      deallocate(zes)
+      deallocate(ztv)
+      deallocate(zgz)
+      deallocate(zhu)
+      deallocate(ensemble)
+
+      write(*,*) ' --------------------------------'
+      write(*,*) ' ENKF_PTURB ENDS'
+      write(*,*) ' --------------------------------'
+
+      return
+      end

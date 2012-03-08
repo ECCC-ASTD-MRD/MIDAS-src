@@ -7,9 +7,9 @@ c
       integer kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
       integer ktrials, koutmpg  
       integer kinmpg(ktrials)
-      character*(*) cdtypvar
-      character*(*) cdvar
-      character*(*) cdetiket
+      character(len=*) :: cdtypvar
+      character(len=*) :: cdvar
+      character(len=*) :: cdetiket
 #if defined (DOC)
 *
 ***s/r getfldprm2

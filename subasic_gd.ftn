@@ -168,7 +168,7 @@ C
       CONTAINS
 
       subroutine vhfstfld(pvar,kcol,ktrggid,pvv,kcolvv,kvvgid,knk
-     &     ,cdnomvar,kstampv,kulfst,ktrials,kulout,
+     &     ,varName,kstampv,kulfst,ktrials,kulout,
      &      kmaxlev,ldvint ,cddgint)
 *
 #if defined (DOC)
@@ -183,15 +183,15 @@ C
 *Arguments
 *    Output:
 *      pvar(kcol,knk) : Interpolated Output variable (contains UU if
-*                       cdnomvar = UV)
-*      pvv(kcolvv,knk): Interpolated Output V componant (if cdnomvar = UV)
+*                       varName = UV)
+*      pvv(kcolvv,knk): Interpolated Output V componant (if varName = UV)
 *    Input:
 *      kcol           : Number of collums
 *      ktrggid        : grid id of output variable
 *      kcolvv         : Number of collums for V
 *      kvvgid         : Grid descriptor of targeted V grid
 *      knk            : Number of level of targetted variable
-*      cdnomvar       : Variable nomvar (UV if vectorial interpolation desired)
+*      varName       : Variable nomvar (UV if vectorial interpolation desired)
 *      kstampv        : Valid CMC date-time stamp values for reserch in
 *                       fst source file
 *      kulfst         : Unit of pre-opened standard file containing src fields
@@ -216,7 +216,7 @@ C
       INTEGER KCOL,KNK,ktrggid,kstampv,kulout,kmaxlev,kcolvv
       integer kvvgid,inlev
       real*8 pvar(kcol,knk), pvv(kcolvv,knk)
-      character*2 cdnomvar
+      character(len=*) :: varName
       character*(*) cddgint
       logical ldvint
 c
@@ -241,10 +241,10 @@ c
 C
       WRITE(KULOUT,FMT='(/,4X,"Starting VHFSTFLD",//)')
 c
-      if (cdnomvar .eq. 'UV') then
+      if (trim(varName) .eq. 'UV') then
         clnomvar = 'UU'
       else
-        clnomvar = cdnomvar
+        clnomvar = varName
       endif
 C
 C*    2 Allocate space for the buffer
@@ -315,7 +315,7 @@ c
 c
       call hpalloc(pxlowvar,kcol*itrlnlev,ierr,8)
 c
-      if(cdnomvar.ne.'UV') then
+      if(trim(varName).ne.'UV') then
 c
 c Horizontal interpolation
 c
@@ -443,7 +443,7 @@ c
         call hpdeallc(pxprofi,ierr,1)
         call hpdeallc(pxprofo,ierr,1)
 c
-        if (cdnomvar.eq.'UV') then
+        if (trim(varName).eq.'UV') then
 c
           call hpalloc(pxpresanl,kcolvv*knk,ierr,8)
           call hpalloc(pxps,kcolvv,ierr,8)
@@ -507,7 +507,7 @@ c
             enddo
           enddo
 c
-          if (cdnomvar.eq.'UV') then
+          if (trim(varName).eq.'UV') then
             do jlev = 1, knk
               do jcol = 1, kcolvv
                 pvv(jcol,jlev) = zlowvv((jlev-1)*kcol+jcol)
