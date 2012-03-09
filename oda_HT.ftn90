@@ -103,7 +103,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-            IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
+            IDBURP = obs_elem_i(lobsSpaceData,'ITY ',IOBS)
             ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
             IPT  = IK  + col_getOffsetFromVarno(lcolumng,ityp)
@@ -151,7 +151,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
             ZRES = obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
             ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-            IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
+            IDBURP = obs_elem_i(lobsSpaceData,'ITY ',IOBS)
             IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
 !c
@@ -393,7 +393,7 @@ end subroutine oda_HTto
 !C
 !C     *    Calculate DPJO0 only for refractivity observations (codtyp 169)
 !C
-         IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER),1000)
+         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
          DATYP: IF ( IDATYP .EQ. 169 ) THEN
            ASSIM = .FALSE.
 !C

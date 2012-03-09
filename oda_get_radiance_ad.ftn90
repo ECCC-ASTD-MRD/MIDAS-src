@@ -63,7 +63,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
   !      process only radiance data to be assimilated?
   !      (data type=[164,168,180,181,182,183,185,186])
-      idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+      idatyp = obs_elem_i(lobsSpaceData,'ITY ',index_header)
       if ( idatyp .ne. 164 .and.  &
            idatyp .ne. 168 .and.  &
            idatyp .ne. 180 .and.  &

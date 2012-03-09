@@ -24,7 +24,7 @@
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO,zsum,zsumo
       CHARACTER*2 CDFAM
-      INTEGER IFLAG,INAM,ISETFLAG,IOBS,ITY,IDBURP
+      INTEGER IFLAG,INAM,ISETFLAG,IOBS,IDBURP
       INTEGER IBEGIN,ILAST,ierr,fclos,fnom,ITYP
       INTEGER J,J2,JJ,JD,JDATA,ibgc,icoun
       INTEGER INOBS, INREJ, INZOBS, INZREJ
@@ -130,8 +130,7 @@
                    zsumo=zsumo+zoer*zoer
                    icoun=icoun+1
                 endif
-                  ITY=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
-                  IDBURP=MOD(ITY,1000)
+                  IDBURP=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
                   IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
 !C
 !C              CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT

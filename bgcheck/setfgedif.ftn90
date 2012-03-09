@@ -78,7 +78,7 @@
 !C     
 !C     *    .   Process only refractivity data (codtyp 169)
 !C
-               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
                IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C                 Loops over data in the observation

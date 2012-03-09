@@ -97,7 +97,7 @@
 !C     
 !C     *    .   Process only zenith delay data (codtyp 189 and BUFR_NEZD)
 !C
-               IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
                IF ( IDATYP .EQ. 189 ) THEN
 !C
 !C                 Loop over data in the observations

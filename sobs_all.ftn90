@@ -38,7 +38,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       INTEGER J,JD,JID,JDATA,IBAD,IFLG
       LOGICAL LLREJ, LLPRINT, LLOK
       REAL(8) :: ZVAL,ZLEV,ZLEV2,ZDIFF,ZHHH,ZMODEL
-      INTEGER ITYP,IDBURP,ITY
+      INTEGER ITYP,IDBURP
       INTEGER ILEM,ICRIT
       INTEGER ILISTEL(JPINEL),IDLND(JPIDLND)
       INTEGER IKOUNTREA(JPINEL),IKOUNTREJ(JPINEL),IKOUNTT
@@ -125,8 +125,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                IKOUNTT=IKOUNTT+1
                IFLG     = obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY)
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-               ITY    = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
-               IDBURP = MOD(ITY,1000)
+               IDBURP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
                ZDIFF=99999.
 
                IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
@@ -882,7 +881,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         IDATYP   = MOD(obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER),1000)
+         IDATYP   = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
          IF (IDATYP .NE. 185) THEN
             cycle HEADER ! Proceed to the next index_header
          end if

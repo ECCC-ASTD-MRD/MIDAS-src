@@ -40,7 +40,7 @@
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
 *
-      INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,ITY,IDBURP
+      INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,IDBURP
       INTEGER ITYP,IASS,IFLD,ILEM,IOTHER,JJ,ISTYP,ILEV
       REAL ZAGZ,ZAHU,ZATT,ZDUV,ZDGZ,ZDTT,ZDHU,ZAUV,ZSLEV,ZAPN,ZDPN
       REAL ZABT,ZDBT,ZABTB,ZDBTB
@@ -86,8 +86,7 @@
          IDATA     = obs_elem_i(lobsSpaceData,'RLN ',JJO)
          IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
          IDATYP    = obs_elem_i(lobsSpaceData,'OTP ',JJO)
-         ITY       = obs_elem_i(lobsSpaceData,'ITY ',JJO)
-         IDBURP    = MOD(ITY,1000)
+         IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',JJO)
          ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JJO)*MPC_DEGREES_PER_RADIAN_R8
          ZLON = obs_elem_r4(lobsSpaceData,'LON ',JJO)*MPC_DEGREES_PER_RADIAN_R8
          DO JDATA  = IDATA, IDATEND

@@ -110,7 +110,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      index_header = obs_getHeaderIndex(lobsSpaceData)
      if (index_header < 0) exit HEADER
 
-     IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+     IDATYP = obs_elem_i(lobsSpaceData,'ITY ',index_header)
      IF ( IDATYP .NE. 164 .AND. &
           IDATYP .NE. 168 .AND. &
           IDATYP .NE. 180 .AND. &
@@ -128,11 +128,11 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV-7 platform and satellite.
-     IVAL = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header)/1000,1000)
+     IVAL = obs_elem_i(lobsSpaceData,'SAT ',index_header)
      CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
 
 !    map burp instrument info to RTTOV-7 instrument.
-     IVAL = MOD(obs_elem_i(lobsSpaceData,'BOX ',index_header),10000)
+     IVAL = obs_elem_i(lobsSpaceData,'INS ',index_header)
      CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
 
 !    find sensor number for this obs.

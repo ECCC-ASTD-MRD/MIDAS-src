@@ -473,6 +473,7 @@ c
               endif
             enddo
           enddo
+          call tmg_stop(27)
 c         
           call tmg_start(29,'VINTPROF')
 c

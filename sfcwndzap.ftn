@@ -39,7 +39,7 @@
       INTEGER J,JID,JDATA
       LOGICAL LLPRINT
       REAL(8) ZDIFF
-      INTEGER ITYP,IDBURP,ITY
+      INTEGER ITYP,IDBURP
       INTEGER ILISTEL(JPINEL),IDLND(JPIDLND)
       INTEGER IKOUNTREJ(JPINEL),IKOUNTT
 C                     SYNOP(3)     TEMP/PILOT(6)
@@ -104,8 +104,7 @@ c           ENDIF
 
 C             UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
               ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-              ITY    = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
-              IDBURP = MOD(ITY,1000)
+              IDBURP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
               IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
                   IF(IDBURP .EQ. IDLND(JID) .AND.

@@ -93,7 +93,7 @@
           IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
           ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             IF ( IDATYP .EQ. 183) THEN
               count_airs = count_airs + 1
               IF ( count_airs > airs_loop_done * airs_bunch .AND.  &
@@ -234,7 +234,7 @@
 
           DO JO = IBEGINOB, ILASTOB
 
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
 
             IF ( IDATYP .EQ. 164 .OR. &
      &           IDATYP .EQ. 168 .OR. &
@@ -705,7 +705,7 @@
           IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
           ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             IF ( IDATYP .EQ. 183) THEN
               count_airs = count_airs + 1
               IF ( count_airs > airs_loop_done * airs_bunch .AND. &

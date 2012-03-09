@@ -258,7 +258,7 @@ module masks_mod
                                                       * MPC_DEGREES_PER_RADIAN_R8
               ZLON      = obs_elem_r4(lobsSpaceData,'LON ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-              IDBURP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+              IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',index_header)
 
               WRITE(*,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
                    ,' OBS ',obs_elem_c9(lobsSpaceData,'STID',index_header) &
@@ -319,7 +319,7 @@ subroutine oda_maskto(lobsSpaceData)
      !       process only radiance data to be assimilated?
      !       (data type=[164,168,180,181,182,183,185,186])
 
-     idatyp = mod(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+     idatyp = obs_elem_i(lobsSpaceData,'ITY ',index_header)
            if ( idatyp .ne. 164 .and.  &
                 idatyp .ne. 168 .and.  &
                 idatyp .ne. 180 .and.  &
@@ -391,7 +391,7 @@ end subroutine oda_maskto
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',index_header),1000)
+         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',index_header)
          IF ( IDATYP .NE. 169 ) THEN
             cycle HEADER                ! Proceed to the next HEADER
          ENDIF
@@ -478,7 +478,7 @@ end subroutine oda_maskto
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         IDATYP    = MOD(obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER),1000)
+         IDATYP    = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
             IF ( IDATYP .NE. 189 ) THEN
             cycle HEADER                ! Proceed to the next HEADER
          ENDIF

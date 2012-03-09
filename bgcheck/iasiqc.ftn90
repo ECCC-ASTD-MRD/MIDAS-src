@@ -118,7 +118,7 @@
           IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
           ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             
             IF ( IDATYP .EQ. 186) THEN
               count_iasi = count_iasi + 1
@@ -325,7 +325,7 @@
 
           DO JO = IBEGINOB, ILASTOB
 
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
 
             IF ( IDATYP .EQ. 164 .OR. &
      &           IDATYP .EQ. 168 .OR. &
@@ -1019,7 +1019,7 @@
           IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
           ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
           DO JO = IBEGINOB, ILASTOB
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             IF ( IDATYP .EQ. 186) THEN
               count_iasi = count_iasi + 1
               IF ( count_iasi > iasi_loop_done * iasi_bunch .AND. &

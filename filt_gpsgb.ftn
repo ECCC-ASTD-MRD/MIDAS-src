@@ -87,7 +87,7 @@ C
 C
 C     *  Process only Ground-Based GPS data (codtyp 189)
 C
-          IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+          IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
 C
           IF ( IDATYP .EQ. 189 ) THEN
             IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)

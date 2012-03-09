@@ -104,7 +104,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
         IF (lmaskpp_in(jdata).or.ldiagpp(jdata)) THEN
           IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-          IDBURP = MOD(obs_elem_i(lobsSpaceData,'ITY ',IOBS),1000)
+          IDBURP = obs_elem_i(lobsSpaceData,'ITY ',IOBS)
           ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
           IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
           IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
@@ -372,7 +372,7 @@ end subroutine oda_Hto
 !C
 !C     *        Process only refractivity data (codtyp 169)
 !C
-            IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',JO),1000)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C                 Loops over data in the observation

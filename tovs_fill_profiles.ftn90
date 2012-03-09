@@ -201,7 +201,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !    extract satellite zenith and azimuth angle, 
 !    sun zenith angle, cloud fraction, latitude and longitude
 
-     isatzen(knpf) = obs_elem_i(lobsSpaceData,'BOX ',jo)/10000
+     isatzen(knpf) = obs_elem_i(lobsSpaceData,'SZA ',jo)
      isatazim(knpf) = obs_elem_i(lobsSpaceData,'AZA ',jo)
      isunza(knpf) = obs_elem_i(lobsSpaceData,'SUN ',jo)
      iclfr(knpf) = obs_elem_i(lobsSpaceData,'CLF ',jo)

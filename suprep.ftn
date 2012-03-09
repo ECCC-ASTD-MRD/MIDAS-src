@@ -185,7 +185,7 @@ C
       INTEGER IOBS,IDATYP,IVCO
       INTEGER ILA,ISRCHILA,IPRES,IPRESMB
       INTEGER IERR, JD,JDATA,JO,JJO,JK,J
-      INTEGER IJ,ITY,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT,IBEGIN,ILAST
+      INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT,IBEGIN,ILAST
       INTEGER IDATA,IDATEND,FNOM,FCLOS
       INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,ICHN
       INTEGER INDXSAT,ISAT,INDCH,INDXM
@@ -383,8 +383,7 @@ C
             IPRES= NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
             IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
             IVCO = obs_elem_i(lobsSpaceData,'VCO ',JDATA)
-            ITY=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
-            IDBURP=MOD(ITY,1000)
+            IDBURP=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
 C
 C     a. Unwanted data types via types specified in NLIST
 C
@@ -543,7 +542,7 @@ C
               INDXM = ILANSEA
               IF (INDXM .EQ. 2 ) INDXM = 0
               INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
-              IPROCES  = obs_elem_i(lobsSpaceData,'ITY ',IOBS)/1000000
+              IPROCES  = obs_elem_i(lobsSpaceData,'TEC ',IOBS)
               INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
               IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
                 LLOK = .FALSE.

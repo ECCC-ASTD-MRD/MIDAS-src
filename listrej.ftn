@@ -70,7 +70,7 @@
 *
 *
       INTEGER IDATA,J,JJ,JJJ,JREP
-      INTEGER ITY,JDATA,IDATEND,ITYP,ISTYP
+      INTEGER JDATA,IDATEND,ITYP,ISTYP
       INTEGER ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
       INTEGER IDBURP,IOTHER,IBEGIN,IBEGINOB,ILAST,ILASTOB
       REAL*8    ZVAR,ZFCST,ZOER,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
@@ -176,8 +176,7 @@
               LLELREJ = .FALSE.
               IDATA = obs_elem_i(lobsSpaceData,'RLN ',JREP)
               IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JREP) + IDATA -1
-              ITY       = obs_elem_i(lobsSpaceData,'ITY ',JREP)
-              IDBURP    = MOD(ITY,1000)
+              IDBURP  = obs_elem_i(lobsSpaceData,'ITY ',JREP)
               ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JREP)*MPC_DEGREES_PER_RADIAN_R8
               ZLON = obs_elem_r4(lobsSpaceData,'LON ',JREP)*MPC_DEGREES_PER_RADIAN_R8
               DO JDATA=IDATA, IDATEND

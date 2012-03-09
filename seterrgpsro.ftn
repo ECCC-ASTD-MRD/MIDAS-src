@@ -120,7 +120,7 @@ C     *       ---------------------------------------
 C     
 C     *  Process only refractivity data (codtyp 169)
 C
-         IDATYP = MOD(obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER),1000)
+         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
          IF ( IDATYP .EQ. 169 ) THEN
             ASSIM = .FALSE.
 C

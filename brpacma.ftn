@@ -864,15 +864,18 @@ c               ENDIF
                    ISATZEN = 19000
                 ENDIF
 * Fin modif
-                call obs_set_i(lobsSpaceData,'BOX ',NUMHEADER, INSTRUM + ISATZEN*10000)
+                call obs_set_i(lobsSpaceData,'INS ',NUMHEADER, INSTRUM)
                 call obs_set_i(lobsSpaceData,'OTP ',NUMHEADER, IfamID)
-                call obs_set_i(lobsSpaceData,'ITY ',NUMHEADER, IDBURP+ 1000*ISAT+ 1000000*ITECH)
+                call obs_set_i(lobsSpaceData,'ITY ',NUMHEADER, IDBURP) 
+                call obs_set_i(lobsSpaceData,'SAT ',NUMHEADER, ISAT)
+                call obs_set_i(lobsSpaceData,'TEC ',NUMHEADER, ITECH)
                 call obs_set_i(lobsSpaceData,'DAT ',NUMHEADER, IDATE)
                 call obs_set_i(lobsSpaceData,'ETM ',NUMHEADER, ITIME)
                 call obs_set_i(lobsSpaceData,'OFL ',NUMHEADER, IMASK)
                 call obs_set_i(lobsSpaceData,'ST1 ',NUMHEADER, IFLGS)
                 call obs_set_i(lobsSpaceData,'AZA ',NUMHEADER, ISATAZIM)
                 call obs_set_i(lobsSpaceData,'SUN ',NUMHEADER, ISUNZA)
+                call obs_set_i(lobsSpaceData,'SZA ',NUMHEADER, ISATZEN)
                 call obs_set_i(lobsSpaceData,'CLF ',NUMHEADER, ICLFR)
                 
                 IF (IDBURP==186) call index_cma_iasi(NUMHEADER,IGQISFLAGQUAL,

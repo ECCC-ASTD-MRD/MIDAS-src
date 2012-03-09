@@ -95,7 +95,7 @@ C-----------------------------------------------------------------------
 C
       type(struct_obs) :: lobsSpaceData
       INTEGER JN,JDATA,JJO
-      INTEGER ITYP,IFLG,IASS,IDATYP,ILEM,ITY,ilyr
+      INTEGER ITYP,IFLG,IASS,IDATYP,ILEM,ilyr
       INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
       INTEGER ILAT1,ILAT2
       INTEGER ILANSEA,ISRCHEQ,INDXREG,INDXCLD,INDXM
@@ -166,13 +166,10 @@ C
          ILANSEA   = obs_elem_i(lobsSpaceData,'OFL ',JJO)
          ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',JJO)
          ZLON      = obs_elem_r4(lobsSpaceData,'LON ',JJO)
-         ITY       = obs_elem_i(lobsSpaceData,'ITY ',JJO)
-         IDBURP    = MOD(ITY,1000)
-         ITY       = ITY/1000
-         IPLATF    = MOD(ITY,1000)
-         ITY       = ITY/1000
-         ITECH     = MOD(ITY,1000)
-         INSTR     = MOD(obs_elem_i(lobsSpaceData,'BOX ',JJO),10000)
+         IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',JJO)
+         IPLATF    = obs_elem_i(lobsSpaceData,'SAT ',JJO)
+         ITECH     = obs_elem_i(lobsSpaceData,'TEC ',JJO)
+         INSTR     = obs_elem_i(lobsSpaceData,'INS ',JJO)
          LLZTD     = .FALSE.
          LLFER     = .FALSE.
          ZTDERR    = -1.0
@@ -282,7 +279,7 @@ C
 C     
 C     *              Process only refractivity data (codtyp 169)
 C
-                  IF ( MOD(obs_elem_i(lobsSpaceData,'ITY ',JJO),1000) .EQ. 169 ) THEN
+                  IF ( obs_elem_i(lobsSpaceData,'ITY ',JJO) .EQ. 169 ) THEN
                      IF ( ITYP .EQ. BUFR_NEPS ) THEN
                         call obs_set_r8(lobsSpaceData,'OER ',JDATA, 50.D0)
                      ENDIF
