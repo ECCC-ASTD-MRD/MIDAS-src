@@ -199,14 +199,6 @@ C
                      ILVL=ILVL + MAX(0.0D0,ZLVL)
                   END DO
 C
-                  IF(ZLAT*MPC_DEGREES_PER_RADIAN_R8 .GE. 30. )THEN
-                     call obs_set_i(lobsSpaceData,'OEC ',JDATA,1)
-                  ELSEIF(ZLAT*MPC_DEGREES_PER_RADIAN_R8.GT.-30..AND.ZLAT*MPC_DEGREES_PER_RADIAN_R8.LT.30.)THEN
-                     call obs_set_i(lobsSpaceData,'OEC ',JDATA,1)
-                  ELSE
-                     call obs_set_i(lobsSpaceData,'OEC ',JDATA,1)
-                  ENDIF
-C
                   IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
                     call obs_set_r8(lobsSpaceData,'OER ',JDATA, XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NETS) THEN
@@ -524,13 +516,10 @@ C
                   END DO
                   IF ( (ITECH .EQ. 1) .OR. (ITECH .EQ. 4) ) THEN
                      call obs_set_r8(lobsSpaceData,'OER ',JDATA, XSATDEV(ILVL,1))
-                     call obs_set_i(lobsSpaceData,'OEC ',JDATA, 1)
                   ELSE IF ( (ITECH .EQ. 2) .OR. (ITECH .EQ. 3) ) THEN
                      call obs_set_r8(lobsSpaceData,'OER ',JDATA, XSATDEV(ILVL,2))
-                     call obs_set_i(lobsSpaceData,'OEC ',JDATA, 2)
                   ELSE
                      call obs_set_r8(lobsSpaceData,'OER ',JDATA, XSATDEV(ILVL,1))
-                     call obs_set_i(lobsSpaceData,'OEC ',JDATA, 1)
                   ENDIF
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'HU' ) THEN
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'PR' ) THEN

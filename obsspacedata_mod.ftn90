@@ -184,9 +184,9 @@ MODULE obsSpaceData_mod
 
   ! body column numbers
   public           :: NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR,  &
-                      NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER, NCM_RER,  &
-                      NCM_FGE, NCM_PER, NCM_FLG, NCM_POS, NCM_LYR, NCM_ASS,  &
-                      NCM_XTR, NCM_OBS, NCM_LOBS,NCM_VCO, NCM_PRM, NCM_KFA,  &
+                      NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER,  &
+                      NCM_FGE, NCM_FLG, NCM_LYR, NCM_ASS,  &
+                      NCM_XTR, NCM_OBS,NCM_VCO, NCM_PRM, NCM_KFA,  &
                       NCM_ZHA, NCM_HPHT,NCM_OMP
 
   ! methods
@@ -267,9 +267,9 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_AZA = NCM_IP+1   ! satellite azimuthal angle
  integer, parameter :: NCM_SUN = NCM_AZA+1  ! sun zenith angle
  integer, parameter :: NCM_CLF = NCM_SUN+1  ! cloud fraction
- integer, parameter :: NCM_OEC = NCM_CLF+1
- integer, parameter :: NCM_ST1 = NCM_OEC+1
- integer, parameter :: NCM_TLA = NCM_ST1+1
+ integer, parameter :: NCM_OEC = NCM_CLF+1  ! index of source file
+ integer, parameter :: NCM_ST1 = NCM_OEC+1  ! header level status/rejection flag 
+ integer, parameter :: NCM_TLA = NCM_ST1+1  ! index of latitude N of observation 
 
 ! the number of integer variables defined just above
  integer, parameter :: NHDR_INT = NCM_TLA
@@ -296,13 +296,12 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_ASS = NCM_KFA + 1 ! flag to indicate if assimilated
  integer, parameter :: NCM_OBS = NCM_ASS + 1 ! observation number (as in header)
  integer, parameter :: NCM_VCO = NCM_OBS + 1 ! type of vertical coordinate
- integer, parameter :: NCM_POS = NCM_VCO + 1
- integer, parameter :: NCM_LYR = NCM_POS + 1
- integer, parameter :: NCM_XTR = NCM_LYR + 1
- integer, parameter :: NCM_LOBS= NCM_XTR + 1
+ integer, parameter :: NCM_LYR = NCM_VCO + 1 ! Index of anal level above observ'n
+                                             ! Flag: extrapolation necessary,
+ integer, parameter :: NCM_XTR = NCM_LYR + 1 ! anal variables to obs'n location 
 
 ! the number of integer variables defined just above
- integer, parameter :: NBDY_INT = NCM_LOBS
+ integer, parameter :: NBDY_INT = NCM_XTR
 
 
 ! REAL-BODY COLUMN NUMBERS
@@ -316,17 +315,20 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_HPHT= NCM_OER  + 1 ! root of (hpht with hx scalar)
  integer, parameter :: NCM_ZHA = NCM_HPHT + 1 ! vertical coordinate for Schur product
  integer, parameter :: NCM_OMP6= NCM_ZHA  + 1 ! obs - H (6-h trial field)
- integer, parameter :: NCM_POB = NCM_OMP6 + 1
- integer, parameter :: NCM_OMF = NCM_POB  + 1
- integer, parameter :: NCM_OMI = NCM_OMF  + 1
- integer, parameter :: NCM_OMN = NCM_OMI  + 1
- integer, parameter :: NCM_PRM = NCM_OMN  + 1
- integer, parameter :: NCM_RER = NCM_PRM  + 1
- integer, parameter :: NCM_FGE = NCM_RER  + 1
- integer, parameter :: NCM_PER = NCM_FGE  + 1
+                                              ! Initial value of "gamma" for
+ integer, parameter :: NCM_POB = NCM_OMP6 + 1 ! variational QC 
+ integer, parameter :: NCM_OMF = NCM_POB  + 1 ! observation minus forecast value
+                                              ! Work space for use during
+ integer, parameter :: NCM_OMI = NCM_OMF  + 1 ! variational minimization  
+                                              ! Value from variational QC used
+ integer, parameter :: NCM_OMN = NCM_OMI  + 1 ! to flag when rejected
+                                              ! (Adjusted) observed value for
+ integer, parameter :: NCM_PRM = NCM_OMN  + 1 ! tovs in variational assimilation
+                                              ! Background error std deviation
+ integer, parameter :: NCM_FGE = NCM_PRM  + 1 ! projected into observation space
 
 ! the number of real variables defined just above
- integer, parameter :: NBDY_REAL = NCM_PER
+ integer, parameter :: NBDY_REAL = NCM_FGE
 
 
 ! integer,parameter :: NCM_STID=    ! Not needed since only 1 cstnid exists
@@ -494,66 +496,45 @@ MODULE obsSpaceData_mod
     integer :: ierr
 
     if (associated(obsdat%cfamily)) then
-      deallocate(obsdat%cfamily,STAT=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'CFAMILY checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in CFAMILY. IERR =',ierr
-      endif
+        deallocate(obsdat%cfamily,STAT=ierr)
+           nullify(obsdat%cfamily)
+      if(ierr.ne.0)write(*,*) 'Problem detected with CFAMILY. IERR =',ierr
     end if
 
     if (associated(obsdat%cstnid))then
-      deallocate(obsdat%cstnid,STAT=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'CSTNID checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in CSTNID. IERR =',ierr
-      endif
+        deallocate(obsdat%cstnid,STAT=ierr)
+           nullify(obsdat%cstnid)
+      if(ierr.ne.0)write(*,*) 'Problem detected with CSTNID. IERR =',ierr
     end if
 
     if (associated(obsdat%robhdr))then
-      deallocate(obsdat%robhdr,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'ROBHDR checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in ROBHDR. IERR =',ierr
-      endif
+        deallocate(obsdat%robhdr,stat=ierr)
+           nullify(obsdat%robhdr)
+      if(ierr.ne.0)write(*,*) 'Problem detected with ROBHDR. IERR =',ierr
     end if
 
     if (associated(obsdat%mobhdr))then
-      deallocate(obsdat%mobhdr,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'MOBHDR checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in MOBHDR. IERR =',ierr
-      endif
+        deallocate(obsdat%mobhdr,stat=ierr)
+           nullify(obsdat%mobhdr)
+      if(ierr.ne.0)write(*,*) 'Problem detected with MOBHDR. IERR =',ierr
     end if
 
     if (associated(obsdat%robdata))then
-      deallocate(obsdat%robdata,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'ROBDATA checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in ROBDATA. IERR =',ierr
-      endif
+        deallocate(obsdat%robdata,stat=ierr)
+           nullify(obsdat%robdata)
+      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA. IERR =',ierr
     end if
 
     if (associated(obsdat%robdata8))then
-      deallocate(obsdat%robdata8,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'ROBDATA8 checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in ROBDATA8. IERR =',ierr
-      endif
+        deallocate(obsdat%robdata8,stat=ierr)
+           nullify(obsdat%robdata8)
+      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA8. IERR =',ierr
     end if
 
     if (associated(obsdat%mobdata))then
-      deallocate(obsdat%mobdata,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'MOBDATA checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in MOBDATA. IERR =',ierr
-      endif
+        deallocate(obsdat%mobdata,stat=ierr)
+           nullify(obsdat%mobdata)
+      if(ierr.ne.0)write(*,*) 'Problem detected with MOBDATA. IERR =',ierr
     end if
 
   end subroutine obs_deallocate
@@ -970,9 +951,7 @@ MODULE obsSpaceData_mod
   case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
   case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
   case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
-  case ('RER '); value=obsdat%robdata(NCM_RER, index)
   case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
-  case ('PER '); value=obsdat%robdata(NCM_PER, index)
   case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
 
   case default
@@ -1021,9 +1000,7 @@ MODULE obsSpaceData_mod
   case ('OMI '); value=obsdat%robdata8(NCM_OMI, index)
   case ('OMN '); value=obsdat%robdata8(NCM_OMN, index)
   case ('OER '); value=obsdat%robdata8(NCM_OER, index)
-  case ('RER '); value=obsdat%robdata8(NCM_RER, index)
   case ('FGE '); value=obsdat%robdata8(NCM_FGE, index)
-  case ('PER '); value=obsdat%robdata8(NCM_PER, index)
   case ('PRM '); value=obsdat%robdata8(NCM_PRM, index)
 
   case default
@@ -1055,7 +1032,6 @@ MODULE obsSpaceData_mod
   case ('AZA '); value=obsdat%mobhdr(NCM_AZA, index)
   case ('SUN '); value=obsdat%mobhdr(NCM_SUN, index)
   case ('CLF '); value=obsdat%mobhdr(NCM_CLF, index)
-  case ('OEC '); value=obsdat%mobhdr(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr(NCM_TLA, index)
   case ('GHI '); value=obsdat%locObsTag(index)
@@ -1066,9 +1042,7 @@ MODULE obsSpaceData_mod
   case ('ASS '); value=obsdat%mobdata(NCM_ASS, index)
   case ('OBS '); value=obsdat%mobdata(NCM_OBS, index)
   case ('VCO '); value=obsdat%mobdata(NCM_VCO, index)
-  case ('POS '); value=obsdat%mobdata(NCM_POS, index)
   case ('XTR '); value=obsdat%mobdata(NCM_XTR, index)
-  case ('LOBS'); value=obsdat%mobdata(NCM_LOBS,index)
   case ('LYR '); value=obsdat%mobdata(NCM_LYR, index)
 
   case default
@@ -1102,7 +1076,6 @@ MODULE obsSpaceData_mod
   case ('AZA '); value=obsdat%mobhdr_g(NCM_AZA, index)
   case ('SUN '); value=obsdat%mobhdr_g(NCM_SUN, index)
   case ('CLF '); value=obsdat%mobhdr_g(NCM_CLF, index)
-  case ('OEC '); value=obsdat%mobhdr_g(NCM_OEC, index)
   case ('ST1 '); value=obsdat%mobhdr_g(NCM_ST1, index)
   case ('TLA '); value=obsdat%mobhdr_g(NCM_TLA, index)
 
@@ -1549,8 +1522,8 @@ MODULE obsSpaceData_mod
              ,obs_elem_r4(obsdat,'VAR ',JDATA),obs_elem_r4(obsdat,'OMF ',JDATA) &
              ,obs_elem_r4(obsdat,'OMA ',JDATA),obs_elem_r4(obsdat,'OMI ',JDATA) &
              ,obs_elem_r4(obsdat,'OER ',JDATA) &
-             ,obs_elem_r4(obsdat,'RER ',JDATA),obs_elem_r4(obsdat,'FGE ',JDATA) &
-             ,obs_elem_r4(obsdat,'PER ',JDATA),obs_elem_i (obsdat,'FLG ',JDATA) &
+             ,obs_elem_r4(obsdat,'FGE ',JDATA) &
+             ,obs_elem_i (obsdat,'FLG ',JDATA) &
              ,obs_elem_i (obsdat,'ASS ',JDATA)
      end if
   end do
@@ -1570,9 +1543,9 @@ MODULE obsSpaceData_mod
            ,/,10X &
            ,'ERROR STANDARD DEVIATIONS FOR' &
            ,/,20X &
-           ,'OBSERVATION:',G12.6,4X,'REPRESENTATIVENESS:',G12.6,4X &
+           ,'OBSERVATION:',G12.6,4X &
            ,/,20X &
-           ,'FIRST-GUESS:',G12.6,4X,'PERSISTENCE:',G12.6 &
+           ,'FIRST-GUESS:',G12.6,4X &
            ,/,10X &
            ,'BURP FLAGS:',I6,4x,'OBS. ASSIMILATED (1-->YES;0-->NO):',I3)
 
@@ -1619,7 +1592,7 @@ MODULE obsSpaceData_mod
      ,obs_elem_r4(obsdat,'LAT ',KOBS),obs_elem_r4(obsdat,'LON ',KOBS)&
      ,obs_elem_i (obsdat,'DAT ',KOBS),obs_elem_i (obsdat,'ETM ',KOBS) &
      ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r4(obsdat,'ALT ',KOBS) &
-     ,obs_elem_i (obsdat,'NLV ',KOBS),obs_elem_i (obsdat,'OEC ',KOBS) &
+     ,obs_elem_i (obsdat,'NLV ',KOBS) &
      ,obs_elem_i (obsdat,'OFL ',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
      ,obs_elem_i (obsdat,'TLA ',KOBS)
 
@@ -1632,7 +1605,7 @@ MODULE obsSpaceData_mod
            ,/,6X &
            ,'STATION ID:',A9,1X &
            ,'STATION''S ALTITUDE:',G12.6,1X &
-           ,'NUMBER OF DATA:',I6,1X,'ERROR CORR. TYPE',I6,1X &
+           ,'NUMBER OF DATA:',I6,1X &
            ,/,6X &
            ,'REPORT STATUS:',I6,5X,'REPORT STATUS 2:',I6,1X &
            ,/,6X &
@@ -1683,10 +1656,8 @@ MODULE obsSpaceData_mod
   case ('ASS '); obsdat%mobdata(NCM_ASS, index) = value
   case ('OBS '); obsdat%mobdata(NCM_OBS, index) = value
   case ('VCO '); obsdat%mobdata(NCM_VCO, index) = value
-  case ('POS '); obsdat%mobdata(NCM_POS, index) = value
   case ('LYR '); obsdat%mobdata(NCM_LYR, index) = value
   case ('XTR '); obsdat%mobdata(NCM_XTR, index) = value
-  case ('LOBS'); obsdat%mobdata(NCM_LOBS,index) = value
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not an integer observation."
@@ -1727,9 +1698,7 @@ MODULE obsSpaceData_mod
   case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
   case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
   case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
-  case ('RER '); obsdat%robdata(NCM_RER, index) = value
   case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
-  case ('PER '); obsdat%robdata(NCM_PER, index) = value
   case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
 
   case default
@@ -1761,9 +1730,7 @@ MODULE obsSpaceData_mod
   case ('OMI '); obsdat%robdata8(NCM_OMI, index) = value
   case ('OMN '); obsdat%robdata8(NCM_OMN, index) = value
   case ('OER '); obsdat%robdata8(NCM_OER, index) = value
-  case ('RER '); obsdat%robdata8(NCM_RER, index) = value
   case ('FGE '); obsdat%robdata8(NCM_FGE, index) = value
-  case ('PER '); obsdat%robdata8(NCM_PER, index) = value
   case ('PRM '); obsdat%robdata8(NCM_PRM, index) = value
 
   case default

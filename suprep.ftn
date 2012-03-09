@@ -178,8 +178,7 @@ C
       REAL*8 ZZLAT, ZLON, ZLEV, ZVAR
       REAL*8 ZLAT, GPH
       REAL*4 DLLAO
-      INTEGER IZLEV,IZP1,IZXI
-      CHARACTER*2 CLFAM,CLFAMSAV
+      CHARACTER*2 CLFAMSAV
       CHARACTER*8 CLFILNAM
       CHARACTER*35 CREASON(-8:13)
       CHARACTER*80 CELLIST,CSFLIST
@@ -521,14 +520,14 @@ C     d. Filter TOVS data
 C
             ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
-     S           ITYP .EQ. BUFR_NBT2 .OR.
+     S           ITYP .EQ. BUFR_NBT2.OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
      S          (IDATYP .EQ. 164 .OR.
      S           IDATYP .EQ. 181 .OR.
      S           IDATYP .EQ. 182 .OR.
      S           IDATYP .EQ. 183 .OR.
      S           IDATYP .EQ. 185 .OR.
-     S           IDATYP .EQ. 186     )   ) THEN
+     S           IDATYP .EQ. 186     ) ) THEN
 C
 C        d.1 Valid channel?
 C
@@ -710,44 +709,6 @@ C-----------------------------------------------------------------------
 C
 C
 C-----------------------------------------------------------------------
-C
-C    SET NCM_LOBS PARAMETER FOR:
-C
-      if ( nconf .ne. 121 .and. nconf .ne. 101) then
-        DO J = 1,NFILES
-          IF (  NBEGINTYP(J) .GT. 0)  THEN
-            IBEGIN=NBEGINTYP(J)
-            ILAST=NENDTYP(J)
-
-            DO JDATA= IBEGIN,ILAST
-              call obs_set_i(lobsSpaceData,'LOBS',JDATA,0)
-            END DO
-C
-C  1.    RAOB LEVELS
-            IF (CFAMTYP(J) .EQ. 'UA' ) THEN
-C
-              DO JK=1,JPRLEV
-                IZP1  = NILV(JK )
-                DO JDATA= IBEGIN,ILAST
-                  IZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  IDATYP=obs_elem_i(lobsSpaceData,'OTP ',IOBS)
-                  CLFAM =CFAMTYP(IDATYP)
-                  LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) .AND. (CLFAM .EQ
-     &                 . 'UA')
-                  IF ( LLOK ) THEN
-                    IZXI=ISIGN( 1,(IZLEV-IZP1) )
-                    call obs_set_i(lobsSpaceData,'LOBS',JDATA,obs_elem_i(lobsSpaceData,'LOBS',JDATA)+MAX(0
-     &                   ,IZXI))
-                  ENDIF
-                END DO
-              END DO
-            ENDIF
-C
-          ENDIF
-        enddo
-      endif
- 600  CONTINUE
 C
       WRITE(NULOUT,'(1X,"****************************************** ")')
       WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
