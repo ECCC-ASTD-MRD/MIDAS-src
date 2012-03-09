@@ -31,7 +31,6 @@
       use verticalCoord_mod
       use minimization_mod
       IMPLICIT NONE
-#include "compost.cdk"
       type(struct_gsv) :: statevector
       type(struct_vco), pointer :: vco_anl => null()
       real*8, pointer :: field(:,:,:)
@@ -123,10 +122,7 @@ C
          call qqexit(1)
       endif
          
-      write(*,*)' call supost'
-      call supost
-
-      CALL bmat_setup(vco_anl,nstamp)
+      call bmat_setup(vco_anl,nstamp)
 
       write(*,*) '******************'
       write(*,*) 'COMPUTE the mean of the random perturbations'

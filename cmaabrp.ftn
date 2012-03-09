@@ -173,20 +173,13 @@
       INTEGER ILCODMA(JPMXNEL)
       INTEGER ILISTNELE(JPMXNEL)
 *
-      INTEGER ITBLVAL(1)
-      INTEGER  ITBL3D(1)
-      INTEGER ITBLINF(1)
-      INTEGER   IMARK(1)
-      INTEGER    IBUF(1)
-      REAL*8       ZVAL(1)
-      REAL*8       ZVALP(1)
-      POINTER(PXVAL    ,ZVAL)
-      POINTER(PXVALP   ,ZVALP)
-      POINTER(PXTABL   ,ITBLVAL)
-      POINTER(PXTABL3D ,ITBL3D)
-      POINTER(PXTABLINF,ITBLINF)
-      POINTER(PXmark   ,Imark)
-      POINTER(PXBUF    ,IBUF)
+      INTEGER, ALLOCATABLE :: ITBLVAL(:)
+      INTEGER, ALLOCATABLE ::  ITBL3D(:)
+      INTEGER, ALLOCATABLE :: ITBLINF(:)
+      INTEGER, ALLOCATABLE ::   IMARK(:)
+      INTEGER, ALLOCATABLE ::    IBUF(:)
+      REAL*8, ALLOCATABLE :: ZVAL(:)
+      REAL*8, ALLOCATABLE :: ZVALP(:)
 *
       INTEGER JI,JJ,JK,J3D
       INTEGER ICHECK,INELM,INVM,INTM,IBKNMA,ITOPOST
@@ -212,7 +205,7 @@
 ************************************************************************
 *
       ILONG=MRFMXL(KFILE)
-      CALL HPALLOC(PXBUF,  ILONG*6 ,IER,8)
+      ALLOCATE(IBUF(ILONG*6))
       IBUF(1) =ILONG*10
       LLRESUM=.TRUE.
       IHANDL=MRFLOC(KFILE,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
@@ -309,12 +302,12 @@
       IMXL=1000
       IMXL3D=400
       IMXLINF=400
-      CALL HPALLOC(PXVAL, IMXL,IER,8)
-      CALL HPALLOC(PXVALP,IMXL,IER,8)
-      CALL HPALLOC(PXTABL,IMXL,IER,8)
-      CALL HPALLOC(PXmark,IMXL,IER,8)
-      CALL HPALLOC(PXTABL3D,IMXL3D,IER,8)
-      CALL HPALLOC(PXTABLINF,IMXLINF,IER,8)
+      ALLOCATE(ZVAL(IMXL))
+      ALLOCATE(ZVALP(IMXL))
+      ALLOCATE(ITBLVAL(IMXL))
+      ALLOCATE(Imark(IMXL))
+      ALLOCATE(ITBL3D(IMXL3D))
+      ALLOCATE(ITBLINF(IMXLINF))
 *-----------------------------------------------------------------------
       DO 1 JI=1,KNRECS
          LLERR=.FALSE.
@@ -378,8 +371,8 @@
                   IBKNO3D=IBKNO
                   IF ( ITOTDAT .GT. IMXL3D) THEN
                      IMXL3D=ITOTDAT
-                     CALL HPDEALLC(PXTABL3D,IER,1)
-                     CALL HPALLOC(PXTABL3D,IMXL3D,IER,8)
+                     DEALLOCATE(ITBL3D)
+                     ALLOCATE(ITBL3D(IMXL3D))
                   ENDIF
                   IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBL3D)
                   IER=MRBDCL(ILCOD3D,ILIST3D,INELE3D)
@@ -399,8 +392,8 @@
                ITOTDAT=I3D*INELEIN
                IF ( ITOTDAT .GT. IMXLINF) THEN
                   IMXLINF=ITOTDAT
-                  CALL HPDEALLC(PXTABLINF,IER,1)
-                  CALL HPALLOC(PXTABLINF,IMXLINF,IER,8)
+                  DEALLOCATE(ITBLINF)
+                  ALLOCATE(ITBLINF(IMXLINF))
                ENDIF
                IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBLINF)
                IER=MRBDCL(ILCOD3D,ILISTIN,INELEIN)
@@ -428,14 +421,14 @@
                  ITOTDAT=ITOTDAT + (INELE+IEXTRAEL)*INVAL*I3D
                  IF ( ITOTDAT .GT. IMXL) THEN
                     IMXL=ITOTDAT
-                    CALL HPDEALLC(PXVAL,IER,1)
-                    CALL HPDEALLC(PXVALP,IER,1)
-                    CALL HPDEALLC(PXTABL,IER,1)
-                    CALL HPDEALLC(PXmark,IER,1)
-                    CALL  HPALLOC(PXVAL,ITOTDAT,IER,8)
-                    CALL  HPALLOC(PXVALP,ITOTDAT,IER,8)
-                    CALL  HPALLOC(PXTABL,ITOTDAT,IER,8)
-                    CALL  HPALLOC(PXmark,ITOTDAT,IER,8)
+                    DEALLOCATE(ZVAL)
+                    DEALLOCATE(ZVALP)
+                    DEALLOCATE(ITBLVAL)
+                    DEALLOCATE(Imark)
+                    ALLOCATE(ZVAL(ITOTDAT))
+                    ALLOCATE(ZVALP(ITOTDAT))
+                    ALLOCATE(ITBLVAL(ITOTDAT))
+                    ALLOCATE(Imark(ITOTDAT))
                  ENDIF
 C
 C   INITIALIZE TO SOME VALUE FIRST ( BUT NOT PPMIS)
@@ -633,10 +626,20 @@ C======================================================================
                        IER=MRBCOL(ILIST(ilpos),ILCOD(ilpos),INELE)
                        ideb = INELE*INVAL*(J3D-1)
                        do jji =ideb+1,ideb+INELE*INVAL
-                          IF ( ZVALP(ipos + jji-1) .EQ. PPMIS ) THEN
+			  IF ( ABS(ZVALP(ipos+jji-1)-PPMIS) < epsilon(PPMIS) ) THEN
                              ITBLVAL(IPOS + jji-1)=-1
                           ELSE
-                             ITBLVAL(IPOS + jji-1)=ANINT( ZVALP(ipos + jji-1))
+*			   !Do not perform invalid casting (correct conversion that
+*                          !accounts for scaling is performed in VMRBCVT)
+			   IF ( abs(ZVALP(ipos+jji-1)) > dble(huge(itblval)-1) ) then
+			     IF (ZVALP(ipos+jji-1) > 0.d0) THEN
+				ITBLVAL(IPOS + jji-1) = huge(itblval)
+			     ELSE
+				ITBLVAL(IPOS + jji-1) = -huge(itblval)
+			     ENDIF
+		           ELSE
+                             ITBLVAL(IPOS + jji-1)=NINT(ZVALP(ipos + jji-1))
+  			   ENDIF
                           ENDIF
                        ENDDO
                        IER=VMRBCVT(ILCOD(ILPOS),ITBLVAL(IPOS+ideb),
@@ -812,13 +815,13 @@ C
          WRITE(NULOUT,*)' ------------------------------------------'
          WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
          WRITE(NULOUT,*)' ------------------------------------------'
-         CALL HPDEALLC(PXVAL    ,IER,1)
-         CALL HPDEALLC(PXVALP   ,IER,1)
-         CALL HPDEALLC(PXTABL   ,IER,1)
-         CALL HPDEALLC(PXTABL3D ,IER,1)
-         CALL HPDEALLC(PXTABLINF,IER,1)
-         CALL HPDEALLC(PXmark   ,IER,1)
-         CALL HPDEALLC(PXBUF    ,IER,1)
+         DEALLOCATE(ZVAL)
+         DEALLOCATE(ZVALP)
+         DEALLOCATE(ITBLVAL)
+         DEALLOCATE(ITBL3D)
+         DEALLOCATE(ITBLINF)
+         DEALLOCATE(Imark)
+         DEALLOCATE(IBUF)
          RETURN
       ENDIF
 ********************************
@@ -843,13 +846,13 @@ C
 *
 ** knrecs
     1 CONTINUE
-      CALL HPDEALLC(PXVAL    ,IER,1)
-      CALL HPDEALLC(PXVALP   ,IER,1)
-      CALL HPDEALLC(PXTABL   ,IER,1)
-      CALL HPDEALLC(PXTABL3D ,IER,1)
-      CALL HPDEALLC(PXTABLINF,IER,1)
-      CALL HPDEALLC(PXmark   ,IER,1)
-      CALL HPDEALLC(PXBUF    ,IER,1)
+      DEALLOCATE(ZVAL)
+      DEALLOCATE(ZVALP)
+      DEALLOCATE(ITBLVAL)
+      DEALLOCATE(ITBL3D)
+      DEALLOCATE(ITBLINF)
+      DEALLOCATE(Imark)
+      DEALLOCATE(IBUF)
 *
 *-----------------------------------------------------------------------
       CALL PRNTBRP(NUMHEADER,IKOUNT,obs_posn-1)

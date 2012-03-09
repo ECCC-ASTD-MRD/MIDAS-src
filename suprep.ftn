@@ -520,14 +520,14 @@ C     d. Filter TOVS data
 C
             ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
-     S           ITYP .EQ. BUFR_NBT2.OR.
+     S           ITYP .EQ. BUFR_NBT2 .OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
-     S          (IDATYP .EQ. 164 .OR.
-     S           IDATYP .EQ. 181 .OR.
-     S           IDATYP .EQ. 182 .OR.
-     S           IDATYP .EQ. 183 .OR.
-     S           IDATYP .EQ. 185 .OR.
-     S           IDATYP .EQ. 186     ) ) THEN
+     S          (IDBURP .EQ. 164 .OR.
+     S           IDBURP .EQ. 181 .OR.
+     S           IDBURP .EQ. 182 .OR.
+     S           IDBURP .EQ. 183 .OR.
+     S           IDBURP .EQ. 185 .OR.
+     S           IDBURP .EQ. 186     )   ) THEN
 C
 C        d.1 Valid channel?
 C

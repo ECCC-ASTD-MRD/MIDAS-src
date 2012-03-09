@@ -48,7 +48,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   real*8 pjo
 
-  character(len=2) :: option
+  character(len=*) :: option
 
   logical :: llprint
 

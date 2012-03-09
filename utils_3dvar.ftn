@@ -32,22 +32,16 @@
       integer iun, nio, nii
 *
       integer ikey, ierr, ileni, ileno, jk1
-      real bufuuout4, bufvvout4, bufuuin4, bufvvin4
-      pointer (pxbufuuin4, bufuuin4(nii))
-      pointer (pxbufvvin4, bufvvin4(nii))
-      pointer (pxbufuuout4, bufuuout4(nio))
-      pointer (pxbufvvout4, bufvvout4(nio))
+      real, allocatable :: bufuuout4(:), bufvvout4(:), bufuuin4(:), bufvvin4(:)
 *
       integer ezuvint
       external ezuvint
 *-----7----------------------------------------------------------------
 
-      ileni = nii
-      ileno = nio
-      call hpalloc(pxbufuuin4,max(1,ileni),ierr,1)
-      call hpalloc(pxbufvvin4,max(1,ileni),ierr,1)
-      call hpalloc(pxbufuuout4,max(1,ileno),ierr,1)
-      call hpalloc(pxbufvvout4,max(1,ileno),ierr,1)
+      allocate(bufuuin4(nii))
+      allocate(bufvvin4(nii))
+      allocate(bufuuout4(nio))
+      allocate(bufvvout4(nio))
 
       do jk1 = 1,nii
         bufuuin4(jk1) = duuin(jk1)
@@ -61,10 +55,10 @@
         dvvout(jk1) = bufvvout4(jk1)
       enddo
 
-      call hpdeallc(pxbufuuin4,ierr,1)
-      call hpdeallc(pxbufvvin4,ierr,1)
-      call hpdeallc(pxbufuuout4,ierr,1)
-      call hpdeallc(pxbufvvout4,ierr,1)
+      deallocate(bufuuin4)
+      deallocate(bufvvin4)
+      deallocate(bufuuout4)
+      deallocate(bufvvout4)
 
       return
       end
@@ -109,9 +103,7 @@
       character(len=*) :: grtyp, grtypref
 *
       integer ier1,ier2,jk,ilenx,ileny
-      real bufax4, bufay4
-      pointer (pxabufax4, bufax4(ni))
-      pointer (pxabufay4, bufay4(nj))
+      real, allocatable :: bufax4(:), bufay4(:)
 *
       integer ezgdef
       external ezgdef
@@ -127,8 +119,8 @@
        STOP
       endif
 
-      call hpalloc(pxabufax4,ilenx,ier1,1)
-      call hpalloc(pxabufay4,ileny,ier1,1)
+      allocate(bufax4(ilenx))
+      allocate(bufay4(ileny))
 
       do jk = 1,ilenx
         bufax4(jk) = ax(jk)
@@ -140,8 +132,8 @@
       ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4,
      &              bufax4, bufay4)
 
-      call hpdeallc(pxabufax4,ier1,1)
-      call hpdeallc(pxabufay4,ier1,1)
+      deallocate(bufax4)
+      deallocate(bufay4)
 
       vezgdef=ier2
 
@@ -243,8 +235,7 @@
       character(len=*) :: typvar
 *
       integer key1,key2, ierr, ilen, jk1, jk2, jk3, la
-      real buffer4
-      pointer (pxbuffer4,buffer4(*))
+      real, allocatable :: buffer4(:)
 *
       integer fstluk, fstinf
       external fstluk, fstinf
@@ -256,7 +247,7 @@
 
       if(key1 >= 0) then
         ilen = ni*nj*nk
-        call hpalloc(pxbuffer4,max(1,ilen),ierr,1)
+        allocate(buffer4(ilen))
 *     Read field
         key2 = fstluk(buffer4, key1, ni, nj, nk)
         if(key2 >= 0) then
@@ -270,7 +261,7 @@
           enddo
         endif
 
-        call hpdeallc(pxbuffer4,ierr,1)
+        deallocate(buffer4)
       endif
 
       vfstlir=key1
@@ -314,16 +305,14 @@
       character(len=*) :: grtyp 
       character(len=*) :: nomvar            
 * 
-      integer ikey, ierr, ilen, jk1, jk2, jk3
-      real buffer4
-      pointer (pxbuffer4,buffer4(ni,nj,nk))
+      integer ikey, ierr, jk1, jk2, jk3
+      real, allocatable :: buffer4(:,:,:)
 *
       integer fstecr
       external fstecr 
 *-----7----------------------------------------------------------------
 
-      ilen = ni*nj*nk
-      call hpalloc(pxbuffer4,max(1,ilen),ierr,1)
+      allocate(buffer4(ni,nj,nk))
 
       do jk3 = 1,nk
         do jk2 = 1,nj
@@ -337,7 +326,7 @@
      $              npas, ni, nj, nk, ip1, ip2, ip3, typvar, nomvar, 
      $              etiket, grtyp, ig1, ig2, ig3, ig4, datyp, rewrit)
 
-      call hpdeallc(pxbuffer4,ierr,1)
+      deallocate(buffer4)
 
       vfstecr=ikey
 
@@ -374,16 +363,14 @@
       real*8 fld8(ni,nj,nk)
       integer key, ni, nj, nk
 *
-      integer ikey, ierr, ilen, jk1, jk2, jk3
-      real buffer4
-      pointer (pxbuffer4,buffer4(ni,nj,nk))
+      integer ikey, ierr, jk1, jk2, jk3
+      real, allocatable :: buffer4(:,:,:)
 *
       integer fstluk
       external fstluk
 *-----7----------------------------------------------------------------
 
-      ilen = ni*nj*nk
-      call hpalloc(pxbuffer4,max(1,ilen),ierr,1)
+      allocate(buffer4(ni,nj,nk))
 
       ikey = fstluk(buffer4, key, ni, nj, nk)
 
@@ -395,7 +382,7 @@
         enddo
       enddo
 
-      call hpdeallc(pxbuffer4,ierr,1)
+      deallocate(buffer4)
 
       vfstluk=ikey 
 
@@ -484,13 +471,12 @@
       real*8 array8(n)
 *
       integer ierr,jk
-      real buffer4
-      pointer (pxbuffer4,buffer4(n))
+      real, allocatable :: buffer4(:)
 *
       external sort
 *-----7----------------------------------------------------------------
 
-      call hpalloc(pxbuffer4,max(1,n),ierr,1)
+      allocate(buffer4(n))
 
       do jk = 1,n
         buffer4(jk) = array8(jk)
@@ -502,7 +488,7 @@
         array8(jk) = buffer4(jk)
       enddo
 
-      call hpdeallc(pxbuffer4,ierr,1)
+      deallocate(buffer4)
 
       return
       end
@@ -582,14 +568,13 @@
       real*8 rval8(nele,nval,nt)
 *
       integer ier1,ier2,j1,j2,j3,ilen
-      real rval4
-      pointer (pxrval4, rval4(nele,nval,nt))
+      real, allocatable :: rval4(:,:,:)
 *
       integer mrbcvt
       external mrbcvt
 *-----7----------------------------------------------------------------
       ilen=nele*nval*nt
-      call hpalloc(pxrval4,max(1,ilen),ier1,1)
+      allocate(rval4(nele,nval,nt))
 
 *     rval8 ---> tblval
          if (mode .eq. 1) then
@@ -605,7 +590,7 @@
          rval8(:,:,:) = rval4(:,:,:)
       endif
 
-      call hpdeallc(pxrval4,ier1,1)
+      deallocate(rval4)
 
       vmrbcvt=ier2
 
@@ -643,18 +628,14 @@
       integer nii, nji, nki, nio, njo, nko     
       real*8 zout8(nio,njo,nko),zin8(nii,nji,nki)
 *
-      integer ierr, ileni, ileno, jk1, jk2, jk3
-      real bufferi4, buffero4
-      pointer (pxbufferi4,bufferi4(nii,nji,nki))
-      pointer (pxbuffero4,buffero4(nio,njo,nko))
+      integer ierr, jk1, jk2, jk3
+      real, allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
 *
       integer ezsint
       external ezsint
 *-----7----------------------------------------------------------------
-      ileni = nii*nji*nki
-      ileno = nio*njo*nko
-      call hpalloc(pxbufferi4,max(1,ileni),ierr,1)
-      call hpalloc(pxbuffero4,max(1,ileno),ierr,1)
+      allocate(bufferi4(nii,nji,nki))
+      allocate(buffero4(nio,njo,nko))
 
       do jk3 = 1,nki
         do jk2 = 1,nji
@@ -674,8 +655,8 @@
         enddo
       enddo
 
-      call hpdeallc(pxbufferi4,ierr,1)
-      call hpdeallc(pxbuffero4,ierr,1)
+      deallocate(bufferi4)
+      deallocate(buffero4)
 
       return
       end

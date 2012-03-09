@@ -73,8 +73,7 @@
      +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX,
      +        INSUP,INXAUX
 *
-      INTEGER IBUF(1)
-      POINTER(PXBUF,IBUF)
+      INTEGER, ALLOCATABLE :: IBUF(:)
       INTEGER IER,INBLKS,INRECS,IBRP1,IKOUNT
       INTEGER FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
      +        ,MRFMXL,NUMBLKS
@@ -86,7 +85,6 @@
 *
       EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
      +        ,MRFMXL,NUMBLKS
-      EXTERNAL HPALLOC
 *
 *  ------NOTE----------
 * currently supported families of data 'UA' 'AI' 'SF' 'HU' 'BO' 'TO' 'GO'
@@ -114,7 +112,7 @@
             IF ( INBLKS .GT. 0 ) THEN
                INRECS=MRFOPN(IBRP1,'READ')
                ILONG =MRFMXL(IBRP1)
-               CALL HPALLOC(PXBUF, ILONG + 20,IER,8)
+               ALLOCATE(IBUF(ILONG + 20))
                IBUF(1)=ILONG + 20
                IHANDL  =MRFLOC(IBRP1,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
                IF ( IHANDL .LT. 0 ) THEN
@@ -140,7 +138,7 @@
                   KRUNN=IRUNN
 *=========================
 *
-                  CALL HPDEALLC(PXBUF, IER,1)
+                  DEALLOCATE(IBUF)
                ENDIF
                IER=MRFCLS(IBRP1)
             ENDIF

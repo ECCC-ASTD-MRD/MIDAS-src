@@ -83,8 +83,7 @@ c
       integer :: klapf,knpf
       REAL*8 PPRES(*),PAV(KLAPF,*), PAV5(KLAPF,*)
 c
-      REAL*8 ZPRES3(KLAPF)
-      POINTER (PTZPRES3,ZPRES3)
+      REAL*8, ALLOCATABLE :: ZPRES3(:)
 c
       real*8 ZP1,zwmix,zwb
       integer :: inlvw,j,jnpf,ierr
@@ -98,7 +97,7 @@ C     .       -----------------------------------------------
 C
  050  CONTINUE
 C
-      CALL HPALLOC (PTZPRES3,MAX(KLAPF,1),IERR,8)
+      ALLOCATE(ZPRES3(KLAPF))
 C
 c*         1.   extrapolate humidity profile.
 c               ----------- -------- -------
@@ -140,7 +139,7 @@ C     .   -----------------
 C
 200   CONTINUE
 C
-      CALL HPDEALLC(PTZPRES3,IERR,1)
+      DEALLOCATE(ZPRES3)
 c
 c     -----------------------------------------------------------------
 c

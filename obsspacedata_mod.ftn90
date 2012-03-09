@@ -178,7 +178,7 @@ MODULE obsSpaceData_mod
   ! header column numbers
   public           :: NCM_RLN, NCM_ONM, NCM_BOX, NCM_OTP, NCM_ITY,  &
                       NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_ALT,  &
-                      NCM_NLV, NCM_OEC, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA,  &
+                      NCM_NLV, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA,  &
                       NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,   &
                       NCM_BY,  NCM_BZ
 
@@ -255,7 +255,7 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_RLN = 1          ! report location
  integer, parameter :: NCM_ONM = NCM_RLN+1  ! unique (within cma) station id no.
  integer, parameter :: NCM_BOX = NCM_ONM+1  ! model Box (used by TOVS) 
- integer, parameter :: NCM_OTP = NCM_BOX+1  ! observation Type
+ integer, parameter :: NCM_OTP = NCM_BOX+1  ! observation file index
  integer, parameter :: NCM_ITY = NCM_OTP+1  ! code for Instrument and retrieval type
  integer, parameter :: NCM_DAT = NCM_ITY+1  ! date YYYYMMD
  integer, parameter :: NCM_ETM = NCM_DAT+1  ! time HHMM
@@ -267,8 +267,7 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_AZA = NCM_IP+1   ! satellite azimuthal angle
  integer, parameter :: NCM_SUN = NCM_AZA+1  ! sun zenith angle
  integer, parameter :: NCM_CLF = NCM_SUN+1  ! cloud fraction
- integer, parameter :: NCM_OEC = NCM_CLF+1  ! index of source file
- integer, parameter :: NCM_ST1 = NCM_OEC+1  ! header level status/rejection flag 
+ integer, parameter :: NCM_ST1 = NCM_CLF+1  ! header level status/rejection flag 
  integer, parameter :: NCM_TLA = NCM_ST1+1  ! index of latitude N of observation 
 
 ! the number of integer variables defined just above
@@ -1645,7 +1644,6 @@ MODULE obsSpaceData_mod
   case ('AZA '); obsdat%mobhdr (NCM_AZA, index) = value
   case ('SUN '); obsdat%mobhdr (NCM_SUN, index) = value
   case ('CLF '); obsdat%mobhdr (NCM_CLF, index) = value
-  case ('OEC '); obsdat%mobhdr (NCM_OEC, index) = value
   case ('ST1 '); obsdat%mobhdr (NCM_ST1, index) = value
   case ('TLA '); obsdat%mobhdr (NCM_TLA, index) = value
 
@@ -2014,7 +2012,7 @@ MODULE obsSpaceData_mod
     DO i=1,numheader_mpilocal
       istart=obsdat%mobhdr(NCM_RLN, i)
       idata=obsdat%mobhdr(NCM_NLV, i)
-      ifamid=obsdat%mobhdr(NCM_OEC, i)
+      ifamid=obsdat%mobhdr(NCM_OTP, i)
       IF(ifamid == J) THEN
          IF(lfirst) THEN
            NBEGINTYP(j) = istart 

@@ -30,7 +30,7 @@
 !
 ! get the saturated vapor pressure from lq (log of specific humidity)
 !
-      husat = foefq8(exp(lq),pressure)
+      husat = foefq8(max(exp(lq),1.d-12),pressure)
 !
 ! now the dewpoint temperature
 !

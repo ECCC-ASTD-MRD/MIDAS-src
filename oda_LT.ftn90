@@ -110,7 +110,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
 !*     Arguments
 !*
-      character*2 cdvarname
+      character(len=2) :: cdvarname
       integer klev1,klev2
 !*
 !*     Local Variables

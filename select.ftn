@@ -86,7 +86,6 @@
       NVALS=NFILES
       LLAPPEND=.FALSE.
       DO J =1,NVALS
-         NVTYP=J
          CLVAL(J) = CFILNAM(J)
          ibrp1 = 0
          IER   =FNOM(IBRP1,CLVAL(J),'RND+OLD',0)

@@ -75,7 +75,8 @@ C LMHUAESV
 *          First do the forward branch to get saturated vapour pressure
 *          from q
 *
-            ZE = FOEFQ8(hu3d_trl_ptr(ji,jk,jj), zpres)
+            ZE = FOEFQ8(max(hu3d_trl_ptr(ji,jk,jj),1.d-12), zpres)
+!            ZE = FOEFQ8(hu3d_trl_ptr(ji,jk,jj), zpres)
 *
 *          TLM of the saturated vapor pressure from q (specific humidity)
 *

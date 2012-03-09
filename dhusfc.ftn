@@ -47,10 +47,10 @@
       type(struct_obs) :: lobsSpaceData
       INTEGER IOBS,IK,IBEGIN,ILAST,JO
       INTEGER J,JDATA
-      INTEGER ICOUNT,IERR,ILEN,JCOUNT,IPOINTR(1)
+      INTEGER ICOUNT,IERR,ILEN,JCOUNT
+      INTEGER, ALLOCATABLE :: IPOINTR(:)
       REAL*8 ZVAR,ZOER
       LOGICAL LLPRINT
-      POINTER(PXPOINTR    ,IPOINTR)
 C
 cc      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
@@ -76,7 +76,7 @@ c     &              ,CFAMTYP(J)
 c            ENDIF
 ***************************************************************
             ILEN = ILAST - IBEGIN +1
-            CALL HPALLOC(PXPOINTR,ILEN,IERR,8)
+            allocate(IPOINTR(ILEN))
 
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
@@ -139,7 +139,7 @@ C              below the model height
 C   ..section removed not necessary for LQ -armadan Oct 2004
 
               ENDIF
-            CALL HPDEALLC(PXPOINTR,IERR,1)
+              deallocate(IPOINTR)
 C
 C                 CONTRIBUTION TO Jo
 C   ..section removed not necessary for LQ -armadan Oct 2004

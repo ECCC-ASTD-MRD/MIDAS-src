@@ -35,7 +35,7 @@
       CALL mpi_init  
       root = 0  
 
-      IF(mpi_myid == root) call printrev("START OF MAIN PROGRAM CNT0",26)
+      IF(mpi_myid == root) call printrev("START OF MAIN PROGRAM CNT0")
 
       call tmg_init (mpi_myid, 'TMG_3D-VAR' )
 

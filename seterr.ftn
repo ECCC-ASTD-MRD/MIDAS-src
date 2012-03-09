@@ -27,7 +27,6 @@
 *                      -ALLOW HUMSAT FAMILY
 *          P. Koclas *CMC/AES - April 96
 *                       -contents of comstdev  now in comstato
-*                       -initialize NCM_OEC index in ROBDATA
 *                       -More legible output to NULOUT file
 *          S. Pellerin *ARMA/AES - Sept 97
 *                       -Introduction of type OZ
@@ -192,12 +191,7 @@ C***********************************************************************
 C
               IF ( (CFAMTYP(IDATYP) .EQ. 'UA') ) THEN
                   CALL LATID(ZFACTOR,ILAT1,ILAT2,ZLAT)
-                  ILVL=0
                   ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-                  DO JN =1,JPRLEV
-                     ZLVL=SIGN(1.0D0,(ZLEV- FLOAT(NILV(JN)) ) )
-                     ILVL=ILVL + MAX(0.0D0,ZLVL)
-                  END DO
 C
                   IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
                     call obs_set_r8(lobsSpaceData,'OER ',JDATA, XSFCOBERR(ILEM,1,IDBURP))
@@ -248,12 +242,6 @@ C    ---------------------------
      +                 (ILEM,ilyr,ILAT1) + ZFACTOR*XOSTDEV(ILEM,ilyr,ILAT2))
                     endif
 
-ccc debug debut
-ccc       print *,' seterr:IDBURP,ITYP,ILEM,ilvl,lat1,lat2,'
-ccc     &                  ,'fact,XOSTDEV(1),XOSTDEV(2) '
-ccc     &            ,IDBURP,ITYP,ILEM,ilvl,ilat1,ilat2,ZFACTOR
-ccc     &           ,XOSTDEV(ILEM,ILVL,ILAT1),XOSTDEV(ILEM,ILVL,ILAT2)
-ccc debug fin
                   ENDIF
                   IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
                     call obs_set_r8(lobsSpaceData,'OER ',JDATA, obs_elem_r8(lobsSpaceData,'OER ',JDATA)
@@ -499,7 +487,6 @@ C
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'SC' ) THEN
                  call obs_set_r8(lobsSpaceData,'OER ',JDATA, XSFCOBERR(ILEM,1,IDBURP))
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'TO' ) THEN
-                 ILVL=INT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
                  call obs_set_r8(lobsSpaceData,'OER ',JDATA, 1.0D0)
                ELSE IF ( CFAMTYP(IDATYP) .EQ. 'OZ' ) THEN
                  call obs_set_r8(lobsSpaceData,'OER ',JDATA,

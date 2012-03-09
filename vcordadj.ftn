@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE VCORDADJ(IDTYP,ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
+      SUBROUTINE VCORDADJ(IDTYP,ZVAL,KLIST,KNELE,KNVAL,KINT,KNELOUT)
       use bufr
       IMPLICIT NONE
 #include "cparbrp.cdk"
@@ -23,8 +23,6 @@
       INTEGER KLIST(KNELE+2)
       INTEGER ilemin,ilemout,ielistin(5),ielistou(5),jnel
       REAL*8 ZVAL(*)
-      INTEGER IMARK(*)
-      CHARACTER*9 CSTNID
 *
 #if defined (DOC)
 ************************************************************************
@@ -45,7 +43,6 @@
 *    ARGUMENTS:
 *               INPUT:
 *                      -ZVAL    : DATA BLOCK
-*                      -IMARK   : MARKER DATA BLOCK
 *                      -KLIST   : LIST OF BUFR ELEMENTS
 *                      -KNELE   : NUMBER OF ELEMENTS IN DATA BLOCK
 *                      -KNVAL   : NUMBER OF LEVELS IN DATA BLOCK

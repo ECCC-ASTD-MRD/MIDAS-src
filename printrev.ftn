@@ -14,18 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE PRINTREV(cdstring,klen)
+      SUBROUTINE PRINTREV(cdstring)
 *
 ***s/r PRINTREV  - Print revision message on stdout
 *
 *Author  : S. Pellerin *ARMA/AES  April 7, 1998
 *
       IMPLICIT NONE
-      integer klen
-      character*(*) cdstring
+      character(len=*) :: cdstring
       #include "revisionnumber.cdk"
 C
-      WRITE(*,FMT=9000) cdstring(1:klen),crevision
+      WRITE(*,FMT=9000) trim(cdstring),crevision
  9000 FORMAT(/,3(" *****************"),/
      S     ,a,/
      S     ,14x,"3D VARIATIONAL ASSIMILATION",/

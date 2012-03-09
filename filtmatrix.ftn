@@ -25,7 +25,7 @@
 *Author  : P. Gauthier *ARMA/AES  February 8, 1996
 *Revision:
 *           JM Belanger CMDA/SMC  Jul 2000 
-*                   . 32 bits conversion (HPALLOC, DSYEV)
+*                   . 32 bits conversion (DSYEV)
 *
 *Arguments
 *     .  PA(KN,KN)     :  on entry, the original matrix
@@ -53,18 +53,12 @@
 * Local variables
 *
       INTEGER JI, J, INFO, IER, IWORK
-      REAL*8 ZWORK(1), ZRESULT(KN,KN), ZALPHA, ZVARTOTAL, ZVARRES
+      REAL*8 ZWORK(4*KN), ZRESULT(KN,KN), ZALPHA, ZVARTOTAL, ZVARRES
      S     , ZFRACT
       REAL*8 DLRENORM, DLSIGI
-      POINTER(PXWRK,ZWORK)
-      POINTER(PXRES,ZRESULT)
 
       EXTERNAL DSYEV
 *
-*     0.  Memory allocation and miscellaneous definitions
-*
-      CALL HPALLOC(PXWRK,4*KN,IER,8)
-      CALL HPALLOC(PXRES,KN*KN,IER,8)
       IWORK=4*KN
       ZALPHA = PALPHA
 *
@@ -157,11 +151,6 @@ C
  9100 FORMAT(/,1x,'Total variance :',G12.6,4x
      S     ,'Resolved part (absolute): ',g12.6
      S     ,4X,'Resolved part (relative): ',G12.6,'%')
-*
-*     4. Deallocate local arrays
-*
-      CALL HPDEALLC(PXWRK,IER,1)
-      CALL HPDEALLC(PXRES, IER,1)
 *
       WRITE(NULOUT,*)'FILTMATRIX-----------Done--------------- '
       WRITE(NULOUT,*)' '

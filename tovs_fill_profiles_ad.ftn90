@@ -238,13 +238,13 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
      zlq_ad(:,:) = 0.0
      zps_ad(:)   = 0.0
 
-!$omp parallel private(istride,imodulo)
      imodulo = mod(knpf,nthreads)
      if ( imodulo .eq. 0 ) then
         istride = max(1,(knpf/nthreads))
      else
         istride = max(1,(knpf/nthreads)+1)
      endif
+!$omp parallel
 !$omp do private(jn,ilen)
      do jn=1,knpf,istride
         ilen = min (knpf-jn+1,istride)
@@ -256,6 +256,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
             call intavgad (zvlev(1,jn),vco_anl%db_m,zlq_ad(1,jn),zlq(1,jn), &
      &                    zps_ad(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
      &                    jpmolev,xpres(jpmotop),lqo_ad(1,jn))
+
         endif
      enddo
 !$omp end do

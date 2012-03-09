@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE BRPACMA(CDTYPE,indxfile,LDAPPEND,KFILE,KNRECS,lobsSpaceData)
+      SUBROUTINE BRPACMA(CDTYPE,IfamID,LDAPPEND,KFILE,KNRECS,lobsSpaceData)
 #if defined (DOC)
 *
 ***s/r BRPACMA -CONVERT DATA IN CMC BURP FILES TO CMA.
@@ -107,7 +107,7 @@
 *                 INPUT:
 *
 *                       -CDTYPE  : DATA TYPE (I.E: UA=UPPER AIR ...)
-                        - indxfile : the index of the array CFAMTYP(J)  
+                        -IfamID  : the index of the array CFAMTYP(J)  
 *                       -LDAPPEND: .TRUE. -> APPEND DATA TO CMA FILE
 *                                  .FALSE.->  START NEW CMC FILE
 *                       -KFILE   : LOGICAL UNIT NUMBER OF BURP FILE
@@ -137,7 +137,7 @@
       INTEGER IGQISFLAGQUAL,IGQISQUALINDEXLOC,ISUNAZIM
 *
       CHARACTER(len=*) :: CDTYPE
-      INTEGER   indxfile  
+      INTEGER :: IfamID
       LOGICAL :: LDAPPEND,LLSURF,LABORTFULL=.true.
 *
       INTEGER IER
@@ -174,21 +174,13 @@
       INTEGER ILCODMA(JPMXNEL)
       INTEGER ILISTNELE(JPMXNEL)
 *
-      INTEGER ITBLVAL(1)
-      INTEGER  ITBL3D(1)
-      INTEGER ITBLINF(1)
-      INTEGER   IMARK(1)
-      INTEGER    IBUF(1)
-      REAL*8       ZVAL(1)
-      REAL*8     ZVAL3D(1)
-
-      POINTER(PXVAL    ,ZVAL)
-      POINTER(PXVAL3D  ,ZVAL3D)
-      POINTER(PXTABL   ,ITBLVAL)
-      POINTER(PXTABL3D ,ITBL3D)
-      POINTER(PXTABLINF,ITBLINF)
-      POINTER(PXmark   ,Imark)
-      POINTER(PXBUF    ,Ibuf)
+      INTEGER, ALLOCATABLE :: ITBLVAL(:)
+      INTEGER, ALLOCATABLE ::  ITBL3D(:)
+      INTEGER, ALLOCATABLE :: ITBLINF(:)
+      INTEGER, ALLOCATABLE ::   IMARK(:)
+      INTEGER, ALLOCATABLE ::    IBUF(:)
+      REAL*8, ALLOCATABLE ::     ZVAL(:)
+      REAL*8, ALLOCATABLE ::   ZVAL3D(:)
 *
       REAL*8 XLAT, XLON
 *
@@ -197,11 +189,6 @@
       INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL
       LOGICAL LLERR,LLMA,LLGROUP,LLERROR,LLSAT,LLUNI,LLRESET,LLGO,LLAIRS
       LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLIASI
-
-      INTEGER :: IfamID  
-
-      IfamID = indxfile  
-
 C
 C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
 C
@@ -225,7 +212,7 @@ C
 ************************************************************************
 *
       ILONG=MRFMXL(KFILE)
-      CALL HPALLOC(PXBUF, ILONG + 20,IER,1)
+      ALLOCATE(IBUF(ILONG + 20))
       IBUF(1)=ILONG + 20
       IHANDL=MRFLOC(KFILE,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
       IF ( IHANDL .LT. 0 ) THEN
@@ -273,12 +260,12 @@ C
       IMXL=1000
       IMXL3D=400
       IMXLINF=400
-      CALL HPALLOC(PXVAL, IMXL,IER,8)
-      CALL HPALLOC(PXVAL3D,IMXL3D,IER,8)
-      CALL HPALLOC(PXTABL,IMXL,IER,1)
-      CALL HPALLOC(PXmark,IMXL,IER,1)
-      CALL HPALLOC(PXTABL3D,IMXL3D,IER,1)
-      CALL HPALLOC(PXTABLINF,IMXLINF,IER,1)
+      ALLOCATE(ZVAL(IMXL))
+      ALLOCATE(ZVAL3D(IMXL3D))
+      ALLOCATE(ITBLVAL(IMXL))
+      ALLOCATE(Imark(IMXL))
+      ALLOCATE(ITBL3D(IMXL3D))
+      ALLOCATE(ITBLINF(IMXLINF))
 
 *-----------------------------------------------------------------------
       DO 1 JI=1,KNRECS
@@ -343,10 +330,10 @@ C
                   ITOTDAT=I3D*INELE3D
                   IF ( ITOTDAT .GT. IMXL3D) THEN
                      IMXL3D=ITOTDAT
-                     CALL HPDEALLC(PXTABL3D,IER,1)
-                     CALL HPDEALLC(PXVAL3D,IER,1)
-                     CALL HPALLOC(PXTABL3D,IMXL3D,IER,1)
-                     CALL HPALLOC(PXVAL3D,IMXL3D,IER,8)
+                     DEALLOCATE(ITBL3D)
+                     DEALLOCATE(ZVAL3D)
+                     ALLOCATE(ITBL3D(IMXL3D))
+                     ALLOCATE(ZVAL3D(IMXL3D))
                   ENDIF
                   IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBL3D)
                   IER=VMRBCVT(ILCOD3D,ITBL3D,ZVAL3D,INELE3D,1,I3D,0)
@@ -367,8 +354,8 @@ C
                ITOTDAT=I3D*INELEIN
                IF ( ITOTDAT .GT. IMXLINF) THEN
                   IMXLINF=ITOTDAT
-                  CALL HPDEALLC(PXTABLINF,IER,1)
-                  CALL HPALLOC(PXTABLINF,IMXLINF,IER,1)
+                  DEALLOCATE(ITBLINF)
+                  ALLOCATE(ITBLINF(IMXLINF))
                ENDIF
                IER=MRBXTR(IBUF,IBKNO,ILCOD3D,ITBLINF)
                IER=MRBDCL(ILCOD3D,ILISTIN,INELEIN)
@@ -405,12 +392,12 @@ C
                  ITOTDAT=ITOTDAT + (INELE+IEXTRAEL)*INVAL*I3D
                  IF ( ITOTDAT .GT. IMXL) THEN
                     IMXL=ITOTDAT
-                    CALL HPDEALLC(PXVAL,IER,1)
-                    CALL HPDEALLC(PXTABL,IER,1)
-                    CALL HPDEALLC(PXmark,IER,1)
-                    CALL  HPALLOC(PXVAL,ITOTDAT,IER,8)
-                    CALL  HPALLOC(PXTABL,ITOTDAT,IER,1)
-                    CALL  HPALLOC(PXmark,ITOTDAT,IER,1)
+                    DEALLOCATE(ZVAL)
+                    DEALLOCATE(ITBLVAL)
+                    DEALLOCATE(Imark)
+                    ALLOCATE(ZVAL(ITOTDAT))
+                    ALLOCATE(ITBLVAL(ITOTDAT))
+                    ALLOCATE(Imark(ITOTDAT))
                  ENDIF
                  IER=MRBXTR(IBUF,IBKNO,ILCOD(ILPOS),ITBLVAL(IPOS))
 
@@ -462,7 +449,7 @@ C
 
                  if  ( cdtype == 'SF' .OR. cdtype == 'SC'
      &                 .OR. LLSURF ) then
-                    CALL VCORDADJ(IDBURP,ZVAL(IPOS),IMARK(IPOS)
+                    CALL VCORDADJ(IDBURP,ZVAL(IPOS)
      +                   ,ILIST(ILPOS),INELE,INVAL,I3D,ISCRAP)
                  endif
 
@@ -878,12 +865,10 @@ c               ENDIF
                 ENDIF
 * Fin modif
                 call obs_set_i(lobsSpaceData,'BOX ',NUMHEADER, INSTRUM + ISATZEN*10000)
-                call obs_set_i(lobsSpaceData,'OTP ',NUMHEADER, NVTYP)
+                call obs_set_i(lobsSpaceData,'OTP ',NUMHEADER, IfamID)
                 call obs_set_i(lobsSpaceData,'ITY ',NUMHEADER, IDBURP+ 1000*ISAT+ 1000000*ITECH)
                 call obs_set_i(lobsSpaceData,'DAT ',NUMHEADER, IDATE)
                 call obs_set_i(lobsSpaceData,'ETM ',NUMHEADER, ITIME)
-                !!bhe MOBHDR(NCM_OEC,NUMHEADER) = 999
-                call obs_set_i(lobsSpaceData,'OEC ',NUMHEADER, IfamID)
                 call obs_set_i(lobsSpaceData,'OFL ',NUMHEADER, IMASK)
                 call obs_set_i(lobsSpaceData,'ST1 ',NUMHEADER, IFLGS)
                 call obs_set_i(lobsSpaceData,'AZA ',NUMHEADER, ISATAZIM)
@@ -902,13 +887,13 @@ c               ENDIF
             ENDIF
          IF ( obs_numbody(lobsSpaceData) .GE. obs_numbody_max(lobsSpaceData) 
      +       .OR. NUMHEADER .GE. obs_numheader_max(lobsSpaceData) ) THEN
-            CALL HPDEALLC(PXVAL    ,IER,1)
-            CALL HPDEALLC(PXVAL3D  ,IER,1)
-            CALL HPDEALLC(PXTABL   ,IER,1)
-            CALL HPDEALLC(PXTABL3D ,IER,1)
-            CALL HPDEALLC(PXTABLINF,IER,1)
-            CALL HPDEALLC(PXmark   ,IER,1)
-            CALL HPDEALLC(PXBUF    ,IER,1)
+            DEALLOCATE(ZVAL)
+            DEALLOCATE(ZVAL3D)
+            DEALLOCATE(ITBLVAL)
+            DEALLOCATE(ITBL3D)
+            DEALLOCATE(ITBLINF)
+            DEALLOCATE(Imark)
+            DEALLOCATE(IBUF)
 *
 *-----------------------------------------------------------------------
             WRITE(NULOUT,*)' ******************************************'
@@ -954,13 +939,13 @@ c               ENDIF
     1 CONTINUE
 
 
-      CALL HPDEALLC(PXVAL    ,IER,1)
-      CALL HPDEALLC(PXVAL3D  ,IER,1)
-      CALL HPDEALLC(PXTABL   ,IER,1)
-      CALL HPDEALLC(PXTABL3D ,IER,1)
-      CALL HPDEALLC(PXTABLINF,IER,1)
-      CALL HPDEALLC(PXmark   ,IER,1)
-      CALL HPDEALLC(PXBUF    ,IER,1)
+      DEALLOCATE(ZVAL)
+      DEALLOCATE(ZVAL3D)
+      DEALLOCATE(ITBLVAL)
+      DEALLOCATE(ITBL3D)
+      DEALLOCATE(ITBLINF)
+      DEALLOCATE(Imark)
+      DEALLOCATE(IBUF)
 *
 *-----------------------------------------------------------------------
       CALL PRNTBRP(NUMHEADER,IKOUNT,obs_numbody(lobsSpaceData))

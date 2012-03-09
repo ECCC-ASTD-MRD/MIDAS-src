@@ -164,6 +164,7 @@
                       & REF       = address(kk), &
                       & IOSTAT    = error) 
 
+               Call BURP_Get_Property(Rpt_in,STNID =ID )
                if ( id(1:2) == ">>" ) then
                 if( id .ne. ">>BGCKALT" ) then
                   write(nulout,*) 'ERREUR - le type de fichier devrait etre >>BGCKALT'

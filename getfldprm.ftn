@@ -66,7 +66,8 @@ c
 *
 #endif
       integer fstinl,fstprm,ezqkdef,newdate
-      integer ini,inj,ink,ikeys(1),jlev,ier
+      integer ini,inj,ink,jlev,ier
+      integer, allocatable :: ikeys(:)
       integer idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf,
      &     iextra1, iextra2, iextra3, iig12, iig22,
      &     iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4,
@@ -79,9 +80,8 @@ c
       character *2 cltypvar
       character *1 clgrtyp2,clgrtyp,clstring
       logical llflag
-      pointer (pikeys,ikeys)
 c
-      call hpalloc(pikeys,max(knmaxlev,1),ier,1)
+      allocate(ikeys(knmaxlev))
 c
       knlev = 0
 c
@@ -175,7 +175,7 @@ c
      &         ' records found in unit ',kinmpg
       endif
 c
-      call hpdeallc(pikeys,ier,1)
+      deallocate(ikeys)
 c
       return
       end

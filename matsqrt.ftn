@@ -22,21 +22,9 @@
 * Local variables
 *
       INTEGER JI, J, INFO, IER, IWORK
-      REAL*8 ZWORK(1), ZRESULT(KN,KN), ZEIGENV2(KN,KN),
+      REAL*8 ZWORK(4*KN), ZRESULT(KN,KN), ZEIGENV2(KN,KN),
      +       ZEIGEN(KN,KN), ZEIGENV(KN)
-      POINTER(PXEIG  ,ZEIGEN  )
-      POINTER(PXEIGV ,ZEIGENV )
-      POINTER(PXEIGV2,ZEIGENV2)
-      POINTER(PXWRK,ZWORK)
-      POINTER(PXRES,ZRESULT)
 *
-*     0.  Memory allocation and miscellaneous definitions
-*
-      CALL HPALLOC(PXEIG  ,KN*KN,IER,8)
-      CALL HPALLOC(PXEIGV ,KN   ,IER,8)
-      CALL HPALLOC(PXEIGV2,KN*KN,IER,8)
-      CALL HPALLOC(PXWRK,4*KN,IER,8)
-      CALL HPALLOC(PXRES,KN*KN,IER,8)
       IWORK=4*KN
 *
       WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
@@ -45,7 +33,6 @@
 *
 *     1. Computation of eigenvalues and eigenvectors
 *
- 100  CONTINUE
       DO JI=1,KN
          DO J=1,KN
             ZEIGEN(JI,J)=PA(JI,J)
@@ -74,10 +61,6 @@
       CALL DGEMUL(ZRESULT,KN,'N',ZEIGEN,KN,'T',PA,KN,KN,KN,KN)
 *
 *     4. Deallocate local arrays
-*
-      CALL HPDEALLC(PXEIG,IER,1)
-      CALL HPDEALLC(PXWRK,IER,1)
-      CALL HPDEALLC(PXRES,IER,1)
 *
       WRITE(*,*)'MATSQRT-----------Done--------------- '
       WRITE(*,*)' '

@@ -155,7 +155,6 @@ C
       NVALS=NFILES
       LLAPPEND=.FALSE.
       DO J =1,NKOUNT
-         NVTYP=J
          CBURP(J)  = CFILNAM(J)
          ibrp1 = 0
          IER   =FNOM(IBRP1,CBURP(J),'RND+OLD',0)

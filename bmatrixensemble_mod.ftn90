@@ -60,7 +60,7 @@ CONTAINS
     integer        :: ntrunc,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
     integer        :: cvDim_out
     integer        :: jlev,jn,jm,ila,njlath_l,mpiMode
-    integer        :: fnom,fclos,ierr,nulnam=0
+    integer        :: fnom,fclos,ierr,nulnam
 
     !namelist
     NAMELIST /NAMBEN/nens,scaleFactor,ntrunc,enspathname,ensfilebasename,nLevEns
@@ -73,7 +73,9 @@ CONTAINS
     enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
     ensfilebasename=''
 
+    nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    write(*,*) 'ben_setup: reading namelist, ierr=',ierr
     read(nulnam,nml=namben)
     write(*,nml=namben)
     ierr=fclos(nulnam)

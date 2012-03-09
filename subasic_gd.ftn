@@ -217,27 +217,20 @@ C
       integer kvvgid,inlev
       real*8 pvar(kcol,knk), pvv(kcolvv,knk)
       character(len=*) :: varName
-      character*(*) cddgint
+      character(len=*) :: cddgint
       logical ldvint
 c
-      integer jlev,iip1s,iip1,iip2,iip3,itrlnlev,itrlgid
+      integer jlev,iip1s(kmaxlev),iip1,iip2,iip3,itrlnlev,itrlgid
       integer ikey,ezgprm,ip0gid,vfstluk,ezsetopt
       integer ezdefset,iset,vezsint,jcol,ivvgid,inivv,injvv
       integer ikind,imode,ip1style,ip1kind
       integer koutmpg
-      real*8  zeta,zhighvar(1),zhighvv(1),zlowvar(1)
-      real*8  zpresanl(1),zlowvv(1)
-      real*8  zps(1),zprestrl(1),zprofi(1),zprofo(1)
-      real*8,allocatable :: zpstrl(:,:)
+      real*8  zeta(kmaxlev)
+      real*8, allocatable :: zhighvar(:),zhighvv(:),zlowvar(:)
+      real*8, allocatable :: zpresanl(:),zlowvv(:)
+      real*8, allocatable :: zps(:),zprestrl(:),zprofi(:),zprofo(:)
+      real*8, allocatable :: zpstrl(:,:)
       character*1 clstring
-      pointer (pxprofi,zprofi)
-      pointer (pxprofo,zprofo)
-      pointer (pxhighvar,zhighvar)
-      pointer (pxpresanl,zpresanl),(pxps,zps)
-      pointer (pxprestrl,zprestrl)
-      pointer (pxip1s,iip1s(kmaxlev))
-      pointer (pxeta,zeta(kmaxlev)),(pxhighvv,zhighvv)
-      pointer (pxlowvar,zlowvar),(pxlowvv,zlowvv)
 C
       WRITE(KULOUT,FMT='(/,4X,"Starting VHFSTFLD",//)')
 c
@@ -246,13 +239,6 @@ c
       else
         clnomvar = varName
       endif
-C
-C*    2 Allocate space for the buffer
-C       -----------------------------
-C
-      call hpalloc(pxeta,kmaxlev,ierr,8)
-      call hpalloc(pxip1s,kmaxlev,ierr,8)
-c
 c
 c*    3. Read desired fields
 c     .  -------------------
@@ -294,7 +280,7 @@ c-----Convert real value P to IP
       enddo
 
       ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
-      call hpalloc(pxhighvar,ini*inj*itrlnlev,ierr,8)
+      allocate(zhighvar(ini*inj*itrlnlev))
 c
       write(kulout,*)'vhfstfld: reading ',clnomvar
 c
@@ -313,7 +299,7 @@ c
 c
       enddo
 c
-      call hpalloc(pxlowvar,kcol*itrlnlev,ierr,8)
+      allocate(zlowvar(kcol*itrlnlev))
 c
       if(trim(varName).ne.'UV') then
 c
@@ -331,7 +317,7 @@ c
      &       ,kulout,ip1style,ip1kind)
 c
         ierr = ezgprm(ivvgid,clgrtyp,inivv,injvv,ig1,ig2,ig3,ig4)
-        call hpalloc(pxhighvv,inivv*injvv*itrlnlev,ierr,8)
+        allocate(zhighvv(inivv*injvv*itrlnlev))
 c
         write(kulout,*)'vhfstfld: reading ','VV'
 c
@@ -354,17 +340,17 @@ c
 c
 c Horizontal interpolation
 c
-        call hpalloc(pxlowvv,kcolvv*itrlnlev,ierr,8)
+        allocate(zlowvv(kcolvv*itrlnlev))
 c
         call hintvec(zhighvar,ini*inj,itrlgid
      &       ,zhighvv,inivv*injvv,ivvgid,zlowvar
      &       ,kcol,ktrggid,zlowvv,kcolvv
      &       ,kvvgid,itrlnlev,cddgint)
 c
-        call hpdeallc(pxhighvv,ierr,1)
+        deallocate(zhighvv)
       endif
 c
-      call hpdeallc(pxhighvar,ierr,1)
+      deallocate(zhighvar)
 c
 c Vertical interpolation:
 c
@@ -393,11 +379,11 @@ c
         ikey = VFSTLUK(zpstrl, ikey, INI, INJ, INK)
         zpstrl(:,:)=zpstrl(:,:)*MPC_PA_PER_MBAR_R8
 c
-        call hpalloc(pxpresanl,kcol*knk,ierr,8)
-        call hpalloc(pxps,kcol,ierr,8)
-        call hpalloc(pxprestrl,kcol*itrlnlev,ierr,8)
-        call hpalloc(pxprofi,kcol*itrlnlev,ierr,8)
-        call hpalloc(pxprofo,kcol*knk,ierr,8)
+        allocate(zpresanl(kcol*knk))
+        allocate(zps(kcol))
+        allocate(zprestrl(kcol*itrlnlev))
+        allocate(zprofi(kcol*itrlnlev))
+        allocate(zprofo(kcol*knk))
 c
 c Interpolation of high res. P0 to low res. variable grid
 c
@@ -437,19 +423,19 @@ c
           enddo
         enddo
 c
-        call hpdeallc(pxpresanl,ierr,1)
-        call hpdeallc(pxps,ierr,1)
-        call hpdeallc(pxprestrl,ierr,1)
-        call hpdeallc(pxprofi,ierr,1)
-        call hpdeallc(pxprofo,ierr,1)
+        deallocate(zpresanl)
+        deallocate(zps)
+        deallocate(zprestrl)
+        deallocate(zprofi)
+        deallocate(zprofo)
 c
         if (trim(varName).eq.'UV') then
 c
-          call hpalloc(pxpresanl,kcolvv*knk,ierr,8)
-          call hpalloc(pxps,kcolvv,ierr,8)
-          call hpalloc(pxprestrl,kcolvv*itrlnlev,ierr,8)
-          call hpalloc(pxprofi,kcolvv*itrlnlev,ierr,8)
-          call hpalloc(pxprofo,kcolvv*knk,ierr,8)
+          allocate(zpresanl(kcolvv*knk))
+          allocate(zps(kcolvv))
+          allocate(zprestrl(kcolvv*itrlnlev))
+          allocate(zprofi(kcolvv*itrlnlev))
+          allocate(zprofo(kcolvv*knk))
 c
 c Interpolation of high res. P0 to high res. variable grid
 c
@@ -484,12 +470,12 @@ c
             enddo
           enddo
 c
-          call hpdeallc(pxlowvv,ierr,1)
-          call hpdeallc(pxpresanl,ierr,1)
-          call hpdeallc(pxps,ierr,1)
-          call hpdeallc(pxprestrl,ierr,1)
-          call hpdeallc(pxprofi,ierr,1)
-          call hpdeallc(pxprofo,ierr,1)
+          deallocate(zlowvv)
+          deallocate(zpresanl)
+          deallocate(zps)
+          deallocate(zprestrl)
+          deallocate(zprofi)
+          deallocate(zprofo)
         endif
 c
       else
@@ -513,7 +499,7 @@ c
                 pvv(jcol,jlev) = zlowvv((jlev-1)*kcol+jcol)
               enddo
             enddo
-            call hpdeallc(pxlowvv,ierr,1)
+            deallocate(zlowvv)
           endif
         endif
       endif
@@ -522,9 +508,7 @@ c End of vertical interpolation
 c
 c     .  ---------------------------------
 c
-      call hpdeallc(pxlowvar,ierr,1)
-      call hpdeallc(pxip1s,ierr,1)
-      call hpdeallc(pxeta,ierr,1)
+      deallocate(zlowvar)
 c
       write(kulout,*) 'END of VHFSTFLD'
 c

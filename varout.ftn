@@ -12,7 +12,6 @@ C
       use gridStateVector_mod
       use minimization_mod
       IMPLICIT NONE
-#include "compost.cdk"
       integer kulfile
       type(struct_gsv) :: statevector
       real*8 :: zes(statevector%ni,statevector%nlev,statevector%nj)
@@ -29,7 +28,12 @@ C
       character(len=2)  :: cltypinc
       character(len=12) :: cletiket
       real*8 :: zlowvar(statevector%ni,statevector%nj)
-      LOGICAL llimplemented,llvarout
+      logical llimplemented,llvarout
+! previously from compost.cdk
+      integer          NPPCVAR
+      character(len=4)  :: CPPCVAR(20)
+      character(len=12) :: CETIKINC
+      logical lttout,lvtout,lhuout,lgzout
 !
       WRITE(*,FMT='(/,4X,"Starting VAROUT",//)')
 c
@@ -37,6 +41,8 @@ c
         write(*,*) 'varout: unit number for rebm file not valid!'
         return
       endif
+
+      call supost
 
       WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model'',
      S     '' state on file at iteration No.'',I3)')
@@ -123,4 +129,137 @@ c
       write(*,*) 'END of VAROUT'
 c
       RETURN
-      END
+
+      CONTAINS
+
+      SUBROUTINE SUPOST
+***s/r SUPOST  - initialize the post-processing of the model state
+*     .
+*
+*Author  : P. Gauthier *ARMA/AES  Sept. 20, 1993
+*Revision: C. Charette *ARMA/AES  Jan 96
+*     .       -Initialize RPN standard file parameters
+*           C. Charette *ARMA/AES  Jan 96
+*     .       -Documented the compulsary and diagnostic variables
+*              available for each mode of execution of the 3dvar
+*           L. Fillion *ARMA/MSC  Feb 05
+*     .       -Include LAM4D limited area analysis option.
+*           L. Fillion ARMA/EC May 2006: Mesovar upgrade to v10_0_0.
+*           L. Fillion ARMA/EC 15 Aug 2007: LAM4D upgrade to v10_0_3.
+*           L. Fillion ARMA/EC 31 May 2010: Improve output of LQ and HU.
+*     .
+*
+      IMPLICIT NONE
+      INTEGER JLEV, IERR,jvar,ihu,itt,ivt,imin,igz,ip0,ilq
+      integer :: nulnam,fnom,fclos
+      NAMELIST /NAMPOST/NPPCVAR,CPPCVAR,CETIKINC
+
+      WRITE(*,FMT=9000)
+ 9000 FORMAT(//,1X,6("***********")
+     S     ,/,6X,'SUPOST:  initialization of postprocessing'
+     S     ,1X,6("***********"))
+C
+C*    1. Set default values
+C
+      CETIKINC = 'UNDEFINED***'
+      NPPCVAR=6
+      CPPCVAR(:) = '    '
+      CPPCVAR(1) = 'UU'
+      CPPCVAR(2) = 'VV'
+      CPPCVAR(3) = 'TT'
+      CPPCVAR(4) = 'LQ'
+      CPPCVAR(5) = 'P0'
+      CPPCVAR(6) = 'TG'
+C
+C*    2. Read the parameters from NAMPOST
+C
+ 200  CONTINUE
+C
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      write(*,*) 'ben_setup: reading namelist, ierr=',ierr
+      read(nulnam,nml=nampost)
+      write(*,nml=nampost)
+      ierr=fclos(nulnam)
+C
+C*    3. Define the levels at which postprocessing is to occur
+C
+ 300  CONTINUE
+C
+c reordering cppcvar for dependent variables in varout.ftn
+c
+      ip0 = 0
+      ihu = 0
+      itt = 0
+      ivt = 0
+      lttout = .false.
+      lhuout = .false.
+      lgzout = .false.
+c
+!
+      do jvar = 1,nppcvar
+        if(cppcvar(jvar).eq.'P0') then
+          ip0 = jvar
+        endif
+        if(cppcvar(jvar).eq.'TT') then
+          itt = jvar
+          lttout = .true.
+        endif
+        if(cppcvar(jvar).eq.'GZ') then
+          igz = jvar
+          lgzout = .true.
+        endif
+        if(cppcvar(jvar).eq.'HU') then
+          ihu = jvar
+          lhuout = .true.
+        endif
+        if(cppcvar(jvar).eq.'VT') then
+          ivt = jvar
+          lvtout = .true.
+        endif
+        if(cppcvar(jvar).eq.'LQ') then
+          ilq = jvar
+        endif
+      enddo
+c
+      if((lgzout.or.lvtout).and.ihu.eq.0) then
+c Make sure that HU is part of the list
+        ihu = nppcvar+1
+        cppcvar(ihu) = 'HU'
+        nppcvar = ihu
+      endif
+c
+      if(ihu.ne.0) then
+c Make sure that TT is part of the list
+        imin = min(itt,ihu)
+        if (imin.eq.0) then
+c TT is not requested: put it in the list before HU
+          cppcvar(ihu) = 'TT'
+          cppcvar(nppcvar+1) = 'HU'
+          nppcvar = nppcvar + 1
+        else
+C TT is requested: make sure that TT is before HU in the list
+          cppcvar(max(itt,ihu)) = 'HU'
+          cppcvar(imin) = 'TT'
+        endif
+      endif
+c
+      if(ip0 .gt. 1) then
+        do jvar = ip0, 2,-1
+          cppcvar(jvar) = cppcvar(jvar -1)
+        enddo
+        cppcvar(1) = 'P0'
+      endif
+C
+C*     4. Print the values
+C
+ 400  CONTINUE
+C
+      DO jvar = 1, NPPCVAR
+        WRITE(*,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5)')
+     S        jvar,CPPCVAR(jvar)
+      ENDDO
+      RETURN
+      END SUBROUTINE SUPOST
+
+      END SUBROUTINE VAROUT

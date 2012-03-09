@@ -80,10 +80,6 @@
       call vco_AnlInit(vco_anl)
       call col_setVco(lcolumng,vco_anl)
 !
-!     Initialization of post-processing
-!
-      call supost
-!
 !     Check the date of the burp files (set datestamp)
 !
       call brpcheck(lobsSpaceData)

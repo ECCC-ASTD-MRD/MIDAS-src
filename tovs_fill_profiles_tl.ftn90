@@ -106,8 +106,8 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 ! find model level top, within 0.000001 mbs.
 
   zptop    = col_getPressure(lcolumng,1,1,'NA')
-  zptopmbs = zptop/100.
-  zptopmbs = zptopmbs - 0.000001
+  zptopmbs = zptop/100.d0
+  zptopmbs = zptopmbs - 0.000001d0
 
   jpmotop = 1
   do jl = 2, jplev
@@ -185,27 +185,21 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !             specific humidity to pressure levels required by tovs rt model
 !     .       --------------------------------------------------------------
 
-     to_tl (:,:) = 0.0
-     lqo_tl(:,:) = 0.0
+     to_tl (:,:) = 0.0d0
+     lqo_tl(:,:) = 0.0d0
 
-!$omp parallel private(istride,imodulo)
      imodulo = mod(knpf,nthreads)
      if ( imodulo .eq. 0 ) then
         istride = max(1,(knpf/nthreads))
      else
         istride = max(1,(knpf/nthreads)+1)
      endif
+!$omp parallel
 !$omp do private(jn,ilen)
      do jn=1,knpf,istride
         ilen = min (knpf-jn+1,istride)
         if ( ilen .gt. 0) then
 
-!            call llintv2 (zvlev(1,jn),zt_tl(1,jn),zt(1,jn), &
-!     &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
-!     &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
-!            call llintv2 (zvlev(1,jn),zlq_tl(1,jn),zlq(1,jn), &
-!     &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
-!     &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
             call intavgtl (zvlev(1,jn),vco_anl%db_m,zt_tl(1,jn),zt(1,jn), &
      &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
      &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
@@ -221,7 +215,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !     .  2.2  Extrapolation of temperature profile above 10mb
 !     .       -----------------------------------------------
 
-     toext_tl(:,:) = 0.0
+     toext_tl(:,:) = 0.0d0
      call lextrap (to_tl,toext_tl,jpmolev,jplev,knpf)
 
 !     .  2.3  Extrapolation of humidity profile (kg/kg)
@@ -232,7 +226,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
         qoext(:,jn) =  profiles(iptobs(jn)) % q(:) / q_mixratio_to_ppmv
      enddo
 
-     qoext_tl(:,:) = 0.0
+     qoext_tl(:,:) = 0.0d0
      do jk = 1, jpmolev
         do jn = 1, knpf
            qoext_tl(jplev-jpmolev+jk,jn) = qoext(jplev-jpmolev+jk,jn)*lqo_tl(jk,jn)
@@ -266,14 +260,14 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
         profiles_tl(iptobs(j)) % clw_data        = .false.
         profiles_tl(iptobs(j)) % t(:)            = toext_tl(:,j)
         profiles_tl(iptobs(j)) % q(:)            = qoext_tl(:,j) * q_mixratio_to_ppmv
-        profiles_tl(iptobs(j)) % o3(:)           = 0.0
-        profiles_tl(iptobs(j)) % ctp             = 0.0
-        profiles_tl(iptobs(j)) % cfraction       = 0.0
-        profiles_tl(iptobs(j)) % zenangle        = 0.0
-        profiles_tl(iptobs(j)) % azangle         = 0.0
-        profiles_tl(iptobs(j)) % skin % surftype = 0.0
+        profiles_tl(iptobs(j)) % o3(:)           = 0.0d0
+        profiles_tl(iptobs(j)) % ctp             = 0.0d0
+        profiles_tl(iptobs(j)) % cfraction       = 0.0d0
+        profiles_tl(iptobs(j)) % zenangle        = 0.0d0
+        profiles_tl(iptobs(j)) % azangle         = 0.0d0
+        profiles_tl(iptobs(j)) % skin % surftype = 0.0d0
         profiles_tl(iptobs(j)) % skin % t        = col_getElem(lcolumn,1,iptobscma(j),'TG')
-        profiles_tl(iptobs(j)) % skin % fastem(:)= 0.0
+        profiles_tl(iptobs(j)) % skin % fastem(:)= 0.0d0
         profiles_tl(iptobs(j)) % s2m % t         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'TT')
         profiles_tl(iptobs(j)) % s2m % q         = qoext(ilowlvl,j) * col_getElem(lcolumn,ilowlvl,iptobscma(j),'HU') * q_mixratio_to_ppmv
         profiles_tl(iptobs(j)) % s2m % p         = col_getElem(lcolumn,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8

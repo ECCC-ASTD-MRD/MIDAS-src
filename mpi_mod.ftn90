@@ -61,7 +61,11 @@ MODULE mpi
  fnptopo='ptopo_nml'
  ! OPEN(UNIT=nmlist,FILE='./ptopo_nml',STATUS='OLD',ACTION='READ',IOSTAT=ierr)
  ierr=FNOM(unnmlist,fnptopo,'FTN+SEQ',0)
- IF(ierr /= 0) CALL  mpiabort('Can not Open file ptopo_nml! Abort!') 
+ if(ierr /= 0) then
+   write(*,*) 'Can not Open file ptopo_nml! Abort!'
+   call flush(6)
+   call qqexit(1)
+ endif
  READ(unnmlist,NML=ptopo)
  CLOSE(unnmlist)
  pex=npex

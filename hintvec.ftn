@@ -63,11 +63,7 @@ c----------------------------------------------------------
 c
       integer ier,ezsetopt,vezuvint,ezdefset,ezgprm,iset
       integer clgrtyp,ini,inj,iig1,iig2,iig3,iig4,ji,itrg,jk
-      real*8 zsrc(1),ztrguu(1),ztrgvv(1)
-      pointer (pzsrc,zsrc)
-      pointer (pztrguu,ztrguu)
-      pointer (pztrgvv,ztrgvv)
-
+      real*8, allocatable :: zsrc(:),ztrguu(:),ztrgvv(:)
 c
 c     Setting degree of horizontal interpolations
 c
@@ -82,12 +78,12 @@ c
      &           ,psrcvv(1,jk),ktcolu,kscolu)
           enddo
         else
-          call hpalloc(pztrguu,ktcolu,ier,8)
-          call hpalloc(pztrgvv,ktcolu,ier,8)
+          allocate(ztrguu(ktcolu))
+          allocate(ztrgvv(ktcolu))
 c
 c                     .. from UU source component
 c
-          call hpalloc(pzsrc,kscolu,ier,8)
+          allocate(zsrc(kscolu))
 c
           do ji = 1,kscolu
             zsrc(ji) = 0.0
@@ -98,13 +94,13 @@ c
      $           ktcolu,kscolu)
           enddo
 c
-          call hpdeallc(pzsrc,ier,1)
+          deallocate(zsrc)
 c
 c                    .. from VV source component
 c
           iset = ezdefset(ktrguugid,ksrcvvgid)
 c
-          call hpalloc(pzsrc,kscolv,ier,8)
+          allocate(zsrc(kscolv))
 c
           do ji = 1,kscolv
             zsrc(ji) = 0.0
@@ -121,17 +117,17 @@ c
             enddo
           enddo
 c
-          call hpdeallc(pzsrc,ier,1)
+          deallocate(zsrc)
 c
-          call hpdeallc(pztrguu,ier,1)
-          call hpdeallc(pztrgvv,ier,1)
+          deallocate(ztrguu)
+          deallocate(ztrgvv)
         endif
       else
 c
 c UU interpolation ..
 c
-        call hpalloc(pztrguu,ktcolu,ier,8)
-        call hpalloc(pztrgvv,ktcolu,ier,8)
+        allocate(ztrguu(ktcolu))
+        allocate(ztrgvv(ktcolu))
 c
 c                     .. from UU source component
 c
@@ -141,7 +137,7 @@ c
      &           ,ktcolu,kscolu)
           enddo
         else
-          call hpalloc(pzsrc,kscolu,ier,8)
+          allocate(zsrc(kscolu))
 c
           do ji = 1,kscolu
             zsrc(ji) = 0.0
@@ -152,13 +148,13 @@ c
      $           ktcolu,kscolu)
           enddo
 c
-          call hpdeallc(pzsrc,ier,1)
+          deallocate(zsrc)
 c
 c                    .. from VV source component
 c
           iset = ezdefset(ktrguugid,ksrcvvgid)
 c
-          call hpalloc(pzsrc,kscolv,ier,8)
+          allocate(zsrc(kscolv))
 c
           do ji = 1,kscolv
             zsrc(ji) = 0.0
@@ -172,16 +168,16 @@ c
             enddo
           enddo
 c
-          call hpdeallc(pzsrc,ier,1)
+          deallocate(zsrc)
         endif
 c
-        call hpdeallc(pztrguu,ier,1)
-        call hpdeallc(pztrgvv,ier,1)
+        deallocate(ztrguu)
+        deallocate(ztrgvv)
 
 c VV interpolation ..
 c
-        call hpalloc(pztrguu,ktcolv,ier,8)
-        call hpalloc(pztrgvv,ktcolv,ier,8)
+        allocate(ztrguu(ktcolv))
+        allocate(ztrgvv(ktcolv))
 c
 c                     .. from UU source component
 c
@@ -192,7 +188,7 @@ c
      &           ,ktcolv,kscolu)
           enddo
         else
-          call hpalloc(pzsrc,kscolu,ier,8)
+          allocate(zsrc(kscolu))
 c
           do ji = 1,kscolu
             zsrc(ji) = 0.0
@@ -203,13 +199,13 @@ c
      $           ktcolv,kscolu)
           enddo
 c
-          call hpdeallc(pzsrc,ier,1)
+          deallocate(zsrc)
 c
 c                    .. from VV source component
 c
           iset = ezdefset(ktrgvvgid,ksrcvvgid)
 c
-          call hpalloc(pzsrc,kscolv,ier,8)
+          allocate(zsrc(kscolv))
 c
           do ji = 1,kscolv
             zsrc(ji) = 0.0
@@ -223,11 +219,11 @@ c
             enddo
           enddo
 c
-          call hpdeallc(pzsrc,ier,1)
+          deallocate(zsrc)
         endif
 c
-        call hpdeallc(pztrguu,ier,1)
-        call hpdeallc(pztrgvv,ier,1)
+        deallocate(ztrguu)
+        deallocate(ztrgvv)
       endif
 c
       return

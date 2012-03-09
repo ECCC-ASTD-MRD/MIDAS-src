@@ -76,7 +76,8 @@
       INTEGER IPB,IPT,IXTR
       INTEGER IOBS,IK,IBEGIN,ILAST,JO,IDATA,IDATEND
       INTEGER J,JDATA,IBEGINOB,ILASTOB,ITYP,JJ,ISTYP
-      INTEGER ICOUNT,IERR,ILEN,JLIST,JCOUNT,IPOINTR(1)
+      INTEGER ICOUNT,IERR,ILEN,JLIST,JCOUNT
+      INTEGER, ALLOCATABLE :: IPOINTR(:)
       REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI,ZJON,ZGAMI,ZSLEV,ZQCARG,ZPPOST
       REAL*8 ZWB,ZWT,ZEXP,zexpgz,ZGAMMA,ZTVG,ZPSGOBS
       REAL*8 ZLEV,ZPT,ZPB,ZHHH,ZGAMAZ,ZSLOPE,GZHR
@@ -84,7 +85,6 @@
       REAL*8 columnVarB,LQTOES
       LOGICAL LLOK, LLPRINT,LLUV
       CHARACTER*2 CVAR
-      POINTER(PXPOINTR    ,IPOINTR)
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
@@ -108,7 +108,7 @@ C     Process all data within the domain of the model
 C
 C
             ILEN = ILAST - IBEGIN +1
-            CALL HPALLOC(PXPOINTR,ILEN,IERR,8)
+            allocate(IPOINTR(ILEN))
             DO JLIST = 1,NELEMS
               ICOUNT = 0
               DO JDATA=IBEGIN,ILAST
@@ -203,7 +203,7 @@ C              below the model height
                 ENDDO
               ENDIF
             ENDDO
-            CALL HPDEALLC(PXPOINTR,IERR,1)
+            deallocate(IPOINTR)
 C
 C                 CONTRIBUTION TO Jo
 C
