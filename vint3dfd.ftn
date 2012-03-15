@@ -77,7 +77,7 @@ C     Process all data within the domain of the model
 C
 c           DO JDATA=IBEGIN,ILAST
 c              IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. IFF .OR. obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. IDD) THEN
-c                 obs_elem_r4(lobsSpaceData,elem_s,JDATA)=PPMIS
+c                 obs_elem_r8(lobsSpaceData,elem_s,JDATA)=PPMIS
 c                 call obs_set_i(lobsSpaceData,'FLG ',JDATA,-1)
 c              ENDIF
 c           END DO
@@ -88,14 +88,14 @@ c           END DO
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                   ISTART=obs_elem_i(lobsSpaceData,'RLN ',IOBS)
                   IEND=obs_elem_i(lobsSpaceData,'NLV ',IOBS) +ISTART-1
-                  ZLEVU = obs_elem_r4(lobsSpaceData,'PPP ',JDATA)
-                  UU=obs_elem_r4(lobsSpaceData,elem_s,JDATA)*obs_elem_r4(lobsSpaceData,'OER ',JDATA) +
-     &                 obs_elem_r4(lobsSpaceData,'VAR ',JDATA)
+                  ZLEVU = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  UU=obs_elem_r8(lobsSpaceData,elem_s,JDATA)*obs_elem_r8(lobsSpaceData,'OER ',JDATA) +
+     &                 obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
                   DO JJOBS=ISTART,IEND
                   IF ((obs_elem_i(lobsSpaceData,'VNM ',JJOBS) .EQ. IVV)
-     &            .AND.(obs_elem_r4(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU)) THEN
-                    VV=obs_elem_r4(lobsSpaceData,elem_s,JJOBS)*obs_elem_r4(lobsSpaceData,'OER ',JJOBS) +
-     &                   obs_elem_r4(lobsSpaceData,'VAR ',JJOBS)
+     &            .AND.(obs_elem_r8(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU)) THEN
+                    VV=obs_elem_r8(lobsSpaceData,elem_s,JJOBS)*obs_elem_r8(lobsSpaceData,'OER ',JJOBS) +
+     &                   obs_elem_r8(lobsSpaceData,'VAR ',JJOBS)
 *
 *****************************************************************************
 *  1-calculate angle
@@ -125,28 +125,28 @@ C
 C
                   DO JJOBS=ISTART,IEND
                      IF ((obs_elem_i(lobsSpaceData,'VNM ',JJOBS).EQ.IDD)
-     &               .AND. obs_elem_r4(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
-                        call obs_set_r4(lobsSpaceData, elem_s, JJOBS, real(ANG 
-     &                          - obs_elem_r4(lobsSpaceData,'VAR ',JJOBS)
-     &                           * MPC_DEGREES_PER_RADIAN_R8))
-                        IF ( obs_elem_r4(lobsSpaceData,elem_s,JJOBS) .gt.  180.0)
-     &                  call obs_set_r4(lobsSpaceData, elem_s, JJOBS, 
-     &                        obs_elem_r4(lobsSpaceData,elem_s,JJOBS)-360.0)
-                        IF ( obs_elem_r4(lobsSpaceData,elem_s,JJOBS) .le. -180.0)
-     &                  call obs_set_r4(lobsSpaceData, elem_s, JJOBS,
-     &                        obs_elem_r4(lobsSpaceData,elem_s,JJOBS)+360.0)
-                        call obs_set_r4(lobsSpaceData, elem_s, JJOBS, -1.0*
-     &                              obs_elem_r4(lobsSpaceData,elem_s,JJOBS)
-     &                              * MPC_RADIANS_PER_DEGREE_R4)
-                        call obs_set_r4(lobsSpaceData,'OER ',JJOBS,1.0)
+     &               .AND. obs_elem_r8(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
+                        call obs_set_r8(lobsSpaceData, elem_s, JJOBS, ANG 
+     &                          - obs_elem_r8(lobsSpaceData,'VAR ',JJOBS)
+     &                           * MPC_DEGREES_PER_RADIAN_R8)
+                        IF ( obs_elem_r8(lobsSpaceData,elem_s,JJOBS) .gt.  180.0d0)
+     &                  call obs_set_r8(lobsSpaceData, elem_s, JJOBS, 
+     &                        obs_elem_r8(lobsSpaceData,elem_s,JJOBS)-360.0d0)
+                        IF ( obs_elem_r8(lobsSpaceData,elem_s,JJOBS) .le. -180.0d0)
+     &                  call obs_set_r8(lobsSpaceData, elem_s, JJOBS,
+     &                        obs_elem_r8(lobsSpaceData,elem_s,JJOBS)+360.0d0)
+                        call obs_set_r8(lobsSpaceData, elem_s, JJOBS, -1.0d0*
+     &                              obs_elem_r8(lobsSpaceData,elem_s,JJOBS)
+     &                              * MPC_RADIANS_PER_DEGREE_r8)
+                        call obs_set_r8(lobsSpaceData,'OER ',JJOBS,1.0d0)
                         call obs_set_i(lobsSpaceData,'ASS ',JJOBS, 1)
                         call obs_set_i(lobsSpaceData,'FLG ',JJOBS, 0)
                      ENDIF
                      IF ((obs_elem_i(lobsSpaceData,'VNM ',JJOBS).EQ.IFF)
-     &               .AND. obs_elem_r4(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
-                        call obs_set_r4(lobsSpaceData, elem_s, JJOBS, real(MODUL)
-     &                                  - obs_elem_r4(lobsSpaceData,'VAR ',JJOBS))
-                        call obs_set_r4(lobsSpaceData,'OER ',JJOBS,1.0)
+     &               .AND. obs_elem_r8(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
+                        call obs_set_r8(lobsSpaceData, elem_s, JJOBS, MODUL
+     &                                 - obs_elem_r8(lobsSpaceData,'VAR ',JJOBS))
+                        call obs_set_r8(lobsSpaceData,'OER ',JJOBS,1.0d0)
                         call obs_set_i(lobsSpaceData,'ASS ',JJOBS, 1)
                         call obs_set_i(lobsSpaceData,'FLG ',JJOBS, 0)
                      ENDIF

@@ -869,7 +869,7 @@ MODULE obsSpaceData_mod
                             obsdat%robdata8(NCM_OMF,IP+IND)=PPMIS
                             obsdat%robdata8(NCM_OMA,IP+IND)=PPMIS
                             obsdat%robdata8(NCM_OMI,IP+IND)=PPMIS
-                            obsdat%robdata (NCM_FGE,IP+IND)=real(PPMIS)
+                            obsdat%robdata8(NCM_FGE,IP+IND)=PPMIS
                             obsdat%robdata8(NCM_OER,IP+IND)=PPMIS
 !
 !                           OBS ERROR FOR HUMSAT
@@ -1512,7 +1512,7 @@ MODULE obsSpaceData_mod
            I3,1X,'DATA IN OBSERVATION RECORD NO.' &
            ,1X,I6,4X,'DATA RECORD''S LENGTH:',I6)
  9101 FORMAT(4x,'THERE IS ', &
-           I3,1X,'DATA IN OBSERVATION RECORD NO.' &
+           I3,1X,'DATUM IN OBSERVATION RECORD NO.' &
            ,1X,I6,4X,'DATA RECORD''S LENGTH:',I6)
 !
 ! 2. Print all data records
@@ -1525,12 +1525,12 @@ MODULE obsSpaceData_mod
         WRITE(KULOUT,FMT=9201) IDATA2 &
              ,obs_elem_i (obsdat,'VNM ',JDATA) &
              ,ccordtyp   (ivco) &
-             ,obs_elem_r4(obsdat,'PPP ',JDATA) &
-             ,obs_elem_r4(obsdat,'PRL ',JDATA),obs_elem_r4(obsdat,'POB ',JDATA) &
-             ,obs_elem_r4(obsdat,'VAR ',JDATA),obs_elem_r4(obsdat,'OMF ',JDATA) &
-             ,obs_elem_r4(obsdat,'OMA ',JDATA),obs_elem_r4(obsdat,'OMI ',JDATA) &
-             ,obs_elem_r4(obsdat,'OER ',JDATA) &
-             ,obs_elem_r4(obsdat,'FGE ',JDATA) &
+             ,obs_elem_r8(obsdat,'PPP ',JDATA) &
+             ,obs_elem_r8(obsdat,'PRL ',JDATA),obs_elem_r8(obsdat,'POB ',JDATA) &
+             ,obs_elem_r8(obsdat,'VAR ',JDATA),obs_elem_r8(obsdat,'OMF ',JDATA) &
+             ,obs_elem_r8(obsdat,'OMA ',JDATA),obs_elem_r8(obsdat,'OMI ',JDATA) &
+             ,obs_elem_r8(obsdat,'OER ',JDATA) &
+             ,obs_elem_r8(obsdat,'FGE ',JDATA) &
              ,obs_elem_i (obsdat,'FLG ',JDATA) &
              ,obs_elem_i (obsdat,'ASS ',JDATA)
      end if

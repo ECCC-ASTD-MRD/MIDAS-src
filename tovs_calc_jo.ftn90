@@ -176,7 +176,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            else
 !             compute contribution of data with varqc
  
-              zgami = obs_elem_r4(lobsSpaceData,'POB ',index_body)
+              zgami = obs_elem_r8(lobsSpaceData,'POB ',index_body)
               zjon = (obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
                       obs_elem_r8(lobsSpaceData,'OMA ',index_body))/2.
               zqcarg = zgami + exp(-1.0*zjon)

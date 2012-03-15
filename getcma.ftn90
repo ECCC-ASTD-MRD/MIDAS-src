@@ -119,12 +119,12 @@
           ILEM=obs_ifind(KLIST(JI))
           IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
              DO JJ=1,KVAL
-               if( ldsat ) profil(jj)=obs_elem_r4(lobsSpaceData,'PRL ',IP+IND)
+               if( ldsat ) profil(jj)=obs_elem_r8(lobsSpaceData,'PRL ',IP+IND)
                 IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 !pik
                       IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
-                          ZERR=  obs_elem_r4(lobsSpaceData,'OER ',IP+IND)
-                          ZSTAT= obs_elem_r4(lobsSpaceData,CRVAL, IP+IND)
+                          ZERR=  obs_elem_r8(lobsSpaceData,'OER ',IP+IND)
+                          ZSTAT= obs_elem_r8(lobsSpaceData,CRVAL, IP+IND)
                           IFLG=  obs_elem_i(lobsSpaceData,'FLG ',IP+IND)
 !
                           IF ( KRVAL .EQ. NCM_OMF .OR. KRVAL .EQ. NCM_OMA) THEN

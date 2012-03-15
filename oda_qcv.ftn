@@ -49,7 +49,7 @@ C
           jo = obs_elem_i(lobsSpaceData,'OBS ',jdata)
           idata = obs_elem_i(lobsSpaceData,'RLN ',JO)
           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
-          zgami = obs_elem_r4(lobsSpaceData,'POB ',jdata)
+          zgami = obs_elem_r8(lobsSpaceData,'POB ',jdata)
           ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
           LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
      &         col_varExist('UU')) .OR. ((ITYP .EQ. BUFR_NEVV .OR.
