@@ -835,9 +835,9 @@ c               ENDIF
                IF  ( NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
                 NUMHEADER=NUMHEADER + 1
                 call obs_set_c9(lobsSpaceData,'STID',NUMHEADER,CLSTNID)
-                call obs_set_r4(lobsSpaceData,'LON ',NUMHEADER, REAL((ILON*0.01)*MPC_RADIANS_PER_DEGREE_R8))
-                call obs_set_r4(lobsSpaceData,'LAT ',NUMHEADER, REAL((ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8))
-                call obs_set_r4(lobsSpaceData,'ALT ',NUMHEADER, (REAL(IALT)-400))
+                call obs_set_r8(lobsSpaceData,'LON ',NUMHEADER, (ILON*0.01)*MPC_RADIANS_PER_DEGREE_R8)
+                call obs_set_r8(lobsSpaceData,'LAT ',NUMHEADER, (ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8)
+                call obs_set_r8(lobsSpaceData,'ALT ',NUMHEADER, (REAL(IALT,8)-400))
                 call obs_set_i(lobsSpaceData,'NLV ',NUMHEADER, INBON)
                 call obs_setFamily(lobsSpaceData,cdtype,headerIndex=numheader)
 *

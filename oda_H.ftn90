@@ -399,8 +399,8 @@ end subroutine oda_Hto
 !C
 !C     *              Profile at the observation location:
 !C
-                Lat  = obs_elem_r4(lobsSpaceData,'LAT ',JO)
-                Lon  = obs_elem_r4(lobsSpaceData,'LON ',JO)
+                Lat  = obs_elem_r8(lobsSpaceData,'LAT ',JO)
+                Lon  = obs_elem_r8(lobsSpaceData,'LON ',JO)
                 ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                 ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                 DO JL = 1, col_getNumLev(lcolumn)
@@ -641,9 +641,9 @@ end subroutine oda_Hto
 !C
 !C     *           LR background profile and increments at the observation location x :
 !C
-                    ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JO) &
+                    ZLAT = obs_elem_r8(lobsSpaceData,'LAT ',JO) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                    ZLON = obs_elem_r4(lobsSpaceData,'LON ',JO) &
+                    ZLON = obs_elem_r8(lobsSpaceData,'LON ',JO) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
                     DO JL = 1, col_getNumLev(lcolumn)
                       ZTTB(JL) = col_getElem(lcolumng,JL,JO,'TT')

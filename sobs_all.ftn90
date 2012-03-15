@@ -184,8 +184,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                           WRITE(NULOUT,225) 'Reject OBS ',INDEX_HEADER,ITYP, &
                               obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER),&
                               IDBURP,  &
-                              obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER),&
-                              obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)
+                              obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER),&
+                              obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER)
                         ENDIF
                         call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -309,11 +309,11 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER) &
+         ZLAT=obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER) &
+         ZLON=obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
+         ZSTNALT=obs_elem_r8(lobsSpaceData,'ALT ',INDEX_HEADER)
          ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.
@@ -704,11 +704,11 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
            cycle HEADER                 ! Proceed to the next HEADER
          end if
 
-         ZLAT=obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER) &
+         ZLAT=obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZLON=obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER) &
+         ZLON=obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZSTNALT=obs_elem_r4(lobsSpaceData,'ALT ',INDEX_HEADER)
+         ZSTNALT=obs_elem_r8(lobsSpaceData,'ALT ',INDEX_HEADER)
          ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.

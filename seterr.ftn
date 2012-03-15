@@ -164,8 +164,8 @@ C
          IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
          IDATYP    = obs_elem_i(lobsSpaceData,'OTP ',JJO)
          ILANSEA   = obs_elem_i(lobsSpaceData,'OFL ',JJO)
-         ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',JJO)
-         ZLON      = obs_elem_r4(lobsSpaceData,'LON ',JJO)
+         ZLAT      = obs_elem_r8(lobsSpaceData,'LAT ',JJO)
+         ZLON      = obs_elem_r8(lobsSpaceData,'LON ',JJO)
          IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',JJO)
          IPLATF    = obs_elem_i(lobsSpaceData,'SAT ',JJO)
          ITECH     = obs_elem_i(lobsSpaceData,'TEC ',JJO)

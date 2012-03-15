@@ -291,11 +291,11 @@ C     to not do when cvcord=MAM
 ! 2.1 Set EZ parameters before obs looping and using gdxyfll function
 !
       DO JO  = 1, obs_numheader(lobsSpaceData)
-        ZLAT    = obs_elem_r4(lobsSpaceData,'LAT ',JO)
+        ZLAT    = obs_elem_r8(lobsSpaceData,'LAT ',JO)
         IF(ZLAT .GT. gaus_RLATI(1)) THEN
-          call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(1)))
+          call obs_set_r8(lobsSpaceData,'LAT ',JO, gaus_RLATI(1))
         ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
-          call obs_set_r4(lobsSpaceData,'LAT ',JO, real(gaus_RLATI(gaus_NJ)))
+          call obs_set_r8(lobsSpaceData,'LAT ',JO, gaus_RLATI(gaus_NJ))
         ENDIF
       END DO
 C
@@ -311,7 +311,7 @@ C
      +                      IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)
         END DO
 C
-        dllao=obs_elem_r4(lobsSpaceData,'LAT ',jjo)
+        dllao=obs_elem_r8(lobsSpaceData,'LAT ',jjo)
 !
         ILA = ISRCHILA (dble(DLLAO))
         call obs_set_i(lobsSpaceData,'TLA ',jjo,ila)

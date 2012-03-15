@@ -177,8 +177,8 @@
               IDATA = obs_elem_i(lobsSpaceData,'RLN ',JREP)
               IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JREP) + IDATA -1
               IDBURP  = obs_elem_i(lobsSpaceData,'ITY ',JREP)
-              ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JREP)*MPC_DEGREES_PER_RADIAN_R8
-              ZLON = obs_elem_r4(lobsSpaceData,'LON ',JREP)*MPC_DEGREES_PER_RADIAN_R8
+              ZLAT = obs_elem _r8(lobsSpaceData,'LAT ',JREP)*MPC_DEGREES_PER_RADIAN_R8
+              ZLON = obs_elem _r8(lobsSpaceData,'LON ',JREP)*MPC_DEGREES_PER_RADIAN_R8
               DO JDATA=IDATA, IDATEND
                 ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                 IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.

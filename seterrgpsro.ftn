@@ -151,8 +151,8 @@ C
 C     
 C     *        Profile at the observation location:
 C
-               Lat  = obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)
-               Lon  = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)
+               Lat  = obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER)
+               Lon  = obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER)
                ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')

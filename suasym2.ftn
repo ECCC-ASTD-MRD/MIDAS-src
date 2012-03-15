@@ -87,8 +87,8 @@
          IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
          IDATYP    = obs_elem_i(lobsSpaceData,'OTP ',JJO)
          IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',JJO)
-         ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',JJO)*MPC_DEGREES_PER_RADIAN_R8
-         ZLON = obs_elem_r4(lobsSpaceData,'LON ',JJO)*MPC_DEGREES_PER_RADIAN_R8
+         ZLAT = obs_elem_r8(lobsSpaceData,'LAT ',JJO)*MPC_DEGREES_PER_RADIAN_R8
+         ZLON = obs_elem_r8(lobsSpaceData,'LON ',JJO)*MPC_DEGREES_PER_RADIAN_R8
          DO JDATA  = IDATA, IDATEND
             ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)

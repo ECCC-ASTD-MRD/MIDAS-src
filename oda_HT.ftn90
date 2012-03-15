@@ -423,11 +423,11 @@ end subroutine oda_HTto
 !C
 !C     *           Profile at the observation location:
 !C
-             Lat  = obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER)
-             Lon  = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER)
-             ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER) &
+             Lat  = obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER)
+             Lon  = obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER)
+             ZLAT = obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-             ZLON = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER) &
+             ZLON = obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
              DO JL = 1, col_getNumLev(lcolumn)
 !C
@@ -693,9 +693,9 @@ end subroutine oda_HTto
 !C
 !C     *    LR background profile:
 !C
-            ZLAT = obs_elem_r4(lobsSpaceData,'LAT ',INDEX_HEADER) &
+            ZLAT = obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-            ZLON = obs_elem_r4(lobsSpaceData,'LON ',INDEX_HEADER) &
+            ZLON = obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
             DO JL = 1, col_getNumLev(lcolumn)
               ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')

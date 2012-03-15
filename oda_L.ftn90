@@ -184,8 +184,8 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
         DO JOBS = 1, col_getNumCol(LCOLUMN)
           if(col_getTimeInterpWeight(lcolumn,jobs,jstep).gt.0.0d0) then
-            DLLAO=real(obs_elem_r4(lobsSpaceData,'LAT ',jobs),8)
-            DLLOO=real(obs_elem_r4(lobsSpaceData,'LON ',jobs),8)
+            DLLAO=real(obs_elem_r8(lobsSpaceData,'LAT ',jobs),8)
+            DLLOO=real(obs_elem_r8(lobsSpaceData,'LON ',jobs),8)
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY

@@ -198,7 +198,7 @@ MODULE obsSpaceData_mod
   public           :: obs_swapVarOmf,obs_ifind
   public           :: obs_getFamily,obs_setFamily,obs_bdy
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
-  public           :: obs_elem_mpiglobal_r4,obs_elem_mpiglobal_i
+  public           :: obs_elem_mpiglobal_r8,obs_elem_mpiglobal_i
   public           :: obs_prnthdr,obs_prntbdy
   public           :: obs_set_current_header_list, obs_getHeaderIndex
   public           :: obs_set_current_body_list,   obs_getBodyIndex
@@ -228,7 +228,7 @@ MODULE obsSpaceData_mod
    type(struct_index_list_depot) :: body_index_list_depot
    character(len=9),  pointer, dimension(:)   :: cstnid   !! need len=12 for EnKF
    character(len=2),  pointer, dimension(:)   :: cfamily
-   real(kind=4),      pointer, dimension(:,:) :: robhdr
+   real(kind=8),      pointer, dimension(:,:) :: robhdr
    integer,           pointer, dimension(:,:) :: mobhdr
    real(kind=4),      pointer, dimension(:,:) :: robdata
    real(kind=8),      pointer, dimension(:,:) :: robdata8
@@ -241,7 +241,7 @@ MODULE obsSpaceData_mod
 
                                         ! Headers of the mpi-Global obs data
    integer,           pointer, dimension(:,:) :: mobhdr_g
-   real(kind=4),      pointer, dimension(:,:) :: robhdr_g
+   real(kind=8),      pointer, dimension(:,:) :: robhdr_g
    character(len=9),  pointer, dimension(:)   :: cstnid_g
    integer, pointer, dimension(:) :: locObsTag
 
@@ -417,7 +417,7 @@ MODULE obsSpaceData_mod
     obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
     ALLOCATE(obsdat%ROBHDR(NHDR_REAL,numheader_max),STAT=ierr)
-    obsdat%ROBHDR=0.0
+    obsdat%ROBHDR=0.0d0
 
     ALLOCATE(obsdat%MOBHDR(NHDR_INT,numheader_max),STAT=ierr)
     obsdat%MOBHDR=0
@@ -445,7 +445,7 @@ MODULE obsSpaceData_mod
     obsdat%cstnid_g(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
     ALLOCATE(obsdat%ROBHDR_g(NHDR_REAL,maxNumHdr),STAT=ierr)
-    obsdat%ROBHDR_g=0.0
+    obsdat%ROBHDR_g=0.0d0
 
     ALLOCATE(obsdat%MOBHDR_g(NHDR_INT,maxNumHdr),STAT=ierr)
     obsdat%MOBHDR_g=0
@@ -934,13 +934,6 @@ MODULE obsSpaceData_mod
   integer         , intent(in)  :: index
 
   select case (name(1:4))
-  case ('LAT '); value=obsdat%robhdr(NCM_LAT, index)
-  case ('LON '); value=obsdat%robhdr(NCM_LON, index)
-  case ('ALT '); value=obsdat%robhdr(NCM_ALT, index)
-  case ('BX  '); value=obsdat%robhdr(NCM_BX , index)
-  case ('BY  '); value=obsdat%robhdr(NCM_BY , index)
-  case ('BZ  '); value=obsdat%robhdr(NCM_BZ , index)
-
   case ('PPP '); value=obsdat%robdata(NCM_PPP, index)
   case ('PRL '); value=obsdat%robdata(NCM_PRL, index)
   case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
@@ -962,11 +955,11 @@ MODULE obsSpaceData_mod
   end select
  end function obs_elem_r4
 
- function obs_elem_mpiglobal_r4(obsdat,name,index) result(value)
+ function obs_elem_mpiglobal_r8(obsdat,name,index) result(value)
   ! This method is supplied for use by those external to the present module who
   ! are aware of the mpi-local or -global state of this module.
   implicit none
-  real(kind=4) value
+  real(kind=8) value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -983,7 +976,7 @@ MODULE obsSpaceData_mod
    write(*,*)"ERROR:  ", name(1:4)," is not available in the mpi-global context."
    value=-999.
   end select
- end function obs_elem_mpiglobal_r4
+ end function obs_elem_mpiglobal_r8
 
  function obs_elem_r8(obsdat,name,index) result(value)
   implicit none
@@ -993,6 +986,13 @@ MODULE obsSpaceData_mod
   integer         , intent(in)  :: index
 
   select case (name(1:4))
+  case ('LAT '); value=obsdat%robhdr(NCM_LAT, index)
+  case ('LON '); value=obsdat%robhdr(NCM_LON, index)
+  case ('ALT '); value=obsdat%robhdr(NCM_ALT, index)
+  case ('BX  '); value=obsdat%robhdr(NCM_BX , index)
+  case ('BY  '); value=obsdat%robhdr(NCM_BY , index)
+  case ('BZ  '); value=obsdat%robhdr(NCM_BZ , index)
+
   case ('PPP '); value=obsdat%robdata8(NCM_PPP, index)
   case ('PRL '); value=obsdat%robdata8(NCM_PRL, index)
   case ('POB '); value=obsdat%robdata8(NCM_POB, index)
@@ -1597,9 +1597,9 @@ MODULE obsSpaceData_mod
       obs_elem_i (obsdat,'RLN ',KOBS),obs_elem_i (obsdat,'ONM ',KOBS) &
      ,obs_elem_i (obsdat,'INS ',KOBS),obs_elem_i (obsdat,'OTP ',KOBS) &
      ,obs_elem_i (obsdat,'ITY ',KOBS) &
-     ,obs_elem_r4(obsdat,'LAT ',KOBS),obs_elem_r4(obsdat,'LON ',KOBS)&
+     ,obs_elem_r8(obsdat,'LAT ',KOBS),obs_elem_r8(obsdat,'LON ',KOBS)&
      ,obs_elem_i (obsdat,'DAT ',KOBS),obs_elem_i (obsdat,'ETM ',KOBS) &
-     ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r4(obsdat,'ALT ',KOBS) &
+     ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r8(obsdat,'ALT ',KOBS) &
      ,obs_elem_i (obsdat,'NLV ',KOBS) &
      ,obs_elem_i (obsdat,'OFL ',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
      ,obs_elem_i (obsdat,'TLA ',KOBS)
@@ -1689,13 +1689,6 @@ MODULE obsSpaceData_mod
   real(kind=4)    , intent(in)     :: value
 
   select case (name(1:4))
-  case ('LAT '); obsdat%robhdr (NCM_LAT, index) = value
-  case ('LON '); obsdat%robhdr (NCM_LON, index) = value
-  case ('ALT '); obsdat%robhdr (NCM_ALT, index) = value
-  case ('BX  '); obsdat%robhdr (NCM_BX , index) = value
-  case ('BY  '); obsdat%robhdr (NCM_BY , index) = value
-  case ('BZ  '); obsdat%robhdr (NCM_BZ , index) = value
-
   case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
   case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
   case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
@@ -1731,6 +1724,13 @@ MODULE obsSpaceData_mod
   real(kind=8)    , intent(in)     :: value
 
   select case (name(1:4))
+  case ('LAT '); obsdat%robhdr (NCM_LAT, index) = value
+  case ('LON '); obsdat%robhdr (NCM_LON, index) = value
+  case ('ALT '); obsdat%robhdr (NCM_ALT, index) = value
+  case ('BX  '); obsdat%robhdr (NCM_BX , index) = value
+  case ('BY  '); obsdat%robhdr (NCM_BY , index) = value
+  case ('BZ  '); obsdat%robhdr (NCM_BZ , index) = value
+
   case ('PPP '); obsdat%robdata8(NCM_PPP, index) = value
   case ('PRL '); obsdat%robdata8(NCM_PRL, index) = value
   case ('POB '); obsdat%robdata8(NCM_POB, index) = value
@@ -1904,7 +1904,8 @@ MODULE obsSpaceData_mod
 ! Declare Local Variables
   CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
   CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
-  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp,ROBDATA_tmp
+  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
+  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP
@@ -2065,7 +2066,7 @@ MODULE obsSpaceData_mod
   CHARACTER(len=9),ALLOCATABLE    :: cstnid_tmp(:)
 
   REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
-  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
+  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_tmp
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp 
@@ -2091,7 +2092,7 @@ MODULE obsSpaceData_mod
 
   ALLOCATE(ROBHDR_tmp(NHDR_REAL,obsdat%numheader_mpiglobal),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cannot allocate robhdr_tmp!')
-  ROBHDR_TMP=0
+  ROBHDR_TMP=0.0d0
 
   DO i=1,obsdat%numheader
      iobs=obsdat%locObsTag(i)

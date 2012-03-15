@@ -254,9 +254,9 @@ module masks_mod
                 obs_elem_i(lobsSpaceData,'VNM ',index_header) .NE.BUFR_NEGZ) then
                lmaskpp_out(index_body) = .false.
               LLNOXTR   = .true.
-              ZLAT      = obs_elem_r4(lobsSpaceData,'LAT ',index_header) &
+              ZLAT      = obs_elem_r8(lobsSpaceData,'LAT ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-              ZLON      = obs_elem_r4(lobsSpaceData,'LON ',index_header) &
+              ZLON      = obs_elem_r8(lobsSpaceData,'LON ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
               IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',index_header)
 
