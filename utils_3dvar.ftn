@@ -65,6 +65,61 @@
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE VEZUVINT2(duuout, dvvout, duuin, dvvin, nio, nii)
+*
+#if defined (DOC)
+*
+***s/r VEZUVINT  -real*8 interface for real*4 subroutine EZUVINT.
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*          Simon Pellerin *ARMA/SMC June 2001
+*            . elimination of 2nd and 3rd dimensions
+*
+*Arguments
+*    Output:
+*      duuout
+*      dvvout
+*
+*    Input:
+*      duuin
+*      dvvin
+*      nii
+*      nio
+#endif
+
+      IMPLICIT NONE
+*implicits
+
+      real*8 duuout(nio), dvvout(nio)
+      real*4 duuin(nii) , dvvin(nii)
+      integer iun, nio, nii
+*
+      integer ikey, ierr, ileni, ileno, jk1
+      real, allocatable :: bufuuout4(:), bufvvout4(:)
+*
+      integer ezuvint
+      external ezuvint
+*-----7----------------------------------------------------------------
+
+      allocate(bufuuout4(nio))
+      allocate(bufvvout4(nio))
+
+      ierr = ezuvint(bufuuout4, bufvvout4, duuin, dvvin)
+
+      do jk1 = 1,nio
+        duuout(jk1) = bufuuout4(jk1)
+        dvvout(jk1) = bufvvout4(jk1)
+      enddo
+
+      deallocate(bufuuout4)
+      deallocate(bufvvout4)
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       FUNCTION VEZGDEF(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4,
      &                 ax, ay)
 *
@@ -656,6 +711,61 @@
       enddo
 
       deallocate(bufferi4)
+      deallocate(buffero4)
+
+      return
+      end
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      SUBROUTINE VEZSINT2(zout8, zin4, nio, njo, nko, nii, nji, nki)
+*
+#if defined (DOC)
+*
+***s/r VEZSINT  -real*8 interface for real*4 subroutine EZSINT. 
+*
+*Author  : JM Belanger *CMDA/SMC Aug 2000
+*Revision:
+*
+*Arguments: See EZSINT code for documentation
+*    Input:
+*      zin4
+*      nii
+*      nji
+*      nki
+*      nio
+*      njo
+*      nko
+*
+*    Output:
+*      zout8 
+#endif
+
+      IMPLICIT NONE
+*implicits
+
+      integer nii, nji, nki, nio, njo, nko     
+      real*8 zout8(nio,njo,nko)
+      real*4 zin4(nii,nji,nki)
+*
+      integer ierr, jk1, jk2, jk3
+      real, allocatable :: buffero4(:,:,:)
+*
+      integer ezsint
+      external ezsint
+*-----7----------------------------------------------------------------
+      allocate(buffero4(nio,njo,nko))
+
+      ierr = ezsint(buffero4,zin4)
+
+      do jk3 = 1,nko
+        do jk2 = 1,njo
+          do jk1 = 1,nio
+            zout8(jk1,jk2,jk3) = buffero4(jk1,jk2,jk3)
+          enddo
+        enddo
+      enddo
+
       deallocate(buffero4)
 
       return

@@ -37,6 +37,8 @@ c
 
       vco_anl => col_getVco(lcolumng)
       one=1.0
+
+!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu,zpresb,zpresbd,zpresa,zpresad)
       do jlev = 1,col_getNumLev(lcolumng)
         do jobs=1,col_getNumCol(lcolumng)
           zhu=exp(col_getElem(lcolumng,jlev,jobs,'HU'))
@@ -51,6 +53,7 @@ c
      &                        /(zpresa+zpresb*col_getElem(lcolumng,1,jobs,'P0'))
         enddo
       enddo
+!$OMP END PARALLEL DO
 
       return
       end subroutine subasic_obs

@@ -251,6 +251,8 @@ module columnData_mod
     integer jobs,jlev,nlev
     real*8, pointer :: column_ptr(:)
 
+    call tmg_start(30,'FILLMVO')
+
     ! Pressure
     select case(trim(varName))
     case('PP')
@@ -317,6 +319,8 @@ module columnData_mod
       endif
 
     end select
+
+    call tmg_stop(30)
 
     return
     END SUBROUTINE col_fillmvo

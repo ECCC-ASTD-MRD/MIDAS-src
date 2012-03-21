@@ -55,7 +55,7 @@
       TYPE(BURP_BLOCK)       :: BLOCK_IN
 
       CHARACTER(LEN=128)     :: BRP_FILE
-      CHARACTER(LEN=9)       :: ID,OPT_MISSING
+      CHARACTER(LEN=9)       :: OPT_MISSING
       INTEGER                :: NEW_BTYP
       INTEGER                :: BTYP10
       INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG,BTYP10OMP
@@ -163,15 +163,6 @@
                       & REPORT    = Rpt_in, &
                       & REF       = address(kk), &
                       & IOSTAT    = error) 
-
-               Call BURP_Get_Property(Rpt_in,STNID =ID )
-               if ( id(1:2) == ">>" ) then
-                if( trim(id) .ne. ">>DERIALT" ) then
-                  write(nulout,*) 'ERREUR - le type de fichier devrait etre >>DERIALT...',trim(id),'...'
-!                  stop
-                end if
-               end if
-
 
 ! FIRST LOOP ON BLOCKS
 ! --------------------

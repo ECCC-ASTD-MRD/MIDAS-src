@@ -131,7 +131,6 @@ c
       enddo !! End of loop k   
 c
       if (knlev.gt.0) then
-C      if (knlev.ne.0) then
         do jlev = 1, knlev
           ier = fstprm(ikeys(jlev), idateo2, ideet2, inpas2, ini, inj,
      &         ink,inbits,idatyp2, kip1s(jlev),iip2, iip3,

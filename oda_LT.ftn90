@@ -85,7 +85,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   CONTAINS
 
-      SUBROUTINE GD2MVOAD (cdvarname,klev1,klev2)
+      SUBROUTINE GD2MVOAD (varName,klev1,klev2)
 !*
 !***s/r GD2MVOAD  - Adjoint of the horizontal interpolation of the model variables
 !*     .            in grid-point space to observation locations.
@@ -105,12 +105,12 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*               lcolumn
 !*
 !* Arguments
-!*     CDVARNAME: identificator of the variable to be treated
+!*     VARNAME: identificator of the variable to be treated
 !*     KLEV     : number of levels (typically 1 for 2D-fields and LCOLUMN_NLEV for 3D-fields)
 !*
 !*     Arguments
 !*
-      character(len=2) :: cdvarname
+      character(len=*) :: varName
       integer klev1,klev2
 !*
 !*     Local Variables
@@ -125,7 +125,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       real*8,pointer :: zprofil(:)
       real*8 :: dldlat2(-1:gaus_nj)
 
-      field_ptr => gsv_getField(statevector,cdvarname)
+      field_ptr => gsv_getField(statevector,varName)
 
       DLDLON2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
       DLDLOS2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
@@ -144,7 +144,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
         Observations: DO JOBS = 1, numheader_mpiglobal
           if(col_getTimeInterpWeight(lcolumn_g,jobs,jstep).gt.0.0d0) then
 
-            zprofil => col_getColumn(lcolumn_g,jobs,cdvarname)
+            zprofil => col_getColumn(lcolumn_g,jobs,varName)
 
             DLLAO   = real(obs_elem_mpiglobal_r8(lobsSpaceData,'LAT ',JOBS), 8)
             DLLOO   = real(obs_elem_mpiglobal_r8(lobsSpaceData,'LON ',JOBS), 8)

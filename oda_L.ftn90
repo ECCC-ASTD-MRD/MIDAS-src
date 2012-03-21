@@ -80,7 +80,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
   CONTAINS
 
-      SUBROUTINE GD2MVO(CDVARNAME,klev)
+      SUBROUTINE GD2MVO(varName,klev)
 !*
 !***s/r GD2MVO  - Horizontal interpolation of the model variables
 !*               in grid-point space to observation locations.
@@ -94,13 +94,13 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !**    Purpose:  Build lcolumn from GD (in COMGD0) using
 !*     .         bilinear interpolation.
 !*
-!*     CDVARNAME: identificator of the variable to be treated
+!*     VARNAME: identificator of the variable to be treated
 !*     KLEV     : number of levels (typically 1 for 2D-fields and COL_GETNUMLEV(LCOLUMN) for 3D-fields)
 !*
 !*
 !*     Arguments
 !*
-      character(len=*) :: cdvarname
+      character(len=*) :: varName
       integer klev
 !*
 !*     Local Variables
@@ -115,7 +115,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
       real*8, pointer :: field_ptr(:,:,:,:)
 
       allocate(zprofil(klev,col_getNumCol(lcolumn)))
-      field_ptr => gsv_getField(statevector,cdvarname)
+      field_ptr => gsv_getField(statevector,varName)
 !*
 !*     Transfer Grid point field into local array (for generecity)
 !*
@@ -225,7 +225,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 
       ENDDO ! JSTEP
 
-      call col_fillmvo(lcolumn,CDVARNAME,'NA',zprofil)
+      call col_fillmvo(lcolumn,varName,'NA',zprofil)
 
       deallocate(zprofil)
 

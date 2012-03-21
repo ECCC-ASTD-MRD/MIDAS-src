@@ -84,7 +84,7 @@
       REAL*8 DLSUM
       REAL*8 columnVarB,LQTOES
       LOGICAL LLOK, LLPRINT,LLUV
-      CHARACTER*2 CVAR
+      CHARACTER*2 VARTYPE
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
@@ -160,8 +160,8 @@ C
                   IXTR = obs_elem_i(lobsSpaceData,'XTR ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
-                  cvar = vnl_vartypeFromVarnum(ITYP)
-                  IPT  = col_getNumLev(LCOLUMNHR,cvar)-1 + col_getOffsetFromVarno(lcolumnhr,ityp)
+                  varType = vnl_vartypeFromVarnum(ITYP)
+                  IPT  = col_getNumLev(LCOLUMNHR,varType)-1 + col_getOffsetFromVarno(lcolumnhr,ityp)
                   IPB  = IPT+1
                   if(ityp.eq.bufr_ness) then
                     columnVarB=lqtoes(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU'),
@@ -170,7 +170,7 @@ C
                   else
                     columnVarB=col_getElem(lcolumnhr,IPB,IOBS)
                   endif
-                  GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,cvar),IOBS,cvar)
+                  GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),IOBS,varType)
                   call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
      +                  (columnVarB
      +                 - ZSLOPE*(ZHHH-GZHR)-ZVAR)
@@ -193,8 +193,8 @@ C              below the model height
                   IXTR = obs_elem_i(lobsSpaceData,'XTR ',JDATA)
                   ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
-                  cvar = vnl_vartypeFromVarnum(ITYP)
-                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,cvar),IOBS,cvar))
+                  varType = vnl_vartypeFromVarnum(ITYP)
+                  ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),IOBS,varType))
                   ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
      &                    *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
                   ZCON = ((ZTVG-ZGAMAZ)/ZTVG)

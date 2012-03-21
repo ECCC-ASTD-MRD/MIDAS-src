@@ -34,8 +34,8 @@
       IMPLICIT NONE
 c
       type(struct_columnData) :: lcolumnghr
-      integer jobs,jlev,ier
-      real*8 zps, alpha
+      integer jobs,jlev
+      real*8 alpha
       real*8, allocatable ::  vmahr(:)
       real*8, allocatable ::  vmbhr(:)
       real*8, allocatable ::  vmchr(:)
@@ -43,7 +43,6 @@ c
       real*8, allocatable ::  vmehr(:)
       real*8, allocatable ::  vmfhr(:)
       real*8, allocatable ::  pressure(:)
-      real*8, allocatable ::  ztv(:)
 *
       allocate(vmahr(col_getNumLev(lcolumnghr)))
       allocate(vmbhr(col_getNumLev(lcolumnghr)))
@@ -52,17 +51,19 @@ c
       allocate(vmehr(col_getNumLev(lcolumnghr)))
       allocate(vmfhr(col_getNumLev(lcolumnghr)))
       allocate(pressure(col_getNumLev(lcolumnghr)))
-      allocate(ztv(col_getNumLev(lcolumnghr)))
 *
       alpha=-1.0D0
 c
+!$OMP PARALLEL DO PRIVATE(jobs,jlev,pressure,
+!$OMP& vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
       do jobs = 1, col_getNumCol(lcolumnghr)
         do jlev = 1, col_getNumLev(lcolumnghr)
           pressure(jlev)=col_getPressure(lcolumnghr,jlev,jobs,'NA')
         enddo
-        call matapatnew(pressure,alpha,col_getNumLev(lcolumnghr))
-        call vtap1dnew(jobs)
+        call matapatnew(pressure,alpha,col_getNumLev(lcolumnghr),vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
+        call vtap1dnew(jobs,col_getNumLev(lcolumnghr),vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
       enddo
+!$OMP END PARALLEL DO
 c
       deallocate(vmahr)
       deallocate(vmbhr)
@@ -71,13 +72,12 @@ c
       deallocate(vmehr)
       deallocate(vmfhr)
       deallocate(pressure)
-      deallocate(ztv)
 c
       return
 
       CONTAINS
 
-      SUBROUTINE matapatnew(pvlev,palpha,knlev)
+      SUBROUTINE matapatnew(pvlev,palpha,knlev,vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
 C
 *S/R MATAPATNEW:
 C     CALCULE LES ELEMENTS DE LA MATRICE TRIDIAGONALE ASSOCIEE A LA
@@ -103,9 +103,15 @@ C
       IMPLICIT  NONE
       integer knlev
       real*8  palpha, pvlev(knlev)
+      real*8 ::  vmahr(:)
+      real*8 ::  vmbhr(:)
+      real*8 ::  vmchr(:)
+      real*8 ::  vmdhr(:)
+      real*8 ::  vmehr(:)
+      real*8 ::  vmfhr(:)
 c
       logical llprint
-      INTEGER jl,jlev,im, ilen, ierr
+      INTEGER jl,jlev,im, ilen
       REAL*8 ZXM,ZX0,ZXP,ZAA,ZBB,ZEX,ZCC,ZQ(3),ZDD,ZDET
 
       llprint = .false.
@@ -184,16 +190,23 @@ c
       END SUBROUTINE matapatnew
 
 
-      SUBROUTINE VTAP1DNEW(kobs)
+      SUBROUTINE VTAP1DNEW(kobs,nlev,vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
 C
 *S/P VTAP1DNEW:
 * AUTHOR:  Luc Fillion - ARMA/AES - 10 mar 99
 *
       use MathPhysConstants_mod
       IMPLICIT NONE
-      INTEGER  kobs
+      INTEGER  kobs,nlev
+      real*8 ::  vmahr(:)
+      real*8 ::  vmbhr(:)
+      real*8 ::  vmchr(:)
+      real*8 ::  vmdhr(:)
+      real*8 ::  vmehr(:)
+      real*8 ::  vmfhr(:)
+      real*8 ::  ztv(nlev)
 *
-      INTEGER  JLON, IKLEVM2, JK, IK,ier
+      INTEGER  JLON, IKLEVM2, JK, IK
       REAL*8   ZAK, ZBK, ZCK,ZCON,zhu,mountain
       real*8, pointer :: gz_column(:)
 #include "dinternv.cdk"

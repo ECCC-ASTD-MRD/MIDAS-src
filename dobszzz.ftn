@@ -61,7 +61,7 @@
       REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
       REAL*8 DLSUM
       LOGICAL LLOK, LLPRINT,LLNOXTR
-      CHARACTER*2 CVAR
+      CHARACTER*2 VARTYPE
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
@@ -97,9 +97,9 @@ C
                   IVNM = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
                   IPB = IPT+1
-                  cvar = vnl_vartypeFromVarnum(IVNM)
-                  ZPT= col_getHeight(lcolumnhr,ik  ,iobs,cvar)/RG
-                  ZPB= col_getHeight(lcolumnhr,ik+1,iobs,cvar)/RG
+                  varType = vnl_vartypeFromVarnum(IVNM)
+                  ZPT= col_getHeight(lcolumnhr,ik  ,iobs,varType)/RG
+                  ZPB= col_getHeight(lcolumnhr,ik+1,iobs,varType)/RG
                   ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                   ZWT  = 1. - ZWB
                   if(ivnm.eq.bufr_nees) then

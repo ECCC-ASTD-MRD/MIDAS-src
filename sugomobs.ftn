@@ -41,16 +41,17 @@ c
       type(struct_columnData) :: lcolumng,lcolumnhr
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl, vco_trl
-      integer vfstlir,vezuvint,vezsint,ezdefset,ezgprm
-      integer ezsetopt,ezsetval,jstep
-      integer jlev,jobs,ier,iset
+      integer fstlir,vezuvint2,vezsint2,ezdefset,ezgprm,fnom,fstouv,fstfrm
+      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef
+      integer jlev,jobs,ier,iset,jstep,jgrid,numgrids
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
       integer itrlnlev
       integer idata,idatend,jdata
       character*1 clgrtyp
       character*2 cltypvar
       character*12 cletiket
-      real*8, allocatable, dimension(:,:) :: zvar,zvar2
+      real*4, allocatable, dimension(:,:) :: zvar,zvar2
+      real*4, allocatable, dimension(:,:,:) :: zvar3d
       real*8, allocatable, dimension(:,:) :: zmobs_T,zmobs_M,zmobs2_M
       real*8, allocatable, dimension(:,:) :: zppobs_T,zppobs_M
       real*8, allocatable, dimension(:,:) :: zovar
@@ -61,24 +62,20 @@ c
       integer itrlgid,iip1s(jpnflev),iip1,iip2,iip3
       integer iip1s2(jpnflev*2)
       real*8, allocatable :: zppobsg(:,:)
-      integer, allocatable, dimension(:) :: idate,itime,nultrl
+      integer, allocatable, dimension(:) :: idate,itime
       integer :: newdate,nstepanltime
-      integer, allocatable :: nobsgid(:)    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
-      integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
-      integer, allocatable :: nobs(:) ! number of headers for each stepobs bin
+      integer, allocatable :: nobsgid(:,:)    ! (nstepobs) grid id for ezscint corresponding to stepobs bin
+      integer, allocatable :: notag(:,:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
+      integer, allocatable :: nobs(:,:) ! number of headers for each stepobs bin
       integer, allocatable :: datestamplist(:)
-
-      interface
-        subroutine suobsgid(lobsSpaceData,lcolumng,nobsgid,notag,nobs)
-          use columnData_mod
-          use obsSpaceData_mod
-          type(struct_columnData) :: lcolumng
-          type(struct_obs) :: lobsSpaceData
-          integer :: nobsgid(:)
-          integer :: notag(:,:)
-          integer :: nobs(:)
-        end subroutine suobsgid
-      end interface
+      real :: lat_r4,lon_r4,xpos_r4,ypos_r4
+      character(len=2) :: flnum
+      character(len=128) :: trialfile
+      integer, allocatable :: ninmpg_yinyan(:,:),nultrl(:,:)
+      logical :: trialExists
+      real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
+      real*8, allocatable, dimension(:) ::  dlatfld, dlonfld
+      integer :: ig1obs,ig2obs,ig3obs,ig4obs
 
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
@@ -89,22 +86,63 @@ c
       vco_anl => col_getVco(lcolumng)
       vco_trl => col_getVco(lcolumnhr)
 c
-      allocate(nobsgid(col_getNumStep(lcolumng)))
-      allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
-      allocate(nobs(col_getNumStep(lcolumng)))
-c
-      call suobsgid(lobsSpaceData,lcolumng,nobsgid,notag,nobs)
+      allocate(nobsgid(col_getNumStep(lcolumng),2))
+      allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng),2))
+      allocate(nobs(col_getNumStep(lcolumng),2))
 c
       allocate(datestamplist(col_getNumStep(lcolumng)))
       allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
       allocate(zom_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
       allocate(zom_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
       allocate(zovar(1,col_getNumCol(lcolumng)))
-      allocate(zopart(maxval(nobs)))
-      allocate(zopart2(maxval(nobs)))
       allocate(idate(col_getNumStep(lcolumng)))
       allocate(itime(col_getNumStep(lcolumng)))
-      allocate(nultrl(col_getNumStep(lcolumng)))
+      allocate(nultrl(col_getNumStep(lcolumng),2))
+      allocate(ninmpg_yinyan(col_getNumStep(lcolumng),2))
+      allocate(dlatfld(obs_numheader(lobsSpaceData)))
+      allocate(dlonfld(obs_numheader(lobsSpaceData)))
+c
+c Either open separate Yin and Yan trial files or global trial files
+c
+      trialfile='./trlm_01_yin'
+      inquire(file=trialfile,exist=trialExists)
+      if(trialExists) then
+        numgrids=2
+      else
+        numgrids=1
+      endif
+      write(*,*) 'sugomobs: Number of input grids=',numgrids 
+c
+      ninmpg_yinyan(:,:)=0
+      do jgrid=1,numgrids
+        ntrials=0 
+        jstep=1
+        do 
+          write(flnum,'(I2.2)') jstep
+          if(numgrids.eq.1) then
+             trialfile='./trlm_'//flnum
+          else
+            if(jgrid.eq.1) then
+              trialfile='./trlm_'//flnum//'_yin'
+            else 
+              trialfile='./trlm_'//flnum//'_yan'
+            endif
+          endif
+          inquire(file=trialfile,exist=trialExists)
+          if(trialExists) then
+            ntrials=ntrials+1
+            ier=fnom(ninmpg_yinyan(ntrials,jgrid),trialfile,'RND+OLD+R/O',0)
+            write(*,*) 'ITRIAL - File :', trialfile
+            write(*,*) ' opened as unit file ',ninmpg_yinyan(ntrials,jgrid)
+            ier =  fstouv(ninmpg_yinyan(ntrials,jgrid),'RND+OLD')
+          else if ( (.not. trialExists) .and. ntrials >0 ) then
+            exit  
+          else if ( (.not. trialExists) .and. ntrials == 0 ) then
+            call abort3d(nulout,'SUFILNAM:NO TRIAL FILE')
+          endif 
+          jstep=jstep+1
+        enddo
+      enddo ! jgrid
 c
 c Computing date and time of step obs for error message
 c
@@ -132,77 +170,104 @@ c
       call col_allocate(lcolumnhr,col_getNumCol(lcolumng))
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c     Deactivate assimilate flag for obs outside of trial field grid
-c     (SHOULD BE A SIMPLER WAY TO DO THIS)
+c     The following code replaces suobsgid, and works for YIN-YAN
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ier = ezsetval('EXTRAP_VALUE', -999.0)
-      ier = ezsetopt('EXTRAP_DEGREE', 'VALUE')
-c
-      nultrl(:)=0
+      nobs(:,:) = 0
+      nultrl(:,:)=0
       do jvar=1,vnl_numvarmax2D
         if(gsv_varExist(varNameList2D(jvar))) exit          
       enddo
       write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
-      do jstep = 1,col_getNumStep(lcolumng)
-        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
+      do jgrid = 1,numgrids
+        do jstep = 1,col_getNumStep(lcolumng)
+          call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev
-     &       ,ninmpg,nulout,ip1_pak_trl,ip1_vco_trl,ntrials
-     &       ,nultrl(jstep))
-        if(nobs(jstep) > 0) then
+     &       ,ninmpg_yinyan(:,jgrid),nulout,ip1_pak_trl,ip1_vco_trl,ntrials
+     &       ,nultrl(jstep,jgrid))
           if(itrlnlev <= 0) then
             call abort3d(nulout,'SUGOMOBS:Problem with background file')
           endif
-c
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
-c
-          if (.not. allocated(zvar)) allocate(zvar(ini,inj))
-c
-          ier=vfstlir(zvar,nultrl(jstep),ini,inj,ink,
-     &         datestamplist(jstep) ,cletiket,iip1s(1),iip2,iip3,
-     &         cltypvar,varNameList2D(jvar))
-          if(ier.lt.0)then
-            call abort3d(nulout,'SUGOMOBS:Problem with background file')
-          end if
-c
-          iset = ezdefset(nobsgid(jstep),itrlgid)
-          ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
-     &         ,inj,1)
-          do jobs = 1, nobs(jstep)
-            if(zopart(jobs).eq.-999.0d0) then
-              idata = obs_elem_i(lobsSpaceData,'RLN ',notag(jobs,jstep))
-              idatend = obs_elem_i(lobsSpaceData,'NLV ',notag(jobs,jstep)) + idata -1
-              do jdata = idata, idatend
-                call obs_set_i(lobsSpaceData,'ASS ',jdata, 0)
-              enddo
+
+          do jobs=1, obs_numheader(lobsSpaceData)
+
+            call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
+     &                           obs_elem_i(lobsSpaceData,'DAT ',jobs),
+     &                           obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobs)
+            if(nint(stepObsIndex).eq.jstep) then
+
+              lat_r4=real(obs_elem_r8(lobsSpaceData,'LAT ',jobs))
+              lon_r4=real(obs_elem_r8(lobsSpaceData,'LON ',jobs))
+              if(lon_r4.lt.0) lon_r4 = lon_r4 + 2*MPC_PI_R4
+              if(lon_r4.ge.2.*MPC_PI_R4) lon_r4 =lon_r4 - 2*MPC_PI_R4
+              lat_r4=lat_r4*MPC_DEGREES_PER_RADIAN_R4
+              lon_r4=lon_r4*MPC_DEGREES_PER_RADIAN_R4
+              ier=gdxyfll(itrlgid, xpos_r4, ypos_r4, lat_r4, lon_r4, 1)
+
+              if(xpos_r4.ge.1.0 .and. xpos_r4.le.real(ini) .and.
+     +           ypos_r4.ge.1.0 .and. ypos_r4.le.real(inj)) then
+ 
+                nobs(jstep,jgrid) = nobs(jstep,jgrid) + 1
+
+                dlatfld(nobs(jstep,jgrid)) = obs_elem_r8(lobsSpaceData,'LAT ',jobs)
+                dlonfld(nobs(jstep,jgrid)) = obs_elem_r8(lobsSpaceData,'LON ',jobs)
+                notag(nobs(jstep,jgrid),jstep,jgrid) = jobs
+
+                if(dlonfld(nobs(jstep,jgrid)).lt.0)
+     &               dlonfld(nobs(jstep,jgrid)) = dlonfld(nobs(jstep,jgrid)) +
+     &               2*MPC_PI_R8
+                if(dlonfld(nobs(jstep,jgrid)).ge.2.*MPC_PI_R8)
+     &               dlonfld(nobs(jstep,jgrid)) =dlonfld(nobs(jstep,jgrid)) -
+     &               2*MPC_PI_R8
+                dlatfld(nobs(jstep,jgrid))=dlatfld(nobs(jstep,jgrid))*MPC_DEGREES_PER_RADIAN_R8
+                dlonfld(nobs(jstep,jgrid))=dlonfld(nobs(jstep,jgrid))*MPC_DEGREES_PER_RADIAN_R8
+              endif
             endif
-          enddo
-        endif
-      enddo
+
+          enddo ! jobs
+
+          zig1 = 0.0D0
+          zig2 = 0.0D0
+          zig3 = 1.0D0
+          zig4 = 1.0D0
+          call vcxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
+
+          if (nobs(jstep,jgrid).gt.0) then
+            nobsgid(jstep,jgrid) = vezgdef(nobs(jstep,jgrid),1,'Y','L',ig1obs,ig2obs,
+     &           ig3obs,ig4obs,dlonfld(1:nobs(jstep,jgrid)),dlatfld(1:nobs(jstep,jgrid)))
+          else
+            nobsgid(jstep,jgrid) = -999
+          endif
+
+        enddo ! jstep
+      enddo ! jgrid
+
+      write(*,*) 'sugomobs: nobs for yin=',nobs(:,1)
+      write(*,*) 'sugomobs: nobs for yan=',nobs(:,2)
+      write(*,*) 'sugomobs: nobsgid for yin=',nobsgid(:,1)
+      write(*,*) 'sugomobs: nobsgid for yan=',nobsgid(:,2)
+
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c     Finished deactivating assimilate flag for obs outside of trial field grid
+c     Finished code that replaces suobsgid and works for YIN-YAN
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c
-      ier = ezsetopt('EXTRAP_DEGREE', 'MINIMUM')
+      allocate(zopart(maxval(nobs)))
+      allocate(zopart2(maxval(nobs)))
+
 c
 c     reading 2D fields
 c
-      nultrl(:)=0
+      call tmg_start(27,'XHR2XY')
       do jvar=1,vnl_numvarmax2D
         if(.not.gsv_varExist(varNameList2D(jvar))) cycle
+        do jgrid = 1,numgrids
         do jstep = 1,col_getNumStep(lcolumng)
           if(datestamplist(jstep) == obs_get_datestamp(lobsSpaceData)) nstepanltime = jstep
-          if(nultrl(jstep) == 0) then
-            call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &           ,ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev
-     &           ,ninmpg,nulout,ip1_pak_trl,ip1_vco_trl,ntrials
-     &           ,nultrl(jstep))
-          else
-            call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
+          call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
      &           ,CLETIKET,CLTYPVAR,ITRLGID,varNameList2D(jvar)
-     &           ,datestamplist(jstep),jpnflev,nultrl(jstep),nulout
+     &           ,datestamplist(jstep),jpnflev,nultrl(jstep,jgrid),nulout
      &           ,ip1_pak_trl,ip1_vco_trl)
-          endif
-          if(nobs(jstep) > 0) then
+          if(nobs(jstep,jgrid) > 0) then
             if(itrlnlev <= 0) then
               write(nulout,1002) varNameList2D(jvar),idate(jstep)
      &             ,itime(jstep)
@@ -214,9 +279,11 @@ c
 c
             if (.not. allocated(zvar)) allocate(zvar(ini,inj))
 c
-            ier=vfstlir(zvar,nultrl(jstep),ini,inj,ink,
+            call tmg_start(7,'FSTLIR')
+            ier=fstlir(zvar,nultrl(jstep,jgrid),ini,inj,ink,
      &           datestamplist(jstep) ,cletiket,iip1s(1),iip2,iip3,
      &           cltypvar,varNameList2D(jvar))
+            call tmg_stop(7)
             if(ier.lt.0)then
               write(nulout,1001) varNameList2D(jvar),iip1s(1),idate(jstep)
      &             ,itime(jstep)
@@ -225,14 +292,19 @@ c
      &             ,'SUGOMOBS:Problem with background file')
             end if
 c
-            iset = ezdefset(nobsgid(jstep),itrlgid)
-            ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
+            call tmg_start(8,'EZSCINT_INIT')
+            iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
+            call tmg_stop(8)
+            call tmg_start(9,'EZSCINT_INTRP')
+            ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1,1,ini
      &           ,inj,1)
-            do jobs = 1, nobs(jstep)
-              zovar(1,notag(jobs,jstep)) = zopart(jobs)
+            call tmg_stop(9)
+            do jobs = 1, nobs(jstep,jgrid)
+              zovar(1,notag(jobs,jstep,jgrid)) = zopart(jobs)
             enddo
           endif
         enddo
+        enddo ! jgrid
 c
         if(varNameList2D(jvar).eq.'P0') then
           zovar(:,:)=zovar(:,:)*MPC_PA_PER_MBAR_R8
@@ -241,6 +313,7 @@ c
         call col_fillmvo(lcolumnhr,varNameList2D(jvar),'NA',zovar)
 c
       enddo
+      call tmg_stop(27)
 c
 c-----Derive the pressure fields at observation points from the hybrid
 C     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
@@ -303,12 +376,13 @@ c
 c Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
 c
       write(nulout,*)' ----- Initializing GZ ----'
+      do jgrid=1,numgrids
 c
 c     Get horizontal field parameters
 c
       call getfldprm(iip1s2,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,'GZ  ',obs_get_datestamp(lobsSpaceData),jpnflev*2
-     &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
+     &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
       if(itrlnlev <= 0 ) then
         write(nulout,1002) 'GZ  ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &        ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
@@ -321,30 +395,90 @@ c
 c
 c     Lire les GZ des niveaux Momentum
 c
+      call tmg_start(27,'XHR2XY')
+      allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
       do jlev = 1,nlv_M
+        IIP1 = vco_trl%ip1_M(jlev)
+        call tmg_start(7,'FSTLIR')
+!$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
         do jstep = 1,col_getNumStep(lcolumng)
-          if(nobs(jstep) > 0) then
-            IIP1 = vco_trl%ip1_M(jlev)
-c
-            ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
+          if(nobs(jstep,jgrid) > 0) then
+            ier=fstlir(ZVAR,nultrl(jstep,jgrid),ini,inj,ink,
      &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
      &          cltypvar,'GZ  ')
+            zvar3d(:,:,jstep)=zvar(:,:)
             if(ier.lt.0)then
               write(nulout,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &            ,'SUGOMOBS:Problem with background file')
             end if
+          endif
+        enddo
+!$OMP END PARALLEL DO
+        call tmg_stop(7)
 c
-            iset = ezdefset(nobsgid(jstep),itrlgid)
-            ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
+        do jstep = 1,col_getNumStep(lcolumng)
+          if(nobs(jstep,jgrid) > 0) then
+            zvar(:,:)=zvar3d(:,:,jstep)
+            call tmg_start(8,'EZSCINT_INIT')
+            iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
+            call tmg_stop(8)
+            call tmg_start(9,'EZSCINT_INTRP')
+            ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1,1,ini
      &            ,inj,1)
-            do jobs = 1, nobs(jstep)
-              zmobs_M((jlev),notag(jobs,jstep)) = zopart(jobs)
+            call tmg_stop(9)
+            do jobs = 1, nobs(jstep,jgrid)
+              zmobs_M((jlev),notag(jobs,jstep,jgrid)) = zopart(jobs)
             enddo
           endif
         enddo
       enddo
+      deallocate(zvar3d)
+c
+c     Lire les GZ des niveaux Thermodynamique
+c
+      allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
+      do jlev = 1, nlv_T
+        IIP1 = vco_trl%ip1_T(jlev)
+        call tmg_start(7,'FSTLIR')
+!$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
+        do jstep = 1,col_getNumStep(lcolumng)
+          if(nobs(jstep,jgrid) > 0) then
+            ier=fstlir(ZVAR,nultrl(jstep,jgrid),ini,inj,ink,
+     &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
+     &          cltypvar,'GZ  ')
+            zvar3d(:,:,jstep)=zvar(:,:)
+            if(ier.lt.0)then
+              write(nulout,1001) 'GZ  ',iip1,idate(jstep)
+     &             ,itime(jstep)
+              call abort3d(nulout
+     &            ,'SUGOMOBS:Problem with background file')
+            end if
+          endif
+        enddo
+!$OMP END PARALLEL DO
+        call tmg_stop(7)
+c
+        do jstep = 1,col_getNumStep(lcolumng)
+          if(nobs(jstep,jgrid) > 0) then
+            zvar(:,:)=zvar3d(:,:,jstep)
+            call tmg_start(8,'EZSCINT_INIT')
+            iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
+            call tmg_stop(8)
+            call tmg_start(9,'EZSCINT_INTRP')
+            ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1,1,ini
+     &            ,inj,1)
+            call tmg_stop(9)
+            do jobs = 1, nobs(jstep,jgrid)
+              zmobs_T(jlev,notag(jobs,jstep,jgrid)) = zopart(jobs) 
+            enddo
+          endif
+        enddo
+      enddo
+      deallocate(zvar3d)
+      call tmg_stop(27)
+      enddo ! jgrid
 c
           write(nulout,*) 'sugomobs:GZ_M*10.*rg '
           do jlev = 1,nlv_M
@@ -356,35 +490,7 @@ c
 c
 c     remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
       call col_fillmvo(lcolumnhr,'GZ  ','NA',zmobs_M)
-c
-c     Lire les GZ des niveaux Thermodynamique
-c
-      do jlev = 1, nlv_T
-        do jstep = 1,col_getNumStep(lcolumng)
-          if(nobs(jstep) > 0) then
-            IIP1 = vco_trl%ip1_T(jlev)
-c
-            ier=vfstlir(ZVAR,nultrl(jstep),ini,inj,ink,
-     &          datestamplist(jstep) ,cletiket,iip1,-1,-1,
-     &          cltypvar,'GZ  ')
-            if(ier.lt.0)then
-              write(nulout,1001) 'GZ  ',iip1,idate(jstep)
-     &             ,itime(jstep)
-              call abort3d(nulout
-     &            ,'SUGOMOBS:Problem with background file')
-            end if
-c
-            iset = ezdefset(nobsgid(jstep),itrlgid)
-            ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1,1,ini
-     &            ,inj,1)
-            do jobs = 1, nobs(jstep)
-              zmobs_T(jlev,notag(jobs,jstep)) = zopart(jobs) 
-            enddo
-          endif
-        enddo
-      enddo
-c
-c     remplir gomobsgzhr_T
+
           write(nulout,*) 'sugomobs:GZ_TH (*10.*rg)'
           do jlev = 1,nlv_T
             write(nulout,*)'GZ,',jlev
@@ -408,9 +514,11 @@ c
           write(nulout,*)' '
           call flush(nulout)
 c
+          do jgrid = 1,numgrids
+
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
-     &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
+     &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
             write(nulout,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
@@ -423,57 +531,93 @@ c
 c loop through levels of UU,VV
 c
           if (.not. allocated(zvar2)) allocate(zvar2(ini,inj))
+          allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_M
             IIP1=vco_trl%ip1_M(jlev)
+            call tmg_start(7,'FSTLIR')
+!$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
             do jstep = 1,col_getNumStep(lcolumng)
-              if(nobs(jstep) > 0) then
-                iset = ezdefset(nobsgid(jstep),itrlgid)
-c
-                ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
+              if(nobs(jstep,jgrid) > 0) then
+                ier=fstlir(zvar,nultrl(jstep,jgrid),INI,INJ,INK,
      &               datestamplist(jstep),cletiket,iip1,-1,-1,
      &               cltypvar,'UU  ')
+                zvar3d(:,:,jstep)=zvar(:,:)
                 if(ier.lt.0)then
                   write(nulout,1001) 'UU  ',iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
                 end if
+              endif
+            enddo
+!$OMP END PARALLEL DO
+            call tmg_stop(7)
 c
+            do jstep = 1,col_getNumStep(lcolumng)
+              if(nobs(jstep,jgrid) > 0) then
+                zvar(:,:)=zvar3d(:,:,jstep)
                 zvar2 = 0.d0
-                ier = vezuvint(zopart(1:nobs(jstep))
-     &               ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
+                call tmg_start(8,'EZSCINT_INIT')
+                iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
+                call tmg_stop(8)
+                call tmg_start(9,'EZSCINT_INTRP')
+                ier = vezuvint2(zopart(1:nobs(jstep,jgrid))
+     &               ,zopart2(1:nobs(jstep,jgrid)),zvar,zvar2,nobs(jstep,jgrid)
      &               ,ini*inj)
-                do jobs = 1, nobs(jstep)
-                  zmobs_M(jlev,notag(jobs,jstep)) = zopart(jobs)
-                  zmobs2_M(jlev,notag(jobs,jstep)) = zopart2(jobs)
+                call tmg_stop(9)
+                do jobs = 1, nobs(jstep,jgrid)
+                  zmobs_M(jlev,notag(jobs,jstep,jgrid)) = zopart(jobs)
+                  zmobs2_M(jlev,notag(jobs,jstep,jgrid)) = zopart2(jobs)
                 enddo
+              endif
+            enddo
 c
-                ier=vfstlir(zvar2,nultrl(jstep),INI,INJ,INK,
+            call tmg_start(7,'FSTLIR')
+!$OMP PARALLEL DO PRIVATE(jstep,ier,zvar2)
+            do jstep = 1,col_getNumStep(lcolumng)
+              if(nobs(jstep,jgrid) > 0) then
+                ier=fstlir(zvar2,nultrl(jstep,jgrid),INI,INJ,INK,
      &               datestamplist(jstep) ,cletiket,iip1,-1,-1,
      &               cltypvar,'VV  ')
+                zvar3d(:,:,jstep)=zvar2(:,:)
                 if(ier.lt.0)then
                   write(nulout,1001) 'VV  ',iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
                 endif
+              endif
+            enddo
+!$OMP END PARALLEL DO
+            call tmg_stop(7)
 c
+            do jstep = 1,col_getNumStep(lcolumng)
+              if(nobs(jstep,jgrid) > 0) then
+                zvar2(:,:)=zvar3d(:,:,jstep)
                 zvar = 0.d0
-                ier = vezuvint(zopart(1:nobs(jstep))
-     &               ,zopart2(1:nobs(jstep)),zvar,zvar2,nobs(jstep)
+                call tmg_start(8,'EZSCINT_INIT')
+                iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
+                call tmg_stop(8)
+                call tmg_start(9,'EZSCINT_INTRP')
+                ier = vezuvint2(zopart(1:nobs(jstep,jgrid))
+     &               ,zopart2(1:nobs(jstep,jgrid)),zvar,zvar2,nobs(jstep,jgrid)
      &               ,ini*inj)
+                call tmg_stop(9)
 c
-                do jobs = 1, nobs(jstep)
-                  zmobs_M(jlev,notag(jobs,jstep)) = zmobs_M(jlev
-     &                 ,notag(jobs,jstep)) + zopart(jobs)
-                  zmobs2_M(jlev,notag(jobs,jstep)) = zmobs2_M(jlev
-     &                 ,notag(jobs,jstep)) + zopart2(jobs)
+                do jobs = 1, nobs(jstep,jgrid)
+                  zmobs_M(jlev,notag(jobs,jstep,jgrid)) = zmobs_M(jlev
+     &                 ,notag(jobs,jstep,jgrid)) + zopart(jobs)
+                  zmobs2_M(jlev,notag(jobs,jstep,jgrid)) = zmobs2_M(jlev
+     &                 ,notag(jobs,jstep,jgrid)) + zopart2(jobs)
                 enddo
               endif
             enddo
           enddo
           call tmg_stop(27)
+          deallocate(zvar3d)
+
+          enddo ! jgrid
 c         
           call tmg_start(29,'VINTPROF')
 c
@@ -512,9 +656,11 @@ c
           write(nulout,*)' '
           call flush(nulout)
 c
+          do jgrid = 1,numgrids
+
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
-     &         ,nultrl(nstepanltime),nulout,ip1_pak_trl,ip1_vco_trl)
+     &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
             write(nulout,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
@@ -529,31 +675,49 @@ c loop through levels of field jvar
 c
 c Reading 3D fields
 c
+          allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
           call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_T
             IIP1=vco_trl%ip1_T(jlev)
+            call tmg_start(7,'FSTLIR')
+!$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
             do jstep = 1,col_getNumStep(lcolumng)
-              if(nobs(jstep) > 0) then
-                iset = ezdefset(nobsgid(jstep),itrlgid)
-                ier=vfstlir(zvar,nultrl(jstep),INI,INJ,INK,
+              if(nobs(jstep,jgrid) > 0) then
+                ier=fstlir(zvar,nultrl(jstep,jgrid),INI,INJ,INK,
      &                datestamplist(jstep) ,cletiket,iip1,-1,-1,
      &                cltypvar,varNameList3D(jvar))
+                zvar3d(:,:,jstep)=zvar(:,:)
                 if(ier.lt.0)then
                   write(nulout,1001) varNameList3D(jvar),iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
                 end if
+              endif
+            enddo
+!$OMP END PARALLEL DO
+            call tmg_stop(7)
 c
-                  ier = vezsint(zopart(1:nobs(jstep)),zvar,nobs(jstep),1
-     &               ,1,ini,inj,1)
-                do jobs = 1, nobs(jstep)
-                  zmobs_T(jlev,notag(jobs,jstep)) =zopart(jobs)
+            do jstep = 1,col_getNumStep(lcolumng)
+              if(nobs(jstep,jgrid) > 0) then
+                zvar(:,:)=zvar3d(:,:,jstep)
+                call tmg_start(8,'EZSCINT_INIT')
+                iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
+                call tmg_stop(8)
+                call tmg_start(9,'EZSCINT_INTRP')
+                ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1
+     &             ,1,ini,inj,1)
+                call tmg_stop(9)
+                do jobs = 1, nobs(jstep,jgrid)
+                  zmobs_T(jlev,notag(jobs,jstep,jgrid)) =zopart(jobs)
                 enddo
               endif
             enddo
           enddo
           call tmg_stop(27)
+          deallocate(zvar3d)
+
+          enddo ! jgrid
 c
           call vintprof(zom_T,zppobsg,col_getNumLev(lcolumng),zmobs_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
 c
@@ -580,20 +744,34 @@ c
 c
 c Initialisation of TLM operators
 c
+      call tmg_start(17,'subasic_obs')
       call subasic_obs(lcolumng)
+      call tmg_stop(17)
 c
 c Using T, q and PS to compute GZ for columng
 c
+      call tmg_start(18,'tt2phi_g')
       do jobs = 1, col_getNumCol(lcolumng)
         call col_setMountain(lcolumng ,jobs,col_getMountain(lcolumnhr,jobs))
       enddo
       call tt2phi(lcolumng)
+      call tmg_stop(18)
 c
 c Using T, q and PS to compute GZ for columnhr
 c
+      call tmg_start(19,'tt2phi_hr')
       if(vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
         call tt2phi(lcolumnhr)
       endif
+      call tmg_stop(19)
+c
+c Close the files
+c
+      do jgrid=1,numgrids
+        do jstep=1,ntrials
+          ier=fstfrm(ninmpg_yinyan(jstep,jgrid))  
+        enddo
+      enddo
 c
       deallocate(datestamplist)
       deallocate(nobsgid)
@@ -608,8 +786,11 @@ c
       deallocate(zppobs_T,zppobs_M)
       deallocate(zopart,zopart2)
       deallocate(nultrl)
+      deallocate(ninmpg_yinyan)
       deallocate(idate)
       deallocate(itime)
+      deallocate(dlatfld)
+      deallocate(dlonfld)
 c
       write(nulout,*) ' '
       write(nulout,*) '-------- Leaving SUGOMOBS ---------'

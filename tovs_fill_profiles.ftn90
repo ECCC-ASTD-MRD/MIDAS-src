@@ -322,7 +322,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
         profiles(iptobs(j)) % skin % t        = col_getElem(lcolumnghr,1,iptobscma(j),'TG')
         profiles(iptobs(j)) % skin % fastem(:)= 0.0
         profiles(iptobs(j)) % s2m % t         = col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'TT')
-        profiles(iptobs(j)) % s2m % q         = exp(col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'HU')) * q_mixratio_to_ppmv
+!!!        profiles(iptobs(j)) % s2m % q         = exp(col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'HU')) * q_mixratio_to_ppmv
+        profiles(iptobs(j)) % s2m % q         = 0.3D6  !! new a value between 0 and 0.6d6 so that RTTOV will not complain
         profiles(iptobs(j)) % s2m % p         = col_getElem(lcolumnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
         profiles(iptobs(j)) % s2m % u         = col_getElem(lcolumnghr,ilowlvl_M,iptobscma(j),'UU')
         profiles(iptobs(j)) % s2m % v         = col_getElem(lcolumnghr,ilowlvl_M,iptobscma(j),'VV')

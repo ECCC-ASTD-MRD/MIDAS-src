@@ -74,7 +74,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
   INTEGER :: no_id, ival, IPLATFORM, ISAT, INSTRUM, KRTID
 
-  INTEGER ::  KULOUT, JO, IDATYP, JI, JK, NCMAX
+  INTEGER ::  KULOUT, JO, IDATYP, J, JI, JK, NCMAX
   INTEGER ::  ISENS, NC, NL
   INTEGER ::  ICHN, NOSENSOR, INDXCHN
   INTEGER ::  ISRCHEQ
@@ -220,7 +220,10 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      do jk = 1, nsensors
        if ( instrument(jk) /= 20 ) then
         nchan(jk) = coef(jk)%fmv_chn
-        ichan(:,jk) = coef(jk)%ff_ori_chn(:)
+        !! ichan(:,jk) = coef(jk)%ff_ori_chn(:)
+        do j = 1,nchan(jk)
+           ichan(j,jk) = coef(jk)%ff_ori_chn(j)
+        enddo
        end if
      enddo
 
@@ -243,7 +246,10 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
 !   Pressure levels for RTTOV in mbs
 
-     XPRES(:) = coef(1)%ref_prfl_p(:)
+     !! XPRES(:) = coef(1)%ref_prfl_p(:)
+     do j=1,coef(1)%nlevels
+        XPRES(j) = coef(1)%ref_prfl_p(j)
+     enddo
 
 !   Reference profile min and max for water vapour (kg/kg)
 

@@ -269,7 +269,15 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
         profiles_tl(iptobs(j)) % skin % t        = col_getElem(lcolumn,1,iptobscma(j),'TG')
         profiles_tl(iptobs(j)) % skin % fastem(:)= 0.0d0
         profiles_tl(iptobs(j)) % s2m % t         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'TT')
-        profiles_tl(iptobs(j)) % s2m % q         = qoext(ilowlvl,j) * col_getElem(lcolumn,ilowlvl,iptobscma(j),'HU') * q_mixratio_to_ppmv
+
+   !! The following line has been commented out because qoext(ilowlvl,j) may be out of bound
+!!!        profiles_tl(iptobs(j)) % s2m % q         = qoext(ilowlvl,j) * col_getElem(lcolumn,ilowlvl,iptobscma(j),'HU') * q_mixratio_to_ppmv
+   !! The right code should be
+        !!profiles_tl(iptobs(j)) % s2m % q         = exp(gomq1(ilowlvl,iptobscma(j))) * pgomq_tl(ilowlvl,iptobscma(j)) * q_mixratio_to_ppmv
+   !! but since the logical flag 'use_q2m' is set to .false. in rttov_const.F90 (in RTTOV code)
+   !! this variable profiles_tl(iptobs(j)) % s2m % q is not used so it can be set to 0
+        profiles_tl(iptobs(j)) % s2m % q         = 0.d0
+
         profiles_tl(iptobs(j)) % s2m % p         = col_getElem(lcolumn,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
         profiles_tl(iptobs(j)) % s2m % u         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'UU')
         profiles_tl(iptobs(j)) % s2m % v         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'VV')

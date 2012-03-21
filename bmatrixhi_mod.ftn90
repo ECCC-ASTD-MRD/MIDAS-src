@@ -109,7 +109,7 @@ CONTAINS
 
     ! parameters set from the ensemble member files
     ntrunc=108
-    scaleFactor(:)=0.0d0
+    scaleFactor(:)=1.0d0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
