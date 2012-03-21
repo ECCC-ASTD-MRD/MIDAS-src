@@ -351,9 +351,9 @@
                 ZTG(NOBIASI) = col_getElem(lcolumnhr,1,JO,'TG')
                 ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
-                ZLAT(NOBIASI) = obs_elem_r4(lobsSpaceData,'LAT ',jo) &
+                ZLAT(NOBIASI) = obs_elem_r8(lobsSpaceData,'LAT ',jo) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                ZLON(NOBIASI) = obs_elem_r4(lobsSpaceData,'LON ',jo) &
+                ZLON(NOBIASI) = obs_elem_r8(lobsSpaceData,'LON ',jo) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')

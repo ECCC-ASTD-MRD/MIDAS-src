@@ -112,8 +112,8 @@
 !C     ---------------------------------
 !C
       DO JOBS = 1, col_getNumCol(lcolumn)
-         DLLAO   = obs_elem_r4(lobsSpaceData,'LAT ',JOBS)
-         DLLOO   = obs_elem_r4(lobsSpaceData,'LON ',JOBS)
+         DLLAO   = obs_elem_r8(lobsSpaceData,'LAT ',JOBS)
+         DLLOO   = obs_elem_r8(lobsSpaceData,'LON ',JOBS)
 !C
 !C*    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C*    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY

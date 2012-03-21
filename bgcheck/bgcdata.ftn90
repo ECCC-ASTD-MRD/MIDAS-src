@@ -84,18 +84,18 @@
                     IF (ITYP .EQ. BUFR_NESS) INDOBS = INDOBS+1
                   ENDIF
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-                  ZVAR = obs_elem_r4(lobsSpaceData,'VAR ',jdata)
-                  ZLEV = obs_elem_r4(lobsSpaceData,'PPP ',jdata)
-                  ZOER = obs_elem_r4(lobsSpaceData,'OER ',jdata)
-                  ZLAT  = obs_elem_r4(lobsSpaceData,'LAT ',iobs) &
+                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',jdata)
+                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
+                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',jdata)
+                  ZLAT  = obs_elem_r8(lobsSpaceData,'LAT ',iobs) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                  ZLON  = obs_elem_r4(lobsSpaceData,'LON ',iobs) &
+                  ZLON  = obs_elem_r8(lobsSpaceData,'LON ',iobs) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
 !C
 !C              BACK GROUND CHECK
 !C
-                  ZOMP  =-obs_elem_r4(lobsSpaceData,'OMF ',jdata)*obs_elem_r4(lobsSpaceData,'OER ',jdata)
-                  ZFGE  = obs_elem_r4(lobsSpaceData,'FGE ',jdata)
+                  ZOMP  =-obs_elem_r8(lobsSpaceData,'OMF ',jdata)*obs_elem_r8(lobsSpaceData,'OER ',jdata)
+                  ZFGE  = obs_elem_r8(lobsSpaceData,'FGE ',jdata)
                   IF ( CDFAM .EQ. 'GP' ) THEN
                     IF (ITYP .EQ. BUFR_NEZD) THEN
                       ZOER = ZOER/YZDERRWGT

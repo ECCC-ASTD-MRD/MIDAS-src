@@ -48,7 +48,7 @@
 !C     TRANSFER O-A to O-P in cma
 !C
       DO JDATA=1,obs_numbody(lobsSpaceData)  !replaces NDATA
-         call obs_set_r4(lobsSpaceData,'OMF ',jdata,obs_elem_r4(lobsSpaceData,'OMA ',jdata))
+         call obs_set_r8(lobsSpaceData,'OMF ',jdata,obs_elem_r8(lobsSpaceData,'OMA ',jdata))
       ENDDO
 !C
 !C      CALCULATE Sigmap AND INNOVATIONS(O-P)

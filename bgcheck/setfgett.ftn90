@@ -40,7 +40,7 @@
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
-               call obs_set_r4(lobsSpaceData,'FGE ',jdata,real(col_getElem(lcolumn,IPB,IOBS)))
+               call obs_set_r8(lobsSpaceData,'FGE ',jdata,col_getElem(lcolumn,IPB,IOBS))
             ELSE
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
@@ -54,8 +54,8 @@
 !C
 !C              FIRST GUESS ERROR VARIANCE
 !
-               call obs_set_r4(lobsSpaceData,'FGE ',jdata,   &
-                  real((ZWB*col_getElem(lcolumn,IPB,IOBS,'TT') + ZWT*col_getElem(lcolumn,IPT,IOBS,'TT'))) )
+               call obs_set_r8(lobsSpaceData,'FGE ',jdata,   &
+                  (ZWB*col_getElem(lcolumn,IPB,IOBS,'TT') + ZWT*col_getElem(lcolumn,IPT,IOBS,'TT')))
             ENDIF
             ENDIF
             ENDIF

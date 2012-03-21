@@ -2066,6 +2066,7 @@ MODULE obsSpaceData_mod
   CHARACTER(len=9),ALLOCATABLE    :: cstnid_tmp(:)
 
   REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
+  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_tmp
@@ -2124,6 +2125,10 @@ MODULE obsSpaceData_mod
   IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
   ROBDATA_tmp=0.0
 
+  ALLOCATE(ROBDATA8_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
+  IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA8_tmp,Abort!')
+  ROBDATA_tmp=0.0d0
+
   ! Restore the global arrays MOBDATA and ROBDATA
   ii=0
   DO i=1,obsdat%numheader
@@ -2134,6 +2139,7 @@ MODULE obsSpaceData_mod
        ii=ii+1
        MOBDATA_tmp(1:NBDY_INT,j)=obsdat%MOBDATA(1:NBDY_INT,ii)
        ROBDATA_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA(1:NBDY_REAL,ii)
+       ROBDATA8_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA8(1:NBDY_REAL,ii)
     ENDDO
   ENDDO
    !
@@ -2144,6 +2150,9 @@ MODULE obsSpaceData_mod
   sizeROBDATA=size(ROBDATA_tmp)
   CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeROBDATA,"mpi_real",&
                           "mpi_sum","GRID",ierr)
+  sizeROBDATA=size(ROBDATA8_tmp)
+  CALL RPN_COMM_ALLReduce(ROBDATA8_tmp,ROBDATA8_tmp,sizeROBDATA,&
+                          "mpi_double_precision","mpi_sum","GRID",ierr)
    !
 
   call obs_deallocate(obsdat)
@@ -2153,12 +2162,14 @@ MODULE obsSpaceData_mod
   obsdat%ROBHDR=ROBHDR_tmp
   obsdat%MOBHDR=MOBHDR_tmp
   obsdat%ROBDATA=ROBDATA_tmp
+  obsdat%ROBDATA8=ROBDATA8_tmp
   obsdat%MOBDATA=MOBDATA_tmp
 
   DEALLOCATE(cstnid_tmp)
   DEALLOCATE(ROBHDR_tmp)
   DEALLOCATE(MOBHDR_tmp)
   DEALLOCATE(ROBDATA_tmp)
+  DEALLOCATE(ROBDATA8_tmp)
   DEALLOCATE(MOBDATA_tmp)
 
   call obs_deallocateG(obsdat)
