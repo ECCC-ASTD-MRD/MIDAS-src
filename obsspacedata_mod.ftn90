@@ -2127,7 +2127,7 @@ MODULE obsSpaceData_mod
 
   ALLOCATE(ROBDATA8_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA8_tmp,Abort!')
-  ROBDATA_tmp=0.0d0
+  ROBDATA8_tmp=0.0d0
 
   ! Restore the global arrays MOBDATA and ROBDATA
   ii=0
