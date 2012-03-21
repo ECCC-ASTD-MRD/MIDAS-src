@@ -61,12 +61,6 @@ c
       allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
       allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
       allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
-c
-C     Copy REAL*8 part of CMA back to REAL*4 CMA counterpart
-C     after minimization has ended. From this point all CMA
-C     references are to ROBDATA.
-
-      call cprob8to4(lobsSpaceData)
 C
       IF (LVARQC) CALL LISTREJ(lobsSpaceData)
 C

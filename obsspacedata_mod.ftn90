@@ -191,8 +191,8 @@ MODULE obsSpaceData_mod
 
   ! methods
   public           :: obs_initialize,obs_finalize
-  public           :: obs_elem_i,obs_elem_r4,obs_elem_r8,obs_elem_c9
-  public           ::  obs_set_i, obs_set_r4, obs_set_r8, obs_set_c9
+  public           :: obs_elem_i,obs_elem_r8,obs_elem_c9
+  public           ::  obs_set_i, obs_set_r8, obs_set_c9
   public           :: obs_numbody,obs_numheader,obs_numbody_max
   public           :: obs_numheader_max,obs_numheader_mpiglobal
   public           :: obs_swapVarOmf,obs_ifind
@@ -230,7 +230,7 @@ MODULE obsSpaceData_mod
    character(len=2),  pointer, dimension(:)   :: cfamily
    real(kind=8),      pointer, dimension(:,:) :: robhdr
    integer,           pointer, dimension(:,:) :: mobhdr
-   real(kind=4),      pointer, dimension(:,:) :: robdata
+!!$   real(kind=4),      pointer, dimension(:,:) :: robdata
    real(kind=8),      pointer, dimension(:,:) :: robdata8
    integer,           pointer, dimension(:,:) :: mobdata
    integer :: numheader                 ! Actual number of stations on record
@@ -422,8 +422,8 @@ MODULE obsSpaceData_mod
     ALLOCATE(obsdat%MOBHDR(NHDR_INT,numheader_max),STAT=ierr)
     obsdat%MOBHDR=0
 
-    ALLOCATE(obsdat%ROBDATA(NBDY_REAL,numbody_max),STAT=ierr)
-    obsdat%ROBDATA=0.0
+!!$    ALLOCATE(obsdat%ROBDATA(NBDY_REAL,numbody_max),STAT=ierr)
+!!$    obsdat%ROBDATA=0.0
 
     ALLOCATE(obsdat%ROBDATA8(NBDY_REAL,numbody_max),STAT=ierr)
     obsdat%ROBDATA8=0.0D0
@@ -521,11 +521,11 @@ MODULE obsSpaceData_mod
       if(ierr.ne.0)write(*,*) 'Problem detected with MOBHDR. IERR =',ierr
     end if
 
-    if (associated(obsdat%robdata))then
-        deallocate(obsdat%robdata,stat=ierr)
-           nullify(obsdat%robdata)
-      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA. IERR =',ierr
-    end if
+!!$    if (associated(obsdat%robdata))then
+!!$        deallocate(obsdat%robdata,stat=ierr)
+!!$           nullify(obsdat%robdata)
+!!$      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA. IERR =',ierr
+!!$    end if
 
     if (associated(obsdat%robdata8))then
         deallocate(obsdat%robdata8,stat=ierr)
@@ -584,7 +584,7 @@ MODULE obsSpaceData_mod
 
     type(struct_obs), intent(inout) :: obsdat
 
-    real(kind=4),allocatable :: temp_robdata(:)
+!!$    real(kind=4),allocatable :: temp_robdata(:)
     real(kind=8),allocatable :: temp_robdata8(:)
     integer                  :: ierr
 
@@ -592,11 +592,11 @@ MODULE obsSpaceData_mod
 !    NCM_VAR = NCM_OMF
 !    NCM_OMF = temp
 
-    allocate(temp_robdata (lbound(obsdat%robdata ,2):ubound(obsdat%robdata ,2)),stat=ierr)
-    temp_robdata(:)=obsdat%robdata(NCM_VAR,:)
-    obsdat%robdata(NCM_VAR,:)=obsdat%robdata(NCM_OMF,:)
-    obsdat%robdata(NCM_OMF,:)=temp_robdata(:)
-    deallocate(temp_robdata)
+!!$    allocate(temp_robdata (lbound(obsdat%robdata ,2):ubound(obsdat%robdata ,2)),stat=ierr)
+!!$    temp_robdata(:)=obsdat%robdata(NCM_VAR,:)
+!!$    obsdat%robdata(NCM_VAR,:)=obsdat%robdata(NCM_OMF,:)
+!!$    obsdat%robdata(NCM_OMF,:)=temp_robdata(:)
+!!$    deallocate(temp_robdata)
 
     allocate(temp_robdata8(lbound(obsdat%robdata8,2):ubound(obsdat%robdata8,2)),stat=ierr)
     temp_robdata8(:)=obsdat%robdata8(NCM_VAR,:)
@@ -926,34 +926,34 @@ MODULE obsSpaceData_mod
   END SUBROUTINE obs_bdy
 
 
- function obs_elem_r4(obsdat,name,index) result(value)
-  implicit none
-  real(kind=4) value
-  type(struct_obs), intent(in)  :: obsdat
-  character(len=4), intent(in)  :: name
-  integer         , intent(in)  :: index
-
-  select case (name(1:4))
-  case ('PPP '); value=obsdat%robdata(NCM_PPP, index)
-  case ('PRL '); value=obsdat%robdata(NCM_PRL, index)
-  case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
-  case ('OMP '); value=obsdat%robdata(NCM_OMP, index)
-  case ('OMA '); value=obsdat%robdata(NCM_OMA, index)
-  case ('OER '); value=obsdat%robdata(NCM_OER, index)
-  case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
-  case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
-  case ('POB '); value=obsdat%robdata(NCM_POB, index)
-  case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
-  case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
-  case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
-  case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
-  case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
-
-  case default
-   write(*,*)"ERROR:  ", name(1:4), " is not a real(4) observation."
-   value=-999.
-  end select
- end function obs_elem_r4
+!!$ function obs_elem_r4(obsdat,name,index) result(value)
+!!$  implicit none
+!!$  real(kind=4) value
+!!$  type(struct_obs), intent(in)  :: obsdat
+!!$  character(len=4), intent(in)  :: name
+!!$  integer         , intent(in)  :: index
+!!$
+!!$  select case (name(1:4))
+!!$  case ('PPP '); value=obsdat%robdata(NCM_PPP, index)
+!!$  case ('PRL '); value=obsdat%robdata(NCM_PRL, index)
+!!$  case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
+!!$  case ('OMP '); value=obsdat%robdata(NCM_OMP, index)
+!!$  case ('OMA '); value=obsdat%robdata(NCM_OMA, index)
+!!$  case ('OER '); value=obsdat%robdata(NCM_OER, index)
+!!$  case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
+!!$  case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
+!!$  case ('POB '); value=obsdat%robdata(NCM_POB, index)
+!!$  case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
+!!$  case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
+!!$  case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
+!!$  case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
+!!$  case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
+!!$
+!!$  case default
+!!$   write(*,*)"ERROR:  ", name(1:4), " is not a real(4) observation."
+!!$   value=-999.
+!!$  end select
+!!$ end function obs_elem_r4
 
  function obs_elem_mpiglobal_r8(obsdat,name,index) result(value)
   ! This method is supplied for use by those external to the present module who
@@ -1675,39 +1675,39 @@ MODULE obsSpaceData_mod
  end subroutine obs_set_i
 
 
- subroutine obs_set_r4(obsdat, name, index, value)
-!s/r obs_set_r4 - set a real value in the observation object
-!
-!Author    . J.W. Blezius
-!
-!    PURPOSE:  to control access to the observation object
-!
-  implicit none
-  type(struct_obs), intent(inout)  :: obsdat
-  character(len=4), intent(in)     :: name
-  integer         , intent(in)     :: index
-  real(kind=4)    , intent(in)     :: value
-
-  select case (name(1:4))
-  case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
-  case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
-  case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
-  case ('OMP '); obsdat%robdata(NCM_OMP, index) = value
-  case ('OMA '); obsdat%robdata(NCM_OMA, index) = value
-  case ('OER '); obsdat%robdata(NCM_OER, index) = value
-  case ('HPHT'); obsdat%robdata(NCM_HPHT,index) = value
-  case ('ZHA '); obsdat%robdata(NCM_ZHA, index) = value
-  case ('POB '); obsdat%robdata(NCM_POB, index) = value
-  case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
-  case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
-  case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
-  case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
-  case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
-
-  case default
-   write(*,*)"ERROR:  ", name(1:4)," is not a real(4) observation."
-  end select
- end subroutine obs_set_r4
+!!$ subroutine obs_set_r4(obsdat, name, index, value)
+!!$!s/r obs_set_r4 - set a real value in the observation object
+!!$!
+!!$!Author    . J.W. Blezius
+!!$!
+!!$!    PURPOSE:  to control access to the observation object
+!!$!
+!!$  implicit none
+!!$  type(struct_obs), intent(inout)  :: obsdat
+!!$  character(len=4), intent(in)     :: name
+!!$  integer         , intent(in)     :: index
+!!$  real(kind=4)    , intent(in)     :: value
+!!$
+!!$  select case (name(1:4))
+!!$  case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
+!!$  case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
+!!$  case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
+!!$  case ('OMP '); obsdat%robdata(NCM_OMP, index) = value
+!!$  case ('OMA '); obsdat%robdata(NCM_OMA, index) = value
+!!$  case ('OER '); obsdat%robdata(NCM_OER, index) = value
+!!$  case ('HPHT'); obsdat%robdata(NCM_HPHT,index) = value
+!!$  case ('ZHA '); obsdat%robdata(NCM_ZHA, index) = value
+!!$  case ('POB '); obsdat%robdata(NCM_POB, index) = value
+!!$  case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
+!!$  case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
+!!$  case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
+!!$  case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
+!!$  case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
+!!$
+!!$  case default
+!!$   write(*,*)"ERROR:  ", name(1:4)," is not a real(4) observation."
+!!$  end select
+!!$ end subroutine obs_set_r4
 
 
  subroutine obs_set_r8(obsdat, name, index, value)
@@ -1905,7 +1905,7 @@ MODULE obsSpaceData_mod
   CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
   CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
-  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
+!!$  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP
@@ -1944,7 +1944,7 @@ MODULE obsSpaceData_mod
   ALLOCATE(ROBHDR_tmp(NHDR_REAL,numheader_mpilocal),STAT=ierr) 
   ALLOCATE(MOBHDR_tmp(NHDR_INT,numheader_mpilocal),STAT=ierr) 
   ALLOCATE(MOBDATA_tmp(NBDY_INT,numbody_mpilocal),STAT=ierr) 
-  ALLOCATE(ROBDATA_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
+!!$  ALLOCATE(ROBDATA_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
   ALLOCATE(ROBDATA8_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
 !  
   call obs_allocateG(obsdat,obsdat%numheader)
@@ -1980,7 +1980,7 @@ MODULE obsSpaceData_mod
        ii=ii+1 
        ROBDATA8_tmp(:,ii)=obsdat%ROBDATA8(:,j)
        MOBDATA_tmp(:,ii)=obsdat%MOBDATA(:,j) 
-       ROBDATA_tmp(:,ii)=obsdat%ROBDATA(:,j) 
+!!$       ROBDATA_tmp(:,ii)=obsdat%ROBDATA(:,j) 
        MOBDATA_tmp(NCM_OBS,ii) = i
     ENDDO 
   ENDDO 
@@ -2001,7 +2001,7 @@ MODULE obsSpaceData_mod
   DO i=1,obsdat%numbody
      obsdat%ROBDATA8(:,i)=ROBDATA8_tmp(:,i) 
      obsdat%MOBDATA(:,i)=MOBDATA_tmp(:,i) 
-     obsdat%ROBDATA(:,i)=ROBDATA_tmp(:,i)
+!!$     obsdat%ROBDATA(:,i)=ROBDATA_tmp(:,i)
   ENDDO 
 
   deallocate(cfamily_tmp)
@@ -2010,7 +2010,7 @@ MODULE obsSpaceData_mod
   deallocate(MOBHDR_tmp)
   deallocate(ROBDATA8_tmp)
   deallocate(MOBDATA_tmp)
-  deallocate(ROBDATA_tmp)
+!!$  deallocate(ROBDATA_tmp)
 
  ! rebuild NBEGINTYP and NENDTYP  
  !============================
@@ -2065,7 +2065,7 @@ MODULE obsSpaceData_mod
 
   CHARACTER(len=9),ALLOCATABLE    :: cstnid_tmp(:)
 
-  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
+!!$  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
   REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
 
@@ -2121,9 +2121,9 @@ MODULE obsSpaceData_mod
   IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBDATA_tmp,Abort!')
   MOBDATA_tmp=0
 
-  ALLOCATE(ROBDATA_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
-  IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
-  ROBDATA_tmp=0.0
+!!$  ALLOCATE(ROBDATA_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
+!!$  IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
+!!$  ROBDATA_tmp=0.0
 
   ALLOCATE(ROBDATA8_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
   IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA8_tmp,Abort!')
@@ -2138,7 +2138,7 @@ MODULE obsSpaceData_mod
     DO j=idata,idataend
        ii=ii+1
        MOBDATA_tmp(1:NBDY_INT,j)=obsdat%MOBDATA(1:NBDY_INT,ii)
-       ROBDATA_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA(1:NBDY_REAL,ii)
+!!$       ROBDATA_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA(1:NBDY_REAL,ii)
        ROBDATA8_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA8(1:NBDY_REAL,ii)
     ENDDO
   ENDDO
@@ -2147,9 +2147,9 @@ MODULE obsSpaceData_mod
   sizeMOBDATA=size(MOBDATA_tmp)
   CALL RPN_COMM_ALLReduce(MOBDATA_tmp,MOBDATA_tmp,sizeMOBDATA,"mpi_integer",&
                           "mpi_sum","GRID",ierr)
-  sizeROBDATA=size(ROBDATA_tmp)
-  CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeROBDATA,"mpi_real",&
-                          "mpi_sum","GRID",ierr)
+!!$  sizeROBDATA=size(ROBDATA_tmp)
+!!$  CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeROBDATA,"mpi_real",&
+!!$                          "mpi_sum","GRID",ierr)
   sizeROBDATA=size(ROBDATA8_tmp)
   CALL RPN_COMM_ALLReduce(ROBDATA8_tmp,ROBDATA8_tmp,sizeROBDATA,&
                           "mpi_double_precision","mpi_sum","GRID",ierr)
@@ -2161,14 +2161,14 @@ MODULE obsSpaceData_mod
   obsdat%cstnid=cstnid_tmp
   obsdat%ROBHDR=ROBHDR_tmp
   obsdat%MOBHDR=MOBHDR_tmp
-  obsdat%ROBDATA=ROBDATA_tmp
+!!$  obsdat%ROBDATA=ROBDATA_tmp
   obsdat%ROBDATA8=ROBDATA8_tmp
   obsdat%MOBDATA=MOBDATA_tmp
 
   DEALLOCATE(cstnid_tmp)
   DEALLOCATE(ROBHDR_tmp)
   DEALLOCATE(MOBHDR_tmp)
-  DEALLOCATE(ROBDATA_tmp)
+!!$  DEALLOCATE(ROBDATA_tmp)
   DEALLOCATE(ROBDATA8_tmp)
   DEALLOCATE(MOBDATA_tmp)
 

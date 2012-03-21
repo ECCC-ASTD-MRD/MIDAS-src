@@ -41,10 +41,6 @@
 !C*    1. Preliminary initializations
 !C     .  ---------------------------
 !C
-!C     Transfer REAL*8 part of CMA to REAL*4
-!C
-      call cprob8to4(lobsSpaceData)
-!C
 !C     TRANSFER O-A to O-P in cma
 !C
       DO JDATA=1,obs_numbody(lobsSpaceData)  !replaces NDATA

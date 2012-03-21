@@ -27,11 +27,6 @@
       ENDDO
 
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
-!C
-!C     Transfer REAL*8 part of CMA to REAL*4
-!C     (follows observation operators computations).
-
-      call cprob8to4(lobsSpaceData)
 
       CALL VINT3DFD('OMA ',lobsSpaceData)
 
