@@ -10,12 +10,15 @@ module modgps07geostruct
   !
   ! Josep M. Aparicio
   ! Meteorological Service of Canada, 2003.
+  ! Revisions:
+  !        J.M. Aparicio - ARMA Feb 2012
+  !          Improved compressibility
   !
 #endif
   use modgps00base     , only : i4, dp, ngpssize
   use modgps03diff
   use modgps04profile  , only : gpsprofile
-  use modgps05refstruct, only : gpspre, gpstem, gpsQ
+  use modgps05refstruct, only : gpspre, gpstem, gpsQ, gpscmp
 
   implicit none
   
@@ -36,34 +39,27 @@ contains
     real(dp), parameter :: rgasd = 287.05_dp
     real(dp), parameter :: delta = 0.6077686814144_dp
 
-    type(gpsdiff)       :: xi(ngpssize)
-    type(gpsdiff)       :: tv(ngpssize)
+    type(gpsdiff)       :: xi (ngpssize)
+    type(gpsdiff)       :: tv (ngpssize)
+    type(gpsdiff)       :: cmp(ngpssize)
 
-    type(gpsdiff)       :: tvp
+    type(gpsdiff)       :: tvm
     type(gpsdiff)       :: dx
     type(gpsdiff)       :: z
-    type(gpsdiff)       :: q,p,t,Zd,Zn,Zo,Za,Zw,Zt,Zd0
+    type(gpsdiff)       :: q,p,t,Zt
 
     if (prf%bgst .EQV. .false.) then
        call gpspre(prf)
        call gpstem(prf)
        call gpsQ  (prf)
+       call gpscmp(prf,cmp)
        ngpslev=prf%ngpslev
 
        do i = 1, ngpslev
-          p=prf%pst(i)
-          t=prf%tst(i)
-          q=prf%qst(i)
-!          Zd = 0.99980_dp+2.5335e-6_dp*p-1.5303e-3_dp*p/t
-!          write(*,*)'aaa',Zd%Var
-          Zd0= 1._dp + (0.035_dp-1.4_dp/(0.08314_dp*t)) * p / (83.14_dp * t)
-          Zn=1._dp+(0.03913_dp-1.408_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
-          Zo=1._dp+(0.03183_dp-1.378_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
-          Za=1._dp+(0.03219_dp-1.363_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
-          Zw=1._dp+(0.03049_dp-5.536_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
-          Zd=0.78_dp*Zn+0.21_dp*Zo+0.01_dp*Za
-          Zt=(1._dp-q)*Zd+q*Zw
-!          write(*,'A6,6F16.8')'bbb',Zd0%Var,Zd%Var,Zw%Var,Zt%Var
+          p = prf%pst(i)
+          t = prf%tst(i)
+          q = prf%qst(i)
+          Zt= cmp(i)
           !
           ! Log(P)
           !
@@ -80,11 +76,11 @@ contains
        prf%gst(ngpslev) = prf%rMT
        do i = ngpslev-1, 1, -1
           dx  =  xi(i)-xi(i+1)
-          tvp = (tv(i)-tv(i+1))/dx
+          tvm = 0.5_dp*(tv(i)+tv(i+1))
           !
           ! Geopotential height increment
           !
-          z   = (-Rd/Rg) * (tv(i)*dx - 0.5_dp*tvp*dx**2)
+          z   = (-Rd/Rg) * tvm * dx
           prf%gst(i) = prf%gst(i+1) + z
        enddo
        prf%bgst = .true.
@@ -93,3 +89,4 @@ contains
   end subroutine gpsgeo
 
 end module modgps07geostruct
+

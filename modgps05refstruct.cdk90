@@ -11,9 +11,8 @@ module modgps05refstruct
   ! Meteorological Service of Canada, 2006.
   !
   ! Revisions:
-  !        C.Charette et J. Aparicio - ARMA Juillet 2011
-  !          . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
-  !          . ayant une grille verticale decalee dite "STAGGERED"
+  !        J.M. Aparicio - ARMA Feb 2012
+  !          Improved compressibility and refractivity.
   !
 #endif
   use modgps00base   , only : i4, dp, ngpssize
@@ -104,33 +103,108 @@ contains
 
     integer(i4)      :: i, ngpslev
 
-    type(gpsdiff)               :: p, t, q
+    type(gpsdiff)               :: p, t, q, x
     type(gpsdiff)               :: pd
     type(gpsdiff)               :: pw
     type(gpsdiff)               :: tc
 
-    type(gpsdiff)               :: nd
-    type(gpsdiff)               :: nw
-    type(gpsdiff)               :: n
+    type(gpsdiff)               :: mold, dd, dw, cmp(ngpssize), tr
+    real(dp), parameter         :: R=8.314472_dp
+    real(dp), parameter         :: md=28.965516_dp
+    real(dp), parameter         :: mw=18.015254_dp
+    real(dp), parameter         :: wa=md/mw
+    real(dp), parameter         :: wb=(md-mw)/mw
+    real(dp)                    :: x1, x2
 
-    call gpspre(prf)
-    call gpstem(prf)
-    call gpsQ  (prf)
+    !type(gpsdiff)               :: nd,nw,nr
+    type(gpsdiff)               :: nd1,nw1,n0,na
+
     if (prf%brst .EQV. .false.) then
+       call gpspre(prf)
+       call gpstem(prf)
+       call gpsQ  (prf)
+       call gpscmp(prf, cmp)
        ngpslev = prf%ngpslev
        do i = 1, ngpslev
           p  = prf%pst(i)
           t  = prf%tst(i)
           q  = prf%qst(i)
-          pw = 1.6069_dp*q*p/(1._dp+0.6069_dp*q)
-          pd = p - pw
-          nd = (77.6890_dp*pd/t                   )
-          nw = (71.2952_dp*pw/t+375463._dp*pw/t**2)
-          prf%rst(i)=nd+nw
+          x  = wa*q/(1._dp+wb*q)
+
+          ! Densities (molar, total, dry, water vapor):
+          mold  = 100._dp*p/(R*t*cmp(i))               ! note that p is in hPa
+          dd = mold * (1._dp-x) * (md/1000._dp)
+          dw = mold * x         * (mw/1000._dp)
+
+          ! Rueger (2002) expression 
+          !pw = 1.6069_dp*q*p/(1._dp+0.6069_dp*q)
+          !pd = p - pw
+          !nd = (77.6890_dp*pd/t                   )
+          !nw = (71.2952_dp*pw/t+375463._dp*pw/t**2)
+          !nr = nd+nw
+          ! Aparicio (2011) expression
+          tr = 273.15_dp/t-1._dp
+          nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+          nw1= (6701.605_dp+6385.886_dp*tr) * dw
+          n0 = (nd1+nw1)
+          na = n0*(1._dp+1.e-6_dp*n0/6._dp)
+          ! Either choose nr (Rueger) or na (Aparicio)
+          prf%rst(i)=na
        enddo
        prf%brst=.true.
     endif
   end subroutine gpsref
+
+  subroutine gpscmp(prf, cmp)
+    type(gpsprofile) :: prf
+    type(gpsdiff)   , intent(out):: cmp(:)
+
+    integer(i4)      :: i, ngpslev
+    type(gpsdiff)               :: p, t, q
+    !type(gpsdiff)               :: Zd,Zn,Zo,Za,Zw,Zt
+    type(gpsdiff)               :: x,tc,pt,tc2,x2,ZtC
+    real(dp)                    :: a0,a1,a2,b0,b1,c0,c1,d,e
+    real(dp), parameter         :: md=28.965516_dp
+    real(dp), parameter         :: mw=18.015254_dp
+    real(dp), parameter         :: wa=md/mw
+    real(dp), parameter         :: wb=(md-mw)/mw
+    !
+    a0=1.58123e-6_dp
+    a1=-2.9331e-8_dp
+    a2=1.1043e-10_dp
+    b0=5.707e-6_dp
+    b1=-2.051e-8_dp
+    c0=1.9898e-4_dp
+    c1=-2.376e-6_dp
+    d =1.83e-11_dp
+    e =-0.765e-8_dp
+    !
+    call gpspre(prf)
+    call gpstem(prf)
+    call gpsQ  (prf)
+    ngpslev = prf%ngpslev
+    do i = 1, ngpslev
+       p  = prf%pst(i)
+       t  = prf%tst(i)
+       q  = prf%qst(i)
+       x  = wa*q/(1._dp+wb*q)
+       ! First implementation (2007)
+       !Zn=1._dp+(0.03913_dp-1.408_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+       !Zo=1._dp+(0.03183_dp-1.378_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+       !Za=1._dp+(0.03219_dp-1.363_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+       !Zw=1._dp+(0.03049_dp-5.536_dp/(0.08314472_dp*t))*p/(83.14472_dp*t)
+       !Zd=0.78_dp*Zn+0.21_dp*Zo+0.01_dp*Za
+       !Zt=(1._dp-q)*Zd+q*Zw
+       ! Better estimate, from CIPM, Piccard (2008)
+       tc = t-273.15_dp
+       pt = 1.e2_dp*p/t
+       tc2= tc*tc
+       x2 = x*x
+       ZtC= 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)
+       ! Either choose Zt (First implementation) or ZtC (CIPM, better)
+       cmp(i)=ZtC
+    enddo
+  end subroutine gpscmp
 
   subroutine gpsprew(prf, prew)
     type(gpsprofile), intent(inout) :: prf
@@ -271,5 +345,6 @@ contains
        sat(i) = pw / wvp
     enddo
   end subroutine gpssat
-  
+
 end module modgps05refstruct
+
