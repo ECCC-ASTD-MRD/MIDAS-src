@@ -42,12 +42,12 @@
 *
       INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,IDBURP
       INTEGER ITYP,IASS,IFLD,ILEM,IOTHER,JJ,ISTYP,ILEV
-      REAL ZAGZ,ZAHU,ZATT,ZDUV,ZDGZ,ZDTT,ZDHU,ZAUV,ZSLEV,ZAPN,ZDPN
-      REAL ZABT,ZDBT,ZABTB,ZDBTB
-      REAL ZLEV,ZJO,ZVAL,ZSPDO,ZSPDF,ZOFCST,ZOVAL,ZDIFF,ZAASYM,ZOER
-      REAL ZFCST,ZLAT,ZLON,ZPRIOR,ZAPS,ZDPS,ZAUVRA,ZATTRA,ZATTSYM
+      real(8) ZAGZ,ZAHU,ZATT,ZDUV,ZDGZ,ZDTT,ZDHU,ZAUV,ZSLEV,ZAPN,ZDPN
+      real(8) ZABT,ZDBT,ZABTB,ZDBTB
+      real(8) ZLEV,ZJO,ZVAL,ZSPDO,ZSPDF,ZOFCST,ZOVAL,ZDIFF,ZAASYM,ZOER
+      real(8) ZFCST,ZLAT,ZLON,ZPRIOR,ZAPS,ZDPS,ZAUVRA,ZATTRA,ZATTSYM
       LOGICAL LLOK
-      REAL ZAZD, ZDZD
+      real(8) ZAZD, ZDZD
 *
 *_____prior probabilities for winds:ZAUV
 *     prior probabilities for scalar variables: zagz and zahu
@@ -55,31 +55,31 @@
 *     standard deviation multiple for background check for heights: zdgz
 *     standard deviation multiple for background check for humidity: zdhu
 *
-      ZAGZ   = 1.E-12
-      ZATT   = 5.E-2
-*      ZATTRA = 1.E-2
-      ZATTRA = 0.005
-*      ZAUV   = 0.01
-      ZAUV   = 0.02
-*      ZAUVRA = 1.E-3
-      ZAUVRA = 1.E-5
-*      ZAHU   = 0.01
-      ZAHU   = 0.05
-      ZAPN = 1.E-4
-      ZAPS = 1.E-4
-      ZABT   = 1.0E-1
-      ZABTB  = 1.0E-1
-      ZATTSYM = 1.E-1
-      ZAZD = 1.0E-2
-      ZDUV = 5.
-      ZDGZ = 5.
-      ZDTT = 5.
-      ZDHU = 5.
-      ZDPN = 5.
-      ZDPS = 5.
-      ZDBT = 3.
-      ZDBTB = 3.
-      ZDZD = 4.
+      ZAGZ   = 1.d-12
+      ZATT   = 5.d-2
+*      ZATTRA = 1.d-2
+      ZATTRA = 0.005d0
+*      ZAUV   = 0.01d0
+      ZAUV   = 0.02d0
+*      ZAUVRA = 1.d-3
+      ZAUVRA = 1.d-5
+*      ZAHU   = 0.01d0
+      ZAHU   = 0.05d0
+      ZAPN = 1.d-4
+      ZAPS = 1.d-4
+      ZABT   = 1.0d-1
+      ZABTB  = 1.0d-1
+      ZATTSYM = 1.d-1
+      ZAZD = 1.0d-2
+      ZDUV = 5.d0
+      ZDGZ = 5.d0
+      ZDTT = 5.d0
+      ZDHU = 5.d0
+      ZDPN = 5.d0
+      ZDPS = 5.d0
+      ZDBT = 3.d0
+      ZDBTB = 3.d0
+      ZDZD = 4.d0
 *
 *
       DO JJO = 1, obs_numheader(lobsSpaceData)
@@ -112,7 +112,7 @@ C
             IF (LLOK) THEN
                IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEVV .OR.
      1             ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS) THEN
-                  ZAASYM = 1.0
+                  ZAASYM = 1.0d0
                   IOTHER = -1
                   IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                     DO JJ=IDATA,JDATA
@@ -146,11 +146,11 @@ C
 *___________________tighten rejection criterion for satob winds
 *
                     IF (IDBURP .EQ. 88 .OR. IDBURP .EQ. 188) THEN
-                      IF (ZDIFF .LT. 0.0 .AND. ABS(ZLAT) .GT. 20. .AND.
+                      IF (ZDIFF .LT. 0.0d0 .AND. ABS(ZLAT) .GT. 20.d0 .AND.
      1                     ILEV .LT. 550) THEN
-                         ZAASYM = 0.7*AMAX1(ZSPDF,1.0)
+                         ZAASYM = 0.7d0*MAX(ZSPDF,1.0d0)
                          ZPRIOR = ZAASYM*ZAUV
-                         IF (ZPRIOR .GT. 0.99) ZAASYM = 0.99/ZAUV
+                         IF (ZPRIOR .GT. 0.99d0) ZAASYM = 0.99d0/ZAUV
 *                       WRITE(NULOUT,620)ZAASYM,ILEV,ZLAT,ZLON,ZSPDO,
 *     1                       ZSPDF
  620                     FORMAT('ASYMMETRIC TEST. ZAASYM=',f7.1,', LEV=',
@@ -161,7 +161,7 @@ C
 *_______________________zaasym used to specify new criterion for satwinds
 *                       than are not included in the asymmetric test
 *
-                        ZAASYM = 10.
+                        ZAASYM = 10.d0
                       ENDIF
                     ENDIF
 
@@ -177,85 +177,85 @@ C
 *
 *_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((1. -
-     1               (1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM)))*(2.*MPC_PI_r4)/
-     2              ((1.-(ZAUV*ZAASYM))*(1.-(ZAUV*ZAASYM))*
-     3                                (2.*ZDUV)*(2.*ZDUV)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(1.d0 -
+     1               (1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM)))*(2.d0*MPC_PI_r8)/
+     2              ((1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM))*
+     3                                (2.d0*ZDUV)*(2.d0*ZDUV)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
      2             call obs_set_r8(lobsSpaceData,'POB ',JDATA,
-     +                    real((1. - (1.-ZAUVRA)*(1.-ZAUVRA))
-     3                    *(2.*MPC_PI_R4)/((1.-ZAUVRA)*(1.-ZAUVRA)*
-     4                                (2.*ZDUV)*(2.*ZDUV)),8))
+     +                    (1.d0 - (1.d0-ZAUVRA)*(1.d0-ZAUVRA))
+     3                    *(2.d0*MPC_PI_R8)/((1.d0-ZAUVRA)*(1.d0-ZAUVRA)*
+     4                                (2.d0*ZDUV)*(2.d0*ZDUV)))
                ELSEIF (ITYP .EQ. BUFR_NEGZ) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZAGZ*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZAGZ)*(2.*ZDGZ)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZAGZ*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAGZ)*(2.d0*ZDGZ)))
                ELSEIF (ITYP .EQ. BUFR_NETT) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZATT*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZATT)*(2.*ZDTT)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZATT*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
-     2              call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZATTRA*
-     3                SQRT(2.*MPC_PI_R4))/((1.-ZATTRA)*(2.*ZDTT)),8))
+     2              call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZATTRA*
+     3                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTRA)*(2.d0*ZDTT)))
                ELSEIF (ITYP .EQ. BUFR_NETS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZATT*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZATT)*(2.*ZDTT)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZATT*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
 *
 *                 ASYMMETRIC TEST FOR SHIP TEMPERATURES
 *
                   IF ((IDBURP .EQ. 13) .AND. (ZVAL .GT. ZFCST)) THEN
-                    call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZATTSYM*
-     1                  SQRT(2.*MPC_PI_R4))/((1.-ZATTSYM)*(2.*ZDTT)),8))
+                    call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZATTSYM*
+     1                  SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTSYM)*(2.d0*ZDTT)))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEPN) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZAPN*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZAPN)*(2.*ZDPN)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZAPN*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPN)*(2.d0*ZDPN)))
                ELSEIF (ITYP .EQ. BUFR_NEPS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZAPS*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZAPS)*(2.*ZDPS)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZAPS*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPS)*(2.d0*ZDPS)))
                ELSEIF ( ITYP .EQ. 12062 .OR. ITYP .EQ. 12063 .OR.
      1                  ITYP .EQ. 12163) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
 *                 TOVS AMSU-A
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZABT*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZABT)*(2.*ZDBT)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZABT*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
                   IF (IDBURP .EQ. 181 .OR.
      1                IDBURP .EQ. 182      ) THEN
 *
 *                   INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
 *
-                    call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZABTB*
-     1                  SQRT(2.*MPC_PI_R4))/((1.-ZABTB)*(2.*ZDBTB)),8))
+                    call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZABTB*
+     1                  SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABTB)*(2.d0*ZDBTB)))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEZD) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZAZD*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZAZD)*(2.*ZDZD)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZAZD*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
                ELSE
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
 *
-                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,real((ZAHU*
-     1                SQRT(2.*MPC_PI_R4))/((1.-ZAHU)*(2.*ZDHU)),8))
+                  call obs_set_r8(lobsSpaceData,'POB ',JDATA,(ZAHU*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDHU)))
                ENDIF
             ENDIF
          END DO
