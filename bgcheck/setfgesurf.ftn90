@@ -88,7 +88,7 @@
 !                if ( ipos .gt. 5 )idim=0   !! is this a check for surface variable or something else?
                 if (vnl_vartypeFromVarnum(ityp).eq.'SF') idim=0
                 IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
-                ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
+                ZLEV = obs_elem_r(lobsSpaceData,'PPP ',jdata)
                 ZHHH = ZLEV * GRAV
 
                 IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.   &
@@ -97,11 +97,11 @@
 
                   IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                   IPB  = IPT+1
-                  call obs_set_r8(lobsSpaceData,'FGE ',jdata,col_getElem(lcolumn,IPB,IOBS))
+                  call obs_set_r(lobsSpaceData,'FGE ',jdata,col_getElem(lcolumn,IPB,IOBS))
 !c ***** debug *********
 !c                  write(nulout,*) 'stn,ityp,ipt,ipb,fge'
 !c                  write(nulout,*) obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ipt,ipb,
-!c     &                            obs_elem_r8(lobsSpaceData,'FGE ',jdata)
+!c     &                            obs_elem_r(lobsSpaceData,'FGE ',jdata)
 !c ***** debug *********
                 ELSE
                   IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
@@ -111,10 +111,10 @@
                   ZWB  = idim*(ZPT-ZHHH)/(ZPT-ZPB)
                   ZWT  = 1. - ZWB
                   IF ( obs_elem_i(lobsSpaceData,'XTR ',jdata) .eq. 0) then
-                    call obs_set_r8(lobsSpaceData,'FGE ',jdata,   &
+                    call obs_set_r(lobsSpaceData,'FGE ',jdata,   &
                       zwb*col_getElem(lcolumn,IPB,IOBS) + ZWT*col_getElem(lcolumn,IPT,IOBS))
                   ELSE
-                    call obs_set_r8(lobsSpaceData,'FGE ',jdata,   &
+                    call obs_set_r(lobsSpaceData,'FGE ',jdata,   &
                       col_getElem(lcolumn,IK + col_getOffsetFromVarno(lcolumng,ityp),IOBS))
                   ENDIF
                 if(obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '99999999') then
@@ -123,7 +123,7 @@
                         obs_elem_i(lobsSpaceData,'XTR ',jdata),ipt,ipb,zwt,zwb
                   write(nulout,*) 'setfgesurf:gobs(ipb),gobs(ipt),fge'   &
                        ,col_getElem(lcolumn,IPB,IOBS),col_getElem(lcolumn,IPT,IOBS)      &
-                       ,obs_elem_r8(lobsSpaceData,'FGE ',jdata)
+                       ,obs_elem_r(lobsSpaceData,'FGE ',jdata)
                 endif
                 ENDIF
               ENDDO

@@ -23,7 +23,7 @@
 !C     .  ---------------------------
 !C
       DO JDATA=1,obs_numbody(lobsSpaceData) 
-         call obs_set_r8(lobsSpaceData,'OMF ',jdata,PPMIS)
+         call obs_set_r(lobsSpaceData,'OMF ',jdata,PPMIS)
       ENDDO
 
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
@@ -31,7 +31,7 @@
       CALL VINT3DFD('OMA ',lobsSpaceData)
 
       DO JDATA=1,obs_numbody(lobsSpaceData)
-         call obs_set_r8(lobsSpaceData,'OMF ',jdata,obs_elem_r8(lobsSpaceData,'OMA ',jdata))
+         call obs_set_r(lobsSpaceData,'OMF ',jdata,obs_elem_r(lobsSpaceData,'OMA ',jdata))
       ENDDO
       DO j =1,1
          call obs_prnthdr(lobsSpaceData,j,nulout)

@@ -138,7 +138,7 @@ C
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
 
-               HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+               HNH1  = obs_elem_r(lobsSpaceData,'PPP ',index_body)
                IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
@@ -151,8 +151,8 @@ C
 C     
 C     *        Profile at the observation location:
 C
-               Lat  = obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER)
-               Lon  = obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER)
+               Lat  = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER)
+               Lon  = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER)
                ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
@@ -202,10 +202,10 @@ C
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_2
 
-                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                  HNH1  = obs_elem_r(lobsSpaceData,'PPP ',index_body)
                   IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                      NH1   = NH1 + 1
-                     HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                     HNH1  = obs_elem_r(lobsSpaceData,'PPP ',index_body)
                      HGT(NH1)= HNH1
                      H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                   ENDIF
@@ -226,7 +226,7 @@ C
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_3
 
-                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                  HNH1  = obs_elem_r(lobsSpaceData,'PPP ',index_body)
                   IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                      NH1   = NH1 + 1
 C
@@ -236,7 +236,7 @@ C
 C
 C     *              Observation value    Y
 C
-                     ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',index_body)
+                     ZOBS = obs_elem_r(lobsSpaceData,'VAR ',index_body)
 C
 C     *              Normalized increment
 C
@@ -274,7 +274,7 @@ C
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_4
 
-                  HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',index_body)
+                  HNH1  = obs_elem_r(lobsSpaceData,'PPP ',index_body)
                   IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                      NH1 = NH1 + 1
 C
@@ -284,7 +284,7 @@ C
 C
 C     *              Observation error    S
 C
-                     call obs_set_r8(lobsSpaceData,'OER ',index_body, ZERR(NH1) * ZMHX)
+                     call obs_set_r(lobsSpaceData,'OER ',index_body, ZERR(NH1) * ZMHX)
                   ENDIF
                ENDDO BODY_4
                DEALLOCATE( RSTV )

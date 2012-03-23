@@ -145,8 +145,8 @@ C
 C     
 C     *              Profile at the observation location:
 C
-                     Lat  = obs_elem_r8(lobsSpaceData,'LAT ',JO)
-                     Lon  = obs_elem_r8(lobsSpaceData,'LON ',JO)
+                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',JO)
+                     Lon  = obs_elem_r(lobsSpaceData,'LON ',JO)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 =  col_getElem(lcolumnhr,1,JO,'P0')
@@ -188,7 +188,7 @@ C
                      DO JDATA= IDATA, IDATEND
                         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
                      ENDDO
@@ -211,11 +211,11 @@ C
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
 C
 C     *                    Observation error    S
 C
-                           ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                           ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
 C
 C     *                    Normalized increment
 C
@@ -243,9 +243,9 @@ C     * +                           JD,ZMHX,RSTV(NH1)%DVAR(JD)
 C     *                       ENDDO
                            ENDIF
 
-                           call obs_set_r8(lobsSpaceData,'OMA ',JDATA, ZINC)
-                           call obs_set_r8(lobsSpaceData,'OMN ',JDATA, ZINC)
-                           call obs_set_r8(lobsSpaceData,'OMI ',JDATA, ZINC)
+                           call obs_set_r(lobsSpaceData,'OMA ',JDATA, ZINC)
+                           call obs_set_r(lobsSpaceData,'OMN ',JDATA, ZINC)
+                           call obs_set_r(lobsSpaceData,'OMI ',JDATA, ZINC)
                         ENDIF
                      ENDDO
                      DEALLOCATE( RSTV )

@@ -351,9 +351,9 @@
                 ZTG(NOBIASI) = col_getElem(lcolumnhr,1,JO,'TG')
                 ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
-                ZLAT(NOBIASI) = obs_elem_r8(lobsSpaceData,'LAT ',jo) &
+                ZLAT(NOBIASI) = obs_elem_r(lobsSpaceData,'LAT ',jo) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                ZLON(NOBIASI) = obs_elem_r8(lobsSpaceData,'LON ',jo) &
+                ZLON(NOBIASI) = obs_elem_r(lobsSpaceData,'LON ',jo) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')
@@ -375,10 +375,10 @@
 
                 DO JDATA= IDATA, IDATEND
                    IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                    ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                    BTOBSERR(IASISCH(ICHN)) = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
-                    BTOBS(IASISCH(ICHN),NOBIASI) = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                    BTOBSERR(IASISCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                    BTOBS(IASISCH(ICHN),NOBIASI) = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
 ! *** Flag check on observed BTs ***
                     IF (BAD) THEN
                        REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
@@ -1029,7 +1029,7 @@
                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                 DO JDATA= IDATA, IDATEND
                    IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                     ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                     ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
                      ICHN = MAX(0,MIN(ICHN,JPCH+1))
                      DO NFLG = 0, BITFLAG
                        IF ( REJFLAG(IASISCH(ICHN),NOBIASI,NFLG) == 1 ) &

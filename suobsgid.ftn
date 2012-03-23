@@ -114,8 +114,8 @@
 
 ! building the lat, long and tag vectors for each step
 
-        dlatfld(nobs(jstep),jstep) = obs_elem_r8(lobsSpaceData,'LAT ',jobs)
-        dlonfld(nobs(jstep),jstep) = obs_elem_r8(lobsSpaceData,'LON ',jobs)
+        dlatfld(nobs(jstep),jstep) = obs_elem_r(lobsSpaceData,'LAT ',jobs)
+        dlonfld(nobs(jstep),jstep) = obs_elem_r(lobsSpaceData,'LON ',jobs)
         notag(nobs(jstep),jstep) = jobs
 
 ! Converting lat long to radian units

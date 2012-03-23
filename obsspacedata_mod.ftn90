@@ -1,4 +1,5 @@
 ! ObsSpaceData_mod:  the module, ObsSpaceData_mod, follows IndexListDepot_mod
+#include "compileswitches.inc"
 
 MODULE IndexListDepot_mod
   ! This is not a fully fledged module.  It is more like a structure definition
@@ -191,14 +192,14 @@ MODULE obsSpaceData_mod
 
   ! methods
   public           :: obs_initialize,obs_finalize
-  public           :: obs_elem_i,obs_elem_r8,obs_elem_c9
-  public           ::  obs_set_i, obs_set_r8, obs_set_c9
+  public           :: obs_elem_i,obs_elem_r,obs_elem_c9
+  public           ::  obs_set_i, obs_set_r, obs_set_c9
   public           :: obs_numbody,obs_numheader,obs_numbody_max
   public           :: obs_numheader_max,obs_numheader_mpiglobal
   public           :: obs_swapVarOmf,obs_ifind
   public           :: obs_getFamily,obs_setFamily,obs_bdy
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
-  public           :: obs_elem_mpiglobal_r8,obs_elem_mpiglobal_i
+  public           :: obs_elem_mpiglobal_r,obs_elem_mpiglobal_i
   public           :: obs_prnthdr,obs_prntbdy
   public           :: obs_set_current_header_list, obs_getHeaderIndex
   public           :: obs_set_current_body_list,   obs_getBodyIndex
@@ -226,13 +227,12 @@ MODULE obsSpaceData_mod
    private
    type(struct_index_list_depot) :: header_index_list_depot
    type(struct_index_list_depot) :: body_index_list_depot
-   character(len=9),  pointer, dimension(:)   :: cstnid   !! need len=12 for EnKF
-   character(len=2),  pointer, dimension(:)   :: cfamily
-   real(kind=8),      pointer, dimension(:,:) :: robhdr
-   integer,           pointer, dimension(:,:) :: mobhdr
-!!$   real(kind=4),      pointer, dimension(:,:) :: robdata
-   real(kind=8),      pointer, dimension(:,:) :: robdata8
-   integer,           pointer, dimension(:,:) :: mobdata
+   character(len=9),   pointer, dimension(:)   :: cstnid  !! need len=12 for EnKF
+   character(len=2),   pointer, dimension(:)   :: cfamily
+   real(kind=OBS_REAL),pointer, dimension(:,:) :: robhdr
+   integer,            pointer, dimension(:,:) :: mobhdr
+   real(kind=OBS_REAL),pointer, dimension(:,:) :: robdata
+   integer,            pointer, dimension(:,:) :: mobdata
    integer :: numheader                 ! Actual number of stations on record
    integer :: numheader_max             ! maximum number of stations
    integer :: numbody                   ! Actual total number of data on record
@@ -240,10 +240,10 @@ MODULE obsSpaceData_mod
    integer :: numheader_mpiglobal       ! Actual number of stations on record
 
                                         ! Headers of the mpi-Global obs data
-   integer,           pointer, dimension(:,:) :: mobhdr_g
-   real(kind=8),      pointer, dimension(:,:) :: robhdr_g
-   character(len=9),  pointer, dimension(:)   :: cstnid_g
-   integer, pointer, dimension(:) :: locObsTag
+   integer,            pointer, dimension(:,:) :: mobhdr_g
+   real(kind=OBS_REAL),pointer, dimension(:,:) :: robhdr_g
+   character(len=9),   pointer, dimension(:)   :: cstnid_g
+   integer,            pointer, dimension(:)   :: locObsTag
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
    integer :: datestamp
@@ -417,19 +417,16 @@ MODULE obsSpaceData_mod
     obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
     ALLOCATE(obsdat%ROBHDR(NHDR_REAL,numheader_max),STAT=ierr)
-    obsdat%ROBHDR=0.0d0
+    obsdat%ROBHDR(:,:)=real(0.0d0, OBS_REAL)
 
     ALLOCATE(obsdat%MOBHDR(NHDR_INT,numheader_max),STAT=ierr)
-    obsdat%MOBHDR=0
+    obsdat%MOBHDR(:,:)=0
 
-!!$    ALLOCATE(obsdat%ROBDATA(NBDY_REAL,numbody_max),STAT=ierr)
-!!$    obsdat%ROBDATA=0.0
-
-    ALLOCATE(obsdat%ROBDATA8(NBDY_REAL,numbody_max),STAT=ierr)
-    obsdat%ROBDATA8=0.0D0
+    ALLOCATE(obsdat%ROBDATA(NBDY_REAL,numbody_max),STAT=ierr)
+    obsdat%ROBDATA(:,:)=real(0.0D0, OBS_REAL)
 
     ALLOCATE(obsdat%MOBDATA(NBDY_INT,numbody_max),STAT=ierr)
-    obsdat%MOBDATA=0
+    obsdat%MOBDATA(:,:)=0
 
   end subroutine obs_allocate
 
@@ -445,10 +442,10 @@ MODULE obsSpaceData_mod
     obsdat%cstnid_g(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
 
     ALLOCATE(obsdat%ROBHDR_g(NHDR_REAL,maxNumHdr),STAT=ierr)
-    obsdat%ROBHDR_g=0.0d0
+    obsdat%ROBHDR_g(:,:)=real(0.0d0, OBS_REAL)
 
     ALLOCATE(obsdat%MOBHDR_g(NHDR_INT,maxNumHdr),STAT=ierr)
-    obsdat%MOBHDR_g=0
+    obsdat%MOBHDR_g(:,:)=0
 
   end subroutine obs_allocateG
 
@@ -521,16 +518,10 @@ MODULE obsSpaceData_mod
       if(ierr.ne.0)write(*,*) 'Problem detected with MOBHDR. IERR =',ierr
     end if
 
-!!$    if (associated(obsdat%robdata))then
-!!$        deallocate(obsdat%robdata,stat=ierr)
-!!$           nullify(obsdat%robdata)
-!!$      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA. IERR =',ierr
-!!$    end if
-
-    if (associated(obsdat%robdata8))then
-        deallocate(obsdat%robdata8,stat=ierr)
-           nullify(obsdat%robdata8)
-      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA8. IERR =',ierr
+    if (associated(obsdat%robdata))then
+        deallocate(obsdat%robdata,stat=ierr)
+           nullify(obsdat%robdata)
+      if(ierr.ne.0)write(*,*) 'Problem detected with ROBDATA. IERR =',ierr
     end if
 
     if (associated(obsdat%mobdata))then
@@ -584,25 +575,18 @@ MODULE obsSpaceData_mod
 
     type(struct_obs), intent(inout) :: obsdat
 
-!!$    real(kind=4),allocatable :: temp_robdata(:)
-    real(kind=8),allocatable :: temp_robdata8(:)
+    real(kind=OBS_REAL),allocatable :: temp_robdata(:)
     integer                  :: ierr
 
 !    temp = NCM_VAR
 !    NCM_VAR = NCM_OMF
 !    NCM_OMF = temp
 
-!!$    allocate(temp_robdata (lbound(obsdat%robdata ,2):ubound(obsdat%robdata ,2)),stat=ierr)
-!!$    temp_robdata(:)=obsdat%robdata(NCM_VAR,:)
-!!$    obsdat%robdata(NCM_VAR,:)=obsdat%robdata(NCM_OMF,:)
-!!$    obsdat%robdata(NCM_OMF,:)=temp_robdata(:)
-!!$    deallocate(temp_robdata)
-
-    allocate(temp_robdata8(lbound(obsdat%robdata8,2):ubound(obsdat%robdata8,2)),stat=ierr)
-    temp_robdata8(:)=obsdat%robdata8(NCM_VAR,:)
-    obsdat%robdata8(NCM_VAR,:)=obsdat%robdata8(NCM_OMF,:)
-    obsdat%robdata8(NCM_OMF,:)=temp_robdata8(:)
-    deallocate(temp_robdata8)
+    allocate(temp_robdata(lbound(obsdat%robdata,2):ubound(obsdat%robdata,2)),stat=ierr)
+    temp_robdata(:)=obsdat%robdata(NCM_VAR,:)
+    obsdat%robdata(NCM_VAR,:)=obsdat%robdata(NCM_OMF,:)
+    obsdat%robdata(NCM_OMF,:)=temp_robdata(:)
+    deallocate(temp_robdata)
 
   end subroutine obs_swapVarOmf
 
@@ -820,12 +804,12 @@ MODULE obsSpaceData_mod
                          pvalue=PVALUES(ielement,ilevel,IK)
                          IF ( IP + IND .LE. obsdat%numbody_max ) THEN
 !                                       VERTICAL COORDINATE
-                            obsdat%robdata8(NCM_PPP,IP+IND)=PVCORD(ilevel)*ZFACT +vcordsf(ilem,kidtyp)
+                            obsdat%robdata(NCM_PPP,IP+IND)=real(PVCORD(ilevel)*ZFACT +vcordsf(ilem,kidtyp),OBS_REAL)
 !
 !                           FOR PNM HEIGHT IS SET TO 0
 !                           ----------------------------
                             IF ( ILEM .EQ. 53 ) THEN
-                               obsdat%robdata8(NCM_PPP,IP+IND)=0.D0
+                               obsdat%robdata(NCM_PPP,IP+IND)=real(0.D0,OBS_REAL)
                             ENDIF
 !                           ----------------------------
 !
@@ -863,43 +847,45 @@ MODULE obsSpaceData_mod
                                obsdat%mobdata(NCM_FLG,IP+IND)= IBAD
                             ENDIF
 !
-                            obsdat%robdata8(NCM_VAR,IP+IND)=pvalue
+                            obsdat%robdata(NCM_VAR,IP+IND)=real(pvalue,OBS_REAL)
                             obsdat%mobdata (NCM_VNM,IP+IND)=KLIST(ielement)
                             obsdat%mobdata (NCM_VCO,IP+IND)=NVCORDTYP
-                            obsdat%robdata8(NCM_OMF,IP+IND)=PPMIS
-                            obsdat%robdata8(NCM_OMA,IP+IND)=PPMIS
-                            obsdat%robdata8(NCM_OMI,IP+IND)=PPMIS
-                            obsdat%robdata8(NCM_FGE,IP+IND)=PPMIS
-                            obsdat%robdata8(NCM_OER,IP+IND)=PPMIS
+                            obsdat%robdata(NCM_OMF,IP+IND)=real(PPMIS,OBS_REAL)
+                            obsdat%robdata(NCM_OMA,IP+IND)=real(PPMIS,OBS_REAL)
+                            obsdat%robdata(NCM_OMI,IP+IND)=real(PPMIS,OBS_REAL)
+                            obsdat%robdata(NCM_FGE,IP+IND)=real(PPMIS,OBS_REAL)
+                            obsdat%robdata(NCM_OER,IP+IND)=real(PPMIS,OBS_REAL)
 !
 !                           OBS ERROR FOR HUMSAT
 !
                             IF ( LDERR ) THEN
-                              obsdat%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)
+                              obsdat%robdata(NCM_OER,IP+IND)=real(PROFIL(ilevel)&
+                                                                  ,OBS_REAL)
                             ENDIF
 !
 !                           REFERENCE LEVEL FOR SATEMS
 !
                             IF ( LDSAT ) THEN
-                              obsdat%robdata8(NCM_OER,IP+IND)=PROFIL(ilevel)*ZFACT
-                              obsdat%robdata8(NCM_OER,IP+IND)=1.0D0
+                              obsdat%robdata(NCM_OER,IP+IND)= &
+                                              real(PROFIL(ilevel)*ZFACT,OBS_REAL)
+                              obsdat%robdata(NCM_OER,IP+IND)=real(1.0D0,OBS_REAL)
                             ENDIF
 !
 !                           SURFACE EMISSIVITIES FOR GOES AIRS AND IASI RADIANCES
 !
                             IF ( LDGO ) THEN
-                              obsdat%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
-                                   *ZEMFACT
+                              obsdat%robdata(NCM_PRL,IP+IND)=real(PROFIL(ilevel)&
+                                   *ZEMFACT,OBS_REAL)
                             ENDIF
 
                             IF ( LDAIRS ) THEN
-                              obsdat%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
-                                   *ZEMFACT
+                              obsdat%robdata(NCM_PRL,IP+IND)=real(PROFIL(ilevel)&
+                                   *ZEMFACT,OBS_REAL)
                             END IF
 
                             IF ( LDIASI ) THEN
-                               obsdat%robdata8(NCM_PRL,IP+IND)=PROFIL(ilevel) &
-                                    *ZEMFACT
+                              obsdat%robdata(NCM_PRL,IP+IND)=real(PROFIL(ilevel)&
+                                    *ZEMFACT,OBS_REAL)
                             END IF
 
 !
@@ -955,11 +941,11 @@ MODULE obsSpaceData_mod
 !!$  end select
 !!$ end function obs_elem_r4
 
- function obs_elem_mpiglobal_r8(obsdat,name,index) result(value)
+ function obs_elem_mpiglobal_r(obsdat,name,index) result(value)
   ! This method is supplied for use by those external to the present module who
   ! are aware of the mpi-local or -global state of this module.
   implicit none
-  real(kind=8) value
+  real(kind=OBS_REAL) value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -976,11 +962,11 @@ MODULE obsSpaceData_mod
    write(*,*)"ERROR:  ", name(1:4)," is not available in the mpi-global context."
    value=-999.
   end select
- end function obs_elem_mpiglobal_r8
+ end function obs_elem_mpiglobal_r
 
- function obs_elem_r8(obsdat,name,index) result(value)
+ function obs_elem_r(obsdat,name,index) result(value)
   implicit none
-  real(kind=8) value
+  real(kind=OBS_REAL) :: value
   type(struct_obs), intent(in)  :: obsdat
   character(len=4), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -993,23 +979,23 @@ MODULE obsSpaceData_mod
   case ('BY  '); value=obsdat%robhdr(NCM_BY , index)
   case ('BZ  '); value=obsdat%robhdr(NCM_BZ , index)
 
-  case ('PPP '); value=obsdat%robdata8(NCM_PPP, index)
-  case ('PRL '); value=obsdat%robdata8(NCM_PRL, index)
-  case ('POB '); value=obsdat%robdata8(NCM_POB, index)
-  case ('VAR '); value=obsdat%robdata8(NCM_VAR, index)
-  case ('OMF '); value=obsdat%robdata8(NCM_OMF, index)
-  case ('OMA '); value=obsdat%robdata8(NCM_OMA, index)
-  case ('OMI '); value=obsdat%robdata8(NCM_OMI, index)
-  case ('OMN '); value=obsdat%robdata8(NCM_OMN, index)
-  case ('OER '); value=obsdat%robdata8(NCM_OER, index)
-  case ('FGE '); value=obsdat%robdata8(NCM_FGE, index)
-  case ('PRM '); value=obsdat%robdata8(NCM_PRM, index)
+  case ('PPP '); value=obsdat%robdata(NCM_PPP, index)
+  case ('PRL '); value=obsdat%robdata(NCM_PRL, index)
+  case ('POB '); value=obsdat%robdata(NCM_POB, index)
+  case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
+  case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
+  case ('OMA '); value=obsdat%robdata(NCM_OMA, index)
+  case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
+  case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
+  case ('OER '); value=obsdat%robdata(NCM_OER, index)
+  case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
+  case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
 
   case default
-   write(*,*)"ERROR:  ", name(1:4), " is not a real(8) observation."
+   write(*,*)"ERROR:  ", name(1:4), " is not a real(",OBS_REAL,") observation."
    value=-999
   end select
- end function obs_elem_r8
+ end function obs_elem_r
 
  function obs_elem_i(obsdat,name,index) result(value)
   implicit none
@@ -1525,12 +1511,12 @@ MODULE obsSpaceData_mod
         WRITE(KULOUT,FMT=9201) IDATA2 &
              ,obs_elem_i (obsdat,'VNM ',JDATA) &
              ,ccordtyp   (ivco) &
-             ,obs_elem_r8(obsdat,'PPP ',JDATA) &
-             ,obs_elem_r8(obsdat,'PRL ',JDATA),obs_elem_r8(obsdat,'POB ',JDATA) &
-             ,obs_elem_r8(obsdat,'VAR ',JDATA),obs_elem_r8(obsdat,'OMF ',JDATA) &
-             ,obs_elem_r8(obsdat,'OMA ',JDATA),obs_elem_r8(obsdat,'OMI ',JDATA) &
-             ,obs_elem_r8(obsdat,'OER ',JDATA) &
-             ,obs_elem_r8(obsdat,'FGE ',JDATA) &
+             ,obs_elem_r(obsdat,'PPP ',JDATA) &
+             ,obs_elem_r(obsdat,'PRL ',JDATA),obs_elem_r(obsdat,'POB ',JDATA) &
+             ,obs_elem_r(obsdat,'VAR ',JDATA),obs_elem_r(obsdat,'OMF ',JDATA) &
+             ,obs_elem_r(obsdat,'OMA ',JDATA),obs_elem_r(obsdat,'OMI ',JDATA) &
+             ,obs_elem_r(obsdat,'OER ',JDATA) &
+             ,obs_elem_r(obsdat,'FGE ',JDATA) &
              ,obs_elem_i (obsdat,'FLG ',JDATA) &
              ,obs_elem_i (obsdat,'ASS ',JDATA)
      end if
@@ -1597,9 +1583,9 @@ MODULE obsSpaceData_mod
       obs_elem_i (obsdat,'RLN ',KOBS),obs_elem_i (obsdat,'ONM ',KOBS) &
      ,obs_elem_i (obsdat,'INS ',KOBS),obs_elem_i (obsdat,'OTP ',KOBS) &
      ,obs_elem_i (obsdat,'ITY ',KOBS) &
-     ,obs_elem_r8(obsdat,'LAT ',KOBS),obs_elem_r8(obsdat,'LON ',KOBS)&
+     ,obs_elem_r(obsdat,'LAT ',KOBS),obs_elem_r(obsdat,'LON ',KOBS)&
      ,obs_elem_i (obsdat,'DAT ',KOBS),obs_elem_i (obsdat,'ETM ',KOBS) &
-     ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r8(obsdat,'ALT ',KOBS) &
+     ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r(obsdat,'ALT ',KOBS) &
      ,obs_elem_i (obsdat,'NLV ',KOBS) &
      ,obs_elem_i (obsdat,'OFL ',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
      ,obs_elem_i (obsdat,'TLA ',KOBS)
@@ -1710,8 +1696,8 @@ MODULE obsSpaceData_mod
 !!$ end subroutine obs_set_r4
 
 
- subroutine obs_set_r8(obsdat, name, index, value)
-!s/r obs_set_r8 - set a double value in the observation object
+ subroutine obs_set_r(obsdat, name, index, value)
+!s/r obs_set_r - set a double value in the observation object
 !
 !Author    . J.W. Blezius
 !
@@ -1721,7 +1707,7 @@ MODULE obsSpaceData_mod
   type(struct_obs), intent(inout)  :: obsdat
   character(len=4), intent(in)     :: name
   integer         , intent(in)     :: index
-  real(kind=8)    , intent(in)     :: value
+  real(kind=OBS_REAL), intent(in)     :: value
 
   select case (name(1:4))
   case ('LAT '); obsdat%robhdr (NCM_LAT, index) = value
@@ -1731,22 +1717,22 @@ MODULE obsSpaceData_mod
   case ('BY  '); obsdat%robhdr (NCM_BY , index) = value
   case ('BZ  '); obsdat%robhdr (NCM_BZ , index) = value
 
-  case ('PPP '); obsdat%robdata8(NCM_PPP, index) = value
-  case ('PRL '); obsdat%robdata8(NCM_PRL, index) = value
-  case ('POB '); obsdat%robdata8(NCM_POB, index) = value
-  case ('VAR '); obsdat%robdata8(NCM_VAR, index) = value
-  case ('OMF '); obsdat%robdata8(NCM_OMF, index) = value
-  case ('OMA '); obsdat%robdata8(NCM_OMA, index) = value
-  case ('OMI '); obsdat%robdata8(NCM_OMI, index) = value
-  case ('OMN '); obsdat%robdata8(NCM_OMN, index) = value
-  case ('OER '); obsdat%robdata8(NCM_OER, index) = value
-  case ('FGE '); obsdat%robdata8(NCM_FGE, index) = value
-  case ('PRM '); obsdat%robdata8(NCM_PRM, index) = value
+  case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
+  case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
+  case ('POB '); obsdat%robdata(NCM_POB, index) = value
+  case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
+  case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
+  case ('OMA '); obsdat%robdata(NCM_OMA, index) = value
+  case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
+  case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
+  case ('OER '); obsdat%robdata(NCM_OER, index) = value
+  case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
+  case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
 
   case default
-   write(*,*)"ERROR:  ", name(1:4)," is not a real(8) observation."
+   write(*,*)"ERROR:  ", name(1:4)," is not a real(",OBS_REAL,") observation."
   end select
- end subroutine obs_set_r8
+ end subroutine obs_set_r
 
 
  subroutine obs_set_c9(obsdat, name, index, value)
@@ -1904,9 +1890,8 @@ MODULE obsSpaceData_mod
 ! Declare Local Variables
   CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
   CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
-  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
-!!$  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
-  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
+  REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
+  REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP
   INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp
@@ -1944,8 +1929,7 @@ MODULE obsSpaceData_mod
   ALLOCATE(ROBHDR_tmp(NHDR_REAL,numheader_mpilocal),STAT=ierr) 
   ALLOCATE(MOBHDR_tmp(NHDR_INT,numheader_mpilocal),STAT=ierr) 
   ALLOCATE(MOBDATA_tmp(NBDY_INT,numbody_mpilocal),STAT=ierr) 
-!!$  ALLOCATE(ROBDATA_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
-  ALLOCATE(ROBDATA8_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
+  ALLOCATE(ROBDATA_tmp(NBDY_REAL,numbody_mpilocal),STAT=ierr) 
 !  
   call obs_allocateG(obsdat,obsdat%numheader)
 !
@@ -1978,9 +1962,8 @@ MODULE obsSpaceData_mod
     idataend = obsdat%mobhdr(NCM_NLV, iobs) + idata -1 
     DO j=idata,idataend 
        ii=ii+1 
-       ROBDATA8_tmp(:,ii)=obsdat%ROBDATA8(:,j)
+       ROBDATA_tmp(:,ii)=obsdat%ROBDATA(:,j)
        MOBDATA_tmp(:,ii)=obsdat%MOBDATA(:,j) 
-!!$       ROBDATA_tmp(:,ii)=obsdat%ROBDATA(:,j) 
        MOBDATA_tmp(NCM_OBS,ii) = i
     ENDDO 
   ENDDO 
@@ -1999,18 +1982,16 @@ MODULE obsSpaceData_mod
   ENDDO 
 
   DO i=1,obsdat%numbody
-     obsdat%ROBDATA8(:,i)=ROBDATA8_tmp(:,i) 
+     obsdat%ROBDATA(:,i)=ROBDATA_tmp(:,i) 
      obsdat%MOBDATA(:,i)=MOBDATA_tmp(:,i) 
-!!$     obsdat%ROBDATA(:,i)=ROBDATA_tmp(:,i)
   ENDDO 
 
   deallocate(cfamily_tmp)
   deallocate(cstnid_tmp)
   deallocate(ROBHDR_tmp)
   deallocate(MOBHDR_tmp)
-  deallocate(ROBDATA8_tmp)
+  deallocate(ROBDATA_tmp)
   deallocate(MOBDATA_tmp)
-!!$  deallocate(ROBDATA_tmp)
 
  ! rebuild NBEGINTYP and NENDTYP  
  !============================
@@ -2065,9 +2046,8 @@ MODULE obsSpaceData_mod
 
   CHARACTER(len=9),ALLOCATABLE    :: cstnid_tmp(:)
 
-!!$  REAL,ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
-  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA8_tmp
-  REAL(8),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
+  REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
+  REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_tmp
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp 
@@ -2075,6 +2055,11 @@ MODULE obsSpaceData_mod
   INTEGER :: i,j,iobs,ierr,startindx,endindx 
   INTEGER :: idataend,idata,ii  
   INTEGER :: sizeMOBHDR,sizeROBHDR,sizeMOBDATA,sizeROBDATA  
+  #if OBS_REAL==4
+    character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
+  #else OBS_REAL==8
+    character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
+  #endif
 !!---------------------------------------------------------------
 
   write(*,*) 'Entering obs_expandToMpiGlobal'
@@ -2093,7 +2078,7 @@ MODULE obsSpaceData_mod
 
   ALLOCATE(ROBHDR_tmp(NHDR_REAL,obsdat%numheader_mpiglobal),STAT=ierr)
   IF(ierr /= 0)  call obs_abort('Cannot allocate robhdr_tmp!')
-  ROBHDR_TMP=0.0d0
+  ROBHDR_TMP=real(0.0d0, OBS_REAL)
 
   DO i=1,obsdat%numheader
      iobs=obsdat%locObsTag(i)
@@ -2106,7 +2091,7 @@ MODULE obsSpaceData_mod
                           "mpi_sum","GRID",ierr)
 
   sizeROBHDR=size(ROBHDR_tmp)
-  CALL RPN_COMM_ALLReduce(ROBHDR_tmp,ROBHDR_tmp,sizeROBHDR,"mpi_real", &
+  CALL RPN_COMM_ALLReduce(ROBHDR_tmp,ROBHDR_tmp,sizeROBHDR,MPI_OBS_REAL, &
                           "mpi_sum","GRID",ierr)
 
   ! Get the cstnid from the global copy
@@ -2121,13 +2106,9 @@ MODULE obsSpaceData_mod
   IF(ierr /= 0)  call obs_abort('Cant allocate Mem. to MOBDATA_tmp,Abort!')
   MOBDATA_tmp=0
 
-!!$  ALLOCATE(ROBDATA_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
-!!$  IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
-!!$  ROBDATA_tmp=0.0
-
-  ALLOCATE(ROBDATA8_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
-  IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA8_tmp,Abort!')
-  ROBDATA8_tmp=0.0d0
+  ALLOCATE(ROBDATA_tmp(NBDY_REAL,obsdat%numbody_max),STAT=ierr)
+  IF(ierr /= 0) call  obs_abort('Cant allocate Mem. to ROBDATA_tmp,Abort!')
+  ROBDATA_tmp=real(0.0d0,OBS_REAL)
 
   ! Restore the global arrays MOBDATA and ROBDATA
   ii=0
@@ -2138,8 +2119,7 @@ MODULE obsSpaceData_mod
     DO j=idata,idataend
        ii=ii+1
        MOBDATA_tmp(1:NBDY_INT,j)=obsdat%MOBDATA(1:NBDY_INT,ii)
-!!$       ROBDATA_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA(1:NBDY_REAL,ii)
-       ROBDATA8_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA8(1:NBDY_REAL,ii)
+       ROBDATA_tmp(1:NBDY_REAL,j)=obsdat%ROBDATA(1:NBDY_REAL,ii)
     ENDDO
   ENDDO
    !
@@ -2147,13 +2127,9 @@ MODULE obsSpaceData_mod
   sizeMOBDATA=size(MOBDATA_tmp)
   CALL RPN_COMM_ALLReduce(MOBDATA_tmp,MOBDATA_tmp,sizeMOBDATA,"mpi_integer",&
                           "mpi_sum","GRID",ierr)
-!!$  sizeROBDATA=size(ROBDATA_tmp)
-!!$  CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeROBDATA,"mpi_real",&
-!!$                          "mpi_sum","GRID",ierr)
-  sizeROBDATA=size(ROBDATA8_tmp)
-  CALL RPN_COMM_ALLReduce(ROBDATA8_tmp,ROBDATA8_tmp,sizeROBDATA,&
-                          "mpi_double_precision","mpi_sum","GRID",ierr)
-   !
+  sizeROBDATA=size(ROBDATA_tmp)
+  CALL RPN_COMM_ALLReduce(ROBDATA_tmp,ROBDATA_tmp,sizeROBDATA,MPI_OBS_REAL,&
+                          "mpi_sum","GRID",ierr)
 
   call obs_deallocate(obsdat)
   call obs_allocate(obsdat,obsdat%numheader_mpiglobal,obsdat%numbody_max)
@@ -2161,15 +2137,13 @@ MODULE obsSpaceData_mod
   obsdat%cstnid=cstnid_tmp
   obsdat%ROBHDR=ROBHDR_tmp
   obsdat%MOBHDR=MOBHDR_tmp
-!!$  obsdat%ROBDATA=ROBDATA_tmp
-  obsdat%ROBDATA8=ROBDATA8_tmp
+  obsdat%ROBDATA=ROBDATA_tmp
   obsdat%MOBDATA=MOBDATA_tmp
 
   DEALLOCATE(cstnid_tmp)
   DEALLOCATE(ROBHDR_tmp)
   DEALLOCATE(MOBHDR_tmp)
-!!$  DEALLOCATE(ROBDATA_tmp)
-  DEALLOCATE(ROBDATA8_tmp)
+  DEALLOCATE(ROBDATA_tmp)
   DEALLOCATE(MOBDATA_tmp)
 
   call obs_deallocateG(obsdat)

@@ -103,8 +103,8 @@
 !C     
 !C     *              Profile at the observation location:
 !C
-                     Lat  = obs_elem_r8(lobsSpaceData,'LAT ',jo)
-                     Lon  = obs_elem_r8(lobsSpaceData,'LON ',jo)
+                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',jo)
+                     Lon  = obs_elem_r(lobsSpaceData,'LON ',jo)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(lcolumng)
@@ -146,7 +146,7 @@
                      DO JDATA= IDATA, IDATEND
                         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',jdata)
+                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',jdata)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
                      ENDDO
@@ -176,11 +176,11 @@
 !C     
 !C     *                    FIRST GUESS ERROR VARIANCE
 !C
-                           call obs_set_r8(lobsSpaceData,'FGE ',jdata,ZMHX)
+                           call obs_set_r(lobsSpaceData,'FGE ',jdata,ZMHX)
                            IF (JO.EQ.IBEGINOB) THEN
  11                           FORMAT(A12,2I5,2F12.2,2F12.4)
                               WRITE(*,11)'SETFGEDIFFGE', NH1, NH, H(NH1),RSTV(NH1)%VAR,  &
-                                 ZMHX,obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                                 ZMHX,obs_elem_r(lobsSpaceData,'OER ',JDATA)
                            ENDIF
                         ENDIF
                      ENDDO

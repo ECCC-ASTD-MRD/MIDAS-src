@@ -161,7 +161,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
         if (index_body < 0) exit BODY
 
         IF ( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 ) THEN
-           ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+           ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',index_body))
            ICHN = MAX(0,MIN(ICHN,JPCH+1))
            IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) &
               ICHN=ICHN-CHANOFFSET(NOSENSOR)

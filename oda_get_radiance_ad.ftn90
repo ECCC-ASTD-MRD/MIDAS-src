@@ -95,7 +95,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
             if (index_body < 0) exit BODY
 
             if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
-               ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+               ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',index_body))
                ichn = max(0,min(ichn,jpch+1))
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
                indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
@@ -104,7 +104,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 9202              format(' tovs_calc_jo_ad: error with channel number')
                   call abort3d(nulout,'tovs_calc_jo_ad  ')
                endif
-               zres = obs_elem_r8(lobsSpaceData,'OMI ',index_body)
+               zres = obs_elem_r(lobsSpaceData,'OMI ',index_body)
                radiance_ad (indxtovs) % out(indxchn) = zres
             endif
          enddo BODY

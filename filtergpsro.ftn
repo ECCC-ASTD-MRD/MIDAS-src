@@ -120,8 +120,8 @@ C
                   ASSIM = .TRUE.
                   NH = IDATEND-IDATA+1
 C
-                  Lat  = obs_elem_r8(lobsSpaceData,'LAT ',JO)
-                  Lon  = obs_elem_r8(lobsSpaceData,'LON ',JO)
+                  Lat  = obs_elem_r(lobsSpaceData,'LAT ',JO)
+                  Lon  = obs_elem_r(lobsSpaceData,'LON ',JO)
                   ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                   ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                   DO JL = 1, col_getNumLev(LCOLUMNHR,'TH')
@@ -152,7 +152,7 @@ C
 C     *           Prepare the vector of all the observations:
 C
                   DO JDATA= IDATA, IDATEND
-                     HNH1= obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                     HNH1= obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                      IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                         HGP = gpsgeopotential(Lat,HNH1)/9.80616
                         IF ( HGP.GT.HTP .OR. 

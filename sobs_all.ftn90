@@ -135,24 +135,24 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                      LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
                   END DO
                   IF ( .NOT. LLREJ ) THEN
-                     ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
+                     ZVAL=obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
                      ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'), &
                                                      INDEX_HEADER,'MM') &
                                  )/RG )
-                     ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+                     ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                   ENDIF
 
                ELSE
-                  ZHHH=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+                  ZHHH=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                   ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
                   ZDIFF= ABS( ZHHH- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') &
                                     /RG )
-                  ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+                  ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                ENDIF
 
-               ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
+               ZVAL=obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-               ZLEV2=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+               ZLEV2=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
 !C
 !C                APPLY FILTER TO SELECTED ELEMENTS
 !C
@@ -184,8 +184,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                           WRITE(NULOUT,225) 'Reject OBS ',INDEX_HEADER,ITYP, &
                               obs_elem_c9(lobsSpaceData,'STID',INDEX_HEADER),&
                               IDBURP,  &
-                              obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER),&
-                              obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER)
+                              obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER),&
+                              obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER)
                         ENDIF
                         call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
                         IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -309,11 +309,11 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         ZLAT=obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER) &
+         ZLAT=obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZLON=obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER) &
+         ZLON=obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZSTNALT=obs_elem_r8(lobsSpaceData,'ALT ',INDEX_HEADER)
+         ZSTNALT=obs_elem_r(lobsSpaceData,'ALT ',INDEX_HEADER)
          ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.
@@ -344,9 +344,9 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             IFLG= obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY)
             ITYP=obs_elem_i (lobsSpaceData,'VNM ',INDEX_BODY)
             ZDIFF=99999.
-            ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+            ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
             IASS=obs_elem_i (lobsSpaceData,'ASS ',INDEX_BODY)
-            ZVAL=obs_elem_r8(lobsSpaceData,'VAR ',INDEX_BODY)
+            ZVAL=obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
             ZDIFF= ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') )/RG
             ZCRIT= -RLISTCRIT(JPINEL)
             IF ( ZDIFF .LT. 0.0 ) THEN
@@ -413,7 +413,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             LLOK = obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 2  &
                   .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
             IF (LLOK )  THEN
-               ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+               ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                ZPB =col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                ZPT =ZPB-RSBLCRIT(IJ)
                ZDELP = 999999.0
@@ -557,7 +557,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !C          MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 !C
             IKOUNTT=IKOUNTT+1
-            ZVAL=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+            ZVAL=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
             ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.
             IF ( ZDIFF .GT. RLISTCRIT ) THEN
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
@@ -566,7 +566,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   IF ( ITYP .EQ. ILEM ) THEN
                      IF(LLPRINT) THEN
                         WRITE(NULOUT,224) 'Reject OBS ',index_header,ITYP &
-                          ,obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY),ZDIFF
+                          ,obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY),ZDIFF
                      ENDIF
                      call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
                      IKOUNTREJ(J)=IKOUNTREJ(J)+1
@@ -704,11 +704,11 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
            cycle HEADER                 ! Proceed to the next HEADER
          end if
 
-         ZLAT=obs_elem_r8(lobsSpaceData,'LAT ',INDEX_HEADER) &
+         ZLAT=obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZLON=obs_elem_r8(lobsSpaceData,'LON ',INDEX_HEADER) &
+         ZLON=obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-         ZSTNALT=obs_elem_r8(lobsSpaceData,'ALT ',INDEX_HEADER)
+         ZSTNALT=obs_elem_r(lobsSpaceData,'ALT ',INDEX_HEADER)
          ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
          DO J=1,JPINEL
             LLALTOK(J) = .FALSE.
@@ -750,7 +750,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                cycle BODY ! Proceed to the next index_body
             end if
 
-            ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',INDEX_BODY)
+            ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
             ZPB =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
             ZPT =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG + RSBLCRIT(IJ)
             IF (ZDIFALT .GT. 0.0) THEN
@@ -908,7 +908,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                  IF ( ITYP .EQ. ILEM ) THEN
                     IF(LLPRINT) THEN
                        WRITE(NULOUT,224) 'Reject OBS ',INDEX_HEADER,ITYP, &
-                                  obs_elem_r8(lobsSpaceData,'PPP ',index_body), &
+                                  obs_elem_r(lobsSpaceData,'PPP ',index_body), &
                                   ZDIFF
                     ENDIF
                     call obs_set_i(lobsSpaceData,'ASS ',index_body,0)

@@ -268,10 +268,10 @@
                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                 DO JDATA= IDATA, IDATEND
                    IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                    ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                    ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                    BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
-                    BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                    BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                    BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
 ! *** Flag check on observed BTs ***
                     IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
 ! *** Set if data has been bias corrected (bit 6 set) ***
@@ -715,7 +715,7 @@
                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
                 DO JDATA= IDATA, IDATEND
                    IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                     ICHN = NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
+                     ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
                      ICHN = MAX(0,MIN(ICHN,JPCH+1))
                      DO NFLG = 0, BITFLAG
                        IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &

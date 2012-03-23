@@ -196,8 +196,8 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      &                           obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobs)
             if(nint(stepObsIndex).eq.jstep) then
 
-              lat_r4=real(obs_elem_r8(lobsSpaceData,'LAT ',jobs))
-              lon_r4=real(obs_elem_r8(lobsSpaceData,'LON ',jobs))
+              lat_r4=real(obs_elem_r(lobsSpaceData,'LAT ',jobs))
+              lon_r4=real(obs_elem_r(lobsSpaceData,'LON ',jobs))
               if(lon_r4.lt.0) lon_r4 = lon_r4 + 2*MPC_PI_R4
               if(lon_r4.ge.2.*MPC_PI_R4) lon_r4 =lon_r4 - 2*MPC_PI_R4
               lat_r4=lat_r4*MPC_DEGREES_PER_RADIAN_R4
@@ -209,8 +209,8 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
                 nobs(jstep,jgrid) = nobs(jstep,jgrid) + 1
 
-                dlatfld(nobs(jstep,jgrid)) = obs_elem_r8(lobsSpaceData,'LAT ',jobs)
-                dlonfld(nobs(jstep,jgrid)) = obs_elem_r8(lobsSpaceData,'LON ',jobs)
+                dlatfld(nobs(jstep,jgrid)) = obs_elem_r(lobsSpaceData,'LAT ',jobs)
+                dlonfld(nobs(jstep,jgrid)) = obs_elem_r(lobsSpaceData,'LON ',jobs)
                 notag(nobs(jstep,jgrid),jstep,jgrid) = jobs
 
                 if(dlonfld(nobs(jstep,jgrid)).lt.0)

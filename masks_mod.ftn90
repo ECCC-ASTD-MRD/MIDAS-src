@@ -231,7 +231,7 @@ module masks_mod
 
             IF(      obs_elem_i(lobsSpaceData,'VNM ',index_body) .EQ. BUFR_NEHU &
                .AND. obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2) THEN
-               IF (     NINT(obs_elem_r8(lobsSpaceData,'PPP ',index_body)) &
+               IF (     NINT(obs_elem_r(lobsSpaceData,'PPP ',index_body)) &
                    .GE. NINT(RLIMLVHU *100) ) THEN
                   ldiagpp(index_body) = .true.
                ENDIF
@@ -254,9 +254,9 @@ module masks_mod
                 obs_elem_i(lobsSpaceData,'VNM ',index_header) .NE.BUFR_NEGZ) then
                lmaskpp_out(index_body) = .false.
               LLNOXTR   = .true.
-              ZLAT      = obs_elem_r8(lobsSpaceData,'LAT ',index_header) &
+              ZLAT      = obs_elem_r(lobsSpaceData,'LAT ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-              ZLON      = obs_elem_r8(lobsSpaceData,'LON ',index_header) &
+              ZLON      = obs_elem_r(lobsSpaceData,'LON ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
               IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',index_header)
 
@@ -349,7 +349,7 @@ subroutine oda_maskto(lobsSpaceData)
            if (index_body < 0) exit BODY
 
            if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
-              ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+              ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',index_body))
               ichn    = max(0,min(ichn,jpch+1))
               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)

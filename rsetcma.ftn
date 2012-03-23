@@ -44,8 +44,8 @@ C
          IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
          ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
          IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN
-            call obs_set_r8(lobsSpaceData,'OMF ',JDATA,-obs_elem_r8(lobsSpaceData,'OMF ',JDATA)
-     S           /obs_elem_r8(lobsSpaceData,'OER ',JDATA))
+            call obs_set_r(lobsSpaceData,'OMF ',JDATA,-obs_elem_r(lobsSpaceData,'OMF ',JDATA)
+     S           /obs_elem_r(lobsSpaceData,'OER ',JDATA))
          ENDIF
       enddo
 C

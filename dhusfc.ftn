@@ -98,8 +98,8 @@ c
                 DO JCOUNT = 1,ICOUNT
                   JDATA = IPOINTR(JCOUNT)
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
 ***************************************************************
 c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
@@ -109,7 +109,7 @@ c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
 c     &                   ,IK,JCOUNT,ICOUNT
 c                  ENDIF
 ***************************************************************
-                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
+                  call obs_set_r(lobsSpaceData,'OMA ',JDATA, 
      +                (col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')-ZVAR)
      +                 / ZOER)
 
@@ -124,7 +124,7 @@ c                  ENDIF
                     write(nulout,*)'   lcolumnhr_hu(lcolumnhr_nlev,iobs) = '
      &                   ,col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')
                     write(nulout,*)'   O-Psfc = '
-     &                   ,-obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER
+     &                   ,-obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 

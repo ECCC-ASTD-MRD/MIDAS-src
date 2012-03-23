@@ -72,9 +72,9 @@
             ixtr=obs_elem_i (lobsSpaceData,'XTR ',jdata)
             ivco=obs_elem_i (lobsSpaceData,'VCO ',jdata)
             IVNM=obs_elem_i (lobsSpaceData,'VNM ',jdata)
-            ZVAR=obs_elem_r8(lobsSpaceData,'VAR ',jdata)
-            ZLEV=obs_elem_r8(lobsSpaceData,'PPP ',jdata)
-            ZOER=obs_elem_r8(lobsSpaceData,'OER ',jdata)
+            ZVAR=obs_elem_r(lobsSpaceData,'VAR ',jdata)
+            ZLEV=obs_elem_r(lobsSpaceData,'PPP ',jdata)
+            ZOER=obs_elem_r(lobsSpaceData,'OER ',jdata)
             IOBS=obs_elem_i (lobsSpaceData,'OBS ',jdata)
 
             IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
@@ -97,8 +97,8 @@
                endif
                zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
                PJO = PJO + zoma*zoma
-               call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
-               call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
+               call obs_set_r(lobsSpaceData,'OMA ',jdata,zoma)
+               call obs_set_r(lobsSpaceData,'OMI ',jdata,zoma)
 !
 ! Process all upper air data data below model's orography
 !
@@ -112,8 +112,8 @@
                   zoma = ( col_getMountain(lcolumnhr,iobs) + ZTVG/zgamma
      &                     *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'P0'))**zexp) - zvar )/zoer
                   PJO =PJO+zoma*zoma
-                  call obs_set_r8(lobsSpaceData,'OMA ',jdata,zoma)
-                  call obs_set_r8(lobsSpaceData,'OMI ',jdata,zoma)
+                  call obs_set_r(lobsSpaceData,'OMA ',jdata,zoma)
+                  call obs_set_r(lobsSpaceData,'OMI ',jdata,zoma)
                ENDIF
             ENDIF
          ENDIF

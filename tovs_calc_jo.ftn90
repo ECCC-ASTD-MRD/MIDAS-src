@@ -141,7 +141,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
               cycle BODY                ! Proceed to the next body_index
            end if
 
-           ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+           ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',index_body))
            ichn = max(0,min(ichn,jpch+1))
            ichNCM_A = max(0,min(ichn,jpch+1))
            if(idatyp.ne.183 .and. idatyp.ne.186) &
@@ -154,35 +154,35 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            endif
 
            zdtb =   radiance_d (indxtovs) % out(indxchn) &
-                  - obs_elem_r8(lobsSpaceData,'PRM ',index_body)
+                  - obs_elem_r(lobsSpaceData,'PRM ',index_body)
            if ( ldbgtov ) then
               write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
                            ichn,  radiance_d (indxtovs) % out(indxchn), &
-                           obs_elem_r8(lobsSpaceData,'PRM ',index_body), zdtb
+                           obs_elem_r(lobsSpaceData,'PRM ',index_body), zdtb
            endif
 
-           zoer = obs_elem_r8(lobsSpaceData,'OER ',index_body)
-           call obs_set_r8(lobsSpaceData,'OMA ',index_body, zdtb/zoer)
-           call obs_set_r8(lobsSpaceData,'OMI ',index_body, &
-                           obs_elem_r8(lobsSpaceData,'OMA ',index_body))
+           zoer = obs_elem_r(lobsSpaceData,'OER ',index_body)
+           call obs_set_r(lobsSpaceData,'OMA ',index_body, zdtb/zoer)
+           call obs_set_r(lobsSpaceData,'OMI ',index_body, &
+                           obs_elem_r(lobsSpaceData,'OMA ',index_body))
 
            if (.not. lvarqc) then
               dlsum =  dlsum &
-                     + (obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
-                        obs_elem_r8(lobsSpaceData,'OMA ',index_body))/2.
-              call obs_set_r8(lobsSpaceData,'OMN ',index_body, &
-                              obs_elem_r8(lobsSpaceData,'OMA ',index_body))
+                     + (obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
+                        obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.
+              call obs_set_r(lobsSpaceData,'OMN ',index_body, &
+                              obs_elem_r(lobsSpaceData,'OMA ',index_body))
 
            else
 !             compute contribution of data with varqc
  
-              zgami = obs_elem_r8(lobsSpaceData,'POB ',index_body)
-              zjon = (obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
-                      obs_elem_r8(lobsSpaceData,'OMA ',index_body))/2.
+              zgami = obs_elem_r(lobsSpaceData,'POB ',index_body)
+              zjon = (obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
+                      obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.
               zqcarg = zgami + exp(-1.0*zjon)
               zpost = zgami/zqcarg
-              call obs_set_r8(lobsSpaceData,'OMN ',index_body, &
-                       obs_elem_r8(lobsSpaceData,'OMA ',index_body)*(1. - zpost))
+              call obs_set_r(lobsSpaceData,'OMN ',index_body, &
+                       obs_elem_r(lobsSpaceData,'OMA ',index_body)*(1. - zpost))
               dlsum= dlsum - log(zqcarg/(zgami+1.))
            endif
 
@@ -190,11 +190,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            inobsch(ichNCM_A,Isens) = inobsch(ichNCM_A,Isens) + 1
            zjoch(ichNCM_A,Isens)   = &
                     zjoch(ichNCM_A,Isens)   + &
-                    obs_elem_r8(lobsSpaceData,'OMA ',index_body)* &
-                    obs_elem_r8(lobsSpaceData,'OMA ',index_body)
+                    obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
+                    obs_elem_r(lobsSpaceData,'OMA ',index_body)
            zavgnrm(ichNCM_A,Isens)   = &
                     zavgnrm(ichNCM_A,Isens) + &
-                    obs_elem_r8(lobsSpaceData,'OMA ',index_body)
+                    obs_elem_r(lobsSpaceData,'OMA ',index_body)
         enddo BODY
      else
       kfailtot = kfailtot + 1

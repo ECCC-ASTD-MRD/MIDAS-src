@@ -146,8 +146,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 
             zprofil => col_getColumn(lcolumn_g,jobs,varName)
 
-            DLLAO   = real(obs_elem_mpiglobal_r8(lobsSpaceData,'LAT ',JOBS), 8)
-            DLLOO   = real(obs_elem_mpiglobal_r8(lobsSpaceData,'LON ',JOBS), 8)
+            DLLAO   = real(obs_elem_mpiglobal_r(lobsSpaceData,'LAT ',JOBS), 8)
+            DLLOO   = real(obs_elem_mpiglobal_r(lobsSpaceData,'LON ',JOBS), 8)
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY

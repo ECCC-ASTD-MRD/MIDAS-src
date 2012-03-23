@@ -136,7 +136,7 @@ C
                      LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
      &                      (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
                      IF ( LLOK ) THEN
-                        ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                        ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -148,8 +148,8 @@ C
 C     
 C     *              Profile at the observation location x :
 C
-                     ZLAT = obs_elem_r8(lobsSpaceData,'LAT ',JO) * MPC_DEGREES_PER_RADIAN_R8
-                     ZLON = obs_elem_r8(lobsSpaceData,'LON ',JO) * MPC_DEGREES_PER_RADIAN_R8
+                     ZLAT = obs_elem_r(lobsSpaceData,'LAT ',JO) * MPC_DEGREES_PER_RADIAN_R8
+                     ZLON = obs_elem_r(lobsSpaceData,'LON ',JO) * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, nlev_T
                         ZTT(JL) =     col_getElem(lcolumnhr,JL,JO,'TT')
                         ZHU(JL) = EXP(col_getElem(lcolumnhr,JL,JO,'HU'))
@@ -180,20 +180,20 @@ C
 C
 C     *                    Observation value    Y
 C
-                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
 C
 C     *                    Observation error    SDERR
 C
-                           ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                           ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
 C
 C     *                    Observation height (m)
 C
-                           ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                           ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
 C
 C     *                    Normalized increment
 C
                            ZINC = (ZHX - ZOBS) / ZOER
-                           call obs_set_r8(lobsSpaceData,'OMA ',JDATA, ZINC)
+                           call obs_set_r(lobsSpaceData,'OMA ',JDATA, ZINC)
 C
 C     *                    Contribution to the cost function
 C

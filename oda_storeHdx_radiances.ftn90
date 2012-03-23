@@ -102,7 +102,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
            if (index_body < 0) exit BODY
 
            if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
-              ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',index_body))
+              ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',index_body))
               ichn    = max(0,min(ichn,jpch+1))
               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
@@ -111,12 +111,12 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 9202             format(' tovs_calc_jo_tl: error with channel number')
                  call abort3d(nulout,'tovs_calc_jo_tl  ')
               endif
-              call obs_set_r8(lobsSpaceData,'OMA ',index_body, &
+              call obs_set_r(lobsSpaceData,'OMA ',index_body, &
                               radiance_tl (indxtovs) % out(indxchn))
               if ( ldbgtov ) then
                  write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                       ichn,  radiance_tl (indxtovs) % out(indxchn), &
-                      obs_elem_r8(lobsSpaceData,'VAR ',index_body)
+                      obs_elem_r(lobsSpaceData,'VAR ',index_body)
               endif
 
            endif

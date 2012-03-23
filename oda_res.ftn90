@@ -35,7 +35,7 @@ SUBROUTINE oda_res(lobsSpaceData)
 !!
     DO JDATA=1,obs_numbody(lobsSpaceData)
        IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r8(lobsSpaceData,'OMA ',JDATA, obs_elem_r8(lobsSpaceData,'OMA ',JDATA)-obs_elem_r8(lobsSpaceData,'VAR ',JDATA))
+          call obs_set_r(lobsSpaceData,'OMA ',JDATA, obs_elem_r(lobsSpaceData,'OMA ',JDATA)-obs_elem_r(lobsSpaceData,'VAR ',JDATA))
        ENDIF
     enddo
 !

@@ -213,12 +213,12 @@ subroutine tovs_rttov_tl(lobsSpaceData)
           idatend  = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
           do jdata = idata, idatend
             if(obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1) then
-              ichn = nint(obs_elem_r8(lobsSpaceData,'PPP ',jdata))
+              ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',jdata))
               ichn = max(0,min(ichn,jpch+1))
               do nrank = 1, nchan(krtid)
                 if ( ichn == ichan(nrank,krtid) ) exit
               end do
-              surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r8(lobsSpaceData,'PRL ',jdata)
+              surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r(lobsSpaceData,'PRL ',jdata)
             end if
           end do
         end do

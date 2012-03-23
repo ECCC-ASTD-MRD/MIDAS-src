@@ -154,11 +154,11 @@ C
                   JDATA = IPOINTR(JCOUNT)
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                   ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                   IXTR = obs_elem_i(lobsSpaceData,'XTR ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
                   varType = vnl_vartypeFromVarnum(ITYP)
                   IPT  = col_getNumLev(LCOLUMNHR,varType)-1 + col_getOffsetFromVarno(lcolumnhr,ityp)
@@ -171,7 +171,7 @@ C
                     columnVarB=col_getElem(lcolumnhr,IPB,IOBS)
                   endif
                   GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),IOBS,varType)
-                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
+                  call obs_set_r(lobsSpaceData,'OMA ',JDATA,
      +                  (columnVarB
      +                 - ZSLOPE*(ZHHH-GZHR)-ZVAR)
      +                 / ZOER)
@@ -187,18 +187,18 @@ C              below the model height
                   JDATA = IPOINTR(JCOUNT)
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                   ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                   IXTR = obs_elem_i(lobsSpaceData,'XTR ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                   ZHHH = ZLEV * GRAV
                   varType = vnl_vartypeFromVarnum(ITYP)
                   ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),IOBS,varType))
                   ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
      &                    *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
                   ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
-                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA,
+                  call obs_set_r(lobsSpaceData,'OMA ',JDATA,
      &                 ((col_getElem(lcolumnhr,1,IOBS,'P0')*ZCON**ZEXP)-ZVAR)/ZOER)
                 ENDDO
               ENDIF
@@ -217,7 +217,7 @@ C
                   IF ( obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 ) THEN
                      ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                      IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                     ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
+                     ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
                      IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
      &                   ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &                   ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
@@ -229,12 +229,12 @@ C
      &                        obs_elem_i(lobsSpaceData,'XTR ',JDATA)  .EQ. 0)
                      ENDIF
                      IF(LLOK)     THEN
-                        DLSUM=DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*
-     1                        obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-                        call obs_set_r8(lobsSpaceData,'OMN ',JDATA, 
-     +                    obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
-                        call obs_set_r8(lobsSpaceData,'OMI ',JDATA, 
-     +                    obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
+                        DLSUM=DLSUM+obs_elem_r(lobsSpaceData,'OMA ',JDATA)*
+     1                        obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+                        call obs_set_r(lobsSpaceData,'OMN ',JDATA, 
+     +                    obs_elem_r(lobsSpaceData,'OMA ',JDATA))
+                        call obs_set_r(lobsSpaceData,'OMI ',JDATA, 
+     +                    obs_elem_r(lobsSpaceData,'OMA ',JDATA))
                      ENDIF
                   ENDIF
 C
@@ -257,9 +257,9 @@ ccc debut
 ccc fin
                IF ( LLOK ) THEN
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
 C
 C                 CONTRIBUTION TO Jo
 C
@@ -268,17 +268,17 @@ c  forward nonlinear model for geopotential data below model's orography
 c
                   ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')))
      &                        *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'TT')
-                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA,(col_getMountain(lcolumnhr,iobs)
+                  call obs_set_r(lobsSpaceData,'OMA ',JDATA,(col_getMountain(lcolumnhr,iobs)
      &                        + ZTVG/zgamma
      &                        *(1.-(zlev/col_getElem(lcolumnhr,1,iobs,'P0'))**zexpgz)
      &                        - zvar)/zoer)
-                  DLSUM =DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-     +                        *obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-                  call obs_set_r8(lobsSpaceData,'OMI ',JDATA,obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
-                  DLSUM =DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-     +                               *obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-                  call obs_set_r8(lobsSpaceData,'OMI ',JDATA,obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
-                  call obs_set_r8(lobsSpaceData,'OMN ',JDATA,obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
+                  DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+     +                        *obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+                  call obs_set_r(lobsSpaceData,'OMI ',JDATA,obs_elem_r(lobsSpaceData,'OMA ',JDATA))
+                  DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+     +                               *obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+                  call obs_set_r(lobsSpaceData,'OMI ',JDATA,obs_elem_r(lobsSpaceData,'OMA ',JDATA))
+                  call obs_set_r(lobsSpaceData,'OMN ',JDATA,obs_elem_r(lobsSpaceData,'OMA ',JDATA))
                ENDIF
 C
             END DO

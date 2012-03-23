@@ -177,8 +177,8 @@
               IDATA = obs_elem_i(lobsSpaceData,'RLN ',JREP)
               IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JREP) + IDATA -1
               IDBURP  = obs_elem_i(lobsSpaceData,'ITY ',JREP)
-              ZLAT = obs_elem _r8(lobsSpaceData,'LAT ',JREP)*MPC_DEGREES_PER_RADIAN_R8
-              ZLON = obs_elem _r8(lobsSpaceData,'LON ',JREP)*MPC_DEGREES_PER_RADIAN_R8
+              ZLAT = obs_elem_r(lobsSpaceData,'LAT ',JREP)*MPC_DEGREES_PER_RADIAN_R8
+              ZLON = obs_elem_r(lobsSpaceData,'LON ',JREP)*MPC_DEGREES_PER_RADIAN_R8
               DO JDATA=IDATA, IDATEND
                 ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                 IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
@@ -193,30 +193,30 @@
      3                     obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ)
                 ENDIF
                 IF (LLOK) THEN
-                  zpost = obs_elem_r8(lobsSpaceData,'OMN ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
+                  zpost = obs_elem_r(lobsSpaceData,'OMN ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
                   IF (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2) THEN
-                    ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
+                    ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
                     CLUNITS = 'MB'
                   ENDIF
                   IF (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1) THEN
 *
 *___________________VERTICAL COORDINATE IS HEIGHT
 *
-                    ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                    ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                     CLUNITS = ' M'
                   ENDIF
                   IF (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. -1) THEN
 *
 *___________________TOVS CHANNEL NUMBER
 *
-                    ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                    ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                     CLUNITS = '  '
                   ENDIF
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
-                  ZFCST = obs_elem_r8(lobsSpaceData,'OMF ',JDATA)*ZOER + ZVAR
-                  ZANA = obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER + ZVAR
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                  ZFCST = obs_elem_r(lobsSpaceData,'OMF ',JDATA)*ZOER + ZVAR
+                  ZANA = obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER + ZVAR
 *
 *_______________TREAT WINDS AS SPECIAL CASE
 *               BUFR_NEUU       = 011003 (U COMPONENT)           (m/s)
@@ -233,10 +233,10 @@
                       DO JJ=IDATA,JDATA
                         ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 2) THEN
-                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
+                          ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
                         ENDIF
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 1) THEN
-                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)
+                          ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)
                         ENDIF
                         IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)
      1                       .AND. ZLEV .EQ. ZSLEV) THEN
@@ -247,10 +247,10 @@
                       DO JJ=IDATA,JDATA
                         ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 2) THEN
-                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
+                          ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
                         ENDIF
                         IF (obs_elem_i(lobsSpaceData,'VCO ',JJ) .EQ. 1) THEN
-                          ZSLEV = obs_elem_r8(lobsSpaceData,'PPP ',JJ)
+                          ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)
                         ENDIF
                         IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)
      1                       .AND. ZLEV .EQ. ZSLEV) THEN
@@ -261,10 +261,10 @@
                     IF (IOTHER .NE. -1) THEN
                       IF (ITYP .EQ. BUFR_NEVV .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZVAR
-                        ZVV = obs_elem_r8(lobsSpaceData,'VAR ',IOTHER)
+                        ZVV = obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
                       ELSE
                         ZVV = ZVAR
-                        ZUU = obs_elem_r8(lobsSpaceData,'VAR ',IOTHER)
+                        ZUU = obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
                       ENDIF
                       SPD = SQRT(ZUU*ZUU + ZVV*ZVV)
                       ISPDO = NINT(SPD)
@@ -278,12 +278,12 @@
                       ENDIF
                       IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZFCST
-                        ZVV = obs_elem_r8(lobsSpaceData,'OMF ',IOTHER)*ZOER
-     1                      + obs_elem_r8(lobsSpaceData,'VAR ',IOTHER)
+                        ZVV = obs_elem_r(lobsSpaceData,'OMF ',IOTHER)*ZOER
+     1                      + obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
                       ELSE
                         ZVV = ZFCST
-                        ZUU = obs_elem_r8(lobsSpaceData,'OMF ',IOTHER)*ZOER
-     1                      + obs_elem_r8(lobsSpaceData,'VAR ',IOTHER)
+                        ZUU = obs_elem_r(lobsSpaceData,'OMF ',IOTHER)*ZOER
+     1                      + obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
                       ENDIF
                       SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                       ISPDF = NINT(SPD)
@@ -297,12 +297,12 @@
                       ENDIF
                       IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                         ZUU = ZANA
-                        ZVV = obs_elem_r8(lobsSpaceData,'OMA ',IOTHER)*ZOER
-     1                      + obs_elem_r8(lobsSpaceData,'VAR ',IOTHER)
+                        ZVV = obs_elem_r(lobsSpaceData,'OMA ',IOTHER)*ZOER
+     1                      + obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
                       ELSE
                         ZVV = ZANA
-                        ZUU = obs_elem_r8(lobsSpaceData,'OMA ',IOTHER)*ZOER
-     1                      + obs_elem_r8(lobsSpaceData,'VAR ',IOTHER)
+                        ZUU = obs_elem_r(lobsSpaceData,'OMA ',IOTHER)*ZOER
+     1                      + obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
                       ENDIF
                       SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                       ISPDA = NINT(SPD)

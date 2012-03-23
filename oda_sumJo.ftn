@@ -163,7 +163,7 @@ c
          idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs)+idata -1 
          DO j=idata,idataend
            ii=ii+1
-           robdata8_g(j)=obs_elem_r8(lobsSpaceData,'OMI ',ii)
+           robdata8_g(j)=obs_elem_r(lobsSpaceData,'OMI ',ii)
          ENDDO
        ENDDO  
        CALL rpn_comm_allreduce(ROBDATA8_g,ROBDATA8_g,kdata,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 

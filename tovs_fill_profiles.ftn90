@@ -205,8 +205,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
      isatazim(knpf) = obs_elem_i(lobsSpaceData,'AZA ',jo)
      isunza(knpf) = obs_elem_i(lobsSpaceData,'SUN ',jo)
      iclfr(knpf) = obs_elem_i(lobsSpaceData,'CLF ',jo)
-     zlat(knpf) = obs_elem_r8(lobsSpaceData,'LAT ',jo) *MPC_DEGREES_PER_RADIAN_R8
-     zlon(knpf) = obs_elem_r8(lobsSpaceData,'LON ',jo) *MPC_DEGREES_PER_RADIAN_R8
+     zlat(knpf) = obs_elem_r(lobsSpaceData,'LAT ',jo) *MPC_DEGREES_PER_RADIAN_R8
+     zlon(knpf) = obs_elem_r(lobsSpaceData,'LON ',jo) *MPC_DEGREES_PER_RADIAN_R8
 
      do jl = 1, knlev
         zt   (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'TT')

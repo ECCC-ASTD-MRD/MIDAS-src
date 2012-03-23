@@ -79,9 +79,9 @@ C
      &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
                IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                ELSE
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PRL ',JDATA)
                ENDIF
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
@@ -105,9 +105,9 @@ C
      &              obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
                IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                ELSE
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PRL ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PRL ',JDATA)
                ENDIF
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
@@ -144,7 +144,7 @@ C
      &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-               ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
                varType = vnl_vartypeFromVarnum(ITYP)
@@ -167,7 +167,7 @@ C
      &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-               ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                IK = 1
                varType = vnl_vartypeFromVarnum(ITYP)

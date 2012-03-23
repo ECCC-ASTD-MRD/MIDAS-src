@@ -90,9 +90,9 @@ C
      &              .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1)
                IF ( LLOK ) THEN
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                   IVNM = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
                   IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
@@ -109,12 +109,12 @@ C
 C
 C     CONTRIBUTION TO Jo
 C
-                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
+                  call obs_set_r(lobsSpaceData,'OMA ',JDATA, 
      +                  (ZWB*col_getElem(lcolumnhr,IPB,IOBS)
      +                 + ZWT*col_getElem(lcolumnhr,IPT,IOBS)-ZVAR)/ZOER)
-                  DLSUM =DLSUM+obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-     +                 *obs_elem_r8(lobsSpaceData,'OMA ',JDATA)
-                  call obs_set_r8(lobsSpaceData,'OMI ',JDATA,obs_elem_r8(lobsSpaceData,'OMA ',JDATA))
+                  DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+     +                 *obs_elem_r(lobsSpaceData,'OMA ',JDATA)
+                  call obs_set_r(lobsSpaceData,'OMI ',JDATA,obs_elem_r(lobsSpaceData,'OMA ',JDATA))
                ENDIF
 C
             END DO

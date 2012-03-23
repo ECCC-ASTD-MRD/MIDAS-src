@@ -47,8 +47,8 @@
       llmask = lmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
       DO JDATA=1,obs_numbody(lobsSpaceData)
         IF (llmask(jdata)) THEN
-          call obs_set_r8(lobsSpaceData,'OMI ',JDATA, obs_elem_r8(lobsSpaceData,'OMI ',JDATA)
-     &         *(1.d0 - obs_elem_r8(lobsSpaceData,'OMN ',JDATA)))
+          call obs_set_r(lobsSpaceData,'OMI ',JDATA, obs_elem_r(lobsSpaceData,'OMI ',JDATA)
+     &         *(1.d0 - obs_elem_r(lobsSpaceData,'OMN ',JDATA)))
         ENDIF
       END DO
 C--------------------------------------------------------------------

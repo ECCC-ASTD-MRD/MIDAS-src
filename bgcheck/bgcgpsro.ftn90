@@ -123,8 +123,8 @@
 !C     
 !C     *              Profile at the observation location:
 !C
-                     Lat  = obs_elem_r8(lobsSpaceData,'LAT ',JO)
-                     Lon  = obs_elem_r8(lobsSpaceData,'LON ',JO)
+                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',JO)
+                     Lon  = obs_elem_r(lobsSpaceData,'LON ',JO)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
@@ -165,7 +165,7 @@
                      DO JDATA= IDATA, IDATEND
                         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                          ENDIF
                      ENDDO
@@ -187,7 +187,7 @@
 !C
 !C     *                    Observation value    Y
 !C
-                           ZOBS = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
+                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
 !C                           
 !C                          OMF Tested criteria:
 !C

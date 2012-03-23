@@ -72,20 +72,20 @@ C
               IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU  .AND.
      &             obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 0     .AND.
      &             obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2    ) THEN
-                IPRES= NINT(obs_elem_r8(lobsSpaceData,'PPP ',JDATA))
-                call obs_set_r8(lobsSpaceData,'OMA ',JDATA, PPMIS)
+                IPRES= NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
+                call obs_set_r(lobsSpaceData,'OMA ',JDATA, PPMIS)
                 IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
                   IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r8(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r8(lobsSpaceData,'OER ',JDATA)
-                  ZLEV = obs_elem_r8(lobsSpaceData,'PPP ',JDATA)
+                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
                   IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
                   ZPT  = col_getPressure(LCOLUMNHR,IK  ,IOBS,'TH')
                   ZPB  = col_getPressure(LCOLUMNHR,IK+1,IOBS,'TH')
                   ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                   ZWT  = 1. - ZWB
 C
-                  call obs_set_r8(lobsSpaceData,'OMA ',JDATA, 
+                  call obs_set_r(lobsSpaceData,'OMA ',JDATA, 
      +                          ( ZWB*col_getElem(lcolumnhr,IK+1,IOBS,'HU')
      +                          + ZWT*col_getElem(lcolumnhr,IK  ,IOBS,'HU') - ZVAR ) / ZOER)
 
@@ -99,7 +99,7 @@ C
                     write(nulout,*)'   zoer   = ',ZOER
                     write(nulout,*)'   col_getElem(lcolumnhr,ik  ,iobs,HU) = ',col_getElem(lcolumnhr,IK  ,IOBS,'HU')
                     write(nulout,*)'   col_getElem(lcolumnhr,ik+1,iobs,HU) = ',col_getElem(lcolumnhr,IK+1,IOBS,'HU')
-                    write(nulout,*)'   O-P    = ',-obs_elem_r8(lobsSpaceData,'OMA ',JDATA)*ZOER
+                    write(nulout,*)'   O-P    = ',-obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER
                     write(nulout,*)' -------------------------'
                   ENDIF
 
