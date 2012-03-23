@@ -72,9 +72,9 @@
            DO JLAT = 1, gaus_NJ
               DO JLON=1,gaus_NI
                  if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  else
-                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  endif
               END DO
            END DO
@@ -87,9 +87,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  else
-                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  endif
               END DO
            END DO
@@ -207,9 +207,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  else
-                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  endif
               END DO
            END DO
@@ -221,9 +221,9 @@
            DO JLAT = 1, GAUS_NJ
               DO JLON=1,GAUS_NI
                  if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,INJ-JLAT+1) = (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  else
-                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S__PER__KNOT_R8
+                    field_ptr(JLON,J,JLAT) =       (ZBUFFER(JLAT,J)/gaus_CONPHY(JLAT))*MPC_M_PER_S_PER_KNOT_R8
                  endif
               END DO
            END DO

@@ -93,7 +93,7 @@ C
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
             PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
-     S           *gaus_CONPHY(JGL)*MPC_KNOTS__PER__M_PER_S_R8
+     S           *gaus_CONPHY(JGL)*MPC_KNOTS_PER_M_PER_S_R8
           END DO
         END DO
 C
@@ -104,7 +104,7 @@ C
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
             PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
-     S           *gaus_CONPHY(JGL)*MPC_KNOTS__PER__M_PER_S_R8
+     S           *gaus_CONPHY(JGL)*MPC_KNOTS_PER_M_PER_S_R8
           END DO
         END DO
 C

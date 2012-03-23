@@ -216,7 +216,7 @@ module verticalCoord_mod
         tf_vco%db_M(jlev)   = my_b(jlev)
       endif
 
-      if((tf_vco%drcf1-1.0) .lt. MPC_PRECISION_OF_ZERO_R8) then
+      if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
         zterm = 1.0d0
       else
         zterm = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M) &
@@ -280,7 +280,7 @@ module verticalCoord_mod
         tf_vco%da_T(jlev)   = my_a(jlev)
         tf_vco%db_T(jlev)   = my_b(jlev)
 
-        if((tf_vco%drcf1-1.0) .lt. MPC_PRECISION_OF_ZERO_R8) then
+        if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
           zterm = 1.0d0
         else
           zterm = ((tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T) &

@@ -880,7 +880,7 @@ CONTAINS
     llpb = .false.
     do jla=1,ntrunc_l+1
       zabs = abs(zsp(jla,1,1))
-      llpb =llpb.or.((zsp(jla,1,1).lt.0.).and.(zabs.gt.MPC_PRECISION_OF_ZERO_R8))
+      llpb =llpb.or.((zsp(jla,1,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
     enddo
     if(llpb) then
       write(*,*)' AUTOCORRELATION  NEGATIVES'

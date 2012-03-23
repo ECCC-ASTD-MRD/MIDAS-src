@@ -622,11 +622,11 @@ c
           call tmg_start(29,'VINTPROF')
 c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-          zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
+          zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
           call col_fillmvo(lcolumng,'UU  ','NA',zom_M)
 c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs2_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-          zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
+          zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
           call col_fillmvo(lcolumng,'VV  ','NA',zom_M)
 c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
@@ -641,9 +641,9 @@ c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
      &           ,zPPOBS_M(jlev,1),zmobs2_M(jlev,1)
           enddo
 ccc dbug out
-          zmobs_M(:,:)=zmobs_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
+          zmobs_M(:,:)=zmobs_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
           call col_fillmvo(lcolumnhr,'UU  ','MM',zmobs_M)
-          zmobs2_M(:,:)=zmobs2_M(:,:)*MPC_M_PER_S__PER__KNOT_R8
+          zmobs2_M(:,:)=zmobs2_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
           call col_fillmvo(lcolumnhr,'VV  ','MM',zmobs2_M)
 c
           call tmg_stop(29)

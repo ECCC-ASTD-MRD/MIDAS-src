@@ -228,7 +228,7 @@ CONTAINS
       ITERTOT  = 0
       isimtot = 0
 
-      ZXMIN  =  MPC_PRECISION_OF_ZERO_R8
+      ZXMIN = epsilon(ZXMIN)
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
       dataptr%lobsSpaceData => lobsSpaceData
