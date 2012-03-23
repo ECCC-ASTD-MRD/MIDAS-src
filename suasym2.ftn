@@ -93,7 +93,7 @@
             ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
             ZLEV   = obs_elem_r(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
-            ILEM   = obs_ifind(ITYP)
+            ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
             ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
             ZVAL = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
             ZFCST= obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER + ZVAL

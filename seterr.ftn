@@ -177,7 +177,7 @@ C
             ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
             IFLG   = obs_elem_i(lobsSpaceData,'FLG ',JDATA)
             IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
-            ILEM   = obs_ifind(ITYP)
+            ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
             ZVAL   = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
 C
             IF ( IASS .EQ. 1 .OR. CFAMTYP(IDATYP) .EQ. 'GP') THEN

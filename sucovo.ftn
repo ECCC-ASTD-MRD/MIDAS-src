@@ -143,18 +143,18 @@ C
 C*0.  DEFAULT VALUES
 C     ----------------
 C
-      ILEMGZ=obs_ifind ( BUFR_NEGZ )
-       ILEMU=obs_ifind ( BUFR_NEUU )
-       ILEMV=obs_ifind ( BUFR_NEVV )
-      ILEMTT=obs_ifind ( BUFR_NETT )
-      ILEMES=obs_ifind ( BUFR_NEES )
+      ILEMGZ=obs_get_obs_index_for_bufr_element ( BUFR_NEGZ )
+       ILEMU=obs_get_obs_index_for_bufr_element ( BUFR_NEUU )
+       ILEMV=obs_get_obs_index_for_bufr_element ( BUFR_NEVV )
+      ILEMTT=obs_get_obs_index_for_bufr_element ( BUFR_NETT )
+      ILEMES=obs_get_obs_index_for_bufr_element ( BUFR_NEES )
 C
-      ILEMUS=obs_ifind ( BUFR_NEUS )
-      ILEMVS=obs_ifind ( BUFR_NEVS )
-      ILEMTS=obs_ifind ( BUFR_NETS )
-      ILEMESS=obs_ifind( BUFR_NESS )
-      ILEMPS=obs_ifind ( BUFR_NEPS )
-      ILEMPN=obs_ifind ( BUFR_NEPN )
+      ILEMUS=obs_get_obs_index_for_bufr_element ( BUFR_NEUS )
+      ILEMVS=obs_get_obs_index_for_bufr_element ( BUFR_NEVS )
+      ILEMTS=obs_get_obs_index_for_bufr_element ( BUFR_NETS )
+      ILEMESS=obs_get_obs_index_for_bufr_element( BUFR_NESS )
+      ILEMPS=obs_get_obs_index_for_bufr_element ( BUFR_NEPS )
+      ILEMPN=obs_get_obs_index_for_bufr_element ( BUFR_NEPN )
 C
       DO JELM =1,OBS_JPNBRELEM
         DO JID  =1,JPIDBRP

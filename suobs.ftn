@@ -125,7 +125,7 @@ C     matrix-vector product done in matvec.
 c
       itotelem = 0
       do j = 1, nelems
-        jelem=obs_ifind(nlist(j))
+        jelem=obs_get_obs_index_for_bufr_element(nlist(j))
         if (jelem .ne. -1) then
           itotelem = itotelem + 1
           ielem = nlist(itotelem)
