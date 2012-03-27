@@ -242,10 +242,12 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         enddo ! jstep
       enddo ! jgrid
 
-      write(*,*) 'sugomobs: nobs for yin=',nobs(:,1)
-      write(*,*) 'sugomobs: nobs for yan=',nobs(:,2)
-      write(*,*) 'sugomobs: nobsgid for yin=',nobsgid(:,1)
-      write(*,*) 'sugomobs: nobsgid for yan=',nobsgid(:,2)
+      if(numgrids.eq.2) then
+        write(*,*) 'sugomobs: nobs for yin=',nobs(:,1)
+        write(*,*) 'sugomobs: nobs for yan=',nobs(:,2)
+        write(*,*) 'sugomobs: nobsgid for yin=',nobsgid(:,1)
+        write(*,*) 'sugomobs: nobsgid for yan=',nobsgid(:,2)
+      endif
 
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c     Finished code that replaces suobsgid and works for YIN-YAN

@@ -81,10 +81,12 @@
       END DO
 
 
-! ** find number of AIRS profiles (for memory allocation)
+! ** find number of AIRS profiles (for memory allocation) and set airs_end
+!    M. Buehner: take care of case when bunch*loopdone exactly equals total number of profiles
 
       NPRF = 0
       count_airs = 0
+      airs_end = .true.
 
       DO JF = 1, NFILES
         IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
@@ -98,6 +100,7 @@
               count_airs = count_airs + 1
               IF ( count_airs > airs_loop_done * airs_bunch .AND.  &
      &             count_airs <= (airs_loop_done+1) * airs_bunch ) NPRF = NPRF + 1
+              IF ( count_airs > (airs_loop_done+1) * airs_bunch ) airs_end = .false.
             END IF
           END DO
         END IF
@@ -298,6 +301,14 @@
                 END DO
 
                 KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
+!Test pour detecter le isatzen manquant ou anormal pour AIRS
+                if ( obs_elem_i(lobsSpaceData,'SZA ',JO) > 16500) then
+                   DO JC = 1, NCHN
+                      ICHN = ichan(JC,IDAIRS)
+                      REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                   ENDDO
+                endif
+!**************************************************************
                 CLFR(NOBAIRS) = profiles_qc(nobtov)%clfr
 
                 DO JL = 1, NLEV
@@ -322,8 +333,6 @@
         END IF
 
       END DO
-
-      IF ( NOBAIRS < airs_bunch ) airs_end = .true.
 
 
 ! ** find TOA radiances converted from observed BT's
@@ -671,7 +680,7 @@
 ! *** TEST # 11 ***
 ! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
 
-          IF ( AIRS_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+!          IF ( AIRS_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
 
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
 

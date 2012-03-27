@@ -106,10 +106,12 @@
       END DO
       
    
-! ** find number of IASI profiles (for memory allocation)
+! ** find number of IASI profiles (for memory allocation) and set iasi_end 
+!    M. Buehner: take care of case when bunch*loopdone exactly equals total number of profiles
 
       NPRF = 0
       count_iasi = 0
+      iasi_end = .true. ! set to false if at least 1 obs beyond this bunch
 
       DO JF = 1, NFILES
         IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
@@ -124,6 +126,7 @@
               count_iasi = count_iasi + 1
               IF ( count_iasi > iasi_loop_done * iasi_bunch .AND.  &
      &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) NPRF = NPRF + 1
+              IF ( count_iasi > (iasi_loop_done+1) * iasi_bunch ) iasi_end = .false.
             END IF
           END DO
         END IF
@@ -419,8 +422,16 @@
                   ENDIF
                 END DO
 
-                KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
 
+                KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
+!Test pour detecter le isatzen manquant ou anormal pour IASI
+                if ( obs_elem_i(lobsSpaceData,'SZA ',JO) > 16500) then
+                   DO JC = 1, NCHN
+                      ICHN = ichan(JC,IDIASI)
+                      REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                   ENDDO
+                endif
+!**************************************************************
                 DO JL = 1, NLEV
                   TOEXT(JL,NOBIASI) = profiles(nobtov)%t(jl)
                   ZHOEXT(JL,NOBIASI) = profiles_qc(nobtov)%z(jl)
@@ -445,8 +456,6 @@
         END IF
 
       END DO
-
-      IF ( NOBIASI < iasi_bunch ) iasi_end = .true.
 
 
 ! ** find TOA radiances converted from observed BT's
@@ -986,7 +995,7 @@
 ! *** TEST # 11 ***
 ! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
 
-          IF ( IASI_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+!          IF ( IASI_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
 
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
 

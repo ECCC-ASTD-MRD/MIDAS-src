@@ -180,7 +180,14 @@ module verticalCoord_mod
       return
     endif
 
-    tf_vco%dpt_M  = dl_ptM
+    if(ivcode.eq.5002) then
+      ! temporarily compute a single pressure roughly corresponding to top trial field level
+      ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
+      tf_vco%dpt_M  = exp( my_a(1) + my_b(1)*log(100000.0/dl_pref) )
+      write(*,*) 'vco_setupFromFile: computed ptot(MM)=',tf_vco%dpt_M
+    else
+      tf_vco%dpt_M  = dl_ptM
+    endif
     tf_vco%dprf_M = dl_pref
     tf_vco%drcf1  = dl_rcf1
     !
@@ -230,8 +237,7 @@ module verticalCoord_mod
     !==========================================================================
     ! Process thermodynamic levels 
 
-    ! not sure if these will ever be different for thermo levels
-    tf_vco%dpt_T  = tf_vco%dpt_M  ! dl_ptM
+    ! not sure if this will ever be different for thermo levels
     tf_vco%dprf_T = tf_vco%dprf_M ! dl_pref
 
     select case (ivcode)
@@ -239,6 +245,7 @@ module verticalCoord_mod
        ! For this case the parameters of the momentum levels 
        ! are copied to the thermodynamics levels
        !==========================================================================
+       tf_vco%dpt_T  = tf_vco%dpt_M
        do jlev = 1, tf_vco%nlev_M
           tf_vco%ip1_T(jlev)  = tf_vco%ip1_M(jlev)
           tf_vco%da_T(jlev)   = tf_vco%da_M(jlev)
@@ -290,6 +297,12 @@ module verticalCoord_mod
         tf_vco%da_dhyb_T(jlev)= tf_vco%dprf_T*(1.0d0 - tf_vco%db_dhyb_T(jlev))
 
       enddo
+
+      ! temporarily compute a single pressure roughly corresponding to top trial field level
+      ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
+      tf_vco%dpt_T  = exp( my_a(1) + my_b(1)*log(100000.0/dl_pref) )
+      write(*,*) 'vco_setupFromFile: computed ptot(TH)=',tf_vco%dpt_T
+
     end select
     print*,'vco: dbug: tf_vco%nlev_T = ',tf_vco%nlev_T
 

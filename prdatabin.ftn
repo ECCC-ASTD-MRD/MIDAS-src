@@ -24,7 +24,7 @@
       integer, allocatable, dimension(:,:) :: idataass,inumheader
       integer, parameter :: nfamily=9
       character*2 :: familylist(nfamily)
-      character*128 :: formatspec,formatspec2
+      character*256 :: formatspec,formatspec2
       real*8 :: stepObsIndex
 
       allocate(idataass(nfamily,nStepObs+1))
