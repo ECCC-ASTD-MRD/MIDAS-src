@@ -1,4 +1,7 @@
 ! ObsSpaceData_mod:  the module, ObsSpaceData_mod, follows IndexListDepot_mod
+
+           ! VAR3D - 3-dimensional variational assimilation
+#define      VAR3D
 #include "compileswitches.inc"
 
 MODULE IndexListDepot_mod
