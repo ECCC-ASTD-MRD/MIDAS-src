@@ -22,7 +22,7 @@ MODULE IndexListDepot_mod
 
                                         ! This dimension must accommodate the
                                         ! maximum number of OMP processors 
-  integer, parameter :: NUMBER_OF_LISTS = 16
+  integer, parameter :: NUMBER_OF_LISTS = 32
 
   type struct_index_list
     ! a list of integers, not to say indices into a struct_obs
@@ -239,6 +239,7 @@ MODULE obsSpaceData_mod
    integer :: numbody                   ! Actual total number of data on record
    integer :: numbody_max               ! maximum number observations (i.e. data)
    integer :: numheader_mpiglobal       ! Actual number of stations on record
+   integer :: numbody_mpiglobal         ! Actual total number of data on record
 
                                         ! Headers of the mpi-Global obs data
    integer,            pointer, dimension(:,:) :: mobhdr_g
@@ -381,6 +382,7 @@ MODULE obsSpaceData_mod
     obsdat%numheader = 0
     obsdat%numbody  = 0
     obsdat%numheader_mpiglobal = 0
+    obsdat%numbody_mpiglobal = 0
     obsdat%mpi_local = .false.
 
     nullify(obsdat%mobhdr_g)
@@ -1904,7 +1906,7 @@ MODULE obsSpaceData_mod
 
   call obs_getobstag(obsdat)
 
-  write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody
+  write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody,obsdat%numbody_mpiglobal
 
   if(obsdat%mpi_local .eqv. .true.)then
     write(*,*)'ERROR: obs_reduceToMpiLocal() has been called,'
@@ -1933,6 +1935,7 @@ MODULE obsSpaceData_mod
   call obs_allocateG(obsdat,obsdat%numheader)
 !
   obsdat%numheader_mpiglobal=obsdat%numheader
+  obsdat%numbody_mpiglobal=obsdat%numbody
 
 !! keep the Global ROBHDR and MOBHDR
   DO iobs=1,obsdat%numheader_mpiglobal
@@ -2019,7 +2022,7 @@ MODULE obsSpaceData_mod
     WRITE(*,*) 'J NBEGINTYP(j) NENDTYP(j)= ',J,NBEGINTYP(j), NENDTYP(j),ifamid
   ENDDO  
   
-  write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody
+  write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody,obsdat%numbody_mpiglobal
   WRITE(*,*) '============= Leave obs_reduceToMpiLocal =============='
 
   RETURN
@@ -2133,6 +2136,8 @@ MODULE obsSpaceData_mod
   obsdat%MOBHDR=MOBHDR_tmp
   obsdat%ROBDATA=ROBDATA_tmp
   obsdat%MOBDATA=MOBDATA_tmp
+  obsdat%numbody=obsdat%numbody_mpiglobal
+  obsdat%numheader=obsdat%numheader_mpiglobal
 
   DEALLOCATE(cstnid_tmp)
   DEALLOCATE(ROBHDR_tmp)

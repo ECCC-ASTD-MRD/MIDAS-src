@@ -192,8 +192,9 @@ CONTAINS
 !      endif
 !      vatr1(:)=0.0d0
       allocate(vatra(nmtra),stat=ierr)
-      if(ierr.ne.0) then
+      if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
+        write(*,*) 'minimization: nmtra=',nmtra
         call flush(6)
       endif
       vatra(:)=0.0d0
@@ -427,6 +428,7 @@ CONTAINS
           call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,dataptr_int(1))
         else
           llstop = .true.
+          call abort3d(nulout," MINIMIZATION_MOD: n1qn3 mode ne 4")
         endif
       endif
 

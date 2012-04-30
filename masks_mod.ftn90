@@ -99,7 +99,8 @@ module masks_mod
 
   !restore Global Masks. 
 !!  IF(NCONF == 141) CALL restoreMasks(lobsSpaceData) 
-  IF(mpi_nprocs.gt.1) CALL restoreMasks(lobsSpaceData) 
+!!  IF(mpi_nprocs.gt.1) CALL restoreMasks(lobsSpaceData) 
+  CALL restoreMasks(lobsSpaceData) 
 
   end subroutine oda_mask
 
@@ -582,7 +583,7 @@ end subroutine oda_maskto
            lmask_g(j)=lmask_l(ii)
          ENDDO
        ENDDO  
-       CALL rpn_comm_allreduce(lmask_g,lmask_g,kdata_g,"MPI_LOGICAL","MPI_LOR","GRID",ierr )
+       IF(mpi_nprocs.gt.1) CALL rpn_comm_allreduce(lmask_g,lmask_g,kdata_g,"MPI_LOGICAL","MPI_LOR","GRID",ierr )
       END SUBROUTINE restore_mask
   !
 end module masks_mod
