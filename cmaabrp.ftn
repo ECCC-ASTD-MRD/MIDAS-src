@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,KLIST,CLIST,KNVALS,
+      SUBROUTINE CMAABRP(CDTYPE,LDAPPEND,KFILE,KNRECS,CLIST,KNVALS,
      +                   lcolumng,lobsSpaceData)
 #if defined (DOC)
 *
@@ -99,11 +99,8 @@
 *                                  .FALSE.->  START NEW CMC FILE
 *                       -KFILE   : LOGICAL UNIT NUMBER OF BURP DATA FILE
 *                       -KNRECS  : NUMBERY OF RECORDS IN BURP FILE
-*                       -KLIST   : LIST OF INDICES  POINTING
-*                                   TO VALUES TO BE EXTRACED FROM
-*                                  CMA ( 1 ---> OBS ERROR , 2 ---> O-A )
-*                       -CLIST   : CHARACTER EQUIVALENT OF KLIST
-*                       -KNVALS  : NUMBER OF VALUES IN KLIST
+*                       -CLIST   :LIST OF STRUCT_OBS COLUMN LABELS TO BE EXTRACED
+*                       -KNVALS  : NUMBER OF VALUES IN CLIST
 *
 *                OUTPUT: NONE
 *
@@ -124,8 +121,8 @@
 *
       type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
-      INTEGER KNVALS,IVAL,jji,ITYPDATA
-      INTEGER KFILE,KNRECS,KLIST(KNVALS)
+      INTEGER KNVALS,jji,ITYPDATA
+      INTEGER KFILE,KNRECS
       INTEGER IIND,IPOS,ILPOS,inelefd,ideb
       INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF
       INTEGER, save :: NUMHEADER=0
@@ -506,8 +503,7 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
               IPOSB=0
               ILPOSB=0
               ICOUNT=0
-              IVAL=KLIST(JJEL)
-              CVAL=CLIST(JJEL) // ' '
+              CVAL=CLIST(JJEL)
 *
 ** initialize zvalp array to original zval data array
 *
@@ -586,7 +582,7 @@ C                     *** save starting address of 3d block *****
                        ENDIF
                        CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
-     +                    NVCORD,ZPROF,J3D,IVAL,cval,ppmis,
+     +                    NVCORD,ZPROF,J3D,cval,ppmis,
      +                    obs_posn+obs_thisblock,lobsSpaceData)
                        obs_thisblock=obs_thisblock+ind
 *
@@ -603,7 +599,7 @@ C                     *** save starting address of 3d block *****
 *-----------------------------------------------------------------------
 *
                        CALL FLAGHU(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
-     &                             INELE,INVAL,I3D,J3D,IVAL)
+     &                             INELE,INVAL,I3D,J3D,CVAL)
 *
                        IF ( CDTYPE .EQ. 'ST' ) THEN
                           CALL PUTELE(7193,J3D,ILIST(ILPOS),ZVALP(IPOS),
@@ -614,7 +610,7 @@ C                     *** save starting address of 3d block *****
                        IF (CDTYPE .EQ. 'MI') THEN
                         CALL GETCMA(ZVALP(IPOS),ILIST(ILPOS),IMARK(IPOS),
      +                    LLMA,ZEXTRA,LLERROR,LLSAT,INELE,INVAL,I3D,IND,
-     +                    -1,ZPROF,J3D,IVAL,cval,ppmis,
+     +                    -1,ZPROF,J3D,cval,ppmis,
      +                    obs_posn+obs_thisblock,lobsSpaceData)
                         obs_thisblock=obs_thisblock+ind
                        ENDIF
@@ -676,17 +672,17 @@ C                     ---------------
                        ELSE
                        ENDIF
 C
-                       IF ( IVAL .EQ. NCM_OER) THEN
+                       IF ( trim(CVAL) .EQ. 'OER') THEN
 C                     OBSERVATION ERRORS BLOCK
 C                     ------------------------
                          IBKSTP=14
                          IBFAM=10
-                       ELSE IF ( IVAL .EQ. NCM_FGE) THEN
+                       ELSE IF ( trim(CVAL) .EQ. 'FGE') THEN
 C                     FORECAST ERRORS
 C                     ------------------------
                          IBKSTP=15
                          IBFAM=10
-                       ELSE IF ( IVAL .EQ. NCM_OMF) THEN
+                       ELSE IF ( trim(CVAL) .EQ. 'OMF') THEN
 C                     RESIDUALS BLOCK
 C                     ------------------------
                          IBKSTP=10
@@ -696,12 +692,12 @@ C                     ------------------------
      +                       LRTNADIR              ) THEN
                             IBFAM=32
                          ENDIF
-                       ELSE IF ( IVAL .EQ. NCM_VAR) THEN
+                       ELSE IF ( trim(CVAL) .EQ. 'VAR') THEN
 C                     DATA BLOCK SEEN BY 3D-VAR
 C                     ------------------------
 cpik                     IBKSTP=0
                          IBFAM=0
-                       ELSE IF ( IVAL .EQ. NCM_OMA) THEN
+                       ELSE IF ( trim(CVAL) .EQ. 'OMA') THEN
 C                     ANALYSIS INCREMENT BLOCK
 C                     ------------------------
                          IBKSTP=10
@@ -720,7 +716,7 @@ C
                        INBITMA=16
                        IBTYPB = IBTYP
                        IF ( (.NOT.LLGROUP) .AND. (IND .GT. 0) ) THEN
-                       IF (  IVAL .EQ. NCM_VAR) THEN
+                       IF (  trim(CVAL) .EQ. 'VAR') THEN
                           IER=MRBDEL(IBUF,IBKNMA)
                           IER=MRBDEL(IBUF,IBKNO)
                           IER=MRBADD(IBUF,IBKNOUT,INELE,INVAL,I3D,IBFAM,
@@ -781,7 +777,7 @@ C
     3 CONTINUE
       IF ( LLGOOD  ) THEN
          IF (LLGROUP ) THEN
-            IF(  IVAL .EQ. NCM_VAR) THEN
+            IF(  trim(CVAL) .EQ. 'VAR') THEN
                IER=MRBDEL(IBUF,IBKNMA)
                IER=MRBDEL(IBUF,IBKNO)
                IER=MRBADD(IBUF,IBKNOUT,INELE,INVAL,I3D,IBFAM,IBDESC

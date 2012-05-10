@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
   SUBROUTINE getcma(PVALUES,KLIST,KFLAGS,LDFLAG,PROFIL,LDERR,LDSAT, &
-             KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,KRVAL,crval,ppmis,ip,lobsSpaceData)
+             KELE,KVAL,KNT,KNDAT,KVCORD,PVCORD,KINDEX,crval,ppmis,ip,lobsSpaceData)
     use EarthConstants_mod
     use MathPhysConstants_mod
     use bufr
@@ -24,10 +24,10 @@
 !
     type(struct_obs) :: lobsSpaceData
     INTEGER, intent(out) :: KNDAT
-    INTEGER, intent(in) :: KELE,KVAL,KNT,KVCORD,KINDEX,KRVAL,ip
+    INTEGER, intent(in) :: KELE,KVAL,KNT,KVCORD,KINDEX,ip
     INTEGER, intent(in) :: KLIST(KELE)
     INTEGER, intent(inout) :: KFLAGS(KELE,KVAL,KNT)
-    character(len=*), intent(in) :: crval  ! character equivalent of krval
+    character(len=*), intent(in) :: crval
 !
     REAL(kind=8), intent(inout) :: PVALUES(KELE,KVAL,KNT),PROFIL(KVAL)
     REAL(kind=8), intent(in) :: PVCORD(KVAL),ppmis
@@ -72,8 +72,7 @@
 !           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
 !           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
 !           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
-!           -KRVAL   :  INDEX OF ELEMENT IN CMA LIST
-!                          ( 1 ---> OBS ERROR , 2 ---> O-A )
+!           -CRVAL   :  LABEL OF STRUCT_OBS COLUMN
 !           -PPMIS   :  VALUE OF MISSING DATA
 !           -IP      :  STARTING INDEX FOR THIS PASS
 !
@@ -105,7 +104,9 @@
 !     DATA IS CONVERTED TO UNITS USED BY 3D-VAR ANALYSIS.
 !***********************************************************************
 !
-       LLOMAFI=(KRVAL .EQ. NCM_OMF) .OR. (KRVAL .EQ. NCM_OMA) .OR. (KRVAL .EQ. NCM_OMI)
+       LLOMAFI=      (trim(CRVAL) .EQ. 'OMF') &
+                .OR. (trim(CRVAL) .EQ. 'OMA') &
+                .OR. (trim(CRVAL) .EQ. 'OMI')
        IK= KINDEX
        IF (LLOMAFI) THEN
           DO JI=1,KELE
@@ -127,7 +128,7 @@
                           ZSTAT= obs_elem_r(lobsSpaceData,CRVAL, IP+IND)
                           IFLG=  obs_elem_i(lobsSpaceData,'FLG ',IP+IND)
 !
-                          IF ( KRVAL .EQ. NCM_OMF .OR. KRVAL .EQ. NCM_OMA) THEN
+                          IF(trim(CRVAL) == 'OMF' .OR. trim(CRVAL) == 'OMA') THEN
                             if (obs_elem_i(lobsSpaceData,'ASS ',IP+IND) .EQ. 1    .OR. &
                               (obs_elem_i(lobsSpaceData,'VNM ',IP+IND) .EQ. BUFR_NEHU .and. &
                                                 ZSTAT .NE. PPMIS) .OR. &

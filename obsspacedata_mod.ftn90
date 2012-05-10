@@ -252,21 +252,6 @@ MODULE obsSpaceData_mod
   ! observation-space fundamental parameters
   public           :: OBS_JPNBRELEM
 
-  ! (should be private, but must be public to allow access from obs_mpi_mod)
-  ! header column numbers
-  public           :: NCM_RLN, NCM_ONM, NCM_INS, NCM_OTP, NCM_ITY, NCM_SAT, NCM_TEC,  &
-                      NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_ALT,  &
-                      NCM_NLV, NCM_OFL, NCM_ST1, NCM_TLA, NCM_AZA, NCM_SZA,  &
-                      NCM_SUN, NCM_CLF, NCM_REG, NCM_PAS, NCM_IP,  NCM_BX,   &
-                      NCM_BY,  NCM_BZ
-
-  ! body column numbers
-  public           :: NCM_VNM, NCM_PPP, NCM_PRL, NCM_POB, NCM_VAR,  &
-                      NCM_OMF, NCM_OMA, NCM_OMI, NCM_OMN, NCM_OER,  &
-                      NCM_FGE, NCM_FLG, NCM_LYR, NCM_ASS,  &
-                      NCM_XTR, NCM_OBS,NCM_VCO, NCM_PRM, NCM_KFA,  &
-                      NCM_ZHA, NCM_HPHT,NCM_OMP
-
   ! column dimensions
   public           :: NHDR_INT, NHDR_REAL, NBDY_INT, NBDY_REAL
 
@@ -311,8 +296,7 @@ MODULE obsSpaceData_mod
   public :: struct_obs
 
   type struct_obs
-   ! (should be private, but must be public to allow accessfrom obs_mpi_mod)
-!  private
+   private
    type(struct_index_list_depot) :: header_index_list_depot
    type(struct_index_list_depot) :: body_index_list_depot
    character(len=9),   pointer, dimension(:)   :: cstnid
@@ -1315,16 +1299,16 @@ MODULE obsSpaceData_mod
   implicit none
   real(kind=OBS_REAL) value
   type(struct_obs), intent(in)  :: obsdat
-  character(len=4), intent(in)  :: name
+  character(len=*), intent(in)  :: name
   integer         , intent(in)  :: index
 
-  select case (name(1:4))
-  case ('LAT '); value=obsdat%robhdr_g(NCM_LAT, index)
-  case ('LON '); value=obsdat%robhdr_g(NCM_LON, index)
-  case ('ALT '); value=obsdat%robhdr_g(NCM_ALT, index)
-  case ('BX  '); value=obsdat%robhdr_g(NCM_BX , index)
-  case ('BY  '); value=obsdat%robhdr_g(NCM_BY , index)
-  case ('BZ  '); value=obsdat%robhdr_g(NCM_BZ , index)
+  select case (trim(name))
+  case ('LAT');  value=obsdat%robhdr_g(NCM_LAT, index)
+  case ('LON');  value=obsdat%robhdr_g(NCM_LON, index)
+  case ('ALT');  value=obsdat%robhdr_g(NCM_ALT, index)
+  case ('BX');   value=obsdat%robhdr_g(NCM_BX , index)
+  case ('BY');   value=obsdat%robhdr_g(NCM_BY , index)
+  case ('BZ');   value=obsdat%robhdr_g(NCM_BZ , index)
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not available in the mpi-global context."
@@ -1344,32 +1328,32 @@ MODULE obsSpaceData_mod
   implicit none
   real(kind=OBS_REAL) :: value
   type(struct_obs), intent(in)  :: obsdat
-  character(len=4), intent(in)  :: name
+  character(len=*), intent(in)  :: name
   integer         , intent(in)  :: index
 
-  select case (name(1:4))
-  case ('LAT '); value=obsdat%robhdr(NCM_LAT, index)
-  case ('LON '); value=obsdat%robhdr(NCM_LON, index)
-  case ('ALT '); value=obsdat%robhdr(NCM_ALT, index)
-  case ('BX  '); value=obsdat%robhdr(NCM_BX , index)
-  case ('BY  '); value=obsdat%robhdr(NCM_BY , index)
-  case ('BZ  '); value=obsdat%robhdr(NCM_BZ , index)
+  select case (trim(name))
+  case ('LAT');  value=obsdat%robhdr(NCM_LAT, index)
+  case ('LON');  value=obsdat%robhdr(NCM_LON, index)
+  case ('ALT');  value=obsdat%robhdr(NCM_ALT, index)
+  case ('BX');   value=obsdat%robhdr(NCM_BX , index)
+  case ('BY');   value=obsdat%robhdr(NCM_BY , index)
+  case ('BZ');   value=obsdat%robhdr(NCM_BZ , index)
 
-  case ('PPP '); value=obsdat%robdata(NCM_PPP, index)
-  case ('PRL '); value=obsdat%robdata(NCM_PRL, index)
-  case ('POB '); value=obsdat%robdata(NCM_POB, index)
-  case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
-  case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
-  case ('OMP '); value=obsdat%robdata(NCM_OMP, index)
+  case ('PPP');  value=obsdat%robdata(NCM_PPP, index)
+  case ('PRL');  value=obsdat%robdata(NCM_PRL, index)
+  case ('POB');  value=obsdat%robdata(NCM_POB, index)
+  case ('VAR');  value=obsdat%robdata(NCM_VAR, index)
+  case ('OMF');  value=obsdat%robdata(NCM_OMF, index)
+  case ('OMP');  value=obsdat%robdata(NCM_OMP, index)
   case ('OMP6'); value=obsdat%robdata(NCM_OMP6,index)
-  case ('OMA '); value=obsdat%robdata(NCM_OMA, index)
-  case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
-  case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
-  case ('OER '); value=obsdat%robdata(NCM_OER, index)
+  case ('OMA');  value=obsdat%robdata(NCM_OMA, index)
+  case ('OMI');  value=obsdat%robdata(NCM_OMI, index)
+  case ('OMN');  value=obsdat%robdata(NCM_OMN, index)
+  case ('OER');  value=obsdat%robdata(NCM_OER, index)
   case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
-  case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
-  case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
-  case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
+  case ('ZHA');  value=obsdat%robdata(NCM_ZHA, index)
+  case ('FGE');  value=obsdat%robdata(NCM_FGE, index)
+  case ('PRM');  value=obsdat%robdata(NCM_PRM, index)
 
   case default
    write(*,*)"ERROR:  ", name(1:4), " is not a real(",OBS_REAL,") observation."
@@ -1389,41 +1373,41 @@ MODULE obsSpaceData_mod
   implicit none
   integer value
   type(struct_obs), intent(in)  :: obsdat
-  character(len=4), intent(in)  :: name
+  character(len=*), intent(in)  :: name
   integer         , intent(in)  :: index
 
-  select case (name(1:4))
-  case ('RLN '); value=obsdat%mobhdr(NCM_RLN, index)
-  case ('ONM '); value=obsdat%mobhdr(NCM_ONM, index)
-  case ('BOX '); value=obsdat%mobhdr(NCM_BOX, index)
-  case ('INS '); value=obsdat%mobhdr(NCM_INS, index)
-  case ('OTP '); value=obsdat%mobhdr(NCM_OTP, index)
-  case ('ITY '); value=obsdat%mobhdr(NCM_ITY, index)
-  case ('SAT '); value=obsdat%mobhdr(NCM_SAT, index)
-  case ('TEC '); value=obsdat%mobhdr(NCM_TEC, index)
-  case ('DAT '); value=obsdat%mobhdr(NCM_DAT, index)
-  case ('ETM '); value=obsdat%mobhdr(NCM_ETM, index)
-  case ('NLV '); value=obsdat%mobhdr(NCM_NLV, index)
-  case ('OFL '); value=obsdat%mobhdr(NCM_OFL, index)
-  case ('PAS '); value=obsdat%mobhdr(NCM_PAS, index)
-  case ('REG '); value=obsdat%mobhdr(NCM_REG, index)
-  case ('IP  '); value=obsdat%mobhdr(NCM_IP , index)
-  case ('AZA '); value=obsdat%mobhdr(NCM_AZA, index)
-  case ('SZA '); value=obsdat%mobhdr(NCM_SZA, index)
-  case ('SUN '); value=obsdat%mobhdr(NCM_SUN, index)
-  case ('CLF '); value=obsdat%mobhdr(NCM_CLF, index)
-  case ('ST1 '); value=obsdat%mobhdr(NCM_ST1, index)
-  case ('TLA '); value=obsdat%mobhdr(NCM_TLA, index)
-  case ('GHI '); value=obsdat%locObsTag(index)
+  select case (trim(name))
+  case ('RLN');  value=obsdat%mobhdr(NCM_RLN, index)
+  case ('ONM');  value=obsdat%mobhdr(NCM_ONM, index)
+  case ('BOX');  value=obsdat%mobhdr(NCM_BOX, index)
+  case ('INS');  value=obsdat%mobhdr(NCM_INS, index)
+  case ('OTP');  value=obsdat%mobhdr(NCM_OTP, index)
+  case ('ITY');  value=obsdat%mobhdr(NCM_ITY, index)
+  case ('SAT');  value=obsdat%mobhdr(NCM_SAT, index)
+  case ('TEC');  value=obsdat%mobhdr(NCM_TEC, index)
+  case ('DAT');  value=obsdat%mobhdr(NCM_DAT, index)
+  case ('ETM');  value=obsdat%mobhdr(NCM_ETM, index)
+  case ('NLV');  value=obsdat%mobhdr(NCM_NLV, index)
+  case ('OFL');  value=obsdat%mobhdr(NCM_OFL, index)
+  case ('PAS');  value=obsdat%mobhdr(NCM_PAS, index)
+  case ('REG');  value=obsdat%mobhdr(NCM_REG, index)
+  case ('IP');   value=obsdat%mobhdr(NCM_IP , index)
+  case ('AZA');  value=obsdat%mobhdr(NCM_AZA, index)
+  case ('SZA');  value=obsdat%mobhdr(NCM_SZA, index)
+  case ('SUN');  value=obsdat%mobhdr(NCM_SUN, index)
+  case ('CLF');  value=obsdat%mobhdr(NCM_CLF, index)
+  case ('ST1');  value=obsdat%mobhdr(NCM_ST1, index)
+  case ('TLA');  value=obsdat%mobhdr(NCM_TLA, index)
+  case ('GHI');  value=obsdat%locObsTag(index)
 
-  case ('VNM '); value=obsdat%mobdata(NCM_VNM, index)
-  case ('FLG '); value=obsdat%mobdata(NCM_FLG, index)
-  case ('KFA '); value=obsdat%mobdata(NCM_KFA, index)
-  case ('ASS '); value=obsdat%mobdata(NCM_ASS, index)
-  case ('OBS '); value=obsdat%mobdata(NCM_OBS, index)
-  case ('VCO '); value=obsdat%mobdata(NCM_VCO, index)
-  case ('XTR '); value=obsdat%mobdata(NCM_XTR, index)
-  case ('LYR '); value=obsdat%mobdata(NCM_LYR, index)
+  case ('VNM');  value=obsdat%mobdata(NCM_VNM, index)
+  case ('FLG');  value=obsdat%mobdata(NCM_FLG, index)
+  case ('KFA');  value=obsdat%mobdata(NCM_KFA, index)
+  case ('ASS');  value=obsdat%mobdata(NCM_ASS, index)
+  case ('OBS');  value=obsdat%mobdata(NCM_OBS, index)
+  case ('VCO');  value=obsdat%mobdata(NCM_VCO, index)
+  case ('XTR');  value=obsdat%mobdata(NCM_XTR, index)
+  case ('LYR');  value=obsdat%mobdata(NCM_LYR, index)
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not an integer observation."
@@ -1437,30 +1421,30 @@ MODULE obsSpaceData_mod
   implicit none
   integer value
   type(struct_obs), intent(in)  :: obsdat
-  character(len=4), intent(in)  :: name
+  character(len=*), intent(in)  :: name
   integer         , intent(in)  :: index
 
   select case (name(1:4))
-  case ('RLN '); value=obsdat%mobhdr_g(NCM_RLN, index)
-  case ('ONM '); value=obsdat%mobhdr_g(NCM_ONM, index)
-  case ('INS '); value=obsdat%mobhdr_g(NCM_INS, index)
-  case ('OTP '); value=obsdat%mobhdr_g(NCM_OTP, index)
-  case ('ITY '); value=obsdat%mobhdr_g(NCM_ITY, index)
-  case ('SAT '); value=obsdat%mobhdr_g(NCM_SAT, index)
-  case ('TEC '); value=obsdat%mobhdr_g(NCM_TEC, index)
-  case ('DAT '); value=obsdat%mobhdr_g(NCM_DAT, index)
-  case ('ETM '); value=obsdat%mobhdr_g(NCM_ETM, index)
-  case ('NLV '); value=obsdat%mobhdr_g(NCM_NLV, index)
-  case ('OFL '); value=obsdat%mobhdr_g(NCM_OFL, index)
-  case ('PAS '); value=obsdat%mobhdr_g(NCM_PAS, index)
-  case ('REG '); value=obsdat%mobhdr_g(NCM_REG, index)
-  case ('IP  '); value=obsdat%mobhdr_g(NCM_IP , index)
-  case ('AZA '); value=obsdat%mobhdr_g(NCM_AZA, index)
-  case ('SZA '); value=obsdat%mobhdr_g(NCM_SZA, index)
-  case ('SUN '); value=obsdat%mobhdr_g(NCM_SUN, index)
-  case ('CLF '); value=obsdat%mobhdr_g(NCM_CLF, index)
-  case ('ST1 '); value=obsdat%mobhdr_g(NCM_ST1, index)
-  case ('TLA '); value=obsdat%mobhdr_g(NCM_TLA, index)
+  case ('RLN');  value=obsdat%mobhdr_g(NCM_RLN, index)
+  case ('ONM');  value=obsdat%mobhdr_g(NCM_ONM, index)
+  case ('INS');  value=obsdat%mobhdr_g(NCM_INS, index)
+  case ('OTP');  value=obsdat%mobhdr_g(NCM_OTP, index)
+  case ('ITY');  value=obsdat%mobhdr_g(NCM_ITY, index)
+  case ('SAT');  value=obsdat%mobhdr_g(NCM_SAT, index)
+  case ('TEC');  value=obsdat%mobhdr_g(NCM_TEC, index)
+  case ('DAT');  value=obsdat%mobhdr_g(NCM_DAT, index)
+  case ('ETM');  value=obsdat%mobhdr_g(NCM_ETM, index)
+  case ('NLV');  value=obsdat%mobhdr_g(NCM_NLV, index)
+  case ('OFL');  value=obsdat%mobhdr_g(NCM_OFL, index)
+  case ('PAS');  value=obsdat%mobhdr_g(NCM_PAS, index)
+  case ('REG');  value=obsdat%mobhdr_g(NCM_REG, index)
+  case ('IP');   value=obsdat%mobhdr_g(NCM_IP , index)
+  case ('AZA');  value=obsdat%mobhdr_g(NCM_AZA, index)
+  case ('SZA');  value=obsdat%mobhdr_g(NCM_SZA, index)
+  case ('SUN');  value=obsdat%mobhdr_g(NCM_SUN, index)
+  case ('CLF');  value=obsdat%mobhdr_g(NCM_CLF, index)
+  case ('ST1');  value=obsdat%mobhdr_g(NCM_ST1, index)
+  case ('TLA');  value=obsdat%mobhdr_g(NCM_TLA, index)
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not available in the mpi-global context."
@@ -1474,10 +1458,10 @@ MODULE obsSpaceData_mod
 
   character(len=9) :: value
   type(struct_obs), intent(in)  :: obsdat
-  character(len=4), intent(in)  :: name
+  character(len=*), intent(in)  :: name
   integer         , intent(in)  :: index
 
-  select case (name(1:4))
+  select case (trim(name))
   case ('STID'); value=obsdat%cstnid(index)
 
   case default
@@ -2021,43 +2005,43 @@ MODULE obsSpaceData_mod
 !
   implicit none
   type(struct_obs), intent(inout)  :: obsdat
-  character(len=4), intent(in)     :: name
+  character(len=*), intent(in)     :: name
   integer         , intent(in)     :: index
   integer         , intent(in)     :: value
 
-  select case (name(1:4))
+  select case (trim(name))
   ! integer header values
-  case ('RLN '); obsdat%mobhdr (NCM_RLN, index) = value
-  case ('ONM '); obsdat%mobhdr (NCM_ONM, index) = value
-  case ('BOX '); obsdat%mobhdr (NCM_BOX, index) = value
-  case ('INS '); obsdat%mobhdr (NCM_INS, index) = value
-  case ('OTP '); obsdat%mobhdr (NCM_OTP, index) = value
-  case ('ITY '); obsdat%mobhdr (NCM_ITY, index) = value
-  case ('SAT '); obsdat%mobhdr (NCM_SAT, index) = value
-  case ('TEC '); obsdat%mobhdr (NCM_TEC, index) = value
-  case ('DAT '); obsdat%mobhdr (NCM_DAT, index) = value
-  case ('ETM '); obsdat%mobhdr (NCM_ETM, index) = value
-  case ('NLV '); obsdat%mobhdr (NCM_NLV, index) = value
-  case ('OFL '); obsdat%mobhdr (NCM_OFL, index) = value
-  case ('PAS '); obsdat%mobhdr (NCM_PAS, index) = value
-  case ('REG '); obsdat%mobhdr (NCM_REG, index) = value
-  case ('IP  '); obsdat%mobhdr (NCM_IP , index) = value
-  case ('AZA '); obsdat%mobhdr (NCM_AZA, index) = value
-  case ('SZA '); obsdat%mobhdr (NCM_SZA, index) = value
-  case ('SUN '); obsdat%mobhdr (NCM_SUN, index) = value
-  case ('CLF '); obsdat%mobhdr (NCM_CLF, index) = value
-  case ('ST1 '); obsdat%mobhdr (NCM_ST1, index) = value
-  case ('TLA '); obsdat%mobhdr (NCM_TLA, index) = value
+  case ('RLN');  obsdat%mobhdr (NCM_RLN, index) = value
+  case ('ONM');  obsdat%mobhdr (NCM_ONM, index) = value
+  case ('BOX');  obsdat%mobhdr (NCM_BOX, index) = value
+  case ('INS');  obsdat%mobhdr (NCM_INS, index) = value
+  case ('OTP');  obsdat%mobhdr (NCM_OTP, index) = value
+  case ('ITY');  obsdat%mobhdr (NCM_ITY, index) = value
+  case ('SAT');  obsdat%mobhdr (NCM_SAT, index) = value
+  case ('TEC');  obsdat%mobhdr (NCM_TEC, index) = value
+  case ('DAT');  obsdat%mobhdr (NCM_DAT, index) = value
+  case ('ETM');  obsdat%mobhdr (NCM_ETM, index) = value
+  case ('NLV');  obsdat%mobhdr (NCM_NLV, index) = value
+  case ('OFL');  obsdat%mobhdr (NCM_OFL, index) = value
+  case ('PAS');  obsdat%mobhdr (NCM_PAS, index) = value
+  case ('REG');  obsdat%mobhdr (NCM_REG, index) = value
+  case ('IP');   obsdat%mobhdr (NCM_IP , index) = value
+  case ('AZA');  obsdat%mobhdr (NCM_AZA, index) = value
+  case ('SZA');  obsdat%mobhdr (NCM_SZA, index) = value
+  case ('SUN');  obsdat%mobhdr (NCM_SUN, index) = value
+  case ('CLF');  obsdat%mobhdr (NCM_CLF, index) = value
+  case ('ST1');  obsdat%mobhdr (NCM_ST1, index) = value
+  case ('TLA');  obsdat%mobhdr (NCM_TLA, index) = value
 
   ! integer body values
-  case ('VNM '); obsdat%mobdata(NCM_VNM, index) = value
-  case ('FLG '); obsdat%mobdata(NCM_FLG, index) = value
-  case ('KFA '); obsdat%mobdata(NCM_KFA, index) = value
-  case ('ASS '); obsdat%mobdata(NCM_ASS, index) = value
-  case ('OBS '); obsdat%mobdata(NCM_OBS, index) = value
-  case ('VCO '); obsdat%mobdata(NCM_VCO, index) = value
-  case ('LYR '); obsdat%mobdata(NCM_LYR, index) = value
-  case ('XTR '); obsdat%mobdata(NCM_XTR, index) = value
+  case ('VNM');  obsdat%mobdata(NCM_VNM, index) = value
+  case ('FLG');  obsdat%mobdata(NCM_FLG, index) = value
+  case ('KFA');  obsdat%mobdata(NCM_KFA, index) = value
+  case ('ASS');  obsdat%mobdata(NCM_ASS, index) = value
+  case ('OBS');  obsdat%mobdata(NCM_OBS, index) = value
+  case ('VCO');  obsdat%mobdata(NCM_VCO, index) = value
+  case ('LYR');  obsdat%mobdata(NCM_LYR, index) = value
+  case ('XTR');  obsdat%mobdata(NCM_XTR, index) = value
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not an integer observation."
@@ -2076,35 +2060,35 @@ MODULE obsSpaceData_mod
 !
   implicit none
   type(struct_obs), intent(inout)  :: obsdat
-  character(len=4), intent(in)     :: name
+  character(len=*), intent(in)     :: name
   integer         , intent(in)     :: index
   real(kind=OBS_REAL), intent(in)  :: value
 
-  select case (name(1:4))
+  select case (trim(name))
   ! real header values
-  case ('LAT '); obsdat%robhdr (NCM_LAT, index) = value
-  case ('LON '); obsdat%robhdr (NCM_LON, index) = value
-  case ('ALT '); obsdat%robhdr (NCM_ALT, index) = value
-  case ('BX  '); obsdat%robhdr (NCM_BX , index) = value
-  case ('BY  '); obsdat%robhdr (NCM_BY , index) = value
-  case ('BZ  '); obsdat%robhdr (NCM_BZ , index) = value
+  case ('LAT');  obsdat%robhdr (NCM_LAT, index) = value
+  case ('LON');  obsdat%robhdr (NCM_LON, index) = value
+  case ('ALT');  obsdat%robhdr (NCM_ALT, index) = value
+  case ('BX');   obsdat%robhdr (NCM_BX , index) = value
+  case ('BY');   obsdat%robhdr (NCM_BY , index) = value
+  case ('BZ');   obsdat%robhdr (NCM_BZ , index) = value
 
   ! real body values
-  case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
-  case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
-  case ('POB '); obsdat%robdata(NCM_POB, index) = value
-  case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
-  case ('OMP '); obsdat%robdata(NCM_OMP, index) = value
+  case ('PPP');  obsdat%robdata(NCM_PPP, index) = value
+  case ('PRL');  obsdat%robdata(NCM_PRL, index) = value
+  case ('POB');  obsdat%robdata(NCM_POB, index) = value
+  case ('VAR');  obsdat%robdata(NCM_VAR, index) = value
+  case ('OMP');  obsdat%robdata(NCM_OMP, index) = value
   case ('OMP6'); obsdat%robdata(NCM_OMP6,index) = value
-  case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
-  case ('OMA '); obsdat%robdata(NCM_OMA, index) = value
-  case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
-  case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
-  case ('OER '); obsdat%robdata(NCM_OER, index) = value
+  case ('OMF');  obsdat%robdata(NCM_OMF, index) = value
+  case ('OMA');  obsdat%robdata(NCM_OMA, index) = value
+  case ('OMI');  obsdat%robdata(NCM_OMI, index) = value
+  case ('OMN');  obsdat%robdata(NCM_OMN, index) = value
+  case ('OER');  obsdat%robdata(NCM_OER, index) = value
   case ('HPHT'); obsdat%robdata(NCM_HPHT,index) = value
-  case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
-  case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
-  case ('ZHA '); obsdat%robdata(NCM_ZHA, index) = value
+  case ('FGE');  obsdat%robdata(NCM_FGE, index) = value
+  case ('PRM');  obsdat%robdata(NCM_PRM, index) = value
+  case ('ZHA');  obsdat%robdata(NCM_ZHA, index) = value
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not a real(",OBS_REAL,") observation."
@@ -2121,15 +2105,15 @@ MODULE obsSpaceData_mod
 !
   implicit none
   type(struct_obs), intent(inout)  :: obsdat
-  character(len=4), intent(in)     :: name
+  character(len=*), intent(in)     :: name
   integer         , intent(in)     :: index
   character(len=*), intent(in)     :: value
 
-  select case (name(1:4))
+  select case (trim(name))
   case ('STID'); obsdat%cstnid (index) = value 
 
   case default
-   write(*,*)"ERROR:  ", name(1:4)," is not a character(len=9) observation."
+   write(*,*)"ERROR:  ", trim(name)," is not a character(len=9) observation."
   end select
  end subroutine obs_set_c9
 

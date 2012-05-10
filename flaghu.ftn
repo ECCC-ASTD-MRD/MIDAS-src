@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE FLAGHU(PVALUES,KLIST,KFLAGS,KELE,KVAL,KNT,KINDEX,KRVAL)
+      SUBROUTINE FLAGHU(PVALUES,KLIST,KFLAGS,KELE,KVAL,KNT,KINDEX,CRVAL)
 #if defined (DOC)
 ************************************************************************
 *
@@ -36,8 +36,7 @@
 *           -KVAL    : NUMBER OF LEVELS IN DATA BLOCK
 *           -KNT     : THIRD DIMENSION OF DATA BLOCK
 *           -KINDEX  : THIRD DIMENSION INDEX OF DATA BLOCK
-*           -KRVAL   : INDEX OF ELEMENT IN CMA LIST
-*                         ( 1 ---> OBS ERROR , 2 ---> O-A )
+*           -CRVAL   : LABEL OF STRUCT_OBS COLUMN
 *
 *    INPUT/OUTPUT:
 *           -PVALUES : DATA BLOCK
@@ -52,7 +51,8 @@
 #include "comlun.cdk"
 #include "cparbrp.cdk"
 *
-      INTEGER, INTENT(IN)    :: KELE,KVAL,KNT,KINDEX,KRVAL
+      INTEGER, INTENT(IN)    :: KELE,KVAL,KNT,KINDEX
+      character(len=*), intent(in) :: crval
       INTEGER, INTENT(IN)    :: KLIST(KELE)
       INTEGER, INTENT(INOUT) :: KFLAGS(KELE,KVAL,KNT)
       REAL*8,  INTENT(INOUT) :: PVALUES(KELE,KVAL,KNT)
@@ -98,7 +98,7 @@ cc      LLPRINT = .TRUE.
 
             DO JJ=1,KVAL
                IF (   btest ( lqflag(jj), 18 ) .AND.
-     &              ( KRVAL .EQ. NCM_OMF  .OR. KRVAL .EQ. NCM_OMA ) ) THEN
+     &              ( trim(CRVAL) == 'OMF'  .OR. trim(CRVAL) == 'OMA' ) ) THEN
                   PVALUES(JI,JJ,IK) = PPMIS
                ENDIF
                IF ( PVALUES(JI,JJ,IK) .NE. PPMIS ) THEN

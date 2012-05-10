@@ -79,8 +79,7 @@
       EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
 *
       INTEGER NELCMA,NULNAM,IERR
-      CHARACTER *3   CSAV(5)
-      INTEGER        NSAV(5)
+      CHARACTER(len=4) :: CSAV(5)
       NAMELIST /NAMBPOST/NELCMA ,CSAV
 *
 *  ------NOTE----------
@@ -119,36 +118,15 @@ C
       write(*,nml=nambpost)
       ierr=fclos(nulnam)
 C
-      NSAV(1)=NCM_OMA
-      NSAV(2)=NCM_OMF
-      NSAV(3)=NCM_OER
-      NSAV(4)=NCM_VAR
-c
       DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'OMA') NSAV(J)=NCM_OMA
-      END DO
-      DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'OMP') NSAV(J)=NCM_OMF
-         IF ( CSAV(J) .EQ. 'OMP') CSAV(J)='OMF'
-      END DO
-      DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'OER') NSAV(J)=NCM_OER
-      END DO
-      DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'FGE') NSAV(J)=NCM_FGE
-      END DO
-      DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'VAR') NSAV(J)=NCM_VAR
-      END DO
-      DO J=1,NELCMA
-         IF ( CSAV(J) .EQ. 'FLG') NSAV(J)=NCM_FLG
+         IF ( trim(CSAV(J)) .EQ. 'OMP') CSAV(J)='OMF'
       END DO
 C
       WRITE(NULOUT,'(1X,"***********************************")')
       WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR POST_FILE :",/)')
       WRITE(NULOUT,'(1X,"***********************************")')
       DO JD=1,NELCMA
-         WRITE(NULOUT,'(15X,A3,/)') CSAV(JD)
+         WRITE(NULOUT,'(15X,A4,/)') CSAV(JD)
       END DO
       IER   =MRFOPC('MSGLVL','FATAL')
 *
@@ -185,7 +163,7 @@ C
 *             FILL UP POST FILE
 *             -----------------
 *==========================================================================
-               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,NSAV,CSAV,NELCMA,
+               CALL CMAABRP(CFAM(J),LLAPPEND,IBRP1,INRECS,CSAV,NELCMA,
      +                      lcolumng_mpiglobal,lobsSpaceData)
 *==========================================================================
 *
