@@ -174,9 +174,85 @@ MODULE obsSpaceData_mod
   save
   private
 
-  ! main observation space data instance
+  ! This module deals with operations involving the data structure for
+  ! storing observational information.
+  !   (this had evolved from the CMA structure, originated in work by
+  !    D. Vasiljevic at ECMWF)
+  !
+  ! First creation of the module: February 2011 by Peter Houtekamer
+  !
+
+  ! PUBLIC METHODS:
+  !    obs_append       - append a cma object to another cma object
+  !    obs_copy         - copy a cma object
+  !    obs_initialize   - variable initialization
+  !    obs_allocate     - array allocation
+  !    obs_finalize     - object clean-up
+  !    obs_deallocate   - array de-allocation
+  !    obs_enkf_bdy     - fill in the observation-data body, from burp files
+  !    obs_clean        - remove from obs data those that will not be assimilated
+  !    obs_elem_i       - obtain an integer element from the observation object
+  !    obs_elem_r       - obtain a real element from the observation object
+  !    obs_elem_c9      - obtain character(9) element from the observation object
+  !    obs_getFamily    - return the family of a datum
+  !    obs_get_datestamp- get the object's date stamp
+  !    obs_get_obs_index_for_bufr_element
+  !                     - find the index into the variable types list of the cma
+  !                       element that contains a given BUFR element number
+  !    obs_bdy          - fill in the ObsSpaceData body from burp(3dvar version)
+  !    obs_enkf_bdy     - fill in the ObsSpaceData body from burp(EnKF version)
+  !    obs_generate_header
+  !                     - fill in the observation-data header, from burp files
+  !    obs_numbody      - returns the number of observations recorded
+  !    obs_numbody_max  - returns the dimensioned number of observations
+  !    obs_numheader    - returns the number of stations recorded
+  !    obs_numheader_max- returns the dimensioned number of stations
+  !    obs_numheader_mpiglobal - no. stations recorded, in the mpi-global context
+  !    obs_order        - put the obs data in the order required for assimilation
+  !    obs_prnthdr      - print the data contained in one header
+  !    obs_prntbdy      - print the body data for one header
+  !    obs_enkf_prntbdy - print all data records associated with an observation
+  !    obs_print        - call obs_enkf_prnthdr() and obs_enkf_prntbdy() for each station
+  !    obs_prnt_csv     - call obs_tosqlhdr() and obs_tosqlbdy() for each station
+  !    obs_enkf_prnthdr - print the header of an observation record
+  !    obs_read         - read the observation data from binary files
+  !    obs_readstns     - read stations for one analysis pass & store in buffers
+
+  !    obs_reduceToMpiLocal  - retain only the data pertinent to the mpi-local PE
+  !    obs_elem_mpiglobal_i  - obs_elem_i without restriction to the mpi-local PE
+  !    obs_elem_mpiglobal_r  - obs_elem_r without restriction to the mpi-local PE
+  !    obs_expandToMpiGlobal - restore data for the mpi-global context
+  !    obs_comm         - communicate header and body info between mpi processes
+
+  !    obs_setFamily    - set the family of a datum
+  !    obs_set_r        - set a real value in the observation object
+  !    obs_set_c9       - set a character(9) value in the observation object
+  !    obs_set_i        - set an integer value in the observation object
+  !    obs_set_datestamp- set the object's date stamp
+  !    obs_status       - returns the values of the object's status variables
+  !    obs_select       - select observations in a vertical range
+  !    obs_swapVarOmf   - exchange the values of 'VAR ' and 'OMF '
+  !    obs_count_headers- count the stations and observations in the object
+  !    obs_write        - write the observation data to binary files
+  !                       (calls obs_write_hdr, obs_write_bdy, obs_write_hx for
+  !                        each station)
+  !    obs_set_current_header_list - set a header list for a family as current
+  !    obs_set_current_body_list   - set a body list for a family as current
+  !    obs_getHeaderIndex - obtain an element from the current header list
+  !    obs_getBodyIndex   - obtain an element from the current boedy list
+
+  ! PRIVATE METHODS:
+  !    obs_tosqlbdy     - write the observation data in comma-separated format
+  !    obs_exchange_stations- exchange the headers of stations j and k
+  !    obs_tosqlhdr     - write the observation header in comma-separated format
+  !    obs_write_bdy    - write the observation data to binary files
+  !    obs_write_hdr    - write the observation header to binary files
+  !    obs_write_hx     - write to binary files a station's interpolated values
+
+  ! observation-space fundamental parameters
   public           :: OBS_JPNBRELEM
 
+  ! (should be private, but must be public to allow access from obs_mpi_mod)
   ! header column numbers
   public           :: NCM_RLN, NCM_ONM, NCM_INS, NCM_OTP, NCM_ITY, NCM_SAT, NCM_TEC,  &
                       NCM_LAT, NCM_LON, NCM_DAT, NCM_ETM, NCM_ALT,  &
@@ -191,6 +267,9 @@ MODULE obsSpaceData_mod
                       NCM_XTR, NCM_OBS,NCM_VCO, NCM_PRM, NCM_KFA,  &
                       NCM_ZHA, NCM_HPHT,NCM_OMP
 
+  ! column dimensions
+  public           :: NHDR_INT, NHDR_REAL, NBDY_INT, NBDY_REAL
+
   ! methods
   public           :: obs_initialize,obs_finalize
   public           :: obs_elem_i,obs_elem_r,obs_elem_c9
@@ -198,13 +277,20 @@ MODULE obsSpaceData_mod
   public           :: obs_numbody,obs_numheader,obs_numbody_max
   public           :: obs_numheader_max,obs_numheader_mpiglobal
   public           :: obs_swapVarOmf,obs_get_obs_index_for_bufr_element
-  public           :: obs_getFamily,obs_setFamily,obs_bdy
+  public           :: obs_getFamily,obs_setFamily
   public           :: obs_reduceToMpiLocal,obs_expandToMpiGlobal
   public           :: obs_elem_mpiglobal_r,obs_elem_mpiglobal_i
-  public           :: obs_prnthdr,obs_prntbdy
+  public           :: obs_comm,obs_prnthdr,obs_prntbdy
+  public           :: obs_bdy,obs_enkf_bdy,obs_generate_header
+  public           :: obs_enkf_prnthdr,obs_enkf_prntbdy
+  public           :: obs_readstns, obs_read, obs_write
+  public           :: obs_print, obs_prnt_csv
   public           :: obs_set_current_header_list, obs_getHeaderIndex
   public           :: obs_set_current_body_list,   obs_getBodyIndex
   public           :: obs_set_datestamp,obs_get_datestamp
+  public           :: obs_append,obs_copy,obs_clean
+  public           :: obs_order,obs_select
+  public           :: obs_status,obs_count_headers
 
   interface obs_getBodyIndex
    module procedure obs_getBodyIndex_depot
@@ -225,13 +311,15 @@ MODULE obsSpaceData_mod
   public :: struct_obs
 
   type struct_obs
-   private
+   ! (should be private, but must be public to allow accessfrom obs_mpi_mod)
+!  private
    type(struct_index_list_depot) :: header_index_list_depot
    type(struct_index_list_depot) :: body_index_list_depot
-   character(len=9),   pointer, dimension(:)   :: cstnid  !! need len=12 for EnKF
+   character(len=9),   pointer, dimension(:)   :: cstnid
    character(len=2),   pointer, dimension(:)   :: cfamily
    real(kind=OBS_REAL),pointer, dimension(:,:) :: robhdr
    integer,            pointer, dimension(:,:) :: mobhdr
+   character(len=12),  pointer, dimension(:)   :: cobhdr
    real(kind=OBS_REAL),pointer, dimension(:,:) :: robdata
    integer,            pointer, dimension(:,:) :: mobdata
    integer :: numheader                 ! Actual number of stations on record
@@ -256,9 +344,10 @@ MODULE obsSpaceData_mod
 !  
  integer, parameter :: NCM_RLN = 1          ! report location
  integer, parameter :: NCM_ONM = NCM_RLN+1  ! unique (within cma) station id no.
- integer, parameter :: NCM_INS = NCM_ONM+1  ! instrument ID 
- integer, parameter :: NCM_OTP = NCM_INS+1  ! observation file index
- integer, parameter :: NCM_ITY = NCM_OTP+1  ! codtyp
+ integer, parameter :: NCM_BOX = NCM_ONM+1  ! model Box (used by TOVS)
+ integer, parameter :: NCM_INS = NCM_BOX+1  ! instrument ID  
+ integer, parameter :: NCM_OTP = NCM_INS+1  ! observation Type (file index)
+ integer, parameter :: NCM_ITY = NCM_OTP+1  ! code: instrument and retrieval type
  integer, parameter :: NCM_SAT = NCM_ITY+1  ! satellite code 
  integer, parameter :: NCM_TEC = NCM_SAT+1  ! satellite processing technique
  integer, parameter :: NCM_DAT = NCM_TEC+1  ! date YYYYMMD
@@ -274,13 +363,15 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_CLF = NCM_SUN+1  ! cloud fraction
  integer, parameter :: NCM_ST1 = NCM_CLF+1  ! header level status/rejection flag 
  integer, parameter :: NCM_TLA = NCM_ST1+1  ! index of latitude N of observation 
+ integer, parameter :: NCM_IDO = NCM_TLA+1  ! (absolutely) unique station id. no.
+ integer, parameter :: NCM_IDF = NCM_IDO+1  ! id. no. of observation-source file
 
 ! the number of integer variables defined just above
- integer, parameter :: NHDR_INT = NCM_TLA
+ integer, parameter :: NHDR_INT = NCM_IDF
 
-
+!
 ! REAL-HEADER COLUMN NUMBERS
-
+!
  integer, parameter :: NCM_LAT = 1           ! latitude in radians (North positive)
  integer, parameter :: NCM_LON = NCM_LAT + 1 ! longitude in radians (East positive)
  integer, parameter :: NCM_ALT = NCM_LON + 1 ! station altitude
@@ -291,9 +382,9 @@ MODULE obsSpaceData_mod
 ! the number of real variables defined just above
  integer, parameter :: NHDR_REAL = NCM_BZ
 
-
+!
 ! INTEGER-BODY COLUMN NUMBERS
-
+!
  integer, parameter :: NCM_VNM = 1           ! variable number
  integer, parameter :: NCM_FLG = NCM_VNM + 1 ! flags
  integer, parameter :: NCM_KFA = NCM_FLG + 1 ! marker for forward interpolation problems
@@ -301,15 +392,18 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_OBS = NCM_ASS + 1 ! observation number (as in header)
  integer, parameter :: NCM_VCO = NCM_OBS + 1 ! type of vertical coordinate
  integer, parameter :: NCM_LYR = NCM_VCO + 1 ! Index of anal level above observ'n
-                                             ! Flag: extrapolation necessary,
- integer, parameter :: NCM_XTR = NCM_LYR + 1 ! anal variables to obs'n location 
+
+                                             ! Flag: extrapolation necessary of
+                                             ! anal variables to obs'n location 
+ integer, parameter :: NCM_XTR = NCM_LYR + 1
+ integer, parameter :: NCM_IDD = NCM_XTR + 1 ! data id. no.
 
 ! the number of integer variables defined just above
- integer, parameter :: NBDY_INT = NCM_XTR
+ integer, parameter :: NBDY_INT = NCM_IDD
 
-
+!
 ! REAL-BODY COLUMN NUMBERS
-
+!
  integer, parameter :: NCM_PPP = 1            ! Pressure (vertical coordinate)
  integer, parameter :: NCM_PRL = NCM_PPP  + 1 ! reference level pressure
  integer, parameter :: NCM_VAR = NCM_PRL  + 1 ! value of the observation
@@ -338,13 +432,127 @@ MODULE obsSpaceData_mod
 ! integer,parameter :: NCM_STID=    ! Not needed since only 1 cstnid exists
 ! integer,parameter :: NCM_FAM =    ! Not needed since only 1 cfamily exists
 
-  integer, parameter :: OBS_JPNBRELEM = 57
+  integer, parameter :: OBS_JPNBRELEM = 57   ! obs variable-types table length
 
 
   contains
 
+ subroutine obs_append(cma,hx,obs_out,hx_out)
+!
+! object: with a call of type obs_append(obs_1,obs_2) append obs_1 to obs_2
+!
+! author  : Peter Houtekamer: May 2011
+
+  type (struct_obs), intent(in) :: cma
+  type (struct_obs), intent(inout) :: obs_out
+
+  real*8,       intent(in) :: hx(:,:)
+  real*8,       intent(inout) :: hx_out(:,:)
+
+  integer :: i_data_read,i_data_read_first,i_data_read_last,i_data_write, &
+    iens,i_last,istation,i_station_write,ivar,nens,i_write_first,loc,loc_last
+
+  if (cma%numheader.eq.0) then
+   write(*,*) 'odd input for routine obs_append'
+   write(*,*) 'no stations need to be added to the cma.'
+   return
+  endif
+
+  nens=size(hx,1)
+  if (obs_out%numheader.ge.1) then 
+   i_last=1
+   loc_last=obs_out%mobhdr(NCM_RLN,1)
+   storedlast: do istation=2,obs_out%numheader
+    loc=obs_out%mobhdr(NCM_RLN,istation)
+    if (loc.gt.loc_last) then
+     i_last=istation
+     loc_last=loc
+    endif 
+   enddo storedlast    
+! the first available locations in the output 
+   i_station_write=obs_out%numheader+1
+   i_data_write=obs_out%mobhdr(NCM_RLN,i_last)+ &
+     obs_out%mobhdr(NCM_NLV,i_last)
+  else
+   i_station_write=1
+   i_data_write=1
+  endif
+
+  stations: do istation=1,cma%numheader
+   i_data_read_first=cma%mobhdr(NCM_RLN,istation)
+   i_data_read_last=i_data_read_first+cma%mobhdr(NCM_NLV,istation)-1
+   i_write_first=i_data_write
+   observations: do i_data_read=i_data_read_first,i_data_read_last
+    do ivar=1,NBDY_INT
+     obs_out%mobdata(ivar,i_data_write)=cma%mobdata(ivar,i_data_read)
+    enddo
+    do ivar=1,NBDY_REAL
+     obs_out%robdata(ivar,i_data_write)=cma%robdata(ivar,i_data_read)
+    enddo
+    do iens=1,nens
+     hx_out(iens,i_data_write)=hx(iens,i_data_read)
+    enddo     
+    i_data_write=i_data_write+1  
+   enddo observations
+   
+   do ivar=1,NHDR_INT
+    obs_out%mobhdr(ivar,i_station_write)=cma%mobhdr(ivar,istation)
+   enddo
+   obs_out%mobhdr(NCM_ONM,i_station_write)=i_station_write
+   obs_out%mobhdr(NCM_RLN,i_station_write)=i_write_first
+
+   if (obs_out%numheader.gt.0) then
+    obs_out%mobhdr(NCM_PAS,i_station_write)=obs_out%mobhdr(NCM_PAS,i_station_write)+ &
+     obs_out%mobhdr(NCM_PAS,obs_out%numheader)
+   end if
+
+   do ivar=1,NHDR_REAL
+    obs_out%robhdr(ivar,i_station_write)=cma%robhdr(ivar,istation) 
+   enddo
+   obs_out%cobhdr(i_station_write)=cma%cobhdr(istation)
+   
+   i_station_write=i_station_write+1
+  enddo stations
+
+  obs_out%numheader=obs_out%numheader+cma%numheader
+
+ end subroutine obs_append
+
+ subroutine obs_copy(obs_a,obs_b)
+!
+! object  - copy a cma object
+!
+!author  : Peter Houtekamer. August 2011.
+!
+!arguments
+!     input : obs_a input object
+!     output: obs_b a copy of obs_a 
+!
+  implicit none
+
+  type(struct_obs), intent(in)  :: obs_a
+  type(struct_obs), intent(out) :: obs_b
+
+  obs_b%robhdr          = obs_a%robhdr
+  obs_b%mobhdr          = obs_a%mobhdr
+  obs_b%cobhdr          = obs_a%cobhdr
+  obs_b%robdata         = obs_a%robdata
+  obs_b%mobdata         = obs_a%mobdata
+
+  obs_b%numheader= obs_a%numheader
+  obs_b%numheader_max      = obs_a%numheader_max
+  obs_b%numbody = obs_a%numbody
+  obs_b%numbody_max      = obs_a%numbody_max
+
+ end subroutine obs_copy
 
   subroutine obs_initialize(obsdat, header_max, body_max)
+  !s/r obs_initialize - Set an observation-data module to a known state.
+  !
+  !Author    . J.W. Blezius
+  !
+  !    PURPOSE:  Initialize module variables, and allocate arrays according to
+  !              the parameters, header_max and body_max.
     implicit none
                                         ! number of header elements allocated
     integer, optional, intent(in) :: header_max
@@ -375,7 +583,7 @@ MODULE obsSpaceData_mod
     end if
 
     write(*,*) ' DIMENSIONS OF OBSERVATION ARRAYS:'
-    write(*,*) ' NMXOBS = ',NMXOBS,'  NDATAMX = ',NDATAMX
+    write(*,*) ' numheader_max = ',NMXOBS,'  numbody_max = ',NDATAMX
 
     obsdat%numheader_max=nmxobs
     obsdat%numbody_max=ndatamx
@@ -397,6 +605,12 @@ MODULE obsSpaceData_mod
 
 
   subroutine obs_finalize(obsdat)
+  !s/r obs_finalize - De-allocate memory and clean up the object.
+  !
+  !Author    . J.W. Blezius
+  !
+  !    PURPOSE:  De-allocate object arrays, and perform any other clean-up that
+  !              is necessary before object deletion.
     implicit none
     type(struct_obs), intent(inout) :: obsdat
 
@@ -406,6 +620,12 @@ MODULE obsSpaceData_mod
 
 
   subroutine obs_allocate(obsdat,numheader_max,numbody_max)
+  !s/r obs_allocate - Allocate the object's arrays.
+  !
+  !Author    . J.W. Blezius
+  !
+  !    PURPOSE:  Allocate arrays according to the parameters, header_max and
+  !              body_max.  This is a private method.
     implicit none
 
     type(struct_obs), intent(inout) :: obsdat
@@ -416,6 +636,8 @@ MODULE obsSpaceData_mod
 
     ALLOCATE(obsdat%cstnid(numheader_max))
     obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
+
+    allocate(obsdat%cobhdr(numheader_max))
 
     ALLOCATE(obsdat%ROBHDR(NHDR_REAL,numheader_max))
     obsdat%ROBHDR(:,:)=real(0.0d0, OBS_REAL)
@@ -477,6 +699,11 @@ MODULE obsSpaceData_mod
 
 
   subroutine obs_deallocate(obsdat)
+  !s/r obs_deallocate - De-allocate the object's arrays.
+  !
+  !Author    . J.W. Blezius
+  !
+  !    PURPOSE:  De-allocate arrays.  This is a private method.
     implicit none
 
     type(struct_obs), intent(inout) :: obsdat
@@ -487,6 +714,12 @@ MODULE obsSpaceData_mod
         deallocate(obsdat%cfamily,STAT=ierr)
            nullify(obsdat%cfamily)
       if(ierr.ne.0)write(*,*) 'Problem detected with CFAMILY. IERR =',ierr
+    end if
+
+    if (associated(obsdat%cobhdr)) then
+        deallocate(obsdat%cobhdr,STAT=ierr)
+           nullify(obsdat%cobhdr)
+      if(ierr.ne.0)write(*,*) 'Problem detected with COBHDR. IERR =',ierr
     end if
 
     if (associated(obsdat%cstnid))then
@@ -900,34 +1133,181 @@ MODULE obsSpaceData_mod
   END SUBROUTINE obs_bdy
 
 
-!!$ function obs_elem_r4(obsdat,name,index) result(value)
-!!$  implicit none
-!!$  real(kind=4) value
-!!$  type(struct_obs), intent(in)  :: obsdat
-!!$  character(len=4), intent(in)  :: name
-!!$  integer         , intent(in)  :: index
-!!$
-!!$  select case (name(1:4))
-!!$  case ('PPP '); value=obsdat%robdata(NCM_PPP, index)
-!!$  case ('PRL '); value=obsdat%robdata(NCM_PRL, index)
-!!$  case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
-!!$  case ('OMP '); value=obsdat%robdata(NCM_OMP, index)
-!!$  case ('OMA '); value=obsdat%robdata(NCM_OMA, index)
-!!$  case ('OER '); value=obsdat%robdata(NCM_OER, index)
-!!$  case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
-!!$  case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
-!!$  case ('POB '); value=obsdat%robdata(NCM_POB, index)
-!!$  case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
-!!$  case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
-!!$  case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
-!!$  case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
-!!$  case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
-!!$
-!!$  case default
-!!$   write(*,*)"ERROR:  ", name(1:4), " is not a real(4) observation."
-!!$   value=-999.
-!!$  end select
-!!$ end function obs_elem_r4
+  subroutine obs_enkf_bdy(cma,vconv, &
+                          pvalues,klist,kflags,profil, &
+                          ldairs,kndat,kvcord,pvcord,kindex,kidtyp, &
+                          nvcordtyp, vcordsf)
+    !s/r obs_enkf_bdy -FILL BODY OF CMA REPORT
+    !
+    !Author    . P. KOCLAS(CMC TEL. 4665)
+    !
+    !Revision:
+    !          . P. Koclas *CMC/AES Sept  1994: Add call to cvt3d
+    !          .   before insertion of U and V for consistency
+    !          . P. Koclas *CMC/AES February  1995:
+    !          .  New call sequence neccessary to :
+    !          . -allow insertion of "grouped data" records in BURP files.
+    !          . -allow data observed in various vertical coordinates
+    !          . -observation errors no longer initialized
+    !
+    !          . P. Koclas *CMC/AES March     1995:
+    !            -Additions for humsat and satem data
+    !          .
+    !          . C. Charette *ARMA Jan        2001
+    !            -Max value for T-Td surface element(12203)
+    !
+    !           JM Belanger CMDA/SMC  Feb 2001
+    !                   . 32 bits conversion
+    !           P. Houtekamer July 2005. Remove the lines for HUMSAT data
+    !          . A. Beaulne *CMDA/SMC  Aug 2006
+    !                     -Additions for AIRS data
+    !           Xingxiu Deng, August 2008. added calling readpeak, calling airszha
+    !                     to define robdata(ncmzha,:) for AIRS
+    !           Xingxiu Deng, July 2009. added including column.cdk, calling readip1
+    !                     to get ptop and define ncmzha for AMSU-A channel 11 and 12
+    !                      if ptop is equal or higher than 2 hPa.
+    !
+    !    PURPOSE : TRANSFER DATA BLOCKS EXTRACTED FROM CMC BURP FILES TO
+    !              THE IN-CORE FORMAT (CMA) OF THE ANALYSIS
+    !
+    !    ARGUMENTS:
+    !     INPUT:
+    !
+    !           -PVALUES : DATA BLOCK
+    !           -KLIST   : LIST OF BUFR ELEMENTS
+    !           -KFLAGS  : QUALITY CONTROL FLAGS
+    !
+    !           -LDAIRS  :  .TRUE. --> INSERT EMISSIVITIES IN CMA (AIRS RADIANCES)
+    !
+    !           -KVCORD  :  BUFR ELEMENT CODE OF VERTICAL COORDINATE
+    !           -PVCORD  :  VERTICAL COORDINATE VALUES EXTRACTED FROM DATA BLOCK
+    !           -KINDEX  :  THIRD DIMENSION INDEX OF DATA BLOCK
+    !           -KIDTYP  :  burptype
+    !           -vconv   :  conversion factor for pressure coordinate
+    !           -profil  :  for GOES and AIRS
+    !           -nvcordtyp :
+    !
+    !    OUTPUT:
+    !           -KNDAT   : NUMBER OF DATA INSERTED IN CMA FILE
+    !           -CMA%ROBDATA, CMA%MOBDATA: cma body-information (new information added)
+    !
+    use EarthConstants_mod, only:  GRAV
+    use MathPhysConstants_mod
+    implicit none
+
+    type(struct_obs), intent(inout) :: cma
+    !
+    logical, intent(in)  :: ldairs
+    integer, intent(in)  :: kidtyp,kindex,kvcord
+    integer, dimension(:),     intent(in) :: klist 
+    integer, dimension(:,:,:), intent(in) :: kflags
+    real(kind=4), intent(in) :: vconv
+    real(kind=4), dimension(:), intent(in) :: profil,pvcord
+    real(kind=4), dimension(:,:,:),  intent(in) :: pvalues
+    integer, intent(out) :: kndat
+    integer, intent(in) :: nvcordtyp
+                                        ! vertical coordinate parameters
+                                        ! for surface data
+    real, dimension(:,:) :: vcordsf
+
+    real (kind=4), parameter :: PPMIS=-999.0 ! VALUE OF MISSING DATA
+
+    integer :: ichn,ik,ilem,ind,ip,ielement,ilevel,n_elements_in_block,n_levels_in_block,zesmax
+
+    real(kind=4) :: pdum,pvalue,zemfact,ztorad
+
+    ! -n_elements_in_block    : NUMBER OF ELEMENTS IN DATA BLOCK
+    ! -n_levels_in_block    : NUMBER OF LEVELS IN DATA BLOCK
+    n_elements_in_block=size(kflags,1)
+    n_levels_in_block=size(kflags,2)
+    !
+    !     SET UNIT CONVERSION CONSTANTS
+    !
+    ZTORAD=MPC_RADIANS_PER_DEGREE_R4
+    !
+    ZEMFACT=0.01
+    ZESMAX=30.
+    !
+    IP=CMA%numbody + 1
+    IND=0
+    !
+    !     PUT ALL NON MISSING DATA IN CMA FILE
+    !     EXIT IF THERE IS MORE DATA AVAILABLE THAN ALLOCATED TO CMA FILE
+    !     DATA IS CONVERTED TO UNITS USED BY 3D-VAR ANALYSIS.
+    !
+    IK= KINDEX
+    DO ielement=1,n_elements_in_block
+      ILEM=obs_get_obs_index_for_bufr_element(KLIST(ielement))
+      IF ( (ILEM .GT. 0) .AND. (KLIST(ielement) .NE. KVCORD) ) THEN
+        DO ilevel=1,n_levels_in_block
+          if(pvcord(ilevel) .ne. ppmis) then
+            IF  ( PVALUES (ielement,ilevel,IK) .NE. PPMIS ) THEN
+              pvalue=PVALUES(ielement,ilevel,IK)
+              ! PLH replaced ndatamx by numbody_max
+              IF ( IP + IND .LE. cma%numbody_max ) THEN
+                !                                       VERTICAL COORDINATE
+                CMA%ROBDATA(NCM_PPP,IP+IND)=PVCORD(ilevel)*vconv +vcordsf(ilem,kidtyp)
+                !
+                !                           FOR PNM HEIGHT IS SET TO 0
+                !                           ----------------------------
+                IF ( ILEM .EQ. 53 ) THEN
+                  CMA%ROBDATA(NCM_PPP,IP+IND)=0.
+                ENDIF
+                !                           ----------------------------
+                !                                        CONVERT TO GZ
+                if ( ILEM .EQ. 3 ) then
+                  pvalue=GRAV*pvalue
+                endif
+                !                                  Max value T-Td upper air
+                IF ( ILEM .EQ. 9 ) THEN
+                  IF ( pvalue .GT. ZESMAX) THEN
+                    pvalue=ZESMAX
+                  ENDIF
+                ENDIF
+                !                                    Max value T-Td surface
+                IF ( ILEM .EQ. 11 ) THEN
+                  IF ( pvalue .GT. ZESMAX) THEN
+                    pvalue=ZESMAX
+                  ENDIF
+                ENDIF
+                !                                    CONVERT TO RADIANS
+                if ( ILEM .EQ. 48 ) then
+                  pvalue=ztorad*pvalue
+                endif
+                !                                       FLAGS
+                cma%mobdata(NCM_FLG,IP+IND)=KFLAGS(ielement,ilevel,IK)
+                !
+                CMA%ROBDATA(NCM_VAR,IP+IND)=pvalue
+                ! initialise o minus p , o minus p6, o minus a and hpht to undefined values (-999)
+                cma%robdata(NCM_OMP,ip+ind)=-999.
+                cma%robdata(NCM_OMP6,ip+ind)=-999.
+                cma%robdata(NCM_OMA,ip+ind)=-999.
+                cma%robdata(NCM_HPHT,ip+ind)=-999.
+                cma%mobdata(NCM_VNM,IP+IND)=KLIST(ielement)
+                cma%mobdata(NCM_VCO,IP+IND)=nvcordtyp
+                !
+                !    SURFACE EMISSIVITIES FOR GOES AND AIRS RADIANCES
+                if ( LDAIRS ) then
+                  CMA%ROBDATA(NCM_PRL,IP+IND)=PROFIL(ilevel)*ZEMFACT
+                endif
+                ind=ind + 1
+              else
+                kndat = ind
+                cma%numbody = cma%numbody + kndat
+                return
+              endif
+            endif
+          endif
+        enddo
+      endif
+    enddo
+    kndat = ind
+    cma%numbody = cma%numbody + kndat
+    !
+    return 
+    !
+  end subroutine obs_enkf_bdy
+
 
  function obs_elem_mpiglobal_r(obsdat,name,index) result(value)
   ! This method is supplied for use by those external to the present module who
@@ -953,6 +1333,14 @@ MODULE obsSpaceData_mod
  end function obs_elem_mpiglobal_r
 
  function obs_elem_r(obsdat,name,index) result(value)
+ !func obs_elem_r - Get a real-valued observation-data element
+ !
+ !Author    . J.W. Blezius
+ !
+ !    PURPOSE:  to control access to the observation object.  Returns the (real)
+ !              value of the ObsData element with the indicated name and index.
+ !
+ !    COMMENT:  the real kind, OBS_REAL, is specified at compile time.
   implicit none
   real(kind=OBS_REAL) :: value
   type(struct_obs), intent(in)  :: obsdat
@@ -972,10 +1360,14 @@ MODULE obsSpaceData_mod
   case ('POB '); value=obsdat%robdata(NCM_POB, index)
   case ('VAR '); value=obsdat%robdata(NCM_VAR, index)
   case ('OMF '); value=obsdat%robdata(NCM_OMF, index)
+  case ('OMP '); value=obsdat%robdata(NCM_OMP, index)
+  case ('OMP6'); value=obsdat%robdata(NCM_OMP6,index)
   case ('OMA '); value=obsdat%robdata(NCM_OMA, index)
   case ('OMI '); value=obsdat%robdata(NCM_OMI, index)
   case ('OMN '); value=obsdat%robdata(NCM_OMN, index)
   case ('OER '); value=obsdat%robdata(NCM_OER, index)
+  case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
+  case ('ZHA '); value=obsdat%robdata(NCM_ZHA, index)
   case ('FGE '); value=obsdat%robdata(NCM_FGE, index)
   case ('PRM '); value=obsdat%robdata(NCM_PRM, index)
 
@@ -986,6 +1378,14 @@ MODULE obsSpaceData_mod
  end function obs_elem_r
 
  function obs_elem_i(obsdat,name,index) result(value)
+ !func obs_elem_i - Get an integer-valued observation-data element
+ !
+ !Author    . J.W. Blezius
+ !
+ !    PURPOSE:  to control access to the observation object.  Returns the
+ !              (integer) value of the ObsData element with the indicated name
+ !              and index.
+
   implicit none
   integer value
   type(struct_obs), intent(in)  :: obsdat
@@ -995,6 +1395,7 @@ MODULE obsSpaceData_mod
   select case (name(1:4))
   case ('RLN '); value=obsdat%mobhdr(NCM_RLN, index)
   case ('ONM '); value=obsdat%mobhdr(NCM_ONM, index)
+  case ('BOX '); value=obsdat%mobhdr(NCM_BOX, index)
   case ('INS '); value=obsdat%mobhdr(NCM_INS, index)
   case ('OTP '); value=obsdat%mobhdr(NCM_OTP, index)
   case ('ITY '); value=obsdat%mobhdr(NCM_ITY, index)
@@ -1428,11 +1829,11 @@ MODULE obsSpaceData_mod
 
 
  integer function obs_numheader_max(obsdat)
-!func obs_numheader_max - returns the number of stations recorded
+!func obs_numheader_max - returns the dimensioned number of stations
 !
 !Author    . J.W. Blezius
 !
-!    PURPOSE:  to provide the number of stations that are currently recorded
+!    PURPOSE:  to provide the number of stations that is currently dimensioned
 !              in the observation-data object
 !
   implicit none
@@ -1625,8 +2026,10 @@ MODULE obsSpaceData_mod
   integer         , intent(in)     :: value
 
   select case (name(1:4))
+  ! integer header values
   case ('RLN '); obsdat%mobhdr (NCM_RLN, index) = value
   case ('ONM '); obsdat%mobhdr (NCM_ONM, index) = value
+  case ('BOX '); obsdat%mobhdr (NCM_BOX, index) = value
   case ('INS '); obsdat%mobhdr (NCM_INS, index) = value
   case ('OTP '); obsdat%mobhdr (NCM_OTP, index) = value
   case ('ITY '); obsdat%mobhdr (NCM_ITY, index) = value
@@ -1662,55 +2065,23 @@ MODULE obsSpaceData_mod
  end subroutine obs_set_i
 
 
-!!$ subroutine obs_set_r4(obsdat, name, index, value)
-!!$!s/r obs_set_r4 - set a real value in the observation object
-!!$!
-!!$!Author    . J.W. Blezius
-!!$!
-!!$!    PURPOSE:  to control access to the observation object
-!!$!
-!!$  implicit none
-!!$  type(struct_obs), intent(inout)  :: obsdat
-!!$  character(len=4), intent(in)     :: name
-!!$  integer         , intent(in)     :: index
-!!$  real(kind=4)    , intent(in)     :: value
-!!$
-!!$  select case (name(1:4))
-!!$  case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
-!!$  case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
-!!$  case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
-!!$  case ('OMP '); obsdat%robdata(NCM_OMP, index) = value
-!!$  case ('OMA '); obsdat%robdata(NCM_OMA, index) = value
-!!$  case ('OER '); obsdat%robdata(NCM_OER, index) = value
-!!$  case ('HPHT'); obsdat%robdata(NCM_HPHT,index) = value
-!!$  case ('ZHA '); obsdat%robdata(NCM_ZHA, index) = value
-!!$  case ('POB '); obsdat%robdata(NCM_POB, index) = value
-!!$  case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
-!!$  case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
-!!$  case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
-!!$  case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
-!!$  case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
-!!$
-!!$  case default
-!!$   write(*,*)"ERROR:  ", name(1:4)," is not a real(4) observation."
-!!$  end select
-!!$ end subroutine obs_set_r4
-
-
  subroutine obs_set_r(obsdat, name, index, value)
-!s/r obs_set_r - set a double value in the observation object
+!s/r obs_set_r - set a real value in the observation object
 !
 !Author    . J.W. Blezius
 !
 !    PURPOSE:  to control access to the observation object
 !
+!    COMMENT:  the real kind, OBS_REAL, is specified at compile time.
+!
   implicit none
   type(struct_obs), intent(inout)  :: obsdat
   character(len=4), intent(in)     :: name
   integer         , intent(in)     :: index
-  real(kind=OBS_REAL), intent(in)     :: value
+  real(kind=OBS_REAL), intent(in)  :: value
 
   select case (name(1:4))
+  ! real header values
   case ('LAT '); obsdat%robhdr (NCM_LAT, index) = value
   case ('LON '); obsdat%robhdr (NCM_LON, index) = value
   case ('ALT '); obsdat%robhdr (NCM_ALT, index) = value
@@ -1718,17 +2089,22 @@ MODULE obsSpaceData_mod
   case ('BY  '); obsdat%robhdr (NCM_BY , index) = value
   case ('BZ  '); obsdat%robhdr (NCM_BZ , index) = value
 
+  ! real body values
   case ('PPP '); obsdat%robdata(NCM_PPP, index) = value
   case ('PRL '); obsdat%robdata(NCM_PRL, index) = value
   case ('POB '); obsdat%robdata(NCM_POB, index) = value
   case ('VAR '); obsdat%robdata(NCM_VAR, index) = value
+  case ('OMP '); obsdat%robdata(NCM_OMP, index) = value
+  case ('OMP6'); obsdat%robdata(NCM_OMP6,index) = value
   case ('OMF '); obsdat%robdata(NCM_OMF, index) = value
   case ('OMA '); obsdat%robdata(NCM_OMA, index) = value
   case ('OMI '); obsdat%robdata(NCM_OMI, index) = value
   case ('OMN '); obsdat%robdata(NCM_OMN, index) = value
   case ('OER '); obsdat%robdata(NCM_OER, index) = value
+  case ('HPHT'); obsdat%robdata(NCM_HPHT,index) = value
   case ('FGE '); obsdat%robdata(NCM_FGE, index) = value
   case ('PRM '); obsdat%robdata(NCM_PRM, index) = value
+  case ('ZHA '); obsdat%robdata(NCM_ZHA, index) = value
 
   case default
    write(*,*)"ERROR:  ", name(1:4)," is not a real(",OBS_REAL,") observation."
@@ -1756,6 +2132,213 @@ MODULE obsSpaceData_mod
    write(*,*)"ERROR:  ", name(1:4)," is not a character(len=9) observation."
   end select
  end subroutine obs_set_c9
+
+
+ subroutine obs_select(cma,hx,obs_sel,hx_sel,zhamin,zhamax,nens,nobsout)
+!
+! object  - select only the observations with zhamin < lop(P) <= zhamax.   
+!
+!author  : Peter Houtekamer
+!     January 2012: created using obs_clean as an example
+!
+!arguments
+!     cma,hx        : input cma and interpolated values
+!     obs_sel,hx_sel: selected cma and interpolated values
+!     zhamin,zhamax : range of zha values to be selected.
+!     nens          : number of ensemble members
+!     nobsout       : unit number for the ASCII output
+!
+  implicit none
+
+  type (struct_obs), intent(in) :: cma
+  type (struct_obs), intent(inout) :: obs_sel
+
+  real*8,       intent(in) :: hx(:,:),zhamin,zhamax
+  real*8,       intent(out) :: hx_sel(:,:)
+
+  integer, intent(in)    :: nens, nobsout
+    
+  integer :: iaccept,idata,idata2,iens,ipnt,iwrite
+  integer :: jdata,kobs,kobsout
+
+  write(nobsout,*) 'stations prior to selection: ', cma%numheader
+  write(*,*) 'enter obs_select'
+
+  kobsout=0 
+  iwrite=0
+  stations: do kobs=1,cma%numheader
+   ipnt  = cma%mobhdr(NCM_RLN,kobs)
+   idata = cma%mobhdr(NCM_NLV,kobs)
+   iaccept=0
+   observations: do jdata = ipnt, ipnt + idata - 1
+! To remove observations that are not in the desired vertical layer 
+    if ((cma%robdata(NCM_ZHA,jdata) .gt. zhamin).and. &
+        (cma%robdata(NCM_ZHA,jdata) .le. zhamax)) then
+     iaccept=iaccept+1
+     iwrite=iwrite+1
+     do idata2=1,NBDY_INT
+      obs_sel%mobdata(idata2,iwrite)=cma%mobdata(idata2,jdata)
+     enddo 
+     do idata2=1,NBDY_REAL
+      obs_sel%robdata(idata2,iwrite)=cma%robdata(idata2,jdata)
+     enddo 
+     do iens=1,nens
+      hx_sel(iens,iwrite)=hx(iens,jdata)
+     enddo 
+    endif
+   enddo observations 
+! adjust obs_sel%robhdr 
+   if (iaccept.gt.0) then
+    kobsout=kobsout+1
+    do idata2=1,NHDR_INT
+     obs_sel%mobhdr(idata2,kobsout)=cma%mobhdr(idata2,kobs)
+    enddo
+    do idata2=1,NHDR_REAL
+     obs_sel%robhdr(idata2,kobsout)=cma%robhdr(idata2,kobs)
+    enddo 
+    obs_sel%cobhdr(kobsout)=cma%cobhdr(kobs)
+    obs_sel%mobhdr(NCM_NLV,kobsout)=iaccept
+    obs_sel%mobhdr(NCM_RLN,kobsout)=iwrite-iaccept+1
+   endif
+  enddo stations 
+  obs_sel%numheader=kobsout
+  obs_sel%numbody = iwrite
+
+  write(nobsout,*) 'after selection of observations in the range: ', &
+    zhamin,zhamax
+  write(nobsout,*) &
+    'number of stations containing valid data   ',obs_sel%numheader
+  write(nobsout,*) & 
+    'number of observations now in the cma file ',obs_sel%numbody
+
+ end subroutine obs_select
+
+
+ subroutine obs_clean(cma,hx,nens,nobsout,qcvar)
+!
+! object  - remove all observations from the cma  
+!         that will not be assimilated. 
+!
+!author  : Peter Houtekamer
+!     revision may 2005. Houtekamer and Mitchell. Addition of the
+!          hx and nens arguments
+!
+!arguments
+!     nobsout       : unit number for the ASCII output
+!     qcvar         : input logical indicating if the input cma 
+!                     data have benefited from a qc-var procedure
+!
+  implicit none
+
+  type (struct_obs), intent(inout) :: cma
+
+  real*8,       intent(inout) :: hx(:,:)
+  integer, intent(in)    :: nens, nobsout
+  logical, intent(in)    :: qcvar
+    
+  integer :: iaccept,idata,idata2,iens,ipnt,iwrite
+  integer :: jdata,kobs,var3d,kobsout
+
+  write(nobsout,*) 'stations prior to cleanup: ', cma%numheader
+  write(*,*) 'enter obs_clean'
+
+  kobsout=0 
+  iwrite=0
+  stations: do kobs=1,cma%numheader
+   ipnt  = cma%mobhdr(NCM_RLN,kobs)
+   idata = cma%mobhdr(NCM_NLV,kobs)
+   iaccept=0
+   observations: do jdata = ipnt, ipnt + idata - 1
+    if (btest(cma%mobdata(NCM_FLG,jdata),12).or. .not. qcvar) then 
+! data will be accepted if they went through the variational system 
+! including the qcvar. They will also be accepted if the qcvar procedure
+! was not applied (i.e. when backalt files are used as input).
+     var3d=1
+    else
+     var3d=0
+    endif
+! To remove channels assimilated by 4D_var but flagged to
+! be 0 in stats_tovs (ncmzha=-1 in CMABDY)
+    if (cma%robdata(NCM_ZHA,jdata) .lt. 0.) then
+      cma%mobdata(NCM_ASS,jdata)=-1
+    endif
+
+    if ((cma%mobdata(NCM_ASS,jdata).eq.1).and.(var3d.eq.1)) then 
+! the observation will be used in the analysis
+     iaccept=iaccept+1
+     iwrite=iwrite+1
+     do idata2=1,NBDY_INT
+      cma%mobdata(idata2,iwrite)=cma%mobdata(idata2,jdata)
+     enddo 
+     do idata2=1,NBDY_REAL
+      cma%robdata(idata2,iwrite)=cma%robdata(idata2,jdata)
+     enddo 
+     do iens=1,nens
+      hx(iens,iwrite)=hx(iens,jdata)
+     enddo 
+    endif
+   enddo observations 
+! adjust cma%robhdr 
+   if (iaccept.gt.0) then
+    kobsout=kobsout+1
+    do idata2=1,NHDR_INT
+     cma%mobhdr(idata2,kobsout)=cma%mobhdr(idata2,kobs)
+    enddo
+    do idata2=1,NHDR_REAL
+     cma%robhdr(idata2,kobsout)=cma%robhdr(idata2,kobs)
+    enddo 
+    cma%cobhdr(kobsout)=cma%cobhdr(kobs)
+    cma%mobhdr(NCM_NLV,kobsout)=iaccept
+    cma%mobhdr(NCM_RLN,kobsout)=iwrite-iaccept+1
+   endif
+  enddo stations 
+  cma%numheader=kobsout
+  cma%numbody = iwrite
+
+  write(nobsout,*) 'after cleanup of the cma: '
+  write(nobsout,*) &
+    'number of stations containing valid data   ',cma%numheader
+  write(nobsout,*) & 
+    'number of observations now in the cma file ',cma%numbody
+
+ end subroutine obs_clean
+
+ subroutine obs_exchange_stations(cma,j,k) 
+!
+!author: Peter Houtekamer
+!        February 2000
+! February 2011: Peter Houtekamer moved the original routine exchange
+!   from sortcma.f to the module.
+!
+!object exchange the headers of stations j and k 
+!
+  implicit none
+
+  type (struct_obs), intent(inout) :: cma
+  integer, intent(in)         :: j,k
+
+  real*4       :: rdum 
+  integer      :: i,idum,nhdrint,nhdrreal
+  character*12 :: cdum     
+
+  nhdrint=size(cma%mobhdr,1)
+  do i=1,nhdrint
+   idum=cma%mobhdr(i,j)
+   cma%mobhdr(i,j)=cma%mobhdr(i,k)
+   cma%mobhdr(i,k)=idum
+  enddo
+  nhdrreal=size(cma%robhdr,1) 
+  do i=1,nhdrreal
+   rdum=cma%robhdr(i,j)
+   cma%robhdr(i,j)=cma%robhdr(i,k) 
+   cma%robhdr(i,k)=rdum 
+  enddo
+  cdum=cma%cobhdr(j)
+  cma%cobhdr(j)=cma%cobhdr(k)
+  cma%cobhdr(k)=cdum
+
+  return
+ end subroutine obs_exchange_stations
 
 
  integer function obs_get_obs_index_for_bufr_element(kbufrn)
@@ -1869,6 +2452,836 @@ MODULE obsSpaceData_mod
  end function obs_get_obs_index_for_bufr_element
 
 
+ subroutine obs_generate_header(cma, ilat, ilon, ialt, inbon, instrum, isatzen, &
+                                nvtyp, ity, idate, itime, clstnid, &
+                                imask, isatazim, isunza, iclfr)
+!
+!    OUTPUT:
+!           cma%robhdr(NCM_LON,) - in degrees
+!           cma%robhdr(NCM_LAT,) - in degrees, equator at 0 degrees
+!           cma%robhdr(NCM_ALT,) - in metres, with no offset
+!
+  use MathPhysConstants_mod
+  implicit none
+
+  type(struct_obs), intent(inout) :: cma
+  integer, intent(in) :: ilat, ilon, ialt, inbon, instrum, isatzen
+  integer, intent(in) :: nvtyp, ity, idate, itime
+  integer, intent(in) :: imask, isatazim, isunza, iclfr
+  character(len=9), intent(in) :: clstnid
+  real(kind=8) :: torad
+
+  torad=MPC_RADIANS_PER_DEGREE_R8
+
+!
+!     IF VALID DATA WERE FOUND GENERATE THE CMA HEADER
+!      AND INCREMENT CMA%numheader
+!
+! PLH          if  ( cma%numheader .lt. nmxobs) then
+      if ( cma%numheader .lt. cma%numheader_max) then
+       cma%numheader=cma%numheader + 1
+
+       cma%robhdr(NCM_LON,cma%numheader) = real(ilon) * 0.01
+       cma%robhdr(NCM_LAT,cma%numheader) = real(ilat) * 0.01 - 90.0
+! PLH ADDED NCM_BX NCM_BY NCM_BZ
+       cma%robhdr(NCM_BX,cma%numheader)=0.0
+       cma%robhdr(NCM_BY,cma%numheader)=0.0
+       cma%robhdr(NCM_BZ,cma%numheader)=0.0
+
+       cma%robhdr(NCM_ALT,cma%numheader) = real(ialt)
+! PLH       cma%robhdr(ncmtlo,cma%numheader) = (real(ilon)*0.01)*ztorad
+! PLH       cma%robhdr(ncmtla,cma%numheader) = (real(ilat)*0.01-90.)*ztorad
+       cma%mobhdr(NCM_NLV,cma%numheader) = inbon
+!       print*,'NOBTOTAL=',cma%numheader
+!
+
+       if ( cma%numheader .eq. 1) then   ! if this is the first entry into the cma
+        cma%mobhdr(NCM_RLN,1)=1
+       else
+        cma%mobhdr(NCM_RLN,cma%numheader)=cma%mobhdr(NCM_RLN,cma%numheader-1)+ &
+               cma%mobhdr(NCM_NLV,cma%numheader-1)
+       endif
+!
+!          REMAINDER OF HEADER
+!
+       cma%mobhdr(NCM_ONM,cma%numheader) = cma%numheader
+       cma%mobhdr(NCM_BOX,cma%numheader) = instrum + isatzen*10000
+       cma%mobhdr(NCM_OTP,cma%numheader) = nvtyp
+       cma%mobhdr(NCM_ITY,cma%numheader) = ity
+       cma%mobhdr(NCM_DAT,cma%numheader) = idate
+       cma%mobhdr(NCM_ETM,cma%numheader) = itime
+       cma%cobhdr(cma%numheader)         = clstnid
+! PLH       cma%mobhdr(ncmoec,cma%numheader) = 999
+       cma%mobhdr(NCM_OFL,cma%numheader) = imask
+       cma%mobhdr(NCM_AZA,cma%numheader) = isatazim
+       cma%mobhdr(NCM_SUN,cma%numheader) = isunza
+       cma%mobhdr(NCM_CLF,cma%numheader) = iclfr
+! PLH       cma%mobhdr(ncmst1,cma%numheader) = iflgs
+      endif
+
+ end subroutine obs_generate_header
+ 
+ subroutine obs_order(cma)
+!
+!
+!author: Peter Houtekamer
+!        March 2000
+!
+!object:
+!    Put a cma-file into the order required for the
+!    sequential assimilation. Note that it is known,
+!    as a by-product of the algorithm that was used 
+!    to determine the pass and the region for each
+!    station, at what exact location (information 
+!    in NCM_ONM) each station has to be. The algorithm
+!    requires the exchange of at most mxstn headers. 
+!    A faster algorithm likely exists.
+!
+  implicit none
+
+  type (struct_obs), intent(inout) :: cma
+
+  integer stn,jk
+  logical sorted
+
+  do stn=1,cma%numheader
+   sorted=.false.
+   do while(.not.sorted)
+    jk=cma%mobhdr(NCM_ONM,stn)
+    if (jk.eq.stn) then
+     sorted=.true.
+    else
+     call obs_exchange_stations(cma,jk,stn)
+    endif
+   end do
+  enddo 
+
+  return
+ end subroutine obs_order
+
+ subroutine obs_enkf_prntbdy(cma,kstn,kulout)
+!
+! object  - print all data records associated with an observation
+!
+!author  : P. Gauthier, C. Charette
+!revision:
+!       P. Houtekamer mrb 2000: reduction and improved readability of output
+!
+!arguments
+!     i   kstn  : no. of station 
+!     i   kulout: unit used for printing
+!
+  implicit none
+
+  type(struct_obs), intent(in) :: cma
+  integer,      intent(in)  :: kstn, kulout
+
+  integer :: ipnt, idata, idata2, jdata, var3d
+
+! general information
+
+  ipnt  = cma%mobhdr(NCM_RLN,kstn)
+  idata = cma%mobhdr(NCM_NLV,kstn)
+
+  if(idata.eq.1) then
+   write(kulout,fmt=9101)idata,kstn
+  else
+   write(kulout,fmt=9100)idata,kstn
+  end if
+ 9100 format(2x,'there are ',i3,1x,'data in record no.',1x,i6)
+ 9101 format(2x,'there is ',i3,1x,'data in record no.',1x,i6)
+
+! print all data records
+
+  write(kulout,'(a,a)') '   no.   var.  press. ass observ. ', &
+    '  o minus p  o minus p6  o minus a    obserr. root(hpht) acc     zhad  vco'
+  do jdata = ipnt, ipnt + idata - 1
+   idata2 = jdata -ipnt + 1
+   if (btest(cma%mobdata(NCM_FLG,jdata),12)) then 
+    var3d=1
+   else
+    var3d=0
+   endif
+
+   write(kulout,fmt=9201) idata2,cma%mobdata(NCM_VNM,jdata), &
+    cma%robdata(NCM_PPP,jdata),cma%mobdata(NCM_ASS,jdata), &
+    cma%robdata(NCM_VAR,jdata),cma%robdata(NCM_OMP,jdata), &
+    cma%robdata(NCM_OMP6,jdata),cma%robdata(NCM_OMA,jdata), &
+    cma%robdata(NCM_OER,jdata),cma%robdata(NCM_HPHT,jdata), &
+    var3d,cma%robdata(NCM_ZHA,jdata),cma%mobdata(NCM_VCO,jdata)
+
+  enddo
+
+  9201 format(1x,i3,1x,i6,1x,f7.0,1x,i3,6(1x,f10.3),1x,i2, &
+   1x,f10.3,1x,i2)
+
+  return
+
+ end subroutine obs_enkf_prntbdy
+
+
+ subroutine obs_print(cma,nobsout)
+!
+! object  - print the contents of the cma to an ASCII file
+!
+!author  : P. Houtekamer  February 2011
+!
+!arguments
+!     i   nobsout: unit used for printing
+!
+  implicit none
+
+  type(struct_obs), intent(inout) :: cma
+  integer,         intent(in)    :: nobsout
+
+  integer :: jo
+
+  do jo=1,cma%numheader
+   call obs_enkf_prnthdr(cma,jo,nobsout)
+   call obs_enkf_prntbdy(cma,jo,nobsout)
+  enddo
+
+  return
+ 
+ end subroutine obs_print
+
+ subroutine obs_prnt_csv(cma,nhdrsql,nbdysql)
+!
+! object  - print the contents of the cma to csv (comma separated
+!           values) files
+!
+!author  : P. Houtekamer  February 2011
+!
+!arguments
+!     i   nhdrsql: unit used for printing header
+!     i   nbdysql: unit used for printing body
+!
+  implicit none
+
+  type (struct_obs), intent(inout) :: cma
+  integer,      intent(in)  :: nhdrsql, nbdysql
+
+  integer :: jo
+
+  do jo=1,cma%numheader
+   call obs_tosqlhdr(cma,jo,nhdrsql)
+   call obs_tosqlbdy(cma,jo,nbdysql)
+  enddo
+
+  return
+ 
+ end subroutine obs_prnt_csv
+
+ subroutine obs_enkf_prnthdr(cma,kobs,kulout)
+!
+! object  - printing of the header of an observation record
+!
+!author  : P. Gauthier *arma/aes  June 9, 1992
+!revision:
+!     . P. Houtekamer modification of the cma format 
+!arguments
+!     i   kobs  : no. of observation
+!     i   kulout: unit used for optional printing
+!
+  implicit none
+
+  type(struct_obs), intent(in) :: cma
+  integer,      intent(in)  :: kobs, kulout
+
+! general information
+
+  write(kulout,fmt=9100)kobs,cma%cobhdr(KOBS)
+ 9100 format(//,2x,'-- observation record no.' &
+        ,1x,i6,3x,' station id:',A12)
+
+! print header's content
+
+ 9202 format(2x,'position within robdata:',i6)
+  write(kulout,fmt=9200) &
+    cma%mobhdr(NCM_RLN,kobs),cma%mobhdr(NCM_ONM,kobs),cma%mobhdr(NCM_DAT,kobs), &
+    cma%mobhdr(NCM_ETM,kobs),cma%mobhdr(NCM_BOX,kobs), &
+    cma%mobhdr(NCM_OTP,kobs),cma%mobhdr(NCM_ITY,kobs), &
+    cma%robhdr(NCM_LAT,kobs),cma%robhdr(NCM_LON,kobs),cma%robhdr(NCM_ALT,kobs), &
+    cma%robhdr(NCM_BX,kobs),cma%robhdr(NCM_BY,kobs),cma%robhdr(NCM_BZ,kobs)
+  write(kulout,fmt=9201) & 
+    cma%mobhdr(NCM_NLV,kobs),cma%mobhdr(NCM_OFL,kobs),cma%mobhdr(NCM_PAS,kobs), &
+    cma%mobhdr(NCM_REG,kobs),cma%mobhdr(NCM_IP,kobs), cma%mobhdr(NCM_AZA,kobs)
+
+ 9200 format(2x,'position within robdata:',i6,1x,'stn. number:',i6,1x,/, &
+   '  date: ',i10,1x,' time: ',i8,/, &
+   '  model box:',i12,1x,'instrument: ',i6,1x, &
+   'obs. type:',i8,1x,/, &
+   '  (lat,lon):',f12.6,1x,f12.6,1x, &
+   'stations altitude:',f12.6,1x,/,2x, &
+   'block location: ',3(f12.6,1x))
+ 9201 format('  number of data:',i6,1x,'report status: ',i6,1x, &
+   ' pass: ',i6,' region: ',i6,/,2x, &
+   'processor: ',i6,' azimuth angle: ',i6)
+
+  return
+
+ end subroutine obs_enkf_prnthdr
+
+ subroutine obs_read(cma,hx,ncmahdr,ncmabdy,ncmahx)
+!
+!authors Peter Houtekamer and Herschel Mitchell October 1999
+!
+!object: read the cma structure with observational information from files.
+!
+!   input: 
+!      ncmahdr: unit number of the file with cma header info.
+!      ncmabdy: unit number of the file with cma body info.
+!      ncmahx:  unit number of the file with hx (-1 if not used)
+!   output:
+!      mobhdr,robhdr,cobhdr:             station header information
+!      mobdata,robdata,hx:               observation data
+!
+  implicit none
+  
+  type (struct_obs), intent(inout) :: cma  ! the CMA being prep'ed
+  integer,      intent(in)  :: ncmahdr,ncmabdy,ncmahx
+  real*8,       intent(out) :: hx(:,:)
+
+  integer  :: i,ifirst,ilast,iobscur,istn,j,k,myip,nens
+
+  if (ncmahx.eq.-1) then
+   nens=0
+  else
+   nens=size(hx,1)
+  endif
+  cma%numbody=size(cma%robdata,2)
+  cma%numheader=size(cma%robhdr,2)
+
+  iobscur=0
+
+! read stations
+
+  readstn: do istn=1,cma%numheader
+   read(ncmahdr,end=288,err=288) (cma%mobhdr(i,istn),i=1,NHDR_INT), &
+     (cma%robhdr(j,istn),j=1,NHDR_REAL),cma%cobhdr(istn)
+
+   if (istn.eq.1) then 
+    cma%mobhdr(NCM_RLN,istn)=1
+   else
+    cma%mobhdr(NCM_RLN,istn)=cma%mobhdr(NCM_RLN,istn-1)+ &
+      cma%mobhdr(NCM_NLV,istn-1)
+   endif
+   iobscur=iobscur+cma%mobhdr(NCM_NLV,istn)
+! now read the observations:
+   ifirst=cma%mobhdr(NCM_RLN,istn)
+   ilast=cma%mobhdr(NCM_RLN,istn)+cma%mobhdr(NCM_NLV,istn)-1
+   do i=ifirst,ilast
+    read(ncmabdy) (cma%mobdata(j,i),j=1,NBDY_INT), &
+      (cma%robdata(k,i),k=1,NBDY_REAL)
+   enddo
+   if (nens.gt.0) then
+    do i=ifirst,ilast
+     read(ncmahx)  (hx(j,i),j=1,nens)
+    enddo
+   endif
+  enddo readstn 
+
+  if (iobscur.ne.cma%numbody) then
+   write(*,*) 'obs_read: the number of observations ', &
+     iobscur,' should equal ',cma%numbody
+   call qqexit(1)
+   stop
+  endif
+ 288  write(*,*) 'file is now empty'
+  write(*,*) 'close ncmahdr which is on unit: ',ncmahdr
+  close(ncmahdr)
+  write(*,*) 'close ncmabdy which is on unit: ',ncmabdy
+  close(ncmabdy)
+  if (nens.gt.0) then
+   write(*,*) 'close ncmahx which is on unit: ',ncmahx
+   close(ncmahx)
+  endif
+  write(*,*) 'exit from obs_read'
+  return
+
+ end subroutine obs_read
+
+ subroutine obs_readstns(cma,myip,ipasscur,iregcur,ncmahdr,ncmabdy,np,mxstn, &
+                         mxobs)
+ !
+ ! obs_readstns
+ !
+ !authors Peter Houtekamer and Herschel Mitchell October 1999
+ !
+ !object: read the stations for one analysis pass and store them
+ !        in buffers.
+ !        (this routine is intended for the master mpi process,
+ !         other processes exit immediately)
+ !
+ !   input: 
+ !      myip:     number of the process
+ !      ipasscur: number of the current analysis pass (i.e. batch)
+ !      ncmahdr:  unit number of the file with cma header info.
+ !      ncmabdy:  unit number of the file with cma body info.
+ !      np   :    total number of processes used in MPI. 
+ !   output:
+ !      iregcur: number of regions to be done for this pass. 
+ !
+  implicit none
+
+  type(struct_obs), intent(inout) :: cma
+  integer,          intent(in)  :: ipasscur,myip,ncmahdr,ncmabdy,np,mxstn,mxobs
+  integer,          intent(out) :: iregcur
+
+  integer :: i,idata,ifirst,ilast,ipass,ireg,j,k
+
+  real(4),           save :: robhdr_1(NHDR_REAL)
+  integer,           save :: mobhdr_1(NHDR_INT)
+  character(len=12), save :: cobhdr_1
+  logical,           save :: empty  = .false., &
+                             hasone = .false.
+
+  if (myip.ne.0) return
+
+  if (empty) then
+   write(*,*) 'file is empty'
+   return
+  endif
+
+  iregcur=1
+
+  ! read stations for this pass of the sequential algorithm
+
+  ! hasone indicates whether a station has been read without being
+  ! buffered. This occurs after the stations for one pass have
+  ! been read. In this case one should not read a new station 
+  ! but first buffer the saved one.
+
+  do while( get_one() )
+   ireg=mobhdr_1(NCM_REG)
+   ipass=mobhdr_1(NCM_PAS)
+
+   if ((ipass /= ipasscur)) then
+     if(obs_numheader(cma) == 0) then
+      write(6,*)"ERROR"
+      write(6,*)"ERROR:  In obs_readstns(), the next"
+      write(6,*)"ERROR:  NCM_PAS value, ", ipass, "does not match the"
+      write(6,*)"ERROR:  current  pass, ", ipasscur,".  Exiting."
+      write(6,*)"ERROR"
+      call qqexit(1)
+     end if
+    exit
+   end if
+
+   ! default assignment of all input variables to cma.
+   cma%numheader=cma%numheader+1
+   idata=cma%numheader
+   cma%mobhdr(:,idata)=mobhdr_1(:)
+   cma%robhdr(:,idata)=robhdr_1(:)
+   cma%cobhdr(idata)=cobhdr_1
+
+   ! determine which process will handle this station.
+   ! the corresponding scatter operation is in program scattercma.
+   cma%mobhdr(NCM_IP,idata)=mod(cma%mobhdr(NCM_ONM,idata),np)
+
+   ireg=cma%mobhdr(NCM_REG,idata)
+   if (iregcur.ne.ireg) then
+    iregcur=ireg
+   endif
+
+   if (idata.eq.1) then 
+    cma%mobhdr(NCM_RLN,idata)=1
+   else
+    cma%mobhdr(NCM_RLN,idata)=cma%mobhdr(NCM_RLN,idata-1)+ &
+                              cma%mobhdr(NCM_NLV,idata-1)
+   endif
+
+   ! now read the observations:
+   ifirst=cma%mobhdr(NCM_RLN,idata)
+   ilast=cma%mobhdr(NCM_RLN,idata) + cma%mobhdr(NCM_NLV,idata)-1
+   do i=ifirst,ilast
+    read(ncmabdy) (cma%mobdata(j,i),j=1,NBDY_INT), &
+                  (cma%robdata(k,i),k=1,NBDY_REAL)
+   enddo
+
+   hasone=.false.
+
+  ! go back to read the next station
+  end do 
+
+  return
+
+  contains
+
+   logical function get_one()
+    integer :: ierr
+
+    if (.not. hasone) then 
+     read(ncmahdr,iostat=ierr) (mobhdr_1(i),i=1,NHDR_INT), &
+        (robhdr_1(j),j=1,NHDR_REAL),cobhdr_1
+     if(ierr == 0) then
+      hasone = .true.
+     else
+      hasone = .false.
+      empty=.true.
+      write(*,*) 'file is now empty'
+      close(ncmahdr)
+      close(ncmabdy)
+     end if ! ierr
+    end if ! hasone
+
+    get_one = hasone
+   end function get_one
+
+ end subroutine obs_readstns
+
+ subroutine obs_status(cma, obs_full, numstns_out, numobs_out, kulout)
+!func obs_status - obtain basic status of the observation object
+!
+!Author    . J.W. Blezius
+!
+!    PURPOSE:  returns the values of the object's status variables 
+!
+  type (struct_obs), intent(in) :: cma
+  logical, intent(out) :: obs_full
+  integer, intent(out) :: numstns_out, numobs_out
+  integer, intent(in)  :: kulout
+
+
+! PLH   if ( cma%numheader .ge. nmxobs ) then
+! PLH     if ( cma%numbody .ge. ndatamx .or. cma%numheader .ge. nmxobs ) then
+  if (cma%numbody .ge. cma%numbody_max .or. cma%numheader .ge. cma%numheader_max) then
+   write(kulout,*) ' CMA FILE FULL'
+   obs_full = .true.
+
+  else
+   obs_full = .false.
+  end if
+
+  numstns_out = cma%numheader
+  numobs_out  = cma%numbody
+ end subroutine obs_status
+
+ subroutine obs_count_headers(cma,kulout)
+!
+! object - count the number of stations and
+!         observations that are in the cma.
+!
+!author  : Peter Houtekamer
+!
+!arguments
+!     input:    kulout: unit number for ASCII error messages and 
+!                  observation counts.
+!
+  implicit none
+
+  integer, parameter :: maxid = 256
+  type (struct_obs), intent(inout) :: cma
+  integer, intent(in) :: kulout
+  
+  integer  :: allstn,allobs,id,idata,kobs
+  integer, dimension(maxid)   :: numobs,numstn
+
+! initialize totals to zero
+  numstn=0
+  numobs=0
+  allstn=0
+  allobs=0
+
+  do kobs=1,cma%numheader
+   id=cma%mobhdr(NCM_ITY,kobs)
+   if(id.gt.maxid) then
+    id=mod(id,1000)
+   endif
+   if ((id.lt.1).or.(id.gt.maxid)) then 
+    write(kulout,*) 'id out of range: ',id
+    write(*,*) 'ERROR obs_count_headers'
+    write(*,*) 'id out of range: ',id
+    call qqexit(1)
+    stop
+   endif
+   numstn(id)=numstn(id)+1
+! idata: number of obs for this station
+   idata = cma%mobhdr(NCM_NLV,kobs)
+   numobs(id)=numobs(id)+idata
+  enddo  
+
+  write(kulout,*) 'number of stations and observations'
+  write(kulout,*) ' idtype #stations #observations '
+  do id=1,maxid
+   if (numstn(id).gt.0) then
+    write(kulout,'(i3,3x,i7,2x,i8)') id,numstn(id),numobs(id)
+   endif
+   allstn=allstn+numstn(id)
+   allobs=allobs+numobs(id)
+  enddo 
+  write(kulout,*) 'total number of stations:     ',allstn
+  write(kulout,*) 'total number of observations: ',allobs
+
+  return
+
+ end subroutine obs_count_headers
+
+ subroutine obs_tosqlbdy(cma,kobs,kulout)
+!
+!s/r obs_tosqlbdybdy  - print all data records associated with a station
+!
+!authors  : Peter Houtekamer and Chantal Cote, July 2003. 
+!
+!arguments
+!     i   kobs  : no. of observation
+!     i   kulout: unit used for printing
+!
+  implicit none
+
+  type (struct_obs), intent(inout) :: cma
+  integer,      intent(in) :: kobs,kulout
+
+  integer :: idata,idata2,ihpht,ioer,ioma,iomp,iomp6,ipnt,ippp, &
+    ivnm,ivnmc,istat,ivar,jdata,jtrans,var3d
+  integer  :: mrbcol,mrbcvt
+  real     :: rppp
+  external :: mrbcol,mrbcvt
+
+  ipnt  = cma%mobhdr(NCM_RLN,kobs)
+  idata = cma%mobhdr(NCM_NLV,kobs)
+
+  do jdata = ipnt, ipnt + idata - 1
+   idata2 = jdata -ipnt + 1
+   if (btest(cma%mobdata(NCM_FLG,jdata),12)) then
+    var3d=1
+   else
+    var3d=0
+   endif
+         
+   ippp=cma%robdata(NCM_PPP,jdata)
+   rppp=float(ippp)
+         
+   ivnm=cma%mobdata(NCM_VNM,jdata)
+   istat=mrbcol(ivnm,ivnmc,1)
+   istat=mrbcvt(ivnmc,ivar,cma%robdata(NCM_VAR,jdata),1,1,1,1)
+   istat=mrbcvt(ivnmc,iomp,cma%robdata(NCM_OMP,jdata),1,1,1,1)
+   istat=mrbcvt(ivnmc,iomp6,cma%robdata(NCM_OMP6,jdata),1,1,1,1)
+   istat=mrbcvt(ivnmc,ioma,cma%robdata(NCM_OMA,jdata),1,1,1,1)
+   istat=mrbcvt(ivnmc,ioer,cma%robdata(NCM_OER,jdata),1,1,1,1)
+   istat=mrbcvt(ivnmc,ihpht,cma%robdata(NCM_HPHT,jdata),1,1,1,1)
+   jtrans=cma%mobdata(NCM_VCO,jdata)
+   if (jtrans .eq. 1) then
+    istat=mrbcol(7001,ivnmc,1)
+    istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
+   elseif (jtrans .eq. 2) then
+    istat=mrbcol(7004,ivnmc,1)
+    istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
+   elseif (jtrans .eq. 3) then
+    istat=mrbcol(2150,ivnmc,1)
+    istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
+   else 
+    write(*,*) 'attention, mauvaise coordonnee verticale'
+    call qqexit(1)
+    stop
+    ippp=-1
+   endif
+
+   write(kulout,fmt=9201) kobs,idata2, &
+    cma%mobdata(NCM_VNM,jdata),ippp,cma%mobdata(NCM_ASS,jdata),ivar, &
+    iomp,iomp6,ioma,ioer,ihpht,var3d,cma%robdata(NCM_ZHA,jdata), &
+    cma%mobdata(NCM_VCO,jdata),cma%mobdata(NCM_FLG,jdata)
+!
+  enddo 
+!
+ 9201 format(1x,i9,',',i3,2(',',i6),',',i3,6(',',i8), &
+   ',',i2,',',f10.3,',',i2,',',i12)
+!
+  return
+ end subroutine obs_tosqlbdy
+
+ subroutine obs_tosqlhdr(cma,kobs,kulout)
+!
+!s/r obs_tosqlhdr  - printing of the header of a station record for sql
+!
+!author  : Peter Houtekamer and Chantal Cote, July 2003.
+!
+! Revision July 2005 by Peter Houtekamer. Removed ncmblk from the CMA.
+!
+!arguments
+!     i   kobs  : no. of observation
+!     i   kulout: unit used for output
+!
+  implicit none
+
+  type (struct_obs), intent(inout) :: cma
+  integer, intent(in) :: kobs,kulout
+!
+  integer :: ialt,idburp,ii,ilon,ilat,iout,jtrans
+  character*9 :: ccstnid
+  real*8 :: torad 
+
+  torad=4.D0*atan(1.D0)/180.D0
+
+  ccstnid=cma%cobhdr(kobs)
+
+! Replace occasional appearance of "," by "b" in CCSTNID to avoid problem
+! when converting this output to sqlite. - Xingxiu Deng, March 2009
+  do ii=1,len_trim(ccstnid)
+   iout=index(ccstnid,',')
+   if (iout .gt. 0 ) then
+    ccstnid(iout:iout)='b'
+   endif
+  enddo
+
+  ialt=cma%robhdr(NCM_ALT,kobs)+400
+  ilon=nint((cma%robhdr(NCM_LON,kobs)/torad)*100)
+  ilat=nint((cma%robhdr(NCM_LAT,kobs)/torad+90.0)*100)
+
+  idburp=mod(cma%mobhdr(NCM_ITY,kobs),1000)
+  write(kulout,fmt=9200) kobs,CCSTNID, &
+   cma%mobhdr(NCM_DAT,kobs),cma%mobhdr(NCM_ETM,kobs),cma%mobhdr(NCM_RLN,kobs), &
+   cma%mobhdr(NCM_ONM,kobs),cma%mobhdr(NCM_BOX,kobs), &
+   cma%mobhdr(NCM_OTP,kobs),idburp,ilat,ilon,ialt, &
+   cma%mobhdr(NCM_NLV,kobs),cma%mobhdr(NCM_OFL,kobs), &
+   cma%mobhdr(NCM_PAS,kobs),cma%mobhdr(NCM_REG,kobs), &
+   cma%mobhdr(NCM_IP,kobs)
+
+  9200 format(2x,i9,',',a9,',',i10,',',i8,',',i6,',',i6, &
+     ',',i12,',',i6,4(',',i8),5(',',i6))
+
+  return
+
+ end subroutine obs_tosqlhdr
+
+ subroutine obs_write_bdy(cma,kobs,kulout)
+!
+! object  - write the data records associated with a
+!                 station in unformatted form.
+!
+!author  : P. Houtekamer  March 2000
+!
+!arguments
+!    input
+!     i   kobs  : no. of observation
+!     i   kulout: unit used for writing 
+!
+  implicit none 
+
+  type(struct_obs), intent(inout) :: cma
+  integer, intent(in) ::  kobs,kulout
+
+  integer :: ipnt,idata,j,jdata,k
+ 
+ 
+  ipnt  = cma%mobhdr(NCM_RLN,kobs) 
+  idata = cma%mobhdr(NCM_NLV,kobs)
+ 
+! write the data records
+  do jdata=ipnt,ipnt+idata-1
+   write(kulout) (cma%mobdata(k,jdata),k=1,NBDY_INT), &
+                 (cma%robdata(j,jdata),j=1,NBDY_REAL)
+  enddo 
+
+  return
+
+ end subroutine obs_write_bdy
+
+ subroutine obs_write(cma,hx, &
+   nens,ncmahdrout,ncmabdyout,ncmahxout,ncmadimout)
+!
+! author: Peter Houtekamer February 2011
+! 
+! object: 
+!   write the cma info to unformatted files
+!   note that the body information is written in the 
+!   order that it will be used by sekfeta.f
+!
+  implicit none
+  type(struct_obs), intent(inout) :: cma
+  real*8,       intent(in), dimension(:,:) :: hx
+  integer,      intent(in) :: nens,ncmahdrout,ncmabdyout, &
+                              ncmahxout,ncmadimout
+
+  integer :: irobdata,jo,nrobdata
+      
+  irobdata=1
+  do jo=1,cma%numheader
+   call obs_write_hdr(cma,jo,ncmahdrout,irobdata,nrobdata)
+   call obs_write_bdy(cma,jo,ncmabdyout)
+   if (nens.gt.0) then
+    call obs_write_hx(cma,hx,jo,ncmahxout)
+   endif
+   irobdata=irobdata+nrobdata
+  enddo
+  write(ncmadimout,*) cma%numheader
+  write(ncmadimout,*) irobdata-1
+  write(ncmadimout,*) nens
+
+  return
+
+ end subroutine obs_write
+
+ subroutine obs_write_hdr(cma,kobs,kulout,irobdata,nrobdata)
+!
+!object - writing of the header of a station record
+!
+!author  : Peter Houtekamer March 2000
+!
+!arguments
+!     i   kobs  : no. of observation
+!     i   kulout: unit used for output 
+!     i   irobdata: location in the sorted robdata
+!    output
+!     i   nrobdata: number of observations for this station
+!
+  implicit none
+
+  type(struct_obs), intent(inout) :: cma
+  integer,      intent(in)  :: kobs,kulout,irobdata
+  integer,      intent(out) :: nrobdata
+
+  integer :: i,j
+
+! (note that as a part of the writing the body is being sorted
+!  so that the order of the observations in the body array 
+!  corresponds with the order of the stations in the header array).
+
+  nrobdata=cma%mobhdr(NCM_NLV,kobs)
+! write the header's content 
+  write(kulout) irobdata,(cma%mobhdr(i,kobs),i=2,NHDR_INT), &
+    (cma%robhdr(j,kobs),j=1,NHDR_REAL),cma%cobhdr(kobs)
+ 
+  return
+
+ end subroutine obs_write_hdr
+
+ subroutine obs_write_hx(cma,hx,kobs,kulout)
+!
+! object  - write the interpolated values associated with a
+!                 station in unformatted form.
+!
+!author  : P. Houtekamer and H. Mitchell May 2005
+!
+!arguments
+!    input
+!        hx    : interpolated values    
+!        kobs  : no. of station 
+!        kulout: unit used for writing 
+!
+  implicit none 
+
+  type(struct_obs), intent(inout) :: cma
+  real*8,  intent(in), dimension(:,:) :: hx
+  integer, intent(in) :: kobs,kulout
+
+  integer :: ipnt,idata,iens,j,jdata,k,nens
+ 
+  nens = size(hx,1)
+ 
+  ipnt  = cma%mobhdr(NCM_RLN,kobs) 
+  idata = cma%mobhdr(NCM_NLV,kobs)
+ 
+! write the data records
+  do jdata=ipnt,ipnt+idata-1
+   write(kulout) (hx(iens,jdata),iens=1,nens)
+  enddo
+
+  return
+
+ end subroutine obs_write_hx
+
+
  SUBROUTINE obs_reduceToMpiLocal(obsdat, nfiles, nbegintyp, &
                                  nendtyp, nbegintyp_g, nendtyp_g)
 !
@@ -1877,11 +3290,11 @@ MODULE obsSpaceData_mod
 !
 !Author    . Bin He (ARMA/MRB )
 !
-!Revision:
+!revision:
 !      PURPOSE:  To retain in the observation object only those data that are
 !                pertinent to the present mpi processor.
 !
-  IMPLICIT NONE
+  implicit none
 
   type(struct_obs), intent(inout) :: obsdat
   integer, intent(in)    :: nfiles
@@ -1897,7 +3310,7 @@ MODULE obsSpaceData_mod
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp,MOBDATA_TMP
   INTEGER,ALLOCATABLE,DIMENSION(:) :: locObsTag_tmp
   integer :: numbody_mpilocal
-  
+
   INTEGER :: i,j,iobs ,numheader_mpilocal ,startindx,endindx 
   INTEGER :: idataend,jj,ifamid,istart,idata,ii 
   LOGICAL :: lfirst 
@@ -1923,7 +3336,7 @@ MODULE obsSpaceData_mod
    iobs=obsdat%locObsTag(i)
    idata=obsdat%mobhdr(NCM_NLV, iobs)
    numbody_mpilocal = numbody_mpilocal + idata
-  ENDDO 
+    enddo
 
   ALLOCATE(cfamily_tmp(numheader_mpilocal)) 
   ALLOCATE(cstnid_tmp(numheader_mpilocal)) 
@@ -1931,7 +3344,7 @@ MODULE obsSpaceData_mod
   ALLOCATE(MOBHDR_tmp(NHDR_INT,numheader_mpilocal)) 
   ALLOCATE(MOBDATA_tmp(NBDY_INT,numbody_mpilocal)) 
   ALLOCATE(ROBDATA_tmp(NBDY_REAL,numbody_mpilocal))
-!  
+!
   call obs_allocateG(obsdat,obsdat%numheader)
 !
   obsdat%numheader_mpiglobal=obsdat%numheader
@@ -1942,7 +3355,7 @@ MODULE obsSpaceData_mod
     obsdat%CSTNID_G(iobs)=obsdat%CSTNID(iobs)
     obsdat%MOBHDR_G(:,iobs)=obsdat%MOBHDR(:,iobs)
     obsdat%ROBHDR_G(:,iobs)=obsdat%ROBHDR(:,iobs)
-  ENDDO  
+  enddo
 !!
   DO i=1,numheader_mpilocal 
     iobs=obsdat%locObsTag(i) 
@@ -1981,12 +3394,12 @@ MODULE obsSpaceData_mod
      obsdat%cstnid(i)=cstnid_tmp(i)
      obsdat%ROBHDR(:,i)=ROBHDR_tmp(:,i)
      obsdat%MOBHDR(:,i)=MOBHDR_tmp(:,i) 
-  ENDDO 
+  enddo  
 
   DO i=1,obsdat%numbody
      obsdat%ROBDATA(:,i)=ROBDATA_tmp(:,i) 
      obsdat%MOBDATA(:,i)=MOBDATA_tmp(:,i) 
-  ENDDO 
+  enddo 
 
   deallocate(cfamily_tmp)
   deallocate(cstnid_tmp)
@@ -2000,7 +3413,7 @@ MODULE obsSpaceData_mod
   jj=0
   NBEGINTYP_G=NBEGINTYP
   NENDTYP_G=NENDTYP
- 
+
   NBEGINTYP=0
   NENDTYP=0
   DO j=1,NFILES
@@ -2025,7 +3438,7 @@ MODULE obsSpaceData_mod
   write(*,*) obsdat%numheader,obsdat%numheader_mpiglobal,obsdat%numbody,obsdat%numbody_mpiglobal
   WRITE(*,*) '============= Leave obs_reduceToMpiLocal =============='
 
-  RETURN
+  return
  END SUBROUTINE obs_reduceToMpiLocal
 
 
@@ -2043,6 +3456,7 @@ MODULE obsSpaceData_mod
 #endif
 
   IMPLICIT NONE
+  include 'mpif.h'
 
   type(struct_obs), intent(inout) :: obsdat
 
@@ -2053,13 +3467,13 @@ MODULE obsSpaceData_mod
 
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBDATA_tmp
   INTEGER,ALLOCATABLE,DIMENSION(:,:) :: MOBHDR_tmp 
-  
+
   INTEGER :: i,j,iobs,ierr,startindx,endindx 
   INTEGER :: idataend,idata,ii  
   INTEGER :: sizeMOBHDR,sizeROBHDR,sizeMOBDATA,sizeROBDATA  
   #if OBS_REAL==4
     character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
-  #else OBS_REAL==8
+  #else if OBS_REAL==8
     character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
   #endif
 !!---------------------------------------------------------------
@@ -2148,8 +3562,95 @@ MODULE obsSpaceData_mod
   call obs_deallocateG(obsdat)
 
   write(*,*) 'Leaving obs_expandToMpiGlobal'
-  RETURN
+  return
  END SUBROUTINE obs_expandToMpiGlobal
+
+ subroutine obs_comm(cma,myip,nens,nstncom,hx)
+!
+!authors  Peter Houtekamer and Herschel Mitchell May 2005
+!     (this routine evolved from the earlier routine commstns that worked
+!      per analysis pass and did not consider hx).
+!
+!object: communicate information on the stations and the observations
+!        between the processes
+!
+!input variables:
+!     myip: number of the processor.
+!     nens: number of ensemble members for hx (may be zero)
+!     nstncom: we wish to exchange the cma for stations 1 ... nstncom
+!       (nstncom may be less than cma%numheader_max).
+!
+  implicit none
+  include 'mpif.h'
+
+  type (struct_obs), intent(inout) :: cma
+  integer,      intent(in) :: myip,nens,nstncom
+  real*8,       intent(inout), dimension(:,:) :: hx    
+
+  integer :: ier,master,mxstn,ncomm,nobs
+
+! broadcast relevant integers from master to all processes 
+
+  master=0
+
+! if nothing to communicate, return
+
+  if (cma%numheader_max.le.0) return
+  if (nstncom.gt.cma%numheader_max) then
+   write(*,*) 'ERROR in obs_comm: nstncom ',nstncom, &
+     ' may not exceed numheader_max ',cma%numheader_max
+   call qqexit(1)
+   stop
+  endif
+  if (nstncom.le.0) then
+   write(*,*) 'ERROR in obs_comm: nstncom ',nstncom, &
+     ' should be positive '
+   call qqexit(1)
+   stop
+  endif
+
+  ncomm=nstncom*NHDR_INT 
+  call mpi_bcast(cma%mobhdr,ncomm,mpi_integer,master,mpi_comm_world,ier)
+  ncomm=nstncom*NHDR_REAL
+  call mpi_bcast(cma%robhdr,ncomm,mpi_real,master,mpi_comm_world,ier)
+  ncomm=nstncom*12
+  call mpi_bcast(cma%cobhdr,ncomm,mpi_character,master,mpi_comm_world,ier)
+    
+  nobs=cma%mobhdr(NCM_RLN,nstncom) + cma%mobhdr(NCM_NLV,nstncom) - 1
+  if (nobs.gt.cma%numbody_max) then
+   write(*,*) 'ERROR in obs_comm: nobs ',nobs, &
+     ' may not exceed cma%numbody_max ',cma%numbody_max
+   call qqexit(1)
+   stop
+  endif
+  if (nobs.le.0) then
+   write(*,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
+   call qqexit(1)
+   stop
+  endif
+
+  ncomm=nobs*NBDY_INT
+  call mpi_bcast(cma%mobdata,ncomm,mpi_integer,master,mpi_comm_world,ier)
+     
+  ncomm=nobs*NBDY_REAL
+  call mpi_bcast(cma%robdata,ncomm,mpi_real,master,mpi_comm_world,ier)
+
+  ! Broadcast the remaining cma variables
+  ncomm=1
+  call mpi_bcast(cma%numheader,ncomm,mpi_integer,master,mpi_comm_world, &
+                 ier)
+  call mpi_bcast(cma%numbody, ncomm,mpi_integer,master,mpi_comm_world, &
+                 ier)
+
+  if (nens.gt.0) then
+   ncomm=nobs*nens
+   call mpi_bcast(hx,ncomm,mpi_double_precision,master, &
+     mpi_comm_world,ier)
+  endif
+
+  return
+
+ end subroutine obs_comm
 
 
 end module obsSpaceData_mod
