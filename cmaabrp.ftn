@@ -677,7 +677,7 @@ C                     OBSERVATION ERRORS BLOCK
 C                     ------------------------
                          IBKSTP=14
                          IBFAM=10
-                       ELSE IF ( trim(CVAL) .EQ. 'FGE') THEN
+                       ELSE IF ( trim(CVAL) .EQ. 'HPHT') THEN
 C                     FORECAST ERRORS
 C                     ------------------------
                          IBKSTP=15

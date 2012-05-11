@@ -328,8 +328,7 @@ MODULE obsSpaceData_mod
 !  
  integer, parameter :: NCM_RLN = 1          ! report location
  integer, parameter :: NCM_ONM = NCM_RLN+1  ! unique (within cma) station id no.
- integer, parameter :: NCM_BOX = NCM_ONM+1  ! model Box (used by TOVS)
- integer, parameter :: NCM_INS = NCM_BOX+1  ! instrument ID  
+ integer, parameter :: NCM_INS = NCM_ONM+1  ! instrument ID  
  integer, parameter :: NCM_OTP = NCM_INS+1  ! observation Type (file index)
  integer, parameter :: NCM_ITY = NCM_OTP+1  ! code: instrument and retrieval type
  integer, parameter :: NCM_SAT = NCM_ITY+1  ! satellite code 
@@ -406,11 +405,9 @@ MODULE obsSpaceData_mod
  integer, parameter :: NCM_OMN = NCM_OMI  + 1 ! to flag when rejected
                                               ! (Adjusted) observed value for
  integer, parameter :: NCM_PRM = NCM_OMN  + 1 ! tovs in variational assimilation
-                                              ! Background error std deviation
- integer, parameter :: NCM_FGE = NCM_PRM  + 1 ! projected into observation space
 
 ! the number of real variables defined just above
- integer, parameter :: NBDY_REAL = NCM_FGE
+ integer, parameter :: NBDY_REAL = NCM_PRM
 
 
 ! integer,parameter :: NCM_STID=    ! Not needed since only 1 cstnid exists
@@ -1058,7 +1055,7 @@ MODULE obsSpaceData_mod
                             obsdat%robdata(NCM_OMF,IP+IND)=real(PPMIS,OBS_REAL)
                             obsdat%robdata(NCM_OMA,IP+IND)=real(PPMIS,OBS_REAL)
                             obsdat%robdata(NCM_OMI,IP+IND)=real(PPMIS,OBS_REAL)
-                            obsdat%robdata(NCM_FGE,IP+IND)=real(PPMIS,OBS_REAL)
+                            obsdat%robdata(NCM_HPHT,IP+IND)=real(PPMIS,OBS_REAL)
                             obsdat%robdata(NCM_OER,IP+IND)=real(PPMIS,OBS_REAL)
 !
 !                           OBS ERROR FOR HUMSAT
@@ -1352,7 +1349,6 @@ MODULE obsSpaceData_mod
   case ('OER');  value=obsdat%robdata(NCM_OER, index)
   case ('HPHT'); value=obsdat%robdata(NCM_HPHT,index)
   case ('ZHA');  value=obsdat%robdata(NCM_ZHA, index)
-  case ('FGE');  value=obsdat%robdata(NCM_FGE, index)
   case ('PRM');  value=obsdat%robdata(NCM_PRM, index)
 
   case default
@@ -1379,7 +1375,6 @@ MODULE obsSpaceData_mod
   select case (trim(name))
   case ('RLN');  value=obsdat%mobhdr(NCM_RLN, index)
   case ('ONM');  value=obsdat%mobhdr(NCM_ONM, index)
-  case ('BOX');  value=obsdat%mobhdr(NCM_BOX, index)
   case ('INS');  value=obsdat%mobhdr(NCM_INS, index)
   case ('OTP');  value=obsdat%mobhdr(NCM_OTP, index)
   case ('ITY');  value=obsdat%mobhdr(NCM_ITY, index)
@@ -1902,7 +1897,7 @@ MODULE obsSpaceData_mod
              ,obs_elem_r(obsdat,'VAR ',JDATA),obs_elem_r(obsdat,'OMF ',JDATA) &
              ,obs_elem_r(obsdat,'OMA ',JDATA),obs_elem_r(obsdat,'OMI ',JDATA) &
              ,obs_elem_r(obsdat,'OER ',JDATA) &
-             ,obs_elem_r(obsdat,'FGE ',JDATA) &
+             ,obs_elem_r(obsdat,'HPHT',JDATA) &
              ,obs_elem_i (obsdat,'FLG ',JDATA) &
              ,obs_elem_i (obsdat,'ASS ',JDATA)
      end if
@@ -2013,7 +2008,6 @@ MODULE obsSpaceData_mod
   ! integer header values
   case ('RLN');  obsdat%mobhdr (NCM_RLN, index) = value
   case ('ONM');  obsdat%mobhdr (NCM_ONM, index) = value
-  case ('BOX');  obsdat%mobhdr (NCM_BOX, index) = value
   case ('INS');  obsdat%mobhdr (NCM_INS, index) = value
   case ('OTP');  obsdat%mobhdr (NCM_OTP, index) = value
   case ('ITY');  obsdat%mobhdr (NCM_ITY, index) = value
@@ -2086,7 +2080,6 @@ MODULE obsSpaceData_mod
   case ('OMN');  obsdat%robdata(NCM_OMN, index) = value
   case ('OER');  obsdat%robdata(NCM_OER, index) = value
   case ('HPHT'); obsdat%robdata(NCM_HPHT,index) = value
-  case ('FGE');  obsdat%robdata(NCM_FGE, index) = value
   case ('PRM');  obsdat%robdata(NCM_PRM, index) = value
   case ('ZHA');  obsdat%robdata(NCM_ZHA, index) = value
 
@@ -2489,7 +2482,7 @@ MODULE obsSpaceData_mod
 !          REMAINDER OF HEADER
 !
        cma%mobhdr(NCM_ONM,cma%numheader) = cma%numheader
-       cma%mobhdr(NCM_BOX,cma%numheader) = instrum + isatzen*10000
+       cma%mobhdr(NCM_INS,cma%numheader) = instrum + isatzen*10000
        cma%mobhdr(NCM_OTP,cma%numheader) = nvtyp
        cma%mobhdr(NCM_ITY,cma%numheader) = ity
        cma%mobhdr(NCM_DAT,cma%numheader) = idate
@@ -2683,7 +2676,7 @@ MODULE obsSpaceData_mod
  9202 format(2x,'position within robdata:',i6)
   write(kulout,fmt=9200) &
     cma%mobhdr(NCM_RLN,kobs),cma%mobhdr(NCM_ONM,kobs),cma%mobhdr(NCM_DAT,kobs), &
-    cma%mobhdr(NCM_ETM,kobs),cma%mobhdr(NCM_BOX,kobs), &
+    cma%mobhdr(NCM_ETM,kobs),cma%mobhdr(NCM_INS,kobs), &
     cma%mobhdr(NCM_OTP,kobs),cma%mobhdr(NCM_ITY,kobs), &
     cma%robhdr(NCM_LAT,kobs),cma%robhdr(NCM_LON,kobs),cma%robhdr(NCM_ALT,kobs), &
     cma%robhdr(NCM_BX,kobs),cma%robhdr(NCM_BY,kobs),cma%robhdr(NCM_BZ,kobs)
@@ -3115,7 +3108,7 @@ MODULE obsSpaceData_mod
   idburp=mod(cma%mobhdr(NCM_ITY,kobs),1000)
   write(kulout,fmt=9200) kobs,CCSTNID, &
    cma%mobhdr(NCM_DAT,kobs),cma%mobhdr(NCM_ETM,kobs),cma%mobhdr(NCM_RLN,kobs), &
-   cma%mobhdr(NCM_ONM,kobs),cma%mobhdr(NCM_BOX,kobs), &
+   cma%mobhdr(NCM_ONM,kobs),cma%mobhdr(NCM_INS,kobs), &
    cma%mobhdr(NCM_OTP,kobs),idburp,ilat,ilon,ialt, &
    cma%mobhdr(NCM_NLV,kobs),cma%mobhdr(NCM_OFL,kobs), &
    cma%mobhdr(NCM_PAS,kobs),cma%mobhdr(NCM_REG,kobs), &
