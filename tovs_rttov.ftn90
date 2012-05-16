@@ -243,7 +243,7 @@ end interface
                 do nrank = 1, nchan(krtid)
                   if ( ichn == ichan(nrank,krtid) ) exit
                 end do
-                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r(lobsSpaceData,'PRL ',jdata)
+                surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r(lobsSpaceData,'SEM',jdata)
               end if
             end do
           end do

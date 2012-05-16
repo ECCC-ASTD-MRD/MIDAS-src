@@ -388,8 +388,8 @@ MODULE obsSpaceData_mod
 ! REAL-BODY COLUMN NUMBERS
 !
  integer, parameter :: NCM_PPP = 1            ! Pressure (vertical coordinate)
- integer, parameter :: NCM_PRL = NCM_PPP  + 1 ! reference level pressure
- integer, parameter :: NCM_VAR = NCM_PRL  + 1 ! value of the observation
+ integer, parameter :: NCM_SEM = NCM_PPP  + 1 ! surface emissivity
+ integer, parameter :: NCM_VAR = NCM_SEM  + 1 ! value of the observation
  integer, parameter :: NCM_OMP = NCM_VAR  + 1 ! obs - H (trial field)
  integer, parameter :: NCM_OMA = NCM_OMP  + 1 ! obs - H (analysis)
  integer, parameter :: NCM_OER = NCM_OMA  + 1 ! sigma(obs)
@@ -1076,17 +1076,17 @@ MODULE obsSpaceData_mod
 !                           SURFACE EMISSIVITIES FOR GOES AIRS AND IASI RADIANCES
 !
                             IF ( LDGO ) THEN
-                              obsdat%robdata(NCM_PRL,IP+IND)=real(PROFIL(ilevel)&
+                              obsdat%robdata(NCM_SEM,IP+IND)=real(PROFIL(ilevel)&
                                    *ZEMFACT,OBS_REAL)
                             ENDIF
 
                             IF ( LDAIRS ) THEN
-                              obsdat%robdata(NCM_PRL,IP+IND)=real(PROFIL(ilevel)&
+                              obsdat%robdata(NCM_SEM,IP+IND)=real(PROFIL(ilevel)&
                                    *ZEMFACT,OBS_REAL)
                             END IF
 
                             IF ( LDIASI ) THEN
-                              obsdat%robdata(NCM_PRL,IP+IND)=real(PROFIL(ilevel)&
+                              obsdat%robdata(NCM_SEM,IP+IND)=real(PROFIL(ilevel)&
                                     *ZEMFACT,OBS_REAL)
                             END IF
 
@@ -1269,7 +1269,7 @@ MODULE obsSpaceData_mod
                 !
                 !    SURFACE EMISSIVITIES FOR GOES AND AIRS RADIANCES
                 if ( LDAIRS ) then
-                  CMA%ROBDATA(NCM_PRL,IP+IND)=PROFIL(ilevel)*ZEMFACT
+                  CMA%ROBDATA(NCM_SEM,IP+IND)=PROFIL(ilevel)*ZEMFACT
                 endif
                 ind=ind + 1
               else
@@ -1337,7 +1337,7 @@ MODULE obsSpaceData_mod
   case ('BZ');   value=obsdat%robhdr(NCM_BZ , index)
 
   case ('PPP');  value=obsdat%robdata(NCM_PPP, index)
-  case ('PRL');  value=obsdat%robdata(NCM_PRL, index)
+  case ('SEM');  value=obsdat%robdata(NCM_SEM, index)
   case ('POB');  value=obsdat%robdata(NCM_POB, index)
   case ('VAR');  value=obsdat%robdata(NCM_VAR, index)
   case ('OMF');  value=obsdat%robdata(NCM_OMF, index)
@@ -1893,7 +1893,7 @@ MODULE obsSpaceData_mod
              ,obs_elem_i (obsdat,'VNM ',JDATA) &
              ,ccordtyp   (ivco) &
              ,obs_elem_r(obsdat,'PPP ',JDATA) &
-             ,obs_elem_r(obsdat,'PRL ',JDATA),obs_elem_r(obsdat,'POB ',JDATA) &
+             ,obs_elem_r(obsdat,'SEM ',JDATA),obs_elem_r(obsdat,'POB ',JDATA) &
              ,obs_elem_r(obsdat,'VAR ',JDATA),obs_elem_r(obsdat,'OMF ',JDATA) &
              ,obs_elem_r(obsdat,'OMA ',JDATA),obs_elem_r(obsdat,'OMI ',JDATA) &
              ,obs_elem_r(obsdat,'OER ',JDATA) &
@@ -2069,7 +2069,7 @@ MODULE obsSpaceData_mod
 
   ! real body values
   case ('PPP');  obsdat%robdata(NCM_PPP, index) = value
-  case ('PRL');  obsdat%robdata(NCM_PRL, index) = value
+  case ('SEM');  obsdat%robdata(NCM_SEM, index) = value
   case ('POB');  obsdat%robdata(NCM_POB, index) = value
   case ('VAR');  obsdat%robdata(NCM_VAR, index) = value
   case ('OMP');  obsdat%robdata(NCM_OMP, index) = value
@@ -3433,7 +3433,6 @@ MODULE obsSpaceData_mod
 #endif
 
   IMPLICIT NONE
-  include 'mpif.h'
 
   type(struct_obs), intent(inout) :: obsdat
 
@@ -3450,7 +3449,7 @@ MODULE obsSpaceData_mod
   INTEGER :: sizeMOBHDR,sizeROBHDR,sizeMOBDATA,sizeROBDATA  
   #if OBS_REAL==4
     character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
-  #else if OBS_REAL==8
+  #elif OBS_REAL==8
     character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
   #endif
 !!---------------------------------------------------------------
@@ -3558,13 +3557,17 @@ MODULE obsSpaceData_mod
 !       (nstncom may be less than cma%numheader_max).
 !
   implicit none
-  include 'mpif.h'
 
   type (struct_obs), intent(inout) :: cma
   integer,      intent(in) :: myip,nens,nstncom
   real*8,       intent(inout), dimension(:,:) :: hx    
 
   integer :: ier,master,mxstn,ncomm,nobs
+  #if OBS_REAL==4
+    character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
+  #elif OBS_REAL==8
+    character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
+  #endif
 
 ! broadcast relevant integers from master to all processes 
 
@@ -3587,11 +3590,11 @@ MODULE obsSpaceData_mod
   endif
 
   ncomm=nstncom*NHDR_INT 
-  call mpi_bcast(cma%mobhdr,ncomm,mpi_integer,master,mpi_comm_world,ier)
+  call rpn_comm_bcast(cma%mobhdr,ncomm,"mpi_integer",master,"world",ier)
   ncomm=nstncom*NHDR_REAL
-  call mpi_bcast(cma%robhdr,ncomm,mpi_real,master,mpi_comm_world,ier)
+  call rpn_comm_bcast(cma%robhdr,ncomm,MPI_OBS_REAL,master,"world",ier)
   ncomm=nstncom*12
-  call mpi_bcast(cma%cobhdr,ncomm,mpi_character,master,mpi_comm_world,ier)
+  call rpn_comm_bcast(cma%cobhdr,ncomm,"mpi_character",master,"world",ier)
     
   nobs=cma%mobhdr(NCM_RLN,nstncom) + cma%mobhdr(NCM_NLV,nstncom) - 1
   if (nobs.gt.cma%numbody_max) then
@@ -3607,22 +3610,19 @@ MODULE obsSpaceData_mod
   endif
 
   ncomm=nobs*NBDY_INT
-  call mpi_bcast(cma%mobdata,ncomm,mpi_integer,master,mpi_comm_world,ier)
+  call rpn_comm_bcast(cma%mobdata,ncomm,"mpi_integer",master,"world",ier)
      
   ncomm=nobs*NBDY_REAL
-  call mpi_bcast(cma%robdata,ncomm,mpi_real,master,mpi_comm_world,ier)
+  call rpn_comm_bcast(cma%robdata,ncomm,MPI_OBS_REAL,master,"world",ier)
 
   ! Broadcast the remaining cma variables
   ncomm=1
-  call mpi_bcast(cma%numheader,ncomm,mpi_integer,master,mpi_comm_world, &
-                 ier)
-  call mpi_bcast(cma%numbody, ncomm,mpi_integer,master,mpi_comm_world, &
-                 ier)
+  call rpn_comm_bcast(cma%numheader,ncomm,"mpi_integer",master,"world",ier)
+  call rpn_comm_bcast(cma%numbody, ncomm,"mpi_integer",master,"world",ier)
 
   if (nens.gt.0) then
    ncomm=nobs*nens
-   call mpi_bcast(hx,ncomm,mpi_double_precision,master, &
-     mpi_comm_world,ier)
+   call rpn_comm_bcast(hx,ncomm,"mpi_double_precision",master,"world",ier)
   endif
 
   return
