@@ -174,6 +174,7 @@ c     The following code replaces suobsgid, and works for YIN-YAN
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       nobs(:,:) = 0
       nultrl(:,:)=0
+
       do jvar=1,vnl_numvarmax2D
         if(gsv_varExist(varNameList2D(jvar))) exit          
       enddo
@@ -189,11 +190,34 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           endif
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
+          dlatfld(:)=0.0d0
+          dlonfld(:)=0.0d0
+
           do jobs=1, obs_numheader(lobsSpaceData)
 
             call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
      &                           obs_elem_i(lobsSpaceData,'DAT ',jobs),
      &                           obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobs)
+
+            ! check if obs is outside of assimilation window when jstep = 1
+            if(jstep.eq.1 .and. 
+     &        (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(nstepobs,8)) ) then
+              write(*,*) 'sugomobs: Observation time outside assimilation window: ',
+     &            obs_elem_i(lobsSpaceData,'DAT ',jobs),obs_elem_i(lobsSpaceData,'ETM ',jobs)
+
+              ! put the obs in the first time bin (it has to go somewhere!)
+              stepObsIndex=1.0
+
+              ! flag it as out of time domain and turn off its assimilation flag
+              idata = obs_elem_i(lobsSpaceData,'RLN ',jobs)
+              idatend = obs_elem_i(lobsSpacedata,'NLV ',jobs) + idata -1
+              do jdata = idata, idatend
+                call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
+              enddo
+              call obs_set_i(lobsSpaceData,'ST1 ',jobs, 
+     &          ibset( obs_elem_i(lobsSpaceData,'ST1 ',jobs), 05))
+            endif
+
             if(nint(stepObsIndex).eq.jstep) then
 
               lat_r4=real(obs_elem_r(lobsSpaceData,'LAT ',jobs))
@@ -223,7 +247,6 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 dlonfld(nobs(jstep,jgrid))=dlonfld(nobs(jstep,jgrid))*MPC_DEGREES_PER_RADIAN_R8
               endif
             endif
-
           enddo ! jobs
 
           zig1 = 0.0D0

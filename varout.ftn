@@ -177,7 +177,7 @@ C
 C
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      write(*,*) 'ben_setup: reading namelist, ierr=',ierr
+      write(*,*) 'varout: reading namelist, ierr=',ierr
       read(nulnam,nml=nampost)
       write(*,nml=nampost)
       ierr=fclos(nulnam)
