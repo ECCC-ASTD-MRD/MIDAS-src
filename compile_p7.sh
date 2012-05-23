@@ -72,18 +72,19 @@ grep fail listing0
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling most of the new modules"
-SRC1="controlvector_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90 gaussgrid_mod.ftn90 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
+SRC1="controlvector_mod.ftn90 airsch_mod.ftn90 iasich_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
+SRC1="$SRC1 gaussgrid_mod.ftn90 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
 SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
 SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
 SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
+SRC1="$SRC1 airsbgck_mod.ftn90 iasibgck_mod.ftn90 4dv_mod.ftn90 avhrr_var_mod.ftn90 common_iasi_mod.ftn90 ozoneclim_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
 grep fail listing1
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling the old modules (cdk90)..."
-SRC2="airsbgcheck.cdk90 airsch.cdk90 iasibgcheck.cdk90 iasich.cdk90 mod4dv.cdk90 modgps00base.cdk90 modgps01ctmath.cdk90 modgps02wgs84const.cdk90 modgps03diff.cdk90 modgps04profile.cdk90 modgps06gravity.cdk90 out_airs.cdk90 out_iasi.cdk90 ozoneclim.cdk90 qc_profiles.cdk90"
-SRC2="$SRC2 mod_tovs.cdk90 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90"
-SRC2="$SRC2 avhrr_var_mod.cdk90 common_iasi.cdk90"
+SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps02wgs84const.cdk90 modgps03diff.cdk90 modgps04profile.cdk90 modgps06gravity.cdk90"
+SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90"
 s.compile $INCLUDES $COMPF -O -src $SRC2 > listing2 2>&1
 grep fail listing2
 if [ $? = "0" ] ; then exit ; fi

@@ -167,7 +167,7 @@
                              ZLSUM = ZLSUM +  (ZJTT(JL)*ZTT(JL))**2 + (ZJHU(JL)*ZHU(JL))**2 
                            ENDDO
                            ZLSUM = ZLSUM + (ZJP0*ZP0)**2
-                           call obs_set_r(lobsSpaceData,'FGE ',jdata,SQRT(ZLSUM))
+                           call obs_set_r(lobsSpaceData,'HPHT',jdata,SQRT(ZLSUM))
 
                            IF (JO.EQ.IBEGINOB .AND. NH1.LE.3) THEN
                             WRITE(NULOUT,'(A11,A9,3(1x,f7.2))')   &

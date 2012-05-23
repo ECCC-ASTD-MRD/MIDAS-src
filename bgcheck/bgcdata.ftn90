@@ -95,7 +95,7 @@
 !C              BACK GROUND CHECK
 !C
                   ZOMP  =-obs_elem_r(lobsSpaceData,'OMF ',jdata)*obs_elem_r(lobsSpaceData,'OER ',jdata)
-                  ZFGE  = obs_elem_r(lobsSpaceData,'FGE ',jdata)
+                  ZFGE  = obs_elem_r(lobsSpaceData,'HPHT',jdata)
                   IF ( CDFAM .EQ. 'GP' ) THEN
                     IF (ITYP .EQ. BUFR_NEZD) THEN
                       ZOER = ZOER/YZDERRWGT

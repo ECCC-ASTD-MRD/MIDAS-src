@@ -14,44 +14,40 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE LINEQ(X1,X2,Y1,Y2,A,B,IER) 
-***subroutine     LINEQ
-*
-*auteur           Louis Garand  - rpn - dorval
-*
-*REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
-*                                 Decembre 1995
-*                 Generaliser pour toutes les plateformes satellitaires.
-*
-*langage          fortran 5
-*
-*objet            calculate slope and intercept of a line.
-*
-*appel            CALL  LINEQ(X1,X2,Y1,Y2,A,B,IER)
-*
-*arguments        x1  - input  - coordinate x of point 1
-*                 x2  - input  - coordinate x of point 2
-*                 y1  - input  - coordinate y of point 1
-*                 y2  - input  - coordinate y of point 2
-*                 a   - output - slope
-*                 b   - output - intercept
-*                 ier - output - error code (0=ok)
-**
-      implicit none
-c
-      integer  ier
-c
-      real  x1, x2, y1, y2, a, b
-c
-      ier = 0
-c
-      IF((X2-X1).EQ.0.)THEN 
-         IER=-1
-         RETURN
-      ENDIF 
-c
-      A=(Y2-Y1)/(X2-X1) 
-      B=Y1-A*X1 
-c
-      RETURN
-      END 
+REAL FUNCTION  DRCLD ( IZ ) 
+!**fonction       DRCLD
+!
+!auteur           Louis Garand  - rpn - dorval
+!
+!revision 001     Jacques Halle - ddo - dorval - 421-4660
+!                                 fev 1991
+!                 adapter au systeme operationel GOES.
+!
+!REVISION 002     JACQUES HALLE - DDO - DORVAL - 421-4660
+!                                 Decembre 1995
+!                 Generaliser pour toutes les plateformes satellitaires.
+!
+!langage          fortran 5
+!
+!objet            ce sous-programme calcule la normalisation due
+!                 a l'angle zenith solaire selon 
+!                 MINNIS-HARRISSON (COURBE FIG 7), P1038,JCAM 84.  
+!
+!appel            xnorm = DRCLD ( IZ )
+!
+!arguments        xnorm - output - facteur de normalisation
+!                 iz    - input  - cosinus de l'angle solaire
+!*
+  implicit  none
+
+  integer,intent (in) ::  iz
+  
+  real  DRF(11) 
+
+  DATA  DRF / 1.000, 1.002, 1.042, 1.092, 1.178, 1.286, &
+       1.420, 1.546, 1.710, 1.870, 2.050        / 
+
+  DRCLD = DRF (IZ)
+
+  RETURN
+END FUNCTION DRCLD

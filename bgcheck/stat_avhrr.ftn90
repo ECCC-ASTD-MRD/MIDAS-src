@@ -8,7 +8,6 @@ type (avhrr_var) ,intent(inout) :: avhrr
 integer :: ICL,ICH
 Real (8) :: SUMFRAC(NVIS+NIR),TBMIN(NVIS+1:NVIS+NIR),TBMAX(NVIS+1:NVIS+NIR),SUMTB(NVIS+1:NVIS+NIR),SUMTB2(NVIS+1:NVIS+NIR)
 Real (8) :: SUMALB(1:NVIS),SUMALB2(1:NVIS)
-!INTEGER :: POSMIN(NVIS+1:NVIS+NIR),POSMAX(NVIS+1:NVIS+NIR)
 !******************************************
 
 SUMFRAC(:)=0.d0
@@ -16,11 +15,6 @@ SUMTB(:)=0.d0
 SUMTB2(:)=0.d0
 SUMALB(:)=0.d0
 SUMALB2(:)=0.d0
-!POSMIN(:)=-1
-!POSMAX(:)=-1
-
-!TBMIN(:)=999.d0
-!TBMAX(:)=-999.d0
 
 DO ICL=1,NCLASSAVHRR
    IF (avhrr%CFRAC(ICL) > 0.d0 ) THEN
@@ -34,14 +28,6 @@ DO ICL=1,NCLASSAVHRR
       ENDDO
       DO ICH=1+NVIS,NVIS+NIR
          IF (avhrr%TBMOY(ICL,ICH) > 0.d0 ) THEN
-!            IF (avhrr%TBMOY(ICL,ICH) > TBMAX (ICH) ) THEN
-!               TBMAX (ICH) = avhrr%TBMOY(ICL,ICH)
-!               POSMAX(ICH) = ICL
-!            ENDIF
-!            IF (avhrr%TBMOY(ICL,ICH) < TBMIN (ICH) ) THEN
-!               TBMIN (ICH) = avhrr%TBMOY(ICL,ICH)
-!               POSMIN(ICH) = ICL
-!            ENDIF
             SUMFRAC(ICH) = SUMFRAC(ICH) + avhrr%CFRAC(ICL)
             SUMTB(ICH) = SUMTB(ICH) + avhrr%CFRAC(ICL) * avhrr%TBMOY(ICL,ICH)
             SUMTB2(ICH) = SUMTB2(ICH) + avhrr%CFRAC(ICL) * (avhrr%TBMOY(ICL,ICH)**2 + avhrr%TBSTD(ICL,ICH)**2 )
@@ -49,7 +35,6 @@ DO ICL=1,NCLASSAVHRR
       ENDDO
    ENDIF
 ENDDO
-
 
 DO ICH=1,NVIS
    IF (SUMFRAC(ICH) >0.d0 ) THEN
@@ -63,9 +48,6 @@ DO ICH=1,NVIS
    ENDIF
 ENDDO
 
-
-
-
 DO ICH=NVIS+1,NVIS+NIR
    IF (SUMFRAC(ICH) >0.d0 ) THEN
       SUMTB(ICH) = SUMTB(ICH) / SUMFRAC(ICH)
@@ -78,10 +60,6 @@ DO ICH=NVIS+1,NVIS+NIR
    ENDIF
 ENDDO
 
-!avhrr%POSTBMIN=POSMIN
-!avhrr%POSTBMAX=POSMAX
-!avhrr%TBMOY_PIXELIASI=SUMTB
-!avhrr%ALBMOY_PIXELIASI=SUMALB
 avhrr%TBSTD_PIXELIASI=SUMTB2
 avhrr%ALBSTD_PIXELIASI=SUMALB2
 

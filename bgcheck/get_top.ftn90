@@ -1,0 +1,169 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+
+SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
+
+#if defined (DOC)
+!**************************************************************************
+!
+!**ID GET_TOP -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND                       2004
+!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT AND NUMBER OF POSSIBLE HEIGHTS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BT        : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!                          OR COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+!            -TT(NLEV)  : TEMPERATURE PROFILE (DEG K)
+!                          OR COMPUTED CLOUD RADIANCE FROM EACH LEVEL TO TOP (")
+!            -PP(NLEV)  : PRESSURE (HPA) OR HEIGHTS (M) PROFILE (IOPT=1 OR 2)
+!            -NLEV      : NUMBER OF VERTICAL LEVELS
+!            -IOPT      : HEIGHT UNITS IN HPA (1) OR IN METERS (2)
+!
+!          INPUT/OUTPUT:
+!            -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!                         (IF <= 0, SEARCH & START AT COLDEST LEVEL)
+!
+!          OUTPUT:
+!            -HT(NLEV)  : CLOUD TOP HEIGHT IN HPA OR METERS (IOPT = 1 OR 2)
+!            -NHT       : NUMBER OF POSSIBLE CLOUD HEIGHT SOLUTIONS
+!
+!***************************************************************************
+#endif
+
+  IMPLICIT NONE
+  integer ,intent   (in) :: NLEV,IOPT
+  integer ,intent (inout) :: lev_start
+  REAL(8)  ,intent (in) :: BT, TT(NLEV), PP(NLEV)
+  REAL(8)  ,intent (out) :: HT(NLEV)
+  integer ,intent (out) :: NHT
+!*******************************************************
+     
+  INTEGER   :: I, NHT, IM, i10
+  REAL(8)   :: P(NLEV)
+  REAL(8)   :: DT, A, AA, B
+
+  HT(:) = -1.
+
+  IF (IOPT==1) P(:) = LOG(PP(:))
+
+  IM = LEV_START
+
+
+  IF ( LEV_START <= 0 ) THEN
+
+!*      SEARCH INDEX IM WHERE TT IS MINIMUM
+
+     CALL FMIN (IM, tt,nlev)
+  
+     LEV_START = IM
+
+     IF ( IM == NLEV ) THEN
+        LEV_START = MAX(LEV_START,10)
+        NHT = 1
+        HT(1) = PP(NLEV)
+        RETURN
+     ENDIF
+     
+  END IF
+
+
+  NHT = 0        
+      
+  DO I = IM, NLEV-1
+     DT = TT(I+1) - TT(I) + 1.E-12
+     IF ( BT > TT(I) .AND. BT <= TT(I+1) ) THEN
+        A    = P(I) + (P(I+1)-P(I))/DT*(BT-TT(I))
+        B    = PP(I) + (PP(I+1)-PP(I))/DT*(BT-TT(I))
+        NHT      = NHT+1
+        IF(IOPT==1) HT(NHT)=EXP(A)
+        IF(IOPT==2) HT(NHT)=B
+     ELSE IF ( BT >= TT(I+1) .AND. BT < TT(I) ) THEN
+        A    = P(I+1)- (P(I+1)-P(I))/DT* (TT(I+1)-BT)
+        B    = PP(I+1)- (PP(I+1)-PP(I))/DT* (TT(I+1)-BT)
+        NHT      = NHT+1
+        IF(IOPT==1) HT(NHT)=EXP(A)
+        IF(IOPT==2) HT(NHT)=B
+     ENDIF
+  END DO
+
+      
+  IF ( NHT == 0 .AND. BT < TT(IM) )  THEN
+     NHT  = 1
+     HT(1) = PP(IM)
+
+  ELSE IF ( NHT == 0 .AND. BT > TT(NLEV) )  THEN
+     NHT   = 1
+     HT(1) = PP(NLEV)
+
+  ENDIF
+
+contains
+
+SUBROUTINE FMIN ( IMIN, f, ndim )
+
+#if defined (DOC)
+!***********************************************************************
+!
+!**ID FMIN -- SEARCH MINIMUM VALUE OF VECTOR
+!
+!       AUTHOR:   L. GARAND
+!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   SEARCH THE POSITION IN VECTOR F WHERE VALUE IF MINIMUM
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -F     : 1D VECTOR
+!            -NDIM  : VECTOR DIMENSION
+!
+!          OUTPUT:
+!            -IM    : INDEX OF VECTOR F WHERE VALUE IS MINIMUM
+!
+!
+!***********************************************************************
+#endif
+
+  integer,intent (in) :: ndim
+  REAL(8),intent (in) :: f(ndim)
+  integer,intent (out):: imin
+!*********************************
+  INTEGER  :: I
+  REAL(8)  :: X
+
+
+  IMIN = 1
+  X  = F(1)
+
+  DO I=2,NDIM
+     IF (F(I)<X) THEN
+        X=F(I)
+        IMIN=I
+     END IF
+  END DO
+
+
+END SUBROUTINE FMIN
+
+END SUBROUTINE GET_TOP

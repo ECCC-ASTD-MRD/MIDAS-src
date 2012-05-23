@@ -1,5 +1,21 @@
-      SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
-     &                            nchn,nprf,ptop_eq,ntop_eq,ichref)
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
+     nchn,nprf,ptop_eq,ntop_eq,ichref)
 !
 !**ID GARAND1998NADON -- DETERMINE IF PROFILES ARE CLEAR OR CLOUDY
 !
@@ -29,98 +45,156 @@
 !          INPUT/OUTPUT:
 !            -CLDFLAG(NPRF)  : CLEAR(0), CLOUDY(1), UNDEFINED(-1) PROFILES
 !
-      IMPLICIT NONE
-
-      INTEGER    :: JN,NLEV,NCHN,NPRF,NINV
-      INTEGER    :: CLDFLAG(NPRF),NTOP_EQ(NPRF)
-      INTEGER    :: ICHREF(NPRF)
-      REAL(8)    :: BTOBS(NCHN,NPRF),PTOP_EQ(NPRF)
-      REAL(8)    :: TG(NPRF),GZ(NLEV,NPRF),TT(NLEV,NPRF)
-      REAL(8)    :: LEV(2)
+  IMPLICIT NONE
+  integer ,intent (in) :: NPRF,NLEV,NCHN
+  REAL(8) ,intent (in) :: BTOBS(NCHN,NPRF),TG(NPRF),GZ(NLEV,NPRF),TT(NLEV,NPRF),PTOP_EQ(NPRF)
+  integer ,intent (in) :: NTOP_EQ(NPRF),ICHREF(NPRF)
+  integer ,intent (inout) :: CLDFLAG(NPRF)
+!*********************************************************************************************
+  INTEGER    :: JN,NINV
+  REAL(8)    :: LEV(2)
 
       
-      LEV(1) = 222.
-      LEV(2) = 428.
+  LEV(1) = 222.
+  LEV(2) = 428.
 
 
-      profiles: DO JN = 1, NPRF
+  profiles: DO JN = 1, NPRF
 
-        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+     IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
-        IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-3. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)+3. ) THEN
-         CLDFLAG(JN) = 0
-         CYCLE profiles
-        END IF
+     IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-3. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)+3. ) THEN
+        CLDFLAG(JN) = 0
+        CYCLE profiles
+     END IF
 
-        IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-4. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)-3. ) THEN
-         IF ( PTOP_EQ(JN) > 1100. ) THEN
-          CLDFLAG(JN) = 1
-          CYCLE profiles
-         ELSE
-          CLDFLAG(JN) = 0
-          CYCLE profiles
-         END IF
-        END IF
-
-        IF ( PTOP_EQ(JN) > 728. ) THEN
-         CLDFLAG(JN) = 1
-         CYCLE profiles
-        END IF
-
-        IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 8. ) THEN 
-         IF ( NTOP_EQ(JN) >= 3 ) THEN
-          IF ( PTOP_EQ(JN) > 73. ) THEN
-           CLDFLAG(JN)=1
-           CYCLE profiles
-          ELSE
-           CLDFLAG(JN)=0
-           CYCLE profiles
-          END IF
-         ELSE
-          CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(1))
-          IF ( NINV == 1 ) THEN
-           IF ( PTOP_EQ(JN) > 222. ) THEN
-            CLDFLAG(JN) = 1
-            CYCLE profiles
-           ELSE
-            CLDFLAG(JN) = 0 
-            CYCLE profiles
-           END IF
-          ELSE
-           CLDFLAG(JN) = 0
-           CYCLE profiles
-          END IF
-         END IF
-        END IF
-
-        IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 5. ) THEN
-         IF ( NTOP_EQ(JN) >= 3 ) THEN
-          IF ( PTOP_EQ(JN) > 222. ) THEN
+     IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-4. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)-3. ) THEN
+        IF ( PTOP_EQ(JN) > 1100. ) THEN
            CLDFLAG(JN) = 1
            CYCLE profiles
-          ELSE
+        ELSE
            CLDFLAG(JN) = 0
            CYCLE profiles
-          END IF
-         ELSE
-          CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(2))
-          IF ( NINV == 1) THEN
-           IF( PTOP_EQ(JN) > 428. ) THEN
-            CLDFLAG(JN) = 1
-            CYCLE profiles
-           ELSE
-            CLDFLAG(JN) = 0
-            CYCLE profiles
-           END IF
-          ELSE
-           CLDFLAG(JN) = 0
-          END IF
-         END IF
-        ELSE
-         CLDFLAG(JN)=0
         END IF
+     END IF
 
-      END DO profiles
+     IF ( PTOP_EQ(JN) > 728. ) THEN
+        CLDFLAG(JN) = 1
+        CYCLE profiles
+     END IF
+
+     IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 8. ) THEN 
+        IF ( NTOP_EQ(JN) >= 3 ) THEN
+           IF ( PTOP_EQ(JN) > 73. ) THEN
+              CLDFLAG(JN)=1
+              CYCLE profiles
+           ELSE
+              CLDFLAG(JN)=0
+              CYCLE profiles
+           END IF
+        ELSE
+           CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(1))
+           IF ( NINV == 1 ) THEN
+              IF ( PTOP_EQ(JN) > 222. ) THEN
+                 CLDFLAG(JN) = 1
+                 CYCLE profiles
+              ELSE
+                 CLDFLAG(JN) = 0 
+                 CYCLE profiles
+              END IF
+           ELSE
+              CLDFLAG(JN) = 0
+              CYCLE profiles
+           END IF
+        END IF
+     END IF
+
+     IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 5. ) THEN
+        IF ( NTOP_EQ(JN) >= 3 ) THEN
+           IF ( PTOP_EQ(JN) > 222. ) THEN
+              CLDFLAG(JN) = 1
+              CYCLE profiles
+           ELSE
+              CLDFLAG(JN) = 0
+              CYCLE profiles
+           END IF
+        ELSE
+           CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(2))
+           IF ( NINV == 1) THEN
+              IF( PTOP_EQ(JN) > 428. ) THEN
+                 CLDFLAG(JN) = 1
+                 CYCLE profiles
+              ELSE
+                 CLDFLAG(JN) = 0
+                 CYCLE profiles
+              END IF
+           ELSE
+              CLDFLAG(JN) = 0
+           END IF
+        END IF
+     ELSE
+        CLDFLAG(JN)=0
+     END IF
+
+  END DO profiles
 
 
-      END SUBROUTINE GARAND1998NADON
+contains
+
+  SUBROUTINE MONOTONIC_INVERSION (NINVR, ptg,ptt,pgz,npr,lvl)
+
+#if defined (DOC)
+!***********************************************************************
+!
+!**ID MONOTONIC_INVERSION -- DETECT TEMPERATURE INVERSION
+!
+!       SCIENCE:  L. GARAND AND S. NADON
+!       AUTHOR:   A. BEAULNE (CMDA/SMC)      June 2004
+!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   DETERMINE IF THERE IS A PRESENCE (NINVR=1) OR NOT (NINVR=0)
+!           OF A TEMPERATURE INVERSION GOING FROM THE SURFACE UP TO THE
+!           HEIGHT LVL
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -PTG       : SKIN TEMPERATURE (DEG K)
+!            -PTT(NPR) : TEMPERATURE PROFILE (DEG K)
+!            -PGZ(NPR) : HEIGHT PROFILE ABOVE GROUND (M)
+!            -NPR     : NUMBER OF VERTICAL LVLELS
+!            -LVL      : HEIGHT TO SEARCH FOR TEMPERATURE INVERSION (M)
+!
+!          OUTPUT:
+!            -NINVR     : PRESENCE (1) OR NOT (0) OF A TEMPERATURE INVERSION
+!                         FROM THE SURFACE TO HEIGHT LVL
+!
+!
+!***********************************************************************
+#endif
+
+
+    IMPLICIT NONE
+    integer ,intent (in) :: npr
+    REAL(8),intent (in)  :: PTT(NPR),PGZ(NPR),PTG,LVL
+    integer ,intent (out):: ninvr
+!**************************************************
+    INTEGER   :: NL
+
+    NINVR = 0
+    IF ( PTG - PTT(NPR) < 0. ) THEN
+       NINVR = 1
+       DO NL = NPR-1, 1, -1
+          IF ( PGZ(NL) > LVL ) EXIT
+          IF ( PTT(NL+1) - PTT(NL) > 0. ) THEN
+             NINVR = 0
+             EXIT
+          END IF
+       END DO
+    END IF
+    
+
+  END SUBROUTINE MONOTONIC_INVERSION
+
+END SUBROUTINE GARAND1998NADON

@@ -1,4 +1,4 @@
-      SUBROUTINE VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
+SUBROUTINE VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
 !***subroutine     VISOCN
 !*
 !*auteur           LOUIS GARAND 1985
@@ -31,25 +31,24 @@
 !*                 THE ROUTINE IS A LOOK UP TABLE ALONG WITH INTERPOLATION ON THE 
 !*                 THREE ANGLES. 
 !**
-      implicit  none
+  implicit  none
+  real ,intent(in) :: SZ,SATZ,rz
+  real ,intent(out):: ANISOT,ZLAMB,ZCLOUD
+  integer ,intent(out) :: ier
+!********************************************************
+  integer  i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
+  real  pi, fac, cc, d1, d2, slop, cept, x1, x2
+  real  g1, g2
+  real,external ::  drcld
+  real  VNORM(11,10,13),S(11),V(10),R(13),DA(2),DD(2) 
 
-      integer  ier, i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
+  DATA S/0.0,18.19,31.79,41.41,49.46,56.63,63.26,69.51,75.52,81.37,87.13/ 
 
-      real  SZ, SATZ, RZ, ANISOT ,ZLAMB, ZCLOUD
-      real  pi, fac, cc, d1, d2, slop, cept, x1, x2
-      real  g1, g2
-      real  drm, drcld
-      real  VNORM(11,10,13),S(11),V(10),R(13),DA(2),DD(2) 
+  DATA R/0.0,15.0,30.0,45.0,60.0,75.0,90.0,105.0,120.0,135.0,150.0,165.0,180.0/ 
 
-      external  drcld, drm, lineq
+  DATA V/0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0/
 
-      DATA S/0.0,18.19,31.79,41.41,49.46,56.63,63.26,69.51,75.52,81.37,87.13/ 
-
-      DATA R/0.0,15.0,30.0,45.0,60.0,75.0,90.0,105.0,120.0,135.0,150.0,165.0,180.0/ 
-
-      DATA V/0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0/
-
-      DATA ((VNORM(1,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(1,J,K),J=1,10),K=1,13)/  &
        2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
        2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
        2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
@@ -64,7 +63,7 @@
        2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174, &
        2.668,2.210,1.105,0.979,0.810,0.735,0.785,0.979,1.092,1.174/ 
 
-      DATA ((VNORM(2,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(2,J,K),J=1,10),K=1,13)/  &
        1.154, .960, .896, .818, .748, .825, .922,1.018,1.179,1.334, &
        1.154, .954, .838, .799, .735, .786, .883, .960,1.128,1.250, &
        1.514, .973, .825, .786, .722, .754,0.838,0.922,1.063,1.160, &
@@ -79,7 +78,7 @@
        1.514,2.326,2.520,2.172,1.257,0.812,0.883,1.005,1.108,1.212, &
        1.514,2.359,2.951,2.255,1.411,0.980,0.915,1.050,1.160,1.295/ 
 
-      DATA ((VNORM(3,J,K),J=1,10),K=1,13)/   &
+  DATA ((VNORM(3,J,K),J=1,10),K=1,13)/   &
        0.897,0.792,0.765,0.765,0.778,0.897,0.996,1.095,1.306,1.431, &
        0.897,0.712,0.739,0.745,0.765,0.891,0.970,1.069,1.214,1.359, &
        0.897,0.666,0.699,0.745,0.759,0.811,0.917,1.042,1.148,1.306, &
@@ -94,7 +93,7 @@
        0.897,1.530,2.249,2.546,2.381,1.352,0.891,1.108,1.286,1.405, &
        0.897,1.854,2.401,3.325,2.559,1.590,0.937,1.168,1.214,1.425/ 
 
-      DATA ((VNORM(4,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(4,J,K),J=1,10),K=1,13)/  &
        0.752,0.800,0.745,0.717,0.759,0.891,1.149,1.309,1.469,1.650, &
        0.752,0.773,0.717,0.703,0.752,0.835,1.065,1.246,1.406,1.552, &
        0.752,0.731,0.689,0.703,0.745,0.814,0.988,1.176,1.323,1.476, &
@@ -109,7 +108,7 @@
        0.752,1.044,1.295,2.207,1.610,2.311,1.385,1.274,1.441,1.636, &
        0.752,1.079,1.524,2.541,3.564,3.014,1.942,1.462,1.552,1.726/ 
 
-      DATA ((VNORM(5,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(5,J,K),J=1,10),K=1,13)/  &
        0.552,0.588,0.617,0.638,0.724,0.860,1.133,1.362,1.556,1.678, &
        0.552,0.581,0.602,0.617,0.652,0.803,1.075,1.326,1.484,1.592, &
        0.552,0.559,0.588,0.595,0.617,0.731,1.018,1.283,1.412,1.527, &
@@ -124,7 +123,7 @@
        0.552,0.588,1.133,1.355,2.194,2.803,2.201,2.459,2.904,3.126, &
        0.552,0.710,1.341,1.757,3.026,3.900,4.445,4.503,4.445,4.503/ 
 
-      DATA ((VNORM(6,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(6,J,K),J=1,10),K=1,13)/  &
        0.551,0.627,0.665,0.734,0.826,0.971,1.231,1.537,1.721,1.866, &
        0.551,0.604,0.619,0.665,0.765,0.895,1.185,1.476,1.568,1.652, &
        0.551,0.597,0.604,0.619,0.734,0.849,1.101,1.346,1.453,1.568, &
@@ -139,7 +138,7 @@
        0.551,0.566,0.612,0.788,1.468,2.233,2.340,2.531,2.983,3.365, &
        0.551,0.658,0.665,1.101,2.134,3.120,4.221,4.856,4.956,5.613/ 
 
-      DATA ((VNORM(7,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(7,J,K),J=1,10),K=1,13)/  &
        0.545,0.606,0.683,0.744,0.798,0.990,1.228,1.704,1.850,2.049, &
        0.545,0.576,0.583,0.714,0.783,0.952,1.144,1.573,1.758,1.888, &
        0.545,0.560,0.568,0.629,0.744,0.875,1.105,1.504,1.642,1.788, &
@@ -154,7 +153,7 @@
        0.545,0.560,0.568,0.606,1.174,1.781,2.563,3.170,3.791,4.966, &
        0.545,0.591,0.614,1.259,2.065,2.824,3.761,4.498,5.902,6.148/ 
 
-      DATA ((VNORM(8,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(8,J,K),J=1,10),K=1,13)/  &
        0.514,0.539,0.596,0.694,0.832,1.004,1.444,1.869,2.203,2.538, &
        0.514,0.539,0.571,0.645,0.751,0.906,1.387,1.779,2.056,2.317, &
        0.514,0.547,0.555,0.612,0.702,0.824,1.281,1.681,1.934,2.203, &
@@ -169,7 +168,7 @@
        0.514,0.522,0.563,0.677,0.767,1.420,2.040,3.158,4.863,6.291, &
        0.514,0.588,0.588,0.612,0.824,2.032,3.109,4.969,6.846,7.695/ 
 
-      DATA ((VNORM(9,J,K),J=1,10),K=1,13)/  &
+  DATA ((VNORM(9,J,K),J=1,10),K=1,13)/  &
        0.572,0.608,0.679,0.751,0.831,1.001,1.377,1.913,2.512,2.879, &
        0.572,0.572,0.608,0.679,0.760,0.930,1.243,1.707,2.369,2.700, &
        0.572,0.563,0.590,0.644,0.706,0.831,1.171,1.618,2.190,2.378, &
@@ -184,7 +183,7 @@
        0.572,0.599,0.644,0.662,0.688,0.822,1.788,2.816,5.346,7.295, &
        0.572,0.608,0.662,0.670,0.715,1.851,3.227,4.810,6.669,9.557/ 
 
-      DATA ((VNORM(10,J,K),J=1,10),K=1,13)/   &
+  DATA ((VNORM(10,J,K),J=1,10),K=1,13)/   &
        0.552,0.606,0.639,0.671,0.704,0.899,1.223,2.479,3.194,3.573, &
        0.552,0.574,0.606,0.628,0.682,0.855,1.148,2.339,2.642,3.378, &
        0.552,0.563,0.552,0.595,0.639,0.834,1.061,2.014,2.404,2.891, &
@@ -199,7 +198,7 @@
        0.552,0.574,0.563,0.606,0.660,0.812,1.797,3.010,5.478,7.492, &
        0.552,0.650,0.671,0.704,0.801,1.029,2.436,3.465,7.828,10.578/
 
-      DATA ((VNORM(11,J,K),J=1,10),K=1,13)/   &
+  DATA ((VNORM(11,J,K),J=1,10),K=1,13)/   &
        0.518,0.576,0.605,0.633,0.662,0.864,1.238,2.620,3.455,3.887, &
        0.518,0.547,0.576,0.576,0.633,0.835,1.123,2.447,2.821,3.656, &
        0.518,0.518,0.518,0.547,0.605,0.806,1.036,2.102,2.533,3.080, &
@@ -215,77 +214,155 @@
        0.518,0.605,0.633,0.662,0.777,1.008,2.562,3.771,8.953,12.293/
  
 !C   COMPUTE SUN ZENITH BIN
-      PI  = ACOS(-1.)
-      FAC = PI/180. 
-      CC  = COS(SZ*FAC)
-      I1  = 12.-(CC+0.05)*10.
-      I2  = I1+1 
-      IF(I1.GE.11)I1=11 
-      IF(I1.EQ.11)I2=I1 
+  PI  = ACOS(-1.)
+  FAC = PI/180. 
+  CC  = COS(SZ*FAC)
+  I1  = 12.-(CC+0.05)*10.
+  I2  = I1+1 
+  IF(I1.GE.11)I1=11 
+  IF(I1.EQ.11)I2=I1 
 
 !C  COMPUTE SAT ZENITH BIN 
-      J1  = IFIX(SATZ/10.)+1 
-      J2  = J1+1 
-      IF(J1.EQ.10)J2=J1 
+  J1  = IFIX(SATZ/10.)+1 
+  J2  = J1+1 
+  IF(J1.EQ.10)J2=J1 
 
 !C  COMPUTE RELATIVE AZIMUTH BIN 
-      K1  = RZ/15.+1.
-      K2  = K1+1 
-      IF(K1.EQ.13)K2=K1 
+  K1  = RZ/15.+1.
+  K2  = K1+1 
+  IF(K1.EQ.13)K2=K1 
 
 !C  INTERPOLATE
-      IER = 0 
-      DO 30 L=I1,I2 
-         I = L-I1+1
+  IER = 0 
+  DO  L=I1,I2 
+     I = L-I1+1
 
 !C     BETWEEN R'S FOR CONSTANT S
-         DO 20 N=K1,K2 
+     DO  N=K1,K2 
 
 !C        BETWEEN V'S FOR CONSTANT R AND S 
-            M  = N-K1+1
-            D1 = VNORM(L,J1,N)
-            D2 = VNORM(L,J2,N)
-            IF(D1.EQ.D2)THEN
-               DA(M) = D1
-            ELSE
-               CALL LINEQ(V(J1),V(J2),D1,D2,SLOP,CEPT,IER) 
-               DA(M) = SLOP*SATZ+CEPT
-            ENDIF 
-  20     CONTINUE
-         IF(K1.EQ.K2) THEN 
-            DD(I) = DA(1) 
-         ELSE
-            CALL LINEQ(R(K1),R(K2),DA(1),DA(2),SLOP,CEPT,IER) 
-            DD(I) = SLOP*RZ+CEPT
-         ENDIF 
-  30  CONTINUE
+        M  = N-K1+1
+        D1 = VNORM(L,J1,N)
+        D2 = VNORM(L,J2,N)
+        IF(D1.EQ.D2)THEN
+           DA(M) = D1
+        ELSE
+           CALL LINEQ(V(J1),V(J2),D1,D2,SLOP,CEPT,IER) 
+           DA(M) = SLOP*SATZ+CEPT
+        ENDIF
+     enddo
+     IF(K1.EQ.K2) THEN 
+        DD(I) = DA(1) 
+     ELSE
+        CALL LINEQ(R(K1),R(K2),DA(1),DA(2),SLOP,CEPT,IER) 
+        DD(I) = SLOP*RZ+CEPT
+     ENDIF
+  enddo
 
 !C  BETWEEN S'S USING RESULT OF OTHER INTERPOLATIONS 
-      IF(I1.EQ.I2)THEN
-         ZLAMB  = DRM(I1) 
-         ZCLOUD = DRCLD(I1)
-         ANISOT = DD(1)
-      ELSE
-         X1     = COS(S(I1)*FAC) 
-         X2     = COS(S(I2)*FAC) 
-         CALL LINEQ(X1,X2,DD(1),DD(2),SLOP,CEPT,IER) 
-         ANISOT = SLOP*CC+CEPT 
-         G1     = DRM(I1)
-         G2     = DRM(I2)
-         CALL LINEQ(X1,X2,G1,G2,SLOP,CEPT,IER) 
-         ZLAMB  = SLOP*CC+CEPT
-         G1     = DRCLD(I1)
-         G2     = DRCLD(I2)
-         CALL LINEQ(X1,X2,G1,G2,SLOP,CEPT,IER) 
-         ZCLOUD = SLOP*CC+CEPT 
-      ENDIF 
+  IF(I1.EQ.I2)THEN
+     ZLAMB  = DRM(I1) 
+     ZCLOUD = DRCLD(I1)
+     ANISOT = DD(1)
+  ELSE
+     X1     = COS(S(I1)*FAC) 
+     X2     = COS(S(I2)*FAC) 
+     CALL LINEQ(X1,X2,DD(1),DD(2),SLOP,CEPT,IER) 
+     ANISOT = SLOP*CC+CEPT 
+     G1     = DRM(I1)
+     G2     = DRM(I2)
+     CALL LINEQ(X1,X2,G1,G2,SLOP,CEPT,IER) 
+     ZLAMB  = SLOP*CC+CEPT
+     G1     = DRCLD(I1)
+     G2     = DRCLD(I2)
+     CALL LINEQ(X1,X2,G1,G2,SLOP,CEPT,IER) 
+     ZCLOUD = SLOP*CC+CEPT 
+  ENDIF
 
-      IF(ANISOT.LT.0.) THEN 
-         IER    = -1
-         ANISOT = 1. 
-         ZLAMB  = DRM(I1) 
-         ZCLOUD = DRCLD(I1)
-      ENDIF 
+  IF(ANISOT.LT.0.) THEN 
+     IER    = -1
+     ANISOT = 1. 
+     ZLAMB  = DRM(I1) 
+     ZCLOUD = DRCLD(I1)
+  ENDIF
 
-      RETURN
-      END SUBROUTINE VISOCN
+  RETURN
+
+contains
+
+  SUBROUTINE LINEQ(XX1,XX2,YY1,YY2,AA,BB,IERR) 
+!**subroutine     LINEQ
+!
+!auteur           Louis Garand  - rpn - dorval
+!
+!REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
+!                                 Decembre 1995
+!                Generaliser pour toutes les plateformes satellitaires.
+!
+!langage          fortran 5
+!
+!objet            calculate slope and intercept of a line.
+!
+!appel            CALL  LINEQ(X1,X2,Y1,Y2,A,B,IER)
+!
+!arguments        x1  - input  - coordinate x of point 1
+!                 x2  - input  - coordinate x of point 2
+!                 y1  - input  - coordinate y of point 1
+!                 y2  - input  - coordinate y of point 2
+!                 a   - output - slope
+!                 b   - output - intercept
+!                 ier - output - error code (0=ok)
+!
+    real ,intent(in)     :: XX1,XX2,YY1,YY2
+    real ,intent(out)    :: AA,BB
+    integer ,intent(out) :: ierr
+!****************************************
+     
+
+    ierr = 0
+    
+    IF((XX2-XX1).EQ.0.)THEN 
+       IERR=-1
+       RETURN
+    ENDIF
+
+    AA=(YY2-YY1)/(XX2-XX1) 
+    BB=YY1-AA*XX1 
+
+    RETURN
+  END SUBROUTINE LINEQ
+
+  REAL FUNCTION DRM(IZ) 
+!**function       DRM
+!
+!auteur           Louis Garand  - rpn - dorval
+!
+!REVISION 001     JACQUES HALLE - DDO - DORVAL - 421-4660
+!                                 Decembre 1995
+!                 Generaliser pour toutes les plateformes satellitaires.
+!
+!langage          fortran 5
+!
+!objet            NORMALIZATION FOR SUN ZENITH ANGLE (LAMBERTIAN)
+!                 FOR OCEAN.
+!
+!appel            val = DRM(IZ)
+!
+!arguments        iz  - input  - index
+!                 val - output - normalization factor
+!*
+
+    integer,intent (in) ::  iz
+
+    REAL  DRF(11)
+
+    DATA DRF /1.,1.0255,1.1197,1.2026,1.3472,1.4926,1.8180,2.1980, &
+         2.8180,3.8615,4.3555/
+
+    DRM=DRF(IZ) 
+  
+    RETURN
+  END FUNCTION DRM
+
+END SUBROUTINE VISOCN
+      

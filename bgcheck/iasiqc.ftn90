@@ -1,4 +1,4 @@
-      SUBROUTINE IASIQC ( iasi_end, iasi_bunch,iasi_loop_done, lcolumnhr, lobsSpaceData)
+SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !
 !**ID IASIQC -- QUALITY CONTROL OF IASI OBSERVATIONS
 !
@@ -13,132 +13,133 @@
 !
 !       ARGUMENTS:
 !          INPUT:
-!            -IASI_BUNCH     : MAXIMUM NUMBER OF PROFILES FOR ONE CALL
 !            -IASI_LOOP_DONE : NUMBER OF PREVIOUS CALLS TO IASIQC
 !
 !          OUTPUT:
 !            -IASI_END       : AT THE END OF THIS CALL TO IASIQC, DO ALL IASI
 !                               PROFILES BEEN TREATED (true) OR NOT (false)
 !
-      use EarthConstants_mod
-      use MathPhysConstants_mod
-      use mod_tovs
-      use iasich
-      use iasibgcheck
-      use common_iasi
-      use avhrr_var_mod
-      use columnData_mod
-      use obsSpaceData_mod
-      use verticalCoord_mod
-      IMPLICIT NONE
+  use EarthConstants_mod
+  use MathPhysConstants_mod
+  use mod_tovs
+  use iasich
+  use iasibgcheck
+  use common_iasi
+  use avhrr_var_mod
+  use columnData_mod
+  use obsSpaceData_mod
+  use verticalCoord_mod
+  IMPLICIT NONE
 #include "pardim.cdk"
 #include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "cvcord.cdk"
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
-      type(struct_vco), pointer :: vco_trl
-      INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
-      INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBIASI
-      INTEGER       :: JDATA,IDATA,IDATEND,IDIASI
-      INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
-      INTEGER       :: DIFFTOP_MIN
-      INTEGER ,SAVE :: IMODTOP
-      INTEGER       :: iasi_loop_done,count_iasi,iasi_bunch
-      REAL(8)       :: T_EFFECTIVE
-      LOGICAL       :: iasi_end
-      integer       :: alloc_status(85)
+  logical,intent(inout) :: iasi_end
+  integer,intent(in) :: iasi_loop_done
+  type(struct_columnData),intent(in) :: lcolumnhr
+  type(struct_obs),intent(inout) :: lobsSpaceData
+!******************************************************************
+  type(struct_vco), pointer :: vco_trl
+  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
+  INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBIASI
+  INTEGER       :: JDATA,IDATA,IDATEND,IDIASI
+  INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
+  INTEGER       :: DIFFTOP_MIN
+  INTEGER ,SAVE :: IMODTOP
+  INTEGER       :: count_iasi
+  REAL(8)       :: T_EFFECTIVE
+  integer       :: alloc_status(85)
 
-      real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
-      real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
-      real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:) 
-      real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:)
-      real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
-      integer, allocatable :: KSURF(:),LTYPE(:)
-      integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:) 
-      integer, allocatable :: CORFLAG(:,:)
-      integer, allocatable :: GNCLDFLAG(:)
-      integer, allocatable :: ICHREF(:) 
-      integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
-      integer, allocatable :: NTOP_CO2(:,:),NGOOD(:)      
-      real(8), allocatable :: PTOP_EQ(:),PTOP_BT(:,:),PTOP_RD(:,:),PTOP_MB(:)
-      real(8), allocatable :: PTOP_CO2(:,:),FCLOUD_CO2(:,:),HE(:)
-      real(8), allocatable :: ETOP(:),VTOP(:),ECF(:),VCF(:)
-      integer, allocatable :: MINP(:,:),FATE(:,:)
-      real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
-      real(8), allocatable :: ZLAT(:),ZLON(:)
-      logical, allocatable :: ASSIM_ALL(:)
-      real(8), allocatable :: ZTS_AVHRR(:,:),SFCTAU_AVHRR(:,:),EMI_SFC_AVHRR(:,:),RCAL_CLR_AVHRR(:,:)
-      real(8), allocatable :: RCLD_AVHRR(:,:,:),PTOP_BT_AVHRR(:,:,:),PTOP_RD_AVHRR(:,:,:)
-      real(8), allocatable :: BTOBS_AVHRR(:,:,:),ROBS_AVHRR(:,:,:),PTOP_EQ_AVHRR(:,:)
-      real(8), allocatable :: CFRAC_AVHRR(:)
-      integer, allocatable :: CLDFLAG_AVHRR(:,:),LEV_START_AVHRR(:,:),ICHREF_AVHRR(:,:),NTOP_RD_AVHRR(:,:,:)
-      integer, allocatable :: NTOP_BT_AVHRR(:,:,:),NTOP_EQ_AVHRR(:,:)
-      type(avhrr_var), allocatable :: out_avhrr_param(:)
-      integer :: ICL
-      integer ,parameter :: nn=2
-      integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
-      integer :: cpt
-      logical :: bad
+  real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
+  real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
+  real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:) 
+  real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:)
+  real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
+  integer, allocatable :: KSURF(:),LTYPE(:)
+  integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:) 
+  integer, allocatable :: CORFLAG(:,:)
+  integer, allocatable :: GNCLDFLAG(:)
+  integer, allocatable :: ICHREF(:) 
+  integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
+  integer, allocatable :: NTOP_CO2(:,:),NGOOD(:)      
+  real(8), allocatable :: PTOP_EQ(:),PTOP_BT(:,:),PTOP_RD(:,:),PTOP_MB(:)
+  real(8), allocatable :: PTOP_CO2(:,:),FCLOUD_CO2(:,:),HE(:)
+  real(8), allocatable :: ETOP(:),VTOP(:),ECF(:),VCF(:)
+  integer, allocatable :: MINP(:,:),FATE(:,:)
+  real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
+  real(8), allocatable :: ZLAT(:),ZLON(:)
+  logical, allocatable :: ASSIM_ALL(:)
+  real(8), allocatable :: ZTS_AVHRR(:,:),SFCTAU_AVHRR(:,:),EMI_SFC_AVHRR(:,:),RCAL_CLR_AVHRR(:,:)
+  real(8), allocatable :: RCLD_AVHRR(:,:,:),PTOP_BT_AVHRR(:,:,:),PTOP_RD_AVHRR(:,:,:)
+  real(8), allocatable :: BTOBS_AVHRR(:,:,:),ROBS_AVHRR(:,:,:),PTOP_EQ_AVHRR(:,:)
+  real(8), allocatable :: CFRAC_AVHRR(:)
+  integer, allocatable :: CLDFLAG_AVHRR(:,:),LEV_START_AVHRR(:,:),ICHREF_AVHRR(:,:),NTOP_RD_AVHRR(:,:,:)
+  integer, allocatable :: NTOP_BT_AVHRR(:,:,:),NTOP_EQ_AVHRR(:,:)
+  type(avhrr_var), allocatable :: out_avhrr_param(:)
+  integer :: ICL
+  integer ,parameter :: nn=2
+  integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
+  integer :: cpt
+  logical :: bad
 !seuils detection nuageuse AVHRR
-      Real(8),parameter :: sunzenmax=87.12d0
-      Real(8) :: seuilalb_static(NIR,0:2)
-      Real(8) :: seuil_albed(NIR)
-      Real(8) :: seuilalb_homog(NIR,0:2)
-      Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
-      Real(8) :: minpavhrr(2:3)
-      Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
-      Integer :: ier,ijour,iloc(2:3)
+  Real(8),parameter :: sunzenmax=87.12d0
+  Real(8) :: seuilalb_static(NIR,0:2)
+  Real(8) :: seuil_albed(NIR)
+  Real(8) :: seuilalb_homog(NIR,0:2)
+  Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
+  Real(8) :: minpavhrr(2:3)
+  Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
+  Integer :: ier,ijour,iloc(2:3)
 !**************
 
-      vco_trl => col_getVco(lcolumnhr)
+  vco_trl => col_getVco(lcolumnhr)
 
 ! ** find sensor number corresponding to IASI      
 
-      DO KRTID = 1, NSENSORS
-        IF ( PLATFORM(KRTID) .EQ. 10 .AND. &
-     &       SATELLITE(KRTID) .EQ. 2 .AND. &
-     &       INSTRUMENT(KRTID) .EQ. 16 ) THEN
-          IDIASI = KRTID
-          EXIT
-        END IF
-      END DO
+  DO KRTID = 1, NSENSORS
+     IF ( PLATFORM(KRTID) .EQ. 10 .AND. &
+          SATELLITE(KRTID) .EQ. 2 .AND. &
+          INSTRUMENT(KRTID) .EQ. 16 ) THEN
+        IDIASI = KRTID
+        EXIT
+     END IF
+  END DO
       
    
 ! ** find number of IASI profiles (for memory allocation) and set iasi_end 
 !    M. Buehner: take care of case when bunch*loopdone exactly equals total number of profiles
 
-      NPRF = 0
-      count_iasi = 0
-      iasi_end = .true. ! set to false if at least 1 obs beyond this bunch
+  NPRF = 0
+  count_iasi = 0
+  iasi_end = .true. ! set to false if at least 1 obs beyond this bunch
 
-      DO JF = 1, NFILES
-        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-          IBEGIN   = NBEGINTYP(JF)
-          ILAST    = NENDTYP(JF)
-          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
-          DO JO = IBEGINOB, ILASTOB
-            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+  DO JF = 1, NFILES
+     IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
+        IBEGIN   = NBEGINTYP(JF)
+        ILAST    = NENDTYP(JF)
+        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
+        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
+        DO JO = IBEGINOB, ILASTOB
+           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             
-            IF ( IDATYP .EQ. 186) THEN
+           IF ( IDATYP .EQ. 186) THEN
               count_iasi = count_iasi + 1
-              IF ( count_iasi > iasi_loop_done * iasi_bunch .AND.  &
-     &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) NPRF = NPRF + 1
-              IF ( count_iasi > (iasi_loop_done+1) * iasi_bunch ) iasi_end = .false.
-            END IF
-          END DO
-        END IF
-      END DO
+              IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
+                   count_iasi <= (iasi_loop_done+1) * bunch_iasi ) NPRF = NPRF + 1
+              IF ( count_iasi > (iasi_loop_done+1) * bunch_iasi ) iasi_end = .false.
+           END IF
+        END DO
+     END IF
+  END DO
 
 
 ! ** find number of IASI channels and RTTOV levels
 
-      NCHN = coef(idiasi)%fmv_chn
-      NLEV = coef(idiasi)%nlevels    
+  NCHN = coef(idiasi)%fmv_chn
+  NLEV = coef(idiasi)%nlevels    
 
-      write(nulout,*) ' IASIQC - nchn ', nchn
+  write(nulout,*) ' IASIQC - nchn ', nchn
 
 ! information to extract (transvidage)
 ! ------------------------------------
@@ -158,7 +159,6 @@
 ! TRANSM(IASISNCH,NPRF,NLEV) -- layer to space transmittances (0-1)
 ! EMI_SFC(IASISNCH,NPRF) -- surface emissivities (0-1)
 ! KSURF(NPRF) -- surface type in obs file (0, 1)
-! CLFR(NPRF) -- cloud fraction (%)
 ! TOEXT(NLEV,NPRF) -- temperature profiles on RT model levels (deg K)
 ! ZHOEXT(NLEV,NPRF) -- height profiles on RT model levels (m)
 ! SUNZA(NPRF) -- sun zenith angle (deg)
@@ -172,93 +172,92 @@
 ! ROBS(IASISNCH,NPRF) -- observed radiances (mW/m2/sr/cm-1)
 
 
-      alloc_status(:) = 0
-      allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
-      allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
-      allocate ( ZT(col_getNumLev(lcolumnhr,'TH'),NPRF),                stat= alloc_status(3) )
-      allocate ( ZHT(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(4) )
-      allocate ( ZLQ(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(5) )
-      allocate ( BTOBSERR(IASISNCH),              stat= alloc_status(6) )
-      allocate ( BTOBS(IASISNCH,NPRF),            stat= alloc_status(7) )
-      allocate ( BTCALC(IASISNCH,NPRF),           stat= alloc_status(8) )
-      allocate ( RCAL_CLR(IASISNCH,NPRF),         stat= alloc_status(9) )
-      allocate ( SFCTAU(IASISNCH,NPRF),           stat= alloc_status(10))
-      allocate ( RCLD(IASISNCH,NPRF,NLEV),        stat= alloc_status(11))
-      allocate ( TRANSM(IASISNCH,NPRF,NLEV),      stat= alloc_status(12))
-      allocate ( EMI_SFC(IASISNCH,NPRF),          stat= alloc_status(13))
-      allocate ( KSURF(NPRF),                     stat= alloc_status(14))
-!      allocate ( CLFR(NPRF),                      stat= alloc_status(15))
-      allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
-      allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
-      allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
-      allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
-      allocate ( ICE(NPRF),                       stat= alloc_status(20))
-      allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
-      allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
-      allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
-      allocate ( ROBS(IASISNCH,NPRF),             stat= alloc_status(24))
-      allocate ( ZTS(NPRF),                       stat= alloc_status(26))
-      allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
-      allocate ( REJFLAG(IASISNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
-      allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
-      allocate ( ILIST(IASISNCH),                 stat= alloc_status(30))
-      allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
-      allocate ( NTOP_BT(IASISNCH,NPRF),          stat= alloc_status(32))
-      allocate ( NTOP_RD(IASISNCH,NPRF),          stat= alloc_status(33))
-      allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
-      allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
-      allocate ( PTOP_BT(IASISNCH,NPRF),          stat= alloc_status(36))
-      allocate ( PTOP_RD(IASISNCH,NPRF),          stat= alloc_status(37))
-      allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
-      allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
-      allocate ( HE(NPRF),                        stat= alloc_status(40))
-      allocate ( ETOP(NPRF),                      stat= alloc_status(41))
-      allocate ( VTOP(NPRF),                      stat= alloc_status(42))
-      allocate ( ECF(NPRF),                       stat= alloc_status(43))
-      allocate ( VCF(NPRF),                       stat= alloc_status(44))
-      allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
-      allocate ( MINP(IASISNCH,NPRF),             stat= alloc_status(46))
-      allocate ( PMIN(IASISNCH,NPRF),             stat= alloc_status(47))
-      allocate ( DTAUDP1(IASISNCH,NPRF),          stat= alloc_status(48))
-      allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
-      allocate ( FATE(IASISNCH,NPRF),             stat= alloc_status(50))
-      allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
-      allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
-      allocate ( out_avhrr_param(NPRF),           stat= alloc_status(54))
-      allocate ( LEV_START_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(55))
-      allocate ( PTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(56))
-      allocate ( NTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(57))
-      allocate ( BTOBS_AVHRR(1:NIR,NPRF,NCLASSAVHRR),stat= alloc_status(58))
-      allocate ( ICHREF_AVHRR(NPRF,NCLASSAVHRR)               ,stat= alloc_status(59))
-      allocate ( CLDFLAG_AVHRR(NPRF,NCLASSAVHRR)               ,stat= alloc_status(60))
-      allocate ( ROBS_AVHRR(1:NIR,NPRF,NCLASSAVHRR),stat= alloc_status(61))
-      allocate ( RCAL_CLR_AVHRR(1:NIR,NPRF),stat= alloc_status(62))
-      allocate ( EMI_SFC_AVHRR(1:NIR,NPRF),stat= alloc_status(63))
-      allocate ( ZTS_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(64))
-      allocate ( SFCTAU_AVHRR(NIR,NPRF),           stat= alloc_status(65))
-      allocate ( PTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(66))
-      allocate ( PTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(67))
-      allocate ( NTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(68))
-      allocate ( NTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(69))
-      allocate ( RCLD_AVHRR(NIR,NPRF,NLEV),                    stat= alloc_status(70))
-      allocate ( ZLAT(NPRF),                    stat= alloc_status(71))
-      allocate ( ZLON(NPRF),                    stat= alloc_status(72))
-      allocate ( maxwf(IASISNCH,NPRF),          stat= alloc_status(73))
-      allocate ( CFRAC_AVHRR(NPRF),             stat= alloc_status(74))
-      allocate ( SATAZIM(NPRF),                 stat= alloc_status(75))
-      allocate ( SATZEN(NPRF),                  stat= alloc_status(76))
-      allocate ( ZPRES(col_getNumLev(lcolumnhr,'TH'),NPRF),           stat= alloc_status(77))
-      allocate ( PTOP_MB(NPRF),                 stat= alloc_status(78))
-      allocate ( NTOP_MB(NPRF),                 stat= alloc_status(79))
-      allocate ( CFSUB(NPRF),                   stat= alloc_status(80))
-      allocate ( GNCLDFLAG(NPRF),               stat= alloc_status(81))
-      allocate ( ILIST_PAIR(IASISNCH),          stat= alloc_status(82))
-      allocate ( CORFLAG(IASISNCH,NPRF),        stat= alloc_status(83))
+  alloc_status(:) = 0
+  allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
+  allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
+  allocate ( ZT(col_getNumLev(lcolumnhr,'TH'),NPRF),                stat= alloc_status(3) )
+  allocate ( ZHT(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(4) )
+  allocate ( ZLQ(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(5) )
+  allocate ( BTOBSERR(IASISNCH),              stat= alloc_status(6) )
+  allocate ( BTOBS(IASISNCH,NPRF),            stat= alloc_status(7) )
+  allocate ( BTCALC(IASISNCH,NPRF),           stat= alloc_status(8) )
+  allocate ( RCAL_CLR(IASISNCH,NPRF),         stat= alloc_status(9) )
+  allocate ( SFCTAU(IASISNCH,NPRF),           stat= alloc_status(10))
+  allocate ( RCLD(IASISNCH,NPRF,NLEV),        stat= alloc_status(11))
+  allocate ( TRANSM(IASISNCH,NPRF,NLEV),      stat= alloc_status(12))
+  allocate ( EMI_SFC(IASISNCH,NPRF),          stat= alloc_status(13))
+  allocate ( KSURF(NPRF),                     stat= alloc_status(14))
+  allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
+  allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
+  allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
+  allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
+  allocate ( ICE(NPRF),                       stat= alloc_status(20))
+  allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
+  allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
+  allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
+  allocate ( ROBS(IASISNCH,NPRF),             stat= alloc_status(24))
+  allocate ( ZTS(NPRF),                       stat= alloc_status(26))
+  allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
+  allocate ( REJFLAG(IASISNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
+  allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
+  allocate ( ILIST(IASISNCH),                 stat= alloc_status(30))
+  allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
+  allocate ( NTOP_BT(IASISNCH,NPRF),          stat= alloc_status(32))
+  allocate ( NTOP_RD(IASISNCH,NPRF),          stat= alloc_status(33))
+  allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
+  allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
+  allocate ( PTOP_BT(IASISNCH,NPRF),          stat= alloc_status(36))
+  allocate ( PTOP_RD(IASISNCH,NPRF),          stat= alloc_status(37))
+  allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
+  allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
+  allocate ( HE(NPRF),                        stat= alloc_status(40))
+  allocate ( ETOP(NPRF),                      stat= alloc_status(41))
+  allocate ( VTOP(NPRF),                      stat= alloc_status(42))
+  allocate ( ECF(NPRF),                       stat= alloc_status(43))
+  allocate ( VCF(NPRF),                       stat= alloc_status(44))
+  allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
+  allocate ( MINP(IASISNCH,NPRF),             stat= alloc_status(46))
+  allocate ( PMIN(IASISNCH,NPRF),             stat= alloc_status(47))
+  allocate ( DTAUDP1(IASISNCH,NPRF),          stat= alloc_status(48))
+  allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
+  allocate ( FATE(IASISNCH,NPRF),             stat= alloc_status(50))
+  allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
+  allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
+  allocate ( out_avhrr_param(NPRF),           stat= alloc_status(54))
+  allocate ( LEV_START_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(55))
+  allocate ( PTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(56))
+  allocate ( NTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(57))
+  allocate ( BTOBS_AVHRR(1:NIR,NPRF,NCLASSAVHRR),stat= alloc_status(58))
+  allocate ( ICHREF_AVHRR(NPRF,NCLASSAVHRR)               ,stat= alloc_status(59))
+  allocate ( CLDFLAG_AVHRR(NPRF,NCLASSAVHRR)               ,stat= alloc_status(60))
+  allocate ( ROBS_AVHRR(1:NIR,NPRF,NCLASSAVHRR),stat= alloc_status(61))
+  allocate ( RCAL_CLR_AVHRR(1:NIR,NPRF),stat= alloc_status(62))
+  allocate ( EMI_SFC_AVHRR(1:NIR,NPRF),stat= alloc_status(63))
+  allocate ( ZTS_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(64))
+  allocate ( SFCTAU_AVHRR(NIR,NPRF),           stat= alloc_status(65))
+  allocate ( PTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(66))
+  allocate ( PTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(67))
+  allocate ( NTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(68))
+  allocate ( NTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(69))
+  allocate ( RCLD_AVHRR(NIR,NPRF,NLEV),                    stat= alloc_status(70))
+  allocate ( ZLAT(NPRF),                    stat= alloc_status(71))
+  allocate ( ZLON(NPRF),                    stat= alloc_status(72))
+  allocate ( maxwf(IASISNCH,NPRF),          stat= alloc_status(73))
+  allocate ( CFRAC_AVHRR(NPRF),             stat= alloc_status(74))
+  allocate ( SATAZIM(NPRF),                 stat= alloc_status(75))
+  allocate ( SATZEN(NPRF),                  stat= alloc_status(76))
+  allocate ( ZPRES(col_getNumLev(lcolumnhr,'TH'),NPRF), stat= alloc_status(77))
+  allocate ( PTOP_MB(NPRF),                 stat= alloc_status(78))
+  allocate ( NTOP_MB(NPRF),                 stat= alloc_status(79))
+  allocate ( CFSUB(NPRF),                   stat= alloc_status(80))
+  allocate ( GNCLDFLAG(NPRF),               stat= alloc_status(81))
+  allocate ( ILIST_PAIR(IASISNCH),          stat= alloc_status(82))
+  allocate ( CORFLAG(IASISNCH,NPRF),        stat= alloc_status(83))
 
-      if( any(alloc_status /= 0) ) then
-        write(nulout,*) ' iasiqc : memory allocation error'
-        call abort3d(nulout,'iasiqc        ')
-      end if
+  if( any(alloc_status /= 0) ) then
+     write(nulout,*) ' iasiqc : memory allocation error'
+     call abort3d(nulout,'iasiqc        ')
+  end if
 
 
       seuilalb_static(1,0)=70.0
@@ -342,8 +341,8 @@
 
               count_iasi = count_iasi + 1
 
-              IF ( count_iasi > iasi_loop_done * iasi_bunch .AND.  &
-     &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) THEN
+              IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
+     &             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN
 
                 NOBIASI = NOBIASI + 1
 
@@ -566,6 +565,7 @@
       CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
      &                      zht,col_getNumLev(lcolumnhr,'TH'),iasisnch,nprf,ptop_eq,ntop_eq,ichref)
 
+
       DO JC=1,NCLASSAVHRR
          
           CALL GARAND1998NADON (CLDFLAG_AVHRR(:,jC), btobs_avhrr(:,:,JC),ztg,zt, &
@@ -576,12 +576,6 @@
 
 
 !* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
-
-
-! *** TEST # A ***
-! *** In daytime, set cloudy if cloud fraction over 5% ***
-! A changer avec AVHRR
-!      WHERE ( CLDFLAG(:) == 0 .AND. CLFR(:) > 5. .AND. SUNZA(:) < 90. ) CLDFLAG(:) = 1
 
 
 ! *** TEST # B ***
@@ -623,9 +617,7 @@
 
             IF (ALBEDO(JN)<0.17) THEN               
                CALL VISOCN(sngl(sunza(jn)),sngl(satzen(jn)),deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
-
                SEUIL_ALBED(1)=10.0*max(1.0,ANISOT) 
-               ! SEUIL_ALBED(1)=20.0*max(1.0,ANISOT) 
             ELSE
                SEUIL_ALBED(1)=100.0*ALBEDO(JN) + 10.
             ENDIF
@@ -634,7 +626,6 @@
 
                SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
                CALL  DELT ( DEL, SCOS )
-
                SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
                DO JC=1,NCLASSAVHRR
                   IF (out_avhrr_param(JN)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
@@ -653,20 +644,13 @@
       ENDDO
 
 !Calcul de la pseudo fraction nuageuse AVHRR
-!      OPEN(Unit=124,file="cfracavhrr_-1",position="append")
-!      OPEN(Unit=125,file="cfracavhrr_0",position="append")
-!      OPEN(Unit=126,file="cfracavhrr_1",position="append")
 
       DO JN=1,NPRF
          CFRAC_AVHRR(JN)=0.
          DO JC=1,NCLASSAVHRR
             IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + out_avhrr_param(JN)%CFRAC(JC)
          ENDDO
-!         Write(125+ CLDFLAG(JN),'(e14.6)')  CFRAC_AVHRR(JN)
       ENDDO
-!      close(124)
-!      close(125)
-!      close(126)
 
       CFSUB(:)=-1.0
       DO JN =1, NPRF
@@ -675,12 +659,6 @@
             CFSUB(JN)=0.01* MIN(CFRAC_AVHRR(JN),100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR(JN)=101
          ENDIF
       ENDDO
-
-!seuil differents de jour et de nuit => v4
-!      DO JN=1,NPRF
-!         IF (SUNZA(JN)>=90.0 .AND. CFRAC_AVHRR(JN)>30.d0) CLDFLAG(JN) = 1
-!         IF (SUNZA(JN)<90.0 .AND.  CFRAC_AVHRR(JN)>20.d0) CLDFLAG(JN) = 1
-!      ENDDO
 
 !AVHRR Homogeneity criteria
       DO JN=1,NPRF
@@ -876,7 +854,6 @@
 
 !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
 
-!      CALL MIN_PRES ( MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,iasisnch,nprf,imodtop )
       CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,iasisnch,nprf,imodtop )
 
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
@@ -1031,8 +1008,8 @@
             IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
             IF ( IDATYP .EQ. 186) THEN
               count_iasi = count_iasi + 1
-              IF ( count_iasi > iasi_loop_done * iasi_bunch .AND. &
-     &             count_iasi <= (iasi_loop_done+1) * iasi_bunch ) THEN 
+              IF ( count_iasi > iasi_loop_done * bunch_iasi .AND. &
+     &             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN 
                 NOBIASI = NOBIASI + 1
                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
@@ -1056,7 +1033,7 @@
 !* -- ADDITION OF NEW IASI INFORMATION IN BURP FILE
 !* ------------------------------------------------
 
-      IPRO = iasi_loop_done * iasi_bunch + 1 
+      IPRO = iasi_loop_done * bunch_iasi + 1 
                 
       DO JN = 1, NPRF
          IASIPRO(IPRO)%ETOP      = ETOP(JN)
@@ -1109,7 +1086,7 @@
       deallocate ( RCLD_AVHRR)
       deallocate ( ZLAT,ZLON)
       deallocate ( MAXWF,CFRAC_AVHRR )
-      deallocate(satazim,satzen)
+      deallocate (satazim,satzen)
       deallocate (GNCLDFLAG,ILIST_PAIR)
       deallocate (CORFLAG)
 

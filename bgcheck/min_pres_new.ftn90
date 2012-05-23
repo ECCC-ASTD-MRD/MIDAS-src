@@ -1,4 +1,4 @@
-      SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,nprf,imodtop)
+SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,nprf,imodtop)
 !
 !**ID MIN_PRES -- FIND MINIMUM HEIGHT LEVEL OF SENSITIVITY
 !
@@ -31,72 +31,72 @@
 !            -DT1(NCHN,NPRF)      : VALUE OF 'DTAU/DLOGP' AT MODEL TOP
 !            -MAXHEIGHT(NCHN,NPRF): Height (hPa) of the maximum of the weighting function
 !
-      IMPLICIT NONE
-      INTEGER ,INTENT(IN)   :: NCHN,NPRF,NLEV,IMODTOP,CLDFLAG(NPRF)
-      REAL(8), intent(in)   :: PLEV(NLEV),PS(NPRF),TAU(NCHN,NPRF,NLEV)
-      INTEGER, INTENT (out) :: MINP(NCHN,NPRF)
-      REAL(8), intent(out)  :: PMIN(NCHN,NPRF), DT1(NCHN,NPRF),MAXHEIGHT(NCHN,NPRF)
-      REAL(8) :: MAXWF
-      INTEGER   :: J,JC,JN,ipos(1)
-      REAL(8)   :: WFUNC(NLEV-1),RAP(NLEV-1)
+  IMPLICIT NONE
+  INTEGER ,INTENT(IN)   :: NCHN,NPRF,NLEV,IMODTOP,CLDFLAG(NPRF)
+  REAL(8), intent(in)   :: PLEV(NLEV),PS(NPRF),TAU(NCHN,NPRF,NLEV)
+  INTEGER, INTENT (out) :: MINP(NCHN,NPRF)
+  REAL(8), intent(out)  :: PMIN(NCHN,NPRF), DT1(NCHN,NPRF),MAXHEIGHT(NCHN,NPRF)
+!*******************************************************************************
 
-      MINP(:,:) = -1
-      PMIN(:,:) = -1.
-      DT1(:,:)  = -1.
+  REAL(8) :: MAXWF
+  INTEGER   :: J,JC,JN,ipos(1)
+  REAL(8)   :: WFUNC(NLEV-1),RAP(NLEV-1)
 
-      DO J = 1, NLEV-1
-         RAP(J) = LOG( PLEV(J+1) / PLEV(J) )
-      ENDDO
+  MINP(:,:) = -1
+  PMIN(:,:) = -1.
+  DT1(:,:)  = -1.
 
-      channels: DO JC = 1, NCHN
-        profiles: DO JN = 1, NPRF
+  DO J = 1, NLEV-1
+     RAP(J) = LOG( PLEV(J+1) / PLEV(J) )
+  ENDDO
+
+  channels: DO JC = 1, NCHN
+     profiles: DO JN = 1, NPRF
 
 !**       profile not assimilated if data from 2 windows channels bad
 !**       and/or if data from 2 reference co2 channels bad
-          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
+        DO J = 1, NLEV
+           IF ( TAU(JC,JN,J) < 0.) CYCLE profiles
+        END DO
 
-          DO J = 1, NLEV
-            IF ( TAU(JC,JN,J) < 0.) CYCLE profiles
-          END DO
-
-          MINP(JC,JN) = NLEV
-          PMIN(JC,JN) = MIN(PLEV(NLEV),PS(JN))
+        MINP(JC,JN) = NLEV
+        PMIN(JC,JN) = MIN(PLEV(NLEV),PS(JN))
 
 
 !*        COMPUTE ENTIRE ARRAY OF dTAU/dlog(P)
           
-          DO J = 1, NLEV-1
-!            WFUNC(J) = (TAU(JC,JN,J)-TAU(JC,JN,J+1)) / (PLEV(J+1)-PLEV(J)) * 100.
-             WFUNC(J) = (TAU(JC,JN,J)-TAU(JC,JN,J+1)) / ( RAP(J) )
-          END DO
+        DO J = 1, NLEV-1
+           WFUNC(J) = (TAU(JC,JN,J)-TAU(JC,JN,J+1)) / ( RAP(J) )
+        END DO
        
-          DT1(JC,JN) = WFUNC(IMODTOP)
+        DT1(JC,JN) = WFUNC(IMODTOP)
 
 !*        IF CHANNEL SEES THE SURFACE, DON'T RECALCULATE MINP AND PMIN
 
-          IF ( TAU(JC,JN,NLEV) > 0.01 ) CYCLE profiles ! ????????
+        IF ( TAU(JC,JN,NLEV) > 0.01 ) CYCLE profiles ! ????????
 
 ! Recherche du maximum
-          IPOS=MAXLOC( WFUNC(:) )
+        IPOS=MAXLOC( WFUNC(:) )
 ! Calcul de la valeur du maximum
-          MAXWF = WFUNC(IPOS(1))
+        MAXWF = WFUNC(IPOS(1))
 ! maximum entre les 2 niveaux puisque WF calculee pour une couche finie ( discutable ?)
-          MAXHEIGHT(JC,JN)= 0.5 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1)+1)  )
+        MAXHEIGHT(JC,JN)= 0.5 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1)+1)  )
 
 !*        IF CHANNEL DOESN'T SEE THE SURFACE, SEE WHERE dTAU/dlog(PLEV) BECOMES IMPORTANT
 !*        FOR RECOMPUTATION OF MINP AND PMIN.
 
-          DO J = NLEV-1, IPOS(1), -1
-             IF ( ( WFUNC(J)/ MAXWF ) > 0.01) THEN
-                MINP(JC,JN) = J+1
-                PMIN(JC,JN) = MIN(PLEV(J+1),PS(JN))
-                EXIT
-             END IF
-          ENDDO
+        DO J = NLEV-1, IPOS(1), -1
+           IF ( ( WFUNC(J)/ MAXWF ) > 0.01) THEN
+              MINP(JC,JN) = J+1
+              PMIN(JC,JN) = MIN(PLEV(J+1),PS(JN))
+              EXIT
+           END IF
+        ENDDO
 
 
-        END DO profiles
-      END DO channels
+     END DO profiles
+  END DO channels
 
-    END SUBROUTINE MIN_PRES_NEW
+END SUBROUTINE MIN_PRES_NEW

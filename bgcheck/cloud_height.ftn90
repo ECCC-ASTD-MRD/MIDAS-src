@@ -1,6 +1,6 @@
-      SUBROUTINE CLOUD_HEIGHT (PTOP,NTOP, &
-     &                         btobs,cldflag,tt,gz,ps,plev,nlev, &
-     &                         nchn,nprf,ichref,lev_start,iopt)
+SUBROUTINE CLOUD_HEIGHT (PTOP,NTOP, &
+     btobs,cldflag,tt,gz,ps,plev,nlev, &
+     nchn,nprf,ichref,lev_start,iopt)
 !
 !**ID CLOUD_HEIGHT -- CLOUD TOP HEIGHT COMPUTATION
 !
@@ -39,53 +39,54 @@
 !            -NTOP(NPRF)    : NUMBER OF POSSIBLE PTOP SOLUTIONS
 !
 !
-      IMPLICIT NONE
+  IMPLICIT NONE
+  integer ,intent (in) :: NCHN,NPRF,NLEV,IOPT,ICHREF(NPRF),CLDFLAG(NPRF)
+  REAL(8) ,intent (in) :: BTOBS(NCHN,NPRF),TT(NLEV,NPRF),GZ(NLEV,NPRF),PS(NPRF),PLEV(NLEV,NPRF)
+  integer ,intent (inout) :: LEV_START(NPRF)
+  REAL(8) ,intent (out) :: PTOP(NPRF)
+  integer ,intent (out) :: NTOP(NPRF)
+!**********************************************************************************************
 
-      INTEGER     :: JN,NLEV,NCHN,NPRF
-      INTEGER     :: LEV_START(NPRF),IOPT,ITOP
-      INTEGER     :: NTOP(NPRF),NHT
-      INTEGER     :: CLDFLAG(NPRF),ICHREF(NPRF)
-      REAL(8)     :: HT(NLEV)
-      REAL(8)     :: PLEV(NLEV,NPRF),PS(NPRF)
-      REAL(8)     :: PTOP(NPRF)
-      REAL(8)     :: TT(NLEV,NPRF),GZ(NLEV,NPRF)
-      REAL(8)     :: BTOBS(NCHN,NPRF)
-    
+  INTEGER     :: JN 
+  INTEGER     :: ITOP
+  INTEGER     :: NHT
+  REAL(8)     :: HT(NLEV)
+ 
+
+  
+  profiles: DO JN = 1, NPRF
+
+     IF ( IOPT == 1 ) THEN
+
+        PTOP(JN) = PS(JN)
+        NTOP(JN) = 1      
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+        CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),plev(:,jn),nlev,lev_start(jn),iopt ) 
+
+        ITOP = 1
+        IF ( NHT >= 2 ) ITOP = 2
+        PTOP(JN) = MIN ( HT(ITOP), PS(JN) )
+        NTOP(JN) = NHT
+
+     ELSE IF ( IOPT == 2 ) THEN
+
+        PTOP(JN) = 0.
+        NTOP(JN) = 1      
+
+        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+
+        CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt )
+
+        ITOP = 1
+        IF ( NHT >= 2 ) ITOP = 2
+        PTOP(JN) = MAX ( HT(ITOP), 0.D0 )
+        NTOP(JN) = NHT
+
+     END IF
+     
+  END DO profiles
 
 
-      profiles: DO JN = 1, NPRF
-
-        IF ( IOPT == 1 ) THEN
-
-          PTOP(JN) = PS(JN)
-          NTOP(JN) = 1      
-
-          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
-
-          CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),plev(:,jn),nlev,lev_start(jn),iopt ) 
-
-          ITOP = 1
-          IF ( NHT >= 2 ) ITOP = 2
-          PTOP(JN) = MIN ( HT(ITOP), PS(JN) )
-          NTOP(JN) = NHT
-
-        ELSE IF ( IOPT == 2 ) THEN
-
-          PTOP(JN) = 0.
-          NTOP(JN) = 1      
-
-          IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
-
-          CALL GET_TOP ( HT,NHT, btobs(ichref(jn),jn),tt(:,jn),gz(:,jn),nlev,lev_start(jn),iopt )
-
-          ITOP = 1
-          IF ( NHT >= 2 ) ITOP = 2
-          PTOP(JN) = MAX ( HT(ITOP), 0.D0 )
-          NTOP(JN) = NHT
-
-        END IF
-
-      END DO profiles
-
-
-      END SUBROUTINE CLOUD_HEIGHT
+END SUBROUTINE CLOUD_HEIGHT

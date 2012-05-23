@@ -44,7 +44,7 @@
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
-               call obs_set_r(lobsSpaceData,'FGE ',jdata,col_getElem(lcolumn,IPB,IOBS))
+               call obs_set_r(lobsSpaceData,'HPHT',jdata,col_getElem(lcolumn,IPB,IOBS))
             ELSE
                ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
@@ -59,9 +59,9 @@
 !C
 !C              FIRST GUESS ERROR VARIANCE
 !C
-               call obs_set_r(lobsSpaceData,'FGE ',jdata,   &
+               call obs_set_r(lobsSpaceData,'HPHT',jdata,   &
                     (ZWB*col_getElem(lcolumn,IPB,IOBS) + ZWT*col_getElem(lcolumn,IPT,IOBS)))
-               if(obs_elem_r(lobsSpaceData,'FGE ',jdata).le.0.d0) then
+               if(obs_elem_r(lobsSpaceData,'HPHT',jdata).le.0.d0) then
                  write(nulout,*) 'SETFGEFAM: CDFAM = ',CDFAM
                  write(nulout,*) 'SETFGEFAM: lcolumn_all(IPB,IOBS)=',col_getElem(lcolumn,IPB,IOBS)
                  write(nulout,*) 'SETFGEFAM: lcolumn_all(IPT,IOBS)=',col_getElem(lcolumn,IPT,IOBS)

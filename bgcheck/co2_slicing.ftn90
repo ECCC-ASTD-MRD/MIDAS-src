@@ -1,6 +1,6 @@
-      SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
-     &                         rcal,rcld,robs,ps,plev,nlev,nchn,nprf,cldflag,rejflag,bitflag, &
-     &                         lev_start,ichref,nco2,ilist,ilist_pair)
+SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
+     rcal,rcld,robs,ps,plev,nlev,nchn,nprf,cldflag,rejflag,bitflag, &
+     lev_start,ichref,nco2,ilist,ilist_pair)
 !
 !**ID CO2_SLICING -- CLOUD TOP HEIGHT COMPUTATION
 !
@@ -39,189 +39,193 @@
 !            -NTOP(NCO2,NPRF)      : NEAREST PRESSURE LEVEL CORRESPONDING TO PTOP
 !                                     (PTOP <= PS)
 !
-      IMPLICIT NONE
-
-      INTEGER     :: JN,J,JCH,JC,NCO2,NLEV,NCHN,NPRF,JPMAX,JMAX
-      INTEGER     :: ICHREF(NPRF),BITFLAG,CLDFLAG(NPRF)
-      INTEGER     :: REJFLAG(NCHN,NPRF,0:BITFLAG),LEV_START(NPRF),SUMREJ
-      INTEGER     :: NTOP(NCO2,NPRF),ILIST(NCO2),ILIST_PAIR(NCO2)
-      REAL(8)     :: PTOP(NCO2,NPRF),FCLOUD(NCO2,NPRF)
-      REAL(8)     :: PLEV(NLEV),PS(NPRF),EPS
-      REAL(8)     :: RCAL(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV),ROBS(NCHN,NPRF)
-      REAL(8)     :: FC(NCHN,NLEV),RAPG,RADP
-      REAL(8)     :: DRAP(NCO2,NLEV),A_DRAP(NLEV)
-      REAL(8)     :: VAL,VAL1,VAL2,VAL3,FCINT
-      REAL(8)     :: EMI_RATIO
-      INTEGER     :: JC_PAIR
-      INTEGER     :: ITER,NITER
+  IMPLICIT NONE
+  integer ,intent (in) :: NCO2,NLEV,NCHN,NPRF,BITFLAG
+  REAL(8) ,intent (in) :: RCAL(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV),ROBS(NCHN,NPRF)
+  REAL(8) ,intent (in) :: PLEV(NLEV),PS(NPRF)
+  integer ,intent (in) :: ICHREF(NPRF),CLDFLAG(NPRF),REJFLAG(NCHN,NPRF,0:BITFLAG)
+  integer ,intent (in) :: ILIST(NCO2),ILIST_PAIR(NCO2)
+  integer ,intent (inout) :: LEV_START(NPRF)
+  REAL(8) ,intent (out) :: PTOP(NCO2,NPRF),FCLOUD(NCO2,NPRF)
+  integer ,intent (out) :: NTOP(NCO2,NPRF)
+!*********************************************************************************
+  INTEGER     :: JN,J,JCH,JC,JPMAX,JMAX
+  INTEGER     :: SUMREJ
+  REAL(8)     :: EPS
+  REAL(8)     :: FC(NCHN,NLEV),RAPG,RADP
+  REAL(8)     :: DRAP(NCO2,NLEV),A_DRAP(NLEV)
+  REAL(8)     :: VAL,VAL1,VAL2,VAL3,FCINT
+  REAL(8)     :: EMI_RATIO
+  INTEGER     :: JC_PAIR
+  INTEGER     :: ITER,NITER
       
-      EPS         = 1.D-12
+  EPS         = 1.D-12
 
-      PTOP(:,:)   = -1.
-      NTOP(:,:)   = -1
-      FCLOUD(:,:) = -1.
+  PTOP(:,:)   = -1.
+  NTOP(:,:)   = -1
+  FCLOUD(:,:) = -1.
 
-      profiles: DO JN = 1, NPRF
+  profiles: DO JN = 1, NPRF
 
 !        DRAP(:,:)   = 9999.
 
 !**     profile not assimilated if data from 2 windows channels bad
 !**     and/or if data from 2 reference co2 channels bad
 
-        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+     IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
 !**     define closest level jpmax to surface pressure ps
 
-        JPMAX = NLEV
+     JPMAX = NLEV
 
-        DO J = LEV_START(JN), NLEV
-          IF ( PLEV(J) > PS(JN) ) THEN
-            JPMAX = J
-            EXIT
-          END IF
-        END DO
+     DO J = LEV_START(JN), NLEV
+        IF ( PLEV(J) > PS(JN) ) THEN
+           JPMAX = J
+           EXIT
+        END IF
+     END DO
 
 !**     define jmax as last level for co2-slicing calculations
 
-        JMAX = JPMAX - 1
+     JMAX = JPMAX - 1
 
 !**     predetermined clear window channel, all nco2 estimates clear
 
-        SUMREJ = SUM(REJFLAG(ICHREF(JN),JN,:))
+     SUMREJ = SUM(REJFLAG(ICHREF(JN),JN,:))
 
-        IF ( SUMREJ == 0 ) THEN
-          PTOP(:,JN) = PS(JN)
-          NTOP(:,JN) = JPMAX
-          FCLOUD(:,JN) = 0.
-          CYCLE profiles
-        END IF
+     IF ( SUMREJ == 0 ) THEN
+        PTOP(:,JN) = PS(JN)
+        NTOP(:,JN) = JPMAX
+        FCLOUD(:,JN) = 0.
+        CYCLE profiles
+     END IF
 
-        channels: DO JCH = 1, NCO2
-         
-	 JC = ILIST(JCH)
-	 JC_PAIR = ILIST_PAIR(JCH)
-	 FC(JC_PAIR,:) = RCAL(JC_PAIR,JN) - RCLD(JC_PAIR,JN,:)
-	 NITER=1
-	 IF ( JCH > 13) NITER=2 
+     channels: DO JCH = 1, NCO2
+        
+        JC = ILIST(JCH)
+        JC_PAIR = ILIST_PAIR(JCH)
+        FC(JC_PAIR,:) = RCAL(JC_PAIR,JN) - RCLD(JC_PAIR,JN,:)
+        NITER=1
+        IF ( JCH > 13) NITER=2 
 
-         iteration: DO ITER = 1, NITER
-	  DRAP(JCH,:)   = 9999.
-	  NTOP(JCH,JN) = -1
+        iteration: DO ITER = 1, NITER
+           DRAP(JCH,:)   = 9999.
+           NTOP(JCH,JN) = -1
 !-------------------------------------------------------------------------------
 !         calcul EMI_RATIO
-	  IF (JCH > 13) THEN
+           IF (JCH > 13) THEN
 	   
-	   If ( ITER == 1 ) THEN
-	    EMI_RATIO = 1.0376d0
-	   Else
-            EMI_RATIO = 1.09961d0 - 0.09082d0*FCLOUD(JCH,JN)
-	   Endif
+              If ( ITER == 1 ) THEN
+                 EMI_RATIO = 1.0376d0
+              Else
+                 EMI_RATIO = 1.09961d0 - 0.09082d0*FCLOUD(JCH,JN)
+              Endif
 	   
-	  ELSE
-	   EMI_RATIO = 1.0d0
-	  ENDIF
+           ELSE
+              EMI_RATIO = 1.0d0
+           ENDIF
 !-------------------------------------------------------------------------------
 	  
-          FC(JC,:) = RCAL(JC,JN) - RCLD(JC,JN,:)
+           FC(JC,:) = RCAL(JC,JN) - RCLD(JC,JN,:)
 
 !**       gross check failure
 
-          IF ( REJFLAG(JC,JN,9) == 1 ) CYCLE channels
-          IF ( REJFLAG(JC_PAIR,JN,9) == 1 ) CYCLE channels
+           IF ( REJFLAG(JC,JN,9) == 1 ) CYCLE channels
+           IF ( REJFLAG(JC_PAIR,JN,9) == 1 ) CYCLE channels
 	  
-	  IF ( abs(RCAL(JC_PAIR,JN)-ROBS(JC_PAIR,JN)) > EPS ) THEN
-             RAPG = (RCAL(JC,JN)-ROBS(JC,JN)) / (RCAL(JC_PAIR,JN)-ROBS(JC_PAIR,JN))
-	  ELSE
-	     RAPG = 0.0d0
-	  ENDIF
+           IF ( abs(RCAL(JC_PAIR,JN)-ROBS(JC_PAIR,JN)) > EPS ) THEN
+              RAPG = (RCAL(JC,JN)-ROBS(JC,JN)) / (RCAL(JC_PAIR,JN)-ROBS(JC_PAIR,JN))
+           ELSE
+              RAPG = 0.0d0
+           ENDIF
 
-          DO J = LEV_START(JN), JPMAX
-            IF ( FC(JC,J) > 0. .AND. FC(JC_PAIR,J) > 0. )  &
-     &        DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J))*EMI_RATIO
-          END DO
+           DO J = LEV_START(JN), JPMAX
+              IF ( FC(JC,J) > 0. .AND. FC(JC_PAIR,J) > 0. )  &
+                   &        DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J))*EMI_RATIO
+           END DO
 
-          A_DRAP(:) = ABS(DRAP(JCH,:))
+           A_DRAP(:) = ABS(DRAP(JCH,:))
 
-          levels: DO J = LEV_START(JN)+1, JMAX
+           levels: DO J = LEV_START(JN)+1, JMAX
 
 !**         do not allow fc negative (i.e. drap(jch,j) = 9999.)
 
-            IF ( DRAP(JCH,J) > 9000. .AND. &
-     &           A_DRAP(J-1) < EPS .AND. &
-     &           A_DRAP(J+1) < EPS ) CYCLE channels
+              IF ( DRAP(JCH,J) > 9000. .AND. &
+                   &           A_DRAP(J-1) < EPS .AND. &
+                   &           A_DRAP(J+1) < EPS ) CYCLE channels
 
-            VAL = DRAP(JCH,J) / ( DRAP(JCH,J-1) )
+              VAL = DRAP(JCH,J) / ( DRAP(JCH,J-1) )
 
 !**         find first, hopefully unique, zero crossing
 
-            IF ( VAL < 0. ) THEN
+              IF ( VAL < 0. ) THEN
 
 !**         conditions near zero crossing of isolated minimum need monotonically
 !**         decreasing drap from j-3 to j-1 as well increasing from j to j+1
 
-              VAL1 = DRAP(JCH,J-2) / ( DRAP(JCH,J-1) )
-              VAL2 = DRAP(JCH,J-3) / ( DRAP(JCH,J-1) )
-              VAL3 = DRAP(JCH,J)   / ( DRAP(JCH,J+1) )
+                 VAL1 = DRAP(JCH,J-2) / ( DRAP(JCH,J-1) )
+                 VAL2 = DRAP(JCH,J-3) / ( DRAP(JCH,J-1) )
+                 VAL3 = DRAP(JCH,J)   / ( DRAP(JCH,J+1) )
 
-              IF ( VAL1 > 0. .AND.  & 
-     &             VAL2 > 0. .AND.  & 
-     &             VAL3 > 0. .AND.  &
-     &             A_DRAP(J-2) > A_DRAP(J-1) .AND.  &
-     &             A_DRAP(J-3) > A_DRAP(J-2) .AND.  &
-     &             A_DRAP(J)   < 9000.       .AND.  &
-     &             A_DRAP(J+1) > A_DRAP(J) )        &
-     &         THEN
-                PTOP(JCH,JN) = PLEV(J)
-                NTOP(JCH,JN) = J
+                 IF ( VAL1 > 0. .AND.  & 
+                      &             VAL2 > 0. .AND.  & 
+                      &             VAL3 > 0. .AND.  &
+                      &             A_DRAP(J-2) > A_DRAP(J-1) .AND.  &
+                      &             A_DRAP(J-3) > A_DRAP(J-2) .AND.  &
+                      &             A_DRAP(J)   < 9000.       .AND.  &
+                      &             A_DRAP(J+1) > A_DRAP(J) )        &
+                      &         THEN
+                    PTOP(JCH,JN) = PLEV(J)
+                    NTOP(JCH,JN) = J
+                 END IF
+                 
+                 EXIT levels
+                      
               END IF
 
-              EXIT levels
-                      
-            END IF
+           END DO levels
 
-          END DO levels
-
-          J = NTOP(JCH,JN)
+           J = NTOP(JCH,JN)
 
 !**       special cases of no determination
 
-          IF ( J <= LEV_START(JN) .OR. DRAP(JCH,J) > 9000. ) THEN
+           IF ( J <= LEV_START(JN) .OR. DRAP(JCH,J) > 9000. ) THEN
 !           IF ( ITER == 1) THEN
-	    PTOP(JCH,JN)   = -1.
-            NTOP(JCH,JN)   = -1
-            FCLOUD(JCH,JN) = -1.
-!	   ENDIF
-           CYCLE channels
-          END IF
+              PTOP(JCH,JN)   = -1.
+              NTOP(JCH,JN)   = -1
+              FCLOUD(JCH,JN) = -1.
+              !	   ENDIF
+              CYCLE channels
+           END IF
 
-          IF ( ABS(RCLD(JC,JN,J)-RCAL(JC,JN)) > 0. )       &
-     &      FCLOUD(JCH,JN) = (ROBS(JC,JN)-RCAL(JC,JN)) /   &
-     &                       (RCLD(JC,JN,J)-RCAL(JC,JN))
+           IF ( ABS(RCLD(JC,JN,J)-RCAL(JC,JN)) > 0. )       &
+                &      FCLOUD(JCH,JN) = (ROBS(JC,JN)-RCAL(JC,JN)) /   &
+                &                       (RCLD(JC,JN,J)-RCAL(JC,JN))
 
 !**       find passage to zero if it exists and interpolate to exact pressure
 
-          PTOP(JCH,JN) = PLEV(J-1) - DRAP(JCH,J-1) /                        &
-     &           ( DRAP(JCH,J) - DRAP(JCH,J-1) ) * ( PLEV(J) - PLEV(J-1) )
+           PTOP(JCH,JN) = PLEV(J-1) - DRAP(JCH,J-1) /                        &
+                &           ( DRAP(JCH,J) - DRAP(JCH,J-1) ) * ( PLEV(J) - PLEV(J-1) )
 !**       find cloud radiance at zero crossing to use to get cloud fraction
 
-          FCINT = FC(JC,J-1) + ( FC(JC,J) - FC(JC,J-1) ) /                  &
-     &           ( PLEV(J) - PLEV(J-1) ) * ( PTOP(JCH,JN) - PLEV(J-1) )
+           FCINT = FC(JC,J-1) + ( FC(JC,J) - FC(JC,J-1) ) /                  &
+                &           ( PLEV(J) - PLEV(J-1) ) * ( PTOP(JCH,JN) - PLEV(J-1) )
 
 !**       find cloud fraction based on exact cloud top
 
-          IF ( ABS(FCINT) > 0. )                                            &
-     &      FCLOUD(JCH,JN) = ( RCAL(JC,JN) - ROBS(JC,JN) ) / FCINT
+           IF ( ABS(FCINT) > 0. )                                            &
+                &      FCLOUD(JCH,JN) = ( RCAL(JC,JN) - ROBS(JC,JN) ) / FCINT
 
-          FCLOUD(JCH,JN) = MIN ( FCLOUD(JCH,JN),  1.5D0 )
-          FCLOUD(JCH,JN) = MAX ( FCLOUD(JCH,JN), -0.5D0 )
+           FCLOUD(JCH,JN) = MIN ( FCLOUD(JCH,JN),  1.5D0 )
+           FCLOUD(JCH,JN) = MAX ( FCLOUD(JCH,JN), -0.5D0 )
 	  
-	  IF (FCLOUD(JCH,JN) < 0.0D0 .or. FCLOUD(JCH,JN) > 1.0D0 )  CYCLE channels
+           IF (FCLOUD(JCH,JN) < 0.0D0 .or. FCLOUD(JCH,JN) > 1.0D0 )  CYCLE channels
 	  
-	 END DO iteration
+        END DO iteration
 
-        END DO channels
+     END DO channels
 
-      END DO profiles
+  END DO profiles
       
 
-      END SUBROUTINE CO2_SLICING
+END SUBROUTINE CO2_SLICING

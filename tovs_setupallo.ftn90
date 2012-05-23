@@ -60,6 +60,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
   IMPLICIT NONE
 !implicits
+#include "comct0.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comlun.cdk"
@@ -272,7 +273,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   allocate(profiles(NOBTOV)         , stat= alloc_status( 9))
   allocate(profiles_tl(NOBTOV)      , stat= alloc_status(10))
   allocate(profiles_ad(NOBTOV)      , stat= alloc_status(11))
-  allocate(profiles_qc(NOBTOV)      , stat= alloc_status(12))
+  if (nconf==101) allocate(profiles_qc(NOBTOV)      , stat= alloc_status(12))
   allocate(rttov_errorstatus(NOBTOV), stat= alloc_status(13))
 
   no_id = 1
@@ -296,7 +297,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      allocate( profiles_ad(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(25))
 
      ! allocate model additionnal profiles atmospheric arrays with model levels dimension
-     allocate( profiles_qc(jo) % z  ( coef(no_id) % nlevels ) ,stat= alloc_status(26))
+     if (nconf==101) allocate( profiles_qc(jo) % z  ( coef(no_id) % nlevels ) ,stat= alloc_status(26))
         
      If( any(alloc_status /= 0) ) then
          WRITE(KULOUT,FMT=9201)
@@ -309,8 +310,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
   alloc_status(:) = 0
   allocate( radiance_d(NOBTOV) ,stat= alloc_status(1))
-  allocate( radiance_tl(NOBTOV),stat= alloc_status(2))
-  allocate( radiance_ad(NOBTOV),stat= alloc_status(3))
+  if (nconf.ne.101) allocate( radiance_tl(NOBTOV),stat= alloc_status(2))
+  if (nconf.ne.101) allocate( radiance_ad(NOBTOV),stat= alloc_status(3))
 
   do jo = 1, NOBTOV
      isens = lsensor(jo)
@@ -319,14 +320,12 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
      !! allocate BT equivalent to total direct, tl and ad radiance output
      allocate( radiance_d(jo)  % out  ( nc ) ,stat= alloc_status(4))
-     allocate( radiance_tl(jo) % out  ( nc ) ,stat= alloc_status(5))
-     allocate( radiance_ad(jo) % out  ( nc ) ,stat= alloc_status(6))
+     if (nconf.ne.101) allocate( radiance_tl(jo) % out  ( nc ) ,stat= alloc_status(5))
+     if (nconf.ne.101) allocate( radiance_ad(jo) % out  ( nc ) ,stat= alloc_status(6))
 
      !! allocate clear/cloudy sky radiance/BT output and overcast radiance at given cloud top
-     allocate( radiance_d(jo)  % total_out  ( nc ) ,stat= alloc_status(7) )
      allocate( radiance_d(jo)  % clear_out  ( nc ) ,stat= alloc_status(8) )
-     allocate( radiance_d(jo)  % out_clear  ( nc ) ,stat= alloc_status(9) )
-     allocate( radiance_d(jo)  % overcast  (nl,nc) ,stat= alloc_status(10))
+     if (nconf==101) allocate( radiance_d(jo)  % overcast  (nl,nc) ,stat= alloc_status(10))
 
      If( any(alloc_status /= 0) ) then
          WRITE(KULOUT,FMT=9201)
@@ -335,25 +334,25 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   end do
 
 !___ transmission by profile
+  if (nconf==101) then
+     alloc_status(:) = 0
+     allocate( transmission_d(NOBTOV),stat= alloc_status(1))
 
-  alloc_status(:) = 0
-  allocate( transmission_d(NOBTOV),stat= alloc_status(1))
-
-  do jo = 1, NOBTOV
-     isens = lsensor(jo)
-     nc = nchan(isens)
-     nl = coef(no_id) % nlevels
+     do jo = 1, NOBTOV
+        isens = lsensor(jo)
+        nc = nchan(isens)
+        nl = coef(no_id) % nlevels
 
      !! allocate transmittance from surface and from pressure levels
-     allocate( transmission_d(jo)  % tau_surf  ( nc ) ,stat= alloc_status(2))
-     allocate( transmission_d(jo)  % tau_layer(nl,nc) ,stat= alloc_status(3))
+        allocate( transmission_d(jo)  % tau_surf  ( nc ) ,stat= alloc_status(2))
+        allocate( transmission_d(jo)  % tau_layer(nl,nc) ,stat= alloc_status(3))
 
-     If( any(alloc_status /= 0) ) then
-         WRITE(KULOUT,FMT=9201)
-         CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
-     End If
-  end do
-
+        If( any(alloc_status /= 0) ) then
+           WRITE(KULOUT,FMT=9201)
+           CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+        End If
+     end do
+  endif
 !___ emissivity by profile
 
   ncmax = 1

@@ -1,5 +1,5 @@
-      SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
-     &                    ichref,nchn,nchnkept,nprf,idairs,CINST)
+SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
+     ichref,nchn,nchnkept,nprf,idairs,CINST)
 
 !
 !**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
@@ -38,72 +38,72 @@
 !          OUTPUT:
 !            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
 !
-      use mod_tovs
-      use airsch
-      use iasich
+  use mod_tovs
+  use airsch
+  use iasich
 
-      IMPLICIT NONE
+  IMPLICIT NONE
 
-      INTEGER    :: JN,JC,NCHN,NCHNKEPT,NPRF,IDAIRS,CLDFLAG(NPRF),IREF
-      INTEGER    :: ICHN,ICHREF(NPRF),INDX
-      REAL(8)    :: BTOBS(NCHN,NPRF),RADOBS(NCHN,NPRF)
-      REAL(8)    :: RTG,TG(NPRF),RADTG(NCHN,NPRF)
-      REAL(8)    :: EMI(NCHN,NPRF),SFCTAU(NCHN,NPRF)
-      REAL(8)    :: RADTS,TS(NPRF),TS1(NCHN,NPRF),RCAL(NCHN,NPRF),tstore,t_effective
-      CHARACTER (LEN=*) :: CINST
+  INTEGER    :: JN,JC,NCHN,NCHNKEPT,NPRF,IDAIRS,CLDFLAG(NPRF),IREF
+  INTEGER    :: ICHN,ICHREF(NPRF),INDX
+  REAL(8)    :: BTOBS(NCHN,NPRF),RADOBS(NCHN,NPRF)
+  REAL(8)    :: RTG,TG(NPRF),RADTG(NCHN,NPRF)
+  REAL(8)    :: EMI(NCHN,NPRF),SFCTAU(NCHN,NPRF)
+  REAL(8)    :: RADTS,TS(NPRF),TS1(NCHN,NPRF),RCAL(NCHN,NPRF),tstore,t_effective
+  CHARACTER (LEN=*) :: CINST
 
 
-      TS1(:,:) = -1.
-      TS(:) = -1.
-      RADTG(:,:) = -1.
+  TS1(:,:) = -1.
+  TS(:) = -1.
+  RADTG(:,:) = -1.
 
-      IF (CINST(1:4)/="IASI" .AND. CINST(1:4)/="AIRS") THEN
-         Write(*,*) "INVALID CINST VALUE : should be IASI or AIRS",CINST
-         STOP
-      ENDIF
+  IF (CINST(1:4)/="IASI" .AND. CINST(1:4)/="AIRS") THEN
+     Write(*,*) "INVALID CINST VALUE : should be IASI or AIRS",CINST
+     STOP
+  ENDIF
 
 
 !*    transform guess skin temperature to plank radiances 
 
-      DO JN = 1, NPRF
-        IF ( CLDFLAG(JN) == -1 ) CYCLE
-        DO JC = 1, NCHNKEPT
-          ICHN = ichan(JC,IDAIRS)
-          t_effective =  coef(idairs)%ff_bco(jc) + coef(idairs)%ff_bcs(jc) * TG(jn)
+  DO JN = 1, NPRF
+     IF ( CLDFLAG(JN) == -1 ) CYCLE
+     DO JC = 1, NCHNKEPT
+        ICHN = ichan(JC,IDAIRS)
+        t_effective =  coef(idairs)%ff_bco(jc) + coef(idairs)%ff_bcs(jc) * TG(jn)
 
-          indx=airssch(ichn)
-          IF (CINST=="IASI") indx=iasisch(ichn)
-          RADTG(indx,jn) =  coef(idairs)%planck1(jc) / &
-     &        ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
-        END DO
-      END DO
+        indx=airssch(ichn)
+        IF (CINST=="IASI") indx=iasisch(ichn)
+        RADTG(indx,jn) =  coef(idairs)%planck1(jc) / &
+             ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
+     END DO
+  END DO
+      
+  DO JN = 1, NPRF
 
-      DO JN = 1, NPRF
-
-        IF ( CLDFLAG(JN) /= 0 ) CYCLE
+     IF ( CLDFLAG(JN) /= 0 ) CYCLE
 
 !*   compute TOA planck radiances due to guess skin planck radiances
 
-        RTG =   RADTG(ICHREF(JN),JN)*EMI(ICHREF(JN),JN)*SFCTAU(ICHREF(JN),JN)
+     RTG =   RADTG(ICHREF(JN),JN)*EMI(ICHREF(JN),JN)*SFCTAU(ICHREF(JN),JN)
 
 !*   compute true skin planck radiances due to TOA true planck radiances
 
-        RADTS = ( RADOBS(ICHREF(JN),JN) + RTG - RCAL(ICHREF(JN),JN) ) / &
-    &           ( EMI(ICHREF(JN),JN) * SFCTAU(ICHREF(JN),JN) )
+     RADTS = ( RADOBS(ICHREF(JN),JN) + RTG - RCAL(ICHREF(JN),JN) ) / &
+          ( EMI(ICHREF(JN),JN) * SFCTAU(ICHREF(JN),JN) )
     
 !*   transform true skin planck radiances to true skin temperatures
 
-        DO JC = 1, NCHNKEPT
-          ICHN = ichan(JC,IDAIRS)
-          tstore = coef(idairs)%planck2(jc) / Log( 1+coef(idairs)%planck1(jc)/RADTS )
-          indx=airssch(ichn)
-          IF (CINST=="IASI") indx=iasisch(ichn)
-          TS1(indx,jn) = ( tstore-coef(idairs)%ff_bco(jc) ) / coef(idairs)%ff_bcs(jc)
-        END DO
+     DO JC = 1, NCHNKEPT
+        ICHN = ichan(JC,IDAIRS)
+        tstore = coef(idairs)%planck2(jc) / Log( 1+coef(idairs)%planck1(jc)/RADTS )
+        indx=airssch(ichn)
+        IF (CINST=="IASI") indx=iasisch(ichn)
+        TS1(indx,jn) = ( tstore-coef(idairs)%ff_bco(jc) ) / coef(idairs)%ff_bcs(jc)
+     END DO
 
-        TS(JN) = TS1(ichref(jn),jn)
+     TS(JN) = TS1(ichref(jn),jn)
 
-      END DO
+  END DO
 
 
-      END SUBROUTINE ESTIM_TS
+END SUBROUTINE ESTIM_TS

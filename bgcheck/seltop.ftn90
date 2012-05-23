@@ -1,4 +1,4 @@
-      SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,gncldflag,nprf,nco2 )
+SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,gncldflag,nprf,nco2 )
 !
 !**ID SELTOP -- SELECT CLOUD TOP
 !
@@ -30,43 +30,45 @@
 !            -VCF(NPRF)     : CORRESPONDING VARIANCE ON ECF
 !            -NGOOD(NPRF)   : NUMBER OF GOOD ESTIMATES
 !
-      IMPLICIT NONE
-
-      INTEGER    :: JN,NPRF,N,JCH,NCO2
-      INTEGER    :: NGOOD(NPRF), CLDFLAG(NPRF), GNCLDFLAG(NPRF)
-      REAL(8)    :: ETOP(NPRF),VTOP(NPRF),ECF(NPRF),VCF(NPRF)
-      REAL(8)    :: HE(NPRF),HT(NCO2,NPRF),CF(NCO2,NPRF),PS(NPRF),CFSUB(NPRF)
-      REAL(8)    :: PTOP_MB(NPRF)
-      REAL(8)    :: H(NCO2),F(NCO2)
-
-
-      ETOP(:) = -1.D0
-      VTOP(:) = -1.D0
-      ECF(:)  = -1.D0
-      VCF(:)  = -1.D0
-      NGOOD(:)= 0
+  IMPLICIT NONE
+  integer ,intent (in) :: NPRF,NCO2
+  REAL(8) ,intent (in) :: HE(NPRF),HT(NCO2,NPRF),CF(NCO2,NPRF),PS(NPRF),CFSUB(NPRF)
+  integer ,intent (in) :: CLDFLAG(NPRF), GNCLDFLAG(NPRF)
+  REAL(8) ,intent (out):: ETOP(NPRF),VTOP(NPRF),ECF(NPRF),VCF(NPRF)
+  integer ,intent (out):: NGOOD(NPRF)
+!***********************************************************************************
+  INTEGER    :: JN,N,JCH
+  REAL(8)    :: PTOP_MB(NPRF)
+  REAL(8)    :: H(NCO2),F(NCO2)
 
 
-      profiles: DO JN = 1, NPRF
+  ETOP(:) = -1.D0
+  VTOP(:) = -1.D0
+  ECF(:)  = -1.D0
+  VCF(:)  = -1.D0
+  NGOOD(:)= 0
+
+
+  profiles: DO JN = 1, NPRF
 
 !**     profile not assimilated if data from 2 windows channels bad
 !**     and/or if data from 2 reference co2 channels bad
 
-        IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
+     IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
-        N = 0
-        H(:) = 0.
-        F(:) = 0.
+     N = 0
+     H(:) = 0.
+     F(:) = 0.
 
-        DO JCH = 1, NCO2
+     DO JCH = 1, NCO2
 
 !*        CHECK FOR ZERO CLOUD FRACTION
 
-          IF ( CF(JCH,JN) > -0.9 .AND. CF(JCH,JN) < 1.D-6 ) THEN
-            N = N + 1
-            H(N) = PS(JN)
-            F(N) = 0.
-          ELSE
+        IF ( CF(JCH,JN) > -0.9 .AND. CF(JCH,JN) < 1.D-6 ) THEN
+           N = N + 1
+           H(N) = PS(JN)
+           F(N) = 0.
+        ELSE
 
 
 !*        CONSIDER ONLY VALID VALUES OF CLOUD FRACTION ABOVE SOME THRESHOLD
@@ -76,63 +78,103 @@
 !         CO2-SLICING NOT ALLOWED TO GIVE ESTIMATES BELOW HE, WHICH HAPPENS
 !         FOR CLOUD FRACTION CF > 1.0.
 
-          IF ( HT(JCH,JN) > 0.0 ) THEN
-            N=N+1
-            H(N) = HT(JCH,JN)
-            F(N) = MIN(CF(JCH,JN), 1.0D0)
-            F(N) = MAX(F(N), 0.D0)
-            IF ( CF(JCH,JN) > 1.0 ) H(N) = HE(JN)
-          END IF
-	 ENDIF
+           IF ( HT(JCH,JN) > 0.0 ) THEN
+              N=N+1
+              H(N) = HT(JCH,JN)
+              F(N) = MIN(CF(JCH,JN), 1.0D0)
+              F(N) = MAX(F(N), 0.D0)
+              IF ( CF(JCH,JN) > 1.0 ) H(N) = HE(JN)
+           END IF
+        ENDIF
 
-        ENDDO
+     ENDDO
 
 
-        NGOOD(JN) = N
+     NGOOD(JN) = N
 
 !*      COMPUTE MEAN AND VARIANCE
 
-        IF ( N >= 1 ) THEN
+     IF ( N >= 1 ) THEN
          
 !         ETOP(JN) = SUM(H(1:N)) / N
 !         ECF(JN)  = SUM(F(1:N)) / N
 
-         call calcul_median_fast(N,NCO2,H,F,ETOP(JN),ECF(JN))
+        call calcul_median_fast(N,NCO2,H,F,ETOP(JN),ECF(JN))
 
-         VTOP(JN) = SQRT ( SUM((H(1:N)-ETOP(JN))**2)/N )
-         VCF(JN)  = SQRT ( SUM((F(1:N)- ECF(JN))**2)/N )         
+        VTOP(JN) = SQRT ( SUM((H(1:N)-ETOP(JN))**2)/N )
+        VCF(JN)  = SQRT ( SUM((F(1:N)- ECF(JN))**2)/N )         
 
-         IF ( N == 1 ) THEN
-            VTOP(JN) = 50.
-            VCF(JN)  = 0.20
-          END IF
+        IF ( N == 1 ) THEN
+           VTOP(JN) = 50.
+           VCF(JN)  = 0.20
+        END IF
 
-        ELSE
+     ELSE
 
 !*      IF NO SOLUTION FROM CO2-SLICING, AND NOT PREDETERMINED CLEAR, 
 !*      ASSUME CLOUDY WITH TOP EQUAL TO EFFECTIVE HEIGHT HE;
 !*      HOWEVER IF HE IS VERY CLOSE TO SURFACE PRESSURE PS, ASSUME CLEAR.
 
-          ETOP(JN) = HE(JN)
-          ECF(JN)  = 1.0
-          IF (CFSUB(JN)>=0.05) THEN
-             ECF(JN)=CFSUB(JN)
-             ETOP(JN)=MIN(MIN(HE(JN),PTOP_MB(JN)),PS(JN)-50.0)
-          ENDIF
-          VTOP(JN) = 50.
-          VCF(JN)  = 0.30
-          IF ( HE(JN) > (PS(JN)-10.) ) ECF(JN) = 0.
-	  IF ( GNCLDFLAG(JN) == 0 ) THEN
-	     ECF(JN)=0.0
-	     ETOP(JN)=PS(JN)
-	  ENDIF
-        END IF
-
-        IF ( ECF(JN) < 0.05 ) THEN
-	     ECF(JN)=0.0
-	     ETOP(JN)=PS(JN)
+        ETOP(JN) = HE(JN)
+        ECF(JN)  = 1.0
+        IF (CFSUB(JN)>=0.05) THEN
+           ECF(JN)=CFSUB(JN)
+           ETOP(JN)=MIN(MIN(HE(JN),PTOP_MB(JN)),PS(JN)-50.0)
         ENDIF
-      END DO profiles
+        VTOP(JN) = 50.
+        VCF(JN)  = 0.30
+        IF ( HE(JN) > (PS(JN)-10.) ) ECF(JN) = 0.
+        IF ( GNCLDFLAG(JN) == 0 ) THEN
+           ECF(JN)=0.0
+           ETOP(JN)=PS(JN)
+        ENDIF
+     END IF
+
+     IF ( ECF(JN) < 0.05 ) THEN
+        ECF(JN)=0.0
+        ETOP(JN)=PS(JN)
+     ENDIF
+  END DO profiles
+
+contains
+
+subroutine calcul_median_fast(NN,Nmax,Hin,Fin,CTP,CFR)
+! 
+implicit none
+integer ,intent (in) :: NN
+integer ,intent (in) :: Nmax
+real (8) ,intent (in):: Hin(Nmax),Fin(Nmax)
+real (8) ,intent (out):: CTP,CFR
+!*********************************************
+INTEGER    :: index(NN)
+real (4) :: H(NN)
+!*******
+integer :: i
+
+IF (NN==1) THEN
+ CTP=Hin(NN)
+ CFR=Fin(NN)
+ELSE
+
+ H(1:NN)=Hin(1:NN)
+        
+ call IPSORT(index,H,NN)
+
+ if (mod(NN,2)==0) then		! N - pair
+    i=index(NN/2)
+    CTP=Hin(i)
+    CFR=Fin(i)
+ else				! N - impair
+    i=index(1+NN/2)
+    CTP=Hin(i)
+    CFR=Fin(i)
+ endif
+
+ENDIF
+
+return
+
+end subroutine calcul_median_fast
 
 
-      END SUBROUTINE SELTOP
+END SUBROUTINE SELTOP
