@@ -104,13 +104,13 @@
                     ENDIF
                     IF (ZFGE .LT. 1.E-3 .OR. ZOER .LT. 1.E-3 ) THEN
                       WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',  &
-                         obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
+                         obs_elem_c(lobsSpaceData,'STID',iobs),ZFGE,ZOER
                       CALL ABORT3D(NULOUT,'BGCDATA: PROBLEM WITH FGE, OER.')
                     ENDIF
                   ELSE
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.e-5)THEN
                         WRITE(NULOUT,*)' Problem for STNID FGE ZOER=',  &
-                           obs_elem_c9(lobsSpaceData,'STID',iobs),ZFGE,ZOER
+                           obs_elem_c(lobsSpaceData,'STID',iobs),ZFGE,ZOER
                         ZFGE=1.E-5
                         ZOER=1.E-5
                     ENDIF
@@ -147,7 +147,7 @@
 
                   IF (IFLAG .GE. 2 ) THEN
                     WRITE(NULOUT,122)  &
-                       obs_elem_c9(lobsSpaceData,'STID',iobs),  &
+                       obs_elem_c(lobsSpaceData,'STID',iobs),  &
                        zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
                        ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
                     INREJ = INREJ + 1

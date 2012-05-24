@@ -92,14 +92,14 @@ C
           IF ( IDATYP .EQ. 189 ) THEN
             IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
             IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-            IF (obs_elem_c9(lobsSpaceData,'STID',JO) .NE. CGPSSTN) THEN
+            IF (obs_elem_c(lobsSpaceData,'STID',JO) .NE. CGPSSTN) THEN
 C     Loop over all observations for the location
               DO JDATA= IDATA, IDATEND
                 call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
               ENDDO
             ELSE
               WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 
-     +           obs_elem_c9(lobsSpaceData,'STID',JO)
+     +           obs_elem_c(lobsSpaceData,'STID',JO)
               LLFOUND = .TRUE.
             ENDIF
           ENDIF

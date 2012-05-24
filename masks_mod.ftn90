@@ -262,7 +262,7 @@ module masks_mod
               IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',index_header)
 
               WRITE(*,*)' ODA_MASKPP: NO EXTRAPOLATION ALLOWED '  &
-                   ,' OBS ',obs_elem_c9(lobsSpaceData,'STID',index_header) &
+                   ,' OBS ',obs_elem_c(lobsSpaceData,'STID',index_header) &
                    ,' TYPE ',IDBURP, ' ELM ' &
                    , obs_elem_i(lobsSpaceData,'VNM ',index_header),' LAT ' &
                    , ZLAT,  ' LON ', ZLON

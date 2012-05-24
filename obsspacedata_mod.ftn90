@@ -193,7 +193,7 @@ MODULE obsSpaceData_mod
   !    obs_clean        - remove from obs data those that will not be assimilated
   !    obs_elem_i       - obtain an integer element from the observation object
   !    obs_elem_r       - obtain a real element from the observation object
-  !    obs_elem_c9      - obtain character(9) element from the observation object
+  !    obs_elem_c       - obtain character(9) element from the observation object
   !    obs_getFamily    - return the family of a datum
   !    obs_get_datestamp- get the object's date stamp
   !    obs_get_obs_index_for_bufr_element
@@ -226,7 +226,7 @@ MODULE obsSpaceData_mod
 
   !    obs_setFamily    - set the family of a datum
   !    obs_set_r        - set a real value in the observation object
-  !    obs_set_c9       - set a character(9) value in the observation object
+  !    obs_set_c        - set a character(9) value in the observation object
   !    obs_set_i        - set an integer value in the observation object
   !    obs_set_datestamp- set the object's date stamp
   !    obs_status       - returns the values of the object's status variables
@@ -257,8 +257,8 @@ MODULE obsSpaceData_mod
 
   ! methods
   public           :: obs_initialize,obs_finalize
-  public           :: obs_elem_i,obs_elem_r,obs_elem_c9
-  public           ::  obs_set_i, obs_set_r, obs_set_c9
+  public           :: obs_elem_i,obs_elem_r,obs_elem_c
+  public           ::  obs_set_i, obs_set_r, obs_set_c
   public           :: obs_numbody,obs_numheader,obs_numbody_max
   public           :: obs_numheader_max,obs_numheader_mpiglobal
   public           :: obs_swapVarOmf,obs_get_obs_index_for_bufr_element
@@ -299,11 +299,10 @@ MODULE obsSpaceData_mod
    private
    type(struct_index_list_depot) :: header_index_list_depot
    type(struct_index_list_depot) :: body_index_list_depot
-   character(len=9),   pointer, dimension(:)   :: cstnid
+   character(len=12),  pointer, dimension(:)   :: cstnid
    character(len=2),   pointer, dimension(:)   :: cfamily
    real(kind=OBS_REAL),pointer, dimension(:,:) :: robhdr
    integer,            pointer, dimension(:,:) :: mobhdr
-   character(len=12),  pointer, dimension(:)   :: cobhdr
    real(kind=OBS_REAL),pointer, dimension(:,:) :: robdata
    integer,            pointer, dimension(:,:) :: mobdata
    integer :: numheader                 ! Actual number of stations on record
@@ -316,7 +315,7 @@ MODULE obsSpaceData_mod
                                         ! Headers of the mpi-Global obs data
    integer,            pointer, dimension(:,:) :: mobhdr_g
    real(kind=OBS_REAL),pointer, dimension(:,:) :: robhdr_g
-   character(len=9),   pointer, dimension(:)   :: cstnid_g
+   character(len=12),  pointer, dimension(:)   :: cstnid_g
    integer,            pointer, dimension(:)   :: locObsTag
 
    logical :: mpi_local                 ! T: keep only data needed by this PE
@@ -490,7 +489,7 @@ MODULE obsSpaceData_mod
    do ivar=1,NHDR_REAL
     obs_out%robhdr(ivar,i_station_write)=cma%robhdr(ivar,istation) 
    enddo
-   obs_out%cobhdr(i_station_write)=cma%cobhdr(istation)
+   obs_out%cstnid(i_station_write)=cma%cstnid(istation)
    
    i_station_write=i_station_write+1
   enddo stations
@@ -516,7 +515,7 @@ MODULE obsSpaceData_mod
 
   obs_b%robhdr          = obs_a%robhdr
   obs_b%mobhdr          = obs_a%mobhdr
-  obs_b%cobhdr          = obs_a%cobhdr
+  obs_b%cstnid          = obs_a%cstnid
   obs_b%robdata         = obs_a%robdata
   obs_b%mobdata         = obs_a%mobdata
 
@@ -616,9 +615,7 @@ MODULE obsSpaceData_mod
     obsdat%cfamily(:)='XX'
 
     ALLOCATE(obsdat%cstnid(numheader_max))
-    obsdat%cstnid(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
-
-    allocate(obsdat%cobhdr(numheader_max))
+    obsdat%cstnid(:)='XXXXXXXXXXXX'
 
     ALLOCATE(obsdat%ROBHDR(NHDR_REAL,numheader_max))
     obsdat%ROBHDR(:,:)=real(0.0d0, OBS_REAL)
@@ -640,7 +637,7 @@ MODULE obsSpaceData_mod
     integer         , intent(in)    :: maxNumHdr
 
     ALLOCATE(obsdat%cstnid_g(maxNumHdr))
-    obsdat%cstnid_g(:)='XXXXXXXXX' !! // 'XXX'   needed for EnKF
+    obsdat%cstnid_g(:)='XXXXXXXXXXXX'
 
     ALLOCATE(obsdat%ROBHDR_g(NHDR_REAL,maxNumHdr))
     obsdat%ROBHDR_g(:,:)=real(0.0d0, OBS_REAL)
@@ -695,12 +692,6 @@ MODULE obsSpaceData_mod
         deallocate(obsdat%cfamily,STAT=ierr)
            nullify(obsdat%cfamily)
       if(ierr.ne.0)write(*,*) 'Problem detected with CFAMILY. IERR =',ierr
-    end if
-
-    if (associated(obsdat%cobhdr)) then
-        deallocate(obsdat%cobhdr,STAT=ierr)
-           nullify(obsdat%cobhdr)
-      if(ierr.ne.0)write(*,*) 'Problem detected with COBHDR. IERR =',ierr
     end if
 
     if (associated(obsdat%cstnid))then
@@ -805,7 +796,7 @@ MODULE obsSpaceData_mod
     if(present(headerIndex)) then
       obs_getFamily=obsdat%cfamily(headerIndex)
     elseif(present(bodyIndex)) then
-      headerIndex2=obs_elem_i(obsdat,'OBS ',bodyIndex)
+      headerIndex2=obs_elem_i(obsdat,'OBS',bodyIndex)
       obs_getFamily=obsdat%cfamily(headerIndex2)
     else
       write(*,*) 'OBS_GETFAMILY: Header or Body index must be specified!'
@@ -851,7 +842,7 @@ MODULE obsSpaceData_mod
         obsdat%numheader=obsdat%numheader+1
       endif
     elseif(present(bodyIndex)) then
-      headerIndex2=obs_elem_i(obsdat,'OBS ',bodyIndex)
+      headerIndex2=obs_elem_i(obsdat,'OBS',bodyIndex)
       obsdat%cfamily(headerIndex2)=Family_in
       if(headerIndex2.eq.(obsdat%numheader+1)) then
         obsdat%numheader=obsdat%numheader+1
@@ -1448,10 +1439,10 @@ MODULE obsSpaceData_mod
  end function obs_elem_mpiglobal_i
 
 
- function obs_elem_c9(obsdat,name,index) result(value)
+ function obs_elem_c(obsdat,name,index) result(value)
   implicit none
 
-  character(len=9) :: value
+  character(len=12) :: value
   type(struct_obs), intent(in)  :: obsdat
   character(len=*), intent(in)  :: name
   integer         , intent(in)  :: index
@@ -1460,10 +1451,10 @@ MODULE obsSpaceData_mod
   case ('STID'); value=obsdat%cstnid(index)
 
   case default
-   write(*,*)"ERROR:  ", name(1:4)," is not character(len=9) observation."
+   write(*,*)"ERROR:  ", name(1:4)," is not character(len=*) observation."
    value='xxxxxxxxx'
   end select
- end function obs_elem_c9
+ end function obs_elem_c
 
 
  subroutine obs_set_current_header_list(obsdat, family)
@@ -1566,8 +1557,8 @@ MODULE obsSpaceData_mod
    index_list%header = header
 
    ! Populate the list
-   first= obs_elem_i(obsdat,'RLN ',header)
-   last = obs_elem_i(obsdat,'NLV ',header) + first - 1
+   first= obs_elem_i(obsdat,'RLN',header)
+   last = obs_elem_i(obsdat,'NLV',header) + first - 1
    list_index = 0
    do item_index=first,last             ! For each item indicated in the header
                                         ! Add the item_index to the list
@@ -1653,8 +1644,8 @@ MODULE obsSpaceData_mod
    HEADER: do
     if (index_header < 0) exit HEADER
     index_header = obs_getHeaderIndex(obsdat)
-    first= obs_elem_i(obsdat,'RLN ',index_header)
-    last = obs_elem_i(obsdat,'NLV ',index_header) + first - 1
+    first= obs_elem_i(obsdat,'RLN',index_header)
+    last = obs_elem_i(obsdat,'NLV',index_header) + first - 1
     do item_index=first,last            ! For each item indicated in the header
                                         ! Add the item_index to the list
      list_index = list_index + 1
@@ -1867,8 +1858,8 @@ MODULE obsSpaceData_mod
 !
 ! 1. General information
 !
-  IPNT  = obs_elem_i(obsdat,'RLN ',KOBS)
-  IDATA = obs_elem_i(obsdat,'NLV ',KOBS)
+  IPNT  = obs_elem_i(obsdat,'RLN',KOBS)
+  IDATA = obs_elem_i(obsdat,'NLV',KOBS)
 
   IF(IDATA.EQ.1) THEN
    WRITE(KULOUT,FMT=9101)IDATA,KOBS, NBDY_INT + NBDY_REAL
@@ -1886,20 +1877,20 @@ MODULE obsSpaceData_mod
 !
   DO JDATA = IPNT, IPNT + IDATA - 1
      IDATA2 = JDATA -IPNT + 1
-     if(obs_elem_i(obsdat,'ASS ',JDATA).eq.1) then
-        ivco=obs_elem_i(obsdat,'VCO ',JDATA)
+     if(obs_elem_i(obsdat,'ASS',JDATA).eq.1) then
+        ivco=obs_elem_i(obsdat,'VCO',JDATA)
         if(ivco.ne.1.and.ivco.ne.2) ivco=3
         WRITE(KULOUT,FMT=9201) IDATA2 &
-             ,obs_elem_i (obsdat,'VNM ',JDATA) &
+             ,obs_elem_i (obsdat,'VNM',JDATA) &
              ,ccordtyp   (ivco) &
-             ,obs_elem_r(obsdat,'PPP ',JDATA) &
-             ,obs_elem_r(obsdat,'SEM ',JDATA),obs_elem_r(obsdat,'POB ',JDATA) &
-             ,obs_elem_r(obsdat,'VAR ',JDATA),obs_elem_r(obsdat,'OMF ',JDATA) &
-             ,obs_elem_r(obsdat,'OMA ',JDATA),obs_elem_r(obsdat,'OMI ',JDATA) &
-             ,obs_elem_r(obsdat,'OER ',JDATA) &
+             ,obs_elem_r(obsdat,'PPP',JDATA) &
+             ,obs_elem_r(obsdat,'SEM',JDATA),obs_elem_r(obsdat,'POB',JDATA) &
+             ,obs_elem_r(obsdat,'VAR',JDATA),obs_elem_r(obsdat,'OMF',JDATA) &
+             ,obs_elem_r(obsdat,'OMA',JDATA),obs_elem_r(obsdat,'OMI',JDATA) &
+             ,obs_elem_r(obsdat,'OER',JDATA) &
              ,obs_elem_r(obsdat,'HPHT',JDATA) &
-             ,obs_elem_i (obsdat,'FLG ',JDATA) &
-             ,obs_elem_i (obsdat,'ASS ',JDATA)
+             ,obs_elem_i (obsdat,'FLG',JDATA) &
+             ,obs_elem_i (obsdat,'ASS',JDATA)
      end if
   end do
 
@@ -1961,15 +1952,15 @@ MODULE obsSpaceData_mod
 ! 2. PRINT HEADER'S CONTENT
 !
   WRITE(KULOUT,FMT=9200)&
-      obs_elem_i (obsdat,'RLN ',KOBS),obs_elem_i (obsdat,'ONM ',KOBS) &
-     ,obs_elem_i (obsdat,'INS ',KOBS),obs_elem_i (obsdat,'OTP ',KOBS) &
-     ,obs_elem_i (obsdat,'ITY ',KOBS) &
-     ,obs_elem_r(obsdat,'LAT ',KOBS),obs_elem_r(obsdat,'LON ',KOBS)&
-     ,obs_elem_i (obsdat,'DAT ',KOBS),obs_elem_i (obsdat,'ETM ',KOBS) &
-     ,obs_elem_c9(obsdat,'STID',KOBS),obs_elem_r(obsdat,'ALT ',KOBS) &
-     ,obs_elem_i (obsdat,'NLV ',KOBS) &
-     ,obs_elem_i (obsdat,'OFL ',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
-     ,obs_elem_i (obsdat,'TLA ',KOBS)
+      obs_elem_i (obsdat,'RLN',KOBS),obs_elem_i (obsdat,'ONM',KOBS) &
+     ,obs_elem_i (obsdat,'INS',KOBS),obs_elem_i (obsdat,'OTP',KOBS) &
+     ,obs_elem_i (obsdat,'ITY',KOBS) &
+     ,obs_elem_r(obsdat,'LAT',KOBS),obs_elem_r(obsdat,'LON',KOBS)&
+     ,obs_elem_i (obsdat,'DAT',KOBS),obs_elem_i (obsdat,'ETM',KOBS) &
+     ,obs_elem_c (obsdat,'STID',KOBS),obs_elem_r(obsdat,'ALT',KOBS) &
+     ,obs_elem_i (obsdat,'NLV',KOBS) &
+     ,obs_elem_i (obsdat,'OFL',KOBS),obs_elem_i (obsdat,'ST1 ',KOBS) &
+     ,obs_elem_i (obsdat,'TLA',KOBS)
 
  9200 FORMAT(6X,'Position within ROBDATA:',I6,1X,'OBS. NUMBER:',I6,1X &
            ,'INSTR. ID:',I6,1X,'OBS. TYPE:',I6,1X &
@@ -2089,8 +2080,8 @@ MODULE obsSpaceData_mod
  end subroutine obs_set_r
 
 
- subroutine obs_set_c9(obsdat, name, index, value)
-!s/r obs_set_c9 - set a character(len=9) in the observation object
+ subroutine obs_set_c(obsdat, name, index, value)
+!s/r obs_set_c - set a character(len=9) in the observation object
 !
 !Author    . J.W. Blezius
 !
@@ -2108,7 +2099,7 @@ MODULE obsSpaceData_mod
   case default
    write(*,*)"ERROR:  ", trim(name)," is not a character(len=9) observation."
   end select
- end subroutine obs_set_c9
+ end subroutine obs_set_c
 
 
  subroutine obs_select(cma,hx,obs_sel,hx_sel,zhamin,zhamax,nens,nobsout)
@@ -2173,7 +2164,7 @@ MODULE obsSpaceData_mod
     do idata2=1,NHDR_REAL
      obs_sel%robhdr(idata2,kobsout)=cma%robhdr(idata2,kobs)
     enddo 
-    obs_sel%cobhdr(kobsout)=cma%cobhdr(kobs)
+    obs_sel%cstnid(kobsout)=cma%cstnid(kobs)
     obs_sel%mobhdr(NCM_NLV,kobsout)=iaccept
     obs_sel%mobhdr(NCM_RLN,kobsout)=iwrite-iaccept+1
    endif
@@ -2264,7 +2255,7 @@ MODULE obsSpaceData_mod
     do idata2=1,NHDR_REAL
      cma%robhdr(idata2,kobsout)=cma%robhdr(idata2,kobs)
     enddo 
-    cma%cobhdr(kobsout)=cma%cobhdr(kobs)
+    cma%cstnid(kobsout)=cma%cstnid(kobs)
     cma%mobhdr(NCM_NLV,kobsout)=iaccept
     cma%mobhdr(NCM_RLN,kobsout)=iwrite-iaccept+1
    endif
@@ -2310,9 +2301,9 @@ MODULE obsSpaceData_mod
    cma%robhdr(i,j)=cma%robhdr(i,k) 
    cma%robhdr(i,k)=rdum 
   enddo
-  cdum=cma%cobhdr(j)
-  cma%cobhdr(j)=cma%cobhdr(k)
-  cma%cobhdr(k)=cdum
+  cdum=cma%cstnid(j)
+  cma%cstnid(j)=cma%cstnid(k)
+  cma%cstnid(k)=cdum
 
   return
  end subroutine obs_exchange_stations
@@ -2487,7 +2478,7 @@ MODULE obsSpaceData_mod
        cma%mobhdr(NCM_ITY,cma%numheader) = ity
        cma%mobhdr(NCM_DAT,cma%numheader) = idate
        cma%mobhdr(NCM_ETM,cma%numheader) = itime
-       cma%cobhdr(cma%numheader)         = clstnid
+       cma%cstnid(cma%numheader)         = clstnid
 ! PLH       cma%mobhdr(ncmoec,cma%numheader) = 999
        cma%mobhdr(NCM_OFL,cma%numheader) = imask
        cma%mobhdr(NCM_AZA,cma%numheader) = isatazim
@@ -2667,7 +2658,7 @@ MODULE obsSpaceData_mod
 
 ! general information
 
-  write(kulout,fmt=9100)kobs,cma%cobhdr(KOBS)
+  write(kulout,fmt=9100)kobs,cma%cstnid(KOBS)
  9100 format(//,2x,'-- observation record no.' &
         ,1x,i6,3x,' station id:',A12)
 
@@ -2710,7 +2701,7 @@ MODULE obsSpaceData_mod
 !      ncmabdy: unit number of the file with cma body info.
 !      ncmahx:  unit number of the file with hx (-1 if not used)
 !   output:
-!      mobhdr,robhdr,cobhdr:             station header information
+!      mobhdr,robhdr,cstnid:             station header information
 !      mobdata,robdata,hx:               observation data
 !
   implicit none
@@ -2735,7 +2726,7 @@ MODULE obsSpaceData_mod
 
   readstn: do istn=1,cma%numheader
    read(ncmahdr,end=288,err=288) (cma%mobhdr(i,istn),i=1,NHDR_INT), &
-     (cma%robhdr(j,istn),j=1,NHDR_REAL),cma%cobhdr(istn)
+     (cma%robhdr(j,istn),j=1,NHDR_REAL),cma%cstnid(istn)
 
    if (istn.eq.1) then 
     cma%mobhdr(NCM_RLN,istn)=1
@@ -2809,7 +2800,7 @@ MODULE obsSpaceData_mod
 
   real(4),           save :: robhdr_1(NHDR_REAL)
   integer,           save :: mobhdr_1(NHDR_INT)
-  character(len=12), save :: cobhdr_1
+  character(len=12), save :: cstnid_1
   logical,           save :: empty  = .false., &
                              hasone = .false.
 
@@ -2850,7 +2841,7 @@ MODULE obsSpaceData_mod
    idata=cma%numheader
    cma%mobhdr(:,idata)=mobhdr_1(:)
    cma%robhdr(:,idata)=robhdr_1(:)
-   cma%cobhdr(idata)=cobhdr_1
+   cma%cstnid(idata)=cstnid_1
 
    ! determine which process will handle this station.
    ! the corresponding scatter operation is in program scattercma.
@@ -2890,7 +2881,7 @@ MODULE obsSpaceData_mod
 
     if (.not. hasone) then 
      read(ncmahdr,iostat=ierr) (mobhdr_1(i),i=1,NHDR_INT), &
-        (robhdr_1(j),j=1,NHDR_REAL),cobhdr_1
+        (robhdr_1(j),j=1,NHDR_REAL),cstnid_1
      if(ierr == 0) then
       hasone = .true.
      else
@@ -3085,12 +3076,12 @@ MODULE obsSpaceData_mod
   integer, intent(in) :: kobs,kulout
 !
   integer :: ialt,idburp,ii,ilon,ilat,iout,jtrans
-  character*9 :: ccstnid
-  real*8 :: torad 
+  character(len=12) :: ccstnid
+  real(8) :: torad 
 
   torad=4.D0*atan(1.D0)/180.D0
 
-  ccstnid=cma%cobhdr(kobs)
+  ccstnid=cma%cstnid(kobs)
 
 ! Replace occasional appearance of "," by "b" in CCSTNID to avoid problem
 ! when converting this output to sqlite. - Xingxiu Deng, March 2009
@@ -3217,7 +3208,7 @@ MODULE obsSpaceData_mod
   nrobdata=cma%mobhdr(NCM_NLV,kobs)
 ! write the header's content 
   write(kulout) irobdata,(cma%mobhdr(i,kobs),i=2,NHDR_INT), &
-    (cma%robhdr(j,kobs),j=1,NHDR_REAL),cma%cobhdr(kobs)
+    (cma%robhdr(j,kobs),j=1,NHDR_REAL),cma%cstnid(kobs)
  
   return
 
@@ -3279,8 +3270,8 @@ MODULE obsSpaceData_mod
   integer, intent  (out) :: nbegintyp_g(:), nendtyp_g(:)
 
 ! Declare Local Variables
-  CHARACTER(len=9),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
-  CHARACTER(len=2),ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
+  CHARACTER(len=12),ALLOCATABLE,DIMENSION(:) :: cstnid_tmp
+  CHARACTER(len=2), ALLOCATABLE,DIMENSION(:) :: cfamily_tmp
   REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
   REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
 
@@ -3436,7 +3427,7 @@ MODULE obsSpaceData_mod
 
   type(struct_obs), intent(inout) :: obsdat
 
-  CHARACTER(len=9),ALLOCATABLE    :: cstnid_tmp(:)
+  CHARACTER(len=12),ALLOCATABLE    :: cstnid_tmp(:)
 
   REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBDATA_tmp
   REAL(OBS_REAL),ALLOCATABLE,DIMENSION(:,:) :: ROBHDR_tmp
@@ -3594,7 +3585,7 @@ MODULE obsSpaceData_mod
   ncomm=nstncom*NHDR_REAL
   call rpn_comm_bcast(cma%robhdr,ncomm,MPI_OBS_REAL,master,"world",ier)
   ncomm=nstncom*12
-  call rpn_comm_bcast(cma%cobhdr,ncomm,"mpi_character",master,"world",ier)
+  call rpn_comm_bcastc(cma%cstnid,ncomm,"mpi_character",master,"world",ier)
     
   nobs=cma%mobhdr(NCM_RLN,nstncom) + cma%mobhdr(NCM_NLV,nstncom) - 1
   if (nobs.gt.cma%numbody_max) then

@@ -540,7 +540,7 @@ C
                   WRITE(NULOUT,
      &               '(1X,"STNID= ",A10,"IDBURP= ",I5," LAT= ",F10.2
      &              ," LON = ",F10.2)')
-     &              obs_elem_c9(lobsSpaceData,'STID',JJO),IDBURP,ZLAT*MPC_DEGREES_PER_RADIAN_R8,ZLON*MPC_DEGREES_PER_RADIAN_R8
+     &              obs_elem_c(lobsSpaceData,'STID',JJO),IDBURP,ZLAT*MPC_DEGREES_PER_RADIAN_R8,ZLON*MPC_DEGREES_PER_RADIAN_R8
                   WRITE(NULOUT,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
      &              " OBSERR = ",E10.2)')
      &              ITYP,obs_elem_r(lobsSpaceData,'PPP ',JDATA),obs_elem_r(lobsSpaceData,'OER ',JDATA)

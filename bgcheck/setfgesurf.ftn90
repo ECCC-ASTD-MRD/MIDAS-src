@@ -100,7 +100,7 @@
                   call obs_set_r(lobsSpaceData,'HPHT',jdata,col_getElem(lcolumn,IPB,IOBS))
 !c ***** debug *********
 !c                  write(nulout,*) 'stn,ityp,ipt,ipb,fge'
-!c                  write(nulout,*) obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,ipt,ipb,
+!c                  write(nulout,*) obs_elem_c(lobsSpaceData,'STID',iobs),ityp,ipt,ipb,
 !c     &                            obs_elem_r(lobsSpaceData,'HPHT',jdata)
 !c ***** debug *********
                 ELSE
@@ -117,9 +117,9 @@
                     call obs_set_r(lobsSpaceData,'HPHT',jdata,   &
                       col_getElem(lcolumn,IK + col_getOffsetFromVarno(lcolumng,ityp),IOBS))
                   ENDIF
-                if(obs_elem_c9(lobsSpaceData,'STID',iobs) .eq. '99999999') then
+                if(obs_elem_c(lobsSpaceData,'STID',iobs) .eq. '99999999') then
                   write(nulout,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &
-                       ,obs_elem_c9(lobsSpaceData,'STID',iobs),ityp,    &
+                       ,obs_elem_c(lobsSpaceData,'STID',iobs),ityp,    &
                         obs_elem_i(lobsSpaceData,'XTR ',jdata),ipt,ipb,zwt,zwb
                   write(nulout,*) 'setfgesurf:gobs(ipb),gobs(ipt),fge'   &
                        ,col_getElem(lcolumn,IPB,IOBS),col_getElem(lcolumn,IPT,IOBS)      &

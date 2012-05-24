@@ -171,7 +171,7 @@
 
                            IF (JO.EQ.IBEGINOB .AND. NH1.LE.3) THEN
                             WRITE(NULOUT,'(A11,A9,3(1x,f7.2))')   &
-                               'SETFGEGPS: ',obs_elem_c9(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV
+                               'SETFGEGPS: ',obs_elem_c(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV
                             WRITE(NULOUT,*) 'JL JACT JACQ FGE_T FGE_LQ'
                             DO JL = 1, col_getNumLev(LCOLUMNG)
                               WRITE(NULOUT,'(1X,I2,4(1x,E13.6))') JL,ZJTT(JL),ZJHU(JL)/ZHUB(JL),ZTT(JL), ZHU(JL)

@@ -42,7 +42,7 @@
 #include "cvcord.cdk"
 *
       type(struct_obs) :: lobsSpaceData
-      character(len=4), intent(in) :: elem_s
+      character(len=*), intent(in) :: elem_s
       INTEGER IUU,IVV,IFF,IDD
       INTEGER IOBS,IBEGIN,ILAST,ISTART,IEND,jwintyp
       INTEGER J,JDATA,JJOBS
