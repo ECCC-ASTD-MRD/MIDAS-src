@@ -71,8 +71,8 @@
    integer :: status
    integer :: nobs_prnt=2
    integer, dimension(nlev) :: ip1m
-   real, dimension(1,nobs)  :: p0_obs
-   real, dimension(:,:,:), pointer :: pobsm
+   real*8, dimension(1,nobs)  :: p0_obs
+   real*8, dimension(:,:,:), pointer :: pobsm
    real    :: ppp
    character(len=4) :: dummy_S
    logical :: debug=.true.
@@ -110,7 +110,7 @@
 
    do k = 1, nlev
       do j = 1, nobs
-	 dpx(k,j) = dble(pobsm(1,j,k))
+	       dpx(k,j) = pobsm(1,j,k)
       enddo
    enddo
    !
