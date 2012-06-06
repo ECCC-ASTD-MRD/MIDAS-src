@@ -32,6 +32,7 @@
       use columnData_mod 
       use obsSpaceData_mod
       use gridStateVector_mod
+      use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
@@ -76,6 +77,12 @@ c
       real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
       real*8, allocatable, dimension(:) ::  dlatfld, dlonfld
       integer :: ig1obs,ig2obs,ig3obs,ig4obs
+c   variables added to call vgd_levels and correct for sfc pressure possible discrepancy
+      integer status, kind
+      real*8, dimension(:,:,:), pointer :: pobsm
+      real    :: ppp
+      character(len=4) :: dummy_S
+
 
       write(nulout,*) ' '
       write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
@@ -372,16 +379,52 @@ c------- Calculate profiles of pressure values at station location
 
 c-------Staggered hybrid trial field 
       if (vco_trl%iversion .eq. 5002) then 
-        call calcpres_vgrid(vco_trl%vgrid,zovar, vco_trl%ip1_M
-     &         ,nlv_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
-        call calcpres_vgrid(vco_trl%vgrid,zovar, vco_trl%ip1_T
-     &         ,nlv_T,col_getNumCol(lcolumng),nulout,zppobs_T(1,1))
+c------  Compute Pressure fields at desired levels----------
+         if (allocated(pobsm))  deallocate(pobsm)
+         status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
+     &                     levels=pobsm,sfc_field=zovar,in_log=.false.)
+c
+         if(status.ne.VGD_OK)then
+            write(nulout,*) 'ERROR with vgd_levels for desired levels '
+            call exit(1)
+         endif
+c
+         zppobs_M = transpose(pobsm(1,:,:))
+c
+         if (allocated(pobsm))  deallocate(pobsm)
+         status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
+     &                     levels=pobsm,sfc_field=zovar,in_log=.false.)
+c
+         if(status.ne.VGD_OK)then
+             write(nulout,*) 'ERROR with vgd_levels for desired levels '
+             call exit(1)
+         endif
+c
+         zppobs_T = transpose(pobsm(1,:,:))
+c
+c  ---   The following is to make sure pressure at the surface is the same as zovar
+c        The logic is based on similar test found in the program
+c        compute_pressure.ftn90 in vgrid_descriptors applications
+c
+c         call convip(vco_trl%ip1_M(size(vco_trl%ip1_M)),ppp,kind,-1,dummy_S,.false.)
+cc
+c         if(abs(ppp-1.) <= epsilon(ppp)) then 
+c            do jobs = 1, col_getNumCol(lcolumng)
+c               zppobs_M(nlv_M,jobs) = zovar(1,jobs) 
+c            enddo
+c         endif
+cc
+c         call convip(vco_trl%ip1_T(size(vco_trl%ip1_T)),ppp,kind,-1,dummy_S,.false.)
+cc
+c         if(abs(ppp-1.) <= epsilon(ppp)) then 
+c            do jobs = 1, col_getNumCol(lcolumng)
+c               zppobs_T(nlv_T,jobs) = zovar(1,jobs) 
+c            enddo
+c         endif
+c
 c-------ETA  trial field 
       elseif(vco_trl%iversion .eq. 5001) then
         call col_pointStagToUnstag(lcolumnhr)
-        call calcpres_vgrid(vco_trl%vgrid,zovar, vco_trl%ip1_M
-     &         ,vco_trl%nlev_M,col_getNumCol(lcolumng),nulout,zppobs_M(1,1))
-
         call vco_calcpres(vco_trl,zppobs_M,nlv_M,zovar,col_getNumCol(lcolumng))
         do jlev   = 1,nlv_M 
           do jobs = 1,col_getNumCol(lcolumng)

@@ -191,7 +191,7 @@ C
 *      kcolvv         : Number of collums for V
 *      kvvgid         : Grid descriptor of targeted V grid
 *      knk            : Number of level of targetted variable
-*      varName       : Variable nomvar (UV if vectorial interpolation desired)
+*      varName        : Variable nomvar (UV if vectorial interpolation desired)
 *      kstampv        : Valid CMC date-time stamp values for reserch in
 *                       fst source file
 *      kulfst         : Unit of pre-opened standard file containing src fields
@@ -206,6 +206,7 @@ C
 #endif
 C
       use MathPhysConstants_mod
+      use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
 *implicits
 #include "comlun.cdk"
@@ -227,10 +228,14 @@ c
       integer koutmpg
       real*8  zeta(kmaxlev)
       real*8, allocatable :: zhighvar(:),zhighvv(:),zlowvar(:)
-      real*8, allocatable :: zpresanl(:),zlowvv(:)
-      real*8, allocatable :: zps(:),zprestrl(:),zprofi(:),zprofo(:)
+      real*8, allocatable :: zpresanl(:,:),zlowvv(:)
+      real*8, allocatable :: zps(:),zprestrl(:,:),zprofi(:),zprofo(:)
       real*8, allocatable :: zpstrl(:,:)
       character*1 clstring
+c   variables added to call vgd_levels and correct for sfc pressure possible discrepancy
+      integer status
+      real*8, allocatable :: zps2d(:,:)
+      real*8, dimension(:,:,:), pointer :: pgrid
 C
       WRITE(KULOUT,FMT='(/,4X,"Starting VHFSTFLD",//)')
 c
@@ -381,7 +386,8 @@ c
 c
         allocate(zpresanl(kcol*knk))
         allocate(zps(kcol))
-        allocate(zprestrl(kcol*itrlnlev))
+        allocate(zps2d(1,kcol))
+        allocate(zprestrl(itrlnlev,kcol))
         allocate(zprofi(kcol*itrlnlev))
         allocate(zprofo(kcol*knk))
 c
@@ -396,14 +402,25 @@ c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
         if(vco_trl%iversion .eq. 5002) then
-          call calcpres_vgrid(vco_trl%vgrid,zps,iip1s
-     &           ,itrlnlev,kcol,kulout,zprestrl)
-          do jlev = 1,itrlnlev
-            do jcol=1,kcol
-              zprestrl((jcol-1)*itrlnlev+ jlev) = zprestrl((jcol-1)
-     &             *itrlnlev+ jlev)
-            enddo
-          enddo
+          if (allocated(pgrid)) deallocate(pgrid)
+          status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
+     &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
+c
+          if(status.ne.VGD_OK)then
+             write(kulout,*) 'ERROR with vgd_levels for desired levels '
+             call exit(1)
+          endif
+c
+          zprestrl = transpose(pgrid(1,:,:))
+c
+c JE NE COMPRENDS PAS!!!
+c          do jlev = 1,itrlnlev
+c            do jcol=1,kcol
+c              zprestrl((jcol-1)*itrlnlev+ jlev) = 
+c     &        zprestrl((jcol-1)*itrlnlev+ jlev)
+c            enddo
+c          enddo
+c
         else ! trial has unstaggered levels
           call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcol)
         endif
@@ -425,6 +442,7 @@ c
 c
         deallocate(zpresanl)
         deallocate(zps)
+        deallocate(zps2d)
         deallocate(zprestrl)
         deallocate(zprofi)
         deallocate(zprofo)
@@ -433,7 +451,8 @@ c
 c
           allocate(zpresanl(kcolvv*knk))
           allocate(zps(kcolvv))
-          allocate(zprestrl(kcolvv*itrlnlev))
+          allocate(zps2d(1,kcolvv))
+          allocate(zprestrl(itrlnlev,kcolvv))
           allocate(zprofi(kcolvv*itrlnlev))
           allocate(zprofo(kcolvv*knk))
 c
@@ -448,8 +467,17 @@ c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
           if(vco_trl%iversion .eq. 5002) then
-            call calcpres_vgrid(vco_trl%vgrid,zps,iip1s
-     &           ,itrlnlev,kcolvv,kulout,zprestrl)
+            if (allocated(pgrid)) deallocate(pgrid)
+            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
+     &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
+c
+            if(status.ne.VGD_OK)then
+               write(kulout,*) 'ERROR with vgd_levels for desired levels '
+               call exit(1)
+            endif
+c
+            zprestrl = transpose(pgrid(1,:,:))
+c
           else
             call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcolvv)
           endif
@@ -473,6 +501,7 @@ c
           deallocate(zlowvv)
           deallocate(zpresanl)
           deallocate(zps)
+          deallocate(zps2d)
           deallocate(zprestrl)
           deallocate(zprofi)
           deallocate(zprofo)
@@ -517,3 +546,4 @@ c
 
 
       END SUBROUTINE SUBASIC_GD
+
