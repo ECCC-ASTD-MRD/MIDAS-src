@@ -12,33 +12,37 @@ contains
 !
 !**s/r bmat_setup  - Initializes the analysis Background term for the specific analysis configuration used.
 !
+      use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
 #include "comfilt.cdk"
 !
       type(struct_vco), pointer :: vco_anl
       integer  cvdimens,cvdimhi,datestamp
-      real*8 zps(1)
-      real*8, pointer :: pressureProfile(:,:),pressureProfile1(:)
-      integer jlev
-
-      allocate(pressureProfile(vco_anl%nlev_M,1))
-      pressureProfile1 => pressureProfile(:,1)
-
+      real*8 zps
+      real*8, pointer :: pressureProfile(:)
+      integer jlev,status
+!
 ! Initialize the background-error covariances
 
-      zps(1) = 101000.D0
-      call vco_calcpres(vco_anl,pressureProfile,vco_anl%nlev_M,zps,1)
-      pressureProfile1(:)=pressureProfile(:,1)
+      zps = 101000.D0
+!
+      status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pressureProfile,sfc_field=zps,in_log=.false.)
+!
+      if(status.ne.VGD_OK)then
+         write(*,*) 'ERROR with vgd_levels for desired levels '
+         call exit(1)
+      endif
+!
       cvdimhi=0
       cvdimens=0
 
       write(*,*) 'Setting up the modular HI covariances...'
-      call bhi_setup(gaus_NI,gaus_NJ,vco_anl%nlev_M,pressureProfile1,cvdimhi)
+      call bhi_setup(gaus_NI,gaus_NJ,vco_anl%nlev_M,pressureProfile,cvdimhi)
       write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
       call flush(6)
 
       write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(2800.0d0,2.0d0,pressureProfile1,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
+      call ben_setup(2800.0d0,2.0d0,pressureProfile,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
       write(*,*) 'Dimension of ENS control vector returned:',cvdimens
       call flush(6)
 

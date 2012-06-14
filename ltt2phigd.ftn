@@ -38,6 +38,7 @@
 #endif
 C
       use gridStateVector_mod
+      use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
 #include "comlun.cdk"
 #include "pardim.cdk"
@@ -51,8 +52,10 @@ C
       real*8  vme(statevectorg%nlev),vmf(statevectorg%nlev)
       INTEGER JLEV, JLA, ILA, ILEV, JLAT, JLON
       real*8  zalpha
-      real*8 zpress(statevectorg%nlev,statevectorg%ni),zprof(jpnflev)
-      real*8, pointer :: ps3d_ptr(:,:,:)
+      real*8 zpress(statevectorg%ni,statevectorg%nlev),zprof(jpnflev)
+      real*8, pointer :: ps3d_ptr(:,:,:), zpres3d_ptr(:,:,:)
+      real*8, allocatable :: zps2d(:,:) 
+      integer status
 *------------------------------------------------------------------
 **
 C
@@ -64,18 +67,29 @@ c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
       ps3d_ptr => gsv_getField3D(statevectorg,'P0')
+c
+      allocate(zps2d(statevectorg%ni,statevectorg%nj))
+      zps2d(:,:) = ps3d_ptr(:,1,:)
+c
+      status=vgd_levels(statevectorg%vco%vgrid,
+     &                  ip1_list=statevectorg%vco%ip1_M,
+     &                  levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)
+      if(status.ne.VGD_OK)then
+        write(nulout,*) 'ERROR with vgd_levels for desired levels '
+        call exit(1)
+      endif
       do jlat = 1, statevectorg%nj
-        call vco_calcpres(statevectorg%vco,ZPRESS,statevectorg%nlev,
-     &                    ps3d_ptr(:,1,jlat),statevectorg%ni)
+        zpress = zpres3d_ptr(:,jlat,:)
         do jlon = 1, statevectorg%ni
           do jlev = 1,statevectorg%nlev
             ila         = jlev+(jlon-1)*statevectorg%nlev
-            zprof(jlev) = zpress(jlev,jlon)
+            zprof(jlev) = zpress(jlon,jlev)
           enddo
           call matapat(zprof,zalpha,statevectorg%nlev,vma,vmb,vmc,vmd,vme,vmf)
           call lvtapgd(pgz,ptt,jlon,jlat) 
         enddo
       enddo
+      deallocate(zps2d)
 c
       RETURN
 

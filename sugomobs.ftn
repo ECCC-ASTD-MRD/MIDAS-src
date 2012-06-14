@@ -77,11 +77,9 @@ c
       real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
       real*8, allocatable, dimension(:) ::  dlatfld, dlonfld
       integer :: ig1obs,ig2obs,ig3obs,ig4obs
-c   variables added to call vgd_levels and correct for sfc pressure possible discrepancy
-      integer status, kind
-      real*8, dimension(:,:,:), pointer :: pobsm
-      real    :: ppp
-      character(len=4) :: dummy_S
+c   variables added to call vgd_levels
+      integer status
+      real*8, dimension(:,:,:), pointer :: pobsm => null()
 
 
       write(nulout,*) ' '
@@ -355,7 +353,17 @@ c
         zovar(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
       enddo
 c
-      call vco_calcpres(vco_anl,zppobsg,col_getNumLev(lcolumng),zovar,col_getNumCol(lcolumng))
+      if (associated(pobsm))  deallocate(pobsm)
+      
+      status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,
+     &                sfc_field=zovar,in_log=.false.)      
+      if(status.ne.VGD_OK)then
+         write(nulout,*) 'ERROR with vgd_levels for desired levels '
+         call exit(1)
+      endif
+c
+      zppobsg = transpose(pobsm(1,:,:))
+c
       call col_fillmvo(lcolumng,'PP','NA',zppobsg)
       do jlev = 1,col_getNumLev(lcolumng)
         write(nulout,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
@@ -380,7 +388,7 @@ c------- Calculate profiles of pressure values at station location
 c-------Staggered hybrid trial field 
       if (vco_trl%iversion .eq. 5002) then 
 c------  Compute Pressure fields at desired levels----------
-         if (allocated(pobsm))  deallocate(pobsm)
+         if (associated(pobsm))  deallocate(pobsm)
          status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
      &                     levels=pobsm,sfc_field=zovar,in_log=.false.)
 c
@@ -391,7 +399,7 @@ c
 c
          zppobs_M = transpose(pobsm(1,:,:))
 c
-         if (allocated(pobsm))  deallocate(pobsm)
+         if (associated(pobsm))  deallocate(pobsm)
          status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
      &                     levels=pobsm,sfc_field=zovar,in_log=.false.)
 c
@@ -401,26 +409,6 @@ c
          endif
 c
          zppobs_T = transpose(pobsm(1,:,:))
-c
-c  ---   The following is to make sure pressure at the surface is the same as zovar
-c        The logic is based on similar test found in the program
-c        compute_pressure.ftn90 in vgrid_descriptors applications
-c
-c         call convip(vco_trl%ip1_M(size(vco_trl%ip1_M)),ppp,kind,-1,dummy_S,.false.)
-cc
-c         if(abs(ppp-1.) <= epsilon(ppp)) then 
-c            do jobs = 1, col_getNumCol(lcolumng)
-c               zppobs_M(nlv_M,jobs) = zovar(1,jobs) 
-c            enddo
-c         endif
-cc
-c         call convip(vco_trl%ip1_T(size(vco_trl%ip1_T)),ppp,kind,-1,dummy_S,.false.)
-cc
-c         if(abs(ppp-1.) <= epsilon(ppp)) then 
-c            do jobs = 1, col_getNumCol(lcolumng)
-c               zppobs_T(nlv_T,jobs) = zovar(1,jobs) 
-c            enddo
-c         endif
 c
 c-------ETA  trial field 
       elseif(vco_trl%iversion .eq. 5001) then

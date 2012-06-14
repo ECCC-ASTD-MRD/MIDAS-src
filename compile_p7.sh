@@ -21,6 +21,7 @@ trunkdir=$PWD
 cd ../
 mkdir -p compiledir
 cd compiledir
+rm -f *.o *.f *.f90
 
 compiledir=$PWD
 
@@ -97,7 +98,7 @@ if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling remaining ftn ftn90..."
 filelist=""
-for i in *.ftn*
+for i in *.ftn *.ftn90
 do
   xx=`echo $i |grep -v _mod.ftn` 
   filelist="$filelist $xx"
@@ -108,6 +109,9 @@ if [ $? = "0" ] ; then exit ; fi
 
 echo "building the executable..."
 s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing5 2>&1
+
+grep -i ERROR listing?
+if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
 
 rm -f *.ftn* *.cdk* *.h
 

@@ -232,10 +232,10 @@ c
       real*8, allocatable :: zps(:),zprestrl(:,:),zprofi(:),zprofo(:)
       real*8, allocatable :: zpstrl(:,:)
       character*1 clstring
-c   variables added to call vgd_levels and correct for sfc pressure possible discrepancy
+c   variables added to call vgd_levels
       integer status
       real*8, allocatable :: zps2d(:,:)
-      real*8, dimension(:,:,:), pointer :: pgrid
+      real*8, dimension(:,:,:), pointer :: pgrid => null()
 C
       WRITE(KULOUT,FMT='(/,4X,"Starting VHFSTFLD",//)')
 c
@@ -384,7 +384,7 @@ c
         ikey = VFSTLUK(zpstrl, ikey, INI, INJ, INK)
         zpstrl(:,:)=zpstrl(:,:)*MPC_PA_PER_MBAR_R8
 c
-        allocate(zpresanl(kcol*knk))
+        allocate(zpresanl(knk,kcol))
         allocate(zps(kcol))
         allocate(zps2d(1,kcol))
         allocate(zprestrl(itrlnlev,kcol))
@@ -396,13 +396,25 @@ c
         ierr = ezsetopt('INTERP_DEGREE','LINEAR')
         iset = ezdefset(ktrggid,ip0gid)
         ierr = vezsint(zps,zpstrl,kcol,1,1,ini,inj,1)
-        call vco_calcpres(vco_anl,zpresanl,knk,zps,kcol)
+c
+        zps2d(1,:) = zps(:)
+c 
+        if (associated(pgrid)) deallocate(pgrid)
+        status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,
+     &                    levels=pgrid,sfc_field=zps2d,in_log=.false.)
+c
+        if(status.ne.VGD_OK)then
+           write(kulout,*) 'ERROR with vgd_levels for desired levels '
+           call exit(1)
+        endif
+c
+        zpresanl = transpose(pgrid(1,:,:))
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
         if(vco_trl%iversion .eq. 5002) then
-          if (allocated(pgrid)) deallocate(pgrid)
+          if (associated(pgrid)) deallocate(pgrid)
           status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
      &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
 c
@@ -412,14 +424,6 @@ c
           endif
 c
           zprestrl = transpose(pgrid(1,:,:))
-c
-c JE NE COMPRENDS PAS!!!
-c          do jlev = 1,itrlnlev
-c            do jcol=1,kcol
-c              zprestrl((jcol-1)*itrlnlev+ jlev) = 
-c     &        zprestrl((jcol-1)*itrlnlev+ jlev)
-c            enddo
-c          enddo
 c
         else ! trial has unstaggered levels
           call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcol)
@@ -449,7 +453,7 @@ c
 c
         if (trim(varName).eq.'UV') then
 c
-          allocate(zpresanl(kcolvv*knk))
+          allocate(zpresanl(knk,kcolvv))
           allocate(zps(kcolvv))
           allocate(zps2d(1,kcolvv))
           allocate(zprestrl(itrlnlev,kcolvv))
@@ -461,13 +465,25 @@ c
           ierr = ezsetopt('INTERP_DEGREE','LINEAR')
           iset = ezdefset(kvvgid,ip0gid)
           ierr = vezsint(zps,zpstrl,kcolvv,1,1,ini,inj,1)
-          call vco_calcpres(vco_anl,zpresanl,knk,zps,kcolvv)
+c         
+          zps2d(1,:) = zps(:)
+c
+          if (associated(pgrid)) deallocate(pgrid)
+          status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,
+     &                      levels=pgrid,sfc_field=zps2d,in_log=.false.)
+c
+          if(status.ne.VGD_OK)then
+             write(kulout,*) 'ERROR with vgd_levels for desired levels '
+             call exit(1)
+          endif
+c
+          zpresanl = transpose(pgrid(1,:,:))
 c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
           if(vco_trl%iversion .eq. 5002) then
-            if (allocated(pgrid)) deallocate(pgrid)
+            if (associated(pgrid)) deallocate(pgrid)
             status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
      &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
 c
@@ -546,4 +562,3 @@ c
 
 
       END SUBROUTINE SUBASIC_GD
-
