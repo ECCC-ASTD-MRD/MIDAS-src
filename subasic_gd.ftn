@@ -413,7 +413,6 @@ c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-        if(vco_trl%iversion .eq. 5002) then
           if (associated(pgrid)) deallocate(pgrid)
           status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
      &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
@@ -424,10 +423,6 @@ c
           endif
 c
           zprestrl = transpose(pgrid(1,:,:))
-c
-        else ! trial has unstaggered levels
-          call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcol)
-        endif
 c
         do jlev = 1, itrlnlev
           do jcol = 1, kcol
@@ -482,7 +477,6 @@ c
 c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
-          if(vco_trl%iversion .eq. 5002) then
             if (associated(pgrid)) deallocate(pgrid)
             status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
      &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
@@ -493,10 +487,6 @@ c
             endif
 c
             zprestrl = transpose(pgrid(1,:,:))
-c
-          else
-            call vco_calcpres(vco_trl,zprestrl,itrlnlev,zps,kcolvv)
-          endif
 c
           do jlev = 1, itrlnlev
             do jcol = 1, kcolvv

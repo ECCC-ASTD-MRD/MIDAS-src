@@ -385,8 +385,7 @@ c------- Calculate profiles of pressure values at station location
       write(nulout,*) 'sugomobs:ikind= ',vco_trl%ikind
       write(nulout,*) 'sugomobs:svcod= ',vco_trl%svcod
 
-c-------Staggered hybrid trial field 
-      if (vco_trl%iversion .eq. 5002) then 
+c------- General treatment of trial field 
 c------  Compute Pressure fields at desired levels----------
          if (associated(pobsm))  deallocate(pobsm)
          status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
@@ -410,21 +409,6 @@ c
 c
          zppobs_T = transpose(pobsm(1,:,:))
 c
-c-------ETA  trial field 
-      elseif(vco_trl%iversion .eq. 5001) then
-        call col_pointStagToUnstag(lcolumnhr)
-        call vco_calcpres(vco_trl,zppobs_M,nlv_M,zovar,col_getNumCol(lcolumng))
-        do jlev   = 1,nlv_M 
-          do jobs = 1,col_getNumCol(lcolumng)
-            zppobs_T(jlev,jobs) = zppobs_M(jlev,jobs) 
-          enddo
-        enddo
-      else
-        call abort3d(nulout
-     &           ,'SUGOMOBS:Problem with vertical lvls in trial file')
-c        
-      endif
-c      
 c Remplir la pression sur le niveaux du trial au points d'observations
       call col_fillmvo(lcolumnhr,'PP','MM',zppobs_M)
       call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T)
