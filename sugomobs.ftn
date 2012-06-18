@@ -386,6 +386,8 @@ c------- Calculate profiles of pressure values at station location
       write(nulout,*) 'sugomobs:svcod= ',vco_trl%svcod
 
 c------- General treatment of trial field 
+c------- addition for BGCK unstagered mode
+         if (vco_trl%iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
 c------  Compute Pressure fields at desired levels----------
          if (associated(pobsm))  deallocate(pobsm)
          status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
