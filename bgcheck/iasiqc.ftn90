@@ -25,7 +25,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   use iasich
   use iasibgcheck
   use common_iasi
-  use avhrr_var_mod
   use columnData_mod
   use obsSpaceData_mod
   use verticalCoord_mod
@@ -90,7 +89,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
   Real(8) :: minpavhrr(2:3)
   Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
-  Integer :: ier,ijour,iloc(2:3)
+  Integer :: ier,ijour,iloc(2:3),iobs
 !**************
 
   vco_trl => col_getVco(lcolumnhr)
@@ -347,8 +346,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                 NOBIASI = NOBIASI + 1
 
                 call read_avhrrparam(JO,out_avhrr_param(NOBIASI),access_mode=1)
-                call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(JO)%sunza)
-                call stat_avhrr(out_avhrr_param(NOBIASI))
+                call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(JO)%sunza, avhrr_bgck(JO) )
+                call stat_avhrr(out_avhrr_param(NOBIASI), avhrr_bgck(JO))
 
                 ZTG(NOBIASI) = col_getElem(lcolumnhr,1,JO,'TG')
                 ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'P0') &
@@ -534,14 +533,14 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       cldflag_avhrr(:,:)=0
       DO JC=1,NCLASSAVHRR
          DO JN=1,NPRF
-
-            btobs_avhrr(:,JN,JC)= out_avhrr_param(JN) % TBMOY(JC,:)
+            IOBS=out_avhrr_param(JN)%CMAINDEX
+            btobs_avhrr(:,JN,JC)= avhrr_bgck(IOBS) % TBMOY(JC,:)
             robs_avhrr(1:NIR,JN,JC)= out_avhrr_param(JN) % RADMOY(JC,NVIS+1:NIR+NVIS)
-            RCAL_CLR_AVHRR(:,JN) = out_avhrr_param(JN) % RADCLEARCALC(:)
-            EMI_SFC_AVHRR(:,JN) = out_avhrr_param(JN) % EMISS(:)
-            SFCTAU_AVHRR(:,JN) = out_avhrr_param(JN) % TRANSMSURF(:)
+            RCAL_CLR_AVHRR(:,JN) = avhrr_bgck(IOBS) % RADCLEARCALC(:)
+            EMI_SFC_AVHRR(:,JN) = avhrr_bgck(IOBS) % EMISS(:)
+            SFCTAU_AVHRR(:,JN) = avhrr_bgck(IOBS) % TRANSMSURF(:)
             DO JL=1,NLEV
-               RCLD_AVHRR(:,JN,JL) = out_avhrr_param(JN) % RADOVCALC(JL,:)
+               RCLD_AVHRR(:,JN,JL) = avhrr_bgck(IOBS) % RADOVCALC(JL,:)
             ENDDO
 
             IF (btobs_avhrr(2,JN,JC) >100.d0 ) THEN
@@ -623,17 +622,17 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
             ENDIF
 
             IF (ANISOT<1.5) THEN !to avoid sun glint
-
+               IOBS=out_avhrr_param(JN)%CMAINDEX
                SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
-               CALL  DELT ( DEL, SCOS )
+               CALL  cor_albedo ( DEL, SCOS )
                SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
                DO JC=1,NCLASSAVHRR
-                  IF (out_avhrr_param(JN)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
+                  IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
                      CLDFLAG_AVHRR(JN,JC) = 1
                   ENDIF
                   !static AVHRR thresholds v3
                   DO JL=1,NVIS
-                     IF (out_avhrr_param(JN)%ALBEDMOY(JC,JL) > seuilalb_static(JL,KSURF(JN)) ) THEN
+                     IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,JL) > seuilalb_static(JL,KSURF(JN)) ) THEN
                         CLDFLAG_AVHRR(JN,JC) = 1
                      ENDIF
                   ENDDO
@@ -667,13 +666,14 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
             IF (SUNZA(JN)<90.d0) IJOUR=2
 ! 1 NUIT
 ! 2 JOUR
+            IOBS=out_avhrr_param(JN)%CMAINDEX
             IF (IJOUR==2) THEN
                DO JC=1,NVIS
-                  IF (out_avhrr_param(JN)%ALBSTD_PIXELIASI(JC)> seuilalb_homog(JC,KSURF(JN)) ) CLDFLAG(JN)=1
+                  IF (avhrr_bgck(IOBS)%ALBSTD_PIXELIASI(JC)> seuilalb_homog(JC,KSURF(JN)) ) CLDFLAG(JN)=1
                ENDDO
             ENDIF
             DO JC=NVIS+1,NVIS+NIR
-               IF (out_avhrr_param(JN)%TBSTD_PIXELIASI(JC)>seuilbt_homog(JC,KSURF(JN),IJOUR)) CLDFLAG(JN)=1
+               IF (avhrr_bgck(IOBS)%TBSTD_PIXELIASI(JC)>seuilbt_homog(JC,KSURF(JN),IJOUR)) CLDFLAG(JN)=1
             ENDDO
          ENDIF
       ENDDO

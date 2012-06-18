@@ -1,5 +1,5 @@
-SUBROUTINE  DELT  ( DEL, SCOS )
-!***subroutine     DELT
+SUBROUTINE  COR_ALBEDO  ( DEL, SCOS )
+!***subroutine     COR_ALBEDO
 !*
 !*auteur           Louis Garand  - rpn - dorval
 !*
@@ -14,30 +14,29 @@ SUBROUTINE  DELT  ( DEL, SCOS )
 !*objet            ce sous-programme calcule un facteur de correction
 !*                 pour l'albedo a partir du cosinus de l'angle solaire. 
 !*
-!*appel            CALL DELT  ( DEL, SCOS )
+!*appel            CALL COR_ALBEDO  ( DEL, SCOS )
 !*
 !*arguments        del   - output - facteur de correction
 !*                 scos  - input  - cosinus de l'angle solaire
 !**
+  Use MathPhysConstants_mod ,only : MPC_RADIANS_PER_DEGREE_R4
   implicit  none
   real,intent(in)  ::  scos
   real,intent(out) ::  del
 !************************************
   integer  i1, i2
-  real  pi, fac, x1, x2, g1, g2, a, b
+  real  x1, x2, g1, g2, a, b
   real ,external :: drcld
   real  S(11)
  
   DATA  S / 00.00, 18.19, 31.79, 41.41, 49.46, 56.63, 63.26, 69.51, 75.52, 81.37, 87.13 /
  
-  PI  = 3.14159265 
-  FAC = PI/180. 
   I1  = 12 -( SCOS+0.05)*10. 
   I2  = I1+1 
   I1  = MIN0(I1,11)
   I2  = MIN0(I2,11)
-  X1  = COS ( S(I1)*FAC )  
-  X2  = COS ( S(I2)*FAC ) 
+  X1  = COS ( S(I1)*MPC_RADIANS_PER_DEGREE_R4 )  
+  X2  = COS ( S(I2)*MPC_RADIANS_PER_DEGREE_R4 ) 
   G1  = DRCLD(I1)
   G2  = DRCLD(I2)
   if (I1==I2) then
@@ -92,4 +91,4 @@ SUBROUTINE  SOLU ( YY1, XX1, YY2, XX2, AA, BB )
 END SUBROUTINE SOLU
 
 
-END SUBROUTINE DELT
+END SUBROUTINE COR_ALBEDO

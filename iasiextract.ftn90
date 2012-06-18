@@ -16,7 +16,7 @@
 !
 SUBROUTINE IASIEXTRACT(IBKNAT,IBKTYP,IBKSTP,IBUF,NBUF,inele,inval,i3d)
 use common_iasi
-use avhrr_var_mod
+use mod_tovs, only: avhrr_var,NCHANAVHRR,NCLASSAVHRR
 implicit none
 
 INTEGER ,INTENT(IN) :: IBKNAT,IBKTYP,IBKSTP,NBUF,inele,inval,i3d
@@ -31,12 +31,9 @@ LOGICAl :: LINSERT
 
 
 IBKNO =MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
-!BKNO=MRBLOC(buf,bfam,bdesc,btyp,blk0)
-!print *,"IBKNO",IBKNO
-!INELE =ITBL(2,JK)
-!INVAL =ITBL(3,JK)
+
 taille=INELE*INVAL*I3D
-!print *,"taille",taille,INELE,INVAL,I3D
+
 allocate(ITBLVAL(taille))
 allocate(LISTE(inele))
 allocate(ILIST(inele))

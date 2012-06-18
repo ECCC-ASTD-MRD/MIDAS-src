@@ -31,13 +31,14 @@ SUBROUTINE VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
 !*                 THE ROUTINE IS A LOOK UP TABLE ALONG WITH INTERPOLATION ON THE 
 !*                 THREE ANGLES. 
 !**
+  Use MathPhysConstants_mod ,only: MPC_RADIANS_PER_DEGREE_R4
   implicit  none
   real ,intent(in) :: SZ,SATZ,rz
   real ,intent(out):: ANISOT,ZLAMB,ZCLOUD
   integer ,intent(out) :: ier
 !********************************************************
   integer  i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
-  real  pi, fac, cc, d1, d2, slop, cept, x1, x2
+  real  cc, d1, d2, slop, cept, x1, x2
   real  g1, g2
   real,external ::  drcld
   real  VNORM(11,10,13),S(11),V(10),R(13),DA(2),DD(2) 
@@ -214,9 +215,7 @@ SUBROUTINE VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
        0.518,0.605,0.633,0.662,0.777,1.008,2.562,3.771,8.953,12.293/
  
 !C   COMPUTE SUN ZENITH BIN
-  PI  = ACOS(-1.)
-  FAC = PI/180. 
-  CC  = COS(SZ*FAC)
+  CC  = COS(SZ*MPC_RADIANS_PER_DEGREE_R4)
   I1  = 12.-(CC+0.05)*10.
   I2  = I1+1 
   IF(I1.GE.11)I1=11 
@@ -265,8 +264,8 @@ SUBROUTINE VISOCN(SZ,SATZ,RZ,ANISOT,ZLAMB,ZCLOUD,IER)
      ZCLOUD = DRCLD(I1)
      ANISOT = DD(1)
   ELSE
-     X1     = COS(S(I1)*FAC) 
-     X2     = COS(S(I2)*FAC) 
+     X1     = COS(S(I1)*MPC_RADIANS_PER_DEGREE_R4) 
+     X2     = COS(S(I2)*MPC_RADIANS_PER_DEGREE_R4) 
      CALL LINEQ(X1,X2,DD(1),DD(2),SLOP,CEPT,IER) 
      ANISOT = SLOP*CC+CEPT 
      G1     = DRM(I1)

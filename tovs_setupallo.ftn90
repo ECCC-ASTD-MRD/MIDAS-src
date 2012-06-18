@@ -396,21 +396,20 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
          SATELLITE (KRTID) == 2 .AND. &
          INSTRUMENT(KRTID) == 16 ) THEN
 
-      allocate ( iasipro(NOBIASI), stat= alloc_status(1))
+       allocate ( iasipro(NOBIASI), stat= alloc_status(1))
+       if (nconf==101) allocate ( avhrr_bgck(NOBIASI), stat= alloc_status(2))
+       do jo = 1, NOBIASI
+          allocate ( iasipro(jo) % emisfc ( iasisnch )   ,stat= alloc_status(3))
+          If( any(alloc_status /= 0) ) then
+             WRITE(KULOUT,FMT=9201)
+             CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+          End If
+       end do
 
-      do jo = 1, NOBIASI
-        allocate ( iasipro(jo) % emisfc ( iasisnch )   ,stat= alloc_status(2))
-
-        If( any(alloc_status /= 0) ) then
-            WRITE(KULOUT,FMT=9201)
-            CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
-        End If
-      end do
-
-      EXIT
+       EXIT
 
     END IF
 
-  END DO
+ END DO
 
 END SUBROUTINE TOVS_SETUPALLO

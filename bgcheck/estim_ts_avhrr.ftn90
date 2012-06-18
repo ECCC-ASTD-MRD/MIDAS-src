@@ -35,8 +35,7 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
 !            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
 !
 !
-  use mod_tovs
-  USE avhrr_var_mod
+  USE mod_tovs ,only : coeff_avhrr
 
   IMPLICIT NONE
 

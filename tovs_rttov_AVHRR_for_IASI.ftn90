@@ -17,9 +17,7 @@
 subroutine tovs_rttov_AVHRR_for_IASI (nthreads,knpf_th,knpf,profilesdata_th,KULOUT,surfem1_avhrr,nch,iptobs_th )
 ! appel séparé de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
-use common_iasi
-USE avhrr_var_mod
-Use mod_tovs ,only :jpchus,jppf
+Use mod_tovs ,only :jpchus,jppf,avhrr_bgck,NIR,NVIS,coeff_avhrr,JPLEV
 Use rttov_types, only : &
      rttov_coef          ,&
      profile_type        ,&
@@ -55,7 +53,7 @@ logical, allocatable :: calcemis_th  (:,:)
 integer, allocatable :: polarisations_th(:,:)
 integer :: ichan (NIR,nsensors)
 integer :: alloc_status(20)
-integer :: len_nchannels1,len_nfrequencies1,joff1,joff2,ioffset
+integer :: len_nchannels1,len_nfrequencies1,joff1,joff2,ioffset,io
 type ( transmission_Type ) ,allocatable ::  transmission_th(:)
 type ( radiance_type ) ,allocatable :: radiancedata_d_th(:)
 integer :: errorstatus_th(knpf,nthreads)
@@ -171,14 +169,14 @@ deallocate ( calcemis_th       ,stat=alloc_status(7))
 do ith = 1, nthreads
    do jn = 1, knpf_th(ith)
       joff1=nbtout_th(ith)/knpf_th(ith)*(jn-1)
-      call insert_rad_avhrr(index=iptobs_th(jn,ith), &
-           tbclear = radiancedata_d_th(ith) % out_clear(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith)), &
-           radclear = radiancedata_d_th(ith) % clear_out(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith)) , &
-           radov = radiancedata_d_th(ith) % overcast(1:jplev,joff1+1:joff1+nbtout_th(ith)/knpf_th(ith)), &
-           transm = transmission_th(ith) % tau_layer(1:jplev,joff1+1:joff1+nbtout_th(ith)/knpf_th(ith)) , &
-           sfctau = transmission_th(ith) % tau_surf(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith)), &
-           emiss= emissivity_th(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith),ith), &
-           access_mode = 1 )
+      io=iptobs_th(jn,ith)
+
+      avhrr_bgck(io)% RADCLEARCALC(NVIS+1:NVIS+NIR) = radiancedata_d_th(ith) % clear_out(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+      avhrr_bgck(io)% TBCLEARCALC(NVIS+1:NVIS+NIR)  = radiancedata_d_th(ith) % out_clear(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+      avhrr_bgck(io)% RADOVCALC(1:jplev,NVIS+1:NVIS+NIR) = radiancedata_d_th(ith) % overcast(1:jplev,joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+      avhrr_bgck(io)% TRANSMCALC(1:jplev,NVIS+1:NVIS+NIR) =  transmission_th(ith) % tau_layer(1:jplev,joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
+      avhrr_bgck(io)% EMISS(NVIS+1:NVIS+NIR) = emissivity_th(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith),ith)
+      avhrr_bgck(io)% TRANSMSURF(NVIS+1:NVIS+NIR) = transmission_th(ith) % tau_surf(joff1+1:joff1+nbtout_th(ith)/knpf_th(ith))
 
    enddo
 enddo

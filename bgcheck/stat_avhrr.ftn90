@@ -1,10 +1,10 @@
-subroutine stat_avhrr(avhrr)
+subroutine stat_avhrr(avhrr_in,avhrr_out)
 ! calcul de statistiques
 ! sur l'information sous-pixel AVHRR
-use avhrr_var_mod
+use mod_tovs ,only : avhrr_var, avhrr_bgck_iasi, NIR, NVIS,NCLASSAVHRR
 implicit none
-type (avhrr_var) ,intent(inout) :: avhrr
-!integer ,parameter :: NVIS=3,NIR=3
+type (avhrr_var) ,intent(in) :: avhrr_in
+type (avhrr_bgck_iasi) ,intent(inout) :: avhrr_out
 integer :: ICL,ICH
 Real (8) :: SUMFRAC(NVIS+NIR),TBMIN(NVIS+1:NVIS+NIR),TBMAX(NVIS+1:NVIS+NIR),SUMTB(NVIS+1:NVIS+NIR),SUMTB2(NVIS+1:NVIS+NIR)
 Real (8) :: SUMALB(1:NVIS),SUMALB2(1:NVIS)
@@ -17,20 +17,20 @@ SUMALB(:)=0.d0
 SUMALB2(:)=0.d0
 
 DO ICL=1,NCLASSAVHRR
-   IF (avhrr%CFRAC(ICL) > 0.d0 ) THEN
+   IF (avhrr_in%CFRAC(ICL) > 0.d0 ) THEN
 
       DO ICH=1,NVIS
-         IF (avhrr%ALBEDMOY(ICL,ICH) >=0.d0 ) THEN
-            SUMFRAC(ICH)=SUMFRAC(ICH)+avhrr%CFRAC(ICL)
-            SUMALB(ICH) = SUMALB(ICH) + avhrr%CFRAC(ICL) * avhrr%ALBEDMOY(ICL,ICH)
-            SUMALB2(ICH) = SUMALB2(ICH) + avhrr%CFRAC(ICL) * ( avhrr%ALBEDMOY(ICL,ICH)**2 + avhrr%ALBEDSTD(ICL,ICH)**2)
+         IF (avhrr_out%ALBEDMOY(ICL,ICH) >=0.d0 ) THEN
+            SUMFRAC(ICH)=SUMFRAC(ICH)+avhrr_in%CFRAC(ICL)
+            SUMALB(ICH) = SUMALB(ICH) + avhrr_in%CFRAC(ICL) * avhrr_out%ALBEDMOY(ICL,ICH)
+            SUMALB2(ICH) = SUMALB2(ICH) + avhrr_in%CFRAC(ICL) * ( avhrr_out%ALBEDMOY(ICL,ICH)**2 + avhrr_out%ALBEDSTD(ICL,ICH)**2)
          ENDIF
       ENDDO
       DO ICH=1+NVIS,NVIS+NIR
-         IF (avhrr%TBMOY(ICL,ICH) > 0.d0 ) THEN
-            SUMFRAC(ICH) = SUMFRAC(ICH) + avhrr%CFRAC(ICL)
-            SUMTB(ICH) = SUMTB(ICH) + avhrr%CFRAC(ICL) * avhrr%TBMOY(ICL,ICH)
-            SUMTB2(ICH) = SUMTB2(ICH) + avhrr%CFRAC(ICL) * (avhrr%TBMOY(ICL,ICH)**2 + avhrr%TBSTD(ICL,ICH)**2 )
+         IF (avhrr_out%TBMOY(ICL,ICH) > 0.d0 ) THEN
+            SUMFRAC(ICH) = SUMFRAC(ICH) + avhrr_in%CFRAC(ICL)
+            SUMTB(ICH) = SUMTB(ICH) + avhrr_in%CFRAC(ICL) * avhrr_out%TBMOY(ICL,ICH)
+            SUMTB2(ICH) = SUMTB2(ICH) + avhrr_in%CFRAC(ICL) * (avhrr_out%TBMOY(ICL,ICH)**2 + avhrr_out%TBSTD(ICL,ICH)**2 )
          ENDIF
       ENDDO
    ENDIF
@@ -60,7 +60,7 @@ DO ICH=NVIS+1,NVIS+NIR
    ENDIF
 ENDDO
 
-avhrr%TBSTD_PIXELIASI=SUMTB2
-avhrr%ALBSTD_PIXELIASI=SUMALB2
+avhrr_out%TBSTD_PIXELIASI=SUMTB2
+avhrr_out%ALBSTD_PIXELIASI=SUMALB2
 
 end subroutine stat_avhrr

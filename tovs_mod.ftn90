@@ -10,6 +10,39 @@ Module mod_tovs
      transmission_Type   ,&
      radiance_type
 
+  INTEGER ,PARAMETER :: NCLASSAVHRR=7
+  INTEGER ,PARAMETER :: NIR=3,NVIS=3
+  INTEGER ,PARAMETER :: NCHANAVHRR=NIR+NVIS
+
+  type( rttov_coef ),save  :: coeff_avhrr(1)
+
+  TYPE avhrr_var
+     SEQUENCE
+     REAL(8)              :: RADMOY(NCLASSAVHRR,NCHANAVHRR)
+     REAL(8)              :: RADSTD(NCLASSAVHRR,NCHANAVHRR)
+     REAL(8)              :: CFRAC(NCLASSAVHRR)
+     REAL(8)              :: SUNAZIM
+     INTEGER              :: CMAINDEX
+     INTEGER              :: GQISFLAGQUAL
+     INTEGER              :: GQISQUALINDEXLOC
+  END TYPE avhrr_var
+
+  TYPE avhrr_bgck_iasi
+     SEQUENCE   
+     REAL(8)              :: TBMOY(NCLASSAVHRR,NVIS+1:NVIS+NIR)
+     REAL(8)              :: TBSTD(NCLASSAVHRR,NVIS+1:NVIS+NIR)
+     REAL(8)              :: ALBEDMOY(NCLASSAVHRR,1:NVIS)
+     REAL(8)              :: ALBEDSTD(NCLASSAVHRR,1:NVIS)
+     REAL(8)              :: TBSTD_PIXELIASI(NVIS+1:NVIS+NIR)
+     REAL(8)              :: ALBSTD_PIXELIASI(1:NVIS)
+     REAL(8)              :: RADCLEARCALC(NVIS+1:NVIS+NIR)
+     REAL(8)              :: TBCLEARCALC(NVIS+1:NVIS+NIR)
+     REAL(8)              :: RADOVCALC(jplev,NVIS+1:NVIS+NIR)
+     REAL(8)              :: TRANSMCALC(jplev,NVIS+1:NVIS+NIR)
+     REAL(8)              :: TRANSMSURF(NVIS+1:NVIS+NIR)
+     REAL(8)              :: EMISS(NVIS+1:NVIS+NIR)
+  END TYPE avhrr_bgck_iasi
+
   TYPE prof_qc
      SEQUENCE
      REAL(8)              :: LAT      ! latitude (-90 to 90)
@@ -27,22 +60,21 @@ Module mod_tovs
 
   TYPE ir_outburp
      SEQUENCE
+     REAL, POINTER     :: EMISFC(:)  ! surface emissivities (0.-1.)
      REAL              :: ETOP       ! estimated cloud top height by co2-slicing in mb
      REAL              :: VTOP       ! error on estimated cloud top height by co2-slicing in mb
      REAL              :: ECF        ! estimated cloud fraction by co2-slicing in %
      REAL              :: VCF        ! error on estimated cloud fraction by co2-slicing in %
      REAL              :: HE         ! equivalent height from window channel in mb
      REAL              :: ZTS        ! retreived skin temperature from window channel in deg K
-     INTEGER           :: NGOOD      ! number of valid estimate in co2-slicing
      REAL              :: ZT         ! model temperature, eta=1, in deg K
      REAL              :: ZTG        ! surface model temperature (skin) in deg K
      REAL              :: ZLQEXP     ! specific humidity at surface (2m) in kg/kg
      REAL              :: ZPS        ! surface model pressure in Pa
-     REAL, POINTER     :: EMISFC(:)  ! surface emissivities (0.-1.)
      INTEGER           :: SFCTYP     ! surface type in obs file (0,1,2)
+     INTEGER           :: NGOOD      ! number of valid estimate in co2-slicing
      LOGICAL           :: ASSIM_ALL  ! do we assimilate all non-blacklisted channels
   END TYPE ir_outburp
-
 
   type( rttov_coef )  ,     allocatable :: coef(:)           ! coefficients
   type( profile_Type ),     allocatable :: profilesdata(:)   ! profiles buffer used in rttov calls
@@ -60,6 +92,8 @@ Module mod_tovs
 
   type(ir_outburp)       , allocatable :: airspro(:)        ! additional variables to add to airs burp file
   type(ir_outburp)       , allocatable :: iasipro(:)        ! additional variables to add to iasi burp file
+
+  type(avhrr_bgck_iasi)  , allocatable :: avhrr_bgck(:)     ! avhrr parameters for IASI quality control
 
   Integer, allocatable :: nchan(:)              ! number of channels per instrument
   Integer, allocatable :: ichan(:,:)            ! list of channels per instrument

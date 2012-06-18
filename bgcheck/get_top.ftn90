@@ -58,7 +58,7 @@ SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
   integer ,intent (out) :: NHT
 !*******************************************************
      
-  INTEGER   :: I, NHT, IM, i10
+  INTEGER   :: I, IM, i10
   REAL(8)   :: P(NLEV)
   REAL(8)   :: DT, A, AA, B
 

@@ -1,10 +1,13 @@
-subroutine convert_avhrr(avhrr,sunzen)
+subroutine convert_avhrr(avhrr_in,sunzen,avhrr_out)
 ! conversion des radiance IR en temperatures de brillance
 ! et des radiances visibles en "albedo"
-use avhrr_var_mod
+use mod_tovs ,only : avhrr_var, avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
+
 implicit none
-type (avhrr_var) ,intent(inout) :: avhrr
+type (avhrr_var) ,intent(in) :: avhrr_in
 real(8) ,intent(in) :: sunzen
+type (avhrr_bgck_iasi) ,intent(out) :: avhrr_out
+
 integer :: ICL
 REAL (8) :: tb(NIR),dtbsdrad(NIR)
 REAL (8) :: FREQ(NIR),OFFSET(NIR),SLOPE(NIR)
@@ -14,25 +17,19 @@ DATA OFFSET / 0.2066990000D+01 , 0.5512600000D+00 , 0.3471600000D+00 /
 DATA SLOPE / 0.9965770000D+00  , 0.9985090000D+00  , 0.9989470000D+00 /
 
 DO ICL=1,NCLASSAVHRR
-   call calcbt(avhrr % radmoy(ICL,4:6), tb, dtbsdrad,freq,offset,slope)
-   avhrr % tbmoy(ICL,4:6)=tb(1:3)
-!   avhrr % tbmoy(ICL,5)=avhrr % tbmoy(ICL,5) + 0.3d0 ! application d'une correction de biais plate
-!   avhrr % tbmoy(ICL,6)=avhrr % tbmoy(ICL,6) + 0.6d0 ! a la main (provisoire ?) 
-!mise a jour des radiances pour rester coherent
-!   avhrr %radmoy(ICL,5)=1000.d0*dplanck(freq(2), avhrr % tbmoy(ICL,5) ,offset(2),slope(2))
-!   avhrr %radmoy(ICL,6)=1000.d0*dplanck(freq(3), avhrr % tbmoy(ICL,6) ,offset(3),slope(3))
-   avhrr % tbstd(ICL,4:6)=avhrr % radstd(ICL,4:6) * dtbsdrad(1:3)
-
-   call calcreflect(avhrr % radmoy(ICL,1:3) ,sunzen,avhrr % ALBEDMOY(ICL,1:3) )
-   call calcreflect(avhrr % radstd(ICL,1:3) ,sunzen,avhrr % ALBEDSTD(ICL,1:3) )
+   call calcbt(avhrr_in % radmoy(ICL,4:6), tb, dtbsdrad,freq,offset,slope)
+   avhrr_out % tbmoy(ICL,4:6)=tb(1:3)
+   avhrr_out % tbstd(ICL,4:6)=avhrr_in % radstd(ICL,4:6) * dtbsdrad(1:3)
+   call calcreflect(avhrr_in % radmoy(ICL,1:3) ,sunzen,avhrr_out % ALBEDMOY(ICL,1:3) )
+   call calcreflect(avhrr_in % radstd(ICL,1:3) ,sunzen,avhrr_out % ALBEDSTD(ICL,1:3) )
 
 ENDDO
 
 contains
 subroutine calcreflect(rad,sunzen,reflect)
+Use MathPhysConstants_mod ,only : MPC_PI_R8, MPC_RADIANS_PER_DEGREE_R8
 implicit none
 
-!INTEGER ,parameter :: NVIS=3 ! Number of visible channels
 REAL (8) , INTENT(IN) ,dimension(nvis) :: rad
 REAL (8) , INTENT(IN) :: sunzen
 REAL (8) , INTENT(out),dimension(nvis) :: reflect ! reflectivite en %
@@ -46,17 +43,14 @@ DATA SOLAR_FILTERED_IRRADIANCE /139.873215,232.919556,14.016470/
 ! pour la definition de l'albedo voir http://calval.cr.usgs.gov/PDF/Rao.CRN_IJRS.24.9.2003_Chander.pdf
 REAL (8) :: RADB ! radiance en W/m2/str
 !
-REAL (8) :: PI
 integer :: i
 !**************************************************************
-
-PI=ACOS(-1.0)
 
 Do i = 1, nvis
    if (rad(i)>= 0.0 ) THEN
       radb=rad(i) / 1000.0
-      reflect(i)=(PI*radb)/SOLAR_FILTERED_IRRADIANCE(I)
-      IF (sunzen < 90.0 ) reflect(i)= reflect(i) / COS(sunzen*PI/180.0)
+      reflect(i)=(MPC_PI_R8*radb)/SOLAR_FILTERED_IRRADIANCE(I)
+      IF (sunzen < 90.0 ) reflect(i)= reflect(i) / COS(sunzen*MPC_RADIANS_PER_DEGREE_R8)
    else
       reflect(i)=-1
    end if

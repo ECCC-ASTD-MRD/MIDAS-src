@@ -52,7 +52,7 @@ SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
   integer, intent (in) :: NCHN,NCH,NPRF,NLEV,BITFLAG,IOPT,IHGT
   REAL(8), intent (in) :: BTOBS(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV)
   REAL(8), intent (in) :: ROBS(NCHN,NPRF),RCAL(NCHN,NPRF)
-  REAL(8), intent (in) :: HT(NLEV),TT(NLEV,NPRF),GZ(NLEV,NPRF),PLEV(NLEV),PS(NPRF)
+  REAL(8), intent (in) :: TT(NLEV,NPRF),GZ(NLEV,NPRF),PLEV(NLEV),PS(NPRF)
   integer, intent (in) :: REJFLAG(NCHN,NPRF,0:BITFLAG),ILIST(NCH),CLDFLAG(NPRF),ICHREF(NPRF)
   integer, intent (inout) :: LEV_START(NPRF)
   REAL(8), intent (out) ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
@@ -60,6 +60,7 @@ SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
 !******************************************************************88
   INTEGER      ::  JN,JCH,JC,ITOP,NHT
   INTEGER      ::  SUMREJ
+  REAL(8)      ::  HT(NLEV)
       
 
   PTOP_BT(:,:) = -10.

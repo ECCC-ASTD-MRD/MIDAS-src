@@ -51,12 +51,13 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
   REAL(8) ,intent(in) ::  PLEV(NLEV),PS(NPRF)
   REAL(8) ,intent(in) ::  ROBS(NCHN,NPRF),RCAL(NCHN,NPRF)
   REAL(8) ,intent(in) ::  BTOBS(NCHN,NPRF),RCLD(NCHN,NPRF,NLEV)
-  REAL(8) ,intent(in) ::  HT(NLEV),TT(NLEV,NPRF),GZ(NLEV,NPRF)
+  REAL(8) ,intent(in) ::  TT(NLEV,NPRF),GZ(NLEV,NPRF)
   INTEGER ,intent(inout) :: LEV_START(NPRF)
   REAL(8) ,intent(out) ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
   INTEGER ,intent(out) ::  NTOP_BT(NCHN,NPRF),NTOP_RD(NCHN,NPRF)
 !*********************************************************************
   INTEGER      ::  JN,JCH,JC,ITOP,NHT
+  REAL(8)      ::  HT(NLEV)
      
       
     
