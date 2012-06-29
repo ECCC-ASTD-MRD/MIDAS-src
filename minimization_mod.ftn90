@@ -840,6 +840,7 @@ CONTAINS
     real*8 zeps1,zdf1
     real*8, dimension(nvadim), target :: vazxbar, vazx
     real*8, dimension(nmtra), target :: vatra
+    real*4, allocatable :: vatra_r4(:)
 
     integer ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: ivadim, imtra, itrunc
@@ -869,7 +870,11 @@ CONTAINS
       ! Checking version number
       read (ireslun) cl_version,i1gc
       if(trim(cl_version) /= 'V2') then
-        call abort3d(nulout," RW_VATRA: invalid Hessian version")
+        if(trim(cl_version) == 'V3') then
+          write(*,*) 'RW_VATRA: using single precision Hessian'
+        else
+          call abort3d(nulout," RW_VATRA: invalid Hessian version")
+        endif
       endif
       if (i1gc == 3 .and. i1gc == k1gc) then
         write(*,*) trim(cl_version),' M1QN3'
@@ -893,9 +898,18 @@ CONTAINS
       if(k1gc.eq.4) ictrlvec = 2*nvamaj
 
       write(nulout,*) 'RW_VATRA : reading Hessian'
-      do jvec = 1, ictrlvec
-        read(ireslun) vatra((jvec-1)*nvadim+1:jvec*nvadim)
-      enddo
+      if(trim(cl_version) == 'V2') then
+        do jvec = 1, ictrlvec
+          read(ireslun) vatra((jvec-1)*nvadim+1:jvec*nvadim)
+        enddo
+      elseif(trim(cl_version) == 'V3') then
+        allocate(vatra_r4(nvadim))
+        do jvec = 1, ictrlvec
+          read(ireslun) vatra_r4(1:nvadim)
+          vatra((jvec-1)*nvadim+1:jvec*nvadim)=real(vatra_r4(1:nvadim),8)
+        enddo
+        deallocate(vatra_r4)       
+      endif
 
       if(k1gc.eq.4) read(ireslun) vatra(ictrlvec*nvadim+1:ictrlvec*nvadim+1)
       imode = 2
@@ -933,15 +947,18 @@ CONTAINS
     elseif(status.eq.1) then
       if(mpi_myid.eq.0) then
         ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
-        cl_version = 'V2'
+        cl_version = 'V3'
         itrunc=0
         write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim,itrunc
         write(ireslun) nmtra,nztrl
         if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
         if(k1gc.eq.4) ictrlvec = 2*nvamaj
+        allocate(vatra_r4(nvadim))
         do jvec = 1, ictrlvec
-          write(ireslun) vatra((jvec-1)*nvadim+1:jvec*nvadim)
+          vatra_r4(1:nvadim)=real(vatra((jvec-1)*nvadim+1:jvec*nvadim),4)
+          write(ireslun) vatra_r4(1:nvadim)
         enddo
+        deallocate(vatra_r4)
         if(k1gc.eq.4) write(ireslun) vatra(ictrlvec*nvadim+1:ictrlvec*nvadim+1)
 
         write(ireslun) vazxbar
