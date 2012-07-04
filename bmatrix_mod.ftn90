@@ -42,7 +42,7 @@ contains
       call flush(6)
 
       write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(2800.0d0,2.0d0,pressureProfile,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
+      call ben_setup(pressureProfile,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
       write(*,*) 'Dimension of ENS control vector returned:',cvdimens
       call flush(6)
 

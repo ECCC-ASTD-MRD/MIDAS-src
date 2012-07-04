@@ -51,11 +51,11 @@ MODULE BmatrixEnsemble
 
 CONTAINS
 
-  SUBROUTINE BEN_setup(ZTLEN_IN,verticalScale_in,pressureProfile_in,NI_IN,NJ_IN,NLEVINC_IN,NTIME_IN,NIP1_IN,stamp_in,CVDIM_OUT)
+  SUBROUTINE BEN_setup(pressureProfile_in,NI_IN,NJ_IN,NLEVINC_IN,NTIME_IN,NIP1_IN,stamp_in,CVDIM_OUT)
     use globalSpectralTransform
     implicit none
 
-    real*8         :: ztlen_in,verticalScale_in,pressureProfile_in(:)
+    real*8         :: hLocalize(2),vLocalize,pressureProfile_in(:)
     real*8,allocatable :: pressureProfileEns(:)
     integer        :: ntrunc,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
     integer        :: cvDim_out
@@ -63,7 +63,7 @@ CONTAINS
     integer        :: fnom,fclos,ierr,nulnam
 
     !namelist
-    NAMELIST /NAMBEN/nens,scaleFactor,ntrunc,enspathname,ensfilebasename,nLevEns
+    NAMELIST /NAMBEN/nens,scaleFactor,ntrunc,enspathname,ensfilebasename,nLevEns,hLocalize,vLocalize
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     scaleFactor(:)=0.0d0
@@ -72,6 +72,9 @@ CONTAINS
     nLevEns=nLevInc_in
     enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
     ensfilebasename=''
+    hLocalize(1)=2800.0d0
+    hLocalize(2)=-1.0d0
+    vLocalize=2.0d0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -228,7 +231,7 @@ CONTAINS
       call flush(6)
     endif
     pressureProfileEns(1:nLevEns)=pressureProfile_in(topLevIndex:nLevInc)
-    call setupLocalization(ztlen_in,verticalScale_in,pressureProfileEns)
+    call setupLocalization(hLocalize,vLocalize,pressureProfileEns)
     deallocate(pressureProfileEns)
 
 !    call setupEnsemble(stamp_in)
@@ -817,15 +820,16 @@ CONTAINS
   END SUBROUTINE setupEnsemble
 
 
-  SUBROUTINE setupLocalization(ZTLEN,verticalScale,pressureProfile)
+  SUBROUTINE setupLocalization(hLocalize,vLocalize,pressureProfile)
     use globalSpectralTransform
     implicit none
 
-    real*8 zlc,zr,zpole,zcorr,ztlen,verticalScale,pressureProfile(:)
+    real*8 zlc,zr,zpole,zcorr,hLocalize(:),vLocalize,pressureProfile(:)
     integer ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
     real*8         :: zsp(nla_l,2,nLevEns)
     real*8         :: zgd(ni_l,nLevEns,nj_l)
     real*8         :: ra = 6371229.D0
+    real*8         :: local_length(nLevEns)
 
     allocate(ensLocalCor(0:ntrunc_l,nLevEns),stat=ierr)
     if(ierr.ne.0) then
@@ -838,95 +842,99 @@ CONTAINS
       call flush(6)
     endif
 
-    ! Calculate 5th Order Correlation Functions in Physical Space
+    ! Determine localization length scale for each vertical level
+    if(hLocalize(2).lt.0.0d0) then
+      ! vertically constant horizontal localization
+      local_length(:)=hLocalize(1)
+    else
+      ! vertically varying horizontal localization (linear in log P)
+      do jk=1,nLevEns
+        local_length(jk)= ( hLocalize(1)*( log(pressureProfile(jk     ))-log(pressureProfile(1 )) ) +    &
+                            hLocalize(2)*( log(pressureProfile(nLevEns))-log(pressureProfile(jk)) ) ) /  &
+                          ( log(pressureProfile(nLevEns))-log(pressureProfile(1)) )
+        write(*,*) 'bmatrixEnsemble: localization length scale (',jk,') = ',local_length(jk)
+        call flush(6)
+      enddo      
+    endif
 
-    ztlen=1000.0*ztlen
-    if(ztlen.gt.0.0) then
-       zlc=ztlen/2.0
-       do jk=1,nLevEns
-          do jlat=1,nj_l
-             zr = ra * acos(gst_getrmu(jlat,gstID))
-             if(zr.le.zlc) then
-                zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4               &
-                       + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
-             elseif(zr.le.(2.0*zlc)) then
-                zcorr= (1.0/12.0)*(zr/zlc)**5 -0.5*(zr/zlc)**4    &
-                      + 0.625*(zr/zlc)**3 +(5.0/3.0)*(zr/zlc)**2  &
-                      - 5.0*(zr/zlc) +4.0 -(2.0/3.0)*(zlc/zr) 
-             else
-                zcorr= 0.0
-             endif
-             !write(300,*) 'LOCALIZATION FUNCTION1=',jk,jlat,zr/1000.0,zlc/1000.0,zcorr
-             do jlon=1,ni_l
-                zgd(jlon,jk,jlat)=zcorr
-             enddo
-          enddo
-       enddo
+    if(local_length(1).gt.0.0) then
 
-       ! Transform to spectral space
+      ! Calculate 5th Order Correlation Functions in Physical Space
 
-       call gst_setID(gstID)
-       call gst_reespe(zsp,zgd,nLevEns,nLevEns)
-       call gst_setToDefaultID
-       nsize=nla_l*2*nLevEns
-       call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-
-       ! Copy over to EnsLocalCor and truncate to NTRUNC
-
-       do jk=1,nLevEns
-          do jn=0,ntrunc_l
-             ensLocalCor(jn,jk)=zsp(jn+1,1,jk)
-          enddo
-       enddo
-       do jk=1,nLevEns
-          do jn=ntrunc_l+1,nla_l
-             zsp(jn,1,jk)=0.0
-             zsp(jn,2,jk)=0.0
-          enddo
-       enddo
-
-       call gst_setID(gstID)
-       call gst_speree(zsp,zgd,nLevEns,nLevEns)
-       call gst_setToDefaultID
-       nsize=ni_l*nLevEns*nj_l
-       call RPN_COMM_allreduce(zgd,zgd,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-
-       ! Make sure it's one at the pole
-
-       do jk = 1,nLevEns
-          do  jn = 0, ntrunc_l
-             ensLocalCor(jn,jk)=abs(ensLocalCor(jn,jk))
-          end do
-       enddo
-       do jk = 1,nLevEns
-          zpole = 0.
-          do  jn = 0, ntrunc_l
-             zpole = zpole + ensLocalCor(jn,jk)*sqrt((2.*jn+1.)/2.)
-          end do
-          if(zpole.le.0.) then
-             write(*,*)'POLE VALUE NEGATIVE IN SUMASK jk=',jk
+      do jk=1,nLevEns
+        zlc=1000.0d0*local_length(jk)/2.0d0
+        do jlat=1,nj_l
+          zr = ra * acos(gst_getrmu(jlat,gstID))
+          if(zr.le.zlc) then
+            zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4               &
+                  + 0.625*(zr/zlc)**3 -(5.0/3.0)*(zr/zlc)**2 + 1.0
+          elseif(zr.le.(2.0*zlc)) then
+            zcorr= (1.0/12.0)*(zr/zlc)**5 -0.5*(zr/zlc)**4    &
+                  + 0.625*(zr/zlc)**3 +(5.0/3.0)*(zr/zlc)**2  &
+                  - 5.0*(zr/zlc) +4.0 -(2.0/3.0)*(zlc/zr) 
+          else
+            zcorr= 0.0
           endif
-          do jn = 0, ntrunc_l
-             ensLocalCor(jn,jk) = ensLocalCor(jn,jk)/zpole
-             !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+          !write(300,*) 'LOCALIZATION FUNCTION1=',jk,jlat,zr/1000.0,zlc/1000.0,zcorr
+          do jlon=1,ni_l
+            zgd(jlon,jk,jlat)=zcorr
           enddo
-       enddo
+        enddo
+      enddo
 
-       ! Convert back to correlations and take sqrt
+      ! Transform to spectral space
 
-       do jk=1,nLevEns
-          do jn=0,ntrunc_l
-             ensLocalCor(jn,jk)=sqrt(0.5*ensLocalCor(jn,jk)*((2.0/(2.0*jn+1.0))**0.5))
-             !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
-          enddo
-       enddo
+      call gst_setID(gstID)
+      call gst_reespe(zsp,zgd,nLevEns,nLevEns)
+      call gst_setToDefaultID
+      nsize=nla_l*2*nLevEns
+      call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+
+      ! Copy over to EnsLocalCor and truncate to NTRUNC
+
+      do jk=1,nLevEns
+        do jn=0,ntrunc_l
+          ensLocalCor(jn,jk)=zsp(jn+1,1,jk)
+        enddo
+      enddo
+
+      ! Make sure it's one at the pole
+
+      do jk = 1,nLevEns
+        do  jn = 0, ntrunc_l
+          ensLocalCor(jn,jk)=abs(ensLocalCor(jn,jk))
+        end do
+      enddo
+      do jk = 1,nLevEns
+        zpole = 0.
+        do  jn = 0, ntrunc_l
+          zpole = zpole + ensLocalCor(jn,jk)*sqrt((2.*jn+1.)/2.)
+        end do
+        if(zpole.le.0.) then
+          write(*,*)'POLE VALUE NEGATIVE IN SUMASK jk=',jk
+        endif
+        do jn = 0, ntrunc_l
+          ensLocalCor(jn,jk) = ensLocalCor(jn,jk)/zpole
+          !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+        enddo
+      enddo
+
+      ! Convert back to correlations and take sqrt
+
+      do jk=1,nLevEns
+        do jn=0,ntrunc_l
+          ensLocalCor(jn,jk)=sqrt(0.5*ensLocalCor(jn,jk)*((2.0/(2.0*jn+1.0))**0.5))
+          !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+        enddo
+      enddo
 
     else
 
-       ! NO HORIZONTAL LOCALIZATION, set ensLocalCor to 1.0
+       ! NO HORIZONTAL LOCALIZATION, set ensLocalCor to 1.0 for wavenumber 0
 
        do jk=1,nLevEns
-          ensLocalCor(0,jk)=1.0 
+          ensLocalCor(:,jk)=0.0d0
+          ensLocalCor(0,jk)=1.0d0
        enddo
     endif
 
@@ -934,7 +942,7 @@ CONTAINS
     ! Compute vertical localization correlation matrix
 
     ! calculate 5'th order function
-    ZLC=verticalScale/2.0
+    ZLC=vLocalize/2.0
     do jk1=1,nLevEns
       do jk2=1,nLevEns
         ZR = abs(log(pressureProfile(jk2)) - log(pressureProfile(jk1)))
