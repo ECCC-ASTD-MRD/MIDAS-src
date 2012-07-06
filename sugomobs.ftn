@@ -43,7 +43,7 @@ c
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl, vco_trl
       integer fstlir,vezuvint2,vezsint2,ezdefset,ezgprm,fnom,fstouv,fstfrm
-      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef
+      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef,isrchila
       integer jlev,jobs,ier,iset,jstep,jgrid,numgrids
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
       integer itrlnlev
@@ -70,6 +70,8 @@ c
       integer, allocatable :: nobs(:,:) ! number of headers for each stepobs bin
       integer, allocatable :: datestamplist(:)
       real :: lat_r4,lon_r4,xpos_r4,ypos_r4
+      real*8 :: lat_r8,lon_r8
+      integer :: tla
       character(len=2) :: flnum
       character(len=128) :: trialfile
       integer, allocatable :: ninmpg_yinyan(:,:),nultrl(:,:)
@@ -172,7 +174,7 @@ c
 c
 c     Allocation des tableaux a remplir par fillmvo
 c
-      call col_allocate(lcolumnhr,col_getNumCol(lcolumng))
+      call col_allocate(lcolumnhr,col_getNumCol(lcolumng),mpi_local=.true.)
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c     The following code replaces suobsgid, and works for YIN-YAN
@@ -225,8 +227,15 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             if(nint(stepObsIndex).eq.jstep) then
 
-              lat_r4=real(obs_elem_r(lobsSpaceData,'LAT ',jobs))
-              lon_r4=real(obs_elem_r(lobsSpaceData,'LON ',jobs))
+              lat_r8=obs_elem_r(lobsSpaceData,'LAT ',jobs)
+              lon_r8=obs_elem_r(lobsSpaceData,'LON ',jobs)
+              lat_r4=real(lat_r8)
+              lon_r4=real(lon_r8)
+              tla = isrchila(lat_r8)
+
+              call col_setLatLon(lcolumng ,jobs,lat_r8,lon_r8,tla)
+              call col_setLatLon(lcolumnhr,jobs,lat_r8,lon_r8,tla)
+
               if(lon_r4.lt.0) lon_r4 = lon_r4 + 2*MPC_PI_R4
               if(lon_r4.ge.2.*MPC_PI_R4) lon_r4 =lon_r4 - 2*MPC_PI_R4
               lat_r4=lat_r4*MPC_DEGREES_PER_RADIAN_R4
@@ -238,8 +247,8 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
                 nobs(jstep,jgrid) = nobs(jstep,jgrid) + 1
 
-                dlatfld(nobs(jstep,jgrid)) = obs_elem_r(lobsSpaceData,'LAT ',jobs)
-                dlonfld(nobs(jstep,jgrid)) = obs_elem_r(lobsSpaceData,'LON ',jobs)
+                dlatfld(nobs(jstep,jgrid)) = lat_r8
+                dlonfld(nobs(jstep,jgrid)) = lon_r8
                 notag(nobs(jstep,jgrid),jstep,jgrid) = jobs
 
                 if(dlonfld(nobs(jstep,jgrid)).lt.0)

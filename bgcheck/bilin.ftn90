@@ -112,14 +112,12 @@
 !C     ---------------------------------
 !C
       DO JOBS = 1, col_getNumCol(lcolumn)
-         DLLAO   = obs_elem_r(lobsSpaceData,'LAT ',JOBS)
-         DLLOO   = obs_elem_r(lobsSpaceData,'LON ',JOBS)
 !C
 !C*    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C*    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 !C*    TO THE WEST (ILON AND ILOS).
 !C
-         ILA=obs_elem_i(lobsSpaceData,'TLA ',JOBS)
+         call col_getLatLon(lcolumn,jobs,dllao,dlloo,ila)
 
          IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
          IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8

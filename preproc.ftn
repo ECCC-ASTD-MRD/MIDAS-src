@@ -119,7 +119,7 @@
 !
 !     Memory allocation for background column data
 !
-      call col_allocate(lcolumng,obs_numheader(lobsSpaceData))
+      call col_allocate(lcolumng,obs_numheader(lobsSpaceData),mpi_local=.true.)
 !
 !     Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng
 !

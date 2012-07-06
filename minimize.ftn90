@@ -41,7 +41,9 @@ subroutine minimize(lcolumng,lobsSpaceData)
   write(*,*) '--Starting subroutine minimize--'
   write(*,*) '--------------------------------'
 
-  call col_allocate(lcolumn,col_getNumCol(lcolumng),col_getNumLev(lcolumng,'MM'),col_getNumLev(lcolumng,'TH'))
+  call col_allocate(lcolumn,col_getNumCol(lcolumng),col_getNumLev(lcolumng,'MM'),  &
+                    col_getNumLev(lcolumng,'TH'),mpi_local=.true.)
+  call col_copyLatLon(lcolumng,lcolumn)
 
   write(*,*) 'PRDATABIN: For 4D increment'
   call prdatabin(lobsSpaceData,nstepobsinc)

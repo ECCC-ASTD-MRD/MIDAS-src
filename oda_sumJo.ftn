@@ -151,20 +151,15 @@ c
       END function sumJo
 
       SUBROUTINE restore_robdata8(robdata8_g,kdata)
-        INTEGER :: kdata 
-        REAL*8 ,DIMENSION(kdata) :: robdata8_g
+       INTEGER :: kdata 
+       REAL*8 ,DIMENSION(kdata) :: robdata8_g
 
-       INTEGER :: i,ii,j ,iobs,idata,idataend,ierr 
-       ii=0
+       INTEGER :: bodyIndex_mpilocal,bodyIndex_mpiglobal,ierr  
+
        robdata8_g=0.0D0  
-       DO i=1,obs_numheader(lobsSpaceData)
-         iobs=obs_elem_i(lobsSpaceData,'GHI ',i)
-         idata=obs_elem_mpiglobal_i(lobsSpaceData,'RLN ',iobs)
-         idataend=obs_elem_mpiglobal_i(lobsSpaceData,'NLV ',iobs)+idata -1 
-         DO j=idata,idataend
-           ii=ii+1
-           robdata8_g(j)=obs_elem_r(lobsSpaceData,'OMI ',ii)
-         ENDDO
+       DO bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
+         bodyIndex_mpiglobal=obs_elem_i(lobsSpaceData,'GBI ',bodyIndex_mpilocal)
+         robdata8_g(bodyIndex_mpiglobal)=obs_elem_r(lobsSpaceData,'OMI ',bodyIndex_mpilocal)
        ENDDO  
        CALL rpn_comm_allreduce(ROBDATA8_g,ROBDATA8_g,kdata,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 
 

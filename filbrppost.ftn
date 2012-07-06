@@ -97,7 +97,6 @@
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
       CALL obs_expandToMpiGlobal(lobsSpaceData)
-      call col_allocate(lcolumng_mpiglobal,obs_numheader_mpiglobal(lobsSpaceData),col_getNumLev(lcolumng,'MM'),col_getNumLev(lcolumng,'TH'))
       CALL col_expandToMpiGlobal(lcolumng,lcolumng_mpiglobal,lobsSpaceData)
       IF(mpi_myid /= 0) RETURN 
 * 

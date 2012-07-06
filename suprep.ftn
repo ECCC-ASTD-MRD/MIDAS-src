@@ -25,7 +25,6 @@
 *                    -Exclude  T-Td ABOVE 300 Mbs
 *          P. Koclas *CMC/AES  April 1996
 *                     -print more information on rejected elements
-*                     -set NCM_LOBS
 *                     -replace comstat by comtstato
 *          C.Charette *ARMA/AES Jan 1997
 *                     -remove readnml. remove default values
@@ -98,12 +97,8 @@
 *          L. Fillion *ARMA/EC- 4 May 2010 - Update on v_11_01_2B.
 *
 **    Purpose:
-*             -Select the data in the CMA file which is to be
-C assimilated
+*             -Select the data in the CMA file which is to be assimilated
 *              by the 3D-var.
-*             -Set "Transformed latitude" with ISRCHILA
-*             -Set NCM_LOBS: RELATIVE POSTION OF DATA WITH RESPECT TO A
-*                 FULL SOUNDING.   (Dependent on data family)
 *
 *Arguments
 *     none
@@ -183,7 +178,7 @@ C
       CHARACTER*35 CREASON(-8:13)
       CHARACTER*80 CELLIST,CSFLIST
       INTEGER IOBS,IDATYP,IVCO
-      INTEGER ILA,ISRCHILA,IPRES,IPRESMB
+      INTEGER ILA,IPRES,IPRESMB
       INTEGER IERR, JD,JDATA,JO,JJO,JK,J
       INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT,IBEGIN,ILAST
       INTEGER IDATA,IDATEND,FNOM,FCLOS
@@ -311,10 +306,6 @@ C
      +                      IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)
         END DO
 C
-        dllao=obs_elem_r(lobsSpaceData,'LAT ',jjo)
-!
-        ILA = ISRCHILA (dble(DLLAO))
-        call obs_set_i(lobsSpaceData,'TLA ',jjo,ila)
       END DO
 C
  200  CONTINUE

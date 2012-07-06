@@ -37,8 +37,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   type(struct_obs) :: lobsSpaceData
   type(struct_gsv) :: statevector
   ! Local declarations
-  type(struct_columnData) :: lcolumn_g
-  integer :: ilev1,ilev2,deltalev,numheader_mpiglobal
+  type(struct_columnData) :: lcolumn_mpiglobal
+  integer :: ilev1,ilev2,deltalev,numCol_mpiglobal
   integer :: mythread,numthread,omp_get_num_threads,omp_get_thread_num
    
   call tmg_start(51,'VAR_CH')
@@ -52,11 +52,11 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
     write(*,*)'ODA_LT- Adjoint of horizontal interpolation GD --> MVO'
   endif
 
-  numheader_mpiglobal=obs_numheader_mpiglobal(lobsSpaceData)
   call tmg_start(77,'EXPNDMVO')
-  call col_allocate(lcolumn_g,numheader_mpiglobal,col_getNumLev(lcolumn,'MM'),col_getNumLev(lcolumn,'TH'))
-  call col_expandToMpiGlobal(lcolumn,lcolumn_g,lobsSpaceData)
+  call col_expandToMpiGlobal(lcolumn,lcolumn_mpiglobal,lobsSpaceData)
   call tmg_stop(77)
+
+  numCol_mpiglobal=col_getNumCol(lcolumn_mpiglobal)
 
 !$OMP PARALLEL PRIVATE(ilev1,ilev2,deltalev,mythread,numthread)
   mythread=omp_get_thread_num()+1
@@ -79,7 +79,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   ! Conversion of wind images to physical winds
   call uvwi2uv(statevector)
 
-  call col_deallocate(lcolumn_g)
+  call col_deallocate(lcolumn_mpiglobal)
 
   call tmg_stop (75)
 
@@ -141,19 +141,16 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-        Observations: DO JOBS = 1, numheader_mpiglobal
-          if(col_getTimeInterpWeight(lcolumn_g,jobs,jstep).gt.0.0d0) then
+        Observations: DO JOBS = 1, numCol_mpiglobal
+          if(col_getTimeInterpWeight(lcolumn_mpiglobal,jobs,jstep).gt.0.0d0) then
 
-            zprofil => col_getColumn(lcolumn_g,jobs,varName)
-
-            DLLAO   = real(obs_elem_mpiglobal_r(lobsSpaceData,'LAT ',JOBS), 8)
-            DLLOO   = real(obs_elem_mpiglobal_r(lobsSpaceData,'LON ',JOBS), 8)
+            zprofil => col_getColumn(lcolumn_mpiglobal,jobs,varName)
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 !C     *    TO THE WEST (ILON AND ILOS)
 !C
-            ILA=obs_elem_mpiglobal_i(lobsSpaceData,'TLA ',JOBS)
+            call col_getLatLon(lcolumn_mpiglobal,jobs,dllao,dlloo,ila)
 
             IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
             IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8
@@ -162,7 +159,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 !C
-            DInterpWeight=col_getTimeInterpWeight(lcolumn_g,jobs,jstep)
+            DInterpWeight=col_getTimeInterpWeight(lcolumn_mpiglobal,jobs,jstep)
             DLDXN = DLLOO*DLDLON2 + 1. - ILON
             DLDXS = DLLOO*DLDLOS2 + 1. - ILOS
             DLDY  = (gaus_RLATI(ILA)-DLLAO)*DLDLAT2(ILA)
