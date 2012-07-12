@@ -37,86 +37,79 @@
       IMPLICIT NONE
       CHARACTER(len=*) :: CDFAM
 *implicits
-#include "comlun.cdk"
-#include "cvcord.cdk"
 #include "comfilt.cdk"
 #include "cparbrp.cdk"
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
-      INTEGER IOBS,IK,IBEGIN,ILAST,IPRES
-      INTEGER J,JDATA
+      INTEGER INDEX_HEADER,IK,IPRES
+      INTEGER INDEX_BODY
       REAL*8 ZVAR,ZOER
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPT,ZPB
-      LOGICAL LLOK,LLPRINT
+      LOGICAL LLPRINT
 C
-cc      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
 C
       IF (LLPRINT) print*,' ---dhuppp----------------'
-      DO J = 1,NFILES
-         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
-            IBEGIN=NBEGINTYP(J)
-            ILAST=NENDTYP(J)
+
+      ! loop over all header indices of the CDFAM family
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 C
 C*    1. Computation of (HX - Z)/SIGMA
 C     .  -----------------------------
 C
- 100  CONTINUE
-C
 C     Process all data within the domain of the model
 C     Exclude levels above RLIMLVHU as it is done with T-Td in s/r suprep
 C
-            DO JDATA=IBEGIN,ILAST
-              IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU  .AND.
-     &             obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 0     .AND.
-     &             obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2    ) THEN
-                IPRES= NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
-                call obs_set_r(lobsSpaceData,'OMA ',JDATA, PPMIS)
-                IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
-                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-                  IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-                  ZPT  = col_getPressure(LCOLUMNHR,IK  ,IOBS,'TH')
-                  ZPB  = col_getPressure(LCOLUMNHR,IK+1,IOBS,'TH')
-                  ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
-                  ZWT  = 1. - ZWB
+         ! loop over all body indices for this index_header
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
+
+            IF ( obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY) .EQ. BUFR_NEHU  .AND.
+     &           obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0     .AND.
+     &           obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 2    ) THEN
+              IPRES= NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+              call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, PPMIS)
+              IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
+                ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+                ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+                ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+                IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
+                ZPT  = col_getPressure(LCOLUMNHR,IK  ,INDEX_HEADER,'TH')
+                ZPB  = col_getPressure(LCOLUMNHR,IK+1,INDEX_HEADER,'TH')
+                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+                ZWT  = 1. - ZWB
 C
-                  call obs_set_r(lobsSpaceData,'OMA ',JDATA, 
-     +                          ( ZWB*col_getElem(lcolumnhr,IK+1,IOBS,'HU')
-     +                          + ZWT*col_getElem(lcolumnhr,IK  ,IOBS,'HU') - ZVAR ) / ZOER)
+                call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, 
+     +                        ( ZWB*col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
+     +                        + ZWT*col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU') - ZVAR ) / ZOER)
 
-                  IF ( LLPRINT ) THEN
-                    write(nulout,*)' -------------------------'
-                    write(nulout,*)'   jdata  = ',JDATA
-                    write(nulout,*)'   iobs   = ',IOBS
-                    write(nulout,*)'   zlev   = ',ZLEV
-                    write(nulout,*)'   ik     = ',IK
-                    write(nulout,*)'   zvar   = ',ZVAR
-                    write(nulout,*)'   zoer   = ',ZOER
-                    write(nulout,*)'   col_getElem(lcolumnhr,ik  ,iobs,HU) = ',col_getElem(lcolumnhr,IK  ,IOBS,'HU')
-                    write(nulout,*)'   col_getElem(lcolumnhr,ik+1,iobs,HU) = ',col_getElem(lcolumnhr,IK+1,IOBS,'HU')
-                    write(nulout,*)'   O-P    = ',-obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER
-                    write(nulout,*)' -------------------------'
-                  ENDIF
-
+                IF ( LLPRINT ) THEN
+                  write(*,*)' -------------------------'
+                  write(*,*)'   index_body  = ',INDEX_BODY
+                  write(*,*)'   index_header   = ',INDEX_HEADER
+                  write(*,*)'   zlev   = ',ZLEV
+                  write(*,*)'   ik     = ',IK
+                  write(*,*)'   zvar   = ',ZVAR
+                  write(*,*)'   zoer   = ',ZOER
+                  write(*,*)'   col_getElem(lcolumnhr,ik  ,index_header,HU) = ',col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU')
+                  write(*,*)'   col_getElem(lcolumnhr,ik+1,index_header,HU) = ',col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
+                  write(*,*)'   O-P    = ',-obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)*ZOER
+                  write(*,*)' -------------------------'
                 ENDIF
+
               ENDIF
-C
-            END DO
- 200  CONTINUE
-C
-C     Process all upper air data data below model's orography
-C
-C   ..section removed not necessary for LQ -armadan Oct 2004
-c
- 300  CONTINUE
-C
-      ENDIF
-      END DO
+            ENDIF
+
+         ENDDO BODY
+
+      ENDDO HEADER
 C--------------------------------------------------------------------
 *
       RETURN

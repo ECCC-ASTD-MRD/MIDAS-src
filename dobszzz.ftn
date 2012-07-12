@@ -46,91 +46,65 @@
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER(len=*) :: CDFAM
-*implicits
-#include "comlun.cdk"
-#include "pardim.cdk"
-#include "cvcord.cdk"
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
-      INTEGER IPB,IPT,ITY,IDBURP,IVNM
-      INTEGER IOBS,IK,IBEGIN,ILAST
-      INTEGER J,JDATA
-      REAL*8 ZVAR,ZOER,ZCON,ZINC,ZPHI
-      REAL*8 ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
-      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
+      INTEGER IPB,IPT,IVNM
+      INTEGER INDEX_HEADER,IK
+      INTEGER INDEX_BODY
+      REAL*8 ZVAR,ZOER
+      REAL*8 ZWB,ZWT
+      REAL*8 ZLEV,ZPT,ZPB
       REAL*8 DLSUM
-      LOGICAL LLOK, LLPRINT,LLNOXTR
+      LOGICAL LLOK
       CHARACTER*2 VARTYPE
 C
-C     Temperature lapse rate for extrapolation of gz below model surface
-C
-      LLPRINT   = .FALSE.
-c      LLPRINT   = .TRUE.
-      LLNOXTR   = .FALSE.
-      zgamma = 0.0065 / GRAV
-      zexp = MPC_RGAS_DRY_AIR_R8*zgamma
-C
-      DLSUM=0.
-      DO J = 1,NFILES
-         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
-            IBEGIN=NBEGINTYP(J)
-            ILAST=NENDTYP(J)
+      DLSUM=0.0d0
+      do index_body=1,obs_numbody(lobsSpaceData)
+         if(obs_getFamily(lobsSpaceData,bodyIndex=index_body).eq.CDFAM) then
 C
 C*    1. Computation of (HX - Z)/SIGMA
 C     .  -----------------------------
 C
- 100        CONTINUE
-C
 C     Process all data within the domain of the model
 C
-            DO JDATA=IBEGIN,ILAST
-               LLOK=(obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)
-     &              .AND. (obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 0)
-     &              .AND. (obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1)
-               IF ( LLOK ) THEN
-                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-                  IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-                  IVNM = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                  IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
-                  IPB = IPT+1
-                  varType = vnl_vartypeFromVarnum(IVNM)
-                  ZPT= col_getHeight(lcolumnhr,ik  ,iobs,varType)/RG
-                  ZPB= col_getHeight(lcolumnhr,ik+1,iobs,varType)/RG
-                  ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
-                  ZWT  = 1. - ZWB
-                  if(ivnm.eq.bufr_nees) then
-                    write(*,*) 'DOBSZZZ: CANNOT ASSIMILATE ES!!!'
-                    call qqexit(1)
-                  endif
+            LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)
+     &           .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0)
+     &           .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)
+            IF ( LLOK ) THEN
+               INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+               ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+               ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+               IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
+               IVNM = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+               IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
+               IPB = IPT+1
+               varType = vnl_vartypeFromVarnum(IVNM)
+               ZPT= col_getHeight(lcolumnhr,ik  ,index_header,varType)/RG
+               ZPB= col_getHeight(lcolumnhr,ik+1,index_header,varType)/RG
+               ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
+               ZWT  = 1. - ZWB
+               if(ivnm.eq.bufr_nees) then
+                 write(*,*) 'DOBSZZZ: CANNOT ASSIMILATE ES!!!'
+                 call qqexit(1)
+               endif
 C
 C     CONTRIBUTION TO Jo
 C
-                  call obs_set_r(lobsSpaceData,'OMA ',JDATA, 
-     +                  (ZWB*col_getElem(lcolumnhr,IPB,IOBS)
-     +                 + ZWT*col_getElem(lcolumnhr,IPT,IOBS)-ZVAR)/ZOER)
-                  DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',JDATA)
-     +                 *obs_elem_r(lobsSpaceData,'OMA ',JDATA)
-                  call obs_set_r(lobsSpaceData,'OMI ',JDATA,obs_elem_r(lobsSpaceData,'OMA ',JDATA))
-               ENDIF
-C
-            END DO
+               call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, 
+     +               (ZWB*col_getElem(lcolumnhr,IPB,INDEX_HEADER)
+     +              + ZWT*col_getElem(lcolumnhr,IPT,INDEX_HEADER)-ZVAR)/ZOER)
+               DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
+     +              *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
+               call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
+            ENDIF
 C
          ENDIF
       END DO
 C--------------------------------------------------------------------
       PJO = DLSUM
 C--------------------------------------------------------------------
-*
-      IF(LLNOXTR) THEN
-         WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-         WRITE(NULOUT,*)' Warning 3DV:dobszzz: NO EXTRAPOLATION'
-     &        ,' ALLOWED SEE LISTING FOR MORE DETAILS'
-         WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-      ENDIF
 *
       RETURN
       END

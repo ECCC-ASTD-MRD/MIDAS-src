@@ -22,26 +22,32 @@ subroutine getStepObsIndex(dnstepobs,kstsyn,kdobs,ktobs,knstepobs)
 
   ! ----------------------- CODE ---------------------------------------------
 
-  if(knstepobs.gt.1) then
-    dddt = 6.0d0/(real(knstepobs-1,8))
-  else
-    dddt = 6.0d0
-  endif
-
   ! Building observation stamp
-
   imode = 3 ! printable to stamp
 !  itobs = ktobs * 10000 + 2900
   itobs = ktobs * 10000
-  istat = newdate(ISTOBS, kdobs,itobs,imode)
+  istat = newdate(istobs, kdobs,itobs,imode)
 
   ! Difference (in hours) between obs time and synop time
-  call difdatr (istobs,kstsyn, DLHOURS)
+  call difdatr (istobs,kstsyn, dlhours)
 
-  dnstepobs = dlhours/dddt ! number of step obs from synop time
+  if(knstepobs.gt.1) then
+    ! FGAT: more than 1 trial field in time window
+    dddt = 6.0d0/(real(knstepobs-1,8))
+    dnstepobs = dlhours/dddt ! number of step obs from synop time
+    dnstepobs = dnstepobs + real((knstepobs+1)/2,8)
+    if(dnstepobs.lt.0.5d0.or.dnstepobs.gt.(0.5d0+real(knstepobs,8))) dnstepobs=-1.0d0
 
-  dnstepobs = dnstepobs + real((knstepobs+1)/2,8)
+  else
+    ! 3D-Var: only 1 trial field in time window
+    if(dlhours.lt.-3.0d0.or.dlhours.gt.3.0d0) then
+      ! outside time window
+      dnstepobs=-1.0d0
+    else
+      ! inside time window
+      dnstepobs= 1.0d0
+    endif
 
-  if(dnstepobs.lt.0.5d0.or.dnstepobs.gt.(0.5d0+real(knstepobs,8))) dnstepobs=-1.0d0
+  endif
 
 end subroutine getStepObsIndex

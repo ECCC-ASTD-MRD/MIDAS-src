@@ -39,53 +39,45 @@
       use bufr
       IMPLICIT NONE
       CHARACTER(len=*) :: CDFAM
-*implicits
-#include "cvcord.cdk"
-#include "comlun.cdk"
-*
+C
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
-      INTEGER IOBS,IK,IBEGIN,ILAST,JO
-      INTEGER J,JDATA
-      INTEGER ICOUNT,IERR,ILEN,JCOUNT
+      INTEGER INDEX_HEADER
+      INTEGER INDEX_BODY
+      INTEGER ICOUNT,JCOUNT
       INTEGER, ALLOCATABLE :: IPOINTR(:)
       REAL*8 ZVAR,ZOER
       LOGICAL LLPRINT
 C
-cc      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
+      allocate(IPOINTR(obs_numBody(lobsSpaceData)))
 C
       IF (LLPRINT) print*,' ---dhusfc----------------'
-      DO J = 1,NFILES
-         IF ( (CFAMTYP(J) .EQ. CDFAM) .AND.( NBEGINTYP(J) .GT. 0)) THEN
-            IBEGIN=NBEGINTYP(J)
-            ILAST=NENDTYP(J)
+
+      ! loop over all header indices of the CDFAM family
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 C
 C*    1. Computation of (HX - Z)/SIGMA
 C     .  -----------------------------
 C
- 100        CONTINUE
-C
 C     Process all data within the domain of the model
 C
-C
-***************************************************************
-c            IF(LLPRINT) THEN
-c               print *,'dhusfc:Processing Family '
-c     &              ,CFAMTYP(J)
-c            ENDIF
-***************************************************************
-            ILEN = ILAST - IBEGIN +1
-            allocate(IPOINTR(ILEN))
+         ICOUNT = 0
 
-              ICOUNT = 0
-              DO JDATA=IBEGIN,ILAST
-                IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS .AND.
-     &               obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1  ) THEN
-                    ICOUNT = ICOUNT + 1
-                    IPOINTR(ICOUNT) = JDATA
-                ENDIF
-              ENDDO
+         ! loop over all body indices for this index_header
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+           index_body = obs_getBodyIndex(lobsSpaceData)
+           if (index_body < 0) exit BODY
+           IF ( obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY) .EQ. BUFR_NEHS .AND.
+     &          obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1  ) THEN
+               ICOUNT = ICOUNT + 1
+               IPOINTR(ICOUNT) = INDEX_BODY
+           ENDIF
+         ENDDO BODY
 C--------------T2m,(T-TD)2m,US,VS
 C              In this section we always extrapolate linearly the trial
 C              field at the model surface to the height of the
@@ -93,66 +85,36 @@ C              surface observation whether the observation is above or
 C              below the model surface.
 C              NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 c
-              IF ( ICOUNT .GT. 0 ) THEN
+         IF ( ICOUNT .GT. 0 ) THEN
 
-                DO JCOUNT = 1,ICOUNT
-                  JDATA = IPOINTR(JCOUNT)
-                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
-                  ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-                  IK   = obs_elem_i(lobsSpaceData,'LYR ',JDATA)
-***************************************************************
-c                  IF(LLPRINT .AND. IOBS.LE.13) THEN
-c                    write(nulout,*)'dhusfc:FAM,STN,JDATA,IOBS,'
-c     &                   ,'IK,JCOUNT,ICOUNT= '
-c     &                   ,CFAMTYP(J),CSTNID(IOBS),JDATA,IOBS
-c     &                   ,IK,JCOUNT,ICOUNT
-c                  ENDIF
-***************************************************************
-                  call obs_set_r(lobsSpaceData,'OMA ',JDATA, 
-     +                (col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')-ZVAR)
-     +                 / ZOER)
+           DO JCOUNT = 1,ICOUNT
+             INDEX_BODY = IPOINTR(JCOUNT)
+             ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+             ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+             call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, 
+     +           (col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')-ZVAR)
+     +            / ZOER)
 
-                  IF ( LLPRINT ) THEN
-                    write(nulout,*)' -------------------------'
-                    write(nulout,*)'   jdata  = ',JDATA
-                    write(nulout,*)'   iobs   = ',IOBS
-                    write(nulout,*)'   zvar   = ',ZVAR
-                    write(nulout,*)'   zoer   = ',ZOER
-                    write(nulout,*)'   ik     = ',IK
-                    write(nulout,*)'   lcolumnhr_nlev= ',col_getNumLev(LCOLUMNHR,'TH')
-                    write(nulout,*)'   lcolumnhr_hu(lcolumnhr_nlev,iobs) = '
-     &                   ,col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),IOBS,'HU')
-                    write(nulout,*)'   O-Psfc = '
-     &                   ,-obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER
-                    write(nulout,*)' -------------------------'
-                  ENDIF
+             IF ( LLPRINT ) THEN
+               write(*,*)' -------------------------'
+               write(*,*)'   index_body  = ',INDEX_BODY
+               write(*,*)'   index_header   = ',INDEX_HEADER
+               write(*,*)'   zvar   = ',ZVAR
+               write(*,*)'   zoer   = ',ZOER
+               write(*,*)'   lcolumnhr_nlev= ',col_getNumLev(LCOLUMNHR,'TH')
+               write(*,*)'   lcolumnhr_hu(lcolumnhr_nlev,index_header) = '
+     &              ,col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')
+               write(*,*)'   O-Psfc = '
+     &              ,-obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)*ZOER
+               write(*,*)' -------------------------'
+             ENDIF
+           ENDDO
 
-                ENDDO
-
-
-C--------------Surface Pressure Mean sea level Pressure
-C              In this section we always extrapolate linearly the trial
-C              field at the model surface to the height of the
-C              surface observation whether the observation is above or
-C              below the model height
-C   ..section removed not necessary for LQ -armadan Oct 2004
-
-              ENDIF
-              deallocate(IPOINTR)
-C
-C                 CONTRIBUTION TO Jo
-C   ..section removed not necessary for LQ -armadan Oct 2004
-*
- 200        CONTINUE
-C
-C     Process all geopotential data below model's orography
-C   ..section removed not necessary for LQ -armadan Oct 2004
-C
- 300        CONTINUE
-C
          ENDIF
-      END DO
+C
+      ENDDO HEADER
+
+      deallocate(IPOINTR)
 C--------------------------------------------------------------------
       RETURN
       END

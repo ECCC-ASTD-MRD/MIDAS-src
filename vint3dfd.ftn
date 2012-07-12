@@ -39,127 +39,108 @@
       use bufr
       IMPLICIT NONE
 *implicits
-#include "cvcord.cdk"
 *
       type(struct_obs) :: lobsSpaceData
       character(len=*), intent(in) :: elem_s
       INTEGER IUU,IVV,IFF,IDD
-      INTEGER IOBS,IBEGIN,ILAST,ISTART,IEND,jwintyp
-      INTEGER J,JDATA,JJOBS
+      INTEGER INDEX_HEADER,ISTART,IEND,jwintyp
+      INTEGER INDEX_BODY,INDEX_BODY2
       REAL*8 ZLEVU
       REAL*8 MODUL,ANG,UU,VV
       LOGICAL LLOK
-c     DATA  IUU,IVV,IDD,IFF/11003,11004,11001,11002/
 C-----------------------------------------------------------------------
 C
-      do jwintyp=1,2
-      if (jwintyp .eq. 1) then
-         IUU=BUFR_NEUU
-         IVV=BUFR_NEVV
-         IDD=BUFR_NEDD
-         IFF=BUFR_NEFF
-      else
-         IUU=BUFR_NEUS
-         IVV=BUFR_NEVS
-         IDD=BUFR_NEDS
-         IFF=BUFR_NEFS
-      endif
-      DO J = 1,NFILES
-      IF ( ( NBEGINTYP(J) .GT. 0) ) THEN
-         IBEGIN=NBEGINTYP(J)
-          ILAST=NENDTYP(J)
+      WIND_TYPE: do jwintyp=1,2
+
+         if (jwintyp .eq. 1) then
+            IUU=BUFR_NEUU
+            IVV=BUFR_NEVV
+            IDD=BUFR_NEDD
+            IFF=BUFR_NEFF
+         else
+            IUU=BUFR_NEUS
+            IVV=BUFR_NEVS
+            IDD=BUFR_NEDS
+            IFF=BUFR_NEFS
+         endif
 C
-C     .  -----------------------------
+C        Process all data within the domain of the model
 C
- 100  CONTINUE
-C
-C     Process all data within the domain of the model
-C
-c           DO JDATA=IBEGIN,ILAST
-c              IF ( obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. IFF .OR. obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. IDD) THEN
-c                 obs_elem_r(lobsSpaceData,elem_s,JDATA)=PPMIS
-c                 call obs_set_i(lobsSpaceData,'FLG ',JDATA,-1)
-c              ENDIF
-c           END DO
-            DO JDATA=IBEGIN,ILAST
-               LLOK= (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)
-     &         .AND. (obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. IUU)
-               IF ( LLOK ) THEN
-                  IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-                  ISTART=obs_elem_i(lobsSpaceData,'RLN ',IOBS)
-                  IEND=obs_elem_i(lobsSpaceData,'NLV ',IOBS) +ISTART-1
-                  ZLEVU = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-                  UU=obs_elem_r(lobsSpaceData,elem_s,JDATA)*obs_elem_r(lobsSpaceData,'OER ',JDATA) +
-     &                 obs_elem_r(lobsSpaceData,'VAR ',JDATA)
-                  DO JJOBS=ISTART,IEND
-                  IF ((obs_elem_i(lobsSpaceData,'VNM ',JJOBS) .EQ. IVV)
-     &            .AND.(obs_elem_r(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU)) THEN
-                    VV=obs_elem_r(lobsSpaceData,elem_s,JJOBS)*obs_elem_r(lobsSpaceData,'OER ',JJOBS) +
-     &                   obs_elem_r(lobsSpaceData,'VAR ',JJOBS)
+         BODY: DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
+            LLOK= (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)
+     &      .AND. (obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY) .EQ. IUU)
+            IF ( LLOK ) THEN
+               INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+               ISTART=obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+               IEND=obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) +ISTART-1
+               ZLEVU = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+               UU=obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY)*obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY) +
+     &            obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+               BODY_2: DO INDEX_BODY2=ISTART,IEND
+                  IF ((obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY2) .EQ. IVV)
+     &           .AND.(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY2) .EQ. ZLEVU)) THEN
+                     VV=obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY2)*obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY2) +
+     &                 obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY2)
 *
 *****************************************************************************
 *  1-calculate angle
 ************************************************************************
 *
-                    MODUL=SQRT((UU**2)+(VV**2))
-                    IF (MODUL.EQ.0.) THEN
-                       ANG=0.0D0
-                    ELSE
-                      ANG=ATAN2(VV,UU)
-                      ANG= (270.0D0 - ANG  * MPC_DEGREES_PER_RADIAN_R8 )
+                     MODUL=SQRT((UU**2)+(VV**2))
+                     IF (MODUL.EQ.0.) THEN
+                        ANG=0.0D0
+                     ELSE
+                        ANG=ATAN2(VV,UU)
+                        ANG= (270.0D0 - ANG  * MPC_DEGREES_PER_RADIAN_R8 )
 *
 ************************************************************************
 *  2-Change to meteorological definition of wind direction.
 ************************************************************************
 *
-                      IF (ANG.GT.360.0D0) ANG=ANG-360.0D0
-                      IF (ANG.LE.0.0D0)   ANG=ANG+360.0D0
-                    ENDIF
-C
+                        IF (ANG.GT.360.0D0) ANG=ANG-360.0D0
+                        IF (ANG.LE.0.0D0)   ANG=ANG+360.0D0
+                     ENDIF
+C   
                   ENDIF
-                  END DO
+               ENDDO BODY_2
 C
 ************************************************************************
 *                insert resduals into CMA
 ************************************************************************
 C
-                  DO JJOBS=ISTART,IEND
-                     IF ((obs_elem_i(lobsSpaceData,'VNM ',JJOBS).EQ.IDD)
-     &               .AND. obs_elem_r(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
-                        call obs_set_r(lobsSpaceData, elem_s, JJOBS, ANG 
-     &                          - obs_elem_r(lobsSpaceData,'VAR ',JJOBS)
-     &                           * MPC_DEGREES_PER_RADIAN_R8)
-                        IF ( obs_elem_r(lobsSpaceData,elem_s,JJOBS) .gt.  180.0d0)
-     &                  call obs_set_r(lobsSpaceData, elem_s, JJOBS, 
-     &                        obs_elem_r(lobsSpaceData,elem_s,JJOBS)-360.0d0)
-                        IF ( obs_elem_r(lobsSpaceData,elem_s,JJOBS) .le. -180.0d0)
-     &                  call obs_set_r(lobsSpaceData, elem_s, JJOBS,
-     &                        obs_elem_r(lobsSpaceData,elem_s,JJOBS)+360.0d0)
-                        call obs_set_r(lobsSpaceData, elem_s, JJOBS, -1.0d0*
-     &                              obs_elem_r(lobsSpaceData,elem_s,JJOBS)
-     &                              * MPC_RADIANS_PER_DEGREE_r8)
-                        call obs_set_r(lobsSpaceData,'OER ',JJOBS,1.0d0)
-                        call obs_set_i(lobsSpaceData,'ASS ',JJOBS, 1)
-                        call obs_set_i(lobsSpaceData,'FLG ',JJOBS, 0)
-                     ENDIF
-                     IF ((obs_elem_i(lobsSpaceData,'VNM ',JJOBS).EQ.IFF)
-     &               .AND. obs_elem_r(lobsSpaceData,'PPP ',JJOBS) .EQ. ZLEVU ) THEN
-                        call obs_set_r(lobsSpaceData, elem_s, JJOBS, MODUL
-     &                                 - obs_elem_r(lobsSpaceData,'VAR ',JJOBS))
-                        call obs_set_r(lobsSpaceData,'OER ',JJOBS,1.0d0)
-                        call obs_set_i(lobsSpaceData,'ASS ',JJOBS, 1)
-                        call obs_set_i(lobsSpaceData,'FLG ',JJOBS, 0)
-                     ENDIF
-                  END DO
-               ENDIF
-C
-            END DO
-C
- 300  CONTINUE
-C
-      ENDIF
-      END DO
-C--------------------------------------------------------------------
-      end do
+               BODY_2_2: DO INDEX_BODY2=ISTART,IEND
+                  IF ((obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY2).EQ.IDD)
+     &           .AND. obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY2) .EQ. ZLEVU ) THEN
+                     call obs_set_r(lobsSpaceData, elem_s, INDEX_BODY2, ANG 
+     &                     - obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY2)
+     &                         * MPC_DEGREES_PER_RADIAN_R8)
+                     IF ( obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY2) .gt.  180.0d0)
+     &                  call obs_set_r(lobsSpaceData, elem_s, INDEX_BODY2, 
+     &                                 obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY2)-360.0d0)
+                     IF ( obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY2) .le. -180.0d0)
+     &                  call obs_set_r(lobsSpaceData, elem_s, INDEX_BODY2,
+     &                                 obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY2)+360.0d0)
+                      call obs_set_r(lobsSpaceData, elem_s, INDEX_BODY2, -1.0d0*
+     &                               obs_elem_r(lobsSpaceData,elem_s,INDEX_BODY2)
+     &                               * MPC_RADIANS_PER_DEGREE_r8)
+                      call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY2,1.0d0)
+                      call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY2, 1)
+                      call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY2, 0)
+                  ENDIF
+                  IF ((obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY2).EQ.IFF)
+     &           .AND. obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY2) .EQ. ZLEVU ) THEN
+                     call obs_set_r(lobsSpaceData, elem_s, INDEX_BODY2, MODUL
+     &                            - obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY2))
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY2,1.0d0)
+                     call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY2, 1)
+                     call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY2, 0)
+                  ENDIF
+               ENDDO BODY_2_2
+            ENDIF
+
+         ENDDO BODY
+
+      ENDDO WIND_TYPE
+
       RETURN
       END

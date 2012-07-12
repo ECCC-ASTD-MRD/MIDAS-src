@@ -43,8 +43,6 @@
       use bufr
       IMPLICIT NONE
 *implicits
-#include "comlun.cdk"
-#include "cvcord.cdk"
 #include "comgpsgb.cdk"
 *
       type(struct_columnData) :: lcolumnhr
@@ -62,17 +60,13 @@ C
       REAL*8 ZPT
       REAL*8 ZMT
 C
-      REAL*8 ZOBS, ZOER, ZINC, ZHX, ZLEV
-      REAL*8 ZDZ
+      REAL*8 ZOBS, ZOER, ZINC, ZHX, ZLEV, ZDZ
 C
-      INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER INDEX_HEADER,INDEX_BODY
       INTEGER IDATYP, ITYP
-      INTEGER IDATA   , IDATEND, JDATA
-      INTEGER JL, JK, nlev_T
+      INTEGER JL, nlev_T
 C
-      LOGICAL  ASSIM, LLOK
+      LOGICAL  ASSIM, LLOK, FIRSTHEADER
 
       INTEGER NH, NH1
       
@@ -80,6 +74,7 @@ C
 C     * 1.  Initializations
 C     *     ---------------
 C
+      firstheader=.true.
       nlev_T=col_getNumLev(lcolumnhr,'TH')
       allocate(zeta(nlev_T))
       allocate(ztt(nlev_T))
@@ -96,141 +91,141 @@ C
 C
 C     Loop over all observation files (all observation types)
 C
-      WRITE(NULOUT, *) ' '
-      WRITE(NULOUT, *) ' '
-      WRITE(NULOUT,'(A11,A9,3A8,A9,4A8,A10)')
+      WRITE(*, *) ' '
+      WRITE(*, *) ' '
+      WRITE(*,'(A11,A9,3A8,A9,4A8,A10)')
      +     'DOBSGPSGB','CSTNID','ZLAT','ZLON',
      +     'ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P','PJO'
 C
-      DO JF = 1, NFILES
-C
-C     *  Process only GPS observation files (family = GP)
-C
-         IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
-            IBEGIN   = NBEGINTYP(JF)
-            ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-C
-C     *     Loop over all GPS observations (locations) of the file
-C
-            DO JO = IBEGINOB, ILASTOB
+      ! loop over all header indices of the 'GP' family (GPS observations)
+      call obs_set_current_header_list(lobsSpaceData,'GP')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 C     
-C     *    .   Process only zenith delay data (codtyp 189)
+C     *  Process only zenith delay data (codtyp 189)
 C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
-               IF ( IDATYP .EQ. 189 ) THEN
+         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+         IF ( IDATYP .EQ. 189 ) THEN
 C
-C                 Loops over data in the observations
+            ASSIM = .FALSE.
 C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-                  ASSIM = .FALSE.
+C           Scan for requested assimilations, and count them.
+C           Get station height ZLEV
 C
-C                 Scan for requested assimilations, and count them.
-C                 Get station height ZLEV
+            NH = 0
+            ! loop over all body indices for this index_header
+            call obs_set_current_body_list(lobsSpaceData, index_header)
+            BODY: do 
+               index_body = obs_getBodyIndex(lobsSpaceData)
+               if (index_body < 0) exit BODY
+
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+               LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
+     &                (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1) )
+               IF ( LLOK ) THEN
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+                  ASSIM = .TRUE.
+                  NH = NH + 1
+               ENDIF
+            ENDDO BODY
 C
-                  NH = 0
-                  DO JDATA= IDATA, IDATEND
-                     ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
-     &                      (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
-                     IF ( LLOK ) THEN
-                        ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-                        ASSIM = .TRUE.
-                        NH = NH + 1
-                     ENDIF
-                  ENDDO
+C     *     If assimilations are requested, apply the observation operator
 C
-C     *           If assimilations are requested, apply the observation operator
-C
-                  IF (ASSIM) THEN
+            IF (ASSIM) THEN
 C     
-C     *              Profile at the observation location x :
+C     *        Profile at the observation location x :
 C
-                     ZLAT = obs_elem_r(lobsSpaceData,'LAT ',JO) * MPC_DEGREES_PER_RADIAN_R8
-                     ZLON = obs_elem_r(lobsSpaceData,'LON ',JO) * MPC_DEGREES_PER_RADIAN_R8
-                     DO JL = 1, nlev_T
-                        ZTT(JL) =     col_getElem(lcolumnhr,JL,JO,'TT')
-                        ZHU(JL) = EXP(col_getElem(lcolumnhr,JL,JO,'HU'))
-                        ! BUE: ORIGINALLY GZ, SHOULD PROBABLY BY GZ_T???
-                        ZGZ(JL) = col_getHeight(lcolumnhr,JL,JO,'TH') 
-                     ENDDO
-                     ZP0 =  col_getElem(lcolumnhr,1,JO,'P0')
-                     ! BUE: ORIGINALLY RPPOBS, SHOULD PROBABLY BY RPPOBS_T???
-                     ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
-                     ZMT = ZGZ(nlev_T)/GRAV
+               ZLAT = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER) * MPC_DEGREES_PER_RADIAN_R8
+               ZLON = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER) * MPC_DEGREES_PER_RADIAN_R8
+               DO JL = 1, nlev_T
+                  ZTT(JL) =     col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
+                  ZHU(JL) = EXP(col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU'))
+                  ! BUE: ORIGINALLY GZ, SHOULD PROBABLY BY GZ_T???
+                  ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') 
+               ENDDO
+               ZP0 =  col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
+               ! BUE: ORIGINALLY RPPOBS, SHOULD PROBABLY BY RPPOBS_T???
+               ZPT = col_getPressure(LCOLUMNHR,1,INDEX_HEADER,'TH')
+               ZMT = ZGZ(nlev_T)/GRAV
 C
 C     *        Apply the ZTD observation operator ZHX = H(x)
 C 
 C
-                     ZHX = 0.0
-                     ZDZ = ZLEV - ZMT
-                     CALL GPSZTDOP(ZLAT,ZLON,ZLEV,ZETA,ZTT,ZHU,ZP0,ZPT,
-     +                    ZMT,ZGZ,ZHX,LCOLUMNHR)
+               ZHX = 0.0
+               ZDZ = ZLEV - ZMT
+               CALL GPSZTDOP(ZLAT,ZLON,ZLEV,ZETA,ZTT,ZHU,ZP0,ZPT,
+     +              ZMT,ZGZ,ZHX,LCOLUMNHR)
 C
-C     *              Perform the (H(x)-Y)/SDERR operation
+C     *        Perform the (H(x)-Y)/SDERR operation
 C
-                     NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND. 
-     +                     ITYP .EQ. BUFR_NEZD ) THEN
-                           NH1 = NH1 + 1
-C
-C     *                    Observation value    Y
-C
-                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
-C
-C     *                    Observation error    SDERR
-C
-                           ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-C
-C     *                    Observation height (m)
-C
-                           ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-C
-C     *                    Normalized increment
-C
-                           ZINC = (ZHX - ZOBS) / ZOER
-                           call obs_set_r(lobsSpaceData,'OMA ',JDATA, ZINC)
-C
-C     *                    Contribution to the cost function
-C
-                           PJO = PJO + ZINC * ZINC
-C     
-C     *                    Print data for first observation or single site
-                         IF (L1GPSOBS) THEN
-                           IF (obs_elem_c(lobsSpaceData,'STID',JO) .EQ. CGPSSTN) THEN
-                             WRITE(NULOUT,
-     +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
-     +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
-                           ENDIF
-                         ELSE
-                           IF (JO .EQ. IBEGINOB .AND. NH1 .EQ. 1) THEN
-                             WRITE(NULOUT,
-     +           '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                    'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV,ZDZ,
-     +                     ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
-                           ENDIF
-                         ENDIF
-C
-                        ENDIF
-                     ENDDO
-                  ENDIF
-               ENDIF
-            ENDDO
+               NH1 = 0
+               ! loop over all body indices for this index_header
+               call obs_set_current_body_list(lobsSpaceData, index_header)
+               BODY_2: do 
+                  index_body = obs_getBodyIndex(lobsSpaceData)
+                  if (index_body < 0) exit BODY_2
 
+                  ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+                  IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1 .AND. 
+     +               ITYP .EQ. BUFR_NEZD ) THEN
+                     NH1 = NH1 + 1
+C
+C     *              Observation value    Y
+C
+                     ZOBS = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+C
+C     *              Observation error    SDERR
+C
+                     ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+C
+C     *              Observation height (m)
+C
+                     ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+C
+C     *              Normalized increment
+C
+                     ZINC = (ZHX - ZOBS) / ZOER
+                     call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, ZINC)
+C
+C     *              Contribution to the cost function
+C
+                     PJO = PJO + ZINC * ZINC
+C     
+C     *              Print data for first observation or single site
+                     IF (L1GPSOBS) THEN
+                        IF (obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .EQ. CGPSSTN) THEN
+                           WRITE(*,
+     +                      '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
+     +                      'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
+     +                      ZLAT,ZLON,ZLEV,ZDZ,
+     +                      ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
+                        ENDIF
+                     ELSE
+                        IF (FIRSTHEADER .AND. NH1 .EQ. 1) THEN
+                           WRITE(*,
+     +                      '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
+     +                      'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
+     +                      ZLAT,ZLON,ZLEV,ZDZ,
+     +                      ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
+                        ENDIF
+                     ENDIF
+C
+                  ENDIF
+               ENDDO BODY_2
+
+            ENDIF
          ENDIF
 
-      ENDDO
+         firstheader = .false.
+
+      ENDDO HEADER
 C
       deallocate(zeta)
       deallocate(ztt)
       deallocate(zhu)
       deallocate(zgz)
 
-      WRITE(NULOUT, *) ' '
+      WRITE(*, *) ' '
       RETURN
       END
