@@ -39,43 +39,21 @@
       use columnData_mod 
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
-#include "cvcord.cdk"
 #include "comgpsro.cdk"
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_trl
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON, Lon
-      REAL*8 ZETA(JPNFLEV)
-      REAL*8 ZTT (JPNFLEV)
-      REAL*8 ZHU (JPNFLEV)
-      REAL*8 ZGZ (JPNFLEV)
-      REAL*8 ZPRF (JPNFLEV)
-      REAL*8 ZP0
-      REAL*8 ZPT, ZPR, ZCF, ZTP
+      REAL*8 Lat
       REAL*8 ZMT
-      REAL*8 DH,DDH
-      REAL*8 BIAS
-      REAL*8 HNH1, HSF, HTP, SUM0, SUM1, HGP
+      REAL*8 HNH1, HSF, HTP, HGP
 C
-      REAL*8 ZOBS, ZMHX, ZOER, ZINC
-C
-      INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO, JD
+      INTEGER INDEX_HEADER
       INTEGER IDATYP
-      INTEGER IDATA   , IDATEND, JDATA
-      INTEGER JL, JH,  NGPSLEV
+      INTEGER INDEX_BODY
+      INTEGER JL, NGPSLEV
 C
-      LOGICAL  ASSIM
-
-      INTEGER NH, NH1
-      TYPE(GPSPROFILE)           :: PRF 
-
-      WRITE(NULOUT,*)'ENTER FILTERGPSRO'
+      WRITE(*,*)'ENTER FILTERGPSRO'
 C
 C     * 1.  Initializations
 C     *     ---------------
@@ -87,85 +65,56 @@ C     *    .        ----------
 C
       NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
       vco_trl => col_getVco(lcolumnhr)
-      DO JL = 1, NGPSLEV
-         ZETA(JL) = vco_trl%dhyb_T(JL)
-      ENDDO
 C
-C     Loop over all files
 C
-      DO JF = 1, NFILES
-         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
-            IBEGIN   = NBEGINTYP(JF)
-            ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-C
-C     *     Loop over all observations of the file
-C
-            DO JO = IBEGINOB, ILASTOB
+      ! loop over all header indices of the 'RO' family
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 C     
 C     *        Process only refractivity data (codtyp 169)
 C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
                IF ( IDATYP .EQ. 169 ) THEN
 C
-C                 Loops over data in the observation
+            Lat  = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER)
 C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-                  ASSIM = .FALSE.
-C
-C                 Scan for requested assimilations, and count them
-C
-                  ASSIM = .TRUE.
-                  NH = IDATEND-IDATA+1
-C
-                  Lat  = obs_elem_r(lobsSpaceData,'LAT ',JO)
-                  Lon  = obs_elem_r(lobsSpaceData,'LON ',JO)
-                  ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
-                  ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-                  DO JL = 1, col_getNumLev(LCOLUMNHR,'TH')
-C
-C     *           Profile x
-C
-                     ZTT(JL) = col_getElem(lcolumnhr,JL,JO,'TT')-273.15
-                     ZHU(JL) = col_getElem(lcolumnhr,JL,JO,'HU')
-                     ZGZ(JL) = col_getHeight(lcolumnhr,JL,JO,'TH')
-                  ENDDO
-                  ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
-                  ZPT = col_getPressure(LCOLUMNHR,1,JO,'TH')
-                  ZMT = ZGZ(col_getNumLev(LCOLUMNHR,'TH'))/RG
-                  ZMT = gpsgeopotential(Lat, ZMT)/RG
-                  ZTP = ZGZ(1)/RG
-                  ZPR = vco_trl%dprf_M
-                  ZCF = vco_trl%drcf1
+            JL=col_getNumLev(LCOLUMNHR,'TH')
+            ZMT = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
+            ZMT = gpsgeopotential(Lat, ZMT)/RG
 C     
-C     *           GPS profile structure:
+            JL = 1
+            HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
 C
-C                  CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
-C     +                 ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
                   HSF=ZMT+SURFMIN
                   IF (HSF .LT. HSFMIN) HSF=HSFMIN
-                  HTP=ZTP
                   IF (HTP .GT. HTPMAX) HTP=HTPMAX
 C
 C     *           Prepare the vector of all the observations:
 C
-                  DO JDATA= IDATA, IDATEND
-                     HNH1= obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+            ! loop over all body indices for this index_header
+            call obs_set_current_body_list(lobsSpaceData, index_header)
+            BODY: do 
+               index_body = obs_getBodyIndex(lobsSpaceData)
+               if (index_body < 0) exit BODY
+
+               HNH1= obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                      IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                         HGP = gpsgeopotential(Lat,HNH1)/9.80616
                         IF ( HGP.GT.HTP .OR. 
      +                       HGP.LT.HSF ) THEN
-                           call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
-                           call obs_set_i(lobsSpaceData,'FLG ',JDATA, IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),11))
-                        ENDIF
+                     call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY, 0)
+                     call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY, IBSET(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),11))
                      ENDIF
-                  ENDDO
                ENDIF
-            ENDDO
+            ENDDO BODY
+
          ENDIF
-      ENDDO
-      WRITE(NULOUT,*)'EXIT FILTERGPSRO'
+
+      ENDDO HEADER
+
+      WRITE(*,*)'EXIT FILTERGPSRO'
+
       RETURN
       END

@@ -100,31 +100,20 @@
 *             -Select the data in the CMA file which is to be assimilated
 *              by the 3D-var.
 *
-*Arguments
-*     none
-*
 #endif
 
       use MathPhysConstants_mod
-      Use mod_tovs
       use gaussGrid_mod
       use obsSpaceData_mod
-      use columnData_mod 
       use bufr
       IMPLICIT NONE
 *implicits
 *
 #include "comct0.cdk"
 #include "partov.cdk"
-#include "comtov.cdk"
-#include "comlun.cdk"
-#include "cparbrp.cdk"
 #include "comfilt.cdk"
 #include "comstato.cdk"
-#include "cvcord.cdk"
-#include "pardim.cdk"
 #include "comtovst.cdk"
-#include "comvfiles.cdk"
 #include "comgpsgb.cdk"
 C
 C  .......  DEFINITION OF A FEW BUFR ELEMENTS ..........................
@@ -170,22 +159,19 @@ C               12  'ERRONEOUS EL'
 C               13  'RESERVED    '
 C
       type(struct_obs) :: lobsSpaceData
-      REAL*8 ZZLAT, ZLON, ZLEV, ZVAR
+      INTEGER, parameter :: numFamily = 9
+      CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO'/)
       REAL*8 ZLAT, GPH
-      REAL*4 DLLAO
-      CHARACTER*2 CLFAMSAV
-      CHARACTER*8 CLFILNAM
       CHARACTER*35 CREASON(-8:13)
       CHARACTER*80 CELLIST,CSFLIST
-      INTEGER IOBS,IDATYP,IVCO
-      INTEGER ILA,IPRES,IPRESMB
-      INTEGER IERR, JD,JDATA,JO,JJO,JK,J
-      INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT,IBEGIN,ILAST
-      INTEGER IDATA,IDATEND,FNOM,FCLOS
-      INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,ICHN
-      INTEGER INDXSAT,ISAT,INDCH,INDXM
-      integer index,ibin(17),IBINS,isum,INIV(17)
-      LOGICAL LLOK,LLREJ,LLEV,LLBOGUS
+      INTEGER INDEX_HEADER,index_family,IVCO
+      INTEGER IPRES,IPRESMB
+      INTEGER JD,INDEX_BODY,JK
+      INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT(numFamily)
+      INTEGER IDATA,IDATEND
+      INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,INDXM
+      integer index,ibin(17,numFamily),IBINS(numFamily),isum,INIV(17)
+      LOGICAL LLOK,LLREJ,LLBOGUS
       INTEGER ISRCHEQ
       EXTERNAL ISRCHEQ
 C
@@ -212,206 +198,179 @@ C
      &     ,'ELEMENT MODIFIED OR GEN BY  ADE'/
 !-----------------------------------------------------------------------
 !
-      DO JK=1,17
-        IKNTFFR(JK)=0
-        IKNTDDR(JK)=0
-        IKNTUR(JK)=0
-        IKNTVR(JK)=0
-        IKNTZR(JK)=0
-        IKNTTR(JK)=0
-        IKNTER(JK)=0
-        IKNTDR(JK)=0
-        IKNTOR(JK)=0
-        IKNTBTR(JK)=0
-C
-        IKNTFFA(JK)=0
-        IKNTDDA(JK)=0
-        IKNTUA(JK)=0
-        IKNTVA(JK)=0
-        IKNTZA(JK)=0
-        IKNTTA(JK)=0
-        IKNTEA(JK)=0
-        IKNTDA(JK)=0
-        IKNTOA(JK)=0
-        IKNTBTA(JK)=0
-        IBIN(JK)=0.
-      ENDDO
-      IKNTDSA =0
-      IKNTFSA =0
-      IKNTUSA =0
-      IKNTVSA =0
-      IKNTTSA =0
-      IKNTESSA=0
-      IKNTPSA =0
-      IKNTPNA =0
-      IKNTZDA =0
-C
-      IKNTDSR =0
-      IKNTFSR =0
-      IKNTUSR =0
-      IKNTVSR =0
-      IKNTTSR =0
-      IKNTESSR=0
-      IKNTPSR =0
-      IKNTPNR =0
-      IKNTZDR =0
-      IBINS   =0
-C
-      WRITE(NULOUT,'(1X,"SUBROUTINE SUPREP")')
-      WRITE(NULOUT,'(1X,"-----------------",/)')
-      WRITE(NULOUT,'(1X,"***********************************")')
-      WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
-      WRITE(NULOUT,'(1X,"***********************************")')
+      WRITE(*,'(1X,"SUBROUTINE SUPREP")')
+      WRITE(*,'(1X,"-----------------",/)')
+      WRITE(*,'(1X,"***********************************")')
+      WRITE(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
+      WRITE(*,'(1X,"***********************************")')
       DO JD=1,NELEMS
-        WRITE(NULOUT,'(15X,I5,/)') NLIST(JD)
-      END DO
-      WRITE(NULOUT,'(1X,"***********************************")')
-      WRITE(NULOUT,*) ' REJECT ELEMENTS WITH REJECT FLAG '
-      WRITE(NULOUT,*)'           BIT :  '
+        WRITE(*,'(15X,I5,/)') NLIST(JD)
+      ENDDO
+      WRITE(*,'(1X,"***********************************")')
+      WRITE(*,*) ' REJECT ELEMENTS WITH REJECT FLAG '
+      WRITE(*,*)'           BIT :  '
       DO JD=1,NFLAGS
         IBIT= NLISTFLG(JD)
-        WRITE(NULOUT,*) IBIT,' ',CREASON(IBIT)
-      END DO
-      WRITE(NULOUT,'(1X,"***********************************")')
-C
- 100  CONTINUE
+        WRITE(*,*) IBIT,' ',CREASON(IBIT)
+      ENDDO
+      WRITE(*,'(1X,"***********************************")')
 C
 C     2. Put observation number in each data of CMA file.
 C
 C     Displace observations located between poles and the last row
 C     of the grid being used to the last row. (Do always now, used 
-C     to not do when cvcord=MAM
-
-!
-! 2.1 Set EZ parameters before obs looping and using gdxyfll function
-!
-      DO JO  = 1, obs_numheader(lobsSpaceData)
-        ZLAT    = obs_elem_r(lobsSpaceData,'LAT ',JO)
+C     to not do when cvcord=MAM)
+C
+      DO INDEX_HEADER  = 1, obs_numheader(lobsSpaceData)
+        ZLAT    = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER)
         IF(ZLAT .GT. gaus_RLATI(1)) THEN
-          call obs_set_r(lobsSpaceData,'LAT ',JO, gaus_RLATI(1))
+          call obs_set_r(lobsSpaceData,'LAT ',INDEX_HEADER, gaus_RLATI(1))
         ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
-          call obs_set_r(lobsSpaceData,'LAT ',JO, gaus_RLATI(gaus_NJ))
+          call obs_set_r(lobsSpaceData,'LAT ',INDEX_HEADER, gaus_RLATI(gaus_NJ))
         ENDIF
-      END DO
+      ENDDO
 C
       IJ=0
-      DO JJO = 1, obs_numheader(lobsSpaceData)
-        IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JJO)
-        IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
-        DO JDATA= IDATA, IDATEND
+      DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
+        IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+        IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+        DO INDEX_BODY= IDATA, IDATEND
           IJ   = IJ+1
-          call obs_set_i(lobsSpaceData,'OBS ',IJ, JJO)
-          if(obs_numheader(lobsSpaceData).eq.1) 
-     +      write(nulout,*) "suprep: IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)=",
-     +                      IJ,obs_elem_i(lobsSpaceData,'OBS ',IJ)
-        END DO
-C
-      END DO
-C
- 200  CONTINUE
+          call obs_set_i(lobsSpaceData,'OBS ',IJ, INDEX_HEADER)
+        ENDDO
+      ENDDO
 C
 C     3. filter data in CMA file
 C     .  -----------------------
-      IKNT=0
-      CLFAMSAV=CFAMTYP(1)
+      IKNT(:)=0
+      ibin(:,:)=0
+      ibins(:)=0
       CELLIST
      &     ='    FF      DD      UU      VV      GZ      TT      ES      DZ      OZ  '
       CSFLIST
      &     ='    FS      DS      US     VS      TS      ES      PS      PN      ZD  '
 C
-      DO J = 1,NFILES
-        CLFILNAM='KOUNTR'//CFAMTYP(J)
-        IF (  NBEGINTYP(J) .GT. 0)  THEN
-          IBEGIN=NBEGINTYP(J)
-          ILAST=NENDTYP(J)
-          CLFAMSAV =CFAMTYP(J)
+!$OMP PARALLEL  
+!$OMP& PRIVATE(INDEX_FAMILY,JK,index_body,INDEX_HEADER,ITYP,
+!$OMP& IFLG,IPRES,IVCO,IDBURP,LLOK,LLBOGUS,GPH,INDEX,IPRESMB,
+!$OMP& LLREJ,JD,IBAD,
+!$OMP& ILANSEA,INDXM,INDXREG,IPROCES,INDXCLD,
+!$OMP& IKNTFFR,
+!$OMP& IKNTDDR,
+!$OMP& IKNTUR,
+!$OMP& IKNTVR,
+!$OMP& IKNTZR,
+!$OMP& IKNTTR,
+!$OMP& IKNTER,
+!$OMP& IKNTDR,
+!$OMP& IKNTOR,
+!$OMP& IKNTBTR,
+!$OMP& IKNTFFA,
+!$OMP& IKNTDDA,
+!$OMP& IKNTUA,
+!$OMP& IKNTVA,
+!$OMP& IKNTZA,
+!$OMP& IKNTTA,
+!$OMP& IKNTEA,
+!$OMP& IKNTDA,
+!$OMP& IKNTOA,
+!$OMP& IKNTBTA,
+!$OMP& IKNTDSA,
+!$OMP& IKNTFSA,
+!$OMP& IKNTUSA,
+!$OMP& IKNTVSA,
+!$OMP& IKNTTSA,
+!$OMP& IKNTESSA,
+!$OMP& IKNTPSA,
+!$OMP& IKNTPNA,
+!$OMP& IKNTZDA,
+!$OMP& IKNTDSR,
+!$OMP& IKNTFSR,
+!$OMP& IKNTUSR,
+!$OMP& IKNTVSR,
+!$OMP& IKNTTSR,
+!$OMP& IKNTESSR,
+!$OMP& IKNTPSR,
+!$OMP& IKNTPNR,
+!$OMP& IKNTZDR)
+!$OMP DO ORDERED
+      FAMILY: DO INDEX_FAMILY = 1,numFamily
 C
-          DO JK=1,17
-            IKNTFFR(JK)=0
-            IKNTDDR(JK)=0
-            IKNTUR(JK)=0
-            IKNTVR(JK)=0
-            IKNTZR(JK)=0
-            IKNTTR(JK)=0
-            IKNTER(JK)=0
-            IKNTDR(JK)=0
-            IKNTOR(JK)=0
-            IKNTBTR(JK)=0
-            IKNTFFA(JK)=0
-            IKNTDDA(JK)=0
-            IKNTUA(JK)=0
-            IKNTVA(JK)=0
-            IKNTZA(JK)=0
-            IKNTTA(JK)=0
-            IKNTEA(JK)=0
-            IKNTDA(JK)=0
-            IKNTOA(JK)=0
-            IKNTBTA(JK)=0
-          END DO
-          IKNTDSA =0
-          IKNTFSA =0
-          IKNTUSA =0
-          IKNTVSA =0
-          IKNTTSA =0
-          IKNTESSA=0
-          IKNTPSA =0
-          IKNTPNA =0
-          IKNTZDA =0
+        DO JK=1,17
+          IKNTFFR(JK)=0
+          IKNTDDR(JK)=0
+          IKNTUR(JK)=0
+          IKNTVR(JK)=0
+          IKNTZR(JK)=0
+          IKNTTR(JK)=0
+          IKNTER(JK)=0
+          IKNTDR(JK)=0
+          IKNTOR(JK)=0
+          IKNTBTR(JK)=0
+          IKNTFFA(JK)=0
+          IKNTDDA(JK)=0
+          IKNTUA(JK)=0
+          IKNTVA(JK)=0
+          IKNTZA(JK)=0
+          IKNTTA(JK)=0
+          IKNTEA(JK)=0
+          IKNTDA(JK)=0
+          IKNTOA(JK)=0
+          IKNTBTA(JK)=0
+        ENDDO
+        IKNTDSA =0
+        IKNTFSA =0
+        IKNTUSA =0
+        IKNTVSA =0
+        IKNTTSA =0
+        IKNTESSA=0
+        IKNTPSA =0
+        IKNTPNA =0
+        IKNTZDA =0
 C
-          IKNTDSR =0
-          IKNTFSR =0
-          IKNTUSR =0
-          IKNTVSR =0
-          IKNTTSR =0
-          IKNTESSR=0
-          IKNTPSR =0
-          IKNTPNR =0
-          IKNTZDR =0
+        IKNTDSR =0
+        IKNTFSR =0
+        IKNTUSR =0
+        IKNTVSR =0
+        IKNTTSR =0
+        IKNTESSR=0
+        IKNTPSR =0
+        IKNTPNR =0
+        IKNTZDR =0
 C
-          DO JDATA=IBEGIN,ILAST
-            ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-            IFLG = obs_elem_i(lobsSpaceData,'FLG ',JDATA)
-            IPRES= NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
-            IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-            IVCO = obs_elem_i(lobsSpaceData,'VCO ',JDATA)
-            IDBURP=obs_elem_i(lobsSpaceData,'ITY ',IOBS)
+        BODY: do index_body=1,obs_numbody(lobsSpaceData)
+          INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+          if(obs_getFamily(lobsSpaceData,index_header).eq.listFamily(index_family)) then
+            ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+            IFLG = obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY)
+            IPRES= NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+            IVCO = obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY)
+            IDBURP=obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
 C
 C     a. Unwanted data types via types specified in NLIST
 C
-            LLEV=.TRUE.
             LLOK = .FALSE.
             LLBOGUS=(IDBURP .eq. 150 .or. IDBURP .eq. 151 .or. IDBURP
      &           .eq. 152 .or. IDBURP .eq. 153)
             DO JD =1,NELEMS
-              LLOK=( (ITYP .EQ. NLIST(JD)) .AND. LLEV )  .OR. LLOK
-            END DO
+              LLOK=( ITYP .EQ. NLIST(JD) )  .OR. LLOK
+            ENDDO
 *
-*pik       ALLOW GZ FOR BOGUS DATA ONLY in analysis case ( nconf 141)
+*pik        ALLOW GZ FOR BOGUS DATA ONLY in analysis case ( nconf 141)
 *
             if  ( nconf .eq. 141 .and. llok .and. (ityp .eq. BUFR_negz) .and.
      &           .not. llbogus  ) then
               llok=.false.
             endif
-*
-*pik
-*
 C
 C           For GPS Radio Occultation data (codtyp 169):
 C           Allow only refractivity observations (ITYP=15036)
 C
             IF ( IDBURP .EQ. 169 ) THEN
 C
-C     *        Only refractivity data:
-C
-Cpik           IF ( ITYP .EQ. 15036) THEN
-Cpik              LLOK = .TRUE.
-Cpik           ELSE
-Cpik              LLOK = .FALSE.
-Cpik           ENDIF
-C
 C     *        Only heights between 0 and 80000 m:
 C
-               GPH = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+               GPH = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
                   LLOK = .FALSE.
                ENDIF
@@ -495,7 +454,7 @@ C
               else
                 index=16
               endif
-              ibin(index)=ibin(index) +1
+              ibin(index,index_family)=ibin(index,index_family) +1
             ENDIF
 C
 C      Check rejection bit in datum's FLAG
@@ -504,11 +463,11 @@ C
             DO JD=1,NFLAGS
               IBAD= 13-NLISTFLG(JD)
               LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
-            END DO
+            ENDDO
 C
 C     d. Filter TOVS data
 C
-            ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+            ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S           ITYP .EQ. BUFR_NBT2 .OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
@@ -529,11 +488,11 @@ C             .....this check not done anymore, jh may 2002....
 C
 C        d.3 Invalid land/sea/sea-ice flag, processing technique
 C
-              ILANSEA  = obs_elem_i(lobsSpaceData,'OFL ',IOBS)
+              ILANSEA  = obs_elem_i(lobsSpaceData,'OFL ',INDEX_HEADER)
               INDXM = ILANSEA
               IF (INDXM .EQ. 2 ) INDXM = 0
               INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
-              IPROCES  = obs_elem_i(lobsSpaceData,'TEC ',IOBS)
+              IPROCES  = obs_elem_i(lobsSpaceData,'TEC ',INDEX_HEADER)
               INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
               IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
                 LLOK = .FALSE.
@@ -575,7 +534,7 @@ C
                 IF( ITYP .EQ. BUFR_NEPS)  IKNTPSA=IKNTPSA + 1
                 IF( ITYP .EQ. BUFR_NEPN)  IKNTPNA=IKNTPNA + 1
                 IF( ITYP .EQ. BUFR_NEZD)  IKNTZDA=IKNTZDA + 1
-                IBINS = IBINS + 1
+                IBINS(index_family) = IBINS(index_family) + 1
               ENDIF
             ELSE IF ( LLOK .AND.  LLREJ ) THEN
               IF( IVCO .EQ. 2 ) THEN
@@ -601,121 +560,122 @@ C
                 IF( ITYP .EQ. BUFR_NEPS)  IKNTPSR=IKNTPSR + 1
                 IF( ITYP .EQ. BUFR_NEPN)  IKNTPNR=IKNTPNR + 1
                 IF( ITYP .EQ. BUFR_NEZD)  IKNTZDR=IKNTZDR + 1
-                IBINS = IBINS + 1
+                IBINS(index_family) = IBINS(index_family) + 1
               ENDIF
             ENDIF
 C
             IF (LLOK .AND. .NOT. LLREJ) THEN
-              call obs_set_i(lobsSpaceData,'ASS ',JDATA,1)
-              IKNT= IKNT + 1
+              call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,1)
+              IKNT(index_family)= IKNT(index_family) + 1
             ELSE
-              call obs_set_i(lobsSpaceData,'ASS ',JDATA,0)
+              call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
             ENDIF
 C
-          END DO
+          ENDIF
 C
-        ENDIF
-cpik  END DO
+        ENDDO BODY
 C
-        write(NULOUT,'(5x,a8,2x,a2,2x,a12)')CBURP(j), CFAMTYP(j)
+!$OMP ORDERED
+        write(*,'(15x,a2,2x,a12)') listFamily(index_family)
      &       ,'DATA  FAMILY'
-        WRITE(NULOUT
+        WRITE(*
      &       ,'(12x,"                                              ")')
-        WRITE(NULOUT
+        WRITE(*
      &       ,'(12x,"    NUMBER OF REJECTED DATA PRESSURE COORD")')
-        WRITE(NULOUT
+        WRITE(*
      &       ,'(12x," =======================================================================")')
-        WRITE(NULOUT,'(12x,A80)')CELLIST
-        WRITE(NULOUT,'(12x,10("  ------"))' )
+        WRITE(*,'(12x,A80)')CELLIST
+        WRITE(*,'(12x,10("  ------"))' )
 C
         DO JK=1,16
-          WRITE(NULOUT,888)iniv(jk),'-',iniv(jk+1),
+          WRITE(*,888)iniv(jk),'-',iniv(jk+1),
      &         IKNTFFR(JK),IKNTDDR(JK),IKNTUR(JK),IKNTVR(JK),IKNTZR(JK)
      &         ,IKNTTR(JK),IKNTER(JK),IKNTDR(JK),IKNTOR(JK),IKNTBTR(JK),'
      &         rej'
-        END DO
+        ENDDO
 C
-        if ( cfamtyp(j) == 'UA' .OR. cfamtyp(j) == 'SF' .OR.
-     &       cfamtyp(j) == 'SC' .OR. cfamtyp(j) == 'GP' ) then
-          WRITE(NULOUT
+        if ( listFamily(index_family) == 'UA' .OR. listFamily(index_family) == 'SF' .OR.
+     &       listFamily(index_family) == 'SC' .OR. listFamily(index_family) == 'GP' ) then
+          WRITE(*
      &         ,'(12x," =======================================================================",/)')
-          WRITE(NULOUT
+          WRITE(*
      &         ,'(12x,"                                              ")'
      &         )
-          WRITE(NULOUT,'(12x,"    NUMBER OF REJECTED SURFACE DATA")')
-          WRITE(NULOUT
+          WRITE(*,'(12x,"    NUMBER OF REJECTED SURFACE DATA")')
+          WRITE(*
      &         ,'(12x," =======================================================================")')
-          WRITE(NULOUT,'(12x,A80)')CSFLIST
-          WRITE(NULOUT,'(12x,9("  ------"))' )
-          WRITE(NULOUT,890)'   sfc   ',
+          WRITE(*,'(12x,A80)')CSFLIST
+          WRITE(*,'(12x,9("  ------"))' )
+          WRITE(*,890)'   sfc   ',
      &         IKNTFSR,IKNTDSR,IKNTUSR,IKNTVSR,IKNTTSR,IKNTESSR,IKNTPSR
      &         ,IKNTPNR,IKNTZDR,'rej'
-          WRITE(NULOUT
+          WRITE(*
      &         ,'(12x," =======================================================================",/)')
         endif
 C
-        WRITE(NULOUT
+        WRITE(*
      &       ,'(12x,"                                              ")')
-        WRITE(NULOUT
+        WRITE(*
      &       ,'(12x,"    NUMBER OF ACCEPTED DATA PRESSURE COORD")')
-        WRITE(NULOUT
+        WRITE(*
      &       ,'(12x," =======================================================================")')
-        WRITE(NULOUT,'(12x,A80)')CELLIST
-        WRITE(NULOUT,'(12x,10("  ------"))' )
+        WRITE(*,'(12x,A80)')CELLIST
+        WRITE(*,'(12x,10("  ------"))' )
         DO JK=1,16
-          WRITE(NULOUT,888)iniv(jk),'-',iniv(jk+1),
+          WRITE(*,888)iniv(jk),'-',iniv(jk+1),
      &         IKNTFFA(JK),IKNTDDA(JK),IKNTUA(JK),IKNTVA(JK),IKNTZA(JK)
      &         ,IKNTTA(JK),IKNTEA(JK),IKNTDA(JK),IKNTOA(JK),IKNTBTA(JK),'
      &         acc'
-        END DO
-        WRITE(NULOUT
+        ENDDO
+        WRITE(*
      &       ,'(12x," =======================================================================",/)')
 C
-        if ( cfamtyp(j) == 'UA' .OR. cfamtyp(j) == 'SF' .OR.
-     &       cfamtyp(j) == 'SC' .OR. cfamtyp(j) .eq. 'GP' ) then
-          WRITE(NULOUT
+        if ( listFamily(index_family) == 'UA' .OR. listFamily(index_family) == 'SF' .OR.
+     &       listFamily(index_family) == 'SC' .OR. listFamily(index_family) .eq. 'GP' ) then
+          WRITE(*
      &         ,'(12x,"                                              ")'
      &         )
-          WRITE(NULOUT,'(12x,"    NUMBER OF ACCEPTED SURFACE DATA")')
-          WRITE(NULOUT
+          WRITE(*,'(12x,"    NUMBER OF ACCEPTED SURFACE DATA")')
+          WRITE(*
      &         ,'(12x," =======================================================================")')
-          WRITE(NULOUT,'(12x,A80)')CSFLIST
-          WRITE(NULOUT,'(12x,9("  ------"))' )
-          WRITE(NULOUT,890)'   sfc   ',
+          WRITE(*,'(12x,A80)')CSFLIST
+          WRITE(*,'(12x,9("  ------"))' )
+          WRITE(*,890)'   sfc   ',
      &         IKNTFSA,IKNTDSA,IKNTUSA,IKNTVSA,IKNTTSA,IKNTESSA,IKNTPSA
      &         ,IKNTPNA,IKNTZDA,'acc'
-          WRITE(NULOUT
+          WRITE(*
      &         ,'(12x," =======================================================================",/)')
         endif
  888    FORMAT(1X,i4,a1,i4,10(2x,i6),1x,a3)
  890    FORMAT(1X,a9,9(2x,i6),1x,a3)
-      END DO
-
- 300  CONTINUE
+!$OMP END ORDERED
+      ENDDO FAMILY
+!$OMP END DO
+!$OMP END PARALLEL
 C
 C-----------------------------------------------------------------------
-      WRITE(NULOUT,'(1x," Number of data assimilated by 3d-var:",i10)')
-     &     IKNT
+      WRITE(*,'(1x," Number of data assimilated by 3d-var:",i10)')
+     &     sum(IKNT(:))
 C
 C
 C-----------------------------------------------------------------------
 C
-      WRITE(NULOUT,'(1X,"****************************************** ")')
-      WRITE(NULOUT,'(1X,"  ---END OF SUPREP---")')
-      WRITE(NULOUT,'(1X,"****************************************** ",/)')
+      WRITE(*,'(1X,"****************************************** ")')
+      WRITE(*,'(1X,"  ---END OF SUPREP---")')
+      WRITE(*,'(1X,"****************************************** ",/)')
 C
 C     SUM OVER ALL BINS SHOULD BE EQUAL TO obs_numbody(lobsSpaceData)
 C
       isum=0
       do jk=1,16
-        isum=isum+ibin(jk)
+        isum=isum+sum(ibin(jk,:))
       enddo
-      ISUM = ISUM + IBINS
-      write(nulout,*) ' isum obs_numbody(lobsSpaceData)  ',isum,obs_numbody(lobsSpaceData)
+      ISUM = ISUM + sum(IBINS(:))
+      write(*,*) ' isum obs_numbody(lobsSpaceData)  ',isum,obs_numbody(lobsSpaceData)
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
-      IF (IKNT .EQ. 0 ) THEN
-        call abort3d(nulout,'SUPREP. NO DATA TO BE ASSIMILATED')
+      IF (sum(IKNT(:)) .EQ. 0 ) THEN
+        call abort3d(6,'SUPREP. NO DATA TO BE ASSIMILATED')
       ENDIF
 C
       RETURN

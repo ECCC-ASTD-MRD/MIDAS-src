@@ -15,9 +15,7 @@
       use obsSpaceData_mod
       use verticalCoord_mod
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "pardim.cdk"
-#include "cvcord.cdk"
 #include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
@@ -45,11 +43,9 @@
       REAL*8, allocatable :: ZJHU (:)
       REAL*8 ZJP0, ZLSUM
 
-      INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO
-      INTEGER IDATYP, ITYP
-      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER INDEX_HEADER,FIRST_HEADER
+      INTEGER IDATYP,ITYP
+      INTEGER IDATA,IDATEND,INDEX_BODY
       INTEGER JL, JK
 
       LOGICAL  ASSIM, LLSHIFT, LLOK
@@ -79,39 +75,32 @@
          ZETA(JL) = vco_anl%DHYB_M(JL)
       ENDDO
 !C
-!C     Loop over all observation files (all observation types)
+      first_header=-1
 !C
-      DO JF = 1, NFILES
-!C
-!C     *  Process only GPS observation files (family = GP)
-!C
-         IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
-            IBEGIN   = NBEGINTYP(JF)
-            ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-!C
-!C     *     Loop over all GPS observations (locations) of the file
-!C
-            DO JO = IBEGINOB, ILASTOB
+      ! loop over all header indices of the 'GP' family
+      call obs_set_current_header_list(lobsSpaceData,'GP')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+         if(first_header.eq.-1) first_header=index_header
 !C     
 !C     *    .   Process only zenith delay data (codtyp 189 and BUFR_NEZD)
 !C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
                IF ( IDATYP .EQ. 189 ) THEN
 !C
 !C                 Loop over data in the observations
 !C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
                   ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them.
 !C
                   NH = 0
-                  DO JDATA= IDATA, IDATEND
-                     ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) )
+                  DO INDEX_BODY= IDATA, IDATEND
+                     ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1) )
                      IF ( LLOK ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
@@ -124,37 +113,37 @@
 !C     
 !C     *        LR background profile and background errors at the observation location x :
 !C
-                     ZLAT = obs_elem_r(lobsSpaceData,'LAT ',JO) &
+                     ZLAT = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                     ZLON = obs_elem_r(lobsSpaceData,'LON ',JO) &
+                     ZLON = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(LCOLUMNG)
-                       ZTTB(JL) = col_getElem(lcolumng,JL,JO,'TT')
-                       ZTT(JL)  = col_getElem(lcolumn,JL,JO,'TT')
-                       ZHUB(JL) = EXP(col_getElem(lcolumng,JL,JO,'HU'))
-                       ZHU(JL)  = col_getElem(lcolumn,JL,JO,'HU')
-                       ZGZ(JL)  = col_getElem(lcolumng,JL,JO,'GZ')
+                       ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')
+                       ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
+                       ZHUB(JL) = EXP(col_getElem(lcolumng,JL,INDEX_HEADER,'HU'))
+                       ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
+                       ZGZ(JL)  = col_getElem(lcolumng,JL,INDEX_HEADER,'GZ')
                      ENDDO
-                     ZP0B = col_getElem(lcolumng,1,JO,'P0')
-                     ZP0  = col_getElem(lcolumn,1,JO,'P0')
-                     ZPT  = col_getPressure(lcolumng,1,JO,'NA')
+                     ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
+                     ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
+                     ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,'NA')
                      ZMT  = ZGZ(col_getNumLev(LCOLUMNG))/GRAV
 !C
 !C     *        Call AD of ZTD observation operator to get Jacobians dH/dX
 !C 
                      NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 .AND. ITYP.EQ.BUFR_NEZD ) THEN
+                     DO INDEX_BODY= IDATA, IDATEND
+                        ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 .AND. ITYP.EQ.BUFR_NEZD ) THEN
                            NH1 = NH1 + 1
 !C
 !C     *                    Observation error    SDERR
-!c                           ZOER = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+!c                           ZOER = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
 !C
                            ZHX = 1.0
 !C
 !C     *                    Observation height (m)
-                           ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+                           ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
 
                       CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,ZHUB,ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZJTT,ZJHU,ZJP0,ZHX)
 
@@ -167,28 +156,25 @@
                              ZLSUM = ZLSUM +  (ZJTT(JL)*ZTT(JL))**2 + (ZJHU(JL)*ZHU(JL))**2 
                            ENDDO
                            ZLSUM = ZLSUM + (ZJP0*ZP0)**2
-                           call obs_set_r(lobsSpaceData,'HPHT',jdata,SQRT(ZLSUM))
+                           call obs_set_r(lobsSpaceData,'HPHT',index_body,SQRT(ZLSUM))
 
-                           IF (JO.EQ.IBEGINOB .AND. NH1.LE.3) THEN
-                            WRITE(NULOUT,'(A11,A9,3(1x,f7.2))')   &
-                               'SETFGEGPS: ',obs_elem_c(lobsSpaceData,'STID',JO),ZLAT,ZLON,ZLEV
-                            WRITE(NULOUT,*) 'JL JACT JACQ FGE_T FGE_LQ'
+                           IF (INDEX_HEADER.EQ.first_header .AND. NH1.LE.3) THEN
+                            WRITE(*,'(A11,A9,3(1x,f7.2))')   &
+                               'SETFGEGPS: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV
+                            WRITE(*,*) 'JL JACT JACQ FGE_T FGE_LQ'
                             DO JL = 1, col_getNumLev(LCOLUMNG)
-                              WRITE(NULOUT,'(1X,I2,4(1x,E13.6))') JL,ZJTT(JL),ZJHU(JL)/ZHUB(JL),ZTT(JL), ZHU(JL)
+                              WRITE(*,'(1X,I2,4(1x,E13.6))') JL,ZJTT(JL),ZJHU(JL)/ZHUB(JL),ZTT(JL), ZHU(JL)
                             ENDDO                         
-                            WRITE(NULOUT,*) 'JACPS FGE_PS'
-                            WRITE(NULOUT,'(2(1x,E13.6))') ZJP0, ZP0
+                            WRITE(*,*) 'JACPS FGE_PS'
+                            WRITE(*,'(2(1x,E13.6))') ZJP0, ZP0
                            ENDIF
 
                         ENDIF
                      ENDDO
                   ENDIF
                ENDIF
-            ENDDO
 
-         ENDIF
-
-      ENDDO
+      ENDDO HEADER
 
       deallocate(ZETA)
       deallocate(ZTT)

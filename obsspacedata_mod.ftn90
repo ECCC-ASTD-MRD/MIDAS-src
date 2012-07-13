@@ -1557,16 +1557,18 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       integer,allocatable                       :: int_cstnid_tmp(:,:)
+      integer,allocatable                       :: int_cfamily_tmp(:,:)
       real(OBS_REAL),allocatable,dimension(:,:) :: robdata_tmp
       real(OBS_REAL),allocatable,dimension(:,:) :: robhdr_tmp
       integer,allocatable,dimension(:,:) :: mobdata_tmp
       integer,allocatable,dimension(:,:) :: mobhdr_tmp 
 
-      integer :: ierr, sizeone
+      integer :: ierr
       integer :: numHeader_mpiglobal,numBody_mpiglobal
       integer :: indexBody_mpilocal,indexBody_mpiglobal
       integer :: indexHeader_mpilocal,indexHeader_mpiglobal
-      integer :: sizemobhdr,sizerobhdr,sizemobdata,sizerobdata,sizecstnid,strlen,indexChar
+      integer :: sizedata
+      integer :: indexChar
 #if OBS_REAL==4
       character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
 #elif OBS_REAL==8
@@ -1581,10 +1583,10 @@ contains
       end if
 
       ! determine number of rows in mpiglobal arrays
-      sizeone=1
-      call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiglobal,sizeone,"mpi_integer", &
+      sizedata=1
+      call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiglobal,sizedata,"mpi_integer", &
                               "mpi_sum","GRID",ierr)       
-      call rpn_comm_allreduce(obsdat%numBody,  numBody_mpiglobal,  sizeone,"mpi_integer", &
+      call rpn_comm_allreduce(obsdat%numBody,  numBody_mpiglobal,  sizedata,"mpi_integer", &
                               "mpi_sum","GRID",ierr)       
 
       ! allocate memory for the temporary arrays for header-level data
@@ -1592,30 +1594,37 @@ contains
       mobhdr_tmp(:,:)=0
       allocate(robhdr_tmp(NHDR_REAL,numHeader_mpiglobal))
       robhdr_tmp(:,:)=real(0.0d0, OBS_REAL)
-      strlen=len(obsdat%cstnid(1))
-      allocate(int_cstnid_tmp(numHeader_mpiglobal,strlen))
+      allocate(int_cstnid_tmp(numHeader_mpiglobal,len(obsdat%cstnid(1))))
       int_cstnid_tmp(:,:)=0
+      allocate(int_cfamily_tmp(numHeader_mpiglobal,len(obsdat%cfamily(1))))
+      int_cfamily_tmp(:,:)=0
 
       ! copy mpilocal data into temporary mpiglobal arrays for header-level data
       do indexHeader_mpilocal=1,obsdat%numHeader
          indexHeader_mpiglobal=obsdat%indexHeader_mpiglobal(indexHeader_mpilocal)
          mobhdr_tmp(1:NHDR_INT,indexHeader_mpiglobal)=obsdat%mobhdr(1:NHDR_INT,indexHeader_mpilocal)
          robhdr_tmp(1:NHDR_REAL,indexHeader_mpiglobal)=obsdat%robhdr(1:NHDR_REAL,indexHeader_mpilocal)
-         ! ATTN: for cstnid, character strings are converted to integer arrays!!!
-         do indexChar=1,strlen
+         ! ATTN: for cstnid and cfamily, character strings are converted to integer arrays!!!
+         do indexChar=1,len(obsdat%cstnid(1))
            int_cstnid_tmp(indexHeader_mpiglobal,indexChar) = iachar(obsdat%cstnid(indexHeader_mpilocal)(indexChar:indexChar))
+         enddo
+         do indexChar=1,len(obsdat%cfamily(1))
+           int_cfamily_tmp(indexHeader_mpiglobal,indexChar) = iachar(obsdat%cfamily(indexHeader_mpilocal)(indexChar:indexChar))
          enddo
       enddo
 
       ! merge the temporary global arrays for header-level data
-      sizemobhdr=size(mobhdr_tmp)
-      call rpn_comm_allreduce(mobhdr_tmp,mobhdr_tmp,sizemobhdr,"mpi_integer", &
+      sizedata=size(mobhdr_tmp)
+      call rpn_comm_allreduce(mobhdr_tmp,mobhdr_tmp,sizedata,"mpi_integer", &
          "mpi_sum","GRID",ierr)
-      sizerobhdr=size(robhdr_tmp)
-      call rpn_comm_allreduce(robhdr_tmp,robhdr_tmp,sizerobhdr,MPI_OBS_REAL, &
+      sizedata=size(robhdr_tmp)
+      call rpn_comm_allreduce(robhdr_tmp,robhdr_tmp,sizedata,MPI_OBS_REAL, &
          "mpi_sum","GRID",ierr)
-      sizecstnid=size(int_cstnid_tmp)
-      call rpn_comm_allreduce(int_cstnid_tmp,int_cstnid_tmp,sizecstnid,"mpi_integer", &
+      sizedata=size(int_cstnid_tmp)
+      call rpn_comm_allreduce(int_cstnid_tmp,int_cstnid_tmp,sizedata,"mpi_integer", &
+         "mpi_sum","GRID",ierr)
+      sizedata=size(int_cfamily_tmp)
+      call rpn_comm_allreduce(int_cfamily_tmp,int_cfamily_tmp,sizedata,"mpi_integer", &
          "mpi_sum","GRID",ierr)
 
       ! allocate memory for the temporary arrays for body-level data
@@ -1632,11 +1641,11 @@ contains
       enddo
 
       ! merge the temporary global arrays for body-level data
-      sizemobdata=size(mobdata_tmp)
-      call rpn_comm_allreduce(mobdata_tmp,mobdata_tmp,sizemobdata,"mpi_integer",&
+      sizedata=size(mobdata_tmp)
+      call rpn_comm_allreduce(mobdata_tmp,mobdata_tmp,sizedata,"mpi_integer",&
          "mpi_sum","GRID",ierr)
-      sizerobdata=size(robdata_tmp)
-      call rpn_comm_allreduce(robdata_tmp,robdata_tmp,sizerobdata,MPI_OBS_REAL,&
+      sizedata=size(robdata_tmp)
+      call rpn_comm_allreduce(robdata_tmp,robdata_tmp,sizedata,MPI_OBS_REAL,&
          "mpi_sum","GRID",ierr)
 
       ! destroy object's mpilocal data and allocate mpiglobal data
@@ -1644,10 +1653,13 @@ contains
       call obs_allocate(obsdat,numHeader_mpiglobal,obsdat%numBody_max)
 
       ! copy the temporary arrays to the object's arrays
-      !   ATTN: for cstnid, integer arrays converted back to character strings!!!
+      !   ATTN: for cstnid and cfamily, integer arrays converted back to character strings!!!
       do indexHeader_mpiglobal=1,numHeader_mpiglobal
-         do indexChar=1,strlen
+         do indexChar=1,len(obsdat%cstnid(1))
             obsdat%cstnid(indexHeader_mpiglobal)(indexChar:indexChar) = achar(int_cstnid_tmp(indexHeader_mpiglobal,indexChar))
+         enddo
+         do indexChar=1,len(obsdat%cfamily(1))
+            obsdat%cfamily(indexHeader_mpiglobal)(indexChar:indexChar) = achar(int_cfamily_tmp(indexHeader_mpiglobal,indexChar))
          enddo
       enddo
       obsdat%robhdr(:,:)=robhdr_tmp(:,:)
@@ -1659,6 +1671,7 @@ contains
 
       ! deallocate the temporary arrays
       deallocate(int_cstnid_tmp)
+      deallocate(int_cfamily_tmp)
       deallocate(robhdr_tmp)
       deallocate(mobhdr_tmp)
       deallocate(robdata_tmp)
@@ -2571,8 +2584,7 @@ contains
    end subroutine obs_readstns
 
 
-   subroutine obs_reduceToMpiLocal(obsdat, nfiles, nbegintyp, &
-      nendtyp, nbegintyp_g, nendtyp_g)
+   subroutine obs_reduceToMpiLocal(obsdat)
       !
       !**s/r obs_reduceToMpiLocal - re-construct observation data object by
       !                             giving  local Obs TAG. 
@@ -2587,9 +2599,6 @@ contains
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
-      integer, intent(in)    :: nfiles
-      integer, intent(inout) :: nbegintyp(:), nendtyp(:)
-      integer, intent  (out) :: nbegintyp_g(:), nendtyp_g(:)
 
       ! Declare Local Variables
       character(len=12),allocatable,dimension(:) :: cstnid_tmp
@@ -2685,34 +2694,6 @@ contains
       deallocate(mobhdr_tmp)
       deallocate(robdata_tmp)
       deallocate(mobdata_tmp)
-
-      ! rebuild NBEGINTYP and NENDTYP (will be eliminated soon)
-      !============================
-      jj=0
-      nbegintyp_g=nbegintyp
-      nendtyp_g=nendtyp
-
-      nbegintyp=0
-      nendtyp=0
-      do j=1,nfiles
-         lfirst=.true. 
-         do i=1,numHeader_mpilocal
-            istart=obsdat%mobhdr(NCM_RLN, i)
-            idata=obsdat%mobhdr(NCM_NLV, i)
-            ifamid=obsdat%mobhdr(NCM_OTP, i)
-            if(ifamid == j) then
-               if(lfirst) then
-                  nbegintyp(j) = istart 
-                  lfirst=.false. 
-               endif
-               jj=jj+idata 
-            endif
-         enddo
-         nendtyp(j) = jj 
-         if(nbegintyp(j) == 0)  nendtyp(j) = 0
-         write(*,*) 'J NBEGINTYP(j) NENDTYP(j)= ',j,nbegintyp(j), nendtyp(j), &
-                                                 ifamid
-      enddo
 
       obsdat%mpi_local = .true.
 

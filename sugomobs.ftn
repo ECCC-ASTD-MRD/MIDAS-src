@@ -36,7 +36,6 @@
       implicit none
 #include "comlun.cdk"
 #include "pardim.cdk"
-#include "cvcord.cdk"
 #include "comfilt.cdk"
 c
       type(struct_columnData) :: lcolumng,lcolumnhr
@@ -84,10 +83,10 @@ c   variables added to call vgd_levels
       real*8, dimension(:,:,:), pointer :: pobsm => null()
 
 
-      write(nulout,*) ' '
-      write(nulout,*) '-------- ENTERING SUGOMOBS ---------'
-      write(nulout,*) ' '
-      write(nulout,*) 'nstepobs=',nstepobs
+      write(*,*) ' '
+      write(*,*) '-------- ENTERING SUGOMOBS ---------'
+      write(*,*) ' '
+      write(*,*) 'nstepobs=',nstepobs
       call col_setNumStep(lcolumng,nstepobs)   ! from comfilt.cdk
 c
       vco_anl => col_getVco(lcolumng)
@@ -167,9 +166,9 @@ c     Get vertical coordinate parameters from trial field !! structure
 c
       nlv_M = vco_trl%nlev_M
       nlv_T = vco_trl%nlev_T
-      write(nulout,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
+      write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
 c      
-      write(nulout,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',vco_trl%dpt_T
+      write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',vco_trl%dpt_T
      &     ,vco_trl%dprf_T,vco_trl%drcf1
 c
 c     Allocation des tableaux a remplir par fillmvo
@@ -308,7 +307,7 @@ c
      &           ,ip1_pak_trl,ip1_vco_trl)
           if(nobs(jstep,jgrid) > 0) then
             if(itrlnlev <= 0) then
-              write(nulout,1002) varNameList2D(jvar),idate(jstep)
+              write(*,1002) varNameList2D(jvar),idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &             ,'SUGOMOBS:Problem with background file')
@@ -324,7 +323,7 @@ c
      &           cltypvar,varNameList2D(jvar))
             call tmg_stop(7)
             if(ier.lt.0)then
-              write(nulout,1001) varNameList2D(jvar),iip1s(1),idate(jstep)
+              write(*,1001) varNameList2D(jvar),iip1s(1),idate(jstep)
      &             ,itime(jstep)
 
               call abort3d(nulout
@@ -367,7 +366,7 @@ c
       status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,
      &                sfc_field=zovar,in_log=.false.)      
       if(status.ne.VGD_OK)then
-         write(nulout,*) 'ERROR with vgd_levels for desired levels '
+         write(*,*) 'ERROR with vgd_levels for desired levels '
          call exit(1)
       endif
 c
@@ -375,7 +374,7 @@ c
 c
       call col_fillmvo(lcolumng,'PP','NA',zppobsg)
       do jlev = 1,col_getNumLev(lcolumng)
-        write(nulout,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
+        write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
      +    jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
         call flush(nulout)
       enddo
@@ -390,9 +389,9 @@ c
 c
 c------- Calculate profiles of pressure values at station location
 
-      write(nulout,*) 'sugomobs:iversion= ',vco_trl%iversion
-      write(nulout,*) 'sugomobs:ikind= ',vco_trl%ikind
-      write(nulout,*) 'sugomobs:svcod= ',vco_trl%svcod
+      write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
+      write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
+      write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
 
 c------- General treatment of trial field 
 c------- addition for BGCK unstagered mode
@@ -403,7 +402,7 @@ c------  Compute Pressure fields at desired levels----------
      &                     levels=pobsm,sfc_field=zovar,in_log=.false.)
 c
          if(status.ne.VGD_OK)then
-            write(nulout,*) 'ERROR with vgd_levels for desired levels '
+            write(*,*) 'ERROR with vgd_levels for desired levels '
             call exit(1)
          endif
 c
@@ -414,7 +413,7 @@ c
      &                     levels=pobsm,sfc_field=zovar,in_log=.false.)
 c
          if(status.ne.VGD_OK)then
-             write(nulout,*) 'ERROR with vgd_levels for desired levels '
+             write(*,*) 'ERROR with vgd_levels for desired levels '
              call exit(1)
          endif
 c
@@ -426,7 +425,7 @@ c Remplir la pression sur le niveaux du trial au points d'observations
 c      
 c Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
 c
-      write(nulout,*)' ----- Initializing GZ ----'
+      write(*,*)' ----- Initializing GZ ----'
       do jgrid=1,numgrids
 c
 c     Get horizontal field parameters
@@ -435,12 +434,12 @@ c
      &         ,itrlgid,'GZ  ',obs_get_datestamp(lobsSpaceData),jpnflev*2
      &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
       if(itrlnlev <= 0 ) then
-        write(nulout,1002) 'GZ  ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
+        write(*,1002) 'GZ  ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &        ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
         call abort3d(nulout
      &       ,'SUGOMOBS:Problem with background file')
       endif
-      write(nulout,*) ' ITRLNLEV =',itrlnlev
+      write(*,*) ' ITRLNLEV =',itrlnlev
 c
       ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 c
@@ -459,7 +458,7 @@ c
      &          cltypvar,'GZ  ')
             zvar3d(:,:,jstep)=zvar(:,:)
             if(ier.lt.0)then
-              write(nulout,1001) 'GZ  ',iip1,idate(jstep)
+              write(*,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &            ,'SUGOMOBS:Problem with background file')
@@ -501,7 +500,7 @@ c
      &          cltypvar,'GZ  ')
             zvar3d(:,:,jstep)=zvar(:,:)
             if(ier.lt.0)then
-              write(nulout,1001) 'GZ  ',iip1,idate(jstep)
+              write(*,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
               call abort3d(nulout
      &            ,'SUGOMOBS:Problem with background file')
@@ -531,9 +530,9 @@ c
       call tmg_stop(27)
       enddo ! jgrid
 c
-          write(nulout,*) 'sugomobs:GZ_M*10.*rg '
+          write(*,*) 'sugomobs:GZ_M*10.*rg '
           do jlev = 1,nlv_M
-            write(nulout,*) 'GZ,',jlev
+            write(*,*) 'GZ,',jlev
      &           ,zPPOBS_M(jlev,1),zmobs_M(jlev,1)*10.*rg
           enddo
       zmobs_M(:,:)=zmobs_M(:,:)*10.0d0*RG
@@ -542,9 +541,9 @@ c
 c     remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
       call col_fillmvo(lcolumnhr,'GZ  ','NA',zmobs_M)
 
-          write(nulout,*) 'sugomobs:GZ_TH (*10.*rg)'
+          write(*,*) 'sugomobs:GZ_TH (*10.*rg)'
           do jlev = 1,nlv_T
-            write(nulout,*)'GZ,',jlev
+            write(*,*)'GZ,',jlev
      &           ,zPPOBS_T(jlev,1),zmobs_T(jlev,1)*10.*rg
           enddo
       zmobs_T(:,:)=zmobs_T(:,:)*10.0d0*RG
@@ -560,9 +559,9 @@ c
 c Variables sur les niveaux momentum
 c
         case ('UU')
-          write(nulout,*)' '
-          write(nulout,*)' ----- Initializing UU and VV  ----'
-          write(nulout,*)' '
+          write(*,*)' '
+          write(*,*)' ----- Initializing UU and VV  ----'
+          write(*,*)' '
           call flush(nulout)
 c
           do jgrid = 1,numgrids
@@ -571,12 +570,12 @@ c
      &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
      &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
-            write(nulout,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
+            write(*,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
             call abort3d(nulout
      &           ,'SUGOMOBS:Problem with background file')
           endif
-          write(nulout,*) ' ITRLNLEV =',itrlnlev,' nlv_M ',nlv_M
+          write(*,*) ' ITRLNLEV =',itrlnlev,' nlv_M ',nlv_M
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 c
 c loop through levels of UU,VV
@@ -595,7 +594,7 @@ c
      &               cltypvar,'UU  ')
                 zvar3d(:,:,jstep)=zvar(:,:)
                 if(ier.lt.0)then
-                  write(nulout,1001) 'UU  ',iip1,idate(jstep)
+                  write(*,1001) 'UU  ',iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
@@ -633,7 +632,7 @@ c
      &               cltypvar,'VV  ')
                 zvar3d(:,:,jstep)=zvar2(:,:)
                 if(ier.lt.0)then
-                  write(nulout,1001) 'VV  ',iip1,idate(jstep)
+                  write(*,1001) 'VV  ',iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
@@ -681,14 +680,14 @@ c
           call col_fillmvo(lcolumng,'VV  ','NA',zom_M)
 c
 c  Remplir dans un vecteur surdimentionne en repetant le dernier niveau
-          write(nulout,*) 'sugomobs: UU ,nlev= ',nlv_M
+          write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
           do jlev = 1,nlv_M
-            write(nulout,*) varNameList3D(jvar),jvar,jlev
+            write(*,*) varNameList3D(jvar),jvar,jlev
      &           ,zPPOBS_M(jlev,1),zmobs_M(jlev,1)
           enddo
-          write(nulout,*) 'sugomobs: VV ,nlev= ',nlv_M
+          write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
           do jlev = 1,nlv_M
-            write(nulout,*) varNameList3D(jvar),jvar,jlev
+            write(*,*) varNameList3D(jvar),jvar,jlev
      &           ,zPPOBS_M(jlev,1),zmobs2_M(jlev,1)
           enddo
 ccc dbug out
@@ -702,9 +701,9 @@ c
 c Variable sur les niveaux thermodynamiques
 c
         case ('TT','HU')
-          write(nulout,*)' '
-          write(nulout,*)' ----- Initializing ',varNameList3D(jvar),' ----'
-          write(nulout,*)' '
+          write(*,*)' '
+          write(*,*)' ----- Initializing ',varNameList3D(jvar),' ----'
+          write(*,*)' '
           call flush(nulout)
 c
           do jgrid = 1,numgrids
@@ -713,12 +712,12 @@ c
      &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
      &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
-            write(nulout,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
+            write(*,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
             call abort3d(nulout
      &          ,'SUGOMOBS:Problem with background file')
           endif
-          write(nulout,*) ' ITRLNLEV =',itrlnlev,' nlv_T ',nlv_T
+          write(*,*) ' ITRLNLEV =',itrlnlev,' nlv_T ',nlv_T
 c
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 c
@@ -739,7 +738,7 @@ c
      &                cltypvar,varNameList3D(jvar))
                 zvar3d(:,:,jstep)=zvar(:,:)
                 if(ier.lt.0)then
-                  write(nulout,1001) varNameList3D(jvar),iip1,idate(jstep)
+                  write(*,1001) varNameList3D(jvar),iip1,idate(jstep)
      &                 ,itime(jstep)
                   call abort3d(nulout
      &                 ,'SUGOMOBS:Problem with background file')
@@ -843,9 +842,9 @@ c
       deallocate(dlatfld)
       deallocate(dlonfld)
 c
-      write(nulout,*) ' '
-      write(nulout,*) '-------- Leaving SUGOMOBS ---------'
-      write(nulout,*) ' '
+      write(*,*) ' '
+      write(*,*) '-------- Leaving SUGOMOBS ---------'
+      write(*,*) ' '
  1001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level'
      &     ,i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
  1002 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x

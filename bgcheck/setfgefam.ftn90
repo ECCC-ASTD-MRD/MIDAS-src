@@ -13,67 +13,65 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
-#include "cvcord.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       CHARACTER*2 CDFAM
       INTEGER IPB,IPT
-      INTEGER IOBS,ITYP,IK,IBEGIN,ILAST
-      INTEGER J,JDATA
+      INTEGER INDEX_HEADER,ITYP,IK
+      INTEGER INDEX_BODY
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
 
-      DO J = 1,NFILES
-      IF ( (CFAMTYP(J) .EQ. CDFAM ) .AND.( NBEGINTYP(J) .GT. 0) ) THEN
-         IBEGIN=NBEGINTYP(J)
-          ILAST=NENDTYP(J)
+      ! loop over all header indices of the CDFAM family
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
+         ! loop over all body indices for this index_header
+         call obs_set_current_body_list(lobsSpaceData, index_header)
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
 !C
 !C*    1. Computation of sigmap
 !C     .  -----------------------------
 !C
-        write(nulout,*) 'setfgefam: CDFAM=',CDFAM
-        write(nulout,*) 'setfgefam: IBEGIN,ILAST=',IBEGIN,ILAST
-         DO JDATA=IBEGIN,ILAST
-!ccc            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
-            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1 .AND.   &
-                 obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2      ) then
-            IF  (obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0) THEN
+            IF ( obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1 .AND.   &
+                 obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2      ) then
+            IF  (obs_elem_i(lobsSpaceData,'XTR ',index_body) .NE. 0) THEN
                IK   = col_getNumLev(LCOLUMNG)-1
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',index_body)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
-               call obs_set_r(lobsSpaceData,'HPHT',jdata,col_getElem(lcolumn,IPB,IOBS))
+               call obs_set_r(lobsSpaceData,'HPHT',index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
             ELSE
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',jdata)
-               IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',index_body)
+               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',index_body)
+               IK   = obs_elem_i(lobsSpaceData,'LYR ',index_body)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT+1
-               ZPT  = col_getPressure(lcolumng,IK,IOBS,'NA')
-               ZPB  = col_getPressure(lcolumng,IK+1,IOBS,'NA')
+               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,'NA')
+               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,'NA')
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 !C
 !C              FIRST GUESS ERROR VARIANCE
 !C
-               call obs_set_r(lobsSpaceData,'HPHT',jdata,   &
-                    (ZWB*col_getElem(lcolumn,IPB,IOBS) + ZWT*col_getElem(lcolumn,IPT,IOBS)))
-               if(obs_elem_r(lobsSpaceData,'HPHT',jdata).le.0.d0) then
-                 write(nulout,*) 'SETFGEFAM: CDFAM = ',CDFAM
-                 write(nulout,*) 'SETFGEFAM: lcolumn_all(IPB,IOBS)=',col_getElem(lcolumn,IPB,IOBS)
-                 write(nulout,*) 'SETFGEFAM: lcolumn_all(IPT,IOBS)=',col_getElem(lcolumn,IPT,IOBS)
-                 CALL ABORT3D(NULOUT,'SETFGEFAM: First-guess stdev bad value')
+               call obs_set_r(lobsSpaceData,'HPHT',index_body,   &
+                    (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)))
+               if(obs_elem_r(lobsSpaceData,'HPHT',index_body).le.0.d0) then
+                 write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
+                 write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',col_getElem(lcolumn,IPB,INDEX_HEADER)
+                 write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',col_getElem(lcolumn,IPT,INDEX_HEADER)
+                 CALL ABORT3D(6,'SETFGEFAM: First-guess stdev bad value')
                endif
             ENDIF
             ENDIF
 
-         END DO
+         END DO BODY
 
-      ENDIF
-      END DO
+      END DO HEADER
 
       RETURN
       END SUBROUTINE SETFGEFAM

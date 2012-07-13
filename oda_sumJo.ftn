@@ -13,156 +13,145 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
+
+      SUBROUTINE oda_sumJo(lobsSpaceData,pjo)
+
+! Purpose:
+!   Compute the sum of Jo contributions saved in ROBDATA(NCM_OMI,*)
+!   Also, compute contribution of each family of observation (for
+!   diagnostic purposes)
 !
-      SUBROUTINE oda_sumJo(lobsSpaceData,PJO)
+! Author  : S. Pellerin *ARMA/MRB January 2009
+
       use masks_mod
       use mpi
       use obsSpaceData_mod
       implicit none
       real*8 pjo ! Total observation cost function
-c
-c Purpose:
-c Compute the sum of Jo contributions saved in ROBDATA8(NCM_OMI,*)
-c Also, compute contribution of each family of observation (for
-c diagnostic purposes)
-c
-c Author  : S. Pellerin *ARMA/MRB January 2009
-c
-c Revision:
-c L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
-c
-c S. Macpherson, ARMA 14 Sep 2009. Add ground-based GPS (ZTD).
-C  Bin He   *ARMA/MRB  Oct.  2009
-C         -- Implement MPI to 3DVAR
-c L. Fillion, ARMA/EC, 11 May 2010. Limit printout to processor 0.
-c L. Fillion, ARMA/EC, 20 May 2010. Relocate call to restore_robdata8
-C              and correct bug ROBDATA8(NCM_OMI,JDATA)
 
-#include "comlun.cdk"
-#include "cvcord.cdk"
-*
       type(struct_obs) :: lobsSpaceData
-      INTEGER IBEGIN,ILAST,ILASTOB,IBEGINOB,IDATEND
-      INTEGER J,JDATA,JO,IDATA,ITYP,indata,numbody_max
-      LOGICAL LLOK
+      integer index_body,numbody_max
       logical, pointer,dimension(:) :: llmask
 
-      real*8,target :: dljoraob,dljoairep,dljosatwind,dljosurfc,dljotov
-      real*8,target :: dljoprof,dljogpsro,dljogpsztd
-      real*8 :: dlsum1
-      real*8, pointer :: dlsum
-C
-      !logical,allocatable, dimension(:) :: lmask_g 
-      real*8,allocatable, dimension(:) :: ROBDATA8_g  
-      integer :: ierr 
-C Compute the observation cost function value based on the sequence of
-c the data array
-C 
+      real*8 :: dljoraob,dljoairep,dljosatwind,dljosurfc,dljotov
+      real*8 :: dljoprof,dljogpsro,dljogpsztd
+      real*8,allocatable :: robdata_g(:)
+      character(len=2),pointer,save :: family_g(:)
+      integer :: ierr
+
+      call tmg_start(91,'SUMJO')
+
       numbody_max=obs_numbody_max(lobsSpaceData)
-      ALLOCATE(ROBDATA8_g(numbody_max),STAT=ierr)
-      IF(ierr /= 0 ) CALL ABORT3D(nulout,'Cannt Allocate Mem. to ROBDATA_g')
+      allocate(robdata_g(numbody_max))
 
+      call tmg_start(92,'SUMJO_RESTORE')
+      CALL restore_robdata_family(robdata_g,family_g,numbody_max)  
+      call tmg_stop(92)
 
-        CALL restore_robdata8(robdata8_g,numbody_max)  
-         pjo = pjo + sumJo(1,numbody_max,lmask_g)
-c
-c       Compute family contributions for diagnostic purposes
-c       The remaining of the code has no effect on the minimization
-c
-        dljogpsztd = 0.d0
-        dljoraob = 0.d0
-        dljoairep = 0.d0
-        dljosatwind = 0.d0
-        dljosurfc = 0.d0
-        dljotov = 0.d0
-        dljogpsro = 0.d0
-        dljoprof = 0.d0
+      dljogpsztd = 0.d0
+      dljoraob = 0.d0
+      dljoairep = 0.d0
+      dljosatwind = 0.d0
+      dljosurfc = 0.d0
+      dljotov = 0.d0
+      dljogpsro = 0.d0
+      dljoprof = 0.d0
 
-        DO J = 1,NFILES
-      !bhe  IF (NBEGINTYP(J) .GT. 0)THEN
-          select case(CFAMTYP(J))
-            case('UA')
-              ! llmask = lmaskpp_in .or. lmaskpp_out
-              llmask => lmaskpp_inout_g(1:numbody_max)
-              dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
-              dljoraob = dljoraob + dlsum1
+      do index_body=1,numbody_max
+        ! total observation cost function
+        if(lmask_g(index_body)) pjo = pjo + robdata_g(index_body)
 
-              llmask => lmasksf_inout_g(1:numbody_max)
-              dlsum => dljosurfc
-            case('AI')
-              llmask => lmaskpp_inout_g(1:numbody_max)
-              dlsum => dljoairep
-            case('SW')
-              llmask => lmaskpp_inout_g(1:numbody_max) 
-              dlsum => dljosatwind
-            case('SF','SC')
-              llmask => lmasksf_inout_g(1:numbody_max) 
-              dlsum => dljosurfc
-            case('TO')
-              llmask => lmaskto_g(1:numbody_max)
-              dlsum => dljotov
-            case('RO')
-              llmask => lmaskro_g(1:numbody_max)
-              dlsum => dljogpsro
-            case('PR')
-              llmask => lmaskzp_g(1:numbody_max)
-              dlsum => dljoprof
-            case('GP')
-              llmask => lmaskgp_g(1:numbody_max)
-              dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
-              dljogpsztd = dljogpsztd + dlsum1
-              llmask = lmasksf_inout_g(1:numbody_max) 
-              dlsum => dljosurfc
-          end select
-          dlsum1 = sumJo(nbegintyp_g(j),nendtyp_g(j),llmask)
-          dlsum = dlsum + dlsum1
-        end do
-!
-        IF(mpi_myid == 0) THEN
-          write(nulout,'(a15,f23.16)') 'Jo(RAOB)   = ',DLJORAOB
-          write(nulout,'(a15,f23.16)') 'Jo(AIREP)  = ',DLJOAIREP
-          write(nulout,'(a15,f23.16)') 'Jo(SURFC)  = ',DLJOSURFC
-          write(nulout,'(a15,f23.16)') 'Jo(ATOV)   = ',DLJOTOV
-          write(nulout,'(a15,f23.16)') 'Jo(SATWIND)= ',DLJOSATWIND
-          write(nulout,'(a15,f23.16)') 'Jo(PROF)   = ',DLJOPROF
-          write(nulout,'(a15,f23.16)') 'Jo(GPSRO)  = ',DLJOGPSRO
-          write(nulout,'(a15,f23.16)') 'Jo(GPSZTD) = ',DLJOGPSZTD
-        endif 
-        DEALLOCATE(robdata8_g) 
-!
+        ! subcomponents of observation cost function (diagnostic only)
+        select case(family_g(index_body))
+        case('UA')
+          if(lmaskpp_inout_g(index_body)) dljoraob = dljoraob + robdata_g(index_body)
+          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+        case('AI')
+          if(lmaskpp_inout_g(index_body)) dljoairep = dljoairep + robdata_g(index_body)
+        case('SW')
+          if(lmaskpp_inout_g(index_body)) dljosatwind = dljosatwind + robdata_g(index_body)
+        case('SF')
+          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+        case('SC')
+          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+        case('TO')
+          if(lmaskto_g(index_body)) dljotov = dljotov + robdata_g(index_body)
+        case('RO')
+          if(lmaskro_g(index_body)) dljogpsro = dljogpsro + robdata_g(index_body)
+        case('PR')
+          if(lmaskzp_g(index_body)) dljoprof = dljoprof + robdata_g(index_body)
+        case('GP')
+          if(lmaskgp_g(index_body)) dljogpsztd = dljogpsztd + robdata_g(index_body)
+          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+        end select
+      enddo
+
+      if(mpi_myid == 0) then
+        write(*,'(a15,f23.16)') 'Jo(RAOB)   = ',dljoraob
+        write(*,'(a15,f23.16)') 'Jo(AIREP)  = ',dljoairep
+        write(*,'(a15,f23.16)') 'Jo(SURFC)  = ',dljosurfc
+        write(*,'(a15,f23.16)') 'Jo(ATOV)   = ',dljotov
+        write(*,'(a15,f23.16)') 'Jo(SATWIND)= ',dljosatwind
+        write(*,'(a15,f23.16)') 'Jo(PROF)   = ',dljoprof
+        write(*,'(a15,f23.16)') 'Jo(GPSRO)  = ',dljogpsro
+        write(*,'(a15,f23.16)') 'Jo(GPSZTD) = ',dljogpsztd
+      endif 
+
+      deallocate(robdata_g) 
+
+      call tmg_stop(91)
+
       contains
 
-      function sumJo(kbegin,klast,ll_mask)
-*
-      real*8  :: sumJo
-      integer, intent(in) :: kbegin,klast
-      logical, intent(in),dimension(numbody_max) :: ll_mask
-*
-*     Local variables
-*
-      integer :: jdata
-      sumJo = 0.d0
-      DO JDATA=kbegin,klast
-        IF (ll_mask(jdata)) THEN
-          sumJo = sumJo + ROBDATA8_g(JDATA)
-        ENDIF
-      END DO
-      return
-      END function sumJo
+        subroutine restore_robdata_family(robdata_g,family_g,numBody_mpiglobal)
+         integer :: numBody_mpiglobal 
+         real*8  :: robdata_g(:)
 
-      SUBROUTINE restore_robdata8(robdata8_g,kdata)
-       INTEGER :: kdata 
-       REAL*8 ,DIMENSION(kdata) :: robdata8_g
+         integer :: bodyIndex_mpilocal,bodyIndex_mpiglobal,ierr,index_string  
+         character(len=*),pointer :: family_g(:)
+         integer, allocatable :: int_family_g(:,:)
+         character(len=2) :: family_string
+         logical, save :: first_time=.true.
 
-       INTEGER :: bodyIndex_mpilocal,bodyIndex_mpiglobal,ierr  
+         ! restore the mpi-global cost function contributions
+         robdata_g(:)=0.0D0  
+         do bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
+           bodyIndex_mpiglobal=obs_elem_i(lobsSpaceData,'GBI ',bodyIndex_mpilocal)
+           robdata_g(bodyIndex_mpiglobal)=obs_elem_r(lobsSpaceData,'OMI ',bodyIndex_mpilocal)
+         enddo  
+         call rpn_comm_allreduce(robdata_g,robdata_g,numBody_mpiglobal,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 
 
-       robdata8_g=0.0D0  
-       DO bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
-         bodyIndex_mpiglobal=obs_elem_i(lobsSpaceData,'GBI ',bodyIndex_mpilocal)
-         robdata8_g(bodyIndex_mpiglobal)=obs_elem_r(lobsSpaceData,'OMI ',bodyIndex_mpilocal)
-       ENDDO  
-       CALL rpn_comm_allreduce(ROBDATA8_g,ROBDATA8_g,kdata,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 
+         ! due to cost, only restore the mpi-global family code once and save result
+         ! NOTE: assumed not to change after first call
+         if(first_time) then
 
-      END SUBROUTINE restore_robdata8
+           allocate(family_g(numBody_mpiglobal))
+           allocate(int_family_g(numBody_mpiglobal,2))
+           int_family_g(:,:)=0.0d0  
+
+           ! convert character to integer with iachar so that "allreduce" can be used
+           do bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
+             bodyIndex_mpiglobal=obs_elem_i(lobsSpaceData,'GBI ',bodyIndex_mpilocal)
+             family_string = obs_getFamily(lobsSpaceData,bodyIndex=bodyIndex_mpilocal)
+             do index_string=1,2
+               int_family_g(bodyIndex_mpiglobal,index_string)=iachar(family_string(index_string:index_string))
+             enddo
+           enddo  
+
+           call rpn_comm_allreduce(int_family_g,int_family_g,2*numBody_mpiglobal,"MPI_INTEGER","MPI_SUM","GRID",ierr) 
+
+           ! convert integer back to character with achar
+           do bodyIndex_mpiglobal=1,numBody_mpiglobal
+             do index_string=1,2
+               family_g(bodyIndex_mpiglobal)(index_string:index_string)=achar(int_family_g(bodyIndex_mpiglobal,index_string))
+             enddo
+           enddo  
+
+           deallocate(int_family_g)
+           first_time=.false.
+
+         endif
+
+        end subroutine restore_robdata_family
 
       end subroutine oda_sumJo

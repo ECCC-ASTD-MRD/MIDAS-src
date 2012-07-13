@@ -30,10 +30,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   use verticalCoord_mod
   IMPLICIT NONE
 #include "pardim.cdk"
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "cvcord.cdk"
   logical,intent(inout) :: iasi_end
   integer,intent(in) :: iasi_loop_done
   type(struct_columnData),intent(in) :: lcolumnhr
@@ -42,8 +40,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   type(struct_vco), pointer :: vco_trl
   INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
   INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBIASI
-  INTEGER       :: JDATA,IDATA,IDATEND,IDIASI
-  INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
+  INTEGER       :: INDEX_BODY,IDATA,IDATEND,IDIASI,INDEX_HEADER
+  INTEGER       :: IDATYP
   INTEGER       :: DIFFTOP_MIN
   INTEGER ,SAVE :: IMODTOP
   INTEGER       :: count_iasi
@@ -113,24 +111,21 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   count_iasi = 0
   iasi_end = .true. ! set to false if at least 1 obs beyond this bunch
 
-  DO JF = 1, NFILES
-     IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-        IBEGIN   = NBEGINTYP(JF)
-        ILAST    = NENDTYP(JF)
-        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
-        DO JO = IBEGINOB, ILASTOB
-           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+  ! loop over all header indices of the 'TO' family
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER
+
+     IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
             
-           IF ( IDATYP .EQ. 186) THEN
-              count_iasi = count_iasi + 1
-              IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
-                   count_iasi <= (iasi_loop_done+1) * bunch_iasi ) NPRF = NPRF + 1
-              IF ( count_iasi > (iasi_loop_done+1) * bunch_iasi ) iasi_end = .false.
-           END IF
-        END DO
+     IF ( IDATYP .EQ. 186) THEN
+        count_iasi = count_iasi + 1
+        IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
+             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) NPRF = NPRF + 1
+        IF ( count_iasi > (iasi_loop_done+1) * bunch_iasi ) iasi_end = .false.
      END IF
-  END DO
+  END DO HEADER
 
 
 ! ** find number of IASI channels and RTTOV levels
@@ -138,7 +133,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   NCHN = coef(idiasi)%fmv_chn
   NLEV = coef(idiasi)%nlevels    
 
-  write(nulout,*) ' IASIQC - nchn ', nchn
+  write(*,*) ' IASIQC - nchn ', nchn
 
 ! information to extract (transvidage)
 ! ------------------------------------
@@ -254,8 +249,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   allocate ( CORFLAG(IASISNCH,NPRF),        stat= alloc_status(83))
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' iasiqc : memory allocation error'
-     call abort3d(nulout,'iasiqc        ')
+     write(*,*) ' iasiqc : memory allocation error'
+     call abort3d(6,'iasiqc        ')
   end if
 
 
@@ -315,18 +310,13 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       NOBTOV = 0
       count_iasi = 0
 
-      DO JF = 1, NFILES
+      ! loop over all header indices of the 'TO' family
+      call obs_set_current_header_list(lobsSpaceData,'TO')
+      HEADER_2: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER_2
 
-        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-
-          IBEGIN   = NBEGINTYP(JF)
-          ILAST    = NENDTYP(JF)
-          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
-
-          DO JO = IBEGINOB, ILASTOB
-
-            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
 
             IF ( IDATYP .EQ. 164 .OR. &
      &           IDATYP .EQ. 168 .OR. &
@@ -345,28 +335,28 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
                 NOBIASI = NOBIASI + 1
 
-                call read_avhrrparam(JO,out_avhrr_param(NOBIASI),access_mode=1)
-                call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(JO)%sunza, avhrr_bgck(JO) )
-                call stat_avhrr(out_avhrr_param(NOBIASI), avhrr_bgck(JO))
+                call read_avhrrparam(INDEX_HEADER,out_avhrr_param(NOBIASI),access_mode=1)
+                call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(INDEX_HEADER)%sunza, avhrr_bgck(INDEX_HEADER) )
+                call stat_avhrr(out_avhrr_param(NOBIASI), avhrr_bgck(INDEX_HEADER))
 
-                ZTG(NOBIASI) = col_getElem(lcolumnhr,1,JO,'TG')
-                ZPS(NOBIASI) = col_getElem(lcolumnhr,1,JO,'P0') &
+                ZTG(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
+                ZPS(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
-                ZLAT(NOBIASI) = obs_elem_r(lobsSpaceData,'LAT ',jo) &
+                ZLAT(NOBIASI) = obs_elem_r(lobsSpaceData,'LAT ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                ZLON(NOBIASI) = obs_elem_r(lobsSpaceData,'LON ',jo) &
+                ZLON(NOBIASI) = obs_elem_r(lobsSpaceData,'LON ',index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')
-                  ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'TT')
-                  ZHT(JL,NOBIASI) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
-                  ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,JO,'HU')
-                  ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,JO,'TH') &
+                  ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
+                  ZHT(JL,NOBIASI) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
+                  ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+                  ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') &
                                                              * MPC_MBAR_PER_PA_R8
                 END DO
 
-                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',jo)
-                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',jo) + IDATA - 1
+                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',index_header)
+                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',index_header) + IDATA - 1
 
                 BAD=.false.
                 if (out_avhrr_param(NOBIASI)%GQISFLAGQUAL/=0 .or. &
@@ -374,19 +364,19 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
      &              BAD=.true.
     
 
-                DO JDATA= IDATA, IDATEND
-                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                    ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
+                DO INDEX_BODY= IDATA, IDATEND
+                   IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                    ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                    BTOBSERR(IASISCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-                    BTOBS(IASISCH(ICHN),NOBIASI) = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                    BTOBSERR(IASISCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+                    BTOBS(IASISCH(ICHN),NOBIASI) = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
 ! *** Flag check on observed BTs ***
                     IF (BAD) THEN
                        REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
                     ENDIF
 
 ! *** Set if data has been bias corrected (bit 6 set) ***
-                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),6)) THEN
+                    IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),6)) THEN
                        CORFLAG(IASISCH(ICHN),NOBIASI) = 1
                     END IF
 
@@ -423,7 +413,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
                 KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
 !Test pour detecter le isatzen manquant ou anormal pour IASI
-                if ( obs_elem_i(lobsSpaceData,'SZA ',JO) > 16500) then
+                if ( obs_elem_i(lobsSpaceData,'SZA ',INDEX_HEADER) > 16500) then
                    DO JC = 1, NCHN
                       ICHN = ichan(JC,IDIASI)
                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
@@ -449,11 +439,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
             END IF
 
-          END DO
-
-        END IF
-
-      END DO
+      END DO HEADER_2
 
 
 ! ** find TOA radiances converted from observed BT's
@@ -506,10 +492,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
             ICHREF(JN) = -1
             CLDFLAG(JN) = -1
             REJFLAG(:,JN,9) = 1
-            write(nulout,*) 'WARNING'
-            write(nulout,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
-            write(nulout,*) 'HAVE BEEN REJECTED.                             '
-            write(nulout,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
+            write(*,*) 'WARNING'
+            write(*,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
+            write(*,*) 'HAVE BEEN REJECTED.                             '
+            write(*,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
           END IF
         END IF
       END DO
@@ -739,10 +725,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
          IF (cpt==nco2) THEN
             CLDFLAG(JN) = -1
             REJFLAG(:,JN,9) = 1
-            write(nulout,*) 'WARNING'
-            write(nulout,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
-            write(nulout,*) 'HAVE BEEN REJECTED.                             '
-            write(nulout,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
+            write(*,*) 'WARNING'
+            write(*,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
+            write(*,*) 'HAVE BEEN REJECTED.                             '
+            write(*,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
          ENDIF
       END DO
 
@@ -844,10 +830,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
           END IF
         END DO
 
-        write(nulout,*) 'TOIT DU MODELE (MB)'
-        write(nulout,*) 0.01*vco_trl%DPT_M
-        write(nulout,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
-        write(nulout,*) IMODTOP
+        write(*,*) 'TOIT DU MODELE (MB)'
+        write(*,*) 0.01*vco_trl%DPT_M
+        write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
+        write(*,*) IMODTOP
 
       END IF
 
@@ -998,36 +984,33 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       NOBIASI = 0
       count_iasi = 0
 
-      DO JF = 1, NFILES
-        IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-          IBEGIN   = NBEGINTYP(JF)
-          ILAST    = NENDTYP(JF)
-          IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-          ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
-          DO JO = IBEGINOB, ILASTOB
-            IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
-            IF ( IDATYP .EQ. 186) THEN
-              count_iasi = count_iasi + 1
-              IF ( count_iasi > iasi_loop_done * bunch_iasi .AND. &
-     &             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN 
-                NOBIASI = NOBIASI + 1
-                IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-                DO JDATA= IDATA, IDATEND
-                   IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                     ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
-                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                     DO NFLG = 0, BITFLAG
-                       IF ( REJFLAG(IASISCH(ICHN),NOBIASI,NFLG) == 1 ) &
-     &                  call obs_set_i(lobsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),NFLG))
-                     END DO
-                   END IF
-                END DO
-              END IF
-            END IF
-          END DO
-        END IF
-      END DO
+      ! loop over all header indices of the 'TO' family
+      call obs_set_current_header_list(lobsSpaceData,'TO')
+      HEADER_3: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER_3
+
+         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+         IF ( IDATYP .EQ. 186) THEN
+           count_iasi = count_iasi + 1
+           IF ( count_iasi > iasi_loop_done * bunch_iasi .AND. &
+     &          count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN 
+             NOBIASI = NOBIASI + 1
+             IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+             IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+             DO INDEX_BODY= IDATA, IDATEND
+                IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                  ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+                  ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                  DO NFLG = 0, BITFLAG
+                    IF ( REJFLAG(IASISCH(ICHN),NOBIASI,NFLG) == 1 ) &
+     &               call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,IBSET(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),NFLG))
+                  END DO
+                END IF
+             END DO
+           END IF
+         END IF
+      END DO HEADER_3
 
  
 !* -- ADDITION OF NEW IASI INFORMATION IN BURP FILE

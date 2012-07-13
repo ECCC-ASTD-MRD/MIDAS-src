@@ -20,9 +20,7 @@
       use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "comlun.cdk"
 #include "comct0.cdk"
-#include "cvcord.cdk"
 #include "comgpsro.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
@@ -43,11 +41,9 @@
 
       REAL*8 ZOBS, ZMHX
 
-      INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO, JD
+      INTEGER INDEX_HEADER, JD
       INTEGER IDATYP
-      INTEGER IDATA   , IDATEND, JDATA
+      INTEGER IDATA   , IDATEND, INDEX_BODY
       INTEGER JL, JH,  NGPSLEV
       INTEGER NH, NH1
 
@@ -58,9 +54,9 @@
       REAL(DP)     , ALLOCATABLE :: H   (:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
 
-      WRITE(NULOUT,*)'ENTER BGCSGPSRO'
-      WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
-      WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
+      WRITE(*,*)'ENTER BGCSGPSRO'
+      WRITE(*,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
+      WRITE(*,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
 
       LSTAG = .FALSE.
       vco_trl => col_getVco(lcolumnhr)
@@ -81,37 +77,32 @@
 !C
 !C*    *        1.2 Read the NAMELIST NAMGGPSRO
 !C     *       ---------------------------------------
-      write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
+      write(*,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
 !C
 !C     Loop over all files
 !C
-      DO JF = 1, NFILES
-         IF ( CFAMTYP(JF).EQ.'RO' .AND. NBEGINTYP(JF).GT.0 ) THEN
-            IBEGIN   = NBEGINTYP(JF)
-            ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
-!C
-!C     *     Loop over all observations of the file
-!C
-            DO JO = IBEGINOB, ILASTOB
+      ! loop over all header indices of the 'RO' family
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
 !C     
 !C     *        Process only refractivity data (codtyp 169)
 !C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
                IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C                 Loops over data in the observation
 !C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
                   ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them
 !C
                   NH = 0
-                  DO JDATA= IDATA, IDATEND
-                     IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                  DO INDEX_BODY= IDATA, IDATEND
+                     IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -123,24 +114,24 @@
 !C     
 !C     *              Profile at the observation location:
 !C
-                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',JO)
-                     Lon  = obs_elem_r(lobsSpaceData,'LON ',JO)
+                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER)
+                     Lon  = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-                     ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
+                     ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                      DO JL = 1, col_getNumLev(lcolumnhr)
 !C
 !C     *                 Profile x
 !C
-                        ZPP(JL) = col_getPressure(lcolumnhr,JL,JO,'TH')
+                        ZPP(JL) = col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH')
 !CCCCCCCCC THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
                         ZDP(JL) = ZPP(JL)/ZP0
-                        ZTT(JL) = col_getElem(lcolumnhr,JL,JO,'TT')-273.15
-                        ZHU(JL) = col_getElem(lcolumnhr,JL,JO,'HU')
-                        ZGZ(JL) = col_getHeight(lcolumnhr,JL,JO,'TH')
+                        ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-273.15
+                        ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+                        ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
                      ENDDO
-                     ZP0 = col_getElem(lcolumnhr,1,JO,'P0')
-                     ZPT = col_getPressure(lcolumnhr,1,JO,'TH')
+                     ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
+                     ZPT = col_getPressure(lcolumnhr,1,INDEX_HEADER,'TH')
                      ZMT = ZGZ(col_getNumLev(lcolumnhr))/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPR = vco_trl%dprf_M
@@ -162,10 +153,10 @@
                      ALLOCATE( H    (NH) )
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                     DO INDEX_BODY= IDATA, IDATEND
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                          ENDIF
                      ENDDO
@@ -177,8 +168,8 @@
 !C     *              Perform the (H(x)-Y)/H operation
 !C
                      NH1 = 0
-                     DO JDATA= IDATA, IDATEND
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                     DO INDEX_BODY= IDATA, IDATEND
+                        IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
                            NH1 = NH1 + 1
 !C
 !C     *                    Observation operator H(x)
@@ -187,14 +178,14 @@
 !C
 !C     *                    Observation value    Y
 !C
-                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
 !C                           
 !C                          OMF Tested criteria:
 !C
                            IF (DABS(ZOBS-ZMHX)/ZMHX.GT.BGCKBAND) THEN
-                              call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),16))
-                              call obs_set_i(lobsSpaceData,'FLG ',jdata,IBSET(obs_elem_i(lobsSpaceData,'FLG ',jdata),9))
-                              WRITE(nulout,'(A40,F10.0,3F12.4)')  &
+                              call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),16))
+                              call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),9))
+                              WRITE(*,'(A40,F10.0,3F12.4)')  &
                                   ' REJECT BGCSGPSRO H  O  P (O-P/P) =',H(NH1),ZOBS,ZMHX,(ZOBS-ZMHX)/ZMHX
                            ENDIF
                         ENDIF
@@ -203,11 +194,9 @@
                      DEALLOCATE( H    )
                   ENDIF
                ENDIF
-            ENDDO
 
-         ENDIF
-      ENDDO
-      WRITE(NULOUT,*)'EXIT BGCSGPSRO'
+      ENDDO HEADER
+      WRITE(*,*)'EXIT BGCSGPSRO'
       RETURN
       END SUBROUTINE BGCGPSRO
 

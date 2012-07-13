@@ -235,7 +235,7 @@ C
 C
                      IF (FIRSTHEADER) THEN
                         WRITE(*,
-     +                       '(A9,i5,2f7.2,f8.0,3f9.4,15f12.4)')
+     +                       '(A9,i10,2f7.2,f8.0,3f9.4,15f12.4)')
      +                       'DOBSGPSRO',
      +                       INDEX_HEADER,ZLAT,ZLON,
      +                       h(nh1),ZOBS,ZOER,ZMHX,ZINC,
@@ -250,7 +250,7 @@ C
                DEALLOCATE( RSTV )
                DEALLOCATE( H    )
                WRITE(*,
-     +              '(A9,i5,2f7.2,f18.10,3f9.4,15f12.4)')
+     +              '(A9,i10,2f7.2,f18.10,3f9.4,15f12.4)')
      +              'GPSRO_JO',INDEX_HEADER,ZLAT,ZLON,PJOB
             ENDIF
 

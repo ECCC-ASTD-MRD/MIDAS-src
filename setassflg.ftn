@@ -32,34 +32,15 @@
 #endif
       use obsSpaceData_mod
       IMPLICIT NONE
-*implicits
-#include "cvcord.cdk"
-*
+C
       type(struct_obs) :: lobsSpaceData
-      INTEGER IBEGIN,ILAST
-      INTEGER J,JDATA
-      LOGICAL LLOK
-C
-C
-      DO J = 1,NFILES
-         IF ( ( NBEGINTYP(J) .GT. 0) ) THEN
-            IBEGIN=NBEGINTYP(J)
-             ILAST=NENDTYP(J)
-C
-C     .  -----------------------------
-C
- 100  CONTINUE
+      INTEGER INDEX_BODY
 C
 C     Process all data
 C
-      DO JDATA=IBEGIN,ILAST
-         IF (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)  THEN
-            call obs_set_i(lobsSpaceData,'FLG ',JDATA,ibset( obs_elem_i(lobsSpaceData,'FLG ',JDATA), 12 ))
-         ENDIF
-      END DO
-C
- 300  CONTINUE
-C
+      DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
+         IF (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)  THEN
+            call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 12 ))
          ENDIF
       END DO
 C--------------------------------------------------------------------

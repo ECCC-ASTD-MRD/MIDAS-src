@@ -38,8 +38,6 @@
 *        .           -Modified FNOM and introduced NUMBLKS
 *        .      P. Koclas  *CMC/CMDA April 96
 *                    -remove exdb exfin
-*                    -initialize nbegin nend variables that point to
-*                     the limits of each data type in the CMA
 *                    -JPFILES parameter now in cvcord COMMON
 *        .      P. Koclas  *CMC/CMSV Jan 97
 *                    -FIX BUG TO ALLOW SINGLE DATA
@@ -107,13 +105,6 @@
                IBEG=obs_numbody(lobsSpaceData)+1
 !
                CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS,lobsSpaceData)
-               IF ( IBEG .LE. obs_numbody(lobsSpaceData) ) THEN
-                  NBEGINTYP(J)=IBEG
-                  NENDTYP(J) =obs_numbody(lobsSpaceData)
-               ELSE
-                  NBEGINTYP(J)=-999
-                  NENDTYP(J)  =-999
-               ENDIF
             IER=MRFCLS(IBRP1)
             ENDIF
             LLAPPEND = .TRUE.

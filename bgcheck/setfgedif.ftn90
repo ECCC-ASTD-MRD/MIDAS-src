@@ -20,15 +20,13 @@
       use verticalCoord_mod
       IMPLICIT NONE
 #include "pardim.cdk"
-#include "cvcord.cdk"
 
       type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl
       CHARACTER*2 CDFAM
       INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO
+      INTEGER INDEX_HEADER, first_header
       INTEGER IDATYP
       INTEGER IDATA   , IDATEND, JDATA
       INTEGER NH, NH1
@@ -64,27 +62,24 @@
       DO JL = 1, col_getNumLev(lcolumng)
          ZETA(JL) = vco_anl%DHYB_M(JL)
       ENDDO  
+      first_header=-1
 
-      DO JF = 1,NFILES
-         IF ( (CFAMTYP(JF) .EQ. CDFAM ) .AND.( NBEGINTYP(JF) .GT. 0) ) THEN
-            IBEGIN   = NBEGINTYP(JF)
-            ILAST    = NENDTYP  (JF)
-            IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
-            ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
+      ! loop over all header indices of the CDFAM family
+      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+         if(first_header.eq.-1) first_header=index_header
 !C
-!C     *     Loop over all observations of the file
-!C
-            DO JO = IBEGINOB, ILASTOB
-!C     
 !C     *    .   Process only refractivity data (codtyp 169)
 !C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
                IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C                 Loops over data in the observation
 !C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
+                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
                   ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them
@@ -103,19 +98,19 @@
 !C     
 !C     *              Profile at the observation location:
 !C
-                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',jo)
-                     Lon  = obs_elem_r(lobsSpaceData,'LON ',jo)
+                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',index_header)
+                     Lon  = obs_elem_r(lobsSpaceData,'LON ',index_header)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(lcolumng)
 !C
 !C     *                 Profile x
 !C
-                        ZTT(JL) = col_getElem(lcolumng,JL,JO,'TT')-273.15
-                        ZHU(JL) = col_getElem(lcolumng,JL,JO,'HU')
-                        ZGZ(JL) = col_getElem(lcolumng,JL,JO,'GZ')
+                        ZTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')-273.15
+                        ZHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
+                        ZGZ(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'GZ')
                      ENDDO
-                     ZP0 = col_getElem(lcolumng,1,JO,'P0')
+                     ZP0 = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
                      ZMT = ZGZ(col_getNumLev(lcolumng))/RG
                      ZMT = gpsgeopotential(Lat, ZMT)/RG
                      ZPT = vco_anl%dpt_M
@@ -132,7 +127,7 @@
                      ENDDO
                      DV (2*col_getNumLev(lcolumng)+1)   = 2.
 
-                     IF (JO.EQ.IBEGINOB) THEN
+                     IF (INDEX_HEADER.EQ.first_header) THEN
                         DO JL = 1, 2*col_getNumLev(LCOLUMNG)+1
                            WRITE(*,*)'SETFGEDIF', JL, DV(JL)
                         ENDDO
@@ -177,7 +172,7 @@
 !C     *                    FIRST GUESS ERROR VARIANCE
 !C
                            call obs_set_r(lobsSpaceData,'HPHT',jdata,ZMHX)
-                           IF (JO.EQ.IBEGINOB) THEN
+                           IF (INDEX_HEADER.EQ.first_header) THEN
  11                           FORMAT(A12,2I5,2F12.2,2F12.4)
                               WRITE(*,11)'SETFGEDIFFGE', NH1, NH, H(NH1),RSTV(NH1)%VAR,  &
                                  ZMHX,obs_elem_r(lobsSpaceData,'OER ',JDATA)
@@ -188,9 +183,7 @@
                      DEALLOCATE( H    )
                   ENDIF
                ENDIF
-            ENDDO
-         ENDIF
-      ENDDO
+      ENDDO HEADER
       write(*,*) 'end of setfgedif'
       call flush(6)
 

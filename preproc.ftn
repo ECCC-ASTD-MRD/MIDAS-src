@@ -36,7 +36,6 @@
 #include "comct0.cdk"
 #include "comlun.cdk"
 #include "comvfiles.cdk"
-#include "cvcord.cdk"
 #include "comgpsgb.cdk"
 #include "comfilt.cdk"
 
@@ -59,7 +58,7 @@
 !
 !     Set vertical coordinate parameters from !! record in trial file
 !
-      write(nulout,*)' preproc: Set vcoord parameters for trial grid'
+      write(*,*)' preproc: Set vcoord parameters for trial grid'
       call vco_SetupFromFile(vco_trl,ninmpg(1),.false.)
       call col_setVco(lcolumnhr,vco_trl)
 !
@@ -106,7 +105,9 @@
 !
 !     Filter out data from CMA
 !
+      call tmg_start(94,'SUPREP')
       call suprep(lobsSpaceData)
+      call tmg_stop(94)
 !
 !     If single GB-GPS observation assimilation, select the observation
 !
@@ -114,8 +115,7 @@
 !
 !     Distribute observations over MPI processes
 !
-      call obs_reduceToMpiLocal(lobsSpaceData,nfiles,
-     +                          nbegintyp,nendtyp,nbegintyp_g,nendtyp_g)
+      call obs_reduceToMpiLocal(lobsSpaceData)
 !
 !     Memory allocation for background column data
 !

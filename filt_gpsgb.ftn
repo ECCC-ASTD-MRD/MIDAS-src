@@ -23,12 +23,8 @@ C Author  : S. Macpherson *ARMA February 2005
 C    -------------------
 C*    Purpose: Filters GPS observations for testing purposes
 C
-C Arguments
-C     None
-C
-C
 C Notes:
-C  - called by SUCVA (if L1GPSOBS=.TRUE.)
+C  - called by PREPROC (if L1GPSOBS=.TRUE.)
 C  - CGPSSTN in namelist (comgpsgb.cdk) is desired observation site name
 C    for 1 obs case
 C
@@ -37,86 +33,67 @@ C
       use columnData_mod 
  
       IMPLICIT NONE
-#include "comlun.cdk"
-#include "cvcord.cdk"
 #include "comgpsgb.cdk"
 C
       type(struct_obs) :: lobsSpaceData
-      INTEGER JF
-      INTEGER IBEGIN  , ILAST
-      INTEGER IBEGINOB, ILASTOB, JO
-      INTEGER IDATYP, ITYP
-      INTEGER IDATA, IDATEND, JDATA
+      INTEGER INDEX_HEADER
+      INTEGER IDATYP
+      INTEGER INDEX_BODY
 C
       LOGICAL LLFOUND, LLGP
 C
-      write(NULOUT,*)' '
-      write(NULOUT,*)' *****************************************'
-      write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-      write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-      write(NULOUT,*)' *                                       *'
-      write(NULOUT,*)' *     --- ONE OBSERVATION MODE ---      *'
-      write(NULOUT,*)' *                                       *'
-      write(NULOUT,*)' *****************************************'
-      write(NULOUT,*)' ' 
-      write(NULOUT,*)' CGPSSTN = ', CGPSSTN
-      write(NULOUT,*)' '
-C
-C     Loop over all observation files (all observation types)
+      write(*,*)' '
+      write(*,*)' *****************************************'
+      write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+      write(*,*)' *          GB-GPS OBSERVATIONS          *'
+      write(*,*)' *                                       *'
+      write(*,*)' *     --- ONE OBSERVATION MODE ---      *'
+      write(*,*)' *                                       *'
+      write(*,*)' *****************************************'
+      write(*,*)' ' 
+      write(*,*)' CGPSSTN = ', CGPSSTN
+      write(*,*)' '
 C
       LLGP = .FALSE.
-
-      DO JF = 1, NFILES
+      LLFOUND = .FALSE.
 C
-C     *  Process only GROUND-BASED GPS observation files (family = GP)
+      ! loop over all header indices of the 'GP' family
+      call obs_set_current_header_list(lobsSpaceData,'GP')
+      HEADER: do
+        index_header = obs_getHeaderIndex(lobsSpaceData)
+        if (index_header < 0) exit HEADER
 C
-      IF ( CFAMTYP(JF).EQ.'GP' .AND. NBEGINTYP(JF).GT.0 ) THEN
+        LLGP = .TRUE.
 C
-        IF ( .NOT. LLGP ) LLGP = .TRUE.
+C     *Process only Ground-Based GPS data (codtyp 189)
 C
-        IBEGIN   = NBEGINTYP(JF)
-        ILAST    = NENDTYP  (JF)
-        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST )
+        IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
 C
-C     *  Loop over all GPS observation locations of the file
-C
-        LLFOUND = .FALSE.
-
-        DO JO = IBEGINOB, ILASTOB
-C
-C     *  Process only Ground-Based GPS data (codtyp 189)
-C
-          IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
-C
-          IF ( IDATYP .EQ. 189 ) THEN
-            IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-            IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-            IF (obs_elem_c(lobsSpaceData,'STID',JO) .NE. CGPSSTN) THEN
-C     Loop over all observations for the location
-              DO JDATA= IDATA, IDATEND
-                call obs_set_i(lobsSpaceData,'ASS ',JDATA, 0)
-              ENDDO
-            ELSE
-              WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 
-     +           obs_elem_c(lobsSpaceData,'STID',JO)
-              LLFOUND = .TRUE.
-            ENDIF
+        IF ( IDATYP .EQ. 189 ) THEN
+          IF (obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .NE. CGPSSTN) THEN
+            ! loop over all body indices for this index_header
+            call obs_set_current_body_list(lobsSpaceData, index_header)
+            BODY: do 
+               index_body = obs_getBodyIndex(lobsSpaceData)
+               if (index_body < 0) exit BODY
+               call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY, 0)
+            ENDDO BODY
+          ELSE
+            WRITE(*,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 
+     +         obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+            LLFOUND = .TRUE.
           ENDIF
+        ENDIF
 C
-        ENDDO
-C
-      ENDIF
-C
-      ENDDO
+      ENDDO HEADER
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF ( LLGP .AND. (.NOT. LLFOUND) ) THEN
-        WRITE(NULOUT,'(A24,1X,A9)') ' FILT_GPSGB: ONEOBS SITE =', CGPSSTN 
-        call abort3d(nulout,'FILT_GPSGB: ABORT! ONEOBS GPS SITE NOT FOUND')
+        WRITE(*,'(A24,1X,A9)') ' FILT_GPSGB: ONEOBS SITE =', CGPSSTN 
+        call abort3d(6,'FILT_GPSGB: ABORT! ONEOBS GPS SITE NOT FOUND')
       ENDIF
       IF ( .NOT. LLGP ) THEN
-        call abort3d(nulout,
+        call abort3d(6,
      +  'FILT_GPSGB: GB-GPS ONEOBS OPTION SELECTED BUT NO GP DATA IN CMA!')
       ENDIF
 c

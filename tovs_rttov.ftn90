@@ -62,7 +62,6 @@ end interface
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
-#include "cvcord.cdk"
 #include "comct0.cdk"
 
   type(struct_obs) :: lobsSpaceData

@@ -12,58 +12,51 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "cvcord.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT
-      INTEGER IOBS,ITYP,IK,IBEGIN,ILAST
-      INTEGER J,JDATA
+      INTEGER INDEX_HEADER,ITYP,IK,IBEGIN,ILAST
+      INTEGER J,INDEX_BODY
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
 
-      DO J = 1,NFILES
-      IF (  NBEGINTYP(J) .GT. 0 ) THEN
-         IBEGIN=NBEGINTYP(J)
-          ILAST=NENDTYP(J)
+      ! loop over all body rows
+      BODY: do index_body=1,obs_numbody(lobsSpaceData)
 !C
 !C*    1. Computation of sigmap
 !C     .  -----------------------------
 !C
-         DO JDATA=IBEGIN,ILAST
-            IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata) .EQ. 1) then
-            IF  ( obs_elem_i(lobsSpaceData,'VNM ',jdata).EQ. 12001 ) THEN
+         IF ( (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) .and.    &
+              (obs_elem_i(lobsSpaceData,'VNM ',index_body).EQ. 12001) ) THEN
 
-            IF  ( obs_elem_i(lobsSpaceData,'XTR ',jdata) .NE. 0 .and.   &
-                  obs_elem_i(lobsSpaceData,'VCO ',jdata) .EQ. 2) THEN
+            IF ( (obs_elem_i(lobsSpaceData,'XTR ',index_body) .NE. 0) .and.    &
+                 (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2) ) THEN
                IK=col_getNumLev(lcolumng)-1
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',jdata)
+               INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',index_body)
+               ITYP = obs_elem_i(lobsSpaceData,'VNM ',index_body)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
-               call obs_set_r(lobsSpaceData,'HPHT',jdata,col_getElem(lcolumn,IPB,IOBS))
+               call obs_set_r(lobsSpaceData,'HPHT',index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
             ELSE
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',jdata)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',jdata)
-               IK   = obs_elem_i(lobsSpaceData,'LYR ',jdata)
+               INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',index_body)
+               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',index_body)
+               IK   = obs_elem_i(lobsSpaceData,'LYR ',index_body)
                IPT  = IK
                IPB  = IPT+1
-               ZPT  = col_getPressure(lcolumng,IK,IOBS,'NA')
-               ZPB  = col_getPressure(lcolumng,IK+1,IOBS,'NA')
+               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,'NA')
+               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,'NA')
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 !C
 !C              FIRST GUESS ERROR VARIANCE
 !
-               call obs_set_r(lobsSpaceData,'HPHT',jdata,   &
-                  (ZWB*col_getElem(lcolumn,IPB,IOBS,'TT') + ZWT*col_getElem(lcolumn,IPT,IOBS,'TT')))
-            ENDIF
-            ENDIF
+               call obs_set_r(lobsSpaceData,'HPHT',index_body,   &
+                  (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER,'TT') + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER,'TT')))
             ENDIF
 
-         END DO
+         ENDIF
 
-      ENDIF
-      END DO
+      END DO BODY
 
       RETURN
       END SUBROUTINE SETFGETT

@@ -26,10 +26,8 @@ SUBROUTINE AIRSQC ( airs_end,airs_loop_done, lcolumnhr, lobsSpaceData )
   use verticalCoord_mod
   IMPLICIT NONE
 #include "pardim.cdk"
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "cvcord.cdk"
 logical,intent(inout) :: airs_end
 integer,intent(in) :: airs_loop_done
 type(struct_columnData),intent(in) :: lcolumnhr
@@ -38,9 +36,9 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   type(struct_columnData) :: lcolumnhr
   type(struct_obs) :: lobsSpaceData
   type(struct_vco), pointer :: vco_trl
-  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
+  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,INDEX_HEADER,NFLG,ICHN
   INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBAIRS
-  INTEGER       :: JDATA,IDATA,IDATEND,IDAIRS
+  INTEGER       :: INDEX_BODY,IDATA,IDATEND,IDAIRS
   INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
   INTEGER       :: DIFFTOP_MIN
   INTEGER       :: airs_loop_done,count_airs
@@ -91,23 +89,20 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   count_airs = 0
   airs_end = .true.
 
-  DO JF = 1, NFILES
-     IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-        IBEGIN   = NBEGINTYP(JF)
-        ILAST    = NENDTYP(JF)
-        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
-        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
-        DO JO = IBEGINOB, ILASTOB
-           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
-           IF ( IDATYP .EQ. 183) THEN
-              count_airs = count_airs + 1
-              IF ( count_airs > airs_loop_done * bunch_airs .AND.  &
-                   count_airs <= (airs_loop_done+1) * bunch_airs ) NPRF = NPRF + 1
-              IF ( count_airs > (airs_loop_done+1) * bunch_airs ) airs_end = .false.
-           END IF
-        END DO
+  ! loop over all header indices of the 'TO' family
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER
+
+     IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+     IF ( IDATYP .EQ. 183) THEN
+        count_airs = count_airs + 1
+        IF ( count_airs > airs_loop_done * bunch_airs .AND.  &
+             count_airs <= (airs_loop_done+1) * bunch_airs ) NPRF = NPRF + 1
+        IF ( count_airs > (airs_loop_done+1) * bunch_airs ) airs_end = .false.
      END IF
-  END DO
+  END DO HEADER
 
 
 ! ** find number of AIRS channels and RTTOV levels
@@ -115,7 +110,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   NCHN = coef(idairs)%fmv_chn
   NLEV = coef(idairs)%nlevels
 
-  write(nulout,*) ' AIRSQC - nchn ', nchn
+  write(*,*) ' AIRSQC - nchn ', nchn
 
 ! information to extract (transvidage)
 ! ------------------------------------
@@ -209,8 +204,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   allocate ( CORFLAG(AIRSSNCH,NPRF),          stat= alloc_status(61))
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' airsqc : memory allocation error'
-     call abort3d(nulout,'airsqc        ')
+     write(*,*) ' airsqc : memory allocation error'
+     call abort3d(6,'airsqc        ')
   end if
 
 
@@ -229,18 +224,13 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   NOBTOV = 0
   count_airs = 0
       
-  DO JF = 1, NFILES
+  ! loop over all header indices of the 'TO' family
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER_2: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER_2
 
-     IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-
-        IBEGIN   = NBEGINTYP(JF)
-        ILAST    = NENDTYP(JF)
-        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',ibegin)
-        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ilast)
-
-        DO JO = IBEGINOB, ILASTOB
-
-           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
+           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
 
            IF ( IDATYP .EQ. 164 .OR. &
                 IDATYP .EQ. 168 .OR. &
@@ -259,30 +249,30 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
                  NOBAIRS = NOBAIRS + 1
 
-                 ZTG(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'TG')
-                 ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,JO,'P0') &
+                 ZTG(NOBAIRS) = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
+                 ZPS(NOBAIRS) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
 
                  DO JL = 1, col_getNumLev(lcolumnhr,'TH')
-                    ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'TT')
-                    ZHT(JL,NOBAIRS) = col_getHeight(lcolumnhr,JL,JO,'TH') / RG
-                    ZLQ(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,JO,'HU')
-                    ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,JO,'TH') &
+                    ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
+                    ZHT(JL,NOBAIRS) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
+                    ZLQ(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+                    ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') &
                          * MPC_MBAR_PER_PA_R8
                  END DO
 
-                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-                 DO JDATA= IDATA, IDATEND
-                    IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                       ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
+                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+                 DO INDEX_BODY= IDATA, IDATEND
+                    IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                       ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
                        ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                       BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-                       BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
+                       BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+                       BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
 ! *** Flag check on observed BTs ***
-                       IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                       IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
 ! *** Set if data has been bias corrected (bit 6 set) ***
-                       IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',JDATA),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
+                       IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
 ! *** Gross check on observed BTs ***
                        IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
                        IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
@@ -306,7 +296,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
                  KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
 !Test pour detecter le isatzen manquant ou anormal pour AIRS
-                 if ( obs_elem_i(lobsSpaceData,'SZA ',JO) > 16500) then
+                 if ( obs_elem_i(lobsSpaceData,'SZA ',INDEX_HEADER) > 16500) then
                     DO JC = 1, NCHN
                        ICHN = ichan(JC,IDAIRS)
                        REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
@@ -332,11 +322,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
            END IF
 
-        END DO
-
-     END IF
-
-  END DO
+  END DO HEADER_2
 
 
 ! ** find TOA radiances converted from observed BT's
@@ -389,10 +375,10 @@ type(struct_obs),intent(inout) :: lobsSpaceData
            ICHREF(JN) = -1
            CLDFLAG(JN) = -1
            REJFLAG(:,JN,9) = 1
-           write(nulout,*) 'WARNING'
-           write(nulout,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
-           write(nulout,*) 'HAVE BEEN REJECTED.                             '
-           write(nulout,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
+           write(*,*) 'WARNING'
+           write(*,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
+           write(*,*) 'HAVE BEEN REJECTED.                             '
+           write(*,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
         END IF
      END IF
   END DO
@@ -499,10 +485,10 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      IF (cpt==nco2) THEN
         CLDFLAG(JN) = -1
         REJFLAG(:,JN,9) = 1
-        write(nulout,*) 'WARNING'
-        write(nulout,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
-        write(nulout,*) 'HAVE BEEN REJECTED.                             '
-        write(nulout,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
+        write(*,*) 'WARNING'
+        write(*,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
+        write(*,*) 'HAVE BEEN REJECTED.                             '
+        write(*,*) 'ALL AIRS OBSERVATIONS FROM THIS PROFILE REJECTED'
      ENDIF
   END DO
 
@@ -546,10 +532,10 @@ type(struct_obs),intent(inout) :: lobsSpaceData
         END IF
      END DO
 
-     write(nulout,*) 'TOIT DU MODELE (MB)'
-     write(nulout,*) 0.01*vco_trl%DPT_M
-     write(nulout,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
-     write(nulout,*) IMODTOP
+     write(*,*) 'TOIT DU MODELE (MB)'
+     write(*,*) 0.01*vco_trl%DPT_M
+     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
+     write(*,*) IMODTOP
 
   END IF
 
@@ -701,36 +687,33 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   NOBAIRS = 0
   count_airs = 0
 
-  DO JF = 1, NFILES
-     IF ( CFAMTYP(JF) .EQ. 'TO' .AND. NBEGINTYP(JF) .GT. 0 ) THEN
-        IBEGIN   = NBEGINTYP(JF)
-        ILAST    = NENDTYP(JF)
-        IBEGINOB = obs_elem_i(lobsSpaceData,'OBS ',IBEGIN)
-        ILASTOB  = obs_elem_i(lobsSpaceData,'OBS ',ILAST)
-        DO JO = IBEGINOB, ILASTOB
-           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',JO)
-           IF ( IDATYP .EQ. 183) THEN
-              count_airs = count_airs + 1
-              IF ( count_airs > airs_loop_done * bunch_airs .AND. &
-                   count_airs <= (airs_loop_done+1) * bunch_airs ) THEN
-                 NOBAIRS = NOBAIRS + 1
-                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',JO)
-                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',JO) + IDATA - 1
-                 DO JDATA= IDATA, IDATEND
-                    IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
-                       ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',JDATA))
-                       ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                       DO NFLG = 0, BITFLAG
-                          IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
-                               call obs_set_i(lobsSpaceData,'FLG ',JDATA,IBSET(obs_elem_i(lobsSpaceData,'FLG ',JDATA),NFLG))
-                       END DO
-                    END IF
+  ! loop over all header indices of the 'TO' family
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER_3: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER_3
+
+     IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+     IF ( IDATYP .EQ. 183) THEN
+        count_airs = count_airs + 1
+        IF ( count_airs > airs_loop_done * bunch_airs .AND. &
+             count_airs <= (airs_loop_done+1) * bunch_airs ) THEN
+           NOBAIRS = NOBAIRS + 1
+           IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+           IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+           DO INDEX_BODY= IDATA, IDATEND
+              IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                 ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+                 ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                 DO NFLG = 0, BITFLAG
+                    IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
+                         call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,IBSET(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),NFLG))
                  END DO
               END IF
-           END IF
-        END DO
+           END DO
+        END IF
      END IF
-  END DO
+  END DO HEADER_3
 
 
 !* -- ADDITION OF NEW AIRS INFORMATION IN BURP FILE
