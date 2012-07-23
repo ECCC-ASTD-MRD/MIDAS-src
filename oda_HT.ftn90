@@ -19,7 +19,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
-  use masks_mod
   use bufr
   implicit none
   !
@@ -79,22 +78,37 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
       INTEGER INDEX_HEADER,IK
-      INTEGER INDEX_BODY
+      INTEGER INDEX_BODY,INDEX_FAMILY
       REAL*8 columngVarT,columngVarB,lqtoes
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
+      logical :: llassim
+      INTEGER, PARAMETER :: numFamily=3
+      CHARACTER(len=2) :: list_family(numFamily)
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
       zgamma = 0.0065 / GRAV
       zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
-!C*    1. Fill in COMMVO by using the adjoint of the "vertical"
-!c interpolation
+!C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
 !C
-!C     Process all data within the domain of the model
-!C
-        DO INDEX_BODY=1,obs_numbody(lobsSpaceData)
-          IF (lmaskpp_in(index_body)) THEN
+      list_family(1) = 'UA'
+      list_family(2) = 'AI'
+      list_family(3) = 'SW'
+
+      FAMILY: do index_family=1,numFamily
+
+        call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
+        BODY: do
+          index_body = obs_getBodyIndex(lobsSpaceData)
+          if (index_body < 0) exit BODY
+
+          llassim= (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
+             .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 0) &
+             .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2)
+
+!C        Process all data within the domain of the model
+          IF (llassim) THEN
             INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
             ZRES = obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)
             ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
@@ -135,7 +149,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ps_column(1)    = ps_column(1)    +         &
                  (columngVarB - columngVarT)  &
                  *ZDADPS*ZRES
-          elseif (lmaskpp_out(index_body)) THEN
+          elseif( (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
+            .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 2) &
+            .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2) ) THEN
             INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
             ZRES = obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)
             ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
@@ -156,7 +172,11 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             hu_column(col_getNumLev(lcolumn)) = hu_column(col_getNumLev(lcolumn))  &
                  + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV
           ENDIF
-        END DO
+
+        ENDDO BODY
+
+      ENDDO FAMILY
+
       RETURN
       END subroutine oda_HTpp
 
@@ -177,8 +197,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       INTEGER INDEX_HEADER,IK
-      INTEGER INDEX_BODY,ITYP
+      INTEGER INDEX_BODY,ITYP,INDEX_FAMILY
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
+      INTEGER, PARAMETER :: numFamily=4
+      CHARACTER(len=2) :: list_family(numFamily)
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
@@ -186,14 +208,29 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       zexp   = 1.0/(MPC_RGAS_DRY_AIR_R8*zgamma)
       zexpgz = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
-!C*    1. Fill in COMMVO by using the adjoint of the "vertical"
-!c interpolation
+!C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
 !C     .  ---------------------------------------------------------------
-!C
-!C     Process all data within the domain of the model
-!C
-        DO INDEX_BODY=1,obs_numbody(lobsSpaceData)
-          IF (lmasksf_in(index_body)) THEN
+      list_family(1) = 'UA'
+      list_family(2) = 'SF'
+      list_family(3) = 'SC'
+      list_family(4) = 'GP'
+
+      FAMILY: do index_family=1,numFamily
+
+        call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
+        BODY: do
+          index_body = obs_getBodyIndex(lobsSpaceData)
+          if (index_body < 0) exit BODY
+
+! Process all data within the domain of the model
+          ityp = obs_elem_i(lobsSpaceData,'VNM ',index_body)
+          if(    (obs_elem_i(lobsSpaceData,'VCO ',index_body).eq.1) &
+           .and. (obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1) &
+           .and. (ityp.eq.bufr_nets .or. ityp.eq.bufr_neps  &
+             .or. ityp.eq.bufr_nepn .or. ityp.eq.bufr_ness  &
+             .or. ityp.eq.bufr_neus .or. ityp.eq.bufr_nevs  &
+             .or. obs_elem_i(lobsSpaceData,'XTR ',index_body).eq.0) ) then
+
             INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
             all_column => col_getColumn(lcolumn,INDEX_HEADER)
             tt_column  => col_getColumn(lcolumn,INDEX_HEADER,'TT')
@@ -244,7 +281,10 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                    *ZDADPS*ZRES
             ENDIF
             
-          elseif(lmasksf_out(index_body)) then
+          elseif( (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
+            .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 2) &
+            .AND. (obs_elem_i(lobsSpaceData,'VNM ',index_body) .EQ. BUFR_NEGZ ) &
+            .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 1) ) then
             INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
             ZRES = obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)
             ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
@@ -262,7 +302,11 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             hu_column(col_getNumLev(lcolumn)) = hu_column(col_getNumLev(lcolumn))  &
                  + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV                
           endif
-        END DO
+
+        ENDDO BODY
+
+      ENDDO FAMILY
+
       RETURN
       END subroutine oda_HTsf
 
@@ -552,35 +596,41 @@ end subroutine oda_HTto
 !C
 !C     Process all data within the domain of the model
 !C
-        DO INDEX_BODY=1, obs_numbody(lobsSpaceData)
-          IF (lmaskzp(index_body) ) THEN
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-            gz_column  => col_getColumn(lcolumn,INDEX_HEADER,'GZ')
-            all_column => col_getColumn(lcolumn,INDEX_HEADER)
-            ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-            ZRES = obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)
-            ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
-            IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
-            IPT  = IK  + col_getOffsetFromVarno(lcolumng,ityp)
-            IPB  = IPT+1
-            ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,'NA')/RG
-            ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')/RG
-            ZDENO= ZPT-ZPB
-            ZWB  = (ZPT-ZLEV)/ZDENO
-            ZWT  = 1.0D0 - ZWB
+      call obs_set_current_body_list(lobsSpaceData, 'PR')
+      BODY: do
+        index_body = obs_getBodyIndex(lobsSpaceData)
+        if (index_body < 0) exit BODY
 
-            ZDA1= (ZLEV-ZPB)/(ZDENO**2)
-            ZDA2= (ZPT-ZLEV)/(ZDENO**2)
+        IF (   (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1) &
+         .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0) &
+         .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)  ) THEN
+          INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+          gz_column  => col_getColumn(lcolumn,INDEX_HEADER,'GZ')
+          all_column => col_getColumn(lcolumn,INDEX_HEADER)
+          ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+          ZRES = obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)
+          ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+          IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
+          IPT  = IK  + col_getOffsetFromVarno(lcolumng,ityp)
+          IPB  = IPT+1
+          ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,'NA')/RG
+          ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')/RG
+          ZDENO= ZPT-ZPB
+          ZWB  = (ZPT-ZLEV)/ZDENO
+          ZWT  = 1.0D0 - ZWB
+
+          ZDA1= (ZLEV-ZPB)/(ZDENO**2)
+          ZDA2= (ZPT-ZLEV)/(ZDENO**2)
 !C
-            gz_column(IK+1) = gz_column(IK+1) +    &
-                 (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER))*ZDA2*ZRES/RG
-            gz_column(IK) = gz_column(IK) +        &
-                 (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER))*ZDA1*ZRES/RG
-            all_column(IPB) = all_column(IPB) + ZWB*ZRES
-            all_column(IPT) = all_column(IPT) + ZWT*ZRES
+          gz_column(IK+1) = gz_column(IK+1) +    &
+               (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER))*ZDA2*ZRES/RG
+          gz_column(IK) = gz_column(IK) +        &
+               (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER))*ZDA1*ZRES/RG
+          all_column(IPB) = all_column(IPB) + ZWB*ZRES
+          all_column(IPT) = all_column(IPT) + ZWT*ZRES
 
-          ENDIF
-        END DO
+        ENDIF
+      ENDDO BODY
       RETURN
       END subroutine oda_HTzp
 
@@ -614,8 +664,7 @@ end subroutine oda_HTto
       REAL*8 DZP0
       INTEGER JL
       integer :: index_header, index_body
-      LOGICAL  ASSIM, LLOK
-      INTEGER NH, NH1
+      LOGICAL  ASSIM
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
 !C
 !C     * 1.  Initializations
@@ -656,7 +705,6 @@ end subroutine oda_HTto
 !C
 !C       Scan for requested ZTD assimilation
 !C
-         NH = 0
          ASSIM = .FALSE.
          ! loop over all body indices (still in the 'GP' family)
                                         ! Set the body list
@@ -666,10 +714,10 @@ end subroutine oda_HTto
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
 
-            LLOK = ( lmaskgp(INDEX_BODY) )
-            IF ( LLOK ) THEN
+            if (   (obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER).eq.189) &
+             .and. (obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY).EQ.BUFR_NEZD) &
+             .and. (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1) ) then
                ASSIM = .TRUE.
-               NH = NH + 1
             ENDIF
          ENDDO BODY
 !C
@@ -698,7 +746,6 @@ end subroutine oda_HTto
 !C     *       Apply AD of ZTD observation operator to get 
 !C             Ht*grad(Index_header) = Ht*(H'dx - d)/sigma_o^2
 !C
-            NH1 = 0
             ! loop over all body indices (still in the 'GP' family)
                                         ! Start at the beginning of the list)
             call obs_set_current_body_list(lobsSpaceData, index_header)
@@ -706,8 +753,9 @@ end subroutine oda_HTto
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY_2
 
-               IF ( lmaskgp(INDEX_BODY) ) THEN
-                  NH1 = NH1 + 1
+               if (   (obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER).eq.189) &
+                .and. (obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY).EQ.BUFR_NEZD) &
+                .and. (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1) ) then
 !C                call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY, grad(Index_header) 
 !c                                        = (H'dx - d)/sigma_o^2)
                   ZHX = obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)

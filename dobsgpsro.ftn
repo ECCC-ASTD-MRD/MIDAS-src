@@ -243,7 +243,6 @@ C
                      ENDIF
 
                      call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, ZINC)
-                     call obs_set_r(lobsSpaceData,'OMN ',INDEX_BODY, ZINC)
                      call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY, ZINC)
                   ENDIF
                ENDDO BODY_3

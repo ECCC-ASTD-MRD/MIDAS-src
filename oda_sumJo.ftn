@@ -23,7 +23,6 @@
 !
 ! Author  : S. Pellerin *ARMA/MRB January 2009
 
-      use masks_mod
       use mpi
       use obsSpaceData_mod
       implicit none
@@ -31,9 +30,8 @@
 
       type(struct_obs) :: lobsSpaceData
       integer index_body,numbody_max
-      logical, pointer,dimension(:) :: llmask
 
-      real*8 :: dljoraob,dljoairep,dljosatwind,dljosurfc,dljotov
+      real*8 :: dljoraob,dljoairep,dljosatwind,dljosurfc1,dljoscat,dljosurfc,dljotov
       real*8 :: dljoprof,dljogpsro,dljogpsztd
       real*8,allocatable :: robdata_g(:)
       character(len=2),pointer,save :: family_g(:)
@@ -53,36 +51,36 @@
       dljoairep = 0.d0
       dljosatwind = 0.d0
       dljosurfc = 0.d0
+      dljosurfc1 = 0.d0
+      dljoscat = 0.d0
       dljotov = 0.d0
       dljogpsro = 0.d0
       dljoprof = 0.d0
 
       do index_body=1,numbody_max
         ! total observation cost function
-        if(lmask_g(index_body)) pjo = pjo + robdata_g(index_body)
+        pjo = pjo + robdata_g(index_body)
 
         ! subcomponents of observation cost function (diagnostic only)
         select case(family_g(index_body))
         case('UA')
-          if(lmaskpp_inout_g(index_body)) dljoraob = dljoraob + robdata_g(index_body)
-          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+          dljoraob    = dljoraob    + robdata_g(index_body)
         case('AI')
-          if(lmaskpp_inout_g(index_body)) dljoairep = dljoairep + robdata_g(index_body)
+          dljoairep   = dljoairep   + robdata_g(index_body)
         case('SW')
-          if(lmaskpp_inout_g(index_body)) dljosatwind = dljosatwind + robdata_g(index_body)
+          dljosatwind = dljosatwind + robdata_g(index_body)
         case('SF')
-          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+          dljosurfc   = dljosurfc   + robdata_g(index_body)
         case('SC')
-          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+          dljoscat    = dljoscat    + robdata_g(index_body)
         case('TO')
-          if(lmaskto_g(index_body)) dljotov = dljotov + robdata_g(index_body)
+          dljotov     = dljotov     + robdata_g(index_body)
         case('RO')
-          if(lmaskro_g(index_body)) dljogpsro = dljogpsro + robdata_g(index_body)
+          dljogpsro   = dljogpsro   + robdata_g(index_body)
         case('PR')
-          if(lmaskzp_g(index_body)) dljoprof = dljoprof + robdata_g(index_body)
+          dljoprof    = dljoprof    + robdata_g(index_body)
         case('GP')
-          if(lmaskgp_g(index_body)) dljogpsztd = dljogpsztd + robdata_g(index_body)
-          if(lmasksf_inout_g(index_body)) dljosurfc = dljosurfc + robdata_g(index_body)
+          dljogpsztd  = dljogpsztd  + robdata_g(index_body)
         end select
       enddo
 
@@ -90,6 +88,7 @@
         write(*,'(a15,f23.16)') 'Jo(RAOB)   = ',dljoraob
         write(*,'(a15,f23.16)') 'Jo(AIREP)  = ',dljoairep
         write(*,'(a15,f23.16)') 'Jo(SURFC)  = ',dljosurfc
+        write(*,'(a15,f23.16)') 'Jo(SCAT)   = ',dljoscat
         write(*,'(a15,f23.16)') 'Jo(ATOV)   = ',dljotov
         write(*,'(a15,f23.16)') 'Jo(SATWIND)= ',dljosatwind
         write(*,'(a15,f23.16)') 'Jo(PROF)   = ',dljoprof

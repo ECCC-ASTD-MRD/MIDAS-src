@@ -171,7 +171,7 @@ C
       INTEGER IDATA,IDATEND
       INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,INDXM
       integer index,ibin(17,numFamily),IBINS(numFamily),isum,INIV(17)
-      LOGICAL LLOK,LLREJ,LLBOGUS
+      LOGICAL LLOK,LLDIAG,LLREJ,LLBOGUS
       INTEGER ISRCHEQ
       EXTERNAL ISRCHEQ
 C
@@ -252,7 +252,7 @@ C     .  -----------------------
 C
 !$OMP PARALLEL  
 !$OMP& PRIVATE(INDEX_FAMILY,JK,index_body,INDEX_HEADER,ITYP,
-!$OMP& IFLG,IPRES,IVCO,IDBURP,LLOK,LLBOGUS,GPH,INDEX,IPRESMB,
+!$OMP& IFLG,IPRES,IVCO,IDBURP,LLOK,LLDIAG,LLBOGUS,GPH,INDEX,IPRESMB,
 !$OMP& LLREJ,JD,IBAD,
 !$OMP& ILANSEA,INDXM,INDXREG,IPROCES,INDXCLD,
 !$OMP& IKNTFFR,
@@ -505,9 +505,17 @@ C             .....this check not done anymore, jh may 2002....
 C
             ENDIF
 C
-C     f. Exclude RAOBS and surface ln q data added to CMA.
+C     f. Exclude RAOBS and surface ln q data added to CMA, but designate as diagnostic
 C
-            IF ( ITYP  .EQ. BUFR_NEHU .or. ITYP .EQ. BUFR_NEHS ) LLOK=.FALSE.
+            LLDIAG = .FALSE.
+            IF ( ITYP  .EQ. BUFR_NEHU .or. ITYP .EQ. BUFR_NEHS ) THEN
+              LLOK   = .FALSE.
+              LLDIAG = ((ITYP .EQ. BUFR_NEHU)
+     &            .AND. (IVCO .EQ. 2)
+     &            .AND. (IPRES.GE.NINT(RLIMLVHU*100)))
+     &            .OR. ((ITYP .EQ. BUFR_NEHS) .AND.
+     &                  (IVCO .EQ. 1))
+            ENDIF
 C
 C
             IF ( LLOK  .AND..NOT. LLREJ ) THEN
@@ -567,6 +575,8 @@ C
             IF (LLOK .AND. .NOT. LLREJ) THEN
               call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,1)
               IKNT(index_family)= IKNT(index_family) + 1
+            ELSEIF (LLDIAG) THEN
+              call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,-1)
             ELSE
               call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
             ENDIF

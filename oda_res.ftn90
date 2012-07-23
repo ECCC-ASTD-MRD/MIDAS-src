@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 SUBROUTINE oda_res(lobsSpaceData)
-  use masks_mod
   use obsSpaceData_mod
   implicit none
   !
@@ -30,14 +29,27 @@ SUBROUTINE oda_res(lobsSpaceData)
   ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
   !
   type(struct_obs) :: lobsSpaceData 
-  integer jdata
-!
-!!
-    DO JDATA=1,obs_numbody(lobsSpaceData)
-       IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r(lobsSpaceData,'OMA ',JDATA, obs_elem_r(lobsSpaceData,'OMA ',JDATA)-obs_elem_r(lobsSpaceData,'VAR ',JDATA))
-       ENDIF
+  integer index_body,iass
+  logical, save :: firstTime = .true.
+  logical, save, allocatable :: includeFlag(:)
+
+  if(firstTime) then
+    allocate(includeFlag(obs_numbody(lobsSpaceData)))
+    do index_body=1,obs_numbody(lobsSpaceData)
+       iass   = obs_elem_i(lobsSpaceData,'ASS ',index_body)
+       includeFlag(index_body) = (iass.eq.1 .or. iass.eq.-1)
     enddo
-!
+    firstTime=.false.
+  endif
+
+!$OMP PARALLEL DO PRIVATE(index_body)
+  do index_body=1,obs_numbody(lobsSpaceData)
+    if(includeFlag(index_body)) then
+      call obs_set_r(lobsSpaceData,'OMA ',index_body, & 
+        obs_elem_r(lobsSpaceData,'OMA ',index_body)-obs_elem_r(lobsSpaceData,'VAR ',index_body))
+    endif
+  enddo
+!$OMP END PARALLEL DO
+
   return
 END SUBROUTINE oda_res

@@ -16,7 +16,6 @@
 !
       SUBROUTINE SETCMA(lobsSpaceData)
       use obsSpaceData_mod
-#if defined (DOC)
 *
 c Purpose:
 c Through indices interchange, the inovation (Z') CMA reference
@@ -27,23 +26,20 @@ c Observations (Z) CMA reference is kept in inovation (Z') one (NCM_OMF)
 c
 c Author  : S. Pellerin ARMA/AES December 2008
 c
-c Revision:
-*
-#endif
-      IMPLICIT NONE
+      implicit none
       type(struct_obs) :: lobsSpaceData
-      INTEGER JDATA,II,IASS,ITYP
+      integer index_body
 C
 c-------Fill ROBDATA with Z' = -( H(xb_hr) - Z ) = Z - H(xb_hr)
 c
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-        call obs_set_r(lobsSpaceData,'OMN ',jdata, 0.d0)
-        call obs_set_r(lobsSpaceData,'OMF ',JDATA, 
-     &                          -obs_elem_r(lobsSpaceData,'OMA ',JDATA)
-     &                          *obs_elem_r(lobsSpaceData,'OER ',JDATA))
-      ENDDO
+      do index_body=1,obs_numbody(lobsSpaceData)
+        call obs_set_r(lobsSpaceData,'OMN ',index_body, 0.d0)
+        call obs_set_r(lobsSpaceData,'OMF ',index_body, 
+     &                          -obs_elem_r(lobsSpaceData,'OMA ',index_body)
+     &                          *obs_elem_r(lobsSpaceData,'OER ',index_body))
+      enddo
 c
       call obs_swapVarOmf(lobsSpaceData)
 
-      RETURN
-      END
+      return
+      end

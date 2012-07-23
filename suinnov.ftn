@@ -24,11 +24,6 @@
 *     L. Fillion - ARMA/EC - 22 May 2008 - Upgrade to v_10_1_1.
 *     S. Macpherson -ARMA/MRD   Aug 2008
 *         - Add ground-based GPS family "GP"
-*         S. Pellerin, ARMA, January 2009
-*         - Add call to mask generators
-*     L. Fillion - ARMA/EC 14 Jan 2009
-*         - Upgrade lam4d to v_10_2_1 of 3dvar.
-*         - Comment 'tmg_*' subroutines.
 *     S. Macpherson -ARMA/MRD   Sep 2009
 *         - Add ground-based GPS family "GP"
 *     Bin He   -ARMA/MRD      Feb. 2010 
@@ -38,7 +33,6 @@
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod
-      use masks_mod
       IMPLICIT NONE
 #include "comct0.cdk"
 #include "comlun.cdk"
@@ -282,7 +276,5 @@ c
         CALL SUASYM2(lobsSpaceData)
       endif
 c
-      call oda_mask(lobsSpaceData)
-!
       RETURN
       END

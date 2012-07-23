@@ -170,9 +170,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
               dlsum =  dlsum &
                      + (obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
                         obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.
-              call obs_set_r(lobsSpaceData,'OMN ',index_body, &
-                              obs_elem_r(lobsSpaceData,'OMA ',index_body))
-
            else
 !             compute contribution of data with varqc
  
@@ -181,8 +178,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
                       obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.
               zqcarg = zgami + exp(-1.0*zjon)
               zpost = zgami/zqcarg
-              call obs_set_r(lobsSpaceData,'OMN ',index_body, &
-                       obs_elem_r(lobsSpaceData,'OMA ',index_body)*(1. - zpost))
               dlsum= dlsum - log(zqcarg/(zgami+1.))
            endif
 

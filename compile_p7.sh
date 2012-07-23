@@ -90,12 +90,6 @@ s.compile $INCLUDES $COMPF -O -src $SRC2 > listing2 2>&1
 grep fail listing2
 if [ $? = "0" ] ; then exit ; fi
 
-echo "compiling the remaining new modules"
-SRC3="masks_mod.ftn90"
-s.compile $INCLUDES $COMPF -O -src $SRC3 > listing3 2>&1
-grep fail listing3
-if [ $? = "0" ] ; then exit ; fi
-
 echo "compiling remaining ftn ftn90..."
 filelist=""
 for i in *.ftn *.ftn90

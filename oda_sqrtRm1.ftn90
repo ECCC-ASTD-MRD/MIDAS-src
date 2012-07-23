@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
-  use masks_mod
   use obsSpaceData_mod
   ! Arguments
   character(len=*), intent(in)  :: elem_dest_s ! destination index
@@ -31,16 +30,26 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
   !
   implicit NONE
   type(struct_obs) :: lobsSpaceData
-  INTEGER jdata
-!
-!!
-    DO JDATA=1,obs_numbody(lobsSpaceData)
-       IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r( lobsSpaceData, elem_dest_s, JDATA, &
-                           obs_elem_r(lobsSpaceData,elem_src_s,JDATA) &
-                          /obs_elem_r(lobsSpaceData,'OER ',JDATA))
-       ENDIF
-    END DO
-!
+  INTEGER index_body,iass
+  logical, save :: firstTime = .true.
+  logical, save, allocatable :: includeFlag(:)
+
+  if(firstTime) then
+    allocate(includeFlag(obs_numbody(lobsSpaceData)))
+    do index_body=1,obs_numbody(lobsSpaceData)
+       iass   = obs_elem_i(lobsSpaceData,'ASS ',index_body)
+       includeFlag(index_body) = (iass.eq.1 .or. iass.eq.-1)
+    enddo
+    firstTime=.false.
+  endif
+
+  ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
+  do index_body=1,obs_numbody(lobsSpaceData)
+    if(includeFlag(index_body)) then
+      call obs_set_r(lobsSpaceData, elem_dest_s, index_body, &
+         obs_elem_r(lobsSpaceData,elem_src_s,index_body)/obs_elem_r(lobsSpaceData,'OER ',index_body))
+    endif
+  enddo
+
   RETURN
 END SUBROUTINE oda_sqrtRm1

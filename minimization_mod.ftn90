@@ -604,13 +604,10 @@ CONTAINS
 
        IF(mpi_myid == 0) write(*,*) 'Entering simvar for simulation ',nsim3d
 
-       dl_v = da_v + dg_vbar      !dg_vbar = sum(v) of previous outer-loops
+       dl_v(:) = da_v(:) + dg_vbar(:)      !dg_vbar = sum(v) of previous outer-loops
 
-       call tmg_start(74,'JB')
-
-       ! Computation of background term of cost function
-       dl_Jb = dot_product(dl_v,dl_v)/2.d0
-
+       call tmg_start(74,'JB')       
+       dl_Jb = dot_product(dl_v,dl_v)/2.d0  ! Computation of background term of cost function
        call tmg_stop(74)
 
        call gsv_setVco(statevector,col_getVco(lcolumng))
@@ -618,21 +615,28 @@ CONTAINS
 
        call bmat_sqrtB(da_v,na_dim,statevector)
 
-       call oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
+       call oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)  ! put in column H_horiz dx
 
        call tmg_start(2,'OBS-OPER') !
 
-       call oda_H(lcolumn,lcolumng,lobsSpaceData) ! Modify NCM_OMA ! Hdx
+       call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Modify NCM_OMA ! H_vert H_horiz dx = Hdx
 
-       call oda_res(lobsSpaceData)            ! Modify NCM_OMA : Hdx-d
+       call tmg_start(95,'RES')
+       call oda_res(lobsSpaceData)  ! Modify NCM_OMA : Hdx-d
+       call tmg_stop(95)
      
-       call oda_sqrtRm1(lobsSpaceData,'OMA ','OMA ')  ! Modify NCM_OMA : R**-1/2*(Hdx-d)
+       call tmg_start(96,'SQRTRM1')
+       call oda_sqrtRm1(lobsSpaceData,'OMA ','OMA ')  ! Modify NCM_OMA : R**-1/2 (Hdx-d)
+       call tmg_stop(96)
      
-       call oda_Jo(lobsSpaceData)               ! Store J in NCM_OMI : R**-1(Hdx-d)**2
+       call tmg_start(97,'ODA_JO')
+       call oda_Jo(lobsSpaceData)  ! Temporarily store Jobs in NCM_OMI : R**-1 (Hdx-d)**2
+       call tmg_stop(97)
      
-       IF (LVARQC) THEN
-          ! Store modify J in NCM_OMI : -ln((gamma-exp(J))/(gamma+1))
-          call oda_qcv(lobsSpaceData)
+       IF (LVARQC) THEN          
+          call tmg_start(98,'QC_VAR')
+          call oda_qcv(lobsSpaceData)  ! Store modify Jobs in NCM_OMI : -ln((gamma-exp(J))/(gamma+1))  
+          call tmg_stop(98)
        endif
 
        dl_Jo = 0.d0
@@ -646,25 +650,29 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call oda_sqrtRm1(lobsSpaceData,'OMI ','OMA ')
+       call tmg_start(96,'SQRTRM1')
+       call oda_sqrtRm1(lobsSpaceData,'OMI ','OMA ')  ! Modify NCM_OMI : R**-1 (Hdx-d)
+       call tmg_stop(96)
 
        IF (LVARQC) THEN
+          call tmg_start(98,'QC_VAR')
           call oda_qcvad(lobsSpaceData)
+          call tmg_stop(98)
        endif
 
        call col_zero(lcolumn)
-       call oda_HT(lcolumn,lcolumng,lobsSpaceData)
+       call oda_HT(lcolumn,lcolumng,lobsSpaceData)   ! Put in column : H_vert**T R**-1 (Hdx-d)
      
        call tmg_stop(2)
 
-       call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
+       call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx-d)
 
        da_gradJ = 0.d0
        call bmat_sqrtBT(da_gradJ,na_dim,statevector)
        call gsv_deallocate(statevector)
 
        if (na_indic .ne. 3) then
-          da_gradJ = dl_v + da_gradJ
+          da_gradJ(:) = dl_v(:) + da_gradJ(:)
        endif
 
     endif

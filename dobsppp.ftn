@@ -63,61 +63,63 @@
 !     1. Computation of (HX - Z)/SIGMA
 !
       PJO=0.
-      do index_body=1,obs_numbody(lobsSpaceData)
-         if(obs_getFamily(lobsSpaceData,bodyIndex=index_body).eq.CDFAM) then
+      call obs_set_current_body_list(lobsSpaceData, CDFAM)
+      BODY: do
+         index_body = obs_getBodyIndex(lobsSpaceData)
+         if (index_body < 0) exit BODY
+      
 !
 ! Process all data within the domain of the model
 !
-            iass=obs_elem_i (lobsSpaceData,'ASS ',index_body)
-            ixtr=obs_elem_i (lobsSpaceData,'XTR ',index_body)
-            ivco=obs_elem_i (lobsSpaceData,'VCO ',index_body)
-            IVNM=obs_elem_i (lobsSpaceData,'VNM ',index_body)
-            ZVAR=obs_elem_r(lobsSpaceData,'VAR ',index_body)
-            ZLEV=obs_elem_r(lobsSpaceData,'PPP ',index_body)
-            ZOER=obs_elem_r(lobsSpaceData,'OER ',index_body)
-            INDEX_HEADER=obs_elem_i (lobsSpaceData,'OBS ',index_body)
+         iass=obs_elem_i (lobsSpaceData,'ASS ',index_body)
+         ixtr=obs_elem_i (lobsSpaceData,'XTR ',index_body)
+         ivco=obs_elem_i (lobsSpaceData,'VCO ',index_body)
+         IVNM=obs_elem_i (lobsSpaceData,'VNM ',index_body)
+         ZVAR=obs_elem_r(lobsSpaceData,'VAR ',index_body)
+         ZLEV=obs_elem_r(lobsSpaceData,'PPP ',index_body)
+         ZOER=obs_elem_r(lobsSpaceData,'OER ',index_body)
+         INDEX_HEADER=obs_elem_i (lobsSpaceData,'OBS ',index_body)
 
-            IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
-               IK  =obs_elem_i (lobsSpaceData,'LYR ',index_body)
-               varName = vnl_varnameFromVarnum(ivnm)
-               varType = vnl_vartypeFromVarnum(IVNM)
-               ZPT= col_getPressure(lcolumnhr,ik  ,index_header,varType)
-               ZPB= col_getPressure(lcolumnhr,ik+1,index_header,varType)
-               ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
-               ZWT  = 1. - ZWB
-               if(ivnm.eq.bufr_nees) then
-                 col_ptr_hu=>col_getColumn(lcolumnhr,index_header,'HU')
-                 col_ptr_tt=>col_getColumn(lcolumnhr,index_header,'TT')
-                 columnVarB=lqtoes(col_ptr_hu(IK+1),col_ptr_tt(IK+1),ZPB)
-                 columnVarT=lqtoes(col_ptr_hu(IK  ),col_ptr_tt(IK  ),ZPT)
-               else
-                 col_ptr=>col_getColumn(lcolumnhr,index_header,varName)
-                 columnVarB=col_ptr(IK+1)
-                 columnVarT=col_ptr(IK  )
-               endif
-               zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
-               PJO = PJO + zoma*zoma
-               call obs_set_r(lobsSpaceData,'OMA ',index_body,zoma)
-               call obs_set_r(lobsSpaceData,'OMI ',index_body,zoma)
+         IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
+            IK  =obs_elem_i (lobsSpaceData,'LYR ',index_body)
+            varName = vnl_varnameFromVarnum(ivnm)
+            varType = vnl_vartypeFromVarnum(IVNM)
+            ZPT= col_getPressure(lcolumnhr,ik  ,index_header,varType)
+            ZPB= col_getPressure(lcolumnhr,ik+1,index_header,varType)
+            ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+            ZWT  = 1. - ZWB
+            if(ivnm.eq.bufr_nees) then
+               col_ptr_hu=>col_getColumn(lcolumnhr,index_header,'HU')
+               col_ptr_tt=>col_getColumn(lcolumnhr,index_header,'TT')
+               columnVarB=lqtoes(col_ptr_hu(IK+1),col_ptr_tt(IK+1),ZPB)
+               columnVarT=lqtoes(col_ptr_hu(IK  ),col_ptr_tt(IK  ),ZPT)
+            else
+               col_ptr=>col_getColumn(lcolumnhr,index_header,varName)
+               columnVarB=col_ptr(IK+1)
+               columnVarT=col_ptr(IK  )
+            endif
+            zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
+            PJO = PJO + zoma*zoma
+            call obs_set_r(lobsSpaceData,'OMA ',index_body,zoma)
+            call obs_set_r(lobsSpaceData,'OMI ',index_body,zoma)
 !
 ! Process all upper air data data below model's orography
 !
-            ELSEIF ( (iass.EQ.1).AND.(ixtr.EQ.2).AND.(ivco.EQ.2) ) THEN
-               IF(IVNM .EQ. BUFR_NEGZ ) THEN
+         ELSEIF ( (iass.EQ.1).AND.(ixtr.EQ.2).AND.(ivco.EQ.2) ) THEN
+            IF(IVNM .EQ. BUFR_NEGZ ) THEN
 !
 ! Forward nonlinear model for geopotential data below model's orography
 !
-                  ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
-     &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
-                  zoma = ( col_getMountain(lcolumnhr,index_header) + ZTVG/zgamma
-     &                     *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp) - zvar )/zoer
-                  PJO =PJO+zoma*zoma
-                  call obs_set_r(lobsSpaceData,'OMA ',index_body,zoma)
-                  call obs_set_r(lobsSpaceData,'OMI ',index_body,zoma)
-               ENDIF
+               ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
+     &                  *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
+               zoma = ( col_getMountain(lcolumnhr,index_header) + ZTVG/zgamma
+     &                  *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp) - zvar )/zoer
+               PJO =PJO+zoma*zoma
+               call obs_set_r(lobsSpaceData,'OMA ',index_body,zoma)
+               call obs_set_r(lobsSpaceData,'OMI ',index_body,zoma)
             ENDIF
          ENDIF
-      ENDDO
+      ENDDO BODY
 
       IF(LLNOXTR) THEN
         WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'

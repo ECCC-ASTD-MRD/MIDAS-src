@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 SUBROUTINE oda_Jo(lobsSpaceData)
-  use masks_mod
   use obsSpaceData_mod
   implicit none
   !
@@ -30,15 +29,18 @@ SUBROUTINE oda_Jo(lobsSpaceData)
   !
   type(struct_obs) :: lobsSpaceData
   !Local declarations
-  INTEGER JDATA
-!
-!!
-    DO JDATA=1,obs_numbody(lobsSpaceData)
-       IF (lmask(jdata).or.ldiag(jdata)) THEN
-          call obs_set_r(lobsSpaceData,'OMI ',JDATA, &
-               (obs_elem_r(lobsSpaceData,'OMA ',JDATA)*obs_elem_r(lobsSpaceData,'OMA ',JDATA))/2.)
+  INTEGER index_body
+
+!$OMP PARALLEL DO PRIVATE(index_body)
+    DO index_body=1,obs_numbody(lobsSpaceData)
+       IF (obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1) THEN
+          call obs_set_r(lobsSpaceData,'OMI ',index_body, &
+               (obs_elem_r(lobsSpaceData,'OMA ',index_body)*obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.)
+       ELSE
+          call obs_set_r(lobsSpaceData,'OMI ',index_body, 0.0d0)
        ENDIF
     END DO
-!
+!$OMP END PARALLEL DO
+
   RETURN
 END SUBROUTINE oda_Jo

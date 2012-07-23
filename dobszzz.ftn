@@ -55,57 +55,53 @@
       REAL*8 ZVAR,ZOER
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPT,ZPB
-      REAL*8 DLSUM
       LOGICAL LLOK
       CHARACTER*2 VARTYPE
 C
-      DLSUM=0.0d0
-      do index_body=1,obs_numbody(lobsSpaceData)
-         if(obs_getFamily(lobsSpaceData,bodyIndex=index_body).eq.CDFAM) then
+      call obs_set_current_body_list(lobsSpaceData, CDFAM)
+      BODY: do
+         index_body = obs_getBodyIndex(lobsSpaceData)
+         if (index_body < 0) exit BODY
 C
 C*    1. Computation of (HX - Z)/SIGMA
 C     .  -----------------------------
 C
 C     Process all data within the domain of the model
 C
-            LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)
-     &           .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0)
-     &           .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)
-            IF ( LLOK ) THEN
-               INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-               ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
-               ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
-               IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
-               IVNM = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-               IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
-               IPB = IPT+1
-               varType = vnl_vartypeFromVarnum(IVNM)
-               ZPT= col_getHeight(lcolumnhr,ik  ,index_header,varType)/RG
-               ZPB= col_getHeight(lcolumnhr,ik+1,index_header,varType)/RG
-               ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
-               ZWT  = 1. - ZWB
-               if(ivnm.eq.bufr_nees) then
-                 write(*,*) 'DOBSZZZ: CANNOT ASSIMILATE ES!!!'
-                 call qqexit(1)
-               endif
+         LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)
+     &        .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0)
+     &        .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)
+         IF ( LLOK ) THEN
+            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+            ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+            ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+            ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+            IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
+            IVNM = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+            IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
+            IPB = IPT+1
+            varType = vnl_vartypeFromVarnum(IVNM)
+            ZPT= col_getHeight(lcolumnhr,ik  ,index_header,varType)/RG
+            ZPB= col_getHeight(lcolumnhr,ik+1,index_header,varType)/RG
+            ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
+            ZWT  = 1. - ZWB
+            if(ivnm.eq.bufr_nees) then
+               write(*,*) 'DOBSZZZ: CANNOT ASSIMILATE ES!!!'
+               call qqexit(1)
+            endif
 C
 C     CONTRIBUTION TO Jo
 C
-               call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, 
-     +               (ZWB*col_getElem(lcolumnhr,IPB,INDEX_HEADER)
-     +              + ZWT*col_getElem(lcolumnhr,IPT,INDEX_HEADER)-ZVAR)/ZOER)
-               DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-     +              *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-               call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
-            ENDIF
-C
+            call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, 
+     +            (ZWB*col_getElem(lcolumnhr,IPB,INDEX_HEADER)
+     +           + ZWT*col_getElem(lcolumnhr,IPT,INDEX_HEADER)-ZVAR)/ZOER)
+            PJO = PJO + obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
+     +           *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
+            call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
          ENDIF
-      END DO
-C--------------------------------------------------------------------
-      PJO = DLSUM
-C--------------------------------------------------------------------
-*
+C
+      ENDDO BODY
+
       RETURN
       END
 

@@ -2855,8 +2855,8 @@ contains
          list_index = 0
          call obs_set_current_header_list(obsdat, family)
          HEADER: do
-            if (index_header < 0) exit HEADER
             index_header = obs_getHeaderIndex(obsdat)
+            if (index_header < 0) exit HEADER
             first= obs_elem_i(obsdat,'RLN',index_header)
             last = obs_elem_i(obsdat,'NLV',index_header) + first - 1
             do item_index=first,last    ! For each item indicated in the header

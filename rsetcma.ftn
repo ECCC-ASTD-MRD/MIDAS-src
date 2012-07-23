@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE RSETCMA(lobsSpaceData)
-#if defined (DOC)
 *
 ***s/r RSETCMA  -
 *
@@ -27,27 +26,23 @@
 *
 **    Purpose:
 *
-*
-*Arguments
-*
-#endif
       use obsSpaceData_mod
       use bufr
-      IMPLICIT NONE
+      implicit none
       type(struct_obs) :: lobsSpaceData
-      INTEGER JDATA,II,IASS,ITYP
+      integer index_body
+      real*8 :: zoer
 C
 C-------     READ H(X)-Z IN zprim.dat
 C
       call obs_swapVarOmf(lobsSpaceData)
-      do JDATA=1,obs_numbody(lobsSpaceData)
-         IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
-         ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-         IF(IASS.EQ.1 .OR. ITYP.EQ.BUFR_NEHU .OR. ITYP.EQ.BUFR_NEHS) THEN
-            call obs_set_r(lobsSpaceData,'OMF ',JDATA,-obs_elem_r(lobsSpaceData,'OMF ',JDATA)
-     S           /obs_elem_r(lobsSpaceData,'OER ',JDATA))
-         ENDIF
+      do index_body=1,obs_numbody(lobsSpaceData)
+         zoer   = obs_elem_r(lobsSpaceData,'OER ',index_body)
+         if(zoer .ne. 0.0d0) then
+            call obs_set_r(lobsSpaceData,'OMF ',index_body,-obs_elem_r(lobsSpaceData,'OMF ',index_body)
+     S           /zoer)
+         endif
       enddo
 C
-      RETURN
-      END
+      return
+      end

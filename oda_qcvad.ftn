@@ -15,10 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE oda_qcvad(lobsSpaceData)
-      use masks_mod
       use obsSpaceData_mod
-#if defined (DOC)
-*
 *
 *Purpose : Factorizes Grad(Jo) according to Andersson and Jarvinen
 *          1999, Variational quality control, Q.J.R., 125,
@@ -31,27 +28,28 @@
 *          observation operators from P. Koclas, J. Halle and
 *          J. St-James
 *
-*Revisions :
-*
-#endif
-      IMPLICIT NONE
-*implicits
-#include "comlun.cdk"
+      implicit none
 *
       type(struct_obs) :: lobsSpaceData
-      INTEGER j,JDATA,ierr
-      logical, pointer :: llmask(:)
+      integer index_body
+      logical, save :: firstTime = .true.
+      logical, save, allocatable :: includeFlag(:)
 
-      allocate(llmask(ubound(lmask,1)),STAT=ierr)
-      if(ierr /= 0 ) call abort3d(nulout,'cant allocate mem. to llmask')
-      llmask = lmask .neqv. lmaskro ! Exclusion of GPSRO QCVAR
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-        IF (llmask(jdata)) THEN
-          call obs_set_r(lobsSpaceData,'OMI ',JDATA, obs_elem_r(lobsSpaceData,'OMI ',JDATA)
-     &         *(1.d0 - obs_elem_r(lobsSpaceData,'OMN ',JDATA)))
-        ENDIF
-      END DO
-C--------------------------------------------------------------------
-      deallocate(llmask)
-      RETURN
-      END
+      if(firstTime) then
+        allocate(includeFlag(obs_numbody(lobsSpaceData)))
+        do index_body=1,obs_numbody(lobsSpaceData)
+           includeFlag(index_body) = (obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1) 
+     +                         .and. (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'RO')
+        enddo
+        firstTime=.false.
+      endif
+
+      do index_body=1,obs_numbody(lobsSpaceData)
+        if (includeFlag(index_body)) then
+          call obs_set_r(lobsSpaceData,'OMI ',index_body, obs_elem_r(lobsSpaceData,'OMI ',index_body)
+     &           *(1.d0 - obs_elem_r(lobsSpaceData,'OMN ',index_body)))
+        endif
+      enddo
+
+      return
+      end

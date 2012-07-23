@@ -75,7 +75,7 @@ C     1.1 PPP Vertical coordinate
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
             LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
+     &                obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. -1) .AND.
      &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
                IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
@@ -140,7 +140,7 @@ C
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
             LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHU) .AND.
+     &                obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. -1) .AND.
      &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
@@ -163,7 +163,7 @@ C     2.2  ZZZ Vertical coordinate and surface observations
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
             LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEHS) .AND.
+     &                obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. -1) .AND.
      &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
                IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)

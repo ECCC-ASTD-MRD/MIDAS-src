@@ -82,7 +82,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DO J=1,JPINEL
          IKOUNTREJ(J)=0
          IKOUNTREA(J)=0
-      END DO
+      ENDDO
       IKOUNTT=0
 
       !
@@ -103,11 +103,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          HEADER: do
             index_header = obs_getHeaderIndex(lobsSpaceData)
             if (index_header < 0) exit HEADER
-
-!           IF(LLPRINT) THEN
-!ccc               CALL PRNTHDR(INDEX_HEADER,NULOUT)
-!ccc               CALL PRNTBDY(INDEX_HEADER,NULOUT)
-!           ENDIF
 
             ! loop over all body indices (still in the same family)
                                         ! Set the body list
@@ -133,7 +128,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   DO JD=1,NFLAGS
                      IBAD= 13-NLISTFLG(JD)
                      LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
-                  END DO
+                  ENDDO
                   IF ( .NOT. LLREJ ) THEN
                      ZVAL=obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
                      ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'), &
@@ -192,9 +187,9 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                       ENDIF ASSIMILATED
                     ENDIF ZDIF
                   ENDIF
-               END DO FILTER
-            END DO BODY
-         END DO HEADER
+               ENDDO FILTER
+            ENDDO BODY
+         ENDDO HEADER
 
          WRITE(NULOUT,* ) ' '
          WRITE(NULOUT,* ) '*****************************************************'
@@ -208,12 +203,12 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   224    FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
   225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,4(2x,f9.2))
 
-      END DO FAMILY
+      ENDDO FAMILY
 
       IKOUNTT=0
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      END DO
+      ENDDO
       WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
       WRITE(NULOUT,* ) ' '
 
@@ -290,7 +285,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          IGZACC(J)=0
          IGZREJ(J)=0
          IBNDREJ(J)=0
-      END DO
+      ENDDO
       IKOUNTT=0
       ICOUNT   =0
       ICOUNTAL =0
@@ -462,8 +457,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   ISBLREJ(IJ)=ISBLREJ(IJ)+1
                ENDIF
             ENDIF
-         END DO BODY2
-      END DO HEADER
+         ENDDO BODY2
+      ENDDO HEADER
 
       WRITE(NULOUT,* ) ' '
       WRITE(NULOUT,* ) '%UA***************************************'
@@ -484,7 +479,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       IKOUNTT=0
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      END DO
+      ENDDO
       WRITE(NULOUT,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
       WRITE(NULOUT,* ) ' '
 
@@ -531,7 +526,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !C
       DO J=1,JPINEL
          IKOUNTREJ(J)=0
-      END DO
+      ENDDO
       IKOUNTT=0
       !
       ! Loop over the families of interest
@@ -543,21 +538,17 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          !
          ! loop over all body indices of each family
          !
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-!         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
-         BODY: do index_body=1,obs_numbody(lobsSpaceData)
-!            index_body = obs_getBodyIndex(lobsSpaceData)
-!            if (index_body < 0) exit BODY
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-            if(obs_getFamily(lobsSpaceData,index_header).eq.list_family(index_family)) then
-
+         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
+         BODY: do 
+            index_body = obs_getBodyIndex(lobsSpaceData)
+            if (index_body < 0) exit BODY
 !C
 !C          REJECT DATA TOO CLOSE TO THE MODEL OROGRAPHY ,PUT TO
 !C          MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 !C
             IKOUNTT=IKOUNTT+1
             ZVAL=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
             ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.
             IF ( ZDIFF .GT. RLISTCRIT ) THEN
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
@@ -574,11 +565,10 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                            ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),&
                                  18 ))
                   ENDIF
-               END DO
+               ENDDO
             ENDIF
-            ENDIF
-         END DO BODY
-      END DO FAMILY
+         ENDDO BODY
+      ENDDO FAMILY
 
       WRITE(NULOUT,* ) ' '
       WRITE(NULOUT,* ) &
@@ -595,7 +585,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       IKOUNTT=0
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      END DO
+      ENDDO
       WRITE(NULOUT  &
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
       WRITE(NULOUT,* ) ' '
@@ -648,7 +638,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       ILISTEL(6)=BUFR_NETT
       ILISTEL(7)=BUFR_NEGZ
 
-!C      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
 
       WRITE(NULOUT,* ) ' '
@@ -677,7 +666,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          IGZACC(J)=0
          IGZREJ(J)=0
          IBNDREJ(J)=0
-      END DO
+      ENDDO
       IKOUNTT=0
       ICOUNT   =0
       ICOUNTAL =0
@@ -801,8 +790,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                ITOTREJ(IJ)=ITOTREJ(IJ)+1
                ISBLREJ(IJ)=ISBLREJ(IJ)+1
             ENDIF
-         END DO BODY
-      END DO HEADER
+         ENDDO BODY
+      ENDDO HEADER
 
       WRITE(NULOUT,* ) ' '
       WRITE(NULOUT,* ) '%PR***************************************'
@@ -822,7 +811,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       IKOUNTT=0
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      END DO
+      ENDDO
       WRITE(NULOUT,'(1X,"%PR NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
       WRITE(NULOUT,* ) ' '
 
@@ -867,7 +856,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !C
       DO J=1,JPINEL
          IKOUNTREJ(J)=0
-      END DO
+      ENDDO
       IKOUNTT=0
 
       !
@@ -916,10 +905,10 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                     call obs_set_i(lobsSpaceData,'FLG ',index_body, &
                            IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),18))
                  ENDIF
-               END DO
+               ENDDO
             ENDIF
-         END DO BODY
-      END DO HEADER
+         ENDDO BODY
+      ENDDO HEADER
 
       WRITE(NULOUT,* ) ' '
       WRITE(NULOUT,* )  &
@@ -936,7 +925,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       IKOUNTT=0
       DO JDATA=1,obs_numbody(lobsSpaceData)
         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      END DO
+      ENDDO
       WRITE(NULOUT  &
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
       WRITE(NULOUT,* ) ' '

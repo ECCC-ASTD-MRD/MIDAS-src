@@ -80,7 +80,6 @@
       REAL*8 ZVAR,ZOER,ZCON
       REAL*8 ZEXP,zexpgz,ZGAMMA,ZTVG
       REAL*8 ZLEV,ZHHH,ZGAMAZ,ZSLOPE,GZHR
-      REAL*8 DLSUM
       REAL*8 columnVarB,LQTOES
       LOGICAL LLOK
       CHARACTER*2 VARTYPE
@@ -93,8 +92,6 @@ C
 C
 
       allocate(IPOINTR(obs_numBody(lobsSpaceData)))
-
-      DLSUM=0.0d0
 
       ! loop over all header indices of the 'SF' family
       call obs_set_current_header_list(lobsSpaceData,CDFAM)
@@ -227,10 +224,8 @@ C
      &                  obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY)  .EQ. 0)
                ENDIF
                IF(LLOK)     THEN
-                  DLSUM=DLSUM+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)*
+                  PJO = PJO + obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)*
      1                  obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-                  call obs_set_r(lobsSpaceData,'OMN ',INDEX_BODY, 
-     +              obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
                   call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY, 
      +              obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
                ENDIF
@@ -267,21 +262,18 @@ c
      &                     + ZTVG/zgamma
      &                     *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexpgz)
      &                     - zvar)/zoer)
-               DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
+               PJO =PJO+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
      +                     *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
                call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
-               DLSUM =DLSUM+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
+               PJO =PJO+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
      +                            *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
                call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
-               call obs_set_r(lobsSpaceData,'OMN ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
             ENDIF
 C
          ENDDO BODY_3
 C
       ENDDO HEADER
       deallocate(IPOINTR)
-C--------------------------------------------------------------------
-      PJO = DLSUM
-C--------------------------------------------------------------------
+
       RETURN
       END
