@@ -35,8 +35,6 @@
 *     .     Deallocate arrays in compdg.cdk
 *     C. Charette *ARMA/AES SEP 1999
 *          - Operator PTOT as a function of latitude
-*     S. Pellerin *ARMA/AES March 2000
-*          - Close nulstato
 *     S. Pellerin *ARMA/SMC May 2000
 *          - Logical unit cleanup
 *          - Fix for F90 conversion:
@@ -65,8 +63,7 @@ C
       use controlVector_mod
  
       IMPLICIT NONE
-#include "comlun.cdk"
-*
+C
       INTEGER ISTAMP,IERR, KULOUT, FSTFRM,EXFIN, fclos
       integer  k
       EXTERNAL HPCHECK, HPDEALLC, FSTFRM,EXFIN
@@ -74,16 +71,6 @@ C
       WRITE(KULOUT,FMT='(/,10X," JOB TERMINATION BY SUTERM",
      S     /,20(" *"))')
 C
-C*    4. Close RPN standard files (opened in SULUN)
-C
-      if(nulstat.ne.0) ierr =  fstfrm(nulstat)
-     
-      do k=1,ntrials
-        ierr=fstfrm(ninmpg(k))  
-      enddo
-      write(*,*) 'Files have been closed'
-      call flush(6)
-c
       CALL HPCHECK(IERR)
       write(*,*) 'HPCHECK done'
       call flush(6)

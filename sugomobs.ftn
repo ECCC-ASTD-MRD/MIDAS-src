@@ -41,7 +41,7 @@ c
       type(struct_columnData) :: lcolumng,lcolumnhr
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl, vco_trl
-      integer fstlir,vezuvint2,vezsint2,ezdefset,ezgprm,fnom,fstouv,fstfrm
+      integer fstlir,vezuvint2,vezsint2,ezdefset,ezgprm,fnom,fclos,fstouv,fstfrm
       integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef,isrchila
       integer jlev,jobs,ier,iset,jstep,jgrid,numgrids
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
@@ -74,6 +74,7 @@ c
       character(len=2) :: flnum
       character(len=128) :: trialfile
       integer, allocatable :: ninmpg_yinyan(:,:),nultrl(:,:)
+      integer :: ntrials
       logical :: trialExists
       real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
       real*8, allocatable, dimension(:) ::  dlatfld, dlonfld
@@ -820,6 +821,7 @@ c
       do jgrid=1,numgrids
         do jstep=1,ntrials
           ier=fstfrm(ninmpg_yinyan(jstep,jgrid))  
+          ier=fclos(ninmpg_yinyan(jstep,jgrid))  
         enddo
       enddo
 c

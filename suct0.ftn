@@ -24,14 +24,11 @@ C
 C Revision:
 C             S. Pellerin *ARMA/SMC Oct. 2000
 C                - default values
-*             S. Pellerin *ARMA/SMC nov. 2001
-*                - Introduction of logical l4dvar
 *             S. Pellerin ARMA nov. 2008
 *                - Introduction of CMINMODE variable
 #endif
       IMPLICIT NONE
 #include "comct0.cdk"
-#include "comlun.cdk"
 C
       INTEGER IERR
 C

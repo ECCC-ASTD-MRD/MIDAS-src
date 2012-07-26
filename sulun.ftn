@@ -27,20 +27,8 @@ C     Author: P. Gauthier *ARMA/AES  June 9, 1992
 *     .   J. St-James  *CMC/CMSV   June 1997
 *                  - Call to SUFILNAM instead of naming and opening the
 *                    laloobs file.
-*     .   S. Pellerin *ARMA/AES March 2000
-*                  - Add of nulstato for ouput background statistics
 *     .   S. Pellerin *ARMA/SMC May 2000
 *                  - Logical unit cleanup
-*    .    Bin He    *ARMA/MSC    Apr. 2008. 
-*                  - Reading multiple trial files . 
-*     .   S. Pellerin, ARMA, August 2008
-*                  - initialisation on ninmpg for dynamic assignation
-*                    of logical unit
-*     .   L. Fillion, ARMA, 7 August 2009
-*                  - Introduce nutemp via comlunla.cdk
-c 
-c 
-c 
 *     ---------------------------------------------------------------------
 #endif
       IMPLICIT NONE
@@ -51,20 +39,12 @@ C              ------------------
 C
  100  CONTINUE
       NULOUT =  6
-      NULSTAT = 0
-      NTRIALS=1 
-      ninmpg = 0
 
       CALL SUFILNAM
 
-      WRITE(UNIT=NULOUT,FMT=9000) nulout,nulstat
+      WRITE(UNIT=NULOUT,FMT=9000) nulout
  9000 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
-     S     ,10X,' NULOUT = ',I3/
-     S     ,10X,' NULSTAT = ',I3)
-
-      WRITE(UNIT=NULOUT,FMT=9001) ninmpg(1:ntrials)
- 9001 FORMAT(//,6X,"SULUN- ASSIGNMENTS OF VARIATIONAL LOGICAL UNITS",/
-     S     ,10X,' NINMPG = ',I3)
+     S     ,10X,' NULOUT = ',I3)
 
       RETURN
       END

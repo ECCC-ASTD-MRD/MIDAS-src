@@ -95,7 +95,7 @@ c
 !
 !     Initialize the vertical coordinate from the statistics file
 !
-      call vco_AnlInit(vco_anl)
+      call vco_SetupFromFile(vco_anl,'./glbcov',.true.)
 !
 !     Allocate the statevector
 !

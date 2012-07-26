@@ -75,7 +75,6 @@ C
       use bufr
       IMPLICIT NONE
 *implicits
-#include "comlun.cdk"
 #include "comstato.cdk"
 *
 C
@@ -100,8 +99,8 @@ C
       CHARACTER*2 CTVAR
       CHARACTER*4 CNVAR
       LOGICAL     LLPRESNT,LLOK,LLPROB,LLTT
-      INTEGER     FSTLIR,VFSTLIR,FSTPRM
-      EXTERNAL    FSTLIR,VFSTLIR,FSTPRM
+      INTEGER     FNOM,FSTOUV,FCLOS,FSTFRM,FSTLIR,VFSTLIR,FSTPRM
+      EXTERNAL    FNOM,FSTOUV,FCLOS,FSTFRM,FSTLIR,VFSTLIR,FSTPRM
 C
       INTEGER JPMXIDUA
       PARAMETER (JPMXIDUA=23)
@@ -114,6 +113,8 @@ C
       INTEGER ILYR,ILEMU,ILEMV,ILEMGZ,ILEMTT,ILEMES
       INTEGER ILEMUS,ILEMVS,ILEMTS,ILEMESS,ILEMPS,ILEMPN
       REAL*8 ZLYR, ZLEV, ZCONGZ
+      INTEGER :: nulstat
+      LOGICAL :: isExist_L
 C
 C
 C     AIREP : ASDAR : SATOB
@@ -132,6 +133,21 @@ C
       DATA (XSTDEVLV(J,2),J=1,10)/1000.0D0,850.0D0,700.0D0,500.0D0,
      &                             400.0D0,300.0D0,250.0D0,200.0D0,
      &                             150.0D0,100.0D0/
+C
+C     OPEN THE FILE WITH THE STATISTICS
+C
+      INQUIRE(FILE='./obscov',EXIST=isExist_L)
+      IF ( isExist_L )then
+        NULSTAT=0
+        IERR=FNOM(NULSTAT,'./obscov','RND+OLD+R/O',0)
+        IF ( IERR .EQ. 0 ) THEN
+          write(*,*) 'IOBSST - File : ./obscov'
+          write(*,*) ' opened as unit file ',nulstat
+          ierr =  fstouv(nulstat,'RND+OLD')
+        ELSE
+          CALL ABORT3D(6,'SUFILNAM:NO OBSERVATION STAT FILE!!')
+        ENDIF
+      ENDIF
 C
 C     CONVERSION FACTORS:
 C
@@ -370,11 +386,11 @@ C
       CALL ZERO(JPMAXILEV*JPMAXILEV*JPCORBANDS,UUOBSCOR)
       if(llpresnt) then
         DO JBAND =1,JPCORBANDS
-          WRITE(NULOUT,*) " "
-          WRITE(NULOUT,*) " -----------------------------"
-          WRITE(NULOUT,*) " BAND NUMBER IS : ",JBAND
-          WRITE(NULOUT,*) " -----------------------------"
-          WRITE(NULOUT,*) " "
+          WRITE(*,*) " "
+          WRITE(*,*) " -----------------------------"
+          WRITE(*,*) " BAND NUMBER IS : ",JBAND
+          WRITE(*,*) " -----------------------------"
+          WRITE(*,*) " "
 C
 C    FILTER THE MATRICES "TO REMOVE SINGULARITIES..."
 C
@@ -382,7 +398,7 @@ C     1. GEOPOTENTIAL
 C        ------------
           ZEIGMIN=0.2
           ZALPHA=0.1
-          WRITE(NULOUT,*) " filtering GZ correlation matrix"
+          WRITE(*,*) " filtering GZ correlation matrix"
           CALL FILTMATRIX(ZVCOR,ZPROJ,ZEIGEN,ZEIGENV,
      &         JPRLEV,ZEIGMIN,ZALPHA)
 C
@@ -390,7 +406,7 @@ C     2. T-Td
 C        -----
           ZEIGMIN=0.0
           ZALPHA=0.0
-          WRITE(NULOUT,*) " filtering ES correlation matrix"
+          WRITE(*,*) " filtering ES correlation matrix"
           CALL FILTMATRIX(ESVCOR,ZPROJ,ZEIGEN,ZEIGENV,
      &         JPRLEV,ZEIGMIN,ZALPHA)
 C
@@ -410,29 +426,29 @@ C     PRINT FINAL CORRELATION MATRICES
 C     -------------------------------------
 C
       DO JBAND =1,JPCORBANDS
-         WRITE(NULOUT,*) " "
-         WRITE(NULOUT,*) " -----------------------------"
-         WRITE(NULOUT,*) " BAND NUMBER IS : ",JBAND
-         WRITE(NULOUT,*) " -----------------------------"
-         WRITE(NULOUT,*) " "
-         WRITE(NULOUT,*) " GZ     correlation matrix"
-         WRITE(NULOUT,*) " -------------------------------------------------"
-         WRITE(NULOUT,1245)( (GZOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
-         WRITE(NULOUT,*) " -------------------------------------------------"
+         WRITE(*,*) " "
+         WRITE(*,*) " -----------------------------"
+         WRITE(*,*) " BAND NUMBER IS : ",JBAND
+         WRITE(*,*) " -----------------------------"
+         WRITE(*,*) " "
+         WRITE(*,*) " GZ     correlation matrix"
+         WRITE(*,*) " -------------------------------------------------"
+         WRITE(*,1245)( (GZOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
+         WRITE(*,*) " -------------------------------------------------"
 C
 C    -------------------------------------------------------------------
 C
-         WRITE(NULOUT,*) " UU-VV  correlation matrix"
-         WRITE(NULOUT,*) " -------------------------------------------------"
-         WRITE(NULOUT,1245)( (UUOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
-         WRITE(NULOUT,*) " -------------------------------------------------"
+         WRITE(*,*) " UU-VV  correlation matrix"
+         WRITE(*,*) " -------------------------------------------------"
+         WRITE(*,1245)( (UUOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
+         WRITE(*,*) " -------------------------------------------------"
 C
 C    -------------------------------------------------------------------
 C
-         WRITE(NULOUT,*) " T-Td   correlation matrix"
-         WRITE(NULOUT,*) " -------------------------------------------------"
-         WRITE(NULOUT,1245)( (ESOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
-         WRITE(NULOUT,*) " -------------------------------------------------"
+         WRITE(*,*) " T-Td   correlation matrix"
+         WRITE(*,*) " -------------------------------------------------"
+         WRITE(*,1245)( (ESOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
+         WRITE(*,*) " -------------------------------------------------"
       END DO
 C
 C
@@ -464,28 +480,28 @@ C
                IF( LLTT ) THEN
                   XOSTDEV(ILEMTT,ILYR,JBAND)= TTSTD(ILYR,JBAND)
                ELSE
-                  write(nulout,*) ' DEFAULT VALUES FOR TT RAOB OBS ERRORS'
+                  write(*,*) ' DEFAULT VALUES FOR TT RAOB OBS ERRORS'
                ENDIF
 *pik
             END DO
          END DO
       ELSE
          LLPROB=.TRUE.
-         WRITE(NULOUT,*)" DEFAULT VALUES ARE USED FOR RAOBS ERRORS  "
+         WRITE(*,*)" DEFAULT VALUES ARE USED FOR RAOBS ERRORS  "
       ENDIF
 C
 C
       IF ( .NOT. LLPROB ) THEN
-         WRITE(NULOUT,*)" ----------------- "
-         WRITE(NULOUT,*)" SUBROUTINE ERROBS:"
-         WRITE(NULOUT,*)" RAOBS ERRORS SET  "
-         WRITE(NULOUT,*)" ----------------- "
+         WRITE(*,*)" ----------------- "
+         WRITE(*,*)" SUBROUTINE ERROBS:"
+         WRITE(*,*)" RAOBS ERRORS SET  "
+         WRITE(*,*)" ----------------- "
       ELSE
-         WRITE(NULOUT,*)" ------------------------------- "
-         WRITE(NULOUT,*)" SUBROUTINE ERROBS:"
-         WRITE(NULOUT,*)" PROBLEM WITH STATISTICS FILE    "
-         WRITE(NULOUT,*)" DEFAULT VALUES FOR RAOBS ERRORS "
-         WRITE(NULOUT,*)" ------------------------------- "
+         WRITE(*,*)" ------------------------------- "
+         WRITE(*,*)" SUBROUTINE ERROBS:"
+         WRITE(*,*)" PROBLEM WITH STATISTICS FILE    "
+         WRITE(*,*)" DEFAULT VALUES FOR RAOBS ERRORS "
+         WRITE(*,*)" ------------------------------- "
       ENDIF
 C
 C================================================================
@@ -550,13 +566,13 @@ C
                  DZOBSCOR(JI,J,JTYP) = DZCOR(JI,J)
               END DO
            END DO
-           WRITE(NULOUT,*)" correlation matrix for satems with TYPE:",CETIKET
-           WRITE(NULOUT,*)" ------------------------------------------------"
-           WRITE(NULOUT,1244)((DZOBSCOR(JI,J,JTYP),JI=1,JPSALEV),J=1,JPSALEV)
-           WRITE(NULOUT,*)" ------------------------------------------------"
+           WRITE(*,*)" correlation matrix for satems with TYPE:",CETIKET
+           WRITE(*,*)" ------------------------------------------------"
+           WRITE(*,1244)((DZOBSCOR(JI,J,JTYP),JI=1,JPSALEV),J=1,JPSALEV)
+           WRITE(*,*)" ------------------------------------------------"
          ELSE
            LLPROB=.TRUE.
-           WRITE(NULOUT,*) " PROBLEM WITH SATEM STATISTICS  "
+           WRITE(*,*) " PROBLEM WITH SATEM STATISTICS  "
         ENDIF
       END DO
 C
@@ -605,27 +621,30 @@ C
                HUOBSCOR(JI,J) = HUCOR(JI,J)
             END DO
          END DO
-         WRITE(NULOUT,*) " correlation matrix for humsat "
-         WRITE(NULOUT,*)" ------------------------------------------------"
-         WRITE(NULOUT,1244)( (HUOBSCOR(JI,J),JI=1,JPHLEV),J=1,JPHLEV)
-         WRITE(NULOUT,*)" ------------------------------------------------"
+         WRITE(*,*) " correlation matrix for humsat "
+         WRITE(*,*)" ------------------------------------------------"
+         WRITE(*,1244)( (HUOBSCOR(JI,J),JI=1,JPHLEV),J=1,JPHLEV)
+         WRITE(*,*)" ------------------------------------------------"
       ELSE
          LLPROB=.TRUE.
-         WRITE(NULOUT,*) " PROBLEM WITH HUMSAT STATISTICS   "
+         WRITE(*,*) " PROBLEM WITH HUMSAT STATISTICS   "
       ENDIF
 C
       IF ( .NOT. LLPROB ) THEN
-         WRITE(NULOUT,*)" ----------------------- "
-         WRITE(NULOUT,*)" SUBROUTINE SUCOVO:"
-         WRITE(NULOUT,*)" OBSERVATION ERRORS SET  "
-         WRITE(NULOUT,*)" ----------------------- "
+         WRITE(*,*)" ----------------------- "
+         WRITE(*,*)" SUBROUTINE SUCOVO:"
+         WRITE(*,*)" OBSERVATION ERRORS SET  "
+         WRITE(*,*)" ----------------------- "
       ELSE
-         WRITE(NULOUT,*)" ------------------------------- "
-         WRITE(NULOUT,*)" SUBROUTINE SUCOVO:"
-         WRITE(NULOUT,*)" PROBLEM WITH STATISTICS FILE    "
-         WRITE(NULOUT,*)" DEFAULT VALUES FOR RAOBS ERRORS "
-         WRITE(NULOUT,*)" ------------------------------- "
+         WRITE(*,*)" ------------------------------- "
+         WRITE(*,*)" SUBROUTINE SUCOVO:"
+         WRITE(*,*)" PROBLEM WITH STATISTICS FILE    "
+         WRITE(*,*)" DEFAULT VALUES FOR RAOBS ERRORS "
+         WRITE(*,*)" ------------------------------- "
       ENDIF
+
+      IERR=FSTFRM(NULSTAT)  
+      IERR=FCLOS(NULSTAT)  
 C
  1244 FORMAT( 7(1x,f5.2))
  1245 FORMAT(16(1x,f5.2))

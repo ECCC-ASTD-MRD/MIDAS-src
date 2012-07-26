@@ -19,12 +19,11 @@ module columnData_mod
   public :: col_zero, col_fillmvo, col_getColumn, col_getElem, col_getVco, col_setVco
 
   ! public entities accessed through inheritance
-  public :: struct_vco, vco_calcpres, vco_AnlInit, vco_SetupFromFile
+  public :: struct_vco, vco_SetupFromFile
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
 
   type struct_columnData
-    integer           :: nlev,nlev_T,nlev_M
-    integer           :: nkgdimo,numCol,nStepObs
+    integer           :: numCol,nStepObs
     logical           :: allocated=.false.
     logical           :: mpi_local
     real*8,pointer    :: all(:,:)
@@ -126,14 +125,13 @@ module columnData_mod
     END SUBROUTINE col_zero
 
 
-    SUBROUTINE col_allocate(column,numCol,nlev_M,nlev_T,mpi_local)
+    SUBROUTINE col_allocate(column,numCol,mpi_local)
       IMPLICIT NONE
 
       type(struct_columnData) :: column
       integer, intent(in)           :: numCol
-      integer, intent(in), optional :: nlev_M,nlev_T
       logical, optional             :: mpi_local
-      integer :: ier
+      integer :: nkgdimo,ier
 
       integer iloc,jvar,jvar2
 
@@ -145,20 +143,10 @@ module columnData_mod
         write(*,*) 'col_allocate: assuming columnData is mpi-local'
       endif
 
-      if( (.not.present(nlev_M)) .and. (.not.present(nlev_T)) ) then
-        if(column%vco%initialized) then
-          column%nlev = max(column%vco%nlev_M,column%vco%nlev_T)
-          column%nlev_M = column%vco%nlev_M
-          column%nlev_T = column%vco%nlev_T
-        else
-          write(*,*) 'col_allocate: VerticalCoord has not been initialized!'
-          call flush(6)
-          call qqexit(1)
-        endif
-      else
-        column%nlev = max(nlev_M,nlev_T)
-        column%nlev_M = nlev_M
-        column%nlev_T = nlev_T
+      if(.not.column%vco%initialized) then
+        write(*,*) 'col_allocate: VerticalCoord has not been initialized!'
+        call flush(6)
+        call qqexit(1)
       endif
 
       allocate(column%varOffset(vnl_numvarmax))
@@ -182,19 +170,19 @@ module columnData_mod
           iloc = iloc + 1
         endif
       enddo
-      column%nkgdimo=iloc
+      nkgdimo=iloc
 
-      allocate(column%all(column%nkgdimo,column%numCol))
+      allocate(column%all(nkgdimo,column%numCol))
       column%all(:,:)=0.0d0
 
-      allocate(column%gz_T(column%nlev_T,column%numCol))
-      allocate(column%gz_M(column%nlev_M,column%numCol))
+      allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
+      allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
       column%gz_T(:,:)=0.0d0
       column%gz_M(:,:)=0.0d0
 
-      allocate(column%rppobs  (column%nlev  ,column%numCol))
-      allocate(column%rppobs_T(column%nlev_T,column%numCol))
-      allocate(column%rppobs_M(column%nlev_M,column%numCol))
+      allocate(column%rppobs  (col_getNumLev(column)     ,column%numCol))
+      allocate(column%rppobs_T(col_getNumLev(column,'TH'),column%numCol))
+      allocate(column%rppobs_M(col_getNumLev(column,'MM'),column%numCol))
       column%rppobs(:,:)=0.0d0
       column%rppobs_T(:,:)=0.0d0
       column%rppobs_M(:,:)=0.0d0
@@ -206,15 +194,15 @@ module columnData_mod
       column%lon(:)=0.0d0
       column%tla(:)=0
 
-      allocate(column%oltv(2,column%nlev,numCol))
+      allocate(column%oltv(2,col_getNumLev(column),numCol))
       column%oltv(:,:,:)=0.0d0
-      allocate(column%rtapfac(column%nlev,numCol))
+      allocate(column%rtapfac(col_getNumLev(column),numCol))
       column%rtapfac(:,:)=0.0d0
 
       allocate(column%timeInterpWeight(column%numCol,mxstepobs))
       column%timeInterpWeight(:,:)=0.0d0
  
-      write(*,*) 'col_allocate: nkgdimo = ',column%nkgdimo
+      write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
       write(*,*) 'col_allocate: varOffset=',column%varOffset
       write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
@@ -269,7 +257,7 @@ module columnData_mod
     character(len=*) :: varName
     character(len=*) :: varType
 
-    integer jobs,jlev,nlev
+    integer jobs,jlev
     real*8, pointer :: column_ptr(:)
 
     call tmg_start(30,'FILLMVO')
@@ -279,19 +267,19 @@ module columnData_mod
     case('PP')
       if(varType.eq.'TH') then
         do jobs = 1,columnghr%numCol
-          do jlev = 1,columnghr%nlev_T
+          do jlev = 1,col_getNumLev(columnghr,'TH')
             columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
           enddo
         enddo
       elseif(varType.eq.'MM') then
         do jobs = 1,columnghr%numCol
-          do jlev = 1,columnghr%nlev_M
+          do jlev = 1,col_getNumLev(columnghr,'MM')
             columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
           enddo
         enddo
       else
         do jobs = 1,columnghr%numCol
-          do jlev = 1,columnghr%nlev
+          do jlev = 1,col_getNumLev(columnghr)
             columnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
           enddo
         enddo
@@ -301,21 +289,20 @@ module columnData_mod
     case('GZ')
       if(varType.eq.'TH') then
         do jobs = 1,columnghr%numCol
-          do jlev = 1, columnghr%nlev_T
+          do jlev = 1, col_getNumLev(columnghr,'TH')
             columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       elseif(varType.eq.'MM') then
         do jobs = 1,columnghr%numCol
-          do jlev = 1, columnghr%nlev_M
+          do jlev = 1, col_getNumLev(columnghr,'MM')
             columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
           enddo
         enddo
       else
-        nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
         do jobs = 1,columnghr%numCol
           column_ptr => col_getColumn(columnghr,jobs,varName)
-          do jlev = 1, nlev
+          do jlev = 1, col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
             column_ptr(jlev)=pvar(jlev,jobs)
           enddo
         enddo
@@ -324,10 +311,9 @@ module columnData_mod
     ! All the other variables that are stored in column%all
     case default
       if(col_varExist(varName)) then
-        nlev = col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
         do jobs = 1,columnghr%numCol
           column_ptr => col_getColumn(columnghr,jobs,varName)
-          do jlev = 1, nlev
+          do jlev = 1, col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
             column_ptr(jlev)=pvar(jlev,jobs) 
           enddo
         enddo
@@ -365,9 +351,6 @@ module columnData_mod
       column%rppobs_T => column%rppobs
       column%rppobs_M => column%rppobs
 
-      column%nlev_T=column%nlev
-      column%nlev_M=column%nlev
-
     END SUBROUTINE col_pointStagToUnstag
 
 
@@ -390,8 +373,8 @@ module columnData_mod
              column_local%numCol,column_global%numCol  
       call flush(6)
 
-      call col_allocate(column_global,column_global%numCol,col_getNumLev(column_local,'MM'),   &
-                        col_getNumLev(column_local,'TH'),mpi_local=.false.)
+      call col_setVco(column_global,col_getVco(column_local))
+      call col_allocate(column_global,column_global%numCol,mpi_local=.false.)
 
       column_global%nStepObs     = column_local%nStepObs
       column_global%varOffset(:) = column_local%varOffset(:)
@@ -403,7 +386,7 @@ module columnData_mod
         iobs_global=obs_elem_i(lobsSpaceData,'GHI ',iobs_local)
         column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
         column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
-        mountain(iobs_global)                         = column_local%gz_t(column_local%nlev_t,iobs_local)
+        mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)
         column_global%lat(iobs_global)                = column_local%lat(iobs_local)
         column_global%lon(iobs_global)                = column_local%lon(iobs_local)
         column_global%tla(iobs_global)                = column_local%tla(iobs_local)
@@ -412,19 +395,19 @@ module columnData_mod
       write(*,*) 'starting allreduce'
       call flush(6)
 
-      nsize=column_global%nkgdimo*column_global%numCol
+      nsize=size(column_global%all)
       call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
 
-      nsize=column_global%numCol
+      nsize=size(mountain)
       call rpn_comm_allreduce(mountain,mountain,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
 
-      nsize=column_global%numCol*mxStepObs
+      nsize=size(column_global%timeInterpWeight)
       call rpn_comm_allreduce(column_global%timeInterpWeight,column_global%timeInterpWeight,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
 
-      nsize=column_global%numCol
+      nsize=size(column_global%lat)
       call rpn_comm_allreduce(column_global%lat,column_global%lat,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
       call rpn_comm_allreduce(column_global%lon,column_global%lon,nsize, &
@@ -433,7 +416,7 @@ module columnData_mod
                               "mpi_integer","mpi_sum","GRID",ierr)
 
       do iobs_global=1,column_global%numCol
-        column_global%gz_t(column_global%nlev_t,iobs_global) = mountain(iobs_global)
+        column_global%gz_t(col_getNumLev(column_global,'TH'),iobs_global) = mountain(iobs_global)
       enddo
 
       deallocate(mountain)
@@ -505,7 +488,7 @@ module columnData_mod
     elseif (varType .eq. 'MM' ) then
       pressure = column%rppobs_m(ilev,headerIndex)
     elseif (varType .eq. 'SF' ) then
-      pressure = column%rppobs_t(column%nlev_t,headerIndex)
+      pressure = column%rppobs_t(col_getNumLev(column,'TH'),headerIndex)
     else
       write(*,*) 'col_getPressure: Unknown variable type: ',varType
       call flush(6)
@@ -531,7 +514,7 @@ module columnData_mod
     elseif (varType .eq. 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
     elseif (varType .eq. 'SF' ) then
-      height = column%gz_t(column%nlev_t,headerIndex)
+      height = column%gz_t(col_getNumLev(column,'TH'),headerIndex)
     endif
 
   end function col_getHeight
@@ -543,7 +526,7 @@ module columnData_mod
     integer, intent(in)                 :: headerIndex
     real*8                              :: height
 
-    height = column%gz_t(column%nlev_t,headerIndex)
+    height = column%gz_t(col_getNumLev(column,'TH'),headerIndex)
 
   end function col_getMountain
 
@@ -554,7 +537,7 @@ module columnData_mod
     integer, intent(in)                 :: headerIndex
     real*8, intent(in)                  :: height
 
-    column%gz_t(column%nlev_t,headerIndex) = height
+    column%gz_t(col_getNumLev(column,'TH'),headerIndex) = height
 
   end subroutine col_setMountain
 
@@ -651,9 +634,9 @@ module columnData_mod
 
     if(present(varType)) then
       if(varType.eq.'MM') then
-        nlev = column%nlev_m
+        nlev = column%vco%nlev_m
       elseif(varType.eq.'TH') then
-        nlev = column%nlev_t
+        nlev = column%vco%nlev_t
       elseif(varType.eq.'SF') then
         nlev = 1
       else
@@ -662,7 +645,7 @@ module columnData_mod
         call qqexit(1)
       endif
     else
-      nlev = column%nlev
+      nlev = max(column%vco%nlev_m,column%vco%nlev_t)
     endif
 
   end function col_getNumLev

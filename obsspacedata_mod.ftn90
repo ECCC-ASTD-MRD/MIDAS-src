@@ -50,18 +50,18 @@ module IndexListDepot_mod
 
 
 contains
-   subroutine ild_initialize(depot, numHeader_max)
+   subroutine ild_initialize(depot, numHeaderBody_max)
       ! Initialize the indicated list depot
       implicit none
       type(struct_index_list_depot), intent(inout) :: depot
-                                        ! max size of struct_obs & hence of depot
-      integer, intent(in) :: numHeader_max
+                                        ! max size of header or body of struct_obs & hence of depot
+      integer, intent(in) :: numHeaderBody_max
 
       integer :: list                   ! an index
 
       ! Allocate each list
       do list = 1,NUMBER_OF_LISTS
-         allocate(depot%index_lists(list)%indices(numHeader_max))
+         allocate(depot%index_lists(list)%indices(numHeaderBody_max))
          depot%list_last_attributed = 0
       end do
    end subroutine ild_initialize

@@ -5,15 +5,10 @@
 !     which are defined in SULUN
 !     --------------------------
 !     NULOUT   : standard output unit
-!     NULSTAT  : Error of observation statistic file unit
-!     NINMPG   : Unit for trial fields file (an array)
-!     NTRIALS  :  number of trial files  . 
 !
 #endif
-      integer nulout,nulstat
-      integer ntrials 
-      integer ninmpg(500)  
+      integer nulout
 
-      COMMON /COMLUN/nulout,nulstat
-      COMMON /COMLUN/ninmpg,ntrials
+      COMMON /COMLUN/nulout
+
 

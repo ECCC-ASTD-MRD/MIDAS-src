@@ -67,28 +67,51 @@ module verticalCoord_mod
 
   end subroutine vco_allocate
 
-  subroutine vco_SetupFromFile(tf_vco,kulfst,lprecision)
+
+  subroutine vco_SetupFromFile(tf_vco,templatefile,lprecision)
 !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     use MathPhysConstants_mod
     implicit none
     type(struct_vco),pointer :: tf_vco
-    integer ::  kulfst
+    character(len=*) :: templatefile
     logical :: lprecision
 
-    integer :: ivcode,kind,jlev,stat,sigdigits
+    integer :: ivcode,kind,jlev,stat,sigdigits,nultemplate,ierr
+    integer :: fnom,fstouv,fstfrm,fclos
     integer,   dimension(:), pointer :: my_ip1
     real    :: hyb
     real*8  :: dl_ptM,dl_ptT,dl_pref,dl_rcf1,dl_rcf2,zterm
     real*8,    dimension(:), pointer :: my_a, my_b
     REAL*8 precision
     character(len=10) :: blk_S
+    logical :: isExist_L
+
+    inquire(file=templatefile,exist=isExist_L)
+    IF ( isExist_L )then
+      nultemplate=0
+      ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
+      if ( ierr .eq. 0 ) then
+        write(*,*) ' TEMPLATEFILE=', templatefile
+        write(*,*) ' opened as unit file ',nultemplate
+        ierr =  fstouv(nultemplate,'RND+OLD')
+      else
+        write(*,*) 'vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!'
+        call flush(6)
+        call qqexit(1)
+      endif
+    else
+      write(*,*) 'vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!'
+      call flush(6)
+      call qqexit(1)
+    endif
+
 
     if(.not.associated(tf_vco)) allocate(tf_vco)
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file(vgd_new reads "!!" record)
   
-    stat = vgd_new(tf_vco%vgrid,unit=kulfst,format="fst",ip1=-1,ip2=-1)
+    stat = vgd_new(tf_vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
     if(stat.ne.VGD_OK)then
       print*,'ERROR with vgd_new'
       call exit(1)
@@ -184,7 +207,7 @@ module verticalCoord_mod
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
       tf_vco%dpt_M  = exp( my_a(1) + my_b(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptot(MM)=',tf_vco%dpt_M
+      write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
     else
       tf_vco%dpt_M  = dl_ptM
     endif
@@ -301,109 +324,17 @@ module verticalCoord_mod
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
       tf_vco%dpt_T  = exp( my_a(1) + my_b(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptot(TH)=',tf_vco%dpt_T
+      write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
 
     end select
     print*,'vco: dbug: tf_vco%nlev_T = ',tf_vco%nlev_T
 
     tf_vco%initialized=.true.
 
+    ierr =  fstfrm(nultemplate)
+    ierr =  fclos (nultemplate)
+
   end subroutine vco_SetupFromFile
 
-
-  subroutine vco_calcpres(tf_vco,ppres,knbrlev,pps,kprof)
-!
-!**s/r CALCPRES - Computes pressure values on eta levels
-!
-!Author  : S. Pellerin *ARMA/AES April 2000
-!Revision:
-!           C. Charette - ARMA/SMC - Sept 2004
-!            - Conversion to hybrid vertical coordinate
-!
-!    -------------------
-!*    Purpose: Computes pressure values associated with profiles
-!              of constant eta levels given 2 dimensionnal surface
-!              pressure and top pressure values.
-!
-!Arguments
-!    Onput :
-!           ppres(knbrlev,kprof) : profiles of pressure values
-!    Input :
-!           knbrlev              : number of levels
-!           pps(kprof)           : surface pressure values
-!           kprof                : number of profiles
-!
-      implicit none
-      type(struct_vco), pointer :: tf_vco
-      integer knbrlev,kprof,jlev
-      real*8 ppres(knbrlev,kprof),pps(kprof)
-      integer jprof
-      real*8 zpresa,zpresb
-
-      do jprof   = 1, kprof
-        do jlev  = 1,knbrlev
-          zpresa = tf_vco%da_M(jlev)
-          zpresb = tf_vco%db_M(jlev)
-          ppres(jlev,jprof) = zpresa + zpresb*pps(jprof)
-        enddo
-      enddo
-
-      return
-    end subroutine vco_calcpres
-
-
-    subroutine vco_AnlInit(tf_vco)
-
-!     Initialization of vertical coordinate for analysis grid
-
-      use MathPhysConstants_mod
-      implicit none
-      type(struct_vco), pointer :: tf_vco
-      integer jlev,ierr,nultemplate
-      integer fstfrm,fclos,fstouv,fnom,nulnam
-      logical isExist_L
-      character*8 :: templatefile='./glbcov'
-
-      write(*,fmt='(/,'' SUGEM- Define vertical coordinate for analysis grid'')')
-
-! Get vertical coordinate parameters from the Bnmc file
-
-      inquire(file=templatefile,exist=isExist_L)
-      IF ( isExist_L )then
-        nultemplate=0
-        ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-        if ( ierr .eq. 0 ) then
-          write(*,*) ' TEMPLATEFILE=', templatefile
-          write(*,*) ' opened as unit file ',nultemplate
-          ierr =  fstouv(nultemplate,'RND+OLD')
-          call vco_SetupFromFile(tf_vco,nultemplate,.true.)
-          ierr =  fstfrm(nultemplate)
-          ierr =  fclos (nultemplate)
-        else
-          call abort3d(6,'SUGEM:CANNOT OPEN TEMPLATE FILE!!')
-        endif
-      else
-        write(*,*) 'SUGEM: NO TEMPLATE FILE FOUND!'
-      endif
-
-! Make sure the vertical coord is GEMHYB for analysis grid
-
-      if(tf_vco%ikind.ne.5) then
-        write(*,*) 'SUGEM: unknown vertical coord kind = ',tf_vco%ikind
-        call flush(6)
-        call qqexit(1)
-      endif
-
-! Print the values
-
-      write(*,*) 'SUGEM: Type of vertical coordinate:',tf_vco%svcod
-      write(*,*) 'SUGEM: rptopinc,rprefinc,rcoefinc=',tf_vco%dpt_M,tf_vco%dprf_M,tf_vco%drcf1
-      do jlev = 1, tf_vco%nlev_M
-         write(*,FMT='(4X,"LEVEL NO.",I3,":",2X,"VHYBINC= ",G12.6,2X,"NIP1 OF VLEV= ",I10)') &
-           jlev,tf_vco%dhyb_m(jlev),tf_vco%ip1_M(jlev)
-      enddo
-
-      return
-  end subroutine vco_AnlInit
 
 end module VerticalCoord_mod

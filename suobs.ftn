@@ -15,7 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE SUOBS(KULOUT,lobsSpaceData)
-      use mod4dv, only : l4dvar
       use obsSpaceData_mod
 #if defined (DOC)
 *

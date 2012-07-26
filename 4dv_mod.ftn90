@@ -1,9 +1,0 @@
-module mod4dv
-  implicit none
-  save
-  integer :: mvar ! Bit encoded model variables
-  integer :: maxxy ! Bit encoded number of PEs in X and Y decomposition axes
-  logical :: l4dvar ! Logical control of 3Dvar/4Dvar. Its value is
-                    ! determined by the absence/presence of exchange
-                    ! directory key in sufilnam 
-end module mod4dv

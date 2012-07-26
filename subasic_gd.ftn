@@ -43,8 +43,8 @@ C
       type(struct_columnData) :: lcolumnhr
 
       type(struct_vco), pointer :: vco_anl, vco_trl
-      logical llvint
-      INTEGER ibrpstamp
+      logical llvint,ltrial 
+      integer ibrpstamp,jfile
       integer igdgid,ezqkdef
       integer isgid,iuugid,ivvgid
       integer idum1,idum2,idum3,idum4
@@ -56,9 +56,12 @@ C
       REAL*8 zqqg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       REAL*8 zgzg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       real*8, pointer :: ps3d_ptr(:,:,:),tt3d_ptr(:,:,:),hu3d_ptr(:,:,:),uu3d_ptr(:,:,:),vv3d_ptr(:,:,:)
+      integer ntrials, ninmpg(500)  
+      CHARACTER(len=2) :: flnum 
+      CHARACTER(len=9) :: trialfile 
       EXTERNAL ABORT3D
 *
-      WRITE(NULOUT,FMT='(/,4X,"Starting SUBASIC_GD",//)')
+      WRITE(*,FMT='(/,4X,"Starting SUBASIC_GD",//)')
 !
       llvint = .true.
 !
@@ -66,6 +69,27 @@ C
 !
       vco_anl => gsv_getVco(statevectorg)
       vco_trl => col_getVco(lcolumnhr)
+!
+! Open the Trial fields
+!
+      ninmpg(:)=0
+      ntrials=0 
+      do 
+         write(flnum,'(I2.2)') ntrials+1
+         trialfile='./trlm_'//flnum
+         inquire(file=trialfile,exist=ltrial)
+         if(ltrial) then
+            ntrials=ntrials+1
+            ierr=fnom(ninmpg(ntrials),trialfile,'RND+OLD+R/O',0)
+            write(*,*) 'ITRIAL - File :', trialfile
+            write(*,*) ' opened as unit file ',ninmpg(ntrials)
+            ierr =  fstouv(ninmpg(ntrials),'RND+OLD')
+         else if ( (.not. ltrial) .and. ntrials >0 ) then
+            exit  
+         else if ( (.not. ltrial) .and. ntrials == 0 ) then
+            CALL ABORT3D(6,'SUFILNAM:NO TRIAL FILE')
+         endif 
+      enddo 
 !
 !*1   Define Grids
 !     ************
@@ -86,14 +110,14 @@ C
 !
 !     Surface-pressure
 !
-      write(nulout,*)'subasic_gd: reading P0'
+      write(*,*)'subasic_gd: reading P0'
       CLNOMVAR = 'P0'
 !
-      write(nulout,*) 'subasic_gd: ibrpstamp = ',ibrpstamp
+      write(*,*) 'subasic_gd: ibrpstamp = ',ibrpstamp
 !
       call vhfstfld(zpsg,statevectorg%ni*statevectorg%nj,isgid,zvvg
      &     ,statevectorg%ni*statevectorg%nj,ivvgid,1
-     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,jpnflev,llvint
      &     ,'LINEAR')
 !
       ps3d_ptr => gsv_getField3D(statevectorg,'P0')
@@ -106,12 +130,12 @@ C
 !
 !      Temperature
 !
-      write(nulout,*)'subasic_gd: reading TT'
+      write(*,*)'subasic_gd: reading TT'
       CLNOMVAR = 'TT'
 
       call vhfstfld(zttg,statevectorg%ni*statevectorg%nj,isgid,zvvg
      &     ,statevectorg%ni*statevectorg%nj,ivvgid,statevectorg%nlev
-     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,jpnflev,llvint
      &     ,'LINEAR')
 !
       tt3d_ptr => gsv_getField3D(statevectorg,'TT')
@@ -124,12 +148,12 @@ C
 !
 !      Specific-Humidity
 !
-      write(nulout,*)'subasic_gd: reading HU'
+      write(*,*)'subasic_gd: reading HU'
       CLNOMVAR = 'HU'
 !
       call vhfstfld(zqqg,statevectorg%ni*statevectorg%nj,isgid,zvvg
      &     ,statevectorg%ni*statevectorg%nj,ivvgid,statevectorg%nlev
-     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,clnomvar,ibrpstamp,ninmpg,ntrials,jpnflev,llvint
      &     ,'LINEAR')
 !
       hu3d_ptr => gsv_getField3D(statevectorg,'HU')
@@ -142,13 +166,13 @@ C
 !
 !      U wind-image component
 !
-      write(nulout,*)'subasic_gd: reading UU and VV'
+      write(*,*)'subasic_gd: reading UU and VV'
       CLNOMVAR = 'UU'
 !
 !     ztrans=uu,zvvg=vv interpolated... 
       call vhfstfld(ztrans,statevectorg%ni*statevectorg%nj,isgid,zvvg
      &     ,statevectorg%ni*statevectorg%nj,isgid,statevectorg%nlev  
-     &     ,'UV',ibrpstamp,ninmpg,ntrials,nulout,jpnflev,llvint
+     &     ,'UV',ibrpstamp,ninmpg,ntrials,jpnflev,llvint
      &     ,'LINEAR')
 !     on output, uu contains U wind-image.
       uu3d_ptr => gsv_getField3D(statevectorg,'UU')
@@ -163,13 +187,21 @@ C
       CALL INITGDG2(vv3d_ptr,zvvg,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR) 
 !
+!     Close the Trials files
+!
+      do jfile=1,ntrials
+        ierr=fstfrm(ninmpg(jfile))  
+        ierr=fclos(ninmpg(jfile))  
+      enddo
+      write(*,*) 'Trial files have been closed'
+      call flush(6)
+!
       RETURN
 !-----------------------------------------------------------------------------------------------
       CONTAINS
 
       subroutine vhfstfld(pvar,kcol,ktrggid,pvv,kcolvv,kvvgid,knk
-     &     ,varName,kstampv,kulfst,ktrials,kulout,
-     &      kmaxlev,ldvint ,cddgint)
+     &     ,varName,kstampv,kulfst,ktrials,kmaxlev,ldvint ,cddgint)
 *
 #if defined (DOC)
 *
@@ -196,7 +228,6 @@ C
 *                       fst source file
 *      kulfst         : Unit of pre-opened standard file containing src fields
 *      ktrials        :  number of trial files.
-*      kulout         : Standard output printout messages
 *      kmaxlev        : Max number of levels that can be found in the
 *                       source file
 *      ldvint         : Logical that control if vertical interpolation
@@ -214,7 +245,7 @@ C
 *
       INTEGER ktrials
       INTEGER kulfst(ktrials)
-      INTEGER KCOL,KNK,ktrggid,kstampv,kulout,kmaxlev,kcolvv
+      INTEGER KCOL,KNK,ktrggid,kstampv,kmaxlev,kcolvv
       integer kvvgid,inlev
       real*8 pvar(kcol,knk), pvv(kcolvv,knk)
       character(len=*) :: varName
@@ -237,7 +268,7 @@ c   variables added to call vgd_levels
       real*8, allocatable :: zps2d(:,:)
       real*8, dimension(:,:,:), pointer :: pgrid => null()
 C
-      WRITE(KULOUT,FMT='(/,4X,"Starting VHFSTFLD",//)')
+      WRITE(*,FMT='(/,4X,"Starting VHFSTFLD",//)')
 c
       if (trim(varName) .eq. 'UV') then
         clnomvar = 'UU'
@@ -260,11 +291,11 @@ c     on momentum levels.
       if (clnomvar .eq. 'GZ') then
         call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,ITRLGID,'UU',kstampv,kmaxlev,kulfst
-     &       ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+     &       ,6,ip1style,ip1kind,ktrials,koutmpg)
       else
         call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,ITRLGID,clnomvar,kstampv,kmaxlev,kulfst
-     &       ,kulout,ip1style,ip1kind,ktrials,koutmpg)
+     &       ,6,ip1style,ip1kind,ktrials,koutmpg)
       endif
 c
 c-----Convert ip1 to real value P
@@ -287,7 +318,7 @@ c-----Convert real value P to IP
       ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
       allocate(zhighvar(ini*inj*itrlnlev))
 c
-      write(kulout,*)'vhfstfld: reading ',clnomvar
+      write(*,*)'vhfstfld: reading ',clnomvar
 c
       do JLEV = 1,itrlnlev
 c
@@ -295,9 +326,9 @@ c
      &       iip1s(jlev), iip2, iip3,cltypvar,clnomvar)
 c
         if (ikey.lt.0) then
-          write(kulout,*) 'Problems finding variable '
+          write(*,*) 'Problems finding variable '
      &         ,clnomvar,' at level ',iip1s(jlev),' in trial file'
-          call abort3d(kulout,'VHFSTFLD')
+          call abort3d(6,'VHFSTFLD')
         endif
 c
         ikey = VFSTLUK(zhighvar((jlev-1)*ini*inj+1),ikey,INI,INJ,INK)
@@ -319,12 +350,12 @@ c Get VV component
 c
         call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,IVVGID,'VV',kstampv,kmaxlev,koutmpg
-     &       ,kulout,ip1style,ip1kind)
+     &       ,6,ip1style,ip1kind)
 c
         ierr = ezgprm(ivvgid,clgrtyp,inivv,injvv,ig1,ig2,ig3,ig4)
         allocate(zhighvv(inivv*injvv*itrlnlev))
 c
-        write(kulout,*)'vhfstfld: reading ','VV'
+        write(*,*)'vhfstfld: reading ','VV'
 c
         do JLEV = 1,itrlnlev
 c
@@ -332,10 +363,10 @@ c
      &         iip1s(jlev), iip2, iip3,cltypvar,'VV')
 c
           if (ikey.lt.0) then
-            write(kulout,*) 'Problems finding variable '
+            write(*,*) 'Problems finding variable '
      &           ,'VV',' at level ',iip1s(jlev)
      &           ,' in trial file'
-            call abort3d(kulout,'VHFSTFLD')
+            call abort3d(6,'VHFSTFLD')
           endif
 c
           ikey = VFSTLUK(zhighvv((jlev-1)*inivv*injvv+1),ikey,INI
@@ -361,20 +392,20 @@ c Vertical interpolation:
 c
       if (itrlnlev.gt.1.and.ldvint) then
 c
-        write(kulout,*)
+        write(*,*)
      &       'vhfstfld: Reading P0 trial field for vertical interpolation'
 c
         call getfldprm(IIP1,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR
      &       ,IP0GID,'P0',kstampv,kmaxlev,koutmpg
-     &       ,kulout,ip1style,ip1kind)
+     &       ,6,ip1style,ip1kind)
 c
         ikey = FSTINF(koutmpg, INI, INJ, INK, kstampv, cletiket,
      &       iip1, iip2, iip3,cltypvar,'P0')
 c
         if(ikey.lt.0) then
-          write(kulout,*) ' ******* ERROR ******* '
-          write(kulout,*) 'No P0 found in ',koutmpg
-          call abort3d(kulout,'VHFSTFLD')
+          write(*,*) ' ******* ERROR ******* '
+          write(*,*) 'No P0 found in ',koutmpg
+          call abort3d(6,'VHFSTFLD')
         endif
 c
         ierr = ezgprm(ip0gid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
@@ -404,7 +435,7 @@ c
      &                    levels=pgrid,sfc_field=zps2d,in_log=.false.)
 c
         if(status.ne.VGD_OK)then
-           write(kulout,*) 'ERROR with vgd_levels for desired levels '
+           write(*,*) 'ERROR with vgd_levels for desired levels '
            call exit(1)
         endif
 c
@@ -418,7 +449,7 @@ c
      &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
 c
           if(status.ne.VGD_OK)then
-             write(kulout,*) 'ERROR with vgd_levels for desired levels '
+             write(*,*) 'ERROR with vgd_levels for desired levels '
              call exit(1)
           endif
 c
@@ -468,7 +499,7 @@ c
      &                      levels=pgrid,sfc_field=zps2d,in_log=.false.)
 c
           if(status.ne.VGD_OK)then
-             write(kulout,*) 'ERROR with vgd_levels for desired levels '
+             write(*,*) 'ERROR with vgd_levels for desired levels '
              call exit(1)
           endif
 c
@@ -482,7 +513,7 @@ c
      &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
 c
             if(status.ne.VGD_OK)then
-               write(kulout,*) 'ERROR with vgd_levels for desired levels '
+               write(*,*) 'ERROR with vgd_levels for desired levels '
                call exit(1)
             endif
 c
@@ -515,12 +546,12 @@ c
 c
       else
         if (knk.ne.itrlnlev) then
-          write(kulout,*) ' *********** ERROR ***********'
-          write(kulout,*) 'Number of level inconsistancies'
-          write(kulout,*) knk,' levels asked on output and '
-          write(kulout,*) itrlnlev,' levels found in standard file'
-          write(kulout,*) ' *********** ERROR ***********'
-          call abort3d(kulout,'VHFSTFLD')
+          write(*,*) ' *********** ERROR ***********'
+          write(*,*) 'Number of level inconsistancies'
+          write(*,*) knk,' levels asked on output and '
+          write(*,*) itrlnlev,' levels found in standard file'
+          write(*,*) ' *********** ERROR ***********'
+          call abort3d(6,'VHFSTFLD')
         else
           do jlev = 1, knk
             do jcol = 1, kcol
@@ -545,7 +576,7 @@ c     .  ---------------------------------
 c
       deallocate(zlowvar)
 c
-      write(kulout,*) 'END of VHFSTFLD'
+      write(*,*) 'END of VHFSTFLD'
 c
       return
       END SUBROUTINE VHFSTFLD

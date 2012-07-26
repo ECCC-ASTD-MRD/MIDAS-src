@@ -1,5 +1,4 @@
       SUBROUTINE  SUFILNAM
-      use mod4dv, only : l4dvar
       use mpi
       IMPLICIT NONE
 #if defined (DOC)
@@ -59,18 +58,13 @@
 #include "comct0.cdk"
 #include "comlun.cdk"
 #include "comvfiles.cdk"
-      INTEGER INFIL,IPOSIT,IER,INBLKS,II,I,JJ
-      INTEGER FNOM,FCLOS,FSTOUV,NUMBLKS,K
+      INTEGER INFIL,IER,INBLKS,II,I,JJ
+      INTEGER FNOM,FCLOS,FSTOUV,NUMBLKS
       PARAMETER(INFIL=129)
-c
       CHARACTER *128 CLVALU(INFIL),CFAMI(INFIL)
-C
-C
-      CHARACTER *2 flnum 
-      CHARACTER *9 trialfile 
       CHARACTER *36 OneSatOBS 
-      INTEGER   ier1,ier2,istatus ,chlength 
-      LOGICAL   ltrial,isExist_L 
+      INTEGER   istatus ,chlength 
+      LOGICAL   isExist_L 
 ************************************************************************
 *
       DATA CFAMI  /'ST','TR','ST','ST','ST','ST','ST','ST','ST'
@@ -78,8 +72,6 @@ C
      &     ,8*'OZ',8*'AC',8*'GO',8*'SC',8*'PR',8*'RO',8*'GP'/
 ************************************************************************
 
-      IPOSIT=0
-c
        CLVALU(1) = './flnml'  
        CLVALU(2) = './obscov'  
        CLVALU(3) = './trlm'  
@@ -147,54 +139,6 @@ c
        CFAMI(33)  = 'OZ' 
        CFAMI(34)  = 'GP' 
        CFAMI(35)  = ' ' 
-c
-      INQUIRE(FILE=CLVALU(2),EXIST=isExist_L)
-      IF ( isExist_L )then
-        IER=FNOM(NULSTAT,CLVALU(2),'RND+OLD+R/O',0)
-        IF ( IER .EQ. 0 ) THEN
-          write(nulout,*) 'IOBSST - File :', clvalu(2)
-          write(nulout,*) ' opened as unit file ',nulstat
-          ier =  fstouv(nulstat,'RND+OLD')
-        ELSE
-          CALL ABORT3D(NULOUT,'SUFILNAM:NO OBSERVATION STAT FILE!!')
-        ENDIF
-      ENDIF
-C
-C____ INITIALIZE TRIAL FIELD FILE NAME
-C_____ Hardcoded the names of trial files  
-C
-      ntrials=0 
-      jj=1
-      DO 
-         WRITE(flnum,'(I2.2)') jj
-         trialfile='./trlm_'//flnum
-         INQUIRE(FILE=trialfile,EXIST=ltrial)
-         IF(ltrial) THEN
-            ntrials=ntrials+1
-            ier1=FNOM(ninmpg(ntrials),trialfile,'RND+OLD+R/O',0)
-            WRITE(nulout,*) 'ITRIAL - File :', trialfile
-            WRITE(nulout,*) ' opened as unit file ',ninmpg(ntrials)
-            ier1 =  fSTOUV(ninmpg(ntrials),'RND+OLD')
-         ELSE IF ( (.not. ltrial) .and. ntrials >0 ) THEN
-            EXIT  
-         ELSE IF ( (.not. ltrial) .and. ntrials == 0 ) THEN
-            CALL ABORT3D(NULOUT,'SUFILNAM:NO TRIAL FILE')
-         ENDIF 
-         jj=jj+1
-      ENDDO 
-C
-!     Get CLVALU(8) through Environment Variables.
-      CALL  get_environment_variable('ARMA_EXEC4DV',CLVALU(8),
-     +       chlength,istatus,.true.) 
-       print*,'EXEC4D,CLVALU(8)= ',CLVALU(8)
-
-      if ( len_trim(clvalu(8)) .gt. 0 ) then
-        CEXC4DV=clvalu(8)
-        l4dvar=.true.
-      else
-        l4dvar=.false.
-      endif
-      WRITE(nulout,*)' l4dvar = ',l4dvar 
 C
 C------ Preconditioning..    
       INQUIRE(FILE=CLVALU(9),EXIST=isExist_L)

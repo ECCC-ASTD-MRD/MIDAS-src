@@ -61,13 +61,8 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
      call tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 
   elseif ( option .eq. 'MO' ) then
-!     add column to lcolumng
-!     call col_allocate(lcolumnt,col_getNumCol(lcolumng),col_getNumLev(lcolumng,'MM'),col_getNumLev(lcolumng,'TH'),mpi_local=.true.)
-!     lcolumnt%all(:,:) = lcolumng%all(:,:) + column%all(:,:)
-!     lcolumnt%nlev = lcolumnhr%nlev
-!     call tovs_fill_profiles(lcolumnt,lobsSpaceData)
-!     call col_deallocate(lcolumnt)
-!
+!     add column to lcolumng and store in lcolumnt:
+!     (code removed in revision 168)
   else
      WRITE(NULOUT,FMT=9100)
   9100    FORMAT(' TOVS_OBS: Invalid option for input state')

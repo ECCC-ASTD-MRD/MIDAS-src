@@ -32,7 +32,7 @@ MODULE gridStateVector_mod
   public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_getVco, gsv_setVco
 
   ! public entities accessed through inheritance
-  public :: struct_vco, vco_calcpres, vco_AnlInit, vco_SetupFromFile
+  public :: struct_vco, vco_SetupFromFile
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
   public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
   public :: varNameList2d, varNameList3d, varNameList

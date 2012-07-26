@@ -21,7 +21,6 @@
 *Author  : S. Pellerin *ARMA/AES  Nov., 1999
 *Revision:
 *
-      USE mod4dv,only : l4dvar
       use MathPhysConstants_mod
       use Vgrid_Descriptors, only: vgrid_descriptor
       use obsSpaceData_mod
@@ -35,7 +34,6 @@
 *implicits
 #include "comct0.cdk"
 #include "comlun.cdk"
-#include "comvfiles.cdk"
 #include "comgpsgb.cdk"
 #include "comfilt.cdk"
 
@@ -59,7 +57,7 @@
 !     Set vertical coordinate parameters from !! record in trial file
 !
       write(*,*)' preproc: Set vcoord parameters for trial grid'
-      call vco_SetupFromFile(vco_trl,ninmpg(1),.false.)
+      call vco_SetupFromFile(vco_trl,'./trlm_01',.false.)
       call col_setVco(lcolumnhr,vco_trl)
 !
 !     Initialize variables of the model states
@@ -74,9 +72,9 @@
 !
       call obs_initialize(lobsSpaceData)
 !
-!     Initialisation of the analysis grid vertical coordinate
+!     Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
 !
-      call vco_AnlInit(vco_anl)
+      call vco_SetupFromFile(vco_anl,'./glbcov',.true.)
       call col_setVco(lcolumng,vco_anl)
 !
 !     Check the date of the burp files (set datestamp)

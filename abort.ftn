@@ -27,8 +27,6 @@
 *         -add call to abort
 *     . S. Pellerin ARMA/SMC   October 2000
 *         - replace call to abort for call to exit(1)
-*     . C. Charette ARMA/SMC   October 2001
-*         - replace SUTERM by SUTERMF to only close files
 *    -------------------
 **    Purpose:
 *     To stop a job when an error occurred
@@ -50,7 +48,6 @@ C     .  and close the IO/units
 C
  100  CONTINUE
 C
-!      CALL SUTERMF(KULOUT)
       CALL qqexit(1)
 C
       STOP
