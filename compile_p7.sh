@@ -28,7 +28,8 @@ compiledir=$PWD
 . s.ssmuse.dot Xlf13.108
 . s.ssmuse.dot rmnlib-dev
 . s.ssmuse.dot devtools
-. s.ssmuse.dot CMDN/vgrid/3.3.0
+. s.ssmuse.dot CMDN/vgrid/3.4.0
+
 
 VAR3D_VERSION="11.2.1"
 LIBAPPL="modulopt rttov burp_module descrip $MPILIB "
@@ -44,12 +45,12 @@ FCOMPF="-options_comp"
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
 INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${BASE_INCLUDE}/${MODRTTOV}"
-INCLUDES="$INCLUDES home/ordenv/ssm-domains-cmdn/vgrid/vgriddescriptors_3.3.0_multi/include/AIX-powerpc7/xlf13"
+INCLUDES="$INCLUDES home/ordenv/ssm-domains-cmdn/vgrid/vgriddescriptors_3.4.0_multi/include/AIX-powerpc7/xlf13"
 
 LIBPATH2="./ $LIBPATH"
 LIBPATH2="${ARMNLIB}/lib/AIX/xlf13 $LIBPATH2"
 LIBPATH2="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/lib/AIX-powerpc7 $LIBPATH2"
-LIBPATH2="/home/ordenv/ssm-domains-cmdn/vgrid/vgriddescriptors_3.3.0_multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
+LIBPATH2="/home/ordenv/ssm-domains-cmdn/vgrid/vgriddescriptors_3.4.0_multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
 LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
 
 echo "LIBPATH2="

@@ -147,33 +147,33 @@ module verticalCoord_mod
     ! Set the number of vertical levels and allocate tf_vco arrays
 
     stat = 0
-    stat = vgd_get(tf_vco%vgrid,key='vipm - vertical levels (m)',value=my_ip1)
+    stat = vgd_get(tf_vco%vgrid,key='nl_m - number of momentum levels',value=tf_vco%nlev_M)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get vipm vgd_ok= ',VGD_OK
-    tf_vco%nlev_M = size(my_ip1)
-    select case (ivcode)
-    case (5001)
-      tf_vco%nlev_T = tf_vco%nlev_M
-    case (5002)
-      stat = vgd_get(tf_vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
-      stat = stat + VGD_OK
-      print*,'vco: vgd_get vipt vgd_ok= ',VGD_OK
-      tf_vco%nlev_T = size(my_ip1)
-    end select
+    print*,'vco: vgd_get nl_m vgd_ok= ',VGD_OK
+    stat = vgd_get(tf_vco%vgrid,key='nl_t - number of momentum levels',value=tf_vco%nlev_T)
+    stat = stat + VGD_OK
+    print*,'vco: vgd_get nl_t vgd_ok= ',VGD_OK
+    
     call vco_allocate(tf_vco)
 
     !==========================================================================
-    ! Process momentum levels (ip1, A, B)
-    ! (unstaggered  vertical coord are stored in momentum levels in "!!" records)
+    ! Process levels (ip1, A, B)
+    ! (unstaggered  vertical coord are stored in levels in "!!" records)
 
     stat = 0
-    stat = vgd_get(tf_vco%vgrid,key='ca_m - vertical a coefficient (m)',value=my_a)
+    stat = vgd_get(tf_vco%vgrid,key='ca_m - vertical a coefficient (m)',value=tf_vco%da_M)
     stat = stat + VGD_OK
     print*,'vco: vgd_get ca_m vgd_ok= ',VGD_OK
+    stat = vgd_get(tf_vco%vgrid,key='ca_t - vertical a coefficient (t)',value=tf_vco%da_T)
+    stat = stat + VGD_OK
+    print*,'vco: vgd_get ca_t vgd_ok= ',VGD_OK
     !
-    stat = vgd_get(tf_vco%vgrid,key='cb_m - vertical b coefficient (m)',value=my_b)
+    stat = vgd_get(tf_vco%vgrid,key='cb_m - vertical b coefficient (m)',value=tf_vco%db_M)
     stat = stat + VGD_OK
     print*,'vco: vgd_get cb_m vgd_ok= ',VGD_OK
+    stat = vgd_get(tf_vco%vgrid,key='cb_t - vertical b coefficient (t)',value=tf_vco%db_T)
+    stat = stat + VGD_OK
+    print*,'vco: vgd_get cb_t vgd_ok= ',VGD_OK
     !
     stat = vgd_get(tf_vco%vgrid,key='vipm - vertical levels (m)',value=my_ip1)
     stat = stat + VGD_OK
@@ -196,23 +196,28 @@ module verticalCoord_mod
       return
     endif
 
-    if(size(my_a).gt.0 .and. size(my_b).gt.0 .and. size(my_ip1).gt.0 )then 
-      print*,'vco: size(a,b,ip1)(m)= ',size(my_a),size(my_b),size(my_ip1)
+    if(size(tf_vco%da_M).gt.0 .and. size(tf_vco%db_M).gt.0 .and. size(my_ip1).gt.0 )then 
+      print*,'vco: size(a,b,ip1)(m)= ',size(tf_vco%da_M),size(tf_vco%db_M),size(my_ip1)
     else
       print*,'vco: problem with size(a,b,ip1)(m) in vgd_get'
       return
     endif
 
+    tf_vco%dprf_M = dl_pref
+    tf_vco%dprf_T = dl_pref ! not sure if this will ever be different for thermo levels
+    tf_vco%dpt_M  = dl_ptM
+    tf_vco%dpt_T  = dl_ptM
+    tf_vco%drcf1  = dl_rcf1
     if(ivcode.eq.5002) then
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
-      tf_vco%dpt_M  = exp( my_a(1) + my_b(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
-    else
-      tf_vco%dpt_M  = dl_ptM
+      tf_vco%dpt_M  = exp( tf_vco%da_M(1) + tf_vco%db_M(1)*log(100000.0/dl_pref) )
+      write(*,*) 'vco_setupFromFile: computed ptot(MM)=',tf_vco%dpt_M
+      write(*,*) 'vco_setupFromFile: read ptot(MM)=',dl_ptM
+      tf_vco%dpt_T  = exp( tf_vco%da_T(1) + tf_vco%db_T(1)*log(100000.0/dl_pref) )
+      write(*,*) 'vco_setupFromFile: computed ptot(TH)=',tf_vco%dpt_T
+      write(*,*) 'vco_setupFromFile: read ptot(TH)=',dl_ptM
     endif
-    tf_vco%dprf_M = dl_pref
-    tf_vco%drcf1  = dl_rcf1
     !
     ! Set to zero the non-significant digits (due to conversion from real*4)
     !
@@ -230,22 +235,15 @@ module verticalCoord_mod
     ! Assign values for Momentum levels
 
     print*,'vco: size(hyb)= ',size(tf_vco%dhyb_M)
-    do jlev = 1, size(my_ip1)
+    do jlev = 1, tf_vco%nlev_M
       tf_vco%ip1_M(jlev) = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
       tf_vco%dhyb_M(jlev) = hyb
       print*,'vco: jlev,nk,ip1,hyb(moment)= ' & 
             ,jlev,tf_vco%nlev_M,tf_vco%ip1_M(jlev),tf_vco%dhyb_M(jlev)
 
-      if(ivcode.eq.5001) then
-        tf_vco%db_M(jlev) = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M)  &
-                  /(1.0D0-tf_vco%dpt_M/tf_vco%dprf_M))**tf_vco%drcf1
-        tf_vco%da_M(jlev)= tf_vco%dprf_M * (tf_vco%dhyb_M(jlev)-tf_vco%db_M(jlev))
-      else
-        tf_vco%da_M(jlev)   = my_a(jlev)
-        tf_vco%db_M(jlev)   = my_b(jlev)
-      endif
-
+      ! Devrait probablement etre enleve car avec la nouvelle facon de calculer
+      ! l'equation hydrostatique zterm ne sera plus requis
       if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
         zterm = 1.0d0
       else
@@ -260,74 +258,39 @@ module verticalCoord_mod
     !==========================================================================
     ! Process thermodynamic levels 
 
-    ! not sure if this will ever be different for thermo levels
-    tf_vco%dprf_T = tf_vco%dprf_M ! dl_pref
+    stat = 0
+    stat = vgd_get(tf_vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
+    stat = stat + VGD_OK
+    print*,'vco: vgd_get vipt vgd_ok= ',VGD_OK
+    if(stat.ne.0) then
+      print*,'vco: problem with vgd_get'
+      return
+    endif
 
-    select case (ivcode)
-    case (5001)          ! unstaggered hybride
-       ! For this case the parameters of the momentum levels 
-       ! are copied to the thermodynamics levels
-       !==========================================================================
-       tf_vco%dpt_T  = tf_vco%dpt_M
-       do jlev = 1, tf_vco%nlev_M
-          tf_vco%ip1_T(jlev)  = tf_vco%ip1_M(jlev)
-          tf_vco%da_T(jlev)   = tf_vco%da_M(jlev)
-          tf_vco%db_T(jlev)   = tf_vco%db_M(jlev)
-          tf_vco%dhyb_T(jlev) = tf_vco%dhyb_M(jlev)
-          print*,'vco: jlev,nk,ip1,hyb(thermo)= ' &
-                ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
-       enddo
-    case (5002)
-      stat = 0
-      stat = vgd_get(tf_vco%vgrid,key='ca_t - vertical a coefficient (t)',value=my_a)
-      stat = stat + VGD_OK
-      print*,'vco: vgd_get ca_t vgd_ok= ',VGD_OK
-      stat = vgd_get(tf_vco%vgrid,key='cb_t - vertical b coefficient (t)',value=my_b)
-      stat = stat + VGD_OK
-      print*,'vco: vgd_get cb_t vgd_ok= ',VGD_OK
-      stat = vgd_get(tf_vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
-      stat = stat + VGD_OK
-      print*,'vco: vgd_get vipt vgd_ok= ',VGD_OK
-      if(stat.ne.0) then
-        print*,'vco: problem with vgd_get'
-        return
-      endif
+    if(size(tf_vco%da_T).gt.0 .and. size(tf_vco%db_T).gt.0 .and. size(my_ip1).gt.0 )then 
+      print*,'vco: size(a,b,ip1)(t)= ',size(tf_vco%da_T),size(tf_vco%db_T),size(my_ip1)
+    else
+      print*,'vco: problem with size(a,b,ip1)(t) in vgd_get'
+      return
+    endif
 
-      if(size(my_a).gt.0 .and. size(my_b).gt.0 .and. size(my_ip1).gt.0 )then 
-        print*,'vco: size(a,b,ip1)(t)= ',size(my_a),size(my_b),size(my_ip1)
+    do jlev = 1,tf_vco%nlev_T
+      tf_vco%ip1_T(jlev)  = my_ip1(jlev)
+      call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
+      tf_vco%dhyb_T(jlev) = hyb
+      print*,'vco: jlev,nk,ip1,hyb(thermo)= ' &
+            ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
+
+      if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
+        zterm = 1.0d0
       else
-        print*,'vco: problem with size(a,b,ip1)(t) in vgd_get'
-        return
+        zterm = ((tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T) &
+                 /(1.0d0-tf_vco%dpt_T/tf_vco%dprf_T))**(tf_vco%drcf1-1.0d0)
       endif
+      tf_vco%db_dhyb_T(jlev)= tf_vco%drcf1 * zterm
+      tf_vco%da_dhyb_T(jlev)= tf_vco%dprf_T*(1.0d0 - tf_vco%db_dhyb_T(jlev))
 
-      do jlev = 1,tf_vco%nlev_T
-        tf_vco%ip1_T(jlev)  = my_ip1(jlev)
-        call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
-        tf_vco%dhyb_T(jlev) = hyb
-        print*,'vco: jlev,nk,ip1,hyb(thermo)= ' &
-              ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
-
-        tf_vco%da_T(jlev)   = my_a(jlev)
-        tf_vco%db_T(jlev)   = my_b(jlev)
-
-        if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
-          zterm = 1.0d0
-        else
-          zterm = ((tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T) &
-                   /(1.0d0-tf_vco%dpt_T/tf_vco%dprf_T))**(tf_vco%drcf1-1.0d0)
-        endif
-        tf_vco%db_dhyb_T(jlev)= tf_vco%drcf1 * zterm
-        tf_vco%da_dhyb_T(jlev)= tf_vco%dprf_T*(1.0d0 - tf_vco%db_dhyb_T(jlev))
-
-      enddo
-
-      ! temporarily compute a single pressure roughly corresponding to top trial field level
-      ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
-      tf_vco%dpt_T  = exp( my_a(1) + my_b(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
-
-    end select
-    print*,'vco: dbug: tf_vco%nlev_T = ',tf_vco%nlev_T
+    enddo
 
     tf_vco%initialized=.true.
 
