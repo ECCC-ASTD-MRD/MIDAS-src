@@ -1,3 +1,6 @@
+
+PFUNIT=/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi 
+
 # Check for the PFUNIT environment variable
 ifndef PFUNIT
 $(error The environment variable "PFUNIT" must be given a value which is the \
