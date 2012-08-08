@@ -1,5 +1,5 @@
 
-PFUNIT=/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi 
+PFUNIT ?=/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi
 
 # Check for the PFUNIT environment variable
 ifndef PFUNIT
@@ -78,7 +78,6 @@ $(EXECUTABLE): $(F90_OBJ)
 	s.compile -obj $(F90_OBJ) $(LDFLAGS) -librmn $(LIBRMN) -o $@
 
 %.o:%.ftn90
-	echo "FFLAGS="$(FFLAGS)
 	s.compile $(OPTIMIZE) -opt "= $(FFLAGS)" -src $<
 
 clean:
