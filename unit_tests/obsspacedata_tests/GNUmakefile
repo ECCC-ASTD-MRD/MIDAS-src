@@ -1,25 +1,37 @@
 
-PFUNIT ?=/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi
-
-# Check for the PFUNIT environment variable
-ifndef PFUNIT
-$(error The environment variable "PFUNIT" must be given a value which is the \
-path for the installation of pFUnit.)
-endif
-
+PFUNIT =/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi
 PFUNIT_LIBDIR ?=$(PFUNIT)/lib
 PFUNIT_INCDIR ?=$(PFUNIT)/include
 PFUNIT_MODDIR ?=$(PFUNIT)/mod
 PFUNIT_BINDIR ?=$(PFUNIT)/bin
 
+# Check for the PFUNIT environment variable
+ifndef PFUNIT
+   $(error The environment variable "PFUNIT" must be given a value which is the \
+path for the installation of pFUnit.)
+endif
+
 .SUFFIXES :
 
 .SUFFIXES : .o .ftn90 .o
+
+.DEFAULT : env_test
 
 SHELL = /bin/sh
 
 ifeq ($(DEBUG),YES)
 	FFLAGS += -g -O0
+endif
+
+ifeq ($(BASE_ARCH),Linux)
+   COMPILER_SSM = pgi9xx
+   ifeq ($(MPI),YES)
+       COMPILER_SSM += mpich2
+   endif
+else ifeq ($(BASE_ARCH),AIX-powerpc7)
+   COMPILER_SSM = Xlf13.108
+else
+   $(error The variable BASE_ARCH=$(BASE_ARCH) is not supported)
 endif
 
 FFLAGS +=-I$(PFUNIT_MODDIR)
@@ -46,8 +58,9 @@ F90_SRC = $(wildcard *.ftn90)
 F90_OBJ = $(F90_SRC:.ftn90=.o)
 
 EXECUTABLE = test_obs.x
+MACH_SUBMIT = alef
 #ifeq ($(MPI),YES)
-   COMMAND = ord_soumet ./runit.ksh -mach alef -t 60 $(MPI_FLAG) $(CPUS) -listing ${HOME}/listings
+   COMMAND = ord_soumet ./runit.ksh -mach $(MACH_SUBMIT) -t 60 $(MPI_FLAG) $(CPUS) -listing ${HOME}/listings
 #else
 #   COMMAND = ./$(EXECUTABLE)
 #endif
@@ -69,7 +82,7 @@ tests: $(EXECUTABLE)
 	echo "cat .pFUnitLog" >> runit.ksh
 	echo " "
 	echo " "
-	echo "  - - - listing will appear in $(DOLLAR)HOME/listings - - -"
+	echo "  - - - listing will appear in $(DOLLAR)HOME/listings/$(MACH_SUBMIT)/runit.* - - -"
 	echo " "
 	echo " "
 	$(COMMAND)
@@ -79,6 +92,10 @@ $(EXECUTABLE): $(F90_OBJ)
 
 %.o:%.ftn90
 	s.compile $(OPTIMIZE) -opt "= $(FFLAGS)" -src $<
+
+env_test:
+	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev; \
+	make tests MPI=$(MPI)
 
 clean:
 	$(RM) $(F90_OBJ)
@@ -91,7 +108,7 @@ distclean: clean
 	$(RM) .pFUnitLog
 
 help:
-	echo 'gmake tests <MPI=YES> -- compile and soumet the test'
+	echo 'gmake env_test <MPI=YES> -- compile and soumet the test'
 
 
 obsspacedata_mod.ftn90 :
