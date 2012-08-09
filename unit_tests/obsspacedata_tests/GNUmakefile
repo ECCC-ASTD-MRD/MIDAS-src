@@ -5,6 +5,8 @@ PFUNIT_INCDIR ?=$(PFUNIT)/include
 PFUNIT_MODDIR ?=$(PFUNIT)/mod
 PFUNIT_BINDIR ?=$(PFUNIT)/bin
 
+MPI ?=YES
+
 # Check for the PFUNIT environment variable
 ifndef PFUNIT
    $(error The environment variable "PFUNIT" must be given a value which is the \
@@ -38,17 +40,17 @@ FFLAGS +=-I$(PFUNIT_MODDIR)
 
 OPTIMIZE =
 
-#ifeq ($(MPI),YES)
+ifeq ($(MPI),YES)
 ## this should be: -libappl rpn_comm_40007
 ## the '-libappl' part is already in LDFLAGS
    MPI_LIB   = rpn_comm_40007
    MPI_FLAG  = -mpi
    CPUS      = -cpus 1x1x1
-#else
-#   MPI_LIB   = 
-#  MPI_FLAG  = -mpi stubs  --> this switch is broken
-#   CPUS      = 
-#endif
+else
+   MPI_LIB   = 
+   MPI_FLAG  = rpn_commstubs_40007
+   CPUS      = -cpus 1
+endif
 
 LIBRMN=rmn_012
 
