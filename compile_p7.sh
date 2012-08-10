@@ -26,7 +26,7 @@ cat comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
 cd ../
 mkdir -p compiledir
 cd compiledir
-rm -f *.o *.f *.f90
+rm -f *.o *.f *.f90 *.mod
 
 compiledir=$PWD
 

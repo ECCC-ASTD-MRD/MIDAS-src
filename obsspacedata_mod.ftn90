@@ -206,7 +206,7 @@ module obsSpaceData_mod
                          ! find the index into the variable types list of the
                          ! obsdat element that contains given BUFR element number
    public obs_get_obs_index_for_bufr_element
-   public obs_getBodyIndex ! obtain an element from the current boedy list
+   public obs_getBodyIndex ! obtain an element from the current body list
    public obs_getFamily  ! return the family of a datum
    public obs_getHeaderIndex ! obtain an element from the current header list
    public obs_initialize ! variable initialization
@@ -220,7 +220,7 @@ module obsSpaceData_mod
    public obs_prntbdy    ! print the body data for one header
    public obs_prnthdr    ! print the data contained in one header
    public obs_read       ! read the observation data from binary files
-   public obs_readstns   ! read stations for one analysis pass & store in buffers
+   public obs_readstns   ! read stations for 1 analysis pass, store in obs object
    public obs_reduceToMpiLocal ! retain only data pertinent to the mpi-local PE
    public obs_select     ! select observations in a vertical range
    public obs_set_c      ! set a character value in the observation object
@@ -286,11 +286,14 @@ module obsSpaceData_mod
       integer :: numBody                ! Actual total number of data on record
       integer :: numBody_max            ! maximum number observations (i.e. data)
 
-      ! row index of mpiglobal data, useful for transforming from mpilocal back to mpiglobal
-      !    1st dim'n: row index, only in mpilocal context
+                                        ! row indices of mpiglobal data, useful
+                                        ! for transforming from mpilocal back to
+                                        ! mpiglobal
+                                        !    1st dim'n: row index, only in
+                                        !               mpilocal context
       integer, pointer, dimension(:) :: indexHeader_mpiglobal,indexBody_mpiglobal
 
-      logical :: mpi_local              ! T: keep only data needed by this PE (mpilocal)
+      logical :: mpi_local       ! T: keep only data needed by this PE (mpilocal)
       integer :: datestamp
    end type struct_obs
 
@@ -298,7 +301,10 @@ module obsSpaceData_mod
    ! INTEGER-HEADER COLUMN NUMBERS
    !  
    integer, parameter :: NCM_RLN = 1         ! report location
-   integer, parameter :: NCM_ONM = NCM_RLN+1 ! unique(within obsdat) station id #
+
+                                             ! unique(within obsdat), possibly
+   integer, parameter :: NCM_ONM = NCM_RLN+1 ! ordered, station id number
+
    integer, parameter :: NCM_INS = NCM_ONM+1 ! instrument ID  
    integer, parameter :: NCM_OTP = NCM_INS+1 ! observation Type (file index)
    integer, parameter :: NCM_ITY = NCM_OTP+1 ! code: instrument & retrieval type
@@ -310,7 +316,7 @@ module obsSpaceData_mod
    integer, parameter :: NCM_OFL = NCM_NLV+1 ! report status events
    integer, parameter :: NCM_PAS = NCM_OFL+1 ! batch no. in sequential analysis
    integer, parameter :: NCM_REG = NCM_PAS+1 ! region number in the batch
-   integer, parameter :: NCM_IP  = NCM_REG+1 ! number of processor
+   integer, parameter :: NCM_IP  = NCM_REG+1 ! number of mpi processors
    integer, parameter :: NCM_AZA = NCM_IP +1 ! satellite azimuthal angle
    integer, parameter :: NCM_SZA = NCM_AZA+1 ! satellite zenith angle
    integer, parameter :: NCM_SUN = NCM_SZA+1 ! sun zenith angle
@@ -513,8 +519,9 @@ contains
                  + obs_out%mobhdr(NCM_PAS,obs_out%numHeader)
          end if
 
-         obs_out%robhdr(:,i_station_write)=obsdat%robhdr(:,istation) 
-         obs_out%cstnid(i_station_write)=obsdat%cstnid(istation)
+         obs_out%robhdr(:,i_station_write)=obsdat%robhdr(:,istation)
+         obs_out%cstnid(  i_station_write)=obsdat%cstnid(  istation)
+         obs_out%cfamily( i_station_write)=obsdat%cfamily( istation)
 
          i_station_write=i_station_write+1
       enddo stations
@@ -783,6 +790,15 @@ contains
       !     qcvar         : input logical indicating if the input obsdat 
       !                     data have benefited from a qc-var procedure
       !
+      !the logic applied:
+      !     A body (and its associated header)
+      !     will be retained if these three conditions are all met:
+      !        1) either of:
+      !             1a) btest(obsdat%mobdata(NCM_FLG,jdata),12)
+      !             1b) .not. qcvar (the 5th parameter of obs_clean)
+      !        2) obsdat%mobdata(NCM_ASS,jdata) .eq. 1
+      !        3) obsdat%robdata(NCM_ZHA,jdata) .ge. 0.0
+      !
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat
@@ -944,23 +960,33 @@ contains
       !
       !arguments
       !     input : obs_a input object
-      !     output: obs_b a copy of obs_a 
+      !     output: obs_b a copy of obs_a
+      !
+      !note:  this method assumes that obs_b has already been initialized
       !
       implicit none
 
       type(struct_obs), intent(in)  :: obs_a
-      type(struct_obs), intent(out) :: obs_b
+      type(struct_obs), intent(inout) :: obs_b
+
+      if(obs_a%mpi_local)then
+         call obs_abort("obs_copy() is not equipped to handle the case, mpi_local=.true.")
+      end if
 
       obs_b%robhdr          = obs_a%robhdr
       obs_b%mobhdr          = obs_a%mobhdr
       obs_b%cstnid          = obs_a%cstnid
+      obs_b%cfamily         = obs_a%cfamily
       obs_b%robdata         = obs_a%robdata
       obs_b%mobdata         = obs_a%mobdata
 
       obs_b%numHeader= obs_a%numHeader
-      obs_b%numHeader_max      = obs_a%numHeader_max
+      obs_b%numHeader_max   = obs_a%numHeader_max
       obs_b%numBody = obs_a%numBody
-      obs_b%numBody_max      = obs_a%numBody_max
+      obs_b%numBody_max     = obs_a%numBody_max
+
+      obs_b%mpi_local       = obs_a%mpi_local
+      obs_b%datestamp       = obs_a%datestamp
    end subroutine obs_copy
 
 
@@ -978,15 +1004,15 @@ contains
       implicit none
 
       integer, parameter :: maxid = 256
-      type (struct_obs), intent(inout) :: obsdat
+      type (struct_obs), intent(in) :: obsdat
       integer, intent(in) :: kulout
 
       integer  :: allstn,allobs,id,idata,kobs
       integer, dimension(maxid)   :: numobs,numstn
 
       ! initialize totals to zero
-      numstn=0
-      numobs=0
+      numstn(:)=0
+      numobs(:)=0
       allstn=0
       allobs=0
 
@@ -1150,7 +1176,7 @@ contains
       case ('IDD');  value=obsdat%mobdata(NCM_IDD, index)
 
       case default
-         write(*,*)"ERROR:  ", name(1:4)," is not an integer observation."
+         write(*,*)"ERROR reading: ", name(1:4)," is not an integer observation."
          value=-999
       end select
    end function obs_elem_i
@@ -1196,7 +1222,7 @@ contains
       case ('PRM');  value=obsdat%robdata(NCM_PRM, index)
 
       case default
-         write(*,*)"ERROR:  ", name(1:4), " is not a real(",OBS_REAL, &
+         write(*,*)"ERROR reading:  ", name(1:4), " is not a real(",OBS_REAL, &
                    ") observation."
          value=-999
       end select
@@ -1512,7 +1538,7 @@ contains
       type (struct_obs), intent(inout) :: obsdat
       integer, intent(in)         :: j,k
 
-      real(4)       :: rdum 
+      real(OBS_REAL):: rdum 
       integer       :: i,idum,nhdrint,nhdrreal
       character(12) :: cdum     
 
@@ -1775,7 +1801,7 @@ contains
       !         stamp of the obsdat object.
 
       implicit none
-      type(struct_obs), intent(inout) :: obsdat
+      type(struct_obs), intent(in) :: obsdat
       integer :: datestamp
 
       datestamp = obsdat%datestamp
@@ -2068,6 +2094,9 @@ contains
       obsdat%numBody  = 0
       obsdat%mpi_local = .false.
 
+      nullify(obsdat%indexHeader_mpiglobal)
+      nullify(obsdat%indexBody_mpiglobal)
+
       call obs_allocate(obsdat,obsdat%numHeader_max,obsdat%numBody_max)
       call ild_initialize(obsdat%header_index_list_depot, obsdat%numHeader_max)
       call ild_initialize(obsdat%body_index_list_depot,   obsdat%numBody_max)
@@ -2137,7 +2166,7 @@ contains
       !        March 2000
       !
       !object:
-      !    Put a obsdat-file into the order required for the
+      !    Put an obsdat file into the order required for the
       !    sequential assimilation. Note that it is known,
       !    as a by-product of the algorithm that was used 
       !    to determine the pass and the region for each
@@ -2375,7 +2404,8 @@ contains
       !
       !authors Peter Houtekamer and Herschel Mitchell October 1999
       !
-      !object: read the obsdat structure with observational information from files.
+      !object: read the obsdat structure with observational information from
+      !        unformatted files.  The files have been written by obs_write().
       !
       !   input: 
       !      nobshdr: unit number of the file with obsdat header info.
@@ -2393,6 +2423,8 @@ contains
 
       integer  :: i,ifirst,ilast,iobscur,istn,j,k,myip,nens
 
+      obsdat%mpi_local = .false.
+
       if (nobshx.eq.-1) then
          nens=0
       else
@@ -2407,7 +2439,10 @@ contains
 
       readstn: do istn=1,obsdat%numHeader
          read(nobshdr,end=288,err=288) (obsdat%mobhdr(i,istn),i=1,NHDR_INT), &
-            (obsdat%robhdr(j,istn),j=1,NHDR_REAL),obsdat%cstnid(istn)
+                                       (obsdat%robhdr(j,istn),j=1,NHDR_REAL), &
+                                       obsdat%cstnid(istn), &
+                                       obsdat%cfamily(istn), &
+                                       obsdat%datestamp
 
          if (istn.eq.1) then 
             obsdat%mobhdr(NCM_RLN,istn)=1
@@ -2421,7 +2456,7 @@ contains
          ilast=obsdat%mobhdr(NCM_RLN,istn)+obsdat%mobhdr(NCM_NLV,istn)-1
          do i=ifirst,ilast
             read(nobsbdy) (obsdat%mobdata(j,i),j=1,NBDY_INT), &
-               (obsdat%robdata(k,i),k=1,NBDY_REAL)
+                          (obsdat%robdata(k,i),k=1,NBDY_REAL)
          enddo
          if (nens.gt.0) then
             do i=ifirst,ilast
@@ -2457,8 +2492,9 @@ contains
       !
       !authors Peter Houtekamer and Herschel Mitchell October 1999
       !
-      !object: read the stations for one analysis pass and store them
-      !        in buffers.
+      !object: read the stations for one analysis pass, from unformatted files,
+      !        and store them in an ObsSpaceData_mod object.  The files have been
+      !        written by obs_write().
       !        (this routine is intended for the master mpi process,
       !         other processes exit immediately)
       !
@@ -2469,7 +2505,7 @@ contains
       !      nobsbdy:  unit number of the file with obsdat body info.
       !      np   :    total number of processes used in MPI. 
       !   output:
-      !      iregcur: number of regions to be done for this pass. 
+      !      iregcur: number of the region to be done for this pass. 
       !
       implicit none
 
@@ -2480,11 +2516,13 @@ contains
 
       integer :: i,idata,ifirst,ilast,ipass,ireg,j,k
 
-      real(4),           save :: robhdr_1(NHDR_REAL)
-      integer,           save :: mobhdr_1(NHDR_INT)
-      character(len=12), save :: cstnid_1
-      logical,           save :: empty  = .false., &
-         hasone = .false.
+      real(kind=OBS_REAL), save :: robhdr_1(NHDR_REAL)
+      integer,             save :: mobhdr_1(NHDR_INT)
+      character(len=12),   save :: cstnid_1
+      character(len=2),    save :: cfamily_1
+      integer,             save :: datestamp_1
+      logical,             save :: empty  = .false., &
+                                   hasone = .false.
 
       if (myip.ne.0) return
 
@@ -2498,9 +2536,9 @@ contains
       ! read stations for this pass of the sequential algorithm
 
       ! hasone indicates whether a station has been read without being
-      ! buffered. This occurs after the stations for one pass have
+      ! inserted into obsdat. This occurs after the stations for one pass have
       ! been read. In this case one should not read a new station 
-      ! but first buffer the saved one.
+      ! but first insert the saved one.
 
       do while( get_one() )
          ireg=mobhdr_1(NCM_REG)
@@ -2523,7 +2561,9 @@ contains
          idata=obsdat%numHeader
          obsdat%mobhdr(:,idata)=mobhdr_1(:)
          obsdat%robhdr(:,idata)=robhdr_1(:)
-         obsdat%cstnid(idata)=cstnid_1
+         obsdat%cstnid(idata)  =cstnid_1
+         obsdat%cfamily(idata) =cfamily_1
+         obsdat%datestamp      =datestamp_1
 
          ! determine which process will handle this station.
          ! the corresponding scatter operation is in program scattercma.
@@ -2546,7 +2586,7 @@ contains
          ilast=obsdat%mobhdr(NCM_RLN,idata) + obsdat%mobhdr(NCM_NLV,idata)-1
          do i=ifirst,ilast
             read(nobsbdy) (obsdat%mobdata(j,i),j=1,NBDY_INT), &
-               (obsdat%robdata(k,i),k=1,NBDY_REAL)
+                          (obsdat%robdata(k,i),k=1,NBDY_REAL)
          enddo
 
          hasone=.false.
@@ -2563,7 +2603,10 @@ contains
 
          if (.not. hasone) then 
             read(nobshdr,iostat=ierr) (mobhdr_1(i),i=1,NHDR_INT), &
-               (robhdr_1(j),j=1,NHDR_REAL),cstnid_1
+                                      (robhdr_1(j),j=1,NHDR_REAL), &
+                                      cstnid_1, &
+                                      cfamily_1, &
+                                      datestamp_1
             if(ierr == 0) then
                hasone = .true.
             else
@@ -2730,6 +2773,10 @@ contains
       integer :: iaccept,idata,ipnt,iwrite
       integer :: jdata,kobs,kobsout
 
+      if(obsdat%mpi_local)then
+         call obs_abort("obs_select() is not equipped to handle the case, mpi_local=.true.")
+      end if
+
       write(nobsout,*) 'stations prior to selection: ', obsdat%numHeader
       write(*,*) 'enter obs_select'
 
@@ -2756,12 +2803,15 @@ contains
             obs_sel%mobhdr(:,kobsout)=obsdat%mobhdr(:,kobs)
             obs_sel%robhdr(:,kobsout)=obsdat%robhdr(:,kobs)
             obs_sel%cstnid(kobsout)=obsdat%cstnid(kobs)
+            obs_sel%cfamily(kobsout)=obsdat%cfamily(kobs)
             obs_sel%mobhdr(NCM_NLV,kobsout)=iaccept
             obs_sel%mobhdr(NCM_RLN,kobsout)=iwrite-iaccept+1
          endif
       enddo stations
       obs_sel%numHeader=kobsout
       obs_sel%numBody = iwrite
+      obs_sel%mpi_local = .false.
+      obs_sel%datestamp = obsdat%datestamp
 
       write(nobsout,*) 'after selection of observations in the range: ', &
          zhamin,zhamax
@@ -2790,7 +2840,8 @@ contains
       case ('STID'); obsdat%cstnid (index) = value 
 
       case default
-         write(*,*)"ERROR:  ", trim(name)," is not a character(len=9) observation."
+         write(*,*)"ERROR writing:  ", trim(name)," is not a character(len=9) ",&
+                   "observation."
       end select
    end subroutine obs_set_c
 
@@ -3072,7 +3123,7 @@ contains
       case ('IDD');  obsdat%mobdata(NCM_IDD, index) = value
 
       case default
-         write(*,*)"ERROR:  ", name(1:4)," is not an integer observation."
+         write(*,*)"ERROR writing: ", name(1:4)," is not an integer observation."
       end select
    end subroutine obs_set_i
 
@@ -3118,7 +3169,7 @@ contains
       case ('ZHA');  obsdat%robdata(NCM_ZHA, index) = value
 
       case default
-         write(*,*)"ERROR:  ", name(1:4)," is not a real(",OBS_REAL, &
+         write(*,*)"ERROR writing:  ", name(1:4)," is not a real(",OBS_REAL, &
                    ") observation."
       end select
    end subroutine obs_set_r
@@ -3341,12 +3392,12 @@ contains
       ! author: Peter Houtekamer February 2011
       ! 
       ! object: 
-      !   write the obsdat info to unformatted files
-      !   note that the body information is written in the 
+      !   Write the obsdat info to unformatted files.
+      !   Note that the body information is written in the 
       !   order that it will be used by sekfeta.f
       !
       implicit none
-      type(struct_obs), intent(inout) :: obsdat
+      type(struct_obs), intent(in) :: obsdat
       real(8),      intent(in), dimension(:,:) :: hx
       integer,      intent(in) :: nens,nobshdrout,nobsbdyout, &
          nobshxout,nobsdimout
@@ -3385,7 +3436,7 @@ contains
       !
       implicit none 
 
-      type(struct_obs), intent(inout) :: obsdat
+      type(struct_obs), intent(in) :: obsdat
       integer, intent(in) ::  kobs,kulout
 
       integer :: ipnt,idata,j,jdata,k
@@ -3397,7 +3448,7 @@ contains
       ! write the data records
       do jdata=ipnt,ipnt+idata-1
          write(kulout) (obsdat%mobdata(k,jdata),k=1,NBDY_INT), &
-            (obsdat%robdata(j,jdata),j=1,NBDY_REAL)
+                       (obsdat%robdata(j,jdata),j=1,NBDY_REAL)
       enddo
 
       return
@@ -3420,20 +3471,27 @@ contains
       !
       implicit none
 
-      type(struct_obs), intent(inout) :: obsdat
+      type(struct_obs), intent(in) :: obsdat
       integer,      intent(in)  :: kobs,kulout,irobdata
       integer,      intent(out) :: nrobdata
 
       integer :: i,j
 
-      ! (note that as a part of the writing the body is being sorted
+      ! (note that as a part of the writing, the body is being sorted
       !  so that the order of the observations in the body array 
       !  corresponds with the order of the stations in the header array).
+
+      if(obsdat%mpi_local) then
+         call obs_abort("obs_write_hdr() is not equipped to handle the case, mpi_local=.true.")
+      end if
 
       nrobdata=obsdat%mobhdr(NCM_NLV,kobs)
       ! write the header's content 
       write(kulout) irobdata,(obsdat%mobhdr(i,kobs),i=2,NHDR_INT), &
-         (obsdat%robhdr(j,kobs),j=1,NHDR_REAL),obsdat%cstnid(kobs)
+                             (obsdat%robhdr(j,kobs),j=1,NHDR_REAL), &
+                             obsdat%cstnid(kobs), &
+                             obsdat%cfamily(kobs), &
+                             obsdat%datestamp
 
       return
 
@@ -3455,7 +3513,7 @@ contains
       !
       implicit none 
 
-      type(struct_obs), intent(inout) :: obsdat
+      type(struct_obs), intent(in) :: obsdat
       real(8), intent(in), dimension(:,:) :: hx
       integer, intent(in) :: kobs,kulout
 

@@ -9,10 +9,10 @@ module testObs_mod
 
    public :: getTestSuite_obs
 
-   character(len=4), parameter, dimension(22) :: columns_int_head &
+   character(len=4), parameter, dimension(21) :: columns_int_head &
             = (/ 'RLN','ONM','INS','OTP','ITY','SAT','TEC','DAT','ETM', &
                  'NLV','OFL','PAS','REG','IP', 'AZA','SZA','SUN','CLF', &
-                 'ST1','TLA','IDO','IDF' /)
+                 'ST1','IDO','IDF' /)
    character(len=4), parameter, dimension(9) :: columns_int_body &
             = (/ 'VNM','FLG','KFA','ASS','OBS','VCO','LYR','XTR','IDD' /)
    character(len=4), parameter, dimension(6) :: columns_real_head &
