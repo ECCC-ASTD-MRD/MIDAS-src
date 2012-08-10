@@ -34,8 +34,6 @@ subroutine tovs_deallocate_transmission(ptransmission)
 
   implicit none
 
-!implicits
-#include "comlun.cdk"
   integer :: istat(3)
 
   type(transmission_type) :: ptransmission
@@ -46,9 +44,9 @@ subroutine tovs_deallocate_transmission(ptransmission)
   deallocate( ptransmission % od_singlelayer,stat= istat(3))
 
   if( any(istat /= 0) ) then
-     write(nulout,*) ' tovs_deallocate_transmission: istat = ', istat(:)
-     write(nulout,'("  tovs_deallocate_transmission: memory allocation error")')
-     call abort3d(nulout,'tovs_deallocate_transmission')
+     write(*,*) ' tovs_deallocate_transmission: istat = ', istat(:)
+     write(*,'("  tovs_deallocate_transmission: memory allocation error")')
+     call abort3d('tovs_deallocate_transmission')
   end if
 
   return

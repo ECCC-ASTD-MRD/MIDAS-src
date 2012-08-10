@@ -114,14 +114,14 @@ CONTAINS
     ELSE
        NMTRA = NVADIM_IN*2
     END IF
-    WRITE(NULOUT,9401)N1GC, NVAMAJ,NVADIM_IN,NMTRA
+    WRITE(*,9401)N1GC, NVAMAJ,NVADIM_IN,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NVADIM_IN =",1x,I14,3X,"NMTRA =",1X,I14)
     IF(N1GC.EQ.4) THEN
-    WRITE(NULOUT,9402)NWORK
+    WRITE(*,9402)NWORK
  9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
     ENDIF
 
-    IF (LVARQC) WRITE(NULOUT,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
+    IF (LVARQC) WRITE(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
     initialized=.true.
 
@@ -203,8 +203,8 @@ CONTAINS
 ! ---------------------------------------
 !     Initialization and allocation specific to (N1CG1)
 !     -------------------------------------------------
-      if( N1GC.EQ.4.and.lvarqc ) call abort3d(nulout,' MINIMIZE N1CG1 with lvarqc not done ')
-      if( BFGSB.EQ.1 ) call abort3d(nulout,' MINIMIZE n1cg1: option not validated ')
+      if( N1GC.EQ.4.and.lvarqc ) call abort3d(' MINIMIZE N1CG1 with lvarqc not done ')
+      if( BFGSB.EQ.1 ) call abort3d(' MINIMIZE n1cg1: option not validated ')
 
 !     Define i_pmat1 even if BFGSB.NE.1 (Otherwise abort in n1cg1)
 !     ------------------------------------------------------------
@@ -214,7 +214,7 @@ CONTAINS
       in_mode(3) = IMODE3
 
       nilm = NVAMAJ + 3
-      if( nilm.gt.10 .and. N1GC.EQ.4)  call abort3d(nulout,' MINIMIZE n1cg1: ilm0,ilm1 incorrect ')
+      if( nilm.gt.10 .and. N1GC.EQ.4)  call abort3d(' MINIMIZE n1cg1: ilm0,ilm1 incorrect ')
 
 !     -------------------------------------------------
 ! Prepare for non-linear processing of 'TO' data:
@@ -255,15 +255,15 @@ CONTAINS
       ireslun=0
       lldf1 = .true.
       if(niterjob /= -1 .and. lrestart) then
-        if( N1GC.EQ.4 ) call abort3d(nulout,' MINIMIZE N1CG1 with restart not done ')
-        write(nulout,*) 'Minimize : Restart mode'
+        if( N1GC.EQ.4 ) call abort3d(' MINIMIZE N1CG1 with restart not done ')
+        write(*,*) 'Minimize : Restart mode'
         lrdvatra = .true.
         clfname = crestart
         imode = 2
         llvazx = .true.
         llxbar = .true.
       elseif (lpcon) then
-        write(nulout,*) 'Minimize : Preconditioning mode'
+        write(*,*) 'Minimize : Preconditioning mode'
         lrdvatra = .true.
         clfname = cpconf
         imode = 2
@@ -274,7 +274,7 @@ CONTAINS
         imode = 0
         zeps0 = repsg
       endif
-      if(.not.(imode.eq.0.or.imode.eq.2)) call abort3d(nulout,' RW_VATRA not done ')
+      if(.not.(imode.eq.0.or.imode.eq.2)) call abort3d(' RW_VATRA not done ')
 
       if (lrdvatra) then
         ibrpstamp = obs_get_datestamp(lobsSpaceData) ! ibrpstamp is a I/O argument of rw_vatra
@@ -295,7 +295,7 @@ CONTAINS
         if(niterjob /= -1 .and. lrestart) then
           ierr = remove_c(clfname)
           nsim3d = isim3d
-          write(nulout,*) 'MINVAR : NSIM3D read from precon file: ',nsim3d 
+          write(*,*) 'MINVAR : NSIM3D read from precon file: ',nsim3d 
           zeps0  = zeps0_000
           zdf1   = zdf1_000
           lldf1 = .false. ! don't re-compute df1 base on Cost function
@@ -329,7 +329,7 @@ CONTAINS
         if (nwoqcv > 0) lvarqc = .false.
 
         if(ngrtest.ne.0) then
-          call grtest2(simvar,nulout,cvm_nvadim,cvm_vazx,ngrange)
+          call grtest2(simvar,cvm_nvadim,cvm_vazx,ngrange)
         endif
 
       endif
@@ -364,8 +364,8 @@ CONTAINS
       DLGNORM = DSQRT(DLGNORM)
       CALL PRSCAL(cvm_NVADIM,cvm_VAZX,cvm_VAZX,DLXNORM)
       DLXNORM = DSQRT(DLXNORM)
-      WRITE(NULOUT,*)' |X| = ', DLXNORM
-      WRITE(NULOUT,FMT=9220) ZJSP, DLGNORM
+      WRITE(*,*)' |X| = ', DLXNORM
+      WRITE(*,FMT=9220) ZJSP, DLGNORM
  9220 FORMAT(/4X,'J(X) = ',G23.16,4X,'|Grad J(X)| = ',G23.16)
 
 !     *    .   2.4. Constants required by MODULOPT
@@ -381,9 +381,9 @@ CONTAINS
 !     .       RPN standard output file
 
       IF(N1GC.EQ.3) THEN
-      WRITE(NULOUT,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,NITERMAX,NSIMMAX
+      WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,NITERMAX,NSIMMAX
       ELSEIF(N1GC.EQ.4) THEN
-      WRITE(NULOUT,FMT=9321)ZXMIN,ZDF1,ZEPS0,EPSNEG,SELECT0,BFGSB,IMODE3,IMPRES,NITERMAX,NSIMMAX
+      WRITE(*,FMT=9321)ZXMIN,ZDF1,ZEPS0,EPSNEG,SELECT0,BFGSB,IMODE3,IMPRES,NITERMAX,NSIMMAX
       ENDIF
 
  9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
@@ -428,7 +428,7 @@ CONTAINS
           call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,dataptr_int(1))
         else
           llstop = .true.
-          call abort3d(nulout," MINIMIZATION_MOD: n1qn3 mode ne 4")
+          call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
         endif
       endif
 
@@ -459,7 +459,7 @@ CONTAINS
 
 !       Print cost function at iter 0 (Valid only if VAZX = ZERO)
 !       ---------------------------------------------------------
-          WRITE(NULOUT,FMT=9700) 0,0.d0+pj0,pj0,0.d0
+          WRITE(*,FMT=9700) 0,0.d0+pj0,pj0,0.d0
  9700     FORMAT (4x,"n1cga:",i5,1x,e15.8,1x,e15.8,1x,e15.8)
 
           if(imode.eq.0) in_mode(1) = 0
@@ -523,7 +523,7 @@ CONTAINS
           endif
       endif
 
-      WRITE(NULOUT,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
+      WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
  9500 FORMAT(//,20X,20('*'),2X    &
           ,/,20X,'              Minimization ended with MODE:',I4  &
           ,/,20X,' Number of iterations done in previous job:',I4  &
@@ -541,10 +541,10 @@ CONTAINS
  400  CONTINUE
 
       if ((NGRTEST.ne.0 .and. IMODE.ne.4 .and. .not. LRSTART)) then
-        WRITE(NULOUT,FMT=9400)
+        WRITE(*,FMT=9400)
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
 
-        call grtest2(simvar,nulout,cvm_nvadim,cvm_vazx,ngrange)
+        call grtest2(simvar,cvm_nvadim,cvm_vazx,ngrange)
 
       END IF
 
@@ -859,11 +859,11 @@ CONTAINS
     character(len=3) :: cl_version
 
     if(status.eq.0) then
-      write(nulout,*) 'Read  VATRA in RW_VATRA'
+      write(*,*) 'Read  VATRA in RW_VATRA'
     elseif(status.eq.1) then
-      write(nulout,*) 'Write VATRA in RW_VATRA'
+      write(*,*) 'Write VATRA in RW_VATRA'
     else
-      call abort3d(nulout," RW_VATRA: status not valid ")
+      call abort3d(" RW_VATRA: status not valid ")
     endif
 
     ireslun=0
@@ -881,7 +881,7 @@ CONTAINS
         if(trim(cl_version) == 'V3') then
           write(*,*) 'RW_VATRA: using single precision Hessian'
         else
-          call abort3d(nulout," RW_VATRA: invalid Hessian version")
+          call abort3d(" RW_VATRA: invalid Hessian version")
         endif
       endif
       if (i1gc == 3 .and. i1gc == k1gc) then
@@ -890,7 +890,7 @@ CONTAINS
         write(*,*) trim(cl_version),' N1CG1'
       else
         write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
-        call abort3d(nulout," RW_VATRA: Inconsistant input hessian")
+        call abort3d(" RW_VATRA: Inconsistant input hessian")
       endif
 
       rewind (ireslun)
@@ -899,13 +899,13 @@ CONTAINS
       read(ireslun) imtra,iztrl
 
       if(nmtra.ne.imtra.or.nvadim.ne.ivadim) then
-        call abort3d(nulout," RW_VATRA : ERROR, size of Hessian not consistent")
+        call abort3d(" RW_VATRA : ERROR, size of Hessian not consistent")
       endif
 
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
       if(k1gc.eq.4) ictrlvec = 2*nvamaj
 
-      write(nulout,*) 'RW_VATRA : reading Hessian'
+      write(*,*) 'RW_VATRA : reading Hessian'
       if(trim(cl_version) == 'V2') then
         do jvec = 1, ictrlvec
           read(ireslun) vatra((jvec-1)*nvadim+1:jvec*nvadim)
@@ -935,11 +935,11 @@ CONTAINS
       endif
 
       if(ibrpstamp == kbrpstamp .and. lxbar) then
-        write(nulout,*) 'RW_VATRA : reading vazxbar'
+        write(*,*) 'RW_VATRA : reading vazxbar'
         read(ireslun) vazxbar
 
         if(lvazx) then
-          write(nulout,*) 'RW_VATRA : reading vazx'
+          write(*,*) 'RW_VATRA : reading vazx'
           read(ireslun) vazx
         endif
 
@@ -975,7 +975,7 @@ CONTAINS
         ierr = fclos(ireslun)
       endif ! myid==0
     else
-      call abort3d(nulout," RW_VATRA: status not valid ")
+      call abort3d(" RW_VATRA: status not valid ")
     endif
 
     return

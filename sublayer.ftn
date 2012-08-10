@@ -20,7 +20,6 @@ C
       IMPLICIT NONE
       REAL*8 z1,z2,z3,x1,x2,t1,t2,w1,w2,pzs1,pzs2,pzps
       INTEGER imode
-#include "comlun.cdk"
 C
 #if defined (DOC)
 *-----------------------------------------------------------------
@@ -120,10 +119,10 @@ C
       dz=z1-z2
 C     dzd=1.0/dz
       if (abs(dz).lt.1E-10) then
-         write(nulout,*) 'SUBLAYER: ERROR: dz is zero. dz = ',dz
-         write(nulout,*) 'z1,z2,z3 = ',z1,z2,z3
-         write(nulout,*) 'x1,x2    = ',x1,x2
-         write(nulout,*) 't1,t2    = ',t1,t2
+         write(*,*) 'SUBLAYER: ERROR: dz is zero. dz = ',dz
+         write(*,*) 'z1,z2,z3 = ',z1,z2,z3
+         write(*,*) 'x1,x2    = ',x1,x2
+         write(*,*) 't1,t2    = ',t1,t2
 cbue         stop
          w1=0.0
          w2=0.0
@@ -138,10 +137,10 @@ cbue         stop
       dx=(x2-x1)
 C     dxd=1.0/dx
       if (abs(dx).lt.1E-10) then
-         write(nulout,*) 'SUBLAYER: ERROR: dx is zero. dx = ',dx
-         write(nulout,*) 'z1,z2,z3 = ',z1,z2,z3
-         write(nulout,*) 'x1,x2    = ',x1,x2
-         write(nulout,*) 't1,t2    = ',t1,t2
+         write(*,*) 'SUBLAYER: ERROR: dx is zero. dx = ',dx
+         write(*,*) 'z1,z2,z3 = ',z1,z2,z3
+         write(*,*) 'x1,x2    = ',x1,x2
+         write(*,*) 't1,t2    = ',t1,t2
 cbue         stop
          w1=0.0
          w2=0.0

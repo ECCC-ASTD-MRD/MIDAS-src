@@ -72,7 +72,6 @@ c
       use MathPhysConstants_mod
       IMPLICIT none
 c
-#include "comlun.cdk"
 #include "comfilt.cdk"
 c
       integer :: klapf, knpf

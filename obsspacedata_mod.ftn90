@@ -2221,7 +2221,7 @@ contains
    end subroutine obs_prnt_csv
 
 
-   subroutine obs_prntbdy(obsdat,kobs,kulout)
+   subroutine obs_prntbdy(obsdat,kobs)
       !
       !**s/r PRNTBDY  - Print all data records associated with an observation
       !
@@ -2237,12 +2237,11 @@ contains
       !
       !Arguments
       !     i   KOBS  : No. of observation
-      !     i   KULOUT: unit used for printing
       !
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
-      integer         , intent(in) :: kobs, kulout
+      integer         , intent(in) :: kobs
 
       integer :: ipnt, idata, idata2, jdata, ivco
       character(len=13) :: ccordtyp(3)
@@ -2257,9 +2256,9 @@ contains
       idata = obs_elem_i(obsdat,'NLV',KOBS)
 
       if(idata.eq.1) then
-         write(kulout,fmt=9101)idata,kobs, NBDY_INT + NBDY_REAL
+         write(*,fmt=9101)idata,kobs, NBDY_INT + NBDY_REAL
       else
-         write(kulout,fmt=9100)idata,kobs, NBDY_INT + NBDY_REAL
+         write(*,fmt=9100)idata,kobs, NBDY_INT + NBDY_REAL
       end if
 9100  format(4x,'THERE ARE ', &
          i3,1x,'DATA IN OBSERVATION RECORD NO.' &
@@ -2275,7 +2274,7 @@ contains
          if(obs_elem_i(obsdat,'ASS',jdata).eq.1) then
             ivco=obs_elem_i(obsdat,'VCO',jdata)
             if(ivco.ne.1.and.ivco.ne.2) ivco=3
-            write(kulout,fmt=9201) idata2 &
+            write(*,fmt=9201) idata2 &
                ,obs_elem_i(obsdat,'VNM',jdata) &
                ,ccordtyp  (ivco) &
                ,obs_elem_r(obsdat,'PPP',jdata) &
@@ -2314,7 +2313,7 @@ contains
    end subroutine obs_prntbdy
 
 
-   subroutine obs_prnthdr(obsdat,kobs,kulout)
+   subroutine obs_prnthdr(obsdat,kobs)
       !
       !**s/r PRNTHDR  - Printing of the header of an observation record
       !
@@ -2326,25 +2325,24 @@ contains
       !     .                    latitude circle north of the observation)
       !Arguments
       !     i   KOBS  : No. of observation
-      !     i   KULOUT: unit used for optional printing
       !
 
       implicit none
 
 
       type(struct_obs), intent(in) :: obsdat
-      integer         , intent(in) :: kobs, kulout
+      integer         , intent(in) :: kobs
 
       !
       ! 1. General information
       !
-      write(kulout,fmt=9100)kobs, NHDR_INT + NHDR_REAL
+      write(*,fmt=9100)kobs, NHDR_INT + NHDR_REAL
 9100  format(//,10x,'-- OBSERVATION RECORD NO.' &
          ,1x,i6,3x,'HEADER''S LENGTH:',i6)
       !
       ! 2. PRINT HEADER'S CONTENT
       !
-      write(kulout,fmt=9200)&
+      write(*,fmt=9200)&
           obs_elem_i(obsdat,'RLN',kobs), obs_elem_i(obsdat,'ONM',kobs) &
          ,obs_elem_i(obsdat,'INS',kobs), obs_elem_i(obsdat,'OTP',kobs) &
          ,obs_elem_i(obsdat,'ITY',kobs) &

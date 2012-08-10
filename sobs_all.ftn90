@@ -5,7 +5,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   use columnData_mod
   use bufr
   implicit none
-#include "comlun.cdk"
 #include "comfilt.cdk"
 #include "comgpsgb.cdk"
 
@@ -67,14 +66,14 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       ILISTEL(9)=BUFR_NEGZ
       ILISTEL(10)=BUFR_NEZD
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) ' SUBROUTINE SOBSSFC '
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '*****************************************************'
-      WRITE(NULOUT,222)'ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(NULOUT,223)'REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
-      WRITE(NULOUT,* ) '*****************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) ' SUBROUTINE SOBSSFC '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '*****************************************************'
+      WRITE(*,222)'ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(*,223)'REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
+      WRITE(*,* ) '*****************************************************'
+      WRITE(*,* ) ' '
       LLPRINT = .FALSE.
 !C
 !C     SET COUNTERS TO ZERO
@@ -92,7 +91,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       list_family(2) = 'UA'
       list_family(3) = 'GP'
       FAMILY: do index_family = 1,3
-         WRITE(NULOUT,'(2x,A9,2x,A2)')'FAMILY = ', list_family(index_family)
+         WRITE(*,'(2x,A9,2x,A2)')'FAMILY = ', list_family(index_family)
          !
          ! loop over all header indices of each family
          !
@@ -160,7 +159,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                         IKOUNTREA(J)=IKOUNTREA(J)+1
                         IF(LLPRINT) THEN
                           ZMODEL =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-                          write(nulout,*)'Keep OBS:stnid,index_header,ityp,',&
+                          write(*,*)'Keep OBS:stnid,index_header,ityp,',&
                                'icrit,zlev,zhhh,zmodel,zdiff ', &
                                obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)&
                                ,INDEX_HEADER,ITYP,ICRIT,zlev,zhhh,zmodel,zdiff
@@ -176,7 +175,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                                              18 ) &
                                       )
                         IF(LLPRINT) THEN
-                          WRITE(NULOUT,225) 'Reject OBS ',INDEX_HEADER,ITYP, &
+                          WRITE(*,225) 'Reject OBS ',INDEX_HEADER,ITYP, &
                               obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),&
                               IDBURP,  &
                               obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER),&
@@ -191,13 +190,13 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
             ENDDO BODY
          ENDDO HEADER
 
-         WRITE(NULOUT,* ) ' '
-         WRITE(NULOUT,* ) '*****************************************************'
-         WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-         WRITE(NULOUT,222)'ACCEPTED  ',(IKOUNTREA(J),J=1,JPINEL)
-         WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-         WRITE(NULOUT,* ) '*****************************************************'
-         WRITE(NULOUT,* ) ' '
+         WRITE(*,* ) ' '
+         WRITE(*,* ) '*****************************************************'
+         WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+         WRITE(*,222)'ACCEPTED  ',(IKOUNTREA(J),J=1,JPINEL)
+         WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+         WRITE(*,* ) '*****************************************************'
+         WRITE(*,* ) ' '
   222    FORMAT(2x,a29,10(2x,i5))
   223    FORMAT(2x,a29,10(2x,f5.0))
   224    FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
@@ -209,8 +208,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       ENDDO
-      WRITE(NULOUT,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
+      WRITE(*,* ) ' '
 
       RETURN
       END subroutine sobssfc
@@ -259,15 +258,15 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 
       LLPRINT = .FALSE.
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) ' SUBROUTINE SOBSRAOB '
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '************************************************'
-      WRITE(NULOUT,222)'%UA ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(NULOUT,223)'%UA REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
-      WRITE(NULOUT,223)'%UA REJECTION SBL (PASCAL) ',(RSBLCRIT(J),J=1,jpinel)
-      WRITE(NULOUT,* ) '************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) ' SUBROUTINE SOBSRAOB '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '************************************************'
+      WRITE(*,222)'%UA ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(*,223)'%UA REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
+      WRITE(*,223)'%UA REJECTION SBL (PASCAL) ',(RSBLCRIT(J),J=1,jpinel)
+      WRITE(*,* ) '************************************************'
+      WRITE(*,* ) ' '
       IELGZ =  ILISTEL(JPINEL)
 !C
 !C     SET COUNTERS TO ZERO
@@ -296,7 +295,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       !
       ! loop over all header indices of the 'UA' family
       !
-      WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ', 'UA'
+      WRITE(*,'(2x,A10,2x,A2)')'FAMILY =  ', 'UA'
                                         ! Set the header list
                                         ! (& start at the beginning of the list)
       call obs_set_current_header_list(lobsSpaceData, 'UA')
@@ -349,7 +348,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   ITOTACC(JPINEL)=ITOTACC(JPINEL)+1
                   IGZACC(JPINEL)=IGZACC(JPINEL)+1
                   IF(LLPRINT) THEN
-                     WRITE(NULOUT,*) 'Keep GZ BELOW MODEL SFC '  &
+                     WRITE(*,*) 'Keep GZ BELOW MODEL SFC '  &
                            ,INDEX_HEADER,ITYP &
                            ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) &
                            ,ZLAT,ZLON,ZLEV,ZVAL/RG  &
@@ -361,7 +360,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                      call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
                            ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
                      IF(LLPRINT) THEN
-                        WRITE(NULOUT,*)'REJ GZ BELOW MODEL SFC '  &
+                        WRITE(*,*)'REJ GZ BELOW MODEL SFC '  &
                          ,INDEX_HEADER,ITYP &
                          ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)  &
                          ,ZLAT,ZLON,ZLEV,ZVAL/RG &
@@ -423,7 +422,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                  ZPB = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                  ZPT = col_getPressure(LCOLUMNHR,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')
                  IF(LLPRINT) THEN
-                   WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
+                   WRITE(*,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
                        ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
                        ,ZLON,ZLEV,ZPB,ZPT,ZDIFALT
                  ENDIF
@@ -434,7 +433,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                                     18 ))
                   ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                   IF(LLPRINT) THEN
-                     WRITE(NULOUT,*) 'Rej Obs below model sfc '  &
+                     WRITE(*,*) 'Rej Obs below model sfc '  &
                           ,INDEX_HEADER,ITYP &
                           ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
                           ,ZLON,ZLEV,ZPB
@@ -447,8 +446,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                        ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
                   ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                   IF(LLPRINT) THEN
-                     WRITE(NULOUT,*) '%UA REJ SBL ITYP,DALT ',ITYP,ZDIFALT
-                     WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '  &
+                     WRITE(*,*) '%UA REJ SBL ITYP,DALT ',ITYP,ZDIFALT
+                     WRITE(*,*) 'Reject LEV IN SBL LYR '  &
                           ,INDEX_HEADER,ITYP,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV  &
                           ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                   ENDIF
@@ -460,19 +459,19 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ENDDO BODY2
       ENDDO HEADER
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '%UA***************************************'
-      WRITE(NULOUT,222 )'%UA ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%UA ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%UA ACC GZ EXT  ',(IGZACC(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%UA ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
-      WRITE(NULOUT,* ) '%UA***************************************'
-      WRITE(NULOUT,222)'%UA REJ GZ EXT  ',(IGZREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%UA REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%UA REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%UA REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,* ) '%UA***************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '%UA***************************************'
+      WRITE(*,222 )'%UA ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'%UA ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
+      WRITE(*,222)'%UA ACC GZ EXT  ',(IGZACC(J),J=1,JPINEL)
+      WRITE(*,222)'%UA ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
+      WRITE(*,* ) '%UA***************************************'
+      WRITE(*,222)'%UA REJ GZ EXT  ',(IGZREJ(J),J=1,JPINEL)
+      WRITE(*,222)'%UA REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
+      WRITE(*,222)'%UA REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
+      WRITE(*,222)'%UA REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
+      WRITE(*,* ) '%UA***************************************'
+      WRITE(*,* ) ' '
  222  FORMAT(2x,a29,5(2x,i5))
  223  FORMAT(2x,a29,5(2x,f6.0))
 
@@ -480,8 +479,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       ENDDO
-      WRITE(NULOUT,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,'(1X,"%UA NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
+      WRITE(*,* ) ' '
 
       RETURN
       END subroutine sobsraob
@@ -512,14 +511,14 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 
       DATA    RLISTCRIT/-50./
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) ' SUBROUTINE SOBSAISW '
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '****************************************************'
-      WRITE(NULOUT,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
-      WRITE(NULOUT,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
-      WRITE(NULOUT,* ) '****************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) ' SUBROUTINE SOBSAISW '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '****************************************************'
+      WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
+      WRITE(*,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
+      WRITE(*,* ) '****************************************************'
+      WRITE(*,* ) ' '
       LLPRINT = .FALSE.
 !C
 !C     SET COUNTERS TO ZERO
@@ -534,7 +533,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       list_family(1) = 'AI'
       list_family(2) = 'SW'
       FAMILY: do index_family = 1,2
-         WRITE(NULOUT,*)' FAMILY = ',list_family(index_family)
+         WRITE(*,*)' FAMILY = ',list_family(index_family)
          !
          ! loop over all body indices of each family
          !
@@ -556,7 +555,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                   ILEM=ILISTEL(J)
                   IF ( ITYP .EQ. ILEM ) THEN
                      IF(LLPRINT) THEN
-                        WRITE(NULOUT,224) 'Reject OBS ',index_header,ITYP &
+                        WRITE(*,224) 'Reject OBS ',index_header,ITYP &
                           ,obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY),ZDIFF
                      ENDIF
                      call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
@@ -570,14 +569,14 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ENDDO BODY
       ENDDO FAMILY
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) &
+      WRITE(*,* ) ' '
+      WRITE(*,* ) &
            '*****************************************************************'
-      WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,* ) &
+      WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(*,* ) &
            '*****************************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
   222 FORMAT(2x,a29,5(2x,i5))
   223 FORMAT(2x,a29,5(2x,f5.0))
   224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
@@ -586,9 +585,9 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       ENDDO
-      WRITE(NULOUT  &
+      WRITE(*  &
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
 
       RETURN
       END subroutine sobsaisw
@@ -640,15 +639,15 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 
       LLPRINT = .FALSE.
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) ' SUBROUTINE SOBSPROF '
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '************************************************'
-      WRITE(NULOUT,222)'%PR ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(NULOUT,223)'%PR REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
-      WRITE(NULOUT,223)'%PR REJECTION SBL (METRE) ',(RSBLCRIT(J),J=1,jpinel)
-      WRITE(NULOUT,* ) '************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) ' SUBROUTINE SOBSPROF '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '************************************************'
+      WRITE(*,222)'%PR ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(*,223)'%PR REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
+      WRITE(*,223)'%PR REJECTION SBL (METRE) ',(RSBLCRIT(J),J=1,jpinel)
+      WRITE(*,* ) '************************************************'
+      WRITE(*,* ) ' '
       IELGZ =  ILISTEL(JPINEL)
 !C
 !C     SET COUNTERS TO ZERO
@@ -677,7 +676,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       !
       ! loop over all header indices of the 'PR' family
       !
-      WRITE(NULOUT,'(2x,A10,2x,A2)')'FAMILY =  ','PR'
+      WRITE(*,'(2x,A10,2x,A2)')'FAMILY =  ','PR'
                                         ! Set the header list
                                         ! (& start at the beginning of the list)
       call obs_set_current_header_list(lobsSpaceData, 'PR')
@@ -753,7 +752,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                ZPB = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                ZPT = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG
                IF(LLPRINT) THEN
-                  WRITE(NULOUT,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
+                  WRITE(*,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
                        ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT &
                        ,ZLON,ZLEV  &
                        ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG  &
@@ -766,7 +765,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                     ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
                ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                IF(LLPRINT) THEN
-                  WRITE(NULOUT,*) 'Rej Obs below model sfc ',INDEX_HEADER,ITYP  &
+                  WRITE(*,*) 'Rej Obs below model sfc ',INDEX_HEADER,ITYP  &
                        ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
                        ,ZLON,ZLEV &
                        ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG,ZPT  &
@@ -781,8 +780,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                     ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 18 ))
                ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
                IF(LLPRINT) THEN
-                  WRITE(NULOUT,*) '%PR REJ SBL ITYP,DALT ',ITYP,ZDIFALT
-                  WRITE(NULOUT,*) 'Reject LEV IN SBL LYR '   &
+                  WRITE(*,*) '%PR REJ SBL ITYP,DALT ',ITYP,ZDIFALT
+                  WRITE(*,*) 'Reject LEV IN SBL LYR '   &
                        ,INDEX_HEADER,ITYP,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV  &
                        ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
                ENDIF
@@ -793,17 +792,17 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ENDDO BODY
       ENDDO HEADER
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '%PR***************************************'
-      WRITE(NULOUT,222 )'%PR ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%PR ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%PR ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
-      WRITE(NULOUT,* ) '%PR***************************************'
-      WRITE(NULOUT,222)'%PR REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%PR REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'%PR REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,* ) '%PR***************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '%PR***************************************'
+      WRITE(*,222 )'%PR ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'%PR ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
+      WRITE(*,222)'%PR ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
+      WRITE(*,* ) '%PR***************************************'
+      WRITE(*,222)'%PR REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
+      WRITE(*,222)'%PR REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
+      WRITE(*,222)'%PR REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
+      WRITE(*,* ) '%PR***************************************'
+      WRITE(*,* ) ' '
  222  FORMAT(2x,a29,5(2x,i5))
  223  FORMAT(2x,a29,5(2x,f6.0))
  224  FORMAT(2x,a31,2x,I6,2X,I5,2(2x,f9.2))
@@ -812,8 +811,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       ENDDO
-      WRITE(NULOUT,'(1X,"%PR NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,'(1X,"%PR NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
+      WRITE(*,* ) ' '
 
       RETURN
       END subroutine sobsprof
@@ -842,14 +841,14 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 
       DATA    RLISTCRIT/800./
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) ' SUBROUTINE SOBSCSBT '
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* ) '****************************************************'
-      WRITE(NULOUT,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
-      WRITE(NULOUT,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
-      WRITE(NULOUT,* ) '****************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) ' SUBROUTINE SOBSCSBT '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '****************************************************'
+      WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
+      WRITE(*,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
+      WRITE(*,* ) '****************************************************'
+      WRITE(*,* ) ' '
       LLPRINT = .FALSE.
 !C
 !C     SET COUNTERS TO ZERO
@@ -862,7 +861,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       !
       ! loop over all header indices of the 'TO' family
       !
-      WRITE(NULOUT,*)' FAMILY = ','TO'
+      WRITE(*,*)' FAMILY = ','TO'
                                         ! Set the header list
                                         ! (& start at the beginning of the list)
       call obs_set_current_header_list(lobsSpaceData, 'TO')
@@ -896,7 +895,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                  ILEM=ILISTEL(J)
                  IF ( ITYP .EQ. ILEM ) THEN
                     IF(LLPRINT) THEN
-                       WRITE(NULOUT,224) 'Reject OBS ',INDEX_HEADER,ITYP, &
+                       WRITE(*,224) 'Reject OBS ',INDEX_HEADER,ITYP, &
                                   obs_elem_r(lobsSpaceData,'PPP ',index_body), &
                                   ZDIFF
                     ENDIF
@@ -910,14 +909,14 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
          ENDDO BODY
       ENDDO HEADER
 
-      WRITE(NULOUT,* ) ' '
-      WRITE(NULOUT,* )  &
+      WRITE(*,* ) ' '
+      WRITE(*,* )  &
            '*****************************************************************'
-      WRITE(NULOUT,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(NULOUT,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-      WRITE(NULOUT,* )  &
+      WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(*,* )  &
            '*****************************************************************'
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
   222 FORMAT(2x,a29,5(2x,i5))
   223 FORMAT(2x,a29,5(2x,f5.0))
   224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
@@ -926,9 +925,9 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DO JDATA=1,obs_numbody(lobsSpaceData)
         IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       ENDDO
-      WRITE(NULOUT  &
+      WRITE(*  &
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
-      WRITE(NULOUT,* ) ' '
+      WRITE(*,* ) ' '
 
       RETURN
       END subroutine sobscsbt

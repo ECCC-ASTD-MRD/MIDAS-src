@@ -21,25 +21,25 @@ C*  Initialization of the control of the job
 C   ----------------------------------------
 C     Author: P. GAUTHIER *ARMA/AES* April 13, 1992
 C
-C Revision:
-C             S. Pellerin *ARMA/SMC Oct. 2000
-C                - default values
-*             S. Pellerin ARMA nov. 2008
-*                - Introduction of CMINMODE variable
 #endif
       IMPLICIT NONE
 #include "comct0.cdk"
+      NAMELIST /NAMCT0/NCONF
 C
-      INTEGER IERR
+      integer nulnam,ierr,fnom,fclos 
 C
 C*    1. Set the default values
 C
-      NCONF  = 141
-      CMINMODE = 'VAR'
+      nconf  = 141
 C
 C*    2. Read the NAMELIST to modify these values
 C
-      CALL READNML('NAMCT0',IERR)
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      write(*,*) 'suct0: reading namelist, ierr=',ierr
+      read(nulnam,nml=namct0)
+      write(*,nml=namct0)
+      ierr=fclos(nulnam)
 C
       RETURN
       END

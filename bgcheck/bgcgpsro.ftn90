@@ -19,7 +19,6 @@
       use obsSpaceData_mod
       use verticalCoord_mod
       IMPLICIT NONE
-#include "pardim.cdk"
 #include "comct0.cdk"
 #include "comgpsro.cdk"
       type(struct_columnData) :: lcolumnhr
@@ -27,6 +26,7 @@
       type(struct_vco), pointer :: vco_trl
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
+      integer, parameter :: jpnflev=200
       REAL*8 ZETA(JPNFLEV)
       REAL*8 ZPP (JPNFLEV),ZDP (JPNFLEV)
       REAL*8 ZTT (JPNFLEV)

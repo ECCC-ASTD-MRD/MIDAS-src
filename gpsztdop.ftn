@@ -58,7 +58,6 @@ C
       use columnData_mod
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
 #include "comgpsgb.cdk"
 
       type(struct_columnData) :: lcolumnhr

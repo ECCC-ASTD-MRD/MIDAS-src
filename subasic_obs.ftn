@@ -17,6 +17,7 @@
       subroutine subasic_obs(lcolumng)
 c
       use MathPhysConstants_mod
+      use physicsFunctions_mod
       use columnData_mod 
       implicit none
 *
@@ -28,8 +29,6 @@ c
 *     Author  : S. Pellerin *ARMA/AES Sept. 98
 *
 *
-#include "dinternv.cdk"
-#include "finternva.cdk"
       type(struct_columnData) :: lcolumng
       type(struct_vco), pointer :: vco_anl
       integer jlev,jobs

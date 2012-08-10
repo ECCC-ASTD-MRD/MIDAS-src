@@ -108,7 +108,7 @@
                     IF (ZFGE .LT. 1.E-3 .OR. ZOER .LT. 1.E-3 ) THEN
                       WRITE(*,*)' Problem for STNID FGE ZOER=',  &
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                      CALL ABORT3D(6,'BGCDATA: PROBLEM WITH FGE, OER.')
+                      CALL ABORT3D('BGCDATA: PROBLEM WITH FGE, OER.')
                     ENDIF
                   ELSE
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.e-5)THEN

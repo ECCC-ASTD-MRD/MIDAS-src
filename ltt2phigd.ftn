@@ -40,8 +40,6 @@ C
       use gridStateVector_mod
       use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
-#include "comlun.cdk"
-#include "pardim.cdk"
 *
       type(struct_gsv) :: statevectorg
       real*8 pgz(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
@@ -52,14 +50,14 @@ C
       real*8  vme(statevectorg%nlev),vmf(statevectorg%nlev)
       INTEGER JLEV, JLA, ILA, ILEV, JLAT, JLON
       real*8  zalpha
-      real*8 zpress(statevectorg%ni,statevectorg%nlev),zprof(jpnflev)
+      real*8 zpress(statevectorg%ni,statevectorg%nlev),zprof(statevectorg%nlev)
       real*8, pointer :: ps3d_ptr(:,:,:), zpres3d_ptr(:,:,:)
       real*8, allocatable :: zps2d(:,:) 
       integer status
 *------------------------------------------------------------------
 **
 C
-      WRITE(NULOUT,FMT='(/,4X,"Starting LTT2PHIGD",//)')
+      WRITE(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
 C
       zalpha=-1.0D0
 
@@ -75,8 +73,8 @@ c
      &                  ip1_list=statevectorg%vco%ip1_M,
      &                  levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)
       if(status.ne.VGD_OK)then
-        write(nulout,*) 'ERROR with vgd_levels for desired levels '
-        call exit(1)
+        write(*,*) 'ERROR with vgd_levels for desired levels '
+        call qqexit(1)
       endif
       do jlat = 1, statevectorg%nj
         zpress = zpres3d_ptr(:,jlat,:)

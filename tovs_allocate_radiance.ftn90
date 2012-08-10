@@ -37,9 +37,6 @@ subroutine tovs_allocate_radiance(pradiance,knchannels,knlevels,knbtout)
 
   implicit none
 
-!implicits
-#include "comlun.cdk"
-
   integer :: knchannels, knlevels, knbtout
   integer :: istat(14)
 
@@ -65,9 +62,9 @@ subroutine tovs_allocate_radiance(pradiance,knchannels,knlevels,knbtout)
   allocate( pradiance % clear_out( knbtout )              ,stat= istat(14))
 
   if( any(istat /= 0) ) then
-     write(nulout,*) ' tovs_allocate_radiance: istat = ', istat(:)
-     write(nulout,'("  tovs_allocate_radiance: memory allocation error")')
-     call abort3d(nulout,'tovs_allocate_radiance')
+     write(*,*) ' tovs_allocate_radiance: istat = ', istat(:)
+     write(*,'("  tovs_allocate_radiance: memory allocation error")')
+     call abort3d('tovs_allocate_radiance')
   end if
 
   return

@@ -217,7 +217,7 @@ CONTAINS
         !write(6,*) ' opened as unit file ',nulbgst
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        write(*,*) 'SUFILNAM:NO BACKGROUND STAT FILE!!'
+        write(*,*) 'BHI_SUNEWSTATS:NO BACKGROUND STAT FILE!!'
         call exit(1)
       endif
     endif
@@ -266,11 +266,14 @@ CONTAINS
       rgsigpsb(jlat)=scaleFactor(nflev_l)*rgsigpsb(jlat)
       rgsigps(jlat) =scaleFactor(nflev_l)*rgsigps(jlat)
     enddo
+    !!!!! POSSIBLY DO NOT SCALE DOWN STDDEV OF TG (by changing to .false.)!!!!!
+    if(.true.) then
     do jlat=1,nj_l
       do jlon=1,ni_l
         tgstdbg(jlon,jlat)=scaleFactor(nflev_l)*tgstdbg(jlon,jlat)
       enddo
     enddo
+    endif
 
   END SUBROUTINE BHI_scalestd
 
@@ -815,7 +818,7 @@ CONTAINS
     ntrials=1
 
     call getfldprm2(IP1,IP2,IP3,INLEV,CLETIKET,CLTYPVAR,ITGGID,       &
-         clnomvar, idateo, inmxlev, kulssf, 6,ip1style,ip1kind,  &
+         clnomvar, idateo, inmxlev, kulssf,ip1style,ip1kind,  &
          ntrials,koutmpg)
 
     ier = ezgprm(itggid,CLGRTYP,INI,INJ,IG1,IG2,IG3,IG4)

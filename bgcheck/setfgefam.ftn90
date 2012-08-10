@@ -64,7 +64,7 @@
                  write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',col_getElem(lcolumn,IPB,INDEX_HEADER)
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',col_getElem(lcolumn,IPT,INDEX_HEADER)
-                 CALL ABORT3D(6,'SETFGEFAM: First-guess stdev bad value')
+                 CALL ABORT3D('SETFGEFAM: First-guess stdev bad value')
                endif
             ENDIF
             ENDIF

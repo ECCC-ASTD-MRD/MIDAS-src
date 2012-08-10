@@ -112,7 +112,6 @@
 #include "comct0.cdk"
 #include "partov.cdk"
 #include "comfilt.cdk"
-#include "comstato.cdk"
 #include "comtovst.cdk"
 #include "comgpsgb.cdk"
 C
@@ -685,7 +684,7 @@ C
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF (sum(IKNT(:)) .EQ. 0 ) THEN
-        call abort3d(6,'SUPREP. NO DATA TO BE ASSIMILATED')
+        call abort3d('SUPREP. NO DATA TO BE ASSIMILATED')
       ENDIF
 C
       RETURN

@@ -73,9 +73,6 @@ contains
 use obsSpaceData_mod
 IMPLICIT NONE       
 
-!implicits
-#include "comlun.cdk"
-
 type(struct_obs),intent(in) :: lobsSpaceData
 integer ,intent(in) :: nlev,nprf
 REAL(8),intent(in)  :: ZLAT(NPRF), TOTO3OBS(NPRF),PLEV(NLEV)
@@ -145,9 +142,6 @@ SUBROUTINE OZO_READ_CLIMATOLOGY(lobsSpaceData)
 
   IMPLICIT NONE
 
-!implicits
-#include "comlun.cdk"
-
   type(struct_obs),intent(in)  :: lobsSpaceData
   INTEGER            :: IJOUR,IMONTH,IJ,IV,K
   REAL               :: RDUM(NLATO3,NLEVO3)
@@ -173,8 +167,8 @@ SUBROUTINE OZO_READ_CLIMATOLOGY(lobsSpaceData)
   IV5=FSTFRM(IOZTEST)
   IV6=FCLOS(IOZTEST)
 
-  write(nulout,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
-  write(nulout,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
+  write(*,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
+  write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
   
   
 END SUBROUTINE OZO_READ_CLIMATOLOGY

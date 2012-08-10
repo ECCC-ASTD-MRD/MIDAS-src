@@ -15,10 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid
-     &     ,cdvar,kstampv,knmaxlev,kinmpg,kulout,kip1style,kip1kind)
+     &     ,cdvar,kstampv,knmaxlev,kinmpg,kip1style,kip1kind)
       implicit none
 c
-      integer kinmpg,kulout,kstampv,knmaxlev,knlev,kgid
+      integer kinmpg,kstampv,knmaxlev,knlev,kgid
       integer kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
       character(len=*) :: cdtypvar
       character(len=*) :: cdvar
@@ -51,7 +51,6 @@ c
 *     kstampv : valid date time stamp of the variable
 *     knmaxlev: maximum number of levels
 *     kinmpg  : file unit of trial field
-*     kulout  : standard output
 *
 * Output:
 *     kip1s(knmaxlev) : list of ip1s of variable cdvar
@@ -141,12 +140,12 @@ c
             iig3 = iig32
             iig4 = iig42
           else
-            write(kulout,*)
+            write(*,*)
      &           '****** Unit ', kinmpg
      &           ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3'
      &           ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 '
      &           ,'for variable ',cdvar,' and datev, ',kstampv
-            CALL ABORT3D(kulout,'GETFLDPRM')
+            CALL ABORT3D('GETFLDPRM')
           endif
         enddo
 c
@@ -170,7 +169,7 @@ c
       else
         ier = fstinl(kinmpg,ini,inj, ink, -1, ' ', -1, -1, -1,
      &       ' ',cdvar,ikeys, knlev, knmaxlev)
-        write(kulout,*) 'Error - GETFLDPRM: no record found at time '
+        write(*,*) 'Error - GETFLDPRM: no record found at time '
      &       ,idatefull,' for field ',cdvar,' but',knlev,
      &         ' records found in unit ',kinmpg
       endif

@@ -18,7 +18,6 @@
       use gaussGrid_mod
       use gridStateVector_mod
       IMPLICIT NONE
-#include "pardim.cdk"
       type(struct_columnData) :: lcolumn
       type(struct_gsv) :: statevector
       type(struct_obs) :: lobsSpaceData

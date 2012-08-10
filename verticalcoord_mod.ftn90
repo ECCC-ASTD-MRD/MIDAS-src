@@ -212,11 +212,11 @@ module verticalCoord_mod
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
       tf_vco%dpt_M  = exp( tf_vco%da_M(1) + tf_vco%db_M(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptot(MM)=',tf_vco%dpt_M
-      write(*,*) 'vco_setupFromFile: read ptot(MM)=',dl_ptM
+      write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
+      write(*,*) 'vco_setupFromFile: read ptop(MM)=',dl_ptM
       tf_vco%dpt_T  = exp( tf_vco%da_T(1) + tf_vco%db_T(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptot(TH)=',tf_vco%dpt_T
-      write(*,*) 'vco_setupFromFile: read ptot(TH)=',dl_ptM
+      write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
+      write(*,*) 'vco_setupFromFile: read ptop(TH)=',dl_ptM
     endif
     !
     ! Set to zero the non-significant digits (due to conversion from real*4)

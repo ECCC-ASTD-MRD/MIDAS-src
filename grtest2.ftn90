@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine grtest2(simul,na_stdout,na_dim,da_x0,na_range)
+subroutine grtest2(simul,na_dim,da_x0,na_range)
   implicit none
   ! Dummies
   integer, intent(in) :: na_dim ! Size of the control vector
   integer, intent(in) :: na_range ! the test will be carried over values of
                                   ! ALPHA ranging between
                                   ! 10**(-NA_RANGE) < ALPHA < 0.1
-  integer, intent(in) :: na_stdout ! Standard ouput logical unit
   real*8,  intent(in), dimension(na_dim) :: da_x0 ! Control vector
   external simul ! simulator: return cost function estimate and its gradient
   !
@@ -60,24 +59,24 @@ subroutine grtest2(simul,na_stdout,na_dim,da_x0,na_range)
 
   dl_start = 1.d0
   dl_end   = 10.0d0**(-na_range)
-  write(na_stdout,FMT=9100) dl_start,dl_end, dl_j0, dl_gnorm0
+  write(*,FMT=9100) dl_start,dl_end, dl_j0, dl_gnorm0
 
   ! 2. Perform the test
   !    ----------------
 
   if(dl_gnorm0.eq.0.d0)then
-     write(na_stdout,FMT=9101)
+     write(*,FMT=9101)
      return
   end if
 
-  write(na_stdout,FMT=9200)
+  write(*,FMT=9200)
 
   do  nl_j = 1, na_range
      dl_alpha = 10.0d0**(- nl_j)
      dl_x(:) = da_x0(:) - dl_alpha*dl_gradJ0(:)
      call simul(nl_indic,na_dim,dl_x,dl_j,dl_wrk)
      dl_test = (dl_j-dl_j0)/(-dl_alpha * dl_gnorm0)
-     write(na_stdout,FMT=9201)nl_j, dl_alpha, dl_j, dl_test
+     write(*,FMT=9201)nl_j, dl_alpha, dl_j, dl_test
   end do
 
 9100 format(//,4X,&

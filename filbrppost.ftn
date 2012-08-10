@@ -59,7 +59,6 @@
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cvcord.cdk"
 #include "comvfiles.cdk"
 #include "partov.cdk"
@@ -91,8 +90,8 @@
 *     OPEN AND APPEND DATA TO "POST" FILES.
 ************************************************************************
 *
-      WRITE(NULOUT,'(1X,"SUBROUTINE FILBRPPOST")')
-      WRITE(NULOUT,'(1X,"-----------------",/)')
+      WRITE(*,'(1X,"SUBROUTINE FILBRPPOST")')
+      WRITE(*,'(1X,"-----------------",/)')
 *
 *     0. Restore Global Arrays of ROBDATA and MOBDATA. 
 *        --------------------------------------------
@@ -121,11 +120,11 @@ C
          IF ( trim(CSAV(J)) .EQ. 'OMP') CSAV(J)='OMF'
       END DO
 C
-      WRITE(NULOUT,'(1X,"***********************************")')
-      WRITE(NULOUT,'(1X," ELEMENTS SELECTED FOR POST_FILE :",/)')
-      WRITE(NULOUT,'(1X,"***********************************")')
+      WRITE(*,'(1X,"***********************************")')
+      WRITE(*,'(1X," ELEMENTS SELECTED FOR POST_FILE :",/)')
+      WRITE(*,'(1X,"***********************************")')
       DO JD=1,NELCMA
-         WRITE(NULOUT,'(15X,A4,/)') CSAV(JD)
+         WRITE(*,'(15X,A4,/)') CSAV(JD)
       END DO
       IER   =MRFOPC('MSGLVL','FATAL')
 *
@@ -137,26 +136,26 @@ C
          IER   =FNOM(IBRP1,CBURP(J),'RND+OLD',0)
          INBLKS= -1
          IF ( IER .NE. 0 ) THEN
-            WRITE(NULOUT,*)  ' '
-            WRITE(NULOUT,*)
+            WRITE(*,*)  ' '
+            WRITE(*,*)
      S    '========================================================='
-            WRITE(NULOUT,*)' NO DATA IN POSTALT FILE ',CBURP(J)
-            WRITE(NULOUT,*)
+            WRITE(*,*)' NO DATA IN POSTALT FILE ',CBURP(J)
+            WRITE(*,*)
      S    '========================================================='
-            WRITE(NULOUT,*)  ' '
+            WRITE(*,*)  ' '
          ELSE
             INBLKS =NUMBLKS(IBRP1)
             IF ( INBLKS .GT. 0) THEN
                CFAM(J)=CFAMTYP(J)
                INRECS=MRFOPN(IBRP1,'APPEND')
-               WRITE(NULOUT,*)  ' '
-               WRITE(NULOUT,*)
+               WRITE(*,*)  ' '
+               WRITE(*,*)
      S       '========================================================='
-               WRITE(NULOUT,*) ' ',INRECS,
+               WRITE(*,*) ' ',INRECS,
      S       ' ',CFAM(J),' OBSERVATIONS IN BURP FILE ',CBURP(J)
-               WRITE(NULOUT,*)
+               WRITE(*,*)
      S       '========================================================='
-               WRITE(NULOUT,*)  ' '
+               WRITE(*,*)  ' '
 *
 *             -----------------
 *             FILL UP POST FILE
@@ -186,20 +185,20 @@ C
      &         SATELLITE(KRTID) .EQ. 2 .AND.
      &         INSTRUMENT(KRTID) .EQ. 11 ) THEN
             IF ( NKOUNT == 1 ) THEN
-              write(nulout,*) 'INPUT FILE TO AIRSABRP = ', CBURP(NKOUNT)
+              write(*,*) 'INPUT FILE TO AIRSABRP = ', CBURP(NKOUNT)
               CALL AIRSABRP(CBURP(NKOUNT))
             ELSE
-              WRITE(NULOUT,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE AIRS FILE ???'
+              WRITE(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE AIRS FILE ???'
             END IF
           END IF
           IF ( PLATFORM(KRTID) .EQ. 10 .AND.
      &         SATELLITE(KRTID) .EQ. 2 .AND.
      &         INSTRUMENT(KRTID) .EQ. 16 ) THEN
             IF ( NKOUNT == 1 ) THEN
-              write(nulout,*) 'INPUT FILE TO IASIABRP = ', CBURP(NKOUNT)
+              write(*,*) 'INPUT FILE TO IASIABRP = ', CBURP(NKOUNT)
               CALL IASIABRP(CBURP(NKOUNT))
             ELSE
-              WRITE(NULOUT,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
+              WRITE(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
             END IF
           END IF
         END DO

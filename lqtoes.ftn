@@ -22,9 +22,8 @@
 !          is permitted and the pressure vector is given.
 !
       use MathPhysConstants_mod
+      use physicsFunctions_mod
       implicit none
-#include "dintern8.cdk"
-#include "fintern8.cdk"
       real*8, intent(in) :: lq,tt,pressure
       real*8 :: husat,td
 !

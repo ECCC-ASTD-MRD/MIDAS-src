@@ -35,7 +35,6 @@
       use columnData_mod
       IMPLICIT NONE
 #include "comct0.cdk"
-#include "comlun.cdk"
 #include "comfilt.cdk"
 #include "comgpsgb.cdk"
 c
@@ -56,20 +55,20 @@ c
 c     GB-GPS (met and ZTD) observations are processed in SOBSSFC
 c
         IF (LTOPOFILT) THEN
-          write(NULOUT,*)' *****************************************'
-          write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-          write(NULOUT,*)' *                                       *'
-          write(NULOUT,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
-          write(NULOUT,*)' *                                       *'
-          write(NULOUT,*)' *****************************************'
+          write(*,*)' *****************************************'
+          write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+          write(*,*)' *                                       *'
+          write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
+          write(*,*)' *                                       *'
+          write(*,*)' *****************************************'
           call sobs_all(lcolumnhr,lobsSpaceData)
         ELSE
-          write(NULOUT,*)' *****************************************'
-          write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-          write(NULOUT,*)' *                                       *'
-          write(NULOUT,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
-          write(NULOUT,*)' *                                       *'
-          write(NULOUT,*)' *****************************************'
+          write(*,*)' *****************************************'
+          write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+          write(*,*)' *                                       *'
+          write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
+          write(*,*)' *                                       *'
+          write(*,*)' *****************************************'
         ENDIF
 
         IF(NCONF .EQ. 141) CALL SFCWNDZAP(lobsSpaceData)
@@ -152,86 +151,86 @@ C
 C     Options to fix/adjust model ZTD to observation height and
 C     assimilate GPS met data
 C
-          write(NULOUT,*)' '
-          write(NULOUT,*)' *****************************************'
-          write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-          write(NULOUT,*)' *        GB-GPS OBSERVATIONS            *'
-          write(NULOUT,*)' * DZ ADJUSTMENT IN GPSZTDOP IF DZ>DZMIN *'
-          write(NULOUT,*)' *                                       *'
-          write(NULOUT,*)' *****************************************'
-          write(NULOUT,*) ' '
-          write(NULOUT,*) 'DZMIN, DZMAX = ', DZMIN, DZMAX
-          write(NULOUT,*) 'NJLEVP = ', NJLEVP
-          write(NULOUT,*) ' '
+          write(*,*)' '
+          write(*,*)' *****************************************'
+          write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+          write(*,*)' *        GB-GPS OBSERVATIONS            *'
+          write(*,*)' * DZ ADJUSTMENT IN GPSZTDOP IF DZ>DZMIN *'
+          write(*,*)' *                                       *'
+          write(*,*)' *****************************************'
+          write(*,*) ' '
+          write(*,*) 'DZMIN, DZMAX = ', DZMIN, DZMAX
+          write(*,*) 'NJLEVP = ', NJLEVP
+          write(*,*) ' '
 C
           IF (LASSMET) THEN
-            write(NULOUT,*)' '
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-            write(NULOUT,*)' *     GPS MET DATA ARE ASSIMILATED      *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*) 'YSFERRWGT = ', YSFERRWGT
-            write(NULOUT,*) 'YZDERRWGT = ', YZDERRWGT
-            write(NULOUT,*) ' '
+            write(*,*)' '
+            write(*,*)' *****************************************'
+            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(*,*)' *          GB-GPS OBSERVATIONS          *'
+            write(*,*)' *     GPS MET DATA ARE ASSIMILATED      *'
+            write(*,*)' *                                       *'
+            write(*,*)' *****************************************'
+            write(*,*) 'YSFERRWGT = ', YSFERRWGT
+            write(*,*) 'YZDERRWGT = ', YZDERRWGT
+            write(*,*) ' '
           ELSE
-            write(NULOUT,*)' '
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-            write(NULOUT,*)' *   GPS MET DATA ARE NOT ASSIMILATED    *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*) 'YZDERRWGT = ', YZDERRWGT
-            write(NULOUT,*) ' '
+            write(*,*)' '
+            write(*,*)' *****************************************'
+            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(*,*)' *          GB-GPS OBSERVATIONS          *'
+            write(*,*)' *   GPS MET DATA ARE NOT ASSIMILATED    *'
+            write(*,*)' *                                       *'
+            write(*,*)' *****************************************'
+            write(*,*) 'YZDERRWGT = ', YZDERRWGT
+            write(*,*) ' '
           ENDIF
 C
           IF (YZTDERR .LT. 0.0) THEN
-            write(NULOUT,*)' '
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-            write(NULOUT,*)' *    ZTD OBSERVATION ERROR FROM FERR    *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *****************************************'
+            write(*,*)' '
+            write(*,*)' *****************************************'
+            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(*,*)' *          GB-GPS OBSERVATIONS          *'
+            write(*,*)' *    ZTD OBSERVATION ERROR FROM FERR    *'
+            write(*,*)' *                                       *'
+            write(*,*)' *****************************************'
           ELSE IF (YZTDERR .GT. 0.0) THEN
-            write(NULOUT,*)' '
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-            write(NULOUT,*)' *     ZTD OBSERVATION ERROR IS FIXED    *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' '
-            write(NULOUT,*)'YZTDERR (mm) = ', YZTDERR*1000.
+            write(*,*)' '
+            write(*,*)' *****************************************'
+            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(*,*)' *          GB-GPS OBSERVATIONS          *'
+            write(*,*)' *     ZTD OBSERVATION ERROR IS FIXED    *'
+            write(*,*)' *                                       *'
+            write(*,*)' *****************************************'
+            write(*,*)' '
+            write(*,*)'YZTDERR (mm) = ', YZTDERR*1000.
           ELSE
-            write(NULOUT,*)' '
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-            write(NULOUT,*)' *   ZTD OBSERVATION ERROR IS FROM ZTD   *'
-            write(NULOUT,*)' *   USING SD(O-P) STATS (REGRESSION)    *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' '
+            write(*,*)' '
+            write(*,*)' *****************************************'
+            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(*,*)' *          GB-GPS OBSERVATIONS          *'
+            write(*,*)' *   ZTD OBSERVATION ERROR IS FROM ZTD   *'
+            write(*,*)' *   USING SD(O-P) STATS (REGRESSION)    *'
+            write(*,*)' *                                       *'
+            write(*,*)' *****************************************'
+            write(*,*)' '
           ENDIF
 C
 C-------- FILTER GPS DATA (EXPERIMENTAL)  --------------------
 C
           IF (L1GPSOBS) THEN 
-            write(NULOUT,*)' '
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(NULOUT,*)' *          GB-GPS OBSERVATIONS          *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *     --- ONE OBSERVATION MODE ---      *'
-            write(NULOUT,*)' *                                       *'
-            write(NULOUT,*)' *****************************************'
-            write(NULOUT,*)' ' 
-            write(NULOUT,*)' CGPSSTN = ', CGPSSTN
-            write(NULOUT,*)' '
-            CALL SUGPSGB(nulout)
+            write(*,*)' '
+            write(*,*)' *****************************************'
+            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+            write(*,*)' *          GB-GPS OBSERVATIONS          *'
+            write(*,*)' *                                       *'
+            write(*,*)' *     --- ONE OBSERVATION MODE ---      *'
+            write(*,*)' *                                       *'
+            write(*,*)' *****************************************'
+            write(*,*)' ' 
+            write(*,*)' CGPSSTN = ', CGPSSTN
+            write(*,*)' '
+            CALL SUGPSGB
           ENDIF
 c
       endif
@@ -244,19 +243,19 @@ C=======================================================================
      $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
 C=======================================================================
 
-      write(nulout,'(a15,G12.6)') 'JORAOB= ',ZJORAOB
-      write(nulout,'(a15,G12.6)') 'JOAIREP= ',ZJOAIREP
-      write(nulout,'(a15,G12.6)') 'JOSURFC= ',ZJOSURFC
-      write(nulout,'(10X,a15,G12.6)') 'JOSFCSF= ',ZJOSFCSF
-      write(nulout,'(10X,a15,G12.6)') 'JOSFCUA= ',ZJOSFCUA
-      write(nulout,'(10X,a15,G12.6)') 'JOSFCSC= ',ZJOSFCSC
-      write(nulout,'(10X,a15,G12.6)') 'JOSFCGP= ',ZJOSFCGP
-      write(nulout,'(a15,G12.6)') 'JOTOV= ',ZJOTOV
-      write(nulout,'(a15,G12.6)') 'JOSATWIND= ',ZJOSATWIND
-      write(nulout,'(a15,G12.6)') 'JOPROF= ',ZJOPROF
-      write(nulout,'(a15,G12.6)') 'JOGPSRO= ',ZJOGPSRO
-      write(nulout,'(a15,G12.6)') 'JOGPSGB= ',ZJOGPSGB
-c      write(nulout,'(a15,G12.6)') 'Total Jo = ',ZJO
+      write(*,'(a15,G12.6)') 'JORAOB= ',ZJORAOB
+      write(*,'(a15,G12.6)') 'JOAIREP= ',ZJOAIREP
+      write(*,'(a15,G12.6)') 'JOSURFC= ',ZJOSURFC
+      write(*,'(10X,a15,G12.6)') 'JOSFCSF= ',ZJOSFCSF
+      write(*,'(10X,a15,G12.6)') 'JOSFCUA= ',ZJOSFCUA
+      write(*,'(10X,a15,G12.6)') 'JOSFCSC= ',ZJOSFCSC
+      write(*,'(10X,a15,G12.6)') 'JOSFCGP= ',ZJOSFCGP
+      write(*,'(a15,G12.6)') 'JOTOV= ',ZJOTOV
+      write(*,'(a15,G12.6)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,G12.6)') 'JOPROF= ',ZJOPROF
+      write(*,'(a15,G12.6)') 'JOGPSRO= ',ZJOGPSRO
+      write(*,'(a15,G12.6)') 'JOGPSGB= ',ZJOGPSGB
+c      write(*,'(a15,G12.6)') 'Total Jo = ',ZJO
 
 c
 c------ Calculate the normalized innovations (Z - H(X))/sigma

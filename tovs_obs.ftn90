@@ -38,8 +38,6 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod 
   implicit none
-!implicits
-#include "comlun.cdk"
 
   type(struct_columnData) :: lcolumnghr
   type(struct_obs) :: lobsSpaceData
@@ -64,9 +62,9 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 !     add column to lcolumng and store in lcolumnt:
 !     (code removed in revision 168)
   else
-     WRITE(NULOUT,FMT=9100)
+     WRITE(*,FMT=9100)
   9100    FORMAT(' TOVS_OBS: Invalid option for input state')
-     CALL ABORT3D(NULOUT,'TOVS_OBS           ')
+     CALL ABORT3D('TOVS_OBS           ')
 
   endif
  

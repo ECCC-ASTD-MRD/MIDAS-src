@@ -41,8 +41,6 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
   implicit none
 !implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -123,9 +121,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
   allocate ( iptobs         (jppf*max_nthreads) ,stat=alloc_status(7)) 
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-     write(nulout,'(" tovs_rttov_ad: arrays #1 memory allocation error")')
-     call abort3d(nulout,'tovs_rttov_ad        ')
+     write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+     write(*,'(" tovs_rttov_ad: arrays #1 memory allocation error")')
+     call abort3d('tovs_rttov_ad        ')
   end if
 !
 !     2.  Computation of adjoint hx for tovs data only
@@ -260,7 +258,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
              calcemis_th(joff1+1:joff1+len_nchannels1   ,ith) = .true.
              surfem1_th (joff2+1:joff2+len_nfrequencies1,ith) = 0.
           else
-             call abort3d(nulout,'tovs_rttov_ad. invalid sensor type')
+             call abort3d('tovs_rttov_ad. invalid sensor type')
           endif
        enddo
 
@@ -296,9 +294,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
 
        if( any(alloc_status /= 0) ) then
-          write(nulout,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-          write(nulout,'(" tovs_rttov_ad:  arrays #2 memory allocation error")')
-          call abort3d(nulout,'tovs_rttov_ad ')
+          write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+          write(*,'(" tovs_rttov_ad:  arrays #2 memory allocation error")')
+          call abort3d('tovs_rttov_ad ')
        end if
 
      !.. fill profilesdata arrays
@@ -521,9 +519,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
 
       if( any(alloc_status /= 0) ) then
-         write(nulout,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-         write(nulout,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
-         call abort3d(nulout,'tovs_rttov_ad ')
+         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+         write(*,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
+         call abort3d('tovs_rttov_ad ')
       end if
 
 !   next bunch !
@@ -550,9 +548,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
   deallocate ( iptobs         ,stat=alloc_status(7)) 
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-     write(nulout,'(" tovs_rttov_ad: arrays #1 memory deallocation error")')
-     call abort3d(nulout,'tovs_rttov_ad        ')
+     write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+     write(*,'(" tovs_rttov_ad: arrays #1 memory deallocation error")')
+     call abort3d('tovs_rttov_ad        ')
   end if
 
   return

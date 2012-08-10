@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
+SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 #if defined (DOC)
 !
 !  s/r TOVS_SETUPALLO : Memory allocation for the radiative transfer model
@@ -48,9 +48,6 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 !            - adapt to CSR
 !           S. Heilliette
 !            - adapt to IASI
-!Arguments
-!     i : KULOUT : logical unit for output
-!
 #endif
 
   Use mod_tovs  
@@ -63,11 +60,10 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 #include "comct0.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comlun.cdk"
 #include "rttov_setup.h"
 
   type(struct_obs) :: lobsSpaceData
-  INTEGER VERBOSITY_LEVEL
+  INTEGER VERBOSITY_LEVEL,ERR_UNIT
   Integer :: alloc_status(40)
   Integer, Allocatable :: setup_errorstatus(:) ! setup return code
 
@@ -75,7 +71,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 
   INTEGER :: no_id, ival, IPLATFORM, ISAT, INSTRUM, KRTID
 
-  INTEGER ::  KULOUT, JO, IDATYP, J, JI, JK, NCMAX
+  INTEGER ::  JO, IDATYP, J, JI, JK, NCMAX
   INTEGER ::  ISENS, NC, NL
   INTEGER ::  ICHN, NOSENSOR, INDXCHN
   INTEGER ::  ISRCHEQ
@@ -145,9 +141,9 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
            GO TO 110
         ENDIF
      ENDDO
-     WRITE(KULOUT,FMT=9101)
+     WRITE(*,FMT=9101)
 9101 FORMAT(' TOVS_SETUPALLO: Invalid Sensor')
-     CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+     CALL ABORT3D('TOVS_SETUPALLO        ')
 
 110  lsensor(nobtov) = nosensor
      lobsno (nobtov) = index_header
@@ -186,7 +182,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
     endif
   enddo
 
-  write(nulout,*) ' TOVS_SETUPALLO: nobtov = ', nobtov
+  write(*,*) ' TOVS_SETUPALLO: nobtov = ', nobtov
 
 !-----------------------------------------------------------------------
 
@@ -197,7 +193,7 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   300  CONTINUE
 
   IF     ( CRTMODL .EQ. 'RTTOV' ) THEN
-     WRITE(KULOUT,FMT=9300)
+     WRITE(*,FMT=9300)
   9300    FORMAT(//,10x,"-rttov_setup: initializing the TOVS radiative " &
                    ,"transfer model" )
 
@@ -215,7 +211,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
 ! read coefficients using the list of required channels.
  
      VERBOSITY_LEVEL = 0
-     CALL RTTOV_SETUP (setup_errorstatus,KULOUT,VERBOSITY_LEVEL, &
+     ERR_UNIT = 6
+     CALL RTTOV_SETUP (setup_errorstatus,err_unit,VERBOSITY_LEVEL, &
                        NSENSORS,COEF,LIST_SENSORS,ichan)
 
      do jk = 1, nsensors
@@ -238,10 +235,10 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      nlevels1 =  coef(1)%nlevels
      do jk = 1, nsensors
         if ( coef(jk)%nlevels .ne. nlevels1 ) then
-           WRITE(KULOUT,FMT=9311)
+           WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
                   ' identical in all coef files')
-           CALL ABORT3D(KULOUT,'TOVS_SETUPALLO           ')
+           CALL ABORT3D('TOVS_SETUPALLO           ')
         endif
      enddo
 
@@ -300,9 +297,9 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      if (nconf==101) allocate( profiles_qc(jo) % z  ( coef(no_id) % nlevels ) ,stat= alloc_status(26))
         
      If( any(alloc_status /= 0) ) then
-         WRITE(KULOUT,FMT=9201)
+         WRITE(*,FMT=9201)
   9201   FORMAT(' TOVS_SETUPALLO: Memory Allocation Error')
-         CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+         CALL ABORT3D('TOVS_SETUPALLO        ')
      End If
   end do
 
@@ -328,8 +325,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
      if (nconf==101) allocate( radiance_d(jo)  % overcast  (nl,nc) ,stat= alloc_status(10))
 
      If( any(alloc_status /= 0) ) then
-         WRITE(KULOUT,FMT=9201)
-         CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+         WRITE(*,FMT=9201)
+         CALL ABORT3D('TOVS_SETUPALLO        ')
      End If
   end do
 
@@ -348,8 +345,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
         allocate( transmission_d(jo)  % tau_layer(nl,nc) ,stat= alloc_status(3))
 
         If( any(alloc_status /= 0) ) then
-           WRITE(KULOUT,FMT=9201)
-           CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+           WRITE(*,FMT=9201)
+           CALL ABORT3D('TOVS_SETUPALLO        ')
         End If
      end do
   endif
@@ -366,8 +363,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
   allocate( emissivity (ncmax,NOBTOV) ,stat=alloc_status(1))
        
   If( any(alloc_status /= 0) ) then
-      WRITE(KULOUT,FMT=9201)
-      CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+      WRITE(*,FMT=9201)
+      CALL ABORT3D('TOVS_SETUPALLO        ')
   End If
 
 !___ new variables to add in airs burp file
@@ -383,8 +380,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
         allocate ( airspro(jo) % emisfc ( airssnch )   ,stat= alloc_status(2))
 
         If( any(alloc_status /= 0) ) then
-            WRITE(KULOUT,FMT=9201)
-            CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+            WRITE(*,FMT=9201)
+            CALL ABORT3D('TOVS_SETUPALLO        ')
         End If
       end do
 
@@ -401,8 +398,8 @@ SUBROUTINE TOVS_SETUPALLO(KULOUT,lobsSpaceData)
        do jo = 1, NOBIASI
           allocate ( iasipro(jo) % emisfc ( iasisnch )   ,stat= alloc_status(3))
           If( any(alloc_status /= 0) ) then
-             WRITE(KULOUT,FMT=9201)
-             CALL ABORT3D(KULOUT,'TOVS_SETUPALLO        ')
+             WRITE(*,FMT=9201)
+             CALL ABORT3D('TOVS_SETUPALLO        ')
           End If
        end do
 

@@ -53,7 +53,6 @@
 *
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cvcord.cdk"
       type(struct_obs) :: lobsSpaceData
       INTEGER IER,INBLKS,INRECS,IBRP1,IBEG
@@ -74,11 +73,11 @@
 *     READ DATA FROM FILES CONTAINED IN ARRAY CLVAL.
 ************************************************************************
 *
-      WRITE(NULOUT,*)' '
-      WRITE(NULOUT,*)'================================================='
-      WRITE(NULOUT,*)'                SELECT BEGIN                     '
-      WRITE(NULOUT,*)'================================================='
-      WRITE(NULOUT,*)' '
+      WRITE(*,*)' '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)'                SELECT BEGIN                     '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)' '
       IER   =MRFOPC('MSGLVL','FATAL')
 *
       NVALS=NFILES
@@ -93,14 +92,14 @@
             IF ( INBLKS .GT. 0) THEN
                CLTYP(J)=CFAMTYP(J)
                INRECS=MRFOPN(IBRP1,'READ')
-               WRITE(NULOUT,*)  ' '
-               WRITE(NULOUT,*)
+               WRITE(*,*)  ' '
+               WRITE(*,*)
      +       '========================================================='
-               WRITE(NULOUT,*) ' ',INRECS,
+               WRITE(*,*) ' ',INRECS,
      +       ' ',CLTYP(J),' OBSERVATIONS IN BURP FILE ',CLVAL(J)
-               WRITE(NULOUT,*)
+               WRITE(*,*)
      +       '========================================================='
-               WRITE(NULOUT,*)  ' '
+               WRITE(*,*)  ' '
 *
                IBEG=obs_numbody(lobsSpaceData)+1
 !
@@ -113,12 +112,12 @@
          IER= FCLOS(IBRP1)
       END DO
 *
-      write(nulout,*) 'SELECT: NUMHEADER = ',obs_numheader(lobsSpaceData)
-      WRITE(NULOUT,*)' '
-      WRITE(NULOUT,*)'================================================='
-      WRITE(NULOUT,*)'                SELECT     END                   '
-      WRITE(NULOUT,*)'================================================='
-      WRITE(NULOUT,*)' '
+      write(*,*) 'SELECT: NUMHEADER = ',obs_numheader(lobsSpaceData)
+      WRITE(*,*)' '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)'                SELECT     END                   '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)' '
       IER   =MRFOPC('MSGLVL','FATAL')
       RETURN
       END

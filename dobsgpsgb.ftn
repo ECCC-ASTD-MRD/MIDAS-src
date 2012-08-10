@@ -32,9 +32,6 @@
 *         -- modified continuation of first/single site data printout statement
 *           (was not printing anything)
 *
-* Note: JPNFLEV=100 = maximum number of levels (set in pardim.cdk) 
-*       columnhr_NLEV = actual number of background levels (HR)
-
 #endif
       use EarthConstants_mod
       use MathPhysConstants_mod

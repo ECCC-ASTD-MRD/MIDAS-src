@@ -53,9 +53,6 @@ C
       real*8  palpha, pvlev(knlev)
       real*8  vma(knlev),vmb(knlev),vmc(knlev),vmd(knlev),vme(knlev),vmf(knlev)
 c
-#include "comlun.cdk"
-C
-*implicits
       logical llprint
       INTEGER jl,jlev,im, ilen, ierr
       REAL*8 ZXM,ZX0,ZXP,ZAA,ZBB,ZEX,ZCC,ZQ(3),ZDD,ZDET
@@ -118,19 +115,19 @@ c
    31 VME(jlev)=1.0/(VME(jlev)-VMD(jlev)*VMF(im))
 *
       if(llprint) then
-        write(nulout,*)' '
-        write(nulout,*)'matapat: vma = ',vma
-        write(nulout,*)' '
-        write(nulout,*)'matapat: vmb = ',vmb
-        write(nulout,*)' '
-        write(nulout,*)'matapat: vmc = ',vmc
-        write(nulout,*)' '
-        write(nulout,*)'matapat: vmd = ',vmd
-        write(nulout,*)' '
-        write(nulout,*)'matapat: vme = ',vme
-        write(nulout,*)' '
-        write(nulout,*)'matapat: vmf = ',vmf
-        write(nulout,*)' '
+        write(*,*)' '
+        write(*,*)'matapat: vma = ',vma
+        write(*,*)' '
+        write(*,*)'matapat: vmb = ',vmb
+        write(*,*)' '
+        write(*,*)'matapat: vmc = ',vmc
+        write(*,*)' '
+        write(*,*)'matapat: vmd = ',vmd
+        write(*,*)' '
+        write(*,*)'matapat: vme = ',vme
+        write(*,*)' '
+        write(*,*)'matapat: vmf = ',vmf
+        write(*,*)' '
       endif
 c
       RETURN

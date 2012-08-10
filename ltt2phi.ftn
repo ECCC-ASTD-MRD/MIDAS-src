@@ -32,8 +32,6 @@
       use MathPhysConstants_mod
       use columnData_mod 
       IMPLICIT NONE
-#include "comlun.cdk"
-#include "pardim.cdk"
 c
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_vco), pointer :: vco_anl

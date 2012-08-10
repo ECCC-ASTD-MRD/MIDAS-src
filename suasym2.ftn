@@ -151,7 +151,7 @@ C
                          ZAASYM = 0.7d0*MAX(ZSPDF,1.0d0)
                          ZPRIOR = ZAASYM*ZAUV
                          IF (ZPRIOR .GT. 0.99d0) ZAASYM = 0.99d0/ZAUV
-*                       WRITE(NULOUT,620)ZAASYM,ILEV,ZLAT,ZLON,ZSPDO,
+*                       WRITE(*,620)ZAASYM,ILEV,ZLAT,ZLON,ZSPDO,
 *     1                       ZSPDF
  620                     FORMAT('ASYMMETRIC TEST. ZAASYM=',f7.1,', LEV=',
      1                      I4,', LAT=',F5.1,', LON=',F5.1,

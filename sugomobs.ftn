@@ -34,8 +34,6 @@
       use gridStateVector_mod
       use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       implicit none
-#include "comlun.cdk"
-#include "pardim.cdk"
 #include "comfilt.cdk"
 c
       type(struct_columnData) :: lcolumng,lcolumnhr
@@ -59,6 +57,7 @@ c
       real*8, allocatable :: zom_T(:,:),zom_M(:,:)
       integer ip1_pak_trl,ip1_vco_trl
       integer nlv_T,nlv_M
+      integer, parameter :: jpnflev = 200
       integer itrlgid,iip1s(jpnflev),iip1,iip2,iip3
       integer iip1s2(jpnflev*2)
       real*8, allocatable :: zppobsg(:,:)
@@ -145,7 +144,7 @@ c
           else if ( (.not. trialExists) .and. ntrials >0 ) then
             exit  
           else if ( (.not. trialExists) .and. ntrials == 0 ) then
-            call abort3d(nulout,'SUFILNAM:NO TRIAL FILE')
+            call abort3d('SUGOMOBS:NO TRIAL FILE')
           endif 
           jstep=jstep+1
         enddo
@@ -190,10 +189,10 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         do jstep = 1,col_getNumStep(lcolumng)
           call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev
-     &       ,ninmpg_yinyan(:,jgrid),nulout,ip1_pak_trl,ip1_vco_trl,ntrials
+     &       ,ninmpg_yinyan(:,jgrid),ip1_pak_trl,ip1_vco_trl,ntrials
      &       ,nultrl(jstep,jgrid))
           if(itrlnlev <= 0) then
-            call abort3d(nulout,'SUGOMOBS:Problem with background file')
+            call abort3d('SUGOMOBS:Problem with background file')
           endif
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
@@ -304,14 +303,13 @@ c
           if(datestamplist(jstep) == obs_get_datestamp(lobsSpaceData)) nstepanltime = jstep
           call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
      &           ,CLETIKET,CLTYPVAR,ITRLGID,varNameList2D(jvar)
-     &           ,datestamplist(jstep),jpnflev,nultrl(jstep,jgrid),nulout
+     &           ,datestamplist(jstep),jpnflev,nultrl(jstep,jgrid)
      &           ,ip1_pak_trl,ip1_vco_trl)
           if(nobs(jstep,jgrid) > 0) then
             if(itrlnlev <= 0) then
               write(*,1002) varNameList2D(jvar),idate(jstep)
      &             ,itime(jstep)
-              call abort3d(nulout
-     &             ,'SUGOMOBS:Problem with background file')
+              call abort3d('SUGOMOBS:Problem with background file')
             endif
 c
             ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
@@ -327,8 +325,7 @@ c
               write(*,1001) varNameList2D(jvar),iip1s(1),idate(jstep)
      &             ,itime(jstep)
 
-              call abort3d(nulout
-     &             ,'SUGOMOBS:Problem with background file')
+              call abort3d('SUGOMOBS:Problem with background file')
             end if
 c
             call tmg_start(8,'EZSCINT_INIT')
@@ -377,7 +374,6 @@ c
       do jlev = 1,col_getNumLev(lcolumng)
         write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',
      +    jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
-        call flush(nulout)
       enddo
 c
 c ------- Prepare for interpolation of the 3D fields
@@ -433,12 +429,11 @@ c     Get horizontal field parameters
 c
       call getfldprm(iip1s2,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,'GZ  ',obs_get_datestamp(lobsSpaceData),jpnflev*2
-     &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
+     &         ,nultrl(nstepanltime,jgrid),ip1_pak_trl,ip1_vco_trl)
       if(itrlnlev <= 0 ) then
         write(*,1002) 'GZ  ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &        ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
-        call abort3d(nulout
-     &       ,'SUGOMOBS:Problem with background file')
+        call abort3d('SUGOMOBS:Problem with background file')
       endif
       write(*,*) ' ITRLNLEV =',itrlnlev
 c
@@ -461,8 +456,7 @@ c
             if(ier.lt.0)then
               write(*,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
-              call abort3d(nulout
-     &            ,'SUGOMOBS:Problem with background file')
+              call abort3d('SUGOMOBS:Problem with background file')
             end if
           endif
         enddo
@@ -503,8 +497,7 @@ c
             if(ier.lt.0)then
               write(*,1001) 'GZ  ',iip1,idate(jstep)
      &             ,itime(jstep)
-              call abort3d(nulout
-     &            ,'SUGOMOBS:Problem with background file')
+              call abort3d('SUGOMOBS:Problem with background file')
             end if
           endif
         enddo
@@ -563,18 +556,16 @@ c
           write(*,*)' '
           write(*,*)' ----- Initializing UU and VV  ----'
           write(*,*)' '
-          call flush(nulout)
 c
           do jgrid = 1,numgrids
 
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
-     &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
+     &         ,nultrl(nstepanltime,jgrid),ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
             write(*,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
-            call abort3d(nulout
-     &           ,'SUGOMOBS:Problem with background file')
+            call abort3d('SUGOMOBS:Problem with background file')
           endif
           write(*,*) ' ITRLNLEV =',itrlnlev,' nlv_M ',nlv_M
           ier = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
@@ -597,8 +588,7 @@ c
                 if(ier.lt.0)then
                   write(*,1001) 'UU  ',iip1,idate(jstep)
      &                 ,itime(jstep)
-                  call abort3d(nulout
-     &                 ,'SUGOMOBS:Problem with background file')
+                  call abort3d('SUGOMOBS:Problem with background file')
                 end if
               endif
             enddo
@@ -635,8 +625,7 @@ c
                 if(ier.lt.0)then
                   write(*,1001) 'VV  ',iip1,idate(jstep)
      &                 ,itime(jstep)
-                  call abort3d(nulout
-     &                 ,'SUGOMOBS:Problem with background file')
+                  call abort3d('SUGOMOBS:Problem with background file')
                 endif
               endif
             enddo
@@ -705,18 +694,16 @@ c
           write(*,*)' '
           write(*,*)' ----- Initializing ',varNameList3D(jvar),' ----'
           write(*,*)' '
-          call flush(nulout)
 c
           do jgrid = 1,numgrids
 
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
      &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
-     &         ,nultrl(nstepanltime,jgrid),nulout,ip1_pak_trl,ip1_vco_trl)
+     &         ,nultrl(nstepanltime,jgrid),ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
             write(*,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
      &           ,itime((col_getNumStep(lcolumng)-1)/2 + 1)
-            call abort3d(nulout
-     &          ,'SUGOMOBS:Problem with background file')
+            call abort3d('SUGOMOBS:Problem with background file')
           endif
           write(*,*) ' ITRLNLEV =',itrlnlev,' nlv_T ',nlv_T
 c
@@ -741,8 +728,7 @@ c
                 if(ier.lt.0)then
                   write(*,1001) varNameList3D(jvar),iip1,idate(jstep)
      &                 ,itime(jstep)
-                  call abort3d(nulout
-     &                 ,'SUGOMOBS:Problem with background file')
+                  call abort3d('SUGOMOBS:Problem with background file')
                 end if
               endif
             enddo

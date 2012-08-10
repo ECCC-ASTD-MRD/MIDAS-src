@@ -121,7 +121,6 @@
       use obsSpaceData_mod
       use common_iasi
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
@@ -202,9 +201,9 @@ C
 *    SET BURP RELATED PARAMETERS VIA CALL TO RESUME SUBROUTINE
 ************************************************************************
 *
-      WRITE(NULOUT,*)' ------------------------------------------------'
-      WRITE(NULOUT,*)' ---------    BEGIN  BRPACMA      ---------------'
-      WRITE(NULOUT,*)' ------------------------------------------------'
+      WRITE(*,*)' ------------------------------------------------'
+      WRITE(*,*)' ---------    BEGIN  BRPACMA      ---------------'
+      WRITE(*,*)' ------------------------------------------------'
 *
 ************************************************************************
 *    ALLOCATE SPACE FOR DATA BUFFFER AND SET "ATTRIBUTES"
@@ -218,7 +217,7 @@ C
       IF ( IHANDL .LT. 0 ) THEN
          IHANDL=MRFLOC(KFILE,0,'*********',-1,-1,-1,-1,-1,-1,0)
          IF ( IHANDL .LT. 0 ) THEN
-            WRITE(NULOUT,*)' BRPACMA: IMPOSSIBLE TO FIND VALID HANDLE'
+            WRITE(*,*)' BRPACMA: IMPOSSIBLE TO FIND VALID HANDLE'
             RETURN
          ENDIF
       ENDIF
@@ -234,17 +233,17 @@ C
       ELSE
 *
          NUMHEADER =obs_numheader(lobsSpaceData)
-         WRITE(NULOUT,*)' '
-         WRITE(NULOUT,*)'=============================================='
-         WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NUMHEADER
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_numbody(lobsSpaceData)
-         WRITE(NULOUT,*)'=============================================='
-         WRITE(NULOUT,*) ' '
+         WRITE(*,*)' '
+         WRITE(*,*)'=============================================='
+         WRITE(*,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NUMHEADER
+         WRITE(*,*)'DATA CURRENTLY IN CMA FILE             ',obs_numbody(lobsSpaceData)
+         WRITE(*,*)'=============================================='
+         WRITE(*,*) ' '
          IF ( NUMHEADER .GE. obs_numheader_max(lobsSpaceData) ) THEN
-            WRITE(NULOUT,*) ' CMA FILE FULL: NO DATA READ'
-            WRITE(NULOUT,*)' ------------------------------------------'
-            WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'
-            WRITE(NULOUT,*)' ------------------------------------------'
+            WRITE(*,*) ' CMA FILE FULL: NO DATA READ'
+            WRITE(*,*)' ------------------------------------------'
+            WRITE(*,*)' ------      END  BRPACMA     -------------'
+            WRITE(*,*)' ------------------------------------------'
             RETURN
          ENDIF
       ENDIF
@@ -610,7 +609,7 @@ C
                        ENDIF
                     ELSE
                        IF (CDTYPE .NE. 'TO') THEN
-                          write(nulout,*)'for station:',clstnid
+                          write(*,*)'for station:',clstnid
      +                       ,' vertical coordinate not found:',NVCORD
                        ENDIF
                        IND =0
@@ -884,7 +883,7 @@ c               ENDIF
                ENDIF
 
             ELSE
-              WRITE(NULOUT,*)' Warning 3DV:brpacma: NO VALID DATA'
+              WRITE(*,*)' Warning 3DV:brpacma: NO VALID DATA'
      &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
      &             ' LON ', ILON
             ENDIF
@@ -899,42 +898,42 @@ c               ENDIF
             DEALLOCATE(IBUF)
 *
 *-----------------------------------------------------------------------
-            WRITE(NULOUT,*)' ******************************************'
-            WRITE(NULOUT,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
-            WRITE(NULOUT,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
-            WRITE(NULOUT,*)' *                                        *'
-            WRITE(NULOUT,*)' *    CMA FILE FULL: NO MORE DATA READ    *'
-            WRITE(NULOUT,*)' *    ABORT WHEN LABORTFULL = .TRUE.      *'
-            WRITE(NULOUT,*)' *                                        *'
-            WRITE(NULOUT,*)' *    CHECK   NMXOBS, NDATAMX IN NAMELIST *'
-            WRITE(NULOUT,*)' *                                        *'
-            WRITE(NULOUT,*)' *    LABORTFULL = .TRUE.  ==> CALL ABORT *'
-            WRITE(NULOUT,*)' *    LABORTFULL = .FALSE. ===> CONTINUE  *'
-            WRITE(NULOUT,*)' *                                        *'
-            WRITE(NULOUT,*)' ******************************************'
+            WRITE(*,*)' ******************************************'
+            WRITE(*,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
+            WRITE(*,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
+            WRITE(*,*)' *                                        *'
+            WRITE(*,*)' *    CMA FILE FULL: NO MORE DATA READ    *'
+            WRITE(*,*)' *    ABORT WHEN LABORTFULL = .TRUE.      *'
+            WRITE(*,*)' *                                        *'
+            WRITE(*,*)' *    CHECK   NMXOBS, NDATAMX IN NAMELIST *'
+            WRITE(*,*)' *                                        *'
+            WRITE(*,*)' *    LABORTFULL = .TRUE.  ==> CALL ABORT *'
+            WRITE(*,*)' *    LABORTFULL = .FALSE. ===> CONTINUE  *'
+            WRITE(*,*)' *                                        *'
+            WRITE(*,*)' ******************************************'
 *
-            WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-            WRITE(NULOUT,*)' Warning 3DV:brpacma: CMA FILE FULL'
-            WRITE(NULOUT,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+            WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+            WRITE(*,*)' Warning 3DV:brpacma: CMA FILE FULL'
+            WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 *
-            WRITE(NULOUT,'(1x,"NDATA = ",I10," NDATAMX",I10)')
+            WRITE(*,'(1x,"NDATA = ",I10," NDATAMX",I10)')
      &                    obs_numbody(lobsSpaceData), obs_numbody_max(lobsSpaceData)
-            WRITE(NULOUT,'(1x,"NUMHEADER= ",I10," NMXOBS = ",I10)')
+            WRITE(*,'(1x,"NUMHEADER= ",I10," NMXOBS = ",I10)')
      &                    NUMHEADER, obs_numheader_max(lobsSpaceData)
-            WRITE(NULOUT,*)' LABORTFULL = ', LABORTFULL
+            WRITE(*,*)' LABORTFULL = ', LABORTFULL
 *
             CALL PRNTBRP(NUMHEADER,IKOUNT,obs_numbody(lobsSpaceData))
 *
             IF (LABORTFULL) THEN
-              WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CALL ABORT3D '
-              call abort3d(nulout,'BRPACMA')
+              WRITE(*,*)' BRPACMA: CMA FILE FULL - CALL ABORT3D '
+              call abort3d('BRPACMA')
             ELSE
-              WRITE(NULOUT,*)' BRPACMA: CMA FILE FULL - CONTINUE '
+              WRITE(*,*)' BRPACMA: CMA FILE FULL - CONTINUE '
             ENDIF
 *
-            WRITE(NULOUT,*)' ------------------------------------------'
-            WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'
-            WRITE(NULOUT,*)' ------------------------------------------'
+            WRITE(*,*)' ------------------------------------------'
+            WRITE(*,*)' ------      END  BRPACMA     -------------'
+            WRITE(*,*)' ------------------------------------------'
             RETURN
          ENDIF
     5 END DO
@@ -953,9 +952,9 @@ c               ENDIF
 *-----------------------------------------------------------------------
       CALL PRNTBRP(NUMHEADER,IKOUNT,obs_numbody(lobsSpaceData))
 *
-      WRITE(NULOUT,*)' ------------------------------------------'
-      WRITE(NULOUT,*)' ------      END  BRPACMA     -------------'
-      WRITE(NULOUT,*)' ------------------------------------------'
+      WRITE(*,*)' ------------------------------------------'
+      WRITE(*,*)' ------      END  BRPACMA     -------------'
+      WRITE(*,*)' ------------------------------------------'
 *
       RETURN
       END

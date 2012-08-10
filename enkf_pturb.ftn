@@ -184,7 +184,7 @@ C
       do jmem = 1,NENKFMEM
         write(clmember,'(I3.3)') jmem
         clfiname = clprefix(1:4)//cldate(1:10) // '_' // clmember(1:3)
-        write(6,*)'ENKF_PTURB: PROCESSING clfiname= ',clfiname
+        write(*,*)'ENKF_PTURB: PROCESSING clfiname= ',clfiname
         nulfile = 0
         ierr    = fnom(nulfile,trim(clfiname),'RND',0)
         if(ierr.ge.0)then

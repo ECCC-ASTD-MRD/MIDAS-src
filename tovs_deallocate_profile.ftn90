@@ -35,9 +35,6 @@ subroutine tovs_deallocate_profile(pprofile)
 
   implicit none
 
-!implicits
-#include "comlun.cdk"
-
   integer :: istat(4)
 
   type(profile_type) :: pprofile
@@ -50,9 +47,9 @@ subroutine tovs_deallocate_profile(pprofile)
   deallocate( pprofile % o3 ,stat= istat(4))
 
   if( any(istat /= 0) ) then
-     write(nulout,*) ' tovs_deallocate_profile: istat = ', istat(:)
-     write(nulout,'("  tovs_deallocate_profile: memory allocation error")')
-     call abort3d(nulout,'tovs_deallocate_profile')
+     write(*,*) ' tovs_deallocate_profile: istat = ', istat(:)
+     write(*,'("  tovs_deallocate_profile: memory allocation error")')
+     call abort3d('tovs_deallocate_profile')
   end if
 
   return

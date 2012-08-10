@@ -34,10 +34,13 @@
 #endif
 C
       IMPLICIT NONE
-*implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
-#include "rpnstd.cdk"
+      INTEGER INI,INJ,INK,IG1,IG2,IG3,IG4,IERR
+      INTEGER IDATE(100)
+      CHARACTER(len=2) :: CLTYPVAR
+      CHARACTER(len=1) :: CLGRTYP
+      CHARACTER(len=4) :: CLNOMVAR
+      CHARACTER(len=12) :: CLETIKET
+      INTEGER FNOM,FSTFRM,FCLOS,FSTOUV,FSTINF
 *
       type(struct_gsv) :: statevectorg
       type(struct_columnData) :: lcolumnhr
@@ -59,6 +62,7 @@ C
       integer ntrials, ninmpg(500)  
       CHARACTER(len=2) :: flnum 
       CHARACTER(len=9) :: trialfile 
+      integer, parameter :: jpnflev=200
       EXTERNAL ABORT3D
 *
       WRITE(*,FMT='(/,4X,"Starting SUBASIC_GD",//)')
@@ -87,7 +91,7 @@ C
          else if ( (.not. ltrial) .and. ntrials >0 ) then
             exit  
          else if ( (.not. ltrial) .and. ntrials == 0 ) then
-            CALL ABORT3D(6,'SUFILNAM:NO TRIAL FILE')
+            CALL ABORT3D('SUBASIC_GD:NO TRIAL FILE')
          endif 
       enddo 
 !
@@ -239,9 +243,6 @@ C
       use MathPhysConstants_mod
       use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
-*implicits
-#include "comlun.cdk"
-#include "rpnstd.cdk"
 *
       INTEGER ktrials
       INTEGER kulfst(ktrials)
@@ -291,11 +292,11 @@ c     on momentum levels.
       if (clnomvar .eq. 'GZ') then
         call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,ITRLGID,'UU',kstampv,kmaxlev,kulfst
-     &       ,6,ip1style,ip1kind,ktrials,koutmpg)
+     &       ,ip1style,ip1kind,ktrials,koutmpg)
       else
         call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,ITRLGID,clnomvar,kstampv,kmaxlev,kulfst
-     &       ,6,ip1style,ip1kind,ktrials,koutmpg)
+     &       ,ip1style,ip1kind,ktrials,koutmpg)
       endif
 c
 c-----Convert ip1 to real value P
@@ -328,7 +329,7 @@ c
         if (ikey.lt.0) then
           write(*,*) 'Problems finding variable '
      &         ,clnomvar,' at level ',iip1s(jlev),' in trial file'
-          call abort3d(6,'VHFSTFLD')
+          call abort3d('VHFSTFLD')
         endif
 c
         ikey = VFSTLUK(zhighvar((jlev-1)*ini*inj+1),ikey,INI,INJ,INK)
@@ -350,7 +351,7 @@ c Get VV component
 c
         call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
      &       ,IVVGID,'VV',kstampv,kmaxlev,koutmpg
-     &       ,6,ip1style,ip1kind)
+     &       ,ip1style,ip1kind)
 c
         ierr = ezgprm(ivvgid,clgrtyp,inivv,injvv,ig1,ig2,ig3,ig4)
         allocate(zhighvv(inivv*injvv*itrlnlev))
@@ -366,7 +367,7 @@ c
             write(*,*) 'Problems finding variable '
      &           ,'VV',' at level ',iip1s(jlev)
      &           ,' in trial file'
-            call abort3d(6,'VHFSTFLD')
+            call abort3d('VHFSTFLD')
           endif
 c
           ikey = VFSTLUK(zhighvv((jlev-1)*inivv*injvv+1),ikey,INI
@@ -397,7 +398,7 @@ c
 c
         call getfldprm(IIP1,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR
      &       ,IP0GID,'P0',kstampv,kmaxlev,koutmpg
-     &       ,6,ip1style,ip1kind)
+     &       ,ip1style,ip1kind)
 c
         ikey = FSTINF(koutmpg, INI, INJ, INK, kstampv, cletiket,
      &       iip1, iip2, iip3,cltypvar,'P0')
@@ -405,7 +406,7 @@ c
         if(ikey.lt.0) then
           write(*,*) ' ******* ERROR ******* '
           write(*,*) 'No P0 found in ',koutmpg
-          call abort3d(6,'VHFSTFLD')
+          call abort3d('VHFSTFLD')
         endif
 c
         ierr = ezgprm(ip0gid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
@@ -551,7 +552,7 @@ c
           write(*,*) knk,' levels asked on output and '
           write(*,*) itrlnlev,' levels found in standard file'
           write(*,*) ' *********** ERROR ***********'
-          call abort3d(6,'VHFSTFLD')
+          call abort3d('VHFSTFLD')
         else
           do jlev = 1, knk
             do jcol = 1, kcol

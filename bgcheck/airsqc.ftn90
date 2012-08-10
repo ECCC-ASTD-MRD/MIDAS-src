@@ -25,7 +25,6 @@ SUBROUTINE AIRSQC ( airs_end,airs_loop_done, lcolumnhr, lobsSpaceData )
   use columnData_mod
   use verticalCoord_mod
   IMPLICIT NONE
-#include "pardim.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 logical,intent(inout) :: airs_end
@@ -205,7 +204,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' airsqc : memory allocation error'
-     call abort3d(6,'airsqc        ')
+     call abort3d('airsqc        ')
   end if
 
 

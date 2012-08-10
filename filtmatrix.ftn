@@ -41,9 +41,6 @@
 #endif
       IMPLICIT NONE
 *
-* Global variables
-*
-#include "comlun.cdk"
 * Arguments
 *
       INTEGER KPROJ,KN
@@ -62,11 +59,11 @@
       IWORK=4*KN
       ZALPHA = PALPHA
 *
-      WRITE(NULOUT,*)' FILTMATRIX-Spectral filter of a symmetric matrix'
-      WRITE(NULOUT,*)'  -----------------------------------------------'
-      WRITE(NULOUT,*)'  '
-      WRITE(NULOUT,'(1x," CUT-OFF VALUE IS     :",F5.2)')PEIGMIN
-      WRITE(NULOUT,'(1x," OFFSET TO DIAGONAL IS:",F5.2)')ZALPHA
+      WRITE(*,*)' FILTMATRIX-Spectral filter of a symmetric matrix'
+      WRITE(*,*)'  -----------------------------------------------'
+      WRITE(*,*)'  '
+      WRITE(*,'(1x," CUT-OFF VALUE IS     :",F5.2)')PEIGMIN
+      WRITE(*,'(1x," OFFSET TO DIAGONAL IS:",F5.2)')ZALPHA
 *     
 *     1. Computation of eigenvalues and eigenvectors
 *
@@ -78,8 +75,8 @@
       END DO
       CALL DSYEV('V','U',KN, PEIGEN,KN, PEIGENV,ZWORK, IWORK, INFO )
 *
-      WRITE(NULOUT,'(1x,"ORIGINAL EIGEN VALUES: ")') 
-      WRITE(NULOUT,'(1x,10f7.3)') (PEIGENV(JI),JI=1,KN) 
+      WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")') 
+      WRITE(*,'(1x,10f7.3)') (PEIGENV(JI),JI=1,KN) 
 *
       ZVARTOTAL = 0.
       ZVARRES = 0.
@@ -107,8 +104,8 @@
             PROJ(JI,JI)= PEIGENV(JI)
          END IF
       END DO
-      WRITE(NULOUT,'(1x,"MODIFIED EIGEN VALUES: ")') 
-      WRITE(NULOUT,'(1x,10f7.3)') (PROJ(JI,JI),JI=1,KN) 
+      WRITE(*,'(1x,"MODIFIED EIGEN VALUES: ")') 
+      WRITE(*,'(1x,10f7.3)') (PROJ(JI,JI),JI=1,KN) 
 *
       CALL DGEMUL(PEIGEN,KN,'N',PROJ,KN,'N',ZRESULT,KN,KN,KN,KN)      
       CALL DGEMUL(ZRESULT,KN,'N',PEIGEN,KN,'T',PROJ,KN,KN,KN,KN)
@@ -147,12 +144,12 @@ C
       CALL DGEMUL(PEIGEN,KN,'N',PROJ,KN,'N',ZRESULT,KN,KN,KN,KN) 
       CALL DGEMUL(ZRESULT,KN,'N',PEIGEN,KN,'T',PROJ,KN,KN,KN,KN)
 *
-      WRITE(NULOUT,9100)ZVARTOTAL, ZVARRES, ZFRACT
+      WRITE(*,9100)ZVARTOTAL, ZVARRES, ZFRACT
  9100 FORMAT(/,1x,'Total variance :',G12.6,4x
      S     ,'Resolved part (absolute): ',g12.6
      S     ,4X,'Resolved part (relative): ',G12.6,'%')
 *
-      WRITE(NULOUT,*)'FILTMATRIX-----------Done--------------- '
-      WRITE(NULOUT,*)' '
+      WRITE(*,*)'FILTMATRIX-----------Done--------------- '
+      WRITE(*,*)' '
       RETURN
       END

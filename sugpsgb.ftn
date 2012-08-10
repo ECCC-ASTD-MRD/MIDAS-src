@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUGPSGB(KULOUT)
+      SUBROUTINE SUGPSGB
 #if defined (DOC)
 *
 ***s/r SUGPSGB : Initialisation of ground-based GPS
@@ -24,16 +24,12 @@
 *    -------------------
 **    Purpose: to read and initialize GB-GPS namelist parameters
 *
-*Arguments
-*     i : KULOUT : logical unit for output
-*
 #endif
       IMPLICIT NONE
 *implicits
 #include "comfilt.cdk"
 #include "comgpsgb.cdk"
 *
-      INTEGER KULOUT
       INTEGER KIERR, IELE, j
 C
       LOGICAL LLGP

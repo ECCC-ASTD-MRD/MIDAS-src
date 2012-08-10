@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_rttov_AVHRR_for_IASI (nthreads,knpf_th,knpf,profilesdata_th,KULOUT,surfem1_avhrr,nch,iptobs_th )
+subroutine tovs_rttov_AVHRR_for_IASI (nthreads,knpf_th,knpf,profilesdata_th,surfem1_avhrr,nch,iptobs_th )
 ! appel séparé de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
 Use mod_tovs ,only :jpchus,jppf,avhrr_bgck,NIR,NVIS,coeff_avhrr,JPLEV
@@ -28,7 +28,6 @@ implicit none
 integer ,intent(in) :: nthreads
 integer ,intent(in) :: knpf
 integer ,intent(in) :: knpf_th(nthreads)
-integer ,intent (in) :: KULOUT
 integer ,intent (in) :: nch 
 integer ,intent (in) :: iptobs_th(jppf,nthreads)
 real (8) , intent (in) :: surfem1_avhrr(nch)
@@ -40,7 +39,7 @@ INTEGER ::  list_sensors (3,nsensors),setup_errorstatus(nsensors)
 LOGICAL ,SAVE :: FIRST=.true.
 integer :: ith,ich,i,j,jn
 
-integer :: VERBOSITY_LEVEL
+integer :: VERBOSITY_LEVEL,ERR_UNIT
 integer :: ncan(knpf)
 integer :: nfrequencies_th(nthreads)
 integer :: nchannels_th(nthreads)
@@ -69,7 +68,8 @@ IF (FIRST) THEN
    DO ICH=1,NIR
       ICHAN(ICH,1)=ICH
    ENDDO
-   CALL RTTOV_SETUP (setup_errorstatus,KULOUT,VERBOSITY_LEVEL, &
+   ERR_UNIT = 6
+   CALL RTTOV_SETUP (setup_errorstatus,ERR_UNIT,VERBOSITY_LEVEL, &
         NSENSORS,COEFF_AVHRR,LIST_SENSORS,ichan)
    FIRST=.FALSE.
 ENDIF

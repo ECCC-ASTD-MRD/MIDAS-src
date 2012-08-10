@@ -44,7 +44,6 @@
 *     .      Bin HE  , ARMA, Oct. 2008 
 *                    - Hardcoded the name of trial files as "TRLM_??".
 *                      Use "INQUIRE" to detect the existance of these trial files. 
-*                      Removed the namelist NAMTRIAL from "comlun.cdk" 
 *     .      J.W. Blezius, RPN, Dec. 2009
 *                    - move anlm & rehm output off-line to file anlm_defunct and
 *                      rehm_defunct (anlm and rehm are now produced by AddAnalInc)
@@ -56,7 +55,6 @@
 #endif
 *
 #include "comct0.cdk"
-#include "comlun.cdk"
 #include "comvfiles.cdk"
       INTEGER INFIL,IER,INBLKS,II,I,JJ
       INTEGER FNOM,FCLOS,FSTOUV,NUMBLKS
@@ -176,7 +174,7 @@ C-------Check Burp files....
              ENDIF
            ENDDO 
          ELSE
-           CALL ABORT3D(nulout,'SUFILNAM:file doesnot exist!')  
+           CALL ABORT3D('SUFILNAM:file doesnot exist!')  
          ENDIF 
       ELSE 
         NKOUNT=0
@@ -191,7 +189,7 @@ C-------Check Burp files....
         ENDIF
         IF ( isExist_L )THEN
           IER=FNOM(II,CLVALU(JJ),'RND+OLD',0)
-          WRITE(NULOUT,*)' Open File : ',CLVALU(JJ)  
+          WRITE(*,*)' Open File : ',CLVALU(JJ)  
           IF ( IER .EQ. 0 ) THEN
             INBLKS= -1
             INBLKS=NUMBLKS(II)
@@ -214,13 +212,13 @@ C Hard coded restart file name
       crestart='wrmrestart'
       INQUIRE(file=crestart,exist=lrestart)
 C
-      WRITE(NULOUT,*) ' '
-      WRITE(NULOUT,*)' NUMBER OF BURP FILES IS :',NKOUNT
-      WRITE(NULOUT,*)'TYPE  NAME '
-      WRITE(NULOUT,*)'----  ---- '
+      WRITE(*,*) ' '
+      WRITE(*,*)' NUMBER OF BURP FILES IS :',NKOUNT
+      WRITE(*,*)'TYPE  NAME '
+      WRITE(*,*)'----  ---- '
 
       DO JJ=1,NKOUNT
-        WRITE(NULOUT,'(1X,A2,1X,A128)' )CFAM(JJ),CBURP(JJ)
+        WRITE(*,'(1X,A2,1X,A128)' )CFAM(JJ),CBURP(JJ)
       END DO
       RETURN
       END

@@ -42,8 +42,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   use columnData_mod
   implicit none
 !implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -60,7 +58,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
-  integer :: nlevels, no_id
+  integer :: knlev, no_id
   integer :: j, i, krtid, jf, iobs, jj
   integer :: ilowlvl, knpf, jo
   integer :: jk, jn, jl, indxm
@@ -96,9 +94,10 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   100   continue
 
   vco_anl => col_getVco(lcolumng)
+  knlev = col_getNumLev(lcolumng)
 
-  if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,col_getNumLev(lcolumn),1,'NA') ) then
-     ilowlvl = col_getNumLev(lcolumn)
+  if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,knlev,1,'NA') ) then
+     ilowlvl = knlev
   else
      ilowlvl = 1
   endif
@@ -136,17 +135,17 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   allocate (lqo_tl    (jpmolev,jppf*nthreads),stat= alloc_status(4) )
   allocate (toext_tl  (jplev  ,jppf*nthreads),stat= alloc_status(5) )
   allocate (qoext_tl  (jplev  ,jppf*nthreads),stat= alloc_status(6) )
-  allocate (zvlev     (jpnflev,jppf*nthreads),stat= alloc_status(7) )
-  allocate (zt_tl     (jpnflev,jppf*nthreads),stat= alloc_status(8) )
-  allocate (zlq_tl    (jpnflev,jppf*nthreads),stat= alloc_status(9) )
-  allocate (zt        (jpnflev,jppf*nthreads),stat= alloc_status(10))
-  allocate (zlq       (jpnflev,jppf*nthreads),stat= alloc_status(11))
+  allocate (zvlev     (knlev,jppf*nthreads),stat= alloc_status(7) )
+  allocate (zt_tl     (knlev,jppf*nthreads),stat= alloc_status(8) )
+  allocate (zlq_tl    (knlev,jppf*nthreads),stat= alloc_status(9) )
+  allocate (zt        (knlev,jppf*nthreads),stat= alloc_status(10))
+  allocate (zlq       (knlev,jppf*nthreads),stat= alloc_status(11))
   allocate (qoext     (jplev  ,jppf*nthreads),stat= alloc_status(12))
   allocate (zps_tl    (jppf*nthreads)        ,stat= alloc_status(13))
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' tovs_fill_profiles_tl : memory allocation error'
-     call abort3d(nulout,'tovs_fill_profiles_tl     ')
+     write(*,*) ' tovs_fill_profiles_tl : memory allocation error'
+     call abort3d('tovs_fill_profiles_tl     ')
   end if
 !
 !     2.  Fill profiles structure
@@ -169,7 +168,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
      indxreg = isrcheq ( mlisreg, nregst, indxm )
 
      zps_tl  (knpf) = col_getElem(lcolumn,1,jo,'P0')*MPC_MBAR_PER_PA_R8
-     do jl = 1, col_getNumLev(lcolumn)
+     do jl = 1, knlev
         zt_tl   (jl,knpf) = col_getElem(lcolumn,jl,jo,'TT')
         zlq_tl  (jl,knpf) = col_getElem(lcolumn,jl,jo,'HU')
         zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
@@ -201,10 +200,10 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
         if ( ilen .gt. 0) then
 
             call intavgtl (zvlev(1,jn),vco_anl%db_m,zt_tl(1,jn),zt(1,jn), &
-     &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
+     &                    zps_tl(jn),knlev,knlev,ilen, &
      &                    jpmolev,xpres(jpmotop),to_tl(1,jn))
             call intavgtl (zvlev(1,jn),vco_anl%db_m,zlq_tl(1,jn),zlq(1,jn), &
-     &                    zps_tl(jn),jpnflev,col_getNumLev(lcolumn),ilen, &
+     &                    zps_tl(jn),knlev,knlev,ilen, &
      &                    jpmolev,xpres(jpmotop),lqo_tl(1,jn))
 
         endif
@@ -234,17 +233,17 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
      enddo
      if ( ldbgtov ) then
         do jn = 1, knpf
-           write(nulout,*)'qoext_tl*1000 avant exthum4    = '
-           write(nulout,9263)(qoext_tl(i,jn)*1000.,i=1,jplev)
-           write(nulout,*)' '
+           write(*,*)'qoext_tl*1000 avant exthum4    = '
+           write(*,9263)(qoext_tl(i,jn)*1000.,i=1,jplev)
+           write(*,*)' '
         enddo
      endif
      call lexthum4 (knpf,jplev,xpres,qoext_tl,qoext)
      if ( ldbgtov ) then
         do jn = 1, knpf
-           write(nulout,*)'qoext_tl*1000 apres exthum4    = '
-           write(nulout,9263)(qoext_tl(i,jn)*1000.,i=1,jplev)
-           write(nulout,*)' '
+           write(*,*)'qoext_tl*1000 apres exthum4    = '
+           write(*,9263)(qoext_tl(i,jn)*1000.,i=1,jplev)
+           write(*,*)' '
         enddo
      endif
 
@@ -305,8 +304,8 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   deallocate (zps_tl    ,stat= alloc_status(13))
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' tovs_fill_profiles_tl : memory deallocation error'
-     call abort3d(nulout,'tovs_fill_profiles_tl        ')
+     write(*,*) ' tovs_fill_profiles_tl : memory deallocation error'
+     call abort3d('tovs_fill_profiles_tl        ')
   end if
 
   9263 format(1x,10f8.4)

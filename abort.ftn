@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE ABORT3D(KULOUT,CDMESSAGE)
+      SUBROUTINE ABORT3D(CDMESSAGE)
 #if defined (DOC) 
 *
 ***s/r ABORT  - Abort a job on error
@@ -32,14 +32,12 @@
 *     To stop a job when an error occurred
 *
 *Arguments
-*     i     KULOUT : unit on which the output is written
 *     i     CDMESSAGE: message to be printed
 #endif
       IMPLICIT NONE
       CHARACTER(len=*) :: CDMESSAGE
-      INTEGER KULOUT
 C
-      WRITE(KULOUT,9000)CDMESSAGE
+      WRITE(*,9000)CDMESSAGE
  9000 FORMAT(//,4X,"ABORT3DVAR:-------",
      S     /,8X,"Job stopped in ",A)
 C

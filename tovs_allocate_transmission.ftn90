@@ -36,9 +36,6 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
 
   implicit none
 
-!implicits
-#include "comlun.cdk"
-
   integer :: knchannels, knlevels
   integer :: istat(3)
 
@@ -50,9 +47,9 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
   allocate( ptransmission % od_singlelayer( knlevels, knchannels ) ,stat= istat(3))
 
   if( any(istat /= 0) ) then
-     write(nulout,*) ' tovs_allocate_transmission: istat = ', istat(:)
-     write(nulout,'("  tovs_allocate_transmission: memory allocation error")')
-     call abort3d(nulout,'tovs_allocate_transmission')
+     write(*,*) ' tovs_allocate_transmission: istat = ', istat(:)
+     write(*,'("  tovs_allocate_transmission: memory allocation error")')
+     call abort3d('tovs_allocate_transmission')
   end if
 
   return

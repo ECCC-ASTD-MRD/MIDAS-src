@@ -22,11 +22,10 @@ subroutine minimize(lcolumng,lobsSpaceData)
   !
   !Purpose:
   ! Set the CMA for a minimization, pickup the appropriate minimizer
-  ! based on CMINMODE value and reset the CMA for post processing
+  ! and reset the CMA for post processing
   !
   !Author  : S. Pellerin *ARMA/MSC  Sept, 2005
   !                                    in 1-Obs case.
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comvfiles.cdk"
@@ -55,8 +54,8 @@ subroutine minimize(lcolumng,lobsSpaceData)
   call rsetcma(lobsSpaceData)
 
   DO INDIC =1,1
-     CALL obs_prnthdr(lobsSpaceData,indic,NULOUT)
-     CALL obs_prntbdy(lobsSpaceData,indic,NULOUT)
+     CALL obs_prnthdr(lobsSpaceData,indic)
+     CALL obs_prntbdy(lobsSpaceData,indic)
   END DO
 
   call col_deallocate(lcolumn)

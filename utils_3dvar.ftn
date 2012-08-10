@@ -148,8 +148,6 @@
 *
 #endif
       IMPLICIT NONE
-#include "comlun.cdk"
-*implicits
 
       integer vezgdef
 
@@ -170,7 +168,7 @@
         ilenx=max(1,ni)
         ileny=max(1,nj)
       else
-       write(nulout,'()') 'STOP in VEZGDEF: Grid type not supported'
+       write(*,'()') 'STOP in VEZGDEF: Grid type not supported'
        STOP
       endif
 

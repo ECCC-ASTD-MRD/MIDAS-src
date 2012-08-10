@@ -34,9 +34,6 @@ subroutine tovs_deallocate_radiance(pradiance)
 
   implicit none
 
-!implicits
-#include "comlun.cdk"
-
   integer :: istat(14)
 
   type(radiance_type) :: pradiance
@@ -61,9 +58,9 @@ subroutine tovs_deallocate_radiance(pradiance)
   deallocate( pradiance % clear_out,stat= istat(14))
 
   if( any(istat /= 0) ) then
-     write(nulout,*) ' tovs_deallocate_radiance: istat = ', istat(:)
-     write(nulout,'("  tovs_deallocate_radiance: memory allocation error")')
-     call abort3d(nulout,'tovs_deallocate_radiance')
+     write(*,*) ' tovs_deallocate_radiance: istat = ', istat(:)
+     write(*,'("  tovs_deallocate_radiance: memory allocation error")')
+     call abort3d('tovs_deallocate_radiance')
   end if
 
   return

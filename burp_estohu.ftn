@@ -16,12 +16,10 @@
 !
       SUBROUTINE BURP_ESTOHU(ZVAL,IMARK,KLIST,KNELE,KNVAL,KINT,KNELOUT)
       use MathPhysConstants_mod
+      use physicsFunctions_mod
       use bufr
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cparbrp.cdk"
-#include "dintern8.cdk"
-#include "fintern8.cdk"
       INTEGER KNELE,KNVAL,KINT,KNELOUT
       INTEGER KLIST(*)
       REAL*8 ZVAL(*)
@@ -133,7 +131,7 @@ C
 *
 *
          DO 3 JJ=1,KNVAL
-            IF (LLPRINT) write(nulout,*)' ----BURP_ESTOHU: press= ',ZPROFPP(JJ)
+            IF (LLPRINT) write(*,*)' ----BURP_ESTOHU: press= ',ZPROFPP(JJ)
             IF ( lladd2 ) THEN
                INDEX1=KNELE+1 + (JJ-1)*(KNELOUT)+(JN-1)*(KNVAL)*(KNELOUT)
             ELSE
@@ -165,11 +163,11 @@ c      c) compute ln q
                 ZHU   = log( foqfe8(ZESTD,ZPP) )
 
                 IF (LLPRINT) THEN
-                  write(nulout,*)'     ZES = ',ZES
-                  write(nulout,*)'     ZTT = ',ZTT
-                  write(nulout,*)'     ZTD = ',ZTD
-                  write(nulout,*)'   ZESTD = ',ZESTD
-                  write(nulout,*)'     ZHU = ',ZHU
+                  write(*,*)'     ZES = ',ZES
+                  write(*,*)'     ZTT = ',ZTT
+                  write(*,*)'     ZTD = ',ZTD
+                  write(*,*)'   ZESTD = ',ZESTD
+                  write(*,*)'     ZHU = ',ZHU
                 ENDIF
 
                 IF ( lladd2 ) THEN

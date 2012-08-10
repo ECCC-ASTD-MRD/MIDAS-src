@@ -47,7 +47,6 @@
 **
 #endif
 *-------------------------------------------------------------
-#include "comlun.cdk"
 *
       ZLAT= PLAT / MPC_RADIANS_PER_DEGREE_R8
       IF(ZLAT .GE. 30.)THEN
@@ -67,7 +66,7 @@
         KLAT2   = 3
         ZFACTOR = 1.
       ELSE
-        WRITE(NULOUT,*)' LATID: WRONG LATITUDE -LAT ',ZLAT
+        WRITE(*,*)' LATID: WRONG LATITUDE -LAT ',ZLAT
       ENDIF
 *
       RETURN

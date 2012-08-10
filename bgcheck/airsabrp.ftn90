@@ -48,7 +48,6 @@
       use mod_tovs
 
       IMPLICIT NONE
-#include "comlun.cdk"
 
       TYPE(BURP_FILE)        :: FILE_IN
       TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
@@ -74,9 +73,9 @@
       REAL                   :: VAL_OPTION
 
 
-      WRITE(NULOUT,*) '--------------------------------------'
-      WRITE(NULOUT,*) '-------     BEGIN AIRSABRP     -------'
-      WRITE(NULOUT,*) '--------------------------------------'
+      WRITE(*,*) '--------------------------------------'
+      WRITE(*,*) '-------     BEGIN AIRSABRP     -------'
+      WRITE(*,*) '--------------------------------------'
 
 
 ! initialisation
@@ -108,7 +107,7 @@
 ! opening file
 ! ------------
 
-      write(nulout,*) 'OPENED FILE = ', brp_file
+      write(*,*) 'OPENED FILE = ', brp_file
 
       Call BURP_New(File_in, &
        & FILENAME = brp_file, &
@@ -121,9 +120,9 @@
 
       Call BURP_Get_Property(File_in, NRPTS=nb_rpts)
 
-      WRITE(NULOUT,*) 
-      WRITE(NULOUT,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',nb_rpts-1
-      WRITE(NULOUT,*) 
+      WRITE(*,*) 
+      WRITE(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',nb_rpts-1
+      WRITE(*,*) 
 
 
 ! scan input burp file to get all reports address
@@ -244,8 +243,8 @@
                BLOCKS2: do
 
                         if ( .not. allocated(goodprof) ) then
-                          write(nulout,*)
-                          write(nulout,*) 'Resume report is position # ',kk
+                          write(*,*)
+                          write(*,*) 'Resume report is position # ',kk
                           EXIT BLOCKS2
                         end if
 
@@ -648,24 +647,24 @@
 
 
       if ( flag_passage1 == 0 ) then
-        write(nulout,*)
-        write(nulout,*) 'ERROR - descriptor block not seen ? Verify btyp'
+        write(*,*)
+        write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
       end if
       if ( flag_passage2 == 0 ) then
-        write(nulout,*)
-        write(nulout,*) 'ERROR - info block not seen ? Verify btyp'
+        write(*,*)
+        write(*,*) 'ERROR - info block not seen ? Verify btyp'
       end if
       if ( flag_passage3 == 0 ) then
-        write(nulout,*)
-        write(nulout,*) 'ERROR - observation block not seen ? Verify btyp'
+        write(*,*)
+        write(*,*) 'ERROR - observation block not seen ? Verify btyp'
       end if
       if ( flag_passage4 == 0 ) then
-        write(nulout,*)
-        write(nulout,*) 'ERROR - flag block not seen ? Verify btyp'
+        write(*,*)
+        write(*,*) 'ERROR - flag block not seen ? Verify btyp'
       end if
       if ( flag_passage5 == 0 ) then
-        write(nulout,*)
-        write(nulout,*) 'ERROR - O-P block not seen ? Verify btyp'
+        write(*,*)
+        write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
       end if
 
 

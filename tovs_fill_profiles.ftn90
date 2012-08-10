@@ -48,8 +48,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod 
   implicit none
-#include "pardim.cdk"
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -163,14 +161,14 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   allocate (toext     (jplev  ,jppf*nthreads),stat= alloc_status(14))
   allocate (qoext     (jplev  ,jppf*nthreads),stat= alloc_status(15))
   allocate (zhoext    (jplev  ,jppf*nthreads),stat= alloc_status(16))
-  allocate (zvlev     (jpnflev,jppf*nthreads),stat= alloc_status(17))
-  allocate (zt        (jpnflev,jppf*nthreads),stat= alloc_status(18))
-  allocate (zlq       (jpnflev,jppf*nthreads),stat= alloc_status(19))
-  allocate (zht       (jpnflev,jppf*nthreads),stat= alloc_status(20))
+  allocate (zvlev     (knlev,jppf*nthreads),stat= alloc_status(17))
+  allocate (zt        (knlev,jppf*nthreads),stat= alloc_status(18))
+  allocate (zlq       (knlev,jppf*nthreads),stat= alloc_status(19))
+  allocate (zht       (knlev,jppf*nthreads),stat= alloc_status(20))
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' tovs_fill_profiles : memory allocation error'
-     call abort3d(nulout,'tovs_fill_profiles        ')
+     write(*,*) ' tovs_fill_profiles : memory allocation error'
+     call abort3d('tovs_fill_profiles        ')
   end if
 
 !     1.2   Read ozone climatology
@@ -237,15 +235,15 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
      do jn=1,knpf,istride
         ilen = min (knpf-jn+1,istride)
         if ( ilen .gt. 0) then
-!           call lintv2 (zvlev(1,jn),zt(1,jn),jpnflev,knlev,ilen, &
+!           call lintv2 (zvlev(1,jn),zt(1,jn),knlev,knlev,ilen, &
 !                        jpmolev,xpres(jpmotop),to(1,jn))
-!           call lintv2 (zvlev(1,jn),zlq(1,jn),jpnflev,knlev,ilen, &
+!           call lintv2 (zvlev(1,jn),zlq(1,jn),knlev,knlev,ilen, &
 !                        jpmolev,xpres(jpmotop),lqo(1,jn))
-           call intavg (zvlev(1,jn),zt(1,jn),jpnflev,knlev,ilen, &
+           call intavg (zvlev(1,jn),zt(1,jn),knlev,knlev,ilen, &
                         jpmolev,xpres(jpmotop),to(1,jn))
-           call intavg (zvlev(1,jn),zlq(1,jn),jpnflev,knlev,ilen, &
+           call intavg (zvlev(1,jn),zlq(1,jn),knlev,knlev,ilen, &
                         jpmolev,xpres(jpmotop),lqo(1,jn))
-           call lintv2 (zvlev(1,jn),zht(1,jn),jpnflev,knlev,ilen, &
+           call lintv2 (zvlev(1,jn),zht(1,jn),knlev,knlev,ilen, &
                         jpmolev,xpres(jpmotop),zho(1,jn))
         endif
      enddo
@@ -276,17 +274,17 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
      enddo
      if ( ldbgtov ) then
         do jn = 1, knpf
-           write(nulout,*)'qoext*1000 avant exthum4    = '
-           write(nulout,9263)(qoext(i,jn)*1000.,i=1,jplev)
-           write(nulout,*)' '
+           write(*,*)'qoext*1000 avant exthum4    = '
+           write(*,9263)(qoext(i,jn)*1000.,i=1,jplev)
+           write(*,*)' '
         enddo
      endif
      call exthum4 (knpf,jplev,xpres,qoext)
      if ( ldbgtov ) then
         do jn = 1, knpf
-           write(nulout,*)'qoext*1000 apres exthum4    = '
-           write(nulout,9263)(qoext(i,jn)*1000.,i=1,jplev)
-           write(nulout,*)' '
+           write(*,*)'qoext*1000 apres exthum4    = '
+           write(*,9263)(qoext(i,jn)*1000.,i=1,jplev)
+           write(*,*)' '
         enddo
      endif
 
@@ -366,8 +364,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   deallocate (zht       ,stat= alloc_status(20))
 
   if( any(alloc_status /= 0) ) then
-     write(nulout,*) ' tovs_fill_profiles : memory deallocation error'
-     call abort3d(nulout,'tovs_fill_profiles        ')
+     write(*,*) ' tovs_fill_profiles : memory deallocation error'
+     call abort3d('tovs_fill_profiles        ')
   end if
 
   9263 format(1x,10f8.4)

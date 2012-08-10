@@ -36,9 +36,6 @@ subroutine tovs_allocate_profile(pprofile,knlevels)
 
   implicit none
 
-!implicits
-#include "comlun.cdk"
-
   integer :: knlevels
   integer :: istat(4)
 
@@ -52,9 +49,9 @@ subroutine tovs_allocate_profile(pprofile,knlevels)
   allocate( pprofile % o3 ( knlevels ) ,stat= istat(4))
 
   if( any(istat /= 0) ) then
-     write(nulout,*) ' tovs_allocate_profile: istat = ', istat(:)
-     write(nulout,'("  tovs_allocate_profile: memory allocation error")')
-     call abort3d(nulout,'tovs_allocate_profile')
+     write(*,*) ' tovs_allocate_profile: istat = ', istat(:)
+     write(*,'("  tovs_allocate_profile: memory allocation error")')
+     call abort3d('tovs_allocate_profile')
   end if
 
   return

@@ -16,7 +16,6 @@
 !
       SUBROUTINE PRNTBRP(KNOBTOT,KOUNT,KNDATA)
       IMPLICIT NONE
-#include "comlun.cdk"
       INTEGER KNOBTOT,KOUNT,KNDATA
 *
 ************************************************************************
@@ -38,13 +37,13 @@
 *
 ************************************************************************
 *
-      WRITE(NULOUT,*) ' '
-      WRITE(NULOUT,*) '********************************************************'
-      WRITE(NULOUT,*) 'NUMBER OF OBSERVATIONS CONTAINING VALID DATA',KNOBTOT
-      WRITE(NULOUT,*) 'AMOUNT OF DATA READ FROM THE BURP FILE      ',KOUNT
-      WRITE(NULOUT,*) 'NUMBER OF DATA NOW IN THE CMA FILE          ',KNDATA
-      WRITE(NULOUT,*) '********************************************************'
-      WRITE(NULOUT,*) ' '
+      WRITE(*,*) ' '
+      WRITE(*,*) '********************************************************'
+      WRITE(*,*) 'NUMBER OF OBSERVATIONS CONTAINING VALID DATA',KNOBTOT
+      WRITE(*,*) 'AMOUNT OF DATA READ FROM THE BURP FILE      ',KOUNT
+      WRITE(*,*) 'NUMBER OF DATA NOW IN THE CMA FILE          ',KNDATA
+      WRITE(*,*) '********************************************************'
+      WRITE(*,*) ' '
 *
       RETURN
       END

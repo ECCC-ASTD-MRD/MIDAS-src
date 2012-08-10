@@ -39,14 +39,13 @@
       use columnData_mod 
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
 #include "comgpsro.cdk"
 *
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO, PJOB, PJOM, PJOX, PJO1
       type(struct_vco), pointer :: vco_trl
+      integer, parameter :: jpnflev=200   ! THIS IS TEMPORARY AND SHOULD BE REMOVED
 C
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
@@ -76,19 +75,19 @@ C
 
       integer :: index_header, index_body
 
-      WRITE(NULOUT,*)'ENTER SETERRGPSRO'
+      WRITE(*,*)'ENTER SETERRGPSRO'
 C
       vco_trl => col_getVco(lcolumnhr)
       LSTAG = .FALSE.
       if (vco_trl%iversion .eq. 5002) then
         LSTAG = .TRUE. 
-        WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-        WRITE(NULOUT,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
-        WRITE(NULOUT,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
-        WRITE(NULOUT,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
+        WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
+        WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
+        WRITE(*,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
+        WRITE(*,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
       else
-        WRITE(NULOUT,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-        WRITE(NULOUT,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
+        WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
+        WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
       endif
 C
 C     * 1.  Initializations
@@ -105,7 +104,7 @@ C
 C*    *        1.2 Read the NAMELIST NAMGGPSRO
 C     *       ---------------------------------------
       CALL READNML('NAMGPSRO',IERR)
-      write(NULOUT,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
+      write(*,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
 
       !
       ! loop over all header indices of the 'RO' family
@@ -296,6 +295,6 @@ C
          ENDIF ! IDATYP .EQ. 169
       ENDDO HEADER
 
-      WRITE(NULOUT,*)'EXIT SETERRGPSRO'
+      WRITE(*,*)'EXIT SETERRGPSRO'
       RETURN
       END

@@ -34,7 +34,6 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
    implicit none
 !implicits
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 
@@ -77,9 +76,9 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
       indxtovs = ltovsno(index_header)
       if ( indxtovs .eq. 0 ) then
-         write(nulout,fmt=9203)
+         write(*,fmt=9203)
 9203     format(' tovs_calc_jo_ad: error with indxtovs')
-         call abort3d(nulout,'tovs_calc_jo_ad ')
+         call abort3d('tovs_calc_jo_ad ')
       endif
 
       radiance_ad (indxtovs) % out(:) = 0.
@@ -100,9 +99,9 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
                if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
                indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
                if ( indxchn .eq. 0 ) then
-                  write(nulout,fmt=9202)
+                  write(*,fmt=9202)
 9202              format(' tovs_calc_jo_ad: error with channel number')
-                  call abort3d(nulout,'tovs_calc_jo_ad  ')
+                  call abort3d('tovs_calc_jo_ad  ')
                endif
                zres = obs_elem_r(lobsSpaceData,'OMI ',index_body)
                radiance_ad (indxtovs) % out(indxchn) = zres

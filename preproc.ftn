@@ -33,7 +33,6 @@
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
-#include "comlun.cdk"
 #include "comgpsgb.cdk"
 #include "comfilt.cdk"
 
@@ -46,13 +45,13 @@
       write(*,*) '--Starting subroutine preproc--'
       write(*,*) '-------------------------------'
 !
-!     Initialize logical units
+!     Initialize logical units and some files
 !
-      call sulun
+      call sufilnam
 !
 !     Initialize constants
 !
-      call mpc_printConstants(nulout)
+      call mpc_printConstants(6)
 !
 !     Set vertical coordinate parameters from !! record in trial file
 !
@@ -81,21 +80,17 @@
 !
       call brpcheck(lobsSpaceData)
 !
-!     Initialize the observation error covariance
-!
-      call sucovo
-!
 !     Miscellaneous initializations associated with the observations
 !
-      call suobs(nulout,lobsSpaceData)
+      call suobs(lobsSpaceData)
 !
 !     Initialize TOVS processing
 !
-      call tovs_setup(nulout)
+      call tovs_setup
 !
 !     Initialize GB-GPS processing (read NAMGPSGB in namelist file)
 !
-      call sugpsgb(nulout)
+      call sugpsgb
 !
 !     Basic setup of columnData module (nouu, novv, etc. needed in suprep)
 !
@@ -125,11 +120,11 @@
 !
 !     Memory allocation for TOVS processing
 !
-      call tovs_setupallo(nulout,lobsSpaceData)
+      call tovs_setupallo(lobsSpaceData)
 !
-!     SET OBSERVATION ERRORS TO CMA FILE
+!     Initialize the observation error covariances
 !
-      call seterr(lobsSpaceData)
+      call sucovo(lobsSpaceData)
 !
 !     Initialize the background-error covariance
 !

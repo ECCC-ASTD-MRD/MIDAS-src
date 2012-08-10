@@ -28,7 +28,6 @@ C LMHUAESV
 *Revision:
 *          Y.J. Rochon and Cecilien Charette - SMC - Sept 2004
 *            - Conversion to hybrid vertical coordinate
-*            - Use of new function FOTW8 FODTW8(in fintern8.cdk)
 *              Follow WMO convention on T-Td vs HU relationship)
 *
 *Arguments:
@@ -46,6 +45,7 @@ C LMHUAESV
 *
 #endif
       use MathPhysConstants_mod
+      use physicsFunctions_mod
       use gridStateVector_mod
       IMPLICIT NONE
       type(struct_gsv) :: statevector,statevectorg
@@ -54,12 +54,6 @@ C LMHUAESV
       REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA, zpres
       real*8, pointer :: ps3d_trl_ptr(:,:,:),ps3d_inc_ptr(:,:,:),hu3d_trl_ptr(:,:,:),hu3d_inc_ptr(:,:,:),tt3d_inc_ptr(:,:,:)
 *
-#include "dinternv.cdk"
-#include "finternva.cdk"
-#include "finternvl.cdk"
-#include "dintern8.cdk"
-#include "fintern8.cdk"
-**
       WRITE(*,FMT='(/,4X,"Starting LQ2ESGD",//)')
       ps3d_trl_ptr => gsv_getField3D(statevectorg,'P0')
       ps3d_inc_ptr => gsv_getField3D(statevector ,'P0')

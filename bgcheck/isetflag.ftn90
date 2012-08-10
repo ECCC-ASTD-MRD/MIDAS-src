@@ -18,7 +18,6 @@
 !*
       use bufr
       IMPLICIT NONE
-#include "pardim.cdk"
       integer isetflag
       integer kvnam,kodtyp
       real*8 zlev

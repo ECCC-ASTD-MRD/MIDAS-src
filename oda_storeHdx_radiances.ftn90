@@ -32,7 +32,6 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 
   implicit none
   !implicits
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 
@@ -85,9 +84,9 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 
      indxtovs = ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
-        write(nulout,fmt=9203)
+        write(*,fmt=9203)
 9203    format(' tovs_calc_jo_tl: error with indxtovs')
-        call abort3d(nulout,'tovs_calc_jo_tl ')
+        call abort3d('tovs_calc_jo_tl ')
      endif
 
      if (rttov_errorstatus(indxtovs) .lt. 20   ) then
@@ -107,14 +106,14 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
               if ( indxchn .eq. 0 ) then
-                 write(nulout,fmt=9202)
+                 write(*,fmt=9202)
 9202             format(' tovs_calc_jo_tl: error with channel number')
-                 call abort3d(nulout,'tovs_calc_jo_tl  ')
+                 call abort3d('tovs_calc_jo_tl  ')
               endif
               call obs_set_r(lobsSpaceData,'OMA ',index_body, &
                               radiance_tl (indxtovs) % out(indxchn))
               if ( ldbgtov ) then
-                 write(nulout,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
+                 write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                       ichn,  radiance_tl (indxtovs) % out(indxchn), &
                       obs_elem_r(lobsSpaceData,'VAR ',index_body)
               endif

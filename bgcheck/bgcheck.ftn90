@@ -28,14 +28,13 @@
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
       REAL*8 ZJO
 
-      WRITE(NULOUT,FMT=9000)
+      WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
 !C
 !C*    1. Preliminary initializations
@@ -71,8 +70,8 @@
       CALL VINT3DFD('OMF ',lobsSpaceData)	
       CALL FILBRPPOST(lcolumng,lobsSpaceData)
       DO j =1,1
-         call obs_prnthdr(lobsSpaceData,j,nulout)
-         call obs_prntbdy(lobsSpaceData,j,nulout)
+         call obs_prnthdr(lobsSpaceData,j)
+         call obs_prntbdy(lobsSpaceData,j)
       END DO
       RETURN
       END SUBROUTINE BGCHECK

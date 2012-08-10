@@ -76,7 +76,6 @@
 #endif
 *
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cbtypes.cdk"
 #include "cvcord.cdk"
 #include "partov.cdk"
@@ -129,26 +128,26 @@
          ELSE IF ( BTEST(IFLGS,10) ) then
             CLSTNID='>>DONNEES'
          ELSE
-            WRITE(NULOUT,*) ' TYPE OF DATA IN BURP FILE IS UNKNOWN'
+            WRITE(*,*) ' TYPE OF DATA IN BURP FILE IS UNKNOWN'
          ENDIF
       ENDIF
 *
-      WRITE(NULOUT,*) ' '
-      WRITE(NULOUT,*) ' RESUME REPORT '
-      WRITE(NULOUT,*) '*********************************************'
-      WRITE(NULOUT,*) ' STNID       DATE         TIME       RUNN '
-      WRITE(NULOUT,*) '*********************************************'
-      WRITE(NULOUT,FMT='(2X,A9,3(3X,I8))' ) CLSTNID,IDATE,ITIME,IRUNN
-      WRITE(NULOUT,*) ' '
+      WRITE(*,*) ' '
+      WRITE(*,*) ' RESUME REPORT '
+      WRITE(*,*) '*********************************************'
+      WRITE(*,*) ' STNID       DATE         TIME       RUNN '
+      WRITE(*,*) '*********************************************'
+      WRITE(*,FMT='(2X,A9,3(3X,I8))' ) CLSTNID,IDATE,ITIME,IRUNN
+      WRITE(*,*) ' '
 *
 ************************************************************************
 *     FIND THE APPROPRIATE BKTYP VIA RUNN FOUND VIA THE "RESUME REPORT"
 *     OR THE FIRST REPORT FOUND IN THE BURP FILE
 ************************************************************************
 *
-      WRITE(NULOUT,*) ' '
-      WRITE(NULOUT,*) ' ========================================'
-      WRITE(NULOUT,*) ' DESIRED DATA TYPE =',CDTYP
+      WRITE(*,*) ' '
+      WRITE(*,*) ' ========================================'
+      WRITE(*,*) ' DESIRED DATA TYPE =',CDTYP
 *
       IF( .NOT. BTEST(IRUNN,IBITRUN)) THEN
          IF ( CLSTNID .EQ. '>>DERIALT' ) THEN
@@ -167,7 +166,7 @@
 *
          NBKTYPA = IBSET(IG,IBITTYP)
          NBKTYPS = IG
-         WRITE(NULOUT,*) ' DATA ORIGINATES FROM GLOBAL RUN'
+         WRITE(*,*) ' DATA ORIGINATES FROM GLOBAL RUN'
       ELSE
          IF (      CLSTNID .EQ. '>>DERIALT') THEN
             IR=IRALTIN
@@ -186,20 +185,20 @@
          NBKTYPA = IBSET(IR,IBITTYP)
          NBKTYPS = IR
          NBKSTP=1
-         WRITE(NULOUT,*) ' DATA ORIGINATES FROM REGIONAL RUN'
+         WRITE(*,*) ' DATA ORIGINATES FROM REGIONAL RUN'
       ENDIF
-      WRITE(NULOUT,*) ' BKTYP ARE: '
-      WRITE(NULOUT,*) ' SURFACE BLOCKS ' , NBKTYPS
-      WRITE(NULOUT,*) ' ALTITUDE BLOCKS ', NBKTYPA
+      WRITE(*,*) ' BKTYP ARE: '
+      WRITE(*,*) ' SURFACE BLOCKS ' , NBKTYPS
+      WRITE(*,*) ' ALTITUDE BLOCKS ', NBKTYPA
 *
-      WRITE(NULOUT,*) '  '
-      WRITE(NULOUT,*) ' ------------------------------------ '
+      WRITE(*,*) '  '
+      WRITE(*,*) ' ------------------------------------ '
       NBKTYPSSMI=  86
-      WRITE(NULOUT,*) ' SSMI DATA     BLOCKS ', NBKTYPSSMI
-      WRITE(NULOUT,*) ' ------------------------------------ '
+      WRITE(*,*) ' SSMI DATA     BLOCKS ', NBKTYPSSMI
+      WRITE(*,*) ' ------------------------------------ '
 c     NBKTYPGPSRO= 66
-c     WRITE(NULOUT,*) ' GPS RO DATA   BLOCKS ', NBKTYPGPSRO
-      WRITE(NULOUT,*) ' ------------------------------------ '
+c     WRITE(*,*) ' GPS RO DATA   BLOCKS ', NBKTYPGPSRO
+      WRITE(*,*) ' ------------------------------------ '
 *
 ************************************************************************
 *      SET THE POSSIBLE VERTICAL COORDINATES FOR EACH FAMILY OF DATA
@@ -338,11 +337,11 @@ c     WRITE(NULOUT,*) ' GPS RO DATA   BLOCKS ', NBKTYPGPSRO
          VCONV=1.0D0
          NVCORDTYP=2
       ELSE
-         WRITE(NULOUT,*) ' DATA TYPE = ',CDTYP,' UNKNOWN'
+         WRITE(*,*) ' DATA TYPE = ',CDTYP,' UNKNOWN'
          RETURN
       ENDIF
-      WRITE(NULOUT,*) ' ========================================'
-      WRITE(NULOUT,*) ' '
+      WRITE(*,*) ' ========================================'
+      WRITE(*,*) ' '
 *
 ************************************************************************
 *      SET BKNAT FOR "BLOCS MARQUEURS"

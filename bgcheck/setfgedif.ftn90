@@ -19,8 +19,6 @@
       use obsSpaceData_mod
       use verticalCoord_mod
       IMPLICIT NONE
-#include "pardim.cdk"
-
       type(struct_columnData) :: lcolumng
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl
@@ -31,7 +29,7 @@
       INTEGER IDATA   , IDATEND, JDATA
       INTEGER NH, NH1
       INTEGER JL, JV, NGPSLEV
-
+      integer, parameter :: jpnflev=200
       LOGICAL  ASSIM
 
       REAL*8 ZLAT, Lat

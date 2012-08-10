@@ -90,10 +90,10 @@ C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
       IF ( LLGP .AND. (.NOT. LLFOUND) ) THEN
         WRITE(*,'(A24,1X,A9)') ' FILT_GPSGB: ONEOBS SITE =', CGPSSTN 
-        call abort3d(6,'FILT_GPSGB: ABORT! ONEOBS GPS SITE NOT FOUND')
+        call abort3d('FILT_GPSGB: ABORT! ONEOBS GPS SITE NOT FOUND')
       ENDIF
       IF ( .NOT. LLGP ) THEN
-        call abort3d(6,
+        call abort3d(
      +  'FILT_GPSGB: GB-GPS ONEOBS OPTION SELECTED BUT NO GP DATA IN CMA!')
       ENDIF
 c

@@ -48,7 +48,6 @@
       use bufr
       IMPLICIT NONE
 *
-#include "comlun.cdk"
 #include "cparbrp.cdk"
 *
       INTEGER, INTENT(IN)    :: KELE,KVAL,KNT,KINDEX
@@ -66,8 +65,8 @@ cc      LLPRINT = .TRUE.
       LLPRINT = .FALSE.
 *
       IF (LLPRINT) THEN
-         write(nulout,*)' --- flaghu -----'
-         write(nulout,*)' --- KLIST  -----',KLIST
+         write(*,*)' --- flaghu -----'
+         write(*,*)' --- KLIST  -----',KLIST
       ENDIF
       IK = KINDEX
       lqflag(:) = 0
@@ -75,7 +74,7 @@ cc      LLPRINT = .TRUE.
       DO JI=1,KELE
          IF ( KLIST(JI).EQ.BUFR_NETT .OR. KLIST(JI).EQ.BUFR_NEES .OR.
      &        KLIST(JI).EQ.BUFR_NETS .OR. KLIST(JI).EQ.BUFR_NESS ) THEN
-            IF (LLPRINT) write(nulout,*) ' --KLIST(JI)= ',KLIST(JI)
+            IF (LLPRINT) write(*,*) ' --KLIST(JI)= ',KLIST(JI)
 
             DO JJ=1,KVAL
                if ( btest ( KFLAGS(JI,JJ,IK), 8 )  ) then
@@ -94,7 +93,7 @@ cc      LLPRINT = .TRUE.
 
       DO JI=1,KELE
          IF ( KLIST(JI).EQ.BUFR_NEHU .OR. KLIST(JI).EQ.BUFR_NEHS ) THEN
-            IF (LLPRINT) write(nulout,*) ' --KLIST(JI)= ',KLIST(JI)
+            IF (LLPRINT) write(*,*) ' --KLIST(JI)= ',KLIST(JI)
 
             DO JJ=1,KVAL
                IF (   btest ( lqflag(jj), 18 ) .AND.

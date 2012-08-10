@@ -9,14 +9,13 @@
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cparbrp.cdk"
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
 
-      WRITE(NULOUT,FMT=9000)
+      WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," residuals: BEGIN RESIDUAL CALCULATION",/,3(" *****************"),/)
 !C
 !C*    1. Preliminary initializations
@@ -34,8 +33,8 @@
          call obs_set_r(lobsSpaceData,'OMF ',jdata,obs_elem_r(lobsSpaceData,'OMA ',jdata))
       ENDDO
       DO j =1,1
-         call obs_prnthdr(lobsSpaceData,j,nulout)
-         call obs_prntbdy(lobsSpaceData,j,nulout)
+         call obs_prnthdr(lobsSpaceData,j)
+         call obs_prntbdy(lobsSpaceData,j)
       END DO
       CALL  FILBRPPOST(lcolumng,lobsSpaceData)
       RETURN

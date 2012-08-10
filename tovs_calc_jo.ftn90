@@ -44,7 +44,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   use minimization_mod
 
   implicit none
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -121,9 +120,9 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 
      indxtovs = ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
-        write(nulout,fmt=9203)
+        write(*,fmt=9203)
 9203    format(' tovs_calc_jo: error with indxtovs')
-        call abort3d(nulout,'tovs_calc_jo    ')
+        call abort3d('tovs_calc_jo    ')
      endif
 
      if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
@@ -148,15 +147,15 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
               ichn=ichn-chanoffset(isens)
            indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
            if ( indxchn .eq. 0 ) then
-              write(nulout,fmt=9202)
+              write(*,fmt=9202)
 9202          format(' tovs_calc_jo: error with channel number')
-              call abort3d(nulout,'tovs_calc_jo    ')
+              call abort3d('tovs_calc_jo    ')
            endif
 
            zdtb =   radiance_d (indxtovs) % out(indxchn) &
                   - obs_elem_r(lobsSpaceData,'PRM ',index_body)
            if ( ldbgtov ) then
-              write(nulout,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
+              write(*,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
                            ichn,  radiance_d (indxtovs) % out(indxchn), &
                            obs_elem_r(lobsSpaceData,'PRM ',index_body), zdtb
            endif
@@ -208,7 +207,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 
   nchanperline = 18
   if ( llprint .and. inobsjo .gt. 0 ) then
-     write(nulout,fmt=9000)
+     write(*,fmt=9000)
      do krtid = 1, nsensors
         do i = 1, jpch
            inobsch(0,krtid) = inobsch(0,krtid) + &
@@ -220,7 +219,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
         enddo
      enddo
      if ( kfailtot .gt. 0 ) then
-        write(nulout,'(/1x," rttov failures : ",i10)')  kfailtot
+        write(*,'(/1x," rttov failures : ",i10)')  kfailtot
      endif
      do jl = 1, nsensors
         incanjo = 0
@@ -231,25 +230,25 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            endif
         enddo
         if ( incanjo .ne. 0 ) then
-           write(nulout,'(/1x,"sensor #",i2,". platform: ",a, &
+           write(*,'(/1x,"sensor #",i2,". platform: ",a, &
                           &   "instrument: ",a)') &
                           jl, csatid(jl), cinstrumentid(jl)
            do j = 1, incanjo, nchanperline
               indxs = j
               indxe = min(j+nchanperline-1,incanjo)
               if ( j .eq. 1 ) then
-                 write(nulout,'(1x,"channel",t13,"   all",17i6)') &
+                 write(*,'(1x,"channel",t13,"   all",17i6)') &
                     (lcanjo(i),i=indxs+1,indxe)
               else
-                 write(nulout,'(1x,"channel",t13,18i6)') &
+                 write(*,'(1x,"channel",t13,18i6)') &
                     (lcanjo(i),i=indxs,indxe)
               endif
-              write(nulout,'(1x,"no. obs.",t13,18i6)') &
+              write(*,'(1x,"no. obs.",t13,18i6)') &
                  (inobsch(lcanjo(i),jl),i=indxs,indxe)
-              write(nulout,'(1x,"mean jo",t13,18f6.2)') &
+              write(*,'(1x,"mean jo",t13,18f6.2)') &
                  (zjoch(lcanjo(i),jl)/max(1,inobsch(lcanjo(i),jl)) &
                  ,i=indxs,indxe)
-              write(nulout,'(1x,"norm. bias",t13,18f6.2,/)') &
+              write(*,'(1x,"norm. bias",t13,18f6.2,/)') &
                  (zavgnrm(lcanjo(i),jl)/max(1,inobsch(lcanjo(i),jl)) &
                  ,i=indxs,indxe)
            enddo

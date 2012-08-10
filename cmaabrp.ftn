@@ -111,7 +111,6 @@
       use obsSpaceData_mod
       use columnData_mod 
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "comct0.cdk"
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
@@ -190,9 +189,9 @@
 *    SET BURP RELATED PARAMETERS VIA CALL TO RESUME SUBROUTINE
 ************************************************************************
 *
-      WRITE(NULOUT,*)' ------------------------------------------------'
-      WRITE(NULOUT,*)' ---------    BEGIN  CMAABRP      ---------------'
-      WRITE(NULOUT,*)' ------------------------------------------------'
+      WRITE(*,*)' ------------------------------------------------'
+      WRITE(*,*)' ---------    BEGIN  CMAABRP      ---------------'
+      WRITE(*,*)' ------------------------------------------------'
 *
       LLTOPOST = .FALSE.
 *
@@ -210,7 +209,7 @@
          LLRESUM=.FALSE.
          IHANDL=MRFLOC(KFILE,0,'*********',-1,-1,-1,-1,-1,-1,0)
          IF ( IHANDL .LT. 0 ) THEN
-            WRITE(NULOUT,*)' CMAABRP: IMPOSSIBLE TO FIND VALID HANDLE'
+            WRITE(*,*)' CMAABRP: IMPOSSIBLE TO FIND VALID HANDLE'
             RETURN
          ENDIF
       ENDIF
@@ -257,7 +256,7 @@
      &            -1,-1,-1,-1,-1,-1,0,-1,0)
                IER=MRFPUT(KFILE,IHANDL,IBUF)
             ELSE
-               WRITE(NULOUT,*)' NO RESUME RECORD FOR CDTYPE :',CDTYPE
+               WRITE(*,*)' NO RESUME RECORD FOR CDTYPE :',CDTYPE
             ENDIF
          ENDIF
 *
@@ -272,17 +271,17 @@
          obs_posn=1
       ELSE
 *
-         WRITE(NULOUT,*)' '
-         WRITE(NULOUT,*)'=============================================='
-         WRITE(NULOUT,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NUMHEADER
-         WRITE(NULOUT,*)'DATA CURRENTLY IN CMA FILE             ',obs_posn-1
-         WRITE(NULOUT,*)'=============================================='
-         WRITE(NULOUT,*) ' '
+         WRITE(*,*)' '
+         WRITE(*,*)'=============================================='
+         WRITE(*,*)'NUMBER OF REPORTS CURRENTLY IN CMA FILE',NUMHEADER
+         WRITE(*,*)'DATA CURRENTLY IN CMA FILE             ',obs_posn-1
+         WRITE(*,*)'=============================================='
+         WRITE(*,*) ' '
          IF ( NUMHEADER .GE. obs_numheader_max(lobsSpaceData)) THEN
-            WRITE(NULOUT,*) ' CMA FILE FULL: NO DATA READ'
-            WRITE(NULOUT,*)' ------------------------------------------'
-            WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
-            WRITE(NULOUT,*)' ------------------------------------------'
+            WRITE(*,*) ' CMA FILE FULL: NO DATA READ'
+            WRITE(*,*)' ------------------------------------------'
+            WRITE(*,*)' ------      END  CMAABRP     -------------'
+            WRITE(*,*)' ------------------------------------------'
             RETURN
          ENDIF
       ENDIF
@@ -765,7 +764,7 @@ C
 ** fin boucle 3d
     5         END DO
                 IF ( INBON .EQ. 0) THEN
-                   IF ( JJEL .EQ. KNVALS)WRITE(NULOUT,*)'OBS ',CLSTNID,
+                   IF ( JJEL .EQ. KNVALS)WRITE(*,*)'OBS ',CLSTNID,
      +             '   TYPE ',IDBURP,' BLOCK NUMBER: ',JK,' NO VALID DATA'
                 ENDIF
                ILPOS=INELE + ILPOS
@@ -806,11 +805,11 @@ C
             ENDIF
             IER=MRFPUT(KFILE,IHANDLP,IBUF)
          ENDIF
-         WRITE(NULOUT,*) ' END OF CMA FILE : NO MORE DATA READ'
+         WRITE(*,*) ' END OF CMA FILE : NO MORE DATA READ'
          CALL PRNTBRP(NUMHEADER,IKOUNT,obs_posn+obs_thisblock-1)
-         WRITE(NULOUT,*)' ------------------------------------------'
-         WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
-         WRITE(NULOUT,*)' ------------------------------------------'
+         WRITE(*,*)' ------------------------------------------'
+         WRITE(*,*)' ------      END  CMAABRP     -------------'
+         WRITE(*,*)' ------------------------------------------'
          DEALLOCATE(ZVAL)
          DEALLOCATE(ZVALP)
          DEALLOCATE(ITBLVAL)
@@ -853,9 +852,9 @@ C
 *-----------------------------------------------------------------------
       CALL PRNTBRP(NUMHEADER,IKOUNT,obs_posn-1)
 *
-      WRITE(NULOUT,*)' ------------------------------------------'
-      WRITE(NULOUT,*)' ------      END  CMAABRP     -------------'
-      WRITE(NULOUT,*)' ------------------------------------------'
+      WRITE(*,*)' ------------------------------------------'
+      WRITE(*,*)' ------      END  CMAABRP     -------------'
+      WRITE(*,*)' ------------------------------------------'
 *
       RETURN
       END

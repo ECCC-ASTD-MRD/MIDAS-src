@@ -14,70 +14,105 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUCOVO
-#if defined (DOC)
+      SUBROUTINE SUCOVO(lobsSpaceData)
 *
-*s/r SUCOVO -SET OBSERVATION ERROR
+*s/r SUCOVO -READ AND SET OBSERVATION ERROR COVARIANCES
 *
-*Author  : P. Koclas *CMC/AES  April 1996
-*Revision:
-*     . S. Pellerin *ARMA/AES Sept 97.
-*                   - Change from TT to GZ states variable
-*     . S. Pellerin *ARMA/AES June 98.
-*                   - Bug fix to the opening of stat file
-*                     Now the logical unit NULSTAT is specified and binded to
-*                     the stat file in sulun.
-*     . C. Charette *ARMA/AES Sept 98.
-*                   - Pressure levels in Pascal (nilv,nislv,nihulv)
-*                   - No more dependence on the vector vlev
-*                     from the namelist
-*     . P. Koclas   *CMC/CMDA June 99.
-*                   - Y2K
-*     . P. Koclas   *CMC/CMDA dec  99.
-*                   - Lowered ERRORS FOR ACARS ADS TEMPERATURES
-*                   - Code for upper air temperature observation errors.
-*     . R. Sarrazin *CMC/CMDA Feb 2000
-*                   - change the obs errors
-*     . C. Charette *ARMA/AES jun 2000.
-*                   - Added surface elements
-*                     11215,11216,12004,12203,10004,10051
-*                   - Added table of observation errors std for sfc elements
-*                     Based on values from ECMWF Tech. Memo no.241
-*       JM Belanger CMDA/SMC  Oct 2000
-*                   . 32 bits conversion
-*                    (obs error variances as double precision constants)
-*     . R. Sarrazin *CMC/CMDA Jul 2001
-*                   - change the obs errors of satwinds
-*     . C. Charette *ARMA/AES Dec 2001.
-*                   - Added idburp 34,37,38,159,sucovo.ftn__Version1,162 in IDLISTUA
-*       JM Belanger CMDA/SMC  Dec 2003
-*                   . Set observation error std dev for Quisckat
-*                     (codtyp = 254)
-*     . R. Sarrazin *CMC March 2004.
-*                   - initialisation of xstdevlv for satwinds errors
-*     . R. Sarrazin *CMC July 2008.
-*                   - change errors of satwinds
-*       R. Sarrazin, Nov 2006
-*                   - include ES error values for AI family
+*Author  : M. Buehner  August 2012
 *
 **    Purpose:
 *             -initialize observation error standard deviations
 *              and vertical error correlation matrices
-*
+*             ***NOTE: "contains" subroutines READCOVO and SETERR
 *Arguments
 *     none
 *
-#endif
-C
       use EarthConstants_mod
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
-*implicits
-#include "comstato.cdk"
-*
+      type(struct_obs) :: lobsSpaceData
 C
+C ---------------------------------
+C Previous contents of comstato.cdk:
+C
+      INTEGER  JPRLEV,JPBANDS,JPCORBANDS
+      INTEGER  JPSATLV,JPNTYP,JPIDBRP
+      INTEGER  JPRALEV,JPHLEV,JPSALEV
+      INTEGER  JPMAXILEV,JPZLEV
+C
+      PARAMETER(JPRLEV=16,JPBANDS=3,JPCORBANDS=1)
+      PARAMETER(JPSATLV=8,JPNTYP=2)
+      PARAMETER(JPRALEV=17,JPHLEV=7,JPSALEV=7)
+      PARAMETER(JPMAXILEV=47,JPIDBRP=254)
+      PARAMETER(JPZLEV=63)
+C
+C     OBSERVATION  ERROR CORRELATIONS
+C 1.  SATEMS
+*     ---------
+      INTEGER  NISLV(JPSATLV)
+      REAL*8     DZOBSCOR(JPMAXILEV,JPMAXILEV,JPNTYP)
+      REAL*8     XSATDEV(JPSALEV,JPNTYP)
+C
+C 2.  UPPER AIR
+C     ---------
+      INTEGER  NILV(JPRLEV)
+      REAL*8     GZOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
+      REAL*8     UUOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
+      REAL*8     ESOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
+      REAL*8     XOSTDEV(57,JPRLEV,JPBANDS)
+C
+C 3.  HUMSAT
+C     ---------
+      INTEGER  NIHULV(JPHLEV)
+      REAL*8     HUOBSCOR(JPMAXILEV,JPMAXILEV)
+C
+C 4.  AIREP : ASDAR : SATOB
+C     ---------------------
+      REAL*8 XSTDEV(5,4)
+      REAL*8 XSTDEVLV(10,2)
+C
+C 5.  SURFACE
+C     ---------
+      REAL*8     XSFCOBERR(57,1,JPIDBRP)
+C
+C 6.  PROFILER
+C     ---------
+      INTEGER    NILZ(JPZLEV)
+      REAL*8     XPRSTDEV(JPZLEV)
+C
+C ---------------------------------
+C     AIREP : ASDAR : SATOB
+C     ---------------------
+C     STANDARD DEVIATIONS  TABLES (FROM OI CODE:DORES)
+C     -----------------------------------------------------
+C                            Kts**2     Dam**2 DEG**2 DEG**2
+C
+      INTEGER J
+      DATA (XSTDEV(J,1),J=1,5)/25.0D0,100.0D0,-5000.D0,4.50D0,-5000.D0/
+      DATA (XSTDEV(J,2),J=1,5)/36.0D0,49.0D0,-5000.D0,3.00D0,9.0D0/
+      DATA (XSTDEV(J,3),J=1,5)/25.0D0,36.0D0,-5000.D0,1.50D0,5.0D0/
+      DATA (XSTDEV(J,4),J=1,5)/49.D0,49.D0,  .36D0,   2.25D0, 9.0D0/
+C
+      DATA (XSTDEVLV(J,1),J=1,10)/2.5D0,2.5D0,3.0D0,4.0D0,4.5D0,
+     &                            5.0D0,5.5D0,5.5D0,5.5D0,6.0D0/
+      DATA (XSTDEVLV(J,2),J=1,10)/1000.0D0,850.0D0,700.0D0,500.0D0,
+     &                             400.0D0,300.0D0,250.0D0,200.0D0,
+     &                             150.0D0,100.0D0/
+C
+C Read in the stddev (and possibly correlations) from statistics file
+C
+      call readcovo
+C
+C Set obs error information in obsSpaceData object
+C
+      call seterr
+
+      CONTAINS  ! readcovo and seterr
+
+      SUBROUTINE READCOVO
+      IMPLICIT NONE
       REAL*8 ZEIGENV(JPRLEV),ZEIGEN(JPRLEV,JPRLEV),ZEIGMIN,ZALPHA
       REAL*8 ZPROJ(JPRLEV,JPRLEV)
       REAL*8 ZVCOR(JPRLEV,JPRLEV),UVCOR(JPRLEV,JPRLEV),
@@ -90,7 +125,7 @@ C
       INTEGER     IDUM,IERR,IKEY,JTYP
       INTEGER     INI,INJ,INK,IDATE,ISTAMP,IDT,INP
       INTEGER     IP1,IP2,IP3
-      INTEGER     IJ,JI,J
+      INTEGER     IJ,JI
       REAL*8      DHEURES
       CHARACTER*2 CTYPVAR
       CHARACTER*1 CGRTYP
@@ -116,24 +151,6 @@ C
       INTEGER :: nulstat
       LOGICAL :: isExist_L
 C
-C
-C     AIREP : ASDAR : SATOB
-C     ---------------------
-C     STANDARD DEVIATIONS  TABLES (FROM OI CODE:DORES)
-C     -----------------------------------------------------
-C                            Kts**2     Dam**2 DEG**2 DEG**2
-C
-      DATA (XSTDEV(J,1),J=1,5)/25.0D0,100.0D0,-5000.D0,4.50D0,-5000.D0/
-      DATA (XSTDEV(J,2),J=1,5)/36.0D0,49.0D0,-5000.D0,3.00D0,9.0D0/
-      DATA (XSTDEV(J,3),J=1,5)/25.0D0,36.0D0,-5000.D0,1.50D0,5.0D0/
-      DATA (XSTDEV(J,4),J=1,5)/49.D0,49.D0,  .36D0,   2.25D0, 9.0D0/
-C
-      DATA (XSTDEVLV(J,1),J=1,10)/2.5D0,2.5D0,3.0D0,4.0D0,4.5D0,
-     &                            5.0D0,5.5D0,5.5D0,5.5D0,6.0D0/
-      DATA (XSTDEVLV(J,2),J=1,10)/1000.0D0,850.0D0,700.0D0,500.0D0,
-     &                             400.0D0,300.0D0,250.0D0,200.0D0,
-     &                             150.0D0,100.0D0/
-C
 C     OPEN THE FILE WITH THE STATISTICS
 C
       INQUIRE(FILE='./obscov',EXIST=isExist_L)
@@ -141,11 +158,11 @@ C
         NULSTAT=0
         IERR=FNOM(NULSTAT,'./obscov','RND+OLD+R/O',0)
         IF ( IERR .EQ. 0 ) THEN
-          write(*,*) 'IOBSST - File : ./obscov'
+          write(*,*) 'READCOVO: File =  ./obscov'
           write(*,*) ' opened as unit file ',nulstat
           ierr =  fstouv(nulstat,'RND+OLD')
         ELSE
-          CALL ABORT3D(6,'SUFILNAM:NO OBSERVATION STAT FILE!!')
+          CALL ABORT3D('READCOVO:NO OBSERVATION STAT FILE!!')
         ENDIF
       ENDIF
 C
@@ -493,12 +510,12 @@ C
 C
       IF ( .NOT. LLPROB ) THEN
          WRITE(*,*)" ----------------- "
-         WRITE(*,*)" SUBROUTINE ERROBS:"
+         WRITE(*,*)" SUBROUTINE READCOVO:"
          WRITE(*,*)" RAOBS ERRORS SET  "
          WRITE(*,*)" ----------------- "
       ELSE
          WRITE(*,*)" ------------------------------- "
-         WRITE(*,*)" SUBROUTINE ERROBS:"
+         WRITE(*,*)" SUBROUTINE READCOVO:"
          WRITE(*,*)" PROBLEM WITH STATISTICS FILE    "
          WRITE(*,*)" DEFAULT VALUES FOR RAOBS ERRORS "
          WRITE(*,*)" ------------------------------- "
@@ -632,12 +649,12 @@ C
 C
       IF ( .NOT. LLPROB ) THEN
          WRITE(*,*)" ----------------------- "
-         WRITE(*,*)" SUBROUTINE SUCOVO:"
+         WRITE(*,*)" SUBROUTINE READCOVO:"
          WRITE(*,*)" OBSERVATION ERRORS SET  "
          WRITE(*,*)" ----------------------- "
       ELSE
          WRITE(*,*)" ------------------------------- "
-         WRITE(*,*)" SUBROUTINE SUCOVO:"
+         WRITE(*,*)" SUBROUTINE READCOVO:"
          WRITE(*,*)" PROBLEM WITH STATISTICS FILE    "
          WRITE(*,*)" DEFAULT VALUES FOR RAOBS ERRORS "
          WRITE(*,*)" ------------------------------- "
@@ -649,5 +666,539 @@ C
  1244 FORMAT( 7(1x,f5.2))
  1245 FORMAT(16(1x,f5.2))
       RETURN
-      END
+      END SUBROUTINE READCOVO
+
+
+
+      SUBROUTINE SETERR
+*
+*s/r SETERR -SET OBSERVATION ERROR
+*
+*Author  : P. Koclas *CMC/AES  February 1995
+*
+**    Purpose:
+*             -set observation errors for each data
+*              in CMA.
+*
+      IMPLICIT NONE
+*implicits
+#include "partov.cdk"
+#include "comtov.cdk"
+#include "comtovst.cdk"
+#include "comgpsgb.cdk"
+*
+C
+C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
+C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS (ORIGINALLY DESIGNED
+C       FOR SHIFTPROF OPTION (NOT USED -- LSHIFT = .FALSE. IN NML)
+C-----------------------------------------------------------------------
+C
+      INTEGER JN,INDEX_BODY,INDEX_HEADER
+      INTEGER ITYP,IFLG,IASS,ILEM,ilyr
+      INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
+      INTEGER ILAT1,ILAT2
+      INTEGER ILANSEA,ISRCHEQ,INDXREG,INDXCLD,INDXM
+      INTEGER INDXSAT,ICHN,ISATNO
+      INTEGER ICHN,IPLATF,INSTR,IPLATFORM,INSTRUM
+      REAL*8 DELTAP, DELTAPMIN
+      REAL*8 ZLAT, ZLON, ZFACTOR, H, NAPP, NERR
+      REAL*8 ZLEV,ZLVL,ZCONGZ,ZVAL,zpb,zpt,zwb,zwt,zcof1,zcof2
+      logical llinterp, LLBAD
+      CHARACTER(len=2) :: SENSORTYPE,CFAM
+C
+C     FOR GB-GPS OBSERVATIONS
+C     ==========================================================================
+      LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE
+      REAL*8  ZTDERR, ZZTD, ZMINZDE
+      INTEGER IZTDJ
+C
+C     REGRESSION EQUATION CONSTANTS FOR ZTD ERROR (SD(O-P)) -- CUBIC FIT
+C     - FROM OCTOBER 2004 SD(O-P) AND MEAN ZTD STATISTICS OF NOAA/FSL SITES
+C     ---------------------------------------------------------------------------
+C
+      REAL*8 Z3, Z2, Z1, ZC
+      DATA Z3, Z2, Z1, ZC /160.38, -1009.1, 2115.4, -1464.6/
+C
+C     ZZDERMIN = MIN ZTD OER VALUE (M), ZZFERREJ = MAX FERR VALUE (M) FOR REJECTION
+C     ZTDERFAC = MULTIPLICATION FACTOR FOR FORMAL ZTD MEASUREMENT ERROR
+C     ZOPEFAC  = FRACTION OF REGRESSION EQUATION SD(O-P) TO USE AS ZTD OBSERVATION ERROR
+C     ----------------------------------------------------------------------------------
+C
+      REAL*8 ZZDERMIN, ZZFERREJ, ZTDERFAC, ZOPEFAC
+      DATA ZZDERMIN /0.012D0/
+      DATA ZZFERREJ /0.015D0/
+      DATA ZTDERFAC /3.0D0/
+      DATA ZOPEFAC  /1.0D0/
+C     ==========================================================================
+C
+ 221  CONTINUE
+C
+      WRITE(*,'(10X,"SUBROUTINE SETERR")')
+      WRITE(*,'(10X,"-----------------",/)')
+      WRITE(*,'(10X,"***********************************")')
+      WRITE(*,'(10X," SET OBSERVATION ERRORS:",/)')
+      WRITE(*,'(10X,"***********************************")')
+C
+      LLCZTDE = .FALSE.
+      LLRZTDE = .FALSE.
+      LLFZTDE = .FALSE.
+      IF (YZTDERR .LT. 0.0) THEN
+         LLFZTDE = .TRUE.
+      ELSE IF (YZTDERR .GT. 0.0) THEN
+         LLCZTDE = .TRUE.
+      ELSE
+         LLRZTDE = .TRUE.
+      ENDIF
+C
+C
+C     SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
+C     ---------------------------------------------------
+C
+ 100  CONTINUE
+      ZCONGZ=10.D0*RG
+      LLBAD = .FALSE.
+      DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
+         IDATA     = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
+         IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+         CFAM      = obs_getFamily(lobsSpaceData,INDEX_HEADER)
+         ILANSEA   = obs_elem_i(lobsSpaceData,'OFL ',INDEX_HEADER)
+         ZLAT      = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER)
+         ZLON      = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER)
+         IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+         IPLATF    = obs_elem_i(lobsSpaceData,'SAT ',INDEX_HEADER)
+         ITECH     = obs_elem_i(lobsSpaceData,'TEC ',INDEX_HEADER)
+         INSTR     = obs_elem_i(lobsSpaceData,'INS ',INDEX_HEADER)
+         LLZTD     = .FALSE.
+         LLFER     = .FALSE.
+         ZTDERR    = -1.0
+         DO INDEX_BODY  = IDATA, IDATEND
+            ITYP   = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+            IFLG   = obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY)
+            IASS   = obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY)
+            ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
+            ZVAL   = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+C
+            IF ( IASS .EQ. 1 .OR. CFAM .EQ. 'GP') THEN
+C
+C***********************************************************************
+C   UPPER AIR DATA
+C***********************************************************************
+C
+              IF ( (CFAM .EQ. 'UA') ) THEN
+                  CALL LATID(ZFACTOR,ILAT1,ILAT2,ZLAT)
+                  ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+C
+                  IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                  ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                  ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                  ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                  ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                  ELSE
+C
+C                  *****************************************************************
+C                  INTERPOLATE VERTICALLY AND HORIZONTALLY THE RAOB ERROR STATISTICS
+C                  *****************************************************************
+C
+C    ----------------------------
+C 2. FIND THE INTERPOLATION LAYER
+C    ----------------------------
+                    if ( zlev .le. nilv(1) ) then
+                     ilyr=1
+                     llinterp=.false.
+                    else if ( zlev .ge. nilv(jprlev) ) then
+                     ilyr=jprlev
+                     llinterp=.false.
+                    else
+                     DO JN =1,JPRLEV-1
+                       if ( float(nilv(jn)) .le.  zlev .and. float(nilv(jn+1)) .gt. zlev )  then
+                         ilyr=jn
+                         llinterp=.true.
+                      endif
+                     END DO
+                    endif
+C    ---------------------------
+C 2. DO THE INTERPOLATIONS
+C    ---------------------------
+                    if ( llinterp) then
+                       ZPT  = nilv(ilyr)
+                       ZPB  = nilv(ilyr+1)
+                       ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+                       ZWT  = 1.0D0 - ZWB
+                       zcof1=zwt*XOSTDEV(ILEM,ilyr,ILAT1) + zwb*XOSTDEV(ILEM,ilyr+1,ILAT1)
+                       zcof2=zwt*XOSTDEV(ILEM,ilyr,ILAT2) + zwb*XOSTDEV(ILEM,ilyr+1,ILAT2)
+                       call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,(1.0D0-ZFACTOR)*zcof1 + ZFACTOR*zcof2)
+                    else
+                       call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,(1.0D0-ZFACTOR)*XOSTDEV
+     +                 (ILEM,ilyr,ILAT1) + ZFACTOR*XOSTDEV(ILEM,ilyr,ILAT2))
+                    endif
+
+                  ENDIF
+                  IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+     +                                       *SQRT(1.8D0))
+                  ENDIF
+C
+C***********************************************************************
+C   TOVS DATA
+C***********************************************************************
+C
+               ELSE IF ( CFAM .EQ. 'TO' ) THEN
+                  IF ( ITYP .EQ. BUFR_NBT1 .OR.
+     S                 ITYP .EQ. BUFR_NBT2 .OR.
+     S                 ITYP .EQ. BUFR_NBT3     )THEN
+                     ICHN    = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+                     INDXM = ILANSEA
+                     IF (INDXM .EQ. 2 ) INDXM = 0
+                     INDXREG = ISRCHEQ(MLISREG,NREGST,INDXM)
+                     INDXCLD = ISRCHEQ(MLISCLD,NCLDST,ITECH)
+                     CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
+                     CALL MAP_INSTRUM(INSTR,INSTRUM,SENSORTYPE)
+                     DO JN = 1, NSENSORS
+                        IF ( IPLATFORM .EQ. PLATFORM  (JN) .AND.
+     &                       ISAT      .EQ. SATELLITE (JN) .AND.
+     &                       INSTRUM   .EQ. INSTRUMENT(JN)      ) THEN
+                           call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,
+     S                         TOVERRST(ICHN,INDXCLD,INDXREG,JN))
+
+                        ENDIF
+                     ENDDO
+                  ENDIF
+C
+C***********************************************************************
+C   GPS RO DATA
+C***********************************************************************
+C
+               ELSE IF ( CFAM .EQ. 'RO' ) THEN
+C     
+C     *              Process only refractivity data (codtyp 169)
+C
+                  IF ( obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER) .EQ. 169 ) THEN
+                     IF ( ITYP .EQ. BUFR_NEPS ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 50.D0)
+                     ENDIF
+                     IF ( ITYP .EQ. BUFR_NETT) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 10.D0)
+                     ENDIF
+                     IF ( ITYP .EQ. BUFR_NERF) THEN
+C     
+C     *                 Observation-estimated geopotential height:
+C
+cc                        H = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+C
+C     *                 Gross approximation to the refractivity:
+C
+cc                        IF ( H .LE. 10000 ) THEN
+cc                           NAPP = EXP( 5.75 - H/8000. )
+cc                        ELSE
+cc                           NAPP = EXP( 4.5 - (H-10000.)/6400. )
+cc                        ENDIF
+C     
+C     *                 Observation error    S
+C     
+cc                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 0.05 * NAPP)
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,1001.D0)
+                     ENDIF
+                  ENDIF
+C
+C***********************************************************************
+C   ALL GPS GROUND-BASED DATA (SFC MET AND ZTD) ASSIMILATED OR NOT
+C***********************************************************************
+C
+C
+C   GPS SFC MET ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
+C   AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
+C   OF TIME-SERIES (YSFERRWGT = 1.0 FOR NORMAL 3D-VAR WITH 3D THINNING)
+C
+               ELSE IF ( CFAM .EQ. 'GP' ) THEN
+C*                Psfc Error (Pa)
+                  IF ( ITYP .EQ. BUFR_NEPS ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 75.D0 *  YSFERRWGT)
+                  ENDIF
+C*                Tsfc Error (K)
+                  IF ( ITYP .EQ. BUFR_NETS ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 2.0D0 * YSFERRWGT)
+                  ENDIF
+C*                T-Td Error (K)
+                  IF ( ITYP .EQ. BUFR_NESS ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 3.0D0 * YSFERRWGT)
+                  ENDIF
+C*                ZTD Error Error (DUMMY VALUE so 3DVar won't abort)
+                  IF ( ITYP .EQ. BUFR_NEFE ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 0.001D0)
+                     LLFER = .TRUE.
+                     ZTDERR = ZVAL
+                  ENDIF
+C*                ZTD Error
+                  IF ( ITYP .EQ. BUFR_NEZD ) THEN
+                     IF ( LLCZTDE) call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,dble(YZTDERR))
+                     ZZTD = ZVAL
+                     IZTDJ = INDEX_BODY
+                     LLZTD = .TRUE.
+                  ENDIF
+C
+C***********************************************************************
+C   ACARS, ASDAR,ADS, SATOB AIREP DATA
+C***********************************************************************
+C
+               ELSE IF ( CFAM .EQ. 'AI'
+     &              .OR. CFAM .EQ. 'SW') THEN
+                  ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+C
+C    SATOB
+C
+                  IF ( IDBURP .EQ. 88 .OR. IDBURP .EQ. 188 ) THEN
+
+                    DELTAPMIN = ABS(LOG(ZLEV*MPC_MBAR_PER_PA_R8)-LOG(XSTDEVLV(1,2)))
+                    ILYR = 1
+                    DO JN = 2, 10
+                      DELTAP = ABS(LOG(ZLEV*MPC_MBAR_PER_PA_R8)-LOG(XSTDEVLV(JN,2)))
+                      IF ( DELTAP < DELTAPMIN ) THEN
+                        DELTAPMIN = DELTAP
+                        ILYR = JN
+                      END IF
+                    END DO
+
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSTDEVLV(ILYR,1))
+                    ELSE IF (ITYP .EQ. BUFR_NETT )THEN
+                         call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, SQRT(XSTDEV(4,1)))
+                    ENDIF
+C
+C     AIREP
+C
+                  ELSE IF (IDBURP .EQ. 128 ) THEN
+                      IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                        IF (  ZLEV .LT. 500.*MPC_PA_PER_MBAR_R8 ) THEN
+                          call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(2,2)))
+                        ELSE
+                          call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,2)))
+                        ENDIF
+                      ELSE IF (ITYP .EQ. BUFR_NETT )THEN
+                         call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, SQRT(XSTDEV(4,2)))
+                      ELSE IF (ITYP .EQ. BUFR_NEES )THEN
+                         call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, SQRT(XSTDEV(5,2)))
+                      ENDIF
+C
+C     ASDAR, ACARS + ADS
+C
+                  ELSE IF (IDBURP .EQ. 42 .OR. IDBURP .EQ. 157 .OR. IDBURP .EQ. 177) THEN
+                     IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                        IF (  ZLEV .LT. 500.*MPC_PA_PER_MBAR_R8 ) THEN
+                          call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(2,3)))
+                        ELSE
+                          call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,3)))
+                       ENDIF
+                     ELSE IF (ITYP .EQ. BUFR_NETT )THEN
+                          call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, SQRT(XSTDEV(4,3)))
+                     ELSE IF (ITYP .EQ. BUFR_NEES )THEN
+                          call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, SQRT(XSTDEV(5,3)))
+                     ENDIF
+                  ENDIF
+C
+C***********************************************************************
+C   SURFACE DATA
+C***********************************************************************
+C
+               ELSE IF ( CFAM .EQ. 'SF' ) THEN
+C
+C                 SYNOP AND SHIP NON-AUTOMATIQUE
+C
+ccc debug debut
+ccc          print *,' seterr:IDBURP,ITYP,ILEM,XSFCOBERR ',IDBURP,ITYP,ILEM
+ccc     &           ,XSFCOBERR(ILEM,1,IDBURP)
+ccc debug fin
+                  IF ( (IDBURP .EQ. 12) .OR. (IDBURP .EQ. 13) ) THEN
+                     IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NETT) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,SQRT(XSTDEV(4,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NEES) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,SQRT(XSTDEV(5,4)))
+                     ENDIF
+C
+C                 DRIBU AND DRIFTER
+C
+                  ELSE IF( (IDBURP .EQ. 14) .OR. (IDBURP .EQ. 18) )THEN
+                     IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NETT) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,SQRT(XSTDEV(4,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NEES) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,SQRT(XSTDEV(5,4)))
+                     ENDIF
+C
+C                 STATION AUTOMATIQUE, PATROL SHIPS
+C
+                  ELSE IF((IDBURP .GE. 145) .AND. (IDBURP .LE. 147))THEN
+                     IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                     ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NETT) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,SQRT(XSTDEV(4,4)))
+                     ELSE IF (ITYP .EQ. BUFR_NEES) THEN
+                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,SQRT(XSTDEV(5,4)))
+                     ENDIF
+                  ENDIF
+               ELSE IF ( CFAM .EQ. 'SC' ) THEN
+                 call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+               ELSE IF ( CFAM .EQ. 'TO' ) THEN
+                 call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 1.0D0)
+               ELSE IF ( CFAM .EQ. 'OZ' ) THEN
+                 call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,
+     s                0.6D0*obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY))
+C
+C                 SATEMS
+C
+               ELSE IF ( CFAM .EQ. 'ST' ) THEN
+                  ILVL=0
+                  ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+                  DO JN =1,JPSALEV
+                     ZLVL=SIGN(1.0D0,(ZLEV-NISLV(JN)) )
+                     ILVL=ILVL + MAX(0.0D0,ZLVL)
+                  END DO
+                  IF ( (ITECH .EQ. 1) .OR. (ITECH .EQ. 4) ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSATDEV(ILVL,1))
+                  ELSE IF ( (ITECH .EQ. 2) .OR. (ITECH .EQ. 3) ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSATDEV(ILVL,2))
+                  ELSE
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, XSATDEV(ILVL,1))
+                  ENDIF
+               ELSE IF ( CFAM .EQ. 'HU' ) THEN
+               ELSE IF ( CFAM .EQ. 'PR' ) THEN
+                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,2.2D0)
+               ELSE
+                  WRITE(*,*)' UNKNOWN DATA FAMILY:',CFAM
+               ENDIF
+C
+C***********************************************************************
+C              Check for case where error should have been set but was
+C              not. 3dvar will abort in this case.
+C***********************************************************************
+C
+               IF (CFAM .NE. 'GP') THEN
+                 IF(obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY) .LE. 0.0) THEN
+                    LLBAD = .TRUE.
+                 ENDIF
+C
+               ELSE
+C  GP FAMILY CASE
+                 IF (IASS .EQ. 1) THEN
+                   IF ((.NOT. LLZTD) .AND. obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY) .LE. 0.0) THEN
+                     LLBAD = .TRUE.
+                   ENDIF
+                   IF ((LLZTD .AND. LLCZTDE) .AND. obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY) .LE. 0.0) THEN
+                     LLBAD = .TRUE.
+                   ENDIF
+                 ENDIF
+               ENDIF
+C
+               IF (LLBAD) THEN
+                 WRITE(*,*)'  PROBLEM OBSERR VARIANCE FAM= '
+     &              ,CFAM
+                  WRITE(*,
+     &               '(1X,"STNID= ",A10,"IDBURP= ",I5," LAT= ",F10.2
+     &              ," LON = ",F10.2)')
+     &              obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,ZLAT*MPC_DEGREES_PER_RADIAN_R8,ZLON*MPC_DEGREES_PER_RADIAN_R8
+                  WRITE(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
+     &              " OBSERR = ",E10.2)')
+     &              ITYP,obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY),obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+               ENDIF
+
+            ELSE
+
+c  set artificial obs errors for ln q.
+              IF ( CFAM .EQ. 'UA'  .AND.
+     &             ( ITYP          .EQ. BUFR_NEHU  .OR.
+     &               ITYP          .EQ. BUFR_NEHS ) ) THEN
+                 call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 888.0d0)
+              ENDIF
+C           end of assim=1 or GP family IF
+            ENDIF
+C
+C        end of INDEX_BODY loop 
+         END DO
+C
+C    ------------------------------------------------------
+C    SET THE GB-GPS ZTD ERROR
+C    ------------------------------------------------------
+C
+         IF ( CFAM .EQ. 'GP' ) THEN
+            IF ( .NOT. LLCZTDE ) THEN
+              IF (LLZTD) THEN
+C             Compute minimum ZTD error as a function of ZTD using regression
+C             statistics SD(O-P)
+              ZMINZDE = Z3*ZZTD**3 + Z2*ZZTD**2 + Z1*ZZTD + ZC
+              ZMINZDE = ZMINZDE * ZOPEFAC * 0.001
+                IF (LLRZTDE) THEN
+                  call obs_set_r(lobsSpaceData,'OER ',IZTDJ, MAX(ZZDERMIN, ZMINZDE))
+                ELSE
+                  IF (LLFER) THEN
+                    call obs_set_r(lobsSpaceData,'OER ',IZTDJ, MAX(ZZDERMIN, ZTDERR*ZTDERFAC))
+                  ELSE
+                    call obs_set_r(lobsSpaceData,'OER ',IZTDJ, MAX(ZZDERMIN, ZMINZDE))
+                  ENDIF
+                ENDIF
+              ENDIF
+            ENDIF
+C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D-VAR)
+            IF (LLZTD) call obs_set_r(lobsSpaceData,'OER ',IZTDJ, obs_elem_r(lobsSpaceData,'OER ',IZTDJ)*YZDERRWGT)
+         ENDIF
+C     end of INDEX_HEADER loop
+      END DO
+C
+ 400  CONTINUE
+      IF(LLBAD) THEN
+        WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        WRITE(*,*)' Warning 3DV:seterr: PROBLEM OBSERR VARIANCE'
+     &       ,' SEE LISTING FOR MORE DETAILS'
+        WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        CALL ABORT3D('SETERR:PROBLEM OBSERR VARIANCE.')
+      ENDIF
+      WRITE(*,'(10X,"DONE SETERR")')
+      WRITE(*,'(10X,"-----------------",/)')
+      RETURN
+      END SUBROUTINE SETERR
+
+      END SUBROUTINE SUCOVO
+
 

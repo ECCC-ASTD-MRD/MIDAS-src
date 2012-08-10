@@ -18,6 +18,11 @@ fi
 
 trunkdir=$PWD
 
+# automatically set the global revision number in comct0.cdk by
+# replacing the string XXXXX with the actual revision number
+revnum=`ssh alef "cd $trunkdir ; svnversion"`
+cat comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
+
 cd ../
 mkdir -p compiledir
 cd compiledir
@@ -68,7 +73,7 @@ echo "STARTING COMPILATION AT:"
 date
 
 echo "compiling low-level independent modules"
-SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90"
+SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0 2>&1
 grep fail listing0
 if [ $? = "0" ] ; then exit ; fi

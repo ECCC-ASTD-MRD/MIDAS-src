@@ -23,29 +23,34 @@
       use columnData_mod  
       IMPLICIT NONE
 #include "comct0.cdk"
-#include "comlun.cdk"
       INTEGER ISTAMP,EXDB,EXFIN
       character(len=9) :: clmsg
       INTEGER  :: root,IERR  
       type(struct_obs),target :: obsSpaceData
       type(struct_columnData),target :: columng,columnhr
+
+      ISTAMP=EXDB('3DVAR','DEBUT','NON')
+
+      WRITE(*,FMT=9000) crevision
+ 9000 FORMAT(/,3(" *****************"),/
+     S     ,14x,"-- START OF MAIN PROGRAM CNT0: --",/
+     S     ,14x,"-- 3D VARIATIONAL ASSIMILATION --",/
+     S     ,14x,"-- VARGLB Revision number ",a," --",/
+     S     ,3(" *****************"))
 !
 !     MPI initilization .  
 !
       CALL mpi_init  
       root = 0  
 
-      IF(mpi_myid == root) call printrev("START OF MAIN PROGRAM CNT0")
-
       call tmg_init (mpi_myid, 'TMG_3D-VAR' )
 
       IF(mpi_myid == root) THEN
          clmsg = 'VAR3D_BEG'
          call wrstatus(clmsg)
-         ISTAMP=EXDB('3DVAR','DEBUT','NON')
       ENDIF 
 C
-C     *       1.    Initialize level 0 commons. (NCONF,CMINMODE)
+C     *       1.    Initialize level 0 commons. (NCONF)
 C
       call suct0
 C
@@ -53,7 +58,7 @@ C     *       2.    Decide on configuration of job.
 C
       select case (nconf)
       case(101)
-         IF(mpi_myid == root) WRITE(NULOUT,FMT=9203) NCONF
+         IF(mpi_myid == root) WRITE(*,FMT=9203) NCONF
  9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
 
          call tmg_start(11,'PREMIN')
@@ -65,7 +70,7 @@ C
          call tmg_stop(12)
 
       case(121)
-         WRITE(NULOUT,FMT=9204) NCONF
+         WRITE(*,FMT=9204) NCONF
  9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL
      &        S")
          call tmg_start(11,'PREMIN')
@@ -77,7 +82,7 @@ C
          call tmg_stop (12)
 
       case(141)
-         WRITE(NULOUT,FMT=9401)NCONF
+         WRITE(*,FMT=9401)NCONF
  9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING MINIMIZE")
 
          call tmg_start(11,'PREMIN')
@@ -93,21 +98,21 @@ C
          call tmg_stop (13)
 c
       case(201)
-         WRITE(NULOUT,FMT=9295)NCONF
+         WRITE(*,FMT=9295)NCONF
  9295    FORMAT(//,40(" *"),/,4X,"NCONF =",1X,I3,4X
      S        ,"- RANDOM NUMBER PETURBATIONS"
      S        ," BASED ON MATRIX B -",/,40(" *"),/)
 c
-         CALL ENKF_PTURB(nulout)
+         CALL ENKF_PTURB
 
       case default
-         WRITE(UNIT=NULOUT,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF
+         WRITE(*,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF
 
       END select
 C
 C     *    3. Job termination
 C
-      CALL SUTERM(NULOUT)
+      ISTAMP=EXFIN('3DVAR','FIN','NON')
 C
       IF(mpi_myid == root) THEN
          clmsg = 'VAR3D_END'

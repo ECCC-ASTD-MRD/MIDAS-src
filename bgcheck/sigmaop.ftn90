@@ -8,8 +8,7 @@
       use gridStateVector_mod
       use gaussGrid_mod
       IMPLICIT NONE
-#include "comlun.cdk"
-#include "pardim.cdk"
+
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
       type(struct_gsv) :: statevector
@@ -43,17 +42,17 @@
       IULSSF=0
       IERR=FNOM(iulssf,'./glbcov','RND+OLD+R/O',0)
       IF ( IERR .EQ. 0 ) THEN
-        write(nulout,*) 'IBGST - File : ./glbcov'
-        write(nulout,*) ' opened as unit file ',iulssf
+        write(*,*) 'IBGST - File : ./glbcov'
+        write(*,*) ' opened as unit file ',iulssf
         ierr =  fstouv(iulssf,'RND+OLD')
       ELSE
-        CALL ABORT3D(NULOUT,'SUFILNAM:NO BACKGROUND STAT FILE!!')
+        CALL ABORT3D('SUFILNAM:NO BACKGROUND STAT FILE!!')
       ENDIF
 !C
 !C     .  2.1 Background error standard deviations
 !C
       CLETIKET = 'STDDEV'
-      write(nulout,*) 'sigmaop: CLETIKET = ',CLETIKET
+      write(*,*) 'sigmaop: CLETIKET = ',CLETIKET
       IDATE    = -1
       IP1      = -1
       IP2      = -1

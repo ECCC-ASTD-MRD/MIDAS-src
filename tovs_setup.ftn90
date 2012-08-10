@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE TOVS_SETUP(KULOUT)
+SUBROUTINE TOVS_SETUP
 #if defined (DOC)
 !
 !  s/r TOVS_SETUP : Initialisation of the TOVS processing and radiative
@@ -46,9 +46,6 @@ SUBROUTINE TOVS_SETUP(KULOUT)
 !     Purpose: to read namelist NAMTOV, initialize the observation error covariance
 !              and setup RTTOV-8.
 !
-!Arguments
-!     i : KULOUT : logical unit for output
-!
 #endif
 
   Use mod_tovs
@@ -60,7 +57,6 @@ SUBROUTINE TOVS_SETUP(KULOUT)
 #include "comtov.cdk"
 #include "namtov.cdk"
 
-  INTEGER  KULOUT
   INTEGER  JK, IERR, J
 
   CHARACTER(len=15) :: CNLTEMP
@@ -112,20 +108,20 @@ SUBROUTINE TOVS_SETUP(KULOUT)
   130  CONTINUE
 
   IF ( CRTMODL .NE. 'RTTOV' ) THEN
-     WRITE(KULOUT,FMT=9131)
+     WRITE(*,FMT=9131)
   9131    FORMAT(' TOVS_SETUP: Invalid radiation model name')
-     CALL ABORT3D(KULOUT,'TOVS_SETUP           ')
+     CALL ABORT3D('TOVS_SETUP           ')
   ENDIF
 
   IF ( NSENSORS .GT. JPNSAT ) THEN
-     WRITE(KULOUT,FMT=9132)
+     WRITE(*,FMT=9132)
   9132    FORMAT(' TOVS_SETUP: Number of sensors (NSENSORS)', &
             ' is greater than maximum allowed (JPNSAT)')
-     CALL ABORT3D(KULOUT,'TOVS_SETUP           ')
+     CALL ABORT3D('TOVS_SETUP           ')
   ENDIF
 
   IF ( NSENSORS .LE. 0 ) THEN
-     WRITE(KULOUT,FMT=9133)
+     WRITE(*,FMT=9133)
   9133    FORMAT(' TOVS_SETUP: Forcing call to RTTVI to read in climatological', &
             ' profiles of humidity')
      NSENSORS  = 1
@@ -137,11 +133,11 @@ SUBROUTINE TOVS_SETUP(KULOUT)
 !     .       ----------------------------------
 
   140  CONTINUE
-  WRITE(KULOUT,FMT=9140) LTSTTOV, LDBGTOV, LRTNADIR, &
+  WRITE(*,FMT=9140) LTSTTOV, LDBGTOV, LRTNADIR, &
                          LEVEL1B, LNLVTOV, CRTMODL
-  WRITE(KULOUT,FMT=9143) NSENSORS
-  WRITE(KULOUT,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
-  WRITE(KULOUT,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
+  WRITE(*,FMT=9143) NSENSORS
+  WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
+  WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
 
 
   9140 FORMAT(/,3X,'- Parameters used for TOVS processing' &
@@ -159,7 +155,7 @@ SUBROUTINE TOVS_SETUP(KULOUT)
   9145 FORMAT(  6X,"Satellite id's          : ",10A10)
   9146 FORMAT(  6X,"Instrument id's         : ",10A10)
 
-  WRITE(KULOUT,FMT=9142)
+  WRITE(*,FMT=9142)
   9142 FORMAT(//,3X,"- Reading and initialization in preparation to the " &
        ,"TOVS processing",/,5X,64('-'))
 

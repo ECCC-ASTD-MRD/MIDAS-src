@@ -22,17 +22,13 @@
 !          is permitted and the pressure vector is given.
 !
       use MathPhysConstants_mod
+      use physicsFunctions_mod
       IMPLICIT NONE
       REAL*8, intent(inout) :: LQ,TT,P0
       REAL*8, intent(in)  :: ES,LQ_g,PRES_g,VHYB
       REAL*8 ZE, ZTD,ZGAMMA,ZQBRANCH,HU_g
       REAL*8 zpresb
       REAL*8 dESdLQ,dESdTT,dESdP0
-#include "dinternv.cdk"
-#include "finternv.cdk"
-#include "finternva.cdk"
-#include "dintern8.cdk"
-#include "fintern8.cdk"
 
       dESdTT = 1.0d0
 *
@@ -40,7 +36,7 @@
 * and adjoint of vapour pressure from adjoint of dewpoint temperature
 *
       HU_g = exp(LQ_g)
-      ZE = FOEFQ(HU_g, PRES_g)
+      ZE = FOEFQ8(HU_g, PRES_g)
 
       ZTD=FOTW8(ZE)
       ZGAMMA=FODTW8(ZTD,ZE)

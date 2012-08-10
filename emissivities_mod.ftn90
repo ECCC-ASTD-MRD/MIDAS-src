@@ -341,7 +341,6 @@ contains
 !          OUTPUT: NONE
 !
     IMPLICIT NONE
-#include "comlun.cdk"
 
     INTEGER            :: IV
     INTEGER            :: NISF,NJSF,NKSF
@@ -372,8 +371,8 @@ contains
     IV5=FSTFRM(ISFTEST)
     IV6=FCLOS(ISFTEST)
 
-    write(nulout,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
-    write(nulout,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+    write(*,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
+    write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
 
        
 !* get ice fraction and snow cover
@@ -394,8 +393,8 @@ contains
     IV11=FSTFRM(ISFTEST1)
     IV12=FCLOS(ISFTEST1)
 
-    write(nulout,*) 'LES IV DE SFC4AIRS ',iv7,iv8,iv9,iv10,iv11,iv12
-    write(nulout,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+    write(*,*) 'LES IV DE SFC4AIRS ',iv7,iv8,iv9,iv10,iv11,iv12
+    write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
 
 
 !* get albedo
@@ -413,8 +412,8 @@ contains
     IV16=FSTFRM(ISFTEST2)
     IV17=FCLOS(ISFTEST2)
 
-    write(nulout,*) 'LES IV DE SFC4AIRS_NEWOBS ',iv13,iv14,iv15,iv16,iv17
-    write(nulout,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+    write(*,*) 'LES IV DE SFC4AIRS_NEWOBS ',iv13,iv14,iv15,iv16,iv17
+    write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
 
 
   END SUBROUTINE emis_read_climatology
@@ -458,7 +457,6 @@ contains
     IMPLICIT NONE
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comlun.cdk"
     INTEGER,intent(in) :: NPRF,NCHANNELS_MAX
     INTEGER,intent(in) :: NCHN,IPTOBS(NPRF),KRTID
     REAL(8),intent(out) :: SURFEM1(NCHANNELS_MAX)
@@ -650,7 +648,6 @@ contains
 !
     use mod_tovs
     IMPLICIT NONE
-#include "comlun.cdk"
 
     INTEGER,intent(in) :: NPRF, IPTOBS(NPRF)
     REAL(8),intent(in) :: ZLAT(NPRF), ZLON(NPRF)
@@ -912,7 +909,6 @@ contains
 !            -EM_OC(NC,NP)   : OCEAN EMISSIVITIES (0.-1.)
 !
     IMPLICIT NONE
-#include "comlun.cdk"
     INTEGER,intent(in) :: NC,NP
     REAL ,intent(in)   :: WNUM(NC),ANGLE(NP),WIND(NP)
     REAL ,intent(out)  :: EM_OC(NC,NP)
@@ -944,7 +940,7 @@ contains
 !* out of range
 
        IF ( WNUM(I) < 645. .OR. WNUM(I) > REFW(1) ) THEN
-          WRITE(NULOUT,44) WNUM(I)
+          WRITE(*,44) WNUM(I)
  44        FORMAT(' fatal: wavenumber out of range in emi_sea',e12.4)
           STOP
        END IF

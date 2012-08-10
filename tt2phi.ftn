@@ -196,6 +196,7 @@ C
 * AUTHOR:  Luc Fillion - ARMA/AES - 10 mar 99
 *
       use MathPhysConstants_mod
+      use physicsFunctions_mod
       IMPLICIT NONE
       INTEGER  kobs,nlev
       real*8 ::  vmahr(:)
@@ -209,12 +210,10 @@ C
       INTEGER  JLON, IKLEVM2, JK, IK
       REAL*8   ZAK, ZBK, ZCK,ZCON,zhu,mountain
       real*8, pointer :: gz_column(:)
-#include "dinternv.cdk"
-#include "finternv.cdk"
 **
       do jk = 1, col_getNumLev(lcolumnghr)
         zhu = exp(col_getElem(lcolumnghr,jk,kobs,'HU'))
-        ztv(jk) = fotvv(col_getElem(lcolumnghr,jk,kobs,'TT'),zhu)
+        ztv(jk) = fotvt8(col_getElem(lcolumnghr,jk,kobs,'TT'),zhu)
       enddo
 c
       ZCON = -MPC_RGAS_DRY_AIR_R8

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUOBS(KULOUT,lobsSpaceData)
+      SUBROUTINE SUOBS(lobsSpaceData)
       use obsSpaceData_mod
 #if defined (DOC)
 *
@@ -43,28 +43,24 @@
 *     .       Synthetic observations will go through the same initialization process
 *     .       as for all other observations. Elimination of all related COMDECKs
 *
-*Arguments
-*     i   KULOUT: unit used for optional printing
-*
 #endif
 C
       IMPLICIT NONE
 *implicits
-#include "comlun.cdk"
 #include "comfilt.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 **
       type(struct_obs) :: lobsSpaceData
-      INTEGER KULOUT, JO, IPOINTU, IPOINTV,IPOINTZ,IERR,jelem,j,ielem
+      INTEGER JO, IPOINTU, IPOINTV,IPOINTZ,IERR,jelem,j,ielem
       integer itotelem
       REAL*8 ZLON, ZLAT,ZUT0,ZVT0, ZPPOBS
 C
-      WRITE(NULOUT,FMT=9000)
+      WRITE(*,FMT=9000)
  9000 FORMAT(/,1x,' SUOBS- Initialisation of observation arrays'
      S     ,/,1x,3('- -----------'))
 C
-      write(nulout,fmt='(/,12x,A)')'Setting ATOVS parameters from NAMELIST'
+      write(*,fmt='(/,12x,A)')'Setting ATOVS parameters from NAMELIST'
       NSENSORS   = 1
       CSATID(:)  = '***UNDEFINED***'
       CINSTRUMENTID(:) = '***UNDEFINED***'

@@ -15,7 +15,6 @@
       use obsSpaceData_mod
       use verticalCoord_mod
       IMPLICIT NONE
-#include "pardim.cdk"
 #include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData

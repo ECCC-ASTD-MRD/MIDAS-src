@@ -66,12 +66,6 @@
 #endif
       IMPLICIT NONE
 *implicits
-#include "pardim.cdk"
-#include "comlun.cdk"
-C
-#include "comct0.cdk"
-#include "namct0.cdk"
-C
 #include "comfilt.cdk"
 #include "namfilt.cdk"
 C
@@ -99,13 +93,13 @@ C
         NULNAM=0
         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
         IF ( IER .EQ. 0 ) THEN
-          write(nulout,*) 'INML - File : ./flnml'
-          write(nulout,*) ' opened as unit file ',nulnam
+          write(*,*) 'INML - File : ./flnml'
+          write(*,*) ' opened as unit file ',nulnam
         ELSE
-          CALL ABORT3D(NULOUT,'SUFILNAM:Problem opening namelist file!')
+          CALL ABORT3D('READNML:Problem opening namelist file!')
         ENDIF
       ELSE
-        CALL ABORT3D(NULOUT,'SUFILNAM:No namelist file specified!')
+        CALL ABORT3D('READNML:No namelist file specified!')
       ENDIF
 
  100  CONTINUE
@@ -120,35 +114,30 @@ C
 **    2. Read the NAMELIST (if present)
 *
  200  CONTINUE
-      WRITE(NULOUT,9200)CDNAME
+      WRITE(*,9200)CDNAME
  9200 FORMAT(//,5X,"READNML- reading Namelist ",A)
 C
 C*    2.1
 C
-      IF(CDNAME.EQ.'NAMCT0')THEN
-C
-         READ(NULNAM,NAMCT0)
-         WRITE(NULOUT,NAMCT0)
-C
-      ELSE IF(CDNAME.EQ.'NAMFILT')THEN
+      IF(CDNAME.EQ.'NAMFILT')THEN
 C
          READ(NULNAM,NAMFILT)
-         WRITE(NULOUT,NAMFILT)
+         WRITE(*,NAMFILT)
 C
       ELSE IF(CDNAME.EQ.'NAMTOV')THEN
 C
          READ(NULNAM,NAMTOV)
-         WRITE(NULOUT,NAMTOV)
+         WRITE(*,NAMTOV)
 C
       ELSE IF(CDNAME.EQ.'NAMGPSRO')THEN
 C
          READ(NULNAM,NAMGPSRO)
-         WRITE(NULOUT,NAMGPSRO)
+         WRITE(*,NAMGPSRO)
 C
       ELSE IF(CDNAME.EQ.'NAMGPSGB')THEN
 C
          READ(NULNAM,NAMGPSGB)
-         WRITE(NULOUT,NAMGPSGB)
+         WRITE(*,NAMGPSGB)
       END IF
 C
       ier=FCLOS(NULNAM)
@@ -158,7 +147,7 @@ c
 **    3. Abort the job if the NAMELIST is absent
 *
  300  CONTINUE
-      WRITE(NULOUT,9300)CDNAME
+      WRITE(*,9300)CDNAME
  9300 FORMAT(//,10X,"-NAMELIST ",A," not found")
-      CALL ABORT3D(NULOUT," READNML       ")
+      CALL ABORT3D(" READNML       ")
       END

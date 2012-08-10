@@ -17,7 +17,6 @@
       SUBROUTINE FLAGWND(KFLAG,KLIST,KNELE,KNVAL,KINT
      &                  ,CSTN,KIDBRP,KLAT,KLON)
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "cparbrp.cdk"
 #include "comfilt.cdk"
 CCC
@@ -101,15 +100,15 @@ CCC
                      IF(LLREJF) THEN
                         IF(.NOT.LLREJD)THEN
                            KFLAG(IND2,JJ,JN) = KFLAG(IND1,JJ,JN)
-                           WRITE(NULOUT,*)
+                           WRITE(*,*)
 *
      &                        ' FLAGWND: FOUND  FLAG (IN NAMELIST) ON'
      &                        ,' SPEED BUT NOT ON DIRECTION'
-                           WRITE(NULOUT,600)CSTN,KIDBRP,KLAT,KLON,JJ
+                           WRITE(*,600)CSTN,KIDBRP,KLAT,KLON,JJ
      &                          ,NLISTFLG(JD),IPROFD(JJ),IPROFF(JJ)
 *
-                           WRITE(NULOUT,*)' AFTER TRANSFER OF FLAGS'
-                           WRITE(NULOUT,600)CSTN,KIDBRP,KLAT,KLON,JJ
+                           WRITE(*,*)' AFTER TRANSFER OF FLAGS'
+                           WRITE(*,600)CSTN,KIDBRP,KLAT,KLON,JJ
      &                          ,NLISTFLG(JD),KFLAG(IND2,JJ,JN)
      &                          ,KFLAG(IND1,JJ,JN)
                         ENDIF
@@ -118,14 +117,14 @@ CCC
                         IF(.NOT.LLREJF)THEN
                            KFLAG(IND1,JJ,JN) = KFLAG(IND2,JJ,JN)
 *
-                           WRITE(NULOUT,*)
+                           WRITE(*,*)
      &                          ' FLAGWND: FOUND  FLAG (IN NAMELIST) ON'
      &                          ,' DIRECTION BUT NOT ON SPEED'
-                           WRITE(NULOUT,600)CSTN,KIDBRP,KLAT,KLON,JJ
+                           WRITE(*,600)CSTN,KIDBRP,KLAT,KLON,JJ
      &                          ,NLISTFLG(JD),IPROFD(JJ),IPROFF(JJ)
 *
-                           WRITE(NULOUT,*)' AFTER TRANSFER OF FLAGS'
-                           WRITE(NULOUT,600)CSTN,KIDBRP,KLAT,KLON,JJ
+                           WRITE(*,*)' AFTER TRANSFER OF FLAGS'
+                           WRITE(*,600)CSTN,KIDBRP,KLAT,KLON,JJ
      &                          ,NLISTFLG(JD),KFLAG(IND2,JJ,JN)
      &                          ,KFLAG(IND1,JJ,JN)
                         ENDIF

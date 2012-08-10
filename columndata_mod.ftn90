@@ -427,6 +427,7 @@ module columnData_mod
 
     END SUBROUTINE col_expandToMpiGlobal
 
+
     function col_varExist(varName) result(varExist)
       implicit none
       character(len=*), intent(in) :: varName

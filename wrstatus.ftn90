@@ -16,16 +16,17 @@
 !
 subroutine wrstatus(cmsg)
   implicit none
-
   INTEGER  iulstatus,fnom,fclos, ierr
-  character(len=9) :: cmsg
+  character(len=*) :: cmsg
   character(len=22):: clmsg
+
   clmsg='VAR3D_STATUS='//cmsg
   iulstatus = 0
   IERR =  FNOM(iulstatus,'VAR3D_STATUS.dot','SEQ+FMT',0)
   rewind (iulstatus)
   WRITE(iulstatus,'(a22)') clmsg
   ierr = fclos(iulstatus)
+
   return
 end subroutine wrstatus
 

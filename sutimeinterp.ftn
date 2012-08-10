@@ -5,19 +5,18 @@
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
-#include "comlun.cdk"
 #include "comfilt.cdk"
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn
       integer :: jobs,jstep
       real*8 :: stepObsIndex
 
-      write(nulout,*) ' '
-      write(nulout,*) '-------- ENTERING SUTIMEINTERP ---------'
-      write(nulout,*) ' '
+      write(*,*) ' '
+      write(*,*) '-------- ENTERING SUTIMEINTERP ---------'
+      write(*,*) ' '
 
 ! Compute the number of step obs over a 6 hours assimilation window
-      write(nulout,*) 'SUTIMEINTERP: Number of step obs inc : ',nstepobsinc
+      write(*,*) 'SUTIMEINTERP: Number of step obs inc : ',nstepobsinc
 
       do jobs=1, obs_numheader(lobsSpaceData)
 ! return the step stamp associated whit date and time of the observation
@@ -47,9 +46,9 @@
 
       enddo
 
-      write(nulout,*) ' '
-      write(nulout,*) '-------- END OF SUTIMEINTERP ---------'
-      write(nulout,*) ' '
+      write(*,*) ' '
+      write(*,*) '-------- END OF SUTIMEINTERP ---------'
+      write(*,*) ' '
 c
       return
       end

@@ -62,7 +62,6 @@
 ************************************************************************
 #endif
 *
-#include "comlun.cdk"
 #include "comvfiles.cdk"
 #include "cvcord.cdk"
       type(struct_obs) :: lobsSpaceData
@@ -119,7 +118,7 @@
                   IHANDL=MRFLOC(IBRP1,0,'*********',-1,-1,-1,-1,-1,-1,0)
                ENDIF
                IF ( IHANDL .LT. 0 ) THEN
-                  WRITE(NULOUT,*)
+                  WRITE(*,*)
      1            'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
                ELSE
                   NFILES=NFILES + 1
@@ -161,8 +160,8 @@
         nbrphh = 18
       endif
       ier = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
-      WRITE(NULOUT, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
-      WRITE(NULOUT, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+      WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
+      WRITE(*, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
       call obs_set_datestamp(lobsSpaceData,nbrpstamp)
 
       RETURN

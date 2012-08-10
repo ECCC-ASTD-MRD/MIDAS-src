@@ -53,7 +53,6 @@
       IMPLICIT NONE
 
 *implicits
-#include "comlun.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "comtovst.cdk"
@@ -135,7 +134,7 @@ C
       EXTERNAL FNOM, FCLOS, ISRCHEQ
       EXTERNAL ABORT3D
 C
-      WRITE(NULOUT,FMT=9000)
+      WRITE(*,FMT=9000)
  9000 FORMAT(//,10x,"-SUTOVST: reading observation error statistics"
      S     ," required for TOVS processing")
 C
@@ -175,9 +174,9 @@ C
       ilutov = 0
       IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
       IF(IER.LT.0)THEN
-         WRITE ( NULOUT, '(" SUTOVST: Problem opening ",
+         WRITE ( *, '(" SUTOVST: Problem opening ",
      S         "file stats_tovs ")' )
-         CALL ABORT3D ( NULOUT,'SUTOVST         ')
+         CALL ABORT3D ('SUTOVST         ')
       END IF
 C
 C*    3. Print the file contents
@@ -185,10 +184,10 @@ C     .  -----------------------
 C
  300  CONTINUE
 C
-      WRITE(NULOUT,'(20X,"ASCII dump of stats_tovs file: "//)')
+      WRITE(*,'(20X,"ASCII dump of stats_tovs file: "//)')
       DO JI = 1, 9999999
          READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
-         WRITE(NULOUT,'(A)')   CLDUM
+         WRITE(*,'(A)')   CLDUM
       ENDDO
 C
 C*    4. Read number of satellites, regions and cloud classes
@@ -272,9 +271,9 @@ C
          IPLF = ISRCHEQ ( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
          ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
          IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
-            WRITE ( NULOUT, '(" SUTOVST: Observation errors not ",
+            WRITE ( *, '(" SUTOVST: Observation errors not ",
      S         "defined for sensor # ", I3)' ) JL
-            CALL ABORT3D ( NULOUT,'SUTOVST         ')
+            CALL ABORT3D ('SUTOVST         ')
          END IF
       ENDDO
 C
@@ -303,19 +302,19 @@ C     .  --------------------------------------------
 C
  600  CONTINUE
 C
-      WRITE(NULOUT,'(//1X,"Radiance observation errors read from file")')
-      WRITE(NULOUT,'(  1X,"------------------------------------------")')
+      WRITE(*,'(//1X,"Radiance observation errors read from file")')
+      WRITE(*,'(  1X,"------------------------------------------")')
       DO JL = 1, NSENSORS
-         WRITE(NULOUT,'(/1X,"SENSOR #",I2,". Platform: ",A,
+         WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,
      &                  "Instrument: ",A)')
      &                  JL, CSATID(JL), CINSTRUMENTID(JL)
-         WRITE(NULOUT,'(1X,"Channel",T22,"Ocean",T50,
+         WRITE(*,'(1X,"Channel",T22,"Ocean",T50,
      &                  "Continent")')
-         WRITE(NULOUT,'(T12,"clear",T20,"p.cloudy",T32,
+         WRITE(*,'(T12,"clear",T20,"p.cloudy",T32,
      &                  "cloudy",T42,"clear",T50,"p.cloudy",T62,
      &                  "cloudy")')
          DO JI = 1, NUMCHN(JL)
-            WRITE (NULOUT,'(I5,25F10.2)') ICHN(JI,JL),
+            WRITE (*,'(I5,25F10.2)') ICHN(JI,JL),
      S                ((TOVERRST(ICHN(JI,JL),JJ,JK,JL),
      S                  JJ=1,NCLDST), JK=1,NREGST)
          ENDDO
@@ -328,15 +327,15 @@ C
 C
       IER = FCLOS(ILUTOV)
       IF(IER.NE.0)THEN
-         CALL ABORT3D ( NULOUT,'SUTOVST         ')
+         CALL ABORT3D ('SUTOVST         ')
       END IF
       RETURN
 C
 C*    Read error
 C
-900   WRITE ( NULOUT, '(" SUTOVST: Problem reading ",
+900   WRITE ( *, '(" SUTOVST: Problem reading ",
      S         "file stats_tovs ")' )
-      CALL ABORT3D ( NULOUT,'SUTOVST         ')
+      CALL ABORT3D ('SUTOVST         ')
 C
       RETURN
       END
