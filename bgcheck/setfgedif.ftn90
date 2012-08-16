@@ -183,7 +183,6 @@
                ENDIF
       ENDDO HEADER
       write(*,*) 'end of setfgedif'
-      call flush(6)
 
       RETURN
       END SUBROUTINE SETFGEDIF

@@ -99,9 +99,7 @@ CONTAINS
     endif
 
     if(nLevEns.gt.nLevInc_in) then
-      write(*,*) 'bmatrixEnsemble: ensemble has more levels than increment - not allowed!'
-      call flush(6)
-      call qqexit(1)
+      call abort3d('bmatrixEnsemble: ensemble has more levels than increment - not allowed!')
     endif
 
     if(nLevEns.lt.nLevInc_in) then
@@ -117,7 +115,7 @@ CONTAINS
     allocate(verticalLevel(nkgdimInc),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=1',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setup')
     endif
     do jlev=1,nLevInc
       verticalLevel(          jlev)=jlev ! UU
@@ -131,7 +129,7 @@ CONTAINS
     allocate(verticalLevelEns(nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=2',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setup')
     endif
     do jlev=1,nLevEns
       verticalLevelEns(           jlev)=jlev ! UU
@@ -145,7 +143,7 @@ CONTAINS
     allocate(kIndexInc(nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=3',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setup')
     endif
     do jlev=1,nLevEns
       kIndexInc(          jlev)=topLevIndex-1+           jlev ! UU
@@ -165,9 +163,7 @@ CONTAINS
     if(ntime_in.eq.1.or.ntime_in.eq.5.or.ntime_in.eq.7) then
       ntime_l=ntime_in
     else
-      write(*,*) 'Invalid value for NTIME (choose 1 or 5 or 7)!'
-      call flush(6)
-      call qqexit(1)
+      call abort3d('Invalid value for NTIME (choose 1 or 5 or 7)!')
     endif
 
     if(mpi_myLatBeg.eq.0) then
@@ -180,8 +176,6 @@ CONTAINS
       if(mpi_myLatEnd>nj_l) then
         write(*,*) 'WARNING: latitudes not divisible by MPI numprocs!',mpi_myLatEnd,nj_l
         mpi_myLatEnd=nj_l
-        call flush(6)
-        !call qqexit(1)
         mpi_myLatEnd=nj_l
         latPerPE=mpi_myLatEnd-mpi_myLatBeg+1
       endif
@@ -205,7 +199,7 @@ CONTAINS
     allocate(nip1_l(nLevEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=4',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setup')
     endif
     nip1_l(1:nLevEns)=nip1_in(topLevIndex:nLevInc)
 
@@ -216,7 +210,7 @@ CONTAINS
     allocate(jn_vec(nla_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=5',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setup')
     endif
     do jn=0,ntrunc_l
       do jm=0,jn
@@ -228,7 +222,7 @@ CONTAINS
     allocate(pressureProfileEns(nLevEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=6',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setup')
     endif
     pressureProfileEns(1:nLevEns)=pressureProfile_in(topLevIndex:nLevInc)
     call setupLocalization(hLocalize,vLocalize,pressureProfileEns)
@@ -294,12 +288,12 @@ CONTAINS
     allocate(ensPerturbations(ni_l,nkgdimEns,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
-      call flush(6)
+      call abort3d('aborting in setupEnsemble_openmp')
     endif
     allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=8',ierr
-      call flush(6)
+      call abort3d('aborting in setupEnsemble_openmp')
     endif
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
@@ -349,14 +343,12 @@ CONTAINS
         cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
                   trim(datestr_last) // trim(hourstr_last) // '_006_' // censnumber
         write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
-        call flush(6)
 
 !$OMP CRITICAL
         kulin=0
         ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
         ierr = fstouv(kulin,'RND+OLD')
         write(*,*) 'reading member:',jens
-        call flush(6)
 !$OMP END CRITICAL
 
         do jt=1,ntime_l  ! read all timesteps
@@ -364,9 +356,7 @@ CONTAINS
           clnomvar = 'P0' 
           ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
-            write(*,*) 'SUENS: Problem with P0 ENS'
-            call flush(6)
-            call qqexit(1)
+            call abort3d('SUENS: Problem with P0 ENS')
           endif
           do jj=1,nj_l
             do ji=1,ni_l
@@ -379,11 +369,8 @@ CONTAINS
             ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with TT ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with TT ENS')
             endif
-            call flush(6)
             do jj=1,nj_l
               do ji=1,ni_l
                 ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= gd2d_r4(ji,nj_l+1-jj)
@@ -396,9 +383,7 @@ CONTAINS
             ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with HU ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with HU ENS')
             endif
             do jj=1,nj_l
               do ji=1,ni_l
@@ -412,9 +397,7 @@ CONTAINS
             ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with UU ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with UU ENS')
             endif
             do jj=1,nj_l
               conima=r1sa*gst_getRSQM2(jj,gstID)
@@ -429,9 +412,7 @@ CONTAINS
             ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with VV ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with VV ENS')
             endif
             do jj=1,nj_l
               conima=r1sa*gst_getRSQM2(jj,gstID)
@@ -445,9 +426,7 @@ CONTAINS
           ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
           if(ikey.lt.0)  then
             write(*,*) idateo,cletiket,ip2(jt),ip3,cltypvar,clnomvar
-            write(*,*) 'SUENS: Problem with TG ENS'
-            call flush(6)
-            call qqexit(1)
+            call abort3d('SUENS: Problem with TG ENS')
           else
             do jj=1,nj_l
               do ji=1,ni_l
@@ -462,7 +441,6 @@ CONTAINS
         ierr =  fclos (kulin)
 
         write(*,*) 'done reading member ',jens
-        call flush(6)
 
         ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,jens)=  &
            ensPerturbation1(:,:,mpi_myLatBeg:mpi_myLatEnd,:)
@@ -473,7 +451,6 @@ CONTAINS
     deallocate(ensPerturbation1)
 
     write(*,*) 'finished reading ensemble members...'
-    call flush(6)
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
@@ -508,7 +485,6 @@ CONTAINS
 !$OMP END PARALLEL
     enddo
     write(*,*) 'finished adjusting ensemble members...'
-    call flush(6)
  
     call tmg_stop(48)
 
@@ -564,12 +540,12 @@ CONTAINS
     allocate(ensPerturbations(ni_l,nkgdimEns,mpi_myLatBeg:mpi_myLatEnd,ntime_l,nens),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setupEnsemble')
     endif
     allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=8',ierr
-      call flush(6)
+      call abort3d('aborting in ben_setupEnsemble')
     endif
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
@@ -618,22 +594,18 @@ CONTAINS
         cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
                   trim(datestr_last) // trim(hourstr_last) // '_006_' // censnumber
         write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
-        call flush(6)
 
         kulin=0
         ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
         ierr = fstouv(kulin,'RND+OLD')
         write(*,*) 'reading member:',jens
-        call flush(6)
 
         do jt=1,ntime_l  ! read all timesteps
 
           clnomvar = 'P0' 
           ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
-            write(*,*) 'SUENS: Problem with P0 ENS'
-            call flush(6)
-            call qqexit(1)
+            call abort3d('SUENS: Problem with P0 ENS')
           endif
           do jj=1,nj_l
             do ji=1,ni_l
@@ -646,11 +618,8 @@ CONTAINS
             ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with TT ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with TT ENS')
             endif
-            call flush(6)
             do jj=1,nj_l
               do ji=1,ni_l
                 ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
@@ -663,9 +632,7 @@ CONTAINS
             ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with HU ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with HU ENS')
             endif
             do jj=1,nj_l
               do ji=1,ni_l
@@ -679,9 +646,7 @@ CONTAINS
             ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with UU ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with UU ENS')
             endif
             do jj=1,nj_l
               conima=r1sa*gst_getRSQM2(jj,gstID)
@@ -696,9 +661,7 @@ CONTAINS
             ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with VV ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('SUENS: Problem with VV ENS')
             endif
             do jj=1,nj_l
               conima=r1sa*gst_getRSQM2(jj,gstID)
@@ -712,9 +675,7 @@ CONTAINS
           ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
           if(ikey.lt.0)  then
             write(*,*) idateo,cletiket,ip2(jt),ip3,cltypvar,clnomvar
-            write(*,*) 'SUENS: Problem with TG ENS'
-            call flush(6)
-            call qqexit(1)
+            call abort3d('SUENS: Problem with TG ENS')
           else
             do jj=1,nj_l
               do ji=1,ni_l
@@ -729,7 +690,6 @@ CONTAINS
         ierr =  fclos (kulin)
 
         write(*,*) 'done reading member ',jens
-        call flush(6)
       endif
 
       if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nens) then
@@ -776,7 +736,6 @@ CONTAINS
     deallocate(ensPerturbation1)
 
     write(*,*) 'finished reading ensemble members...'
-    call flush(6)
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
@@ -811,7 +770,6 @@ CONTAINS
 !$OMP END PARALLEL
     enddo
     write(*,*) 'finished adjusting ensemble members...'
-    call flush(6)
  
     call tmg_stop(48)
 
@@ -834,12 +792,12 @@ CONTAINS
     allocate(ensLocalCor(0:ntrunc_l,nLevEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=9',ierr
-      call flush(6)
+      call abort3d('aborting in ben: setupLocalization')
     endif
     allocate(ensLocalVert(nLevEns,nLevEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
-      call flush(6)
+      call abort3d('aborting in ben: setupLocalization')
     endif
 
     ! Determine localization length scale for each vertical level
@@ -853,7 +811,6 @@ CONTAINS
                             hLocalize(2)*( log(pressureProfile(nLevEns))-log(pressureProfile(jk)) ) ) /  &
                           ( log(pressureProfile(nLevEns))-log(pressureProfile(1)) )
         write(*,*) 'bmatrixEnsemble: localization length scale (',jk,') = ',local_length(jk)
-        call flush(6)
       enddo      
     endif
 
@@ -997,22 +954,21 @@ CONTAINS
 
     write(*,*) 'ben_bsqrt: starting'
     write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,mpi_myLatBeg,maxLatEnd,maxLatPerPE,mpi_nprocs,nla_l,nLevInc,nLevEns
-    call flush(6)
 
     allocate(incrementLocal2(ni_l,nkgdimEns,ntime_l,mpi_myLatBeg:maxLatEnd),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=11',ierr
-      call flush(6)
+      call abort3d('aborting in ben_bsqrt')
     endif
     allocate(incrementLocal(ni_l,nkgdimEns,mpi_myLatBeg:maxLatEnd,ntime_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=12',ierr
-      call flush(6)
+      call abort3d('aborting in ben_bsqrt')
     endif
     allocate(incrementMax(ni_l,nkgdimEns,ntime_l,maxLatPerPE*mpi_nprocs),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=13',ierr
-      call flush(6)
+      call abort3d('aborting in ben_bsqrt')
     endif
 
     call tmg_start(38,'comm_gd2')
@@ -1079,9 +1035,7 @@ CONTAINS
           elseif(varnamelist(jvar).eq.'TG  ') then
             ilev1=ngposittg
           else
-            write(*,*) 'ben_bsqrt: No covariances available for variable:',varnamelist(jvar)
-            call flush(6)
-            call qqexit(1)
+            call abort3d('ben_bsqrt: No covariances available for variable:' // varnamelist(jvar))
           endif
           if(vnl_vartypeFromVarname(varNameList(jvar)).eq.'SF') then
             ilev2=ilev1
@@ -1110,7 +1064,6 @@ CONTAINS
     deallocate(incrementMax)
 
     write(*,*) 'ben_bsqrt: done'
-    call flush(6)
 
     return
   END SUBROUTINE BEN_BSqrt
@@ -1129,7 +1082,6 @@ CONTAINS
     integer   :: memberIndex,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
 
     write(*,*) 'ben_bsqrtad: starting'
-    call flush(6)
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -1144,7 +1096,7 @@ CONTAINS
     allocate(incrementLocal(ni_l,nkgdimEns,mpi_myLatBeg:maxLatEnd,ntime_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=14',ierr
-      call flush(6)
+      call abort3d('aborting in ben_bsqrtad')
     endif
 
 !$OMP PARALLEL
@@ -1166,9 +1118,7 @@ CONTAINS
           elseif(varnamelist(jvar).eq.'TG  ') then
             ilev1=ngposittg
           else
-            write(*,*) 'ben_bsqrtad: No covariances available for variable:',varnamelist(jvar)
-            call flush(6)
-            call qqexit(1)
+            call abort3d('ben_bsqrtad: No covariances available for variable:' // varnamelist(jvar))
           endif
           if(vnl_vartypeFromVarname(varNameList(jvar)).eq.'SF') then
             ilev2=ilev1
@@ -1206,7 +1156,6 @@ CONTAINS
     deallocate(incrementLocal)
 
     write(*,*) 'ben_bsqrtad: done'
-    call flush(6)
 
     return
   END SUBROUTINE BEN_BSqrtAd
@@ -1443,8 +1392,7 @@ CONTAINS
 
     if(jdim.gt.cvDim_l) then
       write(*,*) 'BEN: CAIN: jdim > cvDim! ',jdim,memberIndex,cvDimPerMember_l,cvDim_l
-      call flush(6)
-      call qqexit(1)
+      call abort3d('aborted in cain')
     endif
 
     call tmg_stop(45)
@@ -1478,8 +1426,7 @@ CONTAINS
 
     if(jdim.gt.cvDim_l) then
       write(*,*) 'BEN: CAINAD: jdim > cvDim! ',jdim,memberIndex,cvDimPerMember_l,cvDim_l
-      call flush(6)
-      call qqexit(1)
+      call abort3d('aborted in cainad')
     endif
 
     return

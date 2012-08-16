@@ -62,9 +62,7 @@ MODULE mpi
  ! OPEN(UNIT=nmlist,FILE='./ptopo_nml',STATUS='OLD',ACTION='READ',IOSTAT=ierr)
  ierr=FNOM(unnmlist,fnptopo,'FTN+SEQ',0)
  if(ierr /= 0) then
-   write(*,*) 'Can not Open file ptopo_nml! Abort!'
-   call flush(6)
-   call qqexit(1)
+   call abort3d('Cannot open file ptopo_nml! Abort!')
  endif
  READ(unnmlist,NML=ptopo)
  CLOSE(unnmlist)

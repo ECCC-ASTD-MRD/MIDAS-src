@@ -60,9 +60,7 @@ module verticalCoord_mod
     stat = stat + nl_stat
 
     if(stat .ne. 0 ) then
-       write(*,*)' vco: problem with allocate in tf_vco '
-       call flush(6)
-       call qqexit(1)
+       call abort3d(' vco: problem with allocate in tf_vco ')
     endif
 
   end subroutine vco_allocate
@@ -95,14 +93,10 @@ module verticalCoord_mod
         write(*,*) ' opened as unit file ',nultemplate
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
-        write(*,*) 'vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!'
-        call flush(6)
-        call qqexit(1)
+        call abort3d('vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!')
       endif
     else
-      write(*,*) 'vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!'
-      call flush(6)
-      call qqexit(1)
+      call abort3d('vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!')
     endif
 
 

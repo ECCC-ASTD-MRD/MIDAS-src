@@ -117,9 +117,7 @@ c
 C
       allocate(gdmean(gaus_ni,nkgdim,gaus_nj),STAT=istatus)
       if(istatus .ne. 0) then
-         write(*,*) 'enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN'
-         call flush(6)
-         call qqexit(1)
+         call abort3d('enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN')
       endif
          
       call bmat_setup(vco_anl,nstamp)
@@ -191,9 +189,7 @@ C
           write(*,*)' fstouv nulfile= ',nulfile
           ierr  =  fstouv(nulfile,'RND')
         else
-          write(*,*)'ENKF_PTURB:problem with file= ',clfiname
-          call flush(6)
-          call qqexit(1)
+          call abort3d('ENKF_PTURB:problem with file= ' // clfiname)
         end if
 c
 !$OMP PARALLEL
@@ -219,9 +215,7 @@ c
 
       deallocate(gdmean,STAT=istatus)
       if(istatus .ne. 0) then
-         write(*,*) 'enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN'
-         call flush(6)
-         call qqexit(1)
+         call abort3d('enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN')
       endif
 
       call gsv_deallocate(statevector)

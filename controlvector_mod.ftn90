@@ -39,7 +39,7 @@ CONTAINS
     allocate(cvm_vazx(cvm_nvadim),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'controlVector: Problem allocating memory! id=1',ierr
-      call flush(6)
+      call abort3d('aborting in cvm_setup')
     endif
 
     cvm_vazx(:)=0.0d0
@@ -63,7 +63,6 @@ CONTAINS
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
     else
       write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
-      call flush(6)
     endif
 
   END FUNCTION CVM_getSubVector

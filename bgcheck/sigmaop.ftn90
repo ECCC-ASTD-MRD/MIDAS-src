@@ -125,7 +125,6 @@
         END DO
 
       write(*,*) 'before bilin'
-      call flush(6)
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !???      lcolumn%es(:,:)=lcolumn%hu(:,:)
       do jobs= 1, col_getNumCol(lcolumn)
@@ -150,16 +149,13 @@
 !C     -----------------------------------------------------
 !C
          write(*,*) 'before setfgedif'
-         call flush(6)
          CALL SETFGEDIF('RO',lcolumng,lobsSpaceData)
          write(*,*) 'after setfgedif'
-         call flush(6)
 !C
 !C     DO TEMPERATURE FIRST-GUESS ERROR
 !C     ---------------------------------
 !C
          write(*,*) 'before reading TT'
-         call flush(6)
       CLNOMVAR = 'TT'
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'TT')
@@ -176,13 +172,10 @@
       END DO
 
          write(*,*) 'before bilin'
-         call flush(6)
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
          write(*,*) 'before setfgett'
-         call flush(6)
       CALL SETFGETT(lcolumn,lcolumng,lobsSpaceData)
          write(*,*) 'after setfgett'
-         call flush(6)
 !C
 !C     RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
 !C     ---------------------------------------------

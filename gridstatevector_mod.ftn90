@@ -91,9 +91,7 @@ MODULE gridStateVector_mod
       elseif(varType.eq.'SF') then
         nlev = 1
       else
-        write(*,*) 'gsv_getNumLev: Unknown variable type! ',varType
-        call flush(6)
-        call qqexit(1)
+        call abort3d('gsv_getNumLev: Unknown variable type! ' // varType)
       endif
     else
       nlev = statevector%nlev
@@ -148,9 +146,7 @@ MODULE gridStateVector_mod
 !     Check value for ANLTIME_BIN
 !
       if (ANLTIME_BIN .ne. 'MIDDLE' .and. ANLTIME_BIN .ne. 'FIRST' .and.  ANLTIME_BIN .ne. 'LAST') then
-         write(*,*) 'gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist. Aborting!'
-         call flush(6)
-         call qqexit(1)
+         call abort3d('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist. Aborting!')
       endif
 
       RETURN
@@ -202,9 +198,7 @@ MODULE gridStateVector_mod
           statevector%nlev_M = statevector%vco%nlev_M
           statevector%nlev_T = statevector%vco%nlev_T
         else
-          write(*,*) 'statevector_allocate: VerticalCoord has not been initialized!'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('statevector_allocate: VerticalCoord has not been initialized!')
         endif
     else
         statevector%nlev = max(nlev_M,nlev_T)
@@ -261,7 +255,7 @@ MODULE gridStateVector_mod
     allocate(statevector%gd(ni,statevector%nk,nj,numStep),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
-      call flush(6)
+      call abort3d('aborting in gsv_allocate')
     endif
     statevector%allocated=.true.
 
@@ -275,8 +269,7 @@ MODULE gridStateVector_mod
     type(struct_gsv) :: statevector
 
     if(.not.statevector%allocated) then
-      write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call qqexit(1)
+      call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
     statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%numStep)=0.0d0
@@ -290,8 +283,7 @@ MODULE gridStateVector_mod
     integer          :: jstep,jlon,jlev,jlat
 
     if(.not.statevector%allocated) then
-      write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call qqexit(1)
+      call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
     if(statevector%numStep.eq.1) return
@@ -322,8 +314,7 @@ MODULE gridStateVector_mod
     real(8),dimension(statevector%ni,statevector%nk,statevector%nj) :: gd3d_tmp
 
     if(.not.statevector%allocated) then
-      write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call qqexit(1)
+      call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
     if(statevector%numStep.eq.1) return
@@ -371,8 +362,7 @@ MODULE gridStateVector_mod
     integer        :: ierr
 
     if(.not.statevector%allocated) then
-      write(*,*) 'gridStateVector not yet allocated! Aborting.'
-      call qqexit(1)
+      call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
     statevector%allocated=.false.
@@ -403,9 +393,7 @@ MODULE gridStateVector_mod
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
         field => statevector%gd(:,ilev1:ilev2,:,:)
       else
-        write(*,*) 'gsv_getField: Unknown variable name! ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('gsv_getField: Unknown variable name! ' // varName)
       endif
     else
       field => statevector%gd(:,:,:,:)
@@ -427,9 +415,7 @@ MODULE gridStateVector_mod
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
         field3D => statevector%gd3d(:,ilev1:ilev2,:)
       else
-        write(*,*) 'gsv_getField: Unknown variable name! ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('gsv_getField: Unknown variable name! ' // varName)
       endif
     else
       field3D => statevector%gd3d(:,:,:)
@@ -450,16 +436,13 @@ MODULE gridStateVector_mod
           dateStamp=statevector%dateStampList(step)
         else
           write(*,*) 'gsv_getDateStamp: requested step is out of range! Step,numStep=',step,statevector%numStep
-          call flush(6)
-          call qqexit(1)
+          call abort3d('aborting in gsv_getDateStamp')
         endif    
       else
         dateStamp=statevector%dateStamp3D
       endif
     else
-      write(*,*) 'gsv_getDateStamp: dateStampList was not created during allocation!'
-      call flush(6)
-      call qqexit(1)
+      call abort3d('gsv_getDateStamp: dateStampList was not created during allocation!')
     endif
 
   end function gsv_getDateStamp

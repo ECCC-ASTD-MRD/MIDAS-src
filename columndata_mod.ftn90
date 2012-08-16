@@ -144,9 +144,7 @@ module columnData_mod
       endif
 
       if(.not.column%vco%initialized) then
-        write(*,*) 'col_allocate: VerticalCoord has not been initialized!'
-        call flush(6)
-        call qqexit(1)
+        call abort3d('col_allocate: VerticalCoord has not been initialized!')
       endif
 
       allocate(column%varOffset(vnl_numvarmax))
@@ -320,9 +318,7 @@ module columnData_mod
 
       ! Unknown variable name
       else
-        write(*,*) 'col_fillmvo: Unknown variable name: ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('col_fillmvo: Unknown variable name: ' // varName)
       endif
 
     end select
@@ -371,7 +367,6 @@ module columnData_mod
 
       print*,'Entering col_expandToMpiGlobal:',  &
              column_local%numCol,column_global%numCol  
-      call flush(6)
 
       call col_setVco(column_global,col_getVco(column_local))
       call col_allocate(column_global,column_global%numCol,mpi_local=.false.)
@@ -393,7 +388,6 @@ module columnData_mod
       enddo
 
       write(*,*) 'starting allreduce'
-      call flush(6)
 
       nsize=size(column_global%all)
       call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
@@ -422,7 +416,6 @@ module columnData_mod
       deallocate(mountain)
 
       write(*,*) 'Leaving col_expandToMpiGlobal' 
-      call flush(6)
       return
 
     END SUBROUTINE col_expandToMpiGlobal
@@ -491,9 +484,7 @@ module columnData_mod
     elseif (varType .eq. 'SF' ) then
       pressure = column%rppobs_t(col_getNumLev(column,'TH'),headerIndex)
     else
-      write(*,*) 'col_getPressure: Unknown variable type: ',varType
-      call flush(6)
-      call qqexit(1)
+      call abort3d('col_getPressure: Unknown variable type: ' // varType)
     endif
 
   end function col_getPressure
@@ -599,9 +590,7 @@ module columnData_mod
         ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
         onecolumn => column%all(ilev1:ilev2,headerIndex)
       else
-        write(*,*) 'col_getColumn: Unknown variable name! ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('col_getColumn: Unknown variable name! ' // varName)
       endif
     else
       onecolumn => column%all(:,headerIndex)
@@ -641,9 +630,7 @@ module columnData_mod
       elseif(varType.eq.'SF') then
         nlev = 1
       else
-        write(*,*) 'col_getNumLev: Unknown variable type! ',varType
-        call flush(6)
-        call qqexit(1)
+        call abort3d('col_getNumLev: Unknown variable type! ' // varType)
       endif
     else
       nlev = max(column%vco%nlev_m,column%vco%nlev_t)

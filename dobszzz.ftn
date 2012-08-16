@@ -86,8 +86,7 @@ C
             ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
             ZWT  = 1. - ZWB
             if(ivnm.eq.bufr_nees) then
-               write(*,*) 'DOBSZZZ: CANNOT ASSIMILATE ES!!!'
-               call qqexit(1)
+               call abort3d('DOBSZZZ: CANNOT ASSIMILATE ES!!!')
             endif
 C
 C     CONTRIBUTION TO Jo

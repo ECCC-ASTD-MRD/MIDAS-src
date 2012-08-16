@@ -73,8 +73,7 @@ c
      &                  ip1_list=statevectorg%vco%ip1_M,
      &                  levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)
       if(status.ne.VGD_OK)then
-        write(*,*) 'ERROR with vgd_levels for desired levels '
-        call qqexit(1)
+        call abort3d('ERROR with vgd_levels for desired levels ')
       endif
       do jlat = 1, statevectorg%nj
         zpress = zpres3d_ptr(:,jlat,:)

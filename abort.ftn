@@ -14,40 +14,28 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE ABORT3D(CDMESSAGE)
-#if defined (DOC) 
-*
-***s/r ABORT  - Abort a job on error
-*
-*
-*Author  : P. Gauthier *ARMA/AES  June 9, 1992
-*Revision:
-*     . P. Gauthier *ARMA/AES  January 29, 1996 
-*     . P. Koclas   CMC/CMSV   January  1997 
-*         -add call to abort
-*     . S. Pellerin ARMA/SMC   October 2000
-*         - replace call to abort for call to exit(1)
-*    -------------------
-**    Purpose:
-*     To stop a job when an error occurred
-*
-*Arguments
-*     i     CDMESSAGE: message to be printed
-#endif
-      IMPLICIT NONE
-      CHARACTER(len=*) :: CDMESSAGE
-C
-      WRITE(*,9000)CDMESSAGE
- 9000 FORMAT(//,4X,"ABORT3DVAR:-------",
-     S     /,8X,"Job stopped in ",A)
-C
-C     1. Verification of dynamic memory allocation for global arrays
-C     .  and close the IO/units
-C
- 100  CONTINUE
-C
-      CALL qqexit(1)
-C
-      STOP
-      END
+      subroutine abort3d(cdmessage)
+!
+!**s/r ABORT3D  - Abort a job on error
+!
+!Author  : P. Gauthier *ARMA/AES  June 9, 1992
+!    -------------------
+!*    Purpose:
+!     To stop a job when an error occurred
+!
+!Arguments
+!     i     CDMESSAGE: message to be printed
+!
+      implicit none
+      character(len=*) :: cdmessage
+
+      write(*,9000)cdmessage
+ 9000 format(//,4X,"ABORT3D:-------",/,8X,"Job stopped in ",A)
+
+      call flush(6)
+
+      call qqexit(1)
+
+      stop
+      end
 

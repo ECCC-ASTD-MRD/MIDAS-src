@@ -100,7 +100,7 @@ CONTAINS
     allocate(dg_vbar(nvadim_in),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-      call flush(6)
+      call abort3d('aborting in min_setup')
     endif
     dg_vbar(:)=0.0d0
 
@@ -182,20 +182,20 @@ CONTAINS
       allocate(vazg(cvm_nvadim),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call flush(6)
+        call abort3d('aborting in min_minvar')
       endif
       vazg(:)=0.0d0
 ! no conjgrad      allocate(vatr1(nmtra),stat=ierr)
 !      if(ierr.ne.0) then
 !        write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-!        call flush(6)
+!        call abort3d('aborting in min_minvar')
 !      endif
 !      vatr1(:)=0.0d0
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
         write(*,*) 'minimization: nmtra=',nmtra
-        call flush(6)
+        call abort3d('aborting in min_minvar')
       endif
       vatra(:)=0.0d0
 
@@ -239,7 +239,7 @@ CONTAINS
       allocate(dataptr_int(nsize+1),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call flush(6)
+        call abort3d('aborting in min_minvar')
       endif
 
       dataptr_int(1)=nsize   ! store the size of converted pointer in the first element
@@ -602,7 +602,10 @@ CONTAINS
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        nsim3d = nsim3d + 1
 
-       IF(mpi_myid == 0) write(*,*) 'Entering simvar for simulation ',nsim3d
+       if(mpi_myid == 0) then
+         write(*,*) 'Entering simvar for simulation ',nsim3d
+         call flush(6)
+       endif
 
        dl_v(:) = da_v(:) + dg_vbar(:)      !dg_vbar = sum(v) of previous outer-loops
 

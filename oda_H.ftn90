@@ -612,7 +612,7 @@ end subroutine oda_Hto
 
           if(ITYP.eq.BUFR_NEES) then
             write(*,*) 'ABORTING IN ODA_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(lobsSpaceData,index_header),index_header,index_body
-            call qqexit(1)
+            call abort3d('Aborting in oda_H')
           endif
           call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,  &
               ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER) +  &

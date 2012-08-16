@@ -198,7 +198,6 @@ C
         ierr=fclos(ninmpg(jfile))  
       enddo
       write(*,*) 'Trial files have been closed'
-      call flush(6)
 !
       RETURN
 !-----------------------------------------------------------------------------------------------

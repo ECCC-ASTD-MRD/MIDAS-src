@@ -39,16 +39,13 @@ contains
       write(*,*) 'Setting up the modular HI covariances...'
       call bhi_setup(gaus_NI,gaus_NJ,vco_anl%nlev_M,pressureProfile,cvdimhi)
       write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
-      call flush(6)
 
       write(*,*) 'Setting up the ensemble covariances...'
       call ben_setup(pressureProfile,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
       write(*,*) 'Dimension of ENS control vector returned:',cvdimens
-      call flush(6)
 
       call cvm_setup(cvdimhi,cvdimens)
       write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
-      call flush(6)
 
       deallocate(pressureProfile)
 

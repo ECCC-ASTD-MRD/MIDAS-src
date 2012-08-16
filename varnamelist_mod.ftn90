@@ -34,9 +34,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        write(*,*) 'vnl_varListIndex3D: Unknown variable name! ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('vnl_varListIndex3D: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex3d
@@ -56,9 +54,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        write(*,*) 'vnl_varListIndex2D: Unknown variable name! ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('vnl_varListIndex2D: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex2d
@@ -78,9 +74,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        write(*,*) 'vnl_varListIndex: Unknown variable name! ',varName
-        call flush(6)
-        call qqexit(1)
+        call abort3d('vnl_varListIndex: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex
@@ -134,18 +128,14 @@ module varNameList_mod
               varname='SO2'
            case default
               write(*,*) 'vnl_varnameFromVarnum: Unknown TR variable number! ',varTrNumber
-              call flush(6)
-              call qqexit(1)
+              call abort3d('aborting in vnl_varnameFromVarnum')
            end select
         else
-           write(*,*) 'vnl_varnameFromVarnum: Missing TR variable number '
-           call flush(6)
-           call qqexit(1)
+           call abort3d('vnl_varnameFromVarnum: Missing TR variable number ')
         endif 
       case default
         write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-        call flush(6)
-        call qqexit(1)
+        call abort3d('aborting in vnl_varnameFromVarnum')
       end select
 
     end function vnl_varnameFromVarnum
