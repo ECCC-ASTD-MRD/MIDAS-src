@@ -493,100 +493,190 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !*Author  : R. Sarrazin *CMC/AES  February 2000
 !*
 !**    Purpose:
-!*      Refuse elements which are too close to the surface.
+!*      Refuse elements which are too close to the model surface and
+!*      real topography..
+!*
+!*          S. Laroche, Feb 2011
+!*              -update for AI familly which includes now
+!*               radiosonde data (ityp = 132)
 !*
       INTEGER JPINEL
       PARAMETER(JPINEL=4)
       INTEGER J,JDATA
-      LOGICAL LLPRINT
+      LOGICAL LLPRINT,STATION_ABOVE
       REAL*8 ZVAL,ZDIFF
+      REAL*8 ZLEV,ZPB,ZPT,ZDELP,ZDIFALT
       INTEGER ITYP
       INTEGER ILEM
-      INTEGER IKOUNTREJ(JPINEL),IKOUNTT
+      INTEGER IKOUNTREJ(JPINEL),REJAI(JPINEL),REJUA(JPINEL),REJUA_ABOVE(JPINEL),IKOUNTT
       INTEGER ILISTEL(JPINEL)
       DATA    ILISTEL/11003,11004,12001,12192/
-      REAL*8    RLISTCRIT
-      character(len=2), dimension(2) :: list_family
-      integer :: index_family
-
-      DATA    RLISTCRIT/-50./
+      REAL*8  RLISTCRIT_SW,RLISTCRIT_AI,RLISTCRIT_UA1,RLISTCRIT_UA2
 
       WRITE(*,* ) ' '
       WRITE(*,* ) ' SUBROUTINE SOBSAISW '
       WRITE(*,* ) ' '
       WRITE(*,* ) '****************************************************'
       WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
-      WRITE(*,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
+      WRITE(*,223)'REJECTION BOUNDARY(HPA)  ,  AI => 50hPa, SW => 50hPa'
       WRITE(*,* ) '****************************************************'
       WRITE(*,* ) ' '
       LLPRINT = .FALSE.
+
+      STATION_ABOVE = .TRUE.
+
+      RLISTCRIT_SW  = -50.
+      RLISTCRIT_AI  = -50.
+      RLISTCRIT_UA1 = -50.
+      RLISTCRIT_UA2 = -5.
 !C
 !C     SET COUNTERS TO ZERO
 !C
       DO J=1,JPINEL
          IKOUNTREJ(J)=0
+         REJUA(J)       = 0
+         REJUA_ABOVE(J) = 0
+         REJAI(J)       = 0
       ENDDO
-      IKOUNTT=0
+
       !
-      ! Loop over the families of interest
+      ! Process observations for each family of interest
       !
-      list_family(1) = 'AI'
-      list_family(2) = 'SW'
-      FAMILY: do index_family = 1,2
-         WRITE(*,*)' FAMILY = ',list_family(index_family)
-         !
-         ! loop over all body indices of each family
-         !
-         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
+
+      ! loop over all body indices of SW family
+      call obs_set_current_body_list(lobsSpaceData,'SW')
+      BODY_SW: do 
+         index_body = obs_getBodyIndex(lobsSpaceData)
+         if (index_body < 0) exit BODY_SW
+!C
+!C       REJECT DATA TOO CLOSE TO THE MODEL OROGRAPHY ,PUT TO
+!C       MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
+!C
+         ZVAL=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+         INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+         ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.
+         IF ( ZDIFF .GT. RLISTCRIT_SW ) THEN
+            ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+            DO J=1,JPINEL
+               ILEM=ILISTEL(J)
+               IF ( ITYP .EQ. ILEM ) THEN
+                  IF(LLPRINT) THEN
+                     WRITE(*,224) 'Reject OBS ',index_header,ITYP,ZVAL,ZDIFF
+                  ENDIF
+                  call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
+                  IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                  call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
+                    ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),18 ))
+               ENDIF
+            ENDDO
+         ENDIF
+      ENDDO BODY_SW
+
+      WRITE(*,*) ' '
+      WRITE(*,*) '*****************************************************************'
+      WRITE(*,*) 'FAMILY = SW'
+      WRITE(*,222)'ELEMENTS        ',(ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'REJECTED        ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(*,*)
+      WRITE(*,*) '*****************************************************************'
+      WRITE(*,*) ' '
+
+      ! loop over all body indices of AI family
+      call obs_set_current_body_list(lobsSpaceData,'AI')
+      BODY_AI: do 
+         index_body = obs_getBodyIndex(lobsSpaceData)
+         if (index_body < 0) exit BODY_AI
+         INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
+
+         if (obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER).ne.132) then
 !C
 !C          REJECT DATA TOO CLOSE TO THE MODEL OROGRAPHY ,PUT TO
 !C          MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
 !C
-            IKOUNTT=IKOUNTT+1
             ZVAL=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
             ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.
-            IF ( ZDIFF .GT. RLISTCRIT ) THEN
+            IF ( ZDIFF .GT. RLISTCRIT_SW ) THEN
                ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
                DO J=1,JPINEL
                   ILEM=ILISTEL(J)
                   IF ( ITYP .EQ. ILEM ) THEN
                      IF(LLPRINT) THEN
-                        WRITE(*,224) 'Reject OBS ',index_header,ITYP &
-                          ,obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY),ZDIFF
+                        WRITE(*,224) 'Reject OBS ',index_header,ITYP,ZVAL,ZDIFF
                      ENDIF
                      call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
                      IKOUNTREJ(J)=IKOUNTREJ(J)+1
                      call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
-                           ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),&
-                                 18 ))
+                       ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),18 ))
+                     REJAI(J) = REJAI(J) + 1
                   ENDIF
                ENDDO
             ENDIF
-         ENDDO BODY
-      ENDDO FAMILY
 
-      WRITE(*,* ) ' '
-      WRITE(*,* ) &
-           '*****************************************************************'
-      WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-      WRITE(*,* ) &
-           '*****************************************************************'
-      WRITE(*,* ) ' '
+         ELSE  ! codtyp=132 (NEW FORMAT FOR RAOBS)
+
+            ZDIFALT = obs_elem_r(lobsSpaceData,'ALT ',INDEX_HEADER) - &
+                      col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
+            ITYP=obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+            DO J=1,JPINEL
+
+               ILEM=ILISTEL(J)
+               IF( ITYP .EQ. ILEM ) THEN
+
+                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+                  ZPT  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') + RLISTCRIT_UA1*100.
+
+                  IF(ZDIFALT .GT. 0.0) THEN
+                    ZDELP = -ZDIFALT * 100. / 8.0
+                    ZPT   = ZPT + ZDELP
+                  ENDIF
+
+                  IF(ABS(ZDIFALT) .LT. 50.0) THEN
+                    ZPT  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') + RLISTCRIT_UA2*100.
+                  ENDIF
+
+                  IF(ZLEV .GT. ZPT ) THEN
+
+                     call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,  &
+                       ibset(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),18 ))
+                     call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY,0)
+                     IKOUNTREJ(J) = IKOUNTREJ(J) + 1
+
+                     IF( ZDIFALT .GT. 0.0) THEN
+                       REJUA_ABOVE(J) = REJUA_ABOVE(J) + 1
+                     ELSE
+                       REJUA(J) = REJUA(J) + 1
+                     ENDIF
+
+                  ENDIF
+
+               ENDIF
+
+            ENDDO ! J
+
+         ENDIF ! codtyp != 132
+      ENDDO BODY_AI
+
+      WRITE(*,*) ' '
+      WRITE(*,*) '*****************************************************************'
+      WRITE(*,*) 'FAMILY = AI'
+      WRITE(*,222)'ELEMENTS        ',(ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'REJECTED        ',(IKOUNTREJ(J),J=1,JPINEL)
+      WRITE(*,222)'REJEC_UA_BELOW  ',(REJUA(J),J=1,JPINEL)
+      WRITE(*,222)'REJEC_UA_ABOVE  ',(REJUA_ABOVE(J),J=1,JPINEL)
+      WRITE(*,222)'REJEC_AI        ',(REJAI(J),J=1,JPINEL)
+      WRITE(*,*)
+      WRITE(*,*) '*****************************************************************'
+      WRITE(*,*) ' '
+
   222 FORMAT(2x,a29,5(2x,i5))
-  223 FORMAT(2x,a29,5(2x,f5.0))
+  223 FORMAT(2x,a80)
   224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
 
       IKOUNTT=0
       DO JDATA=1,obs_numbody(lobsSpaceData)
          IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
       ENDDO
-      WRITE(*  &
-           ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
+      WRITE(*,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
       WRITE(*,* ) ' '
 
       RETURN

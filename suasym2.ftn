@@ -182,7 +182,8 @@ C
      2              ((1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM))*
      3                                (2.d0*ZDUV)*(2.d0*ZDUV)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
-     1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
+     1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142) .OR.
+     1                (IDBURP .EQ. 132) )
      2             call obs_set_r(lobsSpaceData,'POB ',JDATA,
      +                    (1.d0 - (1.d0-ZAUVRA)*(1.d0-ZAUVRA))
      3                    *(2.d0*MPC_PI_R8)/((1.d0-ZAUVRA)*(1.d0-ZAUVRA)*
@@ -200,7 +201,8 @@ C
                   call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZATT*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
-     1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142))
+     1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142) .OR.
+     1                (IDBURP .EQ. 132) )
      2              call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZATTRA*
      3                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTRA)*(2.d0*ZDTT)))
                ELSEIF (ITYP .EQ. BUFR_NETS) THEN

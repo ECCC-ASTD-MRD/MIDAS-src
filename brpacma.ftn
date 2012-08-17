@@ -445,6 +445,10 @@ C
                  endif
 
                  if ( ibknat .eq. 4 .and. cdtype .eq. 'UA')nvcordtyp=2
+                 if ( idburp .eq. 132) then
+                    nvcordtyp=2  ! ADDED FOR NEW RAOBS
+                    LLSURF = .FALSE.
+                 endif
 
                  if  ( cdtype == 'SF' .OR. cdtype == 'SC'
      &                 .OR. LLSURF ) then
@@ -498,6 +502,10 @@ C
 
                       if ( ibknat .eq. 4 .and. cdtype .eq. 'UA')
      +                    nvcordtyp=2
+                      if ( idburp .eq. 132 ) then
+                          nvcordtyp=2           ! ADDED FOR NEW RAOBS
+                          LLSURF = .FALSE.
+                      endif
 
                       INELE =ITBL(2,JK)
                       INELE =ilistnele(jk)
@@ -838,7 +846,11 @@ c               ENDIF
                 call obs_set_r(lobsSpaceData,'LAT ',NUMHEADER, (ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8)
                 call obs_set_r(lobsSpaceData,'ALT ',NUMHEADER, (REAL(IALT,8)-400))
                 call obs_set_i(lobsSpaceData,'NLV ',NUMHEADER, INBON)
-                call obs_setFamily(lobsSpaceData,cdtype,headerIndex=numheader)
+                if(idburp .eq. 132) then
+                  call obs_setFamily(lobsSpaceData,'UA'  ,headerIndex=numheader)
+                else
+                  call obs_setFamily(lobsSpaceData,cdtype,headerIndex=numheader)
+                endif
 *
                 IF ( NUMHEADER .EQ. 1) THEN
                    call obs_set_i(lobsSpaceData,'RLN ',1,1)

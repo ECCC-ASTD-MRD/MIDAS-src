@@ -33,6 +33,7 @@
       use bufr
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
+      logical :: usenewerr
 C
 C ---------------------------------
 C Previous contents of comstato.cdk:
@@ -72,6 +73,10 @@ C 4.  AIREP : ASDAR : SATOB
 C     ---------------------
       REAL*8 XSTDEV(5,4)
       REAL*8 XSTDEVLV(10,2)
+C
+C     For new error file
+C
+      REAL*8 XSTDALL(20,11)
 C
 C 5.  SURFACE
 C     ---------
@@ -148,8 +153,9 @@ C
       INTEGER ILYR,ILEMU,ILEMV,ILEMGZ,ILEMTT,ILEMES
       INTEGER ILEMUS,ILEMVS,ILEMTS,ILEMESS,ILEMPS,ILEMPN
       REAL*8 ZLYR, ZLEV, ZCONGZ
-      INTEGER :: nulstat
+      INTEGER :: nulstat,nulstat2
       LOGICAL :: isExist_L
+      character*128 ligne
 C
 C     OPEN THE FILE WITH THE STATISTICS
 C
@@ -162,8 +168,32 @@ C
           write(*,*) ' opened as unit file ',nulstat
           ierr =  fstouv(nulstat,'RND+OLD')
         ELSE
-          CALL ABORT3D('READCOVO:NO OBSERVATION STAT FILE!!')
+          CALL ABORT3D('READCOVO:COULD NOT OPEN FILE obscov!!')
         ENDIF
+      ELSE
+          CALL ABORT3D('READCOVO:NO OBSERVATION STAT FILE!!')
+      ENDIF
+C
+C     OPEN THE NEW FILE WITH STATISTICS
+C
+      INQUIRE(FILE='./obserr',EXIST=isExist_L)
+      IF ( isExist_L )then
+        NULSTAT2=0
+        IERR=FNOM(NULSTAT2,'./obserr','SEQ',0)
+        IF ( IERR .EQ. 0 ) THEN
+          write(*,*) 'READCOVO: File =  ./obserr'
+          write(*,*) ' opened as unit file ',nulstat2
+          open(unit=nulstat2, file='./obserr', status='OLD')
+          USENEWERR=.true.
+        ELSE
+          CALL ABORT3D('SUCOVO:COULD NOT OPEN FILE obserr!!')
+        ENDIF
+      ELSE
+        USENEWERR=.false.
+        WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+        WRITE(*,*) 'READCOVO: NO NEW OBSERVATION STAT FILE!!'
+        WRITE(*,*) 'READCOVO: USING OLD STAT FILE ONLY!!'
+        WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
       ENDIF
 C
 C     CONVERSION FACTORS:
@@ -393,6 +423,23 @@ C
       endif
 C     ------------------------------------------------------------
 C
+C Read the new obserr file
+C
+      if(usenewerr) then
+        write(*, '(A)') ' '
+        read(nulstat2, '(A)') ligne
+        write(*, '(A)') ligne
+        read(nulstat2, '(A)') ligne
+        write(*, '(A)') ligne
+        read(nulstat2, '(A)') ligne
+        write(*, '(A)') ligne
+
+        do jlev = 1, 19
+          read(nulstat2, * ) (xstdall(jlev,jelm), jelm=1,11)
+          write(*, '(f6.0,10f6.1)' )  (xstdall(jlev,jelm), jelm=1,11)
+        enddo
+        write(*, '(A)') ' '
+      endif
 C
 C     -------------------------------------
 C     FILTER AND FILL CORRELATION MATRICES
@@ -662,6 +709,10 @@ C
 
       IERR=FSTFRM(NULSTAT)  
       IERR=FCLOS(NULSTAT)  
+      IF(USENEWERR) THEN
+        CLOSE(UNIT=NULSTAT2)
+        IERR=FCLOS(NULSTAT2)    
+      ENDIF
 C
  1244 FORMAT( 7(1x,f5.2))
  1245 FORMAT(16(1x,f5.2))
@@ -698,13 +749,14 @@ C
       INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
       INTEGER ILAT1,ILAT2
       INTEGER ILANSEA,ISRCHEQ,INDXREG,INDXCLD,INDXM
-      INTEGER INDXSAT,ICHN,ISATNO
+      INTEGER INDXSAT,ISATNO
       INTEGER ICHN,IPLATF,INSTR,IPLATFORM,INSTRUM
       REAL*8 DELTAP, DELTAPMIN
       REAL*8 ZLAT, ZLON, ZFACTOR, H, NAPP, NERR
       REAL*8 ZLEV,ZLVL,ZCONGZ,ZVAL,zpb,zpt,zwb,zwt,zcof1,zcof2
       logical llinterp, LLBAD
       CHARACTER(len=2) :: SENSORTYPE,CFAM
+      integer ielem
 C
 C     FOR GB-GPS OBSERVATIONS
 C     ==========================================================================
@@ -800,6 +852,38 @@ C
                     call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE
 C
+C New code...
+C
+                    IF(USENEWERR) THEN
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                      ielem=4
+                    else if (ITYP .EQ. BUFR_NETT) then
+                      ielem=2
+                    else if (ITYP .EQ. BUFR_NEES) then
+                      ielem=3
+                    else if (ITYP .EQ. BUFR_NEGZ) then
+                      ielem=5
+                    endif
+
+                    if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(1,1) ) then
+                      call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSTDALL(1,ielem))
+                    else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= XSTDALL(19,1) ) then
+                      call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSTDALL(19,ielem))
+                    else
+                      do jn = 1,18
+                        if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(jn+1,1) ) exit
+                      end do
+
+                      zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/XSTDALL(JN,1)) / log(XSTDALL(JN+1,1)/XSTDALL(JN,1))
+                      zwt = 1.0D0 - zwb
+
+                      call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,
+     +                               zwt*XSTDALL(JN,ielem) + zwb*XSTDALL(JN+1,ielem))
+                    endif
+
+                    ELSE
+C
+C Old code...
 C                  *****************************************************************
 C                  INTERPOLATE VERTICALLY AND HORIZONTALLY THE RAOB ERROR STATISTICS
 C                  *****************************************************************
@@ -834,13 +918,18 @@ C    ---------------------------
                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,(1.0D0-ZFACTOR)*zcof1 + ZFACTOR*zcof2)
                     else
                        call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,(1.0D0-ZFACTOR)*XOSTDEV
-     +                 (ILEM,ilyr,ILAT1) + ZFACTOR*XOSTDEV(ILEM,ilyr,ILAT2))
+     +                                (ILEM,ilyr,ILAT1) + ZFACTOR*XOSTDEV(ILEM,ilyr,ILAT2))
                     endif
+                    ENDIF ! USENEWERR
 
                   ENDIF
+
+                  IF(.NOT.USENEWERR) THEN
                   IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
-                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
-     +                                       *SQRT(1.8D0))
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, 
+     +                             obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+     +                             *SQRT(1.8D0))
+                  ENDIF
                   ENDIF
 C
 C***********************************************************************
@@ -948,6 +1037,67 @@ C
                ELSE IF ( CFAM .EQ. 'AI'
      &              .OR. CFAM .EQ. 'SW') THEN
                   ZLEV=obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+                  IF(USENEWERR) THEN
+C
+C    SATOB
+C
+                  IF ( IDBURP .EQ. 188 ) THEN
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                      ielem = 11
+                    endif
+C
+C  SUPER AIREP
+C
+                  ELSE IF (IDBURP .EQ. 132 ) THEN
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                      ielem = 4
+                    else if ( ITYP .EQ. BUFR_NEES ) then
+                      ielem = 3
+                    else if ( ITYP .EQ. BUFR_NETT ) then
+                      ielem = 2
+                    else if ( ITYP .EQ. BUFR_NEGZ ) then
+                      ielem = 5
+                    endif
+C
+C    AIREP
+C
+                  ELSE IF (IDBURP .EQ. 128 ) THEN
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                      ielem = 7
+                    else if ( ITYP .EQ. BUFR_NETT ) then
+                      ielem = 6
+                    endif
+C
+C    AMDAR ACARS ADS
+C
+                  ELSE IF (IDBURP .EQ. 42 .OR. IDBURP .EQ. 157 .OR. IDBURP .EQ. 177) THEN
+                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
+                      ielem = 10
+                    else if ( ITYP .EQ. BUFR_NETT ) then
+                      ielem = 8
+                    else if ( ITYP .EQ. BUFR_NEES ) then
+                      ielem = 9
+                    end if
+C
+                  ENDIF
+
+                  if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(1,1) ) then
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSTDALL(1,ielem))
+                  else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= XSTDALL(19,1) ) then
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,XSTDALL(19,ielem))
+                  else
+                    do jn = 1,18
+                      if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(jn+1,1) ) exit
+                    end do
+
+                    zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/XSTDALL(JN,1)) / log(XSTDALL(JN+1,1)/XSTDALL(JN,1))
+                    zwt = 1.0D0 - zwb 
+
+                    call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY,
+     +                        zwt*XSTDALL(JN,ielem) + zwb*XSTDALL(JN+1,ielem))
+                  endif
+
+                  ELSE !USENEWERR
 C
 C    SATOB
 C
@@ -999,6 +1149,8 @@ C
                           call obs_set_r(lobsSpaceData,'OER ',INDEX_BODY, SQRT(XSTDEV(5,3)))
                      ENDIF
                   ENDIF
+
+                  ENDIF ! USENEWERR
 C
 C***********************************************************************
 C   SURFACE DATA

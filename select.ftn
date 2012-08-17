@@ -59,7 +59,6 @@
       INTEGER EXDB,EXFIN,FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,NUMBLKS
 *
       INTEGER NVALS,J
-      CHARACTER *2   CLTYP(JPFILES)
       CHARACTER *128 CLVAL(JPFILES)
 *
       LOGICAL LLAPPEND
@@ -90,20 +89,19 @@
             INBLKS= -1
             INBLKS=NUMBLKS(IBRP1)
             IF ( INBLKS .GT. 0) THEN
-               CLTYP(J)=CFAMTYP(J)
                INRECS=MRFOPN(IBRP1,'READ')
                WRITE(*,*)  ' '
                WRITE(*,*)
      +       '========================================================='
                WRITE(*,*) ' ',INRECS,
-     +       ' ',CLTYP(J),' OBSERVATIONS IN BURP FILE ',CLVAL(J)
+     +       ' ',CFAMTYP(J),' OBSERVATIONS IN BURP FILE ',CLVAL(J)
                WRITE(*,*)
      +       '========================================================='
                WRITE(*,*)  ' '
 *
                IBEG=obs_numbody(lobsSpaceData)+1
 !
-               CALL BRPACMA(CLTYP(J),J,LLAPPEND,IBRP1,INRECS,lobsSpaceData)
+               CALL BRPACMA(CFAMTYP(J),J,LLAPPEND,IBRP1,INRECS,lobsSpaceData)
             IER=MRFCLS(IBRP1)
             ENDIF
             LLAPPEND = .TRUE.
