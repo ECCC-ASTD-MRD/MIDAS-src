@@ -1046,19 +1046,6 @@ C
                       ielem = 11
                     endif
 C
-C  SUPER AIREP
-C
-                  ELSE IF (IDBURP .EQ. 132 ) THEN
-                    IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
-                      ielem = 4
-                    else if ( ITYP .EQ. BUFR_NEES ) then
-                      ielem = 3
-                    else if ( ITYP .EQ. BUFR_NETT ) then
-                      ielem = 2
-                    else if ( ITYP .EQ. BUFR_NEGZ ) then
-                      ielem = 5
-                    endif
-C
 C    AIREP
 C
                   ELSE IF (IDBURP .EQ. 128 ) THEN

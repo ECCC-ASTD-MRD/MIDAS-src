@@ -531,6 +531,11 @@ Cpik             IBKNMA=MRBLOCX(IBUF,0,-1,ibknatma,IBKTYP,IBKSTP,0)
                       nvcordtyp=1
                       LLSURF = .TRUE.
                    endif
+                   if ( idburp .eq. 132) then
+                      nvcordtyp=2  ! ADDED FOR NEW RAOBS
+                      LLSURF = .FALSE.
+                   endif
+
 *
                     IBKNO=MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
                     IBKNATMA=IBKNAT+3
