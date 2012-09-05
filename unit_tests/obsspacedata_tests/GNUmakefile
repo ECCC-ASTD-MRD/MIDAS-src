@@ -30,10 +30,12 @@ ifeq ($(BASE_ARCH),Linux)
    ifeq ($(MPI),YES)
        COMPILER_SSM += mpich2
    endif
-else ifeq ($(BASE_ARCH),AIX-powerpc7)
-   COMPILER_SSM = Xlf13.108
 else
-   $(error The variable BASE_ARCH=$(BASE_ARCH) is not supported)
+   ifeq ($(BASE_ARCH),AIX-powerpc7)
+      COMPILER_SSM = Xlf13.108
+   else
+      $(error The variable BASE_ARCH=$(BASE_ARCH) is not supported)
+   endif
 endif
 
 FFLAGS +=-I$(PFUNIT_MODDIR)
@@ -60,7 +62,12 @@ F90_SRC = $(wildcard *.ftn90)
 F90_OBJ = $(F90_SRC:.ftn90=.o)
 
 EXECUTABLE = test_obs.x
-MACH_SUBMIT = alef
+
+MACH_SUBMIT = $(TRUE_HOST)
+ifeq ($(MACH_SUBMIT), erg)
+   MACH_SUBMIT = alef
+endif
+
 #ifeq ($(MPI),YES)
    COMMAND = ord_soumet ./runit.ksh -mach $(MACH_SUBMIT) -t 60 $(MPI_FLAG) $(CPUS) -listing ${HOME}/listings
 #else
@@ -97,7 +104,7 @@ $(EXECUTABLE): $(F90_OBJ)
 
 env_test:
 	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev; \
-	make tests MPI=$(MPI)
+	gmake tests MPI=$(MPI)
 
 clean:
 	$(RM) $(F90_OBJ)
@@ -110,7 +117,7 @@ distclean: clean
 	$(RM) .pFUnitLog
 
 help:
-	echo 'gmake env_test <MPI=YES> -- compile and soumet the test'
+	echo 'gmake <MPI=YES> -- compile and soumet the test'
 
 
 obsspacedata_mod.ftn90 :

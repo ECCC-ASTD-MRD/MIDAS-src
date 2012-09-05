@@ -810,7 +810,7 @@ contains
       integer :: iaccept,idata,ipnt,iwrite
       integer :: jdata,kobs,var3d,kobsout
 
-      write(nobsout,*) 'stations prior to cleanup: ', obsdat%numHeader
+      write(nobsout,'(1x,A,I7)') 'stations prior to cleanup: ', obsdat%numHeader
       write(*,*) 'enter obs_clean'
 
       kobsout=0 
@@ -859,10 +859,10 @@ contains
       obsdat%numHeader=kobsout
       obsdat%numBody = iwrite
 
-      write(nobsout,*) 'after cleanup of the obsdat: '
-      write(nobsout,*) &
-         'number of stations containing valid data   ',obsdat%numHeader
-      write(nobsout,*) & 
+      write(nobsout,*) 'after cleanup of the obsdat:'
+      write(nobsout,'(1x,A,I7)') &
+         'number of stations containing valid data      ',obsdat%numHeader
+      write(nobsout,'(1x,A,I7)') & 
          'number of observations now in the obsdat file ',obsdat%numBody
 
    end subroutine obs_clean
@@ -1040,8 +1040,8 @@ contains
          allstn=allstn+numstn(id)
          allobs=allobs+numobs(id)
       enddo
-      write(kulout,*) 'total number of stations:     ',allstn
-      write(kulout,*) 'total number of observations: ',allobs
+      write(kulout,'(1x,A,I7)') 'total number of stations:     ',allstn
+      write(kulout,'(1x,A,I7)') 'total number of observations: ',allobs
 
       return
    end subroutine obs_count_headers
@@ -2777,7 +2777,7 @@ contains
          call obs_abort("obs_select() is not equipped to handle the case, mpi_local=.true.")
       end if
 
-      write(nobsout,*) 'stations prior to selection: ', obsdat%numHeader
+      write(nobsout,'(1x,A,I7)')'stations prior to selection: ', obsdat%numHeader
       write(*,*) 'enter obs_select'
 
       kobsout=0 
@@ -2813,11 +2813,11 @@ contains
       obs_sel%mpi_local = .false.
       obs_sel%datestamp = obsdat%datestamp
 
-      write(nobsout,*) 'after selection of observations in the range: ', &
-         zhamin,zhamax
-      write(nobsout,*) &
-         'number of stations containing valid data   ',obs_sel%numHeader
-      write(nobsout,*) & 
+      write(nobsout, '(1x, A, 2F20.15)') &
+                 'after selection of observations in the range: ', zhamin, zhamax
+      write(nobsout,'(1x,A,I7)') &
+         'number of stations containing valid data      ',obs_sel%numHeader
+      write(nobsout,'(1x,A,I7)') & 
          'number of observations now in the obsdat file ',obs_sel%numBody
 
    end subroutine obs_select

@@ -18,8 +18,8 @@ module testObs_mod
    character(len=4), parameter, dimension(6) :: columns_real_head &
             = (/ 'LAT','LON','ALT','BX','BY','BZ' /)
    character(len=4), parameter, dimension(14) :: columns_real_body &
-            = (/ 'PPP','SEM','POB','VAR','OMP','OMP6','OMF','OMA','OMI', &
-                 'OMN','OER','HPHT','PRM','ZHA' /)
+            = (/ 'PPP ','SEM ','POB ','VAR ','OMP ','OMP6','OMF ','OMA ','OMI ',&
+                 'OMN ','OER ','HPHT','PRM ','ZHA ' /)
    character(len=4), parameter, dimension(1) :: columns_char_head &
             = (/ 'STID' /)
                                         ! value of environment variable of the
