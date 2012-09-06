@@ -60,9 +60,8 @@ LDFLAGS = -includes $(PFUNIT_INCDIR) $(PFUNIT_MODDIR) -libpath $(PFUNIT_LIBDIR) 
 
 F90_SRC = $(wildcard *.ftn90)
 F90_OBJ = $(F90_SRC:.ftn90=.o)
-F90_OBJ_NO_DRIVER = $(filter-out testobsdriver.o,$(F90_OBJ))
 
-EXECUTABLE = test_obs.x
+EXECUTABLE = test_master.x
 
 MACH_SUBMIT = $(TRUE_HOST)
 ifeq ($(MACH_SUBMIT), erg)
@@ -83,9 +82,9 @@ tests: $(EXECUTABLE)
 	chmod +x $(EXECUTABLE)
 	echo ". s.ssmuse.dot mpich2" > runit.ksh
 	echo "cd `pwd`" >> runit.ksh
-	echo "export NEW_PFUNIT=test_obs.x" >> runit.ksh
-	echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/TestObsSpace_data" >> runit.ksh
-	echo "r.mpirun2 -npex 1 -pgm test_obs.x" >> runit.ksh
+	echo "export NEW_PFUNIT=test_master.x" >> runit.ksh
+	echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/obsspacedata_tests/TestObsSpace_data" >> runit.ksh
+	echo "r.mpirun2 -npex 1 -pgm test_master.x" >> runit.ksh
 	echo "echo '======================='" >> runit.ksh
 	echo "echo '  T E S T S   R U N :'" >> runit.ksh
 	echo "echo '======================='" >> runit.ksh
@@ -98,22 +97,21 @@ tests: $(EXECUTABLE)
 	$(COMMAND)
 
 $(EXECUTABLE): $(F90_OBJ)
-	s.compile -obj $(F90_OBJ) $(LDFLAGS) -librmn $(LIBRMN) -o $@
-
-.PHONY: OBJ_NO_DRIVER
-OBJ_NO_DRIVER: $(F90_OBJ_NO_DRIVER)
+	s.compile -obj *.o $(LDFLAGS) -librmn $(LIBRMN) -o $@
 
 %.o:%.ftn90
 	s.compile $(OPTIMIZE) -opt "= $(FFLAGS)" -src $<
 
 env_test:
 	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev; \
-	gmake tests MPI=$(MPI)
+	$(MAKE) tests MPI=$(MPI)
 
+.PHONY: clean
 clean:
-	$(RM) $(F90_OBJ)
+	$(RM) *.o
 	$(RM) *.mod
 	$(RM) *.f90
+	cd obsspacedata_tests; $(MAKE) clean
 
 distclean: clean
 	$(RM) $(EXECUTABLE)
@@ -121,8 +119,12 @@ distclean: clean
 	$(RM) .pFUnitLog
 
 help:
-	echo 'gmake -- compile and soumet the unit tests of obsspacedata_mod'
+	echo 'gmake -- compile and soumet the unit tests of all modules'
 
+.PHONY: testobs_mod
+testobs_mod : 
+	cd obsspacedata_tests; $(MAKE) OBJ_NO_DRIVER
+	cp obsspacedata_tests/*.mod .
+	cp obsspacedata_tests/*.o .
 
-testobs_mod.o : obsspacedata_mod.o
-testobsdriver.o : testobs_mod.o
+testmasterdriver.o : testobs_mod

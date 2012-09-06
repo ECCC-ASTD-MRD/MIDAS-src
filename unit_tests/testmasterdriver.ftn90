@@ -1,0 +1,30 @@
+program main
+   use pFUnit
+   use testObs_mod
+   implicit none
+
+
+   type (TestSuite_type) :: suite_master
+   type (TestResult_type) :: result_master
+   character(len=100) :: summary_statement_master
+
+   call pFUnit_init()
+
+   ! Build suite from test procedures:
+   suite_master = TestSuite('Master suite')
+
+   call add(suite_master, getTestSuite_obs())
+
+   ! Run the tests and accumulate the results
+   result_master = newTestResult(mode=MODE_USE_STDOUT+MODE_USE_LOGFILE)
+   call Run(suite_master, result_master)
+
+   summary_statement_master=Summary(result_master)
+   write(6,*)
+   write(6,*)trim(summary_statement_master)
+
+   call clean(result_master)
+   call clean(suite_master)
+
+   call pFUnit_finalize()
+end program main

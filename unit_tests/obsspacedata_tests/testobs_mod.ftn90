@@ -24,7 +24,7 @@ module testObs_mod
             = (/ 'STID' /)
                                         ! value of environment variable of the
                                         ! same name
-   character(len=200) :: unit_test_data_dir
+   character(len=200) :: unit_test_obs_data_dir
 
 contains
 
@@ -93,11 +93,11 @@ contains
    subroutine get_environment_variables()
       integer :: length, status
       character(len=300) :: msg
-      call get_environment_variable('UNIT_TEST_DATA_DIR', unit_test_data_dir, &
-                                    length, status)
+      call get_environment_variable('UNIT_TEST_OBS_DATA_DIR', &
+                                    unit_test_obs_data_dir, length, status)
       if(status /= 0) then
          write(msg,*)"ERROR retrieving the environment variable, ", &
-                     " UNIT_TEST_DATA_DIR.  Status = ", status
+                     " UNIT_TEST_OBS_DATA_DIR.  Status = ", status
          call fail(msg)
       end if
    end subroutine get_environment_variables
@@ -882,7 +882,7 @@ contains
       endfile(unit=TESTOUT_UNIT)
       rewind(unit=TESTOUT_UNIT)
       call test_ascii_output(TESTOUT_UNIT, &
-                       trim(unit_test_data_dir) // '/test_obs_count_headers.dat')
+                   trim(unit_test_obs_data_dir) // '/test_obs_count_headers.dat')
 
       close(unit=TESTOUT_UNIT)
       call obs_finalize(myobs1)
@@ -1150,7 +1150,7 @@ contains
       endfile(unit=TESTOUT_UNIT)
       rewind (unit=TESTOUT_UNIT)
       call test_ascii_output(TESTOUT_UNIT, &
-                             trim(unit_test_data_dir) // '/test_obs_select.dat')
+                          trim(unit_test_obs_data_dir) // '/test_obs_select.dat')
 
       close(unit=TESTOUT_UNIT)
       call obs_finalize(myobs1)
@@ -1643,7 +1643,7 @@ contains
       endfile(unit=TESTOUT_UNIT)
       rewind (unit=TESTOUT_UNIT)
       call test_ascii_output(TESTOUT_UNIT, &
-                            trim(unit_test_data_dir) // '/test_obs_clean_g1.dat')
+                        trim(unit_test_obs_data_dir) // '/test_obs_clean_g1.dat')
 
       close(unit=TESTOUT_UNIT)
       call obs_finalize(myobs1)
@@ -1702,7 +1702,7 @@ contains
       rewind (unit=TESTOUT_UNIT)
 
       call test_ascii_output(TESTOUT_UNIT, &
-                            trim(unit_test_data_dir) // '/test_obs_clean_g2.dat')
+                        trim(unit_test_obs_data_dir) // '/test_obs_clean_g2.dat')
 
       close(unit=TESTOUT_UNIT)
       call obs_finalize(myobs1)
@@ -1759,7 +1759,7 @@ contains
       endfile(unit=TESTOUT_UNIT)
       rewind (unit=TESTOUT_UNIT)
       call test_ascii_output(TESTOUT_UNIT, &
-                            trim(unit_test_data_dir) // '/test_obs_clean_g3.dat')
+                        trim(unit_test_obs_data_dir) // '/test_obs_clean_g3.dat')
 
       close(unit=TESTOUT_UNIT)
       call obs_finalize(myobs1)
