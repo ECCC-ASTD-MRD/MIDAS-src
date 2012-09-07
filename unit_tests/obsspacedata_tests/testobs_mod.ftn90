@@ -662,7 +662,7 @@ contains
       call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
                                     num_bodies, fingerprint)
       header_position = 2
-      bod_offset      = 0
+      bod_offset      = 2
       num_bodies      = 2
       fingerprint     = 2
       call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
@@ -688,7 +688,7 @@ contains
 
       ! TEST 2:  Now, fill up obs table
       header_position = 3
-      bod_offset      = 0
+      bod_offset      = 4
       num_bodies      = 2
       fingerprint     = 3
       call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
@@ -1580,7 +1580,7 @@ contains
    end subroutine setup_obs_clean
 
    subroutine test_obs_clean_g1()
-      ! Verify that group 1 of bodies are retained (i.e. not cleaned) correctly.
+      ! Verify that group 1 of bodies is retained (i.e. not cleaned) correctly.
       ! Test the 3 ways of removing one condition, all with qcvar = .false.
       use obsSpaceData_mod
       implicit none
@@ -1650,7 +1650,7 @@ contains
    end subroutine test_obs_clean_g1
 
    subroutine test_obs_clean_g2()
-      ! Verify that group 2 of bodies are retained (i.e. not cleaned) correctly.
+      ! Verify that group 2 of bodies is retained (i.e. not cleaned) correctly.
       ! Test the ZHA condition close to its cut-off value, all with qcvar=.false.
       use obsSpaceData_mod
       implicit none
@@ -1709,7 +1709,7 @@ contains
    end subroutine test_obs_clean_g2
 
    subroutine test_obs_clean_g3()
-      ! Verify that group 3 of bodies are retained (i.e. not cleaned) correctly.
+      ! Verify that group 3 of bodies is retained (i.e. not cleaned) correctly.
       ! Test the bit-12 condition, all with qcvar = .true.
       use obsSpaceData_mod
       implicit none

@@ -81,20 +81,20 @@ DOLLAR=$$
 .PHONY:	tests
 tests: $(EXECUTABLE)
 	chmod +x $(EXECUTABLE)
-	echo ". s.ssmuse.dot mpich2" > runit.ksh
-	echo "cd `pwd`" >> runit.ksh
-	echo "export NEW_PFUNIT=test_obs.x" >> runit.ksh
-	echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/TestObsSpace_data" >> runit.ksh
-	echo "r.mpirun2 -npex 1 -pgm test_obs.x" >> runit.ksh
-	echo "echo '======================='" >> runit.ksh
-	echo "echo '  T E S T S   R U N :'" >> runit.ksh
-	echo "echo '======================='" >> runit.ksh
-	echo "cat .pFUnitLog" >> runit.ksh
-	echo " "
-	echo " "
-	echo "  - - - listing will appear in $(DOLLAR)HOME/listings/$(MACH_SUBMIT)/runit.* - - -"
-	echo " "
-	echo " "
+	@echo ". s.ssmuse.dot mpich2" > runit.ksh
+	@echo "cd `pwd`" >> runit.ksh
+	@echo "export NEW_PFUNIT=test_obs.x" >> runit.ksh
+	@echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/TestObsSpace_data" >> runit.ksh
+	@echo "r.mpirun2 -npex 1 -pgm test_obs.x" >> runit.ksh
+	@echo "echo '======================='" >> runit.ksh
+	@echo "echo '  T E S T S   R U N :'" >> runit.ksh
+	@echo "echo '======================='" >> runit.ksh
+	@echo "cat .pFUnitLog" >> runit.ksh
+	@echo " "
+	@echo " "
+	@echo "  - - - listing will appear in $(DOLLAR)HOME/listings/$(MACH_SUBMIT)/runit.* - - -"
+	@echo " "
+	@echo " "
 	$(COMMAND)
 
 $(EXECUTABLE): $(F90_OBJ)
@@ -121,7 +121,7 @@ distclean: clean
 	$(RM) .pFUnitLog
 
 help:
-	echo 'gmake -- compile and soumet the unit tests of obsspacedata_mod'
+	@echo 'gmake -- compile and soumet the unit tests of obsspacedata_mod'
 
 
 testobs_mod.o : obsspacedata_mod.o
