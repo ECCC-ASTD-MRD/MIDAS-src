@@ -629,7 +629,7 @@ CONTAINS
        call tmg_stop(95)
      
        call tmg_start(96,'SQRTRM1')
-       call oda_sqrtRm1(lobsSpaceData,'OMA ','OMA ')  ! Modify NCM_OMA : R**-1/2 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,NCM_OMA,NCM_OMA)  ! Modify NCM_OMA : R**-1/2 (Hdx-d)
        call tmg_stop(96)
      
        call tmg_start(97,'ODA_JO')
@@ -654,7 +654,7 @@ CONTAINS
        endif
 
        call tmg_start(96,'SQRTRM1')
-       call oda_sqrtRm1(lobsSpaceData,'OMI ','OMA ')  ! Modify NCM_OMI : R**-1 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,NCM_OMI,NCM_OMA)  ! Modify NCM_OMI : R**-1 (Hdx-d)
        call tmg_stop(96)
 
        IF (LVARQC) THEN

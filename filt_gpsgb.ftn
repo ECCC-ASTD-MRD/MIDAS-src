@@ -67,7 +67,7 @@ C
 C
 C     *Process only Ground-Based GPS data (codtyp 189)
 C
-        IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+        IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
 C
         IF ( IDATYP .EQ. 189 ) THEN
           IF (obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .NE. CGPSSTN) THEN
@@ -76,7 +76,7 @@ C
             BODY: do 
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
-               call obs_set_i(lobsSpaceData,'ASS ',INDEX_BODY, 0)
+               call obs_bodySet_i(lobsSpaceData,NCM_ASS,INDEX_BODY, 0)
             ENDDO BODY
           ELSE
             WRITE(*,'(A24,1X,A9)') ' FILT_GPSGB: 1OBS STATION =', 

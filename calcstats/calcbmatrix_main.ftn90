@@ -1,0 +1,11 @@
+program calcbmatrix_main
+  use calcbmatrix_nanalvar4_mod
+  implicit none
+  
+  write(*,*) '!!!!STARTING CALCBMATRIX!!!!'
+
+  call calcb_computeStats
+
+  write(*,*) '!!!!ENDING CALCBMATRIX!!!!'
+
+end program calcbmatrix_main

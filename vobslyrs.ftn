@@ -73,26 +73,26 @@ C
 C     1.1 PPP Vertical coordinate
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
-            LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. -1) .AND.
-     &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
+            LLOK = ( (obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. 1     .OR.
+     &                obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. -1) .AND.
+     &                obs_bodyElem_i(lobsSpaceData,NCM_VCO,JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+               IF(obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
+                  ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JDATA)
                ELSE
-                  ZLEV = obs_elem_r(lobsSpaceData,'PRL ',JDATA)
+!!!PRL???                  ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PRL,JDATA)
                ENDIF
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               IOBS = obs_bodyElem_i(lobsSpaceData,NCM_OBS,JDATA)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA)
                varType = vnl_vartypeFromVarnum(ITYP)
                ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,varType)
                ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varType),IOBS,varType)
                IF ( ZLEV .LT. ZPT ) THEN
-                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
+                  call obs_bodySet_i(lobsSpaceData,NCM_XTR,JDATA,1)
                ELSE IF ( ZLEV .GT. ZPB ) THEN
-                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,2)
+                  call obs_bodySet_i(lobsSpaceData,NCM_XTR,JDATA,2)
                ELSE
-                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,0)
+                  call obs_bodySet_i(lobsSpaceData,NCM_XTR,JDATA,0)
                ENDIF
              ENDIF
          END DO
@@ -100,26 +100,26 @@ C
 C     1.2 ZZZ Vertical coordinate
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
-            LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1 .AND.
-     &              obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
+            LLOK = (obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. 1 .AND.
+     &              obs_bodyElem_i(lobsSpaceData,NCM_VCO,JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IF(obs_elem_i(lobsSpaceData,'VNM ',JDATA) .NE. BUFR_NEDZ ) THEN
-                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
+               IF(obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
+                  ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JDATA)
                ELSE
-                  ZLEV = obs_elem_r(lobsSpaceData,'PRL ',JDATA)
+!!!PRL???                  ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PRL,JDATA)
                ENDIF
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               IOBS = obs_bodyElem_i(lobsSpaceData,NCM_OBS,JDATA)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA)
                varType = vnl_vartypeFromVarnum(ITYP)
                nlev=COL_GETNUMLEV(LCOLUMNGHR,varType)
                ZPT= col_getHeight(lcolumnghr,1,IOBS,varType)/RG
                ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varType)/RG
                IF ( ZLEV .GT. ZPT ) THEN
-                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,1)
+                  call obs_bodySet_i(lobsSpaceData,NCM_XTR,JDATA,1)
                ELSE IF ( ZLEV .LT. ZPB ) THEN
-                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,2)
+                  call obs_bodySet_i(lobsSpaceData,NCM_XTR,JDATA,2)
                ELSE
-                  call obs_set_i(lobsSpaceData,'XTR ',JDATA,0)
+                  call obs_bodySet_i(lobsSpaceData,NCM_XTR,JDATA,0)
                ENDIF
             ENDIF
          END DO
@@ -134,17 +134,17 @@ C
 C     2.1  PPP Vertical coordinate
 C
          DO JDATA=1,obs_numbody(lobsSpaceData)
-            call obs_set_i(lobsSpaceData,'LYR ',JDATA,0)
+            call obs_bodySet_i(lobsSpaceData,NCM_LYR,JDATA,0)
          END DO
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
-            LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. -1) .AND.
-     &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 2 )
+            LLOK = ( (obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. 1     .OR.
+     &                obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. -1) .AND.
+     &                obs_bodyElem_i(lobsSpaceData,NCM_VCO,JDATA) .EQ. 2 )
             IF ( LLOK ) THEN
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               IOBS = obs_bodyElem_i(lobsSpaceData,NCM_OBS,JDATA)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JDATA)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA)
                IK = 1
                varType = vnl_vartypeFromVarnum(ITYP)
                nlev=COL_GETNUMLEV(LCOLUMNGHR,varType)
@@ -154,20 +154,20 @@ C
                END DO
                ZPT = col_getPressure(LCOLUMNGHR,IK,IOBS,varType)
                ZPB = col_getPressure(LCOLUMNGHR,IK+1,IOBS,varType) 
-               call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
+               call obs_bodySet_i(lobsSpaceData,NCM_LYR,JDATA, IK)
             ENDIF
          END DO
 C
 C     2.2  ZZZ Vertical coordinate and surface observations
 C
          DO JDATA= 1,obs_numbody(lobsSpaceData)
-            LLOK = ( (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1     .OR.
-     &                obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. -1) .AND.
-     &                obs_elem_i(lobsSpaceData,'VCO ',JDATA) .EQ. 1 )
+            LLOK = ( (obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. 1     .OR.
+     &                obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. -1) .AND.
+     &                obs_bodyElem_i(lobsSpaceData,NCM_VCO,JDATA) .EQ. 1 )
             IF ( LLOK ) THEN
-               IOBS = obs_elem_i(lobsSpaceData,'OBS ',JDATA)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',JDATA)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
+               IOBS = obs_bodyElem_i(lobsSpaceData,NCM_OBS,JDATA)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JDATA)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA)
                IK = 1
                varType = vnl_vartypeFromVarnum(ITYP)
                nlev=COL_GETNUMLEV(LCOLUMNGHR,varType)
@@ -182,7 +182,7 @@ C
      &                ITYP.EQ.BUFR_NEHS ) THEN
                  IK=nlev-1
                ENDIF
-               call obs_set_i(lobsSpaceData,'LYR ',JDATA, IK)
+               call obs_bodySet_i(lobsSpaceData,NCM_LYR,JDATA, IK)
             ENDIF
          END DO
 C

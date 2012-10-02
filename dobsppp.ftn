@@ -71,17 +71,17 @@
 !
 ! Process all data within the domain of the model
 !
-         iass=obs_elem_i (lobsSpaceData,'ASS ',index_body)
-         ixtr=obs_elem_i (lobsSpaceData,'XTR ',index_body)
-         ivco=obs_elem_i (lobsSpaceData,'VCO ',index_body)
-         IVNM=obs_elem_i (lobsSpaceData,'VNM ',index_body)
-         ZVAR=obs_elem_r(lobsSpaceData,'VAR ',index_body)
-         ZLEV=obs_elem_r(lobsSpaceData,'PPP ',index_body)
-         ZOER=obs_elem_r(lobsSpaceData,'OER ',index_body)
-         INDEX_HEADER=obs_elem_i (lobsSpaceData,'OBS ',index_body)
+         iass=obs_bodyElem_i (lobsSpaceData,NCM_ASS,index_body)
+         ixtr=obs_bodyElem_i (lobsSpaceData,NCM_XTR,index_body)
+         ivco=obs_bodyElem_i (lobsSpaceData,NCM_VCO,index_body)
+         IVNM=obs_bodyElem_i (lobsSpaceData,NCM_VNM,index_body)
+         ZVAR=obs_bodyElem_r(lobsSpaceData,NCM_VAR,index_body)
+         ZLEV=obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body)
+         ZOER=obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body)
+         INDEX_HEADER=obs_bodyElem_i (lobsSpaceData,NCM_OBS,index_body)
 
          IF ( (iass.EQ.1).AND.(ixtr.EQ.0).AND.(ivco.EQ.2) ) THEN
-            IK  =obs_elem_i (lobsSpaceData,'LYR ',index_body)
+            IK  =obs_bodyElem_i (lobsSpaceData,NCM_LYR,index_body)
             varName = vnl_varnameFromVarnum(ivnm)
             varType = vnl_vartypeFromVarnum(IVNM)
             ZPT= col_getPressure(lcolumnhr,ik  ,index_header,varType)
@@ -100,8 +100,8 @@
             endif
             zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
             PJO = PJO + zoma*zoma
-            call obs_set_r(lobsSpaceData,'OMA ',index_body,zoma)
-            call obs_set_r(lobsSpaceData,'OMI ',index_body,zoma)
+            call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body,zoma)
+            call obs_bodySet_r(lobsSpaceData,NCM_OMI,index_body,zoma)
 !
 ! Process all upper air data data below model's orography
 !
@@ -115,8 +115,8 @@
                zoma = ( col_getMountain(lcolumnhr,index_header) + ZTVG/zgamma
      &                  *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp) - zvar )/zoer
                PJO =PJO+zoma*zoma
-               call obs_set_r(lobsSpaceData,'OMA ',index_body,zoma)
-               call obs_set_r(lobsSpaceData,'OMI ',index_body,zoma)
+               call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body,zoma)
+               call obs_bodySet_r(lobsSpaceData,NCM_OMI,index_body,zoma)
             ENDIF
          ENDIF
       ENDDO BODY

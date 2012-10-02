@@ -81,7 +81,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
       DO JDATA=1,obs_numbody(lobsSpaceData)
-        call obs_set_r(lobsSpaceData,'PRM ',JDATA, obs_elem_r(lobsSpaceData,'VAR ',JDATA))
+        call obs_bodySet_r(lobsSpaceData,NCM_PRM,JDATA, obs_bodyElem_r(lobsSpaceData,NCM_VAR,JDATA))
       ENDDO
   endif
 
@@ -97,9 +97,9 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
   if ( option .eq. 'LR' ) then
 !    fill ROBDATA8(NCM_PRM,..)  with Z'' = Z' + H(xb_lr) 
      DO JDATA=1,obs_numbody(lobsSpaceData)
-       call obs_set_r(lobsSpaceData,'PRM ',JDATA, obs_elem_r(lobsSpaceData,'OMA ',JDATA) &
-                                                *obs_elem_r(lobsSpaceData,'OER ',JDATA) &
-                                             + 2*obs_elem_r(lobsSpaceData,'VAR ',JDATA))
+       call obs_bodySet_r(lobsSpaceData,NCM_PRM,JDATA, obs_bodyElem_r(lobsSpaceData,NCM_OMA,JDATA) &
+                                                *obs_bodyElem_r(lobsSpaceData,NCM_OER,JDATA) &
+                                             + 2*obs_bodyElem_r(lobsSpaceData,NCM_VAR,JDATA))
      ENDDO
   endif
 

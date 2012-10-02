@@ -206,16 +206,16 @@ subroutine tovs_rttov_tl(lobsSpaceData)
         do jn = 1, knpf
           iobs1 = iptobs(jn)
           jo = lobsno(iobs1)
-          idata    = obs_elem_i(lobsSpaceData,'RLN ',jo)
-          idatend  = obs_elem_i(lobsSpaceData,'NLV ',jo) + idata - 1
+          idata    = obs_headElem_i(lobsSpaceData,NCM_RLN,jo)
+          idatend  = obs_headElem_i(lobsSpaceData,NCM_NLV,jo) + idata - 1
           do jdata = idata, idatend
-            if(obs_elem_i(lobsSpaceData,'ASS ',jdata).eq.1) then
-              ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',jdata))
+            if(obs_bodyElem_i(lobsSpaceData,NCM_ASS,jdata).eq.1) then
+              ichn = nint(obs_bodyElem_r(lobsSpaceData,NCM_PPP,jdata))
               ichn = max(0,min(ichn,jpch+1))
               do nrank = 1, nchan(krtid)
                 if ( ichn == ichan(nrank,krtid) ) exit
               end do
-              surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_elem_r(lobsSpaceData,'SEM',jdata)
+              surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_bodyElem_r(lobsSpaceData,NCM_SEM,jdata)
             end if
           end do
         end do

@@ -26,8 +26,8 @@
           call col_setTimeInterpWeight(lcolumn,1.0d0,jobs,1)
         else
           call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
-     &                         obs_elem_i(lobsSpaceData,'DAT ',jobs)
-     &         ,obs_elem_i(lobsSpaceData,'ETM ',jobs),nstepobsinc)
+     &                         obs_headElem_i(lobsSpaceData,NCM_DAT,jobs)
+     &         ,obs_headElem_i(lobsSpaceData,NCM_ETM,jobs),nstepobsinc)
           if(floor(stepObsIndex).ge.nstepobsinc) then
             write(*,*) 'stepObsIndex too big=',jobs,stepObsIndex
             call col_setTimeInterpWeight(lcolumn,

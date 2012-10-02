@@ -77,8 +77,8 @@
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
 
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',index_body)
-               LLOK=( obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,index_body)
+               LLOK=( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body) .EQ. 1)
                IF ( LLOK ) THEN
                   INOBS = INOBS + 1
                   IF (CDFAM .EQ. 'GP') THEN
@@ -87,18 +87,18 @@
                     IF (ITYP .EQ. BUFR_NETS) INTOBS = INTOBS+1
                     IF (ITYP .EQ. BUFR_NESS) INDOBS = INDOBS+1
                   ENDIF
-                  ZVAR = obs_elem_r(lobsSpaceData,'VAR ',index_body)
-                  ZLEV = obs_elem_r(lobsSpaceData,'PPP ',index_body)
-                  ZOER = obs_elem_r(lobsSpaceData,'OER ',index_body)
-                  ZLAT  = obs_elem_r(lobsSpaceData,'LAT ',index_header) &
+                  ZVAR = obs_bodyElem_r(lobsSpaceData,NCM_VAR,index_body)
+                  ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body)
+                  ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body)
+                  ZLAT  = obs_headElem_r(lobsSpaceData,NCM_LAT,index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                  ZLON  = obs_elem_r(lobsSpaceData,'LON ',index_header) &
+                  ZLON  = obs_headElem_r(lobsSpaceData,NCM_LON,index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
 !C
 !C              BACK GROUND CHECK
 !C
-                  ZOMP  =-obs_elem_r(lobsSpaceData,'OMF ',index_body)*obs_elem_r(lobsSpaceData,'OER ',index_body)
-                  ZFGE  = obs_elem_r(lobsSpaceData,'HPHT',index_body)
+                  ZOMP  =-obs_bodyElem_r(lobsSpaceData,NCM_OMF,index_body)*obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body)
+                  ZFGE  = obs_bodyElem_r(lobsSpaceData,NCM_HPHT,index_body)
                   IF ( CDFAM .EQ. 'GP' ) THEN
                     IF (ITYP .EQ. BUFR_NEZD) THEN
                       ZOER = ZOER/YZDERRWGT
@@ -126,13 +126,13 @@
 !C              UPDATE QUALITY CONTROL FLAGS
 !C              ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
 !C
-                  INAM =obs_elem_i(lobsSpaceData,'VNM ',index_body)
-                if( inam.eq.12192 .and. obs_elem_i(lobsSpaceData,'XTR ',index_body).eq.0)then
+                  INAM =obs_bodyElem_i(lobsSpaceData,NCM_VNM,index_body)
+                if( inam.eq.12192 .and. obs_bodyElem_i(lobsSpaceData,NCM_XTR,index_body).eq.0)then
                    zsum=zsum+zfge*zfge
                    zsumo=zsumo+zoer*zoer
                    icoun=icoun+1
                 endif
-                  IDBURP=obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+                  IDBURP=obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
                   IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
 !C
 !C              CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
@@ -162,18 +162,18 @@
                   ENDIF
 
                   IF ( IFLAG .EQ. 1 ) THEN
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),13))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),13))
                   ELSEIF ( IFLAG .EQ. 2 ) THEN
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),14))
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),16))
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),09))
-                     call obs_set_i(lobsSpaceData,'ST1 ',index_header,ibset(obs_elem_i(lobsSpaceData,'ST1 ',index_header),06))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),14))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),16))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),09))
+                     call obs_headSet_i(lobsSpaceData,NCM_ST1,index_header,ibset(obs_headElem_i(lobsSpaceData,NCM_ST1,index_header),06))
 
                   ELSEIF ( IFLAG .EQ. 3 ) THEN
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),15))
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),16))
-                     call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),09))
-                     call obs_set_i(lobsSpaceData,'ST1 ',index_header,ibset(obs_elem_i(lobsSpaceData,'ST1 ',index_header),06))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),15))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),16))
+                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),09))
+                     call obs_headSet_i(lobsSpaceData,NCM_ST1,index_header,ibset(obs_headElem_i(lobsSpaceData,NCM_ST1,index_header),06))
                   ENDIF
                ENDIF
          ENDDO BODY

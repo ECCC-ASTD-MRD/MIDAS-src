@@ -378,7 +378,7 @@ module columnData_mod
       allocate(mountain(column_global%numCol))
       mountain(:)=0.0d0
       do iobs_local=1,column_local%numCol
-        iobs_global=obs_elem_i(lobsSpaceData,'GHI ',iobs_local)
+        iobs_global=obs_headerIndex_mpiglobal(lobsSpaceData,iobs_local)
         column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
         column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
         mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)

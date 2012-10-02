@@ -106,7 +106,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   !     process only radiance data to be assimilated?
   !     (data type=[164,168,180,181,182,183,185,186])
 
-     idatyp = obs_elem_i(lobsSpaceData,'ITY ',index_header)
+     idatyp = obs_headElem_i(lobsSpaceData,NCM_ITY,index_header)
      if ( idatyp .ne. 164 .and.  &
           idatyp .ne. 168 .and.  &
           idatyp .ne. 180 .and.  &
@@ -136,11 +136,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            index_body = obs_getBodyIndex(lobsSpaceData)
            if (index_body < 0) exit BODY
 
-           if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).ne.1 ) then
+           if ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).ne.1 ) then
               cycle BODY                ! Proceed to the next body_index
            end if
 
-           ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',index_body))
+           ichn = nint(obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body))
            ichn = max(0,min(ichn,jpch+1))
            ichNCM_A = max(0,min(ichn,jpch+1))
            if(idatyp.ne.183 .and. idatyp.ne.186) &
@@ -153,28 +153,28 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            endif
 
            zdtb =   radiance_d (indxtovs) % out(indxchn) &
-                  - obs_elem_r(lobsSpaceData,'PRM ',index_body)
+                  - obs_bodyElem_r(lobsSpaceData,NCM_PRM,index_body)
            if ( ldbgtov ) then
               write(*,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
                            ichn,  radiance_d (indxtovs) % out(indxchn), &
-                           obs_elem_r(lobsSpaceData,'PRM ',index_body), zdtb
+                           obs_bodyElem_r(lobsSpaceData,NCM_PRM,index_body), zdtb
            endif
 
-           zoer = obs_elem_r(lobsSpaceData,'OER ',index_body)
-           call obs_set_r(lobsSpaceData,'OMA ',index_body, zdtb/zoer)
-           call obs_set_r(lobsSpaceData,'OMI ',index_body, &
-                           obs_elem_r(lobsSpaceData,'OMA ',index_body))
+           zoer = obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body)
+           call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body, zdtb/zoer)
+           call obs_bodySet_r(lobsSpaceData,NCM_OMI,index_body, &
+                           obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body))
 
            if (.not. lvarqc) then
               dlsum =  dlsum &
-                     + (obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
-                        obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.
+                     + (obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)* &
+                        obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body))/2.
            else
 !             compute contribution of data with varqc
  
-              zgami = obs_elem_r(lobsSpaceData,'POB ',index_body)
-              zjon = (obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
-                      obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.
+              zgami = obs_bodyElem_r(lobsSpaceData,NCM_POB,index_body)
+              zjon = (obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)* &
+                      obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body))/2.
               zqcarg = zgami + exp(-1.0*zjon)
               zpost = zgami/zqcarg
               dlsum= dlsum - log(zqcarg/(zgami+1.))
@@ -184,11 +184,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            inobsch(ichNCM_A,Isens) = inobsch(ichNCM_A,Isens) + 1
            zjoch(ichNCM_A,Isens)   = &
                     zjoch(ichNCM_A,Isens)   + &
-                    obs_elem_r(lobsSpaceData,'OMA ',index_body)* &
-                    obs_elem_r(lobsSpaceData,'OMA ',index_body)
+                    obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)* &
+                    obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)
            zavgnrm(ichNCM_A,Isens)   = &
                     zavgnrm(ichNCM_A,Isens) + &
-                    obs_elem_r(lobsSpaceData,'OMA ',index_body)
+                    obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)
         enddo BODY
      else
       kfailtot = kfailtot + 1

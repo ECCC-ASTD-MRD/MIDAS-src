@@ -70,7 +70,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
      !      process  only radiance data to be assimilated?
      !      (data type=[164,168,180,181,182,183,185,186])
 
-     idatyp = obs_elem_i(lobsSpaceData,'ITY ',index_header)
+     idatyp = obs_headElem_i(lobsSpaceData,NCM_ITY,index_header)
      if ( idatyp .ne. 164 .and.  &
           idatyp .ne. 168 .and.  &
           idatyp .ne. 180 .and.  &
@@ -100,8 +100,8 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
            index_body = obs_getBodyIndex(lobsSpaceData)
            if (index_body < 0) exit BODY
 
-           if ( obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1 ) then
-              ichn = nint(obs_elem_r(lobsSpaceData,'PPP ',index_body))
+           if ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).eq.1 ) then
+              ichn = nint(obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body))
               ichn    = max(0,min(ichn,jpch+1))
               if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
@@ -110,12 +110,12 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 9202             format(' tovs_calc_jo_tl: error with channel number')
                  call abort3d('tovs_calc_jo_tl  ')
               endif
-              call obs_set_r(lobsSpaceData,'OMA ',index_body, &
+              call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body, &
                               radiance_tl (indxtovs) % out(indxchn))
               if ( ldbgtov ) then
                  write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                       ichn,  radiance_tl (indxtovs) % out(indxchn), &
-                      obs_elem_r(lobsSpaceData,'VAR ',index_body)
+                      obs_bodyElem_r(lobsSpaceData,NCM_VAR,index_body)
               endif
 
            endif

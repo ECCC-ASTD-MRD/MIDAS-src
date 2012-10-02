@@ -115,8 +115,8 @@
          ! restore the mpi-global cost function contributions
          robdata_g(:)=0.0D0  
          do bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
-           bodyIndex_mpiglobal=obs_elem_i(lobsSpaceData,'GBI ',bodyIndex_mpilocal)
-           robdata_g(bodyIndex_mpiglobal)=obs_elem_r(lobsSpaceData,'OMI ',bodyIndex_mpilocal)
+           bodyIndex_mpiglobal=obs_bodyIndex_mpiglobal(lobsSpaceData,bodyIndex_mpilocal)
+           robdata_g(bodyIndex_mpiglobal)=obs_bodyElem_r(lobsSpaceData,NCM_OMI,bodyIndex_mpilocal)
          enddo  
          call rpn_comm_allreduce(robdata_g,robdata_g,numBody_mpiglobal,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 
 
@@ -130,7 +130,7 @@
 
            ! convert character to integer with iachar so that "allreduce" can be used
            do bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
-             bodyIndex_mpiglobal=obs_elem_i(lobsSpaceData,'GBI ',bodyIndex_mpilocal)
+             bodyIndex_mpiglobal=obs_bodyIndex_mpiglobal(lobsSpaceData,bodyIndex_mpilocal)
              family_string = obs_getFamily(lobsSpaceData,bodyIndex=bodyIndex_mpilocal)
              do index_string=1,2
                int_family_g(bodyIndex_mpiglobal,index_string)=iachar(family_string(index_string:index_string))

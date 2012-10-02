@@ -228,8 +228,8 @@ CONTAINS
     call setupLocalization(hLocalize,vLocalize,pressureProfileEns)
     deallocate(pressureProfileEns)
 
-!    call setupEnsemble(stamp_in)
-    call setupEnsemble_openmp(stamp_in)
+    call setupEnsemble(stamp_in)
+!    call setupEnsemble_openmp(stamp_in)
 
     cvDimPerMember_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nLevEns
     cvDim_l=nens*cvDimPerMember_l

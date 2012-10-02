@@ -1,0 +1,1456 @@
+module calcbmatrix_nanalvar4_mod
+  use gridStateVector_mod
+  use globalSpectralTransform
+  use MathPhysConstants_mod
+  use gaussGrid_mod
+  implicit none
+  save
+
+  character(len=256)  :: enspathname,ensfilebasename
+  character(len=256) :: cflensin(512)
+  integer :: nens,ntrunc,ni,nj,nLevEns,nLevPtoT,nkgdimEns,nla
+  integer :: gstID
+  integer, allocatable :: nip1_l(:)
+
+  contains
+
+  subroutine calcb_computeStats
+    implicit none
+    integer :: ierr
+    real*4,pointer  :: ensPerturbations(:,:,:,:)
+    real*8,allocatable :: stddev3d(:,:,:),stddev3dUnbal(:,:,:),stddevZonAvg(:,:),stddevZonAvgUnbal(:,:)
+    real*8,allocatable :: PtoT(:,:,:),theta1(:,:),theta2(:,:)
+    real*8,allocatable :: corns(:,:,:),rstddev(:,:)
+
+    call setup
+
+    allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(theta1(nlevEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddev3d(ni,nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(PtoT(nlevEns+1,nlevEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(theta2(nlevEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddev3dUnbal(ni,nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddevZonAvgUnbal(nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(rstddev(nkgdimEns,0:ntrunc),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+
+    call readEnsemble(ensPerturbations)
+
+    call removeMean(ensPerturbations)
+
+    call uv_to_psichi(ensPerturbations)
+
+    call calcStddev3d(ensPerturbations,stddev3d)
+
+    call calcZonAvg(stddevZonAvg,stddev3d)
+
+    call calcTheta(ensPerturbations,theta1) ! theta1 is put in glbcov and used for analysis!
+    write(301,*) theta1
+
+    call removeBalancedChi(ensPerturbations,theta1)
+
+    call normalize3d(ensPerturbations,stddev3d)
+
+    call calcPtoT(ensPerturbations,PtoT)
+    write(303,*) PTOT(:,:,1)
+    call flush(303)
+
+!    call calcTheta(ensPerturbations,theta2) ! theta2 is used previously for computing unbalanced Chi!
+!    write(302,*) theta2
+
+    call removeBalancedT_Ps(ensPerturbations,PtoT)
+
+!    call removeBalancedChi(ensPerturbations,theta2)
+
+    call multiply3d(ensPerturbations,stddev3d)
+
+    call spectralFilter(ensPerturbations)
+
+    call calcStddev3d(ensPerturbations,stddev3dUnbal)
+
+    call calcZonAvg(stddevZonAvgUnbal,stddev3dUnbal)
+
+    call normalize3d(ensPerturbations,stddev3dUnbal)
+
+    call removeGlobalMean(ensPerturbations)
+
+    call calcCorrelations(ensPerturbations,corns,rstddev)
+
+    call writeStats(corns,rstddev,ptot,theta1)
+
+    call writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
+
+    call writeSpStats(ptot,theta1)
+
+    write(200,*) stddevZonAvg(1:nlevEns,:)
+    write(201,*) stddevZonAvg((1+1*nlevEns):(2*nlevEns),:)
+    write(202,*) stddevZonAvg((1+2*nlevEns):(3*nlevEns),:)
+    write(203,*) stddevZonAvg((1+3*nlevEns):(4*nlevEns),:)
+    write(204,*) stddevZonAvg((1+4*nlevEns),:)/1.0d2
+
+    write(400,*) stddevZonAvgUnbal(1:nlevEns,:)
+    write(401,*) stddevZonAvgUnbal((1+1*nlevEns):(2*nlevEns),:)
+    write(402,*) stddevZonAvgUnbal((1+2*nlevEns):(3*nlevEns),:)
+    write(403,*) stddevZonAvgUnbal((1+3*nlevEns):(4*nlevEns),:)
+    write(404,*) stddevZonAvgUnbal((1+4*nlevEns),:)/1.0d2
+
+  end subroutine calcb_computeStats
+
+
+  subroutine writeSpStats(ptot,theta)
+    implicit none
+    real*8 :: PtoT(:,:,:),theta(:,:)
+    integer jn,ierr,ipak,jlat,jlev1,jlev2
+    integer vfstecr,fstouv,fnom,fstfrm,fclos
+    integer ip1,ip2,ip3,kni,knj,idatyp,idateo
+    integer :: nulstats
+    real*8 :: zleg(0:ntrunc,nj),rmu(nj),rwt(nj)
+    real*8 :: bufz(nLevEns),bufyz(nj,nLevEns),zsp(0:ntrunc,nLevEns)
+    real*8 :: bufptot(nj,(nLevEns+1)*nLevEns),spptot(0:ntrunc,(nLevEns+1)*nLevEns)
+    real*8 :: zspptot(nLevEns+1,nLevEns)
+
+    nulstats=0
+    ierr =  fnom  (nulstats,'./stats_sp.fst','RND',0)
+    ierr =  fstouv(nulstats,'RND')
+
+    ipak = -32
+    idatyp = 5
+    ip1 = 0
+    ip3 = nens
+    idateo = 0
+
+    do jlat=1,nj
+      rmu(jlat)=gst_getrmu(jlat)
+      rwt(jlat)=gst_getrwt(jlat)
+    enddo
+
+    call zlegpol(zleg,rmu,nj,ntrunc)
+
+    ! write out SP_THETA
+
+    do jlat = 1, nj
+      do jlev1 = 1, nLevEns
+        bufyz(jlat,jlev1) = theta(jlev1,jlat)
+      enddo
+    enddo
+
+    call zlegdir(bufyz,zsp,zleg,rwt,ntrunc,nj,nLevEns)
+
+    do jn = 0, ntrunc
+      do jlev1=1, nLevEns
+        bufz(jlev1) = zsp(jn,jlev1)
+      enddo
+
+      ierr = vfstecr(bufz,bufz,ipak,nulstats,idateo,0,0,nlevEns,1,1,   &
+                     ip1,jn,ip3,'X','ZZ','SP_THETA','X',0,0,0,0,idatyp,.true.)
+
+    enddo
+
+    ! write out SP_PTOT
+
+    do jlat = 1, nj
+      do jlev1 = 1, (nLevEns+1)
+        do jlev2 = 1, nLevEns
+          bufptot(jlat,(jlev2-1)*(nLevEns+1)+jlev1) = PtoT(jlev1,jlev2,jlat)
+        enddo
+      enddo
+    enddo
+
+    call zlegdir(bufptot,spptot,zleg,rwt,ntrunc,nj,(nLevEns+1)*nLevEns)
+
+    do jn = 0, ntrunc
+      do jlev1 = 1, (nLevEns+1)
+        do jlev2 = 1, nLevEns
+          zspptot(jlev1,jlev2) = spptot(jn,(jlev2-1)*(nLevEns+1)+jlev1)
+        enddo
+      enddo
+
+      kni=nLevEns+1
+      knj=nLevEns
+      ierr = vfstecr(zspptot,zspptot,ipak,nulstats,idateo,0,0,kni,knj,1,  &
+                     ip1,jn,ip3,'X','ZZ','SP_PTOT ','X',0,0,0,0,idatyp,.true.)
+    enddo
+
+
+
+
+    ierr =  fstfrm(nulstats)
+    ierr =  fclos (nulstats)
+
+    write(*,*) 'finished writing statistics...'
+    call flush(6)
+
+  end subroutine writeSpStats
+
+
+  subroutine setup
+    implicit none
+    integer :: nulnam,nulens,jens,ierr,mpiMode
+    integer :: fclos,fnom,fstouv,fstfrm
+    character(len=3)   :: censnumber
+    type(struct_vco), pointer :: vco_anl => null()
+    NAMELIST /NAMCALCB/nens,ntrunc,enspathname,ensfilebasename
+
+    call mpc_printConstants(6)
+
+    call gaus_setup
+
+    ! parameters from namelist (date in filename should come directly from sequencer?)
+    nens=96
+    ntrunc=108
+    enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
+    ensfilebasename='2011011918_006_'
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namcalcb)
+    write(*,nml=namcalcb)
+    ierr=fclos(nulnam)
+
+    do jens=1,nens
+      write(censnumber,'(i3.3)') jens
+      cflensin(jens)= trim(enspathname) // '/' // trim(ensfilebasename) // censnumber
+      write(*,*) 'ensemble file:',jens,cflensin(jens)
+    enddo
+
+    nulens=0
+    ierr = fnom(nulens,cflensin(1),'RND+OLD+R/O',0)
+    ierr = fstouv(nulens,'RND+OLD')
+    call vco_SetupFromFile(vco_anl,nulens,.true.)
+    ierr =  fstfrm(nulens)
+    ierr =  fclos (nulens)
+
+    ni=gaus_ni
+    nj=gaus_nj
+    nLevEns=vco_anl%nlev_M
+    nLevPtot=nLevEns-1
+!    nkgdimEns=nLevEns*4+2
+    nkgdimEns=nLevEns*4+1 ! NO TG !!!
+    nla=(ntrunc+1)*(ntrunc+2)/2
+
+    mpiMode=0
+    gstID = gst_setup(6,ni,nj,ntrunc,mpiMode)
+
+    allocate(nip1_l(nlevens))
+    nip1_l(:)=vco_anl%ip1_M(:)
+
+  end subroutine setup
+
+
+  subroutine removeBalancedChi(ensPerturbations,theta)
+    implicit none
+    real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*8 :: theta(:,:)
+    real*4,pointer :: psi_ptr(:,:,:),chi_ptr(:,:,:)
+    integer :: jens,jlat,jlev,jlon
+
+    do jens = 1,nens
+      psi_ptr => ensPerturbations(:,1:nlevEns,:,jens)
+      chi_ptr => ensPerturbations(:,(nlevEns+1):(2*nlevEns),:,jens)
+
+      do jlat = 1, nj
+        do jlev = 1, nLevEns
+          do jlon = 1, ni
+            chi_ptr(jlon,jlev,jlat) = chi_ptr(jlon,jlev,jlat) + tan(theta(jlev,jlat))*psi_ptr(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+
+    enddo
+
+    write(*,*) 'finished removing balanced chi...'
+    call flush(6)
+
+  end subroutine removeBalancedChi
+
+
+  subroutine removeBalancedT_Ps(ensPerturbations,PtoT)
+    implicit none
+    real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*8 :: PtoT(:,:,:)
+
+    real*4,pointer :: tt_ptr(:,:,:),ps_ptr(:,:,:)
+    real*8  :: spectralState(nla,2,nLevEns),spBalancedP(nla,2,nlevEns),balancedP(ni,nlevEns,nj),psi(ni,nLevEns,nj)
+    integer :: jens,jlat,jlon,jk1,jk2
+
+    do jens=1,nens
+
+      psi(:,:,:)=ensPerturbations(:,1:nlevEns,:,jens)
+      call gst_reespe(spectralState,psi,nLevEns,nLevEns)
+      call calcBalancedP(spectralState,spBalancedP)
+      call gst_speree(spBalancedP,balancedP,nlevEns,nlevEns)
+
+      tt_ptr => ensPerturbations(:,(1+2*nLevEns):(3*nLevEns),:,jens)
+      ps_ptr => ensPerturbations(:,(1+4*nLevEns):(1+4*nLevEns),:,jens)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jlat,jlon,jk1,jk2)
+      do jlat = 1, nj
+        do jlon = 1, ni
+          do jk1 = 1, nLevEns
+            do jk2 = 1, nlevptot
+              tt_ptr(jlon,jk1,jlat) = tt_ptr(jlon,jk1,jlat) - PtoT(jk1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+            enddo
+          enddo
+          do jk2 = 1, nlevptot
+            ps_ptr(jlon,1,jlat) = ps_ptr(jlon,1,jlat) - PtoT(nLevEns+1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    enddo
+
+    write(*,*) 'finished removing balanced T and Ps...'
+    call flush(6)
+
+  end subroutine removeBalancedT_Ps
+
+
+  subroutine calcCorrelations(ensPerturbations,corns,rstddev)
+    implicit none
+    real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
+
+    real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nkgdimEns,nj)
+    real*8  :: dfact,dfact2,dsummed
+    integer :: jens,ila,jn,jm,jk1,jk2
+
+    corns(:,:,:)=0.0d0
+    do jens=1,nens
+
+      write(*,*) 'calcCorrelations: processing member ',jens
+      call flush(6)
+
+      gridState(:,:,:)=ensPerturbations(:,:,:,jens)
+      call gst_reespe(spectralState,gridState,nkgdimEns,nkgdimEns)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jn,jm,dfact,ila,jk1,jk2)
+      do jn = 0, ntrunc
+        do jm = 0, jn
+          dfact = 2.0d0
+          if (jm.eq.0) dfact = 1.0d0
+          ila = gst_getNind(jm) + jn - jm
+          do jk1 = 1, nkgdimEns
+            do jk2 = 1, nkgdimEns
+              corns(jk1,jk2,jn) = corns(jk1,jk2,jn) +     &
+                 dfact*( spectralState(ila,1,jk1)*spectralState(ila,1,jk2) +   &
+                         spectralState(ila,2,jk1)*spectralState(ila,2,jk2)  )
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    enddo
+
+    do jn = 0, ntrunc
+      do jk1 = 1, nkgdimEns
+        if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
+          rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
+        else
+          rstddev(jk1,jn) = 0.0d0
+        endif
+      enddo
+    enddo
+
+    do jn = 0, ntrunc
+      do jk1 = 1, nkgdimEns
+        do jk2 = 1, nkgdimEns
+          if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
+            corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
+          else
+            corns(jk1,jk2,jn) = 0.0d0
+          endif
+        enddo
+      enddo
+    enddo
+
+    dfact2 = 1.0d0/sqrt(dble(nens-1))
+    do jn = 0, ntrunc
+      dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
+      do jk1 = 1, nkgdimEns
+        rstddev(jk1,jn) = rstddev(jk1,jn)*dfact2*dfact
+      enddo
+    enddo
+
+    ! Normalize to ensure correlations in horizontal and Multiply by sqrt(0.5) to make valid for m.ne.0
+    do jk1 = 1, nkgdimEns
+      dsummed=0.0d0
+      do jn = 0, ntrunc
+        dsummed=dsummed + (rstddev(jk1,jn)**2)*((2.0d0*dble(jn))+1.0d0)/2.0d0
+      enddo
+      do jn = 0, ntrunc
+        if(dsummed.gt.0.0) rstddev(jk1,jn)=rstddev(jk1,jn)*sqrt(0.5d0/dsummed)
+      enddo
+    enddo
+
+    write(*,*) 'finished computing correlations...'
+    call flush(6)
+
+  end subroutine calcCorrelations
+
+
+  subroutine writeStats(corns,rstddev,ptot,theta)
+    implicit none
+    real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
+    real*8 :: PtoT(:,:,:),theta(:,:)
+    integer jn,ierr,ipak,jk,jl
+    real*8 prcor(nkgdimEns,nkgdimEns)
+    integer vfstecr,fstouv,fnom,fstfrm,fclos
+    integer ip1,ip2,ip3,idatyp,idateo
+    integer :: nulstats
+
+    nulstats=0
+    ierr =  fnom  (nulstats,'./glbcov.fst','RND',0)
+    ierr =  fstouv(nulstats,'RND')
+
+    ipak = -32
+    idatyp = 5
+    ip1 = 0
+    ip2 = 0
+    ip3 = nens
+    idateo = 0
+
+    ierr = vfstecr(ptot(1,1,1),ptot(1,1,1),ipak,nulstats,idateo,0,0,nlevEns+1,nlevEns,nj,  &
+                   ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
+
+    ierr = vfstecr(theta(1,1),theta(1,1),ipak,nulstats,idateo,0,0,nlevEns,nj,1,   &
+                   ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
+
+    do jn = 0, ntrunc
+      ip2 = jn
+      ierr = vfstecr(corns(1,1,jn),corns(1,1,jn),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,  &
+                     ip1,ip2,ip3,'X','ZZ','CORRNS  ','X',0,0,0,0,idatyp,.true.)
+    enddo
+
+    do jn = 0, ntrunc
+      ip2 = jn
+      ierr = vfstecr(rstddev(1,jn),rstddev(1,jn),ipak,nulstats,idateo,0,0,nkgdimEns,1,1,   &
+                     ip1,ip2,ip3,'X','SS','RSTDDEV ','X',0,0,0,0,idatyp,.true.)
+    enddo
+
+    do jk = 1, nkgdimEns
+      do jl = 1, nkgdimEns
+        prcor(jk,jl) = 0
+        do jn = 0, ntrunc
+          prcor(jk,jl) = prcor(jk,jl) + ((2*jn+1)*rstddev(jk,jn)*rstddev(jl,jn)*corns(jk,jl,jn))
+        enddo
+      enddo
+    enddo
+
+    do jk = 1, nkgdimEns
+      do jl = 1, nkgdimEns
+        if(prcor(jk,jk)*prcor(jl,jl) .gt. 0.0d0) then
+          prcor(jk,jl) = prcor(jk,jl) / (sqrt(prcor(jk,jk)*prcor(jl,jl)))
+        else
+          prcor(jk,jl) = 0.0d0
+        endif
+      enddo
+    enddo
+    ip2 =0
+    ierr = vfstecr(prcor(1,1),prcor(1,1),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,   &
+                   ip1,ip2,ip3,'X','ZV','CORVERT ','X',0,0,0,0,idatyp,.true.)
+
+    ierr =  fstfrm(nulstats)
+    ierr =  fclos (nulstats)
+
+    write(*,*) 'finished writing statistics...'
+    call flush(6)
+
+  end subroutine writeStats
+
+
+  subroutine writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
+    implicit none
+    real*8 :: stddevZonAvg(:,:),stddevZonAvgUnbal(:,:),stddev3d(:,:,:),stddev3dUnbal(:,:,:)
+    real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,nLevEns),zbufy(nj)
+    integer jlat,jlon,jlev,ierr,jvar
+    integer vfstecr,fstouv,fnom,fstfrm,fclos
+    integer ip1,ip2,ip3,idatyp,idateo,ipak
+    integer :: nulstats
+    integer,parameter :: nvar3d=4,nvar2d=1
+    character*4 :: nomvar3d(nvar3d),nomvar3dUnbal(nvar3d),nomvar2d(nvar2d),nomvar2dUnbal(nvar2d)
+
+    nomvar3d(1)='PP'
+    nomvar3d(2)='CC'
+    nomvar3d(3)='TT'
+    nomvar3d(4)='LQ'
+    nomvar3dUnbal(1)='PP'
+    nomvar3dUnbal(2)='UC'
+    nomvar3dUnbal(3)='UT'
+    nomvar3dUnbal(4)='LQ'
+    nomvar2d(1)='P0'
+    nomvar2dUnbal(1)='UP'
+
+    nulstats=0
+    ierr =  fnom  (nulstats,'./stddev.fst','RND',0)
+    ierr =  fstouv(nulstats,'RND')
+
+    ipak = -32
+    idatyp = 5
+    ip1 = 0
+    ip2 = 0
+    ip3 = nens
+    idateo = 0
+
+    ! do 3d variables
+    do jvar=1,nvar3d
+      dfact=1.0d0
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          do jlon=1,ni
+            zbuf(jlon,jlat)=dfact*stddev3d(jlon,(jvar-1)*nLevEns+jlev,nj+1-jlat)
+          enddo
+        enddo
+        ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
+                       'E',nomvar3d(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+      enddo
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          zbufyz(jlat,jlev)=dfact*stddevZonAvg((jvar-1)*nLevEns+jlev,nj-jlat+1)
+        enddo
+      enddo
+      ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
+                     'E',nomvar3d(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+
+      if(nomvar3d(jvar).ne.nomvar3dUnbal(jvar)) then
+        dfact=1.0d0
+
+        do jlev=1,nlevEns
+          do jlat=1,nj
+            do jlon=1,ni
+              zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,(jvar-1)*nLevEns+jlev,nj+1-jlat)
+            enddo 
+          enddo
+          ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
+                         'E',nomvar3dUnbal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+        enddo
+
+        do jlev=1,nlevEns
+          do jlat=1,nj
+            zbufyz(jlat,jlev)=dfact*stddevZonAvgUnbal((jvar-1)*nLevEns+jlev,nj-jlat+1)
+          enddo
+        enddo
+        ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
+                       'E',nomvar3dUnbal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+      endif
+
+    enddo
+
+    ! now do 2D variables
+    do jvar=1,nvar2d
+      if(nomvar2d(jvar).eq.'P0') then
+        dfact=1.0d0/1.0d2
+      else
+        dfact=1.0d0
+      endif
+
+      do jlat=1,nj
+        do jlon=1,ni
+          zbuf(jlon,jlat)=dfact*stddev3d(jlon,nvar3d*nLevEns+jvar,nj+1-jlat)
+        enddo
+      enddo
+      ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
+                     'E',nomvar2d(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+
+      do jlat=1,nj
+        zbufy(jlat)=dfact*stddevZonAvg(nvar3d*nLevEns+jvar,nj-jlat+1)
+      enddo
+      ierr = vfstecr(zbufy,zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
+                     'E',nomvar2d(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+
+      if(nomvar2d(jvar).ne.nomvar2dUnbal(jvar)) then
+        if(nomvar2dUnbal(jvar).eq.'UP') then
+          dfact=1.0d0/1.0d2
+        else
+          dfact=1.0d0
+        endif
+
+        do jlat=1,nj
+          do jlon=1,ni
+            zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,nvar3d*nLevEns+jvar,nj+1-jlat)
+          enddo 
+        enddo
+        ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
+                       'E',nomvar2dUnbal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+
+        do jlat=1,nj
+          zbufy(jlat)=dfact*stddevZonAvgUnbal(nvar3d*nLevEns+jvar,nj-jlat+1)
+        enddo
+        ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
+                       'E',nomvar2dUnbal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+      endif
+
+    enddo
+
+    ierr =  fstfrm(nulstats)
+    ierr =  fclos (nulstats)
+
+    write(*,*) 'finished writing stddev...'
+    call flush(6)
+
+  end subroutine writeStddev
+
+
+  subroutine spectralFilter(ensPerturbations)
+    implicit none
+    real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*8  :: spectralState(nla,2,nkgdimEns)
+    real*8  :: member(ni,nkgdimens,nj)
+    integer :: jens
+
+    do jens=1,nens
+      member(:,:,:)=dble(ensPerturbations(:,:,:,jens))     
+      call gst_reespe(spectralState,member,nkgdimEns,nkgdimEns)
+      call gst_speree(spectralState,member,nkgdimEns,nkgdimEns)
+      ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
+    enddo
+
+    write(*,*) 'finished applying spectral filter...'
+    call flush(6)
+
+  end subroutine spectralFilter
+
+
+  subroutine calcTheta(ensPerturbations,theta)
+    implicit none
+    real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*8  :: theta(:,:)
+    real*8 zchipsi(nlevens,nj), zpsipsi(nlevens,nj)
+    real*4, pointer :: psi_ptr(:,:,:),chi_ptr(:,:,:)
+    integer :: jlat,jlon,jlev,jens
+
+    theta(:,:) = 0.0d0
+    zchipsi(:,:) = 0.0d0
+    zpsipsi(:,:) = 0.0d0
+
+    do jens = 1,nens
+      psi_ptr => ensPerturbations(:,1:nlevEns,:,jens)
+      chi_ptr => ensPerturbations(:,(nlevEns+1):(2*nlevEns),:,jens)
+
+      ! update zchipsi and zpsipsi covariances
+      do jlat = 1, nj
+        do jlon = 1, ni
+          do jlev = 1, nLevEns
+            zpsipsi(jlev,jlat) = zpsipsi(jlev,jlat) + psi_ptr(jlon,jlev,jlat) * psi_ptr(jlon,jlev,jlat)
+            zchipsi(jlev,jlat) = zchipsi(jlev,jlat) + chi_ptr(jlon,jlev,jlat) * psi_ptr(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+    enddo
+
+    !  calculate THETA
+    do jlat = 1, nj
+      do jlev = 1, nLevEns
+        theta(jlev,jlat) = atan(-zchipsi(jlev,jlat) / zpsipsi(jlev,jlat))
+      enddo
+    enddo
+
+    write(*,*) 'finished computing theta...'
+    call flush(6)
+
+  end subroutine calcTheta
+
+
+  subroutine calcPtoT(ensPerturbations,PtoT)
+    implicit none
+    real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*8  :: PtoT(:,:,:)
+
+    real*8  :: spectralState(nla,2,nLevEns),spBalancedP(nla,2,nlevEns),balancedP(ni,nlevEns,nj),psi(ni,nLevEns,nj)
+    real*4, pointer :: tt_ptr(:,:,:),ps_ptr(:,:)
+    INTEGER JENS, IENS, JK1, JK2, JLA, JN, JM, ILA, JLEV
+    INTEGER IERR, JFILE, JK, JLAT, ILON, JLON, JB, NLATBAND
+    INTEGER IBND1,IBND2,JPNLATBND,ILAT
+    PARAMETER (JPNLATBND = 3)
+    REAL*8 ZFACT,ZMAXI,ZWT,ZPS,zlat(nj)
+    REAL*8 ZFACT2,ZFACTTOT
+    REAL*8 ZM1(NLEVENS+1,NLEVENS,JPNLATBND), ZM2(NLEVPTOT,NLEVPTOT,JPNLATBND)
+    REAL*8 ZPTOTBND(NLEVENS+1,NLEVENS)
+    REAL*8 ZM2INV(NLEVPTOT,NLEVPTOT,JPNLATBND),ZWORK(NLEVPTOT*NLEVPTOT),ZDET,ZEPS
+    REAL*8  DLA2, DL1SA2
+    REAL*8  DLLATMIN(JPNLATBND), DLLATMAX(JPNLATBND)
+    REAL*8  DLLATMID(JPNLATBND)
+    REAL*8  ZLC,ZTLEN,ZR,ZCORR,ZPRES1,ZPRES2
+    real*8 zeigwrk(4*nlevPtoT),zeigen(nlevPtoT,nlevPtoT),zeigenv(nlevPtoT)
+    real*8 zeigenvi(nlevPtoT)
+    real   zfix
+    integer iwork,info
+
+    DATA DLLATMIN / -60.0D0, -30.0D0, 30.0D0 /
+    DATA DLLATMAX / -30.0D0,  30.0D0, 60.0D0 /
+    DATA DLLATMID / -45.0D0,  00.0D0, 45.0D0 /
+
+    DLA2 = DBLE(RA)*DBLE(RA)
+    DL1SA2 = 1.D0/DLA2
+
+!   1. Initialize P_to_T, ZM1, ZM2
+
+    ZFACTTOT = 0.0
+    DO JLAT = 1, NJ
+      ZFACTTOT = ZFACTTOT + cos(GST_GETRLATI(JLAT))
+    ENDDO
+    ZFACTTOT = NJ/ZFACTTOT
+
+    PtoT(:,:,:) = 0.0d0
+    ZM1(:,:,:) = 0.0d0
+    ZPTOTBND(:,:) = 0.0d0
+    ZM2(:,:,:) = 0.0d0
+
+    do jens = 1,nens
+
+      write(*,*) 'calcPtoT: processing member ',jens
+      call flush(6)
+
+      psi(:,:,:)=ensPerturbations(:,1:nlevEns,:,jens)
+      call gst_reespe(spectralState,psi,nlevEns,nlevEns)
+      CALL calcBalancedP(spectralState,spBalancedP)
+      call gst_speree(spBalancedP,balancedP,nlevEns,nlevEns)
+
+      tt_ptr  => ensPerturbations(:,(2*nlevEns+1):(3*nlevEns),:,jens)
+      ps_ptr  => ensPerturbations(:,4*nlevEns+1,:,jens)
+
+      DO JLAT = 1, NJ
+        zlat(jlat)=GST_GETRLATI(JLAT)
+      enddo
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JK1,JB,JLAT,ZFACT,JLON,JK2)
+      DO JK1 = 1, (NLEVENS+1)
+        DO JB=1,JPNLATBND
+          DO JLAT = 1, NJ
+            if ((ZLAT(JLAT) .gt. 2.*MPC_PI_R8*DLLATMIN(JB)/360.)   &
+          .and. (ZLAT(JLAT) .le. 2.*MPC_PI_R8*DLLATMAX(JB)/360.)) then
+              ZFACT = cos(ZLAT(JLAT))*ZFACTTOT
+              DO JLON = 1, NI
+
+                ! update ZM1 = sum_over_t_x_y[vec(T lnPs) vec(P_b)^T]
+                DO JK2 = 1, NLEVENS
+                  IF(JK1.LE.NLEVENS) THEN
+                    ZM1(JK1,JK2,JB) = ZM1(JK1,JK2,JB) + ZFACT * tt_ptr(JLON,JK1,JLAT) * balancedP(JLON,JK2,JLAT)
+                  ELSE
+                    ZM1(JK1,JK2,JB) = ZM1(JK1,JK2,JB) + ZFACT * ps_ptr(JLON,JLAT) * balancedP(JLON,JK2,JLAT)
+                  ENDIF
+                ENDDO
+
+                ! update ZM2 = sum_over_t_x_y[vec(P_b) vec(P_b)^T]
+                IF(JK1.LE.NLEVPTOT) THEN
+                  DO JK2 = 1, NLEVPTOT
+                    ZM2(JK1,JK2,JB) = ZM2(JK1,JK2,JB) + ZFACT * balancedP(JLON,JK1,JLAT) * balancedP(JLON,JK2,JLAT)
+                  ENDDO
+                ENDIF
+
+              ENDDO
+            endif
+          ENDDO
+        ENDDO ! Loop on JPNLATBND
+      END DO  ! Loop on JK1
+!$OMP END DO
+!$OMP END PARALLEL
+
+    ENDDO
+
+! SET ZM1,ZM2 EQUAL FOR ALL THREE REGIONS
+    DO JK1 = 1, NLEVPTOT
+      DO JK2 = 1, NLEVPTOT
+        ZM2(JK1,JK2,1)=ZM2(JK1,JK2,1)+ZM2(JK1,JK2,3)
+        ZM2(JK1,JK2,2)=ZM2(JK1,JK2,1)
+        ZM2(JK1,JK2,3)=ZM2(JK1,JK2,1)
+      ENDDO
+    ENDDO
+    DO JK1 = 1, (NLEVENS+1)
+      DO JK2 = 1, NLEVPTOT
+        ZM1(JK1,JK2,1)=ZM1(JK1,JK2,1)+ZM1(JK1,JK2,3)
+        ZM1(JK1,JK2,2)=ZM1(JK1,JK2,1)
+        ZM1(JK1,JK2,3)=ZM1(JK1,JK2,1)
+      ENDDO
+    ENDDO
+
+    DO JK1=1,NLEVPTOT
+      DO JK2=1,NLEVPTOT
+        ZEIGEN(JK1,JK2)=ZM2(JK1,JK2,1)
+      ENDDO
+    ENDDO
+    IWORK=4*NLEVPTOT
+    CALL DSYEV('V','U',NLEVPTOT,ZEIGEN,NLEVPTOT,ZEIGENV,ZEIGWRK,IWORK,INFO)
+
+    write(*,*) 'calcPtot: info=',info
+    write(*,*) 'calcPtot: eigen values=',zeigenv(:)
+
+    do JK1=1,NLEVPTOT
+      if (ZEIGENV(JK1).gt.0.0d0) then
+        ZEIGENVI(JK1)=1.0d0/ZEIGENV(JK1)
+      else
+        ZEIGENVI(JK1)=0.0d0
+      endif
+    enddo
+
+    DO JK1=1,NLEVPTOT
+      DO JK2=1,NLEVPTOT
+        ZM2INV(JK1,JK2,1)=0.0d0
+        DO JK=1,NLEVPTOT
+          ZM2INV(JK1,JK2,1)=ZM2INV(JK1,JK2,1)+ZEIGEN(JK1,JK)*ZEIGENVI(JK)*ZEIGEN(JK2,JK)
+        ENDDO
+      ENDDO
+    ENDDO
+
+!    write(*,*) 'zm1=',zm1(:,:,1)
+!    write(*,*) 'zm2=',zm2(:,:,1)
+!    write(*,*) 'zm2inv=',zm2inv(:,:,1)
+
+! Calculate A = ZM1*inv(ZM2)
+!
+    DO JK1 = 1, (NLEVENS+1)
+      DO JK2 = 1, NLEVPTOT
+        DO JK = 1, NLEVPTOT
+          ZPTOTBND(JK1,JK2) = ZPTOTBND(JK1,JK2) + ZM1(JK1,JK,1) * ZM2INV(JK,JK2,1)
+        ENDDO
+      ENDDO
+    ENDDO
+!
+    DO JK1 = 1, NLEVENS+1
+      DO JK2 = 1, NLEVPTOT
+        DO JLAT = 1,NJ
+          PTOT(JK1,JK2,JLAT) = ZPTOTBND(JK1,JK2)
+        ENDDO
+      ENDDO
+    ENDDO
+
+    write(*,*) 'finished computing PtoT...'
+    call flush(6)
+
+  end subroutine calcPtoT
+
+
+  subroutine removeGlobalMean(ensPerturbations)
+    implicit none
+    integer :: jlon,jlat,jlev,jens
+    real*4  :: ensPerturbations(:,:,:,:)
+    real*8  :: dmean
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JENS,JLEV,JLAT,JLON,DMEAN)
+    do jens=1,nens
+      do jlev=1,nkgdimEns
+        dmean=0.0d0
+        do jlat=1,nj
+          do jlon=1,ni
+            dmean=dmean+ensPerturbations(jlon,jlev,jlat,jens)
+          enddo
+        enddo
+        dmean=dmean/(dble(ni)*dble(nj))
+        do jlat=1,nj
+          do jlon=1,ni
+            ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)-dmean
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*) 'finished removing global mean...'
+    call flush(6)
+
+  end subroutine removeGlobalMean
+
+
+  subroutine calcZonAvg(fieldsZonAvg,fields3D)
+    implicit none
+
+    integer :: jlon,jlat,jlev
+    real*8  :: fieldsZonAvg(:,:),fields3D(:,:,:),dfact
+
+    fieldsZonAvg(:,:)=0.0d0
+    dfact=1.0d0/dble(ni)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JLEV,JLAT,JLON)
+      do jlat=1,nj
+        do jlev=1,nkgdimEns
+          do jlon=1,ni
+            fieldsZonAvg(jlev,jlat)=fieldsZonAvg(jlev,jlat)+dfact*fields3D(jlon,jlev,jlat)
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*) 'finished computing the zonal average...'
+    call flush(6)
+
+  end subroutine calcZonAvg
+
+
+  subroutine calcStddev3d(ensPerturbations,stddev3d)
+    implicit none
+
+    integer :: jlon,jlat,jlev,jens
+    real*8  :: dnens,stddev3d(:,:,:)
+    real*4  :: ensPerturbations(:,:,:,:)
+
+    stddev3d(:,:,:)=0.0d0
+    dnens=1.0d0/dble(nens-1)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
+      do jlev=1,nkgdimEns
+        do jens=1,nens
+          do jlat=1,nj
+            do jlon=1,ni
+              stddev3d(jlon,jlev,jlat)=stddev3d(jlon,jlev,jlat)+ensPerturbations(jlon,jlev,jlat,jens)**2
+            enddo
+          enddo
+        enddo
+        do jlat=1,nj
+          do jlon=1,ni
+            if(stddev3d(jlon,jlev,jlat).gt.0.0d0) then
+              stddev3d(jlon,jlev,jlat)=sqrt(stddev3d(jlon,jlev,jlat)*dnens)
+            else
+              stddev3d(jlon,jlev,jlat)=0.0d0
+            endif
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*) 'finished computing the stddev...'
+    call flush(6)
+  
+  end subroutine calcStddev3d
+
+
+  subroutine calcBalancedP(sppsi,spgz)
+    implicit none
+
+    real*8 :: sppsi(:,:,:),spgz(:,:,:)
+    real*8 :: spvor(nla,2,nlevEns)
+    integer  ia, ib, ji, jm, jlev,jlat
+    real*8 :: zn,zm,zenm,zenmp1,zcon,dl1sa2
+
+    ! convert PSI to vorticity 
+    dl1sa2   = 1.0d0/(dble(ra)*dble(ra))
+    do jlev = 1, nlevEns
+      do jlat = 1, nla
+        spvor(jlat,1,jlev) = sppsi(jlat,1,jlev)*dl1sa2*gst_getRnnp1(jlat)
+        spvor(jlat,2,jlev) = sppsi(jlat,2,jlev)*dl1sa2*gst_getRnnp1(jlat)
+      enddo
+    enddo
+
+    ! ensure input field is zero for spectral component (0,0)
+    do jlev = 1, nlevEns
+      if(spvor(1,1,jlev).ne.0.) then
+        spvor(1,1,jlev) = 0.0
+      endif
+      if(spvor(1,2,jlev).ne.0.) then
+        spvor(1,2,jlev) = 0.0
+      endif
+    enddo
+
+    ! initialize outout field to zero
+    spgz(:,:,:)=0.0d0
+
+    ! loop over levels and zonal wavenumbers
+    ! n.b.: at the tip of the triangle, no contributions
+    zcon = -2.*romega*ra**2
+    do jlev = 1, nlevEns
+
+      ! the base address ia will point to the spherical harmonic
+      ! coefficient (m,m), in the input field
+      ia = 1
+      do jm = 0, ntrunc-1
+        ib = ia + ntrunc - jm
+        zm = dble(jm)
+
+        ! at the base, contributions from n+1 coeff only
+        zn = zm
+        zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.*(zn+1)**2-1.) )
+        spgz(ia,1,jlev)=zcon*spvor(ia+1,1,jlev)*zenmp1/((zn+1.0)**2)
+        spgz(ia,2,jlev)=zcon*spvor(ia+1,2,jlev)*zenmp1/((zn+1.0)**2)
+
+        zn = zn+1
+        do ji = ia+1, ib-1
+          zenm = sqrt ( (zn**2-zm**2)/(4.*zn**2-1.) )
+          zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.*(zn+1)**2-1.) )
+          spgz(ji,1,jlev)=spvor(ji-1,1,jlev)*zenm/(zn**2)
+          spgz(ji,2,jlev)=spvor(ji-1,2,jlev)*zenm/(zn**2)
+          spgz(ji,1,jlev)=zcon*(spgz(ji,1,jlev)+spvor(ji+1,1,jlev)*zenmp1/((zn+1.0)**2))
+          spgz(ji,2,jlev)=zcon*(spgz(ji,2,jlev)+spvor(ji+1,2,jlev)*zenmp1/((zn+1.0)**2))
+          zn = zn + 1.0
+        enddo
+
+        ! at the top, contributions from n-1 coeff only
+        zenm = sqrt ( (zn**2-zm**2)/(4.*zn**2-1.) )
+        spgz(ib,1,jlev) = zcon*spvor(ib-1,1,jlev)*zenm/(zn**2)
+        spgz(ib,2,jlev) = zcon*spvor(ib-1,2,jlev)*zenm/(zn**2)
+        ia = ib + 1
+      enddo
+    enddo
+
+    ! ensure correct value for mass spectral-coefficient for m=n=0
+    do jlev = 1, nlevens
+      spgz(1,1,jlev) = 0.0
+      spgz(1,2,jlev) = 0.0
+    enddo
+
+  end subroutine calcBalancedP
+
+
+  subroutine normalize3d(ensPerturbations,stddev3d)
+    implicit none
+
+    integer :: jlon,jlat,jlev,jens
+    real*8  :: dfact,stddev3d(:,:,:)
+    real*4  :: ensPerturbations(:,:,:,:)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON,DFACT)
+      do jlat=1,nj
+        do jlev=1,nkgdimEns
+          do jlon=1,ni
+            if(stddev3d(jlon,jlev,jlat).gt.0.0d0) then
+              dfact=1.0d0/stddev3d(jlon,jlev,jlat)
+            else
+              dfact=0.0d0
+            endif
+            do jens=1,nens
+              ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)*dfact
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*) 'finished normalizing by stddev3D...'
+    call flush(6)
+  
+  end subroutine normalize3d
+
+
+  subroutine multiply3d(ensPerturbations,stddev3d)
+    implicit none
+
+    integer :: jlon,jlat,jlev,jens
+    real*8  :: stddev3d(:,:,:)
+    real*4  :: ensPerturbations(:,:,:,:)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
+      do jlat=1,nj
+        do jlev=1,nkgdimEns
+          do jlon=1,ni
+            do jens=1,nens
+              ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)*stddev3d(jlon,jlev,jlat)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*) 'finished multiplying by stddev3D...'
+    call flush(6)
+  
+  end subroutine multiply3d
+
+
+  subroutine readEnsemble(ensPerturbations)
+    implicit none
+
+    integer :: stamp_in
+    real*8 :: gd2d(ni,nj)
+    real*4 :: ensPerturbations(:,:,:,:)
+    real*8 :: rmsknt,rmbtpa,r1sa,conima
+    real*8 :: rhumin = 2.5d-6
+    integer :: jlon,jlat,jlev,jens
+    integer :: nulens
+    integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
+
+    ! standard file variables
+    integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo,ikey
+    character(len=2)   :: cltypvar
+    character(len=1)   :: clgrtyp
+    character(len=4)   :: clnomvar
+    character(len=12)  :: cletiket
+    integer :: vfstlir,fstfrm,fclos,fnom,fstouv
+
+
+    ! this should come from state vector object
+    ngposituu=1
+    ngpositvv=1+1*nLevEns
+    ngposittt=1+2*nLevEns
+    ngpositq =1+3*nLevEns
+    ngpositps=1+4*nLevEns
+    ngposittg=2+4*nLevEns
+
+    ! some physical constants
+    rmsknt = 1.d0/1.94246d0
+    rmbtpa = 1.0d2
+    r1sa=1.d0/6371229.d0
+
+    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
+!    ip2 = 6
+    ip2 = -1
+    ip3=-1
+    idateo = -1
+    cltypvar = ' '
+    cletiket = ' '
+
+    do jens=1,nens
+        write(*,*) 'Reading ensemble member:',trim(cflensin(jens))
+        call flush(6)
+
+        nulens=0
+        ierr = fnom(nulens,cflensin(jens),'RND+OLD+R/O',0)
+        ierr = fstouv(nulens,'RND+OLD')
+        write(*,*) 'reading member:',jens
+        call flush(6)
+
+          clnomvar = 'P0' 
+          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
+          if(ikey.lt.0) then
+            write(*,*) 'SUENS: Problem with P0 ENS'
+            call flush(6)
+            call qqexit(1)
+          endif
+          do jlat=1,nj
+            do jlon=1,ni
+              ensPerturbations(jlon,ngpositps,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmbtpa
+            enddo
+          enddo
+
+          do jlev=1,nLevEns
+            clnomvar = 'TT'
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with TT ENS'
+              call flush(6)
+              call qqexit(1)
+            endif
+            call flush(6)
+            do jlat=1,nj
+              do jlon=1,ni
+                ensPerturbations(jlon,jlev-1+ngposittt,jlat,jens)= gd2d(jlon,nj+1-jlat)
+              enddo
+            enddo
+          enddo
+
+          do jlev=1,nLevEns
+            clnomvar = 'HU' 
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              clnomvar = 'LQ' 
+              ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+              if(ikey.lt.0) then
+                write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+                write(*,*) 'SUENS: Problem with HU and LQ ENS'
+                call flush(6)
+                call qqexit(1)
+              else
+                do jlat=1,nj
+                  do jlon=1,ni
+                    ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= gd2d(jlon,nj+1-jlat)
+                  enddo
+                enddo
+              endif
+            else
+              do jlat=1,nj
+                do jlon=1,ni
+                  ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= log(max(gd2d(jlon,nj+1-jlat),rhumin))
+                enddo
+              enddo
+            endif
+          enddo
+
+          do jlev=1,nLevEns
+            clnomvar = 'UU' 
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with UU ENS'
+              call flush(6)
+              call qqexit(1)
+            endif
+            do jlat=1,nj
+              conima=r1sa*gst_getRSQM2(jlat,gstID)
+              do jlon=1,ni
+                ensPerturbations(jlon,jlev-1+ngposituu,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmsknt*conima
+              enddo
+            enddo
+          enddo
+
+          do jlev=1,nLevEns
+            clnomvar = 'VV' 
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            if(ikey.lt.0) then
+              write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+              write(*,*) 'SUENS: Problem with VV ENS'
+              call flush(6)
+              call qqexit(1)
+            endif
+            do jlat=1,nj
+              conima=r1sa*gst_getRSQM2(jlat,gstID)
+              do jlon=1,ni
+                ensPerturbations(jlon,jlev-1+ngpositvv,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmsknt*conima
+              enddo
+            enddo
+          enddo
+
+!          clnomvar = 'TG' 
+!          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
+!          if(ikey.lt.0)  then
+!            write(*,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
+!            write(*,*) 'SUENS: Problem with TG ENS'
+!            call flush(6)
+!            call qqexit(1)
+!          else
+!            do jlat=1,nj
+!              do jlon=1,ni
+!                ensPerturbations(jlon,ngposittg,jlat,jens)= gd2d(jlon,nj+1-jlat)
+!              enddo
+!            enddo
+!          endif
+
+        ierr =  fstfrm(nulens)
+        ierr =  fclos (nulens)
+
+        write(*,*) 'done reading member ',jens
+        call flush(6)
+
+    enddo
+
+    write(*,*) 'finished reading ensemble members...'
+    call flush(6)
+
+  end subroutine readensemble
+
+
+  subroutine uv_to_psichi(ensPerturbations)
+    implicit none
+
+    integer :: jens,jlev,jlat
+    real*8  :: dla2
+    real*8  :: spectralState(nla,2,nkgdimEns)
+    real*4  :: ensPerturbations(:,:,:,:)
+    real*8  :: member(ni,nkgdimens,nj)
+!
+! Convert from U/V to PSI/CHI and spectrally filter all fields
+!
+    dla2   = dble(ra)*dble(ra)
+    do jens=1,nens
+      member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
+      call gst_gdsp(spectralState,member,nkgdimEns,nlevEns,nkgdimEns)
+      do jlev = 1, nlevEns
+        do jlat = 1, nla
+          spectralState(jlat,1,jlev)         = spectralState(jlat,1,jlev)         * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,2,jlev)         = spectralState(jlat,2,jlev)         * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,1,jlev+nlevEns) = spectralState(jlat,1,jlev+nlevEns) * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,2,jlev+nlevEns) = spectralState(jlat,2,jlev+nlevEns) * dla2*gst_getR1snp1(jlat)
+        enddo
+      enddo
+      call gst_speree(spectralState,member,nkgdimEns,nkgdimEns)
+      ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
+    enddo
+
+    write(*,*) 'finished doing u/v -> psi/chi and spectral filter...'
+    call flush(6)
+    
+  end subroutine uv_to_psichi
+
+
+  subroutine removeMean(ensPerturbations)
+    implicit none
+
+    integer :: jens,jlev,jlat,jlon
+    real*8  :: dnens,gd2d(ni,nj)
+    real*4  :: ensPerturbations(:,:,:,:)
+
+    ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
+    dnens=1.0d0/dble(nens)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JLEV,GD2D,JENS,JLAT,JLON)
+      do jlev=1,nkgdimEns
+        gd2d(:,:)=0.0d0
+        do jens=1,nens
+          do jlat=1,nj
+            do jlon=1,ni
+              gd2d(jlon,jlat)=gd2d(jlon,jlat)+ensPerturbations(jlon,jlev,jlat,jens)
+            enddo
+          enddo
+        enddo
+        do jlat=1,nj
+          do jlon=1,ni
+            gd2d(jlon,jlat)=gd2d(jlon,jlat)*dnens
+          enddo
+        enddo
+        do jens=1,nens
+          do jlat=1,nj
+            do jlon=1,ni
+              ensPerturbations(jlon,jlev,jlat,jens)=     &
+                ensPerturbations(jlon,jlev,jlat,jens)-gd2d(jlon,jlat)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*) 'finished removing the ensemble mean...'
+    call flush(6)
+
+  end subroutine removeMean
+
+
+  SUBROUTINE ZLEGPOL(PLEG,DDMU,KNJ,KTRUNC)
+!     o   PLEG(0:KTRUNC,KNJ): Legendre functions evaluated at the KNJ Gaussian
+!     .                         latitudes
+!     i   DDMU  (KNJ)          : sin(latitude)
+!     i   KNJ                 : number of Gaussian latitudes
+!     i   KTRUNC              : spectral truncation
+      IMPLICIT NONE
+
+      INTEGER KNJ, KTRUNC
+      REAL*8 PLEG(0:KTRUNC,KNJ)
+      REAL*8 DDMU(knj)
+
+      INTEGER JN, JLAT, ILEN, IERR
+      REAL*8 DLFACT1, DLFACT2, DLN
+      REAL*8 DLNORM(0:KTRUNC)
+
+      DO JLAT = 1, KNJ
+         PLEG(0,JLAT) = SQRT(0.5)
+         PLEG(1,JLAT) = SQRT(1.5)*DDMU(JLAT)
+      END DO
+
+      DO JN = 0, KTRUNC
+         DLN = 1.D0*DFLOAT(JN)
+         DLNORM(JN) = DSQRT((2.*DLN + 1.D0)/2.D0)
+      END DO
+
+      DO JN = 1, KTRUNC-1
+         DLN = DFLOAT(JN)
+         DLFACT1 = ((2.*DLN+1.)/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN))
+         DLFACT2 = (DLN/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN-1))
+         DO JLAT = 1,KNJ
+            PLEG(JN+1,JLAT) = DLFACT1*DDMU(JLAT)*DBLE(PLEG(JN,JLAT)) -  &
+                              DLFACT2*DBLE(PLEG(JN-1,JLAT))
+         END DO
+      END DO
+
+  END subroutine zlegpol
+
+
+  SUBROUTINE ZLEGDIR(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV)
+!     i   PF(KNJ,KLEV)   : field in physical space
+!     o   PN(0:KTRUNC, KLEV ): spectral coefficients
+!     o   PLEG(0:KTRUNC, KNJ): Legendre polynomials evaluated at the Gaussian latitudes
+!     i   DDWT(KNJ)          : weights of the Gaussian quadrature
+!     i   KNJ                  : number of Gaussian latitudes
+!     i   KTRUNC               : spectral truncation
+!     i   KLEV                 : number of fields to transform
+      IMPLICIT NONE
+
+      INTEGER KNJ, KLEV, KTRUNC
+      REAL*8 PF(KNJ,KLEV),PN(0:KTRUNC, KLEV),PLEG(0:KTRUNC,KNJ)
+      REAL*8 DDWT(KNJ)
+
+      INTEGER J, JN, ILEN, IERR
+      REAL*8 ZWORK(0:KTRUNC,KNJ)
+
+!     1. Prepare the matrix used for the transform
+      DO J = 1, KNJ
+         DO JN = 0,KTRUNC
+            ZWORK(JN,J) = PLEG(JN,J)*DDWT(J)
+         END DO
+      END DO
+
+!     2. Do the transform
+!      CALL MXMA8(ZWORK(0,1),1,KTRUNC+1,PF(1,1),1,KNJ,  &
+!                 PN(0,1),1,KTRUNC+1,KTRUNC+1,KNJ,KLEV)
+      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJ,'N',PN(0,1),KTRUNC+1,KTRUNC+1,KNJ,KLEV) 
+      RETURN
+  END subroutine zlegdir
+
+
+  SUBROUTINE ZLEGINV(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV)
+!     o   PF(KNJ,KLEV)  : field in physical space
+!     i   PN(0:KTRUNC, KLEV): spectral coefficients
+!     i   PLEG(0:KTRUNC,KNJ): Legendre functions evaluated at the KNJ Gaussian
+!     .                         latitudes
+!     i   DDWT(KNJ)         : weights of the Gaussian quadrature
+!     i   KNJ                 : number of Gaussian latitudes
+!     i   KTRUNC              : spectral truncation
+!     i   KLEV                : number of fields to transform
+      IMPLICIT NONE
+
+      INTEGER KNJ, KLEV, KTRUNC
+      REAL*8 PF(KNJ,KLEV),PN(0:KTRUNC, KLEV),PLEG(0:KTRUNC,KNJ)
+      REAL*8 DDWT(KNJ)
+
+      INTEGER J, JN, ILEN, IERR
+      REAL*8    ZWORK(0:KTRUNC,KNJ)
+
+!     1. Prepare the matrix used for the transform
+      DO J = 1, KNJ
+         DO JN = 0,KTRUNC
+            ZWORK(JN,J) = PLEG(JN,J)
+         END DO
+      END DO
+
+!     2. Do the transform
+!      CALL MXMA8(ZWORK(0,1),KTRUNC+1,1,PN(0,1),1,KTRUNC+1,   &
+!                 PF(1,1),1,KNJ,KNJ,KTRUNC+1,KLEV)
+      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KTRUNC+1,'N',PF(1,1),KNJ,KNJ,KTRUNC+1,KLEV) 
+
+      RETURN
+  END subroutine zleginv
+
+end module calcbmatrix_nanalvar4_mod

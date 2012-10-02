@@ -89,20 +89,20 @@
 !C     
 !C     *        Process only refractivity data (codtyp 169)
 !C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+               IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
                IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C                 Loops over data in the observation
 !C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+                  IDATA   = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
+                  IDATEND = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
                   ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them
 !C
                   NH = 0
                   DO INDEX_BODY= IDATA, IDATEND
-                     IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                     IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -114,8 +114,8 @@
 !C     
 !C     *              Profile at the observation location:
 !C
-                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER)
-                     Lon  = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER)
+                     Lat  = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER)
+                     Lon  = obs_headElem_r(lobsSpaceData,NCM_LON,INDEX_HEADER)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
@@ -154,9 +154,9 @@
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
                      DO INDEX_BODY= IDATA, IDATEND
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                        IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+                           HNH1  = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                          ENDIF
                      ENDDO
@@ -169,7 +169,7 @@
 !C
                      NH1 = 0
                      DO INDEX_BODY= IDATA, IDATEND
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
+                        IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
                            NH1 = NH1 + 1
 !C
 !C     *                    Observation operator H(x)
@@ -178,13 +178,13 @@
 !C
 !C     *                    Observation value    Y
 !C
-                           ZOBS = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+                           ZOBS = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
 !C                           
 !C                          OMF Tested criteria:
 !C
                            IF (DABS(ZOBS-ZMHX)/ZMHX.GT.BGCKBAND) THEN
-                              call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),16))
-                              call obs_set_i(lobsSpaceData,'FLG ',index_body,IBSET(obs_elem_i(lobsSpaceData,'FLG ',index_body),9))
+                              call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),16))
+                              call obs_bodySet_i(lobsSpaceData,NCM_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,index_body),9))
                               WRITE(*,'(A40,F10.0,3F12.4)')  &
                                   ' REJECT BGCSGPSRO H  O  P (O-P/P) =',H(NH1),ZOBS,ZMHX,(ZOBS-ZMHX)/ZMHX
                            ENDIF

@@ -40,7 +40,7 @@ C
       if(firstTime) then
         allocate(includeFlag(obs_numbody(lobsSpaceData)))
         do index_body=1,obs_numbody(lobsSpaceData)
-           includeFlag(index_body) = (obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1) 
+           includeFlag(index_body) = (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).eq.1) 
      +                         .and. (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'RO')
         enddo
         firstTime=.false.
@@ -48,11 +48,11 @@ C
 
       BODY: do index_body=1,obs_numbody(lobsSpaceData)
         if (includeFlag(index_body)) then
-          index_header = obs_elem_i(lobsSpaceData,'OBS ',index_body)
-          index_body_start = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
-          ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
-          zgami = obs_elem_r(lobsSpaceData,'POB ',index_body)
-          ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+          index_header = obs_bodyElem_i(lobsSpaceData,NCM_OBS,index_body)
+          index_body_start = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
+          ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+          zgami = obs_bodyElem_r(lobsSpaceData,NCM_POB,index_body)
+          ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
           LLUV = ((ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) .AND.
      &         col_varExist('UU')) .OR. ((ITYP .EQ. BUFR_NEVV .OR.
      &         ITYP .EQ. BUFR_NEVS).AND.col_varExist('VV'))
@@ -64,25 +64,25 @@ C  must be available for both u and v components. Hence, loop over only
 C  data for which o-a has already been calculated
 C
               DO JJ=INDEX_BODY_START, INDEX_BODY
-                ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
-                ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)
+                ISTYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JJ)
+                ZSLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JJ)
                 IF ((ISTYP .EQ. BUFR_NEVV
      1               .OR. ISTYP .EQ. BUFR_NEVS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)+
-     &                 obs_elem_r(lobsSpaceData,'OMI ',JJ)
+                  ZJON=obs_bodyElem_r(lobsSpaceData,NCM_OMI,INDEX_BODY)+
+     &                 obs_bodyElem_r(lobsSpaceData,NCM_OMI,JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
 C
 C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
-                  call obs_set_r(lobsSpaceData,'OMN ',INDEX_BODY, ZPPOST)
-                  call obs_set_r(lobsSpaceData,'OMN ',JJ, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMN,INDEX_BODY, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMN,JJ, ZPPOST)
 
-                  call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  call obs_set_r(lobsSpaceData,'OMI ',JJ, -LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMI,JJ, -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
 C
 C     Contribution of both u and v added to the cost function at the
@@ -92,30 +92,30 @@ C
               ENDDO
             ELSE
               DO JJ=INDEX_BODY_START, INDEX_BODY
-                ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
-                ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)
+                ISTYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JJ)
+                ZSLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JJ)
                 IF ((ISTYP .EQ. BUFR_NEUU .OR.
      1               ISTYP .EQ. BUFR_NEUS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obs_elem_r(lobsSpaceData,'OMI ',INDEX_BODY)+
-     &                 obs_elem_r(lobsSpaceData,'OMI ',JJ)
+                  ZJON=obs_bodyElem_r(lobsSpaceData,NCM_OMI,INDEX_BODY)+
+     &                 obs_bodyElem_r(lobsSpaceData,NCM_OMI,JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
-                  call obs_set_r(lobsSpaceData,'OMN ',INDEX_BODY, ZPPOST)
-                  call obs_set_r(lobsSpaceData,'OMN ',JJ, ZPPOST)
-                  call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMN,INDEX_BODY, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMN,JJ, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  call obs_set_r(lobsSpaceData,'OMI ',JJ, -LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMI,JJ, -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
                 ENDIF
               enddo
             endif
           else
-            zjon = obs_elem_r(lobsSpaceData,'OMI ',index_body)
+            zjon = obs_bodyElem_r(lobsSpaceData,NCM_OMI,index_body)
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
-            call obs_set_r(lobsSpaceData,'OMN ',index_body, zppost)
-            call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY, - log(zqcarg/(zgami+1.)))
+            call obs_bodySet_r(lobsSpaceData,NCM_OMN,index_body, zppost)
+            call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY, - log(zqcarg/(zgami+1.)))
           endif
 
         endif

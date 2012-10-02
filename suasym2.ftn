@@ -83,30 +83,30 @@
 *
 *
       DO JJO = 1, obs_numheader(lobsSpaceData)
-         IDATA     = obs_elem_i(lobsSpaceData,'RLN ',JJO)
-         IDATEND   = obs_elem_i(lobsSpaceData,'NLV ',JJO) + IDATA - 1
-         IDATYP    = obs_elem_i(lobsSpaceData,'OTP ',JJO)
-         IDBURP    = obs_elem_i(lobsSpaceData,'ITY ',JJO)
-         ZLAT = obs_elem_r(lobsSpaceData,'LAT ',JJO)*MPC_DEGREES_PER_RADIAN_R8
-         ZLON = obs_elem_r(lobsSpaceData,'LON ',JJO)*MPC_DEGREES_PER_RADIAN_R8
+         IDATA     = obs_headElem_i(lobsSpaceData,NCM_RLN,JJO)
+         IDATEND   = obs_headElem_i(lobsSpaceData,NCM_NLV,JJO) + IDATA - 1
+         IDATYP    = obs_headElem_i(lobsSpaceData,NCM_OTP,JJO)
+         IDBURP    = obs_headElem_i(lobsSpaceData,NCM_ITY,JJO)
+         ZLAT = obs_headElem_r(lobsSpaceData,NCM_LAT,JJO)*MPC_DEGREES_PER_RADIAN_R8
+         ZLON = obs_headElem_r(lobsSpaceData,NCM_LON,JJO)*MPC_DEGREES_PER_RADIAN_R8
          DO JDATA  = IDATA, IDATEND
-            ITYP   = obs_elem_i(lobsSpaceData,'VNM ',JDATA)
-            IASS   = obs_elem_i(lobsSpaceData,'ASS ',JDATA)
-            ZLEV   = obs_elem_r(lobsSpaceData,'PPP ',JDATA)*MPC_MBAR_PER_PA_R8
+            ITYP   = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA)
+            IASS   = obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA)
+            ZLEV   = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JDATA)*MPC_MBAR_PER_PA_R8
             ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
-            ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-            ZVAL = obs_elem_r(lobsSpaceData,'VAR ',JDATA)
-            ZFCST= obs_elem_r(lobsSpaceData,'OMA ',JDATA)*ZOER + ZVAL
+            ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,JDATA)
+            ZVAL = obs_bodyElem_r(lobsSpaceData,NCM_VAR,JDATA)
+            ZFCST= obs_bodyElem_r(lobsSpaceData,NCM_OMA,JDATA)*ZOER + ZVAL
 C
             IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
      1          ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.
      2          ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS .OR.
      3          ITYP .EQ. BUFR_NEZD) THEN
-               LLOK = (obs_elem_i(lobsSpaceData,'ASS ',JDATA) .EQ. 1)
+               LLOK = (obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA) .EQ. 1)
             ELSE
-               LLOK = (IASS .EQ. 1) .AND. ((obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ.0)
-     1            .OR. ((obs_elem_i(lobsSpaceData,'XTR ',JDATA) .EQ. 2) .AND.
-     2                  (obs_elem_i(lobsSpaceData,'VNM ',JDATA) .EQ. BUFR_NEGZ)))
+               LLOK = (IASS .EQ. 1) .AND. ((obs_bodyElem_i(lobsSpaceData,NCM_XTR,JDATA) .EQ.0)
+     1            .OR. ((obs_bodyElem_i(lobsSpaceData,NCM_XTR,JDATA) .EQ. 2) .AND.
+     2                  (obs_bodyElem_i(lobsSpaceData,NCM_VNM,JDATA) .EQ. BUFR_NEGZ)))
             ENDIF
 
             IF (LLOK) THEN
@@ -116,8 +116,8 @@ C
                   IOTHER = -1
                   IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                     DO JJ=IDATA,JDATA
-                      ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
-                      ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
+                      ISTYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JJ)
+                      ZSLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JJ)*MPC_MBAR_PER_PA_R8
                       IF ((ISTYP .EQ. BUFR_NEVV .OR. ISTYP .EQ. BUFR_NEVS)
      1                     .AND. ZLEV .EQ. ZSLEV) THEN
                         IOTHER = JJ
@@ -125,8 +125,8 @@ C
                     ENDDO
                   ELSE
                     DO JJ=IDATA,JDATA
-                      ISTYP = obs_elem_i(lobsSpaceData,'VNM ',JJ)
-                      ZSLEV = obs_elem_r(lobsSpaceData,'PPP ',JJ)*MPC_MBAR_PER_PA_R8
+                      ISTYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,JJ)
+                      ZSLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,JJ)*MPC_MBAR_PER_PA_R8
                       IF ((ISTYP .EQ. BUFR_NEUU .OR. ISTYP .EQ. BUFR_NEUS)
      1                     .AND. ZLEV .EQ. ZSLEV) THEN
                         IOTHER = JJ
@@ -134,10 +134,10 @@ C
                     ENDDO
                   ENDIF
                   IF (IOTHER .NE. -1) THEN
-                    ZOER = obs_elem_r(lobsSpaceData,'OER ',JDATA)
-                    ZOVAL = obs_elem_r(lobsSpaceData,'VAR ',IOTHER)
-*                       ZOFCST = obs_elem_r(lobsSpaceData,'OMF ',IOTHER)*ZOER+ZOVAL
-                    ZOFCST = obs_elem_r(lobsSpaceData,'OMA ',IOTHER)*ZOER+ZOVAL
+                    ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,JDATA)
+                    ZOVAL = obs_bodyElem_r(lobsSpaceData,NCM_VAR,IOTHER)
+*                       ZOFCST = obs_bodyElem_r(lobsSpaceData,NCM_OMF,IOTHER)*ZOER+ZOVAL
+                    ZOFCST = obs_bodyElem_r(lobsSpaceData,NCM_OMA,IOTHER)*ZOER+ZOVAL
                     ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
                     ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
                     ZDIFF = ZSPDO - ZSPDF
@@ -177,14 +177,14 @@ C
 *
 *_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(1.d0 -
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(1.d0 -
      1               (1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM)))*(2.d0*MPC_PI_r8)/
      2              ((1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM))*
      3                                (2.d0*ZDUV)*(2.d0*ZDUV)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142) .OR.
      1                (IDBURP .EQ. 132) )
-     2             call obs_set_r(lobsSpaceData,'POB ',JDATA,
+     2             call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,
      +                    (1.d0 - (1.d0-ZAUVRA)*(1.d0-ZAUVRA))
      3                    *(2.d0*MPC_PI_R8)/((1.d0-ZAUVRA)*(1.d0-ZAUVRA)*
      4                                (2.d0*ZDUV)*(2.d0*ZDUV)))
@@ -192,43 +192,43 @@ C
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZAGZ*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZAGZ*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAGZ)*(2.d0*ZDGZ)))
                ELSEIF (ITYP .EQ. BUFR_NETT) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZATT*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZATT*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
                   IF ((IDBURP .GE. 32  .AND. IDBURP .LE. 38) .OR.
      1                (IDBURP .GE. 135 .AND. IDBURP .LE. 142) .OR.
      1                (IDBURP .EQ. 132) )
-     2              call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZATTRA*
+     2              call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZATTRA*
      3                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTRA)*(2.d0*ZDTT)))
                ELSEIF (ITYP .EQ. BUFR_NETS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZATT*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZATT*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
 *
 *                 ASYMMETRIC TEST FOR SHIP TEMPERATURES
 *
                   IF ((IDBURP .EQ. 13) .AND. (ZVAL .GT. ZFCST)) THEN
-                    call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZATTSYM*
+                    call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZATTSYM*
      1                  SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTSYM)*(2.d0*ZDTT)))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEPN) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZAPN*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZAPN*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPN)*(2.d0*ZDPN)))
                ELSEIF (ITYP .EQ. BUFR_NEPS) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZAPS*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZAPS*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPS)*(2.d0*ZDPS)))
                ELSEIF ( ITYP .EQ. 12062 .OR. ITYP .EQ. 12063 .OR.
      1                  ITYP .EQ. 12163) THEN
@@ -236,27 +236,27 @@ C
 *                 INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
 *                 TOVS AMSU-A
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZABT*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZABT*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
                   IF (IDBURP .EQ. 181 .OR.
      1                IDBURP .EQ. 182      ) THEN
 *
 *                   INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
 *
-                    call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZABTB*
+                    call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZABTB*
      1                  SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABTB)*(2.d0*ZDBTB)))
                   ENDIF
                ELSEIF (ITYP .EQ. BUFR_NEZD) THEN
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZAZD*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZAZD*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
                ELSE
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
 *
-                  call obs_set_r(lobsSpaceData,'POB ',JDATA,(ZAHU*
+                  call obs_bodySet_r(lobsSpaceData,NCM_POB,JDATA,(ZAHU*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDHU)))
                ENDIF
             ENDIF

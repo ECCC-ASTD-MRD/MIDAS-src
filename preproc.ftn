@@ -69,7 +69,7 @@
 !
 !     Allocate memory for observation arrays
 !
-      call obs_initialize(lobsSpaceData)
+      call obs_initialize(lobsSpaceData,'VAR')
 !
 !     Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
 !

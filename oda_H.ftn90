@@ -111,16 +111,16 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           index_body = obs_getBodyIndex(lobsSpaceData)
           if (index_body < 0) exit BODY
 
-          llassim= (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
-             .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 0) &
-             .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2)
-          lldiag = (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. -1) &
-             .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2)
+          llassim= (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body) .EQ. 1) &
+             .AND. (obs_bodyElem_i(lobsSpaceData,NCM_XTR,index_body) .EQ. 0) &
+             .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,index_body) .EQ. 2)
+          lldiag = (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body) .EQ. -1) &
+             .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,index_body) .EQ. 2)
           IF (llassim .or. lldiag) THEN
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-            ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
-            ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-            IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
+            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+            ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+            IK   = obs_bodyElem_i(lobsSpaceData,NCM_LYR,INDEX_BODY)
             IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
             ZPT  = col_getPressure(LCOLUMNG,IK  ,INDEX_HEADER,'NA')
@@ -158,15 +158,15 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               columngVarB=col_getElem(lcolumng,IPB,INDEX_HEADER)
               columngVarT=col_getElem(lcolumng,IPT,INDEX_HEADER)
             endif
-            call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,   &
+            call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,   &
                  ZWB*columnVarB + ZWT*columnVarT+  &
                  (columngVarB - columngVarT)*  &
                  ZDADPS*col_getElem(LCOLUMN,1,INDEX_HEADER,'P0'))
-          elseif( (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
-            .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 2) &
-            .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 2) ) then
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-            ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+          elseif( (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body) .EQ. 1) &
+            .AND. (obs_bodyElem_i(lobsSpaceData,NCM_XTR,index_body) .EQ. 2) &
+            .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,index_body) .EQ. 2) ) then
+            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
 !C
 !c-----------TL model for height data below model's orography
 !c
@@ -174,7 +174,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                  + lcolumng%OLTV(2,col_getNumLev(LCOLUMN),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(LCOLUMN),INDEX_HEADER,'HU')
             ZTVG = lcolumng%OLTV(1,col_getNumLev(LCOLUMN),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(LCOLUMN),INDEX_HEADER,'TT')
             ZCON =(ZLEV/col_getElem(lcolumng,1,INDEX_HEADER,'P0'))**ZEXP
-            call obs_set_r(lobsSpaceData,'OMA ',index_body, (1.-zcon)/zgamma*ZLTV &
+            call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body, (1.-zcon)/zgamma*ZLTV &
                 + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,index_header,'P0') &
                 /col_getElem(lcolumng,1,index_header,'P0'))
           endif
@@ -224,19 +224,19 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           if (index_body < 0) exit BODY
 
 ! Process all data within the domain of the model
-          ityp = obs_elem_i(lobsSpaceData,'VNM ',index_body)
-          if(    (obs_elem_i(lobsSpaceData,'VCO ',index_body).eq.1) &
-           .and. (obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1) &
+          ityp = obs_bodyElem_i(lobsSpaceData,NCM_VNM,index_body)
+          if(    (obs_bodyElem_i(lobsSpaceData,NCM_VCO,index_body).eq.1) &
+           .and. (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).eq.1) &
            .and. (ityp.eq.bufr_nets .or. ityp.eq.bufr_neps  &
              .or. ityp.eq.bufr_nepn .or. ityp.eq.bufr_ness  &
              .or. ityp.eq.bufr_neus .or. ityp.eq.bufr_nevs  &
-             .or. obs_elem_i(lobsSpaceData,'XTR ',index_body).eq.0) ) then
+             .or. obs_bodyElem_i(lobsSpaceData,NCM_XTR,index_body).eq.0) ) then
 
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-            ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-            IXTR = obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY)
-            IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
-            ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
+            ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+            IXTR = obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY)
+            IK   = obs_bodyElem_i(lobsSpaceData,NCM_LYR,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
             ZHHH = ZLEV * GRAV
             IPT  = col_getNumLev(LCOLUMN)-1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
@@ -253,7 +253,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               else
                 columnVarB=col_getElem(LCOLUMN,IPB,INDEX_HEADER)
               endif
-              call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,columnVarB)
+              call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,columnVarB)
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
               ZLTV  = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(lcolumn),INDEX_HEADER,'TT')  & 
                     + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(lcolumn),INDEX_HEADER,'HU')
@@ -263,7 +263,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ZDELPS= (col_getElem(LCOLUMN,1,INDEX_HEADER,'P0')*ZCON**ZEXP)
               ZDELTV= ((col_getElem(lcolumng,1,INDEX_HEADER,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                    *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
-              call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, ZDELPS+ZDELTV)
+              call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY, ZDELPS+ZDELTV)
             ELSE
               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
               IPB  = IPT+1
@@ -271,16 +271,16 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')
               ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
               ZWT  = 1. - ZWB
-              call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,  &
+              call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,  &
                    ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER)+  &
                    (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER)))
             ENDIF
-          elseif( (obs_elem_i(lobsSpaceData,'ASS ',index_body) .EQ. 1) &
-            .AND. (obs_elem_i(lobsSpaceData,'XTR ',index_body) .EQ. 2) &
-            .AND. (obs_elem_i(lobsSpaceData,'VNM ',index_body) .EQ. BUFR_NEGZ ) &
-            .AND. (obs_elem_i(lobsSpaceData,'VCO ',index_body) .EQ. 1)    ) then
-            INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-            ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+          elseif( (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body) .EQ. 1) &
+            .AND. (obs_bodyElem_i(lobsSpaceData,NCM_XTR,index_body) .EQ. 2) &
+            .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VNM,index_body) .EQ. BUFR_NEGZ ) &
+            .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,index_body) .EQ. 1)    ) then
+            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
 !C
 !C                 CONTRIBUTION TO Jo
 !C
@@ -290,7 +290,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                  + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(lcolumn),INDEX_HEADER,'HU')
             ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
             ZCON=(ZLEV/col_getElem(lcolumng,1,INDEX_HEADER,'P0'))**ZEXPGZ
-            call obs_set_r(lobsSpaceData,'OMA ',index_body,(1.-zcon)/zgamma*ZLTV &
+            call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body,(1.-zcon)/zgamma*ZLTV &
                 + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,index_header,'P0') &
                 /col_getElem(lcolumng,1,index_header,'P0'))
           endif
@@ -422,7 +422,7 @@ end subroutine oda_Hto
 !C
 !C     *        Process only refractivity data (codtyp 169)
 !C
-         IDATYP = obs_elem_i(lobsSpaceData,'ITY ',index_header)
+         IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,index_header)
          DATYP: IF ( IDATYP .EQ. 169 ) THEN
            ASSIM = .FALSE.
 !C
@@ -439,7 +439,7 @@ end subroutine oda_Hto
               index_body = obs_getBodyIndex(local_current_list)
               if (index_body < 0) exit BODY
 
-              LUSE=( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 )
+              LUSE=( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).EQ.1 )
               IF ( LUSE ) THEN
                 ASSIM = .TRUE.
                 NH = NH + 1
@@ -453,8 +453,8 @@ end subroutine oda_Hto
 !C
 !C     *              Profile at the observation location:
 !C
-              Lat  = obs_elem_r(lobsSpaceData,'LAT ',index_header)
-              Lon  = obs_elem_r(lobsSpaceData,'LON ',index_header)
+              Lat  = obs_headElem_r(lobsSpaceData,NCM_LAT,index_header)
+              Lon  = obs_headElem_r(lobsSpaceData,NCM_LON,index_header)
               ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
               ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
               DO JL = 1, col_getNumLev(lcolumn)
@@ -498,10 +498,10 @@ end subroutine oda_Hto
                 index_body = obs_getBodyIndex(local_current_list)
                 if (index_body < 0) exit BODY_2
 
-                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 )
+                LUSE=( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).EQ.1 )
                 IF ( LUSE ) THEN
                   NH1 = NH1 + 1
-                  HNH1  = obs_elem_r(lobsSpaceData,'PPP ',index_body)
+                  HNH1  = obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body)
                   H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                 ENDIF
               ENDDO BODY_2
@@ -520,7 +520,7 @@ end subroutine oda_Hto
                 index_body = obs_getBodyIndex(local_current_list)
                 if (index_body < 0) exit BODY_3
 
-                LUSE=( obs_elem_i(lobsSpaceData,'ASS ',index_body).EQ.1 )
+                LUSE=( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).EQ.1 )
                 IF ( LUSE ) THEN
                   NH1 = NH1 + 1
 !C
@@ -544,7 +544,7 @@ end subroutine oda_Hto
 !C
 !C     *                    Store in CMA
 !C
-                  call obs_set_r(lobsSpaceData,'OMA ',index_body, ZMHXL)
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMA,index_body, ZMHXL)
 
                 ENDIF
               ENDDO BODY_3
@@ -592,13 +592,13 @@ end subroutine oda_Hto
         index_body = obs_getBodyIndex(lobsSpaceData)
         if (index_body < 0) exit BODY
 
-        IF (   (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1) &
-         .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 0) &
-         .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)  ) THEN
-          INDEX_HEADER = obs_elem_i(lobsSpaceData,'OBS ',INDEX_BODY)
-          ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
-          IK   = obs_elem_i(lobsSpaceData,'LYR ',INDEX_BODY)
-          ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+        IF (   (obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1) &
+         .AND. (obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY) .EQ. 0) &
+         .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY) .EQ. 1)  ) THEN
+          INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
+          ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+          IK   = obs_bodyElem_i(lobsSpaceData,NCM_LYR,INDEX_BODY)
+          ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
           IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
           IPB  = IPT+1
           ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,'NA')/RG
@@ -614,7 +614,7 @@ end subroutine oda_Hto
             write(*,*) 'ABORTING IN ODA_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(lobsSpaceData,index_header),index_header,index_body
             call abort3d('Aborting in oda_H')
           endif
-          call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,  &
+          call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,  &
               ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER) +  &
               (col_getElem(lcolumng,IPB,INDEX_HEADER) - col_getElem(lcolumng,IPT,INDEX_HEADER))*  &
               (ZDA1*col_getHeight(LCOLUMN,IK,INDEX_HEADER,'NA')/RG + ZDA2*col_getHeight(LCOLUMN,IK+1,INDEX_HEADER,'NA')/RG))
@@ -691,10 +691,10 @@ end subroutine oda_Hto
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
 
-            if (   (obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER).eq.189) &
-             .and. (obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY).EQ.BUFR_NEZD) &
-             .and. (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1) ) then
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+            if (   (obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER).eq.189) &
+             .and. (obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY).EQ.BUFR_NEZD) &
+             .and. (obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1) ) then
+               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
                ASSIM = .TRUE.
             ENDIF
          ENDDO BODY
@@ -705,9 +705,9 @@ end subroutine oda_Hto
 !C
 !C     *    LR background profile and increments at the observation location x :
 !C
-            ZLAT = obs_elem_r(lobsSpaceData,'LAT ',INDEX_HEADER) &
+            ZLAT = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER) &
                                          * MPC_DEGREES_PER_RADIAN_R8
-            ZLON = obs_elem_r(lobsSpaceData,'LON ',INDEX_HEADER) &
+            ZLON = obs_headElem_r(lobsSpaceData,NCM_LON,INDEX_HEADER) &
                                          * MPC_DEGREES_PER_RADIAN_R8
             DO JL = 1, col_getNumLev(lcolumn)
               ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')
@@ -737,10 +737,10 @@ end subroutine oda_Hto
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY_2
 
-               IF (   (obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER).eq.189) &
-                .and. (obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY).EQ.BUFR_NEZD) &
-                .and. (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1) ) then
-                  call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY, ZHX)
+               IF (   (obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER).eq.189) &
+                .and. (obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY).EQ.BUFR_NEZD) &
+                .and. (obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1) ) then
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY, ZHX)
                ENDIF
             ENDDO BODY_2
 

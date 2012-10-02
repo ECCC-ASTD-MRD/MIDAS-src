@@ -14,11 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
+SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
   use obsSpaceData_mod
   ! Arguments
-  character(len=*), intent(in)  :: elem_dest_s ! destination index
-  character(len=*), intent(in)  :: elem_src_s  ! source index
+  integer, intent(in)  :: elem_dest_i ! destination index
+  integer, intent(in)  :: elem_src_i  ! source index
   !Purpose:
   !Applied observation error variances to ROBDATA8(k_src,*)
   !and store it in the elem_src_s of lobsSpaceData
@@ -37,7 +37,7 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
   if(firstTime) then
     allocate(includeFlag(obs_numbody(lobsSpaceData)))
     do index_body=1,obs_numbody(lobsSpaceData)
-       iass   = obs_elem_i(lobsSpaceData,'ASS ',index_body)
+       iass   = obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body)
        includeFlag(index_body) = (iass.eq.1 .or. iass.eq.-1)
     enddo
     firstTime=.false.
@@ -46,8 +46,8 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_s,elem_src_s)
   ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
   do index_body=1,obs_numbody(lobsSpaceData)
     if(includeFlag(index_body)) then
-      call obs_set_r(lobsSpaceData, elem_dest_s, index_body, &
-         obs_elem_r(lobsSpaceData,elem_src_s,index_body)/obs_elem_r(lobsSpaceData,'OER ',index_body))
+      call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body, &
+         obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)/obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body))
     endif
   enddo
 

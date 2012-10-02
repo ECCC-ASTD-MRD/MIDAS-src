@@ -115,19 +115,19 @@ C
              if (index_body < 0) exit BODY
 
              LLOK=.FALSE.
-             IF ( obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1 ) THEN
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
+             IF ( obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY) .EQ. 1 ) THEN
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
                IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
      &              ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &              ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
-                 LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1 .AND.
+                 LLOK=(obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1 .AND.
      &                ITYP .EQ. NLIST(JLIST))
                ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                  LLOK=.FALSE.
                ELSE
-                 LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1 .AND.
+                 LLOK=(obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1 .AND.
      &                ITYP .EQ. NLIST(JLIST)        .AND.
-     &                obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY)  .EQ. 0)
+     &                obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY)  .EQ. 0)
                ENDIF
                IF ( LLOK ) THEN
                  ICOUNT = ICOUNT + 1
@@ -154,10 +154,10 @@ C
 
              DO JCOUNT = 1,ICOUNT
                INDEX_BODY = IPOINTR(JCOUNT)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-               ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
-               ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+               ZVAR = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
+               ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
                ZHHH = ZLEV * GRAV
                varType = vnl_vartypeFromVarnum(ITYP)
                IPT  = col_getNumLev(LCOLUMNHR,varType)-1 + col_getOffsetFromVarno(lcolumnhr,ityp)
@@ -170,7 +170,7 @@ C
                  columnVarB=col_getElem(lcolumnhr,IPB,INDEX_HEADER)
                endif
                GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),INDEX_HEADER,varType)
-               call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,
+               call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,
      +               (columnVarB
      +              - ZSLOPE*(ZHHH-GZHR)-ZVAR)
      +              / ZOER)
@@ -184,17 +184,17 @@ C              below the model height
      &            NLIST(JLIST).EQ.BUFR_NEPN).AND. ICOUNT.GT.0) THEN
              DO JCOUNT = 1,ICOUNT
                INDEX_BODY = IPOINTR(JCOUNT)
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-               ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
-               ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+               ZVAR = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
+               ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
                ZHHH = ZLEV * GRAV
                varType = vnl_vartypeFromVarnum(ITYP)
                ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),INDEX_HEADER,varType))
                ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
      &                 *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
                ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
-               call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,
+               call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,
      &              ((col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')*ZCON**ZEXP)-ZVAR)/ZOER)
              ENDDO
            ENDIF
@@ -210,24 +210,24 @@ C
             if (index_body < 0) exit BODY_2
 
             LLOK=.false.
-            IF ( obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1 ) THEN
-               ITYP = obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY)
-               ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
+            IF ( obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY) .EQ. 1 ) THEN
+               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+               ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
                IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
      &             ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &             ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
-                  LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)
+                  LLOK=(obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1)
                ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
                   LLOK=.FALSE.
                ELSE
-                  LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1 .AND.
-     &                  obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY)  .EQ. 0)
+                  LLOK=(obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1 .AND.
+     &                  obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY)  .EQ. 0)
                ENDIF
                IF(LLOK)     THEN
-                  PJO = PJO + obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)*
-     1                  obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-                  call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY, 
-     +              obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
+                  PJO = PJO + obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)*
+     1                  obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
+                  call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY, 
+     +              obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY))
                ENDIF
             ENDIF
 C
@@ -242,14 +242,14 @@ C
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY_3
 
-            LLOK=(obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)
-     &         .AND. (obs_elem_i(lobsSpaceData,'XTR ',INDEX_BODY) .EQ. 2)
-     &         .AND. (obs_elem_i(lobsSpaceData,'VNM ',INDEX_BODY) .EQ. BUFR_NEGZ )
-     &         .AND. (obs_elem_i(lobsSpaceData,'VCO ',INDEX_BODY) .EQ. 1)
+            LLOK=(obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1)
+     &         .AND. (obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY) .EQ. 2)
+     &         .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY) .EQ. BUFR_NEGZ )
+     &         .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY) .EQ. 1)
             IF ( LLOK ) THEN
-               ZVAR = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
-               ZOER = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
-               ZLEV = obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY)
+               ZVAR = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
+               ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
 C
 C                 CONTRIBUTION TO Jo
 C
@@ -258,16 +258,16 @@ c  forward nonlinear model for geopotential data below model's orography
 c
                ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
      &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
-               call obs_set_r(lobsSpaceData,'OMA ',INDEX_BODY,(col_getMountain(lcolumnhr,index_header)
+               call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY,(col_getMountain(lcolumnhr,index_header)
      &                     + ZTVG/zgamma
      &                     *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexpgz)
      &                     - zvar)/zoer)
-               PJO =PJO+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-     +                     *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-               call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
-               PJO =PJO+obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-     +                            *obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY)
-               call obs_set_r(lobsSpaceData,'OMI ',INDEX_BODY,obs_elem_r(lobsSpaceData,'OMA ',INDEX_BODY))
+               PJO =PJO+obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
+     +                     *obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
+               call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY,obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY))
+               PJO =PJO+obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
+     +                            *obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
+               call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY,obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY))
             ENDIF
 C
          ENDDO BODY_3

@@ -94,7 +94,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      index_header = obs_getHeaderIndex(lobsSpaceData)
      if (index_header < 0) exit HEADER
 
-     IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+     IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
      IF ( IDATYP .EQ. 183) THEN
         count_airs = count_airs + 1
         IF ( count_airs > airs_loop_done * bunch_airs .AND.  &
@@ -229,7 +229,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      index_header = obs_getHeaderIndex(lobsSpaceData)
      if (index_header < 0) exit HEADER_2
 
-           IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+           IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
 
            IF ( IDATYP .EQ. 164 .OR. &
                 IDATYP .EQ. 168 .OR. &
@@ -260,18 +260,18 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                          * MPC_MBAR_PER_PA_R8
                  END DO
 
-                 IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
-                 IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+                 IDATA   = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
+                 IDATEND = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
                  DO INDEX_BODY= IDATA, IDATEND
-                    IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
-                       ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+                    IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
+                       ICHN = NINT(obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY))
                        ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                       BTOBSERR(AIRSSCH(ICHN)) = obs_elem_r(lobsSpaceData,'OER ',INDEX_BODY)
-                       BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_elem_r(lobsSpaceData,'VAR ',INDEX_BODY)
+                       BTOBSERR(AIRSSCH(ICHN)) = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+                       BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
 ! *** Flag check on observed BTs ***
-                       IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
 ! *** Set if data has been bias corrected (bit 6 set) ***
-                       IF (BTEST(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
+                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
 ! *** Gross check on observed BTs ***
                        IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
                        IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
@@ -295,7 +295,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
                  KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
 !Test pour detecter le isatzen manquant ou anormal pour AIRS
-                 if ( obs_elem_i(lobsSpaceData,'SZA ',INDEX_HEADER) > 16500) then
+                 if ( obs_headElem_i(lobsSpaceData,NCM_SZA,INDEX_HEADER) > 16500) then
                     DO JC = 1, NCHN
                        ICHN = ichan(JC,IDAIRS)
                        REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
@@ -692,21 +692,21 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      index_header = obs_getHeaderIndex(lobsSpaceData)
      if (index_header < 0) exit HEADER_3
 
-     IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+     IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
      IF ( IDATYP .EQ. 183) THEN
         count_airs = count_airs + 1
         IF ( count_airs > airs_loop_done * bunch_airs .AND. &
              count_airs <= (airs_loop_done+1) * bunch_airs ) THEN
            NOBAIRS = NOBAIRS + 1
-           IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
-           IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+           IDATA   = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
+           IDATEND = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
            DO INDEX_BODY= IDATA, IDATEND
-              IF ( obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY).EQ.1 ) THEN
-                 ICHN = NINT(obs_elem_r(lobsSpaceData,'PPP ',INDEX_BODY))
+              IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
+                 ICHN = NINT(obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY))
                  ICHN = MAX(0,MIN(ICHN,JPCH+1))
                  DO NFLG = 0, BITFLAG
                     IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
-                         call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,IBSET(obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY),NFLG))
+                         call obs_bodySet_i(lobsSpaceData,NCM_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY),NFLG))
                  END DO
               END IF
            END DO

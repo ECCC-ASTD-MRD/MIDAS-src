@@ -33,10 +33,10 @@ C
 c-------Fill ROBDATA with Z' = -( H(xb_hr) - Z ) = Z - H(xb_hr)
 c
       do index_body=1,obs_numbody(lobsSpaceData)
-        call obs_set_r(lobsSpaceData,'OMN ',index_body, 0.d0)
-        call obs_set_r(lobsSpaceData,'OMF ',index_body, 
-     &                          -obs_elem_r(lobsSpaceData,'OMA ',index_body)
-     &                          *obs_elem_r(lobsSpaceData,'OER ',index_body))
+        call obs_bodySet_r(lobsSpaceData,NCM_OMN,index_body, 0.d0)
+        call obs_bodySet_r(lobsSpaceData,NCM_OMF,index_body, 
+     &                          -obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)
+     &                          *obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body))
       enddo
 c
       call obs_swapVarOmf(lobsSpaceData)

@@ -64,8 +64,8 @@ c
 C
       IF (LVARQC) CALL LISTREJ(lobsSpaceData)
 C
-      CALL VINT3DFD('OMA ',lobsSpaceData)
-      CALL VINT3DFD('OMF ',lobsSpaceData)
+      CALL VINT3DFD(NCM_OMA,lobsSpaceData)
+      CALL VINT3DFD(NCM_OMF,lobsSpaceData)
       CALL SETASSFLG(lobsSpaceData)
       CALL FILBRPPOST(lcolumng,lobsSpaceData)
 c

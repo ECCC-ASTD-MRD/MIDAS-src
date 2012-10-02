@@ -39,8 +39,8 @@ C
 C     Process all data
 C
       DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
-         IF (obs_elem_i(lobsSpaceData,'ASS ',INDEX_BODY) .EQ. 1)  THEN
-            call obs_set_i(lobsSpaceData,'FLG ',INDEX_BODY,ibset( obs_elem_i(lobsSpaceData,'FLG ',INDEX_BODY), 12 ))
+         IF (obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1)  THEN
+            call obs_bodySet_i(lobsSpaceData,NCM_FLG,INDEX_BODY,ibset( obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY), 12 ))
          ENDIF
       END DO
 C--------------------------------------------------------------------

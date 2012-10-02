@@ -71,20 +71,20 @@
 !C
 !C     *    .   Process only refractivity data (codtyp 169)
 !C
-               IDATYP = obs_elem_i(lobsSpaceData,'ITY ',INDEX_HEADER)
+               IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
                IF ( IDATYP .EQ. 169 ) THEN
 !C
 !C                 Loops over data in the observation
 !C
-                  IDATA   = obs_elem_i(lobsSpaceData,'RLN ',INDEX_HEADER)
-                  IDATEND = obs_elem_i(lobsSpaceData,'NLV ',INDEX_HEADER) + IDATA - 1
+                  IDATA   = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
+                  IDATEND = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
                   ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them
 !C
                   NH = 0
                   DO JDATA= IDATA, IDATEND
-                     IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                     IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA).EQ.1 ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
                      ENDIF
@@ -96,8 +96,8 @@
 !C     
 !C     *              Profile at the observation location:
 !C
-                     Lat  = obs_elem_r(lobsSpaceData,'LAT ',index_header)
-                     Lon  = obs_elem_r(lobsSpaceData,'LON ',index_header)
+                     Lat  = obs_headElem_r(lobsSpaceData,NCM_LAT,index_header)
+                     Lon  = obs_headElem_r(lobsSpaceData,NCM_LON,index_header)
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(lcolumng)
@@ -137,9 +137,9 @@
                      ALLOCATE( RSTV (NH) )
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',JDATA).EQ.1 ) THEN
+                        IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,JDATA).EQ.1 ) THEN
                            NH1   = NH1 + 1
-                           HNH1  = obs_elem_r(lobsSpaceData,'PPP ',jdata)
+                           HNH1  = obs_bodyElem_r(lobsSpaceData,NCM_PPP,jdata)
                            H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                         ENDIF
                      ENDDO
@@ -152,7 +152,7 @@
 !C
                      NH1 = 0
                      DO JDATA= IDATA, IDATEND
-                        IF ( obs_elem_i(lobsSpaceData,'ASS ',jdata).EQ.1 ) THEN
+                        IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,jdata).EQ.1 ) THEN
                            NH1 = NH1 + 1
 !C
 !C     *                    Observation jacobian
@@ -169,11 +169,11 @@
 !C     
 !C     *                    FIRST GUESS ERROR VARIANCE
 !C
-                           call obs_set_r(lobsSpaceData,'HPHT',jdata,ZMHX)
+                           call obs_bodySet_r(lobsSpaceData,NCM_HPHT,jdata,ZMHX)
                            IF (INDEX_HEADER.EQ.first_header) THEN
  11                           FORMAT(A12,2I5,2F12.2,2F12.4)
                               WRITE(*,11)'SETFGEDIFFGE', NH1, NH, H(NH1),RSTV(NH1)%VAR,  &
-                                 ZMHX,obs_elem_r(lobsSpaceData,'OER ',JDATA)
+                                 ZMHX,obs_bodyElem_r(lobsSpaceData,NCM_OER,JDATA)
                            ENDIF
                         ENDIF
                      ENDDO

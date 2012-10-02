@@ -33,11 +33,11 @@ SUBROUTINE oda_Jo(lobsSpaceData)
 
 !$OMP PARALLEL DO PRIVATE(index_body)
     DO index_body=1,obs_numbody(lobsSpaceData)
-       IF (obs_elem_i(lobsSpaceData,'ASS ',index_body).eq.1) THEN
-          call obs_set_r(lobsSpaceData,'OMI ',index_body, &
-               (obs_elem_r(lobsSpaceData,'OMA ',index_body)*obs_elem_r(lobsSpaceData,'OMA ',index_body))/2.)
+       IF (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).eq.1) THEN
+          call obs_bodySet_r(lobsSpaceData,NCM_OMI,index_body, &
+               (obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body)*obs_bodyElem_r(lobsSpaceData,NCM_OMA,index_body))/2.)
        ELSE
-          call obs_set_r(lobsSpaceData,'OMI ',index_body, 0.0d0)
+          call obs_bodySet_r(lobsSpaceData,NCM_OMI,index_body, 0.0d0)
        ENDIF
     END DO
 !$OMP END PARALLEL DO
