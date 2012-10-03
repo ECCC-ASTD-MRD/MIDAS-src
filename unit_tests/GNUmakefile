@@ -1,5 +1,7 @@
 
-PFUNIT =/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi
+ifndef PFUNIT
+  PFUNIT =/users/dor/arma/jbl/home1/UnitTesting/pFUnit/lib/$(ARCH)/mpi
+endif
 PFUNIT_LIBDIR ?=$(PFUNIT)/lib
 PFUNIT_INCDIR ?=$(PFUNIT)/include
 PFUNIT_MODDIR ?=$(PFUNIT)/mod
@@ -17,7 +19,7 @@ endif
 
 .SUFFIXES : .o .ftn90 .o
 
-.DEFAULT : env_test
+.DEFAULT_GOAL : unit_tests
 
 SHELL = /bin/sh
 
@@ -47,11 +49,11 @@ ifeq ($(MPI),YES)
 ## the '-libappl' part is already in LDFLAGS
    MPI_LIB   = rpn_comm_40007
    MPI_FLAG  = -mpi
-   CPUS      = -cpus 1x1x1
+   CPUS      = 2
 else
    MPI_LIB   = 
    MPI_FLAG  = rpn_commstubs_40007
-   CPUS      = -cpus 1
+   CPUS      = 1
 endif
 
 LIBRMN=rmn_013
@@ -69,42 +71,43 @@ ifeq ($(MACH_SUBMIT), erg)
 endif
 
 #ifeq ($(MPI),YES)
-   COMMAND = ord_soumet ./runit.ksh -mach $(MACH_SUBMIT) -t 60 $(MPI_FLAG) $(CPUS) -listing ${HOME}/listings
+   COMMAND = ord_soumet ./runit.ksh -mach $(MACH_SUBMIT) -t 60 $(MPI_FLAG) -cpus $(CPUS) -listing $(PWD)
 #else
 #   COMMAND = ./$(EXECUTABLE)
 #endif
 
 # Targets
 
-DOLLAR=$$
 .PHONY:	tests
 tests: $(EXECUTABLE)
 	chmod +x $(EXECUTABLE)
-	echo ". s.ssmuse.dot mpich2" > runit.ksh
-	echo "cd `pwd`" >> runit.ksh
-	echo "export NEW_PFUNIT=test_master.x" >> runit.ksh
-	echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/obsspacedata_tests/TestObsSpace_data" >> runit.ksh
-	echo "r.mpirun2 -npex 1 -pgm test_master.x" >> runit.ksh
-	echo "echo '======================='" >> runit.ksh
-	echo "echo '  T E S T S   R U N :'" >> runit.ksh
-	echo "echo '======================='" >> runit.ksh
-	echo "cat .pFUnitLog" >> runit.ksh
-	echo " "
-	echo " "
-	echo "  - - - listing will appear in $(DOLLAR)HOME/listings/$(MACH_SUBMIT)/runit.* - - -"
-	echo " "
-	echo " "
+	@echo ". s.ssmuse.dot mpich2" > runit.ksh
+	@echo "set -ex" >> runit.ksh
+	@echo "cd `pwd`" >> runit.ksh
+	@echo "export NEW_PFUNIT=test_master.x" >> runit.ksh
+	@echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/obsspacedata_tests/TestObsSpace_data" >> runit.ksh
+	@echo "r.mpirun2 -npex $(CPUS) -pgm ./test_master.x" >> runit.ksh
+	@echo "set +x" >> runit.ksh
+	@echo "echo '======================='" >> runit.ksh
+	@echo "echo '  T E S T S   R U N :'" >> runit.ksh
+	@echo "echo '======================='" >> runit.ksh
+	@echo "cat .pFUnitLog" >> runit.ksh
+	@echo " "
+	@echo " "
+	@echo "  - - - listing will appear in `pwd`/runit.* - - -"
+	@echo " "
+	@echo " "
 	$(COMMAND)
 
 $(EXECUTABLE): $(F90_OBJ)
 	s.compile -obj *.o $(LDFLAGS) -librmn $(LIBRMN) -o $@
 
 %.o:%.ftn90
-	s.compile $(OPTIMIZE) -opt "= $(FFLAGS)" -src $<
+	s.compile $(OPTIMIZE) $(MPI_FLAG) -opt "= $(FFLAGS)" -src $<
 
-env_test:
-	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev; \
-	$(MAKE) tests MPI=$(MPI)
+unit_tests:
+	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev rpn_comm; \
+	gmake tests MPI=$(MPI)
 
 .PHONY: clean
 clean:
@@ -119,7 +122,7 @@ distclean: clean
 	$(RM) .pFUnitLog
 
 help:
-	echo 'gmake -- compile and soumet the unit tests of all modules'
+	@echo 'gmake -- compile and soumet the unit tests of all modules'
 
 .PHONY: testobs_mod
 testobs_mod : 
