@@ -17,7 +17,7 @@
       SUBROUTINE oda_sumJo(lobsSpaceData,pjo)
 
 ! Purpose:
-!   Compute the sum of Jo contributions saved in ROBDATA(NCM_OMI,*)
+!   Compute the sum of Jo contributions saved in ROBDATA(OBS_OMI,*)
 !   Also, compute contribution of each family of observation (for
 !   diagnostic purposes)
 !
@@ -116,7 +116,7 @@
          robdata_g(:)=0.0D0  
          do bodyIndex_mpilocal=1,obs_numbody(lobsSpaceData)
            bodyIndex_mpiglobal=obs_bodyIndex_mpiglobal(lobsSpaceData,bodyIndex_mpilocal)
-           robdata_g(bodyIndex_mpiglobal)=obs_bodyElem_r(lobsSpaceData,NCM_OMI,bodyIndex_mpilocal)
+           robdata_g(bodyIndex_mpiglobal)=obs_bodyElem_r(lobsSpaceData,OBS_OMI,bodyIndex_mpilocal)
          enddo  
          call rpn_comm_allreduce(robdata_g,robdata_g,numBody_mpiglobal,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr) 
 

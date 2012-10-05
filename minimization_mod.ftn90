@@ -622,23 +622,23 @@ CONTAINS
 
        call tmg_start(2,'OBS-OPER') !
 
-       call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Modify NCM_OMA ! H_vert H_horiz dx = Hdx
+       call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Modify OBS_OMA ! H_vert H_horiz dx = Hdx
 
        call tmg_start(95,'RES')
-       call oda_res(lobsSpaceData)  ! Modify NCM_OMA : Hdx-d
+       call oda_res(lobsSpaceData)  ! Modify OBS_OMA : Hdx-d
        call tmg_stop(95)
      
        call tmg_start(96,'SQRTRM1')
-       call oda_sqrtRm1(lobsSpaceData,NCM_OMA,NCM_OMA)  ! Modify NCM_OMA : R**-1/2 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,OBS_OMA,OBS_OMA)  ! Modify OBS_OMA : R**-1/2 (Hdx-d)
        call tmg_stop(96)
      
        call tmg_start(97,'ODA_JO')
-       call oda_Jo(lobsSpaceData)  ! Temporarily store Jobs in NCM_OMI : R**-1 (Hdx-d)**2
+       call oda_Jo(lobsSpaceData)  ! Temporarily store Jobs in OBS_OMI : R**-1 (Hdx-d)**2
        call tmg_stop(97)
      
        IF (LVARQC) THEN          
           call tmg_start(98,'QC_VAR')
-          call oda_qcv(lobsSpaceData)  ! Store modify Jobs in NCM_OMI : -ln((gamma-exp(J))/(gamma+1))  
+          call oda_qcv(lobsSpaceData)  ! Store modify Jobs in OBS_OMI : -ln((gamma-exp(J))/(gamma+1))  
           call tmg_stop(98)
        endif
 
@@ -654,7 +654,7 @@ CONTAINS
        endif
 
        call tmg_start(96,'SQRTRM1')
-       call oda_sqrtRm1(lobsSpaceData,NCM_OMI,NCM_OMA)  ! Modify NCM_OMI : R**-1 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,OBS_OMI,OBS_OMA)  ! Modify OBS_OMI : R**-1 (Hdx-d)
        call tmg_stop(96)
 
        IF (LVARQC) THEN

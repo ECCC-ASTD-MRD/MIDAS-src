@@ -43,7 +43,7 @@
 !Author    . P. KOCLAS(CMC/CMSV TEL. 4628)
 !Revision:
 !            P. KOCLAS   : November 1998
-!            .  Update quality control flags for krval for krval .ne. NCM_OMA NCM_OMP
+!            .  Update quality control flags for krval for krval .ne. OBS_OMA OBS_OMP
 !            JM Belanger CMDA/SMC  Jan 2001
 !                   . 32 bits conversion
 !          . P. Koclas *CMC/CMDA Dec      2003:
@@ -109,12 +109,7 @@
                 .OR. (trim(CRVAL) .EQ. 'OMA') &
                 .OR. (trim(CRVAL) .EQ. 'OMI')
 
-       IF(trim(CRVAL) .EQ. 'OMF') colval=NCM_OMF
-       IF(trim(CRVAL) .EQ. 'OMA') colval=NCM_OMA
-       IF(trim(CRVAL) .EQ. 'OMI') colval=NCM_OMI
-       IF(trim(CRVAL) .EQ. 'OER') colval=NCM_OER
-       IF(trim(CRVAL) .EQ. 'HPHT')colval=NCM_HPHT
-       IF(trim(CRVAL) .EQ. 'VAR') colval=NCM_VAR
+       colval=obs_columnIndexFromName_RB(trim(crval))
 
        IK= KINDEX
        IF (LLOMAFI) THEN
@@ -129,19 +124,19 @@
           ILEM=obs_get_obs_index_for_bufr_element(KLIST(JI))
           IF ( (ILEM .GT. 0) .AND. (KLIST(JI) .NE. KVCORD) ) THEN
              DO JJ=1,KVAL
-!!! PRL??               if( ldsat ) profil(jj)=obs_bodyElem_r(lobsSpaceData,NCM_PRL,IP+IND)
+!!! PRL??               if( ldsat ) profil(jj)=obs_bodyElem_r(lobsSpaceData,OBS_PRL,IP+IND)
                 IF (  PVCORD(JJ) .NE. PPMIS )  THEN
 !pik
                       IF  ( PVALUES (JI,JJ,IK) .NE. PPMIS ) THEN
-                          ZERR=  obs_bodyElem_r(lobsSpaceData,NCM_OER,IP+IND)
+                          ZERR=  obs_bodyElem_r(lobsSpaceData,OBS_OER,IP+IND)
                           ZSTAT= obs_bodyElem_r(lobsSpaceData,COLVAL, IP+IND)
-                          IFLG=  obs_bodyElem_i(lobsSpaceData,NCM_FLG,IP+IND)
+                          IFLG=  obs_bodyElem_i(lobsSpaceData,OBS_FLG,IP+IND)
 !
-                          IF(COLVAL == NCM_OMF .OR. COLVAL == NCM_OMA) THEN
-                            if (obs_bodyElem_i(lobsSpaceData,NCM_ASS,IP+IND) .EQ. 1    .OR. &
-                              (obs_bodyElem_i(lobsSpaceData,NCM_VNM,IP+IND) .EQ. BUFR_NEHU .and. &
+                          IF(COLVAL == OBS_OMF .OR. COLVAL == OBS_OMA) THEN
+                            if (obs_bodyElem_i(lobsSpaceData,OBS_ASS,IP+IND) .EQ. 1    .OR. &
+                              (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IP+IND) .EQ. BUFR_NEHU .and. &
                                                 ZSTAT .NE. PPMIS) .OR. &
-                               obs_bodyElem_i(lobsSpaceData,NCM_VNM,IP+IND) .EQ. BUFR_NEHS) then
+                               obs_bodyElem_i(lobsSpaceData,OBS_VNM,IP+IND) .EQ. BUFR_NEHS) then
                               PVALUES (JI,JJ,IK)=-ZSTAT*ZERR
                             else
                               PVALUES (JI,JJ,IK)=PPMIS

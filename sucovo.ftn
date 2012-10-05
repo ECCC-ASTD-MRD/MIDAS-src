@@ -810,25 +810,25 @@ C
       ZCONGZ=10.D0*RG
       LLBAD = .FALSE.
       DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
-         IDATA     = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
-         IDATEND   = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
+         IDATA     = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+         IDATEND   = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
          CFAM      = obs_getFamily(lobsSpaceData,INDEX_HEADER)
-         ILANSEA   = obs_headElem_i(lobsSpaceData,NCM_OFL,INDEX_HEADER)
-         ZLAT      = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER)
-         ZLON      = obs_headElem_r(lobsSpaceData,NCM_LON,INDEX_HEADER)
-         IDBURP    = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
-         IPLATF    = obs_headElem_i(lobsSpaceData,NCM_SAT,INDEX_HEADER)
-         ITECH     = obs_headElem_i(lobsSpaceData,NCM_TEC,INDEX_HEADER)
-         INSTR     = obs_headElem_i(lobsSpaceData,NCM_INS,INDEX_HEADER)
+         ILANSEA   = obs_headElem_i(lobsSpaceData,OBS_OFL,INDEX_HEADER)
+         ZLAT      = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+         ZLON      = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+         IDBURP    = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+         IPLATF    = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+         ITECH     = obs_headElem_i(lobsSpaceData,OBS_TEC,INDEX_HEADER)
+         INSTR     = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
          LLZTD     = .FALSE.
          LLFER     = .FALSE.
          ZTDERR    = -1.0
          DO INDEX_BODY  = IDATA, IDATEND
-            ITYP   = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
-            IFLG   = obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY)
-            IASS   = obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY)
+            ITYP   = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+            IFLG   = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
+            IASS   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
             ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
-            ZVAL   = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
+            ZVAL   = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 C
             IF ( IASS .EQ. 1 .OR. CFAM .EQ. 'GP') THEN
 C
@@ -838,18 +838,18 @@ C***********************************************************************
 C
               IF ( (CFAM .EQ. 'UA') ) THEN
                   CALL LATID(ZFACTOR,ILAT1,ILAT2,ZLAT)
-                  ZLEV=obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+                  ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 C
                   IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NETS) THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NESS) THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE
 C
 C New code...
@@ -866,9 +866,9 @@ C
                     endif
 
                     if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(1,1) ) then
-                      call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSTDALL(1,ielem))
+                      call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSTDALL(1,ielem))
                     else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= XSTDALL(19,1) ) then
-                      call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSTDALL(19,ielem))
+                      call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSTDALL(19,ielem))
                     else
                       do jn = 1,18
                         if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(jn+1,1) ) exit
@@ -877,7 +877,7 @@ C
                       zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/XSTDALL(JN,1)) / log(XSTDALL(JN+1,1)/XSTDALL(JN,1))
                       zwt = 1.0D0 - zwb
 
-                      call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,
+                      call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,
      +                               zwt*XSTDALL(JN,ielem) + zwb*XSTDALL(JN+1,ielem))
                     endif
 
@@ -915,9 +915,9 @@ C    ---------------------------
                        ZWT  = 1.0D0 - ZWB
                        zcof1=zwt*XOSTDEV(ILEM,ilyr,ILAT1) + zwb*XOSTDEV(ILEM,ilyr+1,ILAT1)
                        zcof2=zwt*XOSTDEV(ILEM,ilyr,ILAT2) + zwb*XOSTDEV(ILEM,ilyr+1,ILAT2)
-                       call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,(1.0D0-ZFACTOR)*zcof1 + ZFACTOR*zcof2)
+                       call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,(1.0D0-ZFACTOR)*zcof1 + ZFACTOR*zcof2)
                     else
-                       call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,(1.0D0-ZFACTOR)*XOSTDEV
+                       call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,(1.0D0-ZFACTOR)*XOSTDEV
      +                                (ILEM,ilyr,ILAT1) + ZFACTOR*XOSTDEV(ILEM,ilyr,ILAT2))
                     endif
                     ENDIF ! USENEWERR
@@ -926,8 +926,8 @@ C    ---------------------------
 
                   IF(.NOT.USENEWERR) THEN
                   IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 
-     +                             obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 
+     +                             obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
      +                             *SQRT(1.8D0))
                   ENDIF
                   ENDIF
@@ -940,7 +940,7 @@ C
                   IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S                 ITYP .EQ. BUFR_NBT2 .OR.
      S                 ITYP .EQ. BUFR_NBT3     )THEN
-                     ICHN    = NINT(obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY))
+                     ICHN    = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
                      INDXM = ILANSEA
                      IF (INDXM .EQ. 2 ) INDXM = 0
                      INDXREG = ISRCHEQ(MLISREG,NREGST,INDXM)
@@ -951,7 +951,7 @@ C
                         IF ( IPLATFORM .EQ. PLATFORM  (JN) .AND.
      &                       ISAT      .EQ. SATELLITE (JN) .AND.
      &                       INSTRUM   .EQ. INSTRUMENT(JN)      ) THEN
-                           call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,
+                           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,
      S                         TOVERRST(ICHN,INDXCLD,INDXREG,JN))
 
                         ENDIF
@@ -966,18 +966,18 @@ C
 C     
 C     *              Process only refractivity data (codtyp 169)
 C
-                  IF ( obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER) .EQ. 169 ) THEN
+                  IF ( obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .EQ. 169 ) THEN
                      IF ( ITYP .EQ. BUFR_NEPS ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 50.D0)
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 50.D0)
                      ENDIF
                      IF ( ITYP .EQ. BUFR_NETT) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 10.D0)
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 10.D0)
                      ENDIF
                      IF ( ITYP .EQ. BUFR_NERF) THEN
 C     
 C     *                 Observation-estimated geopotential height:
 C
-cc                        H = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+cc                        H = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 C
 C     *                 Gross approximation to the refractivity:
 C
@@ -989,8 +989,8 @@ cc                        ENDIF
 C     
 C     *                 Observation error    S
 C     
-cc                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 0.05 * NAPP)
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,1001.D0)
+cc                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 0.05 * NAPP)
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
                      ENDIF
                   ENDIF
 C
@@ -1006,25 +1006,25 @@ C
                ELSE IF ( CFAM .EQ. 'GP' ) THEN
 C*                Psfc Error (Pa)
                   IF ( ITYP .EQ. BUFR_NEPS ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 75.D0 *  YSFERRWGT)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 75.D0 *  YSFERRWGT)
                   ENDIF
 C*                Tsfc Error (K)
                   IF ( ITYP .EQ. BUFR_NETS ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 2.0D0 * YSFERRWGT)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 2.0D0 * YSFERRWGT)
                   ENDIF
 C*                T-Td Error (K)
                   IF ( ITYP .EQ. BUFR_NESS ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 3.0D0 * YSFERRWGT)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 3.0D0 * YSFERRWGT)
                   ENDIF
 C*                ZTD Error Error (DUMMY VALUE so 3DVar won't abort)
                   IF ( ITYP .EQ. BUFR_NEFE ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 0.001D0)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 0.001D0)
                      LLFER = .TRUE.
                      ZTDERR = ZVAL
                   ENDIF
 C*                ZTD Error
                   IF ( ITYP .EQ. BUFR_NEZD ) THEN
-                     IF ( LLCZTDE) call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,dble(YZTDERR))
+                     IF ( LLCZTDE) call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,dble(YZTDERR))
                      ZZTD = ZVAL
                      IZTDJ = INDEX_BODY
                      LLZTD = .TRUE.
@@ -1036,7 +1036,7 @@ C***********************************************************************
 C
                ELSE IF ( CFAM .EQ. 'AI'
      &              .OR. CFAM .EQ. 'SW') THEN
-                  ZLEV=obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+                  ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                   IF(USENEWERR) THEN
 C
 C    SATOB
@@ -1069,9 +1069,9 @@ C
                   ENDIF
 
                   if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(1,1) ) then
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSTDALL(1,ielem))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSTDALL(1,ielem))
                   else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= XSTDALL(19,1) ) then
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSTDALL(19,ielem))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSTDALL(19,ielem))
                   else
                     do jn = 1,18
                       if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= XSTDALL(jn+1,1) ) exit
@@ -1080,7 +1080,7 @@ C
                     zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/XSTDALL(JN,1)) / log(XSTDALL(JN+1,1)/XSTDALL(JN,1))
                     zwt = 1.0D0 - zwb 
 
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,
      +                        zwt*XSTDALL(JN,ielem) + zwb*XSTDALL(JN+1,ielem))
                   endif
 
@@ -1101,9 +1101,9 @@ C
                     END DO
 
                     IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSTDEVLV(ILYR,1))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSTDEVLV(ILYR,1))
                     ELSE IF (ITYP .EQ. BUFR_NETT )THEN
-                         call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, SQRT(XSTDEV(4,1)))
+                         call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, SQRT(XSTDEV(4,1)))
                     ENDIF
 C
 C     AIREP
@@ -1111,14 +1111,14 @@ C
                   ELSE IF (IDBURP .EQ. 128 ) THEN
                       IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
                         IF (  ZLEV .LT. 500.*MPC_PA_PER_MBAR_R8 ) THEN
-                          call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(2,2)))
+                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(2,2)))
                         ELSE
-                          call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,2)))
+                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,2)))
                         ENDIF
                       ELSE IF (ITYP .EQ. BUFR_NETT )THEN
-                         call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, SQRT(XSTDEV(4,2)))
+                         call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, SQRT(XSTDEV(4,2)))
                       ELSE IF (ITYP .EQ. BUFR_NEES )THEN
-                         call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, SQRT(XSTDEV(5,2)))
+                         call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, SQRT(XSTDEV(5,2)))
                       ENDIF
 C
 C     ASDAR, ACARS + ADS
@@ -1126,14 +1126,14 @@ C
                   ELSE IF (IDBURP .EQ. 42 .OR. IDBURP .EQ. 157 .OR. IDBURP .EQ. 177) THEN
                      IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
                         IF (  ZLEV .LT. 500.*MPC_PA_PER_MBAR_R8 ) THEN
-                          call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(2,3)))
+                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(2,3)))
                         ELSE
-                          call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,3)))
+                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,3)))
                        ENDIF
                      ELSE IF (ITYP .EQ. BUFR_NETT )THEN
-                          call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, SQRT(XSTDEV(4,3)))
+                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, SQRT(XSTDEV(4,3)))
                      ELSE IF (ITYP .EQ. BUFR_NEES )THEN
-                          call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, SQRT(XSTDEV(5,3)))
+                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, SQRT(XSTDEV(5,3)))
                      ENDIF
                   ENDIF
 
@@ -1153,98 +1153,98 @@ ccc     &           ,XSFCOBERR(ILEM,1,IDBURP)
 ccc debug fin
                   IF ( (IDBURP .EQ. 12) .OR. (IDBURP .EQ. 13) ) THEN
                      IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NETS) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NESS) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
                      ELSE IF (ITYP .EQ. BUFR_NETT) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,SQRT(XSTDEV(4,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,SQRT(XSTDEV(4,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEES) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,SQRT(XSTDEV(5,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,SQRT(XSTDEV(5,4)))
                      ENDIF
 C
 C                 DRIBU AND DRIFTER
 C
                   ELSE IF( (IDBURP .EQ. 14) .OR. (IDBURP .EQ. 18) )THEN
                      IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NETS) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NESS) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
                      ELSE IF (ITYP .EQ. BUFR_NETT) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,SQRT(XSTDEV(4,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,SQRT(XSTDEV(4,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEES) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,SQRT(XSTDEV(5,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,SQRT(XSTDEV(5,4)))
                      ENDIF
 C
 C                 STATION AUTOMATIQUE, PATROL SHIPS
 C
                   ELSE IF((IDBURP .GE. 145) .AND. (IDBURP .LE. 147))THEN
                      IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NETS) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NESS) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                      ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,MPC_M_PER_S_PER_KNOT_R8*SQRT(XSTDEV(1,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,ZCONGZ*SQRT(XSTDEV(3,4)))
                      ELSE IF (ITYP .EQ. BUFR_NETT) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,SQRT(XSTDEV(4,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,SQRT(XSTDEV(4,4)))
                      ELSE IF (ITYP .EQ. BUFR_NEES) THEN
-                        call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,SQRT(XSTDEV(5,4)))
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,SQRT(XSTDEV(5,4)))
                      ENDIF
                   ENDIF
                ELSE IF ( CFAM .EQ. 'SC' ) THEN
-                 call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
                ELSE IF ( CFAM .EQ. 'TO' ) THEN
-                 call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 1.0D0)
+                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 1.0D0)
                ELSE IF ( CFAM .EQ. 'OZ' ) THEN
-                 call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,
-     s                0.6D0*obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY))
+                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,
+     s                0.6D0*obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY))
 C
 C                 SATEMS
 C
                ELSE IF ( CFAM .EQ. 'ST' ) THEN
                   ILVL=0
-                  ZLEV=obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+                  ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                   DO JN =1,JPSALEV
                      ZLVL=SIGN(1.0D0,(ZLEV-NISLV(JN)) )
                      ILVL=ILVL + MAX(0.0D0,ZLVL)
                   END DO
                   IF ( (ITECH .EQ. 1) .OR. (ITECH .EQ. 4) ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSATDEV(ILVL,1))
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSATDEV(ILVL,1))
                   ELSE IF ( (ITECH .EQ. 2) .OR. (ITECH .EQ. 3) ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSATDEV(ILVL,2))
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSATDEV(ILVL,2))
                   ELSE
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, XSATDEV(ILVL,1))
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSATDEV(ILVL,1))
                   ENDIF
                ELSE IF ( CFAM .EQ. 'HU' ) THEN
                ELSE IF ( CFAM .EQ. 'PR' ) THEN
-                     call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY,2.2D0)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,2.2D0)
                ELSE
                   WRITE(*,*)' UNKNOWN DATA FAMILY:',CFAM
                ENDIF
@@ -1255,17 +1255,17 @@ C              not. 3dvar will abort in this case.
 C***********************************************************************
 C
                IF (CFAM .NE. 'GP') THEN
-                 IF(obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY) .LE. 0.0) THEN
+                 IF(obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
                     LLBAD = .TRUE.
                  ENDIF
 C
                ELSE
 C  GP FAMILY CASE
                  IF (IASS .EQ. 1) THEN
-                   IF ((.NOT. LLZTD) .AND. obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY) .LE. 0.0) THEN
+                   IF ((.NOT. LLZTD) .AND. obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
                      LLBAD = .TRUE.
                    ENDIF
-                   IF ((LLZTD .AND. LLCZTDE) .AND. obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY) .LE. 0.0) THEN
+                   IF ((LLZTD .AND. LLCZTDE) .AND. obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
                      LLBAD = .TRUE.
                    ENDIF
                  ENDIF
@@ -1280,7 +1280,7 @@ C
      &              obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,ZLAT*MPC_DEGREES_PER_RADIAN_R8,ZLON*MPC_DEGREES_PER_RADIAN_R8
                   WRITE(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
      &              " OBSERR = ",E10.2)')
-     &              ITYP,obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY),obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+     &              ITYP,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY),obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                ENDIF
 
             ELSE
@@ -1289,7 +1289,7 @@ c  set artificial obs errors for ln q.
               IF ( CFAM .EQ. 'UA'  .AND.
      &             ( ITYP          .EQ. BUFR_NEHU  .OR.
      &               ITYP          .EQ. BUFR_NEHS ) ) THEN
-                 call obs_bodySet_r(lobsSpaceData,NCM_OER,INDEX_BODY, 888.0d0)
+                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 888.0d0)
               ENDIF
 C           end of assim=1 or GP family IF
             ENDIF
@@ -1309,18 +1309,18 @@ C             statistics SD(O-P)
               ZMINZDE = Z3*ZZTD**3 + Z2*ZZTD**2 + Z1*ZZTD + ZC
               ZMINZDE = ZMINZDE * ZOPEFAC * 0.001
                 IF (LLRZTDE) THEN
-                  call obs_bodySet_r(lobsSpaceData,NCM_OER,IZTDJ, MAX(ZZDERMIN, ZMINZDE))
+                  call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, MAX(ZZDERMIN, ZMINZDE))
                 ELSE
                   IF (LLFER) THEN
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,IZTDJ, MAX(ZZDERMIN, ZTDERR*ZTDERFAC))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, MAX(ZZDERMIN, ZTDERR*ZTDERFAC))
                   ELSE
-                    call obs_bodySet_r(lobsSpaceData,NCM_OER,IZTDJ, MAX(ZZDERMIN, ZMINZDE))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, MAX(ZZDERMIN, ZMINZDE))
                   ENDIF
                 ENDIF
               ENDIF
             ENDIF
 C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D-VAR)
-            IF (LLZTD) call obs_bodySet_r(lobsSpaceData,NCM_OER,IZTDJ, obs_bodyElem_r(lobsSpaceData,NCM_OER,IZTDJ)*YZDERRWGT)
+            IF (LLZTD) call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, obs_bodyElem_r(lobsSpaceData,OBS_OER,IZTDJ)*YZDERRWGT)
          ENDIF
 C     end of INDEX_HEADER loop
       END DO

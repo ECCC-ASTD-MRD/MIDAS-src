@@ -44,18 +44,18 @@
  
       do jobs = 1, obs_numheader(lobsSpaceData)
         call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
-     &        obs_headElem_i(lobsSpaceData,NCM_DAT,jobs),
-     &        obs_headElem_i(lobsSpaceData,NCM_ETM,jobs),nstepobs)
+     &        obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),
+     &        obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
         if(stepObsIndex.gt.0.0d0) then
           jstep=nint(stepObsIndex)
-          idatabeg   = obs_headElem_i(lobsSpaceData,NCM_RLN,jobs)
-          idatend = obs_headElem_i(lobsSpaceData,NCM_NLV,jobs) + idatabeg - 1          
+          idatabeg   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idatabeg - 1          
           do jfamily = 1, nfamily
             if(obs_getfamily(lobsSpaceData,jobs).eq.familylist(jfamily)) then
               inumheader(jfamily,jstep)=inumheader(jfamily,jstep)+1
               inumheader(jfamily,nStepObs+1)=inumheader(jfamily,nStepObs+1)+1
               do jdata = idatabeg, idatend
-                if ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,jdata) .eq. 1) then
+                if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata) .eq. 1) then
                   idataass(jfamily,jstep) = idataass(jfamily,jstep) + 1
                   idataass(jfamily,nStepObs+1) = 
      &               idataass(jfamily,nStepObs+1) + 1

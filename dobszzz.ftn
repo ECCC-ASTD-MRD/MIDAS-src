@@ -68,16 +68,16 @@ C     .  -----------------------------
 C
 C     Process all data within the domain of the model
 C
-         LLOK=(obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1)
-     &        .AND. (obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY) .EQ. 0)
-     &        .AND. (obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY) .EQ. 1)
+         LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)
+     &        .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 0)
+     &        .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1)
          IF ( LLOK ) THEN
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
-            ZVAR = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
-            ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
-            ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
-            IK   = obs_bodyElem_i(lobsSpaceData,NCM_LYR,INDEX_BODY)
-            IVNM = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
+            ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+            ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+            IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
+            IVNM = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             IPT = IK + col_getOffsetFromVarno(lcolumnhr,ivnm)
             IPB = IPT+1
             varType = vnl_vartypeFromVarnum(IVNM)
@@ -91,12 +91,12 @@ C
 C
 C     CONTRIBUTION TO Jo
 C
-            call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY, 
+            call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, 
      +            (ZWB*col_getElem(lcolumnhr,IPB,INDEX_HEADER)
      +           + ZWT*col_getElem(lcolumnhr,IPT,INDEX_HEADER)-ZVAR)/ZOER)
-            PJO = PJO + obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
-     +           *obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)
-            call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY,obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY))
+            PJO = PJO + obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
+     +           *obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
+            call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY,obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY))
          ENDIF
 C
       ENDDO BODY

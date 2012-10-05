@@ -191,7 +191,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
      knpf = knpf + 1
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
 
-     ilansea = obs_headElem_i(lobsSpaceData,NCM_OFL,jo)
+     ilansea = obs_headElem_i(lobsSpaceData,OBS_OFL,jo)
      indxm = ilansea
      if (indxm .eq. 2 ) indxm = 0
      indxreg = isrcheq ( mlisreg, nregst, indxm )
@@ -200,12 +200,12 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !    extract satellite zenith and azimuth angle, 
 !    sun zenith angle, cloud fraction, latitude and longitude
 
-     isatzen(knpf) = obs_headElem_i(lobsSpaceData,NCM_SZA,jo)
-     isatazim(knpf) = obs_headElem_i(lobsSpaceData,NCM_AZA,jo)
-     isunza(knpf) = obs_headElem_i(lobsSpaceData,NCM_SUN,jo)
-     iclfr(knpf) = obs_headElem_i(lobsSpaceData,NCM_CLF,jo)
-     zlat(knpf) = obs_headElem_r(lobsSpaceData,NCM_LAT,jo) *MPC_DEGREES_PER_RADIAN_R8
-     zlon(knpf) = obs_headElem_r(lobsSpaceData,NCM_LON,jo) *MPC_DEGREES_PER_RADIAN_R8
+     isatzen(knpf) = obs_headElem_i(lobsSpaceData,OBS_SZA,jo)
+     isatazim(knpf) = obs_headElem_i(lobsSpaceData,OBS_AZA,jo)
+     isunza(knpf) = obs_headElem_i(lobsSpaceData,OBS_SUN,jo)
+     iclfr(knpf) = obs_headElem_i(lobsSpaceData,OBS_CLF,jo)
+     zlat(knpf) = obs_headElem_r(lobsSpaceData,OBS_LAT,jo) *MPC_DEGREES_PER_RADIAN_R8
+     zlon(knpf) = obs_headElem_r(lobsSpaceData,OBS_LON,jo) *MPC_DEGREES_PER_RADIAN_R8
 
      do jl = 1, knlev
         zt   (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'TT')

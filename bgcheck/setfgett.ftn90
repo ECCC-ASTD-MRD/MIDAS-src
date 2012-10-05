@@ -26,21 +26,21 @@
 !C*    1. Computation of sigmap
 !C     .  -----------------------------
 !C
-         IF ( (obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body) .EQ. 1) .and.    &
-              (obs_bodyElem_i(lobsSpaceData,NCM_VNM,index_body).EQ. 12001) ) THEN
+         IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) .and.    &
+              (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body).EQ. 12001) ) THEN
 
-            IF ( (obs_bodyElem_i(lobsSpaceData,NCM_XTR,index_body) .NE. 0) .and.    &
-                 (obs_bodyElem_i(lobsSpaceData,NCM_VCO,index_body) .EQ. 2) ) THEN
+            IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
+                 (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
                IK=col_getNumLev(lcolumng)-1
-               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,index_body)
-               ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,index_body)
+               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
+               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
-               call obs_bodySet_r(lobsSpaceData,NCM_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
+               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
             ELSE
-               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,index_body)
-               ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body)
-               IK   = obs_bodyElem_i(lobsSpaceData,NCM_LYR,index_body)
+               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
+               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
+               IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
                IPT  = IK
                IPB  = IPT+1
                ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,'NA')
@@ -50,7 +50,7 @@
 !C
 !C              FIRST GUESS ERROR VARIANCE
 !
-               call obs_bodySet_r(lobsSpaceData,NCM_HPHT,index_body,   &
+               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
                   (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER,'TT') + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER,'TT')))
             ENDIF
 

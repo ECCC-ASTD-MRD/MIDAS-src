@@ -113,7 +113,7 @@ C
 C     
 C     *  Process only refractivity data (codtyp 169)
 C
-         IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
+         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IF ( IDATYP .EQ. 169 ) THEN
 C
 C           Loops over data in the observation
@@ -128,7 +128,7 @@ C
             BODY: do 
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
-               IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
                ENDIF
@@ -140,8 +140,8 @@ C
 C     
 C     *        Profile at the observation location:
 C
-               Lat  = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER)
-               Lon  = obs_headElem_r(lobsSpaceData,NCM_LON,INDEX_HEADER)
+               Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+               Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
                ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                ZP0 =  col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
@@ -185,9 +185,9 @@ C
                BODY_2: do 
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_2
-                  IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
+                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                      NH1   = NH1 + 1
-                     HNH1  = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+                     HNH1  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                      H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
                   ENDIF
                ENDDO BODY_2
@@ -205,7 +205,7 @@ C
                BODY_3: do 
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_3
-                  IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 ) THEN
+                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                      NH1 = NH1 + 1
 C
 C     *              Observation operator H(x)
@@ -214,11 +214,11 @@ C
 C
 C     *              Observation value    Y
 C
-                     ZOBS = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
+                     ZOBS = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 C
 C     *              Observation error    S
 C
-                     ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
+                     ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 C
 C     *              Normalized increment
 C
@@ -242,8 +242,8 @@ C
      +                       PJO,PRF%GST(NGPSLEV)%Var
                      ENDIF
 
-                     call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY, ZINC)
-                     call obs_bodySet_r(lobsSpaceData,NCM_OMI,INDEX_BODY, ZINC)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZINC)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, ZINC)
                   ENDIF
                ENDDO BODY_3
                DEALLOCATE( RSTV )

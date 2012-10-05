@@ -85,21 +85,21 @@
 !C     
 !C     *    .   Process only zenith delay data (codtyp 189 and BUFR_NEZD)
 !C
-               IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
+               IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
                IF ( IDATYP .EQ. 189 ) THEN
 !C
 !C                 Loop over data in the observations
 !C
-                  IDATA   = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
-                  IDATEND = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
+                  IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+                  IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
                   ASSIM = .FALSE.
 !C
 !C                 Scan for requested assimilations, and count them.
 !C
                   NH = 0
                   DO INDEX_BODY= IDATA, IDATEND
-                     ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
-                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY) .EQ. 1) )
+                     ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+                     LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
                      IF ( LLOK ) THEN
                         ASSIM = .TRUE.
                         NH = NH + 1
@@ -112,9 +112,9 @@
 !C     
 !C     *        LR background profile and background errors at the observation location x :
 !C
-                     ZLAT = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER) &
+                     ZLAT = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
-                     ZLON = obs_headElem_r(lobsSpaceData,NCM_LON,INDEX_HEADER) &
+                     ZLON = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
                      DO JL = 1, col_getNumLev(LCOLUMNG)
                        ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')
@@ -132,17 +132,17 @@
 !C 
                      NH1 = 0
                      DO INDEX_BODY= IDATA, IDATEND
-                        ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
-                        IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,INDEX_BODY).EQ.1 .AND. ITYP.EQ.BUFR_NEZD ) THEN
+                        ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+                        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 .AND. ITYP.EQ.BUFR_NEZD ) THEN
                            NH1 = NH1 + 1
 !C
 !C     *                    Observation error    SDERR
-!c                           ZOER = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+!c                           ZOER = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 !C
                            ZHX = 1.0
 !C
 !C     *                    Observation height (m)
-                           ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+                           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 
                       CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,ZHUB,ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZJTT,ZJHU,ZJP0,ZHX)
 
@@ -155,7 +155,7 @@
                              ZLSUM = ZLSUM +  (ZJTT(JL)*ZTT(JL))**2 + (ZJHU(JL)*ZHU(JL))**2 
                            ENDDO
                            ZLSUM = ZLSUM + (ZJP0*ZP0)**2
-                           call obs_bodySet_r(lobsSpaceData,NCM_HPHT,index_body,SQRT(ZLSUM))
+                           call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,SQRT(ZLSUM))
 
                            IF (INDEX_HEADER.EQ.first_header .AND. NH1.LE.3) THEN
                             WRITE(*,'(A11,A9,3(1x,f7.2))')   &

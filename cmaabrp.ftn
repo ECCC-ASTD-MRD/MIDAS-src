@@ -754,7 +754,7 @@ C
                           IF(ICOUNT .EQ. 1) THEN
                             NUMHEADER=NUMHEADER + 1
                                         ! Record the value also in obsSpaceData
-                            IFLGS=obs_headElem_i(lobsSpaceData,NCM_ST1,NUMHEADER)
+                            IFLGS=obs_headElem_i(lobsSpaceData,OBS_ST1,NUMHEADER)
                             IZMODEL= NINT(col_getMountain(lcolumng,NUMHEADER)/RG) + 400
                             IF(LLTOPOST) IFLGS  = ibset(IFLGS , 12 )
                           ENDIF

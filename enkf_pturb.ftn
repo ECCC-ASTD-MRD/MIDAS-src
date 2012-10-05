@@ -50,8 +50,9 @@
       character*3 clmember
       character*25 clfiname
 
+      LOGICAL  LREMOVE_MEAN
       INTEGER          NENKFMEM,NRANDSEED,NDATE_PTURB
-      NAMELIST /NAMENKF/NENKFMEM,NRANDSEED,NDATE_PTURB
+      NAMELIST /NAMENKF/NENKFMEM,NRANDSEED,NDATE_PTURB,LREMOVE_MEAN
 
       write(*,*) ' --------------------------------'
       write(*,*) ' ENKF_PTURB STARTS'
@@ -62,6 +63,7 @@ C
       NENKFMEM    = 10
       NRANDSEED   = 1
       NDATE_PTURB = 0101010101
+      LREMOVE_MEAN = .true.
 C
 C*    2. Read the parameters from NAMENKF
 C
@@ -152,31 +154,33 @@ C
 !$OMP END PARALLEL
       enddo
 
+      if(LREMOVE_MEAN) then
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jni,jnj,jnk)    
-      do jni     = 1,gaus_ni
-        do jnj   = 1,gaus_nj
-          do jnk = 1,nkgdim
-            gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj)/real(NENKFMEM,8)
+        do jni     = 1,gaus_ni
+          do jnj   = 1,gaus_nj
+            do jnk = 1,nkgdim
+              gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj)/real(NENKFMEM,8)
+            enddo
           enddo
         enddo
-      enddo
 !$OMP END DO
 !$OMP END PARALLEL
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jni,jmem,jnj,jnk)    
-      do jni     = 1,gaus_ni
-        do jmem = 1,NENKFMEM
-          do jnj   = 1,gaus_nj
-            do jnk = 1,nkgdim
-              ensemble(jni,jnk,jnj,jmem)=ensemble(jni,jnk,jnj,jmem)-gdmean(jni,jnk,jnj)
+        do jni     = 1,gaus_ni
+          do jmem = 1,NENKFMEM
+            do jnj   = 1,gaus_nj
+              do jnk = 1,nkgdim
+                ensemble(jni,jnk,jnj,jmem)=ensemble(jni,jnk,jnj,jmem)-gdmean(jni,jnk,jnj)
+              enddo
             enddo
           enddo
         enddo
-      enddo
 !$OMP END DO
 !$OMP END PARALLEL
+      endif
 
       clprefix= 'ptbm'
       do jmem = 1,NENKFMEM

@@ -107,7 +107,7 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
      index_header = obs_getHeaderIndex(lobsSpaceData)
      if (index_header < 0) exit HEADER
 
-     IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,index_header)
+     IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
      IF ( IDATYP .NE. 164 .AND. &
           IDATYP .NE. 168 .AND. &
           IDATYP .NE. 180 .AND. &
@@ -125,11 +125,11 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV-7 platform and satellite.
-     IVAL = obs_headElem_i(lobsSpaceData,NCM_SAT,index_header)
+     IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
      CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
 
 !    map burp instrument info to RTTOV-7 instrument.
-     IVAL = obs_headElem_i(lobsSpaceData,NCM_INS,index_header)
+     IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
      CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
 
 !    find sensor number for this obs.
@@ -157,8 +157,8 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
         index_body = obs_getBodyIndex(lobsSpaceData)
         if (index_body < 0) exit BODY
 
-        IF ( obs_bodyElem_i(lobsSpaceData,NCM_ASS,index_body).EQ.1 ) THEN
-           ICHN = NINT(obs_bodyElem_r(lobsSpaceData,NCM_PPP,index_body))
+        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).EQ.1 ) THEN
+           ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
            ICHN = MAX(0,MIN(ICHN,JPCH+1))
            IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) &
               ICHN=ICHN-CHANOFFSET(NOSENSOR)

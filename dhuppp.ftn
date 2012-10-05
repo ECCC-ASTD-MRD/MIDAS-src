@@ -71,22 +71,22 @@ C
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
 
-            IF ( obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY) .EQ. BUFR_NEHU  .AND.
-     &           obs_bodyElem_i(lobsSpaceData,NCM_XTR,INDEX_BODY) .EQ. 0     .AND.
-     &           obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY) .EQ. 2    ) THEN
-              IPRES= NINT(obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY))
-              call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY, PPMIS)
+            IF ( obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEHU  .AND.
+     &           obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 0     .AND.
+     &           obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2    ) THEN
+              IPRES= NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+              call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, PPMIS)
               IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
-                ZVAR = obs_bodyElem_r(lobsSpaceData,NCM_VAR,INDEX_BODY)
-                ZOER = obs_bodyElem_r(lobsSpaceData,NCM_OER,INDEX_BODY)
-                ZLEV = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
-                IK   = obs_bodyElem_i(lobsSpaceData,NCM_LYR,INDEX_BODY)
+                ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
                 ZPT  = col_getPressure(LCOLUMNHR,IK  ,INDEX_HEADER,'TH')
                 ZPB  = col_getPressure(LCOLUMNHR,IK+1,INDEX_HEADER,'TH')
                 ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                 ZWT  = 1. - ZWB
 C
-                call obs_bodySet_r(lobsSpaceData,NCM_OMA,INDEX_BODY, 
+                call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, 
      +                        ( ZWB*col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
      +                        + ZWT*col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU') - ZVAR ) / ZOER)
 
@@ -100,7 +100,7 @@ C
                   write(*,*)'   zoer   = ',ZOER
                   write(*,*)'   col_getElem(lcolumnhr,ik  ,index_header,HU) = ',col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU')
                   write(*,*)'   col_getElem(lcolumnhr,ik+1,index_header,HU) = ',col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
-                  write(*,*)'   O-P    = ',-obs_bodyElem_r(lobsSpaceData,NCM_OMA,INDEX_BODY)*ZOER
+                  write(*,*)'   O-P    = ',-obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)*ZOER
                   write(*,*)' -------------------------'
                 ENDIF
 

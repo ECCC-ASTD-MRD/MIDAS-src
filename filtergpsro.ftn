@@ -75,10 +75,10 @@ C
 C     
 C     *        Process only refractivity data (codtyp 169)
 C
-         IDATYP = obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
+         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
                IF ( IDATYP .EQ. 169 ) THEN
 C
-            Lat  = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER)
+            Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
 C
             JL=col_getNumLev(LCOLUMNHR,'TH')
             ZMT = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
@@ -99,13 +99,13 @@ C
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
 
-               HNH1= obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+               HNH1= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                      IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
                         HGP = gpsgeopotential(Lat,HNH1)/9.80616
                         IF ( HGP.GT.HTP .OR. 
      +                       HGP.LT.HSF ) THEN
-                     call obs_bodySet_i(lobsSpaceData,NCM_ASS,INDEX_BODY, 0)
-                     call obs_bodySet_i(lobsSpaceData,NCM_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY),11))
+                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
+                     call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
                      ENDIF
                ENDIF
             ENDDO BODY

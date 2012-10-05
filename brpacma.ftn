@@ -528,7 +528,7 @@ C
 
 *
 *   FOR PROFILER DATA, ADD STATION HEIGHT TO ZPROF
-*   FOR USE IN NCM_PPP
+*   FOR USE IN OBS_PPP
 *----------------------------------------------------------------------
 *
 
@@ -842,10 +842,10 @@ c               ENDIF
                IF  ( NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
                 NUMHEADER=NUMHEADER + 1
                 call obs_set_c(lobsSpaceData,'STID',NUMHEADER,CLSTNID)
-                call obs_headSet_r(lobsSpaceData,NCM_LON,NUMHEADER, (ILON*0.01)*MPC_RADIANS_PER_DEGREE_R8)
-                call obs_headSet_r(lobsSpaceData,NCM_LAT,NUMHEADER, (ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8)
-                call obs_headSet_r(lobsSpaceData,NCM_ALT,NUMHEADER, (REAL(IALT,8)-400))
-                call obs_headSet_i(lobsSpaceData,NCM_NLV,NUMHEADER, INBON)
+                call obs_headSet_r(lobsSpaceData,OBS_LON,NUMHEADER, (ILON*0.01)*MPC_RADIANS_PER_DEGREE_R8)
+                call obs_headSet_r(lobsSpaceData,OBS_LAT,NUMHEADER, (ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8)
+                call obs_headSet_r(lobsSpaceData,OBS_ALT,NUMHEADER, (REAL(IALT,8)-400))
+                call obs_headSet_i(lobsSpaceData,OBS_NLV,NUMHEADER, INBON)
                 if(idburp .eq. 132) then
                   call obs_setFamily(lobsSpaceData,'UA'  ,headerIndex=numheader)
                 else
@@ -853,11 +853,11 @@ c               ENDIF
                 endif
 *
                 IF ( NUMHEADER .EQ. 1) THEN
-                   call obs_headSet_i(lobsSpaceData,NCM_RLN,1,1)
+                   call obs_headSet_i(lobsSpaceData,OBS_RLN,1,1)
                 ELSE
-                   call obs_headSet_i(lobsSpaceData,NCM_RLN,NUMHEADER, 
-     +                         obs_headElem_i(lobsSpaceData,NCM_RLN,NUMHEADER-1)
-     +                       + obs_headElem_i(lobsSpaceData,NCM_NLV,NUMHEADER-1))
+                   call obs_headSet_i(lobsSpaceData,OBS_RLN,NUMHEADER, 
+     +                         obs_headElem_i(lobsSpaceData,OBS_RLN,NUMHEADER-1)
+     +                       + obs_headElem_i(lobsSpaceData,OBS_NLV,NUMHEADER-1))
                 ENDIF
 *
 ************************************************************************
@@ -865,7 +865,7 @@ c               ENDIF
 ************************************************************************
 *
 *
-                call obs_headSet_i(lobsSpaceData,NCM_ONM,NUMHEADER, NUMHEADER)
+                call obs_headSet_i(lobsSpaceData,OBS_ONM,NUMHEADER, NUMHEADER)
 * Modification S. Heilliette pour traiter le cas ou l'angle
 * est manquant (ISATZEN=-1) pour les donnees AIRS et IASI
 * le 14/07/2011
@@ -875,19 +875,19 @@ c               ENDIF
                    ISATZEN = 19000
                 ENDIF
 * Fin modif
-                call obs_headSet_i(lobsSpaceData,NCM_INS,NUMHEADER, INSTRUM)
-                call obs_headSet_i(lobsSpaceData,NCM_OTP,NUMHEADER, IfamID)
-                call obs_headSet_i(lobsSpaceData,NCM_ITY,NUMHEADER, IDBURP) 
-                call obs_headSet_i(lobsSpaceData,NCM_SAT,NUMHEADER, ISAT)
-                call obs_headSet_i(lobsSpaceData,NCM_TEC,NUMHEADER, ITECH)
-                call obs_headSet_i(lobsSpaceData,NCM_DAT,NUMHEADER, IDATE)
-                call obs_headSet_i(lobsSpaceData,NCM_ETM,NUMHEADER, ITIME)
-                call obs_headSet_i(lobsSpaceData,NCM_OFL,NUMHEADER, IMASK)
-                call obs_headSet_i(lobsSpaceData,NCM_ST1,NUMHEADER, IFLGS)
-                call obs_headSet_i(lobsSpaceData,NCM_AZA,NUMHEADER, ISATAZIM)
-                call obs_headSet_i(lobsSpaceData,NCM_SUN,NUMHEADER, ISUNZA)
-                call obs_headSet_i(lobsSpaceData,NCM_SZA,NUMHEADER, ISATZEN)
-                call obs_headSet_i(lobsSpaceData,NCM_CLF,NUMHEADER, ICLFR)
+                call obs_headSet_i(lobsSpaceData,OBS_INS,NUMHEADER, INSTRUM)
+                call obs_headSet_i(lobsSpaceData,OBS_OTP,NUMHEADER, IfamID)
+                call obs_headSet_i(lobsSpaceData,OBS_ITY,NUMHEADER, IDBURP) 
+                call obs_headSet_i(lobsSpaceData,OBS_SAT,NUMHEADER, ISAT)
+                call obs_headSet_i(lobsSpaceData,OBS_TEC,NUMHEADER, ITECH)
+                call obs_headSet_i(lobsSpaceData,OBS_DAT,NUMHEADER, IDATE)
+                call obs_headSet_i(lobsSpaceData,OBS_ETM,NUMHEADER, ITIME)
+                call obs_headSet_i(lobsSpaceData,OBS_OFL,NUMHEADER, IMASK)
+                call obs_headSet_i(lobsSpaceData,OBS_ST1,NUMHEADER, IFLGS)
+                call obs_headSet_i(lobsSpaceData,OBS_AZA,NUMHEADER, ISATAZIM)
+                call obs_headSet_i(lobsSpaceData,OBS_SUN,NUMHEADER, ISUNZA)
+                call obs_headSet_i(lobsSpaceData,OBS_SZA,NUMHEADER, ISATZEN)
+                call obs_headSet_i(lobsSpaceData,OBS_CLF,NUMHEADER, ICLFR)
                 
                 IF (IDBURP==186) call index_cma_iasi(NUMHEADER,IGQISFLAGQUAL,
      +           IGQISQUALINDEXLOC,ISUNAZIM)

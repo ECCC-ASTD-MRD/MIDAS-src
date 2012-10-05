@@ -37,9 +37,9 @@ C-------     READ H(X)-Z IN zprim.dat
 C
       call obs_swapVarOmf(lobsSpaceData)
       do index_body=1,obs_numbody(lobsSpaceData)
-         zoer   = obs_bodyElem_r(lobsSpaceData,NCM_OER,index_body)
+         zoer   = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
          if(zoer .ne. 0.0d0) then
-            call obs_bodySet_r(lobsSpaceData,NCM_OMF,index_body,-obs_bodyElem_r(lobsSpaceData,NCM_OMF,index_body)
+            call obs_bodySet_r(lobsSpaceData,OBS_OMF,index_body,-obs_bodyElem_r(lobsSpaceData,OBS_OMF,index_body)
      S           /zoer)
          endif
       enddo

@@ -47,7 +47,7 @@
 *          JM Belanger *CMDA/SMC june 2001.
 *                     - 32 bits conversion.
 *          P. KOCLAS  *cmda Sept 2001 .
-*                        -changes to loops that set NCM_LOBS PARAMETER
+*                        -changes to loops that set OBS_LOBS PARAMETER
 *                        -allow bogus gz data to analysis ( conf =141)
 *          S. Pellerin *ARMA/SMC Nov. 2001
 *                     - Comment out conflicting ikout* unit
@@ -65,7 +65,7 @@
 *          JM Belanger *CMDA/SMC* Feb 2004
 *                     - Introducing Quikscat surface wind vectors.
 *          D. Anselmo *ARMA/SMC October 2004
-*                     -set NCM_ASS to exclude assimilation of RAOBS and surface ln q
+*                     -set OBS_ASS to exclude assimilation of RAOBS and surface ln q
 *                      added to CMA by burp_estohu.ftn
 *          J. Halle  *CMDA/SMC Sept. 2005
 *                     -added codtyp=182 (MHS).
@@ -221,21 +221,21 @@ C     of the grid being used to the last row. (Do always now, used
 C     to not do when cvcord=MAM)
 C
       DO INDEX_HEADER  = 1, obs_numheader(lobsSpaceData)
-        ZLAT    = obs_headElem_r(lobsSpaceData,NCM_LAT,INDEX_HEADER)
+        ZLAT    = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
         IF(ZLAT .GT. gaus_RLATI(1)) THEN
-          call obs_headSet_r(lobsSpaceData,NCM_LAT,INDEX_HEADER, gaus_RLATI(1))
+          call obs_headSet_r(lobsSpaceData,OBS_LAT,INDEX_HEADER, gaus_RLATI(1))
         ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
-          call obs_headSet_r(lobsSpaceData,NCM_LAT,INDEX_HEADER, gaus_RLATI(gaus_NJ))
+          call obs_headSet_r(lobsSpaceData,OBS_LAT,INDEX_HEADER, gaus_RLATI(gaus_NJ))
         ENDIF
       ENDDO
 C
       IJ=0
       DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
-        IDATA   = obs_headElem_i(lobsSpaceData,NCM_RLN,INDEX_HEADER)
-        IDATEND = obs_headElem_i(lobsSpaceData,NCM_NLV,INDEX_HEADER) + IDATA - 1
+        IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+        IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
         DO INDEX_BODY= IDATA, IDATEND
           IJ   = IJ+1
-          call obs_bodySet_i(lobsSpaceData,NCM_OBS,IJ, INDEX_HEADER)
+          call obs_bodySet_i(lobsSpaceData,OBS_HIND,IJ, INDEX_HEADER)
         ENDDO
       ENDDO
 C
@@ -338,13 +338,13 @@ C
         IKNTZDR =0
 C
         BODY: do index_body=1,obs_numbody(lobsSpaceData)
-          INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,NCM_OBS,INDEX_BODY)
+          INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
           if(obs_getFamily(lobsSpaceData,index_header).eq.listFamily(index_family)) then
-            ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
-            IFLG = obs_bodyElem_i(lobsSpaceData,NCM_FLG,INDEX_BODY)
-            IPRES= NINT(obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY))
-            IVCO = obs_bodyElem_i(lobsSpaceData,NCM_VCO,INDEX_BODY)
-            IDBURP=obs_headElem_i(lobsSpaceData,NCM_ITY,INDEX_HEADER)
+            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+            IFLG = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
+            IPRES= NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+            IVCO = obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY)
+            IDBURP=obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 C
 C     a. Unwanted data types via types specified in NLIST
 C
@@ -369,7 +369,7 @@ C
 C
 C     *        Only heights between 0 and 80000 m:
 C
-               GPH = obs_bodyElem_r(lobsSpaceData,NCM_PPP,INDEX_BODY)
+               GPH = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
                   LLOK = .FALSE.
                ENDIF
@@ -466,7 +466,7 @@ C
 C
 C     d. Filter TOVS data
 C
-            ITYP = obs_bodyElem_i(lobsSpaceData,NCM_VNM,INDEX_BODY)
+            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S           ITYP .EQ. BUFR_NBT2 .OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
@@ -487,11 +487,11 @@ C             .....this check not done anymore, jh may 2002....
 C
 C        d.3 Invalid land/sea/sea-ice flag, processing technique
 C
-              ILANSEA  = obs_headElem_i(lobsSpaceData,NCM_OFL,INDEX_HEADER)
+              ILANSEA  = obs_headElem_i(lobsSpaceData,OBS_OFL,INDEX_HEADER)
               INDXM = ILANSEA
               IF (INDXM .EQ. 2 ) INDXM = 0
               INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
-              IPROCES  = obs_headElem_i(lobsSpaceData,NCM_TEC,INDEX_HEADER)
+              IPROCES  = obs_headElem_i(lobsSpaceData,OBS_TEC,INDEX_HEADER)
               INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
               IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
                 LLOK = .FALSE.
@@ -572,12 +572,12 @@ C
             ENDIF
 C
             IF (LLOK .AND. .NOT. LLREJ) THEN
-              call obs_bodySet_i(lobsSpaceData,NCM_ASS,INDEX_BODY,1)
+              call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,1)
               IKNT(index_family)= IKNT(index_family) + 1
             ELSEIF (LLDIAG) THEN
-              call obs_bodySet_i(lobsSpaceData,NCM_ASS,INDEX_BODY,-1)
+              call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,-1)
             ELSE
-              call obs_bodySet_i(lobsSpaceData,NCM_ASS,INDEX_BODY,0)
+              call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
             ENDIF
 C
           ENDIF

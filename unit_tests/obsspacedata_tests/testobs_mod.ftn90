@@ -14,7 +14,7 @@ module testObs_mod
                  'NLV','OFL','PAS','REG','IP', 'AZA','SZA','SUN','CLF', &
                  'ST1','IDO','IDF' /)
    character(len=4), parameter, dimension(9) :: columns_int_body &
-            = (/ 'VNM','FLG','KFA','ASS','OBS','VCO','LYR','XTR','IDD' /)
+            = (/ 'VNM','FLG','KFA','ASS','HIND','VCO','LYR','XTR','IDD' /)
    character(len=4), parameter, dimension(6) :: columns_real_head &
             = (/ 'LAT','LON','ALT','BX','BY','BZ' /)
    character(len=4), parameter, dimension(14) :: columns_real_body &
@@ -111,8 +111,14 @@ contains
       integer, parameter :: HEAD_MAX=3, BOD_MAX=7
       integer :: num_heads, num_bods
 
+      ! Simple test for obsColumnMode to test optional columnMode argument
+      call obs_initialize(myobs, header_max=HEAD_MAX, body_max=BOD_MAX)
+      call obs_finalize(myobs)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
+      call obs_finalize(myobs)
+
       ! Method under test
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Examine the results & test the inspection methods
       num_heads = obs_numheader_max(myobs)
@@ -142,7 +148,7 @@ contains
       character(len=10) :: Family_in
       character(len=4) :: family
 
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Confirm the starting point
       num_heads = obs_numheader(myobs)
@@ -193,8 +199,8 @@ contains
    end subroutine test_AddHeaderElement
 
    subroutine test_headerElement_i()
-      ! Test the setting of all integer header members:  obs_set_i().  One must
-      ! use obs_elem_i() in order to verify the result.  Thus, this is a test for
+      ! Test the setting of all integer header members:  obs_headSet_i().  One must
+      ! use obs_headElem_i() in order to verify the result.  Thus, this is a test for
       ! both methods at once.
       !
       ! Note:  writing all of the values before reading any back verifies that no
@@ -208,7 +214,7 @@ contains
       integer :: num, ndx, nchar
 
       num = size(columns_int_head)
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Assign unique integer values to obsSpaceData
       do ndx=1,num
@@ -220,14 +226,14 @@ contains
                             - 30
          end do
 
-         call obs_set_i (myobs, columns_int_head(ndx), 1, expected(ndx))
+         call obs_headSet_i (myobs, obs_columnIndexFromName_IH(columns_int_head(ndx)), 1, expected(ndx))
       end do
 
       ! Read the values back from obsSpaceData, and verify them
       do ndx=1,num
         write(6,*)"test:  ", columns_int_head(ndx), &
                         " for test_headerElement_i.  Expected=",expected(ndx)
-         found = obs_elem_i(myobs, columns_int_head(ndx), 1)
+         found = obs_headElem_i(myobs, obs_columnIndexFromName_IH(columns_int_head(ndx)), 1)
          call assertEqual(expected(ndx), found, columns_int_head(ndx))
       end do
 
@@ -235,8 +241,8 @@ contains
    end subroutine test_headerElement_i
 
    subroutine test_bodyElement_i()
-      ! Test the setting of all integer body members:  obs_set_i().  One must use
-      ! obs_elem_i() in order to verify the result.  Thus, this is a test for
+      ! Test the setting of all integer body members:  obs_bodySet_i().  One must use
+      ! obs_bodyElem_i() in order to verify the result.  Thus, this is a test for
       ! both methods at once.
       !
       ! Note:  writing all of the values before reading any back verifies that no
@@ -250,7 +256,7 @@ contains
       integer :: num, ndx, nchar
 
       num = size(columns_int_body)
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Assign unique integer values to obsSpaceData
       do ndx=1,num
@@ -262,14 +268,14 @@ contains
                             - 30
          end do
 
-         call obs_set_i (myobs, columns_int_body(ndx), 1, expected(ndx))
+         call obs_bodySet_i (myobs, obs_columnIndexFromName_IB(columns_int_body(ndx)), 1, expected(ndx))
       end do
 
       ! Read the values back from obsSpaceData, and verify them
       do ndx=1,num
         write(6,*)"test:  ", columns_int_body(ndx), &
                         " for test_bodyElement_i.  Expected=",expected(ndx)
-         found = obs_elem_i(myobs, columns_int_body(ndx), 1)
+         found = obs_bodyElem_i(myobs, obs_columnIndexFromName_IB(columns_int_body(ndx)), 1)
          call assertEqual(expected(ndx), found, columns_int_body(ndx))
       end do
 
@@ -277,8 +283,8 @@ contains
    end subroutine test_bodyElement_i
 
    subroutine test_headerElement_r()
-      ! Test the setting of all real header members:  obs_set_r().  One must use
-      ! obs_elem_r() in order to verify the result.  Thus, this is a test for
+      ! Test the setting of all real header members:  obs_headSet_r().  One must use
+      ! obs_headElem_r() in order to verify the result.  Thus, this is a test for
       ! both methods at once.
       use obsSpaceData_mod
       implicit none
@@ -289,7 +295,7 @@ contains
       integer :: num, ndx, nchar
 
       num = size(columns_real_head)
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Assign unique real values to obsSpaceData
       do ndx=1,num
@@ -301,14 +307,14 @@ contains
                             - 30.
          end do
 
-         call obs_set_r (myobs, columns_real_head(ndx), 1, expected(ndx))
+         call obs_headSet_r (myobs, obs_columnIndexFromName_RH(columns_real_head(ndx)), 1, expected(ndx))
       end do
 
       ! Read the values back from obsSpaceData, and verify them
       do ndx=1,num
         write(6,*)"test:  ", columns_real_head(ndx), &
                         " for test_headerElement_r.  Expected=",expected(ndx)
-         found = obs_elem_r(myobs, columns_real_head(ndx), 1)
+         found = obs_headElem_r(myobs, obs_columnIndexFromName_RH(columns_real_head(ndx)), 1)
          call assertEqual(expected(ndx), found, columns_real_head(ndx))
       end do
 
@@ -316,8 +322,8 @@ contains
    end subroutine test_headerElement_r
 
    subroutine test_bodyElement_r()
-      ! Test the setting of all real body members:  obs_set_r().  One must use
-      ! obs_elem_r() in order to verify the result.  Thus, this is a test for
+      ! Test the setting of all real body members:  obs_bodySet_r().  One must use
+      ! obs_bodyElem_r() in order to verify the result.  Thus, this is a test for
       ! both methods at once.
       use obsSpaceData_mod
       implicit none
@@ -328,7 +334,7 @@ contains
       integer :: num, ndx, nchar
 
       num = size(columns_real_body)
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Assign unique real values to obsSpaceData
       do ndx=1,num
@@ -340,14 +346,14 @@ contains
                             - 30.
          end do
 
-         call obs_set_r (myobs, columns_real_body(ndx), 1, expected(ndx))
+         call obs_bodySet_r (myobs, obs_columnIndexFromName_RB(columns_real_body(ndx)), 1, expected(ndx))
       end do
 
       ! Read the values back from obsSpaceData, and verify them
       do ndx=1,num
         write(6,*)"test:  ", columns_real_body(ndx), &
                         " for test_bodyElement_r.  Expected=",expected(ndx)
-         found = obs_elem_r(myobs, columns_real_body(ndx), 1)
+         found = obs_bodyElem_r(myobs, obs_columnIndexFromName_RB(columns_real_body(ndx)), 1)
          call assertEqual(expected(ndx), found, columns_real_body(ndx))
       end do
 
@@ -355,8 +361,8 @@ contains
    end subroutine test_bodyElement_r
 
    subroutine test_headerElement_c()
-      ! Test the setting of all character header members:  obs_set_r().  One must
-      ! use obs_elem_r() in order to verify the result.  Thus, this is a test for
+      ! Test the setting of all character header members:  obs_set_c().  One must
+      ! use obs_elem_c() in order to verify the result.  Thus, this is a test for
       ! both methods at once.
       use obsSpaceData_mod
       implicit none
@@ -367,7 +373,7 @@ contains
       integer :: num, ndx, nchar
 
       num = size(columns_char_head)
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Assign unique character values to obsSpaceData
       expected(1) = 'sTiD56789012'
@@ -392,7 +398,7 @@ contains
       integer, parameter :: HEAD_MAX=10, BOD_MAX=100
       integer :: expectedDate, observedDate
 
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       expectedDate = 380122984
       call obs_set_datestamp(myobs, expectedDate)
@@ -432,36 +438,36 @@ contains
 
       num = size(columns_real_head)
       do ndx=1,num
-         call obs_set_r (myobs, columns_real_head(ndx), hdx, &
+         call obs_headSet_r (myobs, obs_columnIndexFromName_RH(columns_real_head(ndx)), hdx, &
                          real(ndx, OBS_REAL)*100. + fp + .003)
       end do
 
       num = size(columns_int_head)
       do ndx=1,num
-         call obs_set_i (myobs, columns_int_head(ndx), hdx, ndx*1000 + fp)
+         call obs_headSet_i (myobs, obs_columnIndexFromName_IH(columns_int_head(ndx)), hdx, ndx*1000 + fp)
       end do
 
       ! POPULATE THE BODIES
       do bdx = 1,nbdy
          num = size(columns_real_body)
          do ndx=1,num
-            call obs_set_r (myobs, columns_real_body(ndx), bdx+bod_offset, &
+            call obs_bodySet_r (myobs, obs_columnIndexFromName_RB(columns_real_body(ndx)), bdx+bod_offset, &
                             real(ndx, OBS_REAL)*10000. + fp + .003 &
                                                       + 100.*real(bdx, OBS_REAL))
          end do
 
          num = size(columns_int_body)
          do ndx=1,num
-            call obs_set_i (myobs, columns_int_body(ndx), bdx+bod_offset, &
+            call obs_bodySet_i (myobs, obs_columnIndexFromName_IB(columns_int_body(ndx)), bdx+bod_offset, &
                             ndx*100000 + fp + 100*bdx)
          end do
       end do ! bdx
 
       ! SET VALUES THAT ARE MEANINGFUL TO THE MANIPULATION OF OBSDAT ITSELF.
-      call obs_set_i    (myobs, 'RLN',  hdx, bod_offset+1)
-      call obs_set_i    (myobs, 'NLV',  hdx, nbdy)
-      call obs_set_i    (myobs, 'ONM',  hdx, hdx)
-      call obs_set_i    (myobs, 'PAS',  hdx, hdx)
+      call obs_headSet_i    (myobs, OBS_RLN,  hdx, bod_offset+1)
+      call obs_headSet_i    (myobs, OBS_NLV,  hdx, nbdy)
+      call obs_headSet_i    (myobs, OBS_ONM,  hdx, hdx)
+      call obs_headSet_i    (myobs, OBS_PAS,  hdx, hdx)
    end subroutine setUp_OneHeaderAndBodies
 
    subroutine verify_obs(obs_found, hdx, bod_offset, nbdy, fp, msg, omit_zha, &
@@ -531,7 +537,7 @@ contains
       num = size(columns_real_head)
       do ndx=1,num
          expected_r = real(ndx, OBS_REAL)*100. + fp + .003
-         found_r = obs_elem_r (obs_found, columns_real_head(ndx), hdx)
+         found_r = obs_headElem_r (obs_found, obs_columnIndexFromName_RH(columns_real_head(ndx)), hdx)
          call assertEqual(expected_r, found_r, msg//' '//columns_real_head(ndx))
       end do
 
@@ -563,7 +569,7 @@ contains
             expected_i = ndx*1000 + fp
          end select
 
-         found_i = obs_elem_i (obs_found, columns_int_head(ndx), hdx)
+         found_i = obs_headElem_i (obs_found, obs_columnIndexFromName_IH(columns_int_head(ndx)), hdx)
          call assertEqual(expected_i, found_i, msg//' '//columns_int_head(ndx))
       end do
 
@@ -576,7 +582,7 @@ contains
 
             expected_r = real(ndx, OBS_REAL)*10000. + fp + .003 &
                                                        + 100.*real(bdx, OBS_REAL)
-            found_r = obs_elem_r (obs_found, columns_real_body(ndx), &
+            found_r = obs_bodyElem_r (obs_found, obs_columnIndexFromName_RB(columns_real_body(ndx)), &
                                   expected_rln + bdx)
             call assertEqual(expected_r, found_r, &
                              msg//' '//columns_real_body(ndx))
@@ -585,7 +591,7 @@ contains
          num = size(columns_int_body)
          do ndx=1,num
             expected_i = ndx*100000 + fp + 100*bdx
-            found_i = obs_elem_i (obs_found, columns_int_body(ndx), &
+            found_i = obs_bodyElem_i (obs_found, obs_columnIndexFromName_IB(columns_int_body(ndx)), &
                                   expected_rln + bdx)
             call assertEqual(expected_i, found_i, &
                              msg//' '//columns_int_body(ndx))
@@ -645,7 +651,7 @@ contains
       integer :: status, statusMethod
       character(len=100) :: fromMethod, msg
 
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Direct the output to a file so that it can be verified
       open(unit=TESTOUT_UNIT, status='SCRATCH', &
@@ -735,8 +741,8 @@ contains
       real(8) :: hx_in         (2,5), hx_out         (2,5), &
                  hx_in_original(2,5), hx_out_original(2,5)
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
-      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Set up two obs tables
       header_position = 1
@@ -809,8 +815,8 @@ contains
       integer :: fingerprint            ! a finger print for a data set
       integer, parameter :: HEAD_MAX=10, BOD_MAX=100
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
-      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Set up the first table
       header_position = 1
@@ -858,7 +864,7 @@ contains
       integer :: TESTOUT_UNIT = 8
       integer :: status
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Set up the table
       header_position = 1
@@ -906,7 +912,7 @@ contains
       integer :: nens, nens_out, headers_written, bodies_written
       integer :: unitnum, status
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Set up the table
       header_position = 1
@@ -954,7 +960,7 @@ contains
       do unitnum=11,14
          rewind(unit=unitnum)
       end do
-      call obs_initialize(myobs2, 1, num_bodies)
+      call obs_initialize(myobs2, 'ALL', 1, num_bodies)
       call obs_read (myobs2,hx_out,     11,12,13)
 
       ! Verify the result: myobs
@@ -1020,8 +1026,8 @@ contains
       character(len=1000) :: fromMethod, fromRef
       character(len=100) :: msg
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
-      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Direct the output to a file so that it can be verified
       open(unit=TESTOUT_UNIT, status='SCRATCH', &
@@ -1051,17 +1057,17 @@ contains
                                     num_bodies, fingerprint)
 
       ! Set the values that will be selected
-      body_ndx=1;value=2.5d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!select
-      body_ndx=2;value=2.2d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!no
+      body_ndx=1;value=2.5d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=2;value=2.2d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
 
-      body_ndx=3;value=2.8d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!no
-      body_ndx=4;value=2.4d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!no
-      body_ndx=5;value=2.0d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!no
+      body_ndx=3;value=2.8d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+      body_ndx=4;value=2.4d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+      body_ndx=5;value=2.0d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
 
-      body_ndx=6;value=2.45d0;call obs_set_r(myobs1, 'ZHA',body_ndx,value)!select
-      body_ndx=7;value=2.7d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!select
-      body_ndx=8;value=2.65d0;call obs_set_r(myobs1, 'ZHA',body_ndx,value)!select
-      body_ndx=9;value=2.8d0; call obs_set_r(myobs1, 'ZHA',body_ndx,value)!no
+      body_ndx=6;value=2.45d0;call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=7;value=2.7d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=8;value=2.65d0;call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=9;value=2.8d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
 
       ! Prepare the array, hx, to match
       do idx_j = 1,9
@@ -1090,8 +1096,8 @@ contains
       call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
                       fingerprint, &
                       'input header 1:', omit_zha=.true.)
-      call assertEqual(2.5d0, obs_elem_r(myobs1, 'ZHA', 1))
-      call assertEqual(2.2d0, obs_elem_r(myobs1, 'ZHA', 2))
+      call assertEqual(2.5d0, obs_bodyElem_r(myobs1, OBS_ZHA, 1))
+      call assertEqual(2.2d0, obs_bodyElem_r(myobs1, OBS_ZHA, 2))
 
       header_position = 2
       bod_offset      = 2
@@ -1100,9 +1106,9 @@ contains
       call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
                       fingerprint, &
                       'input header 2:', omit_zha=.true.)
-      call assertEqual(2.8d0, obs_elem_r(myobs1, 'ZHA', 3))
-      call assertEqual(2.4d0, obs_elem_r(myobs1, 'ZHA', 4))
-      call assertEqual(2.0d0, obs_elem_r(myobs1, 'ZHA', 5))
+      call assertEqual(2.8d0, obs_bodyElem_r(myobs1, OBS_ZHA, 3))
+      call assertEqual(2.4d0, obs_bodyElem_r(myobs1, OBS_ZHA, 4))
+      call assertEqual(2.0d0, obs_bodyElem_r(myobs1, OBS_ZHA, 5))
 
       header_position = 3
       bod_offset      = 5
@@ -1111,10 +1117,10 @@ contains
       call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
                       fingerprint, &
                       'input header 3:', omit_zha=.true.)
-      call assertEqual(2.45d0,obs_elem_r(myobs1, 'ZHA', 6))
-      call assertEqual(2.7d0, obs_elem_r(myobs1, 'ZHA', 7))
-      call assertEqual(2.65d0,obs_elem_r(myobs1, 'ZHA', 8))
-      call assertEqual(2.8d0, obs_elem_r(myobs1, 'ZHA', 9))
+      call assertEqual(2.45d0,obs_bodyElem_r(myobs1, OBS_ZHA, 6))
+      call assertEqual(2.7d0, obs_bodyElem_r(myobs1, OBS_ZHA, 7))
+      call assertEqual(2.65d0,obs_bodyElem_r(myobs1, OBS_ZHA, 8))
+      call assertEqual(2.8d0, obs_bodyElem_r(myobs1, OBS_ZHA, 9))
 
 
       call assertEqual(3, obs_numheader(myobs1), 'final no. headers in myobs1')
@@ -1134,13 +1140,13 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, &
                       'output header 1:', omit_zha=.true.)
-      call assertEqual(2.5d0, obs_elem_r(myobs2, 'ZHA',1),'selected zha, body 1')
+      call assertEqual(2.5d0, obs_bodyElem_r(myobs2, OBS_ZHA,1),'selected zha, body 1')
 
            ! For the remaining cases, test only that the correct bodies and
            ! headers have been selected
-      call assertEqual(2.45d0,obs_elem_r(myobs2, 'ZHA',2),'selected zha, body 3')
-      call assertEqual(2.7d0, obs_elem_r(myobs2, 'ZHA',3),'selected zha, body 4')
-      call assertEqual(2.65d0,obs_elem_r(myobs2, 'ZHA',4),'selected zha, body 5')
+      call assertEqual(2.45d0,obs_bodyElem_r(myobs2, OBS_ZHA,2),'selected zha, body 3')
+      call assertEqual(2.7d0, obs_bodyElem_r(myobs2, OBS_ZHA,3),'selected zha, body 4')
+      call assertEqual(2.65d0,obs_bodyElem_r(myobs2, OBS_ZHA,4),'selected zha, body 5')
       call assertEqual(4, obs_numbody  (myobs2), 'number of selected bodies')
       call assertEqual(2, obs_numheader(myobs2), 'number of selected headers')
 
@@ -1169,7 +1175,7 @@ contains
       integer, parameter :: HEAD_MAX=10, BOD_MAX=100
       integer :: head_ndx, value
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Set up one obs table
       header_position = 1
@@ -1204,28 +1210,28 @@ contains
                                     num_bodies, fingerprint)
 
       ! Set the values that will be ordered
-      head_ndx=1;value=5; call obs_set_i(myobs1, 'ONM',head_ndx,value)
-      head_ndx=2;value=2; call obs_set_i(myobs1, 'ONM',head_ndx,value)
-      head_ndx=3;value=1; call obs_set_i(myobs1, 'ONM',head_ndx,value)
-      head_ndx=4;value=3; call obs_set_i(myobs1, 'ONM',head_ndx,value)
-      head_ndx=5;value=4; call obs_set_i(myobs1, 'ONM',head_ndx,value)
+      head_ndx=1;value=5; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=2;value=2; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=3;value=1; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=4;value=3; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=5;value=4; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
 
       ! METHOD UNDER TEST :  order the headers in the table
       call obs_order(myobs1)
 
       ! Verify the order of the headers
-      call assertEqual(1 , obs_elem_i(myobs1, 'ONM', 1), 'ONM of header 1')
-      call assertEqual(2 , obs_elem_i(myobs1, 'ONM', 2), 'ONM of header 2')
-      call assertEqual(3 , obs_elem_i(myobs1, 'ONM', 3), 'ONM of header 3')
-      call assertEqual(4 , obs_elem_i(myobs1, 'ONM', 4), 'ONM of header 4')
-      call assertEqual(5 , obs_elem_i(myobs1, 'ONM', 5), 'ONM of header 5')
+      call assertEqual(1 , obs_headElem_i(myobs1, OBS_ONM, 1), 'ONM of header 1')
+      call assertEqual(2 , obs_headElem_i(myobs1, OBS_ONM, 2), 'ONM of header 2')
+      call assertEqual(3 , obs_headElem_i(myobs1, OBS_ONM, 3), 'ONM of header 3')
+      call assertEqual(4 , obs_headElem_i(myobs1, OBS_ONM, 4), 'ONM of header 4')
+      call assertEqual(5 , obs_headElem_i(myobs1, OBS_ONM, 5), 'ONM of header 5')
 
       ! Verify the sources of the headers
-      call assertEqual(3 , obs_elem_i(myobs1, 'PAS', 1), 'PAS of header 1')
-      call assertEqual(2 , obs_elem_i(myobs1, 'PAS', 2), 'PAS of header 2')
-      call assertEqual(4 , obs_elem_i(myobs1, 'PAS', 3), 'PAS of header 3')
-      call assertEqual(5 , obs_elem_i(myobs1, 'PAS', 4), 'PAS of header 4')
-      call assertEqual(1 , obs_elem_i(myobs1, 'PAS', 5), 'PAS of header 5')
+      call assertEqual(3 , obs_headElem_i(myobs1, OBS_PAS, 1), 'PAS of header 1')
+      call assertEqual(2 , obs_headElem_i(myobs1, OBS_PAS, 2), 'PAS of header 2')
+      call assertEqual(4 , obs_headElem_i(myobs1, OBS_PAS, 3), 'PAS of header 3')
+      call assertEqual(5 , obs_headElem_i(myobs1, OBS_PAS, 4), 'PAS of header 4')
+      call assertEqual(1 , obs_headElem_i(myobs1, OBS_PAS, 5), 'PAS of header 5')
 
       ! Verify the content of the obs
       ! REMEMBER:  only the headers have been moved.  The bodies are still in
@@ -1305,7 +1311,7 @@ contains
       integer :: passNum, regionNum, head_ndx, value
       integer, parameter :: NUMPE = 2
 
-      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs1, 'ALL', HEAD_MAX, BOD_MAX)
 
       !
       ! SET UP THE TABLE
@@ -1342,11 +1348,11 @@ contains
                                     num_bodies, fingerprint)
 
       ! Set the values that divide the data into passes
-      head_ndx=1;value=1; call obs_set_i(myobs1, 'PAS',head_ndx,value)
-      head_ndx=2;value=1; call obs_set_i(myobs1, 'PAS',head_ndx,value)
-      head_ndx=3;value=2; call obs_set_i(myobs1, 'PAS',head_ndx,value)
-      head_ndx=4;value=3; call obs_set_i(myobs1, 'PAS',head_ndx,value)
-      head_ndx=5;value=3; call obs_set_i(myobs1, 'PAS',head_ndx,value)
+      head_ndx=1;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=2;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=3;value=2; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=4;value=3; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=5;value=3; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
 
       ! Set up the hx table
       do idx_j = 1,2
@@ -1398,7 +1404,7 @@ contains
       !                           tested
       ! READ BACK AND VERIFY THE DATA FOR PASS 1
       !
-      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, 'ALL', HEAD_MAX, BOD_MAX)
       passNum = 1
       call obs_readstns(myobs2, 0, passNum, regionNum, 11, 12, NUMPE, &
                         HEAD_MAX, BOD_MAX)
@@ -1424,8 +1430,8 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, 'pass 1 header 1:', &
                       omit_ip=.true., omit_pas=.true.)
-      call assertEqual(1, obs_elem_i(myobs2, 'IP',  1), 'pass1 h1 IP')
-      call assertEqual(1, obs_elem_i(myobs2, 'PAS', 1), 'pass1 h1 PAS')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  1), 'pass1 h1 IP')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_PAS, 1), 'pass1 h1 PAS')
 
       header_position = 2
       bod_offset      = 2
@@ -1434,8 +1440,8 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, 'pass 1 header 2', &
                       omit_ip=.true., omit_pas=.true.)
-      call assertEqual(0, obs_elem_i(myobs2, 'IP',  2), 'pass1 h2 IP')
-      call assertEqual(1, obs_elem_i(myobs2, 'PAS', 2), 'pass1 h2 PAS')
+      call assertEqual(0, obs_headElem_i(myobs2, OBS_IP,  2), 'pass1 h2 IP')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_PAS, 2), 'pass1 h2 PAS')
 
       call obs_finalize(myobs2)
 
@@ -1443,7 +1449,7 @@ contains
       !
       ! READ BACK AND VERIFY THE DATA FOR PASS 2
       !
-      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, 'ALL', HEAD_MAX, BOD_MAX)
       passNum = 2
       call obs_readstns(myobs2, 0, passNum, regionNum, 11, 12, NUMPE, &
                         HEAD_MAX, BOD_MAX)
@@ -1464,9 +1470,9 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, 'pass 2 header 1:', &
                       omit_ip=.true., omit_pas=.true., omit_onm=.true.)
-      call assertEqual(1, obs_elem_i(myobs2, 'IP',  1), 'pass2 h1 IP')
-      call assertEqual(2, obs_elem_i(myobs2, 'PAS', 1), 'pass2 h1 PAS')
-      call assertEqual(3, obs_elem_i(myobs2, 'ONM', 1), 'pass2 h1 ONM')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  1), 'pass2 h1 IP')
+      call assertEqual(2, obs_headElem_i(myobs2, OBS_PAS, 1), 'pass2 h1 PAS')
+      call assertEqual(3, obs_headElem_i(myobs2, OBS_ONM, 1), 'pass2 h1 ONM')
 
       call obs_finalize(myobs2)
 
@@ -1474,7 +1480,7 @@ contains
       !
       ! READ BACK AND VERIFY THE DATA FOR PASS 3
       !
-      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, 'ALL', HEAD_MAX, BOD_MAX)
       passNum = 3
       call obs_readstns(myobs2, 0, passNum, regionNum, 11, 12, NUMPE, &
                         HEAD_MAX, BOD_MAX)
@@ -1499,9 +1505,9 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, 'pass 3 header 1:', &
                       omit_ip=.true., omit_pas=.true., omit_onm=.true.)
-      call assertEqual(0, obs_elem_i(myobs2, 'IP',  1), 'pass3 h1 IP')
-      call assertEqual(3, obs_elem_i(myobs2, 'PAS', 1), 'pass3 h1 PAS')
-      call assertEqual(4, obs_elem_i(myobs2, 'ONM', 1), 'pass3 h1 ONM')
+      call assertEqual(0, obs_headElem_i(myobs2, OBS_IP,  1), 'pass3 h1 IP')
+      call assertEqual(3, obs_headElem_i(myobs2, OBS_PAS, 1), 'pass3 h1 PAS')
+      call assertEqual(4, obs_headElem_i(myobs2, OBS_ONM, 1), 'pass3 h1 ONM')
 
       header_position = 2
       bod_offset      = 2
@@ -1510,9 +1516,9 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, 'pass 3 header 2', &
                       omit_ip=.true., omit_pas=.true., omit_onm=.true.)
-      call assertEqual(1, obs_elem_i(myobs2, 'IP',  2), 'pass3 h2 IP')
-      call assertEqual(3, obs_elem_i(myobs2, 'PAS', 2), 'pass3 h2 PAS')
-      call assertEqual(5, obs_elem_i(myobs2, 'ONM', 2), 'pass3 h2 ONM')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  2), 'pass3 h2 IP')
+      call assertEqual(3, obs_headElem_i(myobs2, OBS_PAS, 2), 'pass3 h2 PAS')
+      call assertEqual(5, obs_headElem_i(myobs2, OBS_ONM, 2), 'pass3 h2 ONM')
 
       call obs_finalize(myobs2)
    end subroutine test_binaryFileOnePass
@@ -1534,7 +1540,7 @@ contains
       integer :: header_position, bod_offset, num_bodies, fingerprint
       integer :: idx_i, idx_j, body_ndx
 
-      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs, 'ALL', HEAD_MAX, BOD_MAX)
 
       ! Direct the output to a file so that it can be verified
       open(unit=testout_unit, status='SCRATCH', &
@@ -1575,7 +1581,7 @@ contains
                                         ! elements are cleaned, set the value of
                                         ! ZHA to -1.0d0
       do body_ndx = 1,9
-         call obs_set_r(myobs, 'ZHA', body_ndx, -1.0d0)
+         call obs_bodySet_r(myobs, OBS_ZHA, body_ndx, -1.0d0)
       end do
    end subroutine setup_obs_clean
 
@@ -1598,35 +1604,35 @@ contains
       ! Set the values that will be selected.  A body (and its associated header)
       ! will be retained if these three conditions are all met:
       !    1) either of:
-      !         1a) btest(obsdat%mobdata(NCM_FLG,jdata),12)
+      !         1a) btest(obsdat%mobdata(OBS_FLG,jdata),12)
       !         1b) .not. qcvar (the 5th parameter of obs_clean)
-      !    2) obsdat%mobdata(NCM_ASS,jdata) .eq. 1
-      !    3) obsdat%robdata(NCM_ZHA,jdata) .ge. 0.0
+      !    2) obsdat%mobdata(OBS_ASS,jdata) .eq. 1
+      !    3) obsdat%robdata(OBS_ZHA,jdata) .ge. 0.0
 
       ! Set up a case where all four conditions are met
       body_ndx = 1 ! will be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, 0.5d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
 
       ! Set up a case where condition 1a) is not met [but 1b) is still met]
       body_ndx = 2 ! will be retained
                                         ! set bits 0->20, then remove bit 12
-      call obs_set_i(myobs1, 'FLG', body_ndx, 1048576 -1 -BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, 0.5d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, 1048576 -1 -BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
 
       ! Set up a case where condition 3) is not met
       body_ndx = 3 ! will not be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, -0.5d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, -0.5d0)
 
       ! Set up a case where condition 2) is not met
       body_ndx = 4 ! will not be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 13)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, 0.5d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 13)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
 
       qcvar = .false.                   ! meets condision 1b)
 
@@ -1676,15 +1682,15 @@ contains
 
       ! Set up a case where condition 3) is met, but just
       body_ndx = 3 ! will be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, tiny(SMALL))
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, tiny(SMALL))
 
       ! Set up another case where condition 3) is met, but just
       body_ndx = 4 ! will be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, 0.0d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.0d0)
 
       qcvar = .false.                   ! meets condision 1b)
 
@@ -1734,15 +1740,15 @@ contains
 
       ! Set up a case where all three conditions are met [but not 1b)]
       body_ndx = 7 ! will be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, 0.5d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
 
       ! Set up a case where condition 1a) is not met
       body_ndx = 3 ! will not be retained
-      call obs_set_i(myobs1, 'FLG', body_ndx, 1048576 -1 -BIT12)
-      call obs_set_i(myobs1, 'ASS', body_ndx, 1)
-      call obs_set_r(myobs1, 'ZHA', body_ndx, 0.5d0)
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, 1048576 -1 -BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
 
       qcvar = .true.                   ! does not meet condision 1b)
 

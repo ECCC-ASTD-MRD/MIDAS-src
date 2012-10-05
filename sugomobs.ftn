@@ -202,32 +202,32 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           do jobs=1, obs_numheader(lobsSpaceData)
 
             call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
-     &                           obs_headElem_i(lobsSpaceData,NCM_DAT,jobs),
-     &                           obs_headElem_i(lobsSpaceData,NCM_ETM,jobs),nstepobs)
+     &                           obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),
+     &                           obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
 
             ! check if obs is outside of assimilation window when jstep = 1
             if(jstep.eq.1 .and. 
      &        (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(nstepobs,8)) ) then
               write(*,*) 'sugomobs: Observation time outside assimilation window: ',
-     &            obs_headElem_i(lobsSpaceData,NCM_DAT,jobs),obs_headElem_i(lobsSpaceData,NCM_ETM,jobs)
+     &            obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
 
               ! put the obs in the first time bin (it has to go somewhere!)
               stepObsIndex=1.0
 
               ! flag it as out of time domain and turn off its assimilation flag
-              idata = obs_headElem_i(lobsSpaceData,NCM_RLN,jobs)
-              idatend = obs_headElem_i(lobsSpaceData,NCM_NLV,jobs) + idata -1
+              idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+              idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
               do jdata = idata, idatend
-                call obs_bodySet_i(lobsSpaceData,NCM_ASS,JDATA, 0)
+                call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
               enddo
-              call obs_headSet_i(lobsSpaceData,NCM_ST1,jobs, 
-     &          ibset( obs_headElem_i(lobsSpaceData,NCM_ST1,jobs), 05))
+              call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs, 
+     &          ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
             endif
 
             if(nint(stepObsIndex).eq.jstep) then
 
-              lat_r8=obs_headElem_r(lobsSpaceData,NCM_LAT,jobs)
-              lon_r8=obs_headElem_r(lobsSpaceData,NCM_LON,jobs)
+              lat_r8=obs_headElem_r(lobsSpaceData,OBS_LAT,jobs)
+              lon_r8=obs_headElem_r(lobsSpaceData,OBS_LON,jobs)
               lat_r4=real(lat_r8)
               lon_r4=real(lon_r8)
               tla = isrchila(lat_r8)
