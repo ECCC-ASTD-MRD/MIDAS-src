@@ -14,7 +14,7 @@ module testObs_mod
                  'NLV','OFL','PAS','REG','IP', 'AZA','SZA','SUN','CLF', &
                  'ST1','IDO','IDF' /)
    character(len=4), parameter, dimension(9) :: columns_int_body &
-            = (/ 'VNM','FLG','KFA','ASS','HIND','VCO','LYR','XTR','IDD' /)
+            = (/ 'VNM ','FLG','KFA','ASS','HIND','VCO','LYR','XTR','IDD' /)
    character(len=4), parameter, dimension(6) :: columns_real_head &
             = (/ 'LAT','LON','ALT','BX','BY','BZ' /)
    character(len=4), parameter, dimension(14) :: columns_real_body &

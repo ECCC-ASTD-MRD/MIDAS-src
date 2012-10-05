@@ -981,11 +981,17 @@ contains
 
       implicit none
       character(len=*) cdmessage
+      integer :: initialized
 
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
       call flush(6)
 
-      call qqexit(1)
+      call MPI_Initialized(initialized)
+      if (initialized .eq. 1)then
+         call mpi_finalize()
+      end if
+
+      call qqexit(13)
 
       stop
    end subroutine obs_abort

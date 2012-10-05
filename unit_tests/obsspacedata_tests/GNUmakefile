@@ -68,7 +68,7 @@ EXECUTABLE = test_obs.x
 
 MACH_SUBMIT = $(TRUE_HOST)
 ifeq ($(MACH_SUBMIT), erg)
-   MACH_SUBMIT = alef
+   MACH_SUBMIT = pollux
 endif
 
 #ifeq ($(MPI),YES)
