@@ -24,7 +24,9 @@ endif
 SHELL = /bin/sh
 
 ifeq ($(DEBUG),YES)
-	FFLAGS += -g -O0
+	OPTIMIZE = -debug -O 0
+else
+	OPTIMIZE =
 endif
 
 ifeq ($(BASE_ARCH),Linux)
@@ -41,8 +43,6 @@ else
 endif
 
 FFLAGS +=-I$(PFUNIT_MODDIR)
-
-OPTIMIZE =
 
 ifeq ($(MPI),YES)
 ## this should be: -libappl rpn_comm_40007

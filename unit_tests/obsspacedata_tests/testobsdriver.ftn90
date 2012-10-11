@@ -34,6 +34,7 @@ program main
    if(myip == 0) then
       ! Write only one report
       summary_statement_master=Summary(result_master)
+      call sleep(1)                     ! Allow the write buffer to empty
       write(6,*)
       write(6,*)trim(summary_statement_master)
    end if

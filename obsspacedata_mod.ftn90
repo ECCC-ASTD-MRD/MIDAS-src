@@ -374,6 +374,7 @@ module obsSpaceData_mod
    public obs_headSet_i  ! set an integer header value in the observation object
    public obs_headSet_r  ! set a real header value in the observation object
    public obs_initialize ! variable initialization
+   public obs_mpiLocal   ! obtain the current mpi state of the observation object
    public obs_numBody    ! returns the number of observations recorded
    public obs_numBody_max! returns the dimensioned number of observations
    public obs_numHeader  ! returns the number of stations recorded
@@ -419,6 +420,7 @@ module obsSpaceData_mod
       module procedure obs_set_current_body_list_from_header
    end interface obs_set_current_body_list
 
+
    ! observation-space fundamental parameters
    public           :: OBS_JPNBRELEM
 
@@ -441,10 +443,10 @@ module obsSpaceData_mod
       integer :: numBody_max            ! maximum number observations (i.e. data)
 
                                         ! row indices of mpiglobal data, useful
-                                        ! for transforming from mpilocal back to
-                                        ! mpiglobal
+                                        ! for transforming from mpiLocal back to
+                                        ! mpiGlobal
                                         !    1st dim'n: row index, only in
-                                        !               mpilocal context
+                                        !               mpiLocal context
       integer, pointer, dimension(:) :: headerIndex_mpiglobal,bodyIndex_mpiglobal
 
       logical :: mpi_local       ! T: keep only data needed by this PE (mpilocal)
@@ -457,7 +459,7 @@ module obsSpaceData_mod
    ! the first column index for integer header variables defined below
    integer, parameter :: NHDR_INT_BEG = 1 
    integer, parameter, public :: OBS_RLN = NHDR_INT_BEG ! report location
-                                                     ! unique(within obsdat), possibly
+                                             ! unique(within obsdat), possibly
    integer, parameter, public :: OBS_ONM = OBS_RLN+1 ! ordered, station id number
    integer, parameter, public :: OBS_INS = OBS_ONM+1 ! instrument ID  
    integer, parameter, public :: OBS_OTP = OBS_INS+1 ! observation Type (file index)
@@ -519,7 +521,7 @@ module obsSpaceData_mod
    integer, parameter, public :: OBS_HIND= OBS_ASS+1  ! corresponding header row index
    integer, parameter, public :: OBS_VCO = OBS_HIND+1 ! type of vertical coordinate
    integer, parameter, public :: OBS_LYR = OBS_VCO+1  ! Index of anal level above observ'n
-                                                      ! Flag: extrapolation necessary of
+                                             ! Flag: extrapolation necessary of
    integer, parameter, public :: OBS_XTR = OBS_LYR+1  ! anal variables to obs'n location
    integer, parameter, public :: OBS_IDD = OBS_XTR+1  ! data id. no.
    ! the last column index for integer body variables defined just above
@@ -544,14 +546,14 @@ module obsSpaceData_mod
    integer, parameter, public :: OBS_HPHT= OBS_OER +1 ! root of (hpht with hx scalar)
    integer, parameter, public :: OBS_ZHA = OBS_HPHT+1 ! vert coordinate for Schur product
    integer, parameter, public :: OBS_OMP6= OBS_ZHA +1 ! obs - H (6-h trial field)
-                                                      ! Initial value of "gamma" for
+                                              ! Initial value of "gamma" for
    integer, parameter, public :: OBS_POB = OBS_OMP6+1 ! variational QC 
    integer, parameter, public :: OBS_OMF = OBS_POB +1 ! observation minus forecast value
-                                                      ! Work space for use during
+                                              ! Work space for use during
    integer, parameter, public :: OBS_OMI = OBS_OMF +1 ! variational minimization  
-                                                      ! Value from variational QC used
+                                              ! Value from variational QC used
    integer, parameter, public :: OBS_OMN = OBS_OMI +1 ! to flag when rejected
-                                                      ! (Adjusted) observed value for
+                                              ! (Adjusted) observed value for
    integer, parameter, public :: OBS_PRM = OBS_OMN +1 ! tovs in variational assimilation
    ! the number of real body variables defined just above
    integer, parameter :: NBDY_REAL_END = OBS_PRM
@@ -570,6 +572,7 @@ module obsSpaceData_mod
    logical :: obs_columnActive_RB(NBDY_REAL_BEG:NBDY_REAL_END) = .false.
 
    integer, parameter :: OBS_JPNBRELEM = 57   ! obs variable-types table length
+
 
 contains
 
@@ -1104,7 +1107,9 @@ contains
                 obs_out%robdata(column_index)%value_r(i_data_write)=obsdat%robdata(column_index)%value_r(i_data_read)
             enddo
             hx_out(1:nens,i_data_write)=hx(:,i_data_read)
-            i_data_write=i_data_write+1  
+                                        ! Make HIND point to new header index
+            obs_out%mobdata(OBS_HIND)%value_i(i_data_write)=i_station_write
+            i_data_write=i_data_write+1
          enddo observations
 
          do column_index=NHDR_INT_BEG,NHDR_INT_END
@@ -1718,7 +1723,7 @@ contains
       type (struct_obs), intent(inout) :: obsdat
       integer,           intent(in)    :: myip,nens,nstncom
       real(8),           intent(inout), dimension(:,:) :: hx    
-        
+
       integer :: column_index, active_index
       integer            , pointer :: mobhdr_tmp(:,:),mobdata_tmp(:,:)
       real(kind=OBS_REAL), pointer :: robhdr_tmp(:,:),robdata_tmp(:,:)
@@ -1743,6 +1748,22 @@ contains
       endif
       if (nstncom.le.0) then
          call obs_abort('OBS_COMM: nstncom should be positive')
+      endif
+
+      ! Non-master processes need to know how many body elements they will receive
+      nobs=obsdat%mobhdr(OBS_RLN)%value_i(nstncom) &
+                                    + obsdat%mobhdr(OBS_NLV)%value_i(nstncom) - 1
+      ncomm=1
+      call rpn_comm_bcast(nobs,ncomm,"mpi_integer",master,"world",ier)
+
+      if (nobs.gt.obsdat%numBody_max) then
+         write(*,*) 'ERROR in obs_comm: nobs ',nobs, &
+            ' may not exceed obsdat%numBody_max ',obsdat%numBody_max
+         call obs_abort('OBS_COMM: nobs exceeds obsdat%numBody_max')
+      endif
+      if (nobs.le.0) then
+         write(*,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
+         call obs_abort('OBS_COMM: nobs should be positive')
       endif
 
       ! extract data from active columns before broadcasting them
@@ -1775,19 +1796,12 @@ contains
       enddo
       deallocate(robhdr_tmp)
 
-      ncomm=nstncom*12
+      ncomm=nstncom*len(obsdat%cstnid(0))
       call rpn_comm_bcastc(obsdat%cstnid,ncomm,"mpi_character",master,"world", &
                                                                              ier)
-      nobs=obsdat%mobhdr(OBS_RLN)%value_i(nstncom) + obsdat%mobhdr(OBS_NLV)%value_i(nstncom) - 1
-      if (nobs.gt.obsdat%numBody_max) then
-         write(*,*) 'ERROR in obs_comm: nobs ',nobs, &
-            ' may not exceed obsdat%numBody_max ',obsdat%numBody_max
-         call obs_abort('OBS_COMM: nobs exceeds obsdat%numBody_max')
-      endif
-      if (nobs.le.0) then
-         write(*,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
-         call obs_abort('OBS_COMM: nobs should be positive')
-      endif
+      ncomm=nstncom*len(obsdat%cfamily(0))
+      call rpn_comm_bcastc(obsdat%cfamily,ncomm,"mpi_character",master,"world", &
+                                                                             ier)
 
       ! extract data from active columns before broadcasting them
       ncomm=nobs*obs_numActiveColumn_IB()
@@ -1811,7 +1825,7 @@ contains
          column_index=obs_columnIndexFromActiveIndex_RB(active_index)
          robdata_tmp(active_index,1:nobs)=obsdat%robdata(column_index)%value_r(1:nobs)
       enddo
-      call rpn_comm_bcast(obsdat%robdata,ncomm,MPI_OBS_REAL,master,"world",ier)
+      call rpn_comm_bcast(robdata_tmp,ncomm,MPI_OBS_REAL,master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,obs_numActiveColumn_RB()
          column_index=obs_columnIndexFromActiveIndex_RB(active_index)
@@ -1824,6 +1838,10 @@ contains
       call rpn_comm_bcast(obsdat%numHeader,ncomm,"mpi_integer",master,"world", &
                                                                              ier)
       call rpn_comm_bcast(obsdat%numBody, ncomm,"mpi_integer",master,"world",ier)
+      call rpn_comm_bcast(obsdat%mpi_local,ncomm,"mpi_integer",master,"world", &
+                                                                             ier)
+      call rpn_comm_bcast(obsdat%datestamp, ncomm,"mpi_integer",master,"world", &
+                                                                             ier)
 
       if (nens.gt.0) then
          ncomm=nobs*nens
@@ -2335,7 +2353,7 @@ contains
 
       real(OBS_REAL):: rdum 
       integer       :: i,idum
-      character(12) :: cdum     
+      character(12) :: cdum
 
       do i=NHDR_INT_BEG,NHDR_INT_END
          if(obs_columnActive_IH(i)) then
@@ -2357,7 +2375,26 @@ contains
       obsdat%cstnid(j)=obsdat%cstnid(k)
       obsdat%cstnid(k)=cdum
 
+      call adjust_obs(j)
+      call adjust_obs(k)
+
       return
+
+   contains
+      subroutine adjust_obs(hdx)
+         ! Make the body members of header(hdx) point to the new index of hdx.
+         implicit none
+         integer, intent(in) :: hdx     ! Header index
+
+         integer       :: ifirst, ilast
+
+         ifirst=obsdat%mobhdr(OBS_RLN)%value_i(hdx)
+         ilast =obsdat%mobhdr(OBS_RLN)%value_i(hdx) + &
+                obsdat%mobhdr(OBS_NLV)%value_i(hdx) -1
+         do i=ifirst,ilast
+            obsdat%mobdata(OBS_HIND)%value_i(i) = hdx
+         end do
+      end subroutine adjust_obs
    end subroutine obs_exchange_stations
 
 
@@ -2372,22 +2409,29 @@ contains
       !                gathering the necessary data from all processors (to all
       !                processors).
       !                NOTE: for the character data cstnid(:), this is converted
-      !                      to integers with IACHAR and back to characters with ACHAR
-      !                      to facilitate this gather through rpn_comm_allreduce
+      !                      to integers with IACHAR and back to characters with
+      !                      ACHAR, to facilitate this gather through
+      !                      rpn_comm_allreduce
       !
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
 
-      integer,allocatable                       :: int_cstnid_tmp(:,:)
-      integer,allocatable                       :: int_cfamily_tmp(:,:)
-      real(OBS_REAL),allocatable,dimension(:,:) :: robdata_tmp
-      real(OBS_REAL),allocatable,dimension(:,:) :: robhdr_tmp
-      integer,allocatable,dimension(:,:) :: mobdata_tmp
-      integer,allocatable,dimension(:,:) :: mobhdr_tmp 
+      integer,allocatable,dimension(:,:)        :: int_cstnid_partial, &
+                                                   int_cstnid_complete
+      integer,allocatable,dimension(:,:)        :: int_cfamily_partial, &
+                                                   int_cfamily_complete
+      real(OBS_REAL),allocatable,dimension(:,:) :: robdata_partial, &
+                                                   robdata_complete
+      real(OBS_REAL),allocatable,dimension(:,:) :: robhdr_partial, &
+                                                   robhdr_complete
+      integer,allocatable,dimension(:,:) :: mobdata_partial, &
+                                            mobdata_complete
+      integer,allocatable,dimension(:,:) :: mobhdr_partial, &
+                                            mobhdr_complete 
 
       integer :: ierr
-      integer :: numHeader_mpiglobal,numBody_mpiglobal
+      integer :: numHeader_mpiGlobal,numBody_mpiGlobal
       integer :: bodyIndex_mpilocal,bodyIndex_mpiglobal
       integer :: headerIndex_mpilocal,headerIndex_mpiglobal
       integer :: sizedata
@@ -2407,122 +2451,185 @@ contains
 
       ! determine number of rows in mpiglobal arrays
       sizedata=1
-      call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiglobal,sizedata,"mpi_integer", &
-                              "mpi_sum","GRID",ierr)       
-      call rpn_comm_allreduce(obsdat%numBody,  numBody_mpiglobal,  sizedata,"mpi_integer", &
-                              "mpi_sum","GRID",ierr)       
+      call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiGlobal,sizedata, &
+                              "mpi_integer","mpi_sum","GRID",ierr)
+      call rpn_comm_allreduce(obsdat%numBody,  numBody_mpiGlobal,  sizedata, &
+                              "mpi_integer","mpi_sum","GRID",ierr)
 
       ! allocate memory for the temporary arrays for header-level data
-      allocate(mobhdr_tmp(obs_numActiveColumn_IH(),numHeader_mpiglobal))
-      mobhdr_tmp(:,:)=0
-      allocate(robhdr_tmp(obs_numActiveColumn_RH(),numHeader_mpiglobal))
-      robhdr_tmp(:,:)=real(0.0d0, OBS_REAL)
-      allocate(int_cstnid_tmp(numHeader_mpiglobal,len(obsdat%cstnid(1))))
-      int_cstnid_tmp(:,:)=0
-      allocate(int_cfamily_tmp(numHeader_mpiglobal,len(obsdat%cfamily(1))))
-      int_cfamily_tmp(:,:)=0
+      allocate(mobhdr_partial  (obs_numActiveColumn_IH(),numHeader_mpiglobal))
+      allocate(mobhdr_complete (obs_numActiveColumn_IH(),numHeader_mpiglobal))
+      allocate(robhdr_partial  (obs_numActiveColumn_RH(),numHeader_mpiglobal))
+      allocate(robhdr_complete (obs_numActiveColumn_RH(),numHeader_mpiglobal))
+      allocate(int_cstnid_partial  (numHeader_mpiglobal,len(obsdat%cstnid(1))))
+      allocate(int_cstnid_complete (numHeader_mpiglobal,len(obsdat%cstnid(1))))
+      allocate(int_cfamily_partial (numHeader_mpiglobal,len(obsdat%cfamily(1))))
+      allocate(int_cfamily_complete(numHeader_mpiglobal,len(obsdat%cfamily(1))))
+
+      int_cstnid_partial  (:,:)=0
+      int_cstnid_complete (:,:)=0
+      robhdr_partial      (:,:)=real(0.0d0, OBS_REAL)
+      robhdr_complete     (:,:)=real(0.0d0, OBS_REAL)
+      mobhdr_partial      (:,:)=0
+      mobhdr_complete     (:,:)=0
+      int_cfamily_partial (:,:)=0
+      int_cfamily_complete(:,:)=0
 
       ! copy mpilocal data into temporary mpiglobal arrays for header-level data
       do headerIndex_mpilocal=1,obsdat%numHeader
          headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
+
          do active_index=1,obs_numActiveColumn_IH()
-           column_index=obs_columnIndexFromActiveIndex_IH(active_index)
-           mobhdr_tmp(active_index,headerIndex_mpiglobal)=obsdat%mobhdr(column_index)%value_i(headerIndex_mpilocal)
+            column_index=obs_columnIndexFromActiveIndex_IH(active_index)
+            mobhdr_partial(active_index,headerIndex_mpiglobal) &
+                       =obsdat%mobhdr(column_index)%value_i(headerIndex_mpilocal)
          enddo
+
          do active_index=1,obs_numActiveColumn_RH()
-           column_index=obs_columnIndexFromActiveIndex_RH(active_index)
-           robhdr_tmp(active_index,headerIndex_mpiglobal)=obsdat%robhdr(column_index)%value_r(headerIndex_mpilocal)
+            column_index=obs_columnIndexFromActiveIndex_RH(active_index)
+            robhdr_partial(active_index,headerIndex_mpiglobal) &
+                       =obsdat%robhdr(column_index)%value_r(headerIndex_mpilocal)
          enddo
-         ! ATTN: for cstnid and cfamily, character strings are converted to integer arrays!!!
+
+         ! ATTN: for cstnid and cfamily, character strings are converted to
+         !       integer arrays!!!
          do indexChar=1,len(obsdat%cstnid(1))
-           int_cstnid_tmp(headerIndex_mpiglobal,indexChar) = iachar(obsdat%cstnid(headerIndex_mpilocal)(indexChar:indexChar))
+            int_cstnid_partial(headerIndex_mpiglobal,indexChar) = &
+                 iachar(obsdat%cstnid(headerIndex_mpilocal)(indexChar:indexChar))
          enddo
+
          do indexChar=1,len(obsdat%cfamily(1))
-           int_cfamily_tmp(headerIndex_mpiglobal,indexChar) = iachar(obsdat%cfamily(headerIndex_mpilocal)(indexChar:indexChar))
+            int_cfamily_partial(headerIndex_mpiglobal,indexChar) = &
+                iachar(obsdat%cfamily(headerIndex_mpilocal)(indexChar:indexChar))
          enddo
       enddo
 
       ! merge the temporary global arrays for header-level data
-      sizedata=size(mobhdr_tmp)
-      call rpn_comm_allreduce(mobhdr_tmp,mobhdr_tmp,sizedata,"mpi_integer", &
-         "mpi_sum","GRID",ierr)
-      sizedata=size(robhdr_tmp)
-      call rpn_comm_allreduce(robhdr_tmp,robhdr_tmp,sizedata,MPI_OBS_REAL, &
-         "mpi_sum","GRID",ierr)
-      sizedata=size(int_cstnid_tmp)
-      call rpn_comm_allreduce(int_cstnid_tmp,int_cstnid_tmp,sizedata,"mpi_integer", &
-         "mpi_sum","GRID",ierr)
-      sizedata=size(int_cfamily_tmp)
-      call rpn_comm_allreduce(int_cfamily_tmp,int_cfamily_tmp,sizedata,"mpi_integer", &
-         "mpi_sum","GRID",ierr)
+      sizedata=size(mobhdr_complete)
+      call rpn_comm_allreduce(mobhdr_partial,mobhdr_complete,sizedata, &
+                              "mpi_integer","mpi_sum","GRID",ierr)
+
+                                        ! Make RLN point to global data
+      do headerIndex_mpiglobal=1,numHeader_mpiGlobal
+         if(headerIndex_mpiglobal == 1) then
+            mobhdr_complete(OBS_RLN,headerIndex_mpiglobal) = 1
+         else
+            mobhdr_complete(OBS_RLN,headerIndex_mpiglobal) = &
+                               mobhdr_complete(OBS_RLN,headerIndex_mpiglobal-1) &
+                             + mobhdr_complete(OBS_NLV,headerIndex_mpiglobal-1)
+         endif
+      enddo
+
+      sizedata=size(robhdr_partial)
+      call rpn_comm_allreduce(robhdr_partial,robhdr_complete,sizedata, &
+         MPI_OBS_REAL, "mpi_sum","GRID",ierr)
+
+      sizedata=size(int_cstnid_partial)
+      call rpn_comm_allreduce(int_cstnid_partial,int_cstnid_complete, &
+         sizedata,"mpi_integer","mpi_sum","GRID",ierr)
+
+      sizedata=size(int_cfamily_partial)
+      call rpn_comm_allreduce(int_cfamily_partial,int_cfamily_complete, &
+         sizedata,"mpi_integer","mpi_sum","GRID",ierr)
 
       ! allocate memory for the temporary arrays for body-level data
-      allocate(mobdata_tmp(obs_numActiveColumn_IB(),obsdat%numBody_max))
-      mobdata_tmp=0
-      allocate(robdata_tmp(obs_numActiveColumn_RB(),obsdat%numBody_max))
-      robdata_tmp=real(0.0d0,OBS_REAL)
+      allocate(mobdata_partial (obs_numActiveColumn_IB(),obsdat%numBody_max))
+      allocate(mobdata_complete(obs_numActiveColumn_IB(),obsdat%numBody_max))
+      allocate(robdata_partial (obs_numActiveColumn_RB(),obsdat%numBody_max))
+      allocate(robdata_complete(obs_numActiveColumn_RB(),obsdat%numBody_max))
+      mobdata_partial =0
+      mobdata_complete=0
+      robdata_partial =real(0.0d0,OBS_REAL)
+      robdata_complete=real(0.0d0,OBS_REAL)
 
       ! copy mpilocal data into temporary mpiglobal arrays for body-level data
       do bodyIndex_mpilocal=1,obsdat%numBody
-        bodyIndex_mpiglobal=obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal)
-        do active_index=1,obs_numActiveColumn_IB()
-          column_index=obs_columnIndexFromActiveIndex_IB(active_index)
-          mobdata_tmp(active_index,bodyIndex_mpiglobal)=obsdat%mobdata(column_index)%value_i(bodyIndex_mpilocal)
-        enddo
-        do active_index=1,obs_numActiveColumn_RB()
-          column_index=obs_columnIndexFromActiveIndex_RB(active_index)
-          robdata_tmp(active_index,bodyIndex_mpiglobal)=obsdat%robdata(column_index)%value_r(bodyIndex_mpilocal)
-        enddo
+         bodyIndex_mpiglobal=obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal)
+
+         do active_index=1,obs_numActiveColumn_IB()
+            column_index=obs_columnIndexFromActiveIndex_IB(active_index)
+            mobdata_partial(active_index,bodyIndex_mpiglobal)= &
+                         obsdat%mobdata(column_index)%value_i(bodyIndex_mpilocal)
+         enddo
+
+         do active_index=1,obs_numActiveColumn_RB()
+            column_index=obs_columnIndexFromActiveIndex_RB(active_index)
+            robdata_partial(active_index,bodyIndex_mpiglobal)= &
+                         obsdat%robdata(column_index)%value_r(bodyIndex_mpilocal)
+         enddo
+
+                                        ! Make HIND point to global header
+         headerIndex_mpilocal=obsdat%mobdata(OBS_HIND) &
+                                                     %value_i(bodyIndex_mpilocal)
+         mobdata_partial(obs_activeIndexFromColumnIndex_IB(OBS_HIND), &
+                         bodyIndex_mpiglobal) &
+                       = obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
       enddo
 
       ! merge the temporary global arrays for body-level data
-      sizedata=size(mobdata_tmp)
-      call rpn_comm_allreduce(mobdata_tmp,mobdata_tmp,sizedata,"mpi_integer",&
-         "mpi_sum","GRID",ierr)
-      sizedata=size(robdata_tmp)
-      call rpn_comm_allreduce(robdata_tmp,robdata_tmp,sizedata,MPI_OBS_REAL,&
-         "mpi_sum","GRID",ierr)
+      sizedata=size(mobdata_partial)
+      call rpn_comm_allreduce(mobdata_partial,mobdata_complete,sizedata, &
+                              "mpi_integer","mpi_sum","GRID",ierr)
+
+      sizedata=size(robdata_partial)
+      call rpn_comm_allreduce(robdata_partial,robdata_complete,sizedata, &
+                              MPI_OBS_REAL,"mpi_sum","GRID",ierr)
 
       ! destroy object's mpilocal data and allocate mpiglobal data
       call obs_deallocate(obsdat)
-      call obs_allocate(obsdat,numHeader_mpiglobal,obsdat%numBody_max)
+      call obs_allocate(obsdat,numHeader_mpiGlobal,obsdat%numBody_max)
 
       ! copy the temporary arrays to the object's arrays
-      !   ATTN: for cstnid and cfamily, integer arrays converted back to character strings!!!
+      !   ATTN: for cstnid and cfamily, integer arrays converted back to
+      !         character strings!!!
       do headerIndex_mpiglobal=1,numHeader_mpiglobal
          do indexChar=1,len(obsdat%cstnid(1))
-            obsdat%cstnid(headerIndex_mpiglobal)(indexChar:indexChar) = achar(int_cstnid_tmp(headerIndex_mpiglobal,indexChar))
+            obsdat%cstnid(headerIndex_mpiglobal)(indexChar:indexChar) = &
+                      achar(int_cstnid_complete(headerIndex_mpiglobal,indexChar))
          enddo
+
          do indexChar=1,len(obsdat%cfamily(1))
-            obsdat%cfamily(headerIndex_mpiglobal)(indexChar:indexChar) = achar(int_cfamily_tmp(headerIndex_mpiglobal,indexChar))
+            obsdat%cfamily(headerIndex_mpiglobal)(indexChar:indexChar) = &
+                     achar(int_cfamily_complete(headerIndex_mpiglobal,indexChar))
          enddo
       enddo
+
       do active_index=1,obs_numActiveColumn_RH()
-        column_index=obs_columnIndexFromActiveIndex_RH(active_index)
-        obsdat%robhdr(column_index)%value_r(:)=robhdr_tmp(active_index,:)
+         column_index=obs_columnIndexFromActiveIndex_RH(active_index)
+         obsdat%robhdr(column_index)%value_r(:)=robhdr_complete(active_index,:)
       enddo
+
       do active_index=1,obs_numActiveColumn_IH()
-        column_index=obs_columnIndexFromActiveIndex_IH(active_index)
-        obsdat%mobhdr(column_index)%value_i(:)=mobhdr_tmp(active_index,:)
+         column_index=obs_columnIndexFromActiveIndex_IH(active_index)
+         obsdat%mobhdr(column_index)%value_i(:)=mobhdr_complete(active_index,:)
       enddo
+
       do active_index=1,obs_numActiveColumn_RB()
-        column_index=obs_columnIndexFromActiveIndex_RB(active_index)
-        obsdat%robdata(column_index)%value_r(:)=robdata_tmp(active_index,:)
+         column_index=obs_columnIndexFromActiveIndex_RB(active_index)
+         obsdat%robdata(column_index)%value_r(:)=robdata_complete(active_index,:)
       enddo
+
       do active_index=1,obs_numActiveColumn_IB()
-        column_index=obs_columnIndexFromActiveIndex_IB(active_index)
-        obsdat%mobdata(column_index)%value_i(:)=mobdata_tmp(active_index,:)
+         column_index=obs_columnIndexFromActiveIndex_IB(active_index)
+         obsdat%mobdata(column_index)%value_i(:)=mobdata_complete(active_index,:)
       enddo
-      obsdat%numBody=numBody_mpiglobal
-      obsdat%numHeader=numHeader_mpiglobal
+
+      obsdat%numBody     =  numBody_mpiGlobal
+      obsdat%numHeader   =numHeader_mpiGlobal
 
       ! deallocate the temporary arrays
-      deallocate(int_cstnid_tmp)
-      deallocate(int_cfamily_tmp)
-      deallocate(robhdr_tmp)
-      deallocate(mobhdr_tmp)
-      deallocate(robdata_tmp)
-      deallocate(mobdata_tmp)
+      deallocate(int_cstnid_partial)
+      deallocate(int_cstnid_complete)
+      deallocate(int_cfamily_partial)
+      deallocate(int_cfamily_complete)
+      deallocate(robhdr_partial)
+      deallocate(robhdr_complete)
+      deallocate(mobhdr_partial)
+      deallocate(mobhdr_complete)
+      deallocate(robdata_partial)
+      deallocate(robdata_complete)
+      deallocate(mobdata_partial)
+      deallocate(mobdata_complete)
 
       obsdat%mpi_local = .false.
 
@@ -2543,7 +2650,6 @@ contains
       integer :: column_index
 
       call obs_deallocate(obsdat)
-
    end subroutine obs_finalize
 
 
@@ -2960,7 +3066,7 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       integer :: headerIndex_mpiglobal,headerIndex_mpilocal,bodyIndex_mpiglobal,bodyIndex_mpilocal
-      integer :: numHeader_mpilocal,numBody_mpilocal,idata,idataend
+      integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
       integer :: nprocs_mpi, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
 
       write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
@@ -2972,18 +3078,18 @@ contains
       call rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
       if(nprocs_mpi == 0) nprocs_mpi=1
 
-      write(*,*) 'numHeader_mpiglobal= ',obsdat%numHeader 
+      write(*,*) 'numHeader_mpiGlobal= ',obsdat%numHeader 
 
       ! first determine the number of rows of the mpilocal data and allocate index lists
-      numHeader_mpilocal=0
-      numBody_mpilocal=0
+      numHeader_mpiLocal=0
+      numBody_mpiLocal=0
       do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi
-         numHeader_mpilocal=numHeader_mpilocal+1
+         numHeader_mpiLocal=numHeader_mpiLocal+1
          numBody_mpilocal=numBody_mpilocal+obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
       enddo
       if(numHeader_mpilocal<=0) call obs_abort('Zero length of headerIndex_mpiglobal,Abort!') 
       allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
-      if(numBody_mpilocal<=0) call obs_abort('Zero length of BodyTag,Abort!') 
+      if(numBody_mpiLocal<=0) call obs_abort('Zero length of BodyTag,Abort!') 
       allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
 
       ! determine the list of header indices
@@ -3028,11 +3134,12 @@ contains
       ! mode that controls subset of columns that are activated
       character(len=*), optional :: obsColumnMode_in
       character(len=12), save :: obsColumnMode_save = '            '
-    
+
       logical :: lfirsttime = .true.
       integer :: nulnam,fnom,fclos,ierr
       integer :: nmxobs,ndatamx,column_index
       namelist /namdimo/nmxobs,ndatamx
+
 
       if(present(header_max)) then
          ! body_max is necessarily also present
@@ -3122,9 +3229,25 @@ contains
       call obs_allocate(obsdat,obsdat%numHeader_max,obsdat%numBody_max)
       call ild_initialize(obsdat%header_index_list_depot, obsdat%numHeader_max)
       call ild_initialize(obsdat%body_index_list_depot,   obsdat%numBody_max)
-
       return
    end subroutine obs_initialize
+
+
+   logical function obs_mpiLocal(obsdat)
+      !func obs_mpiLocal - returns true if the object contains only data that are
+      !                    needed by the current mpi PE; false if it contains all
+      !                    data.
+      !
+      !Author    . J.W. Blezius
+      !
+      !    PURPOSE:  to provide the state of the internal variable, mpiLocal.
+      !              This method exists primarily to facilitate unit tests on
+      !              this module.
+      !
+      implicit none
+      type(struct_obs) , intent(in)  :: obsdat
+      obs_mpiLocal=obsdat%mpi_local
+   end function obs_mpiLocal
 
 
    integer function obs_numBody(obsdat)
@@ -3273,7 +3396,7 @@ contains
    end subroutine obs_prnt_csv
 
 
-   subroutine obs_prntbdy(obsdat,kobs)
+   subroutine obs_prntbdy(obsdat,index_header,unitout)
       !
       !**s/r PRNTBDY  - Print all data records associated with an observation
       !
@@ -3288,15 +3411,27 @@ contains
       !     . S. Pellerin ARMA, January 2008 : Remove OBS_OMN print.
       !
       !Arguments
-      !     i   KOBS  : No. of observation
+      !     i   index_header  : index of the group of observations to be printed
+      !     i   unitout       : unit number on which to print
       !
       implicit none
 
       type(struct_obs), intent(in) :: obsdat
-      integer         , intent(in) :: kobs
+      integer         , intent(in) :: index_header
+                                        ! variable output unit facilitates unit
+                                        ! testing
+      integer         , intent(in), optional :: unitout
+
+      integer :: unitout_
 
       integer :: ipnt, idata, idata2, jdata, ivco
       character(len=13) :: ccordtyp(3)
+
+      if(present(unitout)) then
+         unitout_ = unitout
+      else
+         unitout_ = 6
+      end if
 
       ccordtyp(1)='HEIGHT      :'
       ccordtyp(2)='PRESSURE    :'
@@ -3304,13 +3439,13 @@ contains
       !
       ! 1. General information
       !
-      ipnt  = obs_headElem_i(obsdat,OBS_RLN,KOBS)
-      idata = obs_headElem_i(obsdat,OBS_NLV,KOBS)
+      ipnt  = obs_headElem_i(obsdat,OBS_RLN,index_header)
+      idata = obs_headElem_i(obsdat,OBS_NLV,index_header)
 
       if(idata.eq.1) then
-         write(*,fmt=9101)idata,kobs, NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
+         write(unitout_,fmt=9101)idata,index_header, NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
       else
-         write(*,fmt=9100)idata,kobs, NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
+         write(unitout_,fmt=9100)idata,index_header, NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
       end if
 9100  format(4x,'THERE ARE ', &
          i3,1x,'DATA IN OBSERVATION RECORD NO.' &
@@ -3326,7 +3461,7 @@ contains
          if(obs_bodyElem_i(obsdat,OBS_ASS,jdata).eq.1) then
             ivco=obs_bodyElem_i(obsdat,OBS_VCO,jdata)
             if(ivco.ne.1.and.ivco.ne.2) ivco=3
-            write(*,fmt=9201) idata2 &
+            write(unitout_,fmt=9201) idata2 &
                ,obs_bodyElem_i(obsdat,OBS_VNM,jdata) &
                ,ccordtyp  (ivco) &
                ,obs_bodyElem_r(obsdat,OBS_PPP,jdata) &
@@ -3365,7 +3500,7 @@ contains
    end subroutine obs_prntbdy
 
 
-   subroutine obs_prnthdr(obsdat,kobs)
+   subroutine obs_prnthdr(obsdat,index_hd,unitout)
       !
       !**s/r PRNTHDR  - Printing of the header of an observation record
       !
@@ -3376,33 +3511,45 @@ contains
       !     .                    to handle an integer (latitude index of the first
       !     .                    latitude circle north of the observation)
       !Arguments
-      !     i   KOBS  : No. of observation
+      !     i   index_hd  : index of the header to be printed
+      !     i   unitout       : unit number on which to print
       !
 
       implicit none
 
 
       type(struct_obs), intent(in) :: obsdat
-      integer         , intent(in) :: kobs
+      integer         , intent(in) :: index_hd
+                                        ! variable output unit facilitates unit
+                                        ! testing
+      integer         , intent(in), optional :: unitout
+
+      integer :: unitout_
+
+      if(present(unitout)) then
+         unitout_ = unitout
+      else
+         unitout_ = 6
+      end if
 
       !
       ! 1. General information
       !
-      write(*,fmt=9100)kobs, NHDR_INT_END-NHDR_INT_BEG+1 + NHDR_REAL_END-NHDR_REAL_BEG+1
+      write(unitout_,fmt=9100)index_hd, NHDR_INT_END-NHDR_INT_BEG+1 + NHDR_REAL_END-NHDR_REAL_BEG+1
 9100  format(//,10x,'-- OBSERVATION RECORD NO.' &
          ,1x,i6,3x,'HEADER''S LENGTH:',i6)
       !
       ! 2. PRINT HEADER'S CONTENT
       !
-      write(*,fmt=9200)&
-          obs_headElem_i(obsdat,OBS_RLN,kobs), obs_headElem_i(obsdat,OBS_ONM,kobs) &
-         ,obs_headElem_i(obsdat,OBS_INS,kobs), obs_headElem_i(obsdat,OBS_OTP,kobs) &
-         ,obs_headElem_i(obsdat,OBS_ITY,kobs) &
-         ,obs_headElem_r(obsdat,OBS_LAT,kobs), obs_headElem_r(obsdat,OBS_LON,kobs)&
-         ,obs_headElem_i(obsdat,OBS_DAT,kobs), obs_headElem_i(obsdat,OBS_ETM,kobs) &
-         ,obs_elem_c(obsdat,'STID',kobs),obs_headElem_r(obsdat,OBS_ALT,kobs) &
-         ,obs_headElem_i(obsdat,OBS_NLV,kobs) &
-         ,obs_headElem_i(obsdat,OBS_OFL,kobs), obs_headElem_i(obsdat,OBS_ST1 ,kobs)
+      write(unitout_,fmt=9200)&
+          obs_headElem_i(obsdat,OBS_RLN,index_hd), obs_headElem_i(obsdat,OBS_ONM,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_INS,index_hd), obs_headElem_i(obsdat,OBS_OTP,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_ITY,index_hd) &
+         ,obs_headElem_r(obsdat,OBS_LAT,index_hd), obs_headElem_r(obsdat,OBS_LON,index_hd)&
+         ,obs_headElem_i(obsdat,OBS_DAT,index_hd), obs_headElem_i(obsdat,OBS_ETM,index_hd) &
+         ,obs_elem_c(obsdat,'STID',index_hd),obs_headElem_r(obsdat,OBS_ALT,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_NLV,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_OFL,index_hd), obs_headElem_i(obsdat,OBS_ST1 ,index_hd)
 
 9200  format(6x,'Position within ROBDATA:',i6,1x,'OBS. NUMBER:',i6,1x &
          ,'INSTR. ID:',i6,1x,'OBS. TYPE:',i6,1x &
@@ -3469,9 +3616,9 @@ contains
               i=1,obs_numActiveColumn_IH()), &
              (obsdat%robhdr(obs_columnIndexFromActiveIndex_RH(j))%value_r(istn), &
               j=1,obs_numActiveColumn_RH()), &
-             obsdat%cstnid(istn), &
-             obsdat%cfamily(istn), &
-             obsdat%datestamp
+                                       obsdat%cstnid(istn), &
+                                       obsdat%cfamily(istn), &
+                                       obsdat%datestamp
 
          if (istn.eq.1) then 
             obsdat%mobhdr(OBS_RLN)%value_i(istn)=1
@@ -3626,7 +3773,10 @@ contains
                            j=1,obs_numActiveColumn_IB()), &
                           (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(k))%value_r(i), &
                            k=1,obs_numActiveColumn_RB())
+                                        ! Make HIND point to new header index
+            obsdat%mobdata(OBS_HIND)%value_i(i)=idata
          enddo
+         obsdat%numBody = obsdat%numBody + ilast - ifirst + 1
 
          hasone=.false.
 
@@ -3667,7 +3817,7 @@ contains
    subroutine obs_reduceToMpiLocal(obsdat)
       !
       !**s/r obs_reduceToMpiLocal - re-construct observation data object by
-      !                             giving  local Obs TAG. 
+      !                             giving local Obs TAG. 
       !
       !Author    . Bin He (ARMA/MRB )
       !
@@ -3689,7 +3839,8 @@ contains
       integer,allocatable,dimension(:,:) :: mobhdr_tmp,mobdata_tmp
 
       integer :: i,j,startindx,endindx 
-      integer :: numHeader_mpilocal,numHeader_mpiglobal,numBody_mpilocal,numBody_mpiglobal
+      integer :: numHeader_mpilocal,numHeader_mpiglobal
+      integer ::   numBody_mpilocal,  numBody_mpiglobal
       integer :: bodyIndex_mpilocal,bodyIndex_mpiglobal
       integer :: headerIndex_mpilocal,headerIndex_mpiglobal
       integer :: idataend,jj,ifamid,istart,idata,column_index,active_index
@@ -3706,19 +3857,19 @@ contains
 
       ! calculate the size of the local obs data  
       numHeader_mpilocal=size(obsdat%headerIndex_mpiglobal) 
-      numBody_mpilocal=0
+      numBody_mpiLocal=0
       do headerIndex_mpilocal=1,numHeader_mpilocal
          headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
          idata=obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
-         numBody_mpilocal = numBody_mpilocal + idata
+         numBody_mpiLocal = numBody_mpiLocal + idata
       enddo
 
-      numHeader_mpiglobal = obs_numHeader(obsdat)
-      numBody_mpiglobal   = obs_numBody(obsdat)
+      numHeader_mpiGlobal = obs_numHeader(obsdat)
+      numBody_mpiGlobal   = obs_numBody(obsdat)
 
       ! allocate temporary arrays to hold mpilocal data
-      allocate(cfamily_tmp(numHeader_mpilocal)) 
-      allocate(cstnid_tmp(numHeader_mpilocal)) 
+      allocate(cfamily_tmp(          numHeader_mpiLocal)) 
+      allocate( cstnid_tmp(          numHeader_mpiLocal)) 
       allocate(robhdr_tmp(obs_numActiveColumn_RH(),numHeader_mpilocal)) 
       allocate(mobhdr_tmp(obs_numActiveColumn_IH(),numHeader_mpilocal)) 
       allocate(robdata_tmp(obs_numActiveColumn_RB(),numBody_mpilocal))
@@ -3726,70 +3877,87 @@ contains
 
       ! copy the mpilocal data to temporary arrays: header-level data
       do headerIndex_mpilocal=1,numHeader_mpilocal 
-         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal) 
+         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
+
          do active_index=1,obs_numActiveColumn_RH()
-           column_index=obs_columnIndexFromActiveIndex_RH(active_index)
-           robhdr_tmp(active_index,headerIndex_mpilocal)=obsdat%robhdr(column_index)%value_r(headerIndex_mpiglobal)
+            column_index=obs_columnIndexFromActiveIndex_RH(active_index)
+            robhdr_tmp(active_index,headerIndex_mpilocal)= &
+                       obsdat%robhdr(column_index)%value_r(headerIndex_mpiglobal)
          enddo
+
          do active_index=1,obs_numActiveColumn_IH()
-           column_index=obs_columnIndexFromActiveIndex_IH(active_index)
-           mobhdr_tmp(active_index,headerIndex_mpilocal)=obsdat%mobhdr(column_index)%value_i(headerIndex_mpiglobal)
+            column_index=obs_columnIndexFromActiveIndex_IH(active_index)
+            mobhdr_tmp(active_index,headerIndex_mpilocal)= &
+                       obsdat%mobhdr(column_index)%value_i(headerIndex_mpiglobal)
          enddo
-         cstnid_tmp(headerIndex_mpilocal) = obsdat%cstnid(headerIndex_mpiglobal)
-         cfamily_tmp(headerIndex_mpilocal) = obsdat%cfamily(headerIndex_mpiglobal) 
+
+         cstnid_tmp (headerIndex_mpilocal) =obsdat%cstnid (headerIndex_mpiglobal)
+         cfamily_tmp(headerIndex_mpilocal) =obsdat%cfamily(headerIndex_mpiglobal)
+
+                                        ! Make RLN point to local data
          if(headerIndex_mpilocal== 1) then
             mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_RLN),1) = 1
          else
-            mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_RLN),headerIndex_mpilocal) = &
-                mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_RLN),headerIndex_mpilocal-1) &
-              + mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_NLV),headerIndex_mpilocal-1) 
+            mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_RLN), &
+                                                        headerIndex_mpilocal) = &
+                mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_RLN), &
+                                                        headerIndex_mpilocal-1) &
+              + mobhdr_tmp(obs_activeIndexFromColumnIndex_IH(OBS_NLV), &
+                                                        headerIndex_mpilocal-1) 
          endif
       enddo
 
       ! copy the mpilocal data to temporary arrays: body-level data
       bodyIndex_mpilocal=0 
       do headerIndex_mpilocal=1,numHeader_mpilocal
-         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal) 
-         idata= obsdat%mobhdr(OBS_RLN)%value_i(headerIndex_mpiglobal)
-         idataend = obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal) + idata -1 
+         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
+ 
+                                        ! Make HIND point to local header
+         idata    = obsdat%mobhdr(OBS_RLN)%value_i(headerIndex_mpiglobal)
+         idataend = obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)+idata-1
          do bodyIndex_mpiglobal=idata,idataend 
             bodyIndex_mpilocal=bodyIndex_mpilocal+1 
             do active_index=1,obs_numActiveColumn_RB()
-              column_index=obs_columnIndexFromActiveIndex_RB(active_index)
-              robdata_tmp(active_index,bodyIndex_mpilocal)=obsdat%robdata(column_index)%value_r(bodyIndex_mpiglobal) 
-            enddo
+               column_index=obs_columnIndexFromActiveIndex_RB(active_index)
+               robdata_tmp(active_index,bodyIndex_mpilocal)= &
+                        obsdat%robdata(column_index)%value_r(bodyIndex_mpiglobal)
+         enddo
+
             do active_index=1,obs_numActiveColumn_IB()
-              column_index=obs_columnIndexFromActiveIndex_IB(active_index)
-              mobdata_tmp(active_index,bodyIndex_mpilocal)=obsdat%mobdata(column_index)%value_i(bodyIndex_mpiglobal) 
-            enddo
-            mobdata_tmp(obs_activeIndexFromColumnIndex_IB(OBS_HIND),bodyIndex_mpilocal) = headerIndex_mpilocal
+               column_index=obs_columnIndexFromActiveIndex_IB(active_index)
+               mobdata_tmp(active_index,bodyIndex_mpilocal)= &
+                        obsdat%mobdata(column_index)%value_i(bodyIndex_mpiglobal)
+      enddo
+
+            mobdata_tmp(obs_activeIndexFromColumnIndex_IB(OBS_HIND), &
+                        bodyIndex_mpilocal) = headerIndex_mpilocal
          enddo
       enddo
 
       ! destroy object's mpiglobal data and allocate mpilocal data
-      obsdat%numHeader=numHeader_mpilocal
-      obsdat%numBody=numBody_mpilocal
+      obsdat%numHeader=numHeader_mpiLocal
+      obsdat%numBody=numBody_mpiLocal
       call obs_deallocate(obsdat)
       call obs_allocate(obsdat,obsdat%numHeader,obsdat%numBody)
 
       ! copy all data from temporary arrays to object's arrays
-      obsdat%cfamily(:)=cfamily_tmp(:) 
-      obsdat%cstnid(:)=cstnid_tmp(:)
+      obsdat%cfamily(:  )=cfamily_tmp(:  ) 
+      obsdat%cstnid (:  )= cstnid_tmp(:  )
       do active_index=1,obs_numActiveColumn_RH()
-        column_index=obs_columnIndexFromActiveIndex_RH(active_index)
-        obsdat%robhdr(column_index)%value_r(:)=robhdr_tmp(active_index,:)
+         column_index=obs_columnIndexFromActiveIndex_RH(active_index)
+         obsdat%robhdr(column_index)%value_r(:)=robhdr_tmp(active_index,:)
       enddo
       do active_index=1,obs_numActiveColumn_IH()
-        column_index=obs_columnIndexFromActiveIndex_IH(active_index)
-        obsdat%mobhdr(column_index)%value_i(:)=mobhdr_tmp(active_index,:) 
+         column_index=obs_columnIndexFromActiveIndex_IH(active_index)
+         obsdat%mobhdr(column_index)%value_i(:)=mobhdr_tmp(active_index,:) 
       enddo
       do active_index=1,obs_numActiveColumn_RB()
-        column_index=obs_columnIndexFromActiveIndex_RB(active_index)
-        obsdat%robdata(column_index)%value_r(:)=robdata_tmp(active_index,:) 
+         column_index=obs_columnIndexFromActiveIndex_RB(active_index)
+         obsdat%robdata(column_index)%value_r(:)=robdata_tmp(active_index,:) 
       enddo
       do active_index=1,obs_numActiveColumn_IB()
-        column_index=obs_columnIndexFromActiveIndex_IB(active_index)
-        obsdat%mobdata(column_index)%value_i(:)=mobdata_tmp(active_index,:) 
+         column_index=obs_columnIndexFromActiveIndex_IB(active_index)
+         obsdat%mobdata(column_index)%value_i(:)=mobdata_tmp(active_index,:) 
       enddo
 
       ! deallocate temporary arrays
@@ -3802,12 +3970,12 @@ contains
 
       obsdat%mpi_local = .true.
 
-      write(*,*) obsdat%numHeader,numHeader_mpiglobal,obsdat%numBody, &
-                 numBody_mpiglobal
+      write(*,*) obsdat%numHeader,numHeader_mpiGlobal,obsdat%numBody, &
+                 numBody_mpiGlobal
       write(*,*) '============= Leave obs_reduceToMpiLocal =============='
 
       return
-   end subroutine obs_reducetompilocal
+   end subroutine obs_reduceToMpiLocal
 
 
    subroutine obs_select(obsdat,hx,obs_sel,hx_sel,zhamin,zhamax,nens,nobsout)
