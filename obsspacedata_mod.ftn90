@@ -54,7 +54,8 @@ contains
       ! Initialize the indicated list depot
       implicit none
       type(struct_index_list_depot), intent(inout) :: depot
-                                        ! max size of header or body of struct_obs & hence of depot
+                                        ! max size of header or body of
+                                        ! struct_obs & hence of depot
       integer, intent(in) :: numHeaderBody_max
 
       integer :: list                   ! an index
@@ -170,11 +171,11 @@ end module IndexListDepot_mod
 
 
 module ObsDataColumn_mod
-   ! This module is used exclusively by the obsSpaceData module which follows 
-   ! in this file. The derived type is used to represent a "column" of observation
-   ! data in an instance of the struct_obs defined in obsSpaceData. It contains 
-   ! a pointer for each possible type of data stored in a column, but only one 
-   ! should be allocated at any time.
+   ! This module is used exclusively by the obsSpaceData module which follows
+   ! in this file. The derived type is used to represent a "column" of
+   ! observation data in an instance of the struct_obs defined in obsSpaceData.
+   ! It contains a pointer for each possible type of data stored in a column,
+   ! but only one should be allocated at any time.
 
    implicit none
    save
@@ -232,8 +233,9 @@ contains
       !     i       name: character string name of column
       !     i       dataType: character string type of column data: REAL or INT
       !     i       headOrBody: character string indicating HEAD or BODY
-      !     i (optional) numRowsTwoD: number of 2nd dimension rows for 2D column data,
-      !                               this should not be used for standard 1D column data
+      !     i (optional) numRowsTwoD: number of 2nd dimension rows for 2D column
+      !                               data. This should not be used for standard
+      !                               1D column data.
 
       implicit none
       type(struct_obsDataColumn) :: odc
@@ -242,7 +244,8 @@ contains
       integer, optional :: numRowsTwoD
 
       if(odc%allocated) then
-         call odc_abort('ODC_ALLOCATE: column is already allocated. name=' // name)
+         call odc_abort('ODC_ALLOCATE: column is already allocated. name=' &
+                        // name)
       endif
 
       odc%allocated=.true.
@@ -278,7 +281,8 @@ contains
          endif
       endif
       write(*,*) 'ODC_ALLOCATE: name=',odc%name,', dataType=',odc%dataType, &
-                 ', headOrBody=',odc%headOrBody,', twoD=',odc%twoD,', numRows=',numRows
+                 ', headOrBody=',odc%headOrBody,', twoD=',odc%twoD, &
+                 ', &numRows=',numRows
 
    end subroutine odc_allocate
 
@@ -340,7 +344,7 @@ module obsSpaceData_mod
    public obs_allocate   ! array allocation
    public obs_append     ! append an obsdat object to another obsdat object
    public obs_bdy        ! fill in the ObsSpaceData body from burp(3dvar version)
-   public obs_bodyElem_i ! obtain an integer body element from the observation object
+   public obs_bodyElem_i ! obtain an integer body element from observation object
    public obs_bodyElem_r ! obtain a real body element from the observation object
    public obs_bodyIndex_mpiglobal ! obtain mpiglobal body row index
    public obs_bodySet_i  ! set an integer body value in the observation object
@@ -368,8 +372,8 @@ module obsSpaceData_mod
    public obs_getBodyIndex ! obtain an element from the current body list
    public obs_getFamily  ! return the family of a datum
    public obs_getHeaderIndex ! obtain an element from the current header list
-   public obs_headElem_i ! obtain an integer header element from the observation object
-   public obs_headElem_r ! obtain a real header element from the observation object
+   public obs_headElem_i ! obtain an integer header element from the obs'n object
+   public obs_headElem_r ! obtain real header element from the observation object
    public obs_headerIndex_mpiglobal ! obtain mpiglobal header row index
    public obs_headSet_i  ! set an integer header value in the observation object
    public obs_headSet_r  ! set a real header value in the observation object
@@ -433,10 +437,11 @@ module obsSpaceData_mod
                                         !   1st dim'n:  row index
       character(len=12),  pointer, dimension(:)   :: cstnid
       character(len=2),   pointer, dimension(:)   :: cfamily
-      type(struct_obsDataColumn),pointer, dimension(:) :: robhdr ! real header columns
-      type(struct_obsDataColumn),pointer, dimension(:) :: mobhdr ! integer header columns
-      type(struct_obsDataColumn),pointer, dimension(:) :: robdata ! real body columns
-      type(struct_obsDataColumn),pointer, dimension(:) :: mobdata ! integer body columns
+      type(struct_obsDataColumn),pointer, dimension(:) :: &
+                             robhdr,  & ! real header columns
+                             mobhdr,  & ! integer header columns
+                             robdata, & ! real body columns
+                             mobdata    ! integer body columns
       integer :: numHeader              ! Actual number of stations on record
       integer :: numHeader_max          ! maximum number of stations
       integer :: numBody                ! Actual total number of data on record
@@ -593,9 +598,12 @@ contains
          call obs_abort('OBS_activateColumn_IH: column is already active!')
       endif
 
-      ! force the recalculate of indices to go between activeColumnIndex and columnIndex
-      active_index=obs_activeIndexFromColumnIndex_IH(column_index,recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_IH(active_index,recompute=.true.)
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_IH(column_index, &
+                                                     recompute=.true.)
+      column_index=obs_columnIndexFromActiveIndex_IH(active_index, &
+                                                     recompute=.true.)
 
    end subroutine obs_activateColumn_IH
 
@@ -611,9 +619,12 @@ contains
          call obs_abort('OBS_activateColumn_RH: column is already active!')
       endif
 
-      ! force the recalculate of indices to go between activeColumnIndex and columnIndex
-      active_index=obs_activeIndexFromColumnIndex_RH(column_index,recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_RH(active_index,recompute=.true.)
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_RH(column_index, &
+                                                     recompute=.true.)
+      column_index=obs_columnIndexFromActiveIndex_RH(active_index, &
+                                                     recompute=.true.)
 
    end subroutine obs_activateColumn_RH
 
@@ -629,9 +640,12 @@ contains
          call obs_abort('OBS_activateColumn_IB: column is already active!')
       endif
 
-      ! force the recalculate of indices to go between activeColumnIndex and columnIndex
-      active_index=obs_activeIndexFromColumnIndex_IB(column_index,recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_IB(active_index,recompute=.true.)
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_IB(column_index, &
+                                                     recompute=.true.)
+      column_index=obs_columnIndexFromActiveIndex_IB(active_index, &
+                                                     recompute=.true.)
 
    end subroutine obs_activateColumn_IB
 
@@ -647,9 +661,12 @@ contains
          call obs_abort('OBS_activateColumn_RB: column is already active!')
       endif
 
-      ! force the recalculate of indices to go between activeColumnIndex and columnIndex
-      active_index=obs_activeIndexFromColumnIndex_RB(column_index,recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_RB(active_index,recompute=.true.)
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_RB(column_index, &
+                                                     recompute=.true.)
+      column_index=obs_columnIndexFromActiveIndex_RB(active_index, &
+                                                     recompute=.true.)
 
    end subroutine obs_activateColumn_RB
 
@@ -710,7 +727,8 @@ contains
 
    ! Four methods for obtaining the column index from the active index
 
-   function obs_columnIndexFromActiveIndex_IH(active_index_in,recompute) result(column_index_out)
+   function obs_columnIndexFromActiveIndex_IH(active_index_in,recompute) &
+                                                         result(column_index_out)
       implicit none
       integer :: active_index_in,active_index
       integer :: column_index_out,column_index
@@ -729,7 +747,8 @@ contains
             if(obs_columnActive_IH(column_index)) then
                active_index=active_index+1
                columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IH: test=',column_index,active_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IH: test=', &
+               !           column_index,active_index
             endif
          enddo
       endif
@@ -739,7 +758,8 @@ contains
    end function obs_columnIndexFromActiveIndex_IH
 
 
-   function obs_columnIndexFromActiveIndex_RH(active_index_in,recompute) result(column_index_out)
+   function obs_columnIndexFromActiveIndex_RH(active_index_in,recompute) &
+                                                         result(column_index_out)
       implicit none
       integer :: active_index_in,active_index
       integer :: column_index_out,column_index
@@ -758,7 +778,8 @@ contains
             if(obs_columnActive_RH(column_index)) then
                active_index=active_index+1
                columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RH: test=',column_index,active_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RH: test=', &
+               !           column_index,active_index
             endif
          enddo
       endif
@@ -768,7 +789,8 @@ contains
    end function obs_columnIndexFromActiveIndex_RH
 
 
-   function obs_columnIndexFromActiveIndex_IB(active_index_in,recompute) result(column_index_out)
+   function obs_columnIndexFromActiveIndex_IB(active_index_in,recompute) &
+                                                         result(column_index_out)
       implicit none
       integer :: active_index_in,active_index
       integer :: column_index_out,column_index
@@ -787,7 +809,8 @@ contains
             if(obs_columnActive_IB(column_index)) then
                active_index=active_index+1
                columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IB: test=',column_index,active_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IB: test=', &
+               !           column_index,active_index
             endif
          enddo
       endif
@@ -797,7 +820,8 @@ contains
    end function obs_columnIndexFromActiveIndex_IB
 
 
-   function obs_columnIndexFromActiveIndex_RB(active_index_in,recompute) result(column_index_out)
+   function obs_columnIndexFromActiveIndex_RB(active_index_in,recompute) &
+                                                         result(column_index_out)
       implicit none
       integer :: active_index_in,active_index
       integer :: column_index_out,column_index
@@ -816,7 +840,8 @@ contains
             if(obs_columnActive_RB(column_index)) then
                active_index=active_index+1
                columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RB: test=',column_index,active_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RB: test=', &
+               !           column_index,active_index
             endif
          enddo
       endif
@@ -828,7 +853,8 @@ contains
 
    ! Four methods for obtaining the active index from the column index
 
-   function obs_activeIndexFromColumnIndex_IH(column_index_in,recompute) result(active_index_out)
+   function obs_activeIndexFromColumnIndex_IH(column_index_in,recompute) &
+                                                         result(active_index_out)
       implicit none
       integer :: active_index_out,active_index
       integer :: column_index_in,column_index
@@ -849,18 +875,21 @@ contains
             if(obs_columnActive_IH(column_index)) then
                active_index=active_index+1
                activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IH: test=',active_index,column_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IH: test=', &
+               !           active_index,column_index
             endif
          enddo
       endif
 
       active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort('OBS_activeIndexFromColumnIndex_IH: requested column is not active!')
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_IH: requested column is not active!')
 
    end function obs_activeIndexFromColumnIndex_IH
 
 
-   function obs_activeIndexFromColumnIndex_RH(column_index_in,recompute) result(active_index_out)
+   function obs_activeIndexFromColumnIndex_RH(column_index_in,recompute) &
+                                                         result(active_index_out)
       implicit none
       integer :: active_index_out,active_index
       integer :: column_index_in,column_index
@@ -881,18 +910,21 @@ contains
             if(obs_columnActive_RH(column_index)) then
                active_index=active_index+1
                activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RH: test=',active_index,column_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RH: test=', &
+               !           active_index,column_index
             endif
          enddo
       endif
 
       active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort('OBS_activeIndexFromColumnIndex_RH: requested column is not active!')
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_RH: requested column is not active!')
 
    end function obs_activeIndexFromColumnIndex_RH
 
 
-   function obs_activeIndexFromColumnIndex_IB(column_index_in,recompute) result(active_index_out)
+   function obs_activeIndexFromColumnIndex_IB(column_index_in,recompute) &
+                                                         result(active_index_out)
       implicit none
       integer :: active_index_out,active_index
       integer :: column_index_in,column_index
@@ -913,18 +945,21 @@ contains
             if(obs_columnActive_IB(column_index)) then
                active_index=active_index+1
                activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IB: test=',active_index,column_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IB: test=', &
+               !           active_index,column_index
             endif
          enddo
       endif
 
       active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort('OBS_activeIndexFromColumnIndex_IB: requested column is not active!')
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_IB: requested column is not active!')
 
    end function obs_activeIndexFromColumnIndex_IB
 
 
-   function obs_activeIndexFromColumnIndex_RB(column_index_in,recompute) result(active_index_out)
+   function obs_activeIndexFromColumnIndex_RB(column_index_in,recompute) &
+                                                         result(active_index_out)
       implicit none
       integer :: active_index_out,active_index
       integer :: column_index_in,column_index
@@ -945,13 +980,15 @@ contains
             if(obs_columnActive_RB(column_index)) then
                active_index=active_index+1
                activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RB: test=',active_index,column_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RB: test=', &
+               !           active_index,column_index
             endif
          enddo
       endif
 
       active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort('OBS_activeIndexFromColumnIndex_RB: requested column is not active!')
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_RB: requested column is not active!')
 
    end function obs_activeIndexFromColumnIndex_RB
 
@@ -1022,30 +1059,30 @@ contains
 
       allocate(obsdat%robhdr(NHDR_REAL_BEG:NHDR_REAL_END))
       do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-        if(obs_columnActive_RH(column_index))  &
-          call odc_allocate(obsdat%robhdr(column_index),numHeader_max, &
-                            obs_ColumnNameList_RH(column_index),'REAL','HEAD')
+         if(obs_columnActive_RH(column_index))  &
+            call odc_allocate(obsdat%robhdr(column_index),numHeader_max, &
+                              obs_ColumnNameList_RH(column_index),'REAL','HEAD')
       enddo
 
       allocate(obsdat%mobhdr(NHDR_INT_BEG:NHDR_INT_END))
       do column_index=NHDR_INT_BEG,NHDR_INT_END
-        if(obs_columnActive_IH(column_index))  &
-          call odc_allocate(obsdat%mobhdr(column_index),numHeader_max, &
-                            obs_ColumnNameList_IH(column_index),'INT ','HEAD')
+         if(obs_columnActive_IH(column_index))  &
+            call odc_allocate(obsdat%mobhdr(column_index),numHeader_max, &
+                              obs_ColumnNameList_IH(column_index),'INT ','HEAD')
       enddo
 
       allocate(obsdat%robdata(NBDY_REAL_BEG:NBDY_REAL_END))
       do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-        if(obs_columnActive_RB(column_index))  &
-          call odc_allocate(obsdat%robdata(column_index),numBody_max, &
-                            obs_ColumnNameList_RB(column_index),'REAL','BODY')
+         if(obs_columnActive_RB(column_index))  &
+            call odc_allocate(obsdat%robdata(column_index),numBody_max, &
+                              obs_ColumnNameList_RB(column_index),'REAL','BODY')
       enddo
 
       allocate(obsdat%mobdata(NBDY_INT_BEG:NBDY_INT_END))
       do column_index=NBDY_INT_BEG,NBDY_INT_END
-        if(obs_columnActive_IB(column_index))  &
-          call odc_allocate(obsdat%mobdata(column_index),numBody_max, &
-                            obs_ColumnNameList_IB(column_index),'INT ','BODY')
+         if(obs_columnActive_IB(column_index))  &
+            call odc_allocate(obsdat%mobdata(column_index),numBody_max, &
+                              obs_ColumnNameList_IB(column_index),'INT ','BODY')
       enddo
 
    end subroutine obs_allocate
@@ -1086,8 +1123,8 @@ contains
          enddo storedlast
          ! the first available locations in the output 
          i_station_write=obs_out%numHeader+1
-         i_data_write=obs_out%mobhdr(OBS_RLN)%value_i(i_last)+ &
-            obs_out%mobhdr(OBS_NLV)%value_i(i_last)
+         i_data_write=obs_out%mobhdr(OBS_RLN)%value_i(i_last) &
+                     +obs_out%mobhdr(OBS_NLV)%value_i(i_last)
       else
          i_station_write=1
          i_data_write=1
@@ -1095,16 +1132,17 @@ contains
 
       stations: do istation=1,obsdat%numHeader
          i_data_read_first=obsdat%mobhdr(OBS_RLN)%value_i(istation)
-         i_data_read_last=i_data_read_first+obsdat%mobhdr(OBS_NLV)%value_i(istation)-1
+         i_data_read_last=i_data_read_first &
+                         +obsdat%mobhdr(OBS_NLV)%value_i(istation) -1
          i_write_first=i_data_write
          observations: do i_data_read=i_data_read_first,i_data_read_last
             do column_index=NBDY_INT_BEG,NBDY_INT_END
-              if(obs_columnActive_IB(column_index))  &
-                obs_out%mobdata(column_index)%value_i(i_data_write)=obsdat%mobdata(column_index)%value_i(i_data_read)
+               if(obs_columnActive_IB(column_index))  &
+                  obs_out%mobdata(column_index)%value_i(i_data_write)=obsdat%mobdata(column_index)%value_i(i_data_read)
             enddo
             do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-              if(obs_columnActive_RB(column_index))  &
-                obs_out%robdata(column_index)%value_r(i_data_write)=obsdat%robdata(column_index)%value_r(i_data_read)
+               if(obs_columnActive_RB(column_index))  &
+                  obs_out%robdata(column_index)%value_r(i_data_write)=obsdat%robdata(column_index)%value_r(i_data_read)
             enddo
             hx_out(1:nens,i_data_write)=hx(:,i_data_read)
                                         ! Make HIND point to new header index
@@ -1113,8 +1151,8 @@ contains
          enddo observations
 
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-           if(obs_columnActive_IH(column_index))  &
-             obs_out%mobhdr(column_index)%value_i(i_station_write)=obsdat%mobhdr(column_index)%value_i(istation)
+            if(obs_columnActive_IH(column_index))  &
+               obs_out%mobhdr(column_index)%value_i(i_station_write)=obsdat%mobhdr(column_index)%value_i(istation)
          enddo
          obs_out%mobhdr(OBS_ONM)%value_i(i_station_write)=i_station_write
          obs_out%mobhdr(OBS_RLN)%value_i(i_station_write)=i_write_first
@@ -1126,8 +1164,8 @@ contains
          end if
 
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-           if(obs_columnActive_RH(column_index))  &
-             obs_out%robhdr(column_index)%value_r(i_station_write)=obsdat%robhdr(column_index)%value_r(istation)
+            if(obs_columnActive_RH(column_index))  &
+               obs_out%robhdr(column_index)%value_r(i_station_write)=obsdat%robhdr(column_index)%value_r(istation)
          enddo
          obs_out%cstnid(  i_station_write)=obsdat%cstnid(  istation)
          obs_out%cfamily( i_station_write)=obsdat%cfamily( istation)
@@ -1198,7 +1236,7 @@ contains
       !          . P. Koclas *CMC/CMDA Dec      2003:
       !                -conversion for surface wind
       !          . C. Charette *ARMA/SMC Apr      2005:
-      !                -Set flag bit #12 (Element assimilated by analysis) to zero
+      !                -Set flag bit #12(Element assimilated by analysis) to zero
       !                 (see banco-burp documentation for more detail)
       !          . A. Beaulne *CMDA/SMC  Aug 2006
       !                     -Additions for AIRS data
@@ -1404,7 +1442,8 @@ contains
          if(obs_columnActive_IB(column_index)) then
             value=obsdat%mobdata(column_index)%value_i(index)
          else
-            write(*,*) 'obs_bodyElem_i: column not active: ',obs_ColumnNameList_IB(column_index)
+            write(*,*) 'obs_bodyElem_i: column not active: ', &
+                       obs_ColumnNameList_IB(column_index)
             call obs_abort('abort in obs_bodyElem_i')
          endif
       else
@@ -1434,7 +1473,8 @@ contains
          if(obs_columnActive_RB(column_index)) then
             value=obsdat%robdata(column_index)%value_r(index)
          else
-            write(*,*) 'obs_bodyElem_r: column not active: ',obs_ColumnNameList_RB(column_index)
+            write(*,*) 'obs_bodyElem_r: column not active: ', &
+                       obs_ColumnNameList_RB(column_index)
             call obs_abort('abort in obs_bodyElem_r')
          endif
       else
@@ -1477,9 +1517,10 @@ contains
 
       if(column_index.ge.NBDY_INT_BEG.and.column_index.le.NBDY_INT_END) then
          if(obs_columnActive_IB(column_index)) then
-            obsdat%mobdata(column_index)%value_i(index) = value;
+            obsdat%mobdata(column_index)%value_i(index) = value
          else
-            write(*,*) 'obs_bodySet_i: column not active: ',obs_ColumnNameList_IB(column_index)
+            write(*,*) 'obs_bodySet_i: column not active: ', &
+                       obs_ColumnNameList_IB(column_index)
             call obs_abort('abort in obs_bodySet_i')
          endif
       else
@@ -1507,9 +1548,10 @@ contains
 
       if(column_index.ge.NBDY_REAL_BEG.and.column_index.le.NBDY_REAL_END) then
          if(obs_columnActive_RB(column_index)) then
-            obsdat%robdata(column_index)%value_r(index) = value;
+            obsdat%robdata(column_index)%value_r(index) = value
          else
-            write(*,*) 'obs_bodySet_r: column not active: ',obs_ColumnNameList_RB(column_index)
+            write(*,*) 'obs_bodySet_r: column not active: ', &
+                       obs_ColumnNameList_RB(column_index)
             call obs_abort('abort in obs_bodySet_r')
          endif
       else
@@ -1566,7 +1608,8 @@ contains
          idata = obsdat%mobhdr(OBS_NLV)%value_i(kobs)
          iaccept=0
          observations: do jdata = ipnt, ipnt + idata - 1
-            if (btest(obsdat%mobdata(OBS_FLG)%value_i(jdata),12).or. .not. qcvar) then 
+            if (     btest(obsdat%mobdata(OBS_FLG)%value_i(jdata),12) &
+                .or. .not. qcvar) then 
                ! data will be accepted if they went through the variational
                ! system  including the qcvar. They will also be accepted if the
                ! qcvar procedure was not applied (i.e. when backalt files are
@@ -1582,17 +1625,18 @@ contains
                obsdat%mobdata(OBS_ASS)%value_i(jdata)=-1
             endif
 
-            if ((obsdat%mobdata(OBS_ASS)%value_i(jdata).eq.1).and.(var3d.eq.1)) then 
+            if (      (obsdat%mobdata(OBS_ASS)%value_i(jdata).eq.1) &
+                 .and.(var3d.eq.1)) then 
                ! the observation will be used in the analysis
                iaccept=iaccept+1
                iwrite=iwrite+1
                do column_index=NBDY_INT_BEG,NBDY_INT_END
-                 if(obs_columnActive_IB(column_index))  &
-                   obsdat%mobdata(column_index)%value_i(iwrite)=obsdat%mobdata(column_index)%value_i(jdata)
+                  if(obs_columnActive_IB(column_index))  &
+                     obsdat%mobdata(column_index)%value_i(iwrite)=obsdat%mobdata(column_index)%value_i(jdata)
                enddo
                do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-                 if(obs_columnActive_RB(column_index))  &
-                   obsdat%robdata(column_index)%value_r(iwrite)=obsdat%robdata(column_index)%value_r(jdata)
+                  if(obs_columnActive_RB(column_index))  &
+                     obsdat%robdata(column_index)%value_r(iwrite)=obsdat%robdata(column_index)%value_r(jdata)
                enddo
                hx(1:nens,iwrite)=hx(1:nens,jdata)
             endif
@@ -1602,10 +1646,12 @@ contains
          if (iaccept.gt.0) then
             kobsout=kobsout+1
             do column_index=NHDR_INT_BEG,NHDR_INT_END
-              obsdat%mobhdr(column_index)%value_i(kobsout)=obsdat%mobhdr(column_index)%value_i(kobs)
+               obsdat%mobhdr(column_index)%value_i(kobsout) &
+                                       =obsdat%mobhdr(column_index)%value_i(kobs)
             enddo
             do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-              obsdat%robhdr(column_index)%value_r(kobsout)=obsdat%robhdr(column_index)%value_r(kobs)
+               obsdat%robhdr(column_index)%value_r(kobsout) &
+                                       =obsdat%robhdr(column_index)%value_r(kobs)
             enddo
             obsdat%cstnid(kobsout)=obsdat%cstnid(kobs)
             obsdat%mobhdr(OBS_NLV)%value_i(kobsout)=iaccept
@@ -1632,14 +1678,15 @@ contains
 
       lfound=.false.
       do column_index=NHDR_INT_BEG,NHDR_INT_END
-        if(trim(column_name).eq.trim(obs_ColumnNameList_IH(column_index))) then
-          lfound=.true.          
-          exit
-        endif
+         if(trim(column_name).eq.trim(obs_ColumnNameList_IH(column_index))) then
+            lfound=.true.          
+            exit
+         endif
       enddo
 
       if(.not.lfound) &
-        call obs_abort('obs_columnIndexFromName_IH: name not found=' // column_name)
+         call obs_abort('obs_columnIndexFromName_IH: name not found=' &
+                        // column_name)
 
    end function obs_columnIndexFromName_IH
 
@@ -1652,14 +1699,15 @@ contains
 
       lfound=.false.
       do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-        if(trim(column_name).eq.trim(obs_ColumnNameList_RH(column_index))) then
-          lfound=.true.          
-          exit
-        endif
+         if(trim(column_name).eq.trim(obs_ColumnNameList_RH(column_index))) then
+            lfound=.true.          
+            exit
+         endif
       enddo
 
       if(.not.lfound) &
-        call obs_abort('obs_columnIndexFromName_RH: name not found=' // column_name)
+         call obs_abort('obs_columnIndexFromName_RH: name not found=' &
+                        // column_name)
 
    end function obs_columnIndexFromName_RH
 
@@ -1672,14 +1720,15 @@ contains
 
       lfound=.false.
       do column_index=NBDY_INT_BEG,NBDY_INT_END
-        if(trim(column_name).eq.trim(obs_ColumnNameList_IB(column_index))) then
-          lfound=.true.          
-          exit
-        endif
+         if(trim(column_name).eq.trim(obs_ColumnNameList_IB(column_index))) then
+            lfound=.true.          
+            exit
+         endif
       enddo
 
       if(.not.lfound) &
-        call obs_abort('obs_columnIndexFromName_IB: name not found=' // column_name)
+         call obs_abort('obs_columnIndexFromName_IB: name not found=' &
+                        // column_name)
 
    end function obs_columnIndexFromName_IB
 
@@ -1692,14 +1741,15 @@ contains
 
       lfound=.false.
       do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-        if(trim(column_name).eq.trim(obs_ColumnNameList_RB(column_index))) then
-          lfound=.true.          
-          exit
-        endif
+         if(trim(column_name).eq.trim(obs_ColumnNameList_RB(column_index))) then
+            lfound=.true.          
+            exit
+         endif
       enddo
 
       if(.not.lfound) &
-        call obs_abort('obs_columnIndexFromName_RB: name not found=' // column_name)
+         call obs_abort('obs_columnIndexFromName_RB: name not found=' &
+                        // column_name)
 
    end function obs_columnIndexFromName_RB
 
@@ -1750,7 +1800,7 @@ contains
          call obs_abort('OBS_COMM: nstncom should be positive')
       endif
 
-      ! Non-master processes need to know how many body elements they will receive
+      ! Nonmaster processes need to know how many body elements they will receive
       nobs=obsdat%mobhdr(OBS_RLN)%value_i(nstncom) &
                                     + obsdat%mobhdr(OBS_NLV)%value_i(nstncom) - 1
       ncomm=1
@@ -1771,13 +1821,15 @@ contains
       allocate(mobhdr_tmp(obs_numActiveColumn_IH(),nobs))
       do active_index=1,obs_numActiveColumn_IH()
          column_index=obs_columnIndexFromActiveIndex_IH(active_index)
-         mobhdr_tmp(active_index,1:nstncom)=obsdat%mobhdr(column_index)%value_i(1:nstncom)
+         mobhdr_tmp(active_index,1:nstncom) &
+                                  =obsdat%mobhdr(column_index)%value_i(1:nstncom)
       enddo
       call rpn_comm_bcast(mobhdr_tmp,ncomm,"mpi_integer",master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,obs_numActiveColumn_IH()
          column_index=obs_columnIndexFromActiveIndex_IH(active_index)
-         obsdat%mobhdr(column_index)%value_i(1:nstncom)=mobhdr_tmp(active_index,1:nstncom)
+         obsdat%mobhdr(column_index)%value_i(1:nstncom) &
+                                              =mobhdr_tmp(active_index,1:nstncom)
       enddo
       deallocate(mobhdr_tmp)
 
@@ -1786,13 +1838,15 @@ contains
       allocate(robhdr_tmp(obs_numActiveColumn_RH(),nobs))
       do active_index=1,obs_numActiveColumn_RH()
          column_index=obs_columnIndexFromActiveIndex_RH(active_index)
-         robhdr_tmp(active_index,1:nstncom)=obsdat%robhdr(column_index)%value_r(1:nstncom)
+         robhdr_tmp(active_index,1:nstncom) &
+                                  =obsdat%robhdr(column_index)%value_r(1:nstncom)
       enddo
       call rpn_comm_bcast(robhdr_tmp,ncomm,MPI_OBS_REAL,master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,obs_numActiveColumn_RH()
          column_index=obs_columnIndexFromActiveIndex_RH(active_index)
-         obsdat%robhdr(column_index)%value_r(1:nstncom)=robhdr_tmp(active_index,1:nstncom)
+         obsdat%robhdr(column_index)%value_r(1:nstncom) &
+                                              =robhdr_tmp(active_index,1:nstncom)
       enddo
       deallocate(robhdr_tmp)
 
@@ -1808,13 +1862,15 @@ contains
       allocate(mobdata_tmp(obs_numActiveColumn_IB(),nobs))
       do active_index=1,obs_numActiveColumn_IB()
          column_index=obs_columnIndexFromActiveIndex_IB(active_index)
-         mobdata_tmp(active_index,1:nobs)=obsdat%mobdata(column_index)%value_i(1:nobs)
+         mobdata_tmp(active_index,1:nobs) &
+                                    =obsdat%mobdata(column_index)%value_i(1:nobs)
       enddo
       call rpn_comm_bcast(mobdata_tmp,ncomm,"mpi_integer",master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,obs_numActiveColumn_IB()
          column_index=obs_columnIndexFromActiveIndex_IB(active_index)
-         obsdat%mobdata(column_index)%value_i(1:nobs)=mobdata_tmp(active_index,1:nobs)
+         obsdat%mobdata(column_index)%value_i(1:nobs) &
+                                                =mobdata_tmp(active_index,1:nobs)
       enddo
       deallocate(mobdata_tmp)
 
@@ -1823,13 +1879,15 @@ contains
       allocate(robdata_tmp(obs_numActiveColumn_RB(),nobs))
       do active_index=1,obs_numActiveColumn_RB()
          column_index=obs_columnIndexFromActiveIndex_RB(active_index)
-         robdata_tmp(active_index,1:nobs)=obsdat%robdata(column_index)%value_r(1:nobs)
+         robdata_tmp(active_index,1:nobs) &
+                                    =obsdat%robdata(column_index)%value_r(1:nobs)
       enddo
       call rpn_comm_bcast(robdata_tmp,ncomm,MPI_OBS_REAL,master,"world",ier)
       ! put data from active columns back into object
       do active_index=1,obs_numActiveColumn_RB()
          column_index=obs_columnIndexFromActiveIndex_RB(active_index)
-         obsdat%robdata(column_index)%value_r(1:nobs)=robdata_tmp(active_index,1:nobs)
+         obsdat%robdata(column_index)%value_r(1:nobs) &
+                                                =robdata_tmp(active_index,1:nobs)
       enddo
       deallocate(robdata_tmp)
 
@@ -1837,10 +1895,11 @@ contains
       ncomm=1
       call rpn_comm_bcast(obsdat%numHeader,ncomm,"mpi_integer",master,"world", &
                                                                              ier)
-      call rpn_comm_bcast(obsdat%numBody, ncomm,"mpi_integer",master,"world",ier)
+      call rpn_comm_bcast(obsdat%numBody,  ncomm,"mpi_integer",master,"world", &
+                                                                             ier)
       call rpn_comm_bcast(obsdat%mpi_local,ncomm,"mpi_integer",master,"world", &
                                                                              ier)
-      call rpn_comm_bcast(obsdat%datestamp, ncomm,"mpi_integer",master,"world", &
+      call rpn_comm_bcast(obsdat%datestamp,ncomm,"mpi_integer",master,"world", &
                                                                              ier)
 
       if (nens.gt.0) then
@@ -1872,24 +1931,25 @@ contains
       integer :: column_index
 
       if(obs_a%mpi_local)then
-         call obs_abort("obs_copy() is not equipped to handle the case, mpi_local=.true.")
+         call obs_abort( &
+               "obs_copy() is not equipped to handle the case, mpi_local=.true.")
       end if
 
       do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-        if(obs_columnActive_RH(column_index)) &
-          obs_b%robhdr(column_index)%value_r(:) = obs_a%robhdr(column_index)%value_r(:)
+         if(obs_columnActive_RH(column_index)) &
+            obs_b%robhdr(column_index)%value_r(:) = obs_a%robhdr(column_index)%value_r(:)
       enddo
       do column_index=NHDR_INT_BEG,NHDR_INT_END
-        if(obs_columnActive_IH(column_index)) &
-          obs_b%mobhdr(column_index)%value_i(:) = obs_a%mobhdr(column_index)%value_i(:)
+         if(obs_columnActive_IH(column_index)) &
+            obs_b%mobhdr(column_index)%value_i(:) = obs_a%mobhdr(column_index)%value_i(:)
       enddo
       do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-        if(obs_columnActive_RB(column_index)) &
-          obs_b%robdata(column_index)%value_r(:) = obs_a%robdata(column_index)%value_r(:)
+         if(obs_columnActive_RB(column_index)) &
+            obs_b%robdata(column_index)%value_r(:) = obs_a%robdata(column_index)%value_r(:)
       enddo
       do column_index=NBDY_INT_BEG,NBDY_INT_END
-        if(obs_columnActive_IB(column_index)) &
-          obs_b%mobdata(column_index)%value_i(:) = obs_a%mobdata(column_index)%value_i(:)
+         if(obs_columnActive_IB(column_index)) &
+            obs_b%mobdata(column_index)%value_i(:) = obs_a%mobdata(column_index)%value_i(:)
       enddo
       obs_b%cstnid          = obs_a%cstnid
       obs_b%cfamily         = obs_a%cfamily
@@ -1987,29 +2047,29 @@ contains
 
       if (associated(obsdat%robhdr))then
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-           if(obs_columnActive_RH(column_index)) &
-             call odc_deallocate(obsdat%robhdr(column_index))
+            if(obs_columnActive_RH(column_index)) &
+               call odc_deallocate(obsdat%robhdr(column_index))
          enddo
       end if
 
       if (associated(obsdat%mobhdr))then
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-           if(obs_columnActive_IH(column_index)) &
-             call odc_deallocate(obsdat%mobhdr(column_index))
+            if(obs_columnActive_IH(column_index)) &
+               call odc_deallocate(obsdat%mobhdr(column_index))
          enddo
       end if
 
       if (associated(obsdat%robdata))then
          do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-           if(obs_columnActive_RB(column_index)) &
-             call odc_deallocate(obsdat%robdata(column_index))
+            if(obs_columnActive_RB(column_index)) &
+               call odc_deallocate(obsdat%robdata(column_index))
          enddo
       end if
 
       if (associated(obsdat%mobdata))then
          do column_index=NBDY_INT_BEG,NBDY_INT_END
-           if(obs_columnActive_IB(column_index)) &
-             call odc_deallocate(obsdat%mobdata(column_index))
+            if(obs_columnActive_IB(column_index)) &
+               call odc_deallocate(obsdat%mobdata(column_index))
          enddo
       end if
 
@@ -2156,7 +2216,8 @@ contains
                      ! PLH replaced ndatamx by numBody_max
                      IF ( IP + IND .LE. obsdat%numBody_max ) THEN
                                         ! VERTICAL COORDINATE
-                        OBSDAT%ROBDATA(OBS_PPP)%value_r(IP+IND)=PVCORD(ilevel)*vconv +vcordsf(ilem,kidtyp)
+                        OBSDAT%ROBDATA(OBS_PPP)%value_r(IP+IND) &
+                                      =PVCORD(ilevel)*vconv +vcordsf(ilem,kidtyp)
                                         !
                                         !  FOR PNM HEIGHT IS SET TO 0
                                         ! ----------------------------
@@ -2185,7 +2246,8 @@ contains
                            pvalue=ztorad*pvalue
                         endif
                                         ! FLAGS
-                        obsdat%mobdata(OBS_FLG)%value_i(IP+IND)=KFLAGS(ielement,ilevel,IK)
+                        obsdat%mobdata(OBS_FLG)%value_i(IP+IND) &
+                                                      =KFLAGS(ielement,ilevel,IK)
 
                         OBSDAT%ROBDATA(OBS_VAR)%value_r(IP+IND)=pvalue
                                         ! initialise o minus p , o minus p6,
@@ -2200,7 +2262,8 @@ contains
                         !
                         !    SURFACE EMISSIVITIES FOR GOES AND AIRS RADIANCES
                         if ( LDAIRS ) then
-                           OBSDAT%ROBDATA(OBS_SEM)%value_r(IP+IND)=PROFIL(ilevel)*ZEMFACT
+                           OBSDAT%ROBDATA(OBS_SEM)%value_r(IP+IND) &
+                                                          =PROFIL(ilevel)*ZEMFACT
                         endif
                         ind=ind + 1
                      else
@@ -2266,11 +2329,17 @@ contains
          endif
 
          write(kulout,fmt=9201) idata2,obsdat%mobdata(OBS_VNM)%value_i(jdata), &
-            obsdat%robdata(OBS_PPP)%value_r(jdata),obsdat%mobdata(OBS_ASS)%value_i(jdata), &
-            obsdat%robdata(OBS_VAR)%value_r(jdata),obsdat%robdata(OBS_OMP)%value_r(jdata), &
-            obsdat%robdata(OBS_OMP6)%value_r(jdata),obsdat%robdata(OBS_OMA)%value_r(jdata), &
-            obsdat%robdata(OBS_OER)%value_r(jdata),obsdat%robdata(OBS_HPHT)%value_r(jdata), &
-            var3d,obsdat%robdata(OBS_ZHA)%value_r(jdata),obsdat%mobdata(OBS_VCO)%value_i(jdata)
+            obsdat%robdata(OBS_PPP )%value_r(jdata), &
+            obsdat%mobdata(OBS_ASS )%value_i(jdata), &
+            obsdat%robdata(OBS_VAR )%value_r(jdata), &
+            obsdat%robdata(OBS_OMP )%value_r(jdata), &
+            obsdat%robdata(OBS_OMP6)%value_r(jdata), &
+            obsdat%robdata(OBS_OMA )%value_r(jdata), &
+            obsdat%robdata(OBS_OER )%value_r(jdata), &
+            obsdat%robdata(OBS_HPHT)%value_r(jdata), &
+            var3d, &
+            obsdat%robdata(OBS_ZHA )%value_r(jdata), &
+            obsdat%mobdata(OBS_VCO )%value_i(jdata)
 
       enddo
 
@@ -2308,18 +2377,25 @@ contains
 
 9202  format(2x,'position within robdata:',i6)
       write(kulout,fmt=9200) &
-         obsdat%mobhdr(OBS_RLN)%value_i(kobs),obsdat%mobhdr(OBS_ONM)%value_i(kobs), &
+         obsdat%mobhdr(OBS_RLN)%value_i(kobs), &
+         obsdat%mobhdr(OBS_ONM)%value_i(kobs), &
          obsdat%mobhdr(OBS_DAT)%value_i(kobs), &
-         obsdat%mobhdr(OBS_ETM)%value_i(kobs),obsdat%mobhdr(OBS_INS)%value_i(kobs), &
-         obsdat%mobhdr(OBS_OTP)%value_i(kobs),obsdat%mobhdr(OBS_ITY)%value_i(kobs), &
-         obsdat%robhdr(OBS_LAT)%value_r(kobs),obsdat%robhdr(OBS_LON)%value_r(kobs), &
+         obsdat%mobhdr(OBS_ETM)%value_i(kobs), &
+         obsdat%mobhdr(OBS_INS)%value_i(kobs), &
+         obsdat%mobhdr(OBS_OTP)%value_i(kobs), &
+         obsdat%mobhdr(OBS_ITY)%value_i(kobs), &
+         obsdat%robhdr(OBS_LAT)%value_r(kobs), &
+         obsdat%robhdr(OBS_LON)%value_r(kobs), &
          obsdat%robhdr(OBS_ALT)%value_r(kobs), &
-         obsdat%robhdr(OBS_BX)%value_r(kobs),obsdat%robhdr(OBS_BY)%value_r(kobs), &
-         obsdat%robhdr(OBS_BZ)%value_r(kobs)
+         obsdat%robhdr(OBS_BX )%value_r(kobs), &
+         obsdat%robhdr(OBS_BY )%value_r(kobs), &
+         obsdat%robhdr(OBS_BZ )%value_r(kobs)
       write(kulout,fmt=9201) & 
-         obsdat%mobhdr(OBS_NLV)%value_i(kobs),obsdat%mobhdr(OBS_OFL)%value_i(kobs), &
+         obsdat%mobhdr(OBS_NLV)%value_i(kobs), &
+         obsdat%mobhdr(OBS_OFL)%value_i(kobs), &
          obsdat%mobhdr(OBS_PAS)%value_i(kobs), &
-         obsdat%mobhdr(OBS_REG)%value_i(kobs),obsdat%mobhdr(OBS_IP)%value_i(kobs), &
+         obsdat%mobhdr(OBS_REG)%value_i(kobs), &
+         obsdat%mobhdr(OBS_IP )%value_i(kobs), &
          obsdat%mobhdr(OBS_AZA)%value_i(kobs)
 
 9200  format(2x,'position within robdata:',i6,1x,'stn. number:',i6,1x,/, &
@@ -2446,7 +2522,8 @@ contains
       write(*,*) 'Entering obs_expandToMpiGlobal'
 
       if(.not. obsdat%mpi_local)then
-         call obs_abort('OBS_EXPANDTOMPIGLOBAL has been called, but the obsSpaceData object is already in mpi-global state')
+         call obs_abort('OBS_EXPANDTOMPIGLOBAL has been called, but the ' &
+                        // 'obsSpaceData object is already in mpi-global state')
       end if
 
       ! determine number of rows in mpiglobal arrays
@@ -2682,8 +2759,8 @@ contains
       if ( obsdat%numHeader .lt. obsdat%numHeader_max) then
          obsdat%numHeader=obsdat%numHeader + 1
 
-         obsdat%robhdr(OBS_LON)%value_r(obsdat%numHeader) = real(ilon) * 0.01
-         obsdat%robhdr(OBS_LAT)%value_r(obsdat%numHeader) = real(ilat) * 0.01 - 90.0
+         obsdat%robhdr(OBS_LON)%value_r(obsdat%numHeader) = real(ilon) *0.01
+         obsdat%robhdr(OBS_LAT)%value_r(obsdat%numHeader) = real(ilat) *0.01-90.0
          ! PLH ADDED OBS_BX OBS_BY OBS_BZ
          obsdat%robhdr(OBS_BX)%value_r(obsdat%numHeader)=0.0
          obsdat%robhdr(OBS_BY)%value_r(obsdat%numHeader)=0.0
@@ -2707,7 +2784,7 @@ contains
          !          REMAINDER OF HEADER
          !
          obsdat%mobhdr(OBS_ONM)%value_i(obsdat%numHeader) = obsdat%numHeader
-         obsdat%mobhdr(OBS_INS)%value_i(obsdat%numHeader) = instrum + isatzen*10000
+         obsdat%mobhdr(OBS_INS)%value_i(obsdat%numHeader) =instrum +isatzen*10000
          obsdat%mobhdr(OBS_OTP)%value_i(obsdat%numHeader) = nvtyp
          obsdat%mobhdr(OBS_ITY)%value_i(obsdat%numHeader) = ity
          obsdat%mobhdr(OBS_DAT)%value_i(obsdat%numHeader) = idate
@@ -2923,7 +3000,8 @@ contains
          if(obs_columnActive_IH(column_index)) then
             value=obsdat%mobhdr(column_index)%value_i(index)
          else
-            write(*,*) 'obs_headElem_i: column not active: ',obs_ColumnNameList_IH(column_index)
+            write(*,*) 'obs_headElem_i: column not active: ', &
+                                              obs_ColumnNameList_IH(column_index)
             call obs_abort('abort in obs_headElem_i')
          endif
       else
@@ -2953,7 +3031,8 @@ contains
          if(obs_columnActive_RH(column_index)) then
             value=obsdat%robhdr(column_index)%value_r(index)
          else
-            write(*,*) 'obs_headElem_r: column not active: ',obs_ColumnNameList_RH(column_index)
+            write(*,*) 'obs_headElem_r: column not active: ', &
+                                              obs_ColumnNameList_RH(column_index)
             call obs_abort('abort in obs_headElem_r')
          endif
       else
@@ -2998,7 +3077,8 @@ contains
          if(obs_columnActive_IH(column_index)) then
             obsdat%mobhdr(column_index)%value_i(index) = value;
          else
-            write(*,*) 'obs_headSet_i: column not active: ',obs_ColumnNameList_IH(column_index)
+            write(*,*) 'obs_headSet_i: column not active: ', &
+                                              obs_ColumnNameList_IH(column_index)
             call obs_abort('abort in obs_headSet_i')
          endif
       else
@@ -3028,7 +3108,8 @@ contains
          if(obs_columnActive_RH(column_index)) then
             obsdat%robhdr(column_index)%value_r(index) = value;
          else
-            write(*,*) 'obs_headSet_r: column not active: ',obs_ColumnNameList_RH(column_index)
+            write(*,*) 'obs_headSet_r: column not active: ', &
+                                              obs_ColumnNameList_RH(column_index)
             call obs_abort('abort in obs_headSet_r')
          endif
       else
@@ -3049,7 +3130,8 @@ contains
       !  The header indices are distributes following "round robin" approach:
       !  "do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi"
       !
-      !  Note: this subroutine is called before converting from mpiglobal to mpilocal
+      !  Note: this subroutine is called before converting from mpiglobal to 
+      !        mpilocal
       !
       !Author  : Bin He *ARMA/MRB  Feb. 2009
       !
@@ -3065,13 +3147,15 @@ contains
       implicit none
       type(struct_obs), intent(inout) :: obsdat
 
-      integer :: headerIndex_mpiglobal,headerIndex_mpilocal,bodyIndex_mpiglobal,bodyIndex_mpilocal
+      integer :: headerIndex_mpiglobal,headerIndex_mpilocal
+      integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
       integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
       integer :: nprocs_mpi, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
 
       write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
 
-      if(obsdat%mpi_local) call obs_abort('obs_mpiDistributeIndices: data already mpi-local, Abort!')
+      if(obsdat%mpi_local) call obs_abort( &
+                      'obs_mpiDistributeIndices: data already mpi-local, Abort!')
 
       ! Obtain nprocs_mpi and  my_mpi_id
       call rpn_comm_size("ALL", nprocs_mpi, ierr)
@@ -3080,14 +3164,17 @@ contains
 
       write(*,*) 'numHeader_mpiGlobal= ',obsdat%numHeader 
 
-      ! first determine the number of rows of the mpilocal data and allocate index lists
+      ! first determine the number of rows of the mpilocal data and allocate
+      ! index lists
       numHeader_mpiLocal=0
       numBody_mpiLocal=0
       do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi
          numHeader_mpiLocal=numHeader_mpiLocal+1
-         numBody_mpilocal=numBody_mpilocal+obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
+         numBody_mpilocal=numBody_mpilocal &
+                         +obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
       enddo
-      if(numHeader_mpilocal<=0) call obs_abort('Zero length of headerIndex_mpiglobal,Abort!') 
+      if(numHeader_mpilocal<=0) call obs_abort( &
+                                  'Zero length of headerIndex_mpiglobal,Abort!') 
       allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
       if(numBody_mpiLocal<=0) call obs_abort('Zero length of BodyTag,Abort!') 
       allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
@@ -3102,9 +3189,10 @@ contains
       ! determine the corresponding list of body indices
       bodyIndex_mpilocal=0
       do headerIndex_mpilocal=1,numHeader_mpilocal
-         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal) 
-         idata= obsdat%mobhdr(OBS_RLN)%value_i( headerIndex_mpiglobal)
-         idataend = obsdat%mobhdr(OBS_NLV)%value_i( headerIndex_mpiglobal) + idata -1 
+         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
+         idata= obsdat%mobhdr(OBS_RLN)%value_i(headerIndex_mpiglobal)
+         idataend = obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal) &
+                  + idata -1 
          do bodyIndex_mpiglobal=idata,idataend 
             bodyIndex_mpilocal=bodyIndex_mpilocal+1 
             obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal) = bodyIndex_mpiglobal
@@ -3201,12 +3289,15 @@ contains
                   call obs_activateColumn_IH(column_index)
             enddo
             do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-               if(column_index.ne.OBS_BX.and.column_index.ne.OBS_BY.and.column_index.ne.OBS_BZ)  &
-                  call obs_activateColumn_RH(column_index)
+               if(     column_index.ne.OBS_BX &
+                  .and.column_index.ne.OBS_BY &
+                  .and.column_index.ne.OBS_BZ &
+                 ) call obs_activateColumn_RH(column_index)
             enddo
             do column_index=NBDY_INT_BEG,NBDY_INT_END
-               if(column_index.ne.OBS_KFA.and.column_index.ne.OBS_IDD)  &
-                  call obs_activateColumn_IB(column_index)
+               if(     column_index.ne.OBS_KFA &
+                  .and.column_index.ne.OBS_IDD &
+                 ) call obs_activateColumn_IB(column_index)
             enddo
             do column_index=NBDY_REAL_BEG,NBDY_REAL_END
                if(column_index.ne.OBS_OMP6)  &
@@ -3216,12 +3307,15 @@ contains
          endif
       else
          write(*,*) 'obs_initialize: !!! WARNING WARNING WARNING!!!'
-         write(*,*) 'obs_initialize: already called before, not re-activating columns'
+         write(*,*) 'obs_initialize: already called before, not re-activating ' &
+                    // 'columns'
          write(*,*) 'obs_initialize: !!! WARNING WARNING WARNING!!!'
          if(present(obsColumnMode_in)) then
             if(trim(obsColumnMode_in).ne.trim(obsColumnMode_save)) then
-               call obs_abort('obs_initialize: called with different value of obsColumnMode ' // &
-                  'than during first call: ' // trim(obsColumnMode_save) // ' .ne. ' // trim(obsColumnMode_in))
+               call obs_abort('obs_initialize: called with different value of ' &
+                              // 'obsColumnMode than during first call: ' &
+                              // trim(obsColumnMode_save) // ' .ne. ' &
+                              // trim(obsColumnMode_in))
             endif
          endif
       endif
@@ -3443,9 +3537,11 @@ contains
       idata = obs_headElem_i(obsdat,OBS_NLV,index_header)
 
       if(idata.eq.1) then
-         write(unitout_,fmt=9101)idata,index_header, NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
+         write(unitout_,fmt=9101)idata,index_header, &
+                      NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
       else
-         write(unitout_,fmt=9100)idata,index_header, NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
+         write(unitout_,fmt=9100)idata,index_header, &
+                      NBDY_INT_END-NBDY_INT_BEG+1 + NBDY_REAL_END-NBDY_REAL_BEG+1
       end if
 9100  format(4x,'THERE ARE ', &
          i3,1x,'DATA IN OBSERVATION RECORD NO.' &
@@ -3462,16 +3558,19 @@ contains
             ivco=obs_bodyElem_i(obsdat,OBS_VCO,jdata)
             if(ivco.ne.1.and.ivco.ne.2) ivco=3
             write(unitout_,fmt=9201) idata2 &
-               ,obs_bodyElem_i(obsdat,OBS_VNM,jdata) &
+               ,obs_bodyElem_i(obsdat,OBS_VNM ,jdata) &
                ,ccordtyp  (ivco) &
-               ,obs_bodyElem_r(obsdat,OBS_PPP,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_SEM,jdata),obs_bodyElem_r(obsdat,OBS_POB,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_VAR,jdata),obs_bodyElem_r(obsdat,OBS_OMF,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_OMA,jdata),obs_bodyElem_r(obsdat,OBS_OMI,jdata) &
-               ,obs_bodyElem_r(obsdat,OBS_OER,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_PPP ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_SEM ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_POB ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_VAR ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_OMF ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_OMA ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_OMI ,jdata) &
+               ,obs_bodyElem_r(obsdat,OBS_OER ,jdata) &
                ,obs_bodyElem_r(obsdat,OBS_HPHT,jdata) &
-               ,obs_bodyElem_i(obsdat,OBS_FLG,jdata) &
-               ,obs_bodyElem_i(obsdat,OBS_ASS,jdata)
+               ,obs_bodyElem_i(obsdat,OBS_FLG ,jdata) &
+               ,obs_bodyElem_i(obsdat,OBS_ASS ,jdata)
          end if
       end do
 
@@ -3507,9 +3606,9 @@ contains
       !Author  : P. Gauthier *ARMA/AES  June 9, 1992
       !Revision:
       !     . P. Gauthier *ARMA/AES May 20,1993: modifications to the CMA files
-      !     . P. Koclas   *CMC:  Format for transformed latitude has been modified
-      !     .                    to handle an integer (latitude index of the first
-      !     .                    latitude circle north of the observation)
+      !     . P. Koclas   *CMC: Format for transformed latitude has been modified
+      !     .                   to handle an integer (latitude index of the first
+      !     .                   latitude circle north of the observation)
       !Arguments
       !     i   index_hd  : index of the header to be printed
       !     i   unitout       : unit number on which to print
@@ -3535,21 +3634,28 @@ contains
       !
       ! 1. General information
       !
-      write(unitout_,fmt=9100)index_hd, NHDR_INT_END-NHDR_INT_BEG+1 + NHDR_REAL_END-NHDR_REAL_BEG+1
+      write(unitout_,fmt=9100)index_hd, &
+                      NHDR_INT_END-NHDR_INT_BEG+1 + NHDR_REAL_END-NHDR_REAL_BEG+1
 9100  format(//,10x,'-- OBSERVATION RECORD NO.' &
          ,1x,i6,3x,'HEADER''S LENGTH:',i6)
       !
       ! 2. PRINT HEADER'S CONTENT
       !
       write(unitout_,fmt=9200)&
-          obs_headElem_i(obsdat,OBS_RLN,index_hd), obs_headElem_i(obsdat,OBS_ONM,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_INS,index_hd), obs_headElem_i(obsdat,OBS_OTP,index_hd) &
+          obs_headElem_i(obsdat,OBS_RLN,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_ONM,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_INS,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_OTP,index_hd) &
          ,obs_headElem_i(obsdat,OBS_ITY,index_hd) &
-         ,obs_headElem_r(obsdat,OBS_LAT,index_hd), obs_headElem_r(obsdat,OBS_LON,index_hd)&
-         ,obs_headElem_i(obsdat,OBS_DAT,index_hd), obs_headElem_i(obsdat,OBS_ETM,index_hd) &
-         ,obs_elem_c(obsdat,'STID',index_hd),obs_headElem_r(obsdat,OBS_ALT,index_hd) &
+         ,obs_headElem_r(obsdat,OBS_LAT,index_hd) &
+         ,obs_headElem_r(obsdat,OBS_LON,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_DAT,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_ETM,index_hd) &
+         ,obs_elem_c(obsdat,'STID',index_hd)      &
+         ,obs_headElem_r(obsdat,OBS_ALT,index_hd) &
          ,obs_headElem_i(obsdat,OBS_NLV,index_hd) &
-         ,obs_headElem_i(obsdat,OBS_OFL,index_hd), obs_headElem_i(obsdat,OBS_ST1 ,index_hd)
+         ,obs_headElem_i(obsdat,OBS_OFL,index_hd) &
+         ,obs_headElem_i(obsdat,OBS_ST1,index_hd)
 
 9200  format(6x,'Position within ROBDATA:',i6,1x,'OBS. NUMBER:',i6,1x &
          ,'INSTR. ID:',i6,1x,'OBS. TYPE:',i6,1x &
@@ -3612,29 +3718,32 @@ contains
 
       readstn: do istn=1,obsdat%numHeader
          read(nobshdr,end=288,err=288) &
-             (obsdat%mobhdr(obs_columnIndexFromActiveIndex_IH(i))%value_i(istn), &
-              i=1,obs_numActiveColumn_IH()), &
-             (obsdat%robhdr(obs_columnIndexFromActiveIndex_RH(j))%value_r(istn), &
-              j=1,obs_numActiveColumn_RH()), &
-                                       obsdat%cstnid(istn), &
-                                       obsdat%cfamily(istn), &
-                                       obsdat%datestamp
+            (obsdat%mobhdr(obs_columnIndexFromActiveIndex_IH(i))%value_i(istn),&
+                                                 i=1,obs_numActiveColumn_IH()),&
+            (obsdat%robhdr(obs_columnIndexFromActiveIndex_RH(j))%value_r(istn),&
+                                                 j=1,obs_numActiveColumn_RH()),&
+            obsdat%cstnid(istn), &
+            obsdat%cfamily(istn), &
+            obsdat%datestamp
 
          if (istn.eq.1) then 
             obsdat%mobhdr(OBS_RLN)%value_i(istn)=1
          else
-            obsdat%mobhdr(OBS_RLN)%value_i(istn)=obsdat%mobhdr(OBS_RLN)%value_i(istn-1)+ &
-               obsdat%mobhdr(OBS_NLV)%value_i(istn-1)
+            obsdat%mobhdr(OBS_RLN)%value_i(istn) &
+               =obsdat%mobhdr(OBS_RLN)%value_i(istn-1) &
+               +obsdat%mobhdr(OBS_NLV)%value_i(istn-1)
          endif
          iobscur=iobscur+obsdat%mobhdr(OBS_NLV)%value_i(istn)
          ! now read the observations:
          ifirst=obsdat%mobhdr(OBS_RLN)%value_i(istn)
-         ilast=obsdat%mobhdr(OBS_RLN)%value_i(istn)+obsdat%mobhdr(OBS_NLV)%value_i(istn)-1
+         ilast=obsdat%mobhdr(OBS_RLN)%value_i(istn) &
+              +obsdat%mobhdr(OBS_NLV)%value_i(istn)-1
          do i=ifirst,ilast
-            read(nobsbdy) (obsdat%mobdata(obs_columnIndexFromActiveIndex_IB(j))%value_i(i), &
-                           j=1,obs_numActiveColumn_IB()), &
-                          (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(k))%value_r(i), &
-                           k=1,obs_numActiveColumn_RB())
+            read(nobsbdy) &
+               (obsdat%mobdata(obs_columnIndexFromActiveIndex_IB(j))%value_i(i),&
+                                                  j=1,obs_numActiveColumn_IB()),&
+               (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(k))%value_r(i),&
+                                                  k=1,obs_numActiveColumn_RB())
          enddo
          if (nens.gt.0) then
             do i=ifirst,ilast
@@ -3646,7 +3755,8 @@ contains
       if (iobscur.ne.obsdat%numBody) then
          write(*,*) 'OBS_READ: the number of observations ', &
             iobscur,' should equal ',obsdat%numBody
-         call obs_abort('OBS_READ: the number of references in the header does not matche the body size')
+         call obs_abort('OBS_READ: the number of references in the header does '&
+                        // 'not matche the body size')
       endif
 288   write(*,*) 'file is now empty'
       write(*,*) 'close nobshdr which is on unit: ',nobshdr
@@ -3738,12 +3848,12 @@ contains
          obsdat%numHeader=obsdat%numHeader+1
          idata=obsdat%numHeader
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-           if(obs_columnActive_IH(column_index))  &
-             obsdat%mobhdr(column_index)%value_i(idata)=mobhdr_1(column_index)
+            if(obs_columnActive_IH(column_index))  &
+               obsdat%mobhdr(column_index)%value_i(idata)=mobhdr_1(column_index)
          enddo
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-           if(obs_columnActive_RH(column_index))  &
-             obsdat%robhdr(column_index)%value_r(idata)=robhdr_1(column_index)
+            if(obs_columnActive_RH(column_index))  &
+               obsdat%robhdr(column_index)%value_r(idata)=robhdr_1(column_index)
          enddo
          obsdat%cstnid(idata)  =cstnid_1
          obsdat%cfamily(idata) =cfamily_1
@@ -3751,7 +3861,8 @@ contains
 
          ! determine which process will handle this station.
          ! the corresponding scatter operation is in program scattercma.
-         obsdat%mobhdr(OBS_IP)%value_i(idata)=mod(obsdat%mobhdr(OBS_ONM)%value_i(idata),np)
+         obsdat%mobhdr(OBS_IP)%value_i(idata) &
+                                   =mod(obsdat%mobhdr(OBS_ONM)%value_i(idata),np)
 
          ireg=obsdat%mobhdr(OBS_REG)%value_i(idata)
          if (iregcur.ne.ireg) then
@@ -3761,18 +3872,21 @@ contains
          if (idata.eq.1) then 
             obsdat%mobhdr(OBS_RLN)%value_i(idata)=1
          else
-            obsdat%mobhdr(OBS_RLN)%value_i(idata)=obsdat%mobhdr(OBS_RLN)%value_i(idata-1)+ &
-               obsdat%mobhdr(OBS_NLV)%value_i(idata-1)
+            obsdat%mobhdr(OBS_RLN)%value_i(idata) &
+               =obsdat%mobhdr(OBS_RLN)%value_i(idata-1) &
+               +obsdat%mobhdr(OBS_NLV)%value_i(idata-1)
          endif
 
          ! now read the observations:
          ifirst=obsdat%mobhdr(OBS_RLN)%value_i(idata)
-         ilast=obsdat%mobhdr(OBS_RLN)%value_i(idata) + obsdat%mobhdr(OBS_NLV)%value_i(idata)-1
+         ilast=obsdat%mobhdr(OBS_RLN)%value_i(idata) &
+              +obsdat%mobhdr(OBS_NLV)%value_i(idata)-1
          do i=ifirst,ilast
-            read(nobsbdy) (obsdat%mobdata(obs_columnIndexFromActiveIndex_IB(j))%value_i(i), &
-                           j=1,obs_numActiveColumn_IB()), &
-                          (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(k))%value_r(i), &
-                           k=1,obs_numActiveColumn_RB())
+            read(nobsbdy) &
+              (obsdat%mobdata(obs_columnIndexFromActiveIndex_IB(j))%value_i(i), &
+                                                 j=1,obs_numActiveColumn_IB()), &
+              (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(k))%value_r(i), &
+                                                 k=1,obs_numActiveColumn_RB())
                                         ! Make HIND point to new header index
             obsdat%mobdata(OBS_HIND)%value_i(i)=idata
          enddo
@@ -3791,11 +3905,12 @@ contains
          integer :: ierr
 
          if (.not. hasone) then 
-            read(nobshdr,iostat=ierr) (mobhdr_1(i),i=NHDR_INT_BEG,NHDR_INT_END), &
-                                      (robhdr_1(j),j=NHDR_REAL_BEG,NHDR_REAL_END), &
-                                      cstnid_1, &
-                                      cfamily_1, &
-                                      datestamp_1
+            read(nobshdr,iostat=ierr) &
+                                   (mobhdr_1(i),i=NHDR_INT_BEG, NHDR_INT_END),&
+                                   (robhdr_1(j),j=NHDR_REAL_BEG,NHDR_REAL_END), &
+                                   cstnid_1, &
+                                   cfamily_1, &
+                                   datestamp_1
             if(ierr == 0) then
                hasone = .true.
             else
@@ -3849,7 +3964,8 @@ contains
       WRITE(*,*) '============= Enter obs_reduceToMpiLocal =============='
 
       if(obsdat%mpi_local)then
-         call obs_abort('OBS_REDUCETOMPILOCAL() has been called, but the obsSpaceData object is already in mpi-local state')
+         call obs_abort('OBS_REDUCETOMPILOCAL() has been called, but the ' &
+                        // 'obsSpaceData object is already in mpi-local state')
       end if
 
       ! compute the mpilocal lists of indices into the mpiglobal data
@@ -4025,12 +4141,14 @@ contains
                iaccept=iaccept+1
                iwrite=iwrite+1
                do column_index=NBDY_INT_BEG,NBDY_INT_END
-                 if(obs_columnActive_IB(column_index))  &
-                   obs_sel%mobdata(column_index)%value_i(iwrite)=obsdat%mobdata(column_index)%value_i(jdata)
+                  if(obs_columnActive_IB(column_index))  &
+                     obs_sel%mobdata(column_index)%value_i(iwrite) &
+                                     =obsdat%mobdata(column_index)%value_i(jdata)
                enddo
                do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-                 if(obs_columnActive_RB(column_index))  &
-                   obs_sel%robdata(column_index)%value_r(iwrite)=obsdat%robdata(column_index)%value_r(jdata)
+                  if(obs_columnActive_RB(column_index))  &
+                     obs_sel%robdata(column_index)%value_r(iwrite) &
+                                     =obsdat%robdata(column_index)%value_r(jdata)
                enddo
                hx_sel(1:nens,iwrite)=hx(1:nens,jdata)
             endif
@@ -4039,12 +4157,14 @@ contains
          if (iaccept.gt.0) then
             kobsout=kobsout+1
             do column_index=NHDR_INT_BEG,NHDR_INT_END
-              if(obs_columnActive_IH(column_index)) &
-                obs_sel%mobhdr(column_index)%value_i(kobsout)=obsdat%mobhdr(column_index)%value_i(kobs)
+               if(obs_columnActive_IH(column_index)) &
+                  obs_sel%mobhdr(column_index)%value_i(kobsout) &
+                                       =obsdat%mobhdr(column_index)%value_i(kobs)
             enddo
             do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-              if(obs_columnActive_RH(column_index)) &
-                obs_sel%robhdr(column_index)%value_r(kobsout)=obsdat%robhdr(column_index)%value_r(kobs)
+               if(obs_columnActive_RH(column_index)) &
+                  obs_sel%robhdr(column_index)%value_r(kobsout) &
+                                       =obsdat%robhdr(column_index)%value_r(kobs)
             enddo
             obs_sel%cstnid(kobsout)=obsdat%cstnid(kobs)
             obs_sel%cfamily(kobsout)=obsdat%cfamily(kobs)
@@ -4399,9 +4519,10 @@ contains
       !    OBS_OMF = temp
 
       do index_body=1,obsdat%numBody 
-        temp_robdata=obsdat%robdata(OBS_VAR)%value_r(index_body)
-        obsdat%robdata(OBS_VAR)%value_r(index_body)=obsdat%robdata(OBS_OMF)%value_r(index_body)
-        obsdat%robdata(OBS_OMF)%value_r(index_body)=temp_robdata
+         temp_robdata=obsdat%robdata(OBS_VAR)%value_r(index_body)
+         obsdat%robdata(OBS_VAR)%value_r(index_body) &
+                                     =obsdat%robdata(OBS_OMF)%value_r(index_body)
+         obsdat%robdata(OBS_OMF)%value_r(index_body)=temp_robdata
       enddo
 
    end subroutine obs_swapVarOmf
@@ -4466,9 +4587,12 @@ contains
          endif
 
          write(kulout,fmt=9201) kobs,idata2, &
-            obsdat%mobdata(OBS_VNM)%value_i(jdata),ippp,obsdat%mobdata(OBS_ASS)%value_i(jdata), &
-            ivar,iomp,iomp6,ioma,ioer,ihpht,var3d,obsdat%robdata(OBS_ZHA)%value_r(jdata),&
-            obsdat%mobdata(OBS_VCO)%value_i(jdata),obsdat%mobdata(OBS_FLG)%value_i(jdata)
+            obsdat%mobdata(OBS_VNM)%value_i(jdata),ippp, &
+            obsdat%mobdata(OBS_ASS)%value_i(jdata), &
+            ivar,iomp,iomp6,ioma,ioer,ihpht,var3d,  &
+            obsdat%robdata(OBS_ZHA)%value_r(jdata), &
+            obsdat%mobdata(OBS_VCO)%value_i(jdata), &
+            obsdat%mobdata(OBS_FLG)%value_i(jdata)
       enddo
 
 9201  format(1x,i9,',',i3,2(',',i6),',',i3,6(',',i8), &
@@ -4520,13 +4644,18 @@ contains
 
       idburp=mod(obsdat%mobhdr(OBS_ITY)%value_i(kobs),1000)
       write(kulout,fmt=9200) kobs,CCSTNID, &
-         obsdat%mobhdr(OBS_DAT)%value_i(kobs),obsdat%mobhdr(OBS_ETM)%value_i(kobs), &
+         obsdat%mobhdr(OBS_DAT)%value_i(kobs), &
+         obsdat%mobhdr(OBS_ETM)%value_i(kobs), &
          obsdat%mobhdr(OBS_RLN)%value_i(kobs), &
-         obsdat%mobhdr(OBS_ONM)%value_i(kobs),obsdat%mobhdr(OBS_INS)%value_i(kobs), &
-         obsdat%mobhdr(OBS_OTP)%value_i(kobs),idburp,ilat,ilon,ialt, &
-         obsdat%mobhdr(OBS_NLV)%value_i(kobs),obsdat%mobhdr(OBS_OFL)%value_i(kobs), &
-         obsdat%mobhdr(OBS_PAS)%value_i(kobs),obsdat%mobhdr(OBS_REG)%value_i(kobs), &
-         obsdat%mobhdr(OBS_IP)%value_i(kobs)
+         obsdat%mobhdr(OBS_ONM)%value_i(kobs), &
+         obsdat%mobhdr(OBS_INS)%value_i(kobs), &
+         obsdat%mobhdr(OBS_OTP)%value_i(kobs), &
+         idburp,ilat,ilon,ialt,                &
+         obsdat%mobhdr(OBS_NLV)%value_i(kobs), &
+         obsdat%mobhdr(OBS_OFL)%value_i(kobs), &
+         obsdat%mobhdr(OBS_PAS)%value_i(kobs), &
+         obsdat%mobhdr(OBS_REG)%value_i(kobs), &
+         obsdat%mobhdr(OBS_IP )%value_i(kobs)
 
 9200  format(2x,i9,',',a9,',',i10,',',i8,',',i6,',',i6, &
          ',',i12,',',i6,4(',',i8),5(',',i6))
@@ -4597,10 +4726,11 @@ contains
 
       ! write the data records
       do jdata=ipnt,ipnt+idata-1
-         write(kulout) (obsdat%mobdata(obs_columnIndexFromActiveIndex_IB(k))%value_i(jdata), &
-                        k=1,obs_numActiveColumn_IB()), &
-                       (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(j))%value_r(jdata), &
-                        j=1,obs_numActiveColumn_RB())
+         write(kulout) &
+           (obsdat%mobdata(obs_columnIndexFromActiveIndex_IB(k))%value_i(jdata),&
+                                                  k=1,obs_numActiveColumn_IB()),&
+           (obsdat%robdata(obs_columnIndexFromActiveIndex_RB(j))%value_r(jdata),&
+                                                  j=1,obs_numActiveColumn_RB())
       enddo
 
       return
@@ -4639,13 +4769,14 @@ contains
 
       nrobdata=obsdat%mobhdr(OBS_NLV)%value_i(kobs)
       ! write the header's content 
-      write(kulout) irobdata,(obsdat%mobhdr(obs_columnIndexFromActiveIndex_IH(i))%value_i(kobs), &
-                              i=2,obs_numActiveColumn_IH()), &
-                             (obsdat%robhdr(obs_columnIndexFromActiveIndex_RH(j))%value_r(kobs), &
-                              j=1,obs_numActiveColumn_RH()), &
-                             obsdat%cstnid(kobs), &
-                             obsdat%cfamily(kobs), &
-                             obsdat%datestamp
+      write(kulout) irobdata, &
+            (obsdat%mobhdr(obs_columnIndexFromActiveIndex_IH(i))%value_i(kobs), &
+                                                 i=2,obs_numActiveColumn_IH()), &
+            (obsdat%robhdr(obs_columnIndexFromActiveIndex_RH(j))%value_r(kobs), &
+                                                 j=1,obs_numActiveColumn_RH()), &
+            obsdat%cstnid(kobs), &
+            obsdat%cfamily(kobs), &
+            obsdat%datestamp
 
       return
 
