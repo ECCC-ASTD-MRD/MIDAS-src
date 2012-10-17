@@ -42,14 +42,14 @@ MODULE minimization_mod
   ! namelist variables
   INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
   INTEGER NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
-  LOGICAL LRSTART,lxbar,lwrthess
+  LOGICAL LRSTART,lxbar,lwrthess,LOMP_PRSCAL
   REAL*8 REPSG,EPSNEG,rdf1fac
   LOGICAL LVARQC
   integer :: nwoqcv
 
   NAMELIST /NAMMIN/N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NITERJOB  
   NAMELIST /NAMMIN/NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
-  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess
+  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess,LOMP_PRSCAL
   NAMELIST /NAMMIN/REPSG,EPSNEG,rdf1fac
   NAMELIST /NAMMIN/LVARQC,NWOQCV
 
@@ -80,6 +80,7 @@ CONTAINS
     NGRANGE  = 10
     lwrthess =.true.
     lxbar    = .true.
+    lomp_prscal = .false.
     REPSG    = 1e-3
     LRSTART  = .FALSE.
     EPSNEG   = 1e-6
@@ -736,11 +737,22 @@ CONTAINS
     REAL*8 ZPY(KDIM)
 
     call tmg_start(79,'PRSCAL')
-
     DDSC = 0.
-    DO J = 1, KDIM
-      DDSC = DDSC + PX(J)*PY(J)
-    ENDDO
+
+
+    if(lomp_prscal) then
+!$OMP  PARALLEL DO &
+!$OMP  DEFAULT(SHARED) PRIVATE(J) &
+!$OMP  REDUCTION(+:DDSC)
+      DO J = 1, KDIM
+        DDSC = DDSC + PX(J)*PY(J)
+      ENDDO
+!$OMP  END PARALLEL DO
+    else
+      DO J = 1, KDIM
+        DDSC = DDSC + PX(J)*PY(J)
+      ENDDO
+    endif
 
     call tmg_stop(79)
 

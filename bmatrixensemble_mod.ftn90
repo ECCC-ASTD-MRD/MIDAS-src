@@ -47,6 +47,7 @@ MODULE BmatrixEnsemble
   integer             :: ntime_l
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
+  integer             :: nprocs,myid
   character(len=256)  :: enspathname,ensfilebasename
 
 CONTAINS
@@ -166,11 +167,15 @@ CONTAINS
       call abort3d('Invalid value for NTIME (choose 1 or 5 or 7)!')
     endif
 
+    call mpi_comm_size(mpi_myComm,nprocs,ierr)
+    write(*,*) 'number of mpi processes for bMatrixEnsemble=',nprocs
+    call mpi_comm_rank(mpi_myComm, myid, ierr)
+
     if(mpi_myLatBeg.eq.0) then
-      write(*,*) 'setting up local variables for process:',mpi_myid
-      latPerPE=ceiling(dble(nj_l)/dble(mpi_nprocs))
-      mpi_myLatBeg=1+mpi_myid*latPerPE
-      mpi_myLatEnd=(1+mpi_myid)*latPerPE
+      write(*,*) 'setting up local variables for process:',myid
+      latPerPE=ceiling(dble(nj_l)/dble(nprocs))
+      mpi_myLatBeg=1+myid*latPerPE
+      mpi_myLatEnd=(1+myid)*latPerPE
       maxLatPerPE=latPerPE
       maxLatEnd=mpi_myLatEnd
       if(mpi_myLatEnd>nj_l) then
@@ -267,7 +272,7 @@ CONTAINS
     character(len=3)   :: censnumber
     character(len=8)   :: datestr_last
     character(len=2)   :: hourstr_last
-    integer :: fstlir,fstfrm,fclos,fnom,fstouv
+    integer :: fstlir,fstfrm,fclos,fnom,fstouv,rpn_comm_datyp
 
 
     call tmg_start(48,'setupens')
@@ -319,13 +324,17 @@ CONTAINS
     cltypvar = ' '
     cletiket = ' '
 
-    CALL rpn_comm_allgather(mpi_myLatBeg,1,"mpi_integer",       &
-                            allLatBeg,1,"mpi_integer","GRID",ierr)
-    CALL rpn_comm_allgather(mpi_myLatEnd,1,"mpi_integer",       &
-                            allLatEnd,1,"mpi_integer","GRID",ierr)
+!    CALL rpn_comm_allgather(mpi_myLatBeg,1,"mpi_integer",       &
+!                            allLatBeg,1,"mpi_integer","GRID",ierr)
+!    CALL rpn_comm_allgather(mpi_myLatEnd,1,"mpi_integer",       &
+!                            allLatEnd,1,"mpi_integer","GRID",ierr)
+    CALL mpi_allgather(mpi_myLatBeg,1,rpn_comm_datyp("mpi_integer"),       &
+                       allLatBeg,   1,rpn_comm_datyp("mpi_integer"),mpi_myComm,ierr)
+    CALL mpi_allgather(mpi_myLatEnd,1,rpn_comm_datyp("mpi_integer"),       &
+                       allLatEnd,   1,rpn_comm_datyp("mpi_integer"),mpi_myComm,ierr)
 
     do jens=1,nens
-      readFilePE(jens)=mod(jens-1,mpi_nprocs)
+      readFilePE(jens)=mod(jens-1,nprocs)
     enddo
 
     delhh = -6.0
@@ -519,7 +528,7 @@ CONTAINS
     character(len=3)   :: censnumber
     character(len=8)   :: datestr_last
     character(len=2)   :: hourstr_last
-    integer :: vfstlir,fstfrm,fclos,fnom,fstouv
+    integer :: vfstlir,fstfrm,fclos,fnom,fstouv,rpn_comm_datyp
 
 
     call tmg_start(48,'setupens')
@@ -571,13 +580,17 @@ CONTAINS
     cltypvar = ' '
     cletiket = ' '
 
-    CALL rpn_comm_allgather(mpi_myLatBeg,1,"mpi_integer",       &
-                            allLatBeg,1,"mpi_integer","GRID",ierr)
-    CALL rpn_comm_allgather(mpi_myLatEnd,1,"mpi_integer",       &
-                            allLatEnd,1,"mpi_integer","GRID",ierr)
+!    CALL rpn_comm_allgather(mpi_myLatBeg,1,"mpi_integer",       &
+!                            allLatBeg,1,"mpi_integer","GRID",ierr)
+!    CALL rpn_comm_allgather(mpi_myLatEnd,1,"mpi_integer",       &
+!                            allLatEnd,1,"mpi_integer","GRID",ierr)
+    CALL mpi_allgather(mpi_myLatBeg,1,rpn_comm_datyp("mpi_integer"),       &
+                       allLatBeg,   1,rpn_comm_datyp("mpi_integer"),mpi_myComm,ierr)
+    CALL mpi_allgather(mpi_myLatEnd,1,rpn_comm_datyp("mpi_integer"),       &
+                       allLatEnd,   1,rpn_comm_datyp("mpi_integer"),mpi_myComm,ierr)
 
     do jens=1,nens
-      readFilePE(jens)=mod(jens-1,mpi_nprocs)
+      readFilePE(jens)=mod(jens-1,nprocs)
     enddo
 
     delhh = -6.0
@@ -588,7 +601,7 @@ CONTAINS
     write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
 
     do jens=1,nens
-      if(mpi_myid.eq.readFilePE(jens)) then
+      if(myid.eq.readFilePE(jens)) then
 
         write(censnumber,'(i3.3)') jens
         cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
@@ -692,19 +705,19 @@ CONTAINS
         write(*,*) 'done reading member ',jens
       endif
 
-      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nens) then
-        batchnum=ceiling(dble(jens)/dble(mpi_nprocs))
+      if(readFilePE(jens).eq.(nprocs-1) .or. jens.eq.nens) then
+        batchnum=ceiling(dble(jens)/dble(nprocs))
 
         ! for each read member, send each latitude band to the appropriate processor
-        do iens=1+(batchnum-1)*mpi_nprocs,jens
-          do jlatband=1,mpi_nprocs
+        do iens=1+(batchnum-1)*nprocs,jens
+          do jlatband=1,nprocs
             pe_src=readFilePE(iens)
             pe_dest=jlatband-1
 
             if(pe_src.eq.pe_dest) then
 
               ! do copy if latband already on appropriate processor
-              if(mpi_myid.eq.pe_src) then
+              if(myid.eq.pe_src) then
                 ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,iens)=  &
                 ensPerturbation1(:,:,mpi_myLatBeg:mpi_myLatEnd,:)
               endif
@@ -712,17 +725,21 @@ CONTAINS
             else
 
               ! send latitude band to appropriate processor
-              if(mpi_myid.eq.pe_src) then
+              if(myid.eq.pe_src) then
                 nsize=ni_l*nkgdimEns*(allLatEnd(jlatband)-allLatBeg(jlatband)+1)*ntime_l
-                call rpn_comm_send(ensPerturbation1(:,:,allLatBeg(jlatband):allLatEnd(jlatband),:),   &
-                                   nsize,"mpi_real4",pe_dest,pe_src*100+pe_dest,"GRID", ierr )
+!                call rpn_comm_send(ensPerturbation1(:,:,allLatBeg(jlatband):allLatEnd(jlatband),:),   &
+!                                   nsize,"mpi_real4",pe_dest,pe_src*100+pe_dest,"GRID", ierr )
+                call mpi_send(ensPerturbation1(:,:,allLatBeg(jlatband):allLatEnd(jlatband),:),   &
+                              nsize,rpn_comm_datyp("mpi_real4"),pe_dest,pe_src*100+pe_dest,mpi_myComm, ierr )
               endif
 
               ! receive the appropriate latitude band for this processor
-              if(mpi_myid.eq.pe_dest) then
+              if(myid.eq.pe_dest) then
                 nsize=ni_l*nkgdimEns*(allLatEnd(jlatband)-allLatBeg(jlatband)+1)*ntime_l
-                call rpn_comm_recv(ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,iens),  &
-                                   nsize,"mpi_real4",pe_src,pe_src*100+pe_dest,"GRID",status,ierr)
+!                call rpn_comm_recv(ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,iens),  &
+!                                   nsize,"mpi_real4",pe_src,pe_src*100+pe_dest,"GRID",status,ierr)
+                call mpi_recv(ensPerturbations(:,:,mpi_myLatBeg:mpi_myLatEnd,:,iens),  &
+                              nsize,rpn_comm_datyp("mpi_real4"),pe_src,pe_src*100+pe_dest,mpi_myComm,status,ierr)
               endif
     
             endif
@@ -788,6 +805,7 @@ CONTAINS
     real*8         :: zgd(ni_l,nLevEns,nj_l)
     real*8         :: ra = 6371229.D0
     real*8         :: local_length(nLevEns)
+    integer        :: rpn_comm_datyp,rpn_comm_oper
 
     allocate(ensLocalCor(0:ntrunc_l,nLevEns),stat=ierr)
     if(ierr.ne.0) then
@@ -845,7 +863,8 @@ CONTAINS
       call gst_reespe(zsp,zgd,nLevEns,nLevEns)
       call gst_setToDefaultID
       nsize=nla_l*2*nLevEns
-      call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+!      call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+      call mpi_allreduce(zsp,zsp,nsize,rpn_comm_datyp("mpi_double_precision"),rpn_comm_oper("mpi_sum"),mpi_myComm,ierr)
 
       ! Copy over to EnsLocalCor and truncate to NTRUNC
 
@@ -941,6 +960,7 @@ CONTAINS
     real*8, pointer :: field(:,:,:,:)
     integer   :: memberIndex
     integer   :: ierr,nsize,jj,jk,ji,jt,jkInc,jvar,ilev1,ilev2,topLevOffset
+    integer   :: rpn_comm_datyp
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -953,7 +973,7 @@ CONTAINS
     endif
 
     write(*,*) 'ben_bsqrt: starting'
-    write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,mpi_myLatBeg,maxLatEnd,maxLatPerPE,mpi_nprocs,nla_l,nLevInc,nLevEns
+    write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,mpi_myLatBeg,maxLatEnd,maxLatPerPE,nprocs,nla_l,nLevInc,nLevEns
 
     allocate(incrementLocal2(ni_l,nkgdimEns,ntime_l,mpi_myLatBeg:maxLatEnd),stat=ierr)
     if(ierr.ne.0) then
@@ -965,7 +985,7 @@ CONTAINS
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=12',ierr
       call abort3d('aborting in ben_bsqrt')
     endif
-    allocate(incrementMax(ni_l,nkgdimEns,ntime_l,maxLatPerPE*mpi_nprocs),stat=ierr)
+    allocate(incrementMax(ni_l,nkgdimEns,ntime_l,maxLatPerPE*nprocs),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=13',ierr
       call abort3d('aborting in ben_bsqrt')
@@ -1009,13 +1029,17 @@ CONTAINS
 
     call tmg_start(39,'comm_gd')
     nsize=ni_l*nkgdimEns*maxLatPerPE*ntime_l
-    CALL rpn_comm_allgather(incrementLocal2,nsize,   &
-                            "mpi_double_precision",       &
-                            incrementMax,nsize,      &
-                            "mpi_double_precision","GRID",ierr)
+!    CALL rpn_comm_gather(incrementLocal2,nsize,   &
+!                         "mpi_double_precision",       &
+!                         incrementMax,nsize,      &
+!                         "mpi_double_precision",0,"GRID",ierr)
+    CALL mpi_gather(incrementLocal2,nsize,rpn_comm_datyp("mpi_double_precision"), &
+                    incrementMax,   nsize,rpn_comm_datyp("mpi_double_precision"),   &
+                    0,mpi_myComm,ierr)
     call tmg_stop(39)
 
     call tmg_start(38,'comm_gd2')
+    if(myid.eq.0) then
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JT,JJ,JK,JI,JVAR,ILEV1,ILEV2,jkInc,field,topLevOffset)
     do jj=1,nj_l
@@ -1048,7 +1072,7 @@ CONTAINS
             do jk=ilev1,ilev2
               jkInc=jk-ilev1 + topLevOffset
               do ji=1,ni_l
-                field(ji,jkInc,jj,jt)=field(ji,jkInc,jj,jt)+incrementMax(ji,jk,jt,jj)
+                field(ji,jkInc,jj,jt)=incrementMax(ji,jk,jt,jj)
               enddo
             enddo
           enddo
@@ -1057,6 +1081,7 @@ CONTAINS
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
+    endif
     call tmg_stop(38)
 
     deallocate(incrementLocal2)
@@ -1080,6 +1105,7 @@ CONTAINS
     real*8    :: ensControlVector(nla_l,2,nLevEns) 
     real*8    :: ensAmplitude(ni_l,nLevEns,nj_l)
     integer   :: memberIndex,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
+    integer   :: rpn_comm_datyp,rpn_comm_oper
 
     write(*,*) 'ben_bsqrtad: starting'
 
@@ -1149,8 +1175,11 @@ CONTAINS
 
     call tmg_start(37,'comm_cv')
     nsize=cvDim_l
-    call RPN_COMM_allreduce(controlVector_out,controlVector_out,nsize,    &
-                            "mpi_double_precision","mpi_sum","GRID",ierr)
+!    call RPN_COMM_allreduce(controlVector_out,controlVector_out,nsize,    &
+!                            "mpi_double_precision","mpi_sum","GRID",ierr)
+    call mpi_reduce(controlVector_out,controlVector_out,nsize,    &
+                    rpn_comm_datyp("mpi_double_precision"),  &
+                    rpn_comm_oper("mpi_sum"),0,mpi_myComm,ierr)
     call tmg_stop(37)
 
     deallocate(incrementLocal)

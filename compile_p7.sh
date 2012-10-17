@@ -1,17 +1,18 @@
 #!/bin/ksh
-if [ "$1" = "NOMPI" -o "$1" = "nompi" ] 
+nompi=$1
+if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
 then
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for a NON-MPI executable!!"
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  MPILIB="rpn_commstubs301 rpn_comm301"
+  MPILIB="rpn_commstubs_40007 rpn_comm_40007"
   MPIKEY=""
   ABSTAG="_NOMPI"
 else
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for an MPI executable!!"
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  MPILIB="rpn_comm301"
+  MPILIB="rpn_comm_40007"
   MPIKEY="-mpi"
   ABSTAG=""
 fi
@@ -34,10 +35,11 @@ compiledir=$PWD
 . s.ssmuse.dot rmnlib-dev
 . s.ssmuse.dot devtools
 . s.ssmuse.dot CMDN/vgrid/3.4.0
+. s.ssmuse.dot rpn_comm
 
 
 VAR3D_VERSION="11.2.1"
-LIBAPPL="modulopt rttov burp_module descrip $MPILIB "
+LIBAPPL="rttov burp_module descrip $MPILIB "
 LIBSYS="lapack blas mass"
 LIBRMN="rmn_013_rc2"
 LIBEXTRA="rtools hpm_r"
@@ -57,20 +59,37 @@ LIBPATH2="${ARMNLIB}/lib/AIX/xlf13 $LIBPATH2"
 LIBPATH2="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/lib/AIX-powerpc7 $LIBPATH2"
 LIBPATH2="/home/ordenv/ssm-domains-cmdn/vgrid/vgriddescriptors_3.4.0_multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
 LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
+LIBPATH2="/home/ordenv/ssm-domains/ssm-development/rpncomm_x.y.z_multi/lib/AIX_xlf12/ $LIBPATH2"
 
 echo "LIBPATH2="
 echo $LIBPATH2
 echo "INCLUDES="
 echo $INCLUDES
 
-cd ${trunkdir};           ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
-cd ${trunkdir}/bgcheck;           ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
 
 rm -f *.ftn~ *.ftn90~
 
 echo "STARTING COMPILATION AT:"
 date
+
+if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
+then
+  echo "compiling updated rpn_comm_stubs (with -mpi)"
+  s.compile $INCLUDES $COMPF -mpi -O -src rpn_comm_stubs.ftn > listingstub 2>&1
+  grep fail listingstub
+  if [ $? = "0" ] ; then exit ; fi
+  rm -f rpn_comm_stubs.ftn
+fi
+
+echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
+SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
+s.compile $INCLUDES $COMPF -O -src $SRC0 > listingm 2>&1
+grep fail listingm
+if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling low-level independent modules"
 SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"

@@ -29,7 +29,7 @@ MODULE gridStateVector_mod
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist, gsv_getOffsetFromVarName
-  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_getVco, gsv_setVco
+  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_getVco, gsv_setVco, gsv_add
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -250,7 +250,6 @@ MODULE gridStateVector_mod
 
     write(*,*) 'gsv_allocate: varNames =',varNameList(:)
     write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev(:)
-    write(*,*) 'gsv_allocate: varOffset=',statevector%varOffset(:)
 
     allocate(statevector%gd(ni,statevector%nk,nj,numStep),stat=ierr)
     if(ierr.ne.0) then
@@ -267,14 +266,58 @@ MODULE gridStateVector_mod
   SUBROUTINE GSV_zero(statevector)
     implicit none
     type(struct_gsv) :: statevector
+    integer          :: jstep,jlon,jlev,jlat
 
     if(.not.statevector%allocated) then
       call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
-    statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%numStep)=0.0d0
+!    statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%numStep)=0.0d0
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+    do jlat=1,statevector%nj
+      do jstep=1,statevector%numStep
+        do jlev=1,statevector%nk
+          do jlon=1,statevector%ni
+            statevector%gd(jlon,jlev,jlat,jstep)= 0.0d0
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
  
   END SUBROUTINE GSV_zero
+
+
+  SUBROUTINE GSV_add(statevector_in,statevector_inout)
+    implicit none
+    type(struct_gsv) :: statevector_in,statevector_inout
+    integer          :: jstep,jlon,jlev,jlat
+
+    if(.not.statevector_in%allocated) then
+      call abort3d('gridStateVector_in not yet allocated! Aborting.')
+    endif
+    if(.not.statevector_inout%allocated) then
+      call abort3d('gridStateVector_inout not yet allocated! Aborting.')
+    endif
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+    do jlat=1,statevector_inout%nj
+      do jstep=1,statevector_inout%numStep
+        do jlev=1,statevector_inout%nk
+          do jlon=1,statevector_inout%ni
+            statevector_inout%gd(jlon,jlev,jlat,jstep)= statevector_inout%gd(jlon,jlev,jlat,jstep) +  &
+                                                        statevector_in%gd(jlon,jlev,jlat,jstep)
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+  END SUBROUTINE GSV_add
 
 
   SUBROUTINE GSV_3dto4d(statevector)

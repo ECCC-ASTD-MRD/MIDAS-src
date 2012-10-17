@@ -282,7 +282,7 @@ contains
       endif
       write(*,*) 'ODC_ALLOCATE: name=',odc%name,', dataType=',odc%dataType, &
                  ', headOrBody=',odc%headOrBody,', twoD=',odc%twoD, &
-                 ', &numRows=',numRows
+                 ', numRows=',numRows
 
    end subroutine odc_allocate
 

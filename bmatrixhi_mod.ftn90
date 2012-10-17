@@ -1646,7 +1646,6 @@ CONTAINS
     real*8    :: controlVector_in(cvDim_l)
     type(struct_gsv) :: statevector
     real*8, allocatable :: gd_out(:,:,:)
-    real*8, pointer :: field(:,:,:)
     real*8    :: hiControlVector(nla_l,2,nkgdim_l)
     integer   :: jvar, ilev1, ilev2
 
@@ -1660,8 +1659,6 @@ CONTAINS
     write(*,*) 'bhi_bsqrt: starting'
 
     call bhi_cain(controlVector_in,hiControlVector)
-
-    call copyFromStatevector(statevector,gd_out)
 
     call bhi_spa2gd(hiControlVector,gd_out)
 
@@ -1680,7 +1677,6 @@ CONTAINS
     real*8    :: controlVector_out(cvDim_l)
     type(struct_gsv) :: statevector
     real*8, allocatable :: gd_in(:,:,:)
-    real*8, pointer :: field(:,:,:)
     real*8    :: hiControlVector(nla_l,2,nkgdim_l)
     integer   :: jvar, ilev1, ilev2
 
@@ -1710,7 +1706,7 @@ CONTAINS
     implicit none
     type(struct_gsv) :: statevector
     real*8          :: gd(:,:,:)
-    integer :: jvar, ilev1, ilev2
+    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real*8, pointer :: field(:,:,:)
 
     do jvar=1,vnl_numvarmax 
@@ -1732,7 +1728,16 @@ CONTAINS
           call abort3d('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // varnamelist(jvar))
         endif
         ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
-        field(:,:,:)=gd(:,ilev1:ilev2,:)
+!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
+        do jlat = 1, nj_l
+          do jlev = ilev1, ilev2
+            jlev2=jlev-ilev1+1
+            do jlon = 1, ni_l
+              field(jlon,jlev2,jlat)=gd(jlon,jlev,jlat)
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
       endif
     enddo
 
@@ -1743,7 +1748,7 @@ CONTAINS
     implicit none
     type(struct_gsv) :: statevector
     real*8          :: gd(:,:,:)
-    integer :: jvar, ilev1, ilev2
+    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real*8, pointer :: field(:,:,:)
 
     do jvar=1,vnl_numvarmax 
@@ -1765,7 +1770,16 @@ CONTAINS
           call abort3d('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // varnamelist(jvar))
         endif
         ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
-        gd(:,ilev1:ilev2,:)=field(:,:,:)
+!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
+        do jlat = 1, nj_l
+          do jlev = ilev1, ilev2
+            jlev2=jlev-ilev1+1
+            do jlon = 1, ni_l
+              gd(jlon,jlev,jlat)=field(jlon,jlev2,jlat)
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
       endif
     enddo
 
@@ -1832,7 +1846,6 @@ CONTAINS
     real*8    :: hiControlVector_in(nla_l,2,nkgdim_l)
     real*8    :: gd_out(ni_l,nkgdim_l,nj_l)
 
-    real*8    :: gd(ni_l,nkgdim_l,nj_l)
     real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
     real*8    :: tb0(ni_l,nflev_l,nj_l)
 
@@ -1928,10 +1941,10 @@ CONTAINS
     dla2   = dble(ra)*dble(ra)
     dl1sa2 = 1.d0/dla2
 
-    gd(:,:,:)=0.0d0
+    gd_out(:,:,:)=0.0d0
     tb0(:,:,:)=0.0d0
     call tmg_start(52,'SPEREE') 
-    call gst_speree(sp,gd,nkgdim_l,nkgdim_l)
+    call gst_speree(sp,gd_out,nkgdim_l,nkgdim_l)
     call gst_speree(sptb,tb0,nflev_l,nflev_l)
     call tmg_stop(52) 
 
@@ -1941,8 +1954,8 @@ CONTAINS
     do jlat = 1, nj_l
       do jlev = 1, nflev_l
         do jlon = 1, ni_l
-          zgdpsi(jlon,jlev,jlat)= gd(jlon,nspositVO+jlev-1,jlat)
-          zgdchi(jlon,jlev,jlat)= gd(jlon,nspositDI+jlev-1,jlat)
+          zgdpsi(jlon,jlev,jlat)= gd_out(jlon,nspositVO+jlev-1,jlat)
+          zgdchi(jlon,jlev,jlat)= gd_out(jlon,nspositDI+jlev-1,jlat)
         enddo
       enddo
     enddo
@@ -1980,13 +1993,13 @@ CONTAINS
     do jlat = 1, nj_l
       do jlev = 1, (nkgdim_l-1)
         do jlon = 1,ni_l
-          gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
+          gd_out(jlon,jlev,jlat) = gd_out(jlon,jlev,jlat)*rgsig(jlat,jlev)
         enddo
       enddo
     enddo
     do  jlat = 1, nj_l
       do jlon = 1,ni_l
-        gd(jlon,nspositTG,jlat)=gd(jlon,nspositTG,jlat)*tgstdbg(jlon,jlat)
+        gd_out(jlon,nspositTG,jlat)=gd_out(jlon,nspositTG,jlat)*tgstdbg(jlon,jlat)
       enddo
     enddo
 
@@ -1994,15 +2007,15 @@ CONTAINS
       do jlev = 1, nflev_l
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)= tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
-          gd(jlon,nspositTT+jlev-1,jlat)= gd(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
+          gd_out(jlon,nspositTT+jlev-1,jlat)= gd_out(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
         enddo
       enddo
     enddo
     do jlat = 1, nj_l
       do jlon = 1, ni_l
         zpsb(jlon,jlat)= zpsb(jlon,jlat)*rgsigpsb(jlat)
-        gd(jlon,nspositPS,jlat)= gd(jlon,nspositPS,jlat)+zpsb(jlon,jlat)
-        zp2d(jlon,1,jlat)=gd(jlon,nspositPS,jlat)
+        gd_out(jlon,nspositPS,jlat)= gd_out(jlon,nspositPS,jlat)+zpsb(jlon,jlat)
+        zp2d(jlon,1,jlat)=gd_out(jlon,nspositPS,jlat)
       enddo
     enddo
 !    call maxmin(zpsb,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','PSB')
@@ -2026,15 +2039,15 @@ CONTAINS
     do jlat = 1, nj_l
       do jlev = 1, nflev_l
         do jlon = 1, ni_l
-          gd(jlon,nspositVO+jlev-1,jlat) = zgdpsi(jlon,jlev,jlat)
-          gd(jlon,nspositDI+jlev-1,jlat) = zgdchi(jlon,jlev,jlat)
+          gd_out(jlon,nspositVO+jlev-1,jlat) = zgdpsi(jlon,jlev,jlat)
+          gd_out(jlon,nspositDI+jlev-1,jlat) = zgdchi(jlon,jlev,jlat)
         enddo
       enddo
     enddo
 
     sp(:,:,:)=0.0d0
     call tmg_start(53,'REESPE') 
-    call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
+    call gst_REESPE(sp,gd_out,nkgdim_l,nkgdim_l)
     call tmg_stop(53) 
 
 !$OMP PARALLEL DO
@@ -2048,16 +2061,24 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    gd(:,:,:)=0.0d0
+!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    do jlat = 1, nj_l
+      do jlev = 1, nkgdim_l
+        do jlon = 1,ni_l
+          gd_out(jlon,jlev,jlat) = 0.0d0
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
     call tmg_start(54,'SPGD_SPGDA')
-    call gst_spgd(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
+    call gst_spgd(sp,gd_out,nkgdim_l,nflev_l,nkgdim_l)
     call tmg_stop(54)
 
     if(.false.) then  ! this is for debugging only
     do jk = 1,nflev_l
       do jj = 1,nj_l
         do ji = 1,ni_l
-          zp(ji,jk,jj) = gd(ji,nspositTT+jk-1,jj)
+          zp(ji,jk,jj) = gd_out(ji,nspositTT+jk-1,jj)
         enddo
       enddo
     enddo
@@ -2065,7 +2086,7 @@ CONTAINS
     do jk = 1,nflev_l
       do jj = 1,nj_l
         do ji = 1,ni_l
-          zp(ji,jk,jj) = gd(ji,nspositVO+jk-1,jj)
+          zp(ji,jk,jj) = gd_out(ji,nspositVO+jk-1,jj)
         enddo
       enddo
     enddo
@@ -2073,7 +2094,7 @@ CONTAINS
     do jk = 1,nflev_l
       do jj = 1,nj_l
         do ji = 1,ni_l
-          zp(ji,jk,jj) = gd(ji,nspositDI+jk-1,jj)
+          zp(ji,jk,jj) = gd_out(ji,nspositDI+jk-1,jj)
         enddo
       enddo
     enddo
@@ -2081,7 +2102,7 @@ CONTAINS
     do jk = 1,nflev_l
       do jj = 1,nj_l
         do ji = 1,ni_l
-          zp(ji,jk,jj) = gd(ji,nspositQ+jk-1,jj)
+          zp(ji,jk,jj) = gd_out(ji,nspositQ+jk-1,jj)
         enddo
       enddo
     enddo
@@ -2089,7 +2110,7 @@ CONTAINS
     do jk = 1,1
       do jj = 1,nj_l
         do ji = 1,ni_l
-          zp2d(ji,jk,jj) = gd(ji,nspositPS+jk-1,jj)
+          zp2d(ji,jk,jj) = gd_out(ji,nspositPS+jk-1,jj)
         enddo
       enddo
     enddo
@@ -2097,22 +2118,12 @@ CONTAINS
     do jk = 1,1
       do jj = 1,nj_l
         do ji = 1,ni_l
-          zp2d(ji,jk,jj) = gd(ji,nspositTG+jk-1,jj)
+          zp2d(ji,jk,jj) = gd_out(ji,nspositTG+jk-1,jj)
         enddo
       enddo
     enddo
     call maxmin(zp2d,ni_l,nj_l,1,zmin,zmax,idum1,idum2,idum3,idum4,'spa2gd         ','TG_')
     endif ! if(.false.)
-
-!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = 1, nj_l
-      do jlev = 1, nkgdim_l
-        do jlon = 1,ni_l
-          gd_out(jlon,jlev,jlat) = gd_out(jlon,jlev,jlat) + gd(jlon,jlev,jlat)
-        enddo
-      enddo
-    enddo
-!$OMP END PARALLEL DO
 
     !write(*,*) 'end of spa2gd!!!'
 

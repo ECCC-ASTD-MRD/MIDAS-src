@@ -1,0 +1,22 @@
+      subroutine dystbl (store,ybar,sbar,n,j)
+c----
+c
+c     This subroutine should store (if store = .true.) or restore
+c     (if store = .false.) a pair (ybar,sbar) at or from position
+c     j in memory. Be sure to have 1 <= j <= m, where m in the number
+c     of updates specified by subroutine mupdts.
+c
+c     The subroutine is used only when the (y,s) pairs are not
+c     stored in core memory in the arrays ybar(.,.) and sbar(.,.).
+c     In this case, the subroutine has to be written by the user.
+c
+c----
+c
+c         arguments
+c
+      logical store
+      integer n,j
+      double precision ybar(n),sbar(n)
+c
+      return
+      end

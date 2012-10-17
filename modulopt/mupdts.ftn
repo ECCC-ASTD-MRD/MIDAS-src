@@ -1,0 +1,32 @@
+      subroutine mupdts (sscale,inmemo,n,m,nrz)
+c
+c         arguments
+c
+      logical sscale,inmemo
+      integer n,m,nrz
+c----
+c
+c     On entry:
+c       sscale: .true. if scalar initial scaling,
+c               .false. if diagonal initial scaling
+c       n:      number of variables
+c
+c     This routine has to return:
+c       m:      the number of updates to form the approximate Hessien H,
+c       inmemo: .true., if the vectors y and s used to form H are stored
+c                  in core memory,
+c               .false. otherwise (storage of y and s on disk, for
+c                  instance).
+c     When inmemo=.false., the routine `dystbl', which stores and
+c     restores (y,s) pairs, has to be rewritten.
+c
+c----
+c
+      if (sscale) then
+          m=(nrz-3*n)/(2*n+1)
+      else
+          m=(nrz-4*n)/(2*n+1)
+      endif
+      inmemo=.true.
+      return
+      end

@@ -1,10 +1,16 @@
 MODULE BMatrix_mod
+    use mpi
     use bMatrixHI
     use bMatrixEnsemble
     use controlVector_mod
     use gridStateVector_mod
     use columnData_mod
     use gaussGrid_mod
+    implicit none
+    save
+    private
+
+    public :: bmat_setup, bmat_sqrtB, bmat_sqrtBT
 
 contains
 
@@ -20,29 +26,50 @@ contains
       integer  cvdimens,cvdimhi,datestamp
       real*8 zps
       real*8, pointer :: pressureProfile(:)
-      integer jlev,status
-!
+      integer :: jlev,status,newcomm_group,newcomm_rank
+      integer :: rpn_comm_comm,ierr
+
 ! Initialize the background-error covariances
 
       zps = 101000.D0
-!
+
       status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pressureProfile,sfc_field=zps,in_log=.false.)
-!
+
       if(status.ne.VGD_OK)then
          write(*,*) 'ERROR with vgd_levels for desired levels '
          call exit(1)
       endif
-!
+
+      write(*,*) 'bmat_setup: setting up 2 communicator to handle B matrices in parallel'
+      if(mpi_myid.lt.(mpi_nprocs-1)) then
+        newcomm_group=1
+        newcomm_rank=mpi_myid
+      else
+        newcomm_group=2
+        newcomm_rank=0
+      endif
+      write(*,*) 'bmat_setup: newcomm_group,newcomm_rank=',newcomm_group,newcomm_rank
+      call flush(6)
+      call mpi_comm_split(rpn_comm_comm("WORLD"),newcomm_group,newcomm_rank,mpi_myComm,ierr)
+
       cvdimhi=0
       cvdimens=0
 
-      write(*,*) 'Setting up the modular HI covariances...'
-      call bhi_setup(gaus_NI,gaus_NJ,vco_anl%nlev_M,pressureProfile,cvdimhi)
-      write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
-
-      write(*,*) 'Setting up the ensemble covariances...'
-      call ben_setup(pressureProfile,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
-      write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+      if(mpi_myid.eq.(mpi_nprocs-1)) then
+        write(*,*) 'Setting up the modular HI covariances...'
+        call bhi_setup(gaus_NI,gaus_NJ,vco_anl%nlev_M,pressureProfile,cvdimhi)
+        write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
+        write(*,*) 'Skipping setup of ensemble covariances on this mpi process...'
+      else
+        write(*,*) 'Skipping setup of HI covariances on this mpi process...'
+        write(*,*) 'Setting up the ensemble covariances...'
+        call ben_setup(pressureProfile,gaus_ni,gaus_nj,vco_anl%nlev_M,nstepobsinc,vco_anl%ip1_M,datestamp,cvdimens)
+        write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+      endif
+      CALL rpn_comm_bcast(cvdimhi,1,"mpi_integer", &
+                          mpi_nprocs-1,"GRID",ierr )
+      CALL rpn_comm_bcast(cvdimens,1,"mpi_integer", &
+                          0,"GRID",ierr )
 
       call cvm_setup(cvdimhi,cvdimens)
       write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
@@ -61,28 +88,64 @@ contains
     !
     integer na_vdim
     real*8         :: da_v(na_vdim)
-    real*8,pointer :: cvBhi(:),cvBen(:)
-    type(struct_gsv) :: statevector
+    real*8,pointer :: cvBhi(:),cvBen(:),field(:,:,:),field4d(:,:,:,:)
+    type(struct_gsv) :: statevector,statevector_temp
+    integer :: ierr, nsize
 
     call tmg_start(51,'VAR_CH') !
 
     ! set analysis increment to zero
     call gsv_zero(statevector) 
 
+    ! allocate and set to zero another temporary statevector
+    call gsv_setVco(statevector_temp,gsv_getVco(statevector))
+    call gsv_allocate(statevector_temp,statevector%ni,statevector%nj,statevector%numStep)
+    call gsv_zero(statevector_temp)
+
     call tmg_start(46,'B_HI')
-    ! add 3D contribution to increment from BmatrixHI
+    ! only mpi task mpi_nprocs-1 does B_HI
     cvBhi=>cvm_getSubVector(da_v,1)
-    if(associated(cvBhi)) call bhi_bsqrt(cvBhi,statevector)
+    if(mpi_myid.eq.(mpi_nprocs-1)) then
+      ! compute 3D contribution to increment from BmatrixHI
+      if(associated(cvBhi)) call bhi_bsqrt(cvBhi,statevector)
+    else
+      write(*,*) 'bmatrix_mod: skipping call to bhi_bsqrt on this mpi process'
+    endif
     call tmg_stop(46)
 
-    ! copy 3D increment to other timesteps to create 4D increment
-    call gsv_3dto4d(statevector)
-
     call tmg_start(47,'B_ENS')
-    ! add 4D contribution to increment from BmatrixEnsemble
+    ! all mpi tasks other than mpi_nprocs-1 do B_ENS
     cvBen=>cvm_getSubVector(da_v,2)
-    if(associated(cvBen)) call ben_bsqrt(cvBen,statevector)
+    if(mpi_myid.ne.(mpi_nprocs-1)) then
+      ! compute 4D contribution to increment from BmatrixEnsemble, result is only on mpi task 0
+      if(associated(cvBen)) call ben_bsqrt(cvBen,statevector_temp)
+    else
+      write(*,*) 'bmatrix_mod: skipping call to ben_bsqrt on this mpi process'
+    endif
     call tmg_stop(47)
+
+    ! broadcast B_HI increment from task nprocs-1 to all mpi tasks
+    if(associated(cvBhi)) then
+      nsize=statevector%ni*statevector%nj*statevector%nk
+      field => gsv_getField3D(statevector)
+      CALL rpn_comm_bcast(field,nsize,"mpi_double_precision", &
+                          mpi_nprocs-1,"GRID",ierr )
+      ! copy 3D increment to other timesteps to create 4D increment
+      call gsv_3dto4d(statevector)
+    endif
+
+    ! broadcast B_ENS increment from task 0 to all mpi tasks
+    if(associated(cvBen)) then
+      nsize=statevector_temp%ni*statevector_temp%nk*statevector_temp%nj*statevector_temp%numStep
+      field4d => gsv_getField(statevector_temp)
+      CALL rpn_comm_bcast(field4d,nsize,"mpi_double_precision", & 
+                          0,"GRID",ierr )
+    endif
+
+    ! add the two contributions together, result in statevector
+    call gsv_add(statevector_temp,statevector)
+
+    call gsv_deallocate(statevector_temp)
 
     call tmg_stop (51)
 
@@ -95,10 +158,11 @@ contains
     !Purpose:
     !Transforms model state from grid point space to error covariance space.
     !
-    integer na_vdim
-    real*8 da_v(na_vdim)
+    integer :: na_vdim
+    real*8 :: da_v(na_vdim)
     real*8,pointer :: cvBhi(:),cvBen(:)
     type(struct_gsv) :: statevector
+    integer :: ierr,nsize
 
     call tmg_start(51,'VAR_CH') 
 
@@ -106,19 +170,42 @@ contains
     da_v(:)=0.0d0
 
     call tmg_start(65,'B_ENS_T')
-    ! add contribution to gradient from BmatrixEnsemble
+    ! all mpi tasks other than mpi_nprocs-1 do adjoint of B_ENS
     cvBen=>cvm_getSubVector(da_v,2)
-    if(associated(cvBen)) call ben_bsqrtad(statevector,cvBen)
+    if(mpi_myid.ne.(mpi_nprocs-1)) then
+      ! add contribution to gradient from BmatrixEnsemble, result is only on mpi task 0
+      if(associated(cvBen)) call ben_bsqrtad(statevector,cvBen)
+    endif
     call tmg_stop(65)
 
-    ! adjoint of copy 3D increment to 4D increment
-    call gsv_3dto4dAdj(statevector)
-
     call tmg_start(66,'B_HI_T')
-    ! add contribution to gradient from BmatrixHI
+    ! only mpi task mpi_nprocs-1 does adjoint of B_HI
     cvBhi=>cvm_getSubVector(da_v,1)
-    if(associated(cvBhi)) call bhi_bsqrtad(statevector,cvBhi)
+    if(mpi_myid.eq.(mpi_nprocs-1)) then
+      ! adjoint of copy 3D increment to 4D increment
+      call gsv_3dto4dAdj(statevector)
+      ! add contribution to gradient from BmatrixHI
+      if(associated(cvBhi)) call bhi_bsqrtad(statevector,cvBhi)
+    else
+      write(*,*) 'bmatrix_mod: skipping call to bhi_bsqrtad on this mpi process'
+    endif
     call tmg_stop(66)
+
+    ! broadcast B_ENS gradient from task 0 to all mpi tasks
+    if(associated(cvBen)) then
+      nsize=size(cvBen)
+      CALL rpn_comm_bcast(cvBen,nsize,"mpi_double_precision", & 
+                          0,"GRID",ierr )
+    endif
+
+    ! broadcast B_HI gradient from task nprocs-1 to all mpi tasks
+    if(associated(cvBhi)) then
+      nsize=size(cvBhi)
+      CALL rpn_comm_bcast(cvBhi,nsize,"mpi_double_precision", &
+                          mpi_nprocs-1,"GRID",ierr )
+    else
+      write(*,*) 'bmatrix_mod: skipping call to ben_bsqrtad on this mpi process'
+    endif
 
     call tmg_stop(51) 
 
