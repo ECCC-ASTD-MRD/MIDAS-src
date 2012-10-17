@@ -82,8 +82,8 @@ then
   s.compile $INCLUDES $COMPF -mpi -O -src rpn_comm_stubs.ftn > listingstub 2>&1
   grep fail listingstub
   if [ $? = "0" ] ; then exit ; fi
-  rm -f rpn_comm_stubs.ftn
 fi
+rm -f rpn_comm_stubs.ftn
 
 echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
 SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
