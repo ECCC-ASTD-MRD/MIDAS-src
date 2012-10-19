@@ -1,4 +1,4 @@
-      SUBROUTINE varout(kulfile,statevector,zes,ztv,zgz,zhu)
+      SUBROUTINE varout(kulfile,statevector,zes,ztv,zgz,zhu,num_iter)
 #if defined (DOC)
 *
 ***s/r varout  - Transfert of the content of COMGD0 on a RPN
@@ -10,9 +10,8 @@
 C
       use MathPhysConstants_mod
       use gridStateVector_mod
-      use minimization_mod
       IMPLICIT NONE
-      integer kulfile
+      integer kulfile,num_iter
       type(struct_gsv) :: statevector
       real*8 :: zes(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: ztv(statevector%ni,statevector%nlev,statevector%nj)
@@ -46,11 +45,11 @@ c
 
       WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model'',
      S     '' state on file at iteration No.'',I3)')
-     S     min_niter
+     S     num_iter
 c
       ndeet=0
       NIP2       =  0
-      NIP3       =  min_niter
+      NIP3       =  num_iter
       NPAS       =  0
       NIDATYP    =  1
       CGRTYP     = 'G'

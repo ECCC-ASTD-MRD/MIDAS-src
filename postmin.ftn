@@ -128,7 +128,7 @@ c
           call abort3d('postmin: problem opening rebmh file, aborting!')
         end if
 
-        call varout(nulfile,statevector,zes,ztv,zgz,zhu)
+        call varout(nulfile,statevector,zes,ztv,zgz,zhu,min_niter)
 
         ierr =  fstfrm(nulfile)
         ierr =  fclos(nulfile)        

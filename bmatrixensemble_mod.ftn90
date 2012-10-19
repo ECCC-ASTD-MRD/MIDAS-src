@@ -175,6 +175,9 @@ CONTAINS
       write(*,*) 'setting up local variables for process:',myid
       latPerPE=ceiling(dble(nj_l)/dble(nprocs))
       mpi_myLatBeg=1+myid*latPerPE
+      if(mpi_myLatBeg.gt.nj_l) then
+        call abort3d('ben_setup: latitudes not separable on mpi processes!')
+      endif
       mpi_myLatEnd=(1+myid)*latPerPE
       maxLatPerPE=latPerPE
       maxLatEnd=mpi_myLatEnd

@@ -29,7 +29,6 @@
       use gaussGrid_mod
       use bmatrix_mod
       use verticalCoord_mod
-      use minimization_mod
       IMPLICIT NONE
       type(struct_gsv) :: statevector
       type(struct_vco), pointer :: vco_anl => null()
@@ -211,8 +210,7 @@ c
 c-------write perturbations in output file
 c
         write(*,*) ' writing member number= ',jmem
-        min_niter=0
-        call varout(nulfile,statevector,zes,ztv,zgz,zhu)
+        call varout(nulfile,statevector,zes,ztv,zgz,zhu,0)
         ierr =  fstfrm(nulfile)
         ierr =  fclos(nulfile)
       enddo
