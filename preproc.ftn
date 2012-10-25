@@ -67,9 +67,13 @@
 !
       call gaus_setup
 !
+!     Specify the active observation-array columns
+!
+      call obs_class_initialize('VAR')
+!
 !     Allocate memory for observation arrays
 !
-      call obs_initialize(lobsSpaceData,'VAR')
+      call obs_initialize(lobsSpaceData)
 !
 !     Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
 !

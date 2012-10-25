@@ -103,7 +103,7 @@ $(EXECUTABLE): $(F90_OBJ)
 	s.compile -obj *.o $(LDFLAGS) -librmn $(LIBRMN) -o $@
 
 %.o:%.ftn90
-	s.compile $(OPTIMIZE) $(MPI_FLAG) -opt "= $(FFLAGS)" -src $<
+	s.compile $(OPTIMIZE) $(MPI_FLAG) -opt "= $(FFLAGS)" -defines =-DUNIT_TESTING -src $<
 
 unit_tests:
 	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev rpn_comm; \

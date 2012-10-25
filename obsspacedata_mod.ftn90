@@ -14,7 +14,8 @@ module IndexListDepot_mod
    public
 
    ! methods
-   public :: ild_initialize, ild_get_empty_index_list, ild_get_next_index
+   public :: ild_initialize, ild_finalize
+   public :: ild_get_empty_index_list, ild_get_next_index
 
    interface ild_get_next_index
       module procedure ild_get_next_index_depot
@@ -62,12 +63,33 @@ contains
 
       ! Allocate each list
       do list = 1,NUMBER_OF_LISTS
-         allocate(depot%index_lists(list)%indices(numHeaderBody_max))
-         depot%index_lists(list)%header = 0
          depot%index_lists(list)%family = 'xx'
-         depot%list_last_attributed = 0
+         depot%index_lists(list)%header = 0
+         depot%index_lists(list)%current_element = 0
+         allocate(depot%index_lists(list)%indices(numHeaderBody_max))
+         depot%index_lists(list)%indices(:)=0
       end do
+      depot%list_last_attributed = 0
+      nullify(depot%current_list)
    end subroutine ild_initialize
+
+
+   subroutine ild_finalize(depot)
+      ! Finalize the indicated list depot
+      implicit none
+      type(struct_index_list_depot), intent(inout) :: depot
+
+      integer :: list                   ! an index
+
+      ! Deallocate each list
+      do list = 1,NUMBER_OF_LISTS
+         depot%index_lists(list)%family = 'xx'
+         depot%index_lists(list)%header = 0
+         depot%index_lists(list)%current_element = 0
+         deallocate(depot%index_lists(list)%indices)
+      end do
+      depot%list_last_attributed = 0
+   end subroutine ild_finalize
 
 
    function ild_get_empty_index_list(depot, private_list) &
@@ -209,15 +231,21 @@ contains
       !Arguments
       !     i     CDMESSAGE: message to be printed
 
+#if defined(UNIT_TESTING)
+      use pFUnit
+#endif
       implicit none
-      character(len=*) cdmessage
+      character(len=*), intent(in) :: cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsDataColumn_mod:-------",/,8X,A)')cdmessage
       call flush(6)
 
+#if defined(UNIT_TESTING)
+      call throw(Exception('exiting in odc_abort'))
+#else
       call qqexit(1)
-
       stop
+#endif
    end subroutine odc_abort
 
 
@@ -238,14 +266,14 @@ contains
       !                               1D column data.
 
       implicit none
-      type(struct_obsDataColumn) :: odc
-      integer :: numRows
-      character(len=*) :: name,dataType,headOrBody
-      integer, optional :: numRowsTwoD
+      type(struct_obsDataColumn), intent(inout) :: odc
+      integer, intent(in) :: numRows
+      character(len=*), intent(in) :: name,dataType,headOrBody
+      integer, intent(in), optional :: numRowsTwoD
 
       if(odc%allocated) then
          call odc_abort('ODC_ALLOCATE: column is already allocated. name=' &
-                        // name)
+                        // name); return
       endif
 
       odc%allocated=.true.
@@ -296,7 +324,7 @@ contains
       !     i/o     ODC: instance of the obsDataColumn type
 
       implicit none
-      type(struct_obsDataColumn) :: odc
+      type(struct_obsDataColumn), intent(inout) :: odc
 
       if(.not.odc%allocated) then
          call odc_abort('ODC_DEALLOCATE: column is not already allocated.')
@@ -341,7 +369,6 @@ module obsSpaceData_mod
    !
 
    ! PUBLIC METHODS:
-   public obs_allocate   ! array allocation
    public obs_append     ! append an obsdat object to another obsdat object
    public obs_bdy        ! fill in the ObsSpaceData body from burp(3dvar version)
    public obs_bodyElem_i ! obtain an integer body element from observation object
@@ -349,6 +376,7 @@ module obsSpaceData_mod
    public obs_bodyIndex_mpiglobal ! obtain mpiglobal body row index
    public obs_bodySet_i  ! set an integer body value in the observation object
    public obs_bodySet_r  ! set a real body value in the observation object
+   public obs_class_initialize ! initialize class variables: column mode
    public obs_clean      ! remove from obs data those that not to be assimilated
    public obs_columnIndexFromName_IH ! get the name from the index
    public obs_columnIndexFromName_RH ! get the name from the index
@@ -357,7 +385,6 @@ module obsSpaceData_mod
    public obs_comm       ! communicate header and body info between mpi processes
    public obs_copy       ! copy an obsdat object
    public obs_count_headers ! count the stations and observations in the object
-   public obs_deallocate ! array de-allocation
    public obs_elem_c     ! obtain character element from the observation object
    public obs_enkf_bdy   ! fill in the ObsSpaceData body from burp(EnKF version)
    public obs_enkf_prntbdy! print all data records associated with an observation
@@ -379,10 +406,14 @@ module obsSpaceData_mod
    public obs_headSet_r  ! set a real header value in the observation object
    public obs_initialize ! variable initialization
    public obs_mpiLocal   ! obtain the current mpi state of the observation object
-   public obs_numBody    ! returns the number of observations recorded
-   public obs_numBody_max! returns the dimensioned number of observations
-   public obs_numHeader  ! returns the number of stations recorded
-   public obs_numHeader_max ! returns the dimensioned number of stations
+   public obs_numBody    ! returns the number of bodies recorded
+   public obs_numBody_mpiglobal ! returns mpi-global number of bodies recorded
+! Should obs_numBody_max be private, once brpacma and cmaabrp are gone?
+   public obs_numBody_max! returns the dimensioned number of bodies
+   public obs_numHeader  ! returns the number of headers recorded
+   public obs_numHeader_mpiglobal ! returns mpi-global number of headers recorded
+! Should obs_numHeader_max be private, once brpacma and cmaabrp are gone?
+   public obs_numHeader_max ! returns the dimensioned number of headers
    public obs_order      ! put obs data in the order required for assimilation
    public obs_print      ! obs_enkf_prnthdr & obs_enkf_prntbdy for each station
    public obs_prnt_csv   ! call obs_tosqlhdr and obs_tosqlbdy for each station
@@ -405,6 +436,8 @@ module obsSpaceData_mod
 
    ! PRIVATE METHODS:
    private obs_abort     ! abort a job on error
+   private obs_allocate  ! array allocation
+   private obs_deallocate! array de-allocation
    private obs_exchange_stations    ! exchange the headers of stations j and k
    private obs_mpiDistributeIndices ! distribute header & body indices for mpi parallelization
    private obs_tosqlbdy  ! write the observation data in comma-separated format
@@ -576,6 +609,8 @@ module obsSpaceData_mod
    logical :: obs_columnActive_IB(NBDY_INT_BEG :NBDY_INT_END )  = .false.
    logical :: obs_columnActive_RB(NBDY_REAL_BEG:NBDY_REAL_END) = .false.
 
+   logical, save :: obs_class_initialized = .false.
+
    integer, parameter :: OBS_JPNBRELEM = 57   ! obs variable-types table length
 
 
@@ -589,20 +624,23 @@ contains
 
    subroutine obs_activateColumn_IH(column_index)
       implicit none
-      integer :: column_index,active_index
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
 
       if(.not.obs_columnActive_IH(column_index)) then
          obs_columnActive_IH(column_index) = .true.
       else
-         write(*,*) 'column_index=',column_index
-         call obs_abort('OBS_activateColumn_IH: column is already active!')
+         write(message,*)'OBS_activateColumn_IH: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
       endif
 
       ! force the recalculation of indices to go between activeColumnIndex and
       ! columnIndex
       active_index=obs_activeIndexFromColumnIndex_IH(column_index, &
                                                      recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_IH(active_index, &
+      dummy_index=obs_columnIndexFromActiveIndex_IH(active_index, &
                                                      recompute=.true.)
 
    end subroutine obs_activateColumn_IH
@@ -610,20 +648,23 @@ contains
 
    subroutine obs_activateColumn_RH(column_index)
       implicit none
-      integer :: column_index,active_index
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
 
       if(.not.obs_columnActive_RH(column_index)) then
          obs_columnActive_RH(column_index) = .true.
       else
-         write(*,*) 'column_index=',column_index
-         call obs_abort('OBS_activateColumn_RH: column is already active!')
+         write(message,*)'OBS_activateColumn_RH: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
       endif
 
       ! force the recalculation of indices to go between activeColumnIndex and
       ! columnIndex
       active_index=obs_activeIndexFromColumnIndex_RH(column_index, &
                                                      recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_RH(active_index, &
+      dummy_index=obs_columnIndexFromActiveIndex_RH(active_index, &
                                                      recompute=.true.)
 
    end subroutine obs_activateColumn_RH
@@ -631,20 +672,23 @@ contains
 
    subroutine obs_activateColumn_IB(column_index)
       implicit none
-      integer :: column_index,active_index
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
 
       if(.not.obs_columnActive_IB(column_index)) then
          obs_columnActive_IB(column_index) = .true.
       else
-         write(*,*) 'column_index=',column_index
-         call obs_abort('OBS_activateColumn_IB: column is already active!')
+         write(message,*)'OBS_activateColumn_IB: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
       endif
 
       ! force the recalculation of indices to go between activeColumnIndex and
       ! columnIndex
       active_index=obs_activeIndexFromColumnIndex_IB(column_index, &
                                                      recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_IB(active_index, &
+      dummy_index=obs_columnIndexFromActiveIndex_IB(active_index, &
                                                      recompute=.true.)
 
    end subroutine obs_activateColumn_IB
@@ -652,20 +696,23 @@ contains
 
    subroutine obs_activateColumn_RB(column_index)
       implicit none
-      integer :: column_index,active_index
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
 
       if(.not.obs_columnActive_RB(column_index)) then
          obs_columnActive_RB(column_index) = .true.
       else
-         write(*,*) 'column_index=',column_index
-         call obs_abort('OBS_activateColumn_RB: column is already active!')
+         write(message,*)'OBS_activateColumn_RB: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
       endif
 
       ! force the recalculation of indices to go between activeColumnIndex and
       ! columnIndex
       active_index=obs_activeIndexFromColumnIndex_RB(column_index, &
                                                      recompute=.true.)
-      column_index=obs_columnIndexFromActiveIndex_RB(active_index, &
+      dummy_index=obs_columnIndexFromActiveIndex_RB(active_index, &
                                                      recompute=.true.)
 
    end subroutine obs_activateColumn_RB
@@ -1019,38 +1066,47 @@ contains
       !Arguments
       !     i     CDMESSAGE: message to be printed
 
+#if defined(UNIT_TESTING)
+      use pFUnit
+#endif
       implicit none
-      character(len=*) cdmessage
+      character(len=*), intent(in) :: cdmessage
       integer :: initialized
 
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
       call flush(6)
 
-      call MPI_Initialized(initialized)
-      if (initialized .eq. 1)then
-         call mpi_finalize()
-      end if
-
+#if defined(UNIT_TESTING)
+      call throw(Exception('exiting in obs_abort'))
+#else
       call qqexit(13)
-
       stop
+#endif
    end subroutine obs_abort
 
 
-   subroutine obs_allocate(obsdat,numHeader_max,numBody_max)
+   subroutine obs_allocate(obsdat, numHeader_max, numBody_max)
       !s/r obs_allocate - Allocate the object's arrays.
       !
       !Author    . J.W. Blezius
       !
-      !    PURPOSE:  Allocate arrays according to the parameters, header_max and
-      !              body_max.  This is a private method.
+      !    PURPOSE:  Allocate arrays according to the parameters, numHeader_max
+      !              and numBody_max.  This is a private method.
       implicit none
 
       type(struct_obs), intent(inout) :: obsdat
-      integer         , intent(in)  :: numHeader_max,numBody_max
+      integer,          intent(in)    :: numHeader_max,numBody_max
 
       integer :: column_index
 
+      write(*,*) ' DIMENSIONS OF OBSERVATION ARRAYS:'
+      write(*,*) ' numHeader_max = ',numHeader_max,'  numBody_max = ',numBody_max
+      obsdat%numHeader_max=numHeader_max
+      obsdat%numBody_max=numBody_max
+
+      !
+      ! ALLOCATE THE ARRAYS and initialize the contents
+      !
       allocate(obsdat%cfamily(numHeader_max))
       obsdat%cfamily(:)='XX'
 
@@ -1085,6 +1141,8 @@ contains
                               obs_ColumnNameList_IB(column_index),'INT ','BODY')
       enddo
 
+      call ild_initialize(obsdat%header_index_list_depot, obsdat%numHeader_max)
+      call ild_initialize(obsdat%body_index_list_depot,   obsdat%numBody_max)
    end subroutine obs_allocate
 
 
@@ -1437,18 +1495,20 @@ contains
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: index
+      character(len=100) :: message
 
       if(column_index.ge.NBDY_INT_BEG.and.column_index.le.NBDY_INT_END) then
          if(obs_columnActive_IB(column_index)) then
             value=obsdat%mobdata(column_index)%value_i(index)
          else
-            write(*,*) 'obs_bodyElem_i: column not active: ', &
+         write(message,*)'abort in obs_bodyElem_i: column not active: ', &
                        obs_ColumnNameList_IB(column_index)
-            call obs_abort('abort in obs_bodyElem_i')
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_bodyElem_i: column index out of range: ',column_index
-         call obs_abort('abort in obs_bodyElem_i')
+         write(message,*) 'abort in obs_bodyElem_i: column index out of range: '&
+                          ,column_index
+         call obs_abort(message); return
       endif
 
    end function obs_bodyElem_i
@@ -1468,18 +1528,20 @@ contains
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: index
+      character(len=100) :: message
 
       if(column_index.ge.NBDY_REAL_BEG.and.column_index.le.NBDY_REAL_END) then
          if(obs_columnActive_RB(column_index)) then
             value=obsdat%robdata(column_index)%value_r(index)
          else
-            write(*,*) 'obs_bodyElem_r: column not active: ', &
-                       obs_ColumnNameList_RB(column_index)
-            call obs_abort('abort in obs_bodyElem_r')
+            write(message,*) 'abort in obs_bodyElem_r: column not active: ', &
+                             obs_ColumnNameList_RB(column_index)
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_bodyElem_r: column index out of range: ',column_index
-         call obs_abort('abort in obs_bodyElem_r')
+         write(message,*) 'abort in obs_bodyElem_r: column index out of range: '&
+                          ,column_index
+         call obs_abort(message); return
       endif
 
    end function obs_bodyElem_r
@@ -1514,18 +1576,20 @@ contains
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: index
       integer         , intent(in)     :: value
+      character(len=100) :: message
 
       if(column_index.ge.NBDY_INT_BEG.and.column_index.le.NBDY_INT_END) then
          if(obs_columnActive_IB(column_index)) then
             obsdat%mobdata(column_index)%value_i(index) = value
          else
-            write(*,*) 'obs_bodySet_i: column not active: ', &
-                       obs_ColumnNameList_IB(column_index)
-            call obs_abort('abort in obs_bodySet_i')
+            write(message,*) 'abort in obs_bodySet_i: column not active: ', &
+                             obs_ColumnNameList_IB(column_index)
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_bodySet_i: column index out of range: ',column_index
-         call obs_abort('abort in obs_bodySet_i')
+         write(message,*) 'abort in obs_bodySet_i: column index out of range: ',&
+                          column_index
+         call obs_abort(message); return
       endif
 
       if(index == (obsdat%numBody+1)) obsdat%numBody = obsdat%numBody+1
@@ -1545,23 +1609,107 @@ contains
       integer            , intent(in)     :: column_index
       integer            , intent(in)     :: index
       real(kind=OBS_REAL), intent(in)     :: value
+      character(len=100) :: message
 
       if(column_index.ge.NBDY_REAL_BEG.and.column_index.le.NBDY_REAL_END) then
          if(obs_columnActive_RB(column_index)) then
             obsdat%robdata(column_index)%value_r(index) = value
          else
-            write(*,*) 'obs_bodySet_r: column not active: ', &
-                       obs_ColumnNameList_RB(column_index)
-            call obs_abort('abort in obs_bodySet_r')
+            write(message,*) 'abort in obs_bodySet_r: column not active: ', &
+                             obs_ColumnNameList_RB(column_index)
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_bodySet_r: column index out of range: ',column_index
-         call obs_abort('abort in obs_bodySet_r')
+         write(message,*) 'abort in obs_bodySet_r: column index out of range: ',&
+                          column_index
+         call obs_abort(message); return
       endif
 
       if(index == (obsdat%numBody+1)) obsdat%numBody = obsdat%numBody+1
 
    end subroutine obs_bodySet_r
+
+
+   subroutine obs_class_initialize(obsColumnMode_in)
+      !s/r obs_class_initialize - Set observation-data class variables.
+      !
+      !Author    . J.W. Blezius
+      !
+      !    PURPOSE:  Set variables that use the same value for all instances of
+      !              the class.
+      implicit none
+      ! mode controlling the subset of columns that are activated in all objects
+      character(len=*), intent(in), optional :: obsColumnMode_in
+
+      character(len=12), save :: obsColumnMode_save = '            '
+      integer :: column_index
+
+      INITIALIZED: if(.not. obs_class_initialized) then
+         obs_class_initialized = .true.
+
+         ! determine which columns will be initially active
+         if(present(obsColumnMode_in)) then
+            obsColumnMode_save=trim(obsColumnMode_in)
+         else
+            obsColumnMode_save='ALL '
+         endif
+
+         write(*,*)'OBS_CLASS_INITIALIZE: obsColumnMode=', &
+                   trim(obsColumnMode_save)
+         COLUMN_MODE:if(trim(obsColumnMode_save).eq.'ALL') then
+
+            do column_index=NHDR_INT_BEG,NHDR_INT_END
+               call obs_activateColumn_IH(column_index)
+            enddo
+            do column_index=NHDR_REAL_BEG,NHDR_REAL_END
+               call obs_activateColumn_RH(column_index)
+            enddo
+            do column_index=NBDY_INT_BEG,NBDY_INT_END
+               call obs_activateColumn_IB(column_index)
+            enddo
+            do column_index=NBDY_REAL_BEG,NBDY_REAL_END
+               call obs_activateColumn_RB(column_index)
+            enddo
+
+         elseif(trim(obsColumnMode_save).eq.'VAR') then COLUMN_MODE
+
+            do column_index=NHDR_INT_BEG,NHDR_INT_END
+               if(column_index.ne.OBS_IDF.and.column_index.ne.OBS_IDO)  &
+                  call obs_activateColumn_IH(column_index)
+            enddo
+            do column_index=NHDR_REAL_BEG,NHDR_REAL_END
+               if(     column_index.ne.OBS_BX &
+                  .and.column_index.ne.OBS_BY &
+                  .and.column_index.ne.OBS_BZ &
+                 ) call obs_activateColumn_RH(column_index)
+            enddo
+            do column_index=NBDY_INT_BEG,NBDY_INT_END
+               if(     column_index.ne.OBS_KFA &
+                  .and.column_index.ne.OBS_IDD &
+                 ) call obs_activateColumn_IB(column_index)
+            enddo
+            do column_index=NBDY_REAL_BEG,NBDY_REAL_END
+               if(column_index.ne.OBS_OMP6)  &
+                  call obs_activateColumn_RB(column_index)
+            enddo
+
+         endif COLUMN_MODE
+      else INITIALIZED
+         write(*,*) 'obs_class_initialize: !!! WARNING WARNING WARNING!!!'
+         write(*,*) 'obs_class_initialize: already called before, not ' &
+                    // 're-activating columns'
+         write(*,*) 'obs_class_initialize: !!! WARNING WARNING WARNING!!!'
+         if(present(obsColumnMode_in)) then
+            if(trim(obsColumnMode_in).ne.trim(obsColumnMode_save)) then
+               call obs_abort('obs_class_initialize: called with different '&
+                            //'value of obsColumnMode than during first call: '&
+                            // trim(obsColumnMode_save) // ' .ne. ' &
+                            // trim(obsColumnMode_in))
+               return
+            endif
+         endif
+      endif INITIALIZED
+   end subroutine obs_class_initialize
 
 
    subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar)
@@ -1686,7 +1834,7 @@ contains
 
       if(.not.lfound) &
          call obs_abort('obs_columnIndexFromName_IH: name not found=' &
-                        // column_name)
+                        // column_name); return
 
    end function obs_columnIndexFromName_IH
 
@@ -1707,7 +1855,7 @@ contains
 
       if(.not.lfound) &
          call obs_abort('obs_columnIndexFromName_RH: name not found=' &
-                        // column_name)
+                        // column_name); return
 
    end function obs_columnIndexFromName_RH
 
@@ -1728,7 +1876,7 @@ contains
 
       if(.not.lfound) &
          call obs_abort('obs_columnIndexFromName_IB: name not found=' &
-                        // column_name)
+                        // column_name); return
 
    end function obs_columnIndexFromName_IB
 
@@ -1749,7 +1897,7 @@ contains
 
       if(.not.lfound) &
          call obs_abort('obs_columnIndexFromName_RB: name not found=' &
-                        // column_name)
+                        // column_name); return
 
    end function obs_columnIndexFromName_RB
 
@@ -1778,6 +1926,7 @@ contains
       integer            , pointer :: mobhdr_tmp(:,:),mobdata_tmp(:,:)
       real(kind=OBS_REAL), pointer :: robhdr_tmp(:,:),robdata_tmp(:,:)
       integer :: ier,master,mxstn,ncomm,nobs
+      character(len=100) :: message
 #if OBS_REAL==4
       character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
 #elif OBS_REAL==8
@@ -1792,12 +1941,12 @@ contains
       if (obsdat%numHeader_max.le.0) return
 
       if (nstncom.gt.obsdat%numHeader_max) then
-         write(*,*) 'ERROR in obs_comm: nstncom ',nstncom, &
+         write(message,*) 'ERROR in obs_comm: nstncom ',nstncom, &
             ' may not exceed numHeader_max ',obsdat%numHeader_max
-         call obs_abort('OBS_COMM: nstncom exceeds numHeader_max')
+         call obs_abort(message); return
       endif
       if (nstncom.le.0) then
-         call obs_abort('OBS_COMM: nstncom should be positive')
+         call obs_abort('OBS_COMM: nstncom should be positive'); return
       endif
 
       ! Nonmaster processes need to know how many body elements they will receive
@@ -1807,13 +1956,13 @@ contains
       call rpn_comm_bcast(nobs,ncomm,"mpi_integer",master,"world",ier)
 
       if (nobs.gt.obsdat%numBody_max) then
-         write(*,*) 'ERROR in obs_comm: nobs ',nobs, &
+         write(message,*) 'ERROR in obs_comm: nobs ',nobs, &
             ' may not exceed obsdat%numBody_max ',obsdat%numBody_max
-         call obs_abort('OBS_COMM: nobs exceeds obsdat%numBody_max')
+         call obs_abort(message); return
       endif
       if (nobs.le.0) then
-         write(*,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
-         call obs_abort('OBS_COMM: nobs should be positive')
+         write(message,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
+         call obs_abort(message); return
       endif
 
       ! extract data from active columns before broadcasting them
@@ -1932,7 +2081,8 @@ contains
 
       if(obs_a%mpi_local)then
          call obs_abort( &
-               "obs_copy() is not equipped to handle the case, mpi_local=.true.")
+               'obs_copy() is not equipped to handle the case, mpi_local=.true.')
+         return
       end if
 
       do column_index=NHDR_REAL_BEG,NHDR_REAL_END
@@ -1977,12 +2127,13 @@ contains
       !
       implicit none
 
-      integer, parameter :: maxid = 256
+      integer, parameter :: MAXID = 256
       type (struct_obs), intent(in) :: obsdat
       integer, intent(in) :: kulout
 
       integer  :: allstn,allobs,id,idata,kobs
-      integer, dimension(maxid)   :: numobs,numstn
+      integer, dimension(MAXID)   :: numobs,numstn
+      character(len=100) :: message
 
       ! initialize totals to zero
       numstn(:)=0
@@ -1992,12 +2143,14 @@ contains
 
       do kobs=1,obsdat%numHeader
          id=obsdat%mobhdr(OBS_ITY)%value_i(kobs)
-         if(id.gt.maxid) then
+         if(id.gt.MAXID) then
             id=mod(id,1000)
          endif
-         if ((id.lt.1).or.(id.gt.maxid)) then 
-            write(kulout,*) 'id out of range: ',id
-            call obs_abort('OBS_COUNT_HEADERS: id out of range')
+         if ((id.lt.1).or.(id.gt.MAXID)) then 
+            write(message,*)'OBS_COUNT_HEADERS: ITY (instrument and ' // &
+                            'retrieval type) out of range: ', id
+            write(kulout,*)message
+            call obs_abort(message); return
          endif
          numstn(id)=numstn(id)+1
          ! idata: number of obs for this station
@@ -2007,7 +2160,7 @@ contains
 
       write(kulout,*) 'number of stations and observations'
       write(kulout,*) ' idtype #stations #observations '
-      do id=1,maxid
+      do id=1,MAXID
          if (numstn(id).gt.0) then
             write(kulout,'(i3,3x,i7,2x,i8)') id,numstn(id),numobs(id)
          endif
@@ -2073,6 +2226,12 @@ contains
          enddo
       end if
 
+      obsdat%numHeader_max=0
+      obsdat%numBody_max=0
+
+      call ild_finalize(obsdat%header_index_list_depot)
+      call ild_finalize(obsdat%body_index_list_depot)
+
    end subroutine obs_deallocate
 
 
@@ -2096,8 +2255,8 @@ contains
       case ('STID'); value=obsdat%cstnid(index)
 
       case default
-         write(*,*)"ERROR:  ", name(1:4)," is not character(len=*) observation."
-         value='xxxxxxxxx'
+         call obs_abort('ERROR:  ' // name(1:4) // &
+                        ' is not a character(len=*) observation.');return
       end select
    end function obs_elem_c
 
@@ -2524,14 +2683,12 @@ contains
       if(.not. obsdat%mpi_local)then
          call obs_abort('OBS_EXPANDTOMPIGLOBAL has been called, but the ' &
                         // 'obsSpaceData object is already in mpi-global state')
+         return
       end if
 
       ! determine number of rows in mpiglobal arrays
-      sizedata=1
-      call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiGlobal,sizedata, &
-                              "mpi_integer","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(obsdat%numBody,  numBody_mpiGlobal,  sizedata, &
-                              "mpi_integer","mpi_sum","GRID",ierr)
+      numHeader_mpiGlobal = obs_numHeader_mpiglobal(obsdat)
+      numBody_mpiGlobal   = obs_numBody_mpiglobal  (obsdat)
 
       ! allocate memory for the temporary arrays for header-level data
       allocate(mobhdr_partial  (obs_numActiveColumn_IH(),numHeader_mpiglobal))
@@ -2610,10 +2767,10 @@ contains
          sizedata,"mpi_integer","mpi_sum","GRID",ierr)
 
       ! allocate memory for the temporary arrays for body-level data
-      allocate(mobdata_partial (obs_numActiveColumn_IB(),obsdat%numBody_max))
-      allocate(mobdata_complete(obs_numActiveColumn_IB(),obsdat%numBody_max))
-      allocate(robdata_partial (obs_numActiveColumn_RB(),obsdat%numBody_max))
-      allocate(robdata_complete(obs_numActiveColumn_RB(),obsdat%numBody_max))
+      allocate(mobdata_partial (obs_numActiveColumn_IB(),numBody_mpiGlobal))
+      allocate(mobdata_complete(obs_numActiveColumn_IB(),numBody_mpiGlobal))
+      allocate(robdata_partial (obs_numActiveColumn_RB(),numBody_mpiGlobal))
+      allocate(robdata_complete(obs_numActiveColumn_RB(),numBody_mpiGlobal))
       mobdata_partial =0
       mobdata_complete=0
       robdata_partial =real(0.0d0,OBS_REAL)
@@ -2654,7 +2811,7 @@ contains
 
       ! destroy object's mpilocal data and allocate mpiglobal data
       call obs_deallocate(obsdat)
-      call obs_allocate(obsdat,numHeader_mpiGlobal,obsdat%numBody_max)
+      call obs_allocate(obsdat,numHeader_mpiGlobal,numBody_mpiGlobal)
 
       ! copy the temporary arrays to the object's arrays
       !   ATTN: for cstnid and cfamily, integer arrays converted back to
@@ -2995,18 +3152,20 @@ contains
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: index
+      character(len=100) :: message
 
       if(column_index.ge.NHDR_INT_BEG.and.column_index.le.NHDR_INT_END) then
          if(obs_columnActive_IH(column_index)) then
             value=obsdat%mobhdr(column_index)%value_i(index)
          else
-            write(*,*) 'obs_headElem_i: column not active: ', &
+            write(message,*) 'abort in obs_headElem_i: column not active: ', &
                                               obs_ColumnNameList_IH(column_index)
-            call obs_abort('abort in obs_headElem_i')
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_headElem_i: column index out of range: ',column_index
-         call obs_abort('abort in obs_headElem_i')
+         write(message,*) 'abort in obs_headElem_i: column index out of range: '&
+                          ,column_index
+         call obs_abort(message); return
       endif
 
    end function obs_headElem_i
@@ -3026,18 +3185,20 @@ contains
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: index
+      character(len=100) :: message
 
       if(column_index.ge.NHDR_REAL_BEG.and.column_index.le.NHDR_REAL_END) then
          if(obs_columnActive_RH(column_index)) then
             value=obsdat%robhdr(column_index)%value_r(index)
          else
-            write(*,*) 'obs_headElem_r: column not active: ', &
+            write(message,*) 'abort in obs_headElem_r: column not active: ', &
                                               obs_ColumnNameList_RH(column_index)
-            call obs_abort('abort in obs_headElem_r')
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_headElem_r: column index out of range: ',column_index
-         call obs_abort('abort in obs_headElem_r')
+         write(message,*) 'abort in obs_headElem_r: column index out of range: '&
+                          ,column_index
+         call obs_abort(message); return
       endif
 
    end function obs_headElem_r
@@ -3072,18 +3233,20 @@ contains
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: index
       integer         , intent(in)     :: value
+      character(len=100) :: message
 
       if(column_index.ge.NHDR_INT_BEG.and.column_index.le.NHDR_INT_END) then
          if(obs_columnActive_IH(column_index)) then
             obsdat%mobhdr(column_index)%value_i(index) = value;
          else
-            write(*,*) 'obs_headSet_i: column not active: ', &
+            write(message,*) 'abort in obs_headSet_i: column not active: ', &
                                               obs_ColumnNameList_IH(column_index)
-            call obs_abort('abort in obs_headSet_i')
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_headSet_i: column index out of range: ',column_index
-         call obs_abort('abort in obs_headSet_i')
+         write(message,*) 'abort in obs_headSet_i: column index out of range: ',&
+                          column_index
+         call obs_abort(message); return
       endif
 
       if(index == (obsdat%numHeader+1)) obsdat%numHeader = obsdat%numHeader+1
@@ -3103,18 +3266,20 @@ contains
       integer            , intent(in)     :: column_index
       integer            , intent(in)     :: index
       real(kind=OBS_REAL), intent(in)     :: value
+      character(len=100) :: message
 
       if(column_index.ge.NHDR_REAL_BEG.and.column_index.le.NHDR_REAL_END) then
          if(obs_columnActive_RH(column_index)) then
             obsdat%robhdr(column_index)%value_r(index) = value;
          else
-            write(*,*) 'obs_headSet_r: column not active: ', &
+            write(message,*) 'abort in obs_headSet_r: column not active: ', &
                                               obs_ColumnNameList_RH(column_index)
-            call obs_abort('abort in obs_headSet_r')
+            call obs_abort(message)
          endif
       else
-         write(*,*) 'obs_headSet_r: column index out of range: ',column_index
-         call obs_abort('abort in obs_headSet_r')
+         write(message,*) 'abort in obs_headSet_r: column index out of range: ',&
+                          column_index
+         call obs_abort(message); return
       endif
 
       if(index == (obsdat%numHeader+1)) obsdat%numHeader = obsdat%numHeader+1
@@ -3151,6 +3316,7 @@ contains
       integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
       integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
       integer :: nprocs_mpi, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
+      character(len=100) :: message
 
       write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
 
@@ -3173,10 +3339,17 @@ contains
          numBody_mpilocal=numBody_mpilocal &
                          +obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
       enddo
-      if(numHeader_mpilocal<=0) call obs_abort( &
-                                  'Zero length of headerIndex_mpiglobal,Abort!') 
+
+      if(numHeader_mpilocal<=0) then
+         write(message,*)'There are more processors (', nprocs_mpi, &
+                         ') than headers (', obsdat%numHeader, ')'
+         call obs_abort(message)
+      end if
+
       allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
-      if(numBody_mpiLocal<=0) call obs_abort('Zero length of BodyTag,Abort!') 
+      if(numBody_mpiLocal<=0)call obs_abort( &
+                                   'This mpi processor has zero bodies to treat')
+
       allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
 
       ! determine the list of header indices
@@ -3204,39 +3377,68 @@ contains
    end subroutine obs_mpiDistributeIndices
 
 
-   subroutine obs_initialize(obsdat, obsColumnMode_in, header_max, body_max)
-      use ObsDataColumn_mod
+   subroutine obs_initialize(obsdat, numHeader_max, numBody_max, mpi_local)
       !s/r obs_initialize - Set an observation-data module to a known state.
       !
       !Author    . J.W. Blezius
       !
-      !    PURPOSE:  Initialize module variables, and allocate arrays according
+      !    PURPOSE:  Initialize object variables, and allocate arrays according
       !              to the parameters, header_max and body_max.
+      use ObsDataColumn_mod
       implicit none
-      ! number of header elements allocated
-      integer, optional, intent(in) :: header_max
-      ! total no. of body elements allocated
-      integer, optional, intent(in) :: body_max
-      ! instance of obsSpaceData
+                                        ! instance of obsSpaceData
       type(struct_obs), intent(out) :: obsdat
-      ! mode that controls subset of columns that are activated
-      character(len=*), optional :: obsColumnMode_in
-      character(len=12), save :: obsColumnMode_save = '            '
+                                        ! number of header elements allocated
+      integer, optional, intent(in) :: numHeader_max
+                                        ! total no. of body elements allocated
+      integer, optional, intent(in) :: numBody_max
+      logical, optional, intent(in) :: mpi_local
 
-      logical :: lfirsttime = .true.
       integer :: nulnam,fnom,fclos,ierr
-      integer :: nmxobs,ndatamx,column_index
+      integer :: nmxobs,ndatamx
       namelist /namdimo/nmxobs,ndatamx
 
+      if(.not. obs_class_initialized) then
+         call obs_abort('obs_class_initialize must be called before ' // &
+                        'obs_initialize')
+         return
+      end if
 
-      if(present(header_max)) then
-         ! body_max is necessarily also present
-         nmxobs = header_max
-         ndatamx = body_max
+      !
+      ! INITIALIZE ALL VARIABLES
+      !
+      nullify(obsdat%cstnid)
+      nullify(obsdat%cfamily)
+      nullify(obsdat%robhdr)
+      nullify(obsdat%mobhdr)
+      nullify(obsdat%robdata)
+      nullify(obsdat%mobdata)
+      obsdat%numHeader     = 0
+      obsdat%numHeader_max = 0
+      obsdat%numBody       = 0
+      obsdat%numBody_max   = 0
+
+      if(present(mpi_local)) then
+         obsdat%mpi_local  = mpi_local
+      else
+         obsdat%mpi_local  = .false.
+      end if
+
+      nullify(obsdat%headerIndex_mpiglobal)
+      nullify(obsdat%bodyIndex_mpiglobal)
+      obsdat%datestamp     = 0
+
+      !
+      ! DETERMINE THE ARRAY DIMENSIONS AND ALLOCATE
+      !
+      if(present(numHeader_max)) then
+         ! numBody_max is necessarily also present
+         nmxobs = numHeader_max
+         ndatamx = numBody_max
 
       else
          nmxobs=30000                   ! These default values will be used
-         ndatamx=200000                 ! if namdimo does not supply values
+         ndatamx=200000                 ! if values are not supplied
 
          nulnam=0
          ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -3246,83 +3448,8 @@ contains
          ierr=fclos(nulnam)
       end if
 
-      write(*,*) ' DIMENSIONS OF OBSERVATION ARRAYS:'
-      write(*,*) ' numHeader_max = ',NMXOBS,'  numBody_max = ',NDATAMX
+      call obs_allocate(obsdat, nmxobs, ndatamx)
 
-      obsdat%numHeader_max=nmxobs
-      obsdat%numBody_max=ndatamx
-      obsdat%numHeader = 0
-      obsdat%numBody  = 0
-      obsdat%mpi_local = .false.
-
-      nullify(obsdat%headerIndex_mpiglobal)
-      nullify(obsdat%bodyIndex_mpiglobal)
-
-      if(lfirsttime) then
-         lfirsttime=.false.
-         ! determine which columns will be initially active
-         if(present(obsColumnMode_in)) then
-            obsColumnMode_save=trim(obsColumnMode_in)
-         else
-            obsColumnMode_save='ALL '
-         endif
-         write(*,*) 'OBS_INITIALIZE: obsColumnMode=',trim(obsColumnMode_save)
-         if(trim(obsColumnMode_save).eq.'ALL') then
-
-            do column_index=NHDR_INT_BEG,NHDR_INT_END
-               call obs_activateColumn_IH(column_index)
-            enddo
-            do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-               call obs_activateColumn_RH(column_index)
-            enddo
-            do column_index=NBDY_INT_BEG,NBDY_INT_END
-               call obs_activateColumn_IB(column_index)
-            enddo
-            do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-               call obs_activateColumn_RB(column_index)
-            enddo
-
-         elseif(trim(obsColumnMode_save).eq.'VAR') then
-
-            do column_index=NHDR_INT_BEG,NHDR_INT_END
-               if(column_index.ne.OBS_IDF.and.column_index.ne.OBS_IDO)  &
-                  call obs_activateColumn_IH(column_index)
-            enddo
-            do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-               if(     column_index.ne.OBS_BX &
-                  .and.column_index.ne.OBS_BY &
-                  .and.column_index.ne.OBS_BZ &
-                 ) call obs_activateColumn_RH(column_index)
-            enddo
-            do column_index=NBDY_INT_BEG,NBDY_INT_END
-               if(     column_index.ne.OBS_KFA &
-                  .and.column_index.ne.OBS_IDD &
-                 ) call obs_activateColumn_IB(column_index)
-            enddo
-            do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-               if(column_index.ne.OBS_OMP6)  &
-                  call obs_activateColumn_RB(column_index)
-            enddo
-
-         endif
-      else
-         write(*,*) 'obs_initialize: !!! WARNING WARNING WARNING!!!'
-         write(*,*) 'obs_initialize: already called before, not re-activating ' &
-                    // 'columns'
-         write(*,*) 'obs_initialize: !!! WARNING WARNING WARNING!!!'
-         if(present(obsColumnMode_in)) then
-            if(trim(obsColumnMode_in).ne.trim(obsColumnMode_save)) then
-               call obs_abort('obs_initialize: called with different value of ' &
-                              // 'obsColumnMode than during first call: ' &
-                              // trim(obsColumnMode_save) // ' .ne. ' &
-                              // trim(obsColumnMode_in))
-            endif
-         endif
-      endif
-
-      call obs_allocate(obsdat,obsdat%numHeader_max,obsdat%numBody_max)
-      call ild_initialize(obsdat%header_index_list_depot, obsdat%numHeader_max)
-      call ild_initialize(obsdat%body_index_list_depot,   obsdat%numBody_max)
       return
    end subroutine obs_initialize
 
@@ -3345,12 +3472,12 @@ contains
 
 
    integer function obs_numBody(obsdat)
-      !func obs_numBody - returns the number of observations recorded
+      !func obs_numBody - returns the number of mpi-local bodies recorded
       !
       !Author    . J.W. Blezius
       !
-      !    PURPOSE:  to provide the number of observations that are currently
-      !              recorded in the observation-data object
+      !    PURPOSE:  to provide the number of bodies that are currently recorded
+      !              in the mpi-local observation-data object
       !
       implicit none
       type(struct_obs) , intent(in)  :: obsdat
@@ -3358,13 +3485,38 @@ contains
    end function obs_numBody
 
 
-   integer function obs_numBody_max(obsdat)
-      !func obs_numBody_max - returns the number of observations recorded
+   integer function obs_numBody_mpiglobal(obsdat)
+      !func obs_numBody_mpiglobal - returns the number of bodies recorded in the
+      !                             entire mpi-global obs object
       !
       !Author    . J.W. Blezius
       !
-      !    PURPOSE:  to provide the number of observations that are currently
-      !              recorded in the observation-data object
+      !    PURPOSE:  to provide the number of bodies that are currently recorded
+      !              in the entire mpi-global observation-data object
+      !
+      implicit none
+      type(struct_obs), intent(in)  :: obsdat
+      integer :: numBody_mpiGlobal, sizedata, ierr
+
+      if(obsdat%mpi_local)then
+         sizedata=1
+         call rpn_comm_allreduce(obsdat%numBody,numBody_mpiGlobal,sizedata, &
+                                 "mpi_integer","mpi_sum","GRID",ierr)
+         obs_numBody_mpiglobal = numBody_mpiGlobal
+      else
+         obs_numBody_mpiglobal = obsdat%numBody
+      end if
+
+   end function obs_numBody_mpiglobal
+
+
+   integer function obs_numBody_max(obsdat)
+      !func obs_numBody_max - returns the dimensioned mpi-local number of bodies
+      !
+      !Author    . J.W. Blezius
+      !
+      !    PURPOSE:  to provide the dimension for the number of bodies in the
+      !              mpi-local observation-data object
       !
       implicit none
       type(struct_obs) , intent(in)  :: obsdat
@@ -3373,11 +3525,11 @@ contains
 
 
    integer function obs_numHeader(obsdat)
-      !func obs_numHeader - returns the number of stations recorded
+      !func obs_numHeader - returns the number of mpi-local headers recorded
       !
       !Author    . J.W. Blezius
       !
-      !    PURPOSE:  to provide the number of stations that are currently
+      !    PURPOSE:  to provide the number of headers that are currently
       !              recorded in the observation-data object
       !
       implicit none
@@ -3386,13 +3538,38 @@ contains
    end function obs_numHeader
 
 
-   integer function obs_numHeader_max(obsdat)
-      !func obs_numHeader_max - returns the dimensioned number of stations
+   integer function obs_numHeader_mpiglobal(obsdat)
+      !func obs_numHeader_mpiglobal - returns the number of headers recorded in
+      !                               the entire mpi-global obs object
       !
       !Author    . J.W. Blezius
       !
-      !    PURPOSE:  to provide the number of stations that is currently
-      !              dimensioned in the observation-data object
+      !    PURPOSE:  to provide the number of headers that are currently recorded
+      !              in the entire mpi-global observation-data object
+      !
+      implicit none
+      type(struct_obs) , intent(in)  :: obsdat
+      integer :: numHeader_mpiGlobal, sizedata, ierr
+
+      if(obsdat%mpi_local)then
+         sizedata=1
+         call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiGlobal,sizedata, &
+                                 "mpi_integer","mpi_sum","GRID",ierr)
+         obs_numHeader_mpiglobal = numHeader_mpiGlobal
+      else
+         obs_numHeader_mpiglobal = obsdat%numHeader
+      end if
+   end function obs_numHeader_mpiglobal
+
+
+   integer function obs_numHeader_max(obsdat)
+      !func obs_numHeader_max - returns the dimensioned mpi-local number of
+      !                         headers
+      !
+      !Author    . J.W. Blezius
+      !
+      !    PURPOSE:  to provide the dimension for the number of headers in the
+      !              mpi-local observation-data object
       !
       implicit none
       type(struct_obs) , intent(in)  :: obsdat
@@ -3691,6 +3868,10 @@ contains
       !      mobhdr,robhdr,cstnid:             station header information
       !      mobdata,robdata,hx:               observation data
       !
+      !NOTE:  It is assumed that the obsdat arrays have already been allocated
+      !       with dimensions that will exactly hold the number of data to be
+      !       read
+      !
       implicit none
 
       type (struct_obs), intent(inout) :: obsdat  ! the OBSDAT being prep'ed
@@ -3699,6 +3880,7 @@ contains
 
       integer  :: i,ifirst,ilast,iobscur,istn,j,k,myip,nens
       integer  :: column_index,active_index
+      character(len=100) :: message
 
       obsdat%mpi_local = .false.
 
@@ -3707,9 +3889,11 @@ contains
       else
          nens=size(hx,1)
       endif
-      column_index=obs_columnIndexFromActiveIndex_RB(1) ! get index of 1st active column
+                                        ! get index of 1st active RB column
+      column_index=obs_columnIndexFromActiveIndex_RB(1)
       obsdat%numBody=size(obsdat%robdata(column_index)%value_r,1)
-      column_index=obs_columnIndexFromActiveIndex_RH(1) ! get index of 1st active column
+                                        ! get index of 1st active RH column
+      column_index=obs_columnIndexFromActiveIndex_RH(1)
       obsdat%numHeader=size(obsdat%robhdr(column_index)%value_r,1)
 
       iobscur=0
@@ -3753,10 +3937,10 @@ contains
       enddo readstn
 
       if (iobscur.ne.obsdat%numBody) then
-         write(*,*) 'OBS_READ: the number of observations ', &
-            iobscur,' should equal ',obsdat%numBody
-         call obs_abort('OBS_READ: the number of references in the header does '&
-                        // 'not matche the body size')
+         write(message,*)'OBS_READ: the number of references in the header, ', &
+                         iobscur, ', does not match the body size, ', &
+                         obsdat%numBody
+         call obs_abort(message)
       endif
 288   write(*,*) 'file is now empty'
       write(*,*) 'close nobshdr which is on unit: ',nobshdr
@@ -3833,13 +4017,14 @@ contains
          ipass=mobhdr_1(OBS_PAS)
 
          if ((ipass /= ipasscur)) then
-            if(obs_numHeader(obsdat) == 0) then
+            if(obsdat%numHeader == 0) then
                write(6,*)"ERROR"
                write(6,*)"ERROR:  In obs_readstns(), the next"
                write(6,*)"ERROR:  OBS_PAS value, ", ipass, "does not match the"
                write(6,*)"ERROR:  current  pass, ", ipasscur,".  Exiting."
                write(6,*)"ERROR"
                call obs_abort('OBS_READSTNS: ipass /= ipasscur')
+               return
             end if
             exit
          end if
@@ -3966,6 +4151,7 @@ contains
       if(obsdat%mpi_local)then
          call obs_abort('OBS_REDUCETOMPILOCAL() has been called, but the ' &
                         // 'obsSpaceData object is already in mpi-local state')
+         return
       end if
 
       ! compute the mpilocal lists of indices into the mpiglobal data
@@ -4122,7 +4308,9 @@ contains
       integer :: jdata,kobs,kobsout,column_index
 
       if(obsdat%mpi_local)then
-         call obs_abort("obs_select() is not equipped to handle the case, mpi_local=.true.")
+         call obs_abort('obs_select() is not equipped to handle the case, ' // &
+                        'mpi_local=.true.')
+         return
       end if
 
       write(nobsout,'(1x,A,I7)')'stations prior to selection: ', obsdat%numHeader
@@ -4205,8 +4393,9 @@ contains
          if(Index == (obsdat%numHeader+1)) obsdat%numHeader = obsdat%numHeader+1
 
       case default
-         write(*,*)"ERROR writing:  ", trim(name)," is not a character(len=9) ",&
-                   "observation."
+         call obs_abort('ERROR writing:  ' // trim(name) // &
+                        ' is not a character(len=9) observation.')
+         return
       end select
    end subroutine obs_set_c
 
@@ -4469,6 +4658,7 @@ contains
          endif
       else
          call obs_abort('OBS_SETFAMILY: Header or Body index must be specified!')
+         return
       endif
 
    end subroutine obs_setFamily
@@ -4582,7 +4772,8 @@ contains
             istat=mrbcol(2150,ivnmc,1)
             istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
          else 
-            call obs_abort('OBS_TOSQLBDY: attention, mauvaise coordonnee verticale')
+            call obs_abort( &
+                        'OBS_TOSQLBDY: attention, mauvaise coordonnee verticale')
             ippp=-1
          endif
 
@@ -4764,7 +4955,8 @@ contains
       !  corresponds with the order of the stations in the header array).
 
       if(obsdat%mpi_local) then
-         call obs_abort("obs_write_hdr() is not equipped to handle the case, mpi_local=.true.")
+         call obs_abort('obs_write_hdr() is not equipped to handle the ' // &
+                        'case, mpi_local=.true.')
       end if
 
       nrobdata=obsdat%mobhdr(OBS_NLV)%value_i(kobs)

@@ -239,6 +239,8 @@ C
          WRITE(*,*)'DATA CURRENTLY IN CMA FILE             ',obs_numbody(lobsSpaceData)
          WRITE(*,*)'=============================================='
          WRITE(*,*) ' '
+         ! N.B.:  if lobsSpaceData is in mpilocal mode, this test could give
+         !        a false failure.  Brpacma() will soon be replaced anyway.
          IF ( NUMHEADER .GE. obs_numheader_max(lobsSpaceData) ) THEN
             WRITE(*,*) ' CMA FILE FULL: NO DATA READ'
             WRITE(*,*)' ------------------------------------------'
@@ -899,6 +901,8 @@ c               ENDIF
      &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
      &             ' LON ', ILON
             ENDIF
+         ! N.B.:  if lobsSpaceData is in mpilocal mode, this test could give
+         !        a false failure.  Brpacma() will soon be replaced anyway.
          IF ( obs_numbody(lobsSpaceData) .GE. obs_numbody_max(lobsSpaceData) 
      +       .OR. NUMHEADER .GE. obs_numheader_max(lobsSpaceData) ) THEN
             DEALLOCATE(ZVAL)

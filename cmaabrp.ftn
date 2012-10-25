@@ -277,6 +277,8 @@
          WRITE(*,*)'DATA CURRENTLY IN CMA FILE             ',obs_posn-1
          WRITE(*,*)'=============================================='
          WRITE(*,*) ' '
+         ! N.B.:  if lobsSpaceData is in mpilocal mode, this test could give
+         !        a false failure.  Cmaabrp() will soon be replaced anyway.
          IF ( NUMHEADER .GE. obs_numheader_max(lobsSpaceData)) THEN
             WRITE(*,*) ' CMA FILE FULL: NO DATA READ'
             WRITE(*,*)' ------------------------------------------'

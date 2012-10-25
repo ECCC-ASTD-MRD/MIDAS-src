@@ -39,7 +39,7 @@
 
       call tmg_start(91,'SUMJO')
 
-      numbody_max=obs_numbody_max(lobsSpaceData)
+      numbody_max=obs_numBody_mpiglobal(lobsSpaceData)
       allocate(robdata_g(numbody_max))
 
       call tmg_start(92,'SUMJO_RESTORE')
