@@ -97,14 +97,6 @@ C
          call postmin(columng,columnhr,obsSpaceData)
          call tmg_stop (13)
 c
-      case(201)
-         WRITE(*,FMT=9295)NCONF
- 9295    FORMAT(//,40(" *"),/,4X,"NCONF =",1X,I3,4X
-     S        ,"- RANDOM NUMBER PETURBATIONS"
-     S        ," BASED ON MATRIX B -",/,40(" *"),/)
-c
-         CALL ENKF_PTURB
-
       case default
          WRITE(*,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF
 

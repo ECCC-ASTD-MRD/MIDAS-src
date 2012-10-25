@@ -24,9 +24,10 @@ trunkdir=$PWD
 revnum=`ssh alef "cd $trunkdir ; svnversion"`
 cat comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
 
-cd ../
-mkdir -p compiledir
-cd compiledir
+compiledir=${storage_model:-"../compiledir"}/enkf_pturb
+echo "COMPILEDIR IS SET TO: $compiledir"
+mkdir -p $compiledir
+cd $compiledir
 rm -f *.o *.f *.f90 *.mod
 
 compiledir=$PWD
@@ -39,7 +40,7 @@ compiledir=$PWD
 
 
 VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov burp_module descrip $MPILIB "
+LIBAPPL="descrip $MPILIB "
 LIBSYS="lapack blas mass"
 LIBRMN="rmn_013_rc2"
 LIBEXTRA="rtools hpm_r"
@@ -50,60 +51,47 @@ ABI="_multi"
 COMPF="-openmp $MPIKEY "
 FCOMPF="-options_comp"
 
-BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
-INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${BASE_INCLUDE}/${MODRTTOV}"
-
 LIBPATH2="./ $LIBPATH"
-LIBPATH2="${ARMNLIB}/lib/AIX/xlf13 $LIBPATH2"
-LIBPATH2="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/lib/AIX-powerpc7 $LIBPATH2"
-LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
 
 echo "LIBPATH2="
 echo $LIBPATH2
 echo "INCLUDES="
 echo $INCLUDES
 
-cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
-cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+trunkfiles="abort.ftn bmatrix_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 \
+            columndata_mod.ftn90 comfilt.cdk enkf_pturb.ftn controlvector_mod.ftn90 \
+            enkf_pturb.ftn gasdev.ftn gaussgrid_mod.ftn90 gdout2.ftn getfldprm2.ftn \
+            getstamplist.ftn90 gridstatevector_mod.ftn90 maincompileswitch.inc \
+            matsqrt.ftn mpi_mod.ftn90 obsspacedata_mod.ftn90 utils_3dvar.ftn \
+            varnamelist_mod.ftn90 varout.ftn verticalcoord_mod.ftn90 comct0.cdk"
+
+moduloptfiles="dsyev.ftn"
+
+cd ${trunkdir}
+cp -f ${trunkfiles} ${compiledir}
+cp -f ${moduloptfiles} ${compiledir}
+cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
+cd ${compiledir}
 
 rm -f *.ftn~ *.ftn90~
 
 echo "STARTING COMPILATION AT:"
 date
 
-# remove enkf_pturb.ftn main program from compilation directory
-rm -f enkf_pturb.ftn
-
-echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
-SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-s.compile $INCLUDES $COMPF -O -src $SRC0 > listingm 2>&1
-grep fail listingm
-if [ $? = "0" ] ; then exit ; fi
-
 echo "compiling low-level independent modules"
-SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
+SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0 2>&1
 grep fail listing0
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling most of the new modules"
-SRC1="controlvector_mod.ftn90 airsch_mod.ftn90 iasich_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
+SRC1="controlvector_mod.ftn90 fft_mod.ftn90"
 SRC1="$SRC1 gaussgrid_mod.ftn90 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
 SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
 SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
-SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
-SRC1="$SRC1 airsbgck_mod.ftn90 iasibgck_mod.ftn90 common_iasi_mod.ftn90 ozoneclim_mod.ftn90"
+SRC1="$SRC1 bmatrix_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
 grep fail listing1
-if [ $? = "0" ] ; then exit ; fi
-
-echo "compiling the old modules (cdk90)..."
-SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps02wgs84const.cdk90 modgps03diff.cdk90 modgps04profile.cdk90 modgps06gravity.cdk90"
-SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90"
-s.compile $INCLUDES $COMPF -O -src $SRC2 > listing2 2>&1
-grep fail listing2
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling remaining ftn ftn90..."
@@ -118,7 +106,7 @@ grep fail listing4
 if [ $? = "0" ] ; then exit ; fi
 
 echo "building the executable..."
-s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing5 2>&1
+s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG > listing5 2>&1
 
 grep -i ERROR listing?
 if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
@@ -127,3 +115,4 @@ rm -f *.ftn* *.cdk* *.h
 
 echo "FINISHED COMPILATION AT:"
 date
+

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE enkf_pturb
+      program enkf_pturb
 #if defined (DOC)
 *
 ***   s/r enkf_pturb  - Routine to prepare random perturbations for ENKF
@@ -23,6 +23,7 @@
 *     Revision:
 *
 #endif
+      use mpi
       use MathPhysConstants_mod
       use controlVector_mod
       use gridStateVector_mod
@@ -30,6 +31,7 @@
       use bmatrix_mod
       use verticalCoord_mod
       IMPLICIT NONE
+#include "comct0.cdk"
       type(struct_gsv) :: statevector
       type(struct_vco), pointer :: vco_anl => null()
       real*8, pointer :: field(:,:,:)
@@ -53,9 +55,16 @@
       INTEGER          NENKFMEM,NRANDSEED,NDATE_PTURB
       NAMELIST /NAMENKF/NENKFMEM,NRANDSEED,NDATE_PTURB,LREMOVE_MEAN
 
-      write(*,*) ' --------------------------------'
-      write(*,*) ' ENKF_PTURB STARTS'
-      write(*,*) ' --------------------------------'
+      WRITE(*,FMT=9000) crevision
+ 9000 FORMAT(/,3(" *****************"),/
+     S     ,10x,"-- START OF MAIN PROGRAM ENKF_PTURB: --",/
+     S     ,10x,"-- Generation of the isotropic perturbations --",/
+     S     ,10x,"-- Derived from VARGLB Revision number ",a," --",/
+     S     ,3(" *****************"))
+C
+C*    0. MPI, tmg initialization
+      call MPI_init
+      call tmg_init(mpi_myid, 'TMG_ENKF-PTURB' )
 C
 C*    1. Set default values for namelist NAMENKF parameters
 C
@@ -227,6 +236,11 @@ c
       deallocate(zhu)
       deallocate(ensemble)
 
+C
+C*    0. MPI, tmg finalize
+      call tmg_terminate(mpi_myid, 'TMG_ENKF-PTURB' )
+      CALL RPN_COMM_FINALIZE(ierr) 
+        
       write(*,*) ' --------------------------------'
       write(*,*) ' ENKF_PTURB ENDS'
       write(*,*) ' --------------------------------'

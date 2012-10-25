@@ -98,4 +98,7 @@
       write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
       write(*,*)'-----------------------------------------------------'
 
+      deallocate(idataass)
+      deallocate(inumheader)
+
       end subroutine
