@@ -79,9 +79,10 @@ REAL(8),intent(in)  :: ZLAT(NPRF), TOTO3OBS(NPRF),PLEV(NLEV)
 REAL(8),intent(out)  :: O3P(NLEV,NPRF)
 !***************************************************************
 INTEGER   :: JN, K, NUMLAT(NPRF)
-INTEGER   :: IJOUR,IJ,IMONTH
+INTEGER   :: IJOUR,ITIME,IJ,IMONTH,IER
 REAL(8)   :: QO3B(NLEVO3,NPRF)
 REAL(8)   :: PRO3(NLEVO3,NPRF)
+INTEGER   :: NEWDATE
 
 
 !* assign default qgas values if need be
@@ -106,7 +107,8 @@ CALL LINTV2(pro3,qo3b,nlevo3,nlevo3,nprf,nlev,plev,O3P)
 
 DO JN = 1, NPRF
    IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
-      IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
+!      IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
+      ier = newdate(obs_get_datestamp(lobsSpaceData),ijour,itime,-3)
       IJ = IJOUR/100
       IMONTH = IJ - (IJ/100)*100
       O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO(NUMLAT(JN),IMONTH)
@@ -143,16 +145,17 @@ SUBROUTINE OZO_READ_CLIMATOLOGY(lobsSpaceData)
   IMPLICIT NONE
 
   type(struct_obs),intent(in)  :: lobsSpaceData
-  INTEGER            :: IJOUR,IMONTH,IJ,IV,K
+  INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IV,K,IER
   REAL               :: RDUM(NLATO3,NLEVO3)
   CHARACTER(len=100) :: CFILE
   INTEGER            :: NIOZO,NJOZO,NKOZO
-  INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS
+  INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,NEWDATE
 
   integer            :: IOZTEST
   integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
-  IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
+!  IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
+   ier = newdate(obs_get_datestamp(lobsSpaceData),ijour,itime,-3)
 
   IJ= IJOUR/100
   IMONTH = IJ - (IJ/100)*100
