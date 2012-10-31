@@ -48,6 +48,7 @@ MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
 COMPF="-openmp $MPIKEY "
+#COMPF="-openmp $MPIKEY -optf=-C "
 FCOMPF="-options_comp"
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"

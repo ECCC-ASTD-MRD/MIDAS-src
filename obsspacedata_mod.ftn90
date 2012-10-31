@@ -53,6 +53,8 @@ module IndexListDepot_mod
 contains
    subroutine ild_initialize(depot, numHeaderBody_max)
       ! Initialize the indicated list depot
+      !    indices allocated with 2 extra elements to be consistent
+      !    with obs_set_current_header/body_list
       implicit none
       type(struct_index_list_depot), intent(inout) :: depot
                                         ! max size of header or body of
@@ -66,7 +68,7 @@ contains
          depot%index_lists(list)%family = 'xx'
          depot%index_lists(list)%header = 0
          depot%index_lists(list)%current_element = 0
-         allocate(depot%index_lists(list)%indices(numHeaderBody_max))
+         allocate(depot%index_lists(list)%indices(numHeaderBody_max+2))
          depot%index_lists(list)%indices(:)=0
       end do
       depot%list_last_attributed = 0
