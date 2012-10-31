@@ -286,7 +286,7 @@ CONTAINS
     integer ier,ilwork,info,klatptot
     integer iulcorvert, ikey
 
-    real*8 result2(nksdim2_l,nkgdim_l),zwork(2*4*nksdim2_l)
+    real*8 zwork(2*4*nksdim2_l)
     real*8 ztt(nflev_l,nflev_l,(ntrunc_l+1)),ztpsi(nflev_l,nflev_l,(ntrunc_l+1))
     real*8 ztlen,zcorr,zr,zpres1,zpres2
     real*8 zfact,zfact2,zcoriolis,zpsips(nflev_l)
@@ -684,13 +684,12 @@ CONTAINS
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
             corns(ii,ij,in)=0.0
-            result2(ii,ij)=eigen2(ii,ij)*sqrtin2(ij,ij)
          enddo
       enddo
 
       do ij=1,nkgdim_l
          do ii=1,nksdim2_l
-            corns(ii,ij,in)=result2(ii,ij)
+            corns(ii,ij,in)=eigen2(ii,ij)*sqrtin2(ij,ij)
          enddo
       enddo
 
