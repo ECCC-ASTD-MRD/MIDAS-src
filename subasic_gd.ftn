@@ -445,8 +445,13 @@ c Computation of pressure values on trial profiles of the high
 c resolution horizonal grid
 c
           if (associated(pgrid)) deallocate(pgrid)
-          status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
-     &                     levels=pgrid,sfc_field=zps2d,in_log=.false.)
+          if (trim(varName) .eq. 'UV') then
+            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
+     &                        levels=pgrid,sfc_field=zps2d,in_log=.false.)
+          else
+            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
+     &                        levels=pgrid,sfc_field=zps2d,in_log=.false.)
+          endif
 c
           if(status.ne.VGD_OK)then
              write(*,*) 'ERROR with vgd_levels for desired levels '

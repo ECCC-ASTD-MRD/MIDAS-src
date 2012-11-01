@@ -41,6 +41,11 @@ contains
       endif
 
       write(*,*) 'bmat_setup: setting up 2 communicator to handle B matrices in parallel'
+      if(mpi_nprocs.eq.1) then
+        write(*,*) 'bmat_setup: WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!'  
+        write(*,*) 'bmat_setup: only 1 mpi process available, cannot use hybrid covariances'
+        write(*,*) 'bmat_setup: WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!'  
+      endif
       if(mpi_myid.lt.(mpi_nprocs-1)) then
         newcomm_group=1
         newcomm_rank=mpi_myid

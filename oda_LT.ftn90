@@ -123,7 +123,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(-1):(statevector%nj+2))
       real*8, pointer :: field_ptr(:,:,:,:)
       real*8,pointer :: zprofil(:)
-      real*8 :: dldlat2(-1:gaus_nj)
+      real*8 :: dldlat2(-1:(gaus_nj+1))
 
       field_ptr => gsv_getField(statevector,varName)
 

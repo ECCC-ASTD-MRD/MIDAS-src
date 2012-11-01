@@ -47,9 +47,9 @@ MODRTTOV="RTTOV8.7"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
-COMPF="-openmp $MPIKEY "
-#COMPF="-openmp $MPIKEY -optf=-C "
-FCOMPF="-options_comp"
+COMPF_NOC="-openmp $MPIKEY "
+COMPF="$COMPF_NOC"
+#COMPF="$COMPF_NOC -optf=-C "
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
 INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${BASE_INCLUDE}/${MODRTTOV}"
@@ -79,9 +79,10 @@ rm -f enkf_pturb.ftn
 
 echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
 SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-s.compile $INCLUDES $COMPF -O -src $SRC0 > listingm 2>&1
+s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listingm 2>&1
 grep fail listingm
 if [ $? = "0" ] ; then exit ; fi
+rm -f $SRC0
 
 echo "compiling low-level independent modules"
 SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
