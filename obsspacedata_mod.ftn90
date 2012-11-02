@@ -757,17 +757,21 @@ contains
 
    ! Four methods for activating a column:
 
-   subroutine obs_activateColumn_IB(column_index)
+   subroutine obs_activateColumn_IB(column_index, myip)
       implicit none
       integer, intent(in) :: column_index
+      integer, intent(in) :: myip
+
       integer :: active_index, dummy_index
       character(len=100) :: message
 
       if(.not.obs_columnActive_IB(column_index)) then
          obs_columnActive_IB(column_index) = .true.
-         write(*,*) 'obs_activateColumn_IB: name=', &
+         if(myip == 1) then
+            write(*,*) 'obs_activateColumn_IB: name=', &
                                            obs_ColumnNameList_IB(column_index), &
-                    ', dataType=INT , headOrBody=BODY'
+                       ', dataType=INT , headOrBody=BODY'
+         end if
       else
          write(message,*)'OBS_activateColumn_IB: column, ', column_index, &
                          ', is already active!'
@@ -783,17 +787,21 @@ contains
 
    end subroutine obs_activateColumn_IB
 
-   subroutine obs_activateColumn_IH(column_index)
+   subroutine obs_activateColumn_IH(column_index, myip)
       implicit none
       integer, intent(in) :: column_index
+      integer, intent(in) :: myip
+
       integer :: active_index, dummy_index
       character(len=100) :: message
 
       if(.not.obs_columnActive_IH(column_index)) then
          obs_columnActive_IH(column_index) = .true.
-         write(*,*) 'obs_activateColumn_IH: name=', &
+         if(myip == 1) then
+            write(*,*) 'obs_activateColumn_IH: name=', &
                                            obs_ColumnNameList_IH(column_index), &
-                    ', dataType=INT , headOrBody=HEAD'
+                       ', dataType=INT , headOrBody=HEAD'
+         end if
       else
          write(message,*)'OBS_activateColumn_IH: column, ', column_index, &
                          ', is already active!'
@@ -810,17 +818,21 @@ contains
    end subroutine obs_activateColumn_IH
 
 
-   subroutine obs_activateColumn_RB(column_index)
+   subroutine obs_activateColumn_RB(column_index, myip)
       implicit none
       integer, intent(in) :: column_index
+      integer, intent(in) :: myip
+
       integer :: active_index, dummy_index
       character(len=100) :: message
 
       if(.not.obs_columnActive_RB(column_index)) then
          obs_columnActive_RB(column_index) = .true.
-         write(*,*) 'obs_activateColumn_RB: name=', &
+         if(myip == 1) then
+            write(*,*) 'obs_activateColumn_RB: name=', &
                                            obs_ColumnNameList_RB(column_index), &
-                    ', dataType=REAL, headOrBody=BODY'
+                       ', dataType=REAL, headOrBody=BODY'
+         end if
       else
          write(message,*)'OBS_activateColumn_RB: column, ', column_index, &
                          ', is already active!'
@@ -837,17 +849,21 @@ contains
    end subroutine obs_activateColumn_RB
 
 
-   subroutine obs_activateColumn_RH(column_index)
+   subroutine obs_activateColumn_RH(column_index, myip)
       implicit none
       integer, intent(in) :: column_index
+      integer, intent(in) :: myip
+
       integer :: active_index, dummy_index
       character(len=100) :: message
 
       if(.not.obs_columnActive_RH(column_index)) then
          obs_columnActive_RH(column_index) = .true.
-         write(*,*) 'obs_activateColumn_RH: name=', &
+         if(myip == 1) then
+            write(*,*) 'obs_activateColumn_RH: name=', &
                                            obs_ColumnNameList_RH(column_index), &
-                    ', dataType=REAL, headOrBody=HEAD'
+                       ', dataType=REAL, headOrBody=HEAD'
+         end if
       else
          write(message,*)'OBS_activateColumn_RH: column, ', column_index, &
                          ', is already active!'
@@ -1551,7 +1567,7 @@ contains
    end subroutine obs_bodySet_r
 
 
-   subroutine obs_class_initialize(obsColumnMode_in)
+   subroutine obs_class_initialize(obsColumnMode_in, myip)
       !s/r obs_class_initialize - Set observation-data class variables.
       !
       !Author    . J.W. Blezius
@@ -1561,12 +1577,22 @@ contains
       implicit none
       ! mode controlling the subset of columns that are activated in all objects
       character(len=*), intent(in), optional :: obsColumnMode_in
+      integer, intent(in), optional :: myip
+
+      integer :: myip_
 
       character(len=12), save :: obsColumnMode_save = '            '
       integer :: column_index
 
       INITIALIZED: if(.not. obs_class_initialized) then
          obs_class_initialized = .true.
+
+         if(present(myip)) then
+            myip_ = myip
+         else
+            ! Make an assumption:  cause every processor to write much to stdout
+            myip_ = 1
+         end if
 
          ! determine which columns will be initially active
          if(present(obsColumnMode_in)) then
@@ -1580,38 +1606,38 @@ contains
          COLUMN_MODE:if(trim(obsColumnMode_save).eq.'ALL') then
 
             do column_index=NHDR_INT_BEG,NHDR_INT_END
-               call obs_activateColumn_IH(column_index)
+               call obs_activateColumn_IH(column_index, myip_)
             enddo
             do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-               call obs_activateColumn_RH(column_index)
+               call obs_activateColumn_RH(column_index, myip_)
             enddo
             do column_index=NBDY_INT_BEG,NBDY_INT_END
-               call obs_activateColumn_IB(column_index)
+               call obs_activateColumn_IB(column_index, myip_)
             enddo
             do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-               call obs_activateColumn_RB(column_index)
+               call obs_activateColumn_RB(column_index, myip_)
             enddo
 
          elseif(trim(obsColumnMode_save).eq.'VAR') then COLUMN_MODE
 
             do column_index=NHDR_INT_BEG,NHDR_INT_END
                if(column_index.ne.OBS_IDF.and.column_index.ne.OBS_IDO)  &
-                  call obs_activateColumn_IH(column_index)
+                  call obs_activateColumn_IH(column_index, myip_)
             enddo
             do column_index=NHDR_REAL_BEG,NHDR_REAL_END
                if(     column_index.ne.OBS_BX &
                   .and.column_index.ne.OBS_BY &
                   .and.column_index.ne.OBS_BZ &
-                 ) call obs_activateColumn_RH(column_index)
+                 ) call obs_activateColumn_RH(column_index, myip_)
             enddo
             do column_index=NBDY_INT_BEG,NBDY_INT_END
                if(     column_index.ne.OBS_KFA &
                   .and.column_index.ne.OBS_IDD &
-                 ) call obs_activateColumn_IB(column_index)
+                 ) call obs_activateColumn_IB(column_index, myip_)
             enddo
             do column_index=NBDY_REAL_BEG,NBDY_REAL_END
                if(column_index.ne.OBS_OMP6)  &
-                  call obs_activateColumn_RB(column_index)
+                  call obs_activateColumn_RB(column_index, myip_)
             enddo
 
          endif COLUMN_MODE
