@@ -80,6 +80,7 @@ contains
       suite_obs = TestSuite('ObsSpaceData basic tests')
 
       call add(suite_obs, TestCase('obs_init', test_obs_init))
+      call add(suite_obs, TestCase('obs_init_2', test_obs_init_2))
       call add(suite_obs, TestCase('AddHeaderElement', test_AddHeaderElement))
       call add(suite_obs, TestCase('SetAndRead_IntegerHeaderElement', &
                                    test_headerElement_i))
@@ -175,13 +176,152 @@ contains
       num_bods = obs_numbody(myobs)
       call assertEqual(0, num_bods, 'obs_numbody')
 
+      call obs_finalize(myobs)
+
       ! Verify abortion when called with bad parameters
+      call assertFalse(logic_found, 'obs aborted prematurely on bad parameter')
       call obs_class_initialize('VAR')
       logic_found = catch('exiting in obs_abort')
-      call assertTrue(logic_found, 'obs failed to abort')
+      call assertTrue(logic_found, 'obs failed to abort on bad parameter')
 
-      call obs_finalize(myobs)
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
    end subroutine test_obs_init
+
+   subroutine test_obs_init_2()
+      ! Start with the basics:  does the object initializer allocate okay?
+      ! This test does not exercise the column mode (2nd) argument.
+      use obsSpaceData_mod
+      implicit none
+
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=2, BOD_MAX=4
+      integer, parameter :: FLNML_UNIT=80
+      integer :: num_heads, num_bods
+      logical :: logic_found
+      integer :: status
+
+
+      !
+      ! Verify abortion when dimensions are not supplied
+      !
+      call assertFalse(logic_found, &
+                       'obs aborted prematurely on missing dimensions')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort on missing dimensions')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+
+
+      !
+      ! Verify abortion when dimensions are missing from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on dimensions missing from flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                          'obs failed to abort on dimensions missing from flnml')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+
+
+      !
+      ! Verify abortion when bad head_max is received from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"nmxobs=", -2
+      write(FLNML_UNIT, *)"ndatamx=", BOD_MAX
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on bad nmxobs flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                          'obs failed to abort on bad nmxobs flnml')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+
+
+      !
+      ! Verify abortion when bad bod_max is received from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"nmxobs=", HEAD_MAX
+      write(FLNML_UNIT, *)"ndatamx=", -3
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on bad ndatamx flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                          'obs failed to abort on bad ndatamx flnml')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+
+
+      !
+      ! Verify dimensions received from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"nmxobs=", HEAD_MAX
+      write(FLNML_UNIT, *)"ndatamx=", BOD_MAX
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on good dimensions in flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, &
+                          'obs aborted on good dimensions in flnml')
+      ! Examine the results
+      num_heads = obs_numheader_max(myobs)
+      call assertEqual(HEAD_MAX, num_heads, 'obs_numheader_max')
+
+      num_bods = obs_numbody_max(myobs)
+      call assertEqual(BOD_MAX, num_bods, 'obs_numbody_max')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+   end subroutine test_obs_init_2
 
    subroutine test_AddHeaderElement()
       ! A new header element is (currently) added by assigning a value to the

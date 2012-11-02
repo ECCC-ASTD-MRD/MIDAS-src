@@ -4,18 +4,77 @@
 
 
 module IndexListDepot_mod
-   ! This is not a fully fledged module.  It is more like a structure definition
-   ! with a couple of helpful methods.  It is intended that clients read/write
-   ! directly from/to instances of these structures.  The intended client is
-   ! obsSpaceData_mod.
+   ! PURPOSE:
+   !    The raison d'etre of this module is to support ObsSpaceData_mod in
+   !    facilitating the traversal of a selection of the rows in its table.  The
+   !    selection of rows could be from either the header table or the body
+   !    table. ObsSpaceData_mod currently populates the list with one of:
+   !                 all header members of a given family
+   !                 all   body members of a given family
+   !                 all   body members of a given header index
+   !
+   ! USAGE:
+   !    An ObsSpaceData_mod client must first call either
+   !    obs_set_current_body_list or obs_set_current_header_list, specifying
+   !    either the family of interest or the header index of interest.  This does
+   !    not return the list directly to the caller, but rather writes the list,
+   !    as a struct_index_list, to the private contents of the obs oject that is
+   !    returned to the caller but which cannot be examined by the caller.  Two
+   !    lists can be active simultaneously:  one header list and one body list.
+   !
+   !    In order to access the indices that are in the list, the ObsSpaceData_mod
+   !    client must call either obs_getHeaderIndex or obs_getBodyIndex, giving
+   !    the ObsSpaceData object as the only argument.  On each call, one index is
+   !    returned.  On calls after the last index in the list, a value of -1 is
+   !    returned.
+   !
+   !    This is not a fully fledged module.  It is better described as a
+   !    structure definition with a couple of helpful methods.  It is intended
+   !    that the client, ObsSpaceData_mod, read/write directly from/to instances
+   !    of these structures.
+   !
+   ! STRUCT_INDEX_LIST:
+   !    A struct_index_list contains the identity of the family or header that
+   !    was used to create the list, the actual list of indices, and the number
+   !    of the list element that was last returned to the user.
+   !
+   ! STRUCT_INDEX_LIST_DEPOT:
+   !    Because it is typical for a client to traverse a small group of lists
+   !    several times each, performance is improved by retaining recent lists,
+   !    thus avoiding having to regenerate them on each request.  Recent lists
+   !    are stored in a struct_index_list_depot.  ObsSpaceData_mod contains one
+   !    struct_index_list_depot for header lists and another for body lists.
+   !    The struct_index_list_depot structure contains current_list, a pointer to
+   !    the list in the depot that was last requested by the ObsSpaceData_mod
+   !    client.
+   !
+   ! OMP:
+   !    ObsSpaceData_mod has been designed so that it may be called from within
+   !    an OMP section of code.  If there are n OMP threads, it is possible that
+   !    there be as many as n lists in use simultaneously.  The parameter, 
+   !    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
+   !    this case, because the current_list of the depot is not OMP-private, it
+   !    cannot be asked to remember the current list for each of the OMP threads.
+   !    Therefore, obs_set_current_header/body_list returns to the client an
+   !    additional pointer to the list itself.  This pointer must then be passed
+   !    as an optional parameter to obs_getHeader/BodyIndex.  When a new list is
+   !    requested by an OMP thread, the same physical memory is re-used for the
+   !    new list.
+   !
+   !    In order to ensure that the same physical memory is not initially
+   !    distributed to more than one OMP thread, the two small sections of
+   !    IndexListDepot_mod that accomplish this are marked omp-critical.
+   !
 
    implicit none
    save
    public
 
    ! methods
-   public :: ild_initialize, ild_finalize
-   public :: ild_get_empty_index_list, ild_get_next_index
+   public :: ild_initialize             ! initialize a list depot
+   public :: ild_finalize               ! finalize a list depot
+   public :: ild_get_empty_index_list   ! return a pointer to an initialized list
+   public :: ild_get_next_index         ! return the next element in the list
 
    interface ild_get_next_index
       module procedure ild_get_next_index_depot
@@ -29,14 +88,18 @@ module IndexListDepot_mod
    type struct_index_list
       ! a list of integers, not to say indices into a struct_obs
       character(len=2) :: family        ! current_element's belong to this family
-      ! Used only for a body list:
+                                        ! Used only for a body list:
       integer :: header                 ! current_element's belong to this header
       integer :: current_element        ! the element that has just been returned
 
                                         ! the actual list of integers
-                                        ! N.B.:  that which is an index to a
-                                        !        client of this module is an
-                                        !        element to this module
+                                        ! N.B.:  These are the indices that are
+                                        !        being held for the client.
+                                        !        In the context of this module,
+                                        !        these are elements; i.e.
+                                        !        indices(current_element) is the
+                                        !        last indices that was returned
+                                        !        to the client.
       integer, dimension(:), allocatable :: indices
    end type struct_index_list
 
@@ -53,9 +116,10 @@ module IndexListDepot_mod
 contains
    subroutine ild_initialize(depot, numHeaderBody_max)
       ! Initialize the indicated list depot
-      !    indices allocated with 2 extra elements to be consistent
-      !    with obs_set_current_header/body_list
+      ! NOTE:  indices is allocated with 2 extra elements to make room for the
+      !        end-of-list flag that is set in obs_set_current_header/body_list
       implicit none
+                                        ! the depot to be initialized
       type(struct_index_list_depot), intent(inout) :: depot
                                         ! max size of header or body of
                                         ! struct_obs & hence of depot
@@ -79,6 +143,7 @@ contains
    subroutine ild_finalize(depot)
       ! Finalize the indicated list depot
       implicit none
+                                        ! the depot to be finalized
       type(struct_index_list_depot), intent(inout) :: depot
 
       integer :: list                   ! an index
@@ -101,9 +166,16 @@ contains
       !
       ! In other words, clear data from the (cyclicly) next (i.e. oldest) list
       ! and return a pointer to it.
+      !
+      ! If the list is being used within an OMP block, the ObsSpaceData client is
+      ! responsible for holding a pointer to its own list.  This is supplied as
+      ! the parameter, private_list.
       implicit none
+                                        ! the returned list
       type(struct_index_list), pointer :: empty_index_list
+                                        ! the depot containing the list
       type(struct_index_list_depot), intent(inout), target :: depot
+                                        ! used instead of depot (for OMP blocks)
       type(struct_index_list), pointer, intent(inout), optional :: private_list
 
       nullify(empty_index_list)
@@ -143,10 +215,12 @@ contains
       ! From the given depot, increment the index to the current element, and
       ! return the element itself, the new current element.
       implicit none
-      integer :: next_index
+      integer :: next_index             ! the returned index
+
+                                        ! the depot containing the list
       type(struct_index_list_depot), intent(inout), target :: depot
-                                        ! Do not increment current_element,
-                                        ! just return the next one
+                                        ! if present, do not increment
+                                        ! current_element, just return next one
       logical, intent(in), optional :: no_advance
 
                                         ! current list of the depot
@@ -172,10 +246,12 @@ contains
       ! From the given list, increment the index to the current element, and
       ! return the element itself, the new current element.
       implicit none
-      integer :: next_index
+      integer :: next_index             ! the returned index
+
+                                        ! the list of interest
       type(struct_index_list), pointer, intent(inout) :: private_list
-                                        ! Do not increment current_element,
-                                        ! just return the next one
+                                        ! if present, do not increment
+                                        ! current_element, just return next one
       logical, intent(in), optional :: no_advance
 
       integer :: next_element           ! next element of the list
@@ -310,9 +386,6 @@ contains
             call odc_abort('ODC_ALLOCATE: unknown data type. type=' // dataType)
          endif
       endif
-      write(*,*) 'ODC_ALLOCATE: name=',odc%name,', dataType=',odc%dataType, &
-                 ', headOrBody=',odc%headOrBody,', twoD=',odc%twoD, &
-                 ', numRows=',numRows
 
    end subroutine odc_allocate
 
@@ -346,8 +419,6 @@ contains
          deallocate(odc%value2d_r)
          nullify(odc%value2d_r)
       endif
-      write(*,*) 'ODC_DEALLOCATE: name=',odc%name,', dataType=',odc%dataType, &
-                 ', headOrBody=',odc%headOrBody,', twoD=',odc%twoD
 
    end subroutine odc_deallocate
 
@@ -490,13 +561,15 @@ module obsSpaceData_mod
       integer, pointer, dimension(:) :: headerIndex_mpiglobal,bodyIndex_mpiglobal
 
       logical :: mpi_local       ! T: keep only data needed by this PE (mpilocal)
-      integer :: datestamp
+      integer :: datestamp              ! window centre of analysis validity
    end type struct_obs
 
    !
    ! INTEGER-HEADER COLUMN NUMBERS
    !  
    ! the first column index for integer header variables defined below
+   ! (chosen such that every column number is unique, so that a mismatch between
+   !  a column number and a column type (real, int, head, body) can be detected)
    integer, parameter :: NHDR_INT_BEG = 1 
    integer, parameter, public :: OBS_RLN = NHDR_INT_BEG ! report location
                                              ! unique(within obsdat), possibly
@@ -506,8 +579,8 @@ module obsSpaceData_mod
    integer, parameter, public :: OBS_ITY = OBS_OTP+1 ! code: instrument & retrieval type
    integer, parameter, public :: OBS_SAT = OBS_ITY+1 ! satellite code 
    integer, parameter, public :: OBS_TEC = OBS_SAT+1 ! satellite processing technique
-   integer, parameter, public :: OBS_DAT = OBS_TEC+1 ! date YYYYMMD
-   integer, parameter, public :: OBS_ETM = OBS_DAT+1 ! time HHMM
+   integer, parameter, public :: OBS_DAT = OBS_TEC+1 ! observation date YYYYMMD
+   integer, parameter, public :: OBS_ETM = OBS_DAT+1 ! observation time HHMM
    integer, parameter, public :: OBS_NLV = OBS_ETM+1 ! number of data at this location
    integer, parameter, public :: OBS_OFL = OBS_NLV+1 ! report status events
    integer, parameter, public :: OBS_PAS = OBS_OFL+1 ! batch no. in sequential analysis
@@ -534,6 +607,8 @@ module obsSpaceData_mod
    ! REAL-HEADER COLUMN NUMBERS
    !
    ! the first column index for real header variables defined below
+   ! (chosen such that every column number is unique, so that a mismatch between
+   !  a column number and a column type (real, int, head, body) can be detected)
    integer, parameter :: NHDR_REAL_BEG = 101
    integer, parameter, public :: OBS_LAT = NHDR_REAL_BEG ! latitude  in radians (N positive)
    integer, parameter, public :: OBS_LON = OBS_LAT+1 ! longitude in radians (E positive)
@@ -553,6 +628,8 @@ module obsSpaceData_mod
    ! INTEGER-BODY COLUMN NUMBERS
    !
    ! the first column index for integer body variables defined below
+   ! (chosen such that every column number is unique, so that a mismatch between
+   !  a column number and a column type (real, int, head, body) can be detected)
    integer, parameter :: NBDY_INT_BEG = 201
    integer, parameter, public :: OBS_VNM = NBDY_INT_BEG ! variable number
    integer, parameter, public :: OBS_FLG = OBS_VNM+1  ! flags
@@ -576,6 +653,8 @@ module obsSpaceData_mod
    ! REAL-BODY COLUMN NUMBERS
    !
    ! the first column index for real body variables defined below
+   ! (chosen such that every column number is unique, so that a mismatch between
+   !  a column number and a column type (real, int, head, body) can be detected)
    integer, parameter :: NBDY_REAL_BEG = 301
    integer, parameter, public :: OBS_PPP = NBDY_REAL_BEG ! Pressure (vertical coordinate)
    integer, parameter, public :: OBS_SEM = OBS_PPP +1 ! surface emissivity
@@ -632,6 +711,9 @@ contains
 
       if(.not.obs_columnActive_IH(column_index)) then
          obs_columnActive_IH(column_index) = .true.
+         write(*,*) 'obs_activateColumn_IH: name=', &
+                                           obs_ColumnNameList_IH(column_index), &
+                    ', dataType=INT , headOrBody=HEAD'
       else
          write(message,*)'OBS_activateColumn_IH: column, ', column_index, &
                          ', is already active!'
@@ -656,6 +738,9 @@ contains
 
       if(.not.obs_columnActive_RH(column_index)) then
          obs_columnActive_RH(column_index) = .true.
+         write(*,*) 'obs_activateColumn_RH: name=', &
+                                           obs_ColumnNameList_RH(column_index), &
+                    ', dataType=REAL, headOrBody=HEAD'
       else
          write(message,*)'OBS_activateColumn_RH: column, ', column_index, &
                          ', is already active!'
@@ -680,6 +765,9 @@ contains
 
       if(.not.obs_columnActive_IB(column_index)) then
          obs_columnActive_IB(column_index) = .true.
+         write(*,*) 'obs_activateColumn_IB: name=', &
+                                           obs_ColumnNameList_IB(column_index), &
+                    ', dataType=INT , headOrBody=BODY'
       else
          write(message,*)'OBS_activateColumn_IB: column, ', column_index, &
                          ', is already active!'
@@ -704,6 +792,9 @@ contains
 
       if(.not.obs_columnActive_RB(column_index)) then
          obs_columnActive_RB(column_index) = .true.
+         write(*,*) 'obs_activateColumn_RB: name=', &
+                                           obs_ColumnNameList_RB(column_index), &
+                    ', dataType=REAL, headOrBody=BODY'
       else
          write(message,*)'OBS_activateColumn_RB: column, ', column_index, &
                          ', is already active!'
@@ -1769,8 +1860,9 @@ contains
                var3d=0
             endif
 
-            ! To remove channels assimilated by 4D_var but flagged to
-            ! be 0 in stats_tovs (obs_zha=-1 in OBSDAT BDY)
+            ! To remove observations for which the height in the atmosphere has
+            ! not been assigned (for instance because they are above the model
+            ! top for the EnKF system)
             if (obsdat%robdata(OBS_ZHA)%value_r(jdata) .lt. 0.) then
                obsdat%mobdata(OBS_ASS)%value_i(jdata)=-1
             endif
@@ -3399,6 +3491,7 @@ contains
       integer :: nulnam,fnom,fclos,ierr
       integer :: nmxobs,ndatamx
       namelist /namdimo/nmxobs,ndatamx
+      character(len=120) :: message
 
       if(.not. obs_class_initialized) then
          call obs_abort('obs_class_initialize must be called before ' // &
@@ -3407,7 +3500,7 @@ contains
       end if
 
       !
-      ! INITIALIZE ALL VARIABLES
+      ! INITIALIZE ALL OBJECT VARIABLES
       !
       nullify(obsdat%cstnid)
       nullify(obsdat%cfamily)
@@ -3431,7 +3524,7 @@ contains
       obsdat%datestamp     = 0
 
       !
-      ! DETERMINE THE ARRAY DIMENSIONS AND ALLOCATE
+      ! DETERMINE THE ARRAY DIMENSIONS
       !
       if(present(numHeader_max)) then
          ! numBody_max is necessarily also present
@@ -3439,17 +3532,34 @@ contains
          ndatamx = numBody_max
 
       else
-         nmxobs=30000                   ! These default values will be used
-         ndatamx=200000                 ! if values are not supplied
+         ! Initialize with bad values
+         nmxobs=0
+         ndatamx=0
 
+         ! Open the file, flnml
          nulnam=0
          ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+         if(ierr < 0) then
+            write(message,*)'Failed to open flnml to obtain nmxobs and ndatamx:'&
+                            // '  ierr=', ierr
+            call obs_abort(message); return
+         end if
+
+         ! Read the dimensions from a namelist
          read(nulnam,nml=namdimo,iostat=ierr)
-         write(*,*) 'obs_initialize: reading namelist, ierr=',ierr
          write(*,nml=namdimo)
          ierr=fclos(nulnam)
-      end if
+         ! Verify that the namelist contained values
+         if(nmxobs <= 0 .or. ndatamx <= 0) then
+            write(message,*)'From file, flnml, positive values were not ' &
+                            // 'obtained for nmxobs or ndatamx:  ',nmxobs,ndatamx
+            call obs_abort(message); return
+         end if
+      end if ! present(numHeader_max)
 
+      !
+      ! ALLOCATE
+      !
       call obs_allocate(obsdat, nmxobs, ndatamx)
 
       return
@@ -4453,7 +4563,7 @@ contains
          index_list%header = -99        ! not used
 
          !
-         ! Populate the li-st
+         ! Populate the list
          !
 
          ! Loop over all header indices of the family

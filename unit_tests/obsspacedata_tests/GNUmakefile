@@ -85,6 +85,7 @@ tests: $(EXECUTABLE)
 	@echo ". s.ssmuse.dot mpich2" > runit.ksh
 	@echo "set -ex" >> runit.ksh
 	@echo "cd `pwd`" >> runit.ksh
+	@echo "rm -f flnml" >> runit.ksh
 	@echo "export NEW_PFUNIT=test_obs.x" >> runit.ksh
 	@echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/TestObsSpace_data" >> runit.ksh
 	@echo "r.mpirun2 -npex $(CPUS) -pgm ./test_obs.x" >> runit.ksh
