@@ -114,32 +114,6 @@ module IndexListDepot_mod
 
 
 contains
-   subroutine ild_initialize(depot, numHeaderBody_max)
-      ! Initialize the indicated list depot
-      ! NOTE:  indices is allocated with 2 extra elements to make room for the
-      !        end-of-list flag that is set in obs_set_current_header/body_list
-      implicit none
-                                        ! the depot to be initialized
-      type(struct_index_list_depot), intent(inout) :: depot
-                                        ! max size of header or body of
-                                        ! struct_obs & hence of depot
-      integer, intent(in) :: numHeaderBody_max
-
-      integer :: list                   ! an index
-
-      ! Allocate each list
-      do list = 1,NUMBER_OF_LISTS
-         depot%index_lists(list)%family = 'xx'
-         depot%index_lists(list)%header = 0
-         depot%index_lists(list)%current_element = 0
-         allocate(depot%index_lists(list)%indices(numHeaderBody_max+2))
-         depot%index_lists(list)%indices(:)=0
-      end do
-      depot%list_last_attributed = 0
-      nullify(depot%current_list)
-   end subroutine ild_initialize
-
-
    subroutine ild_finalize(depot)
       ! Finalize the indicated list depot
       implicit none
@@ -265,6 +239,32 @@ contains
          private_list%current_element = next_element
       end if
    end function ild_get_next_index_private
+
+
+   subroutine ild_initialize(depot, numHeaderBody_max)
+      ! Initialize the indicated list depot
+      ! NOTE:  indices is allocated with 2 extra elements to make room for the
+      !        end-of-list flag that is set in obs_set_current_header/body_list
+      implicit none
+                                        ! the depot to be initialized
+      type(struct_index_list_depot), intent(inout) :: depot
+                                        ! max size of header or body of
+                                        ! struct_obs & hence of depot
+      integer, intent(in) :: numHeaderBody_max
+
+      integer :: list                   ! an index
+
+      ! Allocate each list
+      do list = 1,NUMBER_OF_LISTS
+         depot%index_lists(list)%family = 'xx'
+         depot%index_lists(list)%header = 0
+         depot%index_lists(list)%current_element = 0
+         allocate(depot%index_lists(list)%indices(numHeaderBody_max+2))
+         depot%index_lists(list)%indices(:)=0
+      end do
+      depot%list_last_attributed = 0
+      nullify(depot%current_list)
+   end subroutine ild_initialize
 
 end module IndexListDepot_mod
 
@@ -451,10 +451,10 @@ module obsSpaceData_mod
    public obs_bodySet_r  ! set a real body value in the observation object
    public obs_class_initialize ! initialize class variables: column mode
    public obs_clean      ! remove from obs data those that not to be assimilated
-   public obs_columnIndexFromName_IH ! get the name from the index
-   public obs_columnIndexFromName_RH ! get the name from the index
    public obs_columnIndexFromName_IB ! get the name from the index
-   public obs_columnIndexFromName_RB ! get the name from the index
+   public obs_columnIndexFromName_IH !         "
+   public obs_columnIndexFromName_RB !         "
+   public obs_columnIndexFromName_RH !         "
    public obs_comm       ! communicate header and body info between mpi processes
    public obs_copy       ! copy an obsdat object
    public obs_count_headers ! count the stations and observations in the object
@@ -480,13 +480,13 @@ module obsSpaceData_mod
    public obs_initialize ! variable initialization
    public obs_mpiLocal   ! obtain the current mpi state of the observation object
    public obs_numBody    ! returns the number of bodies recorded
-   public obs_numBody_mpiglobal ! returns mpi-global number of bodies recorded
 ! Should obs_numBody_max be private, once brpacma and cmaabrp are gone?
    public obs_numBody_max! returns the dimensioned number of bodies
+   public obs_numBody_mpiglobal ! returns mpi-global number of bodies recorded
    public obs_numHeader  ! returns the number of headers recorded
-   public obs_numHeader_mpiglobal ! returns mpi-global number of headers recorded
 ! Should obs_numHeader_max be private, once brpacma and cmaabrp are gone?
    public obs_numHeader_max ! returns the dimensioned number of headers
+   public obs_numHeader_mpiglobal ! returns mpi-global number of headers recorded
    public obs_order      ! put obs data in the order required for assimilation
    public obs_print      ! obs_enkf_prnthdr & obs_enkf_prntbdy for each station
    public obs_prnt_csv   ! call obs_tosqlhdr and obs_tosqlbdy for each station
@@ -509,10 +509,26 @@ module obsSpaceData_mod
 
    ! PRIVATE METHODS:
    private obs_abort     ! abort a job on error
+   private obs_activateColumn_IB    ! activate a column
+   private obs_activateColumn_IH    ! activate a column
+   private obs_activateColumn_RB    ! activate a column
+   private obs_activateColumn_RH    ! activate a column
+   private obs_activeIndexFromColumnIndex_IB ! return active index given column
+   private obs_activeIndexFromColumnIndex_IH !    "
+   private obs_activeIndexFromColumnIndex_RB !    "
+   private obs_activeIndexFromColumnIndex_RH !    "
    private obs_allocate  ! array allocation
+   private obs_columnIndexFromActiveIndex_IB ! return column given active index
+   private obs_columnIndexFromActiveIndex_IH !    "
+   private obs_columnIndexFromActiveIndex_RB !    "
+   private obs_columnIndexFromActiveIndex_RH !    "
    private obs_deallocate! array de-allocation
    private obs_exchange_stations    ! exchange the headers of stations j and k
    private obs_mpiDistributeIndices ! distribute header & body indices for mpi parallelization
+   private obs_numActiveColumn_IB   ! return the number of active columns
+   private obs_numActiveColumn_IH   !   "
+   private obs_numActiveColumn_RB   !   "
+   private obs_numActiveColumn_RH   !   "
    private obs_tosqlbdy  ! write the observation data in comma-separated format
    private obs_tosqlhdr  ! write the observation header in comma-separated format
    private obs_write_bdy ! write the observation data to binary files
@@ -697,445 +713,6 @@ module obsSpaceData_mod
 
 contains
 
-   !---------------------------------------------------------!
-   ! Private methods related to dynamic use of obsDataColumn !
-   !---------------------------------------------------------!
-
-   ! Four methods for activating a column:
-
-   subroutine obs_activateColumn_IH(column_index)
-      implicit none
-      integer, intent(in) :: column_index
-      integer :: active_index, dummy_index
-      character(len=100) :: message
-
-      if(.not.obs_columnActive_IH(column_index)) then
-         obs_columnActive_IH(column_index) = .true.
-         write(*,*) 'obs_activateColumn_IH: name=', &
-                                           obs_ColumnNameList_IH(column_index), &
-                    ', dataType=INT , headOrBody=HEAD'
-      else
-         write(message,*)'OBS_activateColumn_IH: column, ', column_index, &
-                         ', is already active!'
-         call obs_abort(message)
-      endif
-
-      ! force the recalculation of indices to go between activeColumnIndex and
-      ! columnIndex
-      active_index=obs_activeIndexFromColumnIndex_IH(column_index, &
-                                                     recompute=.true.)
-      dummy_index=obs_columnIndexFromActiveIndex_IH(active_index, &
-                                                     recompute=.true.)
-
-   end subroutine obs_activateColumn_IH
-
-
-   subroutine obs_activateColumn_RH(column_index)
-      implicit none
-      integer, intent(in) :: column_index
-      integer :: active_index, dummy_index
-      character(len=100) :: message
-
-      if(.not.obs_columnActive_RH(column_index)) then
-         obs_columnActive_RH(column_index) = .true.
-         write(*,*) 'obs_activateColumn_RH: name=', &
-                                           obs_ColumnNameList_RH(column_index), &
-                    ', dataType=REAL, headOrBody=HEAD'
-      else
-         write(message,*)'OBS_activateColumn_RH: column, ', column_index, &
-                         ', is already active!'
-         call obs_abort(message)
-      endif
-
-      ! force the recalculation of indices to go between activeColumnIndex and
-      ! columnIndex
-      active_index=obs_activeIndexFromColumnIndex_RH(column_index, &
-                                                     recompute=.true.)
-      dummy_index=obs_columnIndexFromActiveIndex_RH(active_index, &
-                                                     recompute=.true.)
-
-   end subroutine obs_activateColumn_RH
-
-
-   subroutine obs_activateColumn_IB(column_index)
-      implicit none
-      integer, intent(in) :: column_index
-      integer :: active_index, dummy_index
-      character(len=100) :: message
-
-      if(.not.obs_columnActive_IB(column_index)) then
-         obs_columnActive_IB(column_index) = .true.
-         write(*,*) 'obs_activateColumn_IB: name=', &
-                                           obs_ColumnNameList_IB(column_index), &
-                    ', dataType=INT , headOrBody=BODY'
-      else
-         write(message,*)'OBS_activateColumn_IB: column, ', column_index, &
-                         ', is already active!'
-         call obs_abort(message)
-      endif
-
-      ! force the recalculation of indices to go between activeColumnIndex and
-      ! columnIndex
-      active_index=obs_activeIndexFromColumnIndex_IB(column_index, &
-                                                     recompute=.true.)
-      dummy_index=obs_columnIndexFromActiveIndex_IB(active_index, &
-                                                     recompute=.true.)
-
-   end subroutine obs_activateColumn_IB
-
-
-   subroutine obs_activateColumn_RB(column_index)
-      implicit none
-      integer, intent(in) :: column_index
-      integer :: active_index, dummy_index
-      character(len=100) :: message
-
-      if(.not.obs_columnActive_RB(column_index)) then
-         obs_columnActive_RB(column_index) = .true.
-         write(*,*) 'obs_activateColumn_RB: name=', &
-                                           obs_ColumnNameList_RB(column_index), &
-                    ', dataType=REAL, headOrBody=BODY'
-      else
-         write(message,*)'OBS_activateColumn_RB: column, ', column_index, &
-                         ', is already active!'
-         call obs_abort(message)
-      endif
-
-      ! force the recalculation of indices to go between activeColumnIndex and
-      ! columnIndex
-      active_index=obs_activeIndexFromColumnIndex_RB(column_index, &
-                                                     recompute=.true.)
-      dummy_index=obs_columnIndexFromActiveIndex_RB(active_index, &
-                                                     recompute=.true.)
-
-   end subroutine obs_activateColumn_RB
-
-
-   ! Four methods for obtaining the number of active columns:
-
-   function obs_numActiveColumn_IH() result(numActiveColumn)
-      implicit none
-      integer :: numActiveColumn,column_index
-
-      numActiveColumn=0
-      do column_index=NHDR_INT_BEG,NHDR_INT_END
-         if(obs_columnActive_IH(column_index))  &
-            numActiveColumn=numActiveColumn+1
-      enddo
-      
-   end function obs_numActiveColumn_IH
-
-
-   function obs_numActiveColumn_RH() result(numActiveColumn)
-      implicit none
-      integer :: numActiveColumn,column_index
-
-      numActiveColumn=0
-      do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-         if(obs_columnActive_RH(column_index))  &
-            numActiveColumn=numActiveColumn+1
-      enddo
-      
-   end function obs_numActiveColumn_RH
-
-
-   function obs_numActiveColumn_IB() result(numActiveColumn)
-      implicit none
-      integer :: numActiveColumn,column_index
-
-      numActiveColumn=0
-      do column_index=NBDY_INT_BEG,NBDY_INT_END
-         if(obs_columnActive_IB(column_index))  &
-            numActiveColumn=numActiveColumn+1
-      enddo
-      
-   end function obs_numActiveColumn_IB
-
-
-   function obs_numActiveColumn_RB() result(numActiveColumn)
-      implicit none
-      integer :: numActiveColumn,column_index
-
-      numActiveColumn=0
-      do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-         if(obs_columnActive_RB(column_index))  &
-            numActiveColumn=numActiveColumn+1
-      enddo
-      
-   end function obs_numActiveColumn_RB
-
-
-   ! Four methods for obtaining the column index from the active index
-
-   function obs_columnIndexFromActiveIndex_IH(active_index_in,recompute) &
-                                                         result(column_index_out)
-      implicit none
-      integer :: active_index_in,active_index
-      integer :: column_index_out,column_index
-      logical, optional :: recompute
-      logical, save :: firstTime=.true.
-      integer, save :: columnIndexFromActiveIndex(NHDR_INT_END-NHDR_INT_BEG+1)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if(obs_columnActive_IH(column_index)) then
-               active_index=active_index+1
-               columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IH: test=', &
-               !           column_index,active_index
-            endif
-         enddo
-      endif
-
-      column_index_out=columnIndexFromActiveIndex(active_index_in)
-
-   end function obs_columnIndexFromActiveIndex_IH
-
-
-   function obs_columnIndexFromActiveIndex_RH(active_index_in,recompute) &
-                                                         result(column_index_out)
-      implicit none
-      integer :: active_index_in,active_index
-      integer :: column_index_out,column_index
-      logical, optional :: recompute
-      logical, save :: firstTime=.true.
-      integer, save :: columnIndexFromActiveIndex(NHDR_REAL_END-NHDR_REAL_BEG+1)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-            if(obs_columnActive_RH(column_index)) then
-               active_index=active_index+1
-               columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RH: test=', &
-               !           column_index,active_index
-            endif
-         enddo
-      endif
-
-      column_index_out=columnIndexFromActiveIndex(active_index_in)
-
-   end function obs_columnIndexFromActiveIndex_RH
-
-
-   function obs_columnIndexFromActiveIndex_IB(active_index_in,recompute) &
-                                                         result(column_index_out)
-      implicit none
-      integer :: active_index_in,active_index
-      integer :: column_index_out,column_index
-      logical, optional :: recompute
-      logical, save :: firstTime=.true.
-      integer, save :: columnIndexFromActiveIndex(NBDY_INT_END-NBDY_INT_BEG+1)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         do column_index=NBDY_INT_BEG,NBDY_INT_END
-            if(obs_columnActive_IB(column_index)) then
-               active_index=active_index+1
-               columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IB: test=', &
-               !           column_index,active_index
-            endif
-         enddo
-      endif
-
-      column_index_out=columnIndexFromActiveIndex(active_index_in)
-
-   end function obs_columnIndexFromActiveIndex_IB
-
-
-   function obs_columnIndexFromActiveIndex_RB(active_index_in,recompute) &
-                                                         result(column_index_out)
-      implicit none
-      integer :: active_index_in,active_index
-      integer :: column_index_out,column_index
-      logical, optional :: recompute
-      logical, save :: firstTime=.true.
-      integer, save :: columnIndexFromActiveIndex(NBDY_REAL_END-NBDY_REAL_BEG+1)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-            if(obs_columnActive_RB(column_index)) then
-               active_index=active_index+1
-               columnIndexFromActiveIndex(active_index)=column_index
-               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RB: test=', &
-               !           column_index,active_index
-            endif
-         enddo
-      endif
-
-      column_index_out=columnIndexFromActiveIndex(active_index_in)
-
-   end function obs_columnIndexFromActiveIndex_RB
-
-
-   ! Four methods for obtaining the active index from the column index
-
-   function obs_activeIndexFromColumnIndex_IH(column_index_in,recompute) &
-                                                         result(active_index_out)
-      implicit none
-      integer :: active_index_out,active_index
-      integer :: column_index_in,column_index
-      logical, optional :: recompute
-      logical :: lfound
-      logical, save :: firstTime=.true.
-      integer, save :: activeIndexFromColumnIndex(NHDR_INT_BEG:NHDR_INT_END)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         activeIndexFromColumnIndex(:)=-1
-         do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if(obs_columnActive_IH(column_index)) then
-               active_index=active_index+1
-               activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IH: test=', &
-               !           active_index,column_index
-            endif
-         enddo
-      endif
-
-      active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort( &
-            'OBS_activeIndexFromColumnIndex_IH: requested column is not active!')
-
-   end function obs_activeIndexFromColumnIndex_IH
-
-
-   function obs_activeIndexFromColumnIndex_RH(column_index_in,recompute) &
-                                                         result(active_index_out)
-      implicit none
-      integer :: active_index_out,active_index
-      integer :: column_index_in,column_index
-      logical, optional :: recompute
-      logical :: lfound
-      logical, save :: firstTime=.true.
-      integer, save :: activeIndexFromColumnIndex(NHDR_REAL_BEG:NHDR_REAL_END)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         activeIndexFromColumnIndex(:)=-1
-         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-            if(obs_columnActive_RH(column_index)) then
-               active_index=active_index+1
-               activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RH: test=', &
-               !           active_index,column_index
-            endif
-         enddo
-      endif
-
-      active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort( &
-            'OBS_activeIndexFromColumnIndex_RH: requested column is not active!')
-
-   end function obs_activeIndexFromColumnIndex_RH
-
-
-   function obs_activeIndexFromColumnIndex_IB(column_index_in,recompute) &
-                                                         result(active_index_out)
-      implicit none
-      integer :: active_index_out,active_index
-      integer :: column_index_in,column_index
-      logical, optional :: recompute
-      logical :: lfound
-      logical, save :: firstTime=.true.
-      integer, save :: activeIndexFromColumnIndex(NBDY_INT_BEG:NBDY_INT_END)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         activeIndexFromColumnIndex(:)=-1
-         do column_index=NBDY_INT_BEG,NBDY_INT_END
-            if(obs_columnActive_IB(column_index)) then
-               active_index=active_index+1
-               activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IB: test=', &
-               !           active_index,column_index
-            endif
-         enddo
-      endif
-
-      active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort( &
-            'OBS_activeIndexFromColumnIndex_IB: requested column is not active!')
-
-   end function obs_activeIndexFromColumnIndex_IB
-
-
-   function obs_activeIndexFromColumnIndex_RB(column_index_in,recompute) &
-                                                         result(active_index_out)
-      implicit none
-      integer :: active_index_out,active_index
-      integer :: column_index_in,column_index
-      logical, optional :: recompute
-      logical :: lfound
-      logical, save :: firstTime=.true.
-      integer, save :: activeIndexFromColumnIndex(NBDY_REAL_BEG:NBDY_REAL_END)
-
-      if(present(recompute)) then
-         if(recompute) firstTime=.true.
-      endif
-
-      if(firstTime) then
-         firstTime=.false.
-         active_index=0
-         activeIndexFromColumnIndex(:)=-1
-         do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-            if(obs_columnActive_RB(column_index)) then
-               active_index=active_index+1
-               activeIndexFromColumnIndex(column_index)=active_index
-               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RB: test=', &
-               !           active_index,column_index
-            endif
-         enddo
-      endif
-
-      active_index_out=activeIndexFromColumnIndex(column_index_in)
-      if(active_index_out.eq.-1) call obs_abort( &
-            'OBS_activeIndexFromColumnIndex_RB: requested column is not active!')
-
-   end function obs_activeIndexFromColumnIndex_RB
-
-   !----------------------------------------------------------------!
-   ! End of private methods related to dynamic use of obsDataColumn !
-   !----------------------------------------------------------------!
-
 
    subroutine obs_abort(cdmessage)
       ! s/r OBS_ABORT  - Abort a job on error
@@ -1176,6 +753,257 @@ contains
       stop
 #endif
    end subroutine obs_abort
+
+
+   ! Four methods for activating a column:
+
+   subroutine obs_activateColumn_IB(column_index)
+      implicit none
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
+
+      if(.not.obs_columnActive_IB(column_index)) then
+         obs_columnActive_IB(column_index) = .true.
+         write(*,*) 'obs_activateColumn_IB: name=', &
+                                           obs_ColumnNameList_IB(column_index), &
+                    ', dataType=INT , headOrBody=BODY'
+      else
+         write(message,*)'OBS_activateColumn_IB: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
+      endif
+
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_IB(column_index, &
+                                                     recompute=.true.)
+      dummy_index=obs_columnIndexFromActiveIndex_IB(active_index, &
+                                                     recompute=.true.)
+
+   end subroutine obs_activateColumn_IB
+
+   subroutine obs_activateColumn_IH(column_index)
+      implicit none
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
+
+      if(.not.obs_columnActive_IH(column_index)) then
+         obs_columnActive_IH(column_index) = .true.
+         write(*,*) 'obs_activateColumn_IH: name=', &
+                                           obs_ColumnNameList_IH(column_index), &
+                    ', dataType=INT , headOrBody=HEAD'
+      else
+         write(message,*)'OBS_activateColumn_IH: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
+      endif
+
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_IH(column_index, &
+                                                     recompute=.true.)
+      dummy_index=obs_columnIndexFromActiveIndex_IH(active_index, &
+                                                     recompute=.true.)
+
+   end subroutine obs_activateColumn_IH
+
+
+   subroutine obs_activateColumn_RB(column_index)
+      implicit none
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
+
+      if(.not.obs_columnActive_RB(column_index)) then
+         obs_columnActive_RB(column_index) = .true.
+         write(*,*) 'obs_activateColumn_RB: name=', &
+                                           obs_ColumnNameList_RB(column_index), &
+                    ', dataType=REAL, headOrBody=BODY'
+      else
+         write(message,*)'OBS_activateColumn_RB: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
+      endif
+
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_RB(column_index, &
+                                                     recompute=.true.)
+      dummy_index=obs_columnIndexFromActiveIndex_RB(active_index, &
+                                                     recompute=.true.)
+
+   end subroutine obs_activateColumn_RB
+
+
+   subroutine obs_activateColumn_RH(column_index)
+      implicit none
+      integer, intent(in) :: column_index
+      integer :: active_index, dummy_index
+      character(len=100) :: message
+
+      if(.not.obs_columnActive_RH(column_index)) then
+         obs_columnActive_RH(column_index) = .true.
+         write(*,*) 'obs_activateColumn_RH: name=', &
+                                           obs_ColumnNameList_RH(column_index), &
+                    ', dataType=REAL, headOrBody=HEAD'
+      else
+         write(message,*)'OBS_activateColumn_RH: column, ', column_index, &
+                         ', is already active!'
+         call obs_abort(message)
+      endif
+
+      ! force the recalculation of indices to go between activeColumnIndex and
+      ! columnIndex
+      active_index=obs_activeIndexFromColumnIndex_RH(column_index, &
+                                                     recompute=.true.)
+      dummy_index=obs_columnIndexFromActiveIndex_RH(active_index, &
+                                                     recompute=.true.)
+
+   end subroutine obs_activateColumn_RH
+
+
+   ! Four methods for obtaining the active index from the column index
+
+
+   function obs_activeIndexFromColumnIndex_IB(column_index_in,recompute) &
+                                                         result(active_index_out)
+      implicit none
+      integer :: active_index_out,active_index
+      integer :: column_index_in,column_index
+      logical, optional :: recompute
+      logical :: lfound
+      logical, save :: firstTime=.true.
+      integer, save :: activeIndexFromColumnIndex(NBDY_INT_BEG:NBDY_INT_END)
+
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
+
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         activeIndexFromColumnIndex(:)=-1
+         do column_index=NBDY_INT_BEG,NBDY_INT_END
+            if(obs_columnActive_IB(column_index)) then
+               active_index=active_index+1
+               activeIndexFromColumnIndex(column_index)=active_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IB: test=', &
+               !           active_index,column_index
+            endif
+         enddo
+      endif
+
+      active_index_out=activeIndexFromColumnIndex(column_index_in)
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_IB: requested column is not active!')
+
+   end function obs_activeIndexFromColumnIndex_IB
+
+   function obs_activeIndexFromColumnIndex_IH(column_index_in,recompute) &
+                                                         result(active_index_out)
+      implicit none
+      integer :: active_index_out,active_index
+      integer :: column_index_in,column_index
+      logical, optional :: recompute
+      logical :: lfound
+      logical, save :: firstTime=.true.
+      integer, save :: activeIndexFromColumnIndex(NHDR_INT_BEG:NHDR_INT_END)
+
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
+
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         activeIndexFromColumnIndex(:)=-1
+         do column_index=NHDR_INT_BEG,NHDR_INT_END
+            if(obs_columnActive_IH(column_index)) then
+               active_index=active_index+1
+               activeIndexFromColumnIndex(column_index)=active_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_IH: test=', &
+               !           active_index,column_index
+            endif
+         enddo
+      endif
+
+      active_index_out=activeIndexFromColumnIndex(column_index_in)
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_IH: requested column is not active!')
+
+   end function obs_activeIndexFromColumnIndex_IH
+
+
+   function obs_activeIndexFromColumnIndex_RB(column_index_in,recompute) &
+                                                         result(active_index_out)
+      implicit none
+      integer :: active_index_out,active_index
+      integer :: column_index_in,column_index
+      logical, optional :: recompute
+      logical :: lfound
+      logical, save :: firstTime=.true.
+      integer, save :: activeIndexFromColumnIndex(NBDY_REAL_BEG:NBDY_REAL_END)
+
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
+
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         activeIndexFromColumnIndex(:)=-1
+         do column_index=NBDY_REAL_BEG,NBDY_REAL_END
+            if(obs_columnActive_RB(column_index)) then
+               active_index=active_index+1
+               activeIndexFromColumnIndex(column_index)=active_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RB: test=', &
+               !           active_index,column_index
+            endif
+         enddo
+      endif
+
+      active_index_out=activeIndexFromColumnIndex(column_index_in)
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_RB: requested column is not active!')
+
+   end function obs_activeIndexFromColumnIndex_RB
+
+
+   function obs_activeIndexFromColumnIndex_RH(column_index_in,recompute) &
+                                                         result(active_index_out)
+      implicit none
+      integer :: active_index_out,active_index
+      integer :: column_index_in,column_index
+      logical, optional :: recompute
+      logical :: lfound
+      logical, save :: firstTime=.true.
+      integer, save :: activeIndexFromColumnIndex(NHDR_REAL_BEG:NHDR_REAL_END)
+
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
+
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         activeIndexFromColumnIndex(:)=-1
+         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
+            if(obs_columnActive_RH(column_index)) then
+               active_index=active_index+1
+               activeIndexFromColumnIndex(column_index)=active_index
+               !write(*,*) 'OBS_ACTIVEINDEXFROMCOLUMNINDEX_RH: test=', &
+               !           active_index,column_index
+            endif
+         enddo
+      endif
+
+      active_index_out=activeIndexFromColumnIndex(column_index_in)
+      if(active_index_out.eq.-1) call obs_abort( &
+            'OBS_activeIndexFromColumnIndex_RH: requested column is not active!')
+
+   end function obs_activeIndexFromColumnIndex_RH
 
 
    subroutine obs_allocate(obsdat, numHeader_max, numBody_max)
@@ -1912,46 +1740,129 @@ contains
    end subroutine obs_clean
 
 
-   function obs_columnIndexFromName_IH(column_name) result(column_index)
+   ! Four methods for obtaining the column index from the active index
+
+   function obs_columnIndexFromActiveIndex_IB(active_index_in,recompute) &
+                                                         result(column_index_out)
       implicit none
-      integer :: column_index
-      character(len=*) :: column_name
-      logical :: lfound
+      integer :: active_index_in,active_index
+      integer :: column_index_out,column_index
+      logical, optional :: recompute
+      logical, save :: firstTime=.true.
+      integer, save :: columnIndexFromActiveIndex(NBDY_INT_END-NBDY_INT_BEG+1)
 
-      lfound=.false.
-      do column_index=NHDR_INT_BEG,NHDR_INT_END
-         if(trim(column_name).eq.trim(obs_ColumnNameList_IH(column_index))) then
-            lfound=.true.          
-            exit
-         endif
-      enddo
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
 
-      if(.not.lfound) &
-         call obs_abort('obs_columnIndexFromName_IH: name not found=' &
-                        // column_name); return
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         do column_index=NBDY_INT_BEG,NBDY_INT_END
+            if(obs_columnActive_IB(column_index)) then
+               active_index=active_index+1
+               columnIndexFromActiveIndex(active_index)=column_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IB: test=', &
+               !           column_index,active_index
+            endif
+         enddo
+      endif
 
-   end function obs_columnIndexFromName_IH
+      column_index_out=columnIndexFromActiveIndex(active_index_in)
 
+   end function obs_columnIndexFromActiveIndex_IB
 
-   function obs_columnIndexFromName_RH(column_name) result(column_index)
+   function obs_columnIndexFromActiveIndex_IH(active_index_in,recompute) &
+                                                         result(column_index_out)
       implicit none
-      integer :: column_index
-      character(len=*) :: column_name
-      logical :: lfound
+      integer :: active_index_in,active_index
+      integer :: column_index_out,column_index
+      logical, optional :: recompute
+      logical, save :: firstTime=.true.
+      integer, save :: columnIndexFromActiveIndex(NHDR_INT_END-NHDR_INT_BEG+1)
 
-      lfound=.false.
-      do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-         if(trim(column_name).eq.trim(obs_ColumnNameList_RH(column_index))) then
-            lfound=.true.          
-            exit
-         endif
-      enddo
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
 
-      if(.not.lfound) &
-         call obs_abort('obs_columnIndexFromName_RH: name not found=' &
-                        // column_name); return
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         do column_index=NHDR_INT_BEG,NHDR_INT_END
+            if(obs_columnActive_IH(column_index)) then
+               active_index=active_index+1
+               columnIndexFromActiveIndex(active_index)=column_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_IH: test=', &
+               !           column_index,active_index
+            endif
+         enddo
+      endif
 
-   end function obs_columnIndexFromName_RH
+      column_index_out=columnIndexFromActiveIndex(active_index_in)
+
+   end function obs_columnIndexFromActiveIndex_IH
+
+
+   function obs_columnIndexFromActiveIndex_RB(active_index_in,recompute) &
+                                                         result(column_index_out)
+      implicit none
+      integer :: active_index_in,active_index
+      integer :: column_index_out,column_index
+      logical, optional :: recompute
+      logical, save :: firstTime=.true.
+      integer, save :: columnIndexFromActiveIndex(NBDY_REAL_END-NBDY_REAL_BEG+1)
+
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
+
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         do column_index=NBDY_REAL_BEG,NBDY_REAL_END
+            if(obs_columnActive_RB(column_index)) then
+               active_index=active_index+1
+               columnIndexFromActiveIndex(active_index)=column_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RB: test=', &
+               !           column_index,active_index
+            endif
+         enddo
+      endif
+
+      column_index_out=columnIndexFromActiveIndex(active_index_in)
+
+   end function obs_columnIndexFromActiveIndex_RB
+
+
+   function obs_columnIndexFromActiveIndex_RH(active_index_in,recompute) &
+                                                         result(column_index_out)
+      implicit none
+      integer :: active_index_in,active_index
+      integer :: column_index_out,column_index
+      logical, optional :: recompute
+      logical, save :: firstTime=.true.
+      integer, save :: columnIndexFromActiveIndex(NHDR_REAL_END-NHDR_REAL_BEG+1)
+
+      if(present(recompute)) then
+         if(recompute) firstTime=.true.
+      endif
+
+      if(firstTime) then
+         firstTime=.false.
+         active_index=0
+         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
+            if(obs_columnActive_RH(column_index)) then
+               active_index=active_index+1
+               columnIndexFromActiveIndex(active_index)=column_index
+               !write(*,*) 'OBS_COLUMNINDEXFROMACTIVEINDEX_RH: test=', &
+               !           column_index,active_index
+            endif
+         enddo
+      endif
+
+      column_index_out=columnIndexFromActiveIndex(active_index_in)
+
+   end function obs_columnIndexFromActiveIndex_RH
 
 
    function obs_columnIndexFromName_IB(column_name) result(column_index)
@@ -1975,6 +1886,27 @@ contains
    end function obs_columnIndexFromName_IB
 
 
+   function obs_columnIndexFromName_IH(column_name) result(column_index)
+      implicit none
+      integer :: column_index
+      character(len=*) :: column_name
+      logical :: lfound
+
+      lfound=.false.
+      do column_index=NHDR_INT_BEG,NHDR_INT_END
+         if(trim(column_name).eq.trim(obs_ColumnNameList_IH(column_index))) then
+            lfound=.true.          
+            exit
+         endif
+      enddo
+
+      if(.not.lfound) &
+         call obs_abort('obs_columnIndexFromName_IH: name not found=' &
+                        // column_name); return
+
+   end function obs_columnIndexFromName_IH
+
+
    function obs_columnIndexFromName_RB(column_name) result(column_index)
       implicit none
       integer :: column_index
@@ -1994,6 +1926,27 @@ contains
                         // column_name); return
 
    end function obs_columnIndexFromName_RB
+
+
+   function obs_columnIndexFromName_RH(column_name) result(column_index)
+      implicit none
+      integer :: column_index
+      character(len=*) :: column_name
+      logical :: lfound
+
+      lfound=.false.
+      do column_index=NHDR_REAL_BEG,NHDR_REAL_END
+         if(trim(column_name).eq.trim(obs_ColumnNameList_RH(column_index))) then
+            lfound=.true.          
+            exit
+         endif
+      enddo
+
+      if(.not.lfound) &
+         call obs_abort('obs_columnIndexFromName_RH: name not found=' &
+                        // column_name); return
+
+   end function obs_columnIndexFromName_RH
 
 
    subroutine obs_comm(obsdat,myip,nens,nstncom,hx)
@@ -3221,16 +3174,6 @@ contains
    end function obs_getFamily
 
 
-   function obs_getHeaderIndex(obsdat) result(index)
-      ! Return the next element from the current header list
-      implicit none
-      integer :: index
-      type(struct_obs), intent(inout) :: obsdat
-
-      index = ild_get_next_index(obsdat%header_index_list_depot)
-   end function obs_getHeaderIndex
-
-
    function obs_headElem_i(obsdat,column_index,index) result(value)
       !func obs_headElem_i - Get an integer-valued observation-data element
       !                      from the Header
@@ -3296,6 +3239,16 @@ contains
       endif
 
    end function obs_headElem_r
+
+
+   function obs_getHeaderIndex(obsdat) result(index)
+      ! Return the next element from the current header list
+      implicit none
+      integer :: index
+      type(struct_obs), intent(inout) :: obsdat
+
+      index = ild_get_next_index(obsdat%header_index_list_depot)
+   end function obs_getHeaderIndex
 
 
    function obs_headerIndex_mpiglobal(obsdat,index) result(value)
@@ -3379,96 +3332,6 @@ contains
       if(index == (obsdat%numHeader+1)) obsdat%numHeader = obsdat%numHeader+1
 
    end subroutine obs_headSet_r
-
-
-   subroutine obs_mpiDistributeIndices(obsdat)
-      !
-      !  Compute headerIndex_mpiglobal and bodyIndex_mpiglobal: 
-      !  this determines how obs are distributed over MPI processes
-      !  and is needed for converting from mpiglobal to mpilocal and vice versa.
-      !  The header indices are distributes following "round robin" approach:
-      !  "do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi"
-      !
-      !  Note: this subroutine is called before converting from mpiglobal to 
-      !        mpilocal
-      !
-      !Author  : Bin He *ARMA/MRB  Feb. 2009
-      !
-      !Revision:
-      !  
-      !Arguments: none
-      !
-      !Comments:  In principle this method could have obtained nprocs_mpi and
-      !           my_mpi_id by use'ing the module, mpi.  However, it queries
-      !           rpn_comm for itself because the mpi module belongs to the
-      !           3dvar code, whereas the present module is shared code.
-      !
-      implicit none
-      type(struct_obs), intent(inout) :: obsdat
-
-      integer :: headerIndex_mpiglobal,headerIndex_mpilocal
-      integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
-      integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
-      integer :: nprocs_mpi, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
-      character(len=100) :: message
-
-      write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
-
-      if(obsdat%mpi_local) call obs_abort( &
-                      'obs_mpiDistributeIndices: data already mpi-local, Abort!')
-
-      ! Obtain nprocs_mpi and  my_mpi_id
-      call rpn_comm_size("ALL", nprocs_mpi, ierr)
-      call rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
-      if(nprocs_mpi == 0) nprocs_mpi=1
-
-      write(*,*) 'numHeader_mpiGlobal= ',obsdat%numHeader 
-
-      ! first determine the number of rows of the mpilocal data and allocate
-      ! index lists
-      numHeader_mpiLocal=0
-      numBody_mpiLocal=0
-      do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi
-         numHeader_mpiLocal=numHeader_mpiLocal+1
-         numBody_mpilocal=numBody_mpilocal &
-                         +obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
-      enddo
-
-      if(numHeader_mpilocal<=0) then
-         write(message,*)'There are more processors (', nprocs_mpi, &
-                         ') than headers (', obsdat%numHeader, ')'
-         call obs_abort(message)
-      end if
-
-      allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
-      if(numBody_mpiLocal<=0)call obs_abort( &
-                                   'This mpi processor has zero bodies to treat')
-
-      allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
-
-      ! determine the list of header indices
-      headerIndex_mpilocal=0
-      do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi
-         headerIndex_mpilocal=headerIndex_mpilocal+1
-         obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)=headerIndex_mpiglobal
-      enddo
-
-      ! determine the corresponding list of body indices
-      bodyIndex_mpilocal=0
-      do headerIndex_mpilocal=1,numHeader_mpilocal
-         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
-         idata= obsdat%mobhdr(OBS_RLN)%value_i(headerIndex_mpiglobal)
-         idataend = obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal) &
-                  + idata -1 
-         do bodyIndex_mpiglobal=idata,idataend 
-            bodyIndex_mpilocal=bodyIndex_mpilocal+1 
-            obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal) = bodyIndex_mpiglobal
-         enddo
-      enddo
-
-      write(*,*) '-------- END OF obs_mpiDistributeIndices ---------'
-      write(*,*) ' '
-   end subroutine obs_mpiDistributeIndices
 
 
    subroutine obs_initialize(obsdat, numHeader_max, numBody_max, mpi_local)
@@ -3566,6 +3429,96 @@ contains
    end subroutine obs_initialize
 
 
+   subroutine obs_mpiDistributeIndices(obsdat)
+      !
+      !  Compute headerIndex_mpiglobal and bodyIndex_mpiglobal: 
+      !  this determines how obs are distributed over MPI processes
+      !  and is needed for converting from mpiglobal to mpilocal and vice versa.
+      !  The header indices are distributes following "round robin" approach:
+      !  "do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi"
+      !
+      !  Note: this subroutine is called before converting from mpiglobal to 
+      !        mpilocal
+      !
+      !Author  : Bin He *ARMA/MRB  Feb. 2009
+      !
+      !Revision:
+      !  
+      !Arguments: none
+      !
+      !Comments:  In principle this method could have obtained nprocs_mpi and
+      !           my_mpi_id by use'ing the module, mpi.  However, it queries
+      !           rpn_comm for itself because the mpi module belongs to the
+      !           3dvar code, whereas the present module is shared code.
+      !
+      implicit none
+      type(struct_obs), intent(inout) :: obsdat
+
+      integer :: headerIndex_mpiglobal,headerIndex_mpilocal
+      integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
+      integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
+      integer :: nprocs_mpi, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
+      character(len=100) :: message
+
+      write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
+
+      if(obsdat%mpi_local) call obs_abort( &
+                      'obs_mpiDistributeIndices: data already mpi-local, Abort!')
+
+      ! Obtain nprocs_mpi and  my_mpi_id
+      call rpn_comm_size("ALL", nprocs_mpi, ierr)
+      call rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
+      if(nprocs_mpi == 0) nprocs_mpi=1
+
+      write(*,*) 'numHeader_mpiGlobal= ',obsdat%numHeader 
+
+      ! first determine the number of rows of the mpilocal data and allocate
+      ! index lists
+      numHeader_mpiLocal=0
+      numBody_mpiLocal=0
+      do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi
+         numHeader_mpiLocal=numHeader_mpiLocal+1
+         numBody_mpilocal=numBody_mpilocal &
+                         +obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal)
+      enddo
+
+      if(numHeader_mpilocal<=0) then
+         write(message,*)'There are more processors (', nprocs_mpi, &
+                         ') than headers (', obsdat%numHeader, ')'
+         call obs_abort(message)
+      end if
+
+      allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
+      if(numBody_mpiLocal<=0)call obs_abort( &
+                                   'This mpi processor has zero bodies to treat')
+
+      allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
+
+      ! determine the list of header indices
+      headerIndex_mpilocal=0
+      do headerIndex_mpiglobal=(my_mpi_id+1),obsdat%numHeader,nprocs_mpi
+         headerIndex_mpilocal=headerIndex_mpilocal+1
+         obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)=headerIndex_mpiglobal
+      enddo
+
+      ! determine the corresponding list of body indices
+      bodyIndex_mpilocal=0
+      do headerIndex_mpilocal=1,numHeader_mpilocal
+         headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
+         idata= obsdat%mobhdr(OBS_RLN)%value_i(headerIndex_mpiglobal)
+         idataend = obsdat%mobhdr(OBS_NLV)%value_i(headerIndex_mpiglobal) &
+                  + idata -1 
+         do bodyIndex_mpiglobal=idata,idataend 
+            bodyIndex_mpilocal=bodyIndex_mpilocal+1 
+            obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal) = bodyIndex_mpiglobal
+         enddo
+      enddo
+
+      write(*,*) '-------- END OF obs_mpiDistributeIndices ---------'
+      write(*,*) ' '
+   end subroutine obs_mpiDistributeIndices
+
+
    logical function obs_mpiLocal(obsdat)
       !func obs_mpiLocal - returns true if the object contains only data that are
       !                    needed by the current mpi PE; false if it contains all
@@ -3583,6 +3536,59 @@ contains
    end function obs_mpiLocal
 
 
+   ! Four methods for obtaining the number of active columns:
+
+   function obs_numActiveColumn_IB() result(numActiveColumn)
+      implicit none
+      integer :: numActiveColumn,column_index
+
+      numActiveColumn=0
+      do column_index=NBDY_INT_BEG,NBDY_INT_END
+         if(obs_columnActive_IB(column_index))  &
+            numActiveColumn=numActiveColumn+1
+      enddo
+      
+   end function obs_numActiveColumn_IB
+
+   function obs_numActiveColumn_IH() result(numActiveColumn)
+      implicit none
+      integer :: numActiveColumn,column_index
+
+      numActiveColumn=0
+      do column_index=NHDR_INT_BEG,NHDR_INT_END
+         if(obs_columnActive_IH(column_index))  &
+            numActiveColumn=numActiveColumn+1
+      enddo
+      
+   end function obs_numActiveColumn_IH
+
+
+   function obs_numActiveColumn_RB() result(numActiveColumn)
+      implicit none
+      integer :: numActiveColumn,column_index
+
+      numActiveColumn=0
+      do column_index=NBDY_REAL_BEG,NBDY_REAL_END
+         if(obs_columnActive_RB(column_index))  &
+            numActiveColumn=numActiveColumn+1
+      enddo
+      
+   end function obs_numActiveColumn_RB
+
+
+   function obs_numActiveColumn_RH() result(numActiveColumn)
+      implicit none
+      integer :: numActiveColumn,column_index
+
+      numActiveColumn=0
+      do column_index=NHDR_REAL_BEG,NHDR_REAL_END
+         if(obs_columnActive_RH(column_index))  &
+            numActiveColumn=numActiveColumn+1
+      enddo
+      
+   end function obs_numActiveColumn_RH
+
+
    integer function obs_numBody(obsdat)
       !func obs_numBody - returns the number of mpi-local bodies recorded
       !
@@ -3595,6 +3601,20 @@ contains
       type(struct_obs) , intent(in)  :: obsdat
       obs_numBody=obsdat%numBody
    end function obs_numBody
+
+
+   integer function obs_numBody_max(obsdat)
+      !func obs_numBody_max - returns the dimensioned mpi-local number of bodies
+      !
+      !Author    . J.W. Blezius
+      !
+      !    PURPOSE:  to provide the dimension for the number of bodies in the
+      !              mpi-local observation-data object
+      !
+      implicit none
+      type(struct_obs) , intent(in)  :: obsdat
+      obs_numBody_max=obsdat%numBody_max
+   end function obs_numBody_max
 
 
    integer function obs_numBody_mpiglobal(obsdat)
@@ -3622,20 +3642,6 @@ contains
    end function obs_numBody_mpiglobal
 
 
-   integer function obs_numBody_max(obsdat)
-      !func obs_numBody_max - returns the dimensioned mpi-local number of bodies
-      !
-      !Author    . J.W. Blezius
-      !
-      !    PURPOSE:  to provide the dimension for the number of bodies in the
-      !              mpi-local observation-data object
-      !
-      implicit none
-      type(struct_obs) , intent(in)  :: obsdat
-      obs_numBody_max=obsdat%numBody_max
-   end function obs_numBody_max
-
-
    integer function obs_numHeader(obsdat)
       !func obs_numHeader - returns the number of mpi-local headers recorded
       !
@@ -3648,6 +3654,21 @@ contains
       type(struct_obs) , intent(in)  :: obsdat
       obs_numHeader=obsdat%numHeader
    end function obs_numHeader
+
+
+   integer function obs_numHeader_max(obsdat)
+      !func obs_numHeader_max - returns the dimensioned mpi-local number of
+      !                         headers
+      !
+      !Author    . J.W. Blezius
+      !
+      !    PURPOSE:  to provide the dimension for the number of headers in the
+      !              mpi-local observation-data object
+      !
+      implicit none
+      type(struct_obs) , intent(in)  :: obsdat
+      obs_numHeader_max=obsdat%numHeader_max
+   end function obs_numHeader_max
 
 
    integer function obs_numHeader_mpiglobal(obsdat)
@@ -3672,21 +3693,6 @@ contains
          obs_numHeader_mpiglobal = obsdat%numHeader
       end if
    end function obs_numHeader_mpiglobal
-
-
-   integer function obs_numHeader_max(obsdat)
-      !func obs_numHeader_max - returns the dimensioned mpi-local number of
-      !                         headers
-      !
-      !Author    . J.W. Blezius
-      !
-      !    PURPOSE:  to provide the dimension for the number of headers in the
-      !              mpi-local observation-data object
-      !
-      implicit none
-      type(struct_obs) , intent(in)  :: obsdat
-      obs_numHeader_max=obsdat%numHeader_max
-   end function obs_numHeader_max
 
 
    subroutine obs_order(obsdat)
