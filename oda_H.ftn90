@@ -584,7 +584,6 @@ end subroutine oda_Hto
       REAL*8 ZVAR,ZDA1,ZDA2
       REAL*8 ZWB,ZWT, ZLTV,ZTVG,ZPPOST
       REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZDENO
-      REAL*8 DLSUM
       LOGICAL LLOK, LLPRINT, LLUV
 
       call obs_set_current_body_list(lobsSpaceData, 'PR')

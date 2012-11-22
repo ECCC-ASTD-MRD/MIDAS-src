@@ -40,8 +40,8 @@
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
 *
-      INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDATYP,IDBURP
-      INTEGER ITYP,IASS,IFLD,ILEM,IOTHER,JJ,ISTYP,ILEV
+      INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDBURP
+      INTEGER ITYP,IASS,IFLD,IOTHER,JJ,ISTYP,ILEV
       real(8) ZAGZ,ZAHU,ZATT,ZDUV,ZDGZ,ZDTT,ZDHU,ZAUV,ZSLEV,ZAPN,ZDPN
       real(8) ZABT,ZDBT,ZABTB,ZDBTB
       real(8) ZLEV,ZJO,ZVAL,ZSPDO,ZSPDF,ZOFCST,ZOVAL,ZDIFF,ZAASYM,ZOER
@@ -85,7 +85,6 @@
       DO JJO = 1, obs_numheader(lobsSpaceData)
          IDATA     = obs_headElem_i(lobsSpaceData,OBS_RLN,JJO)
          IDATEND   = obs_headElem_i(lobsSpaceData,OBS_NLV,JJO) + IDATA - 1
-         IDATYP    = obs_headElem_i(lobsSpaceData,OBS_OTP,JJO)
          IDBURP    = obs_headElem_i(lobsSpaceData,OBS_ITY,JJO)
          ZLAT = obs_headElem_r(lobsSpaceData,OBS_LAT,JJO)*MPC_DEGREES_PER_RADIAN_R8
          ZLON = obs_headElem_r(lobsSpaceData,OBS_LON,JJO)*MPC_DEGREES_PER_RADIAN_R8
@@ -93,7 +92,6 @@
             ITYP   = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
             IASS   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA)
             ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)*MPC_MBAR_PER_PA_R8
-            ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
             ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,JDATA)
             ZVAL = obs_bodyElem_r(lobsSpaceData,OBS_VAR,JDATA)
             ZFCST= obs_bodyElem_r(lobsSpaceData,OBS_OMA,JDATA)*ZOER + ZVAL
@@ -166,14 +164,6 @@ C
                     ENDIF
 
                   ENDIF
-*
-* NOTE: Changes to how the values of POB are set, starting in version 61,
-*       result in slight changes to the results when QCVAR is activated.
-*       Appears to be caused by use of RPI which is double precision in
-*       an equation where the variable being set (ROBDATA) is single precision.
-*       Various attempts to eliminate differences with older code did not work,
-*       including setting a local temporary single precision variable that is 
-*       then passed to "obs_set". (M. Buehner, Oct/2011)
 *
 *_______________________INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
 *

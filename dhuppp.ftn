@@ -73,7 +73,8 @@ C
 
             IF ( obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEHU  .AND.
      &           obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 0     .AND.
-     &           obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2    ) THEN
+     &           obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2     .AND.
+     &           obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .NE. 0 ) THEN
               IPRES= NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
               call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, PPMIS)
               IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN

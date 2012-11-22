@@ -101,6 +101,8 @@ C
 C
       ENDDO BODY
 
+      PJO=0.5d0*PJO
+
       RETURN
       END
 

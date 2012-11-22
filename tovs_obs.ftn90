@@ -103,10 +103,6 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
      ENDDO
   endif
 
-  if ( option .eq. 'HR' ) then
-     pjo = 2.0 * pjo
-  endif
-
  
   return
 

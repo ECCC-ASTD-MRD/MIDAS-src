@@ -187,7 +187,7 @@ C
 C
 C     *              Contribution to the cost function
 C
-                     PJO = PJO + ZINC * ZINC
+                     PJO = PJO + 0.5d0 * ZINC * ZINC
 C     
 C     *              Print data for first observation or single site
                      IF (L1GPSOBS) THEN

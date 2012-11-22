@@ -40,7 +40,7 @@ c
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl, vco_trl
       integer fstlir,vezuvint2,vezsint2,ezdefset,ezgprm,fnom,fclos,fstouv,fstfrm
-      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef,isrchila
+      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef,isrchila, gdllfxy
       integer jlev,jobs,ier,iset,jstep,jgrid,numgrids
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
       integer itrlnlev
@@ -242,7 +242,7 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               ier=gdxyfll(itrlgid, xpos_r4, ypos_r4, lat_r4, lon_r4, 1)
 
               if(xpos_r4.ge.1.0 .and. xpos_r4.le.real(ini) .and.
-     +           ypos_r4.ge.1.0 .and. ypos_r4.le.real(inj)) then
+     &           ypos_r4.ge.1.0 .and. ypos_r4.le.real(inj)) then
  
                 nobs(jstep,jgrid) = nobs(jstep,jgrid) + 1
 
@@ -258,7 +258,35 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      &               2*MPC_PI_R8
                 dlatfld(nobs(jstep,jgrid))=dlatfld(nobs(jstep,jgrid))*MPC_DEGREES_PER_RADIAN_R8
                 dlonfld(nobs(jstep,jgrid))=dlonfld(nobs(jstep,jgrid))*MPC_DEGREES_PER_RADIAN_R8
-              endif
+
+             else
+
+                ! The observation is outside the domain
+                if (numgrids == 1) then
+                   ! In LAM mode we must discard this observation
+                   write(*,*) "sugomobs: Rejecting OBS outside domain"
+                   write(*,*) jobs, xpos_r4, ypos_r4, lat_r4, lon_r4
+
+                   idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+                   idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
+                   do jdata = idata, idatend
+                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+                   enddo
+                   call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs, 
+     &                  ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
+
+                   ! However, we must assigned a realistic lat-lon to this point
+                   ! to avoid problem later in Hx computation.
+                   nobs(jstep,jgrid) = nobs(jstep,jgrid) + 1
+                   ier=gdllfxy(itrlgid, lat_r4, lon_r4, real(ini)/2.0, 
+     $                  real(inj)/2.0, 1) ! Middle of the domain
+                   dlatfld(nobs(jstep,jgrid)) = real(lat_r4,8)
+                   dlonfld(nobs(jstep,jgrid)) = real(lon_r4,8)
+                   notag(nobs(jstep,jgrid),jstep,jgrid) = jobs
+                end if
+
+             endif
+
             endif
           enddo ! jobs
 
@@ -272,6 +300,7 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             nobsgid(jstep,jgrid) = vezgdef(nobs(jstep,jgrid),1,'Y','L',ig1obs,ig2obs,
      &           ig3obs,ig4obs,dlonfld(1:nobs(jstep,jgrid)),dlatfld(1:nobs(jstep,jgrid)))
           else
+            write(*,*) 'sugomobs: NO OBS found for this time/grid bin =',jstep,jgrid
             nobsgid(jstep,jgrid) = -999
           endif
 

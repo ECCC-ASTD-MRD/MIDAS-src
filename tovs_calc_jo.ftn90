@@ -54,7 +54,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   real*8 zoer
   real*8 dlsum
   real*8 pjo, zdtb
-  real*8 zjon,zgami,zqcarg,zpost
+  real*8 zjon,zgami,zqcarg
 
   real*8 zjoch  (0:jpch,jpnsat)
   real*8 zavgnrm(0:jpch,jpnsat)
@@ -165,7 +165,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            call obs_bodySet_r(lobsSpaceData,OBS_OMI,index_body, &
                            obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body))
 
-           if (.not. lvarqc) then
+           if (.not. lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
               dlsum =  dlsum &
                      + (obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)* &
                         obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body))/2.
@@ -176,7 +176,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
               zjon = (obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)* &
                       obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body))/2.
               zqcarg = zgami + exp(-1.0*zjon)
-              zpost = zgami/zqcarg
               dlsum= dlsum - log(zqcarg/(zgami+1.))
            endif
 
