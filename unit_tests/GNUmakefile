@@ -88,9 +88,7 @@ tests: $(EXECUTABLE)
 	@echo ". s.ssmuse.dot mpich2" > runit.ksh
 	@echo "set -ex" >> runit.ksh
 	@echo "cd `pwd`" >> runit.ksh
-	@echo "rm -f flnml" >> runit.ksh
 	@echo "export NEW_PFUNIT=test_master.x" >> runit.ksh
-	@echo "export UNIT_TEST_OBS_DATA_DIR=`pwd`/obsspacedata_tests/TestObsSpace_data" >> runit.ksh
 	@echo "r.mpirun2 -npex $(CPUS) -pgm ./test_master.x" >> runit.ksh
 	@echo "set +x" >> runit.ksh
 	@echo "echo '======================='" >> runit.ksh
@@ -115,7 +113,6 @@ clean:
 	$(RM) *.o
 	$(RM) *.mod
 	$(RM) *.f90
-	cd obsspacedata_tests; $(MAKE) clean
 
 distclean: clean
 	$(RM) $(EXECUTABLE)
@@ -125,10 +122,4 @@ distclean: clean
 help:
 	@echo 'gmake -- compile and soumet the unit tests of all modules'
 
-.PHONY: testobs_mod
-testobs_mod : 
-	cd obsspacedata_tests; $(MAKE) OBJ_NO_DRIVER
-	cp obsspacedata_tests/*.mod .
-	cp obsspacedata_tests/*.o .
-
-testmasterdriver.o : testobs_mod
+testmasterdriver.o : 

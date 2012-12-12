@@ -1,6 +1,5 @@
 program main
    use pFUnit
-   use testObs_mod
    implicit none
    include "mpif.h"
 
@@ -23,8 +22,6 @@ program main
 
    ! Build suite from test procedures:
    suite_master = TestSuite('Master suite')
-
-   call add(suite_master, getTestSuite_obs())
 
    ! Run the tests and accumulate the results
    result_master = newTestResult(mode=MODE_USE_STDOUT+MODE_USE_LOGFILE)
