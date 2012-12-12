@@ -35,6 +35,7 @@ compiledir=$PWD
 . s.ssmuse.dot Xlf13.108
 . s.ssmuse.dot rmnlib-dev
 . s.ssmuse.dot devtools
+. /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh
 . s.ssmuse.dot CMDN/vgrid/3.4.0
 . s.ssmuse.dot rpn_comm
 
@@ -62,7 +63,7 @@ trunkfiles="abort.ftn bmatrix_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.
             columndata_mod.ftn90 comfilt.cdk enkf_pturb.ftn controlvector_mod.ftn90 \
             enkf_pturb.ftn gasdev.ftn gaussgrid_mod.ftn90 gdout2.ftn getfldprm2.ftn \
             getstamplist.ftn90 gridstatevector_mod.ftn90 maincompileswitch.inc \
-            matsqrt.ftn mpi_mod.ftn90 obsspacedata_mod.ftn90 utils_3dvar.ftn \
+            matsqrt.ftn mpi_mod.ftn90 utils_3dvar.ftn \
             varnamelist_mod.ftn90 varout.ftn verticalcoord_mod.ftn90 comct0.cdk"
 
 moduloptfiles="dsyev.ftn"
