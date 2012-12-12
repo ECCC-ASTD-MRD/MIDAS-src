@@ -34,6 +34,7 @@ compiledir=$PWD
 . s.ssmuse.dot Xlf13.108
 . s.ssmuse.dot rmnlib-dev
 . s.ssmuse.dot devtools
+. /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
 . s.ssmuse.dot CMDN/vgrid/3.4.0
 . s.ssmuse.dot rpn_comm
 

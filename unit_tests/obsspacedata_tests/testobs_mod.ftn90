@@ -1,7 +1,8 @@
 ! Should test OBS_REAL=4, too?
 
-#define OBS_REAL 8
-#define ZERO     0.0d0
+#include "maincompileswitch.inc"
+#include "compileswitches.inc"
+#define ZERO     real(0.0d0, OBS_REAL)
 
 module testObs_mod
    use pFUnit
@@ -572,8 +573,8 @@ contains
       implicit none
       type(struct_obs) :: myobs
       integer, parameter :: HEAD_MAX=10, BOD_MAX=100
-      real(kind=OBS_REAL), dimension(size(columns_real_head)) :: expected
-      real(kind=OBS_REAL) :: found
+      real(OBS_REAL), dimension(size(columns_real_head)) :: expected
+      real(OBS_REAL) :: found
       logical :: logic_found
       integer :: num, ndx, nchar
 
@@ -654,8 +655,8 @@ contains
       implicit none
       type(struct_obs) :: myobs
       integer, parameter :: HEAD_MAX=10, BOD_MAX=100
-      real(kind=OBS_REAL), dimension(size(columns_real_body)) :: expected
-      real(kind=OBS_REAL) :: found
+      real(OBS_REAL), dimension(size(columns_real_body)) :: expected
+      real(OBS_REAL) :: found
       logical :: logic_found
       integer :: num, ndx, nchar
 
@@ -882,7 +883,7 @@ contains
       logical ::           omit_zha_, omit_ip_, omit_pas_, omit_onm_
       integer :: num, ndx, bdx
       character(len=12) :: found_c
-      real(kind=OBS_REAL) :: found_r, expected_r
+      real(OBS_REAL) :: found_r, expected_r
       integer :: found_i, expected_i, expected_rln, expected_nlv
 
       if(present(omit_zha))then
@@ -1568,7 +1569,7 @@ contains
       real(8) :: hx_in         (2,10), hx_out         (2,10), &
                  hx_in_original(2,10)
       integer, parameter :: NENS = 2
-      real(8) :: zhamin, zhamax
+      real(OBS_REAL) :: zhamin, zhamax
       integer :: body_ndx
       real(OBS_REAL) :: value
       integer :: TESTOUT_UNIT = 8, TESTREF_UNIT = 9
@@ -1631,8 +1632,8 @@ contains
       !
       ! METHOD UNDER TEST:  Select the values, zha, such that 2.4 < zha <= 2.7
       !
-      zhamin = 2.4d0
-      zhamax = 2.7d0
+      zhamin = real(2.4d0, OBS_REAL)
+      zhamax = real(2.7d0, OBS_REAL)
       call obs_select(myobs1, hx_in, myobs2, hx_out, zhamin, zhamax, NENS, &
                       TESTOUT_UNIT)
 
@@ -1646,8 +1647,8 @@ contains
       call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
                       fingerprint, .false., &
                       'input header 1:', omit_zha=.true.)
-      call assertEqual(2.5d0, obs_bodyElem_r(myobs1, OBS_ZHA, 1))
-      call assertEqual(2.2d0, obs_bodyElem_r(myobs1, OBS_ZHA, 2))
+      call assertEqual(real(2.5d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 1))
+      call assertEqual(real(2.2d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 2))
 
       header_position = 2
       bod_offset      = 2
@@ -1656,9 +1657,9 @@ contains
       call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
                       fingerprint, .false., &
                       'input header 2:', omit_zha=.true.)
-      call assertEqual(2.8d0, obs_bodyElem_r(myobs1, OBS_ZHA, 3))
-      call assertEqual(2.4d0, obs_bodyElem_r(myobs1, OBS_ZHA, 4))
-      call assertEqual(2.0d0, obs_bodyElem_r(myobs1, OBS_ZHA, 5))
+      call assertEqual(real(2.8d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 3))
+      call assertEqual(real(2.4d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 4))
+      call assertEqual(real(2.0d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 5))
 
       header_position = 3
       bod_offset      = 5
@@ -1667,10 +1668,10 @@ contains
       call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
                       fingerprint, .false., &
                       'input header 3:', omit_zha=.true.)
-      call assertEqual(2.45d0,obs_bodyElem_r(myobs1, OBS_ZHA, 6))
-      call assertEqual(2.7d0, obs_bodyElem_r(myobs1, OBS_ZHA, 7))
-      call assertEqual(2.65d0,obs_bodyElem_r(myobs1, OBS_ZHA, 8))
-      call assertEqual(2.8d0, obs_bodyElem_r(myobs1, OBS_ZHA, 9))
+      call assertEqual(real(2.45d0,OBS_REAL),obs_bodyElem_r(myobs1, OBS_ZHA, 6))
+      call assertEqual(real(2.7d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 7))
+      call assertEqual(real(2.65d0,OBS_REAL),obs_bodyElem_r(myobs1, OBS_ZHA, 8))
+      call assertEqual(real(2.8d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 9))
 
 
       call assertEqual(3, obs_numheader(myobs1), 'final no. headers in myobs1')
@@ -1690,16 +1691,16 @@ contains
       call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
                       fingerprint, .false., &
                       'output header 1:', omit_zha=.true.)
-      call assertEqual(2.5d0, obs_bodyElem_r(myobs2, OBS_ZHA,1), &
+      call assertEqual(real(2.5d0,OBS_REAL), obs_bodyElem_r(myobs2, OBS_ZHA,1), &
                                                           'selected zha, body 1')
 
            ! For the remaining cases, test only that the correct bodies and
            ! headers have been selected
-      call assertEqual(2.45d0,obs_bodyElem_r(myobs2, OBS_ZHA,2), &
+      call assertEqual(real(2.45d0,OBS_REAL),obs_bodyElem_r(myobs2, OBS_ZHA,2), &
                                                           'selected zha, body 3')
-      call assertEqual(2.7d0, obs_bodyElem_r(myobs2, OBS_ZHA,3), &
+      call assertEqual(real(2.7d0,OBS_REAL), obs_bodyElem_r(myobs2, OBS_ZHA,3), &
                                                           'selected zha, body 4')
-      call assertEqual(2.65d0,obs_bodyElem_r(myobs2, OBS_ZHA,4), &
+      call assertEqual(real(2.65d0,OBS_REAL),obs_bodyElem_r(myobs2, OBS_ZHA,4), &
                                                           'selected zha, body 5')
       call assertEqual(4, obs_numbody  (myobs2), 'number of selected bodies')
       call assertEqual(2, obs_numheader(myobs2), 'number of selected headers')
@@ -1733,7 +1734,7 @@ contains
       real(8) :: hx_in         (2,10), hx_out         (2,10), &
                  hx_in_original(2,10)
       integer, parameter :: NENS = 2
-      real(8) :: zhamin, zhamax
+      real(OBS_REAL) :: zhamin, zhamax
       integer :: body_ndx
       real(OBS_REAL) :: value
       integer :: TESTOUT_UNIT = 8, TESTREF_UNIT = 9
@@ -1772,8 +1773,8 @@ contains
       !
       ! METHOD UNDER TEST:  Select the values, zha, such that 2.4 < zha <= 2.7
       !
-      zhamin = 2.4d0
-      zhamax = 2.7d0
+      zhamin = real(2.4d0, OBS_REAL)
+      zhamax = real(2.7d0, OBS_REAL)
       call obs_select(myobs1, hx_in, myobs2, hx_out, zhamin, zhamax, NENS, &
                       TESTOUT_UNIT)
       logic_found = catch('exiting in obs_abort')
@@ -2357,7 +2358,7 @@ contains
                                         ! elements are cleaned, set the value of
                                         ! ZHA to -1.0d0
       do body_ndx = 1,9
-         call obs_bodySet_r(myobs, OBS_ZHA, body_ndx, -1.0d0)
+         call obs_bodySet_r(myobs, OBS_ZHA, body_ndx, real(-1.0d0, OBS_REAL))
       end do
    end subroutine setup_obs_clean
 
@@ -2367,7 +2368,7 @@ contains
       use obsSpaceData_mod
       implicit none
       type(struct_obs) :: myobs1
-      real(OBS_REAL) :: hx_in(2,10), hx_in_original(2,10)
+      real(8) :: hx_in(2,10), hx_in_original(2,10)
       integer, parameter :: NENS = 2
       integer :: body_ndx
       integer, parameter :: TESTOUT_UNIT = 8
@@ -2389,26 +2390,26 @@ contains
       body_ndx = 1 ! will be retained
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
 
       ! Set up a case where condition 1a) is not met [but 1b) is still met]
       body_ndx = 2 ! will be retained
                                         ! set bits 0->20, then remove bit 12
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, 1048576 -1 -BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
 
       ! Set up a case where condition 3) is not met
       body_ndx = 3 ! will not be retained
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, -0.5d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(-0.5d0, OBS_REAL))
 
       ! Set up a case where condition 2) is not met
       body_ndx = 4 ! will not be retained
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 13)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
 
       qcvar = .false.                   ! meets condision 1b)
 
@@ -2441,13 +2442,13 @@ contains
       use obsSpaceData_mod
       implicit none
       type(struct_obs) :: myobs1
-      real(OBS_REAL) :: hx_in(2,10), hx_in_original(2,10)
+      real(8) :: hx_in(2,10), hx_in_original(2,10)
       integer, parameter :: NENS = 2
       integer :: body_ndx
       integer, parameter :: TESTOUT_UNIT = 8
       integer, parameter :: BIT12=4096
       logical :: qcvar
-      real(OBS_REAL), parameter :: SMALL = 0.d0
+      real(OBS_REAL), parameter :: SMALL = real(0.d0, OBS_REAL)
 
       call setup_obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT)
       hx_in_original (:,:) = hx_in (:,:)
@@ -2470,7 +2471,7 @@ contains
       body_ndx = 4 ! will be retained
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.0d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, ZERO)
 
       qcvar = .false.                   ! meets condision 1b)
 
@@ -2504,7 +2505,7 @@ contains
       use obsSpaceData_mod
       implicit none
       type(struct_obs) :: myobs1
-      real(OBS_REAL) :: hx_in(2,10), hx_in_original(2,10)
+      real(8) :: hx_in(2,10), hx_in_original(2,10)
       integer, parameter :: NENS = 2
       integer :: body_ndx
       integer, parameter :: TESTOUT_UNIT = 8
@@ -2526,13 +2527,13 @@ contains
       body_ndx = 7 ! will be retained
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
 
       ! Set up a case where condition 1a) is not met
       body_ndx = 3 ! will not be retained
       call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, 1048576 -1 -BIT12)
       call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
-      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, 0.5d0)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
 
       qcvar = .true.                   ! does not meet condision 1b)
 
@@ -2796,7 +2797,7 @@ contains
                                         ! rather, is a snapshot of output from
                                         ! obs_prntbdy()
       call test_ascii_output(BDY_UNIT, &
-                   trim(unit_test_obs_data_dir) // '/test_prntbdy.dat')
+            trim(unit_test_obs_data_dir) // '/test_prntbdy.dat' // OBS_REAL_CHAR)
 
 
       close(unit=BDY_UNIT)

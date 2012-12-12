@@ -291,10 +291,10 @@ module ObsDataColumn_mod
       character(len=4) :: dataType   ! REAL or INT
       character(len=4) :: headOrBody ! HEAD or BODY
       logical          :: twoD = .false.
-      real(kind=OBS_REAL),pointer :: value_r(:) => NULL()
-      integer,pointer             :: value_i(:) => NULL()
-      real(kind=OBS_REAL),pointer :: value2d_r(:,:) => NULL()
-      integer,pointer             :: value2d_i(:,:) => NULL()
+      real(OBS_REAL),pointer :: value_r(:)     => NULL()
+      integer,       pointer :: value_i(:)     => NULL()
+      real(OBS_REAL),pointer :: value2d_r(:,:) => NULL()
+      integer,       pointer :: value2d_i(:,:) => NULL()
    end type struct_obsDataColumn
 
 contains
@@ -767,7 +767,7 @@ contains
 
       if(.not.obs_columnActive_IB(column_index)) then
          obs_columnActive_IB(column_index) = .true.
-         if(myip == 1) then
+         if(myip == 0) then
             write(*,*) 'obs_activateColumn_IB: name=', &
                                            obs_ColumnNameList_IB(column_index), &
                        ', dataType=INT , headOrBody=BODY'
@@ -797,7 +797,7 @@ contains
 
       if(.not.obs_columnActive_IH(column_index)) then
          obs_columnActive_IH(column_index) = .true.
-         if(myip == 1) then
+         if(myip == 0) then
             write(*,*) 'obs_activateColumn_IH: name=', &
                                            obs_ColumnNameList_IH(column_index), &
                        ', dataType=INT , headOrBody=HEAD'
@@ -828,7 +828,7 @@ contains
 
       if(.not.obs_columnActive_RB(column_index)) then
          obs_columnActive_RB(column_index) = .true.
-         if(myip == 1) then
+         if(myip == 0) then
             write(*,*) 'obs_activateColumn_RB: name=', &
                                            obs_ColumnNameList_RB(column_index), &
                        ', dataType=REAL, headOrBody=BODY'
@@ -859,7 +859,7 @@ contains
 
       if(.not.obs_columnActive_RH(column_index)) then
          obs_columnActive_RH(column_index) = .true.
-         if(myip == 1) then
+         if(myip == 0) then
             write(*,*) 'obs_activateColumn_RH: name=', &
                                            obs_ColumnNameList_RH(column_index), &
                        ', dataType=REAL, headOrBody=HEAD'
@@ -1461,7 +1461,7 @@ contains
       !              name and index from the "body".
 
       implicit none
-      real(kind=OBS_REAL)           :: value
+      real(OBS_REAL)                :: value
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: index
@@ -1542,10 +1542,10 @@ contains
       !    PURPOSE:  to control access to the observation object
       !
       implicit none
-      type(struct_obs)   , intent(inout)  :: obsdat
-      integer            , intent(in)     :: column_index
-      integer            , intent(in)     :: index
-      real(kind=OBS_REAL), intent(in)     :: value
+      type(struct_obs), intent(inout)  :: obsdat
+      integer         , intent(in)     :: column_index
+      integer         , intent(in)     :: index
+      real(OBS_REAL)  , intent(in)     :: value
       character(len=100) :: message
 
       if(column_index.ge.NBDY_REAL_BEG.and.column_index.le.NBDY_REAL_END) then
@@ -1591,7 +1591,7 @@ contains
             myip_ = myip
          else
             ! Make an assumption:  cause every processor to write much to stdout
-            myip_ = 1
+            myip_ = 0
          end if
 
          ! determine which columns will be initially active
@@ -1757,11 +1757,11 @@ contains
       obsdat%numHeader=kobsout
       obsdat%numBody = iwrite
 
-      write(nobsout,*) 'after cleanup of the obsdat:'
+      write(nobsout,*) 'after cleanup of the cma: '
       write(nobsout,'(1x,A,I7)') &
-         'number of stations containing valid data      ',obsdat%numHeader
+         'number of stations containing valid data   ',obsdat%numHeader
       write(nobsout,'(1x,A,I7)') & 
-         'number of observations now in the obsdat file ',obsdat%numBody
+         'number of observations now in the cma file ',obsdat%numBody
 
    end subroutine obs_clean
 
@@ -1996,8 +1996,8 @@ contains
       real(8),           intent(inout), dimension(:,:) :: hx    
 
       integer :: column_index, active_index
-      integer            , pointer :: mobhdr_tmp(:,:),mobdata_tmp(:,:)
-      real(kind=OBS_REAL), pointer :: robhdr_tmp(:,:),robdata_tmp(:,:)
+      integer       , pointer :: mobhdr_tmp(:,:),mobdata_tmp(:,:)
+      real(OBS_REAL), pointer :: robhdr_tmp(:,:),robdata_tmp(:,:)
       integer :: ier,master,mxstn,ncomm,nobs
       character(len=100) :: message
 #if OBS_REAL==4
@@ -2513,6 +2513,7 @@ contains
 
       return
    end subroutine obs_enkf_bdy
+
 
 
    subroutine obs_enkf_prntbdy(obsdat,kstn,kulout)
@@ -3244,7 +3245,7 @@ contains
       !              name and index.
 
       implicit none
-      real(kind=OBS_REAL)           :: value
+      real(OBS_REAL)                :: value
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: index
@@ -3335,10 +3336,10 @@ contains
       !    PURPOSE:  to control access to the observation object
       !
       implicit none
-      type(struct_obs)   , intent(inout)  :: obsdat
-      integer            , intent(in)     :: column_index
-      integer            , intent(in)     :: index
-      real(kind=OBS_REAL), intent(in)     :: value
+      type(struct_obs), intent(inout)  :: obsdat
+      integer         , intent(in)     :: column_index
+      integer         , intent(in)     :: index
+      real(OBS_REAL)  , intent(in)     :: value
       character(len=100) :: message
 
       if(column_index.ge.NHDR_REAL_BEG.and.column_index.le.NHDR_REAL_END) then
@@ -3982,7 +3983,7 @@ contains
          ,'INSTR. ID:',i6,1x,'OBS. TYPE:',i6,1x &
          ,'INSTR./RETR. TYPE:',i6,1x &
          ,/,6x &
-         ,'OBSERVATION LOCATION. (LAT,LON):',2(f12.6,1x) &
+         ,'OBSERVATION LOCATION. (LAT,LON):',2(f10.4,1x) &
          ,'DATE:',i12,1x,'EXACT TIME: ',i6,1x &
          ,/,6x &
          ,'STATION ID:',a9,1x &
@@ -4132,13 +4133,13 @@ contains
 
       integer :: i,idata,ifirst,ilast,ipass,ireg,j,k,column_index
 
-      real(kind=OBS_REAL), save :: robhdr_1(NHDR_REAL_BEG:NHDR_REAL_END)
-      integer,             save :: mobhdr_1(NHDR_INT_BEG:NHDR_INT_END)
-      character(len=12),   save :: cstnid_1
-      character(len=2),    save :: cfamily_1
-      integer,             save :: datestamp_1
-      logical,             save :: empty  = .false., &
-                                   hasone = .false.
+      real(OBS_REAL),    save :: robhdr_1(NHDR_REAL_BEG:NHDR_REAL_END)
+      integer,           save :: mobhdr_1(NHDR_INT_BEG:NHDR_INT_END)
+      character(len=12), save :: cstnid_1
+      character(len=2),  save :: cfamily_1
+      integer,           save :: datestamp_1
+      logical,           save :: empty  = .false., &
+                                 hasone = .false.
 
       if (myip.ne.0) return
 
@@ -4275,10 +4276,10 @@ contains
       type(struct_obs), intent(inout) :: obsdat
 
       ! Declare Local Variables
-      character(len=12),allocatable,dimension(:) :: cstnid_tmp
-      character(len=2), allocatable,dimension(:) :: cfamily_tmp
-      real(OBS_REAL),allocatable,dimension(:,:) :: robhdr_tmp
-      real(OBS_REAL),allocatable,dimension(:,:) :: robdata_tmp
+      character(len=12),allocatable,dimension(:)   :: cstnid_tmp
+      character(len=2), allocatable,dimension(:)   :: cfamily_tmp
+      real(OBS_REAL),   allocatable,dimension(:,:) :: robhdr_tmp
+      real(OBS_REAL),   allocatable,dimension(:,:) :: robdata_tmp
 
       integer,allocatable,dimension(:,:) :: mobhdr_tmp,mobdata_tmp
 
@@ -4443,8 +4444,9 @@ contains
       type (struct_obs), intent(in) :: obsdat
       type (struct_obs), intent(inout) :: obs_sel
 
-      real(8),      intent(in) :: hx(:,:),zhamin,zhamax
-      real(8),      intent(out) :: hx_sel(:,:)
+      real(8),        intent(in) :: hx(:,:)
+      real(OBS_REAL), intent(in) :: zhamin,zhamax
+      real(8),        intent(out):: hx_sel(:,:)
 
       integer, intent(in)    :: nens, nobsout
 
@@ -4509,7 +4511,7 @@ contains
       obs_sel%mpi_local = .false.
       obs_sel%datestamp = obsdat%datestamp
 
-      write(nobsout, '(1x, A, 2F20.15)') &
+      write(nobsout, '(1x, A, 2F11.6)') &
                  'after selection of observations in the range: ', zhamin, zhamax
       write(nobsout,'(1x,A,I7)') &
          'number of stations containing valid data      ',obs_sel%numHeader
@@ -4845,8 +4847,8 @@ contains
 
       type(struct_obs), intent(inout) :: obsdat
 
-      real(kind=OBS_REAL) :: temp_robdata
-      integer             :: index_body
+      real(OBS_REAL) :: temp_robdata
+      integer        :: index_body
 
       !    temp = OBS_VAR
       !    OBS_VAR = OBS_OMF

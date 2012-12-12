@@ -18,9 +18,11 @@
 ! SUBORDINATE SWITCHES
 #ifdef ENKF
     #define OBS_REAL 4
+    #define OBS_REAL_CHAR '4'
 
 #elif VAR3D
     #define OBS_REAL 8
+    #define OBS_REAL_CHAR '8'
 
 #else
     ! General switch has not been set.  Set the switches individually here.

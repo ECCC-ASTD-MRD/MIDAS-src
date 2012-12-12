@@ -77,7 +77,11 @@ endif
 #   COMMAND = ./$(EXECUTABLE)
 #endif
 
-# Targets
+# Targets (the first target listed is the default target)
+
+unit_tests:
+	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev rpn_comm; \
+	gmake tests MPI=$(MPI)
 
 .PHONY:	tests
 tests: $(EXECUTABLE)
@@ -109,10 +113,6 @@ OBJ_NO_DRIVER: $(F90_OBJ_NO_DRIVER)
 
 %.o:%.ftn90
 	s.compile $(OPTIMIZE) $(MPI_FLAG) -opt "= $(FFLAGS)" -defines =-DUNIT_TESTING -src $<
-
-unit_tests:
-	. s.ssmuse.dot $(COMPILER_SSM) devtools rmnlib-dev rpn_comm; \
-	gmake tests MPI=$(MPI)
 
 .PHONY: clean
 clean:
