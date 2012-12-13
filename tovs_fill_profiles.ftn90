@@ -174,7 +174,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !     1.2   Read ozone climatology
 !     .     ----------------------
 
-  call ozo_read_climatology(lobsSpaceData)
+  call ozo_read_climatology()
 
 !
 !     2.  Fill profiles structure
@@ -296,7 +296,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
      toto3obs(:) = 0.
 
      call ozo_get_profile (ozo,toto3obs,zlat,  &
-          xpres,jplev,knpf,lobsSpaceData)
+          xpres,jplev,knpf)
 
      deallocate ( toto3obs )
 

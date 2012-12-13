@@ -16,6 +16,7 @@
 !
       subroutine prdatabin(lobsSpaceData,nstepobs)
       use obsSpaceData_mod
+      use minimization_mod, only: min_get_datestamp
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
       integer :: nstepobs
@@ -43,7 +44,7 @@
       familylist(9)='GP'
  
       do jobs = 1, obs_numheader(lobsSpaceData)
-        call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
+        call getStepObsIndex(stepObsIndex,min_get_datestamp(),
      &        obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),
      &        obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
         if(stepObsIndex.gt.0.0d0) then
@@ -101,4 +102,4 @@
       deallocate(idataass)
       deallocate(inumheader)
 
-      end subroutine
+      end subroutine prdatabin

@@ -82,7 +82,7 @@
 !
 !     Check the date of the burp files (set datestamp)
 !
-      call brpcheck(lobsSpaceData)
+      call brpcheck()
 !
 !     Miscellaneous initializations associated with the observations
 !
@@ -132,7 +132,7 @@
 !
 !     Initialize the background-error covariance
 !
-      if(nconf.eq.141) CALL bmat_setup(vco_anl,obs_get_datestamp(lobsSpaceData))
+      if(nconf.eq.141) CALL bmat_setup(vco_anl,min_get_datestamp())
 !
 !     Set up the minimization module, now that the required parameters are known
 !     NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs
@@ -156,4 +156,4 @@
       call prdatabin(lobsSpaceData,nstepobs)
 !
       return
-      end
+      end subroutine preproc

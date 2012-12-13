@@ -32,6 +32,7 @@
       use columnData_mod 
       use obsSpaceData_mod
       use gridStateVector_mod
+      use minimization_mod, only: min_get_datestamp
       use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       implicit none
 #include "comfilt.cdk"
@@ -152,7 +153,7 @@ c
 c
 c Computing date and time of step obs for error message
 c
-      call getstamplist(datestamplist,col_getNumStep(lcolumng),obs_get_datestamp(lobsSpaceData))
+      call getstamplist(datestamplist,col_getNumStep(lcolumng),min_get_datestamp())
       do jstep = 1,col_getNumStep(lcolumng)
         ier = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
         write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
@@ -201,7 +202,7 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
           do jobs=1, obs_numheader(lobsSpaceData)
 
-            call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
+            call getStepObsIndex(stepObsIndex,min_get_datestamp(),
      &                           obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),
      &                           obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
 
@@ -329,7 +330,7 @@ c
         if(.not.gsv_varExist(varNameList2D(jvar))) cycle
         do jgrid = 1,numgrids
         do jstep = 1,col_getNumStep(lcolumng)
-          if(datestamplist(jstep) == obs_get_datestamp(lobsSpaceData)) nstepanltime = jstep
+          if(datestamplist(jstep) == min_get_datestamp()) nstepanltime = jstep
           call getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV
      &           ,CLETIKET,CLTYPVAR,ITRLGID,varNameList2D(jvar)
      &           ,datestamplist(jstep),jpnflev,nultrl(jstep,jgrid)
@@ -457,7 +458,7 @@ c
 c     Get horizontal field parameters
 c
       call getfldprm(iip1s2,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,'GZ  ',obs_get_datestamp(lobsSpaceData),jpnflev*2
+     &         ,itrlgid,'GZ  ',min_get_datestamp(),jpnflev*2
      &         ,nultrl(nstepanltime,jgrid),ip1_pak_trl,ip1_vco_trl)
       if(itrlnlev <= 0 ) then
         write(*,1002) 'GZ  ',idate((col_getNumStep(lcolumng)-1)/2 + 1)
@@ -589,7 +590,7 @@ c
           do jgrid = 1,numgrids
 
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
+     &         ,itrlgid,varNameList3D(jvar),min_get_datestamp(),jpnflev
      &         ,nultrl(nstepanltime,jgrid),ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_M ) then
             write(*,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
@@ -727,7 +728,7 @@ c
           do jgrid = 1,numgrids
 
           call getfldprm(iip1s,iip2,iip3,itrlnlev,cletiket,cltypvar
-     &         ,itrlgid,varNameList3D(jvar),obs_get_datestamp(lobsSpaceData),jpnflev
+     &         ,itrlgid,varNameList3D(jvar),min_get_datestamp(),jpnflev
      &         ,nultrl(nstepanltime,jgrid),ip1_pak_trl,ip1_vco_trl)
           if(itrlnlev <= 0 .or. itrlnlev /= nlv_T) then
             write(*,1002) varNameList3D(jvar),idate((col_getNumStep(lcolumng)-1)/2 + 1)
@@ -868,4 +869,4 @@ c
      &     ,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
 c
       return
-      end
+      end subroutine sugomobs

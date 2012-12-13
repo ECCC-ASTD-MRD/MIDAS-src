@@ -70,7 +70,7 @@ C
       CALL FILBRPPOST(lcolumng,lobsSpaceData)
 c
       call gsv_setVco(statevector,vco_anl)
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=obs_get_datestamp(lobsSpaceData))
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=min_get_datestamp())
 
       call tmg_start(51,'VAR_CH') !
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
@@ -88,7 +88,7 @@ c
 !     Prepare background fields at initial time for flow-dependent control variables
 !
       call gsv_setVco(statevectorg,vco_anl)
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=obs_get_datestamp(lobsSpaceData))
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=min_get_datestamp())
       call subasic_gd(statevectorg,lcolumnhr)
 !
 !     *** Compute increment HU from LQ increment

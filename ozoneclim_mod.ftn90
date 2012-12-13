@@ -42,7 +42,7 @@ PRIVATE
 contains
 
   SUBROUTINE OZO_GET_PROFILE(O3P,toto3obs,zlat,  &
-       plev,nlev,nprf,lobsSpaceData)
+       plev,nlev,nprf)
 
 #if defined (DOC)
 !***********************************************************************
@@ -71,9 +71,9 @@ contains
 #endif
 
 use obsSpaceData_mod
+use minimization_mod, only: min_get_datestamp
 IMPLICIT NONE       
 
-type(struct_obs),intent(in) :: lobsSpaceData
 integer ,intent(in) :: nlev,nprf
 REAL(8),intent(in)  :: ZLAT(NPRF), TOTO3OBS(NPRF),PLEV(NLEV)
 REAL(8),intent(out)  :: O3P(NLEV,NPRF)
@@ -108,7 +108,7 @@ CALL LINTV2(pro3,qo3b,nlevo3,nlevo3,nprf,nlev,plev,O3P)
 DO JN = 1, NPRF
    IF ( NINT(TOTO3OBS(JN)) /= 0 ) THEN
 !      IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
-      ier = newdate(obs_get_datestamp(lobsSpaceData),ijour,itime,-3)
+      ier = newdate(min_get_datestamp(),ijour,itime,-3)
       IJ = IJOUR/100
       IMONTH = IJ - (IJ/100)*100
       O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO(NUMLAT(JN),IMONTH)
@@ -119,7 +119,7 @@ ENDDO
 END SUBROUTINE OZO_GET_PROFILE
 
 
-SUBROUTINE OZO_READ_CLIMATOLOGY(lobsSpaceData)
+SUBROUTINE OZO_READ_CLIMATOLOGY()
 
 #if defined (DOC)
 !***********************************************************************
@@ -141,10 +141,10 @@ SUBROUTINE OZO_READ_CLIMATOLOGY(lobsSpaceData)
 #endif
 
   use obsSpaceData_mod
+  use minimization_mod, only: min_get_datestamp
 
   IMPLICIT NONE
 
-  type(struct_obs),intent(in)  :: lobsSpaceData
   INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IV,K,IER
   REAL               :: RDUM(NLATO3,NLEVO3)
   CHARACTER(len=100) :: CFILE
@@ -155,7 +155,7 @@ SUBROUTINE OZO_READ_CLIMATOLOGY(lobsSpaceData)
   integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
 !  IJOUR = obs_headElem_i(lobsSpaceData,OBS_DAT,1)
-   ier = newdate(obs_get_datestamp(lobsSpaceData),ijour,itime,-3)
+   ier = newdate(min_get_datestamp(),ijour,itime,-3)
 
   IJ= IJOUR/100
   IMONTH = IJ - (IJ/100)*100

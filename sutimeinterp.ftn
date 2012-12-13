@@ -4,6 +4,7 @@
 !*
       use obsSpaceData_mod
       use columnData_mod
+      use minimization_mod, only: min_get_datestamp
       IMPLICIT NONE
 #include "comfilt.cdk"
       type(struct_obs) :: lobsSpaceData
@@ -25,7 +26,7 @@
         if(nstepobsinc.eq.1) then
           call col_setTimeInterpWeight(lcolumn,1.0d0,jobs,1)
         else
-          call getStepObsIndex(stepObsIndex,obs_get_datestamp(lobsSpaceData),
+          call getStepObsIndex(stepObsIndex,min_get_datestamp(),
      &                         obs_headElem_i(lobsSpaceData,OBS_DAT,jobs)
      &         ,obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobsinc)
           if(floor(stepObsIndex).ge.nstepobsinc) then
