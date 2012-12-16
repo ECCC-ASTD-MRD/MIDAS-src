@@ -170,10 +170,12 @@ SUBROUTINE OZO_READ_CLIMATOLOGY()
   IV5=FSTFRM(IOZTEST)
   IV6=FCLOS(IOZTEST)
 
-  write(*,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
-  write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
-  
-  
+  if(iv1.lt.0.or.iv2.lt.0.or.iv3.lt.0.or.iv4.lt.0.or.iv5.lt.0.or.iv6.lt.0) then
+     write(*,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
+     write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
+     call abort3d('Problem with file in ozo_read_climatology (ozoneclim_mod)')
+  endif
+    
 END SUBROUTINE OZO_READ_CLIMATOLOGY
 
 

@@ -86,14 +86,14 @@ if [ $? = "0" ] ; then exit ; fi
 rm -f $SRC0
 
 echo "compiling low-level independent modules"
-SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
+SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 gaussgrid_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0 2>&1
 grep fail listing0
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling most of the new modules"
 SRC1="controlvector_mod.ftn90 airsch_mod.ftn90 iasich_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
-SRC1="$SRC1 gaussgrid_mod.ftn90 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
+SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
 SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
 SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
 SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"

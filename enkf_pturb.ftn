@@ -110,7 +110,7 @@ c
 !     Allocate the statevector
 !
       call gsv_setVco(statevector,vco_anl)
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,1,dateStamp=nstamp)
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,1,dateStamp=nstamp,mpi_local=.false.)
       nkgdim = statevector%nk
       allocate(ensemble(gaus_ni,statevector%nk,gaus_nj,nenkfmem))
 !

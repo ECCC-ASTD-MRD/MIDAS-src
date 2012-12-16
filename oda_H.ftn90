@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
+  use mpi
   use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
@@ -43,33 +44,38 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   type(struct_obs) :: lobsSpaceData
   type(struct_vco), pointer :: vco_anl
 
+  IF(mpi_myid == 0) THEN
+    write(*,*)'ODA_H- Linearized observation operators'
+    call flush(6)
+  endif
+
   vco_anl => col_getVco(lcolumng)
 
   nl_ncall = nl_ncall + 1
 
-  call tmg_start(56,'PPROF') !
+  call tmg_start(42,'OBS_PPP_TLAD') !
   call oda_Hpp              ! fill in OBS_OMA : Hdx
-  call tmg_stop(56)
+  call tmg_stop(42)
 
-  call tmg_start(59,'SFC')
+  call tmg_start(43,'OBS_SFC_TLAD')
   call oda_Hsf              ! fill in OBS_OMA : Hdx
-  call tmg_stop (59)
+  call tmg_stop (43)
 
-  call tmg_start(60,'RTTOV') !
+  call tmg_start(44,'OBS_TOV_TLAD') !
   call oda_Hto              ! fill in OBS_OMA : Hdx
-  call tmg_stop (60)
+  call tmg_stop (44)
 
-  call tmg_start(90,'GPSRO') !
+  call tmg_start(45,'OBS_GPSRO_TLAD') !
   call oda_Hro
-  call tmg_stop (90)        !
+  call tmg_stop (45)        !
 
-  call tmg_start(63,'ZPROF') !
+  call tmg_start(46,'OBS_ZZZ_TLAD') !
   call oda_Hzp
-  call tmg_stop (63)        !
+  call tmg_stop (46)        !
 
-  call tmg_start(64,'GPSZTD') !
+  call tmg_start(47,'OBS_GPSGB_TLAD') !
   call oda_Hgp
-  call tmg_stop (64)        !
+  call tmg_stop (47)        !
 
 
   CONTAINS
@@ -673,7 +679,7 @@ end subroutine oda_Hto
          ZETA(JL) = vco_anl%dhyb_m(JL)
       ENDDO
 
-      write(*,fmt='(/,4x,A)') 'LVGPSZTD- Linear Version: GPS ZTD observations'
+      !write(*,fmt='(/,4x,A)') 'LVGPSZTD- Linear Version: GPS ZTD observations'
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       call obs_set_current_header_list(lobsSpaceData,'GP')

@@ -51,7 +51,6 @@ C
       integer igdgid,ezqkdef
       integer isgid,iuugid,ivvgid
       integer idum1,idum2,idum3,idum4
-      real*8 zmin,zmax
       REAL*8 ZTRANS(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       REAL*8 zvvg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       REAL*8 zpsg(statevectorg%ni,statevectorg%nj)
@@ -128,10 +127,6 @@ C
       CALL INITGDG2(ps3d_ptr,zpsg,
      &              statevectorg%ni,statevectorg%nj,1,0,CLNOMVAR)
 !
-      call maxmin(ps3d_ptr,statevectorg%ni,statevectorg%nj,1,zmin,zmax,
-     &            idum1,idum2,idum3,idum4,'subasic_gd     ',
-     &            'PSG')
-!
 !      Temperature
 !
       write(*,*)'subasic_gd: reading TT'
@@ -146,10 +141,6 @@ C
       CALL INITGDG2(tt3d_ptr,zttg,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
 !
-      call maxmin(tt3d_ptr,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
-     &            idum1,idum2,idum3,idum4,'subasic_gd     ',
-     &            'TTG')
-!
 !      Specific-Humidity
 !
       write(*,*)'subasic_gd: reading HU'
@@ -163,10 +154,6 @@ C
       hu3d_ptr => gsv_getField3D(statevectorg,'HU')
       CALL INITGDG2(hu3d_ptr,zqqg,
      &              statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
-!
-      call maxmin(hu3d_ptr,statevectorg%ni,statevectorg%nj,statevectorg%nlev,zmin,zmax,
-     &            idum1,idum2,idum3,idum4,'subasic_gd     ',
-     &            'HUG')
 !
 !      U wind-image component
 !

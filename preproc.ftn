@@ -21,6 +21,7 @@
 *Author  : S. Pellerin *ARMA/AES  Nov., 1999
 *Revision:
 *
+      use mpi
       use MathPhysConstants_mod
       use Vgrid_Descriptors, only: vgrid_descriptor
       use obsSpaceData_mod
@@ -102,9 +103,9 @@
 !
 !     Filter out data from CMA
 !
-      call tmg_start(94,'SUPREP')
+      call tmg_start(14,'SUPREP')
       call suprep(lobsSpaceData)
-      call tmg_stop(94)
+      call tmg_stop(14)
 !
 !     If single GB-GPS observation assimilation, select the observation
 !
@@ -141,9 +142,9 @@
 !
 !     Reading, horizontal interpolation and unit conversions of the 3D trial fields
 !
-      call tmg_start(16,'SUGOMOBS')
+      call tmg_start(10,'SUGOMOBS')
       call sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
-      call tmg_stop(16)
+      call tmg_stop(10)
 !
       write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
       call prdatabin(lobsSpaceData,nstepobs)

@@ -61,41 +61,41 @@ C
          IF(mpi_myid == root) WRITE(*,FMT=9203) NCONF
  9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
 
-         call tmg_start(11,'PREMIN')
+         call tmg_start(1,'PREMIN')
          call preproc(columng,columnhr,obsSpaceData)
-         call tmg_stop(11)
+         call tmg_stop(1)
 
-         call tmg_start(12,'BGCHECK')
+         call tmg_start(2,'BGCHECK')
          CALL BGCHECK(columng,columnhr,obsSpaceData)
-         call tmg_stop(12)
+         call tmg_stop(2)
 
       case(121)
          WRITE(*,FMT=9204) NCONF
  9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL
      &        S")
-         call tmg_start(11,'PREMIN')
+         call tmg_start(1,'PREMIN')
          call preproc(columng,columnhr,obsSpaceData)
-         call tmg_stop(11)
+         call tmg_stop(1)
 
-         call tmg_start(12,'RESIDUALS')
+         call tmg_start(2,'RESIDUALS')
          CALL RESIDUALS(columng,columnhr,obsSpaceData)
-         call tmg_stop (12)
+         call tmg_stop (2)
 
       case(141)
          WRITE(*,FMT=9401)NCONF
  9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING MINIMIZE")
 
-         call tmg_start(11,'PREMIN')
+         call tmg_start(1,'PREMIN')
          call preproc(columng,columnhr,obsSpaceData)
-         call tmg_stop (11)
+         call tmg_stop (1)
 
-         call tmg_start(12,'MIN')
+         call tmg_start(2,'MIN')
          call minimize(columng,obsSpaceData)
-         call tmg_stop (12)
+         call tmg_stop (2)
 
-         call tmg_start(13,'POSMIN')
+         call tmg_start(3,'POSMIN')
          call postmin(columng,columnhr,obsSpaceData)
-         call tmg_stop (13)
+         call tmg_stop (3)
 c
       case default
          WRITE(*,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF

@@ -61,37 +61,35 @@ C LMHUAESV
       hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
       tt3d_inc_ptr => gsv_getField3D(statevector ,'TT')
 *
-      do jk=1,statevectorg%nlev
-        do ji=1,statevectorg%ni
-          do jj=1,statevectorg%nj
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji,zpres,ze,zel,ztd,zgamma,ztdl)
+      do jj=1,statevectorg%nj
+        do jk=1,statevectorg%nlev
+          do ji=1,statevectorg%ni
             zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*ps3d_trl_ptr(ji,1,jj)
 *
-*          First do the forward branch to get saturated vapour pressure
-*          from q
+*           First do the forward branch to get saturated vapour pressure
+*           from q
 *
             ZE = FOEFQ8(max(hu3d_trl_ptr(ji,jk,jj),1.d-12), zpres)
-!            ZE = FOEFQ8(hu3d_trl_ptr(ji,jk,jj), zpres)
 *
-*          TLM of the saturated vapor pressure from q (specific humidity)
+*           TLM of the saturated vapor pressure from q (specific humidity)
 *
             ZEL = FOEFQL(hu3d_inc_ptr(ji,jk,jj),ps3d_inc_ptr(ji,1,jj)
      &           ,hu3d_trl_ptr(ji,jk,jj),zpres,statevectorg%vco%dhyb_m(jk))
-!            ZEL = FOEFQL(hu3d_inc_ptr(ji,jk,jj),ps3d_inc_ptr(ji,1,jj)
-!     &           ,hu3d_trl_ptr(ji,jk,jj),zpres,statevectorg%vco%db_m(jk))
 *
-*          TLM of the dewpoint temperature calculation
-*
-C          From Teten's relation
+*           TLM of the dewpoint temperature calculation
+C           From Teten's relation
 C
             ZTD=FOTW8(ZE)
             ZGAMMA=FODTW8(ZTD,ZE)
             ZTDL = ZGAMMA*ZEL
-*
+
             pesinc(ji,jk,jj) = tt3d_inc_ptr(ji,jk,jj) - ZTDL
-*
+
           enddo
         enddo
       enddo
-*
+!$OMP END PARALLEL DO
+
       RETURN
       END

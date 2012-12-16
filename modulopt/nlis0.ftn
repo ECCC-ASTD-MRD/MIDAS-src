@@ -32,11 +32,12 @@ c
 c
 c --- variables locales
 c
+      logical lfound,lfound2
       integer i,indic,indica,indicd
       double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd,
      / fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 c
-      call tmg_start(83,'NLIS0')
+      call tmg_start(74,'NLIS0')
  1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2,
      1 7h  tmin=,d9.2,6h tmax=,d9.2)
  1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,
@@ -108,9 +109,9 @@ c
 c
 c     --- appel simulateur
 c
-      call tmg_stop(83)
+      call tmg_stop(74)
       call simul(indic,n,x,f,g,izs,rzs,dzs)
-      call tmg_start(83,'NLIS0')
+      call tmg_start(74,'NLIS0')
       if(indic.eq.0) then
 c
 c         --- arret demande par l'utilisateur
@@ -223,10 +224,18 @@ c
 c
 c     --- limite de precision machine (arret de secours) ?
 c
-      do 910 i=1,n
+      lfound=.false.
+      do i=1,n
           z=xn(i)+t*d(i)
-          if (z.ne.xn(i).and.z.ne.x(i)) go to 950
-  910 continue
+          if (z.ne.xn(i).and.z.ne.x(i)) then
+            lfound=.true.
+            exit
+          endif
+      enddo
+      call tmg_start(79,'QN_COMM')
+      call rpn_comm_allreduce(lfound,lfound2,1,"mpi_logical","mpi_lor","GRID",ierr)
+      call tmg_stop(79)
+      if(lfound2) go to 950
 c
 c --- arret sur dxmin ou de secours
 c
@@ -255,6 +264,6 @@ c
   950 do 960 i=1,n
   960 x(i)=xn(i)+t*d(i)
       go to 100
-      call tmg_stop(83)
+      call tmg_stop(74)
   999 return
       end

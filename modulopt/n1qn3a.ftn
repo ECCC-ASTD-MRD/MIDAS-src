@@ -1,6 +1,6 @@
       subroutine n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1,
      /                   epsg,impres,io,mode,niter,nsim,inmemo,m,jmin,
-     /                   jmax,d,gg,diag,aux,alpha,ybar,sbar,izs,rzs,dzs)
+     /                   jmax,d,gg,diag,aux,ybar,sbar,izs,rzs,dzs)
 c----
 c
 c     Code d'optimisation proprement dit.
@@ -13,13 +13,13 @@ c
       integer n,impres,io,mode,niter,nsim,m,jmin,jmax,izs(1)
       real rzs(1)
       double precision x(n),f,g(n),dxmin,df1,epsg,d(n),gg(n),diag(n),
-     &    aux(n),alpha(m),ybar(n,1),sbar(n,1),dzs(1)
+     &    aux(n),ybar(n,1),sbar(n,1),dzs(1)
       external simul,prosca,dtonb,dtcab
 c
 c         variables locales
 c
       logical sscale,cold,warm
-      integer i,itmax,moderl,isim,jcour,indic
+      integer i,itmax,moderl,isim,jcour,indic,ierr
       double precision d1,t,tmin,tmax,gnorm,eps1,ff,preco,precos,ys,den,
      &    dk,dk1,ps,ps2,hp0
 c
@@ -33,7 +33,7 @@ c
 c
 c---- initialisation
 c
-      call tmg_start(80,'N1QN3A')
+      call tmg_start(73,'N1QN3A')
       rmin=1.d-20
 c
       sscale=.true.
@@ -48,9 +48,9 @@ c
       isim=1
       eps1=1.d+0
 c
-      call tmg_stop(80)
+      call tmg_stop(73)
       call prosca (n,g,g,ps,izs,rzs,dzs)
-      call tmg_start(80,'N1QN3A')
+      call tmg_start(73,'N1QN3A')
       gnorm=dsqrt(ps)
       if (impres.ge.1) write (io,900) f,gnorm
   900 format (5x,"f         = ",d15.8
@@ -89,24 +89,24 @@ c
 c         --- use the matrix stored in [diag and] the (y,s) pairs
 c
           if (sscale) then
-              call tmg_stop(80)
+              call tmg_stop(73)
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+              call tmg_start(73,'N1QN3A')
               precos=1.d+0/ps
           endif
           do 11 i=1,n
               d(i)=-g(i)
   11      continue
           if (inmemo) then
-              call tmg_stop(80)
+              call tmg_stop(73)
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                 precos,diag,alpha,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+     /                 precos,diag,ybar,sbar,izs,rzs,dzs)
+              call tmg_start(73,'N1QN3A')
           else
-              call tmg_stop(80)
+              call tmg_stop(73)
               call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                  precos,diag,alpha,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+     /                  precos,diag,ybar,sbar,izs,rzs,dzs)
+              call tmg_start(73,'N1QN3A')
           endif
       endif
 c
@@ -121,9 +121,9 @@ c
 c     --- initialisation pour nlis0
 c
       tmax=1.d+20
-      call tmg_stop(80)
+      call tmg_stop(73)
       call prosca (n,d,g,hp0,izs,rzs,dzs)
-      call tmg_start(80,'N1QN3A')
+      call tmg_start(73,'N1QN3A')
       if (hp0.ge.0.d+0) then
           mode=7
           if (impres.ge.1) write (io,905) niter,hp0
@@ -136,11 +136,11 @@ c
 c     --- compute the angle (-g,d)
 c
       if (warm.and.impres.ge.5) then
-          call tmg_stop(80)
+          call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
           ps=dsqrt(ps)
           call prosca (n,d,d,ps2,izs,rzs,dzs)
-          call tmg_start(80,'N1QN3A')
+          call tmg_start(73,'N1QN3A')
           ps2=dsqrt(ps2)
           ps=hp0/ps/ps2
           ps=dmin1(-ps,1.d+0)
@@ -161,9 +161,9 @@ c
       if (impres.lt.0) then
           if (mod(niter,-impres).eq.0) then
               indic=1
-              call tmg_stop(80)
+              call tmg_stop(73)
               call simul (indic,n,x,f,g,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+              call tmg_start(73,'N1QN3A')
           endif
       endif
       if (impres.ge.5) write(io,903)
@@ -187,16 +187,20 @@ c         --- calcul de tmin
 c
       tmin=0.d+0
       do 200 i=1,n
-          tmin=dmax1(tmin,dabs(d(i)))
+          tmin=max(tmin,dabs(d(i)))
 200   continue
+      call tmg_start(79,'QN_COMM')
+      call rpn_comm_allreduce(tmin,tmin,1,"mpi_double_precision","mpi_max","GRID",ierr)
+      call tmg_stop(79)
+
       tmin=dxmin/tmin
       t=1.d+0
       d1=hp0
 c
-      call tmg_stop(80)
+      call tmg_stop(73)
       call nlis0 (n,simul,prosca,x,f,d1,t,tmin,tmax,d,g,rm2,rm1,
      /           impres,io,moderl,isim,nsim,aux,izs,rzs,dzs)
-      call tmg_start(80,'N1QN3A')
+      call tmg_start(73,'N1QN3A')
 c
 c         --- nlis0 renvoie les nouvelles valeurs de x, f et g
 c
@@ -266,18 +270,18 @@ c
 400       continue
 !$OMP END PARALLEL DO
           if (impres.ge.5) then
-              call tmg_stop(80)
+              call tmg_stop(73)
               call prosca (n,sbar(1,jcour),sbar(1,jcour),ps,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+              call tmg_start(73,'N1QN3A')
               dk1=dsqrt(ps)
               if (niter.gt.1) write (io,930) dk1/dk
   930         format (/" n1qn3: convergence rate, s(k)/s(k-1) = ",
      /                d12.5)
               dk=dk1
           endif
-          call tmg_stop(80)
+          call tmg_stop(73)
           call prosca (n,ybar(1,jcour),sbar(1,jcour),ys,izs,rzs,dzs)
-          call tmg_start(80,'N1QN3A')
+          call tmg_start(73,'N1QN3A')
           if (ys.le.0.d+0) then
               mode=7
               if (impres.ge.1) write (io,931) niter,ys
@@ -296,9 +300,9 @@ c
               ybar(i,jcour)=d1*ybar(i,jcour)
   410     continue
 !$OMP END PARALLEL DO
-          call tmg_stop(80)
+          call tmg_stop(73)
           if (.not.inmemo) call dystbl (.true.,ybar,sbar,n,jmax)
-          call tmg_start(80,'N1QN3A')
+          call tmg_start(73,'N1QN3A')
 c
 c         --- compute the scalar or diagonal preconditioner
 c
@@ -308,9 +312,9 @@ c
 c             --- Here is the Oren-Spedicato factor, for scalar scaling
 c
           if (sscale) then
-              call tmg_stop(80)
+              call tmg_stop(73)
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+              call tmg_start(73,'N1QN3A')
               precos=1.d+0/ps
 c
               if (impres.ge.5) write (io,933) precos
@@ -322,13 +326,16 @@ c                 equivalent to an Oren-Spedicato scaling of the
 c                 identity matrix.
 c
           else
-              call tmg_stop(80)
+              call tmg_stop(73)
               call dtonb (n,ybar(1,jcour),aux,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+              call tmg_start(73,'N1QN3A')
               ps=0.d0
               do 420 i=1,n
                   ps=ps+diag(i)*aux(i)*aux(i)
   420         continue
+              call tmg_start(79,'QN_COMM')
+              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+              call tmg_stop(79)
               d1=1.d0/ps
               if (impres.ge.5) then
                   write (io,934) d1
@@ -343,13 +350,16 @@ c
 c             --- update the diagonal
 c                 (gg is used as an auxiliary vector)
 c
-              call tmg_stop(80)
+              call tmg_stop(73)
               call dtonb (n,sbar(1,jcour),gg,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+              call tmg_start(73,'N1QN3A')
               ps=0.d0
               do 430 i=1,n
                   ps=ps+gg(i)*gg(i)/diag(i)
   430         continue
+              call tmg_start(79,'QN_COMM')
+              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+              call tmg_stop(79)
               den=ps
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
               do 431 i=1,n
@@ -369,6 +379,9 @@ c
                   do 440 i=1,n
                       ps=ps+diag(i)
   440             continue
+                  call tmg_start(79,'QN_COMM')
+                  call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+                  call tmg_stop(79)
                   ps=ps/n
                   preco=ps
 c
@@ -376,6 +389,9 @@ c
                   do 441 i=1,n
                       ps2=ps2+(diag(i)-ps)**2
   441             continue
+                  call tmg_start(79,'QN_COMM')
+                  call rpn_comm_allreduce(ps2,ps2,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+                  call tmg_stop(79)
                   ps2=dsqrt(ps2/n)
                   write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3,
@@ -386,9 +402,9 @@ c
 c
 c     --- tests d'arret
 c
-      call tmg_stop(80)
+      call tmg_stop(73)
       call prosca(n,g,g,ps,izs,rzs,dzs)
-      call tmg_start(80,'N1QN3A')
+      call tmg_start(73,'N1QN3A')
       eps1=ps
       eps1=dsqrt(eps1)/gnorm
 c
@@ -429,35 +445,35 @@ c
   510     continue
 !$OMP END PARALLEL DO
           if (inmemo) then
-              call tmg_stop(80)
+              call tmg_stop(73)
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                  precos,diag,alpha,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+     /                  precos,diag,ybar,sbar,izs,rzs,dzs)
+              call tmg_start(73,'N1QN3A')
           else
-              call tmg_stop(80)
+              call tmg_stop(73)
               call ddds (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax,
-     /                   precos,diag,alpha,ybar,sbar,izs,rzs,dzs)
-              call tmg_start(80,'N1QN3A')
+     /                   precos,diag,ybar,sbar,izs,rzs,dzs)
+              call tmg_start(73,'N1QN3A')
           endif
       endif
 c
 c         --- test: la direction d est-elle de descente ?
 c             hp0 sera utilise par nlis0
 c
-      call tmg_stop(80)
+      call tmg_stop(73)
       call prosca (n,d,g,hp0,izs,rzs,dzs)
-      call tmg_start(80,'N1QN3A')
+      call tmg_start(73,'N1QN3A')
       if (hp0.ge.0.d+0) then
           mode=7
           if (impres.ge.1) write (io,905) niter,hp0
           goto 1000
       endif
       if (impres.ge.5) then
-          call tmg_stop(80)
+          call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
           ps=dsqrt(ps)
           call prosca (n,d,d,ps2,izs,rzs,dzs)
-          call tmg_start(80,'N1QN3A')
+          call tmg_start(73,'N1QN3A')
           ps2=dsqrt(ps2)
           ps=hp0/ps/ps2
           ps=dmin1(-ps,1.d+0)
@@ -477,7 +493,7 @@ c
       nsim=isim
       epsg=eps1
 
-      call tmg_stop(80)
+      call tmg_stop(73)
 
       return
       end

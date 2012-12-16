@@ -84,7 +84,7 @@ C
 C        RAOBS
 C------------------------------
 !
-!      call tmg_start(22,'NL_OBS_OPER')
+      call tmg_start(48,'NL_OBS_OPER')
       ZJORAOB = 0.0d0
       CALL DOBSPPP(ZJORAOB,'UA',lcolumnhr,lobsSpaceData)
 C
@@ -235,7 +235,7 @@ C
 c
       endif
 c
-!      call tmg_stop(22)
+      call tmg_stop(48)
 c
 c
 C=======================================================================

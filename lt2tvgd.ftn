@@ -37,6 +37,7 @@
       tt3d_inc_ptr => gsv_getField3D(statevector ,'TT')
       hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
 c
+!$OMP PARALLEL DO PRIVATE(jj,jk,ji)
       do jj = 1, statevector%nj
         do jk = 1, statevector%nlev
           do ji = 1, statevector%ni
@@ -45,7 +46,7 @@ c
           enddo
         enddo
       enddo
-C
+!$OMP END PARALLEL DO
 C
       RETURN
       END

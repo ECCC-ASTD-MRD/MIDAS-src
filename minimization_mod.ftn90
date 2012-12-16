@@ -38,40 +38,51 @@ MODULE minimization_mod
 
   character(len=10)   :: crestart='wrmrestart'
   integer             :: nulout =6
-  integer             :: nmtra,nwork,nsim3d
+  integer             :: nmtra,nmtra_mpiglobal,nwork,nsim3d
   integer             :: ni,nj,nt
+  integer             :: nvadim_beg,nvadim_end,nvadim_mpilocal,nvadim_mpilocalmax,nvadim_mpiglobal ! for mpi
   integer             :: min_niter
   integer             :: dataptr_int_size=0
   integer             :: datestamp      ! window centre of analysis validity
 
   ! namelist variables
   INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
-  INTEGER NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
-  LOGICAL LRSTART,lxbar,lwrthess,LOMP_PRSCAL
-  REAL*8 REPSG,EPSNEG,rdf1fac
+  INTEGER NGRTEST,NGRANGE
+  LOGICAL LRSTART,lxbar,lwrthess
+  REAL*8 REPSG,rdf1fac
   LOGICAL LVARQC
   integer :: nwoqcv
 
   NAMELIST /NAMMIN/N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NITERJOB  
-  NAMELIST /NAMMIN/NGRTEST,NGRANGE,SELECT0,BFGSB,IMODE3
-  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess,LOMP_PRSCAL
-  NAMELIST /NAMMIN/REPSG,EPSNEG,rdf1fac
+  NAMELIST /NAMMIN/NGRTEST,NGRANGE
+  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess
+  NAMELIST /NAMMIN/REPSG,rdf1fac
   NAMELIST /NAMMIN/LVARQC,NWOQCV
 
 CONTAINS
 
-  SUBROUTINE min_setup(nvadim_in,ni_in,nj_in,nt_in)
+  SUBROUTINE min_setup(nvadim_mpiglobal_in,ni_in,nj_in,nt_in)
     implicit none
-    integer :: nvadim_in,ni_in,nj_in,nt_in
+    integer :: nvadim_mpiglobal_in,ni_in,nj_in,nt_in
 
     integer :: ierr,nulnam
     integer :: fnom,fclos
+
+    if(nvadim_mpiglobal_in.ne.cvm_nvadim) then
+      write(*,*) 'nvadim_mpiglobal,cvm_nvadim=',nvadim_mpiglobal,cvm_nvadim
+      call abort3d('aborting in min_setup: control vector dimension not consistent')
+    endif
 
     nsim3d=0 
 
     ni=ni_in
     nj=nj_in
     nt=nt_in
+    nvadim_mpiglobal=nvadim_mpiglobal_in
+    nvadim_beg = 1+(mpi_myid*ceiling(real(nvadim_mpiglobal)/real(mpi_nprocs)))
+    nvadim_end = min((mpi_myid+1)*ceiling(real(nvadim_mpiglobal)/real(mpi_nprocs)),nvadim_mpiglobal)
+    nvadim_mpilocal = nvadim_end-nvadim_beg+1
+    call rpn_comm_allreduce(nvadim_mpilocal,nvadim_mpilocalmax,1,"mpi_integer","mpi_max","GRID",ierr)
 
     ! set default values for namelist variables
     N1GC = 3
@@ -85,13 +96,8 @@ CONTAINS
     NGRANGE  = 10
     lwrthess =.true.
     lxbar    = .true.
-    lomp_prscal = .false.
     REPSG    = 1e-3
     LRSTART  = .FALSE.
-    EPSNEG   = 1e-6
-    SELECT0  = 0
-    BFGSB    = 2
-    IMODE3   = 0
     LVARQC   = .false.
     NWOQCV   = 5
 
@@ -103,29 +109,24 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    allocate(dg_vbar(nvadim_in),stat=ierr)
+    allocate(dg_vbar(nvadim_mpilocalmax),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'minimization: Problem allocating memory! id=1',ierr
       call abort3d('aborting in min_setup')
     endif
     dg_vbar(:)=0.0d0
 
-    IF(N1GC.EQ.2) THEN
-       NMTRA = 3*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
-    ELSE IF(N1GC.EQ.3)THEN
-      NMTRA = 4*NVADIM_IN + NVAMAJ*(2*NVADIM_IN + 1)
-    ELSE IF(N1GC.EQ.4)THEN
-       NMTRA = 1 + NVAMAJ*(2*NVADIM_IN + 1)
-       NWORK = 5*NVADIM_IN + NVAMAJ
+    IF(N1GC.EQ.3)THEN
+      NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocalmax
+      NMTRA_mpiglobal = (4 + 2*NVAMAJ)*NVADIM_MPIGLOBAL 
     ELSE
-       NMTRA = NVADIM_IN*2
+      call abort3d('min_setup: only N1GC=3 currently supported!') 
     END IF
-    WRITE(*,9401)N1GC, NVAMAJ,NVADIM_IN,NMTRA
- 9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NVADIM_IN =",1x,I14,3X,"NMTRA =",1X,I14)
-    IF(N1GC.EQ.4) THEN
-    WRITE(*,9402)NWORK
- 9402 FORMAT(4X,'FOR N1CG1:',4X,'NWORK = ',I9)
-    ENDIF
+    WRITE(*,9401)N1GC,NVAMAJ,NVADIM_MPIGLOBAL,NMTRA
+ 9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NVADIM_MPIGLOBAL =",1x,I14,3X,"NMTRA =",1X,I14)
+    write(*,*) 'min_setup: nvadim_mpiglobal,_beg,_end,_mpilocal,_mpilocalmax=',  &
+               nvadim_mpiglobal,nvadim_beg,nvadim_end,nvadim_mpilocal,nvadim_mpilocalmax
+    write(*,*) 'min_setup: nmtra,nmtra_mpiglobal=',nmtra,nmtra_mpiglobal
 
     IF (LVARQC) WRITE(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
@@ -136,8 +137,8 @@ CONTAINS
 
   SUBROUTINE min_minvar(lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
 !
-!Purpose:
-!3D/4D VAR minimization
+! Purpose:
+! 3D/En VAR minimization
 !
       IMPLICIT NONE
 
@@ -153,8 +154,9 @@ CONTAINS
       REAL ZZSUNUSED(1)
 
       real*8,allocatable :: vazg(:)
-! no conjgrad      real*8,allocatable :: vatr1(:)
+      real*8,allocatable :: vazx(:) ! mpi local version of cvm_vazx
       real*8,allocatable :: vatra(:)
+      real*8,allocatable :: vazx_mpiglobalmax(:)
 
       REAL*8 DLDS(1)
       LOGICAL LLTEST,llvarqc, llstop, lldf1, lrdvatra, llvazx, llxbar
@@ -173,29 +175,25 @@ CONTAINS
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
 
-      logical bid_L
-
-!     Additional parameters for minimization (N1CG1)
-      real*8 xx,bb,a_not_use,r8_not_use,pj0
-      integer in_mode(3),out_mode,i_not_use,nilm,ilm0(10),ilm1(10)
-      integer i_pmat1,nl_stat, dl_bidon
-
 ! 
-!     allocation (formerly automatic arrays)
+!     allocation (these are all mpilocalmax arrays)
 !
+      allocate(vazx(nvadim_mpilocalmax),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'minimization: Problem allocating memory! id=3',ierr
+        call abort3d('aborting in min_minvar')
+      endif
+      vazx(:)=0.0d0
+      ! extra mpilocal portion of control vector:
+      vazx(:)=cvm_vazx(nvadim_beg:nvadim_end) 
 
-      allocate(vazg(cvm_nvadim),stat=ierr)
+      allocate(vazg(nvadim_mpilocalmax),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
         call abort3d('aborting in min_minvar')
       endif
       vazg(:)=0.0d0
-! no conjgrad      allocate(vatr1(nmtra),stat=ierr)
-!      if(ierr.ne.0) then
-!        write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-!        call abort3d('aborting in min_minvar')
-!      endif
-!      vatr1(:)=0.0d0
+
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
@@ -204,31 +202,14 @@ CONTAINS
       endif
       vatra(:)=0.0d0
 
-
-! ---------------------------------------
-!     Initialization and allocation specific to (N1CG1)
-!     -------------------------------------------------
-      if( N1GC.EQ.4.and.lvarqc ) call abort3d(' MINIMIZE N1CG1 with lvarqc not done ')
-      if( BFGSB.EQ.1 ) call abort3d(' MINIMIZE n1cg1: option not validated ')
-
-!     Define i_pmat1 even if BFGSB.NE.1 (Otherwise abort in n1cg1)
-!     ------------------------------------------------------------
-      i_pmat1 = cvm_NVADIM**2
-
-      in_mode(2) = 0
-      in_mode(3) = IMODE3
-
-      nilm = NVAMAJ + 3
-      if( nilm.gt.10 .and. N1GC.EQ.4)  call abort3d(' MINIMIZE n1cg1: ilm0,ilm1 incorrect ')
-
-!     -------------------------------------------------
+!
 ! Prepare for non-linear processing of 'TO' data:
 !    - fill PZDBLPRIM8 with Z" = H(xb_lr) + Z'
 !                              = H(xb_lr) - H(xb_hr) + Z
       if ( lnlvtov ) then
-        call tmg_start(60,'RTTOV')
+        call tmg_start(48,'NL_OBS_OPER')
         call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData)
-        call tmg_stop(60)
+        call tmg_stop(48)
       endif
 
       ITERTOT  = 0
@@ -258,7 +239,6 @@ CONTAINS
       ireslun=0
       lldf1 = .true.
       if(niterjob /= -1 .and. lrestart) then
-        if( N1GC.EQ.4 ) call abort3d(' MINIMIZE N1CG1 with restart not done ')
         write(*,*) 'Minimize : Restart mode'
         lrdvatra = .true.
         clfname = crestart
@@ -285,14 +265,9 @@ CONTAINS
         if(n1gc.eq.3) then
           call rw_vatra (clfname,0,                            &
             isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
-            ,isimdone_000,iztrl,vatra,nmtra,dg_vbar,cvm_nvadim,    &
-            cvm_vazx,nvamaj,llxbar,llvazx,n1gc,imode)
+            ,isimdone_000,iztrl,vatra,dg_vbar,    &
+            vazx,llxbar,llvazx,n1gc,imode)
 
-        elseif(n1gc.eq.4) then
-          call rw_vatra (clfname,0,                            &
-            isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
-            ,isimdone_000,ilm0,vatra,nmtra,dg_vbar,cvm_nvadim,     &
-            cvm_vazx,nvamaj,llxbar,llvazx,n1gc,imode)
         endif
 
         if(niterjob /= -1 .and. lrestart) then
@@ -332,7 +307,7 @@ CONTAINS
         if (nwoqcv > 0) lvarqc = .false.
 
         if(ngrtest.ne.0) then
-          call grtest2(simvar,cvm_nvadim,cvm_vazx,ngrange)
+          call grtest2(simvar,nvadim_mpilocalmax,vazx,ngrange)
         endif
 
       endif
@@ -355,7 +330,7 @@ CONTAINS
 !
       INDIC =2
 
-      call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,dataptr_int(1))
+      call simvar(indic,nvadim_mpilocalmax,vazx,zjsp,vazg,dataptr_int(1))
 
       if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
 
@@ -363,9 +338,9 @@ CONTAINS
 
       lvarqc=llvarqc
 
-      CALL PRSCAL(cvm_NVADIM,VAZG,VAZG,DLGNORM)
+      CALL PRSCAL(nvadim_mpilocalmax,VAZG,VAZG,DLGNORM)
       DLGNORM = DSQRT(DLGNORM)
-      CALL PRSCAL(cvm_NVADIM,cvm_VAZX,cvm_VAZX,DLXNORM)
+      CALL PRSCAL(nvadim_mpilocalmax,VAZX,VAZX,DLXNORM)
       DLXNORM = DSQRT(DLXNORM)
       WRITE(*,*)' |X| = ', DLXNORM
       WRITE(*,FMT=9220) ZJSP, DLGNORM
@@ -385,18 +360,11 @@ CONTAINS
 
       IF(N1GC.EQ.3) THEN
       WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,NITERMAX,NSIMMAX
-      ELSEIF(N1GC.EQ.4) THEN
-      WRITE(*,FMT=9321)ZXMIN,ZDF1,ZEPS0,EPSNEG,SELECT0,BFGSB,IMODE3,IMPRES,NITERMAX,NSIMMAX
       ENDIF
 
  9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
           10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
           /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3,//  &
-          ,15X,'-STARTING POINT IS WRITTEN TO FILE ...')
- 9321 FORMAT(//,10X,' Minimization N1CG1 starts ...',/  &
-          10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16,2X,'EPSNEG =',G23.16,/,  &
-          10x,'SELECT0 = ',I3,2X,'BFGSB = ',I3,2X,'IMODE3 = ',I3,  &
-          /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3,2X,'NHESS = ',I3,//  &
           ,15X,'-STARTING POINT IS WRITTEN TO FILE ...')
 
 !     *    .   3.3 Beginning the minimization
@@ -407,12 +375,12 @@ CONTAINS
         iitnovqc = min(nwoqcv - iterdone,itermax)
         isimnovqc = isimmax
         lvarqc = .false.
-        call tmg_start(21,'QN')
-        call n1qn3(simvar, dscalqn, dcanonb, dcanab, cvm_nvadim, cvm_vazx,  &
+        call tmg_start(70,'QN')
+        call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocalmax, vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode       &
             ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1), zzsunused  &
             ,dlds)
-        call tmg_stop (21)
+        call tmg_stop(70)
 
         isimnovqc = isimnovqc - 1
         itermax = itermax - iitnovqc + 1
@@ -428,7 +396,7 @@ CONTAINS
         if (imode == 4 .and. itertot < nitermax) then
           imode = 2
           INDIC = 2
-          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,dataptr_int(1))
+          call simvar(indic,nvadim_mpilocalmax,vazx,zjsp,vazg,dataptr_int(1))
         else
           llstop = .true.
           call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
@@ -439,55 +407,16 @@ CONTAINS
 
         if(N1GC.EQ.3) then
 
-          call tmg_start(21,'QN')
-          call n1qn3(simvar, dscalqn, dcanonb, dcanab, cvm_nvadim, cvm_vazx,  &
+          call tmg_start(70,'QN')
+          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocalmax, vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
               itermax,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
               dlds)
-          call tmg_stop (21)
+          call tmg_stop(70)
           itertot = itertot + itermax
           isimtot = isimtot + isimmax
 
           zeps1 = zeps0/zeps1
-
-        elseif(N1GC.EQ.4) then
-
-!       Set VAZB = - VAZG (Valid only if VAZX = ZERO)
-!       ---------------------------------------------
-!modular1          VAZB = - VAZG
-
-!       Keep constant term in pj0 (Valid only if VAZX = ZERO)
-!       -----------------------------------------------------
-          pj0 = ZJSP
-
-!       Print cost function at iter 0 (Valid only if VAZX = ZERO)
-!       ---------------------------------------------------------
-          WRITE(*,FMT=9700) 0,0.d0+pj0,pj0,0.d0
- 9700     FORMAT (4x,"n1cga:",i5,1x,e15.8,1x,e15.8,1x,e15.8)
-
-          if(imode.eq.0) in_mode(1) = 0
-          if(imode.eq.2) in_mode(1) = 1
-
-!modular1          call n1cg1 (mvprod,cvm_NVADIM,cvm_VAZX,VAZB,a_not_use,pj0,xx,bb,.false
-!modular1     &         .,EPSNEG,zeps1,itermax,impres,NULOUT,in_mode,out_mode
-!modular1     &         ,VWORK,NWORK,imode,r8_not_use,i_not_use,NVAMAJ,ilm0,nilm
-!modular1     &         ,VATRA,NMTRA,BFGSB,r8_not_use,i_pmat1,  NVAMAJ,ilm1,nilm
-!modular1     &         ,VATR1,NMTRA,SELECT0,izs,zzsunused,dlds)
-
-          zeps1 = zeps0/zeps1
-          zeps0 = zeps1
-
-          imode = out_mode
-
-          isimmax = itermax
-
-          itertot = itertot + itermax
-          isimtot = isimtot + isimmax
-
-!       Call 4D-Var simulator without gradient to get ZJSP
-!       --------------------------------------------------
-          INDIC = 2
-          call simvar(indic,cvm_nvadim,cvm_vazx,zjsp,vazg,dataptr_int(1))
 
         endif
 
@@ -503,8 +432,8 @@ CONTAINS
 !     execution of postmin.
         lrestart = .true.
       else
-        do jdata = 1, cvm_nvadim
-          dg_vbar(jdata) = cvm_vazx(jdata) + dg_vbar(jdata)
+        do jdata = 1, nvadim_mpilocal
+          dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
         enddo
         clfname = 'pm1q'
       endif
@@ -513,17 +442,9 @@ CONTAINS
         if(n1gc.eq.3) then
         call rw_vatra (clfname,1,  &
           nsim3d,min_get_datestamp(),zeps1,zdf1,itertot,isimtot,  &
-          iztrl,vatra,nmtra,  &
-          dg_vbar,cvm_nvadim,  &
-          cvm_vazx,nvamaj,.true.,llvazx,n1gc,imode)
+          iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
 
-! no conjgrad        elseif(n1gc.eq.4) then
-!            call rw_vatra (clfname,1,  &
-!            nsim3d,min_get_datestamp(),zeps1,zdf1,itertot,isimtot,  &
-!            ilm1,vatr1,nmtra,  &
-!            dg_vbar,cvm_nvadim,  &
-!            cvm_vazx,nvamaj,.true.,llvazx,n1gc,imode)
-          endif
+        endif
       endif
 
       WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
@@ -547,12 +468,22 @@ CONTAINS
         WRITE(*,FMT=9400)
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
 
-        call grtest2(simvar,cvm_nvadim,cvm_vazx,ngrange)
+        call grtest2(simvar,nvadim_mpilocalmax,vazx,ngrange)
 
       END IF
 
+      call tmg_start(89,'MIN_COMM')
+      ! transfer the mpilocal vazx into global cvm_vazx
+      allocate(vazx_mpiglobalmax(nvadim_mpilocalmax*mpi_nprocs))
+      call rpn_comm_allgather(vazx             ,nvadim_mpilocalmax,"mpi_double_precision", &
+                              vazx_mpiglobalmax,nvadim_mpilocalmax,"mpi_double_precision", &
+                              "grid",ierr)
+      cvm_vazx(:)=vazx_mpiglobalmax(1:nvadim_mpiglobal)      
+      deallocate(vazx_mpiglobalmax)
+      call tmg_stop(89)
+
+      deallocate(vazx,stat=ierr)
       deallocate(vazg,stat=ierr)
-!no conjgrad      deallocate(vatr1,stat=ierr)
       deallocate(vatra,stat=ierr)
 
       RETURN
@@ -610,8 +541,11 @@ CONTAINS
     !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
     !
     ! Local declaration
-    integer :: nl_ilev, nl_err
+    integer :: ierr,jj
     real*8, dimension(na_dim) :: dl_v
+    real*8, dimension(nvadim_mpiglobal) :: da_v_mpiglobal
+    real*8, dimension(nvadim_mpiglobal) :: da_gradJ_mpiglobal
+    real*8, dimension(nvadim_mpilocalmax*mpi_nprocs) :: da_v_mpiglobalmax
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv) :: statevector
     type(struct_dataptr) :: dataptr
@@ -624,9 +558,9 @@ CONTAINS
     lcolumn       => dataptr%lcolumn
     lcolumng      => dataptr%lcolumng
 
-    if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop (21)
+    if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop(70)
 
-    call tmg_start(31,'SIMVAR')
+    call tmg_start(80,'SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        nsim3d = nsim3d + 1
 
@@ -635,39 +569,44 @@ CONTAINS
          call flush(6)
        endif
 
-       dl_v(:) = da_v(:) + dg_vbar(:)      !dg_vbar = sum(v) of previous outer-loops
+       ! note: dg_vbar = sum(v) of previous outer-loops
+       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + dg_vbar(1:nvadim_mpilocal)     
 
-       call tmg_start(74,'JB')       
-       dl_Jb = dot_product(dl_v,dl_v)/2.d0  ! Computation of background term of cost function
-       call tmg_stop(74)
+       ! Computation of background term of cost function:
+       dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
+       call tmg_start(89,'MIN_COMM')       
+       call rpn_comm_allreduce(dl_Jb,dl_Jb,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+       call tmg_stop(89)
 
        call gsv_setVco(statevector,col_getVco(lcolumng))
-       call gsv_allocate(statevector,ni,nj,nt)
+       call gsv_allocate(statevector,ni,nj,nt,mpi_local=.true.)
 
-       call bmat_sqrtB(da_v,na_dim,statevector)
+       ! transfer mpilocal da_v to mpiglobal da_v_mpiglobal
+       call tmg_start(89,'MIN_COMM')
+       call rpn_comm_allgather(da_v             ,nvadim_mpilocalmax,"mpi_double_precision", &
+                               da_v_mpiglobalmax,nvadim_mpilocalmax,"mpi_double_precision", &
+                               "grid",ierr)
+       da_v_mpiglobal(:)=da_v_mpiglobalmax(1:nvadim_mpiglobal)      
+       call tmg_stop(89)
 
+       call bmat_sqrtB(da_v_mpiglobal,nvadim_mpiglobal,statevector)
+
+       call tmg_start(30,'OBS_INTERP')
        call oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)  ! put in column H_horiz dx
+       call tmg_stop(30)
 
-       call tmg_start(2,'OBS-OPER') !
-
+       call tmg_start(40,'OBS_TL')
        call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Modify OBS_OMA ! H_vert H_horiz dx = Hdx
+       call tmg_stop(40)
 
-       call tmg_start(95,'RES')
        call oda_res(lobsSpaceData)  ! Modify OBS_OMA : Hdx-d
-       call tmg_stop(95)
      
-       call tmg_start(96,'SQRTRM1')
        call oda_sqrtRm1(lobsSpaceData,OBS_OMA,OBS_OMA)  ! Modify OBS_OMA : R**-1/2 (Hdx-d)
-       call tmg_stop(96)
      
-       call tmg_start(97,'ODA_JO')
        call oda_Jo(lobsSpaceData)  ! Temporarily store Jobs in OBS_OMI : 1/2 * R**-1 (Hdx-d)**2
-       call tmg_stop(97)
      
        IF (LVARQC) THEN          
-          call tmg_start(98,'QC_VAR')
           call oda_qcv(lobsSpaceData)  ! Store modify Jobs in OBS_OMI : -ln((gamma-exp(J))/(gamma+1))  
-          call tmg_stop(98)
        endif
 
        dl_Jo = 0.d0
@@ -681,34 +620,40 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call tmg_start(96,'SQRTRM1')
        call oda_sqrtRm1(lobsSpaceData,OBS_OMI,OBS_OMA)  ! Modify OBS_OMI : R**-1 (Hdx-d)
-       call tmg_stop(96)
 
        IF (LVARQC) THEN
-          call tmg_start(98,'QC_VAR')
           call oda_qcvad(lobsSpaceData)
-          call tmg_stop(98)
        endif
 
        call col_zero(lcolumn)
+
+       call tmg_start(41,'OBS_AD')
        call oda_HT(lcolumn,lcolumng,lobsSpaceData)   ! Put in column : H_vert**T R**-1 (Hdx-d)
-     
-       call tmg_stop(2)
+       call tmg_stop(41)
 
+       call tmg_start(31,'OBS_INTERPAD')
        call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx-d)
+       call tmg_stop(31)
 
-       da_gradJ = 0.d0
-       call bmat_sqrtBT(da_gradJ,na_dim,statevector)
+       da_gradJ_mpiglobal(:) = 0.d0
+       call bmat_sqrtBT(da_gradJ_mpiglobal,nvadim_mpiglobal,statevector)
        call gsv_deallocate(statevector)
 
-       if (na_indic .ne. 3) then
-          da_gradJ(:) = dl_v(:) + da_gradJ(:)
-       endif
+       ! make da_gradJ_mpiglobal mpilocal
+       da_gradJ(nvadim_mpilocal:nvadim_mpilocalmax)=0.0d0
+       da_gradJ(1:nvadim_mpilocal)=da_gradJ_mpiglobal(nvadim_beg:nvadim_end)
 
+       if (na_indic .ne. 3) then
+          da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)
+       endif
+       
     endif
-    call tmg_stop(31)
-    if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(21,'QN')
+    call tmg_stop(80)
+    if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(70,'QN')
+
+    write(*,*) 'end of simvar'
+    call flush(6)
 
   END SUBROUTINE simvar
 
@@ -765,52 +710,18 @@ CONTAINS
     INTEGER mythread,numthreads,jstart,jend
     INTEGER omp_get_thread_num,omp_get_num_threads
 
-    call tmg_start(79,'PRSCAL')
+    call tmg_start(71,'QN_PRSCAL')
     DDSC = 0.
 
+    do j=1,nvadim_mpilocal
+      DDSC = DDSC + PX(J)*PY(J)
+    ENDDO
 
-    if(lomp_prscal) then
-
-      ! this more complicated procedure ensures
-      ! reproducibility of the results, which is not
-      ! obtained with the openMP "reduction" clause
-
-      ! initialize partial sums for each thread
-      partialsum(:)=0.0d0
-
-!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(mythread,jstart,jend,j)
-
-      ! obtain thread id and number of threads
-      mythread=omp_get_thread_num()
-      if(mythread.eq.0) then
-        ! numthreads is shared so that it's available outside par region
-        numthreads=omp_get_num_threads()
-      endif
-!$OMP BARRIER
-
-      ! compute separate partial sum for each thread
-      jstart=1+(mythread*ceiling(real(kdim)/real(numthreads)))
-      jend=min((mythread+1)*ceiling(real(kdim)/real(numthreads)),kdim)
-      do j=jstart,jend
-        partialsum(mythread+1)=partialsum(mythread+1)+PX(J)*PY(J)
-      enddo
-
-!$OMP END PARALLEL
-
-      ! add up the partial sums
-      do j=1,numthreads
-        DDSC = DDSC + partialsum(j)
-      enddo
-
-    else
-
-      DO J = 1, KDIM
-        DDSC = DDSC + PX(J)*PY(J)
-      ENDDO
-
-    endif
-
+    call tmg_start(79,'QN_COMM')
+    call rpn_comm_allreduce(ddsc,ddsc,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call tmg_stop(79)
+
+    call tmg_stop(71)
 
     RETURN
   END SUBROUTINE PRSCAL
@@ -868,11 +779,9 @@ CONTAINS
 
     INTEGER JDIM
 
-    call tmg_start(78,'DCANONB')
     DO JDIM = 1, KDIM
       PY(JDIM) = PX(JDIM)
     ENDDO
-    call tmg_stop(78)
 
     RETURN
   END SUBROUTINE DCANONB
@@ -880,9 +789,7 @@ CONTAINS
 
   SUBROUTINE rw_vatra (cfname,status,                       &
           nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
-          nztrl,vatra,nmtra,                                &
-          vazxbar,nvadim,                                   &
-          vazx,nvamaj,lxbar,lvazx,k1gc,imode)
+          nztrl,vatra,vazxbar,vazx,lxbar,lvazx,k1gc,imode)
 
     !***s/r RW_VATRA  - Read-Write VAZXBAR and VATRA on file
     !*
@@ -900,14 +807,11 @@ CONTAINS
     !*     i   isimtot   : Parameter in N1QN3
     !*     i   nztrl     : Localisation parameters for Hessian
     !*     i   vatra     : Hessian
-    !*     i   nmtra     : Size of Hessian
     !*     i   vazxbar   : Vazx of previous loop
-    !*     i   nvadim    : Dimension of vazxbar
     !*     i   vazx      : Current state of the minimization
-    !*     i   nvamaj    : number of updates in Hessian
     !*     i   lxbar     : read in vaxzbar if dates are compatible
     !*     i   lvazx     : Logical to read vazx
-    !*     i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3, 4: m1gc)
+    !*     i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3)
     !*     o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
     IMPLICIT NONE
 
@@ -915,11 +819,14 @@ CONTAINS
 
     integer status,kbrpstamp,nsim3d,itertot,isimtot
     integer, dimension(10), target :: nztrl
-    integer nmtra, nvadim, nvamaj, k1gc, imode
+    integer k1gc, imode
     real*8 zeps1,zdf1
-    real*8, dimension(nvadim), target :: vazxbar, vazx
+    real*8, dimension(nvadim_mpilocalmax), target :: vazxbar, vazx
     real*8, dimension(nmtra), target :: vatra
-    real*4, allocatable :: vatra_r4(:)
+    real*4, allocatable :: vatravec_r4_mpiglobal(:),vatravec_r4_mpilocalmax(:)
+    real*8, allocatable :: vatravec_r8_mpiglobal(:)
+    real*8, allocatable :: vazxbar_mpilocalmax(:),vazx_mpilocalmax(:)
+    real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
 
     integer ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: ivadim, imtra, itrunc
@@ -929,6 +836,7 @@ CONTAINS
     character(len=*) :: cfname
     character(len=3) :: cl_version
 
+    call tmg_start(88,'MIN_RWHESS')
     if(status.eq.0) then
       write(*,*) 'Read  VATRA in RW_VATRA'
     elseif(status.eq.1) then
@@ -957,8 +865,6 @@ CONTAINS
       endif
       if (i1gc == 3 .and. i1gc == k1gc) then
         write(*,*) trim(cl_version),' M1QN3'
-      elseif (i1gc == 4 .and. i1gc == k1gc) then
-        write(*,*) trim(cl_version),' N1CG1'
       else
         write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
         call abort3d(" RW_VATRA: Inconsistant input hessian")
@@ -969,49 +875,67 @@ CONTAINS
       read(ireslun) cl_version,i1gc,nsim3d,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
       read(ireslun) imtra,iztrl
 
-      if(nmtra.ne.imtra.or.nvadim.ne.ivadim) then
+      if(.not.(nmtra_mpiglobal.eq.imtra.or.(nmtra_mpiglobal+nvamaj).eq.imtra).or.nvadim_mpiglobal.ne.ivadim) then
+        write(*,*) nmtra_mpiglobal,imtra,nvadim_mpiglobal,ivadim
         call abort3d(" RW_VATRA : ERROR, size of Hessian not consistent")
       endif
 
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
-      if(k1gc.eq.4) ictrlvec = 2*nvamaj
 
+      ! here the mpiglobal vectors are read in and only the mpilocal 
+      ! portion is copied from vatravec into vatra
       write(*,*) 'RW_VATRA : reading Hessian'
       if(trim(cl_version) == 'V2') then
+        allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
+        vatra(:)=0.0d0
+        vatra(1:nvadim_mpilocalmax)=1.0d0 
         do jvec = 1, ictrlvec
-          read(ireslun) vatra((jvec-1)*nvadim+1:jvec*nvadim)
+          read(ireslun) vatravec_r8_mpiglobal
+          vatra((jvec-1)*nvadim_mpilocalmax+1:((jvec-1)*nvadim_mpilocalmax+nvadim_mpilocal))= &
+            vatravec_r8_mpiglobal(nvadim_beg:nvadim_end)
         enddo
+        deallocate(vatravec_r8_mpiglobal)       
       elseif(trim(cl_version) == 'V3') then
-        allocate(vatra_r4(nvadim))
+        allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
+        ! set to zero, except 1 for "diag" (first vector) for overdimensioned elements
+        vatra(:)=0.0d0
+        vatra(1:nvadim_mpilocalmax)=1.0d0 
         do jvec = 1, ictrlvec
-          read(ireslun) vatra_r4(1:nvadim)
-          vatra((jvec-1)*nvadim+1:jvec*nvadim)=real(vatra_r4(1:nvadim),8)
+          read(ireslun) vatravec_r4_mpiglobal
+          vatra((jvec-1)*nvadim_mpilocalmax+1:((jvec-1)*nvadim_mpilocalmax+nvadim_mpilocal))= &
+            real(vatravec_r4_mpiglobal(nvadim_beg:nvadim_end),8)
+          write(*,*) 'min/max/size vatra=',jvec,minval(vatra((jvec-1)*nvadim_mpilocalmax+1:((jvec-1)*nvadim_mpilocalmax+nvadim_mpilocal))), &
+                                                maxval(vatra((jvec-1)*nvadim_mpilocalmax+1:((jvec-1)*nvadim_mpilocalmax+nvadim_mpilocal))), &
+                                                size(vatra((jvec-1)*nvadim_mpilocalmax+1:((jvec-1)*nvadim_mpilocalmax+nvadim_mpilocal)))
         enddo
-        deallocate(vatra_r4)       
+        deallocate(vatravec_r4_mpiglobal)       
       endif
 
-      if(k1gc.eq.4) read(ireslun) vatra(ictrlvec*nvadim+1:ictrlvec*nvadim+1)
       imode = 2
 
       if(k1gc.eq.3) then
-        nztrl(1) = nvadim
+        nztrl(1) = nvadim_mpilocalmax
         nztrl(2) = 0
         nztrl(3) = nvamaj
         nztrl(4) = iztrl(4)
         nztrl(5) = iztrl(5)
-      elseif(k1gc.eq.4) then
-        do ii=1,10
-          nztrl(ii) = iztrl(ii)
-        enddo
       endif
 
       if(ibrpstamp == kbrpstamp .and. lxbar) then
         write(*,*) 'RW_VATRA : reading vazxbar'
-        read(ireslun) vazxbar
+        allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
+        read(ireslun) vazxbar_mpiglobal
+        vazxbar(:)=0.0d0
+        vazxbar(1:nvadim_mpilocal)=vazxbar_mpiglobal(nvadim_beg:nvadim_end)
+        deallocate(vazxbar_mpiglobal)
 
         if(lvazx) then
           write(*,*) 'RW_VATRA : reading vazx'
-          read(ireslun) vazx
+          allocate(vazx_mpiglobal(nvadim_mpiglobal))
+          read(ireslun) vazx_mpiglobal
+          vazx(:)=0.0d0
+          vazx(1:nvadim_mpilocal)=vazx_mpiglobal(nvadim_beg:nvadim_end)
+          deallocate(vazx_mpiglobal)
         endif
 
       else
@@ -1024,30 +948,45 @@ CONTAINS
       !*     -------------
 
     elseif(status.eq.1) then
-      if(mpi_myid.eq.0) then
-        ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
-        cl_version = 'V3'
-        itrunc=0
-        write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim,itrunc
-        write(ireslun) nmtra,nztrl
-        if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
-        if(k1gc.eq.4) ictrlvec = 2*nvamaj
-        allocate(vatra_r4(nvadim))
-        do jvec = 1, ictrlvec
-          vatra_r4(1:nvadim)=real(vatra((jvec-1)*nvadim+1:jvec*nvadim),4)
-          write(ireslun) vatra_r4(1:nvadim)
-        enddo
-        deallocate(vatra_r4)
-        if(k1gc.eq.4) write(ireslun) vatra(ictrlvec*nvadim+1:ictrlvec*nvadim+1)
+      if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
+      cl_version = 'V3'
+      itrunc=0
+      if(mpi_myid.eq.0) write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
+      if(mpi_myid.eq.0) write(ireslun) nmtra_mpiglobal,nztrl
+      if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
+      allocate(vatravec_r4_mpiglobal(nvadim_mpilocalmax*mpi_nprocs))
+      allocate(vatravec_r4_mpilocalmax(nvadim_mpilocalmax))
+      do jvec = 1, ictrlvec
+        vatravec_r4_mpilocalmax(:)=  &
+          real(vatra((jvec-1)*nvadim_mpilocalmax+1:jvec*nvadim_mpilocalmax),4)          
+        call rpn_comm_gather(vatravec_r4_mpilocalmax ,nvadim_mpilocalmax,"mpi_real", &
+                             vatravec_r4_mpiglobal   ,nvadim_mpilocalmax,"mpi_real", &
+                             0,"GRID",ierr)
+        if(mpi_myid.eq.0) write(ireslun) vatravec_r4_mpiglobal(1:nvadim_mpiglobal)
+      enddo
+      deallocate(vatravec_r4_mpiglobal)
+      deallocate(vatravec_r4_mpilocalmax)
 
-        write(ireslun) vazxbar
-        write(ireslun) vazx
+      allocate(vazxbar_mpiglobal(nvadim_mpilocalmax*mpi_nprocs))
+      call rpn_comm_gather(vazxbar          ,nvadim_mpilocalmax,"mpi_double_precision", &
+                           vazxbar_mpiglobal,nvadim_mpilocalmax,"mpi_double_precision", &
+                           0,"GRID",ierr)
+      if(mpi_myid.eq.0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
+      deallocate(vazxbar_mpiglobal)
 
-        ierr = fclos(ireslun)
-      endif ! myid==0
+      allocate(vazx_mpiglobal(nvadim_mpilocalmax*mpi_nprocs))
+      call rpn_comm_gather(vazx          ,nvadim_mpilocalmax,"mpi_double_precision", &
+                           vazx_mpiglobal,nvadim_mpilocalmax,"mpi_double_precision", &
+                           0,"GRID",ierr)
+      if(mpi_myid.eq.0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
+      deallocate(vazx_mpiglobal)
+
+      if(mpi_myid.eq.0) ierr = fclos(ireslun)
     else
       call abort3d(" RW_VATRA: status not valid ")
     endif
+
+    call tmg_stop(88)
 
     return
   END SUBROUTINE RW_VATRA

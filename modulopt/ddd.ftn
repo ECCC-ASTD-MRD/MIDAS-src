@@ -1,5 +1,5 @@
       subroutine ddd (prosca,dtonb,dtcab,n,sscale,nm,depl,aux,jmin,jmax,
-     &                precos,diag,alpha,ybar,sbar,izs,rzs,dzs)
+     &                precos,diag,ybar,sbar,izs,rzs,dzs)
 c----
 c
 c     calcule le produit H.g ou
@@ -37,7 +37,7 @@ c
       integer jfin,i,j,jp
       double precision r,ps
 c
-      call tmg_start(81,'DDD')
+      call tmg_start(72,'DDD')
       jfin=jmax
       if (jfin.lt.jmin) jfin=jmax+nm
 c
@@ -87,6 +87,6 @@ c
 120       continue
 !$OMP END PARALLEL DO
 200   continue
-      call tmg_stop(81)
+      call tmg_stop(72)
       return
       end

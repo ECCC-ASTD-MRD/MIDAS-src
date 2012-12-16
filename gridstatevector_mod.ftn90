@@ -17,6 +17,7 @@
 !
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
+  use mpi
   use varNameList_mod
   use verticalCoord_mod
   use MathPhysConstants_mod
@@ -30,6 +31,7 @@ MODULE gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist, gsv_getOffsetFromVarName
   public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_getVco, gsv_setVco, gsv_add
+  public :: gsv_commLat, gsv_commLatAd, gsv_commMPIGlobal
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -42,11 +44,13 @@ MODULE gridStateVector_mod
     real*8,pointer      :: gd3d(:,:,:)
     integer             :: nlev,nlev_T,nlev_M
     integer             :: ni,nj,nk,numStep,anltime
+    integer             :: latPerPE,myLatBeg,myLatEnd
     integer, pointer    :: dateStampList(:)
     integer, pointer    :: dateStamp3d
     logical             :: allocated=.false.
     type(struct_vco),pointer   :: vco => null()
     integer,pointer     :: varOffset(:),varNumLev(:)
+    logical             :: mpi_local=.false.
   end type struct_gsv  
 
   logical :: NGEXIST(VNL_NUMVARMAX)
@@ -169,17 +173,34 @@ MODULE gridStateVector_mod
   END SUBROUTINE gsv_setup
 
 
-  SUBROUTINE gsv_allocate(statevector,ni,nj,numStep,nlev_M,nlev_T,dateStamp)
+  SUBROUTINE gsv_allocate(statevector,ni,nj,numStep,nlev_M,nlev_T,dateStamp,mpi_local)
     implicit none
 
     type(struct_gsv)    :: statevector
     integer, intent(in) :: ni,nj,numStep
     integer, optional   :: nlev_M,nlev_T,dateStamp
-    integer             :: ierr,iloc,jvar,jvar2,jstep
+    integer             :: ierr,iloc,jvar,jvar2,jstep,lat1
+    integer             :: myLatHalfBeg,myLatHalfEnd
+    logical, optional   :: mpi_local
 
     statevector%ni=ni
     statevector%nj=nj
     statevector%numStep=numStep
+    if(present(mpi_local)) then
+      statevector%mpi_local=mpi_local
+    else
+      statevector%mpi_local=.false.
+    endif
+
+    if(statevector%mpi_local) then
+      call mpi_setup_latbands(nj,statevector%latPerPE,statevector%myLatBeg, &
+                              statevector%myLatEnd,myLatHalfBeg,myLatHalfEnd)
+    else
+      statevector%mpi_local=.false.
+      statevector%latPerPE=nj
+      statevector%myLatBeg=1
+      statevector%myLatEnd=nj
+    endif
     
     select case (ANLTIME_BIN)
     case ("FIRST")
@@ -190,7 +211,7 @@ MODULE gridStateVector_mod
        statevector%anltime=numStep
     end select          
 
-    write(*,*) 'gsv_allocate: numStep,anltime=',statevector%numStep,statevector%anltime
+    !write(*,*) 'gsv_allocate: numStep,anltime=',statevector%numStep,statevector%anltime
 
     if( (.not.present(nlev_M)) .and. (.not.present(nlev_T)) ) then
         if(statevector%vco%initialized) then
@@ -215,14 +236,14 @@ MODULE gridStateVector_mod
     if(present(dateStamp)) then
       allocate(statevector%dateStampList(numStep))
       call getstamplist(statevector%dateStampList,numStep,dateStamp)
-      do jstep = 1,numStep
-        write(*,*) 'gsv_allocate: jstep,dateStampList=',jstep,statevector%dateStampList(jstep)
-      enddo
+      !do jstep = 1,numStep
+      !  write(*,*) 'gsv_allocate: jstep,dateStampList=',jstep,statevector%dateStampList(jstep)
+      !enddo
       statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
-      write(*,*) 'gsv_allocate: dateStamp3d=',statevector%dateStamp3d
+      !write(*,*) 'gsv_allocate: dateStamp3d=',statevector%dateStamp3d
     else
       nullify(statevector%dateStamplist)
-      write(*,*) 'gsv_allocate: no date stamp supplied, dateStampList not available!'
+      !write(*,*) 'gsv_allocate: no date stamp supplied, dateStampList not available!'
     endif
 
     allocate(statevector%varOffset(vnl_numvarmax))
@@ -248,17 +269,22 @@ MODULE gridStateVector_mod
     enddo
     statevector%nk=iloc
 
-    write(*,*) 'gsv_allocate: varNames =',varNameList(:)
-    write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev(:)
+    !write(*,*) 'gsv_allocate: varNames =',varNameList(:)
+    !write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev(:)
 
-    allocate(statevector%gd(ni,statevector%nk,nj,numStep),stat=ierr)
+    if(statevector%mpi_local) then
+      allocate(statevector%gd(ni,statevector%nk,statevector%myLatBeg:(statevector%myLatEnd+1),numStep),stat=ierr)
+    else
+      allocate(statevector%gd(ni,statevector%nk,nj,numStep),stat=ierr)
+    endif
     if(ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
       call abort3d('aborting in gsv_allocate')
     endif
     statevector%allocated=.true.
 
-    statevector%gd3d => statevector%gd(:,:,:,statevector%anltime)
+    lat1=statevector%myLatBeg
+    statevector%gd3d(1:,1:,lat1:) => statevector%gd(:,:,:,statevector%anltime)
 
   END SUBROUTINE GSV_allocate
 
@@ -266,16 +292,18 @@ MODULE gridStateVector_mod
   SUBROUTINE GSV_zero(statevector)
     implicit none
     type(struct_gsv) :: statevector
-    integer          :: jstep,jlon,jlev,jlat
+    integer          :: jstep,jlon,jlev,jlat,lat1,lat2
 
     if(.not.statevector%allocated) then
       call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
-!    statevector%gd(1:statevector%ni,1:statevector%nk,1:statevector%nj,1:statevector%numStep)=0.0d0
+    lat1=statevector%myLatBeg
+    lat2=min(statevector%myLatEnd+1,statevector%nj)
+
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlat=1,statevector%nj
+    do jlat=lat1,lat2
       do jstep=1,statevector%numStep
         do jlev=1,statevector%nk
           do jlon=1,statevector%ni
@@ -286,14 +314,96 @@ MODULE gridStateVector_mod
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
- 
+
   END SUBROUTINE GSV_zero
+
+  
+  SUBROUTINE GSV_commLat(statevector_in)
+    implicit none
+    type(struct_gsv) :: statevector_in
+    integer :: nsize,ierr,status
+
+    nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
+
+    if(mpi_myid.ne.0) then
+      call rpn_comm_send(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:),nsize, &
+        "mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1),"GRID",ierr)
+    endif
+
+    if(mpi_myid.ne.(mpi_nprocs-1)) then
+      call rpn_comm_recv(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:),nsize, &
+        "mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid,"GRID",status,ierr)
+    endif
+
+  END SUBROUTINE GSV_commLat
+
+
+  SUBROUTINE GSV_commLatAd(statevector_in)
+    implicit none
+    type(struct_gsv) :: statevector_in
+    integer :: nsize,ierr,status
+    real*8 :: latCircle(statevector_in%ni,statevector_in%nk,1,statevector_in%numStep)
+
+    nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
+
+    if(mpi_myid.ne.0) then
+      call rpn_comm_recv(latCircle,nsize, &
+        "mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1),"GRID",status,ierr)
+      statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:) = &
+        statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:) + latCircle(:,:,:,:)
+    endif
+
+    if(mpi_myid.ne.(mpi_nprocs-1)) then
+      call rpn_comm_send(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:),nsize, &
+        "mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid,"GRID",ierr)
+    endif
+
+    if(mpi_myid.ne.(mpi_nprocs-1)) then
+      statevector_in%gd(:,:,statevector_in%myLatEnd+1,:)=0.0d0
+    endif
+
+  END SUBROUTINE GSV_commLatAd
+
+
+  SUBROUTINE GSV_commMPIGlobal(statevector_in)
+    implicit none
+    type(struct_gsv) :: statevector_in
+    integer :: nsize,ierr,jlat,jstep,jlev,jlon
+    real*8, pointer :: gd_mpiglobal(:,:,:,:)
+
+    if(.not.statevector_in%mpi_local) then
+      call abort3d('gsv_commMPIGlobal: statevector already global!')
+    endif
+
+    allocate(gd_mpiglobal(statevector_in%ni,statevector_in%nk,statevector_in%nj,statevector_in%numStep))
+
+    nsize=statevector_in%ni*statevector_in%nk*statevector_in%latPerPE
+
+    do jstep=1,statevector_in%numStep
+
+      call rpn_comm_gather(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatEnd,jstep), &
+        nsize,"mpi_double_precision", &
+        gd_mpiglobal(:,:,:,jstep), &
+        nsize,"mpi_double_precision", &
+        0,"GRID",ierr)
+
+    enddo
+
+    deallocate(statevector_in%gd)
+    statevector_in%gd => gd_mpiglobal
+    statevector_in%gd3d => statevector_in%gd(:,:,:,statevector_in%anltime)
+    statevector_in%myLatBeg=1
+    statevector_in%myLatEnd=statevector_in%nj
+    statevector_in%latPerPE=statevector_in%nj
+    statevector_in%mpi_local=.false.
+
+  END SUBROUTINE GSV_commMPIGlobal
 
 
   SUBROUTINE GSV_add(statevector_in,statevector_inout)
     implicit none
     type(struct_gsv) :: statevector_in,statevector_inout
-    integer          :: jstep,jlon,jlev,jlat
+    integer          :: jstep,jlon,jlev,jlat,lat1,lat2
 
     if(.not.statevector_in%allocated) then
       call abort3d('gridStateVector_in not yet allocated! Aborting.')
@@ -302,9 +412,12 @@ MODULE gridStateVector_mod
       call abort3d('gridStateVector_inout not yet allocated! Aborting.')
     endif
 
+    lat1=statevector_in%myLatBeg
+    lat2=min(statevector_in%myLatEnd+1,statevector_inout%nj)
+
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlat=1,statevector_inout%nj
+    do jlat=lat1,lat2
       do jstep=1,statevector_inout%numStep
         do jlev=1,statevector_inout%nk
           do jlon=1,statevector_inout%ni
@@ -323,17 +436,20 @@ MODULE gridStateVector_mod
   SUBROUTINE GSV_3dto4d(statevector)
     implicit none
     type(struct_gsv) :: statevector
-    integer          :: jstep,jlon,jlev,jlat
+    integer          :: jstep,jlon,jlev,jlat,lat1,lat2
 
     if(.not.statevector%allocated) then
       call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
+    lat1=statevector%myLatBeg
+    lat2=min(statevector%myLatEnd+1,statevector%nj)
+
     if(statevector%numStep.eq.1) return
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlat=1,statevector%nj
+    do jlat=lat1,lat2
       do jstep=1,statevector%numStep
         if(jstep.ne.statevector%anltime) then
           do jlev=1,statevector%nk
@@ -353,18 +469,21 @@ MODULE gridStateVector_mod
   SUBROUTINE GSV_3dto4dAdj(statevector)
     implicit none
     type(struct_gsv) :: statevector
-    integer          :: jstep,jlon,jlev,jlat
-    real(8),dimension(statevector%ni,statevector%nk,statevector%nj) :: gd3d_tmp
+    integer          :: jstep,jlon,jlev,jlat,lat1,lat2
+    real(8)          :: gd3d_tmp(statevector%ni,statevector%nk,statevector%myLatBeg:(statevector%myLatEnd+1))
 
     if(.not.statevector%allocated) then
       call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
+    lat1=statevector%myLatBeg
+    lat2=min(statevector%myLatEnd+1,statevector%nj)
+
     if(statevector%numStep.eq.1) return
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jlev,jlon)    
-    do jlat=1,statevector%nj
+    do jlat=lat1,lat2
       do jlev=1,statevector%nk
         do jlon=1,statevector%ni
           gd3d_tmp(jlon,jlev,jlat) = 0.0d0
@@ -373,7 +492,7 @@ MODULE gridStateVector_mod
     enddo
 !$OMP END DO
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlat=1,statevector%nj
+    do jlat=lat1,lat2
       do jstep=1,statevector%numStep
         do jlev=1,statevector%nk
           do jlon=1,statevector%ni
@@ -385,7 +504,7 @@ MODULE gridStateVector_mod
     enddo
 !$OMP END DO
 !$OMP DO PRIVATE (jlat,jlev,jlon)    
-    do jlat=1,statevector%nj
+    do jlat=lat1,lat2
       do jlev=1,statevector%nk
         do jlon=1,statevector%ni
           statevector%gd3d(jlon,jlev,jlat) = gd3d_tmp(jlon,jlev,jlat)
@@ -428,18 +547,20 @@ MODULE gridStateVector_mod
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
     real*8,pointer                         :: field(:,:,:,:)
-    integer                                :: ilev1,ilev2
+    integer                                :: ilev1,ilev2,lat1
+
+    lat1=statevector%myLatBeg
 
     if(present(varName)) then
       if(gsv_varExist(varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field => statevector%gd(:,ilev1:ilev2,:,:)
+        field(1:,1:,lat1:,1:) => statevector%gd(:,ilev1:ilev2,:,:)
       else
         call abort3d('gsv_getField: Unknown variable name! ' // varName)
       endif
     else
-      field => statevector%gd(:,:,:,:)
+      field(1:,1:,lat1:,1:) => statevector%gd(:,:,:,:)
     endif
 
   end function gsv_getField
@@ -450,18 +571,20 @@ MODULE gridStateVector_mod
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
     real*8,pointer                         :: field3D(:,:,:)
-    integer                                :: ilev1,ilev2
+    integer                                :: ilev1,ilev2,lat1
+
+    lat1=statevector%myLatBeg
 
     if(present(varName)) then
       if(gsv_varExist(varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field3D => statevector%gd3d(:,ilev1:ilev2,:)
+        field3D(1:,1:,lat1:) => statevector%gd3d(:,ilev1:ilev2,:)
       else
         call abort3d('gsv_getField: Unknown variable name! ' // varName)
       endif
     else
-      field3D => statevector%gd3d(:,:,:)
+      field3D(1:,1:,lat1:) => statevector%gd3d(:,:,:)
     endif
 
   end function gsv_getField3D

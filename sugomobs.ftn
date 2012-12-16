@@ -29,6 +29,7 @@
 #endif
       use EarthConstants_mod
       use MathPhysConstants_mod
+      use gaussGrid_mod
       use columnData_mod 
       use obsSpaceData_mod
       use gridStateVector_mod
@@ -41,7 +42,7 @@ c
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_anl, vco_trl
       integer fstlir,vezuvint2,vezsint2,ezdefset,ezgprm,fnom,fclos,fstouv,fstfrm
-      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef,isrchila, gdllfxy
+      integer ezsetopt,ezsetval,gdll,gdxyfll,vezgdef, gdllfxy
       integer jlev,jobs,ier,iset,jstep,jgrid,numgrids
       integer ini, inj, iig1, iig2, iig3, iig4,ink,jvar
       integer itrlnlev
@@ -231,7 +232,7 @@ c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               lon_r8=obs_headElem_r(lobsSpaceData,OBS_LON,jobs)
               lat_r4=real(lat_r8)
               lon_r4=real(lon_r8)
-              tla = isrchila(lat_r8)
+              tla = gaus_find_lat_index(lat_r8)
 
               call col_setLatLon(lcolumng ,jobs,lat_r8,lon_r8,tla)
               call col_setLatLon(lcolumnhr,jobs,lat_r8,lon_r8,tla)
@@ -325,7 +326,6 @@ c
 c
 c     reading 2D fields
 c
-      call tmg_start(27,'XHR2XY')
       do jvar=1,vnl_numvarmax2D
         if(.not.gsv_varExist(varNameList2D(jvar))) cycle
         do jgrid = 1,numgrids
@@ -346,11 +346,11 @@ c
 c
             if (.not. allocated(zvar)) allocate(zvar(ini,inj))
 c
-            call tmg_start(7,'FSTLIR')
+            call tmg_start(11,'TRLM_FSTLIR')
             ier=fstlir(zvar,nultrl(jstep,jgrid),ini,inj,ink,
      &           datestamplist(jstep) ,cletiket,iip1s(1),iip2,iip3,
      &           cltypvar,varNameList2D(jvar))
-            call tmg_stop(7)
+            call tmg_stop(11)
             if(ier.lt.0)then
               write(*,1001) varNameList2D(jvar),iip1s(1),idate(jstep)
      &             ,itime(jstep)
@@ -358,13 +358,9 @@ c
               call abort3d('SUGOMOBS:Problem with background file')
             end if
 c
-            call tmg_start(8,'EZSCINT_INIT')
             iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
-            call tmg_stop(8)
-            call tmg_start(9,'EZSCINT_INTRP')
             ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1,1,ini
      &           ,inj,1)
-            call tmg_stop(9)
             do jobs = 1, nobs(jstep,jgrid)
               zovar(1,notag(jobs,jstep,jgrid)) = zopart(jobs)
             enddo
@@ -379,7 +375,6 @@ c
         call col_fillmvo(lcolumnhr,varNameList2D(jvar),'NA',zovar)
 c
       enddo
-      call tmg_stop(27)
 c
 c-----Derive the pressure fields at observation points from the hybrid
 C     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
@@ -471,11 +466,10 @@ c
 c
 c     Lire les GZ des niveaux Momentum
 c
-      call tmg_start(27,'XHR2XY')
       allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
       do jlev = 1,nlv_M
         IIP1 = vco_trl%ip1_M(jlev)
-        call tmg_start(7,'FSTLIR')
+        call tmg_start(11,'TRLM_FSTLIR')
 !$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
         do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep,jgrid) > 0) then
@@ -491,18 +485,14 @@ c
           endif
         enddo
 !$OMP END PARALLEL DO
-        call tmg_stop(7)
+        call tmg_stop(11)
 c
         do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep,jgrid) > 0) then
             zvar(:,:)=zvar3d(:,:,jstep)
-            call tmg_start(8,'EZSCINT_INIT')
             iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
-            call tmg_stop(8)
-            call tmg_start(9,'EZSCINT_INTRP')
             ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1,1,ini
      &            ,inj,1)
-            call tmg_stop(9)
             do jobs = 1, nobs(jstep,jgrid)
               zmobs_M((jlev),notag(jobs,jstep,jgrid)) = zopart(jobs)
             enddo
@@ -516,7 +506,7 @@ c
       allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
       do jlev = 1, nlv_T
         IIP1 = vco_trl%ip1_T(jlev)
-        call tmg_start(7,'FSTLIR')
+        call tmg_start(11,'TRLM_FSTLIR')
 !$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
         do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep,jgrid) > 0) then
@@ -532,18 +522,14 @@ c
           endif
         enddo
 !$OMP END PARALLEL DO
-        call tmg_stop(7)
+        call tmg_stop(11)
 c
         do jstep = 1,col_getNumStep(lcolumng)
           if(nobs(jstep,jgrid) > 0) then
             zvar(:,:)=zvar3d(:,:,jstep)
-            call tmg_start(8,'EZSCINT_INIT')
             iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
-            call tmg_stop(8)
-            call tmg_start(9,'EZSCINT_INTRP')
             ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1,1,ini
      &            ,inj,1)
-            call tmg_stop(9)
             do jobs = 1, nobs(jstep,jgrid)
               zmobs_T(jlev,notag(jobs,jstep,jgrid)) = zopart(jobs) 
             enddo
@@ -551,7 +537,6 @@ c
         enddo
       enddo
       deallocate(zvar3d)
-      call tmg_stop(27)
       enddo ! jgrid
 c
           write(*,*) 'sugomobs:GZ_M*10.*rg '
@@ -604,10 +589,9 @@ c loop through levels of UU,VV
 c
           if (.not. allocated(zvar2)) allocate(zvar2(ini,inj))
           allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
-          call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_M
             IIP1=vco_trl%ip1_M(jlev)
-            call tmg_start(7,'FSTLIR')
+            call tmg_start(11,'TRLM_FSTLIR')
 !$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep,jgrid) > 0) then
@@ -623,20 +607,16 @@ c
               endif
             enddo
 !$OMP END PARALLEL DO
-            call tmg_stop(7)
+            call tmg_stop(11)
 c
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep,jgrid) > 0) then
                 zvar(:,:)=zvar3d(:,:,jstep)
                 zvar2 = 0.d0
-                call tmg_start(8,'EZSCINT_INIT')
                 iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
-                call tmg_stop(8)
-                call tmg_start(9,'EZSCINT_INTRP')
                 ier = vezuvint2(zopart(1:nobs(jstep,jgrid))
      &               ,zopart2(1:nobs(jstep,jgrid)),zvar,zvar2,nobs(jstep,jgrid)
      &               ,ini*inj)
-                call tmg_stop(9)
                 do jobs = 1, nobs(jstep,jgrid)
                   zmobs_M(jlev,notag(jobs,jstep,jgrid)) = zopart(jobs)
                   zmobs2_M(jlev,notag(jobs,jstep,jgrid)) = zopart2(jobs)
@@ -644,7 +624,7 @@ c
               endif
             enddo
 c
-            call tmg_start(7,'FSTLIR')
+            call tmg_start(11,'TRLM_FSTLIR')
 !$OMP PARALLEL DO PRIVATE(jstep,ier,zvar2)
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep,jgrid) > 0) then
@@ -660,20 +640,16 @@ c
               endif
             enddo
 !$OMP END PARALLEL DO
-            call tmg_stop(7)
+            call tmg_stop(11)
 c
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep,jgrid) > 0) then
                 zvar2(:,:)=zvar3d(:,:,jstep)
                 zvar = 0.d0
-                call tmg_start(8,'EZSCINT_INIT')
                 iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
-                call tmg_stop(8)
-                call tmg_start(9,'EZSCINT_INTRP')
                 ier = vezuvint2(zopart(1:nobs(jstep,jgrid))
      &               ,zopart2(1:nobs(jstep,jgrid)),zvar,zvar2,nobs(jstep,jgrid)
      &               ,ini*inj)
-                call tmg_stop(9)
 c
                 do jobs = 1, nobs(jstep,jgrid)
                   zmobs_M(jlev,notag(jobs,jstep,jgrid)) = zmobs_M(jlev
@@ -684,13 +660,10 @@ c
               endif
             enddo
           enddo
-          call tmg_stop(27)
           deallocate(zvar3d)
 
           enddo ! jgrid
 c         
-          call tmg_start(29,'VINTPROF')
-c
           call vintprof(zom_M,zppobsg,col_getNumLev(lcolumng),zmobs_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
           zom_M(:,:)=zom_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
           call col_fillmvo(lcolumng,'UU  ','NA',zom_M)
@@ -716,8 +689,6 @@ ccc dbug out
           zmobs2_M(:,:)=zmobs2_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
           call col_fillmvo(lcolumnhr,'VV  ','MM',zmobs2_M)
 c
-          call tmg_stop(29)
-c          
 c Variable sur les niveaux thermodynamiques
 c
         case ('TT','HU')
@@ -744,10 +715,9 @@ c
 c Reading 3D fields
 c
           allocate(zvar3d(ini,inj,col_getNumStep(lcolumng)))
-          call tmg_start(27,'XHR2XY')
           do jlev = 1,nlv_T
             IIP1=vco_trl%ip1_T(jlev)
-            call tmg_start(7,'FSTLIR')
+            call tmg_start(11,'TRLM_FSTLIR')
 !$OMP PARALLEL DO PRIVATE(jstep,ier,zvar)
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep,jgrid) > 0) then
@@ -763,32 +733,26 @@ c
               endif
             enddo
 !$OMP END PARALLEL DO
-            call tmg_stop(7)
+            call tmg_stop(11)
 c
             do jstep = 1,col_getNumStep(lcolumng)
               if(nobs(jstep,jgrid) > 0) then
                 zvar(:,:)=zvar3d(:,:,jstep)
-                call tmg_start(8,'EZSCINT_INIT')
                 iset = ezdefset(nobsgid(jstep,jgrid),itrlgid)
-                call tmg_stop(8)
-                call tmg_start(9,'EZSCINT_INTRP')
                 ier = vezsint2(zopart(1:nobs(jstep,jgrid)),zvar,nobs(jstep,jgrid),1
      &             ,1,ini,inj,1)
-                call tmg_stop(9)
                 do jobs = 1, nobs(jstep,jgrid)
                   zmobs_T(jlev,notag(jobs,jstep,jgrid)) =zopart(jobs)
                 enddo
               endif
             enddo
           enddo
-          call tmg_stop(27)
           deallocate(zvar3d)
 
           enddo ! jgrid
 c
           call vintprof(zom_T,zppobsg,col_getNumLev(lcolumng),zmobs_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
 c
-          call tmg_start(30,'FILLMVO')
           if(varNameList3D(jvar).eq.'TT') then
             zom_T(:,:)=zom_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
             zmobs_T(:,:)=zmobs_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
@@ -804,33 +768,26 @@ c
           endif
           call col_fillmvo(lcolumng ,varNameList3D(jvar),'NA',zom_T)
           call col_fillmvo(lcolumnhr,varNameList3D(jvar),'NA',zmobs_T)
-          call tmg_stop(30)
 c
         endselect 
       enddo
 c
 c Initialisation of TLM operators
 c
-      call tmg_start(17,'subasic_obs')
       call subasic_obs(lcolumng)
-      call tmg_stop(17)
 c
 c Using T, q and PS to compute GZ for columng
 c
-      call tmg_start(18,'tt2phi_g')
       do jobs = 1, col_getNumCol(lcolumng)
         call col_setMountain(lcolumng ,jobs,col_getMountain(lcolumnhr,jobs))
       enddo
       call tt2phi(lcolumng)
-      call tmg_stop(18)
 c
 c Using T, q and PS to compute GZ for columnhr
 c
-      call tmg_start(19,'tt2phi_hr')
       if(vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
         call tt2phi(lcolumnhr)
       endif
-      call tmg_stop(19)
 c
 c Close the files
 c

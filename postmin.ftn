@@ -55,55 +55,50 @@ c
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'
-
+!
+!     Compute the analysis increment
+!
+      call tmg_start(91,'POST_COMPUTEDX')
       vco_anl => col_getVco(lcolumng)
-      allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
-C
-      IF (LVARQC) CALL LISTREJ(lobsSpaceData)
-C
-      CALL VINT3DFD(OBS_OMA,lobsSpaceData)
-      CALL VINT3DFD(OBS_OMF,lobsSpaceData)
-      CALL SETASSFLG(lobsSpaceData)
-      CALL FILBRPPOST(lcolumng,lobsSpaceData)
-c
       call gsv_setVco(statevector,vco_anl)
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=min_get_datestamp())
-
-      call tmg_start(51,'VAR_CH') !
+      call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=min_get_datestamp(),mpi_local=.true.)
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-      call tmg_stop (51)      !
+      call gsv_commMPIGlobal(statevector)
+      call tmg_stop(91)
+      
+      ! free up some memory now that B isn't needed
+      call bmat_finalize(cvm_vazx)
+      call cvm_deallocate
 
-      WRITE(*,*)' postmin: Transform analysis variables to'
-     S       ,' model variables -'
+      WRITE(*,*)' postmin: Transform analysis variables to model variables -'
 
-c
-C      Compute increments of HU on analysis grid
-c      This field is compulsary because it is used
-c      to produce the analysis of HU in FELIX
-c
+      call tmg_start(92,'POST_DIAG')
 !
 !     Prepare background fields at initial time for flow-dependent control variables
 !
       call gsv_setVco(statevectorg,vco_anl)
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=min_get_datestamp())
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=min_get_datestamp(),mpi_local=.false.)
       call subasic_gd(statevectorg,lcolumnhr)
+
+      allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
+      allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
 !
-!     *** Compute increment HU from LQ increment
+!     *** Compute increment HU from LQ increment ***
 !
       hu3d_trl_ptr => gsv_getField3D(statevectorg,'HU')
       hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
-      zhu(:,:,:) = 0.0
-      do jk = 1,statevectorg%vco%nlev_M
-        do jj = 1,statevectorg%nj
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji,ztemp)
+      do jj = 1,statevectorg%nj
+        do jk = 1,statevectorg%vco%nlev_M
           do ji = 1,statevectorg%ni
             ZTEMP = log(hu3d_trl_ptr(ji,jk,jj)) + hu3d_inc_ptr(ji,jk,jj)
             zhu(ji,jk,jj) = EXP(ZTEMP) - hu3d_trl_ptr(ji,jk,jj)
           enddo
         enddo
       enddo
+!$OMP END PARALLEL DO
 !
 !     *** ES ***
 !
@@ -113,11 +108,11 @@ c
 !
       call lt2tvgd(ztv,statevector,statevectorg)
       call ltt2phigd(zgz,ztv,statevectorg)
-!
-      call memfree(lobsSpaceData)
-!
-      call tmg_start(99,'VAROUT')
-!
+
+      call tmg_stop(92)
+
+      call tmg_start(90,'VAROUT')
+
       if(mpi_myid == 0 ) then
         nulfile = 0
         ierr    = fnom(nulfile,'./rebm','RND',0)
@@ -133,17 +128,27 @@ c
         ierr =  fstfrm(nulfile)
         ierr =  fclos(nulfile)        
       endif
-!
-      call tmg_stop(99)
-C
+
+      call tmg_stop(90)
+
       call gsv_deallocate(statevector)
       call gsv_deallocate(statevectorg)
-
       deallocate(zes)
       deallocate(ztv)
       deallocate(zgz)
       deallocate(zhu)
-c
+!
+!     Now write out the observation data:
+!
+      IF (LVARQC) CALL LISTREJ(lobsSpaceData)
+
+      CALL VINT3DFD(OBS_OMA,lobsSpaceData)
+      CALL VINT3DFD(OBS_OMF,lobsSpaceData)
+      CALL SETASSFLG(lobsSpaceData)
+      CALL FILBRPPOST(lcolumng,lobsSpaceData)
+
+      call obs_finalize(lobsSpaceData)
+
       write(*,*) 'LEAVING POSTMIN'
-      RETURN
+
       END SUBROUTINE POSTMIN

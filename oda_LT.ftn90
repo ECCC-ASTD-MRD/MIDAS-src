@@ -23,10 +23,9 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   use columnData_mod 
   implicit none
   !
-  !Purpose: Adjoint of Localisation (3D) / Adjoint Model (4D) operator
+  !Purpose: Adjoint of Localisation (3D)
   !Compute adjoint grided increments from adjoint profiled increments
   !  ->In 3D mode : Call the adjoint of the bilinear interpolator
-  !  ->In 4D mode : Send adjoint profiled increments to the ADJM and wait
   !    for the grided adjoint increments
   !  ->Results are saved in COMGD
   !
@@ -37,26 +36,16 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   type(struct_obs) :: lobsSpaceData
   type(struct_gsv) :: statevector
   ! Local declarations
-  type(struct_columnData) :: lcolumn_mpiglobal
-  integer :: ilev1,ilev2,deltalev,numCol_mpiglobal
+  integer :: ilev1,ilev2,deltalev,ierr,myLatP1
   integer :: mythread,numthread,omp_get_num_threads,omp_get_thread_num
    
-  call tmg_start(51,'VAR_CH')
-  if(col_varExist('GZ')) call att2phi(lcolumn,lcolumng)
-  call tmg_stop(51)
+  myLatP1 = min(statevector%myLatEnd+1,statevector%nj)
 
-  call tmg_start(75,'PROF->GD')
-  call gsv_zero(statevector)
+  if(col_varExist('GZ')) call att2phi(lcolumn,lcolumng)
 
   IF(mpi_myid == 0) THEN
     write(*,*)'ODA_LT- Adjoint of horizontal interpolation GD --> MVO'
   endif
-
-  call tmg_start(77,'EXPNDMVO')
-  call col_expandToMpiGlobal(lcolumn,lcolumn_mpiglobal,lobsSpaceData)
-  call tmg_stop(77)
-
-  numCol_mpiglobal=col_getNumCol(lcolumn_mpiglobal)
 
 !$OMP PARALLEL PRIVATE(ilev1,ilev2,deltalev,mythread,numthread)
   mythread=omp_get_thread_num()+1
@@ -76,12 +65,17 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   if(gsv_varExist('P0'))  call gd2mvoad('P0',ilev1,ilev2)
   if(gsv_varExist('TG'))  call gd2mvoad('TG',ilev1,ilev2)
 
+  ! Adjoint of communicate extra latitude needed for interpolation  
+  call tmg_start(38,'INTERP_BARR')
+  call rpn_comm_barrier("GRID",ierr)
+  call tmg_stop(38)
+  call tmg_start(39,'INTERP_COMM')
+  call gsv_commLatAd(statevector)
+  call tmg_stop(39)
+
   ! Conversion of wind images to physical winds
   call uvwi2uv(statevector)
 
-  call col_deallocate(lcolumn_mpiglobal)
-
-  call tmg_stop (75)
 
   CONTAINS
 
@@ -98,7 +92,6 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
 !*Revision:
 !*           Bin He   *ARMA/MRB   JULY 2009
-!*           --  MPI version , restore Global array     
 !*
 !**    Purpose:  Update the estimate of GD from the gradient components
 !*               at the observation points which have been stored in
@@ -116,21 +109,22 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*     Local Variables
 !*
       INTEGER   JLEV, JLAT, JLON, JOBS, JSTEP, JK
-      INTEGER   ILON, ILOS, ILA, IMIDDLE, ISYM
+      INTEGER   ILON, ILA
       REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS, DLDLON2, DLDLOS2
-      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
+      REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight, RWTINV
 
-      real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(-1):(statevector%nj+2))
+      real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
       real*8, pointer :: field_ptr(:,:,:,:)
-      real*8,pointer :: zprofil(:)
-      real*8 :: dldlat2(-1:(gaus_nj+1))
+      real*8,pointer :: column_ptr(:,:)
+      real*8 :: dldlat2((statevector%myLatBeg-1):(statevector%myLatEnd+1))
 
+      column_ptr => col_getAllColumns(lcolumn,varName)
       field_ptr => gsv_getField(statevector,varName)
 
       DLDLON2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
       DLDLOS2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
 
-      do ila=-1,(gaus_nj+1)
+      do ila=(statevector%myLatBeg-1),(statevector%myLatEnd+1)
         DLDLAT2(ILA)=1.0d0/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
       enddo
 
@@ -141,42 +135,38 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-        Observations: DO JOBS = 1, numCol_mpiglobal
-          if(col_getTimeInterpWeight(lcolumn_mpiglobal,jobs,jstep).gt.0.0d0) then
-
-            zprofil => col_getColumn(lcolumn_mpiglobal,jobs,varName)
+        Observations: DO JOBS = 1, col_getNumCol(lcolumn)
+          if(col_getTimeInterpWeight(lcolumn,jobs,jstep).gt.0.0d0) then
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
-!C     *    TO THE WEST (ILON AND ILOS)
+!C     *    TO THE WEST (ILON)
 !C
-            call col_getLatLon(lcolumn_mpiglobal,jobs,dllao,dlloo,ila)
+            call col_getLatLon(lcolumn,jobs,dllao,dlloo,ila)
 
             IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
             IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8
             ILON = INT(DLLOO*DLDLON2) + 1
-            ILOS = INT(DLLOO*DLDLOS2) + 1
 !C
 !C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 !C
-            DInterpWeight=col_getTimeInterpWeight(lcolumn_mpiglobal,jobs,jstep)
-            DLDXN = DLLOO*DLDLON2 + 1. - ILON
-            DLDXS = DLLOO*DLDLOS2 + 1. - ILOS
+            DInterpWeight=col_getTimeInterpWeight(lcolumn,jobs,jstep)
+            DLDX  = DLLOO*DLDLON2 + 1. - ILON
             DLDY  = (gaus_RLATI(ILA)-DLLAO)*DLDLAT2(ILA)
-            DLW1  = DInterpWeight * (1.-DLDXN)*(1.-DLDY)
-            DLW2  = DInterpWeight * DLDXN*(1.-DLDY)
-            DLW3  = DInterpWeight * (1.-DLDXS)*DLDY
-            DLW4  = DInterpWeight * DLDXS*DLDY
+            DLW1  = DInterpWeight * (1.-DLDX)*(1.-DLDY)
+            DLW2  = DInterpWeight * DLDX*(1.-DLDY)
+            DLW3  = DInterpWeight * (1.-DLDX)*DLDY
+            DLW4  = DInterpWeight * DLDX*DLDY
 
             do jlev = klev1, klev2
               ZFIELD(ILON,jlev,ILA)     =   ZFIELD(ILON,jlev,ILA)      &
-                 + DLW1 * ZPROFIL(jlev)
+                 + DLW1 * column_ptr(jlev,jobs)
               ZFIELD(ILON+1,jlev,ILA)   =   ZFIELD(ILON+1,jlev,ILA)    &
-                 + DLW2 * ZPROFIL(jlev)
-              ZFIELD(ILOS,jlev,ILA+1)   =   ZFIELD(ILOS,jlev,ILA+1)    &
-                 + DLW3 * ZPROFIL(jlev)
-              ZFIELD(ILOS+1,jlev,ILA+1) =   ZFIELD(ILOS+1,jlev,ILA+1)  &
-                 + DLW4 * ZPROFIL(jlev)
+                 + DLW2 * column_ptr(jlev,jobs)
+              ZFIELD(ILON,jlev,ILA+1)   =   ZFIELD(ILON,jlev,ILA+1)    &
+                 + DLW3 * column_ptr(jlev,jobs)
+              ZFIELD(ILON+1,jlev,ILA+1) =   ZFIELD(ILON+1,jlev,ILA+1)  &
+                 + DLW4 * column_ptr(jlev,jobs)
             enddo
 
           endif
@@ -191,49 +181,41 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     1.2  EXTRA PARALLELS
 !C
-!C     TREATMENT OF GRADIENTS FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
-!C
         LEVELS: DO JLEV = KLEV1, KLEV2
-           IMIDDLE = STATEVECTOR%NI / 2
-           DO JLON = 0, IMIDDLE
-              ISYM = JLON + IMIDDLE
-              ZFIELD(ISYM,jlev,1) =   ZFIELD(JLON,jlev,-1)   &
-                   + ZFIELD(ISYM,jlev,1)
-              ZFIELD(ISYM,jlev,STATEVECTOR%NJ) =  ZFIELD(JLON,jlev,STATEVECTOR%NJ+2) &
-                   + ZFIELD(ISYM,jlev,STATEVECTOR%NJ)
-           ENDDO
-
-           DO JLON = IMIDDLE + 1, STATEVECTOR%NI + 2
-              ISYM = JLON - IMIDDLE
-              ZFIELD(ISYM,JLEV,1) =   ZFIELD(JLON,JLEV,-1)    &
-                   + ZFIELD(ISYM,JLEV,1)
-              ZFIELD(ISYM,JLEV,STATEVECTOR%NJ) =  ZFIELD(JLON,JLEV,STATEVECTOR%NJ+2)  &
-                   + ZFIELD(ISYM,JLEV,STATEVECTOR%NJ)
-           ENDDO
 !C
 !C     TREATMENT OF THE GRADIENTS AT NORTH AND SOUTH POLES.
 !C
-           DLMEAN = 0.
-           DLMEAS = 0.
-           DO JLON = 0, STATEVECTOR%NI + 2
-              DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
-              DLMEAS = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ+1)
-           enddo
+           if(statevector%myLatBeg.eq.1) then
+              DLMEAN = 0.
+              DO JLON = 0, STATEVECTOR%NI + 2
+                 DLMEAN = DLMEAN + ZFIELD(JLON,jlev,0)
+              enddo
 
-           DLMEAN = DLMEAN/STATEVECTOR%NI
-           DLMEAS = DLMEAS/STATEVECTOR%NI
-           DO JLON = 1, STATEVECTOR%NI  
-              ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
-              ZFIELD(JLON,jlev,STATEVECTOR%NJ) = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ)
-           enddo
+              DLMEAN = DLMEAN/STATEVECTOR%NI
+              DO JLON = 1, STATEVECTOR%NI  
+                 ZFIELD(JLON,jlev,1)  = DLMEAN + ZFIELD(JLON,jlev,1)
+              enddo
+           endif
+
+           if(statevector%myLatEnd.eq.statevector%nj) then
+              DLMEAS = 0.
+              DO JLON = 0, STATEVECTOR%NI + 2
+                 DLMEAS = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ+1)
+              enddo
+
+              DLMEAS = DLMEAS/STATEVECTOR%NI
+              DO JLON = 1, STATEVECTOR%NI  
+                 ZFIELD(JLON,jlev,STATEVECTOR%NJ) = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ)
+              enddo
+           endif
 
         ENDDO LEVELS
 !C
 !C     1.1  EXTRA MERIDIANS
 !C
-        DO JLAT = 1, STATEVECTOR%NJ
+        DO JLAT = statevector%myLatBeg, myLatP1
            DO JLEV = KLEV1, KLEV2
-              ZFIELD(STATEVECTOR%NI,JLEV,JLAT) =   ZFIELD(0,JLEV,JLAT)  &
+              ZFIELD(STATEVECTOR%NI,JLEV,JLAT) = ZFIELD(0,JLEV,JLAT)  &
                    + ZFIELD(STATEVECTOR%NI,JLEV,JLAT)
               ZFIELD(1,JLEV,JLAT)    =   ZFIELD(STATEVECTOR%NI+1,JLEV,JLAT) &
                    + ZFIELD(1,JLEV,JLAT)
@@ -244,18 +226,19 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
 !*     Adjoint of the identity (change of norm)
 !*
-        DO JLAT = 1, STATEVECTOR%NJ
+        DO JLAT = statevector%myLatBeg, myLatP1
+           rwtinv = STATEVECTOR%NI/gaus_RWT(JLAT)
            DO JLEV = KLEV1, KLEV2
               DO JLON = 1, STATEVECTOR%NI
-                 ZFIELD(JLON,JLEV,JLAT) = ZFIELD(JLON,JLEV,JLAT) *  &
-                      STATEVECTOR%NI / gaus_RWT(JLAT)
+                 ZFIELD(JLON,JLEV,JLAT) = ZFIELD(JLON,JLEV,JLAT) * rwtinv
               ENDDO
            ENDDO
         ENDDO
 !C
 !C     Transfer local results to global array
 !C
-        field_ptr(1:statevector%ni,klev1:klev2,1:statevector%nj,jstep) = zfield(1:statevector%ni,klev1:klev2,1:statevector%nj)
+        field_ptr(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1,jstep) = &
+           zfield(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1)
 
       enddo  ! jstep
 

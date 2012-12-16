@@ -16,7 +16,7 @@ module columnData_mod
   public :: col_getTimeInterpWeight, col_setTimeInterpWeight
   public :: col_getPressure, col_getHeight, col_getMountain, col_setMountain
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
-  public :: col_zero, col_fillmvo, col_getColumn, col_getElem, col_getVco, col_setVco
+  public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -258,8 +258,6 @@ module columnData_mod
     integer jobs,jlev
     real*8, pointer :: column_ptr(:)
 
-    call tmg_start(30,'FILLMVO')
-
     ! Pressure
     select case(trim(varName))
     case('PP')
@@ -322,8 +320,6 @@ module columnData_mod
       endif
 
     end select
-
-    call tmg_stop(30)
 
     return
     END SUBROUTINE col_fillmvo
@@ -574,6 +570,28 @@ module columnData_mod
     enddo
 
   end subroutine col_copyLatLon
+
+
+  function col_getAllColumns(column,varName) result(allColumns)
+    implicit none
+    type(struct_columnData), intent(in)    :: column
+    character(len=*), intent(in), optional :: varName
+    real*8,pointer                         :: allColumns(:,:)
+    integer                                :: ilev1,ilev2
+
+    if(present(varName)) then
+      if(col_varExist(varName)) then
+        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+        allColumns => column%all(ilev1:ilev2,:)
+      else
+        call abort3d('col_getColumn: Unknown variable name! ' // varName)
+      endif
+    else
+      allColumns => column%all(:,:)
+    endif
+
+  end function col_getAllColumns
 
 
   function col_getColumn(column,headerIndex,varName) result(onecolumn)

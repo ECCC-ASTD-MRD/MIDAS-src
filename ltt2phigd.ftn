@@ -52,7 +52,7 @@ C
       real*8  zalpha
       real*8 zpress(statevectorg%ni,statevectorg%nlev),zprof(statevectorg%nlev)
       real*8, pointer :: ps3d_ptr(:,:,:), zpres3d_ptr(:,:,:)
-      real*8, allocatable :: zps2d(:,:) 
+      real*8, pointer :: zps2d(:,:) 
       integer status
 *------------------------------------------------------------------
 **
@@ -66,8 +66,7 @@ c     Prepare r.h.s. for TL-Hydrostatic equation
 c
       ps3d_ptr => gsv_getField3D(statevectorg,'P0')
 c
-      allocate(zps2d(statevectorg%ni,statevectorg%nj))
-      zps2d(:,:) = ps3d_ptr(:,1,:)
+      zps2d => ps3d_ptr(:,1,:)
 c
       status=vgd_levels(statevectorg%vco%vgrid,
      &                  ip1_list=statevectorg%vco%ip1_M,
@@ -86,7 +85,6 @@ c
           call lvtapgd(pgz,ptt,jlon,jlat) 
         enddo
       enddo
-      deallocate(zps2d)
 c
       RETURN
 
