@@ -19,6 +19,7 @@ MODULE mpi
     npex=0
     npey=0
     CALL rpn_comm_init(mpi_getptopo,mpi_myid,mpi_nprocs,npex,npey)
+    if(mpi_nprocs.lt.1) mpi_nprocs=1
     CALL rpn_comm_mype(mpi_myid,myidx,myidy)
 
 !$OMP PARALLEL PRIVATE(numthread,mythread)

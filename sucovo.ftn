@@ -22,7 +22,6 @@
 *
 **    Purpose:
 *             -initialize observation error standard deviations
-*              and vertical error correlation matrices
 *             ***NOTE: "contains" subroutines READCOVO and SETERR
 *Arguments
 *     none
@@ -33,41 +32,21 @@
       use bufr
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
-      logical :: usenewerr
+      LOGICAL :: LnewExists,LoldExists
 C
 C ---------------------------------
 C Previous contents of comstato.cdk:
 C
-      INTEGER  JPRLEV,JPBANDS,JPCORBANDS
-      INTEGER  JPSATLV,JPNTYP,JPIDBRP
-      INTEGER  JPRALEV,JPHLEV,JPSALEV
-      INTEGER  JPMAXILEV,JPZLEV
+      INTEGER  JPRLEV,JPBANDS
+      INTEGER  JPIDBRP
 C
-      PARAMETER(JPRLEV=16,JPBANDS=3,JPCORBANDS=1)
-      PARAMETER(JPSATLV=8,JPNTYP=2)
-      PARAMETER(JPRALEV=17,JPHLEV=7,JPSALEV=7)
-      PARAMETER(JPMAXILEV=47,JPIDBRP=254)
-      PARAMETER(JPZLEV=63)
-C
-C     OBSERVATION  ERROR CORRELATIONS
-C 1.  SATEMS
-*     ---------
-      INTEGER  NISLV(JPSATLV)
-      REAL*8     DZOBSCOR(JPMAXILEV,JPMAXILEV,JPNTYP)
-      REAL*8     XSATDEV(JPSALEV,JPNTYP)
+      PARAMETER(JPRLEV=16,JPBANDS=3)
+      PARAMETER(JPIDBRP=254)
 C
 C 2.  UPPER AIR
 C     ---------
       INTEGER  NILV(JPRLEV)
-      REAL*8     GZOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
-      REAL*8     UUOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
-      REAL*8     ESOBSCOR(JPMAXILEV,JPMAXILEV,JPBANDS)
       REAL*8     XOSTDEV(57,JPRLEV,JPBANDS)
-C
-C 3.  HUMSAT
-C     ---------
-      INTEGER  NIHULV(JPHLEV)
-      REAL*8     HUOBSCOR(JPMAXILEV,JPMAXILEV)
 C
 C 4.  AIREP : ASDAR : SATOB
 C     ---------------------
@@ -81,11 +60,6 @@ C
 C 5.  SURFACE
 C     ---------
       REAL*8     XSFCOBERR(57,1,JPIDBRP)
-C
-C 6.  PROFILER
-C     ---------
-      INTEGER    NILZ(JPZLEV)
-      REAL*8     XPRSTDEV(JPZLEV)
 C
 C ---------------------------------
 C     AIREP : ASDAR : SATOB
@@ -106,7 +80,7 @@ C
      &                             400.0D0,300.0D0,250.0D0,200.0D0,
      &                             150.0D0,100.0D0/
 C
-C Read in the stddev (and possibly correlations) from statistics file
+C Read in the stddev from statistics file
 C
       call readcovo
 C
@@ -118,19 +92,12 @@ C
 
       SUBROUTINE READCOVO
       IMPLICIT NONE
-      REAL*8 ZEIGENV(JPRLEV),ZEIGEN(JPRLEV,JPRLEV),ZEIGMIN,ZALPHA
-      REAL*8 ZPROJ(JPRLEV,JPRLEV)
-      REAL*8 ZVCOR(JPRLEV,JPRLEV),UVCOR(JPRLEV,JPRLEV),
-     $       ESVCOR(JPRLEV,JPRLEV)
       REAL*8 PHISTD(JPRLEV,JPBANDS),USTD(JPRLEV,JPBANDS),
      $       ESSTD(JPRLEV,JPBANDS),TTSTD(JPRLEV,JPBANDS)
-      REAL*8 DZCOR(JPSALEV,JPSALEV)
-      REAL*8 HUCOR(JPHLEV ,JPHLEV)
 *
-      INTEGER     IDUM,IERR,IKEY,JTYP
+      INTEGER     IDUM,IERR,IKEY
       INTEGER     INI,INJ,INK,IDATE,ISTAMP,IDT,INP
       INTEGER     IP1,IP2,IP3
-      INTEGER     IJ,JI
       REAL*8      DHEURES
       CHARACTER*2 CTYPVAR
       CHARACTER*1 CGRTYP
@@ -152,15 +119,14 @@ C
       INTEGER JLEV,JBAND,JN,JELM,JID,IID
       INTEGER ILYR,ILEMU,ILEMV,ILEMGZ,ILEMTT,ILEMES
       INTEGER ILEMUS,ILEMVS,ILEMTS,ILEMESS,ILEMPS,ILEMPN
-      REAL*8 ZLYR, ZLEV, ZCONGZ
-      INTEGER :: nulstat,nulstat2
-      LOGICAL :: isExist_L
+      REAL*8 ZLYR, ZLEV
+      INTEGER :: nulstat
       character*128 ligne
 C
-C     OPEN THE FILE WITH THE STATISTICS
+C     CHECK IF OLD STATS FILE EXISTS AND OPEN
 C
-      INQUIRE(FILE='./obscov',EXIST=isExist_L)
-      IF ( isExist_L )then
+      INQUIRE(FILE='./obscov',EXIST=LoldExists)
+      IF ( LoldExists )then
         NULSTAT=0
         IERR=FNOM(NULSTAT,'./obscov','RND+OLD+R/O',0)
         IF ( IERR .EQ. 0 ) THEN
@@ -168,39 +134,40 @@ C
           write(*,*) ' opened as unit file ',nulstat
           ierr =  fstouv(nulstat,'RND+OLD')
         ELSE
-          CALL ABORT3D('READCOVO:COULD NOT OPEN FILE obscov!!')
+          CALL ABORT3D('READCOVO:COULD NOT OPEN OLD FILE obscov!!')
         ENDIF
       ELSE
-          CALL ABORT3D('READCOVO:NO OBSERVATION STAT FILE!!')
-      ENDIF
-C
-C     OPEN THE NEW FILE WITH STATISTICS
-C
-      INQUIRE(FILE='./obserr',EXIST=isExist_L)
-      IF ( isExist_L )then
-        NULSTAT2=0
-        IERR=FNOM(NULSTAT2,'./obserr','SEQ',0)
-        IF ( IERR .EQ. 0 ) THEN
-          write(*,*) 'READCOVO: File =  ./obserr'
-          write(*,*) ' opened as unit file ',nulstat2
-          open(unit=nulstat2, file='./obserr', status='OLD')
-          USENEWERR=.true.
-        ELSE
-          CALL ABORT3D('SUCOVO:COULD NOT OPEN FILE obserr!!')
-        ENDIF
-      ELSE
-        USENEWERR=.false.
         WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
-        WRITE(*,*) 'READCOVO: NO NEW OBSERVATION STAT FILE!!'
-        WRITE(*,*) 'READCOVO: USING OLD STAT FILE ONLY!!'
+        WRITE(*,*) 'READCOVO: NO OLD OBSERVATION STAT FILE!!'
         WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
       ENDIF
 C
-C     CONVERSION FACTORS:
+C     CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
 C
-C     TO GEOPOTENTIAL
-C     ---------------
-      ZCONGZ=RG
+      INQUIRE(FILE='./obserr',EXIST=LnewExists)
+      IF (LnewExists )then
+        if(LoldExists) then
+          WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+          WRITE(*,*) 'READCOVO: BOTH NEW AND OLD OBSERVATION STAT FILES EXIST!!'
+          WRITE(*,*) 'READCOVO: USING NEW STAT FILE ONLY!!'
+          WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+        else
+          WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+          WRITE(*,*) 'READCOVO: ONLY NEW OBSERVATION STAT FILE EXISTS!!'
+          WRITE(*,*) 'READCOVO: USING NEW STAT FILE ONLY!!'
+          WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+        endif
+      else
+        if(LoldExists) then
+          WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+          WRITE(*,*) 'READCOVO: NO NEW OBSERVATION STAT FILE!!'
+          WRITE(*,*) 'READCOVO: USING OLD STAT FILE ONLY!!'
+          WRITE(*,*) '*****WARNING*****WARNING*****WARNING*****'
+        else
+          CALL ABORT3D('READCOVO:NO OBSERVATION STAT FILE FOUND!!')     
+        endif
+      ENDIF
+C
 C     ---------------
 C
 C*0.  DEFAULT VALUES
@@ -225,15 +192,17 @@ C
          END DO
       END DO
 C
-      DO JBAND =1,JPBANDS
-         DO JLEV  =1,JPRLEV
+      if(LoldExists .and. .not.LnewExists) then
+        DO JBAND =1,JPBANDS
+          DO JLEV  =1,JPRLEV
             IF(ILEMU  .NE. -1) XOSTDEV( ILEMU, JLEV,JBAND)=  2.235764D0
             IF(ILEMV  .NE. -1) XOSTDEV( ILEMV, JLEV,JBAND)=  2.235764D0
             IF(ILEMGZ .NE. -1) XOSTDEV( ILEMGZ,JLEV,JBAND)=  0.75D0
             IF(ILEMTT .NE. -1) XOSTDEV( ILEMTT,JLEV,JBAND)=  .82462113D0
             IF(ILEMES .NE. -1) XOSTDEV( ILEMES,JLEV,JBAND)=  3.00D0
-         END DO
-      END DO
+          END DO
+        END DO
+      endif
 C
 C  The following std(us,vs,ts,ps,pn)  are taken or are derived from
 C  ECMWF Tech. Memo no.241
@@ -341,6 +310,9 @@ ccc          XSFCOBERR( ILEMPS,1,146)= SQRT((0.7*0.7)/(0.8*0.8))*100.
               END DO
             ENDIF
       END DO
+
+      if(LoldExists .and. .not.LnewExists) then
+
       LLPROB=.FALSE.
       LLTT  = .TRUE.
       IP1=-1
@@ -389,10 +361,6 @@ C
         IERR=VFSTLIR(PHISTD,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
      +       ,CTYPVAR,CNOMVAR)
         LLPRESNT = (IERR .GE. 0)
-        CETIKET='RAOBVCOR'
-        IERR=VFSTLIR(ZVCOR,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
-     +       ,CTYPVAR,CNOMVAR)
-        LLPRESNT = (IERR .GE. 0) .AND. LLPRESNT
 C
         CNOMVAR='TT'
         CETIKET='RAOBSTD'
@@ -405,116 +373,14 @@ C
         IERR=VFSTLIR(ESSTD,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
      +       ,CTYPVAR,CNOMVAR)
         LLPRESNT = (IERR .GE. 0) .AND. LLPRESNT
-        CETIKET='RAOBVCOR'
-        IERR=VFSTLIR(ESVCOR,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
-     +       ,CTYPVAR,CNOMVAR)
-        LLPRESNT = (IERR .GE. 0) .AND. LLPRESNT
-C
 C
         CNOMVAR='UU'
         CETIKET='RAOBSTD'
         IERR=VFSTLIR(USTD,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
      +       ,CTYPVAR,CNOMVAR)
         LLPRESNT = (IERR .GE. 0) .AND. LLPRESNT
-        CETIKET='RAOBVCOR'
-        IERR=VFSTLIR(UVCOR,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
-     +       ,CTYPVAR,CNOMVAR)
-        LLPRESNT = (IERR .GE. 0) .AND. LLPRESNT
       endif
 C     ------------------------------------------------------------
-C
-C Read the new obserr file
-C
-      if(usenewerr) then
-        write(*, '(A)') ' '
-        read(nulstat2, '(A)') ligne
-        write(*, '(A)') ligne
-        read(nulstat2, '(A)') ligne
-        write(*, '(A)') ligne
-        read(nulstat2, '(A)') ligne
-        write(*, '(A)') ligne
-
-        do jlev = 1, 19
-          read(nulstat2, * ) (xstdall(jlev,jelm), jelm=1,11)
-          write(*, '(f6.0,10f6.1)' )  (xstdall(jlev,jelm), jelm=1,11)
-        enddo
-        write(*, '(A)') ' '
-      endif
-C
-C     -------------------------------------
-C     FILTER AND FILL CORRELATION MATRICES
-C     -------------------------------------
-C
-      CALL ZERO(JPMAXILEV*JPMAXILEV*JPCORBANDS,GZOBSCOR)
-      CALL ZERO(JPMAXILEV*JPMAXILEV*JPCORBANDS,ESOBSCOR)
-      CALL ZERO(JPMAXILEV*JPMAXILEV*JPCORBANDS,UUOBSCOR)
-      if(llpresnt) then
-        DO JBAND =1,JPCORBANDS
-          WRITE(*,*) " "
-          WRITE(*,*) " -----------------------------"
-          WRITE(*,*) " BAND NUMBER IS : ",JBAND
-          WRITE(*,*) " -----------------------------"
-          WRITE(*,*) " "
-C
-C    FILTER THE MATRICES "TO REMOVE SINGULARITIES..."
-C
-C     1. GEOPOTENTIAL
-C        ------------
-          ZEIGMIN=0.2
-          ZALPHA=0.1
-          WRITE(*,*) " filtering GZ correlation matrix"
-          CALL FILTMATRIX(ZVCOR,ZPROJ,ZEIGEN,ZEIGENV,
-     &         JPRLEV,ZEIGMIN,ZALPHA)
-C
-C     2. T-Td
-C        -----
-          ZEIGMIN=0.0
-          ZALPHA=0.0
-          WRITE(*,*) " filtering ES correlation matrix"
-          CALL FILTMATRIX(ESVCOR,ZPROJ,ZEIGEN,ZEIGENV,
-     &         JPRLEV,ZEIGMIN,ZALPHA)
-C
-          DO JI=1,JPRLEV
-            DO J=1,JPRLEV
-              GZOBSCOR(JI,J,JBAND)= ZVCOR(JI,J)
-              ESOBSCOR(JI,J,JBAND)=ESVCOR(JI,J)
-              UUOBSCOR(JI,J,JBAND)= UVCOR(JI,J)
-            END DO
-          END DO
-        END DO
-      endif
-C
-C    -------------------------------------------------------------------
-C     -------------------------------------
-C     PRINT FINAL CORRELATION MATRICES
-C     -------------------------------------
-C
-      DO JBAND =1,JPCORBANDS
-         WRITE(*,*) " "
-         WRITE(*,*) " -----------------------------"
-         WRITE(*,*) " BAND NUMBER IS : ",JBAND
-         WRITE(*,*) " -----------------------------"
-         WRITE(*,*) " "
-         WRITE(*,*) " GZ     correlation matrix"
-         WRITE(*,*) " -------------------------------------------------"
-         WRITE(*,1245)( (GZOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
-         WRITE(*,*) " -------------------------------------------------"
-C
-C    -------------------------------------------------------------------
-C
-         WRITE(*,*) " UU-VV  correlation matrix"
-         WRITE(*,*) " -------------------------------------------------"
-         WRITE(*,1245)( (UUOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
-         WRITE(*,*) " -------------------------------------------------"
-C
-C    -------------------------------------------------------------------
-C
-         WRITE(*,*) " T-Td   correlation matrix"
-         WRITE(*,*) " -------------------------------------------------"
-         WRITE(*,1245)( (ESOBSCOR(JI,J,JBAND),JI=1,JPRLEV),J=1,JPRLEV)
-         WRITE(*,*) " -------------------------------------------------"
-      END DO
-C
 C
 C*3. Initialize observation standard deviation errors
 C    -------------------------------------------------------------------
@@ -568,154 +434,45 @@ C
          WRITE(*,*)" ------------------------------- "
       ENDIF
 C
-C================================================================
 C
-C     SATEM OBSERVATION ERRORS
-C
-C================================================================
-C
-      IP1=-1
-      IP2=-1
-      IP3=1
-C
-C
-C*1.  READ LEVELS FROM FILE
-C     ---------------------
-C
-      CTYPVAR='K'
-      CNOMVAR='LV'
-      CETIKET='SATMOERR'
-      IKEY=FSTLIR(NISLV,NULSTAT,INI,INJ,INK,-1,CETIKET,IP1,IP2,IP3,
-     +            CTYPVAR,CNOMVAR)
-      LLPRESNT = (IKEY .GE. 0)
-      IERR = FSTPRM (IKEY,ISTAMP,IDT,INP,INI,INJ,INK,IDUM,IDUM,
-     +               IDUM,IDUM,IDUM,CTVAR,CNVAR,CETIKET,CGRTYP,IDUM,
-     +               IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM,IDUM)
-C
-      DO JLEV = 1,JPSATLV
-         NISLV(JLEV) =NISLV(JLEV)*MPC_PA_PER_MBAR_R8
-      END DO
-C
-C     =========================
-      CALL ISORT(NISLV,JPSATLV)
-C     =========================
-C
-      CTYPVAR='O'
-      CNOMVAR='DZ'
-      IP3=7
-      DO JTYP =1,JPNTYP
-         IF ( JTYP .EQ. 1) THEN
-           CETIKET= 'STMCLRCR'
-           CETIKETV='STMCLRST'
-         ELSE
-           CETIKET= 'STMCLOCR'
-           CETIKETV='STMCLOST'
-         ENDIF
-C-----------------------------------------------------------------------
-         IKEY=VFSTLIR(DZCOR,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
-     +              ,CTYPVAR,CNOMVAR)
-         LLPRESNT = (IKEY .GE. 0) .AND. LLPRESNT
-         LLOK     =LLPRESNT .AND. (INI.EQ.JPSALEV) .AND.(INJ.EQ.JPSALEV)
-         IKEY=VFSTLIR(XSATDEV(1,JTYP),NULSTAT,INI,INJ,INK,IDATE,CETIKETV
-     +             ,IP1,IP2,IP3,CTYPVAR,CNOMVAR)
-         LLOK     = (IKEY .GE. 0) .AND. LLOK
-C-----------------------------------------------------------------------
-C
-         IF ( LLOK ) THEN
-C
-C       MOVE INTO FULL  CORRELATION MATRIX
-C
-           DO J = 1, JPSALEV
-              DO JI=1,JPSALEV
-                 DZOBSCOR(JI,J,JTYP) = DZCOR(JI,J)
-              END DO
-           END DO
-           WRITE(*,*)" correlation matrix for satems with TYPE:",CETIKET
-           WRITE(*,*)" ------------------------------------------------"
-           WRITE(*,1244)((DZOBSCOR(JI,J,JTYP),JI=1,JPSALEV),J=1,JPSALEV)
-           WRITE(*,*)" ------------------------------------------------"
-         ELSE
-           LLPROB=.TRUE.
-           WRITE(*,*) " PROBLEM WITH SATEM STATISTICS  "
-        ENDIF
-      END DO
-C
-C=======================================================================
-C
-C     HUMSAT CORRELATION MATRIX (7x7 matrix )
-C     STORED FROM 300-1000 MB
-C
-C     JPHLEV = 7
-C================================================================
-C
-C
-C
-C*1.  READ LEVELS FROM FILE
-C     ---------------------
-C
-      CTYPVAR='K'
-      CNOMVAR='LV'
-      CETIKET='HUMOERR '
-      IP1=-1
-      IP2=-1
-      IP3=-1
-      IKEY=FSTLIR(NIHULV,NULSTAT,INI,INJ,INK,-1,CETIKET,IP1,IP2,IP3,
-     +            CTYPVAR,CNOMVAR)
-      LLPRESNT = (IKEY .GE. 0)
-C
-      DO JLEV = 1,JPHLEV
-         NIHULV(JLEV) = NIHULV(JLEV)*MPC_PA_PER_MBAR_R8
-      END DO
-C-----------------------------------------------------------------------
-      CTYPVAR='O'
-      CNOMVAR='ES'
-      CETIKET='HUMVCOR '
-      IKEY=VFSTLIR(HUCOR,NULSTAT,INI,INJ,INK,IDATE,CETIKET,IP1,IP2,IP3
-     +           ,CTYPVAR,CNOMVAR)
-      LLOK     =LLPRESNT .AND. (INI.EQ.JPHLEV) .AND.(INJ.EQ.JPHLEV)
-      LLOK = (IKEY .GE. 0) .AND. LLOK
-C-----------------------------------------------------------------------
-C
-C     MOVE INTO FULL  CORRELATION MATRIX
-C
-      IF ( LLOK) THEN
-         CALL ZERO(JPMAXILEV*JPMAXILEV,HUOBSCOR)
-         DO J = 1, JPHLEV
-            DO JI=1,JPHLEV
-               HUOBSCOR(JI,J) = HUCOR(JI,J)
-            END DO
-         END DO
-         WRITE(*,*) " correlation matrix for humsat "
-         WRITE(*,*)" ------------------------------------------------"
-         WRITE(*,1244)( (HUOBSCOR(JI,J),JI=1,JPHLEV),J=1,JPHLEV)
-         WRITE(*,*)" ------------------------------------------------"
-      ELSE
-         LLPROB=.TRUE.
-         WRITE(*,*) " PROBLEM WITH HUMSAT STATISTICS   "
-      ENDIF
-C
-      IF ( .NOT. LLPROB ) THEN
-         WRITE(*,*)" ----------------------- "
-         WRITE(*,*)" SUBROUTINE READCOVO:"
-         WRITE(*,*)" OBSERVATION ERRORS SET  "
-         WRITE(*,*)" ----------------------- "
-      ELSE
-         WRITE(*,*)" ------------------------------- "
-         WRITE(*,*)" SUBROUTINE READCOVO:"
-         WRITE(*,*)" PROBLEM WITH STATISTICS FILE    "
-         WRITE(*,*)" DEFAULT VALUES FOR RAOBS ERRORS "
-         WRITE(*,*)" ------------------------------- "
-      ENDIF
+      endif ! oldExists and not newExists
 
-      IERR=FSTFRM(NULSTAT)  
-      IERR=FCLOS(NULSTAT)  
-      IF(USENEWERR) THEN
-        CLOSE(UNIT=NULSTAT2)
-        IERR=FCLOS(NULSTAT2)    
-      ENDIF
+      if(LoldExists) then
+        IERR=FSTFRM(NULSTAT)  
+        IERR=FCLOS(NULSTAT)  
+      endif
 C
- 1244 FORMAT( 7(1x,f5.2))
- 1245 FORMAT(16(1x,f5.2))
+      IF(LnewExists) then
+C
+C        Read the new obserr file
+C
+         NULSTAT=0
+         IERR=FNOM(NULSTAT,'./obserr','SEQ',0)
+         IF ( IERR .EQ. 0 ) THEN
+            write(*,*) 'READCOVO: File =  ./obserr'
+            write(*,*) ' opened as unit file ',nulstat
+            open(unit=nulstat, file='./obserr', status='OLD')
+         ELSE
+            CALL ABORT3D('SUCOVO:COULD NOT OPEN FILE obserr!!')
+         ENDIF
+
+         write(*, '(A)') ' '
+         read(nulstat, '(A)') ligne
+         write(*, '(A)') ligne
+         read(nulstat, '(A)') ligne
+         write(*, '(A)') ligne
+         read(nulstat, '(A)') ligne
+         write(*, '(A)') ligne
+
+         do jlev = 1, 19
+            read(nulstat, * ) (xstdall(jlev,jelm), jelm=1,11)
+            write(*, '(f6.0,10f6.1)' )  (xstdall(jlev,jelm), jelm=1,11)
+         enddo
+         write(*, '(A)') ' '
+         CLOSE(UNIT=NULSTAT)
+         IERR=FCLOS(NULSTAT)    
+      ENDIF ! newExists
+
       RETURN
       END SUBROUTINE READCOVO
 
@@ -841,7 +598,7 @@ C
                   ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 C
                   IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
-                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSFCOBERR(ILEM,1,IDBURP))
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,XSFCOBERR(ILEM,1,IDBURP))
                   ELSE IF (ITYP .EQ. BUFR_NESS) THEN
@@ -854,7 +611,8 @@ C
 C
 C New code...
 C
-                    IF(USENEWERR) THEN
+                    IF(LnewExists) THEN
+
                     IF ((ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV))THEN
                       ielem=4
                     else if (ITYP .EQ. BUFR_NETT) then
@@ -920,17 +678,17 @@ C    ---------------------------
                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,(1.0D0-ZFACTOR)*XOSTDEV
      +                                (ILEM,ilyr,ILAT1) + ZFACTOR*XOSTDEV(ILEM,ilyr,ILAT2))
                     endif
-                    ENDIF ! USENEWERR
+                    ENDIF ! else of newExists
 
                   ENDIF
 
-                  IF(.NOT.USENEWERR) THEN
-                  IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
-                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 
-     +                             obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-     +                             *SQRT(1.8D0))
-                  ENDIF
-                  ENDIF
+                  if(LoldExists .and. .not.LnewExists) then
+                    IF( (ITYP .EQ. BUFR_NEES) .AND. (NINT(ZVAL) .EQ. 30) )THEN
+                      call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 
+     +                                   obs_bodyElem_r(lobsSpaceData,
+     +                                   OBS_OER,INDEX_BODY)*SQRT(1.8D0))
+                    ENDIF
+                  endif
 C
 C***********************************************************************
 C   TOVS DATA
@@ -1037,7 +795,7 @@ C
                ELSE IF ( CFAM .EQ. 'AI'
      &              .OR. CFAM .EQ. 'SW') THEN
                   ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                  IF(USENEWERR) THEN
+                  IF(LnewExists) THEN
 C
 C    SATOB
 C
@@ -1084,7 +842,7 @@ C
      +                        zwt*XSTDALL(JN,ielem) + zwb*XSTDALL(JN+1,ielem))
                   endif
 
-                  ELSE !USENEWERR
+                  ELSE !LnewExists
 C
 C    SATOB
 C
@@ -1137,7 +895,7 @@ C
                      ENDIF
                   ENDIF
 
-                  ENDIF ! USENEWERR
+                  ENDIF ! else of newExists
 C
 C***********************************************************************
 C   SURFACE DATA
@@ -1226,23 +984,6 @@ C
                  call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,
      s                0.6D0*obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY))
 C
-C                 SATEMS
-C
-               ELSE IF ( CFAM .EQ. 'ST' ) THEN
-                  ILVL=0
-                  ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                  DO JN =1,JPSALEV
-                     ZLVL=SIGN(1.0D0,(ZLEV-NISLV(JN)) )
-                     ILVL=ILVL + MAX(0.0D0,ZLVL)
-                  END DO
-                  IF ( (ITECH .EQ. 1) .OR. (ITECH .EQ. 4) ) THEN
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSATDEV(ILVL,1))
-                  ELSE IF ( (ITECH .EQ. 2) .OR. (ITECH .EQ. 3) ) THEN
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSATDEV(ILVL,2))
-                  ELSE
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, XSATDEV(ILVL,1))
-                  ENDIF
-               ELSE IF ( CFAM .EQ. 'HU' ) THEN
                ELSE IF ( CFAM .EQ. 'PR' ) THEN
                      call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,2.2D0)
                ELSE

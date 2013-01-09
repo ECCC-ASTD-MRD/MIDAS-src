@@ -72,6 +72,10 @@ cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiled
 
 rm -f *.ftn~ *.ftn90~
 
+# temporarily copy the object files for a preliminary version
+# of ezscint that works with the "U" grid (compiled only be AIX):
+cp /users/dor/arma/bue/home01/3dvar_test/trunk/ezscint/quiet3e/*.o $compiledir
+
 echo "STARTING COMPILATION AT:"
 date
 

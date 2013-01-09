@@ -15,13 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine postmin(lcolumng,lcolumnhr,lobsSpaceData)
-#if defined (DOC)
-*
-***s/r postmin  - Post-minimization control of the 3Dvar
-*
-*Author  : S. Pellerin *ARMA/SMC  May 2000
-*
-#endif
+!
+!  s/r postmin  - Post-minimization control of the 3Dvar
+!
+!Author  : S. Pellerin *ARMA/SMC  May 2000
+!
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use controlVector_mod
@@ -36,7 +34,7 @@
 #include "comfilt.cdk"
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
-C
+
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
       integer jk,jj,ji,nulfile,ierr,fnom,fstouv,fstfrm,fclos
@@ -46,17 +44,17 @@ C
       real*8, allocatable :: zgz(:,:,:)
       real*8, allocatable :: zhu(:,:,:)
       real*8, pointer :: hu3d_inc_ptr(:,:,:),hu3d_trl_ptr(:,:,:)
-c
-c     if a restart file was writen at the end of minimize.ftn,
-c     lrestart was turn to .true. to avoid postmin exection
-c
+!
+!     if a restart file was writen at the end of minimize.ftn,
+!     lrestart was turn to .true. to avoid postmin exection
+!
       if (lrestart) return
-c
+
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'
 !
-!     Compute the analysis increment
+!     Compute the analysis increment (mpiglobal result only on myid=0)
 !
       call tmg_start(91,'POST_COMPUTEDX')
       vco_anl => col_getVco(lcolumng)
@@ -74,46 +72,57 @@ c
 
       call tmg_start(92,'POST_DIAG')
 !
-!     Prepare background fields at initial time for flow-dependent control variables
+!     Prepare background fields (only P0, TT, HU) at the analysis time for flow-dependent 
+!     control variables (NOTE: mpiglobal result only on myid=0)
 !
       call gsv_setVco(statevectorg,vco_anl)
       call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=min_get_datestamp(),mpi_local=.false.)
-      call subasic_gd(statevectorg,lcolumnhr)
 
-      allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
-!
-!     *** Compute increment HU from LQ increment ***
-!
-      hu3d_trl_ptr => gsv_getField3D(statevectorg,'HU')
-      hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
-!$OMP PARALLEL DO PRIVATE(jk,jj,ji,ztemp)
-      do jj = 1,statevectorg%nj
-        do jk = 1,statevectorg%vco%nlev_M
-          do ji = 1,statevectorg%ni
-            ZTEMP = log(hu3d_trl_ptr(ji,jk,jj)) + hu3d_inc_ptr(ji,jk,jj)
-            zhu(ji,jk,jj) = EXP(ZTEMP) - hu3d_trl_ptr(ji,jk,jj)
-          enddo
-        enddo
-      enddo
-!$OMP END PARALLEL DO
-!
-!     *** ES ***
-!
-      call lq2esgd(zes,statevector,statevectorg)
-!
-!     *** Total GZ ***
-!
-      call lt2tvgd(ztv,statevector,statevectorg)
-      call ltt2phigd(zgz,ztv,statevectorg)
+      call tmg_start(93,'SUBASIC_GD')
+      call subasic_gd(statevectorg,lcolumnhr)
+      call tmg_stop(93)
 
       call tmg_stop(92)
 
-      call tmg_start(90,'VAROUT')
-
+      ! background fields only on myid=0, so only do calculations for myid=0
       if(mpi_myid == 0 ) then
+        call tmg_start(92,'POST_DIAG')
+
+        allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
+        allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
+        allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
+        allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
+!
+!       *** Compute increment HU from LQ increment ***
+!
+        hu3d_trl_ptr => gsv_getField3D(statevectorg,'HU')
+        hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji,ztemp)
+        do jj = 1,statevectorg%nj
+          do jk = 1,statevectorg%vco%nlev_M
+            do ji = 1,statevectorg%ni
+              ZTEMP = log(hu3d_trl_ptr(ji,jk,jj)) + hu3d_inc_ptr(ji,jk,jj)
+              zhu(ji,jk,jj) = EXP(ZTEMP) - hu3d_trl_ptr(ji,jk,jj)
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
+!
+!       *** ES ***
+!
+        call lq2esgd(zes,statevector,statevectorg)
+!
+!       *** Total GZ ***
+!
+        call lt2tvgd(ztv,statevector,statevectorg)
+        call ltt2phigd(zgz,ztv,statevectorg)
+
+        call tmg_stop(92)
+!
+!       Now, write out the increment, including diagostic variables
+!
+        call tmg_start(90,'VAROUT')
+
         nulfile = 0
         ierr    = fnom(nulfile,'./rebm','RND',0)
         if(ierr.ge.0)then
@@ -127,16 +136,18 @@ c
 
         ierr =  fstfrm(nulfile)
         ierr =  fclos(nulfile)        
+
+        deallocate(zes)
+        deallocate(ztv)
+        deallocate(zgz)
+        deallocate(zhu)
+
+        call tmg_stop(90)
+
       endif
 
-      call tmg_stop(90)
-
-      call gsv_deallocate(statevector)
       call gsv_deallocate(statevectorg)
-      deallocate(zes)
-      deallocate(ztv)
-      deallocate(zgz)
-      deallocate(zhu)
+      call gsv_deallocate(statevector)
 !
 !     Now write out the observation data:
 !

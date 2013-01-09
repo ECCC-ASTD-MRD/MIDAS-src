@@ -594,19 +594,51 @@ module columnData_mod
   end function col_getAllColumns
 
 
-  function col_getColumn(column,headerIndex,varName) result(onecolumn)
+  function col_getColumn(column,headerIndex,varName,varType) result(onecolumn)
     implicit none
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName
+    character(len=*), intent(in), optional :: varType
     real*8,pointer                         :: onecolumn(:)
     integer                                :: ilev1,ilev2
 
     if(present(varName)) then
       if(col_varExist(varName)) then
-        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
-        onecolumn => column%all(ilev1:ilev2,headerIndex)
+        select case(trim(varName))
+        case('PP')
+          if(present(varType)) then 
+            if(varType.eq.'TH') then
+              onecolumn => column%rppobs_T(:,headerIndex)
+            elseif(varType.eq.'MM') then
+              onecolumn => column%rppobs_M(:,headerIndex)
+            else
+              onecolumn => column%rppobs(:,headerIndex)
+            endif
+          else
+            onecolumn => column%rppobs(:,headerIndex)
+          endif
+        case('GZ')
+          if(present(varType)) then 
+            if(varType.eq.'TH') then
+              onecolumn => column%gz_T(:,headerIndex)
+            elseif(varType.eq.'MM') then
+              onecolumn => column%gz_M(:,headerIndex)
+            else
+              ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+              ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+              onecolumn => column%all(ilev1:ilev2,headerIndex)
+            endif
+          else
+            ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+            ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+            onecolumn => column%all(ilev1:ilev2,headerIndex)
+          endif
+        case default ! all other variable names
+          ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+          onecolumn => column%all(ilev1:ilev2,headerIndex)
+        end select
       else
         call abort3d('col_getColumn: Unknown variable name! ' // varName)
       endif

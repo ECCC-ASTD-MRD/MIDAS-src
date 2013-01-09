@@ -36,15 +36,15 @@
 *     out-
 *   pgz    : 3D GZ fields computed from TL-Hydrostatic equation
 #endif
-C
+
       use gridStateVector_mod
       use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
-*
+
       type(struct_gsv) :: statevectorg
       real*8 pgz(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
       real*8 ptt(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
-*
+
       real*8  vma(statevectorg%nlev),vmb(statevectorg%nlev)
       real*8  vmc(statevectorg%nlev),vmd(statevectorg%nlev)
       real*8  vme(statevectorg%nlev),vmf(statevectorg%nlev)
@@ -55,25 +55,25 @@ C
       real*8, pointer :: zps2d(:,:) 
       integer status
 *------------------------------------------------------------------
-**
-C
+
       WRITE(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
-C
+
       zalpha=-1.0D0
 
 c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
       ps3d_ptr => gsv_getField3D(statevectorg,'P0')
-c
+
       zps2d => ps3d_ptr(:,1,:)
-c
+
       status=vgd_levels(statevectorg%vco%vgrid,
      &                  ip1_list=statevectorg%vco%ip1_M,
      &                  levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)
       if(status.ne.VGD_OK)then
         call abort3d('ERROR with vgd_levels for desired levels ')
       endif
+
       do jlat = 1, statevectorg%nj
         zpress = zpres3d_ptr(:,jlat,:)
         do jlon = 1, statevectorg%ni
@@ -85,7 +85,7 @@ c
           call lvtapgd(pgz,ptt,jlon,jlat) 
         enddo
       enddo
-c
+
       RETURN
 
       CONTAINS
@@ -119,12 +119,9 @@ C prepared outside lvtapgd
       use MathPhysConstants_mod
       IMPLICIT NONE
       integer ki,kj
-!
+
       INTEGER  IKLEVM2, JK, IK
       REAL*8    ZAK, ZBK, ZCK, ZCON
-
-*implicits
-*
       real*8    pgz(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
       real*8    ptt(statevectorg%ni,statevectorg%nlev,statevectorg%nj)
 c
@@ -139,7 +136,7 @@ c
      &     ZBK*ptt(ki,statevectorg%nlev,kj)+
      &     ZCK*ptt(ki,statevectorg%nlev-2,kj)+
      &     pgz(ki,statevectorg%nlev,kj)
-*
+
       IKLEVM2 = statevectorg%nlev-2
       do JK = 1, IKLEVM2
         IK = statevectorg%nlev-1-JK
@@ -151,10 +148,9 @@ c
      &       ZCK*ptt(ki,IK+2,kj)+
      &       pgz(ki,IK+2,kj)
       enddo
-C
+
       RETURN
       END SUBROUTINE lvtapgd
-
 
       END
 
