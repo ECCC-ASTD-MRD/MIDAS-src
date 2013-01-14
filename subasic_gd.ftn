@@ -188,7 +188,7 @@
       integer jlev,jlat,jlon,jcol
       integer :: iip1s(kmaxlev),iip1,iip2,iip3,itrlnlev,itrlgid
       integer ikey,ezgprm,vfstluk,ezsetopt
-      integer ezdefset,iset,vezsint
+      integer ezdefset,iset
       integer ikind,imode,ip1style,ip1kind
       integer koutmpg
       real*8  zeta(kmaxlev)
@@ -264,7 +264,7 @@ c
 c Do horizontal interpolation
 c
         if(trim(varName).ne.'UV') then
-          ierr=vezsint(zlowvar(:,:,jlev),zhighvar,
+          call vezsint(zlowvar(:,:,jlev),zhighvar,
      +        statevectorg%ni,statevectorg%nj,1,ini,inj,1)
         else
           call abort3d(
@@ -329,7 +329,7 @@ c
 c
 c Interpolation of high res. P0 to low res. variable grid
 c
-          ierr = vezsint(zps,zpstrl,
+          call vezsint(zps,zpstrl,
      +           statevectorg%ni,statevectorg%nj,1,ini,inj,1)
 
           status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,
