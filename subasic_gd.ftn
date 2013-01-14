@@ -340,15 +340,18 @@ c
           endif
 c
 c Computation of pressure values on trial profiles of the high
-c resolution horizonal grid
+c resolution horizonal grid (I think there is a bug here, since 
+c GZ is actually on momentum levels; the commented code corrects the
+c bug, but to keep the same behaviour as before it isn't used yet.)
+c (January, 2013, Mark Buehner)
 c
-          if (trim(varName) .eq. 'GZ') then
-            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
-     &                        levels=zprestrl,sfc_field=zps,in_log=.false.)
-          else
+!          if (trim(varName) .eq. 'GZ') then
+!            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
+!     &                        levels=zprestrl,sfc_field=zps,in_log=.false.)
+!          else
             status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
      &                        levels=zprestrl,sfc_field=zps,in_log=.false.)
-          endif
+!          endif
 
           if(status.ne.VGD_OK)then
              call abort3d('ERROR with vgd_levels for trl levels')

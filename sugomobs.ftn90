@@ -296,13 +296,13 @@
         zig4 = 1.0D0
         call vcxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
 
-        if (nobs(jstep).gt.0) then
-          nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,  &
-            ig3obs,ig4obs,dlonfld(1:nobs(jstep)),dlatfld(1:nobs(jstep)))
-        else
-          write(*,*) 'sugomobs: NO OBS found for this time bin =',jstep
-          nobsgid(jstep) = -999
-        endif
+!        if (nobs(jstep).gt.0) then
+!          nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,  &
+!            ig3obs,ig4obs,dlonfld(1:nobs(jstep)),dlatfld(1:nobs(jstep)))
+!        else
+!          write(*,*) 'sugomobs: NO OBS found for this time bin =',jstep
+!          nobsgid(jstep) = -999
+!        endif
 
         do jlatband = 1,mpi_nprocs
           if (nobs_mpiglobal(jstep,jlatband).gt.0) then
@@ -532,8 +532,6 @@
       write(*,*) ' '
       write(*,*) '-------- Leaving SUGOMOBS ---------'
       write(*,*) ' '
- 1002 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,  &
-             ', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
 
       return
 !--------------------------------------------------------------------------------
@@ -999,6 +997,10 @@
       allocate(varInterp_recv(maxval(nobs_mpiglobal),nlevel))
       allocate(varInterp_recv_VV(maxval(nobs_mpiglobal),nlevel))
       varTrial_zero(:,:) = 0.0d0
+      ! in the case that not all variable have the same etiket or typvar
+      ! (this is necessary for extra 3d-var done before gen_coeff)
+      cletiket='            '
+      cltypvar='  '
 
       do jstep = 1,col_getNumStep(lcolumng)
 
