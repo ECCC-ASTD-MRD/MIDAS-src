@@ -24,7 +24,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   use mod_tovs
   use iasich
   use iasibgcheck
-  use common_iasi
   use columnData_mod
   use obsSpaceData_mod
   use verticalCoord_mod
@@ -50,13 +49,13 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
   real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
   real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:) 
-  real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:)
+  real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:),SUNAZIM(:)
   real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
   integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:) 
   integer, allocatable :: CORFLAG(:,:)
   integer, allocatable :: GNCLDFLAG(:)
-  integer, allocatable :: ICHREF(:) 
+  integer, allocatable :: ICHREF(:),INDX(:)
   integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
   integer, allocatable :: NTOP_CO2(:,:),NGOOD(:)      
   real(8), allocatable :: PTOP_EQ(:),PTOP_BT(:,:),PTOP_RD(:,:),PTOP_MB(:)
@@ -72,11 +71,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   real(8), allocatable :: CFRAC_AVHRR(:)
   integer, allocatable :: CLDFLAG_AVHRR(:,:),LEV_START_AVHRR(:,:),ICHREF_AVHRR(:,:),NTOP_RD_AVHRR(:,:,:)
   integer, allocatable :: NTOP_BT_AVHRR(:,:,:),NTOP_EQ_AVHRR(:,:)
-  type(avhrr_var), allocatable :: out_avhrr_param(:)
   integer :: ICL
   integer ,parameter :: nn=2
   integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
-  integer :: cpt
+  integer :: cpt,isatzen
   logical :: bad
 !seuils detection nuageuse AVHRR
   Real(8),parameter :: sunzenmax=87.12d0
@@ -86,7 +84,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
   Real(8) :: minpavhrr(2:3)
   Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
-  Integer :: ier,ijour,iloc(2:3),iobs
+  Integer :: ier,ijour,iloc(2:3),iobs,iclass
 !**************
 
   vco_trl => col_getVco(lcolumnhr)
@@ -216,7 +214,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   allocate ( FATE(IASISNCH,NPRF),             stat= alloc_status(50))
   allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
   allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
-  allocate ( out_avhrr_param(NPRF),           stat= alloc_status(54))
+  allocate ( INDX(NPRF),                      stat= alloc_status(54))
   allocate ( LEV_START_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(55))
   allocate ( PTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(56))
   allocate ( NTOP_EQ_AVHRR(NPRF,NCLASSAVHRR),  stat= alloc_status(57))
@@ -246,7 +244,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   allocate ( GNCLDFLAG(NPRF),               stat= alloc_status(81))
   allocate ( ILIST_PAIR(IASISNCH),          stat= alloc_status(82))
   allocate ( CORFLAG(IASISNCH,NPRF),        stat= alloc_status(83))
-
+  allocate ( SUNAZIM(NPRF),                 stat= alloc_status(84))
   if( any(alloc_status /= 0) ) then
      write(*,*) ' iasiqc : memory allocation error'
      call abort3d('iasiqc        ')
@@ -333,10 +331,34 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
      &             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN
 
                 NOBIASI = NOBIASI + 1
-
-                call read_avhrrparam(INDEX_HEADER,out_avhrr_param(NOBIASI),access_mode=1)
-                call convert_avhrr(out_avhrr_param(NOBIASI),profiles_qc(INDEX_HEADER)%sunza, avhrr_bgck(INDEX_HEADER) )
-                call stat_avhrr(out_avhrr_param(NOBIASI), avhrr_bgck(INDEX_HEADER))
+                INDX(NOBIASI)=index_header
+                iclass=1
+                do iobs=OBS_CF1,OBS_CF7
+                   avhrr_bgck(INDEX_HEADER)%CFRAC(iclass)=obs_headElem_i(lobsSpaceData,iobs,index_header)
+                   iclass=iclass+1
+                enddo
+                iclass=1
+                ichn=1
+                do iobs=OBS_M1C1,OBS_M7C6
+                   avhrr_bgck(INDEX_HEADER)%radmoy(iclass,ichn)=obs_headElem_r(lobsSpaceData,iobs,index_header)
+                   ichn=ichn+1
+                   if (ichn>NCHANAVHRR) then
+                      ichn=1
+                      iclass=iclass+1
+                   endif
+                enddo
+                iclass=1
+                ichn=1
+                do iobs=OBS_S1C1,OBS_S7C6
+                   avhrr_bgck(INDEX_HEADER)%radstd(iclass,ichn)=obs_headElem_r(lobsSpaceData,iobs,index_header)
+                   ichn=ichn+1
+                   if (ichn>NCHANAVHRR) then
+                      ichn=1
+                      iclass=iclass+1
+                   endif
+                enddo
+                call convert_avhrr(profiles_qc(INDEX_HEADER)%sunza, avhrr_bgck(INDEX_HEADER) )
+                call stat_avhrr(avhrr_bgck(INDEX_HEADER))
 
                 ZTG(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
                 ZPS(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
@@ -345,6 +367,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                                                       * MPC_DEGREES_PER_RADIAN_R8
                 ZLON(NOBIASI) = obs_headElem_r(lobsSpaceData,OBS_LON,index_header) &
                                                       * MPC_DEGREES_PER_RADIAN_R8
+
+                SUNAZIM(NOBIASI) = 0.01 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
 
                 DO JL = 1, col_getNumLev(lcolumnhr,'TH')
                   ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
@@ -357,12 +381,9 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                 IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
                 IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + IDATA - 1
 
-                BAD=.false.
-                if (out_avhrr_param(NOBIASI)%GQISFLAGQUAL/=0 .or. &
-     &              out_avhrr_param(NOBIASI)%GQISQUALINDEXLOC >1) &
-     &              BAD=.true.
-    
-
+                BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,index_header)/=0 .or. &
+                     obs_headElem_i(lobsSpaceData,OBS_GQL,index_header) >1)    
+                
                 DO INDEX_BODY= IDATA, IDATEND
                    IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                     ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
@@ -411,8 +432,11 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
 
                 KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
-!Test pour detecter le isatzen manquant ou anormal pour IASI
-                if ( obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER) > 16500) then
+!Test pour detecter le isatzen manquant (-1) ou anormal
+! (angle negatif ou superieur a 75 degres )pour IASI
+                isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
+                if ( isatzen < 9000 .or. &
+                     isatzen > 16500 ) then
                    DO JC = 1, NCHN
                       ICHN = ichan(JC,IDIASI)
                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
@@ -518,9 +542,9 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       cldflag_avhrr(:,:)=0
       DO JC=1,NCLASSAVHRR
          DO JN=1,NPRF
-            IOBS=out_avhrr_param(JN)%CMAINDEX
+            IOBS=INDX(JN)
             btobs_avhrr(:,JN,JC)= avhrr_bgck(IOBS) % TBMOY(JC,:)
-            robs_avhrr(1:NIR,JN,JC)= out_avhrr_param(JN) % RADMOY(JC,NVIS+1:NIR+NVIS)
+            robs_avhrr(1:NIR,JN,JC)= avhrr_bgck(IOBS) % RADMOY(JC,NVIS+1:NIR+NVIS)
             RCAL_CLR_AVHRR(:,JN) = avhrr_bgck(IOBS) % RADCLEARCALC(:)
             EMI_SFC_AVHRR(:,JN) = avhrr_bgck(IOBS) % EMISS(:)
             SFCTAU_AVHRR(:,JN) = avhrr_bgck(IOBS) % TRANSMSURF(:)
@@ -536,6 +560,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                ichref_avhrr(JN,JC)=-1
                cldflag_avhrr(JN,JC)=-1
             ENDIF
+
          ENDDO
 
          CALL CLOUD_HEIGHT (PTOP_EQ_AVHRR(:,JC),NTOP_EQ_AVHRR(:,JC), btobs_avhrr(:,:,JC),cldflag_avhrr(:,JC),zt, &
@@ -596,7 +621,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       DO JN=1,NPRF
          IF (sunza(jn)<sunzenmax) THEN 
             ANISOT=1.0
-            deltaphi=abs(SATAZIM(JN) - out_avhrr_param(JN) %sunazim )
+            deltaphi=abs(SATAZIM(JN) - SUNAZIM(JN) )
+
             IF (deltaphi>180.) deltaphi=360. - deltaphi
 
             IF (ALBEDO(JN)<0.17) THEN               
@@ -607,10 +633,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
             ENDIF
 
             IF (ANISOT<1.5) THEN !to avoid sun glint
-               IOBS=out_avhrr_param(JN)%CMAINDEX
                SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
                CALL  cor_albedo ( DEL, SCOS )
                SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
+               IOBS=INDX(JN)
                DO JC=1,NCLASSAVHRR
                   IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
                      CLDFLAG_AVHRR(JN,JC) = 1
@@ -630,9 +656,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !Calcul de la pseudo fraction nuageuse AVHRR
 
       DO JN=1,NPRF
+         IOBS=INDX(JN)
          CFRAC_AVHRR(JN)=0.
          DO JC=1,NCLASSAVHRR
-            IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + out_avhrr_param(JN)%CFRAC(JC)
+            IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + avhrr_bgck(IOBS)%CFRAC(JC)
          ENDDO
       ENDDO
 
@@ -646,12 +673,12 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
 !AVHRR Homogeneity criteria
       DO JN=1,NPRF
+         IOBS=INDX(JN)
          IF (CLDFLAG(JN) == 0) THEN
             IJOUR=1
             IF (SUNZA(JN)<90.d0) IJOUR=2
 ! 1 NUIT
 ! 2 JOUR
-            IOBS=out_avhrr_param(JN)%CMAINDEX
             IF (IJOUR==2) THEN
                DO JC=1,NVIS
                   IF (avhrr_bgck(IOBS)%ALBSTD_PIXELIASI(JC)> seuilalb_homog(JC,KSURF(JN)) ) CLDFLAG(JN)=1
@@ -769,10 +796,11 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! en principe Pco2 < Heff.
 ! on cherche les cas pathologiques avec Pco2>Min(Heff(AVHRR))
       DO JN=1,NPRF
+         IOBS=INDX(JN)
          minpavhrr(2:3)=12200
          ILOC(2:3)=-1      ! pour eviter les catastrophes...
          DO JC=1,NCLASSAVHRR
-            IF (out_avhrr_param(JN)%CFRAC(JC)>0.) THEN
+            IF (avhrr_bgck(IOBS)%CFRAC(JC)>0.) THEN
                IF (PTOP_RD_AVHRR(2,JN,JC)<minpavhrr(2)) THEN
 	             ILOC(2)=JC
 		     minpavhrr(2)=PTOP_RD_AVHRR(2,JN,JC)
@@ -1050,9 +1078,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       deallocate (MINP,FATE)
       deallocate (PMIN,DTAUDP1,TAMPON)
       deallocate (ICHREF)
-      deallocate (ASSIM_ALL,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
-
-      deallocate (out_avhrr_param)
+      deallocate (ASSIM_ALL,INDX,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
       deallocate ( LEV_START_AVHRR,PTOP_EQ_AVHRR,NTOP_EQ_AVHRR,BTOBS_AVHRR)
       deallocate ( ICHREF_AVHRR )
       deallocate ( CLDFLAG_AVHRR )
@@ -1068,7 +1094,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       deallocate ( RCLD_AVHRR)
       deallocate ( ZLAT,ZLON)
       deallocate ( MAXWF,CFRAC_AVHRR )
-      deallocate (satazim,satzen)
+      deallocate (satazim,satzen,sunazim)
       deallocate (GNCLDFLAG,ILIST_PAIR)
       deallocate (CORFLAG)
 

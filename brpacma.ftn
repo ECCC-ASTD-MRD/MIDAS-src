@@ -119,8 +119,8 @@
 *
       use MathPhysConstants_mod
       use obsSpaceData_mod
-      use common_iasi
       IMPLICIT NONE
+#include "compileswitches.inc"
 #include "cbtypes.cdk"
 #include "cparbrp.cdk"
 #include "cvcord.cdk"
@@ -130,7 +130,7 @@
       type(struct_obs) :: lobsSpaceData
       INTEGER KFILE,KNRECS,jji,jn
       INTEGER iind2,IIND,IPOS,ILPOS,INELEFD,ISCRAP
-      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF,NUMHEADER
+      INTEGER ITOTDAT,IMXL,IMXL3D,IMXLINF,IMXLIASI,NUMHEADER
       INTEGER ITECH,IMASK,ISAT,ISATCNT,ISATZEN,ITERRAIN
       INTEGER ISENSOR,INSTRUM,ISATAZIM,ISUNZA,ICLFR
       INTEGER IGQISFLAGQUAL,IGQISQUALINDEXLOC,ISUNAZIM
@@ -145,6 +145,7 @@
       INTEGER INELE,INVAL
       INTEGER INELEIN
       INTEGER INELE3D
+      INTEGER INELEIASI,INVALIASI
       INTEGER IDLT,ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
      +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
       INTEGER ISTNID14,ISTNID58,ISTNID99
@@ -168,26 +169,34 @@
       INTEGER ILIST3D(JPMXNEL)
       INTEGER ILISTIN(JPMXNEL)
       INTEGER   ILIST(JPMXNEL)
+      INTEGER ILISTIASI(JPMXNEL)
       INTEGER ILCOD3D(JPMXNEL)
       INTEGER   ILCOD(JPMXNEL)
+      INTEGER   ILCODIASI(JPMXNEL)
       INTEGER ILCODMA(JPMXNEL)
       INTEGER ILISTNELE(JPMXNEL)
+      INTEGER, ALLOCATABLE :: CFRAC(:)
 *
       INTEGER, ALLOCATABLE :: ITBLVAL(:)
       INTEGER, ALLOCATABLE ::  ITBL3D(:)
       INTEGER, ALLOCATABLE :: ITBLINF(:)
+      INTEGER, ALLOCATABLE ::ITBLIASI(:)
       INTEGER, ALLOCATABLE ::   IMARK(:)
       INTEGER, ALLOCATABLE ::    IBUF(:)
       REAL*8, ALLOCATABLE ::     ZVAL(:)
       REAL*8, ALLOCATABLE ::   ZVAL3D(:)
+      REAL(OBS_REAL), ALLOCATABLE :: radmoy(:,:)
+      REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:)
 *
       REAL*8 XLAT, XLON
+      
 *
-      INTEGER JI,JJ,JK,J3D
+      INTEGER JI,JJ,JK,J3D,ICLASS,ICHAN,IOBS
       INTEGER ICHECK,INELM,INVM,INTM,IBKNMA
       INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL
       LOGICAL LLERR,LLMA,LLGROUP,LLERROR,LLSAT,LLUNI,LLRESET,LLGO,LLAIRS
       LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLIASI
+
 C
 C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
 C
@@ -261,12 +270,15 @@ C
       IMXL=1000
       IMXL3D=400
       IMXLINF=400
+      IMXLIASI=400
+      
       ALLOCATE(ZVAL(IMXL))
       ALLOCATE(ZVAL3D(IMXL3D))
       ALLOCATE(ITBLVAL(IMXL))
       ALLOCATE(Imark(IMXL))
       ALLOCATE(ITBL3D(IMXL3D))
       ALLOCATE(ITBLINF(IMXLINF))
+      ALLOCATE(ITBLIASI(IMXLIASI))
 
 *-----------------------------------------------------------------------
       DO 1 JI=1,KNRECS
@@ -376,9 +388,6 @@ C
               LLSURF=.FALSE.
               IBTYP=ITBL(7,JK)
               IER=MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
-              IF (IBTYP==9217 .and. IDBURP==186) THEN
-                 CALL IASIEXTRACT(IBKNAT,IBKTYP,IBKSTP,IBUF,IBUF(1),ITBL(2,JK),ITBL(3,JK),I3D)
-              ENDIF
               IBKNMA=-1
               IF( LCHECNAT(IBKNAT) .AND. LCHECTYP(IBKTYP)
      +        .AND.  LCHECSTP(IBKSTP) ) THEN
@@ -479,6 +488,40 @@ C
                  IPOS =INELE*INVAL*I3D + IPOS
                  IKOUNT=IKOUNT + INELE*INVAL*I3D
               ENDIF
+           END DO
+*
+*----------------------->
+*  Block AVHRR for IASI 
+*----------------------->
+*
+           IPOS=1
+           ILPOS=1
+           ITOTDAT=0
+           DO JK=1,INBLKS
+              IBTYP=ITBL(7,JK)
+              IER=MRBTYP(IBKNAT,IBKTYP,IBKSTP,IBTYP)
+              IF( IBKNAT==4 .AND. IBKTYP==64
+     +        .AND.  IBKSTP==1 ) THEN
+                 IBKNO =MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+                 INELEIASI =ITBL(2,JK)
+                 INVALIASI =ITBL(3,JK)
+                 ITOTDAT=ITOTDAT + INELEIASI*INVALIASI*I3D
+                 IF ( ITOTDAT .GT. IMXLIASI) THEN
+                    IMXLIASI=ITOTDAT
+                    DEALLOCATE(ITBLIASI)
+                    ALLOCATE(ITBLIASI(ITOTDAT))
+                 ENDIF
+
+                 IER=MRBXTR(IBUF,IBKNO,ILCODIASI(ILPOS),ITBLIASI(IPOS))
+*
+                 IER=MRBDCL(ILCODIASI(ILPOS),ILISTIASI(ilpos),INELEIASI)
+*
+*-----------------------------------------------------------------------
+                 ILPOS=INELEIASI + ILPOS
+                 IPOS =INELEIASI*INVALIASI*I3D + IPOS
+
+              ENDIF
+              
            END DO
 *
 ************************************************************************
@@ -754,6 +797,20 @@ C
 
 * cas provisoire IASI
                IF ( ISAT == 4 .AND. IDBURP == 186 ) THEN
+
+                  if (.not. allocated(cfrac)) 
+     +                 allocate(cfrac(obs_getNclassAvhrr()))
+                  if (.not. allocated(radmoy))
+     +                 allocate(radmoy(obs_getNclassAvhrr(),obs_getNchanAvhrr()))
+                  if (.not. allocated(radstd)) 
+     +                 allocate(radstd(obs_getNclassAvhrr(),obs_getNchanAvhrr()))
+                 
+                 call IASIEXTRACT(ineleiasi,invaliasi,i3d,
+     +                 obs_getNclassAvhrr(),
+     +                 obs_getNchanAvhrr(),
+     +                 j3d,ilistiasi,
+     +                itbliasi,cfrac,radmoy,radstd)
+
 *                sun zenith angle
                  CALL IGETELE
      +           (7025,J3D,ILISTIN,ITBLINF,ISUNZA,INELEIN,1,I3D,IIND)
@@ -841,8 +898,8 @@ c               ENDIF
 *      AND INCREMENT NUMHEADER
 ************************************************************************
 *
-               IF  ( NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
-                NUMHEADER=NUMHEADER + 1
+              IF  ( NUMHEADER .LT. obs_numheader_max(lobsSpaceData)) THEN
+                 NUMHEADER=NUMHEADER + 1
                 call obs_set_c(lobsSpaceData,'STID',NUMHEADER,CLSTNID)
                 call obs_headSet_r(lobsSpaceData,OBS_LON,NUMHEADER, (ILON*0.01)*MPC_RADIANS_PER_DEGREE_R8)
                 call obs_headSet_r(lobsSpaceData,OBS_LAT,NUMHEADER, (ILAT*0.01-90.)*MPC_RADIANS_PER_DEGREE_R8)
@@ -868,15 +925,7 @@ c               ENDIF
 *
 *
                 call obs_headSet_i(lobsSpaceData,OBS_ONM,NUMHEADER, NUMHEADER)
-* Modification S. Heilliette pour traiter le cas ou l'angle
-* est manquant (ISATZEN=-1) pour les donnees AIRS et IASI
-* le 14/07/2011
-                IF (ISATZEN .LT. 0 .AND. 
-     +              (IDBURP==186 .OR. IDBURP==183)) THEN
-* 19000 correspond a un angle de 100 degres impossible
-                   ISATZEN = 19000
-                ENDIF
-* Fin modif
+
                 call obs_headSet_i(lobsSpaceData,OBS_INS,NUMHEADER, INSTRUM)
                 call obs_headSet_i(lobsSpaceData,OBS_OTP,NUMHEADER, IfamID)
                 call obs_headSet_i(lobsSpaceData,OBS_ITY,NUMHEADER, IDBURP) 
@@ -889,18 +938,54 @@ c               ENDIF
                 call obs_headSet_i(lobsSpaceData,OBS_AZA,NUMHEADER, ISATAZIM)
                 call obs_headSet_i(lobsSpaceData,OBS_SUN,NUMHEADER, ISUNZA)
                 call obs_headSet_i(lobsSpaceData,OBS_SZA,NUMHEADER, ISATZEN)
+c inserted for AIRS Quality control only :
                 call obs_headSet_i(lobsSpaceData,OBS_CLF,NUMHEADER, ICLFR)
-                
-                IF (IDBURP==186) call index_cma_iasi(NUMHEADER,IGQISFLAGQUAL,
-     +           IGQISQUALINDEXLOC,ISUNAZIM)
-                
-               ENDIF
+c inserted for IASI Quality control only :         
+                call obs_headSet_i(lobsSpaceData,OBS_SAZ,NUMHEADER,ISUNAZIM)
+                call obs_headSet_i(lobsSpaceData,OBS_GQF,NUMHEADER,IGQISFLAGQUAL)
+                call obs_headSet_i(lobsSpaceData,OBS_GQL,NUMHEADER,IGQISQUALINDEXLOC)
 
-            ELSE
-              WRITE(*,*)' Warning 3DV:brpacma: NO VALID DATA'
-     &             ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
-     &             ' LON ', ILON
-            ENDIF
+                if (all(obs_columnActive_IH(OBS_CF1:OBS_CF7))) then
+                   iclass=1
+                   do iobs=OBS_CF1,OBS_CF7
+                      call obs_headSet_i(lobsSpaceData,iobs,NUMHEADER,CFRAC(iclass))
+                      iclass=iclass+1
+                   enddo
+                endif
+
+                if (all(obs_columnActive_RH(OBS_M1C1:OBS_M7C6))) then
+                   iclass=1
+                   ichan=1
+                   do iobs=OBS_M1C1,OBS_M7C6
+                      call obs_headSet_r(lobsSpaceData,iobs,NUMHEADER,radmoy(iclass,ichan))
+                      ichan=ichan+1
+                      if (ichan>obs_getNchanAvhrr()) then
+                         ichan=1
+                         iclass=iclass+1
+                      endif
+                   enddo
+                endif
+
+                if (all(obs_columnActive_RH(OBS_S1C1:OBS_S7C6))) then
+                   iclass=1
+                   ichan=1
+                   do iobs=OBS_S1C1,OBS_S7C6
+                      call obs_headSet_r(lobsSpaceData,iobs,NUMHEADER,radstd(iclass,ichan))
+                      ichan=ichan+1
+                      if (ichan>obs_getNchanAvhrr()) then
+                         ichan=1
+                         iclass=iclass+1
+                      endif
+                   enddo
+                endif
+
+              endif
+
+          ELSE
+             WRITE(*,*)' Warning 3DV:brpacma: NO VALID DATA'
+     &            ,' OBS ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
+     &            ' LON ', ILON
+          ENDIF
          ! N.B.:  if lobsSpaceData is in mpilocal mode, this test could give
          !        a false failure.  Brpacma() will soon be replaced anyway.
          IF ( obs_numbody(lobsSpaceData) .GE. obs_numbody_max(lobsSpaceData) 
@@ -910,10 +995,13 @@ c               ENDIF
             DEALLOCATE(ITBLVAL)
             DEALLOCATE(ITBL3D)
             DEALLOCATE(ITBLINF)
+            DEALLOCATE(ITBLIASI)
             DEALLOCATE(Imark)
             DEALLOCATE(IBUF)
-*
-*-----------------------------------------------------------------------
+            if (allocated(cfrac)) deallocate(cfrac)
+            if (allocated(radmoy)) deallocate(radmoy)
+            if (allocated(radstd)) deallocate(radstd)
+**-----------------------------------------------------------------------
             WRITE(*,*)' ******************************************'
             WRITE(*,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
             WRITE(*,*)' *    ATTN  ATTN  ATTN  ATTN  ATTN  ATTN  *'
@@ -962,8 +1050,12 @@ c               ENDIF
       DEALLOCATE(ITBLVAL)
       DEALLOCATE(ITBL3D)
       DEALLOCATE(ITBLINF)
+      DEALLOCATE(ITBLIASI)
       DEALLOCATE(Imark)
       DEALLOCATE(IBUF)
+      if (allocated(cfrac))  deallocate(cfrac)
+      if (allocated(radmoy)) deallocate(radmoy)
+      if (allocated(radstd)) deallocate(radstd)
 *
 *-----------------------------------------------------------------------
       CALL PRNTBRP(NUMHEADER,IKOUNT,obs_numbody(lobsSpaceData))
@@ -973,4 +1065,5 @@ c               ENDIF
       WRITE(*,*)' ------------------------------------------'
 *
       RETURN
-      END
+
+      END SUBROUTINE

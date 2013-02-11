@@ -14,72 +14,49 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-SUBROUTINE IASIEXTRACT(IBKNAT,IBKTYP,IBKSTP,IBUF,NBUF,inele,inval,i3d)
-use common_iasi
-use mod_tovs, only: avhrr_var,NCHANAVHRR,NCLASSAVHRR
+SUBROUTINE IASIEXTRACT(inele,inval,i3d,NCLASSAVHRR,NCHANAVHRR,j3d,ilist,itbl,cfrac,radmoy,radstd)
 implicit none
-
-INTEGER ,INTENT(IN) :: IBKNAT,IBKTYP,IBKSTP,NBUF,inele,inval,i3d
-INTEGER ,INTENT(INOUT) ::  IBUF(NBUF)
+#include "compileswitches.inc"
+!sizes
+INTEGER ,INTENT(IN) :: inele,inval,i3d
+INTEGER ,INTENT(IN) :: NCLASSAVHRR,NCHANAVHRR
+!position
+INTEGER ,INTENT(IN) :: j3d
+ !input arrays extracted from BURP files
+INTEGER ,INTENT(IN) :: ilist(inele),itbl(iNELE,inval,i3d) 
+!output arrays to insert later into obsspacedata
+INTEGER ,intent(out) :: cfrac(NCLASSAVHRR)
+Real (OBS_REAL) ,intent(out) :: radmoy(NCLASSAVHRR,NCHANAVHRR),radstd(NCLASSAVHRR,NCHANAVHRR)
+!**************************************************************************************
 INTEGER :: IBKNO,taille
-INTEGER ,EXTERNAL :: MRBLOCX,MRBXTR,VMRBCVT,MRBDCL
-integer ,allocatable :: ITBLVAL(:),LISTE(:),ILIST(:)
-REAL (8) ,allocatable :: ZVAL(:)
-INTEGER :: IER,jji,indx,iclass,ichan,inorm
-TYPE (avhrr_var) :: AVHRR
-LOGICAl :: LINSERT
+REAL (8) :: ZVAL(iNELE,inval,i3d)
+INTEGER :: IER,iclass,ichan,inorm,ival,iele
+integer ,external :: VMRBCVT
+!*****************************
 
+ZVAL=dble(ITBL)
 
-IBKNO =MRBLOCX(IBUF,-1,-1,IBKNAT,IBKTYP,IBKSTP,0)
+IER=VMRBCVT(iLIST,ITBL,ZVAL,INELE,INVAL,I3D,0)
+IF (IER/=0) call abort3d('iasiextract        ')
 
-taille=INELE*INVAL*I3D
-
-allocate(ITBLVAL(taille))
-allocate(LISTE(inele))
-allocate(ILIST(inele))
-allocate(ZVAL(taille))
-
-IER=MRBXTR(IBUF,IBKNO,liste(1),ITBLVAL(1))
-
-do jji =1,INELE*INVAL*I3D
-   ZVAL(jji)=ITBLVAL(jji)
-end do
-
-IER=VMRBCVT(LISTE(1),ITBLVAL(1),ZVAL(1),INELE,INVAL,I3D,0)
-
-!conversion a un format decimal (???)
-IER=MRBDCL(LISTE(1),ILIST(1),INELE)
 iclass=1
-LINSERT=.false.
-do jji =1,INELE*INVAL*I3D
-   indx=MOD(jji,inele)
-   if (indx==0) indx=inele
-   SELECT CASE(ILIST(indx))
+do ival=1,inval
+   DO  iele=1,iNELE
+      SELECT CASE(ILIST(iele))
       CASE(25085)
-         AVHRR%CFRAC(iclass)=ZVAL(jji)
+         CFRAC(iclass)=zval(iele,ival,j3d)
       CASE(5042)
-         ICHAN=ITBLVAL(jji)
+         ICHAN=zval(iele,ival,j3d)
       CASE(25142)
-         INORM=ITBLVAL(jji)
+         INORM=zval(iele,ival,j3d)
       CASE(14047)
-         AVHRR% RADMOY(iclass,ICHAN)=ZVAL(jji) * 10.d0**(-1.d0 * INORM ) * 100000.d0
+         RADMOY(iclass,ICHAN)=ZVAL(iele,ival,j3d) * 10.d0**(-1.d0 * INORM ) * 100000.d0
       CASE(14048)
-         AVHRR% RADSTD(iclass,ICHAN)=ZVAL(jji) * 10.d0**(-1.d0 * INORM ) * 100000.d0
+         RADSTD(iclass,ICHAN)=ZVAL(iele,ival,j3d) * 10.d0**(-1.d0 * INORM ) * 100000.d0
          IF (ICHAN==NCHANAVHRR) iclass=iclass+1
-         IF ( iclass==(NCLASSAVHRR+1) ) THEN
-            iclass=1
-            LINSERT=.true.
-         ENDIF
-   END SELECT
-   IF (LINSERT) THEN
-      call insert_avhrrparam(AVHRR)
-      LINSERT=.false.
-   ENDIF
-end do
-
-deallocate(ITBLVAL)
-deallocate(LISTE)
-deallocate(ILIST)
-deallocate(ZVAL)
-
+         IF ( iclass==(NCLASSAVHRR+1) ) RETURN
+      END SELECT
+   enddo
+ENDDO
+      
 END SUBROUTINE IASIEXTRACT

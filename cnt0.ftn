@@ -58,11 +58,12 @@ C     *       2.    Decide on configuration of job.
 C
       select case (nconf)
       case(101)
+C BGCHECK AIRS IASI + donnees conventionnelles
          IF(mpi_myid == root) WRITE(*,FMT=9203) NCONF
  9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
 
          call tmg_start(1,'PREMIN')
-         call preproc(columng,columnhr,obsSpaceData)
+         call preproc(columng,columnhr,obsSpaceData,"ALL")
          call tmg_stop(1)
 
          call tmg_start(2,'BGCHECK')
@@ -70,11 +71,12 @@ C
          call tmg_stop(2)
 
       case(121)
+C calcul des O-P pour AMSU, GEORAD et SSMIS
          WRITE(*,FMT=9204) NCONF
  9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL
      &        S")
          call tmg_start(1,'PREMIN')
-         call preproc(columng,columnhr,obsSpaceData)
+         call preproc(columng,columnhr,obsSpaceData,"VAR")
          call tmg_stop(1)
 
          call tmg_start(2,'RESIDUALS')
@@ -82,11 +84,11 @@ C
          call tmg_stop (2)
 
       case(141)
+C ANALYSIS MODE
          WRITE(*,FMT=9401)NCONF
  9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING MINIMIZE")
-
          call tmg_start(1,'PREMIN')
-         call preproc(columng,columnhr,obsSpaceData)
+         call preproc(columng,columnhr,obsSpaceData,"VAR")
          call tmg_stop (1)
 
          call tmg_start(2,'MIN')

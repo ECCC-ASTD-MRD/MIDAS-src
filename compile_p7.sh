@@ -101,7 +101,7 @@ SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.
 SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
 SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
 SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
-SRC1="$SRC1 airsbgck_mod.ftn90 iasibgck_mod.ftn90 common_iasi_mod.ftn90 ozoneclim_mod.ftn90"
+SRC1="$SRC1 airsbgck_mod.ftn90 iasibgck_mod.ftn90 ozoneclim_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
 grep fail listing1
 if [ $? = "0" ] ; then exit ; fi

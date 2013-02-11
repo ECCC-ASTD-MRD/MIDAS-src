@@ -1,12 +1,11 @@
-subroutine convert_avhrr(avhrr_in,sunzen,avhrr_out)
+subroutine convert_avhrr(sunzen,avhrr)
 ! conversion des radiance IR en temperatures de brillance
 ! et des radiances visibles en "albedo"
-use mod_tovs ,only : avhrr_var, avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
+use mod_tovs ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
 
 implicit none
-type (avhrr_var) ,intent(in) :: avhrr_in
 real(8) ,intent(in) :: sunzen
-type (avhrr_bgck_iasi) ,intent(out) :: avhrr_out
+type (avhrr_bgck_iasi) ,intent(inout) :: avhrr
 
 integer :: ICL
 REAL (8) :: tb(NIR),dtbsdrad(NIR)
@@ -17,11 +16,11 @@ DATA OFFSET / 0.2066990000D+01 , 0.5512600000D+00 , 0.3471600000D+00 /
 DATA SLOPE / 0.9965770000D+00  , 0.9985090000D+00  , 0.9989470000D+00 /
 
 DO ICL=1,NCLASSAVHRR
-   call calcbt(avhrr_in % radmoy(ICL,4:6), tb, dtbsdrad,freq,offset,slope)
-   avhrr_out % tbmoy(ICL,4:6)=tb(1:3)
-   avhrr_out % tbstd(ICL,4:6)=avhrr_in % radstd(ICL,4:6) * dtbsdrad(1:3)
-   call calcreflect(avhrr_in % radmoy(ICL,1:3) ,sunzen,avhrr_out % ALBEDMOY(ICL,1:3) )
-   call calcreflect(avhrr_in % radstd(ICL,1:3) ,sunzen,avhrr_out % ALBEDSTD(ICL,1:3) )
+   call calcbt(avhrr % radmoy(ICL,4:6), tb, dtbsdrad,freq,offset,slope)
+   avhrr % tbmoy(ICL,4:6)=tb(1:3)
+   avhrr % tbstd(ICL,4:6)=avhrr % radstd(ICL,4:6) * dtbsdrad(1:3)
+   call calcreflect(avhrr % radmoy(ICL,1:3) ,sunzen,avhrr % ALBEDMOY(ICL,1:3) )
+   call calcreflect(avhrr % radstd(ICL,1:3) ,sunzen,avhrr % ALBEDSTD(ICL,1:3) )
 
 ENDDO
 

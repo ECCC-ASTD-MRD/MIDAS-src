@@ -71,8 +71,12 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
         ICHN = ichan(JC,IDAIRS)
         t_effective =  coef(idairs)%ff_bco(jc) + coef(idairs)%ff_bcs(jc) * TG(jn)
 
-        indx=airssch(ichn)
-        IF (CINST=="IASI") indx=iasisch(ichn)
+        IF (CINST=="IASI") then
+           indx=iasisch(ichn)
+        else
+           indx=airssch(ichn)
+        endif
+
         RADTG(indx,jn) =  coef(idairs)%planck1(jc) / &
              ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
      END DO
@@ -96,8 +100,13 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
      DO JC = 1, NCHNKEPT
         ICHN = ichan(JC,IDAIRS)
         tstore = coef(idairs)%planck2(jc) / Log( 1+coef(idairs)%planck1(jc)/RADTS )
-        indx=airssch(ichn)
-        IF (CINST=="IASI") indx=iasisch(ichn)
+
+        IF (CINST=="IASI") then
+           indx=iasisch(ichn)
+        else
+           indx=airssch(ichn)
+        endif
+        
         TS1(indx,jn) = ( tstore-coef(idairs)%ff_bco(jc) ) / coef(idairs)%ff_bcs(jc)
      END DO
 

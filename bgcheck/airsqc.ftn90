@@ -63,7 +63,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   integer, allocatable :: MINP(:,:),FATE(:,:)
   real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
   logical, allocatable :: ASSIM_ALL(:)
-  integer :: cpt
+  integer :: cpt,isatzen
   integer ,SAVE :: IMODTOP
 
 
@@ -294,8 +294,11 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                  END DO
 
                  KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
-!Test pour detecter le isatzen manquant ou anormal pour AIRS
-                 if ( obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER) > 16500) then
+!Test pour detecter le isatzen manquant (-1) ou anormal
+! (angle negatif ou superieur a 75 degres )pour AIRS
+                 isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
+                 if ( isatzen < 9000 .or. &
+                      isatzen > 16500 ) then
                     DO JC = 1, NCHN
                        ICHN = ichan(JC,IDAIRS)
                        REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1

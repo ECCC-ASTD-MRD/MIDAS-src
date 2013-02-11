@@ -16,19 +16,11 @@ Module mod_tovs
 
   type( rttov_coef ),save  :: coeff_avhrr(1)
 
-  TYPE avhrr_var
-     SEQUENCE
+  TYPE avhrr_bgck_iasi
+     SEQUENCE   
      REAL(8)              :: RADMOY(NCLASSAVHRR,NCHANAVHRR)
      REAL(8)              :: RADSTD(NCLASSAVHRR,NCHANAVHRR)
      REAL(8)              :: CFRAC(NCLASSAVHRR)
-     REAL(8)              :: SUNAZIM
-     INTEGER              :: CMAINDEX
-     INTEGER              :: GQISFLAGQUAL
-     INTEGER              :: GQISQUALINDEXLOC
-  END TYPE avhrr_var
-
-  TYPE avhrr_bgck_iasi
-     SEQUENCE   
      REAL(8)              :: TBMOY(NCLASSAVHRR,NVIS+1:NVIS+NIR)
      REAL(8)              :: TBSTD(NCLASSAVHRR,NVIS+1:NVIS+NIR)
      REAL(8)              :: ALBEDMOY(NCLASSAVHRR,1:NVIS)

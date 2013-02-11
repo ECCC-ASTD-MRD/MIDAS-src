@@ -328,11 +328,12 @@ end interface
           profilesdata_th(j,ith) % co2_data         = profiles(iptobs_th(j,ith)) % co2_data   
           profilesdata_th(j,ith) % clw_data         = profiles(iptobs_th(j,ith)) % clw_data
           profilesdata_th(j,ith) % zenangle         = profiles(iptobs_th(j,ith)) % zenangle
-!pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini
+!pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou absurde
           if ( ( iplatform==9 .AND. isat==  2 .AND. INSTRUM== 11 ) .or. &
                ( iplatform==10 .AND. isat==  2 .AND. INSTRUM== 16 ) ) then
-             if (abs(profilesdata_th(j,ith) % zenangle-100.d0).lt.0.0001) &
-                  profilesdata_th(j,ith) % zenangle=0.d0
+             if (profilesdata_th(j,ith) % zenangle .lt.0.00 .or. &
+                 profilesdata_th(j,ith) % zenangle .gt.75.00    )&
+                 profilesdata_th(j,ith) % zenangle=0.d0
           endif
 !**********************************************************            
           profilesdata_th(j,ith) % azangle          = profiles(iptobs_th(j,ith)) % azangle  

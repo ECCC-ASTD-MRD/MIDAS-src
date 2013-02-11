@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData)
+      subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData,cmode)
 *
 ***s/r preproc  - Control of the preprocessing of the 3D variational assimilation
 *
@@ -39,6 +39,7 @@
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
+      character (len=*) :: cmode
       type(struct_vco), pointer :: vco_anl => null()
       type(struct_vco), pointer :: vco_trl => null()
 
@@ -70,7 +71,7 @@
 !
 !     Specify the active observation-array columns
 !
-      call obs_class_initialize('VAR')
+      call obs_class_initialize(cmode)
 !
 !     Allocate memory for observation arrays
 !
