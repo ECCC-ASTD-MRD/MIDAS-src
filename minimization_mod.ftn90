@@ -105,7 +105,7 @@ CONTAINS
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nammin,iostat=ierr)
-    write(*,*) 'minimization: reading namelist, ierr=',ierr
+    if(ierr.ne.0) call abort3d('min_setup: Error reading namelist')
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 

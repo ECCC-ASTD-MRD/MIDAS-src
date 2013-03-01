@@ -116,31 +116,33 @@
 !
 !     Allocate trial field column object and other local arrays
 !
-      call col_allocate(lcolumnhr,col_getNumCol(lcolumng),mpi_local=.true.)
-      allocate(varInterphr_T(nlv_T,numColumn_maxmpiglobal))
-      allocate(varInterphr_M(nlv_M,numColumn_maxmpiglobal))
-      allocate(varInterphr_VV(nlv_M,numColumn_maxmpiglobal))
-      allocate(nobsgid(col_getNumStep(lcolumng)))
-      allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
-      allocate(nobs(col_getNumStep(lcolumng)))
-      allocate(nobs_maxmpiglobal(col_getNumStep(lcolumng)))
-      allocate(datestamplist(col_getNumStep(lcolumng)))
-      allocate(varInterpg_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-      allocate(varInterpg_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-      allocate(varInterpP0(1,col_getNumCol(lcolumng)))
-      allocate(idate(col_getNumStep(lcolumng)))
-      allocate(itime(col_getNumStep(lcolumng)))
-      allocate(nultrl(col_getNumStep(lcolumng)))
+      if(col_getNumCol(lcolumng).gt.0) then
+        call col_allocate(lcolumnhr,col_getNumCol(lcolumng),mpi_local=.true.)
+        allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
+        allocate(varInterpg_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+        allocate(varInterpg_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+        allocate(varInterpP0(1,col_getNumCol(lcolumng)))
+        allocate(varInterphr_T(nlv_T,col_getNumCol(lcolumng)))
+        allocate(varInterphr_M(nlv_M,col_getNumCol(lcolumng)))
+        allocate(varInterphr_VV(nlv_M,col_getNumCol(lcolumng)))
+        varInterphr_T(:,:)=0.0d0
+        varInterphr_M(:,:)=0.0d0
+        varInterphr_VV(:,:)=0.0d0
+      endif
+
       allocate(dlonfld(numColumn_maxmpiglobal))
       allocate(dlatfld(numColumn_maxmpiglobal))
       allocate(dlonfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
       allocate(dlatfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
+      allocate(nobsgid(col_getNumStep(lcolumng)))
+      allocate(nobs(col_getNumStep(lcolumng)))
+      allocate(nobs_maxmpiglobal(col_getNumStep(lcolumng)))
+      allocate(datestamplist(col_getNumStep(lcolumng)))
+      allocate(idate(col_getNumStep(lcolumng)))
+      allocate(itime(col_getNumStep(lcolumng)))
+      allocate(nultrl(col_getNumStep(lcolumng)))
       allocate(nobsgid_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
       allocate(nobs_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
-
-      varInterphr_T(:,:)=0.0d0
-      varInterphr_M(:,:)=0.0d0
-      varInterphr_VV(:,:)=0.0d0
 !
 !     Open all trial field files (assume 1 file per time step)
 !
@@ -324,11 +326,14 @@
         if(.not.gsv_varExist(varNameList2D(jvar))) cycle
 
         call readTrialField4(varInterphr_M,varInterphr_VV,varNameList2D(jvar),'SF')
-        if(varNameList2D(jvar).eq.'P0') then
-          varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
+
+        if(col_getNumCol(lcolumng).gt.0) then       
+          if(varNameList2D(jvar).eq.'P0') then
+            varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
+          endif
+          call col_fillmvo(lcolumng ,varNameList2D(jvar),'NA',varInterphr_M)
+          call col_fillmvo(lcolumnhr,varNameList2D(jvar),'NA',varInterphr_M)
         endif
-        call col_fillmvo(lcolumng ,varNameList2D(jvar),'NA',varInterphr_M)
-        call col_fillmvo(lcolumnhr,varNameList2D(jvar),'NA',varInterphr_M)
 
       enddo
 !
@@ -336,51 +341,53 @@
 !     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
 !     analysis increment and the surface pressure of the trial field
 !
-      do jobs = 1,col_getNumCol(lcolumng)
-        varInterpP0(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
-      enddo
+      if(col_getNumCol(lcolumng).gt.0) then
+        do jobs = 1,col_getNumCol(lcolumng)
+          varInterpP0(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
+        enddo
 
-      if (associated(pobsm))  deallocate(pobsm)
-      status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,  &
-                        sfc_field=varInterpP0,in_log=.false.)      
-      if(status.ne.VGD_OK) then
-         call abort3d('ERROR with vgd_levels for desired levels ')
+        if (associated(pobsm))  deallocate(pobsm)
+        status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,  &
+                          sfc_field=varInterpP0,in_log=.false.)      
+        if(status.ne.VGD_OK) then
+           call abort3d('ERROR with vgd_levels for desired levels ')
+        endif
+        allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+        zppobsg = transpose(pobsm(1,:,:))
+        call col_fillmvo(lcolumng,'PP','NA',zppobsg)
+
+        do jlev = 1,col_getNumLev(lcolumng)
+          write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
+                     jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
+        enddo
+
+!       Calculate profiles of pressure values at station location
+
+        write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
+        write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
+        write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
+
+!       General treatment of trial field 
+!       addition for BGCK unstagered mode
+        if (vco_trl%iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
+
+!       Compute Pressure fields at desired levels
+        if (associated(pobsm))  deallocate(pobsm)
+        status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,  &
+                          levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
+        if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+        allocate(zppobs_M(nlv_M,col_getNumCol(lcolumng)))
+        zppobs_M = transpose(pobsm(1,:,:))
+        call col_fillmvo(lcolumnhr,'PP','MM',zppobs_M)
+
+        if (associated(pobsm))  deallocate(pobsm)
+        status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,  &
+                          levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
+        if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+        allocate(zppobs_T(nlv_T,col_getNumCol(lcolumng)))
+        zppobs_T = transpose(pobsm(1,:,:))
+        call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T)
       endif
-      allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-      zppobsg = transpose(pobsm(1,:,:))
-      call col_fillmvo(lcolumng,'PP','NA',zppobsg)
-
-      do jlev = 1,col_getNumLev(lcolumng)
-        write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
-                   jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
-      enddo
-
-!     Calculate profiles of pressure values at station location
-
-      write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
-      write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
-      write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
-
-!     General treatment of trial field 
-!     addition for BGCK unstagered mode
-      if (vco_trl%iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
-
-!     Compute Pressure fields at desired levels
-      if (associated(pobsm))  deallocate(pobsm)
-      status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,  &
-                        levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
-      if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-      allocate(zppobs_M(nlv_M,col_getNumCol(lcolumng)))
-      zppobs_M = transpose(pobsm(1,:,:))
-      call col_fillmvo(lcolumnhr,'PP','MM',zppobs_M)
-
-      if (associated(pobsm))  deallocate(pobsm)
-      status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,  &
-                        levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
-      if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-      allocate(zppobs_T(nlv_T,col_getNumCol(lcolumng)))
-      zppobs_T = transpose(pobsm(1,:,:))
-      call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T)
 !      
 !     Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
 !
@@ -389,24 +396,30 @@
 !     Lire les GZ des niveaux Momentum
 !
       call readTrialField4(varInterphr_M,varInterphr_VV,'GZ','MM')
-      varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
-      call col_fillmvo(lcolumnhr,'GZ  ','MM',varInterphr_M)
-!     remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
-      call col_fillmvo(lcolumnhr,'GZ  ','NA',varInterphr_M)
-      write(*,*) 'sugomobs:GZ_M'
-      do jlev = 1,nlv_M
-        write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
-      enddo
+
+      if(col_getNumCol(lcolumng).gt.0) then       
+        varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
+        call col_fillmvo(lcolumnhr,'GZ  ','MM',varInterphr_M)
+!       remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
+        call col_fillmvo(lcolumnhr,'GZ  ','NA',varInterphr_M)
+        write(*,*) 'sugomobs:GZ_M'
+        do jlev = 1,nlv_M
+          write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
+        enddo
+      endif
 !
 !     Lire les GZ des niveaux Thermodynamique
 !
       call readTrialField4(varInterphr_T,varInterphr_VV,'GZ','TH')
-      varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
-      call col_fillmvo(lcolumnhr,'GZ  ','TH',varInterphr_T)
-      write(*,*) 'sugomobs:GZ_TH'
-      do jlev = 1,nlv_T
-        write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
-      enddo
+
+      if(col_getNumCol(lcolumng).gt.0) then       
+        varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
+        call col_fillmvo(lcolumnhr,'GZ  ','TH',varInterphr_T)
+        write(*,*) 'sugomobs:GZ_TH'
+        do jlev = 1,nlv_T
+          write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
+        enddo
+      endif
 !
 !     Now all of the other 3D variables
 !
@@ -424,29 +437,31 @@
 
           call readTrialField4(varInterphr_M,varInterphr_VV,'UV','MM')
          
-          call vintprof(varInterpg_M,zppobsg,col_getNumLev(lcolumng),varInterphr_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-          varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
-          call col_fillmvo(lcolumng,'UU  ','NA',varInterpg_M)
+          if(col_getNumCol(lcolumng).gt.0) then       
+            call vintprof(varInterpg_M,zppobsg,col_getNumLev(lcolumng),varInterphr_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
+            varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
+            call col_fillmvo(lcolumng,'UU  ','NA',varInterpg_M)
 
-          call vintprof(varInterpg_M,zppobsg,col_getNumLev(lcolumng),varInterphr_VV,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-          varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
-          call col_fillmvo(lcolumng,'VV  ','NA',varInterpg_M)
+            call vintprof(varInterpg_M,zppobsg,col_getNumLev(lcolumng),varInterphr_VV,zppobs_M,nlv_M,col_getNumCol(lcolumng))
+            varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
+            call col_fillmvo(lcolumng,'VV  ','NA',varInterpg_M)
 
-          write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
-          do jlev = 1,nlv_M
-            write(*,*) 'UU',jvar,jlev,  &
-                zppobs_m(jlev,1),varInterphr_M(jlev,1)
-          enddo
-          write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
-          do jlev = 1,nlv_M
-            write(*,*) 'VV',jvar,jlev,  &
-                zppobs_m(jlev,1),varInterphr_VV(jlev,1)
-          enddo
+            write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
+            do jlev = 1,nlv_M
+              write(*,*) 'UU',jvar,jlev,  &
+                  zppobs_m(jlev,1),varInterphr_M(jlev,1)
+            enddo
+            write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
+            do jlev = 1,nlv_M
+              write(*,*) 'VV',jvar,jlev,  &
+                  zppobs_m(jlev,1),varInterphr_VV(jlev,1)
+            enddo
 
-          varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
-          call col_fillmvo(lcolumnhr,'UU  ','MM',varInterphr_M)
-          varInterphr_VV(:,:)=varInterphr_VV(:,:)*MPC_M_PER_S_PER_KNOT_R8
-          call col_fillmvo(lcolumnhr,'VV  ','MM',varInterphr_VV)
+            varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
+            call col_fillmvo(lcolumnhr,'UU  ','MM',varInterphr_M)
+            varInterphr_VV(:,:)=varInterphr_VV(:,:)*MPC_M_PER_S_PER_KNOT_R8
+            call col_fillmvo(lcolumnhr,'VV  ','MM',varInterphr_VV)
+          endif
 !
 !       Variable sur les niveaux thermodynamiques
 !
@@ -456,28 +471,31 @@
           write(*,*)' '
 
           call readTrialField4(varInterphr_T,varInterphr_VV,varNameList3D(jvar),'TH')
-          write(*,*) 'sugomobs:',varNameList3D(jvar)
-          do jlev = 1,nlv_T
-            write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1:2)
-          enddo
 
-          call vintprof(varInterpg_T,zppobsg,col_getNumLev(lcolumng),varInterphr_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
-
-          if(varNameList3D(jvar).eq.'TT') then
-            varInterpg_T(:,:)=varInterpg_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
-            varInterphr_T(:,:)=varInterphr_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
-          elseif(varNameList3D(jvar).eq.'HU') then
-            do jobs=1,col_getNumCol(lcolumng)
-              do jlev=1,col_getNumLev(lcolumng)
-                varInterpg_T(jlev,jobs)=log(max(varInterpg_T(jlev,jobs),rhumin))
-              enddo
-              do jlev=1,nlv_T
-                varInterphr_T(jlev,jobs)=log(max(varInterphr_T(jlev,jobs),rhumin))
-              enddo
+          if(col_getNumCol(lcolumng).gt.0) then       
+            write(*,*) 'sugomobs:',varNameList3D(jvar)
+            do jlev = 1,nlv_T
+              write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1:2)
             enddo
+
+            call vintprof(varInterpg_T,zppobsg,col_getNumLev(lcolumng),varInterphr_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
+
+            if(varNameList3D(jvar).eq.'TT') then
+              varInterpg_T(:,:)=varInterpg_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
+              varInterphr_T(:,:)=varInterphr_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
+            elseif(varNameList3D(jvar).eq.'HU') then
+              do jobs=1,col_getNumCol(lcolumng)
+                do jlev=1,col_getNumLev(lcolumng)
+                  varInterpg_T(jlev,jobs)=log(max(varInterpg_T(jlev,jobs),rhumin))
+                enddo
+                do jlev=1,nlv_T
+                  varInterphr_T(jlev,jobs)=log(max(varInterphr_T(jlev,jobs),rhumin))
+                enddo
+              enddo
+            endif
+            call col_fillmvo(lcolumng ,varNameList3D(jvar),'NA',varInterpg_T)
+            call col_fillmvo(lcolumnhr,varNameList3D(jvar),'NA',varInterphr_T)
           endif
-          call col_fillmvo(lcolumng ,varNameList3D(jvar),'NA',varInterpg_T)
-          call col_fillmvo(lcolumnhr,varNameList3D(jvar),'NA',varInterphr_T)
 
         end select 
       enddo
@@ -507,18 +525,21 @@
       enddo
 !
 !     Deallocate the local arrays
-!
+!      
+      if(col_getNumCol(lcolumng).gt.0) then       
+        deallocate(notag)
+        deallocate(varInterpg_T)
+        deallocate(varInterpg_M)
+        deallocate(varInterpP0)
+        deallocate(varInterphr_T)
+        deallocate(varInterphr_M)
+        deallocate(varInterphr_VV)
+        deallocate(zppobsg)
+        deallocate(zppobs_T,zppobs_M)
+      endif
       deallocate(datestamplist)
       deallocate(nobsgid)
-      deallocate(notag)
       deallocate(nobs,nobs_maxmpiglobal)
-      deallocate(varInterpg_T)
-      deallocate(varInterpg_M)
-      deallocate(varInterpP0)
-      deallocate(varInterphr_T)
-      deallocate(varInterphr_M,varInterphr_VV)
-      deallocate(zppobsg)
-      deallocate(zppobs_T,zppobs_M)
       deallocate(nultrl)
       deallocate(idate)
       deallocate(itime)
@@ -536,420 +557,6 @@
       return
 !--------------------------------------------------------------------------------
       CONTAINS
-
-      subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName,varType_in)
-!
-! s/r readTrialField
-!
-!     Author  : M. Buehner, Dec 2012
-!
-!     Purpose: Read and interpolate all levels/time steps for a single variable of trial field
-!
-      implicit none
-      character(len=*) :: varName
-      character(len=*),optional :: varType_in
-      character(len=2) :: varType
-      real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
-      real*4, allocatable :: varTrial3d(:,:,:)
-      real*4, allocatable :: varTrial(:,:)
-      real*8, allocatable :: varInterp_1lev(:),varInterp_1lev_VV(:)
-      integer :: nlevel,nsize,iip1
-      integer :: fstlir,vezuvint2,vezsint2,ezdefset
-
-      allocate(varTrial3d(ini,inj,col_getNumStep(lcolumng)))
-      allocate(varTrial(ini,inj))
-      allocate(varInterp_1lev(maxval(nobs)))
-      allocate(varInterp_1lev_VV(maxval(nobs)))
-!
-!     Determine the type and number of vertical levels
-!
-      if(present(varType_in)) then
-        varType = varType_in
-      else
-        varType = vnl_vartypeFromVarname(varName)
-      endif
-      nlevel = col_getNumLev(lcolumnhr,varType)
-
-      do jlev = 1,nlevel
-        if(varType.eq.'MM') then
-          IIP1 = vco_trl%ip1_M(jlev)
-        elseif(varType.eq.'TH') then
-          IIP1 = vco_trl%ip1_T(jlev)
-        elseif(varType.eq.'SF') then
-          IIP1 = -1
-        else
-          call abort3d('SUGOMOBS: unknown varType')
-        endif
-
-        call rpn_comm_barrier("GRID",ierr)
-        call tmg_start(11,'TRLM_FSTLIR')
-
-        do jstep = (1+mpi_myid),col_getNumStep(lcolumng),mpi_nprocs
-          if(nobs_maxmpiglobal(jstep) > 0) then
-            ierr=fstlir(varTrial3d(:,:,jstep),nultrl(jstep),ini,inj,ink,  &
-                        datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                        cltypvar,varName)
-            if(ierr.lt.0)then
-              write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-              call abort3d('SUGOMOBS:Problem with background file')
-            end if
-          endif
-        enddo
-        call tmg_stop(11)
-
-        call tmg_start(19,'SUGOMOBS_COMM')
-        do jstep = 1,col_getNumStep(lcolumng)
-          if(nobs_maxmpiglobal(jstep) > 0) then
-            nsize=ini*inj
-            call rpn_comm_bcast(varTrial3d(:,:,jstep),nsize,"mpi_real4",mod(jstep-1,mpi_nprocs),"GRID",ierr )
-          endif
-        enddo
-        call tmg_stop(19)
-
-        if(trim(varName).ne.'UU'.and.trim(varName).ne.'VV') then
-          do jstep = 1,col_getNumStep(lcolumng)
-            if(nobs(jstep) > 0) then
-              iset = ezdefset(nobsgid(jstep),itrlgid)
-              ierr = vezsint2(varInterp_1lev(1:nobs(jstep)),varTrial3d(:,:,jstep),  &
-                              nobs(jstep),1,1,ini,inj,1)
-              do jobs = 1, nobs(jstep)
-                varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_1lev(jobs)
-              enddo
-            endif
-          enddo
-        else
-          do jstep = 1,col_getNumStep(lcolumng)
-            if(nobs(jstep) > 0) then
-              varTrial(:,:) = 0.d0
-              iset = ezdefset(nobsgid(jstep),itrlgid)
-              if(trim(varName).eq.'UU') then
-                ierr = vezuvint2(varInterp_1lev(1:nobs(jstep)),  &
-                       varInterp_1lev_VV(1:nobs(jstep)),  &
-                       varTrial3d(:,:,jstep),varTrial,  &
-                       nobs(jstep),ini*inj)
-              else
-                ierr = vezuvint2(varInterp_1lev(1:nobs(jstep)),  &
-                       varInterp_1lev_VV(1:nobs(jstep)),  &
-                       varTrial,varTrial3d(:,:,jstep),  &
-                       nobs(jstep),ini*inj)
-              endif
-              do jobs = 1, nobs(jstep)
-                varInterphr_MT(jlev,notag(jobs,jstep)) =  &
-                  varInterphr_MT(jlev,notag(jobs,jstep)) +  &
-                  varInterp_1lev(jobs)
-                varInterphr_VV(jlev,notag(jobs,jstep)) =  &
-                  varInterphr_VV(jlev,notag(jobs,jstep)) +  &
-                  varInterp_1lev_VV(jobs)
-              enddo
-            endif
-          enddo !jstep
-        endif
-      enddo !jlev
-
-      deallocate(varTrial)
-      deallocate(varTrial3d)
-      deallocate(varInterp_1lev,varInterp_1lev_VV)
-
- 2001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level',  &
-             i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
-
-      end subroutine readTrialField
-
-
-
-
-      subroutine readTrialField2(varInterphr_MT,varInterphr_VV,varName,varType_in)
-!
-! s/r readTrialField
-!
-!     Author  : M. Buehner, Dec 2012
-!
-!     Purpose: Read and interpolate all levels/time steps for a single variable of trial field
-!
-      implicit none
-      character(len=*) :: varName
-      character(len=*),optional :: varType_in
-      character(len=2) :: varType
-      real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
-      real*4, allocatable :: varTrial3d(:,:,:)
-      real*4, allocatable :: varTrial(:,:)
-      real*8, allocatable :: varInterp_1lev(:),varInterp_1lev_VV(:)
-      integer :: nlevel,nsize,iip1
-      integer :: fstlir,vezuvint2,vezsint2,ezdefset
-!
-!     Determine the type and number of vertical levels
-!
-      if(present(varType_in)) then
-        varType = varType_in
-      else
-        varType = vnl_vartypeFromVarname(varName)
-      endif
-      nlevel = col_getNumLev(lcolumnhr,varType)
-
-      allocate(varTrial3d(ini,inj,nlevel))
-      allocate(varTrial(ini,inj))
-      allocate(varInterp_1lev(maxval(nobs)))
-      allocate(varInterp_1lev_VV(maxval(nobs)))
-
-      do jstep = 1,col_getNumStep(lcolumng)
-
-        if(nobs_maxmpiglobal(jstep) > 0) then
-
-          call rpn_comm_barrier("GRID",ierr)
-          call tmg_start(11,'TRLM_FSTLIR')
-          do jlev = (1+mpi_myid),nlevel,mpi_nprocs
-            if(varType.eq.'MM') then
-              IIP1 = vco_trl%ip1_M(jlev)
-            elseif(varType.eq.'TH') then
-              IIP1 = vco_trl%ip1_T(jlev)
-            elseif(varType.eq.'SF') then
-              IIP1 = -1
-            else
-              call abort3d('SUGOMOBS: unknown varType')
-            endif
-
-            ierr=fstlir(varTrial3d(:,:,jlev),nultrl(jstep),ini,inj,ink,  &
-                        datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                        cltypvar,varName)
-            if(ierr.lt.0)then
-              write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-              call abort3d('SUGOMOBS:Problem with background file')
-            end if
-          enddo
-          call tmg_stop(11)
-
-          call tmg_start(19,'SUGOMOBS_COMM')
-          do jlev = 1,nlevel
-            nsize=ini*inj
-            call rpn_comm_bcast(varTrial3d(:,:,jlev),nsize,"mpi_real4",mod(jlev-1,mpi_nprocs),"GRID",ierr )
-          enddo
-          call tmg_stop(19)
-
-        endif ! nobs_max > 0
-
-        if(nobs(jstep) > 0) then
-
-          iset = ezdefset(nobsgid(jstep),itrlgid)
-          if(trim(varName).ne.'UU'.and.trim(varName).ne.'VV') then
-            do jlev = 1,nlevel
-              ierr = vezsint2(varInterp_1lev(1:nobs(jstep)),varTrial3d(:,:,jlev),  &
-                              nobs(jstep),1,1,ini,inj,1)
-              do jobs = 1, nobs(jstep)
-                varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_1lev(jobs)
-              enddo
-            enddo
-          else
-            do jlev = 1,nlevel
-              varTrial(:,:) = 0.d0
-              if(trim(varName).eq.'UU') then
-                ierr = vezuvint2(varInterp_1lev(1:nobs(jstep)),  &
-                       varInterp_1lev_VV(1:nobs(jstep)),  &
-                       varTrial3d(:,:,jlev),varTrial,  &
-                       nobs(jstep),ini*inj)
-              else
-                ierr = vezuvint2(varInterp_1lev(1:nobs(jstep)),  &
-                       varInterp_1lev_VV(1:nobs(jstep)),  &
-                       varTrial,varTrial3d(:,:,jlev),  &
-                       nobs(jstep),ini*inj)
-              endif
-              do jobs = 1, nobs(jstep)
-                varInterphr_MT(jlev,notag(jobs,jstep)) =  &
-                  varInterphr_MT(jlev,notag(jobs,jstep)) +  &
-                  varInterp_1lev(jobs)
-                varInterphr_VV(jlev,notag(jobs,jstep)) =  &
-                  varInterphr_VV(jlev,notag(jobs,jstep)) +  &
-                  varInterp_1lev_VV(jobs)
-              enddo
-            enddo !jlev
-          endif
-
-        endif !nobs>0
-
-      enddo !jstep
-
-      deallocate(varTrial)
-      deallocate(varTrial3d)
-      deallocate(varInterp_1lev,varInterp_1lev_VV)
-
- 2001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level',  &
-             i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
-
-      end subroutine readTrialField2
-
-
-
-      subroutine readTrialField3(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
-!
-! s/r readTrialField
-!
-!     Author  : M. Buehner, Dec 2012
-!
-!     Purpose: Read and interpolate all levels/time steps for a single variable of trial field
-!
-      implicit none
-      character(len=*) :: varName_in
-      character(len=*),optional :: varType_in
-      character(len=2) :: varType,varName
-      real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
-      real*4, allocatable :: varTrial(:,:),varTrial_VV(:,:)
-      real*8, allocatable :: varInterp(:,:,:),varInterp_VV(:,:,:)
-      real*8, allocatable :: varInterp_recv(:,:),varInterp_recv_VV(:,:)
-      integer :: nlevel,nsize,iip1,pe_send,pe_recv,tag,tag2
-      integer :: fstlir,vezuvint2,vezsint2,ezdefset
-!
-!     Determine the type and number of vertical levels
-!
-      if(trim(varName_in).eq.'UV') then
-        varName='UU'
-      else
-        varName=varName_in
-      endif
-
-      if(present(varType_in)) then
-        varType = varType_in
-      else
-        varType = vnl_vartypeFromVarname(varName)
-      endif
-      nlevel = col_getNumLev(lcolumnhr,varType)
-
-      allocate(varTrial(ini,inj))
-      allocate(varTrial_VV(ini,inj))
-      allocate(varInterp(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
-      allocate(varInterp_VV(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
-      allocate(varInterp_recv(maxval(nobs_mpiglobal),nlevel))
-      allocate(varInterp_recv_VV(maxval(nobs_mpiglobal),nlevel))
-
-      do jstep = 1,col_getNumStep(lcolumng)
-
-        if(nobs_maxmpiglobal(jstep) > 0) then
-
-          call rpn_comm_barrier("GRID",ierr)
-
-          do jlev = (1+mpi_myid),nlevel,mpi_nprocs
-            if(varType.eq.'MM') then
-              IIP1 = vco_trl%ip1_M(jlev)
-            elseif(varType.eq.'TH') then
-              IIP1 = vco_trl%ip1_T(jlev)
-            elseif(varType.eq.'SF') then
-              IIP1 = -1
-            else
-              call abort3d('SUGOMOBS: unknown varType')
-            endif
-
-            call tmg_start(11,'TRLM_FSTLIR')
-            ierr=fstlir(varTrial(:,:),nultrl(jstep),ini,inj,ink,  &
-                        datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                        cltypvar,varName)
-            if(ierr.lt.0)then
-              write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-              call abort3d('SUGOMOBS:Problem with background file')
-            end if
-            if(varName.eq.'UU') then
-              ierr=fstlir(varTrial_VV(:,:),nultrl(jstep),ini,inj,ink,  &
-                          datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                          cltypvar,'VV')
-              if(ierr.lt.0)then
-                write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
-                call abort3d('SUGOMOBS:Problem with background file')
-              end if
-            endif
-            call tmg_stop(11)
-
-            ! Interpolate to mpiglobal set of columns for a subset of levels
-            call tmg_start(15,'SUGOMOBS_EZ')
-            do jlatband = 1,mpi_nprocs
-              if (nobs_mpiglobal(jstep,jlatband).gt.0) then
-                iset = ezdefset(nobsgid_mpiglobal(jstep,jlatband),itrlgid)
-                if(trim(varName).eq.'UU') then
-                  call tmg_start(16,'SUGOMOBS_UVINT')
-                  ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
-                                varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
-                                varTrial,varTrial_VV,  &
-                                nobs_mpiglobal(jstep,jlatband),ini*inj)
-                  call tmg_stop(16)
-                else
-                  call tmg_start(17,'SUGOMOBS_SINT')
-                  ierr = vezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
-                                  varTrial,  &
-                                  nobs_mpiglobal(jstep,jlatband),1,1,ini,inj,1)
-                  call tmg_stop(17)
-                endif
-              endif
-            enddo
-            call tmg_stop(15)
-
-          enddo
-
-          call tmg_start(19,'SUGOMOBS_COMM')
-          do jlatband = 1,mpi_nprocs
-            if (nobs_mpiglobal(jstep,jlatband).gt.0) then
-              do jlev = 1,nlevel
-
-                pe_send = mod(jlev-1,mpi_nprocs)
-                pe_recv = jlatband-1
-                tag  = pe_recv*500 + pe_send
-                tag2 = pe_recv*500 + pe_send + 1000000
-
-                if(pe_send.eq.pe_recv) then
-                  if(mpi_myid.eq.pe_send) then
-                    varInterp_recv(1:nobs_mpiglobal(jstep,jlatband),jlev) =  &
-                         varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband)
-                    if(trim(varName).eq.'UU') then
-                      varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatband),jlev) =  &
-                           varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband)
-                    endif
-                  endif
-                else
-                  if(mpi_myid.eq.pe_send) then
-                    nsize=nobs_mpiglobal(jstep,jlatband)
-                    call rpn_comm_send(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband), &
-                       nsize,"mpi_double_precision",pe_recv,tag,"GRID",ierr)
-                    if(trim(varName).eq.'UU') then
-                      call rpn_comm_send(varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband), &
-                         nsize,"mpi_double_precision",pe_recv,tag2,"GRID",ierr)
-                    endif
-                  endif
-
-                  if(mpi_myid.eq.pe_recv) then
-                    nsize=nobs_mpiglobal(jstep,jlatband)
-                    call rpn_comm_recv(varInterp_recv(1:nobs_mpiglobal(jstep,jlatband),jlev), &
-                       nsize,"mpi_double_precision",pe_send,tag,"GRID",status,ierr)
-                    if(trim(varName).eq.'UU') then
-                      call rpn_comm_recv(varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatband),jlev), &
-                         nsize,"mpi_double_precision",pe_send,tag2,"GRID",status,ierr)
-                    endif
-                  endif
-                endif
-
-              enddo
-            endif
-          enddo
-          call tmg_stop(19)
-
-          do jlev = 1,nlevel
-            do jobs = 1, nobs(jstep)
-              varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_recv(jobs,jlev)
-              if(trim(varName).eq.'UU') then
-                varInterphr_VV(jlev,notag(jobs,jstep)) = varInterp_recv_VV(jobs,jlev)
-              endif
-            enddo
-          enddo
-
-
-        endif !nobs>0
-
-      enddo !jstep
-
-      deallocate(varTrial,varTrial_VV)
-      deallocate(varInterp,varInterp_VV)
-      deallocate(varInterp_recv,varInterp_recv_VV)
-
- 2001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level',  &
-             i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
-
-      end subroutine readTrialField3
-
-
 
       subroutine readTrialField4(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
 !

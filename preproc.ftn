@@ -14,7 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData,cmode)
+      subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData,
+     &                   obsColumnMode,obsMpiStrategy)
 *
 ***s/r preproc  - Control of the preprocessing of the 3D variational assimilation
 *
@@ -39,7 +40,8 @@
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
-      character (len=*) :: cmode
+      character (len=*) :: obsColumnMode
+      character (len=*) :: obsMpiStrategy
       type(struct_vco), pointer :: vco_anl => null()
       type(struct_vco), pointer :: vco_trl => null()
 
@@ -71,7 +73,7 @@
 !
 !     Specify the active observation-array columns
 !
-      call obs_class_initialize(cmode)
+      call obs_class_initialize(obsColumnMode)
 !
 !     Allocate memory for observation arrays
 !
@@ -114,7 +116,7 @@
 !
 !     Distribute observations over MPI processes
 !
-      call obs_reduceToMpiLocal(lobsSpaceData)
+      call obs_reduceToMpiLocal(lobsSpaceData,obsMpiStrategy)
 !
 !     Memory allocation for background column data
 !

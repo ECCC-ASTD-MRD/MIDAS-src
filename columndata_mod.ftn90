@@ -66,7 +66,7 @@ module columnData_mod
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstateo,iostat=ierr)
-      write(*,*) 'col_setup: reading namelist, ierr=',ierr
+      if(ierr.ne.0) call abort3d('col_setup: Error reading namelist')
       write(*,nml=namstateo)
       ierr=fclos(nulnam)
 
@@ -120,8 +120,11 @@ module columnData_mod
       IMPLICIT NONE
       type(struct_columnData) :: column
 
-      column%all(:,:)=0.0d0
-      column%rppobs(:,:)=0.0d0
+      if(column%numCol.gt.0) then
+        column%all(:,:)=0.0d0
+        column%rppobs(:,:)=0.0d0
+      endif
+
     END SUBROUTINE col_zero
 
 
@@ -170,37 +173,41 @@ module columnData_mod
       enddo
       nkgdimo=iloc
 
-      allocate(column%all(nkgdimo,column%numCol))
-      column%all(:,:)=0.0d0
+      if(column%numCol.le.0) then
+        write(*,*) 'col_allocate: number of columns is zero, not allocated'
+      else         
+        allocate(column%all(nkgdimo,column%numCol))
+        column%all(:,:)=0.0d0
 
-      allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
-      allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
-      column%gz_T(:,:)=0.0d0
-      column%gz_M(:,:)=0.0d0
+        allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
+        allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
+        column%gz_T(:,:)=0.0d0
+        column%gz_M(:,:)=0.0d0
 
-      allocate(column%rppobs  (col_getNumLev(column)     ,column%numCol))
-      allocate(column%rppobs_T(col_getNumLev(column,'TH'),column%numCol))
-      allocate(column%rppobs_M(col_getNumLev(column,'MM'),column%numCol))
-      column%rppobs(:,:)=0.0d0
-      column%rppobs_T(:,:)=0.0d0
-      column%rppobs_M(:,:)=0.0d0
+        allocate(column%rppobs  (col_getNumLev(column)     ,column%numCol))
+        allocate(column%rppobs_T(col_getNumLev(column,'TH'),column%numCol))
+        allocate(column%rppobs_M(col_getNumLev(column,'MM'),column%numCol))
+        column%rppobs(:,:)=0.0d0
+        column%rppobs_T(:,:)=0.0d0
+        column%rppobs_M(:,:)=0.0d0
 
-      allocate(column%lat(column%numCol))
-      allocate(column%lon(column%numCol))
-      allocate(column%tla(column%numCol))
-      column%lat(:)=0.0d0
-      column%lon(:)=0.0d0
-      column%tla(:)=0
+        allocate(column%lat(column%numCol))
+        allocate(column%lon(column%numCol))
+        allocate(column%tla(column%numCol))
+        column%lat(:)=0.0d0
+        column%lon(:)=0.0d0
+        column%tla(:)=0
 
-      allocate(column%oltv(2,col_getNumLev(column),numCol))
-      column%oltv(:,:,:)=0.0d0
-      allocate(column%rtapfac(col_getNumLev(column),numCol))
-      column%rtapfac(:,:)=0.0d0
+        allocate(column%oltv(2,col_getNumLev(column),numCol))
+        column%oltv(:,:,:)=0.0d0
+        allocate(column%rtapfac(col_getNumLev(column),numCol))
+        column%rtapfac(:,:)=0.0d0
 
-      allocate(column%timeInterpWeight(column%numCol,mxstepobs))
-      column%timeInterpWeight(:,:)=0.0d0
+        allocate(column%timeInterpWeight(column%numCol,mxstepobs))
+        column%timeInterpWeight(:,:)=0.0d0
+      endif
  
-      write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+      write(*,*) 'col_allocate: numCol, nkgdimo = ',column%numCol,nkgdimo
       write(*,*) 'col_allocate: varOffset=',column%varOffset
       write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
@@ -217,18 +224,22 @@ module columnData_mod
 
       deallocate(column%varOffset)
       deallocate(column%varNumLev)
-      deallocate(column%all)
-      deallocate(column%gz_T)
-      deallocate(column%gz_M)
-      deallocate(column%rppobs)
-      deallocate(column%rppobs_T)
-      deallocate(column%rppobs_M)
-      deallocate(column%lat)
-      deallocate(column%lon)
-      deallocate(column%tla)
-      deallocate(column%oltv)
-      deallocate(column%rtapfac)
-      deallocate(column%timeInterpWeight)
+
+      if(column%numCol.gt.0) then
+        deallocate(column%all)
+        deallocate(column%gz_T)
+        deallocate(column%gz_M)
+        deallocate(column%rppobs)
+        deallocate(column%rppobs_T)
+        deallocate(column%rppobs_M)
+        deallocate(column%lat)
+        deallocate(column%lon)
+        deallocate(column%tla)
+        deallocate(column%oltv)
+        deallocate(column%rtapfac)
+        deallocate(column%timeInterpWeight)
+      endif
+
       column%allocated=.false.
 
       RETURN
@@ -329,6 +340,8 @@ module columnData_mod
       IMPLICIT NONE
       type(struct_columnData) :: column
       integer                 :: ilev1,ilev2
+
+      if(column%numCol.le.0) return
 
       deallocate(column%gz_T)
       deallocate(column%gz_M)

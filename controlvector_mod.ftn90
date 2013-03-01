@@ -54,6 +54,7 @@ CONTAINS
     real*8, pointer :: subVector(:)
     real*8,target   :: controlVector(:)
     integer         :: subVectorIndex
+    logical, save   :: firstCall=.true.
 
     nullify(subVector)
 
@@ -62,7 +63,10 @@ CONTAINS
     elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
     else
-      write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
+      if(firstCall) then
+        write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
+        firstCall=.false.
+      endif
     endif
 
   END FUNCTION CVM_getSubVector

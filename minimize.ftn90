@@ -54,8 +54,10 @@ subroutine minimize(lcolumng,lobsSpaceData)
   call rsetcma(lobsSpaceData)
 
   DO INDIC =1,1
-     CALL obs_prnthdr(lobsSpaceData,indic)
-     CALL obs_prntbdy(lobsSpaceData,indic)
+     if(obs_numHeader(lobsSpaceData).ge.indic) then 
+        CALL obs_prnthdr(lobsSpaceData,indic)
+        CALL obs_prntbdy(lobsSpaceData,indic)
+     endif
   END DO
 
   call col_deallocate(lcolumn)

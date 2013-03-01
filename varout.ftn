@@ -176,8 +176,8 @@ C
 C
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      write(*,*) 'varout: reading namelist, ierr=',ierr
-      read(nulnam,nml=nampost)
+      read(nulnam,nml=nampost,iostat=ierr)
+      if(ierr.ne.0) call abort3d('varout: Error reading namelist')
       write(*,nml=nampost)
       ierr=fclos(nulnam)
 C

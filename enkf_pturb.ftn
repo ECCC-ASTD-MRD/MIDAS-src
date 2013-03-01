@@ -79,7 +79,7 @@ C
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namenkf,iostat=ierr)
-      write(*,*) 'enkf_pturb: reading namelist, ierr=',ierr
+      if(ierr.ne.0) call abort3d('enkf_pturb: Error reading namelist')
       write(*,nml=namenkf)
       ierr=fclos(nulnam)
 c

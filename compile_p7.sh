@@ -38,7 +38,6 @@ compiledir=$PWD
 . s.ssmuse.dot CMDN/vgrid/3.4.0
 . s.ssmuse.dot rpn_comm
 
-
 VAR3D_VERSION="11.2.1"
 LIBAPPL="rttov burp_module descrip $MPILIB "
 LIBSYS="lapack blas mass"
@@ -74,7 +73,7 @@ rm -f *.ftn~ *.ftn90~
 
 # temporarily copy the object files for a preliminary version
 # of ezscint that works with the "U" grid (compiled only be AIX):
-cp /users/dor/arma/bue/home01/3dvar_test/trunk/ezscint/quiet3h/*.o $compiledir
+cp /users/dor/arma/erv/data/ords/yinyang/ezscint/objects_quiet3l/*.o $compiledir
 
 echo "STARTING COMPILATION AT:"
 date

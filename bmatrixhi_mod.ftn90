@@ -117,8 +117,8 @@ CONTAINS
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    write(*,*) 'bhi_setup: reading namelist, ierr=',ierr
-    read(nulnam,nml=nambhi)
+    read(nulnam,nml=nambhi,iostat=ierr)
+    if(ierr.ne.0) call abort3d('bhi_setup: Error reading namelist')
     write(*,nml=nambhi)
     ierr=fclos(nulnam)
 

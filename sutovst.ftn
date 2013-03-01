@@ -49,6 +49,7 @@
 
       use airsch
       use iasich
+      use mpi
 
       IMPLICIT NONE
 
@@ -184,11 +185,13 @@ C     .  -----------------------
 C
  300  CONTINUE
 C
-      WRITE(*,'(20X,"ASCII dump of stats_tovs file: "//)')
-      DO JI = 1, 9999999
-         READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
-         WRITE(*,'(A)')   CLDUM
-      ENDDO
+      IF(MPI_MYID.EQ.0) THEN
+         WRITE(*,'(20X,"ASCII dump of stats_tovs file: "//)')
+         DO JI = 1, 9999999
+            READ (ILUTOV,'(A)',ERR=900,END=400) CLDUM
+            WRITE(*,'(A)')   CLDUM
+         ENDDO
+      ENDIF
 C
 C*    4. Read number of satellites, regions and cloud classes
 C     .  ----------------------------------------------------
@@ -302,23 +305,25 @@ C     .  --------------------------------------------
 C
  600  CONTINUE
 C
-      WRITE(*,'(//1X,"Radiance observation errors read from file")')
-      WRITE(*,'(  1X,"------------------------------------------")')
-      DO JL = 1, NSENSORS
-         WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,
-     &                  "Instrument: ",A)')
-     &                  JL, CSATID(JL), CINSTRUMENTID(JL)
-         WRITE(*,'(1X,"Channel",T22,"Ocean",T50,
-     &                  "Continent")')
-         WRITE(*,'(T12,"clear",T20,"p.cloudy",T32,
-     &                  "cloudy",T42,"clear",T50,"p.cloudy",T62,
-     &                  "cloudy")')
-         DO JI = 1, NUMCHN(JL)
-            WRITE (*,'(I5,25F10.2)') ICHN(JI,JL),
-     S                ((TOVERRST(ICHN(JI,JL),JJ,JK,JL),
-     S                  JJ=1,NCLDST), JK=1,NREGST)
+      IF(MPI_MYID.eq.0) THEN
+         WRITE(*,'(//1X,"Radiance observation errors read from file")')
+         WRITE(*,'(  1X,"------------------------------------------")')
+         DO JL = 1, NSENSORS
+            WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,
+     &                     "Instrument: ",A)')
+     &                     JL, CSATID(JL), CINSTRUMENTID(JL)
+            WRITE(*,'(1X,"Channel",T22,"Ocean",T50,
+     &                     "Continent")')
+            WRITE(*,'(T12,"clear",T20,"p.cloudy",T32,
+     &                     "cloudy",T42,"clear",T50,"p.cloudy",T62,
+     &                     "cloudy")')
+            DO JI = 1, NUMCHN(JL)
+               WRITE (*,'(I5,25F10.2)') ICHN(JI,JL),
+     S                   ((TOVERRST(ICHN(JI,JL),JJ,JK,JL),
+     S                     JJ=1,NCLDST), JK=1,NREGST)
+            ENDDO
          ENDDO
-      ENDDO
+      ENDIF
 C
 C*    7. Close the file
 C     .  --------------
