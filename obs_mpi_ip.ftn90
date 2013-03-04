@@ -1,0 +1,49 @@
+
+subroutine obs_mpi_ip(lobsSpaceData, mpiStrategy)
+  !
+  ! PURPOSE:
+  !  Header indices are distributed following the chosen strategy,
+  !  currently either "round robin" or by latitude bands.
+  !
+  use MathPhysConstants_mod
+  use obsSpaceData_mod
+  use gaussGrid_mod
+  implicit none
+
+  type(struct_obs), intent(inout) :: lobsSpaceData
+  character(len=*), intent(in)    :: mpiStrategy
+
+  integer :: headerIndex_mpiglobal
+  integer :: nprocs_mpi
+  integer :: latindex
+  integer :: ierr
+  integer :: IP
+
+  ! Obtain nprocs_mpi and  my_mpi_id
+  call rpn_comm_size("ALL", nprocs_mpi, ierr)
+  if ( nprocs_mpi == 0 ) nprocs_mpi = 1
+  
+  write(*,*) 'numHeader_mpiGlobal= ',obs_numheader(lobsSpaceData)
+
+  ! Determine obs_ip according to distribution strategy
+  select case (trim(mpiStrategy))
+  case ('ROUNDROBIN')
+     ! Distribute by round robin:
+     do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
+        IP = mod((headerIndex_mpiglobal-1),nprocs_mpi)
+        call obs_SetMpiIp(lobsSpaceData,IP,headerIndex_mpiglobal)
+     end do
+  case ('LATBANDS')
+     ! Distribute by latitude band:
+     do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
+        latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex_mpiglobal))
+        IP = ( nprocs_mpi * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
+       call obs_SetMpiIp(lobsSpaceData,IP,headerIndex_mpiglobal)
+     end do
+  case default
+     write(*,*)
+     write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
+     stop
+  end select
+
+end subroutine obs_mpi_ip
