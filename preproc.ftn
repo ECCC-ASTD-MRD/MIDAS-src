@@ -116,7 +116,7 @@
 !
 !     Distribute observations over MPI processes
 !
-      call obs_mpi_ip(lobsSpaceData,obsMpiStrategy)
+      call mpi_obs_ip(lobsSpaceData,obsMpiStrategy)
       call obs_reduceToMpiLocal(lobsSpaceData)
 !
 !     Memory allocation for background column data

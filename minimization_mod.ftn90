@@ -185,7 +185,7 @@ CONTAINS
       endif
       vazx(:)=0.0d0
       ! extra mpilocal portion of control vector:
-      vazx(:)=cvm_vazx(nvadim_beg:nvadim_end) 
+      vazx(1:nvadim_mpilocal) = cvm_vazx(nvadim_beg:nvadim_end) 
 
       allocate(vazg(nvadim_mpilocalmax),stat=ierr)
       if(ierr.ne.0) then

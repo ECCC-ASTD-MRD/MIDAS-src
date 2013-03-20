@@ -1,5 +1,5 @@
 
-subroutine obs_mpi_ip(lobsSpaceData, mpiStrategy)
+subroutine mpi_obs_ip(lobsSpaceData, mpiStrategy)
   !
   ! PURPOSE:
   !  Header indices are distributed following the chosen strategy,
@@ -31,14 +31,14 @@ subroutine obs_mpi_ip(lobsSpaceData, mpiStrategy)
      ! Distribute by round robin:
      do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
         IP = mod((headerIndex_mpiglobal-1),nprocs_mpi)
-        call obs_SetMpiIp(lobsSpaceData,IP,headerIndex_mpiglobal)
+        call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
      end do
   case ('LATBANDS')
      ! Distribute by latitude band:
      do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
         latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex_mpiglobal))
         IP = ( nprocs_mpi * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
-       call obs_SetMpiIp(lobsSpaceData,IP,headerIndex_mpiglobal)
+        call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
      end do
   case default
      write(*,*)
@@ -46,4 +46,4 @@ subroutine obs_mpi_ip(lobsSpaceData, mpiStrategy)
      stop
   end select
 
-end subroutine obs_mpi_ip
+end subroutine mpi_obs_ip
