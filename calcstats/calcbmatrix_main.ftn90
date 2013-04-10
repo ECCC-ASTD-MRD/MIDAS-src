@@ -1,10 +1,34 @@
 program calcbmatrix_main
+  use mpi
   use calcbmatrix_nanalvar4_mod
   implicit none
-  
+  integer :: nulnam,ierr,fnom,fclos
+  character(len=20) :: cmode
+  NAMELIST /NAMCONF/cmode
+
   write(*,*) '!!!!STARTING CALCBMATRIX!!!!'
 
-  call calcb_computeStats
+  mpi_nprocs=1
+
+  cmode='BNMC'
+  nulnam=0
+  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read(nulnam,nml=namconf)
+  write(*,nml=namconf)
+  ierr=fclos(nulnam)
+  
+  select case(trim(cmode))
+
+  case ('BNMC')
+    call calcb_computeStats
+
+  case ('VERTICALCOV')
+    call calcb_diag_verticalcov
+
+  case default
+    write(*,*) 'Unknown value of CMODE:',cmode
+
+  end select
 
   write(*,*) '!!!!ENDING CALCBMATRIX!!!!'
 

@@ -51,6 +51,7 @@ MODULE BmatrixHI
   ! originally from common blocks and possibly from the namelist:
   integer,parameter  :: maxNumLevels=200
   real*8             :: scaleFactor(maxNumLevels)
+  real*8             :: scaleFactorLQ(maxNumLevels)
   integer            :: ntoar = 3
   real*8             :: ralphatoar = 0.2
   integer            :: ntgcorrtyp=1
@@ -109,11 +110,12 @@ CONTAINS
     logical        :: llfound
 
     !namelist
-    NAMELIST /NAMBHI/ntrunc,scaleFactor
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ
 
     ! parameters set from the ensemble member files
     ntrunc=108
     scaleFactor(:)=1.0d0
+    scaleFactorLQ(:)=1.0d0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -127,6 +129,13 @@ CONTAINS
         scaleFactor(jlev)=sqrt(scaleFactor(jlev))
       else
         scaleFactor(jlev)=0.0d0
+      endif
+    enddo
+    do jlev=1,nflev_in
+      if(scaleFactorLQ(jlev).gt.0.0d0) then 
+        scaleFactorLQ(jlev)=sqrt(scaleFactorLQ(jlev))
+      else
+        scaleFactorLQ(jlev)=0.0d0
       endif
     enddo
 
@@ -277,7 +286,7 @@ CONTAINS
         rgsiguu(jlat,jlev)=scaleFactor(jlev)*rgsiguu(jlat,jlev)
         rgsigvv(jlat,jlev)=scaleFactor(jlev)*rgsigvv(jlat,jlev)
         rgsigtt(jlat,jlev)=scaleFactor(jlev)*rgsigtt(jlat,jlev)
-        rgsigq(jlat,jlev) =scaleFactor(jlev)*rgsigq(jlat,jlev)
+        rgsigq(jlat,jlev) =scaleFactorLQ(jlev)*scaleFactor(jlev)*rgsigq(jlat,jlev)
         rgsigtb(jlat,jlev)=scaleFactor(jlev)*rgsigtb(jlat,jlev)
       enddo
     enddo

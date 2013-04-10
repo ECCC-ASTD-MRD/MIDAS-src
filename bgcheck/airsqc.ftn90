@@ -32,17 +32,14 @@ integer,intent(in) :: airs_loop_done
 type(struct_columnData),intent(in) :: lcolumnhr
 type(struct_obs),intent(inout) :: lobsSpaceData
 !************************************************
-  type(struct_columnData) :: lcolumnhr
-  type(struct_obs) :: lobsSpaceData
   type(struct_vco), pointer :: vco_trl
   INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,INDEX_HEADER,NFLG,ICHN
   INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBAIRS
   INTEGER       :: INDEX_BODY,IDATA,IDATEND,IDAIRS
   INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
   INTEGER       :: DIFFTOP_MIN
-  INTEGER       :: airs_loop_done,count_airs
+  INTEGER       :: count_airs
   REAL(8)       :: T_EFFECTIVE
-  LOGICAL       :: airs_end
   integer       :: alloc_status(61)
 
   real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
@@ -482,7 +479,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   DO JN = 1, NPRF
      cpt=0
      DO JCH=1,NCO2
-        IF ( REJFLAG(ILIST2_PAIR(JCH),JN,9)==1 .or. REJFLAG(ILIST2(JCH),JN,9)==1 ) cpt=cpt+1
+        IF ( REJFLAG(airssch(ILIST2_PAIR(JCH)),JN,9)==1 .or. REJFLAG(airssch(ILIST2(JCH)),JN,9)==1 ) cpt=cpt+1
      ENDDO
      IF (cpt==nco2) THEN
         CLDFLAG(JN) = -1

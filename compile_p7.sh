@@ -49,7 +49,7 @@ DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
 COMPF_NOC="-openmp $MPIKEY "
 COMPF="$COMPF_NOC"
-#COMPF="$COMPF_NOC -optf=-C "
+#COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
 INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${BASE_INCLUDE}/${MODRTTOV}"

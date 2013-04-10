@@ -74,8 +74,7 @@ C BGCHECK AIRS IASI + donnees conventionnelles
       case(121)
 C calcul des O-P pour AMSU, GEORAD et SSMIS
          WRITE(*,FMT=9204) NCONF
- 9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL
-     &        S")
+ 9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL")
          call tmg_start(1,'PREMIN')
          call preproc(columng,columnhr,obsSpaceData,  
      &                obsColumnMode="VAR",obsMpiStrategy="ROUNDROBIN")

@@ -35,6 +35,7 @@ MODULE BmatrixEnsemble
   logical             :: initialized = .false.
   integer,parameter   :: maxNumLevels=200
   real*8              :: scaleFactor(maxNumLevels)
+  real*8              :: scaleFactorLQ(maxNumLevels)
   real*8,allocatable  :: ensLocalCor(:,:)
   real*8,allocatable  :: ensLocalVert(:,:)
   real*4,allocatable  :: ensPerturbations(:,:,:,:,:)
@@ -63,10 +64,11 @@ CONTAINS
     integer        :: fnom,fclos,ierr,nulnam
 
     !namelist
-    NAMELIST /NAMBEN/nens,scaleFactor,ntrunc,enspathname,ensfilebasename,nLevEns,hLocalize,vLocalize
+    NAMELIST /NAMBEN/nens,scaleFactor,scaleFactorLQ,ntrunc,enspathname,ensfilebasename,nLevEns,hLocalize,vLocalize
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     scaleFactor(:)=0.0d0
+    scaleFactorLQ(:)=1.0d0
     nens=10
     ntrunc=31
     nLevEns=nLevInc_in
@@ -88,6 +90,13 @@ CONTAINS
         scaleFactor(jlev)=sqrt(scaleFactor(jlev))
       else
         scaleFactor(jlev)=0.0d0
+      endif
+    enddo
+    do jlev=1,nLevEns
+      if(scaleFactorLQ(jlev).gt.0.0d0) then 
+        scaleFactorLQ(jlev)=sqrt(scaleFactorLQ(jlev))
+      else
+        scaleFactorLQ(jlev)=0.0d0
       endif
     enddo
 
@@ -436,6 +445,9 @@ CONTAINS
 !$OMP DO PRIVATE (JK,GD2D_r8,JENS,JJ,JI)
       do jk=1,nkgdimEns
         dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nens-1))
+        if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
+          dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
+        endif
         gd2d_r8(:,:)=0.0d0
         do jens=1,nens
           do jj=myLatBeg,myLatEnd
@@ -723,6 +735,9 @@ CONTAINS
 !$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
       do jk=1,nkgdimEns
         dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nens-1))
+        if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
+          dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
+        endif
         gd2d(:,:)=0.0d0
         do jens=1,nens
           do jj=myLatBeg,myLatEnd

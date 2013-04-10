@@ -138,6 +138,61 @@ module calcbmatrix_nanalvar4_mod
   end subroutine calcb_computeStats
 
 
+  subroutine calcb_diag_verticalcov
+    implicit none
+    integer :: ierr
+    real*4,pointer  :: ensPerturbations(:,:,:,:)
+    real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
+    real*8,allocatable :: verticalcov(:,:,:)
+
+    call setup
+
+    allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddev3d(ni,nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(verticalcov(ni,nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+
+    call readEnsemble(ensPerturbations)
+
+    call removeMean(ensPerturbations)
+
+    call uv_to_psichi(ensPerturbations)
+
+    call calcStddev3d(ensPerturbations,stddev3d)
+
+    call calcZonAvg(stddevZonAvg,stddev3d)
+
+!    call calcVerticalCov(ensPerturbations,verticalCov)
+
+!    call writeVerticalCov(verticalCov)
+
+    call writeStddev(stddevZonAvg,stddevZonAvg,stddev3d,stddev3d)
+
+    write(200,*) stddevZonAvg(1:nlevEns,:)
+    write(201,*) stddevZonAvg((1+1*nlevEns):(2*nlevEns),:)
+    write(202,*) stddevZonAvg((1+2*nlevEns):(3*nlevEns),:)
+    write(203,*) stddevZonAvg((1+3*nlevEns):(4*nlevEns),:)
+    write(204,*) stddevZonAvg((1+4*nlevEns),:)/1.0d2
+
+  end subroutine calcb_diag_verticalcov
+
+
   subroutine writeSpStats(ptot,theta)
     implicit none
     real*8 :: PtoT(:,:,:),theta(:,:)
@@ -226,11 +281,11 @@ module calcbmatrix_nanalvar4_mod
 
   subroutine setup
     implicit none
-    integer :: nulnam,nulens,jens,ierr,mpiMode
+    integer :: nulnam,jens,ierr,mpiMode
     integer :: fclos,fnom,fstouv,fstfrm
     character(len=3)   :: censnumber
     type(struct_vco), pointer :: vco_anl => null()
-    NAMELIST /NAMCALCB/nens,ntrunc,enspathname,ensfilebasename
+    NAMELIST /NAMCALCB/nens,ntrunc,ensfilebasename
 
     call mpc_printConstants(6)
 
@@ -239,7 +294,7 @@ module calcbmatrix_nanalvar4_mod
     ! parameters from namelist (date in filename should come directly from sequencer?)
     nens=96
     ntrunc=108
-    enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
+    enspathname='./ensemble/'
     ensfilebasename='2011011918_006_'
 
     nulnam=0
@@ -254,12 +309,7 @@ module calcbmatrix_nanalvar4_mod
       write(*,*) 'ensemble file:',jens,cflensin(jens)
     enddo
 
-    nulens=0
-    ierr = fnom(nulens,cflensin(1),'RND+OLD+R/O',0)
-    ierr = fstouv(nulens,'RND+OLD')
-    call vco_SetupFromFile(vco_anl,nulens,.true.)
-    ierr =  fstfrm(nulens)
-    ierr =  fclos (nulens)
+    call vco_SetupFromFile(vco_anl,cflensin(1),.true.)
 
     ni=gaus_ni
     nj=gaus_nj

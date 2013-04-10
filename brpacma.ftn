@@ -945,7 +945,7 @@ c inserted for IASI Quality control only :
                 call obs_headSet_i(lobsSpaceData,OBS_GQF,NUMHEADER,IGQISFLAGQUAL)
                 call obs_headSet_i(lobsSpaceData,OBS_GQL,NUMHEADER,IGQISQUALINDEXLOC)
 
-                if (all(obs_columnActive_IH(OBS_CF1:OBS_CF7))) then
+                if (all(obs_columnActive_IH(OBS_CF1:OBS_CF7)) .and. allocated(cfrac)) then
                    iclass=1
                    do iobs=OBS_CF1,OBS_CF7
                       call obs_headSet_i(lobsSpaceData,iobs,NUMHEADER,CFRAC(iclass))
@@ -953,7 +953,7 @@ c inserted for IASI Quality control only :
                    enddo
                 endif
 
-                if (all(obs_columnActive_RH(OBS_M1C1:OBS_M7C6))) then
+                if (all(obs_columnActive_RH(OBS_M1C1:OBS_M7C6)) .and. allocated(radmoy)) then
                    iclass=1
                    ichan=1
                    do iobs=OBS_M1C1,OBS_M7C6
@@ -966,7 +966,7 @@ c inserted for IASI Quality control only :
                    enddo
                 endif
 
-                if (all(obs_columnActive_RH(OBS_S1C1:OBS_S7C6))) then
+                if (all(obs_columnActive_RH(OBS_S1C1:OBS_S7C6)) .and. allocated(radstd)) then
                    iclass=1
                    ichan=1
                    do iobs=OBS_S1C1,OBS_S7C6

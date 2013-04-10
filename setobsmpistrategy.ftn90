@@ -1,5 +1,5 @@
 
-subroutine mpi_obs_ip(lobsSpaceData, mpiStrategy)
+subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   !
   ! PURPOSE:
   !  Header indices are distributed following the chosen strategy,
@@ -46,4 +46,4 @@ subroutine mpi_obs_ip(lobsSpaceData, mpiStrategy)
      stop
   end select
 
-end subroutine mpi_obs_ip
+end subroutine setObsMpiStrategy

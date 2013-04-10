@@ -88,19 +88,19 @@ MODULE mpi
     INTEGER :: ierr
     INTEGER :: npex,npey
     NAMELIST /ptopo/npex,npey
-    INTEGER :: unnmlist,fnom  
-    CHARACTER(len=10) :: fnptopo
+    INTEGER :: nulnam,fnom,fclos
 
-    unnmlist=555
     npex=1
     npey=1
-    fnptopo='ptopo_nml'
-    ierr=FNOM(unnmlist,fnptopo,'FTN+SEQ',0)
-    if(ierr /= 0) then
-      call abort3d('Cannot open file ptopo_nml! Abort!')
-    endif
-    READ(unnmlist,NML=ptopo)
-    CLOSE(unnmlist)
+
+    nulnam=0
+    ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
+    if(ierr.ne.0) call abort3d('mpi_getptopo: Error opening file ptopo_nml')
+    read(nulnam,nml=ptopo,iostat=ierr)
+    if(ierr.ne.0) call abort3d('mpi_getptopo: Error reading namelist')
+    write(*,nml=ptopo)
+    ierr=fclos(nulnam)
+
     pex=npex
     pey=npey
 
