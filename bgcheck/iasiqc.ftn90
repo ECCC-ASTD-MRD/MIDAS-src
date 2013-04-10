@@ -1025,10 +1025,14 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
              NOBIASI = NOBIASI + 1
              IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
              IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+             if  (.not.ASSIM_ALL(NOBIASI)) then
+                call obs_headSet_i(lobsSpaceData, OBS_ST1, index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,INDEX_HEADER),6) )
+             endif
              DO INDEX_BODY= IDATA, IDATEND
                 IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                   ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
                   ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                  call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(IASISCH(ICHN),NOBIASI))
                   DO NFLG = 0, BITFLAG
                     IF ( REJFLAG(IASISCH(ICHN),NOBIASI,NFLG) == 1 ) &
      &               call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
@@ -1046,20 +1050,18 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
       IPRO = iasi_loop_done * bunch_iasi + 1 
                 
       DO JN = 1, NPRF
-         IASIPRO(IPRO)%ETOP      = ETOP(JN)
-         IASIPRO(IPRO)%VTOP      = VTOP(JN)
-         IASIPRO(IPRO)%ECF       = 100.*ECF(JN)
-         IASIPRO(IPRO)%VCF       = 100.*VCF(JN)
-         IASIPRO(IPRO)%HE        = HE(JN)
-         IASIPRO(IPRO)%ZTS       = ZTS(JN)
-         IASIPRO(IPRO)%NGOOD     = NGOOD(JN)
-         IASIPRO(IPRO)%ZT        = ZT(col_getNumLev(lcolumnhr,'TH'),JN)
-         IASIPRO(IPRO)%ZTG       = ZTG(JN)
-         IASIPRO(IPRO)%ZLQEXP    = EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN))
-         IASIPRO(IPRO)%ZPS       = 100.*ZPS(JN)
-         IASIPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
-         IASIPRO(IPRO)%SFCTYP    = KSURF(JN)
-         IASIPRO(IPRO)%ASSIM_ALL = ASSIM_ALL(JN)
+         call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.*ECF(JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.*VCF(JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
+         call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
+         call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
+         call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
+         call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.*ZPS(JN) )
+         call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
          IPRO = IPRO + 1
       END DO
 

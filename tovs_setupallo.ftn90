@@ -366,47 +366,25 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
       WRITE(*,FMT=9201)
       CALL ABORT3D('TOVS_SETUPALLO        ')
   End If
-
 !___ new variables to add in airs burp file
 
   DO KRTID = 1, NSENSORS
-    IF ( PLATFORM(KRTID) == 9 .AND. &
-         SATELLITE (KRTID) == 2 .AND. &
-         INSTRUMENT(KRTID) == 11 ) THEN
-
-      allocate ( airspro(NOBAIRS), stat= alloc_status(1))
-
-      do jo = 1, NOBAIRS
-        allocate ( airspro(jo) % emisfc ( airssnch )   ,stat= alloc_status(2))
-
-        If( any(alloc_status /= 0) ) then
-            WRITE(*,FMT=9201)
-            CALL ABORT3D('TOVS_SETUPALLO        ')
-        End If
-      end do
-
-      EXIT
-
-    END IF
 
     IF ( PLATFORM(KRTID) == 10 .AND. &
          SATELLITE (KRTID) == 2 .AND. &
          INSTRUMENT(KRTID) == 16 ) THEN
 
-       allocate ( iasipro(NOBIASI), stat= alloc_status(1))
        if (nconf==101) allocate ( avhrr_bgck(NOBIASI), stat= alloc_status(2))
-       do jo = 1, NOBIASI
-          allocate ( iasipro(jo) % emisfc ( iasisnch )   ,stat= alloc_status(3))
-          If( any(alloc_status /= 0) ) then
-             WRITE(*,FMT=9201)
-             CALL ABORT3D('TOVS_SETUPALLO        ')
-          End If
-       end do
+       If( alloc_status(2)/=0 ) then
+          WRITE(*,FMT=9201)
+          CALL ABORT3D('TOVS_SETUPALLO        ')
+       End If
 
        EXIT
 
     END IF
 
  END DO
+
 
 END SUBROUTINE TOVS_SETUPALLO

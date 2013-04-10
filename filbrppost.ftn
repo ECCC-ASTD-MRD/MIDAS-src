@@ -186,7 +186,7 @@ C
      &         INSTRUMENT(KRTID) .EQ. 11 ) THEN
             IF ( NKOUNT == 1 ) THEN
               write(*,*) 'INPUT FILE TO AIRSABRP = ', CBURP(NKOUNT)
-              CALL AIRSABRP(CBURP(NKOUNT))
+              CALL AIRSABRP(lobsspacedata,CBURP(NKOUNT))
             ELSE
               WRITE(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE AIRS FILE ???'
             END IF
@@ -196,7 +196,7 @@ C
      &         INSTRUMENT(KRTID) .EQ. 16 ) THEN
             IF ( NKOUNT == 1 ) THEN
               write(*,*) 'INPUT FILE TO IASIABRP = ', CBURP(NKOUNT)
-              CALL IASIABRP(CBURP(NKOUNT))
+              CALL IASIABRP(lobsspacedata,CBURP(NKOUNT))
             ELSE
               WRITE(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
             END IF

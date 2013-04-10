@@ -187,7 +187,6 @@
       REAL*8, ALLOCATABLE ::   ZVAL3D(:)
       REAL(OBS_REAL), ALLOCATABLE :: radmoy(:,:)
       REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:)
-*
       REAL*8 XLAT, XLON
       
 *

@@ -302,8 +302,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                     ENDDO
                  endif
 !**************************************************************
-                 CLFR(NOBAIRS) = profiles_qc(nobtov)%clfr
-
+                 
+                 CLFR(NOBAIRS) = obs_headElem_i(lobsSpaceData,OBS_CLF,INDEX_HEADER)
                  DO JL = 1, NLEV
                     TOEXT(JL,NOBAIRS) = profiles(nobtov)%t(jl)
                     ZHOEXT(JL,NOBAIRS) = profiles_qc(nobtov)%z(jl)
@@ -479,7 +479,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   DO JN = 1, NPRF
      cpt=0
      DO JCH=1,NCO2
-        IF ( REJFLAG(airssch(ILIST2_PAIR(JCH)),JN,9)==1 .or. REJFLAG(airssch(ILIST2(JCH)),JN,9)==1 ) cpt=cpt+1
+        IF ( REJFLAG(AIRSSCH(ILIST2_PAIR(JCH)),JN,9)==1 .or. REJFLAG(AIRSSCH(ILIST2(JCH)),JN,9)==1 ) cpt=cpt+1
      ENDDO
      IF (cpt==nco2) THEN
         CLDFLAG(JN) = -1
@@ -700,10 +700,15 @@ type(struct_obs),intent(inout) :: lobsSpaceData
            NOBAIRS = NOBAIRS + 1
            IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
            IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+           if  (.not.ASSIM_ALL(NOBAIRS)) then
+              call obs_headSet_i(lobsSpaceData, OBS_ST1, index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,INDEX_HEADER),6) )
+           endif
            DO INDEX_BODY= IDATA, IDATEND
+              ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+              ICHN = MAX(0,MIN(ICHN,JPCH+1))
+              call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(AIRSSCH(ICHN),NOBAIRS))
+              
               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-                 ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                 ICHN = MAX(0,MIN(ICHN,JPCH+1))
                  DO NFLG = 0, BITFLAG
                     IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
                          call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
@@ -721,20 +726,18 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   IPRO = airs_loop_done * bunch_airs + 1
 
   DO JN = 1, NPRF
-     AIRSPRO(IPRO)%ETOP      = ETOP(JN)
-     AIRSPRO(IPRO)%VTOP      = VTOP(JN)
-     AIRSPRO(IPRO)%ECF       = 100.*ECF(JN)
-     AIRSPRO(IPRO)%VCF       = 100.*VCF(JN)
-     AIRSPRO(IPRO)%HE        = HE(JN)
-     AIRSPRO(IPRO)%ZTS       = ZTS(JN)
-     AIRSPRO(IPRO)%NGOOD     = NGOOD(JN)
-     AIRSPRO(IPRO)%ZT        = ZT(col_getNumLev(lcolumnhr,'TH'),JN)
-     AIRSPRO(IPRO)%ZTG       = ZTG(JN)
-     AIRSPRO(IPRO)%ZLQEXP    = EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN))
-     AIRSPRO(IPRO)%ZPS       = 100.*ZPS(JN)
-     AIRSPRO(IPRO)%EMISFC(:) = EMI_SFC(:,JN)
-     AIRSPRO(IPRO)%SFCTYP    = KSURF(JN)
-     AIRSPRO(IPRO)%ASSIM_ALL = ASSIM_ALL(JN)
+     call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.*ECF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.*VCF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
+     call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
+     call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.*ZPS(JN) )
+     call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
      IPRO = IPRO + 1
   END DO
 
@@ -760,34 +763,4 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   deallocate (CORFLAG)
 
 END SUBROUTINE AIRSQC
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

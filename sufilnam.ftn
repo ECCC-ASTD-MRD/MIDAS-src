@@ -50,26 +50,25 @@
 *     .      Bin He ,  ARMA,  Jan. 2009 .  
 *                    - Implemented  MPI version .   
 *
+*            Bin HE,   *ARMA/MRB*   Mar. 2013
+*                    - Cleanup the code  ..  
 *
 ************************************************************************
 #endif
 *
 #include "comct0.cdk"
 #include "comvfiles.cdk"
-      INTEGER INFIL,IER,INBLKS,II,I,JJ
-      INTEGER FNOM,FCLOS,FSTOUV,NUMBLKS
-      PARAMETER(INFIL=129)
-      CHARACTER *128 CLVALU(INFIL),CFAMI(INFIL)
-      CHARACTER *36 OneSatOBS 
-      INTEGER   istatus ,chlength 
-      LOGICAL   isExist_L 
-************************************************************************
-*
-      DATA CFAMI  /'ST','TR','ST','ST','ST','ST','ST','ST','ST'
-     &     ,8*'UA',8*'HU',8*'ST',8*'AI',8*'SF',8*'MI',8*'TO',8*'SW'
-     &     ,8*'OZ',8*'AC',8*'GO',8*'SC',8*'PR',8*'RO',8*'GP'/
-************************************************************************
-
+      INTEGER,PARAMETER :: INFIL=129
+      CHARACTER(len=128) ::  CLVALU(INFIL)
+      CHARACTER(len=4) :: CFAMI(INFIL)
+      INTEGER :: INFIL,IER,INBLKS,II,I,JJ
+      INTEGER :: FNOM,FCLOS,NUMBLKS
+      LOGICAL ::  isExist_L 
+!----------------------------------------------------------------------
+!    0. Initialize CLVALU and CFAMI  . 
+       CLVALU(:)=' '
+       CFAMI(:)=' ' 
+!    1. hardcode the names of input files.  
        CLVALU(1) = './flnml'  
        CLVALU(2) = './obscov'  
        CLVALU(3) = './trlm'  
@@ -83,142 +82,96 @@
        CLVALU(10) = 'brpuan'  
        CLVALU(11) = 'brpuas'  
        CLVALU(12) = 'brpai'  
-       CLVALU(13) = 'brpain'  
-       CLVALU(14) = 'brpais'  
-       CLVALU(15) = 'brpsfc'  
-       CLVALU(16) = 'brpsf'  
-       CLVALU(17) = 'brptov'  
-       CLVALU(18) = 'brpsw'  
-       CLVALU(19) = 'brpswgoes9'  
-       CLVALU(20) = 'brpswgoese'  
-       CLVALU(21) = 'brpswgoesw'  
-       CLVALU(22) = 'brpswmodis'  
-       CLVALU(23) = 'brpswmtsate'  
-       CLVALU(24) = 'brpswmtsatw'  
+       CLVALU(13) = 'brpaie'  
+       CLVALU(14) = 'brpaiw'  
+       CLVALU(15) = 'brpain'  
+       CLVALU(16) = 'brpais'  
+       CLVALU(17) = 'brpsfc'  
+       CLVALU(18) = 'brpsf'  
+       CLVALU(19) = 'brptov'  
+       CLVALU(20) = 'brpsw'  
+       CLVALU(21) = 'brpswgoes9'  
+       CLVALU(22) = 'brpswgoese'  
+       CLVALU(23) = 'brpswgoesw'  
+       CLVALU(24) = 'brpswmodis'  
+       CLVALU(25) = 'brpswmtsate'  
+       CLVALU(26) = 'brpswmtsatw'  
 
-       CLVALU(25) = 'brpgo'  
-       CLVALU(26) = 'brpsc'  
-       CLVALU(27) = 'brppr'  
-       CLVALU(28) = 'brpro'  
-       CLVALU(29) = 'brphum'  
-       CLVALU(30) = 'brpsat'  
-       CLVALU(31) = 'brpssm'  
-       CLVALU(32) = 'brpo3'  
-       CLVALU(33) = 'brpoz'  
-       CLVALU(34) = 'brpgp'  
-  
-       CLVALU(35) = ' '  
-
-       OneSatObs  = ''  
-
+       CLVALU(27) = 'brpgo'  
+       CLVALU(28) = 'brpsc'  
+       CLVALU(29) = 'brppr'  
+       CLVALU(30) = 'brpro'  
+       CLVALU(31) = 'brphum'  
+       CLVALU(32) = 'brpsat'  
+       CLVALU(33) = 'brpssm'  
+       CLVALU(34) = 'brpo3'  
+       CLVALU(35) = 'brpoz'  
+       CLVALU(36) = 'brpgp'  
+! hard-code the Family names..they should match with the input files .    
        CFAMI(10)  = 'UA' 
        CFAMI(11)  = 'UA' 
        CFAMI(12)  = 'AI' 
        CFAMI(13)  = 'AI' 
        CFAMI(14)  = 'AI' 
-       CFAMI(15)  = 'SF' 
-       CFAMI(16)  = 'SF' 
-       CFAMI(17)  = 'TO' 
-       CFAMI(18)  = 'SW' 
-       CFAMI(19)  = 'SW' 
+       CFAMI(15)  = 'AI' 
+       CFAMI(16)  = 'AI' 
+       CFAMI(17)  = 'SF' 
+       CFAMI(18)  = 'SF' 
+       CFAMI(19)  = 'TO' 
        CFAMI(20)  = 'SW' 
        CFAMI(21)  = 'SW' 
        CFAMI(22)  = 'SW' 
        CFAMI(23)  = 'SW' 
        CFAMI(24)  = 'SW' 
-       CFAMI(25)  = 'GO' 
-       CFAMI(26)  = 'SC' 
-       CFAMI(27)  = 'PR' 
-       CFAMI(28)  = 'RO' 
-       CFAMI(29)  = 'HU' 
-       CFAMI(30)  = 'ST' 
-       CFAMI(31)  = 'MI' 
-       CFAMI(32)  = 'OZ' 
-       CFAMI(33)  = 'OZ' 
-       CFAMI(34)  = 'GP' 
-       CFAMI(35)  = ' ' 
-C
-C------ Preconditioning..    
+       CFAMI(25)  = 'SW' 
+       CFAMI(26)  = 'SW' 
+       CFAMI(27)  = 'GO' 
+       CFAMI(28)  = 'SC' 
+       CFAMI(29)  = 'PR' 
+       CFAMI(30)  = 'RO' 
+       CFAMI(31)  = 'HU' 
+       CFAMI(32)  = 'ST' 
+       CFAMI(33)  = 'MI' 
+       CFAMI(34)  = 'OZ' 
+       CFAMI(35)  = 'OZ' 
+       CFAMI(36)  = 'GP' 
+!C
+! 3. ------ check Preconditioning..    
       INQUIRE(FILE=CLVALU(9),EXIST=isExist_L)
-      if ( isExist_L ) then
+      IF ( isExist_L ) THEN
         CPCONF=clvalu(9)
         lpcon=.true.
-      else
+      ELSE
         lpcon=.false.
-      endif
-c
-C-------Check Burp files.... 
-      CALL GET_ENVIRONMENT_VARIABLE('VAR3D_BGCK',OneSatObs,chlength,istatus,.true.)  
-      print*,'OneSatObs = ',OneSatObs
-      print*,'NCONF LEN OF OneSatObs = ',nconf,len_trim(OneSatObs) 
-
-      IF((NCONF == 101 .or. NCONF == 121).and. len_trim(OneSatObs) > 0 ) THEN
-         ii=0
-         NKOUNT=1
-         INQUIRE(FILE=OneSatObs,EXIST=isExist_L) 
-         IF(isExist_L)THEN
-           IER=FNOM(II,OneSatObs,'RND+OLD',0) 
-           IF(ier == 0) THEN
-              INBLKS = -1
-              INBLKS=NUMBLKS(II)
-              IF(INBLKS >0 )THEN
-                CBURP(1)=OneSatObs
-                CFAM(1)='SW'
-              ENDIF 
-           ENDIF  
-           IER = FCLOS(II)  
-           DO jj=1,INFIL
-             IF(oneSatObs == CLVALU(jj) ) THEN
-               CFAM(1)=CFAMI(jj) 
-               EXIT
-             ENDIF
-           ENDDO 
-         ELSE
-           CALL ABORT3D('SUFILNAM:file doesnot exist!')  
-         ENDIF 
-      ELSE 
-        NKOUNT=0
-        DO JJ=10,INFIL
-        II=0
-        IF(CLVALU(JJ) /= '') THEN
+      ENDIF 
+!c
+!C 4. -------Check Burp files.... 
+       NKOUNT=0
+       II=0 
+       DO JJ=10,INFIL
+         IF(CLVALU(JJ) /= '') THEN
            INQUIRE(FILE=CLVALU(JJ),EXIST=isExist_L)
-      !!!IF((NCONF == 101 .or. NCONF == 121) .and. (CLVALU(JJ) == 'brptov'.or.CLVALU(JJ) == 'brpais'.or. CLVALU(JJ) == 'brpain')) isExist_L=.false. 
-           IF(NCONF == 101 .and. (CLVALU(JJ) == 'brptov'.or.CLVALU(JJ) == 'brpais'.or. CLVALU(JJ) == 'brpain')) isExist_L=.false. 
-        ELSE
+         ELSE
            EXIT  
-        ENDIF
-        IF ( isExist_L )THEN
-          IER=FNOM(II,CLVALU(JJ),'RND+OLD',0)
-          WRITE(*,*)' Open File : ',CLVALU(JJ)  
-          IF ( IER .EQ. 0 ) THEN
-            INBLKS= -1
-            INBLKS=NUMBLKS(II)
-            IF ( INBLKS .GT. 0 ) THEN
-
-C=======================================
-              NKOUNT=NKOUNT+1
-              CBURP(NKOUNT)=CLVALU(JJ)
-              CFAM(NKOUNT)=CFAMI(JJ)
-C=======================================
-
-            ENDIF
-          ENDIF
-          IER= FCLOS(II)
-        ENDIF
-        END DO
-      ENDIF
-C
-C Hard coded restart file name
-      crestart='wrmrestart'
-      INQUIRE(file=crestart,exist=lrestart)
-C
-      WRITE(*,*) ' '
-      WRITE(*,*)' NUMBER OF BURP FILES IS :',NKOUNT
-      WRITE(*,*)'TYPE  NAME '
-      WRITE(*,*)'----  ---- '
+         ENDIF 
+         IF (isExist_L)THEN
+            IER=FNOM(II,CLVALU(JJ),'RND+OLD',0)
+            IF ( IER == 0 ) THEN
+               WRITE(*,*)' Open File : ',CLVALU(JJ)
+               INBLKS=NUMBLKS(II)
+               IF ( INBLKS .GT. 0 ) THEN
+                 NKOUNT=NKOUNT+1
+                 CBURP(NKOUNT)=CLVALU(JJ)
+                 CFAM(NKOUNT)=CFAMI(JJ)
+               ENDIF 
+            ENDIF  !  
+            IER= FCLOS(II)
+         ENDIF 
+      ENDDO !  JJ 
 
       DO JJ=1,NKOUNT
-        WRITE(*,'(1X,A2,1X,A128)' )CFAM(JJ),CBURP(JJ)
+        WRITE(*,'(1X,A2,1X,A128)' ) CFAM(JJ),CBURP(JJ)
       END DO
+
       RETURN
       END
