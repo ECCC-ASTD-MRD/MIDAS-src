@@ -905,9 +905,9 @@ c               ENDIF
                 call obs_headSet_r(lobsSpaceData,OBS_ALT,NUMHEADER, (REAL(IALT,8)-400))
                 call obs_headSet_i(lobsSpaceData,OBS_NLV,NUMHEADER, INBON)
                 if(idburp .eq. 132) then
-                  call obs_setFamily(lobsSpaceData,'UA'  ,headerIndex=numheader)
+                  call obs_setFamily(lobsSpaceData,'UA'  ,headerIndex_in=numheader)
                 else
-                  call obs_setFamily(lobsSpaceData,cdtype,headerIndex=numheader)
+                  call obs_setFamily(lobsSpaceData,cdtype,headerIndex_in=numheader)
                 endif
 *
                 IF ( NUMHEADER .EQ. 1) THEN
@@ -944,7 +944,7 @@ c inserted for IASI Quality control only :
                 call obs_headSet_i(lobsSpaceData,OBS_GQF,NUMHEADER,IGQISFLAGQUAL)
                 call obs_headSet_i(lobsSpaceData,OBS_GQL,NUMHEADER,IGQISQUALINDEXLOC)
 
-                if (all(obs_columnActive_IH(OBS_CF1:OBS_CF7)) .and. allocated(cfrac)) then
+                if (NCONF==101 .and. allocated(cfrac)) then
                    iclass=1
                    do iobs=OBS_CF1,OBS_CF7
                       call obs_headSet_i(lobsSpaceData,iobs,NUMHEADER,CFRAC(iclass))
@@ -952,7 +952,7 @@ c inserted for IASI Quality control only :
                    enddo
                 endif
 
-                if (all(obs_columnActive_RH(OBS_M1C1:OBS_M7C6)) .and. allocated(radmoy)) then
+                if (NCONF==101 .and. allocated(radmoy)) then
                    iclass=1
                    ichan=1
                    do iobs=OBS_M1C1,OBS_M7C6
@@ -965,7 +965,7 @@ c inserted for IASI Quality control only :
                    enddo
                 endif
 
-                if (all(obs_columnActive_RH(OBS_S1C1:OBS_S7C6)) .and. allocated(radstd)) then
+                if (NCONF==101 .and. allocated(radstd)) then
                    iclass=1
                    ichan=1
                    do iobs=OBS_S1C1,OBS_S7C6
