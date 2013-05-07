@@ -28,6 +28,8 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 !                  - adapt to CSR
 !revision 003  : s. heilliette
 !                  - adapt to IASI
+!revision 004  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
 !    -------------------
 !     purpose:
 !
@@ -42,7 +44,6 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 !implicits
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comtovst.cdk"
 
   type(struct_obs) :: lobsSpaceData
   real*8, parameter :: q_mixratio_to_ppmv  = 1.60771704e+6

@@ -32,6 +32,9 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 !revision 003  : s. heilliette
 !                  -modifications for IASI (codtyp 186)
 !
+!revision 004  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
+!
 !    -------------------
 !     purpose:
 !
@@ -46,7 +49,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   implicit none
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comtovst.cdk"
 
   type(struct_obs) :: lobsSpaceData
   integer :: isens, indxchn, indxtovs

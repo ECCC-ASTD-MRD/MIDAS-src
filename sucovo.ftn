@@ -23,6 +23,11 @@
 **    Purpose:
 *             -initialize observation error standard deviations
 *             ***NOTE: "contains" subroutines READCOVO and SETERR
+*
+*Revisions:
+*   S. Macpherson   April 2013
+*        - Modified to handle TOVERRST from new-format stats_tovs file
+*
 *Arguments
 *     none
 *
@@ -31,6 +36,9 @@
       use obsSpaceData_mod
       use bufr
       IMPLICIT NONE
+
+#include "partov.cdk"
+
       type(struct_obs) :: lobsSpaceData
       LOGICAL :: LnewExists,LoldExists
 C
@@ -60,6 +68,11 @@ C
 C 5.  SURFACE
 C     ---------
       REAL*8     XSFCOBERR(57,1,JPIDBRP)
+C
+c
+c 7.  TOVS
+c     ---------
+      REAL*8     TOVERRST(JPCHMAX,JPNSATMAX)
 C
 C ---------------------------------
 C     AIREP : ASDAR : SATOB
@@ -473,6 +486,16 @@ C
          IERR=FCLOS(NULSTAT)    
       ENDIF ! newExists
 
+C
+C================================================================
+C
+C     TOVS OBSERVATION ERRORS from stats_tovs file
+C
+C================================================================
+C
+      CALL SUTOVST(TOVERRST)
+c
+c
       RETURN
       END SUBROUTINE READCOVO
 
@@ -492,7 +515,6 @@ C
 *implicits
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comtovst.cdk"
 #include "comgpsgb.cdk"
 *
 C
@@ -505,7 +527,7 @@ C
       INTEGER ITYP,IFLG,IASS,ILEM,ilyr
       INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
       INTEGER ILAT1,ILAT2
-      INTEGER ILANSEA,ISRCHEQ,INDXREG,INDXCLD,INDXM
+      INTEGER ILANSEA,ISRCHEQ,INDXM
       INTEGER INDXSAT,ISATNO
       INTEGER ICHN,IPLATF,INSTR,IPLATFORM,INSTRUM
       REAL*8 DELTAP, DELTAPMIN
@@ -699,10 +721,8 @@ C
      S                 ITYP .EQ. BUFR_NBT2 .OR.
      S                 ITYP .EQ. BUFR_NBT3     )THEN
                      ICHN    = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                     INDXM = ILANSEA
-                     IF (INDXM .EQ. 2 ) INDXM = 0
-                     INDXREG = ISRCHEQ(MLISREG,NREGST,INDXM)
-                     INDXCLD = ISRCHEQ(MLISCLD,NCLDST,ITECH)
+c                     INDXM = ILANSEA
+c                     IF (INDXM .EQ. 2 ) INDXM = 0
                      CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
                      CALL MAP_INSTRUM(INSTR,INSTRUM,SENSORTYPE)
                      DO JN = 1, NSENSORS
@@ -710,7 +730,7 @@ C
      &                       ISAT      .EQ. SATELLITE (JN) .AND.
      &                       INSTRUM   .EQ. INSTRUMENT(JN)      ) THEN
                            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,
-     S                         TOVERRST(ICHN,INDXCLD,INDXREG,JN))
+     S                         TOVERRST(ICHN,JN))
 
                         ENDIF
                      ENDDO

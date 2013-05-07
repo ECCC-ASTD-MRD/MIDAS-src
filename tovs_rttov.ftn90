@@ -29,6 +29,8 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
 !                  - adapt to CSR
 !revision 003  : s. heilliette
 !                  - adapt to IASI
+!revision 004  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
 !
 !    -------------------
 !     purpose:
@@ -58,7 +60,6 @@ end interface
 !implicits
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comtovst.cdk"
 #include "comct0.cdk"
 
   type(struct_obs) :: lobsSpaceData

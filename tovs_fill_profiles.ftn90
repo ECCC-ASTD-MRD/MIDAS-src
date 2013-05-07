@@ -34,6 +34,9 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !revision 002  : j. halle  *cmda/smc  march 2007
 !                    -fix zvlev for hybrid coordinate
 !
+!revision 003  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
+!
 !    -------------------
 !     purpose: fill profiles structure with info from obs. space
 !
@@ -50,7 +53,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   implicit none
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comtovst.cdk"
 #include "comct0.cdk"
 
   type(struct_obs) :: lobsSpaceData
@@ -74,8 +76,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   integer :: nlevels, no_id
   integer :: j, i, krtid, jf, iobs, jj
   integer :: ilowlvl_T,ilowlvl_M, knpf, jo
-  integer :: jk, jn, jl, indxm
-  integer :: ilansea, indxreg
+  integer :: jk, jn, jl
+  integer :: ilansea
   integer :: knlev
 
   real*8, allocatable :: to    (:,:)
@@ -93,8 +95,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 
   real*8, allocatable :: toto3obs(:)
 
-  integer  isrcheq
-  external isrcheq
 !  external lintv2, extrap
   external intavg, extrap
   external lintv2
@@ -190,9 +190,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
 
      ilansea = obs_headElem_i(lobsSpaceData,OBS_OFL,jo)
-     indxm = ilansea
-     if (indxm .eq. 2 ) indxm = 0
-     indxreg = isrcheq ( mlisreg, nregst, indxm )
      ksurf(knpf) = ilansea
 
 !    extract satellite zenith and azimuth angle, 

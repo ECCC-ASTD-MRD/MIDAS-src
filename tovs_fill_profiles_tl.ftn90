@@ -29,6 +29,9 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !revision 002  : j. halle  *cmda/smc  march 2007
 !                 -fix zvlev for hybrid coordinate
 !
+!revision 003  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
+!
 !    -------------------
 !     purpose: fill tangent linear profiles structure with info from obs. space
 !
@@ -44,7 +47,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 !implicits
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comtovst.cdk"
 
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumn,lcolumng
@@ -61,8 +63,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
   integer :: knlev, no_id
   integer :: j, i, krtid, jf, iobs, jj
   integer :: ilowlvl, knpf, jo
-  integer :: jk, jn, jl, indxm
-  integer :: ilansea, indxreg
+  integer :: jk, jn, jl
   integer :: knkgdimo
 
   real*8, allocatable :: to_tl    (:,:)
@@ -79,8 +80,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 
   real*8 :: zptop, zptopmbs
 
-  integer  isrcheq
-  external isrcheq
 !  external lintv2, extrap
   external intavg, extrap
   external exthum4
@@ -160,12 +159,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
      jo = lobsno(iobs)
 
      knpf = knpf + 1
-!    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-
-     ilansea = obs_headElem_i(lobsSpaceData,OBS_OFL,jo)
-     indxm = ilansea
-     if (indxm .eq. 2 ) indxm = 0
-     indxreg = isrcheq ( mlisreg, nregst, indxm )
 
      zps_tl  (knpf) = col_getElem(lcolumn,1,jo,'P0')*MPC_MBAR_PER_PA_R8
      do jl = 1, knlev

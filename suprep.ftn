@@ -95,6 +95,8 @@
 *           must now be specified in namelist like all other elements)
 *          L. Fillion *ARMA/EC- 7 Oct 2009 - Include Rotated global Gaussian grid option.
 *          L. Fillion *ARMA/EC- 4 May 2010 - Update on v_11_01_2B.
+*          S. Macpherson  ARMA  - Apr 2013 - Remove #include comtovst.cdk, partov.cdk
+*
 *
 **    Purpose:
 *             -Select the data in the CMA file which is to be assimilated
@@ -110,9 +112,7 @@
 *implicits
 *
 #include "comct0.cdk"
-#include "partov.cdk"
 #include "comfilt.cdk"
-#include "comtovst.cdk"
 #include "comgpsgb.cdk"
 C
 C  .......  DEFINITION OF A FEW BUFR ELEMENTS ..........................
@@ -485,15 +485,12 @@ C        d.2 Data from this satellite to be assimilated?
 C
 C             .....this check not done anymore, jh may 2002....
 C
-C        d.3 Invalid land/sea/sea-ice flag, processing technique
+C        d.3 Invalid land/sea/sea-ice flag
 C
               ILANSEA  = obs_headElem_i(lobsSpaceData,OBS_OFL,INDEX_HEADER)
               INDXM = ILANSEA
               IF (INDXM .EQ. 2 ) INDXM = 0
-              INDXREG  = ISRCHEQ(MLISREG,NREGST,INDXM)
-              IPROCES  = obs_headElem_i(lobsSpaceData,OBS_TEC,INDEX_HEADER)
-              INDXCLD  = ISRCHEQ(MLISCLD,NCLDST,IPROCES)
-              IF ( INDXREG .EQ.0 .OR. INDXCLD .EQ.0  ) THEN
+              IF (INDXM .LT. 0 .OR. INDXM .GT. 1  ) THEN
                 LLOK = .FALSE.
               ENDIF
 C

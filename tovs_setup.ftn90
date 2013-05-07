@@ -41,6 +41,8 @@ SUBROUTINE TOVS_SETUP
 !          J. Halle   *CMDA/SMC*  may 2006
 !                     - change routine name,
 !                     - adapt to RTTOV-8.
+!          S. Macpherson *ARMA*  apr 2013
+!                     - remove call to s/r SUTOVST (now done in s/r sucvo)
 !
 !    -------------------
 !     Purpose: to read namelist NAMTOV, initialize the observation error covariance
@@ -64,7 +66,6 @@ SUBROUTINE TOVS_SETUP
   LOGICAL LLTOV
 
   EXTERNAL SENSORS
-  EXTERNAL SUTOVST
   EXTERNAL ABORT3D, READNML
 
   INTEGER VERBOSITY_LEVEL
@@ -171,7 +172,7 @@ SUBROUTINE TOVS_SETUP
 
   200  CONTINUE
 
-  CALL SUTOVST
+!!  CALL SUTOVST  ... s.m. apr 2013: moved to sucvo (s/r readcovo)
 
 !     3. Initialize TOVS radiance transfer model
 !     .  ---------------------------------------
