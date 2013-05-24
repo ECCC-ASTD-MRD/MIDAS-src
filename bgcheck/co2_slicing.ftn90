@@ -7,7 +7,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 !       AUTHOR:   L. GARAND               July 2004
 !                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
 !
-!       REVISION:
+!       REVISION: 001 O. Pancrati various improvements
 !
 !       OBJECT:   CLOUD TOP FROM CO2 SLICING AND CLOUD FRACTION ESTIMATE
 !
@@ -141,7 +141,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 
            DO J = LEV_START(JN), JPMAX
               IF ( FC(JC,J) > 0. .AND. FC(JC_PAIR,J) > 0. )  &
-                   &        DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J))*EMI_RATIO
+                   DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J))*EMI_RATIO
            END DO
 
            A_DRAP(:) = ABS(DRAP(JCH,:))
@@ -151,8 +151,8 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 !**         do not allow fc negative (i.e. drap(jch,j) = 9999.)
 
               IF ( DRAP(JCH,J) > 9000. .AND. &
-                   &           A_DRAP(J-1) < EPS .AND. &
-                   &           A_DRAP(J+1) < EPS ) CYCLE channels
+                   A_DRAP(J-1) < EPS .AND. &
+                   A_DRAP(J+1) < EPS ) CYCLE channels
 
               VAL = DRAP(JCH,J) / ( DRAP(JCH,J-1) )
 
@@ -168,13 +168,13 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
                  VAL3 = DRAP(JCH,J)   / ( DRAP(JCH,J+1) )
 
                  IF ( VAL1 > 0. .AND.  & 
-                      &             VAL2 > 0. .AND.  & 
-                      &             VAL3 > 0. .AND.  &
-                      &             A_DRAP(J-2) > A_DRAP(J-1) .AND.  &
-                      &             A_DRAP(J-3) > A_DRAP(J-2) .AND.  &
-                      &             A_DRAP(J)   < 9000.       .AND.  &
-                      &             A_DRAP(J+1) > A_DRAP(J) )        &
-                      &         THEN
+                      VAL2 > 0. .AND.  & 
+                      VAL3 > 0. .AND.  &
+                      A_DRAP(J-2) > A_DRAP(J-1) .AND.  &
+                      A_DRAP(J-3) > A_DRAP(J-2) .AND.  &
+                      A_DRAP(J)   < 9000.       .AND.  &
+                      A_DRAP(J+1) > A_DRAP(J) )        &
+                      THEN
                     PTOP(JCH,JN) = PLEV(J)
                     NTOP(JCH,JN) = J
                  END IF
@@ -182,7 +182,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
                  EXIT levels
                       
               END IF
-
+              
            END DO levels
 
            J = NTOP(JCH,JN)
@@ -199,22 +199,22 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
            END IF
 
            IF ( ABS(RCLD(JC,JN,J)-RCAL(JC,JN)) > 0. )       &
-                &      FCLOUD(JCH,JN) = (ROBS(JC,JN)-RCAL(JC,JN)) /   &
-                &                       (RCLD(JC,JN,J)-RCAL(JC,JN))
+                FCLOUD(JCH,JN) = (ROBS(JC,JN)-RCAL(JC,JN)) /   &
+                (RCLD(JC,JN,J)-RCAL(JC,JN))
 
 !**       find passage to zero if it exists and interpolate to exact pressure
 
            PTOP(JCH,JN) = PLEV(J-1) - DRAP(JCH,J-1) /                        &
-                &           ( DRAP(JCH,J) - DRAP(JCH,J-1) ) * ( PLEV(J) - PLEV(J-1) )
+                ( DRAP(JCH,J) - DRAP(JCH,J-1) ) * ( PLEV(J) - PLEV(J-1) )
 !**       find cloud radiance at zero crossing to use to get cloud fraction
 
            FCINT = FC(JC,J-1) + ( FC(JC,J) - FC(JC,J-1) ) /                  &
-                &           ( PLEV(J) - PLEV(J-1) ) * ( PTOP(JCH,JN) - PLEV(J-1) )
+                ( PLEV(J) - PLEV(J-1) ) * ( PTOP(JCH,JN) - PLEV(J-1) )
 
 !**       find cloud fraction based on exact cloud top
 
            IF ( ABS(FCINT) > 0. )                                            &
-                &      FCLOUD(JCH,JN) = ( RCAL(JC,JN) - ROBS(JC,JN) ) / FCINT
+                FCLOUD(JCH,JN) = ( RCAL(JC,JN) - ROBS(JC,JN) ) / FCINT
 
            FCLOUD(JCH,JN) = MIN ( FCLOUD(JCH,JN),  1.5D0 )
            FCLOUD(JCH,JN) = MAX ( FCLOUD(JCH,JN), -0.5D0 )

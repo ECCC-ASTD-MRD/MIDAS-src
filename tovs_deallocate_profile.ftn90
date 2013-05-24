@@ -31,7 +31,7 @@ subroutine tovs_deallocate_profile(pprofile)
 !     pprofile: array of derived type profile
 !
 #endif
-  use mod_tovs
+  use tovs_mod ,only : profile_type
 
   implicit none
 

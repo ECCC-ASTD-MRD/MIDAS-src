@@ -18,7 +18,7 @@
 #if defined (DOC)
 *
 ***s/r MAP_SAT : Map burp satellite identifier (element #1007)
-*                to RTTOV-7 platform and satellite.
+*                to RTTOV-10 platform and satellite.
 *
 *Author  :       J. Halle *CMDA/SMC May 2002
 *
@@ -36,6 +36,9 @@
 *
 *Revision 005  : S. Macpherson *ARMA  Jul 2010
 *                . add SSMIS satellites DMSP17-18
+*
+*Revision 006  : S. Macpherson *ARMA  Feb 2013
+*                . add NPP/ATMS codtyp=192
 *
 *    -------------------
 **    Purpose:  Map burp satellite identifier (element #1007)
@@ -63,6 +66,7 @@
 *               ADEOS             14
 *               MTSAT             15
 *               CORIOLIS          16
+*               NPP               17
 *               ---------------------------------------------
 *
 *               Example: NOAA15, which has a burp satellite identifier value of 206,
@@ -83,7 +87,7 @@
       INTEGER J,ISATBURP,IPLATFORM,ISAT
 *
       INTEGER MXSATBURP
-      PARAMETER (MXSATBURP   = 44)
+      PARAMETER (MXSATBURP   = 45)
 *
       INTEGER LISTBURP(MXSATBURP)
       INTEGER LISTPLAT(MXSATBURP)
@@ -97,7 +101,7 @@
      &                203, 204, 205, 206, 207, 241, 242, 243, 244, 245,
      &                246, 247, 248, 249, 252, 253, 254, 255, 256, 500,
      &                501, 510, 784, 208, 209, 003, 004, 005, 223, 171,
-     &                056, 257, 285, 286/
+     &                056, 257, 285, 286, 224/
 *
 **            Table of RTTOV-7 platform identifier
 **            ------------------------------------
@@ -106,7 +110,7 @@
      &                001, 001, 001, 001, 001, 002, 002, 002, 002, 002,
      &                002, 002, 002, 002, 004, 004, 004, 004, 004, 013,
      &                013, 006, 009, 001, 001, 010, 010, 010, 001, 015,
-     &                012, 004, 002, 002/
+     &                012, 004, 002, 002, 017/
 *
 **            Table of RTTOV-7 satellite identifier
 **            ------------------------------------
@@ -115,7 +119,7 @@
      &                011, 012, 014, 015, 016, 008, 009, 010, 011, 012,
      &                013, 014, 015, 016, 008, 009, 010, 011, 012, 003,
      &                004, 002, 002, 017, 018, 001, 002, 003, 019, 001,
-     &                002, 013, 017, 018/
+     &                002, 013, 017, 018, 000/
 C
 C*    .  1.0 Find platform and satellite
 C     .      ---------------------------

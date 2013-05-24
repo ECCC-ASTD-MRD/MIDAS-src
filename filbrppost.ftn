@@ -50,7 +50,10 @@
 *                   -Modifications for AIRS: add more variables to file
 *             Bin He    *ARMA/MRB - Feb.2010 
 *                   - MPI Parallelization  .  
-*
+*             S. Heilliette  *ARMA/MRB -  
+*                   - Added IASI data.
+*	      R. McTaggart-Cowan *RPN - Mar 2012
+*		    - Initialize string before namelist read 
 *
 ************************************************************************
 #endif
@@ -103,6 +106,7 @@ C
 C     DEFAULTS
 C     ------------------
       NELCMA=4
+      CSAV(:)=''
       CSAV(1)='OMA'
       CSAV(2)='OMP'
       CSAV(3)='OER'
@@ -199,6 +203,16 @@ C
               CALL IASIABRP(lobsspacedata,CBURP(NKOUNT))
             ELSE
               WRITE(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
+            END IF
+          END IF
+          IF ( PLATFORM(KRTID) .EQ. 17 .AND.
+     &         SATELLITE(KRTID) .EQ. 0 .AND.
+     &         INSTRUMENT(KRTID) .EQ. 27 ) THEN
+            IF ( NKOUNT == 1 ) THEN
+              write(*,*) 'INPUT FILE TO CRISABRP = ', CBURP(NKOUNT)
+              CALL CRISABRP(lobsspacedata,CBURP(NKOUNT))
+            ELSE
+              WRITE(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE CrIS FILE ???'
             END IF
           END IF
         END DO

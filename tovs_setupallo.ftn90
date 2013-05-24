@@ -48,11 +48,16 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 !            - adapt to CSR
 !           S. Heilliette
 !            - adapt to IASI
+!            - adapt to rttov 10.0 (october 2010)
+!           S. Macpherson
+!            - adapt to ATMS (codtyp 192)
+!           S.  Heilliette
+!            - adapt to CrIS (codtyp 193)
 #endif
 
-  Use mod_tovs  
-  use airsch
-  use iasich
+  Use tovs_mod  
+  use hir_chans
+  Use rttov_const, only : q_mixratio_to_ppmv
   use obsSpaceData_mod
 
   IMPLICIT NONE
@@ -60,16 +65,16 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 #include "comct0.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "rttov_setup.h"
+#include "rttov_setup.interface"
+#include "rttov_alloc_prof.interface"
 
   type(struct_obs) :: lobsSpaceData
-  INTEGER VERBOSITY_LEVEL,ERR_UNIT
+  INTEGER :: VERBOSITY_LEVEL,ERR_UNIT=0
+
   Integer :: alloc_status(40)
-  Integer, Allocatable :: setup_errorstatus(:) ! setup return code
+  Integer :: setup_errorstatus ! setup return code
 
-  Real(8), Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
-
-  INTEGER :: no_id, ival, IPLATFORM, ISAT, INSTRUM, KRTID
+  INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM, KRTID
 
   INTEGER ::  JO, IDATYP, J, JI, JK, NCMAX
   INTEGER ::  ISENS, NC, NL
@@ -77,6 +82,8 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
   INTEGER ::  ISRCHEQ
   INTEGER ::  NOBAIRS
   INTEGER ::  NOBIASI
+  INTEGER ::  NOBCRIS
+  INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
 
   CHARACTER(len=2) :: SENSORTYPE
@@ -98,6 +105,7 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
   NOBTOV = 0
   NOBAIRS = 0
   NOBIASI = 0
+  NOBCRIS = 0
 
   ! loop over all header indices of the 'TO' family
                                         ! Set the header list
@@ -108,20 +116,13 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
      if (index_header < 0) exit HEADER
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-     IF ( IDATYP .NE. 164 .AND. &
-          IDATYP .NE. 168 .AND. &
-          IDATYP .NE. 180 .AND. &
-          IDATYP .NE. 181 .AND. &
-          IDATYP .NE. 182 .AND. &
-          IDATYP .NE. 183 .AND. &     
-          IDATYP .NE. 185 .AND. &     
-          IDATYP .NE. 186) THEN
-        cycle HEADER                    ! Proceed to the next header_index
-     end if
+
+     IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
      NOBTOV = NOBTOV + 1
-     IF ( IDATYP .EQ. 183 ) NOBAIRS = NOBAIRS + 1
-     IF ( IDATYP .EQ. 186 ) NOBIASI = NOBIASI + 1
+     IF ( tvs_Is_idburp_airs(IDATYP) ) NOBAIRS = NOBAIRS + 1
+     IF ( tvs_Is_idburp_iasi(IDATYP) ) NOBIASI = NOBIASI + 1
+     IF ( tvs_Is_idburp_cris(IDATYP) ) NOBCRIS = NOBCRIS + 1
 
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV-7 platform and satellite.
@@ -131,7 +132,6 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 !    map burp instrument info to RTTOV-7 instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
      CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
-
 !    find sensor number for this obs.
      DO KRTID = 1, NSENSORS
         IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
@@ -160,8 +160,8 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).EQ.1 ) THEN
            ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
            ICHN = MAX(0,MIN(ICHN,JPCH+1))
-           IF ( IDATYP .NE. 183 .AND. IDATYP .NE. 186) &
-              ICHN=ICHN-CHANOFFSET(NOSENSOR)
+
+           ICHN=ICHN-CHANOFFSET(NOSENSOR)
 
            INDXCHN = ISRCHEQ(ichan(:,nosensor),nchan(nosensor),ichn)
            if ( indxchn .eq. 0 ) then
@@ -190,51 +190,89 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 !     3. Initialize TOVS radiance transfer model
 !     .  ---------------------------------------
 
-  300  CONTINUE
-
   IF     ( CRTMODL .EQ. 'RTTOV' ) THEN
      WRITE(*,FMT=9300)
   9300    FORMAT(//,10x,"-rttov_setup: initializing the TOVS radiative " &
                    ,"transfer model" )
+     allocate (coefs(nsensors)              ,stat= alloc_status(6))
+     allocate (list_sensors (3,nsensors)    ,stat= alloc_status(7))
+     allocate (opts (nsensors)              ,stat= alloc_status(8))
 
-     allocate (coef(nsensors)              ,stat= alloc_status(6))
-     allocate (list_sensors (3,nsensors)   ,stat= alloc_status(7))
-     allocate (setup_errorstatus(nsensors) ,stat= alloc_status(8))
-     setup_errorstatus(:) = 0
+  ! The levels of verbosity are
+  !  0 = no error messages output
+  !  1 = FATAL errors only printed. these are errors which
+  !      mean that profile should be aborted (e.g. unphysical
+  !      profile input)
+  !  2 = WARNING errors only printed. Errors which can allow
+  !      the computation to continue but the results may be
+  !      suspect (e.g. profile outside basis profile limits)
+  !  3 = INFORMATION messages which inform the user about
+  !      the computation
+     VERBOSITY_LEVEL = 3
 
      DO JK=1,NSENSORS
         LIST_SENSORS(1,JK) = PLATFORM  (JK)
         LIST_SENSORS(2,JK) = SATELLITE (JK)
         LIST_SENSORS(3,JK) = INSTRUMENT(JK)
-     ENDDO
 
+        opts(JK)%ipcreg=-1         ! index of the required PC predictors... to see later
+        opts(JK)%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
+        opts(JK)%addpc=.false.     ! to carry out principal component calculations 
+        opts(JK)%addradrec=.false. ! to reconstruct radiances from principal components
+        opts(JK)%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
+        opts(JK)%addaerosl=.false. ! to account for scattering due to aerosols
+        opts(JK)%addclouds=.false. ! to account for scattering due to clouds
+        opts(JK)%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
+        opts(JK)%lgradp=.false.    ! allow tl/ad of user pressure levels
+        opts(JK)%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
+        opts(JK)%apply_reg_limits=.false. ! if true application of profiles limits
+        opts(JK)%verbose_checkinput_warnings=.false. ! useful for debuging the code should be turned off later
+        opts(JK)%ozone_data=.true. ! profil d'ozone disponible
+        opts(JK)%clw_data=.false.  ! profil d'eau liquide pas disponible
+        opts(JK)%addrefrac=.false. ! to account for atmospheric refraction (useless???)
+        opts(JK)%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
+        opts(JK)%fastem_version=4  ! use fastem version 4 file (in the range 1-5 to force a specific version)
+
+        setup_errorstatus = 0
 ! read coefficients using the list of required channels.
- 
-     VERBOSITY_LEVEL = 0
-     ERR_UNIT = 6
-     CALL RTTOV_SETUP (setup_errorstatus,err_unit,VERBOSITY_LEVEL, &
-                       NSENSORS,COEF,LIST_SENSORS,ichan)
+        CALL rttov_setup (&
+             & setup_errorstatus,  & ! out 
+             & err_unit,           & ! in
+             & verbosity_level,        & ! in
+             & opts(JK),               & ! in
+             & coefs(JK),              & ! out
+             & LIST_SENSORS(:,JK),     & ! in
+             & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
+        if ( setup_errorstatus/=0 ) then
+           Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
+           CALL ABORT3D('TOVS_SETUPALLO           ')
+        endif
 
+        opts(JK)%co2_data = ( coefs(jk)%coef%nco2 > 0 )
+        opts(JK)%n2o_data = ( coefs(jk)%coef%nn2o > 0 )
+        opts(JK)%co_data  = ( coefs(jk)%coef%nco  > 0 )
+        opts(JK)%ch4_data = ( coefs(jk)%coef%nch4 > 0 )
+
+     ENDDO
+    
      do jk = 1, nsensors
        if ( instrument(jk) /= 20 ) then
-        nchan(jk) = coef(jk)%fmv_chn
-        !! ichan(:,jk) = coef(jk)%ff_ori_chn(:)
+        nchan(jk) = coefs(jk)% coef %fmv_chn
         do j = 1,nchan(jk)
-           ichan(j,jk) = coef(jk)%ff_ori_chn(j)
+           ichan(j,jk) = coefs(jk)% coef %ff_ori_chn(j)
         enddo
        end if
      enddo
 
 !    .   3.1 Validate RTTOV dimensions
 !     .       -------------------------
- 310  CONTINUE
 
 !   Verify that all coefficient files have the same number of levels, since
 !   the rest of the processing assumes this!
 
-     nlevels1 =  coef(1)%nlevels
+     nlevels1 =  coefs(1)%coef%nlevels
      do jk = 1, nsensors
-        if ( coef(jk)%nlevels .ne. nlevels1 ) then
+        if ( coefs(jk)% coef %nlevels .ne. nlevels1 ) then
            WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
                   ' identical in all coef files')
@@ -245,56 +283,59 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 !   Pressure levels for RTTOV in mbs
 
      !! XPRES(:) = coef(1)%ref_prfl_p(:)
-     do j=1,coef(1)%nlevels
-        XPRES(j) = coef(1)%ref_prfl_p(j)
+     do j=1,coefs(1)% coef %nlevels
+        XPRES(j) = coefs(1)% coef % ref_prfl_p(j)
      enddo
-
 !   Reference profile min and max for water vapour (kg/kg)
 
-     OQMIN(1:nlevels1)=coef(1)%lim_prfl_gmin(:,2)/q_mixratio_to_ppmv
-     OQMAX(1:nlevels1)=coef(1)%lim_prfl_gmax(:,2)/q_mixratio_to_ppmv
-
+     OQMIN(1:nlevels1)= coefs(1)% coef %lim_prfl_gmin(:,2)/q_mixratio_to_ppmv
+     OQMAX(1:nlevels1)= coefs(1)% coef %lim_prfl_gmax(:,2)/q_mixratio_to_ppmv
   ENDIF
 
 
 !-----------------------------------------------------------------------
 
 
-!     2. Memory allocation for radiate tranfer model variables
+!     2. Memory allocation for radiative tranfer model variables
 !     .  -----------------------------------------------------
-
-  200  CONTINUE
 
 !___ profiles
 
   allocate(profiles(NOBTOV)         , stat= alloc_status( 9))
   allocate(profiles_tl(NOBTOV)      , stat= alloc_status(10))
   allocate(profiles_ad(NOBTOV)      , stat= alloc_status(11))
-  if (nconf==101) allocate(profiles_qc(NOBTOV)      , stat= alloc_status(12))
-  allocate(rttov_errorstatus(NOBTOV), stat= alloc_status(13))
+  if (nconf==101) allocate(profiles_qc(NOBTOV) , stat= alloc_status(12))
 
-  no_id = 1
+  asw=1
   do jo = 1, NOBTOV
-     ! allocate model profiles atmospheric arrays with model levels dimension
-     allocate( profiles(jo) % p  ( coef(no_id) % nlevels ) ,stat= alloc_status(14))
-     allocate( profiles(jo) % t  ( coef(no_id) % nlevels ) ,stat= alloc_status(15))
-     allocate( profiles(jo) % q  ( coef(no_id) % nlevels ) ,stat= alloc_status(16))
-     allocate( profiles(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(17))
+     isens = lsensor(jo)
+     nl = coefs(isens)%coef % nlevels
+     ! allocate model profiles atmospheric arrays with RTTOV levels dimension
+     call rttov_alloc_prof(errorstatus,1,profiles(jo),nl, &
+          opts(isens),asw,coefs=coefs(isens),init=.false. )
+     if (errorstatus/=0) THEN
+        Write(*,*) "Error in profiles allocation",errorstatus
+        CALL ABORT3D('TOVS_SETUPALLO        ')
+     endif
 
-     ! allocate model tl profiles atmospheric arrays with model levels dimension
-     allocate( profiles_tl(jo) % p  ( coef(no_id) % nlevels ) ,stat= alloc_status(18))
-     allocate( profiles_tl(jo) % t  ( coef(no_id) % nlevels ) ,stat= alloc_status(19))
-     allocate( profiles_tl(jo) % q  ( coef(no_id) % nlevels ) ,stat= alloc_status(20))
-     allocate( profiles_tl(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(21))
+     ! allocate model tl profiles atmospheric arrays with RTTOV levels dimension
+     call rttov_alloc_prof(errorstatus,1,profiles_tl(jo),nl, &
+          opts(isens),asw,coefs=coefs(isens),init=.false. )
+     if (errorstatus/=0) THEN
+        Write(*,*) "Error in profiles_tl allocation",errorstatus
+        CALL ABORT3D('TOVS_SETUPALLO        ')
+     endif
 
-     ! allocate model tl profiles atmospheric arrays with model levels dimension
-     allocate( profiles_ad(jo) % p  ( coef(no_id) % nlevels ) ,stat= alloc_status(22))
-     allocate( profiles_ad(jo) % t  ( coef(no_id) % nlevels ) ,stat= alloc_status(23))
-     allocate( profiles_ad(jo) % q  ( coef(no_id) % nlevels ) ,stat= alloc_status(24))
-     allocate( profiles_ad(jo) % o3 ( coef(no_id) % nlevels ) ,stat= alloc_status(25))
+     ! allocate model ad profiles atmospheric arrays with RTTOV levels dimension
+     call rttov_alloc_prof(errorstatus,1,profiles_ad(jo),nl, &
+          opts(isens),asw,coefs=coefs(isens),init=.false. )
+     if (errorstatus/=0) THEN
+        Write(*,*) "Error in profiles_ad allocation",errorstatus
+        CALL ABORT3D('TOVS_SETUPALLO        ')
+     endif
 
-     ! allocate model additionnal profiles atmospheric arrays with model levels dimension
-     if (nconf==101) allocate( profiles_qc(jo) % z  ( coef(no_id) % nlevels ) ,stat= alloc_status(26))
+     ! allocate model additionnal profiles atmospheric arrays with RTTOV levels dimension
+     if (nconf==101) allocate( profiles_qc(jo) % z  ( nl ) ,stat= alloc_status(26))
         
      If( any(alloc_status /= 0) ) then
          WRITE(*,FMT=9201)
@@ -313,17 +354,23 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
   do jo = 1, NOBTOV
      isens = lsensor(jo)
      nc = nchan(isens)
-     nl = coef(no_id) % nlevels
-
+     nl = coefs(isens) % coef % nlevels
      !! allocate BT equivalent to total direct, tl and ad radiance output
-     allocate( radiance_d(jo)  % out  ( nc ) ,stat= alloc_status(4))
-     if (nconf.ne.101) allocate( radiance_tl(jo) % out  ( nc ) ,stat= alloc_status(5))
-     if (nconf.ne.101) allocate( radiance_ad(jo) % out  ( nc ) ,stat= alloc_status(6))
-
+     allocate( radiance_d(jo)  % bt  ( nc ) ,stat= alloc_status(4))
+     if (nconf.ne.101) allocate( radiance_tl(jo) % bt  ( nc ) ,stat= alloc_status(5))
+     if (nconf.ne.101) allocate( radiance_ad(jo) % bt  ( nc ) ,stat= alloc_status(6))
+     radiance_d(jo)  % bt  ( : ) = 0.d0
+     if (nconf.ne.101) radiance_tl(jo) % bt  ( : ) = 0.d0
+     if (nconf.ne.101) radiance_ad(jo) % bt  ( : ) = 0.d0
      !! allocate clear/cloudy sky radiance/BT output and overcast radiance at given cloud top
-     allocate( radiance_d(jo)  % clear_out  ( nc ) ,stat= alloc_status(8) )
-     if (nconf==101) allocate( radiance_d(jo)  % overcast  (nl,nc) ,stat= alloc_status(10))
+     allocate( radiance_d(jo)  % clear  ( nc ) ,stat= alloc_status(7) )
+     radiance_d(jo)  % clear  ( : ) = 0.d0
 
+     if (nconf==101) then 
+        allocate( radiance_d(jo)  % overcast  (nl-1,nc) ,stat= alloc_status(10))
+        radiance_d(jo)  % overcast  (:,:) = 0.d0
+     endif
+    
      If( any(alloc_status /= 0) ) then
          WRITE(*,FMT=9201)
          CALL ABORT3D('TOVS_SETUPALLO        ')
@@ -338,11 +385,11 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
      do jo = 1, NOBTOV
         isens = lsensor(jo)
         nc = nchan(isens)
-        nl = coef(no_id) % nlevels
+        nl = coefs(isens) % coef % nlevels
 
      !! allocate transmittance from surface and from pressure levels
-        allocate( transmission_d(jo)  % tau_surf  ( nc ) ,stat= alloc_status(2))
-        allocate( transmission_d(jo)  % tau_layer(nl,nc) ,stat= alloc_status(3))
+        allocate( transmission_d(jo)  % tau_total ( nc ) ,stat= alloc_status(2))
+        allocate( transmission_d(jo)  % tau_levels(nl,nc) ,stat= alloc_status(3))
 
         If( any(alloc_status /= 0) ) then
            WRITE(*,FMT=9201)
@@ -366,6 +413,7 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
       WRITE(*,FMT=9201)
       CALL ABORT3D('TOVS_SETUPALLO        ')
   End If
+
 !___ new variables to add in airs burp file
 
   DO KRTID = 1, NSENSORS
@@ -385,6 +433,5 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
     END IF
 
  END DO
-
 
 END SUBROUTINE TOVS_SETUPALLO

@@ -41,16 +41,19 @@ SUBROUTINE TOVS_SETUP
 !          J. Halle   *CMDA/SMC*  may 2006
 !                     - change routine name,
 !                     - adapt to RTTOV-8.
+!          S. Heilliette      october 2008
+!                      cleaning 
+!          S. Heilliette      october 2010
+!                      introduction of RTTOV-10
 !          S. Macpherson *ARMA*  apr 2013
 !                     - remove call to s/r SUTOVST (now done in s/r sucvo)
-!
 !    -------------------
 !     Purpose: to read namelist NAMTOV, initialize the observation error covariance
 !              and setup RTTOV-8.
 !
 #endif
 
-  Use mod_tovs
+  Use tovs_mod
 
   IMPLICIT NONE
 
@@ -61,31 +64,12 @@ SUBROUTINE TOVS_SETUP
 
   INTEGER  JK, IERR, J
 
-  CHARACTER(len=15) :: CNLTEMP
-
-  LOGICAL LLTOV
-
   EXTERNAL SENSORS
   EXTERNAL ABORT3D, READNML
-
-  INTEGER VERBOSITY_LEVEL
-  Integer, Allocatable :: lsensors(:,:)         ! liste of platform, satellite and instrument
-  Integer, Allocatable :: setup_errorstatus(:)  ! setup return code
-  Integer :: alloc_status(40)
-  Integer :: nlevels1
-
-  Real*8, Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6
-
-!     .  1.0 Is brightness temperature an element to assimilate ?
-!     .      ----------------------------------------------------
-  100  CONTINUE
-
-!............ this check has been removed, jh may 2004
 
  
 !     .  1.1 Default values
 !     .      --------------
-  110  CONTINUE
 
   NSENSORS   = 1
   CSATID(:)  = '***UNDEFINED***'
@@ -101,12 +85,11 @@ SUBROUTINE TOVS_SETUP
 
 !     .   1.2 Read the NAMELIST NAMTOV to modify them
 !     .       ---------------------------------------
-  120  CONTINUE
+ 
   CALL READNML('NAMTOV',IERR)
 
 !     .   1.3 Validate namelist values
 !     .       ------------------------
-  130  CONTINUE
 
   IF ( CRTMODL .NE. 'RTTOV' ) THEN
      WRITE(*,FMT=9131)
@@ -123,7 +106,7 @@ SUBROUTINE TOVS_SETUP
 
   IF ( NSENSORS .LE. 0 ) THEN
      WRITE(*,FMT=9133)
-  9133    FORMAT(' TOVS_SETUP: Forcing call to RTTVI to read in climatological', &
+  9133    FORMAT(' TOVS_SETUP: Forcing call to rttov_setup to read in climatological', &
             ' profiles of humidity')
      NSENSORS  = 1
      CSATID(1)  = 'NOAA16'
@@ -133,7 +116,6 @@ SUBROUTINE TOVS_SETUP
 !     .   1.4 Print the content of this NAMELIST
 !     .       ----------------------------------
 
-  140  CONTINUE
   WRITE(*,FMT=9140) LTSTTOV, LDBGTOV, LRTNADIR, &
                          LEVEL1B, LNLVTOV, CRTMODL
   WRITE(*,FMT=9143) NSENSORS
@@ -163,23 +145,9 @@ SUBROUTINE TOVS_SETUP
 !     .   1.5 Set up platform, satellite, instrument and channel mapping
 !     .       ----------------------------------------------------------
 
-  150  CONTINUE
 
   CALL SENSORS
 
-!     2. Initialize the observation error covariance
-!     .  -------------------------------------------
-
-  200  CONTINUE
-
-!!  CALL SUTOVST  ... s.m. apr 2013: moved to sucvo (s/r readcovo)
-
-!     3. Initialize TOVS radiance transfer model
-!     .  ---------------------------------------
-
-  300  CONTINUE
-
-!   ... not done here anymore, j.h.
 
 
 END SUBROUTINE TOVS_SETUP

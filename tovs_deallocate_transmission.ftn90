@@ -22,7 +22,8 @@ subroutine tovs_deallocate_transmission(ptransmission)
 !
 !author        : j. halle *cmda/aes  june 7, 2005
 !
-!revision 001  : 
+!revision 001  : s. heilliette arma
+!   changes for rttov 9.0 and 10.0
 !    -------------------
 !     purpose:
 !
@@ -30,18 +31,17 @@ subroutine tovs_deallocate_transmission(ptransmission)
 !     ptransmission: array of derived type transmission
 !
 #endif
-  use mod_tovs
+  use tovs_mod
 
   implicit none
 
-  integer :: istat(3)
+  integer :: istat(2)
 
   type(transmission_type) :: ptransmission
 
   istat(:) = 0
-  deallocate( ptransmission % tau_surf      ,stat= istat(1))
-  deallocate( ptransmission % tau_layer     ,stat= istat(2))
-  deallocate( ptransmission % od_singlelayer,stat= istat(3))
+  deallocate( ptransmission % tau_total    ,stat= istat(1))
+  deallocate( ptransmission % tau_levels   ,stat= istat(2))
 
   if( any(istat /= 0) ) then
      write(*,*) ' tovs_deallocate_transmission: istat = ', istat(:)

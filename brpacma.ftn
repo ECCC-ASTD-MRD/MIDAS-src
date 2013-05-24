@@ -98,6 +98,8 @@
 *               . N. Wagneur *MSC/CMDA Jul 2010
 *                 - Modifier la lecture du numero d'instrument pour
 *                   inclure un test sur la valeur de l'element.
+*       . S. Macpherson ARMA, Feb 2013
+*          - Add NPP ATMS,CrIS codtyps=192,193
 *
 *      PURPOSE:  TO READ ALL DATA BLOCKS IN BURP FILE AND TRANSFER
 *                ALL GOOD DATA TO CMA.
@@ -107,7 +109,7 @@
 *                 INPUT:
 *
 *                       -CDTYPE  : DATA TYPE (I.E: UA=UPPER AIR ...)
-                        -IfamID  : the index of the array CFAMTYP(J)  
+*                       -IfamID  : the index of the array CFAMTYP(J)  
 *                       -LDAPPEND: .TRUE. -> APPEND DATA TO CMA FILE
 *                                  .FALSE.->  START NEW CMC FILE
 *                       -KFILE   : LOGICAL UNIT NUMBER OF BURP FILE
@@ -187,6 +189,7 @@
       REAL*8, ALLOCATABLE ::   ZVAL3D(:)
       REAL(OBS_REAL), ALLOCATABLE :: radmoy(:,:)
       REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:)
+*
       REAL*8 XLAT, XLON
       
 *
@@ -194,7 +197,7 @@
       INTEGER ICHECK,INELM,INVM,INTM,IBKNMA
       INTEGER ILONG,INBLKS,IKOUNT,IND,INBON,IEXTRAEL
       LOGICAL LLERR,LLMA,LLGROUP,LLERROR,LLSAT,LLUNI,LLRESET,LLGO,LLAIRS
-      LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLIASI
+      LOGICAL LCHECNAT,LCHECTYP,LCHECSTP,LLIASI,LLCRIS
 
 C
 C     GENERATE TABLES TO ADJUST VERTICAL COORDINATE OF SURFACE DATA
@@ -317,8 +320,8 @@ C
             ELSE
               NVCORD = 2150
             ENDIF
-            CASE (168,180,183,185,186)
-            !ssmi, goes, airs, georad, iasi
+            CASE (168,180,183,185,186,192,193)
+            !ssmi, goes, airs, georad, iasi, cris, atms
             NVCORD = 5042
          ENDSELECT
 *
@@ -630,8 +633,17 @@ C
                        LLIASI=.FALSE.
                     ENDIF
 
-
-
+                    IF ( CLSTNID(1:4) .EQ. '^NPP' .AND. IDBURP .EQ. 193 ) THEN
+                       IF ( NCONF .NE. 101 ) THEN
+                          CALL GETELE(55043,J3D,ILIST(ILPOS),ZVAL(IPOS),
+     +                    ZEXTRA,INELE,INVAL,I3D,IIND)
+                          LLCRIS=.TRUE.
+                       ELSE
+                          LLCRIS=.FALSE.
+                       END IF
+                    ELSE
+                       LLCRIS=.FALSE.
+                    ENDIF
 *
 *----------------------------------------------------------------------
 *
@@ -650,12 +662,14 @@ C
                     IF ( IIND .GT. 0 ) THEN
                        IF (CDTYPE .EQ. 'MI' ) THEN
                           CALL OBS_BDY(lobsSpaceData,ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
-     +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
+     +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,LLCRIS,INELE,
+     +                    INVAL,I3D,IND,
      +                    -1 ,ZPROF,J3D,IDBURP,PPMIS,nvcordtyp,vcordsf,
      +                    vconv,nonelev)
                        ELSE
                           CALL OBS_BDY(lobsSpaceData,ZVAL(IPOS),ILIST(ILPOS),IMARK(ipos),
-     +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,INELE,INVAL,I3D,IND,
+     +                    LLMA,ZEXTRA,LLERROR,LLSAT,LLGO,LLAIRS,LLIASI,LLCRIS,INELE,
+     +                    INVAL,I3D,IND,
      +                    NVCORD,ZPROF,J3D,IDBURP,PPMIS,nvcordtyp,vcordsf,
      +                    vconv,nonelev)
                        ENDIF
@@ -779,6 +793,24 @@ C
 *                satellite zenith angle
                  CALL IGETELE
      +           (7024,J3D,ILISTIN,ITBLINF,ISATZEN,INELEIN,1,I3D,IIND)
+***** S. Macpherson 19 Feb 2013*******************************
+                 IF ( ((ISAT == 784 .AND. IDBURP == 183) .OR.
+     +                 (ISAT == 4   .AND. IDBURP == 186) .OR.
+     +                 (ISAT == 224 .AND. IDBURP == 193)) .AND.
+     +                NCONF == 101 ) THEN
+**    Skip satellite zenith angle check for AIRS and IASI and CrIS (done in 
+**    bgck airsqc and iasiqc subroutines).
+                 ELSE
+**    Set bad satellite zenith angles to 0 (9000) to avoid error/warnings
+**    from RTTOV.
+                 IF (ISATZEN .LT. 9000 .OR. ISATZEN .GT. 16500 ) THEN
+                   WRITE(*,*)' Warning 3DV:brpacma: BAD SAT ZENITH'
+     +             ,' STN ',CLSTNID,' TYPE ',IDBURP,' LAT ', ILAT,
+     +             ' LON ', ILON, 'SATZEN',  ISATZEN
+                   ISATZEN = 9000
+                 ENDIF
+                 ENDIF
+**************************************************************
 *                satellite azimuth angle
                  CALL IGETELE
      +           (5021,J3D,ILISTIN,ITBLINF,ISATAZIM,INELEIN,1,I3D,IIND)
@@ -792,6 +824,22 @@ C
 *                cloud fraction
                  CALL IGETELE
      +           (20010,J3D,ILISTIN,ITBLINF,ICLFR,INELEIN,1,I3D,IIND)
+               ENDIF
+
+* cas provisoire CrIS
+               IF ( ISAT == 224  .AND. IDBURP == 193 ) THEN               
+*                sun zenith angle
+                 CALL IGETELE
+     +           (7025,J3D,ILISTIN,ITBLINF,ISUNZA,INELEIN,1,I3D,IIND)
+! ici IGQISFLAGQUAL= Scan level quality flag = doit etre 0 si OK
+                 CALL IGETELE
+     +           (33075,J3D,ILISTIN,ITBLINF,IGQISFLAGQUAL,INELEIN,1,
+     +                I3D,IIND)
+! ici IGQISQUALINDEXLOC= Geolocation quality = doit etre 0 si OK
+                 CALL IGETELE
+     +           (33078,J3D,ILISTIN,ITBLINF,IGQISQUALINDEXLOC,INELEIN,1, 
+     +                I3D,IIND)
+
                ENDIF
 
 * cas provisoire IASI
@@ -941,6 +989,7 @@ c inserted for AIRS Quality control only :
                 call obs_headSet_i(lobsSpaceData,OBS_CLF,NUMHEADER, ICLFR)
 c inserted for IASI Quality control only :         
                 call obs_headSet_i(lobsSpaceData,OBS_SAZ,NUMHEADER,ISUNAZIM)
+c inserted for IASI and CrIS Quality control only :    
                 call obs_headSet_i(lobsSpaceData,OBS_GQF,NUMHEADER,IGQISFLAGQUAL)
                 call obs_headSet_i(lobsSpaceData,OBS_GQL,NUMHEADER,IGQISQUALINDEXLOC)
 

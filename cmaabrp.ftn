@@ -86,6 +86,8 @@
 *             Revision   020:. C. Cote *MSC/CMDA Jan 2010
 *                 - Modifier la conversion de NVCORD pour les plateforme tovs
 *                   en utilisant seulement l'instrument comme test.
+*Revision   021:. S. Macpherson ARMA, Feb 2013
+*                 Add NPP ATMS,CrIS codtyps=192,193
 *
 *      PURPOSE:  TO READ ALL DATA IN CMA AND TRANSFER
 *                TO POSTFILE OF 3D_VAR IN BURP FORMAT.
@@ -343,8 +345,8 @@
                 ELSE 
                   NVCORD = 2150 
                 ENDIF
-             CASE (168,180,183,185,186)
-                !ssmi, goes, airs, georad, iasi
+             CASE (168,180,183,185,186,192,193)
+                !ssmi, goes, airs, georad, iasi, atms, cris
                 NVCORD = 5042
           ENDSELECT
 *

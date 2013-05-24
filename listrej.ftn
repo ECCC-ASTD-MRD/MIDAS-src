@@ -49,6 +49,8 @@
 *          - Use of robdata8(OBS_OMN,*) as zpost value
 *          S. Macpherson (ARMA/MRD) Sep 2009
 *          - List GP family (GPS) rejects (idtyp 189)
+*          S. Macpherson (ARMA/MRD) Feb 2013
+*          - added idtyp=192 for ATMS
 ************************************************************************
 #endif
 *
@@ -135,8 +137,8 @@
      1  /     'TOVS AMSU-B',        'TOVS MHS',            'AIRS'/
       DATA      CLOBTP(185),       CLOBTP(186),       CLOBTP(188)
      1  /          'GEORAD',            'IASI',           'SATOB'/
-      DATA       CLOBTP(189),      CLOBTP(254)   
-     1  / 'GB-GPS',  'SCATTEROMETER'/
+      DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(254)   
+     1  /          'GB-GPS',       'TOVS ATMS',   'SCATTEROMETER'/
 *
       DO JFAM=1,numFamily
         DO JITEM=1,NUMITEM

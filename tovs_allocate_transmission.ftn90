@@ -22,7 +22,8 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
 !
 !author        : j. halle *cmda/aes  june 7, 2005
 !
-!revision 001  : 
+!revision 001  :  S. Heilliette, December 2010
+! modified for RTTOV 10.0
 !    -------------------
 !     purpose:
 !
@@ -32,25 +33,27 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
 !     knlevels     : number of levels
 !
 #endif
-  use mod_tovs
+  use tovs_mod ,only : transmission_type
 
   implicit none
 
   integer :: knchannels, knlevels
-  integer :: istat(3)
+  integer :: istat(2)
 
   type(transmission_type) :: ptransmission
 
   istat(:) = 0
-  allocate( ptransmission % tau_surf      ( knchannels )           ,stat= istat(1))
-  allocate( ptransmission % tau_layer     ( knlevels, knchannels ) ,stat= istat(2))
-  allocate( ptransmission % od_singlelayer( knlevels, knchannels ) ,stat= istat(3))
-
+  allocate( ptransmission % tau_levels     ( knlevels, knchannels ) ,stat= istat(1))
+  allocate( ptransmission % tau_total      ( knchannels )           ,stat= istat(2))
+ 
   if( any(istat /= 0) ) then
      write(*,*) ' tovs_allocate_transmission: istat = ', istat(:)
      write(*,'("  tovs_allocate_transmission: memory allocation error")')
      call abort3d('tovs_allocate_transmission')
   end if
+
+  ptransmission % tau_levels (:,:)=0.0
+  ptransmission % tau_total (:)=0.0
 
   return
 

@@ -6,6 +6,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
 !                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
 !                 S. HEILLIETTE           February 2008 (adaptation to IASI)
+!                 S. MACPHERSON, S.HEILLIETTE (ARMA) February 2013 
+!                   -- modify test pour detecter le isatzen manquant ou anormal
 !
 !       REVISION:
 !
@@ -21,9 +23,9 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use mod_tovs
-  use iasich
-  use iasibgcheck
+  use tovs_mod
+  use hir_chans
+  use multiirbgcheck
   use columnData_mod
   use obsSpaceData_mod
   use verticalCoord_mod
@@ -36,7 +38,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   type(struct_obs),intent(inout) :: lobsSpaceData
 !******************************************************************
   type(struct_vco), pointer :: vco_trl
-  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,JO,NFLG,ICHN
+  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,NLEVB,iextr,JN,NPRF,NFLG,ICHN
   INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBIASI
   INTEGER       :: INDEX_BODY,IDATA,IDATEND,IDIASI,INDEX_HEADER
   INTEGER       :: IDATYP
@@ -46,13 +48,14 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   REAL(8)       :: T_EFFECTIVE
   integer       :: alloc_status(85)
 
-  real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
+  real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZVLEV(:)
+  real(8), allocatable :: ZLEVMOD(:,:)
   real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
   real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:) 
   real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:),SUNAZIM(:)
   real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
-  integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:) 
+  integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:) 
   integer, allocatable :: CORFLAG(:,:)
   integer, allocatable :: GNCLDFLAG(:)
   integer, allocatable :: ICHREF(:),INDX(:)
@@ -63,18 +66,18 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   real(8), allocatable :: ETOP(:),VTOP(:),ECF(:),VCF(:)
   integer, allocatable :: MINP(:,:),FATE(:,:)
   real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
-  real(8), allocatable :: ZLAT(:),ZLON(:)
   logical, allocatable :: ASSIM_ALL(:)
   real(8), allocatable :: ZTS_AVHRR(:,:),SFCTAU_AVHRR(:,:),EMI_SFC_AVHRR(:,:),RCAL_CLR_AVHRR(:,:)
   real(8), allocatable :: RCLD_AVHRR(:,:,:),PTOP_BT_AVHRR(:,:,:),PTOP_RD_AVHRR(:,:,:)
   real(8), allocatable :: BTOBS_AVHRR(:,:,:),ROBS_AVHRR(:,:,:),PTOP_EQ_AVHRR(:,:)
   real(8), allocatable :: CFRAC_AVHRR(:)
+  real(8), allocatable :: avhrr_surfem1(:)
   integer, allocatable :: CLDFLAG_AVHRR(:,:),LEV_START_AVHRR(:,:),ICHREF_AVHRR(:,:),NTOP_RD_AVHRR(:,:,:)
   integer, allocatable :: NTOP_BT_AVHRR(:,:,:),NTOP_EQ_AVHRR(:,:)
   integer :: ICL
   integer ,parameter :: nn=2
   integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
-  integer :: cpt,isatzen
+  integer :: cpt,iclass
   logical :: bad
 !seuils detection nuageuse AVHRR
   Real(8),parameter :: sunzenmax=87.12d0
@@ -84,7 +87,9 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
   Real(8) :: minpavhrr(2:3)
   Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
-  Integer :: ier,ijour,iloc(2:3),iobs,iclass
+  Integer :: ier,ijour,iloc(2:3),co2min(1),co2max(1),iobs
+  integer :: isatzen
+  integer :: chan_indx,ILIST_SUN,ilist_co2(NCO2),ilist_co2_pair(NCO2),ilist_he(NCH_HE)
 !**************
 
   vco_trl => col_getVco(lcolumnhr)
@@ -116,7 +121,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
             
-     IF ( IDATYP .EQ. 186) THEN
+     IF ( tvs_Is_idburp_iasi(IDATYP) ) THEN
         count_iasi = count_iasi + 1
         IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
              count_iasi <= (iasi_loop_done+1) * bunch_iasi ) NPRF = NPRF + 1
@@ -127,8 +132,18 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
 ! ** find number of IASI channels and RTTOV levels
 
-  NCHN = coef(idiasi)%fmv_chn
-  NLEV = coef(idiasi)%nlevels    
+  NCHN = coefs(idiasi)%coef%fmv_chn
+  
+  NLEV = coefs(idiasi)%coef%nlevels 
+  iextr=0
+  if (nlev==44) iextr=1
+  if (nlev==51) iextr=2
+  if (nlev /= 43 .and. nlev/=44 .and. nlev/= 51) then
+     Write(*,*) "Attention: modification necessaire dans IASIQC"
+     call abort3d('iasiqc        ')
+  endif
+ 
+  NLEVB=NLEV-iextr
 
   write(*,*) ' IASIQC - nchn ', nchn
 
@@ -137,10 +152,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !
 ! ZTG(NPRF) -- guess skin temperatures (deg K)
 ! ZPS(NPRF) -- surface pressure (hPa)
-! ZT(NLEVTRL,NPRF) -- temperature profiles on NWP model levels (deg K)
-! ZHT(NLEVTRL,NPRF) -- height profiles on NWP model levels (m)
-! ZPRES(NLEVTRL,NPRF) -- NWP pressure model levels
-! ZLQ(NLEVTRL,NPRF) -- surface specific humidity in ln q (kg/kg)
+! ZT(COL_GETNUMLEV(LCOLUMNHR,'TH'),NPRF) -- temperature profiles on NWP model levels (deg K)
+! ZHT(COL_GETNUMLEV(LCOLUMNHR,'TH'),NPRF) -- height profiles on NWP model levels (m)
+! ZPRES(COL_GETNUMLEV(LCOLUMNHR,'TH'),NPRF) -- NWP pressure model levels
+! ZLQ(COL_GETNUMLEV(LCOLUMNHR,'TH'),NPRF) -- surface specific humidity in ln q (kg/kg)
 ! BTOBSERR(IASISNCH) -- observation error standard deviation
 ! BTOBS(IASISNCH,NPRF) -- observed brightness temperatures (deg K)
 ! BTCALC(IASISNCH,NPRF) -- computed brightness temperatures (deg K)
@@ -166,39 +181,38 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   alloc_status(:) = 0
   allocate ( ZTG(NPRF),                       stat= alloc_status(1) )
   allocate ( ZPS(NPRF),                       stat= alloc_status(2) )
-  allocate ( ZT(col_getNumLev(lcolumnhr,'TH'),NPRF),                stat= alloc_status(3) )
-  allocate ( ZHT(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(4) )
-  allocate ( ZLQ(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(5) )
-  allocate ( BTOBSERR(IASISNCH),              stat= alloc_status(6) )
-  allocate ( BTOBS(IASISNCH,NPRF),            stat= alloc_status(7) )
-  allocate ( BTCALC(IASISNCH,NPRF),           stat= alloc_status(8) )
-  allocate ( RCAL_CLR(IASISNCH,NPRF),         stat= alloc_status(9) )
-  allocate ( SFCTAU(IASISNCH,NPRF),           stat= alloc_status(10))
-  allocate ( RCLD(IASISNCH,NPRF,NLEV),        stat= alloc_status(11))
-  allocate ( TRANSM(IASISNCH,NPRF,NLEV),      stat= alloc_status(12))
-  allocate ( EMI_SFC(IASISNCH,NPRF),          stat= alloc_status(13))
+  allocate ( ZT(col_getNumLev(lcolumnhr,'TH'),NPRF), stat= alloc_status(3) )
+  allocate ( ZHT(col_getNumLev(lcolumnhr,'TH'),NPRF),stat= alloc_status(4) )
+  allocate ( ZLQ(col_getNumLev(lcolumnhr,'TH'),NPRF),stat= alloc_status(5) )
+  allocate ( BTOBSERR(hir_GET_NCHAN_SELECTED("IASI")),              stat= alloc_status(6) )
+  allocate ( BTOBS(hir_GET_NCHAN_SELECTED("IASI"),NPRF),            stat= alloc_status(7) )
+  allocate ( BTCALC(hir_GET_NCHAN_SELECTED("IASI"),NPRF),           stat= alloc_status(8) )
+  allocate ( RCAL_CLR(hir_GET_NCHAN_SELECTED("IASI"),NPRF),         stat= alloc_status(9) )
+  allocate ( SFCTAU(hir_GET_NCHAN_SELECTED("IASI"),NPRF),           stat= alloc_status(10))
+  allocate ( RCLD(hir_GET_NCHAN_SELECTED("IASI"),NPRF,NLEVB),       stat= alloc_status(11))
+  allocate ( TRANSM(hir_GET_NCHAN_SELECTED("IASI"),NPRF,NLEVB),     stat= alloc_status(12))
+  allocate ( EMI_SFC(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(13))
   allocate ( KSURF(NPRF),                     stat= alloc_status(14))
-  allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
-  allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
+  allocate ( TOEXT(NLEVB,NPRF),               stat= alloc_status(16))
+  allocate ( ZHOEXT(NLEVB,NPRF),              stat= alloc_status(17))
   allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
   allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
   allocate ( ICE(NPRF),                       stat= alloc_status(20))
   allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
   allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
   allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
-  allocate ( ROBS(IASISNCH,NPRF),             stat= alloc_status(24))
+  allocate ( ROBS(hir_GET_NCHAN_SELECTED("IASI"),NPRF),             stat= alloc_status(24))
   allocate ( ZTS(NPRF),                       stat= alloc_status(26))
   allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
-  allocate ( REJFLAG(IASISNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
+  allocate ( REJFLAG(hir_GET_NCHAN_SELECTED("IASI"),NPRF,0:BITFLAG),stat= alloc_status(28))
   allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
-  allocate ( ILIST(IASISNCH),                 stat= alloc_status(30))
   allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
-  allocate ( NTOP_BT(IASISNCH,NPRF),          stat= alloc_status(32))
-  allocate ( NTOP_RD(IASISNCH,NPRF),          stat= alloc_status(33))
+  allocate ( NTOP_BT(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(32))
+  allocate ( NTOP_RD(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(33))
   allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
   allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
-  allocate ( PTOP_BT(IASISNCH,NPRF),          stat= alloc_status(36))
-  allocate ( PTOP_RD(IASISNCH,NPRF),          stat= alloc_status(37))
+  allocate ( PTOP_BT(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(36))
+  allocate ( PTOP_RD(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(37))
   allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
   allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
   allocate ( HE(NPRF),                        stat= alloc_status(40))
@@ -207,11 +221,11 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   allocate ( ECF(NPRF),                       stat= alloc_status(43))
   allocate ( VCF(NPRF),                       stat= alloc_status(44))
   allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
-  allocate ( MINP(IASISNCH,NPRF),             stat= alloc_status(46))
-  allocate ( PMIN(IASISNCH,NPRF),             stat= alloc_status(47))
-  allocate ( DTAUDP1(IASISNCH,NPRF),          stat= alloc_status(48))
+  allocate ( MINP(hir_GET_NCHAN_SELECTED("IASI"),NPRF),             stat= alloc_status(46))
+  allocate ( PMIN(hir_GET_NCHAN_SELECTED("IASI"),NPRF),             stat= alloc_status(47))
+  allocate ( DTAUDP1(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(48))
   allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
-  allocate ( FATE(IASISNCH,NPRF),             stat= alloc_status(50))
+  allocate ( FATE(hir_GET_NCHAN_SELECTED("IASI"),NPRF),             stat= alloc_status(50))
   allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
   allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
   allocate ( INDX(NPRF),                      stat= alloc_status(54))
@@ -226,271 +240,272 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   allocate ( EMI_SFC_AVHRR(1:NIR,NPRF),stat= alloc_status(63))
   allocate ( ZTS_AVHRR(NPRF,NCLASSAVHRR),stat= alloc_status(64))
   allocate ( SFCTAU_AVHRR(NIR,NPRF),           stat= alloc_status(65))
-  allocate ( PTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(66))
-  allocate ( PTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(67))
-  allocate ( NTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(68))
-  allocate ( NTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR),          stat= alloc_status(69))
-  allocate ( RCLD_AVHRR(NIR,NPRF,NLEV),                    stat= alloc_status(70))
-  allocate ( ZLAT(NPRF),                    stat= alloc_status(71))
-  allocate ( ZLON(NPRF),                    stat= alloc_status(72))
-  allocate ( maxwf(IASISNCH,NPRF),          stat= alloc_status(73))
+  allocate ( PTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR), stat= alloc_status(66))
+  allocate ( PTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR), stat= alloc_status(67))
+  allocate ( NTOP_BT_AVHRR(NIR,NPRF,NCLASSAVHRR), stat= alloc_status(68))
+  allocate ( NTOP_RD_AVHRR(NIR,NPRF,NCLASSAVHRR), stat= alloc_status(69))
+  allocate ( RCLD_AVHRR(NIR,NPRF,NLEVB), stat= alloc_status(70))
+  allocate ( maxwf(hir_GET_NCHAN_SELECTED("IASI"),NPRF),          stat= alloc_status(73))
   allocate ( CFRAC_AVHRR(NPRF),             stat= alloc_status(74))
   allocate ( SATAZIM(NPRF),                 stat= alloc_status(75))
   allocate ( SATZEN(NPRF),                  stat= alloc_status(76))
-  allocate ( ZPRES(col_getNumLev(lcolumnhr,'TH'),NPRF), stat= alloc_status(77))
+  allocate ( ZVLEV(NLEVB),                  stat= alloc_status(77))
   allocate ( PTOP_MB(NPRF),                 stat= alloc_status(78))
   allocate ( NTOP_MB(NPRF),                 stat= alloc_status(79))
   allocate ( CFSUB(NPRF),                   stat= alloc_status(80))
   allocate ( GNCLDFLAG(NPRF),               stat= alloc_status(81))
-  allocate ( ILIST_PAIR(IASISNCH),          stat= alloc_status(82))
-  allocate ( CORFLAG(IASISNCH,NPRF),        stat= alloc_status(83))
-  allocate ( SUNAZIM(NPRF),                 stat= alloc_status(84))
+  allocate ( CORFLAG(hir_GET_NCHAN_SELECTED("IASI"),NPRF),        stat= alloc_status(83))
+  allocate ( ZLEVMOD(col_getNumLev(lcolumnhr,'TH'),NPRF), stat= alloc_status(84))
+  allocate ( SUNAZIM(NPRF),                 stat= alloc_status(85))
+
   if( any(alloc_status /= 0) ) then
      write(*,*) ' iasiqc : memory allocation error'
      call abort3d('iasiqc        ')
   end if
 
+  DO JL = 1, NLEVB
+     ZVLEV(JL) = XPRES(JL+iextr)
+  END DO
+  CO2MIN=minloc( abs( ZVLEV(:) - pco2min ) )
+  CO2MAX=minloc( abs( ZVLEV(:) - pco2max ) )
 
-      seuilalb_static(1,0)=70.0
-      seuilalb_static(1,1)=40.0
-      seuilalb_static(1,2)=70.0
-      seuilalb_static(2,0)=67.0
-      seuilalb_static(2,1)=37.0
-      seuilalb_static(2,2)=57.0
-      seuilalb_static(3,0)=50.0
-      seuilalb_static(3,1)=37.0
-      seuilalb_static(3,2)=40.0
+  seuilalb_static(1,0)=70.0
+  seuilalb_static(1,1)=40.0
+  seuilalb_static(1,2)=70.0
+  seuilalb_static(2,0)=67.0
+  seuilalb_static(2,1)=37.0
+  seuilalb_static(2,2)=57.0
+  seuilalb_static(3,0)=50.0
+  seuilalb_static(3,1)=37.0
+  seuilalb_static(3,2)=40.0
 
-      seuilalb_homog(1,0)=15.d0
-      seuilalb_homog(1,1)=9.d0
-      seuilalb_homog(1,2)=18.d0
-      seuilalb_homog(2,0)=18.d0
-      seuilalb_homog(2,1)=10.d0
-      seuilalb_homog(2,2)=16.d0
-      seuilalb_homog(3,0)=13.d0
-      seuilalb_homog(3,1)=10.d0
-      seuilalb_homog(3,2)=10.d0
+  seuilalb_homog(1,0)=15.d0
+  seuilalb_homog(1,1)=9.d0
+  seuilalb_homog(1,2)=18.d0
+  seuilalb_homog(2,0)=18.d0
+  seuilalb_homog(2,1)=10.d0
+  seuilalb_homog(2,2)=16.d0
+  seuilalb_homog(3,0)=13.d0
+  seuilalb_homog(3,1)=10.d0
+  seuilalb_homog(3,2)=10.d0
 
-      seuilbt_homog(NVIS+1,0,1)=5.d0
-      seuilbt_homog(NVIS+1,1,1)=4.d0
-      seuilbt_homog(NVIS+1,2,1)=5.d0
-      seuilbt_homog(NVIS+1,0,2)=5.d0
-      seuilbt_homog(NVIS+1,1,2)=4.d0
-      seuilbt_homog(NVIS+1,2,2)=5.d0
-      
-      seuilbt_homog(NVIS+2,0,1)=4.d0
-      seuilbt_homog(NVIS+2,1,1)=3.d0
-      seuilbt_homog(NVIS+2,2,1)=4.d0
-      seuilbt_homog(NVIS+2,0,2)=5.d0
-      seuilbt_homog(NVIS+2,1,2)=3.d0
-      seuilbt_homog(NVIS+2,2,2)=5.d0
+  seuilbt_homog(NVIS+1,0,1)=5.d0
+  seuilbt_homog(NVIS+1,1,1)=4.d0
+  seuilbt_homog(NVIS+1,2,1)=5.d0
+  seuilbt_homog(NVIS+1,0,2)=5.d0
+  seuilbt_homog(NVIS+1,1,2)=4.d0
+  seuilbt_homog(NVIS+1,2,2)=5.d0
+  
+  seuilbt_homog(NVIS+2,0,1)=4.d0
+  seuilbt_homog(NVIS+2,1,1)=3.d0
+  seuilbt_homog(NVIS+2,2,1)=4.d0
+  seuilbt_homog(NVIS+2,0,2)=5.d0
+  seuilbt_homog(NVIS+2,1,2)=3.d0
+  seuilbt_homog(NVIS+2,2,2)=5.d0
 
-      seuilbt_homog(NVIS+3,0,1)=4.d0
-      seuilbt_homog(NVIS+3,1,1)=3.d0
-      seuilbt_homog(NVIS+3,2,1)=4.d0
-      seuilbt_homog(NVIS+3,0,2)=5.d0
-      seuilbt_homog(NVIS+3,1,2)=3.d0
-      seuilbt_homog(NVIS+3,2,2)=5.d0
+  seuilbt_homog(NVIS+3,0,1)=4.d0
+  seuilbt_homog(NVIS+3,1,1)=3.d0
+  seuilbt_homog(NVIS+3,2,1)=4.d0
+  seuilbt_homog(NVIS+3,0,2)=5.d0
+  seuilbt_homog(NVIS+3,1,2)=3.d0
+  seuilbt_homog(NVIS+3,2,2)=5.d0
 
-      BTOBS(:,:)    = -1.
-      BTCALC(:,:)   = -1.
-      RCAL_CLR(:,:) = -1.
-      SFCTAU(:,:)   = -1.
-      RCLD(:,:,:)   = -1.
-      TRANSM(:,:,:) = -1.
-      EMI_SFC(:,:)  = -1.
+  BTOBS(:,:)    = -1.
+  BTCALC(:,:)   = -1.
+  RCAL_CLR(:,:) = -1.
+  SFCTAU(:,:)   = -1.
+  RCLD(:,:,:)   = -1.
+  TRANSM(:,:,:) = -1.
+  EMI_SFC(:,:)  = -1.
 
-      REJFLAG(:,:,:) = 0
-      CORFLAG(:,:)   = 0
+  REJFLAG(:,:,:) = 0
+  CORFLAG(:,:)   = 0
 
-      NOBIASI = 0
-      NOBTOV = 0
-      count_iasi = 0
+  NOBIASI = 0
+  NOBTOV = 0
+  count_iasi = 0
 
-      ! loop over all header indices of the 'TO' family
-      call obs_set_current_header_list(lobsSpaceData,'TO')
-      HEADER_2: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER_2
+  ! loop over all header indices of the 'TO' family
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER_2: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER_2
 
-            IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+     IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-            IF ( IDATYP .EQ. 164 .OR. &
-     &           IDATYP .EQ. 168 .OR. &
-     &           IDATYP .EQ. 180 .OR. &
-     &           IDATYP .EQ. 181 .OR. &
-     &           IDATYP .EQ. 182 .OR. &
-     &           IDATYP .EQ. 183 .OR. &
-     &           IDATYP .EQ. 186 ) NOBTOV = NOBTOV + 1
+     IF ( tvs_Is_idburp_tovs(idatyp) ) NOBTOV = NOBTOV + 1
 
-            IF ( IDATYP .EQ. 186) THEN
+     IF ( tvs_Is_idburp_iasi(IDATYP) ) THEN
 
-              count_iasi = count_iasi + 1
+        count_iasi = count_iasi + 1
+        
+        IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
+             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN
 
-              IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
-     &             count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN
+           NOBIASI = NOBIASI + 1
+           INDX(NOBIASI)=index_header
+           iclass=1
+           do iobs=OBS_CF1,OBS_CF7
+              avhrr_bgck(INDEX_HEADER)%CFRAC(iclass)=obs_headElem_i(lobsSpaceData,iobs,index_header)
+              iclass=iclass+1
+           enddo
+           iclass=1
+           ichn=1
+           do iobs=OBS_M1C1,OBS_M7C6
+              avhrr_bgck(INDEX_HEADER)%radmoy(iclass,ichn)=obs_headElem_r(lobsSpaceData,iobs,index_header)
+              ichn=ichn+1
+              if (ichn>NCHANAVHRR) then
+                 ichn=1
+                 iclass=iclass+1
+              endif
+           enddo
+           iclass=1
+           ichn=1
+           do iobs=OBS_S1C1,OBS_S7C6
+              avhrr_bgck(INDEX_HEADER)%radstd(iclass,ichn)=obs_headElem_r(lobsSpaceData,iobs,index_header)
+              ichn=ichn+1
+              if (ichn>NCHANAVHRR) then
+                 ichn=1
+                 iclass=iclass+1
+              endif
+           enddo
+           call convert_avhrr(profiles_qc(INDEX_HEADER)%sunza, avhrr_bgck(INDEX_HEADER) )
+           call stat_avhrr(avhrr_bgck(INDEX_HEADER))
 
-                NOBIASI = NOBIASI + 1
-                INDX(NOBIASI)=index_header
-                iclass=1
-                do iobs=OBS_CF1,OBS_CF7
-                   avhrr_bgck(INDEX_HEADER)%CFRAC(iclass)=obs_headElem_i(lobsSpaceData,iobs,index_header)
-                   iclass=iclass+1
-                enddo
-                iclass=1
-                ichn=1
-                do iobs=OBS_M1C1,OBS_M7C6
-                   avhrr_bgck(INDEX_HEADER)%radmoy(iclass,ichn)=obs_headElem_r(lobsSpaceData,iobs,index_header)
-                   ichn=ichn+1
-                   if (ichn>NCHANAVHRR) then
-                      ichn=1
-                      iclass=iclass+1
-                   endif
-                enddo
-                iclass=1
-                ichn=1
-                do iobs=OBS_S1C1,OBS_S7C6
-                   avhrr_bgck(INDEX_HEADER)%radstd(iclass,ichn)=obs_headElem_r(lobsSpaceData,iobs,index_header)
-                   ichn=ichn+1
-                   if (ichn>NCHANAVHRR) then
-                      ichn=1
-                      iclass=iclass+1
-                   endif
-                enddo
-                call convert_avhrr(profiles_qc(INDEX_HEADER)%sunza, avhrr_bgck(INDEX_HEADER) )
-                call stat_avhrr(avhrr_bgck(INDEX_HEADER))
-
-                ZTG(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
-                ZPS(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
+           ZTG(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
+           ZPS(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
-                ZLAT(NOBIASI) = obs_headElem_r(lobsSpaceData,OBS_LAT,index_header) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-                ZLON(NOBIASI) = obs_headElem_r(lobsSpaceData,OBS_LON,index_header) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
 
-                SUNAZIM(NOBIASI) = 0.01 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
+           SUNAZIM(NOBIASI) = 0.01 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
 
-                DO JL = 1, col_getNumLev(lcolumnhr,'TH')
-                  ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
-                  ZHT(JL,NOBIASI) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
-                  ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
-                  ZPRES(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') &
+           DO JL = 1, col_getNumLev(lcolumnhr,'TH')
+
+              ZT(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
+              ZHT(JL,NOBIASI) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
+              ZLQ(JL,NOBIASI) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+              ZLEVMOD(JL,NOBIASI)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') &
                                                              * MPC_MBAR_PER_PA_R8
-                END DO
+           END DO
 
-                IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
-                IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + IDATA - 1
+           IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
+           IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + IDATA - 1
 
-                BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,index_header)/=0 .or. &
-                     obs_headElem_i(lobsSpaceData,OBS_GQL,index_header) >1)    
-                
+           BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,index_header)/=0 .or. &
+                obs_headElem_i(lobsSpaceData,OBS_GQL,index_header) >1) 
+   
                 DO INDEX_BODY= IDATA, IDATEND
                    IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                     ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
                     ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                    BTOBSERR(IASISCH(ICHN)) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-                    BTOBS(IASISCH(ICHN),NOBIASI) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                    chan_indx=hir_get_chindx_fr_chn("IASI",ichn)
+                    BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                    BTOBS(chan_indx,NOBIASI) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+
 ! *** Flag check on observed BTs ***
                     IF (BAD) THEN
-                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                       REJFLAG(chan_indx,NOBIASI,9) = 1
                     ENDIF
 
 ! *** Set if data has been bias corrected (bit 6 set) ***
+
                     IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),6)) THEN
-                       CORFLAG(IASISCH(ICHN),NOBIASI) = 1
+                       CORFLAG(chan_indx,NOBIASI) = 1
                     END IF
 
 ! *** Gross check on observed BTs ***
-                    IF (BTOBS(IASISCH(ICHN),NOBIASI)<150.) THEN
-                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                    IF (BTOBS(chan_indx,NOBIASI)<150.) THEN
+                       REJFLAG(chan_indx,NOBIASI,9) = 1
                     ENDIF
 
-                    IF (BTOBS(IASISCH(ICHN),NOBIASI)>350.) THEN
-                       REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
+                    IF (BTOBS(chan_indx,NOBIASI)>350.) THEN
+                       REJFLAG(chan_indx,NOBIASI,9) = 1
                     ENDIF
                  END IF
-                END DO
+              END DO
 
-                DO JC = 1, NCHN
-                  ICHN = ichan(JC,IDIASI)
-                  BTCALC(IASISCH(ICHN),NOBIASI) = radiance_d(nobtov)%out(jc)
-                  RCAL_CLR(IASISCH(ICHN),NOBIASI) = radiance_d(nobtov)%clear_out(jc)
-                  SFCTAU(IASISCH(ICHN),NOBIASI) = transmission_d(nobtov)%tau_surf(jc)
-                  DO JL = 1, NLEV
-                    RCLD(IASISCH(ICHN),NOBIASI,JL) = radiance_d(nobtov)%overcast(jl,jc)
-                    TRANSM(IASISCH(ICHN),NOBIASI,JL) = transmission_d(nobtov)%tau_layer(jl,jc)
-                  END DO
-                  EMI_SFC(IASISCH(ICHN),NOBIASI) = emissivity(JC,NOBTOV)
+              DO JC = 1, NCHN
+                 ICHN = ichan(JC,IDIASI)
+                 chan_indx=hir_get_chindx_fr_chn("IASI",ichn)
+                 BTCALC(chan_indx,NOBIASI) = radiance_d(nobtov)%bt(jc)
+                 RCAL_CLR(chan_indx,NOBIASI) = radiance_d(nobtov)%clear(jc)
+                 SFCTAU(chan_indx,NOBIASI) = transmission_d(nobtov)%tau_total(jc)
+                 DO JL = 1, NLEVB
+                    RCLD(chan_indx,NOBIASI,JL) = radiance_d(nobtov)%overcast(jl+iextr-1,jc)
+                    TRANSM(chan_indx,NOBIASI,JL) = transmission_d(nobtov)%tau_levels(jl+iextr,jc)
+                 END DO
+                 EMI_SFC(chan_indx,NOBIASI) = emissivity(JC,NOBTOV)
 ! *** Gross check on computed BTs ***
-                  IF (BTCALC(IASISCH(ICHN),NOBIASI)<150.) THEN
-                     REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
-                  ENDIF
-                  IF (BTCALC(IASISCH(ICHN),NOBIASI)>350.) THEN
-                     REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
-                  ENDIF
-                END DO
+                 IF (BTCALC(chan_indx,NOBIASI)<150.) THEN
+                    REJFLAG(chan_indx,NOBIASI,9) = 1
+                 ENDIF
+                 IF (BTCALC(chan_indx,NOBIASI)>350.) THEN
+                    REJFLAG(chan_indx,NOBIASI,9) = 1
+                 ENDIF
+              END DO
 
 
-                KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
+           KSURF(NOBIASI) = profiles(nobtov)%skin%surftype
 !Test pour detecter le isatzen manquant (-1) ou anormal
 ! (angle negatif ou superieur a 75 degres )pour IASI
-                isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
-                if ( isatzen < 9000 .or. &
-                     isatzen > 16500 ) then
-                   DO JC = 1, NCHN
-                      ICHN = ichan(JC,IDIASI)
-                      REJFLAG(IASISCH(ICHN),NOBIASI,9) = 1
-                   ENDDO
-                endif
+           isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
+           if ( isatzen < 9000 .or. &
+                isatzen > 16500 ) then
+              DO JC = 1, NCHN
+                 ICHN = ichan(JC,IDIASI)
+                 chan_indx=hir_get_chindx_fr_chn("IASI",ichn)
+                 REJFLAG(chan_indx,NOBIASI,9) = 1
+              ENDDO
+           endif
 !**************************************************************
-                DO JL = 1, NLEV
-                  TOEXT(JL,NOBIASI) = profiles(nobtov)%t(jl)
-                  ZHOEXT(JL,NOBIASI) = profiles_qc(nobtov)%z(jl)
-                END DO
+           DO JL = 1, NLEVB
+              TOEXT(JL,NOBIASI) = profiles(nobtov)%t(jl+iextr)
+              ZHOEXT(JL,NOBIASI) = profiles_qc(nobtov)%z(jl+iextr)
+           END DO
 
-                SUNZA(NOBIASI) = profiles_qc(nobtov)%sunza  
-                SATAZIM(NOBIASI) = profiles(nobtov)%azangle 
-                SATZEN(NOBIASI) = profiles(nobtov)%zenangle 
-                ALBEDO(NOBIASI) = profiles_qc(nobtov)%albedo
-                ICE(NOBIASI) = profiles_qc(nobtov)%ice
-                LTYPE(NOBIASI) = profiles_qc(nobtov)%ltype
-                IF(LTYPE(NOBIASI).EQ.20) KSURF(NOBIASI)=2
-                PCNT_WAT(NOBIASI) = profiles_qc(nobtov)%pcnt_wat
-                PCNT_REG(NOBIASI) = profiles_qc(nobtov)%pcnt_reg
+           SUNZA(NOBIASI) = profiles_qc(nobtov)%sunza  
+           SATAZIM(NOBIASI) = profiles(nobtov)%azangle 
+           SATZEN(NOBIASI) = profiles(nobtov)%zenangle 
+           ALBEDO(NOBIASI) = profiles_qc(nobtov)%albedo
+           ICE(NOBIASI) = profiles_qc(nobtov)%ice
+           LTYPE(NOBIASI) = profiles_qc(nobtov)%ltype
+           IF(LTYPE(NOBIASI).EQ.20) KSURF(NOBIASI)=2
+           PCNT_WAT(NOBIASI) = profiles_qc(nobtov)%pcnt_wat
+           PCNT_REG(NOBIASI) = profiles_qc(nobtov)%pcnt_reg
+           
+        END IF
 
-              END IF       
+     END IF
 
-            END IF
-
-      END DO HEADER_2
+  END DO HEADER_2
 
 
 ! ** find TOA radiances converted from observed BT's
 
-      ROBS(:,:) = -1.
+  ROBS(:,:) = -1.
 
-      profils: DO JN = 1, NPRF
-        channels: DO JC = 1, NCHN
-          ICHN = ichan(JC,IDIASI)
-          IF ( REJFLAG(IASISCH(ICHN),JN,9) == 1 ) CYCLE channels
-          t_effective =  coef(idiasi)%ff_bco(jc) &
-     &         + coef(idiasi)%ff_bcs(jc) * BTOBS(iasisch(ichn),jn)
-          ROBS(iasisch(ichn),jn) =  coef(idiasi)%planck1(jc) / &
-     &         ( Exp( coef(idiasi)%planck2(jc)/t_effective ) - 1.0 )
-        END DO channels
-      END DO profils
+  profils: DO JN = 1, NPRF
+     channels: DO JC = 1, NCHN
+        ICHN = ichan(JC,IDIASI)
+        chan_indx=hir_get_chindx_fr_chn("IASI",ichn)
+        IF ( REJFLAG(chan_indx,JN,9) == 1 ) CYCLE channels
+        t_effective =  coefs(idiasi)%coef%ff_bco(jc) &
+             + coefs(idiasi)%coef%ff_bcs(jc) * BTOBS(chan_indx,jn)
+        ROBS(chan_indx,jn) =  coefs(idiasi)%coef%planck1(jc) / &
+             ( Exp( coefs(idiasi)%coef%planck2(jc)/t_effective ) - 1.0 )
+     END DO channels
+  END DO profils
 
 
 ! ** set height fields to 'height above ground' fields
 
-      DO JN = 1, NPRF
-         DO JL = 1, NLEV
-            ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
-         END DO
-         DO JL = 1, col_getNumLev(lcolumnhr,'TH')
-            ZHT(JL,JN) = ZHT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
-         END DO
-      END DO
+  DO JN = 1, NPRF
+     DO JL = 1, NLEVB
+        ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
+     END DO
+     DO JL = 1, col_getNumLev(lcolumnhr,'TH')
+        ZHT(JL,JN) = ZHT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
+     END DO
+  END DO
 
 
 !**********************************************************************************************
@@ -499,89 +514,98 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !* ///// DETERMINATION OF THE CLEAR/CLOUDY PROFILES (CLDFLAG) /////
 !* ///// ---------------------------------------------------- /////
 
-      CLDFLAG(:) = 0
+  CLDFLAG(:) = 0
 
 
 !* -- REFERENCE FOR WINDOW CHANNEL
 
-      IWINDO     = IASISCH(IWINDOW)
-      IWINDO_ALT = IASISCH(IWINDOW_ALT)
+  IWINDO     = hir_get_chindx_fr_chn("iasi",IWINDOW_IASI)
+  IWINDO_ALT = hir_get_chindx_fr_chn("iasi",IWINDOW_ALT_IASI)
 
-      ICHREF(:)  = IWINDO
-      DO JN = 1, NPRF
-        IF ( REJFLAG(IWINDO,JN,9) == 1 ) THEN
-          ICHREF(JN) = IWINDO_ALT
-          IF ( REJFLAG(IWINDO_ALT,JN,9) == 1 ) THEN
-            ICHREF(JN) = -1
-            CLDFLAG(JN) = -1
-            REJFLAG(:,JN,9) = 1
-            write(*,*) 'WARNING'
-            write(*,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
-            write(*,*) 'HAVE BEEN REJECTED.                             '
-            write(*,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
-          END IF
+  ICHREF(:)  = IWINDO
+  DO JN = 1, NPRF
+     IF ( REJFLAG(IWINDO,JN,9) == 1 ) THEN
+        ICHREF(JN) = IWINDO_ALT
+        IF ( REJFLAG(IWINDO_ALT,JN,9) == 1 ) THEN
+           ICHREF(JN) = -1
+           CLDFLAG(JN) = -1
+           REJFLAG(:,JN,9) = 1
+           write(*,*) 'WARNING'
+           write(*,*) 'WINDOW AND ALTERNATE WINDOW CHANNEL OBSERVATIONS'
+           write(*,*) 'HAVE BEEN REJECTED.                             '
+           write(*,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
         END IF
-      END DO
+     END IF
+  END DO
       
 
 !* -- CLOUD TOP BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE 
 !* -- AT A REFERENCE SURFACE CHANNEL WITH BACKGROUND TEMPERATURE PROFILE (PTOP_EQ)
 !* -- ON GUESS VERTICAL LEVELS.
 
-      LEV_START(:) = 0
+  LEV_START(:) = 0
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
-      CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-           &                   zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),iasisnch,nprf,ichref,lev_start,iopt2)
+  CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
+       zht,zps,zlevmod,col_getNumLev(lcolumnhr,'TH'),hir_get_nchan_selected("IASI"),nprf,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
-      CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-     &                   zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),iasisnch,nprf,ichref,lev_start,iopt1)
+  CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
+       zht,zps,zlevmod,col_getNumLev(lcolumnhr,'TH'),hir_get_nchan_selected("IASI"),nprf,ichref,lev_start,iopt1)
 
-      LEV_START_AVHRR(:,:) = 0
-      cldflag_avhrr(:,:)=0
-      DO JC=1,NCLASSAVHRR
-         DO JN=1,NPRF
-            IOBS=INDX(JN)
-            btobs_avhrr(:,JN,JC)= avhrr_bgck(IOBS) % TBMOY(JC,:)
-            robs_avhrr(1:NIR,JN,JC)= avhrr_bgck(IOBS) % RADMOY(JC,NVIS+1:NIR+NVIS)
-            RCAL_CLR_AVHRR(:,JN) = avhrr_bgck(IOBS) % RADCLEARCALC(:)
-            EMI_SFC_AVHRR(:,JN) = avhrr_bgck(IOBS) % EMISS(:)
-            SFCTAU_AVHRR(:,JN) = avhrr_bgck(IOBS) % TRANSMSURF(:)
-            DO JL=1,NLEV
-               RCLD_AVHRR(:,JN,JL) = avhrr_bgck(IOBS) % RADOVCALC(JL,:)
-            ENDDO
 
-            IF (btobs_avhrr(2,JN,JC) >100.d0 ) THEN
-               ichref_avhrr(JN,JC)=2
-            ELSE IF (btobs_avhrr(3,JN,JC) >100.d0 ) THEN
-               ichref_avhrr(JN,JC)=3
-            ELSE
-               ichref_avhrr(JN,JC)=-1
-               cldflag_avhrr(JN,JC)=-1
-            ENDIF
+ ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
+     
+  allocate ( avhrr_surfem1   (3 * NPRF ) ,stat=alloc_status(1))
 
-         ENDDO
+  call get_avhrr_emiss(emi_sfc,coefs(idiasi) %coef%ff_cwn,coefs(idiasi) % coef%fmv_chn,nprf,avhrr_surfem1)
 
-         CALL CLOUD_HEIGHT (PTOP_EQ_AVHRR(:,JC),NTOP_EQ_AVHRR(:,JC), btobs_avhrr(:,:,JC),cldflag_avhrr(:,JC),zt, &
-              &                   zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),NIR,nprf,ichref_avhrr(:,JC),lev_start_avhrr(:,JC),iopt1)
+  call tovs_rttov_AVHRR_for_IASI(indx,nprf,avhrr_surfem1)
+
+  deallocate ( avhrr_surfem1  ,stat=alloc_status(1))
+     
+  LEV_START_AVHRR(:,:) = 0
+  cldflag_avhrr(:,:)=0
+  DO JC=1,NCLASSAVHRR
+     DO JN=1,NPRF
+        IOBS=INDX(JN)
+        btobs_avhrr(:,JN,JC)= avhrr_bgck(IOBS) % TBMOY(JC,:)
+        robs_avhrr(1:NIR,JN,JC)= avhrr_bgck(IOBS) % RADMOY(JC,NVIS+1:NIR+NVIS)
+        RCAL_CLR_AVHRR(:,JN) = avhrr_bgck(IOBS) % RADCLEARCALC(:)
+        EMI_SFC_AVHRR(:,JN) = avhrr_bgck(IOBS) % EMISS(:)
+        SFCTAU_AVHRR(:,JN) = avhrr_bgck(IOBS) % TRANSMSURF(:)
+        
+        DO JL=1,NLEVB
+           RCLD_AVHRR(:,JN,JL) = avhrr_bgck(IOBS) % RADOVCALC(JL+iextr-1,:)
+        ENDDO
+
+        IF (btobs_avhrr(2,JN,JC) >100.d0 ) THEN
+           ichref_avhrr(JN,JC)=2
+        ELSE IF (btobs_avhrr(3,JN,JC) >100.d0 ) THEN
+           ichref_avhrr(JN,JC)=3
+        ELSE
+           ichref_avhrr(JN,JC)=-1
+           cldflag_avhrr(JN,JC)=-1
+        ENDIF
+     ENDDO
+
+     CALL CLOUD_HEIGHT (PTOP_EQ_AVHRR(:,JC),NTOP_EQ_AVHRR(:,JC), btobs_avhrr(:,:,JC),cldflag_avhrr(:,JC),zt, &
+          zht,zps,zvlev,col_getNumLev(lcolumnhr,'TH'),NIR,nprf,ichref_avhrr(:,JC),lev_start_avhrr(:,JC),iopt1)
          
 
-      ENDDO
+  ENDDO
       
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
-      CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-     &                      zht,col_getNumLev(lcolumnhr,'TH'),iasisnch,nprf,ptop_eq,ntop_eq,ichref)
+  CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
+       zht,col_getNumLev(lcolumnhr,'TH'),hir_get_nchan_selected("IASI"),nprf,ptop_eq,ntop_eq,ichref)
 
 
-      DO JC=1,NCLASSAVHRR
-         
-          CALL GARAND1998NADON (CLDFLAG_AVHRR(:,jC), btobs_avhrr(:,:,JC),ztg,zt, &
-     &                      zht,col_getNumLev(lcolumnhr,'TH'),NIR,nprf,ptop_eq_avhrr(:,JC),ntop_eq_avhrr(:,JC),ichref_avhrr(:,JC))
-      ENDDO
-
-
+  DO JC=1,NCLASSAVHRR
+     
+     CALL GARAND1998NADON (CLDFLAG_AVHRR(:,jC), btobs_avhrr(:,:,JC),ztg,zt, &
+          zht,col_getNumLev(lcolumnhr,'TH'),NIR,nprf,ptop_eq_avhrr(:,JC),ntop_eq_avhrr(:,JC),ichref_avhrr(:,JC))
+  ENDDO
 
 
 !* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
@@ -591,106 +615,106 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** Set cloudy if temperature difference between guess (ZTG)     ***
 ! *** and estimated true (ZTS) skin temperatures is over threshold ***
 
-      CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,btobs,robs, &
-     &              sfctau,cldflag,ichref,iasisnch,nchn,nprf,idiasi,"IASI")
+  CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,robs, &
+       sfctau,cldflag,ichref,hir_get_nchan_selected("IASI"),nchn,nprf,idiasi,"IASI")
 
 
-      DO JC=1,NCLASSAVHRR
-         CALL ESTIM_TS_AVHRR(ZTS_AVHRR(:,JC), ztg,emi_sfc_avhrr,rcal_clr_avhrr,btobs_avhrr(:,:,JC),robs_avhrr(:,:,JC), &
-              &              sfctau_avhrr,CLDFLAG_AVHRR(:,jC),ichref_avhrr(:,JC),NIR,nprf)
+  DO JC=1,NCLASSAVHRR
+     CALL ESTIM_TS_AVHRR(ZTS_AVHRR(:,JC), ztg,emi_sfc_avhrr,rcal_clr_avhrr,robs_avhrr(:,:,JC), &
+          sfctau_avhrr,CLDFLAG_AVHRR(:,jC),ichref_avhrr(:,JC),NIR,nprf)
 
-      ENDDO
+  ENDDO
 
-      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) == 1 &
-     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTW ) CLDFLAG(:) = 1 
+  WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) == 1 &
+       .AND. ABS(ZTS(:)-ZTG(:)) > DTW ) CLDFLAG(:) = 1 
 
-      WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) /= 1 &
-     &                        .AND. ABS(ZTS(:)-ZTG(:)) > DTL ) CLDFLAG(:) = 1
+  WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) /= 1 &
+       .AND. ABS(ZTS(:)-ZTG(:)) > DTL ) CLDFLAG(:) = 1
 
-      DO JC=1,NCLASSAVHRR
-         WHERE ( CLDFLAG_AVHRR(:,JC) == 0 .AND. KSURF(:) == 1 &
-              &                        .AND. ABS(ZTS_AVHRR(:,JC)-ZTG(:)) > DTW ) CLDFLAG_AVHRR(:,JC) = 1
+  DO JC=1,NCLASSAVHRR
+     WHERE ( CLDFLAG_AVHRR(:,JC) == 0 .AND. KSURF(:) == 1 &
+          .AND. ABS(ZTS_AVHRR(:,JC)-ZTG(:)) > DTW ) CLDFLAG_AVHRR(:,JC) = 1
 
-         WHERE ( CLDFLAG_AVHRR(:,JC) == 0 .AND. KSURF(:) /= 1 &
-              &                        .AND. ABS(ZTS_AVHRR(:,JC)-ZTG(:)) > DTL ) CLDFLAG_AVHRR(:,JC) = 1
+     WHERE ( CLDFLAG_AVHRR(:,JC) == 0 .AND. KSURF(:) /= 1 &
+          .AND. ABS(ZTS_AVHRR(:,JC)-ZTG(:)) > DTL ) CLDFLAG_AVHRR(:,JC) = 1
 
-      ENDDO
+  ENDDO
 
 
 !criteres AVHRR utilisant les canaux visibles (de jour seulement)
-      DO JN=1,NPRF
-         IF (sunza(jn)<sunzenmax) THEN 
-            ANISOT=1.0
-            deltaphi=abs(SATAZIM(JN) - SUNAZIM(JN) )
+  DO JN=1,NPRF
+     IF (sunza(jn)<sunzenmax) THEN 
+        ANISOT=1.0
+        deltaphi=abs(SATAZIM(JN) - SUNAZIM(JN) )
 
-            IF (deltaphi>180.) deltaphi=360. - deltaphi
+        IF (deltaphi>180.) deltaphi=360. - deltaphi
 
-            IF (ALBEDO(JN)<0.17) THEN               
-               CALL VISOCN(sngl(sunza(jn)),sngl(satzen(jn)),deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
-               SEUIL_ALBED(1)=10.0*max(1.0,ANISOT) 
-            ELSE
-               SEUIL_ALBED(1)=100.0*ALBEDO(JN) + 10.
-            ENDIF
+        IF (ALBEDO(JN)<0.17) THEN               
+           CALL VISOCN(sngl(sunza(jn)),sngl(satzen(jn)),deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
+           SEUIL_ALBED(1)=10.0*max(1.0,ANISOT) 
+        ELSE
+           SEUIL_ALBED(1)=100.0*ALBEDO(JN) + 10.
+        ENDIF
 
-            IF (ANISOT<1.5) THEN !to avoid sun glint
-               SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
-               CALL  cor_albedo ( DEL, SCOS )
-               SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
-               IOBS=INDX(JN)
-               DO JC=1,NCLASSAVHRR
-                  IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
-                     CLDFLAG_AVHRR(JN,JC) = 1
-                  ENDIF
+        IF (ANISOT<1.5) THEN !to avoid sun glint
+           SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
+           CALL  cor_albedo ( DEL, SCOS )
+           SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
+           IOBS=INDX(JN)
+           DO JC=1,NCLASSAVHRR
+              IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,1) > SEUIL_ALBED(1) ) THEN
+                 CLDFLAG_AVHRR(JN,JC) = 1
+              ENDIF
                   !static AVHRR thresholds v3
-                  DO JL=1,NVIS
-                     IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,JL) > seuilalb_static(JL,KSURF(JN)) ) THEN
-                        CLDFLAG_AVHRR(JN,JC) = 1
-                     ENDIF
-                  ENDDO
-               ENDDO
+              DO JL=1,NVIS
+                 IF (avhrr_bgck(IOBS)%ALBEDMOY(JC,JL) > seuilalb_static(JL,KSURF(JN)) ) THEN
+                    CLDFLAG_AVHRR(JN,JC) = 1
+                 ENDIF
+              ENDDO
+           ENDDO
 
-            ENDIF
-         ENDIF
-      ENDDO
+        ENDIF
+     ENDIF
+  ENDDO
 
 !Calcul de la pseudo fraction nuageuse AVHRR
 
-      DO JN=1,NPRF
-         IOBS=INDX(JN)
-         CFRAC_AVHRR(JN)=0.
-         DO JC=1,NCLASSAVHRR
-            IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + avhrr_bgck(IOBS)%CFRAC(JC)
-         ENDDO
-      ENDDO
+  DO JN=1,NPRF
+     IOBS=INDX(JN)
+     CFRAC_AVHRR(JN)=0.
+     DO JC=1,NCLASSAVHRR
+        IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + avhrr_bgck(IOBS)%CFRAC(JC)
+     ENDDO
+  ENDDO
 
-      CFSUB(:)=-1.0
-      DO JN =1, NPRF
-         IF ( CLDFLAG(JN) == 0 .AND. CFRAC_AVHRR(JN) > 5. ) THEN
-            CLDFLAG(JN) = 1
-            CFSUB(JN)=0.01* MIN(CFRAC_AVHRR(JN),100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR(JN)=101
-         ENDIF
-      ENDDO
+  CFSUB(:)=-1.0
+  DO JN =1, NPRF
+     IF ( CLDFLAG(JN) == 0 .AND. CFRAC_AVHRR(JN) > 5. ) THEN
+        CLDFLAG(JN) = 1
+        CFSUB(JN)=0.01* MIN(CFRAC_AVHRR(JN),100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR(JN)=101
+     ENDIF
+  ENDDO
 
 !AVHRR Homogeneity criteria
-      DO JN=1,NPRF
-         IOBS=INDX(JN)
-         IF (CLDFLAG(JN) == 0) THEN
-            IJOUR=1
-            IF (SUNZA(JN)<90.d0) IJOUR=2
-! 1 NUIT
-! 2 JOUR
-            IF (IJOUR==2) THEN
-               DO JC=1,NVIS
-                  IF (avhrr_bgck(IOBS)%ALBSTD_PIXELIASI(JC)> seuilalb_homog(JC,KSURF(JN)) ) CLDFLAG(JN)=1
-               ENDDO
-            ENDIF
-            DO JC=NVIS+1,NVIS+NIR
-               IF (avhrr_bgck(IOBS)%TBSTD_PIXELIASI(JC)>seuilbt_homog(JC,KSURF(JN),IJOUR)) CLDFLAG(JN)=1
-            ENDDO
-         ENDIF
-      ENDDO
+  DO JN=1,NPRF
+     IOBS=INDX(JN)
+     IF (CLDFLAG(JN) == 0) THEN
+        IJOUR=1
+        IF (SUNZA(JN)<90.d0) IJOUR=2
+        ! 1 NUIT
+        ! 2 JOUR
+        IF (IJOUR==2) THEN
+           DO JC=1,NVIS
+              IF (avhrr_bgck(IOBS)%ALBSTD_PIXELIASI(JC)> seuilalb_homog(JC,KSURF(JN)) ) CLDFLAG(JN)=1
+           ENDDO
+        ENDIF
+        DO JC=NVIS+1,NVIS+NIR
+           IF (avhrr_bgck(IOBS)%TBSTD_PIXELIASI(JC)>seuilbt_homog(JC,KSURF(JN),IJOUR)) CLDFLAG(JN)=1
+        ENDDO
+     ENDIF
+  ENDDO
 
-      GNCLDFLAG(:)=CLDFLAG(:)
+  GNCLDFLAG(:)=CLDFLAG(:)
 
 !* ///// ------------------------------------------------------- /////
 !* ///// DETERMINATION OF THE ASSIMILABLE OBSERVATIONS (REJFLAG) /////
@@ -704,12 +728,12 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** TEST # 1 ***
 ! *** Do not assimilate where cloudy ***
 
-      DO JN = 1, NPRF
-        IF ( CLDFLAG(JN) == 1 ) then
-           REJFLAG(:,JN,11) = 1
-           REJFLAG(:,JN,23) = 1
-        endif
-      END DO
+  DO JN = 1, NPRF
+     IF ( CLDFLAG(JN) == 1 ) then
+        REJFLAG(:,JN,11) = 1
+        REJFLAG(:,JN,23) = 1
+     endif
+  END DO
 
 
 ! *** TEST # 2 ***
@@ -721,70 +745,77 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !* -- CLOUD TOP BASED ON MATCHING 
 !* -- OBSERVED BRIGHTNESS TEMPERATURE WITH BACKGROUND TEMPERATURE PROFILES (PTOP_BT)
 !* -- OR COMPUTED OBSERVED RADIANCES WITH BACKGROUND RADIANCE PROFILES (PTOP_RD)
-!* -- ON 43 RTTOV VERTICAL LEVELS
+!* -- ON RTTOV VERTICAL LEVELS
 
-      LEV_START(:) = 0
+  LEV_START(:) = 0
 
-      DO JCH = 1, NCH
-        ILIST(JCH) = IASISCH(ILIST1(JCH))
-      END DO
+  DO JCH = 1, NCH_HE
+     ILIST_HE(JCH) = hir_get_chindx_fr_chn("IASI",ILIST1_IASI(JCH))
+  END DO
 
-      CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
-     &                 btobs,toext,zhoext,rcal_clr,zps,robs,rcld,xpres,nlev, &
-     &                 iasisnch,nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch,ilist)
+  CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
+       btobs,toext,zhoext,rcal_clr,zps,robs,rcld,zvlev,nlevb, &
+       hir_get_nchan_selected("IASI"),nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
 
-      LEV_START_AVHRR(:,:) = 0
+  LEV_START_AVHRR(:,:) = 0
 
-      DO JC=1,NCLASSAVHRR
-         CALL CLOUD_TOP_AVHRR ( PTOP_BT_AVHRR(:,:,JC),PTOP_RD_AVHRR(:,:,JC),NTOP_BT_AVHRR(:,:,JC),NTOP_RD_AVHRR(:,:,JC), &
-              &                 btobs_avhrr(:,:,JC),toext,zhoext,rcal_clr_avhrr,zps,robs_avhrr(:,:,JC),rcld_avhrr,xpres,nlev, &
-              &                 NIR,nprf,cldflag_avhrr(:,jc),lev_start_avhrr(:,JC),iopt2,ihgt,nn,ilist_avhrr)
-      ENDDO
+  DO JC=1,NCLASSAVHRR
+     CALL CLOUD_TOP_AVHRR ( PTOP_BT_AVHRR(:,:,JC),PTOP_RD_AVHRR(:,:,JC),NTOP_BT_AVHRR(:,:,JC),NTOP_RD_AVHRR(:,:,JC), &
+          btobs_avhrr(:,:,JC),toext,zhoext,rcal_clr_avhrr,zps,robs_avhrr(:,:,JC),rcld_avhrr,zvlev,nlevb, &
+          NIR,nprf,cldflag_avhrr(:,jc),lev_start_avhrr(:,JC),iopt2,ihgt,nn,ilist_avhrr)
+  ENDDO
 
 !* -- REFERENCE CHANNEL FOR CO2-SLICING
 
-      DO JN = 1, NPRF
-         cpt=0
-         DO JCH=1,NCO2
-            IF ( REJFLAG(ILIST2_PAIR(JCH),JN,9)==1 ) cpt=cpt+1
-         ENDDO
-         IF (cpt==nco2) THEN
-            CLDFLAG(JN) = -1
-            REJFLAG(:,JN,9) = 1
-            write(*,*) 'WARNING'
-            write(*,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
-            write(*,*) 'HAVE BEEN REJECTED.                             '
-            write(*,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
-         ENDIF
-      END DO
+  DO JCH = 1, NCO2
+     ILIST_CO2(JCH) = hir_get_chindx_fr_chn("IASI",ILIST2_IASI(JCH))
+     ILIST_CO2_PAIR(JCH) = hir_get_chindx_fr_chn("IASI",ILIST2_PAIR_IASI(JCH))
+  END DO
+
+  DO JN = 1, NPRF
+     cpt=0
+
+     DO JCH=1,NCO2
+        IF ( REJFLAG(ILIST_CO2(JCH),JN,9)==1 .or. &
+             REJFLAG(ILIST_CO2_PAIR(JCH),JN,9)==1 ) cpt=cpt+1
+     ENDDO
+         
+     IF (cpt==nco2) THEN
+        CLDFLAG(JN) = -1
+        REJFLAG(:,JN,9) = 1
+        write(*,*) 'WARNING'
+        write(*,*) 'CO2 REFERENCE AND ALTERNATE CHANNEL OBSERVATIONS'
+        write(*,*) 'HAVE BEEN REJECTED.                             '
+        write(*,*) 'ALL IASI OBSERVATIONS FROM THIS PROFILE REJECTED'
+     ENDIF
+  END DO
 
 !* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
 
-      HE(:) = PTOP_RD(IASISCH(ILIST1(2)),:)
+  HE(:) = PTOP_RD( hir_get_chindx_fr_chn("IASI",ILIST1_IASI(2)) ,:)
 
-      DO JN = 1, NPRF
-        IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD(IASISCH(ILIST1(3)),JN)
-      END DO
+  DO JN = 1, NPRF
+     IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD( hir_get_chindx_fr_chn("IASI",ILIST1_IASI(3)) ,JN)
+  END DO
 
 
 !* -- CLOUD TOP BASED ON CO2 SLICING 
 
-      LEV_START(:) = MAX( MIN(LEV_START(:),CO2MAX), CO2MIN )
+  DO JN = 1, NPRF
+     LEV_START(JN) = MAX( MIN(LEV_START(JN),CO2MAX(1)), CO2MIN(1) )
+  END DO
 
-      DO JCH = 1, NCO2
-        ILIST(JCH) = IASISCH(ILIST2(JCH))
-        ILIST_PAIR(JCH) = IASISCH(ILIST2_PAIR(JCH))
-      END DO
 
-      CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
-     &                   rcal_clr,rcld,robs,zps,xpres,nlev,iasisnch,nprf,cldflag,rejflag,bitflag, &
-     &                   lev_start,ichref,nco2,ilist,ilist_pair)
+
+  CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
+       rcal_clr,rcld,robs,zps,zvlev,nlevb,hir_get_nchan_selected("IASI"),nprf,cldflag,rejflag,bitflag, &
+       lev_start,ichref,nco2,ilist_co2,ilist_co2_pair)
 
 
 !* -- FIND CONSENSUS CLOUD TOP AND FRACTION
      
-      CALL SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ptop_co2,fcloud_co2, &
-           CFSUB,PTOP_MB,zps,cldflag,gncldflag,nprf,nco2 )
+  CALL SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ptop_co2,fcloud_co2, &
+       CFSUB,PTOP_MB,zps,cldflag,gncldflag,nprf,nco2 )
 
 !      DO JN=1,NPRF
 !         IF (ECF(JN)==0.0 .AND. ETOP(JN)==ZPS(JN) ) THEN
@@ -795,79 +826,79 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! Correction pour les nuages trop bas:
 ! en principe Pco2 < Heff.
 ! on cherche les cas pathologiques avec Pco2>Min(Heff(AVHRR))
-      DO JN=1,NPRF
-         IOBS=INDX(JN)
-         minpavhrr(2:3)=12200
-         ILOC(2:3)=-1      ! pour eviter les catastrophes...
-         DO JC=1,NCLASSAVHRR
-            IF (avhrr_bgck(IOBS)%CFRAC(JC)>0.) THEN
-               IF (PTOP_RD_AVHRR(2,JN,JC)<minpavhrr(2)) THEN
-	             ILOC(2)=JC
-		     minpavhrr(2)=PTOP_RD_AVHRR(2,JN,JC)
-               ENDIF
-               IF (PTOP_RD_AVHRR(3,JN,JC)<minpavhrr(3)) THEN
-	             ILOC(3)=JC
-		     minpavhrr(3)=PTOP_RD_AVHRR(3,JN,JC)
-               ENDIF
-            ENDIF
-         ENDDO
-         IF ( ILOC(2)==-1 .or. ILOC(3)==-1) CYCLE ! pour eviter les catastrophes...
+  DO JN=1,NPRF
+     IOBS=INDX(JN)
+     minpavhrr(2:3)=12200
+     ILOC(2:3)=-1      ! pour eviter les catastrophes...
+     DO JC=1,NCLASSAVHRR
+        IF (avhrr_bgck(IOBS)%CFRAC(JC)>0.) THEN
+           IF (PTOP_RD_AVHRR(2,JN,JC)<minpavhrr(2)) THEN
+              ILOC(2)=JC
+              minpavhrr(2)=PTOP_RD_AVHRR(2,JN,JC)
+           ENDIF
+           IF (PTOP_RD_AVHRR(3,JN,JC)<minpavhrr(3)) THEN
+              ILOC(3)=JC
+              minpavhrr(3)=PTOP_RD_AVHRR(3,JN,JC)
+           ENDIF
+        ENDIF
+     ENDDO
+     IF ( ILOC(2)==-1 .or. ILOC(3)==-1) CYCLE ! pour eviter les catastrophes...
 ! on se limite aux cas "surs" ou les deux hauteurs effectives sont > a Pco2
 ! et ou un accord raisonnable existe entre les deux hauteurs effectives
-         IF ( ILOC(2)==ILOC(3) .and. &
-	      PTOP_RD_AVHRR(2,JN,ILOC(2)) < ETOP(JN) .and. &
-              PTOP_RD_AVHRR(3,JN,ILOC(3)) < ETOP(JN) .and. &
-              ABS(minpavhrr(2)- minpavhrr(3))<25. .and. &
-              CLDFLAG_AVHRR(JN,ILOC(2))/=-1 .and. CLDFLAG_AVHRR(JN,ILOC(3))/=-1) THEN
+     IF ( ILOC(2)==ILOC(3) .and. &
+          minpavhrr(2) < ETOP(JN) .and. &
+          minpavhrr(3) < ETOP(JN) .and. &
+          ABS(minpavhrr(2)- minpavhrr(3))<25. .and. &
+          CLDFLAG_AVHRR(JN,ILOC(2))/=-1 .and. CLDFLAG_AVHRR(JN,ILOC(3))/=-1) THEN
+        
+        IF (ECF(JN)==0.0 .and. CLDFLAG(JN)==1) THEN
+! cas predetermine nuageux mais ramene a clair 
+           ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
+! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
+           ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+        ENDIF
 
-            IF (ECF(JN)==0.0 .and. CLDFLAG(JN)==1) THEN
-!cas predetermine nuageux mais ramene a clair 
-               ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
-! cette ligne peut generer des fractions nuageuses inferieures a 20 %. Probleme ?
-               ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
-            ENDIF
-
-            IF (ECF(JN)>0.0 .and. CLDFLAG(JN)==1) THEN
+        IF (ECF(JN)>0.0 .and. CLDFLAG(JN)==1) THEN
 !cas predetermine nuageux pas ramene clair (==normal)
-               ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
-            ENDIF
+           ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+        ENDIF
 
-            IF (CLDFLAG(JN)==0) THEN
+        IF (CLDFLAG(JN)==0) THEN
                !cas predetermine clair ... que faire
-               CLDFLAG(JN)=1
-               ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
-               ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
-            ENDIF
+           CLDFLAG(JN)=1
+           ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+           ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
+        ENDIF
 
 
-         ENDIF
-      ENDDO
+     ENDIF
+  ENDDO
 
 !* -- FIND RADIATIVE TRANSFER MODEL LEVEL NEAREST TO TRIAL TOP (only compute one time)
 
-      IF ( iasi_loop_done == 0 ) THEN
+  IF ( iasi_loop_done == 0 ) THEN
+     
+     DIFFTOP_MIN = 100000.
+     IMODTOP     = 1
 
-        DIFFTOP_MIN = 100000.
-        IMODTOP     = 1
+     DO JL = 1, NLEVB
+        IF ( ABS(vco_trl%DPT_M-100.*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
+           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.*ZVLEV(JL))
+           IMODTOP = JL
+        END IF
+     END DO
 
-        DO JL = 1, NLEV
-          IF ( ABS(vco_trl%DPT_M-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
-            DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.*XPRES(JL))
-            IMODTOP = JL
-          END IF
-        END DO
+     write(*,*) 'TOIT DU MODELE (MB)'
+     write(*,*) 0.01*vco_trl%DPT_M
+     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
+     write(*,*) IMODTOP
 
-        write(*,*) 'TOIT DU MODELE (MB)'
-        write(*,*) 0.01*vco_trl%DPT_M
-        write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
-        write(*,*) IMODTOP
-
-      END IF
+  END IF
 
 
 !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
 
-      CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,iasisnch,nprf,imodtop )
+  CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,hir_get_nchan_selected("IASI"),nprf,imodtop )
 
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
@@ -875,229 +906,233 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** Assimilation above clouds (refinement of test 1)             ***
 ! *** Set security margin to 2x the std on height from CO2-slicing *** 
 
-      TAMPON(:) = MAX(50.D0, 2.*VTOP(:))                                                          
+  TAMPON(:) = MAX(50.D0, 2.*VTOP(:))                                                          
 
-      DO JC = 1, IASISNCH        
-        WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .and. ETOP(:) - TAMPON(:) > PMIN(JC,:) )
-           REJFLAG(JC,:,11) = 0
-           REJFLAG(JC,:,23) = 0
-        end WHERE
-      END DO
+  DO JC = 1, hir_GET_NCHAN_SELECTED("IASI")        
+     WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .and. ETOP(:) - TAMPON(:) > PMIN(JC,:) )
+        REJFLAG(JC,:,11) = 0
+        REJFLAG(JC,:,23) = 0
+     end WHERE
+  END DO
 
 
 !     LOOK AT THE FATE OF THE OBSERVATIONS
 
-      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)            
+  FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)            
 
 
 !     FURTHER REASONS TO REJECT OBSERVATIONS
 
-      DO JC = 1, IASISNCH
-        DO JN = 1, NPRF
+  ILIST_SUN= hir_get_chindx_fr_chn("IASI",ICHN_SUN_IASI)
 
-          IF ( FATE(JC,JN) == 0 ) THEN
+  DO JC = 1, hir_GET_NCHAN_SELECTED("IASI")
+     DO JN = 1, NPRF
+
+        IF ( FATE(JC,JN) == 0 ) THEN
 
 ! *** TEST # 4 ***
 ! *** Background check, do not assimilate if O-P > 3sigma ***
 
-            IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
+           IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
               REJFLAG(JC,JN,9)  = 1
               REJFLAG(JC,JN,16) = 1
-            END IF
+           END IF
 
 ! *** TEST # 5 ***
 ! *** Do not assimilate shortwave channels during the day ***
 
-            IF ( JC >= IASISCH(ICHN_SUN) .AND. SUNZA(JN) < NIGHT_ANG ) then
-               REJFLAG(JC,JN,11) = 1
-               REJFLAG(JC,JN,7)  = 1
-            END IF
+           IF ( JC >= ILIST_SUN .AND. SUNZA(JN) < NIGHT_ANG ) then
+              REJFLAG(JC,JN,11) = 1
+              REJFLAG(JC,JN,7)  = 1
+           END IF
 
 ! *** TEST # 6 ***
 ! *** Do not assimilate surface channels over land ***
 
-            IF ( MINP(JC,JN) == NLEV .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+           IF ( MINP(JC,JN) == NLEVB .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
               IF ( KSURF(JN) == 0 ) THEN
-                REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
-                REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
-                IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
-                  REJFLAG(JC,JN,11) = 1
-                  REJFLAG(JC,JN,19) = 1
-                END IF
+                 REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
+                 REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
+                 IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
+                    REJFLAG(JC,JN,11) = 1
+                    REJFLAG(JC,JN,19) = 1
+                 END IF
 
 ! *** TEST # 7 ***
 ! *** Do not assimilate surface channels over water under conditions ***
 
               ELSE IF ( KSURF(JN) == 1 ) THEN
-                IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
-     &               ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
-                  REJFLAG(JC,JN,11) = 1   
-                  REJFLAG(JC,JN,19) = 1   
-                END IF
+                 IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
+                      ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
+                    REJFLAG(JC,JN,11) = 1   
+                    REJFLAG(JC,JN,19) = 1   
+                 END IF
 
 ! *** TEST # 8 ***
 ! *** Do not assimilate surface channels over sea ice ***
    
               ELSE IF ( KSURF(JN) == 2 ) THEN
-                REJFLAG(JC,JN,11) = 1
-                REJFLAG(JC,JN,19) = 1
+                 REJFLAG(JC,JN,11) = 1
+                 REJFLAG(JC,JN,19) = 1
 
               END IF
-            END IF
+           END IF
 
-          END IF
+        END IF
 
 ! *** TEST # 9 ***
 ! *** Do not assimilate if jacobian has a significant contribution over model top ***
 
           ! Condition valid if model top at 10mb or lower only
-          IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
-            IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
+        IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1
-            END IF
-          END IF
+           END IF
+        END IF
        
           ! Condition valid if model top at 10mb or lower only
-          IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
-            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
+        IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
-            END IF
-          END IF
+           END IF
+        END IF
 
           ! Condition valid if model top is higher than 10 mb
-          IF ( NINT(vco_trl%DPT_M) < 1000 ) THEN
-            IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
+        IF ( NINT(vco_trl%DPT_M) < 1000 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
-            END IF
-          END IF
+           END IF
+        END IF
 
 ! *** TEST # 10 ***
 ! *** Do not assimilate blacklisted channels ***
           
-          IF ( IASI_ASSIM(JC) == 0 ) REJFLAG(JC,JN,8) = 1
+        IF ( hir_get_assim_chan("IASI",JC) == 0 ) REJFLAG(JC,JN,8) = 1
 
-        END DO
-      END DO
+     END DO
+  END DO
 
 ! *** TEST # 11 ***
 ! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
 
-!          IF ( IASI_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+!          IF ( hir_get_assim_chan("IASI",JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
 
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
 
-      ASSIM_ALL(:) = .true.
-      FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)            
+  ASSIM_ALL(:) = .true.
+  FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)            
 
-      prf: DO JN = 1, NPRF
-        chn: DO JC = 1, IASISNCH
-          IF ( REJFLAG(JC,JN,8) == 0 ) THEN
-            IF ( FATE(JC,JN) /= 0 ) THEN
+  prf: DO JN = 1, NPRF
+     chn: DO JC = 1, hir_GET_NCHAN_SELECTED("IASI")
+        IF ( REJFLAG(JC,JN,8) == 0 ) THEN
+           IF ( FATE(JC,JN) /= 0 ) THEN
               ASSIM_ALL(JN) = .false.
               EXIT chn
-            END IF
-          END IF
-        END DO chn
-      END DO prf            
+           END IF
+        END IF
+     END DO chn
+  END DO prf
 
 !******************************************************************************************
 
 !* -- PUT REJECT FLAGS INTO CMA VARIABLE --
 !* ----------------------------------------
 
-      NOBIASI = 0
-      count_iasi = 0
+  NOBIASI = 0
+  count_iasi = 0
 
       ! loop over all header indices of the 'TO' family
-      call obs_set_current_header_list(lobsSpaceData,'TO')
-      HEADER_3: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER_3
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER_3: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER_3
+
 
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-         IF ( IDATYP .EQ. 186) THEN
+         IF ( tvs_Is_idburp_iasi(IDATYP) ) THEN
            count_iasi = count_iasi + 1
            IF ( count_iasi > iasi_loop_done * bunch_iasi .AND. &
-     &          count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN 
-             NOBIASI = NOBIASI + 1
-             IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-             IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-             if  (.not.ASSIM_ALL(NOBIASI)) then
-                call obs_headSet_i(lobsSpaceData, OBS_ST1, index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,INDEX_HEADER),6) )
-             endif
-             DO INDEX_BODY= IDATA, IDATEND
-                IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-                  ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                  ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                  call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(IASISCH(ICHN),NOBIASI))
-                  DO NFLG = 0, BITFLAG
-                    IF ( REJFLAG(IASISCH(ICHN),NOBIASI,NFLG) == 1 ) &
-     &               call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
-                  END DO
-                END IF
-             END DO
+                count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN 
+              NOBIASI = NOBIASI + 1
+              IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+              IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+              if  (.not.ASSIM_ALL(NOBIASI)) then
+                 call obs_headSet_i(lobsSpaceData, OBS_ST1, index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,INDEX_HEADER),6) )
+              endif
+              DO INDEX_BODY= IDATA, IDATEND
+                 IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                    ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                    chan_indx=hir_get_chindx_fr_chn("IASI",ichn)
+                    call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx,NOBIASI))
+                    DO NFLG = 0, BITFLAG
+                       IF ( REJFLAG(chan_indx,NOBIASI,NFLG) == 1 ) &
+                            call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
+                    END DO
+                 END IF
+              END DO
            END IF
-         END IF
-      END DO HEADER_3
+        END IF
+     END DO HEADER_3
 
  
 !* -- ADDITION OF NEW IASI INFORMATION IN BURP FILE
 !* ------------------------------------------------
 
-      IPRO = iasi_loop_done * bunch_iasi + 1 
+  IPRO = iasi_loop_done * bunch_iasi + 1 
                 
-      DO JN = 1, NPRF
-         call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.*ECF(JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.*VCF(JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
-         call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
-         call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
-         call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
-         call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.*ZPS(JN) )
-         call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
-         IPRO = IPRO + 1
-      END DO
+  DO JN = 1, NPRF
+     call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.*ECF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.*VCF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
+     call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
+     call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.*ZPS(JN) )
+     call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
+     IPRO = IPRO + 1
+  END DO
 
-      deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ)
-      deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU)
-      deallocate (ROBS,RCLD,TRANSM,EMI_SFC)
-      deallocate (TOEXT,ZHOEXT,SUNZA)
-      deallocate (ALBEDO,ICE,PCNT_WAT,PCNT_REG)
-      deallocate (KSURF,LTYPE)
-      deallocate (CLDFLAG,REJFLAG,LEV_START,ILIST)
-      deallocate (NTOP_EQ,NTOP_BT,NTOP_RD)
-      deallocate (NTOP_CO2,NGOOD)
-      deallocate (PTOP_EQ,PTOP_BT,PTOP_RD)
-      deallocate (PTOP_CO2,FCLOUD_CO2,HE)
-      deallocate (ETOP,VTOP,ECF,VCF)
-      deallocate (MINP,FATE)
-      deallocate (PMIN,DTAUDP1,TAMPON)
-      deallocate (ICHREF)
-      deallocate (ASSIM_ALL,INDX,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
-      deallocate ( LEV_START_AVHRR,PTOP_EQ_AVHRR,NTOP_EQ_AVHRR,BTOBS_AVHRR)
-      deallocate ( ICHREF_AVHRR )
-      deallocate ( CLDFLAG_AVHRR )
-      deallocate ( ROBS_AVHRR)
-      deallocate ( RCAL_CLR_AVHRR )
-      deallocate ( EMI_SFC_AVHRR)
-      deallocate ( ZTS_AVHRR)
-      deallocate ( SFCTAU_AVHRR)
-      deallocate ( PTOP_BT_AVHRR)
-      deallocate ( PTOP_RD_AVHRR)
-      deallocate ( NTOP_BT_AVHRR)
-      deallocate ( NTOP_RD_AVHRR)
-      deallocate ( RCLD_AVHRR)
-      deallocate ( ZLAT,ZLON)
-      deallocate ( MAXWF,CFRAC_AVHRR )
-      deallocate (satazim,satzen,sunazim)
-      deallocate (GNCLDFLAG,ILIST_PAIR)
-      deallocate (CORFLAG)
+  deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ)
+  deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU)
+  deallocate (ROBS,RCLD,TRANSM,EMI_SFC)
+  deallocate (TOEXT,ZHOEXT,SUNZA)
+  deallocate (ALBEDO,ICE,PCNT_WAT,PCNT_REG)
+  deallocate (KSURF,LTYPE)
+  deallocate (CLDFLAG,REJFLAG,LEV_START)
+  deallocate (NTOP_EQ,NTOP_BT,NTOP_RD)
+  deallocate (NTOP_CO2,NGOOD)
+  deallocate (PTOP_EQ,PTOP_BT,PTOP_RD)
+  deallocate (PTOP_CO2,FCLOUD_CO2,HE)
+  deallocate (ETOP,VTOP,ECF,VCF)
+  deallocate (MINP,FATE)
+  deallocate (PMIN,DTAUDP1,TAMPON)
+  deallocate (ICHREF)
+  deallocate (ASSIM_ALL,INDX,ZVLEV,PTOP_MB,NTOP_MB,CFSUB)
 
-    END SUBROUTINE IASIQC
+  deallocate ( LEV_START_AVHRR,PTOP_EQ_AVHRR,NTOP_EQ_AVHRR,BTOBS_AVHRR)
+  deallocate ( ICHREF_AVHRR )
+  deallocate ( CLDFLAG_AVHRR )
+  deallocate ( ROBS_AVHRR)
+  deallocate ( RCAL_CLR_AVHRR )
+  deallocate ( EMI_SFC_AVHRR)
+  deallocate ( ZTS_AVHRR)
+  deallocate ( SFCTAU_AVHRR)
+  deallocate ( PTOP_BT_AVHRR)
+  deallocate ( PTOP_RD_AVHRR)
+  deallocate ( NTOP_BT_AVHRR)
+  deallocate ( NTOP_RD_AVHRR)
+  deallocate ( RCLD_AVHRR)
+  deallocate ( MAXWF,CFRAC_AVHRR )
+  deallocate (satazim,satzen,sunazim)
+  deallocate (GNCLDFLAG)
+  deallocate (CORFLAG,ZLEVMOD)
+
+END SUBROUTINE IASIQC

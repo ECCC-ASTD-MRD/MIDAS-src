@@ -75,7 +75,7 @@ SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,n
 
 !*        IF CHANNEL SEES THE SURFACE, DON'T RECALCULATE MINP AND PMIN
 
-        IF ( TAU(JC,JN,NLEV) > 0.01 ) CYCLE profiles ! ????????
+        IF ( TAU(JC,JN,NLEV) > 0.01 ) CYCLE profiles
 
 ! Recherche du maximum
         IPOS=MAXLOC( WFUNC(:) )

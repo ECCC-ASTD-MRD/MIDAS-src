@@ -95,6 +95,9 @@
 *           must now be specified in namelist like all other elements)
 *          L. Fillion *ARMA/EC- 7 Oct 2009 - Include Rotated global Gaussian grid option.
 *          L. Fillion *ARMA/EC- 4 May 2010 - Update on v_11_01_2B.
+*	   M. Buehner and S. Heilliette - Mar 2012 - Replace uninitialized idatyp with idburp
+*          S. Macpherson - Feb 2013 - add idatyp 192 (ATMS)
+*          S. Heilliette - Feb 2013 - add idatyp 193 (CrIS)
 *          S. Macpherson  ARMA  - Apr 2013 - Remove #include comtovst.cdk, partov.cdk
 *
 *
@@ -108,6 +111,7 @@
       use gaussGrid_mod
       use obsSpaceData_mod
       use bufr
+      use tovs_mod ,only :  tvs_Is_idburp_tovs
       IMPLICIT NONE
 *implicits
 *
@@ -470,12 +474,7 @@ C
             IF ( ITYP .EQ. BUFR_NBT1 .OR.
      S           ITYP .EQ. BUFR_NBT2 .OR.
      S           ITYP .EQ. BUFR_NBT3 .AND.
-     S          (IDBURP .EQ. 164 .OR.
-     S           IDBURP .EQ. 181 .OR.
-     S           IDBURP .EQ. 182 .OR.
-     S           IDBURP .EQ. 183 .OR.
-     S           IDBURP .EQ. 185 .OR.
-     S           IDBURP .EQ. 186     )   ) THEN
+     S           tvs_Is_idburp_tovs(IDBURP) ) THEN
 C
 C        d.1 Valid channel?
 C

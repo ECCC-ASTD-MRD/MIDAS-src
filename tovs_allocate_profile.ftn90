@@ -32,7 +32,7 @@ subroutine tovs_allocate_profile(pprofile,knlevels)
 !     knlevels: number of levels
 !
 #endif
-  use mod_tovs
+  use tovs_mod , only : profile_type
 
   implicit none
 

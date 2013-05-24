@@ -34,16 +34,19 @@ compiledir=$PWD
 . s.ssmuse.dot Xlf13.108
 . s.ssmuse.dot rmnlib-dev
 . s.ssmuse.dot devtools
+
 . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
+
 . s.ssmuse.dot CMDN/vgrid/3.4.0
 . s.ssmuse.dot rpn_comm
 
+
 VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov burp_module descrip $MPILIB "
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
+
 LIBSYS="lapack blas mass"
 LIBRMN="rmn_013_rc2"
 LIBEXTRA="rtools hpm_r"
-MODRTTOV="RTTOV8.7"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
@@ -52,12 +55,12 @@ COMPF_NOC="-openmp $MPIKEY "
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
-INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${BASE_INCLUDE}/${MODRTTOV}"
+INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/mod ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/include"
 
 LIBPATH2="./ $LIBPATH"
 LIBPATH2="${ARMNLIB}/lib/AIX/xlf13 $LIBPATH2"
 LIBPATH2="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/lib/AIX-powerpc7 $LIBPATH2"
-LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
+LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/lib  $LIBPATH2"
 
 echo "LIBPATH2="
 echo $LIBPATH2
@@ -95,12 +98,14 @@ grep fail listing0
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling most of the new modules"
-SRC1="controlvector_mod.ftn90 airsch_mod.ftn90 iasich_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
+SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
 SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
 SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
 SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
 SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
-SRC1="$SRC1 airsbgck_mod.ftn90 iasibgck_mod.ftn90 ozoneclim_mod.ftn90"
+SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90"
+
+
 s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
 grep fail listing1
 if [ $? = "0" ] ; then exit ; fi

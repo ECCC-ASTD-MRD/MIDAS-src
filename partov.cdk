@@ -12,6 +12,9 @@ C === Definition of parameters for TOVS processing ===
 *                          -adapt to RTTOV-8.
 *Revision 003 : S. Macpherson *ARMA*  Apr 2013
 *                          -remove JPMXCLD, JPMXREG
+*Revision 004 : S. Heilliette *ARMA*  Apr 2013
+*                          -adapt to RTTOV-10
+
 C
 C SECTION 1: PARAMETER STATEMENTS REQUIRED FOR RTTOV SUITE.
 C     JPNSATMAX : maximum number of sensors
@@ -23,5 +26,5 @@ C
       INTEGER JPLEVMAX      ! maximum number of pressure levels
       INTEGER JPCHMAX       ! maximum number of channels
       PARAMETER ( JPNSATMAX = 30 )
-      PARAMETER ( JPLEVMAX  = 50  )
-      PARAMETER ( JPCHMAX   = 8500  )
+      PARAMETER ( JPLEVMAX  = 51 )
+      PARAMETER ( JPCHMAX   = 8461  )

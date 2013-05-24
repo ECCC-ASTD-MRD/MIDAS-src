@@ -5,9 +5,9 @@ SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
 !**ID CLOUD_TOP -- CLOUD TOP HEIGHT COMPUTATION
 !
 !       AUTHOR:   L. GARAND             August 2004
-!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
+!                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)      
+!                
+!       REVISION:  001 S. Heilliette: removal of hard-coded rttov level
 !
 !       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
 !          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
@@ -58,10 +58,18 @@ SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
   REAL(8), intent (out) ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
   INTEGER, intent (out) ::  NTOP_BT(NCHN,NPRF),NTOP_RD(NCHN,NPRF)
 !******************************************************************88
-  INTEGER      ::  JN,JCH,JC,ITOP,NHT
+  INTEGER      ::  JN,JCH,JC,ITOP,NHT,i10,i
   INTEGER      ::  SUMREJ
   REAL(8)      ::  HT(NLEV)
+
       
+  i10=1
+  DO I=2,NLEV
+     IF (plev(i-1)<=100.d0 .AND. plev(i)>100.d0) THEN
+        I10=I
+        EXIT
+     ENDIF
+  ENDDO
 
   PTOP_BT(:,:) = -10.
   PTOP_RD(:,:) = -10.
@@ -93,7 +101,7 @@ SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
         NTOP_BT(:,JN) = 1
         NTOP_RD(:,JN) = 1
 
-        LEV_START(JN) = MAX ( LEV_START(JN) , 10 )
+        LEV_START(JN) = MAX ( LEV_START(JN) , i10 )
         
         CYCLE profiles
 

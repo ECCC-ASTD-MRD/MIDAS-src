@@ -1,5 +1,5 @@
-SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
-     ichref,nchn,nchnkept,nprf,idairs,CINST)
+SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
+     ichref,nchn,nchnkept,nprf,satid,CINST)
 
 !
 !**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
@@ -24,43 +24,50 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
 !            -TG(NPRF)          : GUESS SKIN TEMPERATURE (DEG K)
 !            -EMI(NCHN,NPRF)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
 !            -RCAL(NCHN,NPRF)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -BTOBS(NCHN,NPRF)  : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
-!            -RADOBS(NCHN,NPRF) : COMPUTED OBSERVED RADIANCES (")
+!            -RADOBS(NCHN,NPRF) : OBSERVED RADIANCES (")
 !            -SFCTAU(NCHN,NPRF) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
 !            -CLDFLAG(NPRF)     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
 !            -ICHREF(NPRF)      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
 !            -NCHN              : NUMBER OF CHANNELS
 !            -NCHNKEPT          : NUMBER OF CHANNELS KEPT IN CMA
 !            -NPRF              : NUMBER OF PROFILES
-!            -IDAIRS            : AIRS SATELLITE IDENTYFIER
-!            -CINST             : INTRUMENT IASI or AIRS
+!            -SATID             : SATELLITE IDENTYFIER
+!            -CINST             : INTRUMENT CrIS, IASI or AIRS
 !
 !          OUTPUT:
 !            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
 !
-  use mod_tovs
-  use airsch
-  use iasich
+  use tovs_mod
+  use hir_chans
 
   IMPLICIT NONE
-
-  INTEGER    :: JN,JC,NCHN,NCHNKEPT,NPRF,IDAIRS,CLDFLAG(NPRF),IREF
-  INTEGER    :: ICHN,ICHREF(NPRF),INDX
-  REAL(8)    :: BTOBS(NCHN,NPRF),RADOBS(NCHN,NPRF)
-  REAL(8)    :: RTG,TG(NPRF),RADTG(NCHN,NPRF)
-  REAL(8)    :: EMI(NCHN,NPRF),SFCTAU(NCHN,NPRF)
-  REAL(8)    :: RADTS,TS(NPRF),TS1(NCHN,NPRF),RCAL(NCHN,NPRF),tstore,t_effective
-  CHARACTER (LEN=*) :: CINST
+  integer ,intent(in) :: NPRF,NCHN,NCHNKEPT,satid
+  integer ,intent(in) :: ICHREF(NPRF),CLDFLAG(NPRF)
+  REAL(8) ,intent(in) :: TG(NPRF),EMI(NCHN,NPRF),RCAL(NCHN,NPRF),RADOBS(NCHN,NPRF)
+  REAL(8) ,intent(in) :: SFCTAU(NCHN,NPRF)
+  CHARACTER (LEN=*)  ,intent(in) :: CINST
+  REAL(8) ,intent(out):: TS(NPRF)
+!************************************************************************************
+  INTEGER    :: JN,JC
+  INTEGER    :: ICHN,INDX
+  REAL(8)    :: RTG,RADTG(NCHN,NPRF)
+  REAL(8)    :: RADTS,TS1(NCHN,NPRF),tstore,t_effective
+  integer    :: ptc(NCHNKEPT)
 
 
   TS1(:,:) = -1.
   TS(:) = -1.
   RADTG(:,:) = -1.
 
-  IF (CINST(1:4)/="IASI" .AND. CINST(1:4)/="AIRS") THEN
-     Write(*,*) "INVALID CINST VALUE : should be IASI or AIRS",CINST
-     STOP
-  ENDIF
+  if (NCHNKEPT/=hir_get_nchan_selected(CINST)) then
+     Write(*,*) "Invalid NCHNKEPT: ",NCHNKEPT,hir_get_nchan_selected(CINST),CINST
+     call abort3d("estim_ts")
+  endif
+
+
+  DO JC = 1, NCHNKEPT
+     ptc(JC)=hir_get_chindx_fr_chn(CINST,ichan(JC,SATID))
+  END DO
 
 
 !*    transform guess skin temperature to plank radiances 
@@ -68,17 +75,12 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
   DO JN = 1, NPRF
      IF ( CLDFLAG(JN) == -1 ) CYCLE
      DO JC = 1, NCHNKEPT
-        ICHN = ichan(JC,IDAIRS)
-        t_effective =  coef(idairs)%ff_bco(jc) + coef(idairs)%ff_bcs(jc) * TG(jn)
+        t_effective =  coefs(satid)%coef%ff_bco(jc) + coefs(satid)%coef%ff_bcs(jc) * TG(jn)
 
-        IF (CINST=="IASI") then
-           indx=iasisch(ichn)
-        else
-           indx=airssch(ichn)
-        endif
+        indx=ptc(jc)
 
-        RADTG(indx,jn) =  coef(idairs)%planck1(jc) / &
-             ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
+        RADTG(indx,jn) =  coefs(satid)%coef%planck1(jc) / &
+             ( Exp( coefs(satid)%coef%planck2(jc)/t_effective ) - 1.0 )
      END DO
   END DO
       
@@ -98,16 +100,9 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
 !*   transform true skin planck radiances to true skin temperatures
 
      DO JC = 1, NCHNKEPT
-        ICHN = ichan(JC,IDAIRS)
-        tstore = coef(idairs)%planck2(jc) / Log( 1+coef(idairs)%planck1(jc)/RADTS )
-
-        IF (CINST=="IASI") then
-           indx=iasisch(ichn)
-        else
-           indx=airssch(ichn)
-        endif
-        
-        TS1(indx,jn) = ( tstore-coef(idairs)%ff_bco(jc) ) / coef(idairs)%ff_bcs(jc)
+        tstore = coefs(satid)%coef%planck2(jc) / Log( 1+coefs(satid)%coef%planck1(jc)/RADTS )
+        indx=ptc(jc)
+        TS1(indx,jn) = ( tstore-coefs(satid)%coef%ff_bco(jc) ) / coefs(satid)%coef%ff_bcs(jc)
      END DO
 
      TS(JN) = TS1(ichref(jn),jn)

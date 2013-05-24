@@ -371,8 +371,12 @@ contains
     IV5=FSTFRM(ISFTEST)
     IV6=FCLOS(ISFTEST)
 
-    write(*,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
-    write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+    if (iv1.lt.0.or.iv2.lt.0.or.iv3.lt.0.or.iv4.lt.0.or.iv5.lt.0.or.iv6.lt.0) then
+       write(*,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
+       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+       call abort3d('Problem with file ceres_global.std in emis_read_climatology ')
+    endif
+   
 
        
 !* get ice fraction and snow cover
@@ -392,10 +396,11 @@ contains
 
     IV11=FSTFRM(ISFTEST1)
     IV12=FCLOS(ISFTEST1)
-
-    write(*,*) 'LES IV DE SFC4AIRS ',iv7,iv8,iv9,iv10,iv11,iv12
-    write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-
+    if (iv7.lt.0.or.iv8.lt.0.or.iv9.lt.0.or.iv10.lt.0.or.iv11.lt.0.or.iv12.lt.0) then
+       write(*,*) 'LES IV DE SFC4AIRS ',iv7,iv8,iv9,iv10,iv11,iv12
+       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+       call abort3d('Problem with file sfc4airs in emis_read_climatology ')
+    endif
 
 !* get albedo
 
@@ -411,10 +416,11 @@ contains
 
     IV16=FSTFRM(ISFTEST2)
     IV17=FCLOS(ISFTEST2)
-
-    write(*,*) 'LES IV DE SFC4AIRS_NEWOBS ',iv13,iv14,iv15,iv16,iv17
-    write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-
+    if (iv13.lt.0.or.iv14.lt.0.or.iv15.lt.0.or.iv16.lt.0.or.iv17.lt.0) then
+       write(*,*) 'LES IV DE SFC4AIRS_NEWOBS ',iv13,iv14,iv15,iv16,iv17
+       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
+       call abort3d('Problem with file sfc4airs_newalb  in emis_read_climatology ')
+    endif
 
   END SUBROUTINE emis_read_climatology
 
@@ -426,8 +432,6 @@ contains
 !* bands wavenumbers, the use of this subroutine for a new instrument
 !* would require the minor following changes.
 !*
-!*     - Add a .cdk containing wavenumber information for all channels
-!*         Example: airsch.cdk for AIRS, variable AIRSSWN
 !*     - Continue the "find the bands (central) wavenumber" IF loop
 !*         for your specific instrument
 !
@@ -451,9 +455,8 @@ contains
 !          OUTPUT:
 !            -SURFEM1(NCHANNELS_MAX)  : IR SURFACE EMISSIVITY ESTIMATE (0-1)
 !
-    use mod_tovs
-    use airsch
-    use iasich
+    use tovs_mod
+    use hir_chans
     IMPLICIT NONE
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -514,23 +517,27 @@ contains
 
     ALLOCATE(WAVEN(NCHN))
 
-    IF ( PLATFORM(KRTID) ==  9 .and. &
-         SATELLITE(KRTID) ==  2 .and. &
-         INSTRUMENT(KRTID) == 11 ) THEN !! --AIRS--
+    IF ( INSTRUMENT(KRTID) == 11 ) THEN !! --AIRS--
 
        DO JC = 1, NCHN
           ICHN = ICHAN(JC,KRTID)
-          WAVEN(JC) = AIRSSWN(AIRSSCH(ICHN))
+          WAVEN(JC) = hir_get_wavn("AIRS",ICHN)
        END DO
 
-    ELSE IF ( PLATFORM(KRTID) ==  10 .and. &
-         SATELLITE(KRTID) ==  2 .and. &
-         INSTRUMENT(KRTID) == 16 ) THEN !! --IASI--
+    ELSE IF ( INSTRUMENT(KRTID) == 16 ) THEN !! --IASI--
 
        DO JC = 1, NCHN
           ICHN = ICHAN(JC,KRTID)
-          WAVEN(JC) = IASISWN(IASISCH(ICHN))
+          WAVEN(JC) =  hir_get_wavn("IASI",ICHN)
        END DO
+
+    ELSE IF ( INSTRUMENT(KRTID) == 27 ) THEN !! --CrIS--
+
+       DO JC = 1, NCHN
+          ICHN = ICHAN(JC,KRTID)
+          WAVEN(JC) =  hir_get_wavn("CRIS",ICHN)
+       END DO
+
 
     END IF
 
@@ -646,7 +653,7 @@ contains
 !            -ILAT(NPRF)     : Y-COORDINATE OF PROFILE
 !            -ILON(NPRF)     : X-COORDINATE OF PROFILE 
 !
-    use mod_tovs
+    use tovs_mod
     IMPLICIT NONE
 
     INTEGER,intent(in) :: NPRF, IPTOBS(NPRF)

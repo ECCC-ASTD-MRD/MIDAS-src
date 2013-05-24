@@ -5,6 +5,8 @@ SUBROUTINE AIRSQC ( airs_end,airs_loop_done, lcolumnhr, lobsSpaceData )
 !       SCIENCE:  L. GARAND
 !       AUTHOR:   A. BEAULNE (CMDA/SMC) August 2004
 !                 A. BEAULNE (CMDA/SMC)   June 2006  (ADAPT TO 3DVAR)
+!                 S. MACPHERSON, S.HEILLIETTE (ARMA) February 2013 
+!                   -- modify test pour detecter le isatzen manquant ou anormal
 !
 !       OBJECT: ASSIGN ASSIMILATION FLAGS TO OBSERVATIONS
 !
@@ -18,9 +20,9 @@ SUBROUTINE AIRSQC ( airs_end,airs_loop_done, lcolumnhr, lobsSpaceData )
 !
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use mod_tovs
-  use airsch
-  use airsbgcheck
+  use tovs_mod
+  use hir_chans
+  use multiirbgcheck
   use obsSpaceData_mod
   use columnData_mod
   use verticalCoord_mod
@@ -33,22 +35,24 @@ type(struct_columnData),intent(in) :: lcolumnhr
 type(struct_obs),intent(inout) :: lobsSpaceData
 !************************************************
   type(struct_vco), pointer :: vco_trl
-  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,JN,NPRF,INDEX_HEADER,NFLG,ICHN
+  INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,NLEVB,JN,NPRF,INDEX_HEADER,NFLG,ICHN
   INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBAIRS
   INTEGER       :: INDEX_BODY,IDATA,IDATEND,IDAIRS
   INTEGER       :: IBEGIN,ILAST,IBEGINOB,ILASTOB,IDATYP
   INTEGER       :: DIFFTOP_MIN
   INTEGER       :: count_airs
   REAL(8)       :: T_EFFECTIVE
-  integer       :: alloc_status(61)
+  integer       :: alloc_status(65)
+  integer       :: iextr
 
-  real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZPRES(:,:)
+  real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZVLEV(:)
+  real(8), allocatable :: ZLEVMOD(:,:)
   real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
   real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:)
   real(8), allocatable :: CLFR(:),TOEXT(:,:),ZHOEXT(:,:),SUNZA(:)
   real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
-  integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:),ILIST(:),ILIST_PAIR(:)
+  integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:)
   integer, allocatable :: CORFLAG(:,:)
   integer, allocatable :: GNCLDFLAG(:)
   integer, allocatable :: ICHREF(:)
@@ -60,9 +64,11 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   integer, allocatable :: MINP(:,:),FATE(:,:)
   real(8), allocatable :: PMIN(:,:),DTAUDP1(:,:),TAMPON(:),MAXWF(:,:),CFSUB(:)
   logical, allocatable :: ASSIM_ALL(:)
-  integer :: cpt,isatzen
+  integer :: cpt
   integer ,SAVE :: IMODTOP
-
+  integer :: co2min(1),co2max(1)
+  integer :: isatzen
+  integer :: chan_indx,ilist_sun,ilist_co2(nco2),ilist_co2_pair(nco2),ilist_he(nch_he)
 
   vco_trl => col_getVco(lcolumnhr)
 
@@ -92,7 +98,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      if (index_header < 0) exit HEADER
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-     IF ( IDATYP .EQ. 183) THEN
+     IF ( tvs_Is_idburp_airs(IDATYP) ) THEN
         count_airs = count_airs + 1
         IF ( count_airs > airs_loop_done * bunch_airs .AND.  &
              count_airs <= (airs_loop_done+1) * bunch_airs ) NPRF = NPRF + 1
@@ -103,8 +109,18 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 ! ** find number of AIRS channels and RTTOV levels
 
-  NCHN = coef(idairs)%fmv_chn
-  NLEV = coef(idairs)%nlevels
+  NCHN = coefs(idairs)% coef%fmv_chn
+  
+  NLEV = coefs(idairs)% coef %nlevels
+  iextr=0
+  if (nlev==44) iextr=1
+  if (nlev==51) iextr=2
+  if (nlev /= 43 .and. nlev/=44 .and. nlev/= 51) then
+     Write(*,*) "Attention: modification necessaire dans AIRSQC"
+     call abort3d('airsqc        ')
+  endif
+ 
+  NLEVB=NLEV-iextr
 
   write(*,*) ' AIRSQC - nchn ', nchn
 
@@ -144,37 +160,36 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   allocate ( ZT(col_getNumLev(lcolumnhr,'TH'),NPRF),                stat= alloc_status(3) )
   allocate ( ZHT(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(4) )
   allocate ( ZLQ(col_getNumLev(lcolumnhr,'TH'),NPRF),               stat= alloc_status(5) )
-  allocate ( BTOBSERR(AIRSSNCH),              stat= alloc_status(6) )
-  allocate ( BTOBS(AIRSSNCH,NPRF),            stat= alloc_status(7) )
-  allocate ( BTCALC(AIRSSNCH,NPRF),           stat= alloc_status(8) )
-  allocate ( RCAL_CLR(AIRSSNCH,NPRF),         stat= alloc_status(9) )
-  allocate ( SFCTAU(AIRSSNCH,NPRF),           stat= alloc_status(10))
-  allocate ( RCLD(AIRSSNCH,NPRF,NLEV),        stat= alloc_status(11))
-  allocate ( TRANSM(AIRSSNCH,NPRF,NLEV),      stat= alloc_status(12))
-  allocate ( EMI_SFC(AIRSSNCH,NPRF),          stat= alloc_status(13))
+  allocate ( BTOBSERR(hir_get_nchan_selected("AIRS")),              stat= alloc_status(6) )
+  allocate ( BTOBS(hir_get_nchan_selected("AIRS"),NPRF),            stat= alloc_status(7) )
+  allocate ( BTCALC(hir_get_nchan_selected("AIRS"),NPRF),           stat= alloc_status(8) )
+  allocate ( RCAL_CLR(hir_get_nchan_selected("AIRS"),NPRF),         stat= alloc_status(9) )
+  allocate ( SFCTAU(hir_get_nchan_selected("AIRS"),NPRF),           stat= alloc_status(10))
+  allocate ( RCLD(hir_get_nchan_selected("AIRS"),NPRF,NLEVB),        stat= alloc_status(11))
+  allocate ( TRANSM(hir_get_nchan_selected("AIRS"),NPRF,NLEVB),      stat= alloc_status(12))
+  allocate ( EMI_SFC(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(13))
   allocate ( KSURF(NPRF),                     stat= alloc_status(14))
   allocate ( CLFR(NPRF),                      stat= alloc_status(15))
-  allocate ( TOEXT(NLEV,NPRF),                stat= alloc_status(16))
-  allocate ( ZHOEXT(NLEV,NPRF),               stat= alloc_status(17))
+  allocate ( TOEXT(NLEVB,NPRF),                stat= alloc_status(16))
+  allocate ( ZHOEXT(NLEVB,NPRF),               stat= alloc_status(17))
   allocate ( SUNZA(NPRF),                     stat= alloc_status(18))
   allocate ( ALBEDO(NPRF),                    stat= alloc_status(19))
   allocate ( ICE(NPRF),                       stat= alloc_status(20))
   allocate ( LTYPE(NPRF),                     stat= alloc_status(21))
   allocate ( PCNT_WAT(NPRF),                  stat= alloc_status(22))
   allocate ( PCNT_REG(NPRF),                  stat= alloc_status(23))
-  allocate ( ROBS(AIRSSNCH,NPRF),             stat= alloc_status(24))
+  allocate ( ROBS(hir_get_nchan_selected("AIRS"),NPRF),             stat= alloc_status(24))
   allocate ( ZTS(NPRF),                       stat= alloc_status(26))
   allocate ( CLDFLAG(NPRF),                   stat= alloc_status(27))
-  allocate ( REJFLAG(AIRSSNCH,NPRF,0:BITFLAG),stat= alloc_status(28))
+  allocate ( REJFLAG(hir_get_nchan_selected("AIRS"),NPRF,0:BITFLAG),stat= alloc_status(28))
   allocate ( LEV_START(NPRF),                 stat= alloc_status(29))
-  allocate ( ILIST(AIRSSNCH),                 stat= alloc_status(30))
   allocate ( NTOP_EQ(NPRF),                   stat= alloc_status(31))
-  allocate ( NTOP_BT(AIRSSNCH,NPRF),          stat= alloc_status(32))
-  allocate ( NTOP_RD(AIRSSNCH,NPRF),          stat= alloc_status(33))
+  allocate ( NTOP_BT(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(32))
+  allocate ( NTOP_RD(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(33))
   allocate ( NTOP_CO2(NCO2,NPRF),             stat= alloc_status(34))
   allocate ( PTOP_EQ(NPRF),                   stat= alloc_status(35))
-  allocate ( PTOP_BT(AIRSSNCH,NPRF),          stat= alloc_status(36))
-  allocate ( PTOP_RD(AIRSSNCH,NPRF),          stat= alloc_status(37))
+  allocate ( PTOP_BT(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(36))
+  allocate ( PTOP_RD(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(37))
   allocate ( PTOP_CO2(NCO2,NPRF),             stat= alloc_status(38))
   allocate ( FCLOUD_CO2(NCO2,NPRF),           stat= alloc_status(39))
   allocate ( HE(NPRF),                        stat= alloc_status(40))
@@ -183,27 +198,33 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   allocate ( ECF(NPRF),                       stat= alloc_status(43))
   allocate ( VCF(NPRF),                       stat= alloc_status(44))
   allocate ( NGOOD(NPRF),                     stat= alloc_status(45))
-  allocate ( MINP(AIRSSNCH,NPRF),             stat= alloc_status(46))
-  allocate ( PMIN(AIRSSNCH,NPRF),             stat= alloc_status(47))
-  allocate ( DTAUDP1(AIRSSNCH,NPRF),          stat= alloc_status(48))
+  allocate ( MINP(hir_get_nchan_selected("AIRS"),NPRF),             stat= alloc_status(46))
+  allocate ( PMIN(hir_get_nchan_selected("AIRS"),NPRF),             stat= alloc_status(47))
+  allocate ( DTAUDP1(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(48))
   allocate ( TAMPON(NPRF),                    stat= alloc_status(49))
-  allocate ( FATE(AIRSSNCH,NPRF),             stat= alloc_status(50))
+  allocate ( FATE(hir_get_nchan_selected("AIRS"),NPRF),             stat= alloc_status(50))
   allocate ( ICHREF(NPRF),                    stat= alloc_status(51))
   allocate ( ASSIM_ALL(NPRF),                 stat= alloc_status(53))
-  allocate ( MAXWF(AIRSSNCH,NPRF),            stat= alloc_status(54))
-  allocate ( ZPRES(col_getNumLev(lcolumnhr,'TH'),NPRF),             stat= alloc_status(55))
+  allocate ( MAXWF(hir_get_nchan_selected("AIRS"),NPRF),            stat= alloc_status(54))
+  allocate ( ZVLEV(NLEVB),                    stat= alloc_status(55))
   allocate ( PTOP_MB(NPRF),                   stat= alloc_status(56))
   allocate ( NTOP_MB(NPRF),                   stat= alloc_status(57))
   allocate ( CFSUB(NPRF),                     stat= alloc_status(58))
   allocate ( GNCLDFLAG(NPRF),                 stat= alloc_status(59))
-  allocate ( ILIST_PAIR(AIRSSNCH),            stat= alloc_status(60))
-  allocate ( CORFLAG(AIRSSNCH,NPRF),          stat= alloc_status(61))
+  allocate ( ZLEVMOD(col_getNumLev(lcolumnhr,'TH'),NPRF),stat= alloc_status(61))
+  allocate ( CORFLAG(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(62))
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' airsqc : memory allocation error'
      call abort3d('airsqc        ')
   end if
 
+  DO JL = 1, NLEVB
+     ZVLEV(JL) = XPRES(JL+iextr)
+  END DO
+
+  CO2MIN=minloc( abs( ZVLEV - pco2min ) )
+  CO2MAX=minloc( abs( ZVLEV - pco2max ) )
 
   BTOBS(:,:)    = -1.
   BTCALC(:,:)   = -1.
@@ -228,15 +249,9 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
            IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-           IF ( IDATYP .EQ. 164 .OR. &
-                IDATYP .EQ. 168 .OR. &
-                IDATYP .EQ. 180 .OR. &
-                IDATYP .EQ. 181 .OR. &
-                IDATYP .EQ. 182 .OR. &
-                IDATYP .EQ. 183 .OR. &
-                IDATYP .EQ. 186 ) NOBTOV = NOBTOV + 1
+           IF ( tvs_Is_idburp_tovs(IDATYP) ) NOBTOV = NOBTOV + 1
 
-           IF ( IDATYP .EQ. 183) THEN
+           IF ( tvs_Is_idburp_airs(IDATYP) ) THEN
 
               count_airs = count_airs + 1
 
@@ -253,7 +268,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                     ZT(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
                     ZHT(JL,NOBAIRS) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
                     ZLQ(JL,NOBAIRS) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
-                    ZPRES(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') &
+                    ZLEVMOD(JL,NOBAIRS)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') &
                          * MPC_MBAR_PER_PA_R8
                  END DO
 
@@ -263,31 +278,33 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                        ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
                        ICHN = MAX(0,MIN(ICHN,JPCH+1))
-                       BTOBSERR(AIRSSCH(ICHN)) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-                       BTOBS(AIRSSCH(ICHN),NOBAIRS) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                       chan_indx=hir_get_chindx_fr_chn("AIRS",ichn)
+                       BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                       BTOBS(chan_indx,NOBAIRS) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 ! *** Flag check on observed BTs ***
-                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),2)) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),2)) REJFLAG(chan_indx,NOBAIRS,9) = 1
 ! *** Set if data has been bias corrected (bit 6 set) ***
-                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),6)) CORFLAG(AIRSSCH(ICHN),NOBAIRS) = 1
+                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),6)) CORFLAG(chan_indx,NOBAIRS) = 1
 ! *** Gross check on observed BTs ***
-                       IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
-                       IF (BTOBS(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                       IF (BTOBS(chan_indx,NOBAIRS)<150.) REJFLAG(chan_indx,NOBAIRS,9) = 1
+                       IF (BTOBS(chan_indx,NOBAIRS)>350.) REJFLAG(chan_indx,NOBAIRS,9) = 1
                     END IF
                  END DO
 
                  DO JC = 1, NCHN
                     ICHN = ichan(JC,IDAIRS)
-                    BTCALC(AIRSSCH(ICHN),NOBAIRS) = radiance_d(nobtov)%out(jc)
-                    RCAL_CLR(AIRSSCH(ICHN),NOBAIRS) = radiance_d(nobtov)%clear_out(jc)
-                    SFCTAU(AIRSSCH(ICHN),NOBAIRS) = transmission_d(nobtov)%tau_surf(jc)
-                    DO JL = 1, NLEV
-                       RCLD(AIRSSCH(ICHN),NOBAIRS,JL) = radiance_d(nobtov)%overcast(jl,jc)
-                       TRANSM(AIRSSCH(ICHN),NOBAIRS,JL) = transmission_d(nobtov)%tau_layer(jl,jc)
+                    chan_indx=hir_get_chindx_fr_chn("AIRS",ichn)
+                    BTCALC(chan_indx,NOBAIRS) = radiance_d(nobtov)%bt(jc)
+                    RCAL_CLR(chan_indx,NOBAIRS) = radiance_d(nobtov)%clear(jc)
+                    SFCTAU(chan_indx,NOBAIRS) = transmission_d(nobtov)%tau_total(jc)
+                    DO JL = 1, NLEVB
+                       RCLD(chan_indx,NOBAIRS,JL) = radiance_d(nobtov)%overcast(jl+iextr-1,jc)
+                       TRANSM(chan_indx,NOBAIRS,JL) = transmission_d(nobtov)%tau_levels(jl+iextr,jc)
                     END DO
-                    EMI_SFC(AIRSSCH(ICHN),NOBAIRS) = emissivity(JC,NOBTOV)
+                    EMI_SFC(chan_indx,NOBAIRS) = emissivity(JC,NOBTOV)
 ! *** Gross check on computed BTs ***
-                    IF (BTCALC(AIRSSCH(ICHN),NOBAIRS)<150.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
-                    IF (BTCALC(AIRSSCH(ICHN),NOBAIRS)>350.) REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                    IF (BTCALC(chan_indx,NOBAIRS)<150.) REJFLAG(chan_indx,NOBAIRS,9) = 1
+                    IF (BTCALC(chan_indx,NOBAIRS)>350.) REJFLAG(chan_indx,NOBAIRS,9) = 1
                  END DO
 
                  KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
@@ -298,15 +315,16 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                       isatzen > 16500 ) then
                     DO JC = 1, NCHN
                        ICHN = ichan(JC,IDAIRS)
-                       REJFLAG(AIRSSCH(ICHN),NOBAIRS,9) = 1
+                       chan_indx=hir_get_chindx_fr_chn("AIRS",ichn)
+                       REJFLAG(chan_indx,NOBAIRS,9) = 1
                     ENDDO
                  endif
 !**************************************************************
-                 
                  CLFR(NOBAIRS) = obs_headElem_i(lobsSpaceData,OBS_CLF,INDEX_HEADER)
-                 DO JL = 1, NLEV
-                    TOEXT(JL,NOBAIRS) = profiles(nobtov)%t(jl)
-                    ZHOEXT(JL,NOBAIRS) = profiles_qc(nobtov)%z(jl)
+
+                 DO JL = 1, NLEVB
+                    TOEXT(JL,NOBAIRS) = profiles(nobtov)%t(jl+iextr)
+                    ZHOEXT(JL,NOBAIRS) = profiles_qc(nobtov)%z(jl+iextr)
                  END DO
 
                  SUNZA(NOBAIRS) = profiles_qc(nobtov)%sunza
@@ -331,11 +349,12 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   profils: DO JN = 1, NPRF
      channels: DO JC = 1, NCHN
         ICHN = ichan(JC,IDAIRS)
-        IF ( REJFLAG(AIRSSCH(ICHN),JN,9) == 1 ) CYCLE channels
-        t_effective =  coef(idairs)%ff_bco(jc) &
-             + coef(idairs)%ff_bcs(jc) * BTOBS(airssch(ichn),jn)
-        ROBS(airssch(ichn),jn) =  coef(idairs)%planck1(jc) / &
-             ( Exp( coef(idairs)%planck2(jc)/t_effective ) - 1.0 )
+        chan_indx=hir_get_chindx_fr_chn("AIRS",ichn)
+        IF ( REJFLAG(chan_indx,JN,9) == 1 ) CYCLE channels
+        t_effective =  coefs(idairs)%coef%ff_bco(jc) &
+             + coefs(idairs)%coef%ff_bcs(jc) * BTOBS(chan_indx,jn)
+        ROBS(chan_indx,jn) =  coefs(idairs)%coef%planck1(jc) / &
+             ( Exp( coefs(idairs)%coef%planck2(jc)/t_effective ) - 1.0 )
      END DO channels
   END DO profils
 
@@ -343,7 +362,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! ** set height fields to 'height above ground' fields
 
   DO JN = 1, NPRF
-     DO JL = 1, NLEV
+     DO JL = 1, NLEVB
         ZHOEXT(JL,JN) = ZHOEXT(JL,JN) - ZHT(col_getNumLev(lcolumnhr,'TH'),JN)
      END DO
      DO JL = 1, col_getNumLev(lcolumnhr,'TH')
@@ -363,8 +382,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 !* -- REFERENCE FOR WINDOW CHANNEL
 
-  IWINDO     = AIRSSCH(IWINDOW)
-  IWINDO_ALT = AIRSSCH(IWINDOW_ALT)
+  IWINDO     = hir_get_chindx_fr_chn("AIRS",IWINDOW_AIRS)
+  IWINDO_ALT = hir_get_chindx_fr_chn("AIRS",IWINDOW_ALT_AIRS)
 
   ICHREF(:)  = IWINDO
   DO JN = 1, NPRF
@@ -391,17 +410,17 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
   CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-       zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),airssnch,nprf,ichref,lev_start,iopt2)
+       zht,zps,zlevmod,col_getNumLev(lcolumnhr,'TH'),hir_get_nchan_selected("AIRS"),nprf,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
   CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-       zht,zps,zpres,col_getNumLev(lcolumnhr,'TH'),airssnch,nprf,ichref,lev_start,iopt1)
+       zht,zps,zlevmod,col_getNumLev(lcolumnhr,'TH'),hir_get_nchan_selected("AIRS"),nprf,ichref,lev_start,iopt1)
 
 
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
   CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-       zht,col_getNumLev(lcolumnhr,'TH'),airssnch,nprf,ptop_eq,ntop_eq,ichref)
+       zht,col_getNumLev(lcolumnhr,'TH'),hir_get_nchan_selected("AIRS"),nprf,ptop_eq,ntop_eq,ichref)
 
 !* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
 
@@ -423,8 +442,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** Set cloudy if temperature difference between guess (ZTG)     ***
 ! *** and estimated true (ZTS) skin temperatures is over threshold ***
 
-  CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,btobs,robs, &
-       sfctau,cldflag,ichref,airssnch,nchn,nprf,idairs,"AIRS")
+  CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,robs, &
+       sfctau,cldflag,ichref,hir_get_nchan_selected("AIRS"),nchn,nprf,idairs,"AIRS")
 
 
   WHERE ( CLDFLAG(:) == 0 .AND. KSURF(:) == 1 &
@@ -462,24 +481,30 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 !* -- CLOUD TOP BASED ON MATCHING
 !* -- OBSERVED BRIGHTNESS TEMPERATURE WITH BACKGROUND TEMPERATURE PROFILES (PTOP_BT)
 !* -- OR COMPUTED OBSERVED RADIANCES WITH BACKGROUND RADIANCE PROFILES (PTOP_RD)
-!* -- ON 43 RTTOV VERTICAL LEVELS
+!* -- ON RTTOV VERTICAL LEVELS
 
   LEV_START(:) = 0
 
-  DO JCH = 1, NCH
-     ILIST(JCH) = AIRSSCH(ILIST1(JCH))
+  DO JCH = 1, NCH_HE
+     ILIST_HE(JCH) = hir_get_chindx_fr_chn("AIRS",ILIST1_AIRS(JCH))
   END DO
 
   CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
-       btobs,toext,zhoext,rcal_clr,zps,robs,rcld,xpres,nlev, &
-       airssnch,nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch,ilist)
+       btobs,toext,zhoext,rcal_clr,zps,robs,rcld,zvlev,nlevb, &
+       hir_get_nchan_selected("AIRS"),nprf,cldflag,rejflag,bitflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
 
 !* -- REFERENCE CHANNEL FOR CO2-SLICING
+
+  DO JCH = 1, NCO2
+     ILIST_CO2(JCH) = hir_get_chindx_fr_chn("AIRS",ILIST2_AIRS(JCH))
+     ILIST_CO2_PAIR(JCH) = hir_get_chindx_fr_chn("AIRS",ILIST2_PAIR_AIRS(JCH))
+  END DO
+
 
   DO JN = 1, NPRF
      cpt=0
      DO JCH=1,NCO2
-        IF ( REJFLAG(AIRSSCH(ILIST2_PAIR(JCH)),JN,9)==1 .or. REJFLAG(AIRSSCH(ILIST2(JCH)),JN,9)==1 ) cpt=cpt+1
+        IF ( REJFLAG(ILIST_CO2(JCH),JN,9)==1 .or. REJFLAG(ILIST_CO2_PAIR(JCH),JN,9)==1 ) cpt=cpt+1
      ENDDO
      IF (cpt==nco2) THEN
         CLDFLAG(JN) = -1
@@ -491,26 +516,25 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      ENDIF
   END DO
 
-!* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
+!* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL 
 
-  HE(:) = PTOP_RD(AIRSSCH(ILIST1(2)),:)
+  HE(:) = PTOP_RD(hir_get_chindx_fr_chn("AIRS",ILIST1_AIRS(2)),:)
 
   DO JN = 1, NPRF
-     IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD(AIRSSCH(ILIST1(3)),JN)
+     IF (ICHREF(JN)==IWINDO_ALT) HE(JN) = PTOP_RD(hir_get_chindx_fr_chn("AIRS",ILIST1_AIRS(3)),JN)
   END DO
 
 !* -- CLOUD TOP BASED ON CO2 SLICING
 
-  LEV_START(:) = MAX( MIN(LEV_START(:),CO2MAX), CO2MIN )
-
-  DO JCH = 1, NCO2
-     ILIST(JCH) = AIRSSCH(ILIST2(JCH))
-     ILIST_PAIR(JCH) = AIRSSCH(ILIST2_PAIR(JCH))
+  DO JN = 1, NPRF
+     LEV_START(JN) = MAX( MIN(LEV_START(JN),CO2MAX(1)), CO2MIN(1) )
   END DO
+ 
+
 
   CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
-       rcal_clr,rcld,robs,zps,xpres,nlev,airssnch,nprf,cldflag,rejflag,bitflag, &
-       lev_start,ichref,nco2,ilist,ilist_pair)
+       rcal_clr,rcld,robs,zps,zvlev,nlevb,hir_get_nchan_selected("AIRS"),nprf,cldflag,rejflag,bitflag, &
+       lev_start,ichref,nco2,ilist_co2,ilist_co2_pair)
 
 !* -- FIND CONSENSUS CLOUD TOP AND FRACTION
 
@@ -524,9 +548,9 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      DIFFTOP_MIN = 100000.
      IMODTOP     = 1
 
-     DO JL = 1, NLEV
-        IF ( ABS(vco_trl%DPT_M-100.*XPRES(JL)) < DIFFTOP_MIN ) THEN
-           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.*XPRES(JL))
+     DO JL = 1, NLEVB
+        IF ( ABS(vco_trl%DPT_M-100.*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
+           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.*ZVLEV(JL))
            IMODTOP = JL
         END IF
      END DO
@@ -541,7 +565,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
 
-  CALL MIN_PRES_NEW (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,xpres,cldflag,nlev,airssnch,nprf,imodtop)
+  CALL MIN_PRES_NEW (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,hir_get_nchan_selected("AIRS"),nprf,imodtop)
 
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
@@ -551,7 +575,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
   TAMPON(:) = MAX(50.D0, 2.*VTOP(:))
 
-  DO JC = 1, AIRSSNCH
+  DO JC = 1, hir_get_nchan_selected("AIRS")
      WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .AND. ETOP(:) - TAMPON(:) > PMIN(JC,:) ) 
         REJFLAG(JC,:,11) = 0
         REJFLAG(JC,:,23) = 0
@@ -566,7 +590,9 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 !     FURTHER REASONS TO REJECT OBSERVATIONS
 
-  DO JC = 1, AIRSSNCH
+  ILIST_SUN=hir_get_chindx_fr_chn("AIRS",ICHN_SUN_AIRS)
+
+  DO JC = 1, hir_get_nchan_selected("AIRS")
      DO JN = 1, NPRF
 
         IF ( FATE(JC,JN) == 0 ) THEN
@@ -582,7 +608,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** TEST # 5 ***
 ! *** Do not assimilate shortwave channels during the day ***
 
-           IF ( JC >= AIRSSCH(ICHN_SUN) .AND. SUNZA(JN) < NIGHT_ANG ) then
+           IF ( JC >=ILIST_SUN  .AND. SUNZA(JN) < NIGHT_ANG ) then
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,7)  = 1
            END IF
@@ -590,7 +616,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** TEST # 6 ***
 ! *** Do not assimilate surface channels over land ***
 
-           IF ( MINP(JC,JN) == NLEV .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+           IF ( MINP(JC,JN) == NLEVB .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
               IF ( KSURF(JN) == 0 ) THEN
                  REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
                  REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
@@ -651,7 +677,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** TEST # 10 ***
 ! *** Do not assimilate blacklisted channels ***
 
-        IF ( AIRS_ASSIM(JC) == 0 ) REJFLAG(JC,JN,8) = 1
+        IF ( hir_get_assim_chan("AIRS",JC) == 0 ) REJFLAG(JC,JN,8) = 1
 
      END DO
   END DO
@@ -659,7 +685,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** TEST # 11 ***
 ! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
 
-!          IF ( AIRS_ASSIM(JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
+!          IF ( hir_get_assim_chan("AIRS",JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
 
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
 
@@ -667,7 +693,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)
 
   prf: DO JN = 1, NPRF
-     chn: DO JC = 1, AIRSSNCH
+     chn: DO JC = 1, hir_get_nchan_selected("AIRS")
         IF ( REJFLAG(JC,JN,8) == 0 ) THEN
            IF ( FATE(JC,JN) /= 0 ) THEN
               ASSIM_ALL(JN) = .false.
@@ -693,7 +719,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      if (index_header < 0) exit HEADER_3
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-     IF ( IDATYP .EQ. 183) THEN
+     IF ( tvs_Is_idburp_airs(IDATYP) ) THEN
         count_airs = count_airs + 1
         IF ( count_airs > airs_loop_done * bunch_airs .AND. &
              count_airs <= (airs_loop_done+1) * bunch_airs ) THEN
@@ -706,11 +732,15 @@ type(struct_obs),intent(inout) :: lobsSpaceData
            DO INDEX_BODY= IDATA, IDATEND
               ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
               ICHN = MAX(0,MIN(ICHN,JPCH+1))
-              call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(AIRSSCH(ICHN),NOBAIRS))
+              chan_indx=hir_get_chindx_fr_chn("AIRS",ichn)
+
+              call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx,NOBAIRS))
               
               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                
+                 
                  DO NFLG = 0, BITFLAG
-                    IF ( REJFLAG(AIRSSCH(ICHN),NOBAIRS,NFLG) == 1 ) &
+                    IF ( REJFLAG(chan_indx,NOBAIRS,NFLG) == 1 ) &
                          call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
                  END DO
               END IF
@@ -748,7 +778,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   deallocate (CLFR,TOEXT,ZHOEXT,SUNZA)
   deallocate (ALBEDO,ICE,PCNT_WAT,PCNT_REG)
   deallocate (KSURF,LTYPE)
-  deallocate (CLDFLAG,REJFLAG,LEV_START,ILIST)
+  deallocate (CLDFLAG,REJFLAG,LEV_START)
   deallocate (NTOP_EQ,NTOP_BT,NTOP_RD)
   deallocate (NTOP_CO2,NGOOD)
   deallocate (PTOP_EQ,PTOP_BT,PTOP_RD)
@@ -757,10 +787,10 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   deallocate (MINP,FATE)
   deallocate (PMIN,DTAUDP1,TAMPON)
   deallocate (ICHREF)
-  deallocate (ASSIM_ALL,ZPRES,PTOP_MB,NTOP_MB,CFSUB)
+  deallocate (ASSIM_ALL,PTOP_MB,NTOP_MB,CFSUB)
   deallocate (MAXWF)
-  deallocate (GNCLDFLAG,ILIST_PAIR)
+  deallocate (GNCLDFLAG)
   deallocate (CORFLAG)
+  deallocate (ZVLEV,ZLEVMOD)
 
 END SUBROUTINE AIRSQC
-

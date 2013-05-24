@@ -45,7 +45,7 @@ SUBROUTINE IASIABRP(lobsspacedata,brp_file)
 
 
   use burp_module
-  use mod_tovs,only : jpch
+  use tovs_mod,only : jpch
   use obsSpaceData_mod 
 
   IMPLICIT NONE
@@ -94,7 +94,7 @@ SUBROUTINE IASIABRP(lobsspacedata,brp_file)
   idata3 = 1
 
   opt_missing = 'MISSING'
-  val_option  = -77.77
+  val_option  = -7777.77
 
   Call BURP_Set_Options( &
        REAL_OPTNAME       = opt_missing, &

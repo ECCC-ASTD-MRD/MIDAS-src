@@ -32,9 +32,14 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 !revision 003  : s. heilliette
 !                  -modifications for IASI (codtyp 186)
 !
-!revision 004  : s. macpherson  nov 2012
-!                  - remove #include "comtovst.cdk"
+!revision 004  : s. heilliette
+!                  -modifications for RTTOV-10 (December 2010)
 !
+!revision 005  : s. macpherson
+!                  -modifications for ATMS (codtyp 192)
+!                  -modifications for CrIS (codtyp 193)
+!revision 006  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
 !    -------------------
 !     purpose:
 !
@@ -42,7 +47,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 !     pjo: total value of jo for tovs
 !
 #endif
-  use mod_tovs
+  use tovs_mod
   use obsSpaceData_mod
   use minimization_mod
 
@@ -65,7 +70,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   integer inobsjo, incanjo
   integer idatyp
   integer ichn, ichOBS_A, jl
-  integer kfailtot
+!  integer kfailtot
 
   integer inobsch(0:jpch,jpnsat)
   integer lcanjo(jpch)
@@ -85,7 +90,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 
   dlsum    = 0.
   inobsjo  = 0
-  kfailtot = 0
+!  kfailtot = 0
   do j = 1, nsensors
      do i = 0, jpch
         inobsch(i,j) = 0
@@ -109,16 +114,8 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   !     (data type=[164,168,180,181,182,183,185,186])
 
      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-     if ( idatyp .ne. 164 .and.  &
-          idatyp .ne. 168 .and.  &
-          idatyp .ne. 180 .and.  &
-          idatyp .ne. 181 .and.  &
-          idatyp .ne. 182 .and.  &
-          idatyp .ne. 183 .and.  &    
-          idatyp .ne. 185 .and.  &    
-          idatyp .ne. 186     ) then
-        cycle HEADER                    ! Proceed to the next header_index
-     end if
+
+     if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER       ! Proceed to the next header_index
 
      indxtovs = ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
@@ -127,7 +124,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
         call abort3d('tovs_calc_jo    ')
      endif
 
-     if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
+!     if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
         isens = lsensor(indxtovs)
 
         ! loop over all body indices (still in the 'TO' family)
@@ -145,8 +142,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
            ichn = max(0,min(ichn,jpch+1))
            ichOBS_A = max(0,min(ichn,jpch+1))
-           if(idatyp.ne.183 .and. idatyp.ne.186) &
-              ichn=ichn-chanoffset(isens)
+           ichn=ichn-chanoffset(isens)
            indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
            if ( indxchn .eq. 0 ) then
               write(*,fmt=9202)
@@ -154,11 +150,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
               call abort3d('tovs_calc_jo    ')
            endif
 
-           zdtb =   radiance_d (indxtovs) % out(indxchn) &
+           zdtb =   radiance_d (indxtovs) % bt(indxchn) &
                   - obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body)
            if ( ldbgtov ) then
               write(*,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
-                           ichn,  radiance_d (indxtovs) % out(indxchn), &
+                           ichn,  radiance_d (indxtovs) % bt(indxchn), &
                            obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body), zdtb
            endif
 
@@ -191,16 +187,14 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
                     zavgnrm(ichOBS_A,Isens) + &
                     obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)
         enddo BODY
-     else
-      kfailtot = kfailtot + 1
-     endif
+!     else
+!      kfailtot = kfailtot + 1
+!     endif
 
   enddo HEADER
 
 !     2.  Close up, print summary
 !     .   -----------------------
-
-200 continue
 
   pjo = dlsum
 
@@ -219,9 +213,10 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
                               zavgnrm(i,krtid)
         enddo
      enddo
-     if ( kfailtot .gt. 0 ) then
-        write(*,'(/1x," rttov failures : ",i10)')  kfailtot
-     endif
+!     if ( kfailtot .gt. 0 ) then
+!        write(*,'(/1x," rttov failures : ",i10)')  kfailtot
+!     endif
+
      do jl = 1, nsensors
         incanjo = 0
         do i = 0, jpch

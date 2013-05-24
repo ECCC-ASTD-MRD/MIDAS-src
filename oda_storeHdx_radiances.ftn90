@@ -26,8 +26,18 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
   !
   !revision :      Sylvain Heilliette:
   !                 add IASI data (codtyp 186)
+  !              : Alain Beaulne / Real Sarrazin
+  !                Add GeoRad data (codtyp 185)
+  !              : Sylvain Heilliette / Yves J. Rochon, July 2010
+  !                Changed "radiance_tl (indxtovs) % out"
+  !                to "radiance_tl (indxtovs) % bt" for use of rttov9/rttov10
+  !              : Stephen Macpherson  Feb 2013
+  !                Add ATMS data (codtyp 192)
+  !              : S. Heilliette  Feb 2013
+  !                Add CrIS data (codtyp 193)
+  !
 #endif
-  use mod_tovs
+  use tovs_mod
   use obsSpaceData_mod
 
   implicit none
@@ -41,7 +51,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
   integer j, i
   integer jdata, idatyp
   integer ichn
-  integer kfailtot
+!  integer kfailtot
 
   integer :: index_header, index_body
 
@@ -54,7 +64,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
   !     1.  Computation of (hx - z)/sigma for tovs data only
   !     .   ------------------------------------------------
 
-  kfailtot = 0
+  !kfailtot = 0
 
   ! loop over all header indices of the 'TO' family
                                         ! Set the header list
@@ -71,16 +81,8 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
      !      (data type=[164,168,180,181,182,183,185,186])
 
      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-     if ( idatyp .ne. 164 .and.  &
-          idatyp .ne. 168 .and.  &
-          idatyp .ne. 180 .and.  &
-          idatyp .ne. 181 .and.  &
-          idatyp .ne. 182 .and.  &
-          idatyp .ne. 183 .and.  &
-          idatyp .ne. 185 .and.  &
-          idatyp .ne. 186          ) then
-        cycle HEADER                    ! Proceed to the next HEADER
-     endif
+     if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER  ! Proceed to the next HEADER
+     
 
      indxtovs = ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
@@ -89,7 +91,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
         call abort3d('tovs_calc_jo_tl ')
      endif
 
-     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
+!     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
         isens = lsensor(indxtovs)
 
         ! loop over all body indices (still in the 'TO' family)
@@ -103,7 +105,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
            if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1 ) then
               ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
               ichn    = max(0,min(ichn,jpch+1))
-              if(idatyp.ne.183 .and. idatyp.ne.186) ichn=ichn-chanoffset(isens)
+              ichn=ichn-chanoffset(isens)
               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
               if ( indxchn .eq. 0 ) then
                  write(*,fmt=9202)
@@ -111,18 +113,18 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
                  call abort3d('tovs_calc_jo_tl  ')
               endif
               call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, &
-                              radiance_tl (indxtovs) % out(indxchn))
+                              radiance_tl (indxtovs) % bt(indxchn))
               if ( ldbgtov ) then
                  write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
-                      ichn,  radiance_tl (indxtovs) % out(indxchn), &
+                      ichn,  radiance_tl (indxtovs) % bt(indxchn), &
                       obs_bodyElem_r(lobsSpaceData,OBS_VAR,index_body)
               endif
 
            endif
         enddo BODY
-     else
-        kfailtot = kfailtot + 1
-     endif ! rttov_errorstatus
+!     else
+!        kfailtot = kfailtot + 1
+!     endif ! rttov_errorstatus
   enddo HEADER
 
 end subroutine oda_storeHdx_radiances

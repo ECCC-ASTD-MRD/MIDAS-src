@@ -1,40 +1,40 @@
 #if defined (DOC)
-C
-C     COMDECK COMTOV
-C     --------------
-C*    Control variables for TOVS observations - constant within job
-C
-*Author       : J. Halle   *CMDA/AES*  Oct 1999
-*Revision 001 : J. Halle   *CMDA/SMC*  Jun 2002
-*                          -adapt to RTTOV-7.
-*Revision 002 : J. Halle   *CMDA/SMC*  Jun 2005
-*                          -adapt to RTTOV-8.
-*Revision 003 : D. Anselmo *ARMA/SMC*  Feb 2004
-*                          -add LNLVTOV switch for non-linear option
-C
-C     NSENSORS           : number of individual sensors.
-C     PLATFORM(JPNSAT)   : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
-C     SATELLITE(JPNSAT)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
-C     INSTRUMENT(JPNSAT) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
-C     CHANOFFSET(JPNSAT) : BURP to RTTOV-7 channel mapping offset
-C     XPRES(JPLEVMAX)    : pressure levels (hpa) used in the RTTOV suite
-C     OQMIN(JPLEVMAX)    : physical minina for water vapour
-C     OQMAX(JPLEVMAX)    : physical maxina for water vapour
-C     NLEVELS1           : actual number of RTTOV vertical levels
-C     LTSTTOV            : logical key activating the testing of the adjoints
-C                          of TOVS routines
-C     LDBGTOV            : logical key controlling statements to be
-C     .                    executed while debugging TOVS only
-C     LRTNADIR           : .T. if forward radiative transfer model calculations
-C                          are performed at nadir
-C     LEVEL1B            : .T. if processing TOVS level 1B data
-C     CRTMODL            : TOVS radiation model used:
-C                             RTTOV, EUMETSAT NWP SAF radiation model
-C     LNLVTOV            : .T. if processing is to be non-linear
-C
-C     Note: Full tables of platform, satellite and instrument id's are
-C           described in the RTTOV-8 users guide.
-C
+!
+!     COMDECK COMTOV
+!     --------------
+!*    Control variables for TOVS observations - constant within job
+!
+!Author       : J. Halle   *CMDA/AES*  Oct 1999
+!Revision 001 : J. Halle   *CMDA/SMC*  Jun 2002
+!                          -adapt to RTTOV-7.
+!Revision 002 : J. Halle   *CMDA/SMC*  Jun 2005
+!                          -adapt to RTTOV-8.
+!Revision 003 : D. Anselmo *ARMA/SMC*  Feb 2004
+!                          -add LNLVTOV switch for non-linear option
+!
+!     NSENSORS           : number of individual sensors.
+!     PLATFORM(JPNSAT)   : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
+!     SATELLITE(JPNSAT)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
+!     INSTRUMENT(JPNSAT) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
+!     CHANOFFSET(JPNSAT) : BURP to RTTOV-7 channel mapping offset
+!     XPRES(JPLEVMAX)    : pressure levels (hpa) used in the RTTOV suite
+!     OQMIN(JPLEVMAX)    : physical minina for water vapour
+!     OQMAX(JPLEVMAX)    : physical maxina for water vapour
+!     NLEVELS1           : actual number of RTTOV vertical levels
+!     LTSTTOV            : logical key activating the testing of the adjoints
+!                          of TOVS routines
+!     LDBGTOV            : logical key controlling statements to be
+!     .                    executed while debugging TOVS only
+!     LRTNADIR           : .T. if forward radiative transfer model calculations
+!                          are performed at nadir
+!     LEVEL1B            : .T. if processing TOVS level 1B data
+!     CRTMODL            : TOVS radiation model used:
+!                             RTTOV, EUMETSAT NWP SAF radiation model
+!     LNLVTOV            : .T. if processing is to be non-linear
+! 
+!     Note: Full tables of platform, satellite and instrument id's are
+!          described in the RTTOV-8 users guide.
+!
 #endif
       INTEGER NSENSORS,NLEVELS1
       INTEGER PLATFORM(JPNSATMAX), SATELLITE(JPNSATMAX)

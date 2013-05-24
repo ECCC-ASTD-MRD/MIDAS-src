@@ -17,7 +17,7 @@
       SUBROUTINE SENSORS
 #if defined (DOC)
 *
-***s/r SENSORS : Initialisation of the RTTOV-7 platform, satellite
+***s/r SENSORS : Initialisation of the RTTOV-10 platform, satellite
 *                and instrument ID's. Also set burp to RTTOV-7 channel
 *                mapping offset.
 *
@@ -45,10 +45,8 @@
 *          007:   S. Macpherson  *ARMA  Jul 2010
 *                 - add SSMIS satellites DMSP17-19
 *
-*          008:   S. Macpherson  *ARMA  Apr 2013
-*                 - add NPP/ATMS codtyp=192 for consistency with similar
-*                   modification in sutovst.ftn
-*
+*          008:   S. Macpherson  *ARMA  Feb 2013
+*                 - add NPP/ATMS codtyp=192
 *
 *    -------------------
 **    Purpose: to verify and transfom the sensor information contained in the
@@ -109,13 +107,13 @@
      &                       5,         2,            1,        1,
      &                       1,         1,            1,        1,
      &                       3,         1,            1,        1,
-     &                       1 /
+     &                       0 /
 *
       DATA NOSATHI    /     19,        19,            7,       13,
      &                       5,         2,            1,        2,
      &                       2,         3,            1,        2,
      &                       4,         2,            1,        1,
-     &                       1 /
+     &                       0 /
 *
 **                         Tables for Instruments and Channels
 **                         -----------------------------------
@@ -161,7 +159,7 @@
      &                              5,         8461,             7,
      &                              2,            8,             4,
      &                             18,            4,             2,
-     &                              3,            1,             1,
+     &                              3,         1305,             1,
      &                              1,            5,            22 /
 *
       DATA IOFFSET1D    /           0,           20,            24,
@@ -172,7 +170,7 @@
      &                              0,            0,             0,
      &                              0,            3,            18,
      &                              0,            0,             0,
-     &                              0,           18,             0,
+     &                              0,            0,             0,
      &                              0,            0,             0 /
 *
       DATA IOFFSET1B    /           0,           20,            24,
@@ -183,7 +181,7 @@
      &                             42,            0,             0,
      &                              0,            3,            18,
      &                              0,            0,             0,
-     &                              0,           18,             0,
+     &                              0,            0,             0,
      &                              0,            0,             0 /
 C
 C*    .  1.0 Go through sensors and set RTTOV-7 variables
@@ -210,6 +208,8 @@ C
            TEMPOCSATID = 'EOS1'
         ELSEIF ( CSATID(J) .EQ. 'AQUA'  ) THEN
            TEMPOCSATID = 'EOS2'
+        ELSEIF ( CSATID(J) .EQ. 'NPP'  ) THEN
+           TEMPOCSATID = 'NPP0'
         ELSE
            TEMPOCSATID = CSATID(J)
         ENDIF
@@ -281,7 +281,7 @@ C
       WRITE(*,FMT=9148) (CHANOFFSET(J), J=1,NSENSORS)
 C
 C
- 9140 FORMAT(/,3X,'- SENSORS. Variables prepared for RTTOV-7:'
+ 9140 FORMAT(/,3X,'- SENSORS. Variables prepared for RTTOV-10:'
      S      ,/,3X,'  ----------------------------------------')
 C
  9143 FORMAT(/,6X,"Number of sensors       : ",I3)

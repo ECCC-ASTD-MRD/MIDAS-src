@@ -45,7 +45,7 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
 
 
   use burp_module
-  use mod_tovs ,only: jpch
+  use tovs_mod ,only: jpch
   use obsSpaceData_mod
 
   IMPLICIT NONE
@@ -69,7 +69,7 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
   INTEGER, ALLOCATABLE   :: GLBFLAG(:)
 
   INTEGER                :: I,J,K,KK,L,BTYP,BFAM,ERROR
-  INTEGER                :: IND008012,IND012163,IND033032,IND055200,INDCHAN,ICHN,ICHNB
+  INTEGER                :: IND008012,IND012163,IND055200,INDCHAN,ICHN,ICHNB
   INTEGER                :: IDATA2,IDATA3,IDATA,IDATEND
   INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3
   INTEGER                :: FLAG_PASSAGE4,FLAG_PASSAGE5
@@ -94,7 +94,7 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
   idata3 = 1
 
   opt_missing = 'MISSING'
-  val_option  = -77.77
+  val_option  = -7777.77
 
   Call BURP_Set_Options( &
        REAL_OPTNAME       = opt_missing, &
@@ -204,7 +204,6 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
               btobs(:,:)  = 0.
               
               ind012163  = BURP_Find_Element(Block_in, ELEMENT=012163, IOSTAT=error)
-              ind033032  = BURP_Find_Element(Block_in, ELEMENT=033032, IOSTAT=error)
 
               do k=1,nte
                  do j=1,nvale

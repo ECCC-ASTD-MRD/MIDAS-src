@@ -17,17 +17,17 @@
 subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,nprof,avhrr_surfem1)
 ! choisi l'emissivité d'un canal IASI proche pour AVHRR
 ! a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
-use mod_tovs , only : NIR
+use tovs_mod , only : NIR
 implicit none
 integer ,intent(in) :: nchaniasi,nprof
-real (8) ,intent (in) :: iasi_surfem1 ( nchaniasi*nprof )
+real (8) ,intent (in) :: iasi_surfem1 ( nchaniasi,nprof )
 real (8) ,intent (in) :: freqiasi( nchaniasi )
 real (8) ,intent (out):: avhrr_surfem1( NIR*nprof )
 !****************************
 real (8),parameter :: freqavhrr(NIR)= (/0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03/)
 INTEGER,save :: indxavhrr(NIR)
 LOGICAL ,SAVE :: FIRST=.true.
-integer :: i,j,k,pos(1)
+integer :: i,j,pos(1),k
 !*************************************************************8
 IF (FIRST) THEN
    DO I=1,NIR
@@ -36,13 +36,11 @@ IF (FIRST) THEN
    ENDDO
    FIRST=.false.
 ENDIF
-
-k=1
-
+k=0
 DO I=1,nprof
    DO J=1,NIR
-      avhrr_surfem1(k)=iasi_surfem1((I-1)*nchaniasi + indxavhrr(j) )
       k=k+1
+      avhrr_surfem1(k)=iasi_surfem1(indxavhrr(j),i )
    ENDDO
 ENDDO
 

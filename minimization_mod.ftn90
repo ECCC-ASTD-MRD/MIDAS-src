@@ -185,7 +185,7 @@ CONTAINS
       endif
       vazx(:)=0.0d0
       ! extra mpilocal portion of control vector:
-      vazx(1:nvadim_mpilocal) = cvm_vazx(nvadim_beg:nvadim_end) 
+      vazx(1:nvadim_mpilocal)=cvm_vazx(nvadim_beg:nvadim_end)
 
       allocate(vazg(nvadim_mpilocalmax),stat=ierr)
       if(ierr.ne.0) then
@@ -307,7 +307,7 @@ CONTAINS
         if (nwoqcv > 0) lvarqc = .false.
 
         if(ngrtest.ne.0) then
-          call grtest2(simvar,nvadim_mpilocalmax,vazx,ngrange)
+          call grtest2(simvar,nvadim_mpilocalmax,vazx,ngrange,dataptr_int)
         endif
 
       endif
@@ -422,14 +422,38 @@ CONTAINS
 
       endif
 
+      WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
+ 9500 FORMAT(//,20X,20('*'),2X    &
+          ,/,20X,'              Minimization ended with MODE:',I4  &
+          ,/,20X,' Number of iterations done in previous job:',I4  &
+          ,/,20X,'          Number of iterations in this job:',I4  &
+          ,/,20X,'                Total number of iterations:',I4  &
+          ,/,20X,'Number of simulations done in previous job:',I4  &
+          ,/,20X,'         Number of simulations in this job:',I4  &
+          ,/,20X,'               Total number of simulations:',I4)
+
+      min_niter = itertot
+
+!     *    4. Test the gradient at the final point if NGRTEST=1
+!     .  ------------------------------------
+
+
+      if ((NGRTEST.ne.0 .and. IMODE.ne.4 .and. .not. LRSTART)) then
+        WRITE(*,FMT=9400)
+ 9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
+
+        call grtest2(simvar,nvadim_mpilocalmax,vazx,ngrange,dataptr_int)
+
+      END IF
+
 !     if lrestart remain false... postmin will execute
       lrestart = .false.
       ireslun=0
       if (niterjob /= -1 .and. itertot < nitermax .and. imode == 4) then
         clfname = crestart
-!     Careful: lrestart before minimisation was used to trigger a
-!     read of restart file... now it is set to .true. to avoid
-!     execution of postmin.
+        !     Careful: lrestart before minimisation was used to trigger a
+        !     read of restart file... now it is set to .true. to avoid
+        !     execution of postmin.
         lrestart = .true.
       else
         do jdata = 1, nvadim_mpilocal
@@ -447,31 +471,6 @@ CONTAINS
         endif
       endif
 
-      WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
- 9500 FORMAT(//,20X,20('*'),2X    &
-          ,/,20X,'              Minimization ended with MODE:',I4  &
-          ,/,20X,' Number of iterations done in previous job:',I4  &
-          ,/,20X,'          Number of iterations in this job:',I4  &
-          ,/,20X,'                Total number of iterations:',I4  &
-          ,/,20X,'Number of simulations done in previous job:',I4  &
-          ,/,20X,'         Number of simulations in this job:',I4  &
-          ,/,20X,'               Total number of simulations:',I4)
-
-      min_niter = itertot
-
-!     *    4. Test the gradient at the final point if NGRTEST=1
-!     .  ------------------------------------
-
- 400  CONTINUE
-
-      if ((NGRTEST.ne.0 .and. IMODE.ne.4 .and. .not. LRSTART)) then
-        WRITE(*,FMT=9400)
- 9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
-
-        call grtest2(simvar,nvadim_mpilocalmax,vazx,ngrange)
-
-      END IF
-
       call tmg_start(89,'MIN_COMM')
       ! transfer the mpilocal vazx into global cvm_vazx
       allocate(vazx_mpiglobalmax(nvadim_mpilocalmax*mpi_nprocs))
@@ -485,6 +484,7 @@ CONTAINS
       deallocate(vazx,stat=ierr)
       deallocate(vazg,stat=ierr)
       deallocate(vatra,stat=ierr)
+      deallocate(dataptr_int,stat=ierr)
 
       RETURN
   END SUBROUTINE min_minvar
@@ -990,6 +990,84 @@ CONTAINS
 
     return
   END SUBROUTINE RW_VATRA
+
+  subroutine grtest2(simul,na_dim,da_x0,na_range,dataptr)
+  implicit none
+  ! Dummies
+  integer, intent(in) :: na_dim ! Size of the control vector
+  integer, intent(in) :: na_range ! the test will be carried over values of
+                                  ! ALPHA ranging between
+                                  ! 10**(-NA_RANGE) < ALPHA < 0.1
+  integer, intent(inout) :: dataptr(:)
+  real*8,  intent(in), dimension(na_dim) :: da_x0 ! Control vector
+  external simul ! simulator: return cost function estimate and its gradient
+  !
+  !Purpose:
+  !to compare the variation of the functional against what the gradient
+  !gives for small changes in the control variable. This test should be
+  !accurate for values as small as DLALPHA =  SQRT(machine precision).
+  !(see Courtier, 1987)
+  !
+  !Author  : P. Gauthier *ARMA/AES  June 9, 1992
+  !
+  !Revision:
+  !
+  !     JM Belanger CMDA/SMC  Oct 2000
+  !                   . 32 bits conversion
+  !     P. Gauthier ARMA/MSC July 2003
+  !                   . Set the output unit through an argument
+  !     S. Pellerin ARMA/MSC Oct. 2005
+  !                   . Introduction of call back simulator
+  !                   . Automatic array (argument cleanup)
+  !                   . F90 free style and ODA Norm coding
+  !
+  ! Local delcarations
+  integer :: nl_indic, nl_j,ierr
+  real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
+  real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
+  real*8  :: dl_alpha, dl_gnorm0
+
+
+  ! 1. Initialize dl_gradj0 at da_x0
+  !    ------------------------------------
+
+  nl_indic = 2
+  call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0,dataptr(1))
+  dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
+  call rpn_comm_allreduce(dl_gnorm0,dl_gnorm0,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+  dl_start = 1.d0
+  dl_end   = 10.0d0**(-na_range)
+  write(*,FMT=9100) dl_start,dl_end, dl_j0, dl_gnorm0
+  ! 2. Perform the test
+  !    ----------------
+
+  if(dl_gnorm0.eq.0.d0)then
+     write(*,FMT=9101)
+     return
+  end if
+  write(*,FMT=9200)
+  do  nl_j = 1, na_range
+     dl_alpha = 10.0d0**(- nl_j)
+     dl_x(:) = da_x0(:) - dl_alpha*dl_gradJ0(:)
+     call simul(nl_indic,na_dim,dl_x,dl_j,dl_wrk,dataptr(1))
+     dl_test = (dl_j-dl_j0)/(-dl_alpha * dl_gnorm0)
+     write(*,FMT=9201)nl_j, dl_alpha, dl_j, dl_test
+  end do
+
+9100 format(//,4X,&
+          'GRTEST- The gradient is being tested for',&
+          G23.16,' <= ALPHA <= ',G23.16,/,12X,&
+          'Initial value of J(X):',1x,G23.16,4x,&
+          'Norm of GRAD J(X)**2: ',G23.16)
+9101 format(/,4X,'-In GRTEST: gradient vanishes exactly',&
+          '. Gradient test cannot be performed at this point')
+9200 format(/,4X,'J',8X,'ALPHA',11X,'J(X)',12X,'TEST')
+
+9201 format(2X,'GRTEST: step',2X,I3,4X,G23.16,4X,G23.16,4X,&
+          G23.16)
+  return
+end subroutine grtest2
+
 
 
 END MODULE minimization_mod

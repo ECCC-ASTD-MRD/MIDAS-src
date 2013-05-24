@@ -41,9 +41,10 @@
 *Revision 006  : S. Heilliette
 *                adapt utilization flag for IASI channels
 *
-*Revision 007  : S. Macpherson      apr 2013
-*                - adapt for new-format stats_tovs file
-*                - add NPP ATMS
+*Revision 007: S. Macpherson ARMA, Feb 2013
+*              - add NPP/ATMS codtyp=192
+*Revision 008  : S. Macpherson      apr 2013
+*              - adapt for new-format stats_tovs file
 *
 *    -------------------
 **    Purpose: Read the observation error statistics and
@@ -51,10 +52,9 @@
 *              resides on an ASCII file and is read using a free format.
 #endif
 
-      use airsch
-      use iasich
+      
+      use hir_chans
       use mpi
-
       IMPLICIT NONE
 
 *implicits
@@ -144,13 +144,13 @@ C*    1. Initialize
 C     .  ----------
 C
  100  CONTINUE
-      DO JL = 1, JPNSATMAX
-          DO JI = 1, JPCHMAX
-             TOVERRST(JI,JL) = 0.0
-             TOVERRIN(JI,1,JL) = 0.0
-             TOVERRIN(JI,2,JL) = 0.0
-             IUTILST(JI,JL) = 0
-          ENDDO
+      DO JL = 1, JPNSATMAX  
+         DO JI = 1, JPCHMAX
+            TOVERRST(JI,JL) = 0.0
+            TOVERRIN(JI,1,JL) = 0.0
+            TOVERRIN(JI,2,JL) = 0.0
+            IUTILST   (JI,JL) = 0
+         ENDDO
       ENDDO
 *
       DO JL = 1, JPNSATMAX
@@ -219,7 +219,7 @@ c     S         ISATID(JL), NUMCHNIN(JL)
 C
          IPLATFORM(JL) = -1            
          DO I = 1, MXPLATFORM
-            IPOS1 = LEN_TRIM(CPLATFORM(I))
+            IPOS1=LEN_TRIM(CPLATFORM(I))
             IPOS2 = INDEX(CLDUM,CPLATFORM(I)(1:IPOS1))
             IF ( IPOS2 .NE. 0 ) THEN
                IPLATFORM(JL) = NOPLATFORM(I)
@@ -236,7 +236,7 @@ C
  510     CONTINUE
          IINSTRUMENT(JL) = -1    
          DO I = 1, MXINSTRUMENT
-            IPOS1 = LEN_TRIM(CINSTRUMENT(I))
+            IPOS1=LEN_TRIM(CINSTRUMENT(I))
             IPOS2 = INDEX(CLDUM,CINSTRUMENT(I)(1:IPOS1))
             IF ( IPOS2 .NE. 0 ) THEN
                IINSTRUMENT(JL) = NOINSTRUMENT(I)
@@ -249,25 +249,25 @@ c               GO TO 520
          IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
             WRITE ( *, '(" SUTOVST: Unknown instrument!"/)' )
             CALL ABORT3D ('SUTOVST         ')
-         ENDIF        
+         ENDIF      
 C
  520     CONTINUE
          DO JI = 1, NUMCHNIN(JL)
             READ (ILUTOV,*,ERR=900) ICHNIN(JI,JL),
      S                  TOVERRIN(ICHNIN(JI,JL),1,JL),
      S                  TOVERRIN(ICHNIN(JI,JL),2,JL),
-     S                  IUTILST (ICHNIN(JI,JL),JL), ZDUM
+     S                  IUTILST (ICHNIN(JI,JL),JL),ZDUM
          ENDDO
          READ (ILUTOV,*,ERR=900)
       ENDDO
 C
-C**   Select input error to use: if ANAL mode, use ERRANAL (JJ=2); 
-C*    otherwise use ERRBGCK (JJ=1)
+C**   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
+C*     otherwise use ERRBGCK (JJ=1)
 C
       IF ( NCONF .EQ. 141 ) THEN
-        JJ = 2
+         JJ = 2
       ELSE
-        JJ = 1
+         JJ = 1
       ENDIF
 c
 c**   Fill the observation error array TOVERRST
@@ -281,7 +281,7 @@ c          WRITE(*,*)  INSTRUMENT (JL), ' ', IINSTRUMENT(JM)
 c          WRITE(*,*)  NUMCHNIN(JM)
           IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND.
      S         SATELLITE(JL) .EQ. ISATID   (JM)       ) THEN
-            IF ( INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN 
+            IF ( INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN
               NUMCHN(JL)=NUMCHNIN(JM)
               DO JI = 1, JPCHMAX
                 TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
@@ -310,26 +310,29 @@ C
          ENDIF
       ENDDO
 C
-C**   Utilization flag for AIRS and IASI channels (bgck mode only)
+C**   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
 C
       IF ( NCONF .EQ. 101 ) THEN
-        DO JM= 1, INUMSAT
-          IF ( IPLATFORM(JM) .EQ. 9 .AND. 
-     &            ISATID(JM) .EQ. 2 .AND. 
-     &       IINSTRUMENT(JM) .EQ. 11 ) THEN
-            DO JI = 1, NUMCHNIN(JM)
-              AIRS_ASSIM(JI) = IUTILST(ICHNIN(JI,JM),JM)
-            END DO
-          END IF
-          IF ( IPLATFORM(JM) .EQ. 10 .AND. 
-     &            ISATID(JM) .EQ.  2 .AND. 
-     &       IINSTRUMENT(JM) .EQ. 16 ) THEN
-            DO JI = 1, NUMCHNIN(JM)
-              IASI_ASSIM(JI) = IUTILST(ICHNIN(JI,JM),JM)
-            END DO
-          END IF
-        ENDDO
+         DO JM= 1, INUMSAT
+            IF ( IPLATFORM(JM) .EQ. 9 .AND. 
+     &           ISATID(JM) .EQ. 2 .AND. 
+     &           IINSTRUMENT(JM) .EQ. 11 ) THEN
+
+               call hir_set_assim_chan("AIRS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
+            END IF
+            IF ( IPLATFORM(JM) .EQ. 10 .AND. 
+     &           ISATID(JM) .EQ.  2 .AND. 
+     &           IINSTRUMENT(JM) .EQ. 16 ) THEN
+               call hir_set_assim_chan("IASI",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
+            END IF
+            IF ( IPLATFORM(JM) .EQ. 17 .AND. 
+     &           ISATID(JM) .EQ.  0 .AND. 
+     &           IINSTRUMENT(JM) .EQ. 27 ) THEN
+               call hir_set_assim_chan("CRIS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
+            END IF
+         ENDDO
       END IF
+
 C
 C*    6. Print out observation errors for each sensor
 C     .  --------------------------------------------
@@ -357,7 +360,7 @@ C
  700  CONTINUE
 C
       IER = FCLOS(ILUTOV)
-      IF ( IER .NE. 0 ) THEN
+      IF(IER.NE.0)THEN
          CALL ABORT3D ('SUTOVST         ')
       END IF
       RETURN

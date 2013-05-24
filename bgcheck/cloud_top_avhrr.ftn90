@@ -7,7 +7,8 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
 !       AUTHOR:   L. GARAND             August 2004
 !                 A. BEAULNE (CMDA/SMC)  March 2006  (ADAPT TO 3DVAR)                 
 !
-!       REVISION:
+!       REVISION: 001 S. Heilliette:
+!                     -to remove hard-coded rttov pressure level numbers
 !
 !       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT (ABOVE THE GROUND)
 !          BASED ON MATCHING OBSERVED BRIGHTNESS TEMPERATURE WITH 
@@ -42,8 +43,8 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
 !                                    BRIGHTNESS TEMPERATURES (IN HPA|M WITH IOPT = 1|2)
 !            -PTOP_RD(NCHN,NPRF)  : CHOSEN EQUIVALENT CLOUD TOPS BASED ON 
 !                                    RADIANCES (IN HPA|M WITH IOPT = 1|2)
-!            -NTOP_BT(NPRF)       : NUMBER OF POSSIBLE PTOP_BT SOLUTIONS
-!            -NTOP_RD(NPRF)       : NUMBER OF POSSIBLE PTOP_RD SOLUTIONS
+!            -NTOP_BT(NPRF,NPRF)  : NUMBER OF POSSIBLE PTOP_BT SOLUTIONS
+!            -NTOP_RD(NPRF,NPRF)  : NUMBER OF POSSIBLE PTOP_RD SOLUTIONS
 !
   IMPLICIT NONE
   INTEGER ,intent(in) :: NCH,IOPT,IHGT,NLEV,NCHN,NPRF
@@ -56,10 +57,16 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
   REAL(8) ,intent(out) ::  PTOP_BT(NCHN,NPRF),PTOP_RD(NCHN,NPRF)
   INTEGER ,intent(out) ::  NTOP_BT(NCHN,NPRF),NTOP_RD(NCHN,NPRF)
 !*********************************************************************
-  INTEGER      ::  JN,JCH,JC,ITOP,NHT
+  INTEGER      ::  JN,JCH,JC,ITOP,NHT,i10,i
   REAL(8)      ::  HT(NLEV)
      
-      
+  i10=1
+  DO I=2,NLEV
+     IF (plev(i-1)<=100.d0 .AND. plev(i)>100.d0) THEN
+        I10=I
+        EXIT
+     ENDIF
+  ENDDO
     
   PTOP_BT(:,:) = -10.
   PTOP_RD(:,:) = -10.
@@ -89,7 +96,7 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
         NTOP_BT(:,JN) = 1
         NTOP_RD(:,JN) = 1
 
-        LEV_START(JN) = MAX ( LEV_START(JN) , 10 )
+        LEV_START(JN) = MAX ( LEV_START(JN) , i10 )
 
         CYCLE profiles
 

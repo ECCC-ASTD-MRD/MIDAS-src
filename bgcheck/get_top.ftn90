@@ -75,10 +75,18 @@ SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
 
      CALL FMIN (IM, tt,nlev)
   
+     i10=-1
+     DO I=2,NLEV
+        IF (pp(i-1)<=100.d0 .AND. pp(i)>100.d0) THEN
+           I10=I
+           EXIT
+        ENDIF
+     ENDDO
+
      LEV_START = IM
 
      IF ( IM == NLEV ) THEN
-        LEV_START = MAX(LEV_START,10)
+        LEV_START = MAX(LEV_START,i10)
         NHT = 1
         HT(1) = PP(NLEV)
         RETURN

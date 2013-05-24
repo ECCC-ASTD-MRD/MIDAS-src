@@ -27,13 +27,18 @@
 !*
       use obsSpaceData_mod
       use columnData_mod
+      use tovs_mod
       IMPLICIT NONE
 
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
       REAL*8 ZJO
-
+      INTEGER :: NOBTOV,NOBAIRS,NOBIASI,NOBCRIS
+      INTEGER :: index_header,idatyp
+      integer :: loop_done_airs, loop_done_iasi, loop_done_cris
+      logical :: end_airs,end_iasi,end_cris
+!C
       WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
 !C
@@ -64,6 +69,62 @@
       CALL BGCDATA(ZJO,'PR',lobsSpaceData)
       CALL BGCGPSRO(lcolumnhr,lobsSpaceData)
       CALL BGCDATA(ZJO,'GP',lobsSpaceData)
+
+      NOBTOV=0
+      NOBAIRS=0
+      NOBIASI=0
+      NOBCRIS=0
+
+      ! loop over all header indices of the 'TO' family
+      ! Set the header list
+      ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'TO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
+         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
+
+         IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+
+         NOBTOV = NOBTOV + 1
+         IF ( tvs_Is_idburp_airs(IDATYP) ) NOBAIRS = NOBAIRS + 1
+         IF ( tvs_Is_idburp_iasi(IDATYP) ) NOBIASI = NOBIASI + 1
+         IF ( tvs_Is_idburp_cris(IDATYP) ) NOBCRIS = NOBCRIS + 1
+
+      enddo HEADER
+
+      IF (NOBTOV==NOBAIRS .AND.  NOBAIRS>0) THEN
+         loop_done_airs = 0
+         end_airs       = .false.
+         do
+            call AIRSQC ( end_airs, loop_done_airs,lcolumnhr,lobsSpaceData )
+            loop_done_airs = loop_done_airs + 1
+            if ( end_airs ) EXIT 
+         end do
+      ENDIF
+
+      IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
+         loop_done_iasi = 0
+         end_iasi       = .false.
+         do
+            call IASIQC ( end_iasi, loop_done_iasi,lcolumnhr,lobsSpaceData )
+            loop_done_iasi = loop_done_iasi + 1
+            if ( end_iasi ) EXIT
+         end do
+      ENDIF
+
+      IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
+         loop_done_cris = 0
+         end_cris       = .false.
+         do
+            call CRISQC ( end_cris, loop_done_cris,lcolumnhr,lobsSpaceData )
+            loop_done_cris = loop_done_cris + 1
+            if ( end_cris ) EXIT
+         end do
+      ENDIF
+
+
 !C
 !C     .   3.4.3 Convert CMA ---> BURP file and write it
 !C

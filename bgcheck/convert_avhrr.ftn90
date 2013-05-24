@@ -1,7 +1,7 @@
 subroutine convert_avhrr(sunzen,avhrr)
 ! conversion des radiance IR en temperatures de brillance
 ! et des radiances visibles en "albedo"
-use mod_tovs ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
+use tovs_mod ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
 
 implicit none
 real(8) ,intent(in) :: sunzen

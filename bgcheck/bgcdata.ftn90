@@ -134,7 +134,6 @@
                 endif
                   IDBURP=obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
                   IFLAG=ISETFLAG(CDFAM,IDBURP,INAM,ZLEV,ZBGCHK,LMODIF1020)
-!                  print *,"IFLAG",IFLAG
 !C
 !C              CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
 !C

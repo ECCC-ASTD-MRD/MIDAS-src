@@ -1,4 +1,4 @@
-SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
+SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
      ichref,nchn,nprf)
 !
 !**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
@@ -23,8 +23,7 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
 !            -TG(NPRF)          : GUESS SKIN TEMPERATURE (DEG K)
 !            -EMI(NCHN,NPRF)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
 !            -RCAL(NCHN,NPRF)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -BTOBS(NCHN,NPRF)  : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
-!            -RADOBS(NCHN,NPRF) : COMPUTED OBSERVED RADIANCES (")
+!            -RADOBS(NCHN,NPRF) : OBSERVED RADIANCES (")
 !            -SFCTAU(NCHN,NPRF) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
 !            -CLDFLAG(NPRF)     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
 !            -ICHREF(NPRF)      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
@@ -35,16 +34,20 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
 !            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
 !
 !
-  USE mod_tovs ,only : coeff_avhrr
+
+  use tovs_mod,only : coefs_avhrr
 
   IMPLICIT NONE
-
-  INTEGER    :: JN,JC,NCHN,NPRF,CLDFLAG(NPRF),IREF
-  INTEGER    :: ICHN,ICHREF(NPRF)
-  REAL(8)    :: BTOBS(NCHN,NPRF),RADOBS(NCHN,NPRF)
-  REAL(8)    :: RTG,TG(NPRF),RADTG(NCHN,NPRF)
-  REAL(8)    :: EMI(NCHN,NPRF),SFCTAU(NCHN,NPRF)
-  REAL(8)    :: RADTS,TS(NPRF),TS1(NCHN,NPRF),RCAL(NCHN,NPRF),tstore,t_effective
+  integer ,intent(in) :: nchn,nprf
+  integer ,intent(in) :: ichref(nprf),CLDFLAG(NPRF)
+  REAL(8) ,intent(in) :: TG(NPRF),EMI(NCHN,NPRF),RCAL(NCHN,NPRF),RADOBS(NCHN,NPRF)
+  REAL(8) ,intent(in) :: SFCTAU(NCHN,NPRF)
+  REAL(8) ,intent(out):: TS(NPRF)
+!***************************************
+  INTEGER    :: JN,JC
+  INTEGER    :: ICHN
+  REAL(8)    :: RTG,RADTG(NCHN,NPRF)
+  REAL(8)    :: RADTS,TS1(NCHN,NPRF),tstore,t_effective
 
   TS1(:,:) = -1.
   TS(:) = -1.
@@ -56,9 +59,9 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
      IF ( CLDFLAG(JN) == -1 ) CYCLE
 
      DO JC = 1, NCHN
-        t_effective =  coeff_avhrr(1)%ff_bco(jc) + coeff_avhrr(1)%ff_bcs(jc) * TG(jn)
-        RADTG(JC,jn) =  coeff_avhrr(1)%planck1(jc) / &
-             ( Exp( coeff_avhrr(1)%planck2(jc)/t_effective ) - 1.0 )
+        t_effective =  coefs_avhrr%coef%ff_bco(jc) + coefs_avhrr%coef%ff_bcs(jc) * TG(jn)
+        RADTG(JC,jn) =  coefs_avhrr%coef%planck1(jc) / &
+             ( Exp( coefs_avhrr%coef%planck2(jc)/t_effective ) - 1.0 )
      END DO
   END DO
 
@@ -79,8 +82,8 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,btobs,radobs,sfctau,cldflag, &
 
      DO JC = 1, NCHN
           
-        tstore = coeff_avhrr(1)%planck2(jc) / Log( 1+coeff_avhrr(1)%planck1(jc)/RADTS )
-        TS1(JC,jn) = ( tstore-coeff_avhrr(1)%ff_bco(jc) ) / coeff_avhrr(1)%ff_bcs(jc)
+        tstore = coefs_avhrr%coef%planck2(jc) / Log( 1+coefs_avhrr%coef%planck1(jc)/RADTS )
+        TS1(JC,jn) = ( tstore-coefs_avhrr%coef%ff_bco(jc) ) / coefs_avhrr%coef%ff_bcs(jc)
      END DO
      TS(JN) = TS1(ichref(jn),jn)
 
