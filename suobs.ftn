@@ -132,7 +132,14 @@ c
       enddo
                                  !Select calls  BRPCMA
                                  ! 1. Positioning of data records within ROBDATA/MOBDATA
-      CALL SELECT(lobsSpaceData) ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
+      CALL SELECTB(lobsSpaceData) ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
+!     CALL SELECT(lobsSpaceData) ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
+!     do j = 18800, 18900
+!     do j = 1,  obs_numHeader(lobsSpaceData)
+!     call obs_prnthdr(lobsSpaceData,j)
+!     call obs_prntbdy(lobsSpaceData,j)
+!     enddo
+
                                  ! 3. Incrementation of obsSpaceData%numheader and obsSpaceData%numbody based on data selected
 
       END SUBROUTINE SUOBS

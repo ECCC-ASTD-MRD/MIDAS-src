@@ -156,7 +156,8 @@
       CALL VINT3DFD(OBS_OMA,lobsSpaceData)
       CALL VINT3DFD(OBS_OMF,lobsSpaceData)
       CALL SETASSFLG(lobsSpaceData)
-      CALL FILBRPPOST(lcolumng,lobsSpaceData)
+      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
+      CALL UPDATE_BURPFILES(lobsSpaceData)
 
       call obs_finalize(lobsSpaceData)
 

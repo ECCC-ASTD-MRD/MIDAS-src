@@ -110,6 +110,12 @@ s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
 grep fail listing1
 if [ $? = "0" ] ; then exit ; fi
 
+echo "compiling burp_read module"
+SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90"
+s.compile $INCLUDES $COMPF -O -src $SRC1 > listing_burp 2>&1
+grep fail listing_burp
+if [ $? = "0" ] ; then exit ; fi
+
 echo "compiling the old modules (cdk90)..."
 SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps02wgs84const.cdk90 modgps03diff.cdk90 modgps04profile.cdk90 modgps06gravity.cdk90"
 SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90"

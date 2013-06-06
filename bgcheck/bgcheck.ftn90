@@ -34,7 +34,7 @@
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
       REAL*8 ZJO
-      INTEGER :: NOBTOV,NOBAIRS,NOBIASI,NOBCRIS
+      INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
       INTEGER :: index_header,idatyp
       integer :: loop_done_airs, loop_done_iasi, loop_done_cris
       logical :: end_airs,end_iasi,end_cris
@@ -128,8 +128,11 @@
 !C
 !C     .   3.4.3 Convert CMA ---> BURP file and write it
 !C
-      CALL VINT3DFD(OBS_OMF,lobsSpaceData)	
-      CALL FILBRPPOST(lcolumng,lobsSpaceData)
+      CALL VINT3DFD(OBS_OMF,lobsSpaceData)
+      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
+      CALL UPDATE_BURPFILES(lobsSpaceData)
+      ! add cloud parameter data to burp files (AIRS&IASI)
+      CALL ADD_CLOUDPRMS(lobsSpaceData)
       DO j =1,1
          call obs_prnthdr(lobsSpaceData,j)
          call obs_prntbdy(lobsSpaceData,j)

@@ -1,0 +1,60 @@
+subroutine add_cloudprms(lobsSpaceData)
+!*
+!***s/r add_cloudprms
+!*
+!*Author  : M. Buehner, June 2013
+!*
+!**    Purpose: Add cloud parameters to the burp file for infrared satellite radiances.
+!*
+  use obsSpaceData_mod
+  implicit none
+#include "cvcord.cdk"
+#include "partov.cdk"
+#include "comtov.cdk"
+
+  type(struct_obs) :: lobsSpaceData
+  integer jfile,krtid
+
+  do jfile=1,nfiles
+    do krtid = 1, nsensors
+
+      ! For AIRS data
+      if( platform(krtid) .eq. 9 .and.  &
+          satellite(krtid) .eq. 2 .and.  &
+          instrument(krtid) .eq. 11 ) then
+        if(jfile == 1) then
+          write(*,*) 'INPUT FILE TO AIRSABRP = ', cfilnam(jfile)
+          call airsabrp(lobsspacedata,cfilnam(jfile))
+        else
+          write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE AIRS FILE ???'
+        endif
+      endif
+
+      ! For IASI data
+      if( platform(krtid) .eq. 10 .and.  &
+          satellite(krtid) .eq. 2 .and.  &
+          instrument(krtid) .eq. 16 ) then
+        if(jfile == 1) then
+          write(*,*) 'INPUT FILE TO IASIABRP = ', cfilnam(jfile)
+          call iasiabrp(lobsspacedata,cfilnam(jfile))
+        else
+          write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
+        endif
+      endif
+
+      ! For CrIS data
+      if( platform(krtid) .eq. 17 .and. &
+          satellite(krtid) .eq. 0 .and. &
+          instrument(krtid) .eq. 27 ) then
+        if(jfile == 1) then
+          write(*,*) 'INPUT FILE TO CRISABRP = ', cfilnam(jfile)
+          call crisabrp(lobsspacedata,cfilnam(jfile))
+        else
+          write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE CRIS FILE ???'
+        endif
+      endif
+
+    enddo
+  enddo
+
+end subroutine add_cloudprms

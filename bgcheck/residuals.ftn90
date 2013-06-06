@@ -28,6 +28,7 @@
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
 
       CALL VINT3DFD(OBS_OMA,lobsSpaceData)
+      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
 
       DO JDATA=1,obs_numbody(lobsSpaceData)
          call obs_bodySet_r(lobsSpaceData,OBS_OMF,jdata,obs_bodyElem_r(lobsSpaceData,OBS_OMA,jdata))
@@ -36,6 +37,8 @@
          call obs_prnthdr(lobsSpaceData,j)
          call obs_prntbdy(lobsSpaceData,j)
       END DO
-      CALL  FILBRPPOST(lcolumng,lobsSpaceData)
+      CALL UPDATE_BURPFILES(lobsSpaceData)
+
+      call obs_finalize(lobsSpaceData)
       RETURN
       END SUBROUTINE RESIDUALS
