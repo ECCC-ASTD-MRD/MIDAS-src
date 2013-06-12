@@ -475,7 +475,7 @@
           if(col_getNumCol(lcolumng).gt.0) then       
             write(*,*) 'sugomobs:',varNameList3D(jvar)
             do jlev = 1,nlv_T
-              write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1:2)
+              write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
             enddo
 
             call vintprof(varInterpg_T,zppobsg,col_getNumLev(lcolumng),varInterphr_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
@@ -558,7 +558,7 @@
 !--------------------------------------------------------------------------------
       CONTAINS
 
-      subroutine readTrialField4(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
+            subroutine readTrialField4(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
 !
 ! s/r readTrialField
 !
@@ -578,6 +578,14 @@
       real*8, allocatable :: varInterp_recv(:,:),varInterp_recv_VV(:,:)
       integer :: nlevel,nsize,iip1,pe_send,pe_recv,tag,tag2
       integer :: fstlir,vezuvint2,vezsint2,ezdefset
+
+      integer :: key, fstinf, fstprm, EZscintID, ezqkdef
+      integer :: ni, nj, nk
+      integer :: dateo, deet, npas, nbits, datyp
+      integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+      integer :: extra1, extra2, extra3
+      integer :: ig1, ig2, ig3, ig4
+
 !
 !     Determine the type and number of vertical levels
 !
@@ -594,9 +602,39 @@
       endif
       nlevel = col_getNumLev(lcolumnhr,varType)
 
-      allocate(varTrial(ini,inj))
-      allocate(varTrial_VV(ini,inj))
-      allocate(varTrial_zero(ini,inj))
+!
+!     Determine grid size and EZSCINT ID
+!
+      dateo  = -1
+      cletiket = ' '
+      ip1    = -1
+      ip2    = -1
+      ip3    = -1
+      cltypvar = ' '
+
+      key = fstinf( nultrl(1),                                    & ! IN
+                    ni, nj, nk,                                   & ! OUT
+                    dateo, cletiket, ip1, ip2, ip3, cltypvar, varName )! IN
+
+      if (key < 0) then
+        write(6,*)
+        write(6,*) 'SUGOMOBS: Unable to find trial field = ',varName
+        stop
+      end if
+
+      ierr = fstprm( key,                                             & ! IN
+                    dateo, deet, npas, ni, nj, nk, nbits,            & ! OUT
+                    datyp, ip1, ip2, ip3, cltypvar, varName, cletiket,    & ! OUT
+                    clgrtyp, ig1, ig2, ig3,                          & ! OUT
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+
+      EZscintID  = ezqkdef( ni, nj, clgrtyp, ig1, ig2, ig3, ig4, nultrl(1) )   ! IN
+
+      !
+
+      allocate(varTrial(ni,nj))
+      allocate(varTrial_VV(ni,nj))
+      allocate(varTrial_zero(ni,nj))
       allocate(varInterp(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
       allocate(varInterp_VV(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
       allocate(varInterp2(maxval(nobs_mpiglobal)))
@@ -604,6 +642,7 @@
       allocate(varInterp_recv(maxval(nobs_mpiglobal),nlevel))
       allocate(varInterp_recv_VV(maxval(nobs_mpiglobal),nlevel))
       varTrial_zero(:,:) = 0.0d0
+
       ! in the case that not all variable have the same etiket or typvar
       ! (this is necessary for extra 3d-var done before gen_coeff)
       cletiket='            '
@@ -616,6 +655,7 @@
           call rpn_comm_barrier("GRID",ierr)
 
           do jlev = (1+mpi_myid),nlevel,mpi_nprocs
+
             if(varType.eq.'MM') then
               IIP1 = vco_trl%ip1_M(jlev)
             elseif(varType.eq.'TH') then
@@ -627,15 +667,18 @@
             endif
 
             call tmg_start(11,'TRLM_FSTLIR')
-            ierr=fstlir(varTrial(:,:),nultrl(jstep),ini,inj,ink,  &
+
+            ierr=fstlir(varTrial(:,:),nultrl(jstep),ni,nj,ink,  &
                         datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                         cltypvar,varName)
+
             if(ierr.lt.0)then
               write(*,2001) varName,iip1,idate(jstep),itime(jstep)
               call abort3d('SUGOMOBS:Problem with background file')
             end if
+
             if(varName.eq.'UU') then
-              ierr=fstlir(varTrial_VV(:,:),nultrl(jstep),ini,inj,ink,  &
+              ierr=fstlir(varTrial_VV(:,:),nultrl(jstep),ni,nj,ink,  &
                           datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                           cltypvar,'VV')
               if(ierr.lt.0)then
@@ -649,18 +692,18 @@
             call tmg_start(15,'SUGOMOBS_EZ')
             do jlatband = 1,mpi_nprocs
               if (nobs_mpiglobal(jstep,jlatband).gt.0) then
-                iset = ezdefset(nobsgid_mpiglobal(jstep,jlatband),itrlgid)
+                iset = ezdefset(nobsgid_mpiglobal(jstep,jlatband),EZscintID)
                 if(trim(varName).eq.'UU') then
                   call tmg_start(16,'SUGOMOBS_UVINT')
 
                   ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
                                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
                                    varTrial,varTrial_zero,  &
-                                   nobs_mpiglobal(jstep,jlatband),ini*inj)
+                                   nobs_mpiglobal(jstep,jlatband),ni*nj)
                   ierr = vezuvint2(varInterp2(1:nobs_mpiglobal(jstep,jlatband)),  &
                                    varInterp2_VV(1:nobs_mpiglobal(jstep,jlatband)),  &
                                    varTrial_zero,varTrial_VV,  &
-                                   nobs_mpiglobal(jstep,jlatband),ini*inj)
+                                   nobs_mpiglobal(jstep,jlatband),ni*nj)
 
                   varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) =  &
                     varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) +  &
@@ -674,7 +717,7 @@
                   call tmg_start(17,'SUGOMOBS_SINT')
                   ierr = vezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
                                   varTrial,  &
-                                  nobs_mpiglobal(jstep,jlatband),1,1,ini,inj,1)
+                                  nobs_mpiglobal(jstep,jlatband),1,1,ni,nj,1)
                   call tmg_stop(17)
                 endif
               endif

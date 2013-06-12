@@ -118,9 +118,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       real*8,pointer :: column_ptr(:,:)
       real*8 :: dldlat2((statevector%myLatBeg-1):(statevector%myLatEnd+1))
 
-      if(col_getNumCol(LCOLUMN).le.0) return
-
-      column_ptr => col_getAllColumns(lcolumn,varName)
+      if (col_getNumCol(LCOLUMN) > 0) column_ptr => col_getAllColumns(lcolumn,varName)
+ 
       field_ptr => gsv_getField(statevector,varName)
 
       DLDLON2=1./(2.*MPC_PI_R8/STATEVECTOR%NI)
