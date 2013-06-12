@@ -821,7 +821,7 @@ CONTAINS
     integer ezdefset, vezsint
     integer ip1style,ip1kind
     integer koutmpg
-    real*8, allocatable :: dltg(:,:)
+    real*8, allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
     real*8 cortgg(nla_l,2)
     real*8 zabs, zpole, zconst, dlfac, dlcorr
     real*8 zsp(nla_l,2,1),zgd(ni_l,1,nj_l)
@@ -875,10 +875,19 @@ CONTAINS
 
     else
 
-      ! Interpolate to a gaussian grid stored from North to South(IG2=1)
-      igdgid = ezqkdef(ni_l, nj_l, 'G', 0, 1, 0, 0 ,0)
-      iset = ezdefset(igdgid,itggid)
-      ier = vezsint(tgstdbg,dltg,ni_l,nj_l,1,ini,inj,1)
+       allocate(tgstdbg_tmp(ni_l,nj_l))
+       ! Interpolate to a gaussian grid stored from North to South(IG2=1)
+       ! First, from 'G' to 'G'
+       igdgid = ezqkdef(ni_l, nj_l, 'G', 0, 0, 0, 0 ,0)
+       iset = ezdefset(igdgid,itggid)
+       ier = vezsint(tgstdbg_tmp,dltg,ni_l,nj_l,1,ini,inj,1)
+       ! Then, inverse the vector directly
+       do jlat = 1, nj_l
+          do jlon = 1,ni_l
+             tgstdbg(jlon,jlat) = tgstdbg_tmp(jlon,nj_l-jlat+1)
+          enddo
+       enddo
+       deallocate(tgstdbg_tmp)
 
     endif
 
