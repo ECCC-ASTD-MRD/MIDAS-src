@@ -218,6 +218,7 @@ CONTAINS
 	  CASE('RO')
 	    BURP_TYP='multi'
             vcord_type=7007
+            vcord_type2=7040
 
             LISTE_ELE = (/15036,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
 	    NELE=1
@@ -258,6 +259,13 @@ CONTAINS
       WRITE(*,*)  ' BN_ITEMS   =',BN_ITEMS
       WRITE(*,'(a12,x)') ' ITEMS TO ADD IN BURP FILE REPORTS =', BITEMLIST(1:BN_ITEMS)
       WRITE(*,'(x,a9)' ) ' BTYP OF UPDATED BURP FILE=', TYPE_RESUME
+
+      SELECT CASE( trim(TYPE_RESUME))
+       CASE("BGCKALT", "POSTALT")
+        BIT_STATUS = 12 
+       CASE("DERIALT")
+        BIT_STATUS = 11 
+      END SELECT 
 !========================================================================================
 !------------------------------------------
       if (trim(BURP_TYP) .eq. 'uni') then
@@ -371,10 +379,10 @@ CONTAINS
 	   SELECT CASE(stnid)
 	   CASE(">>BGCKALT", ">>POSTALT")
              bit_alt=1
-	     BIT_STATUS = 12 
+!     BIT_STATUS = 12 
 	   CASE(">>DERIALT")
              bit_alt=2
-	     BIT_STATUS = 11 
+!     BIT_STATUS = 11 
            END SELECT 
 	 ENDIF
 
@@ -540,7 +548,6 @@ CONTAINS
                             Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp)
 			  endif
 
-!                         print *, '  SURFACE OBS OBS_START =', kk,OBS_START
 			  il_index=1
 			  KOBSN=0
                           IND_eleu  = BURP_Find_Element(Block_in, ELEMENT=11215, IOSTAT=error)
@@ -558,7 +565,6 @@ CONTAINS
 					           ,IOSTAT = error) 
  		             call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
  		             call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
-!		     if(trim(familytype) .eq. 'UA' )print  *, ' bingo sfc add u et v OMA_SFC_EXIST ',ILEMU,ILEMV,OMA_SFC_EXIST
 			     OMA_SFC_EXIST=.true.
 
 			     Call BURP_New(BLOCK_OMP_SFC,NELE =2,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
@@ -628,7 +634,6 @@ CONTAINS
 				           ,IOSTAT = error) 
                                 OMA_SFC_EXIST=.true.
 
-!                               if(trim(familytype) .eq. 'UA' )print *, ' pik bingo oma_sfc est true mainenant add u et v',il,iele,ilemu,ilemv
  		                CALL BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
  		                CALL BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
 
@@ -710,8 +715,7 @@ CONTAINS
                                      OMA=obs_bodyElem_r(obsdat,OBS_OMA ,LK)
                                      OMP=obs_bodyElem_r(obsdat,OBS_OMF ,LK)
                                      OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
-!                                    FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-                                     FGE=333.
+                                     FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
                                      FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
 !                       	if(trim(familytype) .eq. 'UA' )print *, 'bingo surface stnid kk vnm  flg ',stnid,kk,vnm,flg
 			             KOBSN= KOBSN + 1
@@ -785,6 +789,8 @@ CONTAINS
 			      cycle
 			    endif
 			  end do
+			  Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BFAM =0)
+			  Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BFAM =0)
 
                           Call BURP_Write_Block( Rpt_in, BLOCK_OBS_SFC_CP,&
                                 ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
@@ -801,7 +807,6 @@ CONTAINS
 			  if (BLOCK_LIST(4) .eq. -1 .and.  KOBSN .gt. 0 ) THEN
 			     SAVE_OBS=SAVE_OBS+1
 			     OBS_START=OBS_START+1
-!	      if(trim(familytype) .eq. 'UA' )print * , ' enr surface pas de block ua kk obs_start stnid =',stnid,kk,obs_start,SAVE_OBS,NDATA_SF
 			  endif
 !                       --------------------------------------------------------
 			endif
@@ -826,7 +831,7 @@ CONTAINS
                             Call BURP_Set_Property(BLOCK_MAR_MUL_CP ,BKTYP =new_bktyp)
 			  endif
 			  OBSN=OBS_START
-!                         print *, ' donnees OBS_START savae obs=',OBS_START,SAVE_OBS
+!                         print *, ' donnees OBS_START save obs=',OBS_START,SAVE_OBS
                           NVAL=NVALE ;  NT=NTE
 
 			  il_index=1
@@ -953,7 +958,6 @@ CONTAINS
                           IND_ELE_MAR= BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
             		  if (IND_ele_mar .lt.  0 ) cycle
 
-!           		  if (IND_ele_mar .lt. 0 ) print *, '  pas d ele marqueuer =',iele
                           IND_ele       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
             		  if (IND_ele .eq. IND_LAT  .and. hires ) cycle
             		  if (IND_ele .eq. IND_LON  .and. hires ) cycle
@@ -1034,8 +1038,7 @@ CONTAINS
                                 OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
                                 OMP=obs_bodyElem_r(obsdat,OBS_OMF,LK)
                                 OER=obs_bodyElem_r(obsdat,OBS_OER,LK)
-!                               FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-                                FGE=333.
+                                FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
                                 FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
 			        KOBSN= KOBSN + 1
 				if  ( OMA .ne. PPMIS ) then
@@ -1142,6 +1145,8 @@ CONTAINS
 			 Call BURP_Reduce_Block(BLOCK_OER, NEW_NELE =il_index )
 			 Call BURP_Reduce_Block(BLOCK_FGE, NEW_NELE =il_index )
 
+			 Call BURP_Set_Property(BLOCK_OBS_MUL_CP ,BFAM =0)
+			 Call BURP_Set_Property(BLOCK_MAR_MUL_CP ,BFAM =0)
                          Call BURP_Write_Block( Rpt_in, BLOCK_OBS_MUL_CP,&
                                 ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
                          Call BURP_Write_Block( Rpt_in, BLOCK_MAR_MUL_CP,&
@@ -1214,8 +1219,9 @@ CONTAINS
                end do BLOCKS1
 
 !=================================================================
-	       if ( BLOCK_LIST(1) .ne. -1)  then
-                 Call BURP_Write_Block( Rpt_in, Block_FLG_CP, ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .FALSE.)
+!       if ( BLOCK_LIST(1) .ne. -1)  then
+	       if (  REGRUP )  then
+                 Call BURP_Write_Block( Rpt_in, BLOCK_FLG_CP, ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .FALSE.)
                endif
 
 !===================================================================================================================
@@ -1461,6 +1467,7 @@ CONTAINS
 	  CASE('RO')
 	    BURP_TYP='multi'
             vcord_type=7007
+            vcord_type2=7040
 
             LISTE_ELE = (/15036,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
 	    NELE=1
@@ -1500,8 +1507,9 @@ CONTAINS
 
 
 !------------------------------------------
-      if (TRIM(FAMILYTYPE2) .eq. 'SFC2') then
+      if (TRIM(FAMILYTYPE2) .eq. 'SFC') then
          btyp_offset= btyp_offset+32
+         btyp_offset_uni= 256 +32
       endif
 !------------------------------------------
 
@@ -1509,7 +1517,6 @@ CONTAINS
 !------------------------------------------
       if ( TRIM(FAMILYTYPE2) .eq. 'UA') then
          btyp_offset_uni= 256 +32
-	 print *, '  btyp_offset_uni=', btyp_offset_uni
       endif
 !------------------------------------------
 
@@ -1594,7 +1601,8 @@ CONTAINS
          count = count + 1
          address(count) = ref_rpt
       end do
-      write(*,'(a9,1x,a16,1x,i2)' )STN_RESUME,' bit_alt==== >  ',bit_alt
+!pik  write(*,'(a9,1x,a16,1x,i2)' )STN_RESUME,' bit_alt==== >  ',bit_alt
+      write(*, *)STN_RESUME,' bit_alt==== >  ',bit_alt
 !================================================================      
       BTYP10obs     = 291 -btyp_offset
       BTYP10obs_uni = 291 -btyp_offset_uni
@@ -1869,7 +1877,6 @@ CONTAINS
                                       &   NVAL_IND = 1, &
                                       &   NT_IND   = k, &
                                       &   IOSTAT   = error)
-!			      print *, ' info_elepos  k stnid=', info_elepos, k,stnid, RINFO(kl,k)
 			       end do
 
 			     else
@@ -1939,7 +1946,6 @@ CONTAINS
                          if (.not. allocated(RADMOY)) allocate(RADMOY(NCLASSAVHRR,NCHANAVHRR,nte))
                          if (.not. allocated(radstd)) allocate(radstd(NCLASSAVHRR,NCHANAVHRR,nte))
 
-                         iclass=1
 			 RADMOY(:,:,:)=PPMIS
 			 RADSTD(:,:,:)=PPMIS
 			 CFRAC(:,:)=-999
@@ -1947,8 +1953,9 @@ CONTAINS
 !                        ==========================
                          IASIQUAL: DO k = 1, nte
 !                        ==========================
+                         iclass=1
 
-                         do j=1,nvale
+                         NVALS :do j=1,nvale
                             DO  il=1,nbele
                                iele=BURP_Get_Element(Block_in,INDEX =il,IOSTAT= error) 
                                SELECT CASE(iele)
@@ -1968,10 +1975,10 @@ CONTAINS
                                   RAD_STD=BURP_Get_RVAL(Block_in,NELE_IND = il, NVAL_IND = j, NT_IND = k, IOSTAT = error)
                                   RADSTD(iclass,ICHAN,k)= RAD_STD * 10.d0**(-1.d0 * INORM ) * 100000.d0
                                   IF (ICHAN==NCHANAVHRR) iclass=iclass+1
-                                  IF ( iclass==(NCLASSAVHRR+1) ) EXIT IASIQUAL
+                                  IF ( iclass==(NCLASSAVHRR+1) ) EXIT NVALS
                                END SELECT
                             ENDDO
-                         enddo
+                         enddo NVALS
 !                        ==========================
                          ENDDO IASIQUAL
 !                        ==========================
@@ -2156,21 +2163,9 @@ CONTAINS
 		      ENDIF
 		      !-------------------------
                     ENDIF
-
-
-                  !================
-		  ENDIF
-                  !================
-
-		  if (allocated(TRINFO))  then
-		     IF ( NDATA  .gt. 0 ) then
-                       call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
-		     ENDIF
-		  endif
-
-!                 ============ IASI =====================================
-                  if ( allocated(RADMOY) ) then
-!                 ============ IASI =====================================
+!                   ============ IASI =====================================
+                    if ( allocated(RADMOY) ) then
+!                   ============ IASI =====================================
                       iclass=1
                       do iobs=OBS_CF1,OBS_CF7
                         if(obs_columnActive_IH(obsdat,iobs)) then
@@ -2204,9 +2199,21 @@ CONTAINS
                           endif
                         endif
                       enddo
-!                 ============ IASI =====================================
+!                   ============ IASI =====================================
                     endif
-!                 ============ IASI =====================================
+!                   ============ IASI =====================================
+
+
+                  !================
+		  ENDIF
+                  !================
+
+		  if (allocated(TRINFO))  then
+		     IF ( NDATA  .gt. 0 ) then
+                       call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
+		     ENDIF
+		  endif
+
 
 !=================================================================
                end do
@@ -2354,7 +2361,7 @@ CONTAINS
 
       INTEGER ::  WRITE_BODY
       REAL   , allocatable  ::   OBSVALUE(:,:)
-      REAL   , allocatable  ::  SURF_EMIS(:)
+      REAL   , allocatable ::  SURF_EMIS(:)
       INTEGER, allocatable  ::     QCFLAG(:,:)
       REAL   , allocatable  ::  VERTCOORD(:)
 
@@ -2521,7 +2528,6 @@ CONTAINS
 
    WRITE_BODY=NLV
 
-!  print *, ' write_BODY sortie --->> ',obs_numHeader(obsdat),obs_numBody(obsdat) 
    END FUNCTION  WRITE_BODY
 
       subroutine GET_HEADER(obsdat, LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,NOBS,FILENUMB)
@@ -2602,11 +2608,11 @@ CONTAINS
       INTEGER     ::   IL,J,NOBS
       INTEGER     ::   ITECH,SENSOR,ID_SAT,INSTRUMENT,LAND_SEA
       INTEGER     ::   TERRAIN_TYPE,ZENITH,SOLAR_ZENITH,AZIMUTH,CLOUD_COVER,SOLAR_AZIMUTH
-      INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC
+      INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,ITANGENT_RADIUS,IGEOID,IRO_QCFLAG
 
       REAL        ::   RSOLAR_ZENITH,RCLOUD_COVER,RZENITH,RAZIMUTH,RSOLAR_AZIMUTH
       REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC
-      REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RITECH
+      REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RITECH,RTANGENT_RADIUS,RGEOID,RRO_QCFLAG
 
       NOBS=obs_numHeader(obsdat)
 
@@ -2727,6 +2733,27 @@ CONTAINS
 	      ELSE
                 ITECH=NINT ( RITECH )
               ENDIF
+          CASE( 10035)
+	      RTANGENT_RADIUS=INFOV
+	      if (RTANGENT_RADIUS .eq. PPMIS ) THEN
+	        ITANGENT_RADIUS=-99
+	      ELSE
+                ITANGENT_RADIUS=NINT ( RTANGENT_RADIUS )
+              ENDIF
+          CASE( 10036)
+	      RGEOID=INFOV
+	      if (RGEOID .eq. PPMIS ) THEN
+	        IGEOID=-99
+	      ELSE
+                IGEOID=NINT ( RGEOID )
+              ENDIF
+          CASE( 33039)
+	      RRO_QCFLAG=INFOV
+	      if (RRO_QCFLAG .eq. PPMIS ) THEN
+	        IRO_QCFLAG=-99
+	      ELSE
+                IRO_QCFLAG=NINT ( RRO_QCFLAG )
+              ENDIF
         END SELECT
       end do
 
@@ -2796,7 +2823,6 @@ CONTAINS
    call obs_headSet_i(obsdat,OBS_TEC,nobs,ITECH)
    call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
    call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
-!  print *, ' iasi ' ,CODTYP,LAND_SEA,INSTRUMENT,ZENITH,CLOUD_COVER,AZIMUTH,SOLAR_ZENITH,SOLAR_AZIMUTH,ID_SAT,ITECH
 !===============================================================
 
    END SUBROUTINE  WRITE_INFO
