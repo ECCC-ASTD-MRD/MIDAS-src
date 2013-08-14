@@ -7,6 +7,7 @@ subroutine add_cloudprms(lobsSpaceData)
 !**    Purpose: Add cloud parameters to the burp file for infrared satellite radiances.
 !*
   use obsSpaceData_mod
+  use mpi
   implicit none
 #include "cvcord.cdk"
 #include "partov.cdk"
@@ -14,6 +15,9 @@ subroutine add_cloudprms(lobsSpaceData)
 
   type(struct_obs) :: lobsSpaceData
   integer jfile,krtid
+
+  ! modification of burp file is only done on processor 0 
+  if(mpi_myid /= 0) return
 
   do jfile=1,nfiles
     do krtid = 1, nsensors

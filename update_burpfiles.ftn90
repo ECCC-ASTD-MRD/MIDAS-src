@@ -1,0 +1,67 @@
+SUBROUTINE UPDATE_BURPFILES(obsdat)
+!
+!     PURPOSE: READ OBSDAT AND UPDATE CMC BURP FILES
+!
+!     ARGUMENTS:
+!                   obsdat   - obsdat-file object
+!
+!       AUTHOR: P. KOCLAS(CMC CMDA)
+!       Revision:
+!     NOTE:
+!     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
+!
+      use mpi
+      use ObsSpacedata_mod
+      use burp_read
+      IMPLICIT NONE
+#include "cvcord.cdk"
+
+      type (struct_obs), intent(inout) :: obsdat
+
+      INTEGER IER
+      INTEGER EXDB,EXFIN
+!
+      INTEGER J
+      INTEGER FILENUMB,IER,IBRP1,IER,INRECS,ISTAT,LNMX
+      INTEGER  FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
+      EXTERNAL FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
+
+!
+      EXTERNAL EXDB,EXFIN
+!
+!  ------NOTE----------
+! currently supported families of data 'UA' 'AI' 'SC' 'SF' 'SW' 'TO'
+!
+!     READ DATA FROM FILES CONTAINED IN ARRAY CLVAL.
+!
+      IER=EXDB('SELECT UPDATE_BURP','DEBUT','NON')
+      WRITE(*,*)' '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)'                UPDATE_BURP BEGIN                '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)' '
+      CALL obs_expandToMpiGlobal(obsdat)
+      IF(mpi_myid /= 0) RETURN
+
+
+      DO J =1,NFILES
+!      IER   =FNOM(IBRP1,CFILNAM(J),'RND+OLD',0)
+!      IF ( IER .EQ. 0 ) THEN
+!       INRECS=MRFOPN(IBRP1,'READ')
+!       LNMX =MRFMXL(IBRP1)
+!       ISTAT=MRFCLS(IBRP1)
+!       print *,  ' LONGUEUR MAX=',trim(CFILNAM(J)),LNMX
+!IER = FCLOS(IBRP1)
+!      ENDIF
+!        call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J,LNMX)
+         call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J)
+      END DO
+!
+      WRITE(*,*)' '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)'                UPDATE_BURP    END               '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)' '
+      IER=EXFIN('SELECT UPDATE_BURP','FIN','NON')
+      RETURN
+END SUBROUTINE UPDATE_BURPFILES

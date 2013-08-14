@@ -1,6 +1,6 @@
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
-      SUBROUTINE SELECTB(obsdat)
+SUBROUTINE SELECTB(obsdat)
 !
 !---------------------------------------------------------------------------------
 !      PURPOSE: READ CMC BURP FILES FILL UP OBSSPACE DATA FILE
@@ -18,7 +18,7 @@
       use burp_read
 
       IMPLICIT NONE
-#     include "cvcord.cdk"
+      #include "cvcord.cdk"
 
       type (struct_obs), intent(inout) :: obsdat
 
@@ -60,6 +60,10 @@
 !    call obs_headSet_i(obsdat,OBS_IDF,JO,J)
 	    call obs_setFamily(obsdat,trim(CFAMTYP(J)),JO)
 	 END DO
+	 IF ( trim(CFAMTYP(J)) .eq. 'GP') THEN
+	   print * ,' setting ground based gps error'
+           CALL   SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
+	 ENDIF
 
          DO JO=IBEG,IEND
             call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
@@ -83,59 +87,4 @@
       IER=EXFIN('SELECT READBURP','FIN','NON')
       RETURN
 
-      END SUBROUTINE SELECTB
-      SUBROUTINE UPDATE_BURPFILES(obsdat)
-!
-!     PURPOSE: READ OBSDAT AND UPDATE CMC BURP FILES
-!
-!     ARGUMENTS:
-!                   obsdat   - obsdat-file object
-!
-!       AUTHOR: P. KOCLAS(CMC CMDA)
-!       Revision:
-!     NOTE:
-!     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
-!
-      use mpi
-      use ObsSpacedata_mod
-      use burp_read
-      IMPLICIT NONE
-#include "cvcord.cdk"
-
-      type (struct_obs), intent(inout) :: obsdat
-
-      INTEGER IER
-      INTEGER EXDB,EXFIN
-!
-      INTEGER J
-      INTEGER FILENUMB
-!
-      EXTERNAL EXDB,EXFIN
-!
-!  ------NOTE----------
-! currently supported families of data 'UA' 'AI' 'SC' 'SF' 'SW' 'TO'
-!
-!     READ DATA FROM FILES CONTAINED IN ARRAY CLVAL.
-!
-      IER=EXDB('SELECT UPDATE_BURP','DEBUT','NON')
-      WRITE(*,*)' '
-      WRITE(*,*)'================================================='
-      WRITE(*,*)'                UPDATE_BURP BEGIN                '
-      WRITE(*,*)'================================================='
-      WRITE(*,*)' '
-      CALL obs_expandToMpiGlobal(obsdat)
-      IF(mpi_myid /= 0) RETURN
-
-
-      DO J =1,NFILES
-         call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J)
-      END DO
-!
-      WRITE(*,*)' '
-      WRITE(*,*)'================================================='
-      WRITE(*,*)'                UPDATE_BURP    END               '
-      WRITE(*,*)'================================================='
-      WRITE(*,*)' '
-      IER=EXFIN('SELECT UPDATE_BURP','FIN','NON')
-      RETURN
-      END SUBROUTINE UPDATE_BURPFILES
+END SUBROUTINE SELECTB

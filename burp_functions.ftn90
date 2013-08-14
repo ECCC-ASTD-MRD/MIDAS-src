@@ -1,7 +1,7 @@
-!
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
-    SUBROUTINE  ADJUST_HUM_GZ(obsdat,START,END)
+
+  SUBROUTINE  ADJUST_HUM_GZ(obsdat,START,END)
 !**s/r ADJUST_HUM_GZ  - Adjust  t-td and GZ in obsdat
 !
 !
@@ -26,7 +26,6 @@
       IMPLICIT NONE
       INTEGER  :: START,END
 
-      INTEGER  :: NULOUT
       INTEGER  :: J,JO,RLN,NLV
       INTEGER  :: VARNO
       type (struct_obs), intent(inout):: obsdat
@@ -35,11 +34,10 @@
       REAL              :: RMIN
 
       !-----------------------
-      NULOUT=6
       ZESMAX=30.0
       !-----------------------
 !-----------------------------------------------------------------------
-      WRITE(NULOUT,*)'   ADJUST_HUM_GZ '
+      WRITE(*,*)'   ADJUST_HUM_GZ '
 !
 !-----------------------------------
 !      STN LOOP
@@ -73,11 +71,84 @@
       END DO
 !-----------------------------------
 !
-      WRITE(NULOUT,*)' DONE   ADJUST_HUM_GZ '
+      WRITE(*,*)' DONE   ADJUST_HUM_GZ '
       RETURN
   END SUBROUTINE ADJUST_HUM_GZ
 
-   SUBROUTINE  ADJUST_SFVCOORD(obsdat,START,END)
+
+  SUBROUTINE  SET_ERR_GBGPS(obsdat,START,END)
+!**s/r SET_ERR_GBGPS  - SET INITIAL ERROR FRO GROUND BASED GPS
+!
+!
+!Author  : P. Koclas *CMC/CMDA  July 2013
+!Revision:
+!
+!*    Purpose:  - PUT 15032 observation element as error of 15031 element  in obsdat
+!
+!
+!Arguments
+! 
+!               INPUT:
+!                  -OBSDAT    : instance of obsspace_data module object
+!                  -START     : FIRST OBERVATION
+!                  -END       : LAST  OBERVATION
+!
+    use ObsSpaceData_mod
+!
+      IMPLICIT NONE
+      INTEGER  :: START,END
+
+      INTEGER  :: J,JO,RLN,NLV
+      INTEGER  :: VARNO
+      type (struct_obs), intent(inout):: obsdat
+
+      REAL(OBS_REAL)    :: OBSV
+      REAL              :: MISG
+
+!-----------------------------------------------------------------------
+      WRITE(*,*)'   SET_ERR_GBGPS '
+      MISG=-999.
+!
+!-----------------------------------
+!      STN LOOP
+!-----------------------------------
+      DO JO=START,END
+        RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
+        NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
+	!=================================
+	! DATA LOOP
+	!=================================
+	OBSV=MISG
+	DO J = RLN, NLV + RLN -1
+
+          VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+	  IF ( VARNO .eq. 15032 ) THEN
+             OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
+             call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
+             EXIT
+          ENDIF
+!
+        END DO
+	DO J = RLN, NLV + RLN -1
+
+          VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+	  IF ( VARNO .eq. 15031 .and. OBSV .ne. MISG ) THEN
+             call obs_bodySet_r(obsdat,OBS_OER,j,OBSV )
+             EXIT
+          ENDIF
+!
+        END DO
+	!=================================
+!
+      END DO
+!-----------------------------------
+!
+      WRITE(*,*)' DONE   SET_ERR_GBGPS '
+      RETURN
+  END SUBROUTINE SET_ERR_GBGPS
+
+
+  SUBROUTINE  ADJUST_SFVCOORD(obsdat,START,END)
 !
 !**s/r ADJUST_SFVCOORD  - Computation of HEIGHT ASSIGNED TO SURFACE OBSERVATIONS
 !
@@ -101,15 +172,13 @@
       IMPLICIT NONE
       INTEGER  :: START,END
       REAL     :: SURFVCORD
-      INTEGER  :: NULOUT
       INTEGER  :: J,JO,RLN,NLV
       INTEGER  :: VARNO,CODTYP,ITY
       REAL     :: SFC_VCO,ELEV
       REAL(OBS_REAL) :: PPP
       type (struct_obs), intent(inout):: obsdat
-      NULOUT=6
 !-----------------------------------------------------------------------
-      WRITE(NULOUT,*)'   ADJUST_SFVCOORD '
+      WRITE(*,*)'   ADJUST_SFVCOORD '
 !
 !-----------------------------------
 !      STN LOOP
@@ -148,10 +217,11 @@
       END DO
 !-----------------------------------
 !
-      WRITE(NULOUT,*)' DONE   ADJUST_SFVCOORD '
+      WRITE(*,*)' DONE   ADJUST_SFVCOORD '
       RETURN
 
   END SUBROUTINE ADJUST_SFVCOORD
+
 
   REAL FUNCTION SURFVCORD(ILEM,IDTYP)
 !
@@ -417,8 +487,10 @@
 !        *******************
 !
       RETURN
-   END FUNCTION  SURFVCORD
-SUBROUTINE FDTOUV_OBSDAT(obsdat,START,END,PPMIS)
+  END FUNCTION  SURFVCORD
+
+
+  SUBROUTINE FDTOUV_OBSDAT(obsdat,START,END,PPMIS)
 !
 !---------------------------------------------------------------
 !
@@ -743,10 +815,10 @@ SUBROUTINE FDTOUV_OBSDAT(obsdat,START,END,PPMIS)
 !==========================================================================================
 
 
-   END SUBROUTINE FDTOUV_OBSDAT
-!----------------------------------------------------------------------
-!
-      SUBROUTINE FLAGUVTOFD_OBSDAT(lobsSpaceData)
+  END SUBROUTINE FDTOUV_OBSDAT
+
+
+  SUBROUTINE FLAGUVTOFD_OBSDAT(lobsSpaceData)
 !
 !**s/r FLAGUVTOFD_OBSDAT  - Update WIND DIRECTION AND SPEED FLAGS
 !
@@ -857,4 +929,4 @@ SUBROUTINE FDTOUV_OBSDAT(obsdat,START,END,PPMIS)
       ENDDO WIND_TYPE
 
       RETURN
-      END SUBROUTINE FLAGUVTOFD_OBSDAT
+  END SUBROUTINE FLAGUVTOFD_OBSDAT

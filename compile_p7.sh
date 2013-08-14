@@ -111,7 +111,7 @@ grep fail listing1
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling burp_read module"
-SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90"
+SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90 update_burpfiles.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC1 > listing_burp 2>&1
 grep fail listing_burp
 if [ $? = "0" ] ; then exit ; fi

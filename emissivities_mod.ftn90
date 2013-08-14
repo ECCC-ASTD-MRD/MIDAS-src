@@ -9,12 +9,13 @@ Module emissivities
 !*       PURPOSE: VARIABLES FOR IR EMISSIVITIES COMPUTATION
 !*
 !*         SURFACE TYPE AND WATER FRACTION ARE FROM CERES DATA.
-!*         ALBEDO, ICE FRACTION AND SNOW COVER ARE FORM CMC ANALYSIS.
 !*     
 !*
 !*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
 !*
-!*       REVISION:
+!*       REVISION: A. BEAULNE (CMDA/SMC) July 2013
+!*                 Only keep information from Ceres,
+!*                 so removing albedo, ice and snow.
 !*
 !************************************************************************
 
@@ -29,27 +30,11 @@ Module emissivities
 
   INTEGER, PARAMETER :: KSLON=2160, KSLAT=1080
 
-! CMC albedo analyses dimension in grid points
-
-  INTEGER :: DISTXAL, DISTYAL
-
-! CMC snow analyses dimension in grid points
-
-  INTEGER :: DISTXNE, DISTYNE
-
-! CMC ice analyses dimension in grid points
-
-  INTEGER :: DISTXLG, DISTYLG
-
 
 ! Variables on standard files
 
   INTEGER ::  JTYPE(KSLON,KSLAT)       ! surface type
   REAL    :: WATERF(KSLON,KSLAT)       ! water fraction
-
-  REAL,ALLOCATABLE,DIMENSION(:,:)   :: ALB       ! surface albedo
-  REAL,ALLOCATABLE,DIMENSION(:,:)   :: GLACE     ! sea ice fraction
-  REAL,ALLOCATABLE,DIMENSION(:,:)   :: NEIGE     ! snow mask
 
 
 contains
@@ -333,32 +318,28 @@ contains
 !
 !       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
 !
-!       OBJECT:   READ INFORMATION ABOUT CERES SURFACE TYPE AND WATER
-!          FRACTION IN ADDITION TO CMC ANALYSES ALBEDO, ICE AND SNOW.
+!       OBJECT:   READ INFORMATION ABOUT CERES SURFACE TYPE AND WATER FRACTION.
 !
+!       REVISION: A. Beaulne (CMDA/SMC) July 2013
+!                 Use only for reading Ceres information,
+!                 so albedo, ice and snow now done in interp_sfc.ftn90.
+
 !       ARGUMENTS:
 !          INPUT:  NONE
 !          OUTPUT: NONE
 !
     IMPLICIT NONE
 
-    INTEGER            :: IV
     INTEGER            :: NISF,NJSF,NKSF
     INTEGER            :: NIWA,NJWA,NKWA
-    INTEGER            :: NI,NJ,NK
     CHARACTER(len=100) :: CFILE
-    INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,FSTINF,FSTLUK
+    INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS
 
-    integer            :: isftest,isftest1,isftest2
+    integer            :: isftest
     integer            :: iv1,iv2,iv3,iv4,iv5,iv6
-    integer            :: iv7,iv8,iv9,iv10,iv11,iv12
-    integer            :: iv13,iv14,iv15,iv16,iv17
-    integer            :: ik1,ik2,ik3
 
 
     isftest = 0
-    isftest1= 0
-    isftest2= 0
 
 
 !* get surface type and water fraction
@@ -377,51 +358,6 @@ contains
        call abort3d('Problem with file ceres_global.std in emis_read_climatology ')
     endif
    
-
-       
-!* get ice fraction and snow cover
-
-    CFILE='sfc4airs'
-    IV7=FNOM(ISFTEST1,CFILE,'RND+R/O',0)
-    IV8=FSTOUV(ISFTEST1,'RND')
-    
-    IK1=FSTINF(ISFTEST1,DISTXLG,DISTYLG,NK,-1,'',-1,-1,-1,'','LG')
-    IK2=FSTINF(ISFTEST1,DISTXNE,DISTYNE,NK,-1,'',-1,-1,-1,'','NE')
-      
-    ALLOCATE( GLACE (DISTXLG,DISTYLG) )
-    ALLOCATE( NEIGE (DISTXNE,DISTYNE) )
-      
-    IV9=FSTLUK(GLACE,IK1,NI,NJ,NK)
-    IV10=FSTLUK(NEIGE,IK2,NI,NJ,NK)
-
-    IV11=FSTFRM(ISFTEST1)
-    IV12=FCLOS(ISFTEST1)
-    if (iv7.lt.0.or.iv8.lt.0.or.iv9.lt.0.or.iv10.lt.0.or.iv11.lt.0.or.iv12.lt.0) then
-       write(*,*) 'LES IV DE SFC4AIRS ',iv7,iv8,iv9,iv10,iv11,iv12
-       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-       call abort3d('Problem with file sfc4airs in emis_read_climatology ')
-    endif
-
-!* get albedo
-
-    CFILE='sfc4airs_newalb'
-    IV13=FNOM(ISFTEST2,CFILE,'RND+R/O',0)
-    IV14=FSTOUV(ISFTEST2,'RND')
-    
-    IK3=FSTINF(ISFTEST2,DISTXAL,DISTYAL,NK,-1,'',-1,-1,-1,'','AL')
-      
-    ALLOCATE( ALB (DISTXAL,DISTYAL) )
-      
-    IV15=FSTLUK(ALB,IK3,NI,NJ,NK)
-
-    IV16=FSTFRM(ISFTEST2)
-    IV17=FCLOS(ISFTEST2)
-    if (iv13.lt.0.or.iv14.lt.0.or.iv15.lt.0.or.iv16.lt.0.or.iv17.lt.0) then
-       write(*,*) 'LES IV DE SFC4AIRS_NEWOBS ',iv13,iv14,iv15,iv16,iv17
-       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-       call abort3d('Problem with file sfc4airs_newalb  in emis_read_climatology ')
-    endif
-
   END SUBROUTINE emis_read_climatology
 
 
@@ -638,10 +574,13 @@ contains
 !       AUTHOR:   L. GARAND
 !                 A. BEAULNE (CMDA/SMC) March 2006  (ADAPT TO 3DVAR)
 !
-!       REVISION:
-!
-!       OBJECT:   ASSOCIATE ALBEDO, ICE AND SNOW FIELDS ON TYPE "A" GRID
+!       OBJECT:   ASSOCIATE SURFACE ALBEDO, ICE FRACTION, SNOW DEPTH 
 !          AND CERES SURFACE TYPE AND WATER FRACTION TO OBSERVATIONS PROFILES.
+!
+!       REVISION: A. BEAULNE (CMDA/SMC) July 2013
+!                 - GRID COMPUTATION PREVIOUSLY DONE IN SFC_EMISS FOR
+!                   ICE,SNOW AND ALBEDO NOW DONE HERE FOR
+!                   GENERALIZATION IN ACCEPTING ANY KIND OF GRID
 !
 !       ARGUMENTS:
 !          INPUT:
@@ -660,30 +599,58 @@ contains
     REAL(8),intent(in) :: ZLAT(NPRF), ZLON(NPRF)
     INTEGER,intent(out):: ILAT(NPRF), ILON(NPRF)
 !**********************************************************
-    INTEGER    :: ILAT1,ILON1,ILAT2,ILON2,ILAT3,ILON3
-    REAL       :: ALAT, ALON, ALAT1, ALON1, ALAT2, ALON2, ALAT3, ALON3
-    REAL       :: ZZLAT, ZZLON
-    INTEGER    :: JN
+    CHARACTER(len=100) :: CFILE3,CFILE5
+    INTEGER            :: iun3,iun5
+    INTEGER            ::                     IV6,IV7
+    INTEGER            :: IX1,IX2,IX3,IX4,IX5,        IX8,IX9,IX10,IX11,IX12
+    INTEGER            ::         IY3,IY4,IY5,        IY8,IY9,IY10
+    INTEGER            :: IZ1,IZ2,IZ3,IZ4,IZ5,        IZ8,IZ9,IZ10,IZ11,IZ12
+    INTEGER            :: NI3,NJ3,NK3
+    INTEGER            :: NI4,NJ4,NK4
+    INTEGER            :: NI5,NJ5,NK5
+    INTEGER            :: DATEO,DEET,NPAS,NBITS,DATYP
+    INTEGER            :: IP1,IP2,IP3
+    INTEGER            :: IG13,IG23,IG33,IG43
+    INTEGER            :: IG14,IG24,IG34,IG44
+    INTEGER            :: IG15,IG25,IG35,IG45
+    INTEGER            :: SWA,LNG,DLTF,UBC,EX1,EX2,EX3
+    INTEGER            :: JN
+    CHARACTER(len=1)   :: TYPVAR
+    CHARACTER(len=1)   :: GRTYP3,GRTYP4,GRTYP5
+    CHARACTER(len=2)   :: NOMVAR
+    CHARACTER(len=8)   :: ETIKET
+    INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTINF,FSTPRM,FSTFRM,FCLOS
+    INTEGER,EXTERNAL   :: ezsetopt,ezqkdef,ezdefset
+    INTEGER            :: vfstlir,vezgdef,vezsint
+    REAL(8)            :: zig1,zig2,zig3,zig4
+    INTEGER            :: ig1obs,ig2obs,ig3obs,ig4obs
+    REAL               :: ALAT, ALON, ZZLAT, ZZLON
 
-!* for the surface fields, 
+!! fields on input grid
+
+    REAL(8),ALLOCATABLE,DIMENSION(:,:) :: GLACE, NEIGE, ALB
+
+!! fields on output grid
+
+    REAL(8),DIMENSION(NPRF) :: GLACE_INTRPL, NEIGE_INTRPL, ALB_INTRPL
+
+
+! printout header
+
+    write(*,*) 
+    write(*,*) 'SUBROUTINE INTERP_SFC'
+    write(*,*) '---------------------'
+    write(*,*) ' called multiple time by bunch of ',nprf,' profiles'
+    write(*,*) ' <RETURN CODES> SHOULD NOT BE NEGATIVE'
+    write(*,*) '---------------------------------------------------'
+
+
+!* --- FOR CERES VARIABLES -------------
+
 !* get number of pixels per degree of lat or lon
 
-!     ceres
     ALAT = FLOAT(KSLAT)/180.
     ALON = FLOAT(KSLON)/360.
-
-!     albedo
-    ALAT1=FLOAT(DISTYAL)/180.
-    ALON1=FLOAT(DISTXAL)/360.
-
-!     ice 
-    ALAT2=FLOAT(DISTYLG)/180.
-    ALON2=FLOAT(DISTXLG)/360.
-
-!     snow
-    ALAT3=FLOAT(DISTYNE)/180.
-    ALON3=FLOAT(DISTXNE)/360.
-
 
     DO JN=1,NPRF
 
@@ -697,41 +664,228 @@ contains
 
 !* find in which surface field pixel is located the observation profile
 
-!* Note : Albedo, ice and snow analysis on type A grid.
-!*        CERES grid at 1/6 resolution 
+!* Note : CERES grid at 1/6 resolution 
 !*         N-S : starts at N pole and excludes S pole
 !*         W-E : starts at longitude 0 and excludes longitude 360
 
-!       ceres
        ILAT(JN) = MAX(NINT((ZZLAT+90.)*ALAT),1) 
        ILON(JN) = NINT(ZZLON*ALON)+1
        IF(ILON(JN)>KSLON) ILON(JN)=1
 
-!       albedo
-       ILAT1=MAX(INT((ZZLAT+90.)*ALAT1),1)+1
-       ILON1=NINT(ZZLON*ALON1)+1
-       IF(ILON1>DISTXAL) ILON1=1
-
-!       ice 
-       ILAT2=MAX(INT((ZZLAT+90.)*ALAT2),1)+1
-       ILON2=NINT(ZZLON*ALON2)+1
-       IF(ILON2>DISTXLG) ILON2=1
-
-!       snow
-       ILAT3=MAX(INT((ZZLAT+90.)*ALAT3),1)+1
-       ILON3=NINT(ZZLON*ALON3)+1
-       IF(ILON3>DISTXNE) ILON3=1
-
-
 !* assign surface caracteristics to observation profiles
 
-       PROFILES_QC(IPTOBS(JN))%ALBEDO   = ALB(ILON1,ILAT1)  
-       PROFILES_QC(IPTOBS(JN))%ICE      = GLACE(ILON2,ILAT2) 
-       PROFILES_QC(IPTOBS(JN))%SNOW     = NEIGE(ILON3,ILAT3)
        PROFILES_QC(IPTOBS(JN))%LTYPE    = JTYPE(ILON(JN),ILAT(JN))
        PROFILES_QC(IPTOBS(JN))%PCNT_WAT = WATERF(ILON(JN),ILAT(JN))
 
     END DO
+
+
+
+!* --- FOR ICE, SNOW AND ALBEDO VARIABLES -------------
+
+    iun3 = 0
+    iun5 = 0
+
+! files name
+
+    CFILE3 = 'sfc4airs'          ! for ice fraction and snow cover
+    CFILE5 = 'sfc4airs_newalb'   ! for albedo
+
+
+! FNOM: make the connections with the external files name
+! success = 0
+
+    write(*,*) 
+
+    IX1 = FNOM(iun3,CFILE3,'RND+R/O',0)
+    write(*,*) 'file = sfc4airs         : FNOM   : return = ', IX1
+
+    IZ1 = FNOM(iun5,CFILE5,'RND+R/O',0)
+    write(*,*) 'file = sfc4airs_newalb  : FNOM   : return = ', IZ1
+
+
+! FSTOUV: open the standard files
+! success = number of records found in the file
+
+    write(*,*) 
+
+    IX2 = FSTOUV(iun3,'RND')
+    write(*,*) 'file = sfc4airs         : FSTOUV : return = ', IX2
+
+    IZ2 = FSTOUV(iun5,'RND')
+    write(*,*) 'file = sfc4airs_newalb  : FSTOUV : return = ', IZ2
+
+
+! FSTINF: locate the records that matches the search keys
+! success = handle of the record found after the search
+! desired output = handle
+
+    write(*,*) 
+
+    IX3 = FSTINF(iun3,NI3,NJ3,NK3,-1,'',-1,-1,-1,'','LG')
+    write(*,*) 'variable = LG           : FSTINF : return = ', IX3
+
+    IY3 = FSTINF(iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'','NE')
+    write(*,*) 'variable = NE           : FSTINF : return = ', IY3
+
+    IZ3 = FSTINF(iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
+    write(*,*) 'variable = AL           : FSTINF : return = ', IZ3
+
+
+! FSTPRM: get the description informations of the record given the key
+! success = 0
+! desired output = NIx,NJx,GRTYPx,IGxx,IG1x,IG2x,IG3x,IG4x
+
+    write(*,*) 
+
+    IX4 = FSTPRM(ix3, DATEO,DEET,NPAS,NI3,NJ3,NK3,NBITS,DATYP, &
+                      IP1,IP2,IP3,TYPVAR,NOMVAR,ETIKET,GRTYP3,  &
+                      IG13,IG23,IG33,IG43,SWA,LNG,DLTF,UBC,EX1,EX2,EX3)
+    write(*,*) 'variable = LG           : FSTPRM : return = ', IX4
+
+    IY4 = FSTPRM(iy3, DATEO,DEET,NPAS,NI4,NJ4,NK4,NBITS,DATYP, &
+                      IP1,IP2,IP3,TYPVAR,NOMVAR,ETIKET,GRTYP4,  &
+                      IG14,IG24,IG34,IG44,SWA,LNG,DLTF,UBC,EX1,EX2,EX3)
+    write(*,*) 'variable = NE           : FSTPRM : return = ', IY4
+
+    IZ4 = FSTPRM(iz3, DATEO,DEET,NPAS,NI5,NJ5,NK5,NBITS,DATYP, &
+                      IP1,IP2,IP3,TYPVAR,NOMVAR,ETIKET,GRTYP5,  &
+                      IG15,IG25,IG35,IG45,SWA,LNG,DLTF,UBC,EX1,EX2,EX3)
+    write(*,*) 'variable = AL           : FSTPRM : return = ', IZ4
+
+
+! allocation of the field on the grid
+
+    ALLOCATE ( GLACE  (NI3,NJ3) )
+    ALLOCATE ( NEIGE  (NI4,NJ4) )
+    ALLOCATE ( ALB    (NI5,NJ5) )
+
+
+! VFSTLIR: read records data (field on the grid) given the key
+! success = handle of the record
+! desired output = FIELD
+
+    write(*,*) 
+
+    IX5 = vfstlir(GLACE, iun3,NI3,NJ3,NK3,-1,'',-1,-1,-1,'','LG')
+    write(*,*) 'variable = LG           : VFSTLIR : return = ', IX5
+
+    IY5 = vfstlir(NEIGE, iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'','NE')
+    write(*,*) 'variable = NE           : VFSTLIR : return = ', IY5
+
+    IZ5 = vfstlir(ALB,   iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
+    write(*,*) 'variable = AL           : VFSTLIR : return = ', IZ5
+
+
+! EZSETOPT: set nearest neighbor interpolation option within EZSCINT package
+! success = 0
+
+    write(*,*) 
+
+    IV6 = ezsetopt('INTERP_DEGREE','NEAREST')
+    write(*,*) 'apply to all variables  : ezsetopt : return = ', IV6
+
+
+! VCXGAIG: define the grid descriptors (integer form) of the
+!          observation profile output grid
+! desired output = IG1OBS, IG2OBS, IG3OBS, IG4OBS
+
+    zig1 = 0.0D0
+    zig2 = 0.0D0
+    zig3 = 1.0D0
+    zig4 = 1.0D0
+
+    call vcxgaig('L',IG1OBS,IG2OBS,IG3OBS,IG4OBS,zig1,zig2,zig3,zig4)
+
+
+! VEZGDEF: define the grid of the observations profiles (output grid)
+! of type Y containing the lat-lon of profiles
+! success = token to identify the grid
+! desired output = token
+
+    write(*,*) 
+
+    IV7 = vezgdef(nprf,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,zlon,zlat)
+    write(*,*) 'apply to all variables  : VEZGDEF : return = ', IV7
+
+
+! EZQKDEF: define the grid of the records data (input grid)
+! success = token to identify the grid
+! desired output = token
+! EZDEFSET: interpolate from input grids to output grid
+! success = key
+! VEZSINT: interpolation of the field on the input grid to observation profiles
+! success = 0
+! desired output = FIELD_INTRPL
+
+    write(*,*) 
+
+    IX8 = ezqkdef(ni3,nj3,grtyp3,ig13,ig23,ig33,ig43,iun3)
+    write(*,*) 'variable = LG           : ezqkdef  : return = ', IX8
+
+    IX9 = ezdefset(iv7,ix8)
+    write(*,*) 'variable = LG           : ezdefset : return = ', IX9
+
+    IX10 = vezsint(GLACE_INTRPL,glace,nprf,1,1,ni3,nj3,1)
+    write(*,*) 'variable = LG           : vezsint  : return = ', IX10
+
+    write(*,*) 
+
+    IY8 = ezqkdef(ni4,nj4,grtyp4,ig14,ig24,ig34,ig44,iun3)
+    write(*,*) 'variable = NE           : ezqkdef  : return = ', IY8
+
+    IY9 = ezdefset(iv7,iy8)
+    write(*,*) 'variable = NE           : ezdefset : return = ', IY9
+
+    IY10 = vezsint(NEIGE_INTRPL,neige,nprf,1,1,ni4,nj4,1)
+    write(*,*) 'variable = NE           : vezsint  : return = ', IY10
+
+    write(*,*) 
+
+    IZ8 = ezqkdef(ni5,nj5,grtyp5,ig15,ig25,ig35,ig45,iun5)
+    write(*,*) 'variable = AL           : ezqkdef  : return = ', IZ8
+
+    IZ9 = ezdefset(iv7,iz8)
+    write(*,*) 'variable = AL           : ezdefset : return = ', IZ9
+
+    IZ10 = vezsint(ALB_INTRPL,alb,nprf,1,1,ni5,nj5,1)
+    write(*,*) 'variable = AL           : vezsint  : return = ', IZ10
+
+
+! FSTFRM: close the standard files
+! success = 0
+
+    write(*,*) 
+
+    IX11 = FSTFRM(iun3)
+    write(*,*) 'file = sfc4airs         : FSTFRM : return = ', IX11
+
+    IZ11 = FSTFRM(iun5)
+    write(*,*) 'file = sfc4airs_newalb  : FSTFRM : return = ', IZ11
+ 
+
+! FCLOS: release the connections with the external files name
+! success = 0
+
+    write(*,*) 
+
+    IX12 = FCLOS(iun3)
+    write(*,*) 'file = sfc4airs         : FCLOS  : return = ', IX12
+
+    IZ12 = FCLOS(iun5)
+    write(*,*) 'file = sfc4airs_newalb  : FCLOS  : return = ', IZ12
+
+
+! assign surface caracteristics to observation profiles
+
+    DO JN=1,NPRF
+      PROFILES_QC(IPTOBS(JN))%ICE      = GLACE_INTRPL(JN)
+      PROFILES_QC(IPTOBS(JN))%SNOW     = NEIGE_INTRPL(JN)
+      PROFILES_QC(IPTOBS(JN))%ALBEDO   = ALB_INTRPL(JN)
+    END DO
+
+
+    DEALLOCATE(GLACE,NEIGE,ALB)
 
   END SUBROUTINE INTERP_SFC
 
