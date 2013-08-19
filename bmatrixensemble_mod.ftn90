@@ -49,6 +49,7 @@ MODULE BmatrixEnsemble
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
   character(len=256)  :: enspathname,ensfilebasename
+  integer             :: get_max_rss
 
 CONTAINS
 
@@ -60,7 +61,7 @@ CONTAINS
     real*8,allocatable :: pressureProfileEns(:)
     integer        :: ntrunc,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
     integer        :: cvDim_out
-    integer        :: jlev,jn,jm,ila,mpiMode
+    integer        :: jlev,jn,jm,ila,mpiMode,return_code
     integer        :: fnom,fclos,ierr,nulnam
 
     !namelist
@@ -208,8 +209,11 @@ CONTAINS
     call setupLocalization(hLocalize,vLocalize,pressureProfileEns)
     deallocate(pressureProfileEns)
 
-    call setupEnsemble(stamp_in)
-!    call setupEnsemble_openmp(stamp_in)
+    call setupEnsemble_latbands(stamp_in,return_code)
+    if(return_code.lt.0) then
+      ! could not open local ensemble files, try global files
+      call setupEnsemble(stamp_in)
+    endif
 
     cvDimPerMember_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nLevEns
     cvDim_l=nens*cvDimPerMember_l
@@ -231,257 +235,6 @@ CONTAINS
   END SUBROUTINE BEN_finalize
 
 
-  SUBROUTINE setupEnsemble_openmp(stamp_in)
-    use globalSpectralTransform
-    implicit none
- 
-    integer :: stamp_in
-    real*4 :: gd2d_r4(ni_l,nj_l)
-    real*8 :: gd2d_r8(ni_l,nj_l)
-    real*4, allocatable :: ensPerturbation1(:,:,:,:) 
-    real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
-    real*8 :: rhumin = 2.5d-6
-    integer :: ji,jj,jt,jk,jens,jpe,jlatband
-    integer :: iens,batchnum,nsize,status,pe_src,pe_dest
-    integer :: kulin,ndate,ntime
-    integer :: readFilePE(192)
-    integer :: stamp_last,newdate
-    real*8  :: delhh
-
-    ! standard file variables
-    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo,ikey
-    character(len=2)   :: cltypvar
-    character(len=1)   :: clgrtyp
-    character(len=4)   :: clnomvar
-    character(len=12)  :: cletiket
-    character(len=256) :: cflensin
-    character(len=3)   :: censnumber
-    character(len=8)   :: datestr_last
-    character(len=2)   :: hourstr_last
-    integer :: fstlir,fstfrm,fclos,fnom,fstouv,rpn_comm_datyp
-
-
-    call tmg_start(12,'PRE_SUENS')
-
-    ! this should come from state vector object
-    ngposituu=1
-    ngpositvv=1+1*nLevEns
-    ngposittt=1+2*nLevEns
-    ngpositq =1+3*nLevEns
-    ngpositps=1+4*nLevEns
-    ngposittg=2+4*nLevEns
-
-    ! some physical constants
-    rmsknt = 1.d0/1.94246d0
-    rmbtpa = 1.0d2
-    r1sa=1.d0/6371229.d0
-
-    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
-      call abort3d('aborting in setupEnsemble_openmp')
-    endif
-    allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=8',ierr
-      call abort3d('aborting in setupEnsemble_openmp')
-    endif
-
-    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
-    if(ntime_l.eq.5) then
-      ip2(1) = 3  
-      ip2(2) = 4  
-      ip2(3) = 6  
-      ip2(4) = 7  
-      ip2(5) = 9  
-    elseif(ntime_l.eq.7) then
-      ip2(1) = 3  
-      ip2(2) = 4  
-      ip2(3) = 5  
-      ip2(4) = 6  
-      ip2(5) = 7  
-      ip2(6) = 8  
-      ip2(7) = 9  
-    else
-      ip2(1) = 6
-    endif
-    ip3=-1
-    idateo = -1
-    cltypvar = ' '
-    cletiket = ' '
-
-    do jens=1,nens
-      readFilePE(jens)=mod(jens-1,mpi_nprocs)
-    enddo
-
-    delhh = -6.0
-    call incdatr(stamp_last,stamp_in,delhh)
-    ierr = newdate(stamp_last,ndate,ntime,-3)
-    write(datestr_last,'(i8.8)') ndate
-    write(hourstr_last,'(i2.2)') ntime/1000000
-    write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
-
-!$OMP PARALLEL DO PRIVATE(ensperturbation1,jens,cflensin,kulin, &
-!$OMP ierr,jt,clnomvar,ikey,gd2d_r4,jj,ji,jk,conima,censnumber)
-    do jens=1,nens
-
-        write(censnumber,'(i3.3)') jens
-        cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
-                  trim(datestr_last) // trim(hourstr_last) // '_006_' // censnumber
-        write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
-
-!$OMP CRITICAL
-        kulin=0
-        ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
-        ierr = fstouv(kulin,'RND+OLD')
-        write(*,*) 'reading member:',jens
-!$OMP END CRITICAL
-
-        do jt=1,ntime_l  ! read all timesteps
-
-          clnomvar = 'P0' 
-          ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) then
-            call abort3d('SUENS: Problem with P0 ENS')
-          endif
-          do jj=1,nj_l
-            do ji=1,ni_l
-              ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d_r4(ji,nj_l+1-jj)*rmbtpa)
-            enddo
-          enddo
-
-          do jk=1,nLevEns
-            clnomvar = 'TT'
-            ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              call abort3d('SUENS: Problem with TT ENS')
-            endif
-            do jj=1,nj_l
-              do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= gd2d_r4(ji,nj_l+1-jj)
-              enddo
-            enddo
-          enddo
-
-          do jk=1,nLevEns
-            clnomvar = 'HU' 
-            ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              call abort3d('SUENS: Problem with HU ENS')
-            endif
-            do jj=1,nj_l
-              do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(dble(gd2d_r4(ji,nj_l+1-jj)),rhumin)))
-              enddo
-            enddo
-          enddo
-
-          do jk=1,nLevEns
-            clnomvar = 'UU' 
-            ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              call abort3d('SUENS: Problem with UU ENS')
-            endif
-            do jj=1,nj_l
-              conima=r1sa*gst_getRSQM2(jj,gstID)
-              do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d_r4(ji,nj_l+1-jj)*rmsknt*conima)
-              enddo
-            enddo
-          enddo
-
-          do jk=1,nLevEns
-            clnomvar = 'VV' 
-            ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
-              call abort3d('SUENS: Problem with VV ENS')
-            endif
-            do jj=1,nj_l
-              conima=r1sa*gst_getRSQM2(jj,gstID)
-              do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d_r4(ji,nj_l+1-jj)*rmsknt*conima)
-              enddo
-            enddo
-          enddo
-
-          clnomvar = 'TG' 
-          ikey = fstlir(gd2d_r4,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
-          if(ikey.lt.0)  then
-            write(*,*) idateo,cletiket,ip2(jt),ip3,cltypvar,clnomvar
-            call abort3d('SUENS: Problem with TG ENS')
-          else
-            do jj=1,nj_l
-              do ji=1,ni_l
-                ensPerturbation1(ji,ngposittg,jj,jt)= gd2d_r4(ji,nj_l+1-jj)
-              enddo
-            enddo
-          endif
-
-        enddo
-
-        ierr =  fstfrm(kulin)
-        ierr =  fclos (kulin)
-
-        write(*,*) 'done reading member ',jens
-
-        ensPerturbations(:,:,myLatBeg:myLatEnd,:,jens)=  &
-           ensPerturbation1(:,:,myLatBeg:myLatEnd,:)
-
-    enddo
-!$OMP END PARALLEL DO
-
-    deallocate(ensPerturbation1)
-
-    write(*,*) 'finished reading ensemble members...'
-
-    ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
-    dnens=1.0d0/dble(nens)
-    do jt=1,ntime_l
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JK,GD2D_r8,JENS,JJ,JI)
-      do jk=1,nkgdimEns
-        dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nens-1))
-        if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
-          dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
-        endif
-        gd2d_r8(:,:)=0.0d0
-        do jens=1,nens
-          do jj=myLatBeg,myLatEnd
-            do ji=1,ni_l
-              gd2d_r8(ji,jj)=gd2d_r8(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
-            enddo
-          enddo
-        enddo
-        do jj=myLatBeg,myLatEnd
-          do ji=1,ni_l
-            gd2d_r8(ji,jj)=gd2d_r8(ji,jj)*dnens
-          enddo
-        enddo
-        do jens=1,nens
-          do jj=myLatBeg,myLatEnd
-            do ji=1,ni_l
-              ensPerturbations(ji,jk,jj,jt,jens)=     &
-                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d_r8(ji,jj))*dnens2)
-            enddo
-          enddo
-        enddo
-      enddo
-!$OMP END DO
-!$OMP END PARALLEL
-    enddo
-    write(*,*) 'finished adjusting ensemble members...'
- 
-    call tmg_stop(12)
-
-    ! ensPerturbations(:,:,:,:,:)=0.0 !for testing purposes
-
-  END SUBROUTINE setupEnsemble_openmp
-
-
   SUBROUTINE setupEnsemble(stamp_in)
     use globalSpectralTransform
     implicit none
@@ -494,18 +247,19 @@ CONTAINS
     integer :: ji,jj,jt,jk,jens,jpe,jlatband
     integer :: iens,batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
-    integer :: readFilePE(192),allLatBeg(192),allLatEnd(192)
+    integer :: readFilePE(256),allLatBeg(256),allLatEnd(256)
     integer :: stamp_last,newdate
     real*8  :: delhh
+    logical :: lExists
 
     ! standard file variables
-    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo,ikey
+    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
     character(len=2)   :: cltypvar
     character(len=1)   :: clgrtyp
     character(len=4)   :: clnomvar
     character(len=12)  :: cletiket
     character(len=256) :: cflensin
-    character(len=3)   :: censnumber
+    character(len=4)   :: censnumber
     character(len=8)   :: datestr_last
     character(len=2)   :: hourstr_last
     integer :: vfstlir,fstfrm,fclos,fnom,fstouv,rpn_comm_datyp
@@ -529,36 +283,15 @@ CONTAINS
     allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nens),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
-      call abort3d('aborting in ben_setupEnsemble')
+      call abort3d('aborting in ben setupEnsemble')
     endif
     allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=8',ierr
-      call abort3d('aborting in ben_setupEnsemble')
+      call abort3d('aborting in ben setupEnsemble')
     endif
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
-    if(ntime_l.eq.5) then
-      ip2(1) = 3  
-      ip2(2) = 4  
-      ip2(3) = 6  
-      ip2(4) = 7  
-      ip2(5) = 9  
-    elseif(ntime_l.eq.7) then
-      ip2(1) = 3  
-      ip2(2) = 4  
-      ip2(3) = 5  
-      ip2(4) = 6  
-      ip2(5) = 7  
-      ip2(6) = 8  
-      ip2(7) = 9  
-    else
-      ip2(1) = 6
-    endif
-    ip3=-1
-    idateo = -1
-    cltypvar = ' '
-    cletiket = ' '
 
     CALL rpn_comm_allgather(myLatBeg,1,"mpi_integer",       &
                             allLatBeg,1,"mpi_integer","GRID",ierr)
@@ -576,23 +309,67 @@ CONTAINS
     write(hourstr_last,'(i2.2)') ntime/1000000
     write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
 
+    if(ntime_l.eq.1) then
+      call incdatr(idateo(1),stamp_in, 0.0d0)
+    elseif(ntime_l.eq.5) then
+      call incdatr(idateo(1),stamp_in,-3.0d0)
+      call incdatr(idateo(2),stamp_in,-1.5d0)
+      call incdatr(idateo(3),stamp_in, 0.0d0)
+      call incdatr(idateo(4),stamp_in, 1.5d0)
+      call incdatr(idateo(5),stamp_in, 3.0d0)
+    elseif(ntime_l.eq.7) then
+      call incdatr(idateo(1),stamp_in,-3.0d0)
+      call incdatr(idateo(2),stamp_in,-2.0d0)
+      call incdatr(idateo(3),stamp_in,-1.0d0)
+      call incdatr(idateo(4),stamp_in, 0.0d0)
+      call incdatr(idateo(5),stamp_in, 1.0d0)
+      call incdatr(idateo(6),stamp_in, 2.0d0)
+      call incdatr(idateo(7),stamp_in, 3.0d0)
+    else
+      write(*,*) 'bmatrixEnsemble: Problem with number of timesteps for ensemble=',ntime_l
+      call abort3d('aborting in ben setupEnsemble')
+    endif
+    ip2=-1
+    ip3=-1
+    cltypvar = ' '
+    cletiket = ' '
+
+    write(*,*) 'idateo=',idateo(1:ntime_l)
+
     do jens=1,nens
       if(mpi_myid.eq.readFilePE(jens)) then
 
-        write(censnumber,'(i3.3)') jens
+        ! first try to open file with 4 digit member number
+        write(censnumber,'(i4.4)') jens
         cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
-                  trim(datestr_last) // trim(hourstr_last) // '_006_' // censnumber
-        write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
-
-        kulin=0
-        ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+                  trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
+        inquire(file=cflensin,exist=lExists)
+        if(lExists) then
+          kulin=0
+          ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+        else
+          ! now try to open file with (older) 3 digit member number
+          write(censnumber,'(i3.3)') jens
+          cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
+                    trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
+          inquire(file=cflensin,exist=lExists)
+          if(lExists) then
+            kulin=0
+            ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+          else
+            write(*,*) 'filename=',trim(cflensin)
+            call abort3d('ben setupEnsemble: Could not open ensemble file')
+          endif
+        endif
         ierr = fstouv(kulin,'RND+OLD')
+
+        write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
         write(*,*) 'reading member:',jens
 
         do jt=1,ntime_l  ! read all timesteps
 
           clnomvar = 'P0' 
-          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,-1,ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
             call abort3d('SUENS: Problem with P0 ENS')
           endif
@@ -604,9 +381,9 @@ CONTAINS
 
           do jk=1,nLevEns
             clnomvar = 'TT'
-            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
               call abort3d('SUENS: Problem with TT ENS')
             endif
             do jj=1,nj_l
@@ -618,9 +395,9 @@ CONTAINS
 
           do jk=1,nLevEns
             clnomvar = 'HU' 
-            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
               call abort3d('SUENS: Problem with HU ENS')
             endif
             do jj=1,nj_l
@@ -632,9 +409,9 @@ CONTAINS
 
           do jk=1,nLevEns
             clnomvar = 'UU' 
-            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
               call abort3d('SUENS: Problem with UU ENS')
             endif
             do jj=1,nj_l
@@ -647,9 +424,9 @@ CONTAINS
 
           do jk=1,nLevEns
             clnomvar = 'VV' 
-            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jk),ip2(jt),ip3,cltypvar,clnomvar
+              write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
               call abort3d('SUENS: Problem with VV ENS')
             endif
             do jj=1,nj_l
@@ -661,9 +438,9 @@ CONTAINS
           enddo
 
           clnomvar = 'TG' 
-          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo,cletiket,-1,ip2(jt),ip3,cltypvar,clnomvar)
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,-1,ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0)  then
-            write(*,*) idateo,cletiket,ip2(jt),ip3,cltypvar,clnomvar
+            write(*,*) idateo(jt),cletiket,ip2,ip3,cltypvar,clnomvar
             call abort3d('SUENS: Problem with TG ENS')
           else
             do jj=1,nj_l
@@ -770,6 +547,270 @@ CONTAINS
     ! ensPerturbations(:,:,:,:,:)=0.0 !for testing purposes
 
   END SUBROUTINE setupEnsemble
+
+
+  SUBROUTINE setupEnsemble_latbands(stamp_in,return_code)
+    use globalSpectralTransform
+    implicit none
+ 
+    integer :: stamp_in,return_code
+    real*8 :: gd2d(ni_l,myLatBeg:myLatEnd)
+    real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
+    real*8 :: rhumin = 2.5d-6
+    integer :: ji,jj,jt,jk,jens,jpe,jlatband
+    integer :: iens,batchnum,nsize,status,pe_src,pe_dest
+    integer :: kulin,ndate,ntime
+    integer :: stamp_last,newdate
+    real*8  :: delhh
+    logical :: lExists
+
+    ! standard file variables
+    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
+    character(len=2)   :: cltypvar
+    character(len=1)   :: clgrtyp
+    character(len=4)   :: clnomvar
+    character(len=12)  :: cletiket
+    character(len=256) :: cflensin
+    character(len=4)   :: censnumber,latBandNumber
+    character(len=8)   :: datestr_last
+    character(len=2)   :: hourstr_last
+    integer :: vfstlir,fstfrm,fclos,fnom,fstouv,rpn_comm_datyp
+
+
+    call tmg_start(12,'PRE_SUENS')
+
+    ! set OK value for return_code
+    return_code = 0
+
+    ! this should come from state vector object
+    ngposituu=1
+    ngpositvv=1+1*nLevEns
+    ngposittt=1+2*nLevEns
+    ngpositq =1+3*nLevEns
+    ngpositps=1+4*nLevEns
+    ngposittg=2+4*nLevEns
+
+    ! some physical constants
+    rmsknt = 1.d0/1.94246d0
+    rmbtpa = 1.0d2
+    r1sa=1.d0/6371229.d0
+
+    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nens),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
+      call abort3d('aborting in ben setupEnsemble_latbands')
+    endif
+
+    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
+
+    delhh = -6.0
+    call incdatr(stamp_last,stamp_in,delhh)
+    ierr = newdate(stamp_last,ndate,ntime,-3)
+    write(datestr_last,'(i8.8)') ndate
+    write(hourstr_last,'(i2.2)') ntime/1000000
+    write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
+
+    if(ntime_l.eq.1) then
+      call incdatr(idateo(1),stamp_in, 0.0d0)
+    elseif(ntime_l.eq.5) then
+      call incdatr(idateo(1),stamp_in,-3.0d0)
+      call incdatr(idateo(2),stamp_in,-1.5d0)
+      call incdatr(idateo(3),stamp_in, 0.0d0)
+      call incdatr(idateo(4),stamp_in, 1.5d0)
+      call incdatr(idateo(5),stamp_in, 3.0d0)
+    elseif(ntime_l.eq.7) then
+      call incdatr(idateo(1),stamp_in,-3.0d0)
+      call incdatr(idateo(2),stamp_in,-2.0d0)
+      call incdatr(idateo(3),stamp_in,-1.0d0)
+      call incdatr(idateo(4),stamp_in, 0.0d0)
+      call incdatr(idateo(5),stamp_in, 1.0d0)
+      call incdatr(idateo(6),stamp_in, 2.0d0)
+      call incdatr(idateo(7),stamp_in, 3.0d0)
+    else
+      write(*,*) 'bmatrixEnsemble: Problem with number of timesteps for ensemble=',ntime_l
+      call abort3d('aborting in ben setupEnsemble_latbands')
+    endif
+    ip2=-1
+    ip3=-1
+    cltypvar = ' '
+    cletiket = ' '
+
+    write(*,*) 'idateo=',idateo(1:ntime_l)
+
+    ! latitude band is reverse order as proc id due to north-south flip
+    write(latBandNumber,'(i4.4)') mpi_nprocs-mpi_myid
+
+    do jens=1,nens
+
+      ! first try to open file with 4 digit member number
+      write(censnumber,'(i4.4)') jens
+      cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
+                trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
+                '_006_' // trim(censnumber)
+      inquire(file=cflensin,exist=lExists)
+      if(lExists) then
+        kulin=0
+        ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+      else
+        ! now try to open file with (older) 3 digit member number
+        write(censnumber,'(i3.3)') jens
+        cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
+                  trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
+                  '_006_' // trim(censnumber)
+        inquire(file=cflensin,exist=lExists)
+        if(lExists) then
+          kulin=0
+          ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+        else
+          write(*,*) 'filename=',trim(cflensin)
+          write(*,*) '============================================================================='
+          write(*,*) 'ben setupEnsemble_latbands: Could not open ensemble file, trying global files'
+          write(*,*) '============================================================================='
+          return_code = -1
+          deallocate(ensPerturbations)
+          return
+        endif
+      endif
+      ierr = fstouv(kulin,'RND+OLD')
+
+      write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
+      write(*,*) 'reading member:',jens
+
+      do jt=1,ntime_l  ! read all timesteps
+
+        clnomvar = 'P0' 
+        ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,-1,ip2,ip3,cltypvar,clnomvar)
+        if(ikey.lt.0) then
+          call abort3d('SUENS: Problem with P0 ENS')
+        endif
+        do jj=myLatBeg,myLatEnd
+          do ji=1,ni_l
+            ensPerturbations(ji,ngpositps,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmbtpa)
+          enddo
+        enddo
+
+        do jk=1,nLevEns
+          clnomvar = 'TT'
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
+          if(ikey.lt.0) then
+            write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
+            call abort3d('SUENS: Problem with TT ENS')
+          endif
+          do jj=myLatBeg,myLatEnd
+            do ji=1,ni_l
+              ensPerturbations(ji,jk-1+ngposittt,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+            enddo
+          enddo
+        enddo
+
+        do jk=1,nLevEns
+          clnomvar = 'HU' 
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
+          if(ikey.lt.0) then
+            write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
+            call abort3d('SUENS: Problem with HU ENS')
+          endif
+          do jj=myLatBeg,myLatEnd
+            do ji=1,ni_l
+              ensPerturbations(ji,jk-1+ngpositq,jj,jt,jens)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),rhumin)))
+            enddo
+          enddo
+        enddo
+
+        do jk=1,nLevEns
+          clnomvar = 'UU' 
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
+          if(ikey.lt.0) then
+            write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
+            call abort3d('SUENS: Problem with UU ENS')
+          endif
+          do jj=myLatBeg,myLatEnd
+            conima=r1sa*gst_getRSQM2(jj,gstID)
+            do ji=1,ni_l
+              ensPerturbations(ji,jk-1+ngposituu,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt*conima)
+            enddo
+          enddo
+        enddo
+
+        do jk=1,nLevEns
+          clnomvar = 'VV' 
+          ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar)
+          if(ikey.lt.0) then
+            write(*,*) idateo(jt),cletiket,nip1_l(jk),ip2,ip3,cltypvar,clnomvar
+            call abort3d('SUENS: Problem with VV ENS')
+          endif
+          do jj=myLatBeg,myLatEnd
+            conima=r1sa*gst_getRSQM2(jj,gstID)
+            do ji=1,ni_l
+              ensPerturbations(ji,jk-1+ngpositvv,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt*conima)
+            enddo
+          enddo
+        enddo
+
+        clnomvar = 'TG' 
+        ikey = vfstlir(gd2d,kulin,ini,inj,ink,idateo(jt),cletiket,-1,ip2,ip3,cltypvar,clnomvar)
+        if(ikey.lt.0)  then
+          write(*,*) idateo(jt),cletiket,ip2,ip3,cltypvar,clnomvar
+          call abort3d('SUENS: Problem with TG ENS')
+        else
+          do jj=myLatBeg,myLatEnd
+            do ji=1,ni_l
+              ensPerturbations(ji,ngposittg,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+            enddo
+          enddo
+        endif
+
+      enddo
+
+      ierr =  fstfrm(kulin)
+      ierr =  fclos (kulin)
+
+      write(*,*) 'done reading member ',jens
+
+    enddo
+
+    write(*,*) 'finished reading ensemble members...'
+
+    ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
+    dnens=1.0d0/dble(nens)
+    do jt=1,ntime_l
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
+      do jk=1,nkgdimEns
+        dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nens-1))
+        if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
+          dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
+        endif
+        gd2d(:,:)=0.0d0
+        do jens=1,nens
+          do jj=myLatBeg,myLatEnd
+            do ji=1,ni_l
+              gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
+            enddo
+          enddo
+        enddo
+        do jj=myLatBeg,myLatEnd
+          do ji=1,ni_l
+            gd2d(ji,jj)=gd2d(ji,jj)*dnens
+          enddo
+        enddo
+        do jens=1,nens
+          do jj=myLatBeg,myLatEnd
+            do ji=1,ni_l
+              ensPerturbations(ji,jk,jj,jt,jens)=     &
+                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens2)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    enddo
+    write(*,*) 'finished adjusting ensemble members...'
+ 
+    call tmg_stop(12)
+
+  END SUBROUTINE setupEnsemble_latbands
 
 
   SUBROUTINE setupLocalization(hLocalize,vLocalize,pressureProfile)
@@ -948,6 +989,7 @@ CONTAINS
 
     write(*,*) 'ben_bsqrt: starting'
     !write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,myLatBeg,mpi_nprocs,nla_l,nLevInc,nLevEns
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(incrementLocal(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
     if(ierr.ne.0) then
@@ -1017,6 +1059,7 @@ CONTAINS
 
     deallocate(incrementLocal)
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'ben_bsqrt: done'
 
     return
@@ -1037,6 +1080,7 @@ CONTAINS
     integer   :: rpn_comm_datyp,rpn_comm_oper
 
     write(*,*) 'ben_bsqrtad: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -1112,6 +1156,7 @@ CONTAINS
 
     deallocate(incrementLocal)
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'ben_bsqrtad: done'
 
     return

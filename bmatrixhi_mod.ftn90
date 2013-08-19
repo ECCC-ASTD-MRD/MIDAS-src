@@ -52,6 +52,7 @@ MODULE BmatrixHI
   integer,parameter  :: maxNumLevels=200
   real*8             :: scaleFactor(maxNumLevels)
   real*8             :: scaleFactorLQ(maxNumLevels)
+  logical            :: scaleTG
   integer            :: ntoar = 3
   real*8             :: ralphatoar = 0.2
   integer            :: ntgcorrtyp=1
@@ -96,6 +97,9 @@ MODULE BmatrixHI
   integer,allocatable :: allmBeg(:),allmEnd(:),allmSkip(:),allmCount(:)
   integer             :: myLatBeg,myLatEnd
 
+  integer             :: get_max_rss
+
+
 CONTAINS
 
   SUBROUTINE BHI_setup(NI_IN,NJ_IN,NFLEV_IN,pressureProfile_in,CVDIM_OUT)
@@ -110,12 +114,13 @@ CONTAINS
     logical        :: llfound
 
     !namelist
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG
 
-    ! parameters set from the ensemble member files
+    ! default values for namelist variables
     ntrunc=108
     scaleFactor(:)=1.0d0
     scaleFactorLQ(:)=1.0d0
+    scaleTG=.true.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -294,8 +299,8 @@ CONTAINS
       rgsigpsb(jlat)=scaleFactor(nflev_l)*rgsigpsb(jlat)
       rgsigps(jlat) =scaleFactor(nflev_l)*rgsigps(jlat)
     enddo
-    !!!!! POSSIBLY DO NOT SCALE DOWN STDDEV OF TG (by changing to .false.)!!!!!
-    if(.true.) then
+    ! User has the option to not scale down the STDDEV of TG (because underestimated in Benkf)
+    if(scaleTG) then
     do jlat=1,nj_l
       do jlon=1,ni_l
         tgstdbg(jlon,jlat)=scaleFactor(nflev_l)*tgstdbg(jlon,jlat)
@@ -1688,6 +1693,9 @@ CONTAINS
     real*8    :: hiControlVector(nla_l,2,nkgdim_l)
     integer   :: jvar, ilev1, ilev2
 
+    write(*,*) 'bhi_bsqrt: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     allocate(gd_out(ni_l,nkgdim_l,nj_l))
 
     if(.not. initialized) then
@@ -1695,21 +1703,23 @@ CONTAINS
       return
     endif
 
-    write(*,*) 'bhi_bsqrt: starting'
-
     myLatBeg=statevector%myLatBeg
     myLatEnd=statevector%myLatEnd
 
     call tmg_start(52,'BHI_CAIN')
     call bhi_cain(controlVector_in,hiControlVector)
     call tmg_stop(52)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call bhi_spa2gd(hiControlVector,gd_out)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call copyToStatevector(statevector,gd_out)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     deallocate(gd_out)
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'bhi_bsqrt: done'
     call flush(6)
 
@@ -1731,6 +1741,7 @@ CONTAINS
     endif
 
     write(*,*) 'bhi_bsqrtad: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     myLatBeg=statevector%myLatBeg
     myLatEnd=statevector%myLatEnd
@@ -1747,6 +1758,7 @@ CONTAINS
 
     deallocate(gd_in)
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'bhi_bsqrtad: done'
 
   END SUBROUTINE BHI_bSqrtAd
@@ -1920,6 +1932,7 @@ CONTAINS
     integer :: icount
     integer :: thdid,numthd,omp_get_thread_num,omp_get_num_threads
 
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     klatptot=1
 
@@ -1927,6 +1940,7 @@ CONTAINS
     sq2=sqrt(2.0d0)
     allocate(zsp(nkgdim_l,2,0:ntrunc_l))
     allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 !$OMP PARALLEL DO PRIVATE(jn,jm,jk,jk2,ila,zsp2,zsp,icount)
     do jn = 0,ntrunc_l
 
@@ -1982,6 +1996,7 @@ CONTAINS
     deallocate(zsp)
     deallocate(zsp2)
     call tmg_stop(53)
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
@@ -1997,6 +2012,7 @@ CONTAINS
       enddo
     enddo
 !$OMP END PARALLEL DO
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     call tmg_start(55,'BHI_SPEREE') 
     call gst_setID(gstID2)
@@ -2004,6 +2020,7 @@ CONTAINS
     call gst_speree(sptb,tb0,nflev_l,nflev_l)
     call gst_setToDefaultID()
     call tmg_stop(55) 
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     call tmg_start(54,'BHI_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
@@ -2046,6 +2063,7 @@ CONTAINS
     enddo  ! jlat
 !$OMP END PARALLEL DO
     call tmg_stop(54)
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     zgdpsi => gd_out(:,nspositVO:(nspositVO+nflev_l-1),:)
     zgdchi => gd_out(:,nspositDI:(nspositDI+nflev_l-1),:)
@@ -2068,11 +2086,13 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
     call tmg_start(56,'BHI_REESPE') 
     call gst_setID(gstID2)
     call gst_REESPE(sp,gd_out,nkgdim_l,nkgdim_l)
     call gst_setToDefaultID()
     call tmg_stop(56) 
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     dla2   = dble(ra)*dble(ra)
     dl1sa2 = 1.d0/dla2
@@ -2097,11 +2117,13 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
     call tmg_start(57,'BHI_SPGD_SPGDA')
     call gst_setID(gstID2)
     call gst_spgd(sp,gd_out,nkgdim_l,nflev_l,nkgdim_l)
     call gst_setToDefaultID()
     call tmg_stop(57)
+    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     return
   END SUBROUTINE BHI_SPA2GD

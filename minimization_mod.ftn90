@@ -44,6 +44,7 @@ MODULE minimization_mod
   integer             :: min_niter
   integer             :: dataptr_int_size=0
   integer             :: datestamp      ! window centre of analysis validity
+  integer             :: get_max_rss
 
   ! namelist variables
   INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
@@ -568,6 +569,7 @@ CONTAINS
          write(*,*) 'Entering simvar for simulation ',nsim3d
          call flush(6)
        endif
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
        ! note: dg_vbar = sum(v) of previous outer-loops
        dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + dg_vbar(1:nvadim_mpilocal)     
@@ -580,6 +582,7 @@ CONTAINS
 
        call gsv_setVco(statevector,col_getVco(lcolumng))
        call gsv_allocate(statevector,ni,nj,nt,mpi_local=.true.)
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
        ! transfer mpilocal da_v to mpiglobal da_v_mpiglobal
        call tmg_start(89,'MIN_COMM')
@@ -592,11 +595,15 @@ CONTAINS
        call bmat_sqrtB(da_v_mpiglobal,nvadim_mpiglobal,statevector)
 
        call tmg_start(30,'OBS_INTERP')
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)  ! put in column H_horiz dx
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Modify OBS_OMA ! H_vert H_horiz dx = Hdx
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call tmg_stop(40)
 
        call oda_res(lobsSpaceData)  ! Modify OBS_OMA : Hdx-d
@@ -610,6 +617,7 @@ CONTAINS
        endif
 
        dl_Jo = 0.d0
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call oda_sumJo(lobsSpaceData,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic .eq. 3) then
@@ -620,6 +628,7 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call oda_sqrtRm1(lobsSpaceData,OBS_OMI,OBS_OMA)  ! Modify OBS_OMI : R**-1 (Hdx-d)
 
        IF (LVARQC) THEN
@@ -629,11 +638,15 @@ CONTAINS
        call col_zero(lcolumn)
 
        call tmg_start(41,'OBS_AD')
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call oda_HT(lcolumn,lcolumng,lobsSpaceData)   ! Put in column : H_vert**T R**-1 (Hdx-d)
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call tmg_stop(41)
 
        call tmg_start(31,'OBS_INTERPAD')
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx-d)
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        call tmg_stop(31)
 
        da_gradJ_mpiglobal(:) = 0.d0
@@ -652,6 +665,7 @@ CONTAINS
     call tmg_stop(80)
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(70,'QN')
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'end of simvar'
     call flush(6)
 
@@ -829,7 +843,8 @@ CONTAINS
     real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
 
     integer ibrpstamp,ireslun, ierr, fnom, fclos
-    integer :: ivadim, imtra, itrunc
+    integer :: ivadim, itrunc
+    integer :: imtra,ivamaj
     integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl
 
@@ -858,7 +873,9 @@ CONTAINS
       read (ireslun) cl_version,i1gc
       if(trim(cl_version) /= 'V2') then
         if(trim(cl_version) == 'V3') then
-          write(*,*) 'RW_VATRA: using single precision Hessian'
+          write(*,*) 'RW_VATRA: using single precision V3 Hessian'
+        elseif(trim(cl_version) == 'V4') then
+          write(*,*) 'RW_VATRA: using single precision V4 Hessian'
         else
           call abort3d(" RW_VATRA: invalid Hessian version")
         endif
@@ -873,11 +890,19 @@ CONTAINS
       rewind (ireslun)
 
       read(ireslun) cl_version,i1gc,nsim3d,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
-      read(ireslun) imtra,iztrl
-
-      if(.not.(nmtra_mpiglobal.eq.imtra.or.(nmtra_mpiglobal+nvamaj).eq.imtra).or.nvadim_mpiglobal.ne.ivadim) then
-        write(*,*) nmtra_mpiglobal,imtra,nvadim_mpiglobal,ivadim
-        call abort3d(" RW_VATRA : ERROR, size of Hessian not consistent")
+      if(trim(cl_version) == 'V4') then
+        read(ireslun) ivamaj,iztrl
+        if((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
+          write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
+          call abort3d(" RW_VATRA : ERROR, size of V4 Hessian not consistent")
+        endif
+      else
+        read(ireslun) imtra,iztrl
+        if(.not.(nmtra_mpiglobal.eq.imtra.or.(nmtra_mpiglobal+nvamaj).eq.imtra).or.nvadim_mpiglobal.ne.ivadim) then
+          write(*,*) nmtra_mpiglobal,imtra,nvadim_mpiglobal,ivadim
+          write(*,*) ' RW_VATRA : ERROR, size of Hessian not consistent, but not stopping!'
+!          call abort3d(" RW_VATRA : ERROR, size of Hessian not consistent")
+        endif
       endif
 
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
@@ -895,7 +920,7 @@ CONTAINS
             vatravec_r8_mpiglobal(nvadim_beg:nvadim_end)
         enddo
         deallocate(vatravec_r8_mpiglobal)       
-      elseif(trim(cl_version) == 'V3') then
+      elseif(trim(cl_version) == 'V3' .or. trim(cl_version) == 'V4') then
         allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
         ! set to zero, except 1 for "diag" (first vector) for overdimensioned elements
         vatra(:)=0.0d0
@@ -949,10 +974,10 @@ CONTAINS
 
     elseif(status.eq.1) then
       if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
-      cl_version = 'V3'
+      cl_version = 'V4'
       itrunc=0
       if(mpi_myid.eq.0) write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
-      if(mpi_myid.eq.0) write(ireslun) nmtra_mpiglobal,nztrl
+      if(mpi_myid.eq.0) write(ireslun) nvamaj,nztrl
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
       allocate(vatravec_r4_mpiglobal(nvadim_mpilocalmax*mpi_nprocs))
       allocate(vatravec_r4_mpilocalmax(nvadim_mpilocalmax))
