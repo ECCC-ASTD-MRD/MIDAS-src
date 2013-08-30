@@ -26,11 +26,12 @@
 MODULE BmatrixEnsemble
   use mpi
   use gridStateVector_mod
+  use globalSpectralTransform
   implicit none
   save
   private
 
-  public             :: ben_Setup,ben_BSqrt,ben_BSqrtAd,ben_Finalize
+  public             :: ben_Setup,ben_BSqrt,ben_BSqrtAd,ben_reduceToMPILocal,ben_expandToMPIGlobal,ben_Finalize
 
   logical             :: initialized = .false.
   integer,parameter   :: maxNumLevels=200
@@ -39,12 +40,13 @@ MODULE BmatrixEnsemble
   real*8,allocatable  :: ensLocalCor(:,:)
   real*8,allocatable  :: ensLocalVert(:,:)
   real*4,allocatable  :: ensPerturbations(:,:,:,:,:)
-  integer,allocatable :: nip1_l(:),verticalLevel(:),verticalLevelEns(:)
-  integer,allocatable :: jn_vec(:),kIndexInc(:)
+  integer,allocatable :: nip1_l(:),verticalLevel(:,:),verticalLevelEns(:)
+  integer,allocatable :: jn_vec(:)
   integer             :: nj_l,ni_l,latPerPE,myLatBeg,myLatEnd
   integer             :: nLevInc,nkgdimInc,nLevEns,nkgdimEns,topLevIndex
+  integer             :: myMemBeg,myMemEnd,myMemCount
   integer             :: ntrunc_l,nla_l
-  integer             :: nens,cvDim_l,cvDimPerMember_l
+  integer             :: nEns,cvDim_l,cvDim_mpiglobal
   integer             :: ntime_l
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
@@ -54,23 +56,22 @@ MODULE BmatrixEnsemble
 CONTAINS
 
   SUBROUTINE BEN_setup(pressureProfile_in,NI_IN,NJ_IN,NLEVINC_IN,NTIME_IN,NIP1_IN,stamp_in,CVDIM_OUT)
-    use globalSpectralTransform
     implicit none
 
     real*8         :: hLocalize(2),vLocalize,pressureProfile_in(:)
     real*8,allocatable :: pressureProfileEns(:)
     integer        :: ntrunc,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
     integer        :: cvDim_out
-    integer        :: jlev,jn,jm,ila,mpiMode,return_code
+    integer        :: jlev,jn,jm,jproc,ila,mpiMode,return_code
     integer        :: fnom,fclos,ierr,nulnam
 
     !namelist
-    NAMELIST /NAMBEN/nens,scaleFactor,scaleFactorLQ,ntrunc,enspathname,ensfilebasename,nLevEns,hLocalize,vLocalize
+    NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorLQ,ntrunc,enspathname,ensfilebasename,nLevEns,hLocalize,vLocalize
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     scaleFactor(:)=0.0d0
     scaleFactorLQ(:)=1.0d0
-    nens=10
+    nEns=10
     ntrunc=31
     nLevEns=nLevInc_in
     enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
@@ -122,19 +123,20 @@ CONTAINS
     nkgdimEns=4*nLevEns+2  ! assume 4 3d and 2 2d variables
     topLevIndex=nLevInc-nLevEns+1
 
-    allocate(verticalLevel(nkgdimInc),stat=ierr)
+    allocate(verticalLevel(nLevEns,6),stat=ierr)
+    verticalLevel(:,:)=0
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=1',ierr
       call abort3d('aborting in ben_setup')
     endif
-    do jlev=1,nLevInc
-      verticalLevel(          jlev)=jlev ! UU
-      verticalLevel(1*nLevInc+jlev)=jlev ! VV
-      verticalLevel(2*nLevInc+jlev)=jlev ! TT
-      verticalLevel(3*nLevInc+jlev)=jlev ! HU
+    do jlev=1,nLevEns
+      verticalLevel(jlev,1) =           jlev ! UU
+      verticalLevel(jlev,2) = 1*nLevEns+jlev ! VV
+      verticalLevel(jlev,3) = 2*nLevEns+jlev ! TT
+      verticalLevel(jlev,4) = 3*nLevEns+jlev ! HU
     enddo
-    verticalLevel(4*nLevInc+1)=nLevInc   ! P0
-    verticalLevel(4*nLevInc+2)=nLevInc   ! TG
+    verticalLevel(nLevEns,5) = 4*nLevEns+1 ! P0
+    verticalLevel(nLevEns,6) = 4*nLevEns+2 ! TG
 
     allocate(verticalLevelEns(nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
@@ -150,19 +152,14 @@ CONTAINS
     verticalLevelEns(4*nLevEns+1)=nLevEns   ! P0
     verticalLevelEns(4*nLevEns+2)=nLevEns   ! TG
 
-    allocate(kIndexInc(nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=3',ierr
-      call abort3d('aborting in ben_setup')
+    ! distribute members in control vector over mpi processes
+    call mpi_setup_levels(nEns,myMemBeg,myMemEnd,myMemCount)
+    write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
+
+    if(myMemCount.le.0) then
+      write(*,*) 'ERROR: Number of MPI processes must be >= number of ensemble members'
+      call abort3d('ben_setup')
     endif
-    do jlev=1,nLevEns
-      kIndexInc(          jlev)=topLevIndex-1+           jlev ! UU
-      kIndexInc(1*nLevEns+jlev)=topLevIndex-1+ 1*nLevInc+jlev ! VV
-      kIndexInc(2*nLevEns+jlev)=topLevIndex-1+ 2*nLevInc+jlev ! TT
-      kIndexInc(3*nLevEns+jlev)=topLevIndex-1+ 3*nLevInc+jlev ! HU
-    enddo
-    kIndexInc(4*nLevEns+1)= 4*nLevInc+1 ! P0
-    kIndexInc(4*nLevEns+2)= 4*nLevInc+2 ! TG
 
     ntrunc_l=ntrunc
     nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
@@ -184,8 +181,8 @@ CONTAINS
     endif
     nip1_l(1:nLevEns)=nip1_in(topLevIndex:nLevInc)
 
-    mpiMode=1
-    gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
+    mpiMode=3
+    gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode,nEns)
     write(*,*) 'BEN:returned value of gstID=',gstID
 
     allocate(jn_vec(nla_l),stat=ierr)
@@ -215,8 +212,8 @@ CONTAINS
       call setupEnsemble(stamp_in)
     endif
 
-    cvDimPerMember_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nLevEns
-    cvDim_l=nens*cvDimPerMember_l
+    cvDim_mpiglobal = ((ntrunc_l+1)*(ntrunc_l+1))*nLevEns*nEns
+    cvDim_l         = ((ntrunc_l+1)*(ntrunc_l+1))*nLevEns*myMemCount
     cvDim_out=cvDim_l
 
     initialized = .true.
@@ -236,7 +233,6 @@ CONTAINS
 
 
   SUBROUTINE setupEnsemble(stamp_in)
-    use globalSpectralTransform
     implicit none
  
     integer :: stamp_in
@@ -280,7 +276,7 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
-    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nens),stat=ierr)
+    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
       call abort3d('aborting in ben setupEnsemble')
@@ -298,7 +294,7 @@ CONTAINS
     CALL rpn_comm_allgather(myLatEnd,1,"mpi_integer",       &
                             allLatEnd,1,"mpi_integer","GRID",ierr)
 
-    do jens=1,nens
+    do jens=1,nEns
       readFilePE(jens)=mod(jens-1,mpi_nprocs)
     enddo
 
@@ -336,7 +332,7 @@ CONTAINS
 
     write(*,*) 'idateo=',idateo(1:ntime_l)
 
-    do jens=1,nens
+    do jens=1,nEns
       if(mpi_myid.eq.readFilePE(jens)) then
 
         ! first try to open file with 4 digit member number
@@ -458,7 +454,7 @@ CONTAINS
         write(*,*) 'done reading member ',jens
       endif
 
-      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nens) then
+      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nEns) then
         call tmg_start(13,'PRE_SUENS_COMM')
         batchnum=ceiling(dble(jens)/dble(mpi_nprocs))
 
@@ -506,17 +502,17 @@ CONTAINS
     write(*,*) 'finished reading ensemble members...'
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
-    dnens=1.0d0/dble(nens)
+    dnens=1.0d0/dble(nEns)
     do jt=1,ntime_l
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
       do jk=1,nkgdimEns
-        dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nens-1))
+        dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nEns-1))
         if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
           dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
         endif
         gd2d(:,:)=0.0d0
-        do jens=1,nens
+        do jens=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
@@ -528,7 +524,7 @@ CONTAINS
             gd2d(ji,jj)=gd2d(ji,jj)*dnens
           enddo
         enddo
-        do jens=1,nens
+        do jens=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               ensPerturbations(ji,jk,jj,jt,jens)=     &
@@ -544,13 +540,10 @@ CONTAINS
  
     call tmg_stop(12)
 
-    ! ensPerturbations(:,:,:,:,:)=0.0 !for testing purposes
-
   END SUBROUTINE setupEnsemble
 
 
   SUBROUTINE setupEnsemble_latbands(stamp_in,return_code)
-    use globalSpectralTransform
     implicit none
  
     integer :: stamp_in,return_code
@@ -595,7 +588,7 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
-    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nens),stat=ierr)
+    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
       call abort3d('aborting in ben setupEnsemble_latbands')
@@ -640,7 +633,7 @@ CONTAINS
     ! latitude band is reverse order as proc id due to north-south flip
     write(latBandNumber,'(i4.4)') mpi_nprocs-mpi_myid
 
-    do jens=1,nens
+    do jens=1,nEns
 
       ! first try to open file with 4 digit member number
       write(censnumber,'(i4.4)') jens
@@ -772,17 +765,17 @@ CONTAINS
     write(*,*) 'finished reading ensemble members...'
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
-    dnens=1.0d0/dble(nens)
+    dnens=1.0d0/dble(nEns)
     do jt=1,ntime_l
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
       do jk=1,nkgdimEns
-        dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nens-1))
+        dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nEns-1))
         if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
           dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
         endif
         gd2d(:,:)=0.0d0
-        do jens=1,nens
+        do jens=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
@@ -794,7 +787,7 @@ CONTAINS
             gd2d(ji,jj)=gd2d(ji,jj)*dnens
           enddo
         enddo
-        do jens=1,nens
+        do jens=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               ensPerturbations(ji,jk,jj,jt,jens)=     &
@@ -814,13 +807,14 @@ CONTAINS
 
 
   SUBROUTINE setupLocalization(hLocalize,vLocalize,pressureProfile)
-    use globalSpectralTransform
     implicit none
 
     real*8 zlc,zr,zpole,zcorr,hLocalize(:),vLocalize,pressureProfile(:)
     integer ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
     real*8         :: zsp(nla_l,2,nLevEns)
-    real*8         :: zgd(ni_l,nLevEns,nj_l)
+    real*8         :: zgd(ni_l,nLevEns,myLatBeg:myLatEnd)
+    real*8         :: zsp2(nla_l,2,nEns)
+    real*8         :: zgd2(ni_l,nEns,myLatBeg:myLatEnd)
     real*8         :: ra = 6371229.D0
     real*8         :: local_length(nLevEns)
     integer        :: rpn_comm_datyp,rpn_comm_oper
@@ -856,7 +850,7 @@ CONTAINS
 
       do jk=1,nLevEns
         zlc=1000.0d0*local_length(jk)/2.0d0
-        do jlat=1,nj_l
+        do jlat=myLatBeg,myLatEnd
           zr = ra * acos(gst_getrmu(jlat,gstID))
           if(zr.le.zlc) then
             zcorr= -0.250*(zr/zlc)**5 + 0.5*(zr/zlc)**4               &
@@ -873,13 +867,18 @@ CONTAINS
             zgd(jlon,jk,jlat)=zcorr
           enddo
         enddo
+
+        ! Transform to spectral space (extra manipulation because of mpi spectral transform)
+        zsp2(:,:,:)=0.0d0
+        zgd2(:,1,:)=zgd(:,jk,:)
+        call gst_setID(gstID)
+        call gst_reespe(zsp2,zgd2,nEns,nEns)
+        call gst_setToDefaultID
+        call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+        zsp(:,:,jk)=zsp2(:,:,1)
+
       enddo
 
-      ! Transform to spectral space
-
-      call gst_setID(gstID)
-      call gst_reespe(zsp,zgd,nLevEns,nLevEns)
-      call gst_setToDefaultID
       nsize=nla_l*2*nLevEns
       call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
 
@@ -964,16 +963,91 @@ CONTAINS
   END SUBROUTINE setupLocalization
 
 
+  SUBROUTINE BEN_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    implicit none
+    real*8  :: cv_mpilocal(:)
+    real*8  :: cv_mpiglobal(:)
+    integer :: cvDim_mpilocal_out
+
+    integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla
+
+    cvDim_mpilocal_out = cvDim_l
+
+    jdim_mpilocal=0
+    jdim_mpiglobal=0
+
+    ! assign part of mpiglobal vector from current mpi process
+    do memberIndex=1,nEns
+
+      do jlev = 1,nlevEns
+        do jla = 1, ((ntrunc_l+1)*(ntrunc_l+1))
+
+          jdim_mpiglobal = jdim_mpiglobal + 1
+
+          if(memberIndex.ge.myMemBeg.and.memberIndex.le.myMemEnd) then
+            jdim_mpilocal = jdim_mpilocal + 1
+            cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+          endif
+
+        enddo
+      enddo
+
+    enddo
+
+  END SUBROUTINE BEN_reduceToMPILocal
+
+
+  SUBROUTINE BEN_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    implicit none
+    real*8  :: cv_mpilocal(:)
+    real*8  :: cv_mpiglobal(:)
+    integer :: cvDim_mpiglobal_out
+
+    integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla,ierr
+
+    cvDim_mpiglobal_out = cvDim_mpiglobal
+
+    jdim_mpilocal=0
+    jdim_mpiglobal=0
+
+    ! initialize receiving global vector to zero
+    cv_mpiglobal(:)=0.0d0
+
+    ! assign part of mpiglobal vector from current mpi process
+    do memberIndex=1,nEns
+
+      do jlev = 1,nlevEns
+        do jla = 1, ((ntrunc_l+1)*(ntrunc_l+1))
+
+          jdim_mpiglobal = jdim_mpiglobal + 1
+
+          if(memberIndex.ge.myMemBeg.and.memberIndex.le.myMemEnd) then
+            jdim_mpilocal = jdim_mpilocal + 1
+            cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+          endif
+
+        enddo
+      enddo
+
+    enddo
+
+    ! combine the contributions from all mpi processes
+    call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+
+  end SUBROUTINE BEN_expandToMPIGlobal
+
+
   SUBROUTINE BEN_BSqrt(controlVector_in,statevector)
     implicit none
 
     real*8    :: controlVector_in(cvDim_l) 
     type(struct_gsv) :: statevector
     real*8,allocatable  :: incrementLocal(:,:,:,:)
-    real*8    :: ensControlVector(nla_l,2,nLevEns)
-    real*8    :: ensAmplitude(ni_l,nLevEns,nj_l)
+    real*8    :: ensAmplitude(ni_l,nEns,myLatBeg:myLatEnd)
+    real*8    :: zsp_all(nla_l,2,myMemBeg:myMemEnd,nLevEns)
+    real*8    :: zsp1(nla_l,2,nEns)
     real*8, pointer :: field(:,:,:,:)
-    integer   :: memberIndex
+    integer   :: jlev
     integer   :: ierr,nsize,jj,jk,ji,jt,jkInc,jvar,ilev1,ilev2,topLevOffset
     integer   :: rpn_comm_datyp
 
@@ -988,7 +1062,6 @@ CONTAINS
     endif
 
     write(*,*) 'ben_bsqrt: starting'
-    !write(*,*) ntime_l,ni_l,nj_l,nkgdimInc,nkgdimEns,myLatBeg,mpi_nprocs,nla_l,nLevInc,nLevEns
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(incrementLocal(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
@@ -1009,10 +1082,21 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
 
-    do memberIndex=1,nens
-      call cain(controlVector_in,ensControlVector,memberIndex)
-      call localizationSqrt(ensControlVector,ensAmplitude)
-      call addEnsMember(ensAmplitude,incrementLocal,memberIndex)
+    call localizationSqrt(controlVector_in,zsp_all)
+
+    do jlev=1,nLevEns
+
+      ! now transform amplitude to grid-point space
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(64,'BEN_SPECTRAL')
+      call gst_setID(gstID)
+      zsp1(:,:,myMemBeg:myMemEnd)=zsp_all(:,:,:,jlev)
+      call gst_speree(zsp1,ensAmplitude,nEns,nEns)
+      call gst_setToDefaultID
+      call tmg_stop(64)
+
+      call addEnsMember(ensAmplitude,incrementLocal,jlev)
+
     enddo
 
 !$OMP PARALLEL
@@ -1072,15 +1156,13 @@ CONTAINS
     real*8    :: controlVector_out(cvDim_l) 
     type(struct_gsv) :: statevector
 
+    real*8    :: zsp_all(nla_l,2,myMemBeg:myMemEnd,nLevEns)
+    real*8    :: zsp1(nla_l,2,nEns)
     real*8, pointer :: field(:,:,:,:)
     real*8,allocatable :: incrementLocal(:,:,:,:)
-    real*8    :: ensControlVector(nla_l,2,nLevEns) 
-    real*8    :: ensAmplitude(ni_l,nLevEns,nj_l)
-    integer   :: memberIndex,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
+    real*8    :: ensAmplitude(ni_l,nEns,myLatBeg:myLatEnd)
+    integer   :: jlev,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
     integer   :: rpn_comm_datyp,rpn_comm_oper
-
-    write(*,*) 'ben_bsqrtad: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -1091,6 +1173,9 @@ CONTAINS
       write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
       return
     endif
+
+    write(*,*) 'ben_bsqrtad: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(incrementLocal(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
     if(ierr.ne.0) then
@@ -1140,19 +1225,22 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
 
-    do memberIndex=1,nens
-      call addEnsMemberAd(incrementLocal,ensAmplitude,memberIndex)
-      call localizationSqrtAd(ensAmplitude,ensControlVector)
-      call cainAd(ensControlVector,controlVector_out,memberIndex)
+    do jlev=1,nLevEns
+
+      call addEnsMemberAd(incrementLocal,ensAmplitude,jlev)
+
+      zsp1(:,:,:)=0.0d0 ! needed, not all levels set
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(64,'BEN_SPECTRAL')
+      call gst_setID(gstID)
+      call gst_reespe(zsp1,ensAmplitude,nEns,nEns)
+      zsp_all(:,:,:,jlev)=zsp1(:,:,myMemBeg:myMemEnd)
+      call gst_setToDefaultID
+      call tmg_stop(64)
+
     enddo
 
-    call tmg_start(69,'BEN_COMM')
-    nsize=cvDim_l
-    call rpn_comm_reduce(controlVector_out,controlVector_out,nsize, &
-                    "mpi_double_precision","mpi_sum",0,"GRID",ierr)
-    call rpn_comm_bcast(controlVector_out,nsize,"mpi_double_precision", & 
-                   0,"GRID",ierr )
-    call tmg_stop(69)
+    call localizationSqrtAd(zsp_all,controlVector_out)
 
     deallocate(incrementLocal)
 
@@ -1163,271 +1251,258 @@ CONTAINS
   END SUBROUTINE BEN_BSqrtAd
 
 
-  SUBROUTINE addEnsMember(ensAmplitude_in,incrementLocal_out,memberIndex)
+  SUBROUTINE addEnsMember(ensAmplitude_in,incrementLocal_out,levelIndex)
     implicit none
 
-    integer,intent(in)     :: memberIndex
-    real*8      :: ensAmplitude_in(ni_l,nLevEns,nj_l)
+    integer,intent(in) :: levelIndex
+    real*8      :: ensAmplitude_in(ni_l,nEns,myLatBeg:myLatEnd)
     real*8      :: incrementLocal_out(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l)
 
-    integer     :: jk,jlev,jt,jj,ji
+    integer     :: jvar,jlev,memberIndex,jt,jj,ji,numVar
 
     call tmg_start(62,'ADDMEM')
 
+    if(levelIndex.eq.nLevEns) then
+      ! surface level, 4 3D and 2 sfc fields
+      numVar=6
+    else
+      ! above the surface, only 4 3D fields
+      numVar=4
+    endif
+
+    do memberIndex=1,nEns
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JJ,JT,JK,JLEV,JI)
-    do jj=myLatBeg,myLatEnd
+!$OMP DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
       do jt=1,ntime_l
-        do jk=1,nkgdimEns
-          jlev=verticalLevelEns(jk)
-          do ji=1,ni_l
-            incrementLocal_out(ji,jk,jj,jt)=incrementLocal_out(ji,jk,jj,jt) +   &
-              ensAmplitude_in(ji,jlev,jj)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
+        do jj=myLatBeg,myLatEnd
+          do jvar=1,numVar
+            jlev=verticalLevel(levelIndex,jvar)
+            do ji=1,ni_l
+              incrementLocal_out(ji,jlev,jj,jt)=incrementLocal_out(ji,jlev,jj,jt) +   &
+                ensAmplitude_in(ji,memberIndex,jj)*dble(ensPerturbations(ji,jlev,jj,jt,memberIndex))
+            enddo
           enddo
         enddo
       enddo
-    enddo
 !$OMP END DO
 !$OMP END PARALLEL
+    enddo
 
     call tmg_stop(62)
 
   END SUBROUTINE addEnsMember
 
 
-  SUBROUTINE addEnsMemberAd(incrementLocal_in,ensAmplitude_out,memberIndex)
+  SUBROUTINE addEnsMemberAd(incrementLocal_in,ensAmplitude_out,levelIndex)
     implicit none
 
-    integer,intent(in)     :: memberIndex
-    real*8      :: ensAmplitude_out(ni_l,nLevEns,nj_l)
+    integer,intent(in) :: levelIndex
+    real*8      :: ensAmplitude_out(ni_l,nEns,myLatBeg:myLatEnd)
     real*8      :: incrementLocal_in(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l)
 
-    integer     :: jk,jlev,jt,jj,ji
+    integer     :: jvar,jlev,memberIndex,jt,jj,ji,numVar
 
     call tmg_start(62,'ADDMEM')
+
+    if(levelIndex.eq.nLevEns) then
+      ! surface level, 4 3D and 2 sfc fields
+      numVar=6
+    else
+      ! above the surface, only 4 3D fields
+      numVar=4
+    endif
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JJ,JLEV,JI)
     do jj=myLatBeg,myLatEnd
-      do jlev=1,nLevEns
+      do memberIndex=1,nEns
         do ji=1,ni_l
-          ensAmplitude_out(ji,jlev,jj)=0.0d0
+          ensAmplitude_out(ji,memberIndex,jj)=0.0d0
         enddo
       enddo
     enddo
 !$OMP END DO
 !$OMP END PARALLEL
 
+    do jt=1,ntime_l
+      do jvar=1,numVar
+        jlev=verticalLevel(levelIndex,jvar)
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JK,JLEV,JT,JJ,JI)
-    do jj=myLatBeg,myLatEnd
-      do jt=1,ntime_l
-        do jk=1,nkgdimEns
-          jlev=verticalLevelEns(jk)
-          do ji=1,ni_l
-            ensAmplitude_out(ji,jlev,jj)=ensAmplitude_out(ji,jlev,jj) +   &
-              incrementLocal_in(ji,jk,jj,jt)*dble(ensPerturbations(ji,jk,jj,jt,memberIndex))
+!$OMP DO PRIVATE (memberIndex,JJ,JI)
+        do memberIndex=1,nEns
+          do jj=myLatBeg,myLatEnd
+            do ji=1,ni_l
+              ensAmplitude_out(ji,memberIndex,jj)=ensAmplitude_out(ji,memberIndex,jj) +   &
+                incrementLocal_in(ji,jlev,jj,jt)*dble(ensPerturbations(ji,jlev,jj,jt,memberIndex))
+            enddo
           enddo
         enddo
-      enddo
-    enddo
 !$OMP END DO
 !$OMP END PARALLEL
+      enddo
+    enddo
 
     call tmg_stop(62)
 
   END SUBROUTINE addEnsMemberAd
 
 
-  SUBROUTINE localizationSqrt(ensControlVector_in,ensAmplitude_out)
-    use globalSpectralTransform
+  SUBROUTINE localizationSqrt(controlVector_in,zsp_all)
     implicit none
 
-    real*8           :: ensControlVector_in(nla_l,2,nLevEns)
-    real*8           :: ensAmplitude_out(ni_l,nLevEns,nj_l)
+    real*8           :: controlVector_in(cvDim_l)
+    real*8           :: zsp_all(nla_l,2,myMemBeg:myMemEnd,nLevEns)
 
-    real*8           :: zsp(nla_l,2,nLevEns)
+    real*8           :: ensControlVector(nla_l,2,nLevEns)
     real*8           :: zsp2(nLevEns,2,nla_l)
     real*8           :: zsp3(nLevEns,2,nla_l)
-    integer          :: jlev,jn,jm,ila,jla,jj,ji
+    integer          :: jlev,jla,jj,ji,jdim,memberIndex
     real*8           :: rsq2
 
     rsq2=sqrt(2.0d0)
+    jdim=0
+
+    do memberIndex=myMemBeg,myMemEnd
+
+      call tmg_start(65,'BEN_CAIN')
+      do jlev = 1,nLevEns
+        do jla = 1, ntrunc_l+1
+          jdim = jdim + 1
+          ensControlVector(jla,1,jlev) = controlVector_in(jdim)
+          ensControlVector(jla,2,jlev) = 0.0
+        enddo
+        do jla = ntrunc_l+2, nla_l
+          jdim = jdim + 1
+          ensControlVector(jla,1,jlev) = controlVector_in(jdim)
+          jdim = jdim + 1
+          ensControlVector(jla,2,jlev) = controlVector_in(jdim)
+        enddo
+      enddo
+      if(jdim.gt.cvDim_l) then
+        write(*,*) 'BEN: CAIN: jdim > cvDim! ',jdim,memberIndex,cvDim_l
+        call abort3d('aborted in cain')
+      endif
+      call tmg_stop(65)
 
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLEV,JLA)
-    do jlev=1,nLevEns
-       do jla=1,nla_l
-          zsp(jla,1,jlev)=ensControlVector_in(jla,1,jlev)*ensLocalCor(jn_vec(jla),jlev)
-          zsp(jla,2,jlev)=ensControlVector_in(jla,2,jlev)*ensLocalCor(jn_vec(jla),jlev)
-       enddo
-       do jla = 1,ntrunc_l+1
-          zsp(jla,1,jlev) = zsp(jla,1,jlev)*rsq2
-          zsp(jla,2,jlev) = 0.0
-       enddo
-    enddo
+      do jlev=1,nLevEns
+         do jla=1,nla_l
+            zsp2(jlev,1,jla)=ensControlVector(jla,1,jlev)*ensLocalCor(jn_vec(jla),jlev)
+            zsp2(jlev,2,jla)=ensControlVector(jla,2,jlev)*ensLocalCor(jn_vec(jla),jlev)
+         enddo
+         do jla = 1,ntrunc_l+1
+            zsp2(jlev,1,jla) = zsp2(jlev,1,jla)*rsq2
+            zsp2(jlev,2,jla) = 0.0
+         enddo
+      enddo
 !$OMP END DO
 !$OMP END PARALLEL
 
-    ! Vertical localization (removing OMP increased speed 4x)
-    call tmg_start(63,'BEN_VLOC')
-    do jla=1,nla_l
+      ! Vertical localization (removing OMP increased speed 4x)
+      call tmg_start(63,'BEN_VLOC')
+
+      call dgemul(ensLocalVert(1,1),nLevEns,'N',  &
+                  zsp2(1,1,1),nLevEns,'N',  &
+                  zsp3(1,1,1),nLevEns,  &
+                  nLevEns,nLevEns,2*nla_l)
+
       do jlev=1,nLevEns
-        zsp2(jlev,1,jla)=zsp(jla,1,jlev)
-        zsp2(jlev,2,jla)=zsp(jla,2,jlev)
+        do jla=1,nla_l
+          zsp_all(jla,1,memberIndex,jlev)=zsp3(jlev,1,jla)
+          zsp_all(jla,2,memberIndex,jlev)=zsp3(jlev,2,jla)
+        enddo
       enddo
+      call tmg_stop(63)
+
     enddo
-
-    call dgemul(ensLocalVert(1,1),nLevEns,'N',zsp2(1,1,1),nLevEns,'N',zsp3(1,1,1),nLevEns,nLevEns,nLevEns,2*nla_l)
-
-    do jla=1,nla_l
-      do jlev=1,nLevEns
-        zsp(jla,1,jlev)=zsp3(jlev,1,jla)
-        zsp(jla,2,jlev)=zsp3(jlev,2,jla)
-      enddo
-    enddo
-    call tmg_stop(63)
-
-    ! now transform to grid-point space
-    call tmg_start(64,'BEN_SPECTRAL')
-    call gst_setID(gstID)
-    call gst_speree(zsp,ensAmplitude_out,nLevEns,nLevEns)
-    call gst_setToDefaultID
-    call tmg_stop(64)
+    write(*,*) 'localizationsqrt: jdim,cvDim=',jdim,cvDim_l
 
   END SUBROUTINE localizationSqrt
 
 
-  SUBROUTINE localizationSqrtAd(ensAmplitude_in,ensControlVector_out)
-    use globalSpectralTransform
+  SUBROUTINE localizationSqrtAd(zsp_all,controlVector_out)
     implicit none
 
-    real*8           :: ensControlVector_out(nla_l,2,nLevEns)
-    real*8           :: ensAmplitude_in(ni_l,nLevEns,nj_l)
+    real*8           :: controlVector_out(cvDim_l)
+    real*8           :: zsp_all(nla_l,2,myMemBeg:myMemEnd,nLevEns)
 
-    real*8           :: zsp(nla_l,2,nLevEns)
+    real*8           :: ensControlVector(nla_l,2,nLevEns)
     real*8           :: zsp2(nLevEns,2,nla_l)
     real*8           :: zsp3(nLevEns,2,nla_l)
-    integer          :: jn,jm,jla,jlev,ji,jj
+    integer          :: jla,jlev,ji,jj,jdim,memberIndex
     real*8           :: rsq2
 
     rsq2=sqrt(2.0d0)
+    jdim = 0
 
-    call tmg_start(64,'BEN_SPECTRAL')
-    call gst_setID(gstID)
-    call gst_reespe(zsp,ensAmplitude_in,nLevEns,nLevEns)
-    call gst_setToDefaultID
-    call tmg_stop(64)
+    do memberIndex=myMemBeg,myMemEnd
 
-    ! Vertical localization (removing OMP increased speed 4x)
-    call tmg_start(63,'BEN_VLOC')
-    do jla=1,nla_l
+      ! Vertical localization (removing OMP increased speed 4x)
+      call tmg_start(63,'BEN_VLOC')
       do jlev=1,nLevEns
-        zsp2(jlev,1,jla)=zsp(jla,1,jlev)
-        zsp2(jlev,2,jla)=zsp(jla,2,jlev)
+        do jla=1,nla_l
+          zsp2(jlev,1,jla)=zsp_all(jla,1,memberIndex,jlev)
+          zsp2(jlev,2,jla)=zsp_all(jla,2,memberIndex,jlev)
+        enddo
       enddo
+
+      call dgemul(ensLocalVert(1,1),nLevEns,'N',  &
+                  zsp2(1,1,1),nLevEns,'N',  &
+                  zsp3(1,1,1),nLevEns,  &
+                  nLevEns,nLevEns,2*nla_l)
+
+      do jlev=1,nLevEns
+        do jla=1,nla_l
+          zsp_all(jla,1,memberIndex,jlev)=zsp3(jlev,1,jla)
+          zsp_all(jla,2,memberIndex,jlev)=zsp3(jlev,2,jla)
+        enddo
+      enddo
+      call tmg_stop(63)
+
     enddo
 
-    call dgemul(ensLocalVert(1,1),nLevEns,'N',zsp2(1,1,1),nLevEns,'N',zsp3(1,1,1),nLevEns,nLevEns,nLevEns,2*nla_l)
-
-    do jla=1,nla_l
-      do jlev=1,nLevEns
-        zsp(jla,1,jlev)=zsp3(jlev,1,jla)
-        zsp(jla,2,jlev)=zsp3(jlev,2,jla)
-      enddo
-    enddo
-    call tmg_stop(63)
+    do memberIndex=myMemBeg,myMemEnd
 
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (JLEV,JLA)
-    do jlev=1,nLevEns
-       do jla=1,nla_l
-          ensControlVector_out(jla,1,jlev)=zsp(jla,1,jlev)*ensLocalCor(jn_vec(jla),jlev)
-          ensControlVector_out(jla,2,jlev)=zsp(jla,2,jlev)*ensLocalCor(jn_vec(jla),jlev)
-       enddo
-       do jla = 1,ntrunc_l+1
-          ensControlVector_out(jla,1,jlev) = ensControlVector_out(jla,1,jlev)*rsq2
-          ensControlVector_out(jla,2,jlev) = 0.0
-       enddo
-    enddo
+      do jlev=1,nLevEns
+        do jla=1,nla_l
+           ensControlVector(jla,1,jlev)=zsp_all(jla,1,memberIndex,jlev)*ensLocalCor(jn_vec(jla),jlev)
+           ensControlVector(jla,2,jlev)=zsp_all(jla,2,memberIndex,jlev)*ensLocalCor(jn_vec(jla),jlev)
+        enddo
+        do jla = 1,ntrunc_l+1
+          ensControlVector(jla,1,jlev) = ensControlVector(jla,1,jlev)*rsq2
+          ensControlVector(jla,2,jlev) = 0.0
+        enddo
+      enddo
 !$OMP END DO
 !$OMP END PARALLEL
 
+      call tmg_start(65,'BEN_CAIN')
+      do jlev = 1, nLevEns
+        do jla = 1, ntrunc_l+1
+          jdim = jdim + 1
+          controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector(jla,1,jlev)
+        enddo
+        do jla = ntrunc_l+2, nla_l
+          jdim = jdim + 1
+          controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector(jla,1,jlev)*2.0d0
+          jdim = jdim + 1
+          controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector(jla,2,jlev)*2.0d0
+        enddo
+      enddo
+      if(jdim.gt.cvDim_l) then
+        write(*,*) 'BEN: CAINAD: jdim > cvDim! ',jdim,memberIndex,cvDim_l
+        call abort3d('aborted in cainad')
+      endif
+      call tmg_stop(65)
+
+    enddo
+    write(*,*) 'localizationsqrtad: jdim,cvDim=',jdim,cvDim_l
+
   END SUBROUTINE localizationSqrtAd
 
-
-  SUBROUTINE cain(controlVector_in,ensControlVector_out,memberIndex)
-    implicit none
-
-    integer,intent(in)   :: memberIndex
-    real*8    :: controlVector_in(cvDim_l)
-    real*8    :: ensControlVector_out(nla_l,2,nLevEns)
-
-    integer   :: jdim,jlev,jla,jvar,jens
-
-    call tmg_start(65,'BEN_CAIN')
-
-    jdim = (memberIndex-1)*cvDimPerMember_l
-    do jlev = 1, nLevEns
-      do jla = 1, ntrunc_l+1
-        jdim = jdim + 1
-        ensControlVector_out(jla,1,jlev) = controlVector_in(jdim)
-        ensControlVector_out(jla,2,jlev) = 0.0
-      enddo
-      do jla = ntrunc_l+2, nla_l
-        jdim = jdim + 1
-        ensControlVector_out(jla,1,jlev) = controlVector_in(jdim)
-        jdim = jdim + 1
-        ensControlVector_out(jla,2,jlev) = controlVector_in(jdim)
-      enddo
-    enddo
-
-    if(jdim.gt.cvDim_l) then
-      write(*,*) 'BEN: CAIN: jdim > cvDim! ',jdim,memberIndex,cvDimPerMember_l,cvDim_l
-      call abort3d('aborted in cain')
-    endif
-
-    call tmg_stop(65)
-
-    return
-  END SUBROUTINE cain
-
-
-  SUBROUTINE cainAd(ensControlVector_in,controlVector_out,memberIndex)
-    implicit none
-
-    integer,intent(in)    :: memberIndex
-    real*8     :: controlVector_out(cvDim_l)
-    real*8     :: ensControlVector_in(nla_l,2,nLevEns)
-
-    integer kdim,jdim,jlev,jla,jvar,ji,jj
-
-    call tmg_start(65,'BEN_CAIN')
-
-    jdim = (memberIndex-1)*cvDimPerMember_l
-    do jlev = 1, nLevEns
-      do jla = 1, ntrunc_l+1
-        jdim = jdim + 1
-        controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector_in(jla,1,jlev)
-      enddo
-      do jla = ntrunc_l+2, nla_l
-        jdim = jdim + 1
-        controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector_in(jla,1,jlev)*2.0d0
-        jdim = jdim + 1
-        controlVector_out(jdim) = controlVector_out(jdim) + ensControlVector_in(jla,2,jlev)*2.0d0
-      enddo
-    enddo
-
-    if(jdim.gt.cvDim_l) then
-      write(*,*) 'BEN: CAINAD: jdim > cvDim! ',jdim,memberIndex,cvDimPerMember_l,cvDim_l
-      call abort3d('aborted in cainad')
-    endif
-
-    call tmg_stop(65)
-
-    return
-  END SUBROUTINE cainAd
-
-
+ 
 END MODULE BMatrixEnsemble
 

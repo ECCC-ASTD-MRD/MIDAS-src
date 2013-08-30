@@ -58,7 +58,6 @@
 !     Initialize constants
 !
       call mpc_printConstants(6)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !     Set vertical coordinate parameters from !! record in trial file
 !

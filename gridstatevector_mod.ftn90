@@ -325,12 +325,20 @@ MODULE gridStateVector_mod
 
     nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
 
-    if(mpi_myid.ne.0) then
+    if(mpi_myid.eq.(mpi_nprocs-1)) then
       call rpn_comm_send(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:),nsize, &
         "mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1),"GRID",ierr)
     endif
 
-    if(mpi_myid.ne.(mpi_nprocs-1)) then
+    if(mpi_myid.ne.0.and.mpi_myid.ne.(mpi_nprocs-1)) then
+      call rpn_comm_sendrecv(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:), &
+                             nsize,"mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1), &
+                             statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
+                             nsize,"mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid, &
+                             "GRID",status,ierr)
+    endif
+
+    if(mpi_myid.eq.0) then
       call rpn_comm_recv(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:),nsize, &
         "mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid,"GRID",status,ierr)
     endif
@@ -346,16 +354,29 @@ MODULE gridStateVector_mod
 
     nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
 
-    if(mpi_myid.ne.0) then
-      call rpn_comm_recv(latCircle,nsize, &
-        "mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1),"GRID",status,ierr)
-      statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:) = &
-        statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:) + latCircle(:,:,:,:)
+    if(mpi_myid.eq.0) then
+      call rpn_comm_send(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
+                         nsize,"mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid, &
+                         "GRID",ierr)
     endif
 
-    if(mpi_myid.ne.(mpi_nprocs-1)) then
-      call rpn_comm_send(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:),nsize, &
-        "mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid,"GRID",ierr)
+    if(mpi_myid.ne.0.and.mpi_myid.ne.(mpi_nprocs-1)) then
+      call rpn_comm_sendrecv(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
+                             nsize,"mpi_double_precision",mpi_myid+1,(mpi_myid+1)*500+mpi_myid, &
+                             latCircle, &
+                             nsize,"mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1), &
+                             "GRID",status,ierr)
+    endif
+
+    if(mpi_myid.eq.(mpi_nprocs-1)) then
+      call rpn_comm_recv(latCircle, &
+                         nsize,"mpi_double_precision",mpi_myid-1,mpi_myid*500+(mpi_myid-1), &
+                         "GRID",status,ierr)
+    endif
+
+    if(mpi_myid.ne.0) then
+      statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:) = &
+        statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:) + latCircle(:,:,:,:)
     endif
 
     if(mpi_myid.ne.(mpi_nprocs-1)) then

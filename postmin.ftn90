@@ -121,8 +121,6 @@
 !
 !       Now, write out the increment, including diagostic variables
 !
-        call tmg_start(90,'VAROUT')
-
         nulfile = 0
         ierr    = fnom(nulfile,'./rebm','RND',0)
         if(ierr.ge.0)then
@@ -141,8 +139,6 @@
         deallocate(ztv)
         deallocate(zgz)
         deallocate(zhu)
-
-        call tmg_stop(90)
 
       endif
 

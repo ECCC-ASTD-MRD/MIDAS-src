@@ -25,13 +25,13 @@ MODULE BmatrixHI
   save
   private
 
-  public             :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize
+  public             :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize,bhi_expandToMPIglobal,bhi_reduceToMPIlocal
 
   logical            :: initialized = .false.
   integer            :: nj_l,ni_l
   integer            :: nflev_l,nkgdim_l,nksdim2_l
-  integer            :: ntrunc_l,nla_l
-  integer            :: cvDim_l
+  integer            :: ntrunc_l,nla_l,nla_mpilocal
+  integer            :: cvDim_l,cvDim_mpiglobal,nind_mpilocal(0:300)
   integer            :: gstID,gstID2
 
   real*8             :: ra = 6371229.D0
@@ -110,7 +110,8 @@ CONTAINS
     integer        :: cvDim_out
     real*8         :: pressureProfile_in(nflev_in)
 
-    integer        :: ntrunc,jlev,mpiMode,nulnam,ierr,fnom,fclos,jm
+    integer        :: ntrunc,jlev,mpiMode,nulnam,ierr,fnom,fclos,jm,jn,jk
+    integer        :: latPerPE,myLatHalfBeg,myLatHalfEnd
     logical        :: llfound
 
     !namelist
@@ -173,14 +174,12 @@ CONTAINS
     ni_l=ni_in
     nj_l=nj_in
 
-    mpiMode=0
+    mpiMode=2
     gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
     write(*,*) 'BHI:returned value of gstID=',gstID
     call gst_setDefaultID(gstID)
-    mpiMode=2
-    gstID2 = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
-    write(*,*) 'BHI:returned value of gstID2=',gstID2
-    call gst_setToDefaultID()
+
+    call mpi_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
 
     call mpi_setup_m(ntrunc_l,mymBeg,mymEnd,mymSkip,mymCount)
 
@@ -197,8 +196,38 @@ CONTAINS
     CALL rpn_comm_allgather(mymCount,1,"mpi_integer",       &
                             allmCount,1,"mpi_integer","GRID",ierr)
 
-    cvDim_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nkgdim_l
+    ! count mpi_local control vector size and number of spectral coeff
+    cvDim_l=0
+    nla_mpilocal=0
+    do jn = 0,ntrunc_l
+      do jm = mymBeg, jn, mymSkip
+        nla_mpilocal=nla_mpilocal+1
+        do jk = 1, nkgdim_l
+          if(jm.eq.0) then
+            ! no imag part for jm==0
+            cvDim_l=cvDim_l+1
+          else
+            ! both real and imag part for jm>0
+            cvDim_l=cvDim_l+2
+          endif
+        enddo
+      enddo
+    enddo
+    !cvDim_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nkgdim_l
     cvDim_out=cvDim_l
+
+    ! also compute mpiglobal control vector dimension
+    call rpn_comm_allreduce(cvDim_l,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
+
+    ! figure out nind_mpilocal
+    nind_mpilocal(:)=0
+    nind_mpilocal(mymBeg)=1
+    do jm = mymBeg, (ntrunc_l-mymSkip), mymSkip
+      nind_mpilocal(jm+mymSkip)=nind_mpilocal(jm)+(ntrunc_l+1-jm)
+    enddo
+    do jm = mymBeg, ntrunc_l, mymSkip
+      write(*,*) 'nind_mpilocal(',jm,')=',nind_mpilocal(jm)
+    enddo
 
     allocate(PtoT(nflev_l+1,nflev_l,nj_l))
     allocate(tantheta(nflev_l,nj_l))
@@ -764,7 +793,7 @@ CONTAINS
     use globalSpectralTransform
     implicit none
     integer klev,kcorrtyp
-    real*8 zgd(ni_l,klev,nj_l)
+    real*8 zgd(ni_l,klev,myLatBeg:myLatEnd)
     real*8 pcscl(klev)
 
     integer  jlev, jgl, jlon
@@ -782,7 +811,7 @@ CONTAINS
       do  jlev = 1, klev
         dlc = 1.d0/dble(pcscl(jlev))
         dlc = 0.5*dlc*dlc
-        do  jgl = 1, nj_l
+        do  jgl = myLatBeg, myLatEnd
           zr = ra * acos(gst_getRmu(jgl))
           dlcorr = dexp(-(zr**2)*dlc)
           do  jlon = 1, ni_l
@@ -795,7 +824,7 @@ CONTAINS
       do jlev = 1, klev
         dlc = dltemp/dble(pcscl(jlev))
         dlcsurn = dlc/dln
-        do jgl = 1, nj_l
+        do jgl = myLatBeg, myLatEnd
           zr = ra * acos(gst_getRmu(jgl))
           dlcorr = (1.d0 + dlc*zr + zr*dlc*zr*dlc/3.d0)*dexp(-zr*dlc)    &
             + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
@@ -822,14 +851,14 @@ CONTAINS
 
     logical  llpb
     integer ikey, jlat, jlon, jla, ezgprm, igdgid, ezqkdef
-    integer jn, jm, ila, inlev, itggid, inmxlev,ier, iset,numlev
+    integer jn, jm, ila, inlev, itggid, inmxlev,ier, iset,numlev,nsize
     integer ezdefset, vezsint
     integer ip1style,ip1kind
     integer koutmpg
     real*8, allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
     real*8 cortgg(nla_l,2)
     real*8 zabs, zpole, zconst, dlfac, dlcorr
-    real*8 zsp(nla_l,2,1),zgd(ni_l,1,nj_l)
+    real*8 zsp(nla_l,2,1),zgd(ni_l,1,myLatBeg:myLatEnd)
 
     ! standard file variables
     integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
@@ -917,6 +946,8 @@ CONTAINS
 
     ! 4.3  Bring back the result in spectral space
     call gst_reespe(zsp,zgd,1,1)
+    nsize=2*nla_l
+    call rpn_comm_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
 
     ! 4.4  Check positiveness
     llpb = .false.
@@ -1689,33 +1720,27 @@ CONTAINS
 
     real*8    :: controlVector_in(cvDim_l)
     type(struct_gsv) :: statevector
-    real*8, pointer :: gd_out(:,:,:)
-    real*8    :: hiControlVector(nla_l,2,nkgdim_l)
+    real*8,allocatable :: gd_out(:,:,:)
+    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
     integer   :: jvar, ilev1, ilev2
 
     write(*,*) 'bhi_bsqrt: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    allocate(gd_out(ni_l,nkgdim_l,nj_l))
 
     if(.not. initialized) then
       write(*,*) 'bMatrixHI not initialized'
       return
     endif
 
-    myLatBeg=statevector%myLatBeg
-    myLatEnd=statevector%myLatEnd
+    allocate(gd_out(ni_l,nkgdim_l,myLatBeg:myLatEnd))
 
     call tmg_start(52,'BHI_CAIN')
     call bhi_cain(controlVector_in,hiControlVector)
     call tmg_stop(52)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call bhi_spa2gd(hiControlVector,gd_out)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call copyToStatevector(statevector,gd_out)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     deallocate(gd_out)
 
@@ -1732,7 +1757,7 @@ CONTAINS
     real*8    :: controlVector_out(cvDim_l)
     type(struct_gsv) :: statevector
     real*8, allocatable :: gd_in(:,:,:)
-    real*8    :: hiControlVector(nla_l,2,nkgdim_l)
+    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
@@ -1743,10 +1768,7 @@ CONTAINS
     write(*,*) 'bhi_bsqrtad: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    myLatBeg=statevector%myLatBeg
-    myLatEnd=statevector%myLatEnd
-
-    allocate(gd_in(ni_l,nkgdim_l,nj_l))
+    allocate(gd_in(ni_l,nkgdim_l,myLatBeg:myLatEnd))
 
     call copyFromStatevector(statevector,gd_in)
 
@@ -1767,12 +1789,9 @@ CONTAINS
   SUBROUTINE copyToStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real*8, pointer  :: gd(:,:,:)
-    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2, lat1, lat2
+    real*8  :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real*8, pointer :: field(:,:,:)
-
-    lat1=myLatBeg
-    lat2=myLatEnd
 
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(varnamelist(jvar))) then
@@ -1794,7 +1813,7 @@ CONTAINS
         endif
         ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = lat1,lat2
+        do jlat = myLatBeg,myLatEnd
           do jlev = ilev1, ilev2
             jlev2=jlev-ilev1+1
             do jlon = 1, ni_l
@@ -1812,12 +1831,9 @@ CONTAINS
   SUBROUTINE copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real*8          :: gd(:,:,:)
-    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2, lat1, lat2
+    real*8          :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real*8, pointer :: field(:,:,:)
-
-    lat1=myLatBeg
-    lat2=myLatEnd
 
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(varnamelist(jvar))) then
@@ -1839,7 +1855,7 @@ CONTAINS
         endif
         ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = lat1, lat2
+        do jlat = myLatBeg, myLatEnd
           do jlev = ilev1, ilev2
             jlev2=jlev-ilev1+1
             do jlon = 1, ni_l
@@ -1854,26 +1870,147 @@ CONTAINS
   END SUBROUTINE copyFromStatevector
 
 
+  SUBROUTINE BHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    use globalSpectralTransform
+    implicit none
+    real*8  :: cv_mpilocal(cvDim_l)
+    real*8  :: cv_mpiglobal(cvDim_mpiglobal)
+    integer :: cvDim_mpilocal_out
+
+    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal,ierr
+
+    cvDim_mpilocal_out = cvDim_l
+
+    do jlev = 1, nkgdim_l
+      do jn = 0 , ntrunc_l
+        do jm = mymBeg, jn, mymSkip
+          ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
+          ila_mpiglobal = gst_getNIND(jm) + jn - jm
+
+          if(jm.eq.0) then
+            jdim_mpilocal  = ila_mpilocal
+          else
+            jdim_mpilocal  = 2*ila_mpilocal-1
+            if(mymBeg.eq.0) then
+              jdim_mpilocal=jdim_mpilocal-(ntrunc_l+1)
+            endif
+          endif
+          if(mymBeg.eq.0) then
+            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2-ntrunc_l-1)
+          else
+            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2)
+          endif
+
+          if(jm.eq.0) then
+            jdim_mpiglobal = ila_mpiglobal
+          else
+            jdim_mpiglobal = 2*ila_mpiglobal-1
+            jdim_mpiglobal=jdim_mpiglobal-(ntrunc_l+1)
+          endif
+          jdim_mpiglobal=jdim_mpiglobal+(jlev-1)*(nla_l*2-ntrunc_l-1)
+
+          if(jdim_mpilocal.gt.cvDim_l) write(*,*) 'jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_l,jlev,jn,jm
+          if(jdim_mpiglobal.gt.cvDim_mpiglobal) write(*,*) 'jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+          call flush(6)
+
+          ! this is the real part
+          cv_mpilocal(jdim_mpilocal)=cv_mpiglobal(jdim_mpiglobal)
+          ! this is the imag part (only for m<>0)
+          if(jm.gt.0) then
+            cv_mpilocal(jdim_mpilocal+1)=cv_mpiglobal(jdim_mpiglobal+1)
+          endif
+
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE BHI_reduceToMPILocal
+
+
+  SUBROUTINE BHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    use globalSpectralTransform
+    implicit none
+    real*8  :: cv_mpilocal(cvDim_l)
+    real*8  :: cv_mpiglobal(:)
+    integer :: cvDim_mpiglobal_out
+
+    integer         :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal,ierr
+
+    cvDim_mpiglobal_out = cvDim_mpiglobal
+
+    cv_mpiglobal(:)=0.0d0
+
+    do jlev = 1, nkgdim_l
+      do jn = 0 , ntrunc_l
+        do jm = mymBeg, jn, mymSkip
+          ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
+          ila_mpiglobal = gst_getNIND(jm) + jn - jm
+
+          if(jm.eq.0) then
+            jdim_mpilocal  = ila_mpilocal
+          else
+            jdim_mpilocal  = 2*ila_mpilocal-1
+            if(mymBeg.eq.0) then
+              jdim_mpilocal=jdim_mpilocal-(ntrunc_l+1)
+            endif
+          endif
+          if(mymBeg.eq.0) then
+            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2-ntrunc_l-1)
+          else
+            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2)
+          endif
+
+          if(jm.eq.0) then
+            jdim_mpiglobal = ila_mpiglobal
+          else
+            jdim_mpiglobal = 2*ila_mpiglobal-1
+            jdim_mpiglobal=jdim_mpiglobal-(ntrunc_l+1)
+          endif
+          jdim_mpiglobal=jdim_mpiglobal+(jlev-1)*(nla_l*2-ntrunc_l-1)
+
+          if(jdim_mpilocal.gt.cvDim_l) write(*,*) 'jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_l,jlev,jn,jm
+          if(jdim_mpiglobal.gt.cvDim_mpiglobal) write(*,*) 'jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+          call flush(6)
+
+          ! this is the real part
+          cv_mpiglobal(jdim_mpiglobal)=cv_mpilocal(jdim_mpilocal)
+          ! this is the imag part (only for m<>0)
+          if(jm.gt.0) then
+            cv_mpiglobal(jdim_mpiglobal+1)=cv_mpilocal(jdim_mpilocal+1)
+          endif
+
+        enddo
+      enddo
+    enddo
+
+    call tmg_start(59,'BHI_COMM')
+    call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call tmg_stop(59)
+
+  end SUBROUTINE BHI_expandToMPIGlobal
+
+
   SUBROUTINE BHI_cain(controlVector_in,hiControlVector_out)
     implicit none
 
     real*8    :: controlVector_in(cvDim_l)
-    real*8    :: hiControlVector_out(nla_l,2,nkgdim_l)
+    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
 
     integer jdim, jlev, jla
 
     jdim = 0
     hiControlVector_out(:,:,:)=0.0d0
     do jlev = 1, nkgdim_l
-      do jla = 1, ntrunc_l + 1
-        jdim = jdim + 1
-        hiControlVector_out(jla,1,jlev) = controlVector_in(jdim)
-      enddo
-      do jla = ntrunc_l+2, nla_l
-        jdim = jdim + 1
-        hiControlVector_out(jla,1,jlev) = controlVector_in(jdim)
-        jdim = jdim + 1
-        hiControlVector_out(jla,2,jlev) = controlVector_in(jdim)
+      do jla = 1, nla_mpilocal
+        if(mymBeg.eq.0.and.jla.le.(ntrunc_l+1)) then
+          jdim = jdim + 1
+          hiControlVector_out(jla,1,jlev) = controlVector_in(jdim)
+        else
+          jdim = jdim + 1
+          hiControlVector_out(jla,1,jlev) = controlVector_in(jdim)
+          jdim = jdim + 1
+          hiControlVector_out(jla,2,jlev) = controlVector_in(jdim)
+        endif
       enddo
     enddo
 
@@ -1885,22 +2022,23 @@ CONTAINS
     IMPLICIT NONE
 
     real*8    :: controlVector_out(cvDim_l)
-    real*8    :: hiControlVector_in(nla_l,2,nkgdim_l)
+    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
 
     integer jdim, jlev, jla
 
     jdim = 0
     do jlev = 1, nkgdim_l
-      do jla = 1, ntrunc_l+1
-        jdim = jdim+1
-        controlVector_out(JDIM) = controlVector_out(JDIM) + hiControlVector_in(jla,1,jlev)
-      enddo
-      do jla = ntrunc_l + 2, nla_l
-        jdim = jdim + 1
-        ! factor of 2 is value of scalpm1 in original code
-        controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(jla,1,jlev)*2.0d0
-        jdim = jdim + 1
-        controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(jla,2,jlev)*2.0d0
+      do jla = 1, nla_mpilocal
+        if(mymBeg.eq.0.and.jla.le.(ntrunc_l+1)) then
+          jdim = jdim + 1
+          controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(jla,1,jlev)
+        else
+          ! factor of 2 is value of scalpm1 in original code
+          jdim = jdim + 1
+          controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(jla,1,jlev)*2.0d0
+          jdim = jdim + 1
+          controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(jla,2,jlev)*2.0d0
+        endif
       enddo
     enddo
 
@@ -1911,11 +2049,11 @@ CONTAINS
     use globalSpectralTransform
     IMPLICIT NONE
 
-    real*8    :: hiControlVector_in(nla_l,2,nkgdim_l)
-    real*8,pointer :: gd_out(:,:,:)
+    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
+    real*8    :: gd_out(ni_l,nkgdim_l,myLatBeg:myLatEnd)
 
     real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l),sp2(nla_l,2,nkgdim_l)
-    real*8    :: tb0(ni_l,nflev_l,nj_l)
+    real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
 
     integer ilen,jn,jm,jk,jk2,ila
     integer ji,jj
@@ -1927,12 +2065,11 @@ CONTAINS
     integer klatptot, nsize
     real*8 z1mnu2, zsqrtnu2
     real*8, pointer :: zgdpsi(:,:,:),zgdchi(:,:,:)
-    real*8 dlzsomme, dldsomme, dla2, dl1sa2, dlfact, zcoriolis, zpsb(ni_l,nj_l)
+    real*8, target :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8 dla2, dl1sa2, dlfact, zcoriolis, zpsb(ni_l,nj_l)
 
     integer :: icount
     integer :: thdid,numthd,omp_get_thread_num,omp_get_num_threads
-
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     klatptot=1
 
@@ -1940,14 +2077,13 @@ CONTAINS
     sq2=sqrt(2.0d0)
     allocate(zsp(nkgdim_l,2,0:ntrunc_l))
     allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 !$OMP PARALLEL DO PRIVATE(jn,jm,jk,jk2,ila,zsp2,zsp,icount)
     do jn = 0,ntrunc_l
 
       icount=0
       do jm = mymBeg, jn, mymSkip
         icount=icount+1
-        ila = gst_getNind(jm) + jn - jm
+        ila = Nind_mpilocal(jm) + jn - jm
         do jk = 1, nkgdim_l
           zsp(jk,1,icount-1) = hiControlVector_in(ila,1,jk)
           zsp(jk,2,icount-1) = hiControlVector_in(ila,2,jk)
@@ -1996,13 +2132,12 @@ CONTAINS
     deallocate(zsp)
     deallocate(zsp2)
     call tmg_stop(53)
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
       do jlev = 1, nkgdim_l
         do jlon = 1,ni_l
-          gd_out(jlon,jlev,jlat)=0.0d0
+          gd(jlon,jlev,jlat)=0.0d0
         enddo
       enddo
       do jlev = 1, nflev_l
@@ -2012,15 +2147,11 @@ CONTAINS
       enddo
     enddo
 !$OMP END PARALLEL DO
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     call tmg_start(55,'BHI_SPEREE') 
-    call gst_setID(gstID2)
-    call gst_speree(sp,gd_out,nkgdim_l,nkgdim_l)
+    call gst_speree(sp,gd,nkgdim_l,nkgdim_l)
     call gst_speree(sptb,tb0,nflev_l,nflev_l)
-    call gst_setToDefaultID()
     call tmg_stop(55) 
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     call tmg_start(54,'BHI_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
@@ -2029,7 +2160,7 @@ CONTAINS
       do jlon = 1, ni_l
         zpsb(jlon,jlat)=0.0
         do jlev=1,nflevptot_l
-         zp = zcoriolis*gd_out(jlon,nspositVO+jlev-1,jlat)
+         zp = zcoriolis*gd(jlon,nspositVO+jlev-1,jlat)
          zpsb(jlon,jlat)=zpsb(jlon,jlat) + PtoT(nflev_l+1,jlev,klatptot)*zp
         enddo
       enddo
@@ -2043,9 +2174,9 @@ CONTAINS
       do jlev = 1, nkgdim_l
         do jlon = 1,ni_l
           if(jlev.ne.nspositTG) then
-            gd_out(jlon,jlev,jlat) = gd_out(jlon,jlev,jlat)*rgsig(jlat,jlev)
+            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
           else
-            gd_out(jlon,jlev,jlat) = gd_out(jlon,jlev,jlat)*tgstdbg(jlon,jlat)
+            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*tgstdbg(jlon,jlat)
           endif
         enddo
       enddo
@@ -2053,20 +2184,19 @@ CONTAINS
       do jlev = 1, nflev_l
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)= tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
-          gd_out(jlon,nspositTT+jlev-1,jlat)= gd_out(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
+          gd(jlon,nspositTT+jlev-1,jlat)= gd(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
         enddo
       enddo
       do jlon = 1, ni_l
         zpsb(jlon,jlat)= zpsb(jlon,jlat)*rgsigpsb(jlat)
-        gd_out(jlon,nspositPS,jlat)= gd_out(jlon,nspositPS,jlat)+zpsb(jlon,jlat)
+        gd(jlon,nspositPS,jlat)= gd(jlon,nspositPS,jlat)+zpsb(jlon,jlat)
       enddo
     enddo  ! jlat
 !$OMP END PARALLEL DO
     call tmg_stop(54)
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
-    zgdpsi => gd_out(:,nspositVO:(nspositVO+nflev_l-1),:)
-    zgdchi => gd_out(:,nspositDI:(nspositDI+nflev_l-1),:)
+    zgdpsi(1:,1:,myLatBeg:) => gd(:,nspositVO:(nspositVO+nflev_l-1),myLatBeg:myLatEnd)
+    zgdchi(1:,1:,myLatBeg:) => gd(:,nspositDI:(nspositDI+nflev_l-1),myLatBeg:myLatEnd)
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
       do jlev=nlev_bdl,nflev_l
@@ -2086,13 +2216,10 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
+    call flush(6)
     call tmg_start(56,'BHI_REESPE') 
-    call gst_setID(gstID2)
-    call gst_REESPE(sp,gd_out,nkgdim_l,nkgdim_l)
-    call gst_setToDefaultID()
+    call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
     call tmg_stop(56) 
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
 
     dla2   = dble(ra)*dble(ra)
     dl1sa2 = 1.d0/dla2
@@ -2111,19 +2238,25 @@ CONTAINS
     do jlat = myLatBeg, myLatEnd
       do jlev = 1, nkgdim_l
         do jlon = 1,ni_l
-          gd_out(jlon,jlev,jlat) = 0.0d0
+          gd(jlon,jlev,jlat) = 0.0d0
         enddo
       enddo
     enddo
 !$OMP END PARALLEL DO
 
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
     call tmg_start(57,'BHI_SPGD_SPGDA')
-    call gst_setID(gstID2)
-    call gst_spgd(sp,gd_out,nkgdim_l,nflev_l,nkgdim_l)
-    call gst_setToDefaultID()
+    call gst_spgd(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
     call tmg_stop(57)
-    write(*,*) 'Memory Used: spa2gd',get_max_rss()/1024,'Mb'
+
+!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    do jlat = myLatBeg, myLatEnd
+      do jlev = 1, nkgdim_l
+        do jlon = 1,ni_l
+          gd_out(jlon,jlev,jlat) = gd(jlon,jlev,jlat)
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
 
     return
   END SUBROUTINE BHI_SPA2GD
@@ -2133,11 +2266,11 @@ CONTAINS
     use globalSpectralTransform
     implicit none
 
-    real*8    :: hiControlVector_out(nla_l,2,nkgdim_l)
-    real*8    :: gd_in(ni_l,nkgdim_l,nj_l)
+    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
+    real*8    :: gd_in(ni_l,nkgdim_l,myLatBeg:myLatEnd)
 
     real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
-    real*8    :: tb0(ni_l,nflev_l,nj_l)
+    real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
 
     integer jn,jm,jk,ila,icount
     real*8 sq2
@@ -2147,11 +2280,10 @@ CONTAINS
     integer ierr, ilon, jlev, jlon, jlat, jla, klatptot,pe_send
     real*8 dl1sa2,dla2,znormpsi, znormchi, zcoriolis, zpsb(ni_l,nj_l)
     real*8,pointer :: zgdpsi(:,:,:) ,zgdchi(:,:,:)
-    real*8, target :: gd(ni_l,nkgdim_l,nj_l)
+    real*8, target :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
 
     integer :: thdid,numthd,nsize
     integer :: omp_get_thread_num, omp_get_num_threads
-
 
     dla2   = dble(ra)*dble(ra)
     dl1sa2 = 1.d0/dla2
@@ -2169,9 +2301,7 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
-    call gst_setID(gstID2)
     call gst_SPGDA(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
-    call gst_setToDefaultID()
     call tmg_stop(57)
 
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA)
@@ -2186,13 +2316,11 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     call tmg_start(55,'BHI_SPEREE') 
-    call gst_setID(gstID2)
     CALL gst_SPEREE(sp,gd,nkgdim_l,nkgdim_l)
-    call gst_setToDefaultID()
     call tmg_stop(55) 
 
-    zgdpsi => gd(:,nspositVO:(nspositVO+nflev_l-1),:)
-    zgdchi => gd(:,nspositDI:(nspositDI+nflev_l-1),:)
+    zgdpsi(1:,1:,myLatBeg:) => gd(:,nspositVO:(nspositVO+nflev_l-1),myLatBeg:myLatEnd)
+    zgdchi(1:,1:,myLatBeg:) => gd(:,nspositDI:(nspositDI+nflev_l-1),myLatBeg:myLatEnd)
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
       do jlev=nlev_bdl,nflev_l
@@ -2245,10 +2373,8 @@ CONTAINS
     call tmg_stop(54)
 
     call tmg_start(56,'BHI_REESPE') 
-    call gst_setID(gstID2)
     call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
     call gst_REESPE(sptb,tb0,nflev_l,nflev_l)
-    call gst_setToDefaultID()
     call tmg_stop(56) 
 
     call tmg_start(53,'BHI_SPA2GD1')
@@ -2277,7 +2403,7 @@ CONTAINS
 
       icount=0
       do jm = mymBeg, jn, mymSkip
-        ila = gst_getNind(jm) +jn - jm
+        ila = nind_mpilocal(jm) +jn - jm
         icount=icount+1
         do jk = 1, nkgdim_l
           hiControlVector_out(ila,1,jk) = zsp(jk,1,icount-1)
@@ -2285,35 +2411,20 @@ CONTAINS
         enddo
       enddo
 
-      ila = gst_getNind(0) +jn
-      do jk = 1, nkgdim_l
-        hiControlVector_out(ila,1,jk) = hiControlVector_out(ila,1,jk)*sq2
-        hiControlVector_out(ila,2,jk) = hiControlVector_out(ila,2,jk)*sq2
-      enddo
+      if(mymBeg.eq.0) then
+        ila = nind_mpilocal(0) +jn
+        do jk = 1, nkgdim_l
+          hiControlVector_out(ila,1,jk) = hiControlVector_out(ila,1,jk)*sq2
+          hiControlVector_out(ila,2,jk) = hiControlVector_out(ila,2,jk)*sq2
+        enddo
+      endif
 
     enddo
 !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
-
-    do jk=1,nkgdim_l
-      do ila=1,ntrunc_l+1
-        hiControlVector_out(ila,2,jk)=0.0
-      enddo
-    enddo
     call tmg_stop(53)
 
-    call tmg_start(59,'BHI_COMM')
-    nsize=nla_l*2*nkgdim_l
-    call rpn_comm_allreduce(hiControlVector_out,hiControlVector_out,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-!    do pe_send=0,mpi_nprocs-1
-!      nsize=allmCount(pe_send+1)*2*nkgdim_l
-!      call rpn_comm_bcast(hiControlVector_out(allmBeg(pe_send+1):allmEnd(pe_send+1):allmSkip(pe_send+1),:,:), &
-!                          nsize,"mpi_double_precision",pe_send,"GRID",ierr)
-!    enddo
-    call tmg_stop(59)
-
-    !write(*,*) 'end of spa2gdad!!!'
     return
   END SUBROUTINE BHI_SPA2GDAD
 

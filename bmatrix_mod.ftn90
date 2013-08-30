@@ -10,6 +10,7 @@ MODULE BMatrix_mod
     private
 
     public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
+    public :: bmat_reduceToMPILocal, bmat_expandToMPIGlobal
 
 contains
 
@@ -156,5 +157,59 @@ contains
     if(associated(cvBen)) call ben_finalize() 
 
   END SUBROUTINE bmat_finalize
+
+
+  SUBROUTINE BMAT_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    implicit none
+    real*8  :: cv_mpilocal(:)
+    real*8  :: cv_mpiglobal(:)
+    integer :: cvDim_mpilocal_out
+
+    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal
+    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
+    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
+
+    cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
+    cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
+    if(associated(cvBhi_mpilocal)) then
+      call bhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+    endif
+
+    cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
+    cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
+    if(associated(cvBen_mpilocal)) then
+      call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
+    endif
+
+    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal
+
+  END SUBROUTINE BMAT_reduceToMPILocal
+
+
+  SUBROUTINE BMAT_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    implicit none
+    real*8  :: cv_mpilocal(:)
+    real*8  :: cv_mpiglobal(:)
+    integer :: cvDim_mpiglobal_out
+
+    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal
+    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
+    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
+
+    cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
+    cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
+    if(associated(cvBhi_mpilocal)) then
+      call bhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+    endif
+
+    cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
+    cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
+    if(associated(cvBen_mpilocal)) then
+      call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
+    endif
+
+    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal
+
+  end SUBROUTINE BMAT_expandToMPIGlobal
 
 END MODULE BMatrix_mod

@@ -109,10 +109,8 @@
 !
 !     Compute the maximum number of columns over all processors (latitude bands)
 !
-      call tmg_start(19,'SUGOMOBS_COMM')
       call rpn_comm_allreduce(col_getNumCol(lcolumng),numColumn_maxmpiglobal,1,  &
                               "MPI_INTEGER","MPI_MAX","GRID",ierr)
-      call tmg_stop(19)
 !
 !     Allocate trial field column object and other local arrays
 !
@@ -277,7 +275,6 @@
         enddo ! jobs
 
         ! gather and compute the max number of obs over all processors for each timestep
-        call tmg_start(19,'SUGOMOBS_COMM')
         call rpn_comm_allreduce(nobs(jstep),nobs_maxmpiglobal(jstep),1,  &
                                 "MPI_INTEGER","MPI_MAX","GRID",ierr)
         call rpn_comm_allgather(nobs(jstep),1,"mpi_integer",       &
@@ -290,7 +287,6 @@
         call rpn_comm_allgather(dlatfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
                                 dlatfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
                                 "GRID",ierr)
-        call tmg_stop(19)
 
         zig1 = 0.0D0
         zig2 = 0.0D0
@@ -666,8 +662,6 @@
               call abort3d('SUGOMOBS: unknown varType')
             endif
 
-            call tmg_start(11,'TRLM_FSTLIR')
-
             ierr=fstlir(varTrial(:,:),nultrl(jstep),ni,nj,ink,  &
                         datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                         cltypvar,varName)
@@ -686,15 +680,12 @@
                 call abort3d('SUGOMOBS:Problem with background file')
               end if
             endif
-            call tmg_stop(11)
 
             ! Interpolate to mpiglobal set of columns for a subset of levels
-            call tmg_start(15,'SUGOMOBS_EZ')
             do jlatband = 1,mpi_nprocs
               if (nobs_mpiglobal(jstep,jlatband).gt.0) then
                 iset = ezdefset(nobsgid_mpiglobal(jstep,jlatband),EZscintID)
                 if(trim(varName).eq.'UU') then
-                  call tmg_start(16,'SUGOMOBS_UVINT')
 
                   ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
                                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
@@ -712,17 +703,13 @@
                     varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) +  &
                     varInterp2_VV(1:nobs_mpiglobal(jstep,jlatband))
 
-                  call tmg_stop(16)
                 else
-                  call tmg_start(17,'SUGOMOBS_SINT')
                   ierr = vezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
                                   varTrial,  &
                                   nobs_mpiglobal(jstep,jlatband),1,1,ni,nj,1)
-                  call tmg_stop(17)
                 endif
               endif
             enddo
-            call tmg_stop(15)
 
           enddo
 
