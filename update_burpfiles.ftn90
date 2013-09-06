@@ -25,6 +25,8 @@ SUBROUTINE UPDATE_BURPFILES(obsdat)
       INTEGER FILENUMB,IER,IBRP1,IER,INRECS,ISTAT,LNMX
       INTEGER  FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
       EXTERNAL FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
+      character(len=256) :: BURP_SPLIT_VAR
+      integer length_burp_split
 
 !
       EXTERNAL EXDB,EXFIN
@@ -40,9 +42,19 @@ SUBROUTINE UPDATE_BURPFILES(obsdat)
       WRITE(*,*)'                UPDATE_BURP BEGIN                '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
-      CALL obs_expandToMpiGlobal(obsdat)
-      IF(mpi_myid /= 0) RETURN
 
+      ier = 0
+      call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,ier,.true.)
+      if (ier.gt.1) then
+         write(*,*) 'update_burpfiles: Problem when getting the environment variable ARMA_BURP_SPLIT'
+      end if
+      if (ier.eq.1) then 
+         write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
+         CALL obs_expandToMpiGlobal(obsdat)
+         IF(mpi_myid /= 0) RETURN
+      else
+         write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
+      end if
 
       DO J =1,NFILES
 !      IER   =FNOM(IBRP1,CFILNAM(J),'RND+OLD',0)

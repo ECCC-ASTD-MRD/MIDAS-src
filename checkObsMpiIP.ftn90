@@ -1,0 +1,42 @@
+
+subroutine checkObsMpiIP(lobsSpaceData)
+  !
+  ! PURPOSE:
+  !  check if all observations are correctly distributed along latitude bands
+  !  if an observations is not, then don<t assimilate this observation
+  !
+  use MathPhysConstants_mod
+  use obsSpaceData_mod
+  use gaussGrid_mod
+  use mpi !! for variable 'mpi_myid'
+  implicit none
+
+  type(struct_obs), intent(inout) :: lobsSpaceData
+
+  integer :: headerIndex
+  integer :: latindex
+  integer :: ierr
+  integer :: IP, count_obs_in
+  integer :: idata,idatend,jdata
+
+  write(*,*) 'routine checkObsMpiIP: numHeader = ',obs_numheader(lobsSpaceData)
+
+  count_obs_in = 0
+  do headerIndex = 1, obs_numheader(lobsSpaceData)
+     latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex))
+     IP = ( mpi_nprocs * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
+     if ( IP .ne. mpi_myid ) then
+        idata = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
+        idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex) + idata -1
+        do jdata = idata, idatend
+           call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+        enddo
+        call obs_headSet_i(lobsSpaceData,OBS_ST1,headerIndex,  &
+             ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex), 05))
+     else
+        count_obs_in = count_obs_in+1
+     end if
+  end do
+
+  write(*,*) 'routine checkObsMpiIP: observations headers in this latitude band: ', count_obs_in
+end subroutine checkObsMpiIP

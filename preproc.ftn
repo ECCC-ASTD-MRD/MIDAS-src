@@ -45,6 +45,9 @@
       type(struct_vco), pointer :: vco_anl => null()
       type(struct_vco), pointer :: vco_trl => null()
       integer :: get_max_rss
+      character(len=256) :: BURP_SPLIT_VAR
+      integer :: length_burp_split, status
+      logical :: burp_split_L
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine preproc--'
@@ -82,7 +85,22 @@
 !
 !     Allocate memory for observation arrays
 !
-      call obs_initialize(lobsSpaceData)
+      status = 0
+      burp_split_L = .false.
+      call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,status,.true.)
+      if (status.gt.1) then
+         write(*,*) 'Routine preproc: Problem when getting the environment variable ARMA_BURP_SPLIT'
+      end if
+      if (status.eq.1) then !! The variable 'ARMA_BURP_SPLIT' does not exist so we didn't split the observations
+         write(*,*) 'Routine preproc: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
+         burp_split_L = .false.
+      else
+         write(*,*) 'Routine preproc: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
+         burp_split_L = .true.
+      end if
+
+      call obs_initialize(lobsSpaceData,mpi_local=burp_split_L)
+         
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !     Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
@@ -124,10 +142,15 @@
 !
       IF ( L1GPSOBS ) CALL FILT_GPSGB(lobsSpaceData)
 !
-!     Distribute observations over MPI processes
+!     Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
 !
-      call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
-      call obs_reduceToMpiLocal(lobsSpaceData)
+      if (.not.burp_split_L) then !! we read global observations files so we have to localized them for each MPI process
+         call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
+         call obs_reduceToMpiLocal(lobsSpaceData)
+      end if
+      if (obsMpiStrategy .eq. 'LATBANDS') then
+         call checkObsMpiIP(lobsSpaceData)
+      end if
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !     Memory allocation for background column data

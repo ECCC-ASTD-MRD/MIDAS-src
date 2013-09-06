@@ -6,14 +6,14 @@
 !  
 !***************************************************************
 MODULE mpi
-  INTEGER :: mpi_myid,mpi_nprocs
+  INTEGER :: mpi_myid,mpi_nprocs, mpi_myidx, mpi_myidy
 
   CONTAINS
 
   SUBROUTINE mpi_init()
     IMPLICIT NONE
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_comm
-    integer :: npex,npey,myidx,myidy
+    integer :: npex,npey
 
     ! 1. Initilize MPI . 
     npex=0
@@ -23,7 +23,7 @@ MODULE mpi
       mpi_nprocs=1
       mpi_myid=0
     endif
-    CALL rpn_comm_mype(mpi_myid,myidx,myidy)
+    CALL rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
 
 !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()

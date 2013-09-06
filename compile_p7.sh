@@ -19,15 +19,15 @@ fi
 
 trunkdir=$PWD
 
-# automatically set the global revision number in comct0.cdk by
-# replacing the string XXXXX with the actual revision number
-revnum=`ssh alef "cd $trunkdir ; svnversion"`
-cat comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
-
 cd ../
 mkdir -p compiledir
 cd compiledir
 rm -f *.o *.f *.f90 *.mod
+
+# automatically set the global revision number in comct0.cdk by
+# replacing the string XXXXX with the actual revision number
+revnum=`ssh pollux "cd $trunkdir ; svnversion"`
+cat ${trunkdir}/comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
 
 compiledir=$PWD
 

@@ -49,7 +49,8 @@
 *                      rehm_defunct (anlm and rehm are now produced by AddAnalInc)
 *     .      Bin He ,  ARMA,  Jan. 2009 .  
 *                    - Implemented  MPI version .   
-*
+*     .      Bin He,  ARMA,  June ,2013  
+*                    - read splitted burp files. 
 *
 ************************************************************************
 #endif
@@ -59,8 +60,11 @@
       INTEGER INFIL,IER,INBLKS,II,I,JJ
       INTEGER FNOM,FCLOS,FSTOUV,NUMBLKS
       PARAMETER(INFIL=129)
-      CHARACTER *128 CLVALU(INFIL),CFAMI(INFIL)
+      CHARACTER *64 CLVALU(INFIL),CFAMI(INFIL)
       CHARACTER *36 OneSatOBS 
+      CHARACTER(len=4) :: cmyidx, cmyidy
+      CHARACTER(len=9) :: cmyid
+      CHARACTER(len=128) :: burpin   
       INTEGER   istatus ,chlength 
       LOGICAL   isExist_L 
 ************************************************************************
@@ -69,6 +73,12 @@
      &     ,8*'UA',8*'HU',8*'ST',8*'AI',8*'SF',8*'MI',8*'TO',8*'SW'
      &     ,8*'OZ',8*'AC',8*'GO',8*'SC',8*'PR',8*'RO',8*'GP'/
 ************************************************************************
+
+       write(cmyidy,'(I4.4)') (mpi_nprocs-mpi_myid)
+       !! later, when the mpi along longitudes bands will be implemented, then
+       !! this 'cmyidx' and 'cmyidy' will change
+       cmyidx = '0001'
+       cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
 
        CLVALU(1) = './flnml'  
        CLVALU(2) = './obscov'  
@@ -151,47 +161,29 @@ C------ Preconditioning..
         lpcon=.false.
       endif
 c
-C-------Check Burp files.... 
-      CALL GET_ENVIRONMENT_VARIABLE('VAR3D_BGCK',OneSatObs,chlength,istatus,.true.)  
-      print*,'OneSatObs = ',OneSatObs
-      print*,'NCONF LEN OF OneSatObs = ',nconf,len_trim(OneSatObs) 
-
-      IF((NCONF == 101 .or. NCONF == 121).and. len_trim(OneSatObs) > 0 ) THEN
-         ii=0
-         NKOUNT=1
-         INQUIRE(FILE=OneSatObs,EXIST=isExist_L) 
-         IF(isExist_L)THEN
-           IER=FNOM(II,OneSatObs,'RND+OLD',0) 
-           IF(ier == 0) THEN
-              INBLKS = -1
-              INBLKS=NUMBLKS(II)
-              IF(INBLKS >0 )THEN
-                CBURP(1)=OneSatObs
-                CFAM(1)='SW'
-              ENDIF 
-           ENDIF  
-           IER = FCLOS(II)  
-           DO jj=1,INFIL
-             IF(oneSatObs == CLVALU(jj) ) THEN
-               CFAM(1)=CFAMI(jj) 
-               EXIT
-             ENDIF
-           ENDDO 
-         ELSE
-           CALL ABORT3D('SUFILNAM:file doesnot exist!')  
-         ENDIF 
-      ELSE 
-        NKOUNT=0
-        DO JJ=10,INFIL
+      NKOUNT=0
+      DO JJ=10,INFIL 
         II=0
+        burpin=trim(CLVALU(JJ))//'_'//trim(cmyid)
+        WRITE(*,*) 'Testing input burp file: ',burpin  
         IF(CLVALU(JJ) /= '') THEN
-           INQUIRE(FILE=CLVALU(JJ),EXIST=isExist_L)
+           INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
         ELSE
            EXIT  
         ENDIF
+        IF (.NOT. isExist_L )THEN
+           burpin=trim(CLVALU(JJ))
+           WRITE(*,*) 'Testing input burp file: ',burpin  
+           IF(CLVALU(JJ) /= '') THEN
+              INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
+           ELSE
+              EXIT 
+           ENDIF
+        END IF
         IF ( isExist_L )THEN
-          IER=FNOM(II,CLVALU(JJ),'RND+OLD',0)
-          WRITE(*,*)' Open File : ',CLVALU(JJ)  
+          !IER=FNOM(II,CLVALU(JJ),'RND+OLD',0)
+          IER=FNOM(II,burpin,'RND+OLD',0)
+          WRITE(*,*)' Open File : ',burpin   
           IF ( IER .EQ. 0 ) THEN
             INBLKS= -1
             INBLKS=NUMBLKS(II)
@@ -199,16 +191,15 @@ C-------Check Burp files....
 
 C=======================================
               NKOUNT=NKOUNT+1
-              CBURP(NKOUNT)=CLVALU(JJ)
+              CBURP(NKOUNT)=burpin
               CFAM(NKOUNT)=CFAMI(JJ)
 C=======================================
 
             ENDIF
-          ENDIF
-          IER= FCLOS(II)
+         ENDIF
+         IER= FCLOS(II)
         ENDIF
         END DO
-      ENDIF
 C
 C Hard coded restart file name
       crestart='wrmrestart'
