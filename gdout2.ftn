@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,ig2,statevector,zes,ztv,zgz,zhu)
+      SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,ig2,statevector,field3d,zes,ztv,zgz,zhu)
 #if defined (DOC)
 *
 ***s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
@@ -45,7 +45,7 @@ C
       real*8 :: ztv(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: zgz(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: zhu(statevector%ni,statevector%nlev,statevector%nj)
-      real*8, pointer :: field3d_ptr(:,:,:)
+      real*8 :: field3d(statevector%ni,statevector%nlev,statevector%nj)
       character(len=*) :: varName
       logical lplok
 *
@@ -89,10 +89,9 @@ C
 C     *  Zonal wind component (in Knots)
 C
       ELSE IF(trim(varName).EQ.'UU') THEN
-        field3d_ptr => gsv_getField3D(statevector,varName)
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
-            PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = field3d(JLON,KLEV,JGL)
      S           *gaus_CONPHY(JGL)*MPC_KNOTS_PER_M_PER_S_R8
           END DO
         END DO
@@ -100,10 +99,9 @@ C
 C     *  Meridional wind component (in Knots)
 C
       ELSE IF(trim(varName).EQ.'VV') THEN
-        field3d_ptr => gsv_getField3D(statevector,varName)
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
-            PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = field3d(JLON,KLEV,JGL)
      S           *gaus_CONPHY(JGL)*MPC_KNOTS_PER_M_PER_S_R8
           END DO
         END DO
@@ -118,10 +116,9 @@ C
         END DO
 C
       ELSE IF(trim(varName).EQ.'LQ') THEN
-        field3d_ptr => gsv_getField3D(statevector,'HU')
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = field3d_ptr(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = field3d(JLON,KLEV,JGL)
           END DO
         END DO
 C
@@ -135,11 +132,10 @@ C
 C     *    Surface Pressure from units of Pascal to millibar
 C
       ELSE IF(trim(varName).EQ.'P0') THEN
-        field3d_ptr => gsv_getField3D(statevector,varName)
         kip1=0
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = field3d_ptr(JLON,1,JGL)*MPC_MBAR_PER_PA_R8
+            PPTRANS(JLON,JGL) = field3d(JLON,1,JGL)*MPC_MBAR_PER_PA_R8
           END DO
         END DO
 C
@@ -147,18 +143,17 @@ C     *    All remaining 2D and 3D variables that do not require unit conversion
 C
       else
         if(gsv_varExist(varName)) then
-          field3d_ptr => gsv_getField3D(statevector,varName)
           if(vnl_vartypeFromVarname(varName).eq.'SF') then
             kip1=0
             do jlon = 1, statevector%ni
               do jgl = 1, statevector%nj
-                pptrans(jlon,jgl) = field3d_ptr(jlon,1,jgl)
+                pptrans(jlon,jgl) = field3d(jlon,1,jgl)
               enddo
             enddo
           else
             do jlon = 1, statevector%ni
               do jgl = 1, statevector%nj
-                pptrans(jlon,jgl) = field3d_ptr(jlon,klev,jgl)
+                pptrans(jlon,jgl) = field3d(jlon,klev,jgl)
               enddo
             enddo
           endif

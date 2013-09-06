@@ -31,7 +31,7 @@ MODULE gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist, gsv_getOffsetFromVarName
   public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_getVco, gsv_setVco, gsv_add
-  public :: gsv_commLat, gsv_commLatAd, gsv_commMPIGlobal
+  public :: gsv_commLat, gsv_commLatAd, gsv_commMPIGlobal, gsv_commMPIGlobal3D
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -396,29 +396,66 @@ MODULE gridStateVector_mod
       call abort3d('gsv_commMPIGlobal: statevector already global!')
     endif
 
-    allocate(gd_mpiglobal(statevector_in%ni,statevector_in%nk,statevector_in%nj,statevector_in%numStep))
+    ! only allocate a single 3D mpiglobal statevector
+    allocate(gd_mpiglobal(statevector_in%ni,statevector_in%nk,statevector_in%nj,1))
 
     nsize=statevector_in%ni*statevector_in%nk*statevector_in%latPerPE
 
+    ! NOTE: result of mpiglobal 3D statevector for timestep jstep is sent to proc jstep-1
     do jstep=1,statevector_in%numStep
 
       call rpn_comm_gather(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatEnd,jstep), &
         nsize,"mpi_double_precision", &
-        gd_mpiglobal(:,:,:,jstep), &
+        gd_mpiglobal(:,:,:,1), &
         nsize,"mpi_double_precision", &
-        0,"GRID",ierr)
+        jstep-1,"GRID",ierr)
 
     enddo
 
     deallocate(statevector_in%gd)
     statevector_in%gd => gd_mpiglobal
-    statevector_in%gd3d => statevector_in%gd(:,:,:,statevector_in%anltime)
+    statevector_in%gd3d => statevector_in%gd(:,:,:,1)
     statevector_in%myLatBeg=1
     statevector_in%myLatEnd=statevector_in%nj
     statevector_in%latPerPE=statevector_in%nj
     statevector_in%mpi_local=.false.
 
   END SUBROUTINE GSV_commMPIGlobal
+
+
+  SUBROUTINE GSV_commMPIGlobal3D(statevector_in)
+    implicit none
+    type(struct_gsv) :: statevector_in
+    integer :: nsize,ierr,jlat,jstep,jlev,jlon
+    real*8, pointer :: gd_mpiglobal(:,:,:,:)
+
+    if(.not.statevector_in%mpi_local) then
+      call abort3d('gsv_commMPIGlobal: statevector already global!')
+    endif
+
+    ! only allocate a single 3D mpiglobal statevector
+    allocate(gd_mpiglobal(statevector_in%ni,statevector_in%nk,statevector_in%nj,1))
+
+    nsize=statevector_in%ni*statevector_in%nk*statevector_in%latPerPE
+
+    ! NOTE: result of mpiglobal 3D statevector for timestep anltime is sent to proc 0
+    jstep=statevector_in%anltime
+
+    call rpn_comm_gather(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatEnd,jstep), &
+      nsize,"mpi_double_precision", &
+      gd_mpiglobal(:,:,:,1), &
+      nsize,"mpi_double_precision", &
+      0,"GRID",ierr)
+
+    deallocate(statevector_in%gd)
+    statevector_in%gd => gd_mpiglobal
+    statevector_in%gd3d => statevector_in%gd(:,:,:,1)
+    statevector_in%myLatBeg=1
+    statevector_in%myLatEnd=statevector_in%nj
+    statevector_in%latPerPE=statevector_in%nj
+    statevector_in%mpi_local=.false.
+
+  END SUBROUTINE GSV_commMPIGlobal3D
 
 
   SUBROUTINE GSV_add(statevector_in,statevector_inout)

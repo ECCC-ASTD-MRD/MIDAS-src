@@ -37,13 +37,21 @@
 
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
-      integer jk,jj,ji,nulfile,ierr,fnom,fstouv,fstfrm,fclos
-      real*8 ztemp
+      integer jk,jj,ji,jstep,nulfile,ierr,fnom,fstouv,fstfrm,fclos
+      integer :: datestamplist(nstepobsinc)
+      real*8  :: hu_anl,deltaHours
       real*8, allocatable :: zes(:,:,:)
       real*8, allocatable :: ztv(:,:,:)
       real*8, allocatable :: zgz(:,:,:)
       real*8, allocatable :: zhu(:,:,:)
-      real*8, pointer :: hu3d_inc_ptr(:,:,:),hu3d_trl_ptr(:,:,:)
+      real*8, pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
+      character(len=4) :: flnum 
+! previously from compost.cdk
+      integer          NPPCVAR
+      character(len=4)  :: CPPCVAR(20)
+      character(len=12) :: CETIKINC
+      logical :: write4dInc,useTL_LQtoHU
+      logical lvtout,lgzout
 !
 !     if a restart file was writen at the end of minimize.ftn,
 !     lrestart was turn to .true. to avoid postmin exection
@@ -54,14 +62,31 @@
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'
 !
-!     Compute the analysis increment (mpiglobal result only on myid=0)
+!     Read namelist and do some setup
+!
+      call supost
+!
+!     Check that we have at least as many processors as increment timesteps
+!
+      if(mpi_nprocs .lt. nstepobsinc) then
+        write(*,*) 'mpi_nprocs=',mpi_nprocs,', nstepobsinc=',nstepobsinc
+        call abort3d('postmin: number of cpus < number of increment timesteps, aborting!')
+      endif
+!
+!     Compute the analysis increment
 !
       call tmg_start(91,'POST_COMPUTEDX')
       vco_anl => col_getVco(lcolumng)
       call gsv_setVco(statevector,vco_anl)
       call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=min_get_datestamp(),mpi_local=.true.)
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-      call gsv_commMPIGlobal(statevector)
+      if(write4dInc) then
+        ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
+        call gsv_commMPIGlobal(statevector)
+      else
+        ! mpiglobal result for 3D increment only on myid=0 
+        call gsv_commMPIGlobal3D(statevector)
+      endif
       call tmg_stop(91)
       
       ! free up some memory now that B isn't needed
@@ -72,37 +97,55 @@
 
       call tmg_start(92,'POST_DIAG')
 !
-!     Prepare background fields (only P0, TT, HU) at the analysis time for flow-dependent 
-!     control variables (NOTE: mpiglobal result only on myid=0)
+!     Prepare background fields (only P0, TT, HU) at each analysis time for flow-dependent 
+!     control variables (NOTE: mpiglobal result only on myid=increment_time_step-1)
 !
       call gsv_setVco(statevectorg,vco_anl)
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,nstepobs,datestamp=min_get_datestamp(),mpi_local=.false.)
+      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,1,datestamp=min_get_datestamp(),mpi_local=.false.)
 
-      call tmg_start(93,'SUBASIC_GD')
-      call subasic_gd(statevectorg,lcolumnhr)
-      call tmg_stop(93)
-
-      call tmg_stop(92)
+      do jstep=1,nstepobsinc
+        datestamplist(jstep)=gsv_getDateStamp(statevector,jstep)
+      enddo
+      if(write4dInc) then
+        ! read in the background fields at all increment timesteps
+        call subasic_gd(statevectorg,lcolumnhr,nstepobsinc,datestamplist)
+      else
+        ! only read in the background fields at the "analysis" timestep (usually the middle)
+        call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime))
+      endif
 
       ! background fields only on myid=0, so only do calculations for myid=0
-      if(mpi_myid == 0 ) then
-        call tmg_start(92,'POST_DIAG')
+      if( (write4dInc      .and. mpi_myid .lt. nstepobsinc) .or.  &
+          (.not.write4dInc .and. mpi_myid .eq. 0          ) ) then
+
+        if(write4dInc) then
+          jstep=mpi_myid+1
+        else
+          jstep=statevector%anltime
+        endif
+
+        write(*,*) 'postmin: computing the diag variables for timestep:',jstep
 
         allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
         allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
         allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
         allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
 !
-!       *** Compute increment HU from LQ increment ***
+!         *** Compute increment HU from LQ increment ***
 !
-        hu3d_trl_ptr => gsv_getField3D(statevectorg,'HU')
-        hu3d_inc_ptr => gsv_getField3D(statevector ,'HU')
-!$OMP PARALLEL DO PRIVATE(jk,jj,ji,ztemp)
+        hu_trl_ptr => gsv_getField(statevectorg,'HU')  ! this is HU_b
+        lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
+!$OMP PARALLEL DO PRIVATE(jj,jk,ji,hu_anl)
         do jj = 1,statevectorg%nj
           do jk = 1,statevectorg%vco%nlev_M
             do ji = 1,statevectorg%ni
-              ZTEMP = log(hu3d_trl_ptr(ji,jk,jj)) + hu3d_inc_ptr(ji,jk,jj)
-              zhu(ji,jk,jj) = EXP(ZTEMP) - hu3d_trl_ptr(ji,jk,jj)
+              ! choose either tangent linear or nonlinear operator for LQ to HU
+              if(useTL_LQtoHU) then
+                zhu(ji,jk,jj) = lq_inc_ptr(ji,jk,jj,1)*hu_trl_ptr(ji,jk,jj,1)
+              else
+                hu_anl = log(hu_trl_ptr(ji,jk,jj,1)) + lq_inc_ptr(ji,jk,jj,1)
+                zhu(ji,jk,jj) = EXP(hu_anl) - hu_trl_ptr(ji,jk,jj,1)
+              endif
             enddo
           enddo
         enddo
@@ -116,22 +159,32 @@
 !
         call lt2tvgd(ztv,statevector,statevectorg)
         call ltt2phigd(zgz,ztv,statevectorg)
-
-        call tmg_stop(92)
 !
 !       Now, write out the increment, including diagostic variables
 !
         nulfile = 0
-        ierr    = fnom(nulfile,'./rebm','RND',0)
+        if(write4dInc) then
+          call difdatr(datestamplist(jstep),min_get_datestamp(),deltaHours)
+          if(nint(deltaHours*60.0d0).lt.0) then
+            write(flnum,'(I4.3)') nint(deltaHours*60.0d0)
+          else
+            write(flnum,'(I3.3)') nint(deltaHours*60.0d0)
+          endif
+          write(*,*) 'postmin: dates=',datestamplist(jstep),min_get_datestamp(),deltaHours,nint(deltaHours*60.0d0)
+          write(*,*) 'postmin: flnum=###',trim(flnum),'###'
+          ierr    = fnom(nulfile,'./rebm_'//trim(flnum)//'m','RND',0)
+        else
+          ierr    = fnom(nulfile,'./rebm','RND',0)
+        endif
         if(ierr.ge.0)then
           write(*,*)'postmin: rebm file opened with unit number ',nulfile
           ierr  =  fstouv(nulfile,'RND')
         else
-          call abort3d('postmin: problem opening rebmh file, aborting!')
+          call abort3d('postmin: problem opening rebm file, aborting!')
         end if
 
-        call varout(nulfile,statevector,zes,ztv,zgz,zhu,min_niter)
-
+        call varout
+ 
         ierr =  fstfrm(nulfile)
         ierr =  fclos(nulfile)        
 
@@ -144,10 +197,14 @@
 
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
+
+      call tmg_stop(92)
 !
 !     Now write out the observation data:
 !
       IF (LVARQC) CALL LISTREJ(lobsSpaceData)
+
+      call tmg_start(93,'POST_UPDATEBRP')
 
       CALL VINT3DFD(OBS_OMA,lobsSpaceData)
       CALL VINT3DFD(OBS_OMF,lobsSpaceData)
@@ -157,6 +214,241 @@
 
       call obs_finalize(lobsSpaceData)
 
+      call tmg_stop(93)
+
       write(*,*) 'LEAVING POSTMIN'
+
+      CONTAINS
+
+      SUBROUTINE varout
+!
+!**s/r varout  - Transfert of the content of COMGD0 on a RPN
+!     .          standard file
+!
+!Author  : S. Pellerin *ARMA/AES  April 2000
+!
+      IMPLICIT NONE
+      real*8 :: field3d(statevector%ni,statevector%nlev,statevector%nj)
+      real*8, pointer :: field_ptr(:,:,:,:)
+      integer write_encode_hyb,vfstecr
+      integer jvar,jlev,ierr,numlev
+      integer datestamp,inpak_inc
+      real*8 zwork
+      real   zptop4, zpref4,zrcoef4,zdummy
+      integer nip1,nip2,nip3,ndeet,npas,nidatyp,nig1,nig2,nig3,nig4
+      character(len=1)  :: cgrtyp
+      character(len=2)  :: cltypinc
+      character(len=12) :: cletiket
+      real*8 :: zlowvar(statevector%ni,statevector%nj)
+      logical llimplemented,llvarout
+
+      WRITE(*,FMT='(/,4X,"Starting VAROUT",//)')
+
+      if(nulfile.eq.0) then
+        write(*,*) 'varout: unit number for rebm file not valid!'
+        return
+      endif
+
+      WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model state on file at iteration No.'',I3)') min_niter
+
+      ndeet=0
+      NIP2       =  0
+      NIP3       =  min_niter
+      NPAS       =  0
+      NIDATYP    =  1
+      CGRTYP     = 'G'
+      CLTYPINC   = 'R'
+      NIG1       =  0
+      NIG2       =  0
+      NIG3       =  0
+      NIG4       =  0
+      cletiket=cetikinc
+      datestamp=gsv_getDateStamp(statevector,jstep)
+
+      write(*,*) 'Writing fields for datestamp= ',datestamp
+!
+! ****************************************************************
+!
+      write(*,*) 'Writing variable HY on analysis-increment file'
+
+      zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
+      zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+      zrcoef4 = statevector%vco%drcf1
+      ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
+                                 datestamp,zptop4,zpref4,zrcoef4)
+!
+!-----Analysis grid hybride vertical coordinate parameters
+!
+
+      write(*,*)' '
+      write(*,*)'************************************** '
+      write(*,*) ' The hybride coordinate parameters from increment', &
+                 ' analysis  grid are:'
+      write(*,*) ' PTOP = ',statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' PREF = ',statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' RCOEF= ',statevector%vco%drcf1
+      write(*,*)'************************************** '
+      write(*,*)' '
+!
+!-----Setup packing for each variable
+!
+      inpak_inc  = -32                  ! 32 bits are needed by AAI
+      write(*,*)' '
+      write(*,*)'************************************** '
+      write(*,*)
+      write(*,*) 'PACKING for increments   is ',inpak_inc
+      write(*,*)' '
+      write(*,*)'************************************** '
+
+      do jvar = 1, nppcvar
+!
+! Some variable may be request for other to be computed but not
+! necessaraly wanted as output..
+!
+        llimplemented = .true.
+
+        write(*,*) 'Writing variable ',cppcvar(jvar)
+
+        numlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(cppcvar(jvar)))
+        write(*,*) 'numlev=',numlev
+
+        if(cppcvar(jvar).ne.'ES'.and. &
+           cppcvar(jvar).ne.'VT'.and. &
+           cppcvar(jvar).ne.'GZ'.and. &
+           cppcvar(jvar).ne.'HU') then
+
+          if(cppcvar(jvar).eq.'LQ') then
+            field_ptr => gsv_getField(statevector,'HU')
+          else
+            field_ptr => gsv_getField(statevector,cppcvar(jvar))
+          endif
+          field3d(:,1:numlev,:)=field_ptr(:,:,:,1)
+        endif
+
+        do jlev=1,numlev
+          call gdout2(cppcvar(jvar),ZLOWVAR,jlev,  &
+               llimplemented,nip1,nig2,statevector,field3d,zes(:,:,:),ztv(:,:,:),zgz(:,:,:),zhu(:,:,:))
+          if(.not.llimplemented) exit
+
+          IERR  = VFSTECR(ZLOWVAR,zwork,inpak_inc  &
+             ,nulfile,datestamp,ndeet,npas,statevector%ni,statevector%nj,1,nip1  &
+             ,nip2,nip3,cltypinc,cppcvar(jvar),cletiket,cgrtyp,nig1  &
+             ,nig2,nig3,nig4,nidatyp,.true.)
+
+          if(nip1.eq.0) exit
+
+        enddo
+
+      enddo
+
+      write(*,*) 'END of VAROUT'
+
+      RETURN
+      END SUBROUTINE VAROUT
+
+
+      SUBROUTINE SUPOST
+!
+!**s/r SUPOST  - initialize the post-processing of the model state
+!
+      IMPLICIT NONE
+      INTEGER IERR,jvar,ihu,itt,ivt,imin,igz,ip0,ilq
+      integer :: nulnam,fnom,fclos
+      NAMELIST /NAMPOST/NPPCVAR,CPPCVAR,CETIKINC,WRITE4DINC,useTL_LQtoHU
+
+      write(*,*) '========================================='
+      write(*,*) 'supost:  initialization of postprocessing'
+      write(*,*) '========================================='
+!
+!*    1. Set default values
+!
+      CETIKINC = 'UNDEFINED***'
+      NPPCVAR=6
+      CPPCVAR(:) = '    '
+      CPPCVAR(1) = 'UU'
+      CPPCVAR(2) = 'VV'
+      CPPCVAR(3) = 'TT'
+      CPPCVAR(4) = 'LQ'
+      CPPCVAR(5) = 'P0'
+      CPPCVAR(6) = 'TG'
+      WRITE4DINC = .false.
+      useTL_LQtoHU = .false.
+!
+!*    2. Read the parameters from NAMPOST
+!
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=nampost,iostat=ierr)
+      if(ierr.ne.0) call abort3d('varout: Error reading namelist')
+      write(*,nml=nampost)
+      ierr=fclos(nulnam)
+!
+! reordering cppcvar for dependent variables in varout.ftn
+!
+      ip0 = 0
+      ihu = 0
+      itt = 0
+      ivt = 0
+      lgzout = .false.
+
+      do jvar = 1,nppcvar
+        if(cppcvar(jvar).eq.'P0') then
+          ip0 = jvar
+        endif
+        if(cppcvar(jvar).eq.'TT') then
+          itt = jvar
+        endif
+        if(cppcvar(jvar).eq.'GZ') then
+          igz = jvar
+          lgzout = .true.
+        endif
+        if(cppcvar(jvar).eq.'HU') then
+          ihu = jvar
+        endif
+        if(cppcvar(jvar).eq.'VT') then
+          ivt = jvar
+          lvtout = .true.
+        endif
+        if(cppcvar(jvar).eq.'LQ') then
+          ilq = jvar
+        endif
+      enddo
+
+      if((lgzout.or.lvtout).and.ihu.eq.0) then
+! Make sure that HU is part of the list
+        ihu = nppcvar+1
+        cppcvar(ihu) = 'HU'
+        nppcvar = ihu
+      endif
+
+      if(ihu.ne.0) then
+! Make sure that TT is part of the list
+        imin = min(itt,ihu)
+        if (imin.eq.0) then
+! TT is not requested: put it in the list before HU
+          cppcvar(ihu) = 'TT'
+          cppcvar(nppcvar+1) = 'HU'
+          nppcvar = nppcvar + 1
+        else
+! TT is requested: make sure that TT is before HU in the list
+          cppcvar(max(itt,ihu)) = 'HU'
+          cppcvar(imin) = 'TT'
+        endif
+      endif
+
+      if(ip0 .gt. 1) then
+        do jvar = ip0, 2,-1
+          cppcvar(jvar) = cppcvar(jvar -1)
+        enddo
+        cppcvar(1) = 'P0'
+      endif
+!
+!*     4. Print the values
+!
+      DO jvar = 1, NPPCVAR
+        WRITE(*,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5)') jvar,CPPCVAR(jvar)
+      ENDDO
+      RETURN
+      END SUBROUTINE SUPOST
 
       END SUBROUTINE POSTMIN

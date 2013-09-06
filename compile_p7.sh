@@ -27,6 +27,7 @@ rm -f *.o *.f *.f90 *.mod
 # automatically set the global revision number in comct0.cdk by
 # replacing the string XXXXX with the actual revision number
 revnum=`ssh pollux "cd $trunkdir ; svnversion"`
+echo Revision number= $revnum
 cat ${trunkdir}/comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
 
 compiledir=$PWD

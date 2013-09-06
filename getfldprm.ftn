@@ -145,7 +145,7 @@ c
      &           ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3'
      &           ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 '
      &           ,'for variable ',cdvar,' and datev, ',kstampv
-            CALL ABORT3D('GETFLDPRM')
+            call abort3d('GETFLDPRM')
           endif
         enddo
 c
@@ -172,6 +172,7 @@ c
         write(*,*) 'Error - GETFLDPRM: no record found at time '
      &       ,idatefull,' for field ',cdvar,' but',knlev,
      &         ' records found in unit ',kinmpg
+        call abort3d('GETFLDPRM')
       endif
 c
       deallocate(ikeys)

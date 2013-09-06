@@ -32,9 +32,9 @@
 **
 *Arguments
 *     in-
-*   ptt    : 3D Temperature Incr. appearing on r.h.s. of TL-eq.
+*   ptt    : 4D Temperature Incr. appearing on r.h.s. of TL-eq.
 *     out-
-*   pgz    : 3D GZ fields computed from TL-Hydrostatic equation
+*   pgz    : 4D GZ fields computed from TL-Hydrostatic equation
 #endif
 
       use gridStateVector_mod
@@ -51,7 +51,7 @@
       INTEGER JLEV, JLA, ILA, ILEV, JLAT, JLON
       real*8  zalpha
       real*8 zpress(statevectorg%ni,statevectorg%nlev),zprof(statevectorg%nlev)
-      real*8, pointer :: ps3d_ptr(:,:,:), zpres3d_ptr(:,:,:)
+      real*8, pointer :: ps_ptr(:,:,:,:), zpres3d_ptr(:,:,:)
       real*8, pointer :: zps2d(:,:) 
       integer status
 *------------------------------------------------------------------
@@ -63,10 +63,8 @@
 c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c
-      ps3d_ptr => gsv_getField3D(statevectorg,'P0')
-
-      zps2d => ps3d_ptr(:,1,:)
-
+      ps_ptr => gsv_getField(statevectorg,'P0')
+      zps2d => ps_ptr(:,1,:,1)
       status=vgd_levels(statevectorg%vco%vgrid,
      &                  ip1_list=statevectorg%vco%ip1_M,
      &                  levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)

@@ -165,7 +165,7 @@ c
       DO JJ=10,INFIL 
         II=0
         burpin=trim(CLVALU(JJ))//'_'//trim(cmyid)
-        WRITE(*,*) 'Testing input burp file: ',burpin  
+        !WRITE(*,*) 'Testing input burp file: ',burpin  
         IF(CLVALU(JJ) /= '') THEN
            INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
         ELSE
@@ -173,7 +173,7 @@ c
         ENDIF
         IF (.NOT. isExist_L )THEN
            burpin=trim(CLVALU(JJ))
-           WRITE(*,*) 'Testing input burp file: ',burpin  
+           !WRITE(*,*) 'Testing input burp file: ',burpin  
            IF(CLVALU(JJ) /= '') THEN
               INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
            ELSE
@@ -181,7 +181,6 @@ c
            ENDIF
         END IF
         IF ( isExist_L )THEN
-          !IER=FNOM(II,CLVALU(JJ),'RND+OLD',0)
           IER=FNOM(II,burpin,'RND+OLD',0)
           WRITE(*,*)' Open File : ',burpin   
           IF ( IER .EQ. 0 ) THEN

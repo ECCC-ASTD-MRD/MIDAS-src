@@ -15,7 +15,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine subasic_gd(statevectorg,lcolumnhr)
+      subroutine subasic_gd(statevectorg,lcolumnhr,numStep,datestamplist)
       use mpi
       use gridStateVector_mod
       use columnData_mod
@@ -26,6 +26,9 @@
 *                   These fields are needed for:
 *                   Postprocessing diagnostic analysis increments on the analysis grid
 *                   using TL observation operators.
+*                   IMPORTANT: when numStep>1, each 3D background state is
+*                   stored in statevectorg only when myid = timestep-1, i.e. 
+*                   one 3D state per processor
 *
 *Author  : L. Fillion  *ARMA/AES - 13 nov 98
 *          (used to be getfstg2.ftn)
@@ -33,7 +36,8 @@
 *
 #endif
       IMPLICIT NONE
-      INTEGER INI,INJ,INK,IG1,IG2,IG3,IG4,IERR
+      INTEGER INI,INJ,INK,IG1,IG2,IG3,IG4,IERR,numStep
+      INTEGER :: datestamplist(numStep)
       CHARACTER(len=2) :: CLTYPVAR
       CHARACTER(len=1) :: CLGRTYP
       CHARACTER(len=4) :: CLNOMVAR
@@ -45,24 +49,22 @@
 
       type(struct_vco), pointer :: vco_anl, vco_trl
       logical ltrial 
-      integer ibrpstamp,jfile
+      integer datestamp,jfile,jstep
       integer anl_gid,ezqkdef
       REAL*8 zpsg(statevectorg%ni,statevectorg%nj)
       REAL*8 zttg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       REAL*8 zqqg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
-      real*8, pointer :: ps3d_ptr(:,:,:),tt3d_ptr(:,:,:),hu3d_ptr(:,:,:)
+      real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
       integer ntrials, nultrl(500)  
       CHARACTER(len=2) :: flnum 
       CHARACTER(len=9) :: trialfile 
 
       WRITE(*,FMT='(/,4X,"Starting SUBASIC_GD",//)')
 
-      ibrpstamp=gsv_getDateStamp(statevectorg)
-
       vco_anl => gsv_getVco(statevectorg)
       vco_trl => col_getVco(lcolumnhr)
 !
-! Open the Trial fields
+! Open all of the Trial fields
 !
       nultrl(:)=0
       ntrials=0 
@@ -91,50 +93,65 @@
 !
       CLETIKET = ' '
       CLTYPVAR = 'P'
+
+      do jstep=1,numStep
+
+        datestamp=datestamplist(jstep)
 !
-!     Surface-pressure
+!       Surface-pressure
 !
-      write(*,*)'subasic_gd: reading P0'
-      CLNOMVAR = 'P0'
+        write(*,*)'subasic_gd: reading P0'
+        CLNOMVAR = 'P0'
 
-      write(*,*) 'subasic_gd: ibrpstamp = ',ibrpstamp
+        write(*,*) 'subasic_gd: datestamp = ',datestamp
 
-      call vhfstfld(zpsg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &     1,clnomvar,ibrpstamp,nultrl,ntrials)
+        ! read the background P0, interpolate to analysis grid and put result on proc jstep-1
+        ! NOTE: all processors participate in reading the file
+        call vhfstfld(zpsg,statevectorg%ni,statevectorg%nj,anl_gid,
+     &       1,clnomvar,datestamp,nultrl,ntrials,jstep)
 
-      if(mpi_myid.eq.0) then
-        ps3d_ptr => gsv_getField3D(statevectorg,'P0')
-        CALL INITGDG2(ps3d_ptr,zpsg,
-     &                statevectorg%ni,statevectorg%nj,1,0,CLNOMVAR)
-      endif
+        ! copy interpolated P0 to statevectorg
+        if(mpi_myid.eq.(jstep-1)) then
+          ps_ptr => gsv_getField(statevectorg,'P0')
+          CALL INITGDG2(ps_ptr(:,:,:,1),zpsg,
+     &                  statevectorg%ni,statevectorg%nj,1,0,CLNOMVAR)
+        endif
 !
-!     Temperature
+!       Temperature
 !
-      write(*,*)'subasic_gd: reading TT'
-      CLNOMVAR = 'TT'
+        write(*,*)'subasic_gd: reading TT'
+        CLNOMVAR = 'TT'
 
-      call vhfstfld(zttg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &     statevectorg%nlev,clnomvar,ibrpstamp,nultrl,ntrials)
+        ! read the background TT, interpolate to analysis grid and put result on proc jstep-1
+        ! NOTE: all processors participate in reading the file
+        call vhfstfld(zttg,statevectorg%ni,statevectorg%nj,anl_gid,
+     &       statevectorg%nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
 
-      if(mpi_myid.eq.0) then
-        tt3d_ptr => gsv_getField3D(statevectorg,'TT')
-        CALL INITGDG2(tt3d_ptr,zttg,
-     &                statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
-      endif
+        ! copy interpolated TT to statevectorg
+        if(mpi_myid.eq.(jstep-1)) then
+          tt_ptr => gsv_getField(statevectorg,'TT')
+          CALL INITGDG2(tt_ptr(:,:,:,1),zttg,
+     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
+        endif
 !
-!     Specific-Humidity
+!       Specific-Humidity
 !
-      write(*,*)'subasic_gd: reading HU'
-      CLNOMVAR = 'HU'
+        write(*,*)'subasic_gd: reading HU'
+        CLNOMVAR = 'HU'
 
-      call vhfstfld(zqqg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &     statevectorg%nlev,clnomvar,ibrpstamp,nultrl,ntrials)
+        ! read the background HU, interpolate to analysis grid and put result on proc jstep-1
+        ! NOTE: all processors participate in reading the file
+        call vhfstfld(zqqg,statevectorg%ni,statevectorg%nj,anl_gid,
+     &       statevectorg%nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
 
-      if(mpi_myid.eq.0) then
-        hu3d_ptr => gsv_getField3D(statevectorg,'HU')
-        CALL INITGDG2(hu3d_ptr,zqqg,
-     &                statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
-      endif
+        ! copy interpolated HU to statevectorg
+        if(mpi_myid.eq.(jstep-1)) then
+          hu_ptr => gsv_getField(statevectorg,'HU')
+          CALL INITGDG2(hu_ptr(:,:,:,1),zqqg,
+     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
+        endif
+
+      enddo ! jstep
 !
 !     Close the Trials files
 !
@@ -149,7 +166,7 @@
       CONTAINS
 
       subroutine vhfstfld(pvar,ini_anl,inj_anl,ktrggid,knk,
-     &                    varName,kstampv,kulfst,ktrials)
+     &                    varName,kstampv,kulfst,ktrials,kstep)
 *
 #if defined (DOC)
 *
@@ -177,7 +194,7 @@
       use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
 
-      INTEGER ktrials
+      INTEGER ktrials,kstep
       INTEGER kulfst(ktrials)
       INTEGER INI_ANL,INJ_ANL,KNK,ktrggid,kstampv
       integer inlev
@@ -273,11 +290,11 @@ c
 
       enddo !jlev
 c
-c Send all vertical levels to myid=0
+c Send all vertical levels to myid = kstep-1
 c
       do jlev = 1,itrlnlev
         pe_send = mod(jlev-1,mpi_nprocs)
-        pe_recv = 0
+        pe_recv = kstep-1
         tag = pe_send+1
         nsize=ini_anl*inj_anl
 
@@ -297,7 +314,8 @@ c
 
       deallocate(zhighvar)
 
-      if(mpi_myid.eq.0) then
+      ! From now on, only the processor with the data does work
+      if(mpi_myid.eq.kstep-1) then
 c
 c Do vertical interpolation:
 c

@@ -170,8 +170,7 @@ c
      &           ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3'
      &           ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 '
      &           ,'for variable ',cdvar,' and datev, ',kstampv
-            write(*,*) 'aborting in getfldprm2!'
-            call exit(1)
+            call abort3d('GETFLDPRM2')
           endif
         enddo
 c
@@ -200,6 +199,7 @@ c
         write(*,*) 'Error - getfldprm2: no record found at time '
      &       ,idatefull,' for field ',cdvar,' but',knlev,
      &         ' records found in unit ',kinmpg(k)
+        call abort3d('GETFLDPRM2')
       endif
 c
       return
