@@ -149,7 +149,7 @@
          call obs_reduceToMpiLocal(lobsSpaceData)
       end if
       if (obsMpiStrategy .eq. 'LATBANDS') then
-         call checkObsMpiIP(lobsSpaceData)
+         call checkObsMpiIP(lobsSpaceData,burp_split_L)
       end if
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !

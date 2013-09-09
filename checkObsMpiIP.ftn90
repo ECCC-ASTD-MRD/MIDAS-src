@@ -1,9 +1,9 @@
 
-subroutine checkObsMpiIP(lobsSpaceData)
+subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
   !
   ! PURPOSE:
   !  check if all observations are correctly distributed along latitude bands
-  !  if an observations is not, then don<t assimilate this observation
+  !  if an observations is not, then don't assimilate this observation
   !
   use MathPhysConstants_mod
   use obsSpaceData_mod
@@ -12,7 +12,8 @@ subroutine checkObsMpiIP(lobsSpaceData)
   implicit none
 
   type(struct_obs), intent(inout) :: lobsSpaceData
-
+  logical, intent(in) :: burp_split_L
+  
   integer :: headerIndex
   integer :: latindex
   integer :: ierr
@@ -21,22 +22,28 @@ subroutine checkObsMpiIP(lobsSpaceData)
 
   write(*,*) 'routine checkObsMpiIP: numHeader = ',obs_numheader(lobsSpaceData)
 
-  count_obs_in = 0
-  do headerIndex = 1, obs_numheader(lobsSpaceData)
-     latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex))
-     IP = ( mpi_nprocs * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
-     if ( IP .ne. mpi_myid ) then
-        idata = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
-        idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex) + idata -1
-        do jdata = idata, idatend
-           call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
-        enddo
+  if (burp_split_L) then
+     count_obs_in = 0
+     do headerIndex = 1, obs_numheader(lobsSpaceData)
+        latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex))
+        IP = ( mpi_nprocs * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
+        if ( IP .ne. mpi_myid ) then
+           idata = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
+           idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex) + idata -1
+           do jdata = idata, idatend
+              call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+           enddo
+           call obs_headSet_i(lobsSpaceData,OBS_ST1,headerIndex,  &
+                ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex), 05))
+        else
+           count_obs_in = count_obs_in+1
+        end if
+     end do
+     write(*,*) 'routine checkObsMpiIP: observations headers in this latitude band: ', count_obs_in
+  else
+     do headerIndex = 1, obs_numheader(lobsSpaceData)
         call obs_headSet_i(lobsSpaceData,OBS_ST1,headerIndex,  &
-             ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex), 05))
-     else
-        count_obs_in = count_obs_in+1
-     end if
-  end do
-
-  write(*,*) 'routine checkObsMpiIP: observations headers in this latitude band: ', count_obs_in
+             ibclr( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),05))
+     end do
+  end if
 end subroutine checkObsMpiIP
