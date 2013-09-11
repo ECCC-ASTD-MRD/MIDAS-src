@@ -280,16 +280,6 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
         endif
      enddo
 
-!   Pressure levels for RTTOV in mbs
-
-     !! XPRES(:) = coef(1)%ref_prfl_p(:)
-     do j=1,coefs(1)% coef %nlevels
-        XPRES(j) = coefs(1)% coef % ref_prfl_p(j)
-     enddo
-!   Reference profile min and max for water vapour (kg/kg)
-
-     OQMIN(1:nlevels1)= coefs(1)% coef %lim_prfl_gmin(:,2)/q_mixratio_to_ppmv
-     OQMAX(1:nlevels1)= coefs(1)% coef %lim_prfl_gmax(:,2)/q_mixratio_to_ppmv
   ENDIF
 
 

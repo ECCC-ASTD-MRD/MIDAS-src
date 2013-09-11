@@ -17,9 +17,6 @@
 !     SATELLITE(JPNSAT)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
 !     INSTRUMENT(JPNSAT) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
 !     CHANOFFSET(JPNSAT) : BURP to RTTOV-7 channel mapping offset
-!     XPRES(JPLEVMAX)    : pressure levels (hpa) used in the RTTOV suite
-!     OQMIN(JPLEVMAX)    : physical minina for water vapour
-!     OQMAX(JPLEVMAX)    : physical maxina for water vapour
 !     NLEVELS1           : actual number of RTTOV vertical levels
 !     LTSTTOV            : logical key activating the testing of the adjoints
 !                          of TOVS routines
@@ -39,14 +36,11 @@
       INTEGER NSENSORS,NLEVELS1
       INTEGER PLATFORM(JPNSATMAX), SATELLITE(JPNSATMAX)
       INTEGER INSTRUMENT(JPNSATMAX), CHANOFFSET(JPNSATMAX)
-      REAL*8 XPRES(JPLEVMAX)
-      REAL*8 OQMIN(JPLEVMAX)
-      REAL*8 OQMAX(JPLEVMAX)
       LOGICAL LTSTTOV, LDBGTOV, LRTNADIR, LEVEL1B, LNLVTOV
       CHARACTER*15 CSATID(JPNSATMAX), CINSTRUMENTID(JPNSATMAX)
       CHARACTER*8 CRTMODL
  
-      COMMON /COMTOV/ XPRES, LTSTTOV, LDBGTOV, LRTNADIR, LEVEL1B
+      COMMON /COMTOV/ LTSTTOV, LDBGTOV, LRTNADIR, LEVEL1B
       COMMON /COMTOV/ LNLVTOV, NSENSORS, PLATFORM, SATELLITE
-      COMMON /COMTOV/ INSTRUMENT, CHANOFFSET,OQMIN,OQMAX,NLEVELS1
+      COMMON /COMTOV/ INSTRUMENT, CHANOFFSET,NLEVELS1
       COMMON /COMTOVC/ CSATID, CINSTRUMENTID, CRTMODL

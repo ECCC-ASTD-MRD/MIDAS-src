@@ -70,7 +70,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   real(8), allocatable :: ZTS_AVHRR(:,:),SFCTAU_AVHRR(:,:),EMI_SFC_AVHRR(:,:),RCAL_CLR_AVHRR(:,:)
   real(8), allocatable :: RCLD_AVHRR(:,:,:),PTOP_BT_AVHRR(:,:,:),PTOP_RD_AVHRR(:,:,:)
   real(8), allocatable :: BTOBS_AVHRR(:,:,:),ROBS_AVHRR(:,:,:),PTOP_EQ_AVHRR(:,:)
-  real(8), allocatable :: CFRAC_AVHRR(:)
+  real(8), allocatable :: CFRAC_AVHRR(:),xpres(:)
   real(8), allocatable :: avhrr_surfem1(:)
   integer, allocatable :: CLDFLAG_AVHRR(:,:),LEV_START_AVHRR(:,:),ICHREF_AVHRR(:,:),NTOP_RD_AVHRR(:,:,:)
   integer, allocatable :: NTOP_BT_AVHRR(:,:,:),NTOP_EQ_AVHRR(:,:)
@@ -135,6 +135,9 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   NCHN = coefs(idiasi)%coef%fmv_chn
   
   NLEV = coefs(idiasi)%coef%nlevels 
+  allocate (xpres(NLEV))
+  xpres(1:NLEV)=coefs(idiasi)% coef% ref_prfl_p(1:NLEV)
+
   iextr=0
   if (nlev==44) iextr=1
   if (nlev==51) iextr=2
@@ -1133,6 +1136,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   deallocate ( MAXWF,CFRAC_AVHRR )
   deallocate (satazim,satzen,sunazim)
   deallocate (GNCLDFLAG)
-  deallocate (CORFLAG,ZLEVMOD)
+  deallocate (CORFLAG,ZLEVMOD,xpres)
 
 END SUBROUTINE IASIQC

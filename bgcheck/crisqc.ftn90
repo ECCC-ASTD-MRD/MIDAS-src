@@ -63,7 +63,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   integer       :: iextr 
 
   real(8), allocatable :: ZTG(:),ZPS(:),ZTS(:),ZT(:,:),ZHT(:,:),ZLQ(:,:),ZVLEV(:)
-  real(8), allocatable :: ZLEVMOD(:,:)
+  real(8), allocatable :: ZLEVMOD(:,:),XPRES(:)
   real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
   real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:)
   real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:)
@@ -133,6 +133,9 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   NCHN = coefs (idcris) %coef %fmv_chn
   
   NLEV = coefs(idcris)% coef %nlevels
+  allocate (xpres(NLEV))
+  xpres(1:NLEV)=coefs(idcris)% coef% ref_prfl_p(1:NLEV)
+
   iextr=0
   if (nlev==44) iextr=1
   if (nlev==51) iextr=2
@@ -831,7 +834,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
       END DO
 
 
-      deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ,stat= alloc_status(1))
+      deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ,xpres,stat= alloc_status(1))
       deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU,stat= alloc_status(2))
       deallocate (ROBS,RCLD,TRANSM,EMI_SFC,stat= alloc_status(3))
       deallocate (TOEXT,ZHOEXT,SUNZA,stat= alloc_status(4))

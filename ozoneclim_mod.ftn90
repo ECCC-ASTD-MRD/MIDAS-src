@@ -95,7 +95,7 @@ DO JN = 1, NPRF
 END DO
 
 !* interpolation of field QO3B at NLEVO3 levels of height PO3mbb
-!* into field O3P at NLEV levels of height XPRES
+!* into field O3P at NLEV levels of height PLEV
 
 FORALL(K=1:NLEVO3) PRO3(K,:) = PO3(K)
 
