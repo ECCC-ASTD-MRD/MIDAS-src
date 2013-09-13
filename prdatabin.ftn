@@ -15,13 +15,14 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine prdatabin(lobsSpaceData,nstepobs)
+      use mpi
       use obsSpaceData_mod
       use minimization_mod, only: min_get_datestamp
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
       integer :: nstepobs
 
-      integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend
+      integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend,nsize,ierr
       integer, allocatable, dimension(:,:) :: idataass,inumheader
       integer, parameter :: nfamily=9
       character*2 :: familylist(nfamily)
@@ -70,34 +71,62 @@
       enddo
 
       formatspec='(1X,A6,":"'
-      do jstep=1,nStepObs+1
-        formatspec=trim(formatspec)//',1X,I8'
+      do jstep=1,nStepObs
+        formatspec=trim(formatspec)//',1X,I6' ! this is for each time bin
       enddo
+      formatspec=trim(formatspec)//',1X,I8' ! this is for the total
       formatspec=trim(formatspec)//')'
 
       formatspec2='(1X,A6,":"'
       do jstep=1,nStepObs
-        formatspec2=trim(formatspec2)//',1X,I8'
+        formatspec2=trim(formatspec2)//',1X,I6'
       enddo
       formatspec2=trim(formatspec2)//',1X,A8)'
 
-      write(*,*)'-----------------------------------------------------'
-      write(*,*)'Distribution of number of headers over stepobs'
+      write(*,*)'-----------------------------------------------------------------'
+      write(*,*)'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'
       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
       do jfamily = 1, nfamily
         write(*,trim(formatspec)) familylist(jfamily),(inumheader(jfamily,jstep)
      &           ,jstep=1,nStepObs+1)
       enddo
       write(*,trim(formatspec)) 'ALL',(sum(inumheader(:,jstep)),jstep=1,nStepObs+1)
-      write(*,*)'-----------------------------------------------------'
-      write(*,*)'Distribution of assimilated data over stepobs'
+      write(*,*)'----------------------------------------------------------------'
+      write(*,*)'Distribution of assimilated data over stepobs ON LOCAL PROCESSOR'
       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
       do jfamily = 1, nfamily
         write(*,trim(formatspec)) familylist(jfamily),(idataass(jfamily,jstep)
      &           ,jstep=1,nStepObs+1)
       enddo
       write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
-      write(*,*)'-----------------------------------------------------'
+      write(*,*)'----------------------------------------------------------------'
+
+      nsize=size(inumheader)
+      call rpn_comm_allreduce(inumheader,inumheader,nsize,
+     &     "mpi_integer","mpi_sum","GRID",ierr)
+      nsize=size(idataass)
+      call rpn_comm_allreduce(idataass,idataass,nsize,
+     &     "mpi_integer","mpi_sum","GRID",ierr)
+
+      if(mpi_myid.eq.0) then
+        write(*,*)'----------------------------------------------------------------'
+        write(*,*)'Distribution of number of headers over stepobs ON ALL PROCESSORS'
+        write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+        do jfamily = 1, nfamily
+          write(*,trim(formatspec)) familylist(jfamily),(inumheader(jfamily,jstep)
+     &             ,jstep=1,nStepObs+1)
+        enddo
+        write(*,trim(formatspec)) 'ALL',(sum(inumheader(:,jstep)),jstep=1,nStepObs+1)
+        write(*,*)'---------------------------------------------------------------'
+        write(*,*)'Distribution of assimilated data over stepobs ON ALL PROCESSORS'
+        write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+        do jfamily = 1, nfamily
+          write(*,trim(formatspec)) familylist(jfamily),(idataass(jfamily,jstep)
+     &             ,jstep=1,nStepObs+1)
+        enddo
+        write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
+        write(*,*)'---------------------------------------------------------------'
+      endif
 
       deallocate(idataass)
       deallocate(inumheader)
