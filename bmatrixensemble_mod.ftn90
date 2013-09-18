@@ -564,7 +564,7 @@ CONTAINS
     character(len=4)   :: clnomvar
     character(len=12)  :: cletiket
     character(len=256) :: cflensin
-    character(len=4)   :: censnumber,latBandNumber
+    character(len=4)   :: censnumber,latBandNumber,lonBandNumber
     character(len=8)   :: datestr_last
     character(len=2)   :: hourstr_last
     integer :: vfstlir,fstfrm,fclos,fnom,fstouv,rpn_comm_datyp
@@ -632,38 +632,66 @@ CONTAINS
 
     ! latitude band is reverse order as proc id due to north-south flip
     write(latBandNumber,'(i4.4)') mpi_nprocs-mpi_myid
+    lonBandNumber='0001'
 
     do jens=1,nEns
 
       ! first try to open file with 4 digit member number
       write(censnumber,'(i4.4)') jens
-      cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
+
+      !! try filename 'subdomain_0001_0024/2011020100_006_0013'
+      cflensin= trim(enspathname) // '/subdomain_' // lonBandNumber // '_' // trim(latBandNumber) // '/' // &
                 trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
                 '_006_' // trim(censnumber)
       inquire(file=cflensin,exist=lExists)
       if(lExists) then
-        kulin=0
-        ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+         kulin=0
+         ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
       else
-        ! now try to open file with (older) 3 digit member number
-        write(censnumber,'(i3.3)') jens
-        cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
-                  trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
-                  '_006_' // trim(censnumber)
-        inquire(file=cflensin,exist=lExists)
-        if(lExists) then
-          kulin=0
-          ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
-        else
-          write(*,*) 'filename=',trim(cflensin)
-          write(*,*) '============================================================================='
-          write(*,*) 'ben setupEnsemble_latbands: Could not open ensemble file, trying global files'
-          write(*,*) '============================================================================='
-          return_code = -1
-          deallocate(ensPerturbations)
-          return
-        endif
+
+         write(censnumber,'(i3.3)') jens
+         !! try filename 'subdomain_0001_0024/2011020100_006_013'
+         cflensin= trim(enspathname) // '/subdomain_' // lonBandNumber // '_' // trim(latBandNumber) // '/' // &
+              trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
+              '_006_' // trim(censnumber)
+         inquire(file=cflensin,exist=lExists)
+         if(lExists) then
+            kulin=0
+            ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+         else
+
+            write(censnumber,'(i4.4)') jens
+            !! try filename 'latband_0024/2011020100_006_0013'
+            cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
+                 trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
+                 '_006_' // trim(censnumber)
+            inquire(file=cflensin,exist=lExists)
+            if(lExists) then
+               kulin=0
+               ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+            else
+               write(censnumber,'(i3.3)') jens
+               !! try filename 'latband_0024/2011020100_006_013'
+               cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
+                    trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
+                    '_006_' // trim(censnumber)
+               inquire(file=cflensin,exist=lExists)
+               if(lExists) then
+                  kulin=0
+                  ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+               else
+                  write(*,*) 'filename=',trim(cflensin)
+                  write(*,*) '============================================================================='
+                  write(*,*) 'ben setupEnsemble_latbands: Could not open ensemble file, trying global files'
+                  write(*,*) '============================================================================='
+                  return_code = -1
+                  deallocate(ensPerturbations)
+                  return
+               endif
+            endif
+         endif
       endif
+      write(*,*) 'ben setupEnsemble_latbands: opening file ', cflensin
       ierr = fstouv(kulin,'RND+OLD')
 
       write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
