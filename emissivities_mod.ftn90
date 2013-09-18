@@ -617,7 +617,7 @@ contains
     INTEGER            :: JN
     CHARACTER(len=1)   :: TYPVAR
     CHARACTER(len=1)   :: GRTYP3,GRTYP4,GRTYP5
-    CHARACTER(len=2)   :: NOMVAR
+    CHARACTER(len=2)   :: NOMVAR, snowvar
     CHARACTER(len=8)   :: ETIKET
     INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTINF,FSTPRM,FSTFRM,FCLOS
     INTEGER,EXTERNAL   :: ezsetopt,ezqkdef,ezdefset
@@ -725,8 +725,15 @@ contains
     IX3 = FSTINF(iun3,NI3,NJ3,NK3,-1,'',-1,-1,-1,'','LG')
     write(*,*) 'variable = LG           : FSTINF : return = ', IX3
 
-    IY3 = FSTINF(iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'','NE')
-    write(*,*) 'variable = NE           : FSTINF : return = ', IY3
+    snowvar='SD'
+    IY3 = FSTINF(iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'',snowvar)
+    write(*,*) 'variable = ', snowvar, '           : FSTINF : return = ', IY3
+    if ( IY3 .lt. 0 ) then
+       write(*,*) 'did not find ''SD'' so look for ''NE'''
+       snowvar='NE'
+       IY3 = FSTINF(iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'',snowvar)
+       write(*,*) 'variable = ', snowvar, '           : FSTINF : return = ', IY3
+    end if
 
     IZ3 = FSTINF(iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
     write(*,*) 'variable = AL           : FSTINF : return = ', IZ3
@@ -746,7 +753,7 @@ contains
     IY4 = FSTPRM(iy3, DATEO,DEET,NPAS,NI4,NJ4,NK4,NBITS,DATYP, &
                       IP1,IP2,IP3,TYPVAR,NOMVAR,ETIKET,GRTYP4,  &
                       IG14,IG24,IG34,IG44,SWA,LNG,DLTF,UBC,EX1,EX2,EX3)
-    write(*,*) 'variable = NE           : FSTPRM : return = ', IY4
+    write(*,*) 'variable = ', snowvar, '           : FSTPRM : return = ', IY4
 
     IZ4 = FSTPRM(iz3, DATEO,DEET,NPAS,NI5,NJ5,NK5,NBITS,DATYP, &
                       IP1,IP2,IP3,TYPVAR,NOMVAR,ETIKET,GRTYP5,  &
@@ -770,8 +777,8 @@ contains
     IX5 = vfstlir(GLACE, iun3,NI3,NJ3,NK3,-1,'',-1,-1,-1,'','LG')
     write(*,*) 'variable = LG           : VFSTLIR : return = ', IX5
 
-    IY5 = vfstlir(NEIGE, iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'','NE')
-    write(*,*) 'variable = NE           : VFSTLIR : return = ', IY5
+    IY5 = vfstlir(NEIGE, iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'',snowvar)
+    write(*,*) 'variable = ', snowvar, '           : VFSTLIR : return = ', IY5
 
     IZ5 = vfstlir(ALB,   iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
     write(*,*) 'variable = AL           : VFSTLIR : return = ', IZ5
@@ -832,13 +839,13 @@ contains
     write(*,*) 
 
     IY8 = ezqkdef(ni4,nj4,grtyp4,ig14,ig24,ig34,ig44,iun3)
-    write(*,*) 'variable = NE           : ezqkdef  : return = ', IY8
+    write(*,*) 'variable = ', snowvar, '           : ezqkdef  : return = ', IY8
 
     IY9 = ezdefset(iv7,iy8)
-    write(*,*) 'variable = NE           : ezdefset : return = ', IY9
+    write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', IY9
 
     IY10 = vezsint(NEIGE_INTRPL,neige,nprf,1,1,ni4,nj4,1)
-    write(*,*) 'variable = NE           : vezsint  : return = ', IY10
+    write(*,*) 'variable = ', snowvar, '           : vezsint  : return = ', IY10
 
     write(*,*) 
 
@@ -883,7 +890,6 @@ contains
       PROFILES_QC(IPTOBS(JN))%SNOW     = NEIGE_INTRPL(JN)
       PROFILES_QC(IPTOBS(JN))%ALBEDO   = ALB_INTRPL(JN)
     END DO
-
 
     DEALLOCATE(GLACE,NEIGE,ALB)
 
