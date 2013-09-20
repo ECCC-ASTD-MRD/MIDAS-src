@@ -811,6 +811,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !***s/r  SOBSCSBT
 !*
 !*Author  : R. Sarrazin *CMC/AES  June 2008
+!*Revision: A. Beaulne  CMDA      October 2012
+!*          Set bit 9 in addition to the already setting of bit 18
 !*
 !**    Purpose:
 !*      Refuse data which are too close to the surface.
@@ -888,6 +890,8 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
                     ENDIF
                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,index_body,0)
                     IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body, &
+                           IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
                     call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body, &
                            IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),18))
                  ENDIF

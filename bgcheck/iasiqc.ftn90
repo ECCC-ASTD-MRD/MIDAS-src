@@ -1018,11 +1018,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
      END DO
   END DO
 
-! *** TEST # 11 ***
-! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
-
-!          IF ( hir_get_assim_chan("IASI",JC) == 1 .AND. CORFLAG(JC,JN) == 0 ) REJFLAG(JC,JN,11) = 1
-
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
 
   ASSIM_ALL(:) = .true.
