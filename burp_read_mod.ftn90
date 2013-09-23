@@ -1273,7 +1273,7 @@ CONTAINS
     REAL(OBS_REAL)         :: RELEV,XLAT,XLON
     REAL                   :: XTIME,SECONDS
     INTEGER                :: status ,idtyp,lati,long,dx,dy,elev, &
-                               drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC
+                               drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
 
     INTEGER                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO,LN
     INTEGER                :: bit_alt,btyp_offset,btyp_offset_uni
@@ -1898,15 +1898,13 @@ CONTAINS
        	        CALL INCDATR(kstamp, kstamp2, XTIME/60.d0  )
        	        IER=newdate(kstamp,date2,time_sonde,-3)
                 time2=time_sonde/10000
-                YMD_DATE=date2
-!stl                HM=time2
-                 HM_SFC=time2
+                YMD_DATE_SFC=date2
+                HM_SFC=time2
               ENDIF
 
               NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
 	      IF ( NDATA_SF .GT. 0) THEN
-!stl                call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
-                call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
+                call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
 	        OBSN=obs_numHeader(obsdat)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE),  OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA_SF)
