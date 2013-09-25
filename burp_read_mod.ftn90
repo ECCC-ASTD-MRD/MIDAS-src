@@ -2024,7 +2024,7 @@ CONTAINS
             ENDIF
 
             !============ IASI =====================================
-            if ( allocated(RADMOY) ) then
+            if ( allocated(RADMOY) .and. NDATA .gt. 0 ) then
 
               iclass=1
               do iobs=OBS_CF1,OBS_CF7
