@@ -74,7 +74,7 @@ CONTAINS
     nEns=10
     ntrunc=31
     nLevEns=nLevInc_in
-    enspathname='/users/dor/arma/bue/gpfs/3dvar_modular/ensemble/'
+    enspathname='***NOT_DEFINED***'
     ensfilebasename=''
     hLocalize(1)=2800.0d0
     hLocalize(2)=-1.0d0
