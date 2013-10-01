@@ -2106,15 +2106,17 @@ CONTAINS
         enddo
       enddo
 
-      ila = gst_getNind(0) +jn
-      do jk = 1, nkgdim_l
-        sp(ila,1,jk) = sp(ila,1,jk)*sq2
-        sp(ila,2,jk) = sp(ila,2,jk)*sq2
-      enddo
-      do jk = 1, nflev_l
-        sptb(ila,1,jk) = sptb(ila,1,jk)*sq2
-        sptb(ila,2,jk) = sptb(ila,2,jk)*sq2
-      enddo
+      if(mymBeg.eq.0) then
+        ila = gst_getNind(0) +jn
+        do jk = 1, nkgdim_l
+          sp(ila,1,jk) = sp(ila,1,jk)*sq2
+          sp(ila,2,jk) = sp(ila,2,jk)*sq2
+        enddo
+        do jk = 1, nflev_l
+          sptb(ila,1,jk) = sptb(ila,1,jk)*sq2
+          sptb(ila,2,jk) = sptb(ila,2,jk)*sq2
+        enddo
+      endif
 
       do jk=1,nkgdim_l
         do ila=1,ntrunc_l+1
