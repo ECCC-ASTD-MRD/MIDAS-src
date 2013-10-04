@@ -1,3 +1,5 @@
+! -*- F90 -*-
+
 ! Basic module that should be included everywhere in the gpsmet library,
 ! either explicitly or implicitly through a module containing it.
 !
@@ -8,8 +10,10 @@
 ! Also contains the maximum number of model vertical levels in the gps
 ! routines.
 !
-! Josep M. Aparicio
-! Meteorological Service of Canada, 2006
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
+! 
 
 module modgps00base
   implicit none
@@ -27,6 +31,9 @@ module modgps00base
 
   ! Maximum number of gps levels:
   integer(i4), parameter :: ngpssize  = 100
+
+  ! Maximum number of gps extra fictitious low levels:
+  integer(i4), parameter :: ngpsxlow  = 20
 
   ! Associated maximum number of control variables:
   integer(i4), parameter :: ngpscvmx  = 2*ngpssize+1

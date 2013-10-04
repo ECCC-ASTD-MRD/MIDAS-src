@@ -17,156 +17,285 @@
       SUBROUTINE DOBSGPSGB(PJO,lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
-***s/r DOBSGPSGB - Computation of Jo and the residuals to the GPSGB observations
+***s/r DOBSGPSGB - Computation of Jo and the residuals to the GB-GPS ZTD observations
 *
 *
-*Author  : S. Macpherson *ARMA March 2004
+*Author  : S. Macpherson  ARMA/MRD
+*Revisions:
+*          S. Macpherson Oct 2012
+*           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
+*           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
+*           -- option to use old NL operator removed
+*           -- ZTD operator gpsZTDopv is found in MODIF modgps08refop.f90
+*           -- Uses columnData_mod.
+*
+*          S. Macpherson Dec 2012 - Jan 2013
+*           -- update from Rev189 to Rev213
+*           -- new namelist parameters in comgpsgb.cdk
+*           -- ZTD operator gpsZTDopv is found in NEW modgps08ztdop.cdk90
+*           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
+*           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
+*           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
+*
+*          S. Macpherson Jun 2013
+*           -- Use true implementation of ZDP (dP/dP0), although not needed here
+*
 *    -------------------
-**    Purpose: Compute Jo and norm. innovations for all GPS ZTD observations
-*
-*Arguments
-*     PJO: (returned) total value of Jo for GPSGB (on input = 0.0)
-*
-*Revision:
-*       S. Macpherson *ARMA  December 2008
-*         -- modified continuation of first/single site data printout statement
-*           (was not printing anything)
+
+*Arguments (out)
+*     PJO: total value of Jo for all GB-GPS (ZTD) observations
 *
 #endif
       use EarthConstants_mod
       use MathPhysConstants_mod
+      use modgps04profilezd
+      use modgps08ztdop
       use obsSpaceData_mod
-      use columnData_mod 
+      use columnData_mod
       use bufr
+      use modgpsztd_mod
+      use vGrid_Descriptors
       IMPLICIT NONE
 *implicits
+#include "comct0.cdk"
 #include "comgpsgb.cdk"
-*
+C
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO
 C
       type(struct_vco), pointer :: vco_trl
-      REAL*8 ZLAT
-      REAL*8 ZLON
-      REAL*8, allocatable :: ZETA(:)
+      REAL*8 ZLAT, Lat
+      REAL*8 ZLON, Lon
+      REAL*8, allocatable :: ZPP (:)
+      REAL*8, allocatable :: ZDP (:)
       REAL*8, allocatable :: ZTT (:)
       REAL*8, allocatable :: ZHU (:)
-      REAL*8, allocatable :: ZGZ (:)
       REAL*8 ZP0
-      REAL*8 ZPT
+      REAL*8 ZPT, ZPR, ZCF
       REAL*8 ZMT
+      REAL*8 ZDZMIN
 C
-      REAL*8 ZOBS, ZOER, ZINC, ZHX, ZLEV, ZDZ
+      REAL*8 ZOBS, ZOER, ZINC, ZHX, ZLEV
+      REAL*8 ZDZ, ZPSOBS, ZPSMOD, ZPWMOD, ZPOMP, ZPOMPS
+      
+      REAL*8 ZTDOMP(max_gps_data)
+      REAL*8 BIAS, STD
 C
-      INTEGER INDEX_HEADER,INDEX_BODY
+      INTEGER INDEX_HEADER, IONEOBS
       INTEGER IDATYP, ITYP
-      INTEGER JL, nlev_T
-C
-      LOGICAL  ASSIM, LLOK, FIRSTHEADER
+      INTEGER INDEX_BODY, INDEX_ZTD, iztd
+      INTEGER JL, NGPSLEV, NLEV_T, NOBS2P, stat, stat1
+      INTEGER ICOUNT1, ICOUNT2, ICOUNT3, ICOUNT, ICOUNTP, status
+      INTEGER,pointer,dimension(:) :: IP1
+      CHARACTER*2  LV
 
-      INTEGER NH, NH1
+      real sfcfield
+      REAL  ,pointer,dimension(:) :: rDP
+
+C
+      LOGICAL  ASSIM, LSTAG, LLOK, LLREJ
+
+      TYPE(GPSPROFILEZD)    :: PRF
+      TYPE(GPSDIFF)         :: ZTDopv
+C
+C     PW lower limit (mm) and Ps O-P upper limit (Pa) for ZTD assimilation
+c       Note:  1 mb = 100 Pa --> 2.2 mm ZTD
+C
+      REAL*8 ZPWMIN, ZPOMPMX
+
+      DATA ZPWMIN    /   2.0D0 /
+      DATA ZPOMPMX   / 200.0D0 /
+C
+C     Criteria to select single observation (1-OBS mode)
+C
+c     Minimum value for ZTD O-P (m)
+      REAL XOMPMIN
+      DATA XOMPMIN   / 0.015 /
+c     Minimum value for background (trial) PW (mm)
+      REAL XPWMIN
+      DATA XPWMIN    / 20.0  /
+c     Maximum height difference between observation and background surface (m)
+      REAL XDZMAX
+      DATA XDZMAX    / 400.0 /
+
+      WRITE(*,*)'ENTER DOBSGPSGB'
+
+      ZDZMIN = DZMIN
+      
+      NOBS2P = 50
+C
+      vco_trl => col_getVco(lcolumnhr)
+      stat = 0
+      stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
+
+      LSTAG = .FALSE.
+      if (vco_trl%svcod .eq. 'gemstg') then
+         LSTAG = .TRUE. 
+         WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
+         WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
+         LV = 'TH'
+      else
+         WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
+         WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
+         ZPR = vco_trl%dprf_M
+         ZCF = vco_trl%drcf1
+         LV = 'NA'         
+      endif
+
+      IF (LTESTOP) write(*,*) '  Trial grid vco_trl%svcod = ', vco_trl%svcod
+
+      nlev_T = col_getNumLev(lcolumnhr,'TH')
+      IF (LTESTOP) write(*,*) '  col_getNumLev(lcolumnhr) = ', nlev_T
       
 C
 C     * 1.  Initializations
 C     *     ---------------
 C
-      firstheader=.true.
-      nlev_T=col_getNumLev(lcolumnhr,'TH')
-      allocate(zeta(nlev_T))
-      allocate(ztt(nlev_T))
-      allocate(zhu(nlev_T))
-      allocate(zgz(nlev_T))
-C
-C     *    .   1.1  Eta vector
-C     *    .        ----------
-C      
-      vco_trl => col_getVco(lcolumnhr)
-      DO JL = 1, nlev_T
-         ZETA(JL) = vco_trl%dhyb_T(JL)
-      ENDDO
-C
-C     Loop over all observation files (all observation types)
+      allocate(ZTT(nlev_T))
+      allocate(ZHU(nlev_T))
+      allocate(ZDP(nlev_T))
+      allocate(ZPP(nlev_T))
+
+      NGPSLEV = nlev_T
 C
       WRITE(*, *) ' '
       WRITE(*, *) ' '
-      WRITE(*,'(A11,A9,3A8,A9,4A8,A10)')
-     +     'DOBSGPSGB','CSTNID','ZLAT','ZLON',
-     +     'ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P','PJO'
-C
-      ! loop over all header indices of the 'GP' family (GPS observations)
+      WRITE(*,'(A11,A9,3A8,A9,4A8,2A9,A7,A10,A11)')
+     + 'DOBSGPSGB','CSTNID','ZLAT','ZLON','ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P',
+     + 'ZPOMPS','ZPOMP','ZPWMOD','PJO','ZINC2'
+
+      ICOUNT  = 0
+      ICOUNT1 = 0
+      ICOUNT2 = 0
+      ICOUNT3 = 0
+      ICOUNTP = 0
+      IONEOBS = -1
+
+c     loop over all header indices of the 'GP' family (all obs locations/times)
       call obs_set_current_header_list(lobsSpaceData,'GP')
+
       HEADER: do
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
+
+         ZPSOBS = -100.00
 C     
-C     *  Process only zenith delay data (codtyp 189)
+C     *  Process only GP data (codtyp 189)
 C
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IF ( IDATYP .EQ. 189 ) THEN
-C
+
             ASSIM = .FALSE.
+
+C           Scan for requested ZTD assimilation.
+C           Get GPS antenna height ZLEV and Ps(ZLEV) (ZPSOBS)
 C
-C           Scan for requested assimilations, and count them.
-C           Get station height ZLEV
-C
-            NH = 0
-            ! loop over all body indices for this index_header
-            call obs_set_current_body_list(lobsSpaceData, index_header)
-            BODY: do 
+c           loop over all body indices for this index_header (observations at location/time)
+            call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+            BODY: DO 
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
-
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
                LLOK = ( (ITYP .EQ. BUFR_NEZD) .AND. 
      &                (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) )
                IF ( LLOK ) THEN
                   ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                   ASSIM = .TRUE.
-                  NH = NH + 1
+c                 Index in body of ZTD datum                  
+                  INDEX_ZTD = INDEX_BODY
+                  ICOUNT = ICOUNT + 1
+               ENDIF
+               IF ( ITYP .EQ. BUFR_NEPS ) THEN
+                 IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
+     &              .EQ. 1) .OR. LLBLMET ) THEN
+                   ZPSOBS = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                   ZPOMPS = -obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
+     &                      *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                 ENDIF
                ENDIF
             ENDDO BODY
 C
-C     *     If assimilations are requested, apply the observation operator
+C     *     If ZTD assimilation is requested, apply the observation operator
 C
             IF (ASSIM) THEN
 C     
-C     *        Profile at the observation location x :
+C     *        Profile at the observation location:
 C
-               ZLAT = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) * MPC_DEGREES_PER_RADIAN_R8
-               ZLON = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) * MPC_DEGREES_PER_RADIAN_R8
-               DO JL = 1, nlev_T
-                  ZTT(JL) =     col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
-                  ZHU(JL) = EXP(col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU'))
-                  ! BUE: ORIGINALLY GZ, SHOULD PROBABLY BY GZ_T???
-                  ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') 
-               ENDDO
+               Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+               Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+               ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+               ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                ZP0 =  col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               ! BUE: ORIGINALLY RPPOBS, SHOULD PROBABLY BY RPPOBS_T???
-               ZPT = col_getPressure(LCOLUMNHR,1,INDEX_HEADER,'TH')
-               ZMT = ZGZ(nlev_T)/GRAV
-C
-C     *        Apply the ZTD observation operator ZHX = H(x)
-C 
-C
-               ZHX = 0.0
+               sfcfield = zP0
+               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP,sfcfield)
+               ZMT  = col_getHeight(lcolumnhr,NGPSLEV,INDEX_HEADER,LV)/RG
+               DO JL = 1, NGPSLEV
+                 ZPP(JL) = col_getPressure(lcolumnhr,JL,INDEX_HEADER,LV)
+C     *        True implementation of ZDP (dP/dP0)
+                 ZDP(JL) = rDP(JL)
+                 ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-273.15
+                 ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+               ENDDO
                ZDZ = ZLEV - ZMT
-               CALL GPSZTDOP(ZLAT,ZLON,ZLEV,ZETA,ZTT,ZHU,ZP0,ZPT,
-     +              ZMT,ZGZ,ZHX,LCOLUMNHR)
+               ZPT = ZPP(1)
+C     
+C     *        Fill GPS ZTD profile structure (PRF):
+C
+               CALL gpsstructztd(NGPSLEV,Lat,Lon,ZMT,ZPP,ZDP,ZTT,ZHU,LBEVIS,IREFOPT,PRF)
+c
+C              Apply the GPS ZTD observation operator
+C              --> output is model ZTD (type gpsdiff) and P at obs height ZLEV
+C
+               CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+
+c            Get model profile PW
+               CALL gpsPW(PRF,ZPWMOD)
+c            ZTD (m)
+               ZHX    = ZTDopv%Var
+c
+C     *       If analysis mode, reject ZTD data for any of the following conditions:
+c              (1) the trial PW is too low (extremely dry) 
+c              and if LASSMET=true
+c              (2) Ps observation is missing or out of normal range
+c              (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
+c
+               LLREJ = .FALSE.
+               ZPOMP = -9999.00
+               IF ( NCONF .EQ. 141 ) THEN
+                 LLREJ = ( ZPWMOD .LT. ZPWMIN )
+                 IF ( LASSMET ) THEN
+                   IF ( .NOT. LLREJ ) THEN
+                     IF ( ZPSOBS .GT. 40000.0 .AND. ZPSOBS .LE. 110000.0 ) THEN
+                       ZPOMP = ZPSOBS - ZPSMOD
+                       LLREJ = ( ABS(ZPOMP) .GT. ZPOMPMX )
+                       IF ( LLREJ ) ICOUNT3 = ICOUNT3 + 1
+                     ELSE
+                       LLREJ = .TRUE.
+                       ICOUNT2 = ICOUNT2 + 1
+                     ENDIF
+                   ELSE
+                     ICOUNT1 = ICOUNT1 + 1
+                   ENDIF
+                 ENDIF
+               ENDIF
+C
+               IF ( LLREJ ) THEN
+                 call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_ZTD, 0)
+                 IF ( .NOT. LASSMET ) ICOUNT1 = ICOUNT1 + 1
+               ENDIF
 C
 C     *        Perform the (H(x)-Y)/SDERR operation
 C
-               NH1 = 0
-               ! loop over all body indices for this index_header
+c              loop over all body indices for this index_header
                call obs_set_current_body_list(lobsSpaceData, index_header)
-               BODY_2: do 
+               BODY_2: DO 
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_2
-
                   ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND. 
-     +               ITYP .EQ. BUFR_NEZD ) THEN
-                     NH1 = NH1 + 1
+                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) 
+     &               .EQ. 1 .AND.  ITYP .EQ. BUFR_NEZD ) THEN
+                     ICOUNTP = ICOUNTP + 1
 C
 C     *              Observation value    Y
 C
@@ -175,54 +304,157 @@ C
 C     *              Observation error    SDERR
 C
                      ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-C
+                     if ( ZOER .LE. 0.0 ) then
+                       write(*,*) ' Problem with ZTD observation error!'
+                       write(*,*) ' Station =', 
+     &                  obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+                       write(*,*) ' Error =', ZOER
+                       call abort3d('DOBSGPSGB: ABORT! BAD ZTD OBSERR') 
+                     endif
+
 C     *              Observation height (m)
 C
                      ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 C
-C     *              Normalized increment
+C     *              Normalized increment ZINC
 C
-                     ZINC = (ZHX - ZOBS) / ZOER
+                     ZTDOMP(ICOUNTP) = ZOBS - ZHX
+                     ZINC  = (ZHX - ZOBS) / ZOER
                      call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZINC)
-C
-C     *              Contribution to the cost function
-C
+                     call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, ZINC)
+C                           
                      PJO = PJO + 0.5d0 * ZINC * ZINC
-C     
-C     *              Print data for first observation or single site
-                     IF (L1GPSOBS) THEN
-                        IF (obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .EQ. CGPSSTN) THEN
-                           WRITE(*,
-     +                      '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                      'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
-     +                      ZLAT,ZLON,ZLEV,ZDZ,
-     +                      ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
-                        ENDIF
-                     ELSE
-                        IF (FIRSTHEADER .AND. NH1 .EQ. 1) THEN
-                           WRITE(*,
-     +                      '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),1x,f9.2)')
-     +                      'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
-     +                      ZLAT,ZLON,ZLEV,ZDZ,
-     +                      ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,PJO
-                        ENDIF
+C
+C     *              Apply data selection criteria for 1-OBS Mode
+C
+                     IF ( L1OBS .AND. IONEOBS .EQ. -1 ) THEN
+                       IF ( (ZOBS-ZHX) .GT. XOMPMIN .AND. ZPWMOD .GT. XPWMIN 
+     &                      .AND. ABS(ZDZ) .LT. XDZMAX ) THEN
+                          IONEOBS = INDEX_HEADER
+                          WRITE(*,*) 'SINGLE OBS SITE = ', 
+     &                     obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+                       ENDIF
                      ENDIF
 C
+C     *              Print data for first NOBS2P observations
+C
+                     IF ( ICOUNTP .LE. NOBS2P ) THEN
+                        WRITE(*,
+     +                   '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')
+     +                   'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
+     +                   ZLAT,ZLON,ZLEV,ZDZ,ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,
+     +                   ZPOMPS/100.,ZPOMP/100.,ZPWMOD,PJO,ZINC/ZOER
+                     ENDIF
+                     
                   ENDIF
                ENDDO BODY_2
 
             ENDIF
+
          ENDIF
 
-         firstheader = .false.
-
       ENDDO HEADER
-C
-      deallocate(zeta)
-      deallocate(ztt)
-      deallocate(zhu)
-      deallocate(zgz)
 
+      deallocate(ZTT)
+      deallocate(ZHU)
+      deallocate(ZDP)
+      deallocate(ZPP)
+      
       WRITE(*, *) ' '
+      WRITE(*, *) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', ICOUNTP
+      BIAS = SUM(ZTDOMP(1:ICOUNTP))/FLOAT(ICOUNTP)
+      STD = 0.d0
+      DO JL = 1, ICOUNTP
+        STD = STD + (ZTDOMP(JL)-BIAS)**2
+      ENDDO
+      STD = SQRT(STD/(float(ICOUNTP)-1.))
+      WRITE(*, *) '     MEAN O-P (BIAS) [mm] = ', BIAS*1000.
+      WRITE(*, *) '     STD  O-P        [mm] = ', STD*1000.
+      WRITE(*, *) ' '
+
+      IF ( L1OBS .AND. NCONF .EQ. 141 ) THEN
+c   Set assim flag to 0 for all observations except for selected record (site/time)
+        IF ( IONEOBS .NE. -1 ) THEN
+          call obs_set_current_header_list(lobsSpaceData,'GP')
+          ICOUNTP = 1
+          HEADER_1: do
+            index_header = obs_getHeaderIndex(lobsSpaceData)
+            if (index_header < 0) exit HEADER_1
+            if (index_header .ne. IONEOBS ) then
+                call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+                BODY_1: DO 
+                  index_body = obs_getBodyIndex(lobsSpaceData)
+                  if (index_body < 0) exit BODY_1
+                  call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
+                ENDDO BODY_1
+            endif
+          enddo HEADER_1
+        ELSE
+          call abort3d('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
+        ENDIF
+      ENDIF
+      
+      numGPSZTD = ICOUNTP
+
+      IF ( NCONF .EQ. 141 .AND. ICOUNT .GT. 0 ) THEN
+
+        IF ( .NOT.L1OBS ) THEN
+        WRITE(*, *) ' '
+        WRITE(*, *) '----------------------------------------'
+        WRITE(*, *) ' SUMMARY OF ZTD REJECTIONS IN DOBSGPSGB '
+        WRITE(*, *) '----------------------------------------'
+        WRITE(*, *) ' TOTAL NUMBER OF ZTD DATA ORIGINALLY FLAGGED FOR ASSMILATION = ', ICOUNT
+        WRITE(*, *) '       NUMBER OF ZTD DATA       REJECTED DUE TO LOW TRIAL PW = ', ICOUNT1
+        WRITE(*, *) '       NUMBER OF ZTD DATA       REJECETD DUE TO    NO PS OBS = ', ICOUNT2
+        WRITE(*, *) '       NUMBER OF ZTD DATA       REJECETD DUE TO LARGE PS O-P = ', ICOUNT3
+        WRITE(*, *) ' TOTAL NUMBER OF REJECTED ZTD DATA                           = ', ICOUNT1+ICOUNT2+ICOUNT3
+        WRITE(*, *) '       PERCENT   REJECTED                                    = ', 
+     +       (FLOAT(ICOUNT1+ICOUNT2+ICOUNT3) / FLOAT(ICOUNT))*100.0
+        WRITE(*, *) ' TOTAL NUMBER OF ASSIMILATED ZTD DATA                        = ', ICOUNTP
+        WRITE(*, *) 'MEAN JO = (PJO/numGPSZTD)*YZDERRWGT**2 = ', 
+     +       (PJO/FLOAT(ICOUNTP))*YZDERRWGT**2
+C
+        WRITE(*, *) ' '
+        ENDIF
+
+        IF (numGPSZTD .GT. 0) THEN
+          write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numGPSZTD
+          write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
+          allocate(vGPSZTD_Index(numGPSZTD))
+          iztd = 0
+          call obs_set_current_header_list(lobsSpaceData,'GP')
+          HEADER_2: DO
+             index_header = obs_getHeaderIndex(lobsSpaceData)
+             if (index_header < 0) exit HEADER_2
+             IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+             IF ( IDATYP .EQ. 189 ) THEN
+               call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+               BODY_3: DO 
+                 index_body = obs_getBodyIndex(lobsSpaceData)
+                 if (index_body < 0) exit BODY_3
+                 ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+                 IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 
+     &             .AND.  ITYP .EQ. BUFR_NEZD ) THEN  
+                   iztd = iztd + 1
+                   vGPSZTD_Index(iztd) = INDEX_HEADER
+                 ENDIF
+               ENDDO BODY_3
+             ENDIF
+          ENDDO HEADER_2
+          
+          if ( iztd .ne. numGPSZTD ) then
+            call abort3d('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
+          endif
+          
+        ENDIF
+
+      ELSE
+      
+        IF ( ICOUNT .GT. 0 ) WRITE(*, *) ' '
+        
+      ENDIF
+      
+      WRITE(*,*)'EXIT DOBSGPSGB'
       RETURN
+      
       END

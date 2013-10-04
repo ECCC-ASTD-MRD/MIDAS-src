@@ -35,7 +35,6 @@
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
-#include "comgpsgb.cdk"
 #include "comfilt.cdk"
 
       type(struct_obs) :: lobsSpaceData
@@ -137,10 +136,6 @@
       call suprep(lobsSpaceData)
       call tmg_stop(14)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-!
-!     If single GB-GPS observation assimilation, select the observation
-!
-      IF ( L1GPSOBS ) CALL FILT_GPSGB(lobsSpaceData)
 !
 !     Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
 !

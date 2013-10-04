@@ -20,9 +20,13 @@
 ***s/r SUGPSGB : Initialisation of ground-based GPS
 *
 *Author  : Stephen Macpherson *ARMA/MRD August 2008
+*Revsions:
+*     Stephen Macpherson  December 2012
+*        -- modifcation to GB-GPS namelist parameters
 *
 *    -------------------
-**    Purpose: to read and initialize GB-GPS namelist parameters
+**    Purpose: to read and initialize GB-GPS namelist parameters and print information
+**             on options selected.
 *
 #endif
       IMPLICIT NONE
@@ -30,7 +34,7 @@
 #include "comfilt.cdk"
 #include "comgpsgb.cdk"
 *
-      INTEGER KIERR, IELE, j
+      INTEGER KIERR, IELE, J
 C
       LOGICAL LLGP
 C
@@ -51,19 +55,156 @@ C
       DZMIN  = 2.0
       DZMAX  = 1000.0
       YZTDERR = 0.012
-      NJLEVP = 57
       LASSMET = .TRUE.
       YSFERRWGT = 1.0
-      L1GPSOBS = .FALSE.
-      CGPSSTN = 'ABCDEFGHI'
+      LLBLMET = .FALSE.
       YZDERRWGT = 1.0
-      RCK1 = 0.776
-      RCK2 = 0.704
-      RCK3 = 3739.0
+      LBEVIS = .TRUE.
+      IREFOPT = 1
+      L1OBS = .FALSE.
+      LTESTOP = .FALSE.
+      IZTDOP = 1
 c
       IF ( .NOT. LLGP ) RETURN
 c
       CALL READNML('NAMGPSGB',KIERR)
+
+      IF (L1OBS) THEN
+        write(*,*)' '
+        write(*,*)' ******************************************'
+        write(*,*)' *        GB-GPS OBSERVATIONS             *'
+        write(*,*)' *                                        *'
+        write(*,*)' *        ONE OBSERVATION MODE            *'
+        write(*,*)' *                                        *'
+        write(*,*)' ******************************************'
+        write(*,*)' '
+      ENDIF
+
+C     Options to fix/adjust model ZTD to observation height and
+C     assimilate GPS met data
+C
+      write(*,*)' '
+      write(*,*)' ******************************************'
+      write(*,*)' *        GB-GPS OBSERVATIONS             *'
+      write(*,*)' * DZ ADJUSTMENT IN gpsZTDopv IF DZ>DZMIN *'
+      write(*,*)' * ZTD NOT ASSIM. IF DZ > DZMAX           *'
+      write(*,*)' *                                        *'
+      write(*,*)' ******************************************'
+      write(*,*) ' '
+      write(*,*) 'DZMIN, DZMAX = ', DZMIN, DZMAX
+      write(*,*) ' '
+C
+      IF (LASSMET) THEN
+        IF ( LLBLMET ) THEN
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *     GPS MET DATA ARE ASSIMILATED      *'
+        write(*,*)' *     BUT BLACKLISTED NEAR SYNO STNS    *'
+        write(*,*)' *                                       *'
+        write(*,*)' *****************************************'
+        write(*,*) 'YSFERRWGT = ', YSFERRWGT
+        write(*,*) 'YZDERRWGT = ', YZDERRWGT
+        write(*,*) ' '        
+        ELSE
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *     GPS MET DATA ARE ASSIMILATED      *'
+        write(*,*)' *                                       *'
+        write(*,*)' *****************************************'
+        write(*,*) 'YSFERRWGT = ', YSFERRWGT
+        write(*,*) 'YZDERRWGT = ', YZDERRWGT
+        write(*,*) ' '
+        ENDIF
+      ELSE
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *   GPS MET DATA ARE NOT ASSIMILATED    *'
+        write(*,*)' *                                       *'
+        write(*,*)' *****************************************'
+        write(*,*) 'YZDERRWGT = ', YZDERRWGT
+        write(*,*) ' '
+      ENDIF
+C
+      IF (YZTDERR .LT. 0.0) THEN
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *    ZTD OBSERVATION ERROR FROM FERR    *'
+        write(*,*)' *                                       *'
+        write(*,*)' *****************************************'
+      ELSE IF (YZTDERR .GT. 0.0) THEN
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *     ZTD OBSERVATION ERROR IS FIXED    *'
+        write(*,*)' *                                       *'
+        write(*,*)' *****************************************'
+        write(*,*)' '
+        write(*,*)'YZTDERR (mm) = ', YZTDERR*1000.
+      ELSE
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *   ZTD OBSERVATION ERROR IS FROM ZWD   *'
+        write(*,*)' *   USING SD(O-P) STATS (REGRESSION)    *'
+        write(*,*)' *                                       *'
+        write(*,*)' *****************************************'
+        write(*,*)' '
+      ENDIF
+
+      IF (IREFOPT .EQ. 1) THEN
+        IF (LBEVIS) THEN
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *                                       *'
+        write(*,*)' *  CONVENTIONAL REFACTIVITY N USING     *'
+        write(*,*)' *  BEVIS 92 K1, K2, K3 TO COMPUTE ZTD   *'
+        write(*,*)' *****************************************'
+        write(*,*)' ' 
+        ELSE
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *                                       *'
+        write(*,*)' *  CONVENTIONAL REFACTIVITY N USING     *'
+        write(*,*)' *  RUEGER 02 K1, K2, K3 TO COMPUTE ZTD  *'
+        write(*,*)' *****************************************'
+        write(*,*)' ' 
+        ENDIF
+        IF (IZTDOP .EQ. 1) THEN
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *                                       *'
+        write(*,*)' *   NORMAL ZTD OPERATOR -- ZTD COMPUTED *'
+        write(*,*)' *           FROM ZTD(K) PROFILE         *'
+        write(*,*)' *****************************************'
+        write(*,*)' ' 
+        ELSE
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *                                       *'
+        write(*,*)' *   ORIGINAL OPERATOR -- ZTD = ZHD+ZWD  *'
+        write(*,*)' *        VEDEL AND HUANG (2004)         *'
+        write(*,*)' *****************************************'
+        write(*,*)' ' 
+        ENDIF        
+      ELSE
+        write(*,*)' '
+        write(*,*)' *****************************************'
+        write(*,*)' *          GB-GPS OBSERVATIONS          *'
+        write(*,*)' *                                       *'
+        write(*,*)' *  APARICIO & LAROCHE REFRACTIVITY N    *'
+        write(*,*)' *         USED TO COMPUTE ZTD           *'
+        write(*,*)' *****************************************'
+        write(*,*)' '       
+      ENDIF
+c
 
       RETURN
 

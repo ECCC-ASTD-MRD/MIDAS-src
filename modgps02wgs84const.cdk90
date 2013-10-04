@@ -1,3 +1,5 @@
+! -*- F90 -*-
+
 ! WGS-84 Constants.
 !
 ! This module contains the defining and derived constants for the
@@ -5,8 +7,9 @@
 !
 ! Reference: NIMA TR8350-2 3rd Edition.
 !
-! Josep M. Aparicio
-! Meteorological Service of Canada, 2003
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
 !
 module modgps02wgs84const
   use modgps00base, only:dp

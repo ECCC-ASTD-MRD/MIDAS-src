@@ -101,8 +101,8 @@ module varNameList_mod
         varName='HU'
       case(BUFR_NEPS,BUFR_NEPN)
         varName='P0'
-      case(BUFR_NERF)
-        varName='TT'   ! temporarily associate refractivity with temperature
+      case(BUFR_NERF,BUFR_NEBD,BUFR_NEZD)
+        varName='TT'   ! temporarily associate refractivity and ZTD with temperature
       case(BUFR_NEDW)
         varName='DW'
       case(BUFR_NETR)

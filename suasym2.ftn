@@ -30,6 +30,8 @@
 *             . added MHS (codtyp=182).
 *          S. Macpherson ARMA/CMC Sept. 2007
 *             . add parameters for GB-GPS ZTD
+*          S. Macpherson ARMA/CMC March 2013
+*             . modified GPS ZTD parameters to increase QC-Var rejections
 *
 *Arguments
 *
@@ -70,7 +72,7 @@
       ZABT   = 1.0d-1
       ZABTB  = 1.0d-1
       ZATTSYM = 1.d-1
-      ZAZD = 1.0d-2
+      ZAZD = 2.0d-2
       ZDUV = 5.d0
       ZDGZ = 5.d0
       ZDTT = 5.d0
@@ -79,7 +81,7 @@
       ZDPS = 5.d0
       ZDBT = 3.d0
       ZDBTB = 3.d0
-      ZDZD = 4.d0
+      ZDZD = 3.d0
 *
 *
       DO JJO = 1, obs_numheader(lobsSpaceData)

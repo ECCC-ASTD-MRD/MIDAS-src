@@ -17,96 +17,136 @@
       SUBROUTINE FILTERGPSRO(lcolumnhr,lobsSpaceData)
 #if defined (DOC)
 *
-***s/r FILTERGPSRO - filter out   GPSRO observations 
+***s/r FILTERGPSRO - Filter GPSRO observations
+*                    Guarantee that altitude and observation values are
+*                    within bounds for further processing
 *
+*                    For noncompliant GPSRO observations:
+*                    -Set assimilable flag to 0
+*                    -Set bit of cma flag 11 ON
 *
 *Author  : J. M. Aparicio Jan 2008
+*          Adapted Nov 2012 for both refractivity and bending angle data
 *    -------------------
-**    Purpose:
-*** - Set bit of cma flag to 11 on to the GPSRO observations for certain conditions
 *
 *Arguments
 *
 #endif
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use modgps04profile
-      use modgps05refstruct
-      use modgps06gravity
-      use modgps07geostruct
-      use modgps08refop
       use obsSpaceData_mod
-      use columnData_mod 
+      use columnData_mod
+      use modgpsro_mod
       IMPLICIT NONE
-*implicits
-#include "comgpsro.cdk"
-*
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
-      type(struct_vco), pointer :: vco_trl
-      REAL*8 Lat
-      REAL*8 ZMT
-      REAL*8 HNH1, HSF, HTP, HGP
 C
-      INTEGER INDEX_HEADER
-      INTEGER IDATYP
-      INTEGER INDEX_BODY
-      INTEGER JL, NGPSLEV
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs)        :: lobsSpaceData
+C
+      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
+      INTEGER JL, IAZM, ISAT, ICLF, iProfile, NH, I
+      REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon
+      REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
+      LOGICAL LLEV, LOBS, LNOM, LSAT
+#include "comgpsro.cdk"
 C
       WRITE(*,*)'ENTER FILTERGPSRO'
 C
-C     * 1.  Initializations
-C     *     ---------------
+C     Loop over all header indices of the 'RO' family:
 C
-
-C
-C     *    .   1.1  Eta vector
-C     *    .        ----------
-C
-      NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
-      vco_trl => col_getVco(lcolumnhr)
-C
-C
-      ! loop over all header indices of the 'RO' family
       call obs_set_current_header_list(lobsSpaceData,'RO')
+      numGPSROProfiles=0
       HEADER: do
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
-C     
-C     *        Process only refractivity data (codtyp 169)
+C
+C     *  Process only refractivity data (codtyp 169)
 C
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-               IF ( IDATYP .EQ. 169 ) THEN
+         IF ( IDATYP .EQ. 169 ) THEN
+            numGPSROProfiles=numGPSROProfiles+1
 C
-            Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+C     *     Basic geometric variables of the profile:
 C
-            JL=col_getNumLev(LCOLUMNHR,'TH')
+            IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
+            ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+            ICLF = obs_headElem_i(lobsSpaceData,OBS_ROQF,INDEX_HEADER)
+            Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+            Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+            LNOM = .NOT.BTEST(ICLF,16-1)
+C
+C     *     Check if the satellite is within the accepted set:
+C
+            IF ( NUMGPSSATS .GE. 1 ) THEN
+              LSAT = .FALSE.
+              DO I=1,NUMGPSSATS
+                 LSAT=( LSAT .OR. (ISAT.EQ.IGPSSAT(I)) )
+              ENDDO
+            ELSE
+              LSAT = .TRUE.
+            ENDIF
+C
+            JL  = col_getNumLev(LCOLUMNHR,'TH')
             ZMT = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
-            ZMT = gpsgeopotential(Lat, ZMT)/RG
-C     
+C
+C     *     Acceptable height limits:
+C
             JL = 1
             HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
+            HSF = ZMT+SURFMIN
 C
-                  HSF=ZMT+SURFMIN
-                  IF (HSF .LT. HSFMIN) HSF=HSFMIN
-                  IF (HTP .GT. HTPMAX) HTP=HTPMAX
+C     *     Discard low data for METOP/GRAS:
 C
-C     *           Prepare the vector of all the observations:
+            IF ( NUMGPSSATS .GE. 1 ) THEN
+               IF ( ISAT.EQ.3 .OR. ISAT.EQ.4 .OR. ISAT.EQ.5 ) THEN
+                 IF (HSF .LT. 10000.d0) HSF=10000.d0
+               ENDIF
+            ENDIF
 C
-            ! loop over all body indices for this index_header
-            call obs_set_current_body_list(lobsSpaceData, index_header)
+C     *     Min/max altitudes:
+C
+            IF (HSF .LT. HSFMIN) HSF=HSFMIN
+            IF (HTP .GT. HTPMAX) HTP=HTPMAX
+            HMIN=Geo+HSF
+            HMAX=Geo+HTP
+C
+C     *     Loop over all body indices for this index_header:
+C     *     (start at the beginning of the list)
+C
+            call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
             BODY: do 
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
-
+C
+C     *        Altitude:
+C
                HNH1= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                     IF ( HNH1.GE.0. .AND. HNH1.LE.HTPMAX ) THEN
-                        HGP = gpsgeopotential(Lat,HNH1)/9.80616
-                        IF ( HGP.GT.HTP .OR. 
-     +                       HGP.LT.HSF ) THEN
-                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
-                     call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
-                     ENDIF
+               IF (LEVELGPSRO.EQ.1) HNH1=HNH1-Rad
+C
+C     *        Observation:
+C
+               ZOBS= obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+C
+C     *        Reference order of magnitude value:
+C
+               IF (LEVELGPSRO.EQ.1) THEN
+                  ZREF = 0.025d0*exp(-HNH1/6500.d0)
+               ELSE
+                  ZREF = 300.d0*exp(-HNH1/6500.d0)
+               ENDIF
+C
+C     *        Positively verify that the altitude is within bounds:
+C
+               LLEV= (HNH1.GT.HMIN) .AND. (HNH1.LT.HMAX)
+C
+C     *        Positively verify that the observable is within bounds:
+C
+               LOBS= (ZOBS.GT.(0.3d0*ZREF)) .AND. (ZOBS.LT.(3.d0*ZREF))
+C
+C     *        Mark as not assimilable unless all conditions are satisfied:
+C
+               IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. IAZM.LT.0 .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
+                  call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
+                  call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
                ENDIF
             ENDDO BODY
 
@@ -114,7 +154,50 @@ C
 
       ENDDO HEADER
 
-      WRITE(*,*)'EXIT FILTERGPSRO'
+      IF (numGPSROProfiles.GT.0) THEN
+         allocate(vGPSRO_IndexPrf(numGPSROProfiles))
+         allocate(vGPSRO_NumData (numGPSROProfiles))
+         allocate(vGPSRO_VAR     (numGPSROProfiles,GPSRO_MAXPRFSIZE))
+         allocate(vGPSRO_DOB     (numGPSROProfiles,GPSRO_MAXPRFSIZE))
+         allocate(vGPSRO_OER     (numGPSROProfiles,GPSRO_MAXPRFSIZE))
 
+         iProfile=0
+C
+C     *  Loop over all header indices of the 'RO' family:
+C
+         call obs_set_current_header_list(lobsSpaceData,'RO')
+         HEADER2: do
+            index_header = obs_getHeaderIndex(lobsSpaceData)
+            if (index_header < 0) exit HEADER2
+C     
+C     *  Process only refractivity data (codtyp 169)
+C
+            IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+            IF ( IDATYP .EQ. 169 ) THEN
+               iProfile=iProfile+1
+               vGPSRO_IndexPrf(iProfile)=INDEX_HEADER
+               zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+               zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+               Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+               Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+            ENDIF
+         ENDDO HEADER2
+
+         DO iProfile=1,numGPSROProfiles
+            NH = 0
+            call obs_set_current_body_list(lobsSpaceData, vGPSRO_IndexPrf(iProfile))
+            BODY2: do 
+               index_body = obs_getBodyIndex(lobsSpaceData)
+               if (index_body < 0) exit BODY2
+
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                  NH = NH + 1
+               ENDIF
+            ENDDO BODY2
+            vGPSRO_NumData(iProfile)=NH
+         ENDDO
+      ENDIF
+
+      WRITE(*,*)'EXIT FILTERGPSRO'
       RETURN
-      END
+      END SUBROUTINE FILTERGPSRO

@@ -36,6 +36,8 @@ CONTAINS
     !       AUTHOR:   P. KOCLAS (CMDA/SMC) Feb 2013
     !
     !       REVISION:
+    !                 S. MACPHERSON (ARMA) Oct 2013
+    !                  -- add 'GP' family (ground-based GPS) as type "SFC"
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -173,17 +175,18 @@ CONTAINS
         WINDS=.TRUE.
         vcord_type2=-1
         ADDSIZE=5000
-      CASE('SF')
+      CASE('SF','GP')
         BURP_TYP='uni'
         vcord_type=0
-        NELE_SFC=6
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE_SFC=7
+        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,15031,-1,-1,-1,-1,-1,-1,-1,-1/)
 
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'SFC'
         WINDS=.TRUE.
+        IF (trim(FAMILYTYPE) == 'GP') WINDS=.FALSE.
         ILEMU=11215
         ILEMV=11216
         ILEMD=11011
@@ -220,8 +223,8 @@ CONTAINS
         vcord_type=7007
         vcord_type2=7040
 
-        LISTE_ELE = (/15036,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
-        NELE=1
+        LISTE_ELE = (/15036,15037,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -1201,6 +1204,8 @@ CONTAINS
     !       AUTHOR:   P. KOCLAS (CMDA/SMC) May 2011
     !
     !       REVISION:
+    !                 S. MACPHERSON (ARMA) Oct 2013
+    !                  -- add 'GP' family (ground-based GPS)
     !
     !       OBJECT: READ CMC BURP FILE 
     !
@@ -1330,11 +1335,11 @@ CONTAINS
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
-      CASE('SF')
+      CASE('SF','GP')
         BURP_TYP='uni'
         vcord_type=0
-        NELE_SFC=6
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE_SFC=7
+        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,15031,-1,-1,-1,-1,-1,-1,-1,-1/)
 
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
@@ -1363,8 +1368,8 @@ CONTAINS
         vcord_type=7007
         vcord_type2=7040
 
-        LISTE_ELE = (/15036,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
-        NELE=1
+        LISTE_ELE = (/15036,15037,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -2273,7 +2278,7 @@ CONTAINS
     SELECT CASE(FAMTYP)
       CASE ( 'UA' , 'SW' , 'AI')
         VCO=2
-      CASE ( 'SF' , 'SC', 'PR', 'RO' )
+      CASE ( 'SF' , 'SC', 'PR', 'RO', 'GP' )
         VCO=1
       CASE ( 'TO'  )
         VCO=3

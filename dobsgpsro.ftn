@@ -21,6 +21,7 @@
 *
 *
 *Author  : J. M. Aparicio Jan 2004
+*          Adapted Nov 2012 for both refractivity and bending angle data
 *    -------------------
 **    Purpose:
 *
@@ -30,101 +31,97 @@
 #endif
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use modgps04profile
-      use modgps05refstruct
-      use modgps06gravity
-      use modgps07geostruct
-      use modgps08refop
+      use modgps01ctphys    , only : p_TC, p_knot
+      use modgps02wgs84grav , only : gpsgravitysrf
+      use modgps03diff
+      use modgps04profile   , only : gpsprofile, gpsstruct1sw
+      use modgps08refop     , only : gpsrefopv
+      use modgps09bend      , only : gpsbndopv1
+      use modgpsro_mod
       use obsSpaceData_mod
-      use columnData_mod 
+      use columnData_mod
+      use vGrid_Descriptors
       IMPLICIT NONE
 C
       type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
+      type(struct_obs)        :: lobsSpaceData
+C
       REAL*8 PJO, PJOB, PJO1
+      REAL*8 zLat, Lat, sLat
+      REAL*8 zLon, Lon
+      REAL*8 zAzm, Azm
+      INTEGER IAZM, ISAT, ICLF, jj
+      REAL*8 Rad, Geo, rad1, WFGPS
+      INTEGER,pointer,dimension(:) :: IP1
+      REAL*8, allocatable :: ZPP(:)
+      REAL*8, allocatable :: ZDP(:)
+      REAL*8, allocatable :: ZTT(:)
+      REAL*8, allocatable :: ZHU(:)
+      REAL*8, allocatable :: ZUU(:)
+      REAL*8, allocatable :: ZVV(:)
+      real sfcfield
+      REAL  ,pointer,dimension(:) :: rDP
+      REAL*8 zP0, zMT
 C
-      type(struct_vco), pointer :: vco_trl
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON, Lon
-      REAL*8, allocatable :: ZETA(:)
-      REAL*8, allocatable :: ZPP (:)
-      REAL*8, allocatable :: ZDP (:)
-      REAL*8, allocatable :: ZTT (:)
-      REAL*8, allocatable :: ZHU (:)
-      REAL*8, allocatable :: ZGZ (:)
-      REAL*8 ZP0
-      REAL*8 ZPT, ZPR, ZCF
-      REAL*8 ZMT
-      REAL*8 HNH1
+      REAL*8 HNH1, ZOBS, ZMHX, ZOER, ZINC
 C
-      REAL*8 ZOBS, ZMHX, ZOER, ZINC
+      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile
+      INTEGER JL, NGPSLEV, NWNDLEV, stat, stat1
 C
-      INTEGER INDEX_HEADER
-      INTEGER IDATYP
-      INTEGER INDEX_BODY
-      INTEGER JL, NGPSLEV
-C
-      LOGICAL  ASSIM, LSTAG, FIRSTHEADER
+      LOGICAL  ASSIM, FIRSTHEADER, LDSC
 
       INTEGER NH, NH1
-      TYPE(GPSPROFILE)           :: PRF 
-      REAL(DP)     , ALLOCATABLE :: H   (:)
-      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+      TYPE(GPSPROFILE)           :: PRF
+      REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
+      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
+      type(struct_vco), pointer  :: vco_trl
+#include "comgpsro.cdk"
 
       WRITE(*,*)'ENTER DOBSGPSRO'
-C
-      vco_trl => col_getVco(lcolumnhr)
-      LSTAG = .FALSE.
-      if (vco_trl%iversion .eq. 5002) then
-         LSTAG = .TRUE. 
-         WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-         WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
-         WRITE(*,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
-         WRITE(*,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
-      else
-         WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-         WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
-      endif
 C
 C     * 1.  Initializations
 C     *     ---------------
 C
-      FIRSTHEADER = .true.
-      allocate(ZETA(col_getNumLev(lcolumnhr,'TH')))
-      allocate(ZTT(col_getNumLev(lcolumnhr,'TH')))
-      allocate(ZHU(col_getNumLev(lcolumnhr,'TH')))
-      allocate(ZGZ(col_getNumLev(lcolumnhr,'TH')))
-      allocate(ZDP(col_getNumLev(lcolumnhr,'TH')))
-      allocate(ZPP(col_getNumLev(lcolumnhr,'TH')))
-C
-C     *    .   1.1  Eta vector
-C     *    .        ----------
-C
       NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
-      DO JL = 1, NGPSLEV
-         ZETA(JL) = vco_trl%dhyb_T(JL)
-      ENDDO
+      NWNDLEV=col_getNumLev(LCOLUMNHR,'MM')
+      allocate(ZPP (NGPSLEV))
+      allocate(ZDP (NGPSLEV))
+      allocate(ZTT (NGPSLEV))
+      allocate(ZHU (NGPSLEV))
+      allocate(ZUU (NGPSLEV))
+      allocate(ZVV (NGPSLEV))
 C
-      ! loop over all header indices of the 'RO' family
+      allocate( H    (GPSRO_MAXPRFSIZE) )
+      allocate( AZMV (GPSRO_MAXPRFSIZE) )
+      allocate( RSTV (GPSRO_MAXPRFSIZE) )
+C      IF (LEVELGPSRO.EQ.1) THEN
+C         allocate( RSTVP(GPSRO_MAXPRFSIZE) )
+C         allocate( RSTVM(GPSRO_MAXPRFSIZE) )
+C      ENDIF
+
+      vco_trl => col_getVco(lcolumnhr)
+      stat = 0
+      stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
+C
+C     Loop over all header indices of the 'RO' family:
+C
       call obs_set_current_header_list(lobsSpaceData,'RO')
+      FIRSTHEADER = .TRUE.
+
       HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
-C     
+         INDEX_HEADER = obs_getHeaderIndex(lobsSpaceData)
+         if (INDEX_HEADER < 0) exit HEADER
+C
 C     *  Process only refractivity data (codtyp 169)
 C
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IF ( IDATYP .EQ. 169 ) THEN
 C
-C           Loops over data in the observation
+C     *     Scan for requested data values of the profile, and count them
 C
             ASSIM = .FALSE.
-C
-C           Scan for requested assimilations, and count them
-C
             NH = 0
-            ! loop over all body indices for this index_header
-            call obs_set_current_body_list(lobsSpaceData, index_header)
+            call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
             BODY: do 
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY
@@ -134,79 +131,111 @@ C
                ENDIF
             ENDDO BODY
 C
-C     *     If assimilations are requested, apply the observation operator
+C     *     If assimilations are requested, prepare and apply the observation operator
 C
             IF (ASSIM) THEN
-C     
+               iProfile=iProfile_from_index(INDEX_HEADER)
+C
+C     *        Basic geometric variables of the profile:
+C
+               IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
+               ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+               ICLF = obs_headElem_i(lobsSpaceData,OBS_ROQF,INDEX_HEADER)
+               Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+               Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+               zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+               zMT  = col_getHeight(lcolumnhr,NGPSLEV,INDEX_HEADER,'TH')/RG
+               WFGPS=0.d0
+               DO JJ=1,NUMGPSSATS
+                  IF (ISAT.EQ.IGPSSAT(JJ)) WFGPS=WGPS(JJ)
+               ENDDO
+C
 C     *        Profile at the observation location:
 C
-               Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-               Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-               ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
-               ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-               ZP0 =  col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               DO JL = 1, col_getNumLev(LCOLUMNHR,'TH')
+               zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+               zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+               Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+               Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+               Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
+               sLat = sin(zLat)
+               zMT  = zMT * RG / gpsgravitysrf(sLat)
+               zP0  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
+               sfcfield=zP0
+               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP,sfcfield)
+               DO JL = 1, NGPSLEV
 C
 C     *           Profile x
 C
                   ZPP(JL) = col_getPressure(LCOLUMNHR,JL,INDEX_HEADER,'TH')
-CCCCCCCCCCC       THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
-                  ZDP(JL) = ZPP(JL)/ZP0
-                  ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-273.15
+C     *           True implementation of ZDP (dP/dP0)
+                  ZDP(JL) = rDP(JL)
+                  ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT') - p_TC
                   ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
-                  ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
+                  ZUU(JL) = 0.d0
+                  ZVV(JL) = 0.d0
                ENDDO
-               ZPT = col_getPressure(LCOLUMNHR,1,INDEX_HEADER,'TH')
-               ZMT = ZGZ(col_getNumLev(LCOLUMNHR,'TH'))/RG
-               ZMT = gpsgeopotential(Lat, ZMT)/RG
-               ZPR = vco_trl%dprf_M
-               ZCF = vco_trl%drcf1
+               DO JL = 1, NWNDLEV
+                  ZUU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'UU') * p_knot
+                  ZVV(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'VV') * p_knot
+               ENDDO
+               ZUU(NGPSLEV) = ZUU(NWNDLEV)
+               ZVV(NGPSLEV) = ZUU(NWNDLEV)
 C     
 C     *        GPS profile structure:
 C
-               IF (LSTAG) THEN
-c     *           Staggered hybrid trial field 
-                  CALL GPSSTRUCT1S(NGPSLEV,ZLAT,ZLON,
-     +                 ZPP,ZDP,ZTT,ZHU,ZMT,PRF)
-               ELSE
-c     *           ETA or HYBRID NONSTAGGERED trial field 
-                  CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,
-     +                 ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
-               ENDIF
-               CALL GPSGEO(PRF)
+               call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+               LDSC=.NOT.BTEST(ICLF,16-3)
 C
 C     *        Prepare the vector of all the observations:
 C
-               ALLOCATE( H    (NH) )
-               ALLOCATE( RSTV (NH) )
                NH1 = 0
-               ! loop over all body indices for this index_header
+C
+C     *        Loop over all body indices for this index_header:
+C     *        (start at the beginning of the list)
+C
                call obs_set_current_body_list(lobsSpaceData, index_header)
                BODY_2: do 
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_2
                   IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-                     NH1   = NH1 + 1
-                     HNH1  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                     H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
+                     NH1      = NH1 + 1
+                     H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                     AZMV(NH1)= zAzm
                   ENDIF
                ENDDO BODY_2
 C
 C     *        Apply the observation operator:
-C  
-               CALL GPSREFOPV (H, PRF, RSTV)
 C
-C     *        Perform the (H(x)-Y)/S operation
+               IF (LEVELGPSRO.EQ.1) THEN
+                  CALL GPSBNDOPV1(H      , AZMV, NH, PRF, RSTV)
+C                  CALL GPSBNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
+C                  CALL GPSBNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
+C                  do nh1 = 1, nh
+C                     RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
+C                  enddo
+               ELSE
+                  CALL GPSREFOPV (H,       NH, PRF, RSTV)
+               ENDIF
+C
+C     *        Perform the (H(x)-Y)/S operation:
 C
                NH1 = 0
-               PJOB = 0._dp
-               ! loop over all body indices for this index_header
+               PJOB = 0.d0
+C
+C     *        Loop over all body indices for this index_header:
+C     *        (start at the beginning of the list)
+C
                call obs_set_current_body_list(lobsSpaceData, index_header)
                BODY_3: do 
                   index_body = obs_getBodyIndex(lobsSpaceData)
                   if (index_body < 0) exit BODY_3
                   IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                      NH1 = NH1 + 1
+C
+C     *              Altitude:
+C
+                     HNH1= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                     IF (LEVELGPSRO.EQ.1) HNH1=HNH1-Rad
 C
 C     *              Observation operator H(x)
 C
@@ -219,14 +248,20 @@ C
 C     *              Observation error    S
 C
                      ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+
+                     !if (nh1.eq.1) then
+                        vGPSRO_VAR(iProfile,nh1)=ZOBS
+                        vGPSRO_DOB(iProfile,nh1)=ZMHX
+                        vGPSRO_OER(iProfile,nh1)=ZOER
+                     !endif
 C
 C     *              Normalized increment
 C
                      ZINC = (ZMHX - ZOBS) / ZOER
 C                           
-C                    OMF Tested criteria:
+C                    Datum contribution to Jo:
 C
-                     PJO1 = 0.5_dp * ZINC * ZINC
+                     PJO1 = 0.5d0 * ZINC * ZINC
 C
 C     *              Total (PJO) and per profile (PJOB) cumulatives:
 C
@@ -235,37 +270,40 @@ C
 C
                      IF (FIRSTHEADER) THEN
                         WRITE(*,
-     +                       '(A9,i10,2f7.2,f8.0,3f9.4,15f12.4)')
+     +                       '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)')
      +                       'DOBSGPSRO',
-     +                       INDEX_HEADER,ZLAT,ZLON,
-     +                       h(nh1),ZOBS,ZOER,ZMHX,ZINC,
-     +                       PJO,PRF%GST(NGPSLEV)%Var
+     +                       INDEX_HEADER,Lat,Lon,Azm,HNH1,ZOBS,ZOER,
+     +                       ZMHX,ZINC,PJOB,PRF%GST(NGPSLEV)%Var
                      ENDIF
-
+                     call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY, ZOBS-ZMHX)
                      call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZINC)
                      call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, ZINC)
                   ENDIF
                ENDDO BODY_3
-               DEALLOCATE( RSTV )
-               DEALLOCATE( H    )
+
                WRITE(*,
-     +              '(A9,i10,2f7.2,f18.10,3f9.4,15f12.4)')
-     +              'GPSRO_JO',INDEX_HEADER,ZLAT,ZLON,PJOB
+     +              '(A9,i10,2f7.2,f18.10,f12.4,2I6)')
+     +              'GPSRO_JO',INDEX_HEADER,Lat,Lon,PJOB,zMT,ISAT,LDSC
             ENDIF
-
          ENDIF
-
-         FIRSTHEADER = .false.
-
+         FIRSTHEADER = .FALSE.
       ENDDO HEADER
 
-      deallocate(ZETA)
-      deallocate(ZTT)
-      deallocate(ZHU)
-      deallocate(ZGZ)
-      deallocate(ZDP)
-      deallocate(ZPP)
+C      IF (LEVELGPSRO.EQ.1) THEN
+C         DEALLOCATE( RSTVM )
+C         DEALLOCATE( RSTVP )
+C      ENDIF
+      DEALLOCATE( RSTV )
+      DEALLOCATE( AZMV )
+      DEALLOCATE( H    )
+
+      deallocate(zVV)
+      deallocate(zUU)
+      deallocate(zHU)
+      deallocate(zTT)
+      deallocate(zDP)
+      deallocate(zPP)
 
       WRITE(*,*)'EXIT DOBSGPSRO'
       RETURN
-      END
+      END SUBROUTINE DOBSGPSRO

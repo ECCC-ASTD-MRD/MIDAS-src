@@ -21,6 +21,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod 
   use bufr
+  use modgpsztd_mod
   implicit none
   !
   !Purpose:
@@ -28,8 +29,16 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
-#include "comgpsgb.cdk"
-
+  !Revision:
+  ! S. Macpherson ARMA  21 Dec 2012
+  !            - update from Rev189 to Rev213
+  !            - use new ZTD-specific GPS modules modgps04profilezd, modgps08ztdop
+  ! S. Macpherson ARMA  14 Jan 2013
+  !            - use numGPSZTD (from modgpsztd_mod) to determine if call oda_HTgp needed
+  !            - modified oda_HTgp
+  !            - merged with latest version (oda_HTro) from Josep (Rev.213M)
+  !            - like oda_HTro, use OpenMP and Jacobian storage for GPS ZTD
+  !
   type(struct_columnData) :: lcolumn,lcolumng
   type(struct_obs) :: lobsSpaceData
   type(struct_vco), pointer :: vco_anl
@@ -42,7 +51,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   vco_anl => col_getVco(lcolumng)
 
   call tmg_start(47,'OBS_GPSGB_TLAD') !
-  call oda_HTgp
+  if (numGPSZTD > 0) call oda_HTgp
   call tmg_stop (47)        !
 
   call tmg_start(46,'OBS_ZZZ_TLAD') !
@@ -230,6 +239,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
 ! Process all data within the domain of the model
           ityp = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+          if ( ityp.eq.bufr_nezd ) cycle BODY
           if(    (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body).eq.1) &
            .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) &
            .and. (ityp.eq.bufr_nets .or. ityp.eq.bufr_neps  &
@@ -352,230 +362,160 @@ end subroutine oda_HTto
 
       SUBROUTINE oda_HTro
 !*
-!***s/r AVGPSRO - Adjoint of the computation of Jo and
-!*                the residuals to the GPSRO observations
+!* Purpose: Compute the adjoint operator for GPSRO observations.
 !*
 !*Author  : J. M. Aparicio Jan 2004
+!*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
 !*    -------------------
-!**    Purpose:
-!*
-      use modgps04profile
-      use modgps06gravity
-      use modgps08refop
-      use IndexListDepot_mod, only:  struct_index_list
+      use modgps00base      , only : ngpscvmx
+      use modgps01ctphys    , only : p_TC
+      use modgps03diff      , only : gpsdiff
+      use modgpsro_mod
+      use IndexListDepot_mod, only : struct_index_list
+      use vGrid_Descriptors
 
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 DPJO1(ngpscvmx)
 
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON
-      REAL*8, allocatable :: ZETA(:)
-      REAL*8, allocatable :: BTT(:)
-      REAL*8, allocatable :: BHU(:)
-      REAL*8, allocatable :: BGZ(:)
-      REAL*8 BP0
-      REAL*8 BPT, BPR, BCF
-      REAL*8 BMT
-      REAL*8 HNH1
+      REAL*8 zLat, Lat
+      REAL*8 zAzm, Azm
+      INTEGER IAZM, ISAT
+      REAL*8 Rad, Geo, HNH1
+      REAL*8 zP0, zMT
 
-      REAL*8 ZMHX, ZINC
-      REAL*8 JAC(ngpscvmx)
+      REAL*8 ZINC, ZOER
 
       real*8, pointer :: tt_column(:),hu_column(:),ps_column(:)
       INTEGER IDATYP
       INTEGER JL, NGPSLEV
-      integer :: index_header, index_body
+      integer :: index_header, index_body, iProfile
       type(struct_index_list), pointer :: local_current_list
 
       LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1
-      TYPE(GPSPROFILE)           :: PRF
-      REAL(DP)     , ALLOCATABLE :: H   (:)
-      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
+#include "comgpsro.cdk"
+!C      WRITE(*,*)'ENTER oda_HTro'
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      allocate(ZETA(col_getNumLev(lcolumn)))
-      allocate(BTT(col_getNumLev(lcolumn)))
-      allocate(BHU(col_getNumLev(lcolumn)))
-      allocate(BGZ(col_getNumLev(lcolumn)))
-!C
-!C     *     Eta vector:
-!C
       NGPSLEV=col_getNumLev(lcolumn)
-      DO JL = 1, col_getNumLev(lcolumn)
-        ZETA(JL) = vco_anl%dhyb_m(JL)
-      ENDDO
-
-      !
-      ! loop over all header indices of the 'RO' family (Radio Occultation)
-      !
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-      call obs_set_current_header_list(lobsSpaceData,'RO')
-!$omp parallel default(shared) &
-!$omp private(dpjo0,idatyp,assim,nh) &
-!$omp private(luse,lat,zlat,zlon,jl,btt) &
-!$omp private(bhu,bgz,bp0,bpt,bmt,bpr,bcf,prf) &
-!$omp private(h,rstv,nh1,hnh1,zmhx) &
-!$omp private(jac,zinc,dpjo1) &
-!$omp private(index_header,index_body, local_current_list) &
-!$omp private(tt_column,hu_column,ps_column)
-      nullify(local_current_list)
-
-      HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
-
-         DPJO0 = 0._dp
 !C
-!C     *    Calculate DPJO0 only for refractivity observations (codtyp 169)
+!C    Loop over all header indices of the 'RO' family (Radio Occultation)
+!C
+      ! Set the header list (start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'RO')
+!##$omp parallel default(shared) &
+!##$omp private(index_header,dpjo0,idatyp,assim,nh,local_current_list,index_body,luse) &
+!##$omp private(iProfile,zlat,irad,igeo,iazm,isat,rad,geo,zazm,zmt,lat) &
+!##$omp private(nh1,zinc,zoer,dpjo1) &
+!##$omp private(tt_column,hu_column,ps_column)
+      nullify(local_current_list)
+      HEADER: do
+         INDEX_HEADER = obs_getHeaderIndex(lobsSpaceData)
+         if (INDEX_HEADER < 0) exit HEADER
+
+         DPJO0 = 0.d0
+!C
+!C     * Process only refractivity data (codtyp 169)
 !C
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          DATYP: IF ( IDATYP .EQ. 169 ) THEN
-           ASSIM = .FALSE.
 !C
-!C              Scan for requested assimilations, and count them
+!C     *    Scan for requested data values of the profile, and count them
 !C
-           NH = 0
-           ! loop over all body indices (still in the 'RO' family)
-                                        ! Obtain the body list
-                                        ! (& start at the beginning of the list)
-           call obs_set_current_body_list(lobsSpaceData, index_header, &
-                                          current_list=local_current_list)
-           BODY: do 
-              index_body = obs_getBodyIndex(local_current_list)
-              if (index_body < 0) exit BODY
-
-             LUSE=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 )
-             IF ( LUSE ) THEN
-               ASSIM = .TRUE.
-               NH = NH + 1
-             ENDIF
-           ENDDO BODY
+            ASSIM = .FALSE.
+            NH = 0
 !C
-!C     *           If assimilations are requested, apply the observation
-!c operator
+!C     *    Loop over all body indices for this index_header:
+!C     *    (start at the beginning of the list)
 !C
-           ASSIMILATE: IF (ASSIM) THEN
-!C
-!C     *           Profile at the observation location:
-!C
-             Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-             ZLAT = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)  &
-                                           * MPC_DEGREES_PER_RADIAN_R8
-             ZLON = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)  &
-                                           * MPC_DEGREES_PER_RADIAN_R8
-             DO JL = 1, col_getNumLev(lcolumn)
-!C
-!C     *              Profile x_b
-!C
-               BTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - 273.15
-               BHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-               BGZ(JL) = col_getHeight(lcolumng,JL,INDEX_HEADER,'NA')
-             ENDDO
-             BP0 = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-             BPT = col_getPressure(LCOLUMNG,1,INDEX_HEADER,'NA')
-             BMT = BGZ(col_getNumLev(lcolumn))/RG
-             BMT = gpsgeopotential(Lat, BMT)/RG
-             BPR = vco_anl%dprf_M
-             BCF = vco_anl%drcf1
-!C
-!C     *           GPS profile structure:
-!C
-             CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,  &
-                  BTT,BHU,BP0,BMT,BPT,BPR,BCF,PRF)
-             call gpsgeo(prf)
-!C
-!C     *           Prepare the vector of all the observations
-!C
-             ALLOCATE( H    (NH) )
-             ALLOCATE( RSTV (NH) )
-             NH1 = 0
-             ! loop over all body indices (still in the 'RO' family)
-                                        ! Start at the beginning of the list
-             call obs_set_current_body_list(lobsSpaceData, index_header, &
-                                            current_list=local_current_list)
-             BODY_2: do 
-                index_body = obs_getBodyIndex(local_current_list)
-                if (index_body < 0) exit BODY_2
+            call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER, &
+                 current_list=local_current_list)
+            BODY: do 
+               index_body = obs_getBodyIndex(local_current_list)
+               if (index_body < 0) exit BODY
 
                LUSE=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 )
                IF ( LUSE ) THEN
-                 NH1 = NH1 + 1
-                 HNH1  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                 H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
+                  ASSIM = .TRUE.
+                  NH = NH + 1
                ENDIF
-             ENDDO BODY_2
+            ENDDO BODY
 !C
-!C     *           Apply the observation operator
+!C     *    If assimilations are requested, prepare and apply the observation operator
 !C
-             CALL GPSREFOPV(H, PRF, RSTV)
+            ASSIMILATE: IF (ASSIM) THEN
+               iProfile=iProfile_from_index(INDEX_HEADER)
 !C
-!C     *           Perform the (H(xb)DX-Y')/S operation
+!C     *    Basic geometric variables of the profile:
 !C
-             NH1 = 0
-             ! loop over all body indices (still in the 'RO' family)
-                                        ! Start at the beginning of the list
-             call obs_set_current_body_list(lobsSpaceData, index_header, &
-                                            current_list=local_current_list)
-             BODY_3: do 
-                index_body = obs_getBodyIndex(local_current_list)
-                if (index_body < 0) exit BODY_3
+               zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+               IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
+               ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+               Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+               Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+               zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+               zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'NA')/RG
+               Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+!C
+!C     *       Perform the (H(xb)DX-Y')/S operation
+!C
+               NH1 = 0
+!C
+!C     *       Loop over all body indices for this index_header:
+!C     *       (start at the beginning of the list)
+!C
+               call obs_set_current_body_list(lobsSpaceData, index_header, &
+                    current_list=local_current_list)
+               BODY_3: do 
+                  index_body = obs_getBodyIndex(local_current_list)
+                  if (index_body < 0) exit BODY_3
 
-               LUSE=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 )
-               IF ( LUSE ) THEN
-                 NH1 = NH1 + 1
+                  LUSE=( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 )
+                  IF ( LUSE ) THEN
+                     NH1 = NH1 + 1
 !C
-!C     *                 Observation operator H(x)
+!C     *             Normalized increment
 !C
-                 ZMHX = RSTV(NH1)%VAR
+                     ZINC = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+                     ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 !C
-!C     *                 Observation jacobian
+!C     *             O-F Tested criteria:
 !C
-                 JAC = RSTV(NH1)%DVAR
+                     DPJO1(1:2*NGPSLEV+1) = ZINC * vGPSRO_Jacobian(iProfile,NH1,:)
+!                     if (Lat .lt. -50.d0 .and. Lat .gt. -60.d0) then
+!                        HNH1=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+!                        if (LEVELGPSRO.eq.1) HNH1=HNH1-Rad
+!                        zincown=(vGPSRO_DOB(iProfile,nh1)-vGPSRO_VAR(iProfile,nh1))/vGPSRO_OER(iProfile,nh1)
+!                        write(*,'A5,I10,I4,F8.2,F8.1,10E16.6')'DPJO',INDEX_HEADER,nh1,Lat,HNH1,   &
+!                             vGPSRO_VAR(iProfile,nh1), vGPSRO_DOB(iProfile,nh1), ZINC, ZOER, &
+!                             zincown, DPJO1(2*NGPSLEV+1),DPJO0(2*NGPSLEV+1)
+!                     endif
 !C
-!C     *                 Normalized increment
+!C     *             Accumulate the gradient of the observation cost function:
 !C
-                 ZINC = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
-!C
-!C                       O-F Tested criteria:
-!C
-                 DPJO1 = ZINC * JAC
-!C
-!C     *                 Accumulate the gradient of the observation
-!C     *                 cost function
-!C
-                 DPJO0 = DPJO0 + DPJO1
-
-               ENDIF
-             ENDDO BODY_3
-             DEALLOCATE( RSTV )
-             DEALLOCATE( H    )
-           ENDIF ASSIMILATE
+                     DPJO0(1:2*NGPSLEV+1) = DPJO0(1:2*NGPSLEV+1) + DPJO1(1:2*NGPSLEV+1)
+                  ENDIF
+               ENDDO BODY_3
+            ENDIF ASSIMILATE
          ENDIF DATYP
 !C
-!C     *        Store H* (HX - Z)/SIGMA in COMMVO
+!C     * Store H* (HX - Z)/SIGMA in COMMVO
 !C
          tt_column => col_getColumn(lcolumn,index_header,'TT')
          hu_column => col_getColumn(lcolumn,index_header,'HU')
          ps_column => col_getColumn(lcolumn,index_header,'P0')
-         DO JL = 1, col_getNumLev(lcolumn)
+         DO JL = 1, NGPSLEV
            tt_column(JL) = DPJO0(JL)
-           hu_column(JL) = DPJO0(JL+col_getNumLev(lcolumn))
+           hu_column(JL) = DPJO0(JL+NGPSLEV)
          ENDDO
-         ps_column(1) = DPJO0(1+2*col_getNumLev(lcolumn))
-
+         ps_column(1) = DPJO0(1+2*NGPSLEV)
       ENDDO HEADER
-!$omp end parallel
+!##$omp end parallel
 
-      deallocate(ZETA)
-      deallocate(BTT)
-      deallocate(BHU)
-      deallocate(BGZ)
-
+!C      WRITE(*,*)'EXIT oda_HTro'
       RETURN
       END subroutine oda_HTro
 
@@ -646,163 +586,121 @@ end subroutine oda_HTto
 !***s/r  -oda_HTgp Adjoint of TL routine oda_Hgp
 !*
 !*
-!*Author  : S. Macpherson *ARMA December 2004
-!*    -------------------
-!**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations using
-!*              adjoint of gpsztdop
-!*
-      REAL*8 ZLAT
-      REAL*8 ZLON
-      REAL*8, allocatable :: ZETA(:)
-      REAL*8, allocatable :: ZTT (:)
-      REAL*8, allocatable :: ZHU (:)
-      REAL*8, allocatable :: ZGZ (:)
-      REAL*8, allocatable :: ZTTB (:)
-      REAL*8, allocatable :: ZHUB (:)
-      REAL*8 ZP0
-      REAL*8 ZP0B
-      REAL*8 ZPT
-      REAL*8 ZMT
-      REAL*8 ZHX, ZLEV
-      REAL*8 ZHXB
-      REAL*8, allocatable :: DZTT (:)
-      REAL*8, allocatable :: DZHU (:)
-      REAL*8 DZP0
-      INTEGER JL
-      integer :: index_header, index_body
-      LOGICAL  ASSIM
-      real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
-!C
-!C     * 1.  Initializations
-!C     *     ---------------
-!C
-      allocate(ZETA(col_getNumLev(lcolumn)))
-      allocate(ZTT (col_getNumLev(lcolumn)))
-      allocate(ZHU (col_getNumLev(lcolumn)))
-      allocate(ZGZ (col_getNumLev(lcolumn)))
-      allocate(ZTTB (col_getNumLev(lcolumn)))
-      allocate(ZHUB (col_getNumLev(lcolumn)))
-      allocate(DZTT (col_getNumLev(lcolumn)))
-      allocate(DZHU (col_getNumLev(lcolumn)))
-!C
-!C     *    .   1.1  Eta vector
-!C     *    .        ----------
-!C
-      DO JL = 1, col_getNumLev(lcolumn)
-         ZETA(JL) = vco_anl%dhyb_m(JL)
-      ENDDO
+!*Author  : S. Macpherson *ARMA October 2012
+!
+!*Revisions:
+!
+! S. Macpherson ARMA  14 Jan 2013
+!            - like oda_HTro, use OpenMP and Jacobian storage to speed up
 
-      !write(*,fmt='(/,4x,A)') 'AVGPSZTD- Adjoint Version: GPS ZTD observations'
+!*    -------------------
+!**    Purpose: Compute Ht*grad(Jo) for all GPS ZTD observations
+!
+!  NOTE:  ZTD Jacobians are computed and stored in oda_Hgp (first iter.)
+!
+!*
+      use modgps00base      , only : ngpscvmx
+#include "comgpsgb.cdk"
+
+      REAL*8 DPJO0(ngpscvmx)
+      REAL*8 JAC(ngpscvmx)
+! 
+      REAL*8 ZINC
+      INTEGER JL, NFLEV, iztd
+      integer :: index_header, index_body, icount
+      LOGICAL ASSIM
+
+      real*8, pointer :: tt_column(:),hu_column(:),ps_column(:)
+
+!      WRITE(*,*)'ENTER oda_HTgp'
+
+      NFLEV  = col_getNumLev(lcolumng)
+
+      IF ( .not.vGPSZTD_lJac(1) ) THEN
+         call abort3d('oda_HTgp:ERROR: ZTD Jacobians not stored!')
+      ENDIF
 
       ! loop over all header indices of the 'GP' family (GPS observations)
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
+      ! Set the header list & start at the beginning of the list
       call obs_set_current_header_list(lobsSpaceData,'GP')
+
+      icount = 0
+      
       HEADER: do
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
-
-         tt_column  => col_getColumn(lcolumn,index_header,'TT')
-         hu_column  => col_getColumn(lcolumn,index_header,'HU')
-         ps_column  => col_getColumn(lcolumn,index_header,'P0')
-         DZTT(:) = 0.0
-         DZHU(:) = 0.0
-         DZP0 = 0.0
+        
+         DPJO0(:) = 0.0D0
+         JAC(:)   = 0.0D0
 !C
 !C       Scan for requested ZTD assimilation
 !C
          ASSIM = .FALSE.
          ! loop over all body indices (still in the 'GP' family)
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
+         ! Set the body list & start at the beginning of the list)
          call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY: do 
+         BODY: DO 
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
 
-            if (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER).eq.189) &
+            IF (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER).eq.189) &
              .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY).EQ.BUFR_NEZD) &
              .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1) ) then
                ASSIM = .TRUE.
             ENDIF
          ENDDO BODY
 !C
-!C     * If ZTD assimilation, apply the AD observation operator
-!C
          IF (ASSIM) THEN
-!C
-!C     *    LR background profile:
-!C
-            ZLAT = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-            ZLON = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-            DO JL = 1, col_getNumLev(lcolumn)
-              ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')
-              ZTT(JL)  = 0.0
-              ZHUB(JL) = EXP(col_getElem(lcolumng,JL,INDEX_HEADER,'HU'))
-              ZHU(JL)  = 0.0
-              ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'NA')
+         
+            icount = icount + 1
+            iztd = i_from_index(INDEX_HEADER)
+            if ( iztd < 1 .or. iztd > numGPSZTD ) then
+              call abort3d('oda_HTgp: ERROR: index from i_from_index() is out of range!')
+            endif            
+            
+            DO JL = 1, 2*NFLEV+1
+              JAC(JL) = vGPSZTD_Jacobian(iztd,JL)
             ENDDO
-            ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-            ZP0  = 0.0
-            ZPT  = col_getPressure(LCOLUMNG,1,INDEX_HEADER,'NA')
-            ZMT  = ZGZ(col_getNumLev(lcolumn))/GRAV
 !C
-!C     *       Apply AD of ZTD observation operator to get 
-!C             Ht*grad(Index_header) = Ht*(H'dx - d)/sigma_o^2
+!C          Get Ht*grad(Index_header) = Ht*(H'dx - d)/sigma_o^2
 !C
             ! loop over all body indices (still in the 'GP' family)
-                                        ! Start at the beginning of the list)
+            ! Start at the beginning of the list)
             call obs_set_current_body_list(lobsSpaceData, index_header)
             BODY_2: do 
                index_body = obs_getBodyIndex(lobsSpaceData)
                if (index_body < 0) exit BODY_2
-
                if (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER).eq.189) &
                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY).EQ.BUFR_NEZD) &
                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1) ) then
-!C                call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, grad(Index_header) 
-!c                                        = (H'dx - d)/sigma_o^2)
-                  ZHX = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
-
-!C     *          Observation height (m)
-                  ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!C     *          Call GP-ZTD adjoint operator: input = ZHX,
-!c                   output = ZTT,ZHU,ZP0
-                  CALL GPSZTDOPAD(ZLAT,ZLON,ZLEV,ZETA,ZTTB,   &
-                                  ZHUB,ZP0B,ZPT,ZMT,ZGZ,ZHXB,ZTT,ZHU,ZP0,ZHX,col_getNumLev(lcolumn))
-
-                  DZTT(:) = DZTT(:) + ZTT(:)
-!C                dJo/dQ ---> dJo/d(lnQ) 
-                  DZHU(:) = DZHU(:) + ZHUB(:)*ZHU(:)
-                  DZP0 = DZP0 + ZP0
-               ENDIF
+                  ZINC = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+!C     *       Accumulate the gradient of the observation cost function
+                  DPJO0(1:2*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
+               endif
             ENDDO BODY_2
-
-         ENDIF ! ASSIM
 !c
 !C      *   Store Ht*grad(Index_header) in COMMVO
 !c
-         DO JL = 1, col_getNumLev(lcolumn)
-            tt_column(JL) = DZTT(JL)
-            hu_column(JL) = DZHU(JL)
-         ENDDO
-         ps_column(1) = DZP0
+            tt_column => col_getColumn(lcolumn,index_header,'TT')
+            hu_column => col_getColumn(lcolumn,index_header,'HU')
+            ps_column => col_getColumn(lcolumn,index_header,'P0')
+            DO JL = 1, NFLEV
+              tt_column(JL) = DPJO0(JL)
+              hu_column(JL) = DPJO0(JL+NFLEV)
+            ENDDO
+            ps_column(1) = DPJO0(2*NFLEV+1)
+            
+         ENDIF ! ASSIM
+         
+       
       ENDDO HEADER
-
-      deallocate(ZETA)
-      deallocate(ZTT)
-      deallocate(ZHU)
-      deallocate(ZGZ)
-      deallocate(ZTTB)
-      deallocate(ZHUB)
-      deallocate(DZTT)
-      deallocate(DZHU)
-
+      
+!      WRITE(*,*) 'oda_HTgp: Number of ZTD data locations processed = ', icount
+      
+!      WRITE(*,*)'EXIT oda_HTgp'
+      
       RETURN
       END subroutine oda_HTgp
-
 
 
 end subroutine oda_HT

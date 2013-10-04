@@ -1,92 +1,54 @@
 !-*- F90 -*-
+
+!
+! Structure containing the geopotential height and derivatives
+! of a model profile.
+!
+! Functions:
+!      Construct the geop hgt cached profiles.
+!
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
+!
+! Revisions:
+!        J.M. Aparicio - ARMA Feb 2012
+!          Improved compressibility
+!
 module modgps07geostruct
-#if defined (DOC)
-  !
-  ! Structure containing the geopotential height and derivatives
-  ! of a model profile.
-  !
-  ! Functions:
-  !      Construct the geop hgt cached profiles.
-  !
-  ! Josep M. Aparicio
-  ! Meteorological Service of Canada, 2003.
-  ! Revisions:
-  !        J.M. Aparicio - ARMA Feb 2012
-  !          Improved compressibility
-  !
-#endif
   use modgps00base     , only : i4, dp, ngpssize
+  use modgps02wgs84const,only : WGS_a, WGS_OmegaPrime
+  use modgps02wgs84grav ,only : gpsgravityalt
   use modgps03diff
   use modgps04profile  , only : gpsprofile
-  use modgps05refstruct, only : gpspre, gpstem, gpsQ, gpscmp
+  use modgps05refstruct, only : gpscmp, gpsden
+  
 
   implicit none
   
 contains
   
-  subroutine gpsgeo(prf)
-    type(gpsprofile), intent(inout) :: prf
-    
-    integer(i4)         :: i, ngpslev
-    
-    real(dp), parameter :: Avog  = 6.02214e26_dp
-    real(dp), parameter :: Boltz = 1.38065e-23_dp
-    real(dp), parameter :: mwDAir= 28.966_dp
-    real(dp), parameter :: Rd=Avog*Boltz/mwDAir
-    real(dp), parameter :: Rg=9.80616_dp
+  subroutine gpsbvf(prf, bvf)
+    type(gpsprofile)              :: prf
+    type(gpsdiff)   , intent(out) :: bvf(ngpssize)
 
-    real(dp), parameter :: alpha = -1._dp
-    real(dp), parameter :: rgasd = 287.05_dp
-    real(dp), parameter :: delta = 0.6077686814144_dp
+    type(gpsdiff)                 :: den(ngpssize), dddz(ngpssize)
+    integer(i4)                   :: i, ngpslev, im, ip
+    real(dp)                      :: g, sLat
 
-    type(gpsdiff)       :: xi (ngpssize)
-    type(gpsdiff)       :: tv (ngpssize)
-    type(gpsdiff)       :: cmp(ngpssize)
+    call gpsden(prf, den)
 
-    type(gpsdiff)       :: tvm
-    type(gpsdiff)       :: dx
-    type(gpsdiff)       :: z
-    type(gpsdiff)       :: q,p,t,Zt
-
-    if (prf%bgst .EQV. .false.) then
-       call gpspre(prf)
-       call gpstem(prf)
-       call gpsQ  (prf)
-       call gpscmp(prf,cmp)
-       ngpslev=prf%ngpslev
-
-       do i = 1, ngpslev
-          p = prf%pst(i)
-          t = prf%tst(i)
-          q = prf%qst(i)
-          Zt= cmp(i)
-          !
-          ! Log(P)
-          !
-          xi(i) = log(p)
-          !
-          ! Virtual temperature (K) (corrected of compressibility)
-          !
-          tv(i) = (1._dp+delta*q) * t * Zt
-       enddo
-       
-       !
-       ! Hydrostatic equation
-       !
-       prf%gst(ngpslev) = prf%rMT
-       do i = ngpslev-1, 1, -1
-          dx  =  xi(i)-xi(i+1)
-          tvm = 0.5_dp*(tv(i)+tv(i+1))
-          !
-          ! Geopotential height increment
-          !
-          z   = (-Rd/Rg) * tvm * dx
-          prf%gst(i) = prf%gst(i+1) + z
-       enddo
-       prf%bgst = .true.
-    endif
-
-  end subroutine gpsgeo
+    ngpslev = prf%ngpslev
+    sLat=sin(prf%rLat)
+    do i = 1, ngpslev
+       ip=i+1
+       im=i-1
+       if (i==1)       im=1
+       if (i==ngpslev) ip=ngpslev
+       dddz(i)=den(i)*(log(den(ip))-log(den(im)))/(prf%gst(ip)-prf%gst(im))
+       g=gpsgravityalt(sLat, prf%gst(i)%Var)
+       bvf(i)=sqrt((-g)/den(i)*dddz(i))
+    enddo
+  end subroutine gpsbvf
 
 end module modgps07geostruct
-

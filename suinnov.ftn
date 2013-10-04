@@ -27,7 +27,13 @@
 *     S. Macpherson -ARMA/MRD   Sep 2009
 *         - Add ground-based GPS family "GP"
 *     Bin He   -ARMA/MRD      Feb. 2010 
-*         - Implemented MPI to 3DVAR      
+*         - Implemented MPI to 3DVAR
+*     S. Macpherson -ARMA/MRD   Dec 2012 - Jan 2013
+*         - moved "WRITE"s for GB-GPS options to sugpsgb.ftn
+*         - DOBGPSGB is now ready for GEM-4 staggered grid
+*         - added CALL SETERRGPSGB(lobsSpaceData,lgpdata) to set ZTD errors
+*         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
+*
 *    -------------------
 *
       use minimization_mod
@@ -36,7 +42,6 @@
       IMPLICIT NONE
 #include "comct0.cdk"
 #include "comfilt.cdk"
-#include "comgpsgb.cdk"
 c
       type(struct_columnData) :: lcolumnhr,lcolumng
       type(struct_obs) :: lobsSpaceData
@@ -45,6 +50,8 @@ c
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
+      
+      logical lgpdata
 c
       write(*,*) '--Starting subrouting suinnov--'
 c
@@ -52,7 +59,7 @@ c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface
 c     pressure values of the trial field.
 c
-c     GB-GPS (met and ZTD) observations are processed in SOBSSFC
+c     GB-GPS (met and ZTD) observations are processed in s/r SOBSSFC (in sobs_all.ftn90)
 c
         IF (LTOPOFILT) THEN
           write(*,*)' *****************************************'
@@ -126,114 +133,16 @@ C
 C        GPS - RADIO OCCULTATION
 C-------------------------------
       ZJOGPSRO=0.0D0
-      CALL SETERRGPSRO(lcolumnhr,lobsSpaceData)
       CALL FILTERGPSRO(lcolumnhr,lobsSpaceData)
+      CALL SETERRGPSRO(lcolumnhr,lobsSpaceData)
       CALL DOBSGPSRO(ZJOGPSRO,lcolumnhr,lobsSpaceData)
 C
 C        GPS - GROUND-BASED ZENITH DELAY
 C-------------------------------
 C
       ZJOGPSGB=0.0D0
-!
-!nwa Only in non staggerd mode 
-!ccc According to Stephen MacPherson  
-!ccc There are no GROUND-BASED ZENITH DELAY obs used in the global analysis
-!ccc They are being tested in the regional LAM analysis
-!ccc So DOBSGPSGB was not adapted to staggered at this time 
-!ccc (Jan 18,2011)
-      vco_trl => col_getVco(lcolumnhr)
-      if(vco_trl%iversion .eq. 5001 ) then
-        CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
-      endif
-
-      if ( ZJOGPSGB .gt. 0.0D0 ) then
-
-C     Options to fix/adjust model ZTD to observation height and
-C     assimilate GPS met data
-C
-          write(*,*)' '
-          write(*,*)' *****************************************'
-          write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-          write(*,*)' *        GB-GPS OBSERVATIONS            *'
-          write(*,*)' * DZ ADJUSTMENT IN GPSZTDOP IF DZ>DZMIN *'
-          write(*,*)' *                                       *'
-          write(*,*)' *****************************************'
-          write(*,*) ' '
-          write(*,*) 'DZMIN, DZMAX = ', DZMIN, DZMAX
-          write(*,*) 'NJLEVP = ', NJLEVP
-          write(*,*) ' '
-C
-          IF (LASSMET) THEN
-            write(*,*)' '
-            write(*,*)' *****************************************'
-            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(*,*)' *          GB-GPS OBSERVATIONS          *'
-            write(*,*)' *     GPS MET DATA ARE ASSIMILATED      *'
-            write(*,*)' *                                       *'
-            write(*,*)' *****************************************'
-            write(*,*) 'YSFERRWGT = ', YSFERRWGT
-            write(*,*) 'YZDERRWGT = ', YZDERRWGT
-            write(*,*) ' '
-          ELSE
-            write(*,*)' '
-            write(*,*)' *****************************************'
-            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(*,*)' *          GB-GPS OBSERVATIONS          *'
-            write(*,*)' *   GPS MET DATA ARE NOT ASSIMILATED    *'
-            write(*,*)' *                                       *'
-            write(*,*)' *****************************************'
-            write(*,*) 'YZDERRWGT = ', YZDERRWGT
-            write(*,*) ' '
-          ENDIF
-C
-          IF (YZTDERR .LT. 0.0) THEN
-            write(*,*)' '
-            write(*,*)' *****************************************'
-            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(*,*)' *          GB-GPS OBSERVATIONS          *'
-            write(*,*)' *    ZTD OBSERVATION ERROR FROM FERR    *'
-            write(*,*)' *                                       *'
-            write(*,*)' *****************************************'
-          ELSE IF (YZTDERR .GT. 0.0) THEN
-            write(*,*)' '
-            write(*,*)' *****************************************'
-            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(*,*)' *          GB-GPS OBSERVATIONS          *'
-            write(*,*)' *     ZTD OBSERVATION ERROR IS FIXED    *'
-            write(*,*)' *                                       *'
-            write(*,*)' *****************************************'
-            write(*,*)' '
-            write(*,*)'YZTDERR (mm) = ', YZTDERR*1000.
-          ELSE
-            write(*,*)' '
-            write(*,*)' *****************************************'
-            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(*,*)' *          GB-GPS OBSERVATIONS          *'
-            write(*,*)' *   ZTD OBSERVATION ERROR IS FROM ZTD   *'
-            write(*,*)' *   USING SD(O-P) STATS (REGRESSION)    *'
-            write(*,*)' *                                       *'
-            write(*,*)' *****************************************'
-            write(*,*)' '
-          ENDIF
-C
-C-------- FILTER GPS DATA (EXPERIMENTAL)  --------------------
-C
-          IF (L1GPSOBS) THEN 
-            write(*,*)' '
-            write(*,*)' *****************************************'
-            write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-            write(*,*)' *          GB-GPS OBSERVATIONS          *'
-            write(*,*)' *                                       *'
-            write(*,*)' *     --- ONE OBSERVATION MODE ---      *'
-            write(*,*)' *                                       *'
-            write(*,*)' *****************************************'
-            write(*,*)' ' 
-            write(*,*)' CGPSSTN = ', CGPSSTN
-            write(*,*)' '
-            CALL SUGPSGB
-          ENDIF
-c
-      endif
+      CALL SETERRGPSGB(lobsSpaceData,lgpdata)
+      if (lgpdata) CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
 c
       call tmg_stop(48)
 c

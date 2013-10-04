@@ -50,6 +50,7 @@ C
 #include "comfilt.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
+#include "comgpsro.cdk"
 **
       type(struct_obs) :: lobsSpaceData
       INTEGER JO, IPOINTU, IPOINTV,IPOINTZ,IERR,jelem,j,ielem
@@ -71,6 +72,31 @@ C
       LNLVTOV   = .FALSE.
       CRTMODL   = 'RTTOV'
       CALL READNML('NAMTOV',IERR)
+C
+C*    *        1.2 Read the NAMELIST NAMGGPSRO
+C     *       ---------------------------------------
+C
+C     Define default values:
+C
+      LEVELGPSRO = 2
+      GPSRO_MAXPRFSIZE = 300
+      SURFMIN    = 0.d0
+      HSFMIN     = 0.d0
+      HTPMAX     = 70000.d0
+      BGCKBAND   = 0.05d0
+      NUMGPSSATS = 0
+C
+C     Override with NML values:
+C     
+      CALL READNML('NAMGPSRO',IERR)
+      write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
+C
+C     Force a min/max values for the effective Fresnel widths per satellite:
+C
+      DO J=1,NUMGPSSATS
+         IF (WGPS(J).LT. 100.d0) WGPS(J)= 100.d0
+         IF (WGPS(J).GT.1500.d0) WGPS(J)=1500.d0
+      ENDDO
 C
 C     1.Read Input from namelist
 C     -------------------------

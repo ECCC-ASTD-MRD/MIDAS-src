@@ -148,9 +148,7 @@
 !C     SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
 !C     -----------------------------------------------------
 !C
-         write(*,*) 'before setfgedif'
          CALL SETFGEDIF('RO',lcolumng,lobsSpaceData)
-         write(*,*) 'after setfgedif'
 !C
 !C     DO TEMPERATURE FIRST-GUESS ERROR
 !C     ---------------------------------

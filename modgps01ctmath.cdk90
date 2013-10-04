@@ -1,8 +1,12 @@
+! -*- F90 -*-
+
 ! Module containing mathematical quantities.
 ! Mathematical constants have the prefix m_.
 !
-! Josep M. Aparicio
-! Meteorological Service of Canada, 2003
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
+! 
 
 module modgps01ctmath
   use modgps00base, only: dp

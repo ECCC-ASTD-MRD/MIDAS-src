@@ -9,7 +9,11 @@ SUBROUTINE SELECTB(obsdat)
 !                        obsdat   - obsdat-file object
 !
 !       AUTHOR: P. KOCLAS(CMC CMDA)
-!       Revision:
+!
+!       Revisions:
+!         1 Oct 2013:  S. Macpherson ARMA
+!                      Bug fix: Put CALL SET_ERR_GBGPS *after* OBS_OER initialized to 0
+!
 !     NOTE:
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
 !---------------------------------------------------------------------------------
@@ -60,11 +64,7 @@ SUBROUTINE SELECTB(obsdat)
 !    call obs_headSet_i(obsdat,OBS_IDF,JO,J)
 	    call obs_setFamily(obsdat,trim(CFAMTYP(J)),JO)
 	 END DO
-	 IF ( trim(CFAMTYP(J)) .eq. 'GP') THEN
-	   print * ,' setting ground based gps error'
-           CALL   SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
-	 ENDIF
-
+!    initializations
          DO JO=IBEG,IEND
             call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
             call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
@@ -74,6 +74,14 @@ SUBROUTINE SELECTB(obsdat)
             call obs_bodySet_r(obsdat,OBS_OMF ,JO,MISG)
             call obs_bodySet_r(obsdat,OBS_OMI ,JO,MISG)
          END DO
+!
+!    For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
+!    for all ZTD data (element 15031)
+         IF ( trim(CFAMTYP(J)) .eq. 'GP') THEN
+           print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
+           CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
+         ENDIF
+!
       END DO
 
       WRITE(*,*) '  readburp obs_numheader(obsdat)', obs_numheader(obsdat)

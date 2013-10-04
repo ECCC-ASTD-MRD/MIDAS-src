@@ -3,6 +3,8 @@ C
 C     COMDECK NAMGPSRO
 C     ----------------
 C
+C     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
+C     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
 C     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
 C     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
 C     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
@@ -17,7 +19,12 @@ C     BGCKBAND = 0.05
 C
 #endif
       NAMELIST /NAMGPSRO/
+     $     LEVELGPSRO,
+     $     GPSRO_MAXPRFSIZE,
      $     SURFMIN,
      $     HSFMIN,
      $     HTPMAX,
-     $     BGCKBAND
+     $     BGCKBAND,
+     $     NUMGPSSATS,
+     $     IGPSSAT,
+     $     WGPS

@@ -142,7 +142,6 @@ C           BRIGHTNESS TEMPERATURE         0 12 062
 C           BRIGHTNESS TEMPERATURE         0 12 063
 C           BRIGHTNESS TEMPERATURE         0 12 163
 C           GPS ZENITH TROPOSPHERIC DELAY  0 15 031
-C           GPS ZTD ERROR                  0 15 032
 C
 C  ........ Quality control flags bit definitions (see ADE BANCO
 C document)
@@ -367,28 +366,16 @@ C
             endif
 C
 C           For GPS Radio Occultation data (codtyp 169):
-C           Allow only refractivity observations (ITYP=15036)
 C
             IF ( IDBURP .EQ. 169 ) THEN
-C
-C     *        Only heights between 0 and 80000 m:
-C
-               GPH = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-               IF (GPH .LT. 0. .OR. GPH .GT. 80000.) THEN
-                  LLOK = .FALSE.
-               ENDIF
             ENDIF
 C
 C           Ground-based GPS (GP) data (codtyp 189)
 C           LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
-C           Don't want to assimilate ZTD error (BUFR_NEFE).
 C           If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
 C           Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
 C
             IF ( IDBURP .EQ. 189 ) THEN
-               IF (ITYP .EQ. BUFR_NEFE) THEN
-                  LLOK = .FALSE.
-               ENDIF
                IF (.NOT.LASSMET .AND. (ITYP .EQ. BUFR_NEPS .OR.
      +              ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NESS)) THEN
                   LLOK = .FALSE.

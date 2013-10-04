@@ -1,45 +1,42 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
       SUBROUTINE BGCGPSRO(lcolumnhr,lobsSpaceData)
 !*
 !***s/r  BGCGPSRO - Set backcground check flags to the GPSRO observations
 !*
 !*Author  : P. KOCLAS. Mar 2008
+!*Modified: J.M. Aparicio, Dec 2012.
+!*          Simplified and adapted to both refractivity and bending angle data
 !*    -------------------
 !**    Purpose:
-!*   calculate (o-p)/p for all ro profiles and set background check flag on if
-!*                     ABS(O-P)/P is too large
+!*   Set background check flag on GPSRO data if ABS(O-P)/P is too large
 !*
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use modgps04profile
-      use modgps05refstruct
-      use modgps06gravity
-      use modgps07geostruct
-      use modgps08refop
-      use columnData_mod
       use obsSpaceData_mod
+      use columnData_mod
       use verticalCoord_mod
       IMPLICIT NONE
 #include "comct0.cdk"
-#include "comgpsro.cdk"
+
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
       type(struct_vco), pointer :: vco_trl
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON, Lon
-      integer, parameter :: jpnflev=200
-      REAL*8 ZETA(JPNFLEV)
-      REAL*8 ZPP (JPNFLEV),ZDP (JPNFLEV)
-      REAL*8 ZTT (JPNFLEV)
-      REAL*8 ZHU (JPNFLEV)
-      REAL*8 ZGZ (JPNFLEV)
-      REAL*8 ZP0
-      REAL*8 ZPT, ZPR, ZCF
-      REAL*8 ZMT
-      REAL*8 DH
-      REAL*8 BIAS
-      REAL*8 HNH1, HSF, HTP
-
-      REAL*8 ZOBS, ZMHX
+      REAL*8 HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
 
       INTEGER INDEX_HEADER, JD
       INTEGER IDATYP
@@ -47,37 +44,21 @@
       INTEGER JL, JH,  NGPSLEV
       INTEGER NH, NH1
 
-      LOGICAL  ASSIM, LSTAG
+      LOGICAL  LSTAG
 
       INTEGER NH
-      TYPE(GPSPROFILE)           :: PRF 
-      REAL(DP)     , ALLOCATABLE :: H   (:)
-      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:)
-
-      WRITE(*,*)'ENTER BGCSGPSRO'
-      WRITE(*,*)'!!!!!!!!! CAUTION !!!!!!!!!!!!'
-      WRITE(*,*)'STAGGERING NOT YET IMPLEMENTED IN DERIVATIVES'
+#include "comgpsro.cdk"
 
       LSTAG = .FALSE.
       vco_trl => col_getVco(lcolumnhr)
       if (vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
+      
+      WRITE(*,*)'ENTER BGCSGPSRO'
 !C
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-
-!C
-!C     *    .   1.1  Eta vector
-!C     *    .        ----------
-!C
       NGPSLEV=col_getNumLev(lcolumnhr)
-      DO JL = 1, col_getNumLev(lcolumnhr)
-         ZETA(JL) = vco_trl%dhyb_T(JL)
-      ENDDO
-!C
-!C*    *        1.2 Read the NAMELIST NAMGGPSRO
-!C     *       ---------------------------------------
-      write(*,*)'NAMGPSRO',SURFMIN,HSFMIN,HTPMAX,BGCKBAND
 !C
 !C     Loop over all files
 !C
@@ -87,116 +68,71 @@
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 !C     
-!C     *        Process only refractivity data (codtyp 169)
+!C     * Process only refractivity data (codtyp 169)
 !C
-               IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-               IF ( IDATYP .EQ. 169 ) THEN
+         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+         IF ( IDATYP .EQ. 169 ) THEN
 !C
-!C                 Loops over data in the observation
+!C     *    Basic geometric variables of the profile:
 !C
-                  IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-                  IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-                  ASSIM = .FALSE.
+            Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
 !C
-!C                 Scan for requested assimilations, and count them
+!C     *    Loops over data in the observation
 !C
-                  NH = 0
-                  DO INDEX_BODY= IDATA, IDATEND
-                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-                        ASSIM = .TRUE.
-                        NH = NH + 1
-                     ENDIF
-                  ENDDO
+            IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+            IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
 !C
-!C     *           If assimilations are requested, apply the observation operator
+!C     *    Scan for requested assimilations, and count them
 !C
-                  IF (ASSIM) THEN
-!C     
-!C     *              Profile at the observation location:
+            DO INDEX_BODY= IDATA, IDATEND
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                  HNH1 = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                  IF (LEVELGPSRO.EQ.1) HNH1 = HNH1-Rad
 !C
-                     Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-                     Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-                     ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
-                     ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-                     ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-                     DO JL = 1, col_getNumLev(lcolumnhr)
+!C     *          Increment OMF = Y - H(x)
 !C
-!C     *                 Profile x
+                  ZOMF = obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
 !C
-                        ZPP(JL) = col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH')
-!CCCCCCCCC THIS IS ONLY A DUMMY IMPLEMENTATION OF ZDP (dP/dP0)
-                        ZDP(JL) = ZPP(JL)/ZP0
-                        ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-273.15
-                        ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
-                        ZGZ(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')
-                     ENDDO
-                     ZP0 = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-                     ZPT = col_getPressure(lcolumnhr,1,INDEX_HEADER,'TH')
-                     ZMT = ZGZ(col_getNumLev(lcolumnhr))/RG
-                     ZMT = gpsgeopotential(Lat, ZMT)/RG
-                     ZPR = vco_trl%dprf_M
-                     ZCF = vco_trl%drcf1
-!C     
-!C     *              GPS profile structure:
+!C     *          Observation value    Y
 !C
-                     IF (LSTAG) THEN
-!c     *                 Staggered hybrid trial field 
-                        CALL GPSSTRUCT1S(NGPSLEV,ZLAT,ZLON,ZPP,ZDP,ZTT,ZHU,ZMT,PRF)
+                  ZOBS = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                  ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                  ZMHX = ZOBS-ZOMF
+!C
+!C     *          Reference order of magnitude value:
+!C
+                  IF (LEVELGPSRO.EQ.1) THEN
+                     ZREF = 0.025d0*exp(-HNH1/6500.d0)
+                  ELSE
+                     IF (NUMGPSSATS .GE. 1) THEN
+                       ZREF = 300.d0*exp(-HNH1/6500.d0)
                      ELSE
-!c     *                 ETA or HYBRID NONSTAGGERED trial field 
-                        CALL GPSSTRUCT1H(NGPSLEV,ZLAT,ZLON,ZETA,ZTT,ZHU,ZP0,ZMT,ZPT,ZPR,ZCF,PRF)
+                       ZREF = ZMHX
                      ENDIF
-                     CALL GPSGEO(PRF)
-!C
-!C     *              Prepare the vector of all the observations:
-!C
-                     ALLOCATE( H    (NH) )
-                     ALLOCATE( RSTV (NH) )
-                     NH1 = 0
-                     DO INDEX_BODY= IDATA, IDATEND
-                        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-                           NH1   = NH1 + 1
-                           HNH1  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                           H(NH1)= gpsgeopotential(Lat,HNH1)/9.80616
-                         ENDIF
-                     ENDDO
-!C
-!C     *              Apply the observation operator:
-!C
-                     CALL GPSREFOPV (H, PRF, RSTV)
-!C
-!C     *              Perform the (H(x)-Y)/H operation
-!C
-                     NH1 = 0
-                     DO INDEX_BODY= IDATA, IDATEND
-                        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-                           NH1 = NH1 + 1
-!C
-!C     *                    Observation operator H(x)
-!C
-                           ZMHX = RSTV(NH1)%VAR
-!C
-!C     *                    Observation value    Y
-!C
-                           ZOBS = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-!C                           
-!C                          OMF Tested criteria:
-!C
-                           IF (DABS(ZOBS-ZMHX)/ZMHX.GT.BGCKBAND) THEN
-                              call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
-                              call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
-                              WRITE(*,'(A40,F10.0,3F12.4)')  &
-                                  ' REJECT BGCSGPSRO H  O  P (O-P/P) =',H(NH1),ZOBS,ZMHX,(ZOBS-ZMHX)/ZMHX
-                           ENDIF
-                        ENDIF
-                     ENDDO
-                     DEALLOCATE( RSTV )
-                     DEALLOCATE( H    )
                   ENDIF
+!C                           
+!C     *          OMF Tested criteria:
+!C
+                  IF (NUMGPSSATS .GE. 1) THEN
+                    IF (DABS(ZOMF)/ZREF.GT.BGCKBAND .OR. DABS(ZOMF)/ZOER.GT.3.d0) THEN
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
+                    ENDIF
+                  ELSE
+                    IF (DABS(ZOMF)/ZREF.GT.BGCKBAND) THEN
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),16))
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
+                      WRITE(*,'(A40,F10.0,3F12.4)') ' REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
+                    ENDIF                  
+                  ENDIF
+                  
                ENDIF
+            ENDDO
+         ENDIF
 
       ENDDO HEADER
+
       WRITE(*,*)'EXIT BGCSGPSRO'
       RETURN
+      
       END SUBROUTINE BGCGPSRO
-

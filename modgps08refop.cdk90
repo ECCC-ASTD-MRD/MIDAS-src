@@ -1,50 +1,50 @@
+! -*- F90 -*-
+
+!
+! Refractivity operator, with derivatives.
+!
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
+!
+
 module modgps08refop
-#if defined (DOC)
-  !
-  ! Refractivity operator, with derivatives.
-  !
-  ! Josep M. Aparicio
-  ! Meteorological Service of Canada, 2003.
-  !
-#endif
-  use modgps00base     , only : i4, dp
+  use modgps00base     , only : i4, dp, ngpssize
   use modgps01ctmath   , only : m_pi
   use modgps03diff
-  use modgps04profile
-  use modgps05refstruct, only : gpspre, gpsref, gpsrefW, gpsztd
-  use modgps06gravity,   only : gpsgravityabove
-  use modgps07geostruct, only : gpsgeo
+  use modgps04profile  , only : gpsprofile
+  use modgps07geostruct, only : gpsbvf
 
   implicit none
   
 contains
 
-  subroutine gpsrefopv(hv, prf, refopv)
+  !
+  ! GPSRO Refractivity operator
+  ! On input:
+  ! -hv       an array of height values
+  ! -prf      local profile
+  ! On output:
+  ! -refopv   an array of refractivity values (with derivatives)
+  !
+  pure subroutine gpsrefopv(hv, nval, prf, refopv)
     real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)     , intent(inout) :: prf
+    integer(i4)          , intent(in) :: nval
+    type(gpsprofile)     , intent(in) :: prf
     type(gpsdiff)        , intent(out):: refopv(:)
     
     integer(i4)                       :: iSize, i, ngpslev
     integer(i4)                       :: j, jloc
     real(dp)                          :: h
     
-    type(gpsdiff)                     :: gpm
-    type(gpsdiff)                     :: gpp
-    
     type(gpsdiff)                     :: dz
+
+    type(gpsdiff)                     :: dzm
+    type(gpsdiff)                     :: dzp
     
-    type(gpsdiff)                     :: dxm
-    type(gpsdiff)                     :: dxp
-    
-    type(gpsdiff)                     :: Nm
-    type(gpsdiff)                     :: Np
-    
-    type(gpsdiff)                     :: N
-    
-    call gpsref(prf)
-    call gpsgeo(prf)
     ngpslev=prf%ngpslev
     iSize = size(hv)
+    if (nval < iSize) iSize=nval
     !
     ! Given a height
     !
@@ -68,171 +68,23 @@ contains
           jloc = ngpslev-1
        endif
        !
-       ! Find properties in that band
+       ! Linear-log interpolation
        !
-       gpm = prf%gst(jloc)
-       gpp = prf%gst(jloc+1)
+       dz  = prf%gst(jloc) - prf%gst(jloc+1)
        
-       dz  = gpm - gpp
+       dzm = h - prf%gst(jloc+1)
+       dzp = prf%gst(jloc) - h
        
-       dxm = (h-gpp) / dz
-       dxp = (gpm-h) / dz
-       
-       Nm  = prf%rst(jloc)
-       Np  = prf%rst(jloc+1)
-
-       N   = exp(dxm * log(Nm) + dxp * log(Np))
-       
-       refopv (i) = N
+       refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
     enddo
   end subroutine gpsrefopv
 
-  subroutine gpsrefWopv(hv, prf, refWopv)
-    real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)     , intent(inout) :: prf
-    type(gpsdiff)        , intent(out):: refWopv(:)
-    type(gpsdiff)        , allocatable:: NWA(:)
-    
-    integer(i4)                       :: iSize, i, ngpslev
-    integer(i4)                       :: j, jloc
-    real(dp)                          :: h
-    
-    type(gpsdiff)                     :: gpm
-    type(gpsdiff)                     :: gpp
-    
-    type(gpsdiff)                     :: dz
-    
-    type(gpsdiff)                     :: dxm
-    type(gpsdiff)                     :: dxp
-    
-    type(gpsdiff)                     :: Nm
-    type(gpsdiff)                     :: Np
-    
-    type(gpsdiff)                     :: N
-
-    ngpslev=prf%ngpslev
-    allocate (NWA(ngpslev))
-    call gpsrefW(prf, NWA)
-    call gpsgeo(prf)
-    
-    iSize = size(hv)
-    !
-    ! Given a height
-    !
-    do i = 1, iSize
-       h = hv(i)
-       !
-       ! Search where it is located
-       !
-       if (h > prf%gst(1)%Var) then
-          jloc = 1
-       endif
-       
-       do j=1, ngpslev-1
-          if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
-             jloc = j
-             exit
-          endif
-       enddo
-       
-       if (h <= prf%gst(ngpslev)%Var) then
-          jloc = ngpslev-1
-       endif
-       !
-       ! Find properties in that band
-       !
-       gpm = prf%gst(jloc)
-       gpp = prf%gst(jloc+1)
-       
-       dz  = gpm - gpp
-       
-       dxm = (h-gpp) / dz
-       dxp = (gpm-h) / dz
-       
-       Nm  = NWA(jloc)
-       Np  = NWA(jloc+1)
-
-       N   = exp(dxm * log(Nm) + dxp * log(Np))
-       
-       refWopv (i) = N
-    enddo
-    deallocate (NWA)
-  end subroutine gpsrefWopv
-
-  subroutine gpstemgrdop(dh, prf, grd)
-    real(dp)             , intent(in) :: dh
-    type(gpsprofile)     , intent(inout) :: prf
-    type(gpsdiff)        , intent(out):: grd
-    
-    integer(i4)                       :: iSize, i, ngpslev
-    integer(i4)                       :: j, jloc
-    real(dp)                          :: h1, h2
-    
-    type(gpsdiff)                     :: gpm
-    type(gpsdiff)                     :: gpp
-    
-    type(gpsdiff)                     :: dz
-    
-    type(gpsdiff)                     :: dxm
-    type(gpsdiff)                     :: dxp
-    
-    type(gpsdiff)                     :: tm
-    type(gpsdiff)                     :: tp
-    
-    type(gpsdiff)                     :: t
-
-    ngpslev=prf%ngpslev
-    call gpsgeo(prf)
-    !
-    ! Relevant heights
-    !
-    h1 = prf%gst(ngpslev)%Var
-    h2 = h1 + dh
-    !
-    ! Search where h2 is located
-    !
-    if (h2 > prf%gst(1)%Var) then
-       jloc = 1
-    endif
-       
-    do j=1, ngpslev-1
-       if ((h2 <= prf%gst(j)%Var) .and. (h2 > prf%gst(j+1)%Var)) then
-          jloc = j
-          exit
-       endif
-    enddo
-       
-    if (h2 <= prf%gst(ngpslev)%Var) then
-       jloc = ngpslev-1
-    endif
-    !
-    ! Find properties in that band
-    !
-    gpm = prf%gst(jloc)
-    gpp = prf%gst(jloc+1)
-       
-    dz  = gpm - gpp
-       
-    dxm = (h2-gpp) / dz
-    dxp = (gpm-h2) / dz
-       
-    tm  = prf%tst(jloc)
-    tp  = prf%tst(jloc+1)
-
-    t   = dxm * tm + dxp * tp
-    grd = (t-prf%tst(ngpslev))/dh
-  end subroutine gpstemgrdop
-
   subroutine gpshgtopv(pr, prf, hgtopv)
     real(dp)             , intent(in) :: pr
-    type(gpsprofile)     , intent(inout) :: prf
+    type(gpsprofile)                  :: prf
     type(gpsdiff)        , intent(out):: hgtopv
     
-    type(gpsdiff)                     :: gst(ngpssize)
-    type(gpsdiff)                     :: vp(ngpssize)
-    
-    integer                           :: iSize, ngpslev
-    integer(i4)                       :: i, j, jloc
+    integer(i4)                       :: j, jloc, ngpslev
     real(dp)                          :: p
     type(gpsdiff)                     :: vpm
     type(gpsdiff)                     :: vpp
@@ -247,8 +99,6 @@ contains
     
     type(gpsdiff)                     :: H
 
-    call gpspre(prf)
-    call gpsgeo(prf)
     ngpslev=prf%ngpslev
     !
     ! Given a pressure
@@ -290,18 +140,150 @@ contains
     hgtopv = H
   end subroutine gpshgtopv
 
-
-  subroutine gpsZTDopv(hv, prf, ZTDopv)
-    real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)     , intent(inout) :: prf
-    type(gpsdiff)        , intent(out):: ZTDopv(:)
+  subroutine gpstemopv(pr, nval, prf, temopv)
+    real(dp)             , intent(in) :: pr(:)
+    integer(i4)          , intent(in) :: nval
+    type(gpsprofile)                  :: prf
+    type(gpsdiff)        , intent(out):: temopv(:)
     
-    type(gpsdiff)                     :: ZTDS(ngpssize)
+    integer                           :: iSize, ngpslev
+    integer(i4)                       :: i, j, jloc
+    real(dp)                          :: p
+    type(gpsdiff)                     :: vpm
+    type(gpsdiff)                     :: vpp
+    
+    type(gpsdiff)                     :: dpr
+    
+    type(gpsdiff)                     :: dxm
+    type(gpsdiff)                     :: dxp
+    
+    type(gpsdiff)                     :: Tm
+    type(gpsdiff)                     :: Tp
+    
+    type(gpsdiff)                     :: T
 
+    ngpslev=prf%ngpslev
+    iSize = size(pr)
+    if (nval < iSize) iSize=nval
+    do i = 1, iSize
+       !
+       ! Given a pressure
+       !
+       p = pr(i)
+       !
+       ! Search where it is located
+       !
+       if (p < prf%pst(1)%Var) then
+          jloc = 1
+       endif
+    
+       do j=1, ngpslev-1
+          if ((p >= prf%pst(j)%Var) .and. (p < prf%pst(j+1)%Var)) then
+             jloc = j
+             exit
+          endif
+       enddo
+    
+       if (p >= prf%pst(ngpslev)%Var) then
+          jloc = ngpslev-1
+       endif
+       !
+       ! Find properties in that band
+       !
+       vpm = log(prf%pst(jloc))
+       vpp = log(prf%pst(jloc+1))
+       
+       dpr  = vpp-vpm
+    
+       dxm = (vpp-log(p)) / dpr
+       dxp = (log(p)-vpm) / dpr
+    
+       Tm  = prf%tst(jloc)
+       Tp  = prf%tst(jloc+1)
+    
+       T   = dxm * Tm + dxp * Tp
+       
+       temopv(i) = T
+    enddo
+  end subroutine gpstemopv
+
+  subroutine gpswmropv(pr, prf, wmropv)
+    real(dp)             , intent(in) :: pr(:)
+    type(gpsprofile)                  :: prf
+    type(gpsdiff)        , intent(out):: wmropv(:)
+
+    integer                           :: iSize, ngpslev
+    integer(i4)                       :: i, j, jloc
+    real(dp)                          :: p
+    type(gpsdiff)                     :: vpm
+    type(gpsdiff)                     :: vpp
+    
+    type(gpsdiff)                     :: dpr
+    
+    type(gpsdiff)                     :: dxm
+    type(gpsdiff)                     :: dxp
+    
+    type(gpsdiff)                     :: Rm
+    type(gpsdiff)                     :: Rp
+    
+    type(gpsdiff)                     :: R
+
+    ngpslev=prf%ngpslev
+    iSize = size(pr)
+    do i = 1, iSize
+       !
+       ! Given a pressure
+       !
+       p = pr(i)
+       !
+       ! Search where it is located
+       !
+       if (p < prf%pst(1)%Var) then
+          jloc = 1
+       endif
+    
+       do j=1, ngpslev-1
+          if ((p >= prf%pst(j)%Var) .and. (p < prf%pst(j+1)%Var)) then
+             jloc = j
+             exit
+          endif
+       enddo
+    
+       if (p >= prf%pst(ngpslev)%Var) then
+          jloc = ngpslev-1
+       endif
+       !
+       ! Find properties in that band
+       !
+       vpm = log(prf%pst(jloc))
+       vpp = log(prf%pst(jloc+1))
+       
+       dpr  = vpp-vpm
+    
+       dxm = (vpp-log(p)) / dpr
+       dxp = (log(p)-vpm) / dpr
+
+       Rm  = prf%qst(jloc)
+       Rp  = prf%qst(jloc+1)
+    
+       R   = dxm * Rm + dxp * Rp
+       
+       wmropv(i) = R * 28.97_dp / 18.01528_dp
+    enddo
+  end subroutine gpswmropv
+
+  subroutine gpsbvfopv(hv, nval, prf, bvfopv)
+    real(dp)             , intent(in) :: hv(:)
+    integer(i4)          , intent(in) :: nval
+    type(gpsprofile)                  :: prf
+    type(gpsdiff)        , intent(out):: bvfopv(:)
+    
     integer(i4)                       :: iSize, i, ngpslev
     integer(i4)                       :: j, jloc
     real(dp)                          :: h
-    
+
+    type(gpsdiff)                     :: bvf(ngpssize)
+
     type(gpsdiff)                     :: gpm
     type(gpsdiff)                     :: gpp
     
@@ -310,17 +292,14 @@ contains
     type(gpsdiff)                     :: dxm
     type(gpsdiff)                     :: dxp
     
-    type(gpsdiff)                     :: Fm
-    type(gpsdiff)                     :: Fp
+    type(gpsdiff)                     :: BVm
+    type(gpsdiff)                     :: BVp
     
-    type(gpsdiff)                     :: F, pr
-    
-    call gpsref(prf)
-    call gpsgeo(prf)
-    call gpsZTDS(prf, ZTDS)
+    call gpsbvf(prf,bvf)
 
     ngpslev=prf%ngpslev
     iSize = size(hv)
+    if (nval < iSize) iSize=nval
     !
     ! Given a height
     !
@@ -354,60 +333,11 @@ contains
        dxm = (h-gpp) / dz
        dxp = (gpm-h) / dz
        
-       Fm  = ZTDS(jloc)
-       Fp  = ZTDS(jloc+1)
-
-       pr  = 0.01_dp * (prf%rP0-prf%rPT)
-
-       F   = 1.e-6_dp * pr * (dxm * Fm + dxp * Fp)
+       BVm = bvf(jloc)
+       BVp = bvf(jloc+1)
        
-       ZTDopv(i) = F
+       bvfopv (i) = dxm * BVm + dxp * BVp
     enddo
-  end subroutine gpsZTDopv
-  
-  subroutine gpsZTDS(prf, ZTDS)
-    type(gpsprofile)     , intent(inout) :: prf
-    type(gpsdiff)        , intent(out):: ZTDS(:)
+  end subroutine gpsbvfopv
 
-    type(gpsdiff)                     :: ZTD(ngpssize)
-    
-    integer(i4)                       :: i, ngpslev
-
-    ngpslev=prf%ngpslev
-    call gpsZTD(prf, ZTD)
-    
-    ZTDS(1)=ZTD(1)*prf%rPT/(prf%rP0-prf%rPT)
-    do i = 2, ngpslev
-       ZTDS(i) = ZTDS(i-1) + 0.5_dp * ( ZTD(i) + ZTD(i-1) ) * (prf%rHYB(i)-prf%rHYB(i-1))
-    enddo
-  end subroutine gpsZTDS
-  
-  subroutine gpsscatpotopv(hv, prf, scpot1v, scpot2v)
-    real(dp)             , intent(in) :: hv(:)
-    type(gpsprofile)     , intent(inout) :: prf
-    type(gpsdiff)        , intent(out):: scpot1v(:)
-    type(gpsdiff)        , intent(out):: scpot2v(:)
-    
-    type(gpsdiff), allocatable        :: refopv(:)
-    integer(i4)                       :: iSize
-    real(dp)                          :: k1, k2
-    integer(i4)                       :: j
-    type(gpsdiff)                     :: n
-    
-    iSize = size(hv)
-    allocate(refopv(iSize))
-    call gpsrefopv(hv, prf, refopv)
-    k1 = 2 * m_pi * 1.57542e9 / 2.998792458e8
-    k2 = 2 * m_pi * 1.22760e9 / 2.998792458e8
-    !
-    ! Given a height
-    !
-    do j = 1, iSize
-       n = 1._dp + 1.e-6_dp * refopv(j)
-       scpot1v(j) = k1**2 / (4 * m_pi) * (n * n - 1._dp)
-       scpot2v(j) = k2**2 / (4 * m_pi) * (n * n - 1._dp)
-    enddo
-    deallocate(refopv)
-  end subroutine gpsscatpotopv
-  
 end module modgps08refop

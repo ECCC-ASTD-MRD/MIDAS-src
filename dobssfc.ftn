@@ -122,7 +122,7 @@ C
      &              ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
                  LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.
      &                ITYP .EQ. NLIST(JLIST))
-               ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
+               ELSE IF (ITYP.EQ.BUFR_NEZD) THEN
                  LLOK=.FALSE.
                ELSE
                  LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.
@@ -217,7 +217,7 @@ C
      &             ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &             ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
                   LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)
-               ELSE IF (ITYP.EQ.BUFR_NEZD .OR. ITYP.EQ.BUFR_NEFE) THEN
+               ELSE IF (ITYP.EQ.BUFR_NEZD) THEN
                   LLOK=.FALSE.
                ELSE
                   LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.

@@ -1,159 +1,30 @@
+! -*- F90 -*-
+
+!
+! Structure containing the refractivity and derivatives
+! of a model profile.
+!
+! Functions:
+!      Construct the cached profiles.
+!
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
+!
+! Revisions:
+!        J.M. Aparicio - ARMA Feb 2012
+!          Improved compressibility and refractivity.
+!
+
 module modgps05refstruct
-#if defined (DOC)
-  !
-  ! Structure containing the refractivity and derivatives
-  ! of a model profile.
-  !
-  ! Functions:
-  !      Construct the cached profiles.
-  !
-  ! Josep M. Aparicio
-  ! Meteorological Service of Canada, 2006.
-  !
-  ! Revisions:
-  !        J.M. Aparicio - ARMA Feb 2012
-  !          Improved compressibility and refractivity.
-  !
-#endif
   use modgps00base   , only : i4, dp, ngpssize
+  use modgps01ctphys , only : p_TC
   use modgps03diff
   use modgps04profile, only : gpsprofile
-  use modgps06gravity, only : gpsgravitysurf, gpsgravityabove
-  
+
   implicit none
   
 contains
-
-  subroutine gpspre(prf)
-    type(gpsprofile), intent(inout) :: prf
-
-    integer(i4)      :: i, ngpslev
-    real(dp)         :: rpt, rpr, rcf, pr1, termA, termB
-
-    if (prf%bpst .EQV. .false.) then
-       ngpslev = prf%ngpslev
-       if (prf%rPP(ngpslev) <0.01_dp) then
-          rpt = prf%rPT
-          rpr = prf%rPR
-          rcf = prf%rCF
-          if ( abs(rcf-1._dp) .lt. 0.01_dp ) then
-             do i = 1, ngpslev
-                prf%pst(i)%Var               = 0.01_dp * (rpt+prf%rHYB(i)*(prf%rP0-rpt))
-                prf%pst(i)%DVar              = 0._dp
-                prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * prf%rHYB(i)
-             enddo
-          else
-             prf%pst(1)%Var               = 0.01_dp * rpt
-             prf%pst(1)%DVar              = 0._dp
-             prf%pst(1)%DVar(2*ngpslev+1) = 0._dp
-             pr1 = 1._dp/(1._dp - rpt/rpr)
-             do i = 2, ngpslev
-                termB = ( (prf%rHYB(i) - rpt/rpr)*pr1 ) ** rcf
-                termA = rpr * ( prf%rHYB(i) - termB )
-                prf%pst(i)%Var               = 0.01_dp * (termA + termB * prf%rP0)
-                prf%pst(i)%DVar              = 0._dp
-                prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * termB
-             enddo
-          endif
-       else
-          do i = 1, ngpslev
-             prf%pst(i)%Var               = 0.01_dp * prf%rPP(i)
-             prf%pst(i)%DVar              = 0._dp
-             prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp * prf%rDP(i)
-          enddo
-       endif
-       prf%bpst=.true.
-    endif
-  end subroutine gpspre
-
-  subroutine gpstem(prf)
-    type(gpsprofile), intent(inout) :: prf
-
-    integer(i4)      :: i, ngpslev
-
-    if (prf%btst .EQV. .false.) then
-       ngpslev = prf%ngpslev
-       do i = 1, ngpslev
-          prf%tst(i)%Var               = prf%rTT(i)+273.15_dp
-          prf%tst(i)%DVar              = 0._dp
-          prf%tst(i)%DVar(i)           = 1._dp
-       enddo
-       prf%btst=.true.
-    endif
-  end subroutine gpstem
-
-  subroutine gpsQ(prf)
-    type(gpsprofile), intent(inout) :: prf
-
-    integer(i4)      :: i, ngpslev
-
-    if (prf%bqst .EQV. .false.) then
-       ngpslev = prf%ngpslev
-       do i = 1, ngpslev
-          prf%qst(i)%Var               = exp(prf%rLQ(i))
-          prf%qst(i)%DVar              = 0._dp
-          prf%qst(i)%DVar(ngpslev+i)   = exp(prf%rLQ(i))
-       enddo
-       prf%bqst=.true.
-    endif
-  end subroutine gpsQ
-
-  subroutine gpsref(prf)
-    type(gpsprofile), intent(inout) :: prf
-
-    integer(i4)      :: i, ngpslev
-
-    type(gpsdiff)               :: p, t, q, x
-    type(gpsdiff)               :: pd
-    type(gpsdiff)               :: pw
-    type(gpsdiff)               :: tc
-
-    type(gpsdiff)               :: mold, dd, dw, cmp(ngpssize), tr
-    real(dp), parameter         :: R=8.314472_dp
-    real(dp), parameter         :: md=28.965516_dp
-    real(dp), parameter         :: mw=18.015254_dp
-    real(dp), parameter         :: wa=md/mw
-    real(dp), parameter         :: wb=(md-mw)/mw
-    real(dp)                    :: x1, x2
-
-    !type(gpsdiff)               :: nd,nw,nr
-    type(gpsdiff)               :: nd1,nw1,n0,na
-
-    if (prf%brst .EQV. .false.) then
-       call gpspre(prf)
-       call gpstem(prf)
-       call gpsQ  (prf)
-       call gpscmp(prf, cmp)
-       ngpslev = prf%ngpslev
-       do i = 1, ngpslev
-          p  = prf%pst(i)
-          t  = prf%tst(i)
-          q  = prf%qst(i)
-          x  = wa*q/(1._dp+wb*q)
-
-          ! Densities (molar, total, dry, water vapor):
-          mold  = 100._dp*p/(R*t*cmp(i))               ! note that p is in hPa
-          dd = mold * (1._dp-x) * (md/1000._dp)
-          dw = mold * x         * (mw/1000._dp)
-
-          ! Rueger (2002) expression 
-          !pw = 1.6069_dp*q*p/(1._dp+0.6069_dp*q)
-          !pd = p - pw
-          !nd = (77.6890_dp*pd/t                   )
-          !nw = (71.2952_dp*pw/t+375463._dp*pw/t**2)
-          !nr = nd+nw
-          ! Aparicio (2011) expression
-          tr = 273.15_dp/t-1._dp
-          nd1= ( 222.682_dp+   0.069_dp*tr) * dd
-          nw1= (6701.605_dp+6385.886_dp*tr) * dw
-          n0 = (nd1+nw1)
-          na = n0*(1._dp+1.e-6_dp*n0/6._dp)
-          ! Either choose nr (Rueger) or na (Aparicio)
-          prf%rst(i)=na
-       enddo
-       prf%brst=.true.
-    endif
-  end subroutine gpsref
 
   subroutine gpscmp(prf, cmp)
     type(gpsprofile) :: prf
@@ -179,9 +50,6 @@ contains
     d =1.83e-11_dp
     e =-0.765e-8_dp
     !
-    call gpspre(prf)
-    call gpstem(prf)
-    call gpsQ  (prf)
     ngpslev = prf%ngpslev
     do i = 1, ngpslev
        p  = prf%pst(i)
@@ -196,155 +64,42 @@ contains
        !Zd=0.78_dp*Zn+0.21_dp*Zo+0.01_dp*Za
        !Zt=(1._dp-q)*Zd+q*Zw
        ! Better estimate, from CIPM, Piccard (2008)
-       tc = t-273.15_dp
+       tc = t-p_TC
        pt = 1.e2_dp*p/t
        tc2= tc*tc
        x2 = x*x
-       ZtC= 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)
+       ZtC= 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)       !+pt*pt*(d+e*x2)
        ! Either choose Zt (First implementation) or ZtC (CIPM, better)
        cmp(i)=ZtC
     enddo
   end subroutine gpscmp
 
-  subroutine gpsprew(prf, prew)
-    type(gpsprofile), intent(inout) :: prf
-    type(gpsdiff)   , intent(out):: prew(:)
-
+  subroutine gpsden(prf, den)
+    type(gpsprofile)              :: prf
+    type(gpsdiff)   , intent(out) :: den(:)
+    type(gpsdiff)                 :: mold, dd, dw, cmp(ngpssize)
     integer(i4)      :: i, ngpslev
+    real(dp), parameter         :: R=8.314472_dp
+    real(dp), parameter         :: md=28.965516_dp
+    real(dp), parameter         :: mw=18.015254_dp
+    real(dp), parameter         :: wa=md/mw
+    real(dp), parameter         :: wb=(md-mw)/mw
+    type(gpsdiff)               :: p, t, q, x
 
-    type(gpsdiff)               :: p, q
-    type(gpsdiff)               :: pw
-
-    call gpspre(prf)
-    call gpstem(prf)
-    call gpsQ  (prf)
-    ngpslev = prf%ngpslev
-    do i = 1, ngpslev
-       p  = prf%pst(i)
-       q  = prf%qst(i)
-       pw = 1.6069_dp*q*p/(1._dp+0.6069_dp*q)
-       prew(i) = pw
-    enddo
-  end subroutine gpsprew
-
-  subroutine gpsiprew(prf, iprew)
-    type(gpsprofile), intent(inout) :: prf
-    type(gpsdiff)   , intent(out):: iprew
-
-    integer(i4)      :: i, ngpslev
-
-    type(gpsdiff)    :: pm, qm, pp, qp
-    real(dp)         :: g
-
-    call gpspre(prf)
-    call gpsQ  (prf)
-    ngpslev = prf%ngpslev
-    iprew=0._dp
-    do i = 1, ngpslev-1
-       pm = prf%pst(i)
-       qm = prf%qst(i)
-       pp = prf%pst(i+1)
-       qp = prf%qst(i+1)
-       iprew=iprew+(qm+qp)*(pp-pm)
-    enddo
-    g  = gpsgravitysurf(prf%rLat)
-    iprew = (100._dp * 0.5_dp/g) * iprew
-  end subroutine gpsiprew
-
-  subroutine gpsrefw(prf, refw)
-    type(gpsprofile), intent(inout) :: prf
-    type(gpsdiff)   , intent(out):: refw(:)
-
-    integer(i4)      :: i, ngpslev
-
-    type(gpsdiff)               :: p, t, q
-    type(gpsdiff)               :: pd
-    type(gpsdiff)               :: pw
-    type(gpsdiff)               :: tc
-
-    type(gpsdiff)               :: nd
-    type(gpsdiff)               :: nw
-    type(gpsdiff)               :: n
-
-    call gpspre(prf)
-    call gpstem(prf)
-    call gpsQ  (prf)
-!    if (prf%brst .EQV. .false.) then
+    call gpscmp(prf, cmp)
     ngpslev = prf%ngpslev
     do i = 1, ngpslev
        p  = prf%pst(i)
        t  = prf%tst(i)
        q  = prf%qst(i)
-       pw = 1.6069_dp*q*p/(1._dp+0.6069_dp*q)
-       pd = p - pw
-       nd = (77.6890_dp*pd/t                   )
-       nw = (71.2952_dp*pw/t+375463._dp*pw/t**2)
-       refw(i)=nw
-!          prf%rst(i)=nd+nw
+       x  = wa*q/(1._dp+wb*q)
+
+       ! Densities (molar, total, dry, water vapor):
+       mold  = 100._dp*p/(R*t*cmp(i))               ! note that p is in hPa
+       dd = mold * (1._dp-x) * (md/1000._dp)
+       dw = mold * x         * (mw/1000._dp)
+       den(i)=dd+dw
     enddo
-!   prf%brst=.true.
-!   endif
-  end subroutine gpsrefw
-
-  subroutine gpsZTD(prf, ZTD)
-    type(gpsprofile), intent(inout) :: prf
-    type(gpsdiff)   , intent(out):: ZTD(:)
-
-    real(dp)        , parameter  :: Avog  = 6.02214e26_dp
-    real(dp)        , parameter  :: Boltz = 1.38065e-23_dp
-    real(dp)        , parameter  :: mwDAir= 28.966_dp
-    real(dp)        , parameter  :: Rd=Avog*Boltz/mwDAir
-    
-    integer(i4)                  :: i, ngpslev
-    type(gpsdiff)                :: p, t, q, tv
-    real(dp)                     :: g
-    
-    call gpspre(prf)
-    call gpstem(prf)
-    call gpsQ  (prf)
-    ngpslev=prf%ngpslev
-    do i = 1, ngpslev
-       tv = (1._dp+0.6069_dp*prf%qst(i))*prf%tst(i)
-       g  = gpsgravityabove(prf%rLat, prf%gst(i)%Var)
-       ZTD(i)=prf%rst(i)*Rd*tv/(g*prf%pst(i))
-    enddo
-  end subroutine gpsZTD
-
-  subroutine gpssat(prf, sat)
-    type(gpsprofile), intent(inout) :: prf
-    type(gpsdiff)   , intent(out):: sat(:)
-
-    real(dp)        , parameter  :: lnPw0 = 1.809926_dp;
-    real(dp)        , parameter  :: Aliq  = -5.350334e3_dp;
-    real(dp)        , parameter  :: Asol  = -6.149077e3_dp;
-    real(dp)        , parameter  :: InvT0 = 1._dp / 273.15_dp;
-    
-    integer(i4)                  :: i, ngpslev
-    type(gpsdiff)                :: p, t, q, pw
-    type(gpsdiff)                :: ExcInvT, lnPw, wvp
-    
-    call gpspre(prf)
-    call gpstem(prf)
-    call gpsQ  (prf)
-    ngpslev=prf%ngpslev
-
-    do i = 1, ngpslev
-       p  = prf%pst(i)
-       t  = prf%tst(i)
-       q  = prf%qst(i)
-       pw = 1.6069_dp*q*p/(1._dp+0.6069_dp*q)
-
-       ExcInvT = 1._dp / t - InvT0;
-       if ( t%Var .GE. 273.15_dp ) then
-          lnPw = lnPw0 + Aliq * ExcInvT
-       else
-          lnPw = lnPw0 + Asol * ExcInvT
-       endif
-       wvp = 1.e2_dp * exp( lnPw )
-
-       sat(i) = pw / wvp
-    enddo
-  end subroutine gpssat
+  end subroutine gpsden
 
 end module modgps05refstruct
-

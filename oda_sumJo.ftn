@@ -89,15 +89,15 @@
       call rpn_comm_allreduce(dljogpsztd,dljogpsztd,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
       if(mpi_myid == 0) then
-        write(*,'(a15,f23.16)') 'Jo(RAOB)   = ',dljoraob
-        write(*,'(a15,f23.16)') 'Jo(AIREP)  = ',dljoairep
-        write(*,'(a15,f23.16)') 'Jo(SURFC)  = ',dljosurfc
-        write(*,'(a15,f23.16)') 'Jo(SCAT)   = ',dljoscat
-        write(*,'(a15,f23.16)') 'Jo(ATOV)   = ',dljotov
-        write(*,'(a15,f23.16)') 'Jo(SATWIND)= ',dljosatwind
-        write(*,'(a15,f23.16)') 'Jo(PROF)   = ',dljoprof
-        write(*,'(a15,f23.16)') 'Jo(GPSRO)  = ',dljogpsro
-        write(*,'(a15,f23.16)') 'Jo(GPSZTD) = ',dljogpsztd
+        write(*,'(a15,f23.16)') 'Jo(UA)   = ',dljoraob
+        write(*,'(a15,f23.16)') 'Jo(AI)   = ',dljoairep
+        write(*,'(a15,f23.16)') 'Jo(SF)   = ',dljosurfc
+        write(*,'(a15,f23.16)') 'Jo(SC)   = ',dljoscat
+        write(*,'(a15,f23.16)') 'Jo(TO)   = ',dljotov
+        write(*,'(a15,f23.16)') 'Jo(SW)   = ',dljosatwind
+        write(*,'(a15,f23.16)') 'Jo(PR)   = ',dljoprof
+        write(*,'(a15,f23.16)') 'Jo(RO)   = ',dljogpsro
+        write(*,'(a15,f23.16)') 'Jo(GP)   = ',dljogpsztd
       endif 
 
       call tmg_stop(81)

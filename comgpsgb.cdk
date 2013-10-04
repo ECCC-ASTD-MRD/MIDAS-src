@@ -13,25 +13,26 @@
 !                 files (i.e. the formal errors). 
 !                 If > 0 then use value as a constant error (m) for all ZTD
 !                 observations.
-!                 If = 0 then use compute error as a function of ZTD.
-!     NJLEVP:     Nth level above TRIAL surface; linear interpolation of log(P)
-!                 between model levels will be done to get model surface pressure
-!                 at GPS antenna height (PMOBS) if ZOBS > this level; otherwise
-!                 PMOBS is computed by hydrostatic extrapolation from TRIAL 
-!                 surface(CMC method).
+!                 If = 0 then compute error as a function of ZWD.
 !     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
-!     L1GPSOBS:   Flag to indicate a one GPS observation (1OBS) experiment
-!     CGPSSTN:    Selected site for 1OBS experiment
+!     LLBLMET:    Flag to indicate that surface met data have been blacklisted
+!                 for GPS sites close to surface weather stations.
 !     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
 !                 for time series observations with error correlations)
-!     RCK1:       Refractivity constant k1  units=(m,Pa,K)
-!     RCK2:       Refractivity constant k2  units=(m,Pa,K)
-!     RCK3:       Refractivity constant k3  units=(m,Pa,K)
+!     LBEVIS:     .true.  = use Bevis(1994)  refractivity (k1,k2,k3) constants
+!                 .false. = use Rueger(2002) refractivity (k1,k2,k3) constants
+!     IREFOPT:    1 = conventional expression for refractivity N using k1,k2,k3
+!                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
+!     L1OBS       Flag to select a single ZTD observation using criteria in
+!                 subroutine DOBSGPSGB
+!     LTESTOP     Flag to test ZTD observation operator (NCONF=101, 121 only)
+!     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
+!                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
 !
 
-      REAL    DZMIN, DZMAX, YZTDERR, YSFERRWGT, YZDERRWGT, RCK1, RCK2, RCK3
-      LOGICAL LASSMET, L1GPSOBS
-      INTEGER NJLEVP
-      CHARACTER*9 CGPSSTN
-      COMMON/COMGPSGB/ DZMIN, DZMAX, YZTDERR, NJLEVP, LASSMET, YSFERRWGT
-      COMMON/COMGPSGB/ L1GPSOBS, CGPSSTN, YZDERRWGT, RCK1, RCK2, RCK3
+      REAL    DZMIN, DZMAX, YZTDERR, YSFERRWGT, YZDERRWGT
+      LOGICAL LASSMET, LLBLMET, LBEVIS, L1OBS, LTESTOP
+      INTEGER IREFOPT, IZTDOP
+      COMMON/COMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT
+      COMMON/COMGPSGB/ LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP
+      COMMON/COMGPSGB/ IREFOPT, IZTDOP

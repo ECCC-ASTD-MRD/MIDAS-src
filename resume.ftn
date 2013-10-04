@@ -80,6 +80,7 @@
 #include "cvcord.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
+#include "comgpsro.cdk"
 *
       INTEGER KBUFIN(*)
       INTEGER KHANDL
@@ -295,7 +296,12 @@ c     WRITE(*,*) ' GPS RO DATA   BLOCKS ', NBKTYPGPSRO
 *--------------------------------------------
 *
       ELSE IF ( CDTYP .EQ. 'RO' ) THEN
-         NVCORD=007007
+         write(*,*)'LEVELGPSRO',LEVELGPSRO
+         IF (LEVELGPSRO .EQ. 1) THEN
+            NVCORD=007040
+         ELSE
+            NVCORD=007007
+         ENDIF
          NVCORDTYP=1
          VCONV=1.0D0
 *

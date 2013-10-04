@@ -1,0 +1,38 @@
+! -*- F90 -*-
+
+! Module containing physical quantities.
+! Physical constants have the prefix p_.
+!
+! Josep M. Aparicio, 2003-2012.
+! ARMA/ASTD
+! Environment Canada
+! 
+
+module modgps01ctphys
+  use modgps00base, only: dp
+  implicit none
+  
+  ! Avogadro constant:
+  real(dp), parameter           :: p_Avog  = 6.02214129e23_dp        ! From CODATA
+
+  ! Boltzmann constant:
+  real(dp), parameter           :: p_Boltz = 1.3806488e-23_dp        ! From CODATA
+
+  ! Air properties:
+  real(dp), parameter           :: p_md    = 28.965516_dp            ! From Aparicio(2011)
+  real(dp), parameter           :: p_mw    = 18.015254_dp            ! From Aparicio(2011)
+  real(dp), parameter           :: p_wa    = p_md/p_mw
+  real(dp), parameter           :: p_wb    = (p_md-p_mw)/p_mw
+
+  ! Gas constants:
+  real(dp), parameter           :: p_R     = p_Avog*p_Boltz          ! per mol
+  real(dp), parameter           :: p_Rd    = p_Avog*p_Boltz/(1.e-3_dp*p_md)   ! per air mass
+
+  ! Units and scales:
+  real(dp), parameter           :: p_TC    = 273.15_dp
+  real(dp), parameter           :: p_knot  = 0.514444_dp
+
+  ! Standard GEM gravity:
+  real(dp), parameter           :: p_g_GEM = 9.80616_dp              ! m/s2
+
+end module modgps01ctphys

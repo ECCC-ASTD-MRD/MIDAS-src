@@ -19,7 +19,12 @@
 *s/r SUCOVO -READ AND SET OBSERVATION ERROR COVARIANCES
 *
 *Author  : M. Buehner  August 2012
-*
+*Revision: S. Macpherson October 2012
+*            - modifications to GP (GB-GPS) part of s/r SETERR
+*          S. Macpherson January 2013
+*            - GB-GPS ZTD error now set in separate s/r SETERRGPSGB
+*          S. Macpherson July 2013
+*            - Fixed logic error in SETERR related to LLBAD (error <= 0)
 **    Purpose:
 *             -initialize observation error standard deviations
 *             ***NOTE: "contains" subroutines READCOVO and SETERR
@@ -506,10 +511,13 @@ c
 *s/r SETERR -SET OBSERVATION ERROR
 *
 *Author  : P. Koclas *CMC/AES  February 1995
+*Revision: S. Macpherson *ARMA/MRD October 2012
+*               - merge with 3dvar v.11.2.2 s/r seterr.ftn (GP family data parts only)
+*          S. Macpherson January 2013
+*               - GB-GPS ZTD errors are now set in separate s/r SETERRGPSGB
 *
 **    Purpose:
-*             -set observation errors for each data
-*              in CMA.
+*             -set observation errors for each data in CMA.
 *
       IMPLICIT NONE
 *implicits
@@ -518,9 +526,9 @@ c
 #include "comgpsgb.cdk"
 *
 C
-C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
-C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS (ORIGINALLY DESIGNED
-C       FOR SHIFTPROF OPTION (NOT USED -- LSHIFT = .FALSE. IN NML)
+C NOTE: YSFERRWGT IN comgpsgb.cdk (FROM NML FILE) USED HERE FOR ERROR WEIGHTING
+C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
+C       CORRELATIONS.
 C-----------------------------------------------------------------------
 C
       INTEGER JN,INDEX_BODY,INDEX_HEADER
@@ -537,29 +545,13 @@ C
       CHARACTER(len=2) :: SENSORTYPE,CFAM
       integer ielem
 C
-C     FOR GB-GPS OBSERVATIONS
-C     ==========================================================================
-      LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE
-      REAL*8  ZTDERR, ZZTD, ZMINZDE
-      INTEGER IZTDJ
+c     GB-GPS Met Psfc (Pa), Tsfc (K), (T-Td)sfc (K) observation errors
+c
+      REAL*8 ZPSERR, ZTSERR, ZESERR
+      DATA ZPSERR  /75.D0/
+      DATA ZTSERR  /2.0D0/
+      DATA ZESERR  /3.0D0/
 C
-C     REGRESSION EQUATION CONSTANTS FOR ZTD ERROR (SD(O-P)) -- CUBIC FIT
-C     - FROM OCTOBER 2004 SD(O-P) AND MEAN ZTD STATISTICS OF NOAA/FSL SITES
-C     ---------------------------------------------------------------------------
-C
-      REAL*8 Z3, Z2, Z1, ZC
-      DATA Z3, Z2, Z1, ZC /160.38, -1009.1, 2115.4, -1464.6/
-C
-C     ZZDERMIN = MIN ZTD OER VALUE (M), ZZFERREJ = MAX FERR VALUE (M) FOR REJECTION
-C     ZTDERFAC = MULTIPLICATION FACTOR FOR FORMAL ZTD MEASUREMENT ERROR
-C     ZOPEFAC  = FRACTION OF REGRESSION EQUATION SD(O-P) TO USE AS ZTD OBSERVATION ERROR
-C     ----------------------------------------------------------------------------------
-C
-      REAL*8 ZZDERMIN, ZZFERREJ, ZTDERFAC, ZOPEFAC
-      DATA ZZDERMIN /0.012D0/
-      DATA ZZFERREJ /0.015D0/
-      DATA ZTDERFAC /3.0D0/
-      DATA ZOPEFAC  /1.0D0/
 C     ==========================================================================
 C
  221  CONTINUE
@@ -570,24 +562,13 @@ C
       WRITE(*,'(10X," SET OBSERVATION ERRORS:",/)')
       WRITE(*,'(10X,"***********************************")')
 C
-      LLCZTDE = .FALSE.
-      LLRZTDE = .FALSE.
-      LLFZTDE = .FALSE.
-      IF (YZTDERR .LT. 0.0) THEN
-         LLFZTDE = .TRUE.
-      ELSE IF (YZTDERR .GT. 0.0) THEN
-         LLCZTDE = .TRUE.
-      ELSE
-         LLRZTDE = .TRUE.
-      ENDIF
-C
 C
 C     SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
 C     ---------------------------------------------------
 C
  100  CONTINUE
       ZCONGZ=10.D0*RG
-      LLBAD = .FALSE.
+
       DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
          IDATA     = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
          IDATEND   = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
@@ -599,17 +580,15 @@ C
          IPLATF    = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
          ITECH     = obs_headElem_i(lobsSpaceData,OBS_TEC,INDEX_HEADER)
          INSTR     = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
-         LLZTD     = .FALSE.
-         LLFER     = .FALSE.
-         ZTDERR    = -1.0
          DO INDEX_BODY  = IDATA, IDATEND
+            LLBAD = .FALSE.
             ITYP   = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             IFLG   = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
             IASS   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
             ILEM   = obs_get_obs_index_for_bufr_element(ITYP)
             ZVAL   = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 C
-            IF ( IASS .EQ. 1 .OR. CFAM .EQ. 'GP') THEN
+            IF ( IASS .EQ. 1 ) THEN
 C
 C***********************************************************************
 C   UPPER AIR DATA
@@ -770,42 +749,38 @@ C
 cc                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 0.05 * NAPP)
                         call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
                      ENDIF
+                     IF ( ITYP .EQ. BUFR_NEBD) THEN
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
+                     ENDIF
                   ENDIF
 C
 C***********************************************************************
-C   ALL GPS GROUND-BASED DATA (SFC MET AND ZTD) ASSIMILATED OR NOT
+C   GB-GPS SFC MET DATA
 C***********************************************************************
 C
+C     ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
+C     AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
+C     OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING)
 C
-C   GPS SFC MET ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
-C   AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
-C   OF TIME-SERIES (YSFERRWGT = 1.0 FOR NORMAL 3D-VAR WITH 3D THINNING)
 C
                ELSE IF ( CFAM .EQ. 'GP' ) THEN
 C*                Psfc Error (Pa)
                   IF ( ITYP .EQ. BUFR_NEPS ) THEN
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 75.D0 *  YSFERRWGT)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, ZPSERR*YSFERRWGT)
                   ENDIF
 C*                Tsfc Error (K)
                   IF ( ITYP .EQ. BUFR_NETS ) THEN
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 2.0D0 * YSFERRWGT)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, ZTSERR*YSFERRWGT)
                   ENDIF
 C*                T-Td Error (K)
                   IF ( ITYP .EQ. BUFR_NESS ) THEN
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 3.0D0 * YSFERRWGT)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, ZESERR*YSFERRWGT)
                   ENDIF
-C*                ZTD Error Error (DUMMY VALUE so 3DVar won't abort)
-                  IF ( ITYP .EQ. BUFR_NEFE ) THEN
-                     call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 0.001D0)
-                     LLFER = .TRUE.
-                     ZTDERR = ZVAL
-                  ENDIF
-C*                ZTD Error
+C*                ZTD Error (m) (value is formal error, real error set later in s/r seterrgpsgb)
+C                 If error is missing, set to dummy value (1 m).
                   IF ( ITYP .EQ. BUFR_NEZD ) THEN
-                     IF ( LLCZTDE) call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,dble(YZTDERR))
-                     ZZTD = ZVAL
-                     IZTDJ = INDEX_BODY
-                     LLZTD = .TRUE.
+                     IF (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0D0) 
+     &                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 1.0D0)
                   ENDIF
 C
 C***********************************************************************
@@ -1015,21 +990,8 @@ C              Check for case where error should have been set but was
 C              not. 3dvar will abort in this case.
 C***********************************************************************
 C
-               IF (CFAM .NE. 'GP') THEN
-                 IF(obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
-                    LLBAD = .TRUE.
-                 ENDIF
-C
-               ELSE
-C  GP FAMILY CASE
-                 IF (IASS .EQ. 1) THEN
-                   IF ((.NOT. LLZTD) .AND. obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
-                     LLBAD = .TRUE.
-                   ENDIF
-                   IF ((LLZTD .AND. LLCZTDE) .AND. obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
-                     LLBAD = .TRUE.
-                   ENDIF
-                 ENDIF
+               IF(obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0) THEN
+                  LLBAD = .TRUE.
                ENDIF
 C
                IF (LLBAD) THEN
@@ -1042,58 +1004,27 @@ C
                   WRITE(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2,
      &              " OBSERR = ",E10.2)')
      &              ITYP,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY),obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                    CALL ABORT3D('SETERR:PROBLEM OBSERR VARIANCE.')
                ENDIF
 
             ELSE
-
-c  set artificial obs errors for ln q.
+c          IASS .ne. 1
+c             set artificial obs errors for ln q.
               IF ( CFAM .EQ. 'UA'  .AND.
      &             ( ITYP          .EQ. BUFR_NEHU  .OR.
      &               ITYP          .EQ. BUFR_NEHS ) ) THEN
                  call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 888.0d0)
               ENDIF
-C           end of assim=1 or GP family IF
+C           end of assim=1 IF
             ENDIF
 C
 C        end of INDEX_BODY loop 
          END DO
-C
-C    ------------------------------------------------------
-C    SET THE GB-GPS ZTD ERROR
-C    ------------------------------------------------------
-C
-         IF ( CFAM .EQ. 'GP' ) THEN
-            IF ( .NOT. LLCZTDE ) THEN
-              IF (LLZTD) THEN
-C             Compute minimum ZTD error as a function of ZTD using regression
-C             statistics SD(O-P)
-              ZMINZDE = Z3*ZZTD**3 + Z2*ZZTD**2 + Z1*ZZTD + ZC
-              ZMINZDE = ZMINZDE * ZOPEFAC * 0.001
-                IF (LLRZTDE) THEN
-                  call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, MAX(ZZDERMIN, ZMINZDE))
-                ELSE
-                  IF (LLFER) THEN
-                    call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, MAX(ZZDERMIN, ZTDERR*ZTDERFAC))
-                  ELSE
-                    call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, MAX(ZZDERMIN, ZMINZDE))
-                  ENDIF
-                ENDIF
-              ENDIF
-            ENDIF
-C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D-VAR)
-            IF (LLZTD) call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, obs_bodyElem_r(lobsSpaceData,OBS_OER,IZTDJ)*YZDERRWGT)
-         ENDIF
+
 C     end of INDEX_HEADER loop
       END DO
 C
  400  CONTINUE
-      IF(LLBAD) THEN
-        WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-        WRITE(*,*)' Warning 3DV:seterr: PROBLEM OBSERR VARIANCE'
-     &       ,' SEE LISTING FOR MORE DETAILS'
-        WRITE(*,*)'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-        CALL ABORT3D('SETERR:PROBLEM OBSERR VARIANCE.')
-      ENDIF
       WRITE(*,'(10X,"DONE SETERR")')
       WRITE(*,'(10X,"-----------------",/)')
       RETURN

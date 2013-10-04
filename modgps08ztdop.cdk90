@@ -1,0 +1,248 @@
+! -*- F90 -*-
+
+!-----------------------------------------------------------------------------------
+!                GB-GPS ZTD OPERATOR MODULE
+!-----------------------------------------------------------------------------------
+
+!
+! Contains:
+!    ZTD operator gpsZTDopv, with derivatives
+!    subroutine gpsPW for computing model PW
+!
+! Stephen Macpherson, 2012-2013.
+! ARMA/ASTD
+! Environment Canada
+!
+! Revisions:
+!        S. Macpherson 5 Feb 2013
+!           -- added mode argument for option to compute ZTD = ZHD(Psfc)+ZWD (old way)
+!        S. Macpherson 26 June 2013
+!           -- use modgps01ctphys
+
+module modgps08ztdop
+  use modgps00base     , only : i4, dp, ngpssize
+  use modgps01ctphys
+  use modgps03diff
+  use modgps04profilezd, only : gpsprofilezd
+  use modgps02wgs84grav ,only : gpsgravityalt
+
+  implicit none
+  
+contains
+
+  !
+  ! GB-GPS ZTD operator
+  ! On input:
+  !   -hv       height of ZTD observation Zobs (m)
+  !   -prf      local model profile (type gpsprofilezd)
+  !   -lbevis   true/false --> use Bevis instead of Rueger k values
+  !   -dzmin    Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD will be made
+  !             when Zobs < Zmod.
+  !   -mode     1 = normal mode: use stored ZTD profiles
+  !             2 = Vedel & Huang ZTD formulation: ZTD = ZHD(Pobs) + ZWD
+  !                 Pobs computed from P0 using CMC hydrostatic extrapolation.
+  !
+  ! On output:
+  !   -ZTDopv   ZTD (m) at height of observation (with derivatives)
+  !   -rPobs    Pressure (Pa) at height of observation
+  !
+  pure subroutine gpsZTDopv(hv, prf, lbevis, dzmin, ZTDopv, rPobs, mode)
+    real(dp)             , intent(in) :: hv
+    type(gpsprofilezd)   , intent(in) :: prf
+    logical              , intent(in) :: lbevis
+    real(dp)             , intent(in) :: dzmin
+    type(gpsdiff)        , intent(out):: ZTDopv
+    real(dp)             , intent(out):: rPobs
+    integer              , intent(in) :: mode
+    
+    integer(i4)                       :: ngpslev
+    integer(i4)                       :: j, jloc
+    real(dp)                          :: h, x, lat, sLat, dh
+    real(dp)                          :: k1, k2, k3, k2p
+    real(dp)                          :: zcon, zcon1, zconh, zfph, zconw
+    
+    type(gpsdiff)                     :: dz, tvsfc, tobs, qobs, tvobs, naobs, Pobs
+    type(gpsdiff)                     :: dztddp, dztddpm
+    
+    type(gpsdiff)                     :: zhd, tbar, qbar, qtterm, zsum, ztmobs, zqmobs
+    type(gpsdiff)                     :: zpbar, ztbar, zqbar, zrmean, zwd
+    
+    type(gpsdiff)                     :: dzm, dzp
+
+    real(dp), parameter :: delta = 0.6077686814144_dp
+    real(dp), parameter :: eps   = 0.6219800221014_dp
+    real(dp), parameter :: kappa = (1.0_dp/eps)-1.0_dp
+    real(dp), parameter :: gamma = 0.0065_dp    ! -dT/dz (K/m)
+!    real(dp), parameter :: Rg  = 9.80616_dp   --> p_g_GEM
+    real(dp), parameter :: Rgm = 9.784_dp
+!    real(dp), parameter :: Rd = 287.05_dp     --> p_Rd
+    real(dp), parameter :: dzmax = 100.0
+! Reuger (2002) refractivity constants (MKS units)
+    real(dp), parameter :: k1r = 0.776890_dp
+    real(dp), parameter :: k2r = 0.712952_dp
+    real(dp), parameter :: k3r = 3754.63_dp
+! Bevis (1994) refractivity constants (MKS units)
+    real(dp), parameter :: k1b = 0.776000_dp
+    real(dp), parameter :: k2b = 0.704000_dp
+    real(dp), parameter :: k3b = 3739.000_dp
+
+    ! Refractivity constants to use
+    if ( lbevis ) then
+      k1 = k1b
+      k2 = k2b
+      k3 = k3b
+    else
+      k1 = k1r
+      k2 = k2r
+      k3 = k3r
+    endif
+    k2p = k2-(eps*k1)
+
+    ngpslev = prf%ngpslev
+    lat     = prf%rLat
+    sLat    = sin(lat)
+    !
+    ! Given obs height hv
+    !
+    h  = hv
+    dh = h - prf%gst(ngpslev)%Var   ! dh = Zgps-Zmod
+    !
+    ! Search where it is located
+    !
+    do j = 1, ngpslev-1
+      if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
+        jloc = j   ! the model level above the observation
+        exit
+      endif
+    enddo
+
+    if (h <= prf%gst(ngpslev)%Var) then  ! obs is at or below model surface
+      jloc = ngpslev
+    endif
+    
+    if ( mode == 2 ) then
+    
+!  Compute ZTD the Vedel and Huang (2004) way: (as in old s/r gpsztdop.ftn)
+
+       zcon  = 1.0e-06_dp*p_Rd
+       zcon1 = zcon*k1
+       zconw = zcon/eps
+       zconh = zcon1/Rgm
+       zfph = (1.0_dp - 2.66e-03_dp*cos(2.0*lat) - 2.8e-07_dp*h)
+
+!  Pressure at obs height (CMC hydrostatic extrapolation from Psfc)
+       x      = p_g_GEM/(p_Rd*gamma)
+       tvsfc  = prf%tst(ngpslev)*(1._dp+delta*prf%qst(ngpslev))
+       Pobs   = prf%pst(ngpslev)*(((tvsfc-gamma*dh)/tvsfc)**x)
+!  Dry delay ZHD (m) at obs height
+       zhd    = (zconh/zfph) * Pobs
+
+! Integrate column q/T on pressure levels to get model ZWD
+       do j = 1, ngpslev-1
+         tbar = (prf%tst(j) + prf%tst(j+1))*0.5_dp
+         qbar = (prf%qst(j) + prf%qst(j+1))*0.5_dp
+         qtterm = ((qbar + kappa*qbar**2 )/gpsgravityalt(sLat,prf%gst(j)%Var))*(k2p + k3/tbar)
+         if ( j == 1 ) then
+           zsum = qtterm*(prf%pst(j+1)-prf%pst(j))
+         else
+           zsum = zsum + qtterm*(prf%pst(j+1)-prf%pst(j))
+         endif
+       enddo
+       
+! Compute ZWD at obs height using Higgins method (HU constant over dh layer)
+       ztmobs = prf%tst(ngpslev) - (gamma * dh)
+       zqmobs = prf%qst(ngpslev)
+       zpbar  = (Pobs + prf%pst(ngpslev)) * 0.5_dp
+       ztbar  = (ztmobs + prf%tst(ngpslev)) * 0.5_dp
+       zqbar  = (zqmobs + prf%qst(ngpslev)) * 0.5_dp
+!      Mean (wet) refractivity of dz layer
+       zrmean = 1.0e-06_dp*(k2p*((zpbar*zqbar)/(eps*ztbar)) + k3*((zpbar*zqbar)/(eps*ztbar**2)))
+       
+!      Make sure adjusted ZWD >= 0
+       if ( (zsum%Var*zconw)-(zrmean%Var*dh) > 0._dp ) then
+         zwd = (zsum*zconw) - (zrmean*dh)
+       else
+         zwd = (zsum*zconw)
+       endif
+       
+! Compute ZTD as sum of ZHD and ZWD      
+       ZTDopv = zhd + zwd
+
+    
+    else   !  mode = 1: Compute ZTD using stored ZTD profile
+    
+
+      if ( jloc /= ngpslev ) then
+        !
+        ! Linear-log interpolation in height between levels when obs above surface
+        !
+        dz  = prf%gst(jloc) - prf%gst(jloc+1)
+
+        dzm = h - prf%gst(jloc+1)
+        dzp = prf%gst(jloc) - h
+
+        ZTDopv = exp( (dzm*log(prf%ztd(jloc)) + dzp*log(prf%ztd(jloc+1))) / dz )
+        Pobs   = exp( (dzm*log(prf%pst(jloc)) + dzp*log(prf%pst(jloc+1))) / dz )
+
+      else   ! jloc = ngpslev ; obs is at or below model surface
+        !
+        if ( abs(dh) <= dzmin ) then  ! take surface values when obs is close to sfc
+          ZTDopv = prf%ztd(jloc)
+          Pobs   = prf%pst(jloc)
+        else ! otherwise do extrapolation from surface values
+          x      = p_g_GEM/(p_Rd*gamma)
+          tvsfc  = prf%tst(jloc)*(1._dp+delta*prf%qst(jloc))
+          Pobs   = prf%pst(jloc)*(((tvsfc-gamma*dh)/tvsfc)**x)
+          if ( abs(dh) <= dzmax ) then
+            dztddpm = prf%rst(jloc)   ! surface value of dZTD/dp
+          else
+            tobs   = prf%tst(jloc)-gamma*dh
+            qobs   = prf%qst(jloc)
+            tvobs  = tvsfc-gamma*dh
+            naobs  = (k1/tvobs) + (k2p*(qobs/(eps*tobs))) + (k3*(qobs/(eps*tobs**2)))
+            dztddp = 1.e-6_dp * naobs * (p_Rd*tvobs)/gpsgravityalt(sLat, h)
+            dztddpm = (dztddp + prf%rst(jloc))/2._dp  ! mean value of dZTD/dp over dh layer
+          endif
+          ZTDopv = prf%ztd(jloc) + dztddpm*(Pobs-prf%pst(jloc))
+        endif
+
+      endif
+    
+    endif
+    
+    rPobs = Pobs%Var
+
+  end subroutine gpsZTDopv
+
+  subroutine gpsPW(prf, PW)
+  !
+  !  Subroutine to compute surface PW (kg/m2) using layer mean Q and layer delta_p (Pa)
+  !
+  !   Author:  S. Macpherson,  2010-2012
+  !
+    type(gpsprofilezd)     , intent(in)  :: prf
+    real(dp)               , intent(out) :: PW
+
+    integer(i4)                       :: i, ngpslev
+    real(dp)                          :: qbar, gt, gb, g, lat, sLat
+    real(dp)                          :: pt, pb
+
+    ngpslev = prf%ngpslev
+    lat     = prf%rLat
+    sLat    = sin(lat)
+
+    PW = 0.0_dp
+
+    do i = 1, ngpslev-1
+      qbar = 0.5_dp * (prf%qst(i+1)%Var + prf%qst(i)%Var)
+      gt  = gpsgravityalt(sLat, prf%gst(i)%Var)
+      gb  = gpsgravityalt(sLat, prf%gst(i+1)%Var)
+      pt  = prf%pst(i)%Var
+      pb  = prf%pst(i+1)%Var
+      g   = 0.5_dp * (gt + gb)
+      PW = PW + (qbar/g)*(pb-pt)
+    enddo
+
+  end subroutine gpsPW
+
+end module modgps08ztdop

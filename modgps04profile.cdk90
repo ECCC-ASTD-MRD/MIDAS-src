@@ -1,155 +1,221 @@
+! -*- F90 -*-
+
+!
+! Types:
+!      gpsprofile:
+!        ngpslev  :: Number of vertical levels
+!        rLat     :: Latitude   (rad)
+!        rLon     :: Longitude  (rad)
+!        rAzm     :: Azimuth    (rad)
+!        rMT      :: Topography (m)
+!        Rad      :: Local azimuthal radius of curvature (m)
+!        geoid    :: Local geoid undulation (m)
+!        RadN     :: Normal radius of curvature (m)
+!        RadM     :: Meridional radius of curvature (m)
+!        pst      :: List of pressures
+!        tst      :: List of temperatures          |
+!        qst      :: List of (log) specific hum    | Control vars
+!        rst      :: List of refractivities
+!        gst      :: List of heights
+!        bbst     :: Tag indicating that bending details (dst,ast,bst) have been cached
+!        dst      :: List of distances from the center of curvature
+!        ast      :: List of tangent impact parameters
+!        bst      :: List of tangent bending angles
+!
+! Josep M. Aparicio, 2003-2013.
+! ARMA/ASTD
+! Environment Canada
+!
+
 module modgps04profile
-#if defined (DOC)
-  !
-  ! Types:
-  !      gpsprofile:
-  !        ngpslev  :: Number of vertical levels
-  !        rLat     :: Latitude
-  !        rLon     :: Longitude
-  !        rETA     :: List of profile levels          Independent vars
-  !        rTT      :: List of temperatures          |
-  !        rLQ      :: List of (log) specific hum    | Control vars
-  !        rP0      :: Surface pressure              |
-  !        rMT      :: Surface geopotential height   | Parameter
-  !        rPT      :: Lid pressure
-  !
-  !        The other quantities in the structure are cached profiles of
-  !        quantities with a record of dependencies wrt control vars.
-  !        The logicals indicate whether a structure is already cached.
-  !        The profiles include p, t, lq, refractivity and geop hgt.
-  !
-  ! Josep M. Aparicio
-  ! Meteorological Service of Canada, 2003.
-  ! Revisions:
-  !        C.Charette et J. Aparicio - ARMA Juillet 2011
-  !          . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
-  !          . ayant une grille verticale decalee dite "STAGGERED"
-  !
-#endif
-  use modgps00base, only:i4,dp,ngpssize
-  use modgps03diff, only:gpsdiff
+  use modgps00base      , only : i4,dp,ngpssize,ngpsxlow
+  use modgps01ctphys    , only : p_R, p_Rd, p_md, p_mw, p_wa, p_wb, p_TC, p_knot
+  use modgps02wgs84const, only : WGS_a, WGS_OmegaPrime
+  use modgps02wgs84grav , only : gpsgravityalt, gpsRadii
+  use modgps03diff
+
   implicit none
-  
+
   type gpsprofile
      integer(i4)                                     :: ngpslev
      real(dp)                                        :: rLat
      real(dp)                                        :: rLon
-     real(dp)         , dimension(ngpssize)          :: rHYB
-     real(dp)         , dimension(ngpssize)          :: rPP
-     real(dp)         , dimension(ngpssize)          :: rDP
-     real(dp)         , dimension(ngpssize)          :: rTT
-     real(dp)         , dimension(ngpssize)          :: rLQ
-     real(dp)                                        :: rP0
+     real(dp)                                        :: rAzm
      real(dp)                                        :: rMT
-     real(dp)                                        :: rPT
-     real(dp)                                        :: rPR
-     real(dp)                                        :: rCF
+     real(dp)                                        :: Rad
+     real(dp)                                        :: geoid
+     real(dp)                                        :: RadN
+     real(dp)                                        :: RadM
 
-     logical                                         :: bpst
      type(gpsdiff)    , dimension(ngpssize)          :: pst
-     logical                                         :: btst
      type(gpsdiff)    , dimension(ngpssize)          :: tst
-     logical                                         :: bqst
      type(gpsdiff)    , dimension(ngpssize)          :: qst
-     logical                                         :: brst
      type(gpsdiff)    , dimension(ngpssize)          :: rst
-     logical                                         :: bgst
      type(gpsdiff)    , dimension(ngpssize)          :: gst
+
+     logical                                         :: bbst
+     type(gpsdiff)    , dimension(ngpssize)          :: dst
+     type(gpsdiff)    , dimension(ngpssize+ngpsxlow) :: ast
+     type(gpsdiff)    , dimension(ngpssize+ngpsxlow) :: bst
   end type gpsprofile
 
 contains
 
-  subroutine gpsstruct1(ngpslev,rLat,rLon,rETA,rTT,rLQ,rP0,rMT,rPT,prf)
-    integer(i4), intent(in) :: ngpslev
-    real(dp)   , intent(in) :: rLat
-    real(dp)   , intent(in) :: rLon
-    real(dp)   , intent(in) :: rETA(ngpssize)
-    real(dp)   , intent(in) :: rTT (ngpssize)
-    real(dp)   , intent(in) :: rLQ (ngpssize)
-    real(dp)   , intent(in) :: rP0
-    real(dp)   , intent(in) :: rMT
-    real(dp)   , intent(in) :: rPT
-    real(dp)                :: rPR
-    real(dp)                :: rCF
-    type(gpsprofile), intent(out) :: prf
-
-    LOGICAL  :: bpst, btst, bqst, brst, bgst
-    TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
-    real(dp)   :: rPP(ngpssize),rDP(ngpssize)
-
-    rPR = 80000._dp
-    rCF = 1._dp
-    bpst=.false.
-    btst=.false.
-    bqst=.false.
-    brst=.false.
-    bgst=.false.
-    rPP=0._dp
-    rDP=0._dp
-    prf = gpsprofile(ngpslev,rLat,rLon,rETA,rPP,rDP,rTT,rLQ,rP0,rMT,rPT,rPR,rCF,   &
-         bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
-  end subroutine gpsstruct1
-
-  subroutine gpsstruct1h(ngpslev,rLat,rLon,rHYB,rTT,rLQ,rP0,rMT,rPT,rPR,rCF,prf)
-    integer(i4), intent(in) :: ngpslev
-    real(dp)   , intent(in) :: rLat
-    real(dp)   , intent(in) :: rLon
-    real(dp)   , intent(in) :: rHYB(ngpssize)
-    real(dp)   , intent(in) :: rTT (ngpssize)
-    real(dp)   , intent(in) :: rLQ (ngpssize)
-    real(dp)   , intent(in) :: rP0
-    real(dp)   , intent(in) :: rMT
-    real(dp)   , intent(in) :: rPT
-    real(dp)   , intent(in) :: rPR
-    real(dp)   , intent(in) :: rCF
-    type(gpsprofile), intent(out) :: prf
-
-    LOGICAL  :: bpst, btst, bqst, brst, bgst
-    real(dp)   :: rPP(ngpssize),rDP(ngpssize)
-    TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
-
-    bpst=.false.
-    btst=.false.
-    bqst=.false.
-    brst=.false.
-    bgst=.false.
-    rPP=0._dp
-    rDP=0._dp
-    prf = gpsprofile(ngpslev,rLat,rLon,rHYB,rPP,rDP,rTT,rLQ,rP0,rMT,rPT,rPR,rCF, &
-         bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
-  end subroutine gpsstruct1h
-
-  subroutine gpsstruct1s(ngpslev,rLat,rLon,rPP,rDP,rTT,rLQ,rMT,prf)
-    integer(i4), intent(in) :: ngpslev
-    real(dp)   , intent(in) :: rLat
-    real(dp)   , intent(in) :: rLon
-    real(dp)   , intent(in) :: rPP (ngpssize)
-    real(dp)   , intent(in) :: rDP (ngpssize)
-    real(dp)   , intent(in) :: rTT (ngpssize)
-    real(dp)   , intent(in) :: rLQ (ngpssize)
-    real(dp)   , intent(in) :: rMT
-
-    real(dp) :: rP0,rHYB(ngpssize)
-    real(dp) :: rPT
-    real(dp) :: rPR
-    real(dp) :: rCF
+  subroutine gpsstruct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
+       rPP,rDP,rTT,rLQ,rUU,rVV,prf)
+    integer(i4)     , intent(in)  :: ngpslev
+    real(dp)        , intent(in)  :: rLat
+    real(dp)        , intent(in)  :: rLon
+    real(dp)        , intent(in)  :: rAzm
+    real(dp)        , intent(in)  :: rMT
+    real(dp)        , intent(in)  :: Rad
+    real(dp)        , intent(in)  :: geoid
+    real(dp)        , intent(in)  :: rPP (ngpssize)
+    real(dp)        , intent(in)  :: rDP (ngpssize)
+    real(dp)        , intent(in)  :: rTT (ngpssize)
+    real(dp)        , intent(in)  :: rLQ (ngpssize)
+    real(dp)        , intent(in)  :: rUU (ngpssize)
+    real(dp)        , intent(in)  :: rVV (ngpssize)
 
     type(gpsprofile), intent(out) :: prf
 
-    LOGICAL  :: bpst, btst, bqst, brst, bgst
-    TYPE(GPSDIFF), dimension(ngpssize):: PST, TST, QST, RST, GST
+    integer(i4)                   :: i
 
-    bpst=.false.
-    btst=.false.
-    bqst=.false.
-    brst=.false.
-    bgst=.false.
-    rP0=rPP(ngpssize)
-    rPT=rPP(1)
-    rPR = 80000._dp
-    rCF = 1._dp
-    prf = gpsprofile(ngpslev,rLat,rLon,rHYB,rPP,rDP,rTT,rLQ,rP0,rMT,rPT,rPR,rCF, &
-         bpst, pst, btst, tst, bqst, qst, brst, rst, bgst, gst)
-  end subroutine gpsstruct1s
+
+    real(dp), parameter           :: delta = 0.6077686814144_dp
+
+    type(gpsdiff)                 :: cmp(ngpssize)
+    real(dp)                      :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
+    type(gpsdiff)                 :: p, t, q, x
+    type(gpsdiff)                 :: tr, z
+    type(gpsdiff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
+    type(gpsdiff)                 :: xi(ngpssize), tv(ngpssize)
+
+    prf%ngpslev = ngpslev
+    prf%rLat    = rLat
+    prf%rLon    = rLon
+    prf%rAzm    = rAzm
+    prf%rMT     = rMT
+    prf%Rad     = Rad
+    prf%geoid   = geoid
+    call gpsRadii(rLat, prf%RadN, prf%RadM)
+
+    !
+    ! Fill pressure placeholders:
+    !
+    do i=1,ngpslev
+       prf%pst(i)%Var               = 0.01_dp*rPP(i)
+       prf%pst(i)%DVar              = 0._dp
+       prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp*rDP(i)
+    enddo
+
+    !
+    ! Fill temperature placeholders:
+    !
+    do i = 1, ngpslev
+       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%DVar              = 0._dp
+       prf%tst(i)%DVar(i)           = 1._dp
+    enddo
+
+    !
+    ! Fill moisture placeholders:
+    !
+    do i = 1, ngpslev
+       prf%qst(i)%Var               = exp(rLQ(i))
+       prf%qst(i)%DVar              = 0._dp
+       prf%qst(i)%DVar(ngpslev+i)   = prf%qst(i)%Var
+    enddo
+
+    ! Compressibility:
+    do i = 1, ngpslev
+       cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
+    enddo
+
+    ! Refractivity:
+    do i = 1, ngpslev
+       p  = prf%pst(i)
+       t  = prf%tst(i)
+       q  = prf%qst(i)
+       x  = p_wa*q/(1._dp+p_wb*q)
+
+       ! Densities (molar, total, dry, water vapor):
+       mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+       dd = mold * (1._dp-x) * (p_md/1000._dp)
+       dw = mold * x         * (p_mw/1000._dp)
+       ! Aparicio (2011) expression
+       tr = p_TC/t-1._dp
+       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       n0 = (nd1+nw1)
+       prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+    enddo
+
+    !
+    ! Hydrostatic equation
+    !
+    do i = 1, ngpslev
+       p = prf%pst(i)
+       t = prf%tst(i)
+       q = prf%qst(i)
+       !
+       ! Log(P)
+       !
+       xi(i) = log(p)
+       !
+       ! Virtual temperature (K) (corrected of compressibility)
+       !
+       tv(i) = (1._dp+delta*q) * t * cmp(i)
+    enddo
+
+    prf%gst(ngpslev) = rMT
+    sLat=sin(rLat)
+    cLat=cos(rLat)
+    do i=ngpslev-1,1,-1
+       dx = xi(i)-xi(i+1)
+       tvm = 0.5_dp*(tv(i)+tv(i+1))
+       !
+       ! Gravity acceleration (includes 2nd-order Eotvos effect)
+       !
+       h0  = prf%gst(i+1)%Var
+       Eot = 2*WGS_OmegaPrime*cLat*p_knot*rUU(i+1)
+       Eot2= ((p_knot*rUU(i+1))**2+(p_knot*rVV(i+1))**2)/WGS_a
+       Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
+       dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
+       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
+       !
+       ! Height increment
+       !
+       z   = (-p_Rd/Rgh) * tvm * dx
+       prf%gst(i) = prf%gst(i+1) + z
+    enddo
+
+    prf%bbst=.false.
+  end subroutine gpsstruct1sw
+
+  function gpscompressibility(p,t,q)
+    type(gpsdiff), intent(in)  :: p,t,q
+    type(gpsdiff)              :: gpscompressibility
+
+    real(dp), parameter   :: a0= 1.58123e-6_dp
+    real(dp), parameter   :: a1=-2.9331e-8_dp
+    real(dp), parameter   :: a2= 1.1043e-10_dp
+    real(dp), parameter   :: b0= 5.707e-6_dp
+    real(dp), parameter   :: b1=-2.051e-8_dp
+    real(dp), parameter   :: c0= 1.9898e-4_dp
+    real(dp), parameter   :: c1=-2.376e-6_dp
+    real(dp), parameter   :: d = 1.83e-11_dp
+    real(dp), parameter   :: e =-0.765e-8_dp
+
+    type(gpsdiff)         :: x,tc,pt,tc2,x2
+
+    x  = p_wa*q/(1._dp+p_wb*q)
+    ! Estimate, from CIPM, Picard (2008)
+    tc = t-p_TC
+    pt = 1.e2_dp*p/t
+    tc2= tc*tc
+    x2 = x*x
+    gpscompressibility = 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)+pt*pt*(d+e*x2)
+  end function gpscompressibility
 
 end module modgps04profile

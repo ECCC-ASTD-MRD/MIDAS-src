@@ -155,6 +155,10 @@
 !
 !Author  : P. Koclas *CMC/CMDA  April 2013
 !Revision:
+!          S. Macpherson *ARMA  Oct 2013
+!              -- add GB-GPS (GP family) element BUFR_NEZD (ele 15031)
+!              -- NOTE that for GP data, ELEV = GPS Antenna Height so
+!                 no adjustment is needed (SFC_VCO=0).
 !
 !*    Purpose:  -Compute  HEIGHT ASSIGNED TO SURFACE OBSERVATIONS
 !                and INSERT INTO CMA.
@@ -197,8 +201,8 @@
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
           SELECT CASE(VARNO)
-            CASE(BUFR_NEDS,BUFR_NEFS,BUFR_NEUS,BUFR_NEVS,BUFR_NETS,BUFR_NESS,BUFR_NEPN,BUFR_NEPS, BUFR_NEHS)
-!           CASE(11011,11012,11215,11216,12004,12203,10051,10004,13220)
+            CASE(BUFR_NEDS,BUFR_NEFS,BUFR_NEUS,BUFR_NEVS,BUFR_NETS,BUFR_NESS,BUFR_NEPN,BUFR_NEPS,BUFR_NEHS,BUFR_NEZD)
+!           CASE(11011,11012,11215,11216,12004,12203,10051,10004,13220,15031)
 !
              SFC_VCO= SURFVCORD(VARNO,CODTYP)
              IF ( VARNO .ne.  BUFR_NEPN) THEN
@@ -237,7 +241,7 @@
 !
 !       AUTHOR:   P. KOCLAS (CMC/CMDA) December 2011
 !
-!       Revision :  
+!       Revision : 
 !
 !    ARGUMENTS:
 !               INPUT:

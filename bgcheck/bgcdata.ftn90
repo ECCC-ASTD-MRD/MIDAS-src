@@ -14,10 +14,16 @@
       IMPLICIT NONE
 #include "comgpsgb.cdk"
 !*
-!C NOTE: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
-!C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
-!C       (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
-!C       YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
+!C NOTE 1: YSFERRWGT IN COMGPSGB.CDK (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
+!C         OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
+!C         (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
+!C         YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
+!C
+!C NOTE 2: GPS ZTD OBS ERROR SIGMAO IS BASED ON STD(O-P) SO INCLUDES CONTRIBUTION FROM
+!C         BACKGROUND ERROR SIGMAP. THUS A MAX LIMIT IS PLACED ON SIGMAO (12 MM).
+!C
+
+
 !C
       type(struct_obs) :: lobsSpaceData
       REAL*8 PJO,zsum,zsumo
@@ -29,6 +35,10 @@
       INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
       LOGICAL LLOK, LLZD, LMODIF1020
+! MAX LIMIT IS PLACED ON ZTD SIGMAO (12 MM)
+      REAL*8 ZDSIGMAO
+      DATA ZDSIGMAO / 0.012D0 /
+
       lmodif1020=.false.
 
       WRITE(*,*)' '
@@ -102,6 +112,11 @@
                   IF ( CDFAM .EQ. 'GP' ) THEN
                     IF (ITYP .EQ. BUFR_NEZD) THEN
                       ZOER = ZOER/YZDERRWGT
+!C              IF YZTDERR (FROM comgpsgb.cdk) = 0 THEN ZTD ERROR MODEL IS REGRESSION-BASED
+!C              (WHERE ERROR IS A FUNCTION OF ZWD) SO WE LIMIT THE OBSERVATION ERROR
+                      IF (YZTDERR .EQ. 0.0) THEN
+                        ZOER = MIN(ZDSIGMAO, ZOER)
+                      ENDIF
                     ELSE
                       ZOER = ZOER/YSFERRWGT
                     ENDIF
@@ -147,13 +162,13 @@
                     LLZD = .TRUE.
                   ENDIF
 
-                  IF (IFLAG .GE. 2 ) THEN
+                  IF (IFLAG .GE. 2 .OR. (LLZD .AND. LTESTOP)) THEN
                     WRITE(*,122)  &
                        obs_elem_c(lobsSpaceData,'STID',index_header),  &
                        zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
                        ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
-                    INREJ = INREJ + 1
-                    IF (CDFAM .EQ. 'GP') THEN
+                    IF (IFLAG .GE. 2) INREJ = INREJ + 1
+                    IF (IFLAG .GE. 2 .AND. CDFAM .EQ. 'GP') THEN
                       IF (ITYP .EQ. BUFR_NEZD) INZREJ = INZREJ+1
                       IF (ITYP .EQ. BUFR_NEPS) INPREJ = INPREJ+1
                       IF (ITYP .EQ. BUFR_NETS) INTREJ = INTREJ+1

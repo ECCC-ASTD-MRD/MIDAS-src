@@ -1,257 +1,591 @@
+! -*- F90 -*-
+
+!
+! Bending angle operator, with derivatives. This is still an
+! experimental implementation, and efficiency must be verified.
+!
+! Josep M. Aparicio, 2006-2012.
+! ARMA/ASTD
+! Environment Canada
+!
+
 module modgps09bend
-#if defined (DOC)
-  !
-  ! Bending angle operator, with derivatives. This is a
-  ! provisional implementation. It has to be cleaned for
-  ! efficiency. Early assimilation of GPSRO will not
-  ! use these operators, but only refractivity ones.
-  !
-  ! Josep M. Aparicio
-  ! Meteorological Service of Canada, 2006.
-  !
-#endif
-  use modgps01ctmath, only : m_pi
+  use modgps00base     , only : i4, dp, ngpssize, ngpsxlow
   use modgps03diff
-  use modgps06gravity, only : gpsgeopotential
-  use modgps08refop
+  use modgps04profile  , only : gpsprofile
+
   implicit none
 contains
 
-  subroutine gpsimpactop(radius, geoid, prf, imp)
-    real(dp)             , intent(in) :: radius
-    real(dp)             , intent(in) :: geoid
-    type(gpsprofile)     , intent(in) :: prf
-    type(gpsdiff)        , intent(out):: imp(:)
+  subroutine gpsbend(prf)
+    type(gpsprofile)     :: prf
 
-    integer                           :: i,j, ngpslev
-    real(dp)                          :: height
-    real(dp)                          :: geop, dh
+    type(gpsdiff)                     :: sum,ta,tb,tm,trap,simp,boole,num,fa,fb,fm,nm,alpha_B
+    type(gpsdiff)                     :: sa,sb,sm,ra,rm,rb,dlnndra,dlnndrb,dlnndrm
+    type(gpsdiff)                     :: s1,s2,s3,s4,s5,r1,r2,r3,r4,r5
+    type(gpsdiff)                     :: nu1,nu2,nu3,nu4,nu5,n1,n2,n3,n4,n5
+    type(gpsdiff)                     :: t1,t2,t3,t4,t5,dlnndr1,dlnndr2,dlnndr3,dlnndr4,dlnndr5
+    type(gpsdiff)                     :: f1,f2,f3,f4,f5
+    type(gpsdiff)                     :: r  (ngpssize)
+    type(gpsdiff)                     :: ref(ngpssize)
+    type(gpsdiff)                     :: nu (ngpssize)
+    type(gpsdiff)                     :: lnu(ngpssize)
+    type(gpsdiff)                     :: n  (ngpssize)
+    type(gpsdiff)                     :: dlgnudr(ngpssize-1)
+    type(gpsdiff)                     :: rsq(ngpssize)
+    type(gpsdiff)                     :: nsq(ngpssize)
+    type(gpsdiff)                     :: x  (-ngpsxlow+1:ngpssize)
+    type(gpsdiff)                     :: xsq(-ngpsxlow+1:ngpssize)
+    type(gpsdiff)                     :: s(ngpssize),t(ngpssize)
+    integer                           :: i,j,ngpslev
+    logical                           :: lok
 
-    ngpslev=prf%ngpslev
-    do i=1,ngpslev
-       height=prf%gst(i)%Var
-       do j=1,4
-          geop=gpsgeopotential(Prf%rLat, height)
-          height=height + (prf%gst(i)%Var-geop/9.80616_dp)
+    if (.not. prf%bbst) then
+       ngpslev=prf%ngpslev
+
+       ! Radial distances and impact parameters:
+       do i=1,ngpslev
+          prf%dst(i)= (prf%Rad+prf%geoid+prf%gst(i))
+          prf%ast(i)= prf%dst(i) * (1._dp+1.e-6_dp*prf%rst(i))
        enddo
-       dh = height-prf%gst(i)%Var+geoid
-             
-       imp(i)= (radius+prf%gst(i)+dh) * (1._dp+1.e-6_dp*prf%rst(i))
-    enddo
-  end subroutine gpsimpactop
-
-  subroutine gpsbendop2(imp, prf, bnd)
-    type(gpsdiff)        , intent(in) :: imp(:)
-    type(gpsprofile)     , intent(in) :: prf
-    type(gpsdiff)        , intent(out):: bnd(:)
-
-    type(gpsdiff)                     :: rst0, rst1, rst2
-    type(gpsdiff)                     :: ln0 , ln1 , ln2
-    type(gpsdiff)                     :: hda
-    type(gpsdiff)                     :: dy1, dy2, dl1, dl2
-    type(gpsdiff)                     :: dlndx(2*(ngpssize-1))
-    type(gpsdiff)                     :: x    (2*(ngpssize-1))
-    type(gpsdiff)                     :: y    (2*(ngpssize-1))
-    type(gpsdiff)                     :: imp2, imc0, imc1, imc2
-    type(gpsdiff)                     :: yc0, yc1, yc2, sum, dsum
-    integer                           :: i,j, ngpslev
-
-    ngpslev=prf%ngpslev
-    do i=1,ngpslev-1
-       rst0 = prf%rst(i)
-       rst2 = prf%rst(i+1)
-       rst1 = exp(0.5_dp*(log(rst0)+log(rst2)))
-
-       ln0 = log( 1._dp + 1.e-6_dp * rst0 )
-       ln1 = log( 1._dp + 1.e-6_dp * rst1 )
-       ln2 = log( 1._dp + 1.e-6_dp * rst2 )
-
-       hda = 0.5_dp * (imp(i)-imp(i+1))
-
-       x    (2*i-1) = imp(i) - 0.5_dp * hda
-       x    (2*i  ) = imp(i) - 1.5_dp * hda
-
-       dlndx(2*i-1) = (ln0-ln1)/hda
-       dlndx(2*i  ) = (ln1-ln2)/hda
-    enddo
-
-    do i=2,ngpslev
-       sum =0._dp
-       imp2 = imp(i)*imp(i)
-       ! 
-       do j=i-1,1,-1
-          y(2*j-1) = sqrt(x(2*j-1)*x(2*j-1)-imp2)
-          y(2*j  ) = sqrt(x(2*j  )*x(2*j  )-imp2)
-
-          imc0 =        imp(j)
-          imc1 = 0.5_dp*imp(j) + 0.5_dp*imp(j+1)
-          imc2 =                        imp(j+1)
-
-          yc0  = sqrt(imc0*imc0-imp2)
-          yc1  = sqrt(imc1*imc1-imp2)
-          yc2  = sqrt(imc2*imc2-imp2)
-
-          dy1  = yc1 - yc0
-          dy2  = yc2 - yc1
-          
-          dl1  = dlndx(2*j-1) / x(2*j-1)
-          dl2  = dlndx(2*j  ) / x(2*j  )
-          
-          dsum = dl1*dy1+dl2*dy2
-          sum  = sum + dsum
+       ! Extended lower levels:
+       do i=ngpslev+1,ngpslev+ngpsxlow
+          prf%ast(i)= prf%ast(i-1)-50._dp
        enddo
-       sum = sum * (1._dp + prf%rst(1)/prf%rst(i))
-       bnd(i)=2*imp(i)*sum
-    enddo
-    bnd(1)=bnd(2)*prf%rst(1)/prf%rst(2)
-  end subroutine gpsbendop2
 
-  subroutine gpsbendop5(imp, prf, bnd)
-    type(gpsdiff)        , intent(in) :: imp(:)
-    type(gpsprofile)     , intent(in) :: prf
-    type(gpsdiff)        , intent(out):: bnd(:)
+       ! Standard levels:
+       do i=1,ngpslev
+          r  (i)=prf%dst(ngpslev-i+1)
+          ref(i)=prf%rst(ngpslev-i+1)
+          !ref(i)=300._dp*exp((-1._dp/7000._dp)*(r(i)%Var-prf%Rad))
+       enddo
+       ! Extended upper levels:
+       do i=ngpslev+1,ngpssize
+          r  (i)=r  (i-1)+1000._dp
+          ref(i)=ref(i-1)*exp(-1000._dp/7000_dp)
+       enddo
+
+       ! log n and x:
+       do i=1,ngpssize
+          nu(i)=1.e-6_dp*ref(i)
+          lnu(i)=log(nu(i))
+          n (i)=1._dp+nu(i)
+          x (i)=n(i)*r(i)
+          rsq(i)=r(i)**2
+          nsq(i)=n(i)**2
+          xsq(i)=x(i)**2
+       enddo
+       do i=0,-ngpsxlow+1,-1
+          x  (i)=x(i+1)-50._dp
+          xsq(i)=x(i)**2
+       enddo
+
+       ! Radial derivatives of log refractivity.
+       ! Refractivity will be assumed exponential within each shell.
+       ! We store the derivative of log(nu).
+       ! dn/dr = nu * dlgnudr
+       do i=1,ngpssize-1
+          dlgnudr(i)=(lnu(i+1)-lnu(i))/(r(i+1)-r(i))
+       enddo
+
+       ! Evaluation of complete bending for ray tangent at r(i):
+       do i=1,ngpslev
+          ! Check that ray is not trapped
+          lok=.true.
+          do j = i+1,ngpssize
+             lok= lok .and. (x(j)%Var .gt. x(i)%Var)
+          enddo
+          if (lok) then
+             s(i)=0._dp
+             t(i)=1._dp
+             do j=i+1,ngpssize
+                s(j)=sqrt(nsq(i)*rsq(j)-xsq(i))
+                t(j)=s(j)/sqrt(xsq(j)-xsq(i))
+             enddo
+
+             ! Trapezoid integration:
+             sum=0._dp
+             do j=i, ngpssize-1
+                sa=s(j)
+                sb=s(j+1)
+                ta=t(j)
+                tb=t(j+1)
+                dlnndra=dlgnudr(j)*nu(j  )/n(j  )
+                dlnndrb=dlgnudr(j)*nu(j+1)/n(j+1)
+                fa=dlnndra*ta/sqrt(xsq(i)+sa*sa)
+                fb=dlnndrb*tb/sqrt(xsq(i)+sb*sb)
+                sum=sum+(1._dp/2._dp)*(fa+fb)*(sb-sa)
+             enddo
+             trap=(-2)*r(i)*sum
+
+             ! Simpson 1/3 integration:
+             sum=0._dp
+             do j=i, ngpssize-1
+                sa=s(j)
+                sb=s(j+1)
+                sm=0.5_dp*(sa+sb)
+                !
+                ra=r(j)
+                rb=r(j+1)
+                rm=sqrt(xsq(i)+sm*sm)/n(i)
+                !
+                num=nu(j)*exp(dlgnudr(j)*(rm-ra))
+                nm=(1._dp+num)
+                !
+                ta=t(j)
+                tb=t(j+1)
+                tm=sm/sqrt(nm*nm*rm*rm-xsq(i))
+                !
+                dlnndra=dlgnudr(j)*nu(j  )/n(j  )
+                dlnndrb=dlgnudr(j)*nu(j+1)/n(j+1)
+                dlnndrm=dlgnudr(j)*num    /nm
+                !
+                fa=dlnndra*ta/sqrt(xsq(i)+sa*sa)
+                fb=dlnndrb*tb/sqrt(xsq(i)+sb*sb)
+                fm=dlnndrm*tm/sqrt(xsq(i)+sm*sm)
+                !
+                sum=sum+(1._dp/6._dp)*(fa+4*fm+fb)*(sb-sa)
+             enddo
+             simp=(-2)*r(i)*sum
+
+             ! Boole 2/45 integration:
+             sum=0._dp
+             do j=i, ngpssize-1
+                s1=s(j)
+                s5=s(j+1)
+                s2=0.75_dp*s1+0.25_dp*s5
+                s3=0.50_dp*s1+0.50_dp*s5
+                s4=0.25_dp*s1+0.75_dp*s5
+                !
+                r1=r(j)
+                r5=r(j+1)
+                r2=sqrt(xsq(i)+s2*s2)/n(i)
+                r3=sqrt(xsq(i)+s3*s3)/n(i)
+                r4=sqrt(xsq(i)+s4*s4)/n(i)
+                !
+                nu1=nu(j)
+                nu2=nu(j)*exp(dlgnudr(j)*(r2-r1))
+                nu3=nu(j)*exp(dlgnudr(j)*(r3-r1))
+                nu4=nu(j)*exp(dlgnudr(j)*(r4-r1))
+                nu5=nu(j+1)
+                n1=n(j)
+                n2=(1._dp+nu2)
+                n3=(1._dp+nu3)
+                n4=(1._dp+nu4)
+                n5=n(j+1)
+                !
+                t1=t(j)
+                t2=s2/sqrt(n2*n2*r2*r2-xsq(i))
+                t3=s3/sqrt(n3*n3*r3*r3-xsq(i))
+                t4=s4/sqrt(n4*n4*r4*r4-xsq(i))
+                t5=t(j+1)
+                !
+                dlnndr1=dlgnudr(j)*nu(j  )/n(j  )
+                dlnndr5=dlgnudr(j)*nu(j+1)/n(j+1)
+                dlnndr2=dlgnudr(j)*nu2    /n2
+                dlnndr3=dlgnudr(j)*nu3    /n3
+                dlnndr4=dlgnudr(j)*nu4    /n4
+                !
+                f1=dlnndr1*t1/sqrt(xsq(i)+s1*s1)
+                f2=dlnndr2*t2/sqrt(xsq(i)+s2*s2)
+                f3=dlnndr3*t3/sqrt(xsq(i)+s3*s3)
+                f4=dlnndr4*t4/sqrt(xsq(i)+s4*s4)
+                f5=dlnndr5*t5/sqrt(xsq(i)+s5*s5)
+                !
+                sum=sum+(1._dp/90._dp)*(7*f1+32*f2+12*f3+32*f4+7*f5)*(s5-s1)
+             enddo
+             boole=(-2)*r(i)*sum
+
+             prf%bst(ngpslev-i+1)=boole
+          else
+             prf%bst(ngpslev-i+1)=-10._dp
+          endif
+       enddo
+
+       ! Extended low levels:
+       do i=0,-ngpsxlow+1,-1
+          lok=.true.
+          do j = 1,ngpssize
+             lok= lok .and. (x(j)%Var .gt. x(i)%Var)
+          enddo
+          if (lok) then
+             do j=1,ngpssize
+                s(j)=sqrt(nsq(1)*rsq(j)-xsq(i))
+                t(j)=s(j)/sqrt(xsq(j)-xsq(i))
+             enddo
+
+             ! Simpson integration:
+             sum=0._dp
+             do j=1, ngpssize-1
+                sa=s(j)
+                sb=s(j+1)
+                sm=0.5_dp*(sa+sb)
+                !
+                ra=r(j)
+                rb=r(j+1)
+                rm=sqrt(xsq(i)+sm*sm)/n(1)
+                !
+                num=nu(j)*exp(dlgnudr(j)*(rm-ra))
+                nm=(1._dp+num)
+                !
+                ta=t(j)
+                tb=t(j+1)
+                tm=sm/sqrt(nm*nm*rm*rm-xsq(i))
+                !
+                dlnndra=dlgnudr(j)*nu(j  )/n(j  )
+                dlnndrb=dlgnudr(j)*nu(j+1)/n(j+1)
+                dlnndrm=dlgnudr(j)*num/nm
+                !
+                fa=dlnndra*ta/sqrt(xsq(i)+sa*sa)
+                fb=dlnndrb*tb/sqrt(xsq(i)+sb*sb)
+                fm=dlnndrm*tm/sqrt(xsq(i)+sm*sm)
+                !
+                sum=sum+(1._dp/6._dp)*(fa+4*fm+fb)*(sb-sa)
+             enddo
+             simp=(-2)*(x(i)/n(1))*sum
+             alpha_B=acos(x(i)/x(1))
+             prf%bst(ngpslev-i+1)=simp-2*alpha_B
+          else
+             prf%bst(ngpslev-i+1)=-10._dp
+          endif
+       enddo
+
+       prf%bbst=.true.
+    endif
+  end subroutine gpsbend
+
+  subroutine gpsbend1(prf)
+    type(gpsprofile)     :: prf
+
+    type(gpsdiff)                     :: r  (ngpssize)
+    type(gpsdiff)                     :: ref(ngpssize)
+    type(gpsdiff)                     :: nu (ngpssize)
+    type(gpsdiff)                     :: lnu(ngpssize)
+    type(gpsdiff)                     :: n  (ngpssize)
+    type(gpsdiff)                     :: dlgnudr(ngpssize-1)
+    type(gpsdiff)                     :: x  (-ngpsxlow+1:ngpssize)
+
+    type(gpsdiff)                     :: angle0,angle,angleB,bend,nu0,th,sum,nexp
+    real(dp)                          :: dxn
+    integer                           :: ngpslev,i,j,jmin
+    logical                           :: lok, lok2
+
+    if (.not. prf%bbst) then
+       ngpslev=prf%ngpslev
+
+       ! Radial distances and impact parameters:
+       do i=1,ngpslev
+          prf%dst(i)= (prf%Rad+prf%geoid+prf%gst(i))
+          prf%ast(i)= prf%dst(i) * (1._dp+1.e-6_dp*prf%rst(i))
+       enddo
+       ! Extended lower levels:
+       do i=ngpslev+1,ngpslev+ngpsxlow
+          prf%ast(i)= prf%ast(i-1)-50._dp
+       enddo
+
+       ! Standard levels:
+       do i=1,ngpslev
+          r  (i)=prf%dst(ngpslev-i+1)
+          ref(i)=prf%rst(ngpslev-i+1)
+       enddo
+       ! Extended upper levels:
+       do i=ngpslev+1,ngpssize
+          r  (i)=r  (i-1)+1000._dp
+          ref(i)=ref(i-1)*exp(-1000._dp/7000_dp)
+       enddo
+
+       ! log n and x:
+       do i=1,ngpssize
+          nu(i) = 1.e-6_dp*ref(i)
+          lnu(i)= log(nu(i))
+          n (i) = 1._dp+nu(i)
+          x (i) = n(i)*r(i)
+       enddo
+       dxn=20._dp
+       do i=0,-ngpsxlow+1,-1
+          x (i) = x(i+1)-dxn
+       enddo
+
+       ! Radial derivatives of log refractivity.
+       ! Refractivity will be assumed exponential within each shell.
+       ! We store the derivative of log(nu).
+       ! dn/dr = nu * dlgnudr
+       do i=1,ngpssize-1
+          dlgnudr(i)=(lnu(i+1)-lnu(i))/(r(i+1)-r(i))
+       enddo
+
+       ! Evaluation of complete bending for ray tangent at r(i):
+       do i=-ngpsxlow+1,ngpslev
+          lok=.true.
+          lok2=.false.
+          ! Check that the ray is not trapped
+          ! For low impact (reflected, jmin<1) rays, begin at the surface
+          jmin = i
+          if (jmin < 1) jmin=1
+          do j = jmin+1,ngpssize
+             lok= lok .and. (x(j)%Var .gt. x(i)%Var)
+          enddo
+          if (lok) then
+             ! Integration:
+             sum=0._dp
+             if (i.ge.1) then
+                ! Direct rays
+                angleB=0._dp
+             else
+                ! Reflected
+                angleB=sqrt(2*(-i+1)*dxn/x(1))
+             endif
+             angle0=angleB
+             do j=jmin, ngpssize-1
+                th=r(j+1)-r(j)
+                nu0=nu(j)
+                nexp=dlgnudr(j)
+                call gpsbendlayer(r(j), th, nu0, nexp, angle0, angle, bend, lok2)
+                sum=sum+bend
+                angle0=angle
+             enddo
+          endif
+          if (lok2) then
+             prf%bst(ngpslev-i+1)=(-2)*(sum+angleB)
+          else
+             prf%bst(ngpslev-i+1)=-10._dp
+          endif
+       enddo
+    endif
+  end subroutine gpsbend1
+
+  subroutine gpsbendlayer(ra, th, nu0, nexp, angle0, angle, bend, lok)
+    type(gpsdiff)        , intent(in) :: ra, th     ! Radius of inner shell (ra) and shell thickness (th)   (m)
+    type(gpsdiff)        , intent(in) :: nu0, nexp  ! Refraction index coefs: n=1+nu0*exp(nexp*(r-ra)); nexp in 1/m
+    type(gpsdiff)        , intent(in) :: angle0     ! Ray angle above horizon at ra
+    type(gpsdiff)        , intent(out):: angle      ! Ray angle above horizon at rb
+    type(gpsdiff)        , intent(out):: bend       ! Accumulated bending over the layer
+    logical              , intent(out):: lok
+
+    type(gpsdiff) :: rb,angle0i,dh,hi,rai,nu0i,anglei
+    integer :: i,numunits
     
-    type(gpsdiff)                     :: rst0, rst1, rst2, rst3, rst4, rst5
-    type(gpsdiff)                     :: ln0 , ln1 , ln2 , ln3 , ln4 , ln5
-    type(gpsdiff)                     :: hda
-    type(gpsdiff)                     :: dym, dyp, dlnym, dlnyp
-    type(gpsdiff)                     :: dlndx(5*(ngpssize-1))
-    type(gpsdiff)                     :: x    (5*(ngpssize-1))
-    type(gpsdiff)                     :: y    (5*(ngpssize-1))
-    type(gpsdiff)                     :: imp2
-    type(gpsdiff)                     :: imc0, imc1, imc2, imc3, imc4, imc5
-    type(gpsdiff)                     :: yc0 , yc1 , yc2 , yc3 , yc4 , yc5
-    type(gpsdiff)                     :: dy1, dy2, dy3, dy4, dy5
-    type(gpsdiff)                     :: dl1, dl2, dl3, dl4, dl5
-    type(gpsdiff)                     :: ym, yc, yp, sum, dsum
-    integer                           :: i,j, ngpslev
+    lok=.false.
+    if (th%Var.lt.0._dp) return
 
-    ngpslev=prf%ngpslev
-    do i=1,ngpslev-1
-       rst0 = prf%rst(i)
-       rst5 = prf%rst(i+1)
-       rst1 = exp( 0.8_dp*log(rst0) + 0.2_dp*log(rst5) )
-       rst2 = exp( 0.6_dp*log(rst0) + 0.4_dp*log(rst5) )
-       rst3 = exp( 0.4_dp*log(rst0) + 0.6_dp*log(rst5) )
-       rst4 = exp( 0.2_dp*log(rst0) + 0.8_dp*log(rst5) )
-       
-       ln0 = log( 1._dp + 1.e-6_dp * rst0 )
-       ln1 = log( 1._dp + 1.e-6_dp * rst1 )
-       ln2 = log( 1._dp + 1.e-6_dp * rst2 )
-       ln3 = log( 1._dp + 1.e-6_dp * rst3 )
-       ln4 = log( 1._dp + 1.e-6_dp * rst4 )
-       ln5 = log( 1._dp + 1.e-6_dp * rst5 )
-       
-       hda = 0.2_dp * (imp(i)-imp(i+1))
-       
-       x    (5*i-4) = imp(i) - 0.5_dp * hda
-       x    (5*i-3) = imp(i) - 1.5_dp * hda
-       x    (5*i-2) = imp(i) - 2.5_dp * hda
-       x    (5*i-1) = imp(i) - 3.5_dp * hda
-       x    (5*i  ) = imp(i) - 4.5_dp * hda
-       
-       dlndx(5*i-4) = (ln0-ln1)/hda
-       dlndx(5*i-3) = (ln1-ln2)/hda
-       dlndx(5*i-2) = (ln2-ln3)/hda
-       dlndx(5*i-1) = (ln3-ln4)/hda
-       dlndx(5*i  ) = (ln4-ln5)/hda
+    ! Radius of the outer shell:
+    rb = ra + th
+
+    ! Divide layer in smaller layers:
+    numunits=10
+    dh =th/(1._dp*numunits)
+    angle0i=angle0
+    bend   =0._dp
+    do i = 1, numunits
+       hi =(i-1)*dh
+       rai=ra+(i-1)*dh
+       nu0i=nu0*exp(nexp*hi)
+       call gpsbendunit(rai, dh, nu0i, nexp, angle0i, anglei, bend, lok)
+       angle0i=anglei
+       if (.not.lok) return
     enddo
-    
-    do i=2,ngpslev
-       sum =0._dp
-       imp2 = imp(i)*imp(i)
-       ! 
-       do j=i-1,1,-1
-          y(5*j-4) = sqrt(x(5*j-4)*x(5*j-4)-imp2)
-          y(5*j-3) = sqrt(x(5*j-3)*x(5*j-3)-imp2)
-          y(5*j-2) = sqrt(x(5*j-2)*x(5*j-2)-imp2)
-          y(5*j-1) = sqrt(x(5*j-1)*x(5*j-1)-imp2)
-          y(5*j  ) = sqrt(x(5*j  )*x(5*j  )-imp2)
-          
-          imc0 =        imp(j)
-          imc1 = 0.8_dp*imp(j) + 0.2_dp*imp(j+1)
-          imc2 = 0.6_dp*imp(j) + 0.4_dp*imp(j+1)
-          imc3 = 0.4_dp*imp(j) + 0.6_dp*imp(j+1)
-          imc4 = 0.2_dp*imp(j) + 0.8_dp*imp(j+1)
-          imc5 =                        imp(j+1)
-          
-          yc0  = sqrt(imc0*imc0-imp2)
-          yc1  = sqrt(imc1*imc1-imp2)
-          yc2  = sqrt(imc2*imc2-imp2)
-          yc3  = sqrt(imc3*imc3-imp2)
-          yc4  = sqrt(imc4*imc4-imp2)
-          yc5  = sqrt(imc5*imc5-imp2)
-          
-          dy1  = yc1 - yc0
-          dy2  = yc2 - yc1
-          dy3  = yc3 - yc2
-          dy4  = yc4 - yc3
-          dy5  = yc5 - yc4
-          
-          dl1  = dlndx(5*j-4) / x(5*j-4)
-          dl2  = dlndx(5*j-3) / x(5*j-3)
-          dl3  = dlndx(5*j-2) / x(5*j-2)
-          dl4  = dlndx(5*j-1) / x(5*j-1)
-          dl5  = dlndx(5*j  ) / x(5*j  )
-          
-          dsum = dl1*dy1+dl2*dy2+dl3*dy3+dl4*dy4+dl5*dy5
-          sum  = sum + dsum
-       enddo
-       sum = sum * (1._dp + prf%rst(1)/prf%rst(i))
-       bnd(i)=2*imp(i)*sum
-    enddo
-    bnd(1)=bnd(2)*prf%rst(1)/prf%rst(2)
-  end subroutine gpsbendop5
-  
-  subroutine gpsbendopv(imp, prf, bnd, impv, bstv)
-    type(gpsdiff)        , intent(in) :: imp(:)
-    type(gpsprofile)     , intent(in) :: prf
-    type(gpsdiff)        , intent(in) :: bnd(:)
-    real(dp)             , intent(in) :: impv(:)
+    angle=anglei
+  end subroutine gpsbendlayer
+
+  subroutine gpsbendunit(ra, th, nu0, nexp, angle0, angle, bend, lok)
+    type(gpsdiff)        , intent(in) :: ra, th     ! Radius of inner shell (ra) and shell thickness (th)  (m)
+    type(gpsdiff)        , intent(in) :: nu0, nexp  ! Refraction index coefs: n=1+nu0*exp(nexp*(r-ra)); nexp in 1/m
+    type(gpsdiff)        , intent(in) :: angle0     ! Ray angle above horizon at ra
+    type(gpsdiff)        , intent(out):: angle      ! Ray angle above horizon at rb
+    type(gpsdiff)        , intent(inout):: bend       ! Accumulated bending over the layer
+    logical              , intent(out):: lok
+
+    type(gpsdiff) :: rb, nu, dlnndh, g0,g1,g2,f0,f1,f2,x,a,b,c,disc,ds,bendi,g1av
+
+    lok=.false.
+    if (th%Var.lt.0._dp) return
+
+    ! Radius of the outer shell:
+    rb = ra + th
+
+    ! Excess refraction index:
+    !    at ra:    nu0
+    !    at rb:    nu0*exp(nexp*h)
+    nu     = nu0*exp(0.5_dp*nexp*th)
+    dlnndh = nexp*nu/(1._dp+nu)
+
+    ! Geometric trajectory:
+    ! g(x) = g0+g1*x+g2*x^2
+    !
+    g0=0._dp
+    g1=tan(angle0)
+    g2=0.5_dp*dlnndh*cos(angle0)
+
+    ! Outer circle:
+    ! f(x) = f0+f1*x+f2*x^2
+    !
+    f0=th
+    f1=0._dp
+    f2=(-0.5_dp)/rb
+
+    ! Difference:
+    a=f2-g2
+    b=f1-g1
+    c=f0-g0
+
+    ! Discriminant:
+    disc=b*b-4*a*c
+    if (disc%Var.lt.0._dp) then
+       lok=.false.
+       return
+    else
+       x =((-1)*b-sqrt(disc))/(2*a)
+       g1av=g1+g2*x
+       ds=x*(1._dp+(g2*x)**2)
+       bendi = 2 * g2 * ds
+       angle = angle0+atan(x/rb)+bendi
+       bend  = bend + bendi
+       if (angle%Var .gt. 0) lok=.true.
+    endif
+  end subroutine gpsbendunit
+
+  subroutine gpsbndopv(impv, azmv, nval, prf, bstv)
+    real(dp)             , intent(in) :: impv(:), azmv(:)
+    integer(i4)          , intent(in) :: nval
+    type(gpsprofile)                  :: prf
     type(gpsdiff)        , intent(out):: bstv(:)
     
-    integer                           :: iSize, i, j, jloc, ngpslev
-    real(dp)                          :: imp1
+    integer                           :: iSize, i, j, ngpslev, jlocm, jlocp
+    real(dp)                          :: imp1,azm1,rad, rad0
+    real(dp)                          :: imp(ngpssize+ngpsxlow)
     type(gpsdiff)                     :: am, ap, da, dam, dap
-    
+
+    call gpsbend(prf)
     ngpslev=prf%ngpslev
     iSize = size(impv)
+    if (nval < iSize) iSize=nval
+    rad0=prf%rad
     !
     ! Given an impact
     !
     do i = 1, iSize
        imp1 = impv(i)
+       azm1 = azmv(i)
+       rad=1._dp/(cos(azm1)**2/prf%radM+sin(azm1)**2/prf%radN)
+       do j=1, ngpslev+ngpsxlow
+          imp(j)=prf%ast(j)%Var
+       enddo
        !
        ! Search where it is located
        !
-       if (imp1 > imp(1)%Var) then
-          jloc = 1
+       jlocm = -1000
+       jlocp = -1000
+       if (imp1 > imp(1)) then
+          jlocm = 1
+          jlocp = 2
        endif
-       
-       do j=1, ngpslev-1
-          if ((imp1 <= imp(j)%Var) .and. (imp1 > imp(j+1)%Var)) then
-             jloc = j
+
+       do j=1, ngpslev+ngpsxlow-1
+          if ((imp1 <= imp(j)) .and. (abs(prf%bst(j)%Var) < 1._dp)) then
+             jlocm = j
+          endif
+       enddo
+
+       do j=jlocm+1, ngpslev+ngpsxlow
+          if ((imp1 >  imp(j)) .and. (abs(prf%bst(j)%Var) < 1._dp)) then
+             jlocp = j
              exit
           endif
        enddo
-       
-       if (imp1 <= imp(ngpslev)%Var) then
-          jloc = ngpslev-1
-       endif
-       
+      
+       if (jlocm == -1000) jlocm = ngpslev+ngpsxlow-1
+       if (jlocp == -1000) jlocp = ngpslev+ngpsxlow
+
        !
        ! Find properties in that band
        !
-       am = imp(jloc)
-       ap = imp(jloc+1)
+       am = prf%ast(jlocm)
+       ap = prf%ast(jlocp)
        
        da = am - ap
        dam = (imp1-ap) / da
        dap = (am-imp1) / da
        
-       bstv(i)=exp(dam*log(bnd(jloc))+dap*log(bnd(jloc+1)))
+       ! Use loglinear interpolation for most data (notably direct rays)
+       if (prf%bst(jlocm)%Var > 1.e-6_dp .and. prf%bst(jlocp)%Var > 1.e-6_dp) then
+          bstv(i)=exp(dam*log(prf%bst(jlocm))+dap*log(prf%bst(jlocp)))*(rad/rad0)
+       else
+          ! Use linear interpolation for near-zero or negative bending (most reflected rays)
+          bstv(i)=(dam*prf%bst(jlocm)+dap*prf%bst(jlocp))*(rad/rad0)
+       endif
     enddo
+  end subroutine gpsbndopv
+
+  subroutine gpsbndopv1(impv, azmv, nval, prf, bstv)
+    real(dp)             , intent(in) :: impv(:), azmv(:)
+    integer(i4)          , intent(in) :: nval
+    type(gpsprofile)                  :: prf
+    type(gpsdiff)        , intent(out):: bstv(:)
     
-  end subroutine gpsbendopv
+    integer                           :: iSize, i, j, ngpslev, jlocm, jlocp
+    real(dp)                          :: imp1,azm1,rad, rad0
+    real(dp)                          :: imp(ngpssize+ngpsxlow)
+    type(gpsdiff)                     :: am, ap, da, dam, dap
+
+    call gpsbend1(prf)
+    ngpslev=prf%ngpslev
+    iSize = size(impv)
+    if (nval < iSize) iSize=nval
+    rad0=prf%rad
+    !
+    ! Given an impact
+    !
+    do i = 1, iSize
+       imp1 = impv(i)
+       azm1 = azmv(i)
+       rad=1._dp/(cos(azm1)**2/prf%radM+sin(azm1)**2/prf%radN)
+       do j=1, ngpslev+ngpsxlow
+          imp(j)=prf%ast(j)%Var
+       enddo
+       !
+       ! Search where it is located
+       !
+       jlocm = -1000
+       jlocp = -1000
+       if (imp1 > imp(1)) then
+          jlocm = 1
+          jlocp = 2
+       endif
+
+       do j=1, ngpslev+ngpsxlow-1
+          if ((imp1 <= imp(j)) .and. (abs(prf%bst(j)%Var) < 1._dp)) then
+             jlocm = j
+          endif
+       enddo
+
+       do j=jlocm+1, ngpslev+ngpsxlow
+          if ((imp1 >  imp(j)) .and. (abs(prf%bst(j)%Var) < 1._dp)) then
+             jlocp = j
+             exit
+          endif
+       enddo
+       
+       if (jlocm == -1000) jlocm = ngpslev+ngpsxlow-1
+       if (jlocp == -1000) jlocp = ngpslev+ngpsxlow
+
+       !
+       ! Find properties in that band
+       !
+       am = prf%ast(jlocm)
+       ap = prf%ast(jlocp)
+       
+       da = am - ap
+       dam = (imp1-ap) / da
+       dap = (am-imp1) / da
+       
+       ! Use loglinear interpolation for most data (notably direct rays)
+       if (prf%bst(jlocm)%Var > 1.e-6_dp .and. prf%bst(jlocp)%Var > 1.e-6_dp) then
+          bstv(i)=exp(dam*log(prf%bst(jlocm))+dap*log(prf%bst(jlocp)))*(rad/rad0)
+       else
+          ! Use linear interpolation for near-zero or negative bending (most reflected rays)
+          bstv(i)=(dam*prf%bst(jlocm)+dap*prf%bst(jlocp))*(rad/rad0)
+       endif
+    enddo
+  end subroutine gpsbndopv1
   
 end module modgps09bend
