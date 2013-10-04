@@ -56,7 +56,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
   integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:) 
-  integer, allocatable :: CORFLAG(:,:)
   integer, allocatable :: GNCLDFLAG(:)
   integer, allocatable :: ICHREF(:),INDX(:)
   integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
@@ -257,7 +256,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   allocate ( NTOP_MB(NPRF),                 stat= alloc_status(79))
   allocate ( CFSUB(NPRF),                   stat= alloc_status(80))
   allocate ( GNCLDFLAG(NPRF),               stat= alloc_status(81))
-  allocate ( CORFLAG(hir_GET_NCHAN_SELECTED("IASI"),NPRF),        stat= alloc_status(83))
   allocate ( ZLEVMOD(col_getNumLev(lcolumnhr,'TH'),NPRF), stat= alloc_status(84))
   allocate ( SUNAZIM(NPRF),                 stat= alloc_status(85))
 
@@ -322,7 +320,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   EMI_SFC(:,:)  = -1.
 
   REJFLAG(:,:,:) = 0
-  CORFLAG(:,:)   = 0
 
   NOBIASI = 0
   NOBTOV = 0
@@ -408,12 +405,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                     IF (BAD) THEN
                        REJFLAG(chan_indx,NOBIASI,9) = 1
                     ENDIF
-
-! *** Set if data has been bias corrected (bit 6 set) ***
-
-                    IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),6)) THEN
-                       CORFLAG(chan_indx,NOBIASI) = 1
-                    END IF
 
 ! *** Gross check on observed BTs ***
                     IF (BTOBS(chan_indx,NOBIASI)<150.) THEN
@@ -1131,6 +1122,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   deallocate ( MAXWF,CFRAC_AVHRR )
   deallocate (satazim,satzen,sunazim)
   deallocate (GNCLDFLAG)
-  deallocate (CORFLAG,ZLEVMOD,xpres)
+  deallocate (ZLEVMOD,xpres)
 
 END SUBROUTINE IASIQC

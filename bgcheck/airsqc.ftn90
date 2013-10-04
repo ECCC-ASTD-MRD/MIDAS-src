@@ -53,7 +53,6 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
   integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:)
-  integer, allocatable :: CORFLAG(:,:)
   integer, allocatable :: GNCLDFLAG(:)
   integer, allocatable :: ICHREF(:)
   integer, allocatable :: NTOP_EQ(:),NTOP_BT(:,:),NTOP_RD(:,:),NTOP_MB(:)
@@ -214,7 +213,6 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   allocate ( CFSUB(NPRF),                     stat= alloc_status(58))
   allocate ( GNCLDFLAG(NPRF),                 stat= alloc_status(59))
   allocate ( ZLEVMOD(col_getNumLev(lcolumnhr,'TH'),NPRF),stat= alloc_status(61))
-  allocate ( CORFLAG(hir_get_nchan_selected("AIRS"),NPRF),          stat= alloc_status(62))
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' airsqc : memory allocation error'
@@ -237,7 +235,6 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   EMI_SFC(:,:)  = -1.
 
   REJFLAG(:,:,:) = 0
-  CORFLAG(:,:)   = 0
 
   NOBAIRS = 0
   NOBTOV = 0
@@ -285,8 +282,6 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                        BTOBS(chan_indx,NOBAIRS) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 ! *** Flag check on observed BTs ***
                        IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),2)) REJFLAG(chan_indx,NOBAIRS,9) = 1
-! *** Set if data has been bias corrected (bit 6 set) ***
-                       IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),6)) CORFLAG(chan_indx,NOBAIRS) = 1
 ! *** Gross check on observed BTs ***
                        IF (BTOBS(chan_indx,NOBAIRS)<150.) REJFLAG(chan_indx,NOBAIRS,9) = 1
                        IF (BTOBS(chan_indx,NOBAIRS)>350.) REJFLAG(chan_indx,NOBAIRS,9) = 1
@@ -684,7 +679,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
      END DO
   END DO
 
-! *** For non blacklisted channels, set Bit 11 if data not corrected (Bit 6 not set) ***
+!* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
 
   ASSIM_ALL(:) = .true.
   FATE(:,:) = SUM(REJFLAG(:,:,:),DIM=3)
@@ -787,7 +782,6 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   deallocate (ASSIM_ALL,PTOP_MB,NTOP_MB,CFSUB)
   deallocate (MAXWF)
   deallocate (GNCLDFLAG)
-  deallocate (CORFLAG)
   deallocate (ZVLEV,ZLEVMOD,xpres)
 
 END SUBROUTINE AIRSQC
