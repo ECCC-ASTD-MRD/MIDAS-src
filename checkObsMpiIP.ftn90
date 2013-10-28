@@ -14,6 +14,7 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
   type(struct_obs), intent(inout) :: lobsSpaceData
   logical, intent(in) :: burp_split_L
   
+  real*8  :: epsilon_lat,delta_lat
   integer :: headerIndex
   integer :: latindex
   integer :: ierr
@@ -22,11 +23,71 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
 
   write(*,*) 'routine checkObsMpiIP: numHeader = ',obs_numheader(lobsSpaceData)
 
+  ! set tolerance on distance in radians from latitude band 
+  epsilon_lat= (gaus_rlati(1)-gaus_rlati(2))*1.0d-4
+  write(*,*) 'routine checkObsMpiIP: epsilon_lat = ',epsilon_lat
+
   if (burp_split_L) then
      count_obs_in = 0
      do headerIndex = 1, obs_numheader(lobsSpaceData)
         latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex))
         IP = ( mpi_nprocs * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
+
+        ! obs outside latitude band, first check if only epsilon_lat away from latitude band
+        if ( IP .ne. mpi_myid ) then
+
+           ! for obs north of the correct latitude band
+           if ( mpi_myid .gt. 0 ) then ! ignore north pole
+              latindex = 1 + (mpi_myid*gaus_find_lat_index(-MPC_PI_R8/2.0d0)/mpi_nprocs)
+              delta_lat=obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)-gaus_rlati(latindex)
+              if(delta_lat .gt. 0.0d0) then
+                 if(abs(delta_lat) .lt. epsilon_lat) then
+                    ! obs kept and will be moved to the northern boundary
+                    write(*,*) 'checkObsMpiIP: keeping obs, will be moved to northern boundary, headerIndex=',headerIndex
+                    write(*,*) 'checkObsMpiIP: original lat=',obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: modified lat=',gaus_rlati(latindex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: delta_lat   =',delta_lat*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: epsilon_lat =',epsilon_lat*MPC_DEGREES_PER_RADIAN_R8
+                    IP = mpi_myid
+                 else
+                    ! obs will be rejected, alert the user
+                    write(*,*) 'checkObsMpiIP: removing obs, too far north of the correct latitude band, headerIndex=',headerIndex
+                    write(*,*) 'checkObsMpiIP: original lat=',obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: boundary lat=',gaus_rlati(latindex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: assigned PE, my PE =',IP,mpi_myid
+                    write(*,*) 'checkObsMpiIP: delta_lat   =',delta_lat*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: epsilon_lat =',epsilon_lat*MPC_DEGREES_PER_RADIAN_R8
+                 endif
+              endif
+           endif
+      
+           ! for obs south of the correct latitude band
+           if ( mpi_myid .lt. (mpi_nprocs-1) ) then ! ignore south pole
+              latindex = 1 + ((mpi_myid+1)*gaus_find_lat_index(-MPC_PI_R8/2.0d0)/mpi_nprocs)
+              delta_lat=obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)-gaus_rlati(latindex)
+              if(delta_lat .lt. 0.0d0) then
+                 if(abs(delta_lat) .lt. epsilon_lat) then
+                    ! obs kept and will be moved to the southern boundary
+                    write(*,*) 'checkObsMpiIP: keeping obs, will be moved to southern boundary, headerIndex=',headerIndex
+                    write(*,*) 'checkObsMpiIP: original lat=',obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: modified lat=',gaus_rlati(latindex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: delta_lat   =',delta_lat*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: epsilon_lat =',epsilon_lat*MPC_DEGREES_PER_RADIAN_R8
+                    IP = mpi_myid
+                 else
+                    ! obs will be rejected, alert the user
+                    write(*,*) 'checkObsMpiIP: removing obs, too far south of the correct latitude band, headerIndex=',headerIndex
+                    write(*,*) 'checkObsMpiIP: original lat=',obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: boundary lat=',gaus_rlati(latindex)*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: assigned PE, my PE =',IP,mpi_myid
+                    write(*,*) 'checkObsMpiIP: delta_lat   =',delta_lat*MPC_DEGREES_PER_RADIAN_R8
+                    write(*,*) 'checkObsMpiIP: epsilon_lat =',epsilon_lat*MPC_DEGREES_PER_RADIAN_R8
+                 endif
+              endif
+           endif
+        endif
+
+        ! now filter out obs still outside latitude band
         if ( IP .ne. mpi_myid ) then
            idata = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
            idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex) + idata -1
@@ -37,13 +98,15 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
                 ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex), 05))
         else
            count_obs_in = count_obs_in+1
-        end if
-     end do
+           call obs_headSet_i(lobsSpaceData,OBS_ST1,headerIndex,  &
+             ibclr( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),05))
+        endif
+     enddo
      write(*,*) 'routine checkObsMpiIP: observations headers in this latitude band: ', count_obs_in
   else
      do headerIndex = 1, obs_numheader(lobsSpaceData)
         call obs_headSet_i(lobsSpaceData,OBS_ST1,headerIndex,  &
              ibclr( obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),05))
-     end do
-  end if
+     enddo
+  endif
 end subroutine checkObsMpiIP

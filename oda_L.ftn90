@@ -108,10 +108,10 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !*
 !*     Local Variables
 !*
-      INTEGER   JLEV, JLAT, JLON, JOBS, JSTEP
+      INTEGER   JLEV, JLAT, JLON, headerIndex, JSTEP
       INTEGER   ILON, ILA
-      REAL*8    DLMEAN, DLMEAS, DLDLON
-      REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, DLLAO, DLLOO
+      REAL*8    DLMEAN, DLMEAS, deltaLon
+      REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, latObs, lonObs
 
       real*8  zfield(0:(statevector%ni+2),1:klev,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
       real*8, pointer :: column_ptr(:,:)
@@ -178,31 +178,47 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C*    2. LOOP OVER ALL THE OBSERVATIONS
 !C     ---------------------------------
 !C
-        DLDLON = 2.*MPC_PI_R8/STATEVECTOR%NI
-        DO JOBS = 1, col_getNumCol(LCOLUMN)
-          if(col_getTimeInterpWeight(lcolumn,jobs,jstep).gt.0.0d0.and. &
-             .not.btest(obs_headElem_i(lobsSpaceData,OBS_ST1,jobs),5) ) then
+        deltaLon = 2.*MPC_PI_R8/STATEVECTOR%NI
+        DO headerIndex = 1, col_getNumCol(LCOLUMN)
+          if(col_getTimeInterpWeight(lcolumn,headerIndex,jstep).gt.0.0d0.and. &
+             .not.btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
 !C
 !C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
 !C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
 !C     *    TO THE WEST (ILON).
 !C
-            call col_getLatLon(lcolumn,jobs,dllao,dlloo,ila)
+            call col_getLatLon(lcolumn,headerIndex,latObs,lonObs,ila)
            
-            ! Check if obs is outside of latitude band on this PE
-            if((ila.lt.statevector%myLatBeg.or.ila.gt.statevector%myLatEnd).and. &
-                ila.ne.0.and.ila.ne.statevector%nj) then
-              write(*,*) 'oda_L: ',jobs,ila,statevector%myLatBeg,statevector%myLatEnd
+            ! Check if obs is to the north of latitude band on this PE (and not at north pole)
+            if(ila.lt.statevector%myLatBeg .and. statevector%myLatBeg.ne.1) then
+              write(*,*) 'oda_L: obs is north of lat band, moving it!'
+              write(*,*) 'oda_L: headerIndex,ila,myLatBeg,latObs,shifted latObs=',  &
+                  headerIndex,ila,statevector%myLatBeg,  &
+                  latObs*MPC_DEGREES_PER_RADIAN_R8,  &
+                  gaus_rlati(statevector%myLatBeg)*MPC_DEGREES_PER_RADIAN_R8
+              ila=statevector%myLatBeg
+              latObs=gaus_rlati(ila)
             endif
 
-            IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
-            IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8
-            ILON = INT(DLLOO/DLDLON) + 1
+            ! Check if obs is to the south of latitude band on this PE (and not at south pole)
+            if(ila.gt.statevector%myLatEnd .and. statevector%myLatEnd.ne.statevector%nj) then
+              write(*,*) 'oda_L: obs is south of lat band, moving it!'
+              write(*,*) 'oda_L: headerIndex,ila,myLatEnd,latObs,shifted latObs=',  &
+                  headerIndex,ila,statevector%myLatEnd,  &
+                  latObs*MPC_DEGREES_PER_RADIAN_R8,  &
+                  gaus_rlati(statevector%myLatEnd+1)*MPC_DEGREES_PER_RADIAN_R8
+              ila=statevector%myLatEnd
+              latObs=gaus_rlati(ila+1)
+            endif
+
+            IF(lonObs.LT.0.) lonObs = lonObs + 2.*MPC_PI_R8
+            IF(lonObs.GE.2.*MPC_PI_R8) lonObs = lonObs - 2.*MPC_PI_R8
+            ILON = INT(lonObs/deltaLon) + 1
 !C
 !C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
 !C
-            DLDX = DLLOO/DLDLON + 1. - ILON
-            DLDY  = (gaus_RLATI(ILA)-DLLAO)/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
+            DLDX = lonObs/deltaLon + 1. - ILON
+            DLDY  = (gaus_RLATI(ILA)-latObs)/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
             DLW1  = (1.-DLDX)*(1.-DLDY)
             DLW2  = DLDX*(1.-DLDY)
             DLW3  = (1.-DLDX)*DLDY
@@ -211,8 +227,8 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !C     *    2.3 Interpolate the model state to the obs point
 !C
             DO JLEV = 1, KLEV
-              column_ptr(JLEV,JOBS) = column_ptr(JLEV,JOBS) +  &
-                 col_getTimeInterpWeight(lcolumn,jobs,jstep)*  &
+              column_ptr(JLEV,headerIndex) = column_ptr(JLEV,headerIndex) +  &
+                 col_getTimeInterpWeight(lcolumn,headerIndex,jstep)*  &
                  ( DLW1*ZFIELD(ILON,JLEV,ILA)    &
                  + DLW2*ZFIELD(ILON+1,JLEV,ILA)  &
                  + DLW3*ZFIELD(ILON,JLEV,ILA+1)  &
