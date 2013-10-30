@@ -41,12 +41,13 @@ compiledir=$PWD
 . s.ssmuse.dot CMDN/vgrid/3.4.0
 . s.ssmuse.dot rpn_comm
 
+ARMNLIB=${ARMNLIB:-/home/dormrb02/ibmenv/armnlib}
 
 VAR3D_VERSION="11.2.1"
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
 
 LIBSYS="lapack blas mass"
-LIBRMN="rmn_013_rc2"
+LIBRMN="rmn_014_rc1"
 LIBEXTRA="rtools hpm_r"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
@@ -74,10 +75,6 @@ cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiled
 cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
 
 rm -f *.ftn~ *.ftn90~
-
-# temporarily copy the object files for a preliminary version
-# of ezscint that works with the "U" grid (compiled only be AIX):
-cp /users/dor/arma/erv/data/ords/yinyang/ezscint/objects_quiet3l/*.o $compiledir
 
 echo "STARTING COMPILATION AT:"
 date
