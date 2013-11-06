@@ -902,7 +902,6 @@ CONTAINS
         call gst_setID(gstID)
         call gst_reespe(zsp2,zgd2,nEns,nEns)
         call gst_setToDefaultID
-        call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
         zsp(:,:,jk)=zsp2(:,:,1)
 
       enddo
