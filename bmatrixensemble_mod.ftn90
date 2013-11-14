@@ -39,7 +39,6 @@ MODULE BmatrixEnsemble
   real*8              :: scaleFactorLQ(maxNumLevels)
   real*8,allocatable  :: ensLocalCor(:,:)
   real*8,allocatable  :: ensLocalVert(:,:)
-  real*4,allocatable  :: ensPerturbations(:,:,:,:,:)
   integer,allocatable :: nip1_l(:),verticalLevel(:,:),verticalLevelEns(:)
   integer,allocatable :: jn_vec(:)
   integer             :: nj_l,ni_l,latPerPE,myLatBeg,myLatEnd
@@ -52,6 +51,11 @@ MODULE BmatrixEnsemble
   integer             :: gstID
   character(len=256)  :: enspathname,ensfilebasename
   integer             :: get_max_rss
+
+  type :: struct_ens
+    real*4, allocatable :: member(:,:,:,:)
+  end type struct_ens
+  type(struct_ens), pointer :: ensPerturbations(:)
 
 CONTAINS
 
@@ -223,8 +227,12 @@ CONTAINS
 
   SUBROUTINE BEN_finalize()
     implicit none
+    integer :: memberIndex
 
     write(*,*) 'ben_finalize: deallocating B_ensemble arrays'
+    do memberIndex = 1,nEns
+      deallocate(ensPerturbations(memberIndex)%member)
+    enddo
     deallocate(ensPerturbations)
     deallocate(ensLocalCor)
     deallocate(ensLocalVert)
@@ -240,8 +248,8 @@ CONTAINS
     real*4, allocatable :: ensPerturbation1(:,:,:,:) 
     real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
     real*8 :: rhumin = 2.5d-6
-    integer :: ji,jj,jt,jk,jens,jpe,jlatband
-    integer :: iens,batchnum,nsize,status,pe_src,pe_dest
+    integer :: ji,jj,jt,jk,memberIndex,jpe,jlatband
+    integer :: memberIndex2,batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
     integer :: readFilePE(256),allLatBeg(256),allLatEnd(256)
     integer :: stamp_last,newdate
@@ -276,11 +284,18 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
-    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nEns),stat=ierr)
+    allocate(ensPerturbations(nEns),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7.1',ierr
       call abort3d('aborting in ben setupEnsemble')
     endif
+    do memberIndex = 1,nEns
+      allocate(ensPerturbations(memberIndex)%member(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7.2',ierr,memberIndex
+        call abort3d('aborting in ben setupEnsemble')
+      endif
+    enddo
     allocate(ensPerturbation1(ni_l,nkgdimEns,nj_l,ntime_l),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=8',ierr
@@ -294,8 +309,8 @@ CONTAINS
     CALL rpn_comm_allgather(myLatEnd,1,"mpi_integer",       &
                             allLatEnd,1,"mpi_integer","GRID",ierr)
 
-    do jens=1,nEns
-      readFilePE(jens)=mod(jens-1,mpi_nprocs)
+    do memberIndex=1,nEns
+      readFilePE(memberIndex)=mod(memberIndex-1,mpi_nprocs)
     enddo
 
     delhh = -6.0
@@ -332,11 +347,11 @@ CONTAINS
 
     write(*,*) 'idateo=',idateo(1:ntime_l)
 
-    do jens=1,nEns
-      if(mpi_myid.eq.readFilePE(jens)) then
+    do memberIndex=1,nEns
+      if(mpi_myid.eq.readFilePE(memberIndex)) then
 
         ! first try to open file with 4 digit member number
-        write(censnumber,'(i4.4)') jens
+        write(censnumber,'(i4.4)') memberIndex
         cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
                   trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
         inquire(file=cflensin,exist=lExists)
@@ -345,7 +360,7 @@ CONTAINS
           ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
         else
           ! now try to open file with (older) 3 digit member number
-          write(censnumber,'(i3.3)') jens
+          write(censnumber,'(i3.3)') memberIndex
           cflensin= trim(enspathname) // '/' // trim(ensfilebasename) // &
                     trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
           inquire(file=cflensin,exist=lExists)
@@ -360,7 +375,7 @@ CONTAINS
         ierr = fstouv(kulin,'RND+OLD')
 
         write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
-        write(*,*) 'reading member:',jens
+        write(*,*) 'reading member:',memberIndex
 
         do jt=1,ntime_l  ! read all timesteps
 
@@ -451,24 +466,24 @@ CONTAINS
         ierr =  fstfrm(kulin)
         ierr =  fclos (kulin)
 
-        write(*,*) 'done reading member ',jens
+        write(*,*) 'done reading member ',memberIndex
       endif
 
-      if(readFilePE(jens).eq.(mpi_nprocs-1) .or. jens.eq.nEns) then
+      if(readFilePE(memberIndex).eq.(mpi_nprocs-1) .or. memberIndex.eq.nEns) then
         call tmg_start(13,'PRE_SUENS_COMM')
-        batchnum=ceiling(dble(jens)/dble(mpi_nprocs))
+        batchnum=ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
         ! for each read member, send each latitude band to the appropriate processor
-        do iens=1+(batchnum-1)*mpi_nprocs,jens
+        do memberIndex2=1+(batchnum-1)*mpi_nprocs,memberIndex
           do jlatband=1,mpi_nprocs
-            pe_src=readFilePE(iens)
+            pe_src=readFilePE(memberIndex2)
             pe_dest=jlatband-1
 
             if(pe_src.eq.pe_dest) then
 
               ! do copy if latband already on appropriate processor
               if(mpi_myid.eq.pe_src) then
-                ensPerturbations(:,:,myLatBeg:myLatEnd,:,iens)=  &
+                ensPerturbations(memberIndex2)%member(:,:,myLatBeg:myLatEnd,:)=  &
                 ensPerturbation1(:,:,myLatBeg:myLatEnd,:)
               endif
 
@@ -484,7 +499,7 @@ CONTAINS
               ! receive the appropriate latitude band for this processor
               if(mpi_myid.eq.pe_dest) then
                 nsize=ni_l*nkgdimEns*(allLatEnd(jlatband)-allLatBeg(jlatband)+1)*ntime_l
-                call rpn_comm_recv(ensPerturbations(:,:,myLatBeg:myLatEnd,:,iens),  &
+                call rpn_comm_recv(ensPerturbations(memberIndex2)%member(:,:,myLatBeg:myLatEnd,:),  &
                               nsize,"mpi_real4",pe_src,pe_src*500+pe_dest,"GRID",status,ierr)
               endif
     
@@ -505,17 +520,17 @@ CONTAINS
     dnens=1.0d0/dble(nEns)
     do jt=1,ntime_l
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
+!$OMP DO PRIVATE (JK,GD2D,MEMBERINDEX,JJ,JI)
       do jk=1,nkgdimEns
         dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nEns-1))
         if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
           dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
         endif
         gd2d(:,:)=0.0d0
-        do jens=1,nEns
+        do memberIndex=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
+              gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(memberIndex)%member(ji,jk,jj,jt))
             enddo
           enddo
         enddo
@@ -524,11 +539,11 @@ CONTAINS
             gd2d(ji,jj)=gd2d(ji,jj)*dnens
           enddo
         enddo
-        do jens=1,nEns
+        do memberIndex=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(ji,jk,jj,jt,jens)=     &
-                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens2)
+              ensPerturbations(memberIndex)%member(ji,jk,jj,jt)=     &
+                sngl((dble(ensPerturbations(memberIndex)%member(ji,jk,jj,jt))-gd2d(ji,jj))*dnens2)
             enddo
           enddo
         enddo
@@ -550,8 +565,8 @@ CONTAINS
     real*8 :: gd2d(ni_l,myLatBeg:myLatEnd)
     real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa,conima
     real*8 :: rhumin = 2.5d-6
-    integer :: ji,jj,jt,jk,jens,jpe,jlatband
-    integer :: iens,batchnum,nsize,status,pe_src,pe_dest
+    integer :: ji,jj,jt,jk,memberIndex,memberIndex2,jpe,jlatband
+    integer :: batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
     integer :: stamp_last,newdate
     real*8  :: delhh
@@ -588,11 +603,18 @@ CONTAINS
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
-    allocate(ensPerturbations(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l,nEns),stat=ierr)
+    allocate(ensPerturbations(nEns),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7',ierr
+      write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7.1',ierr
       call abort3d('aborting in ben setupEnsemble_latbands')
     endif
+    do memberIndex = 1,nEns
+      allocate(ensPerturbations(memberIndex)%member(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7.2',ierr,memberIndex
+        call abort3d('aborting in ben setupEnsemble_latbands')
+      endif
+    enddo
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
 
@@ -634,10 +656,10 @@ CONTAINS
     write(latBandNumber,'(i4.4)') mpi_nprocs-mpi_myid
     lonBandNumber='0001'
 
-    do jens=1,nEns
+    do memberIndex=1,nEns
 
       ! first try to open file with 4 digit member number
-      write(censnumber,'(i4.4)') jens
+      write(censnumber,'(i4.4)') memberIndex
 
       !! try filename 'subdomain_0001_0024/2011020100_006_0013'
       cflensin= trim(enspathname) // '/subdomain_' // lonBandNumber // '_' // trim(latBandNumber) // '/' // &
@@ -649,7 +671,7 @@ CONTAINS
          ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
       else
 
-         write(censnumber,'(i3.3)') jens
+         write(censnumber,'(i3.3)') memberIndex
          !! try filename 'subdomain_0001_0024/2011020100_006_013'
          cflensin= trim(enspathname) // '/subdomain_' // lonBandNumber // '_' // trim(latBandNumber) // '/' // &
               trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
@@ -660,7 +682,7 @@ CONTAINS
             ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
          else
 
-            write(censnumber,'(i4.4)') jens
+            write(censnumber,'(i4.4)') memberIndex
             !! try filename 'latband_0024/2011020100_006_0013'
             cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
                  trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
@@ -670,7 +692,7 @@ CONTAINS
                kulin=0
                ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
             else
-               write(censnumber,'(i3.3)') jens
+               write(censnumber,'(i3.3)') memberIndex
                !! try filename 'latband_0024/2011020100_006_013'
                cflensin= trim(enspathname) // '/latband_' // trim(latBandNumber) // '/' // &
                     trim(ensfilebasename) // trim(datestr_last) // trim(hourstr_last) // &
@@ -685,6 +707,9 @@ CONTAINS
                   write(*,*) 'ben setupEnsemble_latbands: Could not open ensemble file, trying global files'
                   write(*,*) '============================================================================='
                   return_code = -1
+                  do memberIndex2 = 1,nEns
+                    deallocate(ensPerturbations(memberIndex2)%member)
+                  enddo
                   deallocate(ensPerturbations)
                   return
                endif
@@ -695,7 +720,7 @@ CONTAINS
       ierr = fstouv(kulin,'RND+OLD')
 
       write(*,*) 'Reading ',ntime_l,' time slices for ensemble member:',trim(cflensin)
-      write(*,*) 'reading member:',jens
+      write(*,*) 'reading member:',memberIndex
 
       do jt=1,ntime_l  ! read all timesteps
 
@@ -706,7 +731,7 @@ CONTAINS
         endif
         do jj=myLatBeg,myLatEnd
           do ji=1,ni_l
-            ensPerturbations(ji,ngpositps,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmbtpa)
+            ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmbtpa)
           enddo
         enddo
 
@@ -719,7 +744,7 @@ CONTAINS
           endif
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngposittt,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+              ensPerturbations(memberIndex)%member(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
             enddo
           enddo
         enddo
@@ -733,7 +758,7 @@ CONTAINS
           endif
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngpositq,jj,jt,jens)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),rhumin)))
+              ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),rhumin)))
             enddo
           enddo
         enddo
@@ -748,7 +773,7 @@ CONTAINS
           do jj=myLatBeg,myLatEnd
             conima=r1sa*gst_getRSQM2(jj,gstID)
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngposituu,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt*conima)
+              ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt*conima)
             enddo
           enddo
         enddo
@@ -763,7 +788,7 @@ CONTAINS
           do jj=myLatBeg,myLatEnd
             conima=r1sa*gst_getRSQM2(jj,gstID)
             do ji=1,ni_l
-              ensPerturbations(ji,jk-1+ngpositvv,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt*conima)
+              ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt*conima)
             enddo
           enddo
         enddo
@@ -776,7 +801,7 @@ CONTAINS
         else
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(ji,ngposittg,jj,jt,jens)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+              ensPerturbations(memberIndex)%member(ji,ngposittg,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
             enddo
           enddo
         endif
@@ -786,7 +811,7 @@ CONTAINS
       ierr =  fstfrm(kulin)
       ierr =  fclos (kulin)
 
-      write(*,*) 'done reading member ',jens
+      write(*,*) 'done reading member ',memberIndex
 
     enddo
 
@@ -796,17 +821,17 @@ CONTAINS
     dnens=1.0d0/dble(nEns)
     do jt=1,ntime_l
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JK,GD2D,JENS,JJ,JI)
+!$OMP DO PRIVATE (JK,GD2D,MEMBERINDEX,JJ,JI)
       do jk=1,nkgdimEns
         dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nEns-1))
         if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
           dnens2=dnens2*scaleFactorLQ(verticalLevelEns(jk))
         endif
         gd2d(:,:)=0.0d0
-        do jens=1,nEns
+        do memberIndex=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(ji,jk,jj,jt,jens))
+              gd2d(ji,jj)=gd2d(ji,jj)+dble(ensPerturbations(memberIndex)%member(ji,jk,jj,jt))
             enddo
           enddo
         enddo
@@ -815,11 +840,11 @@ CONTAINS
             gd2d(ji,jj)=gd2d(ji,jj)*dnens
           enddo
         enddo
-        do jens=1,nEns
+        do memberIndex=1,nEns
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(ji,jk,jj,jt,jens)=     &
-                sngl((dble(ensPerturbations(ji,jk,jj,jt,jens))-gd2d(ji,jj))*dnens2)
+              ensPerturbations(memberIndex)%member(ji,jk,jj,jt)=     &
+                sngl((dble(ensPerturbations(memberIndex)%member(ji,jk,jj,jt))-gd2d(ji,jj))*dnens2)
             enddo
           enddo
         enddo
@@ -1306,7 +1331,7 @@ CONTAINS
             jlev=verticalLevel(levelIndex,jvar)
             do ji=1,ni_l
               incrementLocal_out(ji,jlev,jj,jt)=incrementLocal_out(ji,jlev,jj,jt) +   &
-                ensAmplitude_in(ji,memberIndex,jj)*dble(ensPerturbations(ji,jlev,jj,jt,memberIndex))
+                ensAmplitude_in(ji,memberIndex,jj)*dble(ensPerturbations(memberIndex)%member(ji,jlev,jj,jt))
             enddo
           enddo
         enddo
@@ -1360,7 +1385,7 @@ CONTAINS
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               ensAmplitude_out(ji,memberIndex,jj)=ensAmplitude_out(ji,memberIndex,jj) +   &
-                incrementLocal_in(ji,jlev,jj,jt)*dble(ensPerturbations(ji,jlev,jj,jt,memberIndex))
+                incrementLocal_in(ji,jlev,jj,jt)*dble(ensPerturbations(memberIndex)%member(ji,jlev,jj,jt))
             enddo
           enddo
         enddo
@@ -1443,7 +1468,7 @@ CONTAINS
       call tmg_stop(63)
 
     enddo
-    write(*,*) 'localizationsqrt: jdim,cvDim=',jdim,cvDim_l
+    !write(*,*) 'localizationsqrt: jdim,cvDim=',jdim,cvDim_l
 
   END SUBROUTINE localizationSqrt
 
@@ -1526,7 +1551,7 @@ CONTAINS
       call tmg_stop(65)
 
     enddo
-    write(*,*) 'localizationsqrtad: jdim,cvDim=',jdim,cvDim_l
+    !write(*,*) 'localizationsqrtad: jdim,cvDim=',jdim,cvDim_l
 
   END SUBROUTINE localizationSqrtAd
 

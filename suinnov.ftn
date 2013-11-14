@@ -50,6 +50,7 @@ c
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
+      integer :: ierr
       
       logical lgpdata
 c
@@ -152,19 +153,49 @@ C=======================================================================
      $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
 C=======================================================================
 
-      write(*,'(a15,G12.6)') 'JORAOB= ',ZJORAOB
-      write(*,'(a15,G12.6)') 'JOAIREP= ',ZJOAIREP
-      write(*,'(a15,G12.6)') 'JOSURFC= ',ZJOSURFC
-      write(*,'(10X,a15,G12.6)') 'JOSFCSF= ',ZJOSFCSF
-      write(*,'(10X,a15,G12.6)') 'JOSFCUA= ',ZJOSFCUA
-      write(*,'(10X,a15,G12.6)') 'JOSFCSC= ',ZJOSFCSC
-      write(*,'(10X,a15,G12.6)') 'JOSFCGP= ',ZJOSFCGP
-      write(*,'(a15,G12.6)') 'JOTOV= ',ZJOTOV
-      write(*,'(a15,G12.6)') 'JOSATWIND= ',ZJOSATWIND
-      write(*,'(a15,G12.6)') 'JOPROF= ',ZJOPROF
-      write(*,'(a15,G12.6)') 'JOGPSRO= ',ZJOGPSRO
-      write(*,'(a15,G12.6)') 'JOGPSGB= ',ZJOGPSGB
-c      write(*,'(a15,G12.6)') 'Total Jo = ',ZJO
+      write(*,*) 'Cost function values for this MPI task:'
+      write(*,'(a15,f23.16)') 'JORAOB   = ',ZJORAOB
+      write(*,'(a15,f23.16)') 'JOAIREP  = ',ZJOAIREP
+      write(*,'(a15,f23.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f23.16)') 'JOSFCSF  = ',ZJOSFCSF
+      write(*,'(a15,f23.16)') 'JOSFCUA  = ',ZJOSFCUA
+      write(*,'(a15,f23.16)') 'JOSFCSC  = ',ZJOSFCSC
+      write(*,'(a15,f23.16)') 'JOSFCGP  = ',ZJOSFCGP
+      write(*,'(a15,f23.16)') 'JOTOV    = ',ZJOTOV
+      write(*,'(a15,f23.16)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
+      write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
+
+      call rpn_comm_allreduce(ZJORAOB,ZJORAOB,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOAIREP,ZJOAIREP,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOSURFC,ZJOSURFC,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOSFCSF,ZJOSFCSF,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOSFCUA,ZJOSFCUA,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOSFCSC,ZJOSFCSC,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOSFCGP,ZJOSFCGP,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOTOV,ZJOTOV,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOSATWIND,ZJOSATWIND,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOPROF,ZJOPROF,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOGPSRO,ZJOGPSRO,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJOGPSGB,ZJOGPSGB,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(ZJO,ZJO,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+
+      write(*,*) 'Cost function values summed for all MPI tasks:'
+      write(*,'(a15,f23.16)') 'JORAOB   = ',ZJORAOB
+      write(*,'(a15,f23.16)') 'JOAIREP  = ',ZJOAIREP
+      write(*,'(a15,f23.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f23.16)') 'JOSFCSF  = ',ZJOSFCSF
+      write(*,'(a15,f23.16)') 'JOSFCUA  = ',ZJOSFCUA
+      write(*,'(a15,f23.16)') 'JOSFCSC  = ',ZJOSFCSC
+      write(*,'(a15,f23.16)') 'JOSFCGP  = ',ZJOSFCGP
+      write(*,'(a15,f23.16)') 'JOTOV    = ',ZJOTOV
+      write(*,'(a15,f23.16)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
+      write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
 
 c
 c------ Calculate the normalized innovations (Z - H(X))/sigma
