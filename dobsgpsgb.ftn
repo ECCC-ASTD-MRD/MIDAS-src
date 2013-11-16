@@ -411,8 +411,10 @@ c   Set assim flag to 0 for all observations except for selected record (site/ti
         WRITE(*, *) '       PERCENT   REJECTED                                    = ', 
      +       (FLOAT(ICOUNT1+ICOUNT2+ICOUNT3) / FLOAT(ICOUNT))*100.0
         WRITE(*, *) ' TOTAL NUMBER OF ASSIMILATED ZTD DATA                        = ', ICOUNTP
-        WRITE(*, *) 'MEAN JO = (PJO/numGPSZTD)*YZDERRWGT**2 = ', 
-     +       (PJO/FLOAT(ICOUNTP))*YZDERRWGT**2
+        if ( ICOUNTP.gt.0 ) then
+          WRITE(*, *) 'MEAN Jo = (PJO/numGPSZTD)*YZDERRWGT**2 = ', 
+     +         (PJO/FLOAT(ICOUNTP))*YZDERRWGT**2
+        endif
 C
         WRITE(*, *) ' '
         ENDIF

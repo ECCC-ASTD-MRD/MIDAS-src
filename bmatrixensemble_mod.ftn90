@@ -520,7 +520,7 @@ CONTAINS
     dnens=1.0d0/dble(nEns)
     do jt=1,ntime_l
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JK,GD2D,MEMBERINDEX,JJ,JI)
+!$OMP DO PRIVATE (JK,dnens2,GD2D,MEMBERINDEX,JJ,JI)
       do jk=1,nkgdimEns
         dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nEns-1))
         if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
@@ -821,7 +821,7 @@ CONTAINS
     dnens=1.0d0/dble(nEns)
     do jt=1,ntime_l
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JK,GD2D,MEMBERINDEX,JJ,JI)
+!$OMP DO PRIVATE (JK,dnens2,GD2D,MEMBERINDEX,JJ,JI)
       do jk=1,nkgdimEns
         dnens2=scaleFactor(verticalLevelEns(jk))/sqrt(1.0d0*dble(nEns-1))
         if(jk.ge.(1+3*nLevEns) .and. jk.le.4*nLevEns) then
@@ -1365,7 +1365,7 @@ CONTAINS
     endif
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (JJ,JLEV,JI)
+!$OMP DO PRIVATE (JJ,memberIndex,JI)
     do jj=myLatBeg,myLatEnd
       do memberIndex=1,nEns
         do ji=1,ni_l

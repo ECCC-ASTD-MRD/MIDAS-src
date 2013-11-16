@@ -202,7 +202,7 @@ CONTAINS
     do jn = 0,ntrunc_l
       do jm = mymBeg, jn, mymSkip
         nla_mpilocal=nla_mpilocal+1
-        do jk = 1, nkgdim_l
+        do jk = 1, nksdim2_l
           if(jm.eq.0) then
             ! no imag part for jm==0
             cvDim_l=cvDim_l+1
@@ -213,7 +213,7 @@ CONTAINS
         enddo
       enddo
     enddo
-    !cvDim_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nkgdim_l
+    !cvDim_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nksdim2_l
     cvDim_out=cvDim_l
 
     ! also compute mpiglobal control vector dimension
@@ -720,6 +720,7 @@ CONTAINS
 
     ! compute square-root of corns
     do in=0,ntrunc_l
+
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
             eigen(ii,ij)=corns(ii,ij,in)
@@ -731,7 +732,7 @@ CONTAINS
 
       do ii=1,nksdim2_l
         if(eigenv(ii).lt.1.0d-15) then
-          sqrtin(ii,ii) = 0.0
+          sqrtin(ii,ii) = 0.0d0
         else
           sqrtin(ii,ii)=sqrt(eigenv(ii))
         endif
@@ -748,17 +749,28 @@ CONTAINS
 
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
-            corns(ii,ij,in)=0.0
+            corns(ii,ij,in)=0.0d0
+            eigen(ii,ij)=0.0d0
          enddo
       enddo
 
+      ! E * lambda^1/2
       do ij=1,nkgdim_l
          do ii=1,nksdim2_l
-            corns(ii,ij,in)=eigen2(ii,ij)*sqrtin2(ij,ij)
+            eigen(ii,ij)=eigen2(ii,ij)*sqrtin2(ij,ij)
          enddo
       enddo
 
-    enddo
+      ! (E * lambda^1/2) * E^T
+      do ij=1,nksdim2_l
+         do ii=1,nksdim2_l
+            do ii2=1,nkgdim_l
+               corns(ii,ij,in)=corns(ii,ij,in) + eigen(ii,ii2)*eigen2(ij,ii2)
+            enddo
+         enddo
+      enddo
+
+    enddo ! in
 
     if(mpi_myid==0) then
       ierr = fstfrm(iulcorvert)
@@ -1721,7 +1733,7 @@ CONTAINS
     real*8    :: controlVector_in(cvDim_l)
     type(struct_gsv) :: statevector
     real*8,allocatable :: gd_out(:,:,:)
-    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector(nla_mpilocal,2,nksdim2_l)
     integer   :: jvar, ilev1, ilev2
 
     write(*,*) 'bhi_bsqrt: starting'
@@ -1757,7 +1769,7 @@ CONTAINS
     real*8    :: controlVector_out(cvDim_l)
     type(struct_gsv) :: statevector
     real*8, allocatable :: gd_in(:,:,:)
-    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector(nla_mpilocal,2,nksdim2_l)
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
@@ -1881,7 +1893,7 @@ CONTAINS
 
     cvDim_mpilocal_out = cvDim_l
 
-    do jlev = 1, nkgdim_l
+    do jlev = 1, nksdim2_l
       do jn = 0 , ntrunc_l
         do jm = mymBeg, jn, mymSkip
           ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
@@ -1940,7 +1952,7 @@ CONTAINS
 
     cv_mpiglobal(:)=0.0d0
 
-    do jlev = 1, nkgdim_l
+    do jlev = 1, nksdim2_l
       do jn = 0 , ntrunc_l
         do jm = mymBeg, jn, mymSkip
           ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
@@ -1994,13 +2006,13 @@ CONTAINS
     implicit none
 
     real*8    :: controlVector_in(cvDim_l)
-    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector_out(nla_mpilocal,2,nksdim2_l)
 
     integer jdim, jlev, jla
 
     jdim = 0
     hiControlVector_out(:,:,:)=0.0d0
-    do jlev = 1, nkgdim_l
+    do jlev = 1, nksdim2_l
       do jla = 1, nla_mpilocal
         if(mymBeg.eq.0.and.jla.le.(ntrunc_l+1)) then
           jdim = jdim + 1
@@ -2022,12 +2034,12 @@ CONTAINS
     IMPLICIT NONE
 
     real*8    :: controlVector_out(cvDim_l)
-    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector_in(nla_mpilocal,2,nksdim2_l)
 
     integer jdim, jlev, jla
 
     jdim = 0
-    do jlev = 1, nkgdim_l
+    do jlev = 1, nksdim2_l
       do jla = 1, nla_mpilocal
         if(mymBeg.eq.0.and.jla.le.(ntrunc_l+1)) then
           jdim = jdim + 1
@@ -2049,10 +2061,10 @@ CONTAINS
     use globalSpectralTransform
     IMPLICIT NONE
 
-    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector_in(nla_mpilocal,2,nksdim2_l)
     real*8    :: gd_out(ni_l,nkgdim_l,myLatBeg:myLatEnd)
 
-    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l),sp2(nla_l,2,nkgdim_l)
+    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
     real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
 
     integer ilen,jn,jm,jk,jk2,ila
@@ -2075,7 +2087,7 @@ CONTAINS
 
     call tmg_start(53,'BHI_SPA2GD1')
     sq2=sqrt(2.0d0)
-    allocate(zsp(nkgdim_l,2,0:ntrunc_l))
+    allocate(zsp(nksdim2_l,2,0:ntrunc_l))
     allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
 !$OMP PARALLEL DO PRIVATE(jn,jm,jk,jk2,ila,zsp2,zsp,icount)
     do jn = 0,ntrunc_l
@@ -2084,13 +2096,13 @@ CONTAINS
       do jm = mymBeg, jn, mymSkip
         icount=icount+1
         ila = Nind_mpilocal(jm) + jn - jm
-        do jk = 1, nkgdim_l
+        do jk = 1, nksdim2_l
           zsp(jk,1,icount-1) = hiControlVector_in(ila,1,jk)
           zsp(jk,2,icount-1) = hiControlVector_in(ila,2,jk)
         enddo
       enddo
 
-      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,'N',zsp2(1,1,0),nksdim2_l,nksdim2_l,nkgdim_l,2*(icount))
+      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'N',zsp(1,1,0),nksdim2_l,'N',zsp2(1,1,0),nksdim2_l,nksdim2_l,nksdim2_l,2*(icount))
 
       icount=0
       do jm = mymBeg, jn, mymSkip
@@ -2268,7 +2280,7 @@ CONTAINS
     use globalSpectralTransform
     implicit none
 
-    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector_out(nla_mpilocal,2,nksdim2_l)
     real*8    :: gd_in(ni_l,nkgdim_l,myLatBeg:myLatEnd)
 
     real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
@@ -2382,7 +2394,7 @@ CONTAINS
     call tmg_start(53,'BHI_SPA2GD1')
     hiControlVector_out(:,:,:)=0.0d0
     sq2=sqrt(2.0d0)
-    allocate(zsp(nkgdim_l,2,0:ntrunc_l))
+    allocate(zsp(nksdim2_l,2,0:ntrunc_l))
     allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
 !$OMP PARALLEL DO PRIVATE(JN,JM,JK,ILA,zsp,zsp2,icount)
     do jn = 0,ntrunc_l
@@ -2401,13 +2413,13 @@ CONTAINS
         enddo
       enddo
 
-      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'T',zsp2(1,1,0),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,nkgdim_l,nksdim2_l,2*icount)
+      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'T',zsp2(1,1,0),nksdim2_l,'N',zsp(1,1,0),nksdim2_l,nksdim2_l,nksdim2_l,2*icount)
 
       icount=0
       do jm = mymBeg, jn, mymSkip
         ila = nind_mpilocal(jm) +jn - jm
         icount=icount+1
-        do jk = 1, nkgdim_l
+        do jk = 1, nksdim2_l
           hiControlVector_out(ila,1,jk) = zsp(jk,1,icount-1)
           hiControlVector_out(ila,2,jk) = zsp(jk,2,icount-1)
         enddo
@@ -2415,7 +2427,7 @@ CONTAINS
 
       if(mymBeg.eq.0) then
         ila = nind_mpilocal(0) +jn
-        do jk = 1, nkgdim_l
+        do jk = 1, nksdim2_l
           hiControlVector_out(ila,1,jk) = hiControlVector_out(ila,1,jk)*sq2
           hiControlVector_out(ila,2,jk) = hiControlVector_out(ila,2,jk)*sq2
         enddo

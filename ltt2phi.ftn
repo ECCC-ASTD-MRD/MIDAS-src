@@ -131,7 +131,7 @@ c
       ZAK0  = -2.0*ZCON*VMA(col_getNumLev(lcolumn))
       ZBK0  = -2.0*ZCON*VMB(col_getNumLev(lcolumn))
       ZCK0  = -2.0*ZCON*VMC(col_getNumLev(lcolumn))
-!$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,mythread,numthd)
+!$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,ik,mythread,numthd)
 !$OMP+ PRIVATE(zak,zbk,zck,gz_column)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
