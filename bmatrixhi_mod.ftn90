@@ -344,8 +344,8 @@ CONTAINS
     use globalSpectralTransform
     implicit none
 
-    real*8 eigenv(nksdim2_l), eigen(nksdim2_l,nksdim2_l),eigen2(nksdim2_l,nksdim2_l)
-    real*8 sqrtin(nksdim2_l,nksdim2_l),sqrtin2(nksdim2_l,nksdim2_l)
+    real*8 eigenval(nksdim2_l), eigenvec(nksdim2_l,nksdim2_l),result(nksdim2_l,nksdim2_l)
+    real*8 eigenvalsqrt(nksdim2_l)
 
     integer ij,ii,ii2,in,jk1,jk2,jr
     integer ier,ilwork,info,klatptot
@@ -403,11 +403,6 @@ CONTAINS
 
     do in=0,ntrunc_l
 
-      do ij=1,nksdim2_l
-         do ii=1,nksdim2_l
-            eigen(ii,ij)=0.0
-         enddo
-      enddo
       do ij=1,nflev_l
          do ii=1,nflev_l
             ztpsi(ii,ij,in+1)=0.0
@@ -723,49 +718,40 @@ CONTAINS
 
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
-            eigen(ii,ij)=corns(ii,ij,in)
+            eigenvec(ii,ij)=corns(ii,ij,in)
          enddo
       enddo
 
       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
-      call dsyev('V','U',nksdim2_l,eigen,nksdim2_l,eigenv,zwork,ilwork,info)
+      call dsyev('V','U',nksdim2_l,eigenvec,nksdim2_l,eigenval,zwork,ilwork,info)
 
       do ii=1,nksdim2_l
-        if(eigenv(ii).lt.1.0d-15) then
-          sqrtin(ii,ii) = 0.0d0
+        if(eigenval(ii).lt.1.0d-15) then
+          eigenvalsqrt(ii) = 0.0d0
         else
-          sqrtin(ii,ii)=sqrt(eigenv(ii))
+          eigenvalsqrt(ii)=sqrt(eigenval(ii))
         endif
-        !if(in.eq.12) write(*,*) 'SUCORNS2: E-VALUES=',ii,eigenv(ii)
+        !if(in.eq.12) write(*,*) 'SUCORNS2: E-VALUES=',ii,eigenval(ii)
       enddo
  
-      ! Reverse the order of E-values and vectors
-      do ij=1,nksdim2_l
-        sqrtin2(ij,ij)=sqrtin(nksdim2_l-ij+1,nksdim2_l-ij+1)            
-        do ii=1,nksdim2_l
-          eigen2(ii,ij) =eigen(ii,nksdim2_l-ij+1)            
-        enddo
-      enddo
-
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
             corns(ii,ij,in)=0.0d0
-            eigen(ii,ij)=0.0d0
          enddo
       enddo
 
       ! E * lambda^1/2
-      do ij=1,nkgdim_l
+      do ij=1,nksdim2_l
          do ii=1,nksdim2_l
-            eigen(ii,ij)=eigen2(ii,ij)*sqrtin2(ij,ij)
+            result(ii,ij)=eigenvec(ii,ij)*eigenvalsqrt(ij)
          enddo
       enddo
 
       ! (E * lambda^1/2) * E^T
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
-            do ii2=1,nkgdim_l
-               corns(ii,ij,in)=corns(ii,ij,in) + eigen(ii,ii2)*eigen2(ij,ii2)
+            do ii2=1,nksdim2_l
+               corns(ii,ij,in)=corns(ii,ij,in) + result(ii,ii2)*eigenvec(ij,ii2)
             enddo
          enddo
       enddo
