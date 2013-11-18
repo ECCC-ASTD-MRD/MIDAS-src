@@ -46,6 +46,7 @@
       real*8, allocatable :: zhu(:,:,:)
       real*8, pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
       character(len=4) :: flnum 
+      integer             :: get_max_rss
 ! previously from compost.cdk
       integer          NPPCVAR
       character(len=4)  :: CPPCVAR(20)
@@ -61,6 +62,7 @@
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !     Read namelist and do some setup
 !
@@ -78,20 +80,26 @@
       call tmg_start(91,'POST_COMPUTEDX')
       vco_anl => col_getVco(lcolumng)
       call gsv_setVco(statevector,vco_anl)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=min_get_datestamp(),mpi_local=.true.)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-      if(write4dInc) then
-        ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
-        call gsv_commMPIGlobal(statevector)
-      else
-        ! mpiglobal result for 3D increment only on myid=0 
-        call gsv_commMPIGlobal3D(statevector)
-      endif
-      call tmg_stop(91)
-      
+
       ! free up some memory now that B isn't needed
       call bmat_finalize(cvm_vazx)
       call cvm_deallocate
+
+      if(write4dInc) then
+        ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
+        call gsv_commMPIGlobal(statevector)
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      else
+        ! mpiglobal result for 3D increment only on myid=0 
+        call gsv_commMPIGlobal3D(statevector)
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      endif
+      call tmg_stop(91)
+      
 
       WRITE(*,*)' postmin: Transform analysis variables to model variables -'
 
@@ -102,6 +110,7 @@
 !
       call gsv_setVco(statevectorg,vco_anl)
       call gsv_allocate(statevectorg,gaus_ni,gaus_nj,1,datestamp=min_get_datestamp(),mpi_local=.false.)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       do jstep=1,nstepobsinc
         datestamplist(jstep)=gsv_getDateStamp(statevector,jstep)
@@ -113,6 +122,7 @@
         ! only read in the background fields at the "analysis" timestep (usually the middle)
         call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime))
       endif
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! background fields only on myid=0, so only do calculations for myid=0
       if( (write4dInc      .and. mpi_myid .lt. nstepobsinc) .or.  &
@@ -125,11 +135,13 @@
         endif
 
         write(*,*) 'postmin: computing the diag variables for timestep:',jstep
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
         allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
         allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
         allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
         allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !         *** Compute increment HU from LQ increment ***
 !
@@ -159,6 +171,7 @@
 !
         call lt2tvgd(ztv,statevector,statevectorg)
         call ltt2phigd(zgz,ztv,statevectorg)
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !       Now, write out the increment, including diagostic variables
 !
@@ -184,6 +197,7 @@
         end if
 
         call varout
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
  
         ierr =  fstfrm(nulfile)
         ierr =  fclos(nulfile)        
@@ -206,13 +220,15 @@
 
       call tmg_start(93,'POST_UPDATEBRP')
 
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       CALL VINT3DFD(OBS_OMA,lobsSpaceData)
       CALL VINT3DFD(OBS_OMF,lobsSpaceData)
       CALL SETASSFLG(lobsSpaceData)
       CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
       CALL UPDATE_BURPFILES(lobsSpaceData)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      call obs_finalize(lobsSpaceData)
+      if(mpi_myid.eq.0) call obs_finalize(lobsSpaceData)
 
       call tmg_stop(93)
 

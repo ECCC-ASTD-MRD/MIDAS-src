@@ -403,11 +403,6 @@ CONTAINS
 
     do in=0,ntrunc_l
 
-      do ij=1,nksdim2_l
-         do ii=1,nksdim2_l
-            eigen(ii,ij)=0.0
-         enddo
-      enddo
       do ij=1,nflev_l
          do ii=1,nflev_l
             ztpsi(ii,ij,in+1)=0.0
@@ -720,6 +715,7 @@ CONTAINS
 
     ! compute square-root of corns
     do in=0,ntrunc_l
+
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
             eigen(ii,ij)=corns(ii,ij,in)
@@ -731,7 +727,7 @@ CONTAINS
 
       do ii=1,nksdim2_l
         if(eigenv(ii).lt.1.0d-15) then
-          sqrtin(ii,ii) = 0.0
+          sqrtin(ii,ii) = 0.0d0
         else
           sqrtin(ii,ii)=sqrt(eigenv(ii))
         endif
@@ -748,7 +744,7 @@ CONTAINS
 
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
-            corns(ii,ij,in)=0.0
+            corns(ii,ij,in)=0.0d0
          enddo
       enddo
 
@@ -2052,7 +2048,7 @@ CONTAINS
     real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
     real*8    :: gd_out(ni_l,nkgdim_l,myLatBeg:myLatEnd)
 
-    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l),sp2(nla_l,2,nkgdim_l)
+    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
     real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
 
     integer ilen,jn,jm,jk,jk2,ila

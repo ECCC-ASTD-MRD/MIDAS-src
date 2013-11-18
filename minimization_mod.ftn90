@@ -454,6 +454,7 @@ CONTAINS
         clfname = 'pm1q'
       endif
 
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       if(lwrthess) then
         if(n1gc.eq.3) then
         call rw_vatra (clfname,1,  &
@@ -462,6 +463,7 @@ CONTAINS
 
         endif
       endif
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       call tmg_start(89,'MIN_COMM')
       cvm_vazx(:)=vazx(1:nvadim_mpilocal)      
