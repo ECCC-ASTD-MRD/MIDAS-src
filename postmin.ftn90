@@ -228,7 +228,7 @@
       CALL UPDATE_BURPFILES(lobsSpaceData)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      if(mpi_myid.eq.0) call obs_finalize(lobsSpaceData)
+      call obs_finalize(lobsSpaceData)
 
       call tmg_stop(93)
 
