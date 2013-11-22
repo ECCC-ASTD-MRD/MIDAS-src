@@ -74,13 +74,13 @@ C
                ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
                IEND=obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
                ZLEVU = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-               UU=obs_bodyElem_r(lobsSpaceData,elem_i,INDEX_BODY)*obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) +
+               UU=-obs_bodyElem_r(lobsSpaceData,elem_i,INDEX_BODY) +
      &            obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
                BODY_2: DO INDEX_BODY2=ISTART,IEND
                   IF ((obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV)
      &           .AND.(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU)) THEN
-                     VV=obs_bodyElem_r(lobsSpaceData,elem_i,INDEX_BODY2)*obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY2) +
-     &                 obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY2)
+                   VV=-obs_bodyElem_r(lobsSpaceData,elem_i,INDEX_BODY2) +
+     &                obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY2)
 *
 *****************************************************************************
 *  1-calculate angle
@@ -112,8 +112,8 @@ C
                   IF ((obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD)
      &           .AND. obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
 
-                     call obs_bodySet_r(lobsSpaceData, elem_i, INDEX_BODY2, ANG 
-     &                     - obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY2) )
+                     call obs_bodySet_r(lobsSpaceData, elem_i, INDEX_BODY2,  
+     &                    obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY2) - ANG )
 
                      IF ( obs_bodyElem_r(lobsSpaceData,elem_i,INDEX_BODY2) .gt.  180.0d0)
      &                  call obs_bodySet_r(lobsSpaceData, elem_i, INDEX_BODY2, 
@@ -131,8 +131,8 @@ C
                   ENDIF
                   IF ((obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF)
      &           .AND. obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
-                     call obs_bodySet_r(lobsSpaceData, elem_i, INDEX_BODY2, MODUL
-     &                            - obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY2))
+                     call obs_bodySet_r(lobsSpaceData,elem_i, INDEX_BODY2, 
+     &                   obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY2) - MODUL)
                      call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY2, 1)
                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY2, 0)

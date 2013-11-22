@@ -275,9 +275,7 @@ C
      +                       INDEX_HEADER,Lat,Lon,Azm,HNH1,ZOBS,ZOER,
      +                       ZMHX,ZINC,PJOB,PRF%GST(NGPSLEV)%Var
                      ENDIF
-                     call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY, ZOBS-ZMHX)
-                     call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZINC)
-                     call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, ZINC)
+                     call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY, ZOBS - ZMHX)
                   ENDIF
                ENDDO BODY_3
 

@@ -76,7 +76,7 @@ C
      &           obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2     .AND.
      &           obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .NE. 0 ) THEN
               IPRES= NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-              call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, PPMIS)
+              call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY, PPMIS)
               IF ( IPRES .GE. NINT(RLIMLVHU*100) ) THEN
                 ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
                 ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
@@ -86,10 +86,10 @@ C
                 ZPB  = col_getPressure(LCOLUMNHR,IK+1,INDEX_HEADER,'TH')
                 ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                 ZWT  = 1. - ZWB
-C
-                call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, 
-     +                        ( ZWB*col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
-     +                        + ZWT*col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU') - ZVAR ) / ZOER)
+
+                call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY, 
+     +                          ZVAR - ZWB*col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
+     +                               - ZWT*col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU'))
 
                 IF ( LLPRINT ) THEN
                   write(*,*)' -------------------------'
@@ -101,7 +101,7 @@ C
                   write(*,*)'   zoer   = ',ZOER
                   write(*,*)'   col_getElem(lcolumnhr,ik  ,index_header,HU) = ',col_getElem(lcolumnhr,IK  ,INDEX_HEADER,'HU')
                   write(*,*)'   col_getElem(lcolumnhr,ik+1,index_header,HU) = ',col_getElem(lcolumnhr,IK+1,INDEX_HEADER,'HU')
-                  write(*,*)'   O-P    = ',-obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)*ZOER
+                  write(*,*)'   O-P    = ',obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
                   write(*,*)' -------------------------'
                 ENDIF
 

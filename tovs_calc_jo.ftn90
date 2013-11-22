@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
+subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 #if defined (doc)
 !
 !**s/r tovs_calc_jo  - computation of jo and the residuals to the tovs observations
@@ -56,9 +56,9 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
 #include "comtov.cdk"
 
   type(struct_obs) :: lobsSpaceData
+  integer, intent(in) :: dest_obs       ! probably set to OBS_OMP or OBS_OMA
   integer :: isens, indxchn, indxtovs
 
-  real*8 zoer
   real*8 dlsum
   real*8 pjo, zdtb
   real*8 zjon,zgami,zqcarg
@@ -157,22 +157,20 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
                            ichn,  radiance_d (indxtovs) % bt(indxchn), &
                            obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body), zdtb
            endif
-
-           zoer = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
-           call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, zdtb/zoer)
-           call obs_bodySet_r(lobsSpaceData,OBS_OMI,index_body, &
-                           obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body))
+           call obs_bodySet_r(lobsSpaceData,dest_obs,index_body, -zdtb)
 
            if (.not. lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
               dlsum =  dlsum &
-                     + (obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)* &
-                        obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body))/2.
+                     + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+                        obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
+                     / (2. * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
+                         * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
            else
 !             compute contribution of data with varqc
  
               zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
-              zjon = (obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)* &
-                      obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body))/2.
+              zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+                      obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.
               zqcarg = zgami + exp(-1.0*zjon)
               dlsum= dlsum - log(zqcarg/(zgami+1.))
            endif
@@ -180,12 +178,15 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            inobsjo = inobsjo + 1
            inobsch(ichOBS_A,Isens) = inobsch(ichOBS_A,Isens) + 1
            zjoch(ichOBS_A,Isens)   = &
-                    zjoch(ichOBS_A,Isens)   + &
-                    obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)* &
-                    obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)
+                    zjoch(ichOBS_A,Isens) &
+                  + obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+                    obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) &
+                 / (obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)* &
+                    obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
            zavgnrm(ichOBS_A,Isens)   = &
-                    zavgnrm(ichOBS_A,Isens) + &
-                    obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)
+                    zavgnrm(ichOBS_A,Isens) - &
+                    obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)/ &
+                    obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
         enddo BODY
 !     else
 !      kfailtot = kfailtot + 1

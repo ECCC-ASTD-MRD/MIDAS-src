@@ -20,8 +20,9 @@ SUBROUTINE oda_res(lobsSpaceData)
   !
   !Purpose:
   !Compute residuals to observations for assimilated and diagnosed data
-  !  Modify ROBDATA8(OBS_OMA,*) in place :
-  !  OBS_OMA contains Hdx as input and residuals as output
+  !  Calculate the residuals from Hdx :
+  !    OBS_WORK contains Hdx as input
+  !    OBS_OMA contains the residuals as output
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
   !
@@ -45,8 +46,9 @@ SUBROUTINE oda_res(lobsSpaceData)
 !$OMP PARALLEL DO PRIVATE(index_body)
   do index_body=1,obs_numbody(lobsSpaceData)
     if(includeFlag(index_body)) then
-      call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, & 
-        obs_bodyElem_r(lobsSpaceData,OBS_OMA,index_body)-obs_bodyElem_r(lobsSpaceData,OBS_VAR,index_body))
+      call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, &
+                          obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body) &
+                         -obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body))
     endif
   enddo
 !$OMP END PARALLEL DO

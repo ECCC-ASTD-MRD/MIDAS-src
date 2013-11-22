@@ -68,11 +68,9 @@ SUBROUTINE SELECTB(obsdat)
          DO JO=IBEG,IEND
             call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
             call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
-!           call obs_bodySet_r(obsdat,OBS_OMP6,JO,MISG)
             call obs_bodySet_r(obsdat,OBS_OER ,JO,MISG)
             call obs_bodySet_r(obsdat,OBS_HPHT,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_OMF ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_OMI ,JO,MISG)
+            call obs_bodySet_r(obsdat,OBS_WORK,JO,MISG)
          END DO
 !
 !    For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 

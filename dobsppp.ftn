@@ -98,10 +98,9 @@
                columnVarB=col_ptr(IK+1)
                columnVarT=col_ptr(IK  )
             endif
-            zoma = (ZWB*columnVarB+ZWT*columnVarT-ZVAR)/ZOER
-            PJO = PJO + zoma*zoma
-            call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body,zoma)
-            call obs_bodySet_r(lobsSpaceData,OBS_OMI,index_body,zoma)
+            zoma = ZVAR-(ZWB*columnVarB+ZWT*columnVarT)
+            PJO = PJO + zoma*zoma/(zoer*zoer)
+            call obs_bodySet_r(lobsSpaceData,OBS_OMP,index_body,zoma)
 !
 ! Process all upper air data data below model's orography
 !
@@ -112,11 +111,11 @@
 !
                ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
      &                  *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
-               zoma = ( col_getMountain(lcolumnhr,index_header) + ZTVG/zgamma
-     &                  *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp) - zvar )/zoer
-               PJO =PJO+zoma*zoma
-               call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body,zoma)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMI,index_body,zoma)
+               zoma = (   zvar
+     &                  - col_getMountain(lcolumnhr,index_header)
+     &                  - ZTVG/zgamma*(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp))
+               PJO = PJO + zoma*zoma/(zoer*zoer)
+               call obs_bodySet_r(lobsSpaceData,OBS_OMP,index_body,zoma)
             ENDIF
          ENDIF
       ENDDO BODY

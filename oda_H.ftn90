@@ -27,7 +27,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !Purpose:
   !Compute simulated observations from profiled model
   !increments.
-  !It returns Hdx in ROBDATA8(OBS_OMA,*)
+  !It returns Hdx in OBS_WORK
   !Calls the several linear observation operators
   !
   !Author  : S. Pellerin *ARMA/MRB January 2009
@@ -63,15 +63,15 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   nl_ncall = nl_ncall + 1
 
   call tmg_start(42,'OBS_PPP_TLAD') !
-  call oda_Hpp              ! fill in OBS_OMA : Hdx
+  call oda_Hpp              ! fill in OBS_WORK : Hdx
   call tmg_stop(42)
 
   call tmg_start(43,'OBS_SFC_TLAD')
-  call oda_Hsf              ! fill in OBS_OMA : Hdx
+  call oda_Hsf              ! fill in OBS_WORK : Hdx
   call tmg_stop (43)
 
   call tmg_start(44,'OBS_TOV_TLAD') !
-  call oda_Hto              ! fill in OBS_OMA : Hdx
+  call oda_Hto              ! fill in OBS_WORK : Hdx
   call tmg_stop (44)
 
   call tmg_start(45,'OBS_GPSRO_TLAD') !
@@ -93,7 +93,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !*
 !* Purpose: Compute simulated Upper Air observations from profiled model
 !*          increments.
-!*          It returns Hdx in ROBDATA8(OBS_OMA,*)
+!*          It returns Hdx in OBS_WORK
 !*          Interpolate vertically the contents of commvo to
 !*          the pressure levels of the observations.
 !*          A linear interpolation in ln(p) is performed.
@@ -173,7 +173,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               columngVarB=col_getElem(lcolumng,IPB,INDEX_HEADER)
               columngVarT=col_getElem(lcolumng,IPT,INDEX_HEADER)
             endif
-            call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,   &
+            call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,   &
                  ZWB*columnVarB + ZWT*columnVarT+  &
                  (columngVarB - columngVarT)*  &
                  ZDADPS*col_getElem(LCOLUMN,1,INDEX_HEADER,'P0'))
@@ -189,7 +189,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                  + lcolumng%OLTV(2,col_getNumLev(LCOLUMN),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(LCOLUMN),INDEX_HEADER,'HU')
             ZTVG = lcolumng%OLTV(1,col_getNumLev(LCOLUMN),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(LCOLUMN),INDEX_HEADER,'TT')
             ZCON =(ZLEV/col_getElem(lcolumng,1,INDEX_HEADER,'P0'))**ZEXP
-            call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, (1.-zcon)/zgamma*ZLTV &
+            call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, (1.-zcon)/zgamma*ZLTV &
                 + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,index_header,'P0') &
                 /col_getElem(lcolumng,1,index_header,'P0'))
           endif
@@ -205,7 +205,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !*
 !* Purpose: Compute simulated surface observations from profiled model
 !*          increments.
-!*          It returns Hdx in ROBDATA8(OBS_OMA,*)
+!*          It returns Hdx in OBS_WORK
 !*
       IMPLICIT NONE
 
@@ -269,7 +269,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               else
                 columnVarB=col_getElem(LCOLUMN,IPB,INDEX_HEADER)
               endif
-              call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,columnVarB)
+              call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,columnVarB)
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
               ZLTV  = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(lcolumn),INDEX_HEADER,'TT')  & 
                     + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(lcolumn),INDEX_HEADER,'HU')
@@ -279,7 +279,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ZDELPS= (col_getElem(LCOLUMN,1,INDEX_HEADER,'P0')*ZCON**ZEXP)
               ZDELTV= ((col_getElem(lcolumng,1,INDEX_HEADER,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                    *(ZGAMAZ/(ZTVG*ZTVG)*ZLTV))
-              call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZDELPS+ZDELTV)
+              call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY, ZDELPS+ZDELTV)
             ELSE
               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
               IPB  = IPT+1
@@ -287,7 +287,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')
               ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
               ZWT  = 1. - ZWB
-              call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,  &
+              call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,  &
                    ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER)+  &
                    (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER)))
             ENDIF
@@ -306,7 +306,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                  + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(LCOLUMN,col_getNumLev(lcolumn),INDEX_HEADER,'HU')
             ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
             ZCON=(ZLEV/col_getElem(lcolumng,1,INDEX_HEADER,'P0'))**ZEXPGZ
-            call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body,(1.-zcon)/zgamma*ZLTV &
+            call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body,(1.-zcon)/zgamma*ZLTV &
                 + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,index_header,'P0') &
                 /col_getElem(lcolumng,1,index_header,'P0'))
           endif
@@ -321,7 +321,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !
   ! Purpose: Compute simulated radiances observations from profiled model
   !          increments.
-  !          It returns Hdx in ROBDATA8(OBS_OMA,*)
+  !          It returns Hdx in OBS_WORK
   !
   !author        : j. halle *cmda/aes  april 8, 2005
   !
@@ -349,7 +349,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov
   !     .    --------------------------------------------------------------------------------
   !
-  call tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
+  call tovs_fill_profiles_tl(lcolumn,lcolumng)
 
   !     3.   Compute radiance
   !     .    ----------------
@@ -599,7 +599,7 @@ end subroutine oda_Hto
 !C
 !C     *             Store in CMA
 !C
-                     call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZMHXL)
+                     call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY, ZMHXL)
                   ENDIF
                ENDDO BODY_3
             ENDIF ASSIMILATE
@@ -633,7 +633,7 @@ end subroutine oda_Hto
 !*
 !* Purpose: Compute simulated profiler observations from profiled model
 !*          increments.
-!*          It returns Hdx in ROBDATA8(OBS_OMA,*)
+!*          It returns Hdx in OBS_WORK
 !*          Interpolate vertically the contents of commvo to heights
 !*          (in meters) of the observations.
 !*          A linear interpolation in z is performed.
@@ -675,7 +675,7 @@ end subroutine oda_Hto
             write(*,*) 'ABORTING IN ODA_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(lobsSpaceData,index_header),index_header,index_body
             call abort3d('Aborting in oda_H')
           endif
-          call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,  &
+          call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,  &
               ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER) +  &
               (col_getElem(lcolumng,IPB,INDEX_HEADER) - col_getElem(lcolumng,IPT,INDEX_HEADER))*  &
               (ZDA1*col_getHeight(LCOLUMN,IK,INDEX_HEADER,'NA')/RG + ZDA2*col_getHeight(LCOLUMN,IK+1,INDEX_HEADER,'NA')/RG))
@@ -963,7 +963,7 @@ end subroutine oda_Hto
                 ZHX = ZHX + vGPSZTD_Jacobian(iztd,JL)*DX(JL)
             ENDDO
 !C
-!C     *    Store ZHX = H'dx in OBS_OMA
+!C     *    Store ZHX = H'dx in OBS_WORK
 !C
             ! loop over all body indices for this index_header
             call obs_set_current_body_list(lobsSpaceData, index_header)
@@ -974,7 +974,7 @@ end subroutine oda_Hto
                IF (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .eq. 189) &
                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEZD) &
                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) ) then
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, ZHX)
+                  call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY, ZHX)
                   icount = icount + 1
                   if ( icount .le. 3 .and. LTESTOP ) then
                     write(*,*) iztd, obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)

@@ -200,7 +200,7 @@ CONTAINS
 !                              = H(xb_lr) - H(xb_hr) + Z
       if ( lnlvtov ) then
         call tmg_start(48,'NL_OBS_OPER')
-        call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData)
+        call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData,OBS_OMP,OBS_OMA)
         call tmg_stop(48)
       endif
 
@@ -373,6 +373,7 @@ CONTAINS
             ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1), zzsunused  &
             ,dlds)
         call tmg_stop(70)
+        call fool_optimizer(lobsSpaceData)
 
         isimnovqc = isimnovqc - 1
         itermax = itermax - iitnovqc + 1
@@ -398,13 +399,14 @@ CONTAINS
       if (.not. llstop) then
 
         if(N1GC.EQ.3) then
-
           call tmg_start(70,'QN')
           call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
               itermax,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
               dlds)
           call tmg_stop(70)
+          call fool_optimizer(lobsSpaceData)
+
           itertot = itertot + itermax
           isimtot = isimtot + isimmax
 
@@ -435,7 +437,6 @@ CONTAINS
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
 
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
-
       END IF
 
 !     if lrestart remain false... postmin will execute
@@ -574,17 +575,17 @@ CONTAINS
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Modify OBS_OMA ! H_vert H_horiz dx = Hdx
+       call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
-       call oda_res(lobsSpaceData)  ! Modify OBS_OMA : Hdx-d
+       call oda_res(lobsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : Hdx-d
      
-       call oda_sqrtRm1(lobsSpaceData,OBS_OMA,OBS_OMA)  ! Modify OBS_OMA : R**-1/2 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (Hdx-d)
      
-       call oda_Jo(lobsSpaceData)  ! Temporarily store Jobs in OBS_OMI : 1/2 * R**-1 (Hdx-d)**2
+       call oda_Jo(lobsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx-d)**2
      
        IF (LVARQC) THEN          
-          call oda_qcv(lobsSpaceData)  ! Store modify Jobs in OBS_OMI : -ln((gamma-exp(J))/(gamma+1))  
+          call oda_qcv(lobsSpaceData)  ! Store modified J-obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
@@ -598,7 +599,7 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call oda_sqrtRm1(lobsSpaceData,OBS_OMI,OBS_OMA)  ! Modify OBS_OMI : R**-1 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx-d)
 
        IF (LVARQC) THEN
           call oda_qcvad(lobsSpaceData)
@@ -621,7 +622,6 @@ CONTAINS
        if (na_indic .ne. 3) then
           da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)
        endif
-       
     endif
     call tmg_stop(80)
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(70,'QN')

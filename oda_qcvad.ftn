@@ -20,7 +20,7 @@
 *Purpose : Factorizes Grad(Jo) according to Andersson and Jarvinen
 *          1999, Variational quality control, Q.J.R., 125,
 *          pp. 697-722.
-*          It uses the value of (1-Wqc) saved in ROBDATA8(OBS_OMN,*)
+*          It uses the value of (1-Wqc) saved in OBS_QCV
 *          in oda_qcv.ftn
 *
 *Author  : S. Pellerin, ARMA, January 2009
@@ -46,8 +46,9 @@
 
       do index_body=1,obs_numbody(lobsSpaceData)
         if (includeFlag(index_body)) then
-          call obs_bodySet_r(lobsSpaceData,OBS_OMI,index_body, obs_bodyElem_r(lobsSpaceData,OBS_OMI,index_body)
-     &           *(1.d0 - obs_bodyElem_r(lobsSpaceData,OBS_OMN,index_body)))
+          call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, 
+     &           obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
+     &           *(1.d0 - obs_bodyElem_r(lobsSpaceData,OBS_QCV,index_body)))
         endif
       enddo
 

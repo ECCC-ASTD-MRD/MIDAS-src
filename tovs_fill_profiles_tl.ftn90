@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
+subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 #if defined (doc)
 !
 !**s/r tovs_fill_profiles_tl  - tangent linear of interpolation of obs.space to rttov space
@@ -52,7 +52,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng,lobsSpaceData)
 #include "partov.cdk"
 #include "comtov.cdk"
 
-  type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumn,lcolumng
 
   type(struct_vco), pointer :: vco_anl

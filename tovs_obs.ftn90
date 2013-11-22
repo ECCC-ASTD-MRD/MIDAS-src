@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
+subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData,source_obs,dest_obs)
 #if defined (doc)
 !
 !**s/r tovs_obs  - Computation of jo and the residuals to the tovs observations
@@ -41,6 +41,8 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   type(struct_columnData) :: lcolumnghr
   type(struct_obs) :: lobsSpaceData
+  integer, intent(in) :: source_obs     ! probably set to OBS_VAR or OBS_OMP
+  integer, intent(in) :: dest_obs       ! probably set to OBS_OMP or OBS_OMA
 
   integer jdata
 
@@ -81,7 +83,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 
   if     ( option .eq. 'HR' .or. option .eq. 'LR' ) then
       DO JDATA=1,obs_numbody(lobsSpaceData)
-        call obs_bodySet_r(lobsSpaceData,OBS_PRM,JDATA, obs_bodyElem_r(lobsSpaceData,OBS_VAR,JDATA))
+        call obs_bodySet_r(lobsSpaceData,OBS_PRM,JDATA, obs_bodyElem_r(lobsSpaceData,source_obs,JDATA))
       ENDDO
   endif
 
@@ -92,14 +94,13 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
     llprint = .true.
   endif
   pjo = 0.
-  call tovs_calc_jo (pjo,llprint,lobsSpaceData)
+  call tovs_calc_jo (pjo,llprint,lobsSpaceData,dest_obs)
 
   if ( option .eq. 'LR' ) then
-!    fill ROBDATA8(OBS_PRM,..)  with Z'' = Z' + H(xb_lr) 
+!    fill ObsSpaceData(OBS_PRM,..)  with Z'' = Z' + H(xb_lr) 
      DO JDATA=1,obs_numbody(lobsSpaceData)
-       call obs_bodySet_r(lobsSpaceData,OBS_PRM,JDATA, obs_bodyElem_r(lobsSpaceData,OBS_OMA,JDATA) &
-                                                *obs_bodyElem_r(lobsSpaceData,OBS_OER,JDATA) &
-                                             + 2*obs_bodyElem_r(lobsSpaceData,OBS_VAR,JDATA))
+       call obs_bodySet_r(lobsSpaceData,OBS_PRM,JDATA, -obs_bodyElem_r(lobsSpaceData,OBS_OMP,JDATA) &
+                                             + 2*obs_bodyElem_r(lobsSpaceData,source_obs,JDATA))
      ENDDO
   endif
 

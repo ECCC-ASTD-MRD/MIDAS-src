@@ -77,7 +77,7 @@
       INTEGER INDEX_BODY,ITYP
       INTEGER ICOUNT,JLIST,JCOUNT
       INTEGER, ALLOCATABLE :: IPOINTR(:)
-      REAL*8 ZVAR,ZOER,ZCON
+      REAL*8 ZVAR,ZCON
       REAL*8 ZEXP,zexpgz,ZGAMMA,ZTVG
       REAL*8 ZLEV,ZHHH,ZGAMAZ,ZSLOPE,GZHR
       REAL*8 columnVarB,LQTOES
@@ -156,7 +156,6 @@ C
                INDEX_BODY = IPOINTR(JCOUNT)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
                ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                ZHHH = ZLEV * GRAV
                varType = vnl_vartypeFromVarnum(ITYP)
@@ -170,10 +169,10 @@ C
                  columnVarB=col_getElem(lcolumnhr,IPB,INDEX_HEADER)
                endif
                GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),INDEX_HEADER,varType)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,
-     +               (columnVarB
-     +              - ZSLOPE*(ZHHH-GZHR)-ZVAR)
-     +              / ZOER)
+               call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY,
+     +               (  ZVAR-columnVarB
+     +                + ZSLOPE*(ZHHH-GZHR))
+     +               )
              ENDDO
 C--------------Surface Pressure Mean sea level Pressure
 C              In this section we always extrapolate linearly the trial
@@ -186,7 +185,6 @@ C              below the model height
                INDEX_BODY = IPOINTR(JCOUNT)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
                ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                ZHHH = ZLEV * GRAV
                varType = vnl_vartypeFromVarnum(ITYP)
@@ -194,8 +192,8 @@ C              below the model height
                ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
      &                 *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
                ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,
-     &              ((col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')*ZCON**ZEXP)-ZVAR)/ZOER)
+               call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY,
+     &              ZVAR-(col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')*ZCON**ZEXP))
              ENDDO
            ENDIF
          ENDDO LISTELEM
@@ -212,7 +210,6 @@ C
             LLOK=.false.
             IF ( obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1 ) THEN
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
      &             ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
      &             ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
@@ -224,10 +221,10 @@ C
      &                  obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY)  .EQ. 0)
                ENDIF
                IF(LLOK)     THEN
-                  PJO = PJO + obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)*
-     1                  obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, 
-     +              obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY))
+                  PJO = PJO + obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)*
+     1                  obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+     2                  / (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+     3                     *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY))
                ENDIF
             ENDIF
 C
@@ -248,7 +245,6 @@ C
      &         .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1)
             IF ( LLOK ) THEN
                ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 C
 C                 CONTRIBUTION TO Jo
@@ -258,16 +254,17 @@ c  forward nonlinear model for geopotential data below model's orography
 c
                ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
      &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
-               call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY,(col_getMountain(lcolumnhr,index_header)
-     &                     + ZTVG/zgamma
-     &                     *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexpgz)
-     &                     - zvar)/zoer)
-               PJO =PJO+obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
-     +                     *obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY,obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY))
-               PJO =PJO+obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
-     +                            *obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY,obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY))
+               call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY,zvar - col_getMountain(lcolumnhr,index_header)
+     &                     - ZTVG/zgamma
+     &                     *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexpgz))
+               PJO =PJO+obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+     +                     *obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+     &                     /( obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+     &                       *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY))
+               PJO =PJO+obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+     +                            *obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+     &                     /( obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+     &                       *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY))
             ENDIF
 C
          ENDDO BODY_3

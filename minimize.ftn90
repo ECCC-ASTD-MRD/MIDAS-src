@@ -47,11 +47,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   call prdatabin(lobsSpaceData,nstepobsinc)
   call sutimeinterp(lobsSpaceData,lcolumn)
 
-  call setcma(lobsSpaceData)
-
   call min_minvar(lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
-
-  call rsetcma(lobsSpaceData)
 
   DO INDIC =1,1
      if(obs_numHeader(lobsSpaceData).ge.indic) then 

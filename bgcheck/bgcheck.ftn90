@@ -45,12 +45,6 @@
 !C*    1. Preliminary initializations
 !C     .  ---------------------------
 !C
-!C     TRANSFER O-A to O-P in cma
-!C
-      DO JDATA=1,obs_numbody(lobsSpaceData)  !replaces NDATA
-         call obs_bodySet_r(lobsSpaceData,OBS_OMF,jdata,obs_bodyElem_r(lobsSpaceData,OBS_OMA,jdata))
-      ENDDO
-!C
 !C      CALCULATE Sigmap AND INNOVATIONS(O-P)
 !C     ----------------------------------------------
 !C
@@ -128,7 +122,7 @@
 !C
 !C     .   3.4.3 Convert CMA ---> BURP file and write it
 !C
-      CALL VINT3DFD(OBS_OMF,lobsSpaceData)
+      CALL VINT3DFD(OBS_OMP,lobsSpaceData)
       CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
       CALL UPDATE_BURPFILES(lobsSpaceData)
       ! add cloud parameter data to burp files (AIRS&IASI)

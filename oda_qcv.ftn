@@ -20,10 +20,10 @@
       use bufr
       IMPLICIT NONE
 *
-*Purpose : 1) Modify Jo [ROBDATA8(OBS_OMI,*)] according to
+*Purpose : 1) Modify Jo [OBS_JOBS] according to
 *             Andersson and Jarvinen 1999, Variational quality control,
 *             Q.J.R., 125, pp. 697-722.
-*          2) Save the values of (1-Wqc) in ROBDATA8(OBS_OMN,*)
+*          2) Save the values of (1-Wqc) in OBS_QCV
 *             for gradient factorization and postalt flag criterion.
 *
 *Author  : S. Pellerin, ARMA, January 2009
@@ -69,20 +69,20 @@ C
                 IF ((ISTYP .EQ. BUFR_NEVV
      1               .OR. ISTYP .EQ. BUFR_NEVS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)+
-     &                 obs_bodyElem_r(lobsSpaceData,OBS_OMI,JJ)
+                  ZJON=obs_bodyElem_r(lobsSpaceData,OBS_JOBS,INDEX_BODY)+
+     &                 obs_bodyElem_r(lobsSpaceData,OBS_JOBS,JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
 C
 C     Store the value of o-a multiplied by one minus the posterior
 C     probability of gross error (needed for the adjoint calculations)
 C
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMN,INDEX_BODY, ZPPOST)
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMN,JJ, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,OBS_QCV,JJ, ZPPOST)
 
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMI,JJ, -LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
 C
 C     Contribution of both u and v added to the cost function at the
@@ -90,35 +90,35 @@ C     same time (see tech. note by Andersson and Jarvinen)
 C
                 ENDIF
               ENDDO
-            ELSE
+            ELSE ! ITYP
               DO JJ=INDEX_BODY_START, INDEX_BODY
                 ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JJ)
                 ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JJ)
                 IF ((ISTYP .EQ. BUFR_NEUU .OR.
      1               ISTYP .EQ. BUFR_NEUS) .AND.
      2               ZSLEV .EQ. ZLEV) THEN
-                  ZJON=obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)+
-     &                 obs_bodyElem_r(lobsSpaceData,OBS_OMI,JJ)
+                  ZJON=obs_bodyElem_r(lobsSpaceData,OBS_JOBS,INDEX_BODY)+
+     &                 obs_bodyElem_r(lobsSpaceData,OBS_JOBS,JJ)
                   ZQCARG = ZGAMI + EXP(-1.0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMN,INDEX_BODY, ZPPOST)
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMN,JJ, ZPPOST)
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,OBS_QCV,JJ, ZPPOST)
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
-                  call obs_bodySet_r(lobsSpaceData,OBS_OMI,JJ, -LOG(ZQCARG/(ZGAMI+1.))
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.))
      &                 /2.)
                 ENDIF
               enddo
-            endif
-          else
-            zjon = obs_bodyElem_r(lobsSpaceData,OBS_OMI,index_body)
+            endif !ITYP
+          else ! LLUV
+            zjon = obs_bodyElem_r(lobsSpaceData,OBS_JOBS,index_body)
             zqcarg = zgami + exp(-1.0*zjon)
             zppost = zgami/zqcarg
-            call obs_bodySet_r(lobsSpaceData,OBS_OMN,index_body, zppost)
-            call obs_bodySet_r(lobsSpaceData,OBS_OMI,INDEX_BODY, - log(zqcarg/(zgami+1.)))
-          endif
+            call obs_bodySet_r(lobsSpaceData,OBS_QCV,index_body, zppost)
+            call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.)))
+          endif ! LLUV
 
-        endif
+        endif ! includeFlag
 
       enddo BODY
 

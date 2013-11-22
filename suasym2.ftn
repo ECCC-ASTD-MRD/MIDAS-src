@@ -96,7 +96,7 @@
             ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)*MPC_MBAR_PER_PA_R8
             ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,JDATA)
             ZVAL = obs_bodyElem_r(lobsSpaceData,OBS_VAR,JDATA)
-            ZFCST= obs_bodyElem_r(lobsSpaceData,OBS_OMA,JDATA)*ZOER + ZVAL
+            ZFCST= ZVAL - obs_bodyElem_r(lobsSpaceData,OBS_OMP,JDATA)
 C
             IF (ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NEPS .OR.
      1          ITYP .EQ. BUFR_NEPN .OR. ITYP .EQ. BUFR_NESS .OR.
@@ -136,8 +136,7 @@ C
                   IF (IOTHER .NE. -1) THEN
                     ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,JDATA)
                     ZOVAL = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
-*                       ZOFCST = obs_bodyElem_r(lobsSpaceData,OBS_OMF,IOTHER)*ZOER+ZOVAL
-                    ZOFCST = obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)*ZOER+ZOVAL
+                    ZOFCST = ZOVAL-obs_bodyElem_r(lobsSpaceData,OBS_OMP,IOTHER)
                     ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
                     ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
                     ZDIFF = ZSPDO - ZSPDF

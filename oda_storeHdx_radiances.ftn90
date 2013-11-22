@@ -19,7 +19,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
   !
   !
   !Purpose:
-  !Store Hdx radiances in ROBDATA8(OBS_OMA,*)
+  !Store Hdx radiances in OBS_WORK
   !
   !author        : Simon Pellerin, ARMA, January 2009
   !                Based on subroutine written by J. Halle
@@ -112,12 +112,12 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 9202             format(' tovs_calc_jo_tl: error with channel number')
                  call abort3d('tovs_calc_jo_tl  ')
               endif
-              call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, &
+              call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, &
                               radiance_tl (indxtovs) % bt(indxchn))
               if ( ldbgtov ) then
                  write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                       ichn,  radiance_tl (indxtovs) % bt(indxchn), &
-                      obs_bodyElem_r(lobsSpaceData,OBS_VAR,index_body)
+                      obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body)
               endif
 
            endif

@@ -157,9 +157,9 @@ c
         endif
       enddo
                                  !Select calls  BRPCMA
-                                 ! 1. Positioning of data records within ROBDATA/MOBDATA
-      CALL SELECTB(lobsSpaceData) ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
-!     CALL SELECT(lobsSpaceData) ! 2. Fill ROBHDR/MOBHDR and ROBDATA/MOBDATA  with observation records
+                                 ! 1. Positioning of data records within ObsSpaceData
+      CALL SELECTB(lobsSpaceData) ! 2. Fill ObsSpaceData  with observation records
+!     CALL SELECT(lobsSpaceData) ! 2. Fill ObsSpaceData  with observation records
 !     do j = 18800, 18900
 !     do j = 1,  obs_numHeader(lobsSpaceData)
 !     call obs_prnthdr(lobsSpaceData,j)

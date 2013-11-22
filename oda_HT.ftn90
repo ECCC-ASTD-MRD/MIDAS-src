@@ -125,7 +125,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C        Process all data within the domain of the model
           IF (llassim) THEN
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZRES = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+            ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
@@ -168,7 +168,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 2) &
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZRES = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+            ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
@@ -258,7 +258,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ZHHH = ZLEV * GRAV
             IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
-            ZRES = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+            ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
@@ -302,7 +302,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body) .EQ. BUFR_NEGZ ) &
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 1) ) then
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZRES = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+            ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 !C
 !c  adjoint of TL of geopotential extrapolation below orography
@@ -355,7 +355,7 @@ subroutine oda_HTto
 !     3.   Adjoint of preparation of atmospheric profiles
 !     .    ----------------------------------------------
 !
-  call tovs_fill_profiles_ad(lcolumn,lcolumng,lobsSpaceData)
+  call tovs_fill_profiles_ad(lcolumn,lcolumng)
 
 end subroutine oda_HTto
 
@@ -479,8 +479,8 @@ end subroutine oda_HTto
 !C
 !C     *             Normalized increment
 !C
-                     ZINC = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
-                     ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+                     ZINC = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
+!                     ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 !C
 !C     *             O-F Tested criteria:
 !C
@@ -554,7 +554,7 @@ end subroutine oda_HTto
           gz_column  => col_getColumn(lcolumn,INDEX_HEADER,'GZ')
           all_column => col_getColumn(lcolumn,INDEX_HEADER)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-          ZRES = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+          ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
           IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
           IPT  = IK  + col_getOffsetFromVarno(lcolumng,ityp)
@@ -673,7 +673,7 @@ end subroutine oda_HTto
                if (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER).eq.189) &
                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY).EQ.BUFR_NEZD) &
                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1) ) then
-                  ZINC = obs_bodyElem_r(lobsSpaceData,OBS_OMI,INDEX_BODY)
+                  ZINC = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
 !C     *       Accumulate the gradient of the observation cost function
                   DPJO0(1:2*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
                endif

@@ -62,7 +62,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
 !$OMP SECTION
   if(gsv_varExist('VV'))  call gd2mvo('VV',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(gsv_varExist('HU'))   call gd2mvo('HU',col_getNumLev(lcolumn))
+  if(gsv_varExist('HU'))  call gd2mvo('HU',col_getNumLev(lcolumn))
 !$OMP SECTION
   if(gsv_varExist('TT'))  call gd2mvo('TT',col_getNumLev(lcolumn))
 !$OMP SECTION

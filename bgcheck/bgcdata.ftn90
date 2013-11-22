@@ -107,7 +107,7 @@
 !C
 !C              BACK GROUND CHECK
 !C
-                  ZOMP  =-obs_bodyElem_r(lobsSpaceData,OBS_OMF,index_body)*obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+                  ZOMP  = obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body)
                   ZFGE  = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
                   IF ( CDFAM .EQ. 'GP' ) THEN
                     IF (ITYP .EQ. BUFR_NEZD) THEN

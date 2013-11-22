@@ -92,9 +92,8 @@ c
              INDEX_BODY = IPOINTR(JCOUNT)
              ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
              ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-             call obs_bodySet_r(lobsSpaceData,OBS_OMA,INDEX_BODY, 
-     +           (col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')-ZVAR)
-     +            / ZOER)
+             call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY, 
+     +           ZVAR-col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU'))
 
              IF ( LLPRINT ) THEN
                write(*,*)' -------------------------'
@@ -106,7 +105,7 @@ c
                write(*,*)'   lcolumnhr_hu(lcolumnhr_nlev,index_header) = '
      &              ,col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')
                write(*,*)'   O-Psfc = '
-     &              ,-obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)*ZOER
+     &              ,obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
                write(*,*)' -------------------------'
              ENDIF
            ENDDO

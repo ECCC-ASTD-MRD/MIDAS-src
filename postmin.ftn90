@@ -222,7 +222,7 @@
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       CALL VINT3DFD(OBS_OMA,lobsSpaceData)
-      CALL VINT3DFD(OBS_OMF,lobsSpaceData)
+      CALL VINT3DFD(OBS_OMP,lobsSpaceData)
       CALL SETASSFLG(lobsSpaceData)
       CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
       CALL UPDATE_BURPFILES(lobsSpaceData)

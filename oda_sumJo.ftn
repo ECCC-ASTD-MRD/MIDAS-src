@@ -17,7 +17,7 @@
       SUBROUTINE oda_sumJo(lobsSpaceData,pjo)
 
 ! Purpose:
-!   Compute the sum of Jo contributions saved in ROBDATA(OBS_OMI,*)
+!   Compute the sum of Jo contributions saved in OBS_JOBS
 !   Also, compute contribution of each family of observation (for
 !   diagnostic purposes)
 !
@@ -49,7 +49,7 @@
 
       do index_body=1,obs_numbody(lobsSpaceData)
 
-        pjo_1 = obs_bodyElem_r(lobsSpaceData,OBS_OMI,index_body)
+        pjo_1 = obs_bodyElem_r(lobsSpaceData,OBS_JOBS,index_body)
 
         ! total observation cost function
         pjo   = pjo + pjo_1

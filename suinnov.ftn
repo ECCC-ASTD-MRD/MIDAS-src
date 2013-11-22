@@ -87,7 +87,7 @@ c
 c
 c
 c------ Calculate the normalized inovations (Z - H(X))/sigma
-c       and place the results in CMA at OBS_OMA references
+c       and place the results in CMA at OBS_OMP references
 C
 C        RAOBS
 C------------------------------
@@ -124,7 +124,7 @@ C
 C        TOVS - RADIANCE
 C-------------------------------
       ZJOTOV=0.0D0
-      CALL TOVS_OBS ('HR',ZJOTOV,lcolumnhr,lobsSpaceData)
+      CALL TOVS_OBS ('HR',ZJOTOV,lcolumnhr,lobsSpaceData,OBS_VAR,OBS_OMP)
 C
 C        PROFILER
 C------------------------------

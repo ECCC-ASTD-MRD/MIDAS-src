@@ -46,7 +46,7 @@
 *          S. Heilliette
 *          - added idtyp 186 for IASI
 *          S. Pellerin (ARMA/MRB) January 2009
-*          - Use of robdata8(OBS_OMN,*) as zpost value
+*          - Use of robdata8(OBS_OMN,*) [2013: now OBS_QCV] as zpost value
 *          S. Macpherson (ARMA/MRD) Sep 2009
 *          - List GP family (GPS) rejects (idtyp 189)
 *          S. Macpherson (ARMA/MRD) Feb 2013
@@ -73,7 +73,7 @@
       INTEGER INDEX_BODY,INDEX_BODY2,ISTART,ITYP,ISTYP
       INTEGER ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
       INTEGER IDBURP,IOTHER
-      REAL*8    ZVAR,ZFCST,ZOER,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
+      REAL*8    ZVAR,ZFCST,ZANA,ZPOST,ZLAT,ZLON,ZUU,ZVV
       REAL*8    SPD,DEG,ZLEV,ZSLEV,ZCUT
       CHARACTER *4 CLITM(NUMITEM),CLDESC
       CHARACTER *2 CLUNITS
@@ -195,7 +195,7 @@
      3                  obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEGZ)
              ENDIF
              IF (LLOK) THEN
-               zpost = obs_bodyElem_r(lobsSpaceData,OBS_OMN,INDEX_BODY)
+               zpost = obs_bodyElem_r(lobsSpaceData,OBS_QCV,INDEX_BODY)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)*MPC_MBAR_PER_PA_R8
                IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2) THEN
                  ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)*MPC_MBAR_PER_PA_R8
@@ -216,9 +216,8 @@
                  CLUNITS = '  '
                ENDIF
                ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-               ZFCST = obs_bodyElem_r(lobsSpaceData,OBS_OMF,INDEX_BODY)*ZOER + ZVAR
-               ZANA = obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)*ZOER + ZVAR
+               ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
+               ZANA = ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMA,INDEX_BODY)
 *
 *_____________TREAT WINDS AS SPECIAL CASE
 *              BUFR_NEUU       = 011003 (U COMPONENT)           (m/s)
@@ -282,12 +281,12 @@
                    ENDIF
                    IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                      ZUU = ZFCST
-                     ZVV = obs_bodyElem_r(lobsSpaceData,OBS_OMF,IOTHER)*ZOER
-     1                   + obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+                     ZVV = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+     1                   - obs_bodyElem_r(lobsSpaceData,OBS_OMP,IOTHER)
                    ELSE
                      ZVV = ZFCST
-                     ZUU = obs_bodyElem_r(lobsSpaceData,OBS_OMF,IOTHER)*ZOER
-     1                   + obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+                     ZUU = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+     1                   - obs_bodyElem_r(lobsSpaceData,OBS_OMP,IOTHER)
                    ENDIF
                    SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                    ISPDF = NINT(SPD)
@@ -301,12 +300,12 @@
                    ENDIF
                    IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
                      ZUU = ZANA
-                     ZVV = obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)*ZOER
-     1                   + obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+                     ZVV = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+     1                   - obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)
                    ELSE
                      ZVV = ZANA
-                     ZUU = obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)*ZOER
-     1                   + obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+                     ZUU = obs_bodyElem_r(lobsSpaceData,OBS_VAR,IOTHER)
+     1                   - obs_bodyElem_r(lobsSpaceData,OBS_OMA,IOTHER)
                    ENDIF
                    SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                    ISPDA = NINT(SPD)
