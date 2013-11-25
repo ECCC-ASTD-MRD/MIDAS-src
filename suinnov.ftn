@@ -86,8 +86,8 @@ c
       CALL VOBSLYRS(lcolumnhr,lobsSpaceData)
 c
 c
-c------ Calculate the normalized inovations (Z - H(X))/sigma
-c       and place the results in CMA at OBS_OMP references
+c------ Calculate the innovations Y - H(Xb) and place
+c       the result in obsSpaceData in OBS_OMP column
 C
 C        RAOBS
 C------------------------------
@@ -196,17 +196,7 @@ C=======================================================================
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
-
 c
-c------ Calculate the normalized innovations (Z - H(X))/sigma
-c       for ln q for atmospheric and surface obs.
-C
-      CALL DHUPPP('UA',lcolumnhr,lobsSpaceData)
-      CALL DHUPPP('AI',lcolumnhr,lobsSpaceData)
-      CALL DHUSFC('UA',lcolumnhr,lobsSpaceData)
-      CALL DHUSFC('SF',lcolumnhr,lobsSpaceData)
-      CALL DHUSFC('GP',lcolumnhr,lobsSpaceData)
-C
 c     Find interpolation layer in model profiles 
 c
       CALL VOBSLYRS(lcolumng,lobsSpaceData)

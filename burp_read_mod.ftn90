@@ -277,13 +277,13 @@ CONTAINS
     if ( TRIM(FAMILYTYPE2) .eq. 'SCAT') then
       btyp_offset= 0
       btyp_offset_uni= 256 +0
-    endif
-    if ( TRIM(FAMILYTYPE2) .eq. 'SFC') then
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'SFC') then
       btyp_offset= 0
       btyp_offset_uni= 256 +32
-    endif
-    if ( TRIM(FAMILYTYPE2) .eq. 'UA') then
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
+    else 
+      btyp_offset_uni= -999 !set to -999 when not used
     endif
 
 
@@ -1370,10 +1370,10 @@ CONTAINS
     if (TRIM(FAMILYTYPE2) .eq. 'SFC') then
       btyp_offset= btyp_offset+32
       btyp_offset_uni= 256 +32
-    endif
-
-    if ( TRIM(FAMILYTYPE2) .eq. 'UA') then
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
+    else
+      btyp_offset_uni= -999 ! set to -999 when not used
     endif
 
     WRITE(*,*) '-----------------------------------------------'

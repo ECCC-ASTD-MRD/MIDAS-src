@@ -36,7 +36,6 @@ MODULE minimization_mod
   logical             :: initialized = .false.
   real*8, pointer     :: dg_vbar(:)
 
-  character(len=10)   :: crestart='wrmrestart'
   integer             :: nulout =6
   integer             :: nmtra,nwork,nsim3d
   integer             :: ni,nj,nt
@@ -45,18 +44,23 @@ MODULE minimization_mod
   integer             :: dataptr_int_size=0
   integer             :: datestamp      ! window centre of analysis validity
   integer             :: get_max_rss
+  logical             :: preconFileExists
+  character(len=20)   :: preconFileName    = './preconin'  
+  character(len=20)   :: preconFileNameOut = './pm1q'  
+  INTEGER             :: NGRANGE = 10 ! range of powers of 10 used for gradient test
+  integer             :: impres = 5
+  integer             :: n1gc = 3
 
   ! namelist variables
-  INTEGER N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,niterjob
-  INTEGER NGRTEST,NGRANGE
-  LOGICAL LRSTART,lxbar,lwrthess
+  INTEGER NVAMAJ,NITERMAX,NSIMMAX
+  LOGICAL lxbar,lwrthess,lgrtest
   REAL*8 REPSG,rdf1fac
   LOGICAL LVARQC
   integer :: nwoqcv
 
-  NAMELIST /NAMMIN/N1GC,NVAMAJ,NIMPRES,NITERMAX,NSIMMAX,NITERJOB  
-  NAMELIST /NAMMIN/NGRTEST,NGRANGE
-  NAMELIST /NAMMIN/LRSTART,lxbar,lwrthess
+  NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX
+  NAMELIST /NAMMIN/LGRTEST
+  NAMELIST /NAMMIN/lxbar,lwrthess
   NAMELIST /NAMMIN/REPSG,rdf1fac
   NAMELIST /NAMMIN/LVARQC,NWOQCV
 
@@ -82,19 +86,14 @@ CONTAINS
     nvadim_mpilocal=nvadim_mpilocal_in
 
     ! set default values for namelist variables
-    N1GC = 3
     NVAMAJ = 6
-    NIMPRES =  5
     NITERMAX = 400
     RDF1FAC  = 0.25d0
-    NITERJOB = -1
     NSIMMAX  = 500
-    NGRTEST  = 0
-    NGRANGE  = 10
+    LGRTEST  = .false.
     lwrthess = .true.
     lxbar    = .false.
-    REPSG    = 1e-3
-    LRSTART  = .false.
+    REPSG    = 1e-5
     LVARQC   = .false.
     NWOQCV   = 5
 
@@ -123,12 +122,15 @@ CONTAINS
 
     IF (LVARQC) WRITE(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
+    ! Check for preconditioning file
+    inquire(file=preconFileName,exist=preconFileExists)
+
     initialized=.true.
 
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lnlvtov,lpcon,lrestart,cpconf,lcolumn,lcolumng,lobsSpaceData)
+  SUBROUTINE min_minvar(lnlvtov,lcolumn,lcolumng,lobsSpaceData)
 !
 ! Purpose:
 ! 3D/En VAR minimization
@@ -140,8 +142,7 @@ CONTAINS
       type(struct_dataptr) :: dataptr 
       integer,allocatable :: dataptr_int(:) ! obs array used to transmit pointer
 
-      logical lnlvtov,lpcon,lrestart
-      CHARACTER(len=*) :: cpconf
+      logical lnlvtov
 
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)
@@ -153,10 +154,10 @@ CONTAINS
       REAL*8 DLDS(1)
       LOGICAL LLTEST,llvarqc, llstop, lldf1, lrdvatra, llvazx, llxbar
 
-      INTEGER IMPRES, IMODE, ITERMAX, iterdone, ISIMMAX, INDIC, IITNOVQC, jj
+      INTEGER IMODE, ITERMAX, iterdone, ISIMMAX, INDIC, IITNOVQC, jj
       INTEGER IERR,ITERTOT,isimdone,isimtot,jdata, ISIMNOVQC
       integer ireslun,ibrpstamp,isim3d
-      INTEGER IPRECON,ILEN
+      INTEGER ILEN
       REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS0, ZEPS1
       REAL*8 DLGNORM, DLXNORM, ZJOTOV
 
@@ -230,17 +231,9 @@ CONTAINS
 
       ireslun=0
       lldf1 = .true.
-      if(niterjob /= -1 .and. lrestart) then
-        write(*,*) 'Minimize : Restart mode'
-        lrdvatra = .true.
-        clfname = crestart
-        imode = 2
-        llvazx = .true.
-        llxbar = .true.
-      elseif (lpcon) then
+      if (preconFileExists) then
         write(*,*) 'Minimize : Preconditioning mode'
         lrdvatra = .true.
-        clfname = cpconf
         imode = 2
         llvazx = .false.
         llxbar = lxbar ! from namelist (default is .true.)
@@ -255,53 +248,32 @@ CONTAINS
         ibrpstamp = min_get_datestamp() ! ibrpstamp is a I/O argument of rw_vatra
 
         if(n1gc.eq.3) then
-          call rw_vatra (clfname,0,                            &
+          call rw_vatra (preconFileName,0,                     &
             isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
             ,isimdone_000,iztrl,vatra,dg_vbar,    &
             vazx,llxbar,llvazx,n1gc,imode)
 
         endif
 
-        if(niterjob /= -1 .and. lrestart) then
-          ierr = remove_c(clfname)
-          nsim3d = isim3d
-          write(*,*) 'MINVAR : NSIM3D read from precon file: ',nsim3d 
+        if (ibrpstamp == min_get_datestamp() .and. lxbar) then
           zeps0  = zeps0_000
           zdf1   = zdf1_000
-          lldf1 = .false. ! don't re-compute df1 base on Cost function
-          iterdone = iterdone_000
-          isimdone = isimdone_000 - 1
-          itermax = min(nitermax - iterdone + 1, niterjob)
-          isimmax = nsimmax - isimdone + 1
-          if (iterdone < nwoqcv) lvarqc = .false.
+          lldf1 = .false.     ! don't re-compute df1 base on Cost function
         else
-          if (ibrpstamp == min_get_datestamp() .and. lxbar) then
-            zeps0  = zeps0_000
-            zdf1   = zdf1_000
-            lldf1 = .false.     ! don't re-compute df1 base on Cost function
-          else
-            zeps0 = repsg
-            lldf1 = .true.      ! Compute df1 base on Cost function
-          endif
+          zeps0 = repsg
+          lldf1 = .true.      ! Compute df1 base on Cost function
         endif
       endif
 
-      if(niterjob == -1 .or. .not. lrestart) then
-        iterdone = 0
-        isimdone = 0
-        if (niterjob /= -1) then
-          itermax = min(nitermax,niterjob)
-        else
-          itermax = nitermax
-        endif
-        isimmax = nsimmax
+      iterdone = 0
+      isimdone = 0
+      itermax = nitermax
+      isimmax = nsimmax
 
-        if (nwoqcv > 0) lvarqc = .false.
+      if (nwoqcv > 0) lvarqc = .false.
 
-        if(ngrtest.ne.0) then
-          call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
-        endif
-
+      if(lgrtest) then
+        call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
       endif
 
       zeps1 = zeps0
@@ -337,11 +309,6 @@ CONTAINS
       WRITE(*,*)' |X| = ', DLXNORM
       WRITE(*,FMT=9220) ZJSP, DLGNORM
  9220 FORMAT(/4X,'J(X) = ',G23.16,4X,'|Grad J(X)| = ',G23.16)
-
-!     *    .   2.4. Constants required by MODULOPT
-!     .        ------------------------------
-
-      IMPRES   =  NIMPRES
 
 !     *    3. Iterations of the minimization algorithm
 !     .  ----------------------------------------
@@ -428,37 +395,26 @@ CONTAINS
 
       min_niter = itertot
 
-!     *    4. Test the gradient at the final point if NGRTEST=1
+!     *    4. Test the gradient at the final point if LGRTEST= true
 !     .  ------------------------------------
 
 
-      if ((NGRTEST.ne.0 .and. IMODE.ne.4 .and. .not. LRSTART)) then
+      if ((lgrtest .and. IMODE.ne.4)) then
         WRITE(*,FMT=9400)
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
 
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
       END IF
 
-!     if lrestart remain false... postmin will execute
-      lrestart = .false.
       ireslun=0
-      if (niterjob /= -1 .and. itertot < nitermax .and. imode == 4) then
-        clfname = crestart
-        !     Careful: lrestart before minimisation was used to trigger a
-        !     read of restart file... now it is set to .true. to avoid
-        !     execution of postmin.
-        lrestart = .true.
-      else
-        do jdata = 1, nvadim_mpilocal
-          dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
-        enddo
-        clfname = 'pm1q'
-      endif
+      do jdata = 1, nvadim_mpilocal
+        dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
+      enddo
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       if(lwrthess) then
         if(n1gc.eq.3) then
-        call rw_vatra (clfname,1,  &
+        call rw_vatra (preconFileNameOut,1,  &
           nsim3d,min_get_datestamp(),zeps1,zdf1,itertot,isimtot,  &
           iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
 

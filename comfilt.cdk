@@ -19,13 +19,12 @@ C      DSTEPOBS    : Time step (in hours) of data assimilation (fgat/4Dvar)
 C      RLIMLVHU    : Top level of humidity analysis (mbs).
 C
 #endif
-      INTEGER NONELEV
       INTEGER NELEMS,NLIST(30)
       INTEGER NFLAGS,NLISTFLG(15)
       LOGICAL LTOPOFILT
       real*8 dstepobs,dstepobsinc
       integer nstepobs,nstepobsinc
       real*8 RLIMLVHU
-      COMMON /COMFILT/NONELEV,NELEMS,NLIST,NFLAGS,NLISTFLG
+      COMMON /COMFILT/NELEMS,NLIST,NFLAGS,NLISTFLG
       common /comfilt/nstepobs,nstepobsinc,dstepobs,dstepobsinc
       common /comfilt/LTOPOFILT,RLIMLVHU

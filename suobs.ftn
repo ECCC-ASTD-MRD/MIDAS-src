@@ -104,7 +104,6 @@ C     DEFAULTS
 C     ------------------
       dstepobs    = 6.0d0
       dstepobsinc = 6.0d0      
-      NONELEV=-1
       do j = 1, 30
         nlist(j) = 0
       enddo

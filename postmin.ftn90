@@ -54,11 +54,6 @@
       logical :: write4dInc,useTL_LQtoHU
       logical lvtout,lgzout
 !
-!     if a restart file was writen at the end of minimize.ftn,
-!     lrestart was turn to .true. to avoid postmin exection
-!
-      if (lrestart) return
-
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine postmin--'
       write(*,*) '-------------------------------'

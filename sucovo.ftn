@@ -1007,14 +1007,6 @@ C
                     CALL ABORT3D('SETERR:PROBLEM OBSERR VARIANCE.')
                ENDIF
 
-            ELSE
-c          IASS .ne. 1
-c             set artificial obs errors for ln q.
-              IF ( CFAM .EQ. 'UA'  .AND.
-     &             ( ITYP          .EQ. BUFR_NEHU  .OR.
-     &               ITYP          .EQ. BUFR_NEHS ) ) THEN
-                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 888.0d0)
-              ENDIF
 C           end of assim=1 IF
             ENDIF
 C

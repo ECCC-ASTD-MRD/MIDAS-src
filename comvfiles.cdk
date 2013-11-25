@@ -4,15 +4,12 @@
 !     ---------------
 !
 #endif
-      CHARACTER(len=128) :: CBURP(56),cpconf
+      CHARACTER(len=128) :: CBURP(56)
       CHARACTER (len=2) :: CFAM(56)
-      character(len=10) :: crestart
       INTEGER NKOUNT
-      logical lpcon,lrestart
 
-      COMMON/COMCVFILES/CBURP,CFAM,cpconf,crestart
+      COMMON/COMCVFILES/CBURP,CFAM
       common/comnvfiles/nkount
-      common/comlvfiles/lpcon,lrestart
 !
 !-----------------------------------------------------------------------
 !

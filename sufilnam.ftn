@@ -88,7 +88,7 @@
        CLVALU(6) = './rebm_notused'  
        CLVALU(7) = './rehm_defunct'  
        CLVALU(8) = '' 
-       CLVALU(9) = './preconin'  
+       CLVALU(9) = ''
 
        CLVALU(10) = 'brpuan'  
        CLVALU(11) = 'brpuas'  
@@ -152,15 +152,6 @@
        CFAMI(36)  = 'GP' 
        CFAMI(37)  = ' ' 
 C
-C------ Preconditioning..    
-      INQUIRE(FILE=CLVALU(9),EXIST=isExist_L)
-      if ( isExist_L ) then
-        CPCONF=clvalu(9)
-        lpcon=.true.
-      else
-        lpcon=.false.
-      endif
-c
       NKOUNT=0
       DO JJ=10,INFIL 
         II=0
@@ -199,10 +190,6 @@ C=======================================
          IER= FCLOS(II)
         ENDIF
         END DO
-C
-C Hard coded restart file name
-      crestart='wrmrestart'
-      INQUIRE(file=crestart,exist=lrestart)
 C
       WRITE(*,*) ' '
       WRITE(*,*)' NUMBER OF BURP FILES IS :',NKOUNT
