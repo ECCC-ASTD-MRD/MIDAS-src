@@ -33,8 +33,9 @@ cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comc
 
 compiledir=$PWD
 
-. s.ssmuse.dot Xlf13.108
-. s.ssmuse.dot rmnlib-dev
+## To access 'rmn_014_rc2'
+. ssmuse-sh -d /ssm/net/rpn/libs/201309/01
+. s.ssmuse.dot Xlf13.110
 . s.ssmuse.dot devtools
 
 . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
@@ -48,14 +49,14 @@ VAR3D_VERSION="11.2.1"
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
 
 LIBSYS="lapack blas mass"
-LIBRMN="rmn_014_rc1"
+LIBRMN="rmn_014_rc2"
 LIBEXTRA="rtools hpm_r"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
 COMPF_NOC="-openmp $MPIKEY "
 #COMPF="$COMPF_NOC"
-COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
+COMPF="$COMPF_NOC "
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
 INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/mod ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/include"
