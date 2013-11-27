@@ -56,7 +56,7 @@ DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
 COMPF_NOC="-openmp $MPIKEY "
 #COMPF="$COMPF_NOC"
-COMPF="$COMPF_NOC "
+COMPF="$COMPF_NOC -debug DEBUG -optf=-C"
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
 INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/mod ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/include"
