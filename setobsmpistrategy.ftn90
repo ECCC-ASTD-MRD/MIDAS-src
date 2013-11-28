@@ -7,43 +7,71 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   !
   use MathPhysConstants_mod
   use obsSpaceData_mod
-  use gaussGrid_mod
+  use HorizontalCoord_mod
   implicit none
 
   type(struct_obs), intent(inout) :: lobsSpaceData
   character(len=*), intent(in)    :: mpiStrategy
+
+  type(struct_hco), pointer :: hco_anl
+
+  real(8) :: lat_r8, lon_r8
+  real    :: lat_r4, lon_r4
+  real    :: xpos, ypos
 
   integer :: headerIndex_mpiglobal
   integer :: nprocs_mpi
   integer :: latindex
   integer :: ierr
   integer :: IP
+  integer :: gdxyfll
 
-  ! Obtain nprocs_mpi and  my_mpi_id
+  !
+  !- 1.  Get some info
+  !
+
+  !- 1.1 Get the horizontal coordinate of the analysis grid
+  hco_anl => hco_Get('Analysis')
+
+  !- 1.2 Obtain nprocs_mpi
   call rpn_comm_size("ALL", nprocs_mpi, ierr)
   if ( nprocs_mpi == 0 ) nprocs_mpi = 1
-  
+
+  !
+  !- 2.  Determine obs_ip according to distribution strategy
+  !
+  write(*,*)
   write(*,*) 'numHeader_mpiGlobal= ',obs_numheader(lobsSpaceData)
 
-  ! Determine obs_ip according to distribution strategy
   select case (trim(mpiStrategy))
   case ('ROUNDROBIN')
-     ! Distribute by round robin:
-     do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
-        IP = mod((headerIndex_mpiglobal-1),nprocs_mpi)
-        call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
-     end do
+    !- 2.1 Distribute by round robin:
+    do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
+      IP = mod((headerIndex_mpiglobal-1),nprocs_mpi)
+      call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
+    end do
   case ('LATBANDS')
-     ! Distribute by latitude band:
-     do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
-        latindex = gaus_find_lat_index(obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex_mpiglobal))
-        IP = ( nprocs_mpi * (latindex-1) ) / gaus_find_lat_index(-MPC_PI_R8/2.0d0)
-        call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
-     end do
+    !- 2.2 Distribute by latitude band:
+    do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
+      lat_r8 = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex_mpiglobal)
+      lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex_mpiglobal)
+      lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
+      lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
+      ierr = gdxyfll( hco_anl % EZscintID, & ! IN 
+                      xpos, ypos,          & ! OUT
+                      lat_r4, lon_r4, 1 )    ! IN
+      if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+         ! Revert latitudes since gdxyfll does not handle properly this grid type
+         ypos = real(hco_anl % nj,4) - ypos + 1.0
+      end if
+      latindex = floor(ypos)
+      IP = ( nprocs_mpi * (latindex-1) ) / hco_anl % nj
+      call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
+    end do
   case default
-     write(*,*)
-     write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
-     stop
+    write(*,*)
+    write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
+    stop
   end select
 
 end subroutine setObsMpiStrategy

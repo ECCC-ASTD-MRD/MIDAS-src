@@ -1,28 +1,33 @@
-module calcbmatrix_nanalvar4_mod
+module calcbmatrix_glb_mod
   use gridStateVector_mod
   use globalSpectralTransform
   use MathPhysConstants_mod
   use gaussGrid_mod
+  use HorizontalCoord_mod
   implicit none
   save
+  private
 
-  character(len=256)  :: enspathname,ensfilebasename
-  character(len=256) :: cflensin(512)
+  ! Public Subroutines
+  public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_diag_verticalcov
+
   integer :: nens,ntrunc,ni,nj,nLevEns,nLevPtoT,nkgdimEns,nla
+  character(len=256), allocatable :: cflensin(:)
   integer :: gstID
   integer, allocatable :: nip1_l(:)
+  real*8             :: ra = 6371229.D0
+
+  logical :: initialized = .false.
 
   contains
 
-  subroutine calcb_computeStats
+  subroutine calcb_glb_computeStats
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: stddev3d(:,:,:),stddev3dUnbal(:,:,:),stddevZonAvg(:,:),stddevZonAvgUnbal(:,:)
     real*8,allocatable :: PtoT(:,:,:),theta1(:,:),theta2(:,:)
     real*8,allocatable :: corns(:,:,:),rstddev(:,:)
-
-    call setup
 
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
     if(ierr.ne.0) then
@@ -135,17 +140,15 @@ module calcbmatrix_nanalvar4_mod
     write(403,*) stddevZonAvgUnbal((1+3*nlevEns):(4*nlevEns),:)
     write(404,*) stddevZonAvgUnbal((1+4*nlevEns),:)/1.0d2
 
-  end subroutine calcb_computeStats
+  end subroutine calcb_glb_computeStats
 
 
-  subroutine calcb_diag_verticalcov
+  subroutine calcb_glb_diag_verticalcov
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
     real*8,allocatable :: verticalcov(:,:,:)
-
-    call setup
 
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
     if(ierr.ne.0) then
@@ -190,7 +193,7 @@ module calcbmatrix_nanalvar4_mod
     write(203,*) stddevZonAvg((1+3*nlevEns):(4*nlevEns),:)
     write(204,*) stddevZonAvg((1+4*nlevEns),:)/1.0d2
 
-  end subroutine calcb_diag_verticalcov
+  end subroutine calcb_glb_diag_verticalcov
 
 
   subroutine writeSpStats(ptot,theta)
@@ -278,54 +281,70 @@ module calcbmatrix_nanalvar4_mod
 
   end subroutine writeSpStats
 
-
-  subroutine setup
+  subroutine calcb_glb_setup( nens_in, cflens_in, hco_in, vco_in)
     implicit none
-    integer :: nulnam,jens,ierr,mpiMode
+
+    integer, intent(in)            :: nens_in
+    character(len=*), intent(in)   :: cflens_in(nens_in)
+    type(struct_vco), intent(in)   :: vco_in
+    type(struct_hco), intent(in)   :: hco_in
+
+    integer :: nulnam,ierr,mpiMode
     integer :: fclos,fnom,fstouv,fstfrm
-    character(len=3)   :: censnumber
-    type(struct_vco), pointer :: vco_anl => null()
-    NAMELIST /NAMCALCB/nens,ntrunc,ensfilebasename
 
+    NAMELIST /NAMCALCB_GLB/ntrunc
+
+    write(*,*)
+    write(*,*) 'calcb_glb_setup: Starting...'
+
+    write(*,*) '1'
+    nens=nens_in
+    write(*,*) '2'
+    allocate(cflensin(nens))
+    write(*,*) '3'
+    cflensin(:)=cflens_in(:)
+    write(*,*) '4'
     call mpc_printConstants(6)
-
-    call gaus_setup
+    write(*,*) '5'
+    call gaus_SetupFromHCO(hco_in) ! IN
+    write(*,*) '6'
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
-    nens=96
     ntrunc=108
-    enspathname='./ensemble/'
-    ensfilebasename='2011011918_006_'
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namcalcb)
-    write(*,nml=namcalcb)
+    read(nulnam,nml=namcalcb_glb)
+    write(*,nml=namcalcb_glb)
     ierr=fclos(nulnam)
 
-    do jens=1,nens
-      write(censnumber,'(i3.3)') jens
-      cflensin(jens)= trim(enspathname) // '/' // trim(ensfilebasename) // censnumber
-      write(*,*) 'ensemble file:',jens,cflensin(jens)
-    enddo
+    write(*,*) '7'
 
-    call vco_SetupFromFile(vco_anl,cflensin(1),.true.)
-
-    ni=gaus_ni
-    nj=gaus_nj
-    nLevEns=vco_anl%nlev_M
+    ni=hco_in%ni
+    nj=hco_in%nj
+    nLevEns=vco_in%nlev_M
     nLevPtot=nLevEns-1
 !    nkgdimEns=nLevEns*4+2
     nkgdimEns=nLevEns*4+1 ! NO TG !!!
     nla=(ntrunc+1)*(ntrunc+2)/2
+    
+    
+    write(*,*) '8'
 
     mpiMode=0
     gstID = gst_setup(6,ni,nj,ntrunc,mpiMode)
 
-    allocate(nip1_l(nlevens))
-    nip1_l(:)=vco_anl%ip1_M(:)
+    write(*,*) '9'
 
-  end subroutine setup
+    allocate(nip1_l(nlevens))
+    nip1_l(:)=vco_in%ip1_M(:)
+
+    initialized = .true.
+
+    write(*,*)
+    write(*,*) 'calcb_glb_setup: Done!'
+
+  end subroutine calcb_glb_setup
 
 
   subroutine removeBalancedChi(ensPerturbations,theta)
@@ -1023,6 +1042,17 @@ module calcbmatrix_nanalvar4_mod
     real*8 :: spvor(nla,2,nlevEns)
     integer  ia, ib, ji, jm, jlev,jlat
     real*8 :: zn,zm,zenm,zenmp1,zcon,dl1sa2
+    ! constants
+    real*8             :: rday
+    real*8             :: rsiyea
+    real*8             :: rsiday
+    real*8             :: romega
+
+    ! some constants
+    RDAY=86400.D0
+    RSIYEA=365.25D0*RDAY*2.*MPC_PI_R8/6.283076D0
+    RSIDAY=RDAY/(1.D0+RDAY/RSIYEA)
+    ROMEGA=2.D0*MPC_PI_R8/RSIDAY
 
     ! convert PSI to vorticity 
     dl1sa2   = 1.0d0/(dble(ra)*dble(ra))
@@ -1048,6 +1078,7 @@ module calcbmatrix_nanalvar4_mod
 
     ! loop over levels and zonal wavenumbers
     ! n.b.: at the tip of the triangle, no contributions
+    
     zcon = -2.*romega*ra**2
     do jlev = 1, nlevEns
 
@@ -1503,4 +1534,4 @@ module calcbmatrix_nanalvar4_mod
       RETURN
   END subroutine zleginv
 
-end module calcbmatrix_nanalvar4_mod
+end module calcbmatrix_glb_mod

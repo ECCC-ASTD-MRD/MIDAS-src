@@ -1,0 +1,17 @@
+ &NAMCONF
+   CMODE   = 'BHI'
+/
+ &NAMSTATE
+   CGNEED(1)   ='UU'
+   CGNEED(2)   ='VV'
+   CGNEED(3)   ='TT'
+   CGNEED(4)   ='HU'
+   CGNEED(5)   ='P0'
+/
+ &NAMENS
+   NENS=2
+   ENSFILEBASENAME='2011020112_006_'  
+/
+ &NAMCALCB_GLB
+   NTRUNC=270
+/

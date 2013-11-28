@@ -18,229 +18,243 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
   use mpi 
   use gridstatevector_mod
-  use gaussGrid_mod
   use obsSpaceData_mod
-  use columnData_mod 
+  use columnData_mod
   implicit none
+
   !
-  !Purpose: Localisation (3D) operator
-  !Compute profiled increments from grided increments
-  !  ->In 3D mode : Call a bilinear interpolator
-  !  ->Results are saved in COMMVO
-  !Author  : S. Pellerin *ARMA/MRB January 2009
+  ! Purpose: Localisation (3D) operator
+  !          Compute profiled increments from grided increments
   !
-  type(struct_columnData) :: lcolumn,lcolumng
-  type(struct_obs) :: lobsSpaceData
-  type(struct_gsv) :: statevector
-  ! Local declarations
-  integer :: nl_ilev,ierr,myLatP1
+
+  type(struct_columnData) :: lcolumn, lcolumng
+  type(struct_obs)        :: lobsSpaceData
+  type(struct_gsv)        :: statevector
+
+  integer :: nl_ilev, ierr, myLatP1
+
+  myLatP1 = min(statevector % myLatEnd + 1, statevector % nj)
+
   !
-  IF(mpi_myid == 0) THEN
-    write(*,*)'ODA_L- Horizontal interpolation GD --> MVO'
+  !- 1.  Interpolation to obs location
+  !
+  if ( mpi_myid == 0 ) THEN
+    write(*,*) ' ODA_L - Horizontal interpolation GD --> MVO'
     call flush(6)
-  endif
+  end if
 
-  myLatP1 = min(statevector%myLatEnd+1,statevector%nj)
-
-  !    Conversion of wind images to physical winds
-  call uvwi2uv(statevector)
-
-  ! Communicate extra latitude needed for interpolation  
+  !- 1.1 Communicate extra latitude needed for interpolation  
   call tmg_start(38,'INTERP_BARR')
   call rpn_comm_barrier("GRID",ierr)
   call tmg_stop(38)
   call tmg_start(39,'INTERP_COMM')
-  call gsv_commLat(statevector)
+  if (mpi_nprocs /= 1) call gsv_commLat(statevector)
   call tmg_stop(39)
 
 !$OMP PARALLEL
 !$OMP SECTIONS PRIVATE(nl_ilev)
 
-  ! 3D fields interpolation
+    !- 1.2 3D fields interpolation
 !$OMP SECTION
-  if(gsv_varExist('UU'))  call gd2mvo('UU',col_getNumLev(lcolumn))
+    if (gsv_varExist('UU') ) call gd2mvo('UU',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(gsv_varExist('VV'))  call gd2mvo('VV',col_getNumLev(lcolumn))
+    if (gsv_varExist('VV') ) call gd2mvo('VV',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(gsv_varExist('HU'))  call gd2mvo('HU',col_getNumLev(lcolumn))
+    if (gsv_varExist('HU') ) call gd2mvo('HU',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(gsv_varExist('TT'))  call gd2mvo('TT',col_getNumLev(lcolumn))
+    if (gsv_varExist('TT') ) call gd2mvo('TT',col_getNumLev(lcolumn))
 !$OMP SECTION
-  if(gsv_varExist('GZ'))  call gd2mvo('GZ',col_getNumLev(lcolumn))
+    if (gsv_varExist('GZ') ) call gd2mvo('GZ',col_getNumLev(lcolumn))
 
-  ! 2D fields interpolation
+    !- 1.3 2D fields interpolation
 !$OMP SECTION
-  nl_ilev = 1
-  if(gsv_varExist('P0'))  call gd2mvo('P0',nl_ilev)
-  if(gsv_varExist('TG'))  call gd2mvo('TG',nl_ilev)
+    nl_ilev = 1
+    if (gsv_varExist('P0') ) call gd2mvo('P0',nl_ilev)
+    if (gsv_varExist('TG') ) call gd2mvo('TG',nl_ilev)
 
 !$OMP END SECTIONS
 !$OMP END PARALLEL
 
-  ! TL of variable conversions
-  if(col_varExist('GZ')) call ltt2phi(lcolumn,lcolumng)
+  !
+  !- 2.  Variable conversions
+  !
 
+  !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
+    if (col_varExist('GZ') ) call ltt2phi(lcolumn,lcolumng)
 
-  CONTAINS
+  !- 2.2 Rotated wind to Meteorological wind
+    if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector % hco % Rotated ) then
+      write(*,*) 'uvrot2uv Active'
+      call uvrot2uv('UU', 'VV', col_getNumLev(lcolumn)) ! IN
+    end if
+  
+CONTAINS
 
-      SUBROUTINE GD2MVO(varName,klev)
-!*
-!***s/r GD2MVO  - Horizontal interpolation of the model variables
-!*               in grid-point space to observation locations.
-!*               Bilinear interpolation from the 4 nearest grid points.
-!*     .         (adapted from BILIN)
-!*
-!*Author  : P. GAUTHIER *ARMA/MSC JULY 2002
-!*     .
-!*Revision:
-!*
-!**    Purpose:  Build lcolumn from GD (in COMGD0) using
-!*     .         bilinear interpolation.
-!*
-!*     VARNAME: identificator of the variable to be treated
-!*     KLEV     : number of levels (typically 1 for 2D-fields and COL_GETNUMLEV(LCOLUMN) for 3D-fields)
-!*
-!*
-!*     Arguments
-!*
-      character(len=*) :: varName
-      integer klev
-!*
-!*     Local Variables
-!*
-      INTEGER   JLEV, JLAT, JLON, headerIndex, JSTEP
-      INTEGER   ILON, ILA
-      REAL*8    DLMEAN, DLMEAS, deltaLon
-      REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, latObs, lonObs
+!--------------------------------------------------------------------------
+! GD2MVO
+!--------------------------------------------------------------------------
+  SUBROUTINE GD2MVO(varName,klev)
+    !*
+    !***s/r GD2MVO  - Horizontal interpolation of the model variables
+    !*                in grid-point space to observation locations.
+    !*                Bilinear interpolation from the 4 nearest grid points.
+    !*                (adapted from BILIN)
+    !
+    !*
+    !*     VARNAME: identificator of the variable to be treated
+    !*     KLEV     : number of levels (typically 1 for 2D-fields and COL_GETNUMLEV(LCOLUMN) for 3D-fields)
+    !*
+    implicit none
+    
+    character(len=*), intent(in) :: varName
+    integer,          intent(in) :: klev
+    
+    INTEGER :: JLEV, JLAT, JLON, headerIndex, JSTEP
+    INTEGER :: ILON, ILA, ILO
+    
+    REAL(8) :: DLMEAN, DLMEAS, DLDLON
+    REAL(8) :: DLDX, DLDY, DLDX_new, DLDY_new,DLW1, DLW2, DLW3, DLW4
+    real(8) :: xpos, ypos, lat, lon, latrot, lonrot
+    
+    real(8) :: zfield(1:statevector % ni+1, 1:klev, statevector % myLatBeg:myLatP1)
+    
+    real(8), pointer :: column_ptr(:,:)
+    real(8), pointer :: field_ptr(:,:,:,:)
 
-      real*8  zfield(0:(statevector%ni+2),1:klev,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
-      real*8, pointer :: column_ptr(:,:)
-      real*8, pointer :: field_ptr(:,:,:,:)
+    field_ptr  => gsv_getField(statevector,varName)
 
-      if(col_getNumCol(LCOLUMN).le.0) return
+    if (col_getNumCol(LCOLUMN) > 0) then
+       column_ptr => col_getAllColumns(lcolumn,varName)
+       column_ptr(:,:) = 0.0d0
+    end if
 
-      field_ptr => gsv_getField(statevector,varName)
-      column_ptr => col_getAllColumns(lcolumn,varName)
-      column_ptr(:,:) = 0.0d0
+    ! Note: We assume here the all the obs between the poles and the last grid points
+    !       (i.e. outside the grid) have been moved within the grid by sugomobs
 
-      do jstep=1,statevector%numStep
+    do jstep = 1, statevector % numStep
+       
+      zfield(1:STATEVECTOR%NI,1:klev,statevector%myLatBeg:myLatP1)=  &
+      field_ptr(1:STATEVECTOR%NI,1:KLEV,statevector%myLatBeg:myLatP1,jstep)
 
-        zfield(1:STATEVECTOR%NI,1:klev,statevector%myLatBeg:myLatP1)=  &
-           field_ptr(1:STATEVECTOR%NI,1:KLEV,statevector%myLatBeg:myLatP1,jstep)
-!C
-!C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
-!C     NI, 1, AND 2 INTO MERIDIANS 0, NI+1,
-!C     AND NI AND ALSO TWO PARALLELS NEAR THE POLES.
-!C     ----------------------------------------------------------
-!C
-!C*    1.1 EXTRA MERIDIANS
-!C
-!C     MERIDIAN NI DUPLICATED INTO MERIDIAN 0
-!C     MERIDIAN 1  DUPLICATED INTO MERIDIAN NI + 1
-!C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NI + 2
-!C
-        DO JLEV = 1, KLEV
-           DO JLAT = statevector%myLatBeg, myLatP1
-              ZFIELD(0,jlev,JLAT) = ZFIELD(STATEVECTOR%NI,jlev,JLAT)
-              ZFIELD(STATEVECTOR%NI+1,jlev,JLAT) = ZFIELD(1,jlev,JLAT)
-              ZFIELD(STATEVECTOR%NI+2,jlev,JLAT) = ZFIELD(2,jlev,JLAT)
-           END DO
+      !
+      !- 1.  EXPAND Field BY REPEATING MERIDIAN 1 into INTO MERIDIAN NI+1
+      !
+      DO JLEV = 1, KLEV
+        DO JLAT = statevector % myLatBeg, myLatP1
+          ZFIELD(STATEVECTOR%NI+1,jlev,JLAT) = ZFIELD(1,jlev,JLAT)
         END DO
-!C
-!C     1.2 EXTRA PARALLELS AT NORTH AND SOUTH POLES.
-!C
-        LEVELS: DO JLEV = 1, KLEV
+      END DO
 
-           if(statevector%myLatBeg.eq.1) then
-              DLMEAN = 0.
-              DO JLON = 1, STATEVECTOR%NI
-                 DLMEAN = DLMEAN + ZFIELD(JLON,jlev,1)
-              END DO
-              DLMEAN = DLMEAN / STATEVECTOR%NI
-              DO JLON = 0, STATEVECTOR%NI + 2
-                 ZFIELD(JLON,jlev,0)    = DLMEAN
-              END DO
-           endif
+      !
+      !- 2.  LOOP OVER ALL THE OBSERVATIONS
+      !
+      DO headerIndex = 1, col_getNumCol(LCOLUMN)
 
-           if(statevector%myLatEnd.eq.statevector%nj) then
-              DLMEAS = 0.
-              DO JLON = 1, STATEVECTOR%NI
-                 DLMEAS = DLMEAS + ZFIELD(JLON,jlev,STATEVECTOR%NJ)
-              END DO
-              DLMEAS = DLMEAS / STATEVECTOR%NI
-              DO JLON = 0, STATEVECTOR%NI + 2
-                 ZFIELD(JLON,jlev,STATEVECTOR%NJ+1) = DLMEAS
-              END DO
-           endif
+        if ( col_getTimeInterpWeight(lcolumn,headerIndex,jstep) > 0.0d0 .and. &
+             .not. btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
 
-        END DO LEVELS
-!C     ---------------------------------
-!C*    2. LOOP OVER ALL THE OBSERVATIONS
-!C     ---------------------------------
-!C
-        deltaLon = 2.*MPC_PI_R8/STATEVECTOR%NI
-        DO headerIndex = 1, col_getNumCol(LCOLUMN)
-          if(col_getTimeInterpWeight(lcolumn,headerIndex,jstep).gt.0.0d0.and. &
-             .not.btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
-!C
-!C     *    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
-!C     *    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
-!C     *    TO THE WEST (ILON).
-!C
-            call col_getLatLon(lcolumn,headerIndex,latObs,lonObs,ila)
-           
-            ! Check if obs is to the north of latitude band on this PE (and not at north pole)
-            if(ila.lt.statevector%myLatBeg .and. statevector%myLatBeg.ne.1) then
-              write(*,*) 'oda_L: obs is north of lat band, moving it!'
-              write(*,*) 'oda_L: headerIndex,ila,myLatBeg,latObs,shifted latObs=',  &
-                  headerIndex,ila,statevector%myLatBeg,  &
-                  latObs*MPC_DEGREES_PER_RADIAN_R8,  &
-                  gaus_rlati(statevector%myLatBeg)*MPC_DEGREES_PER_RADIAN_R8
-              ila=statevector%myLatBeg
-              latObs=gaus_rlati(ila)
-            endif
+          !- 2.1 Find the obs position within the analysis grid
+          call col_getLatLon( lcolumn, headerIndex,                & ! IN
+                              Lat, Lon, ypos, xpos, LatRot, LonRot ) ! OUT
 
-            ! Check if obs is to the south of latitude band on this PE (and not at south pole)
-            if(ila.gt.statevector%myLatEnd .and. statevector%myLatEnd.ne.statevector%nj) then
-              write(*,*) 'oda_L: obs is south of lat band, moving it!'
-              write(*,*) 'oda_L: headerIndex,ila,myLatEnd,latObs,shifted latObs=',  &
-                  headerIndex,ila,statevector%myLatEnd,  &
-                  latObs*MPC_DEGREES_PER_RADIAN_R8,  &
-                  gaus_rlati(statevector%myLatEnd+1)*MPC_DEGREES_PER_RADIAN_R8
-              ila=statevector%myLatEnd
-              latObs=gaus_rlati(ila+1)
-            endif
+          !- Make sure we are within bounds
+          if ( ypos < real(statevector % myLatBeg,8) .or. &
+               ypos > real(myLatP1               ,8) .or. &
+               xpos < 1.d0                           .or. &
+               xpos > real(statevector % ni + 1  ,8) ) then
+            write(*,*) 'oda_L: Obs outside local domain for headerIndex = ', headerIndex
+            write(*,*) '       obs lat, lon position               = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
+            write(*,*) '       obs x, y     position               = ', xpos, ypos
+            write(*,*) '       domain x_end, y_start, y_end bounds = ', statevector % ni + 1, statevector % myLatBeg, myLatP1
 
-            IF(lonObs.LT.0.) lonObs = lonObs + 2.*MPC_PI_R8
-            IF(lonObs.GE.2.*MPC_PI_R8) lonObs = lonObs - 2.*MPC_PI_R8
-            ILON = INT(lonObs/deltaLon) + 1
-!C
-!C     *    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
-!C
-            DLDX = lonObs/deltaLon + 1. - ILON
-            DLDY  = (gaus_RLATI(ILA)-latObs)/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
-            DLW1  = (1.-DLDX)*(1.-DLDY)
-            DLW2  = DLDX*(1.-DLDY)
-            DLW3  = (1.-DLDX)*DLDY
-            DLW4  = DLDX*DLDY
-!C
-!C     *    2.3 Interpolate the model state to the obs point
-!C
-            DO JLEV = 1, KLEV
-              column_ptr(JLEV,headerIndex) = column_ptr(JLEV,headerIndex) +  &
-                 col_getTimeInterpWeight(lcolumn,headerIndex,jstep)*  &
-                 ( DLW1*ZFIELD(ILON,JLEV,ILA)    &
-                 + DLW2*ZFIELD(ILON+1,JLEV,ILA)  &
-                 + DLW3*ZFIELD(ILON,JLEV,ILA+1)  &
-                 + DLW4*ZFIELD(ILON+1,JLEV,ILA+1) )
-            END DO
-          endif
-        END DO
+            ! if obs above or below latitude band, move it to the edge of this latitude band
+            if( ypos < real(statevector % myLatBeg,8) ) ypos = real(statevector % myLatBeg,8)
+            if( ypos > real(myLatP1               ,8) ) ypos = real(myLatP1               ,8)
 
-      ENDDO ! JSTEP
+            ! abort if obs is to the left or right of the analysis domain
+            if( xpos < 1.d0                           .or. &
+                xpos > real(statevector % ni + 1  ,8) ) call abort3d('oda_L')
+          end if
 
-      RETURN
-      END subroutine gd2mvo
+          !- 2.2 Find the lower-left grid point next to the observation
+          if ( xpos /= real(statevector % ni + 1,8) ) then
+            ILON = floor(xpos)
+          else
+            ILON = floor(xpos) - 1
+          end if
 
- 
+          if ( ypos /= real(myLatP1,8) ) then
+            ILA = floor(ypos)
+          else
+            ILA = floor(ypos) - 1
+          end if
+
+          !- 2.3 Compute the 4 weights of the bilinear interpolation
+          DLDX = xpos - real(ILON,8)
+          DLDY = ypos - real(ILA,8)
+
+          DLW1 = (1.-DLDX) * (1.-DLDY)
+          DLW2 =     DLDX  * (1.-DLDY)
+          DLW3 = (1.-DLDX) *     DLDY
+          DLW4 =     DLDX  *     DLDY
+
+          !- 2.4 Interpolate the model state to the obs point
+          DO JLEV = 1, KLEV
+            column_ptr(JLEV,headerIndex) = column_ptr(JLEV,headerIndex)  +  &
+                                    col_getTimeInterpWeight(lcolumn,headerIndex,jstep) *  &
+                                    ( DLW1 * ZFIELD(ILON  ,JLEV,ILA  )             &
+                                    + DLW2 * ZFIELD(ILON+1,JLEV,ILA  )             &
+                                    + DLW3 * ZFIELD(ILON  ,JLEV,ILA+1)             &
+                                    + DLW4 * ZFIELD(ILON+1,JLEV,ILA+1) )
+          END DO
+
+        end if
+
+      END DO ! Obs
+
+    END DO ! JSTEP
+
+  END subroutine gd2mvo
+
+!--------------------------------------------------------------------------
+! UVROT2UV
+!--------------------------------------------------------------------------
+  subroutine uvrot2uv (UUvarName,VVvarName,klev)
+    !
+    !- uvrot2uv - Transforms tangential (U,V) wind components at observation
+    !             locations on GEM rotated frame to the real sphere.
+    use WindRotation_mod
+    implicit none
+
+    character(len=*), intent(in) :: UUvarName
+    character(len=*), intent(in) :: VVvarName
+    integer,          intent(in) :: klev
+    
+    real(8) :: lat, lon, latrot, lonrot, xpos, ypos
+    real(8), pointer :: UUcolumn(:), VVcolumn(:)
+
+    integer :: headerIndex
+
+    !
+    !- 1.  Loop over all the observation locations
+    !
+    do headerIndex = 1, col_getNumCol(lcolumn)
+
+      !- 1.1 Extract (rotated) wind profiles
+      UUColumn => col_getColumn(lcolumn,headerIndex,UUvarName)
+      VVColumn => col_getColumn(lcolumn,headerIndex,VVvarName)
+       
+      !- 1.2 Find the latitudes and longitudes
+      call col_getLatLon( lcolumn, headerIndex,                  & ! IN
+                          Lat, Lon, ypos, xpos, LatRot, LonRot )   ! OUT
+
+      !- 1.3 Rotate Winds
+      call uvr_RotateWind( UUColumn, VVColumn,       & ! INOUT
+                           Lat, Lon, LatRot, LonRot, & ! IN
+                           'ToMetWind', klev )         ! IN
+
+    end do
+
+  end subroutine uvrot2uv
+
 end subroutine oda_L

@@ -14,12 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,ig2,statevector,field3d,zes,ztv,zgz,zhu)
+      SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,FlipLatitude,statevector,field3d,zes,ztv,zgz,zhu)
 #if defined (DOC)
 *
 ***s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
-*     .          standard file. N.B.: It is assumed here that arrays
-*                ut0,vt0 contain wind images on entry.
+*     .          standard file.
 *
 *Author  : P. Gauthier *ARMA/AES  June 9, 1992
 *
@@ -35,8 +34,8 @@
 #endif
 C
       use MathPhysConstants_mod
+      use EarthConstants_mod
       use gridStateVector_mod
-      use gaussGrid_mod
       IMPLICIT NONE
       INTEGER klev,kip1
       type(struct_gsv) :: statevector
@@ -47,9 +46,9 @@ C
       real*8 :: zhu(statevector%ni,statevector%nlev,statevector%nj)
       real*8 :: field3d(statevector%ni,statevector%nlev,statevector%nj)
       character(len=*) :: varName
-      logical lplok
+      logical lplok, FlipLatitude
 *
-      INTEGER JLON, JGL,ig2
+      INTEGER JLON, JGL
       REAL*8 ZTEMP, ZGEOP, ZDAM, ZCON, un, dix
 C
       kiP1      =  statevector%vco%ip1_M(klev)
@@ -92,7 +91,7 @@ C
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
             PPTRANS(JLON,JGL) = field3d(JLON,KLEV,JGL)
-     S           *gaus_CONPHY(JGL)*MPC_KNOTS_PER_M_PER_S_R8
+     S           *MPC_KNOTS_PER_M_PER_S_R8
           END DO
         END DO
 C
@@ -102,7 +101,7 @@ C
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
             PPTRANS(JLON,JGL) = field3d(JLON,KLEV,JGL)
-     S           *gaus_CONPHY(JGL)*MPC_KNOTS_PER_M_PER_S_R8
+     S           *MPC_KNOTS_PER_M_PER_S_R8
           END DO
         END DO
 C
@@ -166,15 +165,15 @@ C
         endif
       ENDIF
 C
-      IF ( IG2 .EQ. 0 .and. lplok) THEN
-        DO JLON   = 1, statevector%ni
-          DO JGL = 1, statevector%nj/2
-            ZTEMP=PPTRANS(JLON,JGL)
-            PPTRANS(JLON,JGL)=PPTRANS(JLON,statevector%nj-JGL+1)
-            PPTRANS(JLON,statevector%nj-JGL+1)=ZTEMP
-          ENDDO
-        ENDDO    
-      ENDIF
+      IF (lplok .and. FlipLatitude) THEN
+         DO JLON   = 1, statevector%ni
+            DO JGL = 1, statevector%nj/2
+               ZTEMP = pptrans(JLON,JGL)
+               pptrans(JLON,JGL)                 = pptrans(JLON,statevector%nj-JGL+1)
+               pptrans(JLON,statevector%nj-JGL+1)= ZTEMP
+            end do
+         end do
+      END IF
 C
       RETURN
       END

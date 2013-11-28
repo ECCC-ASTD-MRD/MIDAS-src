@@ -1,35 +1,110 @@
 program calcbmatrix_main
   use mpi
-  use calcbmatrix_nanalvar4_mod
+  use HorizontalCoord_mod
+  use VerticalCoord_mod
+  use calcbmatrix_glb_mod
+  use calcbmatrix_lam_mod
   implicit none
-  integer :: nulnam,ierr,fnom,fclos
+
+  type(struct_vco), pointer :: vco_ens => null()
+  type(struct_hco), pointer :: hco_ens
+
+  character(len=256), parameter :: enspathname = './ensemble'
+  character(len=256) :: ensfilebasename
+  character(len=3)   :: censnumber
+  character(len=256), allocatable :: cflensin(:)
+
+  integer           :: ens, nens
+  integer           :: nulnam, ierr, fnom, fclos
   character(len=20) :: cmode
+
   NAMELIST /NAMCONF/cmode
+  NAMELIST /NAMENS/nens,ensfilebasename
 
-  write(*,*) '!!!!STARTING CALCBMATRIX!!!!'
+  !
+  !- 1.  Initilization
+  !
+  write(*,*)
+  write(*,*) '-----------------------'
+  write(*,*) '> STARTING CALCBMATRIX '
+  write(*,*) '-----------------------'
 
-  mpi_nprocs=1
+  !- 1.1 MPI
+  call mpi_init
 
-  cmode='BNMC'
-  nulnam=0
-  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namconf)
-  write(*,nml=namconf)
+  !- 1.2 Read NAMENS namelist
+  nens            = 96                ! default value
+  ensfilebasename = '2011011918_006_' ! default value
+
+  nulnam = 0
+  ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read (nulnam,nml=namens)
+  write(*     ,nml=namens)
   ierr=fclos(nulnam)
-  
-  select case(trim(cmode))
 
-  case ('BNMC')
-    call calcb_computeStats
+  allocate(cflensin(nens))
+  do ens = 1,nens
+    write(censnumber,'(i3.3)') ens
+    cflensin(ens)= trim(enspathname) // '/' // trim(ensfilebasename) // censnumber
+    write(*,*) 'ensemble file: ',ens, trim(cflensin(ens))
+  end do
 
-  case ('VERTICALCOV')
-    call calcb_diag_verticalcov
+  !- 1.3 Initialize the horizontal grid
+  call hco_SetupFromFile( cflensin(1), ' ', 'Ensemble' ) ! IN
+  hco_ens => hco_Get('Ensemble')
 
-  case default
-    write(*,*) 'Unknown value of CMODE:',cmode
+  !- 1.4 Initialize the vertical grid
+  call vco_SetupFromFile( vco_ens,            & ! OUT
+                          cflensin(1), .true. ) ! IN
 
-  end select
+  !- 1.5 Read NAMCONF namelist to find the mode
+  cmode  = 'BHI'  ! default value
 
-  write(*,*) '!!!!ENDING CALCBMATRIX!!!!'
+  nulnam = 0
+  ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read (nulnam,nml=namconf)
+  write(*     ,nml=namconf)
+  ierr   = fclos(nulnam)
+
+  !
+  !- 2. Select and launch the appropriate mode
+  !
+  if (hco_ens % global) then
+    !- 2.1 Global mode...
+    call calcb_glb_setup( nens, cflensin, hco_ens, vco_ens) ! IN
+
+    select case(trim(cmode))
+    case ('BHI')
+      call calcb_glb_computeStats
+    case ('VERTICALCOV')
+      call calcb_glb_diag_verticalcov
+    case default
+      write(*,*)
+      write(*,*) 'Unknown value of CMODE in global mode: ',cmode
+      stop
+    end select
+
+  else
+    !- 2.2 LAM mode...
+    call calcb_lam_setup( nens, cflensin, hco_ens, vco_ens) ! IN
+    select case(trim(cmode))
+    case ('BHI')
+      call calcb_lam_computeStats
+    case default
+      write(*,*)
+      write(*,*) 'Unknown value of CMODE in lam mode: ',cmode
+      stop
+    end select
+  end if
+
+  !
+  !- 3.  Ending...
+  !
+  deallocate(cflensin)
+
+  write(*,*)
+  write(*,*) '---------------------'
+  write(*,*) '> ENDING CALCBMATRIX '
+  write(*,*) '---------------------'
 
 end program calcbmatrix_main

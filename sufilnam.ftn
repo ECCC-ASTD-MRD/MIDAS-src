@@ -84,7 +84,7 @@
        CLVALU(2) = './obscov'  
        CLVALU(3) = './trlm'  
        CLVALU(4) = './anlm_defunct'
-       CLVALU(5) = './glbcov'  
+       CLVALU(5) = './bgcov'  
        CLVALU(6) = './rebm_notused'  
        CLVALU(7) = './rehm_defunct'  
        CLVALU(8) = '' 

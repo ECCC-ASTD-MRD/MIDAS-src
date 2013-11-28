@@ -35,6 +35,8 @@
       type(struct_gsv) :: statevector
       type(struct_vco), pointer :: vco_anl => null()
       real*8, pointer :: field(:,:,:)
+
+      integer :: gaus_ni, gaus_nj
       integer  fclos,fnom,fstouv,fstfrm,nulfile,newdate,nstamp
       integer  ierr,iseed,istatus
       integer  ji,jj,jmem,jni,jnj,jnk,nkgdim
@@ -98,14 +100,17 @@ c
 !     Initialize variables of the model states
 !
       call gsv_setup
+
 !
 !     Initialize dimensions of the gaussian grid (analysis grid)
 !
-      call gaus_setup
+      call gaus_setup(gaus_ni, gaus_nj) ! OUT
+
 !
 !     Initialize the vertical coordinate from the statistics file
 !
-      call vco_SetupFromFile(vco_anl,'./glbcov',.true.)
+      call vco_SetupFromFile(vco_anl,'./bgcov',.true.)
+
 !
 !     Allocate the statevector
 !

@@ -462,6 +462,7 @@ CONTAINS
 
 
   SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
+    use HorizontalCoord_mod
     implicit none
     ! Argument declarations
     integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -493,6 +494,7 @@ CONTAINS
     type(struct_dataptr) :: dataptr
     type(struct_obs),pointer :: lobsSpaceData
     type(struct_columnData),pointer :: lcolumn,lcolumng
+    type(struct_hco), pointer :: hco_anl
 
     ! Convert the integer array dataptr_int back into a pointer to the obsSpaceData
     dataptr=transfer(dataptr_int(1:dataptr_int_size),dataptr)
@@ -522,7 +524,9 @@ CONTAINS
        call tmg_stop(89)
 
        call gsv_setVco(statevector,col_getVco(lcolumng))
-       call gsv_allocate(statevector,ni,nj,nt,mpi_local=.true.)
+       hco_anl => hco_get('Analysis')
+       call gsv_setHco(statevector,hco_anl)
+       call gsv_allocate(statevector,nt,mpi_local=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 

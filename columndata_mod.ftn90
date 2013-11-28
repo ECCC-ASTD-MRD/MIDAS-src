@@ -33,7 +33,9 @@ module columnData_mod
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
     real*8,pointer    :: lat(:),lon(:)
-    integer,pointer   :: tla(:)
+    real(8),pointer   :: latRot(:),lonRot(:)
+    real(8),pointer   :: ypos(:)
+    real(8),pointer   :: xpos(:)
     type(struct_vco), pointer  :: vco => null()
     integer,pointer   :: varOffset(:),varNumLev(:)
   end type struct_columnData
@@ -193,10 +195,16 @@ module columnData_mod
 
         allocate(column%lat(column%numCol))
         allocate(column%lon(column%numCol))
-        allocate(column%tla(column%numCol))
+        allocate(column%latRot(column%numCol))
+        allocate(column%lonRot(column%numCol))
+        allocate(column%ypos(column%numCol))
+        allocate(column%xpos(column%numCol))
         column%lat(:)=0.0d0
         column%lon(:)=0.0d0
-        column%tla(:)=0
+        column%latRot(:)=0.0d0
+        column%lonRot(:)=0.0d0
+        column%ypos(:)=0.0d0
+        column%xpos(:)=0.0d0
 
         allocate(column%oltv(2,col_getNumLev(column),numCol))
         column%oltv(:,:,:)=0.0d0
@@ -207,7 +215,7 @@ module columnData_mod
         column%timeInterpWeight(:,:)=0.0d0
       endif
  
-      write(*,*) 'col_allocate: numCol, nkgdimo = ',column%numCol,nkgdimo
+      write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
       write(*,*) 'col_allocate: varOffset=',column%varOffset
       write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
@@ -234,7 +242,10 @@ module columnData_mod
         deallocate(column%rppobs_M)
         deallocate(column%lat)
         deallocate(column%lon)
-        deallocate(column%tla)
+        deallocate(column%latRot)
+        deallocate(column%lonRot)
+        deallocate(column%ypos)
+        deallocate(column%xpos)
         deallocate(column%oltv)
         deallocate(column%rtapfac)
         deallocate(column%timeInterpWeight)
@@ -393,7 +404,10 @@ module columnData_mod
         mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)
         column_global%lat(iobs_global)                = column_local%lat(iobs_local)
         column_global%lon(iobs_global)                = column_local%lon(iobs_local)
-        column_global%tla(iobs_global)                = column_local%tla(iobs_local)
+        column_global%latRot(iobs_global)             = column_local%latRot(iobs_local)
+        column_global%lonRot(iobs_global)             = column_local%lonRot(iobs_local)
+        column_global%ypos(iobs_global)                = column_local%ypos(iobs_local)
+        column_global%xpos(iobs_global)                = column_local%xpos(iobs_local)
       enddo
 
       write(*,*) 'starting allreduce'
@@ -415,8 +429,14 @@ module columnData_mod
                               "mpi_double_precision","mpi_sum","GRID",ierr)
       call rpn_comm_allreduce(column_global%lon,column_global%lon,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%tla,column_global%tla,nsize, &
-                              "mpi_integer","mpi_sum","GRID",ierr)
+      call rpn_comm_allreduce(column_global%latRot,column_global%lat,nsize, &
+                              "mpi_double_precision","mpi_sum","GRID",ierr)
+      call rpn_comm_allreduce(column_global%lonRot,column_global%lon,nsize, &
+                              "mpi_double_precision","mpi_sum","GRID",ierr)
+      call rpn_comm_allreduce(column_global%ypos,column_global%ypos,nsize, &
+                              "mpi_double_precision","mpi_sum","GRID",ierr)
+      call rpn_comm_allreduce(column_global%xpos,column_global%xpos,nsize, &
+                              "mpi_double_precision","mpi_sum","GRID",ierr)
 
       do iobs_global=1,column_global%numCol
         column_global%gz_t(col_getNumLev(column_global,'TH'),iobs_global) = mountain(iobs_global)
@@ -543,30 +563,42 @@ module columnData_mod
   end subroutine col_setMountain
 
 
-  subroutine col_getLatLon(column,headerIndex,Lat,Lon,Tla)
+  subroutine col_getLatLon(column, headerIndex, Lat, Lon, &
+                           ypos, xpos, LatRot, LonRot)
     implicit none
+
     type(struct_columnData)             :: column
     integer, intent(in)                 :: headerIndex
-    real*8, intent(out)                  :: Lat,Lon
-    integer, intent(out)                 :: Tla
+    real(8), intent(out)                :: Lat, Lon
+    real(8), intent(out)                :: LatRot, LonRot
+    real(8), intent(out)                :: Ypos, Xpos
 
-    Lat = column%lat(headerIndex)
-    Lon = column%lon(headerIndex)
-    Tla = column%tla(headerIndex)
+    Lat    = column % lat   (headerIndex)
+    Lon    = column % lon   (headerIndex)
+    LatRot = column % latRot(headerIndex)
+    LonRot = column % lonRot(headerIndex)
+    ypos   = column % ypos  (headerIndex)
+    xpos   = column % xpos  (headerIndex)
 
   end subroutine col_getLatLon
 
 
-  subroutine col_setLatLon(column,headerIndex,Lat,Lon,Tla)
+  subroutine col_setLatLon(column, headerIndex, Lat, Lon, &
+                           Ypos, Xpos, LatRot, LonRot)
     implicit none
+
     type(struct_columnData)             :: column
     integer, intent(in)                 :: headerIndex
-    real*8, intent(in)                  :: Lat,Lon
-    integer, intent(in)                 :: Tla
+    real(8), intent(in)                 :: Lat,Lon
+    real(8), intent(in)                 :: LatRot,LonRot
+    real(8), intent(in)                 :: Ypos, Xpos
 
-    column%lat(headerIndex) = Lat
-    column%lon(headerIndex) = Lon
-    column%tla(headerIndex) = Tla
+    column % lat   (headerIndex) = Lat
+    column % lon   (headerIndex) = Lon
+    column % latRot(headerIndex) = LatRot
+    column % lonRot(headerIndex) = LonRot
+    column % ypos  (headerIndex) = Ypos
+    column % xpos  (headerIndex) = Xpos
 
   end subroutine col_setLatLon
 
@@ -576,14 +608,16 @@ module columnData_mod
     type(struct_columnData)             :: column_in,column_out
     integer                             :: headerIndex
 
-    do headerIndex=1,column_in%numCol
-      column_out%lat(headerIndex) = column_in%lat(headerIndex)
-      column_out%lon(headerIndex) = column_in%lon(headerIndex)
-      column_out%tla(headerIndex) = column_in%tla(headerIndex)
-    enddo
+    do headerIndex = 1, column_in % numCol
+      column_out % lat   (headerIndex) = column_in % lat   (headerIndex)
+      column_out % lon   (headerIndex) = column_in % lon   (headerIndex)
+      column_out % latRot(headerIndex) = column_in % latRot(headerIndex)
+      column_out % lonRot(headerIndex) = column_in % lonRot(headerIndex)
+      column_out % ypos  (headerIndex) = column_in % ypos  (headerIndex)
+      column_out % xpos  (headerIndex) = column_in % xpos  (headerIndex)
+    end do
 
   end subroutine col_copyLatLon
-
 
   function col_getAllColumns(column,varName) result(allColumns)
     implicit none
@@ -592,20 +626,23 @@ module columnData_mod
     real*8,pointer                         :: allColumns(:,:)
     integer                                :: ilev1,ilev2
 
-    if(present(varName)) then
-      if(col_varExist(varName)) then
-        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
-        allColumns => column%all(ilev1:ilev2,:)
+    if ( column%numCol > 0 ) then
+      if(present(varName)) then
+        if(col_varExist(varName)) then
+          ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+          allColumns => column%all(ilev1:ilev2,:)
+        else
+          call abort3d('col_getColumn: Unknown variable name! ' // varName)
+        endif
       else
-        call abort3d('col_getColumn: Unknown variable name! ' // varName)
+        allColumns => column%all(:,:)
       endif
     else
-      allColumns => column%all(:,:)
-    endif
+      allColumns => null()
+    end if
 
   end function col_getAllColumns
-
 
   function col_getColumn(column,headerIndex,varName,varType) result(onecolumn)
     implicit none

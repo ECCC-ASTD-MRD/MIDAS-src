@@ -1,10 +1,18 @@
 MODULE GAUSSGRID_MOD
   use MathPhysConstants_mod
   use EarthConstants_mod
-  implicit none
+  implicit none  
   save
+  private
 
-  integer :: gaus_ni,gaus_nj
+  ! Public subroutines
+  public :: gaus_SetupFromHCO, GAUS_SETUP, gaus_find_lat_index
+
+  ! Public Variables
+  public :: gaus_rmu, gaus_rwocs, gaus_r1mu2, gaus_rsqm2, gaus_r1qm2
+  public :: gaus_r1mui, gaus_r1mua, gaus_rwt, gaus_rlati, gaus_rcolat
+  public :: gaus_conphy, gaus_conima 
+
   real*8, allocatable :: gaus_rmu(:)
   real*8, allocatable :: gaus_rwocs(:)
   real*8, allocatable :: gaus_r1mu2(:)
@@ -18,17 +26,153 @@ MODULE GAUSSGRID_MOD
   real*8, allocatable :: gaus_conphy(:)
   real*8, allocatable :: gaus_conima(:)
 
+  integer :: gaus_ni, gaus_nj
+
   contains
 
-  SUBROUTINE GAUS_SETUP(ni_in,nj_in)
+!--------------------------------------------------------------------------
+! gaus_SetupFromHCO
+!--------------------------------------------------------------------------
+  subroutine gaus_SetupFromHCO(hco_in)
+    !
+    !- Initialisation of Gaussian latitudes, weights and related quantities
+    !  using the grid info from horizontalcoord_mod
+    !
+    use HorizontalCoord_mod
+    implicit none
+
+    type(struct_hco), intent(in) :: hco_in
+
+    integer :: njlath, jlat, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy
+    real(8) :: zpisu2
+
+    !
+    !- 1.  Tests on the input grid
+    !
+    if ( trim(hco_in % grtyp) /= 'G' ) then
+      write(6,*)
+      write(6,*) 'gaus_SetupFromHCO: The global analysis grid structure is not from'
+      write(6,*) '                   a gaussian grid! ABORT'
+      write(6,*) 'hco_in % grtyp = ', trim(hco_in % grtyp)
+      stop
+    end if
+
+    if ( (hco_in % lat(2) - hco_in % lat(1)) > 0.0d0 ) then
+      write(6,*)
+      write(6,*) 'gaus_SetupFromHCO: The latitude of the global analysis grid '
+      write(6,*) '                   are NOT ordered from North TO South'
+      stop
+    end if
+
+    !
+    !- 2.  Dimension settings and Memory allocation
+    !
+    gaus_ni = hco_in % ni
+    gaus_nj = hco_in % nj
+
+    write(*,*) 'gaus_ni = ', gaus_ni
+    write(*,*) 'gaus_nj = ', gaus_nj
+
+    allocate(gaus_rmu(gaus_nj))  
+    allocate(gaus_rwt(gaus_nj))
+    allocate(gaus_rwocs(gaus_nj))
+    allocate(gaus_r1mu2(gaus_nj))
+    allocate(gaus_rsqm2(gaus_nj))
+    allocate(gaus_rcolat(gaus_nj))
+    allocate(gaus_r1qm2(gaus_nj))
+    allocate(gaus_r1mui(gaus_nj))
+    allocate(gaus_r1mua(gaus_nj))
+    allocate(gaus_rlati((-1):(gaus_nj+2)))
+!    allocate(gaus_rlati(gaus_nj))
+    allocate(gaus_conphy(gaus_nj))
+    allocate(gaus_conima(gaus_nj))
+
+    call rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
+
+    njlath = (gaus_nj + 1)/2
+    if(my_mpi_id.eq.0) write(*,fmt='(//,6(" ***********"))')
+    if(my_mpi_id.eq.0) write(*,*)'     SUGAUSSGRID: initialisation of Gaussian', &
+         ' latitudes, weights, etc...'
+    if(my_mpi_id.eq.0) write(*,fmt='(6(" ***********"))')
+
+    !     1. GAUSSIAN LATITUDES AND WEIGHTS OVER AN HEMISPHERE
+    !     -------------------------------------------------
+
+    call gauss8(njlath,gaus_rmu(1),gaus_rwt(1),gaus_rsqm2(1),gaus_rcolat(1),gaus_rwocs(1) &
+         ,gaus_r1qm2(1),gaus_r1mui(1),gaus_r1mu2(1))
+
+    do jlat = 1, njlath
+       gaus_rlati(jlat) = asin(gaus_rmu(jlat))
+       gaus_r1mua(jlat) = r1sa*gaus_r1mui(jlat)
+    enddo
+
+    !     2. COMPLETION FOR THE SOUTHERN HEMISPHERE
+    !     --------------------------------------
+
+    do jlat = njlath +1, gaus_nj
+       gaus_rmu(jlat)   =  -gaus_rmu(2*njlath +1 - jlat)
+       gaus_rwocs(jlat) =   gaus_rwocs(2*njlath +1 - jlat)
+       gaus_r1mu2(jlat) =   gaus_r1mu2(2*njlath +1 - jlat)
+       gaus_rsqm2(jlat) =   gaus_rsqm2(2*njlath +1 - jlat)
+       gaus_r1qm2(jlat) =   gaus_r1qm2(2*njlath +1 - jlat)
+       gaus_r1mui(jlat) =   gaus_r1mui(2*njlath +1 - jlat)
+       gaus_r1mua(jlat) =   gaus_r1mua(2*njlath +1 - jlat)
+       gaus_rwt(jlat)   =   gaus_rwt(2*njlath +1 - jlat)
+       gaus_rlati(jlat) = - gaus_rlati (2*njlath +1 - jlat)
+    enddo
+
+    zpisu2 = MPC_PI_R8/2.
+    do jlat = 1, gaus_nj
+       gaus_rcolat(jlat) = zpisu2 - gaus_rlati(jlat)
+    enddo
+
+    !*    3. Overdimensioning for interpolation
+
+    gaus_rlati(-1) =   MPC_PI_R8-gaus_rlati(1)
+    gaus_rlati(0) =   MPC_PI_R8*.5
+    gaus_rlati(gaus_nj+1) =  -MPC_PI_R8*.5
+    gaus_rlati(gaus_nj+2) =   -MPC_PI_R8-gaus_rlati(gaus_nj)
+
+    do jlat = 1, gaus_nj
+         gaus_conphy(jlat) = ra*gaus_r1qm2(jlat)
+         gaus_conima(jlat) = r1sa*gaus_rsqm2(jlat)
+    enddo
+
+    !*    4. Print the content of GAUS
+
+    if(my_mpi_id.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
+    do jlat = 1, gaus_nj
+       if(my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
+            jlat,gaus_rlati(jlat),gaus_rcolat(jlat), gaus_rmu(jlat)  &
+            ,gaus_rwt(jlat),gaus_rwocs(jlat)
+    enddo
+
+    if(my_mpi_id.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
+
+    do jlat = 1, gaus_nj
+       if(my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gaus_r1mu2(jlat),gaus_rsqm2(jlat),gaus_r1qm2(jlat)  &
+            ,gaus_r1mui(jlat),gaus_r1mua(jlat)
+    enddo
+
+  end subroutine gaus_SetupFromHCO
+
+!--------------------------------------------------------------------------
+! gaus_Setup
+!--------------------------------------------------------------------------
+  SUBROUTINE GAUS_SETUP(ni_out, nj_out, ni_in, nj_in)
     !
     ! GAUS_SETUP  - Initialisation of Gaussian latitudes, weights and related
     !               quantities
     implicit none
-    integer, optional :: ni_in,nj_in
+
+    integer, intent(OUT)           :: ni_out, nj_out
+    integer, intent(IN), optional  :: ni_in , nj_in
+
     integer :: ni,nj,nulnam,fnom,fclos,ierr
     integer njlath,jlat,my_mpi_id,my_mpi_idx_dummy,my_mpi_idy_dummy
+
     real*8 zpisu2
+
     NAMELIST /NAMDIM/NI, NJ
 
     if(present(ni_in).and.present(nj_in)) then
@@ -50,6 +194,9 @@ MODULE GAUSSGRID_MOD
 
     gaus_ni=ni
     gaus_nj=nj
+    ni_out=gaus_ni
+    nj_out=gaus_nj
+
     allocate(gaus_rmu(nj))  
     allocate(gaus_rwt(nj))
     allocate(gaus_rwocs(nj))

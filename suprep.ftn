@@ -216,19 +216,6 @@ C
 C
 C     2. Put observation number in each data of CMA file.
 C
-C     Displace observations located between poles and the last row
-C     of the grid being used to the last row. (Do always now, used 
-C     to not do when cvcord=MAM)
-C
-      DO INDEX_HEADER  = 1, obs_numheader(lobsSpaceData)
-        ZLAT    = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-        IF(ZLAT .GT. gaus_RLATI(1)) THEN
-          call obs_headSet_r(lobsSpaceData,OBS_LAT,INDEX_HEADER, gaus_RLATI(1))
-        ELSEIF(ZLAT .LT. gaus_RLATI(gaus_NJ)) THEN
-          call obs_headSet_r(lobsSpaceData,OBS_LAT,INDEX_HEADER, gaus_RLATI(gaus_NJ))
-        ENDIF
-      ENDDO
-C
       IJ=0
       DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
         IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)

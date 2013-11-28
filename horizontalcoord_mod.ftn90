@@ -1,0 +1,436 @@
+!--------------------------------------------------------------------------
+! > MODULE HorizontalCoord (prefix="hco")
+!
+! Purpose: Defined the horizontal grid coordinate for various grids
+!
+!
+! - Subroutines
+!   hco_SetupFromFile (public)
+!   hco_Get           (public)
+!
+! - Public variables
+!   struct_hco
+!
+! - Dependencies
+!   horizontalcoord_mod 
+!--------------------------------------------------------------------------
+module HorizontalCoord_mod
+  use MathPhysConstants_mod
+  implicit none
+  save
+  private
+
+  ! Public Subroutines
+  public :: hco_SetupFromFile, hco_Get
+
+  ! Public Variables
+  public :: struct_hco
+
+  type :: struct_hco
+     character(len=32)    :: gridname
+     logical              :: initialized = .false.
+     integer              :: ni
+     integer              :: nj
+     character(len=1)     :: grtyp
+     integer              :: ig1
+     integer              :: ig2
+     integer              :: ig3
+     integer              :: ig4
+     integer              :: EZscintID
+     real(8), allocatable :: lat(:) ! in degree
+     real(8), allocatable :: lon(:) ! in degree
+     real(8)              :: dlat   ! in degree
+     real(8)              :: dlon   ! in degree
+     logical              :: global
+     logical              :: rotated
+     real(8)              :: xlat1
+     real(8)              :: xlon1
+     real(8)              :: xlat2
+     real(8)              :: xlon2
+  end type struct_hco
+
+  integer, parameter :: nMaxGrid = 2
+  type(struct_hco), target :: hco(nMaxGrid)
+
+  integer :: nGrid = 0
+
+  contains
+
+!--------------------------------------------------------------------------
+! hco_SetupFromFile
+!--------------------------------------------------------------------------
+  subroutine hco_SetupFromFile(TemplateFile, EtiketName, GridName)
+    implicit none
+
+    character(len=*), intent(in) :: TemplateFile
+    character(len=*), intent(in) :: EtiketName
+    character(len=*), intent(in) :: GridName
+
+    real, allocatable :: lat2d_4(:,:)
+    real, allocatable :: lon2d_4(:,:)
+
+    real(8), allocatable :: lat_8(:)
+    real(8), allocatable :: lon_8(:)
+
+    real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
+
+    integer :: iu_template = 0
+    integer :: fnom, fstouv, fstfrm, fclos, ezqkdef, vfstlir
+    integer :: key, fstinf, fstprm, ier, fstinl, EZscintID
+    integer :: ni, nj, ni_t, nj_t, nlev_t, i, j, gdll
+    integer :: dateo, deet, npas, nk, nbits, datyp
+    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    integer :: ig1, ig2, ig3, ig4
+    integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
+
+    logical :: FileExist, global, rotated
+
+    character(len=4 ) :: nomvar
+    character(len=2 ) :: typvar
+    character(len=1 ) :: grtyp, grtyp_tictac
+    character(len=12) :: etiket
+
+    nGrid = nGrid + 1
+
+    if ( nGrid > nMaxGrid ) then
+      write(6,*)
+      write(6,*) 'hco_SetupFromFile: Too many grid coordinates!', nMaxGrid
+      stop
+    end if
+
+    !
+    !- 1.  Open/Check template file
+    !
+    inquire(file=trim(TemplateFile), exist=FileExist)
+
+    if ( FileExist ) then
+      ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
+      if ( ier == 0 ) then
+        write(6,*)
+        write(6,*) 'Template File :', trim(TemplateFile)
+        write(6,*) 'opened as unit file ',iu_template
+        ier = fstouv(iu_template,'RND+OLD')
+      else
+        write(6,*)
+        write(6,*) 'hco_SetupFromFile: Error in opening the template grid file'
+        write(6,*) trim(TemplateFile)
+        stop
+      end if
+    else
+      write(6,*)
+      write(6,*) 'hco_SetupFromFile: template grid file DOES NOT EXIST'
+      write(6,*) trim(TemplateFile)
+      stop
+    end if
+
+    !
+    !- 2.  Get Horizontal grid info
+    !
+
+    !- 2.1 Grid size and grid projection info
+    dateo  = -1
+    etiket = EtiketName
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    typvar = ' '
+    nomvar = 'P0'
+
+    key = fstinf( iu_template,                                & ! IN
+                  ni, nj, nk,                                 & ! OUT
+                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
+
+    if (key < 0) then
+      write(6,*)
+      write(6,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
+      stop
+    end if
+
+    ier = fstprm( key,                                             & ! IN
+                  dateo, deet, npas, ni, nj, nk, nbits,            & ! OUT
+                  datyp, ip1, ip2, ip3, typvar, nomvar, etiket,    & ! OUT
+                  grtyp, ig1, ig2, ig3,                            & ! OUT
+                  ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+
+    if ( trim(grtyp) == 'G' .and. ig2 == 0 ) then
+       write(*,*) 
+       write(*,*) 'The latitute in the input gaussian grid are ordered from SOUTH to NORTH (ig2=0)'
+       write(*,*) '  --> reordering from NORTH to SOUTH (ig2=1)'
+       ig2 = 1
+    end if
+
+    EZscintID  = ezqkdef( ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template )   ! IN
+
+    allocate(lat_8(1:nj))
+    allocate(lon_8(1:ni))
+
+    !- 2.2 Rotated grid
+    if ( trim(grtyp) == 'Z' ) then
+
+       !-  2.2.1 Read the Longitudes
+       dateo  = -1
+       etiket = EtiketName
+       ip1    = ig1
+       ip2    = ig2
+       ip3    = -1
+       typvar = 'X'
+       nomvar = '>>'
+
+       ier = vfstlir( lon_8,                                      & ! OUT 
+                      iu_template,                                & ! IN
+                      ni_t, nj_t, nlev_t,                         & ! OUT
+                      dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+
+       if (ier < 0) then
+         write(6,*)
+         write(6,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
+         stop
+       end if
+
+       !  Test if the dimensions are compatible with the grid
+       if ( ni_t /= ni .or. nj_t /= 1 ) then
+         write(6,*)
+         write(6,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
+         write(6,*) 'Found     :', ni_t, nj_t
+         write(6,*) 'Should be :', ni, 1
+         stop 
+       end if
+
+       !-  2.2.2 Read the latitudes
+       dateo  = -1
+       etiket = EtiketName
+       ip1    = ig1
+       ip2    = ig2
+       ip3    = -1
+       typvar = 'X'
+       nomvar = '^^'
+
+       ier = vfstlir( lat_8,                                      & ! OUT 
+                      iu_template,                                & ! IN
+                      ni_t, nj_t, nlev_t,                         & ! OUT
+                      dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+
+       if (ier < 0) then
+         write(6,*)
+         write(6,*) 'hco_SetupFromFile: Unable to find ^^ grid descriptors'
+         stop
+       end if
+
+       !  Test if the dimensions are compatible with the grid
+       if ( ni_t /= 1 .or. nj_t /= nj ) then
+         write(6,*)
+         write(6,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
+         write(6,*) 'Found     :', ni_t, nj_t
+         write(6,*) 'Should be :', 1, nj
+         stop 
+       end if
+
+       !- 2.2.3 Do we have a rotated grid ?
+       dateo  = -1
+       etiket = EtiketName
+       ip1    = ig1
+       ip2    = ig2
+       ip3    = -1
+       typvar = 'X'
+       nomvar = '^^'
+
+       key = fstinf( iu_template,                                   & ! IN
+                     ni_t, nj_t, nk,                                & ! OUT
+                     dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
+
+       ier = fstprm( key,                                           & ! IN
+                     dateo, deet, npas, ni_t, nj_t, nk, nbits,      & ! OUT
+                     datyp, ip1, ip2, ip3, typvar, nomvar, etiket,  & ! OUT
+                     grtyp_tictac, ig1_tictac, ig2_tictac,          & ! OUT
+                     ig3_tictac, ig4_tictac, swa, lng, dltf,        & ! OUT
+                     ubc, extra1, extra2, extra3 )                    ! OUT
+
+       call cigaxg ( grtyp_tictac,                                  & ! IN
+                     xlat1_4, xlon1_4, xlat2_4, xlon2_4,            & ! OUT
+                     ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac ) ! IN
+
+       if ( xlat1_4 == xlat2_4 .and. xlon1_4 == xlon2_4 ) then
+          rotated = .false.
+       else
+          rotated = .true.
+       end if
+
+    !- 2.3 Gaussian Grid
+    elseif ( trim(grtyp) == 'G' ) then
+
+      !-  2.3.1 Find the latitudes and longitudes
+      allocate(lat2d_4(1:ni,1:nj))
+      allocate(lon2d_4(1:ni,1:nj))
+
+      ier = gdll( EZscintID,       & ! IN
+                  lat2d_4, lon2d_4 ) ! OUT
+
+      lon_8(:) = real(lon2d_4(:,nj/2),8)
+      if (ig2 == 1 .and. (lat2d_4(1,2) - lat2d_4(1,1)) > 0.0d0 ) then 
+        ! Revert latitudes since gdll does not handle properly this grid type
+        do j = 1, nj
+          lat_8(j) = real(lat2d_4(1,nj-j+1),8)
+        end do 
+      else
+        lat_8(:) = real(lat2d_4(1,:),8)
+      end if
+
+      deallocate(lat2d_4)
+      deallocate(lon2d_4)
+
+      ! This grid type is not rotated
+      rotated = .false.
+      xlat1_4 =   0.0
+      xlon1_4 = 180.0
+      xlat2_4 =   0.0
+      xlon2_4 = 180.0
+
+    else
+      write(6,*)
+      write(6,*) 'hco_SetupFromFile: Only grtyp = Z or G are supported !, grtyp = ', trim(grtyp)
+      stop 
+    end if
+
+    !
+    !- 3.  Is this a global or a LAM domain ?
+    !
+    call global_or_lam( global,     & ! OUT
+                        lon_8, ni )   ! IN
+
+    !
+    !- 4.  Initialized Horizontal Grid Structure
+    !
+    allocate(hco(nGrid) % lat(1:nj))
+    allocate(hco(nGrid) % lon(1:ni))
+
+    hco(nGrid) % gridname     = trim(gridname)
+    hco(nGrid) % ni           = ni
+    hco(nGrid) % nj           = nj
+    hco(nGrid) % grtyp        = trim(grtyp) 
+    hco(nGrid) % ig1          = ig1
+    hco(nGrid) % ig2          = ig2
+    hco(nGrid) % ig3          = ig3
+    hco(nGrid) % ig4          = ig4
+    hco(nGrid) % EZscintID    = EZscintID
+    hco(nGrid) % lon(:)       = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
+    hco(nGrid) % lat(:)       = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
+    hco(nGrid) % dlon         = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    hco(nGrid) % dlat         = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    hco(nGrid) % global       = global
+    hco(nGrid) % rotated      = rotated
+    hco(nGrid) % xlat1        = real(xlat1_4,8)
+    hco(nGrid) % xlon1        = real(xlon1_4,8)
+    hco(nGrid) % xlat2        = real(xlat2_4,8)
+    hco(nGrid) % xlon2        = real(xlon2_4,8)
+    hco(nGrid) % initialized  = .true.
+
+    deallocate(lat_8)
+    deallocate(lon_8)
+
+    !
+    !- 4.  Close the input file
+    !
+    ier = fstfrm(iu_template)
+    ier = fclos (iu_template)
+
+  end subroutine hco_SetupFromFile
+
+!--------------------------------------------------------------------------
+! hco_Get
+!--------------------------------------------------------------------------
+  function hco_Get(gridname) result(hco_ptr)
+    implicit none
+
+    type(struct_hco), pointer     :: hco_ptr
+    character(len=*), intent(in)  :: gridname
+
+    integer :: id, gridid
+
+    call hco_GetGridIndex(gridid, gridname)
+
+    hco_ptr => hco(gridid)
+
+  end function hco_Get
+
+!--------------------------------------------------------------------------
+! hco_GetGridIndex
+!--------------------------------------------------------------------------
+  subroutine hco_GetGridIndex(GridIndex, gridname)
+    implicit none
+
+    integer,          intent(out) :: gridindex
+    character(len=*), intent(in)  :: gridname
+
+    integer :: id, gridid
+
+    if ( nGrid == 0 ) then
+      write(6,*)
+      write(6,*) 'hco_GetGridIndex: HorizontalGrid module not initialized'
+      stop
+    endif
+
+    gridid = -1
+    do id = 1, nGrid
+      if ( trim(hco(id) % gridname) == trim(gridname) ) then
+        gridid = id
+        exit
+      end if
+    end do
+
+    if ( gridid /= -1 ) then
+      gridindex = gridid
+    else
+      write(6,*)
+      write(6,*) 'hco_GetGridIndex: Unknown Grid ', trim(gridname)
+      stop
+    end if
+
+  end subroutine hco_GetGridIndex
+
+!--------------------------------------------------------------------------
+! Global_or_lam
+!--------------------------------------------------------------------------
+  subroutine global_or_lam(global, lon, ni)
+    implicit none
+
+    integer, intent(in)  :: ni
+    real(8), intent(in)  :: lon(ni)
+    logical, intent(out) :: global
+
+    real(8) :: dx, next_lon
+
+    dx       = lon(2) - lon(1)
+    next_lon = lon(ni) + dx
+
+    if ( next_lon >= 360.d0 ) next_lon = next_lon - 360.d0
+    
+    write(*,*)
+    write(*,*) 'dx       = ',dx
+    write(*,*) 'lon(ni)  = ',lon(ni)
+    write(*,*) 'next_lon = ',next_lon
+    write(*,*) 'lon(1)   = ',lon(1)
+ 
+    if ( (next_lon > lon(1)-dx/2.d0 .and. next_lon < lon(1)+dx/2.d0) .or. &
+         (lon(1) == lon(ni)) ) then
+
+      global = .true.
+      if ( lon(1) == lon(ni) ) then
+        write(6,*)
+        write(6,*) ' *** Global Grid where i = ni (repetition) '
+      else  
+        write(6,*)
+        write(6,*) ' *** Global Grid where i /= ni '
+      end if
+
+    else
+
+      global = .false.
+      write(6,*)
+      write(6,*) ' *** Limited-Area Grid '
+
+    end if
+
+  end subroutine global_or_lam
+
+end module HorizontalCoord_mod

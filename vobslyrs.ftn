@@ -89,6 +89,14 @@ C
                ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varType),IOBS,varType)
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
+                  !
+                  !- !!! WARNING !!! This obs is above the model lid. 
+                  !  We must turn off its assimilation flag  because the
+                  !  current obs operators cannot deal with this situation (JFC)                  
+                  if(varType.ne.'SF') then
+                     write(*,*) "vobslyrs: Rejecting OBS above model lid, pressure = ", ZLEV," < ",ZPT
+                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+                  endif
                ELSE IF ( ZLEV .GT. ZPB ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,2)
                ELSE
@@ -116,6 +124,14 @@ C
                ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varType)/RG
                IF ( ZLEV .GT. ZPT ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
+                  !
+                  !- !!! WARNING !!! This obs is above the model lid. 
+                  !  We must turn off its assimilation flag  because the
+                  !  current obs operators cannot deal with this situation (JFC)
+                  if(varType.ne.'SF') then
+                     write(*,*) "vobslyrs: Rejecting OBS above model lid, height =", ZLEV," > ",ZPT
+                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+                  endif
                ELSE IF ( ZLEV .LT. ZPB ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,2)
                ELSE
@@ -181,7 +197,7 @@ C
                ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
      &                ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
      &                ITYP.EQ.BUFR_NEHS) THEN
-                 IK = nlev-1
+                 IK = -999  ! obs_lyr not define for surface obs
                ENDIF
                call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA, IK)
             ENDIF

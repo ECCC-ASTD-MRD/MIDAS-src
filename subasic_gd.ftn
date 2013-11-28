@@ -19,6 +19,7 @@
       use mpi
       use gridStateVector_mod
       use columnData_mod
+      use HorizontalCoord_mod
 *
 #if defined (DOC)
 *
@@ -48,6 +49,8 @@
       type(struct_columnData) :: lcolumnhr
 
       type(struct_vco), pointer :: vco_anl, vco_trl
+      type(struct_hco), pointer :: hco_anl
+
       logical ltrial 
       integer datestamp,jfile,jstep
       integer anl_gid,ezqkdef
@@ -87,7 +90,9 @@
 !
 !     Define horizontal analysis grid
 !
-      anl_gid = ezqkdef(statevectorg%ni,statevectorg%nj,'G',0,0,0,0,0)
+      hco_anl => hco_Get('Analysis')
+      anl_gid = hco_anl % EZscintID
+
 !
 !     Read trial fields and interpolate them (horizontal & vertical) to analysis grid
 !
@@ -114,7 +119,7 @@
         if(mpi_myid.eq.(jstep-1)) then
           ps_ptr => gsv_getField(statevectorg,'P0')
           CALL INITGDG2(ps_ptr(:,:,:,1),zpsg,
-     &                  statevectorg%ni,statevectorg%nj,1,0,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,1,CLNOMVAR)
         endif
 !
 !       Temperature
@@ -131,7 +136,7 @@
         if(mpi_myid.eq.(jstep-1)) then
           tt_ptr => gsv_getField(statevectorg,'TT')
           CALL INITGDG2(tt_ptr(:,:,:,1),zttg,
-     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,CLNOMVAR)
         endif
 !
 !       Specific-Humidity
@@ -148,7 +153,7 @@
         if(mpi_myid.eq.(jstep-1)) then
           hu_ptr => gsv_getField(statevectorg,'HU')
           CALL INITGDG2(hu_ptr(:,:,:,1),zqqg,
-     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,0,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,CLNOMVAR)
         endif
 
       enddo ! jstep

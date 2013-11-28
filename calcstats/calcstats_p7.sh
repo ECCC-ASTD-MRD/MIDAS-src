@@ -1,29 +1,58 @@
 #!/bin/ksh
 #
 
-flnml="namelist_ens.nml"
-machine="hadar"
-gest="/users/dor/arma/bue/power7/3dvar_modular/calcb"
-ensdir="/users/dor/arma/bue/power7/3dvar_modular/enkf_2011022200/"
-abs="../../compiledir/calcb_p7.abs_NOMPI"
+# ---------------------------------------
+# Launcher script for calcstats on IBM p7
+# ---------------------------------------
 
+#
+# User-defined options
+#
+flnml="namelist_lam_p7.nml"
+machine="spica"
+gest="/users/dor/arma/gr3/data_gpfs/comparaison_var/new_var/bnmc_step/lam/atelier"
+ensdir="/users/dor/arma/gr3/data_gpfs/comparaison_var/new_var/bnmc_step/lam/training_data/"
+abs="/users/dor/arma/gr3/home1/new_var/branches/varlam/compiledir_calcstats/calcstats_p7.abs_NOMPI"
+npex=1
+npey=1
+openmp=32
+maxcputime=180
+
+#
+# Don't modify below ...
+#
 abs_basename=`basename $abs`
 
-echo "Using namelist file:  " $flnml
-echo "Working machine:      " $machine
-echo "Working directory:    " $gest
-echo "Ensemble directory:   " $ensdir
-echo "Executable file path: " $abs
-echo "Executable file name: " $abs_basename
+echo
+echo "Launching CALCSTATS using..."
+echo
+echo "Using namelist file  :" $flnml
+echo "Working machine      :" $machine
+echo "Working directory    :" $gest
+echo "Ensemble directory   :" $ensdir
+echo "Executable file path :" $abs
+echo "Executable file name :" $abs_basename
+echo "Topology             :" ${npex}x${npey}x${openmp}
+echo
 
+ssh $machine rm -f $gest/*
 scp $flnml ${machine}:${gest}/flnml
 scp $abs ${machine}:${gest}/calcb.abs
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
 ssh $machine ls -l $gest
 
-echo "echo !!STARTING SCRIPT!!" > go_calcstats.sh
-echo "cd $gest " >> go_calcstats.sh
-echo "rm -f *.fst " >> go_calcstats.sh
-echo "./calcb.abs " >> go_calcstats.sh
+cat << EOF > go_calcstats.sh
+ echo "!!STARTING SCRIPT!!"
+ cd $gest
+ ./calcb.abs
+EOF
 
-ord_soumet go_calcstats.sh -mach $machine -mpi -t 7200 -cpus 1x1x32 -listing ${gest} -jn calcb
+cat << EOF > ptopo_nml
+ &ptopo
+  npex=$npex
+  npey=$npey
+/
+EOF
+scp ptopo_nml ${machine}:${gest}
+
+ord_soumet go_calcstats.sh -mach $machine -mpi -t $maxcputime -cpus ${npex}x${npey}x${openmp} -listing ${gest} -jn calcb

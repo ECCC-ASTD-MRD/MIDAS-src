@@ -14,285 +14,402 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
-!
-! s/r sumgomobs
-!
-!     Author  : S. Pellerin ARMA/AES Nov. 1999
-!
-!     Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
-!
-!Arguments: COLUMNG, COLUMNHR
-!
-      use EarthConstants_mod
-      use MathPhysConstants_mod
-      use mpi
-      use gaussGrid_mod
-      use columnData_mod 
-      use obsSpaceData_mod
-      use gridStateVector_mod
-      use minimization_mod, only: min_get_datestamp
-      use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
-      implicit none
+subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
+  !
+  ! s/r sumgomobs
+  !
+  !     Author  : S. Pellerin ARMA/AES Nov. 1999
+  !
+  !     Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
+  !
+  !Arguments: COLUMNG, COLUMNHR
+  !
+  use EarthConstants_mod
+  use MathPhysConstants_mod
+  use mpi
+  use HorizontalCoord_mod
+  use columnData_mod 
+  use obsSpaceData_mod
+  use gridStateVector_mod
+  use minimization_mod, only: min_get_datestamp
+  use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
+  use WindRotation_mod
+  implicit none
 #include "comfilt.cdk"
-      type(struct_columnData) :: lcolumng,lcolumnhr
-      type(struct_obs) :: lobsSpaceData
-      type(struct_vco), pointer :: vco_anl, vco_trl
-      integer ezgprm,fnom,fclos,fstouv,fstfrm
-      integer ezsetopt,gdxyfll,vezgdef, gdllfxy
-      integer jlev,jobs,ierr,iset,jstep,jlatband
-      integer ini, inj,ink,iig1,iig2,iig3,iig4,jvar
-      integer itrlnlev
-      integer idata,idatend,jdata
-      character*1 clgrtyp
-      character*2 cltypvar
-      character*12 cletiket
-      real*8, allocatable :: varInterphr_T(:,:),varInterphr_M(:,:),varInterphr_VV(:,:)
-      real*8, allocatable :: zppobsg(:,:),zppobs_T(:,:),zppobs_M(:,:)
-      real*8, allocatable :: varInterpP0(:,:)
-      real*8, allocatable :: varInterpg_T(:,:),varInterpg_M(:,:)
-      integer ip1_pak_trl,ip1_vco_trl
-      integer nlv_T,nlv_M
-      integer, parameter :: jpnflev = 200
-      integer itrlgid,iip1s(jpnflev),iip2,iip3
-      integer iip1s2(jpnflev*2)
-      integer, allocatable :: idate(:),itime(:)
-      integer :: newdate,nstepanltime
-      integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
-      integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
-      integer, allocatable :: nobs(:),nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
-      integer, allocatable :: nobsgid_mpiglobal(:,:),nobs_mpiglobal(:,:)
-      integer, allocatable :: datestamplist(:)
-      integer :: numColumn_maxmpiglobal
-      real :: lat_r4,lon_r4,xpos_r4,ypos_r4
-      real*8 :: lat_r8,lon_r8
-      integer :: tla
-      character(len=2) :: flnum
-      character(len=128) :: trialfile
-      integer, allocatable :: nultrl(:)
-      integer :: nultrl2
-      logical :: trialExists
-      real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
-      real*8, allocatable ::  dlonfld(:), dlatfld(:)
-      real*8, allocatable ::  dlonfld_mpiglobal(:,:), dlatfld_mpiglobal(:,:)
-      integer :: ig1obs,ig2obs,ig3obs,ig4obs
-      integer status
-      real*8, pointer :: pobsm(:,:,:) => null()
 
-      write(*,*) ' '
-      write(*,*) '-------- ENTERING SUGOMOBS ---------'
-      write(*,*) ' '
-      write(*,*) 'nstepobs=',nstepobs
-      call col_setNumStep(lcolumng,nstepobs)   ! from comfilt.cdk
-!
-!     Ensure that all trial field files exist
-!
-      do jstep = 1, col_getNumStep(lcolumng)
-        write(flnum,'(I2.2)') jstep
-        trialfile='./trlm_'//flnum
-        inquire(file=trialfile,exist=trialExists)
-        if(.not.trialExists) then
-          write(*,*) 'File missing=',trialfile
-          call abort3d('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
-        endif
-      enddo
-!
-!     Vertical coordinate parameters 
-!
-      vco_anl => col_getVco(lcolumng)
-      vco_trl => col_getVco(lcolumnhr)
-      nlv_M = vco_trl%nlev_M
-      nlv_T = vco_trl%nlev_T
-      write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
-      write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
-        vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf1
-!
-!     Compute the maximum number of columns over all processors (latitude bands)
-!
-      call rpn_comm_allreduce(col_getNumCol(lcolumng),numColumn_maxmpiglobal,1,  &
+  type(struct_columnData) :: lcolumng,lcolumnhr
+  type(struct_obs) :: lobsSpaceData
+  type(struct_vco), pointer :: vco_anl, vco_trl
+  type(struct_hco), pointer :: hco_anl
+  
+  integer ezgprm,fnom,fclos,fstouv,fstfrm
+  integer ezsetopt,gdxyfll,vezgdef, gdllfxy
+  integer jlev,jobs,ierr,iset,jstep,jlatband
+  integer ini, inj,ink,iig1,iig2,iig3,iig4,jvar
+  integer itrlnlev
+  integer idata,idatend,jdata
+  
+  character*1 clgrtyp
+  character*2 cltypvar
+  character*12 cletiket
+  
+  real*8, allocatable :: varInterphr_T(:,:),varInterphr_M(:,:),varInterphr_VV(:,:)
+  real*8, allocatable :: zppobsg(:,:),zppobs_T(:,:),zppobs_M(:,:)
+  real*8, allocatable :: varInterpP0(:,:)
+  real*8, allocatable :: varInterpg_T(:,:),varInterpg_M(:,:)
+
+  integer ip1_pak_trl,ip1_vco_trl
+  integer nlv_T,nlv_M
+  integer, parameter :: jpnflev = 200
+  integer itrlgid,iip1s(jpnflev),iip2,iip3
+  integer iip1s2(jpnflev*2)
+  integer, allocatable :: idate(:),itime(:)
+  integer :: newdate,nstepanltime
+  integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
+  integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
+  integer, allocatable :: nobs(:),nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
+  integer, allocatable :: nobsgid_mpiglobal(:,:),nobs_mpiglobal(:,:)
+  integer, allocatable :: datestamplist(:)
+  integer :: numColumn_maxmpiglobal
+
+  real :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xposLowerBoundAnl, xposUpperBoundAnl
+  real*8 :: lat_r8,lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
+  
+  character(len=2) :: flnum
+  character(len=128) :: trialfile
+
+  integer, allocatable :: nultrl(:)
+  integer :: nultrl2
+  
+  logical :: trialExists
+  
+  real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
+  real*8, allocatable ::  dlonfld(:), dlatfld(:)
+  real*8, allocatable ::  dlonfld_mpiglobal(:,:), dlatfld_mpiglobal(:,:)
+  
+  integer :: ig1obs,ig2obs,ig3obs,ig4obs
+  integer status
+  
+  real*8, pointer :: pobsm(:,:,:) => null()
+  
+  integer :: AnalysisGridIndex
+  
+  write(*,*) ' '
+  write(*,*) '-------- ENTERING SUGOMOBS ---------'
+  write(*,*) ' '
+  write(*,*) 'nstepobs=',nstepobs
+  call col_setNumStep(lcolumng,nstepobs)   ! from comfilt.cdk
+
+  !
+  !     Ensure that all trial field files exist
+  !
+  do jstep = 1, col_getNumStep(lcolumng)
+    write(flnum,'(I2.2)') jstep
+    trialfile='./trlm_'//flnum
+    inquire(file=trialfile,exist=trialExists)
+    if(.not.trialExists) then
+      write(*,*) 'File missing=',trialfile
+      call abort3d('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
+    end if
+  end do
+
+  !
+  !     Vertical coordinate parameters 
+  !
+  vco_anl => col_getVco(lcolumng)
+  vco_trl => col_getVco(lcolumnhr)
+  nlv_M = vco_trl%nlev_M
+  nlv_T = vco_trl%nlev_T
+  write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
+  write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
+       vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf1
+
+  !
+  !     Compute the maximum number of columns over all processors (latitude bands)
+  !
+  call rpn_comm_allreduce(col_getNumCol(lcolumng),numColumn_maxmpiglobal,1,  &
                               "MPI_INTEGER","MPI_MAX","GRID",ierr)
-!
-!     Allocate trial field column object and other local arrays
-!
-      if(col_getNumCol(lcolumng).gt.0) then
-        call col_allocate(lcolumnhr,col_getNumCol(lcolumng),mpi_local=.true.)
-        allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
-        allocate(varInterpg_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-        allocate(varInterpg_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-        allocate(varInterpP0(1,col_getNumCol(lcolumng)))
-        allocate(varInterphr_T(nlv_T,col_getNumCol(lcolumng)))
-        allocate(varInterphr_M(nlv_M,col_getNumCol(lcolumng)))
-        allocate(varInterphr_VV(nlv_M,col_getNumCol(lcolumng)))
-        varInterphr_T(:,:)=0.0d0
-        varInterphr_M(:,:)=0.0d0
-        varInterphr_VV(:,:)=0.0d0
-      endif
 
-      allocate(dlonfld(numColumn_maxmpiglobal))
-      allocate(dlatfld(numColumn_maxmpiglobal))
-      allocate(dlonfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
-      allocate(dlatfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
-      allocate(nobsgid(col_getNumStep(lcolumng)))
-      allocate(nobs(col_getNumStep(lcolumng)))
-      allocate(nobs_maxmpiglobal(col_getNumStep(lcolumng)))
-      allocate(datestamplist(col_getNumStep(lcolumng)))
-      allocate(idate(col_getNumStep(lcolumng)))
-      allocate(itime(col_getNumStep(lcolumng)))
-      allocate(nultrl(col_getNumStep(lcolumng)))
-      allocate(nobsgid_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
-      allocate(nobs_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
-!
-!     Open all trial field files (assume 1 file per time step)
-!
-      nultrl(:)=0
-      do jstep=1,col_getNumStep(lcolumng)
-        write(flnum,'(I2.2)') jstep
-        trialfile='./trlm_'//flnum
-        ierr=fnom(nultrl(jstep),trialfile,'RND+OLD+R/O',0)
-        ierr=fstouv(nultrl(jstep),'RND+OLD')
-        write(*,*) 'ITRIAL - File :', trialfile
-        write(*,*) ' opened as unit file ',nultrl(jstep)
-      enddo
-!
-!     Computing date and time of step obs for error message
-!
-      call getstamplist(datestamplist,col_getNumStep(lcolumng),min_get_datestamp())
-      do jstep = 1,col_getNumStep(lcolumng)
-        ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
-        write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
-        if(datestamplist(jstep) == min_get_datestamp()) nstepanltime = jstep
-      enddo
-!
-!     Setting degree of horizontal interpolations
-!
-      ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
-!
-!     The following code replaces the subroutine suobsgid
-!
-      nobs(:) = 0
-      do jvar=1,vnl_numvarmax2D
-        if(gsv_varExist(varNameList2D(jvar))) exit          
-      enddo
-      write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
-      do jstep = 1,col_getNumStep(lcolumng)
-!
-!       Get horizontal grid parameters to be used for all variables
-!
-        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
+  !
+  !     Allocate trial field column object and other local arrays
+  !
+  if(col_getNumCol(lcolumng).gt.0) then
+     call col_allocate(lcolumnhr,col_getNumCol(lcolumng),mpi_local=.true.)
+     allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
+     allocate(varInterpg_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+     allocate(varInterpg_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+     allocate(varInterpP0(1,col_getNumCol(lcolumng)))
+     allocate(varInterphr_T(nlv_T,col_getNumCol(lcolumng)))
+     allocate(varInterphr_M(nlv_M,col_getNumCol(lcolumng)))
+     allocate(varInterphr_VV(nlv_M,col_getNumCol(lcolumng)))
+     varInterphr_T(:,:)=0.0d0
+     varInterphr_M(:,:)=0.0d0
+     varInterphr_VV(:,:)=0.0d0
+  endif
+
+  allocate(dlonfld(numColumn_maxmpiglobal))
+  allocate(dlatfld(numColumn_maxmpiglobal))
+  allocate(dlonfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
+  allocate(dlatfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
+  allocate(nobsgid(col_getNumStep(lcolumng)))
+  allocate(nobs(col_getNumStep(lcolumng)))
+  allocate(nobs_maxmpiglobal(col_getNumStep(lcolumng)))
+  allocate(datestamplist(col_getNumStep(lcolumng)))
+  allocate(idate(col_getNumStep(lcolumng)))
+  allocate(itime(col_getNumStep(lcolumng)))
+  allocate(nultrl(col_getNumStep(lcolumng)))
+  allocate(nobsgid_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
+  allocate(nobs_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
+
+  !
+  !     Open all trial field files (assume 1 file per time step)
+  !
+  nultrl(:)=0
+  do jstep=1,col_getNumStep(lcolumng)
+    write(flnum,'(I2.2)') jstep
+    trialfile='./trlm_'//flnum
+    ierr=fnom(nultrl(jstep),trialfile,'RND+OLD+R/O',0)
+    ierr=fstouv(nultrl(jstep),'RND+OLD')
+    write(*,*) 'ITRIAL - File :', trialfile
+    write(*,*) ' opened as unit file ',nultrl(jstep)
+  end do
+
+  !
+  !     Computing date and time of step obs for error message
+  !
+  call getstamplist(datestamplist,col_getNumStep(lcolumng),min_get_datestamp())
+  do jstep = 1,col_getNumStep(lcolumng)
+    ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
+    write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
+    if(datestamplist(jstep) == min_get_datestamp()) nstepanltime = jstep
+  end do
+
+  !
+  !     Setting degree of horizontal interpolations
+  !
+  ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
+
+  !
+  !-    Get the Analysis Grid structure
+  !
+  hco_anl => hco_Get('Analysis')
+
+  if ( hco_anl % global ) then
+    xposLowerBoundAnl = - huge(1.0) ! no limit since grid is global (periodic)
+    xposUpperBoundAnl = + huge(1.0) ! no limit since grid is global (periodic)
+  else
+    xposLowerBoundAnl = 1.0
+    xposUpperBoundAnl = real(hco_anl % ni)
+  end if
+
+  !
+  !     The following code replaces the subroutine suobsgid
+  !
+  nobs(:) = 0
+  do jvar=1,vnl_numvarmax2D
+    if(gsv_varExist(varNameList2D(jvar))) exit          
+  end do
+
+  write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
+
+  do jstep = 1,col_getNumStep(lcolumng)
+     !
+     !- Get horizontal grid parameters to be used to test grid bounds
+     !
+      call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
              ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev,  &
              nultrl(:),ip1_pak_trl,ip1_vco_trl,col_getNumStep(lcolumng),  &
              nultrl2)
-        if(itrlnlev <= 0) then
-          call abort3d('SUGOMOBS:Problem with background file')
-        endif
-        ierr = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
+      if (itrlnlev <= 0 ) then
+        call abort3d('SUGOMOBS:Problem with background file')
+      end if
+      ierr = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
-        dlonfld(:)=0.0d0
-        dlatfld(:)=0.0d0
-
-        do jobs=1, obs_numheader(lobsSpaceData)
-
-          call getStepObsIndex(stepObsIndex,min_get_datestamp(),  &
+      dlonfld(:)=0.0d0
+      dlatfld(:)=0.0d0
+      
+      do jobs=1, obs_numheader(lobsSpaceData)
+         
+        call getStepObsIndex(stepObsIndex,min_get_datestamp(),  &
                                obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
                                obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
 
-          ! check if obs is outside of assimilation window when jstep = 1
-          if(jstep.eq.1 .and.  &
-            (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(nstepobs,8)) ) then
-            write(*,*) 'sugomobs: Observation time outside assimilation window: ',  &
-                obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
+        ! check if obs is outside of assimilation window when jstep = 1
+        if(jstep.eq.1 .and.  &
+             (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(nstepobs,8)) ) then
+          write(*,*) 'sugomobs: Observation time outside assimilation window: ',  &
+               obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
 
-            ! put the obs in the first time bin (it has to go somewhere!)
-            stepObsIndex=1.0
+          ! put the obs in the first time bin (it has to go somewhere!)
+          stepObsIndex=1.0
 
-            ! flag it as out of time domain and turn off its assimilation flag
-            idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+          ! flag it as out of time domain and turn off its assimilation flag
+          idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
+          do jdata = idata, idatend
+            call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+          end do
+          call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
+               ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
+        end if
+
+        if ( nint(stepObsIndex) == jstep ) then
+
+          nobs(jstep) = nobs(jstep) + 1
+          notag(nobs(jstep),jstep) = jobs
+
+          !- Get LatLon of observation location
+          lat_r8=obs_headElem_r(lobsSpaceData,OBS_LAT,jobs)
+          lon_r8=obs_headElem_r(lobsSpaceData,OBS_LON,jobs)
+          lat_r4=real(lat_r8)
+          lon_r4=real(lon_r8)
+          if (lon_r4.lt.0           ) lon_r4 = lon_r4 + 2*MPC_PI_R4
+          if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2*MPC_PI_R4
+
+          lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
+          lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+
+          !
+          !- Find the position in the analysis grid
+          !
+          ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
+                          lat_deg_r4, lon_deg_r4, 1)
+
+          if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+            ! Revert latitudes since gdxyfll does not handle properly this grid type
+             ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
+          end if
+
+          !- Test if the obs is outside the analysis grid
+          if ( xpos_r4 < xposLowerBoundAnl  .or. &
+               xpos_r4 > xposUpperBoundAnl  .or. &
+               ypos_r4 < 1.0                .or. &
+               ypos_r4 > real(hco_anl % nj) ) then
+
+            if ( hco_anl % global ) then
+              ! We have an observation at or near the poles
+              write(*,*) ''
+              write(*,*) 'sugomobs: Moving OBS inside the GLOBAL ANALYSIS grid, ', jobs
+              write(*,*) '  true position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+
+              !- Move the observation to the nearest grid point
+              if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
+              if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
+
+              ierr = gdllfxy( hco_anl % EZscintID, & ! IN
+                              lat_deg_r4, lon_deg_r4,      & ! OUT
+                              xpos_r4, ypos_r4, 1)   ! IN
+              
+              if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+                ! Revert latitudes since gdllfxy does not handle properly this grid type
+                lat_deg_r4 = -1.0 * lat_deg_r4
+              end if
+              write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+
+              lat_r8 = real(lat_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8
+              lon_r8 = real(lon_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8
+              call obs_headSet_r(lobsSpaceData,OBS_LAT,jobs, lat_r8) ! IN
+              call obs_headSet_r(lobsSpaceData,OBS_LON,jobs, lon_r8) ! IN
+              
+            else
+              ! The observation is outside the domain
+              ! In LAM Analysis mode we must discard this observation
+              write(*,*) 'sugomobs: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
+              write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+
+              idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+              idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
+              do jdata = idata, idatend
+                call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+              end do
+              call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
+                   ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
+            end if
+
+          end if
+
+          !- Convert to rotated grid if needed
+          if (hco_anl % rotated) then
+            call uvr_RotateLatLon( lat_rot, lon_rot,       & ! OUT (radians)
+                                   lat_r8,                 & ! IN  (radians)
+                                   lon_r8,                 & ! IN  (radians)
+                                   'ToLatLonRot')            ! IN
+          else
+            lat_rot = lat_r8
+            lon_rot = lon_r8
+          end if
+
+          !- Store the above 3 pairs of values in column structure
+          ypos_r8 = real(ypos_r4,8)
+          xpos_r8 = real(xpos_r4,8)
+          call col_setLatLon( lcolumng , jobs, lat_r8, lon_r8,   & ! IN
+                              ypos_r8, xpos_r8, lat_rot, lon_rot ) ! IN
+          call col_setLatLon( lcolumnhr, jobs, lat_r8, lon_r8,   & ! IN
+                              ypos_r8, xpos_r8, lat_rot, lon_rot ) ! IN
+
+          !
+          !- Find the position in the trial field grid
+          !
+          ierr=gdxyfll(itrlgid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+
+          if ( xpos_r4 >= 1.0 .and. xpos_r4 <= real(ini) .and.  &
+               ypos_r4 >= 1.0 .and. ypos_r4 <= real(inj) ) then
+ 
+            dlonfld(nobs(jstep)) = lon_r8
+            dlatfld(nobs(jstep)) = lat_r8
+            if(dlonfld(nobs(jstep)).lt.0)  &
+                 dlonfld(nobs(jstep)) = dlonfld(nobs(jstep)) +  &
+                 2*MPC_PI_R8
+            if(dlonfld(nobs(jstep)).ge.2.*MPC_PI_R8)  &
+                 dlonfld(nobs(jstep)) =dlonfld(nobs(jstep)) -  &
+                 2*MPC_PI_R8
+            dlonfld(nobs(jstep))=dlonfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
+            dlatfld(nobs(jstep))=dlatfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
+
+          else
+            ! The observation is outside the domain
+            ! With a LAM trial field we must discard this observation
+            write(*,*) 'sugomobs: Rejecting OBS outside the TRIAL field domain, ', jobs
+            write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
+
+            idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
             idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
             do jdata = idata, idatend
               call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
-            enddo
+            end do
             call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
-              ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
-          endif
+                 ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
 
-          if(nint(stepObsIndex).eq.jstep) then
-
-            nobs(jstep) = nobs(jstep) + 1
-            notag(nobs(jstep),jstep) = jobs
-
-            lat_r8=obs_headElem_r(lobsSpaceData,OBS_LAT,jobs)
-            lon_r8=obs_headElem_r(lobsSpaceData,OBS_LON,jobs)
-            lat_r4=real(lat_r8)
-            lon_r4=real(lon_r8)
-            tla = gaus_find_lat_index(lat_r8)
-
-            call col_setLatLon(lcolumng ,jobs,lat_r8,lon_r8,tla)
-            call col_setLatLon(lcolumnhr,jobs,lat_r8,lon_r8,tla)
-
-            if(lon_r4.lt.0) lon_r4 = lon_r4 + 2*MPC_PI_R4
-            if(lon_r4.ge.2.*MPC_PI_R4) lon_r4 =lon_r4 - 2*MPC_PI_R4
-            lat_r4=lat_r4*MPC_DEGREES_PER_RADIAN_R4
-            lon_r4=lon_r4*MPC_DEGREES_PER_RADIAN_R4
-            ierr=gdxyfll(itrlgid, xpos_r4, ypos_r4, lat_r4, lon_r4, 1)
-
-            if(xpos_r4.ge.1.0 .and. xpos_r4.le.real(ini) .and.  &
-               ypos_r4.ge.1.0 .and. ypos_r4.le.real(inj)) then
- 
-              dlonfld(nobs(jstep)) = lon_r8
-              dlatfld(nobs(jstep)) = lat_r8
-              if(dlonfld(nobs(jstep)).lt.0)  &
-                   dlonfld(nobs(jstep)) = dlonfld(nobs(jstep)) +  &
-                   2*MPC_PI_R8
-              if(dlonfld(nobs(jstep)).ge.2.*MPC_PI_R8)  &
-                   dlonfld(nobs(jstep)) =dlonfld(nobs(jstep)) -  &
-                   2*MPC_PI_R8
-              dlonfld(nobs(jstep))=dlonfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
-              dlatfld(nobs(jstep))=dlatfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
-
-            else
-              ! The observation is outside the domain
-              ! In LAM mode we must discard this observation
-              write(*,*) "sugomobs: Rejecting OBS outside domain"
-              write(*,*) jobs, xpos_r4, ypos_r4, lat_r4, lon_r4
-
-              idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
-              idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
-              do jdata = idata, idatend
-                 call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
-              enddo
-              call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
-                   ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
-
-              ! However, we must assigned a realistic lat-lon to this point
-              ! to avoid problem later in Hx computation.
-              ierr=gdllfxy(itrlgid, lat_r4, lon_r4, real(ini)/2.0,  &
+            ! However, we must assigned a realistic lat-lon to this point
+            ! to avoid problem later in Hx computation.
+            ierr=gdllfxy(itrlgid, lat_deg_r4, lon_deg_r4, real(ini)/2.0,  &
                    real(inj)/2.0, 1) ! Middle of the domain
-              dlonfld(nobs(jstep)) = real(lon_r4,8)
-              dlatfld(nobs(jstep)) = real(lat_r4,8)
-            endif
+            dlonfld(nobs(jstep)) = real(lon_deg_r4,8)
+            dlatfld(nobs(jstep)) = real(lat_deg_r4,8)
+          end if
 
-          endif
-        enddo ! jobs
+        end if
+      end do ! jobs
 
-        ! gather and compute the max number of obs over all processors for each timestep
-        call rpn_comm_allreduce(nobs(jstep),nobs_maxmpiglobal(jstep),1,  &
-                                "MPI_INTEGER","MPI_MAX","GRID",ierr)
-        call rpn_comm_allgather(nobs(jstep),1,"mpi_integer",       &
-                                nobs_mpiglobal(jstep,:),1,"mpi_integer", &
-                                "GRID",ierr)
-        ! gather lon-lat of observations from all processors
-        call rpn_comm_allgather(dlonfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
-                                dlonfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
-                                "GRID",ierr)
-        call rpn_comm_allgather(dlatfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
-                                dlatfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
-                                "GRID",ierr)
+      ! gather and compute the max number of obs over all processors for each timestep
+      call rpn_comm_allreduce(nobs(jstep),nobs_maxmpiglobal(jstep),1,  &
+                              "MPI_INTEGER","MPI_MAX","GRID",ierr)
+      call rpn_comm_allgather(nobs(jstep),1,"mpi_integer",       &
+                              nobs_mpiglobal(jstep,:),1,"mpi_integer", &
+                              "GRID",ierr)
+      ! gather lon-lat of observations from all processors
+      call rpn_comm_allgather(dlonfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
+                              dlonfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
+                              "GRID",ierr)
+      call rpn_comm_allgather(dlatfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
+                              dlatfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
+                              "GRID",ierr)
 
-        zig1 = 0.0D0
-        zig2 = 0.0D0
-        zig3 = 1.0D0
-        zig4 = 1.0D0
-        call vcxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
+      zig1 = 0.0D0
+      zig2 = 0.0D0
+      zig3 = 1.0D0
+      zig4 = 1.0D0
+      call vcxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
 
 !        if (nobs(jstep).gt.0) then
 !          nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,  &
@@ -302,22 +419,23 @@
 !          nobsgid(jstep) = -999
 !        endif
 
-        do jlatband = 1,mpi_nprocs
-          if (nobs_mpiglobal(jstep,jlatband).gt.0) then
-            nobsgid_mpiglobal(jstep,jlatband) = vezgdef(nobs_mpiglobal(jstep,jlatband),  &
+      do jlatband = 1,mpi_nprocs
+        if (nobs_mpiglobal(jstep,jlatband).gt.0) then
+           nobsgid_mpiglobal(jstep,jlatband) = vezgdef(nobs_mpiglobal(jstep,jlatband),  &
                  1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,  &
                  dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatband),jlatband),  &
                  dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatband),jlatband))
-          else
-            write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatband
-            nobsgid_mpiglobal(jstep,jlatband) = -999
-          endif
-        enddo
+        else
+          write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatband
+          nobsgid_mpiglobal(jstep,jlatband) = -999
+        end if
+      end do
 
-      enddo ! jstep
-!
-!     reading 2D fields
-!
+    end do ! jstep
+
+    !
+    !     reading 2D fields
+    !
       do jvar=1,vnl_numvarmax2D
         if(.not.gsv_varExist(varNameList2D(jvar))) cycle
 
@@ -332,65 +450,70 @@
         endif
 
       enddo
-!
-!     Derive the pressure fields at observation points from the hybrid
-!     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
-!     analysis increment and the surface pressure of the trial field
-!
+
+      !
+      !     Derive the pressure fields at observation points from the hybrid
+      !     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
+      !     analysis increment and the surface pressure of the trial field
+      !      
       if(col_getNumCol(lcolumng).gt.0) then
-        do jobs = 1,col_getNumCol(lcolumng)
-          varInterpP0(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
-        enddo
 
-        if (associated(pobsm))  deallocate(pobsm)
-        status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,  &
-                          sfc_field=varInterpP0,in_log=.false.)      
-        if(status.ne.VGD_OK) then
-           call abort3d('ERROR with vgd_levels for desired levels ')
-        endif
-        allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-        zppobsg = transpose(pobsm(1,:,:))
-        call col_fillmvo(lcolumng,'PP','NA',zppobsg)
+         do jobs = 1,col_getNumCol(lcolumng)
+            varInterpP0(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
+         enddo
 
-        do jlev = 1,col_getNumLev(lcolumng)
-          write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
-                     jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
-        enddo
+         if (associated(pobsm))  deallocate(pobsm)
+         status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,  &
+              sfc_field=varInterpP0,in_log=.false.)      
+         if(status.ne.VGD_OK) then
+            call abort3d('ERROR with vgd_levels for desired levels ')
+         endif
+         allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
+         zppobsg = transpose(pobsm(1,:,:))
+         call col_fillmvo(lcolumng,'PP','NA',zppobsg)
 
-!       Calculate profiles of pressure values at station location
+         do jlev = 1,col_getNumLev(lcolumng)
+            write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
+                 jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
+         end do
 
-        write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
-        write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
-        write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
+         !     Calculate profiles of pressure values at station location
 
-!       General treatment of trial field 
-!       addition for BGCK unstagered mode
-        if (vco_trl%iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
+         write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
+         write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
+         write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
 
-!       Compute Pressure fields at desired levels
-        if (associated(pobsm))  deallocate(pobsm)
-        status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,  &
-                          levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
-        if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-        allocate(zppobs_M(nlv_M,col_getNumCol(lcolumng)))
-        zppobs_M = transpose(pobsm(1,:,:))
-        call col_fillmvo(lcolumnhr,'PP','MM',zppobs_M)
+         !     General treatment of trial field 
+         !     addition for BGCK unstagered mode
+         if (vco_trl%iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
 
-        if (associated(pobsm))  deallocate(pobsm)
-        status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,  &
-                          levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
-        if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-        allocate(zppobs_T(nlv_T,col_getNumCol(lcolumng)))
-        zppobs_T = transpose(pobsm(1,:,:))
-        call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T)
-      endif
-!      
-!     Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
-!
+      !     Compute Pressure fields at desired levels
+         if (associated(pobsm))  deallocate(pobsm)
+         status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,  &
+                           levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
+         if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+         allocate(zppobs_M(nlv_M,col_getNumCol(lcolumng)))
+         zppobs_M = transpose(pobsm(1,:,:))
+         call col_fillmvo(lcolumnhr,'PP','MM',zppobs_M)
+         
+         if (associated(pobsm))  deallocate(pobsm)
+         status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,  &
+                           levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
+         if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+         allocate(zppobs_T(nlv_T,col_getNumCol(lcolumng)))
+         zppobs_T = transpose(pobsm(1,:,:))
+         call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T)
+
+      end if
+
+      !      
+      !     Variable GZ qui se trouve sur les niveaux momentum et thermodynamiques
+      !
       write(*,*)' ----- Initializing GZ ----'
-!
-!     Lire les GZ des niveaux Momentum
-!
+
+      !
+      !     Lire les GZ des niveaux Momentum
+      !
       call readTrialField4(varInterphr_M,varInterphr_VV,'GZ','MM')
 
       if(col_getNumCol(lcolumng).gt.0) then       
@@ -403,9 +526,10 @@
           write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
         enddo
       endif
-!
-!     Lire les GZ des niveaux Thermodynamique
-!
+
+      !
+      !     Lire les GZ des niveaux Thermodynamique
+      !
       call readTrialField4(varInterphr_T,varInterphr_VV,'GZ','TH')
 
       if(col_getNumCol(lcolumng).gt.0) then       
@@ -416,16 +540,18 @@
           write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
         enddo
       endif
-!
-!     Now all of the other 3D variables
-!
+
+      !
+      !     Now all of the other 3D variables
+      !
       do jvar=1, vnl_numvarmax3D
+
         if(.not.gsv_varExist(varNameList3D(jvar))) cycle
 
         select case ( varNameList3D(jvar) )
-!
-!       Variables sur les niveaux momentum
-!
+           !
+           !       Variables sur les niveaux momentum
+           !
         case ('UU')
           write(*,*)' '
           write(*,*)' ----- Initializing UU and VV  ----'
@@ -458,9 +584,10 @@
             varInterphr_VV(:,:)=varInterphr_VV(:,:)*MPC_M_PER_S_PER_KNOT_R8
             call col_fillmvo(lcolumnhr,'VV  ','MM',varInterphr_VV)
           endif
-!
-!       Variable sur les niveaux thermodynamiques
-!
+
+          !
+          !       Variable sur les niveaux thermodynamiques
+          !
         case ('TT','HU')
           write(*,*)' '
           write(*,*)' ----- Initializing ',varNameList3D(jvar),' ----'
@@ -495,34 +622,39 @@
 
         end select 
       enddo
-!
-!     Initialisation of TLM operators
-!
+
+      !
+      !- Initialisation of TLM operators
+      !
       call subasic_obs(lcolumng)
-!
-!     Using T, q and PS to compute GZ for columng
-!
+
+      !
+      !- Using T, q and PS to compute GZ for columng
+      !
       do jobs = 1, col_getNumCol(lcolumng)
         call col_setMountain(lcolumng ,jobs,col_getMountain(lcolumnhr,jobs))
       enddo
       call tt2phi(lcolumng)
-!
-!     Using T, q and PS to compute GZ for columnhr
-!
+
+      !
+      !- Using T, q and PS to compute GZ for columnhr
+      !
       if(vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
         call tt2phi(lcolumnhr)
       endif
-!
-!     Close the files
-!
+
+      !
+      !- Close the files
+      !
       do jstep=1,col_getNumStep(lcolumng)
         ierr=fstfrm(nultrl(jstep))  
         ierr=fclos(nultrl(jstep))  
       enddo
-!
-!     Deallocate the local arrays
-!      
-      if(col_getNumCol(lcolumng).gt.0) then       
+
+      !
+      !- Deallocate the local arrays
+      !
+            if(col_getNumCol(lcolumng).gt.0) then       
         deallocate(notag)
         deallocate(varInterpg_T)
         deallocate(varInterpg_M)
@@ -554,7 +686,7 @@
 !--------------------------------------------------------------------------------
       CONTAINS
 
-            subroutine readTrialField4(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
+      subroutine readTrialField4(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
 !
 ! s/r readTrialField
 !
@@ -713,7 +845,6 @@
 
           enddo
 
-          call tmg_start(19,'SUGOMOBS_COMM')
           do jlatband = 1,mpi_nprocs
             if (nobs_mpiglobal(jstep,jlatband).gt.0) then
               do jlev = 1,nlevel
@@ -757,7 +888,6 @@
               enddo
             endif
           enddo
-          call tmg_stop(19)
 
           do jlev = 1,nlevel
             do jobs = 1, nobs(jstep)

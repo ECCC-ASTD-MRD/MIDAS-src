@@ -20,6 +20,7 @@ MODULE gridStateVector_mod
   use mpi
   use varNameList_mod
   use verticalCoord_mod
+  use horizontalCoord_mod
   use MathPhysConstants_mod
   implicit none
   save
@@ -30,7 +31,8 @@ MODULE gridStateVector_mod
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist, gsv_getOffsetFromVarName
-  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_getVco, gsv_setVco, gsv_add
+  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_add
+  public :: gsv_getVco, gsv_setVco, gsv_getHco, gsv_setHco
   public :: gsv_commLat, gsv_commLatAd, gsv_commMPIGlobal, gsv_commMPIGlobal3D
 
   ! public entities accessed through inheritance
@@ -49,6 +51,7 @@ MODULE gridStateVector_mod
     integer, pointer    :: dateStamp3d
     logical             :: allocated=.false.
     type(struct_vco),pointer   :: vco => null()
+    type(struct_hco),pointer   :: hco => null()
     integer,pointer     :: varOffset(:),varNumLev(:)
     logical             :: mpi_local=.false.
   end type struct_gsv  
@@ -173,18 +176,18 @@ MODULE gridStateVector_mod
   END SUBROUTINE gsv_setup
 
 
-  SUBROUTINE gsv_allocate(statevector,ni,nj,numStep,nlev_M,nlev_T,dateStamp,mpi_local)
+  SUBROUTINE gsv_allocate(statevector,numStep,nlev_M,nlev_T,dateStamp,mpi_local)
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer, intent(in) :: ni,nj,numStep
+    integer, intent(in) :: numStep
     integer, optional   :: nlev_M,nlev_T,dateStamp
     integer             :: ierr,iloc,jvar,jvar2,jstep,lat1
     integer             :: myLatHalfBeg,myLatHalfEnd
     logical, optional   :: mpi_local
 
-    statevector%ni=ni
-    statevector%nj=nj
+    statevector%ni=statevector%hco%ni
+    statevector%nj=statevector%hco%nj
     statevector%numStep=numStep
     if(present(mpi_local)) then
       statevector%mpi_local=mpi_local
@@ -193,13 +196,13 @@ MODULE gridStateVector_mod
     endif
 
     if(statevector%mpi_local) then
-      call mpi_setup_latbands(nj,statevector%latPerPE,statevector%myLatBeg, &
+      call mpi_setup_latbands(statevector%hco%nj,statevector%latPerPE,statevector%myLatBeg, &
                               statevector%myLatEnd,myLatHalfBeg,myLatHalfEnd)
     else
       statevector%mpi_local=.false.
-      statevector%latPerPE=nj
+      statevector%latPerPE=statevector%hco%nj
       statevector%myLatBeg=1
-      statevector%myLatEnd=nj
+      statevector%myLatEnd=statevector%hco%nj
     endif
     
     select case (ANLTIME_BIN)
@@ -273,9 +276,9 @@ MODULE gridStateVector_mod
     !write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev(:)
 
     if(statevector%mpi_local) then
-      allocate(statevector%gd(ni,statevector%nk,statevector%myLatBeg:(statevector%myLatEnd+1),numStep),stat=ierr)
+      allocate(statevector%gd(statevector%hco%ni,statevector%nk,statevector%myLatBeg:(statevector%myLatEnd+1),numStep),stat=ierr)
     else
-      allocate(statevector%gd(ni,statevector%nk,nj,numStep),stat=ierr)
+      allocate(statevector%gd(statevector%hco%ni,statevector%nk,statevector%hco%nj,numStep),stat=ierr)
     endif
     if(ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
@@ -690,5 +693,23 @@ MODULE gridStateVector_mod
     statevector%vco => vco_ptr
 
   end subroutine gsv_setVco
+
+  function gsv_getHco(statevector) result(hco_ptr)
+    implicit none
+    type(struct_gsv)          :: statevector
+    type(struct_hco), pointer :: hco_ptr
+
+    hco_ptr => statevector%hco
+
+  end function gsv_getHco
+
+  subroutine gsv_setHco(statevector,hco_ptr)
+    implicit none
+    type(struct_gsv)          :: statevector
+    type(struct_hco), pointer :: hco_ptr
+
+    statevector%hco => hco_ptr
+
+  end subroutine gsv_setHco
 
 END MODULE gridStateVector_mod

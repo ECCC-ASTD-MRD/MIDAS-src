@@ -1,0 +1,184 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
+  !
+  !
+  !**s/r INITGDG2  - Transfer input grid-point trial fields (from RPN file)
+  !                  to analysis grid fields.
+  !
+  !Arguments
+  !     i : PIN(KNI,KNJ,knk) : field to be transferred
+  !     i : KNI, KNJ,KNK     : equivalent to NI, NJ. Used to dimension PTRANS
+  !     i : varName          : variable type being transfer
+  !
+  !     o : POUT(KNI,KNK,KNJ) : field to be filled
+  !
+  !
+  use MathPhysConstants_mod
+  use EarthConstants_mod
+  IMPLICIT NONE
+ 
+  INTEGER,          intent(in)  :: KNI, KNJ,KNK
+  CHARACTER(len=*), intent(in)  :: varName
+  REAL(8),          intent(in)  :: PIN(KNI,KNJ,knk)
+  real(8),          intent(out) :: POUT(KNI,KNK,KNJ)
+  !
+  INTEGER JI, JJ,jlev
+  REAL*8 ZCON
+  !
+  IF ( trim(varName) == 'CC') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj) = pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'PP') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj) = pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'GP') THEN
+     ZCON = 10.*RG
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj) = pin(JI,JJ,JLEV)*ZCON
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'GB') THEN
+     ZCON = 10.*RG
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj) = pin(JI,JJ,JLEV)*ZCON
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'TT') THEN
+     ZCON = MPC_K_C_DEGREE_OFFSET_R8
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV) +ZCON
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'UT') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'VT') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'GZ') THEN
+     ZCON = 10.*RG
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)*ZCON
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'ES') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'LQ') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'HU') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)= max(pin(JI,JJ,JLEV),MPC_MINIMUM_HU_R8)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'O3') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           end do
+        end do
+     end do
+  ELSE IF ( trim(varName) == 'P0') THEN
+     zcon = 1.e2
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=zcon*pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'PT') THEN
+     zcon = 1.e2
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)= anint(zcon*pin(JI,JJ,JLEV))
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'LP') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE IF ( trim(varName) == 'UP') THEN
+     DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
+           END DO
+        END DO
+     end do
+  ELSE
+     write(*,*) ''
+     write(*,*) 'initgd2 : Unknown Variable ', trim(varName)
+     stop
+  END IF
+
+  RETURN
+END SUBROUTINE INITGDG2

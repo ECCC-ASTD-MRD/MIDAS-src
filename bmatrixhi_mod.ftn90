@@ -267,7 +267,7 @@ CONTAINS
     integer ierr,iulbgsto
     integer fnom,fstouv,fstfrm,fclos
     logical lExists
-    character(len=8) :: bFileName = './glbcov'
+    character(len=8) :: bFileName = './bgcov'
 
     !write(*,*) 'SUNEWSTAT: set-up of the background error statistics'
 
@@ -715,7 +715,6 @@ CONTAINS
 
     ! compute square-root of corns
     do in=0,ntrunc_l
-
       do ij=1,nksdim2_l
          do ii=1,nksdim2_l
             eigen(ii,ij)=corns(ii,ij,in)
@@ -1740,6 +1739,9 @@ CONTAINS
 
     deallocate(gd_out)
 
+    !    Conversion of wind images to physical winds
+    call uvwi2uv(statevector)
+
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'bhi_bsqrt: done'
     call flush(6)
@@ -1763,6 +1765,9 @@ CONTAINS
 
     write(*,*) 'bhi_bsqrtad: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !- Conversion of physical winds to wind images
+    call uvwi2uv(statevector) ! INOUT
 
     allocate(gd_in(ni_l,nkgdim_l,myLatBeg:myLatEnd))
 
@@ -2556,5 +2561,46 @@ CONTAINS
     deallocate(rstddev)
 
   END SUBROUTINE BHI_Finalize
+
+  !--------------------------------------------------------------------------
+  ! uvwi2uv
+  !--------------------------------------------------------------------------
+  subroutine uvwi2uv(statevector)
+    !
+    ! s/r uvwi2uv: conversion of wind images to physical winds
+    ! (Remark: this subroutine is self-adjoint)
+    !
+    use gaussGrid_mod
+    implicit none
+    type(struct_gsv) :: statevector
+
+    integer ji,jj,jk,jstep
+    integer jlev,jlat,jlon,lat1,lat2
+
+    real*8, pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
+    
+    uu_ptr => gsv_getField(statevector,'UU')
+    vv_ptr => gsv_getField(statevector,'VV')
+    
+    lat1 = statevector % myLatBeg
+    lat2 = statevector % myLatEnd
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
+    do jlat = lat1, lat2
+      do jstep = 1, statevector % numStep
+        do jlev = 1, statevector % nlev
+          do jlon = 1, statevector % ni
+            uu_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * uu_ptr(jlon,jlev,jlat,jstep)
+            vv_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * vv_ptr(jlon,jlev,jlat,jstep)
+          end do
+        end do
+      end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    RETURN
+  END SUBROUTINE uvwi2uv
 
 END MODULE BmatrixHI

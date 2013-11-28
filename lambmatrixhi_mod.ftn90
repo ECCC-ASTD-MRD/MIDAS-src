@@ -1,0 +1,1110 @@
+!--------------------------------------------------------------------------
+! > MODULE LamBMatrixHI (prefix="lbhi")
+!
+! Purpose: Performs transformation from control vector to analysis increment 
+!          using the homogeneous and isotropic background error covariance 
+!          matrix
+!
+! - Subroutines
+!    lbhi_Setup        (public)
+!    lbhi_Bsqrt        (public)
+!    lbhi_BsqrtAdj     (public)
+!    lbhi_Finalize     (public)
+!    lbhi_expandToMPIglobal  (public)
+!    lbhi_reduceToMPIlocal   (public)
+!
+! - Public variables
+!    NONE
+!
+! - Dependencies
+!    lamspectraltransform
+!--------------------------------------------------------------------------
+module LamBMatrixHI_mod
+  use HorizontalCoord_mod
+  use VerticalCoord_mod
+  use LamSpectralTransform_mod
+  use GridStateVector_mod
+  use LamAnalysisGrid_mod
+  implicit none
+  save
+  private
+
+  public :: lbhi_Setup, lbhi_bSqrt, lbhi_bSqrtAdj, lbhi_Finalize
+  public :: lbhi_expandToMPIglobal, lbhi_reduceToMPIlocal
+
+  type  :: lbhi_cv
+     character(len=4)      :: NomVar
+    character(len=1)      :: GridType ! T=Thermo, M=Momentum, N=Non-staggered
+    integer               :: nlev
+    integer               :: kDimStart
+    integer               :: kDimEnd
+    real(8), allocatable  :: GpStdDev(:,:,:)
+    integer, allocatable  :: ip1(:)
+  end type lbhi_cv
+
+  integer,parameter    :: nMaxControlVar = 10
+  type(lbhi_cv)        :: ControlVariable(nMaxControlVar)
+
+  type(struct_hco), pointer :: hco_bhi    ! Analysis horizontal grid parameters
+  type(struct_lst)     :: lst_bhi    ! Spectral transform Parameters
+  type(struct_hco)     :: hco_bstats ! Grid-point std dev horizontal grid parameters
+
+  real(8), allocatable :: bsqrt  (:,:,:)  ! B^1/2
+
+  integer              :: nControlVariable
+  integer              :: trunc
+  integer              :: nksdim
+  integer              :: nkgdim
+  integer              :: cvDim
+  integer              :: cvDim_mpiglobal
+  
+  integer              :: nlev_M
+  integer              :: nlev_T
+
+  logical              :: regrid
+  logical              :: initialized = .false.
+
+  integer              :: LatPerPE, myLatBeg, myLatEnd
+
+contains
+
+!--------------------------------------------------------------------------
+! LBHI_SETUP
+!--------------------------------------------------------------------------
+  subroutine lbhi_Setup( hco_anl_in, vco_anl_in, cvDim_out )
+    use mpi
+    implicit none
+
+    type(struct_hco), pointer, intent(in)    :: hco_anl_in
+    type(struct_vco), pointer, intent(in)    :: vco_anl_in
+    integer,          intent(out)   :: cvDim_out
+
+    character(len=8), parameter     :: BStatsFilename = './bgcov'
+
+    integer  :: numvar3d
+    integer  :: numvar2d
+    integer  :: var
+    integer  :: ntrunc
+
+    integer  :: iu_bstats = 0
+    integer  :: iu_flnml = 0
+
+    integer  :: ier, fnom, fstouv, fstfrm, fclos
+
+    logical  :: FileExist
+
+    !namelist
+    NAMELIST /NAMBHI/ntrunc
+
+    write(*,*)
+    write(*,*) 'lbhi_Setup: Starting...'
+
+    !
+    !- 0.  Read namelist options
+    !
+    ier = fnom(iu_flnml,'./flnml','FTN+SEQ+R/O',0)
+    write(*,*)
+    write(*,*) 'lbhi_setup: Reading namelist, ier = ',ier
+    read(iu_flnml,nml=nambhi)
+    write(*,nml=nambhi)
+    ier = fclos(iu_flnml)
+
+    trunc = ntrunc
+
+    write(*,*)
+    write(*,*) 'Spectral TRUNCATION = ', trunc
+
+    !
+    !- 1.  Open the background stats file
+    !
+    inquire(file=trim(BStatsFilename), exist=FileExist)
+
+    if ( FileExist ) then
+      ier = fnom(iu_bstats,trim(BStatsFilename),'RND+OLD+R/O',0)
+      if ( ier == 0 ) then
+        write(*,*)
+        write(*,*) 'Background Stats File :', trim(BStatsFilename)
+        write(*,*) 'opened as unit file ',iu_bstats
+        ier = fstouv(iu_bstats,'RND+OLD')
+      else
+        write(*,*)
+        write(*,*) 'lbhi_OpenFiles: Error in opening the background stats file'
+        write(*,*) trim(BStatsFilename)
+        stop
+      end if
+    else
+      write(*,*)
+      write(*,*) 'lbhi_OpenFiles: The background stats file DOES NOT EXIST'
+      write(*,*) trim(BStatsFilename)
+      stop
+    end if
+
+    !
+    !- 2.  Set some variables
+    !
+    hco_bhi => hco_anl_in
+    nlev_M  = vco_anl_in % nlev_M
+    nlev_T  = vco_anl_in % nlev_T
+
+    ! this should come from the state vector object
+    numvar3d = 4
+    numvar2d = 2
+    nControlVariable = numvar3d + numvar2d
+
+    ControlVariable(1) % nomvar = 'PP'
+    ControlVariable(2) % nomvar = 'CC'
+    ControlVariable(3) % nomvar = 'TT'
+    ControlVariable(4) % nomvar = 'LQ'
+    ControlVariable(5) % nomvar = 'P0'
+    ControlVariable(6) % nomvar = 'TG'
+
+    call lbhi_GetGridInfo( iu_bstats ) ! IN
+
+    ControlVariable(1:4) % nlev   = nlev_M
+    ControlVariable(5:6) % nlev   = 1
+
+    nkgdim = 0
+    do var = 1, nControlVariable
+      allocate( ControlVariable(var) % GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
+      allocate( ControlVariable(var) % ip1 (1:ControlVariable(var) % nlev) )
+      if (ControlVariable(var) % nlev /= 1) then
+        ControlVariable(var) % ip1(:) = vco_anl_in % ip1_M(:)
+      else
+        ControlVariable(var) % ip1(:) = 0
+      end if
+      ControlVariable(var) % GridType = 'N' ! Non-stagerred
+      ControlVariable(var) % kDimStart = nkgdim + 1
+      nkgdim = nkgdim + ControlVariable(var) % nlev
+      ControlVariable(var) % kDimEnd    = nkgdim
+    end do
+
+    nksdim = nkgdim ! + nlev
+
+    allocate( bsqrt  (1:nksdim, 1:nksdim ,0:trunc) )
+
+    !- 2.2 Initialized the LAM spectral transform
+    call mpi_setup_latbands(hco_bhi % nj,                & ! IN
+                            latPerPE, myLatBeg, myLatEnd ) ! OUT
+
+    call lst_Setup( lst_bhi,                     & ! OUT
+                    hco_bhi % ni, hco_bhi % nj,  & ! IN
+                    hco_bhi % dlon, trunc,       & ! IN
+                    'LatM' )                       ! IN
+
+    cvDim     = nkgdim * lst_bhi % nla * lst_bhi % nphase
+    cvDim_out = cvDim
+
+    ! also compute mpiglobal control vector dimension
+    call rpn_comm_allreduce(cvDim,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ier)
+
+    !
+    !- 3.  Read info from the background error statistics file
+    !
+    call lbhi_ReadStats( iu_bstats )  ! IN
+
+    !
+    !- 4.  Close the background stats files
+    !
+    ier = fstfrm(iu_bstats)
+    ier = fclos (iu_bstats)
+
+    !
+    !- 6.  Ending
+    !
+    initialized = .true.
+
+    write(*,*)
+    write(*,*) 'lbhi_Setup: Done!'
+
+  end subroutine lbhi_Setup
+
+!--------------------------------------------------------------------------
+! LBHI_ReadGetGridInfo
+!--------------------------------------------------------------------------
+  subroutine lbhi_GetGridInfo( iu_bstats )
+    implicit none
+
+    integer, intent(in) :: iu_bstats
+
+    integer, allocatable :: key_list(:)
+
+    integer :: key, fstinf, fstprm, ier, fstinl
+    integer :: ni, nj, NivMax, k
+    integer :: dateo, deet, npas, nk, nbits, datyp
+    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    integer :: ezdefset, ezqkdef
+
+    character(len=4 )      :: nomvar
+    character(len=2 )      :: typvar
+    character(len=12)      :: etiket
+
+    !
+    !- 1.  Get horizontal grid parameters
+    !
+    dateo  = -1
+    etiket = 'STDDEV'
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    typvar = ' '
+    nomvar = ControlVariable(1) % nomvar
+
+    key = fstinf( iu_bstats,                                  & ! IN
+                  ni, nj, nk,                                 & ! OUT
+                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
+
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetGridInfo: Unable to find input horiz grid info using =',nomvar
+      stop
+    end if
+
+    ier = fstprm( key,                                                     & ! IN
+                  dateo, deet, npas, hco_bstats % ni, hco_bstats % nj, nk, & ! OUT
+                  nbits, datyp, ip1, ip2, ip3, typvar, nomvar, etiket,     & ! OUT
+                  hco_bstats % grtyp, hco_bstats % ig1, hco_bstats % ig2,  & ! OUT
+                  hco_bstats % ig3, hco_bstats % ig4, swa, lng, dltf, ubc, & ! OUT
+                  extra1, extra2, extra3 )                                   ! OUT
+
+    !- 1.3 Regridding needed ?
+    if ( hco_bstats % ni    == hco_bhi % ni    .and. &
+         hco_bstats % nj    == hco_bhi % nj    .and. &
+         hco_bstats % grtyp == hco_bhi % grtyp .and. &
+         hco_bstats % ig1   == hco_bhi % ig1   .and. &
+         hco_bstats % ig2   == hco_bhi % ig2   .and. &
+         hco_bstats % ig3   == hco_bhi % ig3   .and. &
+         hco_bstats % ig4   == hco_bhi % ig4 ) then
+      Regrid = .false.
+      write(*,*)
+      write(*,*) 'lbhi_GetGridInfo: No Horizontal regridding needed'
+    else
+      Regrid = .true.
+      hco_bstats % EZscintID = ezqkdef( hco_bstats % ni, hco_bstats % nj,     & ! IN
+                                        hco_bstats % grtyp, hco_bstats % ig1, & ! IN
+                                        hco_bstats % ig2, hco_bstats % ig3,   & ! IN
+                                        hco_bstats % ig4, iu_bstats )           ! IN
+      ier = ezdefset(hco_bhi % EZscintID, hco_bstats % EZscintID)               ! IN
+      write(*,*)
+      write(*,*) 'lbhi_GetGridInfo: Horizontal regridding is needed'
+    end if
+
+  end subroutine lbhi_GetGridInfo
+
+!--------------------------------------------------------------------------
+! LBHI_READSTATS
+!--------------------------------------------------------------------------
+  subroutine lbhi_ReadStats( iu_bstats )
+    implicit none
+
+    integer, intent(in) :: iu_bstats
+
+    !
+    !- 1.  Read the background error statistics
+    !
+
+    !- 1.1 Verical correlations of control variables in spectral space
+    call lbhi_ReadBSqrt( iu_bstats )        ! IN
+
+    !- 1.2 Mass - Rotational wind statistical linear balance operator
+
+    ! JFC: Pas encore code
+    !if ( usePtoT ) then
+    !  call lbhi_ReadPtoT( iu_bstats, PtoT_Type )
+    !end if
+
+    !- 1.3 Read grid-point standard deviations of control variables
+    call lbhi_ReadGridPointStdDev(iu_bstats ) ! IN
+
+  end subroutine lbhi_ReadStats
+
+!--------------------------------------------------------------------------
+! LBHI_ReadBSqrt
+!--------------------------------------------------------------------------
+  subroutine lbhi_ReadBSqrt( iu_bstats )
+    implicit none
+
+    integer, intent(in) :: iu_bstats
+
+    real(8), allocatable :: bsqrt2d  (:,:)
+
+    integer :: key, fstinf, fstinl, vfstlir, totwvnb, infon
+    integer, parameter :: nmax=2000
+    integer :: liste(nmax)
+
+    integer                     :: ip1, ip2, ip3
+    integer                     :: ni_t, nj_t, nlev_t, dateo  
+    character(len=4 )           :: nomvar
+    character(len=2 )           :: typvar
+    character(len=12)           :: etiket
+
+    dateo  = -1
+    etiket = 'B_SQUAREROOT'
+    ip1    = -1
+    ip3    = -1
+    typvar = ' '
+    nomvar = 'ZN'
+
+    !
+    !- 1.  Find the truncation in the stats file
+    !
+    ip2    = -1
+
+    key = fstinl(iu_bstats,                                   & ! IN
+                ni_t, nj_t, nlev_t,                           & ! OUT
+                dateo, etiket, ip1, ip2, ip3, typvar, nomvar, & ! IN
+                liste, infon,                                 & ! OUT
+                nmax )                                          ! IN
+
+    if (key >= 0) then
+      !- 1.2 Ensure spectral trunctation are the same
+      if ( infon - 1  /= trunc ) then
+        write(*,*)
+        write(*,*) 'lbhi_ReadBSqrt: Truncation here and on stats file different'
+        write(*,*) 'VAR truncation        = ', trunc
+        write(*,*) 'Stats file truncation = ', infon-1
+        stop
+      end if
+    else
+      write(*,*)
+      write(*,*) 'lbhi_ReadBSqrt: Cannot find B square-root ', nomvar 
+      stop
+    end if
+
+    !
+    !- 2.   Read B^0.5
+    !
+    allocate( bsqrt2d  (1:nksdim, 1:nksdim) )
+
+    do totwvnb = 0, trunc
+
+      ip2    = totwvnb
+
+      !- 2.1 Check if field exists and its dimensions
+      key = fstinf( iu_bstats,                                  & ! IN
+                    ni_t, nj_t, nlev_t,                         & ! OUT
+                    dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+
+      if (key >= 0) then
+        !- 2.2 Ensure that the number of vertical levels are compatible
+        if ( ni_t /= nksdim .or. nj_t /= nksdim  ) then
+          write(*,*)
+          write(*,*) 'lbhi_ReadSpectralVertCorrel: BG stat levels inconsitencies'
+          write(*,*) 'for BSQRT: ni_t, nj_t, nksdim =', ni_t, nj_t, nksdim
+          stop 
+        endif
+
+        !- 2.3 Reading
+        key = vfstlir( bsqrt2d,                                    & ! OUT 
+                       iu_bstats,                                  & ! IN
+                       ni_t, nj_t, nlev_t,                         & ! OUT
+                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+      else
+        write(*,*)
+        write(*,*) 'lbhi_ReadBSqrt: Cannot find BSQRT for totwvnb = ', totwvnb
+        stop
+      end if
+
+      !- 2.4 Transfer to a 3D array
+      bsqrt(:,:,totwvnb) = bsqrt2d(:,:)
+
+    end do
+
+    deallocate( bsqrt2d )
+
+  end subroutine lbhi_ReadBSqrt
+
+!--------------------------------------------------------------------------
+! LBHI_ReadGridPointStdDev
+!--------------------------------------------------------------------------
+  subroutine lbhi_ReadGridPointStdDev(iu_bstats)
+    implicit none
+
+    integer, intent(in) :: iu_bstats
+
+    real(8), allocatable :: StdDev2D(:,:)
+    real(8), allocatable :: StdDev2D_Regrid(:,:)
+
+    integer :: vfstlir, ezsint, ier
+    integer :: ni_t, nj_t, nlev_t, var, k
+    integer :: dateo, ip1,ip2,ip3
+
+    character(len=4 )      :: nomvar
+    character(len=2 )      :: typvar, grtyp
+    character(len=12)      :: etiket
+
+    real(8) :: factor
+
+    !
+    !- 1.  Read grid point standard deviations
+    !
+    allocate( StdDev2D(1:hco_bstats % ni,1:hco_bstats % nj) )
+    if (Regrid) then
+      allocate( StdDev2D_Regrid(1:hco_bhi % ni, 1:hco_bhi % nj) )
+    end if
+
+    !- 1.1 Loop over Control Variables
+    do var = 1, nControlVariable
+
+      !- 1.2 Loop over vertical Levels
+      do k = 1, ControlVariable(var) % nlev
+        dateo  = -1
+        ip1    = ControlVariable(var) % ip1(k)
+        ip2    = -1
+        ip3    = -1
+        typvar = ' '
+        nomvar = trim(ControlVariable(var) % nomvar)
+        etiket = 'STDDEV'
+        if ( trim(nomvar) == 'P0') then
+          factor = 100.0d0 ! hPa -> Pa
+        else
+          factor = 1.0d0
+        end if
+
+        !- 1.2.1 Reading
+        ier = vfstlir( StdDev2D,                                   & ! OUT 
+                       iu_bstats,                                  & ! IN
+                       ni_t, nj_t, nlev_t,                         & ! OUT
+                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN 
+
+        if (ier < 0) then
+          write(*,*)
+          write(*,*) 'lbhi_ReadGridPointStdDev: Cannot find Std Deviations'
+          write(*,*) 'nomvar =', trim(ControlVariable(var) % nomvar)
+          write(*,*) 'etiket =', trim(etiket)
+          write(*,*) 'ip1    =', ControlVariable(var) % ip1(k)
+          stop
+        end if
+
+        if (ni_t /= hco_bstats % ni .or. nj_t /= hco_bstats % nj) then
+          write(*,*)
+          write(*,*) 'lbhi_ReadGridPointStdDev: Invalid dimensions for ...'
+          write(*,*) 'nomvar      =', trim(ControlVariable(var) % nomvar)
+          write(*,*) 'etiket      =', trim(etiket)
+          write(*,*) 'ip1         =', ControlVariable(var) % ip1(k)
+          write(*,*) 'Found ni,nj =', ni_t, nj_t 
+          write(*,*) 'Should be   =', hco_bstats % ni, hco_bstats % nj
+          stop
+        end if
+
+        !- 1.2.2 Regrid (if necessary) and transfer to 3D array
+        if ( .not. Regrid) then
+           ControlVariable(var) % GpStdDev(:,:,k) = StdDev2D(:,:)
+        else
+           ! Note: EZSCINT setup was done in GetGridInfo
+           ier = ezsint(StdDev2D_Regrid, StdDev2D)
+           ControlVariable(var) % GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
+        end if
+
+      end do
+
+    end do
+
+    deallocate( StdDev2D )
+    if (Regrid) then
+      deallocate( StdDev2D_Regrid )
+    end if
+
+  end subroutine lbhi_ReadGridPointStdDev
+
+!--------------------------------------------------------------------------
+! LBHI_bSqrt
+!--------------------------------------------------------------------------
+  subroutine lbhi_bSqrt(controlVector_in, statevector)
+    implicit none
+
+    real(8),          intent(in)    :: controlVector_in(cvDim)
+    type(struct_gsv), intent(inout) :: statevector
+
+    real(8), allocatable :: gd_out(:,:,:)
+    real(8), allocatable :: hiControlVector(:,:,:)
+
+    real(4), allocatable :: gd2d(:,:)
+    real(4), allocatable :: wkgd(:,:) 
+
+    integer :: ier, k, fstouv, fnom, fstfrm, fclos, fstecr, ila
+    integer :: iu_out = 90
+
+    if ( .not. initialized ) then
+      write(*,*)
+      write(*,*) 'lbhi_bSqrt: LAM_bMatrixHI not initialized'
+      stop
+    endif
+
+    write(*,*)
+    write(*,*) 'lbhi_bSqrt: Starting ...'
+
+    !
+    !-  1.  Extract data from the 1D controlVector array
+    !
+    allocate( hiControlVector(lst_bhi % nla, lst_bhi % nphase, nksdim) )
+
+    call lbhi_cain( controlVector_in,  & ! IN
+                    hiControlVector )    ! OUT
+
+    !
+    !-  2.  Move from control variables space to model variables space
+    !
+    allocate( gd_out  (hco_bhi % ni, myLatBeg:myLatEnd, nksdim) )
+
+    call lbhi_cv2gd( hiControlVector,   & ! IN
+                     gd_out           )   ! OUT
+    
+    deallocate(hiControlVector)
+
+    !
+    !-  3.  Transfer results to statevector structure
+    !
+    call StatevectorInterface( statevector,   & ! INOUT
+                               gd_out,        & ! IN
+                              'ToStateVector' ) ! IN
+
+    deallocate(gd_out)
+
+    write(*,*)
+    write(*,*) 'lbhi_bSqrt: Done'
+
+  end subroutine lbhi_bSqrt
+
+!--------------------------------------------------------------------------
+! LBHI_bSqrtAdj
+!--------------------------------------------------------------------------
+  subroutine lbhi_bSqrtAdj(statevector, controlVector_out)
+    implicit none
+
+    real(8),          intent(out)   :: controlVector_out(cvDim)
+    type(struct_gsv), intent(inout) :: statevector
+
+    real(8), allocatable :: gd_in(:,:,:)
+    real(8), allocatable :: hiControlVector(:,:,:)
+
+    if ( .not. initialized ) then
+      write(*,*)
+      write(*,*) 'lbhi_bSqrtAdj: LAM_bMatrixHI not initialized'
+      stop
+    endif
+
+    write(*,*)
+    write(*,*) 'lbhi_bSqrtAdj: Starting ...'
+
+    !
+    !-  3.  Extract data from the StateVector
+    !
+    allocate( gd_in(hco_bhi % ni, myLatBeg:myLatEnd, nksdim) )
+
+    call StatevectorInterface ( statevector,      & ! IN
+                                gd_in,            & ! OUT
+                               'FromStateVector' )  ! IN
+
+    !
+    !-  2.  Move from model variables space to control variables space
+    !
+    allocate( hiControlVector(lst_bhi % nla, lst_bhi % nphase, nksdim) )
+    hiControlVector(:,:,:) = 0.d0
+
+    call lbhi_cv2gdAdj( hiControlVector, & ! OUT
+                        gd_in          )   ! IN
+
+    !
+    !-  1.  Put data into the 1D controlVector array
+    !
+    controlVector_out(:) = 0.d0
+    call lbhi_cainAdj(controlVector_out, hiControlVector)
+
+    deallocate(gd_in)
+    deallocate(hiControlVector)
+
+    write(*,*)
+    write(*,*) 'lbhi_bSqrtAdj: Done'
+
+  end subroutine lbhi_bSqrtAdj
+
+!--------------------------------------------------------------------------
+! LBHI_cv2gd
+!--------------------------------------------------------------------------
+  subroutine lbhi_cv2gd(hiControlVector_in, gd_out)
+    implicit none
+
+    real(8), intent(inout) :: hiControlVector_in(lst_bhi % nla, lst_bhi % nphase, nksdim)
+    real(8), intent(out)   :: gd_out(1:hco_bhi % ni  ,myLatBeg:myLatEnd  ,1:nksdim)
+
+    real(8), allocatable :: uphy(:,:,:)
+    real(8), allocatable :: vphy(:,:,:)
+    real(8), allocatable :: psi(:,:,:)
+    real(8), allocatable :: chi(:,:,:)
+
+    integer :: kstart, kend, var
+
+    character(len=19)   :: kind
+
+    !
+    !- 0. Normalisation pour respecter l'identite adjointe (Parseval)
+    !
+    call lst_NormsPhalf( lst_bhi % id,       & ! IN
+                         hiControlVector_in, & ! INOUT
+                         'Forward', nksdim )   ! IN
+
+    !
+    !- 1. B^1/2 * xi (in spectral space)
+    !
+    call lbhi_bSqrtXi(hiControlVector_in)    ! INOUT
+
+    !
+    !- 2. Spectral Space -> Grid Point Space
+    !
+    kind = 'SpectralToGridPoint'
+    call lst_VarTransform( lst_bhi % id,            & ! IN
+                           hiControlVector_in,      & ! IN
+                           gd_out,                  & ! OUT
+                           kind, nksdim )             ! IN
+
+    !
+    !- 3.  Multiply by the grid point standard deviations
+    !
+    do var = 1, nControlVariable
+      kstart = ControlVariable(var) % kDimStart
+      kend   = ControlVariable(var) % kDimEnd
+      gd_out(:,:,kstart:kend) = gd_out(:,:,kstart:kend) * ControlVariable(var) % GpStdDev(:,myLatBeg:myLatEnd,:)
+    end do
+
+    !
+    !- 4.  Psi / Chi -> U-wind / V-wind
+    !
+
+    !- 4.1 Memory allocation and Extraction of Psi and Chi from GD
+    if ( ControlVariable(1) % nlev /= nlev_M .or. &
+         ControlVariable(2) % nlev /= nlev_M      ) then
+      write(*,*)
+      write(*,*) 'lbhi_cv2gd: Error in Psi field or Chi field vertical grid !!!'
+      stop
+    end if
+
+    allocate(uphy(1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+    allocate(vphy(1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+    allocate(psi (1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+    allocate(chi (1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+
+    psi(:,:,:) = gd_out(:,:,ControlVariable(1) % kDimStart:ControlVariable(1) % kDimEnd)
+    chi(:,:,:) = gd_out(:,:,ControlVariable(2) % kDimStart:ControlVariable(2) % kDimEnd)
+
+    !- 4.2 Do Transform
+    call lag_PsiChiToUV( psi, chi,           & ! IN
+                         uphy, vphy,         & ! OUT
+                         nlev_M)               ! IN
+
+    !- 4.3 Insert results in gd_out and deallocate memories
+    gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
+    gd_out(:,:,nlev_M+1:2*nlev_M) = vphy(:,:,:)
+
+    deallocate(chi)
+    deallocate(psi)
+    deallocate(vphy)
+    deallocate(uphy)
+
+  end subroutine lbhi_cv2gd
+
+!--------------------------------------------------------------------------
+! LBHI_cv2gdAdj
+!--------------------------------------------------------------------------
+  subroutine lbhi_cv2gdAdj(hiControlVector_out, gd_in)
+    use mpi
+    implicit none
+
+    real(8), intent(out)   :: hiControlVector_out(lst_bhi % nla, lst_bhi % nphase, nksdim)
+    real(8), intent(inout) :: gd_in(1:hco_bhi % ni  , myLatBeg:myLatEnd ,1:nksdim)
+
+    real(8), allocatable :: uphy(:,:,:)
+    real(8), allocatable :: vphy(:,:,:)
+    real(8), allocatable :: psi(:,:,:)
+    real(8), allocatable :: chi(:,:,:)
+
+    integer :: kstart, kend, var
+
+    character(len=19)   :: kind
+
+    !
+    !- 4.  U-wind / V-wind -> Psi / Chi
+    !
+
+    !- 4.3 Memory allocation and Extraction of Uphy and Vphy from GDUV
+    if ( ControlVariable(1) % nlev /= nlev_M .or. &
+         ControlVariable(2) % nlev /= nlev_M      ) then
+       write(*,*)
+       write(*,*) 'lbhi_cv2gd: Error in Psi field or Chi field vertical grid !!!'
+       stop
+    end if
+
+    allocate(uphy(1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+    allocate(vphy(1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+    allocate(psi (1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+    allocate(chi (1:hco_bhi % ni,myLatBeg:myLatEnd,1:nlev_M))
+
+    uphy(:,:,:) = gd_in(:,:,1       :  nlev_M)
+    vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
+
+    if (mpi_myid == 1) then
+       print*, 'JFC uvphy avant lag_PsiChiToUVAdj'
+       print*, maxval(uphy),minval(uphy),maxval(vphy),minval(vphy)
+    end if
+
+    !- 4.2 Do Transform
+    call lag_PsiChiToUVAdj( psi, chi,           & ! OUT
+                            uphy, vphy,         & ! IN
+                            nlev_M)               ! IN
+
+    if (mpi_myid == 1) then
+       print*, 'JFC psichi apres lag_PsiChiToUVAdj'
+       print*, maxval(psi),minval(chi),maxval(psi),minval(chi)
+    end if
+
+    !- 4.1 Insert results in gd and deallocate moemories
+    gd_in(:,:,ControlVariable(1) % kDimStart:ControlVariable(1) % kDimEnd) = psi(:,:,:)
+    gd_in(:,:,ControlVariable(2) % kDimStart:ControlVariable(2) % kDimEnd) = chi(:,:,:)
+
+    deallocate(chi)
+    deallocate(psi)
+    deallocate(vphy)
+    deallocate(uphy)
+
+    !
+    !- 3.  Multiply by the grid point standard deviations
+    !
+    do var = 1, nControlVariable
+      kstart = ControlVariable(var) % kDimStart
+      kend   = ControlVariable(var) % kDimEnd
+      gd_in(:,:,kstart:kend) = gd_in(:,:,kstart:kend) * ControlVariable(var) % GpStdDev(:,myLatBeg:myLatEnd,:)
+    end do
+
+    !
+    !- 2. Grid Point Space -> Spectral Space
+    !
+    kind = 'GridPointToSpectral'
+    call lst_VarTransform( lst_bhi % id,             & ! IN
+                           hiControlVector_out,      & ! OUT
+                           gd_in,                    & ! IN
+                           kind, nksdim )              ! IN
+
+    !
+    !- 1. B^1/2 * xi (in spectral space)
+    !
+    call lbhi_bSqrtXi( hiControlVector_out )    ! INOUT
+
+    !
+    !- 0. Normalisation pour respecter l'identite adjointe (Parseval)
+    !
+    call lst_NormsPhalf( lst_bhi % id,        & ! IN
+                         hiControlVector_out, & ! INOUT
+                         'Adjoint', nksdim )    ! IN
+
+ end subroutine lbhi_cv2gdAdj
+
+!--------------------------------------------------------------------------
+! LBHI_bSqrtXi
+!--------------------------------------------------------------------------
+  subroutine lbhi_bSqrtXi(hiControlVector_in)
+    implicit none
+
+    real(8), intent(inout) :: hiControlVector_in(lst_bhi % nla, lst_bhi % nphase, nksdim)
+
+    real(8), allocatable :: sp_in (:,:,:)
+    real(8), allocatable :: sp_out(:,:,:)
+
+    integer :: totwvnb, e, k, ila
+    integer :: m, n, lda, ldb, ldc
+
+    !
+    !- 1. B^1/2 * xi (in spectral space)
+    !
+    do totwvnb = 0, trunc
+
+      if ( lst_bhi % nePerK(totwvnb) == 0 ) then
+         print*
+         print*,'JFC: No spectral elements for this CPU for totwvnb = ', totwvnb
+         cycle
+      end if
+
+      allocate( sp_in (nksdim,lst_bhi % nphase,lst_bhi % nePerK(totwvnb)) )
+      allocate( sp_out(nksdim,lst_bhi % nphase,lst_bhi % nePerK(totwvnb)) )
+
+      !- 1.1 Select spectral elements associated with the total wavenumber
+      do e = 1, lst_bhi % nePerK(totwvnb)
+        ila = lst_bhi % ilaFromEK(e,totwvnb)
+        do k = 1, nksdim
+          sp_in(k,1:lst_bhi % nphase,e) = hiControlVector_in(ila,1:lst_bhi % nphase,k)
+        end do
+      end do
+
+      !- 1.2 Compute bsqrt * sp_in using DGEMM 
+
+      ! For documentation on dgemm, see: http://www.netlib.org/blas/dgemm.f
+      ! Matrix A = BSQRT(:,:,totwvnb)
+      ! Matrix B = SP_IN
+      ! Matrix C = SP_OUT
+      m   = nksdim
+      n   = lst_bhi % nphase * lst_bhi % nePerK(totwvnb)
+      k   = nksdim
+      lda = nksdim
+      ldb = nksdim
+      ldc = nksdim
+
+      call dgemm( 'N', 'N', m, n, k, 1.d0,                   &  ! IN
+                  bsqrt(:,:,totwvnb), lda, sp_in, ldb, 0.d0, &  ! IN
+                  sp_out,                                    &  ! OUT
+                  ldc )                                         ! IN
+
+      !- 1.3 Replace sp values with output matrix
+      do e = 1, lst_bhi % nePerK(totwvnb)
+        ila = lst_bhi % ilaFromEK(e,totwvnb)
+        do k = 1, nksdim
+          hiControlVector_in(ila,1:lst_bhi % nphase,k) = sp_out(k,1:lst_bhi % nphase,e)
+        end do
+      end do
+
+      deallocate(sp_in)
+      deallocate(sp_out)
+
+    end do ! Total Wavenumber
+
+  end subroutine lbhi_bSqrtXi
+
+!--------------------------------------------------------------------------
+! LBHI_cain
+!--------------------------------------------------------------------------
+   SUBROUTINE LBHI_cain(controlVector_in, hiControlVector_out)
+    implicit none
+
+    real(8), intent(in)    :: controlVector_in(cvDim)
+    real(8), intent(out)   :: hiControlVector_out(lst_bhi % nla,lst_bhi % nphase,nksdim)
+
+    integer :: dim, k, ila, p
+
+    dim = 0
+    hiControlVector_out(:,:,:) = 0.0d0
+    do k = 1, nksdim
+      do ila = 1, lst_bhi % nla
+        do p = 1, lst_bhi % nphase
+          dim = dim + 1
+          hiControlVector_out(ila,p,k) = controlVector_in(dim)
+        end do
+      end do
+    end do
+
+  end SUBROUTINE LBHI_cain
+
+!--------------------------------------------------------------------------
+! LBHI_cainAdj
+!--------------------------------------------------------------------------
+  SUBROUTINE LBHI_cainAdj(controlVector_out, hiControlVector_in)
+    implicit none
+
+    real(8), intent(out)   :: controlVector_out(cvDim)
+    real(8), intent(in )   :: hiControlVector_in(lst_bhi % nla,lst_bhi % nphase,nksdim)
+
+    integer :: dim, k, ila, p
+
+    dim = 0
+    do k = 1, nksdim
+      do ila = 1, lst_bhi % nla
+        do p = 1, lst_bhi % nphase
+          dim = dim + 1
+          controlVector_out(dim) = controlVector_out(dim) + hiControlVector_in(ila,p,k)
+        end do
+      end do
+    end do
+
+  end SUBROUTINE LBHI_cainAdj
+
+!--------------------------------------------------------------------------
+! StatevectorInterface
+!--------------------------------------------------------------------------
+  subroutine StatevectorInterface(statevector, gd, Direction)
+    implicit none
+
+    type(struct_gsv), intent(inout) :: statevector
+    real(8),          intent(inout) :: gd(hco_bhi%ni,myLatBeg:myLatEnd,nksdim)
+    character(len=*), intent(in)    :: Direction
+
+    integer :: var, VarID
+    integer :: kgdStart, kgdEnd, i, j, k, kgd, nlev
+
+    real(8), pointer :: field(:,:,:)
+
+    logical :: ToStateVector
+
+    select case ( trim(Direction) )
+    case ('ToStateVector')
+      ToStateVector = .true.
+    case ('FromStateVector')
+      ToStateVector = .false.
+    case default
+      write(*,*)
+      write(*,*) 'StatevectorInterface: Unknown Direction ', trim(Direction)
+      stop
+    end select
+
+    do var = 1, vnl_numvarmax 
+
+      if ( gsv_varExist(varnamelist(var)) ) then
+
+        field => gsv_getField3D(statevector,varnamelist(var))
+
+        select case ( varnamelist(var) )
+        case ('UU  ')
+          VarID = 1
+        case ('VV  ')
+          VarID = 2
+        case ('TT  ')
+          VarID = 3
+        case ('HU  ')
+          VarID = 4
+        case ('P0  ')
+          VarID = 5
+        case ('TG  ')
+          VarID = 6
+        case default
+          write(*,*)
+          write(*,*) 'StatevectorInterface: No covariances available for variable:', varnamelist(var)
+          stop
+        end select
+
+        kgdStart = ControlVariable(VarID) % kDimStart
+        kgdEnd   = ControlVariable(VarID) % kDimEnd
+   
+        nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(var)))
+        if ( kgdEnd - kgdStart + 1  /= nlev ) then
+           write(*,*)
+           write(*,*) 'StatevectorInterface: Number of vertical level mismatch'
+           write(*,*) kgdEnd - kgdStart + 1, nlev
+           stop
+        end if
+
+!!$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+        do j = myLatBeg, myLatEnd
+          do kgd = kgdStart, kgdEnd
+            k = kgd - kgdStart + 1
+            do i = 1, hco_bhi % ni
+              if ( ToStateVector ) then
+                field(i,k,j) = gd(i,j,kgd)
+              else
+                gd(i,j,kgd)  = field(i,k,j)
+              end if
+            end do
+          end do
+        end do
+!!$OMP END PARALLEL DO
+
+      end if
+
+    end do
+
+  end subroutine StatevectorInterface
+
+!--------------------------------------------------------------------------
+! LBHI_reduceToMPILocal
+!--------------------------------------------------------------------------
+  SUBROUTINE LBHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    implicit none
+    real(8), intent(out) :: cv_mpilocal(cvDim)
+    real(8), intent(in)  :: cv_mpiglobal(cvDim_mpiglobal)
+    integer, intent(out) :: cvDim_mpilocal_out
+
+    integer :: k, ila, p, ilaGlb, jdim_mpilocal, jdim_mpiglobal 
+
+    cvDim_mpilocal_out = cvDim
+
+    do k = 1, nksdim
+      do ila = 1, lst_bhi % nla
+        do p = 1, lst_bhi % nphase
+
+          jdim_mpilocal = ( (k-1) * lst_bhi % nla * lst_bhi % nphase ) + &
+                                        ( (ila-1) * lst_bhi % nphase ) + p
+
+          ilaGlb = lst_bhi % ilaGlobal(ila)
+          jdim_mpiglobal = ( (k-1) * lst_bhi % nlaGlobal * lst_bhi % nphase ) + &
+                                            ( (ilaGlb-1) * lst_bhi % nphase ) + p
+  
+          if ( jdim_mpilocal  > cvDim          ) then 
+             write(*,*) 'LBHI_reduceToMPILocal: jdim_mpilocal > cvDim ',k,ila,p,ilaGlb
+             call flush(6)
+             stop
+          end if
+          if ( jdim_mpiglobal > cvDim_mpiglobal) then
+             write(*,*) 'LBHI_reduceToMPILocal: jdim_mpiglobal > cvDim_mpiglobal ',k,ila,p,ilaGlb
+            call flush(6)
+            stop
+          end if
+
+          cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+
+        end do
+      end do
+    end do
+
+  END SUBROUTINE LBHI_reduceToMPILocal
+
+!--------------------------------------------------------------------------
+! LBHI_expandToMPIGlobal
+!--------------------------------------------------------------------------
+  SUBROUTINE LBHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    implicit none
+    real(8), intent(in)  :: cv_mpilocal(cvDim)
+    real(8), intent(out) :: cv_mpiglobal(cvDim_mpiglobal)
+    integer, intent(out) :: cvDim_mpiglobal_out
+
+    integer :: k, ila, p, ilaGlb, jdim_mpilocal, jdim_mpiglobal, ier
+
+    cvDim_mpiglobal_out = cvDim_mpiglobal
+
+    cv_mpiglobal(:) = 0.0d0
+
+    do k = 1, nksdim
+      do ila = 1, lst_bhi % nla
+        do p = 1, lst_bhi % nphase
+
+          jdim_mpilocal = ( (k-1) * lst_bhi % nla * lst_bhi % nphase ) + &
+                                        ( (ila-1) * lst_bhi % nphase ) + p
+
+          ilaGlb = lst_bhi % ilaGlobal(ila)
+          jdim_mpiglobal = ( (k-1) * lst_bhi % nlaGlobal * lst_bhi % nphase ) + &
+                                            ( (ilaGlb-1) * lst_bhi % nphase ) + p
+  
+          if ( jdim_mpilocal  > cvDim          ) then 
+             write(*,*) 'LBHI_expandToMPIGlobal: jdim_mpilocal > cvDim ',k,ila,p,ilaGlb
+             call flush(6)
+             stop
+          end if
+          if ( jdim_mpiglobal > cvDim_mpiglobal) then
+             write(*,*) 'LBHI_expandToMPIGlobal: jdim_mpiglobal > cvDim_mpiglobal ',k,ila,p,ilaGlb
+            call flush(6)
+            stop
+          end if
+
+          cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+
+        end do
+      end do
+    end do
+
+!    call tmg_start(59,'BHI_COMM')
+    call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ier)
+!    call tmg_stop(59)
+
+  end SUBROUTINE LBHI_expandToMPIGlobal
+
+!--------------------------------------------------------------------------
+! LBHI_Finalize
+!--------------------------------------------------------------------------
+  subroutine LBHI_Finalize
+    implicit none
+
+    integer :: var
+
+    deallocate(bsqrt)
+    do var = 1, nControlVariable
+      deallocate(ControlVariable(var) % GpStdDev)
+      deallocate(ControlVariable(var) % ip1     )
+    end do
+
+  end subroutine LBHI_Finalize
+
+end module LamBMatrixHI_mod

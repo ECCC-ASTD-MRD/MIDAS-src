@@ -28,15 +28,16 @@
       use bmatrix_mod
       use mpi
       use gridStateVector_mod
-      use gaussGrid_mod
+      use HorizontalCoord_mod
       IMPLICIT NONE
 #include "comvfiles.cdk"
 #include "comfilt.cdk"
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
-
+      type(struct_hco),      pointer :: hco_anl
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
+
       integer jk,jj,ji,jstep,nulfile,ierr,fnom,fstouv,fstfrm,fclos
       integer :: datestamplist(nstepobsinc)
       real*8  :: hu_anl,deltaHours
@@ -73,11 +74,18 @@
 !     Compute the analysis increment
 !
       call tmg_start(91,'POST_COMPUTEDX')
+
       vco_anl => col_getVco(lcolumng)
+      hco_anl => hco_Get('Analysis')
       call gsv_setVco(statevector,vco_anl)
+
+      call gsv_setHco  ( statevector, hco_anl )
+
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      call gsv_allocate(statevector,gaus_ni,gaus_nj,nstepobsinc,datestamp=min_get_datestamp(),mpi_local=.true.)
+      call gsv_allocate(statevector,nstepobsinc, &
+           datestamp=min_get_datestamp(),mpi_local=.true.)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
 
       ! free up some memory now that B isn't needed
@@ -104,8 +112,10 @@
 !     control variables (NOTE: mpiglobal result only on myid=increment_time_step-1)
 !
       call gsv_setVco(statevectorg,vco_anl)
-      call gsv_allocate(statevectorg,gaus_ni,gaus_nj,1,datestamp=min_get_datestamp(),mpi_local=.false.)
+      call gsv_setHco  ( statevectorg, hco_anl )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      call gsv_allocate(statevectorg,1,datestamp=min_get_datestamp(),mpi_local=.false.)
 
       do jstep=1,nstepobsinc
         datestamplist(jstep)=gsv_getDateStamp(statevector,jstep)
@@ -132,10 +142,11 @@
         write(*,*) 'postmin: computing the diag variables for timestep:',jstep
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-        allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
-        allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
-        allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
-        allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
+        allocate( zes(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
+        allocate( ztv(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
+        allocate( zgz(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
+        allocate( zhu(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
+
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
 !         *** Compute increment HU from LQ increment ***
@@ -245,13 +256,14 @@
       integer jvar,jlev,ierr,numlev
       integer datestamp,inpak_inc
       real*8 zwork
+      real*8, allocatable :: zbuffer(:)
       real   zptop4, zpref4,zrcoef4,zdummy
       integer nip1,nip2,nip3,ndeet,npas,nidatyp,nig1,nig2,nig3,nig4
       character(len=1)  :: cgrtyp
       character(len=2)  :: cltypinc
       character(len=12) :: cletiket
       real*8 :: zlowvar(statevector%ni,statevector%nj)
-      logical llimplemented,llvarout
+      logical llimplemented,llvarout,FlipLatitude
 
       WRITE(*,FMT='(/,4X,"Starting VAROUT",//)')
 
@@ -262,17 +274,76 @@
 
       WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model state on file at iteration No.'',I3)') min_niter
 
+      !
+      !-----Setup packing for each variable
+      !
+      inpak_inc  = -32                  ! 32 bits are needed by AAI
+      write(*,*)' '
+      write(*,*)'************************************** '
+      write(*,*)
+      write(*,*) 'PACKING for increments   is ',inpak_inc
+      write(*,*)' '
+      write(*,*)'************************************** '
+
+      !     
+      !- Write TIC-TAC if needed
+      !
+      if ( statevector % hco % grtyp == 'Z' ) then
+        ndeet      =  0
+        NIP1       =  statevector % hco % ig1
+        NIP2       =  statevector % hco % ig2
+        NIP3       =  0
+        NPAS       =  0
+        NIDATYP    =  1
+        CGRTYP     = 'E'
+        CLTYPINC   = 'X'
+        cletiket   =  cetikinc
+        datestamp  =  gsv_getDateStamp(statevector) 
+
+        call cxgaig ( CGRTYP,   &                                     ! IN
+                      NIG1, NIG2, NIG3, NIG4, &                       ! OUT
+                      real(statevector % hco % xlat1), real(statevector % hco % xlon1), & ! IN
+                      real(statevector % hco % xlat2), real(statevector % hco % xlon2) ) ! IN
+
+        allocate(zbuffer(statevector % hco % ni))
+        zbuffer(:)= statevector % hco % lon(:) * MPC_DEGREES_PER_RADIAN_R8
+        IERR = VFSTECR(zbuffer,zwork,inpak_inc, &
+               nulfile,datestamp,ndeet,npas,statevector%ni,1,1,nip1,  &
+               nip2,nip3,cltypinc,'>>',cletiket,cgrtyp,nig1,          &
+               nig2,nig3,nig4,nidatyp,.true.)
+        deallocate(zbuffer)
+
+        allocate(zbuffer(statevector % hco % nj))
+        zbuffer(:)= statevector % hco % lat(:) * MPC_DEGREES_PER_RADIAN_R8
+        IERR = VFSTECR(zbuffer,zwork,inpak_inc, &
+               nulfile,datestamp,ndeet,npas,1,statevector%nj,1,nip1,  &
+               nip2,nip3,cltypinc,'^^',cletiket,cgrtyp,nig1,          &
+               nig2,nig3,nig4,nidatyp,.true.)
+        deallocate(zbuffer)
+
+      end if
+
+      !
+      !- Write analysis increments
+      !
       ndeet=0
       NIP2       =  0
       NIP3       =  min_niter
       NPAS       =  0
       NIDATYP    =  1
-      CGRTYP     = 'G'
+      CGRTYP     = statevector % hco % grtyp
       CLTYPINC   = 'R'
-      NIG1       =  0
-      NIG2       =  0
-      NIG3       =  0
-      NIG4       =  0
+      NIG1       =  statevector % hco % ig1
+      if ( statevector % hco % grtyp == 'G' .and.  &
+           statevector % hco % ig2   ==  1   ) then
+        FlipLatitude  = .true. 
+        NIG2          = 0
+      else
+        FlipLatitude  = .false.
+        NIG2          =  statevector % hco % ig2
+      end if
+      NIG3       =  statevector % hco % ig3
+      NIG4       =  statevector % hco % ig4
       cletiket=cetikinc
       datestamp=gsv_getDateStamp(statevector,jstep)
 
@@ -300,16 +371,6 @@
       write(*,*) ' RCOEF= ',statevector%vco%drcf1
       write(*,*)'************************************** '
       write(*,*)' '
-!
-!-----Setup packing for each variable
-!
-      inpak_inc  = -32                  ! 32 bits are needed by AAI
-      write(*,*)' '
-      write(*,*)'************************************** '
-      write(*,*)
-      write(*,*) 'PACKING for increments   is ',inpak_inc
-      write(*,*)' '
-      write(*,*)'************************************** '
 
       do jvar = 1, nppcvar
 !
@@ -338,7 +399,7 @@
 
         do jlev=1,numlev
           call gdout2(cppcvar(jvar),ZLOWVAR,jlev,  &
-               llimplemented,nip1,nig2,statevector,field3d,zes(:,:,:),ztv(:,:,:),zgz(:,:,:),zhu(:,:,:))
+               llimplemented,nip1,FlipLatitude,statevector,field3d,zes(:,:,:),ztv(:,:,:),zgz(:,:,:),zhu(:,:,:))
           if(.not.llimplemented) exit
 
           IERR  = VFSTECR(ZLOWVAR,zwork,inpak_inc  &

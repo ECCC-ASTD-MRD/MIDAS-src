@@ -1,203 +1,164 @@
-      SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
-!*
-!***s/r BILIN  - Horizontal interpolation of the model variables
-!*               in grid-point space to observation points.
-!*               Bilinear interpolation from the 4 nearest grid points.
-!*     .         (based on HOR4 from the ARPEGE/IFS model)
-!*
-!*Author  : J. Pailleux  ECMWF    90-01-11
-!*     .    Luc Fillion  RPN/AES  Jan 1993
-!
-!**    Purpose:  Build GOMU, GOMV, GOMT, GOMGZ, GOMQ and GOMPS  with the model variables at the
-!*               observation points from the model variables in grid-points
-!*               space using bilinear interpolation.
-!*
-      use MathPhysConstants_mod
-      use obsSpaceData_mod
-      use columnData_mod
-      use gaussGrid_mod
-      use gridStateVector_mod
-      IMPLICIT NONE
-      type(struct_columnData) :: lcolumn
-      type(struct_gsv) :: statevector
-      type(struct_obs) :: lobsSpaceData
-      INTEGER   JLEV, JK, JK2, JGL, JLON, JOBS
-      INTEGER   ILON, ILOS, IMIDDLE, ISYM, ILA, IMAX, IERR
-      REAL*8    DLMEAN, DLMEAS, DLLAO, DLLOO, DLDLON, DLDLOS
-      REAL*8    DLDXN, DLDXS, DLDY, DLW1, DLW2, DLW3, DLW4
-      real*8, allocatable ::zgd(:,:,:)
-      real*8, pointer :: uu_column(:),vv_column(:),hu_column(:),gz_column(:)
-      real*8, pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
-      real*8, pointer :: field_ptr(:,:,:), uu_ptr(:,:,:), vv_ptr(:,:,:)
+SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
+  !*
+  !***s/r BILIN  - Horizontal interpolation of the model variables
+  !*               in grid-point space to observation points.
+  !*               Bilinear interpolation from the 4 nearest grid points.
+  !*     .         (based on HOR4 from the ARPEGE/IFS model)
+  !*
+  !*Author  : J. Pailleux  ECMWF    90-01-11
+  !*     .    Luc Fillion  RPN/AES  Jan 1993
+  !
+  !**    Purpose:  Build GOMU, GOMV, GOMT, GOMGZ, GOMQ and GOMPS  with the model variables at the
+  !*               observation points from the model variables in grid-points
+  !*               space using bilinear interpolation.
+  !*
+  use MathPhysConstants_mod
+  use obsSpaceData_mod
+  use columnData_mod
+  use gridStateVector_mod
+  IMPLICIT NONE
+  
+  type(struct_columnData) :: lcolumn
+  type(struct_gsv) :: statevector
+  type(struct_obs) :: lobsSpaceData
+  
+  INTEGER   JLEV, JK, JK2, JGL, JLON, JOBS
+  INTEGER   ILON, ILA, IERR
+  
+  REAL*8  :: LAT, LON
+  REAL*8  :: DLDY, DLW1, DLW2, DLW3, DLW4, DLDX, ypos, xpos
+  real(8) :: latrot, lonrot
+  
+  real*8, allocatable ::zgd(:,:,:)
+  
+  real*8, pointer :: uu_column(:),vv_column(:),hu_column(:),gz_column(:)
+  real*8, pointer :: tt_column(:),tr_column(:),ps_column(:),tg_column(:)
+  real*8, pointer :: field_ptr(:,:,:), uu_ptr(:,:,:), vv_ptr(:,:,:)
+  
+  ! Note: We assume here the all the obs between the poles and the last grid points
+  !       (i.e. outside the grid) have been moved within the grid by suprep
 
-      allocate(zgd(0:(statevector%ni+2),1:statevector%nk,(-1):(statevector%nj+2)),STAT=ierr)
-!C
-!C*    1. EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIANS
-!C     NILON(JGL), 1, AND 2 INTO MERIDIANS 0, NILON(JGL)+1,
-!C     AND NILON(JGL+2) AND ALSO TWO PARALLELS NEAR THE POLES.
-!C     ----------------------------------------------------------
-!C
-!C*    1.0 TRANSFORM WIND IMAGES INTO PHYSICAL WINDS
-!C
-      uu_ptr => gsv_getField3D(statevector,'UU')
-      vv_ptr => gsv_getField3D(statevector,'VV')
-      DO JLEV = 1, statevector%NLEV
-         DO JGL = 1, statevector%NJ
-            DO JLON = 1, statevector%NI
-               uu_ptr(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * uu_ptr(JLON,JLEV,JGL)
-               vv_ptr(JLON,JLEV,JGL) = gaus_CONPHY(JGL) * vv_ptr(JLON,JLEV,JGL)
-            ENDDO
-         ENDDO
-      ENDDO
+  allocate(zgd(1:statevector%ni+1, 1:statevector%nk,1:statevector%nj))
+  
+  ZGD(:,:,:)=0.0d0
+  field_ptr => gsv_getField3D(statevector)
+  ZGD(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)= &
+       field_ptr(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)
 
-      ZGD(:,:,:)=0.0d0
-      field_ptr => gsv_getField3D(statevector)
-      ZGD(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)=field_ptr(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)
-!C
-!C*    1.1 EXTRA MERIDIANS
-!C
-!C     MERIDIAN NILON(JGL) DUPLICATED INTO MERIDIAN 0
-!C     MERIDIAN 1  DUPLICATED INTO MERIDIAN NILON(JGL) + 1
-!C     MERIDIAN 2  DUPLICATED INTO MERIDIAN NILON(JGL) + 2
-!C
-      DO JK = 1, statevector%nk
-         DO JGL = 1, STATEVECTOR%NJ
-            IMAX = STATEVECTOR%NI
-            ZGD(0     ,JK,JGL) = ZGD(STATEVECTOR%NI,JK,JGL)
-            ZGD(IMAX+1,JK,JGL) = ZGD( 1,JK,JGL)
-            ZGD(IMAX+2,JK,JGL) = ZGD( 2,JK,JGL)
-         ENDDO
-      ENDDO
-!C
-!C*    1.2 EXTRA PARALLELS
-!C
-      DO JK = 1, statevector%nk
-!C
-!C     COMPUTATION OF VALUES AT NORTH AND SOUTH POLES.
-!C
-         DLMEAN = 0.
-         DLMEAS = 0.
-         IMAX = STATEVECTOR%NI
-         DO JLON = 1, IMAX
-            DLMEAN = DLMEAN + ZGD(JLON,JK,1)
-            DLMEAS = DLMEAS + ZGD(JLON,JK,STATEVECTOR%NJ)
-         ENDDO
-         DLMEAN = DLMEAN / STATEVECTOR%NI
-         DLMEAS = DLMEAS / STATEVECTOR%NI
-         IMAX = STATEVECTOR%NI
-         DO JLON = 0, IMAX + 2
-            ZGD(JLON,JK,0)    = DLMEAN
-            ZGD(JLON,JK,STATEVECTOR%NJ+1) = DLMEAS
-         ENDDO
-!C
-!C     COMPUTATION OF VALUES FOR PARALLELS -1 AND NJ + 2 (WITH SYMETRIZATION)
-!C
-         IMIDDLE = STATEVECTOR%NI / 2
-         DO JLON = 0, IMIDDLE
-            ISYM = JLON + IMIDDLE
-            ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
-            ZGD(JLON,JK,STATEVECTOR%NJ+2) = ZGD(ISYM,JK,STATEVECTOR%NJ)
-         ENDDO
-         IMAX = STATEVECTOR%NI
-         DO JLON = IMIDDLE + 1, IMAX + 2
-            ISYM = JLON - IMIDDLE
-            ZGD(JLON,JK,-1)   = ZGD(ISYM,JK,1)
-            ZGD(JLON,JK,STATEVECTOR%NJ+2) = ZGD(ISYM,JK,STATEVECTOR%NJ)
-         ENDDO
+  !
+  !- 1.  EXPAND Field BY REPEATING MERIDIAN 1 into INTO MERIDIAN NI+1
+  !
+  DO JK = 1, statevector % nk
+     DO JGL = 1, STATEVECTOR % NJ
+        ZGD(STATEVECTOR % NI+1,JK,JGL) = ZGD( 1,JK,JGL)
+     END DO
+  END DO
+  
+  !
+  !- 2.  LOOP OVER ALL THE OBSERVATIONS
+  !
+  DO JOBS = 1, col_getNumCol(lcolumn)
 
-      ENDDO
-!C
-!C*    2. LOOP OVER ALL THE OBSERVATIONS
-!C     ---------------------------------
-!C
-      DO JOBS = 1, col_getNumCol(lcolumn)
-!C
-!C*    2.1. LOCATE FIRST LATITUDE ROW NUMBER (ILA) TO THE NORTH
-!C*    OF ZLAO, AND THE TWO LONGITUDE POINT NUMBERS IMMEDIATELY
-!C*    TO THE WEST (ILON AND ILOS).
-!C
-         call col_getLatLon(lcolumn,jobs,dllao,dlloo,ila)
+     !- 2.1 Find the obs positin within the analysis grid
+     call col_getLatLon( lcolumn, jobs,                       & ! IN
+                         Lat, Lon, ypos, xpos, LatRot, LonRot ) ! OUT
 
-         IF(DLLOO.LT.0.) DLLOO = DLLOO + 2.*MPC_PI_R8
-         IF(DLLOO.GE.2.*MPC_PI_R8) DLLOO = DLLOO - 2.*MPC_PI_R8
-         DLDLON = 2.*MPC_PI_R8/STATEVECTOR%NI
-         DLDLOS = 2.*MPC_PI_R8/STATEVECTOR%NI
-         ILON = INT(DLLOO/DLDLON) + 1
-         ILOS = INT(DLLOO/DLDLOS) + 1
-!C
-!C*    2.2 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
-!C
-         DLDXN = DLLOO/DLDLON + 1. - ILON
-         DLDXS = DLLOO/DLDLOS + 1. - ILOS
-         DLDY  = (gaus_RLATI(ILA)-DLLAO)/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
-         DLW1  = (1.-DLDXN)*(1.-DLDY)
-         DLW2  = DLDXN*(1.-DLDY)
-         DLW3  = (1.-DLDXS)*DLDY
-         DLW4  = DLDXS*DLDY
-!C
-!C*    2.3 Interpolate the model state to the obs point
-!C
-         if(col_varExist('UU')) uu_column => col_getColumn(lcolumn,jobs,'UU')
-         if(col_varExist('VV')) vv_column => col_getColumn(lcolumn,jobs,'VV')
-         if(col_varExist('HU')) hu_column => col_getColumn(lcolumn,jobs,'HU')
-         if(col_varExist('GZ')) gz_column => col_getColumn(lcolumn,jobs,'GZ')
-         if(col_varExist('TT')) tt_column => col_getColumn(lcolumn,jobs,'TT')
-         if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
-         if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
-         DO JK = 1, statevector%nlev
-           if(gsv_varExist('UU')) then
-             jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
-             uu_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
-                  + DLW2*zgd(ILON+1,JK2,ILA)  &
-                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
-                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
-           endif
-           if(gsv_varExist('VV')) then
-             jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
-             vv_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
-                  + DLW2*zgd(ILON+1,JK2,ILA)  &
-                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
-                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
-           endif
-           if(gsv_varExist('HU')) then
-             jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
-             hu_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
-                  + DLW2*zgd(ILON+1,JK2,ILA)  &
-                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
-                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
-           endif
-           if(gsv_varExist('GZ')) then
-             jk2=jk+gsv_getOffsetFromVarName(statevector,'GZ')
-             gz_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
-                  + DLW2*zgd(ILON+1,JK2,ILA)  &
-                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
-                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
-           endif
-           if(gsv_varExist('TT')) then
-             jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
-             tt_column(JK) =   DLW1*zgd(ILON,JK2,ILA)  &
-                  + DLW2*zgd(ILON+1,JK2,ILA)  &
-                  + DLW3*zgd(ILOS,JK2,ILA+1)  &
-                  + DLW4*zgd(ILOS+1,JK2,ILA+1)
-           endif
-         enddo
-         if(gsv_varExist('P0')) then
-           jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
-           ps_column(1) =   DLW1*zgd(ILON,jk2,ILA)  &
-                + DLW2*zgd(ILON+1,jk2,ILA)  &
-                + DLW3*zgd(ILOS,jk2,ILA+1)  &
-                + DLW4*zgd(ILOS+1,jk2,ILA+1)
-         endif
-         if(gsv_varExist('TG')) then
-           jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
-           tg_column(1) =   DLW1*zgd(ILON,jk2,ILA)  &
-                + DLW2*zgd(ILON+1,jk2,ILA)  &
-                + DLW3*zgd(ILOS,jk2,ILA+1)  &
-                + DLW4*zgd(ILOS+1,jk2,ILA+1)
-         endif
-      ENDDO
+     !- Make sure we are within bounds
+     if ( ypos < 1.d0                           .or. &
+          ypos > real(statevector % nj      ,8) .or. &
+          xpos < 1.d0                           .or. &
+          xpos > real(statevector % ni + 1  ,8) ) then
+       write(*,*) 'bilin: Obs outside local domain for job = ', jobs
+       write(*,*) '  obs    lat, lon position            = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
+       write(*,*) '  obs    x, y     position            = ', xpos, ypos
+       write(*,*) '  domain x_end, y_end bounds          = ', statevector % ni + 1, statevector % nj
+       stop
+     end if
 
-      deallocate(zgd,STAT=ierr)
+     !- 2.2 Find the lower-left grid point next to the observation
+     if ( xpos /= real(statevector % ni + 1,8) ) then
+       ILON = floor(xpos)
+     else
+       ILON = floor(xpos) - 1
+     end if
 
-      RETURN
-      END SUBROUTINE BILIN
+     if ( ypos /= real(statevector % nj,8) ) then
+       ILA = floor(ypos)
+     else
+       ILA = floor(ypos) - 1
+     end if
+
+     !- 2.3 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
+     DLDX = xpos - real(ILON,8)
+     DLDY = ypos - real(ILA,8)
+
+     DLW1 = (1.-DLDX) * (1.-DLDY)
+     DLW2 =     DLDX  * (1.-DLDY)
+     DLW3 = (1.-DLDX) *     DLDY
+     DLW4 =     DLDX  *     DLDY
+     
+     !- 2.4 Interpolate the model state to the obs point
+     if(col_varExist('UU')) uu_column => col_getColumn(lcolumn,jobs,'UU')
+     if(col_varExist('VV')) vv_column => col_getColumn(lcolumn,jobs,'VV')
+     if(col_varExist('HU')) hu_column => col_getColumn(lcolumn,jobs,'HU')
+     if(col_varExist('GZ')) gz_column => col_getColumn(lcolumn,jobs,'GZ')
+     if(col_varExist('TT')) tt_column => col_getColumn(lcolumn,jobs,'TT')
+     if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
+     if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
+     
+     DO JK = 1, statevector % nlev
+        if(gsv_varExist('UU')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
+           uu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
+                           + DLW2*zgd(ILON+1,JK2,ILA)  &
+                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
+                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+        endif
+        if(gsv_varExist('VV')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
+           vv_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
+                           + DLW2*zgd(ILON+1,JK2,ILA)  &
+                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
+                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+        endif
+        if(gsv_varExist('HU')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
+           hu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
+                           + DLW2*zgd(ILON+1,JK2,ILA)  &
+                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
+                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+        endif
+        if(gsv_varExist('GZ')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'GZ')
+           gz_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
+                           + DLW2*zgd(ILON+1,JK2,ILA)  &
+                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
+                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+        endif
+        if(gsv_varExist('TT')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
+           tt_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
+                           + DLW2*zgd(ILON+1,JK2,ILA)  &
+                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
+                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+        endif
+     enddo
+     if(gsv_varExist('P0')) then
+        jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
+        ps_column(1) =   DLW1*zgd(ILON  ,jk2,ILA)  &
+                       + DLW2*zgd(ILON+1,jk2,ILA)  &
+                       + DLW3*zgd(ILON  ,jk2,ILA+1)  &
+                       + DLW4*zgd(ILON+1,jk2,ILA+1)
+     endif
+     if(gsv_varExist('TG')) then
+        jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
+        tg_column(1) =   DLW1*zgd(ILON  ,jk2,ILA)  &
+                       + DLW2*zgd(ILON+1,jk2,ILA)  &
+                       + DLW3*zgd(ILON  ,jk2,ILA+1)  &
+                       + DLW4*zgd(ILON+1,jk2,ILA+1)
+     endif
+  END DO
+
+  deallocate(zgd)
+  
+END SUBROUTINE BILIN
