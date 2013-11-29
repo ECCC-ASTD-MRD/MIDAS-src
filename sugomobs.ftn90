@@ -27,7 +27,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   use EarthConstants_mod
   use MathPhysConstants_mod
   use mpi
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use timeCoord_mod
   use columnData_mod 
   use obsSpaceData_mod
   use gridStateVector_mod
@@ -35,7 +36,6 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
   use WindRotation_mod
   implicit none
-#include "comfilt.cdk"
 
   type(struct_columnData) :: lcolumng,lcolumnhr
   type(struct_obs) :: lobsSpaceData
@@ -97,8 +97,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   write(*,*) ' '
   write(*,*) '-------- ENTERING SUGOMOBS ---------'
   write(*,*) ' '
-  write(*,*) 'nstepobs=',nstepobs
-  call col_setNumStep(lcolumng,nstepobs)   ! from comfilt.cdk
+  write(*,*) 'nstepobs=',tim_nstepobs
+  call col_setNumStep(lcolumng,tim_nstepobs)
 
   !
   !     Ensure that all trial field files exist
@@ -232,11 +232,11 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
          
         call getStepObsIndex(stepObsIndex,min_get_datestamp(),  &
                                obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
-                               obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
+                               obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
         ! check if obs is outside of assimilation window when jstep = 1
         if(jstep.eq.1 .and.  &
-             (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(nstepobs,8)) ) then
+             (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(tim_nstepobs,8)) ) then
           write(*,*) 'sugomobs: Observation time outside assimilation window: ',  &
                obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
 

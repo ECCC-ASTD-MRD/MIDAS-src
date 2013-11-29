@@ -1,29 +1,128 @@
-subroutine sobs_all(lcolumnhr,lobsSpaceData)
+module filterObs_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr
   implicit none
-#include "comfilt.cdk"
-#include "comgpsgb.cdk"
+  save
+  private
+  
+  public :: filt_setup,filt_topo
+  public :: filt_rlimlvhu
+  public :: filt_nelems,filt_nlist
+  public :: filt_nflags,filt_nlistflg
 
-  type(struct_columnData) :: lcolumnhr
-  type(struct_obs) :: lobsSpaceData
+  integer filt_nelems,filt_nlist(30)
+  integer filt_nflags,filt_nlistflg(15)
+  logical ltopofilt
+  real*8 filt_rlimlvhu
 
-  integer :: index_header, index_body
+contains
 
-  CALL SOBSSFC
-  CALL SOBSRAOB
-  CALL SOBSAISW
-  CALL SOBSPROF
-  CALL SOBSCSBT
+  subroutine filt_setup
 
-  CONTAINS
+    implicit none
 
-      SUBROUTINE SOBSSFC
+    integer :: nulnam,ierr,jelem,jelem2,itotelem,ielem
+    integer :: fnom,fclos
+    integer nelems,nlist(30)
+    integer nflags,nlistflg(15)
+    real*8 rlimlvhu
+
+    namelist /namfilt/nelems,nlist,nflags,nlistflg,ltopofilt,rlimlvhu
+
+    ! set default values for namelist variables
+    do jelem = 1, 30
+      nlist(jelem) = 0
+    enddo
+    nelems = 6
+    nlist(1)=11003
+    nlist(2)=11004
+    nlist(3)=10194
+    nlist(4)=12192
+    nlist(5)=12062
+    nlist(6)=12063
+    do jelem = 1, 15
+      nlistflg(jelem) = 0
+    enddo
+    nflags=6
+    nlistflg(1)=2
+    nlistflg(2)=4
+    nlistflg(3)=5
+    nlistflg(4)=9
+    nlistflg(5)=11
+    nlistflg(6)=12
+
+    ltopofilt = .true.
+
+    filt_rlimlvhu = 300.
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namfilt,iostat=ierr)
+    if(ierr.ne.0) call abort3d('tim_setup: Error reading namelist')
+    write(*,nml=namfilt)
+    ierr=fclos(nulnam)
+
+    ! Force nlist to be in the same sequence as NVNUMB for invariance in
+    ! matrix-vector product done in matvec.
+    itotelem = 0
+    do jelem2 = 1, filt_nelems
+      jelem=obs_get_obs_index_for_bufr_element(nlist(jelem2))
+      if (jelem .ne. -1) then
+        itotelem = itotelem + 1
+        ielem = nlist(itotelem)
+        nlist(itotelem) = nlist(jelem2)
+        nlist(jelem2) = ielem
+      else 
+        write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(jelem2)
+      endif
+    enddo
+
+    filt_rlimlvhu    = rlimlvhu
+    filt_nelems      = nelems
+    filt_nlist(:)    = nlist(:)
+    filt_nflags      = nflags
+    filt_nlistflg(:) = nlistflg(:)
+
+  end subroutine filt_setup
+
+
+  subroutine filt_topo(lcolumnhr,lobsSpaceData)
+    implicit none
+
+    type(struct_columnData) :: lcolumnhr
+    type(struct_obs) :: lobsSpaceData
+
+    integer :: index_header, index_body
+
+    if (ltopofilt) then
+      write(*,*)' *****************************************'
+      write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+      write(*,*)' *                                       *'
+      write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
+      write(*,*)' *                                       *'
+      write(*,*)' *****************************************'
+      CALL filt_toposfc(lcolumnhr,lobsSpaceData)
+      CALL filt_toporaob(lcolumnhr,lobsSpaceData)
+      CALL filt_topoaisw(lcolumnhr,lobsSpaceData)
+      CALL filt_topoprof(lcolumnhr,lobsSpaceData)
+      CALL filt_topocsbt(lcolumnhr,lobsSpaceData)
+    else
+      write(*,*)' *****************************************'
+      write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
+      write(*,*)' *                                       *'
+      write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
+      write(*,*)' *                                       *'
+      write(*,*)' *****************************************'
+    endif
+  end subroutine filt_topo
+
+
+      SUBROUTINE filt_topoSFC(lcolumnhr,lobsSpaceData)
 !*
-!***s/r  SOBSSFC
+!***s/r  filt_topoSFC
 !*
 !*Author  : P. Koclas *CMC/AES  October  1998
 !*
@@ -32,14 +131,20 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !*      Replace the pressure of elements which are slightly below
 !*      the model surface by the pressure of the trial field.
 !*
-      INTEGER JPINEL,JPIDLND
-      PARAMETER(JPINEL=10,JPIDLND=10)
+      implicit none
+#include "comgpsgb.cdk"
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+
+      integer :: index_header, index_body
+      INTEGER JPINEL
+      PARAMETER(JPINEL=10)
       INTEGER J,JD,JID,JDATA,IBAD,IFLG
       LOGICAL LLREJ, LLPRINT, LLOK
       REAL(8) :: ZVAL,ZLEV,ZLEV2,ZDIFF,ZHHH,ZMODEL
       INTEGER ITYP,IDBURP
       INTEGER ILEM,ICRIT
-      INTEGER ILISTEL(JPINEL),IDLND(JPIDLND)
+      INTEGER ILISTEL(JPINEL)
       INTEGER IKOUNTREA(JPINEL),IKOUNTREJ(JPINEL),IKOUNTT
       REAL(8) :: RLISTCRIT(JPINEL)
 
@@ -47,8 +152,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       integer :: index_family
 
       DATA    RLISTCRIT/50.,50.,50.,50.,50.,800.,800.,800.,800.,1000. /
-!C                     SYNOP(3)     TEMP/PILOT(6)             GPS MET(1)
-      DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138, 189 /
 !C
 !C
 !C     RESET DZMAX FOR GB GPS ZTD TO VALUE IN NAMELIST FILE
@@ -67,7 +170,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       ILISTEL(10)=BUFR_NEZD
 
       WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE SOBSSFC '
+      WRITE(*,* ) ' SUBROUTINE filt_topoSFC '
       WRITE(*,* ) ' '
       WRITE(*,* ) '*****************************************************'
       WRITE(*,222)'ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
@@ -117,10 +220,6 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 
                IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
                   LLREJ = .FALSE.
-                  DO JD=1,NFLAGS
-                     IBAD= 13-NLISTFLG(JD)
-                     LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
-                  ENDDO
                   IF ( .NOT. LLREJ ) THEN
                      ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
                      ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'), &
@@ -205,12 +304,12 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       WRITE(*,* ) ' '
 
       RETURN
-      END subroutine sobssfc
+      END subroutine filt_toposfc
 
 
-      SUBROUTINE SOBSRAOB
+      SUBROUTINE filt_topoRAOB(lcolumnhr,lobsSpaceData)
 !*
-!***s/r  SOBSRAOB
+!***s/r  filt_topoRAOB
 !*
 !*Author  : P. Koclas *CMC/AES  October  1998
 !*
@@ -219,16 +318,21 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !*      Refuse elements which are considered in the free atmosphere of
 !*      the RAOB but fall in the surface boundary layer of the model atmosphere.
 !*
+      implicit none
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+
+      integer :: index_header, index_body
       INTEGER JPINEL,JPRANGE
       PARAMETER(JPINEL=7,JPRANGE=10)
-      INTEGER IJ,J,JD,JDATA,IBAD,IFLG
+      INTEGER IJ,J,JD,JDATA,IFLG
       LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
       REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
       REAL*8 ZLAT,ZLON,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
       INTEGER ITYP,IASS,ICOUNT
       INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
       INTEGER ILEM,IELGZ
-      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL),IFLGEL(JPINEL)
+      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL)
       INTEGER ITOTACC(JPINEL),ITOTREJ(JPINEL),IKOUNTT
       INTEGER ISFCACC(JPINEL),ISFCREJ(JPINEL),ISBLREJ(JPINEL)
       INTEGER IGZACC(JPINEL),IGZREJ(JPINEL),IBNDREJ(JPINEL)
@@ -252,7 +356,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       LLPRINT = .FALSE.
 
       WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE SOBSRAOB '
+      WRITE(*,* ) ' SUBROUTINE filt_topoRAOB '
       WRITE(*,* ) ' '
       WRITE(*,* ) '************************************************'
       WRITE(*,222)' ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
@@ -476,18 +580,23 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       WRITE(*,* ) ' '
 
       RETURN
-      END subroutine sobsraob
+      END subroutine filt_toporaob
 
 
-      SUBROUTINE SOBSAISW
+      SUBROUTINE filt_topoAISW(lcolumnhr,lobsSpaceData)
 !*
-!***s/r  SOBSAISW
+!***s/r  filt_topoAISW
 !*
 !*Author  : R. Sarrazin *CMC/AES  February 2000
 !*
 !**    Purpose:
 !*      Refuse elements which are too close to the surface.
 !*
+      implicit none
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+
+      integer :: index_header, index_body
       INTEGER JPINEL
       PARAMETER(JPINEL=4)
       INTEGER J,JDATA
@@ -505,7 +614,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DATA    RLISTCRIT/-50./
 
       WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE SOBSAISW '
+      WRITE(*,* ) ' SUBROUTINE filt_topoAISW '
       WRITE(*,* ) ' '
       WRITE(*,* ) '****************************************************'
       WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
@@ -579,15 +688,15 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
   224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
 
       RETURN
-      END subroutine sobsaisw
+      END subroutine filt_topoaisw
 
 
-      SUBROUTINE SOBSPROF
+      SUBROUTINE filt_topoPROF(lcolumnhr,lobsSpaceData)
 !*
-!***s/r  SOBSPROF
+!***s/r  filt_topoPROF
 !*
 !*Author  : J. St-James October 2002
-!*          - Based on the subroutine sobsraob.  Adapt to
+!*          - Based on the subroutine filt_toporaob.  Adapt to
 !*            Profiler data
 !*
 !**    Purpose:
@@ -595,16 +704,21 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !*      Refuse elements which are considered in the free atmosphere of
 !*      the RAOB but fall in the surface boundary layer of the model atmosphere.
 !*
+      implicit none
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+
+      integer :: index_header, index_body
       INTEGER JPINEL,JPRANGE
       PARAMETER(JPINEL=7,JPRANGE=10)
-      INTEGER IJ,J,JD,JDATA,IBAD,IFLG
+      INTEGER IJ,J,JD,JDATA,IFLG
       LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
       REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
       REAL*8 ZLAT,ZLON,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
       INTEGER ITYP,IASS,ICOUNT
       INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
       INTEGER ILEM,IELGZ
-      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL),IFLGEL(JPINEL)
+      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL)
       INTEGER ITOTACC(JPINEL),ITOTREJ(JPINEL),IKOUNTT
       INTEGER ISFCACC(JPINEL),ISFCREJ(JPINEL),ISBLREJ(JPINEL)
       INTEGER IGZACC(JPINEL),IGZREJ(JPINEL),IBNDREJ(JPINEL)
@@ -629,7 +743,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       LLPRINT = .FALSE.
 
       WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE SOBSPROF '
+      WRITE(*,* ) ' SUBROUTINE filt_topoPROF '
       WRITE(*,* ) ' '
       WRITE(*,* ) '************************************************'
       WRITE(*,222)' ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
@@ -803,12 +917,12 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       WRITE(*,* ) ' '
 
       RETURN
-      END subroutine sobsprof
+      END subroutine filt_topoprof
 
 
-      SUBROUTINE SOBSCSBT
+      SUBROUTINE filt_topoCSBT(lcolumnhr,lobsSpaceData)
 !*
-!***s/r  SOBSCSBT
+!***s/r  filt_topoCSBT
 !*
 !*Author  : R. Sarrazin *CMC/AES  June 2008
 !*Revision: A. Beaulne  CMDA      October 2012
@@ -817,6 +931,11 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
 !**    Purpose:
 !*      Refuse data which are too close to the surface.
 !*
+      implicit none
+      type(struct_columnData) :: lcolumnhr
+      type(struct_obs) :: lobsSpaceData
+
+      integer :: index_header, index_body
       INTEGER JPINEL
       PARAMETER(JPINEL=1)
       INTEGER J,JDATA
@@ -832,7 +951,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
       DATA    RLISTCRIT/800./
 
       WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE SOBSCSBT '
+      WRITE(*,* ) ' SUBROUTINE filt_topoCSBT '
       WRITE(*,* ) ' '
       WRITE(*,* ) '****************************************************'
       WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
@@ -921,7 +1040,7 @@ subroutine sobs_all(lcolumnhr,lobsSpaceData)
            ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
       WRITE(*,* ) ' '
 
-      RETURN
-      END subroutine sobscsbt
+      END subroutine filt_topocsbt
 
-end subroutine sobs_all
+end module filterObs_mod
+

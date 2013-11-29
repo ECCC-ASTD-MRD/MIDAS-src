@@ -21,7 +21,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   use mpi
   use MathPhysConstants_mod
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use timeCoord_mod
   use WindRotation_mod
   use Vgrid_Descriptors, only: vgrid_descriptor
   use obsSpaceData_mod
@@ -35,7 +36,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   IMPLICIT NONE
   !implicits
 #include "comct0.cdk"
-#include "comfilt.cdk"
   
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumng,lcolumnhr
@@ -58,9 +58,9 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) '-------------------------------'
 
   !     
-  !- Initialize logical units and some files
+  !- Initialize burp file names and set datestamp (in minimization_mod)
   !
-  call sufilnam
+  call setup_burpfiles
   
   !
   !- Initialize constants
@@ -81,6 +81,11 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   
+  !
+  !- Initialize the Temporal grid
+  !
+  call tim_setup
+
   !
   !- Initialize the Analysis grid
   !
@@ -142,11 +147,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  !- Check the date of the burp files (set datestamp)
-  !
-  call brpcheck()
-
-  !
   !- Miscellaneous initializations associated with the observations
   !
   call suobs(lobsSpaceData)
@@ -157,11 +157,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   call tovs_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Initialize GB-GPS processing (read NAMGPSGB in namelist file)
-  !
-  call sugpsgb
 
   !
   !- Basic setup of columnData module (nouu, novv, etc. needed in suprep)
@@ -224,7 +219,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !  NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs
   !
   if (nconf == 141) then
-    call min_setup( cvm_nvadim, hco_anl % ni, hco_anl % nj, nstepobsinc ) ! IN
+    call min_setup( cvm_nvadim, hco_anl % ni, hco_anl % nj, tim_nstepobsinc ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
 
@@ -237,7 +232,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
-  call prdatabin(lobsSpaceData,nstepobs)
+  call prdatabin(lobsSpaceData,tim_nstepobs)
 
   !
   !- Compute observation innovations and prepare obsSpaceData for minimization
@@ -246,6 +241,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
-  call prdatabin(lobsSpaceData,nstepobs)
+  call prdatabin(lobsSpaceData,tim_nstepobs)
 
 end subroutine preproc

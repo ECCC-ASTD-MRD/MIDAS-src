@@ -66,9 +66,6 @@
 #endif
       IMPLICIT NONE
 *implicits
-#include "comfilt.cdk"
-#include "namfilt.cdk"
-C
 #include "partov.cdk"
 #include "comtov.cdk"
 #include "namtov.cdk"
@@ -119,12 +116,7 @@ C
 C
 C*    2.1
 C
-      IF(CDNAME.EQ.'NAMFILT')THEN
-C
-         READ(NULNAM,NAMFILT)
-         WRITE(*,NAMFILT)
-C
-      ELSE IF(CDNAME.EQ.'NAMTOV')THEN
+      IF(CDNAME.EQ.'NAMTOV')THEN
 C
          READ(NULNAM,NAMTOV)
          WRITE(*,NAMTOV)

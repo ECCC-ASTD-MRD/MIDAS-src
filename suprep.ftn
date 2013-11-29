@@ -109,11 +109,11 @@
       use obsSpaceData_mod
       use bufr
       use tovs_mod ,only :  tvs_Is_idburp_tovs
+      use filterObs_mod
       IMPLICIT NONE
 *implicits
 *
 #include "comct0.cdk"
-#include "comfilt.cdk"
 #include "comgpsgb.cdk"
 C
 C  .......  DEFINITION OF A FEW BUFR ELEMENTS ..........................
@@ -202,14 +202,14 @@ C
       WRITE(*,'(1X,"***********************************")')
       WRITE(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
       WRITE(*,'(1X,"***********************************")')
-      DO JD=1,NELEMS
-        WRITE(*,'(15X,I5,/)') NLIST(JD)
+      DO JD=1,FILT_NELEMS
+        WRITE(*,'(15X,I5,/)') FILT_NLIST(JD)
       ENDDO
       WRITE(*,'(1X,"***********************************")')
       WRITE(*,*) ' REJECT ELEMENTS WITH REJECT FLAG '
       WRITE(*,*)'           BIT :  '
-      DO JD=1,NFLAGS
-        IBIT= NLISTFLG(JD)
+      DO JD=1,FILT_NFLAGS
+        IBIT= FILT_NLISTFLG(JD)
         WRITE(*,*) IBIT,' ',CREASON(IBIT)
       ENDDO
       WRITE(*,'(1X,"***********************************")')
@@ -338,8 +338,8 @@ C
             LLOK = .FALSE.
             LLBOGUS=(IDBURP .eq. 150 .or. IDBURP .eq. 151 .or. IDBURP
      &           .eq. 152 .or. IDBURP .eq. 153)
-            DO JD =1,NELEMS
-              LLOK=( ITYP .EQ. NLIST(JD) )  .OR. LLOK
+            DO JD =1,FILT_NELEMS
+              LLOK=( ITYP .EQ. FILT_NLIST(JD) )  .OR. LLOK
             ENDDO
 *
 *pik        ALLOW GZ FOR BOGUS DATA ONLY in analysis case ( nconf 141)
@@ -372,7 +372,7 @@ C
 C     b. Exclude T-Td above level RLIMLVHU (mbs)
 C
               IF ( (ITYP  .EQ. BUFR_NEES) .AND.
-     &             (IPRES .LT. NINT(RLIMLVHU*100)) ) LLOK=.FALSE.
+     &             (IPRES .LT. NINT(FILT_RLIMLVHU*100)) ) LLOK=.FALSE.
 C
 C     c. Bad data with quality control flags via bit list
 C        specified in NLISTFLG
@@ -434,8 +434,8 @@ C
 C      Check rejection bit in datum's FLAG
 C
             LLREJ = .FALSE.
-            DO JD=1,NFLAGS
-              IBAD= 13-NLISTFLG(JD)
+            DO JD=1,FILT_NFLAGS
+              IBAD= 13-FILT_NLISTFLG(JD)
               LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
             ENDDO
 C

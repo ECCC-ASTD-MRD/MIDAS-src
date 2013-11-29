@@ -39,9 +39,9 @@
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod
+      use filterObs_mod
       IMPLICIT NONE
 #include "comct0.cdk"
-#include "comfilt.cdk"
 c
       type(struct_columnData) :: lcolumnhr,lcolumng
       type(struct_obs) :: lobsSpaceData
@@ -62,24 +62,11 @@ c     pressure values of the trial field.
 c
 c     GB-GPS (met and ZTD) observations are processed in s/r SOBSSFC (in sobs_all.ftn90)
 c
-        IF (LTOPOFILT) THEN
-          write(*,*)' *****************************************'
-          write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-          write(*,*)' *                                       *'
-          write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
-          write(*,*)' *                                       *'
-          write(*,*)' *****************************************'
-          call sobs_all(lcolumnhr,lobsSpaceData)
-        ELSE
-          write(*,*)' *****************************************'
-          write(*,*)' *    PREPROC PREPROC PREPROC PREPROC    *'
-          write(*,*)' *                                       *'
-          write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
-          write(*,*)' *                                       *'
-          write(*,*)' *****************************************'
-        ENDIF
-
-        IF(NCONF .EQ. 141) CALL SFCWNDZAP(lobsSpaceData)
+      call filt_topo(lcolumnhr,lobsSpaceData)
+c
+c     Remove surface station wind observations
+c
+      IF(NCONF .EQ. 141) CALL SFCWNDZAP(lobsSpaceData)
 c
 c     Find interpolation layer in model profiles 
 c

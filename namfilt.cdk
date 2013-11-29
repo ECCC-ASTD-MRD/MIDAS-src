@@ -1,2 +1,0 @@
-      NAMELIST /NAMFILT/NELEMS,NLIST,NFLAGS,NLISTFLG,dstepobs,dstepobsinc
-     &     ,LTOPOFILT,RLIMLVHU

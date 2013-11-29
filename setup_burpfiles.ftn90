@@ -1,0 +1,184 @@
+SUBROUTINE setup_burpfiles
+  use mpi
+  use minimization_mod
+  implicit none
+!s/r  setup_burpfiles -INITIALZE BURP FILE NAMES
+!
+!
+#include "comvfiles.cdk"
+  INTEGER INFIL,IER,INBLKS,nulburp,JJ
+  INTEGER FNOM,FCLOS,NUMBLKS
+  PARAMETER(INFIL=129)
+  CHARACTER *64 CLVALU(INFIL),CFAMI(INFIL)
+  CHARACTER(len=4) :: cmyidx, cmyidy
+  CHARACTER(len=9) :: cmyid
+  CHARACTER(len=128) :: burpin   
+  LOGICAL   isExist_L 
+!************************************************************************
+  INTEGER KTIME,KDATE
+  INTEGER IHANDL,ILONG,NBRPSTAMP
+  INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
+  INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
+  INTEGER INSUP,INXAUX
+
+  INTEGER, ALLOCATABLE :: IBUF(:)
+  INTEGER IER,INRECS
+  INTEGER MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
+  INTEGER MRFMXL
+
+  INTEGER NBRPDATE,NBRPHH,ISTAMPOBS,INEWHH,NEWDATE
+  REAL*8 DELHH
+  INTEGER       IVALS
+  CHARACTER*9   CLSTNID
+
+  EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
+
+!************************************************************************
+  write(cmyidy,'(I4.4)') (mpi_nprocs-mpi_myid)
+  !! later, when the mpi along longitudes bands will be implemented, then
+  !! this 'cmyidx' and 'cmyidy' will change
+  cmyidx = '0001'
+  cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
+
+  CLVALU(10) = 'brpuan'  
+  CLVALU(11) = 'brpuas'  
+  CLVALU(12) = 'brpai'  
+  CLVALU(13) = 'brpain'  
+  CLVALU(14) = 'brpais'  
+  CLVALU(15) = 'brpaie'  
+  CLVALU(16) = 'brpaiw'  
+  CLVALU(17) = 'brpsfc'  
+  CLVALU(18) = 'brpsf'  
+  CLVALU(19) = 'brptov'  
+  CLVALU(20) = 'brpsw'  
+  CLVALU(21) = 'brpswgoes9'  
+  CLVALU(22) = 'brpswgoese'  
+  CLVALU(23) = 'brpswgoesw'  
+  CLVALU(24) = 'brpswmodis'  
+  CLVALU(25) = 'brpswmtsate'  
+  CLVALU(26) = 'brpswmtsatw'  
+
+  CLVALU(27) = 'brpgo'  
+  CLVALU(28) = 'brpsc'  
+  CLVALU(29) = 'brppr'  
+  CLVALU(30) = 'brpro'  
+  CLVALU(31) = 'brphum'  
+  CLVALU(32) = 'brpsat'  
+  CLVALU(33) = 'brpssm'  
+  CLVALU(34) = 'brpo3'  
+  CLVALU(35) = 'brpoz'  
+  CLVALU(36) = 'brpgp'  
+  
+  CLVALU(37) = ' '  
+
+  CFAMI(10)  = 'UA' 
+  CFAMI(11)  = 'UA' 
+  CFAMI(12)  = 'AI' 
+  CFAMI(13)  = 'AI' 
+  CFAMI(14)  = 'AI'
+  CFAMI(15)  = 'AI'
+  CFAMI(16)  = 'AI'
+  CFAMI(17)  = 'SF' 
+  CFAMI(18)  = 'SF' 
+  CFAMI(19)  = 'TO' 
+  CFAMI(20)  = 'SW' 
+  CFAMI(21)  = 'SW' 
+  CFAMI(22)  = 'SW' 
+  CFAMI(23)  = 'SW' 
+  CFAMI(24)  = 'SW' 
+  CFAMI(25)  = 'SW' 
+  CFAMI(26)  = 'SW' 
+  CFAMI(27)  = 'GO' 
+  CFAMI(28)  = 'SC' 
+  CFAMI(29)  = 'PR' 
+  CFAMI(30)  = 'RO' 
+  CFAMI(31)  = 'HU' 
+  CFAMI(32)  = 'ST' 
+  CFAMI(33)  = 'MI' 
+  CFAMI(34)  = 'OZ' 
+  CFAMI(35)  = 'OZ' 
+  CFAMI(36)  = 'GP' 
+
+  CFAMI(37)  = ' ' 
+
+  IER =MRFOPC('MSGLVL','FATAL')
+
+  IVALS=8
+  KDATE=-9999
+  KTIME=-9999
+  NFILES=0
+  DO JJ=10,INFIL 
+    IF(CLVALU(JJ) == '') EXIT
+    nulburp=0
+    burpin=trim(CLVALU(JJ))//'_'//trim(cmyid)
+    INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
+    IF (.NOT. isExist_L )THEN
+      burpin=trim(CLVALU(JJ))
+      INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
+    END IF
+    IF ( isExist_L )THEN
+      IER=FNOM(nulburp,burpin,'RND+OLD',0)
+      WRITE(*,*)' Open File : ',burpin   
+      IF ( IER .EQ. 0 ) THEN
+        INBLKS= -1
+        INBLKS=NUMBLKS(nulburp)
+        IF ( INBLKS .GT. 0 ) THEN
+          INRECS=MRFOPN(NULBURP,'READ')
+          ILONG =MRFMXL(NULBURP)
+          ALLOCATE(IBUF(ILONG + 20))
+          IBUF(1)=ILONG + 20
+          IHANDL  =MRFLOC(NULBURP,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
+          IF ( IHANDL .LT. 0 ) THEN
+            IHANDL=MRFLOC(NULBURP,0,'*********',-1,-1,-1,-1,-1,-1,0)
+          ENDIF
+          IF ( IHANDL .LT. 0 ) THEN
+            WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
+          ELSE
+            NFILES=NFILES + 1
+            CFILNAM(NFILES)=burpin
+            CFAMTYP(NFILES)=CFAMI(JJ)
+            INSUP=0
+            INXAUX=0
+            IER=MRFGET(IHANDL,IBUF)
+            IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,   &
+              ILON,IDX,IDY, IALT,IDELAY,IDATE,IRS,IRUNN,INBLK, &
+              ISUP,INSUP,IXAUX,INXAUX)
+            KTIME=ITIME
+            KDATE=IDATE
+            DEALLOCATE(IBUF)
+          ENDIF
+          IER=MRFCLS(NULBURP)
+        ENDIF
+      ENDIF
+      IER= FCLOS(nulburp)
+    ENDIF
+  END DO
+
+  WRITE(*,*) ' '
+  WRITE(*,*)' NUMBER OF BURP FILES IS :',NFILES
+  WRITE(*,*)'TYPE  NAME '
+  WRITE(*,*)'----  ---- '
+  DO JJ=1,NFILES
+    WRITE(*,'(1X,A2,1X,A128)' ) CFAMTYP(JJ),CFILNAM(JJ)
+  END DO
+
+  ier = newdate(istampobs,kdate,ktime,3)
+  delhh = 3.0
+  call INCDATR (nbrpstamp, istampobs, delhh)
+  ier = newdate(nbrpstamp,nbrpdate,inewhh,-3)
+  nbrphh=KTIME/100
+  if (nbrphh .ge. 21 .or. nbrphh .lt. 3) then
+    nbrphh = 0
+  elseif(nbrphh .ge. 3 .and. nbrphh .lt. 9) then
+    nbrphh = 6
+  elseif(nbrphh .ge. 9 .and. nbrphh .lt. 15) then
+    nbrphh = 12
+  else
+    nbrphh = 18
+  endif
+  ier = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
+  WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
+  WRITE(*, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+  call min_set_datestamp(nbrpstamp)
+
+END SUBROUTINE setup_burpfiles

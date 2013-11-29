@@ -18,6 +18,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   use minimization_mod
   use obsSpaceData_mod
   use columnData_mod
+  use timeCoord_mod
   implicit none
   !
   !Purpose:
@@ -28,7 +29,6 @@ subroutine minimize(lcolumng,lobsSpaceData)
   !                                    in 1-Obs case.
 #include "partov.cdk"
 #include "comtov.cdk"
-#include "comfilt.cdk"
   !Local declarations
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumn,lcolumng
@@ -43,7 +43,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   call col_copyLatLon(lcolumng,lcolumn)
 
   write(*,*) 'PRDATABIN: For 4D increment'
-  call prdatabin(lobsSpaceData,nstepobsinc)
+  call prdatabin(lobsSpaceData,tim_nstepobsinc)
   call sutimeinterp(lobsSpaceData,lcolumn)
 
   call min_minvar(lnlvtov,lcolumn,lcolumng,lobsSpaceData)

@@ -9,7 +9,7 @@ subroutine add_cloudprms(lobsSpaceData)
   use obsSpaceData_mod
   use mpi
   implicit none
-#include "cvcord.cdk"
+#include "comvfiles.cdk"
 #include "partov.cdk"
 #include "comtov.cdk"
 

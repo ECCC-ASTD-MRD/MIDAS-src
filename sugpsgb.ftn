@@ -29,21 +29,20 @@
 **             on options selected.
 *
 #endif
+      use bufr
+      use filterObs_mod
       IMPLICIT NONE
 *implicits
-#include "comfilt.cdk"
 #include "comgpsgb.cdk"
 *
-      INTEGER KIERR, IELE, J
+      INTEGER KIERR, J
 C
       LOGICAL LLGP
 C
-C           GPS ZTD burp element
-      DATA IELE / 15031 /
-C
       LLGP = .FALSE.
-      DO J = 1, NELEMS
-         IF ( NLIST(J) .EQ. IELE ) THEN
+      DO J = 1, FILT_NELEMS
+C        GPS ZTD burp element
+         IF ( FILT_NLIST(J) .EQ. BUFR_NEZD ) THEN
             LLGP = .TRUE.
          ENDIF
       ENDDO

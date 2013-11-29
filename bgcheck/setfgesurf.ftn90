@@ -16,90 +16,84 @@
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
-#include "comfilt.cdk"
+
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
       INTEGER IPB,IPT,IDIM
       INTEGER INDEX_HEADER,IK
       INTEGER INDEX_BODY,ITYP
-      INTEGER JLIST
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPT,ZPB,ZHHH
       CHARACTER(len=2) :: cfam
       LOGICAL LLOK
-!C
+
       ! loop over all body rows
       BODY: do index_body=1,obs_numbody(lobsSpaceData)
-         cfam=obs_getFamily(lobsSpaceData,bodyIndex=index_body)
-         if(cfam.eq.'SF' .or. &
-            cfam.eq.'UA' .or. &
-            cfam.eq.'SC' .or. &
-            cfam.eq.'GP') then
-!C
-!C*    1. Computation of (HX - Z)/SIGMA
-!C     .  -----------------------------
-!C
-!C     Process all data within the domain of the model (excluding GB-GPS
-!C     ZTD data)
-!C
-            ELEMS: DO JLIST = 1,NELEMS
-              LLOK=.FALSE.
-              IF ( obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == 1 ) THEN
-                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-                IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.  &
-                    ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.  &
-                    ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
-                  LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1 .AND. ITYP .EQ. NLIST(JLIST))
+        cfam=obs_getFamily(lobsSpaceData,bodyIndex=index_body)
+        if(cfam.eq.'SF' .or. &
+           cfam.eq.'UA' .or. &
+           cfam.eq.'SC' .or. &
+           cfam.eq.'GP') then
+!
+!         Process all data within the domain of the model (excluding GB-GPS
+!         ZTD data)
+!
+          LLOK=.FALSE.
+          IF ( obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == 1 ) THEN
+            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+            IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.  &
+                ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.  &
+                ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
+              LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1 )
+            ELSE
+              LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1 .AND.  &
+                    obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .ge. 0)
+            ENDIF
+            IF ( ITYP == BUFR_NEZD ) LLOK=.FALSE.
+
+            IF ( LLOK ) THEN
+              INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
+              ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+              idim=1
+              if (vnl_vartypeFromVarnum(ityp).eq.'SF') idim=0
+              IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
+              ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
+              ZHHH = ZLEV * GRAV
+
+              IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.   &
+                  ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.   &
+                  ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
+
+                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+                IPB  = IPT+1
+                call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
+              ELSE
+                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+                IPB  = IPT+1
+                ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,'NA')
+                ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')
+                ZWB  = idim*(ZPT-ZHHH)/(ZPT-ZPB)
+                ZWT  = 1. - ZWB
+                IF ( obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .eq. 0) then
+                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+                    zwb*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER))
                 ELSE
-                  LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1 .AND.  &
-                       ITYP .EQ. NLIST(JLIST) .AND. obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .ge. 0)
+                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+                    col_getElem(lcolumn,IK + col_getOffsetFromVarno(lcolumng,ityp),INDEX_HEADER))
                 ENDIF
-                IF ( ITYP == BUFR_NEZD ) LLOK=.FALSE.
-
-                IF ( LLOK ) THEN
-                  INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
-                  ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-                  idim=1
-                  if (vnl_vartypeFromVarnum(ityp).eq.'SF') idim=0
-                  IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
-                  ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
-                  ZHHH = ZLEV * GRAV
-
-                  IF (ITYP == BUFR_NETS .OR. ITYP == BUFR_NEPS .OR.   &
-                      ITYP == BUFR_NEPN .OR. ITYP == BUFR_NESS .OR.   &
-                      ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS    ) THEN
-
-                    IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
-                    IPB  = IPT+1
-                    call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
-                  ELSE
-                    IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
-                    IPB  = IPT+1
-                    ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,'NA')
-                    ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')
-                    ZWB  = idim*(ZPT-ZHHH)/(ZPT-ZPB)
-                    ZWT  = 1. - ZWB
-                    IF ( obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .eq. 0) then
-                      call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                        zwb*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER))
-                    ELSE
-                      call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                        col_getElem(lcolumn,IK + col_getOffsetFromVarno(lcolumng,ityp),INDEX_HEADER))
-                    ENDIF
-                    if(obs_elem_c(lobsSpaceData,'STID',index_header) .eq. '99999999') then
-                      write(*,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &
-                           ,obs_elem_c(lobsSpaceData,'STID',index_header),ityp,    &
-                            obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body),ipt,ipb,zwt,zwb
-                      write(*,*) 'setfgesurf:gobs(ipb),gobs(ipt),fge'   &
-                           ,col_getElem(lcolumn,IPB,INDEX_HEADER),col_getElem(lcolumn,IPT,INDEX_HEADER)      &
-                           ,obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
-                    endif
-                  ENDIF
-                ENDIF
+                if(obs_elem_c(lobsSpaceData,'STID',index_header) .eq. '99999999') then
+                  write(*,*) 'setfgesurf:stn,ityp,xtr,ipt,ipb,zwt,zwb'   &
+                       ,obs_elem_c(lobsSpaceData,'STID',index_header),ityp,    &
+                        obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body),ipt,ipb,zwt,zwb
+                  write(*,*) 'setfgesurf:gobs(ipb),gobs(ipt),fge'   &
+                       ,col_getElem(lcolumn,IPB,INDEX_HEADER),col_getElem(lcolumn,IPT,INDEX_HEADER)      &
+                       ,obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
+                endif
               ENDIF
-            ENDDO ELEMS
+            ENDIF
+          ENDIF
 
-         ENDIF
+        ENDIF
 
       ENDDO BODY
 

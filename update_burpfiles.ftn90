@@ -14,7 +14,7 @@ SUBROUTINE UPDATE_BURPFILES(obsdat)
       use ObsSpacedata_mod
       use burp_read
       IMPLICIT NONE
-#include "cvcord.cdk"
+#include "comvfiles.cdk"
 
       type (struct_obs), intent(inout) :: obsdat
 

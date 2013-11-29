@@ -2,11 +2,12 @@
 !*
 !***s/r sutimeinterp  
 !*
+      use timeCoord_mod
       use obsSpaceData_mod
       use columnData_mod
       use minimization_mod, only: min_get_datestamp
       IMPLICIT NONE
-#include "comfilt.cdk"
+
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumn
       integer :: jobs,jstep
@@ -17,22 +18,22 @@
       write(*,*) ' '
 
 ! Compute the number of step obs over a 6 hours assimilation window
-      write(*,*) 'SUTIMEINTERP: Number of step obs inc : ',nstepobsinc
+      write(*,*) 'SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
 
       do jobs=1, obs_numheader(lobsSpaceData)
 ! return the step stamp associated whit date and time of the observation
 
 ! building the list of step stamp and counting number of obs in each step
-        if(nstepobsinc.eq.1) then
+        if(tim_nstepobsinc.eq.1) then
           call col_setTimeInterpWeight(lcolumn,1.0d0,jobs,1)
         else
           call getStepObsIndex(stepObsIndex,min_get_datestamp(),
      &                         obs_headElem_i(lobsSpaceData,OBS_DAT,jobs)
-     &         ,obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobsinc)
-          if(floor(stepObsIndex).ge.nstepobsinc) then
+     &         ,obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobsinc)
+          if(floor(stepObsIndex).ge.tim_nstepobsinc) then
             write(*,*) 'stepObsIndex too big=',jobs,stepObsIndex
             call col_setTimeInterpWeight(lcolumn,
-     &           1.0d0,jobs,nstepobsinc)
+     &           1.0d0,jobs,tim_nstepobsinc)
           elseif(floor(stepObsIndex).le.0) then
             write(*,*) 'stepObsIndex too small=',jobs,stepObsIndex
             call col_setTimeInterpWeight(lcolumn,

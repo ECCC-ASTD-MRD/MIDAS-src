@@ -29,9 +29,8 @@
       use mpi
       use gridStateVector_mod
       use HorizontalCoord_mod
+      use timeCoord_mod
       IMPLICIT NONE
-#include "comvfiles.cdk"
-#include "comfilt.cdk"
       type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
       type(struct_hco),      pointer :: hco_anl
@@ -39,7 +38,7 @@
       type(struct_gsv) :: statevector,statevectorg
 
       integer jk,jj,ji,jstep,nulfile,ierr,fnom,fstouv,fstfrm,fclos
-      integer :: datestamplist(nstepobsinc)
+      integer :: datestamplist(tim_nstepobsinc)
       real*8  :: hu_anl,deltaHours
       real*8, allocatable :: zes(:,:,:)
       real*8, allocatable :: ztv(:,:,:)
@@ -66,8 +65,8 @@
 !
 !     Check that we have at least as many processors as increment timesteps
 !
-      if(mpi_nprocs .lt. nstepobsinc) then
-        write(*,*) 'mpi_nprocs=',mpi_nprocs,', nstepobsinc=',nstepobsinc
+      if(mpi_nprocs .lt. tim_nstepobsinc) then
+        write(*,*) 'mpi_nprocs=',mpi_nprocs,', nstepobsinc=',tim_nstepobsinc
         call abort3d('postmin: number of cpus < number of increment timesteps, aborting!')
       endif
 !
@@ -82,7 +81,7 @@
       call gsv_setHco  ( statevector, hco_anl )
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      call gsv_allocate(statevector,nstepobsinc, &
+      call gsv_allocate(statevector,tim_nstepobsinc, &
            datestamp=min_get_datestamp(),mpi_local=.true.)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -117,12 +116,12 @@
 
       call gsv_allocate(statevectorg,1,datestamp=min_get_datestamp(),mpi_local=.false.)
 
-      do jstep=1,nstepobsinc
+      do jstep=1,tim_nstepobsinc
         datestamplist(jstep)=gsv_getDateStamp(statevector,jstep)
       enddo
       if(write4dInc) then
         ! read in the background fields at all increment timesteps
-        call subasic_gd(statevectorg,lcolumnhr,nstepobsinc,datestamplist)
+        call subasic_gd(statevectorg,lcolumnhr,tim_nstepobsinc,datestamplist)
       else
         ! only read in the background fields at the "analysis" timestep (usually the middle)
         call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime))
@@ -130,7 +129,7 @@
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! background fields only on myid=0, so only do calculations for myid=0
-      if( (write4dInc      .and. mpi_myid .lt. nstepobsinc) .or.  &
+      if( (write4dInc      .and. mpi_myid .lt. tim_nstepobsinc) .or.  &
           (.not.write4dInc .and. mpi_myid .eq. 0          ) ) then
 
         if(write4dInc) then

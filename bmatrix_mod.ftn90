@@ -5,7 +5,8 @@ MODULE BMatrix_mod
   use gridStateVector_mod
   use columnData_mod
   use LAMbMatrixHI_mod
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use timeCoord_mod
   implicit none
   save
   private
@@ -27,7 +28,6 @@ contains
     !
     use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
     IMPLICIT NONE
-#include "comfilt.cdk"
 
     type(struct_vco), pointer :: vco_anl_in
     type(struct_hco), pointer :: hco_anl_in
@@ -86,7 +86,7 @@ contains
       write(*,*)
       write(*,*) 'Setting up the modular ENSEMBLE covariances...'
       call ben_Setup( pressureProfile, hco_anl % ni, hco_anl % nj,          & ! IN
-                      vco_anl_in % nlev_M, nstepobsinc, vco_anl_in % ip1_M, & ! IN
+                      vco_anl_in % nlev_M, tim_nstepobsinc, vco_anl_in % ip1_M, & ! IN
                       datestamp, hco_anl % global,                          & ! IN
                       cvdimens )                                              ! OUT
 

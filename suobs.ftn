@@ -16,6 +16,7 @@
 !
       SUBROUTINE SUOBS(lobsSpaceData)
       use obsSpaceData_mod
+      use filterObs_mod
 #if defined (DOC)
 *
 ***s/r SUOBS  - Initialisation of observation parameters and constants
@@ -36,8 +37,6 @@
 *                   . 32 bits conversion
 *          C Charette  ARMA/SMC  Oct 2001
 *                   . Added LTOPOFILT
-*          S. Pellerin *ARMA/SMC nov. 2001
-*                   . Initialisation of dstepobs for fgat/4dvar mode
 *     P. Gauthier *ARMA/MSC March 2003
 *     .       Elimination of simulated observation mode at this level
 *     .       Synthetic observations will go through the same initialization process
@@ -47,11 +46,8 @@
 C
       IMPLICIT NONE
 *implicits
-#include "comfilt.cdk"
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "comgpsro.cdk"
-**
+*
       type(struct_obs) :: lobsSpaceData
       INTEGER JO, IPOINTU, IPOINTV,IPOINTZ,IERR,jelem,j,ielem
       integer itotelem
@@ -60,18 +56,6 @@ C
       WRITE(*,FMT=9000)
  9000 FORMAT(/,1x,' SUOBS- Initialisation of observation arrays'
      S     ,/,1x,3('- -----------'))
-C
-      write(*,fmt='(/,12x,A)')'Setting ATOVS parameters from NAMELIST'
-      NSENSORS   = 1
-      CSATID(:)  = '***UNDEFINED***'
-      CINSTRUMENTID(:) = '***UNDEFINED***'
-      LTSTTOV   = .FALSE.
-      LDBGTOV   = .FALSE.
-      LRTNADIR  = .FALSE.
-      LEVEL1B   = .FALSE.
-      LNLVTOV   = .FALSE.
-      CRTMODL   = 'RTTOV'
-      CALL READNML('NAMTOV',IERR)
 C
 C*    *        1.2 Read the NAMELIST NAMGGPSRO
 C     *       ---------------------------------------
@@ -97,64 +81,15 @@ C
          IF (WGPS(J).LT. 100.d0) WGPS(J)= 100.d0
          IF (WGPS(J).GT.1500.d0) WGPS(J)=1500.d0
       ENDDO
-C
-C     1.Read Input from namelist
-C     -------------------------
-C     DEFAULTS
-C     ------------------
-      dstepobs    = 6.0d0
-      dstepobsinc = 6.0d0      
-      do j = 1, 30
-        nlist(j) = 0
-      enddo
-      NELEMS = 6
-      NLIST(1)=11003
-      NLIST(2)=11004
-      NLIST(3)=10194
-      NLIST(4)=12192
-      NLIST(5)=12062
-      NLIST(6)=12063
-      do j = 1, 15
-        nlistflg(j) = 0
-      enddo
-      NFLAGS=6
-      NLISTFLG(1)=2
-      NLISTFLG(2)=4
-      NLISTFLG(3)=5
-      NLISTFLG(4)=9
-      NLISTFLG(5)=11
-      NLISTFLG(6)=12
-C
-      LTOPOFILT = .TRUE.
-C
-      RLIMLVHU = 300.
-C
-C     Read list of flags from namelist
-C
-      CALL READNML('NAMFILT',IERR)
-C
-      nstepobs    = 2*nint((3.d0 - dstepobs/2.d0)/dstepobs) + 1
-      nstepobsinc = 2*nint((3.d0 - dstepobsinc/2.d0)/dstepobsinc) + 1
-      write(*,*) 'SUOBS: dstepobs   =',dstepobs
-      write(*,*) 'SUOBS: nstepobs   =',nstepobs
-      write(*,*) 'SUOBS: dstepobsinc=',dstepobsinc
-      write(*,*) 'SUOBS: nstepobsinc=',nstepobsinc
 c
-c     Force nlist to be in the same sequence as NVNUMB for invariance in
-C     matrix-vector product done in matvec.
+c     Set up the list of elements to be assimilated and flags for rejection
 c
-      itotelem = 0
-      do j = 1, nelems
-        jelem=obs_get_obs_index_for_bufr_element(nlist(j))
-        if (jelem .ne. -1) then
-          itotelem = itotelem + 1
-          ielem = nlist(itotelem)
-          nlist(itotelem) = nlist(j)
-          nlist(j) = ielem
-        else 
-          write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(j)
-        endif
-      enddo
+      call filt_setup
+c
+c     Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+c
+      call sugpsgb
+c
                                  !Select calls  BRPCMA
                                  ! 1. Positioning of data records within ObsSpaceData
       CALL SELECTB(lobsSpaceData) ! 2. Fill ObsSpaceData  with observation records

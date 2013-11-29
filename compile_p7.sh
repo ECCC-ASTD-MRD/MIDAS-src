@@ -3,6 +3,15 @@
 mode=$1
 nompi=$2
 
+if [ "$mode" == "" ] ; then
+  echo " "
+  echo "------------------------------------------------------- "
+  echo "WARNING: no compilation mode specified, assuming 'full'"
+  echo "------------------------------------------------------- "
+  echo " "
+  mode=full
+fi
+
 if [ $mode == full ] ; then
   echo
   echo "----------------------------------------"
@@ -39,13 +48,24 @@ fi
 
 trunkdir=$PWD
 
+# automatically set the global revision number in comct0.cdk by
+# replacing the string XXXXX with the actual revision number
+revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
+revnum=$(ssh pollux "cd $trunkdir;  svnversion")
+echo " " 
+echo "-----------------------"
+echo "Revision number='$revnum' '$revpath'"
+echo "-----------------------"
+echo " "
+cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comct0.cdk
+
 ARMNLIB=${ARMNLIB:-/home/dormrb02/ibmenv/armnlib}
 
 VAR3D_VERSION="11.2.1"
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
 
 LIBSYS="lapack blas mass"
-LIBRMN="rmn_014_rc1"
+LIBRMN="rmn_014_rc2"
 LIBEXTRA="rtools hpm_r"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
@@ -67,13 +87,6 @@ echo $LIBPATH2
 echo "INCLUDES="
 echo $INCLUDES
 
-# automatically set the global revision number in comct0.cdk by
-# replacing the string XXXXX with the actual revision number
-revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
-revnum=$(ssh pollux "cd $trunkdir;  svnversion")
-echo "Revision number='$revnum' '$revpath'"
-cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comct0.cdk
-
 # Create and Move to compilation directory
 cd ../
 mkdir -p compiledir
@@ -84,9 +97,9 @@ if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
-  # Load the appropriate librairies
-  . s.ssmuse.dot Xlf13.108
-  . s.ssmuse.dot rmnlib-dev
+  ## To access 'rmn_014_rc2'
+  . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
+  . s.ssmuse.dot Xlf13.110
   . s.ssmuse.dot devtools
   . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
   . s.ssmuse.dot CMDN/vgrid/3.4.0
@@ -114,7 +127,8 @@ if [ $mode == full ] ; then
   rm -f $SRC0
 
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90"
+  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
+  SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
@@ -127,11 +141,12 @@ if [ $mode == full ] ; then
 
   echo "compiling most of the new modules"
   SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
-  SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
+  SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 columndata_mod.ftn90 gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
   SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90"
+  SRC1="$SRC1 filterobs_mod.ftn90"
 
   s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
   grep fail listing1

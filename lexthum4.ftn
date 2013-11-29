@@ -70,9 +70,8 @@ c          j. halle       *cmc*        99/10/13.
 *                           and RLIMLVHU set at  0.1mb.  
 c
       use MathPhysConstants_mod
+      use filterObs_mod
       IMPLICIT none
-c
-#include "comfilt.cdk"
 c
       integer :: klapf, knpf
       REAL*8 PPRES(*),PAV(KLAPF,*),PAV5(KLAPF,*)
@@ -99,7 +98,7 @@ c               ----------- -------- -------
 c
 c          find top level of given profile
       DO 110 J=KLAPF,1,-1
-           IF (PPRES(J).LT.RLIMLVHU) THEN
+           IF (PPRES(J).LT.FILT_RLIMLVHU) THEN
                 INLVW=J
                 GOTO 120
            ENDIF

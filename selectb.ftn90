@@ -22,7 +22,7 @@ SUBROUTINE SELECTB(obsdat)
       use burp_read
 
       IMPLICIT NONE
-      #include "cvcord.cdk"
+      #include "comvfiles.cdk"
 
       type (struct_obs), intent(inout) :: obsdat
 

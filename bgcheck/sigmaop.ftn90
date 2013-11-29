@@ -56,7 +56,7 @@
         write(*,*) ' opened as unit file ',iulssf
         ierr =  fstouv(iulssf,'RND+OLD')
       ELSE
-        CALL ABORT3D('SUFILNAM:NO BACKGROUND STAT FILE!!')
+        CALL ABORT3D('SIGMAOP:NO BACKGROUND STAT FILE!!')
       ENDIF
 !C
 !C     .  2.1 Background error standard deviations
@@ -80,146 +80,146 @@
            ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
            ,IUBC,IEXTR1,IEXTR2,IEXTR3)
       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
-          stop
-        end if
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
+         stop
+      end if
 
-       field_ptr => gsv_getField3D(statevector,'UU')       
-       DO J = 1, col_getNumLev(LCOLUMNG)
-          DO JLAT = 1, hco_anl % nJ
-             DO JLON=1,hco_anl % nI
-                if(IG2 .eq. 0) then
-                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                else
-                   field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                endif
-              END DO
-           END DO
-       END DO
-
-       CLNOMVAR = 'VV'
-       write(*,*) CLNOMVAR
-       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
-          stop
-       end if
-
-       field_ptr => gsv_getField3D(statevector,'VV')
-       DO J = 1, col_getNumLev(LCOLUMNG)
-          DO JLAT = 1, HCO_ANL % NJ
-             DO JLON=1,HCO_ANL % NI
-                if(IG2 .eq. 0) then
-                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                else
-                   field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                endif
+      field_ptr => gsv_getField3D(statevector,'UU')       
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, hco_anl % nJ
+            DO JLON=1,hco_anl % nI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               endif
              END DO
           END DO
-       END DO
+      END DO
 
-       CLNOMVAR = 'ES'
-       write(*,*) CLNOMVAR
-       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
-          stop
-       end if
-       field_ptr => gsv_getField3D(statevector,'HU')
-       DO J = 1, col_getNumLev(LCOLUMNG)
-          DO JLAT = 1, HCO_ANL % NJ
-             DO JLON=1,HCO_ANL % NI
-                if(IG2 .eq. 0) then
-                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
-                else
-                   field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
-                endif
-             END DO
-          END DO
-       END DO
+      CLNOMVAR = 'VV'
+      write(*,*) CLNOMVAR
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
+         stop
+      end if
 
-       CLNOMVAR = 'GZ'
-       write(*,*) CLNOMVAR
-       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
-          stop
-       end if
-       field_ptr => gsv_getField3D(statevector,'TT')
-       DO J = 1, col_getNumLev(LCOLUMNG)
-          DO JLAT = 1, HCO_ANL % NJ
-             DO JLON=1,HCO_ANL % NI
-                if(IG2 .eq. 0) then
-                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
-                else
-                   field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
-                endif
-             END DO
-          END DO
-       END DO
+      field_ptr => gsv_getField3D(statevector,'VV')
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               endif
+            END DO
+         END DO
+      END DO
+
+      CLNOMVAR = 'ES'
+      write(*,*) CLNOMVAR
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
+         stop
+      end if
+      field_ptr => gsv_getField3D(statevector,'HU')
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+               endif
+            END DO
+         END DO
+      END DO
+
+      CLNOMVAR = 'GZ'
+      write(*,*) CLNOMVAR
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
+         stop
+      end if
+      field_ptr => gsv_getField3D(statevector,'TT')
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
+               endif
+            END DO
+         END DO
+      END DO
 
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 
       do jobs= 1, col_getNumCol(lcolumn)
-        gz_column => col_getColumn(lcolumn,jobs,'GZ')
-        tt_column => col_getColumn(lcolumn,jobs,'TT')
-        do j = 1,col_getNumLev(lcolumn)
-          gz_column(j)=tt_column(j)
-        enddo
+         gz_column => col_getColumn(lcolumn,jobs,'GZ')
+         tt_column => col_getColumn(lcolumn,jobs,'TT')
+         do j = 1,col_getNumLev(lcolumn)
+            gz_column(j)=tt_column(j)
+         enddo
       enddo
 
 !C
-!C     SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
-!C     --------------------------------------------------------------------
+!C    SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
+!C    --------------------------------------------------------------------
 !C
-         CALL SETFGEFAM('AI',lcolumn,lcolumng,lobsSpaceData)
-         CALL SETFGEFAM('SW',lcolumn,lcolumng,lobsSpaceData)
-         CALL SETFGEFAM('UA',lcolumn,lcolumng,lobsSpaceData)
-         CALL SETFGEFAM('SF',lcolumn,lcolumng,lobsSpaceData)
-         CALL SETFGEFAM('HU',lcolumn,lcolumng,lobsSpaceData)
-         CALL SETFGEFAMZ('PR',lcolumn,lcolumng,lobsSpaceData)
+      CALL SETFGEFAM('AI',lcolumn,lcolumng,lobsSpaceData)
+      CALL SETFGEFAM('SW',lcolumn,lcolumng,lobsSpaceData)
+      CALL SETFGEFAM('UA',lcolumn,lcolumng,lobsSpaceData)
+      CALL SETFGEFAM('SF',lcolumn,lcolumng,lobsSpaceData)
+      CALL SETFGEFAM('HU',lcolumn,lcolumng,lobsSpaceData)
+      CALL SETFGEFAMZ('PR',lcolumn,lcolumng,lobsSpaceData)
 !C
-!C     SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
-!C     -----------------------------------------------------
+!C    SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
+!C    -----------------------------------------------------
 !C
-         CALL SETFGEDIF('RO',lcolumng,lobsSpaceData)
+      CALL SETFGEDIF('RO',lcolumng,lobsSpaceData)
 
 !C
-!C     DO TEMPERATURE FIRST-GUESS ERROR
-!C     ---------------------------------
+!C    DO TEMPERATURE FIRST-GUESS ERROR
+!C    ---------------------------------
 !C
       CLNOMVAR = 'TT'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
-          stop
-       end if
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
+         stop
+      end if
       field_ptr => gsv_getField3D(statevector,'TT')
       DO J = 1, col_getNumLev(LCOLUMNG)
          DO JLAT = 1, HCO_ANL % NJ
@@ -244,130 +244,130 @@
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, 1
-          stop
-       end if
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, 1
+         stop
+      end if
       field_ptr => gsv_getField3D(statevector,'P0')
-        DO J = 1, INK
-           DO JLAT = 1, HCO_ANL % NJ
-              DO JLON=1,HCO_ANL % NI
-                 if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
-                 else
-                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
-                 endif
-              END DO
-           END DO
-        END DO
+      DO J = 1, INK
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_PA_PER_MBAR_R8
+               endif
+            END DO
+         END DO
+      END DO
 
       CLNOMVAR = 'UU'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'UU')
-        DO J = 1, col_getNumLev(LCOLUMNG)
-           DO JLAT = 1, HCO_ANL % NJ
-              DO JLON=1,HCO_ANL % NI
-                 if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                 else
-                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                 endif
-              END DO
-           END DO
-        END DO
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               endif
+            END DO
+         END DO
+      END DO
 
       CLNOMVAR = 'VV'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'VV')
-        DO J = 1, col_getNumLev(LCOLUMNG)
-           DO JLAT = 1, HCO_ANL % NJ
-              DO JLON=1,HCO_ANL % NI
-                 if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                 else
-                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
-                 endif
-              END DO
-           END DO
-        END DO
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+               endif
+            END DO
+         END DO
+      END DO
 
       CLNOMVAR = 'TT'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'TT')
-        DO J = 1, col_getNumLev(LCOLUMNG)
-           DO JLAT = 1, HCO_ANL % NJ
-              DO JLON=1,HCO_ANL % NI
-                 if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
-                 else
-                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
-                 endif
-              END DO
-           END DO
-        END DO
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+               endif
+            END DO
+         END DO
+      END DO
 
       CLNOMVAR = 'ES'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'HU')
-        DO J = 1, col_getNumLev(LCOLUMNG)
-           DO JLAT = 1, HCO_ANL % NJ
-              DO JLON=1,HCO_ANL % NI
-                 if(IG2 .eq. 0) then
-                    field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
-                 else
-                    field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
-                 endif
-              END DO
-           END DO
-        END DO
+      DO J = 1, col_getNumLev(LCOLUMNG)
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+               else
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+               endif
+            END DO
+         END DO
+      END DO
 
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !C
-!C     SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
-!C     ------------------------------------------------
+!C    SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
+!C    ------------------------------------------------
 !C
       CALL SETFGESURF(lcolumn,lcolumng,lobsSpaceData)
 
-!C     READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
-!C     ---------------------------------------------
+!C    READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
+!C    ---------------------------------------------
 !C
       CLNOMVAR = 'LQ'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG)) then
-          write(*,*)
-          write(*,*) 'sigmaop: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
-          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
-          stop
-       end if
+         write(*,*)
+         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'nomvar         =', trim(CLNOMVAR)
+         write(*,*) 'etiket         =', trim(CLETIKET)
+         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG)
+         stop
+      end if
       field_ptr => gsv_getField3D(statevector,'HU')
       DO J = 1, col_getNumLev(LCOLUMNG)
-        DO JLAT = 1, HCO_ANL % NJ
-          DO JLON=1,HCO_ANL % NI
-            if(IG2 .eq. 0) then
-               field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
-            else
-               field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
-            endif
-          END DO
-        END DO
+         DO JLAT = 1, HCO_ANL % NJ
+            DO JLON=1,HCO_ANL % NI
+               if(IG2 .eq. 0) then
+                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)
+               else
+                   field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)
+               endif
+            END DO
+         END DO
       END DO
 
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !C
-!C     SET THE FIRST-GUESS ERRORS FOR GB-GPS ZTD DATA
-!C     ------------------------------------------------
+!C    SET THE FIRST-GUESS ERRORS FOR GB-GPS ZTD DATA
+!C    ------------------------------------------------
 !C
       CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
 

@@ -14,41 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE DOBSSFC(PJO,CDFAM,lcolumnhr,lobsSpaceData)
+      SUBROUTINE DOBSSFC(PJO,CDFAM,columnhr,obsSpaceData)
 #if defined (DOC)
 *
 ***s/r DOBSSFC  - Computation of Jo and the residuals to the observations
-*                 FOR SURFACE DATAFILES
+*                 FOR SURFACE DATA (except ground-based GPS zenith delay)
 *
-*
-*Author  : P. Koclas *CMC/AES  September 1994
-*Revision:
-*           P. Koclas *CMC/AES February 1995
-*            - Minor modifications
-*            - Allow for multiple data files.
-*           P. KoCLAS CMC/CMSV AUGUST 1998
-*            - ANALYSYS ON ETA COORDINATE
-*           C. Charette ARMA/AES NOV 1998
-*            - Extrapolation GZ below model orography.
-*            - Adapt code to follow Luc Fillion's notes on 3dvar-eta
-*              analysis. LLPRINT to print diagnostics
-*           B. Brasnett CMC/CMDA NOV 1999
-*            - Addition of variational quality control
-*           C. Charette ARMA/AES Jun 2000
-*            - Adapt code to process data with height as vertical coordinate.
-*              Special care for surface temperature(12004) and for
-*              sfc pressure(10004) and mean sea level pressure(10051)
-*           C. Charette ARMA/AES Oct 2000
-*            - Process elements 12203,11215,11216 at the reported height
-*              rather than at the model surface. These observations are
-*              no longer displaced to the model surface in SFCADJUSTZ.
-*           C. Charette ARMA/SMC FEV. 2002
-*            - Commented out the if(llprint...) statements within
-*              the do loops. They were preventing vectorization.
-*           S. Macpherson ARMA/MRD Sep 2009
-*            - modifications for GPS surface observations
-*
-**    Purpose:  -Interpolate vertically the contents of commvo to
+**    Purpose:  -Interpolate vertically the contents of columnhr to
 *                the pressure levels of the observations. Then
 *                compute Jo.
 *                A linear interpolation in ln(p) is performed.
@@ -67,18 +39,11 @@
       IMPLICIT NONE
       REAL*8 PJO
       CHARACTER(len=*) :: CDFAM
-*implicits
-#include "comfilt.cdk"
-*
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
-      INTEGER IPB,IPT
-      INTEGER INDEX_HEADER
-      INTEGER INDEX_BODY,ITYP
-      INTEGER ICOUNT,JLIST,JCOUNT
-      INTEGER, ALLOCATABLE :: IPOINTR(:)
-      REAL*8 ZVAR,ZCON
-      REAL*8 ZEXP,zexpgz,ZGAMMA,ZTVG
+      type(struct_columnData) :: columnhr
+      type(struct_obs) :: obsSpaceData
+
+      INTEGER IPB,IPT,INDEX_HEADER,INDEX_BODY,ITYP
+      REAL*8 ZVAR,ZCON,ZEXP,ZGAMMA,ZTVG
       REAL*8 ZLEV,ZHHH,ZGAMAZ,ZSLOPE,GZHR
       REAL*8 columnVarB,LQTOES
       LOGICAL LLOK
@@ -88,16 +53,12 @@ C     Temperature lapse rate for extrapolation of gz below model surface
 C
       ZGAMMA = 0.0065 / GRAV
       zexp = 1.0/(MPC_RGAS_DRY_AIR_R8*ZGAMMA)
-      ZEXPGZ = MPC_RGAS_DRY_AIR_R8*ZGAMMA
-C
-
-      allocate(IPOINTR(obs_numBody(lobsSpaceData)))
 
       ! loop over all header indices of the 'SF' family
-      call obs_set_current_header_list(lobsSpaceData,CDFAM)
+      call obs_set_current_header_list(obsSpaceData,CDFAM)
       HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+        index_header = obs_getHeaderIndex(obsSpaceData)
+        if (index_header < 0) exit HEADER
 C
 C*    1. Computation of (HX - Z)/SIGMA
 C     .  -----------------------------
@@ -105,172 +66,94 @@ C
 C     Process all data within the domain of the model
 C
 C
-         LISTELEM: DO JLIST = 1,NELEMS
-           ICOUNT = 0
+        ! loop over all body indices for this index_header
+        call obs_set_current_body_list(obsSpaceData, index_header)
+        BODY: do 
+          index_body = obs_getBodyIndex(obsSpaceData)
+          if (index_body < 0) exit BODY
 
-           ! loop over all body indices for this index_header
-           call obs_set_current_body_list(lobsSpaceData, index_header)
-           BODY: do 
-             index_body = obs_getBodyIndex(lobsSpaceData)
-             if (index_body < 0) exit BODY
+          LLOK=.FALSE.
 
-             LLOK=.FALSE.
-             IF ( obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1 ) THEN
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
-     &              ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
-     &              ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
-                 LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.
-     &                ITYP .EQ. NLIST(JLIST))
-               ELSE IF (ITYP.EQ.BUFR_NEZD) THEN
-                 LLOK=.FALSE.
-               ELSE
-                 LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.
-     &                ITYP .EQ. NLIST(JLIST)        .AND.
-     &                obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY)  .EQ. 0)
-               ENDIF
-               IF ( LLOK ) THEN
-                 ICOUNT = ICOUNT + 1
-                 IPOINTR(ICOUNT) = INDEX_BODY
-               ENDIF
-             ENDIF
-           ENDDO BODY
-C--------------T2m,(T-TD)2m,US,VS
-C              In this section we always extrapolate linearly the trial
-C              field at the model surface to the height of the
-C              surface observation whether the observation is above or
-C              below the model surface.
-C              NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
-C
-           IF ((NLIST(JLIST).EQ.BUFR_NETS .OR. NLIST(JLIST).EQ.BUFR_NESS .OR.
-     &          NLIST(JLIST).EQ.BUFR_NEUS .OR. NLIST(JLIST).EQ.BUFR_NEVS)
-     &                                .AND. ICOUNT.GT.0)        THEN
-
-             IF(NLIST(JLIST).EQ.BUFR_NETS) THEN
-               ZSLOPE = ZGAMMA
-             ELSE
-               ZSLOPE = 0.0
-             ENDIF
-
-             DO JCOUNT = 1,ICOUNT
-               INDEX_BODY = IPOINTR(JCOUNT)
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-               ZHHH = ZLEV * GRAV
-               varType = vnl_vartypeFromVarnum(ITYP)
-               IPT  = col_getNumLev(LCOLUMNHR,varType)-1 + col_getOffsetFromVarno(lcolumnhr,ityp)
-               IPB  = IPT+1
-               if(ityp.eq.bufr_ness) then
-                 columnVarB=lqtoes(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU'),
-     +                             col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT'),
-     +                             col_getPressure(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TH'))
-               else
-                 columnVarB=col_getElem(lcolumnhr,IPB,INDEX_HEADER)
-               endif
-               GZHR=col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),INDEX_HEADER,varType)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY,
-     +               (  ZVAR-columnVarB
-     +                + ZSLOPE*(ZHHH-GZHR))
-     +               )
-             ENDDO
-C--------------Surface Pressure Mean sea level Pressure
-C              In this section we always extrapolate linearly the trial
-C              field at the model surface to the height of the
-C              surface observation whether the observation is above or
-C              below the model height
-           ELSEIF ((NLIST(JLIST).EQ.BUFR_NEPS .OR.
-     &            NLIST(JLIST).EQ.BUFR_NEPN).AND. ICOUNT.GT.0) THEN
-             DO JCOUNT = 1,ICOUNT
-               INDEX_BODY = IPOINTR(JCOUNT)
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-               ZHHH = ZLEV * GRAV
-               varType = vnl_vartypeFromVarnum(ITYP)
-               ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,varType),INDEX_HEADER,varType))
-               ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
-     &                 *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
-               ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
-               call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY,
-     &              ZVAR-(col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')*ZCON**ZEXP))
-             ENDDO
-           ENDIF
-         ENDDO LISTELEM
-C
-C                 CONTRIBUTION TO Jo
-C
-
-         ! loop over all body indices for this index_header
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY_2: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY_2
-
-            LLOK=.false.
-            IF ( obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1 ) THEN
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
-     &             ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
-     &             ITYP.EQ.BUFR_NESS  .OR. ITYP.EQ.BUFR_NEPN) THEN
-                  LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)
-               ELSE IF (ITYP.EQ.BUFR_NEZD) THEN
-                  LLOK=.FALSE.
-               ELSE
-                  LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1 .AND.
-     &                  obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY)  .EQ. 0)
-               ENDIF
-               IF(LLOK)     THEN
-                  PJO = PJO + obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)*
-     1                  obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-     2                  / (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-     3                     *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY))
-               ENDIF
+          IF(obs_bodyElem_i(obsSpaceData,OBS_VCO,INDEX_BODY).EQ.1 .AND.
+     &       obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY).EQ.1) THEN
+            ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+            IF( ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NEPS .OR.
+     &          ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS .OR.
+     &          ITYP.EQ.BUFR_NESS .OR. ITYP.EQ.BUFR_NEPN ) THEN
+              LLOK= .true.
             ENDIF
-C
-         ENDDO BODY_2
+          ENDIF
+          IF(.NOT.LLOK) cycle body
 
+C---------T2m,(T-TD)2m,US,VS
+C         In this section we always extrapolate linearly the trial
+C         field at the model surface to the height of the
+C         surface observation whether the observation is above or
+C         below the model surface.
+C         NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
 C
-C     Process all geopotential data below model's orography
-C
-         ! loop over all body indices for this index_header
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY_3: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY_3
+          IF(ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.
+     &       ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
 
-            LLOK=(obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)
-     &         .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 2)
-     &         .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEGZ )
-     &         .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1)
-            IF ( LLOK ) THEN
-               ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-C
-C                 CONTRIBUTION TO Jo
-C
-c
-c  forward nonlinear model for geopotential data below model's orography
-c
-               ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
-     &                     *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
-               call obs_bodySet_r(lobsSpaceData,OBS_OMP,INDEX_BODY,zvar - col_getMountain(lcolumnhr,index_header)
-     &                     - ZTVG/zgamma
-     &                     *(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexpgz))
-               PJO =PJO+obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-     +                     *obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-     &                     /( obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-     &                       *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY))
-               PJO =PJO+obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-     +                            *obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
-     &                     /( obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-     &                       *obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY))
+            IF(ITYP.EQ.BUFR_NETS) THEN
+              ZSLOPE = ZGAMMA
+            ELSE
+              ZSLOPE = 0.0d0
             ENDIF
+
+            ZVAR = obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
+            ZHHH = ZLEV * GRAV
+            varType = vnl_vartypeFromVarnum(ITYP)
+            IPT  = col_getNumLev(COLUMNHR,varType)-1 + col_getOffsetFromVarno(columnhr,ityp)
+            IPB  = IPT+1
+            if(ityp.eq.bufr_ness) then
+              columnVarB=lqtoes(col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),INDEX_HEADER,'HU'),
+     +                          col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),INDEX_HEADER,'TT'),
+     +                          col_getPressure(columnhr,col_getNumLev(COLUMNHR,'TH'),INDEX_HEADER,'TH'))
+            else
+              columnVarB=col_getElem(columnhr,IPB,INDEX_HEADER)
+            endif
+            GZHR=col_getHeight(columnhr,col_getNumLev(COLUMNHR,varType),INDEX_HEADER,varType)
+            call obs_bodySet_r(obsSpaceData,OBS_OMP,INDEX_BODY,
+     +            (  ZVAR-columnVarB
+     +             + ZSLOPE*(ZHHH-GZHR))
+     +            )
+C---------Surface Pressure Mean sea level Pressure
+C         In this section we always extrapolate linearly the trial
+C         field at the model surface to the height of the
+C         surface observation whether the observation is above or
+C         below the model height
+          ELSEIF(ITYP.EQ.BUFR_NEPS .OR.
+     &           ITYP.EQ.BUFR_NEPN) THEN
+            ZVAR = obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
+            ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
+            ZHHH = ZLEV * GRAV
+            varType = vnl_vartypeFromVarnum(ITYP)
+            ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columnhr,
+     &              col_getNumLev(COLUMNHR,varType),
+     &              INDEX_HEADER,varType))
+            ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(columnhr,
+     &              col_getNumLev(COLUMNHR,'TH'),
+     &              INDEX_HEADER,'HU')))*
+     &              col_getElem(columnhr,
+     &              col_getNumLev(COLUMNHR,'TH'),INDEX_HEADER,'TT')
+            ZCON = ((ZTVG-ZGAMAZ)/ZTVG)
+            call obs_bodySet_r(obsSpaceData,OBS_OMP,INDEX_BODY,
+     &           ZVAR-(col_getElem(columnhr,1,INDEX_HEADER,'P0')*
+     *           ZCON**ZEXP))
+          ENDIF
 C
-         ENDDO BODY_3
+C         CONTRIBUTION TO Jo
 C
+          PJO = PJO +(obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY)*
+     1                obs_bodyElem_r(obsSpaceData,OBS_OMP,INDEX_BODY)) /
+     2               (obs_bodyElem_r(obsSpaceData,OBS_OER,INDEX_BODY)*
+     3                obs_bodyElem_r(obsSpaceData,OBS_OER,INDEX_BODY))
+
+        ENDDO BODY
+
       ENDDO HEADER
-      deallocate(IPOINTR)
 
       PJO=0.5d0*PJO
 
