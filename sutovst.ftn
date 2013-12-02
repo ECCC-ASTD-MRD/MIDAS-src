@@ -55,16 +55,11 @@
       
       use hir_chans
       use mpi
+      use tovs_mod
       IMPLICIT NONE
 
 *implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "comct0.cdk"
-C
-      INTEGER MXPLATFORM, MXINSTRUMENT
-      PARAMETER (MXPLATFORM   = 17)
-      PARAMETER (MXINSTRUMENT = 30)
 C
       INTEGER IER, ILUTOV, JI, JJ, JK, JL, JM, I
       INTEGER IPOS1, IPOS2
@@ -78,8 +73,6 @@ C
       INTEGER ICHNIN   (JPCHMAX,JPNSATMAX)
       INTEGER NUMCHN (JPNSATMAX)
       INTEGER NUMCHNIN (JPNSATMAX)
-      INTEGER NOPLATFORM(MXPLATFORM)
-      INTEGER NOINSTRUMENT(MXINSTRUMENT)
 *
       REAL*8    TOVERRIN(JPCHMAX,2,JPNSATMAX)
       REAL*8    TOVERRST(JPCHMAX,JPNSATMAX)
@@ -87,50 +80,6 @@ C
       REAL      ZDUM
 C
       CHARACTER*132  CLDUM
-C
-      CHARACTER*15 CPLATFORM  (MXPLATFORM  )
-      CHARACTER*15 CINSTRUMENT(MXINSTRUMENT)
-
-*
-**                         Tables for Platforms
-**                         --------------------
-*
-      DATA CPLATFORM  / 'NOAA',    'DMSP',   'METEOSAT',     'GOES',
-     &                   'GMS',     'FY2',       'TRMM',      'ERS',
-     &                   'EOS',   'METOP',    'ENVISAT',      'MSG',
-     &                   'FY1',   'ADEOS',      'MTSAT', 'CORIOLIS',
-     &                   'NPP' /
-*
-      DATA NOPLATFORM /      1,         2,            3,          4,
-     &                       5,         6,            7,          8,
-     &                       9,        10,           11,         12,
-     &                      13,        14,           15,         16,
-     &                      17 /
-*
-**                         Tables for Instruments
-**                         ----------------------
-*
-      DATA CINSTRUMENT  /      'HIRS',       ' MSU',         'SSU',
-     &                        'AMSUA',      'AMSUB',       'AVHRR',
-     &                         'SSMI',      'VTPR1',       'VTPR2',
-     &                          'TMI',      'SSMIS',        'AIRS',
-     &                          'HSB',      'MODIS',        'ATSR',
-     &                          'MHS',       'IASI',        'AMSR',
-     &                         'ATMS',      'MVIRI',      'SEVIRI',
-     &                  'GOESIMAGER', 'GOESSOUNDER',    'GMSMTSAT',
-     &                    'FY2VISSR',    'FY1MVISR',        'CRIS',  
-     &                       'CMISS',       'VIIRS',     'WINDSAT' /
-*
-      DATA NOINSTRUMENT /           0,            1,             2,
-     &                              3,            4,             5,
-     &                              6,            7,             8,
-     &                              9,           10,            11,
-     &                             12,           13,            14,
-     &                             15,           16,            17,
-     &                             19,           20,            21,
-     &                             22,           23,            24,
-     &                             25,           26,            27,
-     &                             28,           29,            30 /
 C
       EXTERNAL FNOM, FCLOS, ISRCHEQ
       EXTERNAL ABORT3D
@@ -170,8 +119,7 @@ C
       ilutov = 0
       IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
       IF(IER.LT.0)THEN
-         WRITE ( *, '(" SUTOVST: Problem opening ",
-     S         "file stats_tovs ")' )
+         WRITE ( *, '(" SUTOVST: Problem opening ","file stats_tovs ")' )
          CALL ABORT3D ('SUTOVST         ')
       END IF
 C
@@ -235,7 +183,7 @@ c     S            IPLATFORM(JL)
 C
  510     CONTINUE
          IINSTRUMENT(JL) = -1    
-         DO I = 1, MXINSTRUMENT
+         DO I = 1, JPNSATMAX
             IPOS1=LEN_TRIM(CINSTRUMENT(I))
             IPOS2 = INDEX(CLDUM,CINSTRUMENT(I)(1:IPOS1))
             IF ( IPOS2 .NE. 0 ) THEN
@@ -299,13 +247,11 @@ C
          IPLF = ISRCHEQ ( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
          ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
          IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
-            WRITE ( *, '(" SUTOVST: Observation errors not ",
-     S         "defined for sensor # ", I3)' ) JL
+            WRITE ( *, '(" SUTOVST: Observation errors not ","defined for sensor # ", I3)' ) JL
             CALL ABORT3D ('SUTOVST         ')
          END IF
          IF ( NUMCHN(JL) .EQ. 0 ) THEN 
-           WRITE ( *, '(" SUTOVST: Problem setting errors ",
-     S        "for sensor # ", I3)' ) JL
+           WRITE ( *, '(" SUTOVST: Problem setting errors ","for sensor # ", I3)' ) JL
            CALL ABORT3D ('SUTOVST         ')
          ENDIF
       ENDDO
@@ -343,8 +289,7 @@ C
          WRITE(*,'(//1X,"Radiance observation errors read from file")')
          WRITE(*,'(  1X,"------------------------------------------")')
          DO JL = 1, NSENSORS
-            WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,
-     &                     "Instrument: ",A)')
+            WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)')
      &                     JL, CSATID(JL), CINSTRUMENTID(JL)
             WRITE(*,'(1X,"Channel",5X,"  error   ")')
             DO JI = 1, NUMCHN(JL)
@@ -367,8 +312,7 @@ C
 C
 C*    Read error
 C
-900   WRITE ( *, '(" SUTOVST: Problem reading ",
-     S         "file stats_tovs ")' )
+900   WRITE ( *, '(" SUTOVST: Problem reading ","file stats_tovs ")' )
       CALL ABORT3D ('SUTOVST         ')
 C
       RETURN

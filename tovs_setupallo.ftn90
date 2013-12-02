@@ -63,8 +63,6 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
   IMPLICIT NONE
 !implicits
 #include "comct0.cdk"
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "rttov_setup.interface"
 #include "rttov_alloc_prof.interface"
 
@@ -85,6 +83,7 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
   INTEGER ::  NOBCRIS
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
+  Integer, Allocatable :: list_sensors(:,:)     ! list of platform, satellite and instrument
 
   CHARACTER(len=2) :: SENSORTYPE
 
@@ -159,7 +158,7 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 
         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).EQ.1 ) THEN
            ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-           ICHN = MAX(0,MIN(ICHN,JPCH+1))
+           ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
 
            ICHN=ICHN-CHANOFFSET(NOSENSOR)
 
@@ -270,15 +269,16 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 !   Verify that all coefficient files have the same number of levels, since
 !   the rest of the processing assumes this!
 
-     nlevels1 =  coefs(1)%coef%nlevels
      do jk = 1, nsensors
-        if ( coefs(jk)% coef %nlevels .ne. nlevels1 ) then
+        if ( coefs(jk)% coef %nlevels .ne. coefs(1)%coef%nlevels ) then
            WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
                   ' identical in all coef files')
            CALL ABORT3D('TOVS_SETUPALLO           ')
         endif
      enddo
+
+     deallocate (list_sensors)
 
   ENDIF
 

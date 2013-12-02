@@ -48,7 +48,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
 
 ! appel séparé de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
-       Use tovs_mod ,only : jppf
+       Use tovs_mod
        Use rttov_types, only : profile_type ,rttov_chanprof
 implicit none
 integer ,intent(in) :: nthreads
@@ -61,8 +61,6 @@ type (profile_type) ,intent (in) :: profilesdata_th(knpf,nthreads)
 end subroutine tovs_rttov_AVHRR_for_IASI
 end interface
 !implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "comct0.cdk"
 #include "rttov_direct2.interface"
 #include "rttov_alloc_prof.interface"
@@ -237,7 +235,7 @@ end interface
             do jdata = idata, idatend
               if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata).eq.1) then
                 ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,jdata))
-                ichn = max(0,min(ichn,jpch+1))
+                ichn = max(0,min(ichn,jpchmax+1))
                 do nrank = 1, nchan(krtid)
                   if ( ichn == ichan(nrank,krtid) ) exit
                 end do

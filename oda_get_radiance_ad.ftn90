@@ -40,11 +40,8 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
    use obsSpaceData_mod
 
    implicit none
-!implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 
-  type(struct_obs) :: lobsSpaceData
+   type(struct_obs) :: lobsSpaceData
    integer :: isens, indxchn, indxtovs
    real(8) :: zres
    integer idatyp
@@ -94,7 +91,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
             if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1 ) then
                ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-               ichn = max(0,min(ichn,jpch+1))
+               ichn = max(0,min(ichn,jpchmax+1))
                ichn=ichn-chanoffset(isens)
                indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
                if ( indxchn .eq. 0 ) then

@@ -48,9 +48,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
   Use parkind1, Only : jpim     ,jprb
 
   implicit none
-!implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng
 

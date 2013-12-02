@@ -19,6 +19,7 @@ MODULE minimization_mod
   use mpi
   use gridStateVector_mod
   use bmatrix_mod
+  use tovs_mod
 
   implicit none
   save
@@ -130,7 +131,7 @@ CONTAINS
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lnlvtov,lcolumn,lcolumng,lobsSpaceData)
+  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData)
 !
 ! Purpose:
 ! 3D/En VAR minimization
@@ -141,8 +142,6 @@ CONTAINS
       type(struct_obs),target :: lobsSpaceData
       type(struct_dataptr) :: dataptr 
       integer,allocatable :: dataptr_int(:) ! obs array used to transmit pointer
-
-      logical lnlvtov
 
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)

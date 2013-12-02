@@ -42,10 +42,6 @@ SUBROUTINE CRISQC ( cris_end,cris_loop_done, lcolumnhr, lobsSpaceData )
   use verticalCoord_mod
 
   IMPLICIT NONE
-
-!implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 logical,intent(inout) :: cris_end
 integer,intent(in) :: cris_loop_done
 type(struct_columnData),intent(in) :: lcolumnhr
@@ -304,7 +300,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                 DO INDEX_BODY= IDATA, IDATEND
                    IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                     ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                    ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                    ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
                     chan_indx=hir_get_chindx_fr_chn("CRIS",ichn)
                     BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                     BTOBS(chan_indx,NOBCRIS) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
@@ -797,7 +793,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                endif
                DO INDEX_BODY= IDATA, IDATEND
                   ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                  ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                  ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
                   chan_indx=hir_get_chindx_fr_chn("CRIS",ichn)
                   call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx,NOBCRIS))
                   IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN

@@ -45,7 +45,7 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
 
 
   use burp_module
-  use tovs_mod ,only: jpch
+  use tovs_mod ,only: jpchmax
   use obsSpaceData_mod
 
   IMPLICIT NONE
@@ -528,7 +528,7 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
                     do j=idata,idatend
                        emisfc=100.0*obs_bodyElem_r(lobsspacedata,OBS_SEM,j)
                        ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,j))
-                       ICHN = MAX(0,MIN(ICHN,JPCH+1))
+                       ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
                        bl: do l=1,nvale
                           ichnb=BURP_Get_Tblval(Block_in, &
                                NELE_IND = indchan, &

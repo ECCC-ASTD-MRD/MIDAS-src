@@ -8,10 +8,9 @@ subroutine add_cloudprms(lobsSpaceData)
 !*
   use obsSpaceData_mod
   use mpi
+  use tovs_mod
   implicit none
 #include "comvfiles.cdk"
-#include "partov.cdk"
-#include "comtov.cdk"
 
   type(struct_obs) :: lobsSpaceData
   integer jfile,krtid

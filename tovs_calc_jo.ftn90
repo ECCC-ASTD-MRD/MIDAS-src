@@ -52,8 +52,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   use minimization_mod
 
   implicit none
-#include "partov.cdk"
-#include "comtov.cdk"
 
   type(struct_obs) :: lobsSpaceData
   integer, intent(in) :: dest_obs       ! probably set to OBS_OMP or OBS_OMA
@@ -63,8 +61,8 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   real*8 pjo, zdtb
   real*8 zjon,zgami,zqcarg
 
-  real*8 zjoch  (0:jpch,jpnsat)
-  real*8 zavgnrm(0:jpch,jpnsat)
+  real*8 zjoch  (0:jpchmax,jpnsatmax)
+  real*8 zavgnrm(0:jpchmax,jpnsatmax)
 
   integer j, i, krtid, nchanperline, indxs, indxe
   integer inobsjo, incanjo
@@ -72,8 +70,8 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   integer ichn, ichOBS_A, jl
 !  integer kfailtot
 
-  integer inobsch(0:jpch,jpnsat)
-  integer lcanjo(jpch)
+  integer inobsch(0:jpchmax,jpnsatmax)
+  integer lcanjo(jpchmax)
 
   integer :: index_header, index_body
 
@@ -92,7 +90,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   inobsjo  = 0
 !  kfailtot = 0
   do j = 1, nsensors
-     do i = 0, jpch
+     do i = 0, jpchmax
         inobsch(i,j) = 0
         zjoch  (i,j) = 0.0
         zavgnrm(i,j) = 0.0
@@ -140,8 +138,8 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
            end if
 
            ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-           ichn = max(0,min(ichn,jpch+1))
-           ichOBS_A = max(0,min(ichn,jpch+1))
+           ichn = max(0,min(ichn,jpchmax+1))
+           ichOBS_A = max(0,min(ichn,jpchmax+1))
            ichn=ichn-chanoffset(isens)
            indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
            if ( indxchn .eq. 0 ) then
@@ -205,7 +203,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   if ( llprint .and. inobsjo .gt. 0 ) then
      write(*,fmt=9000)
      do krtid = 1, nsensors
-        do i = 1, jpch
+        do i = 1, jpchmax
            inobsch(0,krtid) = inobsch(0,krtid) + &
                               inobsch(i,krtid)
            zjoch(0,krtid)   = zjoch(0,krtid) + &
@@ -220,7 +218,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 
      do jl = 1, nsensors
         incanjo = 0
-        do i = 0, jpch
+        do i = 0, jpchmax
            if ( inobsch(i,jl) .ne. 0 ) then
               incanjo = incanjo + 1
               lcanjo(incanjo) = i

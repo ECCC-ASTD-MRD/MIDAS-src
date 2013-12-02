@@ -44,13 +44,11 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   use columnData_mod
   use tovs_mod, only : coefs,profiles, &
        profiles_tl,radiance_tl,nchan,ichan,lsensor,lobsno, &
-       jppf,jpch,radiance_type,profile_type, &
+       jppf,jpchmax,radiance_type,profile_type, &
        transmission_Type,rttov_chanprof,opts
   Use rttov_const, only : sensor_id_mw,gas_id_watervapour
   implicit none
 !implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "rttov_tl2.interface"
 #include "rttov_alloc_prof.interface"
 #include "rttov_alloc_rad.interface"
@@ -222,7 +220,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
           do jdata = idata, idatend
             if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata).eq.1) then
               ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,jdata))
-              ichn = max(0,min(ichn,jpch+1))
+              ichn = max(0,min(ichn,jpchmax+1))
               do nrank = 1, nchan(krtid)
                 if ( ichn == ichan(nrank,krtid) ) exit
               end do

@@ -27,8 +27,6 @@ subroutine minimize(lcolumng,lobsSpaceData)
   !
   !Author  : S. Pellerin *ARMA/MSC  Sept, 2005
   !                                    in 1-Obs case.
-#include "partov.cdk"
-#include "comtov.cdk"
   !Local declarations
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumn,lcolumng
@@ -46,7 +44,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   call prdatabin(lobsSpaceData,tim_nstepobsinc)
   call sutimeinterp(lobsSpaceData,lcolumn)
 
-  call min_minvar(lnlvtov,lcolumn,lcolumng,lobsSpaceData)
+  call min_minvar(lcolumn,lcolumng,lobsSpaceData)
 
   DO INDIC =1,1
      if(obs_numHeader(lobsSpaceData).ge.indic) then 

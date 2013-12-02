@@ -394,8 +394,6 @@ contains
     use tovs_mod
     use hir_chans
     IMPLICIT NONE
-#include "partov.cdk"
-#include "comtov.cdk"
     INTEGER,intent(in) :: NPRF,NCHANNELS_MAX
     INTEGER,intent(in) :: NCHN,IPTOBS(NPRF),KRTID
     REAL(8),intent(out) :: SURFEM1(NCHANNELS_MAX)

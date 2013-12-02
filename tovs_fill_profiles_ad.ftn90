@@ -41,9 +41,6 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   use obsSpaceData_mod
   use rttov_const ,only : q_mixratio_to_ppmv
   implicit none
-!implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 
   type(struct_columnData) :: lcolumn,lcolumng
 

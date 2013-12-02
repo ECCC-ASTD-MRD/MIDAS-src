@@ -40,9 +40,8 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
+      use tovs_mod
       IMPLICIT NONE
-
-#include "partov.cdk"
 
       type(struct_obs) :: lobsSpaceData
       LOGICAL :: LnewExists,LoldExists
@@ -521,8 +520,6 @@ c
 *
       IMPLICIT NONE
 *implicits
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "comgpsgb.cdk"
 *
 C

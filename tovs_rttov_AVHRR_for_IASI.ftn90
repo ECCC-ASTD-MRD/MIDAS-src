@@ -44,8 +44,6 @@ Use rttov_types, only : &
      rttov_options       ,&
      rttov_chanprof
 implicit none
-#include "partov.cdk"
-#include "comtov.cdk"
 #include "rttov_setup.interface"
 #include "rttov_direct2.interface"
 #include "rttov_alloc_rad.interface"
@@ -62,7 +60,6 @@ INTEGER ::  list_sensors (3),setup_errorstatus
 LOGICAL ,SAVE :: FIRST=.true.
 integer :: ich,i,j,jn,ichn
 integer :: VERBOSITY_LEVEL,ERR_UNIT=0
-integer :: nchannels
 integer :: ichan (NIR)
 integer :: joff,ioffset
 type ( transmission_Type )  :: transmission
