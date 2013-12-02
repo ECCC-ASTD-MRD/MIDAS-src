@@ -98,10 +98,10 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   ## To access 'rmn_014_rc2'
+  . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
   . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
   . s.ssmuse.dot Xlf13.110
   . s.ssmuse.dot devtools
-  . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
   . s.ssmuse.dot CMDN/vgrid/3.4.0
   . s.ssmuse.dot rpn_comm
 
@@ -139,7 +139,7 @@ if [ $mode == full ] ; then
   grep fail listing0b
   if [ $? = "0" ] ; then exit ; fi
 
-  echo "compiling most of the new modules"
+  echo "compiling most of the new modules"svn 
   SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 columndata_mod.ftn90 gridstatevector_mod.ftn90"
