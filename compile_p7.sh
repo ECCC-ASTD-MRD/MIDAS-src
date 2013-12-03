@@ -34,12 +34,11 @@ cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comc
 compiledir=$PWD
 
 ## To access 'rmn_014_rc2'
+. /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
+
 . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
 . s.ssmuse.dot Xlf13.110
 . s.ssmuse.dot devtools
-
-. /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
-
 . s.ssmuse.dot CMDN/vgrid/3.4.0
 . s.ssmuse.dot rpn_comm
 
