@@ -197,7 +197,7 @@ C
                ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
      &                ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
      &                ITYP.EQ.BUFR_NEHS) THEN
-                 IK = -999  ! obs_lyr not define for surface obs
+                 IK = nlev-1 ! as in rev. 365
                ENDIF
                call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA, IK)
             ENDIF

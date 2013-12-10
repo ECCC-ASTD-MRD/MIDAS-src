@@ -21,7 +21,7 @@ trunkdir=$PWD
 
 # automatically set the global revision number in comct0.cdk by
 # replacing the string XXXXX with the actual revision number
-revnum=`ssh alef "cd $trunkdir ; svnversion"`
+revnum=`ssh pollux "cd $trunkdir ; svnversion"`
 cat comct0_template.cdk |sed "s/XXXXX/${revnum}/g" > comct0.cdk
 
 compiledir=${storage_model:-"../compiledir"}/enkf_pturb
@@ -60,17 +60,18 @@ echo "INCLUDES="
 echo $INCLUDES
 
 trunkfiles="abort.ftn bmatrix_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 \
-            columndata_mod.ftn90 comfilt.cdk enkf_pturb.ftn controlvector_mod.ftn90 \
-            enkf_pturb.ftn gasdev.ftn gaussgrid_mod.ftn90 gdout2.ftn getfldprm2.ftn \
+            columndata_mod.ftn90 enkf_pturb.ftn controlvector_mod.ftn90 \
+            lambmatrixhi_mod.ftn90 lamanalysisgrid_mod.ftn90 lamspectraltransform_mod.ftn90 \
+            timecoord_mod.ftn90 enkf_pturb.ftn gasdev.ftn gaussgrid_mod.ftn90 gdout2.ftn getfldprm2.ftn \
             getstamplist.ftn90 gridstatevector_mod.ftn90 maincompileswitch.inc \
             matsqrt.ftn mpi_mod.ftn90 utils_3dvar.ftn \
-            varnamelist_mod.ftn90 varout.ftn verticalcoord_mod.ftn90 comct0.cdk"
+            varnamelist_mod.ftn90 varout.ftn horizontalcoord_mod.ftn90 verticalcoord_mod.ftn90 comct0.cdk"
 
-moduloptfiles="dsyev.ftn"
+#moduloptfiles="dsyev.ftn"
 
 cd ${trunkdir}
 cp -f ${trunkfiles} ${compiledir}
-cp -f ${moduloptfiles} ${compiledir}
+#cp -f ${moduloptfiles} ${compiledir}
 cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
 cd ${compiledir}
 
@@ -86,11 +87,11 @@ grep fail listing0
 if [ $? = "0" ] ; then exit ; fi
 
 echo "compiling most of the new modules"
-SRC1="controlvector_mod.ftn90 fft_mod.ftn90"
+SRC1="controlvector_mod.ftn90 fft_mod.ftn90 horizontalcoord_mod.ftn90"
 SRC1="$SRC1 gaussgrid_mod.ftn90 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
 SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
 SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
-SRC1="$SRC1 bmatrix_mod.ftn90"
+SRC1="$SRC1 lamspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 lambmatrixhi_mod.ftn90 timecoord_mod.ftn90 bmatrix_mod.ftn90"
 s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
 grep fail listing1
 if [ $? = "0" ] ; then exit ; fi

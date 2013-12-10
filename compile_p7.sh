@@ -93,17 +93,17 @@ mkdir -p compiledir
 cd compiledir
 compiledir=$PWD
 
+## To access 'rmn_014_rc2'
+. /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
+. ssmuse-sh -d /ssm/net/rpn/libs/201309/01
+. s.ssmuse.dot Xlf13.110
+. s.ssmuse.dot devtools
+. s.ssmuse.dot CMDN/vgrid/3.4.0
+. s.ssmuse.dot rpn_comm
+
 if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
-
-  ## To access 'rmn_014_rc2'
-  . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
-  . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
-  . s.ssmuse.dot Xlf13.110
-  . s.ssmuse.dot devtools
-  . s.ssmuse.dot CMDN/vgrid/3.4.0
-  . s.ssmuse.dot rpn_comm
 
   # Create a local copy of the source code
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
