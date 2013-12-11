@@ -570,7 +570,7 @@ contains
     
     if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
        if      ( trim(lst(id) % MpiMode) == 'NoMpi') then
-         Step2(:,:,:) = Step1(:,:,:)
+         Step2(:,1:lst(id) % nj,:) = Step1(:,1:lst(id) % nj,:)
        else if ( trim(lst(id) % MpiMode) == 'LatM') then
          call transpose_LatToM( Step2,        & ! OUT
                                 Step1, nk, id ) ! IN
@@ -580,7 +580,7 @@ contains
        end if
     else
        if      ( trim(lst(id) % MpiMode) == 'NoMpi') then
-         Step2(:,:,:) = Step1(:,:,:)
+         Step2(:,1:lst(id) % nj,:) = Step1(:,1:lst(id) % nj,:)
        else if ( trim(lst(id) % MpiMode) == 'LatM') then
          call transpose_MToLat( Step2,        & ! OUT
                                 Step1, nk, id ) ! IN

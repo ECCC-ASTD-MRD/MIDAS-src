@@ -133,7 +133,8 @@ module calcbmatrix_lam_mod
     !- 3.4 Setup the LAM spectral transform
     call lst_Setup( lst_bhi,                    & ! OUT
                     hco_bhi % ni, hco_bhi % nj, & ! IN
-                    hco_bhi % dlon, ntrunc )      ! IN
+                    hco_bhi % dlon, ntrunc,     & ! IN
+                    'NoMpi' )                     ! IN
 
     !
     !- 4.  Setup the control variables (model space and B_hi space)
@@ -401,6 +402,7 @@ module calcbmatrix_lam_mod
 ! CreateLamTemplateGrids
 !--------------------------------------------------------------------------
   subroutine CreateLamTemplateGrids(TemplateFileName,grd_ext_x,grd_ext_y)
+    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
 
     character(len=*), intent(in) :: TemplateFileName
@@ -460,14 +462,14 @@ module calcbmatrix_lam_mod
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(hco_ens % lon, work, npak,                        &
-                  iun, brpstamp, deet, npas, hco_ens%ni, 1, 1, ip1, &
-                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,       &
+    ier = vfstecr(hco_ens % lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, brpstamp, deet, npas, hco_ens%ni, 1, 1, ip1,    &
+                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(hco_ens % lat, work, npak,                        &
-                  iun, brpstamp, deet, npas, 1, hco_ens%nj, 1, ip1, &
-                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,       &
+    ier = vfstecr(hco_ens % lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, brpstamp, deet, npas, 1, hco_ens%nj, 1, ip1,    &
+                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
     !- 2.2 2D Field
@@ -537,14 +539,14 @@ module calcbmatrix_lam_mod
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(lon_ext, work, npak,                          &
-                  iun, brpstamp, deet, npas, ni_ext, 1, 1, ip1, &
-                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,   &
+    ier = vfstecr(lon_ext*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, brpstamp, deet, npas, ni_ext, 1, 1, ip1,  &
+                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,    &
                   ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(lat_ext, work, npak,                          &
-                  iun, brpstamp, deet, npas, 1, nj_ext, 1, ip1, &
-                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,   &
+    ier = vfstecr(lat_ext*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, brpstamp, deet, npas, 1, nj_ext, 1, ip1,  &
+                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,    &
                   ig2, ig3, ig4, datyp, .true.)
 
     deallocate(lon_ext)
@@ -769,10 +771,12 @@ module calcbmatrix_lam_mod
     real(8), intent(inout) :: VortPsi(hco_bhi % ni, hco_bhi % nj,nk)
     real(8), intent(inout) :: DivChi (hco_bhi % ni, hco_bhi % nj,nk)
 
-    call lst_Laplacian( VortPsi,        & ! INOUT
+    call lst_Laplacian( lst_bhi % id,   & ! IN
+                        VortPsi,        & ! INOUT
                         'Inverse', nk )   ! IN    
 
-    call lst_Laplacian( DivChi,         & ! INOUT
+    call lst_Laplacian( lst_bhi % id,   & ! IN
+                        DivChi,         & ! INOUT
                         'Inverse', nk )   ! IN
 
   end subroutine VortDivToPsiChi
@@ -965,7 +969,8 @@ module calcbmatrix_lam_mod
 
       !- 1.2 Grid Point Space -> Spectral Space
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( SpectralStateVar,      & ! OUT
+      call lst_VarTransform( lst_bhi % id,          & ! IN
+                             SpectralStateVar,      & ! OUT
                              GridState,             & ! IN
                              kind, nkgdim     )       ! IN
 
@@ -996,7 +1001,11 @@ module calcbmatrix_lam_mod
 
     !- 1.4 Compute the weighted COVARIANCES for each total wavenumber
     do totwvnb = 0, ntrunc
-      SpVertCorrel(:,:,totwvnb) = SpVertCorrel(:,:,totwvnb) / SumWeight(totwvnb)
+      if ( SumWeight(totwvnb) /= 0.d0 ) then 
+        SpVertCorrel(:,:,totwvnb) = SpVertCorrel(:,:,totwvnb) / SumWeight(totwvnb)
+      else
+        SpVertCorrel(:,:,totwvnb) = 0.d0
+      end if
     end do
 
     deallocate(SumWeight)
@@ -1078,7 +1087,8 @@ module calcbmatrix_lam_mod
 ! CalcHorizScale
 !--------------------------------------------------------------------------
   subroutine CalcHorizScale(HorizScale,SpCovariance)
-    use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
+    use MathPhysConstants_mod, only: MPC_PI_R8
+    use EarthConstants_mod, only: RA
     implicit none
 
     real(8), intent(out) :: HorizScale(nkgdim)
@@ -1096,18 +1106,10 @@ module calcbmatrix_lam_mod
     !- Computing distance-related variables
     !
 
-    ! Earth circumference (polar and equatorial)
-    circ_eq  = 2.d0 * MPC_PI_R8 * 6378.17d0 * 1000.d0
-    
-    ! Equatorial circumference at given latitude
-    cur_circ_eq = cos(hco_bhi % lat(hco_bhi % nj/2)* MPC_RADIANS_PER_DEGREE_R8) &
-                  * circ_eq
-
-    ! Distance in meters of 1 deg longitude
-    un_deg_lon = 1.d0 * cur_circ_eq / (2.d0*MPC_PI_R8)
-
     ! Grid spacing in meters
-    dx= hco_bhi % dlon * MPC_RADIANS_PER_DEGREE_R8 * un_deg_lon 
+    dx = hco_bhi % dlon * RA
+    write(*,*)
+    write(*,*) 'grid spacing (m) =', dx
 
     dist = max(hco_bhi % ni, hco_bhi %nj) * dx
     beta = (dist/(2.d0*MPC_PI_R8))**2
@@ -2011,6 +2013,7 @@ module calcbmatrix_lam_mod
 !--------------------------------------------------------------------------
   subroutine WriteTicTacToc(iun)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_write, VGD_OK
+    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
 
     integer, intent(in) :: iun
@@ -2052,14 +2055,14 @@ module calcbmatrix_lam_mod
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(hco_bhi % lon, work, npak,                        &
-                  iun, brpstamp, deet, npas, hco_bhi%ni, 1, 1, ip1, &
-                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,       &
+    ier = vfstecr(hco_bhi % lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, brpstamp, deet, npas, hco_bhi%ni, 1, 1, ip1,    &
+                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(hco_bhi % lat, work, npak,                        &
-                  iun, brpstamp, deet, npas, 1, hco_bhi%nj, 1, ip1, &
-                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,       &
+    ier = vfstecr(hco_bhi % lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, brpstamp, deet, npas, 1, hco_bhi%nj, 1, ip1,    &
+                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
     !

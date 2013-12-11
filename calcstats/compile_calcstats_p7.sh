@@ -41,25 +41,25 @@ calcstatsdir=$PWD
 trunkdir=$PWD/../
 
 VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov burp_module descrip modelutils_base $MPILIB "
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
+
 LIBSYS="lapack blas mass"
-LIBRMN="rmn_013_rc2"
+LIBRMN="rmn_014_rc2"
 LIBEXTRA="rtools hpm_r"
-MODRTTOV="RTTOV8.7"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
 COMPF_NOC="-openmp $MPIKEY "
 #COMPF="$COMPF_NOC"
-COMPF="$COMPF_NOC -optf=-C "
+COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 
 BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
-INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${BASE_INCLUDE}/${MODRTTOV}"
+INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/mod ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/include"
 
 LIBPATH2="./ $LIBPATH"
 LIBPATH2="${ARMNLIB}/lib/AIX/xlf13 $LIBPATH2"
 LIBPATH2="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/lib/AIX-powerpc7 $LIBPATH2"
-LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 $LIBPATH2"
+LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/lib  $LIBPATH2"
 
 echo "LIBPATH2="
 echo $LIBPATH2
@@ -79,12 +79,11 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Load the appropriate librairies
-  . s.ssmuse.dot Xlf13.108
-  . s.ssmuse.dot rmnlib-dev
-  . s.ssmuse.dot devtools
   . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
-  . s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
-  . s.ssmuse.dot CMDN/vgrid/3.9.0
+  . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
+  . s.ssmuse.dot Xlf13.110
+  . s.ssmuse.dot devtools
+  . s.ssmuse.dot CMDN/vgrid/3.4.0
   . s.ssmuse.dot rpn_comm
 
   # Create a local copy of the source code
@@ -101,10 +100,6 @@ if [ $mode == full ] ; then
   cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
   cd ${compiledir}
 
-  # Temporarily copy the object files for a preliminary version
-  # of ezscint that works with the "U" grid (compiled only be AIX):
-  cp /users/dor/arma/bue/home01/3dvar_test/trunk/ezscint/quiet3h/*.o $compiledir
-
   echo "STARTING COMPILATION AT:" 
   date
 
@@ -120,7 +115,7 @@ if [ $mode == full ] ; then
   rm -f $SRC0
 
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 lamdft_mod.ftn90"
+  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90"
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
