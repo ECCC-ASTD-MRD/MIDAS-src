@@ -4,7 +4,6 @@
 ! - Subroutines
 !    lst_Setup        (public)
 !    lst_VarTransform (public)
-!    lst_NormsPhalf   (public)
 !    lst_Laplacian    (public)
 !    lst_ReshapeTrunc
 !
@@ -20,7 +19,6 @@ module LamSpectralTransform_mod
   private
 
   public :: lst_Setup, lst_Laplacian, lst_VarTransform
-  public :: lst_NormsPhalf
   public :: lst_ReshapeTrunc
 
   public :: struct_lst
@@ -41,6 +39,8 @@ module LamSpectralTransform_mod
                                              !  total wavenumber bands
      integer, allocatable :: ilaFromEK(:,:)  ! ila index associated to each spectral element
                                              !  of total wavenumber band
+     real(8), allocatable :: NormFactor(:,:)
+     real(8), allocatable :: NormFactorAd(:,:)
      integer              :: nlaGlobal       ! First dimension of VAR global spectral array
      integer, allocatable :: ilaGlobal(:)    ! Position of the local vector element in the global
                                              !  vector
@@ -64,7 +64,7 @@ module LamSpectralTransform_mod
      integer                         :: latPerPE, myLatBeg, myLatEnd
      integer                         :: myLevBeg, myLevEnd, myLevCount, maxLevCount
      integer, allocatable            :: allLevBeg(:) ,allLevEnd(:)
-     character(len=10)                :: MpiMode
+     character(len=10)               :: MpiMode
   end type struct_lst_local
 
   integer,parameter      :: nMaxLst = 10
@@ -108,9 +108,12 @@ contains
     integer, allocatable            :: KfromMNglb(:,:)
     integer                         :: kmax, id
     integer                         :: m, n, k, ila, nfact
-    integer                         :: ier, ilaglb
+    integer                         :: ier, ilaglb, i, j, p
     real(8)                         :: a, b, r
     real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq
+    real(8)                         :: NormFactor1, NormFactor2, NormFactor3
+    real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
+    real(8)                         :: factor, factorAd
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR
@@ -351,6 +354,7 @@ contains
     !      Total Wavenumbers and Weights associated with each spectral element
     !      FOR THE LOCAL PROCESSOR
     allocate( lst(id) % nla_Index(0:lst(id) % mmax,0:lst(id) % nmax) )
+
     allocate( lst_out % k(1:lst_out % nla) )
     allocate( lst_out % m(1:lst_out % nla) )
     allocate( lst_out % n(1:lst_out % nla) )
@@ -394,7 +398,7 @@ contains
             lst_out % Weight(ila) = 2.0d0
           end if
 
-        end if
+       end if
 
       end do
     end do
@@ -403,7 +407,62 @@ contains
     deallocate( KfromMNglb )
 
     !
-    !- 2.  Set variables needed by Forward and Inverse Laplacian
+    !- 3.  Set factors for parseval identity
+    !
+    allocate( lst_out % NormFactor  (lst(id) % nla,nphase))
+    allocate( lst_out % NormFactorAd(lst(id) % nla,nphase))
+
+    Normfactor1   = 1.0d0
+    Normfactor2   = 0.5d0 * sqrt(2.0d0)
+    Normfactor3   = 0.5d0
+    NormfactorAd1 =      1.0d0  * real((lst(id) %ni * lst(id) %nj),8)
+    NormfactorAd2 = sqrt(2.0d0) * real((lst(id) %ni * lst(id) %nj),8)
+    NormfactorAd3 =      2.0d0  * real((lst(id) %ni * lst(id) %nj),8)
+
+    do ila = 1,lst(id) % nla
+
+      m = lst_out % m(ila)
+      n = lst_out % n(ila)
+
+      do p = 1, nphase
+         if      ( p == 1) then
+            i = 2*m+1
+            j = 2*n+1
+         else if ( p == 2) then
+            i = 2*m+1
+            j = 2*n+2
+         else if ( p == 3) then
+            i = 2*m+2
+            j = 2*n+1
+         else if ( p == 4) then
+            i = 2*m+2
+            j = 2*n+2
+         else
+            write(*,*) 'lst_Setup: Error in NormFactor'
+            stop
+         end if
+
+         if ( i == 1 .or. j == 1) then  
+            if ( i == 1 .and. j == 1) then
+               factor   = Normfactor1
+               factorAd = NormfactorAd1
+            else
+               factor   = Normfactor2
+               factorAd = NormfactorAd2
+            end if
+         else
+            factor   = Normfactor3
+            factorAd = NormfactorAd3
+         end if
+         
+         lst_out % NormFactor  (ila,p) = factor
+         lst_out % NormFactorAd(ila,p) = factorAd
+      end do
+      
+   end do
+
+    !
+    !- 3.  Set variables needed by Forward and Inverse Laplacian
     !
     allocate(lst(id) % lapxy (lst(id) % nla))
     allocate(lst(id) % ilapxy(lst(id) % nla))
@@ -427,7 +486,7 @@ contains
     end do
 
     !
-    !- 3. Finalized
+    !- 4. Finalized
     !
     lst(id) % allocated = .true.
 
@@ -993,103 +1052,6 @@ contains
     end select
 
   end subroutine lst_ReshapeTrunc
-
-!--------------------------------------------------------------------------
-! LST_NormsPhalf
-!--------------------------------------------------------------------------
-  subroutine lst_NormsPhalf( id, SpectralStateVar, Mode, nk)
-    implicit none
-
-    integer,          intent(in)    :: id
-                                     ! LST ID
-    integer,          intent(in)    :: nk
-                                     ! Grid point data dimensions
-    real(8),          intent(inout) :: SpectralStateVar(lst(id) % nla,nphase,nk) 
-                                     ! 3D spectral coefficients
-    character(len=*), intent(in)    :: Mode
-                                     ! Forward or Adjoint
-
-    real(8), allocatable            :: SpectralStateRpn(:,:,:)
-
-    real(8) :: factor, factor1, factor2, factor3
-
-    integer :: i, j, k, m, m2i
-
-    call idcheck(id)
-
-    !
-    !- 1.  Set Mode-dependent factors
-    !
-    select case ( trim(Mode) )
-    case ('Forward')
-      factor1 = 1.0d0
-      factor2 = 0.5d0 * sqrt(2.0d0)
-      factor3 = 0.5d0
-    case ('Adjoint')
-      factor1 =      1.0d0  * real((lst(id) %ni * lst(id) %nj),8)
-      factor2 = sqrt(2.0d0) * real((lst(id) %ni * lst(id) %nj),8)
-      factor3 =      2.0d0  * real((lst(id) %ni * lst(id) %nj),8)
-    case default
-      write(6,*)
-      write(6,*) 'lst_NormsPhalf: Error: Mode Unknown ', trim(Mode)
-      stop
-    end select
-
-    !
-    !- 2.  Do the normalisation level by level
-    !
-    allocate( SpectralStateRpn(2*lst(id) % mymCount,lst(id) % nj + njp,nk) )
-
-    !- 2.1 Move to RPN ordering
-    call lst_ReshapeTrunc( SpectralStateRpn,  &  ! OUT
-                           SpectralStateVar,  &  ! IN
-                           'ToRPN', 1, nk, id )     ! IN
-
-    !- 2.2 Normalise
-!$OMP PARALLEL
-!$OMP DO PRIVATE (j,m,m2i,i,factor,k)
-    do j = 1, lst(id) % nj + njp
-       do m = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
-          do m2i = -1,0
-             i = 2*lst(id) % mymIndex(m) + m2i
-
-             if (i == 1 .or. j == 1) then  
-                if      (i == 1 .and. j == 1) then
-                   if (m == 0) then
-                      factor = factor1
-                   else
-                      factor = factor2
-                   end if
-                else if (i == 1 .and. j /= 1) then
-                   if (m == 0) then
-                      factor = factor2
-                   else
-                      factor = factor3
-                   end if
-                else
-                   factor = factor2
-                end if
-             else
-                factor = factor3
-             end if
-                
-             do k = 1, nk
-                SpectralStateRpn(i,j,k) = factor * SpectralStateRpn(i,j,k)
-             end do
-          end do
-       end do
-    end do
-!$OMP END DO
-!$OMP END PARALLEL
-
-    !- 2.3 Move back to VAR ordering
-    call lst_ReshapeTrunc( SpectralStateRpn, &  ! IN
-                           SpectralStateVar, &  ! OUT
-                           'ToVAR', 1, nk, id )    ! IN
-
-    deallocate( SpectralStateRpn )
-
-  end subroutine lst_NormsPhalf
 
 !--------------------------------------------------------------------------
 ! LST_Laplacian

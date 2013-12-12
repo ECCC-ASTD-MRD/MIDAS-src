@@ -638,13 +638,6 @@ contains
     character(len=19)   :: kind
 
     !
-    !- 0. Normalisation pour respecter l'identite adjointe (Parseval)
-    !
-    call lst_NormsPhalf( lst_bhi % id,       & ! IN
-                         hiControlVector_in, & ! INOUT
-                         'Forward', nksdim )   ! IN
-
-    !
     !- 1. B^1/2 * xi (in spectral space)
     !
     call lbhi_bSqrtXi(hiControlVector_in)    ! INOUT
@@ -742,20 +735,10 @@ contains
     uphy(:,:,:) = gd_in(:,:,1       :  nlev_M)
     vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
 
-    if (mpi_myid == 1) then
-       print*, 'JFC uvphy avant lag_PsiChiToUVAdj'
-       print*, maxval(uphy),minval(uphy),maxval(vphy),minval(vphy)
-    end if
-
     !- 4.2 Do Transform
     call lag_PsiChiToUVAdj( psi, chi,           & ! OUT
                             uphy, vphy,         & ! IN
                             nlev_M)               ! IN
-
-    if (mpi_myid == 1) then
-       print*, 'JFC psichi apres lag_PsiChiToUVAdj'
-       print*, maxval(psi),minval(chi),maxval(psi),minval(chi)
-    end if
 
     !- 4.1 Insert results in gd and deallocate moemories
     gd_in(:,:,ControlVariable(1) % kDimStart:ControlVariable(1) % kDimEnd) = psi(:,:,:)
@@ -789,13 +772,6 @@ contains
     !
     call lbhi_bSqrtXi( hiControlVector_out )    ! INOUT
 
-    !
-    !- 0. Normalisation pour respecter l'identite adjointe (Parseval)
-    !
-    call lst_NormsPhalf( lst_bhi % id,        & ! IN
-                         hiControlVector_out, & ! INOUT
-                         'Adjoint', nksdim )    ! IN
-
  end subroutine lbhi_cv2gdAdj
 
 !--------------------------------------------------------------------------
@@ -818,8 +794,8 @@ contains
     do totwvnb = 0, trunc
 
       if ( lst_bhi % nePerK(totwvnb) == 0 ) then
-         print*
-         print*,'JFC: No spectral elements for this CPU for totwvnb = ', totwvnb
+      !   print*
+      !   print*,'JFC: No spectral elements for this CPU for totwvnb = ', totwvnb
          cycle
       end if
 
@@ -884,7 +860,7 @@ contains
       do ila = 1, lst_bhi % nla
         do p = 1, lst_bhi % nphase
           dim = dim + 1
-          hiControlVector_out(ila,p,k) = controlVector_in(dim)
+          hiControlVector_out(ila,p,k) = controlVector_in(dim) * lst_bhi % NormFactor(ila,p)
         end do
       end do
     end do
@@ -907,7 +883,8 @@ contains
       do ila = 1, lst_bhi % nla
         do p = 1, lst_bhi % nphase
           dim = dim + 1
-          controlVector_out(dim) = controlVector_out(dim) + hiControlVector_in(ila,p,k)
+          controlVector_out(dim) = controlVector_out(dim) + &
+                                   hiControlVector_in(ila,p,k) * lst_bhi % NormFactorAd(ila,p)
         end do
       end do
     end do
