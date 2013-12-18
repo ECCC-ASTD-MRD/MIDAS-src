@@ -145,6 +145,13 @@ CONTAINS
       endif
     enddo
 
+    if (sum(scaleFactor).eq.0.0d0 ) then
+      write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
+      cvdim_out=0
+      initialized = .true.
+      return
+    end if
+
     allocate(pressureProfile(nflev_in))
     pressureProfile(:)=pressureProfile_in(:)
 

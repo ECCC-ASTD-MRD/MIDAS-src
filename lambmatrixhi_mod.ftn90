@@ -66,6 +66,9 @@ module LamBMatrixHI_mod
 
   integer              :: LatPerPE, myLatBeg, myLatEnd
 
+  integer,parameter    :: maxNumLevels=200
+  real(8)              :: scaleFactor(maxNumLevels)
+
 contains
 
 !--------------------------------------------------------------------------
@@ -89,12 +92,12 @@ contains
     integer  :: iu_bstats = 0
     integer  :: iu_flnml = 0
 
-    integer  :: ier, fnom, fstouv, fstfrm, fclos
+    integer  :: ier, fnom, fstouv, fstfrm, fclos, k
 
     logical  :: FileExist
 
     !namelist
-    NAMELIST /NAMBHI/ntrunc
+    NAMELIST /NAMBHI/ntrunc,scaleFactor
 
     write(*,*)
     write(*,*) 'lbhi_Setup: Starting...'
@@ -102,6 +105,9 @@ contains
     !
     !- 0.  Read namelist options
     !
+    ntrunc         = 75     ! default values
+    scaleFactor(:) =  1.0d0 ! default values
+
     ier = fnom(iu_flnml,'./flnml','FTN+SEQ+R/O',0)
     write(*,*)
     write(*,*) 'lbhi_setup: Reading namelist, ier = ',ier
@@ -109,8 +115,22 @@ contains
     write(*,nml=nambhi)
     ier = fclos(iu_flnml)
 
-    trunc = ntrunc
+    do k = 1, vco_anl_in % nlev_M
+      if ( scaleFactor(k) > 0.0d0 ) then 
+        scaleFactor(k) = sqrt(scaleFactor(k))
+      else
+        scaleFactor(k) = 0.0d0
+      end if
+    end do
 
+    if ( sum(scaleFactor) == 0.0d0 ) then
+      write(*,*) 'lambmatrixHI: scaleFactor=0, skipping rest of setup'
+      cvDim_out   = 0
+      initialized = .true.
+      return
+    end if
+
+    trunc = ntrunc
     write(*,*)
     write(*,*) 'Spectral TRUNCATION = ', trunc
 
@@ -433,7 +453,7 @@ contains
     character(len=2 )      :: typvar, grtyp
     character(len=12)      :: etiket
 
-    real(8) :: factor
+    real(8) :: UnitConv
 
     !
     !- 1.  Read grid point standard deviations
@@ -456,9 +476,9 @@ contains
         nomvar = trim(ControlVariable(var) % nomvar)
         etiket = 'STDDEV'
         if ( trim(nomvar) == 'P0') then
-          factor = 100.0d0 ! hPa -> Pa
+          UnitConv = 100.0d0 ! hPa -> Pa
         else
-          factor = 1.0d0
+          UnitConv = 1.0d0
         end if
 
         !- 1.2.1 Reading
@@ -495,6 +515,10 @@ contains
            ier = ezsint(StdDev2D_Regrid, StdDev2D)
            ControlVariable(var) % GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if
+
+        !- 1.3 Scaling
+        ControlVariable(var) % GpStdDev(:,:,k) = ControlVariable(var) % GpStdDev(:,:,k) * &
+                                                 UnitConv * scaleFactor(k)
 
       end do
 

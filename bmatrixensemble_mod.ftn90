@@ -25,6 +25,8 @@ MODULE BmatrixEnsemble
   use mpi
   use gridStateVector_mod
   use globalSpectralTransform
+  use lamSpectralTransform_mod
+  use horizontalCoord_mod
   implicit none
   save
   private
@@ -33,10 +35,10 @@ MODULE BmatrixEnsemble
 
   logical             :: initialized = .false.
   integer,parameter   :: maxNumLevels=200
-  real*8              :: scaleFactor(maxNumLevels)
-  real*8              :: scaleFactorLQ(maxNumLevels)
-  real*8,allocatable  :: ensLocalCor(:,:)
-  real*8,allocatable  :: ensLocalVert(:,:)
+  real(8)              :: scaleFactor(maxNumLevels)
+  real(8)              :: scaleFactorLQ(maxNumLevels)
+  real(8),allocatable  :: ensLocalCor(:,:)
+  real(8),allocatable  :: ensLocalVert(:,:)
   integer,allocatable :: nip1_l(:),verticalLevel(:,:),verticalLevelEns(:)
   integer,allocatable :: jn_vec(:)
   integer             :: nj_l,ni_l,latPerPE,myLatBeg,myLatEnd
@@ -51,29 +53,30 @@ MODULE BmatrixEnsemble
   integer             :: get_max_rss
 
   type :: struct_ens
-    real*4, allocatable :: member(:,:,:,:)
+    real(4), allocatable :: member(:,:,:,:)
   end type struct_ens
   type(struct_ens), pointer :: ensPerturbations(:)
 
-  logical :: global
-
   real(8), parameter :: rsq2=sqrt(2.0d0)
+
+  type(struct_hco), pointer :: hco_ben    ! Analysis horizontal grid parameters
+  type(struct_lst)          :: lst_ben    ! Spectral transform Parameters
 
 CONTAINS
 
 !--------------------------------------------------------------------------
 ! BEN_setup
 !--------------------------------------------------------------------------
-  SUBROUTINE BEN_setup(pressureProfile_in,NI_IN,NJ_IN,NLEVINC_IN,NTIME_IN,NIP1_IN, &
-                       stamp_in,global_in,CVDIM_OUT)
+  SUBROUTINE BEN_setup(pressureProfile_in,hco_anl_in,NLEVINC_IN,NTIME_IN,NIP1_IN, &
+                       stamp_in,CVDIM_OUT)
     implicit none
 
-    real*8         :: hLocalize(2),vLocalize,pressureProfile_in(:)
-    real*8,allocatable :: pressureProfileEns(:)
+    type(struct_hco), pointer, intent(in)    :: hco_anl_in
 
-    logical, intent(in) :: global_in
+    real(8)         :: hLocalize(2),vLocalize,pressureProfile_in(:)
+    real(8),allocatable :: pressureProfileEns(:)
 
-    integer        :: ntrunc,ni_in,nj_in,nLevInc_in,ntime_in,nip1_in(:),stamp_in
+    integer        :: ntrunc,nLevInc_in,ntime_in,nip1_in(:),stamp_in
     integer        :: cvDim_out
     integer        :: jlev,jn,jm,jproc,ila,mpiMode,return_code
     integer        :: fnom,fclos,ierr,nulnam
@@ -108,15 +111,15 @@ CONTAINS
     !- 2.  Settings
     !
 
+    hco_ben => hco_anl_in
+
     !- 2.1 Globa or LAM?
-    global = global_in
-    if (global) then
+    if (hco_ben % global) then
       write(*,*)
       write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
     else
       write(*,*)
-      write(*,*) 'bmatrixEnsemble: LAM mode not available yet'
-      stop
+      write(*,*) 'bmatrixEnsemble: LAM mode activated'
     end if
 
     !- 2.1 Bmatrix Weight
@@ -203,8 +206,8 @@ CONTAINS
     end if
 
     !- 2.4 Domain Partionning
-    ni_l=ni_in
-    nj_l=nj_in
+    ni_l = hco_ben % ni
+    nj_l = hco_ben % nj
     call mpi_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
 
     !- 2.5 Time bin number
@@ -217,13 +220,15 @@ CONTAINS
     !- 2.6 Spectral Transform
     ntrunc_l=ntrunc
 
-    if (global) then
+    if (hco_ben % global) then
+
+      ! Global Mode
       nphase=2
       nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
 
       mpiMode=3
       gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode,nEns)
-      write(*,*) 'BEN:returned value of gstID=',gstID
+      write(*,*) 'BEN : returned value of gstID = ',gstID
 
       allocate(jn_vec(nla_l),stat=ierr)
       if(ierr.ne.0) then
@@ -236,6 +241,18 @@ CONTAINS
           jn_vec(ila)=jn
         end do
       end do
+
+    else
+
+       ! LAM mode
+       call lst_Setup( lst_ben,                              & ! OUT
+                       ni_l, nj_l, hco_ben % dlon, ntrunc_l, & ! IN
+                       'LatLev', nEns )                        ! IN
+
+       write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
+       nphase = lst_ben % nphase
+       nla_l  = lst_ben % nla
+
     end if
 
     !- 2.7 Localization
@@ -257,9 +274,12 @@ CONTAINS
       call setupEnsemble(stamp_in)
     end if
 
-    if (global) then
+    if (hco_ben % global) then
       cvDim_mpiglobal = ((ntrunc_l+1)*(ntrunc_l+1))*nLevEns*nEns
       cvDim_l         = ((ntrunc_l+1)*(ntrunc_l+1))*nLevEns*myMemCount
+    else
+      cvDim_mpiglobal = lst_ben % nlaGlobal * nphase * nLevEns * nEns
+      cvDim_l         = nla_l               * nphase * nLevEns * myMemCount
     end if
     cvDim_out=cvDim_l
 
@@ -294,16 +314,16 @@ CONTAINS
     implicit none
  
     integer :: stamp_in
-    real*8 :: gd2d(ni_l,nj_l)
-    real*4, allocatable :: ensPerturbation1(:,:,:,:) 
-    real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa
-    real*8 :: rhumin = 2.5d-6
+    real(8) :: gd2d(ni_l,nj_l)
+    real(4), allocatable :: ensPerturbation1(:,:,:,:) 
+    real(8) :: dnens,dnens2,rmsknt,rmbtpa,r1sa
+    real(8) :: rhumin = 2.5d-6
     integer :: ji,jj,jt,jk,memberIndex,jpe,jlatband
     integer :: memberIndex2,batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
     integer :: readFilePE(256),allLatBeg(256),allLatEnd(256)
     integer :: stamp_last,newdate
-    real*8  :: delhh
+    real(8)  :: delhh
     logical :: lExists
 
     ! standard file variables
@@ -436,7 +456,11 @@ CONTAINS
           end if
           do jj=1,nj_l
             do ji=1,ni_l
-              ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmbtpa)
+              if (hco_ben % global) then
+                 ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmbtpa)
+              else
+                 ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,jj)*rmbtpa)
+              end if
             end do
           end do
 
@@ -449,7 +473,11 @@ CONTAINS
             end if
             do jj=1,nj_l
               do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
+                if (hco_ben % global) then
+                   ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
+                else
+                   ensPerturbation1(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,jj))
+                end if
               end do
             end do
           end do
@@ -463,7 +491,11 @@ CONTAINS
             end if
             do jj=1,nj_l
               do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,nj_l+1-jj),rhumin)))
+                if (hco_ben % global) then
+                   ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,nj_l+1-jj),rhumin)))
+                else
+                   ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,jj),rhumin)))
+                end if
               end do
             end do
           end do
@@ -477,7 +509,11 @@ CONTAINS
             end if
             do jj=1,nj_l
               do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt)
+                if (hco_ben % global) then
+                   ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt)
+                else
+                   ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+                end if
               end do
             end do
           end do
@@ -491,7 +527,11 @@ CONTAINS
             end if
             do jj=1,nj_l
               do ji=1,ni_l
-                ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt)
+                if (hco_ben % global) then
+                   ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt)
+                else
+                   ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+                end if
               end do
             end do
           end do
@@ -504,7 +544,11 @@ CONTAINS
           else
             do jj=1,nj_l
               do ji=1,ni_l
-                ensPerturbation1(ji,ngposittg,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
+                if (hco_ben % global) then
+                   ensPerturbation1(ji,ngposittg,jj,jt)= sngl(gd2d(ji,nj_l+1-jj))
+                else
+                   ensPerturbation1(ji,ngposittg,jj,jt)= sngl(gd2d(ji,jj))
+                end if
               end do
             end do
           end if
@@ -599,6 +643,7 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
     end do
+
     write(*,*) 'finished adjusting ensemble members...'
  
     call tmg_stop(12)
@@ -612,14 +657,14 @@ CONTAINS
     implicit none
  
     integer :: stamp_in,return_code
-    real*8 :: gd2d(ni_l,myLatBeg:myLatEnd)
-    real*8 :: dnens,dnens2,rmsknt,rmbtpa,r1sa
-    real*8 :: rhumin = 2.5d-6
+    real(8) :: gd2d(ni_l,myLatBeg:myLatEnd)
+    real(8) :: dnens,dnens2,rmsknt,rmbtpa,r1sa
+    real(8) :: rhumin = 2.5d-6
     integer :: ji,jj,jt,jk,memberIndex,memberIndex2,jpe,jlatband
     integer :: batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
     integer :: stamp_last,newdate
-    real*8  :: delhh
+    real(8)  :: delhh
     logical :: lExists
 
     ! standard file variables
@@ -779,9 +824,14 @@ CONTAINS
         if(ikey.lt.0) then
           call abort3d('SUENS: Problem with P0 ENS')
         end if
+        call CheckEnsDim(ini,inj,ink,clnomvar) ! IN
         do jj=myLatBeg,myLatEnd
           do ji=1,ni_l
-            ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmbtpa)
+            if (hco_ben % global) then
+               ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmbtpa)
+            else
+               ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,jj)*rmbtpa)
+            end if
           end do
         end do
 
@@ -794,7 +844,11 @@ CONTAINS
           end if
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(memberIndex)%member(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+              if (hco_ben % global) then
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+              else
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposittt,jj,jt)= sngl(gd2d(ji,jj))
+              end if
             end do
           end do
         end do
@@ -808,7 +862,11 @@ CONTAINS
           end if
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),rhumin)))
+              if (hco_ben % global) then
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),rhumin)))
+              else
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,jj),rhumin)))
+              end if
             end do
           end do
         end do
@@ -822,7 +880,11 @@ CONTAINS
           end if
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt)
+              if (hco_ben % global) then
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt)
+              else
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+              end if
             end do
           end do
         end do
@@ -836,7 +898,11 @@ CONTAINS
           end if
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt)
+              if (hco_ben % global) then
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt)
+              else
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+              end if
             end do
           end do
         end do
@@ -849,7 +915,11 @@ CONTAINS
         else
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
-              ensPerturbations(memberIndex)%member(ji,ngposittg,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+              if (hco_ben % global) then
+                 ensPerturbations(memberIndex)%member(ji,ngposittg,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj))
+              else
+                 ensPerturbations(memberIndex)%member(ji,ngposittg,jj,jt)= sngl(gd2d(ji,jj))
+              end if
             end do
           end do
         end if
@@ -900,11 +970,33 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
     end do
+
     write(*,*) 'finished adjusting ensemble members...'
- 
     call tmg_stop(12)
 
   END SUBROUTINE setupEnsemble_latbands
+
+!--------------------------------------------------------------------------
+! CheckEnsDim
+!--------------------------------------------------------------------------
+  SUBROUTINE CheckEnsDim(niEns,njEns,nkEns,nomvar)
+    implicit none
+
+    integer,      intent(in) :: niEns,njEns,nkEns
+    character(*), intent(in) :: nomvar
+
+    if ( niEns /= ni_l      .or. &
+         njEns /= latPerPE  .or. &
+         nkEns /= 1 ) then
+
+       write(*,*) 'Variable :', trim(nomvar)
+       write(*,*) 'i-dim = ', niEns, ni_l
+       write(*,*) 'j-dim = ', njEns, latPerPE
+       write(*,*) 'k-dim = ', nkEns, 1
+       call abort3d('Ensemble dimensions are incompatible with the topology and/or the analysis grid')
+    end if
+
+  END SUBROUTINE CheckEnsDim
 
 !--------------------------------------------------------------------------
 ! setupLocalization
@@ -912,11 +1004,11 @@ CONTAINS
   SUBROUTINE setupLocalization(hLocalize,vLocalize,pressureProfile)
     implicit none
 
-    real*8  :: zlc,zr,zpole,zcorr,hLocalize(:),vLocalize,pressureProfile(:)
+    real(8)  :: zlc,zr,zpole,zcorr,hLocalize(:),vLocalize,pressureProfile(:)
 
     integer :: ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
 
-    real*8  :: local_length(nLevEns)
+    real(8)  :: local_length(nLevEns)
 
     !
     !- 1. Allocation
@@ -952,8 +1044,10 @@ CONTAINS
     end if 
 
     !- 2.2. Compute matrix
-    if (global) then
+    if (hco_ben % global) then
        call setupGlobalHLoc(local_length) ! IN
+    else
+       call setupLamHLoc(local_length) ! IN
     end if
 
     !
@@ -1027,15 +1121,15 @@ CONTAINS
   SUBROUTINE setupGlobalHLoc(local_length)
     implicit none
 
-    real*8, intent(in)  :: local_length(nLevEns)
+    real(8), intent(in)  :: local_length(nLevEns)
 
     real(8) ::   zlc,zr,zpole,zcorr
 
-    real*8  :: zsp(nla_l,nphase,nLevEns)
-    real*8  :: zgd(ni_l,nLevEns,myLatBeg:myLatEnd)
-    real*8  :: zsp2(nla_l,nphase,nEns)
-    real*8  :: zgd2(ni_l,nEns,myLatBeg:myLatEnd)
-    real*8  :: ra = 6371229.D0
+    real(8)  :: zsp(nla_l,nphase,nLevEns)
+    real(8)  :: zgd(ni_l,nLevEns,myLatBeg:myLatEnd)
+    real(8)  :: zsp2(nla_l,nphase,nEns)
+    real(8)  :: zgd2(ni_l,nEns,myLatBeg:myLatEnd)
+    real(8)  :: ra = 6371229.D0
 
     integer :: ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
 
@@ -1115,12 +1209,237 @@ CONTAINS
   END SUBROUTINE setupGlobalHLoc
 
 !--------------------------------------------------------------------------
+! setupLamHLoc
+!--------------------------------------------------------------------------
+  SUBROUTINE setupLamHLoc(local_length)
+    implicit none
+
+    real(8), intent(in)  :: local_length(nLevEns)
+
+    real(8), allocatable :: sp(:,:,:)
+    real(8), allocatable :: gd(:,:,:)
+    real(8), allocatable :: SumWeight(:)
+
+    real(8) :: sum
+
+    type(struct_lst)          :: lst_hloc    ! Spectral transform Parameters
+
+    integer :: k, p, e, ila, totwvnb
+
+    character(len=19)   :: kind
+
+    if ( local_length(1) > 0.d0 ) then
+      !
+      !- 1. Enforce HORIZONTAL LOCALIZATION
+      !
+
+      !- 1.1 Setup a non-MPI spectral transform
+      call lst_Setup( lst_hloc,                             & ! OUT
+                      ni_l, nj_l, hco_ben % dlon, ntrunc_l, & ! IN
+                      'NoMpi', nLevEns )                      ! IN
+
+      !- 1.2 Create a correlation function in physical space
+      allocate ( gd(ni_l,nj_l,nLevEns))
+
+      call CreateBiPerCorrelFunction( gd,                   & ! OUT
+                                      local_length, nLevEns ) ! IN
+
+      !- 1.3 Transform to spectral space
+      allocate ( sp(lst_hloc % nla, nphase, nLevEns))
+
+      kind = 'GridPointToSpectral'
+      call lst_VarTransform( lst_hloc % id,      & ! IN
+                             sp,                 & ! OUT
+                             gd,                 & ! IN
+                             kind, nLevEns )       ! IN
+ 
+      !- 1.4 Compute band mean
+      allocate(SumWeight(0:ntrunc_l))
+      SumWeight(:) = 0.d0
+
+      do totwvnb = 0, ntrunc_l
+         do e = 1, lst_hloc % nePerK(totwvnb)
+            ila = lst_hloc % ilaFromEK(e,totwvnb)
+            do p = 1, lst_hloc % nphase
+               SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc % Weight(ila)
+               do k = 1, nLevEns
+                  ensLocalCor(totwvnb,k) = ensLocalCor(totwvnb,k) + lst_hloc % Weight(ila) * abs(sp(ila,p,k))
+               end do
+            end do
+         end do
+      end do
+      
+      do totwvnb = 0, ntrunc_l
+         if (SumWeight(totwvnb) /= 0.d0) then
+            ensLocalCor(totwvnb,:) = ensLocalCor(totwvnb,:) / SumWeight(totwvnb)
+         else
+            ensLocalCor(totwvnb,:) = 0.d0
+         end if
+      end do
+
+      deallocate(SumWeight)
+    
+      !- 1.5 Normalization to one of correlation function from spectral densities: Part 1
+!$OMP PARALLEL
+!$OMP DO PRIVATE (totwvnb,k,sum)
+      do k = 1, nLevEns
+         sum = 0.0d0
+         do totwvnb = 0, ntrunc_l
+            sum = sum + real(totwvnb,8) * ensLocalCor(totwvnb,k)
+         end do
+         do totwvnb = 0, ntrunc_l
+            if ( sum /= 0.0d0 ) then
+               ensLocalCor(totwvnb,k) = ensLocalCor(totwvnb,k) / sum
+            else
+               ensLocalCor(totwvnb,k) = 0.d0
+            end if
+         end do
+      end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+      !- 1.6 Normalization to one of correlation function from spectral densities: Part 2
+
+      !- 1.6.1 Spectral transform of a delta function (at the center of the domain)
+      gd(:,:,:) = 0.d0
+      gd(ni_l/2,nj_l/2,:) = 1.d0
+
+      kind = 'GridPointToSpectral'
+      call lst_VarTransform( lst_hloc % id,      & ! IN
+                             sp,                 & ! OUT
+                             gd,                 & ! IN
+                             kind, nLevEns )       ! IN
+
+      !- 1.6.2 Apply the correlation function
+!$OMP PARALLEL
+!$OMP DO PRIVATE (totwvnb,e,ila,p,k)
+      do totwvnb = 0, ntrunc_l
+         do e = 1, lst_hloc % nePerK(totwvnb)
+            ila = lst_hloc % ilaFromEK(e,totwvnb)
+            do p = 1, nphase
+               do k = 1, nLevEns
+                  sp(ila,p,k) = sp(ila,p,k) * ensLocalCor(totwvnb,k) * &
+                                lst_hloc % NormFactor(ila,p) * lst_hloc % NormFactorAd(ila,p)
+               end do
+            end do
+         end do
+      end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+      !- 1.6.3 Move back to physical space
+      kind = 'SpectralToGridPoint'
+      call lst_VarTransform( lst_hloc % id,      & ! IN
+                             sp,                 & ! IN
+                             gd,                 & ! OUT
+                             kind, nLevEns )       ! IN
+
+      !- 1.6.4 Normalize to 1
+      do k = 1, nLevEns
+         if ( mpi_myid == 0 ) then
+           write(*,*) 'setupLamHLoc: Normalization factor = ', k, 1.d0 / gd(ni_l/2,nj_l/2,k)
+         end if
+         ensLocalCor(:,k) = ensLocalCor(:,k) / gd(ni_l/2,nj_l/2,k)
+      end do
+
+      !- 1.7 Take sqrt
+      ensLocalCor(:,:) = sqrt(ensLocalCor(:,:))
+
+      deallocate(sp)
+      deallocate(gd)
+
+    else
+      !
+      !- 2. NO HORIZONTAL LOCALIZATION: set ensLocalCor to 1.0 for wavenumber 0
+      !
+      ensLocalCor(:,:) = 0.0d0
+      ensLocalCor(0,:) = 1.0d0
+    end if
+
+    return
+  END SUBROUTINE setupLamHLoc
+
+!--------------------------------------------------------------------------
+! CreateBiPerCorrelFunction
+!--------------------------------------------------------------------------
+  SUBROUTINE  CreateBiPerCorrelFunction(gridpoint,CorrelLength,nk)
+    use EarthConstants_mod, only: RA
+    implicit none
+
+    integer, intent(in)  :: nk
+
+    real(8), intent(in)  :: CorrelLength(nk)
+
+    real(8), intent(out) :: gridpoint(ni_l,nj_l,nk)
+
+    integer          :: i, j, k, iref, jref
+    real(8)          :: distance, distance_ref
+
+    gridpoint(:,:,:) = 0.d0
+
+    distance_ref = hco_ben % dlon * RA
+
+    !
+    !- Create a bi-periodic correlation function by centering the function in each 4 corners
+    !
+
+    !- Lower-Left Corner
+    iref = 1
+    jref = 1
+    do j = 1, nj_l
+       do i = 1,ni_l
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+          end do
+       end do
+    end do
+
+    !- Upper-Left Corner
+    iref = 1
+    jref = nj_l
+    do j = 1, nj_l
+       do i = 1,ni_l
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+          end do
+       end do
+    end do
+
+    !- Lower-Right Corner
+    iref = ni_l
+    jref = 1
+    do j = 1, nj_l
+       do i = 1,ni_l
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+          end do
+       end do
+    end do
+
+    !- Upper-Right Corner
+    iref = ni_l
+    jref = nj_l
+    do j = 1, nj_l
+       do i = 1,ni_l
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+          end do
+       end do
+    end do
+
+  END SUBROUTINE CreateBiPerCorrelFunction
+
+!--------------------------------------------------------------------------
 ! BEN_reduceToMPILocal
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
-    real*8  :: cv_mpilocal(:)
-    real*8  :: cv_mpiglobal(:)
+    real(8)  :: cv_mpilocal(:)
+    real(8)  :: cv_mpiglobal(:)
     integer :: cvDim_mpilocal_out
 
     integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla
@@ -1155,8 +1474,8 @@ CONTAINS
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
-    real*8  :: cv_mpilocal(:)
-    real*8  :: cv_mpiglobal(:)
+    real(8)  :: cv_mpilocal(:)
+    real(8)  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
 
     integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla,ierr
@@ -1198,16 +1517,19 @@ CONTAINS
   SUBROUTINE BEN_BSqrt(controlVector_in,statevector)
     implicit none
 
-    real*8    :: controlVector_in(cvDim_l) 
+    real(8)    :: controlVector_in(cvDim_l) 
     type(struct_gsv) :: statevector
-    real*8,allocatable  :: incrementLocal(:,:,:,:)
-    real*8    :: ensAmplitude(ni_l,nEns,myLatBeg:myLatEnd)
-    real*8    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
-    real*8    :: zsp1(nla_l,nphase,nEns)
-    real*8, pointer :: field(:,:,:,:)
+    real(8),allocatable  :: incrementLocal(:,:,:,:)
+    real(8)    :: ensAmplitude(ni_l,nEns,myLatBeg:myLatEnd)
+    real(8)    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+    real(8)    :: zsp1(nla_l,nphase,nEns)
+    real(8), pointer :: field(:,:,:,:)
     integer   :: jlev
     integer   :: ierr,nsize,jj,jk,ji,jt,jkInc,jvar,ilev1,ilev2,topLevOffset
-    integer   :: rpn_comm_datyp
+    integer   :: rpn_comm_datyp,ens
+
+    real(8), allocatable :: gd_out(:,:,:)
+    character(len=19)   :: kind
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -1250,10 +1572,30 @@ CONTAINS
 
       zsp1(:,:,myMemBeg:myMemEnd)=zsp_all(jlev,:,:,:)
 
-      if (global) then
+      if (hco_ben % global) then
         call gst_setID(gstID)
         call gst_speree(zsp1,ensAmplitude,nEns,nEns)
         call gst_setToDefaultID
+      else
+        allocate( gd_out(ni_l,myLatBeg:myLatEnd,nEns) )
+        kind = 'SpectralToGridPoint'
+        call lst_VarTransform( lst_ben % id,            & ! IN
+                               zsp1,                    & ! IN
+                               gd_out,                  & ! OUT (i,j,k) !!!
+                               kind, nEns )               ! IN
+        !- reordering because of gd_out(i,j,k)
+!$OMP PARALLEL
+!$OMP DO PRIVATE(ens,jj,ji)        
+        do ens = 1, nEns
+          do jj = myLatBeg,myLatEnd
+            do ji = 1, ni_l
+              ensAmplitude(ji,ens,jj) = gd_out(ji,jj,ens)
+            end do
+          end do
+        end do
+!$OMP END DO
+!$OMP END PARALLEL
+        deallocate(gd_out)
       end if
 
       call tmg_stop(64)
@@ -1313,21 +1655,25 @@ CONTAINS
   END SUBROUTINE BEN_BSqrt
 
 !--------------------------------------------------------------------------
-! BEN_BSqrt
+! BEN_BSqrtAd
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_BSqrtAd(statevector,controlVector_out)
     implicit none
 
-    real*8    :: controlVector_out(cvDim_l) 
+    real(8)    :: controlVector_out(cvDim_l) 
     type(struct_gsv) :: statevector
 
-    real*8    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
-    real*8    :: zsp1(nla_l,nphase,nEns)
-    real*8, pointer :: field(:,:,:,:)
-    real*8,allocatable :: incrementLocal(:,:,:,:)
-    real*8    :: ensAmplitude(ni_l,nEns,myLatBeg:myLatEnd)
+    real(8)    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+    real(8)    :: zsp1(nla_l,nphase,nEns)
+    real(8), pointer :: field(:,:,:,:)
+    real(8),allocatable :: incrementLocal(:,:,:,:)
+    real(8)    :: ensAmplitude(ni_l,nEns,myLatBeg:myLatEnd)
+    real(8),allocatable    :: gd_in(:,:,:)
+
     integer   :: jlev,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
-    integer   :: rpn_comm_datyp,rpn_comm_oper
+    integer   :: rpn_comm_datyp,rpn_comm_oper,ens
+
+    character(len=19)   :: kind
 
     if(.not. initialized) then
       write(*,*) 'bMatrixEnsemble not initialized'
@@ -1398,10 +1744,32 @@ CONTAINS
       call rpn_comm_barrier("GRID",ierr)
       call tmg_start(64,'BEN_SPECTRAL')
 
-      if (global) then
+      if (hco_ben % global) then
         call gst_setID(gstID)
         call gst_reespe(zsp1,ensAmplitude,nEns,nEns)
         call gst_setToDefaultID
+      else
+        allocate( gd_in(ni_l,myLatBeg:myLatEnd,nEns) )
+
+        !- reordering because of gd_in(i,j,k)
+!$OMP PARALLEL
+!$OMP DO PRIVATE(ens,jj,ji)        
+        do ens = 1, nEns
+          do jj = myLatBeg, myLatEnd
+            do ji = 1, ni_l
+              gd_in(ji,jj,ens) = ensAmplitude(ji,ens,jj)
+            end do
+          end do
+        end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+        kind = 'GridPointToSpectral'
+        call lst_VarTransform( lst_ben % id,            & ! IN
+                               zsp1,                    & ! OUT
+                               gd_in,                   & ! IN (i,j,k) !!!
+                               kind, nEns )               ! IN
+        deallocate(gd_in)
       end if
 
       zsp_all(jlev,:,:,:)=zsp1(:,:,myMemBeg:myMemEnd)
@@ -1426,8 +1794,8 @@ CONTAINS
     implicit none
 
     integer,intent(in) :: levelIndex
-    real*8      :: ensAmplitude_in(ni_l,nEns,myLatBeg:myLatEnd)
-    real*8      :: incrementLocal_out(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l)
+    real(8)      :: ensAmplitude_in(ni_l,nEns,myLatBeg:myLatEnd)
+    real(8)      :: incrementLocal_out(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l)
 
     integer     :: jvar,jlev,memberIndex,jt,jj,ji,numVar
 
@@ -1470,8 +1838,8 @@ CONTAINS
     implicit none
 
     integer,intent(in) :: levelIndex
-    real*8      :: ensAmplitude_out(ni_l,nEns,myLatBeg:myLatEnd)
-    real*8      :: incrementLocal_in(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l)
+    real(8)      :: ensAmplitude_out(ni_l,nEns,myLatBeg:myLatEnd)
+    real(8)      :: incrementLocal_in(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l)
 
     integer     :: jvar,jlev,memberIndex,jt,jj,ji,numVar
 
@@ -1525,17 +1893,20 @@ CONTAINS
   SUBROUTINE localizationSqrt(controlVector_in,zsp_all)
     implicit none
 
-    real*8           :: controlVector_in(cvDim_l)
-    real*8           :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+    real(8)           :: controlVector_in(cvDim_l)
+    real(8)           :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
 
     integer          :: jlev,jla,memberIndex,p
 
     !
     !- 1.  Horizontal Localization
     !
-    if (global) then
-       call GlobalHLoc( zsp_all, & ! OUT
+    if (hco_ben % global) then
+       call GlobalHLoc( zsp_all,         & ! OUT
                         controlVector_in ) ! IN
+    else
+       call LamHLoc( zsp_all,         & ! OUT
+                     controlVector_in ) ! IN
     end if
 
     !
@@ -1558,8 +1929,8 @@ CONTAINS
   SUBROUTINE GlobalHLoc(zsp_all,controlVector_in)
     implicit none
 
-    real*8, intent(in)  :: controlVector_in(cvDim_l)
-    real*8, intent(out) :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+    real(8), intent(in)  :: controlVector_in(cvDim_l)
+    real(8), intent(out) :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
 
     integer :: jlev,jla, jdim, memberIndex 
 
@@ -1592,6 +1963,45 @@ CONTAINS
   END SUBROUTINE GlobalHLoc
 
 !--------------------------------------------------------------------------
+! LamHLoc
+!--------------------------------------------------------------------------
+  SUBROUTINE LamHLoc(zsp_all,controlVector_in)
+    implicit none
+
+    real(8), intent(in)  :: controlVector_in(cvDim_l)
+    real(8), intent(out) :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+
+    integer :: jlev,jla, jdim, memberIndex, p 
+
+    !
+    !- Reshape + Horizontal localization + Scaling (parseval)
+    !
+    jdim = 0
+
+    do memberIndex = myMemBeg, myMemEnd
+
+       call tmg_start(65,'BEN_CAIN')
+       do jlev = 1,nLevEns
+         do jla = 1, nla_l
+            do p = 1, nphase
+              jdim = jdim + 1
+              zsp_all(jlev,jla,p,memberIndex) = controlVector_in(jdim)           * &
+                                                ensLocalCor(lst_ben%k(jla),jlev) * &
+                                                lst_ben % NormFactor(jla,p)
+            end do
+         end do
+       end do
+       if (jdim > cvDim_l ) then
+          write(*,*) 'BEN: LamHLoc: jdim > cvDim! ',jdim,memberIndex,cvDim_l
+          call abort3d('aborted in LamHLoc')
+       end if
+       call tmg_stop(65)
+
+    end do
+
+  END SUBROUTINE LamHLoc
+
+!--------------------------------------------------------------------------
 ! localizationSqrtAd
 !--------------------------------------------------------------------------
   SUBROUTINE localizationSqrtAd(zsp_all,controlVector_out)
@@ -1617,9 +2027,12 @@ CONTAINS
     !
     !- 1.  Horizontal Localization
     !
-    if (global) then
-       call GlobalHLocAd( zsp_all,           & ! IN
-                          controlVector_out )  ! OUT
+    if (hco_ben % global) then
+      call GlobalHLocAd( zsp_all,           & ! IN
+                         controlVector_out )  ! OUT
+    else
+      call LamHLocAd( zsp_all,           & ! IN
+                      controlVector_out )  ! OUT
     end if
 
   END SUBROUTINE localizationSqrtAd
@@ -1630,8 +2043,8 @@ CONTAINS
   SUBROUTINE GlobalHLocAd(zsp_all,controlVector_out)
     implicit none
 
-    real*8, intent(out)   :: controlVector_out(cvDim_l)
-    real*8, intent(in)    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+    real(8), intent(out)   :: controlVector_out(cvDim_l)
+    real(8), intent(in)    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
 
     integer          :: jla,jlev,jdim,memberIndex
 
@@ -1661,5 +2074,45 @@ CONTAINS
     end do
 
   END SUBROUTINE GlobalHLocAd
+
+!--------------------------------------------------------------------------
+! LamHLocAd
+!--------------------------------------------------------------------------
+  SUBROUTINE LamHLocAd(zsp_all,controlVector_out)
+    implicit none
+
+    real(8), intent(out)   :: controlVector_out(cvDim_l)
+    real(8), intent(in)    :: zsp_all(nLevEns,nla_l,nphase,myMemBeg:myMemEnd)
+
+    integer          :: jla, jlev, jdim, memberIndex, p
+
+    !
+    !- Reshape + Horizontal localization + Scaling (parseval)
+    !
+    jdim = 0
+
+    do memberIndex = myMemBeg, myMemEnd
+
+       call tmg_start(65,'BEN_CAIN')
+       do jlev = 1, nLevEns
+         do jla = 1, nla_l
+           do p = 1, nphase
+             jdim = jdim + 1
+             controlVector_out(jdim) = controlVector_out(jdim) +           &
+                                       ( zsp_all(jlev,jla,p,memberIndex)  * &
+                                         ensLocalCor(lst_ben%k(jla),jlev) * &
+                                         lst_ben % NormFactorAd(jla,p)    )
+           end do
+         end do
+       end do
+       if (jdim > cvDim_l ) then
+          write(*,*) 'BEN: LamHLocAD: jdim > cvDim! ',jdim, memberIndex, cvDim_l
+          call abort3d('aborted in LamHLocAd')
+       end if
+       call tmg_stop(65)
+
+    end do
+
+  END SUBROUTINE LamHLocAd
 
 END MODULE BMatrixEnsemble
