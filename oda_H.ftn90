@@ -22,6 +22,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use columnData_mod
   use bufr
   use modgpsztd_mod
+  use minimization_mod
   implicit none
   !
   !Purpose:
@@ -99,6 +100,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !*          A linear interpolation in ln(p) is performed.
 !*
 !*implicits
+      implicit none
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,INDEX_FAMILY,IK
       INTEGER J,INDEX_BODY,ITYP
@@ -334,15 +336,14 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !                S. Pellerin, ARMA, January 2009
   !                    - call to oda_storeHdx_radiances instead computing Jo
   !
-
-  integer, save :: nbr_call = 0
+      implicit none
 
   !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
   !     .    -----------------------------------------------------------------------------
   !
   ! put lcolumng into column1  (why?)
 !  column1%all(:,:) = lcolumng%all(:,:)
-  if (nbr_call == 0) then
+  if (min_nsim == 1) then
      call tovs_fill_profiles(lcolumng,lobsSpaceData)
   endif
 
@@ -358,8 +359,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
 
   call oda_storeHdx_radiances(lobsSpaceData)
-
-  nbr_call = nbr_call + 1
 
   return
 
@@ -383,6 +382,7 @@ end subroutine oda_Hto
       use modgpsro_mod
       use IndexListDepot_mod, only : struct_index_list
       use vGrid_Descriptors
+      implicit none
 
       REAL*8 zLat, Lat, sLat
       REAL*8 zLon, Lon
@@ -640,6 +640,7 @@ end subroutine oda_Hto
 !*
 !*Author  :  J. St-James, CMDA/SMC July 2003
 
+      implicit none
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,IK
       INTEGER J,INDEX_BODY,ITYP
@@ -701,7 +702,8 @@ end subroutine oda_Hto
       use modgps04profilezd , only : gpsprofilezd, gpsstructztd, gpsdpress
       use modgps08ztdop     , only : gpsZTDopv, gpsPW
       use vGrid_Descriptors
-#include "comgpsgb.cdk"
+      use modgpsztd_mod
+      implicit none
 
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
@@ -738,7 +740,7 @@ end subroutine oda_Hto
          LV = 'NA'
       endif
       
-      ZDZMIN = DZMIN                     ! from comgpsgb.cdk
+      ZDZMIN = DZMIN                     ! from modgpsztd_mod
       
       NFLEV  = col_getNumLev(lcolumng,'TH')
       NFLEV2 = col_getNumLev(lcolumn)

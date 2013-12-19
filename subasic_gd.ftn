@@ -15,7 +15,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine subasic_gd(statevectorg,lcolumnhr,numStep,datestamplist)
+      subroutine subasic_gd(statevectorg,lcolumnhr,numStep,datestamplist,indexAnalysis)
       use mpi
       use gridStateVector_mod
       use columnData_mod
@@ -38,6 +38,7 @@
 #endif
       IMPLICIT NONE
       INTEGER INI,INJ,INK,IG1,IG2,IG3,IG4,IERR,numStep
+      integer :: indexAnalysis
       INTEGER :: datestamplist(numStep)
       CHARACTER(len=2) :: CLTYPVAR
       CHARACTER(len=1) :: CLGRTYP
@@ -59,8 +60,9 @@
       REAL*8 zqqg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
       real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
       integer ntrials, nultrl(500)  
-      CHARACTER(len=2) :: flnum 
-      CHARACTER(len=9) :: trialfile 
+      CHARACTER(len=2)   :: flnum 
+      CHARACTER(len=3)   :: flnum2
+      CHARACTER(len=128) :: trialfile 
 
       WRITE(*,FMT='(/,4X,"Starting SUBASIC_GD",//)')
 
@@ -73,12 +75,16 @@
       ntrials=0 
       do 
          write(flnum,'(I2.2)') ntrials+1
-         trialfile='./trlm_'//flnum
-         inquire(file=trialfile,exist=ltrial)
+         trialfile='./trlm_' // trim(flnum)
+         if(indexAnalysis.gt.0) then
+           write(flnum2,'(I3.3)') indexAnalysis
+           trialfile = trim(trialfile) // '_' // trim(flnum2)
+         endif
+         inquire(file=trim(trialfile),exist=ltrial)
          if(ltrial) then
             ntrials=ntrials+1
-            ierr=fnom(nultrl(ntrials),trialfile,'RND+OLD+R/O',0)
-            write(*,*) 'ITRIAL - File :', trialfile
+            ierr=fnom(nultrl(ntrials),trim(trialfile),'RND+OLD+R/O',0)
+            write(*,*) 'ITRIAL - File :', trim(trialfile)
             write(*,*) ' opened as unit file ',nultrl(ntrials)
             ierr =  fstouv(nultrl(ntrials),'RND+OLD')
          else if ( (.not. ltrial) .and. ntrials >0 ) then

@@ -88,6 +88,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !*     Purpose: based on vint3d to build the adjoint of the
 !*              vertical interpolation for UPPER-AIR data files.
 !*
+      implicit none
       INTEGER IPB,IPT,ITYP
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
@@ -207,6 +208,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !*     Purpose: based on surfc1dz to build the adjoint of the
 !*              vertical interpolation for SURFACE data files.
 !*
+      implicit none
       INTEGER IPB,IPT
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
@@ -341,6 +343,8 @@ subroutine oda_HTto
 !    -------------------
 !     purpose:
 !
+      implicit none
+
 !     1.   Getting the adjoint of the residuals
 !     .    ----------------------------------
 !
@@ -373,6 +377,7 @@ end subroutine oda_HTto
       use modgpsro_mod
       use IndexListDepot_mod, only : struct_index_list
       use vGrid_Descriptors
+      implicit none
 
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 DPJO1(ngpscvmx)
@@ -485,14 +490,6 @@ end subroutine oda_HTto
 !C     *             O-F Tested criteria:
 !C
                      DPJO1(1:2*NGPSLEV+1) = ZINC * vGPSRO_Jacobian(iProfile,NH1,:)
-!                     if (Lat .lt. -50.d0 .and. Lat .gt. -60.d0) then
-!                        HNH1=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!                        if (LEVELGPSRO.eq.1) HNH1=HNH1-Rad
-!                        zincown=(vGPSRO_DOB(iProfile,nh1)-vGPSRO_VAR(iProfile,nh1))/vGPSRO_OER(iProfile,nh1)
-!                        write(*,'A5,I10,I4,F8.2,F8.1,10E16.6')'DPJO',INDEX_HEADER,nh1,Lat,HNH1,   &
-!                             vGPSRO_VAR(iProfile,nh1), vGPSRO_DOB(iProfile,nh1), ZINC, ZOER, &
-!                             zincown, DPJO1(2*NGPSLEV+1),DPJO0(2*NGPSLEV+1)
-!                     endif
 !C
 !C     *             Accumulate the gradient of the observation cost function:
 !C
@@ -532,6 +529,7 @@ end subroutine oda_HTto
 !*     Purpose: based on vint3d to build the adjoint of the
 !*              vertical interpolation for profiler data.
 !*
+      implicit none
       INTEGER IPB,IPT
       REAL*8 ZRES,ZDA1,ZDA2,ZDENO
       REAL*8 ZWB,ZWT
@@ -600,7 +598,8 @@ end subroutine oda_HTto
 !
 !*
       use modgps00base      , only : ngpscvmx
-#include "comgpsgb.cdk"
+      use modgpsztd_mod
+      implicit none
 
       REAL*8 DPJO0(ngpscvmx)
       REAL*8 JAC(ngpscvmx)

@@ -6,17 +6,18 @@
 ! Subroutines (public):
 !    min_setup
 !    min_minvar
-!    min_get_datestamp, min_set_datestamp - access centre of analysis validity
 !
 ! Dependencies:
 !
 !--------------------------------------------------------------------------
 MODULE minimization_mod
   use MathPhysConstants_mod
+  use timeCoord_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
   use mpi
+  use HorizontalCoord_mod
   use gridStateVector_mod
   use bmatrix_mod
   use tovs_mod
@@ -25,8 +26,7 @@ MODULE minimization_mod
   save
   private
 
-  public              :: min_Setup, min_minvar,lvarqc,min_niter
-  public              :: min_get_datestamp, min_set_datestamp
+  public              :: min_Setup, min_minvar,lvarqc,min_niter,min_nsim
 
   type struct_dataptr
     type(struct_obs),pointer        :: lobsSpaceData
@@ -38,12 +38,10 @@ MODULE minimization_mod
   real*8, pointer     :: dg_vbar(:)
 
   integer             :: nulout =6
-  integer             :: nmtra,nwork,nsim3d
-  integer             :: ni,nj,nt
+  integer             :: nmtra,nwork,min_nsim
   integer             :: nvadim_mpilocal ! for mpi
   integer             :: min_niter
   integer             :: dataptr_int_size=0
-  integer             :: datestamp      ! window centre of analysis validity
   integer             :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
@@ -67,9 +65,9 @@ MODULE minimization_mod
 
 CONTAINS
 
-  SUBROUTINE min_setup(nvadim_mpilocal_in,ni_in,nj_in,nt_in)
+  SUBROUTINE min_setup(nvadim_mpilocal_in)
     implicit none
-    integer :: nvadim_mpilocal_in,ni_in,nj_in,nt_in
+    integer :: nvadim_mpilocal_in
 
     integer :: ierr,nulnam
     integer :: fnom,fclos
@@ -79,11 +77,6 @@ CONTAINS
       call abort3d('aborting in min_setup: control vector dimension not consistent')
     endif
 
-    nsim3d=0 
-
-    ni=ni_in
-    nj=nj_in
-    nt=nt_in
     nvadim_mpilocal=nvadim_mpilocal_in
 
     ! set default values for namelist variables
@@ -106,13 +99,6 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-      call abort3d('aborting in min_setup')
-    endif
-    dg_vbar(:)=0.0d0
-
     IF(N1GC.EQ.3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
@@ -131,15 +117,16 @@ CONTAINS
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData)
-!
-! Purpose:
-! 3D/En VAR minimization
-!
+  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData,lastAnalysis)
+    !
+    ! Purpose:
+    ! 3D/En VAR minimization
+    !
       IMPLICIT NONE
 
       type(struct_columnData),target :: lcolumn,lcolumng
       type(struct_obs),target :: lobsSpaceData
+      logical :: lastAnalysis
       type(struct_dataptr) :: dataptr 
       integer,allocatable :: dataptr_int(:) ! obs array used to transmit pointer
 
@@ -151,11 +138,11 @@ CONTAINS
       real*8,allocatable :: vatra(:)
 
       REAL*8 DLDS(1)
-      LOGICAL LLTEST,llvarqc, llstop, lldf1, lrdvatra, llvazx, llxbar
+      LOGICAL LLTEST,llvarqc, lldf1, lrdvatra, llvazx, llxbar
 
       INTEGER IMODE, ITERMAX, iterdone, ISIMMAX, INDIC, IITNOVQC, jj
       INTEGER IERR,ITERTOT,isimdone,isimtot,jdata, ISIMNOVQC
-      integer ireslun,ibrpstamp,isim3d
+      integer ibrpstamp,isim3d
       INTEGER ILEN
       REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS0, ZEPS1
       REAL*8 DLGNORM, DLXNORM, ZJOTOV
@@ -166,25 +153,28 @@ CONTAINS
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
+ 
+      min_nsim=0 
 
-! 
-!     allocation (these are all mpilocal arrays)
-!
+      ! allocate control vector related arrays (these are all mpilocal)
+
       allocate(vazx(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=3',ierr
         call abort3d('aborting in min_minvar')
       endif
-      vazx(:)=0.0d0
-      ! extra mpilocal portion of control vector:
-      vazx(1:nvadim_mpilocal)=cvm_vazx(1:nvadim_mpilocal)
+
+      allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
+      if(ierr.ne.0) then
+        write(*,*) 'minimization: Problem allocating memory! id=1',ierr
+        call abort3d('aborting in min_minvar')
+      endif
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
         call abort3d('aborting in min_minvar')
       endif
-      vazg(:)=0.0d0
 
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
@@ -192,22 +182,16 @@ CONTAINS
         write(*,*) 'minimization: nmtra=',nmtra
         call abort3d('aborting in min_minvar')
       endif
-      vatra(:)=0.0d0
 
-!
+! THIS NEEDS TO BE TESTED/REIMPLEMENTED
 ! Prepare for non-linear processing of 'TO' data:
 !    - fill PZDBLPRIM8 with Z" = H(xb_lr) + Z'
 !                              = H(xb_lr) - H(xb_hr) + Z
-      if ( lnlvtov ) then
-        call tmg_start(48,'NL_OBS_OPER')
-        call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData,OBS_OMP,OBS_OMA)
-        call tmg_stop(48)
-      endif
-
-      ITERTOT  = 0
-      isimtot = 0
-
-      ZXMIN = epsilon(ZXMIN)
+!      if ( lnlvtov ) then
+!        call tmg_start(48,'NL_OBS_OPER')
+!        call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData,OBS_OMP,OBS_OMA)
+!        call tmg_stop(48)
+!      endif
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
       dataptr%lobsSpaceData => lobsSpaceData
@@ -221,40 +205,49 @@ CONTAINS
       endif
       dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
 
-!     *    2. Set-up the minimization
-!     .  -----------------------
+      ! Set-up the minimization
+
+      ! initialize iteration/simulation counters to zero
+      ITERTOT  = 0
+      isimtot = 0
+
+      ! initialize control vector related arrays to zero
+      vazx(:)=0.0d0
+      ! extra mpilocal portion of control vector: NOT NEEDED?
+      !vazx(1:nvadim_mpilocal)=cvm_vazx(1:nvadim_mpilocal)
+      dg_vbar(:)=0.0d0
+      vazg(:)=0.0d0
+      vatra(:)=0.0d0
+
+      ! save user-requested varqc switch
       llvarqc = lvarqc
 
-!     If minimization start without qcvar : turn off varqc to compute
-!     innovations and test the gradients
+      ! If minimization start without qcvar : turn off varqc to compute
+      ! innovations and test the gradients
 
-      ireslun=0
       lldf1 = .true.
       if (preconFileExists) then
         write(*,*) 'Minimize : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
         llvazx = .false.
-        llxbar = lxbar ! from namelist (default is .true.)
+        llxbar = lxbar ! from namelist (default is .false.)
       else
         lrdvatra = .false.
         imode = 0
         zeps0 = repsg
       endif
-      if(.not.(imode.eq.0.or.imode.eq.2)) call abort3d(' RW_VATRA not done ')
 
+      ! read the hessian from preconin file
       if (lrdvatra) then
-        ibrpstamp = min_get_datestamp() ! ibrpstamp is a I/O argument of rw_vatra
+        ibrpstamp = tim_getDatestamp() ! ibrpstamp is a I/O argument of rw_vatra
 
-        if(n1gc.eq.3) then
-          call rw_vatra (preconFileName,0,                     &
-            isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000   &
-            ,isimdone_000,iztrl,vatra,dg_vbar,    &
-            vazx,llxbar,llvazx,n1gc,imode)
+        call rw_vatra (preconFileName,0,                     &
+          isim3d,ibrpstamp,zeps0_000,zdf1_000,iterdone_000,  &
+          isimdone_000,iztrl,vatra,dg_vbar,                  &
+          vazx,llxbar,llvazx,n1gc,imode)
 
-        endif
-
-        if (ibrpstamp == min_get_datestamp() .and. lxbar) then
+        if (ibrpstamp == tim_getDatestamp() .and. lxbar) then
           zeps0  = zeps0_000
           zdf1   = zdf1_000
           lldf1 = .false.     ! don't re-compute df1 base on Cost function
@@ -271,7 +264,8 @@ CONTAINS
 
       if (nwoqcv > 0) lvarqc = .false.
 
-      if(lgrtest) then
+      ! do the gradient test for the starting point of minimization
+      if(lgrtest .and. lastAnalysis) then
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
       endif
 
@@ -280,25 +274,12 @@ CONTAINS
       itertot = iterdone
       isimtot = isimdone
 
-!     *    2. Set-up the minimization
-!     .  -----------------------
-!
-!     *    .   Test the gradient again at the initial point WITH PRECON
-!     .   --------------------------------------------------------
-!
-!     .   2.1.4 Test the complete functional
-!
-!     *    .   2.2  Compute the value of J(X) and the gradient
-!     .        at the initial point
-!
       INDIC =2
-
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
 
       if (lldf1) ZDF1     =  rdf1fac * ABS(ZJSP)
 
 !     Put QCVAR logical to its original values
-
       lvarqc=llvarqc
 
       CALL PRSCAL(nvadim_mpilocal,VAZG,VAZG,DLGNORM)
@@ -309,35 +290,27 @@ CONTAINS
       WRITE(*,FMT=9220) ZJSP, DLGNORM
  9220 FORMAT(/4X,'J(X) = ',G23.16,4X,'|Grad J(X)| = ',G23.16)
 
-!     *    3. Iterations of the minimization algorithm
-!     .  ----------------------------------------
+      ! Iterations of the minimization algorithm
 
-
-!     *    .   3.2 Starting point of the minimization written to
-!     .       RPN standard output file
-
-      IF(N1GC.EQ.3) THEN
+      ZXMIN = epsilon(ZXMIN)
       WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,NITERMAX,NSIMMAX
-      ENDIF
 
  9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
-          10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
-          /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3,//  &
-          ,15X,'-STARTING POINT IS WRITTEN TO FILE ...')
+             10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
+             /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
-!     *    .   3.3 Beginning the minimization
-!     .       --------------------------
+      ! Begin the minimization
 
-      llstop = .false.
+      ! First do iterations without var-QC
       if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv) then
         iitnovqc = min(nwoqcv - iterdone,itermax)
         isimnovqc = isimmax
         lvarqc = .false.
         call tmg_start(70,'QN')
         call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
-            zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode       &
-            ,iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1), zzsunused  &
-            ,dlds)
+            zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
+            iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1),   &
+            zzsunused, dlds)
         call tmg_stop(70)
         call fool_optimizer(lobsSpaceData)
 
@@ -357,111 +330,73 @@ CONTAINS
           INDIC = 2
           call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
         else
-          llstop = .true.
           call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
         endif
       endif
 
-      if (.not. llstop) then
+      ! Now do main minimization with var-QC
+      call tmg_start(70,'QN')
+      call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
+          zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
+          itermax,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
+          dlds)
+      call tmg_stop(70)
+      call fool_optimizer(lobsSpaceData)
 
-        if(N1GC.EQ.3) then
-          call tmg_start(70,'QN')
-          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
-              zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-              itermax,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
-              dlds)
-          call tmg_stop(70)
-          call fool_optimizer(lobsSpaceData)
+      itertot = itertot + itermax
+      isimtot = isimtot + isimmax
 
-          itertot = itertot + itermax
-          isimtot = isimtot + isimmax
-
-          zeps1 = zeps0/zeps1
-
-        endif
-
-      endif
+      zeps1 = zeps0/zeps1
 
       WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
  9500 FORMAT(//,20X,20('*'),2X    &
-          ,/,20X,'              Minimization ended with MODE:',I4  &
-          ,/,20X,' Number of iterations done in previous job:',I4  &
-          ,/,20X,'          Number of iterations in this job:',I4  &
-          ,/,20X,'                Total number of iterations:',I4  &
-          ,/,20X,'Number of simulations done in previous job:',I4  &
-          ,/,20X,'         Number of simulations in this job:',I4  &
-          ,/,20X,'               Total number of simulations:',I4)
+        ,/,20X,'              Minimization ended with MODE:',I4  &
+        ,/,20X,' Number of iterations done in previous job:',I4  &
+        ,/,20X,'          Number of iterations in this job:',I4  &
+        ,/,20X,'                Total number of iterations:',I4  &
+        ,/,20X,'Number of simulations done in previous job:',I4  &
+        ,/,20X,'         Number of simulations in this job:',I4  &
+        ,/,20X,'               Total number of simulations:',I4)
 
       min_niter = itertot
 
-!     *    4. Test the gradient at the final point if LGRTEST= true
-!     .  ------------------------------------
-
-
-      if ((lgrtest .and. IMODE.ne.4)) then
+      ! Test the gradient at the final point
+      if ((lgrtest .and. lastAnalysis)) then
         WRITE(*,FMT=9400)
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
-
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
-      END IF
+      end if
 
-      ireslun=0
       do jdata = 1, nvadim_mpilocal
         dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
       enddo
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      if(lwrthess) then
-        if(n1gc.eq.3) then
+      ! Write out the Hessian to file (for now only 1st member writes)
+      if(lwrthess .and. lastAnalysis) then
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call rw_vatra (preconFileNameOut,1,  &
-          nsim3d,min_get_datestamp(),zeps1,zdf1,itertot,isimtot,  &
+          min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
           iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
-
-        endif
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       endif
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+      ! Put final control vector into control vector module for use elsewhere
       call tmg_start(89,'MIN_COMM')
       cvm_vazx(:)=vazx(1:nvadim_mpilocal)      
       call tmg_stop(89)
 
-      deallocate(vazx,stat=ierr)
-      deallocate(vazg,stat=ierr)
-      deallocate(vatra,stat=ierr)
-      deallocate(dataptr_int,stat=ierr)
+      ! deallocate the control vector related arrays
+      deallocate(vazx)
+      deallocate(vazg)
+      deallocate(vatra)
+      deallocate(dg_vbar)
 
-      RETURN
+      deallocate(dataptr_int)
+
   END SUBROUTINE min_minvar
 
 
-   subroutine min_set_datestamp(datestamp_in)
-      !
-      ! object: to control access to the minimization object.  Sets the date
-      !         of the window centre of analysis validity to the indicated value.
-
-      implicit none
-      integer, intent(in) :: datestamp_in
-
-      datestamp = datestamp_in
-
-   end subroutine min_set_datestamp
-
-
-   function min_get_datestamp() result(datestamp_out)
-      !
-      ! object: to control access to the minimization object.  Returns the date
-      !         of the window centre of analysis validity.
-
-      implicit none
-      integer :: datestamp_out
-
-      datestamp_out = datestamp
-
-   end function min_get_datestamp
-
-
   SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
-    use HorizontalCoord_mod
     implicit none
     ! Argument declarations
     integer :: na_dim ! Dimension of the control vector in forecast error coraviances space
@@ -505,10 +440,10 @@ CONTAINS
 
     call tmg_start(80,'SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
-       nsim3d = nsim3d + 1
+       min_nsim = min_nsim + 1
 
        if(mpi_myid == 0) then
-         write(*,*) 'Entering simvar for simulation ',nsim3d
+         write(*,*) 'Entering simvar for simulation ',min_nsim
          call flush(6)
        endif
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -525,7 +460,7 @@ CONTAINS
        call gsv_setVco(statevector,col_getVco(lcolumng))
        hco_anl => hco_get('Analysis')
        call gsv_setHco(statevector,hco_anl)
-       call gsv_allocate(statevector,nt,mpi_local=.true.)
+       call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
@@ -722,7 +657,7 @@ CONTAINS
 
 
   SUBROUTINE rw_vatra (cfname,status,                       &
-          nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
+          nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
           nztrl,vatra,vazxbar,vazx,lxbar,lvazx,k1gc,imode)
 
     !***s/r RW_VATRA  - Read-Write VAZXBAR and VATRA on file
@@ -733,7 +668,7 @@ CONTAINS
     !*Arguments
     !*     i   cfname    : precon file
     !*     i   status    : = 0 if READ, = 1 if WRITE
-    !*     i   nsim3d    : Number of simulations in N1QN3
+    !*     i   nsim      : Number of simulations in N1QN3
     !*     io  kbrpstamp : Date
     !*     i   zeps1     : Parameter in N1QN3
     !*     i   zdf1      : Parameter in N1QN3
@@ -751,7 +686,7 @@ CONTAINS
 
     logical lxbar,lvazx
 
-    integer status,kbrpstamp,nsim3d,itertot,isimtot
+    integer status,kbrpstamp,nsim,itertot,isimtot
     integer, dimension(10), target :: nztrl
     integer k1gc, imode
     real*8 zeps1,zdf1
@@ -813,7 +748,7 @@ CONTAINS
 
       rewind (ireslun)
 
-      read(ireslun) cl_version,i1gc,nsim3d,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
+      read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
       if(trim(cl_version) == 'V4') then
         read(ireslun) ivamaj,iztrl
         if((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
@@ -902,7 +837,7 @@ CONTAINS
       if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
       cl_version = 'V4'
       itrunc=0
-      if(mpi_myid.eq.0) write(ireslun) cl_version,k1gc,nsim3d,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
+      if(mpi_myid.eq.0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
       if(mpi_myid.eq.0) write(ireslun) nvamaj,nztrl
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
 

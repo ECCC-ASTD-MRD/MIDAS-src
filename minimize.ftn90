@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine minimize(lcolumng,lobsSpaceData)
+subroutine minimize(lcolumng,lobsSpaceData,lastAnalysis)
   use minimization_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -30,6 +30,7 @@ subroutine minimize(lcolumng,lobsSpaceData)
   !Local declarations
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumn,lcolumng
+  logical :: lastAnalysis
   integer :: indic,ierr
 
   write(*,*) '--------------------------------'
@@ -42,9 +43,9 @@ subroutine minimize(lcolumng,lobsSpaceData)
 
   write(*,*) 'PRDATABIN: For 4D increment'
   call prdatabin(lobsSpaceData,tim_nstepobsinc)
-  call sutimeinterp(lobsSpaceData,lcolumn)
+  call tim_sutimeinterp(lobsSpaceData)
 
-  call min_minvar(lcolumn,lcolumng,lobsSpaceData)
+  call min_minvar(lcolumn,lcolumng,lobsSpaceData,lastAnalysis)
 
   DO INDIC =1,1
      if(obs_numHeader(lobsSpaceData).ge.indic) then 

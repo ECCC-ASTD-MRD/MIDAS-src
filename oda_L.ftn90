@@ -20,6 +20,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
   use gridstatevector_mod
   use obsSpaceData_mod
   use columnData_mod
+  use timeCoord_mod
   implicit none
 
   !
@@ -150,7 +151,7 @@ CONTAINS
       !
       DO headerIndex = 1, col_getNumCol(LCOLUMN)
 
-        if ( col_getTimeInterpWeight(lcolumn,headerIndex,jstep) > 0.0d0 .and. &
+        if ( tim_getTimeInterpWeight(headerIndex,jstep) > 0.0d0 .and. &
              .not. btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
 
           !- 2.1 Find the obs position within the analysis grid
@@ -201,7 +202,7 @@ CONTAINS
           !- 2.4 Interpolate the model state to the obs point
           DO JLEV = 1, KLEV
             column_ptr(JLEV,headerIndex) = column_ptr(JLEV,headerIndex)  +  &
-                                    col_getTimeInterpWeight(lcolumn,headerIndex,jstep) *  &
+                                    tim_getTimeInterpWeight(headerIndex,jstep) *  &
                                     ( DLW1 * ZFIELD(ILON  ,JLEV,ILA  )             &
                                     + DLW2 * ZFIELD(ILON+1,JLEV,ILA  )             &
                                     + DLW3 * ZFIELD(ILON  ,JLEV,ILA+1)             &

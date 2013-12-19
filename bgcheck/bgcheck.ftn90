@@ -123,7 +123,6 @@
 !C     .   3.4.3 Convert CMA ---> BURP file and write it
 !C
       CALL VINT3DFD(OBS_OMP,lobsSpaceData)
-      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
       CALL UPDATE_BURPFILES(lobsSpaceData)
       ! add cloud parameter data to burp files (AIRS&IASI)
       CALL ADD_CLOUDPRMS(lobsSpaceData)

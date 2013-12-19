@@ -211,10 +211,10 @@ CONTAINS
     call mpi_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
 
     !- 2.5 Time bin number
-    if(ntime_in.eq.1.or.ntime_in.eq.5.or.ntime_in.eq.7) then
+    if(ntime_in.eq.1.or.ntime_in.eq.3.or.ntime_in.eq.5.or.ntime_in.eq.7) then
       ntime_l=ntime_in
     else
-      call abort3d('Invalid value for NTIME (choose 1 or 5 or 7)!')
+      call abort3d('Invalid value for NTIME (choose 1 or 3 or 5 or 7)!')
     end if
 
     !- 2.6 Spectral Transform
@@ -392,6 +392,10 @@ CONTAINS
 
     if(ntime_l.eq.1) then
       call incdatr(idateo(1),stamp_in, 0.0d0)
+    elseif(ntime_l.eq.3) then
+      call incdatr(idateo(1),stamp_in,-3.0d0)
+      call incdatr(idateo(2),stamp_in, 0.0d0)
+      call incdatr(idateo(3),stamp_in, 3.0d0)
     elseif(ntime_l.eq.5) then
       call incdatr(idateo(1),stamp_in,-3.0d0)
       call incdatr(idateo(2),stamp_in,-1.5d0)
@@ -722,6 +726,10 @@ CONTAINS
 
     if(ntime_l.eq.1) then
       call incdatr(idateo(1),stamp_in, 0.0d0)
+    elseif(ntime_l.eq.3) then
+      call incdatr(idateo(1),stamp_in,-3.0d0)
+      call incdatr(idateo(2),stamp_in, 0.0d0)
+      call incdatr(idateo(3),stamp_in, 3.0d0)
     elseif(ntime_l.eq.5) then
       call incdatr(idateo(1),stamp_in,-3.0d0)
       call incdatr(idateo(2),stamp_in,-1.5d0)

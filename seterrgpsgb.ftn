@@ -34,10 +34,8 @@
       use bufr
       use modgpsztd_mod
       IMPLICIT NONE
-*implicits
-#include "comgpsgb.cdk"
-*
-C NOTE: YZDERRWGT IN comgpsgb.cdk (FROM NML FILE) IS USED FOR ERROR WEIGHTING
+C
+C NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
 C       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
 C       CORRELATIONS.
 C

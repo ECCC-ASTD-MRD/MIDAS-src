@@ -59,6 +59,7 @@
       use obsSpaceData_mod
       use columnData_mod
       use bufr
+      use minimization_mod
       IMPLICIT NONE
 *
       type(struct_obs) :: lobsSpaceData
@@ -140,6 +141,8 @@
       DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(254)   
      1  /          'GB-GPS',       'TOVS ATMS',   'SCATTEROMETER'/
 *
+      IF(.NOT.LVARQC) RETURN
+
       DO JFAM=1,numFamily
         DO JITEM=1,NUMITEM
           ICOUNT(JITEM,JFAM) = 0

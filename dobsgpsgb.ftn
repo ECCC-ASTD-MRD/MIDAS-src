@@ -31,7 +31,7 @@
 *
 *          S. Macpherson Dec 2012 - Jan 2013
 *           -- update from Rev189 to Rev213
-*           -- new namelist parameters in comgpsgb.cdk
+*           -- new namelist parameters in modgpsztd_mod
 *           -- ZTD operator gpsZTDopv is found in NEW modgps08ztdop.cdk90
 *           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
 *           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
@@ -58,7 +58,6 @@
       IMPLICIT NONE
 *implicits
 #include "comct0.cdk"
-#include "comgpsgb.cdk"
 C
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData

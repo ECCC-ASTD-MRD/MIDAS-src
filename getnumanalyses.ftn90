@@ -1,0 +1,37 @@
+function getNumAnalyses() result(numAnalyses)
+
+  ! function: getNumAnalyses - Determine the number of analyses to perform
+  !                            by checking which trlm files exist
+
+  implicit none
+  integer :: numAnalyses, indexAnalysis
+  integer, parameter :: maxNumAnalyses = 256
+  character(len=128) :: fileName
+  character(len=3)   :: flnum
+  logical   fileExists
+
+  filename='./trlm_01'
+  inquire(file=trim(fileName),exist=fileExists)
+  if(fileExists) then
+    numAnalyses = 1
+  else
+    LOOP_ANL: do indexAnalysis = 1,maxNumAnalyses
+      write(flnum,'(I3.3)') indexAnalysis
+      fileName='./trlm_01_' // trim(flnum)
+      inquire(file=trim(fileName),exist=fileExists)
+      if(.not.fileExists) then
+        numAnalyses = indexAnalysis-1
+        exit LOOP_ANL
+      endif
+    enddo LOOP_ANL
+  endif
+
+  if(numAnalyses.eq.0) then
+    call abort3d('getNumAnalyses: could not find trlm_01 files!')
+  else
+    write(*,*) '======================================================'
+    write(*,*) 'getNumAnalyses: number of Analyses to be performed = ',numAnalyses
+    write(*,*) '======================================================'
+  endif
+
+END function getNumAnalyses

@@ -131,8 +131,8 @@ contains
 !*      Replace the pressure of elements which are slightly below
 !*      the model surface by the pressure of the trial field.
 !*
+      use modgpsztd_mod
       implicit none
-#include "comgpsgb.cdk"
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
 

@@ -13,10 +13,6 @@ module modgpsro_mod
 !
   integer                                :: numGPSROProfiles
   integer         , allocatable          :: vGPSRO_IndexPrf(:)    ! index for each profile
-  integer         , allocatable          :: vGPSRO_NumData(:)     ! number of data for each profile
-  real*8          , allocatable          :: vGPSRO_VAR(:,:)
-  real*8          , allocatable          :: vGPSRO_DOB(:,:)
-  real*8          , allocatable          :: vGPSRO_OER(:,:)
   real*8          , allocatable          :: vGPSRO_Jacobian(:,:,:)
   logical         , allocatable          :: vGPSRO_lJac(:)
 

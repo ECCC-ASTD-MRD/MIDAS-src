@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
-                   obsColumnMode, obsMpiStrategy)
+                   obsColumnMode, obsMpiStrategy, numAnalyses)
   !
   !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
   !
@@ -40,9 +40,9 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumng,lcolumnhr
-
   character (len=*) :: obsColumnMode
   character (len=*) :: obsMpiStrategy
+  integer :: numAnalyses
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_vco), pointer :: vco_trl => null()
@@ -50,7 +50,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
 
   integer :: get_max_rss
   character(len=256) :: BURP_SPLIT_VAR
-  integer :: length_burp_split, status
+  integer :: length_burp_split, status, indexAnalysis
   logical :: burp_split_L
 
   write(*,*) ''
@@ -59,7 +59,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) '-------------------------------'
 
   !     
-  !- Initialize burp file names and set datestamp (in minimization_mod)
+  !- Initialize burp file names and set datestamp (in timeCoord_mod)
   !
   call setup_burpfiles
   
@@ -73,7 +73,11 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   write(*,*)''
   write(*,*)' preproc: Set vcoord parameters for trial grid'
-  call vco_SetupFromFile(vco_trl,'./trlm_01',.false.)
+  if(numAnalyses.eq.1) then
+    call vco_SetupFromFile(vco_trl,'./trlm_01',.false.)
+  else
+    call vco_SetupFromFile(vco_trl,'./trlm_01_001',.false.)
+  endif
   call col_setVco(lcolumnhr,vco_trl)
   
   !
@@ -188,7 +192,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(lcolumng,obs_numheader(lobsSpaceData),mpi_local=.true.)
+  call col_allocate(lcolumng, obs_numheader(lobsSpaceData),mpi_local=.true.)
+  call col_allocate(lcolumnhr,obs_numheader(lobsSpaceData),mpi_local=.true.)
 
   !
   !- Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng
@@ -208,10 +213,10 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  !- Initialize the background-error covariance
+  !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
   if (nconf == 141) then
-    call bmat_setup(hco_anl,vco_anl,min_get_datestamp())
+    call bmat_setup(hco_anl,vco_anl,tim_getDatestamp())
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
 
@@ -220,28 +225,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !  NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs
   !
   if (nconf == 141) then
-    call min_setup( cvm_nvadim, hco_anl % ni, hco_anl % nj, tim_nstepobsinc ) ! IN
+    call min_setup( cvm_nvadim ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
-
-  !
-  !- Reading, horizontal interpolation and unit conversions of the 3D trial fields
-  !
-  call tmg_start(10,'SUGOMOBS')
-  call sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
-  call tmg_stop(10)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
-  call prdatabin(lobsSpaceData,tim_nstepobs)
-
-  !
-  !- Compute observation innovations and prepare obsSpaceData for minimization
-  !
-  call suinnov(lcolumnhr,lcolumng,lobsSpaceData)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
-  call prdatabin(lobsSpaceData,tim_nstepobs)
 
 end subroutine preproc

@@ -21,11 +21,12 @@
       use mpi
       use obsSpaceData_mod
       use columnData_mod  
-      IMPLICIT NONE
+      implicit none
 #include "comct0.cdk"
-      INTEGER ISTAMP,EXDB,EXFIN
+      integer istamp,exdb,exfin
       character(len=9) :: clmsg
-      INTEGER  :: root,IERR  
+      integer  :: root,ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
+      logical :: lastAnalysis
       type(struct_obs),target :: obsSpaceData
       type(struct_columnData),target :: columng,columnhr
 
@@ -63,9 +64,23 @@ C BGCHECK AIRS IASI + donnees conventionnelles
  9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
 
          call tmg_start(1,'PREMIN')
+         numAnalyses = 1
+         indexAnalysis = 0
          call preproc(columng,columnhr,obsSpaceData,
-     &                obsColumnMode="ALL",obsMpiStrategy="ROUNDROBIN")
-         call tmg_stop(1)
+     &                "ALL",          ! obsColumnMode
+     &                "ROUNDROBIN",   ! obsMpiStrategy
+     &                numAnalyses)
+         !
+         !- Reading, horizontal interpolation and unit conversions of the 3D trial fields
+         !
+         call tmg_start(10,'SUGOMOBS')
+         call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+         call tmg_stop(10)
+         !
+         !- Compute observation innovations and prepare obsSpaceData for minimization
+         !
+         call suinnov(columng,columnhr,obsSpaceData)
+         call tmg_stop (1)
 
          call tmg_start(2,'BGCHECK')
          CALL BGCHECK(columng,columnhr,obsSpaceData)
@@ -76,9 +91,23 @@ C calcul des O-P pour AMSU, GEORAD et SSMIS
          WRITE(*,FMT=9204) NCONF
  9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL")
          call tmg_start(1,'PREMIN')
+         numAnalyses = 1
+         indexAnalysis = 0
          call preproc(columng,columnhr,obsSpaceData,  
-     &                obsColumnMode="VAR",obsMpiStrategy="ROUNDROBIN")
-         call tmg_stop(1)
+     &                "VAR",          ! obsColumnMode
+     &                "ROUNDROBIN",   ! obsMpiStrategy
+     &                numAnalyses)
+         !
+         !- Reading, horizontal interpolation and unit conversions of the 3D trial fields
+         !
+         call tmg_start(10,'SUGOMOBS')
+         call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+         call tmg_stop(10)
+         !
+         !- Compute observation innovations and prepare obsSpaceData for minimization
+         !
+         call suinnov(columng,columnhr,obsSpaceData)
+         call tmg_stop (1)
 
          call tmg_start(2,'RESIDUALS')
          CALL RESIDUALS(columng,columnhr,obsSpaceData)
@@ -88,18 +117,71 @@ C calcul des O-P pour AMSU, GEORAD et SSMIS
 C ANALYSIS MODE
          WRITE(*,FMT=9401)NCONF
  9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING MINIMIZE")
+         !
+         !- Determine the number of analyses to perform
+         !
+         numAnalyses = getNumAnalyses()
+
          call tmg_start(1,'PREMIN')
          call preproc(columng,columnhr,obsSpaceData,
-     &                obsColumnMode="VAR",obsMpiStrategy="LATBANDS")
+     &                "VAR",          ! obsColumnMode
+     &                "LATBANDS",     ! obsMpiStrategy
+     &                numAnalyses)
          call tmg_stop (1)
 
-         call tmg_start(2,'MIN')
-         call minimize(columng,obsSpaceData)
-         call tmg_stop (2)
+         do indexAnalysis_loop=1,numAnalyses
 
-         call tmg_start(3,'POSMIN')
-         call postmin(columng,columnhr,obsSpaceData)
-         call tmg_stop (3)
+           write(*,*) '============================='
+           write(*,*) 'Starting analysis number ', indexAnalysis_loop
+           write(*,*) '============================='
+
+           lastAnalysis= (indexAnalysis_loop.eq.numAnalyses)
+           if(numAnalyses.eq.1) then
+             indexAnalysis=0
+           else
+             indexAnalysis=indexAnalysis_loop
+           endif
+           !
+           !- Reading, horizontal interpolation and unit conversions of the 3D trial fields
+           !
+           call tmg_start(1,'PREMIN')
+           call tmg_start(10,'SUGOMOBS')
+           call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+           call tmg_stop(10)
+
+           !
+           !- Compute observation innovations and prepare obsSpaceData for minimization
+           !
+           call suinnov(columng,columnhr,obsSpaceData)
+           call tmg_stop (1)
+
+           !
+           !- Add random unbiased perturbations to the OMP values
+           !
+           if(numAnalyses.gt.1) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
+
+           call tmg_start(2,'MIN')
+           call minimize(columng,obsSpaceData,lastAnalysis)
+           call tmg_stop (2)
+
+           call tmg_start(3,'POSMIN')
+           call postmin(columng,columnhr,indexAnalysis)
+           call tmg_stop (3)
+
+         enddo
+
+         !
+         !- Now write out the observation data
+         !
+         call tmg_start(93,'POST_UPDATEBRP')
+         CALL LISTREJ(obsSpaceData)
+         CALL VINT3DFD(OBS_OMA,obsSpaceData)
+         CALL VINT3DFD(OBS_OMP,obsSpaceData)
+         CALL SETASSFLG(obsSpaceData)
+         CALL UPDATE_BURPFILES(obsSpaceData)
+         call tmg_stop(93)
+
+         call obs_finalize(obsSpaceData)
 c
       case default
          WRITE(*,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF

@@ -15,8 +15,6 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE SUOBS(lobsSpaceData)
-      use obsSpaceData_mod
-      use filterObs_mod
 #if defined (DOC)
 *
 ***s/r SUOBS  - Initialisation of observation parameters and constants
@@ -44,6 +42,10 @@
 *
 #endif
 C
+      use bufr
+      use obsSpaceData_mod
+      use filterObs_mod  
+      use modgpsztd_mod
       IMPLICIT NONE
 *implicits
 #include "comgpsro.cdk"
@@ -88,7 +90,12 @@ c
 c
 c     Initialize GB-GPS processing (read NAMGPSGB in namelist file)
 c
-      call sugpsgb
+      DO J = 1, FILT_NELEMS
+!        GPS ZTD burp element
+         IF ( FILT_NLIST(J) .EQ. BUFR_NEZD ) THEN
+           call sugpsgb
+         ENDIF
+      ENDDO
 c
                                  !Select calls  BRPCMA
                                  ! 1. Positioning of data records within ObsSpaceData

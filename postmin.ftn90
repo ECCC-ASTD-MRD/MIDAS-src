@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine postmin(lcolumng,lcolumnhr,lobsSpaceData)
+      subroutine postmin(lcolumng,lcolumnhr,indexAnalysis)
 !
 !  s/r postmin  - Post-minimization control of the 3Dvar
 !
 !Author  : S. Pellerin *ARMA/SMC  May 2000
 !
       use MathPhysConstants_mod
-      use obsSpaceData_mod
       use controlVector_mod
       use columnData_mod
       use minimization_mod
@@ -31,13 +30,13 @@
       use HorizontalCoord_mod
       use timeCoord_mod
       IMPLICIT NONE
-      type(struct_obs),target :: lobsSpaceData
       type(struct_columnData),target :: lcolumng,lcolumnhr
+
       type(struct_hco),      pointer :: hco_anl
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
 
-      integer jk,jj,ji,jstep,nulfile,ierr,fnom,fstouv,fstfrm,fclos
+      integer jk,jj,ji,jstep,nulfile,ierr,fnom,fstouv,fstfrm,fclos,indexAnalysis
       integer :: datestamplist(tim_nstepobsinc)
       real*8  :: hu_anl,deltaHours
       real*8, allocatable :: zes(:,:,:)
@@ -46,6 +45,8 @@
       real*8, allocatable :: zhu(:,:,:)
       real*8, pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
       character(len=4) :: flnum 
+      character(len=3) :: flnum2
+      character(len=128) :: incFileName
       integer             :: get_max_rss
 ! previously from compost.cdk
       integer          NPPCVAR
@@ -78,18 +79,14 @@
       hco_anl => hco_Get('Analysis')
       call gsv_setVco(statevector,vco_anl)
 
-      call gsv_setHco  ( statevector, hco_anl )
+      call gsv_setHco(statevector, hco_anl)
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call gsv_allocate(statevector,tim_nstepobsinc, &
-           datestamp=min_get_datestamp(),mpi_local=.true.)
+           datestamp=tim_getDatestamp(),mpi_local=.true.)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-
-      ! free up some memory now that B isn't needed
-      call bmat_finalize(cvm_vazx)
-      call cvm_deallocate
 
       if(write4dInc) then
         ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
@@ -101,7 +98,6 @@
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       endif
       call tmg_stop(91)
-      
 
       WRITE(*,*)' postmin: Transform analysis variables to model variables -'
 
@@ -114,17 +110,17 @@
       call gsv_setHco  ( statevectorg, hco_anl )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      call gsv_allocate(statevectorg,1,datestamp=min_get_datestamp(),mpi_local=.false.)
+      call gsv_allocate(statevectorg,1,datestamp=tim_getDatestamp(),mpi_local=.false.)
 
       do jstep=1,tim_nstepobsinc
         datestamplist(jstep)=gsv_getDateStamp(statevector,jstep)
       enddo
       if(write4dInc) then
         ! read in the background fields at all increment timesteps
-        call subasic_gd(statevectorg,lcolumnhr,tim_nstepobsinc,datestamplist)
+        call subasic_gd(statevectorg,lcolumnhr,tim_nstepobsinc,datestamplist,indexAnalysis)
       else
         ! only read in the background fields at the "analysis" timestep (usually the middle)
-        call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime))
+        call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime),indexAnalysis)
       endif
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -182,30 +178,26 @@
 !
         nulfile = 0
         if(write4dInc) then
-          call difdatr(datestamplist(jstep),min_get_datestamp(),deltaHours)
+          call difdatr(datestamplist(jstep),tim_getDatestamp(),deltaHours)
           if(nint(deltaHours*60.0d0).lt.0) then
             write(flnum,'(I4.3)') nint(deltaHours*60.0d0)
           else
             write(flnum,'(I3.3)') nint(deltaHours*60.0d0)
           endif
-          write(*,*) 'postmin: dates=',datestamplist(jstep),min_get_datestamp(),deltaHours,nint(deltaHours*60.0d0)
+          write(*,*) 'postmin: dates=',datestamplist(jstep),tim_getDatestamp(),deltaHours,nint(deltaHours*60.0d0)
           write(*,*) 'postmin: flnum=###',trim(flnum),'###'
-          ierr    = fnom(nulfile,'./rebm_'//trim(flnum)//'m','RND',0)
+          incFileName = './rebm_'//trim(flnum)//'m'
         else
-          ierr    = fnom(nulfile,'./rebm','RND',0)
+          incFileName = './rebm'
         endif
-        if(ierr.ge.0)then
-          write(*,*)'postmin: rebm file opened with unit number ',nulfile
-          ierr  =  fstouv(nulfile,'RND')
-        else
-          call abort3d('postmin: problem opening rebm file, aborting!')
-        end if
+        if(indexAnalysis.gt.0) then
+          write(flnum2,'(I3.3)') indexAnalysis
+          incFileName = trim(incFileName) // '_' // trim(flnum2)
+        endif
 
         call varout
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
  
-        ierr =  fstfrm(nulfile)
-        ierr =  fclos(nulfile)        
 
         deallocate(zes)
         deallocate(ztv)
@@ -214,28 +206,14 @@
 
       endif
 
+      ! free up some memory related to B and increment
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
+! DO NOT DO THIS HERE, SINCE COULD BE IN ANALYSIS LOOP
+!      call bmat_finalize(cvm_vazx)
+!      call cvm_deallocate
 
       call tmg_stop(92)
-!
-!     Now write out the observation data:
-!
-      IF (LVARQC) CALL LISTREJ(lobsSpaceData)
-
-      call tmg_start(93,'POST_UPDATEBRP')
-
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      CALL VINT3DFD(OBS_OMA,lobsSpaceData)
-      CALL VINT3DFD(OBS_OMP,lobsSpaceData)
-      CALL SETASSFLG(lobsSpaceData)
-      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
-      CALL UPDATE_BURPFILES(lobsSpaceData)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-      call obs_finalize(lobsSpaceData)
-
-      call tmg_stop(93)
 
       write(*,*) 'LEAVING POSTMIN'
 
@@ -265,6 +243,15 @@
       logical llimplemented,llvarout,FlipLatitude
 
       WRITE(*,FMT='(/,4X,"Starting VAROUT",//)')
+
+      write(*,*)'varout: rebm file name = ',trim(incFileName)
+      ierr    = fnom(nulfile,trim(incFileName),'RND',0)
+      if(ierr.ge.0)then
+        write(*,*)'varout: rebm file opened with unit number ',nulfile
+        ierr  =  fstouv(nulfile,'RND')
+      else
+        call abort3d('varout: problem opening rebm file, aborting!')
+      end if
 
       if(nulfile.eq.0) then
         write(*,*) 'varout: unit number for rebm file not valid!'
@@ -411,6 +398,9 @@
         enddo
 
       enddo
+
+      ierr =  fstfrm(nulfile)
+      ierr =  fclos(nulfile)        
 
       write(*,*) 'END of VAROUT'
 

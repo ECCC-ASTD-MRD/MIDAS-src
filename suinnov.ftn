@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine suinnov(lcolumnhr,lcolumng,lobsSpaceData)
+      subroutine suinnov(lcolumng,lcolumnhr,lobsSpaceData)
 *
 ***s/r suinnov  - Initialise Observation Innovations.
 *
@@ -40,6 +40,7 @@
       use obsSpaceData_mod
       use columnData_mod
       use filterObs_mod
+      use timeCoord_mod
       IMPLICIT NONE
 #include "comct0.cdk"
 c
@@ -55,6 +56,9 @@ c
       logical lgpdata
 c
       write(*,*) '--Starting subrouting suinnov--'
+
+      write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
+      call prdatabin(lobsSpaceData,tim_nstepobs)
 c
 c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface
@@ -111,7 +115,7 @@ C
 C        TOVS - RADIANCE
 C-------------------------------
       ZJOTOV=0.0D0
-      CALL TOVS_OBS ('HR',ZJOTOV,lcolumnhr,lobsSpaceData,OBS_VAR,OBS_OMP)
+      CALL TOVS_OBS('HR',ZJOTOV,lcolumnhr,lobsSpaceData,OBS_VAR,OBS_OMP)
 C
 C        PROFILER
 C------------------------------
@@ -192,5 +196,8 @@ c
         CALL SUASYM2(lobsSpaceData)
       endif
 c
+      write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
+      call prdatabin(lobsSpaceData,tim_nstepobs)
+
       RETURN
       END

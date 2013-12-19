@@ -157,21 +157,24 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
            endif
            call obs_bodySet_r(lobsSpaceData,dest_obs,index_body, -zdtb)
 
-           if (.not. lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
+! Comment out the modification of Jobs due to varqc for now, since this is probably
+! needed for use of nonlinear obs operator in minimization, which is not yet
+! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
+!           if (.not. lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
               dlsum =  dlsum &
                      + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
                         obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
                      / (2. * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
                          * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
-           else
+!           else
 !             compute contribution of data with varqc
  
-              zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
-              zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-                      obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.
-              zqcarg = zgami + exp(-1.0*zjon)
-              dlsum= dlsum - log(zqcarg/(zgami+1.))
-           endif
+!              zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
+!              zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+!                      obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.
+!              zqcarg = zgami + exp(-1.0*zjon)
+!              dlsum= dlsum - log(zqcarg/(zgami+1.))
+!           endif
 
            inobsjo = inobsjo + 1
            inobsch(ichOBS_A,Isens) = inobsch(ichOBS_A,Isens) + 1

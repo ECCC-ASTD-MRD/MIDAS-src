@@ -518,12 +518,11 @@ c
 **    Purpose:
 *             -set observation errors for each data in CMA.
 *
+      use modgpsztd_mod
       IMPLICIT NONE
-*implicits
-#include "comgpsgb.cdk"
 *
 C
-C NOTE: YSFERRWGT IN comgpsgb.cdk (FROM NML FILE) USED HERE FOR ERROR WEIGHTING
+C NOTE: YSFERRWGT IN modgpsztd_mod (FROM NML FILE) USED HERE FOR ERROR WEIGHTING
 C       OF TIME SERIES (FGAT) GPS MET OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
 C       CORRELATIONS.
 C-----------------------------------------------------------------------

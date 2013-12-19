@@ -23,7 +23,6 @@
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
 
       CALL VINT3DFD(OBS_OMP,lobsSpaceData)
-      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
 
       DO j =1,1
          call obs_prnthdr(lobsSpaceData,j)

@@ -2063,7 +2063,7 @@ CONTAINS
     real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
     real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
 
-    integer ilen,jn,jm,jk,jk2,ila
+    integer ilen,jn,jm,jk,ila
     integer ji,jj
     real*8 sq2
     real*8 , allocatable,dimension(:,:,:) :: zsp, zsp2
@@ -2085,7 +2085,7 @@ CONTAINS
     sq2=sqrt(2.0d0)
     allocate(zsp(nkgdim_l,2,0:ntrunc_l))
     allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
-!$OMP PARALLEL DO PRIVATE(jn,jm,jk,jk2,ila,zsp2,zsp,icount)
+!$OMP PARALLEL DO PRIVATE(jn,jm,jk,ila,zsp2,zsp,icount)
     do jn = 0,ntrunc_l
 
       icount=0

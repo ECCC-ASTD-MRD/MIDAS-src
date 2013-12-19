@@ -39,6 +39,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   use tovs_mod
   use columnData_mod
   use obsSpaceData_mod
+  use tovs_extrap_mod
   use rttov_const ,only : q_mixratio_to_ppmv
   implicit none
 
@@ -74,7 +75,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 
   real*8, pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
 
-  external intavgad, aextrap
+  external intavgad
   external aexthum4
          
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data

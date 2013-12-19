@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
+subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   !
   ! s/r sumgomobs
   !
@@ -32,13 +32,14 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   use columnData_mod 
   use obsSpaceData_mod
   use gridStateVector_mod
-  use minimization_mod, only: min_get_datestamp
+  use timeCoord_mod, only: tim_getDatestamp
   use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
   use WindRotation_mod
   implicit none
 
   type(struct_columnData) :: lcolumng,lcolumnhr
   type(struct_obs) :: lobsSpaceData
+  integer          :: indexAnalysis
   type(struct_vco), pointer :: vco_anl, vco_trl
   type(struct_hco), pointer :: hco_anl
   
@@ -76,6 +77,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   real*8 :: lat_r8,lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
   
   character(len=2) :: flnum
+  character(len=4) :: flnum2
   character(len=128) :: trialfile
 
   integer, allocatable :: nultrl(:)
@@ -98,20 +100,33 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   write(*,*) '-------- ENTERING SUGOMOBS ---------'
   write(*,*) ' '
   write(*,*) 'nstepobs=',tim_nstepobs
-  call col_setNumStep(lcolumng,tim_nstepobs)
 
   !
-  !     Ensure that all trial field files exist
+  !     Ensure that all trial field files exist and
+  !     open all trial field files (assume 1 file per time step)
   !
-  do jstep = 1, col_getNumStep(lcolumng)
+  allocate(nultrl(tim_nStepObs))
+  nultrl(:)=0
+  if(indexAnalysis.gt.0) then
+    write(flnum2,'(I3.3)') indexAnalysis
+    flnum2='_' // trim(flnum2)
+  else
+    flnum2=''
+  endif
+  do jstep = 1, tim_nStepObs
     write(flnum,'(I2.2)') jstep
-    trialfile='./trlm_'//flnum
-    inquire(file=trialfile,exist=trialExists)
+    trialfile='./trlm_'//trim(flnum)//trim(flnum2)
+    inquire(file=trim(trialfile),exist=trialExists)
     if(.not.trialExists) then
       write(*,*) 'File missing=',trialfile
       call abort3d('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
+    else
+      ierr=fnom(nultrl(jstep),trim(trialfile),'RND+OLD+R/O',0)
+      ierr=fstouv(nultrl(jstep),'RND+OLD')
+      write(*,*) 'ITRIAL - File :', trialfile
+      write(*,*) ' opened as unit file ',nultrl(jstep)
     end if
-  end do
+  enddo
 
   !
   !     Vertical coordinate parameters 
@@ -134,8 +149,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   !     Allocate trial field column object and other local arrays
   !
   if(col_getNumCol(lcolumng).gt.0) then
-     call col_allocate(lcolumnhr,col_getNumCol(lcolumng),mpi_local=.true.)
-     allocate(notag(col_getNumCol(lcolumng),col_getNumStep(lcolumng)))
+     allocate(notag(col_getNumCol(lcolumng),tim_nStepObs))
      allocate(varInterpg_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
      allocate(varInterpg_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
      allocate(varInterpP0(1,col_getNumCol(lcolumng)))
@@ -151,37 +165,23 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
   allocate(dlatfld(numColumn_maxmpiglobal))
   allocate(dlonfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
   allocate(dlatfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
-  allocate(nobsgid(col_getNumStep(lcolumng)))
-  allocate(nobs(col_getNumStep(lcolumng)))
-  allocate(nobs_maxmpiglobal(col_getNumStep(lcolumng)))
-  allocate(datestamplist(col_getNumStep(lcolumng)))
-  allocate(idate(col_getNumStep(lcolumng)))
-  allocate(itime(col_getNumStep(lcolumng)))
-  allocate(nultrl(col_getNumStep(lcolumng)))
-  allocate(nobsgid_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
-  allocate(nobs_mpiglobal(col_getNumStep(lcolumng),mpi_nprocs))
-
-  !
-  !     Open all trial field files (assume 1 file per time step)
-  !
-  nultrl(:)=0
-  do jstep=1,col_getNumStep(lcolumng)
-    write(flnum,'(I2.2)') jstep
-    trialfile='./trlm_'//flnum
-    ierr=fnom(nultrl(jstep),trialfile,'RND+OLD+R/O',0)
-    ierr=fstouv(nultrl(jstep),'RND+OLD')
-    write(*,*) 'ITRIAL - File :', trialfile
-    write(*,*) ' opened as unit file ',nultrl(jstep)
-  end do
+  allocate(nobsgid(tim_nStepObs))
+  allocate(nobs(tim_nStepObs))
+  allocate(nobs_maxmpiglobal(tim_nStepObs))
+  allocate(datestamplist(tim_nStepObs))
+  allocate(idate(tim_nStepObs))
+  allocate(itime(tim_nStepObs))
+  allocate(nobsgid_mpiglobal(tim_nStepObs,mpi_nprocs))
+  allocate(nobs_mpiglobal(tim_nStepObs,mpi_nprocs))
 
   !
   !     Computing date and time of step obs for error message
   !
-  call getstamplist(datestamplist,col_getNumStep(lcolumng),min_get_datestamp())
-  do jstep = 1,col_getNumStep(lcolumng)
+  call getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
+  do jstep = 1,tim_nStepObs
     ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
     write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
-    if(datestamplist(jstep) == min_get_datestamp()) nstepanltime = jstep
+    if(datestamplist(jstep) == tim_getDatestamp()) nstepanltime = jstep
   end do
 
   !
@@ -212,13 +212,13 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
 
   write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
 
-  do jstep = 1,col_getNumStep(lcolumng)
+  do jstep = 1,tim_nStepObs
      !
      !- Get horizontal grid parameters to be used to test grid bounds
      !
       call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
              ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev,  &
-             nultrl(:),ip1_pak_trl,ip1_vco_trl,col_getNumStep(lcolumng),  &
+             nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
              nultrl2)
       if (itrlnlev <= 0 ) then
         call abort3d('SUGOMOBS:Problem with background file')
@@ -230,7 +230,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
       
       do jobs=1, obs_numheader(lobsSpaceData)
          
-        call getStepObsIndex(stepObsIndex,min_get_datestamp(),  &
+        call getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
                                obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
                                obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
@@ -287,7 +287,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
                ypos_r4 > real(hco_anl % nj) ) then
 
             if ( hco_anl % global ) then
-              ! We have an observation at or near the poles
+              ! Modify latitude if we have an observation at or near the poles
               write(*,*) ''
               write(*,*) 'sugomobs: Moving OBS inside the GLOBAL ANALYSIS grid, ', jobs
               write(*,*) '  true position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
@@ -310,6 +310,16 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
               lon_r8 = real(lon_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8
               call obs_headSet_r(lobsSpaceData,OBS_LAT,jobs, lat_r8) ! IN
               call obs_headSet_r(lobsSpaceData,OBS_LON,jobs, lon_r8) ! IN
+
+              ! Recompute position to make sure it is consistent with modified lat/lon
+!              lat_deg_r4=real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
+!              lon_deg_r4=real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
+!              ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
+!                              lat_deg_r4, lon_deg_r4, 1)
+!              if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+!                ! Revert latitudes since gdxyfll does not handle properly this grid type
+!                ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
+!              end if
               
             else
               ! The observation is outside the domain
@@ -646,7 +656,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
       !
       !- Close the files
       !
-      do jstep=1,col_getNumStep(lcolumng)
+      do jstep=1,tim_nStepObs
         ierr=fstfrm(nultrl(jstep))  
         ierr=fclos(nultrl(jstep))  
       enddo
@@ -776,7 +786,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData)
       cletiket='            '
       cltypvar='  '
 
-      do jstep = 1,col_getNumStep(lcolumng)
+      do jstep = 1,tim_nStepObs
 
         if(nobs_maxmpiglobal(jstep) > 0) then
 

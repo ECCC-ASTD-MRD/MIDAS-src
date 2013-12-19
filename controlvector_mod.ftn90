@@ -15,7 +15,8 @@ MODULE ControlVector_mod
   save
   private
 
-  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal, cvm_vazx, cvm_nvadim
+  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  public              :: cvm_vazx, cvm_nvadim
 
   logical             :: initialized = .false.
   integer             :: cvm_dimBHI
@@ -32,8 +33,8 @@ CONTAINS
   SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN)
     implicit none
 
-    integer        :: dimBHI_in,dimBEN_in
-    integer        :: ierr
+    integer           :: dimBHI_in,dimBEN_in
+    integer           :: ierr
 
     cvm_dimbhi = dimbhi_in
     cvm_dimben = dimben_in

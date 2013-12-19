@@ -65,7 +65,7 @@ C
 C
       REAL*8 HNH1, ZOBS, ZMHX, ZOER, ZINC
 C
-      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile
+      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
       INTEGER JL, NGPSLEV, NWNDLEV, stat, stat1
 C
       LOGICAL  ASSIM, FIRSTHEADER, LDSC
@@ -134,7 +134,6 @@ C
 C     *     If assimilations are requested, prepare and apply the observation operator
 C
             IF (ASSIM) THEN
-               iProfile=iProfile_from_index(INDEX_HEADER)
 C
 C     *        Basic geometric variables of the profile:
 C
@@ -248,12 +247,6 @@ C
 C     *              Observation error    S
 C
                      ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-
-                     !if (nh1.eq.1) then
-                        vGPSRO_VAR(iProfile,nh1)=ZOBS
-                        vGPSRO_DOB(iProfile,nh1)=ZMHX
-                        vGPSRO_OER(iProfile,nh1)=ZOER
-                     !endif
 C
 C     *              Normalized increment
 C

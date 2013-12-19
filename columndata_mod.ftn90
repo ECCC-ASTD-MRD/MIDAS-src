@@ -12,8 +12,7 @@ module columnData_mod
   ! public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate, col_pointStagToUnstag, col_expandToMpiGlobal
   public :: col_varExist, col_getOffsetFromVarno
-  public :: col_getNumLev, col_getNumCol, col_getNumStep, col_setNumStep
-  public :: col_getTimeInterpWeight, col_setTimeInterpWeight
+  public :: col_getNumLev, col_getNumCol
   public :: col_getPressure, col_getHeight, col_getMountain, col_setMountain
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
@@ -23,13 +22,12 @@ module columnData_mod
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
 
   type struct_columnData
-    integer           :: numCol,nStepObs
+    integer           :: numCol
     logical           :: allocated=.false.
     logical           :: mpi_local
     real*8,pointer    :: all(:,:)
     real*8,pointer    :: gz_T(:,:),gz_M(:,:)
     real*8,pointer    :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
-    real*8,pointer    :: timeInterpWeight(:,:)  ! weights for linear temporal interpolation of increment to obs times
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
     real*8,pointer    :: lat(:),lon(:)
@@ -43,7 +41,6 @@ module columnData_mod
   real*8 :: rhumin
   logical nmvoexist(vnl_numvarmax)
   integer :: nvo3d,nvo2d
-  integer, parameter :: mxstepobs=9 
 
   contains
 
@@ -211,8 +208,6 @@ module columnData_mod
         allocate(column%rtapfac(col_getNumLev(column),numCol))
         column%rtapfac(:,:)=0.0d0
 
-        allocate(column%timeInterpWeight(column%numCol,mxstepobs))
-        column%timeInterpWeight(:,:)=0.0d0
       endif
  
       write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
@@ -248,7 +243,6 @@ module columnData_mod
         deallocate(column%xpos)
         deallocate(column%oltv)
         deallocate(column%rtapfac)
-        deallocate(column%timeInterpWeight)
       endif
 
       column%allocated=.false.
@@ -391,7 +385,6 @@ module columnData_mod
       call col_setVco(column_global,col_getVco(column_local))
       call col_allocate(column_global,column_global%numCol,mpi_local=.false.)
 
-      column_global%nStepObs     = column_local%nStepObs
       column_global%varOffset(:) = column_local%varOffset(:)
       column_global%varNumLev(:) = column_local%varNumLev(:)
 
@@ -400,7 +393,6 @@ module columnData_mod
       do iobs_local=1,column_local%numCol
         iobs_global=obs_headerIndex_mpiglobal(lobsSpaceData,iobs_local)
         column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
-        column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
         mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)
         column_global%lat(iobs_global)                = column_local%lat(iobs_local)
         column_global%lon(iobs_global)                = column_local%lon(iobs_local)
@@ -418,10 +410,6 @@ module columnData_mod
 
       nsize=size(mountain)
       call rpn_comm_allreduce(mountain,mountain,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-
-      nsize=size(column_global%timeInterpWeight)
-      call rpn_comm_allreduce(column_global%timeInterpWeight,column_global%timeInterpWeight,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
 
       nsize=size(column_global%lat)
@@ -473,28 +461,6 @@ module columnData_mod
       offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
 
     end function col_getOffsetFromVarno
-
-
-    SUBROUTINE col_setTimeInterpWeight(column,weight_in,headerIndex,stepObs)
-      implicit none
-      type(struct_columnData), intent(inout) :: column
-      integer, intent(in)    :: headerIndex,stepObs
-      real(kind=8),intent(in):: weight_in
-
-      column%timeInterpWeight(headerIndex,stepObs)=weight_in
-
-    end SUBROUTINE col_setTimeInterpWeight
-
-
-    FUNCTION col_getTimeInterpWeight(column,headerIndex,stepObs) result(weight_out)
-      implicit none
-      real(kind=8) weight_out
-      type(struct_columnData),intent(in) :: column
-      integer,intent(in)          :: headerIndex,stepObs
-
-      weight_out=column%timeInterpWeight(headerIndex,stepObs)
-
-    end FUNCTION col_getTimeInterpWeight
 
 
   function col_getPressure(column,ilev,headerIndex,varType) result(pressure)
@@ -747,26 +713,6 @@ module columnData_mod
     numColumn = column%numCol
 
   end function col_getNumCol
-
-
-  function col_getNumStep(column) result(numStep)
-    implicit none
-    type(struct_columnData), intent(in) :: column
-    integer                             :: numStep
-
-    numStep = column%nStepObs
-
-  end function col_getNumStep
-
-
-  subroutine col_setNumStep(column,numStep)
-    implicit none
-    type(struct_columnData), intent(inout) :: column
-    integer, intent(in)                    :: numStep
-
-    column%nStepObs = numStep
-
-  end subroutine col_setNumStep
 
 
   function col_getVco(column) result(vco_ptr)

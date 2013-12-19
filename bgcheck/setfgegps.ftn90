@@ -31,7 +31,6 @@
       use verticalCoord_mod
       use modgpsztd_mod
       IMPLICIT NONE
-#include "comgpsgb.cdk"
 !   lcolumn  contains background errors for control variables on model levels
 !   lcolumng contains lo-res first guess profiles at obs locations
       type(struct_columnData) :: lcolumn, lcolumng

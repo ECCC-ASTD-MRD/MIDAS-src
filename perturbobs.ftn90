@@ -1,0 +1,97 @@
+
+subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
+  !
+  !Purpose:
+  ! Perturb the innovation vector to simulate effect of observation uncertainty
+  !
+  !Author  : M. Buehner, Dec, 2013
+  !
+  use obsSpaceData_mod
+  implicit none
+
+  type(struct_obs) :: obsSpaceData
+  integer :: numAnalyses,indexAnalysis,numPerturbations
+  integer :: nrandseed,iseed,indexMember,indexBody,indexFamily
+  integer, parameter :: numFamily=9
+  real*8  :: zdum,zmean,gasdev,originalOmp
+  real*8  :: scaleFactor(numFamily)
+  character(len=2) :: familyList(numFamily)
+  real*8, save, pointer :: obsPerturbations(:,:) => NULL()
+  logical, save :: firstTime = .true.
+
+  write(*,*) '----------------------------------'
+  write(*,*) '--Starting subroutine perturbObs--'
+  write(*,*) '----------------------------------'
+
+  familyList(1)='UA' ; scaleFactor(1)=1.00d0
+  familyList(2)='AI' ; scaleFactor(2)=1.00d0
+  familyList(3)='SF' ; scaleFactor(3)=1.00d0
+  familyList(4)='TO' ; scaleFactor(4)=0.75d0
+  familyList(5)='SW' ; scaleFactor(5)=0.50d0
+  familyList(6)='SC' ; scaleFactor(6)=0.80d0
+  familyList(7)='PR' ; scaleFactor(7)=1.00d0
+  familyList(8)='RO' ; scaleFactor(8)=0.80d0
+  familyList(9)='GP' ; scaleFactor(9)=1.00d0
+
+  ! last member is the control member with no perturbation
+  numPerturbations = numAnalyses-1
+
+  if(firstTime) then
+
+    if(.not.associated(obsPerturbations)) then
+      write(*,*) 'perturbObs: allocating space for all perturbations'
+      allocate(obsPerturbations(obs_numBody(obsSpaceData),numPerturbations))
+    endif
+
+    write(*,*) 'perturbObs: computing random numbers'
+
+    nrandseed   = 1
+    iseed     = ABS(nrandseed)
+    zdum      = gasdev(-iseed)
+
+    ! compute random perturbations
+    do indexMember = 1,numPerturbations
+      do indexBody = 1,obs_numBody(obsSpaceData)      
+        obsPerturbations(indexBody,indexMember)=gasdev(1)*obs_bodyElem_r(obsSpaceData,obs_oer,indexBody)
+      enddo
+    enddo
+
+    ! apply scale factor
+    do indexFamily = 1,numFamily
+      do indexBody = 1,obs_numBody(obsSpaceData)      
+        if(obs_getFamily(obsSpaceData,bodyIndex=indexBody).eq.familyList(indexFamily)) then
+          do indexMember = 1,numPerturbations
+            obsPerturbations(indexBody,indexMember)=obsPerturbations(indexBody,indexMember)*scaleFactor(indexFamily)
+          enddo
+        endif
+      enddo
+    enddo
+
+    ! remove ensemble mean
+    do indexBody = 1,obs_numBody(obsSpaceData)      
+      zmean=0.0d0
+      do indexMember = 1,numPerturbations
+        zmean=zmean+obsPerturbations(indexBody,indexMember)
+      enddo
+      zmean=zmean/numPerturbations
+      do indexMember = 1,numPerturbations
+        obsPerturbations(indexBody,indexMember)=obsPerturbations(indexBody,indexMember)-zmean
+      enddo
+    enddo
+
+    firstTime=.false.
+
+  endif
+
+  ! apply perturbation for current analysis
+  if(indexAnalysis.le.numPerturbations) then
+    write(*,*) 'perturbObs: applying perturbation for member: ',indexAnalysis
+    do indexBody = 1,obs_numBody(obsSpaceData)      
+      originalOmp = obs_bodyElem_r(obsSpaceData,obs_omp,indexBody)
+      call obs_bodySet_r(obsSpaceData,obs_omp,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
+    enddo
+  else
+    write(*,*) 'perturbObs: no perturbation applied for control member: ',indexAnalysis
+  endif
+
+end subroutine perturbObs

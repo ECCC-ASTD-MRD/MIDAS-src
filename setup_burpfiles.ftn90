@@ -1,6 +1,6 @@
 SUBROUTINE setup_burpfiles
   use mpi
-  use minimization_mod
+  use timeCoord_mod
   implicit none
 !s/r  setup_burpfiles -INITIALZE BURP FILE NAMES
 !
@@ -179,6 +179,6 @@ SUBROUTINE setup_burpfiles
   ier = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
   WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
   WRITE(*, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
-  call min_set_datestamp(nbrpstamp)
+  call tim_setDatestamp(nbrpstamp)
 
 END SUBROUTINE setup_burpfiles
