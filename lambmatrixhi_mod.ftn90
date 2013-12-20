@@ -123,7 +123,8 @@ contains
       end if
     end do
 
-    if ( sum(scaleFactor) == 0.0d0 ) then
+    write(*,*) 'JFC sum(scaleFactor) : ',sum(scaleFactor(1:vco_anl_in % nlev_M))
+    if ( sum(scaleFactor(1:vco_anl_in % nlev_M)) == 0.0d0 ) then
       write(*,*) 'lambmatrixHI: scaleFactor=0, skipping rest of setup'
       cvDim_out   = 0
       initialized = .true.

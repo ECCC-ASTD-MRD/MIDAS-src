@@ -137,6 +137,14 @@ CONTAINS
         scaleFactor(jlev)=0.0d0
       endif
     enddo
+
+    if (sum(scaleFactor(1:nflev_in)).eq.0.0d0 ) then
+      write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
+      cvdim_out=0
+      initialized = .true.
+      return
+    end if
+
     do jlev=1,nflev_in
       if(scaleFactorLQ(jlev).gt.0.0d0) then 
         scaleFactorLQ(jlev)=sqrt(scaleFactorLQ(jlev))
@@ -144,13 +152,6 @@ CONTAINS
         scaleFactorLQ(jlev)=0.0d0
       endif
     enddo
-
-    if (sum(scaleFactor).eq.0.0d0 ) then
-      write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
-      cvdim_out=0
-      initialized = .true.
-      return
-    end if
 
     allocate(pressureProfile(nflev_in))
     pressureProfile(:)=pressureProfile_in(:)

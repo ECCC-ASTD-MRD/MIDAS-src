@@ -110,10 +110,9 @@ CONTAINS
     !
     !- 2.  Settings
     !
-
     hco_ben => hco_anl_in
 
-    !- 2.1 Globa or LAM?
+    !- 2.1 Global or LAM?
     if (hco_ben % global) then
       write(*,*)
       write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
@@ -130,6 +129,14 @@ CONTAINS
         scaleFactor(jlev)=0.0d0
       end if
     end do
+
+    if ( sum(scaleFactor(1:nLevEns)) == 0.0d0 ) then
+      write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
+      cvdim_out=0
+      initialized = .true.
+      return
+    end if
+
     do jlev=1,nLevEns
       if(scaleFactorLQ(jlev).gt.0.0d0) then 
         scaleFactorLQ(jlev)=sqrt(scaleFactorLQ(jlev))
@@ -137,13 +144,6 @@ CONTAINS
         scaleFactorLQ(jlev)=0.0d0
       end if
     end do
-
-    if(sum(scaleFactor).eq.0.0d0) then
-      write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
-      cvdim_out=0
-      initialized = .true.
-      return
-    end if
 
     !- 2.2. Levels
     if(nLevEns.gt.nLevInc_in) then
@@ -200,8 +200,8 @@ CONTAINS
     call mpi_setup_levels(nEns,myMemBeg,myMemEnd,myMemCount)
     write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
 
-    if(myMemCount.le.0) then
-      write(*,*) 'ERROR: Number of MPI processes must be >= number of ensemble members'
+    if ( myMemCount .le. 0 ) then
+      write(*,*) 'ERROR: Number of MPI processes must be <= number of ensemble members'
       call abort3d('ben_setup')
     end if
 
@@ -755,8 +755,12 @@ CONTAINS
 
     write(*,*) 'idateo=',idateo(1:ntime_l)
 
-    ! latitude band is reverse order as proc id due to north-south flip
-    write(latBandNumber,'(i4.4)') mpi_nprocs-mpi_myid
+    if (hco_ben % global) then
+      ! latitude band is reverse order as proc id due to north-south flip
+      write(latBandNumber,'(i4.4)') mpi_nprocs-mpi_myid
+    else
+      write(latBandNumber,'(i4.4)') mpi_myid+1
+    end if
     lonBandNumber='0001'
 
     do memberIndex=1,nEns
@@ -1244,7 +1248,7 @@ CONTAINS
       !- 1.1 Setup a non-MPI spectral transform
       call lst_Setup( lst_hloc,                             & ! OUT
                       ni_l, nj_l, hco_ben % dlon, ntrunc_l, & ! IN
-                      'NoMpi', nLevEns )                      ! IN
+                      'NoMpi')                                ! IN
 
       !- 1.2 Create a correlation function in physical space
       allocate ( gd(ni_l,nj_l,nLevEns))
@@ -1263,8 +1267,9 @@ CONTAINS
  
       !- 1.4 Compute band mean
       allocate(SumWeight(0:ntrunc_l))
-      SumWeight(:) = 0.d0
+      SumWeight  (:)  =0.d0
 
+      ensLocalCor(:,:) = 0.d0
       do totwvnb = 0, ntrunc_l
          do e = 1, lst_hloc % nePerK(totwvnb)
             ila = lst_hloc % ilaFromEK(e,totwvnb)
@@ -1272,11 +1277,11 @@ CONTAINS
                SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc % Weight(ila)
                do k = 1, nLevEns
                   ensLocalCor(totwvnb,k) = ensLocalCor(totwvnb,k) + lst_hloc % Weight(ila) * abs(sp(ila,p,k))
-               end do
-            end do
+                end do
+             end do
          end do
       end do
-      
+
       do totwvnb = 0, ntrunc_l
          if (SumWeight(totwvnb) /= 0.d0) then
             ensLocalCor(totwvnb,:) = ensLocalCor(totwvnb,:) / SumWeight(totwvnb)
@@ -1286,7 +1291,7 @@ CONTAINS
       end do
 
       deallocate(SumWeight)
-    
+
       !- 1.5 Normalization to one of correlation function from spectral densities: Part 1
 !$OMP PARALLEL
 !$OMP DO PRIVATE (totwvnb,k,sum)
@@ -1344,8 +1349,12 @@ CONTAINS
 
       !- 1.6.4 Normalize to 1
       do k = 1, nLevEns
+         if ( gd(ni_l/2,nj_l/2,k) <= 0.d0 ) then
+            write(*,*) 'setupLamHLoc: Problem in normalization ',gd(ni_l/2,nj_l/2,k)
+            call abort3d('aborting in setupLamHLoc')
+         end if
          if ( mpi_myid == 0 ) then
-           write(*,*) 'setupLamHLoc: Normalization factor = ', k, 1.d0 / gd(ni_l/2,nj_l/2,k)
+           write(*,*) 'setupLamHLoc: Normalization factor = ', k, gd(ni_l/2,nj_l/2,k), 1.d0 / gd(ni_l/2,nj_l/2,k)
          end if
          ensLocalCor(:,k) = ensLocalCor(:,k) / gd(ni_l/2,nj_l/2,k)
       end do
@@ -1587,10 +1596,11 @@ CONTAINS
       else
         allocate( gd_out(ni_l,myLatBeg:myLatEnd,nEns) )
         kind = 'SpectralToGridPoint'
-        call lst_VarTransform( lst_ben % id,            & ! IN
-                               zsp1,                    & ! IN
-                               gd_out,                  & ! OUT (i,j,k) !!!
-                               kind, nEns )               ! IN
+        call lst_VarTransform( lst_ben % id,                & ! IN
+                               zsp1(:,:,myMemBeg:myMemEnd), & ! IN
+                               gd_out,                      & ! OUT (i,j,k) !!!
+                               kind, nEns )                   ! IN
+
         !- reordering because of gd_out(i,j,k)
 !$OMP PARALLEL
 !$OMP DO PRIVATE(ens,jj,ji)        
@@ -1773,10 +1783,10 @@ CONTAINS
 !$OMP END PARALLEL
 
         kind = 'GridPointToSpectral'
-        call lst_VarTransform( lst_ben % id,            & ! IN
-                               zsp1,                    & ! OUT
-                               gd_in,                   & ! IN (i,j,k) !!!
-                               kind, nEns )               ! IN
+        call lst_VarTransform( lst_ben % id,                & ! IN
+                               zsp1(:,:,myMemBeg:myMemEnd), & ! OUT
+                               gd_in,                       & ! IN (i,j,k) !!!
+                               kind, nEns )                   ! IN
         deallocate(gd_in)
       end if
 

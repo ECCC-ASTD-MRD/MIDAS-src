@@ -14,6 +14,7 @@
 !    ffft8 and setfft8 routines in ARMNLIB
 !--------------------------------------------------------------------------
 module LamSpectralTransform_mod
+  use mpi
   implicit none
   save
   private
@@ -60,7 +61,6 @@ module LamSpectralTransform_mod
      integer, allocatable            :: allmBeg(:), allmEnd(:), allmSkip(:)
      integer, allocatable            :: mymIndex(:)
      logical                         :: allocated = .false.
-     integer                         :: nprocs_mpi, my_mpi_id
      integer                         :: latPerPE, myLatBeg, myLatEnd
      integer                         :: myLevBeg, myLevEnd, myLevCount, maxLevCount
      integer, allocatable            :: allLevBeg(:) ,allLevEnd(:)
@@ -88,7 +88,6 @@ contains
                         MpiMode, maxlevels_in )
     use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
     use earthconstants_mod,    only: RA
-    use mpi
     implicit none
 
     integer,          intent(in)    :: ni_in, nj_in    
@@ -196,9 +195,6 @@ contains
     lst(id) % MpiMode = MpiMode
     select case ( trim(lst(id) % MpiMode) )
     case ('NoMpi')
-       lst(id) % nprocs_mpi = 1
-       lst(id) % my_mpi_id  = 0
-
        ! range of lats handled by this processor (ALL)
        lst(id) % latPerPE   = lst(id) % nj
        lst(id) % myLatBeg   = 1
@@ -216,9 +212,6 @@ contains
        lst(id) % myLevCount = 0
 
     case ('LatM')
-       lst(id) % nprocs_mpi = mpi_nprocs
-       lst(id) % my_mpi_id  = mpi_myid
-
        ! range of lats handled by this processor
        call mpi_setup_latbands( lst(id) % nj,                                           & ! IN
                                 lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
@@ -233,9 +226,6 @@ contains
        lst(id) % myLevCount = 0
 
     case ('LatLev')   
-       lst(id) % nprocs_mpi = mpi_nprocs
-       lst(id) % my_mpi_id  = mpi_myid
-
        ! range of lats handled by this processor
        call mpi_setup_latbands( lst(id) % nj,                                           & ! IN
                                 lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
@@ -262,7 +252,7 @@ contains
     end select
 
     print*
-    print*,' Je suis le processeur ', lst(id) % my_mpi_id, ' sur un total de ', lst(id) % nprocs_mpi
+    print*,' Je suis le processeur ', mpi_myid+1, ' sur un total de ', mpi_nprocs
     print*,'          mband info = ', lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip, lst(id) % mymCount 
     print*,'          level info = ', lst(id) % myLevBeg, lst(id) % myLevEnd, lst(id) % myLevCount
     
@@ -277,38 +267,40 @@ contains
       write(*,*) 'lst_setup: mymIndex(',m,')=',lst(id) % mymIndex(m)
     end do
 
-    call rpn_comm_allreduce(lst(id) % mymCount,lst(id) % maxmCount, &
-                              1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'MaxmCount =',lst(id) % maxmCount
+    if ( trim(lst(id) % MpiMode) /= 'NoMpi') then
+      call rpn_comm_allreduce(lst(id) % mymCount,lst(id) % maxmCount, &
+                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'MaxmCount =',lst(id) % maxmCount
+
+      allocate(lst(id) % allmBeg(mpi_nprocs))
+      call rpn_comm_allgather(lst(id) % mymBeg ,1,"mpi_integer",       &
+                              lst(id) % allmBeg,1,"mpi_integer","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'AllmBeg =', lst(id) % allmBeg(:)
+
+      allocate(lst(id) % allmEnd(mpi_nprocs))
+      call rpn_comm_allgather(lst(id) % mymEnd ,1,"mpi_integer",       &
+                              lst(id) % allmEnd,1,"mpi_integer","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'allmEnd =', lst(id) % allmEnd(:)
     
-    allocate(lst(id) % allmBeg(lst(id) % nprocs_mpi))
-    call rpn_comm_allgather(lst(id) % mymBeg ,1,"mpi_integer",       &
-                            lst(id) % allmBeg,1,"mpi_integer","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'AllmBeg =', lst(id) % allmBeg(:)
+      allocate(lst(id) % allmSkip(mpi_nprocs))
+      call rpn_comm_allgather(lst(id) % mymSkip ,1,"mpi_integer",       &
+                              lst(id) % allmSkip,1,"mpi_integer","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'allmSkip = ', lst(id) % allmSkip(:)
 
-    allocate(lst(id) % allmEnd(lst(id) %nprocs_mpi))
-    call rpn_comm_allgather(lst(id) % mymEnd ,1,"mpi_integer",       &
-                            lst(id) % allmEnd,1,"mpi_integer","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'allmEnd =', lst(id) % allmEnd(:)
+      call rpn_comm_allreduce(lst(id) % myLevCount,lst(id) % maxLevCount, &
+                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'MaxLevCount =',lst(id) % maxLevCount
 
-    allocate(lst(id) % allmSkip(lst(id) %nprocs_mpi))
-    call rpn_comm_allgather(lst(id) % mymSkip ,1,"mpi_integer",       &
-                            lst(id) % allmSkip,1,"mpi_integer","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'allmSkip = ', lst(id) % allmSkip(:)
+      allocate(lst(id) % allLevBeg(mpi_nprocs))
+      call rpn_comm_allgather(lst(id) % myLevBeg ,1,"mpi_integer",       &
+                              lst(id) % allLevBeg,1,"mpi_integer","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'AllLevBeg =', lst(id) % allLevBeg(:)
 
-    call rpn_comm_allreduce(lst(id) % myLevCount,lst(id) % maxLevCount, &
-                              1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'MaxLevCount =',lst(id) % maxLevCount
-
-    allocate(lst(id) % allLevBeg(lst(id) %nprocs_mpi))
-    call rpn_comm_allgather(lst(id) % myLevBeg ,1,"mpi_integer",       &
-                            lst(id) % allLevBeg,1,"mpi_integer","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'AllLevBeg =', lst(id) % allLevBeg(:)
-
-    allocate(lst(id) % allLevEnd(lst(id) %nprocs_mpi))
-    call rpn_comm_allgather(lst(id) % myLevEnd ,1,"mpi_integer",       &
-                            lst(id) % allLevEnd,1,"mpi_integer","GRID",ier)
-    if ( mpi_myid == 0 ) print*,'AllLevEnd =', lst(id) % allLevEnd(:)
+      allocate(lst(id) % allLevEnd(mpi_nprocs))
+      call rpn_comm_allgather(lst(id) % myLevEnd ,1,"mpi_integer",       &
+                              lst(id) % allLevEnd,1,"mpi_integer","GRID",ier)
+      if ( mpi_myid == 0 ) print*,'AllLevEnd =', lst(id) % allLevEnd(:)
+    end if
 
     !- 1.5 Compute the Total Wavenumber associated with weach m,n pairs and
     !      the number of spectral element in the VAR array (nla) 
@@ -342,13 +334,19 @@ contains
     lst(id) % nla      = ila
     lst_out % nla = lst(id) % nla ! Number of spectral element per phase in the VAR array
 
-    call rpn_comm_allreduce(lst(id) % nla,lst(id) % nlaGlobal,1,"mpi_integer","mpi_sum","GRID",ier)
-    lst_out % nlaGlobal = lst(id) % nlaGlobal ! Number of spectral element per phase in the VAR global array
+    if ( trim(lst(id) % MpiMode) /= 'NoMpi') then
+       call rpn_comm_allreduce(lst(id) % nla,lst(id) % nlaGlobal,1,"mpi_integer","mpi_sum","GRID",ier)
+       lst_out % nlaGlobal = lst(id) % nlaGlobal ! Number of spectral element per phase in the VAR global array
+    else
+       lst_out % nlaGlobal = lst(id) % nla
+    end if
 
     allocate( KfromMNglb(0:lst(id) % mmax,0:lst(id) % nmax) )
     KFromMNglb(:,:) = KFromMN(:,:)
-    call rpn_comm_allreduce(KFromMNglb,KFromMNglb, &
-                              (lst(id) % mmax+1)*(lst(id) % nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
+    if ( trim(lst(id) % MpiMode) /= 'NoMpi') then
+      call rpn_comm_allreduce(KFromMNglb,KFromMNglb, &
+                                (lst(id) % mmax+1)*(lst(id) % nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
+    end if
 
     !- 1.6 VAR spectral element ordering &
     !      Total Wavenumbers and Weights associated with each spectral element
@@ -387,7 +385,7 @@ contains
           lst_out % k(ila) = k
           lst_out % m(ila) = m
           lst_out % n(ila) = n
-          lst_out % ilaGlobal = ilaglb
+          lst_out % ilaGlobal(ila) = ilaglb
 
           ! Spectral coefficient weight associated with this index
           if ( m == 0 .and. n == 0) then
@@ -786,12 +784,12 @@ contains
     real(8), intent(in)  :: pgd (lst(id) % ni+nip    ,lst(id) % latPerPE,nk)
 
     real(8) :: gd_recv(lst(id) % maxmCount,2,nk,lst(id) % nj)
-    real(8) :: gd_send(lst(id) % maxmCount,2,nk,lst(id) % latPerPE,lst(id) % nprocs_mpi)
+    real(8) :: gd_send(lst(id) % maxmCount,2,nk,lst(id) % latPerPE,mpi_nprocs)
 
     integer :: yourid, jm, icount, nsize, ierr, jlev, jlat
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,icount,jm)
-    do yourid = 0, lst(id) % nprocs_mpi-1
+    do yourid = 0, mpi_nprocs-1
       do jlat = 1, lst(id) % latPerPE
         do jlev = 1, nk
           icount = 0
@@ -838,7 +836,7 @@ contains
     real(8), intent(out)  :: pgd (lst(id) % ni+nip    ,lst(id) % latPerPE,nk)
 
     real(8) :: gd_send(lst(id) % maxmCount,2,nk,lst(id) % nj)
-    real(8) :: gd_recv(lst(id) % maxmCount,2,nk,lst(id) % latPerPE,lst(id) % nprocs_mpi)
+    real(8) :: gd_recv(lst(id) % maxmCount,2,nk,lst(id) % latPerPE,mpi_nprocs)
 
     integer :: yourid, jm, icount, nsize, ierr, jlev, jlat
 
@@ -864,7 +862,7 @@ contains
                            gd_recv,nsize,"mpi_double_precision","GRID",ierr)
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,icount,jm)
-    do yourid = 0, lst(id) % nprocs_mpi-1
+    do yourid = 0, mpi_nprocs-1
       do jlat = 1, lst(id) % latPerPE
         do jlev = 1, nk
           icount = 0
@@ -894,12 +892,12 @@ contains
     real(8), intent(in)  :: pgd (lst(id) % ni+nip,lst(id) % latPerPE,nk)
 
     real(8) :: gd_recv(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % nj)
-    real(8) :: gd_send(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % latPerPE,lst(id) % nprocs_mpi)
+    real(8) :: gd_send(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % latPerPE,mpi_nprocs)
 
     integer :: yourid, jm, icount, nsize, ierr, jlev, jlat, jlev2
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
-    do yourid = 0, lst(id) % nprocs_mpi-1
+    do yourid = 0, mpi_nprocs-1
       do jlat = 1, lst(id) % latPerPE
         do jlev = lst(id) % allLevBeg(yourid+1), lst(id) % allLevEnd(yourid+1)
           jlev2 = jlev - lst(id) % allLevBeg(yourid+1) + 1
@@ -946,7 +944,7 @@ contains
     real(8), intent(out) :: pgd (lst(id) % ni+nip, lst(id) % latPerPE,nk)
 
     real(8) :: gd_send(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % nj)
-    real(8) :: gd_recv(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % latPerPE,lst(id) % nprocs_mpi)
+    real(8) :: gd_recv(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % latPerPE,mpi_nprocs)
 
     integer :: yourid, jm, icount, nsize, ierr, jlev, jlat, jlev2
 
@@ -972,7 +970,7 @@ contains
                            gd_recv,nsize,"mpi_double_precision","GRID",ierr)
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
-    do yourid = 0, lst(id) % nprocs_mpi-1
+    do yourid = 0, mpi_nprocs-1
       do jlat = 1, lst(id) % latPerPE
         do jlev = lst(id) % allLevBeg(yourid+1), lst(id) % allLevEnd(yourid+1)
           jlev2 = jlev - lst(id) % allLevBeg(yourid+1) + 1
