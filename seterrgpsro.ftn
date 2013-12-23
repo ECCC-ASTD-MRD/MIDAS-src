@@ -71,7 +71,6 @@ C
       REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
       TYPE(GPSDIFF), allocatable :: RSTV(:)
       type(struct_vco), pointer  :: vco_trl
-#include "comgpsro.cdk"
 
       WRITE(*,*)'ENTER SETERRGPSRO'
 C

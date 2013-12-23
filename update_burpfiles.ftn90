@@ -13,9 +13,8 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       use mpi
       use ObsSpacedata_mod
       use burp_read
+      use burpFiles_mod
       IMPLICIT NONE
-#include "comvfiles.cdk"
-
       type (struct_obs), intent(inout) :: obsSpaceData
 
       INTEGER J
@@ -51,17 +50,17 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
          write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
       end if
 
-      DO J =1,NFILES
-!      IER   =FNOM(IBRP1,CFILNAM(J),'RND+OLD',0)
+      DO J =1,burp_nfiles
+!      IER   =FNOM(IBRP1,burp_cfilnam(J),'RND+OLD',0)
 !      IF ( IER .EQ. 0 ) THEN
 !       INRECS=MRFOPN(IBRP1,'READ')
 !       LNMX =MRFMXL(IBRP1)
 !       ISTAT=MRFCLS(IBRP1)
-!       print *,  ' LONGUEUR MAX=',trim(CFILNAM(J)),LNMX
+!       print *,  ' LONGUEUR MAX=',trim(burp_cfilnam(J)),LNMX
 !IER = FCLOS(IBRP1)
 !      ENDIF
-!        call UPDATE_BURP(obsSpaceData,CFAMTYP(J),CFILNAM(J),J,LNMX)
-         call UPDATE_BURP(obsSpaceData,CFAMTYP(J),CFILNAM(J),J)
+!        call UPDATE_BURP(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J,LNMX)
+         call UPDATE_BURP(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J)
       END DO
 !
       WRITE(*,*)' '

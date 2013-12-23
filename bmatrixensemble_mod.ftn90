@@ -27,6 +27,8 @@ MODULE BmatrixEnsemble
   use globalSpectralTransform
   use lamSpectralTransform_mod
   use horizontalCoord_mod
+  use mathPhysConstants_mod
+  use earthConstants_mod
   implicit none
   save
   private
@@ -316,8 +318,7 @@ CONTAINS
     integer :: stamp_in
     real(8) :: gd2d(ni_l,nj_l)
     real(4), allocatable :: ensPerturbation1(:,:,:,:) 
-    real(8) :: dnens,dnens2,rmsknt,rmbtpa,r1sa
-    real(8) :: rhumin = 2.5d-6
+    real(8) :: dnens,dnens2
     integer :: ji,jj,jt,jk,memberIndex,jpe,jlatband
     integer :: memberIndex2,batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
@@ -348,11 +349,6 @@ CONTAINS
     ngpositq =1+3*nLevEns
     ngpositps=1+4*nLevEns
     ngposittg=2+4*nLevEns
-
-    ! some physical constants
-    rmsknt = 1.d0/1.94246d0
-    rmbtpa = 1.0d2
-    r1sa=1.d0/6371229.d0
 
     allocate(ensPerturbations(nEns),stat=ierr)
     if(ierr.ne.0) then
@@ -461,9 +457,9 @@ CONTAINS
           do jj=1,nj_l
             do ji=1,ni_l
               if (hco_ben % global) then
-                 ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmbtpa)
+                 ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*MPC_PA_PER_MBAR_R8)
               else
-                 ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,jj)*rmbtpa)
+                 ensPerturbation1(ji,ngpositps,jj,jt)= sngl(gd2d(ji,jj)*MPC_PA_PER_MBAR_R8)
               end if
             end do
           end do
@@ -496,9 +492,9 @@ CONTAINS
             do jj=1,nj_l
               do ji=1,ni_l
                 if (hco_ben % global) then
-                   ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,nj_l+1-jj),rhumin)))
+                   ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,nj_l+1-jj),MPC_MINIMUM_HU_R8)))
                 else
-                   ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,jj),rhumin)))
+                   ensPerturbation1(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,jj),MPC_MINIMUM_HU_R8)))
                 end if
               end do
             end do
@@ -514,9 +510,9 @@ CONTAINS
             do jj=1,nj_l
               do ji=1,ni_l
                 if (hco_ben % global) then
-                   ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt)
+                   ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*MPC_M_PER_S_PER_KNOT_R8)
                 else
-                   ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+                   ensPerturbation1(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
                 end if
               end do
             end do
@@ -532,9 +528,9 @@ CONTAINS
             do jj=1,nj_l
               do ji=1,ni_l
                 if (hco_ben % global) then
-                   ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*rmsknt)
+                   ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,nj_l+1-jj)*MPC_M_PER_S_PER_KNOT_R8)
                 else
-                   ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+                   ensPerturbation1(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
                 end if
               end do
             end do
@@ -662,8 +658,7 @@ CONTAINS
  
     integer :: stamp_in,return_code
     real(8) :: gd2d(ni_l,myLatBeg:myLatEnd)
-    real(8) :: dnens,dnens2,rmsknt,rmbtpa,r1sa
-    real(8) :: rhumin = 2.5d-6
+    real(8) :: dnens,dnens2
     integer :: ji,jj,jt,jk,memberIndex,memberIndex2,jpe,jlatband
     integer :: batchnum,nsize,status,pe_src,pe_dest
     integer :: kulin,ndate,ntime
@@ -696,11 +691,6 @@ CONTAINS
     ngpositq =1+3*nLevEns
     ngpositps=1+4*nLevEns
     ngposittg=2+4*nLevEns
-
-    ! some physical constants
-    rmsknt = 1.d0/1.94246d0
-    rmbtpa = 1.0d2
-    r1sa=1.d0/6371229.d0
 
     allocate(ensPerturbations(nEns),stat=ierr)
     if(ierr.ne.0) then
@@ -840,9 +830,9 @@ CONTAINS
         do jj=myLatBeg,myLatEnd
           do ji=1,ni_l
             if (hco_ben % global) then
-               ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmbtpa)
+               ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*MPC_PA_PER_MBAR_R8)
             else
-               ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,jj)*rmbtpa)
+               ensPerturbations(memberIndex)%member(ji,ngpositps,jj,jt)= sngl(gd2d(ji,jj)*MPC_PA_PER_MBAR_R8)
             end if
           end do
         end do
@@ -875,9 +865,9 @@ CONTAINS
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               if (hco_ben % global) then
-                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),rhumin)))
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,myLatEnd+myLatBeg-jj),MPC_MINIMUM_HU_R8)))
               else
-                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,jj),rhumin)))
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositq,jj,jt)= sngl(log(max(gd2d(ji,jj),MPC_MINIMUM_HU_R8)))
               end if
             end do
           end do
@@ -893,9 +883,9 @@ CONTAINS
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               if (hco_ben % global) then
-                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt)
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*MPC_M_PER_S_PER_KNOT_R8)
               else
-                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngposituu,jj,jt)= sngl(gd2d(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
               end if
             end do
           end do
@@ -911,9 +901,9 @@ CONTAINS
           do jj=myLatBeg,myLatEnd
             do ji=1,ni_l
               if (hco_ben % global) then
-                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*rmsknt)
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,myLatEnd+myLatBeg-jj)*MPC_M_PER_S_PER_KNOT_R8)
               else
-                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,jj)*rmsknt)
+                 ensPerturbations(memberIndex)%member(ji,jk-1+ngpositvv,jj,jt)= sngl(gd2d(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
               end if
             end do
           end do
@@ -1141,7 +1131,6 @@ CONTAINS
     real(8)  :: zgd(ni_l,nLevEns,myLatBeg:myLatEnd)
     real(8)  :: zsp2(nla_l,nphase,nEns)
     real(8)  :: zgd2(ni_l,nEns,myLatBeg:myLatEnd)
-    real(8)  :: ra = 6371229.D0
 
     integer :: ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
 
@@ -1380,7 +1369,6 @@ CONTAINS
 ! CreateBiPerCorrelFunction
 !--------------------------------------------------------------------------
   SUBROUTINE  CreateBiPerCorrelFunction(gridpoint,CorrelLength,nk)
-    use EarthConstants_mod, only: RA
     implicit none
 
     integer, intent(in)  :: nk

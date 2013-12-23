@@ -18,11 +18,62 @@ module modgpsro_mod
 
   integer, allocatable :: vGPSRO_Data(:)        ! index for each data value
 
+!     Contents of previous comdeck comgpsro
+!     -------------------------------------
+!*    Control variables for GPSRO observations - constant within job
+!
+!     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
+!     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
+!     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
+!     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
+!     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
+!     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
+!
+!     J.M. Aparicio, Apr 2008
+!          
+  INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
+  REAL*8  SURFMIN, HSFMIN, HTPMAX, DISTMIN, BGCKBAND, WGPS(50)
+
+  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS
+
 contains
 
+  subroutine sugpsro
+    implicit none
+    integer nulnam,ierr,fnom,fclos,j
+!
+!   Define default values:
+!
+    LEVELGPSRO = 2
+    GPSRO_MAXPRFSIZE = 300
+    SURFMIN    = 0.d0
+    HSFMIN     = 0.d0
+    HTPMAX     = 70000.d0
+    BGCKBAND   = 0.05d0
+    NUMGPSSATS = 0
+!
+!   Override with NML values:
+!     
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMGPSRO,iostat=ierr)
+    if(ierr.ne.0) call abort3d('sugpsro: Error reading namelist')
+    write(*,nml=NAMGPSRO)
+    ierr=fclos(nulnam)
+    write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
+!
+!   Force a min/max values for the effective Fresnel widths per satellite:
+!
+    DO J=1,NUMGPSSATS
+       IF (WGPS(J).LT. 100.d0) WGPS(J)= 100.d0
+       IF (WGPS(J).GT.1500.d0) WGPS(J)=1500.d0
+    ENDDO
+
+  end subroutine sugpsro
+
   integer function iProfile_from_index(index)
+    implicit none
     integer, intent(in) :: index
-    integer             :: iProfile_from_index
     integer i
 
     iProfile_from_index=-1

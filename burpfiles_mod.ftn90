@@ -1,11 +1,25 @@
-SUBROUTINE setup_burpfiles
+module burpFiles_mod
   use mpi
-  use timeCoord_mod
   implicit none
-!s/r  setup_burpfiles -INITIALZE BURP FILE NAMES
+  save
+  private
+
+  public :: burp_nfiles,burp_cfamtyp,burp_cfilnam
+  public :: burp_setupfiles
+  
+  integer, parameter :: jpfiles=16
+  integer :: burp_nfiles
+  character(len=2)   :: burp_cfamtyp(jpfiles)
+  character(len=128) :: burp_cfilnam(jpfiles)
+
+contains
+
+
+SUBROUTINE burp_setupfiles(datestamp)
+  implicit none
+!s/r  setup_burpfiles -INITIALZE BURP FILE NAMES and return datestamp
 !
 !
-#include "comvfiles.cdk"
   INTEGER INFIL,IER,INBLKS,nulburp,JJ
   INTEGER FNOM,FCLOS,NUMBLKS
   PARAMETER(INFIL=129)
@@ -16,7 +30,7 @@ SUBROUTINE setup_burpfiles
   LOGICAL   isExist_L 
 !************************************************************************
   INTEGER KTIME,KDATE
-  INTEGER IHANDL,ILONG,NBRPSTAMP
+  INTEGER IHANDL,ILONG,DATESTAMP
   INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
   INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
   INTEGER INSUP,INXAUX
@@ -106,7 +120,7 @@ SUBROUTINE setup_burpfiles
   IVALS=8
   KDATE=-9999
   KTIME=-9999
-  NFILES=0
+  burp_nfiles=0
   DO JJ=10,INFIL 
     IF(CLVALU(JJ) == '') EXIT
     nulburp=0
@@ -134,9 +148,9 @@ SUBROUTINE setup_burpfiles
           IF ( IHANDL .LT. 0 ) THEN
             WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
           ELSE
-            NFILES=NFILES + 1
-            CFILNAM(NFILES)=burpin
-            CFAMTYP(NFILES)=CFAMI(JJ)
+            burp_nfiles=burp_nfiles + 1
+            burp_cfilnam(burp_nfiles)=burpin
+            burp_cfamtyp(burp_nfiles)=CFAMI(JJ)
             INSUP=0
             INXAUX=0
             IER=MRFGET(IHANDL,IBUF)
@@ -155,17 +169,17 @@ SUBROUTINE setup_burpfiles
   END DO
 
   WRITE(*,*) ' '
-  WRITE(*,*)' NUMBER OF BURP FILES IS :',NFILES
+  WRITE(*,*)' NUMBER OF BURP FILES IS :',burp_nfiles
   WRITE(*,*)'TYPE  NAME '
   WRITE(*,*)'----  ---- '
-  DO JJ=1,NFILES
-    WRITE(*,'(1X,A2,1X,A128)' ) CFAMTYP(JJ),CFILNAM(JJ)
+  DO JJ=1,burp_nfiles
+    WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),burp_cfilnam(JJ)
   END DO
 
   ier = newdate(istampobs,kdate,ktime,3)
   delhh = 3.0
-  call INCDATR (nbrpstamp, istampobs, delhh)
-  ier = newdate(nbrpstamp,nbrpdate,inewhh,-3)
+  call INCDATR (datestamp, istampobs, delhh)
+  ier = newdate(datestamp,nbrpdate,inewhh,-3)
   nbrphh=KTIME/100
   if (nbrphh .ge. 21 .or. nbrphh .lt. 3) then
     nbrphh = 0
@@ -176,9 +190,10 @@ SUBROUTINE setup_burpfiles
   else
     nbrphh = 18
   endif
-  ier = newdate(nbrpstamp,nbrpdate,nbrphh*1000000,3)
+  ier = newdate(datestamp,nbrpdate,nbrphh*1000000,3)
   WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
   WRITE(*, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
-  call tim_setDatestamp(nbrpstamp)
 
-END SUBROUTINE setup_burpfiles
+END SUBROUTINE burp_setupfiles
+
+end module burpFiles_mod

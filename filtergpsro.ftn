@@ -47,7 +47,6 @@ C
       REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon
       REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
       LOGICAL LLEV, LOBS, LNOM, LSAT
-#include "comgpsro.cdk"
 C
       WRITE(*,*)'ENTER FILTERGPSRO'
 C

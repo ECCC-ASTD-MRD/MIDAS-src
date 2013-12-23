@@ -85,7 +85,7 @@ contains
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=NAMGPSGB,iostat=ierr)
-      if(ierr.ne.0) call abort3d('col_setup: Error reading namelist')
+      if(ierr.ne.0) call abort3d('sugpsgb: Error reading namelist')
       write(*,nml=NAMGPSGB)
       ierr=fclos(nulnam)
 

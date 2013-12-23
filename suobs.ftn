@@ -46,9 +46,8 @@ C
       use obsSpaceData_mod
       use filterObs_mod  
       use modgpsztd_mod
+      use modgpsro_mod
       IMPLICIT NONE
-*implicits
-#include "comgpsro.cdk"
 *
       type(struct_obs) :: lobsSpaceData
       INTEGER JO, IPOINTU, IPOINTV,IPOINTZ,IERR,jelem,j,ielem
@@ -59,30 +58,9 @@ C
  9000 FORMAT(/,1x,' SUOBS- Initialisation of observation arrays'
      S     ,/,1x,3('- -----------'))
 C
-C*    *        1.2 Read the NAMELIST NAMGGPSRO
-C     *       ---------------------------------------
+C     Read the NAMELIST NAMGGPSRO
 C
-C     Define default values:
-C
-      LEVELGPSRO = 2
-      GPSRO_MAXPRFSIZE = 300
-      SURFMIN    = 0.d0
-      HSFMIN     = 0.d0
-      HTPMAX     = 70000.d0
-      BGCKBAND   = 0.05d0
-      NUMGPSSATS = 0
-C
-C     Override with NML values:
-C     
-      CALL READNML('NAMGPSRO',IERR)
-      write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
-C
-C     Force a min/max values for the effective Fresnel widths per satellite:
-C
-      DO J=1,NUMGPSSATS
-         IF (WGPS(J).LT. 100.d0) WGPS(J)= 100.d0
-         IF (WGPS(J).GT.1500.d0) WGPS(J)=1500.d0
-      ENDDO
+      call sugpsro
 c
 c     Set up the list of elements to be assimilated and flags for rejection
 c

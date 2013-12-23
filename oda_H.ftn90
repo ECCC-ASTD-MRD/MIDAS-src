@@ -413,7 +413,6 @@ end subroutine oda_Hto
       TYPE(GPSPROFILE)           :: PRF
       REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
-#include "comgpsro.cdk"
 !C      WRITE(*,*)'ENTER oda_Hro'
 !C
 !C     * 1.  Initializations

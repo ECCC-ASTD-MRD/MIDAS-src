@@ -20,14 +20,11 @@ SUBROUTINE SELECTB(obsdat)
 !
       use ObsSpaceData_mod
       use burp_read
-
+      use burpFiles_mod
       IMPLICIT NONE
-      #include "comvfiles.cdk"
-
       type (struct_obs), intent(inout) :: obsdat
 
-      INTEGER :: IER,IBEG, IEND, NSTN1,NSTN2
-      INTEGER :: EXDB,EXFIN
+      INTEGER :: IBEG, IEND, NSTN1, NSTN2
       logical :: obs_full
 !
       INTEGER :: J,JO
@@ -39,22 +36,21 @@ SUBROUTINE SELECTB(obsdat)
       WRITE(*,*)'                SELECT READBURP BEGIN                     '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
-      IER=EXDB('SELECT READBURP','DEBUT','NON')
       MISG=PPMIS
 
       IBEG=obs_numbody(obsdat)
-      DO J =1,NFILES
+      DO J =1,burp_nfiles
 !
 !        call obs_status(obsdat, obs_full, Nstn1, IBEG, nulout)
          IBEG=obs_numbody(obsdat) +1
          Nstn1=obs_numheader(obsdat)
 
-         call READBURP(obsdat,CFAMTYP(J),CFILNAM(J),J)
+         call READBURP(obsdat,burp_cfamtyp(J),burp_cfilnam(J),J)
 !        call obs_status(obsdat, obs_full, Nstn2, IEND, nulout)
          Nstn2=obs_numheader(obsdat)
          IEND=obs_numbody(obsdat)
 
-	 IF ( trim(CFAMTYP(J)) .ne. 'TO') THEN
+	 IF ( trim(burp_cfamtyp(J)) .ne. 'TO') THEN
             call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
             call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
             call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
@@ -62,7 +58,7 @@ SUBROUTINE SELECTB(obsdat)
          DO JO=nstn1+1,nstn2
 	    call obs_headSet_i(obsdat,OBS_OTP,JO,J)
 !    call obs_headSet_i(obsdat,OBS_IDF,JO,J)
-	    call obs_setFamily(obsdat,trim(CFAMTYP(J)),JO)
+	    call obs_setFamily(obsdat,trim(burp_cfamtyp(J)),JO)
 	 END DO
 !    initializations
          DO JO=IBEG,IEND
@@ -75,7 +71,7 @@ SUBROUTINE SELECTB(obsdat)
 !
 !    For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
 !    for all ZTD data (element 15031)
-         IF ( trim(CFAMTYP(J)) .eq. 'GP') THEN
+         IF ( trim(burp_cfamtyp(J)) .eq. 'GP') THEN
            print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
          ENDIF
@@ -90,7 +86,6 @@ SUBROUTINE SELECTB(obsdat)
       WRITE(*,*)'                SELECT READBURP     END                   '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
-      IER=EXFIN('SELECT READBURP','FIN','NON')
       RETURN
 
 END SUBROUTINE SELECTB

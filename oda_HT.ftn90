@@ -399,7 +399,6 @@ end subroutine oda_HTto
       LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1
-#include "comgpsro.cdk"
 !C      WRITE(*,*)'ENTER oda_HTro'
 !C
 !C     * 1.  Initializations

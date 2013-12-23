@@ -20,6 +20,7 @@
 MODULE BmatrixHI
   use mpi
   use MathPhysConstants_mod
+  use earthConstants_mod
   use gridStateVector_mod
   implicit none
   save
@@ -33,8 +34,6 @@ MODULE BmatrixHI
   integer            :: ntrunc_l,nla_l,nla_mpilocal
   integer            :: cvDim_l,cvDim_mpiglobal,nind_mpilocal(0:300)
   integer            :: gstID,gstID2
-
-  real*8             :: ra = 6371229.D0
   integer            :: nlev_bdl
 
   real*8,allocatable :: tantheta(:,:)
@@ -85,12 +84,6 @@ MODULE BmatrixHI
   integer            :: nspositPS 
   integer            :: nspositTG
   real*8,allocatable :: pressureProfile(:)
-
-  ! constants
-  real*8             :: rday
-  real*8             :: rsiyea
-  real*8             :: rsiday
-  real*8             :: romega
 
   ! these should be somewhere else, shared with GST,SST
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
@@ -155,12 +148,6 @@ CONTAINS
 
     allocate(pressureProfile(nflev_in))
     pressureProfile(:)=pressureProfile_in(:)
-
-    ! some constants
-    RDAY=86400.D0
-    RSIYEA=365.25D0*RDAY*2.*MPC_PI_R8/6.283076D0
-    RSIDAY=RDAY/(1.D0+RDAY/RSIYEA)
-    ROMEGA=2.D0*MPC_PI_R8/RSIDAY
 
     ! this should come from the state vector object
     nspositVO=1
@@ -860,7 +847,7 @@ CONTAINS
     integer koutmpg
     real*8, allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
     real*8 cortgg(nla_l,2)
-    real*8 zabs, zpole, zconst, dlfac, dlcorr
+    real*8 zabs, zpole, dlfac, dlcorr
     real*8 zsp(nla_l,2,1),zgd(ni_l,1,myLatBeg:myLatEnd)
 
     ! standard file variables
@@ -981,7 +968,6 @@ CONTAINS
     enddo
 
     !  4.5  Correlation
-    zconst  = 1.e10
     do jm   = 0, ntrunc_l
       do jn   = jm, ntrunc_l
         jla  = gst_getNIND(jm) + jn - jm

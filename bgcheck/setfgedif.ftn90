@@ -74,7 +74,6 @@
       REAL*8       , allocatable :: H   (:),AZMV(:)
       TYPE(GPSDIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
       type(struct_vco), pointer  :: vco_anl
-#include "comgpsro.cdk"
 
       WRITE(*,*)'ENTER SETFGEDIFF'
 !C

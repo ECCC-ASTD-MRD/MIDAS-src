@@ -9,8 +9,8 @@ subroutine add_cloudprms(lobsSpaceData)
   use obsSpaceData_mod
   use mpi
   use tovs_mod
+  use burpFiles_mod
   implicit none
-#include "comvfiles.cdk"
 
   type(struct_obs) :: lobsSpaceData
   integer jfile,krtid
@@ -31,7 +31,7 @@ subroutine add_cloudprms(lobsSpaceData)
      write(*,*) 'add_cloudprms: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
   end if
 
-  do jfile=1,nfiles
+  do jfile=1,burp_nfiles
     do krtid = 1, nsensors
 
       ! For AIRS data
@@ -39,8 +39,8 @@ subroutine add_cloudprms(lobsSpaceData)
           satellite(krtid) .eq. 2 .and.  &
           instrument(krtid) .eq. 11 ) then
         if(jfile == 1) then
-          write(*,*) 'INPUT FILE TO AIRSABRP = ', cfilnam(jfile)
-          call airsabrp(lobsspacedata,cfilnam(jfile))
+          write(*,*) 'INPUT FILE TO AIRSABRP = ', burp_cfilnam(jfile)
+          call airsabrp(lobsspacedata,burp_cfilnam(jfile))
         else
           write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE AIRS FILE ???'
         endif
@@ -51,8 +51,8 @@ subroutine add_cloudprms(lobsSpaceData)
           satellite(krtid) .eq. 2 .and.  &
           instrument(krtid) .eq. 16 ) then
         if(jfile == 1) then
-          write(*,*) 'INPUT FILE TO IASIABRP = ', cfilnam(jfile)
-          call iasiabrp(lobsspacedata,cfilnam(jfile))
+          write(*,*) 'INPUT FILE TO IASIABRP = ', burp_cfilnam(jfile)
+          call iasiabrp(lobsspacedata,burp_cfilnam(jfile))
         else
           write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
         endif
@@ -63,8 +63,8 @@ subroutine add_cloudprms(lobsSpaceData)
           satellite(krtid) .eq. 0 .and. &
           instrument(krtid) .eq. 27 ) then
         if(jfile == 1) then
-          write(*,*) 'INPUT FILE TO CRISABRP = ', cfilnam(jfile)
-          call crisabrp(lobsspacedata,cfilnam(jfile))
+          write(*,*) 'INPUT FILE TO CRISABRP = ', burp_cfilnam(jfile)
+          call crisabrp(lobsspacedata,burp_cfilnam(jfile))
         else
           write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE CRIS FILE ???'
         endif

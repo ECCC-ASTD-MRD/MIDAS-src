@@ -30,8 +30,8 @@
       use obsSpaceData_mod
       use columnData_mod
       use verticalCoord_mod
+      use modgpsro_mod
       IMPLICIT NONE
-#include "comct0.cdk"
 
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
@@ -47,7 +47,6 @@
       LOGICAL  LSTAG
 
       INTEGER NH
-#include "comgpsro.cdk"
 
       LSTAG = .FALSE.
       vco_trl => col_getVco(lcolumnhr)

@@ -34,6 +34,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use bmatrix_mod
   use gaussgrid_mod
   use tovs_mod
+  use burpFiles_mod
   IMPLICIT NONE
   !implicits
 #include "comct0.cdk"
@@ -42,7 +43,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   type(struct_columnData) :: lcolumng,lcolumnhr
   character (len=*) :: obsColumnMode
   character (len=*) :: obsMpiStrategy
-  integer :: numAnalyses
+  integer :: numAnalyses,datestamp
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_vco), pointer :: vco_trl => null()
@@ -61,7 +62,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !     
   !- Initialize burp file names and set datestamp (in timeCoord_mod)
   !
-  call setup_burpfiles
+  call burp_setupFiles(datestamp)
+  call tim_setDatestamp(datestamp)
   
   !
   !- Initialize constants

@@ -75,7 +75,6 @@ C
       REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
       type(struct_vco), pointer  :: vco_trl
-#include "comgpsro.cdk"
 
       WRITE(*,*)'ENTER DOBSGPSRO'
 C
