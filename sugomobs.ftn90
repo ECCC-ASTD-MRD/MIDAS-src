@@ -99,7 +99,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   write(*,*) ' '
   write(*,*) '-------- ENTERING SUGOMOBS ---------'
   write(*,*) ' '
-  write(*,*) 'nstepobs=',tim_nstepobs
+  if(mpi_myid.eq.0) write(*,*) 'nstepobs=',tim_nstepobs
 
   !
   !     Ensure that all trial field files exist and
@@ -135,8 +135,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   vco_trl => col_getVco(lcolumnhr)
   nlv_M = vco_trl%nlev_M
   nlv_T = vco_trl%nlev_T
-  write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
-  write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
+  if(mpi_myid.eq.0) write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
+  if(mpi_myid.eq.0) write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
        vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf1
 
   !
@@ -180,7 +180,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   call getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
   do jstep = 1,tim_nStepObs
     ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
-    write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
+    if(mpi_myid.eq.0) write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
     if(datestamplist(jstep) == tim_getDatestamp()) nstepanltime = jstep
   end do
 
@@ -210,7 +210,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
     if(gsv_varExist(varNameList2D(jvar))) exit          
   end do
 
-  write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
+  if(mpi_myid.eq.0) write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
 
   do jstep = 1,tim_nStepObs
      !
@@ -483,15 +483,15 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
          call col_fillmvo(lcolumng,'PP','NA',zppobsg)
 
          do jlev = 1,col_getNumLev(lcolumng)
-            write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
                  jlev,vco_anl%dhyb_m(jlev),col_getPressure(LCOLUMNG,jlev,1,'NA')
          end do
 
          !     Calculate profiles of pressure values at station location
 
-         write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
-         write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
-         write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
+         if(mpi_myid.eq.0) write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
+         if(mpi_myid.eq.0) write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
+         if(mpi_myid.eq.0) write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
 
          !     General treatment of trial field 
          !     addition for BGCK unstagered mode
@@ -531,9 +531,9 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
         call col_fillmvo(lcolumnhr,'GZ  ','MM',varInterphr_M)
 !       remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
         call col_fillmvo(lcolumnhr,'GZ  ','NA',varInterphr_M)
-        write(*,*) 'sugomobs:GZ_M'
+        if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_M'
         do jlev = 1,nlv_M
-          write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
+          if(mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
         enddo
       endif
 
@@ -545,9 +545,9 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       if(col_getNumCol(lcolumng).gt.0) then       
         varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
         call col_fillmvo(lcolumnhr,'GZ  ','TH',varInterphr_T)
-        write(*,*) 'sugomobs:GZ_TH'
+        if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_TH'
         do jlev = 1,nlv_T
-          write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
+          if(mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
         enddo
       endif
 
@@ -563,9 +563,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
            !       Variables sur les niveaux momentum
            !
         case ('UU')
-          write(*,*)' '
           write(*,*)' ----- Initializing UU and VV  ----'
-          write(*,*)' '
 
           call readTrialField4(varInterphr_M,varInterphr_VV,'UV','MM')
          
@@ -578,14 +576,14 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
             varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
             call col_fillmvo(lcolumng,'VV  ','NA',varInterpg_M)
 
-            write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
             do jlev = 1,nlv_M
-              write(*,*) 'UU',jvar,jlev,  &
+              if(mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,  &
                   zppobs_m(jlev,1),varInterphr_M(jlev,1)
             enddo
-            write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
             do jlev = 1,nlv_M
-              write(*,*) 'VV',jvar,jlev,  &
+              if(mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,  &
                   zppobs_m(jlev,1),varInterphr_VV(jlev,1)
             enddo
 
@@ -599,16 +597,14 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
           !       Variable sur les niveaux thermodynamiques
           !
         case ('TT','HU')
-          write(*,*)' '
           write(*,*)' ----- Initializing ',varNameList3D(jvar),' ----'
-          write(*,*)' '
 
           call readTrialField4(varInterphr_T,varInterphr_VV,varNameList3D(jvar),'TH')
 
           if(col_getNumCol(lcolumng).gt.0) then       
-            write(*,*) 'sugomobs:',varNameList3D(jvar)
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs:',varNameList3D(jvar)
             do jlev = 1,nlv_T
-              write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+              if(mpi_myid.eq.0) write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
             enddo
 
             call vintprof(varInterpg_T,zppobsg,col_getNumLev(lcolumng),varInterphr_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))

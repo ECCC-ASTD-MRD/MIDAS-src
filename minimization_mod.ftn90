@@ -37,7 +37,6 @@ MODULE minimization_mod
   logical             :: initialized = .false.
   real*8, pointer     :: dg_vbar(:)
 
-  integer             :: nulout =6
   integer             :: nmtra,nwork,min_nsim
   integer             :: nvadim_mpilocal ! for mpi
   integer             :: min_niter
@@ -46,8 +45,6 @@ MODULE minimization_mod
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
   character(len=20)   :: preconFileNameOut = './pm1q'  
-  INTEGER             :: NGRANGE = 10 ! range of powers of 10 used for gradient test
-  integer             :: impres = 5
   integer             :: n1gc = 3
 
   ! namelist variables
@@ -107,7 +104,7 @@ CONTAINS
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
 
-    IF (LVARQC) WRITE(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
+    IF (LVARQC .and. mpi_myid.eq.0) WRITE(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
     ! Check for preconditioning file
     inquire(file=preconFileName,exist=preconFileExists)
@@ -128,7 +125,10 @@ CONTAINS
       type(struct_obs),target :: lobsSpaceData
       logical :: lastAnalysis
       type(struct_dataptr) :: dataptr 
-      integer,allocatable :: dataptr_int(:) ! obs array used to transmit pointer
+      integer,allocatable  :: dataptr_int(:) ! obs array used to transmit pointer
+      integer              :: nulout = 6
+      integer              :: impres
+      INTEGER               :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)
@@ -155,6 +155,12 @@ CONTAINS
       character(len=128) :: clfname
  
       min_nsim=0 
+
+      if(mpi_myid.eq.0) then
+        impres=5
+      else 
+        impres=0
+      endif
 
       ! allocate control vector related arrays (these are all mpilocal)
 
@@ -227,7 +233,7 @@ CONTAINS
 
       lldf1 = .true.
       if (preconFileExists) then
-        write(*,*) 'Minimize : Preconditioning mode'
+        if(mpi_myid.eq.0) write(*,*) 'Minimize : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
         llvazx = .false.
@@ -373,11 +379,11 @@ CONTAINS
 
       ! Write out the Hessian to file (for now only 1st member writes)
       if(lwrthess .and. lastAnalysis) then
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call rw_vatra (preconFileNameOut,1,  &
           min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
           iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       endif
 
       ! Put final control vector into control vector module for use elsewhere
@@ -444,9 +450,9 @@ CONTAINS
 
        if(mpi_myid == 0) then
          write(*,*) 'Entering simvar for simulation ',min_nsim
+         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
          call flush(6)
        endif
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
        ! note: dg_vbar = sum(v) of previous outer-loops
        dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + dg_vbar(1:nvadim_mpilocal)     
@@ -520,8 +526,7 @@ CONTAINS
     call tmg_stop(80)
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(70,'QN')
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'end of simvar'
+    if(mpi_myid.eq.0) write(*,*) 'end of simvar'
     call flush(6)
 
   END SUBROUTINE simvar
@@ -709,9 +714,9 @@ CONTAINS
 
     call tmg_start(88,'MIN_RWHESS')
     if(status.eq.0) then
-      write(*,*) 'Read  VATRA in RW_VATRA'
+      if(mpi_myid.eq.0) write(*,*) 'Read  VATRA in RW_VATRA'
     elseif(status.eq.1) then
-      write(*,*) 'Write VATRA in RW_VATRA'
+      if(mpi_myid.eq.0) write(*,*) 'Write VATRA in RW_VATRA'
     else
       call abort3d(" RW_VATRA: status not valid ")
     endif
@@ -732,15 +737,15 @@ CONTAINS
       read (ireslun) cl_version,i1gc
       if(trim(cl_version) /= 'V2') then
         if(trim(cl_version) == 'V3') then
-          write(*,*) 'RW_VATRA: using single precision V3 Hessian'
+          if(mpi_myid.eq.0) write(*,*) 'RW_VATRA: using single precision V3 Hessian'
         elseif(trim(cl_version) == 'V4') then
-          write(*,*) 'RW_VATRA: using single precision V4 Hessian'
+          if(mpi_myid.eq.0) write(*,*) 'RW_VATRA: using single precision V4 Hessian'
         else
           call abort3d(" RW_VATRA: invalid Hessian version")
         endif
       endif
       if (i1gc == 3 .and. i1gc == k1gc) then
-        write(*,*) trim(cl_version),' M1QN3'
+        if(mpi_myid.eq.0) write(*,*) trim(cl_version),' M1QN3'
       else
         write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
         call abort3d(" RW_VATRA: Inconsistant input hessian")
@@ -768,7 +773,7 @@ CONTAINS
 
       ! here the mpiglobal vectors are read in and only the mpilocal 
       ! portion is copied from vatravec into vatra
-      write(*,*) 'RW_VATRA : reading Hessian'
+      if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading Hessian'
       if(trim(cl_version) == 'V2') then
         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
         do jvec = 1, ictrlvec
@@ -788,8 +793,8 @@ CONTAINS
           call bmat_reduceToMPILocal(  &
             vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
             vatravec_r8_mpiglobal,cvDim_return)
-          write(*,*) 'min/max vatravec_mpiglobal=',jvec,minval(vatravec_r8_mpiglobal(:)), &
-                                                        maxval(vatravec_r8_mpiglobal(:))
+          if(mpi_myid.eq.0) write(*,*) 'min/max vatravec_mpiglobal=',  &
+             jvec,minval(vatravec_r8_mpiglobal(:)),maxval(vatravec_r8_mpiglobal(:))
         enddo
         deallocate(vatravec_r4_mpiglobal)       
         deallocate(vatravec_r8_mpiglobal)       
@@ -806,7 +811,7 @@ CONTAINS
       endif
 
       if(ibrpstamp == kbrpstamp .and. lxbar) then
-        write(*,*) 'RW_VATRA : reading vazxbar'
+        if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading vazxbar'
         allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
         read(ireslun) vazxbar_mpiglobal
         call bmat_reduceToMPILocal(  &
@@ -815,7 +820,7 @@ CONTAINS
         deallocate(vazxbar_mpiglobal)
 
         if(lvazx) then
-          write(*,*) 'RW_VATRA : reading vazx'
+          if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading vazx'
           allocate(vazx_mpiglobal(nvadim_mpiglobal))
           read(ireslun) vazx_mpiglobal
           call bmat_reduceToMPILocal(  &

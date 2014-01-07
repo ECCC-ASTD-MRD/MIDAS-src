@@ -114,10 +114,10 @@ MODULE gridStateVector_mod
       CHARACTER(len=4) :: CGNEED(VNL_NUMVARMAX)
       NAMELIST /NAMSTATE/CGNEED,ANLTIME_BIN
 
-      write(*,*) 'gsv_setup: List of known (valid) variable names'
-      write(*,*) 'gsv_setup: varNameList3D=',varNameList3D
-      write(*,*) 'gsv_setup: varNameList2D=',varNameList2D
-      write(*,*) 'gsv_setup: varNameList  =',varNameList
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',varNameList3D
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D=',varNameList2D
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList  =',varNameList
 
 !     Read NAMELIST NAMSTATE to find which fields are needed
 
@@ -128,7 +128,7 @@ MODULE gridStateVector_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstate,iostat=ierr)
       if(ierr.ne.0) call abort3d('gsv_setup: Error reading namelist')
-      write(*,nml=namstate)
+      if(mpi_myid.eq.0) write(*,nml=namstate)
       ierr=fclos(nulnam)
 
       do jvar = 1, vnl_numvarmax3D
@@ -147,7 +147,7 @@ MODULE gridStateVector_mod
         endif
       enddo
 
-      write(*,*) 'gsv_setup: ngexist =',ngexist
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: ngexist =',ngexist
 
 !
 !     Check value for ANLTIME_BIN
@@ -231,7 +231,7 @@ MODULE gridStateVector_mod
     endif
 
     if (statevector%allocated)then
-      write(*,*) 'gridStateVector already allocated! Deallocating first.'
+      if(mpi_myid.eq.0) write(*,*) 'gridStateVector already allocated! Deallocating first.'
       call gsv_deallocate(statevector)
       statevector%allocated=.false.
     end if

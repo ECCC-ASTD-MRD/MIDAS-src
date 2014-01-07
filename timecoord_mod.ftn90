@@ -1,4 +1,5 @@
 MODULE timeCoord_mod
+  use mpi
   use obsSpaceData_mod
   implicit none
   save
@@ -37,7 +38,7 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namtime,iostat=ierr)
     if(ierr.ne.0) call abort3d('tim_setup: Error reading namelist')
-    write(*,nml=namtime)
+    if(mpi_myid.eq.0) write(*,nml=namtime)
     ierr=fclos(nulnam)
 
     tim_dstepobs    = dstepobs
@@ -45,10 +46,10 @@ contains
 
     tim_nstepobs    = 2*nint((3.d0 - tim_dstepobs/2.d0)/tim_dstepobs) + 1
     tim_nstepobsinc = 2*nint((3.d0 - tim_dstepobsinc/2.d0)/tim_dstepobsinc) + 1
-    write(*,*) 'tim_setup: dstepobs   =',tim_dstepobs
-    write(*,*) 'tim_setup: nstepobs   =',tim_nstepobs
-    write(*,*) 'tim_setup: dstepobsinc=',tim_dstepobsinc
-    write(*,*) 'tim_setup: nstepobsinc=',tim_nstepobsinc
+    if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobs   =',tim_dstepobs
+    if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobs   =',tim_nstepobs
+    if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobsinc=',tim_dstepobsinc
+    if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobsinc=',tim_nstepobsinc
 
   end subroutine tim_setup
 
@@ -62,12 +63,12 @@ contains
     integer :: jobs,jstep
     real*8 :: stepObsIndex
 
-    write(*,*) ' '
-    write(*,*) '-------- ENTERING TIM_SUTIMEINTERP ---------'
-    write(*,*) ' '
+    if(mpi_myid.eq.0) write(*,*) ' '
+    if(mpi_myid.eq.0) write(*,*) '-------- ENTERING TIM_SUTIMEINTERP ---------'
+    if(mpi_myid.eq.0) write(*,*) ' '
 
     ! Compute the number of step obs over a 6 hours assimilation window
-    write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
+    if(mpi_myid.eq.0) write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
 
     if(associated(timeInterpWeight)) deallocate(timeInterpWeight)
     allocate(timeInterpWeight(obs_numHeader(lobsSpaceData),mxstepobs))
@@ -84,10 +85,10 @@ contains
                              obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
                              obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobsinc)
         if(floor(stepObsIndex).ge.tim_nstepobsinc) then
-          write(*,*) 'stepObsIndex too big=',jobs,stepObsIndex
+          write(*,*) 'tim_sutimeinterp: stepObsIndex too big=',jobs,stepObsIndex
           call tim_setTimeInterpWeight(1.0d0,jobs,tim_nstepobsinc)
         elseif(floor(stepObsIndex).le.0) then
-          write(*,*) 'stepObsIndex too small=',jobs,stepObsIndex
+          write(*,*) 'tim_sutimeinterp: stepObsIndex too small=',jobs,stepObsIndex
           call tim_setTimeInterpWeight(1.0d0,jobs,1)
         else
           call tim_setTimeInterpWeight(1.0d0-(stepObsIndex-floor(stepObsIndex)),jobs,floor(stepObsIndex))
@@ -97,9 +98,9 @@ contains
 
     enddo
 
-    write(*,*) ' '
-    write(*,*) '-------- END OF TIM_SUTIMEINTERP ---------'
-    write(*,*) ' '
+    if(mpi_myid.eq.0) write(*,*) ' '
+    if(mpi_myid.eq.0) write(*,*) '-------- END OF TIM_SUTIMEINTERP ---------'
+    if(mpi_myid.eq.0) write(*,*) ' '
 
   end subroutine tim_sutimeinterp
 

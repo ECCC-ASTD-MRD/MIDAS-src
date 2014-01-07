@@ -106,7 +106,7 @@ CONTAINS
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namben,iostat=ierr)
     if(ierr.ne.0) call abort3d('ben_setup: Error reading namelist')
-    write(*,nml=namben)
+    if(mpi_myid.eq.0) write(*,nml=namben)
     ierr=fclos(nulnam)
 
     !
@@ -116,11 +116,11 @@ CONTAINS
 
     !- 2.1 Global or LAM?
     if (hco_ben % global) then
-      write(*,*)
-      write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
+      if(mpi_myid.eq.0) write(*,*)
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
     else
-      write(*,*)
-      write(*,*) 'bmatrixEnsemble: LAM mode activated'
+      if(mpi_myid.eq.0) write(*,*)
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: LAM mode activated'
     end if
 
     !- 2.1 Bmatrix Weight
@@ -133,7 +133,7 @@ CONTAINS
     end do
 
     if ( sum(scaleFactor(1:nLevEns)) == 0.0d0 ) then
-      write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
       cvdim_out=0
       initialized = .true.
       return
@@ -153,8 +153,8 @@ CONTAINS
     end if
 
     if(nLevEns.lt.nLevInc_in) then
-      write(*,*) 'bmatrixEnsemble: ensemble has less levels than increment'
-      write(*,*) '                 some levels near top will have zero increment'
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: ensemble has less levels than increment'
+      if(mpi_myid.eq.0) write(*,*) '                 some levels near top will have zero increment'
     end if
 
     nLevInc=nLevInc_in
@@ -230,7 +230,7 @@ CONTAINS
 
       mpiMode=3
       gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode,nEns)
-      write(*,*) 'BEN : returned value of gstID = ',gstID
+      if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
 
       allocate(jn_vec(nla_l),stat=ierr)
       if(ierr.ne.0) then
@@ -251,7 +251,7 @@ CONTAINS
                        ni_l, nj_l, hco_ben % dlon, ntrunc_l, & ! IN
                        'LatLev', nEns )                        ! IN
 
-       write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
+       if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
        nphase = lst_ben % nphase
        nla_l  = lst_ben % nla
 
@@ -384,7 +384,7 @@ CONTAINS
     ierr = newdate(stamp_last,ndate,ntime,-3)
     write(datestr_last,'(i8.8)') ndate
     write(hourstr_last,'(i2.2)') ntime/1000000
-    write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
+    if(mpi_myid.eq.0) write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
 
     if(ntime_l.eq.1) then
       call incdatr(idateo(1),stamp_in, 0.0d0)
@@ -415,7 +415,7 @@ CONTAINS
     cltypvar = ' '
     cletiket = ' '
 
-    write(*,*) 'idateo=',idateo(1:ntime_l)
+    if(mpi_myid.eq.0) write(*,*) 'idateo=',idateo(1:ntime_l)
 
     do memberIndex=1,nEns
       if(mpi_myid.eq.readFilePE(memberIndex)) then
@@ -712,7 +712,7 @@ CONTAINS
     ierr = newdate(stamp_last,ndate,ntime,-3)
     write(datestr_last,'(i8.8)') ndate
     write(hourstr_last,'(i2.2)') ntime/1000000
-    write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
+    if(mpi_myid.eq.0) write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
 
     if(ntime_l.eq.1) then
       call incdatr(idateo(1),stamp_in, 0.0d0)
@@ -743,7 +743,7 @@ CONTAINS
     cltypvar = ' '
     cletiket = ' '
 
-    write(*,*) 'idateo=',idateo(1:ntime_l)
+    if(mpi_myid.eq.0) write(*,*) 'idateo=',idateo(1:ntime_l)
 
     if (hco_ben % global) then
       ! latitude band is reverse order as proc id due to north-south flip
@@ -1041,7 +1041,7 @@ CONTAINS
         local_length(jk)= ( hLocalize(1)*( log(pressureProfile(jk     ))-log(pressureProfile(1 )) ) +    &
                             hLocalize(2)*( log(pressureProfile(nLevEns))-log(pressureProfile(jk)) ) ) /  &
                           ( log(pressureProfile(nLevEns))-log(pressureProfile(1)) )
-        write(*,*) 'bmatrixEnsemble: localization length scale (',jk,') = ',local_length(jk)
+        if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: localization length scale (',jk,') = ',local_length(jk)
       end do      
     end if 
 
@@ -1083,7 +1083,7 @@ CONTAINS
     !
     !- 4.  Ending
     !
-    write(*,*)'done setting up localization function'
+    if(mpi_myid.eq.0) write(*,*)'done setting up localization function'
 
     return
   END SUBROUTINE setupLocalization
@@ -1181,11 +1181,12 @@ CONTAINS
           zpole = zpole + ensLocalCor(jn,jk)*sqrt((2.*jn+1.)/2.)
         end do
         if(zpole.le.0.) then
-          write(*,*)'POLE VALUE NEGATIVE IN SUMASK jk=',jk
+          write(*,*)'POLE VALUE NEGATIVE IN setupGlobalHLoc jk=',jk
+          call abort3d('setupGlobalHLoc')
         end if
         do jn = 0, ntrunc_l
           ensLocalCor(jn,jk) = ensLocalCor(jn,jk)/zpole
-          !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+          !write(*,*) 'setupGlobalHLoc: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
         end do
       end do
 
@@ -1193,7 +1194,7 @@ CONTAINS
       do jk=1,nLevEns
         do jn=0,ntrunc_l
           ensLocalCor(jn,jk)=sqrt(0.5*ensLocalCor(jn,jk)*((2.0/(2.0*jn+1.0))**0.5))
-          !write(*,*) 'SUMASK: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
+          !write(*,*) 'setupGlobalHLoc: ENSLOCALCOR',jk,jn,ensLocalCor(jn,jk)
         end do
       end do
 
@@ -1537,17 +1538,17 @@ CONTAINS
     character(len=19)   :: kind
 
     if(.not. initialized) then
-      write(*,*) 'bMatrixEnsemble not initialized'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble not initialized'
       return
     end if
 
     if(sum(scaleFactor).eq.0.0d0) then
-      write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrt'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrt'
       return
     end if
 
-    write(*,*) 'ben_bsqrt: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrt: starting'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(incrementLocal(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
     if(ierr.ne.0) then
@@ -1654,8 +1655,8 @@ CONTAINS
 
     deallocate(incrementLocal)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'ben_bsqrt: done'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrt: done'
 
     return
   END SUBROUTINE BEN_BSqrt
@@ -1682,17 +1683,17 @@ CONTAINS
     character(len=19)   :: kind
 
     if(.not. initialized) then
-      write(*,*) 'bMatrixEnsemble not initialized'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble not initialized'
       return
     end if
 
     if(sum(scaleFactor).eq.0.0d0) then
-      write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
       return
     end if
 
-    write(*,*) 'ben_bsqrtad: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrtad: starting'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(incrementLocal(ni_l,nkgdimEns,myLatBeg:myLatEnd,ntime_l),stat=ierr)
     if(ierr.ne.0) then
@@ -1787,8 +1788,8 @@ CONTAINS
 
     deallocate(incrementLocal)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'ben_bsqrtad: done'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrtad: done'
 
     return
   END SUBROUTINE BEN_BSqrtAd

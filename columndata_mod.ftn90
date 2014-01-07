@@ -1,4 +1,5 @@
 module columnData_mod
+  use mpi
   use varNameList_mod
   use verticalCoord_mod
   use MathPhysConstants_mod
@@ -52,10 +53,10 @@ module columnData_mod
       CHARACTER(len=4) :: CMVONEED(VNL_NUMVARMAX)
       NAMELIST /NAMSTATEO/CMVONEED,rhumin
 
-      write(*,*) 'col_setup: List of known (valid) variable names'
-      write(*,*) 'col_setup: varNameList3D=',varNameList3D
-      write(*,*) 'col_setup: varNameList2D=',varNameList2D
-      write(*,*) 'col_setup: varNameList  =',varNameList
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: List of known (valid) variable names'
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList3D=',varNameList3D
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList2D=',varNameList2D
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList  =',varNameList
 
 !     Read NAMELIST NAMSTATEO to find which fields are needed
 
@@ -66,7 +67,7 @@ module columnData_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstateo,iostat=ierr)
       if(ierr.ne.0) call abort3d('col_setup: Error reading namelist')
-      write(*,nml=namstateo)
+      if(mpi_myid.eq.0) write(*,nml=namstateo)
       ierr=fclos(nulnam)
 
       nvo3d  = 0
@@ -90,11 +91,11 @@ module columnData_mod
         endif
       enddo
 
-      write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
-      write(*,*) 'col_setup: nmvoexist =',nmvoexist
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: nmvoexist =',nmvoexist
 
-      WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-      WRITE(*,FMT=9120) NVO3D,NVO2D
+      if(mpi_myid.eq.0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
+      if(mpi_myid.eq.0) WRITE(*,FMT=9120) NVO3D,NVO2D
  9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6)
 
       CONTAINS
@@ -142,7 +143,7 @@ module columnData_mod
         column%mpi_local=mpi_local
       else
         column%mpi_local=.true.
-        write(*,*) 'col_allocate: assuming columnData is mpi-local'
+        if(mpi_myid.eq.0) write(*,*) 'col_allocate: assuming columnData is mpi-local'
       endif
 
       if(.not.column%vco%initialized) then
@@ -210,9 +211,9 @@ module columnData_mod
 
       endif
  
-      write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
-      write(*,*) 'col_allocate: varOffset=',column%varOffset
-      write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+      if(mpi_myid.eq.0) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+      if(mpi_myid.eq.0) write(*,*) 'col_allocate: varOffset=',column%varOffset
+      if(mpi_myid.eq.0) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
       column%allocated=.true.
 
@@ -402,7 +403,7 @@ module columnData_mod
         column_global%xpos(iobs_global)                = column_local%xpos(iobs_local)
       enddo
 
-      write(*,*) 'starting allreduce'
+      if(mpi_myid.eq.0) write(*,*) 'starting allreduce'
 
       nsize=size(column_global%all)
       call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
@@ -432,8 +433,7 @@ module columnData_mod
 
       deallocate(mountain)
 
-      write(*,*) 'Leaving col_expandToMpiGlobal' 
-      return
+      if(mpi_myid.eq.0) write(*,*) 'Leaving col_expandToMpiGlobal' 
 
     END SUBROUTINE col_expandToMpiGlobal
 

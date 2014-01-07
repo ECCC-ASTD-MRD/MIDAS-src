@@ -64,7 +64,7 @@ c     Reject observed elements too far below the surface. Pressure values
 c     for elements slightly below the surface are replaced by the surface
 c     pressure values of the trial field.
 c
-c     GB-GPS (met and ZTD) observations are processed in s/r SOBSSFC (in sobs_all.ftn90)
+c     GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in filterobs_mod.ftn90)
 c
       call filt_topo(lcolumnhr,lobsSpaceData)
 c

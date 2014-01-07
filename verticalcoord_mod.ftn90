@@ -1,5 +1,6 @@
 module verticalCoord_mod
 
+  use mpi
   use Vgrid_Descriptors
   implicit none
 
@@ -89,8 +90,8 @@ module verticalCoord_mod
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
       if ( ierr .eq. 0 ) then
-        write(*,*) ' TEMPLATEFILE=', templatefile
-        write(*,*) ' opened as unit file ',nultemplate
+        if(mpi_myid.eq.0) write(*,*) ' TEMPLATEFILE=', templatefile
+        if(mpi_myid.eq.0) write(*,*) ' opened as unit file ',nultemplate
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
         call abort3d('vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!')
@@ -107,15 +108,13 @@ module verticalCoord_mod
   
     stat = vgd_new(tf_vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
     if(stat.ne.VGD_OK)then
-      print*,'ERROR with vgd_new'
-      call exit(1)
+      call abort3d('ERROR with vgd_new')
     endif
 
     ! Print out vertical structure 
-    stat = vgd_print(tf_vco%vgrid)
+    if(mpi_myid.eq.0) stat = vgd_print(tf_vco%vgrid)
     if(stat.ne.VGD_OK)then
-      print*,'ERROR with vgd_print'
-      call exit(1)
+      call abort3d('ERROR with vgd_print')
     endif
     !==========================================================================
     ! Get version of the vertical coordinate
@@ -123,8 +122,7 @@ module verticalCoord_mod
     stat = 0
     stat = vgd_get(tf_vco%vgrid,key='ig_1 - vertical coord code',value=ivcode)
     if(stat.ne.VGD_OK) then
-      print*,"vco: problem with vgd_get: key='ig_1 - vertical coord code'"
-      return
+      call abort3d('vco: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
 
     !ivcode = kind*1000 + version 
@@ -135,7 +133,7 @@ module verticalCoord_mod
     if(ivcode.eq.5001) tf_vco%svcod='gemhyb'   ! unstaggered hybride vertical coord 
     if(ivcode.eq.5002) tf_vco%svcod='gemstg'   ! staggered hybride vertical coord
       
-    print*,'vco: vcode,kind,cvcod ',ivcode,tf_vco%ikind,tf_vco%svcod
+    if(mpi_myid.eq.0) write(*,*) 'vco: vcode,kind,cvcod ',ivcode,tf_vco%ikind,tf_vco%svcod
 
     !==========================================================================
     ! Set the number of vertical levels and allocate tf_vco arrays
@@ -143,10 +141,10 @@ module verticalCoord_mod
     stat = 0
     stat = vgd_get(tf_vco%vgrid,key='nl_m - number of momentum levels',value=tf_vco%nlev_M)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get nl_m vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get nl_m vgd_ok= ',VGD_OK
     stat = vgd_get(tf_vco%vgrid,key='nl_t - number of momentum levels',value=tf_vco%nlev_T)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get nl_t vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get nl_t vgd_ok= ',VGD_OK
     
     call vco_allocate(tf_vco)
 
@@ -157,43 +155,42 @@ module verticalCoord_mod
     stat = 0
     stat = vgd_get(tf_vco%vgrid,key='ca_m - vertical a coefficient (m)',value=tf_vco%da_M)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get ca_m vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ca_m vgd_ok= ',VGD_OK
     stat = vgd_get(tf_vco%vgrid,key='ca_t - vertical a coefficient (t)',value=tf_vco%da_T)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get ca_t vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ca_t vgd_ok= ',VGD_OK
     !
     stat = vgd_get(tf_vco%vgrid,key='cb_m - vertical b coefficient (m)',value=tf_vco%db_M)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get cb_m vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get cb_m vgd_ok= ',VGD_OK
     stat = vgd_get(tf_vco%vgrid,key='cb_t - vertical b coefficient (t)',value=tf_vco%db_T)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get cb_t vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get cb_t vgd_ok= ',VGD_OK
     !
     stat = vgd_get(tf_vco%vgrid,key='vipm - vertical levels (m)',value=my_ip1)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get ip1m vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ip1m vgd_ok= ',VGD_OK
     !
     stat = vgd_get(tf_vco%vgrid,key='ptop - pressure at top level (m)',value=dl_ptM)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get ptm vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ptm vgd_ok= ',VGD_OK
     !
     stat = vgd_get(tf_vco%vgrid,key='pref - reference pressure (m)',value=dl_pref)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get vipm vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get vipm vgd_ok= ',VGD_OK
     !
     stat = vgd_get(tf_vco%vgrid,key='rc_1 - coefficient value for rectification (m)',value=dl_rcf1)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get vipm vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get vipm vgd_ok= ',VGD_OK
     !
     if(stat.ne.0) then
-      print*,'vco: problem with vgd_get'
-      return
+      call abort3d('vco: problem with vgd_get')
     endif
 
     if(size(tf_vco%da_M).gt.0 .and. size(tf_vco%db_M).gt.0 .and. size(my_ip1).gt.0 )then 
-      print*,'vco: size(a,b,ip1)(m)= ',size(tf_vco%da_M),size(tf_vco%db_M),size(my_ip1)
+      if(mpi_myid.eq.0) write(*,*) 'vco: size(a,b,ip1)(m)= ',size(tf_vco%da_M),size(tf_vco%db_M),size(my_ip1)
     else
-      print*,'vco: problem with size(a,b,ip1)(m) in vgd_get'
+      if(mpi_myid.eq.0) write(*,*) 'vco: problem with size(a,b,ip1)(m) in vgd_get'
       return
     endif
 
@@ -206,11 +203,11 @@ module verticalCoord_mod
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
       tf_vco%dpt_M  = exp( tf_vco%da_M(1) + tf_vco%db_M(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
-      write(*,*) 'vco_setupFromFile: read ptop(MM)=',dl_ptM
+      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
+      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: read ptop(MM)=',dl_ptM
       tf_vco%dpt_T  = exp( tf_vco%da_T(1) + tf_vco%db_T(1)*log(100000.0/dl_pref) )
-      write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
-      write(*,*) 'vco_setupFromFile: read ptop(TH)=',dl_ptM
+      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
+      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: read ptop(TH)=',dl_ptM
     endif
     !
     ! Set to zero the non-significant digits (due to conversion from real*4)
@@ -228,12 +225,12 @@ module verticalCoord_mod
     !==========================================================================
     ! Assign values for Momentum levels
 
-    print*,'vco: size(hyb)= ',size(tf_vco%dhyb_M)
+    if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb)= ',size(tf_vco%dhyb_M)
     do jlev = 1, tf_vco%nlev_M
       tf_vco%ip1_M(jlev) = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
       tf_vco%dhyb_M(jlev) = hyb
-      print*,'vco: jlev,nk,ip1,hyb(moment)= ' & 
+      if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(moment)= ' & 
             ,jlev,tf_vco%nlev_M,tf_vco%ip1_M(jlev),tf_vco%dhyb_M(jlev)
 
       ! Devrait probablement etre enleve car avec la nouvelle facon de calculer
@@ -255,24 +252,22 @@ module verticalCoord_mod
     stat = 0
     stat = vgd_get(tf_vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
     stat = stat + VGD_OK
-    print*,'vco: vgd_get vipt vgd_ok= ',VGD_OK
+    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get vipt vgd_ok= ',VGD_OK
     if(stat.ne.0) then
-      print*,'vco: problem with vgd_get'
-      return
+      call abort3d('vco: problem with vgd_get')
     endif
 
     if(size(tf_vco%da_T).gt.0 .and. size(tf_vco%db_T).gt.0 .and. size(my_ip1).gt.0 )then 
-      print*,'vco: size(a,b,ip1)(t)= ',size(tf_vco%da_T),size(tf_vco%db_T),size(my_ip1)
+      if(mpi_myid.eq.0) write(*,*) 'vco: size(a,b,ip1)(t)= ',size(tf_vco%da_T),size(tf_vco%db_T),size(my_ip1)
     else
-      print*,'vco: problem with size(a,b,ip1)(t) in vgd_get'
-      return
+      call abort3d('vco: problem with size(a,b,ip1)(t) in vgd_get')
     endif
 
     do jlev = 1,tf_vco%nlev_T
       tf_vco%ip1_T(jlev)  = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
       tf_vco%dhyb_T(jlev) = hyb
-      print*,'vco: jlev,nk,ip1,hyb(thermo)= ' &
+      if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(thermo)= ' &
             ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
 
       if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then

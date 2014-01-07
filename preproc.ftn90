@@ -50,9 +50,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   type(struct_hco), pointer  :: hco_anl
 
   integer :: get_max_rss
-  character(len=256) :: BURP_SPLIT_VAR
-  integer :: length_burp_split, status, indexAnalysis
-  logical :: burp_split_L
 
   write(*,*) ''
   write(*,*) '-------------------------------'
@@ -68,13 +65,13 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Initialize constants
   !
-  call mpc_printConstants(6)
+  if(mpi_myid.eq.0) call mpc_printConstants(6)
 
   !
   !- Set vertical coordinate parameters from !! record in trial file
   !
-  write(*,*)''
-  write(*,*)' preproc: Set vcoord parameters for trial grid'
+  if(mpi_myid.eq.0) write(*,*)''
+  if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
   if(numAnalyses.eq.1) then
     call vco_SetupFromFile(vco_trl,'./trlm_01',.false.)
   else
@@ -96,8 +93,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Initialize the Analysis grid
   !
-  write(*,*)''
-  write(*,*)' preproc: Set hco parameters for analysis grid'
+  if(mpi_myid.eq.0) write(*,*)''
+  if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
   call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
   hco_anl => hco_Get('Analysis')
 
@@ -114,38 +111,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   if ( hco_anl % rotated ) then
     call uvr_Setup(hco_anl) ! IN 
   end if
-  
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  !
-  ! Specify the active observation-array columns
-  !
-  call obs_class_initialize(obsColumnMode)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Determine if the observation files are already split by subdomain
-  !
-  status = 0
-  burp_split_L = .false.
-  call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,status,.true.)
-  if (status.gt.1) then
-     write(*,*) 'Routine preproc: Problem when getting the environment variable ARMA_BURP_SPLIT'
-  end if
-  if (status.eq.1) then !! The variable 'ARMA_BURP_SPLIT' does not exist so we didn't split the observations
-     write(*,*) 'Routine preproc: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
-     burp_split_L = .false.
-  else
-     write(*,*) 'Routine preproc: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
-     burp_split_L = .true.
-  end if
-
-  !
-  ! Allocate memory for observation arrays
-  !
-  call obs_initialize(lobsSpaceData,mpi_local=burp_split_L)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  
   !     
   !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
   !
@@ -154,41 +120,15 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  !- Miscellaneous initializations associated with the observations
+  !- Setup and read observations
   !
-  call suobs(lobsSpaceData)
+  call suobs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
-  !- Initialize TOVS processing
-  !
-  call tovs_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Basic setup of columnData module (nouu, novv, etc. needed in suprep)
+  !- Basic setup of columnData module
   !
   call col_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Filter out data from CMA
-  !
-  call tmg_start(14,'SUPREP')
-  call suprep(lobsSpaceData)
-  call tmg_stop(14)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !     Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
-  !
-  if (.not.burp_split_L) then !! we read global observations files so we have to localized them for each MPI process
-     call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
-     call obs_reduceToMpiLocal(lobsSpaceData)
-  end if
-  if (obsMpiStrategy .eq. 'LATBANDS') then
-     call checkObsMpiIP(lobsSpaceData,burp_split_L)
-  end if
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   
   !
@@ -201,15 +141,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !- Point GZ_T,GZ_M and RPPOBS_T,RPPOBS_M and VHYB_T,VHYB_M to their unstaggered values in lcolumng
   !
   call col_pointStagToUnstag(lcolumng)
-
-  !
-  !- Memory allocation for TOVS processing
-  !
-  call tovs_nl_setupallo(lobsSpaceData)
-  if (nconf==101) call BGCK_IR_SETUP(lobsSpaceData)
-  if (nconf==141) call tovs_lin_setupallo()
-
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !- Initialize the observation error covariances

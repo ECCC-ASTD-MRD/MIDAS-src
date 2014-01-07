@@ -120,7 +120,7 @@ CONTAINS
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambhi,iostat=ierr)
     if(ierr.ne.0) call abort3d('bhi_setup: Error reading namelist')
-    write(*,nml=nambhi)
+    if(mpi_myid.eq.0) write(*,nml=nambhi)
     ierr=fclos(nulnam)
 
     do jlev=1,nflev_in
@@ -132,7 +132,7 @@ CONTAINS
     enddo
 
     if (sum(scaleFactor(1:nflev_in)).eq.0.0d0 ) then
-      write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out=0
       initialized = .true.
       return
@@ -171,7 +171,7 @@ CONTAINS
 
     mpiMode=2
     gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
-    write(*,*) 'BHI:returned value of gstID=',gstID
+    if(mpi_myid.eq.0) write(*,*) 'BHI:returned value of gstID=',gstID
     call gst_setDefaultID(gstID)
 
     call mpi_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
@@ -249,7 +249,7 @@ CONTAINS
 
     call BHI_sunewstats
     call BHI_sucorns2
-    write(*,*) 'END OF BHI_SETUP'
+    if(mpi_myid.eq.0) write(*,*) 'END OF BHI_SETUP'
 
     initialized = .true.
 
@@ -274,8 +274,7 @@ CONTAINS
         !write(6,*) ' opened as unit file ',nulbgst
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        write(*,*) 'BHI_SUNEWSTATS:NO BACKGROUND STAT FILE!!'
-        call exit(1)
+        call abort3d('BHI_SUNEWSTATS:NO BACKGROUND STAT FILE!!')
       endif
     endif
 
@@ -825,8 +824,7 @@ CONTAINS
         enddo
       enddo
     else
-      write(*,*) 'CALCCORR- Undefined correlation type'
-      call exit(1)
+      call abort3d('CALCCORR- Undefined correlation type')
     endif
 
     return
@@ -946,8 +944,7 @@ CONTAINS
       llpb =llpb.or.((zsp(jla,1,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
     enddo
     if(llpb) then
-      write(*,*)' AUTOCORRELATION  NEGATIVES'
-      call exit(1)
+      call abort3d(' AUTOCORRELATION  NEGATIVES')
     endif
     do jla = 1, ntrunc_l+1
       zsp(jla,1,1) = abs(zsp(jla,1,1))
@@ -959,8 +956,7 @@ CONTAINS
       zpole = zpole + zsp(jla,1,1)*sqrt((2.*jn+1.)/2.)
     enddo
     if(zpole.le.0.) then
-      write(*,*) 'POLE VALUE NEGATIVE IN SUTG'
-      call exit(1)
+      call abort3d('POLE VALUE NEGATIVE IN SUTG')
     endif
     do jla = 1, ntrunc_l+1
       zsp(jla,1,1) = zsp(jla,1,1)/zpole
@@ -1242,13 +1238,11 @@ CONTAINS
       istdkey = vfstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(istdkey .lt.0 ) then
-        write(*,*) 'READCORNS2: Problem with background stat file'
-        call exit(1)
+        call abort3d('READCORNS2: Problem with background stat file')
       endif
 
       if (ini .ne. iksdim) then
-        write(*,*) 'READCORNS2: BG stat levels inconsitencies'
-        call exit(1)
+        call abort3d('READCORNS2: BG stat levels inconsitencies')
       endif
 
       ! Looking for FST record parameters..
@@ -1263,13 +1257,11 @@ CONTAINS
       icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(icornskey .lt.0 ) then
-        write(*,*) 'READCORNS2: Problem with background stat file'
-        call exit(1)
+        call abort3d('READCORNS2: Problem with background stat file')
       endif
 
       if (ini .ne. iksdim .or. inj .ne. iksdim) then
-        write(*,*) 'READCORNS2: BG stat levels inconsitencies'
-        call exit(1)
+        call abort3d('READCORNS2: BG stat levels inconsitencies')
       endif
 
       do jcol = 1,nksdim2_l
@@ -1357,7 +1349,7 @@ CONTAINS
     integer, parameter  :: inbrvar3d=5
     integer, parameter  :: inbrvar2d=2
     integer jvar,jn,inix,injx,inkx
-    integer ikey, jlevo, jlat
+    integer ikey, jlevo, jlat,firstn,lastn
     real*8 zsp(0:ntrunc_l,nflev_l),zspbuf(nflev_l),zwork
     real*8 zleg(0:ntrunc_l,nj_l),zgr(nj_l,nflev_l),zgsig(1,nj_l,nflev_l),zstddev(nksdim2_l,nj_l)
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
@@ -1396,6 +1388,7 @@ CONTAINS
     do jvar = 1, inbrvar3d
       clnomvar = varName3d(jvar)
       !write(*,*)'Reading ',clnomvar
+      firstn=-1
       do jn = 0,ntrunc_l
         ip2 = jn
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -1409,19 +1402,23 @@ CONTAINS
                    ,iextr2,iextr3)
           endif
         else
-          if(mpi_myid.eq.0) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar,jn,' SETTING TO ZERO!!!'
+          if(firstn.eq.-1) firstn=jn
+          lastn=jn
           zspbuf(:)=0.0
         endif
 
         if (ini .ne. nflev_l) then
-          write(*,*) 'RDSPSTD: BG stat levels inconsitencies'
-          call exit(1)
+          call abort3d('RDSPSTD: BG stat levels inconsitencies')
         endif
 
         do jlevo = 1, nflev_l
           zsp(jn,jlevo) = zspbuf(jlevo)
         enddo
       enddo
+      if(mpi_myid.eq.0.and.firstn.ne.-1) then
+        write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
+                     ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
+      endif
 
       call zleginv2(zgr,zsp,zleg,ntrunc_l,nj_l,nflev_l,nj_l,nflev_l,ntrunc_l)
 
@@ -1476,6 +1473,7 @@ CONTAINS
     do jvar = 1, inbrvar2d
       clnomvar = varName2d(jvar)
       !write(*,*)'Reading ',clnomvar
+      firstn=-1
       do jn = 0,ntrunc_l
         ip2 = jn
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -1490,13 +1488,19 @@ CONTAINS
           endif
 
         else
-          if(mpi_myid.eq.0) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar,jn,' SETTING TO ZERO!!!'
+          if(firstn.eq.-1) firstn=jn
+          lastn=jn
           zspbuf(:)=0.0
         endif
 
         zsp(jn,1) = zspbuf(1)
 
       enddo
+      if(mpi_myid.eq.0.and.firstn.ne.-1) then
+        write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
+                     ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
+
+      endif
 
       call zleginv2(zgr,zsp,zleg,ntrunc_l,nj_l,1,nj_l,nflev_l,ntrunc_l)
 
@@ -1713,11 +1717,11 @@ CONTAINS
     real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
     integer   :: jvar, ilev1, ilev2
 
-    write(*,*) 'bhi_bsqrt: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'bhi_bsqrt: starting'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if(.not. initialized) then
-      write(*,*) 'bMatrixHI not initialized'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixHI not initialized'
       return
     endif
 
@@ -1736,8 +1740,8 @@ CONTAINS
     !    Conversion of wind images to physical winds
     call uvwi2uv(statevector)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'bhi_bsqrt: done'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'bhi_bsqrt: done'
     call flush(6)
 
   END SUBROUTINE BHI_bSqrt
@@ -1753,12 +1757,12 @@ CONTAINS
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
-      write(*,*) 'bMatrixHI not initialized'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixHI not initialized'
       return
     endif
 
-    write(*,*) 'bhi_bsqrtad: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'bhi_bsqrtad: starting'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !- Conversion of physical winds to wind images
     call uvwi2uv(statevector) ! INOUT
@@ -1775,8 +1779,8 @@ CONTAINS
 
     deallocate(gd_in)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'bhi_bsqrtad: done'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid.eq.0) write(*,*) 'bhi_bsqrtad: done'
 
   END SUBROUTINE BHI_bSqrtAd
 

@@ -1,0 +1,113 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE SUOBS(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+!
+!**s/r SUOBS  - Initialisation of observation parameters and constants
+!
+      use obsSpaceData_mod
+      use filterObs_mod  
+      use modgpsztd_mod
+      use modgpsro_mod
+      use tovs_mod
+      IMPLICIT NONE
+#include "comct0.cdk"
+
+      type(struct_obs) :: lobsSpaceData
+      character(len=*) :: obsMpiStrategy
+      character(len=*) :: obsColumnMode
+      character(len=256) :: BURP_SPLIT_VAR
+      integer :: length_burp_split, status
+      logical :: burp_split_L
+      integer :: get_max_rss
+
+      WRITE(*,FMT=9000)
+ 9000 FORMAT(/,1x,' SUOBS- Initialisation of observations',/,1x,3('- -----------'))
+
+      !
+      !- Determine if the observation files are already split by subdomain
+      !
+      status = 0
+      burp_split_L = .false.
+      call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,status,.true.)
+      if (status.gt.1) then
+        write(*,*) 'suobs: Problem when getting the environment variable ARMA_BURP_SPLIT'
+      end if
+      if (status.eq.1) then !! The variable 'ARMA_BURP_SPLIT' does not exist so we didn't split the observations
+        write(*,*) 'suobs: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
+        burp_split_L = .false.
+      else
+        write(*,*) 'suobs: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
+        burp_split_L = .true.
+      end if 
+      !
+      ! Specify the active observation-array columns
+      !
+      call obs_class_initialize(obsColumnMode)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      !
+      ! Allocate memory for observation arrays
+      !
+      call obs_initialize(lobsSpaceData,mpi_local=burp_split_L)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      !
+      ! Read the NAMELIST NAMGGPSRO
+      !
+      call sugpsro
+      !
+      ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+      !
+      call sugpsgb
+      !
+      ! Initialize TOVS processing
+      !
+      call tovs_setup
+      !
+      ! Set up the list of elements to be assimilated and flags for rejection
+      !
+      call filt_setup
+
+                                  !Select calls  BRPCMA
+                                  ! 1. Positioning of data records within ObsSpaceData
+      CALL SELECTB(lobsSpaceData) ! 2. Fill ObsSpaceData  with observation records
+                                  ! 3. Incrementation of obsSpaceData%numheader and obsSpaceData%numbody based on data selected
+
+      !
+      ! Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
+      !
+      if (.not.burp_split_L) then !! global observations files so have to localize them for each MPI process
+        call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
+        call obs_reduceToMpiLocal(lobsSpaceData)
+      end if
+      if (obsMpiStrategy .eq. 'LATBANDS') then
+        call checkObsMpiIP(lobsSpaceData,burp_split_L)
+      end if
+
+      !
+      ! Filter out data from CMA
+      !
+      call tmg_start(14,'SUPREP')
+      call filt_suprep(lobsSpaceData)
+      call tmg_stop(14)
+
+      !
+      !- Memory allocation for TOVS processing
+      !
+      call tovs_nl_setupallo(lobsSpaceData)
+      if (nconf==101) call BGCK_IR_SETUP(lobsSpaceData)
+      if (nconf==141) call tovs_lin_setupallo()
+
+      END SUBROUTINE SUOBS

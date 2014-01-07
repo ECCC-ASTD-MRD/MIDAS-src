@@ -127,7 +127,7 @@ CONTAINS
     field_ptr  => gsv_getField(statevector,varName)
 
     ! Note: We assume here the all the obs between the poles and the last grid points
-    !       (i.e. outside the grid) have been moved within the grid by suprep
+    !       (i.e. outside the grid) have been moved within the grid previously
 
     do jstep = 1, statevector % numStep
 

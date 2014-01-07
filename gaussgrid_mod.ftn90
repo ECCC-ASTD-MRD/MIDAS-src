@@ -50,17 +50,17 @@ MODULE GAUSSGRID_MOD
     !- 1.  Tests on the input grid
     !
     if ( trim(hco_in % grtyp) /= 'G' ) then
-      write(6,*)
-      write(6,*) 'gaus_SetupFromHCO: The global analysis grid structure is not from'
-      write(6,*) '                   a gaussian grid! ABORT'
-      write(6,*) 'hco_in % grtyp = ', trim(hco_in % grtyp)
+      write(*,*)
+      write(*,*) 'gaus_SetupFromHCO: The global analysis grid structure is not from'
+      write(*,*) '                   a gaussian grid! ABORT'
+      write(*,*) 'hco_in % grtyp = ', trim(hco_in % grtyp)
       stop
     end if
 
     if ( (hco_in % lat(2) - hco_in % lat(1)) > 0.0d0 ) then
-      write(6,*)
-      write(6,*) 'gaus_SetupFromHCO: The latitude of the global analysis grid '
-      write(6,*) '                   are NOT ordered from North TO South'
+      write(*,*)
+      write(*,*) 'gaus_SetupFromHCO: The latitude of the global analysis grid '
+      write(*,*) '                   are NOT ordered from North TO South'
       stop
     end if
 

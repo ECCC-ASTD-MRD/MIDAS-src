@@ -1,4 +1,5 @@
 module modgpsro_mod
+  use mpi
   use modgps04profile, only: gpsprofile
   implicit none
 !
@@ -58,9 +59,9 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSRO,iostat=ierr)
     if(ierr.ne.0) call abort3d('sugpsro: Error reading namelist')
-    write(*,nml=NAMGPSRO)
+    if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
-    write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
+    if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
 !
 !   Force a min/max values for the effective Fresnel widths per satellite:
 !

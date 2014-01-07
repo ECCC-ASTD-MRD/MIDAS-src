@@ -19,7 +19,7 @@ c
 c         variables locales
 c
       logical sscale,cold,warm
-      integer i,itmax,moderl,isim,jcour,indic,ierr
+      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
       double precision d1,t,tmin,tmax,gnorm,eps1,ff,preco,precos,ys,den,
      &    dk,dk1,ps,ps2,hp0
 c
@@ -47,6 +47,9 @@ c
       niter=0
       isim=1
       eps1=1.d+0
+c
+      call rpn_comm_allreduce(impres,impresmax,1,"mpi_integer",
+     &                        "mpi_max","GRID",ierr)
 c
       call tmg_stop(73)
       call prosca (n,g,g,ps,izs,rzs,dzs)
@@ -135,7 +138,7 @@ c
 c
 c     --- compute the angle (-g,d)
 c
-      if (warm.and.impres.ge.5) then
+      if (warm.and.impresmax.ge.5) then
           call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
           ps=dsqrt(ps)
@@ -146,7 +149,7 @@ c
           ps=dmin1(-ps,1.d+0)
           ps=dacos(ps)
           d1=ps*180.d+0/pi
-          write (io,906) sngl(d1)
+          if(impres.ge.5) write (io,906) sngl(d1)
       endif
   906 format (/" n1qn3: descent direction d: ",
      /        "angle(-g,d) = ",f5.1," degrees")
@@ -190,7 +193,8 @@ c
           tmin=max(tmin,dabs(d(i)))
 200   continue
       call tmg_start(79,'QN_COMM')
-      call rpn_comm_allreduce(tmin,tmin,1,"mpi_double_precision","mpi_max","GRID",ierr)
+      call rpn_comm_allreduce(tmin,tmin,1,"mpi_double_precision",
+     &                        "mpi_max","GRID",ierr)
       call tmg_stop(79)
 
       tmin=dxmin/tmin
@@ -269,12 +273,12 @@ c
               ybar(i,jcour)=g(i)-gg(i)
 400       continue
 !$OMP END PARALLEL DO
-          if (impres.ge.5) then
+          if (impresmax.ge.5) then
               call tmg_stop(73)
               call prosca (n,sbar(1,jcour),sbar(1,jcour),ps,izs,rzs,dzs)
               call tmg_start(73,'N1QN3A')
               dk1=dsqrt(ps)
-              if (niter.gt.1) write (io,930) dk1/dk
+              if (impres.ge.5.and.niter.gt.1) write (io,930) dk1/dk
   930         format (/" n1qn3: convergence rate, s(k)/s(k-1) = ",
      /                d12.5)
               dk=dk1
@@ -334,7 +338,8 @@ c
                   ps=ps+diag(i)*aux(i)*aux(i)
   420         continue
               call tmg_start(79,'QN_COMM')
-              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision",
+     &                                "mpi_sum","GRID",ierr)
               call tmg_stop(79)
               d1=1.d0/ps
               if (impres.ge.5) then
@@ -358,7 +363,8 @@ c
                   ps=ps+gg(i)*gg(i)/diag(i)
   430         continue
               call tmg_start(79,'QN_COMM')
-              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision",
+     &                                "mpi_sum","GRID",ierr)
               call tmg_stop(79)
               den=ps
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
@@ -374,13 +380,14 @@ c
   935         format (/" >>> n1qn3-WARNING: diagonal element ",i8,
      &                 " is negative (",d10.3,"), reset to ",d10.3)
 c
-              if (impres.ge.5) then
+              if (impresmax.ge.5) then
                   ps=0.d0
                   do 440 i=1,n
                       ps=ps+diag(i)
   440             continue
                   call tmg_start(79,'QN_COMM')
-                  call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+                  call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision",
+     &                                    "mpi_sum","GRID",ierr)
                   call tmg_stop(79)
                   ps=ps/n
                   preco=ps
@@ -390,10 +397,12 @@ c
                       ps2=ps2+(diag(i)-ps)**2
   441             continue
                   call tmg_start(79,'QN_COMM')
-                  call rpn_comm_allreduce(ps2,ps2,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+                  call rpn_comm_allreduce(ps2,ps2,1,
+     &                                    "mpi_double_precision",
+     &                                    "mpi_sum","GRID",ierr)
                   call tmg_stop(79)
                   ps2=dsqrt(ps2/n)
-                  write (io,936) preco,ps2
+                  if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3,
      &                   ", sqrt(variance) = ",d10.3)
               endif
@@ -468,7 +477,7 @@ c
           if (impres.ge.1) write (io,905) niter,hp0
           goto 1000
       endif
-      if (impres.ge.5) then
+      if (impresmax.ge.5) then
           call tmg_stop(73)
           call prosca (n,g,g,ps,izs,rzs,dzs)
           ps=dsqrt(ps)
@@ -480,7 +489,7 @@ c
           ps=dacos(ps)
           d1=ps
           d1=d1*180.d0/pi
-          write (io,906) sngl(d1)
+          if (impres.ge.5) write (io,906) sngl(d1)
       endif
 c
 c---- on poursuit les iterations

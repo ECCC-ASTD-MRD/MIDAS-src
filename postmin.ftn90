@@ -264,11 +264,8 @@
       !-----Setup packing for each variable
       !
       inpak_inc  = -32                  ! 32 bits are needed by AAI
-      write(*,*)' '
       write(*,*)'************************************** '
-      write(*,*)
       write(*,*) 'PACKING for increments   is ',inpak_inc
-      write(*,*)' '
       write(*,*)'************************************** '
 
       !     
@@ -441,7 +438,7 @@
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nampost,iostat=ierr)
       if(ierr.ne.0) call abort3d('varout: Error reading namelist')
-      write(*,nml=nampost)
+      if(mpi_myid.eq.0) write(*,nml=nampost)
       ierr=fclos(nulnam)
 !
 ! reordering cppcvar for dependent variables in varout.ftn
@@ -507,7 +504,7 @@
 !*     4. Print the values
 !
       DO jvar = 1, NPPCVAR
-        WRITE(*,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5)') jvar,CPPCVAR(jvar)
+        if(mpi_myid.eq.0) WRITE(*,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5)') jvar,CPPCVAR(jvar)
       ENDDO
       RETURN
       END SUBROUTINE SUPOST
