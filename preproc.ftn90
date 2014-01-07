@@ -205,7 +205,10 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Memory allocation for TOVS processing
   !
-  call tovs_setupallo(lobsSpaceData)
+  call tovs_nl_setupallo(lobsSpaceData)
+  if (nconf==101) call BGCK_IR_SETUP(lobsSpaceData)
+  if (nconf==141) call tovs_lin_setupallo()
+
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !

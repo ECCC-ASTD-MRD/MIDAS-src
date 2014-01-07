@@ -1,0 +1,149 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+SUBROUTINE TOVS_LIN_SETUPALLO()
+#if defined (DOC)
+!
+!  s/r TOVS_LIN_SETUPALLO : Memory allocation for the lineraized radiative transfer model
+!                 variables.
+!          (original name of routine: sutovalo)
+!
+!Author  : J. Halle *CMDA/AES Oct 1999
+!    -------------------
+!     Purpose: to allocate memory for the radiative transfer model variables.
+!
+! Revision:
+!           S. Pellerin *ARMA/SMC May 2000
+!            - Fix for F90 conversion
+!           C. Chouinard *ARMA/SMC Aug 2000
+!            - remove reference to nincrem in memory allocation
+!           JM Belanger *CMDA/SMC!  aug 2000
+!            - 32 bits conversion
+!           J. Halle *CMDA/AES  dec 2000
+!            - adapt to TOVS level 1b.
+!           J. Halle CMDA/SMC May 2002
+!            - adapt to RTTOV-7 code
+!           J. Halle CMDA/SMC Feb 2003
+!            - add codtyp for AMSUB (=181).
+!           J. Halle CMDA/SMC Nov 2004
+!            - adapt to RTTOV-8;
+!            - convert to Fortran 90.
+!           A. Beaulne CMDA/SMC June 2006
+!            - modifications for AIRS
+!            - allocation of ozone profiles
+!           R. Sarrazin  CMDA   April 2008
+!            - adapt to CSR
+!           S. Heilliette
+!            - adapt to IASI
+!            - adapt to rttov 10.0 (october 2010)
+!           S. Macpherson
+!            - adapt to ATMS (codtyp 192)
+!           S.  Heilliette
+!            - adapt to CrIS (codtyp 193)
+#endif
+
+  Use tovs_mod  
+  use obsSpaceData_mod
+
+  IMPLICIT NONE
+#include "rttov_setup.interface"
+#include "rttov_alloc_prof.interface"
+!implicits
+
+  Integer :: alloc_status(2)
+  Integer :: setup_errorstatus ! setup return code
+
+  INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM
+
+  INTEGER ::  JO
+  INTEGER ::  ISENS, NC, NL
+  INTEGER ::  ERRORSTATUS,ASW
+
+!-----------------------------------------------------------------------
+
+
+!     1. Memory allocation for radiative tranfer model variables
+!     .  -----------------------------------------------------
+
+!___ profiles
+
+  alloc_status(:) = 0
+
+  allocate(profiles_tl(NOBTOV)      , stat= alloc_status(1))
+  allocate(profiles_ad(NOBTOV)      , stat= alloc_status(2))
+  
+  If( any(alloc_status /= 0) ) then
+     WRITE(*,FMT=9201)
+     WRITE(*,*) alloc_status(1:2)
+9201 FORMAT(' TOVS_LIN_SETUPALLO: Memory Allocation Error')
+     CALL ABORT3D('TOVS_LIN_SETUPALLO')
+  End If
+
+  print *,"TOVS_LIN_SETUPALLO NOBTOV",NOBTOV
+  asw=1
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nl = coefs(isens)%coef % nlevels
+     ! allocate model tl profiles atmospheric arrays with RTTOV levels dimension
+     call rttov_alloc_prof(errorstatus,1,profiles_tl(jo),nl, &
+          opts(isens),asw,coefs=coefs(isens),init=.false. )
+     if (errorstatus/=0) THEN
+        Write(*,*) "Error in profiles_tl allocation",errorstatus
+        CALL ABORT3D('TOVS_LIN_SETUPALLO')
+     endif
+
+     ! allocate model ad profiles atmospheric arrays with RTTOV levels dimension
+     call rttov_alloc_prof(errorstatus,1,profiles_ad(jo),nl, &
+          opts(isens),asw,coefs=coefs(isens),init=.false. )
+     if (errorstatus/=0) THEN
+        Write(*,*) "Error in profiles_ad allocation",errorstatus
+        CALL ABORT3D('TOVS_LIN_SETUPALLO')
+     endif
+
+  end do
+
+!___ radiance by profile
+
+  alloc_status(:) = 0
+  
+  allocate( radiance_tl(NOBTOV),stat= alloc_status(1))
+  allocate( radiance_ad(NOBTOV),stat= alloc_status(2))
+
+  If( any(alloc_status /= 0) ) then
+     WRITE(*,FMT=9201)
+     WRITE(*,*) alloc_status(1:2)
+     CALL ABORT3D('TOVS_LIN_SETUPALLO')
+  End If
+
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nc = nchan(isens)
+     nl = coefs(isens) % coef % nlevels
+     !! allocate BT equivalent to tl and ad radiance output
+     alloc_status(:) = 0
+     allocate( radiance_tl(jo) % bt  ( nc ) ,stat= alloc_status(1))
+     allocate( radiance_ad(jo) % bt  ( nc ) ,stat= alloc_status(2))
+     radiance_tl(jo) % bt  ( : ) = 0.d0
+     radiance_ad(jo) % bt  ( : ) = 0.d0
+     
+     If( any(alloc_status /= 0) ) then
+         WRITE(*,FMT=9201)
+         WRITE(*,*) alloc_status(1:2)
+         CALL ABORT3D('TOVS_LIN_SETUPALLO')
+     End If
+  end do
+
+END SUBROUTINE TOVS_LIN_SETUPALLO
