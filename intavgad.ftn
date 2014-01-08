@@ -112,8 +112,8 @@ C
 C --- Apply weighted averaging 
 C
       ZLNPO(1:KNO)=LOG(PPO(1:KNO))
-      ZPG(1:KNI,:)=0.0
-      PVI(:,:)=0.0
+      ZPG(1:KNI,:)=0.0D0
+      PVI(:,:)=0.0D0
 C
       DO JN = 1, KNPROF
         DO JI = 1, KNI

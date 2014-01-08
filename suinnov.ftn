@@ -36,13 +36,13 @@
 *
 *    -------------------
 *
+      use topLevelControl_mod
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod
       use filterObs_mod
       use timeCoord_mod
       IMPLICIT NONE
-#include "comct0.cdk"
 c
       type(struct_columnData) :: lcolumnhr,lcolumng
       type(struct_obs) :: lobsSpaceData
@@ -70,7 +70,7 @@ c
 c
 c     Remove surface station wind observations
 c
-      IF(NCONF .EQ. 141) CALL SFCWNDZAP(lobsSpaceData)
+      IF( top_AnalysisMode() ) CALL SFCWNDZAP(lobsSpaceData)
 c
 c     Find interpolation layer in model profiles 
 c

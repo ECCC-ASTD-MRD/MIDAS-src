@@ -21,7 +21,7 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
   real(8) :: lat_r8, lon_r8
 
   real    :: lat_r4, lon_r4
-  real    :: xpos, ypos
+  real    :: xpos_r4, ypos_r4
 
   integer :: headerIndex
   integer :: latindex
@@ -47,13 +47,13 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
         lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
         lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
         ierr = gdxyfll( hco_anl % EZscintID, & ! IN 
-                        xpos, ypos,          & ! OUT
+                        xpos_r4, ypos_r4,    & ! OUT
                         lat_r4, lon_r4, 1 )    ! IN
         if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
           ! Revert latitudes since gdxyfll does not handle properly this grid type
-          ypos = real(hco_anl % nj,4) - ypos + 1.0
+          ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
         end if
-        latindex = floor(ypos)
+        latindex = floor(ypos_r4)
 
         IP = ( mpi_nprocs * (latindex-1) ) / hco_anl % nj
 

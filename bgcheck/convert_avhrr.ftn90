@@ -34,7 +34,7 @@ REAL (8) , INTENT(IN) :: sunzen
 REAL (8) , INTENT(out),dimension(nvis) :: reflect ! reflectivite en %
 !************
 REAL (8) ,DIMENSION(NVIS) :: SOLAR_FILTERED_IRRADIANCE
-DATA SOLAR_FILTERED_IRRADIANCE /139.873215,232.919556,14.016470/
+DATA SOLAR_FILTERED_IRRADIANCE /139.873215D0,232.919556D0,14.016470D0/
 !# equivalent widths, integrated solar irradiance,  effective central wavelength
 !0.084877,139.873215,0.632815
 !0.229421,232.919556,0.841679
@@ -46,10 +46,10 @@ integer :: i
 !**************************************************************
 
 Do i = 1, nvis
-   if (rad(i)>= 0.0 ) THEN
-      radb=rad(i) / 1000.0
+   if (rad(i)>= 0.0D0 ) THEN
+      radb=rad(i) / 1000.0D0
       reflect(i)=(MPC_PI_R8*radb)/SOLAR_FILTERED_IRRADIANCE(I)
-      IF (sunzen < 90.0 ) reflect(i)= reflect(i) / COS(sunzen*MPC_RADIANS_PER_DEGREE_R8)
+      IF (sunzen < 90.0D0 ) reflect(i)= reflect(i) / COS(sunzen*MPC_RADIANS_PER_DEGREE_R8)
    else
       reflect(i)=-1
    end if

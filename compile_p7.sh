@@ -48,7 +48,7 @@ fi
 
 trunkdir=$PWD
 
-# automatically set the global revision number in comct0.cdk by
+# automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
 revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
 revnum=$(ssh pollux "cd $trunkdir;  svnversion")
@@ -57,7 +57,7 @@ echo "-----------------------"
 echo "Revision number='$revnum' '$revpath'"
 echo "-----------------------"
 echo " "
-cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comct0.cdk
+cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
 
 ARMNLIB=${ARMNLIB:-/home/dormrb02/ibmenv/armnlib}
 
@@ -127,7 +127,8 @@ if [ $mode == full ] ; then
   rm -f $SRC0
 
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
+  SRC0="toplevelcontrol_mod.ftn90"
+  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
   SRC0="$SRC0 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
   grep fail listing0a
@@ -141,7 +142,7 @@ if [ $mode == full ] ; then
 
   echo "compiling most of the new modules"
   SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
-  SRC1="$SRC1 globalspectraltransform_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90"
+  SRC1="$SRC1 globalspectraltransform_mod.ftn90 varnamelist_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 columndata_mod.ftn90 gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"

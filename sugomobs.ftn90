@@ -73,7 +73,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   integer, allocatable :: datestamplist(:)
   integer :: numColumn_maxmpiglobal
 
-  real :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xposLowerBoundAnl, xposUpperBoundAnl
+  real :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
   real*8 :: lat_r8,lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
   
   character(len=2) :: flnum
@@ -195,11 +195,11 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   hco_anl => hco_Get('Analysis')
 
   if ( hco_anl % global ) then
-    xposLowerBoundAnl = - huge(1.0) ! no limit since grid is global (periodic)
-    xposUpperBoundAnl = + huge(1.0) ! no limit since grid is global (periodic)
+    xposLowerBoundAnl_r4 = - huge(1.0) ! no limit since grid is global (periodic)
+    xposUpperBoundAnl_r4 = + huge(1.0) ! no limit since grid is global (periodic)
   else
-    xposLowerBoundAnl = 1.0
-    xposUpperBoundAnl = real(hco_anl % ni)
+    xposLowerBoundAnl_r4 = 1.0
+    xposUpperBoundAnl_r4 = real(hco_anl % ni)
   end if
 
   !
@@ -241,7 +241,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
                obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
 
           ! put the obs in the first time bin (it has to go somewhere!)
-          stepObsIndex=1.0
+          stepObsIndex=1.0d0
 
           ! flag it as out of time domain and turn off its assimilation flag
           idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
@@ -263,8 +263,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
           lon_r8=obs_headElem_r(lobsSpaceData,OBS_LON,jobs)
           lat_r4=real(lat_r8)
           lon_r4=real(lon_r8)
-          if (lon_r4.lt.0           ) lon_r4 = lon_r4 + 2*MPC_PI_R4
-          if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2*MPC_PI_R4
+          if (lon_r4.lt.0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
+          if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
 
           lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
           lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
@@ -281,9 +281,9 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
           end if
 
           !- Test if the obs is outside the analysis grid
-          if ( xpos_r4 < xposLowerBoundAnl  .or. &
-               xpos_r4 > xposUpperBoundAnl  .or. &
-               ypos_r4 < 1.0                .or. &
+          if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
+               xpos_r4 > xposUpperBoundAnl_r4  .or. &
+               ypos_r4 < 1.0                   .or. &
                ypos_r4 > real(hco_anl % nj) ) then
 
             if ( hco_anl % global ) then
@@ -367,10 +367,10 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
  
             dlonfld(nobs(jstep)) = lon_r8
             dlatfld(nobs(jstep)) = lat_r8
-            if(dlonfld(nobs(jstep)).lt.0)  &
+            if(dlonfld(nobs(jstep)).lt.0.0d0)  &
                  dlonfld(nobs(jstep)) = dlonfld(nobs(jstep)) +  &
                  2*MPC_PI_R8
-            if(dlonfld(nobs(jstep)).ge.2.*MPC_PI_R8)  &
+            if(dlonfld(nobs(jstep)).ge.2.0d0*MPC_PI_R8)  &
                  dlonfld(nobs(jstep)) =dlonfld(nobs(jstep)) -  &
                  2*MPC_PI_R8
             dlonfld(nobs(jstep))=dlonfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
@@ -705,8 +705,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       character(len=*),optional :: varType_in
       character(len=2) :: varType,varName
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
-      real*4, allocatable :: varTrial(:,:),varTrial_VV(:,:)
-      real*4, allocatable :: varTrial_zero(:,:)
+      real*4, allocatable :: varTrial_r4(:,:),varTrial_VV_r4(:,:)
+      real*4, allocatable :: varTrial_zero_r4(:,:)
       real*8, allocatable :: varInterp(:,:,:),varInterp_VV(:,:,:)
       real*8, allocatable :: varInterp2(:),varInterp2_VV(:)
       real*8, allocatable :: varInterp_recv(:,:),varInterp_recv_VV(:,:)
@@ -766,16 +766,16 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
 
       !
 
-      allocate(varTrial(ni,nj))
-      allocate(varTrial_VV(ni,nj))
-      allocate(varTrial_zero(ni,nj))
+      allocate(varTrial_r4(ni,nj))
+      allocate(varTrial_VV_r4(ni,nj))
+      allocate(varTrial_zero_r4(ni,nj))
       allocate(varInterp(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
       allocate(varInterp_VV(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
       allocate(varInterp2(maxval(nobs_mpiglobal)))
       allocate(varInterp2_VV(maxval(nobs_mpiglobal)))
       allocate(varInterp_recv(maxval(nobs_mpiglobal),nlevel))
       allocate(varInterp_recv_VV(maxval(nobs_mpiglobal),nlevel))
-      varTrial_zero(:,:) = 0.0d0
+      varTrial_zero_r4(:,:) = 0.0
 
       ! in the case that not all variable have the same etiket or typvar
       ! (this is necessary for extra 3d-var done before gen_coeff)
@@ -800,7 +800,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
               call abort3d('SUGOMOBS: unknown varType')
             endif
 
-            ierr=fstlir(varTrial(:,:),nultrl(jstep),ni,nj,ink,  &
+            ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
                         datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                         cltypvar,varName)
 
@@ -810,7 +810,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
             end if
 
             if(varName.eq.'UU') then
-              ierr=fstlir(varTrial_VV(:,:),nultrl(jstep),ni,nj,ink,  &
+              ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,ink,  &
                           datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                           cltypvar,'VV')
               if(ierr.lt.0)then
@@ -827,11 +827,11 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
 
                   ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
                                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
-                                   varTrial,varTrial_zero,  &
+                                   varTrial_r4,varTrial_zero_r4,  &
                                    nobs_mpiglobal(jstep,jlatband),ni*nj)
                   ierr = vezuvint2(varInterp2(1:nobs_mpiglobal(jstep,jlatband)),  &
                                    varInterp2_VV(1:nobs_mpiglobal(jstep,jlatband)),  &
-                                   varTrial_zero,varTrial_VV,  &
+                                   varTrial_zero_r4,varTrial_VV_r4,  &
                                    nobs_mpiglobal(jstep,jlatband),ni*nj)
 
                   varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) =  &
@@ -843,7 +843,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
 
                 else
                   ierr = vezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
-                                  varTrial,  &
+                                  varTrial_r4,  &
                                   nobs_mpiglobal(jstep,jlatband),1,1,ni,nj,1)
                 endif
               endif
@@ -908,8 +908,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
 
       enddo !jstep
 
-      deallocate(varTrial,varTrial_VV)
-      deallocate(varTrial_zero)
+      deallocate(varTrial_r4,varTrial_VV_r4)
+      deallocate(varTrial_zero_r4)
       deallocate(varInterp,varInterp_VV)
       deallocate(varInterp_recv,varInterp_recv_VV)
 

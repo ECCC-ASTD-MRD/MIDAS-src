@@ -23,6 +23,7 @@
 *     Revision:
 *
 #endif
+      use topLevelControl_mod
       use mpi
       use MathPhysConstants_mod
       use controlVector_mod
@@ -31,7 +32,6 @@
       use bmatrix_mod
       use verticalCoord_mod
       IMPLICIT NONE
-#include "comct0.cdk"
       type(struct_gsv) :: statevector
       type(struct_vco), pointer :: vco_anl => null()
       real*8, pointer :: field(:,:,:)
@@ -47,7 +47,7 @@
       real*8, allocatable :: ztv(:,:,:)
       real*8, allocatable :: zgz(:,:,:)
       real*8, allocatable :: zhu(:,:,:)
-      real*4, allocatable :: ensemble(:,:,:,:)
+      real*4, allocatable :: ensemble_r4(:,:,:,:)
       character*4 clprefix
       character*10 cldate
       character*3 clmember
@@ -57,7 +57,7 @@
       INTEGER          NENKFMEM,NRANDSEED,NDATE_PTURB
       NAMELIST /NAMENKF/NENKFMEM,NRANDSEED,NDATE_PTURB,LREMOVE_MEAN
 
-      WRITE(*,FMT=9000) crevision
+      WRITE(*,FMT=9000) top_crevision
  9000 FORMAT(/,3(" *****************"),/
      S     ,10x,"-- START OF MAIN PROGRAM ENKF_PTURB: --",/
      S     ,10x,"-- Generation of the isotropic perturbations --",/
@@ -117,7 +117,7 @@ c
       call gsv_setVco(statevector,vco_anl)
       call gsv_allocate(statevector,gaus_ni,gaus_nj,1,dateStamp=nstamp,mpi_local=.false.)
       nkgdim = statevector%nk
-      allocate(ensemble(gaus_ni,statevector%nk,gaus_nj,nenkfmem))
+      allocate(ensemble_r4(gaus_ni,statevector%nk,gaus_nj,nenkfmem))
 !
 !     Allocate auxillary variables
 !
@@ -145,7 +145,7 @@ C
 
       zdum      = gasdev(-iseed)
 
-      gdmean(:,:,:) = 0.0
+      gdmean(:,:,:) = 0.0D0
       field => gsv_getField3d(statevector)
       do jmem = 1,NENKFMEM
         write(*,*) ' computing member number= ',jmem
@@ -158,7 +158,7 @@ C
         do jni     = 1,gaus_ni
           do jnj   = 1,gaus_nj
             do jnk = 1,nkgdim
-              ensemble(jni,jnk,jnj,jmem)=field(jni,jnk,jnj)
+              ensemble_r4(jni,jnk,jnj,jmem)=field(jni,jnk,jnj)
               gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj)+field(jni,jnk,jnj)
             enddo
           enddo
@@ -186,7 +186,7 @@ C
           do jmem = 1,NENKFMEM
             do jnj   = 1,gaus_nj
               do jnk = 1,nkgdim
-                ensemble(jni,jnk,jnj,jmem)=ensemble(jni,jnk,jnj,jmem)-gdmean(jni,jnk,jnj)
+                ensemble_r4(jni,jnk,jnj,jmem)=ensemble_r4(jni,jnk,jnj,jmem)-gdmean(jni,jnk,jnj)
               enddo
             enddo
           enddo
@@ -214,7 +214,7 @@ c
         do jni     = 1,gaus_ni
           do jnj   = 1,gaus_nj
             do jnk = 1,nkgdim
-              field(jni,jnk,jnj) = ensemble(jni,jnk,jnj,jmem)
+              field(jni,jnk,jnj) = ensemble_r4(jni,jnk,jnj,jmem)
             enddo
           enddo
         enddo
@@ -239,7 +239,7 @@ c
       deallocate(ztv)
       deallocate(zgz)
       deallocate(zhu)
-      deallocate(ensemble)
+      deallocate(ensemble_r4)
 
 C
 C*    0. MPI, tmg finalize

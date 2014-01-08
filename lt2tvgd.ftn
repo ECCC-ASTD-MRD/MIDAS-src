@@ -41,7 +41,7 @@ c
       do jj = 1, statevector%nj
         do jk = 1, statevector%nlev
           do ji = 1, statevector%ni
-            ptv(ji,jk,jj)=(1.+MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1))*tt_inc_ptr(ji,jk,jj,1)
+            ptv(ji,jk,jj)=(1.D0+MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1))*tt_inc_ptr(ji,jk,jj,1)
      &           + MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1)*tt_inc_ptr(ji,jk,jj,1)*hu_inc_ptr(ji,jk,jj,1)
           enddo
         enddo

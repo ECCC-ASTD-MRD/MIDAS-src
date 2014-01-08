@@ -466,10 +466,10 @@ module WindRotation_mod
     do jk = 1, knk
       pcart(1,jk) = pcart(1,jk)-pv(jk)*zfac1
       pcart(2,jk) = pcart(2,jk)-pv(jk)*zfac2
-      pv(jk) = 0.0
+      pv(jk) = 0.0d0
       pcart(2,jk) = pcart(2,jk)+pu(jk)*pcoslonob
       pcart(1,jk) = pcart(1,jk)-pu(jk)*psinlonob
-      pu(jk) = 0.0
+      pu(jk) = 0.0d0
     end do
 
   end subroutine fcartauvAdj
@@ -598,7 +598,7 @@ module WindRotation_mod
 
     integer :: ji,jj
 
-    pvec2(:) = 0.0
+    pvec2(:) = 0.0d0
     do jj = 1,kdimj
       do ji = 1,kdimi
         pvec2(ji) = pvec2(ji) + pmat(ji,jj) * pvec1(jj)

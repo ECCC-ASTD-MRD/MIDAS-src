@@ -55,21 +55,21 @@ SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
   REAL(8)    :: LEV(2)
 
       
-  LEV(1) = 222.
-  LEV(2) = 428.
+  LEV(1) = 222.D0
+  LEV(2) = 428.D0
 
 
   profiles: DO JN = 1, NPRF
 
      IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
-     IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-3. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)+3. ) THEN
+     IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-3.D0 .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)+3.D0 ) THEN
         CLDFLAG(JN) = 0
         CYCLE profiles
      END IF
 
-     IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-4. .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)-3. ) THEN
-        IF ( PTOP_EQ(JN) > 1100. ) THEN
+     IF ( BTOBS(ICHREF(JN),JN) >= TG(JN)-4.D0 .AND. BTOBS(ICHREF(JN),JN) <= TG(JN)-3.D0 ) THEN
+        IF ( PTOP_EQ(JN) > 1100.D0 ) THEN
            CLDFLAG(JN) = 1
            CYCLE profiles
         ELSE
@@ -78,14 +78,14 @@ SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
         END IF
      END IF
 
-     IF ( PTOP_EQ(JN) > 728. ) THEN
+     IF ( PTOP_EQ(JN) > 728.D0 ) THEN
         CLDFLAG(JN) = 1
         CYCLE profiles
      END IF
 
-     IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 8. ) THEN 
+     IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 8.D0 ) THEN 
         IF ( NTOP_EQ(JN) >= 3 ) THEN
-           IF ( PTOP_EQ(JN) > 73. ) THEN
+           IF ( PTOP_EQ(JN) > 73.D0 ) THEN
               CLDFLAG(JN)=1
               CYCLE profiles
            ELSE
@@ -95,7 +95,7 @@ SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
         ELSE
            CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(1))
            IF ( NINV == 1 ) THEN
-              IF ( PTOP_EQ(JN) > 222. ) THEN
+              IF ( PTOP_EQ(JN) > 222.D0 ) THEN
                  CLDFLAG(JN) = 1
                  CYCLE profiles
               ELSE
@@ -109,9 +109,9 @@ SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
         END IF
      END IF
 
-     IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 5. ) THEN
+     IF ( TG(JN)-BTOBS(ICHREF(JN),JN) > 5.D0 ) THEN
         IF ( NTOP_EQ(JN) >= 3 ) THEN
-           IF ( PTOP_EQ(JN) > 222. ) THEN
+           IF ( PTOP_EQ(JN) > 222.D0 ) THEN
               CLDFLAG(JN) = 1
               CYCLE profiles
            ELSE
@@ -121,7 +121,7 @@ SUBROUTINE GARAND1998NADON (CLDFLAG, btobs,tg,tt,gz,nlev, &
         ELSE
            CALL MONOTONIC_INVERSION (NINV, tg(jn),tt(:,jn),gz(:,jn),nlev,lev(2))
            IF ( NINV == 1) THEN
-              IF( PTOP_EQ(JN) > 428. ) THEN
+              IF( PTOP_EQ(JN) > 428.D0 ) THEN
                  CLDFLAG(JN) = 1
                  CYCLE profiles
               ELSE
@@ -183,11 +183,11 @@ contains
     INTEGER   :: NL
 
     NINVR = 0
-    IF ( PTG - PTT(NPR) < 0. ) THEN
+    IF ( PTG - PTT(NPR) < 0.D0 ) THEN
        NINVR = 1
        DO NL = NPR-1, 1, -1
           IF ( PGZ(NL) > LVL ) EXIT
-          IF ( PTT(NL+1) - PTT(NL) > 0. ) THEN
+          IF ( PTT(NL+1) - PTT(NL) > 0.D0 ) THEN
              NINVR = 0
              EXIT
           END IF

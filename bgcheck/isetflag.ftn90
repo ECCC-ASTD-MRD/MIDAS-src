@@ -72,9 +72,9 @@
          zzdcrit(3) = 25.00D0
 
          if ( kodtyp .eq. 37 ) then
-           zuvcrit(2)=25.
+           zuvcrit(2)=25.D0
          else
-           zuvcrit(2)=20.
+           zuvcrit(2)=20.D0
          endif
 !C
 !C     SET FLAG FOR HEIGHTS

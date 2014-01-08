@@ -83,7 +83,7 @@ C
             ZPT= col_getHeight(lcolumnhr,ik  ,index_header,varType)/RG
             ZPB= col_getHeight(lcolumnhr,ik+1,index_header,varType)/RG
             ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
-            ZWT  = 1. - ZWB
+            ZWT  = 1.D0 - ZWB
             if(ivnm.eq.bufr_nees) then
                call abort3d('DOBSZZZ: CANNOT ASSIMILATE ES!!!')
             endif

@@ -93,9 +93,9 @@ C
       LLCZTDE = .FALSE.
       LLRZTDE = .FALSE.
       LLFZTDE = .FALSE.
-      IF (YZTDERR .LT. 0.0) THEN
+      IF (YZTDERR .LT. 0.0D0) THEN
          LLFZTDE = .TRUE.
-      ELSE IF (YZTDERR .GT. 0.0) THEN
+      ELSE IF (YZTDERR .GT. 0.0D0) THEN
          LLCZTDE = .TRUE.
       ELSE
          LLRZTDE = .TRUE.
@@ -136,20 +136,20 @@ c
             ZVAL   = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 C         Store Psfc
             IF ( ITYP .EQ. BUFR_NEPS ) THEN
-                IF ( ZVAL .GT. 0.0 ) ZPSFC = ZVAL
+                IF ( ZVAL .GT. 0.0D0 ) ZPSFC = ZVAL
             ENDIF
 C         Set ZTDOER to constant value (if LLCZTDE); get value of ZTD, 
 C         ZTD formal error and antenna height.
             IF ( ITYP .EQ. BUFR_NEZD ) THEN
                 IF ( LLCZTDE ) THEN
-                  ZTDOER = dble(YZTDERR)
+                  ZTDOER = YZTDERR
                   ERRSET = .TRUE.
                 ENDIF
                 ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                 ZTDERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                 IF ( ZTDERR .NE. 1.0D0 ) LLFER = .TRUE.
                 IZTDJ = INDEX_BODY
-                IF ( ZVAL .GT. 0.0 ) THEN
+                IF ( ZVAL .GT. 0.0D0 ) THEN
                   ZZTD = ZVAL
                   LLZTD = .TRUE.
                 ENDIF
@@ -166,9 +166,9 @@ c      Replace formal ZTD error with real error for all ZTD to be assimilated
              IF ( .NOT. ERRSET ) THEN
 c             If Psfc is missing, estimate the pressure based on station height using
 c             hydrostatic approx. and assumed MSL pressure ZPSMSL and temperature ZTSFC
-                IF ( ZPSFC .LT. 0.0 ) THEN
+                IF ( ZPSFC .LT. 0.0D0 ) THEN
                   ZPSFC  = ZPSMSL *
-     &                (1.0-(ZGAMMA/ZTSFC)*ZLEV)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
+     &                (1.0D0-(ZGAMMA/ZTSFC)*ZLEV)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
                 ENDIF
 c               Compute the hydrostatic delay ZHD (m) from Psfc (Pa)
                 ZHD = 2.2766D-05 * ZPSFC
@@ -182,7 +182,7 @@ C             Compute ZTD error as a function of ZWD using regression coeff (SD(
 c             Take fraction ZOPEFAC of computed error and convert from mm to m.
 c             Ensure error is > ZZDERMIN and < ZZDERMAX
                 ZMINZDE = ZRCONST(imonth) + ZRCOEFF(imonth)*ZWD
-                ZMINZDE = ZMINZDE * ZOPEFAC * 0.001
+                ZMINZDE = ZMINZDE * ZOPEFAC * 0.001D0
                 IF (LLRZTDE) THEN
                   ZTDOER = MAX(ZZDERMIN, ZMINZDE)
                   ZTDOER = MIN(ZZDERMAX, ZTDOER)
@@ -199,7 +199,7 @@ C  Ensure that error is not less than formal error ZTDERR
                   IF (DEBUG .AND. ICOUNT .LE. 50) THEN
                     WRITE(*,*) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
      &               ' FORMAL ERR, OBS ERROR (mm) = ', 
-     &               ZTDERR*1000., ZTDOER*1000.
+     &               ZTDERR*1000.D0, ZTDOER*1000.D0
                   ENDIF
                   ZTDOER = MAX(ZTDOER, ZTDERR)
                 ENDIF

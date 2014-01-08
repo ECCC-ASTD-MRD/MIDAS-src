@@ -77,7 +77,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
          call abort3d('tovs_calc_jo_ad ')
       endif
 
-      radiance_ad (indxtovs) % bt(:) = 0.
+      radiance_ad (indxtovs) % bt(:) = 0.d0
 !      if (rttov_errorstatus(indxtovs) .lt. 20   ) then
          isens = lsensor(indxtovs)
 

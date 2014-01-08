@@ -234,7 +234,7 @@
       integer datestamp,inpak_inc
       real*8 zwork
       real*8, allocatable :: zbuffer(:)
-      real   zptop4, zpref4,zrcoef4,zdummy
+      real   zptop_r4, zpref_r4,zrcoef_r4
       integer nip1,nip2,nip3,ndeet,npas,nidatyp,nig1,nig2,nig3,nig4
       character(len=1)  :: cgrtyp
       character(len=2)  :: cltypinc
@@ -336,11 +336,11 @@
 !
       write(*,*) 'Writing variable HY on analysis-increment file'
 
-      zptop4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
-      zpref4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
-      zrcoef4 = statevector%vco%drcf1
+      zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
+      zpref_r4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+      zrcoef_r4 = statevector%vco%drcf1
       ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
-                                 datestamp,zptop4,zpref4,zrcoef4)
+                                 datestamp,zptop_r4,zpref_r4,zrcoef_r4)
 !
 !-----Analysis grid hybride vertical coordinate parameters
 !

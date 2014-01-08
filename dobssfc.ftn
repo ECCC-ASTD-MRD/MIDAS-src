@@ -51,8 +51,8 @@
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
-      ZGAMMA = 0.0065 / GRAV
-      zexp = 1.0/(MPC_RGAS_DRY_AIR_R8*ZGAMMA)
+      ZGAMMA = 0.0065D0 / GRAV
+      zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*ZGAMMA)
 
       ! loop over all header indices of the 'SF' family
       call obs_set_current_header_list(obsSpaceData,CDFAM)
@@ -133,7 +133,7 @@ C         below the model height
             ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(columnhr,
      &              col_getNumLev(COLUMNHR,varType),
      &              INDEX_HEADER,varType))
-            ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(columnhr,
+            ZTVG = (1.0D0 + MPC_DELTA_R8 * EXP(col_getElem(columnhr,
      &              col_getNumLev(COLUMNHR,'TH'),
      &              INDEX_HEADER,'HU')))*
      &              col_getElem(columnhr,

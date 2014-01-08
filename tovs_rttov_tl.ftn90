@@ -288,7 +288,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 
        knpf_tot = knpf_tot + knpf_th(ith)
 
-       surfem1_th (:,ith) = 0.
+       surfem1_th (:,ith) = 0.d0
 
        len_nchannels = nchannels_th(ith)/knpf_th(ith)
        ioffset=len_nchannels*(knpf_tot-knpf_th(ith))
@@ -299,10 +299,10 @@ subroutine tovs_rttov_tl(lobsSpaceData)
              if ( isurface .eq. 0 .or. &
                   isurface .eq. 2      ) then
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
-                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75
+                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75d0
              else
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.
+                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.d0
              endif
           elseif ((instrum .eq. 11) .or. (instrum .eq. 16) .or. (instrum .eq. 27)) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
@@ -311,15 +311,15 @@ subroutine tovs_rttov_tl(lobsSpaceData)
           elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
                (instrum .eq. 22) .or. (instrum .eq. 24) ) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-             surfem1_th (joff+1:joff+len_nchannels,ith) = 0.
+             surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
           else
              call abort3d('tovs_rttov_tl. invalid sensor type')
           endif
        enddo
           ! Build the list of channels/profiles indices
        emissivity_th(:,ith) = surfem1_th(:,ith)
-       cloudemissivity_th(:,ith)=0.0
-       cloudemissivity_tl_th(:,ith)=0.0
+       cloudemissivity_th(:,ith)=0.0d0
+       cloudemissivity_tl_th(:,ith)=0.0d0
     enddo
 
     do ith = 1, nthreads
@@ -461,11 +461,11 @@ subroutine tovs_rttov_tl(lobsSpaceData)
              if     ( profiles(iptobs_th(j,ith)) % q(jl)  &
                   .le. coefs(krtid)%coef%lim_prfl_gmin(jl,ig)  ) then
                 profilesdata_th(j,ith) % q(jl)    = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)           
-                profilesdata_tl_th(j,ith) % q(jl) = 0.0
+                profilesdata_tl_th(j,ith) % q(jl) = 0.0d0
              elseif ( profiles(iptobs_th(j,ith)) % q(jl)  &
                   .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
                 profilesdata_th(j,ith) % q(jl)    =  coefs(krtid)%coef%lim_prfl_gmax(jl,ig)       
-                profilesdata_tl_th(j,ith) % q(jl) = 0.0
+                profilesdata_tl_th(j,ith) % q(jl) = 0.0d0
              endif
           enddo
        end do
@@ -478,8 +478,8 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 !     .       ---------------------------------
 
     errorstatus_th(:)   = 0
-    emissivity_tl_th(:,:) = 0.0
-    cloudemissivity_tl_th(:,:) = 0.0
+    emissivity_tl_th(:,:) = 0.0d0
+    cloudemissivity_tl_th(:,:) = 0.0d0
 !$omp parallel
 !$omp do private(ith)
 

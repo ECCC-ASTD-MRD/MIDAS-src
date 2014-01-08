@@ -18,13 +18,13 @@
 !
 !**s/r SUOBS  - Initialisation of observation parameters and constants
 !
+      use topLevelControl_mod
       use obsSpaceData_mod
       use filterObs_mod  
       use modgpsztd_mod
       use modgpsro_mod
       use tovs_mod
       IMPLICIT NONE
-#include "comct0.cdk"
 
       type(struct_obs) :: lobsSpaceData
       character(len=*) :: obsMpiStrategy
@@ -107,7 +107,7 @@
       !- Memory allocation for TOVS processing
       !
       call tovs_nl_setupallo(lobsSpaceData)
-      if (nconf==101) call BGCK_IR_SETUP(lobsSpaceData)
-      if (nconf==141) call tovs_lin_setupallo()
+      if ( top_BgckMode() ) call BGCK_IR_SETUP(lobsSpaceData)
+      if ( top_AnalysisMode() ) call tovs_lin_setupallo()
 
       END SUBROUTINE SUOBS

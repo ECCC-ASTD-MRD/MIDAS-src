@@ -35,7 +35,7 @@ c
       real*8 zhu,one,zpresa,zpresb,zpresad,zpresbd
 
       vco_anl => col_getVco(lcolumng)
-      one=1.0
+      one=1.0D0
 
 !$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu,zpresb,zpresbd,zpresa,zpresad)
       do jlev = 1,col_getNumLev(lcolumng)

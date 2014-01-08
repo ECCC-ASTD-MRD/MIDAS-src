@@ -83,8 +83,8 @@ C     .  --------------------------------------------------------------
 C
  100  CONTINUE
 Cpik
-      ZPI(0,:)=2000.
-      ZPI(KNI+1,:)=2000.
+      ZPI(0,:)=2000.D0
+      ZPI(KNI+1,:)=2000.D0
 
 C
 C**      1.1 Determine if input pressure levels are in ascending or
@@ -177,7 +177,7 @@ Cpik
             ZP1 = ZPI(IK  ,JN)
             ZP2 = ZPI(IK+1,JN)
             ZW1 = LOG(ZP/ZP2)/LOG(ZP1/ZP2)
-            ZW2 = 1. - ZW1
+            ZW2 = 1.D0 - ZW1
             PVO(JO,JN) = ZW1*ZPVI(IK,JN) +  ZW2*ZPVI(IK+1,JN)
          ENDDO
       ENDDO

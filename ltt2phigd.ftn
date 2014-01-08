@@ -126,10 +126,10 @@ c
 c ptt : working vector of virtual temperatures.
 c
       ZCON = -MPC_RGAS_DRY_AIR_R8
-      ZAK = -2.0*ZCON*VMA(statevectorg%nlev)
-      ZBK = -2.0*ZCON*VMB(statevectorg%nlev)
-      ZCK = -2.0*ZCON*VMC(statevectorg%nlev)
-      pgz(ki,statevectorg%nlev,kj) = 0.0
+      ZAK = -2.0D0*ZCON*VMA(statevectorg%nlev)
+      ZBK = -2.0D0*ZCON*VMB(statevectorg%nlev)
+      ZCK = -2.0D0*ZCON*VMC(statevectorg%nlev)
+      pgz(ki,statevectorg%nlev,kj) = 0.0D0
       pgz(ki,statevectorg%nlev-1,kj)=ZAK*ptt(ki,statevectorg%nlev-1,kj)+
      &     ZBK*ptt(ki,statevectorg%nlev,kj)+
      &     ZCK*ptt(ki,statevectorg%nlev-2,kj)+
@@ -138,9 +138,9 @@ c
       IKLEVM2 = statevectorg%nlev-2
       do JK = 1, IKLEVM2
         IK = statevectorg%nlev-1-JK
-        ZAK = -2.0*ZCON*VMA(IK+1)
-        ZBK = -2.0*ZCON*VMB(IK+1)
-        ZCK = -2.0*ZCON*VMC(IK+1)
+        ZAK = -2.0D0*ZCON*VMA(IK+1)
+        ZBK = -2.0D0*ZCON*VMB(IK+1)
+        ZCK = -2.0D0*ZCON*VMC(IK+1)
         pgz(ki,ik,kj)= ZAK*ptt(ki,IK,kj)+
      &       ZBK*ptt(ki,IK+1,kj)+
      &       ZCK*ptt(ki,IK+2,kj)+

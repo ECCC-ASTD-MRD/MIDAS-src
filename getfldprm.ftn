@@ -73,7 +73,7 @@ c
      &     inpas,inpas2, iswa, iubc, iip2, iip3
 c
       integer ipmode,idate2,idate3,idatefull
-      real    zlev
+      real    zlev_r4
       character *12 cletiket
       character *4 clnomvar
       character *2 cltypvar
@@ -164,7 +164,7 @@ c
 c-------Determine the type of P  (see doc. of convip)
 c
         ipmode = -1
-        call CONVIP(kip1s(1),zlev,KIP1KIND,
+        call CONVIP(kip1s(1),zlev_r4,KIP1KIND,
      &       ipmode,clstring, .false. )
       else
         ier = fstinl(kinmpg,ini,inj, ink, -1, ' ', -1, -1, -1,

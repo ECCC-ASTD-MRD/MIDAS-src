@@ -36,6 +36,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
 !    -------------------
 !     purpose:
 !
+  use topLevelControl_mod
   use MathPhysConstants_mod
   use tovs_mod
   use obsSpaceData_mod
@@ -61,7 +62,6 @@ type (profile_type) ,intent (in) :: profilesdata_th(knpf,nthreads)
 end subroutine tovs_rttov_AVHRR_for_IASI
 end interface
 !implicits
-#include "comct0.cdk"
 #include "rttov_direct2.interface"
 #include "rttov_alloc_prof.interface"
 #include "rttov_alloc_rad.interface"
@@ -144,7 +144,7 @@ end interface
 !     1.1   Read surface information
 !     .     ------------------------
 
-  if ( nconf .eq. 101 ) call EMIS_READ_CLIMATOLOGY
+  if ( top_BgckMode() ) call EMIS_READ_CLIMATOLOGY
 
 !
 !     2.  Computation of hx for tovs data only
@@ -223,10 +223,10 @@ end interface
 
       if (instrum.eq.11 .or. instrum.eq.16 .or. instrum.eq.27) then
         surfem1(:) = 0.
-        if ( nconf .eq. 101 ) then
+        if ( top_BgckMode() ) then
           call EMIS_GET_IR_EMISSIVITY (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
         else
-          surfem1(:) = 0.98
+          surfem1(:) = 0.98d0
           do jn = 1, knpf
             iobs1 = iptobs(jn)
             jo = lobsno(iobs1)
@@ -289,7 +289,7 @@ end interface
        ENDIF
          
        knpf_tot = knpf_tot + knpf_th(ith)
-       surfem1_th (:,ith) = 0.
+       surfem1_th (:,ith) = 0.d0
        
        len_nchannels = nchannels_th(ith)/knpf_th(ith)
        ioffset=len_nchannels*(knpf_tot-knpf_th(ith))
@@ -300,10 +300,10 @@ end interface
              if ( isurface .eq. 0 .or. &
                   isurface .eq. 2      ) then
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
-                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75
+                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75d0
              else
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.
+                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.d0
              endif
           elseif ((instrum .eq. 11) .or. (instrum .eq. 16).or. (instrum .eq. 27)) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
@@ -312,7 +312,7 @@ end interface
           elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
                (instrum .eq. 22) .or. (instrum .eq. 24) ) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-             surfem1_th (joff+1:joff+len_nchannels,ith) = 0.
+             surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
           else
              call abort3d('tovs_rttov. invalid sensor type')
           endif
@@ -454,7 +454,7 @@ end interface
                  radiancedata_d_th(ith) % bt(joff+1:joff+nchannels_th(ith)/knpf_th(ith))
             radiance_d(io) % clear(:) =  &
                  radiancedata_d_th(ith) % clear(joff+1:joff+nchannels_th(ith)/knpf_th(ith))
-            if (nconf==101) then
+            if ( top_BgckMode() ) then
                do jl = 1, nlevels - 1
                   radiance_d(io) % overcast(jl,:) =   &
                        radiancedata_d_th(ith) % overcast(jl,joff+1:joff+nchannels_th(ith)/knpf_th(ith))

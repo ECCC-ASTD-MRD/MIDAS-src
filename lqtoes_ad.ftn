@@ -47,10 +47,10 @@
       dESdLQ = - ZQBRANCH*FOEFQA (dESdTT,ZGAMMA,HU_g,PRES_g)
 
       dESdP0 = - ZQBRANCH*FOEFQPSA(dESdTT,ZGAMMA,HU_g,
-     $           VHYB)-(1.-ZQBRANCH)*
+     $           VHYB)-(1.D0-ZQBRANCH)*
      $           (ZGAMMA*zpresb*dESdTT)
 !      dESdP0 = - ZQBRANCH*FOEFQPSA(dESdTT,ZGAMMA,HU_g,
-!     $           zpresb)-(1.-ZQBRANCH)*
+!     $           zpresb)-(1.D0-ZQBRANCH)*
 !     $           (ZGAMMA*zpresb*dESdTT)
 
       ! TLM: lqtoes_tl =  dESdLQ*LQ + dESdP0*P0 + dESdTT*TT

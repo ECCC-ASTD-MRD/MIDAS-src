@@ -1,4 +1,5 @@
 module filterObs_mod
+  use topLevelControl_mod
   use mpi
   use EarthConstants_mod
   use MathPhysConstants_mod
@@ -80,7 +81,7 @@ contains
 
     ltopofilt = .true.
 
-    filt_rlimlvhu = 300.
+    filt_rlimlvhu = 300.d0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -141,7 +142,6 @@ contains
 !              by the 3D-var.
 !
     IMPLICIT NONE
-#include "comct0.cdk"
     type(struct_obs) :: lobsSpaceData
     integer, parameter :: numFamily = 9
     INTEGER INDEX_BODY,INDEX_HEADER
@@ -184,9 +184,9 @@ contains
         LLOK=( ITYP .EQ. FILT_NLIST(JD) )  .OR. LLOK
       ENDDO
       !
-      ! ALLOW GZ FOR BOGUS DATA ONLY in analysis case (nconf=141)
+      ! ALLOW GZ FOR BOGUS DATA ONLY in analysis case 
       !
-      if  ( nconf.eq.141 .and. llok .and. ityp.eq.BUFR_negz .and. .not.llbogus ) then
+      if  ( top_AnalysisMode() .and. llok .and. ityp.eq.BUFR_negz .and. .not.llbogus ) then
         llok=.false.
       endif
       !
@@ -314,7 +314,7 @@ contains
       character(len=2), dimension(3) :: list_family
       integer :: index_family
 
-      DATA    RLISTCRIT/50.,50.,50.,50.,50.,800.,800.,800.,800.,1000. /
+      DATA    RLISTCRIT/50.D0, 50.D0, 50.D0, 50.D0, 50.D0, 800.D0, 800.D0, 800.D0, 800.D0, 1000.D0 /
 !C
 !C
 !C     RESET DZMAX FOR GB GPS ZTD TO VALUE IN NAMELIST FILE
@@ -379,7 +379,7 @@ contains
                IFLG     = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
                ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
                IDBURP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-               ZDIFF=99999.
+               ZDIFF=99999.D0
 
                IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
                   LLREJ = .FALSE.
@@ -504,10 +504,10 @@ contains
       REAL*8    RLISTCRIT(JPINEL),RSBLCRIT(JPINEL),JPMAX(JPINEL)
       LOGICAL LLPRINT,LLOK
 
-      DATA    RLISTCRIT/50.,50.,50.,50.,50.,50.,800./
-      DATA    RSBLCRIT /5000.0,5000.0,5000.0,5000.0,5000.0,5000.0,5000.0 /
-      DATA    ZLMINF /-9999.,-300.,-200.,-100.,-50.,0.,50.,100.,200.,300./
-      DATA    ZLMSUP /-300.,-200.,-100.,-50.,0.,50.,100.,200.,300.,9999./
+      DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
+      DATA    RSBLCRIT /5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0 /
+      DATA    ZLMINF /-9999.D0,-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0/
+      DATA    ZLMSUP /-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0,9999.D0/
       ILISTEL(1)=BUFR_NEDD
       ILISTEL(2)=BUFR_NEFF
       ILISTEL(3)=BUFR_NEUU
@@ -596,13 +596,13 @@ contains
             IKOUNTT=IKOUNTT+1
             IFLG= obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
             ITYP= obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-            ZDIFF=99999.
+            ZDIFF=99999.D0
             ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             IASS=obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
             ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
             ZDIFF= ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') )/RG
             ZCRIT= -RLISTCRIT(JPINEL)
-            IF ( ZDIFF .LT. 0.0 ) THEN
+            IF ( ZDIFF .LT. 0.0D0 ) THEN
                ZDIF: IF(ZDIFF .GE. ZCRIT) THEN
                   ITOTACC(JPINEL)=ITOTACC(JPINEL)+1
                   IGZACC(JPINEL)=IGZACC(JPINEL)+1
@@ -669,9 +669,9 @@ contains
                ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                ZPB =col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
                ZPT =ZPB-RSBLCRIT(IJ)
-               ZDELP = 999999.0
-               IF (ZDIFALT .GT. 0.0) THEN
-                  ZDELP = ZDIFALT * 100. / 8.0
+               ZDELP = 999999.0D0
+               IF (ZDIFALT .GT. 0.0D0) THEN
+                  ZDELP = ZDIFALT * 100.D0 / 8.0D0
                   ZPT   = ZPB-(ZDELP+RSBLCRIT(IJ))
                ENDIF
                IF(LLALTOK(IJ)) THEN
@@ -774,7 +774,7 @@ contains
       character(len=2), dimension(2) :: list_family
       integer :: index_family
 
-      DATA    RLISTCRIT/-50./
+      DATA    RLISTCRIT/-50.D0/
 
       WRITE(*,* ) ' '
       WRITE(*,* ) ' SUBROUTINE filt_topoAISW '
@@ -806,7 +806,7 @@ contains
 !C
             ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.
+            ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.D0
             IF ( ZDIFF .GT. RLISTCRIT ) THEN
                ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
                DO J=1,JPINEL
@@ -891,10 +891,10 @@ contains
       LOGICAL LLPRINT,LLOK
       logical :: list_is_empty
 
-      DATA    RLISTCRIT/50.,50.,50.,50.,50.,50.,800./
-      DATA    RSBLCRIT /400.0,400.0,400.0,400.0,400.0,400.0,400.0 /
-      DATA    ZLMINF /-9999.,-300.,-200.,-100.,-50.,0.,50.,100.,200.,300./
-      DATA    ZLMSUP /-300.,-200.,-100.,-50.,0.,50.,100.,200.,300.,9999./
+      DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
+      DATA    RSBLCRIT /400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0 /
+      DATA    ZLMINF /-9999.D0,-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0/
+      DATA    ZLMSUP /-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0,9999.D0/
       ILISTEL(1)=BUFR_NEDD
       ILISTEL(2)=BUFR_NEFF
       ILISTEL(3)=BUFR_NEUU
@@ -1006,7 +1006,7 @@ contains
             ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             ZPB =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
             ZPT =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG + RSBLCRIT(IJ)
-            IF (ZDIFALT .GT. 0.0) THEN
+            IF (ZDIFALT .GT. 0.0D0) THEN
                ZPT=  col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
                    + (ZDIFALT+RSBLCRIT(IJ))
             ENDIF
@@ -1111,7 +1111,7 @@ contains
       DATA    ILISTEL/12163/
       REAL*8  RLISTCRIT
 
-      DATA    RLISTCRIT/800./
+      DATA    RLISTCRIT/800.D0/
 
       WRITE(*,* ) ' '
       WRITE(*,* ) ' SUBROUTINE filt_topoCSBT '
@@ -1159,7 +1159,7 @@ contains
             if (index_body < 0) exit BODY
 
             IKOUNTT=IKOUNTT+1
-            ZDIFF= col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') /100.
+            ZDIFF= col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') /100.D0
             IF ( ZDIFF .LT. RLISTCRIT ) THEN
               ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                DO J=1,JPINEL

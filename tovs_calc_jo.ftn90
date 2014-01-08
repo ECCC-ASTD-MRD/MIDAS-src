@@ -86,14 +86,14 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 !     1.  Computation of (hx - z)/sigma for tovs data only
 !     .   ------------------------------------------------
 
-  dlsum    = 0.
+  dlsum    = 0.D0
   inobsjo  = 0
 !  kfailtot = 0
   do j = 1, nsensors
      do i = 0, jpchmax
         inobsch(i,j) = 0
-        zjoch  (i,j) = 0.0
-        zavgnrm(i,j) = 0.0
+        zjoch  (i,j) = 0.0D0
+        zavgnrm(i,j) = 0.0D0
      enddo
   enddo
 
@@ -164,16 +164,16 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
               dlsum =  dlsum &
                      + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
                         obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
-                     / (2. * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
-                         * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+                     / (2.D0 * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
+                             * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
 !           else
 !             compute contribution of data with varqc
  
 !              zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
 !              zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-!                      obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.
-!              zqcarg = zgami + exp(-1.0*zjon)
-!              dlsum= dlsum - log(zqcarg/(zgami+1.))
+!                      obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.D0
+!              zqcarg = zgami + exp(-1.0D0*zjon)
+!              dlsum= dlsum - log(zqcarg/(zgami+1.D0))
 !           endif
 
            inobsjo = inobsjo + 1

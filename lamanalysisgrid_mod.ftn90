@@ -740,7 +740,7 @@ module LamAnalysisGrid_mod
     !    
     if ( ni > 1 ) then
       istart = ni_core - 2  ! I-limit where backward derivatives will be evaluated
-      con = 1.d0 / ( glmf % rdlon * MPC_DEGREES_PER_RADIAN_R8 * 111.e+3)
+      con = 1.d0 / ( glmf % rdlon * MPC_DEGREES_PER_RADIAN_R8 * 111.d+3)
       do j = 1, nj
         a0           = 0.5d0 * ( gd(istart,j,k)  + gd(1,j,k)       )
         a1           = 0.5d0 * ( gd(istart,j,k)  - gd(1,j,k)       )
@@ -751,7 +751,7 @@ module LamAnalysisGrid_mod
         del          = real(ni_ext_per-istart,8)
         do i = istart, ni
           xp = MPC_PI_R8 * real(i-istart,8) / del
-          gd(i,j,k) = a0 + a1*cos(xp) + b1*sin(xp) + b2*sin(2.*xp)
+          gd(i,j,k) = a0 + a1*cos(xp) + b1*sin(xp) + b2*sin(2.d0*xp)
         end do
       end do
     end if
@@ -760,7 +760,7 @@ module LamAnalysisGrid_mod
     !
     if ( nj > 1 ) then
       jstart = nj_core - 2
-      con = 1.d0 / (glmf % rdlat * MPC_DEGREES_PER_RADIAN_R8 * 111.e+3)
+      con = 1.d0 / (glmf % rdlat * MPC_DEGREES_PER_RADIAN_R8 * 111.d+3)
       do i = 1, ni
         a0           = 0.5d0 * ( gd(i,jstart,k) + gd(i,1,k)       )
         a1           = 0.5d0 * ( gd(i,jstart,k) - gd(i,1,k)       )
@@ -771,7 +771,7 @@ module LamAnalysisGrid_mod
         del          = real(nj_ext_per-jstart,8)
         do j = jstart , nj
           yp = MPC_PI_R8 * real(j-jstart,8) / del
-          gd(i,j,k) = a0 + a1*cos(yp) + b1*sin(yp) + b2*sin(2.*yp)
+          gd(i,j,k) = a0 + a1*cos(yp) + b1*sin(yp) + b2*sin(2.d0*yp)
         end do
       end do
     end if

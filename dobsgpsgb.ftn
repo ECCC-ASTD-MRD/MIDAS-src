@@ -46,6 +46,7 @@
 *     PJO: total value of Jo for all GB-GPS (ZTD) observations
 *
 #endif
+      use topLevelControl_mod
       use EarthConstants_mod
       use MathPhysConstants_mod
       use modgps04profilezd
@@ -56,8 +57,6 @@
       use modgpsztd_mod
       use vGrid_Descriptors
       IMPLICIT NONE
-*implicits
-#include "comct0.cdk"
 C
       type(struct_columnData) :: lcolumnhr
       type(struct_obs) :: lobsSpaceData
@@ -89,8 +88,8 @@ C
       INTEGER,pointer,dimension(:) :: IP1
       CHARACTER*2  LV
 
-      real sfcfield
-      REAL  ,pointer,dimension(:) :: rDP
+      real sfcfield_r4
+      REAL  ,pointer,dimension(:) :: rDP_r4
 
 C
       LOGICAL  ASSIM, LSTAG, LLOK, LLREJ
@@ -109,14 +108,14 @@ C
 C     Criteria to select single observation (1-OBS mode)
 C
 c     Minimum value for ZTD O-P (m)
-      REAL XOMPMIN
-      DATA XOMPMIN   / 0.015 /
+      REAL*8 XOMPMIN
+      DATA XOMPMIN   / 0.015D0 /
 c     Minimum value for background (trial) PW (mm)
-      REAL XPWMIN
-      DATA XPWMIN    / 20.0  /
+      REAL*8 XPWMIN
+      DATA XPWMIN    / 20.0D0  /
 c     Maximum height difference between observation and background surface (m)
-      REAL XDZMAX
-      DATA XDZMAX    / 400.0 /
+      REAL*8 XDZMAX
+      DATA XDZMAX    / 400.0D0 /
 
       WRITE(*,*)'ENTER DOBSGPSGB'
 
@@ -178,7 +177,7 @@ c     loop over all header indices of the 'GP' family (all obs locations/times)
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
 
-         ZPSOBS = -100.00
+         ZPSOBS = -100.0D0
 C     
 C     *  Process only GP data (codtyp 189)
 C
@@ -225,14 +224,14 @@ C
                ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                ZP0 =  col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               sfcfield = zP0
-               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP,sfcfield)
+               sfcfield_r4 = zP0
+               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP_r4,sfcfield_r4)
                ZMT  = col_getHeight(lcolumnhr,NGPSLEV,INDEX_HEADER,LV)/RG
                DO JL = 1, NGPSLEV
                  ZPP(JL) = col_getPressure(lcolumnhr,JL,INDEX_HEADER,LV)
 C     *        True implementation of ZDP (dP/dP0)
-                 ZDP(JL) = rDP(JL)
-                 ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-273.15
+                 ZDP(JL) = rDP_r4(JL)
+                 ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')-MPC_K_C_DEGREE_OFFSET_R8
                  ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
                ENDDO
                ZDZ = ZLEV - ZMT
@@ -259,12 +258,12 @@ c              (2) Ps observation is missing or out of normal range
 c              (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
 c
                LLREJ = .FALSE.
-               ZPOMP = -9999.00
-               IF ( NCONF .EQ. 141 ) THEN
+               ZPOMP = -9999.0D0
+               IF ( TOP_AnalysisMode() ) THEN
                  LLREJ = ( ZPWMOD .LT. ZPWMIN )
                  IF ( LASSMET ) THEN
                    IF ( .NOT. LLREJ ) THEN
-                     IF ( ZPSOBS .GT. 40000.0 .AND. ZPSOBS .LE. 110000.0 ) THEN
+                     IF ( ZPSOBS .GT. 40000.0D0 .AND. ZPSOBS .LE. 110000.0D0 ) THEN
                        ZPOMP = ZPSOBS - ZPSMOD
                        LLREJ = ( ABS(ZPOMP) .GT. ZPOMPMX )
                        IF ( LLREJ ) ICOUNT3 = ICOUNT3 + 1
@@ -302,7 +301,7 @@ C
 C     *              Observation error    SDERR
 C
                      ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-                     if ( ZOER .LE. 0.0 ) then
+                     if ( ZOER .LE. 0.0D0 ) then
                        write(*,*) ' Problem with ZTD observation error!'
                        write(*,*) ' Station =', 
      &                  obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
@@ -340,7 +339,7 @@ C
      +                   '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')
      +                   'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
      +                   ZLAT,ZLON,ZLEV,ZDZ,ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,
-     +                   ZPOMPS/100.,ZPOMP/100.,ZPWMOD,PJO,ZINC/ZOER
+     +                   ZPOMPS/100.D0,ZPOMP/100.D0,ZPWMOD,PJO,ZINC/ZOER
                      ENDIF
                      
                   ENDIF
@@ -359,17 +358,17 @@ C
       
       WRITE(*, *) ' '
       WRITE(*, *) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', ICOUNTP
-      BIAS = SUM(ZTDOMP(1:ICOUNTP))/FLOAT(ICOUNTP)
+      BIAS = SUM(ZTDOMP(1:ICOUNTP))/real(ICOUNTP,8)
       STD = 0.d0
       DO JL = 1, ICOUNTP
         STD = STD + (ZTDOMP(JL)-BIAS)**2
       ENDDO
-      STD = SQRT(STD/(float(ICOUNTP)-1.))
-      WRITE(*, *) '     MEAN O-P (BIAS) [mm] = ', BIAS*1000.
-      WRITE(*, *) '     STD  O-P        [mm] = ', STD*1000.
+      STD = SQRT(STD/(real(ICOUNTP,8)-1.D0))
+      WRITE(*, *) '     MEAN O-P (BIAS) [mm] = ', BIAS*1000.D0
+      WRITE(*, *) '     STD  O-P        [mm] = ', STD*1000.D0
       WRITE(*, *) ' '
 
-      IF ( L1OBS .AND. NCONF .EQ. 141 ) THEN
+      IF ( L1OBS .AND. TOP_AnalysisMode() ) THEN
 c   Set assim flag to 0 for all observations except for selected record (site/time)
         IF ( IONEOBS .NE. -1 ) THEN
           call obs_set_current_header_list(lobsSpaceData,'GP')
@@ -393,7 +392,7 @@ c   Set assim flag to 0 for all observations except for selected record (site/ti
       
       numGPSZTD = ICOUNTP
 
-      IF ( NCONF .EQ. 141 .AND. ICOUNT .GT. 0 ) THEN
+      IF ( TOP_AnalysisMode() .AND. ICOUNT .GT. 0 ) THEN
 
         IF ( .NOT.L1OBS ) THEN
         WRITE(*, *) ' '
@@ -406,11 +405,11 @@ c   Set assim flag to 0 for all observations except for selected record (site/ti
         WRITE(*, *) '       NUMBER OF ZTD DATA       REJECETD DUE TO LARGE PS O-P = ', ICOUNT3
         WRITE(*, *) ' TOTAL NUMBER OF REJECTED ZTD DATA                           = ', ICOUNT1+ICOUNT2+ICOUNT3
         WRITE(*, *) '       PERCENT   REJECTED                                    = ', 
-     +       (FLOAT(ICOUNT1+ICOUNT2+ICOUNT3) / FLOAT(ICOUNT))*100.0
+     +       (real(ICOUNT1+ICOUNT2+ICOUNT3,8) / real(ICOUNT,8))*100.0D0
         WRITE(*, *) ' TOTAL NUMBER OF ASSIMILATED ZTD DATA                        = ', ICOUNTP
         if ( ICOUNTP.gt.0 ) then
           WRITE(*, *) 'MEAN Jo = (PJO/numGPSZTD)*YZDERRWGT**2 = ', 
-     +         (PJO/FLOAT(ICOUNTP))*YZDERRWGT**2
+     +         (PJO/real(ICOUNTP,8))*YZDERRWGT**2
         endif
 C
         WRITE(*, *) ' '

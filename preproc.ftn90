@@ -19,6 +19,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
   !
+  use topLevelControl_mod
   use mpi
   use MathPhysConstants_mod
   use horizontalCoord_mod
@@ -36,8 +37,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use tovs_mod
   use burpFiles_mod
   IMPLICIT NONE
-  !implicits
-#include "comct0.cdk"
   
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumng,lcolumnhr
@@ -151,7 +150,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
-  if (nconf == 141) then
+  if ( top_AnalysisMode() ) then
     call bmat_setup(hco_anl,vco_anl,tim_getDatestamp())
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
@@ -160,7 +159,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !- Set up the minimization module, now that the required parameters are known
   !  NOTE: some global variables remain in minimization_mod that must be initialized before sugomobs
   !
-  if (nconf == 141) then
+  if (top_AnalysisMode() ) then
     call min_setup( cvm_nvadim ) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if

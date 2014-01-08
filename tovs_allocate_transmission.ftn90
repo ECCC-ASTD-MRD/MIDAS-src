@@ -52,8 +52,8 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
      call abort3d('tovs_allocate_transmission')
   end if
 
-  ptransmission % tau_levels (:,:)=0.0
-  ptransmission % tau_total (:)=0.0
+  ptransmission % tau_levels (:,:)=0.0D0
+  ptransmission % tau_total (:)=0.0D0
 
   return
 

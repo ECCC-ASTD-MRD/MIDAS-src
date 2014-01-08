@@ -92,10 +92,10 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
      DLDX = xpos - real(ILON,8)
      DLDY = ypos - real(ILA,8)
 
-     DLW1 = (1.-DLDX) * (1.-DLDY)
-     DLW2 =     DLDX  * (1.-DLDY)
-     DLW3 = (1.-DLDX) *     DLDY
-     DLW4 =     DLDX  *     DLDY
+     DLW1 = (1.D0-DLDX) * (1.D0-DLDY)
+     DLW2 =       DLDX  * (1.D0-DLDY)
+     DLW3 = (1.D0-DLDX) *       DLDY
+     DLW4 =       DLDX  *       DLDY
      
      !- 2.4 Interpolate the model state to the obs point
      if(col_varExist('UU')) uu_column => col_getColumn(lcolumn,jobs,'UU')

@@ -177,7 +177,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   END DO
 
   ier = newdate(istampobs,kdate,ktime,3)
-  delhh = 3.0
+  delhh = 3.0d0
   call INCDATR (datestamp, istampobs, delhh)
   ier = newdate(datestamp,nbrpdate,inewhh,-3)
   nbrphh=KTIME/100

@@ -93,7 +93,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData,source_obs,dest_obs)
   else
     llprint = .true.
   endif
-  pjo = 0.
+  pjo = 0.d0
   call tovs_calc_jo (pjo,llprint,lobsSpaceData,dest_obs)
 
   if ( option .eq. 'LR' ) then

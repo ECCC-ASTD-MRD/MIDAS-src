@@ -47,7 +47,6 @@
       REAL*8 ZWB,ZWT,ZEXP,ZGAMMA,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZTORAD,ZOMA
       REAL*8 columnVarB,columnVarT,lqtoes
-      REAL*4 ZLAT,ZLON
       LOGICAL LLPRINT,LLNOXTR
       CHARACTER(len=4) :: varName
       CHARACTER(len=2) :: varType
@@ -57,12 +56,12 @@
 !
       LLPRINT   = .FALSE.
       LLNOXTR   = .FALSE.
-      zgamma = 0.0065 / GRAV
+      zgamma = 0.0065D0 / GRAV
       zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 !
 !     1. Computation of (HX - Z)/SIGMA
 !
-      PJO=0.
+      PJO=0.D0
       call obs_set_current_body_list(lobsSpaceData, CDFAM)
       BODY: do
          index_body = obs_getBodyIndex(lobsSpaceData)
@@ -87,7 +86,7 @@
             ZPT= col_getPressure(lcolumnhr,ik  ,index_header,varType)
             ZPB= col_getPressure(lcolumnhr,ik+1,index_header,varType)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
-            ZWT  = 1. - ZWB
+            ZWT  = 1.D0 - ZWB
             if(ivnm.eq.bufr_nees) then
                col_ptr_hu=>col_getColumn(lcolumnhr,index_header,'HU')
                col_ptr_tt=>col_getColumn(lcolumnhr,index_header,'TT')
@@ -109,11 +108,11 @@
 !
 ! Forward nonlinear model for geopotential data below model's orography
 !
-               ZTVG = (1.0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
+               ZTVG = (1.0D0 + MPC_DELTA_R8 * EXP(col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'HU')))
      &                  *col_getElem(lcolumnhr,col_getNumLev(LCOLUMNHR,'TH'),INDEX_HEADER,'TT')
                zoma = (   zvar
      &                  - col_getMountain(lcolumnhr,index_header)
-     &                  - ZTVG/zgamma*(1.-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp))
+     &                  - ZTVG/zgamma*(1.D0-(zlev/col_getElem(lcolumnhr,1,index_header,'P0'))**zexp))
                PJO = PJO + zoma*zoma/(zoer*zoer)
                call obs_bodySet_r(lobsSpaceData,OBS_OMP,index_body,zoma)
             ENDIF

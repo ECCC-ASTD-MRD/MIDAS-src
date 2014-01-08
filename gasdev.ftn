@@ -56,11 +56,11 @@ C for test purposes.
 C addition to create a repeatable reset with idum < 0
         if (idum.lt.0) iset=0
         IF (ISET.EQ.0.OR.IDUM.eq.999) THEN
-1         V1=2.*RAN1(IDUM)-1.
-          V2=2.*RAN1(IDUM)-1.
+1         V1=2.D0*RAN1(IDUM)-1.D0
+          V2=2.D0*RAN1(IDUM)-1.D0
           RR=V1**2+V2**2
-          IF(RR.GE.1.)GO TO 1
-          FAC=SQRT(-2.*LOG(RR)/RR)
+          IF(RR.GE.1.D0)GO TO 1
+          FAC=SQRT(-2.D0*LOG(RR)/RR)
           GSET=V1*FAC
           GASDEV=V2*FAC
           ISET=1
@@ -102,8 +102,8 @@ C addition to create a repeatable reset with idum < 0
       REAL*8 RM1,RM2,RAN1
       INTEGER IDUM,J,M1,IA1,IC1,M2,IA2,IC2,
      +        M3,IA3,IC3
-      PARAMETER (M1=259200,IA1=7141,IC1=54773,RM1=3.8580247E-6)
-      PARAMETER (M2=134456,IA2=8121,IC2=28411,RM2=7.4373773E-6)
+      PARAMETER (M1=259200,IA1=7141,IC1=54773,RM1=3.8580247D-6)
+      PARAMETER (M2=134456,IA2=8121,IC2=28411,RM2=7.4373773D-6)
       PARAMETER (M3=243000,IA3=4561,IC3=51349)
 
       IF (IDUM.LT.0.OR.IFF.EQ.0) THEN
@@ -116,7 +116,7 @@ C addition to create a repeatable reset with idum < 0
         DO 11 J=1,97
           IX1=MOD(IA1*IX1+IC1,M1)
           IX2=MOD(IA2*IX2+IC2,M2)
-          RRAND(J)=(FLOAT(IX1)+FLOAT(IX2)*RM2)*RM1
+          RRAND(J)=(real(IX1,8)+real(IX2,8)*RM2)*RM1
 11      CONTINUE
         IDUM=1
       ENDIF
@@ -129,7 +129,7 @@ c       write(6,*) 'Input error in RAN1 J: ',J
        stop
       endif
       RAN1=RRAND(J)
-      RRAND(J)=(FLOAT(IX1)+FLOAT(IX2)*RM2)*RM1
+      RRAND(J)=(real(IX1,8)+real(IX2,8)*RM2)*RM1
 
       RETURN
       END

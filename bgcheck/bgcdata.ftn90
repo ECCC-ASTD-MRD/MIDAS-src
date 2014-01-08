@@ -30,7 +30,7 @@
       CHARACTER*2 CDFAM
       INTEGER IFLAG,INAM,ISETFLAG,INDEX_HEADER,IDBURP
       INTEGER IBEGIN,ILAST,ierr,fclos,fnom,ITYP
-      INTEGER J,J2,JJ,JD,INDEX_BODY,ibgc,icoun
+      INTEGER J,J2,JJ,JD,INDEX_BODY,icoun
       INTEGER INOBS, INREJ, INZOBS, INZREJ
       INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
@@ -52,9 +52,9 @@
       WRITE(*,'(a55,a74)')'  -----     ------ -------  -- ----        -----        ',  &
       ' -----        ------       ------         ---       -------         ------  '
       icoun=0
-      zsum=0.
-      zsumo=0.
-      PJO=-99.99
+      zsum=0.D0
+      zsumo=0.D0
+      PJO=-99.99D0
 
       INOBS=0
       INREJ=0
@@ -114,28 +114,26 @@
                       ZOER = ZOER/YZDERRWGT
 !C              IF YZTDERR (FROM modgpsztd_mod) = 0 THEN ZTD ERROR MODEL IS REGRESSION-BASED
 !C              (WHERE ERROR IS A FUNCTION OF ZWD) SO WE LIMIT THE OBSERVATION ERROR
-                      IF (YZTDERR .EQ. 0.0) THEN
+                      IF (YZTDERR .EQ. 0.0D0) THEN
                         ZOER = MIN(ZDSIGMAO, ZOER)
                       ENDIF
                     ELSE
                       ZOER = ZOER/YSFERRWGT
                     ENDIF
-                    IF (ZFGE .LT. 1.E-3 .OR. ZOER .LT. 1.E-3 ) THEN
+                    IF (ZFGE .LT. 1.D-3 .OR. ZOER .LT. 1.D-3 ) THEN
                       WRITE(*,*)' Problem for STNID FGE ZOER=',  &
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
                       CALL ABORT3D('BGCDATA: PROBLEM WITH FGE, OER.')
                     ENDIF
                   ELSE
-                    IF ( ZFGE**2 + ZOER**2 .LT. 1.e-5)THEN
+                    IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
                         WRITE(*,*)' Problem for STNID FGE ZOER=',  &
                            obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                        ZFGE=1.E-5
-                        ZOER=1.E-5
+                        ZFGE=1.D-5
+                        ZOER=1.D-5
                     ENDIF
                   ENDIF
                   ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
-                  ibgc=ZBGCHK/1.
-                  ibgc=min(ibgc,99)
                   ZSOP = SQRT(ZFGE**2 + ZOER**2)
 !C
 !C              UPDATE QUALITY CONTROL FLAGS
@@ -154,11 +152,11 @@
 !C
                   LLZD = .FALSE.
                   IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD) THEN
-                    ZVAR = ZVAR * 1000.0
-                    ZOER = ZOER * 1000.0
-                    ZFGE = ZFGE * 1000.0
-                    ZOMP = ZOMP * 1000.0
-                    ZSOP = ZSOP * 1000.0
+                    ZVAR = ZVAR * 1000.0D0
+                    ZOER = ZOER * 1000.0D0
+                    ZFGE = ZFGE * 1000.0D0
+                    ZOMP = ZOMP * 1000.0D0
+                    ZSOP = ZSOP * 1000.0D0
                     LLZD = .TRUE.
                   ENDIF
 

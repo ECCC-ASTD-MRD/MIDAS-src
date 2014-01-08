@@ -128,16 +128,16 @@ c
       INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
 
       ZCON = -MPC_RGAS_DRY_AIR_R8
-      ZAK0  = -2.0*ZCON*VMA(col_getNumLev(lcolumn))
-      ZBK0  = -2.0*ZCON*VMB(col_getNumLev(lcolumn))
-      ZCK0  = -2.0*ZCON*VMC(col_getNumLev(lcolumn))
+      ZAK0  = -2.0D0*ZCON*VMA(col_getNumLev(lcolumn))
+      ZBK0  = -2.0D0*ZCON*VMB(col_getNumLev(lcolumn))
+      ZCK0  = -2.0D0*ZCON*VMC(col_getNumLev(lcolumn))
 !$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,ik,mythread,numthd)
 !$OMP+ PRIVATE(zak,zbk,zck,gz_column)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
       do jobs = mythread, col_getNumCol(lcolumn),numthd
         gz_column => col_getColumn(lcolumn,jobs,'GZ')
-        gz_column(col_getNumLev(lcolumn)) = 0.0
+        gz_column(col_getNumLev(lcolumn)) = 0.0D0
         gz_column(col_getNumLev(lcolumn)-1)=ZAK0*tv_tmp(col_getNumLev(lcolumn)-1,jobs)+
      $                      ZBK0*tv_tmp(col_getNumLev(lcolumn),jobs)+
      &                      ZCK0*tv_tmp(col_getNumLev(lcolumn)-2,jobs)+
@@ -146,9 +146,9 @@ c
 
         do JK = 1, IKLEVM2
           IK = col_getNumLev(lcolumn)-1-JK
-          ZAK = -2.0*ZCON*VMA(IK+1)
-          ZBK = -2.0*ZCON*VMB(IK+1)
-          ZCK = -2.0*ZCON*VMC(IK+1)
+          ZAK = -2.0D0*ZCON*VMA(IK+1)
+          ZBK = -2.0D0*ZCON*VMB(IK+1)
+          ZCK = -2.0D0*ZCON*VMC(IK+1)
           gz_column(ik)= ZAK*tv_tmp(IK,jobs)+
      $                     ZBK*tv_tmp(IK+1,jobs)+
      $                     ZCK*tv_tmp(IK+2,jobs)+

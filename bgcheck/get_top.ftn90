@@ -98,7 +98,7 @@ SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
   NHT = 0        
       
   DO I = IM, NLEV-1
-     DT = TT(I+1) - TT(I) + 1.E-12
+     DT = TT(I+1) - TT(I) + 1.D-12
      IF ( BT > TT(I) .AND. BT <= TT(I+1) ) THEN
         A    = P(I) + (P(I+1)-P(I))/DT*(BT-TT(I))
         B    = PP(I) + (PP(I+1)-PP(I))/DT*(BT-TT(I))

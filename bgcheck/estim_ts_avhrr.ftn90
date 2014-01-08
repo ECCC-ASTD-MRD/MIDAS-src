@@ -49,9 +49,9 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
   REAL(8)    :: RTG,RADTG(NCHN,NPRF)
   REAL(8)    :: RADTS,TS1(NCHN,NPRF),tstore,t_effective
 
-  TS1(:,:) = -1.
-  TS(:) = -1.
-  RADTG(:,:) = -1.
+  TS1(:,:) = -1.D0
+  TS(:) = -1.D0
+  RADTG(:,:) = -1.D0
 
 !*    transform guess skin temperature to plank radiances 
 
@@ -61,7 +61,7 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
      DO JC = 1, NCHN
         t_effective =  coefs_avhrr%coef%ff_bco(jc) + coefs_avhrr%coef%ff_bcs(jc) * TG(jn)
         RADTG(JC,jn) =  coefs_avhrr%coef%planck1(jc) / &
-             ( Exp( coefs_avhrr%coef%planck2(jc)/t_effective ) - 1.0 )
+             ( Exp( coefs_avhrr%coef%planck2(jc)/t_effective ) - 1.0D0 )
      END DO
   END DO
 

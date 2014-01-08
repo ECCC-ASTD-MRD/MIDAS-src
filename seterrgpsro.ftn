@@ -55,8 +55,8 @@ C
       REAL*8, allocatable :: ZHU(:)
       REAL*8, allocatable :: ZUU(:)
       REAL*8, allocatable :: ZVV(:)
-      real sfcfield
-      REAL  ,pointer,dimension(:) :: rDP
+      real sfcfield_r4
+      REAL  ,pointer,dimension(:) :: rDP_r4
 C
       REAL*8 DH,DDH
       INTEGER JL, IAZM, ISAT, JH, NGPSLEV, NWNDLEV
@@ -149,15 +149,15 @@ C
                sLat = sin(zLat)
                zMT  = zMT * RG / gpsgravitysrf(sLat)
                zP0  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               sfcfield=zP0
-               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP,sfcfield)
+               sfcfield_r4=zP0
+               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP_r4,sfcfield_r4)
                DO JL = 1, NGPSLEV
 C
 C     *           Profile x
 C
                   ZPP(JL) = col_getPressure(LCOLUMNHR,JL,INDEX_HEADER,'TH')
 C     *           True implementation of ZDP (dP/dP0)
-                  ZDP(JL) = rDP(JL)
+                  ZDP(JL) = rDP_r4(JL)
                   ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT') - p_TC
                   ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
                   ZUU(JL) = 0.d0

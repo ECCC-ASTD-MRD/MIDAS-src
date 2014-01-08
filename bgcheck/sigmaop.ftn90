@@ -170,9 +170,9 @@
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT,J)*RG*10.d0
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT,J)*RG*10.d0
                endif
             END DO
          END DO

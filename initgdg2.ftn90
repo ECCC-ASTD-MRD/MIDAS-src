@@ -66,7 +66,7 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
         END DO
      end do
   ELSE IF ( trim(varName) == 'GB') THEN
-     ZCON = 10.*RG
+     ZCON = 10.d0*RG
      DO JLEV = 1,KNK
         DO JJ = 1, KNJ
            DO JI = 1, KNI
@@ -100,7 +100,7 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
         END DO
      end do
   ELSE IF ( trim(varName) == 'GZ') THEN
-     ZCON = 10.*RG
+     ZCON = 10.d0*RG
      DO JLEV = 1,KNK
         DO JJ = 1, KNJ
            DO JI = 1, KNI
@@ -141,7 +141,7 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
         end do
      end do
   ELSE IF ( trim(varName) == 'P0') THEN
-     zcon = 1.e2
+     zcon = 1.d2
      DO JLEV = 1,KNK
         DO JJ = 1, KNJ
            DO JI = 1, KNI
@@ -150,7 +150,7 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
         END DO
      end do
   ELSE IF ( trim(varName) == 'PT') THEN
-     zcon = 1.e2
+     zcon = 1.d2
      DO JLEV = 1,KNK
         DO JJ = 1, KNJ
            DO JI = 1, KNI

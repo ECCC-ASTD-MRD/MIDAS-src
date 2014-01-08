@@ -72,7 +72,7 @@ SUBROUTINE CLOUD_HEIGHT (PTOP,NTOP, &
 
      ELSE IF ( IOPT == 2 ) THEN
 
-        PTOP(JN) = 0.
+        PTOP(JN) = 0.D0
         NTOP(JN) = 1      
 
         IF ( CLDFLAG(JN) == -1 ) CYCLE profiles

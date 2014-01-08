@@ -121,7 +121,7 @@ MODULE GAUSSGRID_MOD
        gaus_rlati(jlat) = - gaus_rlati (2*njlath +1 - jlat)
     enddo
 
-    zpisu2 = MPC_PI_R8/2.
+    zpisu2 = MPC_PI_R8/2.d0
     do jlat = 1, gaus_nj
        gaus_rcolat(jlat) = zpisu2 - gaus_rlati(jlat)
     enddo
@@ -129,8 +129,8 @@ MODULE GAUSSGRID_MOD
     !*    3. Overdimensioning for interpolation
 
     gaus_rlati(-1) =   MPC_PI_R8-gaus_rlati(1)
-    gaus_rlati(0) =   MPC_PI_R8*.5
-    gaus_rlati(gaus_nj+1) =  -MPC_PI_R8*.5
+    gaus_rlati(0) =   MPC_PI_R8*.5d0
+    gaus_rlati(gaus_nj+1) =  -MPC_PI_R8*.5d0
     gaus_rlati(gaus_nj+2) =   -MPC_PI_R8-gaus_rlati(gaus_nj)
 
     do jlat = 1, gaus_nj
@@ -244,7 +244,7 @@ MODULE GAUSSGRID_MOD
        gaus_rlati(jlat) = - gaus_rlati (2*njlath +1 - jlat)
     enddo
 
-    zpisu2 = MPC_PI_R8/2.
+    zpisu2 = MPC_PI_R8/2.d0
     do jlat = 1, nj
        gaus_rcolat(jlat) = zpisu2 - gaus_rlati(jlat)
     enddo
@@ -252,8 +252,8 @@ MODULE GAUSSGRID_MOD
     !*    3. Overdimensioning for interpolation
 
     gaus_rlati(-1) =   MPC_PI_R8-gaus_rlati(1)
-    gaus_rlati(0) =   MPC_PI_R8*.5
-    gaus_rlati(nj+1) =  -MPC_PI_R8*.5
+    gaus_rlati(0) =   MPC_PI_R8*.5d0
+    gaus_rlati(nj+1) =  -MPC_PI_R8*.5d0
     gaus_rlati(nj+2) =   -MPC_PI_R8-gaus_rlati(nj)
 
     do jlat = 1, nj

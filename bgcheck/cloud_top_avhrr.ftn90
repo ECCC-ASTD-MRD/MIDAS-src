@@ -68,11 +68,11 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
      ENDIF
   ENDDO
     
-  PTOP_BT(:,:) = -10.
-  PTOP_RD(:,:) = -10.
+  PTOP_BT(:,:) = -10.D0
+  PTOP_RD(:,:) = -10.D0
 
-  NTOP_BT(:,:) = 0.
-  NTOP_RD(:,:) = 0.
+  NTOP_BT(:,:) = 0.D0
+  NTOP_RD(:,:) = 0.D0
 
   profiles: DO JN = 1, NPRF
 
@@ -89,8 +89,8 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
            PTOP_BT(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
            PTOP_RD(:,JN) = MIN ( PLEV(NLEV), PS(JN) )
         ELSE IF ( IOPT == 2 ) THEN
-           PTOP_BT(:,JN) = 0.
-           PTOP_RD(:,JN) = 0.
+           PTOP_BT(:,JN) = 0.D0
+           PTOP_RD(:,JN) = 0.D0
         END IF
         
         NTOP_BT(:,JN) = 1
@@ -119,8 +119,8 @@ SUBROUTINE CLOUD_TOP_AVHRR ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
               PTOP_BT(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
               PTOP_RD(JC,JN) = MIN ( PLEV(NLEV), PS(JN) )
            ELSE IF ( IOPT == 2 ) THEN
-              PTOP_BT(JC,JN) = 0.
-              PTOP_RD(JC,JN) = 0.
+              PTOP_BT(JC,JN) = 0.D0
+              PTOP_RD(JC,JN) = 0.D0
            END IF
 
            NTOP_BT(JC,JN) = 1

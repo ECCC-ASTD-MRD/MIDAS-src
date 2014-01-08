@@ -274,12 +274,12 @@
                    ENDIF
                    SPD = SQRT(ZUU*ZUU + ZVV*ZVV)
                    ISPDO = NINT(SPD)
-                   IF (ZUU.EQ.0. .AND. ZVV.EQ.0.)THEN
+                   IF (ZUU.EQ.0.D0 .AND. ZVV.EQ.0.D0)THEN
                      IDIRO = 999
                    ELSE
                      DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
-                     IF (DEG .GT. 360.)DEG = DEG - 360.
-                     IF (DEG .LT. 0.)  DEG = DEG + 360.
+                     IF (DEG .GT. 360.D0)DEG = DEG - 360.D0
+                     IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
                      IDIRO = NINT(DEG)
                    ENDIF
                    IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
@@ -293,12 +293,12 @@
                    ENDIF
                    SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                    ISPDF = NINT(SPD)
-                   IF (ZUU .EQ. 0. .AND. ZVV .EQ. 0.) THEN
+                   IF (ZUU .EQ. 0.D0 .AND. ZVV .EQ. 0.D0) THEN
                      IDIRF = 999
                    ELSE
-                     DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
-                     IF (DEG .GT. 360.)DEG = DEG - 360.
-                     IF (DEG .LT. 0.)  DEG = DEG + 360.
+                     DEG = 270.D0 - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
+                     IF (DEG .GT. 360.D0)DEG = DEG - 360.D0
+                     IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
                      IDIRF = NINT(DEG)
                    ENDIF
                    IF (ITYP .EQ. BUFR_NEUU .OR. ITYP .EQ. BUFR_NEUS) THEN
@@ -312,12 +312,12 @@
                    ENDIF
                    SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                    ISPDA = NINT(SPD)
-                   IF (ZUU.EQ.0. .AND. ZVV.EQ.0.) THEN
+                   IF (ZUU.EQ.0.D0 .AND. ZVV.EQ.0.D0) THEN
                      IDIRA = 999
                    ELSE
-                     DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
-                     IF (DEG .GT. 360.)DEG = DEG - 360.
-                     IF (DEG .LT. 0.)  DEG = DEG + 360.
+                     DEG = 270.D0 - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
+                     IF (DEG .GT. 360.D0)DEG = DEG - 360.D0
+                     IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
                      IDIRA = NINT(DEG)
                    ENDIF
                    ILEV = NINT(ZLEV)
@@ -420,9 +420,9 @@
 *
 *________________CONVERT ZTD FROM METRES TO MILLIMETRES
 *
-                     ZVAR = ZVAR * 1000.
-                     ZFCST = ZFCST * 1000.
-                     ZANA  = ZANA * 1000.
+                     ZVAR = ZVAR * 1000.D0
+                     ZFCST = ZFCST * 1000.D0
+                     ZANA  = ZANA * 1000.D0
                    ENDIF
 *
                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,

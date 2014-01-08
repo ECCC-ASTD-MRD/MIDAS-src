@@ -53,13 +53,11 @@
 #endif
 
       
+      use topLevelControl_mod
       use hir_chans
       use mpi
       use tovs_mod
       IMPLICIT NONE
-
-*implicits
-#include "comct0.cdk"
 C
       INTEGER IER, ILUTOV, JI, JJ, JK, JL, JM, I
       INTEGER IPOS1, IPOS2
@@ -95,9 +93,9 @@ C
  100  CONTINUE
       DO JL = 1, JPNSATMAX  
          DO JI = 1, JPCHMAX
-            TOVERRST(JI,JL) = 0.0
-            TOVERRIN(JI,1,JL) = 0.0
-            TOVERRIN(JI,2,JL) = 0.0
+            TOVERRST(JI,JL) = 0.0D0
+            TOVERRIN(JI,1,JL) = 0.0D0
+            TOVERRIN(JI,2,JL) = 0.0D0
             IUTILST   (JI,JL) = 0
          ENDDO
       ENDDO
@@ -212,7 +210,7 @@ C
 C**   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
 C*     otherwise use ERRBGCK (JJ=1)
 C
-      IF ( NCONF .EQ. 141 ) THEN
+      IF ( top_AnalysisMode() ) THEN
          JJ = 2
       ELSE
          JJ = 1
@@ -258,7 +256,7 @@ C
 C
 C**   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
 C
-      IF ( NCONF .EQ. 101 ) THEN
+      IF ( top_BgckMode() ) THEN
          DO JM= 1, INUMSAT
             IF ( IPLATFORM(JM) .EQ. 9 .AND. 
      &           ISATID(JM) .EQ. 2 .AND. 

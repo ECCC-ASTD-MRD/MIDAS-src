@@ -149,16 +149,16 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 
   iptobs   (:) = 0 
   iptobscma(:) = 0 
-  toext_tl (:,:) = 0.0 
-  zvlev    (:,:) = 0.0 
-  zt_tl    (:,:) = 0.0 
-  zlq_tl   (:,:) = 0.0 
-  zt       (:,:) = 0.0 
-  zlq      (:,:) = 0.0 
-  qoext    (:,:) = 0.0 
-  zps_tl   (:)   = 0.0 
-  to_tl    (:,:) = 0.0
-  lqo_tl   (:,:) = 0.0
+  toext_tl (:,:) = 0.0d0
+  zvlev    (:,:) = 0.0d0
+  zt_tl    (:,:) = 0.0d0
+  zlq_tl   (:,:) = 0.0d0
+  zt       (:,:) = 0.0d0
+  zlq      (:,:) = 0.0d0
+  qoext    (:,:) = 0.0d0
+  zps_tl   (:)   = 0.0d0
+  to_tl    (:,:) = 0.0d0
+  lqo_tl   (:,:) = 0.0d0
 
 !
 !     2.  Fill profiles structure
@@ -195,7 +195,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 !!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)
         zt_tl   (1,knpf) =  0.d0
         zlq_tl  (1,knpf) =  0.d0
-        zt   (1,knpf) =  zt   (2,knpf) - 8.0 ! base sur derniere couche environ 4km, lapse rate 2K/km
+        zt   (1,knpf) =  zt   (2,knpf) - 8.0d0 ! base sur derniere couche environ 4km, lapse rate 2K/km
         zlq  (1,knpf) =  zlq  (2,knpf)
 !!!!
         iptobs   (knpf) = iobs
@@ -211,8 +211,8 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            qoext(1:nlevels,jn) =  profiles(iptobs(jn)) % q(1:nlevels) / q_mixratio_to_ppmv
         enddo
   
-        to_tl (:,:) = 0.0
-        lqo_tl(:,:) = 0.0
+        to_tl (:,:) = 0.0d0
+        lqo_tl(:,:) = 0.0d0
         imodulo = mod(knpf,nthreads)
         if ( imodulo .eq. 0 ) then
            istride = max(1,(knpf/nthreads))
@@ -239,8 +239,8 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 
 !     .  2.2  Extrapolation of temperature profile above 10mb
 !     .       -----------------------------------------------
-        toext_tl(:,:) = 0.0
-        if ( abs( zptopmbs - 10.0 ) > .1 ) then
+        toext_tl(:,:) = 0.0d0
+        if ( abs( zptopmbs - 10.0d0 ) > .1d0 ) then
            do jn = 1, knpf
               toext_tl(jpmotop:nlevels,jn)=to_tl(1:jpmolev,jn)
               toext_tl(1:jpmotop-1,jn)=0.d0
@@ -265,11 +265,11 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            enddo
         enddo
 
-        if ( abs( zptopmbs - 10.0 ) < .1 ) then
+        if ( abs( zptopmbs - 10.0d0 ) < .1d0 ) then
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_tl*1000 avant exthum4    = '
-                 write(*,9263)(qoext_tl(i,jn)*1000.,i=1,nlevels)
+                 write(*,9263)(qoext_tl(i,jn)*1000.d0,i=1,nlevels)
                  write(*,*)' '
               enddo
            endif
@@ -277,7 +277,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_tl*1000 apres exthum4    = '
-                 write(*,9263)(qoext_tl(i,jn)*1000.,i=1,nlevels)
+                 write(*,9263)(qoext_tl(i,jn)*1000.d0,i=1,nlevels)
                  write(*,*)' '
               enddo
            endif

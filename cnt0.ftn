@@ -18,11 +18,11 @@
 *
 ***   s/r CNT0  - Routine controlling the job at its highest level
 *
+      use topLevelControl_mod
       use mpi
       use obsSpaceData_mod
       use columnData_mod  
       implicit none
-#include "comct0.cdk"
       integer istamp,exdb,exfin
       character(len=9) :: clmsg
       integer  :: root,ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
@@ -32,7 +32,7 @@
 
       ISTAMP=EXDB('3DVAR','DEBUT','NON')
 
-      WRITE(*,FMT=9000) crevision
+      WRITE(*,FMT=9000) top_crevision
  9000 FORMAT(/,3(" *****************"),/
      S     ,14x,"-- START OF MAIN PROGRAM CNT0: --",/
      S     ,14x,"-- 3D VARIATIONAL ASSIMILATION --",/
@@ -51,17 +51,15 @@
          call wrstatus(clmsg)
       ENDIF 
 C
-C     *       1.    Initialize level 0 commons. (NCONF)
+C     *       1.    Initialize level 0 commons.
 C
-      call suct0
+      call top_setup
 C
 C     *       2.    Decide on configuration of job.
 C
-      select case (nconf)
-      case(101)
+      if(top_BgckMode()) then
 C BGCHECK AIRS IASI + donnees conventionnelles
-         IF(mpi_myid == root) WRITE(*,FMT=9203) NCONF
- 9203    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING BGCHECK")
+         IF(mpi_myid == root) WRITE(*,*) 'CNT0: BGCHECK MODE'
 
          call tmg_start(1,'PREMIN')
          numAnalyses = 1
@@ -86,10 +84,9 @@ C BGCHECK AIRS IASI + donnees conventionnelles
          CALL BGCHECK(columng,columnhr,obsSpaceData)
          call tmg_stop(2)
 
-      case(121)
+      elseif(top_OmpMode()) then
 C calcul des O-P pour AMSU, GEORAD et SSMIS
-         WRITE(*,FMT=9204) NCONF
- 9204    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING RESIDUAL")
+         WRITE(*,*) 'CNT0: RESIDUAL MODE (i.e. O-P)'
          call tmg_start(1,'PREMIN')
          numAnalyses = 1
          indexAnalysis = 0
@@ -113,10 +110,9 @@ C calcul des O-P pour AMSU, GEORAD et SSMIS
          CALL RESIDUALS(columng,columnhr,obsSpaceData)
          call tmg_stop (2)
 
-      case(141)
+      elseif(top_AnalysisMode()) then
 C ANALYSIS MODE
-         WRITE(*,FMT=9401)NCONF
- 9401    FORMAT(" CNT0- NCONF = ",1X,I4," CALLING MINIMIZE")
+         WRITE(*,*) 'CNT0: ANALYSIS MODE'
          !
          !- Determine the number of analyses to perform
          !
@@ -183,10 +179,11 @@ C ANALYSIS MODE
 
          call obs_finalize(obsSpaceData)
 c
-      case default
-         WRITE(*,FMT='('' ERROR CNT0  JOB'',2I6)') NCONF
+      else
 
-      END select
+         WRITE(*,*) ' CNT0: ERROR, UNKNOWN NCONF SPECIFIED'
+
+      endif
 C
 C     *    3. Job termination
 C

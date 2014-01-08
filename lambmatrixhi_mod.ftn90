@@ -544,9 +544,6 @@ contains
     real(8), allocatable :: gd_out(:,:,:)
     real(8), allocatable :: hiControlVector(:,:,:)
 
-    real(4), allocatable :: gd2d(:,:)
-    real(4), allocatable :: wkgd(:,:) 
-
     integer :: ier, k, fstouv, fnom, fstfrm, fclos, fstecr, ila
     integer :: iu_out = 90
 

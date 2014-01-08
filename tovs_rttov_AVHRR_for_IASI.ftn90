@@ -133,7 +133,7 @@ Do j = 1 , NPRF
    End Do
 End Do
 
-cloudemissivity(:) = 0.
+cloudemissivity(:) = 0.d0
 
 ! allocate transmittance structure
 

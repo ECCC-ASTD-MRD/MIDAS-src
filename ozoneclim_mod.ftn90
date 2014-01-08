@@ -27,16 +27,16 @@ PRIVATE
 
 ! Climatological ozone field (ppmv) and total ozone 
 
-  REAL                  :: FOZO(NLATO3,NLEVO3), TOTOZO(NLATO3,12)
+  REAL                  :: FOZO_r4(NLATO3,NLEVO3), TOTOZO_r4(NLATO3,12)
 
 ! Pressure height of climatology file vertical levels (mb)
 
   REAL(8)               :: PO3(NLEVO3)
 
-  DATA PO3 /   0.010, 0.015, 0.022, 0.032, 0.046, 0.068, 0.100,   &
-       0.150, 0.200, 0.300, 0.500, 1.000, 2.000, 3.000,   &
-       5.000, 7.000, 10.00, 20.00, 30.00, 50.00, 70.00,   &
-       100.0, 150.0, 200.0, 300.0, 500.0, 700.0, 1000. / 
+  DATA PO3 /    0.010D0, 0.015D0, 0.022D0, 0.032D0, 0.046D0, 0.068D0, 0.100D0,   &
+       0.150D0, 0.200D0, 0.300D0, 0.500D0, 1.000D0, 2.000D0, 3.000D0,   &
+       5.000D0, 7.000D0, 10.00D0, 20.00D0, 30.00D0, 50.00D0, 70.00D0,   &
+       100.0D0, 150.0D0, 200.0D0, 300.0D0, 500.0D0, 700.0D0, 1000.D0 / 
 
 
 contains
@@ -88,9 +88,9 @@ INTEGER   :: NEWDATE
 !* assign default qgas values if need be
 
 DO JN = 1, NPRF
-   NUMLAT(JN) = NINT( (ZLAT(JN)+90.) / (180./(REAL(NLATO3-1))) ) + 1
+   NUMLAT(JN) = NINT( (ZLAT(JN)+90.D0) / (180.D0/(REAL(NLATO3-1,8))) ) + 1
    DO K = 1, NLEVO3
-      QO3B(K,JN) = FOZO(NUMLAT(JN),K)
+      QO3B(K,JN) = FOZO_r4(NUMLAT(JN),K)
    END DO
 END DO
 
@@ -111,7 +111,7 @@ DO JN = 1, NPRF
       ier = newdate(tim_getDatestamp(),ijour,itime,-3)
       IJ = IJOUR/100
       IMONTH = IJ - (IJ/100)*100
-      O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO(NUMLAT(JN),IMONTH)
+      O3P(:,JN) = O3P(:,JN) * TOTO3OBS(JN) / TOTOZO_r4(NUMLAT(JN),IMONTH)
    END IF
 ENDDO
 
@@ -146,7 +146,6 @@ SUBROUTINE OZO_READ_CLIMATOLOGY()
   IMPLICIT NONE
 
   INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IV,K,IER
-  REAL               :: RDUM(NLATO3,NLEVO3)
   CHARACTER(len=100) :: CFILE
   INTEGER            :: NIOZO,NJOZO,NKOZO
   INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,NEWDATE
@@ -165,8 +164,8 @@ SUBROUTINE OZO_READ_CLIMATOLOGY()
   CFILE='ozoneclim98'
   IV1=FNOM(IOZTEST,CFILE,'RND+R/O',0)
   IV2=FSTOUV(IOZTEST,'RND')
-  IV3=FSTLIR(FOZO,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,IMONTH,' ','O3')
-  IV4=FSTLIR(TOTOZO,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,-1,' ','TO')
+  IV3=FSTLIR(FOZO_r4,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,IMONTH,' ','O3')
+  IV4=FSTLIR(TOTOZO_r4,IOZTEST,NIOZO,NJOZO,NKOZO,-1,' ',-1,-1,-1,' ','TO')
   IV5=FSTFRM(IOZTEST)
   IV6=FCLOS(IOZTEST)
 

@@ -243,7 +243,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
          knpf_tot = knpf_tot + knpf_th(ith)
        
-         surfem1_th (:,ith) = 0.
+         surfem1_th (:,ith) = 0.d0
 
          len_nchannels = nchannels_th(ith)/knpf_th(ith)
          ioffset=len_nchannels*(knpf_tot-knpf_th(ith))
@@ -254,10 +254,10 @@ subroutine tovs_rttov_ad(lobsSpaceData)
                if ( isurface .eq. 0 .or. &
                     isurface .eq. 2      ) then
                   calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
-                  surfem1_th (joff+1:joff+len_nchannels,ith) = 0.75
+                  surfem1_th (joff+1:joff+len_nchannels,ith) = 0.75d0
                else
                   calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-                  surfem1_th (joff+1:joff+len_nchannels,ith) = 0.
+                  surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
                endif
             elseif ((instrum .eq. 11) .or. (instrum .eq. 16) .or. (instrum .eq. 27)) then
                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
@@ -266,15 +266,15 @@ subroutine tovs_rttov_ad(lobsSpaceData)
             elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
                  (instrum .eq. 22) .or. (instrum .eq. 24) ) then
                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-               surfem1_th (joff+1:joff+len_nchannels,ith) = 0.
+               surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
             else
                call abort3d('tovs_rttov_ad. invalid sensor type')
             endif
          enddo
 
          emissivity_th(:,ith) = surfem1_th(:,ith)
-         cloudemissivity_th(:,ith) =0.0
-         cloudemissivity_ad_th(:,ith) = 0.0
+         cloudemissivity_th(:,ith) =0.0d0
+         cloudemissivity_ad_th(:,ith) = 0.0d0
       enddo
 
       allocate ( radiancedata_d_th(nthreads)         ,stat=alloc_status(12) )  ! radiances full structure buffer used in rttov calls
@@ -418,24 +418,24 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 !          profilesdata_ad_th(j,ith) % id               =  profiles(jj) % id
 !          profilesdata_ad_th(j,ith) % date             =  profiles(jj) % date
 !          profilesdata_ad_th(j,ith) % time             =  profiles(jj) % time
-          profilesdata_ad_th(j,ith) % p(:)             =  0.
-          profilesdata_ad_th(j,ith) % t(:)             =  0.
-          profilesdata_ad_th(j,ith) % q(:)             =  0.
-          profilesdata_ad_th(j,ith) % o3(:)            =  0.
+          profilesdata_ad_th(j,ith) % p(:)             =  0.d0
+          profilesdata_ad_th(j,ith) % t(:)             =  0.d0
+          profilesdata_ad_th(j,ith) % q(:)             =  0.d0
+          profilesdata_ad_th(j,ith) % o3(:)            =  0.d0
           if(coefs(krtid)%coef%nco2 > 0) then
-             profilesdata_ad_th(j,ith) % co2(:)        =  0.
+             profilesdata_ad_th(j,ith) % co2(:)        =  0.d0
           end if
           if(coefs(krtid)%coef%nn2o > 0) then
-             profilesdata_ad_th(j,ith) % n2o(:)        =  0.
+             profilesdata_ad_th(j,ith) % n2o(:)        =  0.d0
           endif
           if(coefs(krtid)%coef%nco > 0) then
-             profilesdata_ad_th(j,ith) % co(:)         =  0.
+             profilesdata_ad_th(j,ith) % co(:)         =  0.d0
           endif
           if(coefs(krtid)%coef%nch4 > 0) then
-             profilesdata_ad_th(j,ith) % ch4(:)        =  0.
+             profilesdata_ad_th(j,ith) % ch4(:)        =  0.d0
           endif
-          profilesdata_ad_th(j,ith) % ctp              =  0.
-          profilesdata_ad_th(j,ith) % cfraction        =  0.
+          profilesdata_ad_th(j,ith) % ctp              =  0.d0
+          profilesdata_ad_th(j,ith) % cfraction        =  0.d0
 !          profilesdata_ad_th(j,ith) % zenangle         =  profiles(jj) % zenangle
 !          profilesdata_ad_th(j,ith) % azangle          =  profiles(jj) % azangle
 !          profilesdata_ad_th(j,ith) % sunzenangle      =  profiles(jj) % sunzenangle
@@ -445,15 +445,15 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 !          profilesdata_ad_th(j,ith) % elevation        =  profiles(jj) % elevation
 !          profilesdata_ad_th(j,ith) % skin % surftype  =  profiles(jj) % skin % surftype
 !          profilesdata_ad_th(j,ith) % skin % watertype =  profiles(jj) % skin % watertype
-          profilesdata_ad_th(j,ith) % skin % t         =  0.      
-          profilesdata_ad_th(j,ith) % skin % fastem(:) =  0.
-          profilesdata_ad_th(j,ith) % skin % salinity  =  0.
-          profilesdata_ad_th(j,ith) % s2m % t          =  0.
-          profilesdata_ad_th(j,ith) % s2m % q          =  0.
-          profilesdata_ad_th(j,ith) % s2m % p          =  0.
-          profilesdata_ad_th(j,ith) % s2m % u          =  0.
-          profilesdata_ad_th(j,ith) % s2m % v          =  0.
-          profilesdata_ad_th(j,ith) % s2m % wfetc      =  0.
+          profilesdata_ad_th(j,ith) % skin % t         =  0.d0      
+          profilesdata_ad_th(j,ith) % skin % fastem(:) =  0.d0
+          profilesdata_ad_th(j,ith) % skin % salinity  =  0.d0
+          profilesdata_ad_th(j,ith) % s2m % t          =  0.d0
+          profilesdata_ad_th(j,ith) % s2m % q          =  0.d0
+          profilesdata_ad_th(j,ith) % s2m % p          =  0.d0
+          profilesdata_ad_th(j,ith) % s2m % u          =  0.d0
+          profilesdata_ad_th(j,ith) % s2m % v          =  0.d0
+          profilesdata_ad_th(j,ith) % s2m % wfetc      =  0.d0
 !          profilesdata_ad_th(j,ith) % clw(:)           =  profiles(jj) % clw(:)
 !          profilesdata_ad_th(j,ith) % idg              =  profiles(jj) % idg
 !          profilesdata_ad_th(j,ith) % ish              =  profiles(jj) % ish
@@ -466,27 +466,27 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
     do ith = 1, nthreads
 
-       radiancedata_d_th(ith) % clear    (:)   = 0.
-       radiancedata_d_th(ith) % cloudy   (:)   = 0.
-       radiancedata_d_th(ith) % total    (:)   = 0.
-       radiancedata_d_th(ith) % bt       (:)   = 0.
-       radiancedata_d_th(ith) % bt_clear (:)   = 0.
-       radiancedata_d_th(ith) % upclear  (:)   = 0.
-       radiancedata_d_th(ith) % dnclear  (:)   = 0.
-       radiancedata_d_th(ith) % reflclear(:)   = 0.
-       radiancedata_d_th(ith) % overcast (:,:) = 0.
+       radiancedata_d_th(ith) % clear    (:)   = 0.d0
+       radiancedata_d_th(ith) % cloudy   (:)   = 0.d0
+       radiancedata_d_th(ith) % total    (:)   = 0.d0
+       radiancedata_d_th(ith) % bt       (:)   = 0.d0
+       radiancedata_d_th(ith) % bt_clear (:)   = 0.d0
+       radiancedata_d_th(ith) % upclear  (:)   = 0.d0
+       radiancedata_d_th(ith) % dnclear  (:)   = 0.d0
+       radiancedata_d_th(ith) % reflclear(:)   = 0.d0
+       radiancedata_d_th(ith) % overcast (:,:) = 0.d0
        
      !.. fill radiancedata_ad_th arrays
 
-       radiancedata_ad_th(ith) % clear    (:)   = 0.
-       radiancedata_ad_th(ith) % cloudy   (:)   = 0.
-       radiancedata_ad_th(ith) % total    (:)   = 0.
-       radiancedata_ad_th(ith) % bt       (:)   = 0.
-       radiancedata_ad_th(ith) % bt_clear (:)   = 0.
-       radiancedata_ad_th(ith) % upclear  (:)   = 0.
-       radiancedata_ad_th(ith) % dnclear  (:)   = 0.
-       radiancedata_ad_th(ith) % reflclear(:)   = 0.
-       radiancedata_ad_th(ith) % overcast (:,:) = 0.
+       radiancedata_ad_th(ith) % clear    (:)   = 0.d0
+       radiancedata_ad_th(ith) % cloudy   (:)   = 0.d0
+       radiancedata_ad_th(ith) % total    (:)   = 0.d0
+       radiancedata_ad_th(ith) % bt       (:)   = 0.d0
+       radiancedata_ad_th(ith) % bt_clear (:)   = 0.d0
+       radiancedata_ad_th(ith) % upclear  (:)   = 0.d0
+       radiancedata_ad_th(ith) % dnclear  (:)   = 0.d0
+       radiancedata_ad_th(ith) % reflclear(:)   = 0.d0
+       radiancedata_ad_th(ith) % overcast (:,:) = 0.d0
 
        do jn = 1, knpf_th(ith)
           io = iptobs_th(jn,ith)
@@ -500,8 +500,8 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 !     .       ---------------------------------
 
       errorstatus_th  (:) = 0
-      emissivity_ad_th(:,:) = 0.0
-      emissivity_out_ad_th(:,:) = 0.0
+      emissivity_ad_th(:,:) = 0.0d0
+      emissivity_out_ad_th(:,:) = 0.0d0
 
 !$omp parallel
 !$omp do private(ith)
@@ -562,10 +562,10 @@ subroutine tovs_rttov_ad(lobsSpaceData)
             do  jl = 1 , coefs(krtid) % coef%nlevels
                if     ( profiles(iptobs_th(j,ith)) % q(jl)  &
                     .le.  coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
-                  profiles_ad(io) % q(jl)  = 0.0
+                  profiles_ad(io) % q(jl)  = 0.0d0
                elseif ( profiles(iptobs_th(j,ith)) % q(jl)  &
                     .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
-                  profiles_ad(io) % q(jl)  = 0.0
+                  profiles_ad(io) % q(jl)  = 0.0d0
                endif
             enddo
          end do

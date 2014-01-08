@@ -78,7 +78,7 @@ module verticalCoord_mod
     integer :: ivcode,kind,jlev,stat,sigdigits,nultemplate,ierr
     integer :: fnom,fstouv,fstfrm,fclos
     integer,   dimension(:), pointer :: my_ip1
-    real    :: hyb
+    real    :: hyb_r4
     real*8  :: dl_ptM,dl_ptT,dl_pref,dl_rcf1,dl_rcf2,zterm
     real*8,    dimension(:), pointer :: my_a, my_b
     REAL*8 precision
@@ -202,10 +202,10 @@ module verticalCoord_mod
     if(ivcode.eq.5002) then
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
-      tf_vco%dpt_M  = exp( tf_vco%da_M(1) + tf_vco%db_M(1)*log(100000.0/dl_pref) )
+      tf_vco%dpt_M  = exp( tf_vco%da_M(1) + tf_vco%db_M(1)*log(100000.0d0/dl_pref) )
       if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
       if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: read ptop(MM)=',dl_ptM
-      tf_vco%dpt_T  = exp( tf_vco%da_T(1) + tf_vco%db_T(1)*log(100000.0/dl_pref) )
+      tf_vco%dpt_T  = exp( tf_vco%da_T(1) + tf_vco%db_T(1)*log(100000.0d0/dl_pref) )
       if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
       if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: read ptop(TH)=',dl_ptM
     endif
@@ -228,8 +228,8 @@ module verticalCoord_mod
     if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb)= ',size(tf_vco%dhyb_M)
     do jlev = 1, tf_vco%nlev_M
       tf_vco%ip1_M(jlev) = my_ip1(jlev)
-      call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
-      tf_vco%dhyb_M(jlev) = hyb
+      call convip(my_ip1(jlev),hyb_r4,kind,-1,blk_s,.false.)
+      tf_vco%dhyb_M(jlev) = hyb_r4
       if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(moment)= ' & 
             ,jlev,tf_vco%nlev_M,tf_vco%ip1_M(jlev),tf_vco%dhyb_M(jlev)
 
@@ -265,8 +265,8 @@ module verticalCoord_mod
 
     do jlev = 1,tf_vco%nlev_T
       tf_vco%ip1_T(jlev)  = my_ip1(jlev)
-      call convip(my_ip1(jlev),hyb,kind,-1,blk_s,.false.)
-      tf_vco%dhyb_T(jlev) = hyb
+      call convip(my_ip1(jlev),hyb_r4,kind,-1,blk_s,.false.)
+      tf_vco%dhyb_T(jlev) = hyb_r4
       if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(thermo)= ' &
             ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
 

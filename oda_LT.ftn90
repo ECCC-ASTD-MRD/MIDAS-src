@@ -182,10 +182,10 @@ CONTAINS
 
           DInterpWeight = tim_getTimeInterpWeight(headerIndex,jstep)
           
-          DLW1  = DInterpWeight * (1.-DLDX) * (1.-DLDY)
-          DLW2  = DInterpWeight *     DLDX  * (1.-DLDY)
-          DLW3  = DInterpWeight * (1.-DLDX) *     DLDY
-          DLW4  = DInterpWeight *     DLDX  *     DLDY
+          DLW1  = DInterpWeight * (1.d0-DLDX) * (1.d0-DLDY)
+          DLW2  = DInterpWeight *       DLDX  * (1.d0-DLDY)
+          DLW3  = DInterpWeight * (1.d0-DLDX) *       DLDY
+          DLW4  = DInterpWeight *       DLDX  *       DLDY
 
           !- 2.4 Interpolate the model state to the obs point
           do jlev = klev1, klev2

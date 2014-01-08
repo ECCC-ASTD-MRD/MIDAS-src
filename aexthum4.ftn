@@ -119,10 +119,10 @@ c          constants defining p**3 fall off around tropopause
  130  CONTINUE
 c
       DO 150 JNPF=1,KNPF
-           ZWB=0.
+           ZWB=0.D0
            DO 140 J=1,INLVW
                 ZWMIX=PAV(J,JNPF)
-                PAV(J,JNPF)=0.
+                PAV(J,JNPF)=0.D0
                 IF (PPRES(J).GE.ZP1) THEN
                    IF (PAV5(J,JNPF).GT.MPC_MINIMUM_HU_R8) THEN
                       ZWB=ZWB+ZWMIX*ZPRES3(J)

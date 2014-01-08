@@ -43,8 +43,8 @@ SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,n
   REAL(8)   :: WFUNC(NLEV-1),RAP(NLEV-1)
 
   MINP(:,:) = -1
-  PMIN(:,:) = -1.
-  DT1(:,:)  = -1.
+  PMIN(:,:) = -1.D0
+  DT1(:,:)  = -1.D0
 
   DO J = 1, NLEV-1
      RAP(J) = LOG( PLEV(J+1) / PLEV(J) )
@@ -58,7 +58,7 @@ SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,n
         IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
         DO J = 1, NLEV
-           IF ( TAU(JC,JN,J) < 0.) CYCLE profiles
+           IF ( TAU(JC,JN,J) < 0.D0) CYCLE profiles
         END DO
 
         MINP(JC,JN) = NLEV
@@ -75,20 +75,20 @@ SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,n
 
 !*        IF CHANNEL SEES THE SURFACE, DON'T RECALCULATE MINP AND PMIN
 
-        IF ( TAU(JC,JN,NLEV) > 0.01 ) CYCLE profiles
+        IF ( TAU(JC,JN,NLEV) > 0.01D0 ) CYCLE profiles
 
 ! Recherche du maximum
         IPOS=MAXLOC( WFUNC(:) )
 ! Calcul de la valeur du maximum
         MAXWF = WFUNC(IPOS(1))
 ! maximum entre les 2 niveaux puisque WF calculee pour une couche finie ( discutable ?)
-        MAXHEIGHT(JC,JN)= 0.5 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1)+1)  )
+        MAXHEIGHT(JC,JN)= 0.5D0 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1)+1)  )
 
 !*        IF CHANNEL DOESN'T SEE THE SURFACE, SEE WHERE dTAU/dlog(PLEV) BECOMES IMPORTANT
 !*        FOR RECOMPUTATION OF MINP AND PMIN.
 
         DO J = NLEV-1, IPOS(1), -1
-           IF ( ( WFUNC(J)/ MAXWF ) > 0.01) THEN
+           IF ( ( WFUNC(J)/ MAXWF ) > 0.01D0) THEN
               MINP(JC,JN) = J+1
               PMIN(JC,JN) = MIN(PLEV(J+1),PS(JN))
               EXIT

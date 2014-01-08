@@ -108,13 +108,13 @@ C
           z2=px1(jo)
 C
           if (jo.eq.1) then 
-            z1=2.0*z2-px1(jo+1)
+            z1=2.0D0*z2-px1(jo+1)
           else
             z1=px1(jo-1)
           endif   
 C
           if (jo.eq.kno) then
-            z3=2.0*z2-z1
+            z3=2.0D0*z2-z1
           else   
             z3=px1(jo+1)
           endif
@@ -129,8 +129,8 @@ C
 C
 C --- Determine forward interpolator (kflag=0) or TLM (kflag>0)
 C
-          pzps(jo,jn)=0.0
-          pz(1:kni)=0.0
+          pzps(jo,jn)=0.0D0
+          pz(1:kni)=0.0D0
           ic=0
 
 c          call sublayer2(z1,z2,z3,px2(:,jn),kflag,
@@ -160,21 +160,21 @@ C
             endif
           enddo
  1000     continue
-          if (ic.eq.0) pz(j)=1.0
+          if (ic.eq.0) pz(j)=1.0D0
 C --- Apply forward interpolator (kflag=0), determine TLM*increment
 c (kflag=1)
 C     or use TLM for adjoint calc (kflag=2)
 
-          zsum=0.0
+          zsum=0.0D0
           if (kflag.eq.0) then
-            pmean(jo,jn)=0.0
+            pmean(jo,jn)=0.0D0
             do j=1,kni
               pmean(jo,jn)=pmean(jo,jn)+pz(j)*py2(j,jn)
               zsum=zsum+pz(j)
             end do
             pmean(jo,jn)=pmean(jo,jn)/zsum
           else if (kflag.eq.1) then
-            pmean(jo,jn)=0.0
+            pmean(jo,jn)=0.0D0
             do j=1,kni      
               pmean(jo,jn)=pmean(jo,jn)+pz(j)*py2incr(j,jn)
               zsum=zsum+pz(j)

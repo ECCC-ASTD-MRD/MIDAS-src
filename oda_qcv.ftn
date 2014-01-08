@@ -71,7 +71,7 @@ C
      2               ZSLEV .EQ. ZLEV) THEN
                   ZJON=obs_bodyElem_r(lobsSpaceData,OBS_JOBS,INDEX_BODY)+
      &                 obs_bodyElem_r(lobsSpaceData,OBS_JOBS,JJ)
-                  ZQCARG = ZGAMI + EXP(-1.0*ZJON)
+                  ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
 C
 C     Store the value of o-a multiplied by one minus the posterior
@@ -80,10 +80,10 @@ C
                   call obs_bodySet_r(lobsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
                   call obs_bodySet_r(lobsSpaceData,OBS_QCV,JJ, ZPPOST)
 
-                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.)
-                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.)
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))
+     &                 /2.D0)
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))
+     &                 /2.D0)
 C
 C     Contribution of both u and v added to the cost function at the
 C     same time (see tech. note by Andersson and Jarvinen)
@@ -99,23 +99,23 @@ C
      2               ZSLEV .EQ. ZLEV) THEN
                   ZJON=obs_bodyElem_r(lobsSpaceData,OBS_JOBS,INDEX_BODY)+
      &                 obs_bodyElem_r(lobsSpaceData,OBS_JOBS,JJ)
-                  ZQCARG = ZGAMI + EXP(-1.0*ZJON)
+                  ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
                   ZPPOST = ZGAMI/ZQCARG
                   call obs_bodySet_r(lobsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
                   call obs_bodySet_r(lobsSpaceData,OBS_QCV,JJ, ZPPOST)
-                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.)
-                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.))
-     &                 /2.)
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))
+     &                 /2.D0)
+                  call obs_bodySet_r(lobsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))
+     &                 /2.D0)
                 ENDIF
               enddo
             endif !ITYP
           else ! LLUV
             zjon = obs_bodyElem_r(lobsSpaceData,OBS_JOBS,index_body)
-            zqcarg = zgami + exp(-1.0*zjon)
+            zqcarg = zgami + exp(-1.0D0*zjon)
             zppost = zgami/zqcarg
             call obs_bodySet_r(lobsSpaceData,OBS_QCV,index_body, zppost)
-            call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.)))
+            call obs_bodySet_r(lobsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.D0)))
           endif ! LLUV
 
         endif ! includeFlag

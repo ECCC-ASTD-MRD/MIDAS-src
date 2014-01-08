@@ -118,10 +118,10 @@ c
            ZWB5=PAV5(INLVW+1,JNPF)
            DO 140 J=1,INLVW
                 IF (PPRES(J).LT.ZP1) THEN
-                     PAV(J,JNPF)=0.
+                     PAV(J,JNPF)=0.D0
                 ELSE
                    IF ( ZWB5*ZPRES3(J) .LE. MPC_MINIMUM_HU_R8 ) THEN
-                     PAV(J,JNPF)=0.
+                     PAV(J,JNPF)=0.D0
                    ELSE
                      PAV(J,JNPF)=ZWB*ZPRES3(J)
                    ENDIF

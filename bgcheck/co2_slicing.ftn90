@@ -61,9 +61,9 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
       
   EPS         = 1.D-12
 
-  PTOP(:,:)   = -1.
+  PTOP(:,:)   = -1.D0
   NTOP(:,:)   = -1
-  FCLOUD(:,:) = -1.
+  FCLOUD(:,:) = -1.D0
 
   profiles: DO JN = 1, NPRF
 
@@ -96,7 +96,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
      IF ( SUMREJ == 0 ) THEN
         PTOP(:,JN) = PS(JN)
         NTOP(:,JN) = JPMAX
-        FCLOUD(:,JN) = 0.
+        FCLOUD(:,JN) = 0.D0
         CYCLE profiles
      END IF
 
@@ -109,7 +109,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
         IF ( JCH > 13) NITER=2 
 
         iteration: DO ITER = 1, NITER
-           DRAP(JCH,:)   = 9999.
+           DRAP(JCH,:)   = 9999.D0
            NTOP(JCH,JN) = -1
 !-------------------------------------------------------------------------------
 !         calcul EMI_RATIO
@@ -140,7 +140,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
            ENDIF
 
            DO J = LEV_START(JN), JPMAX
-              IF ( FC(JC,J) > 0. .AND. FC(JC_PAIR,J) > 0. )  &
+              IF ( FC(JC,J) > 0.D0 .AND. FC(JC_PAIR,J) > 0.D0 )  &
                    DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J))*EMI_RATIO
            END DO
 
@@ -150,7 +150,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 
 !**         do not allow fc negative (i.e. drap(jch,j) = 9999.)
 
-              IF ( DRAP(JCH,J) > 9000. .AND. &
+              IF ( DRAP(JCH,J) > 9000.D0 .AND. &
                    A_DRAP(J-1) < EPS .AND. &
                    A_DRAP(J+1) < EPS ) CYCLE channels
 
@@ -158,7 +158,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 
 !**         find first, hopefully unique, zero crossing
 
-              IF ( VAL < 0. ) THEN
+              IF ( VAL < 0.D0 ) THEN
 
 !**         conditions near zero crossing of isolated minimum need monotonically
 !**         decreasing drap from j-3 to j-1 as well increasing from j to j+1
@@ -167,12 +167,12 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
                  VAL2 = DRAP(JCH,J-3) / ( DRAP(JCH,J-1) )
                  VAL3 = DRAP(JCH,J)   / ( DRAP(JCH,J+1) )
 
-                 IF ( VAL1 > 0. .AND.  & 
-                      VAL2 > 0. .AND.  & 
-                      VAL3 > 0. .AND.  &
+                 IF ( VAL1 > 0.D0 .AND.  & 
+                      VAL2 > 0.D0 .AND.  & 
+                      VAL3 > 0.D0 .AND.  &
                       A_DRAP(J-2) > A_DRAP(J-1) .AND.  &
                       A_DRAP(J-3) > A_DRAP(J-2) .AND.  &
-                      A_DRAP(J)   < 9000.       .AND.  &
+                      A_DRAP(J)   < 9000.D0     .AND.  &
                       A_DRAP(J+1) > A_DRAP(J) )        &
                       THEN
                     PTOP(JCH,JN) = PLEV(J)
@@ -189,16 +189,16 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 
 !**       special cases of no determination
 
-           IF ( J <= LEV_START(JN) .OR. DRAP(JCH,J) > 9000. ) THEN
+           IF ( J <= LEV_START(JN) .OR. DRAP(JCH,J) > 9000.D0 ) THEN
 !           IF ( ITER == 1) THEN
-              PTOP(JCH,JN)   = -1.
+              PTOP(JCH,JN)   = -1.D0
               NTOP(JCH,JN)   = -1
-              FCLOUD(JCH,JN) = -1.
+              FCLOUD(JCH,JN) = -1.D0
               !	   ENDIF
               CYCLE channels
            END IF
 
-           IF ( ABS(RCLD(JC,JN,J)-RCAL(JC,JN)) > 0. )       &
+           IF ( ABS(RCLD(JC,JN,J)-RCAL(JC,JN)) > 0.D0 )       &
                 FCLOUD(JCH,JN) = (ROBS(JC,JN)-RCAL(JC,JN)) /   &
                 (RCLD(JC,JN,J)-RCAL(JC,JN))
 
@@ -213,7 +213,7 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 
 !**       find cloud fraction based on exact cloud top
 
-           IF ( ABS(FCINT) > 0. )                                            &
+           IF ( ABS(FCINT) > 0.D0 )                                            &
                 FCLOUD(JCH,JN) = ( RCAL(JC,JN) - ROBS(JC,JN) ) / FCINT
 
            FCLOUD(JCH,JN) = MIN ( FCLOUD(JCH,JN),  1.5D0 )

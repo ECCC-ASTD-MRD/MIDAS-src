@@ -64,10 +64,10 @@
 
       DO JN = 1, NPRF
 
-        LNX_SUM = 0.
-        Y_SUM   = 0.
-        A_NUM   = 0.
-        A_DEN   = 0.
+        LNX_SUM = 0.d0
+        Y_SUM   = 0.d0
+        A_NUM   = 0.d0
+        A_DEN   = 0.d0
 
 
 !*      FIND AVERAGED VALUES OF HEIGHT AND LN ( PRESSURE )

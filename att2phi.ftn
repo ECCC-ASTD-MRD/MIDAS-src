@@ -118,9 +118,9 @@ c
 c
         do jk=iklevm2,1,-1
           ik = col_getNumLev(lcolumn)-1-jk
-          zak = -2.0*ZCON2*vma(ik+1)
-          zbk = -2.0*ZCON2*vmb(ik+1)
-          zck = -2.0*ZCON2*vmc(ik+1)
+          zak = -2.0D0*ZCON2*vma(ik+1)
+          zbk = -2.0D0*ZCON2*vmb(ik+1)
+          zck = -2.0D0*ZCON2*vmc(ik+1)
           tv_tmp(ik,jobs)   = tv_tmp(ik,jobs)+
      &                        gz_column(ik)*zak
           tv_tmp(ik+1,jobs) = tv_tmp(ik+1,jobs)+
@@ -128,20 +128,20 @@ c
           tv_tmp(ik+2,jobs) = tv_tmp(ik+2,jobs)+
      &                        gz_column(ik)*zck
           gz_column(ik+2) = gz_column(ik+2)+gz_column(ik)
-          gz_column(ik)  = 0.0
+          gz_column(ik)  = 0.0D0
         enddo
 
-        ZAK = -2.0*ZCON2*VMA(col_getNumLev(lcolumn))
-        ZBK = -2.0*ZCON2*VMB(col_getNumLev(lcolumn))
-        ZCK = -2.0*ZCON2*VMC(col_getNumLev(lcolumn))
+        ZAK = -2.0D0*ZCON2*VMA(col_getNumLev(lcolumn))
+        ZBK = -2.0D0*ZCON2*VMB(col_getNumLev(lcolumn))
+        ZCK = -2.0D0*ZCON2*VMC(col_getNumLev(lcolumn))
         tv_tmp(col_getNumLev(lcolumn)-1,jobs) = tv_tmp(col_getNumLev(lcolumn)-1,jobs)+
      &             ZAK*gz_column(col_getNumLev(lcolumn)-1)
         tv_tmp(col_getNumLev(lcolumn),jobs)   = tv_tmp(col_getNumLev(lcolumn),jobs)+
      &             ZBK*gz_column(col_getNumLev(lcolumn)-1)
         tv_tmp(col_getNumLev(lcolumn)-2,jobs) = tv_tmp(col_getNumLev(lcolumn)-2,jobs)+
      &             ZCK*gz_column(col_getNumLev(lcolumn)-1)
-        gz_column(col_getNumLev(lcolumn)-1)= 0.0
-        gz_column(col_getNumLev(lcolumn))  = 0.0
+        gz_column(col_getNumLev(lcolumn)-1)= 0.0D0
+        gz_column(col_getNumLev(lcolumn))  = 0.0D0
       enddo
 !$OMP END PARALLEL
 C

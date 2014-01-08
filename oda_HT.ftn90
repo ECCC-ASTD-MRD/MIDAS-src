@@ -103,7 +103,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
-      zgamma = 0.0065 / GRAV
+      zgamma = 0.0065d0 / GRAV
       zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
 !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
@@ -178,7 +178,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c orography
 !c
             zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexp
-            ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
+            ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
             ps_column(1)    = ps_column(1)  &
                  + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &
@@ -221,8 +221,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
-      zgamma = 0.0065 / GRAV
-      zexp   = 1.0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+      zgamma = 0.0065d0 / GRAV
+      zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
       zexpgz = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
 !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
@@ -289,9 +289,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
               ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,'NA')
               ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')
               ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
-              ZWT  = 1. - ZWB
+              ZWT  = 1.d0 - ZWB
 !ccc ATTN ATTN ZDADPS EST A DEFINIR POUR UNE COORDONNEE Z
-              ZDADPS= 0.
+              ZDADPS= 0.d0
               all_column(IPB) = all_column(IPB) + ZWB*ZRES
               all_column(IPT) = all_column(IPT) + ZWT*ZRES
               ps_column(1)    = ps_column(1)    +         &
@@ -310,7 +310,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c  adjoint of TL of geopotential extrapolation below orography
 !c
             zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexpgz
-            ZATV = ((1.0 - ZCON)/ZGAMMA)*ZRES
+            ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
             ps_column(1)    = ps_column(1)     &
                  + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &

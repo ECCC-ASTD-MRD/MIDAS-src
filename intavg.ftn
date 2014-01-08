@@ -125,7 +125,7 @@ C
 C
       DO JN = 1, KNPROF
          ZLNPI(1:KNI)=LOG(PVLEV(1:KNI,JN))
-         PVO(1:KNO,JN)=0.0
+         PVO(1:KNO,JN)=0.0D0
 C
          DO JO=1,KNO
             CALL LAYERAVG(KFLAG,ZLNPO,ZLNPI,PVI(1:KNI,JN),ZPG,KNO,KNI,

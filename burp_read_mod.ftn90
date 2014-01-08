@@ -2241,11 +2241,11 @@ CONTAINS
 
     SELECT CASE(FAMTYP)
       CASE ( 'UA' , 'SW' , 'AI')
-        VCO=2
+        VCO=2 ! PRESSURE COORD
       CASE ( 'SF' , 'SC', 'PR', 'RO', 'GP' )
-        VCO=1
+        VCO=1 ! HEIGHT COORD
       CASE ( 'TO'  )
-        VCO=3
+        VCO=3 ! CHANNEL NUMBER
     END SELECT
 
     !-------------------SPECIAL CASES--------------

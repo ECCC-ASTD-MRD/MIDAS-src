@@ -209,7 +209,7 @@ MODULE gridStateVector_mod
     case ("FIRST")
        statevector%anltime=1
     case ("MIDDLE")
-       statevector%anltime=nint((real(numStep)+1.0)/2.0)
+       statevector%anltime=nint((real(numStep,8)+1.0d0)/2.0d0)
     case ("LAST")
        statevector%anltime=numStep
     end select          

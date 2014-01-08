@@ -36,11 +36,11 @@ module modgpsztd_mod
 !                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
 !     L1OBS       Flag to select a single ZTD observation using criteria in
 !                 subroutine DOBSGPSGB
-!     LTESTOP     Flag to test ZTD observation operator (NCONF=101, 121 only)
+!     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
 !     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
 !                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
 !
-  REAL    DZMIN, DZMAX, YZTDERR, YSFERRWGT, YZDERRWGT
+  REAL*8  DZMIN, DZMAX, YZTDERR, YSFERRWGT, YZDERRWGT
   LOGICAL LASSMET, LLBLMET, LBEVIS, L1OBS, LTESTOP
   INTEGER IREFOPT, IZTDOP
 
@@ -69,13 +69,13 @@ contains
 !*  .  1.1 Default values
 !   .      --------------
 
-    DZMIN  = 2.0
-    DZMAX  = 1000.0
-    YZTDERR = 0.012
+    DZMIN  = 2.0D0
+    DZMAX  = 1000.0D0
+    YZTDERR = 0.012D0
     LASSMET = .TRUE.
-    YSFERRWGT = 1.0
+    YSFERRWGT = 1.0D0
     LLBLMET = .FALSE.
-    YZDERRWGT = 1.0
+    YZDERRWGT = 1.0D0
     LBEVIS = .TRUE.
     IREFOPT = 1
     L1OBS = .FALSE.
@@ -149,14 +149,14 @@ contains
         write(*,*) ' '
       ENDIF
 
-      IF (YZTDERR .LT. 0.0) THEN
+      IF (YZTDERR .LT. 0.0D0) THEN
         write(*,*)' '
         write(*,*)' *****************************************'
         write(*,*)' *          GB-GPS OBSERVATIONS          *'
         write(*,*)' *    ZTD OBSERVATION ERROR FROM FERR    *'
         write(*,*)' *                                       *'
         write(*,*)' *****************************************'
-      ELSE IF (YZTDERR .GT. 0.0) THEN
+      ELSE IF (YZTDERR .GT. 0.0D0) THEN
         write(*,*)' '
         write(*,*)' *****************************************'
         write(*,*)' *          GB-GPS OBSERVATIONS          *'
@@ -164,7 +164,7 @@ contains
         write(*,*)' *                                       *'
         write(*,*)' *****************************************'
         write(*,*)' '
-        write(*,*)'YZTDERR (mm) = ', YZTDERR*1000.
+        write(*,*)'YZTDERR (mm) = ', YZTDERR*1000.D0
       ELSE
         write(*,*)' '
         write(*,*)' *****************************************'

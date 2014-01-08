@@ -48,6 +48,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !
 !
 #endif
+  use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use tovs_mod
@@ -68,7 +69,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
         zenmax
 
   implicit none
-#include "comct0.cdk"
 
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumnghr
@@ -136,8 +136,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 ! find model level top, within 0.000001 mbs.
 
   zptop    = col_getPressure(lcolumnghr,1,1,'TH')
-  zptopmbs = zptop/100.
-  zptopmbs = zptopmbs - 0.000001
+  zptopmbs = zptop/100.d0
+  zptopmbs = zptopmbs - 0.000001d0
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -235,8 +235,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !!! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
 !!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)
 
-        zt   (1,knpf) =  zt   (2,knpf) - 8.0 ! base sur derniere couche environ 4km, lapse rate 2K/km
-        zlq  (1,knpf) =  zlq  (2,knpf)       ! extrapolation valeur constante pour H2O peu important a cette hauteur
+        zt   (1,knpf) =  zt   (2,knpf) - 8.0d0 ! base sur derniere couche environ 4km, lapse rate 2K/km
+        zlq  (1,knpf) =  zlq  (2,knpf)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
 !!!!
 
         iptobs   (knpf) = iobs
@@ -273,8 +273,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 
 !     .  2.2  Extrapolation of temperature profile above model top
 !     .       ----------------------------------------------------
-        toext(:,:) = 0.0
-        if ( abs( zptopmbs - 10.0 ) > .1 ) then ! si le toit n'est pas a 10. hPa 
+        toext(:,:) = 0.0d0
+        if ( abs( zptopmbs - 10.0d0 ) > .1d0 ) then ! si le toit n'est pas a 10. hPa 
 !constant value extrapolation for now modified with a bias....
            do jn=1,knpf
               toext(nlevels-jpmolev+1:nlevels,jn) = to(1:jpmolev,jn)
@@ -294,14 +294,14 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 !     .  2.3  Extrapolation of height profile above model top
 !     .       -----------------------------------------------
 
-        zhoext(:,:) = 0.0
+        zhoext(:,:) = 0.0d0
         call htextrap (zhoext,zho,xpres(1:nlevels),nlevels,jpmolev,jpmotop,knpf)
 
 !     .  2.4  Extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
 !     .       -----------------------------------------
 
-        qoext(:,:) = 0.0
+        qoext(:,:) = 0.0d0
 
         do jn = 1, knpf
            do jk = 1, jpmolev
@@ -309,13 +309,13 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
            enddo
         enddo
 
-        if ( abs( zptopmbs - 10.0 ) > .1 ) then ! si le toit n'est pas a 10. hPa
+        if ( abs( zptopmbs - 10.0d0 ) > .1d0 ) then ! si le toit n'est pas a 10. hPa
            qoext(1:jpmotop,1:knpf) = MPC_MINIMUM_HU_R8
         else
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext*1000 avant exthum4    = '
-                 write(*,9263)(qoext(i,jn)*1000.,i=1,nlevels)
+                 write(*,9263)(qoext(i,jn)*1000.d0,i=1,nlevels)
                  write(*,*)' '
               enddo
            endif
@@ -323,7 +323,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext*1000 apres exthum4    = '
-                 write(*,9263)(qoext(i,jn)*1000.,i=1,nlevels)
+                 write(*,9263)(qoext(i,jn)*1000.d0,i=1,nlevels)
                  write(*,*)' '
               enddo
            endif
@@ -334,7 +334,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
 
         allocate ( toto3obs(knpf) )     
 
-        toto3obs(:) = 0.
+        toto3obs(:) = 0.d0
   
         allocate( PP(nlevels,knpf) )
         DO J=1,knpf
@@ -357,7 +357,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
            profiles(jj) % nlayers         = nlevels - 1
            profiles(jj) % zenangle        = (isatzen(j)-9000)/100.0
  !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
-           if (profiles(jj) % zenangle .lt.0.00 .or. &
+           if (profiles(jj) % zenangle .lt.0.0d0 .or. &
                 profiles(jj) % zenangle .gt. zenmax ) then
               write(*,*) "!!! WARNING !!!"
               write(*,*) "INVALID ZENITH ANGLE"
@@ -366,18 +366,18 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
               profiles(jj) % zenangle=0.d0
            endif
 !**********************************************************            
-           profiles(jj) % azangle         = (isatazim(j))/100.0
-           profiles(jj) % sunzenangle     = (isunza(j)-9000)/100.0
+           profiles(jj) % azangle         = (isatazim(j))/100.0d0
+           profiles(jj) % sunzenangle     = (isunza(j)-9000)/100.0d0
            profiles(jj) % sunazangle      = 0.d0 ! necessaire pour radiation solaire a changer plus tard
            profiles(jj) % latitude        = zlat(j)
            profiles(jj) % longitude       = zlon(j)
-           profiles(jj) % elevation       = 0.001*zht(ilowlvl_T,j) ! unite km
+           profiles(jj) % elevation       = 0.001d0*zht(ilowlvl_T,j) ! unite km
 
            profiles(jj) % skin % surftype = ksurf(j)
            profiles(jj) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
            profiles(jj) % skin % t        = col_getElem(lcolumnghr,1,iptobscma(j),'TG')
            profiles(jj) % skin % salinity = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
-           profiles(jj) % skin % fastem(:)= 0.0
+           profiles(jj) % skin % fastem(:)= 0.0d0
 !
            profiles(jj) % s2m % t         = col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'TT')
 !!!        profiles(jj) % s2m % q         = exp(col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'HU')) * q_mixratio_to_ppmv
@@ -385,18 +385,18 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
            profiles(jj) % s2m % p         = col_getElem(lcolumnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
            profiles(jj) % s2m % u         = col_getElem(lcolumnghr,ilowlvl_M,iptobscma(j),'UU')
            profiles(jj) % s2m % v         = col_getElem(lcolumnghr,ilowlvl_M,iptobscma(j),'VV')
-           profiles(jj) % s2m % o         = 0.0 !surface ozone never used
-           profiles(jj) % s2m % wfetc     = 100000.0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
+           profiles(jj) % s2m % o         = 0.0d0 !surface ozone never used
+           profiles(jj) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
 !
            profiles(jj) % idg             = 0
            profiles(jj) % ish             = 0
-           profiles(jj) % snow_frac       = 0. ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
-           profiles(jj) % soil_moisture   = 0. ! soil moisure (m**3/m**3) not yet used
+           profiles(jj) % snow_frac       = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
+           profiles(jj) % soil_moisture   = 0.d0 ! soil moisure (m**3/m**3) not yet used
         
            profiles(jj) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
            profiles(jj) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         
-           if (nconf==101) then
+           if ( top_BgckMode() ) then
               profiles_qc(jj) % lat          = zlat(j)
               profiles_qc(jj) % lon          = zlon(j)
               profiles_qc(jj) % sunza        = profiles(jj) % sunzenangle
@@ -427,7 +427,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
            profiles(jj) % t(:)            = toext(:,j)
            profiles(jj) % q(:)            = qoext(:,j) * q_mixratio_to_ppmv
            profiles(jj) % o3(:)           = ozo(:,j)
-           if (nconf==101) profiles_qc(jj) % z(:)         = zhoext(:,j)
+           if ( top_BgckMode() ) profiles_qc(jj) % z(:)         = zhoext(:,j)
 
            profiles(jj) % ctp = 1013.25d0
            profiles(jj) % cfraction = 0.d0

@@ -56,7 +56,7 @@
                      ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,'NA')/RG
                      ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')/RG
                      ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
-                     ZWT  = 1. - ZWB
+                     ZWT  = 1.d0 - ZWB
 !C
 !C     FIRST GUESS ERROR VARIANCE
 !C

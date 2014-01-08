@@ -494,7 +494,7 @@ module calcbmatrix_glb_mod
         dsummed=dsummed + (rstddev(jk1,jn)**2)*((2.0d0*dble(jn))+1.0d0)/2.0d0
       enddo
       do jn = 0, ntrunc
-        if(dsummed.gt.0.0) rstddev(jk1,jn)=rstddev(jk1,jn)*sqrt(0.5d0/dsummed)
+        if(dsummed.gt.0.0d0) rstddev(jk1,jn)=rstddev(jk1,jn)*sqrt(0.5d0/dsummed)
       enddo
     enddo
 
@@ -802,7 +802,7 @@ module calcbmatrix_glb_mod
 
 !   1. Initialize P_to_T, ZM1, ZM2
 
-    ZFACTTOT = 0.0
+    ZFACTTOT = 0.0D0
     DO JLAT = 1, NJ
       ZFACTTOT = ZFACTTOT + cos(GST_GETRLATI(JLAT))
     ENDDO
@@ -835,8 +835,8 @@ module calcbmatrix_glb_mod
       DO JK1 = 1, (NLEVENS+1)
         DO JB=1,JPNLATBND
           DO JLAT = 1, NJ
-            if ((ZLAT(JLAT) .gt. 2.*MPC_PI_R8*DLLATMIN(JB)/360.)   &
-          .and. (ZLAT(JLAT) .le. 2.*MPC_PI_R8*DLLATMAX(JB)/360.)) then
+            if ((ZLAT(JLAT) .gt. 2.D0*MPC_PI_R8*DLLATMIN(JB)/360.D0)   &
+          .and. (ZLAT(JLAT) .le. 2.D0*MPC_PI_R8*DLLATMAX(JB)/360.D0)) then
               ZFACT = cos(ZLAT(JLAT))*ZFACTTOT
               DO JLON = 1, NI
 
@@ -1065,11 +1065,11 @@ module calcbmatrix_glb_mod
 
     ! ensure input field is zero for spectral component (0,0)
     do jlev = 1, nlevEns
-      if(spvor(1,1,jlev).ne.0.) then
-        spvor(1,1,jlev) = 0.0
+      if(spvor(1,1,jlev).ne.0.D0) then
+        spvor(1,1,jlev) = 0.0D0
       endif
-      if(spvor(1,2,jlev).ne.0.) then
-        spvor(1,2,jlev) = 0.0
+      if(spvor(1,2,jlev).ne.0.D0) then
+        spvor(1,2,jlev) = 0.0D0
       endif
     enddo
 
@@ -1079,7 +1079,7 @@ module calcbmatrix_glb_mod
     ! loop over levels and zonal wavenumbers
     ! n.b.: at the tip of the triangle, no contributions
     
-    zcon = -2.*romega*ra**2
+    zcon = -2.D0*romega*ra**2
     do jlev = 1, nlevEns
 
       ! the base address ia will point to the spherical harmonic
@@ -1091,23 +1091,23 @@ module calcbmatrix_glb_mod
 
         ! at the base, contributions from n+1 coeff only
         zn = zm
-        zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.*(zn+1)**2-1.) )
-        spgz(ia,1,jlev)=zcon*spvor(ia+1,1,jlev)*zenmp1/((zn+1.0)**2)
-        spgz(ia,2,jlev)=zcon*spvor(ia+1,2,jlev)*zenmp1/((zn+1.0)**2)
+        zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.D0*(zn+1)**2-1.D0) )
+        spgz(ia,1,jlev)=zcon*spvor(ia+1,1,jlev)*zenmp1/((zn+1.0D0)**2)
+        spgz(ia,2,jlev)=zcon*spvor(ia+1,2,jlev)*zenmp1/((zn+1.0D0)**2)
 
         zn = zn+1
         do ji = ia+1, ib-1
-          zenm = sqrt ( (zn**2-zm**2)/(4.*zn**2-1.) )
-          zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.*(zn+1)**2-1.) )
+          zenm = sqrt ( (zn**2-zm**2)/(4.D0*zn**2-1.D0) )
+          zenmp1 = sqrt ( ((zn+1)**2-zm**2)/(4.D0*(zn+1)**2-1.D0) )
           spgz(ji,1,jlev)=spvor(ji-1,1,jlev)*zenm/(zn**2)
           spgz(ji,2,jlev)=spvor(ji-1,2,jlev)*zenm/(zn**2)
-          spgz(ji,1,jlev)=zcon*(spgz(ji,1,jlev)+spvor(ji+1,1,jlev)*zenmp1/((zn+1.0)**2))
-          spgz(ji,2,jlev)=zcon*(spgz(ji,2,jlev)+spvor(ji+1,2,jlev)*zenmp1/((zn+1.0)**2))
-          zn = zn + 1.0
+          spgz(ji,1,jlev)=zcon*(spgz(ji,1,jlev)+spvor(ji+1,1,jlev)*zenmp1/((zn+1.0D0)**2))
+          spgz(ji,2,jlev)=zcon*(spgz(ji,2,jlev)+spvor(ji+1,2,jlev)*zenmp1/((zn+1.0D0)**2))
+          zn = zn + 1.0D0
         enddo
 
         ! at the top, contributions from n-1 coeff only
-        zenm = sqrt ( (zn**2-zm**2)/(4.*zn**2-1.) )
+        zenm = sqrt ( (zn**2-zm**2)/(4.D0*zn**2-1.D0) )
         spgz(ib,1,jlev) = zcon*spvor(ib-1,1,jlev)*zenm/(zn**2)
         spgz(ib,2,jlev) = zcon*spvor(ib-1,2,jlev)*zenm/(zn**2)
         ia = ib + 1
@@ -1116,8 +1116,8 @@ module calcbmatrix_glb_mod
 
     ! ensure correct value for mass spectral-coefficient for m=n=0
     do jlev = 1, nlevens
-      spgz(1,1,jlev) = 0.0
-      spgz(1,2,jlev) = 0.0
+      spgz(1,1,jlev) = 0.0D0
+      spgz(1,2,jlev) = 0.0D0
     enddo
 
   end subroutine calcBalancedP
@@ -1447,19 +1447,19 @@ module calcbmatrix_glb_mod
       REAL*8 DLNORM(0:KTRUNC)
 
       DO JLAT = 1, KNJ
-         PLEG(0,JLAT) = SQRT(0.5)
-         PLEG(1,JLAT) = SQRT(1.5)*DDMU(JLAT)
+         PLEG(0,JLAT) = SQRT(0.5D0)
+         PLEG(1,JLAT) = SQRT(1.5D0)*DDMU(JLAT)
       END DO
 
       DO JN = 0, KTRUNC
          DLN = 1.D0*DFLOAT(JN)
-         DLNORM(JN) = DSQRT((2.*DLN + 1.D0)/2.D0)
+         DLNORM(JN) = DSQRT((2.D0*DLN + 1.D0)/2.D0)
       END DO
 
       DO JN = 1, KTRUNC-1
          DLN = DFLOAT(JN)
-         DLFACT1 = ((2.*DLN+1.)/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN))
-         DLFACT2 = (DLN/(DLN+1.))*(DLNORM(JN+1)/DLNORM(JN-1))
+         DLFACT1 = ((2.D0*DLN+1.D0)/(DLN+1.D0))*(DLNORM(JN+1)/DLNORM(JN))
+         DLFACT2 = (DLN/(DLN+1.D0))*(DLNORM(JN+1)/DLNORM(JN-1))
          DO JLAT = 1,KNJ
             PLEG(JN+1,JLAT) = DLFACT1*DDMU(JLAT)*DBLE(PLEG(JN,JLAT)) -  &
                               DLFACT2*DBLE(PLEG(JN-1,JLAT))

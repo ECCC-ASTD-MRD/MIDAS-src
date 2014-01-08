@@ -49,22 +49,22 @@
 *-------------------------------------------------------------
 *
       ZLAT= PLAT / MPC_RADIANS_PER_DEGREE_R8
-      IF(ZLAT .GE. 30.)THEN
+      IF(ZLAT .GE. 30.D0)THEN
         KLAT1   = 1
         KLAT2   = 1
-        ZFACTOR = 1.
-      ELSEIF(ZLAT.GE.00. .AND. ZLAT.LT.30.)THEN
+        ZFACTOR = 1.D0
+      ELSEIF(ZLAT.GE.00.D0 .AND. ZLAT.LT.30.D0)THEN
         KLAT1   = 1
         KLAT2   = 2
-        ZFACTOR = (30. - ZLAT)/30.
-      ELSEIF(ZLAT.GT.-30. .AND. ZLAT.LT.00.)THEN
+        ZFACTOR = (30.D0 - ZLAT)/30.D0
+      ELSEIF(ZLAT.GT.-30.D0 .AND. ZLAT.LT.00.D0)THEN
         KLAT1   = 2
         KLAT2   = 3
-        ZFACTOR = (00. - ZLAT)/30.
-      ELSEIF(ZLAT.LE.-30.)THEN
+        ZFACTOR = (00.D0 - ZLAT)/30.D0
+      ELSEIF(ZLAT.LE.-30.D0)THEN
         KLAT1   = 3
         KLAT2   = 3
-        ZFACTOR = 1.
+        ZFACTOR = 1.D0
       ELSE
         WRITE(*,*)' LATID: WRONG LATITUDE -LAT ',ZLAT
       ENDIF

@@ -37,7 +37,7 @@ SUBROUTINE oda_Jo(lobsSpaceData)
           call obs_bodySet_r(lobsSpaceData,OBS_JOBS,index_body, &
                ( obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body) &
                 *obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body) &
-               )/2.)
+               )/2.d0)
        ELSE
           call obs_bodySet_r(lobsSpaceData,OBS_JOBS,index_body, 0.0d0)
        ENDIF

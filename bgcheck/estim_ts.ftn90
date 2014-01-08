@@ -55,9 +55,9 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
   integer    :: ptc(NCHNKEPT)
 
 
-  TS1(:,:) = -1.
-  TS(:) = -1.
-  RADTG(:,:) = -1.
+  TS1(:,:) = -1.D0
+  TS(:) = -1.D0
+  RADTG(:,:) = -1.D0
 
   if (NCHNKEPT/=hir_get_nchan_selected(CINST)) then
      Write(*,*) "Invalid NCHNKEPT: ",NCHNKEPT,hir_get_nchan_selected(CINST),CINST
@@ -80,7 +80,7 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
         indx=ptc(jc)
 
         RADTG(indx,jn) =  coefs(satid)%coef%planck1(jc) / &
-             ( Exp( coefs(satid)%coef%planck2(jc)/t_effective ) - 1.0 )
+             ( Exp( coefs(satid)%coef%planck2(jc)/t_effective ) - 1.0D0 )
      END DO
   END DO
       

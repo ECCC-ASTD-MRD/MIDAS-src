@@ -101,8 +101,8 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 ! find model level top, within 0.000001 mbs.
 
   zptop    = col_getPressure(lcolumng,1,1,'NA')
-  zptopmbs = zptop/100.
-  zptopmbs = zptopmbs - 0.000001
+  zptopmbs = zptop/100.d0
+  zptopmbs = zptopmbs - 0.000001d0
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -173,7 +173,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
         enddo
 !!! Fix pour eviter probleme au toit avec GEM 4
 !!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)
-        zt   (1,knpf) =  zt   (2,knpf) - 8.0 ! base sur derniere couche environ 4km, lapse rate 2K/km
+        zt   (1,knpf) =  zt   (2,knpf) - 8.0d0 ! base sur derniere couche environ 4km, lapse rate 2K/km
         zlq  (1,knpf) =  zlq  (2,knpf)
 !!!!
         iptobs   (knpf) = iobs
@@ -202,7 +202,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            tt_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % t
 !!!        hu_column(ilowlvl) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
 !!!        hu_column(ilowlvl) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q 
-           hu_column(ilowlvl) = 0. 
+           hu_column(ilowlvl) = 0.d0 
            uu_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % u
            vv_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % v
         end do
@@ -210,11 +210,11 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
 !     .  
-        if ( abs( zptopmbs - 10.0 ) < .1 ) then
+        if ( abs( zptopmbs - 10.0d0 ) < .1d0 ) then
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_ad*1000 avant aexthum4    = '
-                 write(*,9263)(qoext_ad(i,jn)*1000.,i=1,nlevels)
+                 write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
                  write(*,*)' '
               enddo
            endif
@@ -222,14 +222,14 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_ad*1000 apres aexthum4    = '
-                 write(*,9263)(qoext_ad(i,jn)*1000.,i=1,nlevels)
+                 write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
                  write(*,*)' '
               enddo
            endif
         endif
 
 !    adjoint of conversion lnq --> q
-        lqo_ad(:,:) = 0.0
+        lqo_ad(:,:) = 0.0d0
         do jn = 1, knpf
 !           do jk = 1, jpmolev
            do jk = 2, jpmolev
@@ -243,7 +243,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 !     .  2.2  Adjoint of extrapolation of temperature profile above 10mb
 !     .       ----------------------------------------------------------
 
-        to_ad(:,:) = 0.0
+        to_ad(:,:) = 0.0d0
 
         do jn = 1, knpf
            to_ad(2:jpmolev,jn)=to_ad(2:jpmolev,jn)+toext_ad(jpmotop+1:nlevels,jn)
@@ -252,7 +252,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 !           to_ad(1,jn)=to_ad(1,jn)+toext_ad(jk,jn)
 !        enddo
         enddo
-        if ( abs( zptopmbs - 10.0 ) < .1 ) then
+        if ( abs( zptopmbs - 10.0d0 ) < .1d0 ) then
            call aextrap (to_ad,toext_ad,jpmolev,nlevels,knpf)
         endif
  
@@ -260,9 +260,9 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
 !             specific humidity to pressure levels required by tovs rt model
 !     .       -----------------------------------------------------------------------
 
-        zt_ad (:,:) = 0.0
-        zlq_ad(:,:) = 0.0
-        zps_ad(:)   = 0.0
+        zt_ad (:,:) = 0.0d0
+        zlq_ad(:,:) = 0.0d0
+        zps_ad(:)   = 0.0d0
 
         imodulo = mod(knpf,nthreads)
         if ( imodulo .eq. 0 ) then

@@ -84,7 +84,7 @@ CONTAINS
     LGRTEST  = .false.
     lwrthess = .true.
     lxbar    = .false.
-    REPSG    = 1e-5
+    REPSG    = 1d-5
     LVARQC   = .false.
     NWOQCV   = 5
 
@@ -585,7 +585,7 @@ CONTAINS
     INTEGER omp_get_thread_num,omp_get_num_threads
 
     call tmg_start(71,'QN_PRSCAL')
-    DDSC = 0.
+    DDSC = 0.D0
 
     do j=1,nvadim_mpilocal
       DDSC = DDSC + PX(J)*PY(J)
@@ -793,8 +793,6 @@ CONTAINS
           call bmat_reduceToMPILocal(  &
             vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
             vatravec_r8_mpiglobal,cvDim_return)
-          if(mpi_myid.eq.0) write(*,*) 'min/max vatravec_mpiglobal=',  &
-             jvec,minval(vatravec_r8_mpiglobal(:)),maxval(vatravec_r8_mpiglobal(:))
         enddo
         deallocate(vatravec_r4_mpiglobal)       
         deallocate(vatravec_r8_mpiglobal)       

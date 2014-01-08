@@ -57,17 +57,17 @@ SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,g
      IF ( CLDFLAG(JN) == -1 ) CYCLE profiles
 
      N = 0
-     H(:) = 0.
-     F(:) = 0.
+     H(:) = 0.D0
+     F(:) = 0.D0
 
      DO JCH = 1, NCO2
 
 !*        CHECK FOR ZERO CLOUD FRACTION
 
-        IF ( CF(JCH,JN) > -0.9 .AND. CF(JCH,JN) < 1.D-6 ) THEN
+        IF ( CF(JCH,JN) > -0.9D0 .AND. CF(JCH,JN) < 1.D-6 ) THEN
            N = N + 1
            H(N) = PS(JN)
-           F(N) = 0.
+           F(N) = 0.D0
         ELSE
 
 
@@ -78,12 +78,12 @@ SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,g
 !         CO2-SLICING NOT ALLOWED TO GIVE ESTIMATES BELOW HE, WHICH HAPPENS
 !         FOR CLOUD FRACTION CF > 1.0.
 
-           IF ( HT(JCH,JN) > 0.0 ) THEN
+           IF ( HT(JCH,JN) > 0.0D0 ) THEN
               N=N+1
               H(N) = HT(JCH,JN)
               F(N) = MIN(CF(JCH,JN), 1.0D0)
               F(N) = MAX(F(N), 0.D0)
-              IF ( CF(JCH,JN) > 1.0 ) H(N) = HE(JN)
+              IF ( CF(JCH,JN) > 1.0D0 ) H(N) = HE(JN)
            END IF
         ENDIF
 
@@ -105,8 +105,8 @@ SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,g
         VCF(JN)  = SQRT ( SUM((F(1:N)- ECF(JN))**2)/N )         
 
         IF ( N == 1 ) THEN
-           VTOP(JN) = 50.
-           VCF(JN)  = 0.20
+           VTOP(JN) = 50.D0
+           VCF(JN)  = 0.20D0
         END IF
 
      ELSE
@@ -116,22 +116,22 @@ SUBROUTINE SELTOP ( ETOP,VTOP,ECF,VCF,NGOOD, he,ht,cf,cfsub,ptop_mb,ps,cldflag,g
 !*      HOWEVER IF HE IS VERY CLOSE TO SURFACE PRESSURE PS, ASSUME CLEAR.
 
         ETOP(JN) = HE(JN)
-        ECF(JN)  = 1.0
-        IF (CFSUB(JN)>=0.05) THEN
+        ECF(JN)  = 1.0D0
+        IF (CFSUB(JN)>=0.05D0) THEN
            ECF(JN)=CFSUB(JN)
-           ETOP(JN)=MIN(MIN(HE(JN),PTOP_MB(JN)),PS(JN)-50.0)
+           ETOP(JN)=MIN(MIN(HE(JN),PTOP_MB(JN)),PS(JN)-50.0D0)
         ENDIF
-        VTOP(JN) = 50.
-        VCF(JN)  = 0.30
-        IF ( HE(JN) > (PS(JN)-10.) ) ECF(JN) = 0.
+        VTOP(JN) = 50.D0
+        VCF(JN)  = 0.30D0
+        IF ( HE(JN) > (PS(JN)-10.D0) ) ECF(JN) = 0.D0
         IF ( GNCLDFLAG(JN) == 0 ) THEN
-           ECF(JN)=0.0
+           ECF(JN)=0.0D0
            ETOP(JN)=PS(JN)
         ENDIF
      END IF
 
-     IF ( ECF(JN) < 0.05 ) THEN
-        ECF(JN)=0.0
+     IF ( ECF(JN) < 0.05D0 ) THEN
+        ECF(JN)=0.0D0
         ETOP(JN)=PS(JN)
      ENDIF
   END DO profiles
