@@ -1,0 +1,64 @@
+module obsSpaceDiag_mod
+  use topLevelControl_mod
+  use mpi
+  use EarthConstants_mod
+  use MathPhysConstants_mod
+  use obsSpaceData_mod
+  use bufr
+  implicit none
+  save
+  private
+  
+  public :: osd_calcInflation
+
+  real*8 :: deltaLat,deltaLon
+
+contains
+
+  subroutine osd_calcInflation(obsSpaceData)
+    implicit none
+    type(struct_obs) :: obsSpaceData
+
+    logical :: nmlExists
+
+    write(*,*) 'osd_calcInflation: Starting'
+
+    call osd_setup(nmlExists)
+    if(.not.nmlExists) return
+
+    write(*,*) 'osd_calcInflation: Compute innovation variance'
+
+    write(*,*) 'osd_calcInflation: Compute B-matrix variance'
+
+    write(*,*) 'osd_calcInflation: Finished'
+
+  end subroutine osd_calcInflation
+
+  subroutine osd_setup(nmlExists)
+    implicit none
+    logical :: nmlExists
+
+    integer :: nulnam,ierr,fnom,fclos
+    namelist /namosd/deltaLat,deltaLon
+
+    ! set default values for namelist variables
+    deltaLat=10.0d0
+    deltaLon=10.0d0
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namosd,iostat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'osd_setup: No namelist NAMOSD found, skipping diagnostics'
+      nmlExists=.false.
+      ierr=fclos(nulnam)
+      return
+    else
+      nmlExists=.true.
+    endif
+    if(mpi_myid.eq.0) write(*,nml=namosd)
+    ierr=fclos(nulnam)
+
+  end subroutine osd_setup
+
+end module obsSpaceDiag_mod

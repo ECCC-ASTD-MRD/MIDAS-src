@@ -56,7 +56,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   write(*,*) '-------------------------------'
 
   !     
-  !- Initialize burp file names and set datestamp (in timeCoord_mod)
+  !- Initialize burp file names and set datestamp
   !
   call burp_setupFiles(datestamp)
   call tim_setDatestamp(datestamp)

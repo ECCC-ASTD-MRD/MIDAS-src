@@ -176,6 +176,10 @@ SUBROUTINE burp_setupfiles(datestamp)
     WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),burp_cfilnam(JJ)
   END DO
 
+  ! Make sure all mpi tasks have a valid date (important for split burp files)
+  call rpn_comm_allreduce(kdate,kdate,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+  call rpn_comm_allreduce(ktime,ktime,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+
   ier = newdate(istampobs,kdate,ktime,3)
   delhh = 3.0d0
   call INCDATR (datestamp, istampobs, delhh)

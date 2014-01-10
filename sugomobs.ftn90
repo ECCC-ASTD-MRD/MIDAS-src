@@ -100,6 +100,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   write(*,*) '-------- ENTERING SUGOMOBS ---------'
   write(*,*) ' '
   if(mpi_myid.eq.0) write(*,*) 'nstepobs=',tim_nstepobs
+  call tmg_start(10,'SUGOMOBS')
 
   !
   !     Ensure that all trial field files exist and
@@ -687,6 +688,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       write(*,*) ' '
       write(*,*) '-------- Leaving SUGOMOBS ---------'
       write(*,*) ' '
+      call tmg_stop(10)
 
       return
 !--------------------------------------------------------------------------------

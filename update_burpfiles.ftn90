@@ -10,6 +10,7 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
 !     NOTE:
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
 !
+      use topLevelControl_mod
       use mpi
       use ObsSpacedata_mod
       use burp_read
@@ -24,7 +25,13 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       character(len=256) :: BURP_SPLIT_VAR
       integer length_burp_split
 
-      CALL FLAGUVTOFD_OBSDAT(obsSpaceData)
+      call tmg_start(93,'POST_UPDATEBRP')
+
+      if(top_AnalysisMode()) call listrej(obsSpaceData)
+      if(top_AnalysisMode()) call vint3dfd(obs_oma,obsSpaceData)
+      call vint3dfd(obs_omp,obsSpaceData)
+      if(top_AnalysisMode()) call setassflg(obsSpaceData)
+      call flaguvtofd_obsdat(obsSpaceData)
 !
 !  ------NOTE----------
 ! currently supported families of data 'UA' 'AI' 'SC' 'SF' 'SW' 'TO'
@@ -68,4 +75,7 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       WRITE(*,*)'                UPDATE_BURP    END               '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
+
+      call tmg_stop(93)
+
 END SUBROUTINE UPDATE_BURPFILES

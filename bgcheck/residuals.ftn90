@@ -14,6 +14,7 @@
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J
 
+      call tmg_start(2,'RESIDUALS')
       WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," residuals: BEGIN RESIDUAL CALCULATION",/,3(" *****************"),/)
 !C
@@ -22,14 +23,16 @@
 !C
       CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
 
-      CALL VINT3DFD(OBS_OMP,lobsSpaceData)
-
       DO j =1,1
          call obs_prnthdr(lobsSpaceData,j)
          call obs_prntbdy(lobsSpaceData,j)
       END DO
+
       CALL UPDATE_BURPFILES(lobsSpaceData)
 
       call obs_finalize(lobsSpaceData)
+
+      call tmg_stop (2)
+
       RETURN
       END SUBROUTINE RESIDUALS

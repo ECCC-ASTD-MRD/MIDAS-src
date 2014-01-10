@@ -1,0 +1,180 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+program cnt0
+! pgm CNT0  - Program controlling the job at its highest level
+
+  use topLevelControl_mod
+  use mpi
+  use obsSpaceData_mod
+  use columnData_mod  
+  use obsSpaceDiag_mod
+
+  implicit none
+  integer istamp,exdb,exfin
+  character(len=9) :: clmsg
+  integer  :: ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
+  logical :: lastAnalysis
+  type(struct_obs),target :: obsSpaceData
+  type(struct_columnData),target :: columng,columnhr
+
+  istamp=exdb('3DVAR','DEBUT','NON')
+
+  write(*,'(/,' //                                            &
+            '3(" *****************"),/,' //                   &
+            '14x,"-- START OF MAIN PROGRAM CNT0: --",/,' //   &
+            '14x,"-- 3D VARIATIONAL ASSIMILATION --",/, ' //  &
+            '14x,"-- VARGLB Revision number ",a," --",/,' //  &
+            '3(" *****************"))') top_crevision
+
+  ! MPI initilization
+  call mpi_init  
+
+  call tmg_init (mpi_myid, 'TMG_3D-VAR' )
+
+  if(mpi_myid == 0) then
+    clmsg = 'VAR3D_BEG'
+    call wrstatus(clmsg)
+  endif 
+
+  ! 1. Top Level Control setup
+  call top_setup
+
+  ! 2. Decide on configuration of job.
+
+  ! ---BGCHECK (AIRS, IASI + conventional obs)--- !
+  if(top_BgckMode()) then
+    if(mpi_myid == 0) write(*,*) 'CNT0: BGCHECK MODE'
+
+    numAnalyses = 1
+    indexAnalysis = 0
+
+    ! Do initial set up
+    call tmg_start(1,'PREMIN')
+    call preproc(columng,columnhr,obsSpaceData,  &
+                 "ALL",        & ! obsColumnMode   
+                 "ROUNDROBIN", & ! obsMpiStrategy
+                 numAnalyses)
+
+    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+    call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call suinnov(columng,columnhr,obsSpaceData)
+    call tmg_stop (1)
+
+    ! Do the background check and output the observation data files
+    call bgcheck(columng,columnhr,obsSpaceData)
+
+  ! ---COMPUTE O-P (for AMSU, GEORAD et SSMIS)--- !
+  elseif(top_OmpMode()) then
+    write(*,*) 'CNT0: RESIDUAL MODE (i.e. O-P)'
+
+    numAnalyses = 1
+    indexAnalysis = 0
+
+    ! Do initial set up
+    call tmg_start(1,'PREMIN')
+    call preproc(columng,columnhr,obsSpaceData,  &
+                 "VAR",        & ! obsColumnMode
+                 "ROUNDROBIN", & ! obsMpiStrategy
+                 numAnalyses)
+
+    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+    call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call suinnov(columng,columnhr,obsSpaceData)
+    call tmg_stop (1)
+
+    ! Compute OER and update the observation data files
+    call residuals(columng,columnhr,obsSpaceData)
+
+  ! ---ANALYSIS MODE--- !
+  elseif(top_AnalysisMode()) then
+    write(*,*) 'CNT0: ANALYSIS MODE'
+
+    ! Determine the number of analyses to perform
+    numAnalyses = getNumAnalyses()
+
+    ! Do initial set up
+    call tmg_start(1,'PREMIN')
+    call preproc(columng,columnhr,obsSpaceData,  &
+                 "VAR",       &  ! obsColumnMode
+                 "LATBANDS",  &  ! obsMpiStrategy
+                 numAnalyses)
+    call tmg_stop (1)
+
+    do indexAnalysis_loop=1,numAnalyses
+
+      write(*,*) '============================='
+      write(*,*) 'Starting analysis number ', indexAnalysis_loop
+      write(*,*) '============================='
+
+      lastAnalysis= (indexAnalysis_loop.eq.numAnalyses)
+      if(numAnalyses.eq.1) then
+        indexAnalysis=0
+      else
+        indexAnalysis=indexAnalysis_loop
+      endif
+
+      ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+      call tmg_start(1,'PREMIN')
+      call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+
+      ! Compute observation innovations and prepare obsSpaceData for minimization
+      call suinnov(columng,columnhr,obsSpaceData)
+      call tmg_stop (1)
+
+      ! Add random unbiased perturbations to the OMP values
+      if(numAnalyses.gt.1) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
+
+      ! Do minimization of cost function
+      call minimize(columng,obsSpaceData,lastAnalysis)
+
+      ! Output the resulting analysis increment
+      call writeIncrement(columng,columnhr,indexAnalysis)
+
+    enddo
+
+    ! Compute obs-space diagnostics
+    call osd_calcInflation(obsSpaceData)
+
+    ! Now write out the observation data files
+    call update_burpfiles(obsSpaceData)
+
+    call obs_finalize(obsSpaceData)
+
+  else
+
+    write(*,*) ' CNT0: ERROR, UNKNOWN NCONF SPECIFIED'
+
+  endif
+
+  ! 3. Job termination
+
+  istamp=exfin('3DVAR','FIN','NON')
+
+  if(mpi_myid == 0) then
+    clmsg = 'VAR3D_END'
+    call wrstatus(clmsg)
+  endif
+
+  call tmg_terminate (mpi_myid, 'TMG_3D-VAR' )
+
+  call rpn_comm_finalize(ierr) 
+
+end program cnt0

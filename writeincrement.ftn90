@@ -14,9 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine postmin(lcolumng,lcolumnhr,indexAnalysis)
+      subroutine writeIncrement(lcolumng,lcolumnhr,indexAnalysis)
 !
-!  s/r postmin  - Post-minimization control of the 3Dvar
+!  s/r writeIncrement - write analysis increment after minimization
 !
 !Author  : S. Pellerin *ARMA/SMC  May 2000
 !
@@ -56,9 +56,10 @@
       logical lvtout,lgzout
 !
       write(*,*) '-------------------------------'
-      write(*,*) '--Starting subroutine postmin--'
+      write(*,*) '--Starting subroutine writeIncrement--'
       write(*,*) '-------------------------------'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call tmg_start(3,'WRITEINCR')
 !
 !     Read namelist and do some setup
 !
@@ -68,7 +69,7 @@
 !
       if(mpi_nprocs .lt. tim_nstepobsinc) then
         write(*,*) 'mpi_nprocs=',mpi_nprocs,', nstepobsinc=',tim_nstepobsinc
-        call abort3d('postmin: number of cpus < number of increment timesteps, aborting!')
+        call abort3d('writeIncrement: number of cpus < number of increment timesteps, aborting!')
       endif
 !
 !     Compute the analysis increment
@@ -99,7 +100,7 @@
       endif
       call tmg_stop(91)
 
-      WRITE(*,*)' postmin: Transform analysis variables to model variables -'
+      WRITE(*,*)' writeIncrement: Transform analysis variables to model variables -'
 
       call tmg_start(92,'POST_DIAG')
 !
@@ -134,7 +135,7 @@
           jstep=statevector%anltime
         endif
 
-        write(*,*) 'postmin: computing the diag variables for timestep:',jstep
+        write(*,*) 'writeIncrement: computing the diag variables for timestep:',jstep
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
         allocate( zes(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
@@ -184,8 +185,8 @@
           else
             write(flnum,'(I3.3)') nint(deltaHours*60.0d0)
           endif
-          write(*,*) 'postmin: dates=',datestamplist(jstep),tim_getDatestamp(),deltaHours,nint(deltaHours*60.0d0)
-          write(*,*) 'postmin: flnum=###',trim(flnum),'###'
+          write(*,*) 'writeIncrement: dates=',datestamplist(jstep),tim_getDatestamp(),deltaHours,nint(deltaHours*60.0d0)
+          write(*,*) 'writeIncrement: flnum=###',trim(flnum),'###'
           incFileName = './rebm_'//trim(flnum)//'m'
         else
           incFileName = './rebm'
@@ -206,16 +207,14 @@
 
       endif
 
-      ! free up some memory related to B and increment
+      ! free up some memory related to increment
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
-! DO NOT DO THIS HERE, SINCE COULD BE IN ANALYSIS LOOP
-!      call bmat_finalize(cvm_vazx)
-!      call cvm_deallocate
 
       call tmg_stop(92)
 
-      write(*,*) 'LEAVING POSTMIN'
+      call tmg_stop (3)
+      write(*,*) 'LEAVING writeIncrement'
 
       CONTAINS
 
@@ -509,4 +508,4 @@
       RETURN
       END SUBROUTINE SUPOST
 
-      END SUBROUTINE POSTMIN
+      END SUBROUTINE writeIncrement

@@ -39,6 +39,7 @@
       integer :: loop_done_airs, loop_done_iasi, loop_done_cris
       logical :: end_airs,end_iasi,end_cris
 !C
+      call tmg_start(2,'BGCHECK')
       WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
 !C
@@ -122,7 +123,6 @@
 !C
 !C     .   3.4.3 Convert CMA ---> BURP file and write it
 !C
-      CALL VINT3DFD(OBS_OMP,lobsSpaceData)
       CALL UPDATE_BURPFILES(lobsSpaceData)
       ! add cloud parameter data to burp files (AIRS&IASI)
       CALL ADD_CLOUDPRMS(lobsSpaceData)
@@ -130,6 +130,9 @@
          call obs_prnthdr(lobsSpaceData,j)
          call obs_prntbdy(lobsSpaceData,j)
       END DO
+
+      call tmg_stop(2)
+
       RETURN
       END SUBROUTINE BGCHECK
 

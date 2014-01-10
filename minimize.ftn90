@@ -36,6 +36,7 @@ subroutine minimize(lcolumng,lobsSpaceData,lastAnalysis)
   write(*,*) '--------------------------------'
   write(*,*) '--Starting subroutine minimize--'
   write(*,*) '--------------------------------'
+  call tmg_start(2,'MIN')
 
   call col_setVco(lcolumn,col_getVco(lcolumng))
   call col_allocate(lcolumn,col_getNumCol(lcolumng),mpi_local=.true.)
@@ -55,5 +56,6 @@ subroutine minimize(lcolumng,lobsSpaceData,lastAnalysis)
   END DO
 
   call col_deallocate(lcolumn)
+  call tmg_stop(2)
 
 end subroutine minimize
