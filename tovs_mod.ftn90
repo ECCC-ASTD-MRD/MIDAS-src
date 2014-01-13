@@ -122,12 +122,12 @@ Module tovs_mod
      REAL(8)              :: LON      ! longitude (0 to 360)
      REAL(8), POINTER     :: Z(:)     ! height field (m)
      REAL(8)              :: SUNZA    ! sun zenith angle (deg)
-     REAL                 :: ALBEDO   ! surface albedo (0-1)
-     REAL                 :: ICE      ! ice cover (0-1) 
-     REAL                 :: SNOW     ! snow cover (0-1)
+     REAL(8)              :: ALBEDO   ! surface albedo (0-1)
+     REAL(8)              :: ICE      ! ice cover (0-1) 
+     REAL(8)              :: SNOW     ! snow cover (0-1)
      INTEGER              :: LTYPE    ! surface type (1,...,20)
-     REAL                 :: PCNT_WAT ! water percentage in pixel containing profile (0-1)
-     REAL                 :: PCNT_REG ! water percentage in an area around profile (0-1)
+     REAL(8)              :: PCNT_WAT ! water percentage in pixel containing profile (0-1)
+     REAL(8)              :: PCNT_REG ! water percentage in an area around profile (0-1)
   END TYPE prof_qc
 
   type( rttov_coefs ) ,     allocatable :: coefs(:)          ! coefficients

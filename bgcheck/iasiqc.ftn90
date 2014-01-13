@@ -51,7 +51,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
   real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:) 
   real(8), allocatable :: TOEXT(:,:),ZHOEXT(:,:),SUNZA(:),SATAZIM(:),SATZEN(:),SUNAZIM(:)
-  real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
+  real(8), allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
   integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:) 
   integer, allocatable :: GNCLDFLAG(:)
@@ -83,7 +83,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   Real(8) :: seuilalb_homog(NIR,0:2)
   Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)
   Real(8) :: minpavhrr(2:3)
-  Real(4) :: anisot,zlamb,zcloud,scos,del,deltaphi
+  Real(8) :: anisot,zlamb,zcloud,scos,del,deltaphi
   Integer :: ier,ijour,iloc(2:3),co2min(1),co2max(1),iobs
   integer :: isatzen
   integer :: chan_indx,ILIST_SUN,ilist_co2(NCO2),ilist_co2_pair(NCO2),ilist_he(NCH_HE)
@@ -309,13 +309,13 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   seuilbt_homog(NVIS+3,1,2)=3.d0
   seuilbt_homog(NVIS+3,2,2)=5.d0
 
-  BTOBS(:,:)    = -1.
-  BTCALC(:,:)   = -1.
-  RCAL_CLR(:,:) = -1.
-  SFCTAU(:,:)   = -1.
-  RCLD(:,:,:)   = -1.
-  TRANSM(:,:,:) = -1.
-  EMI_SFC(:,:)  = -1.
+  BTOBS(:,:)    = -1.d0
+  BTCALC(:,:)   = -1.d0
+  RCAL_CLR(:,:) = -1.d0
+  SFCTAU(:,:)   = -1.d0
+  RCLD(:,:,:)   = -1.d0
+  TRANSM(:,:,:) = -1.d0
+  EMI_SFC(:,:)  = -1.d0
 
   REJFLAG(:,:,:) = 0
 
@@ -374,7 +374,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
            ZPS(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
 
-           SUNAZIM(NOBIASI) = 0.01 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
+           SUNAZIM(NOBIASI) = 0.01d0 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
 
            DO JL = 1, col_getNumLev(lcolumnhr,'TH')
 
@@ -405,11 +405,11 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                     ENDIF
 
 ! *** Gross check on observed BTs ***
-                    IF (BTOBS(chan_indx,NOBIASI)<150.) THEN
+                    IF (BTOBS(chan_indx,NOBIASI)<150.d0) THEN
                        REJFLAG(chan_indx,NOBIASI,9) = 1
                     ENDIF
 
-                    IF (BTOBS(chan_indx,NOBIASI)>350.) THEN
+                    IF (BTOBS(chan_indx,NOBIASI)>350.d0) THEN
                        REJFLAG(chan_indx,NOBIASI,9) = 1
                     ENDIF
                  END IF
@@ -427,10 +427,10 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                  END DO
                  EMI_SFC(chan_indx,NOBIASI) = emissivity(JC,NOBTOV)
 ! *** Gross check on computed BTs ***
-                 IF (BTCALC(chan_indx,NOBIASI)<150.) THEN
+                 IF (BTCALC(chan_indx,NOBIASI)<150.d0) THEN
                     REJFLAG(chan_indx,NOBIASI,9) = 1
                  ENDIF
-                 IF (BTCALC(chan_indx,NOBIASI)>350.) THEN
+                 IF (BTCALC(chan_indx,NOBIASI)>350.d0) THEN
                     REJFLAG(chan_indx,NOBIASI,9) = 1
                  ENDIF
               END DO
@@ -473,7 +473,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
 ! ** find TOA radiances converted from observed BT's
 
-  ROBS(:,:) = -1.
+  ROBS(:,:) = -1.d0
 
   profils: DO JN = 1, NPRF
      channels: DO JC = 1, NCHN
@@ -483,7 +483,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
         t_effective =  coefs(idiasi)%coef%ff_bco(jc) &
              + coefs(idiasi)%coef%ff_bcs(jc) * BTOBS(chan_indx,jn)
         ROBS(chan_indx,jn) =  coefs(idiasi)%coef%planck1(jc) / &
-             ( Exp( coefs(idiasi)%coef%planck2(jc)/t_effective ) - 1.0 )
+             ( Exp( coefs(idiasi)%coef%planck2(jc)/t_effective ) - 1.d0 )
      END DO channels
   END DO profils
 
@@ -636,20 +636,20 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 !criteres AVHRR utilisant les canaux visibles (de jour seulement)
   DO JN=1,NPRF
      IF (sunza(jn)<sunzenmax) THEN 
-        ANISOT=1.0
+        ANISOT=1.d0
         deltaphi=abs(SATAZIM(JN) - SUNAZIM(JN) )
 
-        IF (deltaphi>180.) deltaphi=360. - deltaphi
+        IF (deltaphi>180.d0) deltaphi=360.d0 - deltaphi
 
-        IF (ALBEDO(JN)<0.17) THEN               
-           CALL VISOCN(sngl(sunza(jn)),sngl(satzen(jn)),deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
-           SEUIL_ALBED(1)=10.0*max(1.0,ANISOT) 
+        IF (ALBEDO(JN)<0.17d0) THEN               
+           CALL VISOCN(sunza(jn),satzen(jn),deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
+           SEUIL_ALBED(1)=10.d0*max(1.d0,ANISOT) 
         ELSE
-           SEUIL_ALBED(1)=100.0*ALBEDO(JN) + 10.
+           SEUIL_ALBED(1)=100.d0*ALBEDO(JN) + 10.d0
         ENDIF
 
-        IF (ANISOT<1.5) THEN !to avoid sun glint
-           SCOS=COS ( sngl( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8) )
+        IF (ANISOT<1.5d0) THEN !to avoid sun glint
+           SCOS=COS ( sunza(jn) * MPC_DEGREES_PER_RADIAN_R8 )
            CALL  cor_albedo ( DEL, SCOS )
            SEUIL_ALBED(1)=SEUIL_ALBED(1) * DEL
            IOBS=INDX(JN)
@@ -673,17 +673,17 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
   DO JN=1,NPRF
      IOBS=INDX(JN)
-     CFRAC_AVHRR(JN)=0.
+     CFRAC_AVHRR(JN)=0.d0
      DO JC=1,NCLASSAVHRR
         IF (CLDFLAG_AVHRR(JN,JC) == 1) CFRAC_AVHRR(JN)=CFRAC_AVHRR(JN) + avhrr_bgck(IOBS)%CFRAC(JC)
      ENDDO
   ENDDO
 
-  CFSUB(:)=-1.0
+  CFSUB(:)=-1.0d0
   DO JN =1, NPRF
-     IF ( CLDFLAG(JN) == 0 .AND. CFRAC_AVHRR(JN) > 5. ) THEN
+     IF ( CLDFLAG(JN) == 0 .AND. CFRAC_AVHRR(JN) > 5.d0 ) THEN
         CLDFLAG(JN) = 1
-        CFSUB(JN)=0.01* MIN(CFRAC_AVHRR(JN),100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR(JN)=101
+        CFSUB(JN)=0.01d0* MIN(CFRAC_AVHRR(JN),100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR(JN)=101
      ENDIF
   ENDDO
 
@@ -810,7 +810,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
        CFSUB,PTOP_MB,zps,cldflag,gncldflag,nprf,nco2 )
 
 !      DO JN=1,NPRF
-!         IF (ECF(JN)==0.0 .AND. ETOP(JN)==ZPS(JN) ) THEN
+!         IF (ECF(JN)==0.d0 .AND. ETOP(JN)==ZPS(JN) ) THEN
 !            WHERE (REJFLAG(:,JN,11) == 1) REJFLAG(:,JN,11) = 0
 !         ENDIF
 !      ENDDO
@@ -823,7 +823,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
      minpavhrr(2:3)=12200
      ILOC(2:3)=-1      ! pour eviter les catastrophes...
      DO JC=1,NCLASSAVHRR
-        IF (avhrr_bgck(IOBS)%CFRAC(JC)>0.) THEN
+        IF (avhrr_bgck(IOBS)%CFRAC(JC)>0.d0) THEN
            IF (PTOP_RD_AVHRR(2,JN,JC)<minpavhrr(2)) THEN
               ILOC(2)=JC
               minpavhrr(2)=PTOP_RD_AVHRR(2,JN,JC)
@@ -840,26 +840,26 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
      IF ( ILOC(2)==ILOC(3) .and. &
           minpavhrr(2) < ETOP(JN) .and. &
           minpavhrr(3) < ETOP(JN) .and. &
-          ABS(minpavhrr(2)- minpavhrr(3))<25. .and. &
+          ABS(minpavhrr(2)- minpavhrr(3))<25.d0 .and. &
           CLDFLAG_AVHRR(JN,ILOC(2))/=-1 .and. CLDFLAG_AVHRR(JN,ILOC(3))/=-1) THEN
         
-        IF (ECF(JN)==0.0 .and. CLDFLAG(JN)==1) THEN
+        IF (ECF(JN)==0.d0 .and. CLDFLAG(JN)==1) THEN
 ! cas predetermine nuageux mais ramene a clair 
-           ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
+           ECF(JN)=0.01d0* min(100.d0,CFRAC_AVHRR(JN))
 ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
-           ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+           ETOP(JN)=0.5d0*(minpavhrr(2) + minpavhrr(3))
         ENDIF
 
-        IF (ECF(JN)>0.0 .and. CLDFLAG(JN)==1) THEN
+        IF (ECF(JN)>0.d0 .and. CLDFLAG(JN)==1) THEN
 !cas predetermine nuageux pas ramene clair (==normal)
-           ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
+           ETOP(JN)=0.5d0*(minpavhrr(2) + minpavhrr(3))
         ENDIF
 
         IF (CLDFLAG(JN)==0) THEN
                !cas predetermine clair ... que faire
            CLDFLAG(JN)=1
-           ETOP(JN)=0.5*(minpavhrr(2) + minpavhrr(3))
-           ECF(JN)=0.01* min(100.d0,CFRAC_AVHRR(JN))
+           ETOP(JN)=0.5d0*(minpavhrr(2) + minpavhrr(3))
+           ECF(JN)=0.01d0* min(100.d0,CFRAC_AVHRR(JN))
         ENDIF
 
 
@@ -870,18 +870,18 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
   IF ( iasi_loop_done == 0 ) THEN
      
-     DIFFTOP_MIN = 100000.
+     DIFFTOP_MIN = 100000.d0
      IMODTOP     = 1
 
      DO JL = 1, NLEVB
-        IF ( ABS(vco_trl%DPT_M-100.*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
-           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.*ZVLEV(JL))
+        IF ( ABS(vco_trl%DPT_M-100.d0*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
+           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.d0*ZVLEV(JL))
            IMODTOP = JL
         END IF
      END DO
 
      write(*,*) 'TOIT DU MODELE (MB)'
-     write(*,*) 0.01*vco_trl%DPT_M
+     write(*,*) 0.01d0*vco_trl%DPT_M
      write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
      write(*,*) IMODTOP
 
@@ -898,7 +898,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** Assimilation above clouds (refinement of test 1)             ***
 ! *** Set security margin to 2x the std on height from CO2-slicing *** 
 
-  TAMPON(:) = MAX(50.D0, 2.*VTOP(:))                                                          
+  TAMPON(:) = MAX(50.D0, 2.d0*VTOP(:))                                                          
 
   DO JC = 1, hir_GET_NCHAN_SELECTED("IASI")        
      WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .and. ETOP(:) - TAMPON(:) > PMIN(JC,:) )
@@ -925,7 +925,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** TEST # 4 ***
 ! *** Background check, do not assimilate if O-P > 3sigma ***
 
-           IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
+           IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.d0*BTOBSERR(JC) ) THEN
               REJFLAG(JC,JN,9)  = 1
               REJFLAG(JC,JN,16) = 1
            END IF
@@ -941,11 +941,11 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** TEST # 6 ***
 ! *** Do not assimilate surface channels over land ***
 
-           IF ( MINP(JC,JN) == NLEVB .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+           IF ( MINP(JC,JN) == NLEVB .or. ZPS(JN)-PMIN(JC,JN) < 100.d0 ) THEN
               IF ( KSURF(JN) == 0 ) THEN
                  REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
                  REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
-                 IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
+                 IF ( PCNT_WAT(JN) > 0.01d0 .OR. PCNT_REG(JN) > 0.1d0 .OR. EMI_SFC(JC,JN) < 0.97d0 ) THEN
                     REJFLAG(JC,JN,11) = 1
                     REJFLAG(JC,JN,19) = 1
                  END IF
@@ -954,8 +954,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 ! *** Do not assimilate surface channels over water under conditions ***
 
               ELSE IF ( KSURF(JN) == 1 ) THEN
-                 IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
-                      ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
+                 IF ( PCNT_WAT(JN) < 0.99d0 .OR. PCNT_REG(JN) < 0.97d0 .OR. &
+                      ICE(JN) > 0.001d0 .OR. ALBEDO(JN) >= 0.17d0 .OR. EMI_SFC(JC,JN) < 0.9d0 ) THEN
                     REJFLAG(JC,JN,11) = 1   
                     REJFLAG(JC,JN,19) = 1   
                  END IF
@@ -977,7 +977,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
           ! Condition valid if model top at 10mb or lower only
         IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
-           IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50d0 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1
            END IF
@@ -985,7 +985,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
        
           ! Condition valid if model top at 10mb or lower only
         IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
-           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99d0 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
            END IF
@@ -993,7 +993,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
           ! Condition valid if model top is higher than 10 mb
         IF ( NINT(vco_trl%DPT_M) < 1000 ) THEN
-           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95d0 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
            END IF
@@ -1074,15 +1074,15 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   DO JN = 1, NPRF
      call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.*ECF(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.*VCF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.d0*ECF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.d0*VCF(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
      call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
      call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
      call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
-     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.*ZPS(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.d0*ZPS(JN) )
      call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
      IPRO = IPRO + 1
   END DO

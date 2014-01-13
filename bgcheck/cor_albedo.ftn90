@@ -19,24 +19,24 @@ SUBROUTINE  COR_ALBEDO  ( DEL, SCOS )
 !*arguments        del   - output - facteur de correction
 !*                 scos  - input  - cosinus de l'angle solaire
 !**
-  Use MathPhysConstants_mod ,only : MPC_RADIANS_PER_DEGREE_R4
+  Use MathPhysConstants_mod ,only : MPC_RADIANS_PER_DEGREE_R8
   implicit  none
-  real,intent(in)  ::  scos
-  real,intent(out) ::  del
+  real(8),intent(in)  ::  scos
+  real(8),intent(out) ::  del
 !************************************
   integer  i1, i2
-  real  x1, x2, g1, g2, a, b
-  real ,external :: drcld
-  real  S(11)
+  real(8)  x1, x2, g1, g2, a, b
+  real(8) ,external :: drcld
+  real(8)  S(11)
  
-  DATA  S / 00.00, 18.19, 31.79, 41.41, 49.46, 56.63, 63.26, 69.51, 75.52, 81.37, 87.13 /
+  DATA  S / 00.00d0, 18.19d0, 31.79d0, 41.41d0, 49.46d0, 56.63d0, 63.26d0, 69.51d0, 75.52d0, 81.37d0, 87.13d0 /
  
-  I1  = 12 -( SCOS+0.05)*10. 
+  I1  = 12 -( SCOS+0.05d0)*10.d0 
   I2  = I1+1 
   I1  = MIN0(I1,11)
   I2  = MIN0(I2,11)
-  X1  = COS ( S(I1)*MPC_RADIANS_PER_DEGREE_R4 )  
-  X2  = COS ( S(I2)*MPC_RADIANS_PER_DEGREE_R4 ) 
+  X1  = COS ( S(I1)*MPC_RADIANS_PER_DEGREE_R8 )  
+  X2  = COS ( S(I2)*MPC_RADIANS_PER_DEGREE_R8 ) 
   G1  = DRCLD(I1)
   G2  = DRCLD(I2)
   if (I1==I2) then
@@ -77,8 +77,8 @@ SUBROUTINE  SOLU ( YY1, XX1, YY2, XX2, AA, BB )
 !                 AA     - output- pente
 !                 BB     - output- intercept
 !*
-  real,intent (in)  ::  YY1, XX1, YY2, XX2
-  real,intent (out) ::  AA, BB
+  real(8),intent (in)  ::  YY1, XX1, YY2, XX2
+  real(8),intent (out) ::  AA, BB
 ! 
 !  DROITE PASSANT PAR DEUX POINTS PENTE A ET INTERCEPT B
 !

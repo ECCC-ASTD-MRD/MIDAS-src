@@ -48,7 +48,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   real(8), allocatable :: BTOBSERR(:),BTOBS(:,:),BTCALC(:,:),RCAL_CLR(:,:),SFCTAU(:,:)
   real(8), allocatable :: ROBS(:,:),RCLD(:,:,:),TRANSM(:,:,:),EMI_SFC(:,:)
   real(8), allocatable :: CLFR(:),TOEXT(:,:),ZHOEXT(:,:),SUNZA(:)
-  real,    allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
+  real(8), allocatable :: ALBEDO(:),ICE(:),PCNT_WAT(:),PCNT_REG(:)
   integer, allocatable :: KSURF(:),LTYPE(:)
   integer, allocatable :: CLDFLAG(:),REJFLAG(:,:,:),LEV_START(:)
   integer, allocatable :: GNCLDFLAG(:)
@@ -224,13 +224,13 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   CO2MIN=minloc( abs( ZVLEV - pco2min ) )
   CO2MAX=minloc( abs( ZVLEV - pco2max ) )
 
-  BTOBS(:,:)    = -1.
-  BTCALC(:,:)   = -1.
-  RCAL_CLR(:,:) = -1.
-  SFCTAU(:,:)   = -1.
-  RCLD(:,:,:)   = -1.
-  TRANSM(:,:,:) = -1.
-  EMI_SFC(:,:)  = -1.
+  BTOBS(:,:)    = -1.d0
+  BTCALC(:,:)   = -1.d0
+  RCAL_CLR(:,:) = -1.d0
+  SFCTAU(:,:)   = -1.d0
+  RCLD(:,:,:)   = -1.d0
+  TRANSM(:,:,:) = -1.d0
+  EMI_SFC(:,:)  = -1.d0
 
   REJFLAG(:,:,:) = 0
 
@@ -281,8 +281,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** Flag check on observed BTs ***
                        IF (BTEST(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),2)) REJFLAG(chan_indx,NOBAIRS,9) = 1
 ! *** Gross check on observed BTs ***
-                       IF (BTOBS(chan_indx,NOBAIRS)<150.) REJFLAG(chan_indx,NOBAIRS,9) = 1
-                       IF (BTOBS(chan_indx,NOBAIRS)>350.) REJFLAG(chan_indx,NOBAIRS,9) = 1
+                       IF (BTOBS(chan_indx,NOBAIRS)<150.d0) REJFLAG(chan_indx,NOBAIRS,9) = 1
+                       IF (BTOBS(chan_indx,NOBAIRS)>350.d0) REJFLAG(chan_indx,NOBAIRS,9) = 1
                     END IF
                  END DO
 
@@ -298,8 +298,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
                     END DO
                     EMI_SFC(chan_indx,NOBAIRS) = emissivity(JC,NOBTOV)
 ! *** Gross check on computed BTs ***
-                    IF (BTCALC(chan_indx,NOBAIRS)<150.) REJFLAG(chan_indx,NOBAIRS,9) = 1
-                    IF (BTCALC(chan_indx,NOBAIRS)>350.) REJFLAG(chan_indx,NOBAIRS,9) = 1
+                    IF (BTCALC(chan_indx,NOBAIRS)<150.d0) REJFLAG(chan_indx,NOBAIRS,9) = 1
+                    IF (BTCALC(chan_indx,NOBAIRS)>350.d0) REJFLAG(chan_indx,NOBAIRS,9) = 1
                  END DO
 
                  KSURF(NOBAIRS) = profiles(nobtov)%skin%surftype
@@ -339,7 +339,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 ! ** find TOA radiances converted from observed BT's
 
-  ROBS(:,:) = -1.
+  ROBS(:,:) = -1.d0
 
   profils: DO JN = 1, NPRF
      channels: DO JC = 1, NCHN
@@ -349,7 +349,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
         t_effective =  coefs(idairs)%coef%ff_bco(jc) &
              + coefs(idairs)%coef%ff_bcs(jc) * BTOBS(chan_indx,jn)
         ROBS(chan_indx,jn) =  coefs(idairs)%coef%planck1(jc) / &
-             ( Exp( coefs(idairs)%coef%planck2(jc)/t_effective ) - 1.0 )
+             ( Exp( coefs(idairs)%coef%planck2(jc)/t_effective ) - 1.d0 )
      END DO channels
   END DO profils
 
@@ -425,11 +425,11 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
 !      WHERE ( CLDFLAG(:) == 0 .AND. CLFR(:) > 5. .AND. SUNZA(:) < 90. ) CLDFLAG(:) = 1
 
-  CFSUB(:)=-1.0
+  CFSUB(:)=-1.d0
   DO JN =1, NPRF
-     IF ( CLDFLAG(JN) == 0 .AND. CLFR(JN) > 5. .AND. SUNZA(JN) < 90. ) THEN
+     IF ( CLDFLAG(JN) == 0 .AND. CLFR(JN) > 5.d0 .AND. SUNZA(JN) < 90.d0 ) THEN
         CLDFLAG(JN) = 1
-        CFSUB(JN)=0.01*CLFR(JN) !conversion % -> 0-1
+        CFSUB(JN)=0.01d0*CLFR(JN) !conversion % -> 0-1
      ENDIF
   ENDDO
 
@@ -540,18 +540,18 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
   IF ( airs_loop_done == 0 ) THEN
 
-     DIFFTOP_MIN = 100000.
+     DIFFTOP_MIN = 100000.d0
      IMODTOP     = 1
 
      DO JL = 1, NLEVB
-        IF ( ABS(vco_trl%DPT_M-100.*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
-           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.*ZVLEV(JL))
+        IF ( ABS(vco_trl%DPT_M-100.d0*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
+           DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.d0*ZVLEV(JL))
            IMODTOP = JL
         END IF
      END DO
 
      write(*,*) 'TOIT DU MODELE (MB)'
-     write(*,*) 0.01*vco_trl%DPT_M
+     write(*,*) 0.01d0*vco_trl%DPT_M
      write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
      write(*,*) IMODTOP
 
@@ -568,7 +568,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** Assimilation above clouds (refinement of test 1)             ***
 ! *** Set security margin to 2x the std on height from CO2-slicing ***
 
-  TAMPON(:) = MAX(50.D0, 2.*VTOP(:))
+  TAMPON(:) = MAX(50.D0, 2.d0*VTOP(:))
 
   DO JC = 1, hir_get_nchan_selected("AIRS")
      WHERE ( REJFLAG(JC,:,11) == 1 .AND. REJFLAG(JC,:,23) == 1 .AND. ETOP(:) - TAMPON(:) > PMIN(JC,:) ) 
@@ -595,7 +595,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** TEST # 4 ***
 ! *** Background check, do not assimilate if O-P > 3sigma ***
 
-           IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.0*BTOBSERR(JC) ) THEN
+           IF ( ABS(BTOBS(JC,JN)-BTCALC(JC,JN)) > 3.d0*BTOBSERR(JC) ) THEN
               REJFLAG(JC,JN,9)  = 1
               REJFLAG(JC,JN,16) = 1
            END IF
@@ -611,11 +611,11 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** TEST # 6 ***
 ! *** Do not assimilate surface channels over land ***
 
-           IF ( MINP(JC,JN) == NLEVB .or. ZPS(JN)-PMIN(JC,JN) < 100. ) THEN
+           IF ( MINP(JC,JN) == NLEVB .or. ZPS(JN)-PMIN(JC,JN) < 100.d0 ) THEN
               IF ( KSURF(JN) == 0 ) THEN
                  REJFLAG(JC,JN,11) = 1    !!! comment this line if assimilation under conditions
                  REJFLAG(JC,JN,19) = 1    !!! comment this line if assimilation under conditions
-                 IF ( PCNT_WAT(JN) > 0.01 .OR. PCNT_REG(JN) > 0.1 .OR. EMI_SFC(JC,JN) < 0.97 ) THEN
+                 IF ( PCNT_WAT(JN) > 0.01d0 .OR. PCNT_REG(JN) > 0.1d0 .OR. EMI_SFC(JC,JN) < 0.97d0 ) THEN
                     REJFLAG(JC,JN,11) = 1
                     REJFLAG(JC,JN,19) = 1
                  END IF
@@ -624,8 +624,8 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 ! *** Do not assimilate surface channels over water under conditions ***
 
               ELSE IF ( KSURF(JN) == 1 ) THEN
-                 IF ( PCNT_WAT(JN) < 0.99 .OR. PCNT_REG(JN) < 0.97 .OR. &
-                      ICE(JN) > 0.001 .OR. ALBEDO(JN) >= 0.17 .OR. EMI_SFC(JC,JN) < 0.9 ) THEN
+                 IF ( PCNT_WAT(JN) < 0.99d0 .OR. PCNT_REG(JN) < 0.97d0 .OR. &
+                      ICE(JN) > 0.001d0 .OR. ALBEDO(JN) >= 0.17d0 .OR. EMI_SFC(JC,JN) < 0.9d0 ) THEN
                     REJFLAG(JC,JN,11) = 1
                     REJFLAG(JC,JN,19) = 1
                  END IF
@@ -647,7 +647,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
           ! Condition valid if model top at 10mb or lower only
         IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
-           IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. DTAUDP1(JC,JN)  > 0.50d0 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1
            END IF
@@ -655,7 +655,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
        
           ! Condition valid if model top at 10mb or lower only
         IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
-           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.99d0 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
            END IF
@@ -663,7 +663,7 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
           ! Condition valid if model top is higher than 10 mb
         IF ( NINT(vco_trl%DPT_M) < 1000 ) THEN
-           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95 ) THEN
+           IF ( REJFLAG(JC,JN,9) /= 1 .AND. TRANSM(JC,JN,1) < 0.95d0 ) THEN
               REJFLAG(JC,JN,11) = 1
               REJFLAG(JC,JN,21) = 1 
            END IF
@@ -748,15 +748,15 @@ type(struct_obs),intent(inout) :: lobsSpaceData
   DO JN = 1, NPRF
      call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.*ECF(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.*VCF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.d0*ECF(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.d0*VCF(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
      call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
      call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
      call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
      call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
-     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.*ZPS(JN) )
+     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.d0*ZPS(JN) )
      call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
      IPRO = IPRO + 1
   END DO

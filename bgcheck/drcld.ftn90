@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-REAL FUNCTION  DRCLD ( IZ ) 
+REAL(8) FUNCTION  DRCLD ( IZ ) 
 !**fonction       DRCLD
 !
 !auteur           Louis Garand  - rpn - dorval
@@ -42,10 +42,10 @@ REAL FUNCTION  DRCLD ( IZ )
 
   integer,intent (in) ::  iz
   
-  real  DRF(11) 
+  real(8)  DRF(11) 
 
-  DATA  DRF / 1.000, 1.002, 1.042, 1.092, 1.178, 1.286, &
-       1.420, 1.546, 1.710, 1.870, 2.050        / 
+  DATA  DRF / 1.000d0, 1.002d0, 1.042d0, 1.092d0, 1.178d0, 1.286d0, &
+       1.420d0, 1.546d0, 1.710d0, 1.870d0, 2.050d0  / 
 
   DRCLD = DRF (IZ)
 
