@@ -66,7 +66,7 @@
 #include "cvcord.cdk"
       INTEGER KTIME,KDATE,KRUNN
 *
-      INTEGER IHANDL,ILONG,NBRPSTAMP
+      INTEGER IHANDL,ILONG,NBRPSTAMP,ierr
       INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY,
      +        IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX,
      +        INSUP,INXAUX
@@ -144,6 +144,8 @@
          IER= FCLOS(IBRP1)
       END DO
 *
+      call rpn_comm_allreduce(kdate,kdate,1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+      call rpn_comm_allreduce(ktime,ktime,1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
       ier = newdate(istampobs,kdate,ktime,3)
       delhh = 3.0
       call INCDATR (nbrpstamp, istampobs, delhh)

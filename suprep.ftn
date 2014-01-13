@@ -169,7 +169,7 @@ C
       INTEGER INDEX_HEADER,index_family,IVCO
       INTEGER IPRES,IPRESMB
       INTEGER JD,INDEX_BODY,JK
-      INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT(numFamily)
+      INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT(numFamily),ierr
       INTEGER IDATA,IDATEND
       INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,INDXM
       integer index,ibin(17,numFamily),IBINS(numFamily),isum,INIV(17)
@@ -666,6 +666,7 @@ C
       write(*,*) ' isum obs_numbody(lobsSpaceData)  ',isum,obs_numbody(lobsSpaceData)
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
+      call rpn_comm_allreduce(iknt,iknt,numFamily,"MPI_INTEGER","MPI_SUM","GRID",ierr)
       IF (sum(IKNT(:)) .EQ. 0 ) THEN
         call abort3d('SUPREP. NO DATA TO BE ASSIMILATED')
       ENDIF
