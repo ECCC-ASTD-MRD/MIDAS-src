@@ -14,115 +14,102 @@ Module MULTIIRBGCHECK
 !*
 !*
 !************************************************************************
+  implicit none
+  save
+
+  public ! everything is public, parameters only
 
 
-! Reference (and alternate) window channel for clear / cloudy profile detection
-! (subroutine cloud_height)
+  ! Reference (and alternate) window channel for clear / cloudy profile detection
+  ! (subroutine cloud_height)
 
   INTEGER, PARAMETER        :: IWINDOW_AIRS = 787, IWINDOW_ALT_AIRS = 950
-
   INTEGER, PARAMETER        :: IWINDOW_IASI = 1090, IWINDOW_ALT_IASI = 1133
-
   INTEGER, PARAMETER        :: IWINDOW_CRIS = 427, IWINDOW_ALT_CRIS = 529
 
-! Number of channels (and their values) to use for cloud top height detection
-! with the "background profile matching" method (subroutine cloud_top)
+  ! Number of channels (and their values) to use for cloud top height detection
+  ! with the "background profile matching" method (subroutine cloud_top)
 
   INTEGER, PARAMETER        :: NCH_HE = 4
 
-  INTEGER                   :: ILIST1_AIRS(NCH_HE)
-  DATA ILIST1_AIRS / 528, 787, 950, 2209 /
+  INTEGER, PARAMETER        :: ILIST1_AIRS(NCH_HE) = (/ 528, 787, 950, 2209 /)
 
-  INTEGER                   :: ILIST1_IASI(NCH_HE)
-  DATA ILIST1_IASI / 705, 1090, 1133, 7475 /
+  INTEGER, PARAMETER        :: ILIST1_IASI(NCH_HE) = (/ 705, 1090, 1133, 7475 /)
 
-  INTEGER                   :: ILIST1_CRIS(NCH_HE)
-  DATA ILIST1_CRIS / 279, 427, 529, 1290 /
+  INTEGER, PARAMETER        :: ILIST1_CRIS(NCH_HE) = (/ 279, 427, 529, 1290 /)
 
-! Number of channels (and their values) to use for cloud top height detection
-! with the CO2-slicing method. IREFR is the reference channel number (and alternate).
-! (subroutine co2_slicing)
+  ! Number of channels (and their values) to use for cloud top height detection
+  ! with the CO2-slicing method. IREFR is the reference channel number (and alternate).
+  ! (subroutine co2_slicing)
 
 
   INTEGER, PARAMETER        :: NCO2 = 13
 
-!  INTEGER, PARAMETER        :: IREFR_AIRS = 787, IREFR_ALT_AIRS = 843 
-  INTEGER                   :: ILIST2_AIRS(NCO2),ILIST2_PAIR_AIRS(NCO2)
+  !INTEGER, PARAMETER        :: IREFR_AIRS = 787, IREFR_ALT_AIRS = 843 
+  INTEGER, PARAMETER         :: ILIST2_AIRS(NCO2) = (/ 204, 221, 232, 252, 262, 272,  &
+                                                       299, 305, 310, 355, 362, 375, 375 /)
 
-  DATA ILIST2_AIRS /      204, 221, 232, 252, 262, 272,  &
-       299, 305, 310, 355, 362, 375, 375 /
+  INTEGER, PARAMETER         :: ILIST2_PAIR_AIRS(NCO2) = (/ 252, 262, 272, 299, 305, 310,  &
+                                                            355, 362, 375, 375, 262, 252, 204/)
 
-  DATA ILIST2_PAIR_AIRS / 252, 262, 272, 299, 305, 310,  &
-       355, 362, 375, 375, 262, 252, 204/
+  !INTEGER, PARAMETER         :: IREFR_IASI = 1090, IREFR_ALT_IASI = 1133
+  INTEGER, PARAMETER         :: ILIST2_IASI(NCO2) = (/ 252, 269, 285, 309, 320, 332, &
+                                                       363, 371, 375, 433, 442, 459, 459 /)
 
-!  INTEGER, PARAMETER        :: IREFR_IASI = 1090, IREFR_ALT_IASI = 1133
-  INTEGER                   :: ILIST2_IASI(NCO2),ILIST2_PAIR_IASI(NCO2)
+  INTEGER, PARAMETER         :: ILIST2_PAIR_IASI(NCO2) = (/ 309, 320, 332,363, 371, 375, &
+                                                            433, 442, 459, 459, 320, 309, 252 /)
 
-  DATA ILIST2_IASI / 252, 269, 285, 309, 320, 332, &
-       363, 371, 375, 433, 442, 459, 459 /
+  !INTEGER, PARAMETER        :: IREFR_CRIS = 427, IREFR_ALT_CRIS = 446
+  INTEGER, PARAMETER        :: ILIST2_CRIS(NCO2) = (/ 99, 116, 138, 133, 158, 154, &
+                                                     123, 143, 168, 163, 175, 198, 198 /)
 
-  DATA ILIST2_PAIR_IASI / 309, 320, 332,363, 371, 375, &
-       433, 442, 459, 459, 320, 309, 252 /
+  INTEGER, PARAMETER        :: ILIST2_PAIR_CRIS(NCO2) = (/ 133, 158, 154, 123, 143, 168, &
+                                                           163, 175, 198, 198, 158, 133, 99 /)
 
-!  INTEGER, PARAMETER        :: IREFR_CRIS = 427, IREFR_ALT_CRIS = 446
-  INTEGER                   :: ILIST2_CRIS(NCO2),ILIST2_PAIR_CRIS(NCO2)
-
-  DATA ILIST2_CRIS / 99, 116, 138, 133, 158, 154, &
-       123, 143, 168, 163, 175, 198, 198 /
-  
-  DATA ILIST2_PAIR_CRIS / 133, 158, 154, 123, 143, 168, &
-       163, 175, 198, 198, 158, 133, 99 /
-
-
-! Cloud top units : (1) mb, (2) meters
-! (subroutines cloud_height (IOPT1) and cloud_top (IOPT2))
+  ! Cloud top units : (1) mb, (2) meters
+  ! (subroutines cloud_height (IOPT1) and cloud_top (IOPT2))
 
   INTEGER, PARAMETER        :: IOPT1 = 2   ! verify subr input if iopt1 changes
   INTEGER, PARAMETER        :: IOPT2 = 1
 
-
-! Cloud top based on which background profile matching (subroutine cloud_top)
-! (0) brightness temperature, (1) radiance, (2) both
+  ! Cloud top based on which background profile matching (subroutine cloud_top)
+  ! (0) brightness temperature, (1) radiance, (2) both
 
   INTEGER, PARAMETER        :: IHGT = 2
 
-
-! Maximum delta temperature allowed between guess and true skin temperature
-! over water (DTW) and land (DTL)   (subroutine airsqc)
+  ! Maximum delta temperature allowed between guess and true skin temperature
+  ! over water (DTW) and land (DTL)   (subroutine airsqc)
 
   REAL(8), PARAMETER        :: DTW = 1.5D0
   REAL(8), PARAMETER        :: DTL = 4.0D0
 
-
-! Minimum and maximum RTTOV levels for LEV_START variable entering CO2 slicing
-! In mb, between 50mb and 325mb (subroutine co2_slicing)
+  ! Minimum and maximum RTTOV levels for LEV_START variable entering CO2 slicing
+  ! In mb, between 50mb and 325mb (subroutine co2_slicing)
 
   Real(8), PARAMETER        :: PCO2MIN = 56.73D0, PCO2MAX = 321.5D0
 
-
-! First channel affected by sun (for channels used only at night)
-! (subroutine airsqc)
+  ! First channel affected by sun (for channels used only at night)
+  ! (subroutine airsqc)
 
   INTEGER, PARAMETER       :: ICHN_SUN_AIRS = 1865
   INTEGER, PARAMETER       :: ICHN_SUN_IASI = 5446
   INTEGER, PARAMETER       :: ICHN_SUN_CRIS = 1147
 
-! Minimum solar zenith angle for night (between 90 and 180)
-! (subroutine airsqc)
+  ! Minimum solar zenith angle for night (between 90 and 180)
+  ! (subroutine airsqc)
 
   REAL(8), PARAMETER       :: NIGHT_ANG = 100.D0
 
-
-! Maximum number of profiles for one call to airs quality control
-! (subroutine tovs_rttov)
+  ! Maximum number of profiles for one call to airs quality control
+  ! (subroutine tovs_rttov)
 
   INTEGER, PARAMETER       :: BUNCH_AIRS = 120
   INTEGER, PARAMETER       :: BUNCH_IASI = 120
   INTEGER, PARAMETER       :: BUNCH_CRIS = 120
-! Highest flag in post files (value of N in 2^N)
-! Currently 21
+
+  ! Highest flag in post files (value of N in 2^N)
+  ! Currently 21
 
   INTEGER, PARAMETER       :: BITFLAG = 29
-
 
 End module MULTIIRBGCHECK

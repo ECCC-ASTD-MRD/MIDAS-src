@@ -1,9 +1,14 @@
 module verticalCoord_mod
-
   use mpi
+  use MathPhysConstants_mod
   use Vgrid_Descriptors
   implicit none
+  private
 
+  ! public derived type
+  public :: struct_vco
+  ! public procedures
+  public :: vco_SetupFromFile
 
   type struct_vco
      logical :: initialized=.false.
@@ -69,7 +74,6 @@ module verticalCoord_mod
 
   subroutine vco_SetupFromFile(tf_vco,templatefile,lprecision)
 !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
-    use MathPhysConstants_mod
     implicit none
     type(struct_vco),pointer :: tf_vco
     character(len=*) :: templatefile

@@ -3,6 +3,7 @@ module columnData_mod
   use varNameList_mod
   use verticalCoord_mod
   use MathPhysConstants_mod
+  use obsSpaceData_mod
   implicit none
   save
   private
@@ -21,6 +22,7 @@ module columnData_mod
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
+
 
   type struct_columnData
     integer           :: numCol
@@ -54,9 +56,9 @@ module columnData_mod
       NAMELIST /NAMSTATEO/CMVONEED,rhumin
 
       if(mpi_myid.eq.0) write(*,*) 'col_setup: List of known (valid) variable names'
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList3D=',varNameList3D
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList2D=',varNameList2D
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList  =',varNameList
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
+      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
 
 !     Read NAMELIST NAMSTATEO to find which fields are needed
 
@@ -74,7 +76,7 @@ module columnData_mod
       nvo2d  = 0
 
       do jvar = 1, vnl_numvarmax3D
-        if (varneed(varNameList3D(jvar))) then
+        if (varneed(vnl_varNameList3D(jvar))) then
           nmvoexist(jvar) = .true.
           nvo3d = nvo3d + 1
         else
@@ -83,7 +85,7 @@ module columnData_mod
       enddo
 
       do jvar = 1, vnl_numvarmax2D
-        if (varneed(varNameList2D(jvar))) then
+        if (varneed(vnl_varNameList2D(jvar))) then
           nmvoexist(jvar+vnl_numvarmax3D) = .true.
           nvo2d = nvo2d + 1
         else
@@ -159,7 +161,7 @@ module columnData_mod
       do jvar = 1, vnl_numvarmax3d
         if(nmvoexist(jvar)) then
           column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=col_getNumLev(column,vnl_vartypeFromVarname(varNameList(jvar)))
+          column%varNumLev(jvar)=col_getNumLev(column,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
           iloc = iloc + column%varNumLev(jvar)
         endif
       enddo
@@ -264,7 +266,6 @@ module columnData_mod
     !             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
     !             KNLEV (integer)     : number of levels of PVAR
     !             KNOBS (integer)     : number of observation profiles in variable PVAR
-    use MathPhysConstants_mod
     implicit none
 
     type(struct_columnData) :: columnghr
@@ -366,7 +367,6 @@ module columnData_mod
 
 
     SUBROUTINE col_expandToMpiGlobal(column_local,column_global,lobsSpaceData)
-      use obsSpaceData_mod
       implicit none
 
       type(struct_columnData) :: column_local,column_global

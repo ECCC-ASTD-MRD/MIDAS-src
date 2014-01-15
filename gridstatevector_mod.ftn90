@@ -39,7 +39,8 @@ MODULE gridStateVector_mod
   public :: struct_vco, vco_SetupFromFile
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
   public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
-  public :: varNameList2d, varNameList3d, varNameList
+  public :: vnl_varNameList2d, vnl_varNameList3d, vnl_varNameList
+
 
   type struct_gsv
     real*8,pointer      :: gd(:,:,:,:)
@@ -115,9 +116,9 @@ MODULE gridStateVector_mod
       NAMELIST /NAMSTATE/CGNEED,ANLTIME_BIN
 
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
-      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',varNameList3D
-      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D=',varNameList2D
-      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList  =',varNameList
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D=',vnl_varNameList2D
+      if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList  =',vnl_varNameList
 
 !     Read NAMELIST NAMSTATE to find which fields are needed
 
@@ -132,7 +133,7 @@ MODULE gridStateVector_mod
       ierr=fclos(nulnam)
 
       do jvar = 1, vnl_numvarmax3D
-        if (varneed(varNameList3D(jvar))) then
+        if (varneed(vnl_varNameList3D(jvar))) then
           ngexist(jvar) = .true.
         else
           ngexist(jvar) = .false.
@@ -140,7 +141,7 @@ MODULE gridStateVector_mod
       enddo
 
       do jvar = 1, vnl_numvarmax2D
-        if (varneed(varNameList2D(jvar))) then
+        if (varneed(vnl_varNameList2D(jvar))) then
           ngexist(jvar+vnl_numvarmax3D) = .true.
         else
           ngexist(jvar+vnl_numvarmax3D) = .false.
@@ -258,7 +259,7 @@ MODULE gridStateVector_mod
     do jvar = 1, vnl_numvarmax3d
         if(ngexist(jvar)) then
           statevector%varOffset(jvar)=iloc
-          statevector%varNumLev(jvar)=gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
+          statevector%varNumLev(jvar)=gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
           iloc = iloc + statevector%varNumLev(jvar)
         endif
     enddo
@@ -272,7 +273,7 @@ MODULE gridStateVector_mod
     enddo
     statevector%nk=iloc
 
-    !write(*,*) 'gsv_allocate: varNames =',varNameList(:)
+    !write(*,*) 'gsv_allocate: varNames =',vnl_varNameList(:)
     !write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev(:)
 
     if(statevector%mpi_local) then

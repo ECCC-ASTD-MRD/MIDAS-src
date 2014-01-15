@@ -20,11 +20,12 @@ module HorizontalCoord_mod
   save
   private
 
+  ! Public derived type
+  public :: struct_hco
+
   ! Public Subroutines
   public :: hco_SetupFromFile, hco_Get
 
-  ! Public Variables
-  public :: struct_hco
 
   type :: struct_hco
      character(len=32)    :: gridname

@@ -12,8 +12,11 @@ module filterObs_mod
   save
   private
   
-  public :: filt_setup,filt_topo,filt_suprep
+  ! public variables
   public :: filt_rlimlvhu
+  ! public procedures
+  public :: filt_setup,filt_topo,filt_suprep
+
 
   integer filt_nelems,filt_nlist(30)
   integer filt_nflags,filt_nlistflg(15)

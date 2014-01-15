@@ -1,12 +1,21 @@
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 module  burp_read
+
+use burp_module
+use ObsSpaceData_mod
+use MathPhysConstants_mod
+use earthconstants_mod
 implicit none
-!--------------------------------------------------------------------------------
+save
 private
-public             :: READBURP,UPDATE_BURP,PPMIS
-!--------------------------------------------------------------------------------
-!
+
+! public variables (parameters)
+public             :: PPMIS
+! public procedures
+public             :: READBURP,UPDATE_BURP
+
+
 ! MODULE CONSTANTS ...
 !
 !   These variables are set during object initialization (variational_init) and
@@ -22,7 +31,6 @@ CHARACTER *7           :: TYPE_RESUME
 
 INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
 LOGICAL                :: ENFORCE_CLASSIC_SONDES
-save
 
 
 CONTAINS
@@ -54,11 +62,6 @@ CONTAINS
     !
     !
     !****************************************************************************
-
-    use burp_module
-    use ObsSpaceData_mod
-    use MathPhysConstants_mod
-    use earthconstants_mod
 
     IMPLICIT NONE
     INTEGER,  PARAMETER    :: NBLOC_LIST=6
@@ -1185,10 +1188,6 @@ CONTAINS
     !
     !***********************************************************************
 
-    use burp_module
-    use ObsSpaceData_mod
-    use MathPhysConstants_mod
-
     IMPLICIT NONE
     CHARACTER(LEN=128)     :: BRP_FILE
     INTEGER                :: FILENUMB
@@ -2170,9 +2169,6 @@ CONTAINS
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD &
                              ,obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS)
-    use ObsSpaceData_mod
-    use MathPhysConstants_mod
-    use earthconstants_mod
 
     type (struct_obs), intent(inout) :: obsdat
 
@@ -2340,7 +2336,6 @@ CONTAINS
 
 
   subroutine GET_HEADER(obsdat, LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,NOBS,FILENUMB)
-    use ObsSpaceData_mod
 
     type (struct_obs), intent(inout) :: obsdat
 
@@ -2367,7 +2362,6 @@ CONTAINS
 
 
   SUBROUTINE WRITE_HEADER(obsdat, STNID,LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,FILENUMB)
-    use ObsSpaceData_mod
 
     type (struct_obs), intent(inout) :: obsdat
     CHARACTER(LEN=9)       :: STNID
@@ -2397,7 +2391,6 @@ CONTAINS
 
 
   subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )
-    use ObsSpaceData_mod
 
     type (struct_obs), intent(inout) :: obsdat
 

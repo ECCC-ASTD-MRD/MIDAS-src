@@ -192,7 +192,7 @@ c     Find interpolation layer in model profiles
 c
       CALL VOBSLYRS(lcolumng,lobsSpaceData)
 c
-      IF (LVARQC) THEN
+      IF (min_lvarqc) THEN
         CALL SUASYM2(lobsSpaceData)
       endif
 c

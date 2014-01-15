@@ -1,7 +1,5 @@
+module ozoneclim
 
-Module ozoneclim
-
-!#if defined (DOC)
 !************************************************************************
 !*
 !*       MODULE OZONECLIM
@@ -14,23 +12,23 @@ Module ozoneclim
 !*       REVISION:
 !*
 !************************************************************************
-!#endif
+  use obsSpaceData_mod
+  use timeCoord_mod, only: tim_getDatestamp
+  implicit none
+  save
+  private
 
-PUBLIC OZO_GET_PROFILE, OZO_READ_CLIMATOLOGY
+  ! public procedures  
+  public :: OZO_GET_PROFILE, OZO_READ_CLIMATOLOGY
 
-PRIVATE
 
-
-! Number of latitudes and vertical levels in climatology file
-
+  ! Number of latitudes and vertical levels in climatology file
   INTEGER, PARAMETER    :: NLATO3=19, NLEVO3=28
 
-! Climatological ozone field (ppmv) and total ozone 
-
+  ! Climatological ozone field (ppmv) and total ozone 
   REAL                  :: FOZO_r4(NLATO3,NLEVO3), TOTOZO_r4(NLATO3,12)
 
-! Pressure height of climatology file vertical levels (mb)
-
+  ! Pressure height of climatology file vertical levels (mb)
   REAL(8)               :: PO3(NLEVO3)
 
   DATA PO3 /    0.010D0, 0.015D0, 0.022D0, 0.032D0, 0.046D0, 0.068D0, 0.100D0,   &
@@ -38,13 +36,10 @@ PRIVATE
        5.000D0, 7.000D0, 10.00D0, 20.00D0, 30.00D0, 50.00D0, 70.00D0,   &
        100.0D0, 150.0D0, 200.0D0, 300.0D0, 500.0D0, 700.0D0, 1000.D0 / 
 
-
 contains
 
-  SUBROUTINE OZO_GET_PROFILE(O3P,toto3obs,zlat,  &
-       plev,nlev,nprf)
+  SUBROUTINE OZO_GET_PROFILE(O3P,toto3obs,zlat,plev,nlev,nprf)
 
-#if defined (DOC)
 !***********************************************************************
 !
 !**ID OZO_GET_PROFILE -- GET OZONE PROFILE FROM CLIMATOLOGY INTERPOLATED TO DESIRED P LEVELS
@@ -67,11 +62,8 @@ contains
 !            -O3P(NLEV,NPRF)      : OZONE PROFILES (PPMV)
 !
 !
-***********************************************************************
-#endif
+!***********************************************************************
 
-use obsSpaceData_mod
-use timeCoord_mod, only: tim_getDatestamp
 IMPLICIT NONE       
 
 integer ,intent(in) :: nlev,nprf
@@ -121,7 +113,6 @@ END SUBROUTINE OZO_GET_PROFILE
 
 SUBROUTINE OZO_READ_CLIMATOLOGY()
 
-#if defined (DOC)
 !***********************************************************************
 !
 !**ID OZONECLIM -- READ OZONE CLIMATOLOGICAL FIELDS
@@ -138,10 +129,6 @@ SUBROUTINE OZO_READ_CLIMATOLOGY()
 !
 !
 !***********************************************************************
-#endif
-
-  use obsSpaceData_mod
-  use timeCoord_mod, only: tim_getDatestamp
 
   IMPLICIT NONE
 

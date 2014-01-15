@@ -208,17 +208,17 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   !
   nobs(:) = 0
   do jvar=1,vnl_numvarmax2D
-    if(gsv_varExist(varNameList2D(jvar))) exit          
+    if(gsv_varExist(vnl_varNameList2D(jvar))) exit          
   end do
 
-  if(mpi_myid.eq.0) write(*,*) 'sugomobs: first 2d variable=',varNameList2D(jvar),jvar
+  if(mpi_myid.eq.0) write(*,*) 'sugomobs: first 2d variable=',vnl_varNameList2D(jvar),jvar
 
   do jstep = 1,tim_nStepObs
      !
      !- Get horizontal grid parameters to be used to test grid bounds
      !
       call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
-             ITRLGID,varNameList2D(jvar),datestamplist(jstep),jpnflev,  &
+             ITRLGID,vnl_varNameList2D(jvar),datestamplist(jstep),jpnflev,  &
              nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
              nultrl2)
       if (itrlnlev <= 0 ) then
@@ -448,16 +448,16 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
     !     reading 2D fields
     !
       do jvar=1,vnl_numvarmax2D
-        if(.not.gsv_varExist(varNameList2D(jvar))) cycle
+        if(.not.gsv_varExist(vnl_varNameList2D(jvar))) cycle
 
-        call readTrialField4(varInterphr_M,varInterphr_VV,varNameList2D(jvar),'SF')
+        call readTrialField4(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
         if(col_getNumCol(lcolumng).gt.0) then       
-          if(varNameList2D(jvar).eq.'P0') then
+          if(vnl_varNameList2D(jvar).eq.'P0') then
             varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
           endif
-          call col_fillmvo(lcolumng ,varNameList2D(jvar),'NA',varInterphr_M)
-          call col_fillmvo(lcolumnhr,varNameList2D(jvar),'NA',varInterphr_M)
+          call col_fillmvo(lcolumng ,vnl_varNameList2D(jvar),'NA',varInterphr_M)
+          call col_fillmvo(lcolumnhr,vnl_varNameList2D(jvar),'NA',varInterphr_M)
         endif
 
       enddo
@@ -557,9 +557,9 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       !
       do jvar=1, vnl_numvarmax3D
 
-        if(.not.gsv_varExist(varNameList3D(jvar))) cycle
+        if(.not.gsv_varExist(vnl_varNameList3D(jvar))) cycle
 
-        select case ( varNameList3D(jvar) )
+        select case ( vnl_varNameList3D(jvar) )
            !
            !       Variables sur les niveaux momentum
            !
@@ -598,22 +598,22 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
           !       Variable sur les niveaux thermodynamiques
           !
         case ('TT','HU')
-          write(*,*)' ----- Initializing ',varNameList3D(jvar),' ----'
+          write(*,*)' ----- Initializing ',vnl_varNameList3D(jvar),' ----'
 
-          call readTrialField4(varInterphr_T,varInterphr_VV,varNameList3D(jvar),'TH')
+          call readTrialField4(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
 
           if(col_getNumCol(lcolumng).gt.0) then       
-            if(mpi_myid.eq.0) write(*,*) 'sugomobs:',varNameList3D(jvar)
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs:',vnl_varNameList3D(jvar)
             do jlev = 1,nlv_T
-              if(mpi_myid.eq.0) write(*,*) trim(varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+              if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
             enddo
 
             call vintprof(varInterpg_T,zppobsg,col_getNumLev(lcolumng),varInterphr_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
 
-            if(varNameList3D(jvar).eq.'TT') then
+            if(vnl_varNameList3D(jvar).eq.'TT') then
               varInterpg_T(:,:)=varInterpg_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
               varInterphr_T(:,:)=varInterphr_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
-            elseif(varNameList3D(jvar).eq.'HU') then
+            elseif(vnl_varNameList3D(jvar).eq.'HU') then
               do jobs=1,col_getNumCol(lcolumng)
                 do jlev=1,col_getNumLev(lcolumng)
                   varInterpg_T(jlev,jobs)=log(max(varInterpg_T(jlev,jobs),rhumin))
@@ -623,8 +623,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
                 enddo
               enddo
             endif
-            call col_fillmvo(lcolumng ,varNameList3D(jvar),'NA',varInterpg_T)
-            call col_fillmvo(lcolumnhr,varNameList3D(jvar),'NA',varInterphr_T)
+            call col_fillmvo(lcolumng ,vnl_varNameList3D(jvar),'NA',varInterpg_T)
+            call col_fillmvo(lcolumnhr,vnl_varNameList3D(jvar),'NA',varInterphr_T)
           endif
 
         end select 

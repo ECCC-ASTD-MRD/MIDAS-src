@@ -141,7 +141,7 @@
       DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(254)   
      1  /          'GB-GPS',       'TOVS ATMS',   'SCATTEROMETER'/
 *
-      IF(.NOT.LVARQC) RETURN
+      IF(.NOT.min_lvarqc) RETURN
 
       DO JFAM=1,numFamily
         DO JITEM=1,NUMITEM

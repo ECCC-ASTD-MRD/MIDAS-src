@@ -150,8 +150,8 @@ program cnt0
 
     enddo
 
-    ! Compute obs-space diagnostics
-    call osd_calcInflation(obsSpaceData)
+    ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
+    call osd_calcInflation(obsSpaceData,columng)
 
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData)

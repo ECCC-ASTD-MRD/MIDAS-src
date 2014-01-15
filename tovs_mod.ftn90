@@ -9,8 +9,28 @@ Module tovs_mod
      rttov_chanprof
   implicit none
   save
-!  private
- 
+  private
+
+  ! public derived types
+  public :: avhrr_bgck_iasi, prof_qc
+  ! public derived type through inheritance (from module rttov_types)
+  public :: transmission_type,radiance_type,profile_type,rttov_chanprof
+
+  ! public variables (parameters)
+  public :: NCLASSAVHRR, NIR, NVIS, NCHANAVHRR, jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM
+  ! public variables (non-parameters)
+  public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
+  public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
+  public :: LDBGTOV, LEVEL1B, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
+  public :: CPLATFORM, CINSTRUMENT, NOPLATFORM, NOINSTRUMENT
+  public :: coefs_avhrr, coefs, opts, profilesdata, profiles, profiles_tl, profiles_ad, profiles_qc
+  public :: radiancedata_d, radiance_d, radiance_tl, radiance_ad, transmission, transmission_d
+  public :: emissivity, avhrr_bgck
+
+  ! public procedures
+  public :: TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_airs, tvs_Is_idburp_iasi, tvs_Is_idburp_cris
+
+
   ! Module parameters
   INTEGER ,PARAMETER :: NCLASSAVHRR=7
   INTEGER ,PARAMETER :: NIR=3,NVIS=3
@@ -95,7 +115,7 @@ Module tovs_mod
                                    29,           30,            19 /
 
   ! Dervied types
-  type( rttov_coefs ),save  :: coefs_avhrr
+  type( rttov_coefs ) :: coefs_avhrr
 
   TYPE avhrr_bgck_iasi
      SEQUENCE   

@@ -4,10 +4,13 @@ module burpFiles_mod
   save
   private
 
+  ! public variables
   public :: burp_nfiles,burp_cfamtyp,burp_cfilnam
+  ! public procedures
   public :: burp_setupfiles
-  
-  integer, parameter :: jpfiles=16
+
+
+  integer, parameter :: jpfiles=64
   integer :: burp_nfiles
   character(len=2)   :: burp_cfamtyp(jpfiles)
   character(len=128) :: burp_cfilnam(jpfiles)
@@ -20,15 +23,15 @@ SUBROUTINE burp_setupfiles(datestamp)
 !s/r  setup_burpfiles -INITIALZE BURP FILE NAMES and return datestamp
 !
 !
-  INTEGER INFIL,IER,INBLKS,nulburp,JJ
+  INTEGER IER,INBLKS,nulburp,JJ
   INTEGER FNOM,FCLOS,NUMBLKS
-  PARAMETER(INFIL=129)
-  CHARACTER *64 CLVALU(INFIL),CFAMI(INFIL)
+  CHARACTER(len=20) :: CLVALU(JPFILES)
+  CHARACTER(len=2) :: CFAMI(JPFILES)
   CHARACTER(len=4) :: cmyidx, cmyidy
   CHARACTER(len=9) :: cmyid
   CHARACTER(len=128) :: burpin   
   LOGICAL   isExist_L 
-!************************************************************************
+
   INTEGER KTIME,KDATE
   INTEGER IHANDL,ILONG,DATESTAMP
   INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
@@ -47,85 +50,83 @@ SUBROUTINE burp_setupfiles(datestamp)
 
   EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
-!************************************************************************
   write(cmyidy,'(I4.4)') (mpi_nprocs-mpi_myid)
   !! later, when the mpi along longitudes bands will be implemented, then
   !! this 'cmyidx' and 'cmyidy' will change
   cmyidx = '0001'
   cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
 
-  CLVALU(10) = 'brpuan'  
-  CLVALU(11) = 'brpuas'  
-  CLVALU(12) = 'brpai'  
-  CLVALU(13) = 'brpain'  
-  CLVALU(14) = 'brpais'  
-  CLVALU(15) = 'brpaie'  
-  CLVALU(16) = 'brpaiw'  
-  CLVALU(17) = 'brpsfc'  
-  CLVALU(18) = 'brpsf'  
-  CLVALU(19) = 'brptov'  
-  CLVALU(20) = 'brpssmis'
-  CLVALU(21) = 'brpairs'
-  CLVALU(22) = 'brpto_amsua'
-  CLVALU(23) = 'brpto_amsub'
-  CLVALU(24) = 'brpcsr'
-  CLVALU(25) = 'brpiasi'
-  CLVALU(26) = 'brpsw'  
-  CLVALU(27) = 'brpswgoes9'  
-  CLVALU(28) = 'brpswgoese'  
-  CLVALU(29) = 'brpswgoesw'  
-  CLVALU(30) = 'brpswmodis'  
-  CLVALU(31) = 'brpswmtsate'  
-  CLVALU(32) = 'brpswmtsatw'  
-
-  CLVALU(33) = 'brpgo'  
-  CLVALU(34) = 'brpsc'  
-  CLVALU(35) = 'brppr'  
-  CLVALU(36) = 'brpro'  
-  CLVALU(37) = 'brphum'  
-  CLVALU(38) = 'brpsat'  
-  CLVALU(39) = 'brpssm'  
-  CLVALU(40) = 'brpo3'  
-  CLVALU(41) = 'brpoz'  
-  CLVALU(42) = 'brpgp'  
+  CLVALU( 1) = 'brpuan'  
+  CLVALU( 2) = 'brpuas'  
+  CLVALU( 3) = 'brpai'  
+  CLVALU( 4) = 'brpain'  
+  CLVALU( 5) = 'brpais'  
+  CLVALU( 6) = 'brpaie'  
+  CLVALU( 7) = 'brpaiw'  
+  CLVALU( 8) = 'brpsfc'  
+  CLVALU( 9) = 'brpsf'  
+  CLVALU(10) = 'brptov'  
+  CLVALU(11) = 'brpssmis'
+  CLVALU(12) = 'brpairs'
+  CLVALU(13) = 'brpto_amsua'
+  CLVALU(14) = 'brpto_amsub'
+  CLVALU(15) = 'brpcsr'
+  CLVALU(16) = 'brpiasi'
+  CLVALU(17) = 'brpsw'  
+  CLVALU(18) = 'brpswgoes9'  
+  CLVALU(19) = 'brpswgoese'  
+  CLVALU(20) = 'brpswgoesw'  
+  CLVALU(21) = 'brpswmodis'  
+  CLVALU(22) = 'brpswmtsate'  
+  CLVALU(23) = 'brpswmtsatw'  
+  CLVALU(24) = 'brpgo'  
+  CLVALU(25) = 'brpsc'  
+  CLVALU(26) = 'brppr'  
+  CLVALU(27) = 'brpro'  
+  CLVALU(28) = 'brphum'  
+  CLVALU(29) = 'brpsat'  
+  CLVALU(30) = 'brpssm'  
+  CLVALU(31) = 'brpo3'  
+  CLVALU(32) = 'brpoz'  
+  CLVALU(33) = 'brpgp'  
   
-  CLVALU(43) = ' '  
+  CLVALU(34) = ' '  
 
-  CFAMI(10)  = 'UA' 
-  CFAMI(11)  = 'UA' 
-  CFAMI(12)  = 'AI' 
-  CFAMI(13)  = 'AI' 
-  CFAMI(14)  = 'AI'
-  CFAMI(15)  = 'AI'
-  CFAMI(16)  = 'AI'
-  CFAMI(17)  = 'SF' 
-  CFAMI(18)  = 'SF' 
-  CFAMI(19)  = 'TO' 
-  CFAMI(20)  = 'TO' 
-  CFAMI(21)  = 'TO' 
-  CFAMI(22)  = 'TO' 
-  CFAMI(23)  = 'TO' 
-  CFAMI(24)  = 'TO' 
-  CFAMI(25)  = 'TO' 
-  CFAMI(26)  = 'SW' 
-  CFAMI(27)  = 'SW' 
-  CFAMI(28)  = 'SW' 
-  CFAMI(29)  = 'SW' 
-  CFAMI(30)  = 'SW' 
-  CFAMI(31)  = 'SW' 
-  CFAMI(32)  = 'SW' 
-  CFAMI(33)  = 'GO' 
-  CFAMI(34)  = 'SC' 
-  CFAMI(35)  = 'PR' 
-  CFAMI(36)  = 'RO' 
-  CFAMI(37)  = 'HU' 
-  CFAMI(38)  = 'ST' 
-  CFAMI(39)  = 'MI' 
-  CFAMI(40)  = 'OZ' 
-  CFAMI(41)  = 'OZ' 
-  CFAMI(42)  = 'GP' 
+  CFAMI( 1)  = 'UA' 
+  CFAMI( 2)  = 'UA' 
+  CFAMI( 3)  = 'AI' 
+  CFAMI( 4)  = 'AI' 
+  CFAMI( 5)  = 'AI'
+  CFAMI( 6)  = 'AI'
+  CFAMI( 7)  = 'AI'
+  CFAMI( 8)  = 'SF' 
+  CFAMI( 9)  = 'SF' 
+  CFAMI(10)  = 'TO' 
+  CFAMI(11)  = 'TO' 
+  CFAMI(12)  = 'TO' 
+  CFAMI(13)  = 'TO' 
+  CFAMI(14)  = 'TO' 
+  CFAMI(15)  = 'TO' 
+  CFAMI(16)  = 'TO' 
+  CFAMI(17)  = 'SW' 
+  CFAMI(18)  = 'SW' 
+  CFAMI(19)  = 'SW' 
+  CFAMI(20)  = 'SW' 
+  CFAMI(21)  = 'SW' 
+  CFAMI(22)  = 'SW' 
+  CFAMI(23)  = 'SW' 
+  CFAMI(24)  = 'GO' 
+  CFAMI(25)  = 'SC' 
+  CFAMI(26)  = 'PR' 
+  CFAMI(27)  = 'RO' 
+  CFAMI(28)  = 'HU' 
+  CFAMI(29)  = 'ST' 
+  CFAMI(30)  = 'MI' 
+  CFAMI(31)  = 'OZ' 
+  CFAMI(32)  = 'OZ' 
+  CFAMI(33)  = 'GP' 
 
-  CFAMI(43)  = ' ' 
+  CFAMI(34)  = ' ' 
 
   IER =MRFOPC('MSGLVL','FATAL')
 
@@ -133,7 +134,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   KDATE=-9999
   KTIME=-9999
   burp_nfiles=0
-  DO JJ=10,INFIL 
+  DO JJ=1,JPFILES 
     IF(CLVALU(JJ) == '') EXIT
     nulburp=0
     burpin=trim(CLVALU(JJ))//'_'//trim(cmyid)

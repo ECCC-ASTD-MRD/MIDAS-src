@@ -22,20 +22,20 @@ Module hir_chans
 !*
 !*
 !************************************************************************
+  implicit none
+  save
+  private
   
-  PUBLIC :: hir_get_nchan_selected,hir_get_nchan_all,hir_get_wavn,hir_get_chindx_fr_chn
-  PUBLIC :: hir_get_assim_chan,hir_set_assim_chan
+  ! public procedures
+  public :: hir_get_nchan_selected,hir_get_nchan_all,hir_get_wavn,hir_get_chindx_fr_chn
+  public :: hir_get_assim_chan,hir_set_assim_chan
   
-  PRIVATE
 
   INTEGER, PARAMETER :: AIRSSNCH = 281, AIRSRNCH = 2378
-
   INTEGER   :: AIRSRCH(AIRSSNCH)
   INTEGER,target   :: AIRSSCH(AIRSRNCH)
   REAL (8)  :: AIRSSWN(AIRSSNCH)
   INTEGER,target   :: AIRS_ASSIM(AIRSSNCH)
-  
-
 
   DATA AIRSRCH /     &
        1,    6,    7,   10,   11,   15,   16,   17,     &   ! 1-8

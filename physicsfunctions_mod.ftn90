@@ -1,7 +1,16 @@
 module physicsFunctions_mod
-
   use MathPhysConstants_mod
   implicit none
+  private
+
+  ! public procedures
+  public :: FOEW8, FODLE8, FOQST8, FODQS8, FOEFQ8, FOQFE8, FOTVT8, FOTTV8
+  public :: FOHR8, FOEWA8, FODLA8, FOQSA8, FODQA8, FOHRA8, FOTW8, FOTI8
+  public :: FODTW8, FODTI8, FOTWI8, FODTWI8, FOEW8_CMAM, FOEI8_CMAM, FOERAT8_CMAM
+  public :: FOEWI8_CMAM, FODLE8_CMAM, FOQST8_CMAM, FOTW8_CMAM, FOTI8_CMAM, FODTW8_CMAM
+  public :: FODTI8_CMAM, FOTWI8_CMAM, FODTWI8_CMAM, FQBRANCH, FOEFQL, fotvvl, FOEFQA
+  public :: FOEFQPSA, fottva, folnqva
+
 !**s/r physicsFunctions  - REAL*8 thermodyanmic statement functions.
 !
 !     Author: JM Belanger CMDA/SMC  Aug. 2000

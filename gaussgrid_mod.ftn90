@@ -1,17 +1,16 @@
 MODULE GAUSSGRID_MOD
   use MathPhysConstants_mod
   use EarthConstants_mod
+  use HorizontalCoord_mod
   implicit none  
   save
   private
 
-  ! Public subroutines
-  public :: gaus_SetupFromHCO, GAUS_SETUP, gaus_find_lat_index
-
   ! Public Variables
-  public :: gaus_rmu, gaus_rwocs, gaus_r1mu2, gaus_rsqm2, gaus_r1qm2
-  public :: gaus_r1mui, gaus_r1mua, gaus_rwt, gaus_rlati, gaus_rcolat
-  public :: gaus_conphy, gaus_conima 
+  public :: gaus_rwt,gaus_conphy
+  ! Public subroutines
+  public :: gaus_SetupFromHCO, gaus_setup, gaus_find_lat_index
+
 
   real*8, allocatable :: gaus_rmu(:)
   real*8, allocatable :: gaus_rwocs(:)
@@ -38,7 +37,6 @@ MODULE GAUSSGRID_MOD
     !- Initialisation of Gaussian latitudes, weights and related quantities
     !  using the grid info from horizontalcoord_mod
     !
-    use HorizontalCoord_mod
     implicit none
 
     type(struct_hco), intent(in) :: hco_in

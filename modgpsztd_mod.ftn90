@@ -2,6 +2,14 @@ module modgpsztd_mod
   use mpi
   implicit none
   save
+  private
+
+  ! public variables
+  public :: max_gps_data,numGPSZTD,vGPSZTD_Index,vGPSZTD_Jacobian,vGPSZTD_lJac
+  public :: DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT, LLBLMET, YZDERRWGT
+  public :: LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
+  ! public procedures
+  public :: sugpsgb,i_from_index
 
   integer, parameter      ::  max_gps_sites = 1000
   integer, parameter      ::  max_gps_data  = max_gps_sites*12

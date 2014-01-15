@@ -17,7 +17,9 @@ module fft
   save
   private
 
+  ! public procedures
   public  :: fft_fft3dvar,fft_fft3dvar2,fft_sufft
+
 
   integer,parameter :: nMaxFft = 10
   integer      :: nFftAlreadyAllocated = 0

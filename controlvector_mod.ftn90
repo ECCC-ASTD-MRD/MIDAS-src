@@ -15,8 +15,11 @@ MODULE ControlVector_mod
   save
   private
 
-  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  ! public variables
   public              :: cvm_vazx, cvm_nvadim
+  ! public procedures
+  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal
+
 
   logical             :: initialized = .false.
   integer             :: cvm_dimBHI

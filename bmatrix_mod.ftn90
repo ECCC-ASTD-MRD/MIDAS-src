@@ -7,13 +7,17 @@ MODULE BMatrix_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use timeCoord_mod
+  use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
+  use gaussGrid_mod
   implicit none
   save
   private
   
+  ! public procedures
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
   public :: bmat_reduceToMPILocal, bmat_expandToMPIGlobal
-  
+
+
   type(struct_hco), pointer :: hco_anl
 
 contains
@@ -26,7 +30,6 @@ contains
     !- bmat_setup - Initializes the analysis Background term for the 
     !               specific analysis configuration used.
     !
-    use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
     IMPLICIT NONE
 
     type(struct_vco), pointer :: vco_anl_in
@@ -229,7 +232,6 @@ contains
     !
     !- Adjoint of the identity (change of norm)
     !
-    use gaussGrid_mod
     implicit none
     type(struct_gsv) :: statevector
 

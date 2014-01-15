@@ -3,6 +3,7 @@ module tovs_extrap_mod
       save
       private
 
+      ! public procedures
       public :: extrap, lextrap, aextrap
 
 !     Contents previously in comtovxt

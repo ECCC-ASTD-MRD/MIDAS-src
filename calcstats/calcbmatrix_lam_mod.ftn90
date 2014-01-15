@@ -15,6 +15,9 @@
 !    lamspectraltransform
 !--------------------------------------------------------------------------
 module calcbmatrix_lam_mod
+  use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8,MPC_PI_R8
+  use EarthConstants_mod, only: RA
+  use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, vgd_write, VGD_OK
   use gridStateVector_mod
   use LamSpectralTransform_mod
   use LamAnalysisGrid_mod
@@ -65,7 +68,6 @@ module calcbmatrix_lam_mod
 ! CALCB_LAM_SETUP
 !--------------------------------------------------------------------------
     subroutine calcb_lam_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in)
-    use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
     integer,                   intent(in)   :: nens_in
@@ -402,7 +404,6 @@ module calcbmatrix_lam_mod
 ! CreateLamTemplateGrids
 !--------------------------------------------------------------------------
   subroutine CreateLamTemplateGrids(TemplateFileName,grd_ext_x,grd_ext_y)
-    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
 
     character(len=*), intent(in) :: TemplateFileName
@@ -1087,8 +1088,6 @@ module calcbmatrix_lam_mod
 ! CalcHorizScale
 !--------------------------------------------------------------------------
   subroutine CalcHorizScale(HorizScale,SpCovariance)
-    use MathPhysConstants_mod, only: MPC_PI_R8
-    use EarthConstants_mod, only: RA
     implicit none
 
     real(8), intent(out) :: HorizScale(nkgdim)
@@ -2012,8 +2011,6 @@ module calcbmatrix_lam_mod
 ! WriteTicTacToc
 !--------------------------------------------------------------------------
   subroutine WriteTicTacToc(iun)
-    use vGrid_Descriptors , only: vgrid_descriptor, vgd_write, VGD_OK
-    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
 
     integer, intent(in) :: iun

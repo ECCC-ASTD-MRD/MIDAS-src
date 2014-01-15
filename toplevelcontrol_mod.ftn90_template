@@ -14,9 +14,10 @@ module topLevelControl_mod
   save
   private
 
-  ! public variables and types
-  public :: top_setup,top_AnalysisMode,top_BgckMode,top_OmpMode
+  ! public variables
   public :: top_crevision
+  ! public procedures
+  public :: top_setup,top_AnalysisMode,top_BgckMode,top_OmpMode
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
   integer :: top_nconf

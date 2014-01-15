@@ -6,7 +6,17 @@
 !  
 !***************************************************************
 MODULE mpi
-  INTEGER :: mpi_myid,mpi_nprocs, mpi_myidx, mpi_myidy
+  implicit none
+  save
+  private
+
+  ! public variables
+  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
+  ! public procedures
+  public :: mpi_init,mpi_setup_latbands,mpi_setup_m,mpi_setup_levels,mpi_getptopo
+
+
+  INTEGER :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
 
   CONTAINS
 

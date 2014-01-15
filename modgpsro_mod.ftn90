@@ -2,12 +2,21 @@ module modgpsro_mod
   use mpi
   use modgps04profile, only: gpsprofile
   implicit none
-!
+  save
+  private
+
+  ! public variables
+  public :: numGPSROProfiles,vGPSRO_IndexPrf,vGPSRO_Jacobian,vGPSRO_lJac
+  public :: LEVELGPSRO,GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,WGPS
+
+  ! public procedures
+  public :: sugpsro,iprofile_from_index
+
+
 ! Values determined through namelist:
-!
 ! 
 ! INTEGER LEVELGPSRO
-! REAL*8  SURFMIN, HSFMIN, HTPMAX, DISTMIN, BGCKBAND
+! REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND
 
 !
 ! Values determined by input data:
@@ -16,8 +25,6 @@ module modgpsro_mod
   integer         , allocatable          :: vGPSRO_IndexPrf(:)    ! index for each profile
   real*8          , allocatable          :: vGPSRO_Jacobian(:,:,:)
   logical         , allocatable          :: vGPSRO_lJac(:)
-
-  integer, allocatable :: vGPSRO_Data(:)        ! index for each data value
 
 !     Contents of previous comdeck comgpsro
 !     -------------------------------------
@@ -33,7 +40,7 @@ module modgpsro_mod
 !     J.M. Aparicio, Apr 2008
 !          
   INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE,NUMGPSSATS,IGPSSAT(50)
-  REAL*8  SURFMIN, HSFMIN, HTPMAX, DISTMIN, BGCKBAND, WGPS(50)
+  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, WGPS(50)
 
   NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS,IGPSSAT,WGPS
 

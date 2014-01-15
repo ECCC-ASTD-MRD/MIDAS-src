@@ -14,15 +14,18 @@
 !   horizontalGrid_mod 
 !--------------------------------------------------------------------------
 module LamAnalysisGrid_mod
+  use earthconstants_mod, only : RA
+  use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
   use HorizontalCoord_mod
   use mpi
   implicit none
   save
   private
 
+  ! public procedures
   public :: lag_SetupFromHCO, lag_mach
   public :: lag_PsiChiToUV, lag_PsiChiToUVAdj, lag_UVToVortDiv
-  public :: symmetrize, symmetrizeAdj
+
 
   ! Definition of some parameters characterizing the geometry of
   ! the Limited-Area (LA) analysis grid and associated metric factors
@@ -64,7 +67,6 @@ module LamAnalysisGrid_mod
 ! lag_SetupFromHCO
 !--------------------------------------------------------------------------
   subroutine lag_SetupFromHCO(ExtendedAnalysisGridName,AnalysisGridName)
-    use earthconstants_mod, only : RA
     implicit none
 
     character(len=*), intent(in) :: ExtendedAnalysisGridName
@@ -701,7 +703,6 @@ module LamAnalysisGrid_mod
 ! lag_Mach
 !--------------------------------------------------------------------------
   subroutine lag_mach(gd,ni,nj,nk)
-    use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
     implicit none
 
     ! Arguments:
@@ -786,7 +787,6 @@ module LamAnalysisGrid_mod
 ! lag_UVToVortDiv
 !--------------------------------------------------------------------------
   subroutine lag_UVToVortDiv(Vorticity, Divergence, uphy, vphy, nk)
-    use earthconstants_mod, only : RA
     implicit none
 
     integer,          intent(in)  :: nk

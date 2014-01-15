@@ -15,14 +15,17 @@
 !--------------------------------------------------------------------------
 module LamSpectralTransform_mod
   use mpi
+  use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
+  use earthconstants_mod,    only: RA
   implicit none
   save
   private
 
+  ! public derived type
+  public :: struct_lst
+  ! public procedures
   public :: lst_Setup, lst_Laplacian, lst_VarTransform
   public :: lst_ReshapeTrunc
-
-  public :: struct_lst
 
   type :: struct_lst
      integer              :: id              ! Transform ID number
@@ -86,8 +89,6 @@ contains
 !--------------------------------------------------------------------------
   subroutine lst_Setup( lst_out, ni_in, nj_in, dlon_in, ktrunc_in,    &
                         MpiMode, maxlevels_in )
-    use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
-    use earthconstants_mod,    only: RA
     implicit none
 
     integer,          intent(in)    :: ni_in, nj_in    

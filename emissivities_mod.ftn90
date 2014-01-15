@@ -1,6 +1,4 @@
 Module emissivities
-
-
 !************************************************************************
 !*
 !*       COMDECK EMISSIVITIES
@@ -18,24 +16,23 @@ Module emissivities
 !*                 so removing albedo, ice and snow.
 !*
 !************************************************************************
+  use tovs_mod
+  use hir_chans
 
-  IMPLICIT NONE
+  implicit none
+  save
+  private
 
-  PUBLIC ::  EMIS_GET_IR_EMISSIVITY, EMIS_READ_CLIMATOLOGY
+  ! public procedures
+  public ::  EMIS_GET_IR_EMISSIVITY, EMIS_READ_CLIMATOLOGY
 
-  PRIVATE
-  SAVE
 
-! CERES file dimension in grid points
-
+  ! CERES file dimension in grid points
   INTEGER, PARAMETER :: KSLON=2160, KSLAT=1080
 
-
-! Variables on standard files
-
+  ! Variables on standard files
   INTEGER ::  JTYPE(KSLON,KSLAT)       ! surface type
   REAL(8) :: WATERF(KSLON,KSLAT)       ! water fraction
-
 
 contains
   
@@ -391,8 +388,6 @@ contains
 !          OUTPUT:
 !            -SURFEM1(NCHANNELS_MAX)  : IR SURFACE EMISSIVITY ESTIMATE (0-1)
 !
-    use tovs_mod
-    use hir_chans
     IMPLICIT NONE
     INTEGER,intent(in) :: NPRF,NCHANNELS_MAX
     INTEGER,intent(in) :: NCHN,IPTOBS(NPRF),KRTID
@@ -587,7 +582,6 @@ contains
 !            -ILAT(NPRF)     : Y-COORDINATE OF PROFILE
 !            -ILON(NPRF)     : X-COORDINATE OF PROFILE 
 !
-    use tovs_mod
     IMPLICIT NONE
 
     INTEGER,intent(in) :: NPRF, IPTOBS(NPRF)

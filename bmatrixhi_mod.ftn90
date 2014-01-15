@@ -22,11 +22,15 @@ MODULE BmatrixHI
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
+  use globalSpectralTransform
+  use gaussGrid_mod
   implicit none
   save
   private
 
+  ! public procedures
   public             :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize,bhi_expandToMPIglobal,bhi_reduceToMPIlocal
+
 
   logical            :: initialized = .false.
   integer            :: nj_l,ni_l
@@ -96,7 +100,6 @@ MODULE BmatrixHI
 CONTAINS
 
   SUBROUTINE BHI_setup(NI_IN,NJ_IN,NFLEV_IN,pressureProfile_in,CVDIM_OUT)
-    use globalSpectralTransform
     implicit none
 
     integer        :: ni_in,nj_in,nflev_in
@@ -335,7 +338,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_SUCORNS2
-    use globalSpectralTransform
     implicit none
 
     real*8 eigenv(nksdim2_l), eigen(nksdim2_l,nksdim2_l),eigen2(nksdim2_l,nksdim2_l)
@@ -779,7 +781,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_CALCCORR(zgd,pcscl,klev,kcorrtyp)
-    use globalSpectralTransform
     implicit none
     integer klev,kcorrtyp
     real*8 zgd(ni_l,klev,myLatBeg:myLatEnd)
@@ -832,7 +833,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_SUTG(KULSSF)
-    use globalSpectralTransform
     implicit none
 
     integer kulssf
@@ -993,7 +993,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_convol
-    use globalSpectralTransform
     implicit none
 
     integer inj,injmin
@@ -1341,7 +1340,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_RDSPSTD(kulbgsto)
-    use globalSpectralTransform
     implicit none
 
     integer kulbgsto
@@ -1535,7 +1533,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_RDSPPTOT(kulbgsto)
-    use globalSpectralTransform
     IMPLICIT NONE
 
     integer kulbgsto
@@ -1793,24 +1790,24 @@ CONTAINS
     real*8, pointer :: field(:,:,:)
 
     do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(varnamelist(jvar))) then
-        field => gsv_getField3D(statevector,varnamelist(jvar))
-        if(varnamelist(jvar).eq.'UU  ') then
+      if(gsv_varExist(vnl_varNameList(jvar))) then
+        field => gsv_getField3D(statevector,vnl_varNameList(jvar))
+        if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1=nspositVO
-        elseif(varnamelist(jvar).eq.'VV  ') then
+        elseif(vnl_varNameList(jvar).eq.'VV  ') then
           ilev1=nspositDI
-        elseif(varnamelist(jvar).eq.'TT  ') then
+        elseif(vnl_varNameList(jvar).eq.'TT  ') then
           ilev1=nspositTT
-        elseif(varnamelist(jvar).eq.'HU  ') then
+        elseif(vnl_varNameList(jvar).eq.'HU  ') then
           ilev1=nspositQ
-        elseif(varnamelist(jvar).eq.'P0  ') then
+        elseif(vnl_varNameList(jvar).eq.'P0  ') then
           ilev1=nspositPS
-        elseif(varnamelist(jvar).eq.'TG  ') then
+        elseif(vnl_varNameList(jvar).eq.'TG  ') then
           ilev1=nspositTG
         else
-          call abort3d('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // varnamelist(jvar))
+          call abort3d('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
         endif
-        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
+        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg,myLatEnd
           do jlev = ilev1, ilev2
@@ -1835,24 +1832,24 @@ CONTAINS
     real*8, pointer :: field(:,:,:)
 
     do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(varnamelist(jvar))) then
-        field => gsv_getField3D(statevector,varnamelist(jvar))
-        if(varnamelist(jvar).eq.'UU  ') then
+      if(gsv_varExist(vnl_varNameList(jvar))) then
+        field => gsv_getField3D(statevector,vnl_varNameList(jvar))
+        if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1=nspositVO
-        elseif(varnamelist(jvar).eq.'VV  ') then
+        elseif(vnl_varNameList(jvar).eq.'VV  ') then
           ilev1=nspositDI
-        elseif(varnamelist(jvar).eq.'TT  ') then
+        elseif(vnl_varNameList(jvar).eq.'TT  ') then
           ilev1=nspositTT
-        elseif(varnamelist(jvar).eq.'HU  ') then
+        elseif(vnl_varNameList(jvar).eq.'HU  ') then
           ilev1=nspositQ
-        elseif(varnamelist(jvar).eq.'P0  ') then
+        elseif(vnl_varNameList(jvar).eq.'P0  ') then
           ilev1=nspositPS
-        elseif(varnamelist(jvar).eq.'TG  ') then
+        elseif(vnl_varNameList(jvar).eq.'TG  ') then
           ilev1=nspositTG
         else
-          call abort3d('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // varnamelist(jvar))
+          call abort3d('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
         endif
-        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(jvar)))
+        ilev2=ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg, myLatEnd
           do jlev = ilev1, ilev2
@@ -1870,7 +1867,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
-    use globalSpectralTransform
     implicit none
     real*8  :: cv_mpilocal(cvDim_l)
     real*8  :: cv_mpiglobal(cvDim_mpiglobal)
@@ -1927,7 +1923,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
-    use globalSpectralTransform
     implicit none
     real*8  :: cv_mpilocal(cvDim_l)
     real*8  :: cv_mpiglobal(:)
@@ -2045,7 +2040,6 @@ CONTAINS
   END SUBROUTINE BHI_cainAd
 
   SUBROUTINE BHI_SPA2GD(hiControlVector_in,gd_out)
-    use globalSpectralTransform
     IMPLICIT NONE
 
     real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
@@ -2264,7 +2258,6 @@ CONTAINS
 
 
   SUBROUTINE BHI_SPA2GDAD(gd_in,hiControlVector_out)
-    use globalSpectralTransform
     implicit none
 
     real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
@@ -2568,7 +2561,6 @@ CONTAINS
     ! s/r uvwi2uv: conversion of wind images to physical winds
     ! (Remark: this subroutine is self-adjoint)
     !
-    use gaussGrid_mod
     implicit none
     type(struct_gsv) :: statevector
 

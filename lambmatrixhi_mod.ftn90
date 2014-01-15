@@ -20,6 +20,7 @@
 !    lamspectraltransform
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
+  use mpi
   use HorizontalCoord_mod
   use VerticalCoord_mod
   use LamSpectralTransform_mod
@@ -29,6 +30,7 @@ module LamBMatrixHI_mod
   save
   private
 
+  ! public procedures
   public :: lbhi_Setup, lbhi_bSqrt, lbhi_bSqrtAdj, lbhi_Finalize
   public :: lbhi_expandToMPIglobal, lbhi_reduceToMPIlocal
 
@@ -75,7 +77,6 @@ contains
 ! LBHI_SETUP
 !--------------------------------------------------------------------------
   subroutine lbhi_Setup( hco_anl_in, vco_anl_in, cvDim_out )
-    use mpi
     implicit none
 
     type(struct_hco), pointer, intent(in)    :: hco_anl_in
@@ -722,7 +723,6 @@ contains
 ! LBHI_cv2gdAdj
 !--------------------------------------------------------------------------
   subroutine lbhi_cv2gdAdj(hiControlVector_out, gd_in)
-    use mpi
     implicit none
 
     real(8), intent(out)   :: hiControlVector_out(lst_bhi % nla, lst_bhi % nphase, nksdim)
@@ -943,11 +943,11 @@ contains
 
     do var = 1, vnl_numvarmax 
 
-      if ( gsv_varExist(varnamelist(var)) ) then
+      if ( gsv_varExist(vnl_varNameList(var)) ) then
 
-        field => gsv_getField3D(statevector,varnamelist(var))
+        field => gsv_getField3D(statevector,vnl_varNameList(var))
 
-        select case ( varnamelist(var) )
+        select case ( vnl_varNameList(var) )
         case ('UU  ')
           VarID = 1
         case ('VV  ')
@@ -962,14 +962,14 @@ contains
           VarID = 6
         case default
           write(*,*)
-          write(*,*) 'StatevectorInterface: No covariances available for variable:', varnamelist(var)
+          write(*,*) 'StatevectorInterface: No covariances available for variable:', vnl_varNameList(var)
           stop
         end select
 
         kgdStart = ControlVariable(VarID) % kDimStart
         kgdEnd   = ControlVariable(VarID) % kDimEnd
    
-        nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(varNameList(var)))
+        nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(var)))
         if ( kgdEnd - kgdStart + 1  /= nlev ) then
            write(*,*)
            write(*,*) 'StatevectorInterface: Number of vertical level mismatch'

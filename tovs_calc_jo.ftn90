@@ -160,7 +160,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 ! Comment out the modification of Jobs due to varqc for now, since this is probably
 ! needed for use of nonlinear obs operator in minimization, which is not yet
 ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
-!           if (.not. lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
+!           if (.not. min_lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
               dlsum =  dlsum &
                      + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
                         obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &

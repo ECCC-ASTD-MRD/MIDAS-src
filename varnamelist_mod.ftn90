@@ -1,21 +1,30 @@
 module varNameList_mod
+  use bufr
   implicit none
   save
+  private
+
+  ! public variables (parameters)
+  public :: vnl_numvarmax3D,vnl_numvarmax2D,vnl_numvarmax,vnl_varNameList3D,vnl_varNameList2D,vnl_varNameList
+  ! public procedures
+  public :: vnl_varListIndex3d,vnl_varListIndex2d,vnl_varListIndex,vnl_varnameFromVarnum
+  public :: vnl_vartypeFromVarname,vnl_vartypeFromVarnum
+
 
   integer, parameter          :: vnl_numvarmax3D=18,vnl_numvarmax2D=2
 
-  character(len=4), parameter :: varNameList3D(vnl_numvarmax3D) = (/'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ', &
+  character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ', &
                                  'DW  ','O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ','NH3 ' /)
 
   character(len=2), parameter :: varTypeList3D(vnl_numvarmax3D) = (/'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH', &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH'/)
 
-  character(len=4), parameter :: varNameList2D(vnl_numvarmax2D) = (/'P0  ','TG  '/)
+  character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/'P0  ','TG  '/)
 
   character(len=2), parameter :: varTypeList2D(vnl_numvarmax2D) = (/'SF',  'SF'/)
 
   integer, parameter          :: vnl_numvarmax=vnl_numvarmax3D+vnl_numvarmax2D
-  character(len=4), parameter :: varNameList(vnl_numvarmax) = (/ varNameList3D, varNameList2D /)
+  character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
   character(len=2), parameter :: varTypeList(vnl_numvarmax) = (/ varTypeList3D, varTypeList2D /)
 
   contains
@@ -27,7 +36,7 @@ module varNameList_mod
 
       listIndex=-1
       do jvar=1,vnl_numvarmax3D
-        if(varName.eq.varNameList3d(jvar)) then
+        if(varName.eq.vnl_varNameList3d(jvar)) then
           listIndex=jvar
           exit
         endif
@@ -47,7 +56,7 @@ module varNameList_mod
 
       listIndex=-1
       do jvar=1,vnl_numvarmax2D
-        if(varName.eq.varNameList2d(jvar)) then 
+        if(varName.eq.vnl_varNameList2d(jvar)) then 
           listIndex=jvar
           exit
         endif
@@ -67,7 +76,7 @@ module varNameList_mod
 
       listIndex=-1
       do jvar=1,vnl_numvarmax
-        if(varName.eq.varNameList(jvar)) then 
+        if(varName.eq.vnl_varNameList(jvar)) then 
           listIndex=jvar
           exit
         endif
@@ -81,7 +90,6 @@ module varNameList_mod
 
 
     function vnl_varnameFromVarnum(varNumber,varTrNumber) result(varName)
-      use bufr
       implicit none
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varTrNumber
@@ -142,7 +150,6 @@ module varNameList_mod
 
 
     function vnl_vartypeFromVarname(varName) result(varType)
-      use bufr
       implicit none
 
       character(len=*), intent(in)   :: varName
@@ -154,7 +161,6 @@ module varNameList_mod
 
 
     function vnl_vartypeFromVarnum(varNumber,varTrNumber) result(varType)
-      use bufr
       implicit none
 
       integer, intent(in)           :: varNumber

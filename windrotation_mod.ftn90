@@ -11,6 +11,7 @@
 !   horizontalcoord_mod 
 !--------------------------------------------------------------------------
 module WindRotation_mod
+  use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8,MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
   use HorizontalCoord_mod
   implicit none
   save
@@ -160,7 +161,6 @@ module WindRotation_mod
 ! VLLACAR
 !--------------------------------------------------------------------------
   subroutine vllacar(F_xyz_8, F_lon, F_lat)
-    use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8
     IMPLICIT NONE
 
     real(8), intent(out) :: F_xyz_8(msize)
@@ -501,7 +501,6 @@ module WindRotation_mod
 ! uvr_RotateLatLon
 !--------------------------------------------------------------------------
   subroutine uvr_RotateLatLon(LatOut,LonOut,LatIn,LonIn,mode)
-     use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8,MPC_DEGREES_PER_RADIAN_R8
     !
     !- Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
     !  Cartesian frame given the rotation matrix.
@@ -559,7 +558,6 @@ module WindRotation_mod
     !- Returns (lat,lon) (degrees) of an input Cartesian position vector 
     !  on the unit sphere.
     !
-    use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
     IMPLICIT NONE
 
     real(8), intent(out) :: plat, plon

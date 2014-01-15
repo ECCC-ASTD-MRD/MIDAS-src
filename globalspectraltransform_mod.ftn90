@@ -39,6 +39,8 @@
 !    fft
 !--------------------------------------------------------------------------
 MODULE globalSpectralTransform
+  use mpi
+  use fft
   use MathPhysConstants_mod
   implicit none
   save
@@ -50,6 +52,7 @@ MODULE globalSpectralTransform
   ! public functions
   public :: gst_getRmu,gst_getRwt,gst_getnind,gst_getrlati,gst_getr1qm2,gst_getrsqm2, &
             gst_getrnnp1,gst_getr1snp1
+
 
   type  :: T_gst
     real*8,allocatable   :: rmu(:)
@@ -264,8 +267,6 @@ CONTAINS
 
 
   integer FUNCTION GST_SETUP(KULOUT,NI_IN,NJ_IN,NTRUNC_IN,MPIMODE_IN,MAXLEVELS_IN)
-    use mpi
-    use fft
     implicit none
     integer :: kulout,ni_in,nj_in,ntrunc_in,mpiMode_in
     integer,optional :: maxlevels_in
@@ -661,7 +662,6 @@ CONTAINS
 
 
   SUBROUTINE GST_SPGD(SP,GD,KFIELD,NFLEV,KDIM)
-    use fft
     implicit none
 
     integer kfield,nflev,kdim
@@ -704,7 +704,6 @@ CONTAINS
 
   ! NO MPI MODIFICATIONS YET
   SUBROUTINE GST_GDSP(SP,GD,KFIELD,NFLEV,KDIM)
-    use fft
     implicit none
 
     integer kfield,nflev,kdim
@@ -986,7 +985,6 @@ CONTAINS
   END SUBROUTINE GDSPPAR
 
   SUBROUTINE GST_SPGDA(SP,GD,KFIELD,NFLEV,KDIM)
-    use fft
     implicit none
 
     integer kfield,nflev,kdim
@@ -1452,7 +1450,6 @@ CONTAINS
 
 
   SUBROUTINE GST_SPEREE(PSP,PGD,KFIELD,KDIM)
-    use fft
     implicit none
 
     integer kfield,kdim
@@ -1502,7 +1499,6 @@ CONTAINS
 
 
   SUBROUTINE GST_REESPE(PSP,PGD,KFIELD,KDIM)
-    use fft
     implicit none
 
     integer :: kfield,kdim

@@ -30,6 +30,7 @@
       use obsSpaceData_mod
       use verticalCoord_mod
       use modgpsztd_mod
+      use vGrid_Descriptors
       IMPLICIT NONE
 !   lcolumn  contains background errors for control variables on model levels
 !   lcolumng contains lo-res first guess profiles at obs locations

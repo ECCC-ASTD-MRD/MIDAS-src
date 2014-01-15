@@ -128,7 +128,7 @@ if [ $mode == full ] ; then
 
   echo "compiling low-level independent modules"
   SRC0="toplevelcontrol_mod.ftn90"
-  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90"
+  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90 physicsfunctions_mod.ftn90"
   SRC0="$SRC0 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
   grep fail listing0a
