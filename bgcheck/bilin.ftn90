@@ -106,7 +106,7 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
      if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
      if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
      
-     DO JK = 1, statevector % nlev
+     DO JK = 1, gsv_getNumLev(statevector)
         if(gsv_varExist('UU')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
            uu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &

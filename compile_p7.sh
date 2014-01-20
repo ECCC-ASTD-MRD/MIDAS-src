@@ -121,8 +121,8 @@ if [ $mode == full ] ; then
   # Compile the subroutines...
   echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
   SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-  s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listingm 2>&1
-  grep fail listingm
+  s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listing0 2>&1
+  grep fail listing0
   if [ $? = "0" ] ; then exit ; fi
   rm -f $SRC0
 
@@ -130,14 +130,14 @@ if [ $mode == full ] ; then
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90 physicsfunctions_mod.ftn90"
   SRC0="$SRC0 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
-  grep fail listing0a
+  s.compile $INCLUDES $COMPF -O -src $SRC0 > listing1 2>&1
+  grep fail listing1
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling analysis grid modules"
   SRC0="gaussgrid_mod.ftn90 windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0b 2>&1
-  grep fail listing0b
+  s.compile $INCLUDES $COMPF -O -src $SRC0 > listing2 2>&1
+  grep fail listing2
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling most of the new modules"
@@ -149,23 +149,28 @@ if [ $mode == full ] ; then
   SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90"
 
-  s.compile $INCLUDES $COMPF -O -src $SRC1 > listing1 2>&1
-  grep fail listing1
+  s.compile $INCLUDES $COMPF -O -src $SRC1 > listing3 2>&1
+  grep fail listing3
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling burp_read module"
   SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90 update_burpfiles.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC1 > listing_burp 2>&1
-  grep fail listing_burp
+  s.compile $INCLUDES $COMPF -O -src $SRC1 > listing4 2>&1
+  grep fail listing4
   if [ $? = "0" ] ; then exit ; fi
   
-  echo "compiling the old modules (cdk90)..."
+  echo "compiling the GPS modules (cdk90)..."
   SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps01ctphys.cdk90 modgps02wgs84const.cdk90 modgps02wgs84grav.cdk90 modgps03diff.cdk90 modgps04profile.cdk90"
-  SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90 modgpsro_mod.ftn90 modgps04profilezd.cdk90"
-  SRC2="$SRC2 modgps08ztdop.cdk90 modgpsztd_mod.ftn90"
-  SRC2="$SRC2 filterobs_mod.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC2 > listing2 2>&1
-  grep fail listing2
+  SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90 modgps04profilezd.cdk90"
+  SRC2="$SRC2 modgps08ztdop.cdk90"
+  s.compile $INCLUDES $COMPF -O -src $SRC2 > listing5 2>&1
+  grep fail listing5
+  if [ $? = "0" ] ; then exit ; fi
+
+  echo "compiling some more modules..."
+  SRC2="modgpsro_mod.ftn90 modgpsztd_mod.ftn90 filterobs_mod.ftn90 writeincrement_mod.ftn90"
+  s.compile $INCLUDES $COMPF -O -src $SRC2 > listing6 2>&1
+  grep fail listing6
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling remaining ftn ftn90..."
@@ -174,15 +179,15 @@ if [ $mode == full ] ; then
     xx=`echo $i |grep -v _mod.ftn` 
     filelist="$filelist $xx"
   done
-  s.compile $INCLUDES $COMPF -O -src $filelist > listing4 2>&1
-  grep fail listing4
+  s.compile $INCLUDES $COMPF -O -src $filelist > listing7 2>&1
+  grep fail listing7
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
-  s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing5 2>&1
+  s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing8 2>&1
 
   grep -i ERROR listing?
-  if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
+  if [ $? = "0" ] ; then echo "ERROR found: STOP" ; exit ; fi
 
   rm -f *.ftn* *.f *.f90
 

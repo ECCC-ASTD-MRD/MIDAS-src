@@ -30,6 +30,7 @@ MODULE BmatrixHI
 
   ! public procedures
   public             :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize,bhi_expandToMPIglobal,bhi_reduceToMPIlocal
+  public             :: bhi_getScaleFactor
 
 
   logical            :: initialized = .false.
@@ -257,6 +258,18 @@ CONTAINS
     initialized = .true.
 
   END SUBROUTINE BHI_setup
+
+
+  subroutine bhi_getScaleFactor(scaleFactor_out)
+    implicit none
+    real(8) :: scaleFactor_out(:)
+    integer :: jlev
+
+    do jlev = 1, nflev_l
+      scaleFactor_out(jlev) = scaleFactor(jlev)
+    enddo
+
+  end subroutine bhi_getScaleFactor
 
 
   SUBROUTINE BHI_SUNEWSTATS
@@ -2565,7 +2578,7 @@ CONTAINS
     type(struct_gsv) :: statevector
 
     integer ji,jj,jk,jstep
-    integer jlev,jlat,jlon,lat1,lat2
+    integer jlev,jlat,jlon,lat1,lat2,nlev
 
     real*8, pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
     
@@ -2574,12 +2587,13 @@ CONTAINS
     
     lat1 = statevector % myLatBeg
     lat2 = statevector % myLatEnd
+    nlev = gsv_getNumLev(statevector)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
     do jlat = lat1, lat2
       do jstep = 1, statevector % numStep
-        do jlev = 1, statevector % nlev
+        do jlev = 1, nlev
           do jlon = 1, statevector % ni
             uu_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * uu_ptr(jlon,jlev,jlat,jstep)
             vv_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * vv_ptr(jlon,jlev,jlat,jstep)

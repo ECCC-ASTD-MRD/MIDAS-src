@@ -49,7 +49,7 @@ MODRTTOV="RTTOV8.7"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 ABI="_multi"
-COMPF="-openmp $MPIKEY -optf=-C "
+COMPF="-openmp $MPIKEY -debug DEBUG -optf=-C"
 FCOMPF="-options_comp"
 
 LIBPATH2="./ $LIBPATH"

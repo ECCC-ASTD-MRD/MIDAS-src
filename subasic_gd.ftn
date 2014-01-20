@@ -17,6 +17,7 @@
 !
       subroutine subasic_gd(statevectorg,lcolumnhr,numStep,datestamplist,indexAnalysis)
       use mpi
+      use MathPhysConstants_mod
       use gridStateVector_mod
       use columnData_mod
       use HorizontalCoord_mod
@@ -55,11 +56,9 @@
       logical ltrial 
       integer datestamp,jfile,jstep
       integer anl_gid,ezqkdef
-      REAL*8 zpsg(statevectorg%ni,statevectorg%nj)
-      REAL*8 zttg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
-      REAL*8 zqqg(statevectorg%ni,statevectorg%nj,statevectorg%nlev)
+      REAL*8, allocatable :: zttg(:,:,:), zqqg(:,:,:), zpsg(:,:)
       real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
-      integer ntrials, nultrl(500)  
+      integer ntrials, nlev, nultrl(500)  
       CHARACTER(len=2)   :: flnum 
       CHARACTER(len=3)   :: flnum2
       CHARACTER(len=128) :: trialfile 
@@ -68,6 +67,11 @@
 
       vco_anl => gsv_getVco(statevectorg)
       vco_trl => col_getVco(lcolumnhr)
+
+      nlev = gsv_getNumLev(statevectorg)
+      allocate(zpsg(statevectorg%ni,statevectorg%nj))
+      allocate(zttg(statevectorg%ni,statevectorg%nj,nlev))
+      allocate(zqqg(statevectorg%ni,statevectorg%nj,nlev))
 !
 ! Open all of the Trial fields
 !
@@ -136,13 +140,13 @@
         ! read the background TT, interpolate to analysis grid and put result on proc jstep-1
         ! NOTE: all processors participate in reading the file
         call vhfstfld(zttg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &       statevectorg%nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
+     &       nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
 
         ! copy interpolated TT to statevectorg
         if(mpi_myid.eq.(jstep-1)) then
           tt_ptr => gsv_getField(statevectorg,'TT')
           CALL INITGDG2(tt_ptr(:,:,:,1),zttg,
-     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,nlev,CLNOMVAR)
         endif
 !
 !       Specific-Humidity
@@ -153,13 +157,13 @@
         ! read the background HU, interpolate to analysis grid and put result on proc jstep-1
         ! NOTE: all processors participate in reading the file
         call vhfstfld(zqqg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &       statevectorg%nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
+     &       nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
 
         ! copy interpolated HU to statevectorg
         if(mpi_myid.eq.(jstep-1)) then
           hu_ptr => gsv_getField(statevectorg,'HU')
           CALL INITGDG2(hu_ptr(:,:,:,1),zqqg,
-     &                  statevectorg%ni,statevectorg%nj,statevectorg%nlev,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,nlev,CLNOMVAR)
         endif
 
       enddo ! jstep
@@ -171,6 +175,10 @@
         ierr=fclos(nultrl(jfile))  
       enddo
       write(*,*) 'Trial files have been closed'
+
+      deallocate(zpsg)
+      deallocate(zttg)
+      deallocate(zqqg)
 
       RETURN
 !-----------------------------------------------------------------------------------------------
@@ -201,8 +209,6 @@
 *      kulfst         : Unit of pre-opened standard file containing src fields
 *      ktrials        :  number of trial files.
 #endif
-      use MathPhysConstants_mod
-      use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
       IMPLICIT NONE
 
       INTEGER ktrials,kstep

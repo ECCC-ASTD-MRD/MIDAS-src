@@ -55,7 +55,6 @@
       use columnData_mod
       use bufr
       use modgpsztd_mod
-      use vGrid_Descriptors
       IMPLICIT NONE
 C
       type(struct_columnData) :: lcolumnhr
@@ -84,7 +83,7 @@ C
       INTEGER IDATYP, ITYP
       INTEGER INDEX_BODY, INDEX_ZTD, iztd
       INTEGER JL, NGPSLEV, NLEV_T, NOBS2P, stat, stat1
-      INTEGER ICOUNT1, ICOUNT2, ICOUNT3, ICOUNT, ICOUNTP, status
+      INTEGER ICOUNT1, ICOUNT2, ICOUNT3, ICOUNT, ICOUNTP, status, iversion
       INTEGER,pointer,dimension(:) :: IP1
       CHARACTER*2  LV
 
@@ -126,22 +125,21 @@ C
       vco_trl => col_getVco(lcolumnhr)
       stat = 0
       stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
+      stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
 
-      LSTAG = .FALSE.
-      if (vco_trl%svcod .eq. 'gemstg') then
+      if (iversion .ne. 5001) then
          LSTAG = .TRUE. 
          WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-         WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
+         WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
          LV = 'TH'
       else
+         LSTAG = .FALSE.
          WRITE(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-         WRITE(*,*)'VCODE= ',vco_trl%iversion,' LSTAG= ',LSTAG
+         WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
          ZPR = vco_trl%dprf_M
          ZCF = vco_trl%drcf1
          LV = 'NA'         
       endif
-
-      IF (LTESTOP) write(*,*) '  Trial grid vco_trl%svcod = ', vco_trl%svcod
 
       nlev_T = col_getNumLev(lcolumnhr,'TH')
       IF (LTESTOP) write(*,*) '  col_getNumLev(lcolumnhr) = ', nlev_T

@@ -1,24 +1,11 @@
-!-------------------------------------- LICENCE BEGIN ------------------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
-!
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END --------------------------------------
-!
+module writeIncrement_mod
+
+  contains
+
       subroutine writeIncrement(lcolumng,lcolumnhr,indexAnalysis)
 !
 !  s/r writeIncrement - write analysis increment after minimization
 !
-!Author  : S. Pellerin *ARMA/SMC  May 2000
 !
       use MathPhysConstants_mod
       use controlVector_mod
@@ -29,14 +16,15 @@
       use gridStateVector_mod
       use HorizontalCoord_mod
       use timeCoord_mod
-      IMPLICIT NONE
+      implicit none
+
       type(struct_columnData),target :: lcolumng,lcolumnhr
+      integer :: indexAnalysis
 
       type(struct_hco),      pointer :: hco_anl
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
-
-      integer jk,jj,ji,jstep,nulfile,ierr,fnom,fstouv,fstfrm,fclos,indexAnalysis
+      integer jk,jj,ji,jstep,nlev_M,nulfile,ierr,fnom,fstouv,fstfrm,fclos
       integer :: datestamplist(tim_nstepobsinc)
       real*8  :: hu_anl,deltaHours
       real*8, allocatable :: zes(:,:,:)
@@ -138,10 +126,11 @@
         write(*,*) 'writeIncrement: computing the diag variables for timestep:',jstep
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-        allocate( zes(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
-        allocate( ztv(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
-        allocate( zgz(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
-        allocate( zhu(hco_anl % ni, vco_anl % nlev_M, hco_anl % nj) )
+        nlev_M = vco_getNumLev(vco_anl,'MM')
+        allocate( zes(hco_anl%ni, nlev_M, hco_anl%nj) )
+        allocate( ztv(hco_anl%ni, nlev_M, hco_anl%nj) )
+        allocate( zgz(hco_anl%ni, nlev_M, hco_anl%nj) )
+        allocate( zhu(hco_anl%ni, nlev_M, hco_anl%nj) )
 
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 !
@@ -151,7 +140,7 @@
         lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
 !$OMP PARALLEL DO PRIVATE(jj,jk,ji,hu_anl)
         do jj = 1,statevectorg%nj
-          do jk = 1,statevectorg%vco%nlev_M
+          do jk = 1,nlev_M
             do ji = 1,statevectorg%ni
               ! choose either tangent linear or nonlinear operator for LQ to HU
               if(useTL_LQtoHU) then
@@ -199,7 +188,6 @@
         call varout
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
  
-
         deallocate(zes)
         deallocate(ztv)
         deallocate(zgz)
@@ -223,11 +211,7 @@
 !**s/r varout  - Transfert of the content of COMGD0 on a RPN
 !     .          standard file
 !
-!Author  : S. Pellerin *ARMA/AES  April 2000
-!
-      IMPLICIT NONE
-      real*8 :: field3d(statevector%ni,statevector%nlev,statevector%nj)
-      real*8, pointer :: field_ptr(:,:,:,:)
+      implicit none
       integer write_encode_hyb,vfstecr
       integer jvar,jlev,ierr,numlev
       integer datestamp,inpak_inc
@@ -330,9 +314,7 @@
       datestamp=gsv_getDateStamp(statevector,jstep)
 
       write(*,*) 'Writing fields for datestamp= ',datestamp
-!
-! ****************************************************************
-!
+
       write(*,*) 'Writing variable HY on analysis-increment file'
 
       zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
@@ -343,7 +325,6 @@
 !
 !-----Analysis grid hybride vertical coordinate parameters
 !
-
       write(*,*)' '
       write(*,*)'************************************** '
       write(*,*) ' The hybride coordinate parameters from increment', &
@@ -366,22 +347,9 @@
         numlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(cppcvar(jvar)))
         write(*,*) 'numlev=',numlev
 
-        if(cppcvar(jvar).ne.'ES'.and. &
-           cppcvar(jvar).ne.'VT'.and. &
-           cppcvar(jvar).ne.'GZ'.and. &
-           cppcvar(jvar).ne.'HU') then
-
-          if(cppcvar(jvar).eq.'LQ') then
-            field_ptr => gsv_getField(statevector,'HU')
-          else
-            field_ptr => gsv_getField(statevector,cppcvar(jvar))
-          endif
-          field3d(:,1:numlev,:)=field_ptr(:,:,:,1)
-        endif
-
         do jlev=1,numlev
           call gdout2(cppcvar(jvar),ZLOWVAR,jlev,  &
-               llimplemented,nip1,FlipLatitude,statevector,field3d,zes(:,:,:),ztv(:,:,:),zgz(:,:,:),zhu(:,:,:))
+               llimplemented,nip1,FlipLatitude,statevector,zes,ztv,zgz,zhu)
           if(.not.llimplemented) exit
 
           IERR  = VFSTECR(ZLOWVAR,zwork,inpak_inc  &
@@ -400,7 +368,6 @@
 
       write(*,*) 'END of VAROUT'
 
-      RETURN
       END SUBROUTINE VAROUT
 
 
@@ -417,7 +384,7 @@
       write(*,*) 'supost:  initialization of postprocessing'
       write(*,*) '========================================='
 !
-!*    1. Set default values
+!    1. Set default values
 !
       CETIKINC = 'UNDEFINED***'
       NPPCVAR=6
@@ -431,7 +398,7 @@
       WRITE4DINC = .false.
       useTL_LQtoHU = .false.
 !
-!*    2. Read the parameters from NAMPOST
+!    2. Read the parameters from NAMPOST
 !
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -500,12 +467,400 @@
         cppcvar(1) = 'P0'
       endif
 !
-!*     4. Print the values
+!     4. Print the values
 !
       DO jvar = 1, NPPCVAR
         if(mpi_myid.eq.0) WRITE(*,FMT='(4X,"VAR NO.",I3,":",2X,"CPPCVAR= ",A5)') jvar,CPPCVAR(jvar)
       ENDDO
-      RETURN
+
       END SUBROUTINE SUPOST
 
       END SUBROUTINE writeIncrement
+
+
+      subroutine lq2esgd(pesinc,statevector,statevectorg)
+!
+!**S/R lq2esgd  -  Computes increments of ES=T-TD FROM T AND lnq
+!                  increments in Grid-Point Space.
+!
+!Arguments:
+!
+! Out:
+!      pesinc : Dew-point depression increment on the analysis grid
+! IN:
+!      statevector    : increment
+!      statevectorg   : Background state on analysis grid
+!
+!Object:   For Postprocessing analysis increment (called by DIAG3DVAR):
+!          calculate the TLM OF dew point depression from TLM specific
+!          humidity, temperature and pressure.  No ice phase is
+!          CONSIDERED.
+!
+      use MathPhysConstants_mod
+      use physicsFunctions_mod
+      use gridStateVector_mod
+      IMPLICIT NONE
+      type(struct_gsv) :: statevector,statevectorg
+      real*8 pesinc(:,:,:)
+      integer ji,jj,jk,nlev
+      REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA, zpres
+      real*8, pointer :: ps_trl_ptr(:,:,:,:),ps_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:)
+
+      WRITE(*,FMT='(/,4X,"Starting LQ2ESGD",//)')
+      ps_trl_ptr => gsv_getField(statevectorg,'P0')
+      ps_inc_ptr => gsv_getField(statevector ,'P0')
+      hu_trl_ptr => gsv_getField(statevectorg,'HU')
+      hu_inc_ptr => gsv_getField(statevector ,'HU')
+      tt_inc_ptr => gsv_getField(statevector ,'TT')
+
+      nlev = gsv_getNumLev(statevectorg)
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji,zpres,ze,zel,ztd,zgamma,ztdl)
+      do jj=1,statevectorg%nj
+        do jk=1,nlev
+          do ji=1,statevectorg%ni
+            zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*ps_trl_ptr(ji,1,jj,1)
+!
+!           First do the forward branch to get saturated vapour pressure
+!           from q
+!
+            ZE = FOEFQ8(max(hu_trl_ptr(ji,jk,jj,1),1.d-12), zpres)
+!
+!           TLM of the saturated vapor pressure from q (specific humidity)
+!
+            ZEL = FOEFQL(hu_inc_ptr(ji,jk,jj,1),ps_inc_ptr(ji,1,jj,1),  &
+                         hu_trl_ptr(ji,jk,jj,1),zpres,statevectorg%vco%dhyb_m(jk))
+!
+!           TLM of the dewpoint temperature calculation
+!           From Teten's relation
+!
+            ZTD=FOTW8(ZE)
+            ZGAMMA=FODTW8(ZTD,ZE)
+            ZTDL = ZGAMMA*ZEL
+
+            pesinc(ji,jk,jj) = tt_inc_ptr(ji,jk,jj,1) - ZTDL
+
+          enddo
+        enddo
+      enddo
+!$OMP END PARALLEL DO
+
+      RETURN
+      END subroutine lq2esgd
+
+
+      subroutine lt2tvgd(ptv,statevector,statevectorg)
+!
+! s/r lt2tvgd: TL transform from delT to delTv
+!
+      use MathPhysConstants_mod
+      use gridStateVector_mod
+      IMPLICIT NONE
+      type(struct_gsv) :: statevector,statevectorg
+      real*8  ptv(:,:,:)
+      real*8, pointer :: hu_trl_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:)
+      integer ji,jj,jk,nlev
+
+      WRITE(*,FMT='(/,4X,"Starting LT2TVGD",//)')
+      hu_trl_ptr => gsv_getField(statevectorg,'HU')
+      tt_inc_ptr => gsv_getField(statevector ,'TT')
+      hu_inc_ptr => gsv_getField(statevector ,'HU')
+
+      nlev = gsv_getNumLev(statevector)
+!$OMP PARALLEL DO PRIVATE(jj,jk,ji)
+      do jj = 1, statevector%nj
+        do jk = 1, nlev
+          do ji = 1, statevector%ni
+            ptv(ji,jk,jj)=(1.D0+MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1))*tt_inc_ptr(ji,jk,jj,1) +  &
+                MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1)*tt_inc_ptr(ji,jk,jj,1)*hu_inc_ptr(ji,jk,jj,1)
+          enddo
+        enddo
+      enddo
+!$OMP END PARALLEL DO
+
+      RETURN
+      END subroutine lt2tvgd
+
+
+      SUBROUTINE ltt2phigd(pgz,ptt,statevectorg)
+!
+!**s/r ltt2phigd  - Grid-point version of ltt2phi.ftn
+!
+!Arguments
+!     in-
+!   ptt    : 4D Temperature Incr. appearing on r.h.s. of TL-eq.
+!     out-
+!   pgz    : 4D GZ fields computed from TL-Hydrostatic equation
+
+      use gridStateVector_mod
+      IMPLICIT NONE
+
+      type(struct_gsv) :: statevectorg
+      real*8 pgz(:,:,:)
+      real*8 ptt(:,:,:)
+
+      real*8, allocatable :: vma(:),vmb(:),vmc(:),vmd(:),vme(:),vmf(:)
+      INTEGER JLEV, JLAT, JLON, NLEV
+      real*8  zalpha
+      real*8, allocatable :: zprof(:)
+      real*8, pointer :: ps_ptr(:,:,:,:), zpres3d_ptr(:,:,:)
+      real*8, pointer :: zps2d(:,:) 
+      integer status
+
+      WRITE(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
+
+      nlev = gsv_getNumLev(statevectorg)
+      zalpha=-1.0D0
+
+      allocate(vma(nlev))
+      allocate(vmb(nlev))
+      allocate(vmc(nlev))
+      allocate(vmd(nlev))
+      allocate(vme(nlev))
+      allocate(vmf(nlev))
+      allocate(zprof(nlev))
+!
+!     Prepare r.h.s. for TL-Hydrostatic equation
+!
+      ps_ptr => gsv_getField(statevectorg,'P0')
+      zps2d => ps_ptr(:,1,:,1)
+      status=vgd_levels(statevectorg%vco%vgrid,  &
+                        ip1_list=statevectorg%vco%ip1_M,  &
+                        levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)
+      if(status.ne.VGD_OK)then
+        call abort3d('ERROR with vgd_levels for desired levels ')
+      endif
+
+      do jlat = 1, statevectorg%nj
+        do jlon = 1, statevectorg%ni
+          do jlev = 1,nlev
+            zprof(jlev) = zpres3d_ptr(jlon,jlat,jlev)
+          enddo
+          call matapat(zprof,zalpha,nlev,vma,vmb,vmc,vmd,vme,vmf)
+          call lvtapgd(pgz,ptt,jlon,jlat) 
+        enddo
+      enddo
+
+      deallocate(vma)
+      deallocate(vmb)
+      deallocate(vmc)
+      deallocate(vmd)
+      deallocate(vme)
+      deallocate(vmf)
+      deallocate(zprof)
+
+      RETURN
+
+      CONTAINS
+
+      subroutine lvtapgd(pgz,ptt,ki,kj)
+!S/P LVTAPGD:
+!
+!         CALCULE Y A PARTIR DE R PAR SOLUTION DE L'EQUATION R*CON=S**E*D(Y)
+!         AVEC UN SCHEME DU 4EME ORDRE DU A J. COTE.
+!         NOTE: CET ALGORITHME EST EXACTEMENT REVERSIBLE (VOIR VPAT).
+!
+!         ON DOIT FOURNIR LA COND
+!         A LA LIMITE INF. Y(N). LA MATRICE MATAP A ETE CALCULEE DANS LA
+!         SUBR. MATAPAT.
+!
+      use MathPhysConstants_mod
+      IMPLICIT NONE
+      integer ki,kj
+
+      INTEGER  IKLEVM2, JK, IK
+      REAL*8    ZAK, ZBK, ZCK, ZCON
+      real*8    pgz(:,:,:)
+      real*8    ptt(:,:,:)
+!
+! ptt : working vector of virtual temperatures.
+!
+      ZCON = -MPC_RGAS_DRY_AIR_R8
+      ZAK = -2.0D0*ZCON*VMA(nlev)
+      ZBK = -2.0D0*ZCON*VMB(nlev)
+      ZCK = -2.0D0*ZCON*VMC(nlev)
+      pgz(ki,nlev,kj) = 0.0D0
+      pgz(ki,nlev-1,kj)=ZAK*ptt(ki,nlev-1,kj)+  &
+          ZBK*ptt(ki,nlev,kj)+  &
+          ZCK*ptt(ki,nlev-2,kj)+  &
+          pgz(ki,nlev,kj)
+
+      IKLEVM2 = nlev-2
+      do JK = 1, IKLEVM2
+        IK = nlev-1-JK
+        ZAK = -2.0D0*ZCON*VMA(IK+1)
+        ZBK = -2.0D0*ZCON*VMB(IK+1)
+        ZCK = -2.0D0*ZCON*VMC(IK+1)
+        pgz(ki,ik,kj)= ZAK*ptt(ki,IK,kj)+  &
+            ZBK*ptt(ki,IK+1,kj)+  &
+            ZCK*ptt(ki,IK+2,kj)+  &
+            pgz(ki,IK+2,kj)
+      enddo
+
+      END SUBROUTINE lvtapgd
+
+      END subroutine ltt2phigd
+
+
+      SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,FlipLatitude,statevector,zes,ztv,zgz,zhu)
+!*
+!***s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
+!*     .          standard file.
+!*
+!*Arguments
+!*     i   varName : variable name
+!*     i   KLEV    : index of the level to be transferred
+!* OUTPUT
+!*     o   pptrans : vector containing the variable
+!*     o   lplok   : logical indicating if the variable has been
+!*                   implemented
+!*     o   kip1    : ip1 of the corresponding level
+!*
+      use MathPhysConstants_mod
+      use EarthConstants_mod
+      use gridStateVector_mod
+      IMPLICIT NONE
+      INTEGER klev,kip1
+      type(struct_gsv) :: statevector
+      real*8, pointer :: field_ptr(:,:,:,:)
+      real*8 :: pptrans(:,:)
+      real*8 :: zes(:,:,:)
+      real*8 :: ztv(:,:,:)
+      real*8 :: zgz(:,:,:)
+      real*8 :: zhu(:,:,:)
+      character(len=*) :: varName
+      logical lplok, FlipLatitude
+
+      INTEGER JLON, JGL
+      REAL*8 ZTEMP, ZGEOP, ZDAM, ZCON, un, dix
+
+      kiP1      =  statevector%vco%ip1_M(klev)
+      un = 1.0D0
+      dix = 1.0D1
+!C
+!C     2. Transfer of the fields of COMGD to an internal buffer
+!C     .  -----------------------------------------------------
+!C
+!c  SET DIAGNOSTIC VARIABLES ON IF FIRST VAR IS PP (for GENINCR branch)
+!c
+      lplok = .true.
+!C
+!C     .  2.1 Fields associated with model variables
+!C
+      IF(trim(varName).EQ.'VT') THEN
+!C
+!C     *  Virtual temperature field
+!C
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = ZTV(JLON,KLEV,JGL)
+          END DO
+        END DO
+      ELSE IF(trim(varName).EQ.'GZ') THEN
+!C
+!C     *  Geopotential field
+!C
+        ZGEOP  = dix * RG
+        ZDAM   = un/ZGEOP
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = ZDAM * zgz(JLON,KLEV,JGL)
+          END DO
+        END DO
+!C
+!C     *  Zonal wind component (in Knots)
+!C
+      ELSE IF(trim(varName).EQ.'UU') THEN
+        field_ptr => gsv_getField(statevector,varName)
+        DO JGL = 1, statevector%nj
+          DO JLON = 1, statevector%ni
+            PPTRANS(JLON,JGL) = field_ptr(JLON,KLEV,JGL,1)*MPC_KNOTS_PER_M_PER_S_R8
+          END DO
+        END DO
+!C
+!C     *  Meridional wind component (in Knots)
+!C
+      ELSE IF(trim(varName).EQ.'VV') THEN
+        field_ptr => gsv_getField(statevector,varName)
+        DO JGL = 1, statevector%nj
+          DO JLON = 1, statevector%ni
+            PPTRANS(JLON,JGL) = field_ptr(JLON,KLEV,JGL,1)*MPC_KNOTS_PER_M_PER_S_R8
+          END DO
+        END DO
+!C
+!C     *  Humidity field
+!C
+      ELSE IF(trim(varName).EQ.'ES') THEN
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
+          END DO
+        END DO
+
+      ELSE IF(trim(varName).EQ.'LQ') THEN
+        field_ptr => gsv_getField(statevector,'HU')
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = field_ptr(JLON,KLEV,JGL,1)
+          END DO
+        END DO
+
+      ELSE IF(trim(varName).EQ.'HU') THEN
+          DO JLON = 1, statevector%ni
+            DO JGL = 1, statevector%nj
+              PPTRANS(JLON,JGL) = zhu(JLON,KLEV,JGL)
+            END DO
+          END DO
+!C
+!C     *    Surface Pressure from units of Pascal to millibar
+!C
+      ELSE IF(trim(varName).EQ.'P0') THEN
+        kip1=0
+        field_ptr => gsv_getField(statevector,varName)
+        DO JLON = 1, statevector%ni
+          DO JGL = 1, statevector%nj
+            PPTRANS(JLON,JGL) = field_ptr(JLON,1,JGL,1)*MPC_MBAR_PER_PA_R8
+          END DO
+        END DO
+!C
+!C     *    All remaining 2D and 3D variables that do not require unit conversions
+!C
+      else
+        if(gsv_varExist(varName)) then
+          field_ptr => gsv_getField(statevector,varName)
+          if(vnl_vartypeFromVarname(varName).eq.'SF') then
+            kip1=0
+            do jlon = 1, statevector%ni
+              do jgl = 1, statevector%nj
+                pptrans(jlon,jgl) = field_ptr(jlon,1,jgl,1)
+              enddo
+            enddo
+          else
+            do jlon = 1, statevector%ni
+              do jgl = 1, statevector%nj
+                pptrans(jlon,jgl) = field_ptr(jlon,klev,jgl,1)
+              enddo
+            enddo
+          endif
+        else
+          LPLOK = .FALSE.
+          WRITE(*,*)' ****************************************'
+          WRITE(*,'(" GDOUT2: THE FOLLOWING FIELD IS NOT SUPPORTED  varName= ",A2)')varName
+          WRITE(*,*)' ****************************************'
+        endif
+      ENDIF
+
+      IF (lplok .and. FlipLatitude) THEN
+         DO JLON   = 1, statevector%ni
+            DO JGL = 1, statevector%nj/2
+               ZTEMP = pptrans(JLON,JGL)
+               pptrans(JLON,JGL)                 = pptrans(JLON,statevector%nj-JGL+1)
+               pptrans(JLON,statevector%nj-JGL+1)= ZTEMP
+            end do
+         end do
+      END IF
+
+      END subroutine gdout2
+
+
+
+end module writeIncrement_mod

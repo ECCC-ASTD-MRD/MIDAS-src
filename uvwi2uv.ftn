@@ -38,7 +38,7 @@
 * Local variables
 *
       integer ji,jj,jk,jstep
-      integer jlev,jlat,jlon,lat1,lat2
+      integer jlev,jlat,jlon,lat1,lat2,nlev
       real*8, pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
 
       uu_ptr => gsv_getField(statevector,'UU')
@@ -46,12 +46,13 @@
 
       lat1=statevector%myLatBeg
       lat2=statevector%myLatEnd
+      nlev = gsv_getNumLev(statevector)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
       do jlat = lat1, lat2
         do jstep=1, statevector%numStep
-          do jlev = 1, statevector%nlev
+          do jlev = 1, nlev
             do jlon = 1, statevector%ni
               uu_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * uu_ptr(jlon,jlev,jlat,jstep)
               vv_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * vv_ptr(jlon,jlev,jlat,jstep)

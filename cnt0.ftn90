@@ -22,6 +22,7 @@ program cnt0
   use obsSpaceData_mod
   use columnData_mod  
   use obsSpaceDiag_mod
+  use writeIncrement_mod
 
   implicit none
   integer istamp,exdb,exfin

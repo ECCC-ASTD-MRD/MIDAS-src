@@ -33,7 +33,6 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   use obsSpaceData_mod
   use gridStateVector_mod
   use timeCoord_mod, only: tim_getDatestamp
-  use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
   use WindRotation_mod
   implicit none
 
@@ -53,17 +52,11 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   character*1 clgrtyp
   character*2 cltypvar
   character*12 cletiket
-  
   real*8, allocatable :: varInterphr_T(:,:),varInterphr_M(:,:),varInterphr_VV(:,:)
-  real*8, allocatable :: zppobsg(:,:),zppobs_T(:,:),zppobs_M(:,:)
-  real*8, allocatable :: varInterpP0(:,:)
-  real*8, allocatable :: varInterpg_T(:,:),varInterpg_M(:,:)
-
   integer ip1_pak_trl,ip1_vco_trl
   integer nlv_T,nlv_M
   integer, parameter :: jpnflev = 200
   integer itrlgid,iip1s(jpnflev),iip2,iip3
-  integer iip1s2(jpnflev*2)
   integer, allocatable :: idate(:),itime(:)
   integer :: newdate,nstepanltime
   integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
@@ -90,9 +83,9 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   real*8, allocatable ::  dlonfld_mpiglobal(:,:), dlatfld_mpiglobal(:,:)
   
   integer :: ig1obs,ig2obs,ig3obs,ig4obs
-  integer status
+  integer :: status,iversion
   
-  real*8, pointer :: pobsm(:,:,:) => null()
+  real*8, pointer :: column_ptr(:) => null()
   
   integer :: AnalysisGridIndex
   
@@ -134,8 +127,8 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   !
   vco_anl => col_getVco(lcolumng)
   vco_trl => col_getVco(lcolumnhr)
-  nlv_M = vco_trl%nlev_M
-  nlv_T = vco_trl%nlev_T
+  nlv_M = vco_getNumLev(vco_trl,'MM')
+  nlv_T = vco_getNumLev(vco_trl,'TH')
   if(mpi_myid.eq.0) write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
   if(mpi_myid.eq.0) write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
        vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf1
@@ -151,9 +144,6 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   !
   if(col_getNumCol(lcolumng).gt.0) then
      allocate(notag(col_getNumCol(lcolumng),tim_nStepObs))
-     allocate(varInterpg_T(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-     allocate(varInterpg_M(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-     allocate(varInterpP0(1,col_getNumCol(lcolumng)))
      allocate(varInterphr_T(nlv_T,col_getNumCol(lcolumng)))
      allocate(varInterphr_M(nlv_M,col_getNumCol(lcolumng)))
      allocate(varInterphr_VV(nlv_M,col_getNumCol(lcolumng)))
@@ -469,19 +459,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       !      
       if(col_getNumCol(lcolumng).gt.0) then
 
-         do jobs = 1,col_getNumCol(lcolumng)
-            varInterpP0(1,jobs) = col_getElem(lcolumng,1,jobs,'P0')
-         enddo
-
-         if (associated(pobsm))  deallocate(pobsm)
-         status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,levels=pobsm,  &
-              sfc_field=varInterpP0,in_log=.false.)      
-         if(status.ne.VGD_OK) then
-            call abort3d('ERROR with vgd_levels for desired levels ')
-         endif
-         allocate(zppobsg(col_getNumLev(lcolumng),col_getNumCol(lcolumng)))
-         zppobsg = transpose(pobsm(1,:,:))
-         call col_fillmvo(lcolumng,'PP','NA',zppobsg)
+         call col_calcPressure(lcolumng)
 
          do jlev = 1,col_getNumLev(lcolumng)
             if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(LCOLUMNG,jlev,1,NA) = ',  &
@@ -490,30 +468,15 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
 
          !     Calculate profiles of pressure values at station location
 
-         if(mpi_myid.eq.0) write(*,*) 'sugomobs:iversion= ',vco_trl%iversion
-         if(mpi_myid.eq.0) write(*,*) 'sugomobs:ikind= ',vco_trl%ikind
-         if(mpi_myid.eq.0) write(*,*) 'sugomobs:svcod= ',vco_trl%svcod
+         status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+         if(mpi_myid.eq.0) write(*,*) 'sugomobs:iversion= ',iversion
 
          !     General treatment of trial field 
          !     addition for BGCK unstagered mode
-         if (vco_trl%iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
+         if (iversion == 5001) call col_pointStagToUnstag(lcolumnhr)
 
-      !     Compute Pressure fields at desired levels
-         if (associated(pobsm))  deallocate(pobsm)
-         status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,  &
-                           levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
-         if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-         allocate(zppobs_M(nlv_M,col_getNumCol(lcolumng)))
-         zppobs_M = transpose(pobsm(1,:,:))
-         call col_fillmvo(lcolumnhr,'PP','MM',zppobs_M)
-         
-         if (associated(pobsm))  deallocate(pobsm)
-         status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,  &
-                           levels=pobsm,sfc_field=varInterpP0,in_log=.false.)
-         if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-         allocate(zppobs_T(nlv_T,col_getNumCol(lcolumng)))
-         zppobs_T = transpose(pobsm(1,:,:))
-         call col_fillmvo(lcolumnhr,'PP','TH',zppobs_T)
+         !     Compute Pressure fields at desired trial field levels
+         call col_calcPressure(lcolumnhr)
 
       end if
 
@@ -569,29 +532,41 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
           call readTrialField4(varInterphr_M,varInterphr_VV,'UV','MM')
          
           if(col_getNumCol(lcolumng).gt.0) then       
-            call vintprof(varInterpg_M,zppobsg,col_getNumLev(lcolumng),varInterphr_M,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-            varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
-            call col_fillmvo(lcolumng,'UU  ','NA',varInterpg_M)
-
-            call vintprof(varInterpg_M,zppobsg,col_getNumLev(lcolumng),varInterphr_VV,zppobs_M,nlv_M,col_getNumCol(lcolumng))
-            varInterpg_M(:,:)=varInterpg_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
-            call col_fillmvo(lcolumng,'VV  ','NA',varInterpg_M)
 
             if(mpi_myid.eq.0) write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
             do jlev = 1,nlv_M
-              if(mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,  &
-                  zppobs_m(jlev,1),varInterphr_M(jlev,1)
+              if(mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
             enddo
             if(mpi_myid.eq.0) write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
             do jlev = 1,nlv_M
-              if(mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,  &
-                  zppobs_m(jlev,1),varInterphr_VV(jlev,1)
+              if(mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
             enddo
 
-            varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_M_PER_S_PER_KNOT_R8
             call col_fillmvo(lcolumnhr,'UU  ','MM',varInterphr_M)
-            varInterphr_VV(:,:)=varInterphr_VV(:,:)*MPC_M_PER_S_PER_KNOT_R8
             call col_fillmvo(lcolumnhr,'VV  ','MM',varInterphr_VV)
+            call col_vintprof(lcolumnhr,lcolumng,'UU')
+            call col_vintprof(lcolumnhr,lcolumng,'VV')
+
+            ! conversion from knots to m/s
+            do jobs=1,col_getNumCol(lcolumng)
+              column_ptr => col_getColumn(lcolumnhr,jobs,'UU')
+              do jlev=1,col_getNumLev(lcolumnhr,'MM')
+                column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
+              enddo
+              column_ptr => col_getColumn(lcolumnhr,jobs,'VV')
+              do jlev=1,col_getNumLev(lcolumnhr,'MM')
+                column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
+              enddo
+              column_ptr => col_getColumn(lcolumng,jobs,'UU')
+              do jlev=1,col_getNumLev(lcolumng)
+                column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
+              enddo
+              column_ptr => col_getColumn(lcolumng,jobs,'VV')
+              do jlev=1,col_getNumLev(lcolumng)
+                column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
+              enddo
+            enddo
+
           endif
 
           !
@@ -603,28 +578,41 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
           call readTrialField4(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
 
           if(col_getNumCol(lcolumng).gt.0) then       
+
             if(mpi_myid.eq.0) write(*,*) 'sugomobs:',vnl_varNameList3D(jvar)
             do jlev = 1,nlv_T
               if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
             enddo
 
-            call vintprof(varInterpg_T,zppobsg,col_getNumLev(lcolumng),varInterphr_T,zppobs_T,nlv_T,col_getNumCol(lcolumng))
+            call col_fillmvo(lcolumnhr,vnl_varNameList3D(jvar),'NA',varInterphr_T)
+            call col_vintprof(lcolumnhr,lcolumng,vnl_varNameList3D(jvar))
 
             if(vnl_varNameList3D(jvar).eq.'TT') then
-              varInterpg_T(:,:)=varInterpg_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
-              varInterphr_T(:,:)=varInterphr_T(:,:)+MPC_K_C_DEGREE_OFFSET_R8
-            elseif(vnl_varNameList3D(jvar).eq.'HU') then
+              ! conversion from Celcius to Kelvin
               do jobs=1,col_getNumCol(lcolumng)
-                do jlev=1,col_getNumLev(lcolumng)
-                  varInterpg_T(jlev,jobs)=log(max(varInterpg_T(jlev,jobs),rhumin))
+                column_ptr => col_getColumn(lcolumnhr,jobs,'TT')
+                do jlev=1,col_getNumLev(lcolumnhr,'TH')
+                  column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
                 enddo
-                do jlev=1,nlv_T
-                  varInterphr_T(jlev,jobs)=log(max(varInterphr_T(jlev,jobs),rhumin))
+                column_ptr => col_getColumn(lcolumng,jobs,'TT')
+                do jlev=1,col_getNumLev(lcolumng)
+                  column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
+                enddo
+              enddo
+            elseif(vnl_varNameList3D(jvar).eq.'HU') then
+              ! conversion from specific humidity to log(humidity)
+              do jobs=1,col_getNumCol(lcolumng)
+                column_ptr => col_getColumn(lcolumnhr,jobs,'HU')
+                do jlev=1,col_getNumLev(lcolumnhr,'TH')
+                  column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
+                enddo
+                column_ptr => col_getColumn(lcolumng,jobs,'HU')
+                do jlev=1,col_getNumLev(lcolumng)
+                  column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
                 enddo
               enddo
             endif
-            call col_fillmvo(lcolumng ,vnl_varNameList3D(jvar),'NA',varInterpg_T)
-            call col_fillmvo(lcolumnhr,vnl_varNameList3D(jvar),'NA',varInterphr_T)
+
           endif
 
         end select 
@@ -646,7 +634,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       !
       !- Using T, q and PS to compute GZ for columnhr
       !
-      if(vco_trl%iversion .eq. 5001 ) then  ! only in non-staggered mode
+      if(iversion .eq. 5001 ) then  ! only in non-staggered mode
         call tt2phi(lcolumnhr)
       endif
 
@@ -661,16 +649,11 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
       !
       !- Deallocate the local arrays
       !
-            if(col_getNumCol(lcolumng).gt.0) then       
+      if(col_getNumCol(lcolumng).gt.0) then       
         deallocate(notag)
-        deallocate(varInterpg_T)
-        deallocate(varInterpg_M)
-        deallocate(varInterpP0)
         deallocate(varInterphr_T)
         deallocate(varInterphr_M)
         deallocate(varInterphr_VV)
-        deallocate(zppobsg)
-        deallocate(zppobs_T,zppobs_M)
       endif
       deallocate(datestamplist)
       deallocate(nobsgid)

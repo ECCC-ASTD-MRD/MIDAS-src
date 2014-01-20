@@ -25,7 +25,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use horizontalCoord_mod
   use timeCoord_mod
   use WindRotation_mod
-  use Vgrid_Descriptors, only: vgrid_descriptor
   use obsSpaceData_mod
   use controlVector_mod
   use gridStateVector_mod

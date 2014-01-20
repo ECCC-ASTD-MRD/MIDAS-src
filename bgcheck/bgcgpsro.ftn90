@@ -42,7 +42,7 @@
       INTEGER IDATYP
       INTEGER IDATA   , IDATEND, INDEX_BODY
       INTEGER JL, JH,  NGPSLEV
-      INTEGER NH, NH1
+      INTEGER NH, NH1, stat, iversion
 
       LOGICAL  LSTAG
 
@@ -50,7 +50,8 @@
 
       LSTAG = .FALSE.
       vco_trl => col_getVco(lcolumnhr)
-      if (vco_trl%iversion .eq. 5002) LSTAG = .TRUE. 
+      stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      if (iversion .eq. 5002) LSTAG = .TRUE. 
       
       WRITE(*,*)'ENTER BGCSGPSRO'
 !C

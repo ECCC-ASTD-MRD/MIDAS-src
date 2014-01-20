@@ -7,7 +7,6 @@ MODULE BMatrix_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use vGrid_Descriptors , only:vgrid_descriptor,vgd_levels,VGD_OK
   use gaussGrid_mod
   implicit none
   save
@@ -16,6 +15,8 @@ MODULE BMatrix_mod
   ! public procedures
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
   public :: bmat_reduceToMPILocal, bmat_expandToMPIGlobal
+  ! public procedures through inheritance
+  public :: bhi_getScaleFactor,ben_getScaleFactor
 
 
   type(struct_hco), pointer :: hco_anl
@@ -39,8 +40,8 @@ contains
     real(8), pointer :: pressureProfile(:)
 
     integer :: cvdimens, cvdimhi, datestamp
-    integer :: jlev, status, newcomm_group, newcomm_rank
-    integer :: rpn_comm_comm, ierr, get_max_rss
+    integer :: jlev, status, nlev_M
+    integer :: get_max_rss
 
     !
     !- 1.  Get/Check the analysis grid info
@@ -50,6 +51,7 @@ contains
     hco_anl => hco_anl_in
 
     !- 1.2 Check the input Verticale Coordinate
+    nlev_M = vco_getNumLev(vco_anl_in,'MM')
     zps = 101000.D0
     
     status = vgd_levels( vco_anl_in % vgrid, ip1_list=vco_anl_in%ip1_M, levels=pressureProfile, &
@@ -71,9 +73,9 @@ contains
     if ( hco_anl % global ) then
       write(*,*)
       write(*,*) 'Setting up the modular GLOBAL HI covariances...'
-      call bhi_Setup( hco_anl % ni, hco_anl % nj, vco_anl_in % nlev_M, & ! IN
-                      pressureProfile,                                 & ! IN
-                      cvdimhi )                                          ! OUT
+      call bhi_Setup( hco_anl % ni, hco_anl % nj, nlev_M, & ! IN
+                      pressureProfile,                    & ! IN
+                      cvdimhi )                             ! OUT
     else
       write(*,*)
       write(*,*) 'Setting up the modular LAM HI covariances...'
@@ -87,10 +89,10 @@ contains
     !- 2.2 Flow-dependent Ensemble-Based
     write(*,*)
     write(*,*) 'Setting up the modular ENSEMBLE covariances...'
-    call ben_Setup( pressureProfile, hco_anl,             & ! IN
-                    vco_anl_in % nlev_M, tim_nstepobsinc, & ! IN
-                    vco_anl_in % ip1_M,datestamp,         & ! IN
-                    cvdimens )                              ! OUT
+    call ben_Setup( pressureProfile, hco_anl,      & ! IN
+                    nlev_M, tim_nstepobsinc,       & ! IN
+                    vco_anl_in % ip1_M,datestamp,  & ! IN
+                    cvdimens )                       ! OUT
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of ENS control vector returned:',cvdimens
@@ -122,8 +124,6 @@ contains
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
 
     type(struct_gsv) :: statevector, statevector_temp
-
-    integer :: ierr, nsize
 
     !
     !- 1.  Set analysis increment to zero
@@ -187,7 +187,6 @@ contains
     real*8 :: da_v(na_vdim)
     real*8,pointer :: cvBhi(:),cvBen(:)
     type(struct_gsv) :: statevector
-    integer :: ierr,nsize
 
     if ( statevector % hco % global ) then
       !- 1.1 Adjoint of the identity (change of norm)

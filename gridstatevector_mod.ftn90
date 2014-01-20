@@ -40,12 +40,12 @@ MODULE gridStateVector_mod
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
   public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
   public :: vnl_varNameList2d, vnl_varNameList3d, vnl_varNameList
+  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis
 
 
   type struct_gsv
     real*8,pointer      :: gd(:,:,:,:)
     real*8,pointer      :: gd3d(:,:,:)
-    integer             :: nlev,nlev_T,nlev_M
     integer             :: ni,nj,nk,numStep,anltime
     integer             :: latPerPE,myLatBeg,myLatEnd
     integer, pointer    :: dateStampList(:)
@@ -85,24 +85,17 @@ MODULE gridStateVector_mod
 
     end function gsv_varExist
 
+
   function gsv_getNumLev(statevector,varType) result(nlev)
     implicit none
-    type(struct_gsv), intent(in)           :: statevector
+    type(struct_gsv), intent(in)    :: statevector
     character(len=*), intent(in), optional :: varType
     integer                                :: nlev
 
     if(present(varType)) then
-      if(varType.eq.'MM') then
-        nlev = statevector%nlev_m
-      elseif(varType.eq.'TH') then
-        nlev = statevector%nlev_t
-      elseif(varType.eq.'SF') then
-        nlev = 1
-      else
-        call abort3d('gsv_getNumLev: Unknown variable type! ' // varType)
-      endif
+      nlev = vco_getNumLev(statevector%vco,varType)
     else
-      nlev = statevector%nlev
+      nlev = vco_getNumLev(statevector%vco)
     endif
 
   end function gsv_getNumLev
@@ -177,12 +170,12 @@ MODULE gridStateVector_mod
   END SUBROUTINE gsv_setup
 
 
-  SUBROUTINE gsv_allocate(statevector,numStep,nlev_M,nlev_T,dateStamp,mpi_local)
+  SUBROUTINE gsv_allocate(statevector,numStep,dateStamp,mpi_local)
     implicit none
 
     type(struct_gsv)    :: statevector
     integer, intent(in) :: numStep
-    integer, optional   :: nlev_M,nlev_T,dateStamp
+    integer, optional   :: dateStamp
     integer             :: ierr,iloc,jvar,jvar2,jstep,lat1
     integer             :: myLatHalfBeg,myLatHalfEnd
     logical, optional   :: mpi_local
@@ -217,18 +210,8 @@ MODULE gridStateVector_mod
 
     !write(*,*) 'gsv_allocate: numStep,anltime=',statevector%numStep,statevector%anltime
 
-    if( (.not.present(nlev_M)) .and. (.not.present(nlev_T)) ) then
-        if(statevector%vco%initialized) then
-          statevector%nlev = max(statevector%vco%nlev_M,statevector%vco%nlev_T)
-          statevector%nlev_M = statevector%vco%nlev_M
-          statevector%nlev_T = statevector%vco%nlev_T
-        else
-          call abort3d('statevector_allocate: VerticalCoord has not been initialized!')
-        endif
-    else
-        statevector%nlev = max(nlev_M,nlev_T)
-        statevector%nlev_M = nlev_M
-        statevector%nlev_T = nlev_T
+    if(.not.statevector%vco%initialized) then
+       call abort3d('statevector_allocate: VerticalCoord has not been initialized!')
     endif
 
     if (statevector%allocated)then

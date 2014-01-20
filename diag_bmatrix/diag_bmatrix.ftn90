@@ -25,7 +25,7 @@ real*8, allocatable :: zes(:,:,:)
 real*8, allocatable :: ztv(:,:,:)
 real*8, allocatable :: zgz(:,:,:)
 real*8, allocatable :: zhu(:,:,:)
-integer  fclos,fnom,fstouv,fstfrm,nulfile,newdate,nstamp
+integer  fclos,fnom,fstouv,fstfrm,fstopc,nulfile,newdate,nstamp
 integer  ierr,iseed
 integer  jmem,jj,jni,jnj,jnk,nkgdim
 integer  idate,itime,nulnam
@@ -48,6 +48,7 @@ write(*,*) " -------------------------------------------"
 ! MPI, tmg initialization
 call mpi_init
 call tmg_init(mpi_myid, 'TMG_DIAG-BMATRIX' )
+ierr = fstopc('MSGLVL','ERRORS',0)
 
 ! Set some global variables
 nstepobsinc=1

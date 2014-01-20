@@ -8,14 +8,14 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_SetupFromFile
+  public :: vco_SetupFromFile, vco_getNumLev
+  ! public entities accessed through inheritance
+  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis
 
   type struct_vco
      logical :: initialized=.false.
-     integer :: iversion          ! code of vert coord from !! record in BG stat file
-     integer :: ikind               ! kind of vertical coordinate(a la convip)
-     character(len=8) :: svcod      ! type of vertical coordinate (cvcord in 3DVAR)
-     integer :: nlev_T,nlev_M         ! Number of vertical levels (Thermo/Moment)
+     integer :: nlev_T= 0
+     integer :: nlev_M= 0
      real*8  :: dpt_T, dpt_M        ! Pressure at top level    (Thermo/Moment)
      real*8  :: dprf_T, dprf_M      ! Reference pressure       (Thermo/Moment)
      real*8  :: drcf1, drcf2        ! Expansion coefficients
@@ -30,52 +30,52 @@ module verticalCoord_mod
 
   contains
 
-  subroutine vco_allocate(tf_vco)
+  subroutine vco_allocate(vco)
     implicit none
-    type(struct_vco), pointer :: tf_vco
+    type(struct_vco), pointer :: vco
     integer :: ilnk,stat,nl_stat
 
     stat        = 0
 
-    ilnk        = tf_vco%nlev_M
-    allocate (tf_vco%ip1_M(ilnk),stat=nl_stat)
+    ilnk = vco_getNumLev(vco,'MM')
+    allocate (vco%ip1_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%da_M(ilnk),stat=nl_stat)
+    allocate (vco%da_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%db_M(ilnk),stat=nl_stat)
+    allocate (vco%db_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%da_dhyb_M(ilnk),stat=nl_stat)
+    allocate (vco%da_dhyb_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%db_dhyb_M(ilnk),stat=nl_stat)
+    allocate (vco%db_dhyb_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%dhyb_M(ilnk),stat=nl_stat)
+    allocate (vco%dhyb_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
-    ilnk        = tf_vco%nlev_T
-    allocate (tf_vco%ip1_T(ilnk),stat=nl_stat)
+    ilnk = vco_getNumLev(vco,'TH')
+    allocate (vco%ip1_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%da_T(ilnk),stat=nl_stat)
+    allocate (vco%da_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%db_T(ilnk),stat=nl_stat)
+    allocate (vco%db_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%da_dhyb_T(ilnk),stat=nl_stat)
+    allocate (vco%da_dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%db_dhyb_T(ilnk),stat=nl_stat)
+    allocate (vco%db_dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (tf_vco%dhyb_T(ilnk),stat=nl_stat)
+    allocate (vco%dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
     if(stat .ne. 0 ) then
-       call abort3d(' vco: problem with allocate in tf_vco ')
+       call abort3d(' vco: problem with allocate in vco ')
     endif
 
   end subroutine vco_allocate
 
 
-  subroutine vco_SetupFromFile(tf_vco,templatefile,lprecision)
+  subroutine vco_SetupFromFile(vco,templatefile,lprecision)
 !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     implicit none
-    type(struct_vco),pointer :: tf_vco
+    type(struct_vco),pointer :: vco
     character(len=*) :: templatefile
     logical :: lprecision
 
@@ -88,6 +88,7 @@ module verticalCoord_mod
     REAL*8 precision
     character(len=10) :: blk_S
     logical :: isExist_L
+    integer :: nlev_M,nlev_T
 
     inquire(file=templatefile,exist=isExist_L)
     IF ( isExist_L )then
@@ -105,18 +106,18 @@ module verticalCoord_mod
     endif
 
 
-    if(.not.associated(tf_vco)) allocate(tf_vco)
+    if(.not.associated(vco)) allocate(vco)
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file(vgd_new reads "!!" record)
   
-    stat = vgd_new(tf_vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
+    stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
     if(stat.ne.VGD_OK)then
       call abort3d('ERROR with vgd_new')
     endif
 
     ! Print out vertical structure 
-    if(mpi_myid.eq.0) stat = vgd_print(tf_vco%vgrid)
+    stat = vgd_print(vco%vgrid)
     if(stat.ne.VGD_OK)then
       call abort3d('ERROR with vgd_print')
     endif
@@ -124,66 +125,52 @@ module verticalCoord_mod
     ! Get version of the vertical coordinate
 
     stat = 0
-    stat = vgd_get(tf_vco%vgrid,key='ig_1 - vertical coord code',value=ivcode)
+    stat = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=ivcode)
     if(stat.ne.VGD_OK) then
       call abort3d('vco: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
 
-    !ivcode = kind*1000 + version 
-    tf_vco%ikind    = ivcode/1000
-    tf_vco%iversion = ivcode
-      
-    if(ivcode.eq.1002) tf_vco%svcod='etage'    ! eta vertical coord
-    if(ivcode.eq.5001) tf_vco%svcod='gemhyb'   ! unstaggered hybride vertical coord 
-    if(ivcode.eq.5002) tf_vco%svcod='gemstg'   ! staggered hybride vertical coord
-      
-    if(mpi_myid.eq.0) write(*,*) 'vco: vcode,kind,cvcod ',ivcode,tf_vco%ikind,tf_vco%svcod
 
     !==========================================================================
-    ! Set the number of vertical levels and allocate tf_vco arrays
+    ! Set the number of vertical levels and allocate vco arrays
 
-    stat = 0
-    stat = vgd_get(tf_vco%vgrid,key='nl_m - number of momentum levels',value=tf_vco%nlev_M)
-    stat = stat + VGD_OK
-    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get nl_m vgd_ok= ',VGD_OK
-    stat = vgd_get(tf_vco%vgrid,key='nl_t - number of momentum levels',value=tf_vco%nlev_T)
-    stat = stat + VGD_OK
-    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get nl_t vgd_ok= ',VGD_OK
+    nlev_M = vco_getNumLev(vco,'MM')
+    nlev_T = vco_getNumLev(vco,'TH')
     
-    call vco_allocate(tf_vco)
+    call vco_allocate(vco)
 
     !==========================================================================
     ! Process levels (ip1, A, B)
     ! (unstaggered  vertical coord are stored in levels in "!!" records)
 
     stat = 0
-    stat = vgd_get(tf_vco%vgrid,key='ca_m - vertical a coefficient (m)',value=tf_vco%da_M)
+    stat = vgd_get(vco%vgrid,key='ca_m - vertical a coefficient (m)',value=vco%da_M)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ca_m vgd_ok= ',VGD_OK
-    stat = vgd_get(tf_vco%vgrid,key='ca_t - vertical a coefficient (t)',value=tf_vco%da_T)
+    stat = vgd_get(vco%vgrid,key='ca_t - vertical a coefficient (t)',value=vco%da_T)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ca_t vgd_ok= ',VGD_OK
     !
-    stat = vgd_get(tf_vco%vgrid,key='cb_m - vertical b coefficient (m)',value=tf_vco%db_M)
+    stat = vgd_get(vco%vgrid,key='cb_m - vertical b coefficient (m)',value=vco%db_M)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get cb_m vgd_ok= ',VGD_OK
-    stat = vgd_get(tf_vco%vgrid,key='cb_t - vertical b coefficient (t)',value=tf_vco%db_T)
+    stat = vgd_get(vco%vgrid,key='cb_t - vertical b coefficient (t)',value=vco%db_T)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get cb_t vgd_ok= ',VGD_OK
     !
-    stat = vgd_get(tf_vco%vgrid,key='vipm - vertical levels (m)',value=my_ip1)
+    stat = vgd_get(vco%vgrid,key='vipm - vertical levels (m)',value=my_ip1)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ip1m vgd_ok= ',VGD_OK
     !
-    stat = vgd_get(tf_vco%vgrid,key='ptop - pressure at top level (m)',value=dl_ptM)
+    stat = vgd_get(vco%vgrid,key='ptop - pressure at top level (m)',value=dl_ptM)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ptm vgd_ok= ',VGD_OK
     !
-    stat = vgd_get(tf_vco%vgrid,key='pref - reference pressure (m)',value=dl_pref)
+    stat = vgd_get(vco%vgrid,key='pref - reference pressure (m)',value=dl_pref)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get vipm vgd_ok= ',VGD_OK
     !
-    stat = vgd_get(tf_vco%vgrid,key='rc_1 - coefficient value for rectification (m)',value=dl_rcf1)
+    stat = vgd_get(vco%vgrid,key='rc_1 - coefficient value for rectification (m)',value=dl_rcf1)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get vipm vgd_ok= ',VGD_OK
     !
@@ -191,26 +178,26 @@ module verticalCoord_mod
       call abort3d('vco: problem with vgd_get')
     endif
 
-    if(size(tf_vco%da_M).gt.0 .and. size(tf_vco%db_M).gt.0 .and. size(my_ip1).gt.0 )then 
-      if(mpi_myid.eq.0) write(*,*) 'vco: size(a,b,ip1)(m)= ',size(tf_vco%da_M),size(tf_vco%db_M),size(my_ip1)
+    if(size(vco%da_M).gt.0 .and. size(vco%db_M).gt.0 .and. size(my_ip1).gt.0 )then 
+      if(mpi_myid.eq.0) write(*,*) 'vco: size(a,b,ip1)(m)= ',size(vco%da_M),size(vco%db_M),size(my_ip1)
     else
       if(mpi_myid.eq.0) write(*,*) 'vco: problem with size(a,b,ip1)(m) in vgd_get'
       return
     endif
 
-    tf_vco%dprf_M = dl_pref
-    tf_vco%dprf_T = dl_pref ! not sure if this will ever be different for thermo levels
-    tf_vco%dpt_M  = dl_ptM
-    tf_vco%dpt_T  = dl_ptM
-    tf_vco%drcf1  = dl_rcf1
+    vco%dprf_M = dl_pref
+    vco%dprf_T = dl_pref ! not sure if this will ever be different for thermo levels
+    vco%dpt_M  = dl_ptM
+    vco%dpt_T  = dl_ptM
+    vco%drcf1  = dl_rcf1
     if(ivcode.eq.5002) then
       ! temporarily compute a single pressure roughly corresponding to top trial field level
       ! (vgrid descriptor gives a pressure for a higher non-existant level, currently 7.5Pa)
-      tf_vco%dpt_M  = exp( tf_vco%da_M(1) + tf_vco%db_M(1)*log(100000.0d0/dl_pref) )
-      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(MM)=',tf_vco%dpt_M
+      vco%dpt_M  = exp( vco%da_M(1) + vco%db_M(1)*log(100000.0/dl_pref) )
+      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(MM)=',vco%dpt_M
       if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: read ptop(MM)=',dl_ptM
-      tf_vco%dpt_T  = exp( tf_vco%da_T(1) + tf_vco%db_T(1)*log(100000.0d0/dl_pref) )
-      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(TH)=',tf_vco%dpt_T
+      vco%dpt_T  = exp( vco%da_T(1) + vco%db_T(1)*log(100000.0/dl_pref) )
+      if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: computed ptop(TH)=',vco%dpt_T
       if(mpi_myid.eq.0) write(*,*) 'vco_setupFromFile: read ptop(TH)=',dl_ptM
     endif
     !
@@ -218,35 +205,35 @@ module verticalCoord_mod
     !
     if(lprecision) then
       sigdigits=7
-      precision=10.0d0**(sigdigits-int(log10(tf_vco%dpt_M)))
-      tf_vco%dpt_M = real(nint(precision*tf_vco%dpt_M),8)/precision
-      precision=10.0d0**(sigdigits-int(log10(tf_vco%dprf_M)))
-      tf_vco%dprf_M = real(nint(precision*tf_vco%dprf_M),8)/precision
-      precision=10.0d0**(sigdigits-int(log10(tf_vco%drcf1)))
-      tf_vco%drcf1 = real(nint(precision*tf_vco%drcf1),8)/precision
+      precision=10.0d0**(sigdigits-int(log10(vco%dpt_M)))
+      vco%dpt_M = real(nint(precision*vco%dpt_M),8)/precision
+      precision=10.0d0**(sigdigits-int(log10(vco%dprf_M)))
+      vco%dprf_M = real(nint(precision*vco%dprf_M),8)/precision
+      precision=10.0d0**(sigdigits-int(log10(vco%drcf1)))
+      vco%drcf1 = real(nint(precision*vco%drcf1),8)/precision
     endif
 
     !==========================================================================
     ! Assign values for Momentum levels
 
-    if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb)= ',size(tf_vco%dhyb_M)
-    do jlev = 1, tf_vco%nlev_M
-      tf_vco%ip1_M(jlev) = my_ip1(jlev)
+    if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb)= ',size(vco%dhyb_M)
+    do jlev = 1, nlev_M
+      vco%ip1_M(jlev) = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb_r4,kind,-1,blk_s,.false.)
-      tf_vco%dhyb_M(jlev) = hyb_r4
+      vco%dhyb_M(jlev) = hyb_r4
       if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(moment)= ' & 
-            ,jlev,tf_vco%nlev_M,tf_vco%ip1_M(jlev),tf_vco%dhyb_M(jlev)
+            ,jlev,nlev_M,vco%ip1_M(jlev),vco%dhyb_M(jlev)
 
       ! Devrait probablement etre enleve car avec la nouvelle facon de calculer
       ! l'equation hydrostatique zterm ne sera plus requis
-      if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
+      if((vco%drcf1-1.0d0) .lt. epsilon(vco%drcf1)) then
         zterm = 1.0d0
       else
-        zterm = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M) &
-                 /(1.0d0-tf_vco%dpt_M/tf_vco%dprf_M))**(tf_vco%drcf1-1.0d0)
+        zterm = ((vco%dhyb_M(jlev) - vco%dpt_M/vco%dprf_M) &
+                 /(1.0d0-vco%dpt_M/vco%dprf_M))**(vco%drcf1-1.0d0)
       endif
-      tf_vco%db_dhyb_M(jlev)= tf_vco%drcf1 * zterm
-      tf_vco%da_dhyb_M(jlev)= tf_vco%dprf_M*(1.0d0 - tf_vco%db_dhyb_M(jlev))
+      vco%db_dhyb_M(jlev)= vco%drcf1 * zterm
+      vco%da_dhyb_M(jlev)= vco%dprf_M*(1.0d0 - vco%db_dhyb_M(jlev))
 
     enddo
 
@@ -254,43 +241,90 @@ module verticalCoord_mod
     ! Process thermodynamic levels 
 
     stat = 0
-    stat = vgd_get(tf_vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
+    stat = vgd_get(vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
     stat = stat + VGD_OK
     if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get vipt vgd_ok= ',VGD_OK
     if(stat.ne.0) then
       call abort3d('vco: problem with vgd_get')
     endif
 
-    if(size(tf_vco%da_T).gt.0 .and. size(tf_vco%db_T).gt.0 .and. size(my_ip1).gt.0 )then 
-      if(mpi_myid.eq.0) write(*,*) 'vco: size(a,b,ip1)(t)= ',size(tf_vco%da_T),size(tf_vco%db_T),size(my_ip1)
+    if(size(vco%da_T).gt.0 .and. size(vco%db_T).gt.0 .and. size(my_ip1).gt.0 )then 
+      if(mpi_myid.eq.0) write(*,*) 'vco: size(a,b,ip1)(t)= ',size(vco%da_T),size(vco%db_T),size(my_ip1)
     else
       call abort3d('vco: problem with size(a,b,ip1)(t) in vgd_get')
     endif
 
-    do jlev = 1,tf_vco%nlev_T
-      tf_vco%ip1_T(jlev)  = my_ip1(jlev)
+    do jlev = 1,nlev_T
+      vco%ip1_T(jlev)  = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb_r4,kind,-1,blk_s,.false.)
-      tf_vco%dhyb_T(jlev) = hyb_r4
+      vco%dhyb_T(jlev) = hyb_r4
       if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(thermo)= ' &
-            ,jlev,tf_vco%nlev_T,tf_vco%ip1_T(jlev),tf_vco%dhyb_T(jlev)
+            ,jlev,nlev_T,vco%ip1_T(jlev),vco%dhyb_T(jlev)
 
-      if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
+      if((vco%drcf1-1.0d0) .lt. epsilon(vco%drcf1)) then
         zterm = 1.0d0
       else
-        zterm = ((tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T) &
-                 /(1.0d0-tf_vco%dpt_T/tf_vco%dprf_T))**(tf_vco%drcf1-1.0d0)
+        zterm = ((vco%dhyb_T(jlev) - vco%dpt_T/vco%dprf_T) &
+                 /(1.0d0-vco%dpt_T/vco%dprf_T))**(vco%drcf1-1.0d0)
       endif
-      tf_vco%db_dhyb_T(jlev)= tf_vco%drcf1 * zterm
-      tf_vco%da_dhyb_T(jlev)= tf_vco%dprf_T*(1.0d0 - tf_vco%db_dhyb_T(jlev))
+      vco%db_dhyb_T(jlev)= vco%drcf1 * zterm
+      vco%da_dhyb_T(jlev)= vco%dprf_T*(1.0d0 - vco%db_dhyb_T(jlev))
 
     enddo
 
-    tf_vco%initialized=.true.
+    vco%initialized=.true.
 
     ierr =  fstfrm(nultemplate)
     ierr =  fclos (nultemplate)
 
   end subroutine vco_SetupFromFile
+
+
+  function vco_getNumLev(vco,varType) result(nlev)
+    implicit none
+    type(struct_vco), intent(inout)    :: vco
+    character(len=*), intent(in), optional :: varType
+    integer                                :: nlev
+    integer                                :: stat
+    integer, pointer                       :: ip_ptr(:)
+
+    if(present(varType)) then
+      if(varType.eq.'MM') then
+        if(vco%nlev_M.le.0) then
+!          stat = vgd_get(vco%vgrid,key='nl_m - number of momentum levels',value=nlev)
+          stat = vgd_get(vco%vgrid,key='VIPM',value=ip_ptr)
+          vco%nlev_M = size(ip_ptr)
+          deallocate(ip_ptr)
+        endif
+        nlev = vco%nlev_M
+      elseif(varType.eq.'TH') then
+        if(vco%nlev_T.le.0) then
+!          stat = vgd_get(vco%vgrid,key='nl_t - number of thermo levels',value=nlev)
+          stat = vgd_get(vco%vgrid,key='VIPT',value=ip_ptr)
+          vco%nlev_T = size(ip_ptr)
+          deallocate(ip_ptr)
+        endif
+        nlev = vco%nlev_T
+      elseif(varType.eq.'SF') then
+        nlev = 1
+      else
+        call abort3d('vco_getNumLev: Unknown variable type! ' // varType)
+      endif
+    else
+      if(vco%nlev_M.le.0.or.vco%nlev_T.le.0) then
+!        stat = vgd_get(vco%vgrid,key='nl_m - number of momentum levels',value=nlev_m)
+        stat = vgd_get(vco%vgrid,key='VIPM',value=ip_ptr)
+        vco%nlev_m = size(ip_ptr)
+        deallocate(ip_ptr)
+!        stat = vgd_get(vco%vgrid,key='nl_t - number of thermo levels',value=nlev_t)
+        stat = vgd_get(vco%vgrid,key='VIPT',value=ip_ptr)
+        vco%nlev_t = size(ip_ptr)
+        deallocate(ip_ptr)
+      endif
+      nlev = max(vco%nlev_m,vco%nlev_t)
+    endif
+
+  end function vco_getNumLev
 
 
 end module VerticalCoord_mod

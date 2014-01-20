@@ -15,14 +15,14 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate, col_pointStagToUnstag, col_expandToMpiGlobal
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
-  public :: col_getPressure, col_getHeight, col_getMountain, col_setMountain
+  public :: col_getPressure, col_calcPressure, col_vintProf, col_getHeight, col_getMountain, col_setMountain
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   ! public entities accessed through inheritance
-  public :: struct_vco, vco_SetupFromFile
+  public :: struct_vco, vco_SetupFromFile, vco_getNumLev
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
-
+  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis
 
   type struct_columnData
     integer           :: numCol
@@ -463,6 +463,98 @@ module columnData_mod
     end function col_getOffsetFromVarno
 
 
+  subroutine col_calcPressure(column)
+    implicit none
+    type(struct_columnData), intent(inout) :: column
+
+    real(kind=8), allocatable :: P_sfc(:,:),zppobs2(:,:)
+    real(kind=8), pointer :: zppobs1(:,:,:) => null()
+    integer :: jobs,status,iversion
+
+    allocate(P_sfc(1,col_getNumCol(column)))
+    do jobs = 1,col_getNumCol(column)
+      P_sfc(1,jobs) = col_getElem(column,1,jobs,'P0')
+    enddo
+
+    ! check if vertical coordinate is unstaggered
+    status = vgd_get(column%vco%vgrid,key='ig_1 - vertical coord code',value=iversion)
+    if(iversion .eq. 5001) then
+      write(*,*) 'col_calcPressure: computing pressure on UNstaggered levels'
+
+      status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
+                        levels=zppobs1,sfc_field=P_sfc,in_log=.false.)      
+      if(status.ne.VGD_OK) then
+         call abort3d('ERROR with vgd_levels for desired levels ')
+      endif
+      allocate(zppobs2(col_getNumLev(column),col_getNumCol(column)))
+      zppobs2 = transpose(zppobs1(1,:,:))
+      call col_fillmvo(column,'PP','NA',zppobs2)
+      if (associated(zppobs1)) deallocate(zppobs1)
+      deallocate(zppobs2)
+
+    else
+      write(*,*) 'col_calcPressure: computing pressure on staggered levels'
+
+      status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
+                        levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
+      if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+      allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
+      zppobs2 = transpose(zppobs1(1,:,:))
+      call col_fillmvo(column,'PP','MM',zppobs2)
+      if (associated(zppobs1))  deallocate(zppobs1)
+      deallocate(zppobs2)
+
+      status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
+                        levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
+      if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+      allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
+      zppobs2 = transpose(zppobs1(1,:,:))
+      call col_fillmvo(column,'PP','TH',zppobs2)
+      if (associated(zppobs1)) deallocate(zppobs1)
+      deallocate(zppobs2)
+
+    endif
+
+    deallocate(P_sfc)
+
+  end subroutine col_calcPressure
+
+
+  subroutine col_vintprof(column_in,column_out,varName)
+    implicit none
+    type(struct_columnData), intent(inout) :: column_out
+    type(struct_columnData), intent(in) :: column_in
+    character(len=*) :: varName
+
+    real(kind=8), pointer :: column_ptr_in(:),column_ptr_out(:)
+    character(len=2) :: varType
+    real(kind=8)     :: zwb,zwt
+    integer          :: jlevo,jlevi,jprof
+
+    varType = vnl_vartypeFromVarname(varName)
+
+    do jprof = 1, col_getNumCol(column_out)
+      column_ptr_in  => col_getColumn(column_in ,jprof,varName)
+      column_ptr_out => col_getColumn(column_out,jprof,varName)
+      jlevi = 1
+      do jlevo = 1, col_getNumLev(column_out,varType)
+        jlevi = jlevi + 1
+        do while(col_getPressure(column_out,jlevo,jprof,varType) .gt.  &
+                 col_getPressure(column_in ,jlevi,jprof,varType) .and. &
+                 jlevi .lt. col_getNumLev(column_in,varType) )
+          jlevi = jlevi + 1
+        enddo
+        jlevi = jlevi - 1
+        zwb = log(col_getPressure(column_out,jlevo,jprof,varType)/col_getPressure(column_in,jlevi,jprof,varType))/  &
+              log(col_getPressure(column_in,jlevi+1,jprof,varType)/col_getPressure(column_in,jlevi,jprof,varType))
+        zwt = 1. - zwb
+        column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
+      enddo
+    enddo
+
+  end subroutine col_vintprof
+
+
   function col_getPressure(column,ilev,headerIndex,varType) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column
@@ -689,17 +781,9 @@ module columnData_mod
     integer                                :: nlev
 
     if(present(varType)) then
-      if(varType.eq.'MM') then
-        nlev = column%vco%nlev_m
-      elseif(varType.eq.'TH') then
-        nlev = column%vco%nlev_t
-      elseif(varType.eq.'SF') then
-        nlev = 1
-      else
-        call abort3d('col_getNumLev: Unknown variable type! ' // varType)
-      endif
+      nlev = vco_getNumLev(column%vco,varType)
     else
-      nlev = max(column%vco%nlev_m,column%vco%nlev_t)
+      nlev = vco_getNumLev(column%vco)
     endif
 
   end function col_getNumLev

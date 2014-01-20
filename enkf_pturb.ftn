@@ -38,8 +38,8 @@
 
       integer :: gaus_ni, gaus_nj
       integer  fclos,fnom,fstouv,fstfrm,nulfile,newdate,nstamp
-      integer  ierr,iseed,istatus
-      integer  ji,jj,jmem,jni,jnj,jnk,nkgdim
+      integer  ierr,iseed,status
+      integer  ji,jj,jmem,jni,jnj,jnk,nkgdim,nlev_M
       integer  idate,itime,ndate,nulnam
       real*8   gasdev,zdum
       real*8, allocatable :: gdmean(:,:,:)
@@ -121,17 +121,18 @@ c
 !
 !     Allocate auxillary variables
 !
-      allocate(zes(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(ztv(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(zgz(gaus_ni,vco_anl%nlev_M,gaus_nj))
-      allocate(zhu(gaus_ni,vco_anl%nlev_M,gaus_nj)) 
+      nlev_M = vco_getNumLev(vco_anl,'MM')
+      allocate(zes(gaus_ni,nlev_M,gaus_nj))
+      allocate(ztv(gaus_ni,nlev_M,gaus_nj))
+      allocate(zgz(gaus_ni,nlev_M,gaus_nj))
+      allocate(zhu(gaus_ni,nlev_M,gaus_nj)) 
       zes(:,:,:)=0.0d0
       ztv(:,:,:)=0.0d0
       zgz(:,:,:)=0.0d0
       zhu(:,:,:)=0.0d0
 C
-      allocate(gdmean(gaus_ni,nkgdim,gaus_nj),STAT=istatus)
-      if(istatus .ne. 0) then
+      allocate(gdmean(gaus_ni,nkgdim,gaus_nj),STAT=status)
+      if(status .ne. 0) then
          call abort3d('enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN')
       endif
          
@@ -229,8 +230,8 @@ c
         ierr =  fclos(nulfile)
       enddo
 
-      deallocate(gdmean,STAT=istatus)
-      if(istatus .ne. 0) then
+      deallocate(gdmean,STAT=status)
+      if(status .ne. 0) then
          call abort3d('enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN')
       endif
 

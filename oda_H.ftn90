@@ -21,6 +21,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   use bufr
+  use modgpsro_mod
   use modgpsztd_mod
   use minimization_mod
   implicit none
@@ -379,9 +380,7 @@ end subroutine oda_Hto
       use modgps04profile   , only : gpsprofile, gpsstruct1sw
       use modgps08refop     , only : gpsrefopv
       use modgps09bend      , only : gpsbndopv1
-      use modgpsro_mod
       use IndexListDepot_mod, only : struct_index_list
-      use vGrid_Descriptors
       implicit none
 
       REAL*8 zLat, Lat, sLat
@@ -700,8 +699,6 @@ end subroutine oda_Hto
       use modgps03diff      , only : gpsdiff
       use modgps04profilezd , only : gpsprofilezd, gpsstructztd, gpsdpress
       use modgps08ztdop     , only : gpsZTDopv, gpsPW
-      use vGrid_Descriptors
-      use modgpsztd_mod
       implicit none
 
       REAL*8 ZLAT, Lat
@@ -719,7 +716,7 @@ end subroutine oda_Hto
       REAL*8 DX (ngpscvmx)
 
       INTEGER INDEX_HEADER, INDEX_BODY
-      INTEGER JL, NFLEV, status, iztd, icount, NFLEV2
+      INTEGER JL, NFLEV, status, iztd, icount, NFLEV2, stat, iversion
 
       LOGICAL      ASSIM, LSTAG
       CHARACTER*2  LV
@@ -731,11 +728,12 @@ end subroutine oda_Hto
       
 !      WRITE(*,*)'ENTER oda_Hgp'
 
-      LSTAG = .FALSE.
-      if (vco_anl%svcod .eq. 'gemstg') then
+      stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      if (iversion .ne. 5001) then
          LSTAG = .TRUE. 
          LV = 'TH'
       else
+         LSTAG = .FALSE.
          LV = 'NA'
       endif
       
@@ -771,7 +769,7 @@ end subroutine oda_Hto
       allocate(ZDP(NFLEV))
       
       write(*,*) 'oda_Hgp: Storing Jacobians for GPS ZTD data ...'
-      write(*,*) '   INFO: Analysis grid vco_anl%svcod = ', vco_anl%svcod
+      write(*,*) '   INFO: Analysis grid iversion = ', iversion
       write(*,*) '         LSTAG = ', LSTAG
       write(*,*) '         col_getNumLev(lcolumng) = ', NFLEV
       write(*,*) '         col_getNumLev(lcolumn)  = ', NFLEV2

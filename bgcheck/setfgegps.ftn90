@@ -30,7 +30,6 @@
       use obsSpaceData_mod
       use verticalCoord_mod
       use modgpsztd_mod
-      use vGrid_Descriptors
       IMPLICIT NONE
 !   lcolumn  contains background errors for control variables on model levels
 !   lcolumng contains lo-res first guess profiles at obs locations
@@ -73,7 +72,7 @@
       INTEGER IDATYP, ITYP
       INTEGER IDATA, IDATEND, INDEX_BODY
       INTEGER JL, JK, NFLEV, ILYR, IOBS
-      INTEGER INOBS_OPT, INOBS_JAC, icount, status
+      INTEGER INOBS_OPT, INOBS_JAC, icount, status, iversion
 
       LOGICAL  ASSIM, LLOK, LSTAG
       CHARACTER*9  STN_JAC
@@ -115,15 +114,16 @@
       ZDZMIN = DZMIN
 !c
       vco_anl => col_getVco(lcolumng)
-      LSTAG = .FALSE.
-      if (vco_anl%svcod .eq. 'gemstg') then
+      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      if (iversion .ne. 5002) then
          LSTAG = .TRUE. 
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
-         WRITE(*,*)'VCODE= ',vco_anl%iversion,' LSTAG= ',LSTAG
+         WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
          LV = 'TH'
       else
+         LSTAG = .FALSE.
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS NOT STAGGERED'
-         WRITE(*,*)'VCODE= ',vco_anl%iversion,' LSTAG= ',LSTAG
+         WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
          ZPR = vco_anl%dprf_M
          ZCF = vco_anl%drcf1
          LV = 'NA'

@@ -35,7 +35,7 @@ MODULE BmatrixEnsemble
 
   ! public procedures
   public             :: ben_Setup,ben_BSqrt,ben_BSqrtAd,ben_reduceToMPILocal,ben_expandToMPIGlobal,ben_Finalize
-
+  public             :: ben_getScaleFactor
 
   logical             :: initialized = .false.
   integer,parameter   :: maxNumLevels=200
@@ -310,6 +310,19 @@ CONTAINS
     deallocate(ensLocalVert)
 
   END SUBROUTINE BEN_finalize
+
+
+  subroutine ben_getScaleFactor(scaleFactor_out)
+    implicit none
+    real(8) :: scaleFactor_out(:)
+    integer :: jlev
+
+    do jlev = 1, nLevInc
+      scaleFactor_out(jlev) = scaleFactor(jlev)
+    enddo
+
+  end subroutine ben_getScaleFactor
+
 
 !--------------------------------------------------------------------------
 ! setupEnsemble

@@ -40,7 +40,6 @@
       use modgpsro_mod
       use obsSpaceData_mod
       use columnData_mod
-      use vGrid_Descriptors
       IMPLICIT NONE
 C
       type(struct_columnData) :: lcolumnhr

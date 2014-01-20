@@ -376,7 +376,6 @@ end subroutine oda_HTto
       use modgps03diff      , only : gpsdiff
       use modgpsro_mod
       use IndexListDepot_mod, only : struct_index_list
-      use vGrid_Descriptors
       implicit none
 
       REAL*8 DPJO0(ngpscvmx)
