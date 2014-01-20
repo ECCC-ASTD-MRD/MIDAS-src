@@ -87,11 +87,11 @@ if [ $mode == full ] ; then
   . s.ssmuse.dot rpn_comm
 
   # Create a local copy of the source code
-  trunkfiles="abort.ftn comfilt.cdk physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
-            gaussgrid_mod.ftn90 lamanalysisgrid_mod.ftn90 lamdft_mod.ftn90 \
+  trunkfiles="abort.ftn physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+            gaussgrid_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
             mpi_mod.ftn90 utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
-            verticalcoord_mod.ftn90 comct0.cdk horizontalcoord_mod.ftn90"
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90"
 
   cd ${trunkdir}
   cp -f calcstats/*.ftn90 ${compiledir}

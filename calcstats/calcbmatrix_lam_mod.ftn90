@@ -15,9 +15,6 @@
 !    lamspectraltransform
 !--------------------------------------------------------------------------
 module calcbmatrix_lam_mod
-  use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8,MPC_PI_R8
-  use EarthConstants_mod, only: RA
-  use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, vgd_write, VGD_OK
   use gridStateVector_mod
   use LamSpectralTransform_mod
   use LamAnalysisGrid_mod
@@ -68,6 +65,7 @@ module calcbmatrix_lam_mod
 ! CALCB_LAM_SETUP
 !--------------------------------------------------------------------------
     subroutine calcb_lam_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in)
+    use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
     integer,                   intent(in)   :: nens_in
@@ -404,6 +402,7 @@ module calcbmatrix_lam_mod
 ! CreateLamTemplateGrids
 !--------------------------------------------------------------------------
   subroutine CreateLamTemplateGrids(TemplateFileName,grd_ext_x,grd_ext_y)
+    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
 
     character(len=*), intent(in) :: TemplateFileName
@@ -997,9 +996,6 @@ module calcbmatrix_lam_mod
 
     end do ! Loop in Ensemble
 
-    deallocate(SpectralStateVar)
-    deallocate(GridState)
-
     !- 1.4 Compute the weighted COVARIANCES for each total wavenumber
     do totwvnb = 0, ntrunc
       if ( SumWeight(totwvnb) /= 0.d0 ) then 
@@ -1013,7 +1009,7 @@ module calcbmatrix_lam_mod
 
     !- 1.5 Extract the power spectrum (the variances on the diagonal elements)
     do k = 1, nkgdim
-      PowerSpectrum(k,:) = sqrt(SpVertCorrel(k,k,:))
+      PowerSpectrum(k,:) = SpVertCorrel(k,k,:)
     end do
 
     !
@@ -1027,7 +1023,7 @@ module calcbmatrix_lam_mod
           if ( PowerSpectrum(k1,totwvnb) /= 0.d0 .and. &
                PowerSpectrum(k2,totwvnb) /= 0.d0 ) then
             SpVertCorrel(k1,k2,totwvnb) = SpVertCorrel(k1,k2,totwvnb) / &
-               ( PowerSpectrum(k1,totwvnb) * PowerSpectrum(k2,totwvnb) )
+               sqrt( PowerSpectrum(k1,totwvnb) * PowerSpectrum(k2,totwvnb) )
           else
             SpVertCorrel(k1,k2,totwvnb) = 0.d0
           end if
@@ -1042,17 +1038,18 @@ module calcbmatrix_lam_mod
     !
     allocate(NormPowerSpectrum(nkgdim,0:ntrunc))
 
+    !- 3.1 Part 1
+
 !$OMP PARALLEL
 !$OMP DO PRIVATE (totwvnb,k,sum)
     do k = 1, nkgdim
       sum = 0.0d0
       do totwvnb = 0, ntrunc
-        sum = sum + real(totwvnb,8) * (PowerSpectrum(k,totwvnb)**2) 
-                                      ! **2 because we took sqrt in section 1.5
+        sum = sum + real(totwvnb,8) * PowerSpectrum(k,totwvnb)
       end do
       do totwvnb = 0, ntrunc
         if ( sum /= 0.0d0 ) then
-          NormPowerSpectrum(k,totwvnb) = PowerSpectrum(k,totwvnb) / sqrt(sum)
+          NormPowerSpectrum(k,totwvnb) = PowerSpectrum(k,totwvnb) / sum
         else
           NormPowerSpectrum(k,totwvnb) = 0.d0
         end if
@@ -1061,16 +1058,72 @@ module calcbmatrix_lam_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
+    !- 3.2 Part 2
+    
+    !- 3.2.1 Spectral transform of a delta function (at the center of the domain)
+    GridState(:,:,:) = 0.d0
+    GridState(hco_bhi % ni/2,hco_bhi % nj/2,:) = 1.d0
+
+    kind = 'GridPointToSpectral'
+    call lst_VarTransform( lst_bhi % id,          & ! IN
+                           SpectralStateVar,      & ! OUT
+                           GridState,             & ! IN
+                           kind, nkgdim     )       ! IN
+
+    !- 3.2.2 Apply the horizontal correlation function
+!$OMP PARALLEL
+!$OMP DO PRIVATE (totwvnb,e,ila,p,k)
+    do totwvnb = 0, ntrunc
+       do e = 1, lst_bhi % nePerK(totwvnb)
+          ila = lst_bhi % ilaFromEK(e,totwvnb)
+          do p = 1, lst_bhi % nphase
+             do k = 1, nkgdim
+                SpectralStateVar(ila,p,k) = SpectralStateVar(ila,p,k) * NormPowerSpectrum(k,totwvnb) * &
+                              lst_bhi % NormFactor(ila,p) * lst_bhi % NormFactorAd(ila,p)
+             end do
+          end do
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    !- 3.2.3 Move back to physical space
+    kind = 'SpectralToGridPoint'
+    call lst_VarTransform( lst_bhi % id,      & ! IN
+                           SpectralStateVar,  & ! IN
+                           GridState,         & ! OUT
+                           kind, nkgdim )       ! IN
+
+    !- 3.2.4 Normalize to 1
+    do k = 1, nkgdim
+       if ( GridState(hco_bhi % ni/2,hco_bhi % nj/2,k) < 0.d0 ) then
+          write(*,*) 'CalcSpectralStats: Problem in normalization ', k, GridState(hco_bhi % ni/2,hco_bhi % nj/2,k)
+          call abort3d('aborting in CalcSpectralStats')
+       end if
+
+       if ( GridState(hco_bhi % ni/2,hco_bhi % nj/2,k) /= 0.d0 ) then
+          write(*,*) 'CalcSpectralStats: Normalization factor = ', k, GridState(hco_bhi % ni/2,hco_bhi % nj/2,k), 1.d0 / GridState(hco_bhi % ni/2,hco_bhi % nj/2,k)
+          NormPowerSpectrum(k,:) = NormPowerSpectrum(k,:) / GridState(hco_bhi % ni/2,hco_bhi % nj/2,k)
+       else
+          write(*,*) 'CalcSpectralStats: Setting NormPowerSpectrum to zero = ', k
+          NormPowerSpectrum(k,:) = 0.d0
+       end if
+    end do
+
+    deallocate(SpectralStateVar)
+    deallocate(GridState)
+
     !
     !- 4.  Normalize the spectral vertical correlation matrix to ensure correlations in horizontal
     !
+
 !$OMP PARALLEL
 !$OMP DO PRIVATE (totwvnb,k2,k1)
     do totwvnb = 0, ntrunc
       do k2 = 1, nkgdim
         do k1 = 1, nkgdim
           NormB(k1,k2,totwvnb) = SpVertCorrel(k1,k2,totwvnb) * &
-                NormPowerSpectrum(k1,totwvnb) * NormPowerSpectrum(k2,totwvnb)
+                sqrt( NormPowerSpectrum(k1,totwvnb) * NormPowerSpectrum(k2,totwvnb) )
         end do
       end do
     end do
@@ -1088,6 +1141,8 @@ module calcbmatrix_lam_mod
 ! CalcHorizScale
 !--------------------------------------------------------------------------
   subroutine CalcHorizScale(HorizScale,SpCovariance)
+    use MathPhysConstants_mod, only: MPC_PI_R8
+    use EarthConstants_mod, only: RA
     implicit none
 
     real(8), intent(out) :: HorizScale(nkgdim)
@@ -1251,11 +1306,11 @@ module calcbmatrix_lam_mod
        
        if ( info /= 0 ) then
          write(*,*)
-         write(*,*) 'CalcBsqrt: DSYEV failed !!!'
+         write(*,*) 'CalcBsqrt: DSYEV failed !!! ', totwvnb, info
          stop
        end if
 
-       !- Calculate B^0.5 = V D^0.5 D^t
+       !- Calculate B^0.5 = V D^0.5 V^t
        where(EigenValues < 0.d0)
          EigenValues = 0.d0
        end where
@@ -2011,6 +2066,8 @@ module calcbmatrix_lam_mod
 ! WriteTicTacToc
 !--------------------------------------------------------------------------
   subroutine WriteTicTacToc(iun)
+    use vGrid_Descriptors , only: vgrid_descriptor, vgd_write, VGD_OK
+    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
 
     integer, intent(in) :: iun
