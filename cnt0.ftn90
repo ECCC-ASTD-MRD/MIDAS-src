@@ -146,8 +146,8 @@ program cnt0
       ! Do minimization of cost function
       call minimize(columng,obsSpaceData,lastAnalysis)
 
-      ! Output the resulting analysis increment
-      call writeIncrement(columng,columnhr,indexAnalysis)
+      ! Calculate and write out the resulting analysis increment
+      call calcWriteIncrement(columng,columnhr,indexAnalysis)
 
     enddo
 

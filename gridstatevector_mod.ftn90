@@ -286,14 +286,14 @@ MODULE gridStateVector_mod
     endif
 
     lat1=statevector%myLatBeg
-    lat2=min(statevector%myLatEnd+1,statevector%nj)
+    lat2=min(statevector%myLatEnd+1,statevector%hco%nj)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
     do jlat=lat1,lat2
       do jstep=1,statevector%numStep
         do jlev=1,statevector%nk
-          do jlon=1,statevector%ni
+          do jlon=1,statevector%hco%ni
             statevector%gd(jlon,jlev,jlat,jstep)= 0.0d0
           enddo
         enddo
@@ -310,7 +310,7 @@ MODULE gridStateVector_mod
     type(struct_gsv) :: statevector_in
     integer :: nsize,ierr,status
 
-    nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
+    nsize=statevector_in%hco%ni*statevector_in%nk*statevector_in%numStep
 
     if(mpi_myid.eq.(mpi_nprocs-1)) then
       call rpn_comm_send(statevector_in%gd(:,:,statevector_in%myLatBeg:statevector_in%myLatBeg,:),nsize, &
@@ -337,9 +337,9 @@ MODULE gridStateVector_mod
     implicit none
     type(struct_gsv) :: statevector_in
     integer :: nsize,ierr,status
-    real*8 :: latCircle(statevector_in%ni,statevector_in%nk,1,statevector_in%numStep)
+    real*8 :: latCircle(statevector_in%hco%ni,statevector_in%nk,1,statevector_in%numStep)
 
-    nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
+    nsize=statevector_in%hco%ni*statevector_in%nk*statevector_in%numStep
 
     if(mpi_myid.eq.0) then
       call rpn_comm_send(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
@@ -384,9 +384,9 @@ MODULE gridStateVector_mod
     endif
 
     ! only allocate a single 3D mpiglobal statevector
-    allocate(gd_mpiglobal(statevector_in%ni,statevector_in%nk,statevector_in%nj,1))
+    allocate(gd_mpiglobal(statevector_in%hco%ni,statevector_in%nk,statevector_in%hco%nj,1))
 
-    nsize=statevector_in%ni*statevector_in%nk*statevector_in%latPerPE
+    nsize=statevector_in%hco%ni*statevector_in%nk*statevector_in%latPerPE
 
     ! NOTE: result of mpiglobal 3D statevector for timestep jstep is sent to proc jstep-1
     do jstep=1,statevector_in%numStep
@@ -403,8 +403,8 @@ MODULE gridStateVector_mod
     statevector_in%gd => gd_mpiglobal
     statevector_in%gd3d => statevector_in%gd(:,:,:,1)
     statevector_in%myLatBeg=1
-    statevector_in%myLatEnd=statevector_in%nj
-    statevector_in%latPerPE=statevector_in%nj
+    statevector_in%myLatEnd=statevector_in%hco%nj
+    statevector_in%latPerPE=statevector_in%hco%nj
     statevector_in%mpi_local=.false.
 
   END SUBROUTINE GSV_commMPIGlobal
@@ -421,9 +421,9 @@ MODULE gridStateVector_mod
     endif
 
     ! only allocate a single 3D mpiglobal statevector
-    allocate(gd_mpiglobal(statevector_in%ni,statevector_in%nk,statevector_in%nj,1))
+    allocate(gd_mpiglobal(statevector_in%hco%ni,statevector_in%nk,statevector_in%hco%nj,1))
 
-    nsize=statevector_in%ni*statevector_in%nk*statevector_in%latPerPE
+    nsize=statevector_in%hco%ni*statevector_in%nk*statevector_in%latPerPE
 
     ! NOTE: result of mpiglobal 3D statevector for timestep anltime is sent to proc 0
     jstep=statevector_in%anltime
@@ -438,8 +438,8 @@ MODULE gridStateVector_mod
     statevector_in%gd => gd_mpiglobal
     statevector_in%gd3d => statevector_in%gd(:,:,:,1)
     statevector_in%myLatBeg=1
-    statevector_in%myLatEnd=statevector_in%nj
-    statevector_in%latPerPE=statevector_in%nj
+    statevector_in%myLatEnd=statevector_in%hco%nj
+    statevector_in%latPerPE=statevector_in%hco%nj
     statevector_in%mpi_local=.false.
 
   END SUBROUTINE GSV_commMPIGlobal3D
@@ -458,14 +458,14 @@ MODULE gridStateVector_mod
     endif
 
     lat1=statevector_in%myLatBeg
-    lat2=min(statevector_in%myLatEnd+1,statevector_inout%nj)
+    lat2=min(statevector_in%myLatEnd+1,statevector_inout%hco%nj)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
     do jlat=lat1,lat2
       do jstep=1,statevector_inout%numStep
         do jlev=1,statevector_inout%nk
-          do jlon=1,statevector_inout%ni
+          do jlon=1,statevector_inout%hco%ni
             statevector_inout%gd(jlon,jlev,jlat,jstep)= statevector_inout%gd(jlon,jlev,jlat,jstep) +  &
                                                         statevector_in%gd(jlon,jlev,jlat,jstep)
           enddo
@@ -488,7 +488,7 @@ MODULE gridStateVector_mod
     endif
 
     lat1=statevector%myLatBeg
-    lat2=min(statevector%myLatEnd+1,statevector%nj)
+    lat2=min(statevector%myLatEnd+1,statevector%hco%nj)
 
     if(statevector%numStep.eq.1) return
 
@@ -498,7 +498,7 @@ MODULE gridStateVector_mod
       do jstep=1,statevector%numStep
         if(jstep.ne.statevector%anltime) then
           do jlev=1,statevector%nk
-            do jlon=1,statevector%ni
+            do jlon=1,statevector%hco%ni
               statevector%gd(jlon,jlev,jlat,jstep)= statevector%gd3d(jlon,jlev,jlat)
             enddo
           enddo
@@ -515,14 +515,14 @@ MODULE gridStateVector_mod
     implicit none
     type(struct_gsv) :: statevector
     integer          :: jstep,jlon,jlev,jlat,lat1,lat2
-    real(8)          :: gd3d_tmp(statevector%ni,statevector%nk,statevector%myLatBeg:(statevector%myLatEnd+1))
+    real(8)          :: gd3d_tmp(statevector%hco%ni,statevector%nk,statevector%myLatBeg:(statevector%myLatEnd+1))
 
     if(.not.statevector%allocated) then
       call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
     lat1=statevector%myLatBeg
-    lat2=min(statevector%myLatEnd+1,statevector%nj)
+    lat2=min(statevector%myLatEnd+1,statevector%hco%nj)
 
     if(statevector%numStep.eq.1) return
 
@@ -530,7 +530,7 @@ MODULE gridStateVector_mod
 !$OMP DO PRIVATE (jlat,jlev,jlon)    
     do jlat=lat1,lat2
       do jlev=1,statevector%nk
-        do jlon=1,statevector%ni
+        do jlon=1,statevector%hco%ni
           gd3d_tmp(jlon,jlev,jlat) = 0.0d0
         enddo
       enddo
@@ -540,7 +540,7 @@ MODULE gridStateVector_mod
     do jlat=lat1,lat2
       do jstep=1,statevector%numStep
         do jlev=1,statevector%nk
-          do jlon=1,statevector%ni
+          do jlon=1,statevector%hco%ni
             gd3d_tmp(jlon,jlev,jlat) = gd3d_tmp(jlon,jlev,jlat) +   &
                                        statevector%gd(jlon,jlev,jlat,jstep)
           enddo
@@ -551,7 +551,7 @@ MODULE gridStateVector_mod
 !$OMP DO PRIVATE (jlat,jlev,jlon)    
     do jlat=lat1,lat2
       do jlev=1,statevector%nk
-        do jlon=1,statevector%ni
+        do jlon=1,statevector%hco%ni
           statevector%gd3d(jlon,jlev,jlat) = gd3d_tmp(jlon,jlev,jlat)
         enddo
       enddo
