@@ -1,5 +1,5 @@
 Module tovs_mod
-  use mpi
+  use mpivar_mod
   Use rttov_types, only : &
      rttov_coefs         ,&
      rttov_options       ,&

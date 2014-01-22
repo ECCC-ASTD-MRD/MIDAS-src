@@ -16,7 +16,7 @@
 !
 subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   use MathPhysConstants_mod
-  use mpi
+  use mpivar_mod
   use gridStateVector_mod
   use obsSpaceData_mod
   use columnData_mod 

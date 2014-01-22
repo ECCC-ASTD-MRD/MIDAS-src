@@ -55,7 +55,7 @@
       
       use topLevelControl_mod
       use hir_chans
-      use mpi
+      use mpivar_mod
       use tovs_mod
       IMPLICIT NONE
 C

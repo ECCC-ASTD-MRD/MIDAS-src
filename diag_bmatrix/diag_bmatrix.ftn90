@@ -4,7 +4,7 @@ program diag_bmatrix
 !
 ! Author  : M. Buehner  March, 2013
 !
-use mpi
+use mpivar_mod
 use MathPhysConstants_mod
 use controlVector_mod
 use gridStateVector_mod

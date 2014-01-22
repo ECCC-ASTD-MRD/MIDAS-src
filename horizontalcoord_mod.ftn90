@@ -38,10 +38,10 @@ module HorizontalCoord_mod
      integer              :: ig3
      integer              :: ig4
      integer              :: EZscintID
-     real(8), allocatable :: lat(:) ! in degree
-     real(8), allocatable :: lon(:) ! in degree
-     real(8)              :: dlat   ! in degree
-     real(8)              :: dlon   ! in degree
+     real(8), allocatable :: lat(:) ! in radians
+     real(8), allocatable :: lon(:) ! in radians
+     real(8)              :: dlat   ! in radians
+     real(8)              :: dlon   ! in radians
      logical              :: global
      logical              :: rotated
      real(8)              :: xlat1
@@ -95,8 +95,8 @@ module HorizontalCoord_mod
     nGrid = nGrid + 1
 
     if ( nGrid > nMaxGrid ) then
-      write(6,*)
-      write(6,*) 'hco_SetupFromFile: Too many grid coordinates!', nMaxGrid
+      write(*,*)
+      write(*,*) 'hco_SetupFromFile: Too many grid coordinates!', nMaxGrid
       stop
     end if
 
@@ -108,20 +108,20 @@ module HorizontalCoord_mod
     if ( FileExist ) then
       ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
       if ( ier == 0 ) then
-        write(6,*)
-        write(6,*) 'Template File :', trim(TemplateFile)
-        write(6,*) 'opened as unit file ',iu_template
+        write(*,*)
+        write(*,*) 'Template File :', trim(TemplateFile)
+        write(*,*) 'opened as unit file ',iu_template
         ier = fstouv(iu_template,'RND+OLD')
       else
-        write(6,*)
-        write(6,*) 'hco_SetupFromFile: Error in opening the template grid file'
-        write(6,*) trim(TemplateFile)
+        write(*,*)
+        write(*,*) 'hco_SetupFromFile: Error in opening the template grid file'
+        write(*,*) trim(TemplateFile)
         stop
       end if
     else
-      write(6,*)
-      write(6,*) 'hco_SetupFromFile: template grid file DOES NOT EXIST'
-      write(6,*) trim(TemplateFile)
+      write(*,*)
+      write(*,*) 'hco_SetupFromFile: template grid file DOES NOT EXIST'
+      write(*,*) trim(TemplateFile)
       stop
     end if
 
@@ -143,8 +143,8 @@ module HorizontalCoord_mod
                   dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
 
     if (key < 0) then
-      write(6,*)
-      write(6,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
+      write(*,*)
+      write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
       stop
     end if
 
@@ -184,17 +184,17 @@ module HorizontalCoord_mod
                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
        if (ier < 0) then
-         write(6,*)
-         write(6,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
+         write(*,*)
+         write(*,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
          stop
        end if
 
        !  Test if the dimensions are compatible with the grid
        if ( ni_t /= ni .or. nj_t /= 1 ) then
-         write(6,*)
-         write(6,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
-         write(6,*) 'Found     :', ni_t, nj_t
-         write(6,*) 'Should be :', ni, 1
+         write(*,*)
+         write(*,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
+         write(*,*) 'Found     :', ni_t, nj_t
+         write(*,*) 'Should be :', ni, 1
          stop 
        end if
 
@@ -213,17 +213,17 @@ module HorizontalCoord_mod
                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
        if (ier < 0) then
-         write(6,*)
-         write(6,*) 'hco_SetupFromFile: Unable to find ^^ grid descriptors'
+         write(*,*)
+         write(*,*) 'hco_SetupFromFile: Unable to find ^^ grid descriptors'
          stop
        end if
 
        !  Test if the dimensions are compatible with the grid
        if ( ni_t /= 1 .or. nj_t /= nj ) then
-         write(6,*)
-         write(6,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
-         write(6,*) 'Found     :', ni_t, nj_t
-         write(6,*) 'Should be :', 1, nj
+         write(*,*)
+         write(*,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
+         write(*,*) 'Found     :', ni_t, nj_t
+         write(*,*) 'Should be :', 1, nj
          stop 
        end if
 
@@ -288,8 +288,8 @@ module HorizontalCoord_mod
       xlon2_4 = 180.0
 
     else
-      write(6,*)
-      write(6,*) 'hco_SetupFromFile: Only grtyp = Z or G are supported !, grtyp = ', trim(grtyp)
+      write(*,*)
+      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G are supported !, grtyp = ', trim(grtyp)
       stop 
     end if
 
@@ -366,8 +366,8 @@ module HorizontalCoord_mod
     integer :: id, gridid
 
     if ( nGrid == 0 ) then
-      write(6,*)
-      write(6,*) 'hco_GetGridIndex: HorizontalGrid module not initialized'
+      write(*,*)
+      write(*,*) 'hco_GetGridIndex: HorizontalGrid module not initialized'
       stop
     endif
 
@@ -382,8 +382,8 @@ module HorizontalCoord_mod
     if ( gridid /= -1 ) then
       gridindex = gridid
     else
-      write(6,*)
-      write(6,*) 'hco_GetGridIndex: Unknown Grid ', trim(gridname)
+      write(*,*)
+      write(*,*) 'hco_GetGridIndex: Unknown Grid ', trim(gridname)
       stop
     end if
 
@@ -417,18 +417,18 @@ module HorizontalCoord_mod
 
       global = .true.
       if ( lon(1) == lon(ni) ) then
-        write(6,*)
-        write(6,*) ' *** Global Grid where i = ni (repetition) '
+        write(*,*)
+        write(*,*) ' *** Global Grid where i = ni (repetition) '
       else  
-        write(6,*)
-        write(6,*) ' *** Global Grid where i /= ni '
+        write(*,*)
+        write(*,*) ' *** Global Grid where i /= ni '
       end if
 
     else
 
       global = .false.
-      write(6,*)
-      write(6,*) ' *** Limited-Area Grid '
+      write(*,*)
+      write(*,*) ' *** Limited-Area Grid '
 
     end if
 

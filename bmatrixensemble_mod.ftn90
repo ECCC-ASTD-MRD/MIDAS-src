@@ -22,7 +22,7 @@
 !    matsqrt
 !--------------------------------------------------------------------------
 MODULE BmatrixEnsemble
-  use mpi
+  use mpivar_mod
   use gridStateVector_mod
   use globalSpectralTransform
   use lamSpectralTransform_mod
@@ -201,7 +201,7 @@ CONTAINS
     nip1_l(1:nLevEns)=nip1_in(topLevIndex:nLevInc)
 
     !- 2.3 Distribute members in control vector over mpi processes
-    call mpi_setup_levels(nEns,myMemBeg,myMemEnd,myMemCount)
+    call mpivar_setup_levels(nEns,myMemBeg,myMemEnd,myMemCount)
     write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
 
     if ( myMemCount .le. 0 ) then
@@ -212,7 +212,7 @@ CONTAINS
     !- 2.4 Domain Partionning
     ni_l = hco_ben % ni
     nj_l = hco_ben % nj
-    call mpi_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
+    call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
 
     !- 2.5 Time bin number
     if(ntime_in.eq.1.or.ntime_in.eq.3.or.ntime_in.eq.5.or.ntime_in.eq.7) then

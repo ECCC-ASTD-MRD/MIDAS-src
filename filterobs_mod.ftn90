@@ -1,6 +1,6 @@
 module filterObs_mod
   use topLevelControl_mod
-  use mpi
+  use mpivar_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod

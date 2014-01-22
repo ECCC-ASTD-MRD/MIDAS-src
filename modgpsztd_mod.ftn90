@@ -1,5 +1,5 @@
 module modgpsztd_mod
-  use mpi
+  use mpivar_mod
   implicit none
   save
   private

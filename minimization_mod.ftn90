@@ -16,7 +16,7 @@ MODULE minimization_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use mpi
+  use mpivar_mod
   use HorizontalCoord_mod
   use gridStateVector_mod
   use bmatrix_mod

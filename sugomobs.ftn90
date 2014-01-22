@@ -26,7 +26,7 @@ subroutine sugomobs(lcolumng,lcolumnhr,lobsSpaceData,indexAnalysis)
   !
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use mpi
+  use mpivar_mod
   use horizontalCoord_mod
   use timeCoord_mod
   use columnData_mod 

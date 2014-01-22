@@ -1,5 +1,5 @@
 MODULE timeCoord_mod
-  use mpi
+  use mpivar_mod
   use obsSpaceData_mod
   implicit none
   save

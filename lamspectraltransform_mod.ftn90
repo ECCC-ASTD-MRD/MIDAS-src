@@ -14,7 +14,7 @@
 !    ffft8 and setfft8 routines in ARMNLIB
 !--------------------------------------------------------------------------
 module LamSpectralTransform_mod
-  use mpi
+  use mpivar_mod
   use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
   use earthconstants_mod,    only: RA
   implicit none
@@ -214,12 +214,12 @@ contains
 
     case ('LatM')
        ! range of lats handled by this processor
-       call mpi_setup_latbands( lst(id) % nj,                                           & ! IN
-                                lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
+       call mpivar_setup_latbands( lst(id) % nj,                                           & ! IN
+                                   lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
 
        ! range of m handled by this processor
-       call mpi_setup_m( lst(id) % mmax,                                                           & ! IN
-                         lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip, lst(id) % mymCount ) ! OUT
+       call mpivar_setup_m( lst(id) % mmax,                                                           & ! IN
+                            lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip, lst(id) % mymCount ) ! OUT
 
        ! set a dummy range of levels handled by this processor
        lst(id) % myLevBeg   = -1
@@ -228,8 +228,8 @@ contains
 
     case ('LatLev')   
        ! range of lats handled by this processor
-       call mpi_setup_latbands( lst(id) % nj,                                           & ! IN
-                                lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
+       call mpivar_setup_latbands( lst(id) % nj,                                           & ! IN
+                                   lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
 
        ! range of m handled by this processor (ALL)
        lst(id) % mymBeg     = 0
@@ -243,8 +243,8 @@ contains
         write(*,*) 'lst_setup: ERROR, number of levels must be specified with MpiMode LatLev'
         stop
       end if
-      call mpi_setup_levels( maxlevels_in,                                              & ! IN
-                             lst(id) % myLevBeg,lst(id) % myLevEnd,lst(id) % myLevCount ) ! OUT
+      call mpivar_setup_levels( maxlevels_in,                                              & ! IN
+                                lst(id) % myLevBeg,lst(id) % myLevEnd,lst(id) % myLevCount ) ! OUT
 
     case default
        print*

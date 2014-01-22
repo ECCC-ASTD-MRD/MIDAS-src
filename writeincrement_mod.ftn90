@@ -5,7 +5,7 @@ module writeIncrement_mod
   use columnData_mod
   use minimization_mod
   use bmatrix_mod
-  use mpi
+  use mpivar_mod
   use gridStateVector_mod
   use HorizontalCoord_mod
   use timeCoord_mod

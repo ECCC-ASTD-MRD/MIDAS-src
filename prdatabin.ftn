@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine prdatabin(lobsSpaceData,nstepobs)
-      use mpi
+      use mpivar_mod
       use obsSpaceData_mod
       use timeCoord_mod, only: tim_getDatestamp
       IMPLICIT NONE

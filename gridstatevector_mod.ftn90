@@ -17,7 +17,7 @@
 !
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
-  use mpi
+  use mpivar_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -190,8 +190,8 @@ MODULE gridStateVector_mod
     endif
 
     if(statevector%mpi_local) then
-      call mpi_setup_latbands(statevector%hco%nj,statevector%latPerPE,statevector%myLatBeg, &
-                              statevector%myLatEnd,myLatHalfBeg,myLatHalfEnd)
+      call mpivar_setup_latbands(statevector%hco%nj,statevector%latPerPE,statevector%myLatBeg, &
+                                 statevector%myLatEnd,myLatHalfBeg,myLatHalfEnd)
     else
       statevector%mpi_local=.false.
       statevector%latPerPE=statevector%hco%nj

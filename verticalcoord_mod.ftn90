@@ -1,5 +1,5 @@
 module verticalCoord_mod
-  use mpi
+  use mpivar_mod
   use MathPhysConstants_mod
   use Vgrid_Descriptors
   implicit none

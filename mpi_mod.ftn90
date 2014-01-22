@@ -1,11 +1,4 @@
-!***************************************************************
-! Name  : procs_topo
-! Author:  Bin He     *ARMA/MSC 
-! Date  :  Nov. 2005 
-! Purpose: Declare MPI related parameters used across the model. 
-!  
-!***************************************************************
-MODULE mpi
+module mpi_mod
   implicit none
   save
   private
@@ -13,115 +6,49 @@ MODULE mpi
   ! public variables
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
   ! public procedures
-  public :: mpi_init,mpi_setup_latbands,mpi_setup_m,mpi_setup_levels,mpi_getptopo
+  public :: mpi_init,mpi_getptopo
 
+  integer :: mpi_myid   = 0
+  integer :: mpi_nprocs = 0
+  integer :: mpi_myidx  = 0
+  integer :: mpi_myidy  = 0
 
-  INTEGER :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
+  contains
 
-  CONTAINS
-
-  SUBROUTINE mpi_init()
-    IMPLICIT NONE
-    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_comm
+  subroutine mpi_init()
+    implicit none
+    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
     integer :: npex,npey
 
-    ! 1. Initilize MPI . 
+    ! Initilize MPI
     npex=0
     npey=0
-    CALL rpn_comm_init(mpi_getptopo,mpi_myid,mpi_nprocs,npex,npey)
+    call rpn_comm_init(mpi_getptopo,mpi_myid,mpi_nprocs,npex,npey)
     if(mpi_nprocs.lt.1) then
       mpi_nprocs=1
       mpi_myid=0
+      mpi_myidx=0
+      mpi_myidy=0
+    else
+      call rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
     endif
-    CALL rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
 
 !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()
     numthread=omp_get_num_threads()
-    if(mythread.eq.0) write(*,*) 'NUMBER OF THREADS=',numthread     
+    if(mythread.eq.0) write(*,*) 'mpi_init: NUMBER OF THREADS=',numthread     
 !$OMP END PARALLEL
 
-  END SUBROUTINE mpi_init
+  end subroutine mpi_init
 
 
-  SUBROUTINE mpi_setup_latbands(nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
+  subroutine mpi_getptopo(npex,npey)
     implicit none
-    integer          :: nj,latPerPE,myLatBeg,myLatEnd,njlath
-    integer,optional :: myLatHalfBeg,myLatHalfEnd
+    integer,intent(out) :: npex,npey
 
-    latPerPE=ceiling(dble(nj)/dble(mpi_nprocs))
-    myLatBeg=1+mpi_myid*latPerPE
-    if(myLatBeg.gt.nj) then
-      call abort3d('mpi_setup_latbands: latitudes not separable on mpi processes!')
-    endif
-    myLatEnd=(1+mpi_myid)*latPerPE
-    if(myLatEnd>nj) then
-      call abort3d('mpi_setup_latbands: latitudes not divisible by MPI numprocs!')
-    endif
-
-    if(present(myLatHalfBeg).and.present(myLatHalfEnd)) then
-      njlath = (nj + 1)/2
-      if(myLatBeg<=njlath .and. myLatEnd<=njlath) then
-        myLatHalfBeg=myLatBeg
-        myLatHalfEnd=myLatEnd
-      elseif(myLatBeg>=njlath .and. myLatEnd>=njlath) then
-        myLatHalfBeg=1+nj-myLatEnd
-        myLatHalfEnd=1+nj-myLatBeg
-      else
-        myLatHalfBeg=min(myLatBeg,1+nj-myLatEnd)
-        myLatHalfEnd=njlath
-      endif
-    endif
-
-  END SUBROUTINE mpi_setup_latbands
-
-
-  SUBROUTINE mpi_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
-    implicit none
-    integer :: ntrunc,mymBeg,mymEnd,mymSkip,mymCount,jm
-
-    mymBeg=mpi_myid
-    mymEnd=ntrunc
-    mymSkip=mpi_nprocs
-    mymCount=0
-    do jm=mymBeg,mymEnd,mymSkip
-      mymCount=mymCount+1
-    enddo
-
-  END SUBROUTINE mpi_setup_m
-
- 
-  SUBROUTINE mpi_setup_levels(numlevels,myLevBeg,myLevEnd,myLevCount)
-    implicit none
-    integer :: numlevels,myLevBeg,myLevEnd,myLevCount
-    integer :: jlev,jproc
-    integer :: myLevCounts(mpi_nprocs)
-
-    myLevCounts(:)=0
-    do jproc=1,mpi_nprocs
-      do jlev=jproc,numlevels,mpi_nprocs
-        myLevCounts(jproc)=myLevCounts(jproc)+1
-      enddo
-    enddo
-    myLevCount=myLevCounts(mpi_myid+1)
-
-    myLevBeg=1
-    do jproc=1,mpi_myid
-      myLevBeg=myLevBeg+myLevCounts(jproc)
-    enddo
-    myLevEnd=myLevBeg+myLevCount-1
-
-  END SUBROUTINE mpi_setup_levels
-
- 
-  SUBROUTINE mpi_getptopo(pex,pey)
-    IMPLICIT NONE
-    INTEGER,INTENT(OUT) :: pex,pey
-
-    INTEGER :: ierr
-    INTEGER :: npex,npey
-    NAMELIST /ptopo/npex,npey
-    INTEGER :: nulnam,fnom,fclos
+    integer :: ierr
+    namelist /ptopo/npex,npey
+    integer :: nulnam,fnom,fclos
 
     npex=1
     npey=1
@@ -134,9 +61,6 @@ MODULE mpi
     write(*,nml=ptopo)
     ierr=fclos(nulnam)
 
-    pex=npex
-    pey=npey
+  end subroutine mpi_getptopo 
 
-  END SUBROUTINE mpi_getptopo 
-
-END MODULE mpi
+end module mpi_mod

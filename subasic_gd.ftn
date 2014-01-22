@@ -16,7 +16,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       subroutine subasic_gd(statevectorg,lcolumnhr,numStep,datestamplist,indexAnalysis)
-      use mpi
+      use mpivar_mod
       use MathPhysConstants_mod
       use gridStateVector_mod
       use columnData_mod

@@ -11,7 +11,7 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
 !
       use topLevelControl_mod
-      use mpi
+      use mpivar_mod
       use ObsSpacedata_mod
       use burp_read
       use burpFiles_mod

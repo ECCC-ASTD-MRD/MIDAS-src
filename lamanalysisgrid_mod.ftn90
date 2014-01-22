@@ -17,7 +17,7 @@ module LamAnalysisGrid_mod
   use earthconstants_mod, only : RA
   use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
   use HorizontalCoord_mod
-  use mpi
+  use mpivar_mod
   implicit none
   save
   private
@@ -311,8 +311,8 @@ module LamAnalysisGrid_mod
        stop
     end if
 
-    call mpi_setup_latbands(nj_ext,                      & ! IN
-                            latPerPE, myLatBeg, myLatEnd ) ! OUT
+    call mpivar_setup_latbands(nj_ext,                      & ! IN
+                               latPerPE, myLatBeg, myLatEnd ) ! OUT
 
     !
     !- 6.  Ending

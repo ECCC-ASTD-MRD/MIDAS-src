@@ -20,7 +20,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
   !
   use topLevelControl_mod
-  use mpi
+  use mpivar_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use timeCoord_mod

@@ -20,7 +20,7 @@
 !    lamspectraltransform
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
-  use mpi
+  use mpivar_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
   use LamSpectralTransform_mod
@@ -205,8 +205,8 @@ contains
     allocate( bsqrt  (1:nksdim, 1:nksdim ,0:trunc) )
 
     !- 2.2 Initialized the LAM spectral transform
-    call mpi_setup_latbands(hco_bhi % nj,                & ! IN
-                            latPerPE, myLatBeg, myLatEnd ) ! OUT
+    call mpivar_setup_latbands(hco_bhi % nj,                & ! IN
+                               latPerPE, myLatBeg, myLatEnd ) ! OUT
 
     call lst_Setup( lst_bhi,                     & ! OUT
                     hco_bhi % ni, hco_bhi % nj,  & ! IN

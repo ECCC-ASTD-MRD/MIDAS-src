@@ -29,7 +29,7 @@
 *
 *     .         -------------------------------
 #endif
-      use mpi
+      use mpivar_mod
       use gridStateVector_mod
       use gaussGrid_mod
       implicit none

@@ -1,6 +1,6 @@
 module obsSpaceDiag_mod
   use topLevelControl_mod
-  use mpi
+  use mpivar_mod
   use bufr
   use codtyp_mod
   use EarthConstants_mod

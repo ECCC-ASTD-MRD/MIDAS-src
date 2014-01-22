@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
-  use mpi
+  use mpivar_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod

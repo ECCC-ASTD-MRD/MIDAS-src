@@ -39,7 +39,7 @@
 !    fft
 !--------------------------------------------------------------------------
 MODULE globalSpectralTransform
-  use mpi
+  use mpivar_mod
   use fft
   use MathPhysConstants_mod
   implicit none
@@ -301,10 +301,10 @@ CONTAINS
     gst(gstID)%mpiMode=mpiMode_in
     write(*,*) 'gst_setup: mpiMode=',mpiMode_in
 
-    call mpi_setup_latbands(gst(gstID)%nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
-    call mpi_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+    call mpivar_setup_latbands(gst(gstID)%nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
+    call mpivar_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
     if(present(maxlevels_in)) then
-      call mpi_setup_levels(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
+      call mpivar_setup_levels(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
       write(*,*) 'gst_setup: myLevBeg,End,Count=',myLevBeg,myLevEnd,myLevCount
     else
       ! set a dummy range of levels handled by this processor

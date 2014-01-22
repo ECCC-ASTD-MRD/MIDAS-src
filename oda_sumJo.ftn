@@ -23,7 +23,7 @@
 !
 ! Author  : S. Pellerin *ARMA/MRB January 2009
 
-      use mpi
+      use mpivar_mod
       use obsSpaceData_mod
       implicit none
       real*8 pjo ! Total observation cost function

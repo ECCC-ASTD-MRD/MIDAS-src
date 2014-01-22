@@ -1,5 +1,5 @@
 program calcbmatrix_main
-  use mpi
+  use mpivar_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
   use calcbmatrix_glb_mod

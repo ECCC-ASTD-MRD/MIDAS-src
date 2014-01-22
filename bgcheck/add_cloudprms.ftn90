@@ -7,7 +7,7 @@ subroutine add_cloudprms(lobsSpaceData)
 !**    Purpose: Add cloud parameters to the burp file for infrared satellite radiances.
 !*
   use obsSpaceData_mod
-  use mpi
+  use mpivar_mod
   use tovs_mod
   use burpFiles_mod
   implicit none

@@ -18,7 +18,7 @@
 !    globalSpectralTransform
 !--------------------------------------------------------------------------
 MODULE BmatrixHI
-  use mpi
+  use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -178,9 +178,9 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'BHI:returned value of gstID=',gstID
     call gst_setDefaultID(gstID)
 
-    call mpi_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
+    call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
 
-    call mpi_setup_m(ntrunc_l,mymBeg,mymEnd,mymSkip,mymCount)
+    call mpivar_setup_m(ntrunc_l,mymBeg,mymEnd,mymSkip,mymCount)
 
     allocate(allmBeg(mpi_nprocs))
     CALL rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
