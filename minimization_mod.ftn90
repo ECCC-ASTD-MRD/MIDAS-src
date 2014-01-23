@@ -20,7 +20,7 @@ MODULE minimization_mod
   use HorizontalCoord_mod
   use gridStateVector_mod
   use bmatrix_mod
-  use tovs_mod
+  use tovs_nl_mod
   implicit none
   save
   private

@@ -20,7 +20,7 @@ SUBROUTINE AIRSQC ( airs_end,airs_loop_done, lcolumnhr, lobsSpaceData )
 !
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use tovs_mod
+  use tovs_nl_mod
   use hir_chans
   use multiirbgcheck
   use obsSpaceData_mod

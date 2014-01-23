@@ -33,7 +33,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use LamAnalysisGrid_mod
   use bmatrix_mod
   use gaussgrid_mod
-  use tovs_mod
+  use tovs_nl_mod
   use burpFiles_mod
   IMPLICIT NONE
   

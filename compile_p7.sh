@@ -141,12 +141,12 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling most of the new modules"
-  SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
+  SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90 tovs_lin_mod.ftn90 multi_ir_bgck_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 varnamelist_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 columndata_mod.ftn90 gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
-  SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
+  SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90"
 
   s.compile $INCLUDES $COMPF -O -src $SRC1 > listing3 2>&1

@@ -47,7 +47,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 !     pjo: total value of jo for tovs
 !
 #endif
-  use tovs_mod
+  use tovs_nl_mod
   use obsSpaceData_mod
   use minimization_mod
 

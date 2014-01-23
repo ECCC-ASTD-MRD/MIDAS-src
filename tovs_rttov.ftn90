@@ -38,7 +38,8 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
 !
   use topLevelControl_mod
   use MathPhysConstants_mod
-  use tovs_mod
+  use tovs_nl_mod
+  use MULTIIRBGCHECK
   use obsSpaceData_mod
   use columnData_mod
   use emissivities
@@ -49,7 +50,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
 
 ! appel séparé de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
-       Use tovs_mod
+       Use tovs_nl_mod,only : jppf
        Use rttov_types, only : profile_type ,rttov_chanprof
 implicit none
 integer ,intent(in) :: nthreads

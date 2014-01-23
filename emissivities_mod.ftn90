@@ -16,7 +16,8 @@ Module emissivities
 !*                 so removing albedo, ice and snow.
 !*
 !************************************************************************
-  use tovs_mod
+  use tovs_nl_mod
+  use MULTIIRBGCHECK
   use hir_chans
 
   implicit none

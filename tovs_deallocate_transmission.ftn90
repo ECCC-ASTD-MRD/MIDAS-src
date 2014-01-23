@@ -31,7 +31,7 @@ subroutine tovs_deallocate_transmission(ptransmission)
 !     ptransmission: array of derived type transmission
 !
 #endif
-  use tovs_mod
+  use tovs_nl_mod,only : transmission_type
 
   implicit none
 

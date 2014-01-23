@@ -46,7 +46,6 @@
 
       LOGICAL  LSTAG
 
-      INTEGER NH
 
       LSTAG = .FALSE.
       vco_trl => col_getVco(lcolumnhr)

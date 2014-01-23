@@ -8,7 +8,7 @@ subroutine add_cloudprms(lobsSpaceData)
 !*
   use obsSpaceData_mod
   use mpivar_mod
-  use tovs_mod
+  use tovs_nl_mod ,only : nsensors,platform,satellite,instrument
   use burpFiles_mod
   implicit none
 

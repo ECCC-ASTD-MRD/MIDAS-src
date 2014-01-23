@@ -40,7 +40,7 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
-      use tovs_mod
+      use tovs_nl_mod
       IMPLICIT NONE
 
       type(struct_obs) :: lobsSpaceData

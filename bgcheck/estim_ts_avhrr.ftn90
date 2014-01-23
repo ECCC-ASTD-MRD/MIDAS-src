@@ -35,7 +35,7 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
 !
 !
 
-  use tovs_mod,only : coefs_avhrr
+  use MULTIIRBGCHECK,only : coefs_avhrr
 
   IMPLICIT NONE
   integer ,intent(in) :: nchn,nprf

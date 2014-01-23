@@ -37,7 +37,8 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
   !                Add CrIS data (codtyp 193)
   !
 #endif
-  use tovs_mod
+  use tovs_nl_mod
+  use tovs_lin_mod
   use obsSpaceData_mod
 
   implicit none

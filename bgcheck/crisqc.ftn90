@@ -34,7 +34,7 @@ SUBROUTINE CRISQC ( cris_end,cris_loop_done, lcolumnhr, lobsSpaceData )
 #endif
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use tovs_mod
+  use tovs_nl_mod
   use hir_chans
   use multiirbgcheck
   use obsSpaceData_mod

@@ -33,7 +33,7 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
 !     knlevels     : number of levels
 !
 #endif
-  use tovs_mod ,only : transmission_type
+  use tovs_nl_mod ,only : transmission_type
 
   implicit none
 

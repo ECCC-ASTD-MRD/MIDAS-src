@@ -224,7 +224,7 @@ c
               mode=3
               if (impres.ge.1) write(io,912) niter
   912         format (/" >>> n1qn3 (iteration ",i3,
-     /                "): line search blocked on tmax: "
+     /                "): line search blocked on tmax: ",
      /                "decrease the scaling")
           elseif (moderl.eq.4) then
 c

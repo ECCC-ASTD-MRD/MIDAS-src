@@ -17,7 +17,7 @@
 subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,nprof,avhrr_surfem1)
 ! choisi l'emissivité d'un canal IASI proche pour AVHRR
 ! a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
-use tovs_mod , only : NIR
+use MULTIIRBGCHECK , only : NIR
 implicit none
 integer ,intent(in) :: nchaniasi,nprof
 real (8) ,intent (in) :: iasi_surfem1 ( nchaniasi,nprof )

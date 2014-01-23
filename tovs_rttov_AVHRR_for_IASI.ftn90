@@ -35,14 +35,8 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr)
 ! (non assimilees mais necessaires au background check IASI)
 
 #endif
-Use tovs_mod ,only : avhrr_bgck,NIR,NVIS,coefs_avhrr,profiles
-Use rttov_types, only : &
-     rttov_coefs         ,&
-     profile_type        ,&
-     transmission_Type   ,&
-     radiance_type       ,&
-     rttov_options       ,&
-     rttov_chanprof
+Use tovs_nl_mod 
+Use MULTIIRBGCHECK ,only : avhrr_bgck,NIR,NVIS,coefs_avhrr
 implicit none
 #include "rttov_setup.interface"
 #include "rttov_direct2.interface"
@@ -51,7 +45,7 @@ integer ,intent(in) :: nprf
 integer ,intent (in) :: iptobs(NPRF)
 real (8) , intent (in) :: surfem1_avhrr(3*NPRF)
 !*********************************************************************
-type (rttov_options ),save :: opts
+type (rttov_options ),save :: opts_avhrr
 type (rttov_chanprof)  :: chanprof(3*NPRF)
 real*8 :: emissivity_out (3*NPRF)
 real*8 :: cloudemissivity (3*NPRF)
@@ -60,7 +54,7 @@ INTEGER ::  list_sensors (3),setup_errorstatus
 LOGICAL ,SAVE :: FIRST=.true.
 integer :: ich,i,j,jn,ichn
 integer :: VERBOSITY_LEVEL,ERR_UNIT=0
-integer :: ichan (NIR)
+integer :: ichan_avhrr (NIR)
 integer :: joff,ioffset
 type ( transmission_Type )  :: transmission
 type ( radiance_type )      :: radiancedata_d
@@ -74,44 +68,44 @@ IF (FIRST) THEN
    LIST_SENSORS(2)=2
    LIST_SENSORS(3)=5
    DO ICH=1,NIR
-      ICHAN(ICH)=ICH
+      ICHAN_AVHRR(ICH)=ICH
    ENDDO
 
-   opts%ipcreg=-1         ! index of the rquired PC predictors... to see later
-   opts%addinterp=.false. ! 
-   opts%addpc=.false.     ! to carry out principal component calculations 
-   opts%addradrec=.false. ! to reconstruct radiances from principal components
-   opts%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
-   opts%addaerosl=.false. ! to account for scattering due to aerosols
-   opts%addclouds=.false. ! to account for scattering due to clouds
-   opts%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
-   opts%lgradp=.false.    ! allow tl/ad of user pressure levels 
-   opts%use_q2m=.false.   ! if true use of surface humidity
-   opts%apply_reg_limits=.false. ! if true application of profiles limits
-   opts%verbose_checkinput_warnings=.false. ! useful for debuging the code should be turned off later
-   opts%ozone_data=.true. ! profil d'ozone disponible
-   opts%clw_data=.false.  ! profil d'eau liquide pas disponible
-   opts%addrefrac=.false. ! to account for atmospheric refraction (useless)
-   opts%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
+   opts_avhrr%ipcreg=-1         ! index of the rquired PC predictors... to see later
+   opts_avhrr%addinterp=.false. ! 
+   opts_avhrr%addpc=.false.     ! to carry out principal component calculations 
+   opts_avhrr%addradrec=.false. ! to reconstruct radiances from principal components
+   opts_avhrr%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
+   opts_avhrr%addaerosl=.false. ! to account for scattering due to aerosols
+   opts_avhrr%addclouds=.false. ! to account for scattering due to clouds
+   opts_avhrr%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
+   opts_avhrr%lgradp=.false.    ! allow tl/ad of user pressure levels 
+   opts_avhrr%use_q2m=.false.   ! if true use of surface humidity
+   opts_avhrr%apply_reg_limits=.false. ! if true application of profiles limits
+   opts_avhrr%verbose_checkinput_warnings=.false. ! useful for debuging the code should be turned off later
+   opts_avhrr%ozone_data=.true. ! profil d'ozone disponible
+   opts_avhrr%clw_data=.false.  ! profil d'eau liquide pas disponible
+   opts_avhrr%addrefrac=.false. ! to account for atmospheric refraction (useless)
+   opts_avhrr%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
 
    call rttov_setup (&
         setup_errorstatus,&! out
         err_unit,         &! in
         verbosity_level,  &! in
-        opts,             &! in
+        opts_avhrr,       &! in
         coefs_avhrr,      &! out
         list_sensors,     &! in
-        ichan         )    ! in Optional 
+        ichan_avhrr  )    ! in Optional 
 
    if ( setup_errorstatus/=0) then
       write(*,*) "Probleme dans rttov_setup!"
       call abort3d("tovs_rttov_AVHRR_for_IASI")
    endif
 
-   opts%co2_data = ( coefs_avhrr%coef%nco2 > 0 )
-   opts%n2o_data = ( coefs_avhrr%coef%nn2o > 0 )
-   opts%co_data  = ( coefs_avhrr%coef%nco  > 0 )
-   opts%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
+   opts_avhrr%co2_data = ( coefs_avhrr%coef%nco2 > 0 )
+   opts_avhrr%n2o_data = ( coefs_avhrr%coef%nn2o > 0 )
+   opts_avhrr%co_data  = ( coefs_avhrr%coef%nco  > 0 )
+   opts_avhrr%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
 
    FIRST=.FALSE.
 ENDIF
@@ -152,7 +146,7 @@ ENDIF
 Call rttov_direct2(    &
      errorstatus,      & ! out
      chanprof,         & ! in
-     opts,             & ! in
+     opts_avhrr,       & ! in
      profiles(iptobs(1:nprf)),  & ! in
      coefs_avhrr,      & ! in
      calcemis,         & ! in

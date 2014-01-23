@@ -37,7 +37,7 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
 !          OUTPUT:
 !            -TS(NPRF)          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
 !
-  use tovs_mod
+  use tovs_nl_mod
   use hir_chans
 
   IMPLICIT NONE

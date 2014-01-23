@@ -1,0 +1,803 @@
+Module tovs_nl_mod
+  use mpivar_mod
+  Use rttov_types, only : &
+     rttov_coefs         ,&
+     rttov_options       ,&
+     profile_type        ,&
+     radiance_type       ,&
+     transmission_Type   ,&
+     rttov_chanprof
+  implicit none
+  save
+  private
+
+  ! public derived type through inheritance (from module rttov_types)
+  public :: radiance_type,profile_type,rttov_chanprof,rttov_coefs,transmission_Type,rttov_options
+
+  ! public variables (parameters)
+  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM
+  ! public variables (non-parameters)
+  public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
+  public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
+  public :: LDBGTOV, LEVEL1B, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
+  public :: CPLATFORM, CINSTRUMENT, NOPLATFORM, NOINSTRUMENT
+  public :: coefs, opts, profilesdata, profiles
+  public :: radiance_d
+
+  ! public procedures
+  public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_airs, tvs_Is_idburp_iasi, tvs_Is_idburp_cris
+
+
+  ! Module parameters
+  Integer, PARAMETER :: jppf      = 40      ! Max no. profiles per RTTOV call
+  Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
+  Integer, PARAMETER :: jpchus    = 616      ! Max. no. of channels computed/call
+  Integer, PARAMETER :: jpnsatmax = 30       ! Max no sensors to be used
+  Integer, PARAMETER :: jplev     = 51       ! No. of pressure levels including "rttov top" at 0.005 hPa for rttov-10
+
+  ! Module variables
+  Integer, allocatable :: nchan(:)              ! number of channels per instrument
+  Integer, allocatable :: ichan(:,:)            ! list of channels per instrument
+  Integer, allocatable :: lsensor(:)            ! sensor number for each profile
+  Integer, allocatable :: lobsno (:)            ! observation number in cma for each profile
+  Integer, allocatable :: ltovsno (:)           ! index in TOVS structures for each observation in cma
+
+  Integer JPMOTOP, JPMOLEV, nobtov
+
+  ! Variables from comtov.cdk
+!     NSENSORS           : number of individual sensors.
+!     PLATFORM(MXPLATFORM)  : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
+!     SATELLITE(JPNSATMAX)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
+!     INSTRUMENT(JPNSATMAX) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
+!     CHANOFFSET(JPNSATMAX) : BURP to RTTOV-7 channel mapping offset
+!     LDBGTOV            : logical key controlling statements to be
+!     .                    executed while debugging TOVS only
+!     LEVEL1B            : .T. if processing TOVS level 1B data
+!     CRTMODL            : TOVS radiation model used:
+!                             RTTOV, EUMETSAT NWP SAF radiation model
+!     LNLVTOV            : .T. if processing is to be non-linear
+  INTEGER NSENSORS
+  INTEGER PLATFORM(JPNSATMAX), SATELLITE(JPNSATMAX)
+  INTEGER INSTRUMENT(JPNSATMAX), CHANOFFSET(JPNSATMAX)
+  LOGICAL LDBGTOV, LEVEL1B, LNLVTOV
+  CHARACTER*15 CSATID(JPNSATMAX), CINSTRUMENTID(JPNSATMAX)
+  CHARACTER*8 CRTMODL
+
+  ! Variable from sensors.ftn
+  INTEGER, parameter :: MXPLATFORM = 17
+  CHARACTER*15 CPLATFORM  (MXPLATFORM  )
+  CHARACTER*15 CINSTRUMENT(JPNSATMAX)
+  INTEGER NOPLATFORM(MXPLATFORM)
+  INTEGER NOINSTRUMENT(JPNSATMAX)
+
+!                         Tables for Platforms and Satellites
+!                         -----------------------------------
+
+      DATA CPLATFORM  / 'NOAA',    'DMSP',   'METEOSAT',    'GOES', &
+                        'GMS',     'FY2',       'TRMM',     'ERS',  &
+                        'EOS',  'METOP-',    'ENVISAT',     'MSG',  &
+                        'FY1',   'ADEOS',      'MTSAT','CORIOLIS',  &
+                        'NPP' /
+
+      DATA NOPLATFORM /      1,         2,            3,        4,  &
+                             5,         6,            7,        8,  &
+                             9,        10,           11,       12,  &
+                            13,        14,           15,       16,  &
+                            17 /
+
+      DATA CINSTRUMENT  /      'HIRS',        'MSU',         'SSU',  &
+                              'AMSUA',      'AMSUB',       'AVHRR',  &
+                               'SSMI',      'VTPR1',       'VTPR2',  &
+                                'TMI',      'SSMIS',        'AIRS',  &
+                                'HSB',      'MODIS',        'ATSR',  &
+                                'MHS',       'IASI',        'AMSR',  &
+                              'MVIRI',     'SEVIRI',  'GOESIMAGER',  &
+                        'GOESSOUNDER',   'GMSMTSAT',    'FY2VISSR',  &
+                           'FY1MVISR',       'CRIS',       'CMISS',  &
+                              'VIIRS',    'WINDSAT',        'ATMS' /
+
+      DATA NOINSTRUMENT /           0,            1,             2,  &
+                                    3,            4,             5,  &
+                                    6,            7,             8,  &
+                                    9,           10,            11,  &
+                                   12,           13,            14,  &
+                                   15,           16,            17,  &
+                                   20,           21,            22,  &
+                                   23,           24,            25,  &
+                                   26,           27,            28,  &
+                                   29,           30,            19 /
+
+  ! Dervied types
+
+  type( rttov_coefs ) ,     allocatable :: coefs(:)          ! coefficients
+  type( rttov_options ),    allocatable :: opts(:)           ! options
+  type( profile_Type ),     allocatable :: profilesdata(:)   ! profiles buffer used in rttov calls
+  type( profile_Type ),     allocatable :: profiles(:)       ! profiles, all profiles
+  type(radiance_Type) ,     allocatable :: radiance_d(:)     ! radiances organized by profile
+ 
+
+contains
+
+
+SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
+#if defined (DOC)
+!
+!  s/r TOVS_NL_SETUPALLO : Memory allocation for the non linear radiative transfer model
+!                 variables.
+!          (original name of routine: sutovalo)
+!
+!Author  : J. Halle *CMDA/AES Oct 1999
+!    -------------------
+!     Purpose: to allocate memory for the radiative transfer model variables.
+!
+! Revision:
+!           S. Pellerin *ARMA/SMC May 2000
+!            - Fix for F90 conversion
+!           C. Chouinard *ARMA/SMC Aug 2000
+!            - remove reference to nincrem in memory allocation
+!           JM Belanger *CMDA/SMC!  aug 2000
+!            - 32 bits conversion
+!           J. Halle *CMDA/AES  dec 2000
+!            - adapt to TOVS level 1b.
+!           J. Halle CMDA/SMC May 2002
+!            - adapt to RTTOV-7 code
+!           J. Halle CMDA/SMC Feb 2003
+!            - add codtyp for AMSUB (=181).
+!           J. Halle CMDA/SMC Nov 2004
+!            - adapt to RTTOV-8;
+!            - convert to Fortran 90.
+!           A. Beaulne CMDA/SMC June 2006
+!            - modifications for AIRS
+!            - allocation of ozone profiles
+!           R. Sarrazin  CMDA   April 2008
+!            - adapt to CSR
+!           S. Heilliette
+!            - adapt to IASI
+!            - adapt to rttov 10.0 (october 2010)
+!           S. Macpherson
+!            - adapt to ATMS (codtyp 192)
+!           S.  Heilliette
+!            - adapt to CrIS (codtyp 193)
+#endif
+
+  use hir_chans
+  use obsSpaceData_mod
+
+  IMPLICIT NONE
+!implicits
+#include "rttov_setup.interface"
+#include "rttov_alloc_prof.interface"
+
+  type(struct_obs) :: lobsSpaceData
+  INTEGER :: VERBOSITY_LEVEL,ERR_UNIT=0
+
+  Integer :: alloc_status(8)
+  Integer :: setup_errorstatus ! setup return code
+
+  INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM, KRTID
+
+  INTEGER ::  JO, IDATYP, J, JI, JK
+  INTEGER ::  ISENS, NC, NL
+  INTEGER ::  ICHN, NOSENSOR, INDXCHN
+  INTEGER ::  ISRCHEQ
+  INTEGER ::  ERRORSTATUS,ASW
+  integer ::  index_header, index_body
+  Integer, Allocatable :: list_sensors(:,:)     ! list of platform, satellite and instrument
+
+  CHARACTER(len=2) :: SENSORTYPE
+
+!     1. Determine the number of radiances to be assimilated.
+!        Construct a list of channels for each sensor.
+!        Construct a list of sensor number for each profile
+!     .  ---------------------------------------------------
+  alloc_status(:) = 0
+  allocate (nchan(nsensors),                       stat= alloc_status(1))
+  allocate (ichan(jpchus,nsensors),                stat= alloc_status(2))
+  allocate (lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
+  allocate (lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
+  allocate (ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
+  If( any(alloc_status /= 0) ) then
+9201 FORMAT(' TOVS_NL_SETUPALLO: Memory Allocation Error')
+     WRITE(*,FMT=9201)
+     WRITE(*,*) alloc_status(1:5)
+     CALL ABORT3D('TOVS_NL_SETUPALLO')
+  End If
+
+  nchan(:)   = 0 
+  ichan(:,:) = 0
+  ltovsno(:) = 0
+
+  NOBTOV = 0
+
+  ! loop over all header indices of the 'TO' family
+                                        ! Set the header list
+                                        ! (& start at the beginning of the list)
+  call obs_set_current_header_list(lobsSpaceData,'TO')
+  HEADER: do
+     index_header = obs_getHeaderIndex(lobsSpaceData)
+     if (index_header < 0) exit HEADER
+
+     IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
+
+     IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+
+     NOBTOV = NOBTOV + 1
+     
+!    Construct list of channels for each sensor:
+!          map burp satellite info to RTTOV-7 platform and satellite.
+     IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
+     CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
+
+!    map burp instrument info to RTTOV-7 instrument.
+     IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
+     CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
+!    find sensor number for this obs.
+     DO KRTID = 1, NSENSORS
+        IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
+             ISAT      .EQ. SATELLITE (KRTID) .AND. &
+             INSTRUM   .EQ. INSTRUMENT(KRTID)      ) THEN
+           NOSENSOR = KRTID
+           GO TO 110
+        ENDIF
+     ENDDO
+     WRITE(*,FMT=9101)
+9101 FORMAT(' TOVS_SETUPALLO: Invalid Sensor')
+     CALL ABORT3D('TOVS_SETUPALLO        ')
+
+110  lsensor(nobtov) = nosensor
+     lobsno (nobtov) = index_header
+     ltovsno (index_header)    = nobtov
+
+     ! loop over all body indices (still in the 'TO' family)
+                                        ! Set the body list
+                                        ! (& start at the beginning of the list)
+     call obs_set_current_body_list(lobsSpaceData, index_header)
+     BODY: do 
+        index_body = obs_getBodyIndex(lobsSpaceData)
+        if (index_body < 0) exit BODY
+
+        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).EQ.1 ) THEN
+           ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
+           ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+
+           ICHN=ICHN-CHANOFFSET(NOSENSOR)
+
+           INDXCHN = ISRCHEQ(ichan(:,nosensor),nchan(nosensor),ichn)
+           if ( indxchn .eq. 0 ) then
+              nchan(nosensor) = nchan(nosensor) + 1
+              ichan(nchan(nosensor),nosensor) = ichn
+           endif
+        ENDIF
+     ENDDO BODY
+  ENDDO HEADER
+
+! Sort list of channels in ascending order.Also force at least one channel, if none are found.
+
+  do ji = 1, nsensors
+    call isort(ichan(:,ji),nchan(ji))
+    if ( nchan(ji) .eq. 0 ) then
+        nchan(ji) = 1
+        ichan(1,ji) = 1
+    endif
+  enddo
+
+  write(*,*) ' TOVS_NL_SETUPALLO: nobtov = ', nobtov
+
+!-----------------------------------------------------------------------
+
+
+!     3. Initialize TOVS radiance transfer model
+!     .  ---------------------------------------
+
+  IF     ( CRTMODL .EQ. 'RTTOV' ) THEN
+     WRITE(*,FMT=9300)
+  9300    FORMAT(//,10x,"-rttov_setup: initializing the TOVS radiative " &
+                   ,"transfer model" )
+     alloc_status(:) = 0
+     allocate (coefs(nsensors)              ,stat= alloc_status(1))
+     allocate (list_sensors (3,nsensors)    ,stat= alloc_status(2))
+     allocate (opts (nsensors)              ,stat= alloc_status(3))
+     If( any(alloc_status /= 0) ) then
+        WRITE(*,FMT=9201)
+        WRITE(*,*) alloc_status(1:3)
+        CALL ABORT3D('TOVS_NL_SETUPALLO')
+     End If
+
+  ! The levels of verbosity are
+  !  0 = no error messages output
+  !  1 = FATAL errors only printed. these are errors which
+  !      mean that profile should be aborted (e.g. unphysical
+  !      profile input)
+  !  2 = WARNING errors only printed. Errors which can allow
+  !      the computation to continue but the results may be
+  !      suspect (e.g. profile outside basis profile limits)
+  !  3 = INFORMATION messages which inform the user about
+  !      the computation
+     VERBOSITY_LEVEL = 3
+
+     DO JK=1,NSENSORS
+        LIST_SENSORS(1,JK) = PLATFORM  (JK)
+        LIST_SENSORS(2,JK) = SATELLITE (JK)
+        LIST_SENSORS(3,JK) = INSTRUMENT(JK)
+
+        opts(JK)%ipcreg=-1         ! index of the required PC predictors... to see later
+        opts(JK)%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
+        opts(JK)%addpc=.false.     ! to carry out principal component calculations 
+        opts(JK)%addradrec=.false. ! to reconstruct radiances from principal components
+        opts(JK)%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
+        opts(JK)%addaerosl=.false. ! to account for scattering due to aerosols
+        opts(JK)%addclouds=.false. ! to account for scattering due to clouds
+        opts(JK)%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
+        opts(JK)%lgradp=.false.    ! allow tl/ad of user pressure levels
+        opts(JK)%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
+        opts(JK)%apply_reg_limits=.false. ! if true application of profiles limits
+        opts(JK)%verbose_checkinput_warnings=.false. ! useful for debuging the code should be turned off later
+        opts(JK)%ozone_data=.true. ! profil d'ozone disponible
+        opts(JK)%clw_data=.false.  ! profil d'eau liquide pas disponible
+        opts(JK)%addrefrac=.false. ! to account for atmospheric refraction (useless???)
+        opts(JK)%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
+        opts(JK)%fastem_version=4  ! use fastem version 4 file (in the range 1-5 to force a specific version)
+
+        setup_errorstatus = 0
+! read coefficients using the list of required channels.
+        CALL rttov_setup (&
+             & setup_errorstatus,  & ! out 
+             & err_unit,           & ! in
+             & verbosity_level,        & ! in
+             & opts(JK),               & ! in
+             & coefs(JK),              & ! out
+             & LIST_SENSORS(:,JK),     & ! in
+             & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
+        if ( setup_errorstatus/=0 ) then
+           Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
+           CALL ABORT3D('TOVS_SETUPALLO           ')
+        endif
+
+        opts(JK)%co2_data = ( coefs(jk)%coef%nco2 > 0 )
+        opts(JK)%n2o_data = ( coefs(jk)%coef%nn2o > 0 )
+        opts(JK)%co_data  = ( coefs(jk)%coef%nco  > 0 )
+        opts(JK)%ch4_data = ( coefs(jk)%coef%nch4 > 0 )
+
+     ENDDO
+    
+     do jk = 1, nsensors
+       if ( instrument(jk) /= 20 ) then
+        nchan(jk) = coefs(jk)% coef %fmv_chn
+        do j = 1,nchan(jk)
+           ichan(j,jk) = coefs(jk)% coef %ff_ori_chn(j)
+        enddo
+       end if
+     enddo
+
+!    .   3.1 Validate RTTOV dimensions
+!     .       -------------------------
+
+!   Verify that all coefficient files have the same number of levels, since
+!   the rest of the processing assumes this!
+
+     do jk = 1, nsensors
+        if ( coefs(jk)% coef %nlevels .ne. coefs(1)%coef%nlevels ) then
+           WRITE(*,FMT=9311)
+  9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
+                  ' identical in all coef files')
+           CALL ABORT3D('TOVS_SETUPALLO           ')
+        endif
+     enddo
+
+     deallocate (list_sensors)
+
+  ENDIF
+
+
+!-----------------------------------------------------------------------
+
+
+!     2. Memory allocation for radiative tranfer model variables
+!     .  -----------------------------------------------------
+
+!___ profiles
+
+  allocate(profiles(NOBTOV)         , stat= alloc_status(1) )
+  If( alloc_status(1) /= 0 ) then
+     WRITE(*,FMT=9201)
+     CALL ABORT3D('TOVS_NL_SETUPALLO')
+  End If
+
+  asw=1
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nl = coefs(isens)%coef % nlevels
+     ! allocate model profiles atmospheric arrays with RTTOV levels dimension
+
+     call rttov_alloc_prof(errorstatus,1,profiles(jo),nl, &
+          opts(isens),asw,coefs=coefs(isens),init=.false. )
+     if (errorstatus/=0) THEN
+        Write(*,*) "Error in profiles allocation",errorstatus
+        CALL ABORT3D('TOVS_NL_SETUPALLO')
+     endif
+       
+  end do
+
+!___ radiance by profile
+
+  alloc_status(:) = 0
+  allocate( radiance_d(NOBTOV) ,stat= alloc_status(1))
+  If( alloc_status(1) /= 0 ) then
+     WRITE(*,FMT=9201)
+     CALL ABORT3D('TOVS_NL_SETUPALLO')
+  End If
+  do jo = 1, NOBTOV
+     isens = lsensor(jo)
+     nc = nchan(isens)
+     nl = coefs(isens) % coef % nlevels
+     !! allocate BT equivalent to total direct, tl and ad radiance output
+     alloc_status(:) = 0
+     allocate( radiance_d(jo)  % bt  ( nc ) ,stat= alloc_status(1))
+     
+     radiance_d(jo)  % bt  ( : ) = 0.d0
+    
+     !! allocate clear/cloudy sky radiance/BT output and overcast radiance at given cloud top
+     allocate( radiance_d(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
+     radiance_d(jo)  % clear  ( : ) = 0.d0
+    
+     If( any(alloc_status /= 0) ) then
+         WRITE(*,FMT=9201)
+         Write(*,*) alloc_status(1:2)
+         CALL ABORT3D('TOVS_NL_SETUPALLO')
+     End If
+  end do
+
+
+
+
+END SUBROUTINE TOVS_NL_SETUPALLO
+
+
+  SUBROUTINE TOVS_SETUP
+  !
+  !  s/r TOVS_SETUP : Initialisation of the TOVS processing and radiative
+  !     .        transfer model.
+  !    -------------------
+  !     Purpose: to read namelist NAMTOV, initialize the observation error covariance
+  !              and setup RTTOV-8.
+  !
+  IMPLICIT NONE
+
+  INTEGER  JK, IERR, nulnam, fclos, fnom
+
+  NAMELIST /NAMTOV/NSENSORS, CSATID, CINSTRUMENTID
+  NAMELIST /NAMTOV/LDBGTOV, LEVEL1B 
+  NAMELIST /NAMTOV/LNLVTOV, CRTMODL
+
+ 
+  !     .  1.1 Default values
+  !     .      --------------
+
+  NSENSORS   = 1
+  CSATID(:)  = '***UNDEFINED***'
+  CINSTRUMENTID(:) = '***UNDEFINED***'
+  CSATID(1)  = 'NOAA16'
+  CINSTRUMENTID(1) = 'AMSUA'
+  LDBGTOV   = .FALSE.
+  LEVEL1B   = .FALSE.
+  LNLVTOV   = .FALSE.
+  CRTMODL   = 'RTTOV'
+
+  !     .   1.2 Read the NAMELIST NAMTOV to modify them
+  !     .       ---------------------------------------
+ 
+  nulnam=0
+  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  read(nulnam,nml=namtov,iostat=ierr)
+  if(ierr.ne.0) call abort3d('tov_setup: Error reading namelist')
+  if(mpi_myid.eq.0) write(*,nml=namtov)
+  ierr=fclos(nulnam)
+
+  !     .   1.3 Validate namelist values
+  !     .       ------------------------
+
+  IF ( CRTMODL .NE. 'RTTOV' ) THEN
+     WRITE(*,FMT=9131)
+  9131    FORMAT(' TOVS_SETUP: Invalid radiation model name')
+     CALL ABORT3D('TOVS_SETUP           ')
+  ENDIF
+
+  IF ( NSENSORS .GT. JPNSATMAX ) THEN
+     WRITE(*,FMT=9132)
+  9132    FORMAT(' TOVS_SETUP: Number of sensors (NSENSORS)', &
+            ' is greater than maximum allowed (JPNSATMAX)')
+     CALL ABORT3D('TOVS_SETUP           ')
+  ENDIF
+
+  IF ( NSENSORS .LE. 0 ) THEN
+     if(mpi_myid.eq.0) WRITE(*,FMT=9133)
+  9133    FORMAT(' TOVS_SETUP: Forcing call to rttov_setup to read in climatological', &
+            ' profiles of humidity')
+     NSENSORS  = 1
+     CSATID(1)  = 'NOAA16'
+     CINSTRUMENTID(1) = 'AMSUA'
+  ENDIF
+
+  !     .   1.4 Print the content of this NAMELIST
+  !     .       ----------------------------------
+
+  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LEVEL1B, LNLVTOV, CRTMODL
+  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
+  if(mpi_myid.eq.0) WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
+
+
+  9140 FORMAT(/,3X,'- Parameters used for TOVS processing' &
+            ,' (read in NAMTOV)'                           &
+            ,/,3X,'  ----------------------------------'   &
+            ,'------------------'                          &
+            ,/,6X,'TOVS debug              : ',2X,L1       &
+            ,/,6X,'Level 1B                : ',2X,L1       &
+            ,/,6X,'Non-linear processing   : ',2X,L1       &
+            ,/,6X,'Radiative transfer model: ',2X,A)
+  9143 FORMAT(/,6X,"Number of sensors       : ",I3)
+  9145 FORMAT(  6X,"Satellite id's          : ",10A10)
+  9146 FORMAT(  6X,"Instrument id's         : ",10A10)
+
+  if(mpi_myid.eq.0) WRITE(*,FMT=9142)
+  9142 FORMAT(//,3X,"- Reading and initialization in preparation to the " &
+       ,"TOVS processing",/,5X,64('-'))
+
+  !     .   1.5 Set up platform, satellite, instrument and channel mapping
+  !     .       ----------------------------------------------------------
+
+  CALL SENSORS
+
+  END SUBROUTINE TOVS_SETUP
+
+
+
+  SUBROUTINE SENSORS
+  !*
+  !***s/r SENSORS : Initialisation of the RTTOV-10 platform, satellite
+  !*                and instrument ID's. Also set burp to RTTOV-7 channel
+  !*                mapping offset.
+  !*    -------------------
+  !**    Purpose: to verify and transfom the sensor information contained in the
+  !*              NAMTOV namelist into the variables required by RTTTOV-7:
+  !*              platform, satellite and instrument ID's.
+  !*
+  !*Variables:
+  !*     i : NSENSORS      : number of sensors
+  !*     i : CSATID        : satellite ID (e.g. 'NOAA15')
+  !*     i : CINSTRUMENTID : instrument ID (e.g. 'AMSUA')
+  !*     o : PLATFORM      : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
+  !*     o : SATELLITE     : RTTOV-7 satellite ID numbers (e.g. 15)
+  !*     o : INSTRUMENT    : RTTOV-7 instrument ID numbers (e.g. 3 for AMSUA)
+  !*     o : CHANOFFSET    : BURP to RTTOV-7 channel mapping offset
+      IMPLICIT NONE
+
+      INTEGER J, K, IPOS1, IPOS2
+      INTEGER NUMEROSAT, IERR, KINDEX
+
+      CHARACTER*15 TEMPOCSATID
+
+      INTEGER NOSATLO   (MXPLATFORM)
+      INTEGER NOSATHI   (MXPLATFORM)
+      INTEGER NOCHANLO    (JPNSATMAX)
+      INTEGER NOCHANHI    (JPNSATMAX)
+      INTEGER IOFFSET1D   (JPNSATMAX)
+      INTEGER IOFFSET1B   (JPNSATMAX)
+
+
+      DATA NOSATLO    /      1,         8,            5,        8,  &
+                             5,         2,            1,        1,  &
+                             1,         1,            1,        1,  &
+                             3,         1,            1,        1,  &
+                             0 /
+
+      DATA NOSATHI    /     19,        19,            7,       13,  &
+                             5,         2,            1,        2,  &
+                             2,         3,            1,        2,  &
+                             4,         2,            1,        1,  &
+                             0 /
+
+!*                         Tables for Instruments and Channels
+!*                         -----------------------------------
+
+
+      DATA NOCHANLO     /           1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1,  &
+                                    1,            1,             1 /
+
+      DATA NOCHANHI     /          19,            4,             3,  &
+                                   15,            5,             3,  &
+                                    4,            8,             8,  &
+                                    9,           24,          2378,  &
+                                    4,           17,             3,  &
+                                    5,         8461,             7,  &
+                                    2,            8,             4,  &
+                                   18,            4,             2,  &
+                                    3,         1305,             1,  &
+                                    1,            5,            22 /
+
+      DATA IOFFSET1D    /           0,           20,            24,  &
+                                   20,           35,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                    0,            3,            18,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0 /
+
+      DATA IOFFSET1B    /           0,           20,            24,  &
+                                   27,           42,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                   42,            0,             0,  &
+                                    0,            3,            18,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0,  &
+                                    0,            0,             0 /
+!
+!*    .  1.0 Go through sensors and set RTTOV-7 variables
+!     .      --------------------------------------------
+ 100  CONTINUE
+
+      DO J=1, NSENSORS
+         PLATFORM  (J) = -1
+         SATELLITE (J) = -1
+         INSTRUMENT(J) = -1
+         CHANOFFSET(J) = -1
+      ENDDO
+
+!*    .  1.1 Set platforms and satellites
+!     .      ----------------------------
+!
+!** N.B.: Special cases for satellites TERRA and AQUA.
+!**       For consistency with the RTTOV-7 nomenclature, rename:
+!**       TERRA  to  EOS1
+!**       AQUA   to  EOS2
+
+      DO J = 1, NSENSORS
+        IF     ( CSATID(J) .EQ. 'TERRA' ) THEN
+           TEMPOCSATID = 'EOS1'
+        ELSEIF ( CSATID(J) .EQ. 'AQUA'  ) THEN
+           TEMPOCSATID = 'EOS2'
+        ELSEIF ( CSATID(J) .EQ. 'NPP'  ) THEN
+           TEMPOCSATID = 'NPP0'
+        ELSE
+           TEMPOCSATID = CSATID(J)
+        ENDIF
+        KINDEX = 0
+        DO K = 1, MXPLATFORM
+           IPOS1=LEN_TRIM(CPLATFORM(K))
+           IPOS2 = INDEX(TEMPOCSATID,CPLATFORM(K)(1:IPOS1))
+           IF ( IPOS2 .EQ. 1 ) THEN
+             PLATFORM(J) = NOPLATFORM(K)
+             KINDEX = K
+           ENDIF
+        ENDDO
+        IF ( PLATFORM(J) .LT. 0 ) THEN
+           WRITE(*,FMT=9132) TEMPOCSATID
+ 9132      FORMAT(' SENSORS: Satellite ',A,' not supported.')
+           CALL ABORT3D('SENSORS          ')
+        ELSE
+           IPOS1=LEN_TRIM(CPLATFORM(KINDEX))
+           IPOS2=LEN_TRIM(TEMPOCSATID)
+           READ(TEMPOCSATID(IPOS1+1:IPOS2),*,IOSTAT=IERR) NUMEROSAT
+           IF ( IERR .NE. 0                    .OR.  &
+                NUMEROSAT .LT. NOSATLO(KINDEX) .OR.  &
+                NUMEROSAT .GT. NOSATHI(KINDEX)      ) THEN
+             WRITE(*,FMT=9132) TEMPOCSATID
+             CALL ABORT3D('SENSORS          ')
+           ELSE
+             SATELLITE(J) = NUMEROSAT
+           ENDIF
+        ENDIF
+      ENDDO
+
+!*    .  1.2 Set instruments,
+!     .      also set channel offset, which is in fact a channel mapping between
+!     .      the channel number in BURP files and the channel number used in
+!     .      RTTOV-7. This mapping differs for level1d and level1b burp datasets.
+!     .      --------------------------------------------------------------------
+
+      DO J = 1, NSENSORS
+        KINDEX = 0
+        DO K = 1, JPNSATMAX
+           IPOS1=LEN_TRIM(CINSTRUMENT(K))
+           IPOS2 = INDEX(CINSTRUMENTID(J),CINSTRUMENT(K)(1:IPOS1))
+           IF ( IPOS2 .EQ. 1 ) THEN
+             KINDEX = K
+             INSTRUMENT(J) = NOINSTRUMENT(KINDEX)
+             IF (LEVEL1B) THEN
+                CHANOFFSET(J) = IOFFSET1B(KINDEX)
+             ELSE
+                CHANOFFSET(J) = IOFFSET1D(KINDEX)
+             ENDIF
+           ENDIF
+        ENDDO
+        IF ( INSTRUMENT(J) .LT. 0 ) THEN
+           WRITE(*,FMT=9133) CINSTRUMENTID(J)
+ 9133      FORMAT(' SENSORS: INSTRUMENT ',A,' not supported.')
+           CALL ABORT3D('SENSORS          ')
+        ENDIF
+      ENDDO
+
+!C*    .   1.3 Print the RTTOV-7 related variables
+!C     .       -----------------------------------
+
+ 130  CONTINUE
+      if(mpi_myid.eq.0) WRITE(*,FMT=9140)
+      if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
+      if(mpi_myid.eq.0) WRITE(*,FMT=9145) (PLATFORM(J), J=1,NSENSORS)
+      if(mpi_myid.eq.0) WRITE(*,FMT=9146) (SATELLITE(J), J=1,NSENSORS)
+      if(mpi_myid.eq.0) WRITE(*,FMT=9147) (INSTRUMENT(J), J=1,NSENSORS)
+      if(mpi_myid.eq.0) WRITE(*,FMT=9148) (CHANOFFSET(J), J=1,NSENSORS)
+
+
+ 9140 FORMAT(/,3X,'- SENSORS. Variables prepared for RTTOV-10:'  &
+            ,/,3X,'  ----------------------------------------')
+
+ 9143 FORMAT(/,6X,"Number of sensors       : ",I3)
+ 9145 FORMAT(  6X,"Platform numbers        : ",10I3)
+ 9146 FORMAT(  6X,"Satellite numbers       : ",10I3)
+ 9147 FORMAT(  6X,"Instrument numbers      : ",10I3)
+ 9148 FORMAT(  6X,"Channel mapping offset  : ",10I3)
+
+  END subroutine sensors
+
+
+  logical function tvs_Is_idburp_tovs(idatyp)
+    implicit none
+    integer ,intent(in) :: idatyp
+
+    tvs_Is_idburp_tovs=( IDATYP .EQ. 164 .OR. &
+         IDATYP .EQ. 168 .OR. &
+         IDATYP .EQ. 180 .OR. &
+         IDATYP .EQ. 181 .OR. &
+         IDATYP .EQ. 182 .OR. &
+         IDATYP .EQ. 183 .OR. &
+         IDATYP .EQ. 185 .OR. &
+         IDATYP .EQ. 186 .OR. &
+         IDATYP .EQ. 192 .OR. &
+         IDATYP .EQ. 193 )
+
+  end function tvs_Is_idburp_tovs
+
+
+  logical function tvs_Is_idburp_iasi(idburp)
+    implicit none
+    integer ,intent(in) :: idburp
+
+    tvs_Is_idburp_iasi = ( idburp == 186 )
+
+  end function tvs_Is_idburp_iasi
+
+
+  logical function tvs_Is_idburp_airs(idburp)
+    implicit none
+    integer ,intent(in) :: idburp
+
+    tvs_Is_idburp_airs = ( idburp == 183 )
+
+  end function tvs_Is_idburp_airs
+
+
+  logical function tvs_Is_idburp_cris(idburp)
+    implicit none
+    integer ,intent(in) :: idburp
+
+    tvs_Is_idburp_cris = ( idburp == 193 )
+
+  end function tvs_Is_idburp_cris
+
+
+End Module tovs_nl_mod
+

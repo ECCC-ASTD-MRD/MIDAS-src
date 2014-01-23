@@ -56,7 +56,7 @@
       use topLevelControl_mod
       use hir_chans
       use mpivar_mod
-      use tovs_mod
+      use tovs_nl_mod
       IMPLICIT NONE
 C
       INTEGER IER, ILUTOV, JI, JJ, JK, JL, JM, I

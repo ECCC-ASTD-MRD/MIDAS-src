@@ -1,7 +1,7 @@
 subroutine convert_avhrr(sunzen,avhrr)
 ! conversion des radiance IR en temperatures de brillance
 ! et des radiances visibles en "albedo"
-use tovs_mod ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
+use MULTIIRBGCHECK ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
 
 implicit none
 real(8) ,intent(in) :: sunzen
@@ -21,7 +21,6 @@ DO ICL=1,NCLASSAVHRR
    avhrr % tbstd(ICL,4:6)=avhrr % radstd(ICL,4:6) * dtbsdrad(1:3)
    call calcreflect(avhrr % radmoy(ICL,1:3) ,sunzen,avhrr % ALBEDMOY(ICL,1:3) )
    call calcreflect(avhrr % radstd(ICL,1:3) ,sunzen,avhrr % ALBEDSTD(ICL,1:3) )
-
 ENDDO
 
 contains

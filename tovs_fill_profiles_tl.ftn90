@@ -41,7 +41,8 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 !
 #endif
   use MathPhysConstants_mod
-  use tovs_mod
+  use tovs_nl_mod
+  use tovs_lin_mod
   use obsSpaceData_mod
   use columnData_mod
   use tovs_extrap_mod

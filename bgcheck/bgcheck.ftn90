@@ -27,7 +27,7 @@
 !*
       use obsSpaceData_mod
       use columnData_mod
-      use tovs_mod
+      use tovs_nl_mod
       IMPLICIT NONE
 
       type(struct_obs) :: lobsSpaceData

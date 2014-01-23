@@ -45,7 +45,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 
 
   use burp_module
-  use tovs_mod
+  use tovs_nl_mod
   use obsSpaceData_mod
 
   IMPLICIT NONE

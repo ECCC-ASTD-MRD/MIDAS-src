@@ -23,7 +23,9 @@
       use filterObs_mod  
       use modgpsztd_mod
       use modgpsro_mod
-      use tovs_mod
+      use tovs_nl_mod
+      use tovs_lin_mod
+      use MULTIIRBGCHECK
       IMPLICIT NONE
 
       type(struct_obs) :: lobsSpaceData

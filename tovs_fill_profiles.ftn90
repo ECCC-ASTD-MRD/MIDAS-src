@@ -51,7 +51,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData)
   use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use tovs_mod
+  use tovs_nl_mod
+  use MULTIIRBGCHECK
   use ozoneclim
   use obsSpaceData_mod
   use columnData_mod 

@@ -1,19 +1,35 @@
-!-------------------------------------- LICENCE BEGIN ------------------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
-!
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END --------------------------------------
-!
+Module tovs_lin_mod
+  Use rttov_types, only : &
+     profile_type        ,&
+     radiance_type 
+  Use tovs_nl_mod, only : NOBTOV,lsensor,coefs,opts,nchan
+  implicit none
+  save
+  private
+
+  public :: TOVS_LIN_SETUPALLO
+
+  ! public derived types
+  ! public derived type through inheritance (from module rttov_types)
+  public :: radiance_type,profile_type
+
+  ! public variables (parameters)
+
+  ! public variables (non-parameters)
+  
+  public :: profiles_tl, profiles_ad
+  public :: radiance_tl, radiance_ad
+
+  ! Derived types
+
+  type( profile_Type ),     allocatable :: profiles_tl(:)    ! tl profiles, all profiles
+  type( profile_Type ),     allocatable :: profiles_ad(:)    ! ad profiles, all profiles
+  type(radiance_Type) ,     allocatable :: radiance_tl(:)    ! tl radiances organized by profile
+  type(radiance_Type) ,     allocatable :: radiance_ad(:)    ! tl radiances organized by profile
+ 
+contains
+
+
 SUBROUTINE TOVS_LIN_SETUPALLO()
 #if defined (DOC)
 !
@@ -55,7 +71,6 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 !            - adapt to CrIS (codtyp 193)
 #endif
 
-  Use tovs_mod  
   use obsSpaceData_mod
 
   IMPLICIT NONE
@@ -147,3 +162,6 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   end do
 
 END SUBROUTINE TOVS_LIN_SETUPALLO
+ 
+End Module tovs_lin_mod
+
