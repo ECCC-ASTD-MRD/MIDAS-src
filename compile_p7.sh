@@ -168,7 +168,7 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling some more modules..."
-  SRC2="modgpsro_mod.ftn90 modgpsztd_mod.ftn90 filterobs_mod.ftn90 writeincrement_mod.ftn90"
+  SRC2="modgpsro_mod.ftn90 modgpsztd_mod.ftn90 filterobs_mod.ftn90 writeincrement_mod.ftn90 obsoperators_mod.ftn90"
   s.compile $INCLUDES $COMPF -O -src $SRC2 > listing6 2>&1
   grep fail listing6
   if [ $? = "0" ] ; then exit ; fi

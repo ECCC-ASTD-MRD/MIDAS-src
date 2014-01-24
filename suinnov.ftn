@@ -14,134 +14,119 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine suinnov(lcolumng,lcolumnhr,lobsSpaceData)
-*
-***s/r suinnov  - Initialise Observation Innovations.
-*
-*
-*Author  : Luc Fillion - 28 Mar 2008.
-*Revision:
-*     L. Fillion - ARMA/EC - 22 May 2008 - Upgrade to v_10_1_1.
-*     S. Macpherson -ARMA/MRD   Aug 2008
-*         - Add ground-based GPS family "GP"
-*     S. Macpherson -ARMA/MRD   Sep 2009
-*         - Add ground-based GPS family "GP"
-*     Bin He   -ARMA/MRD      Feb. 2010 
-*         - Implemented MPI to 3DVAR
-*     S. Macpherson -ARMA/MRD   Dec 2012 - Jan 2013
-*         - moved "WRITE"s for GB-GPS options to sugpsgb.ftn
-*         - DOBGPSGB is now ready for GEM-4 staggered grid
-*         - added CALL SETERRGPSGB(lobsSpaceData,lgpdata) to set ZTD errors
-*         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
-*
-*    -------------------
-*
+      subroutine suinnov(columng,columnhr,obsSpaceData)
+!
+!**s/r suinnov  - Initialise Observation Innovations.
+!
+!
+!Author  : Luc Fillion - 28 Mar 2008.
+!Revision:
+!     L. Fillion - ARMA/EC - 22 May 2008 - Upgrade to v_10_1_1.
+!     S. Macpherson -ARMA/MRD   Aug 2008
+!         - Add ground-based GPS family "GP"
+!     S. Macpherson -ARMA/MRD   Sep 2009
+!         - Add ground-based GPS family "GP"
+!     Bin He   -ARMA/MRD      Feb. 2010 
+!         - Implemented MPI to 3DVAR
+!     S. Macpherson -ARMA/MRD   Dec 2012 - Jan 2013
+!         - moved "WRITE"s for GB-GPS options to sugpsgb.ftn
+!         - DOBGPSGB is now ready for GEM-4 staggered grid
+!         - added CALL SETERRGPSGB(obsSpaceData,lgpdata) to set ZTD errors
+!         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
+!
       use topLevelControl_mod
       use minimization_mod
       use obsSpaceData_mod
       use columnData_mod
       use filterObs_mod
       use timeCoord_mod
-      IMPLICIT NONE
-c
-      type(struct_columnData) :: lcolumnhr,lcolumng
-      type(struct_obs) :: lobsSpaceData
-c
+      use obsOperators_mod
+      implicit none
+
+      type(struct_columnData) :: columnhr,columng
+      type(struct_obs) :: obsSpaceData
+
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
       integer :: ierr
-      
       logical lgpdata
-c
+
       write(*,*) '--Starting subrouting suinnov--'
 
       write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
-      call prdatabin(lobsSpaceData,tim_nstepobs)
-c
-c     Reject observed elements too far below the surface. Pressure values
-c     for elements slightly below the surface are replaced by the surface
-c     pressure values of the trial field.
-c
-c     GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in filterobs_mod.ftn90)
-c
-      call filt_topo(lcolumnhr,lobsSpaceData)
-c
-c     Remove surface station wind observations
-c
-      IF( top_AnalysisMode() ) CALL SFCWNDZAP(lobsSpaceData)
-c
-c     Find interpolation layer in model profiles 
-c
-      CALL VOBSLYRS(lcolumnhr,lobsSpaceData)
-c
-c
-c------ Calculate the innovations Y - H(Xb) and place
-c       the result in obsSpaceData in OBS_OMP column
-C
-C        RAOBS
-C------------------------------
+      call prdatabin(obsSpaceData,tim_nstepobs)
+!
+!     Reject observed elements too far below the surface. Pressure values
+!     for elements slightly below the surface are replaced by the surface
+!     pressure values of the trial field.
+!
+!     GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in filterobs_mod.ftn90)
+!
+      call filt_topo(columnhr,obsSpaceData)
+!
+!     Remove surface station wind observations
+!
+      IF( top_AnalysisMode() ) CALL SFCWNDZAP(obsSpaceData)
+!
+!     Find interpolation layer in model profiles 
+!
+      call vobslyrs(columnhr,obsSpaceData)
+!
+!
+!------ Calculate the innovations Y - H(Xb) and place
+!       the result in obsSpaceData in OBS_OMP column
+!
+!        RAOBS
+!------------------------------
 !
       call tmg_start(48,'NL_OBS_OPER')
-      ZJORAOB = 0.0d0
-      CALL DOBSPPP(ZJORAOB,'UA',lcolumnhr,lobsSpaceData)
-C
-C        AIREPS
-C--------------------------------
-      ZJOAIREP=0.0D0
-      CALL DOBSPPP(ZJOAIREP,'AI',lcolumnhr,lobsSpaceData)
-C
-C        SATWINDS
-C--------------------------------
-      ZJOSATWIND=0.0D0
-      CALL DOBSPPP(ZJOSATWIND,'SW',lcolumnhr,lobsSpaceData)
+      CALL oonl_ppp(columnhr,obsSpaceData,ZJORAOB,'UA')
 !
-      ZJOSURFC=0.0D0
-      ZJOSFCSF=0.0D0
-      ZJOSFCUA=0.0D0
-      ZJOSFCSC=0.0D0
-      ZJOSFCGP=0.0D0
+!        AIREPS
+!--------------------------------
+      CALL oonl_ppp(columnhr,obsSpaceData,ZJOAIREP,'AI')
 !
-C
-C        SURFACE (SF, UA, SC AND GP FAMILIES)
-C-------------------------------
-      CALL DOBSSFC(ZJOSFCSF,'SF',lcolumnhr,lobsSpaceData)
-      CALL DOBSSFC(ZJOSFCUA,'UA',lcolumnhr,lobsSpaceData)
-      CALL DOBSSFC(ZJOSFCSC,'SC',lcolumnhr,lobsSpaceData)
-      CALL DOBSSFC(ZJOSFCGP,'GP',lcolumnhr,lobsSpaceData)
+!        SATWINDS
+!--------------------------------
+      CALL oonl_ppp(columnhr,obsSpaceData,ZJOSATWIND,'SW')
+!
+!        SURFACE (SF, UA, SC AND GP FAMILIES)
+!-------------------------------
+      call oonl_sfc(columnhr,obsSpaceData,ZJOSFCSF,'SF')
+      call oonl_sfc(columnhr,obsSpaceData,ZJOSFCUA,'UA')
+      call oonl_sfc(columnhr,obsSpaceData,ZJOSFCSC,'SC')
+      call oonl_sfc(columnhr,obsSpaceData,ZJOSFCGP,'GP')
       ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
-C
-C        TOVS - RADIANCE
-C-------------------------------
+!
+!        TOVS - RADIANCE
+!-------------------------------
       ZJOTOV=0.0D0
-      CALL TOVS_OBS('HR',ZJOTOV,lcolumnhr,lobsSpaceData,OBS_VAR,OBS_OMP)
-C
-C        PROFILER
-C------------------------------
-      ZJOPROF = 0.0d0
-      CALL DOBSZZZ(ZJOPROF,'PR',lcolumnhr,lobsSpaceData)
-C
-C        GPS - RADIO OCCULTATION
-C-------------------------------
-      ZJOGPSRO=0.0D0
-      CALL FILTERGPSRO(lcolumnhr,lobsSpaceData)
-      CALL SETERRGPSRO(lcolumnhr,lobsSpaceData)
-      CALL DOBSGPSRO(ZJOGPSRO,lcolumnhr,lobsSpaceData)
-C
-C        GPS - GROUND-BASED ZENITH DELAY
-C-------------------------------
-C
+      CALL TOVS_OBS('HR',ZJOTOV,columnhr,obsSpaceData,OBS_VAR,OBS_OMP)
+!
+!        PROFILER
+!------------------------------
+      call oonl_zzz(columnhr,obsSpaceData,ZJOPROF,'PR')
+!
+!        GPS - RADIO OCCULTATION
+!-------------------------------
+      CALL FILTERGPSRO(columnhr,obsSpaceData)
+      CALL SETERRGPSRO(columnhr,obsSpaceData)
+      call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
+!
+!        GPS - GROUND-BASED ZENITH DELAY
+!-------------------------------
+!
       ZJOGPSGB=0.0D0
-      CALL SETERRGPSGB(lobsSpaceData,lgpdata)
-      if (lgpdata) CALL DOBSGPSGB(ZJOGPSGB,lcolumnhr,lobsSpaceData)
-c
+      CALL SETERRGPSGB(obsSpaceData,lgpdata)
+      if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB)
+
       call tmg_stop(48)
-c
-c
-C=======================================================================
+!
+!=======================================================================
       ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND +
      $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
-C=======================================================================
+!=======================================================================
 
       write(*,*) 'Cost function values for this MPI task:'
       write(*,'(a15,f23.16)') 'JORAOB   = ',ZJORAOB
@@ -186,17 +171,17 @@ C=======================================================================
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
-c
-c     Find interpolation layer in model profiles 
-c
-      CALL VOBSLYRS(lcolumng,lobsSpaceData)
-c
+!
+!     Find interpolation layer in model profiles 
+!
+      CALL VOBSLYRS(columng,obsSpaceData)
+
       IF (min_lvarqc) THEN
-        CALL SUASYM2(lobsSpaceData)
+        CALL SUASYM2(obsSpaceData)
       endif
-c
+
       write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
-      call prdatabin(lobsSpaceData,tim_nstepobs)
+      call prdatabin(obsSpaceData,tim_nstepobs)
 
       RETURN
       END

@@ -1,0 +1,1013 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+module obsOperators_mod
+  !
+  ! Nonlinear observation operators (OONL)
+  !
+  use earthConstants_mod
+  use mathPhysConstants_mod
+  use obsSpaceData_mod
+  use columnData_mod 
+  use bufr
+  ! only for oonl_gpsgb
+  use topLevelControl_mod
+  use modgps04profilezd
+  use modgps08ztdop
+  use modgpsztd_mod
+  ! only for oonl_gpsro
+  use modgps01ctphys    , only : p_TC, p_knot
+  use modgps02wgs84grav , only : gpsgravitysrf
+  use modgps03diff
+  use modgps04profile   , only : gpsprofile, gpsstruct1sw
+  use modgps08refop     , only : gpsrefopv
+  use modgps09bend      , only : gpsbndopv1
+  use modgpsro_mod
+  implicit none
+  save
+  private
+
+  ! public procedures
+  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb
+
+  contains
+
+  subroutine oonl_ppp(columnhr,obsSpaceData,jobs_out,cdfam)
+    !
+    !**s/r oonl_ppp - Computation of Jobs and y - H(x)
+    !                 for pressure-level observations
+    !
+    !*    Purpose:  -Interpolate vertically columnhr to
+    !                the pressure levels of the observations. Then compute Jobs.
+    !                A linear interpolation in ln(p) is performed.
+    !
+    !Arguments
+    !     jobs_out:  contribution to Jobs
+    !     cdfam: family of obsservation
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+    real(8), optional :: jobs_out
+    character(len=*), optional :: cdfam
+
+    integer :: headerIndex,bodyIndex,ilyr
+    integer :: iass,ixtr,ivco,ivnm
+    real(8) :: zvar,zoer,jobs
+    real(8) :: zwb,zwt,zexp,zgamma,ztvg
+    real(8) :: zlev,zpt,zpb,zomp
+    real(8) :: columnVarB,columnVarT,lqtoes
+    character(len=4) :: varName
+    character(len=2) :: varType
+    real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
+    !
+    ! Temperature lapse rate for extrapolation of gz below model surface
+    !
+    zgamma = 0.0065D0 / GRAV
+    zexp = MPC_RGAS_DRY_AIR_R8*zgamma
+
+    jobs=0.d0
+
+    if(present(cdfam)) then
+      call obs_set_current_body_list(obsSpaceData, cdfam)
+    else
+      call obs_set_current_body_list(obsSpaceData)
+    endif
+    BODY: do
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
+      
+      ! Only process pressure level observations flagged to be assimilated
+      iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
+      ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
+      if(iass.ne.1 .or. ivco.ne.2) cycle BODY
+
+      ixtr=obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
+      ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
+      zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+      zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+      headerIndex=obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
+
+      if ( ixtr.eq.0 ) then
+
+        ! Process all data within the domain of the model
+        ilyr  =obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
+        varName = vnl_varnameFromVarnum(ivnm)
+        varType = vnl_varTypeFromVarnum(ivnm)
+        zpt= col_getPressure(columnhr,ilyr  ,headerIndex,varType)
+        zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varType)
+        zwb  = log(zlev/zpt)/log(zpb/zpt)
+        zwt  = 1.d0 - zwb
+        if(ivnm.eq.bufr_nees) then
+          col_ptr_hu=>col_getColumn(columnhr,headerIndex,'HU')
+          col_ptr_tt=>col_getColumn(columnhr,headerIndex,'TT')
+          columnVarB=lqtoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
+          columnVarT=lqtoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
+        else
+          col_ptr=>col_getColumn(columnhr,headerIndex,varName)
+          columnVarB=col_ptr(ilyr+1)
+          columnVarT=col_ptr(ilyr  )
+        endif
+        zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
+        jobs = jobs + zomp*zomp/(zoer*zoer)
+        call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+
+      elseif (ixtr.eq.2) then
+
+        ! Process only GZ that is data below model's orography
+        if(ivnm .eq. BUFR_NEGZ ) then
+          !
+          ! Forward nonlinear model for geopotential data below model's orography
+          !
+          ztvg = (1.0d0 + MPC_DELTA_R8 * exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU')))*  &
+                  col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
+          zomp = (  zvar - col_getMountain(columnhr,headerIndex) -  &
+                    ztvg/zgamma*(1.D0-(zlev/col_getElem(columnhr,1,headerIndex,'P0'))**zexp))
+          jobs = jobs + zomp*zomp/(zoer*zoer)
+          call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+        endif
+
+      endif
+
+    enddo body
+
+    if(present(jobs_out)) jobs_out=0.5d0*jobs
+
+  end subroutine oonl_ppp
+
+
+  subroutine oonl_sfc(columnhr,obsSpaceData,jobs_out,cdfam)
+    !
+    !**s/r oonl_sfc - Computation of Jo and the residuals to the observations
+    !                 FOR SURFACE DATA (except ground-based GPS zenith delay)
+    !
+    !*    Purpose:  -Interpolate vertically the contents of columnhr to
+    !                the pressure levels of the observations. Then
+    !                compute Jo.
+    !                A linear interpolation in ln(p) is performed.
+    !
+    !Arguments
+    !     jobs_out  : contribution to Jo
+    !     cdfam: family of observation
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+    real(8), optional :: jobs_out
+    character(len=*), optional :: cdfam
+
+    integer :: ipb,ipt,ivnm,headerIndex,bodyIndex
+    real(8) :: zvar,zcon,zexp,zgamma,ztvg
+    real(8) :: zlev,zhhh,zgamaz,zslope,gzhr
+    real(8) :: columnVarB,lqtoes,jobs
+    character(len=2) :: varType
+    !
+    ! Temperature lapse rate for extrapolation of gz below model surface
+    !
+    zgamma = 0.0065d0 / GRAV
+    zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma)
+
+    jobs=0.d0
+
+    ! loop over all header indices of the 'SF' family
+    if(present(cdfam)) then
+      call obs_set_current_header_list(obsSpaceData,cdfam)
+    else
+      call obs_set_current_header_list(obsSpaceData)
+    endif
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+      ! loop over all body indices for this headerIndex
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+
+        ! only process height level observations flagged to be assimilated
+        if(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.1 .or.  &
+           obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1) cycle BODY
+
+        ! only process this set of surface observations
+        ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
+        if( ivnm.ne.BUFR_NETS .and. ivnm.ne.BUFR_NEPS .and.  &
+            ivnm.ne.BUFR_NEUS .and. ivnm.ne.BUFR_NEVS .and.  &
+            ivnm.ne.BUFR_NESS .and. ivnm.ne.BUFR_NEPN ) cycle BODY
+
+        zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+        zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        zhhh = zlev * grav
+        varType = vnl_varTypeFromVarnum(ivnm)
+
+        if(ivnm.eq.BUFR_NETS .or. ivnm.eq.BUFR_NESS .or.  &
+           ivnm.eq.BUFR_NEUS .or. ivnm.eq.BUFR_NEVS) then
+          ! T2m,(T-TD)2m,US,VS
+          ! In this section we always extrapolate linearly the trial
+          ! field at the model surface to the height of the
+          ! surface observation whether the observation is above or
+          ! below the model surface.
+          ! NOTE: For (T-TD)2m,US,VS we do a zero order extrapolation
+
+          if(ivnm.eq.BUFR_NETS) then
+            zslope = zgamma
+          else
+            zslope = 0.0d0
+          endif
+
+          ipt  = col_getNumLev(COLUMNHR,varType)-1 + col_getOffsetFromVarno(columnhr,ivnm)
+          ipb  = ipt + 1
+          if(ivnm.eq.bufr_ness) then
+            columnVarB=lqtoes(col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'HU'),  &
+                              col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'TT'),  &
+                              col_getPressure(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'TH'))
+          else
+            columnVarB=col_getElem(columnhr,ipb,headerIndex)
+          endif
+          gzhr=col_getHeight(columnhr,col_getNumLev(columnhr,varType),headerIndex,varType)
+          call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+                             (zvar-columnVarB + zslope*(zhhh-gzhr)) )
+
+        elseif(ivnm.eq.BUFR_NEPS .or. ivnm.eq.BUFR_NEPN) then
+          ! Surface Pressure Mean sea level Pressure
+          ! In this section we always extrapolate linearly the trial
+          ! field at the model surface to the height of the
+          ! surface observation whether the observation is above or
+          ! below the model height
+
+          zgamaz= zgamma*(zhhh-col_getHeight(columnhr,  &
+                 col_getNumLev(columnhr,varType),  &
+                 headerIndex,varType))
+          ztvg = (1.0d0 + MPC_DELTA_R8 * exp(col_getElem(columnhr, &
+                  col_getNumLev(columnhr,'TH'),headerIndex,'HU')))*  &
+                  col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
+          zcon = ((ztvg-zgamaz)/ztvg)
+          call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+               zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
+
+        endif
+
+        ! contribution to jobs
+        jobs = jobs +(obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)*   &
+                      obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)) / &
+                     (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
+                      obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
+
+      enddo BODY
+
+    enddo HEADER
+
+    if(present(jobs_out)) jobs_out=0.5d0*jobs
+
+  end subroutine oonl_sfc
+
+
+  subroutine oonl_zzz(columnhr,obsSpaceData,jobs_out,cdfam)
+    !
+    !**s/r oonl_zzz - Computation of Jo and the residuals to the observations
+    !                 FOR UPPER AIR DATAFILES
+    !
+    !Author  :  J. St-James, CMDA/SMC July 2003
+    !
+    !Revision :
+    !
+    !     Purpose:  - Interpolate vertically the contents of commvo
+    !                 onto the heights (in meters) of the observations.
+    !                 Compute Jo.
+    !                 A linear interpolation in z is performed.
+    !
+    !Arguments
+    !     jobs_out:  CONTRIBUTION to Jo
+    !     CDFAM: FAMILY OF OBSSERVATION
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+    real(8), optional :: jobs_out
+    character(len=*), optional :: cdfam
+
+    integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
+    real(8) :: zvar,zwb,zwt,zlev,zpt,zpb,jobs
+    character(len=2) :: varType, obsfam
+
+    jobs=0.d0
+
+    if(present(cdfam)) then
+      call obs_set_current_body_list(obsSpaceData, cdfam)
+    else
+      write(*,*) 'oonl_zzz: WARNING, no family specified, assuming PR'
+      call obs_set_current_body_list(obsSpaceData, 'PR')
+    endif
+    BODY: do
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
+
+      ! Process all height-level data within the domain of the model
+      if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .ne. 1 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) .ne. 0 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) .ne. 1 ) cycle BODY
+
+      ! In case not specified, make sure only PR family is processed
+      obsfam = obs_getFamily(obsSpaceData,bodyIndex=bodyIndex)
+      if( obsfam.ne.'PR' ) cycle BODY
+
+      headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+      zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+      zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      ik   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+      ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+      ipt = ik + col_getOffsetFromVarno(columnhr,ivnm)
+      ipb = ipt+1
+      varType = vnl_varTypeFromVarnum(ivnm)
+      zpt= col_getHeight(columnhr,ik  ,headerIndex,varType)/RG
+      zpb= col_getHeight(columnhr,ik+1,headerIndex,varType)/RG
+      zwb  = (zpt-zlev)/(zpt-zpb)
+      zwt  = 1.d0 - zwb
+      if(ivnm.eq.bufr_nees) call abort3d('oonl_zzz: CANNOT ASSIMILATE ES!!!')
+      call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+           zvar-zwb*col_getElem(columnhr,ipb,headerIndex) &
+          - zwt*col_getElem(columnhr,ipt,headerIndex))
+
+      ! contribution to jobs
+      jobs = jobs + obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)*   &
+                    obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex) /  &
+                   (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
+                    obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
+
+    enddo BODY
+
+    if(present(jobs_out)) jobs_out=0.5d0*jobs
+
+  end subroutine oonl_zzz
+
+
+  subroutine oonl_gpsro(columnhr,obsSpaceData,jobs_out)
+    !
+    !**s/r oonl_gpsro - Computation of Jo and the residuals to the GPSRO observations
+    !
+    !
+    !Author  : J. M. Aparicio Jan 2004
+    !          Adapted Nov 2012 for both refractivity and bending angle data
+    !    -------------------
+    !*    Purpose:
+    !
+    !Arguments
+    !     jobs_out: total value of Jobs for GPSRO
+    !
+    implicit none
+
+    type(struct_columnData) :: columnhr
+    type(struct_obs)        :: obsSpaceData
+    real(8), optional :: jobs_out
+
+    real(8) :: jobs, pjob, pjo1
+    real(8) :: zlat, lat, slat
+    real(8) :: zlon, lon
+    real(8) :: zazm, azm
+    integer :: iazm, isat, iclf, jj
+    real(8) :: rad, geo, rad1, wfgps
+    integer,pointer :: ip1(:)
+    real(8), allocatable :: zpp(:)
+    real(8), allocatable :: zdp(:)
+    real(8), allocatable :: ztt(:)
+    real(8), allocatable :: zhu(:)
+    real(8), allocatable :: zuu(:)
+    real(8), allocatable :: zvv(:)
+    real(4) :: sfcfield_r4
+    real(4),pointer :: rdp_r4(:)
+    real(8) :: zp0, zmt
+    real(8) :: hnh1, zobs, zmhx, zoer, zinc
+    integer index_header, idatyp, index_body
+    integer jl, ngpslev, nwndlev, stat
+    logical  assim, firstheader, ldsc
+    integer :: nh, nh1
+    type(gpsprofile)           :: prf
+    real(8)      , allocatable :: h   (:),azmv(:)
+    type(gpsdiff), allocatable :: rstv(:),rstvp(:),rstvm(:)
+    type(struct_vco), pointer  :: vco_trl
+
+    write(*,*)'ENTER oonl_gpsro'
+    !
+    ! Initializations
+    !
+    ngpslev=col_getNumLev(columnhr,'TH')
+    nwndlev=col_getNumLev(columnhr,'MM')
+    allocate(zpp(ngpslev))
+    allocate(zdp(ngpslev))
+    allocate(ztt(ngpslev))
+    allocate(zhu(ngpslev))
+    allocate(zuu(ngpslev))
+    allocate(zvv(ngpslev))
+
+    allocate( h    (gpsro_maxprfsize) )
+    allocate( azmv (gpsro_maxprfsize) )
+    allocate( rstv (gpsro_maxprfsize) )
+    !if (levelgpsro.eq.1) then
+    !  allocate( rstvp(gpsro_maxprfsize) )
+    !  allocate( rstvm(gpsro_maxprfsize) )
+    !endif
+
+    vco_trl => col_getVco(columnhr)
+    stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
+    jobs=0.0d0
+
+    !
+    ! Loop over all header indices of the 'RO' family:
+    !
+    call obs_set_current_header_list(obsSpaceData,'RO')
+    firstheader = .true.
+
+    HEADER: do
+      index_header = obs_getHeaderIndex(obsSpaceData)
+      if (index_header < 0) exit HEADER
+      !
+      ! Process only refractivity data (codtyp 169)
+      !
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+      if ( idatyp .ne. 169 ) cycle HEADER
+      !
+      ! Scan for requested data values of the profile, and count them
+      !
+      assim = .false.
+      nh = 0
+      call obs_set_current_body_list(obsSpaceData, index_header)
+      BODY: do 
+        index_body = obs_getBodyIndex(obsSpaceData)
+        if (index_body < 0) exit BODY
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.1 ) then
+          assim = .true.
+          nh = nh + 1
+        endif
+      enddo BODY
+      !
+      ! If no assimilations are requested, skip to next header
+      !
+      if (.not.assim) cycle HEADER
+      !
+      ! Basic geometric variables of the profile:
+      !
+      iazm = obs_headElem_i(obsSpaceData,OBS_AZA,index_header)
+      isat = obs_headElem_i(obsSpaceData,OBS_SAT,index_header)
+      iclf = obs_headElem_i(obsSpaceData,OBS_ROQF,index_header)
+      rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,index_header)
+      geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,index_header)
+      zazm = 0.01d0*iazm / MPC_DEGREES_PER_RADIAN_R8
+      zmt  = col_getHeight(columnhr,ngpslev,index_header,'TH')/RG
+      wfgps=0.d0
+      do jj=1,numgpssats
+        if (isat.eq.igpssat(jj)) wfgps=wgps(jj)
+      enddo
+      !
+      ! Profile at the observation location:
+      !
+      zlat = obs_headElem_r(obsSpaceData,OBS_LAT,index_header)
+      zlon = obs_headElem_r(obsSpaceData,OBS_LON,index_header)
+      lat  = zlat * MPC_DEGREES_PER_RADIAN_R8
+      lon  = zlon * MPC_DEGREES_PER_RADIAN_R8
+      azm  = zazm * MPC_DEGREES_PER_RADIAN_R8
+      slat = sin(zlat)
+      zmt  = zmt * RG / gpsgravitysrf(slat)
+      zp0  = col_getElem(columnhr,1,index_header,'P0')
+      sfcfield_r4=zp0
+      stat= vgd_dpidpis(vco_trl%vgrid,ip1,rdp_r4,sfcfield_r4)
+      do jl = 1, ngpslev
+        !
+        ! Profile x
+        !
+        zpp(jl) = col_getPressure(columnhr,jl,index_header,'TH')
+        ! True implementation of ZDP (dP/dP0)
+        zdp(jl) = rdp_r4(jl)
+        ztt(jl) = col_getElem(columnhr,JL,index_header,'TT') - p_tc
+        zhu(jl) = col_getElem(columnhr,JL,index_header,'HU')
+        zuu(jl) = 0.d0
+        zvv(jl) = 0.d0
+      enddo
+      do jl = 1, nwndlev
+        zuu(jl) = col_getElem(columnhr,jl,index_header,'UU') * p_knot
+        zvv(jl) = col_getElem(columnhr,JL,index_header,'VV') * p_knot
+      enddo
+      zuu(ngpslev) = zuu(nwndlev)
+      zvv(ngpslev) = zuu(nwndlev)
+      !     
+      ! GPS profile structure:
+      !
+      call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+      ldsc=.not.btest(iclf,16-3)
+      !
+      ! Prepare the vector of all the observations:
+      !
+      nh1 = 0
+      !
+      ! Loop over all body indices for this index_header:
+      ! (start at the beginning of the list)
+      !
+      call obs_set_current_body_list(obsSpaceData, index_header)
+      BODY_2: do 
+        index_body = obs_getBodyIndex(obsSpaceData)
+        if (index_body < 0) exit BODY_2
+        IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.1 ) then
+          nh1      = nh1 + 1
+          h(nh1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body)
+          azmv(nh1)= zazm
+        endif
+      enddo BODY_2
+      !
+      ! Apply the observation operator:
+      !
+      if (levelgpsro.eq.1) then
+        call gpsbndopv1(h      , azmv, nh, prf, rstv)
+        !call gpsbndopv1(h+wfgps, azmv, nh, prf, rstvp)
+        !call gpsbndopv1(h-wfgps, azmv, nh, prf, rstvm)
+        !do nh1 = 1, nh
+        !  rstv(nh1)=(rstvp(nh1)+rstv(nh1)+rstvm(nh1))/3.d0
+        !enddo
+      else
+        call gpsrefopv (h,       nh, prf, rstv)
+      endif
+      !
+      ! Perform the (H(x)-Y)/S operation:
+      !
+      nh1 = 0
+      pjob = 0.d0
+      !
+      ! Loop over all body indices for this index_header:
+      ! (start at the beginning of the list)
+      !
+      call obs_set_current_body_list(obsSpaceData, index_header)
+      BODY_3: do 
+        index_body = obs_getBodyIndex(obsSpaceData)
+        if (index_body < 0) exit BODY_3
+        IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.1 ) then
+          nh1 = nh1 + 1
+          !
+          ! Altitude:
+          !
+          hnh1= obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body)
+          if (levelgpsro.eq.1) hnh1=hnh1-rad
+          !
+          ! Observation operator H(x)
+          !
+          zmhx = rstv(nh1)%var
+          !
+          ! Observation value    Y
+          !
+          zobs = obs_bodyElem_r(obsSpaceData,OBS_VAR,index_body)
+          !
+          ! Observation error    S
+          !
+          zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,index_body)
+          !
+          ! Normalized increment
+          !
+          zinc = (zmhx - zobs) / zoer
+          !                           
+          ! Datum contribution to Jo:
+          !
+          pjo1 = 0.5d0 * zinc * zinc
+          !
+          ! Total (PJO) and per profile (PJOB) cumulatives:
+          !
+          jobs = jobs + pjo1
+          pjob= pjob+ pjo1
+          !
+          if (firstheader) then
+            write(*,  &
+                  '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)') 'DOBSGPSRO',  &
+                  index_header,lat,lon,azm,hnh1,zobs,zoer,  &
+                  zmhx,zinc,pjob,prf%gst(ngpslev)%var  
+          endif
+          call obs_bodySet_r(obsSpaceData,OBS_OMP,index_body, zobs - zmhx)
+        endif
+      enddo BODY_3
+
+      write(*,'(A9,i10,2f7.2,f18.10,f12.4,2I6)')  &
+            'GPSRO_JO',index_header,lat,lon,pjob,zmt,isat,ldsc
+      firstheader = .false.
+    enddo HEADER
+
+    !if (levelgpsro.eq.1) then
+    !  deallocate( rstvm )
+    !  deallocate( rstvp )
+    !endif
+    deallocate( rstv )
+    deallocate( azmv )
+    deallocate( h    )
+
+    deallocate(zvv)
+    deallocate(zuu)
+    deallocate(zhu)
+    deallocate(ztt)
+    deallocate(zdp)
+    deallocate(zpp)
+
+    if(present(jobs_out)) jobs_out=jobs
+
+    write(*,*)'EXIT oonl_gpsro'
+
+  end subroutine oonl_gpsro
+
+
+  subroutine oonl_gpsgb(columnhr,obsSpaceData,jobs_out)
+    !
+    !**s/r oonl_gpsgb - Computation of Jo and the residuals to the GB-GPS ZTD observations
+    !
+    !
+    !Author  : S. Macpherson  ARMA/MRD
+    !Revisions:
+    !          S. Macpherson Oct 2012
+    !           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
+    !           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
+    !           -- option to use old NL operator removed
+    !           -- ZTD operator gpsZTDopv is found in MODIF modgps08refop.f90
+    !           -- Uses columnData_mod.
+    !
+    !          S. Macpherson Dec 2012 - Jan 2013
+    !           -- update from Rev189 to Rev213
+    !           -- new namelist parameters in modgpsztd_mod
+    !           -- ZTD operator gpsZTDopv is found in NEW modgps08ztdop.cdk90
+    !           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
+    !           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
+    !           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
+    !
+    !          S. Macpherson Jun 2013
+    !           -- Use true implementation of ZDP (dP/dP0), although not needed here
+    !
+    !Arguments (out)
+    !     jobs_out: total value of Jo for all GB-GPS (ZTD) observations
+    !
+    implicit none
+
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+    real(8), optional :: jobs_out
+
+    type(struct_vco), pointer :: vco_trl
+    real(8), allocatable :: zpp (:)
+    real(8), allocatable :: zdp (:)
+    real(8), allocatable :: ztt (:)
+    real(8), allocatable :: zhu (:)
+    real(8) :: zlat, lat, zlon, lon, jobs
+    real(8) :: zmt, zdzmin
+    real(8) :: zobs, zoer, zinc, zhx, zlev
+    real(8) :: zdz, zpsobs, zpsmod, zpwmod, zpomp, zpomps
+    real(8) :: ztdomp(max_gps_data)
+    real(8) :: bias, std
+    integer :: headerIndex, bodyIndex, ioneobs, idatyp, ityp, index_ztd, iztd
+    integer :: jl, ngpslev, nobs2p, stat
+    integer :: icount1, icount2, icount3, icount, icountp, iversion
+    integer,pointer :: ip1(:)
+    character(len=2) :: lv
+    real(4) :: sfcfield_r4
+    real  ,pointer :: rdp_r4(:)
+    logical  :: assim, llrej
+    type(gpsprofilezd)    :: prf
+    type(gpsdiff)         :: ztdopv
+    !
+    !     PW lower limit (mm) and Ps O-P upper limit (Pa) for ZTD assimilation
+    !       Note:  1 mb = 100 Pa --> 2.2 mm ZTD
+    !
+    real(8) :: zpwmin, zpompmx
+    data zpwmin    /   2.0d0 /
+    data zpompmx   / 200.0d0 /
+    !
+    !     Criteria to select single observation (1-OBS mode)
+    !
+    !     Minimum value for ZTD O-P (m)
+    real(8) :: xompmin
+    data xompmin   / 0.015d0 /
+    ! Minimum value for background (trial) PW (mm)
+    real(8) :: xpwmin
+    data xpwmin    / 20.0d0  /
+    ! Maximum height difference between observation and background surface (m)
+    real(8) :: xdzmax
+    data xdzmax    / 400.0d0 /
+
+    write(*,*)'ENTER oonl_gpsgb'
+
+    zdzmin = dzmin      
+    nobs2p = 50
+    jobs=0.d0
+
+    vco_trl => col_getVco(columnhr)
+    stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
+    stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+
+    if (iversion .ne. 5001) then
+       write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
+       write(*,*)'VCODE= ',iversion,' LSTAG= TRUE'
+       lv = 'TH'
+    else
+       write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
+       write(*,*)'VCODE= ',iversion,' LSTAG= FALSE'
+       lv = 'NA'         
+    endif
+
+    ngpslev = col_getNumLev(columnhr,'TH')
+    if (ltestop) write(*,*) '  col_getNumLev(columnhr) = ',ngpslev
+      
+    !
+    ! Initializations
+    !
+    allocate(ztt(ngpslev))
+    allocate(zhu(ngpslev))
+    allocate(zdp(ngpslev))
+    allocate(zpp(ngpslev))
+
+    write(*, *) ' '
+    write(*, *) ' '
+    write(*,'(A11,A9,3A8,A9,4A8,2A9,A7,A10,A11)')  &
+          'OONL_GPSGB','CSTNID','ZLAT','ZLON','ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P',  &
+          'ZPOMPS','ZPOMP','ZPWMOD','Jobs','ZINC2'
+
+    icount  = 0
+    icount1 = 0
+    icount2 = 0
+    icount3 = 0
+    icountp = 0
+    ioneobs = -1
+
+    ! loop over all header indices of the 'GP' family (all obs locations/times)
+    call obs_set_current_header_list(obsSpaceData,'GP')
+
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! Process only GP data (codtyp 189)
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if ( idatyp .ne. 189 ) cycle HEADER
+
+      assim = .false.
+      zpsobs = -100.0d0
+
+      ! Scan for requested ZTD assimilation.
+      ! Get GPS antenna height ZLEV and Ps(ZLEV) (ZPSOBS)
+      !
+      ! loop over all body indices for this headerIndex (observations at location/time)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if ( (ityp .eq. BUFR_NEZD) .and. &
+             (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) ) then
+          zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          assim = .true.
+          ! Index in body of ZTD datum (assume at most 1 per header)
+          index_ztd = bodyIndex
+          icount = icount + 1
+        endif
+        if ( ityp .eq. bufr_neps ) then
+          if ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) .or. llblmet ) then
+            zpsobs = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+            zpomps = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+          endif
+        endif
+      enddo BODY
+
+      ! If no ZTD assimilation requested, jump to next header
+      if (.not.assim) cycle HEADER
+
+      ! Profile at the observation location:
+      lat  = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+      lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+      zlat = lat * MPC_DEGREES_PER_RADIAN_R8
+      zlon = lon * MPC_DEGREES_PER_RADIAN_R8
+      sfcfield_r4 =  real(col_getElem(columnhr,1,headerIndex,'P0'),4)
+      stat= vgd_dpidpis(vco_trl%vgrid,ip1,rdp_r4,sfcfield_r4)
+      zmt  = col_getHeight(columnhr,ngpslev,headerIndex,lv)/RG
+      do jl = 1, ngpslev
+        zpp(jl) = col_getPressure(columnhr,jl,headerIndex,lv)
+        ! True implementation of ZDP (dP/dP0)
+        zdp(jl) = rdp_r4(jl)
+        ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
+        zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
+      enddo
+      zdz = zlev - zmt
+
+      ! Fill GPS ZTD profile structure (PRF):
+      call gpsstructztd(ngpslev,lat,lon,zmt,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
+
+      ! Apply the GPS ZTD observation operator
+      ! --> output is model ZTD (type gpsdiff) and P at obs height ZLEV
+      call gpsztdopv(zlev,prf,lbevis,zdzmin,ztdopv,zpsmod,iztdop)
+
+      ! Get model profile PW
+      call gpspw(prf,zpwmod)
+      ! ZTD (m)
+      zhx    = ztdopv%var
+
+      ! If analysis mode, reject ZTD data for any of the following conditions:
+      !    (1) the trial PW is too low (extremely dry) 
+      !        and if LASSMET=true
+      !    (2) Ps observation is missing or out of normal range
+      !    (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
+      llrej = .false.
+      zpomp = -9999.0D0
+      if ( top_AnalysisMode() ) then
+        llrej = ( zpwmod .lt. zpwmin )
+        if ( lassmet ) then
+          if ( .not. llrej ) then
+            if ( zpsobs .gt. 40000.0d0 .and. zpsobs .le. 110000.0d0 ) then
+              zpomp = zpsobs - zpsmod
+              llrej = ( abs(zpomp) .gt. zpompmx )
+              if ( llrej ) icount3 = icount3 + 1
+            else
+              llrej = .true.
+              icount2 = icount2 + 1
+            endif
+          else
+            icount1 = icount1 + 1
+          endif
+        endif
+      endif
+
+      if ( llrej ) then
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,index_ztd, 0)
+        if ( .not. lassmet ) icount1 = icount1 + 1
+      endif
+
+      ! Perform the (H(x)-Y)/SDERR operation
+      !
+      ! loop over all body indices for this headerIndex
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY_2: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY_2
+        ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1 .and.  &
+             ityp.eq.BUFR_NEZD ) then
+          icountp = icountp + 1
+          !
+          ! Observation value    Y
+          !
+          zobs = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+          !
+          ! Observation error    SDERR
+          !
+          zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+          if ( zoer .le. 0.0d0 ) then
+            write(*,*) ' Problem with ZTD observation error!'
+            write(*,*) ' Station =',obs_elem_c(obsSpaceData,'STID',headerIndex)
+            write(*,*) ' Error =', zoer
+            call abort3d('OONL_GPSGB: ABORT! BAD ZTD OBSERR') 
+          endif
+
+          ! Observation height (m)
+          !
+          zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          !
+          ! Normalized increment ZINC
+          !
+          ztdomp(icountp) = zobs - zhx
+          zinc  = (zhx - zobs) / zoer
+          call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex, zobs - zhx)
+                           
+          jobs = jobs + 0.5d0 * zinc * zinc
+          !
+          ! Apply data selection criteria for 1-OBS Mode
+          !
+          if ( l1obs .and. ioneobs .eq. -1 ) then
+            if ( (zobs-zhx).gt.xompmin .and. zpwmod.gt.xpwmin .and.  &
+                 abs(zdz).lt.xdzmax ) then
+              ioneobs = headerIndex
+              write(*,*) 'SINGLE OBS SITE = ',obs_elem_c(obsSpaceData,'STID',headerIndex)
+            endif
+          endif
+          !
+          ! Print data for first NOBS2P observations
+          !
+          if ( icountp .le. nobs2p ) then
+            write(*,  &
+                  '(A12,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
+                  'OONL_GPSGB: ',obs_elem_c(obsSpaceData,'STID',headerIndex),  &
+                  zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
+                  zpomps/100.d0,zpomp/100.d0,zpwmod,jobs,zinc/zoer
+          endif
+                 
+        endif
+
+      enddo BODY_2
+
+    enddo HEADER
+
+    deallocate(ztt)
+    deallocate(zhu)
+    deallocate(zdp)
+    deallocate(zpp)
+      
+    write(*,*) ' '
+    write(*,*) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', icountp
+    bias = sum(ztdomp(1:icountp))/real(icountp,8)
+    std = 0.d0
+    do jl = 1, icountp
+      std = std + (ztdomp(jl)-bias)**2
+    enddo
+    std = sqrt(std/(real(icountp,8)-1.d0))
+    write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
+    write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
+    write(*, *) ' '
+
+    if ( l1obs .and. top_AnalysisMode() ) then
+      ! Set assim flag to 0 for all observations except for selected record (site/time)
+      if ( ioneobs .ne. -1 ) then
+        call obs_set_current_header_list(obsSpaceData,'GP')
+        icountp = 1
+        HEADER_1: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER_1
+          if (headerIndex .ne. ioneobs ) then
+            call obs_set_current_body_list(obsSpaceData, headerIndex)
+            BODY_1: do 
+              bodyIndex = obs_getBodyIndex(obsSpaceData)
+              if (bodyIndex < 0) exit BODY_1
+                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, 0)
+              enddo BODY_1
+          endif
+        enddo HEADER_1
+      else
+        call abort3d('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
+      endif
+    endif
+      
+    numgpsztd = icountp
+
+    if ( top_AnalysisMode() .and. icount .gt. 0 ) then
+
+      if ( .not.l1obs ) then
+        write(*,*) ' '
+        write(*,*) '-----------------------------------------'
+        write(*,*) ' SUMMARY OF ZTD REJECTIONS IN OONL_GPSGB '
+        write(*,*) '-----------------------------------------'
+        write(*,*) ' TOTAL NUMBER OF ZTD DATA ORIGINALLY FLAGGED FOR ASSMILATION = ', icount
+        write(*,*) '       NUMBER OF ZTD DATA       REJECTED DUE TO LOW TRIAL PW = ', icount1
+        write(*,*) '       NUMBER OF ZTD DATA       REJECETD DUE TO    NO PS OBS = ', icount2
+        write(*,*) '       NUMBER OF ZTD DATA       REJECETD DUE TO LARGE PS O-P = ', icount3
+        write(*,*) ' TOTAL NUMBER OF REJECTED ZTD DATA                           = ', icount1+icount2+icount3
+        write(*,*) '       PERCENT   REJECTED                                    = ',   &
+             (real(icount1+icount2+icount3,8) / real(icount,8))*100.0d0
+        write(*, *) ' TOTAL NUMBER OF ASSIMILATED ZTD DATA                        = ', icountp
+        if ( icountp.gt.0 ) then
+          write(*, *) 'MEAN Jo = (jobs/numGPSZTD)*YZDERRWGT**2 = ',(jobs/real(icountp,8))*yzderrwgt**2
+        endif
+        write(*,*) ' '
+      endif
+
+      if (numgpsztd .gt. 0) then
+        write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numgpsztd
+        write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
+        allocate(vgpsztd_index(numgpsztd))
+        iztd = 0
+        call obs_set_current_header_list(obsSpaceData,'GP')
+        HEADER_2: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER_2
+          idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+          if ( idatyp .eq. 189 ) then
+            call obs_set_current_body_list(obsSpaceData, headerIndex)
+            BODY_3: do 
+              bodyIndex = obs_getBodyIndex(obsSpaceData)
+              if (bodyIndex < 0) exit BODY_3
+              ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+              if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1 .and.  &
+                   ityp .eq. BUFR_NEZD ) then  
+                iztd = iztd + 1
+                vgpsztd_index(iztd) = headerIndex
+              endif
+            enddo BODY_3
+          endif
+        enddo HEADER_2
+          
+        if ( iztd .ne. numgpsztd ) then
+          call abort3d('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
+        endif
+          
+      endif
+
+    else
+      
+      if ( icount .gt. 0 ) write(*,*) ' '
+        
+    endif
+      
+    if(present(jobs_out)) jobs_out=jobs
+
+    write(*,*)'EXIT oonl_gpsgb'
+      
+  end subroutine oonl_gpsgb
+
+
+end module obsOperators_mod
