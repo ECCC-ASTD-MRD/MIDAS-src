@@ -16,7 +16,7 @@ MODULE ControlVector_mod
   private
 
   ! public variables
-  public              :: cvm_vazx, cvm_nvadim
+  public              :: cvm_vazx, cvm_nvadim, cvm_nvadim_mpiglobal
   ! public procedures
   public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal
 

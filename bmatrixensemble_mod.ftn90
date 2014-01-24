@@ -1463,9 +1463,16 @@ CONTAINS
     real(8)  :: cv_mpiglobal(:)
     integer :: cvDim_mpilocal_out
 
+    integer :: nelm_global
     integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla
 
     cvDim_mpilocal_out = cvDim_l
+
+    if (hco_ben % global) then
+       nelm_global = (ntrunc_l+1)*(ntrunc_l+1)
+    else
+       nelm_global = lst_ben % nlaGlobal * nphase
+    end if
 
     jdim_mpilocal=0
     jdim_mpiglobal=0
@@ -1474,7 +1481,7 @@ CONTAINS
     do memberIndex=1,nEns
 
       do jlev = 1,nlevEns
-        do jla = 1, ((ntrunc_l+1)*(ntrunc_l+1))
+        do jla = 1, nelm_global
 
           jdim_mpiglobal = jdim_mpiglobal + 1
 
@@ -1499,9 +1506,16 @@ CONTAINS
     real(8)  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
 
+    integer :: nelm_global
     integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla,ierr
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
+    
+    if (hco_ben % global) then
+       nelm_global = (ntrunc_l+1)*(ntrunc_l+1)
+    else
+       nelm_global = lst_ben % nlaGlobal * nphase
+    end if
 
     jdim_mpilocal=0
     jdim_mpiglobal=0
@@ -1513,7 +1527,7 @@ CONTAINS
     do memberIndex=1,nEns
 
       do jlev = 1,nlevEns
-        do jla = 1, ((ntrunc_l+1)*(ntrunc_l+1))
+        do jla = 1, nelm_global
 
           jdim_mpiglobal = jdim_mpiglobal + 1
 

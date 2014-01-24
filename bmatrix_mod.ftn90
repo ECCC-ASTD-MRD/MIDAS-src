@@ -313,12 +313,7 @@ contains
     cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
     cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
     if(associated(cvBen_mpilocal)) then
-       if ( hco_anl % global ) then
-          call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
-       else
-          write(*,*) 'ben_reduceToMPILocal for LAM not available'
-          stop
-       end if
+       call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
     end if
 
     cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal
@@ -351,12 +346,7 @@ contains
     cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
     cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
     if(associated(cvBen_mpilocal)) then
-       if ( hco_anl % global ) then
-          call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-       else
-          write(*,*) 'ben_reduceToMPILocal for LAM not available'
-          stop
-       end if
+       call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
     endif
 
     cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal

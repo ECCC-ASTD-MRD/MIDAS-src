@@ -1,0 +1,77 @@
+ &NAMCT0
+   NCONF  = 141,
+/
+ &NAMMULTI
+  NCPU=1
+/
+ &NAMBHI
+  NTRUNC = 75
+/
+ &NAMBEN
+/
+ &NAMENKF
+  NENKFMEM = 5
+/
+ &NAMMIN
+/
+ &NAMDIMO
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMFILT
+/
+ &NAMPOST
+  CETIKINC  ='RANDOM_PTURB'
+  WRITE4DINC = .false.,
+  NPPCVAR    = 10,
+  CPPCVAR(1) = 'UU',
+  CPPCVAR(2) = 'VV',
+  CPPCVAR(3) = 'TT',
+  CPPCVAR(4) = 'LQ',
+  CPPCVAR(5) = 'P0',
+  CPPCVAR(6) = 'TG'
+  CPPCVAR(7) = 'HU'
+  CPPCVAR(8) = 'GZ'
+  CPPCVAR(9) = 'ES'
+  CPPCVAR(10)= 'VT'
+/
+ &NAMSTATE
+   CGNEED(1)   ='UU'
+   CGNEED(2)   ='VV'
+   CGNEED(3)   ='TT'
+   CGNEED(4)   ='HU'
+   CGNEED(5)   ='P0'
+   CGNEED(6)   ='TG'
+/
+ &NAMSTATEO
+   rhumin  = 1.0E-07
+   CMVONEED(1)   ='UU'
+   CMVONEED(2)   ='VV'
+   CMVONEED(3)   ='TT'
+   CMVONEED(4)   ='HU'
+   CMVONEED(5)   ='GZ'
+   CMVONEED(6)   ='P0'
+   CMVONEED(7)   ='TG'
+/
+ &NAMTOV
+/
+ &NAMBPOST
+/
+ &NAMGPSRO
+/
+ &NAMGPSGB
+/
+ &NAMBURP_FILTER_SFC
+/
+ &NAMBURP_FILTER_CONV
+/
+ &NAMBURP_FILTER_TOVS
+/
+ &NAMBURP_UPDATE
+/
+ &NAMaai_control
+/
+ &NAMSHARED_AAI_3DV
+/
