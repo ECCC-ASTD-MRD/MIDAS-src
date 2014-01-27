@@ -41,7 +41,7 @@ module obsOperators_mod
   private
 
   ! public procedures
-  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb
+  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb, oonl_tovs
 
   contains
 
@@ -1008,6 +1008,86 @@ module obsOperators_mod
     write(*,*)'EXIT oonl_gpsgb'
       
   end subroutine oonl_gpsgb
+
+
+  subroutine oonl_tovs(columnghr,obsSpaceData,datestamp,jobs_out,option_in,source_obs_in,dest_obs_in)
+    !
+    !**s/r oonl_tovs  - Computation of jobs and the residuals to the tovs observations
+    !
+    !
+    !author        : j. halle *cmda/aes  april 8, 2005
+    !
+    !arguments
+    !     option_in: defines input state:
+    !               'HR': High Resolution background state,
+    !               'LR': Low  Resolution background state, (CURRENTLY NOT SUPPORTED)
+    !               'MO': Model state. (CURRENTLY NOT SUPPORTED)
+    !     jobs_out: total value of jobs for tovs
+    !
+    implicit none
+
+    type(struct_columnData) :: columnghr
+    type(struct_obs) :: obsSpaceData
+    integer :: datestamp
+    real(8), optional :: jobs_out
+    character(len=*), optional :: option_in        ! only valid value is HR
+    integer, optional, intent(in) :: source_obs_in ! usually set to OBS_VAR
+    integer, optional, intent(in) :: dest_obs_in   ! usually set to OBS_OMP
+
+    real(8) :: jobs
+    integer :: jdata, source_obs, dest_obs
+    logical :: llprint
+    character(len=2) :: option
+
+    ! 0. set default values if option and source/dest columns not specified
+    !
+    if(present(option_in)) then
+      option = option_in(1:2)
+    else
+      option = 'HR'
+    endif
+    if ( option .ne. 'HR' ) call abort3d('oonl_tovs: Invalid option for input state')
+
+    if(present(source_obs_in)) then
+      source_obs = source_obs_in
+    else
+      source_obs = OBS_VAR
+    endif
+
+    if(present(dest_obs_in)) then
+      dest_obs = dest_obs_in
+    else
+      dest_obs = OBS_OMP
+    endif
+
+    ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
+    ! .    -----------------------------------------------------------------------------
+    call tovs_fill_profiles(columnghr,obsSpaceData,datestamp)
+
+    ! 2.   Compute radiance
+    ! .    ----------------
+    call tovs_rttov(columnghr,obsSpaceData)
+
+    ! 3.   Compute Jobs and the residuals
+    ! .    ----------------------------
+    if ( option .eq. 'HR' .or. option .eq. 'LR' ) then
+      do jdata=1,obs_numbody(obsSpaceData)
+        call obs_bodySet_r(obsSpaceData,OBS_PRM,jdata, obs_bodyElem_r(obsSpaceData,source_obs,jdata))
+      enddo
+    endif
+
+    if(present(jobs_out) .and. option.eq.'HR') then
+      llprint = .true.
+    else
+      llprint = .false.
+    endif
+    jobs = 0.0d0
+
+    call tovs_calc_jo(jobs,llprint,obsSpaceData,dest_obs)
+
+    if(present(jobs_out)) jobs_out=jobs
+
+  end subroutine oonl_tovs
 
 
 end module obsOperators_mod

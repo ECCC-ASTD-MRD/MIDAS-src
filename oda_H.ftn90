@@ -24,6 +24,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use modgpsro_mod
   use modgpsztd_mod
   use minimization_mod
+  use timeCoord_mod
   implicit none
   !
   !Purpose:
@@ -338,14 +339,14 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !                    - call to oda_storeHdx_radiances instead computing Jo
   !
       implicit none
+      integer :: datestamp
 
   !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
   !     .    -----------------------------------------------------------------------------
   !
-  ! put lcolumng into column1  (why?)
-!  column1%all(:,:) = lcolumng%all(:,:)
   if (min_nsim == 1) then
-     call tovs_fill_profiles(lcolumng,lobsSpaceData)
+     datestamp = tim_getDatestamp()
+     call tovs_fill_profiles(lcolumng,lobsSpaceData,datestamp)
   endif
 
   !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov

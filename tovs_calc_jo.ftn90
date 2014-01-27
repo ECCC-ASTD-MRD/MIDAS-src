@@ -53,42 +53,33 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 
   implicit none
 
+  real(8) :: pjo
+  logical :: llprint
   type(struct_obs) :: lobsSpaceData
   integer, intent(in) :: dest_obs       ! probably set to OBS_OMP or OBS_OMA
+
   integer :: isens, indxchn, indxtovs
-
-  real*8 dlsum
-  real*8 pjo, zdtb
-  real*8 zjon,zgami,zqcarg
-
+  real*8 dlsum, zdtb, zjon,zgami,zqcarg
   real*8 zjoch  (0:jpchmax,jpnsatmax)
   real*8 zavgnrm(0:jpchmax,jpnsatmax)
-
   integer j, i, krtid, nchanperline, indxs, indxe
   integer inobsjo, incanjo
   integer idatyp
   integer ichn, ichOBS_A, jl
-!  integer kfailtot
-
   integer inobsch(0:jpchmax,jpnsatmax)
   integer lcanjo(jpchmax)
-
   integer :: index_header, index_body
-
-  logical :: llprint
-
   integer  isrcheq
   external isrcheq
   external abort3d
 
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
-!     1.  Computation of (hx - z)/sigma for tovs data only
-!     .   ------------------------------------------------
+  ! 1.  Computation of (hx - z)/sigma for tovs data only
+  !     ------------------------------------------------
 
   dlsum    = 0.D0
   inobsjo  = 0
-!  kfailtot = 0
   do j = 1, nsensors
      do i = 0, jpchmax
         inobsch(i,j) = 0
@@ -98,22 +89,18 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   enddo
 
   ! loop over all header indices of the 'TO' family
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
   call obs_set_current_header_list(lobsSpaceData,'TO')
   HEADER: do
      index_header = obs_getHeaderIndex(lobsSpaceData)
      if (index_header < 0) exit HEADER
 
-  !  .  1.1  Extract general information for this observation point
-  !  .       ------------------------------------------------------
+     ! 1.1  Extract general information for this observation point
+     !      ------------------------------------------------------
 
-  !     process only radiance data to be assimilated?
-  !     (data type=[164,168,180,181,182,183,185,186])
-
+     ! process only radiance data to be assimilated?
+     ! (data type=[164,168,180,181,182,183,185,186])
      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-
-     if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER       ! Proceed to the next header_index
+     if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER
 
      indxtovs = ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
@@ -122,85 +109,78 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
         call abort3d('tovs_calc_jo    ')
      endif
 
-!     if (rttov_errorstatus(indxtovs) .lt. 20   ) then 
-        isens = lsensor(indxtovs)
+     isens = lsensor(indxtovs)
 
-        ! loop over all body indices (still in the 'TO' family)
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-        call obs_set_current_body_list(lobsSpaceData, index_header)
-        BODY: do 
-           index_body = obs_getBodyIndex(lobsSpaceData)
-           if (index_body < 0) exit BODY
+     ! loop over all body indices for this header (still in the 'TO' family)
+     call obs_set_current_body_list(lobsSpaceData, index_header)
+     BODY: do 
+        index_body = obs_getBodyIndex(lobsSpaceData)
+        if (index_body < 0) exit BODY
 
-           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).ne.1 ) then
-              cycle BODY                ! Proceed to the next body_index
-           end if
+        ! Only consider if flagged for assimilation
+        if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).ne.1 ) cycle BODY                
 
-           ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-           ichn = max(0,min(ichn,jpchmax+1))
-           ichOBS_A = max(0,min(ichn,jpchmax+1))
-           ichn=ichn-chanoffset(isens)
-           indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
-           if ( indxchn .eq. 0 ) then
-              write(*,fmt=9202)
-9202          format(' tovs_calc_jo: error with channel number')
-              call abort3d('tovs_calc_jo    ')
-           endif
+        ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
+        ichn = max(0,min(ichn,jpchmax+1))
+        ichOBS_A = max(0,min(ichn,jpchmax+1))
+        ichn=ichn-chanoffset(isens)
+        indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+        if ( indxchn .eq. 0 ) then
+           write(*,fmt=9202)
+9202       format(' tovs_calc_jo: error with channel number')
+           call abort3d('tovs_calc_jo    ')
+        endif
 
-           zdtb =   radiance_d (indxtovs) % bt(indxchn) &
-                  - obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body)
-           if ( ldbgtov ) then
-              write(*,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
-                           ichn,  radiance_d (indxtovs) % bt(indxchn), &
-                           obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body), zdtb
-           endif
-           call obs_bodySet_r(lobsSpaceData,dest_obs,index_body, -zdtb)
+        zdtb =   obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body) - &
+                 radiance_d (indxtovs) % bt(indxchn)
+        if ( ldbgtov ) then
+           write(*,'(a,i4,2f8.2,f6.2)') ' ichn,sim,obs,diff= ', &
+                        ichn,  radiance_d (indxtovs) % bt(indxchn), &
+                        obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body), -zdtb
+        endif
+        call obs_bodySet_r(lobsSpaceData,dest_obs,index_body, zdtb)
 
-! Comment out the modification of Jobs due to varqc for now, since this is probably
-! needed for use of nonlinear obs operator in minimization, which is not yet
-! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
-!           if (.not. min_lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
-              dlsum =  dlsum &
-                     + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-                        obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
-                     / (2.D0 * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
-                             * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
-!           else
-!             compute contribution of data with varqc
+        ! Comment out the modification of Jobs due to varqc for now, since this is probably
+        ! only needed for use of nonlinear obs operator in minimization, which is not yet
+        ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
+        !if (.not. min_lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
+           dlsum =  dlsum &
+                  + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+                     obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
+                  / (2.D0 * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
+                          * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+        !else
+        !  compute contribution of data with varqc
  
-!              zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
-!              zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-!                      obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.D0
-!              zqcarg = zgami + exp(-1.0D0*zjon)
-!              dlsum= dlsum - log(zqcarg/(zgami+1.D0))
-!           endif
+        !   zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
+        !   zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+        !           obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.D0
+        !   zqcarg = zgami + exp(-1.0D0*zjon)
+        !   dlsum= dlsum - log(zqcarg/(zgami+1.D0))
+        !endif
 
-           inobsjo = inobsjo + 1
-           inobsch(ichOBS_A,Isens) = inobsch(ichOBS_A,Isens) + 1
-           zjoch(ichOBS_A,Isens)   = &
-                    zjoch(ichOBS_A,Isens) &
-                  + obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-                    obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) &
-                 / (obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)* &
-                    obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
-           zavgnrm(ichOBS_A,Isens)   = &
-                    zavgnrm(ichOBS_A,Isens) - &
-                    obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)/ &
-                    obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
-        enddo BODY
-!     else
-!      kfailtot = kfailtot + 1
-!     endif
+        inobsjo = inobsjo + 1
+        inobsch(ichOBS_A,Isens) = inobsch(ichOBS_A,Isens) + 1
+        zjoch(ichOBS_A,Isens)   = &
+                 zjoch(ichOBS_A,Isens) &
+               + obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+                 obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) &
+              / (obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)* &
+                 obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+        zavgnrm(ichOBS_A,Isens)   = &
+                 zavgnrm(ichOBS_A,Isens) - &
+                 obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)/ &
+                 obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+     enddo BODY
 
   enddo HEADER
 
-!     2.  Close up, print summary
-!     .   -----------------------
+  !   2.  Close up, print summary
+  !   .   -----------------------
 
   pjo = dlsum
 
-!    printout of mean jo and normalized average for each sensor.
+  ! printout of mean jo and normalized average for each sensor.
 
   nchanperline = 18
   if ( llprint .and. inobsjo .gt. 0 ) then
@@ -215,9 +195,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
                               zavgnrm(i,krtid)
         enddo
      enddo
-!     if ( kfailtot .gt. 0 ) then
-!        write(*,'(/1x," rttov failures : ",i10)')  kfailtot
-!     endif
 
      do jl = 1, nsensors
         incanjo = 0

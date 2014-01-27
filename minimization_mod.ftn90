@@ -193,16 +193,6 @@ CONTAINS
         call abort3d('aborting in min_minvar')
       endif
 
-! THIS NEEDS TO BE TESTED/REIMPLEMENTED
-! Prepare for non-linear processing of 'TO' data:
-!    - fill PZDBLPRIM8 with Z" = H(xb_lr) + Z'
-!                              = H(xb_lr) - H(xb_hr) + Z
-!      if ( lnlvtov ) then
-!        call tmg_start(48,'NL_OBS_OPER')
-!        call tovs_obs ('LR',ZJOTOV,lcolumng,lobsSpaceData,OBS_OMP,OBS_OMA)
-!        call tmg_stop(48)
-!      endif
-
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
       dataptr%lobsSpaceData => lobsSpaceData
       dataptr%lcolumn       => lcolumn
