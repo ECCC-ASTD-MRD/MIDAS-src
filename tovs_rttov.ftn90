@@ -36,7 +36,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !    -------------------
 !     purpose:
 !
-  use topLevelControl_mod
   use MathPhysConstants_mod
   use tovs_nl_mod
   use MULTIIRBGCHECK
