@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
+subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !
 !**s/r tovs_rttov  - Computation of forward radiance with rttov_direct
 !                   (adapted from part of code of dobstovs)
@@ -71,6 +71,7 @@ end interface
 
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumnhr
+  logical :: bgckMode
 
   real*8  :: ctpmin, ctpmax
   integer :: joff,ilev, ichn
@@ -145,7 +146,7 @@ end interface
 !     1.1   Read surface information
 !     .     ------------------------
 
-  if ( top_BgckMode() ) call EMIS_READ_CLIMATOLOGY
+  if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
 
 !
 !     2.  Computation of hx for tovs data only
@@ -224,7 +225,7 @@ end interface
 
       if (instrum.eq.11 .or. instrum.eq.16 .or. instrum.eq.27) then
         surfem1(:) = 0.
-        if ( top_BgckMode() ) then
+        if ( bgckMode ) then
           call EMIS_GET_IR_EMISSIVITY (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
         else
           surfem1(:) = 0.98d0
@@ -455,7 +456,7 @@ end interface
                  radiancedata_d_th(ith) % bt(joff+1:joff+nchannels_th(ith)/knpf_th(ith))
             radiance_d(io) % clear(:) =  &
                  radiancedata_d_th(ith) % clear(joff+1:joff+nchannels_th(ith)/knpf_th(ith))
-            if ( top_BgckMode() ) then
+            if ( bgckMode ) then
                do jl = 1, nlevels - 1
                   radiance_d(io) % overcast(jl,:) =   &
                        radiancedata_d_th(ith) % overcast(jl,joff+1:joff+nchannels_th(ith)/knpf_th(ith))

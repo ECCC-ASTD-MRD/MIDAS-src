@@ -49,7 +49,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 #endif
   use tovs_nl_mod
   use obsSpaceData_mod
-  use minimization_mod
 
   implicit none
 

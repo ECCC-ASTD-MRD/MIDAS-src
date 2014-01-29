@@ -1,5 +1,5 @@
 module modgpsro_mod
-  use mpivar_mod
+  use mpi_mod
   use modgps04profile, only: gpsprofile
   implicit none
   save

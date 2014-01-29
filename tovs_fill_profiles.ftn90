@@ -14,8 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp)
-#if defined (doc)
+subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
 !
 !**s/r tovs_fill_profiles  - interpolation of obs. space to rttov space
 !                      (adapted from part of code of dobstovs)
@@ -46,9 +45,6 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp)
 !
 !arguments
 !
-!
-#endif
-  use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use tovs_nl_mod
@@ -74,6 +70,8 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp)
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumnghr
   integer :: datestamp
+  real*8  :: LIMLVHU
+  logical :: bgckMode
 
   integer, allocatable :: ksurf     (:) 
   integer, allocatable :: iptobs    (:) 
@@ -321,7 +319,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp)
                  write(*,*)' '
               enddo
            endif
-           call exthum4 (knpf,nlevels,xpres(1:nlevels),qoext)
+           call exthum4 (knpf,nlevels,xpres(1:nlevels),qoext,LIMLVHU)
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext*1000 apres exthum4    = '
@@ -398,7 +396,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp)
            profiles(jj) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
            profiles(jj) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         
-           if ( top_BgckMode() ) then
+           if ( bgckMode ) then
               profiles_qc(jj) % lat          = zlat(j)
               profiles_qc(jj) % lon          = zlon(j)
               profiles_qc(jj) % sunza        = profiles(jj) % sunzenangle
@@ -429,7 +427,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp)
            profiles(jj) % t(:)            = toext(:,j)
            profiles(jj) % q(:)            = qoext(:,j) * q_mixratio_to_ppmv
            profiles(jj) % o3(:)           = ozo(:,j)
-           if ( top_BgckMode() ) profiles_qc(jj) % z(:)         = zhoext(:,j)
+           if ( bgckMode ) profiles_qc(jj) % z(:)         = zhoext(:,j)
 
            profiles(jj) % ctp = 1013.25d0
            profiles(jj) % cfraction = 0.d0

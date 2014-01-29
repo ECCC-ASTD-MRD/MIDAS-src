@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE EXTHUM4(KNPF,KLAPF,PPRES,PAV)
+      SUBROUTINE EXTHUM4(KNPF,KLAPF,PPRES,PAV,LIMLVHU)
 c
 c**** *exthum4* - extrapolate upper level humidity profile.
 c                 (adapted from exthum by J. Eyre)
@@ -69,11 +69,12 @@ c
 *                           and RLIMLVHU set at  0.1mb.  
 *
       use MathPhysConstants_mod
-      use filterObs_mod
       implicit none
 c
       integer klapf, knpf
       REAL*8 PPRES(*),PAV(KLAPF,*)
+      real*8 :: LIMLVHU
+
 c
       REAL*8, allocatable :: ZPRES3(:)
 c
@@ -99,7 +100,7 @@ c               ----------- -------- -------
 c
 c          find top level of given profile
       DO 110 J=KLAPF,1,-1
-           IF (PPRES(J).LT.FILT_RLIMLVHU) THEN
+           IF (PPRES(J).LT.LIMLVHU) THEN
                 INLVW=J
                 GOTO 120
            ENDIF

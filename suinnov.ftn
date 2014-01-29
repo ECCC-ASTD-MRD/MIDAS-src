@@ -49,7 +49,7 @@
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
-      integer :: ierr, datestamp
+      integer :: ierr
       logical lgpdata
 
       write(*,*) '--Starting subrouting suinnov--'
@@ -101,8 +101,7 @@
 !
 !        TOVS - RADIANCE
 !-------------------------------
-      datestamp = tim_getDatestamp()
-      call oonl_tovs(columnhr,obsSpaceData,datestamp,ZJOTOV)
+      call oonl_tovs(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,top_BgckMode(),ZJOTOV)
 !
 !        PROFILER
 !------------------------------
@@ -119,7 +118,7 @@
 !
       ZJOGPSGB=0.0D0
       CALL SETERRGPSGB(obsSpaceData,lgpdata)
-      if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB)
+      if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
 
       call tmg_stop(48)
 !

@@ -16,6 +16,7 @@
 !
 subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use mpivar_mod
+  use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
@@ -25,6 +26,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use modgpsztd_mod
   use minimization_mod
   use timeCoord_mod
+  use filterObs_mod
   implicit none
   !
   !Purpose:
@@ -346,13 +348,13 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !
   if (min_nsim == 1) then
      datestamp = tim_getDatestamp()
-     call tovs_fill_profiles(lcolumng,lobsSpaceData,datestamp)
+     call tovs_fill_profiles(lcolumng,lobsSpaceData,datestamp,filt_rlimlvhu,top_bgckMode())
   endif
 
   !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov
   !     .    --------------------------------------------------------------------------------
   !
-  call tovs_fill_profiles_tl(lcolumn,lcolumng)
+  call tovs_fill_profiles_tl(lcolumn,lcolumng,top_bgckMode())
 
   !     3.   Compute radiance
   !     .    ----------------

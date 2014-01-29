@@ -24,7 +24,6 @@ module obsOperators_mod
   use columnData_mod 
   use bufr
   ! only for oonl_gpsgb
-  use topLevelControl_mod
   use modgps04profilezd
   use modgps08ztdop
   use modgpsztd_mod
@@ -620,7 +619,7 @@ module obsOperators_mod
   end subroutine oonl_gpsro
 
 
-  subroutine oonl_gpsgb(columnhr,obsSpaceData,jobs_out)
+  subroutine oonl_gpsgb(columnhr,obsSpaceData,jobs_out,analysisMode_in)
     !
     !**s/r oonl_gpsgb - Computation of Jo and the residuals to the GB-GPS ZTD observations
     !
@@ -653,6 +652,7 @@ module obsOperators_mod
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
     real(8), optional :: jobs_out
+    logical, optional :: analysisMode_in
 
     type(struct_vco), pointer :: vco_trl
     real(8), allocatable :: zpp (:)
@@ -672,7 +672,7 @@ module obsOperators_mod
     character(len=2) :: lv
     real(4) :: sfcfield_r4
     real  ,pointer :: rdp_r4(:)
-    logical  :: assim, llrej
+    logical  :: assim, llrej, analysisMode
     type(gpsprofilezd)    :: prf
     type(gpsdiff)         :: ztdopv
     !
@@ -696,6 +696,12 @@ module obsOperators_mod
     data xdzmax    / 400.0d0 /
 
     write(*,*)'ENTER oonl_gpsgb'
+
+    if(present(analysisMode_in)) then
+      analysisMode = analysisMode_in
+    else
+      analysisMode = .true.
+    endif
 
     zdzmin = dzmin      
     nobs2p = 50
@@ -817,7 +823,7 @@ module obsOperators_mod
       !    (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
       llrej = .false.
       zpomp = -9999.0D0
-      if ( top_AnalysisMode() ) then
+      if ( analysisMode ) then
         llrej = ( zpwmod .lt. zpwmin )
         if ( lassmet ) then
           if ( .not. llrej ) then
@@ -921,7 +927,7 @@ module obsOperators_mod
     write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
     write(*, *) ' '
 
-    if ( l1obs .and. top_AnalysisMode() ) then
+    if ( l1obs .and. analysisMode ) then
       ! Set assim flag to 0 for all observations except for selected record (site/time)
       if ( ioneobs .ne. -1 ) then
         call obs_set_current_header_list(obsSpaceData,'GP')
@@ -945,7 +951,7 @@ module obsOperators_mod
       
     numgpsztd = icountp
 
-    if ( top_AnalysisMode() .and. icount .gt. 0 ) then
+    if ( analysisMode .and. icount .gt. 0 ) then
 
       if ( .not.l1obs ) then
         write(*,*) ' '
@@ -1010,7 +1016,7 @@ module obsOperators_mod
   end subroutine oonl_gpsgb
 
 
-  subroutine oonl_tovs(columnghr,obsSpaceData,datestamp,jobs_out,option_in,source_obs_in,dest_obs_in)
+  subroutine oonl_tovs(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode_in,jobs_out,option_in,source_obs_in,dest_obs_in)
     !
     !**s/r oonl_tovs  - Computation of jobs and the residuals to the tovs observations
     !
@@ -1029,6 +1035,8 @@ module obsOperators_mod
     type(struct_columnData) :: columnghr
     type(struct_obs) :: obsSpaceData
     integer :: datestamp
+    real(8) :: limlvhu
+    logical, optional :: bgckMode_in
     real(8), optional :: jobs_out
     character(len=*), optional :: option_in        ! only valid value is HR
     integer, optional, intent(in) :: source_obs_in ! usually set to OBS_VAR
@@ -1036,11 +1044,17 @@ module obsOperators_mod
 
     real(8) :: jobs
     integer :: jdata, source_obs, dest_obs
-    logical :: llprint
+    logical :: llprint,bgckMode
     character(len=2) :: option
 
-    ! 0. set default values if option and source/dest columns not specified
+    ! 0. set default values if bgckMode, option and source/dest columns not specified
     !
+    if(present(bgckMode_in)) then
+      bgckMode = bgckMode_in
+    else
+      bgckMode = .false.
+    endif
+
     if(present(option_in)) then
       option = option_in(1:2)
     else
@@ -1062,11 +1076,11 @@ module obsOperators_mod
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
-    call tovs_fill_profiles(columnghr,obsSpaceData,datestamp)
+    call tovs_fill_profiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode)
 
     ! 2.   Compute radiance
     ! .    ----------------
-    call tovs_rttov(columnghr,obsSpaceData)
+    call tovs_rttov(columnghr,obsSpaceData,bgckMode)
 
     ! 3.   Compute Jobs and the residuals
     ! .    ----------------------------
