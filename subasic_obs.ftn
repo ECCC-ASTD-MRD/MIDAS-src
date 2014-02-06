@@ -31,14 +31,15 @@ c
 *
       type(struct_columnData) :: lcolumng
       type(struct_vco), pointer :: vco_anl
-      integer jlev,jobs
+      integer jlev,jobs,nlev_T
       real*8 zhu,one,zpresa,zpresb,zpresad,zpresbd
 
       vco_anl => col_getVco(lcolumng)
       one=1.0D0
+      nlev_T = col_getNumLev(lcolumng,'TH')
 
 !$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu,zpresb,zpresbd,zpresa,zpresad)
-      do jlev = 1,col_getNumLev(lcolumng)
+      do jlev = 1, nlev_T
         do jobs=1,col_getNumCol(lcolumng)
           zhu=exp(col_getElem(lcolumng,jlev,jobs,'HU'))
           lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)

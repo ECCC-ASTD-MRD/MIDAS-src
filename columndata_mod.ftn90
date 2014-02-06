@@ -186,7 +186,7 @@ module columnData_mod
         column%gz_T(:,:)=0.0d0
         column%gz_M(:,:)=0.0d0
 
-        allocate(column%rppobs  (col_getNumLev(column)     ,column%numCol))
+        allocate(column%rppobs  (col_getNumLev(column,'TH'),column%numCol))
         allocate(column%rppobs_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%rppobs_M(col_getNumLev(column,'MM'),column%numCol))
         column%rppobs(:,:)=0.0d0
@@ -206,9 +206,9 @@ module columnData_mod
         column%ypos(:)=0.0d0
         column%xpos(:)=0.0d0
 
-        allocate(column%oltv(2,col_getNumLev(column),numCol))
+        allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
         column%oltv(:,:,:)=0.0d0
-        allocate(column%rtapfac(col_getNumLev(column),numCol))
+        allocate(column%rtapfac(col_getNumLev(column,'TH'),numCol))
         column%rtapfac(:,:)=0.0d0
 
       endif
@@ -278,7 +278,7 @@ module columnData_mod
 
     ! Pressure
     select case(trim(varName))
-    case('PP')
+    case('PR')
       if(varType.eq.'TH') then
         do jobs = 1,columnghr%numCol
           do jlev = 1,col_getNumLev(columnghr,'TH')
@@ -293,7 +293,7 @@ module columnData_mod
         enddo
       else
         do jobs = 1,columnghr%numCol
-          do jlev = 1,col_getNumLev(columnghr)
+          do jlev = 1,col_getNumLev(columnghr,'TH')
             columnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
           enddo
         enddo
@@ -443,7 +443,10 @@ module columnData_mod
       character(len=*), intent(in) :: varName
       logical                      :: varExist 
 
-      if(nmvoexist(vnl_varListIndex(varName))) then
+      if(trim(varName).eq.'PR'.or.trim(varName).eq.'GZ') then
+        ! pressure and height always available
+        varExist = .true.
+      elseif(nmvoexist(vnl_varListIndex(varName))) then
         varExist = .true.
       else
         varExist = .false.
@@ -469,7 +472,7 @@ module columnData_mod
 
     real(kind=8), allocatable :: P_sfc(:,:),zppobs2(:,:)
     real(kind=8), pointer :: zppobs1(:,:,:) => null()
-    integer :: jobs,status,iversion
+    integer :: jobs,status,Vcode
 
     allocate(P_sfc(1,col_getNumCol(column)))
     do jobs = 1,col_getNumCol(column)
@@ -477,8 +480,8 @@ module columnData_mod
     enddo
 
     ! check if vertical coordinate is unstaggered
-    status = vgd_get(column%vco%vgrid,key='ig_1 - vertical coord code',value=iversion)
-    if(iversion .eq. 5001) then
+    status = vgd_get(column%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+    if(Vcode .eq. 5001) then
       write(*,*) 'col_calcPressure: computing pressure on UNstaggered levels'
 
       status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
@@ -486,9 +489,9 @@ module columnData_mod
       if(status.ne.VGD_OK) then
          call abort3d('ERROR with vgd_levels for desired levels ')
       endif
-      allocate(zppobs2(col_getNumLev(column),col_getNumCol(column)))
+      allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
       zppobs2 = transpose(zppobs1(1,:,:))
-      call col_fillmvo(column,'PP','NA',zppobs2)
+      call col_fillmvo(column,'PR','NA',zppobs2)
       if (associated(zppobs1)) deallocate(zppobs1)
       deallocate(zppobs2)
 
@@ -500,7 +503,7 @@ module columnData_mod
       if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
       allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
       zppobs2 = transpose(zppobs1(1,:,:))
-      call col_fillmvo(column,'PP','MM',zppobs2)
+      call col_fillmvo(column,'PR','MM',zppobs2)
       if (associated(zppobs1))  deallocate(zppobs1)
       deallocate(zppobs2)
 
@@ -509,7 +512,7 @@ module columnData_mod
       if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
       allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
       zppobs2 = transpose(zppobs1(1,:,:))
-      call col_fillmvo(column,'PP','TH',zppobs2)
+      call col_fillmvo(column,'PR','TH',zppobs2)
       if (associated(zppobs1)) deallocate(zppobs1)
       deallocate(zppobs2)
 
@@ -677,6 +680,7 @@ module columnData_mod
 
   end subroutine col_copyLatLon
 
+
   function col_getAllColumns(column,varName) result(allColumns)
     implicit none
     type(struct_columnData), intent(in)    :: column
@@ -691,7 +695,7 @@ module columnData_mod
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
           allColumns => column%all(ilev1:ilev2,:)
         else
-          call abort3d('col_getColumn: Unknown variable name! ' // varName)
+          call abort3d('col_getAllColumn: Unknown variable name! ' // varName)
         endif
       else
         allColumns => column%all(:,:)
@@ -701,6 +705,7 @@ module columnData_mod
     end if
 
   end function col_getAllColumns
+
 
   function col_getColumn(column,headerIndex,varName,varType) result(onecolumn)
     implicit none
@@ -714,7 +719,7 @@ module columnData_mod
     if(present(varName)) then
       if(col_varExist(varName)) then
         select case(trim(varName))
-        case('PP')
+        case('PR')
           if(present(varType)) then 
             if(varType.eq.'TH') then
               onecolumn => column%rppobs_T(:,headerIndex)
@@ -776,15 +781,11 @@ module columnData_mod
 
   function col_getNumLev(column,varType) result(nlev)
     implicit none
-    type(struct_columnData), intent(in)    :: column
-    character(len=*), intent(in), optional :: varType
-    integer                                :: nlev
+    type(struct_columnData), intent(in) :: column
+    character(len=*), intent(in)        :: varType
+    integer                             :: nlev
 
-    if(present(varType)) then
-      nlev = vco_getNumLev(column%vco,varType)
-    else
-      nlev = vco_getNumLev(column%vco)
-    endif
+    nlev = vco_getNumLev(column%vco,varType)
 
   end function col_getNumLev
 

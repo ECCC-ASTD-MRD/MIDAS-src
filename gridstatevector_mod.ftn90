@@ -88,15 +88,11 @@ MODULE gridStateVector_mod
 
   function gsv_getNumLev(statevector,varType) result(nlev)
     implicit none
-    type(struct_gsv), intent(in)    :: statevector
-    character(len=*), intent(in), optional :: varType
-    integer                                :: nlev
+    type(struct_gsv), intent(in)  :: statevector
+    character(len=*), intent(in)  :: varType
+    integer                       :: nlev
 
-    if(present(varType)) then
-      nlev = vco_getNumLev(statevector%vco,varType)
-    else
-      nlev = vco_getNumLev(statevector%vco)
-    endif
+    nlev = vco_getNumLev(statevector%vco,varType)
 
   end function gsv_getNumLev
 

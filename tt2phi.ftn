@@ -34,7 +34,7 @@
       IMPLICIT NONE
 c
       type(struct_columnData) :: lcolumnghr
-      integer jobs,jlev
+      integer jobs,jlev,nlev_T
       real*8 alpha
       real*8, allocatable ::  vmahr(:)
       real*8, allocatable ::  vmbhr(:)
@@ -44,24 +44,25 @@ c
       real*8, allocatable ::  vmfhr(:)
       real*8, allocatable ::  pressure(:)
 *
-      allocate(vmahr(col_getNumLev(lcolumnghr)))
-      allocate(vmbhr(col_getNumLev(lcolumnghr)))
-      allocate(vmchr(col_getNumLev(lcolumnghr)))
-      allocate(vmdhr(col_getNumLev(lcolumnghr)))
-      allocate(vmehr(col_getNumLev(lcolumnghr)))
-      allocate(vmfhr(col_getNumLev(lcolumnghr)))
-      allocate(pressure(col_getNumLev(lcolumnghr)))
+      nlev_T = col_getNumLev(lcolumnghr,'TH')
+      allocate(vmahr(nlev_T))
+      allocate(vmbhr(nlev_T))
+      allocate(vmchr(nlev_T))
+      allocate(vmdhr(nlev_T))
+      allocate(vmehr(nlev_T))
+      allocate(vmfhr(nlev_T))
+      allocate(pressure(nlev_T))
 *
       alpha=-1.0D0
 c
 !$OMP PARALLEL DO PRIVATE(jobs,jlev,pressure,
 !$OMP& vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
       do jobs = 1, col_getNumCol(lcolumnghr)
-        do jlev = 1, col_getNumLev(lcolumnghr)
+        do jlev = 1, nlev_T
           pressure(jlev)=col_getPressure(lcolumnghr,jlev,jobs,'NA')
         enddo
-        call matapatnew(pressure,alpha,col_getNumLev(lcolumnghr),vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
-        call vtap1dnew(jobs,col_getNumLev(lcolumnghr),vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
+        call matapatnew(pressure,alpha,nlev_T,vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
+        call vtap1dnew(jobs,nlev_T,vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
       enddo
 !$OMP END PARALLEL DO
 c
@@ -211,26 +212,26 @@ C
       REAL*8   ZAK, ZBK, ZCK,ZCON,zhu,mountain
       real*8, pointer :: gz_column(:)
 **
-      do jk = 1, col_getNumLev(lcolumnghr)
+      do jk = 1, nlev_T
         zhu = exp(col_getElem(lcolumnghr,jk,kobs,'HU'))
         ztv(jk) = fotvt8(col_getElem(lcolumnghr,jk,kobs,'TT'),zhu)
       enddo
 c
       ZCON = -MPC_RGAS_DRY_AIR_R8
-      ZAK = -2.0D0*ZCON*VMAHR(col_getNumLev(lcolumnghr))
-      ZBK = -2.0D0*ZCON*VMBHR(col_getNumLev(lcolumnghr))
-      ZCK = -2.0D0*ZCON*VMCHR(col_getNumLev(lcolumnghr))
+      ZAK = -2.0D0*ZCON*VMAHR(nlev_T)
+      ZBK = -2.0D0*ZCON*VMBHR(nlev_T)
+      ZCK = -2.0D0*ZCON*VMCHR(nlev_T)
       gz_column => col_getColumn(lcolumnghr,kobs,'GZ')
       mountain = col_getMountain(lcolumnghr,kobs)
-      gz_column(col_getNumLev(lcolumnghr)) = mountain
-      gz_column(col_getNumLev(lcolumnghr)-1)=
-     $                   ZAK*ztv(col_getNumLev(lcolumnghr)-1)+
-     $                   ZBK*ztv(col_getNumLev(lcolumnghr))+
-     &                   ZCK*ztv(col_getNumLev(lcolumnghr)-2)+
-     $                   gz_column(col_getNumLev(lcolumnghr))
-      IKLEVM2 = col_getNumLev(lcolumnghr)-2
+      gz_column(nlev_T) = mountain
+      gz_column(nlev_T-1)=
+     $                   ZAK*ztv(nlev_T-1)+
+     $                   ZBK*ztv(nlev_T)+
+     &                   ZCK*ztv(nlev_T-2)+
+     $                   gz_column(nlev_T)
+      IKLEVM2 = nlev_T-2
       do JK = 1, IKLEVM2
-        IK = col_getNumLev(lcolumnghr)-1-JK
+        IK = nlev_T-1-JK
         ZAK = -2.0D0*ZCON*VMAHR(IK+1)
         ZBK = -2.0D0*ZCON*VMBHR(IK+1)
         ZCK = -2.0D0*ZCON*VMCHR(IK+1)

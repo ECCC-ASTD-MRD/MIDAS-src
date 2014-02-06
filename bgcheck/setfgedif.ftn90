@@ -79,8 +79,8 @@
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      NGPSLEV=col_getNumLev(lcolumng)
-      NWNDLEV=col_getNumLev(lcolumng)
+      NGPSLEV=col_getNumLev(lcolumng,'TH')
+      NWNDLEV=col_getNumLev(lcolumng,'MM')
       LFIRST=.FALSE.
       if ( .NOT.allocated(vGPSRO_Jacobian) ) then
          LFIRST = .TRUE.

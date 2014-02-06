@@ -1,0 +1,114 @@
+SUBROUTINE ltt2phi_gem4(column,columng)
+  !
+  !**s/r ltt2phi_gem4 - Temperature to geopotential transformation on GEM4 staggered levels
+  !               NOTE: we assume 
+  !                     1) nlev_T = nlev_M+1 
+  !                     2) GZ_T(nlev_T) = GZ_M(nlev_M), both at the surface
+  !                     3) a thermo level exists at the top, higher than the highest momentum level
+  !                     4) the placement of the thermo levels means that GZ_T is the average of 2 nearest GZ_M
+  !                        (according to Ron and Claude)
+  !
+  !Author  : M. Buehner, February 2014
+  !
+  use mathPhysConstants_mod
+  use physicsFunctions_mod
+  use columnData_mod
+  implicit none
+
+  type(struct_columnData) :: column,columng
+
+  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,stat
+  real(8) :: hu,tt,delPsfc,ratioP
+  real(8), allocatable :: tv(:),delTv(:)
+  real(8), allocatable :: delLnP_M(:),delLnP_T(:)
+  real(8), pointer     :: delGz_M(:),delGz_T(:)
+  real, pointer :: dP_dPsfc_M_r4(:) => null()
+  real, pointer :: dP_dPsfc_T_r4(:) => null()
+  real(4) :: Psfc_r4
+  type(struct_vco), pointer :: vco_anl
+
+  vco_anl => col_getVco(columng)
+
+  nlev_T = col_getNumLev(columng,'TH')
+  nlev_M = col_getNumLev(columng,'MM')
+  write(*,*) 'ltt2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
+  if(nlev_T .ne. nlev_M+1) call abort3d('ltt2phi_gem4: nlev_T is not equal to nlev_M+1!')
+
+  allocate(tv(nlev_T))
+  allocate(delTv(nlev_T))
+  allocate(delLnP_M(nlev_M))
+  allocate(delLnP_T(nlev_T))
+
+  ! loop over all columns
+  do columnIndex = 1, col_getNumCol(columng)
+
+    delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
+    delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
+
+    ! initialize GZ increment to zero
+    delGz_M(1:(nlev_M-1)) = 0.0d0
+    delGz_T(1:(nlev_T-1)) = 0.0d0
+
+    ! compute dP_dPsfc on momentum and thermo levels
+    Psfc_r4 = real(col_getElem(columng,1,columnIndex,'P0'),4)
+    stat= vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_M,dP_dPsfc_M_r4,Psfc_r4)
+    stat= vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dP_dPsfc_T_r4,Psfc_r4)
+
+    ! compute lnP increment on momentum and thermo levels
+    delPsfc = col_getElem(column,1,columnIndex,'P0')
+    do lev_M = 1, nlev_M
+      delLnP_M(lev_M) = real(dP_dPsfc_M_r4(lev_M),8)*delPsfc/col_getPressure(columng,lev_M,columnIndex,'MM')
+    enddo
+    do lev_T = 1, nlev_T
+      delLnP_T(lev_T) = real(dP_dPsfc_T_r4(lev_T),8)*delPsfc/col_getPressure(columng,lev_T,columnIndex,'TH')
+    enddo
+
+    ! compute background virtual temperature and its increment on thermo levels
+    do lev_T = 1, nlev_T
+      hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
+      tt = col_getElem(columng,lev_T,columnIndex,'TT')
+      tv(lev_T) = fotvt8(tt,hu)
+      ! delTv = dTv_dT*delT + dTv_dLQ*delLQ
+      delTv(lev_T) = fottva(hu,1.0d0)*col_getElem(column,lev_T,columnIndex,'TT') +   &
+                     folnqva(hu,tt,1.0d0)*col_getElem(column,lev_T,columnIndex,'HU')
+    enddo
+    
+    ! compute GZ increment on momentum levels
+    do lev_M = (nlev_M-1), 1, -1
+      lev_T = lev_M+1 ! thermo level just below momentum level being computed
+      ratioP = col_getPressure(columng,lev_M+1,columnIndex,'MM') / col_getPressure(columng,lev_M,columnIndex,'MM')
+      delGz_M(lev_M) = delGz_M(lev_M+1) +   &
+                       MPC_RGAS_DRY_AIR_R8*( delTv(lev_T)*log(ratioP) +  & 
+                                             tv(lev_T)*(delLnP_M(lev_M+1) - delLnP_M(lev_M)) )
+    enddo
+
+    ! compute GZ increment on top thermo level (from top momentum level)
+    ratioP = col_getPressure(columng,1,columnIndex,'MM') / col_getPressure(columng,1,columnIndex,'TH')
+    delGz_T(1) = delGz_M(1) +  &
+                 MPC_RGAS_DRY_AIR_R8*( delTv(1)*log(ratioP) +  &
+                                       tv(1)*(delLnP_M(1) - delLnP_T(1)) )
+
+    ! compute GZ increment on remaining thermo levels by simple averaging
+    do lev_T = 2, (nlev_T-1)
+      lev_M = lev_T ! momentum level just below thermo level being computed
+      delGz_T(lev_T) = 0.5d0*( delGz_M(lev_M-1) + delGz_M(lev_M) )
+    enddo
+
+    if(columnIndex.eq.1) then
+      do lev_M = 1, nlev_M
+        write(*,*) 'ltt2phi_gem4: delGz_M=',lev_M,delGz_M(lev_M)
+      enddo
+      do lev_T = 1, nlev_T
+        write(*,*) 'ltt2phi_gem4: delGz_T=',lev_T,delGz_T(lev_T)
+      enddo
+    endif
+
+  enddo
+
+  deallocate(tv)
+  deallocate(delTv)
+  deallocate(delLnP_M)
+  deallocate(delLnP_T)
+
+end subroutine ltt2phi_gem4
+

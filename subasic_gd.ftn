@@ -58,7 +58,7 @@
       integer anl_gid,ezqkdef
       REAL*8, allocatable :: zttg(:,:,:), zqqg(:,:,:), zpsg(:,:)
       real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
-      integer ntrials, nlev, nultrl(500)  
+      integer ntrials, nlev_T, nultrl(500)  
       CHARACTER(len=2)   :: flnum 
       CHARACTER(len=3)   :: flnum2
       CHARACTER(len=128) :: trialfile 
@@ -68,10 +68,10 @@
       vco_anl => gsv_getVco(statevectorg)
       vco_trl => col_getVco(lcolumnhr)
 
-      nlev = gsv_getNumLev(statevectorg)
+      nlev_T = gsv_getNumLev(statevectorg,'TH')
       allocate(zpsg(statevectorg%ni,statevectorg%nj))
-      allocate(zttg(statevectorg%ni,statevectorg%nj,nlev))
-      allocate(zqqg(statevectorg%ni,statevectorg%nj,nlev))
+      allocate(zttg(statevectorg%ni,statevectorg%nj,nlev_T))
+      allocate(zqqg(statevectorg%ni,statevectorg%nj,nlev_T))
 !
 ! Open all of the Trial fields
 !
@@ -140,13 +140,13 @@
         ! read the background TT, interpolate to analysis grid and put result on proc jstep-1
         ! NOTE: all processors participate in reading the file
         call vhfstfld(zttg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &       nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
+     &       nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep)
 
         ! copy interpolated TT to statevectorg
         if(mpi_myid.eq.(jstep-1)) then
           tt_ptr => gsv_getField(statevectorg,'TT')
           CALL INITGDG2(tt_ptr(:,:,:,1),zttg,
-     &                  statevectorg%ni,statevectorg%nj,nlev,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
         endif
 !
 !       Specific-Humidity
@@ -157,13 +157,13 @@
         ! read the background HU, interpolate to analysis grid and put result on proc jstep-1
         ! NOTE: all processors participate in reading the file
         call vhfstfld(zqqg,statevectorg%ni,statevectorg%nj,anl_gid,
-     &       nlev,clnomvar,datestamp,nultrl,ntrials,jstep)
+     &       nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep)
 
         ! copy interpolated HU to statevectorg
         if(mpi_myid.eq.(jstep-1)) then
           hu_ptr => gsv_getField(statevectorg,'HU')
           CALL INITGDG2(hu_ptr(:,:,:,1),zqqg,
-     &                  statevectorg%ni,statevectorg%nj,nlev,CLNOMVAR)
+     &                  statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
         endif
 
       enddo ! jstep
@@ -245,13 +245,12 @@ c     We will process GZ on momentum levels only.
 c     We will therefore get the parameters for UU which is present
 c     on momentum levels.
 
-      if (clnomvar .eq. 'GZ') then
-        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &       ,ITRLGID,'UU',kstampv,kmaxlev,kulfst
-     &       ,ip1style,ip1kind,ktrials,koutmpg)
+      if (varName .eq. 'GZ') then
+        call abort3d('vhfstfld (subasic_gd): ' // 
+     &               'use of GZ background state not supported!')
       else
         call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR
-     &       ,ITRLGID,clnomvar,kstampv,kmaxlev,kulfst
+     &       ,ITRLGID,varName,kstampv,kmaxlev,kulfst
      &       ,ip1style,ip1kind,ktrials,koutmpg)
       endif
 c
@@ -278,18 +277,18 @@ c     Convert real value P to IP
       allocate(zhighvar(ini,inj))
       allocate(zlowvar(statevectorg%ni,statevectorg%nj,itrlnlev))
 
-      write(*,*)'vhfstfld: reading ',clnomvar
+      write(*,*)'vhfstfld: reading ',varName
 
       do JLEV = (1+mpi_myid),itrlnlev,mpi_nprocs
 c
 c Read the high-res trial field
 c
         ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket,
-     &       iip1s(jlev), iip2, iip3,cltypvar,clnomvar)
+     &       iip1s(jlev), iip2, iip3,cltypvar,varName)
 
         if (ikey.lt.0) then
           write(*,*) 'Problems finding variable '
-     &         ,clnomvar,' at level ',iip1s(jlev),' in trial file'
+     &         ,varName,' at level ',iip1s(jlev),' in trial file'
           call abort3d('VHFSTFLD')
         endif
 
@@ -374,19 +373,13 @@ c
             call abort3d('ERROR with vgd_levels for anl levels')
           endif
 c
-c Computation of pressure values on trial profiles of the high
-c resolution horizonal grid (I think there is a bug here, since 
-c GZ is actually on momentum levels; the commented code corrects the
-c bug, but to keep the same behaviour as before it isn't used yet.)
-c (January, 2013, Mark Buehner)
-c
-!          if (trim(varName) .eq. 'GZ') then
-!            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_M,
-!     &                        levels=zprestrl,sfc_field=zps,in_log=.false.)
-!          else
+          if (trim(varName) .eq. 'GZ') then
+            call abort3d('vhfstfld (subasic_gd): ' // 
+     &                   'use of GZ background state not supported!')
+          else
             status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,
      &                        levels=zprestrl,sfc_field=zps,in_log=.false.)
-!          endif
+          endif
 
           if(status.ne.VGD_OK)then
              call abort3d('ERROR with vgd_levels for trl levels')

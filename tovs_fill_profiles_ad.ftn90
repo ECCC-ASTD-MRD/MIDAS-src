@@ -56,7 +56,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   integer :: istride, ilen, imodulo
   integer :: knlev,nlevels,nobmax
   integer :: j, i, krtid, jf, iobs, jj, stat
-  integer :: ilowlvl, knpf, jo
+  integer :: ilowlvl_T, ilowlvl_M, knpf, jo
   integer :: jk, jn, jl
 
   real*8, allocatable :: to_ad    (:,:)
@@ -87,12 +87,14 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
                  
 
   vco_anl => col_getVco(lcolumng)
-  knlev = col_getNumLev(lcolumng)
+  knlev = col_getNumLev(lcolumng,'TH')
 
   if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,knlev,1,'NA') ) then
-     ilowlvl = knlev
+     ilowlvl_M = col_getNumLev(lcolumng,'MM')
+     ilowlvl_T = col_getNumLev(lcolumng,'TH')
   else
-     ilowlvl = 1
+     ilowlvl_M = 1
+     ilowlvl_T = 1
   endif
 
   
@@ -200,12 +202,12 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) * q_mixratio_to_ppmv
            ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p *MPC_MBAR_PER_PA_R8
            tg_column(1)       = profiles_ad(iptobs(j)) % skin % t
-           tt_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % t
-!!!        hu_column(ilowlvl) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
-!!!        hu_column(ilowlvl) = qoext(ilowlvl,j) * profiles_ad(iptobs(j)) % s2m % q 
-           hu_column(ilowlvl) = 0.d0 
-           uu_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % u
-           vv_column(ilowlvl) = profiles_ad(iptobs(j)) % s2m % v
+           tt_column(ilowlvl_T) = profiles_ad(iptobs(j)) % s2m % t
+!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
+!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,j) * profiles_ad(iptobs(j)) % s2m % q 
+           hu_column(ilowlvl_T) = 0.d0 
+           uu_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % u
+           vv_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % v
         end do
 
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
@@ -277,11 +279,11 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
 
-              call intavgad (zvlev(:,jn:jn+ilen-1),vco_anl%db_m,zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
+              call intavgad (zvlev(:,jn:jn+ilen-1),vco_anl%db_t,zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
                    zps_ad(jn:jn+ilen-1),knlev,knlev,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to_ad(:,jn:jn+ilen-1))
 
-              call intavgad (zvlev(:,jn:jn+ilen-1),vco_anl%db_m,zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
+              call intavgad (zvlev(:,jn:jn+ilen-1),vco_anl%db_t,zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
                    zps_ad(jn:jn+ilen-1),knlev,knlev,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo_ad(:,jn:jn+ilen-1))
 
@@ -299,7 +301,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            hu_column => col_getColumn(lcolumn,iptobscma(jn),'HU')
 
            ps_column(1) = ps_column(1) + zps_ad  (jn) * MPC_MBAR_PER_PA_R8
-           do jl = 2, col_getNumLev(lcolumn)
+           do jl = 2, col_getNumLev(lcolumn,'TH')
               tt_column(jl) = tt_column(jl) + zt_ad  (jl,jn)
               hu_column(jl) = hu_column(jl) + zlq_ad (jl,jn)
            enddo

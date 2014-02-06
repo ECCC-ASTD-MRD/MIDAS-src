@@ -91,16 +91,17 @@
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      allocate(ZETA(col_getNumLev(lcolumng)))
-      allocate(ZPP(col_getNumLev(lcolumng)))
-      allocate(ZDP(col_getNumLev(lcolumng)))
-      allocate(ZTT(col_getNumLev(lcolumng)))
-      allocate(ZHU(col_getNumLev(lcolumng)))
-      allocate(ZGZ(col_getNumLev(lcolumng)))
-      allocate(ZTTB(col_getNumLev(lcolumng)))
-      allocate(ZHUB(col_getNumLev(lcolumng)))
-      allocate(ZQQB(col_getNumLev(lcolumng)))
-      allocate(ZQQ(col_getNumLev(lcolumng)))
+      NFLEV = col_getNumLev(lcolumng,'TH')
+      allocate(ZETA(NFLEV))
+      allocate(ZPP(NFLEV))
+      allocate(ZDP(NFLEV))
+      allocate(ZTT(NFLEV))
+      allocate(ZHU(NFLEV))
+      allocate(ZGZ(NFLEV))
+      allocate(ZTTB(NFLEV))
+      allocate(ZHUB(NFLEV))
+      allocate(ZQQB(NFLEV))
+      allocate(ZQQ(NFLEV))
 
 !c     Number of locations/sites for observation operator test
       INOBS_OPT = 50
@@ -115,7 +116,7 @@
 !c
       vco_anl => col_getVco(lcolumng)
       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
-      if (iversion .ne. 5002) then
+      if (iversion .eq. 5002) then
          LSTAG = .TRUE. 
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
          WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
@@ -131,7 +132,6 @@
          WRITE(*,*) 'ZCF = ', ZCF
       endif
 
-      NFLEV = col_getNumLev(lcolumng,'TH')
 !C
 !C     *    .   1.1  Eta vector
 !C     *    .        ----------

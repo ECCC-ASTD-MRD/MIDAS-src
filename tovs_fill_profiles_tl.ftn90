@@ -63,7 +63,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
   integer :: istride, ilen, imodulo
   integer :: nlevels,knlev,nobmax
   integer :: j, i, krtid, jf, iobs, jj, stat
-  integer :: ilowlvl, knpf, jo
+  integer :: ilowlvl_M,ilowlvl_T, knpf, jo
   integer :: jk, jn, jl
 
   real*8, allocatable :: to_tl    (:,:)
@@ -91,12 +91,14 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 !     .     ------------------------------------------------
                  
   vco_anl => col_getVco(lcolumng)
-  knlev = col_getNumLev(lcolumng)
+  knlev = col_getNumLev(lcolumng,'TH')
 
   if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,knlev,1,'NA') ) then
-     ilowlvl = knlev
+     ilowlvl_M = col_getNumLev(lcolumng,'MM')
+     ilowlvl_T = col_getNumLev(lcolumng,'TH')
   else
-     ilowlvl = 1
+     ilowlvl_M = 1
+     ilowlvl_T = 1
   endif
 
  
@@ -226,10 +228,10 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
 
-              call intavgtl (zvlev(:,jn:jn+ilen-1),vco_anl%db_m,zt_tl(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
+              call intavgtl (zvlev(:,jn:jn+ilen-1),vco_anl%db_t,zt_tl(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
                    zps_tl(jn:jn+ilen-1),knlev,knlev,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn+ilen-1))
-              call intavgtl (zvlev(:,jn:jn+ilen-1),vco_anl%db_m,zlq_tl(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
+              call intavgtl (zvlev(:,jn:jn+ilen-1),vco_anl%db_t,zlq_tl(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
                    zps_tl(jn:jn+ilen-1),knlev,knlev,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo_tl(:,jn:jn+ilen-1))
 
@@ -312,19 +314,19 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            profiles_tl(jj) % skin % t        = col_getElem(lcolumn,1,iptobscma(j),'TG')
            profiles_tl(jj) % skin % fastem(:)= 0.0d0
            profiles_tl(jj) % skin % salinity = 0.0d0
-           profiles_tl(jj) % s2m % t         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'TT')
+           profiles_tl(jj) % s2m % t         = col_getElem(lcolumn,ilowlvl_T,iptobscma(j),'TT')
 
-   !! The following line has been commented out because qoext(ilowlvl,j) may be out of bound
-!!!        profiles_tl(jj) % s2m % q         = qoext(ilowlvl,j) * col_getElem(lcolumn,ilowlvl,iptobscma(j),'HU') * q_mixratio_to_ppmv
+   !! The following line has been commented out because qoext(ilowlvl_T,j) may be out of bound
+!!!        profiles_tl(jj) % s2m % q         = qoext(ilowlvl_T,j) * col_getElem(lcolumn,ilowlvl_T,iptobscma(j),'HU') * q_mixratio_to_ppmv
    !! The right code should be
-        !!profiles_tl(jj) % s2m % q         = exp(gomq1(ilowlvl,iptobscma(j))) * pgomq_tl(ilowlvl,iptobscma(j)) * q_mixratio_to_ppmv
+        !!profiles_tl(jj) % s2m % q         = exp(gomq1(ilowlvl_T,iptobscma(j))) * pgomq_tl(ilowlvl_T,iptobscma(j)) * q_mixratio_to_ppmv
    !! but since the logical flag 'use_q2m' is set to .false. in rttov_const.F90 (in RTTOV code)
    !! this variable profiles_tl(jj) % s2m % q is not used so it can be set to 0
            profiles_tl(jj) % s2m % q         = 0.d0
 
            profiles_tl(jj) % s2m % p         = col_getElem(lcolumn,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
-           profiles_tl(jj) % s2m % u         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'UU')
-           profiles_tl(jj) % s2m % v         = col_getElem(lcolumn,ilowlvl,iptobscma(j),'VV')
+           profiles_tl(jj) % s2m % u         = col_getElem(lcolumn,ilowlvl_M,iptobscma(j),'UU')
+           profiles_tl(jj) % s2m % v         = col_getElem(lcolumn,ilowlvl_M,iptobscma(j),'VV')
         
            profiles_tl(jj) % p(1:nlevels)    = 0.d0
            profiles_tl(jj) % t(1:nlevels)    = toext_tl(1:nlevels,j)

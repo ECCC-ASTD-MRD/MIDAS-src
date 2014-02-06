@@ -11,7 +11,7 @@ program calcbmatrix_main
 
   character(len=256), parameter :: enspathname = './ensemble'
   character(len=256) :: ensfilebasename
-  character(len=3)   :: censnumber
+  character(len=4)   :: censnumber
   character(len=256), allocatable :: cflensin(:)
 
   integer           :: ens, nens
@@ -44,7 +44,7 @@ program calcbmatrix_main
 
   allocate(cflensin(nens))
   do ens = 1,nens
-    write(censnumber,'(i3.3)') ens
+    write(censnumber,'(i4.4)') ens
     cflensin(ens)= trim(enspathname) // '/' // trim(ensfilebasename) // censnumber
     write(*,*) 'ensemble file: ',ens, trim(cflensin(ens))
   end do
@@ -55,7 +55,7 @@ program calcbmatrix_main
 
   !- 1.4 Initialize the vertical grid
   call vco_SetupFromFile( vco_ens,            & ! OUT
-                          cflensin(1), .true. ) ! IN
+                          cflensin(1), .false. ) ! IN
 
   !- 1.5 Read NAMCONF namelist to find the mode
   cmode  = 'BHI'  ! default value

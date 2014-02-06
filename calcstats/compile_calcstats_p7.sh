@@ -3,6 +3,15 @@
 mode=$1
 #nompi=$2
 
+if [ "$mode" == "" ] ; then
+  echo " "
+  echo "------------------------------------------------------- "
+  echo "WARNING: no compilation mode specified, assuming 'full'"
+  echo "------------------------------------------------------- "
+  echo " "
+  mode=full
+fi
+
 if [ $mode == full ] ; then
   echo
   echo "----------------------------------------"
@@ -87,10 +96,10 @@ if [ $mode == full ] ; then
   . s.ssmuse.dot rpn_comm
 
   # Create a local copy of the source code
-  trunkfiles="abort.ftn physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 abort.ftn physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             gaussgrid_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
-            mpi_mod.ftn90 utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
+            utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
             verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90"
 
   cd ${trunkdir}
@@ -115,7 +124,8 @@ if [ $mode == full ] ; then
   rm -f $SRC0
 
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90"
+  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
+  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90"
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
@@ -151,7 +161,7 @@ if [ $mode == full ] ; then
   grep -i ERROR listing?
   if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
 
-  rm -f *.ftn* *.f *.f90
+  rm -f *.ftn* 
 
   echo "FINISHED COMPILATION AT:"
   date

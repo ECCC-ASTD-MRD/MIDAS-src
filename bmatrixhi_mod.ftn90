@@ -24,6 +24,9 @@ MODULE BmatrixHI
   use gridStateVector_mod
   use globalSpectralTransform
   use gaussGrid_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use varNameList_mod
   implicit none
   save
   private
@@ -35,10 +38,10 @@ MODULE BmatrixHI
 
   logical            :: initialized = .false.
   integer            :: nj_l,ni_l
-  integer            :: nflev_l,nkgdim_l,nksdim2_l
-  integer            :: ntrunc_l,nla_l,nla_mpilocal
-  integer            :: cvDim_l,cvDim_mpiglobal,nind_mpilocal(0:300)
-  integer            :: gstID,gstID2
+  integer            :: nlev_M,nlev_T,nkgdim,nkgdim2
+  integer            :: ntrunc,nla_mpiglobal,nla_mpilocal
+  integer            :: cvDim_mpilocal,cvDim_mpiglobal,nind_mpilocal(0:300)
+  integer            :: gstID
   integer            :: nlev_bdl
 
   real*8,allocatable :: tantheta(:,:)
@@ -57,6 +60,7 @@ MODULE BmatrixHI
   real*8             :: scaleFactor(maxNumLevels)
   real*8             :: scaleFactorLQ(maxNumLevels)
   logical            :: scaleTG
+  logical            :: useStd2d
   integer            :: ntoar = 3
   real*8             :: ralphatoar = 0.2d0
   integer            :: ntgcorrtyp=1
@@ -66,7 +70,7 @@ MODULE BmatrixHI
   real*8             :: rlimsuptg=3.0d0
   logical            :: llimtg=.true.
   integer            :: nulbgst=0
-  integer            :: nflevptot_l=79
+  integer            :: nLevPtoT
   real*8             :: rvlocbalt   = 6.0d0
   real*8             :: rvlocpsi    = 6.0d0
   real*8             :: rvlocchi    = 6.0d0
@@ -88,9 +92,9 @@ MODULE BmatrixHI
   integer            :: nspositQ
   integer            :: nspositPS 
   integer            :: nspositTG
-  real*8,allocatable :: pressureProfile(:)
 
-  ! these should be somewhere else, shared with GST,SST
+  real*8, pointer    :: pressureProfile_M(:),pressureProfile_T(:)
+
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer,allocatable :: allmBeg(:),allmEnd(:),allmSkip(:),allmCount(:)
   integer             :: myLatBeg,myLatEnd
@@ -100,25 +104,30 @@ MODULE BmatrixHI
 
 CONTAINS
 
-  SUBROUTINE BHI_setup(NI_IN,NJ_IN,NFLEV_IN,pressureProfile_in,CVDIM_OUT)
+  SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT)
     implicit none
 
-    integer        :: ni_in,nj_in,nflev_in
-    integer        :: cvDim_out
-    real*8         :: pressureProfile_in(nflev_in)
+    type(struct_hco),pointer :: hco_in
+    type(struct_vco),pointer :: vco_in
+    integer          :: cvDim_out
 
-    integer        :: ntrunc,jlev,mpiMode,nulnam,ierr,fnom,fclos,jm,jn,jk
-    integer        :: latPerPE,myLatHalfBeg,myLatHalfEnd
-    logical        :: llfound
+    integer          :: jlev,mpiMode,nulnam,ierr,fnom,fclos,jm,jn,jk,status
+    integer          :: latPerPE,myLatHalfBeg,myLatHalfEnd
+    logical          :: llfound
+    real(8)          :: zps
 
     !namelist
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,useStd2d
+
+    nLev_M=vco_in%nlev_M
+    nLev_T=vco_in%nlev_T
 
     ! default values for namelist variables
     ntrunc=108
     scaleFactor(:)=1.0d0
     scaleFactorLQ(:)=1.0d0
     scaleTG=.true.
+    useStd2d=.false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -127,7 +136,7 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,nml=nambhi)
     ierr=fclos(nulnam)
 
-    do jlev=1,nflev_in
+    do jlev=1,max(nLev_M,nLev_T)
       if(scaleFactor(jlev).gt.0.0d0) then 
         scaleFactor(jlev)=sqrt(scaleFactor(jlev))
       else
@@ -135,14 +144,14 @@ CONTAINS
       endif
     enddo
 
-    if (sum(scaleFactor(1:nflev_in)).eq.0.0d0 ) then
+    if (sum(scaleFactor(1:max(nLev_M,nLev_T))).eq.0.0d0 ) then
       if(mpi_myid.eq.0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out=0
       initialized = .true.
       return
     end if
 
-    do jlev=1,nflev_in
+    do jlev=1,max(nLev_M,nLev_T)
       if(scaleFactorLQ(jlev).gt.0.0d0) then 
         scaleFactorLQ(jlev)=sqrt(scaleFactorLQ(jlev))
       else
@@ -150,37 +159,32 @@ CONTAINS
       endif
     enddo
 
-    allocate(pressureProfile(nflev_in))
-    pressureProfile(:)=pressureProfile_in(:)
-
-    ! this should come from the state vector object
-    nspositVO=1
-    nspositDI=1*nflev_in+1
-    nspositTT=2*nflev_in+1
-    nspositQ =3*nflev_in+1
-    nspositPS=4*nflev_in+1
-    nspositTG=4*nflev_in+2
     numvar3d = 4
     numvar2d = 2
 
-    nflev_l=nflev_in
-    nkgdim_l=numvar3d*nflev_l+numvar2d 
-    nksdim2_l=nkgdim_l+nflev_l
+    nLevPtot=nLev_M-1 ! ignore streamfunction at hyb=1, since highly correlated with next level
+    nspositVO=1
+    nspositDI=1*nLev_M+1
+    nspositTT=2*nLev_M+1
+    nspositQ =2*nLev_M+1*nLev_T+1
+    nspositPS=2*nLev_M+2*nLev_T+1
+    nspositTG=2*nLev_M+2*nLev_T+2
+    nkgdim = nLev_M*2 + nLev_T*2 + numvar2d
+    nkgdim2=nkgdim+nLev_T
 
-    ntrunc_l=ntrunc
-    nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
+    nla_mpiglobal=(ntrunc+1)*(ntrunc+2)/2
     
-    ni_l=ni_in
-    nj_l=nj_in
+    ni_l=hco_in%ni
+    nj_l=hco_in%nj
 
     mpiMode=2
-    gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode)
+    gstID = gst_setup(6,ni_l,nj_l,ntrunc,mpiMode)
     if(mpi_myid.eq.0) write(*,*) 'BHI:returned value of gstID=',gstID
     call gst_setDefaultID(gstID)
 
     call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
 
-    call mpivar_setup_m(ntrunc_l,mymBeg,mymEnd,mymSkip,mymCount)
+    call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
 
     allocate(allmBeg(mpi_nprocs))
     CALL rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
@@ -196,56 +200,62 @@ CONTAINS
                             allmCount,1,"mpi_integer","GRID",ierr)
 
     ! count mpi_local control vector size and number of spectral coeff
-    cvDim_l=0
+    cvDim_mpilocal=0
     nla_mpilocal=0
-    do jn = 0,ntrunc_l
+    do jn = 0,ntrunc
       do jm = mymBeg, jn, mymSkip
         nla_mpilocal=nla_mpilocal+1
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           if(jm.eq.0) then
             ! no imag part for jm==0
-            cvDim_l=cvDim_l+1
+            cvDim_mpilocal=cvDim_mpilocal+1
           else
             ! both real and imag part for jm>0
-            cvDim_l=cvDim_l+2
+            cvDim_mpilocal=cvDim_mpilocal+2
           endif
         enddo
       enddo
     enddo
-    !cvDim_l=((ntrunc_l+1)*(ntrunc_l+2)-ntrunc_l-1)*nkgdim_l
-    cvDim_out=cvDim_l
+    !cvDim_mpilocal=((ntrunc+1)*(ntrunc+2)-ntrunc-1)*nkgdim
+    cvDim_out=cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_l,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
+    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
 
     ! figure out nind_mpilocal
     nind_mpilocal(:)=0
     nind_mpilocal(mymBeg)=1
-    do jm = mymBeg, (ntrunc_l-mymSkip), mymSkip
-      nind_mpilocal(jm+mymSkip)=nind_mpilocal(jm)+(ntrunc_l+1-jm)
+    do jm = mymBeg, (ntrunc-mymSkip), mymSkip
+      nind_mpilocal(jm+mymSkip)=nind_mpilocal(jm)+(ntrunc+1-jm)
     enddo
-    do jm = mymBeg, ntrunc_l, mymSkip
+    do jm = mymBeg, ntrunc, mymSkip
       write(*,*) 'nind_mpilocal(',jm,')=',nind_mpilocal(jm)
     enddo
 
-    allocate(PtoT(nflev_l+1,nflev_l,nj_l))
-    allocate(tantheta(nflev_l,nj_l))
-    allocate(rgsig(nj_l,nkgdim_l))
+    allocate(PtoT(nlev_T+1,nlev_M,nj_l))
+    allocate(tantheta(nlev_M,nj_l))
+    allocate(rgsig(nj_l,nkgdim))
     allocate(tgstdbg(ni_l,nj_l))
-    rgsiguu => rgsig(1:nj_l,           1 :   nflev_l)
-    rgsigvv => rgsig(1:nj_l,   nflev_l+1 : 2*nflev_l)
-    rgsigtt => rgsig(1:nj_l, 2*nflev_l+1 : 3*nflev_l)
-    rgsigq  => rgsig(1:nj_l, 3*nflev_l+1 : 4*nflev_l)
-    rgsigps => rgsig(1:nj_l, 4*nflev_l+1)
-    allocate(rgsigtb(nj_l,nflev_l))
+    rgsiguu => rgsig(1:nj_l,nspositVO:nspositVO+nlev_M-1)
+    rgsigvv => rgsig(1:nj_l,nspositDI:nspositDI+nlev_M-1)
+    rgsigtt => rgsig(1:nj_l,nspositTT:nspositTT+nlev_T-1)
+    rgsigq  => rgsig(1:nj_l,nspositQ :nspositQ +nlev_T-1)
+    rgsigps => rgsig(1:nj_l,nspositPS)
+    allocate(rgsigtb(nj_l,nlev_T))
     allocate(rgsigpsb(nj_l))
-    allocate(corns(nksdim2_l,nksdim2_l,0:ntrunc_l))
-    allocate(rstddev(nksdim2_l,0:ntrunc_l))
+    allocate(corns(nkgdim2,nkgdim2,0:ntrunc))
+    allocate(rstddev(nkgdim2,0:ntrunc))
+
+    zps = 101000.D0
+    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfile_M, &
+                         sfc_field=zps, in_log=.false.)
+    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_T, levels=pressureProfile_T, &
+                         sfc_field=zps, in_log=.false.)
 
     llfound = .false.
     nlev_bdl=0
-    do jlev = 1, nflev_l
-      if(.not.llfound .and. (pressureProfile(jlev) .ge. rlimlv_bdl  )) then
+    do jlev = 1, nlev_M
+      if(.not.llfound .and. (pressureProfile_M(jlev) .ge. rlimlv_bdl  )) then
         nlev_bdl = jlev
         llfound = .true.
       endif
@@ -265,7 +275,7 @@ CONTAINS
     real(8) :: scaleFactor_out(:)
     integer :: jlev
 
-    do jlev = 1, nflev_l
+    do jlev = 1, max(nLev_M,nLev_T)
       scaleFactor_out(jlev) = scaleFactor(jlev)
     enddo
 
@@ -300,14 +310,18 @@ CONTAINS
       ierr = fstouv(iulbgsto,'RND')
     endif
 
-    call BHI_rdspptot(iulbgsto)
+    call BHI_rdspPtoT(iulbgsto)
 
     !write(*,*) 'SUNEWSTATS: READING CORNS'
     call BHI_readcorns2(iulbgsto)
 
     call BHI_sutg(nulbgst)
 
-    call BHI_rdspstd(iulbgsto)
+    if(useStd2d) then
+      call BHI_rdstd2d
+    else
+      call BHI_rdspstd(iulbgsto)
+    endif
 
     call BHI_scalestd
 
@@ -325,24 +339,28 @@ CONTAINS
 
     integer jlev,jlon,jlat
 
-    do jlev=1,nflev_l
+    do jlev=1,nlev_M
       do jlat=1,nj_l
         rgsiguu(jlat,jlev)=scaleFactor(jlev)*rgsiguu(jlat,jlev)
         rgsigvv(jlat,jlev)=scaleFactor(jlev)*rgsigvv(jlat,jlev)
+      enddo
+    enddo
+    do jlev=1,nlev_T
+      do jlat=1,nj_l
         rgsigtt(jlat,jlev)=scaleFactor(jlev)*rgsigtt(jlat,jlev)
         rgsigq(jlat,jlev) =scaleFactorLQ(jlev)*scaleFactor(jlev)*rgsigq(jlat,jlev)
         rgsigtb(jlat,jlev)=scaleFactor(jlev)*rgsigtb(jlat,jlev)
       enddo
     enddo
     do jlat=1,nj_l
-      rgsigpsb(jlat)=scaleFactor(nflev_l)*rgsigpsb(jlat)
-      rgsigps(jlat) =scaleFactor(nflev_l)*rgsigps(jlat)
+      rgsigpsb(jlat)=scaleFactor(max(nLev_M,nLev_T))*rgsigpsb(jlat)
+      rgsigps(jlat) =scaleFactor(max(nLev_M,nLev_T))*rgsigps(jlat)
     enddo
     ! User has the option to not scale down the STDDEV of TG (because underestimated in Benkf)
     if(scaleTG) then
     do jlat=1,nj_l
       do jlon=1,ni_l
-        tgstdbg(jlon,jlat)=scaleFactor(nflev_l)*tgstdbg(jlon,jlat)
+        tgstdbg(jlon,jlat)=scaleFactor(max(nLev_M,nLev_T))*tgstdbg(jlon,jlat)
       enddo
     enddo
     endif
@@ -353,19 +371,19 @@ CONTAINS
   SUBROUTINE BHI_SUCORNS2
     implicit none
 
-    real*8 eigenv(nksdim2_l), eigen(nksdim2_l,nksdim2_l),eigen2(nksdim2_l,nksdim2_l)
-    real*8 sqrtin(nksdim2_l,nksdim2_l),sqrtin2(nksdim2_l,nksdim2_l)
+    real*8 eigenv(nkgdim2), eigen(nkgdim2,nkgdim2),eigen2(nkgdim2,nkgdim2)
+    real*8 sqrtin(nkgdim2,nkgdim2),sqrtin2(nkgdim2,nkgdim2)
 
     integer ij,ii,ii2,in,jk1,jk2,jr
-    integer ier,ilwork,info,klatptot
+    integer ier,ilwork,info,klatPtoT
     integer iulcorvert, ikey
 
-    real*8 zwork(2*4*nksdim2_l)
-    real*8 ztt(nflev_l,nflev_l,(ntrunc_l+1)),ztpsi(nflev_l,nflev_l,(ntrunc_l+1))
+    real*8 zwork(2*4*nkgdim2)
+    real*8 ztt(nlev_T,nlev_T,(ntrunc+1)),ztpsi(nlev_T,nlev_M,(ntrunc+1))
     real*8 ztlen,zcorr,zr,zpres1,zpres2
-    real*8 zfact,zfact2,zcoriolis,zpsips(nflev_l)
-    real*8 zpsi(nflev_l,nflev_l),zfacttb(nj_l,nflev_l),zfactpsb(nj_l)
-    real*8 corvert(nksdim2_l,nksdim2_l)
+    real*8 zfact,zfact2,zcoriolis,zpsips(nLevPtoT)
+    real*8 zpsi(nlev_M,nlev_M),zfacttb(nj_l,nlev_T),zfactpsb(nj_l)
+    real*8 corvert(nkgdim2,nkgdim2)
     logical lldebug
 
     ! standard file variables
@@ -387,55 +405,51 @@ CONTAINS
     !write(6,*)'  **********************************'
     !write(6,*)'  SUCORNS2 --- Calculate CORNS^(0.5)'
 
-    ilwork=4*nksdim2_l*2
+    ilwork=4*nkgdim2*2
     iulcorvert = 0
     if(mpi_myid==0) then
       ierr = fnom(iulcorvert,'corvert_modular.fst','RND',0)
       ierr = fstouv(iulcorvert,'RND')
     endif
 
-    klatptot=1
+    klatPtoT=1
     zfactpsb(:)=0.0d0
     zfacttb(:,:)=0.0d0
 
     !write(*,*) 'KLATPTOT=',klatptot
 
     if(lldebug) then
-      do ii=1,nflev_l
-        do ii2=1,nflevptot_l
-          write(622,*) ii,ii2,klatptot,ptot(ii,ii2,klatptot)
+      do ii=1,nlev_T
+        do ii2=1,nlevPtoT
+          write(622,*) ii,ii2,klatPtoT,PtoT(ii,ii2,klatPtoT)
         enddo
       enddo
     endif
 
     ! explicitly compute the balanced temperature and temperature-psi correlations
 
-    do in=0,ntrunc_l
+    do in=0,ntrunc
 
-      do ij=1,nflev_l
-         do ii=1,nflev_l
-            ztpsi(ii,ij,in+1)=0.0d0
-            ztt(ii,ij,in+1)=0.0d0
-         enddo
-      enddo
-      do ij=1,nflevptot_l
-        do ii=1,nflev_l
-          do ii2=1,nflevptot_l
-            ztpsi(ii,ij,in+1)=ztpsi(ii,ij,in+1)+ptot(ii,ii2,klatptot)*corns(ii2,ij,in)
+      ztpsi(:,:,in+1)=0.0d0
+      ztt(:,:,in+1)=0.0d0
+      do ij=1,nlevPtoT
+        do ii=1,nlev_T
+          do ii2=1,nlevPtoT
+            ztpsi(ii,ij,in+1)=ztpsi(ii,ij,in+1)+PtoT(ii,ii2,klatPtoT)*corns(ii2,ij,in)
           enddo
         enddo
       enddo
-      if(nflevptot_l.lt.nflev_l) then
-        do ij=(nflevptot_l+1),nflev_l
-          do ii=1,nflev_l
-            ztpsi(ii,ij,in+1)=ztpsi(ii,nflevptot_l,in+1)
+      if(nlevPtoT.lt.nlev_M) then
+        do ij=(nlevPtoT+1),nlev_M
+          do ii=1,nlev_T
+            ztpsi(ii,ij,in+1)=ztpsi(ii,nlevPtoT,in+1)
           enddo
         enddo
       endif
-      do ij=1,nflev_l
-        do ii=1,nflev_l
-          do ii2=1,nflevptot_l
-            ztt(ii,ij,in+1)=ztt(ii,ij,in+1)+ztpsi(ii,ii2,in+1)*ptot(ij,ii2,klatptot)
+      do ij=1,nlev_T
+        do ii=1,nlev_T
+          do ii2=1,nlevPtoT
+            ztt(ii,ij,in+1)=ztt(ii,ij,in+1)+ztpsi(ii,ii2,in+1)*PtoT(ij,ii2,klatPtoT)
           enddo
         enddo
       enddo
@@ -448,21 +462,25 @@ CONTAINS
 
     ! fill in blocks for balance temperature
 
-    do in=0,ntrunc_l
-      do ij=1,nflev_l
-        do ii=1,nflev_l
-          corns(nkgdim_l+ii,nkgdim_l+ij,in)=ztt(ii,ij,in+1)
-          corns(       ii,nkgdim_l+ij,in)=ztpsi(ij,ii,in+1)
-          corns(nkgdim_l+ii,       ij,in)=ztpsi(ii,ij,in+1)
+    do in=0,ntrunc
+      do ij=1,nlev_T
+        do ii=1,nlev_T
+          corns(nkgdim+ii,nkgdim+ij,in)=ztt(ii,ij,in+1)
+        enddo
+      enddo
+      do ij=1,nlev_M
+        do ii=1,nlev_T
+          corns(       ij,nkgdim+ii,in)=ztpsi(ii,ij,in+1)
+          corns(nkgdim+ii,       ij,in)=ztpsi(ii,ij,in+1)
         enddo
       enddo
     enddo
 
     ! Save un-localized PSI correlations
-    do jk2 = 1, nflev_l
-      do jk1 = 1, nflev_l
+    do jk2 = 1, nlev_M
+      do jk1 = 1, nlev_M
         zpsi(jk1,jk2) = 0.0d0
-        do in = 0, ntrunc_l
+        do in = 0, ntrunc
           zpsi(jk1,jk2) = zpsi(jk1,jk2)+((2*in+1)*corns(jk1,jk2,in))
         enddo
       enddo
@@ -475,15 +493,15 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(UNBALT)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        zpres1=log(pressureProfile(jk1))
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
+      do jk1=1,nlev_T
+        zpres1=log(pressureProfile_T(jk1))
+        do jk2=1,nlev_T
+          zpres2=log(pressureProfile_T(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
-            corns(jk1+2*nflev_l,jk2+2*nflev_l,in)  =   &
-                 corns(jk1+2*nflev_l,jk2+2*nflev_l,in)*zcorr
+          do in=0,ntrunc
+            corns(jk1+2*nlev_M,jk2+2*nlev_M,in)  =   &
+                 corns(jk1+2*nlev_M,jk2+2*nlev_M,in)*zcorr
           enddo
         enddo
       enddo
@@ -494,15 +512,15 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(BALT)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        zpres1=log(pressureProfile(jk1))
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
+      do jk1=1,nlev_T
+        zpres1=log(pressureProfile_T(jk1))
+        do jk2=1,nlev_T
+          zpres2=log(pressureProfile_T(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
-            corns(jk1+nkgdim_l,jk2+nkgdim_l,in)  =        &
-                 corns(jk1+nkgdim_l,jk2+nkgdim_l,in)*zcorr
+          do in=0,ntrunc
+            corns(jk1+nkgdim,jk2+nkgdim,in)  =        &
+                 corns(jk1+nkgdim,jk2+nkgdim,in)*zcorr
           enddo
         enddo
       enddo
@@ -513,13 +531,13 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(PSI)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        zpres1=log(pressureProfile(jk1))
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
+      do jk1=1,nlev_M
+        zpres1=log(pressureProfile_M(jk1))
+        do jk2=1,nlev_M
+          zpres2=log(pressureProfile_M(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
+          do in=0,ntrunc
             corns(jk1,jk2,in)  =corns(jk1,jk2,in)*zcorr
           enddo
         enddo
@@ -531,15 +549,15 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(PSI-TT)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        zpres1=log(pressureProfile(jk1))
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
+      do jk1=1,nlev_M
+        zpres1=log(pressureProfile_M(jk1))
+        do jk2=1,nlev_T
+          zpres2=log(pressureProfile_T(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
-            corns(jk1,jk2+nkgdim_l,in)=corns(jk1,jk2+nkgdim_l,in)*zcorr
-            corns(jk1+nkgdim_l,jk2,in)=corns(jk1+nkgdim_l,jk2,in)*zcorr
+          do in=0,ntrunc
+            corns(jk1,jk2+nkgdim,in)=corns(jk1,jk2+nkgdim,in)*zcorr
+            corns(jk2+nkgdim,jk1,in)=corns(jk2+nkgdim,jk1,in)*zcorr
           enddo
         enddo
       enddo
@@ -550,18 +568,14 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(CHI)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        if(jk1.gt.nflev_l) then
-          zpres1=log(pressureProfile(nflev_l))
-        else
-          zpres1=log(pressureProfile(jk1))
-        endif
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
+      do jk1=1,nlev_M
+        zpres1=log(pressureProfile_M(jk1))
+        do jk2=1,nlev_M
+          zpres2=log(pressureProfile_M(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
-            corns(jk1+nflev_l,jk2+nflev_l,in)  =corns(jk1+nflev_l,jk2+nflev_l,in)*zcorr
+          do in=0,ntrunc
+            corns(jk1+nlev_M,jk2+nlev_M,in)  =corns(jk1+nlev_M,jk2+nlev_M,in)*zcorr
           enddo
         enddo
       enddo
@@ -573,24 +587,16 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(UNBALT)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        if(jk1.gt.nflev_l) then
-          zpres1=log(pressureProfile(nflev_l))
-        else
-          zpres1=log(pressureProfile(jk1))
-        endif
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
-          zr = abs(zpres2 - zpres1)
-          zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
-            if(jk1.eq.nflev_l) then
-              corns(1+4*nflev_l,jk2+2*nflev_l,in)  =       &
-                   corns(1+4*nflev_l,jk2+2*nflev_l,in)*zcorr
-              corns(jk2+2*nflev_l,1+4*nflev_l,in)  =       &
-                   corns(jk2+2*nflev_l,1+4*nflev_l,in)*zcorr
-            endif
-          enddo
+      zpres1=log(pressureProfile_T(nlev_T))
+      do jk2=1,nlev_T
+        zpres2=log(pressureProfile_T(jk2))
+        zr = abs(zpres2 - zpres1)
+        zcorr=gasparicohn(ztlen,zr)
+        do in=0,ntrunc
+          corns(1+2*nlev_M+2*nlev_T,jk2+2*nlev_M,in)  =       &
+               corns(1+2*nlev_M+2*nlev_T,jk2+2*nlev_M,in)*zcorr
+          corns(jk2+2*nlev_M,1+2*nlev_M+2*nlev_T,in)  =       &
+               corns(jk2+2*nlev_M,1+2*nlev_M+2*nlev_T,in)*zcorr
         enddo
       enddo
     endif
@@ -601,19 +607,15 @@ CONTAINS
     !write(*,*)'sucorns2:ztlen(LQ)= ',ztlen
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1=1,nflev_l
-        if(jk1.gt.nflev_l) then
-          zpres1=log(pressureProfile(nflev_l))
-        else
-          zpres1=log(pressureProfile(jk1))
-        endif
-        do jk2=1,nflev_l
-          zpres2=log(pressureProfile(jk2))
+      do jk1=1,nlev_T
+        zpres1=log(pressureProfile_T(jk1))
+        do jk2=1,nlev_T
+          zpres2=log(pressureProfile_T(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr=gasparicohn(ztlen,zr)
-          do in=0,ntrunc_l
-            corns(jk1+3*nflev_l,jk2+3*nflev_l,in)  =       &
-                 corns(jk1+3*nflev_l,jk2+3*nflev_l,in)*zcorr
+          do in=0,ntrunc
+            corns(jk1+2*nlev_M+nlev_T,jk2+2*nlev_M+nlev_T,in)  =       &
+                 corns(jk1+2*nlev_M+nlev_T,jk2+2*nlev_M+nlev_T,in)*zcorr
           enddo
         enddo
       enddo
@@ -621,10 +623,10 @@ CONTAINS
 
     ! compute total vertical correlations (including for balanced temperature)
     if(.true.) then
-      do jk2 = 1, nksdim2_l
-        do jk1 = 1, nksdim2_l
+      do jk2 = 1, nkgdim2
+        do jk1 = 1, nkgdim2
           corvert(jk1,jk2) = 0.0d0
-          do in = 0, ntrunc_l
+          do in = 0, ntrunc
             corvert(jk1,jk2) = corvert(jk1,jk2)+((2*in+1)*corns(jk1,jk2,in))
           enddo
         enddo
@@ -645,11 +647,11 @@ CONTAINS
              ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2      &
              ,iextr3)
 
-        ini = nksdim2_l
-        inj = nksdim2_l
+        ini = nkgdim2
+        inj = nkgdim2
         ink = 1
         ip1 = 0
-        ip2 = ntrunc_l
+        ip2 = ntrunc
         ip3 = 0
         clnomvar= 'ZV'
         cletiket= 'CORVERT'
@@ -662,7 +664,7 @@ CONTAINS
         ! WHY IS THIS READ IN AGAIN AFTER JUST WRITING IT?????????????
         !ierr = vfstlir(corvert,iulcorvert,INI,INJ,INK    &
         !   ,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-        do jk2 = 1, nksdim2_l
+        do jk2 = 1, nkgdim2
           !if(jk2.ge.320 .and. jk2.le. 400) then
           !  print *,'corvert lire:jk2,corvert(jk2,jk2)= ',jk2,corvert(jk2,jk2)
           !endif
@@ -671,8 +673,8 @@ CONTAINS
       endif
 
       ! Modify RGSIGTB to obtain correct sigma_Tb
-      do jk1=1,nflev_l          
-        zfact=corvert(jk1+nkgdim_l,jk1+nkgdim_l)
+      do jk1=1,nlev_T
+        zfact=corvert(jk1+nkgdim,jk1+nkgdim)
         do ij=1,nj_l
           zcoriolis = abs(2.d0*romega*gst_getrmu(ij))
           if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
@@ -686,15 +688,15 @@ CONTAINS
 
       ! Modify RGSIGPSB to obtain correct sigma_PSb
       do ij=1,nj_l
-        do jk2=1,nflevptot_l
+        do jk2=1,nlevPtoT
           zpsips(jk2)=0.0d0
-          do jk1=1,nflevptot_l
-            zpsips(jk2)=zpsips(jk2)+ptot(nflev_l+1,jk1,klatptot)*zpsi(jk1,jk2)
+          do jk1=1,nlevPtoT
+            zpsips(jk2)=zpsips(jk2)+PtoT(nlev_T+1,jk1,klatPtoT)*zpsi(jk1,jk2)
           enddo
         enddo
         zfact=0.0d0
-        do jk1=1,nflevptot_l
-          zfact=zfact+ptot(nflev_l+1,jk1,klatptot)*zpsips(jk1)
+        do jk1=1,nlevPtoT
+          zfact=zfact+PtoT(nlev_T+1,jk1,klatPtoT)*zpsips(jk1)
         enddo
         zcoriolis = abs(2.d0*romega*gst_getrmu(ij))
         if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
@@ -713,7 +715,7 @@ CONTAINS
       else
         rgsigpsb(ij)=0.0d0
       endif          
-      do jk1=1,nflev_l
+      do jk1=1,nlev_T
         if(zfacttb(ij,jk1).gt.0.0d0) then
           rgsigtb(ij,jk1)=rgsigtb(ij,jk1)*sqrt(zfacttb(ij,jk1))
         else
@@ -723,17 +725,17 @@ CONTAINS
     enddo
 
     ! compute square-root of corns
-    do in=0,ntrunc_l
-      do ij=1,nksdim2_l
-         do ii=1,nksdim2_l
+    do in=0,ntrunc
+      do ij=1,nkgdim2
+         do ii=1,nkgdim2
             eigen(ii,ij)=corns(ii,ij,in)
          enddo
       enddo
 
       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
-      call dsyev('V','U',nksdim2_l,eigen,nksdim2_l,eigenv,zwork,ilwork,info)
+      call dsyev('V','U',nkgdim2,eigen,nkgdim2,eigenv,zwork,ilwork,info)
 
-      do ii=1,nksdim2_l
+      do ii=1,nkgdim2
         if(eigenv(ii).lt.1.0d-15) then
           sqrtin(ii,ii) = 0.0d0
         else
@@ -743,21 +745,21 @@ CONTAINS
       enddo
  
       ! Reverse the order of E-values and vectors
-      do ij=1,nksdim2_l
-        sqrtin2(ij,ij)=sqrtin(nksdim2_l-ij+1,nksdim2_l-ij+1)            
-        do ii=1,nksdim2_l
-          eigen2(ii,ij) =eigen(ii,nksdim2_l-ij+1)            
+      do ij=1,nkgdim2
+        sqrtin2(ij,ij)=sqrtin(nkgdim2-ij+1,nkgdim2-ij+1)            
+        do ii=1,nkgdim2
+          eigen2(ii,ij) =eigen(ii,nkgdim2-ij+1)            
         enddo
       enddo
 
-      do ij=1,nksdim2_l
-         do ii=1,nksdim2_l
+      do ij=1,nkgdim2
+         do ii=1,nkgdim2
             corns(ii,ij,in)=0.0d0
          enddo
       enddo
 
-      do ij=1,nkgdim_l
-         do ii=1,nksdim2_l
+      do ij=1,nkgdim
+         do ii=1,nkgdim2
             corns(ii,ij,in)=eigen2(ii,ij)*sqrtin2(ij,ij)
          enddo
       enddo
@@ -857,9 +859,9 @@ CONTAINS
     integer ip1style,ip1kind
     integer koutmpg
     real*8, allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
-    real*8 cortgg(nla_l,2)
+    real*8 cortgg(nla_mpiglobal,2)
     real*8 zabs, zpole, dlfac, dlcorr
-    real*8 zsp(nla_l,2,1),zgd(ni_l,1,myLatBeg:myLatEnd)
+    real*8 zsp(nla_mpiglobal,2,1),zgd(ni_l,1,myLatBeg:myLatEnd)
 
     ! standard file variables
     integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
@@ -934,7 +936,7 @@ CONTAINS
     zgd(:,:,:)=0.0d0
     zsp(:,:,:)=0.0d0
 
-    do jla = 1, nla_l
+    do jla = 1, nla_mpiglobal
        cortgg(jla,1) = 0.0d0
        cortgg(jla,2) = 0.0d0
     enddo
@@ -947,38 +949,38 @@ CONTAINS
 
     ! 4.3  Bring back the result in spectral space
     call gst_reespe(zsp,zgd,1,1)
-    nsize=2*nla_l
+    nsize=2*nla_mpiglobal
     call rpn_comm_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
 
     ! 4.4  Check positiveness
     llpb = .false.
-    do jla=1,ntrunc_l+1
+    do jla=1,ntrunc+1
       zabs = abs(zsp(jla,1,1))
       llpb =llpb.or.((zsp(jla,1,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
     enddo
     if(llpb) then
       call abort3d(' AUTOCORRELATION  NEGATIVES')
     endif
-    do jla = 1, ntrunc_l+1
+    do jla = 1, ntrunc+1
       zsp(jla,1,1) = abs(zsp(jla,1,1))
     enddo
 
     zpole = 0.d0
-    do  jla = 1, ntrunc_l+1
+    do  jla = 1, ntrunc+1
       jn = jla-1
       zpole = zpole + zsp(jla,1,1)*sqrt((2.d0*jn+1.d0)/2.d0)
     enddo
     if(zpole.le.0.d0) then
       call abort3d('POLE VALUE NEGATIVE IN SUTG')
     endif
-    do jla = 1, ntrunc_l+1
+    do jla = 1, ntrunc+1
       zsp(jla,1,1) = zsp(jla,1,1)/zpole
       zsp(jla,2,1) = zsp(jla,2,1)/zpole
     enddo
 
     !  4.5  Correlation
-    do jm   = 0, ntrunc_l
-      do jn   = jm, ntrunc_l
+    do jm   = 0, ntrunc
+      do jn   = jm, ntrunc
         jla  = gst_getNIND(jm) + jn - jm
         dlfac = 0.5d0/dsqrt((2*jn+1.d0)/2.d0)
         cortgg(jla,1) = dlfac * zsp(jn+1,1,1)
@@ -987,13 +989,13 @@ CONTAINS
     enddo
 
     ! 5. For zonal modes : set to zero the imaginary part and set the correct factor 1.0 for the real part
-    do jla = 1, ntrunc_l + 1
+    do jla = 1, ntrunc + 1
       cortgg(jla,1) = 0.5d0*cortgg(jla,1)
       cortgg(jla,2) = 0.0d0
     enddo
 
     ! 6. Result in corns array
-    do jn = 0, ntrunc_l
+    do jn = 0, ntrunc
       ila = jn + 1
       corns(nspositTG,nspositTG,jn) = 2.d0*cortgg(ila,1)
     enddo
@@ -1013,14 +1015,14 @@ CONTAINS
     real*8 dlfact2,dlc,dsummed
     real*8 dtlen,zr,dlfact
     integer ilen,jn,jlat,jk
-    real*8 zlegi(0:ntrunc_l, nj_l),zleg(0:ntrunc_l, nj_l),zsp(0:ntrunc_l,nkgdim_l),zgr(nj_l,nkgdim_l)
+    real*8 zlegi(0:ntrunc, nj_l),zleg(0:ntrunc, nj_l),zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real*8 dlwti(nj_l),zrmu(nj_l)
 
     integer inracp
     real*8 zpg(nj_l),zsia(nj_l),zrad(nj_l),zpgssin2(nj_l)
     real*8 zsinm1(nj_l),zsinm2(nj_l),zsin2(nj_l),zsinlat(nj_l)
     real*8 dlfact1, dln
-    real*8 dlnorm(0:ntrunc_l)
+    real*8 dlnorm(0:ntrunc)
 
     real*8         :: RPORVO   = 6000.D3
     real*8         :: RPORDI   = 6000.D3
@@ -1055,12 +1057,12 @@ CONTAINS
        zleg(0,jlat) = sqrt(0.5d0)
        zleg(1,jlat) = sqrt(1.5d0)*zrmu(jlat)
     enddo
-    do jn = 0, ntrunc_l
+    do jn = 0, ntrunc
        dln = 1.d0*real(jn,8)
        dlnorm(jn) = dsqrt((2.d0*dln + 1.d0)/2.d0)
     enddo
 
-    do jn = 1, ntrunc_l-1
+    do jn = 1, ntrunc-1
        dln = real(jn,8)
        dlfact1 = ((2.d0*dln+1.d0)/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn))
        dlfact2 = (dln/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn-1))
@@ -1070,7 +1072,7 @@ CONTAINS
     enddo
 
     do jlat = 1, inj
-       do jn = 0, ntrunc_l
+       do jn = 0, ntrunc
          zlegi(jn,jlat) = zleg(jn,jlat)
        enddo
     enddo
@@ -1078,26 +1080,26 @@ CONTAINS
 !     1.2 CONVERT THE CORRELATIONS IN SPECTRAL SPACE INTO SPECTRAL
 !         COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
 !         SELF-CONVOLVED
-    do jn=0,ntrunc_l
+    do jn=0,ntrunc
       dlfact=((2.0d0*jn+1)/2.0d0)**0.25d0
       dlfact2=((2.0d0*JN +1.0d0)/2.0d0)**(0.25d0)
-      do jk=1,nkgdim_l
+      do jk=1,nkgdim
         zsp(jn,jk)=rstddev(jk,jn)*dlfact*dlfact2
       enddo
     enddo
 
     ! Transform to physical space
-    call zleginv(zgr,zsp,zlegi,dlwti,ntrunc_l,inj,nkgdim_l,nj_l,nkgdim_l,ntrunc_l)
+    call zleginv(zgr,zsp,zlegi,dlwti,ntrunc,inj,nkgdim,nj_l,nkgdim,ntrunc)
 
     ! Truncate in horizontal extent with Gaussian window
-    do jk=1,nkgdim_l
-      if (jk.ge.nspositVO.and.jk.lt.nspositVO+nflev_l) then
+    do jk=1,nkgdim
+      if (jk.ge.nspositVO.and.jk.lt.nspositVO+nlev_M) then
         dtlen = rporvo
-      elseif (jk.ge.nspositDI.and.jk.lt.nspositDI+nflev_l) then
+      elseif (jk.ge.nspositDI.and.jk.lt.nspositDI+nlev_M) then
         dtlen = rpordi
-      elseif (jk.ge.nspositTT.and.jk.lt.nspositTT+nflev_l) then
+      elseif (jk.ge.nspositTT.and.jk.lt.nspositTT+nlev_T) then
         dtlen = rportt
-      elseif (jk.ge.nspositQ.and.jk.lt.nspositQ+nflev_l) then
+      elseif (jk.ge.nspositQ.and.jk.lt.nspositQ+nlev_T) then
         dtlen = rporq
       elseif (jk.eq.nspositPS) then
         dtlen = rporps
@@ -1117,39 +1119,39 @@ CONTAINS
     enddo
 
     ! Transform back to spectral space
-    call zlegdir(zgr,zsp,zlegi,dlwti,ntrunc_l,inj,nkgdim_l,nj_l,nkgdim_l,ntrunc_l)
+    call zlegdir(zgr,zsp,zlegi,dlwti,ntrunc,inj,nkgdim,nj_l,nkgdim,ntrunc)
 
     ! Convert back to correlations
-    do jk=1,nkgdim_l
-      do jn=0,ntrunc_l
+    do jk=1,nkgdim
+      do jn=0,ntrunc
          zsp(jn,jk)=zsp(jn,jk)*(2.0d0/(2.0d0*jn+1.0))**(0.25d0)
       enddo
     enddo
 
     ! PUT BACK INTO RSTDDEV
-    do jn=0,ntrunc_l
-      do jk=1,nkgdim_l
+    do jn=0,ntrunc
+      do jk=1,nkgdim
          rstddev(jk,jn)=zsp(jn,jk)
       enddo
     enddo
  
     ! Re-normalize to ensure correlations
-    do jk=1,nkgdim_l
+    do jk=1,nkgdim
       dsummed=0.d0
-      do jn=0,ntrunc_l
+      do jn=0,ntrunc
         dsummed=dsummed+ dble(rstddev(jk,jn)**2)*sqrt(((2.d0*jn)+1.d0)/2.d0)
       enddo
       dsummed=sqrt(dsummed)
-      do jn=0,ntrunc_l
+      do jn=0,ntrunc
         if(dsummed.gt.1.d-30) rstddev(jk,jn)=rstddev(jk,jn)/dsummed
       enddo
     enddo
 
     !     CONVERT THE SPECTRAL COEFFICIENTS OF THE CORRELATION FUNCTION
     !     .  BACK INTO CORRELATIONS OF SPECTRAL COMPONENTS
-    do jn=0,ntrunc_l
+    do jn=0,ntrunc
       dlfact=sqrt(0.5d0)*(1.0d0/((2.0d0*jn+1)/2.0d0))**0.25d0
-      do jk=1,nkgdim_l
+      do jk=1,nkgdim
         rstddev(jk,jn)=rstddev(jk,jn)*dlfact
       enddo
     enddo
@@ -1163,17 +1165,26 @@ CONTAINS
 
     integer kn,jblock1,inbrblock,jblock2
     real*8 dlfact
-    integer jk1, jk2
+    integer jk1, jk2, nlev_all(numvar3d), levOffset(numvar3d+1)
 
     inbrblock = numvar3d
+    nlev_all(1)= nLev_M
+    nlev_all(2)= nLev_M
+    nlev_all(3)= nLev_T
+    nlev_all(4)= nLev_T
+    levOffset(1) = 0
+    levOffset(2) = 1*nLev_M
+    levOffset(3) = 2*nLev_M
+    levOffset(4) = 2*nLev_M+1*nLev_T
+    levOffset(5) = 2*nLev_M+2*nLev_T
 
     ! Set cross-variable correlations to 0 ...
     do jblock1 = 1, inbrblock
       do jblock2 = 1, inbrblock
         if (jblock1.ne.jblock2) then
-          do jk2 = 1, nflev_l
-            do jk1 = 1,nflev_l
-              corns(jk1 + nflev_l*(jblock1 -1),jk2 + nflev_l*(jblock2 -1),kn) = 0.0d0
+          do jk2 = 1, nlev_all(jblock2)
+            do jk1 = 1, nlev_all(jblock1)
+              corns(jk1 + levOffset(jblock1),jk2 + levOffset(jblock2),kn) = 0.0d0
             enddo
           enddo
         endif
@@ -1181,19 +1192,19 @@ CONTAINS
     enddo
 
     ! ... but T'ln(ps') correlations
-    do jk2 = 1,nkgdim_l
-      do jk1 = inbrblock*nflev_l+1,inbrblock*nflev_l+numvar2d
+    do jk2 = 1,nkgdim
+      do jk1 = levOffset(5)+1,levOffset(5)+numvar2d
         if ((jk1.ne.nspositPS.or.jk2.lt.nspositTT.or.    &
-             jk2.ge.(nspositTT+nflev_l)).and.(jk1.ne.jk2)) then
+             jk2.ge.(nspositTT+nlev_T)).and.(jk1.ne.jk2)) then
           corns(jk1,jk2,kn) = 0.0d0
         endif
       enddo
     enddo
 
-    do jk2 = inbrblock*nflev_l+1,inbrblock*nflev_l+numvar2d
-      do jk1 = 1,nkgdim_l
+    do jk2 = levOffset(5)+1,levOffset(5)+numvar2d
+      do jk1 = 1,nkgdim
         if ((jk2.ne.nspositPS.or.jk1.lt.nspositTT.or.   &
-             jk1.ge.(nspositTT+nflev_l)) .and.(jk1.ne.jk2)) then
+             jk1.ge.(nspositTT+nlev_T)) .and.(jk1.ne.jk2)) then
           corns(jk1,jk2,kn) = 0.0d0
         endif
       enddo
@@ -1226,7 +1237,7 @@ CONTAINS
     integer vfstlir,vfstecr,fstprm,fstinf
 
 
-    iksdim = 4*nflev_l+1    ! assume 4 3d variables and 1 2d variable (TG not included)
+    iksdim = 2*nlev_M+2*nlev_T+1    ! assume 4 3d variables and 1 2d variable (TG not included)
     allocate(zcornssrc(iksdim,iksdim))
     allocate(zstdsrc(iksdim))
 
@@ -1234,7 +1245,7 @@ CONTAINS
 
     kip1=-1
 
-    do jn = 0, ntrunc_l
+    do jn = 0, ntrunc
       !write(*,*)' Reading RSTDDEV spectral coefficients number',jn
 
       ! Looking for FST record parameters..
@@ -1276,9 +1287,9 @@ CONTAINS
         call abort3d('READCORNS2: BG stat levels inconsitencies')
       endif
 
-      do jcol = 1,nksdim2_l
+      do jcol = 1,nkgdim2
         rstddev(jcol,jn) = 0.0d0
-        do jrow = 1,nksdim2_l
+        do jrow = 1,nkgdim2
           corns(jrow,jcol,jn) = 0.0d0
         enddo
       enddo
@@ -1302,7 +1313,7 @@ CONTAINS
 
     call BHI_convol
 
-    do jn = 0, ntrunc_l
+    do jn = 0, ntrunc
 
       if ( kulbgsto .gt. 0 ) then
 
@@ -1311,7 +1322,7 @@ CONTAINS
              idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp     &
              ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2    &
              ,iextr3)
-        ini = nkgdim_l
+        ini = nkgdim
         inj = 1
         ink = 1
         ip2 = jn
@@ -1325,8 +1336,8 @@ CONTAINS
              ,idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp     &
              ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2     &
              ,iextr3)
-        ini = nkgdim_l
-        inj = nkgdim_l
+        ini = nkgdim
+        inj = nkgdim
         ink = 1
         ip2 = jn
         ierr = vfstecr(corns(1,1,jn), zwork, -inbits, kulbgsto, idateo  &
@@ -1336,8 +1347,8 @@ CONTAINS
       endif
 
       ! Re-build of correlation matrix: factorization of corns with convoluted RSTDDEV
-      do jcol = 1,nkgdim_l
-        do jrow = 1,nkgdim_l
+      do jcol = 1,nkgdim
+        do jrow = 1,nkgdim
           corns(jrow,jcol,jn) = rstddev(jrow,jn) * corns(jrow,jcol,jn)* rstddev(jcol,jn)
         enddo
       enddo
@@ -1361,15 +1372,15 @@ CONTAINS
     integer, parameter  :: inbrvar2d=2
     integer jvar,jn,inix,injx,inkx
     integer ikey, jlevo, jlat,firstn,lastn
-    real*8 zsp(0:ntrunc_l,nflev_l),zspbuf(nflev_l),zwork
-    real*8 zleg(0:ntrunc_l,nj_l),zgr(nj_l,nflev_l),zgsig(1,nj_l,nflev_l),zstddev(nksdim2_l,nj_l)
+    real*8 zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T)),zwork
+    real*8 zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
     integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
            ,ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf  &
            ,iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas
-    integer iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
     character*1 clgrtyp
     character*2 cltypvar
     character*4 clnomvar
@@ -1398,14 +1409,19 @@ CONTAINS
     !write(*,*) 'Reading 3D variables'
     do jvar = 1, inbrvar3d
       clnomvar = varName3d(jvar)
+      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        nlev_MT=nlev_M
+      else
+        nlev_MT=nlev_T
+      endif
       !write(*,*)'Reading ',clnomvar
       firstn=-1
-      do jn = 0,ntrunc_l
+      do jn = 0,ntrunc
         ip2 = jn
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
         if(ikey .ge.0 ) then
-          ikey = vfstlir(zspbuf,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          ikey = vfstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
            if ( kulbgsto .gt. 0 ) then
             ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits,        &
                    idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
@@ -1418,11 +1434,11 @@ CONTAINS
           zspbuf(:)=0.0d0
         endif
 
-        if (ini .ne. nflev_l) then
+        if (ini .ne. nlev_MT) then
           call abort3d('RDSPSTD: BG stat levels inconsitencies')
         endif
 
-        do jlevo = 1, nflev_l
+        do jlevo = 1, nlev_MT
           zsp(jn,jlevo) = zspbuf(jlevo)
         enddo
       enddo
@@ -1431,35 +1447,35 @@ CONTAINS
                      ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
       endif
 
-      call zleginv2(zgr,zsp,zleg,ntrunc_l,nj_l,nflev_l,nj_l,nflev_l,ntrunc_l)
+      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
 
       if(clnomvar .eq. 'PP') then
         do jlat = 1, nj_l
-          do jlevo = 1, nflev_l
+          do jlevo = 1, nlev_M
             rgsiguu(jlat,jlevo) = zgr(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
         do jlat = 1, nj_l
-          do jlevo = 1, nflev_l
+          do jlevo = 1, nlev_M
             rgsigvv(jlat,jlevo) = zgr(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'UT') then
         do jlat = 1, nj_l
-          do jlevo = 1, nflev_l
+          do jlevo = 1, nlev_T
             rgsigtt(jlat,jlevo) = zgr(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'TB') then
         do jlat = 1, nj_l
-          do jlevo = 1, nflev_l
+          do jlevo = 1, nlev_T
             rgsigtb(jlat,jlevo) = zgr(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'LQ') then
         do jlat = 1, nj_l
-          do jlevo = 1, nflev_l
+          do jlevo = 1, nlev_T
             rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
           enddo
         enddo
@@ -1468,24 +1484,25 @@ CONTAINS
       if ( kulbgsto .gt. 0 ) then
 
         do jlat = 1, nj_l
-          do jlevo = 1,nflev_l
+          do jlevo = 1,nlev_MT
             zgsig(1,jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
           enddo
         enddo
 
-        ierr = vfstecr(zgsig, zwork, -inbits, kulbgsto, idateo, ideet,   &
-               inpas, 1, nj_l, nflev_l, 0, 0, ip3, 'E', clnomvar,            &
+        ierr = vfstecr(zgsig(:,:,1:nlev_MT), zwork, -inbits, kulbgsto, idateo, ideet,   &
+               inpas, 1, nj_l, nlev_MT, 0, 0, ip3, 'E', clnomvar,            &
                'STDDEV  ',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
 
       endif
     enddo
 
     !write(*,*) 'Reading 2D variables'
+    nlev_MT=1
     do jvar = 1, inbrvar2d
       clnomvar = varName2d(jvar)
       !write(*,*)'Reading ',clnomvar
       firstn=-1
-      do jn = 0,ntrunc_l
+      do jn = 0,ntrunc
         ip2 = jn
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
@@ -1513,7 +1530,7 @@ CONTAINS
 
       endif
 
-      call zleginv2(zgr,zsp,zleg,ntrunc_l,nj_l,1,nj_l,nflev_l,ntrunc_l)
+      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,1,nj_l,nlev_MT,ntrunc)
 
       if(clnomvar .eq. 'UP') then
         do jlat = 1, nj_l
@@ -1545,21 +1562,145 @@ CONTAINS
   END SUBROUTINE BHI_RDSPSTD
 
 
+  SUBROUTINE BHI_RDSTD2D
+    implicit none
+
+    integer, parameter  :: inbrvar3d=5
+    integer, parameter  :: inbrvar2d=2
+    integer jvar, ikey, jlevo, jlat, nlev_MT
+    real*8 zwork
+    real*8 zgr(nj_l,max(nlev_M,nlev_T))
+    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
+
+    ! standard file variables
+    integer ini,inj,ink,ip1,ip2,ip3
+    integer idate
+    character*2 cltypvar
+    character*4 clnomvar
+    character*12 cletiket
+    integer vfstlir,vfstecr,fstinf
+
+    data varName3d/'PP  ','UC  ','UT  ','LQ  ','TT  '/
+    data varName2d/'UP  ','P0  '/
+
+    rgsig(:,:)=0.0d0
+    rgsigtb(:,:)=0.0d0
+    rgsigpsb(:)=0.0d0
+
+!   2. Reading the data
+
+    idate    = -1
+    ip1      = -1
+    ip2      = -1
+    ip3      = -1
+
+    cletiket = 'STDDEV'
+    cltypvar = 'E'
+
+    write(*,*) 'Reading 3D variables'
+    do jvar = 1, inbrvar3d
+      clnomvar = varName3d(jvar)
+      write(*,*)'Reading ',clnomvar
+      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        nlev_MT=nlev_M
+      else
+        nlev_MT=nlev_T
+      endif
+
+      ikey = fstinf(nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+      if (ini .ne. nlev_MT) then
+        write(*,*) 'RDSTD2D: ikey, varname, ini, nlev=',ikey,clnomvar,ini,nlev_MT
+        call abort3d('RDSTD2D: BG stat levels inconsitencies')
+      endif
+
+      if(ikey .ge.0 ) then
+        ikey = vfstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      else
+        write(*,*) 'RDSTD2D: variable name=',clnomvar
+        call abort3d('RDSTD2D: variable not found')
+      endif
+
+      if(clnomvar .eq. 'PP') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_M
+            rgsiguu(jlat,jlevo) = zgr(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_M
+            rgsigvv(jlat,jlevo) = zgr(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'UT') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_T
+            rgsigtt(jlat,jlevo) = zgr(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'TB' .or. clnomvar .eq. 'TT') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_T
+            rgsigtb(jlat,jlevo) = zgr(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'LQ') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_T
+            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+          enddo
+        enddo
+      endif
+
+    enddo
+
+    write(*,*) 'Reading 2D variables'
+    do jvar = 1, inbrvar2d
+      clnomvar = varName2d(jvar)
+      write(*,*)'Reading ',clnomvar
+      ikey = fstinf(nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+      if(ikey .ge.0 ) then
+        ikey = vfstlir(zgr,nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      else
+        write(*,*) 'RDSTD2D: variable name=',clnomvar
+        call abort3d('RDSTD2D: variable not found')
+      endif
+
+      if(clnomvar .eq. 'UP') then
+        do jlat = 1, nj_l
+          rgsigps(jlat) = zgr(jlat,1)*100.0d0
+        enddo
+      endif
+      if(clnomvar .eq. 'PB' .or. clnomvar .eq. 'P0') then
+        do jlat = 1, nj_l
+          rgsigpsb(jlat) = zgr(jlat,1)*100.0d0
+        enddo
+      endif
+
+    enddo
+
+    write(*,*)'DONE in RDSTD2D'
+
+  END SUBROUTINE BHI_RDSTD2D
+
+
   SUBROUTINE BHI_RDSPPTOT(kulbgsto)
     IMPLICIT NONE
 
     integer kulbgsto
 
     integer jn, jk1, jk2, ikey, ilen,jlat,jcol,inix,injx,inkx
-    real*8 zsptheta(0:ntrunc_l,nflev_l)
-    real*8 zgrtheta(nj_l,nflev_l)
-    real*8 zleg(0:ntrunc_l,nj_l)
+    real*8 zsptheta(0:ntrunc,nlev_M)
+    real*8 zgrtheta(nj_l,nlev_M)
+    real*8 zleg(0:ntrunc,nj_l)
     real*8 zwork
-    real*8 zptotsrc(nflev_l+1,nflev_l)
-    real*8 zspptot(0:ntrunc_l,nflev_l+1,nflev_l)
-    real*8 zgrptot(nj_l,nflev_l+1,nflev_l)
-    real*8 ztheta(nflev_l)
-    real*8 zptotecr(nflev_l+1,nflev_l,nj_l)
+    real*8 zPtoTsrc(nlev_T+1,nlev_M)
+    real*8 zspPtoT(0:ntrunc,nlev_T+1,nlev_M)
+    real*8 zgrPtoT(nj_l,nlev_T+1,nlev_M)
+    real*8 ztheta(nlev_M)
+    real*8 zPtoTecr(nlev_T+1,nlev_M,nj_l)
     
     ! standard file variables
     integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
@@ -1589,7 +1730,7 @@ CONTAINS
     ! read spectral coefficients for theta
 
     !write(*,*) 'RDSPPTOT: Start reading in THETA from unit:',nulbgst
-    do jn = 0,ntrunc_l
+    do jn = 0,ntrunc
       ip2 = jn
       ikey = fstinf(nulbgst,inix,injx,inkx,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
@@ -1605,7 +1746,7 @@ CONTAINS
         ztheta(:)=0.0d0
       endif
 
-      do jk1 = 1,nflev_l
+      do jk1 = 1,nlev_M
         zsptheta(jn,jk1) = ztheta(jk1)
       enddo
 
@@ -1614,10 +1755,10 @@ CONTAINS
     ! converting theta in physical space
 
     !write(*,*) 'RDSPPTOT: converting theta in physical space'
-    call zleginv2(zgrtheta,zsptheta,zleg,ntrunc_l,nj_l,nflev_l,nj_l,nflev_l,ntrunc_l)
+    call zleginv2(zgrtheta,zsptheta,zleg,ntrunc,nj_l,nlev_M,nj_l,nlev_M,ntrunc)
 
     if ( kulbgsto .gt. 0 ) then
-      ini = nflev_l
+      ini = nlev_M
       inj = nj_l
       ink = 1
       ip1 = 0
@@ -1625,7 +1766,7 @@ CONTAINS
       cletiket = 'THETA   '
 
       do jlat = 1, nj_l
-        do jk1 = 1, nflev_l
+        do jk1 = 1, nlev_M
           tantheta(jk1,jlat) = zgrtheta(jlat,jk1)
         end do
       end do
@@ -1636,7 +1777,7 @@ CONTAINS
     endif
 
     do jlat = 1, nj_l
-      do jk1 = 1, nflev_l
+      do jk1 = 1, nlev_M
         tantheta(jk1,jlat) = tan(zgrtheta(jlat,jk1))
       end do
     end do
@@ -1652,12 +1793,12 @@ CONTAINS
 
     ! read of spectral coefficients for P to T operator
 
-    do jn = 0,ntrunc_l
+    do jn = 0,ntrunc
       ip2 = jn
       ikey = fstinf(nulbgst,inix,injx,inkx,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(ikey .ge.0 ) then
-        ikey = vfstlir(zptotsrc,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ikey = vfstlir(zPtoTsrc,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if ( kulbgsto .gt. 0 ) then
           ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits,           &
                  idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp,ig1     &
@@ -1665,25 +1806,25 @@ CONTAINS
         endif
       else
         if(mpi_myid.eq.0) write(*,*) 'WARNING: CANNOT FIND P_to_T FOR ',jn,' SETTING TO ZERO!!!'
-        zptotsrc(:,:)=0.0d0
+        zPtoTsrc(:,:)=0.0d0
       endif
 
-      do jk2 = 1,nflev_l
-        do jk1 = 1,nflev_l+1
-          zspptot(jn,jk1,jk2) = zptotsrc(jk1,jk2)
+      do jk2 = 1,nlev_M
+        do jk1 = 1,nlev_T+1
+          zspPtoT(jn,jk1,jk2) = zPtoTsrc(jk1,jk2)
         enddo
       enddo
 
     enddo
 
     !write(*,*) 'RDSPPTOT: converting PtoT in physical space'
-    ilen = nflev_l*(nflev_l+1)
-    call zleginv2(zgrptot,zspptot,zleg,ntrunc_l,nj_l,ilen,nj_l,ilen,ntrunc_l)
+    ilen = nlev_M*(nlev_T+1)
+    call zleginv2(zgrPtoT,zspPtoT,zleg,ntrunc,nj_l,ilen,nj_l,ilen,ntrunc)
 
     do jlat = 1, nj_l
-      do jk2 = 1,nflev_l
-        do jk1 = 1, nflev_l+1
-          ptot(jk1,jk2,jlat) = zgrptot(jlat,jk1,jk2)
+      do jk2 = 1,nlev_M
+        do jk1 = 1, nlev_T+1
+          PtoT(jk1,jk2,jlat) = zgrPtoT(jlat,jk1,jk2)
         end do
       end do
     enddo
@@ -1691,21 +1832,21 @@ CONTAINS
     if ( kulbgsto .gt. 0 ) then
 
       do jlat = 1, nj_l
-        do jk2 = 1,nflev_l
-          do jk1 = 1, nflev_l + 1
-            zptotecr(jk1,jk2,jlat) = ptot(jk1,jk2,nj_l-jlat+1)
+        do jk2 = 1,nlev_M
+          do jk1 = 1, nlev_T + 1
+            zPtoTecr(jk1,jk2,jlat) = PtoT(jk1,jk2,nj_l-jlat+1)
           enddo
         enddo
       enddo
 
-      ini = nflev_l + 1
-      inj = nflev_l
+      ini = nlev_T + 1
+      inj = nlev_M
       ink = nj_l
       ip1 = 0
       ip2 = 0
       cletiket = 'P_to_T'
 
-        ierr = vfstecr(zptotecr, zwork, -inbits, kulbgsto, idateo,       &
+        ierr = vfstecr(zPtoTecr, zwork, -inbits, kulbgsto, idateo,       &
                ideet, inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
                clnomvar, cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,    &
                .true.)
@@ -1721,10 +1862,10 @@ CONTAINS
   SUBROUTINE BHI_bSqrt(controlVector_in,statevector)
     implicit none
 
-    real*8    :: controlVector_in(cvDim_l)
+    real*8    :: controlVector_in(cvDim_mpilocal)
     type(struct_gsv) :: statevector
     real*8,allocatable :: gd_out(:,:,:)
-    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim)
     integer   :: jvar, ilev1, ilev2
 
     if(mpi_myid.eq.0) write(*,*) 'bhi_bsqrt: starting'
@@ -1735,7 +1876,7 @@ CONTAINS
       return
     endif
 
-    allocate(gd_out(ni_l,nkgdim_l,myLatBeg:myLatEnd))
+    allocate(gd_out(ni_l,nkgdim,myLatBeg:myLatEnd))
 
     call tmg_start(52,'BHI_CAIN')
     call bhi_cain(controlVector_in,hiControlVector)
@@ -1760,10 +1901,10 @@ CONTAINS
   SUBROUTINE BHI_bSqrtAd(statevector,controlVector_out)
     implicit none
 
-    real*8    :: controlVector_out(cvDim_l)
+    real*8    :: controlVector_out(cvDim_mpilocal)
     type(struct_gsv) :: statevector
     real*8, allocatable :: gd_in(:,:,:)
-    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim_l)
+    real*8    :: hiControlVector(nla_mpilocal,2,nkgdim)
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
@@ -1777,7 +1918,7 @@ CONTAINS
     !- Conversion of physical winds to wind images
     call uvwi2uv(statevector) ! INOUT
 
-    allocate(gd_in(ni_l,nkgdim_l,myLatBeg:myLatEnd))
+    allocate(gd_in(ni_l,nkgdim,myLatBeg:myLatEnd))
 
     call copyFromStatevector(statevector,gd_in)
 
@@ -1798,7 +1939,7 @@ CONTAINS
   SUBROUTINE copyToStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real*8  :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8  :: gd(ni_l,nkgdim,myLatBeg:myLatEnd)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real*8, pointer :: field(:,:,:)
 
@@ -1840,7 +1981,7 @@ CONTAINS
   SUBROUTINE copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real*8          :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8          :: gd(ni_l,nkgdim,myLatBeg:myLatEnd)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real*8, pointer :: field(:,:,:)
 
@@ -1881,16 +2022,16 @@ CONTAINS
 
   SUBROUTINE BHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
-    real*8  :: cv_mpilocal(cvDim_l)
+    real*8  :: cv_mpilocal(cvDim_mpilocal)
     real*8  :: cv_mpiglobal(cvDim_mpiglobal)
     integer :: cvDim_mpilocal_out
 
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal,ierr
 
-    cvDim_mpilocal_out = cvDim_l
+    cvDim_mpilocal_out = cvDim_mpilocal
 
-    do jlev = 1, nkgdim_l
-      do jn = 0 , ntrunc_l
+    do jlev = 1, nkgdim
+      do jn = 0 , ntrunc
         do jm = mymBeg, jn, mymSkip
           ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
           ila_mpiglobal = gst_getNIND(jm) + jn - jm
@@ -1900,11 +2041,11 @@ CONTAINS
           else
             jdim_mpilocal  = 2*ila_mpilocal-1
             if(mymBeg.eq.0) then
-              jdim_mpilocal=jdim_mpilocal-(ntrunc_l+1)
+              jdim_mpilocal=jdim_mpilocal-(ntrunc+1)
             endif
           endif
           if(mymBeg.eq.0) then
-            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2-ntrunc_l-1)
+            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2-ntrunc-1)
           else
             jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2)
           endif
@@ -1913,11 +2054,11 @@ CONTAINS
             jdim_mpiglobal = ila_mpiglobal
           else
             jdim_mpiglobal = 2*ila_mpiglobal-1
-            jdim_mpiglobal=jdim_mpiglobal-(ntrunc_l+1)
+            jdim_mpiglobal=jdim_mpiglobal-(ntrunc+1)
           endif
-          jdim_mpiglobal=jdim_mpiglobal+(jlev-1)*(nla_l*2-ntrunc_l-1)
+          jdim_mpiglobal=jdim_mpiglobal+(jlev-1)*(nla_mpiglobal*2-ntrunc-1)
 
-          if(jdim_mpilocal.gt.cvDim_l) write(*,*) 'jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_l,jlev,jn,jm
+          if(jdim_mpilocal.gt.cvDim_mpilocal) write(*,*) 'jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_mpilocal,jlev,jn,jm
           if(jdim_mpiglobal.gt.cvDim_mpiglobal) write(*,*) 'jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
           call flush(6)
 
@@ -1937,7 +2078,7 @@ CONTAINS
 
   SUBROUTINE BHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
-    real*8  :: cv_mpilocal(cvDim_l)
+    real*8  :: cv_mpilocal(cvDim_mpilocal)
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
 
@@ -1947,8 +2088,8 @@ CONTAINS
 
     cv_mpiglobal(:)=0.0d0
 
-    do jlev = 1, nkgdim_l
-      do jn = 0 , ntrunc_l
+    do jlev = 1, nkgdim
+      do jn = 0 , ntrunc
         do jm = mymBeg, jn, mymSkip
           ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
           ila_mpiglobal = gst_getNIND(jm) + jn - jm
@@ -1958,11 +2099,11 @@ CONTAINS
           else
             jdim_mpilocal  = 2*ila_mpilocal-1
             if(mymBeg.eq.0) then
-              jdim_mpilocal=jdim_mpilocal-(ntrunc_l+1)
+              jdim_mpilocal=jdim_mpilocal-(ntrunc+1)
             endif
           endif
           if(mymBeg.eq.0) then
-            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2-ntrunc_l-1)
+            jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2-ntrunc-1)
           else
             jdim_mpilocal=jdim_mpilocal+(jlev-1)*(nla_mpilocal*2)
           endif
@@ -1971,11 +2112,11 @@ CONTAINS
             jdim_mpiglobal = ila_mpiglobal
           else
             jdim_mpiglobal = 2*ila_mpiglobal-1
-            jdim_mpiglobal=jdim_mpiglobal-(ntrunc_l+1)
+            jdim_mpiglobal=jdim_mpiglobal-(ntrunc+1)
           endif
-          jdim_mpiglobal=jdim_mpiglobal+(jlev-1)*(nla_l*2-ntrunc_l-1)
+          jdim_mpiglobal=jdim_mpiglobal+(jlev-1)*(nla_mpiglobal*2-ntrunc-1)
 
-          if(jdim_mpilocal.gt.cvDim_l) write(*,*) 'jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_l,jlev,jn,jm
+          if(jdim_mpilocal.gt.cvDim_mpilocal) write(*,*) 'jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_mpilocal,jlev,jn,jm
           if(jdim_mpiglobal.gt.cvDim_mpiglobal) write(*,*) 'jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
           call flush(6)
 
@@ -2000,16 +2141,16 @@ CONTAINS
   SUBROUTINE BHI_cain(controlVector_in,hiControlVector_out)
     implicit none
 
-    real*8    :: controlVector_in(cvDim_l)
-    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
+    real*8    :: controlVector_in(cvDim_mpilocal)
+    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim)
 
     integer jdim, jlev, jla
 
     jdim = 0
     hiControlVector_out(:,:,:)=0.0d0
-    do jlev = 1, nkgdim_l
+    do jlev = 1, nkgdim
       do jla = 1, nla_mpilocal
-        if(mymBeg.eq.0.and.jla.le.(ntrunc_l+1)) then
+        if(mymBeg.eq.0.and.jla.le.(ntrunc+1)) then
           jdim = jdim + 1
           hiControlVector_out(jla,1,jlev) = controlVector_in(jdim)
         else
@@ -2028,15 +2169,15 @@ CONTAINS
   SUBROUTINE BHI_cainAd(hiControlVector_in,controlVector_out)
     IMPLICIT NONE
 
-    real*8    :: controlVector_out(cvDim_l)
-    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
+    real*8    :: controlVector_out(cvDim_mpilocal)
+    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim)
 
     integer jdim, jlev, jla
 
     jdim = 0
-    do jlev = 1, nkgdim_l
+    do jlev = 1, nkgdim
       do jla = 1, nla_mpilocal
-        if(mymBeg.eq.0.and.jla.le.(ntrunc_l+1)) then
+        if(mymBeg.eq.0.and.jla.le.(ntrunc+1)) then
           jdim = jdim + 1
           controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(jla,1,jlev)
         else
@@ -2055,11 +2196,11 @@ CONTAINS
   SUBROUTINE BHI_SPA2GD(hiControlVector_in,gd_out)
     IMPLICIT NONE
 
-    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim_l)
-    real*8    :: gd_out(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8    :: hiControlVector_in(nla_mpilocal,2,nkgdim)
+    real*8    :: gd_out(ni_l,nkgdim,myLatBeg:myLatEnd)
 
-    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
-    real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
+    real*8    :: sptb(nla_mpiglobal,2,nlev_T),sp(nla_mpiglobal,2,nkgdim)
+    real*8    :: tb0(ni_l,nlev_T,myLatBeg:myLatEnd)
 
     integer ilen,jn,jm,jk,ila
     integer ji,jj
@@ -2068,69 +2209,69 @@ CONTAINS
     real*8 zp
 
     integer ilensp, ilengd, ierr, ilon, jlev, jlon, jlat, jla, iulout
-    integer klatptot, nsize
+    integer klatPtoT, nsize
     real*8 z1mnu2, zsqrtnu2
     real*8, pointer :: zgdpsi(:,:,:),zgdchi(:,:,:)
-    real*8, target :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8, target :: gd(ni_l,nkgdim,myLatBeg:myLatEnd)
     real*8 dla2, dl1sa2, dlfact, zcoriolis, zpsb(ni_l,nj_l)
 
     integer :: icount
     integer :: thdid,numthd,omp_get_thread_num,omp_get_num_threads
 
-    klatptot=1
+    klatPtoT=1
 
     call tmg_start(53,'BHI_SPA2GD1')
     sq2=sqrt(2.0d0)
-    allocate(zsp(nkgdim_l,2,0:ntrunc_l))
-    allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
+    allocate(zsp(nkgdim,2,0:ntrunc))
+    allocate(zsp2(nkgdim2,2,0:ntrunc))
 !$OMP PARALLEL DO PRIVATE(jn,jm,jk,ila,zsp2,zsp,icount)
-    do jn = 0,ntrunc_l
+    do jn = 0,ntrunc
 
       icount=0
       do jm = mymBeg, jn, mymSkip
         icount=icount+1
         ila = Nind_mpilocal(jm) + jn - jm
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           zsp(jk,1,icount-1) = hiControlVector_in(ila,1,jk)
           zsp(jk,2,icount-1) = hiControlVector_in(ila,2,jk)
         enddo
       enddo
 
-      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,'N',zsp2(1,1,0),nksdim2_l,nksdim2_l,nkgdim_l,2*(icount))
+      CALL DGEMUL(corns(1,1,jn),nkgdim2,'N',zsp(1,1,0),nkgdim,'N',zsp2(1,1,0),nkgdim2,nkgdim2,nkgdim,2*(icount))
 
       icount=0
       do jm = mymBeg, jn, mymSkip
         icount=icount+1
         ila = gst_getNind(jm) +jn - jm
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           sp(ila,1,jk) = zsp2(jk,1,icount-1)
           sp(ila,2,jk) = zsp2(jk,2,icount-1)
         enddo
-        do jk = 1, nflev_l
-          sptb(ila,1,jk) = zsp2(jk+nkgdim_l,1,icount-1)
-          sptb(ila,2,jk) = zsp2(jk+nkgdim_l,2,icount-1)
+        do jk = 1, nlev_T
+          sptb(ila,1,jk) = zsp2(jk+nkgdim,1,icount-1)
+          sptb(ila,2,jk) = zsp2(jk+nkgdim,2,icount-1)
         enddo
       enddo
 
       if(mymBeg.eq.0) then
         ila = gst_getNind(0) +jn
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           sp(ila,1,jk) = sp(ila,1,jk)*sq2
           sp(ila,2,jk) = sp(ila,2,jk)*sq2
         enddo
-        do jk = 1, nflev_l
+        do jk = 1, nlev_T
           sptb(ila,1,jk) = sptb(ila,1,jk)*sq2
           sptb(ila,2,jk) = sptb(ila,2,jk)*sq2
         enddo
       endif
 
-      do jk=1,nkgdim_l
-        do ila=1,ntrunc_l+1
+      do jk=1,nkgdim
+        do ila=1,ntrunc+1
           sp(ila,2,jk)=0.0d0
         enddo
       enddo
-      do jk=1,nflev_l
-        do ila=1,ntrunc_l+1
+      do jk=1,nlev_T
+        do ila=1,ntrunc+1
           sptb(ila,2,jk)=0.0d0
         enddo
       enddo
@@ -2143,12 +2284,12 @@ CONTAINS
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim_l
+      do jlev = 1, nkgdim
         do jlon = 1,ni_l
           gd(jlon,jlev,jlat)=0.0d0
         enddo
       enddo
-      do jlev = 1, nflev_l
+      do jlev = 1, nlev_T
         do jlon = 1,ni_l
           tb0(jlon,jlev,jlat)=0.0d0
         enddo
@@ -2157,8 +2298,8 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     call tmg_start(55,'BHI_SPEREE') 
-    call gst_speree(sp,gd,nkgdim_l,nkgdim_l)
-    call gst_speree(sptb,tb0,nflev_l,nflev_l)
+    call gst_speree(sp,gd,nkgdim,nkgdim)
+    call gst_speree(sptb,tb0,nlev_T,nlev_T)
     call tmg_stop(55) 
 
     call tmg_start(54,'BHI_SPA2GD2')
@@ -2167,19 +2308,19 @@ CONTAINS
       zcoriolis = 2.d0*romega*gst_getRmu(jlat)
       do jlon = 1, ni_l
         zpsb(jlon,jlat)=0.0d0
-        do jlev=1,nflevptot_l
+        do jlev=1,nlevPtoT
          zp = zcoriolis*gd(jlon,nspositVO+jlev-1,jlat)
-         zpsb(jlon,jlat)=zpsb(jlon,jlat) + PtoT(nflev_l+1,jlev,klatptot)*zp
+         zpsb(jlon,jlat)=zpsb(jlon,jlat) + PtoT(nlev_T+1,jlev,klatPtoT)*zp
         enddo
       enddo
 
-      do jlev = 1, nflev_l
+      do jlev = 1, nlev_T
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)= zcoriolis*tb0(jlon,jlev,jlat)
         enddo
       enddo
 
-      do jlev = 1, nkgdim_l
+      do jlev = 1, nkgdim
         do jlon = 1,ni_l
           if(jlev.ne.nspositTG) then
             gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
@@ -2189,7 +2330,7 @@ CONTAINS
         enddo
       enddo
 
-      do jlev = 1, nflev_l
+      do jlev = 1, nlev_T
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)= tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
           gd(jlon,nspositTT+jlev-1,jlat)= gd(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
@@ -2203,11 +2344,11 @@ CONTAINS
 !$OMP END PARALLEL DO
     call tmg_stop(54)
 
-    zgdpsi(1:,1:,myLatBeg:) => gd(:,nspositVO:(nspositVO+nflev_l-1),myLatBeg:myLatEnd)
-    zgdchi(1:,1:,myLatBeg:) => gd(:,nspositDI:(nspositDI+nflev_l-1),myLatBeg:myLatEnd)
+    zgdpsi(1:,1:,myLatBeg:) => gd(:,nspositVO:(nspositVO+nlev_M-1),myLatBeg:myLatEnd)
+    zgdchi(1:,1:,myLatBeg:) => gd(:,nspositDI:(nspositDI+nlev_M-1),myLatBeg:myLatEnd)
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
-      do jlev=nlev_bdl,nflev_l
+      do jlev=nlev_bdl,nlev_M
         do jlon = 1, ni_l
           zgdchi(jlon,jlev,jlat)=zgdchi(jlon,jlev,jlat) -tantheta(jlev,jlat)*zgdpsi(jlon,jlev,jlat)
         enddo
@@ -2216,8 +2357,8 @@ CONTAINS
 !$OMP END PARALLEL DO
 
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA)
-    do jlev = 1, nkgdim_l
-      do jla = 1, nla_l
+    do jlev = 1, nkgdim
+      do jla = 1, nla_mpiglobal
         sp(jla,1,jlev)=0.0d0
         sp(jla,2,jlev)=0.0d0
       enddo
@@ -2226,14 +2367,14 @@ CONTAINS
 
     call flush(6)
     call tmg_start(56,'BHI_REESPE') 
-    call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
+    call gst_REESPE(sp,gd,nkgdim,nkgdim)
     call tmg_stop(56) 
 
     dla2   = ra*ra
     dl1sa2 = 1.d0/dla2
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA)
-    do jlev = 1, nflev_l
-      do jla = 1, nla_l
+    do jlev = 1, nlev_M
+      do jla = 1, nla_mpiglobal
         sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
         sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
         sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
@@ -2244,7 +2385,7 @@ CONTAINS
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim_l
+      do jlev = 1, nkgdim
         do jlon = 1,ni_l
           gd(jlon,jlev,jlat) = 0.0d0
         enddo
@@ -2253,12 +2394,12 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
-    call gst_spgd(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
+    call gst_spgd(sp,gd,nkgdim,nlev_M,nkgdim)
     call tmg_stop(57)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim_l
+      do jlev = 1, nkgdim
         do jlon = 1,ni_l
           gd_out(jlon,jlev,jlat) = gd(jlon,jlev,jlat)
         enddo
@@ -2273,21 +2414,21 @@ CONTAINS
   SUBROUTINE BHI_SPA2GDAD(gd_in,hiControlVector_out)
     implicit none
 
-    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim_l)
-    real*8    :: gd_in(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8    :: hiControlVector_out(nla_mpilocal,2,nkgdim)
+    real*8    :: gd_in(ni_l,nkgdim,myLatBeg:myLatEnd)
 
-    real*8    :: sptb(nla_l,2,nflev_l),sp(nla_l,2,nkgdim_l)
-    real*8    :: tb0(ni_l,nflev_l,myLatBeg:myLatEnd)
+    real*8    :: sptb(nla_mpiglobal,2,nlev_T),sp(nla_mpiglobal,2,nkgdim)
+    real*8    :: tb0(ni_l,nlev_T,myLatBeg:myLatEnd)
 
     integer jn,jm,jk,ila,icount
     real*8 sq2
     real*8 ,allocatable,dimension(:,:,:) :: zsp,zsp2
     real*8 zp
 
-    integer ierr, ilon, jlev, jlon, jlat, jla, klatptot,pe_send
+    integer ierr, ilon, jlev, jlon, jlat, jla, klatPtoT,pe_send
     real*8 dl1sa2,dla2,znormpsi, znormchi, zcoriolis, zpsb(ni_l,nj_l)
     real*8,pointer :: zgdpsi(:,:,:) ,zgdchi(:,:,:)
-    real*8, target :: gd(ni_l,nkgdim_l,myLatBeg:myLatEnd)
+    real*8, target :: gd(ni_l,nkgdim,myLatBeg:myLatEnd)
 
     integer :: thdid,numthd,nsize
     integer :: omp_get_thread_num, omp_get_num_threads
@@ -2295,11 +2436,11 @@ CONTAINS
     dla2   = ra*ra
     dl1sa2 = 1.d0/dla2
 
-    klatptot=1
+    klatPtoT=1
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim_l
+      do jlev = 1, nkgdim
         do jlon = 1,ni_l
           gd(jlon,jlev,jlat) = gd_in(jlon,jlev,jlat)
         enddo
@@ -2308,12 +2449,12 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
-    call gst_SPGDA(sp,gd,nkgdim_l,nflev_l,nkgdim_l)
+    call gst_SPGDA(sp,gd,nkgdim,nlev_M,nkgdim)
     call tmg_stop(57)
 
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA)
-    do jlev = 1, nflev_l
-      do jla = 1, nla_l
+    do jlev = 1, nlev_M
+      do jla = 1, nla_mpiglobal
         sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
         sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
         sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
@@ -2323,14 +2464,14 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     call tmg_start(55,'BHI_SPEREE') 
-    CALL gst_SPEREE(sp,gd,nkgdim_l,nkgdim_l)
+    CALL gst_SPEREE(sp,gd,nkgdim,nkgdim)
     call tmg_stop(55) 
 
-    zgdpsi(1:,1:,myLatBeg:) => gd(:,nspositVO:(nspositVO+nflev_l-1),myLatBeg:myLatEnd)
-    zgdchi(1:,1:,myLatBeg:) => gd(:,nspositDI:(nspositDI+nflev_l-1),myLatBeg:myLatEnd)
+    zgdpsi(1:,1:,myLatBeg:) => gd(:,nspositVO:(nspositVO+nlev_M-1),myLatBeg:myLatEnd)
+    zgdchi(1:,1:,myLatBeg:) => gd(:,nspositDI:(nspositDI+nlev_M-1),myLatBeg:myLatEnd)
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
-      do jlev=nlev_bdl,nflev_l
+      do jlev=nlev_bdl,nlev_M
         do jlon = 1, ni_l
           zgdpsi(jlon,jlev,jlat)=zgdpsi(jlon,jlev,jlat) -tantheta(jlev,jlat)*zgdchi(jlon,jlev,jlat)
         enddo
@@ -2342,7 +2483,7 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRMU(jlat)
-      do jlev = 1, nflev_l
+      do jlev = 1, nlev_T
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)=gd(jlon,nspositTT+jlev-1,jlat)
           tb0(jlon,jlev,jlat)=tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
@@ -2353,7 +2494,7 @@ CONTAINS
         zpsb(jlon,jlat)=zpsb(jlon,jlat)*rgsigpsb(jlat)
       enddo
 
-      do jlev = 1, nkgdim_l
+      do jlev = 1, nkgdim
         do jlon = 1,ni_l
           if(jlev.ne.nspositTG) then
             gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
@@ -2363,15 +2504,15 @@ CONTAINS
         enddo
       enddo
 
-      do jlev = 1, nflev_l
+      do jlev = 1, nlev_T
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)= zcoriolis*tb0(jlon,jlev,jlat)
         enddo
       enddo
 
-      do jlev = 1, nflevptot_l
+      do jlev = 1, nlevPtoT
         do jlon = 1, ni_l
-          zp = PtoT(nflev_l+1,jlev,klatptot)*zpsb(jlon,jlat)
+          zp = PtoT(nlev_T+1,jlev,klatPtoT)*zpsb(jlon,jlat)
           gd(jlon,nspositVO+jlev-1,jlat) = zcoriolis*zp+gd(jlon,nspositVO+jlev-1,jlat)
         enddo
       enddo
@@ -2380,39 +2521,39 @@ CONTAINS
     call tmg_stop(54)
 
     call tmg_start(56,'BHI_REESPE') 
-    call gst_REESPE(sp,gd,nkgdim_l,nkgdim_l)
-    call gst_REESPE(sptb,tb0,nflev_l,nflev_l)
+    call gst_REESPE(sp,gd,nkgdim,nkgdim)
+    call gst_REESPE(sptb,tb0,nlev_T,nlev_T)
     call tmg_stop(56) 
 
     call tmg_start(53,'BHI_SPA2GD1')
     hiControlVector_out(:,:,:)=0.0d0
     sq2=sqrt(2.0d0)
-    allocate(zsp(nkgdim_l,2,0:ntrunc_l))
-    allocate(zsp2(nksdim2_l,2,0:ntrunc_l))
+    allocate(zsp(nkgdim,2,0:ntrunc))
+    allocate(zsp2(nkgdim2,2,0:ntrunc))
 !$OMP PARALLEL DO PRIVATE(JN,JM,JK,ILA,zsp,zsp2,icount)
-    do jn = 0,ntrunc_l
+    do jn = 0,ntrunc
 
       icount=0
       do jm = mymBeg, jn, mymSkip
         ila = gst_getNind(jm) + jn - jm
         icount=icount+1
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           zsp2(jk,1,icount-1) = sp(ila,1,jk)
           zsp2(jk,2,icount-1) = sp(ila,2,jk)
         enddo
-        do jk = 1, nflev_l
-          zsp2(jk+nkgdim_l,1,icount-1) = sptb(ila,1,jk)
-          zsp2(jk+nkgdim_l,2,icount-1) = sptb(ila,2,jk)
+        do jk = 1, nlev_T
+          zsp2(jk+nkgdim,1,icount-1) = sptb(ila,1,jk)
+          zsp2(jk+nkgdim,2,icount-1) = sptb(ila,2,jk)
         enddo
       enddo
 
-      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'T',zsp2(1,1,0),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,nkgdim_l,nksdim2_l,2*icount)
+      CALL DGEMUL(corns(1,1,jn),nkgdim2,'T',zsp2(1,1,0),nkgdim2,'N',zsp(1,1,0),nkgdim,nkgdim,nkgdim2,2*icount)
 
       icount=0
       do jm = mymBeg, jn, mymSkip
         ila = nind_mpilocal(jm) +jn - jm
         icount=icount+1
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           hiControlVector_out(ila,1,jk) = zsp(jk,1,icount-1)
           hiControlVector_out(ila,2,jk) = zsp(jk,2,icount-1)
         enddo
@@ -2420,7 +2561,7 @@ CONTAINS
 
       if(mymBeg.eq.0) then
         ila = nind_mpilocal(0) +jn
-        do jk = 1, nkgdim_l
+        do jk = 1, nkgdim
           hiControlVector_out(ila,1,jk) = hiControlVector_out(ila,1,jk)*sq2
           hiControlVector_out(ila,2,jk) = hiControlVector_out(ila,2,jk)*sq2
         enddo
@@ -2554,7 +2695,8 @@ CONTAINS
   SUBROUTINE BHI_Finalize()
     implicit none
 
-    deallocate(pressureProfile)
+    deallocate(pressureProfile_M)
+    deallocate(pressureProfile_T)
     deallocate(PtoT)
     deallocate(tantheta)
     deallocate(rgsig)
@@ -2578,7 +2720,7 @@ CONTAINS
     type(struct_gsv) :: statevector
 
     integer ji,jj,jk,jstep
-    integer jlev,jlat,jlon,lat1,lat2,nlev
+    integer jlev,jlat,jlon,lat1,lat2,nlev_gsv
 
     real*8, pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
     
@@ -2587,13 +2729,13 @@ CONTAINS
     
     lat1 = statevector % myLatBeg
     lat2 = statevector % myLatEnd
-    nlev = gsv_getNumLev(statevector)
+    nlev_gsv = gsv_getNumLev(statevector,'MM')
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
     do jlat = lat1, lat2
       do jstep = 1, statevector % numStep
-        do jlev = 1, nlev
+        do jlev = 1, nlev_gsv
           do jlon = 1, statevector % ni
             uu_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * uu_ptr(jlon,jlev,jlat,jstep)
             vv_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * vv_ptr(jlon,jlev,jlat,jstep)

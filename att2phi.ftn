@@ -26,25 +26,25 @@
       IMPLICIT NONE
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_vco), pointer :: vco_anl
-      integer jobs,jlev,nlev
+      integer jobs,jlev,nlev_T
       real*8 :: zcon, zalpha
       real*8, allocatable :: vma(:),vmb(:),vmc(:)
       real*8, allocatable :: vmd(:),vme(:),vmf(:)
       real*8, allocatable :: tv_tmp(:,:)
       real*8, pointer :: tt_column(:),hu_column(:),gz_column(:),ps_column(:)
 *
-      allocate(vma(col_getNumLev(lcolumn)))
-      allocate(vmb(col_getNumLev(lcolumn)))
-      allocate(vmc(col_getNumLev(lcolumn)))
-      allocate(vmd(col_getNumLev(lcolumn)))
-      allocate(vme(col_getNumLev(lcolumn)))
-      allocate(vmf(col_getNumLev(lcolumn)))
-      allocate(tv_tmp(col_getNumLev(lcolumn),col_getNumCol(lcolumn)))
+      nlev_T = col_getNumLev(lcolumn,'TH')
+      allocate(vma(nlev_T))
+      allocate(vmb(nlev_T))
+      allocate(vmc(nlev_T))
+      allocate(vmd(nlev_T))
+      allocate(vme(nlev_T))
+      allocate(vmf(nlev_T))
+      allocate(tv_tmp(nlev_T,col_getNumCol(lcolumn)))
 
       vco_anl => col_getVco(lcolumng)
       zalpha=0.0D0
-      nlev=col_getNumLev(lcolumn)
-      call matapat(vco_anl%dhyb_m,zalpha,nLev,vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(vco_anl%dhyb_m,zalpha,nlev_T,vma,vmb,vmc,vmd,vme,vmf)
 
       call avtap
 c
@@ -60,7 +60,7 @@ c
         gz_column => col_getColumn(lcolumn,jobs,'GZ')
         ps_column => col_getColumn(lcolumn,jobs,'P0')
 
-        do jlev = 1, col_getNumLev(lcolumn)
+        do jlev = 1, nlev_T
 c
 c         zcon = d(lcolumng%rtapfac)/d(ps)
 c
@@ -73,7 +73,7 @@ c
           tv_tmp(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
 
         enddo
-        do jlev = 1, col_getNumLev(lcolumn)
+        do jlev = 1, nlev_T
           tt_column(jlev) = tt_column(jlev)+
      &              lcolumng%oltv(1,jlev,jobs)*tv_tmp(jlev,jobs)
           hu_column(jlev) = hu_column(jlev)+
@@ -106,18 +106,18 @@ C
       integer mythread,numthd,omp_get_thread_num,omp_get_num_threads
 c
       ZCON2 = -MPC_RGAS_DRY_AIR_R8
-      IKLEVM2 = col_getNumLev(lcolumn)-2
+      IKLEVM2 = nlev_T-2
 !$OMP PARALLEL PRIVATE(jobs,ik,jk,mythread,numthd,zak,zbk,zck,gz_column)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
       do jobs = mythread, col_getNumCol(lcolumn),numthd
         gz_column => col_getColumn(lcolumn,jobs,'GZ')
-        do jk=1,col_getNumLev(lcolumn)
+        do jk=1,nlev_T
           tv_tmp(jk,jobs) = 0.0d0
         enddo
 c
         do jk=iklevm2,1,-1
-          ik = col_getNumLev(lcolumn)-1-jk
+          ik = nlev_T-1-jk
           zak = -2.0D0*ZCON2*vma(ik+1)
           zbk = -2.0D0*ZCON2*vmb(ik+1)
           zck = -2.0D0*ZCON2*vmc(ik+1)
@@ -131,17 +131,17 @@ c
           gz_column(ik)  = 0.0D0
         enddo
 
-        ZAK = -2.0D0*ZCON2*VMA(col_getNumLev(lcolumn))
-        ZBK = -2.0D0*ZCON2*VMB(col_getNumLev(lcolumn))
-        ZCK = -2.0D0*ZCON2*VMC(col_getNumLev(lcolumn))
-        tv_tmp(col_getNumLev(lcolumn)-1,jobs) = tv_tmp(col_getNumLev(lcolumn)-1,jobs)+
-     &             ZAK*gz_column(col_getNumLev(lcolumn)-1)
-        tv_tmp(col_getNumLev(lcolumn),jobs)   = tv_tmp(col_getNumLev(lcolumn),jobs)+
-     &             ZBK*gz_column(col_getNumLev(lcolumn)-1)
-        tv_tmp(col_getNumLev(lcolumn)-2,jobs) = tv_tmp(col_getNumLev(lcolumn)-2,jobs)+
-     &             ZCK*gz_column(col_getNumLev(lcolumn)-1)
-        gz_column(col_getNumLev(lcolumn)-1)= 0.0D0
-        gz_column(col_getNumLev(lcolumn))  = 0.0D0
+        ZAK = -2.0D0*ZCON2*VMA(nlev_T)
+        ZBK = -2.0D0*ZCON2*VMB(nlev_T)
+        ZCK = -2.0D0*ZCON2*VMC(nlev_T)
+        tv_tmp(nlev_T-1,jobs) = tv_tmp(nlev_T-1,jobs)+
+     &             ZAK*gz_column(nlev_T-1)
+        tv_tmp(nlev_T,jobs)   = tv_tmp(nlev_T,jobs)+
+     &             ZBK*gz_column(nlev_T-1)
+        tv_tmp(nlev_T-2,jobs) = tv_tmp(nlev_T-2,jobs)+
+     &             ZCK*gz_column(nlev_T-1)
+        gz_column(nlev_T-1)= 0.0D0
+        gz_column(nlev_T)  = 0.0D0
       enddo
 !$OMP END PARALLEL
 C

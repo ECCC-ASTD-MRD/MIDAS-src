@@ -489,8 +489,12 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     nsize=gst(gstID)%maxmCount*2*kfield*gst(gstID)%latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    if(nprocs_mpi.gt.1) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    else
+      gd_recv(:,:,:,:)=gd_send(:,:,:,:,1)
+    endif
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,icount,jm)
     do jlat=1,gst(gstID)%nj
@@ -536,8 +540,12 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     nsize=gst(gstID)%maxmCount*2*kfield*gst(gstID)%latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    if(nprocs_mpi.gt.1) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:)
+    endif
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,icount,jm)
     do yourid=0,(nprocs_mpi-1)
@@ -588,8 +596,12 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     nsize=(gst(gstID)%ntrunc+1)*2*gst(gstID)%maxLevCount*gst(gstID)%latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    if(nprocs_mpi.gt.1) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    else
+      gd_recv(:,:,:,:) = gd_send(:,:,:,:,1)
+    endif
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,icount,jm)
     do jlat=1,gst(gstID)%nj
@@ -637,8 +649,12 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     nsize=(gst(gstID)%ntrunc+1)*2*gst(gstID)%maxLevCount*gst(gstID)%latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    if(nprocs_mpi.gt.1) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:)
+    endif
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
     do yourid=0,(nprocs_mpi-1)

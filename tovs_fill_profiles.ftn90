@@ -227,8 +227,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
         do jl = 1, knlev
            zt   (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'TT')
            zlq  (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(lcolumnghr,jl,jo,'TH') &
-                                                             * MPC_MBAR_PER_PA_R8
+           zvlev(jl,knpf) = col_getPressure(lcolumnghr,jl,jo,'TH') * MPC_MBAR_PER_PA_R8
            zht  (jl,knpf) = col_getHeight(lcolumnghr,jl,jo,'TH') / rg
         enddo
 !!! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser

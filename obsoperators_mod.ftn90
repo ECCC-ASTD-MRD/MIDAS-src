@@ -667,7 +667,7 @@ module obsOperators_mod
     real(8) :: bias, std
     integer :: headerIndex, bodyIndex, ioneobs, idatyp, ityp, index_ztd, iztd
     integer :: jl, ngpslev, nobs2p, stat
-    integer :: icount1, icount2, icount3, icount, icountp, iversion
+    integer :: icount1, icount2, icount3, icount, icountp, Vcode
     integer,pointer :: ip1(:)
     character(len=2) :: lv
     real(4) :: sfcfield_r4
@@ -709,20 +709,20 @@ module obsOperators_mod
 
     vco_trl => col_getVco(columnhr)
     stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
-    stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+    stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
 
-    if (iversion .ne. 5001) then
+    if (Vcode .eq. 5002) then
        write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-       write(*,*)'VCODE= ',iversion,' LSTAG= TRUE'
+       write(*,*)'VCODE= ',Vcode,' LSTAG= TRUE'
        lv = 'TH'
     else
        write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-       write(*,*)'VCODE= ',iversion,' LSTAG= FALSE'
+       write(*,*)'VCODE= ',Vcode,' LSTAG= FALSE'
        lv = 'NA'         
     endif
 
     ngpslev = col_getNumLev(columnhr,'TH')
-    if (ltestop) write(*,*) '  col_getNumLev(columnhr) = ',ngpslev
+    if (ltestop) write(*,*) '  col_getNumLev(columnhr,TH) = ',ngpslev
       
     !
     ! Initializations

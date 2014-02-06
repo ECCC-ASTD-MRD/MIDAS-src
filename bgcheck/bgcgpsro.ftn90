@@ -57,7 +57,7 @@
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      NGPSLEV=col_getNumLev(lcolumnhr)
+      NGPSLEV=col_getNumLev(lcolumnhr,'TH')
 !C
 !C     Loop over all files
 !C

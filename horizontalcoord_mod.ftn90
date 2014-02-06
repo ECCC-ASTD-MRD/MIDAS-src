@@ -404,16 +404,14 @@ module HorizontalCoord_mod
     dx       = lon(2) - lon(1)
     next_lon = lon(ni) + dx
 
-    if ( next_lon >= 360.d0 ) next_lon = next_lon - 360.d0
-    
     write(*,*)
     write(*,*) 'dx       = ',dx
     write(*,*) 'lon(ni)  = ',lon(ni)
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
- 
-    if ( (next_lon > lon(1)-dx/2.d0 .and. next_lon < lon(1)+dx/2.d0) .or. &
-         (lon(1) == lon(ni)) ) then
+
+    if ( abs(next_lon - 360.0d0 - lon(1)) < dx/2.0d0 .or. &
+         lon(1) == lon(ni) ) then
 
       global = .true.
       if ( lon(1) == lon(ni) ) then

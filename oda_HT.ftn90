@@ -93,7 +93,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
-      INTEGER INDEX_HEADER,IK
+      INTEGER INDEX_HEADER,IK,nlev_T
       INTEGER INDEX_BODY,INDEX_FAMILY
       REAL*8 columngVarT,columngVarB,lqtoes
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
@@ -171,7 +171,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-            IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
+            nlev_T = col_getNumLev(lcolumn,'TH')
+            IPT  = nlev_T - 1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
 !c
 !c-------------adjoint of TL of geopotential extrapolation below
@@ -179,14 +180,14 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c
             zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexp
             ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
+            ZTVG = lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*col_getElem(lcolumng,nlev_T,INDEX_HEADER,'TT')
             ps_column(1)    = ps_column(1)  &
                  + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &
                  / col_getElem(lcolumng,1,index_header,'P0')
-            tt_column(col_getNumLev(lcolumn)) = tt_column(col_getNumLev(lcolumn))  &
-                 + lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV
-            hu_column(col_getNumLev(lcolumn)) = hu_column(col_getNumLev(lcolumn))  &
-                 + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV
+            tt_column(nlev_T) = tt_column(nlev_T)  &
+                 + lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*ZATV
+            hu_column(nlev_T) = hu_column(nlev_T)  &
+                 + lcolumng%OLTV(2,nlev_T,INDEX_HEADER)*ZATV
           ENDIF
 
         ENDDO BODY
@@ -213,7 +214,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZRES
       REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
-      INTEGER INDEX_HEADER,IK
+      INTEGER INDEX_HEADER,IK,nlev
       INTEGER INDEX_BODY,ITYP,INDEX_FAMILY
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
       INTEGER, PARAMETER :: numFamily=4
@@ -249,6 +250,12 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
              .or. ityp.eq.bufr_neus .or. ityp.eq.bufr_nevs  &
              .or. obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body).eq.0) ) then
 
+            if( ityp.eq.bufr_neus .or. ityp.eq.bufr_nevs ) then
+              nlev = col_getNumLev(lcolumn,'MM')           
+            else
+              nlev = col_getNumLev(lcolumn,'TH')           
+            endif
+
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             all_column => col_getColumn(lcolumn,INDEX_HEADER)
             tt_column  => col_getColumn(lcolumn,INDEX_HEADER,'TT')
@@ -258,31 +265,31 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             ZHHH = ZLEV * GRAV
-            IPT  = col_getNumLev(lcolumn)-1 + col_getOffsetFromVarno(lcolumng,ityp)
+            IPT  = nlev - 1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
             ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
-                call lqtoes_ad(hu_column(col_getNumLev(lcolumn)),tt_column(col_getNumLev(lcolumn)),ps_column(1),  &
-                  ZRES,col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'HU'),col_getPressure(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'NA'),  &
-                  vco_anl%dhyb_m(col_getNumLev(lcolumn)),vco_anl%db_m(col_getNumLev(lcolumn)))
+                call lqtoes_ad(hu_column(nlev),tt_column(nlev),ps_column(1),  &
+                  ZRES,col_getElem(lcolumng,nlev,INDEX_HEADER,'HU'),col_getPressure(lcolumng,nlev,INDEX_HEADER,'NA'),  &
+                  vco_anl%dhyb_t(col_getNumLev(lcolumn,'TH')),vco_anl%db_t(col_getNumLev(lcolumn,'TH')))
               else
                 all_column(IPB) = all_column(IPB) + ZRES
               endif
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
-              ZTVG  = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
-              ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'NA'))
+              ZTVG  = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(lcolumng,nlev,INDEX_HEADER,'TT')
+              ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumng,nlev,INDEX_HEADER,'NA'))
               ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
               ZDELTV= (col_getElem(lcolumng,1,INDEX_HEADER,'P0')*ZEXP*ZCON**(ZEXP-1))  &
                    *(ZGAMAZ/(ZTVG*ZTVG))
               ZDELPS= ZCON**ZEXP
               ZATV  = ZDELTV*ZRES
               ps_column(1)    = ps_column(1) + ZDELPS*ZRES
-              tt_column(col_getNumLev(lcolumn)) = tt_column(col_getNumLev(lcolumn))  &
-                   + lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV
-              hu_column(col_getNumLev(lcolumn))= hu_column(col_getNumLev(lcolumn))   &
-                   + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV
+              tt_column(nlev) = tt_column(nlev)  &
+                   + lcolumng%OLTV(1,nlev,INDEX_HEADER)*ZATV
+              hu_column(nlev)= hu_column(nlev)   &
+                   + lcolumng%OLTV(2,nlev,INDEX_HEADER)*ZATV
             ELSE
               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
               IPB  = IPT+1
@@ -303,6 +310,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 2) &
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body) .EQ. BUFR_NEGZ ) &
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 1) ) then
+
+            nlev = col_getNumLev(lcolumn,'TH')           
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -311,14 +320,14 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !c
             zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexpgz
             ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*col_getElem(lcolumng,col_getNumLev(lcolumn),INDEX_HEADER,'TT')
+            ZTVG = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(lcolumng,nlev,INDEX_HEADER,'TT')
             ps_column(1)    = ps_column(1)     &
                  + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &
                  / col_getElem(lcolumng,1,index_header,'P0')
-            tt_column(col_getNumLev(lcolumn)) = tt_column(col_getNumLev(lcolumn))  &
-                 + lcolumng%OLTV(1,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV
-            hu_column(col_getNumLev(lcolumn)) = hu_column(col_getNumLev(lcolumn))  &
-                 + lcolumng%OLTV(2,col_getNumLev(lcolumn),INDEX_HEADER)*ZATV                
+            tt_column(nlev) = tt_column(nlev)  &
+                 + lcolumng%OLTV(1,nlev,INDEX_HEADER)*ZATV
+            hu_column(nlev) = hu_column(nlev)  &
+                 + lcolumng%OLTV(2,nlev,INDEX_HEADER)*ZATV                
           endif
 
         ENDDO BODY
@@ -403,7 +412,7 @@ end subroutine oda_HTto
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      NGPSLEV=col_getNumLev(lcolumn)
+      NGPSLEV=col_getNumLev(lcolumn,'TH')
 !C
 !C    Loop over all header indices of the 'RO' family (Radio Occultation)
 !C
@@ -611,7 +620,7 @@ end subroutine oda_HTto
 
 !      WRITE(*,*)'ENTER oda_HTgp'
 
-      NFLEV  = col_getNumLev(lcolumng)
+      NFLEV  = col_getNumLev(lcolumng,'TH')
 
       IF ( .not.vGPSZTD_lJac(1) ) THEN
          call abort3d('oda_HTgp:ERROR: ZTD Jacobians not stored!')

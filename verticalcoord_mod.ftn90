@@ -136,6 +136,8 @@ module verticalCoord_mod
 
     nlev_M = vco_getNumLev(vco,'MM')
     nlev_T = vco_getNumLev(vco,'TH')
+
+    if(mpi_myid.eq.0) write(*,*) 'nlev_M, nlev_T=',nlev_M,nlev_T
     
     call vco_allocate(vco)
 
@@ -216,7 +218,7 @@ module verticalCoord_mod
     !==========================================================================
     ! Assign values for Momentum levels
 
-    if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb)= ',size(vco%dhyb_M)
+    if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb_M)= ',size(vco%dhyb_M)
     do jlev = 1, nlev_M
       vco%ip1_M(jlev) = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb_r4,kind,-1,blk_s,.false.)
@@ -254,6 +256,7 @@ module verticalCoord_mod
       call abort3d('vco: problem with size(a,b,ip1)(t) in vgd_get')
     endif
 
+    if(mpi_myid.eq.0) write(*,*) 'vco: size(hyb_T)= ',size(vco%dhyb_T)
     do jlev = 1,nlev_T
       vco%ip1_T(jlev)  = my_ip1(jlev)
       call convip(my_ip1(jlev),hyb_r4,kind,-1,blk_s,.false.)
@@ -282,46 +285,32 @@ module verticalCoord_mod
 
   function vco_getNumLev(vco,varType) result(nlev)
     implicit none
-    type(struct_vco), intent(inout)    :: vco
-    character(len=*), intent(in), optional :: varType
-    integer                                :: nlev
-    integer                                :: stat
-    integer, pointer                       :: ip_ptr(:)
+    type(struct_vco), intent(inout) :: vco
+    character(len=*), intent(in)    :: varType
+    integer                         :: nlev
+    integer                         :: stat
+    integer, pointer                :: ip_ptr(:)
 
-    if(present(varType)) then
-      if(varType.eq.'MM') then
-        if(vco%nlev_M.le.0) then
-!          stat = vgd_get(vco%vgrid,key='nl_m - number of momentum levels',value=nlev)
-          stat = vgd_get(vco%vgrid,key='VIPM',value=ip_ptr)
-          vco%nlev_M = size(ip_ptr)
-          deallocate(ip_ptr)
-        endif
-        nlev = vco%nlev_M
-      elseif(varType.eq.'TH') then
-        if(vco%nlev_T.le.0) then
-!          stat = vgd_get(vco%vgrid,key='nl_t - number of thermo levels',value=nlev)
-          stat = vgd_get(vco%vgrid,key='VIPT',value=ip_ptr)
-          vco%nlev_T = size(ip_ptr)
-          deallocate(ip_ptr)
-        endif
-        nlev = vco%nlev_T
-      elseif(varType.eq.'SF') then
-        nlev = 1
-      else
-        call abort3d('vco_getNumLev: Unknown variable type! ' // varType)
-      endif
-    else
-      if(vco%nlev_M.le.0.or.vco%nlev_T.le.0) then
-!        stat = vgd_get(vco%vgrid,key='nl_m - number of momentum levels',value=nlev_m)
+    if(varType.eq.'MM') then
+      if(vco%nlev_M.le.0) then
+!        stat = vgd_get(vco%vgrid,key='nl_m - number of momentum levels',value=nlev)
         stat = vgd_get(vco%vgrid,key='VIPM',value=ip_ptr)
-        vco%nlev_m = size(ip_ptr)
-        deallocate(ip_ptr)
-!        stat = vgd_get(vco%vgrid,key='nl_t - number of thermo levels',value=nlev_t)
-        stat = vgd_get(vco%vgrid,key='VIPT',value=ip_ptr)
-        vco%nlev_t = size(ip_ptr)
+        vco%nlev_M = size(ip_ptr)
         deallocate(ip_ptr)
       endif
-      nlev = max(vco%nlev_m,vco%nlev_t)
+      nlev = vco%nlev_M
+    elseif(varType.eq.'TH') then
+      if(vco%nlev_T.le.0) then
+!        stat = vgd_get(vco%vgrid,key='nl_t - number of thermo levels',value=nlev)
+        stat = vgd_get(vco%vgrid,key='VIPT',value=ip_ptr)
+        vco%nlev_T = size(ip_ptr)
+        deallocate(ip_ptr)
+      endif
+      nlev = vco%nlev_T
+    elseif(varType.eq.'SF') then
+      nlev = 1
+    else
+      call abort3d('vco_getNumLev: Unknown variable type! ' // varType)
     endif
 
   end function vco_getNumLev

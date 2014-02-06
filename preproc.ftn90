@@ -150,7 +150,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
   if ( top_AnalysisMode() ) then
-    call bmat_setup(hco_anl,vco_anl,tim_getDatestamp())
+    call bmat_setup(hco_anl,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
 

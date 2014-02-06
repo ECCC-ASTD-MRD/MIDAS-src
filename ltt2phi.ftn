@@ -35,8 +35,8 @@
 c
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_vco), pointer :: vco_anl
-      integer jobs,jlev
-      real*8  zpscon, zcon,zdelps,zdelt,zalpha,zfacps,zfactt
+      integer jobs,jlev,nlev_T
+      real*8  zpscon, zcon,zalpha
       INTEGER IERR,ILEN
       real*8 zpresb
       INTEGER mythread,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
@@ -45,24 +45,25 @@ c
       real*8, pointer :: gz_column(:)
       real*8, allocatable :: tv_tmp(:,:)
 
-      allocate(vma(col_getNumLev(lcolumn)))
-      allocate(vmb(col_getNumLev(lcolumn)))
-      allocate(vmc(col_getNumLev(lcolumn)))
-      allocate(vmd(col_getNumLev(lcolumn)))
-      allocate(vme(col_getNumLev(lcolumn)))
-      allocate(vmf(col_getNumLev(lcolumn)))
-      allocate(tv_tmp(col_getNumLev(lcolumn),col_getNumCol(lcolumn)))
+      nlev_T = col_getNumLev(lcolumn,'TH')
+      allocate(vma(nlev_T))
+      allocate(vmb(nlev_T))
+      allocate(vmc(nlev_T))
+      allocate(vmd(nlev_T))
+      allocate(vme(nlev_T))
+      allocate(vmf(nlev_T))
+      allocate(tv_tmp(nlev_T,col_getNumCol(lcolumn)))
       vco_anl => col_getVco(lcolumng)
 c
 c     Computation of virtual temperature increments
 c     ---------------------------------------------
 c
 !$OMP PARALLEL PRIVATE(jobs,jlev,mythread,numthd,zpresb)
-!$OMP+ PRIVATE(zcon,zfactt,zfacps,zdelt,zdelps)
+!$OMP+ PRIVATE(zcon)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
       do jobs = mythread, col_getNumCol(lcolumn),numthd
-        do jlev = 1, col_getNumLev(lcolumn)
+        do jlev = 1, nlev_T
           tv_tmp(jlev,jobs) = lcolumng%oltv(1,jlev,jobs)*col_getElem(lcolumn,jlev,jobs,'TT') + 
      &                             lcolumng%oltv(2,jlev,jobs)*col_getElem(lcolumn,jlev,jobs,'HU')
         enddo
@@ -70,17 +71,13 @@ c
 c     Prepare r.h.s. for TL-Hydrostatic equation
 c     ------------------------------------------
 c
-        do jlev = 1, col_getNumLev(lcolumn)
+        do jlev = 1, nlev_T
 c
 c       zcon = d(lcolumng%rtapfac)/d(ps)
 c
           zpresb = vco_anl%db_M(jlev)
           zcon    =(vco_anl%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
      &             col_getPressure(lcolumng,jlev,jobs,'NA')
-          zfactt  = lcolumng%rtapfac(jlev,jobs)
-          zfacps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon
-          zdelt   = lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
-          zdelps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
           tv_tmp(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
      &         + col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
         enddo
@@ -91,7 +88,7 @@ c     Computation of del(GZ)
 c     ----------------------
 c
       zalpha=0.0D0
-      call matapat(vco_anl%dhyb_m,zalpha,col_getNumLev(lcolumn),vma,vmb,vmc,vmd,vme,vmf)
+      call matapat(vco_anl%dhyb_m,zalpha,nlev_T,vma,vmb,vmc,vmd,vme,vmf)
       call lvtap
 
       deallocate(vma)
@@ -128,24 +125,24 @@ c
       INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
 
       ZCON = -MPC_RGAS_DRY_AIR_R8
-      ZAK0  = -2.0D0*ZCON*VMA(col_getNumLev(lcolumn))
-      ZBK0  = -2.0D0*ZCON*VMB(col_getNumLev(lcolumn))
-      ZCK0  = -2.0D0*ZCON*VMC(col_getNumLev(lcolumn))
+      ZAK0  = -2.0D0*ZCON*VMA(nlev_T)
+      ZBK0  = -2.0D0*ZCON*VMB(nlev_T)
+      ZCK0  = -2.0D0*ZCON*VMC(nlev_T)
 !$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,ik,mythread,numthd)
 !$OMP+ PRIVATE(zak,zbk,zck,gz_column)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
       do jobs = mythread, col_getNumCol(lcolumn),numthd
         gz_column => col_getColumn(lcolumn,jobs,'GZ')
-        gz_column(col_getNumLev(lcolumn)) = 0.0D0
-        gz_column(col_getNumLev(lcolumn)-1)=ZAK0*tv_tmp(col_getNumLev(lcolumn)-1,jobs)+
-     $                      ZBK0*tv_tmp(col_getNumLev(lcolumn),jobs)+
-     &                      ZCK0*tv_tmp(col_getNumLev(lcolumn)-2,jobs)+
-     $                      gz_column(col_getNumLev(lcolumn))
-        IKLEVM2 = col_getNumLev(lcolumn)-2
+        gz_column(nlev_T) = 0.0D0
+        gz_column(nlev_T-1)=ZAK0*tv_tmp(nlev_T-1,jobs)+
+     $                      ZBK0*tv_tmp(nlev_T,jobs)+
+     &                      ZCK0*tv_tmp(nlev_T-2,jobs)+
+     $                      gz_column(nlev_T)
+        IKLEVM2 = nlev_T-2
 
         do JK = 1, IKLEVM2
-          IK = col_getNumLev(lcolumn)-1-JK
+          IK = nlev_T-1-JK
           ZAK = -2.0D0*ZCON*VMA(IK+1)
           ZBK = -2.0D0*ZCON*VMB(IK+1)
           ZCK = -2.0D0*ZCON*VMC(IK+1)

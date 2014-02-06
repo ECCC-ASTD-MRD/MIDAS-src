@@ -27,6 +27,7 @@ MODULE BmatrixEnsemble
   use globalSpectralTransform
   use lamSpectralTransform_mod
   use horizontalCoord_mod
+  use verticalCoord_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   implicit none
@@ -71,18 +72,19 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! BEN_setup
 !--------------------------------------------------------------------------
-  SUBROUTINE BEN_setup(pressureProfile_in,hco_anl_in,NLEVINC_IN,NTIME_IN,NIP1_IN, &
-                       stamp_in,CVDIM_OUT)
+  SUBROUTINE BEN_setup(hco_in,vco_in,NTIME_IN,stamp_in,CVDIM_OUT)
     implicit none
+  
+    type(struct_hco), pointer, intent(in) :: hco_in
+    type(struct_vco), pointer, intent(in) :: vco_in
 
-    type(struct_hco), pointer, intent(in)    :: hco_anl_in
-
-    real(8)         :: hLocalize(2),vLocalize,pressureProfile_in(:)
+    real(8)         :: hLocalize(2),vLocalize,zps
     real(8),allocatable :: pressureProfileEns(:)
+    real(8),pointer :: pressureProfileInc_M(:)
 
-    integer        :: ntrunc,nLevInc_in,ntime_in,nip1_in(:),stamp_in
+    integer        :: ntrunc,ntime_in,stamp_in
     integer        :: cvDim_out
-    integer        :: jlev,jn,jm,jproc,ila,mpiMode,return_code
+    integer        :: jlev,jn,jm,jproc,ila,mpiMode,return_code,status
     integer        :: fnom,fclos,ierr,nulnam
 
     !namelist
@@ -97,7 +99,7 @@ CONTAINS
     scaleFactorLQ(:)= 1.0d0
     nEns            = 10
     ntrunc          = 31
-    nLevEns         = nLevInc_in
+    nLevEns         = vco_in%nLev_M
     enspathname     = '***NOT_DEFINED***'
     ensfilebasename = ''
     hLocalize(1)    = 2800.0d0
@@ -114,7 +116,7 @@ CONTAINS
     !
     !- 2.  Settings
     !
-    hco_ben => hco_anl_in
+    hco_ben => hco_in
 
     !- 2.1 Global or LAM?
     if (hco_ben % global) then
@@ -150,16 +152,16 @@ CONTAINS
     end do
 
     !- 2.2. Levels
-    if(nLevEns.gt.nLevInc_in) then
+    if(nLevEns.gt.vco_in%nLev_M) then
       call abort3d('bmatrixEnsemble: ensemble has more levels than increment - not allowed!')
     end if
 
-    if(nLevEns.lt.nLevInc_in) then
+    if(nLevEns.lt.vco_in%nLev_M) then
       if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: ensemble has less levels than increment'
       if(mpi_myid.eq.0) write(*,*) '                 some levels near top will have zero increment'
     end if
 
-    nLevInc=nLevInc_in
+    nLevInc=vco_in%nLev_M
     nkgdimInc=4*nLevInc+2  ! assume 4 3d and 2 2d variables
     nkgdimEns=4*nLevEns+2  ! assume 4 3d and 2 2d variables
     topLevIndex=nLevInc-nLevEns+1
@@ -198,7 +200,7 @@ CONTAINS
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=4',ierr
       call abort3d('aborting in ben_setup')
     end if
-    nip1_l(1:nLevEns)=nip1_in(topLevIndex:nLevInc)
+    nip1_l(1:nLevEns)=vco_in%ip1_M(topLevIndex:nLevInc)
 
     !- 2.3 Distribute members in control vector over mpi processes
     call mpivar_setup_levels(nEns,myMemBeg,myMemEnd,myMemCount)
@@ -260,14 +262,19 @@ CONTAINS
     end if
 
     !- 2.7 Localization
+    zps = 101000.D0
+    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileInc_M, &
+                         sfc_field=zps, in_log=.false.)
+
     allocate(pressureProfileEns(nLevEns),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=6',ierr
       call abort3d('aborting in ben_setup')
     end if
-    pressureProfileEns(1:nLevEns)=pressureProfile_in(topLevIndex:nLevInc)
+    pressureProfileEns(1:nLevEns)=pressureProfileInc_M(topLevIndex:nLevInc)
     call setupLocalization(hLocalize,vLocalize,pressureProfileEns)
     deallocate(pressureProfileEns)
+    deallocate(pressureProfileInc_M)
 
     !
     !- 3.  Read/Process the Ensemble

@@ -147,7 +147,7 @@ module writeIncrement_mod
       type(struct_hco),      pointer :: hco_anl
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
-      integer jk,jj,ji,jstep,nlev_M,ierr,fnom,fstouv,fstfrm,fclos
+      integer jk,jj,ji,jstep,nlev_T,ierr,fnom,fstouv,fstfrm,fclos
       integer :: datestamplist(tim_nstepobsinc)
       real*8  :: hu_anl,deltaHours
       real*8, allocatable :: zes(:,:,:)
@@ -244,11 +244,11 @@ module writeIncrement_mod
         write(*,*) 'calcWriteIncrement: computing the diag variables for timestep:',jstep
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-        nlev_M = vco_getNumLev(vco_anl,'MM')
-        allocate( zes(hco_anl%ni, nlev_M, hco_anl%nj) )
-        allocate( ztv(hco_anl%ni, nlev_M, hco_anl%nj) )
-        allocate( zgz(hco_anl%ni, nlev_M, hco_anl%nj) )
-        allocate( zhu(hco_anl%ni, nlev_M, hco_anl%nj) )
+        nlev_T = vco_getNumLev(vco_anl,'TH')
+        allocate( zes(hco_anl%ni, nlev_T, hco_anl%nj) )
+        allocate( ztv(hco_anl%ni, nlev_T, hco_anl%nj) )
+        allocate( zgz(hco_anl%ni, nlev_T, hco_anl%nj) )
+        allocate( zhu(hco_anl%ni, nlev_T, hco_anl%nj) )
 
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         !
@@ -258,7 +258,7 @@ module writeIncrement_mod
         lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
 !$OMP PARALLEL DO PRIVATE(jj,jk,ji,hu_anl)
         do jj = 1,statevectorg%nj
-          do jk = 1,nlev_M
+          do jk = 1,nlev_T
             do ji = 1,statevectorg%ni
               ! choose either tangent linear or nonlinear operator for LQ to HU
               if(useTL_LQtoHU) then
@@ -336,7 +336,7 @@ module writeIncrement_mod
 
       integer write_encode_hyb,fnom,fstouv,fstfrm,fclos,vfstecr
       integer jvar,jlev,ierr,numlev,nulfile
-      integer datestamp,inpak_inc
+      integer datestamp,inpak_inc,status,Vcode_anl
       real*8 zwork
       real*8, allocatable :: zbuffer(:)
       real   zptop_r4, zpref_r4,zrcoef_r4
@@ -441,6 +441,9 @@ module writeIncrement_mod
 
       write(*,*) 'Writing variable HY on analysis-increment file'
 
+      status = vgd_get(statevector%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+      if(Vcode_anl.ne.5001) call abort3d('writeincrement: only GEM3 unstaggered levels supported!')
+
       zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
       zpref_r4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
       zrcoef_r4 = statevector%vco%drcf1
@@ -516,7 +519,7 @@ module writeIncrement_mod
       IMPLICIT NONE
       type(struct_gsv) :: statevector,statevectorg
       real*8 pesinc(:,:,:)
-      integer ji,jj,jk,nlev
+      integer ji,jj,jk,nlev_T
       REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA, zpres
       real*8, pointer :: ps_trl_ptr(:,:,:,:),ps_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:)
 
@@ -527,10 +530,10 @@ module writeIncrement_mod
       hu_inc_ptr => gsv_getField(statevector ,'HU')
       tt_inc_ptr => gsv_getField(statevector ,'TT')
 
-      nlev = gsv_getNumLev(statevectorg)
+      nlev_T = gsv_getNumLev(statevectorg,'TH')
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji,zpres,ze,zel,ztd,zgamma,ztdl)
       do jj=1,statevectorg%nj
-        do jk=1,nlev
+        do jk=1,nlev_T
           do ji=1,statevectorg%ni
             zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*ps_trl_ptr(ji,1,jj,1)
             !
@@ -567,17 +570,17 @@ module writeIncrement_mod
       type(struct_gsv) :: statevector,statevectorg
       real*8  ptv(:,:,:)
       real*8, pointer :: hu_trl_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:)
-      integer ji,jj,jk,nlev
+      integer ji,jj,jk,nlev_T
 
       WRITE(*,FMT='(/,4X,"Starting LT2TVGD",//)')
       hu_trl_ptr => gsv_getField(statevectorg,'HU')
       tt_inc_ptr => gsv_getField(statevector ,'TT')
       hu_inc_ptr => gsv_getField(statevector ,'HU')
 
-      nlev = gsv_getNumLev(statevector)
+      nlev_T = gsv_getNumLev(statevector,'TH')
 !$OMP PARALLEL DO PRIVATE(jj,jk,ji)
       do jj = 1, statevector%nj
-        do jk = 1, nlev
+        do jk = 1, nlev_T
           do ji = 1, statevector%ni
             ptv(ji,jk,jj)=(1.D0+MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1))*tt_inc_ptr(ji,jk,jj,1) +  &
                 MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1)*tt_inc_ptr(ji,jk,jj,1)*hu_inc_ptr(ji,jk,jj,1)
@@ -606,7 +609,7 @@ module writeIncrement_mod
       real*8 ptt(:,:,:)
 
       real*8, allocatable :: vma(:),vmb(:),vmc(:),vmd(:),vme(:),vmf(:)
-      INTEGER JLEV, JLAT, JLON, NLEV
+      INTEGER JLEV, JLAT, JLON, NLEV_T
       real*8  zalpha
       real*8, allocatable :: zprof(:)
       real*8, pointer :: ps_ptr(:,:,:,:), zpres3d_ptr(:,:,:)
@@ -615,16 +618,16 @@ module writeIncrement_mod
 
       WRITE(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
 
-      nlev = gsv_getNumLev(statevectorg)
+      nlev_T = gsv_getNumLev(statevectorg,'TH')
       zalpha=-1.0D0
 
-      allocate(vma(nlev))
-      allocate(vmb(nlev))
-      allocate(vmc(nlev))
-      allocate(vmd(nlev))
-      allocate(vme(nlev))
-      allocate(vmf(nlev))
-      allocate(zprof(nlev))
+      allocate(vma(nlev_T))
+      allocate(vmb(nlev_T))
+      allocate(vmc(nlev_T))
+      allocate(vmd(nlev_T))
+      allocate(vme(nlev_T))
+      allocate(vmf(nlev_T))
+      allocate(zprof(nlev_T))
       !
       ! Prepare r.h.s. for TL-Hydrostatic equation
       !
@@ -639,10 +642,10 @@ module writeIncrement_mod
 
       do jlat = 1, statevectorg%nj
         do jlon = 1, statevectorg%ni
-          do jlev = 1,nlev
+          do jlev = 1,nlev_T
             zprof(jlev) = zpres3d_ptr(jlon,jlat,jlev)
           enddo
-          call matapat(zprof,zalpha,nlev,vma,vmb,vmc,vmd,vme,vmf)
+          call matapat(zprof,zalpha,nlev_T,vma,vmb,vmc,vmd,vme,vmf)
           call lvtapgd(pgz,ptt,jlon,jlat) 
         enddo
       enddo
@@ -681,18 +684,18 @@ module writeIncrement_mod
         ! ptt : working vector of virtual temperatures.
         !
         ZCON = -MPC_RGAS_DRY_AIR_R8
-        ZAK = -2.0D0*ZCON*VMA(nlev)
-        ZBK = -2.0D0*ZCON*VMB(nlev)
-        ZCK = -2.0D0*ZCON*VMC(nlev)
-        pgz(ki,nlev,kj) = 0.0D0
-        pgz(ki,nlev-1,kj)=ZAK*ptt(ki,nlev-1,kj)+  &
-            ZBK*ptt(ki,nlev,kj)+  &
-            ZCK*ptt(ki,nlev-2,kj)+  &
-            pgz(ki,nlev,kj)
+        ZAK = -2.0D0*ZCON*VMA(nlev_T)
+        ZBK = -2.0D0*ZCON*VMB(nlev_T)
+        ZCK = -2.0D0*ZCON*VMC(nlev_T)
+        pgz(ki,nlev_T,kj) = 0.0D0
+        pgz(ki,nlev_T-1,kj)=ZAK*ptt(ki,nlev_T-1,kj)+  &
+            ZBK*ptt(ki,nlev_T,kj)+  &
+            ZCK*ptt(ki,nlev_T-2,kj)+  &
+            pgz(ki,nlev_T,kj)
 
-        IKLEVM2 = nlev-2
+        IKLEVM2 = nlev_T-2
         do JK = 1, IKLEVM2
-          IK = nlev-1-JK
+          IK = nlev_T-1-JK
           ZAK = -2.0D0*ZCON*VMA(IK+1)
           ZBK = -2.0D0*ZCON*VMB(IK+1)
           ZCK = -2.0D0*ZCON*VMC(IK+1)

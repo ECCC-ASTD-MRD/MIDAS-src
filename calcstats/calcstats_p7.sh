@@ -8,15 +8,15 @@
 #
 # User-defined options
 #
-flnml="namelist_lam_p7.nml"
+flnml="namelist_glb_p7.nml"
 machine="spica"
-gest="/users/dor/arma/gr3/data_gpfs/comparaison_var/new_var/bnmc_step/lam/atelier"
-ensdir="/users/dor/arma/gr3/data_gpfs/comparaison_var/new_var/bnmc_step/lam/training_data/"
-abs="/users/dor/arma/gr3/home1/new_var/branches/varlam/compiledir_calcstats/calcstats_p7.abs_NOMPI"
+gest="/users/dor/arma/bue/power7/3dvar_modular/testnmc/work"
+ensdir="/users/dor/arma/bue/power7/3dvar_modular/testnmc/stag/"
+abs="/users/dor/arma/bue/home01/3dvar_latest/compiledir_calcstats/calcstats_p7.abs_NOMPI"
 npex=1
 npey=1
 openmp=32
-maxcputime=180
+maxcputime=7200
 
 #
 # Don't modify below ...

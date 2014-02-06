@@ -26,7 +26,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_setup
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_setup(hco_anl_in, vco_anl_in, datestamp)
+  SUBROUTINE bmat_setup(hco_anl_in, vco_anl_in)
     !
     !- bmat_setup - Initializes the analysis Background term for the 
     !               specific analysis configuration used.
@@ -36,11 +36,7 @@ contains
     type(struct_vco), pointer :: vco_anl_in
     type(struct_hco), pointer :: hco_anl_in
 
-    real(8)          :: zps
-    real(8), pointer :: pressureProfile(:)
-
-    integer :: cvdimens, cvdimhi, datestamp
-    integer :: jlev, status, nlev_M
+    integer :: cvdimens, cvdimhi
     integer :: get_max_rss
 
     !
@@ -49,19 +45,6 @@ contains
 
     !- 1.1 Horizontal Grid info
     hco_anl => hco_anl_in
-
-    !- 1.2 Check the input Verticale Coordinate
-    nlev_M = vco_getNumLev(vco_anl_in,'MM')
-    zps = 101000.D0
-    
-    status = vgd_levels( vco_anl_in % vgrid, ip1_list=vco_anl_in%ip1_M, levels=pressureProfile, &
-                         sfc_field=zps, in_log=.false.)
-
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'bmat_Setup: ERROR with vgd_levels for desired levels '
-      call exit(1)
-    endif
 
     !
     !- 2.  Set the B matrices
@@ -73,9 +56,8 @@ contains
     if ( hco_anl % global ) then
       write(*,*)
       write(*,*) 'Setting up the modular GLOBAL HI covariances...'
-      call bhi_Setup( hco_anl % ni, hco_anl % nj, nlev_M, & ! IN
-                      pressureProfile,                    & ! IN
-                      cvdimhi )                             ! OUT
+      call bhi_Setup( hco_anl, vco_anl_in, & ! IN
+                      cvdimhi )              ! OUT
     else
       write(*,*)
       write(*,*) 'Setting up the modular LAM HI covariances...'
@@ -89,10 +71,11 @@ contains
     !- 2.2 Flow-dependent Ensemble-Based
     write(*,*)
     write(*,*) 'Setting up the modular ENSEMBLE covariances...'
-    call ben_Setup( pressureProfile, hco_anl,      & ! IN
-                    nlev_M, tim_nstepobsinc,       & ! IN
-                    vco_anl_in % ip1_M,datestamp,  & ! IN
-                    cvdimens )                       ! OUT
+    call ben_Setup( hco_anl,             & ! IN
+                    vco_anl_in,          & ! IN
+                    tim_nstepobsinc,     & ! IN
+                    tim_getDatestamp(),  & ! IN
+                    cvdimens )             ! OUT
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of ENS control vector returned:',cvdimens
@@ -105,8 +88,6 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
     
-    deallocate(pressureProfile)
-
   END SUBROUTINE bmat_setup
 
 !--------------------------------------------------------------------------

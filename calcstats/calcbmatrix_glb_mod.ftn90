@@ -4,6 +4,7 @@ module calcbmatrix_glb_mod
   use MathPhysConstants_mod
   use gaussGrid_mod
   use HorizontalCoord_mod
+  use varNameList_mod
   implicit none
   save
   private
@@ -12,10 +13,10 @@ module calcbmatrix_glb_mod
   public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_diag_verticalcov
 
 
-  integer :: nens,ntrunc,ni,nj,nLevEns,nLevPtoT,nkgdimEns,nla
+  integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
   character(len=256), allocatable :: cflensin(:)
   integer :: gstID
-  integer, allocatable :: nip1_l(:)
+  integer, allocatable :: nip1_M(:),nip1_T(:)
   real*8             :: ra = 6371229.D0
 
   logical :: initialized = .false.
@@ -35,7 +36,7 @@ module calcbmatrix_glb_mod
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(theta1(nlevEns,nj),stat=ierr)
+    allocate(theta1(nlevEns_M,nj),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -50,12 +51,12 @@ module calcbmatrix_glb_mod
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(PtoT(nlevEns+1,nlevEns,nj),stat=ierr)
+    allocate(PtoT(nlevEns_T+1,nlevEns_M,nj),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(theta2(nlevEns,nj),stat=ierr)
+    allocate(theta2(nlevEns_M,nj),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -129,17 +130,17 @@ module calcbmatrix_glb_mod
 
     call writeSpStats(ptot,theta1)
 
-    write(200,*) stddevZonAvg(1:nlevEns,:)
-    write(201,*) stddevZonAvg((1+1*nlevEns):(2*nlevEns),:)
-    write(202,*) stddevZonAvg((1+2*nlevEns):(3*nlevEns),:)
-    write(203,*) stddevZonAvg((1+3*nlevEns):(4*nlevEns),:)
-    write(204,*) stddevZonAvg((1+4*nlevEns),:)/1.0d2
+    write(200,*) stddevZonAvg(1:nlevEns_M,:)
+    write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
+    write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
+    write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
+    write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
-    write(400,*) stddevZonAvgUnbal(1:nlevEns,:)
-    write(401,*) stddevZonAvgUnbal((1+1*nlevEns):(2*nlevEns),:)
-    write(402,*) stddevZonAvgUnbal((1+2*nlevEns):(3*nlevEns),:)
-    write(403,*) stddevZonAvgUnbal((1+3*nlevEns):(4*nlevEns),:)
-    write(404,*) stddevZonAvgUnbal((1+4*nlevEns),:)/1.0d2
+    write(400,*) stddevZonAvgUnbal(1:nlevEns_M,:)
+    write(401,*) stddevZonAvgUnbal((1+1*nlevEns_M):(2*nlevEns_M),:)
+    write(402,*) stddevZonAvgUnbal((1+2*nlevEns_M):(3*nlevEns_T),:)
+    write(403,*) stddevZonAvgUnbal((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
+    write(404,*) stddevZonAvgUnbal((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
   end subroutine calcb_glb_computeStats
 
@@ -188,11 +189,11 @@ module calcbmatrix_glb_mod
 
     call writeStddev(stddevZonAvg,stddevZonAvg,stddev3d,stddev3d)
 
-    write(200,*) stddevZonAvg(1:nlevEns,:)
-    write(201,*) stddevZonAvg((1+1*nlevEns):(2*nlevEns),:)
-    write(202,*) stddevZonAvg((1+2*nlevEns):(3*nlevEns),:)
-    write(203,*) stddevZonAvg((1+3*nlevEns):(4*nlevEns),:)
-    write(204,*) stddevZonAvg((1+4*nlevEns),:)/1.0d2
+    write(200,*) stddevZonAvg(1:nlevEns_M,:)
+    write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
+    write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
+    write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
+    write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
   end subroutine calcb_glb_diag_verticalcov
 
@@ -205,9 +206,9 @@ module calcbmatrix_glb_mod
     integer ip1,ip2,ip3,kni,knj,idatyp,idateo
     integer :: nulstats
     real*8 :: zleg(0:ntrunc,nj),rmu(nj),rwt(nj)
-    real*8 :: bufz(nLevEns),bufyz(nj,nLevEns),zsp(0:ntrunc,nLevEns)
-    real*8 :: bufptot(nj,(nLevEns+1)*nLevEns),spptot(0:ntrunc,(nLevEns+1)*nLevEns)
-    real*8 :: zspptot(nLevEns+1,nLevEns)
+    real*8 :: bufz(nLevEns_M),bufyz(nj,nLevEns_M),zsp(0:ntrunc,nLevEns_M)
+    real*8 :: bufptot(nj,(nLevEns_T+1)*nLevEns_M),spptot(0:ntrunc,(nLevEns_T+1)*nLevEns_M)
+    real*8 :: zspptot(nLevEns_T+1,nLevEns_M)
 
     nulstats=0
     ierr =  fnom  (nulstats,'./stats_sp.fst','RND',0)
@@ -229,19 +230,19 @@ module calcbmatrix_glb_mod
     ! write out SP_THETA
 
     do jlat = 1, nj
-      do jlev1 = 1, nLevEns
+      do jlev1 = 1, nLevEns_M
         bufyz(jlat,jlev1) = theta(jlev1,jlat)
       enddo
     enddo
 
-    call zlegdir(bufyz,zsp,zleg,rwt,ntrunc,nj,nLevEns)
+    call zlegdir(bufyz,zsp,zleg,rwt,ntrunc,nj,nLevEns_M)
 
     do jn = 0, ntrunc
-      do jlev1=1, nLevEns
+      do jlev1=1, nLevEns_M
         bufz(jlev1) = zsp(jn,jlev1)
       enddo
 
-      ierr = vfstecr(bufz,bufz,ipak,nulstats,idateo,0,0,nlevEns,1,1,   &
+      ierr = vfstecr(bufz,bufz,ipak,nulstats,idateo,0,0,nlevEns_M,1,1,   &
                      ip1,jn,ip3,'X','ZZ','SP_THETA','X',0,0,0,0,idatyp,.true.)
 
     enddo
@@ -249,24 +250,24 @@ module calcbmatrix_glb_mod
     ! write out SP_PTOT
 
     do jlat = 1, nj
-      do jlev1 = 1, (nLevEns+1)
-        do jlev2 = 1, nLevEns
-          bufptot(jlat,(jlev2-1)*(nLevEns+1)+jlev1) = PtoT(jlev1,jlev2,jlat)
+      do jlev1 = 1, (nLevEns_T+1)
+        do jlev2 = 1, nLevEns_M
+          bufptot(jlat,(jlev2-1)*(nLevEns_T+1)+jlev1) = PtoT(jlev1,jlev2,jlat)
         enddo
       enddo
     enddo
 
-    call zlegdir(bufptot,spptot,zleg,rwt,ntrunc,nj,(nLevEns+1)*nLevEns)
+    call zlegdir(bufptot,spptot,zleg,rwt,ntrunc,nj,(nLevEns_T+1)*nLevEns_M)
 
     do jn = 0, ntrunc
-      do jlev1 = 1, (nLevEns+1)
-        do jlev2 = 1, nLevEns
-          zspptot(jlev1,jlev2) = spptot(jn,(jlev2-1)*(nLevEns+1)+jlev1)
+      do jlev1 = 1, (nLevEns_T+1)
+        do jlev2 = 1, nLevEns_M
+          zspptot(jlev1,jlev2) = spptot(jn,(jlev2-1)*(nLevEns_T+1)+jlev1)
         enddo
       enddo
 
-      kni=nLevEns+1
-      knj=nLevEns
+      kni=nLevEns_T+1
+      knj=nLevEns_M
       ierr = vfstecr(zspptot,zspptot,ipak,nulstats,idateo,0,0,kni,knj,1,  &
                      ip1,jn,ip3,'X','ZZ','SP_PTOT ','X',0,0,0,0,idatyp,.true.)
     enddo
@@ -323,22 +324,30 @@ module calcbmatrix_glb_mod
 
     ni=hco_in%ni
     nj=hco_in%nj
-    nLevEns=vco_in%nlev_M
-    nLevPtot=nLevEns-1
-!    nkgdimEns=nLevEns*4+2
-    nkgdimEns=nLevEns*4+1 ! NO TG !!!
+    nLevEns_M=vco_in%nlev_M
+    nLevEns_T=vco_in%nlev_T
+    nLevPtot=nLevEns_M-1 ! ignore streamfunction at hyb=1, since highly correlated with next level
+!    nkgdimEns=nLevEns_M*2+nLevEns_T*2+2
+    varLevOffset(1) = 0
+    varLevOffset(2) = 1*nLevEns_M
+    varLevOffset(3) = 2*nLevEns_M
+    varLevOffset(4) = 2*nLevEns_M+1*nLevEns_T
+    varLevOffset(5) = 2*nLevEns_M+2*nLevEns_T
+    nkgdimEns=nLevEns_M*2+nLevEns_T*2+1 ! NO TG !!!
     nla=(ntrunc+1)*(ntrunc+2)/2
     
     
     write(*,*) '8'
 
-    mpiMode=0
+    mpiMode=2
     gstID = gst_setup(6,ni,nj,ntrunc,mpiMode)
 
     write(*,*) '9'
 
-    allocate(nip1_l(nlevens))
-    nip1_l(:)=vco_in%ip1_M(:)
+    allocate(nip1_M(nLevEns_M))
+    nip1_M(:)=vco_in%ip1_M(:)
+    allocate(nip1_T(nLevEns_T))
+    nip1_T(:)=vco_in%ip1_T(:)
 
     initialized = .true.
 
@@ -356,11 +365,11 @@ module calcbmatrix_glb_mod
     integer :: jens,jlat,jlev,jlon
 
     do jens = 1,nens
-      psi_ptr => ensPerturbations(:,1:nlevEns,:,jens)
-      chi_ptr => ensPerturbations(:,(nlevEns+1):(2*nlevEns),:,jens)
+      psi_ptr => ensPerturbations(:,1:nlevEns_M,:,jens)
+      chi_ptr => ensPerturbations(:,(nlevEns_M+1):(2*nlevEns_M),:,jens)
 
       do jlat = 1, nj
-        do jlev = 1, nLevEns
+        do jlev = 1, nLevEns_M
           do jlon = 1, ni
             chi_ptr(jlon,jlev,jlat) = chi_ptr(jlon,jlev,jlat) + tan(theta(jlev,jlat))*psi_ptr(jlon,jlev,jlat)
           enddo
@@ -381,30 +390,30 @@ module calcbmatrix_glb_mod
     real*8 :: PtoT(:,:,:)
 
     real*4,pointer :: tt_ptr(:,:,:),ps_ptr(:,:,:)
-    real*8  :: spectralState(nla,2,nLevEns),spBalancedP(nla,2,nlevEns),balancedP(ni,nlevEns,nj),psi(ni,nLevEns,nj)
+    real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nlevEns_M,nj),psi(ni,nLevEns_M,nj)
     integer :: jens,jlat,jlon,jk1,jk2
 
     do jens=1,nens
 
-      psi(:,:,:)=ensPerturbations(:,1:nlevEns,:,jens)
-      call gst_reespe(spectralState,psi,nLevEns,nLevEns)
+      psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
+      call gst_reespe(spectralState,psi,nLevEns_M,nLevEns_M)
       call calcBalancedP(spectralState,spBalancedP)
-      call gst_speree(spBalancedP,balancedP,nlevEns,nlevEns)
+      call gst_speree(spBalancedP,balancedP,nlevEns_M,nlevEns_M)
 
-      tt_ptr => ensPerturbations(:,(1+2*nLevEns):(3*nLevEns),:,jens)
-      ps_ptr => ensPerturbations(:,(1+4*nLevEns):(1+4*nLevEns),:,jens)
+      tt_ptr => ensPerturbations(:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),:,jens)
+      ps_ptr => ensPerturbations(:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),:,jens)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jlon,jk1,jk2)
       do jlat = 1, nj
         do jlon = 1, ni
-          do jk1 = 1, nLevEns
+          do jk1 = 1, nLevEns_T
             do jk2 = 1, nlevptot
               tt_ptr(jlon,jk1,jlat) = tt_ptr(jlon,jk1,jlat) - PtoT(jk1,jk2,jlat)*balancedP(jlon,jk2,jlat)
             enddo
           enddo
           do jk2 = 1, nlevptot
-            ps_ptr(jlon,1,jlat) = ps_ptr(jlon,1,jlat) - PtoT(nLevEns+1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+            ps_ptr(jlon,1,jlat) = ps_ptr(jlon,1,jlat) - PtoT(nLevEns_T+1,jk2,jlat)*balancedP(jlon,jk2,jlat)
           enddo
         enddo
       enddo
@@ -526,10 +535,10 @@ module calcbmatrix_glb_mod
     ip3 = nens
     idateo = 0
 
-    ierr = vfstecr(ptot(1,1,1),ptot(1,1,1),ipak,nulstats,idateo,0,0,nlevEns+1,nlevEns,nj,  &
+    ierr = vfstecr(ptot(1,1,1),ptot(1,1,1),ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
                    ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
 
-    ierr = vfstecr(theta(1,1),theta(1,1),ipak,nulstats,idateo,0,0,nlevEns,nj,1,   &
+    ierr = vfstecr(theta(1,1),theta(1,1),ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
                    ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
 
     do jn = 0, ntrunc
@@ -578,10 +587,10 @@ module calcbmatrix_glb_mod
   subroutine writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
     implicit none
     real*8 :: stddevZonAvg(:,:),stddevZonAvgUnbal(:,:),stddev3d(:,:,:),stddev3dUnbal(:,:,:)
-    real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,nLevEns),zbufy(nj)
-    integer jlat,jlon,jlev,ierr,jvar
+    real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,max(nLevEns_M,nLevens_T)),zbufy(nj)
+    integer jlat,jlon,jlev,ierr,jvar,nLevEns
     integer vfstecr,fstouv,fnom,fstfrm,fclos
-    integer ip1,ip2,ip3,idatyp,idateo,ipak
+    integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
     integer,parameter :: nvar3d=4,nvar2d=1
     character*4 :: nomvar3d(nvar3d),nomvar3dUnbal(nvar3d),nomvar2d(nvar2d),nomvar2dUnbal(nvar2d)
@@ -610,12 +619,19 @@ module calcbmatrix_glb_mod
 
     ! do 3d variables
     do jvar=1,nvar3d
+      if(vnl_varTypeFromVarName(nomvar3d(jvar)).eq.'MM') then
+        nLevEns = nLevEns_M
+        nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
+      else
+        nLevEns = nLevEns_T
+        nip1_l(1:nLevEns_T)=nip1_T(1:nLevEns_T)
+      endif
       dfact=1.0d0
 
       do jlev=1,nlevEns
         do jlat=1,nj
           do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3d(jlon,(jvar-1)*nLevEns+jlev,nj+1-jlat)
+            zbuf(jlon,jlat)=dfact*stddev3d(jlon,varLevOffset(jvar)+jlev,nj+1-jlat)
           enddo
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
@@ -624,10 +640,10 @@ module calcbmatrix_glb_mod
 
       do jlev=1,nlevEns
         do jlat=1,nj
-          zbufyz(jlat,jlev)=dfact*stddevZonAvg((jvar-1)*nLevEns+jlev,nj-jlat+1)
+          zbufyz(jlat,jlev)=dfact*stddevZonAvg(varLevOffset(jvar)+jlev,nj-jlat+1)
         enddo
       enddo
-      ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
+      ierr = vfstecr(zbufyz(:,1:nLevEns),zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
                      'E',nomvar3d(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
       if(nomvar3d(jvar).ne.nomvar3dUnbal(jvar)) then
@@ -636,7 +652,7 @@ module calcbmatrix_glb_mod
         do jlev=1,nlevEns
           do jlat=1,nj
             do jlon=1,ni
-              zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,(jvar-1)*nLevEns+jlev,nj+1-jlat)
+              zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,varLevOffset(jvar)+jlev,nj+1-jlat)
             enddo 
           enddo
           ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
@@ -645,10 +661,10 @@ module calcbmatrix_glb_mod
 
         do jlev=1,nlevEns
           do jlat=1,nj
-            zbufyz(jlat,jlev)=dfact*stddevZonAvgUnbal((jvar-1)*nLevEns+jlev,nj-jlat+1)
+            zbufyz(jlat,jlev)=dfact*stddevZonAvgUnbal(varLevOffset(jvar)+jlev,nj-jlat+1)
           enddo
         enddo
-        ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
+        ierr = vfstecr(zbufyz(:,1:nLevEns),zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
                        'E',nomvar3dUnbal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
@@ -664,14 +680,14 @@ module calcbmatrix_glb_mod
 
       do jlat=1,nj
         do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*stddev3d(jlon,nvar3d*nLevEns+jvar,nj+1-jlat)
+          zbuf(jlon,jlat)=dfact*stddev3d(jlon,varLevOffset(nvar3d+1)+jvar,nj+1-jlat)
         enddo
       enddo
       ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
                      'E',nomvar2d(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
       do jlat=1,nj
-        zbufy(jlat)=dfact*stddevZonAvg(nvar3d*nLevEns+jvar,nj-jlat+1)
+        zbufy(jlat)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+jvar,nj-jlat+1)
       enddo
       ierr = vfstecr(zbufy,zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
                      'E',nomvar2d(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
@@ -685,14 +701,14 @@ module calcbmatrix_glb_mod
 
         do jlat=1,nj
           do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,nvar3d*nLevEns+jvar,nj+1-jlat)
+            zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,varLevOffset(nvar3d+1)+jvar,nj+1-jlat)
           enddo 
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
                        'E',nomvar2dUnbal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
         do jlat=1,nj
-          zbufy(jlat)=dfact*stddevZonAvgUnbal(nvar3d*nLevEns+jvar,nj-jlat+1)
+          zbufy(jlat)=dfact*stddevZonAvgUnbal(varLevOffset(nvar3d+1)+jvar,nj-jlat+1)
         enddo
         ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
                        'E',nomvar2dUnbal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
@@ -733,7 +749,7 @@ module calcbmatrix_glb_mod
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8  :: theta(:,:)
-    real*8 zchipsi(nlevens,nj), zpsipsi(nlevens,nj)
+    real*8 zchipsi(nLevEns_M,nj), zpsipsi(nLevEns_M,nj)
     real*4, pointer :: psi_ptr(:,:,:),chi_ptr(:,:,:)
     integer :: jlat,jlon,jlev,jens
 
@@ -742,13 +758,13 @@ module calcbmatrix_glb_mod
     zpsipsi(:,:) = 0.0d0
 
     do jens = 1,nens
-      psi_ptr => ensPerturbations(:,1:nlevEns,:,jens)
-      chi_ptr => ensPerturbations(:,(nlevEns+1):(2*nlevEns),:,jens)
+      psi_ptr => ensPerturbations(:,1:nlevEns_M,:,jens)
+      chi_ptr => ensPerturbations(:,(nlevEns_M+1):(2*nlevEns_M),:,jens)
 
       ! update zchipsi and zpsipsi covariances
       do jlat = 1, nj
         do jlon = 1, ni
-          do jlev = 1, nLevEns
+          do jlev = 1, nLevEns_M
             zpsipsi(jlev,jlat) = zpsipsi(jlev,jlat) + psi_ptr(jlon,jlev,jlat) * psi_ptr(jlon,jlev,jlat)
             zchipsi(jlev,jlat) = zchipsi(jlev,jlat) + chi_ptr(jlon,jlev,jlat) * psi_ptr(jlon,jlev,jlat)
           enddo
@@ -758,7 +774,7 @@ module calcbmatrix_glb_mod
 
     !  calculate THETA
     do jlat = 1, nj
-      do jlev = 1, nLevEns
+      do jlev = 1, nLevEns_M
         theta(jlev,jlat) = atan(-zchipsi(jlev,jlat) / zpsipsi(jlev,jlat))
       enddo
     enddo
@@ -774,7 +790,7 @@ module calcbmatrix_glb_mod
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8  :: PtoT(:,:,:)
 
-    real*8  :: spectralState(nla,2,nLevEns),spBalancedP(nla,2,nlevEns),balancedP(ni,nlevEns,nj),psi(ni,nLevEns,nj)
+    real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nlevEns_M,nj),psi(ni,nLevEns_M,nj)
     real*4, pointer :: tt_ptr(:,:,:),ps_ptr(:,:)
     INTEGER JENS, IENS, JK1, JK2, JLA, JN, JM, ILA, JLEV
     INTEGER IERR, JFILE, JK, JLAT, ILON, JLON, JB, NLATBAND
@@ -782,8 +798,8 @@ module calcbmatrix_glb_mod
     PARAMETER (JPNLATBND = 3)
     REAL*8 ZFACT,ZMAXI,ZWT,ZPS,zlat(nj)
     REAL*8 ZFACT2,ZFACTTOT
-    REAL*8 ZM1(NLEVENS+1,NLEVENS,JPNLATBND), ZM2(NLEVPTOT,NLEVPTOT,JPNLATBND)
-    REAL*8 ZPTOTBND(NLEVENS+1,NLEVENS)
+    REAL*8 ZM1(NLEVENS_T+1,NLEVENS_M,JPNLATBND), ZM2(NLEVPTOT,NLEVPTOT,JPNLATBND)
+    REAL*8 ZPTOTBND(NLEVENS_T+1,NLEVENS_M)
     REAL*8 ZM2INV(NLEVPTOT,NLEVPTOT,JPNLATBND),ZWORK(NLEVPTOT*NLEVPTOT),ZDET,ZEPS
     REAL*8  DLA2, DL1SA2
     REAL*8  DLLATMIN(JPNLATBND), DLLATMAX(JPNLATBND)
@@ -819,13 +835,13 @@ module calcbmatrix_glb_mod
       write(*,*) 'calcPtoT: processing member ',jens
       call flush(6)
 
-      psi(:,:,:)=ensPerturbations(:,1:nlevEns,:,jens)
-      call gst_reespe(spectralState,psi,nlevEns,nlevEns)
+      psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
+      call gst_reespe(spectralState,psi,nlevEns_M,nlevEns_M)
       CALL calcBalancedP(spectralState,spBalancedP)
-      call gst_speree(spBalancedP,balancedP,nlevEns,nlevEns)
+      call gst_speree(spBalancedP,balancedP,nlevEns_M,nlevEns_M)
 
-      tt_ptr  => ensPerturbations(:,(2*nlevEns+1):(3*nlevEns),:,jens)
-      ps_ptr  => ensPerturbations(:,4*nlevEns+1,:,jens)
+      tt_ptr  => ensPerturbations(:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),:,jens)
+      ps_ptr  => ensPerturbations(:,2*nLevEns_M+2*nLevEns_T+1,:,jens)
 
       DO JLAT = 1, NJ
         zlat(jlat)=GST_GETRLATI(JLAT)
@@ -833,7 +849,7 @@ module calcbmatrix_glb_mod
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JK1,JB,JLAT,ZFACT,JLON,JK2)
-      DO JK1 = 1, (NLEVENS+1)
+      DO JK1 = 1, (nLevEns_T+1)
         DO JB=1,JPNLATBND
           DO JLAT = 1, NJ
             if ((ZLAT(JLAT) .gt. 2.D0*MPC_PI_R8*DLLATMIN(JB)/360.D0)   &
@@ -842,8 +858,8 @@ module calcbmatrix_glb_mod
               DO JLON = 1, NI
 
                 ! update ZM1 = sum_over_t_x_y[vec(T lnPs) vec(P_b)^T]
-                DO JK2 = 1, NLEVENS
-                  IF(JK1.LE.NLEVENS) THEN
+                DO JK2 = 1, nLevEns_M
+                  IF(JK1.LE.nLevEns_T) THEN
                     ZM1(JK1,JK2,JB) = ZM1(JK1,JK2,JB) + ZFACT * tt_ptr(JLON,JK1,JLAT) * balancedP(JLON,JK2,JLAT)
                   ELSE
                     ZM1(JK1,JK2,JB) = ZM1(JK1,JK2,JB) + ZFACT * ps_ptr(JLON,JLAT) * balancedP(JLON,JK2,JLAT)
@@ -875,7 +891,7 @@ module calcbmatrix_glb_mod
         ZM2(JK1,JK2,3)=ZM2(JK1,JK2,1)
       ENDDO
     ENDDO
-    DO JK1 = 1, (NLEVENS+1)
+    DO JK1 = 1, (nLevEns_T+1)
       DO JK2 = 1, NLEVPTOT
         ZM1(JK1,JK2,1)=ZM1(JK1,JK2,1)+ZM1(JK1,JK2,3)
         ZM1(JK1,JK2,2)=ZM1(JK1,JK2,1)
@@ -917,7 +933,7 @@ module calcbmatrix_glb_mod
 
 ! Calculate A = ZM1*inv(ZM2)
 !
-    DO JK1 = 1, (NLEVENS+1)
+    DO JK1 = 1, (nLevEns_T+1)
       DO JK2 = 1, NLEVPTOT
         DO JK = 1, NLEVPTOT
           ZPTOTBND(JK1,JK2) = ZPTOTBND(JK1,JK2) + ZM1(JK1,JK,1) * ZM2INV(JK,JK2,1)
@@ -925,7 +941,7 @@ module calcbmatrix_glb_mod
       ENDDO
     ENDDO
 !
-    DO JK1 = 1, NLEVENS+1
+    DO JK1 = 1, nLevEns_T+1
       DO JK2 = 1, NLEVPTOT
         DO JLAT = 1,NJ
           PTOT(JK1,JK2,JLAT) = ZPTOTBND(JK1,JK2)
@@ -1040,7 +1056,7 @@ module calcbmatrix_glb_mod
     implicit none
 
     real*8 :: sppsi(:,:,:),spgz(:,:,:)
-    real*8 :: spvor(nla,2,nlevEns)
+    real*8 :: spvor(nla,2,nlevEns_M)
     integer  ia, ib, ji, jm, jlev,jlat
     real*8 :: zn,zm,zenm,zenmp1,zcon,dl1sa2
     ! constants
@@ -1057,7 +1073,7 @@ module calcbmatrix_glb_mod
 
     ! convert PSI to vorticity 
     dl1sa2   = 1.0d0/(dble(ra)*dble(ra))
-    do jlev = 1, nlevEns
+    do jlev = 1, nlevEns_M
       do jlat = 1, nla
         spvor(jlat,1,jlev) = sppsi(jlat,1,jlev)*dl1sa2*gst_getRnnp1(jlat)
         spvor(jlat,2,jlev) = sppsi(jlat,2,jlev)*dl1sa2*gst_getRnnp1(jlat)
@@ -1065,7 +1081,7 @@ module calcbmatrix_glb_mod
     enddo
 
     ! ensure input field is zero for spectral component (0,0)
-    do jlev = 1, nlevEns
+    do jlev = 1, nlevEns_M
       if(spvor(1,1,jlev).ne.0.D0) then
         spvor(1,1,jlev) = 0.0D0
       endif
@@ -1081,7 +1097,7 @@ module calcbmatrix_glb_mod
     ! n.b.: at the tip of the triangle, no contributions
     
     zcon = -2.D0*romega*ra**2
-    do jlev = 1, nlevEns
+    do jlev = 1, nlevEns_M
 
       ! the base address ia will point to the spherical harmonic
       ! coefficient (m,m), in the input field
@@ -1116,7 +1132,7 @@ module calcbmatrix_glb_mod
     enddo
 
     ! ensure correct value for mass spectral-coefficient for m=n=0
-    do jlev = 1, nlevens
+    do jlev = 1, nlevens_M
       spgz(1,1,jlev) = 0.0D0
       spgz(1,2,jlev) = 0.0D0
     enddo
@@ -1206,11 +1222,11 @@ module calcbmatrix_glb_mod
 
     ! this should come from state vector object
     ngposituu=1
-    ngpositvv=1+1*nLevEns
-    ngposittt=1+2*nLevEns
-    ngpositq =1+3*nLevEns
-    ngpositps=1+4*nLevEns
-    ngposittg=2+4*nLevEns
+    ngpositvv=1+1*nLevEns_M
+    ngposittt=1+2*nLevEns_M
+    ngpositq =1+2*nLevEns_M+1*nLevEns_T
+    ngpositps=1+2*nLevEns_M+2*nLevEns_T
+    ngposittg=2+2*nLevEns_M+2*nLevEns_T
 
     ! some physical constants
     rmsknt = 1.d0/1.94246d0
@@ -1248,11 +1264,11 @@ module calcbmatrix_glb_mod
             enddo
           enddo
 
-          do jlev=1,nLevEns
+          do jlev=1,nLevEns_T
             clnomvar = 'TT'
-            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+              write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with TT ENS'
               call flush(6)
               call qqexit(1)
@@ -1265,14 +1281,14 @@ module calcbmatrix_glb_mod
             enddo
           enddo
 
-          do jlev=1,nLevEns
+          do jlev=1,nLevEns_T
             clnomvar = 'HU' 
-            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               clnomvar = 'LQ' 
-              ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+              ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
               if(ikey.lt.0) then
-                write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+                write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
                 write(*,*) 'SUENS: Problem with HU and LQ ENS'
                 call flush(6)
                 call qqexit(1)
@@ -1292,11 +1308,11 @@ module calcbmatrix_glb_mod
             endif
           enddo
 
-          do jlev=1,nLevEns
+          do jlev=1,nLevEns_M
             clnomvar = 'UU' 
-            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+              write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with UU ENS'
               call flush(6)
               call qqexit(1)
@@ -1309,11 +1325,11 @@ module calcbmatrix_glb_mod
             enddo
           enddo
 
-          do jlev=1,nLevEns
+          do jlev=1,nLevEns_M
             clnomvar = 'VV' 
-            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar)
+            ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_l(jlev),ip2,ip3,cltypvar,clnomvar
+              write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
               write(*,*) 'SUENS: Problem with VV ENS'
               call flush(6)
               call qqexit(1)
@@ -1369,13 +1385,13 @@ module calcbmatrix_glb_mod
     dla2   = dble(ra)*dble(ra)
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
-      call gst_gdsp(spectralState,member,nkgdimEns,nlevEns,nkgdimEns)
-      do jlev = 1, nlevEns
+      call gst_gdsp(spectralState,member,nkgdimEns,nlevEns_M,nkgdimEns)
+      do jlev = 1, nlevEns_M
         do jlat = 1, nla
-          spectralState(jlat,1,jlev)         = spectralState(jlat,1,jlev)         * dla2*gst_getR1snp1(jlat)
-          spectralState(jlat,2,jlev)         = spectralState(jlat,2,jlev)         * dla2*gst_getR1snp1(jlat)
-          spectralState(jlat,1,jlev+nlevEns) = spectralState(jlat,1,jlev+nlevEns) * dla2*gst_getR1snp1(jlat)
-          spectralState(jlat,2,jlev+nlevEns) = spectralState(jlat,2,jlev+nlevEns) * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,1,jlev)           = spectralState(jlat,1,jlev)           * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,2,jlev)           = spectralState(jlat,2,jlev)           * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,1,jlev+nlevEns_M) = spectralState(jlat,1,jlev+nlevEns_M) * dla2*gst_getR1snp1(jlat)
+          spectralState(jlat,2,jlev+nlevEns_M) = spectralState(jlat,2,jlev+nlevEns_M) * dla2*gst_getR1snp1(jlat)
         enddo
       enddo
       call gst_speree(spectralState,member,nkgdimEns,nkgdimEns)
