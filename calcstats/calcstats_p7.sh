@@ -11,7 +11,7 @@
 flnml="namelist_glb_p7.nml"
 machine="spica"
 gest="/users/dor/arma/bue/power7/3dvar_modular/testnmc/work"
-ensdir="/users/dor/arma/bue/power7/3dvar_modular/testnmc/stag/"
+ensdir="/users/dor/arma/bue/power7/3dvar_modular/testnmc/stag/winter/"
 abs="/users/dor/arma/bue/home01/3dvar_latest/compiledir_calcstats/calcstats_p7.abs_NOMPI"
 npex=1
 npey=1

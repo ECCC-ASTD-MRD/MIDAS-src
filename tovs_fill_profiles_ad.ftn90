@@ -89,7 +89,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   vco_anl => col_getVco(lcolumng)
   knlev = col_getNumLev(lcolumng,'TH')
 
-  if (  col_getPressure(lcolumng,1,1,'NA') .lt. col_getPressure(lcolumng,knlev,1,'NA') ) then
+  if (  col_getPressure(lcolumng,1,1,'TH') .lt. col_getPressure(lcolumng,knlev,1,'TH') ) then
      ilowlvl_M = col_getNumLev(lcolumng,'MM')
      ilowlvl_T = col_getNumLev(lcolumng,'TH')
   else
@@ -103,7 +103,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   xpres(1:nlevels) = coefs(1)% coef % ref_prfl_p(1:nlevels)
 ! find model level top, within 0.000001 mbs.
 
-  zptop    = col_getPressure(lcolumng,1,1,'NA')
+  zptop    = col_getPressure(lcolumng,1,1,'TH')
   zptopmbs = zptop/100.d0
   zptopmbs = zptopmbs - 0.000001d0
 
@@ -172,7 +172,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
         do jl = 1, knlev
            zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
            zlq  (jl,knpf) = col_getElem(lcolumng,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'NA') *MPC_MBAR_PER_PA_R8
+           zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
         enddo
 !!! Fix pour eviter probleme au toit avec GEM 4
 !!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)

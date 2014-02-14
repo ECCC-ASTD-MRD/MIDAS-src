@@ -42,7 +42,7 @@ c
       INTEGER mythread,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
       real*8, allocatable :: vma(:),vmb(:),vmc(:)
       real*8, allocatable :: vmd(:),vme(:),vmf(:)
-      real*8, pointer :: gz_column(:)
+      real*8, pointer :: gz_column_t(:),gz_column_m(:)
       real*8, allocatable :: tv_tmp(:,:)
 
       nlev_T = col_getNumLev(lcolumn,'TH')
@@ -77,7 +77,7 @@ c       zcon = d(lcolumng%rtapfac)/d(ps)
 c
           zpresb = vco_anl%db_M(jlev)
           zcon    =(vco_anl%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
-     &             col_getPressure(lcolumng,jlev,jobs,'NA')
+     &             col_getPressure(lcolumng,jlev,jobs,'TH')
           tv_tmp(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
      &         + col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
         enddo
@@ -129,16 +129,16 @@ c
       ZBK0  = -2.0D0*ZCON*VMB(nlev_T)
       ZCK0  = -2.0D0*ZCON*VMC(nlev_T)
 !$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,ik,mythread,numthd)
-!$OMP+ PRIVATE(zak,zbk,zck,gz_column)
+!$OMP+ PRIVATE(zak,zbk,zck,gz_column_t,gz_column_m)
       mythread=omp_get_thread_num()+1
       numthd=omp_get_num_threads()
       do jobs = mythread, col_getNumCol(lcolumn),numthd
-        gz_column => col_getColumn(lcolumn,jobs,'GZ')
-        gz_column(nlev_T) = 0.0D0
-        gz_column(nlev_T-1)=ZAK0*tv_tmp(nlev_T-1,jobs)+
+        gz_column_t => col_getColumn(lcolumn,jobs,'GZ','TH')
+        gz_column_t(nlev_T) = 0.0D0
+        gz_column_t(nlev_T-1)=ZAK0*tv_tmp(nlev_T-1,jobs)+
      $                      ZBK0*tv_tmp(nlev_T,jobs)+
      &                      ZCK0*tv_tmp(nlev_T-2,jobs)+
-     $                      gz_column(nlev_T)
+     $                      gz_column_t(nlev_T)
         IKLEVM2 = nlev_T-2
 
         do JK = 1, IKLEVM2
@@ -146,16 +146,18 @@ c
           ZAK = -2.0D0*ZCON*VMA(IK+1)
           ZBK = -2.0D0*ZCON*VMB(IK+1)
           ZCK = -2.0D0*ZCON*VMC(IK+1)
-          gz_column(ik)= ZAK*tv_tmp(IK,jobs)+
+          gz_column_t(ik)= ZAK*tv_tmp(IK,jobs)+
      $                     ZBK*tv_tmp(IK+1,jobs)+
      $                     ZCK*tv_tmp(IK+2,jobs)+
-     +                     gz_column(IK+2)
+     +                     gz_column_t(IK+2)
         enddo
+
+        gz_column_m => col_getColumn(lcolumn,jobs,'GZ','MM')
+        gz_column_m(:) = gz_column_t(:)
 
       enddo
 !$OMP END PARALLEL
 
-      return
       end subroutine lvtap
 
       end

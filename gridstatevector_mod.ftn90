@@ -121,6 +121,8 @@ MODULE gridStateVector_mod
       if(mpi_myid.eq.0) write(*,nml=namstate)
       ierr=fclos(nulnam)
 
+      if(varneed('GZ')) call abort3d('gsv_setup: GZ can no longer be included as a variable in gridStateVector!')
+
       do jvar = 1, vnl_numvarmax3D
         if (varneed(vnl_varNameList3D(jvar))) then
           ngexist(jvar) = .true.

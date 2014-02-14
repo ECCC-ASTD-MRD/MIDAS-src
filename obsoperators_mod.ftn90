@@ -117,7 +117,11 @@ module obsOperators_mod
           columnVarB=lqtoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
           columnVarT=lqtoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
         else
-          col_ptr=>col_getColumn(columnhr,headerIndex,varName)
+          if(trim(varName).eq.'GZ') then
+            col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
+          else
+            col_ptr=>col_getColumn(columnhr,headerIndex,varName)
+          endif
           columnVarB=col_ptr(ilyr+1)
           columnVarT=col_ptr(ilyr  )
         endif
@@ -236,7 +240,7 @@ module obsOperators_mod
           else
             columnVarB=col_getElem(columnhr,ipb,headerIndex)
           endif
-          gzhr=col_getHeight(columnhr,col_getNumLev(columnhr,varType),headerIndex,varType)
+          gzhr=col_getHeight(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TH')
           call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
                              (zvar-columnVarB + zslope*(zhhh-gzhr)) )
 
@@ -247,11 +251,10 @@ module obsOperators_mod
           ! surface observation whether the observation is above or
           ! below the model height
 
-          zgamaz= zgamma*(zhhh-col_getHeight(columnhr,  &
-                 col_getNumLev(columnhr,varType),  &
-                 headerIndex,varType))
-          ztvg = (1.0d0 + MPC_DELTA_R8 * exp(col_getElem(columnhr, &
-                  col_getNumLev(columnhr,'TH'),headerIndex,'HU')))*  &
+          zgamaz= zgamma*(zhhh-col_getHeight(columnhr,col_getNumLev(columnhr,'TH'),  &
+                 headerIndex,'TH'))
+          ztvg = (1.0d0 + MPC_DELTA_R8 *  &
+                  exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))) *  &
                   col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
           zcon = ((ztvg-zgamaz)/ztvg)
           call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
@@ -666,10 +669,9 @@ module obsOperators_mod
     real(8) :: ztdomp(max_gps_data)
     real(8) :: bias, std
     integer :: headerIndex, bodyIndex, ioneobs, idatyp, ityp, index_ztd, iztd
-    integer :: jl, ngpslev, nobs2p, stat
+    integer :: jl, nlev_T, nobs2p, stat
     integer :: icount1, icount2, icount3, icount, icountp, Vcode
     integer,pointer :: ip1(:)
-    character(len=2) :: lv
     real(4) :: sfcfield_r4
     real  ,pointer :: rdp_r4(:)
     logical  :: assim, llrej, analysisMode
@@ -714,23 +716,21 @@ module obsOperators_mod
     if (Vcode .eq. 5002) then
        write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
        write(*,*)'VCODE= ',Vcode,' LSTAG= TRUE'
-       lv = 'TH'
     else
        write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
        write(*,*)'VCODE= ',Vcode,' LSTAG= FALSE'
-       lv = 'NA'         
     endif
 
-    ngpslev = col_getNumLev(columnhr,'TH')
-    if (ltestop) write(*,*) '  col_getNumLev(columnhr,TH) = ',ngpslev
+    nlev_T = col_getNumLev(columnhr,'TH')
+    if (ltestop) write(*,*) '  col_getNumLev(columnhr,TH) = ',nlev_T
       
     !
     ! Initializations
     !
-    allocate(ztt(ngpslev))
-    allocate(zhu(ngpslev))
-    allocate(zdp(ngpslev))
-    allocate(zpp(ngpslev))
+    allocate(ztt(nlev_T))
+    allocate(zhu(nlev_T))
+    allocate(zdp(nlev_T))
+    allocate(zpp(nlev_T))
 
     write(*, *) ' '
     write(*, *) ' '
@@ -794,9 +794,9 @@ module obsOperators_mod
       zlon = lon * MPC_DEGREES_PER_RADIAN_R8
       sfcfield_r4 =  real(col_getElem(columnhr,1,headerIndex,'P0'),4)
       stat= vgd_dpidpis(vco_trl%vgrid,ip1,rdp_r4,sfcfield_r4)
-      zmt  = col_getHeight(columnhr,ngpslev,headerIndex,lv)/RG
-      do jl = 1, ngpslev
-        zpp(jl) = col_getPressure(columnhr,jl,headerIndex,lv)
+      zmt  = col_getHeight(columnhr,nlev_T,headerIndex,'TH')/RG
+      do jl = 1, nlev_T
+        zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
         ! True implementation of ZDP (dP/dP0)
         zdp(jl) = rdp_r4(jl)
         ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
@@ -805,7 +805,7 @@ module obsOperators_mod
       zdz = zlev - zmt
 
       ! Fill GPS ZTD profile structure (PRF):
-      call gpsstructztd(ngpslev,lat,lon,zmt,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
+      call gpsstructztd(nlev_T,lat,lon,zmt,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
 
       ! Apply the GPS ZTD observation operator
       ! --> output is model ZTD (type gpsdiff) and P at obs height ZLEV

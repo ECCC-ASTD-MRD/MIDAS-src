@@ -151,7 +151,7 @@
                   Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
                   Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
                   zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'NA')/RG
+                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')/RG
                   WFGPS= 0.d0
                   DO JJ=1,NUMGPSSATS
                      IF (ISAT.EQ.IGPSSAT(JJ)) WFGPS=WGPS(JJ)

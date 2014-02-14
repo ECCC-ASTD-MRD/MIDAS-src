@@ -12,7 +12,7 @@ module columnData_mod
   public :: rhumin, struct_columnData
 
   ! public subroutines and functions
-  public :: col_setup, col_allocate, col_deallocate, col_pointStagToUnstag, col_expandToMpiGlobal
+  public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
   public :: col_getPressure, col_calcPressure, col_vintProf, col_getHeight, col_getMountain, col_setMountain
@@ -30,7 +30,7 @@ module columnData_mod
     logical           :: mpi_local
     real*8,pointer    :: all(:,:)
     real*8,pointer    :: gz_T(:,:),gz_M(:,:)
-    real*8,pointer    :: rppobs(:,:),rppobs_T(:,:),rppobs_M(:,:)
+    real*8,pointer    :: rppobs_T(:,:),rppobs_M(:,:)
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
     real*8,pointer    :: lat(:),lon(:)
@@ -60,7 +60,7 @@ module columnData_mod
       if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
       if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
 
-!     Read NAMELIST NAMSTATEO to find which fields are needed
+      ! Read NAMELIST NAMSTATEO to find which fields are needed
 
       cmvoneed(:) = '    '
       rhumin = MPC_MINIMUM_HU_R8
@@ -74,6 +74,8 @@ module columnData_mod
 
       nvo3d  = 0
       nvo2d  = 0
+
+      if(varneed('GZ')) call abort3d('col_setup: GZ can no longer be included as a variable in columnData!')
 
       do jvar = 1, vnl_numvarmax3D
         if (varneed(vnl_varNameList3D(jvar))) then
@@ -124,7 +126,10 @@ module columnData_mod
 
       if(column%numCol.gt.0) then
         column%all(:,:)=0.0d0
-        column%rppobs(:,:)=0.0d0
+        column%rppobs_M(:,:)=0.0d0
+        column%rppobs_T(:,:)=0.0d0
+        column%gz_M(:,:)=0.0d0
+        column%gz_T(:,:)=0.0d0
       endif
 
     END SUBROUTINE col_zero
@@ -186,10 +191,8 @@ module columnData_mod
         column%gz_T(:,:)=0.0d0
         column%gz_M(:,:)=0.0d0
 
-        allocate(column%rppobs  (col_getNumLev(column,'TH'),column%numCol))
         allocate(column%rppobs_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%rppobs_M(col_getNumLev(column,'MM'),column%numCol))
-        column%rppobs(:,:)=0.0d0
         column%rppobs_T(:,:)=0.0d0
         column%rppobs_M(:,:)=0.0d0
 
@@ -235,7 +238,6 @@ module columnData_mod
         deallocate(column%all)
         deallocate(column%gz_T)
         deallocate(column%gz_M)
-        deallocate(column%rppobs)
         deallocate(column%rppobs_T)
         deallocate(column%rppobs_M)
         deallocate(column%lat)
@@ -254,24 +256,22 @@ module columnData_mod
     END SUBROUTINE col_deallocate
 
 
-    SUBROUTINE col_fillmvo(columnghr,varName,varType,pvar)
+    SUBROUTINE col_fillmvo(columnghr,pvar,varName,varType)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
     !
     !Arguments
     !
     !       input:
-    !            columnghr          : HR or BG column object
+    !             columnghr          : HR or BG column object
     !             VARNAME (character*4): NOMVAR of the state variable
     !             PVAR(knlev,knobs)   : Variable to transfer in COMMVO(G)(HR)
-    !             KNLEV (integer)     : number of levels of PVAR
-    !             KNOBS (integer)     : number of observation profiles in variable PVAR
     implicit none
 
     type(struct_columnData) :: columnghr
     real*8 pvar(:,:)
     character(len=*) :: varName
-    character(len=*) :: varType
+    character(len=*), optional :: varType
 
     integer jobs,jlev
     real*8, pointer :: column_ptr(:)
@@ -279,52 +279,51 @@ module columnData_mod
     ! Pressure
     select case(trim(varName))
     case('PR')
-      if(varType.eq.'TH') then
-        do jobs = 1,columnghr%numCol
-          do jlev = 1,col_getNumLev(columnghr,'TH')
-            columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
+      if(present(varType)) then
+        if(varType.eq.'TH') then
+          do jobs = 1,columnghr%numCol
+            do jlev = 1,col_getNumLev(columnghr,'TH')
+              columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
-      elseif(varType.eq.'MM') then
-        do jobs = 1,columnghr%numCol
-          do jlev = 1,col_getNumLev(columnghr,'MM')
-            columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
+        elseif(varType.eq.'MM') then
+          do jobs = 1,columnghr%numCol
+            do jlev = 1,col_getNumLev(columnghr,'MM')
+              columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        else
+          call abort3d('col_fillmvo: must specify varType TH or MM for Pressure! ' // varType)
+        endif
       else
-        do jobs = 1,columnghr%numCol
-          do jlev = 1,col_getNumLev(columnghr,'TH')
-            columnghr%rppobs(jlev,jobs) = pvar(jlev,jobs)
-          enddo
-        enddo
+        call abort3d('col_fillmvo: must specify varType for Pressure!')
       endif
 
     ! Height
     case('GZ')
-      if(varType.eq.'TH') then
-        do jobs = 1,columnghr%numCol
-          do jlev = 1, col_getNumLev(columnghr,'TH')
-            columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
+      if(present(varType)) then
+        if(varType.eq.'TH') then
+          do jobs = 1,columnghr%numCol
+            do jlev = 1, col_getNumLev(columnghr,'TH')
+              columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
-      elseif(varType.eq.'MM') then
-        do jobs = 1,columnghr%numCol
-          do jlev = 1, col_getNumLev(columnghr,'MM')
-            columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
+        elseif(varType.eq.'MM') then
+          do jobs = 1,columnghr%numCol
+            do jlev = 1, col_getNumLev(columnghr,'MM')
+              columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
+            enddo
           enddo
-        enddo
+        else
+          call abort3d('col_fillmvo: must specify varType TH or MM for GZ! ' // varType)
+        endif
       else
-        do jobs = 1,columnghr%numCol
-          column_ptr => col_getColumn(columnghr,jobs,varName)
-          do jlev = 1, col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
-            column_ptr(jlev)=pvar(jlev,jobs)
-          enddo
-        enddo
+        call abort3d('col_fillmvo: must specify varType for GZ!')
       endif
 
     ! All the other variables that are stored in column%all
     case default
-      if(col_varExist(varName)) then
+      if(col_varExist(trim(varName))) then
         do jobs = 1,columnghr%numCol
           column_ptr => col_getColumn(columnghr,jobs,varName)
           do jlev = 1, col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
@@ -341,101 +340,6 @@ module columnData_mod
 
     return
     END SUBROUTINE col_fillmvo
-
-
-    SUBROUTINE col_pointStagToUnstag(column)
-      IMPLICIT NONE
-      type(struct_columnData) :: column
-      integer                 :: ilev1,ilev2
-
-      if(column%numCol.le.0) return
-
-      deallocate(column%gz_T)
-      deallocate(column%gz_M)
-      deallocate(column%rppobs_T)
-      deallocate(column%rppobs_M)
-
-      ilev1 = column%varOffset(vnl_varListIndex('GZ'))+1
-      ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('GZ')) 
-      column%gz_T => column%all(ilev1:ilev2,:)
-      column%gz_M => column%all(ilev1:ilev2,:)
-
-      column%rppobs_T => column%rppobs
-      column%rppobs_M => column%rppobs
-
-    END SUBROUTINE col_pointStagToUnstag
-
-
-    SUBROUTINE col_expandToMpiGlobal(column_local,column_global,lobsSpaceData)
-      implicit none
-
-      type(struct_columnData) :: column_local,column_global
-      type(struct_obs) :: lobsSpaceData
-
-      integer :: iobs_local,iobs_global,ierr,nsize,sizeone
-      real*8, allocatable :: mountain(:)
-
-      ! determine the number of columns for mpiglobal object
-      sizeone=1
-      call rpn_comm_allreduce(column_local%numCol,column_global%numCol,sizeone,"mpi_integer", &
-                              "mpi_sum","GRID",ierr)       
-
-      print*,'Entering col_expandToMpiGlobal:',  &
-             column_local%numCol,column_global%numCol  
-
-      call col_setVco(column_global,col_getVco(column_local))
-      call col_allocate(column_global,column_global%numCol,mpi_local=.false.)
-
-      column_global%varOffset(:) = column_local%varOffset(:)
-      column_global%varNumLev(:) = column_local%varNumLev(:)
-
-      allocate(mountain(column_global%numCol))
-      mountain(:)=0.0d0
-      do iobs_local=1,column_local%numCol
-        iobs_global=obs_headerIndex_mpiglobal(lobsSpaceData,iobs_local)
-        column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
-        mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)
-        column_global%lat(iobs_global)                = column_local%lat(iobs_local)
-        column_global%lon(iobs_global)                = column_local%lon(iobs_local)
-        column_global%latRot(iobs_global)             = column_local%latRot(iobs_local)
-        column_global%lonRot(iobs_global)             = column_local%lonRot(iobs_local)
-        column_global%ypos(iobs_global)                = column_local%ypos(iobs_local)
-        column_global%xpos(iobs_global)                = column_local%xpos(iobs_local)
-      enddo
-
-      if(mpi_myid.eq.0) write(*,*) 'starting allreduce'
-
-      nsize=size(column_global%all)
-      call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-
-      nsize=size(mountain)
-      call rpn_comm_allreduce(mountain,mountain,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-
-      nsize=size(column_global%lat)
-      call rpn_comm_allreduce(column_global%lat,column_global%lat,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%lon,column_global%lon,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%latRot,column_global%lat,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%lonRot,column_global%lon,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%ypos,column_global%ypos,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%xpos,column_global%xpos,nsize, &
-                              "mpi_double_precision","mpi_sum","GRID",ierr)
-
-      do iobs_global=1,column_global%numCol
-        column_global%gz_t(col_getNumLev(column_global,'TH'),iobs_global) = mountain(iobs_global)
-      enddo
-
-      deallocate(mountain)
-
-      if(mpi_myid.eq.0) write(*,*) 'Leaving col_expandToMpiGlobal' 
-
-    END SUBROUTINE col_expandToMpiGlobal
 
 
     function col_varExist(varName) result(varExist)
@@ -472,51 +376,32 @@ module columnData_mod
 
     real(kind=8), allocatable :: P_sfc(:,:),zppobs2(:,:)
     real(kind=8), pointer :: zppobs1(:,:,:) => null()
-    integer :: jobs,status,Vcode
+    integer :: jobs,status
 
     allocate(P_sfc(1,col_getNumCol(column)))
     do jobs = 1,col_getNumCol(column)
       P_sfc(1,jobs) = col_getElem(column,1,jobs,'P0')
     enddo
 
-    ! check if vertical coordinate is unstaggered
-    status = vgd_get(column%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-    if(Vcode .eq. 5001) then
-      write(*,*) 'col_calcPressure: computing pressure on UNstaggered levels'
+    write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
 
-      status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                        levels=zppobs1,sfc_field=P_sfc,in_log=.false.)      
-      if(status.ne.VGD_OK) then
-         call abort3d('ERROR with vgd_levels for desired levels ')
-      endif
-      allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-      zppobs2 = transpose(zppobs1(1,:,:))
-      call col_fillmvo(column,'PR','NA',zppobs2)
-      if (associated(zppobs1)) deallocate(zppobs1)
-      deallocate(zppobs2)
+    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
+                      levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
+    if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+    allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
+    zppobs2 = transpose(zppobs1(1,:,:))
+    call col_fillmvo(column,zppobs2,'PR','MM')
+    if (associated(zppobs1))  deallocate(zppobs1)
+    deallocate(zppobs2)
 
-    else
-      write(*,*) 'col_calcPressure: computing pressure on staggered levels'
-
-      status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                        levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
-      if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-      allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
-      zppobs2 = transpose(zppobs1(1,:,:))
-      call col_fillmvo(column,'PR','MM',zppobs2)
-      if (associated(zppobs1))  deallocate(zppobs1)
-      deallocate(zppobs2)
-
-      status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
-                        levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
-      if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
-      allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-      zppobs2 = transpose(zppobs1(1,:,:))
-      call col_fillmvo(column,'PR','TH',zppobs2)
-      if (associated(zppobs1)) deallocate(zppobs1)
-      deallocate(zppobs2)
-
-    endif
+    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
+                      levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
+    if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
+    allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
+    zppobs2 = transpose(zppobs1(1,:,:))
+    call col_fillmvo(column,zppobs2,'PR','TH')
+    if (associated(zppobs1)) deallocate(zppobs1)
+    deallocate(zppobs2)
 
     deallocate(P_sfc)
 
@@ -565,14 +450,10 @@ module columnData_mod
     character(len=*), intent(in)        :: varType
     real*8                              :: pressure
 
-    if (varType .eq. 'NA') then
-      pressure = column%rppobs(ilev,headerIndex)
-    elseif (varType .eq. 'TH') then
+    if (varType .eq. 'TH') then
       pressure = column%rppobs_t(ilev,headerIndex)
     elseif (varType .eq. 'MM' ) then
       pressure = column%rppobs_m(ilev,headerIndex)
-    elseif (varType .eq. 'SF' ) then
-      pressure = column%rppobs_t(col_getNumLev(column,'TH'),headerIndex)
     else
       call abort3d('col_getPressure: Unknown variable type: ' // varType)
     endif
@@ -588,15 +469,12 @@ module columnData_mod
     real*8                              :: height
     integer                             :: ilev1
 
-    if (varType .eq. 'NA') then
-      ilev1 = column%varOffset(vnl_varListIndex('GZ'))+ilev
-      height = column%all(ilev1,headerIndex)
-    elseif (varType .eq. 'TH') then
+    if (varType .eq. 'TH') then
       height = column%gz_t(ilev,headerIndex)
     elseif (varType .eq. 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
-    elseif (varType .eq. 'SF' ) then
-      height = column%gz_t(col_getNumLev(column,'TH'),headerIndex)
+    else
+      call abort3d('col_getHeight: unknown varType! ' // varType)
     endif
 
   end function col_getHeight
@@ -620,6 +498,7 @@ module columnData_mod
     real*8, intent(in)                  :: height
 
     column%gz_t(col_getNumLev(column,'TH'),headerIndex) = height
+    column%gz_m(col_getNumLev(column,'MM'),headerIndex) = height
 
   end subroutine col_setMountain
 
@@ -690,7 +569,9 @@ module columnData_mod
 
     if ( column%numCol > 0 ) then
       if(present(varName)) then
-        if(col_varExist(varName)) then
+        if(trim(varName).eq.'GZ') then
+          call abort3d('col_getAllColumns: Cannot call this for GZ!')
+        elseif(col_varExist(varName)) then
           ilev1 = column%varOffset(vnl_varListIndex(varName))+1
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
           allColumns => column%all(ilev1:ilev2,:)
@@ -718,6 +599,7 @@ module columnData_mod
 
     if(present(varName)) then
       if(col_varExist(varName)) then
+
         select case(trim(varName))
         case('PR')
           if(present(varType)) then 
@@ -726,11 +608,12 @@ module columnData_mod
             elseif(varType.eq.'MM') then
               onecolumn => column%rppobs_M(:,headerIndex)
             else
-              onecolumn => column%rppobs(:,headerIndex)
+              call abort3d('col_getColumn: varType must MM or TH for Pressure! ' // varType)         
             endif
           else
-            onecolumn => column%rppobs(:,headerIndex)
+            call abort3d('col_getColumn: varType must be specified for Pressure!')
           endif
+
         case('GZ')
           if(present(varType)) then 
             if(varType.eq.'TH') then
@@ -738,20 +621,18 @@ module columnData_mod
             elseif(varType.eq.'MM') then
               onecolumn => column%gz_M(:,headerIndex)
             else
-              ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-              ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
-              onecolumn => column%all(ilev1:ilev2,headerIndex)
+              call abort3d('col_getColumn: varType must MM or TH for Height! ' // varType)         
             endif
           else
-            ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-            ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
-            onecolumn => column%all(ilev1:ilev2,headerIndex)
+            call abort3d('col_getColumn: varType must be specified for Height!')         
           endif
+
         case default ! all other variable names
           ilev1 = column%varOffset(vnl_varListIndex(varName))+1
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
           onecolumn => column%all(ilev1:ilev2,headerIndex)
         end select
+
       else
         call abort3d('col_getColumn: Unknown variable name! ' // varName)
       endif
@@ -771,6 +652,8 @@ module columnData_mod
     real*8                                 :: value
 
     if(present(varName)) then
+      if(trim(varName).eq.'GZ') call abort3d('col_getElem: cannot call for GZ!')
+      if(trim(varName).eq.'PR') call abort3d('col_getElem: cannot call for Pressure!')
       value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)

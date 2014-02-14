@@ -119,19 +119,19 @@ C
                IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
                varType = vnl_vartypeFromVarnum(ITYP)
-               nlev=COL_GETNUMLEV(LCOLUMNGHR,varType)
-               ZPT= col_getHeight(lcolumnghr,1,IOBS,varType)/RG
-               ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varType)/RG
+               if(varType.eq.'SF') then
+                 nlev=col_getNumLev(lcolumnghr,'TH')
+                 ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
+                 ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,'TH')/RG                 
+               else
+                 nlev=col_getNumLev(lcolumnghr,varType)
+                 ZPT= col_getHeight(lcolumnghr,1,IOBS,varType)/RG
+                 ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varType)/RG
+               endif
                IF ( ZLEV .GT. ZPT ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
-                  !
-                  !- !!! WARNING !!! This obs is above the model lid. 
-                  !  We must turn off its assimilation flag  because the
-                  !  current obs operators cannot deal with this situation (JFC)
-                  if(varType.ne.'SF') then
-                     write(*,*) "vobslyrs: Rejecting OBS above model lid, height =", ZLEV," > ",ZPT
-                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
-                  endif
+                  write(*,*) "vobslyrs: Rejecting OBS above model lid, height =", ZLEV," > ",ZPT
+                  call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
                ELSE IF ( ZLEV .LT. ZPB ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,2)
                ELSE
@@ -191,13 +191,15 @@ C
                  ZPT = col_getHeight(lcolumnghr,JK,IOBS,varType)/RG
                  IF( ZLEV .LT. ZPT ) IK = JK
                END DO
-               IF ( ITYP.EQ.BUFR_NEPS .or. ITYP .EQ. BUFR_NEPN .or.
+               IF ( ITYP.EQ.BUFR_NEPS .or. ITYP.EQ.BUFR_NEPN .or.
      &              ITYP.EQ.BUFR_NEZD ) THEN
+                 ! for surface observations associated with surface analysis variables
                  IK = 0
-               ELSEIF(ITYP.EQ.BUFR_NETS .or. ityp .eq. BUFR_NESS .OR.
-     &                ITYP.EQ.BUFR_NEUS .or. ityp .eq. BUFR_NEVS .OR.
-     &                ITYP.EQ.BUFR_NEHS) THEN
-                 IK = nlev-1 ! as in rev. 365
+               ELSEIF ( ITYP.EQ.BUFR_NETS .or. ityp.eq.BUFR_NESS .OR. 
+     &                  ITYP.EQ.BUFR_NEUS .or. ityp.eq.BUFR_NEVS .OR. 
+     &                  ITYP.EQ.BUFR_NEHS) THEN
+                 ! for surface observations associated with NON-surface analysis variables
+                 IK = nlev - 1
                ENDIF
                call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA, IK)
             ENDIF

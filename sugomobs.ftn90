@@ -444,11 +444,11 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
         call readTrialField4(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
         if(col_getNumCol(columng).gt.0) then       
-          if(vnl_varNameList2D(jvar).eq.'P0') then
+          if(vnl_varNameList2D(jvar).eq.'P0  ') then
             varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
           endif
-          call col_fillmvo(columng ,vnl_varNameList2D(jvar),'NA',varInterphr_M)
-          call col_fillmvo(columnhr,vnl_varNameList2D(jvar),'NA',varInterphr_M)
+          call col_fillmvo(columng ,varInterphr_M,vnl_varNameList2D(jvar))
+          call col_fillmvo(columnhr,varInterphr_M,vnl_varNameList2D(jvar))
         endif
 
       enddo
@@ -463,8 +463,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
          call col_calcPressure(columng)
 
          do jlev = 1,col_getNumLev(columng,'MM')
-            if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(COLUMNG,jlev,1,NA) = ',  &
-                 jlev,vco_anl%dhyb_m(jlev),col_getPressure(COLUMNG,jlev,1,'NA')
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(COLUMNG,jlev,1,MM) = ',  &
+                 jlev,vco_anl%dhyb_m(jlev),col_getPressure(COLUMNG,jlev,1,'MM')
          end do
 
          !     Calculate profiles of pressure values at station location
@@ -475,10 +475,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
                                               '  Vcode_anl= ',Vcode_anl
          if(Vcode_trl.ne.5001.and.Vcode_trl.ne.5002) call abort3d('sugomobs: invalid vertical coord for background state!')
          if(Vcode_anl.ne.5001.and.Vcode_anl.ne.5002) call abort3d('sugomobs: invalid vertical coord for analysis grid!')
-
-         !     General treatment of trial field 
-         !     addition for BGCK unstagered mode
-         if (Vcode_trl == 5001) call col_pointStagToUnstag(columnhr)
 
          !     Compute Pressure fields at desired trial field levels
          call col_calcPressure(columnhr)
@@ -507,9 +503,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 
       if(col_getNumCol(columng).gt.0) then       
         varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
-        call col_fillmvo(columnhr,'GZ  ','MM',varInterphr_M)
-!       remplir aussi columnhr_gz avec le GZ momentum (Needed for background check!)
-        call col_fillmvo(columnhr,'GZ  ','NA',varInterphr_M)
+        call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
         if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_M'
         do jlev = 1,nlv_M
           if(mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
@@ -523,7 +517,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 
       if(col_getNumCol(columng).gt.0) then       
         varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
-        call col_fillmvo(columnhr,'GZ  ','TH',varInterphr_T)
+        call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
         if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_TH'
         do jlev = 1,nlv_T
           if(mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
@@ -557,8 +551,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
               if(mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
             enddo
 
-            call col_fillmvo(columnhr,'UU  ','MM',varInterphr_M)
-            call col_fillmvo(columnhr,'VV  ','MM',varInterphr_VV)
+            call col_fillmvo(columnhr,varInterphr_M,'UU  ')
+            call col_fillmvo(columnhr,varInterphr_VV,'VV  ')
             call col_vintprof(columnhr,columng,'UU')
             call col_vintprof(columnhr,columng,'VV')
 
@@ -599,10 +593,10 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
               if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
             enddo
 
-            call col_fillmvo(columnhr,vnl_varNameList3D(jvar),'NA',varInterphr_T)
+            call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
 
-            if(vnl_varNameList3D(jvar).eq.'TT') then
+            if(vnl_varNameList3D(jvar).eq.'TT  ') then
               ! conversion from Celcius to Kelvin
               do jobs=1,col_getNumCol(columng)
                 column_ptr => col_getColumn(columnhr,jobs,'TT')
@@ -614,7 +608,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
                   column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
                 enddo
               enddo
-            elseif(vnl_varNameList3D(jvar).eq.'HU') then
+            elseif(vnl_varNameList3D(jvar).eq.'HU  ') then
               ! conversion from specific humidity to log(humidity)
               do jobs=1,col_getNumCol(columng)
                 column_ptr => col_getColumn(columnhr,jobs,'HU')

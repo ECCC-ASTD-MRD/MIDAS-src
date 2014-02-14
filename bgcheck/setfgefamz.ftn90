@@ -51,12 +51,13 @@
                      call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
                   ELSE
                      ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+                     varType = vnl_varTypeFromVarnum(ityp)
                      ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
                      IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
                      IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                      IPB  = IPT+1
-                     ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,'NA')/RG
-                     ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')/RG
+                     ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,varType)/RG
+                     ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varType)/RG
                      ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
                      ZWT  = 1.d0 - ZWB
 !C

@@ -154,6 +154,7 @@
          END DO
       END DO
 
+      ! GZ is put into TT slot in gridStateVector
       CLNOMVAR = 'GZ'
       write(*,*) CLNOMVAR
       IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
@@ -181,8 +182,9 @@
 
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 
+      ! copy GZ data from TT to GZ slot in columnData
       do jobs= 1, col_getNumCol(lcolumn)
-         gz_column => col_getColumn(lcolumn,jobs,'GZ')
+         gz_column => col_getColumn(lcolumn,jobs,'GZ','TH')
          tt_column => col_getColumn(lcolumn,jobs,'TT')
          do j = 1,col_getNumLev(lcolumn,'TH')
             gz_column(j)=tt_column(j)

@@ -1,15 +1,16 @@
       SUBROUTINE SETFGEFAM(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-!*
-!***s/r SETFGEFAM   - Interpolation of THE FIRST GUESS ERROR VARIANCES
-!*
-!*
-!*Author  : P. Koclas *CMC/CMSV November 1998
-!*
-!**    Purpose:  -Interpolate vertically the contents of commvo to
-!*                the pressure levels of the observations. Then
-!*                compute THE FIRST GUESS ERROR VARIANCES
-!*                A linear interpolation in ln(p) is performed.
-!*
+!
+!**s/r SETFGEFAM   - Interpolation of THE FIRST GUESS ERROR VARIANCES
+!
+!
+!Author  : P. Koclas *CMC/CMSV November 1998
+!
+!*    Purpose:  -Interpolate vertically the contents of commvo to
+!                the pressure levels of the observations. Then
+!                compute THE FIRST GUESS ERROR VARIANCES
+!                A linear interpolation in ln(p) is performed.
+!
+      use bufr
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE
@@ -34,38 +35,50 @@
          BODY: do 
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
-!C
-!C*    1. Computation of sigmap
-!C     .  -----------------------------
-!C
+!
+!*    1. Computation of sigmap
+!     .  -----------------------------
+!
             IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1 .AND.   &
                  obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2      ) then
             IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
                varType = vnl_varTypeFromVarnum(ityp)
-               IK   = col_getNumLev(LCOLUMNG,varType)-1
-               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
-               IPB  = IPT +1
-               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
+               IK   = col_getNumLev(LCOLUMNG,varType)
+               IPB  = IK + col_getOffsetFromVarno(lcolumng,ityp)
+               if(ITYP .ne. BUFR_NEGZ) then
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(lcolumn,IPB,INDEX_HEADER))
+               else
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(lcolumn,IK,INDEX_HEADER,'TH'))
+               endif
             ELSE
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+               varType = vnl_varTypeFromVarnum(ityp)
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
                IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT+1
-               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,'NA')
-               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,'NA')
+               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,varType)
+               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,varType)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
-!C
-!C              FIRST GUESS ERROR VARIANCE
-!C
-               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                    (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)))
+!
+!              FIRST GUESS ERROR VARIANCE
+!
+               if(ITYP .ne. BUFR_NEGZ) then
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+                      (ZWB*col_getElem(lcolumn,IPB,INDEX_HEADER) + ZWT*col_getElem(lcolumn,IPT,INDEX_HEADER)))
+               else
+                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+                      (ZWB*col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(lcolumn,IK,INDEX_HEADER,'TH')))
+               endif
                if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
                  write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
+                 write(*,*) 'SETFGEFAM: IPB,IPT,ZWB,ZWT,ITYP,ZLEV=',IPB,IPT,ZWB,ZWT,ITYP,ZLEV
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPB,INDEX_HEADER)=',col_getElem(lcolumn,IPB,INDEX_HEADER)
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',col_getElem(lcolumn,IPT,INDEX_HEADER)
+                 write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')
+                 write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')
                  CALL ABORT3D('SETFGEFAM: First-guess stdev bad value')
                endif
             ENDIF

@@ -114,7 +114,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT,lqtoes,lqtoes_tl
       LOGICAL LLASSIM,LLDIAG
       INTEGER, PARAMETER :: numFamily=3
-      CHARACTER(len=2) :: list_family(numFamily)
+      CHARACTER(len=2) :: list_family(numFamily),varType
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
@@ -141,11 +141,12 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+            varType = vnl_varTypeFromVarnum(ityp)
             IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
             IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getPressure(LCOLUMNG,IK  ,INDEX_HEADER,'NA')
-            ZPB  = col_getPressure(LCOLUMNG,IK+1,INDEX_HEADER,'NA')
+            ZPT  = col_getPressure(LCOLUMNG,IK  ,INDEX_HEADER,varType)
+            ZPB  = col_getPressure(LCOLUMNG,IK+1,INDEX_HEADER,varType)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
             zpresbpt = vco_anl%db_M(ik)
@@ -159,20 +160,20 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                                    col_getElem(lcolumn,IK+1,INDEX_HEADER,'TT'), &
                                    col_getElem(lcolumn,1,INDEX_HEADER,'P0'), &
                                    col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'), &
-                                   col_getPressure(lcolumng,IK+1,INDEX_HEADER,'NA'), &
+                                   col_getPressure(lcolumng,IK+1,INDEX_HEADER,'TH'), &
                                    vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
               columnVarT=lqtoes_tl(col_getElem(lcolumn,IK  ,INDEX_HEADER,'HU'), &
                                    col_getElem(lcolumn,IK  ,INDEX_HEADER,'TT'), &
                                    col_getElem(lcolumn,1,INDEX_HEADER,'P0'), &
                                    col_getElem(lcolumng,IK  ,INDEX_HEADER,'HU'), &
-                                   col_getPressure(lcolumng,IK  ,INDEX_HEADER,'NA'),  &
+                                   col_getPressure(lcolumng,IK  ,INDEX_HEADER,'TH'),  &
                                    vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
               columngVarB=lqtoes(col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'), &
                                  col_getElem(lcolumng,IK+1,INDEX_HEADER,'TT'), &
-                                 col_getPressure(lcolumng,IK+1,INDEX_HEADER,'NA'))
+                                 col_getPressure(lcolumng,IK+1,INDEX_HEADER,'TH'))
               columngVarT=lqtoes(col_getElem(lcolumng,IK  ,INDEX_HEADER,'HU'), &
                                  col_getElem(lcolumng,IK  ,INDEX_HEADER,'TT'), &
-                                 col_getPressure(lcolumng,IK  ,INDEX_HEADER,'NA'))
+                                 col_getPressure(lcolumng,IK  ,INDEX_HEADER,'TH'))
             else
               columnVarB=col_getElem(lcolumn,IPB,INDEX_HEADER)
               columnVarT=col_getElem(lcolumn,IPT,INDEX_HEADER)
@@ -224,7 +225,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       REAL*8 columnVarB,lqtoes_tl
       INTEGER, PARAMETER :: numFamily=4
-      CHARACTER(len=2) :: list_family(numFamily)
+      CHARACTER(len=2) :: list_family(numFamily),varType
 !C
 !C     Temperature lapse rate for extrapolation of gz below model surface
 !C
@@ -256,10 +257,11 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
              .or. obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body).eq.0) ) then
 
             if( ityp.eq.bufr_neus .or. ityp.eq.bufr_nevs ) then
-              nlev = col_getNumLev(lcolumn,'MM')           
+              varType = 'MM'
             else
-              nlev = col_getNumLev(lcolumn,'TH')           
+              varType = 'TH'
             endif
+            nlev = col_getNumLev(lcolumn,varType)
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             IXTR = obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY)
@@ -276,7 +278,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                                      col_getElem(lcolumn,nlev,INDEX_HEADER,'TT'), &
                                      col_getElem(lcolumn,1,INDEX_HEADER,'P0'), &
                                      col_getElem(lcolumng,nlev,INDEX_HEADER,'HU'), &
-                                     col_getPressure(lcolumng,nlev,INDEX_HEADER,'NA'),  &
+                                     col_getPressure(lcolumng,nlev,INDEX_HEADER,varType),  &
                                      vco_anl%dhyb_m(nlev),vco_anl%db_m(nlev))
               else
                 columnVarB=col_getElem(LCOLUMN,IPB,INDEX_HEADER)
@@ -286,7 +288,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
               ZLTV  = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(LCOLUMN,nlev,INDEX_HEADER,'TT')  & 
                     + lcolumng%OLTV(2,nlev,INDEX_HEADER)*col_getElem(LCOLUMN,nlev,INDEX_HEADER,'HU')
               ZTVG  = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(lcolumng,nlev,INDEX_HEADER,'TT')
-              ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumng,nlev,INDEX_HEADER,'NA'))
+              ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumng,nlev,INDEX_HEADER,varType))
               ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
               ZDELPS= (col_getElem(LCOLUMN,1,INDEX_HEADER,'P0')*ZCON**ZEXP)
               ZDELTV= ((col_getElem(lcolumng,1,INDEX_HEADER,'P0')*ZEXP*ZCON**(ZEXP-1))  &
@@ -295,8 +297,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             ELSE
               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
               IPB  = IPT+1
-              ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,'NA')
-              ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')
+              ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,varType)
+              ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varType)
               ZWB  = (ZPT-ZHHH)/(ZPT-ZPB)
               ZWT  = 1.d0 - ZWB
               call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,  &
@@ -510,7 +512,7 @@ end subroutine oda_Hto
                   Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
                   Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
                   zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
-                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'NA')/RG
+                  zMT  = col_getHeight(lcolumng,NGPSLEV,INDEX_HEADER,'TH')/RG
                   WFGPS= 0.d0
                   DO JJ=1,NUMGPSSATS
                      IF (ISAT.EQ.IGPSSAT(JJ)) WFGPS=WGPS(JJ)
@@ -657,6 +659,7 @@ end subroutine oda_Hto
       REAL*8 ZWB,ZWT, ZLTV,ZTVG,ZPPOST
       REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZDENO
       LOGICAL LLOK, LLPRINT, LLUV
+      character(len=2) :: varType
 
       call obs_set_current_body_list(lobsSpaceData, 'PR')
       BODY: do
@@ -670,10 +673,11 @@ end subroutine oda_Hto
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
           IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+          varType = vnl_varTypeFromVarnum(ityp)
           IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
           IPB  = IPT+1
-          ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,'NA')/RG
-          ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,'NA')/RG
+          ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,varType)/RG
+          ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varType)/RG
           ZDENO= ZPT-ZPB
           ZWB  = (ZPT-ZLEV)/ZDENO
           ZWT  = 1.0D0 - ZWB
@@ -688,7 +692,7 @@ end subroutine oda_Hto
           call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,  &
               ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER) +  &
               (col_getElem(lcolumng,IPB,INDEX_HEADER) - col_getElem(lcolumng,IPT,INDEX_HEADER))*  &
-              (ZDA1*col_getHeight(LCOLUMN,IK,INDEX_HEADER,'NA')/RG + ZDA2*col_getHeight(LCOLUMN,IK+1,INDEX_HEADER,'NA')/RG))
+              (ZDA1*col_getHeight(LCOLUMN,IK,INDEX_HEADER,varType)/RG + ZDA2*col_getHeight(LCOLUMN,IK+1,INDEX_HEADER,varType)/RG))
         ENDIF
       ENDDO BODY
       RETURN
@@ -730,7 +734,7 @@ end subroutine oda_Hto
       INTEGER JL, NFLEV, status, iztd, icount, NFLEV2, stat, iversion
 
       LOGICAL      ASSIM, LSTAG
-      CHARACTER*2  LV
+      CHARACTER*2  varType
       
       real, dimension(:), pointer :: dpdp0_r4 => null()
 
@@ -742,10 +746,10 @@ end subroutine oda_Hto
       stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
       if (iversion .ne. 5001) then
          LSTAG = .TRUE. 
-         LV = 'TH'
+         varType = 'TH'
       else
          LSTAG = .FALSE.
-         LV = 'NA'
+         varType = 'TH'
       endif
       
       ZDZMIN = DZMIN                     ! from modgpsztd_mod
@@ -826,14 +830,14 @@ end subroutine oda_Hto
             DO JL = 1, NFLEV
               ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
               ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-              ZPPB(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,LV)
+              ZPPB(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,varType)
             ENDDO
             if ( ZPPB(NFLEV) .ne. ZP0B ) then
               write(*,*) ' oda_Hgp: ERROR: ZPPB(NFLEV) .ne. ZP0B'
               write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
               call abort3d('oda_Hgp:ABORT')
             endif
-            ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,LV)/RG
+            ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
 !C          Get ZDP = dP/dP0
             status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0_r4,sfcfield_r4)
             ZDP = dpdp0_r4(1:NFLEV)

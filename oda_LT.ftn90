@@ -49,14 +49,12 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   end if
   
   !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-  if (col_varExist('GZ') ) then
-    vco_anl => col_getVco(lcolumng)
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if(Vcode_anl .eq. 5001) then
-      call att2phi(lcolumn,lcolumng)
-    else
-      call att2phi_gem4(lcolumn,lcolumng)
-    endif
+  vco_anl => col_getVco(lcolumng)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+  if(Vcode_anl .eq. 5001) then
+    call att2phi(lcolumn,lcolumng)
+  else
+    call att2phi_gem4(lcolumn,lcolumng)
   endif
   
   !
@@ -76,7 +74,6 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   ilev2=min(col_getNumLev(lcolumn,'MM'),mythread*deltalev)
   if(gsv_varExist('UU'))  call gd2mvoad('UU',ilev1,ilev2)
   if(gsv_varExist('VV'))  call gd2mvoad('VV',ilev1,ilev2)
-  if(gsv_varExist('GZ'))  call gd2mvoad('GZ',ilev1,ilev2)
 
   deltalev=ceiling(real(col_getNumLev(lcolumn,'TH'))/real(numthread))
   ilev1=1+(mythread-1)*deltalev

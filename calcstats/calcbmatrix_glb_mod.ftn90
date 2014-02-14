@@ -299,17 +299,11 @@ module calcbmatrix_glb_mod
     write(*,*)
     write(*,*) 'calcb_glb_setup: Starting...'
 
-    write(*,*) '1'
     nens=nens_in
-    write(*,*) '2'
     allocate(cflensin(nens))
-    write(*,*) '3'
     cflensin(:)=cflens_in(:)
-    write(*,*) '4'
     call mpc_printConstants(6)
-    write(*,*) '5'
     call gaus_SetupFromHCO(hco_in) ! IN
-    write(*,*) '6'
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     ntrunc=108
@@ -319,8 +313,6 @@ module calcbmatrix_glb_mod
     read(nulnam,nml=namcalcb_glb)
     write(*,nml=namcalcb_glb)
     ierr=fclos(nulnam)
-
-    write(*,*) '7'
 
     ni=hco_in%ni
     nj=hco_in%nj
@@ -336,13 +328,8 @@ module calcbmatrix_glb_mod
     nkgdimEns=nLevEns_M*2+nLevEns_T*2+1 ! NO TG !!!
     nla=(ntrunc+1)*(ntrunc+2)/2
     
-    
-    write(*,*) '8'
-
     mpiMode=2
     gstID = gst_setup(6,ni,nj,ntrunc,mpiMode)
-
-    write(*,*) '9'
 
     allocate(nip1_M(nLevEns_M))
     nip1_M(:)=vco_in%ip1_M(:)

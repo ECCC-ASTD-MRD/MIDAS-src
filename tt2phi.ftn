@@ -59,7 +59,7 @@ c
 !$OMP& vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
       do jobs = 1, col_getNumCol(lcolumnghr)
         do jlev = 1, nlev_T
-          pressure(jlev)=col_getPressure(lcolumnghr,jlev,jobs,'NA')
+          pressure(jlev)=col_getPressure(lcolumnghr,jlev,jobs,'TH')
         enddo
         call matapatnew(pressure,alpha,nlev_T,vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
         call vtap1dnew(jobs,nlev_T,vmahr,vmbhr,vmchr,vmdhr,vmehr,vmfhr)
@@ -210,7 +210,7 @@ C
 *
       INTEGER  JLON, IKLEVM2, JK, IK
       REAL*8   ZAK, ZBK, ZCK,ZCON,zhu,mountain
-      real*8, pointer :: gz_column(:)
+      real*8, pointer :: gz_column_t(:),gz_column_m(:)
 **
       do jk = 1, nlev_T
         zhu = exp(col_getElem(lcolumnghr,jk,kobs,'HU'))
@@ -221,27 +221,29 @@ c
       ZAK = -2.0D0*ZCON*VMAHR(nlev_T)
       ZBK = -2.0D0*ZCON*VMBHR(nlev_T)
       ZCK = -2.0D0*ZCON*VMCHR(nlev_T)
-      gz_column => col_getColumn(lcolumnghr,kobs,'GZ')
+      gz_column_t => col_getColumn(lcolumnghr,kobs,'GZ','TH')
       mountain = col_getMountain(lcolumnghr,kobs)
-      gz_column(nlev_T) = mountain
-      gz_column(nlev_T-1)=
+      gz_column_t(nlev_T) = mountain
+      gz_column_t(nlev_T-1)=
      $                   ZAK*ztv(nlev_T-1)+
      $                   ZBK*ztv(nlev_T)+
      &                   ZCK*ztv(nlev_T-2)+
-     $                   gz_column(nlev_T)
+     $                   gz_column_t(nlev_T)
       IKLEVM2 = nlev_T-2
       do JK = 1, IKLEVM2
         IK = nlev_T-1-JK
         ZAK = -2.0D0*ZCON*VMAHR(IK+1)
         ZBK = -2.0D0*ZCON*VMBHR(IK+1)
         ZCK = -2.0D0*ZCON*VMCHR(IK+1)
-        gz_column(IK)=ZAK*ztv(IK)+
+        gz_column_t(IK)=ZAK*ztv(IK)+
      $                  ZBK*ztv(IK+1)+
      $                  ZCK*ztv(IK+2)+
-     +                  gz_column(IK+2)
+     +                  gz_column_t(IK+2)
       enddo
-c
-      return
+
+      gz_column_m => col_getColumn(lcolumnghr,kobs,'GZ','MM')
+      gz_column_m(:) = gz_column_t(:)
+
       end subroutine vtap1dnew
 
 
