@@ -3,7 +3,6 @@ module columnData_mod
   use varNameList_mod
   use verticalCoord_mod
   use MathPhysConstants_mod
-  use obsSpaceData_mod
   implicit none
   save
   private
@@ -15,14 +14,14 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
-  public :: col_getPressure, col_calcPressure, col_vintProf, col_getHeight, col_getMountain, col_setMountain
+  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getMountain, col_setMountain
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile, vco_getNumLev
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
-  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis
+  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_columnData
     integer           :: numCol
@@ -31,6 +30,7 @@ module columnData_mod
     real*8,pointer    :: all(:,:)
     real*8,pointer    :: gz_T(:,:),gz_M(:,:)
     real*8,pointer    :: rppobs_T(:,:),rppobs_M(:,:)
+    real*8,pointer    :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
     real*8,pointer    :: lat(:),lon(:)
@@ -196,6 +196,11 @@ module columnData_mod
         column%rppobs_T(:,:)=0.0d0
         column%rppobs_M(:,:)=0.0d0
 
+        allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
+        allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
+        column%dP_dPsfc_T(:,:)=0.0d0
+        column%dP_dPsfc_M(:,:)=0.0d0
+
         allocate(column%lat(column%numCol))
         allocate(column%lon(column%numCol))
         allocate(column%latRot(column%numCol))
@@ -240,6 +245,8 @@ module columnData_mod
         deallocate(column%gz_M)
         deallocate(column%rppobs_T)
         deallocate(column%rppobs_M)
+        deallocate(column%dP_dPsfc_T)
+        deallocate(column%dP_dPsfc_M)
         deallocate(column%lat)
         deallocate(column%lon)
         deallocate(column%latRot)
@@ -374,19 +381,20 @@ module columnData_mod
     implicit none
     type(struct_columnData), intent(inout) :: column
 
-    real(kind=8), allocatable :: P_sfc(:,:),zppobs2(:,:)
-    real(kind=8), pointer :: zppobs1(:,:,:) => null()
+    real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
+    real(kind=8), pointer     :: zppobs1(:,:,:) => null()
+    real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
     integer :: jobs,status
 
-    allocate(P_sfc(1,col_getNumCol(column)))
+    allocate(Psfc(1,col_getNumCol(column)))
     do jobs = 1,col_getNumCol(column)
-      P_sfc(1,jobs) = col_getElem(column,1,jobs,'P0')
+      Psfc(1,jobs) = col_getElem(column,1,jobs,'P0')
     enddo
 
     write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                      levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
+                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
     if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
@@ -395,7 +403,7 @@ module columnData_mod
     deallocate(zppobs2)
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
-                      levels=zppobs1,sfc_field=P_sfc,in_log=.false.)
+                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
     if(status.ne.VGD_OK) call abort3d('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
@@ -403,7 +411,17 @@ module columnData_mod
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
 
-    deallocate(P_sfc)
+    write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
+
+    status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc,Psfc)
+    column%dP_dPsfc_M(:,:) = transpose(dP_dPsfc(1,:,:))
+    deallocate(dP_dPsfc)
+
+    status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_T,dP_dPsfc,Psfc)
+    column%dP_dPsfc_T(:,:) = transpose(dP_dPsfc(1,:,:))
+    deallocate(dP_dPsfc)
+
+    deallocate(Psfc)
 
   end subroutine col_calcPressure
 
@@ -460,6 +478,24 @@ module columnData_mod
 
   end function col_getPressure
  
+
+  function col_getPressureDeriv(column,ilev,headerIndex,varType) result(dP_dPsfc)
+    implicit none
+    type(struct_columnData), intent(in) :: column
+    integer, intent(in)                 :: ilev,headerIndex
+    character(len=*), intent(in)        :: varType
+    real*8                              :: dP_dPsfc
+
+    if (varType .eq. 'TH') then
+      dP_dPsfc = column%dP_dPsfc_t(ilev,headerIndex)
+    elseif (varType .eq. 'MM' ) then
+      dP_dPsfc = column%dP_dPsfc_m(ilev,headerIndex)
+    else
+      call abort3d('col_getPressureDeriv: Unknown variable type: ' // varType)
+    endif
+
+  end function col_getPressureDeriv
+
 
   function col_getHeight(column,ilev,headerIndex,varType) result(height)
     implicit none

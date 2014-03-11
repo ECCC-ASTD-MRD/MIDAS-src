@@ -110,14 +110,15 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       INTEGER J,INDEX_BODY,ITYP,nlev_T
       REAL*8 ZDADPS,ZCON
       REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
-      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZPRESBPB,ZPRESBPT
+      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
+      REAL*8 dPdPsT,dPdPsB
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT,lqtoes,lqtoes_tl
       LOGICAL LLASSIM,LLDIAG
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varType
-!C
-!C     Temperature lapse rate for extrapolation of gz below model surface
-!C
+      !
+      !     Temperature lapse rate for extrapolation of gz below model surface
+      !
       zgamma = 0.0065D0 / GRAV
       zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
@@ -127,8 +128,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
       FAMILY: do index_family=1,numFamily
 
-        call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
-        BODY: do
+        call obs_set_current_body_list(lobsSpaceData,list_family(index_family))
+        BODY: DO 
           index_body = obs_getBodyIndex(lobsSpaceData)
           if (index_body < 0) exit BODY
 
@@ -138,22 +139,23 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
           lldiag = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. -1) &
              .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2)
           IF (llassim .or. lldiag) THEN
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
+            index_header = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             varType = vnl_varTypeFromVarnum(ityp)
             IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
             IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
-            ZPT  = col_getPressure(LCOLUMNG,IK  ,INDEX_HEADER,varType)
-            ZPB  = col_getPressure(LCOLUMNG,IK+1,INDEX_HEADER,varType)
+            ZPT    = col_getPressure(LCOLUMNG,IK  ,INDEX_HEADER,varType)
+            ZPB    = col_getPressure(LCOLUMNG,IK+1,INDEX_HEADER,varType)
+            dPdPsT = col_getPressureDeriv(LCOLUMNG,IK  ,INDEX_HEADER,varType)
+            dPdPsB = col_getPressureDeriv(LCOLUMNG,IK+1,INDEX_HEADER,varType)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
-            zpresbpt = vco_anl%db_M(ik)
-            zpresbpb = vco_anl%db_M(ik+1)
-            ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB)  &
-                -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) )  &
-                /LOG(ZPB/ZPT)**2
+
+            ZDADPS   = ( LOG(ZLEV/ZPB)*dPdPsT/ZPT -   &
+                         LOG(ZLEV/ZPT)*dPdPsB/ZPB )/  &
+                       LOG(ZPB/ZPT)**2
 
             if(ityp.eq.bufr_nees) then
               columnVarB=lqtoes_tl(col_getElem(lcolumn,IK+1,INDEX_HEADER,'HU'), &
@@ -161,13 +163,13 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                                    col_getElem(lcolumn,1,INDEX_HEADER,'P0'), &
                                    col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'), &
                                    col_getPressure(lcolumng,IK+1,INDEX_HEADER,'TH'), &
-                                   vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
+                                   dPdPsB)
               columnVarT=lqtoes_tl(col_getElem(lcolumn,IK  ,INDEX_HEADER,'HU'), &
                                    col_getElem(lcolumn,IK  ,INDEX_HEADER,'TT'), &
                                    col_getElem(lcolumn,1,INDEX_HEADER,'P0'), &
                                    col_getElem(lcolumng,IK  ,INDEX_HEADER,'HU'), &
                                    col_getPressure(lcolumng,IK  ,INDEX_HEADER,'TH'),  &
-                                   vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
+                                   dPdPsT)
               columngVarB=lqtoes(col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'), &
                                  col_getElem(lcolumng,IK+1,INDEX_HEADER,'TT'), &
                                  col_getPressure(lcolumng,IK+1,INDEX_HEADER,'TH'))
@@ -189,9 +191,9 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) then
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!C
-!c-----------TL model for height data below model's orography
-!c
+            !
+            ! TL model for height data below model's orography
+            !
             nlev_T = col_getNumLev(LCOLUMN,'TH')
             ZLTV = lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*col_getElem(LCOLUMN,nlev_T,INDEX_HEADER,'TT') &
                  + lcolumng%OLTV(2,nlev_T,INDEX_HEADER)*col_getElem(LCOLUMN,nlev_T,INDEX_HEADER,'HU')
@@ -202,11 +204,11 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                 /col_getElem(lcolumng,1,index_header,'P0'))
           endif
 
-        ENDDO BODY
+        enddo BODY
 
-      ENDDO FAMILY
+      enddo FAMILY
 
-      END subroutine oda_Hpp
+      end subroutine oda_Hpp
 
 
       SUBROUTINE oda_Hsf
@@ -224,6 +226,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZWB,ZWT, ZEXP,ZEXPGZ,ZGAMMA,ZLTV,ZTVG,ZPPOST
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       REAL*8 columnVarB,lqtoes_tl
+      REAL*8 dPdPsfc
       INTEGER, PARAMETER :: numFamily=4
       CHARACTER(len=2) :: list_family(numFamily),varType
 !C
@@ -245,7 +248,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
         BODY: do
           index_body = obs_getBodyIndex(lobsSpaceData)
           if (index_body < 0) exit BODY
-
+  
 ! Process all data within the domain of the model
           ityp = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
           if ( ityp.eq.bufr_nezd ) cycle BODY
@@ -274,12 +277,13 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
               if(ITYP.eq.BUFR_NESS) THEN
+                dPdPsfc = col_getPressureDeriv(lcolumng,nlev,index_header,'TH')
                 columnVarB=lqtoes_tl(col_getElem(lcolumn,nlev,INDEX_HEADER,'HU'), &
                                      col_getElem(lcolumn,nlev,INDEX_HEADER,'TT'), &
                                      col_getElem(lcolumn,1,INDEX_HEADER,'P0'), &
                                      col_getElem(lcolumng,nlev,INDEX_HEADER,'HU'), &
                                      col_getPressure(lcolumng,nlev,INDEX_HEADER,varType),  &
-                                     vco_anl%dhyb_m(nlev),vco_anl%db_m(nlev))
+                                     dPdPsfc)
               else
                 columnVarB=col_getElem(LCOLUMN,IPB,INDEX_HEADER)
               endif
@@ -401,15 +405,13 @@ end subroutine oda_Hto
       REAL*8 zAzm, Azm
       INTEGER IAZM, ISAT
       REAL*8 Rad, Geo, WFGPS
-      real, dimension(:), pointer :: dpdp0_r4 => null()
       REAL*8, allocatable :: zPP(:)
       REAL*8, allocatable :: zDP(:)
       REAL*8, allocatable :: zTT(:)
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      REAL*8 zP0, zMT,radw
-      real sfcfield_r4
+      REAL*8 zMT,radw
 
       REAL*8 ZMHXL
       REAL*8 DX (ngpscvmx)
@@ -462,10 +464,10 @@ end subroutine oda_Hto
 !##$omp parallel default(shared) &
 !##$omp private(index_header,idatyp,assim,nh,local_current_list,index_body) &
 !##$omp private(iProfile,irad,igeo,iazm,isat,rad,geo,zazm,zmt,wfgps,jj) &
-!##$omp private(zlat,zlon,lat,lon,azm,slat,zp0,sfcfield_r4) &
-!##$omp private(stat1,dpdp0_r4,jl,zpp,zdp,ztt,zhu,zuu,zvv,prf,dx) &
+!##$omp private(zlat,zlon,lat,lon,azm,slat) &
+!##$omp private(stat1,jl,zpp,zdp,ztt,zhu,zuu,zvv,prf,dx) &
 !##$omp private(h,azmv,rstv,rstvp,rstvm,nh1,zmhxl,jv)
-      nullify(local_current_list,dpdp0_r4)
+      nullify(local_current_list)
       HEADER: do
          INDEX_HEADER = obs_getHeaderIndex(lobsSpaceData)
          if (INDEX_HEADER < 0) exit HEADER
@@ -522,16 +524,13 @@ end subroutine oda_Hto
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
-                  zP0  = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-                  sfcfield_r4=zP0
-                  stat1= vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0_r4,sfcfield_r4)
                   DO JL = 1, NGPSLEV
 !C
 !C     *             Profile x_b
 !C
                      zPP(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
 !C     *             True implementation of zDP (dP/dP0)
-                     zDP(JL) = dpdp0_r4(JL)
+                     zDP(JL) = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
                      zUU(JL) = 0.d0
@@ -724,7 +723,7 @@ end subroutine oda_Hto
       REAL*8, allocatable :: ZDP(:)
       REAL*8 ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
       REAL*8 ZMT
-      real sfcfield_r4
+      real*8 sfcfield
 
       REAL*8 ZHX, ZLEV, ZDZMIN
       REAL*8 JAC(ngpscvmx)
@@ -736,7 +735,7 @@ end subroutine oda_Hto
       LOGICAL      ASSIM, LSTAG
       CHARACTER*2  varType
       
-      real, dimension(:), pointer :: dpdp0_r4 => null()
+      real*8, dimension(:), pointer :: dpdp0 => null()
 
       TYPE(gpsprofilezd)   :: PRF, PRF2
       TYPE(gpsdiff)        :: ZTDOPV, ZTDOPV2
@@ -826,11 +825,12 @@ end subroutine oda_Hto
             Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
             ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
             ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-            sfcfield_r4 = ZP0B
             DO JL = 1, NFLEV
               ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
               ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
               ZPPB(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,varType)
+!C            Get ZDP = dP/dP0
+              ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,varType)
             ENDDO
             if ( ZPPB(NFLEV) .ne. ZP0B ) then
               write(*,*) ' oda_Hgp: ERROR: ZPPB(NFLEV) .ne. ZP0B'
@@ -838,9 +838,6 @@ end subroutine oda_Hto
               call abort3d('oda_Hgp:ABORT')
             endif
             ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
-!C          Get ZDP = dP/dP0
-            status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0_r4,sfcfield_r4)
-            ZDP = dpdp0_r4(1:NFLEV)
             if ( icount .eq. 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
 !c
             CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
@@ -859,10 +856,10 @@ end subroutine oda_Hto
                CALL gpsPW(PRF,ZPWMOD)
 !           sfc pressure dx               
                ZPPB(NFLEV) = ZPPB(NFLEV) + 50.0d0
-               nullify(dpdp0_r4)
-               sfcfield_r4 = ZP0B + 50.0d0
-               status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0_r4,sfcfield_r4)
-               ZDP = dpdp0_r4(1:NFLEV)
+               nullify(dpdp0)
+               sfcfield = ZP0B + 50.0d0
+               status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
+               ZDP = dpdp0(1:NFLEV)
                CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
                CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'

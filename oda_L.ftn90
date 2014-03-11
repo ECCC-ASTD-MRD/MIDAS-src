@@ -82,11 +82,13 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
     vco_anl => col_getVco(lcolumng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    call tmg_start(36,'INTERP_LTT2PHI')
     if(Vcode_anl .eq. 5001) then
       call ltt2phi(lcolumn,lcolumng)
     else
       call ltt2phi_gem4(lcolumn,lcolumng)
     endif
+    call tmg_stop(36)
 
     !- 2.2 Rotated wind to Meteorological wind
     if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector % hco % Rotated ) then

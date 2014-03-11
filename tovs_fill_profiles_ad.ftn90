@@ -64,6 +64,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   real*8, allocatable :: toext_ad (:,:)
   real*8, allocatable :: qoext_ad (:,:)
   real*8, allocatable :: zvlev    (:,:)
+  real*8, allocatable :: dPdPs    (:,:)
   real*8, allocatable :: zt_ad    (:,:)
   real*8, allocatable :: zlq_ad   (:,:)
   real*8, allocatable :: zt       (:,:)
@@ -133,14 +134,15 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   allocate (lqo_ad   (jpmolev,jppf*nthreads),stat= alloc_status(4) )
   allocate (toext_ad (nlevels,jppf*nthreads),stat= alloc_status(5) )
   allocate (qoext_ad (nlevels,jppf*nthreads),stat= alloc_status(6) )
-  allocate (zvlev    (knlev,jppf*nthreads),stat= alloc_status(7) )
-  allocate (zt_ad    (knlev,jppf*nthreads),stat= alloc_status(8) )
-  allocate (zlq_ad   (knlev,jppf*nthreads),stat= alloc_status(9) )
-  allocate (zt       (knlev,jppf*nthreads),stat= alloc_status(10))
-  allocate (zlq      (knlev,jppf*nthreads),stat= alloc_status(11))
-  allocate (qoext    (nlevels,jppf*nthreads),stat= alloc_status(12))
+  allocate (zvlev    (knlev,jppf*nthreads)  ,stat= alloc_status(7) )
+  allocate (dPdPs    (knlev,jppf*nthreads)  ,stat= alloc_status(8) )
+  allocate (zt_ad    (knlev,jppf*nthreads)  ,stat= alloc_status(9) )
+  allocate (zlq_ad   (knlev,jppf*nthreads)  ,stat= alloc_status(10) )
+  allocate (zt       (knlev,jppf*nthreads)  ,stat= alloc_status(11))
+  allocate (zlq      (knlev,jppf*nthreads)  ,stat= alloc_status(12))
+  allocate (qoext    (nlevels,jppf*nthreads),stat= alloc_status(13))
 
-  allocate (zps_ad   (jppf*nthreads)        ,stat= alloc_status(13))
+  allocate (zps_ad   (jppf*nthreads)        ,stat= alloc_status(14))
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_ad : memory allocation error'
@@ -173,6 +175,7 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
            zlq  (jl,knpf) = col_getElem(lcolumng,jl,jo,'HU')
            zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
+           dPdPs(jl,knpf) = col_getPressureDeriv(lcolumng,jl,jo,'TH')
         enddo
 !!! Fix pour eviter probleme au toit avec GEM 4
 !!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)
@@ -279,11 +282,10 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
 
-              call intavgad (zvlev(:,jn:jn+ilen-1),vco_anl%db_t,zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
+              call intavgad(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
                    zps_ad(jn:jn+ilen-1),knlev,knlev,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to_ad(:,jn:jn+ilen-1))
-
-              call intavgad (zvlev(:,jn:jn+ilen-1),vco_anl%db_t,zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
+              call intavgad(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
                    zps_ad(jn:jn+ilen-1),knlev,knlev,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo_ad(:,jn:jn+ilen-1))
 
@@ -323,13 +325,14 @@ subroutine tovs_fill_profiles_ad(lcolumn,lcolumng)
   deallocate (toext_ad ,stat= alloc_status(5) )
   deallocate (qoext_ad ,stat= alloc_status(6) )
   deallocate (zvlev    ,stat= alloc_status(7) )
-  deallocate (zt_ad    ,stat= alloc_status(8) )
-  deallocate (zlq_ad   ,stat= alloc_status(9) )
-  deallocate (zt       ,stat= alloc_status(10))
-  deallocate (zlq      ,stat= alloc_status(11))
-  deallocate (qoext    ,stat= alloc_status(12))
-  deallocate (zps_ad   ,stat= alloc_status(13))
-  deallocate (xpres    ,stat= alloc_status(14))
+  deallocate (dPdPs    ,stat= alloc_status(8) )
+  deallocate (zt_ad    ,stat= alloc_status(9) )
+  deallocate (zlq_ad   ,stat= alloc_status(10) )
+  deallocate (zt       ,stat= alloc_status(11))
+  deallocate (zlq      ,stat= alloc_status(12))
+  deallocate (qoext    ,stat= alloc_status(13))
+  deallocate (zps_ad   ,stat= alloc_status(14))
+  deallocate (xpres    ,stat= alloc_status(15))
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_ad : memory deallocation error'

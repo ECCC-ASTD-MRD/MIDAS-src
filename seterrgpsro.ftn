@@ -47,29 +47,25 @@ C
       REAL*8 zLat, Lat, sLat
       REAL*8 zLon, Lon
       REAL*8 zAzm, Azm
-      INTEGER,pointer,dimension(:) :: IP1
       REAL*8, allocatable :: ZPP(:)
       REAL*8, allocatable :: ZDP(:)
       REAL*8, allocatable :: ZTT(:)
       REAL*8, allocatable :: ZHU(:)
       REAL*8, allocatable :: ZUU(:)
       REAL*8, allocatable :: ZVV(:)
-      real sfcfield_r4
-      REAL  ,pointer,dimension(:) :: rDP_r4
 C
       REAL*8 DH,DDH
       INTEGER JL, IAZM, ISAT, JH, NGPSLEV, NWNDLEV
-      REAL*8 zP0, zMT, Rad, Geo
+      REAL*8 zMT, Rad, Geo
       REAL*8 HNH1, SUM0, SUM1, ZMIN
 C
       LOGICAL  ASSIM, L1, L2, L3
 
-      INTEGER NH, NH1, stat, stat1
+      INTEGER NH, NH1
       TYPE(GPSPROFILE)           :: PRF
       REAL*8       , allocatable :: H   (:),AZMV(:)
       REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
       TYPE(GPSDIFF), allocatable :: RSTV(:)
-      type(struct_vco), pointer  :: vco_trl
 
       WRITE(*,*)'ENTER SETERRGPSRO'
 C
@@ -93,10 +89,6 @@ C
       allocate( ZERR (GPSRO_MAXPRFSIZE) )
       allocate( RSTV (GPSRO_MAXPRFSIZE) )
       allocate( ZMHX (GPSRO_MAXPRFSIZE) )
-
-      vco_trl => col_getVco(lcolumnhr)
-      stat = 0
-      stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
 C
 C     Loop over all header indices of the 'RO' family:
 C
@@ -147,16 +139,13 @@ C
                Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                sLat = sin(zLat)
                zMT  = zMT * RG / gpsgravitysrf(sLat)
-               zP0  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               sfcfield_r4=zP0
-               stat1= vgd_dpidpis(vco_trl%vgrid,IP1,rDP_r4,sfcfield_r4)
                DO JL = 1, NGPSLEV
 C
 C     *           Profile x
 C
                   ZPP(JL) = col_getPressure(LCOLUMNHR,JL,INDEX_HEADER,'TH')
 C     *           True implementation of ZDP (dP/dP0)
-                  ZDP(JL) = rDP_r4(JL)
+                  ZDP(JL) = col_getPressureDeriv(LCOLUMNHR,JL,INDEX_HEADER,'TH')
                   ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT') - p_TC
                   ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
                   ZUU(JL) = 0.d0

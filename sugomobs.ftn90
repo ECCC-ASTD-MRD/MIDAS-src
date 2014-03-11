@@ -631,9 +631,11 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       !- Initialisation of TLM operators
       !
       if(Vcode_anl .eq. 5001) then
+        ! initialize virtual temperature and GZ operators
         call subasic_obs(columng)
       else
-        call abort3d('sugomobs: subasic_obs does not support a staggered analysis grid')
+        ! only initialize virtual temperature operator
+        call subasic_obs_gem4(columng)
       endif
 
       !

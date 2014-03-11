@@ -51,11 +51,13 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
   vco_anl => col_getVco(lcolumng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+  call tmg_start(37,'INTERP_ATT2PHI')
   if(Vcode_anl .eq. 5001) then
     call att2phi(lcolumn,lcolumng)
   else
     call att2phi_gem4(lcolumn,lcolumng)
   endif
+  call tmg_stop(37)
   
   !
   !- 1.  Interpolation to obs location

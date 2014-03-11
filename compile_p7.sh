@@ -62,7 +62,7 @@ cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${rev
 ARMNLIB=${ARMNLIB:-/home/dormrb02/ibmenv/armnlib}
 
 VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB "
 
 LIBSYS="lapack blas mass"
 LIBRMN="rmn_014_rc2"
@@ -98,7 +98,8 @@ compiledir=$PWD
 . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
 . s.ssmuse.dot Xlf13.110
 . s.ssmuse.dot devtools
-. s.ssmuse.dot CMDN/vgrid/3.4.0
+. s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
+. s.ssmuse.dot CMDN/vgrid/4.4.1
 . s.ssmuse.dot rpn_comm
 
 if [ $mode == full ] ; then

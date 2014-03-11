@@ -43,6 +43,7 @@ MODULE BmatrixHI
   integer            :: cvDim_mpilocal,cvDim_mpiglobal,nind_mpilocal(0:300)
   integer            :: gstID
   integer            :: nlev_bdl
+  type(struct_vco),pointer :: vco_anl
 
   real*8,allocatable :: tantheta(:,:)
   real*8,allocatable :: PtoT(:,:,:)
@@ -60,7 +61,7 @@ MODULE BmatrixHI
   real*8             :: scaleFactor(maxNumLevels)
   real*8             :: scaleFactorLQ(maxNumLevels)
   logical            :: scaleTG
-  logical            :: useStd2d
+  logical            :: useStd2d,useStdNewfmt
   integer            :: ntoar = 3
   real*8             :: ralphatoar = 0.2d0
   integer            :: ntgcorrtyp=1
@@ -117,10 +118,11 @@ CONTAINS
     real(8)          :: zps
 
     !namelist
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,useStd2d
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,useStd2d,useStdNewfmt
 
-    nLev_M=vco_in%nlev_M
-    nLev_T=vco_in%nlev_T
+    vco_anl => vco_in
+    nLev_M=vco_anl%nlev_M
+    nLev_T=vco_anl%nlev_T
 
     ! default values for namelist variables
     ntrunc=108
@@ -128,6 +130,7 @@ CONTAINS
     scaleFactorLQ(:)=1.0d0
     scaleTG=.true.
     useStd2d=.false.
+    useStdNewfmt=.false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -247,9 +250,9 @@ CONTAINS
     allocate(rstddev(nkgdim2,0:ntrunc))
 
     zps = 101000.D0
-    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfile_M, &
+    status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
                          sfc_field=zps, in_log=.false.)
-    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_T, levels=pressureProfile_T, &
+    status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_T, levels=pressureProfile_T, &
                          sfc_field=zps, in_log=.false.)
 
     llfound = .false.
@@ -319,6 +322,8 @@ CONTAINS
 
     if(useStd2d) then
       call BHI_rdstd2d
+    elseif(useStdNewfmt) then
+      call BHI_rdspstd_newfmt
     else
       call BHI_rdspstd(iulbgsto)
     endif
@@ -705,16 +710,19 @@ CONTAINS
           zfact2=0.0d0
         endif
         zfactpsb(ij)=zfactpsb(ij)+zfact2
+        write(*,*) 'ZFACTPSB=',ij,zfactpsb(ij)
       enddo
     endif
 
     ! Modify RGSIGTB and RGSIGPSB to obtain correct sigma_Tb and sigma_Psb
     do ij=1,nj_l
+      write(*,*) 'RGSIGPSB before fact=',ij,rgsigpsb(ij)
       if(zfactpsb(ij).gt.0.0d0) then
         rgsigpsb(ij)=rgsigpsb(ij)*sqrt(zfactpsb(ij))
       else
         rgsigpsb(ij)=0.0d0
       endif          
+      write(*,*) 'RGSIGPSB after fact=',ij,rgsigpsb(ij)
       do jk1=1,nlev_T
         if(zfacttb(ij,jk1).gt.0.0d0) then
           rgsigtb(ij,jk1)=rgsigtb(ij,jk1)*sqrt(zfacttb(ij,jk1))
@@ -1453,30 +1461,35 @@ CONTAINS
         do jlat = 1, nj_l
           do jlevo = 1, nlev_M
             rgsiguu(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsiguu=',jlat,jlevo,rgsiguu(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_M
             rgsigvv(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigvv=',jlat,jlevo,rgsigvv(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'UT') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
             rgsigtt(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigtt=',jlat,jlevo,rgsigtt(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'TB') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
             rgsigtb(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigtb=',jlat,jlevo,rgsigtb(jlat,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'LQ') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
             rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigq=',jlat,jlevo,rgsigq(jlat,jlevo)
           enddo
         enddo
       endif
@@ -1535,11 +1548,13 @@ CONTAINS
       if(clnomvar .eq. 'UP') then
         do jlat = 1, nj_l
           rgsigps(jlat) = zgr(jlat,1)*100.0d0
+          !if(mpi_myid.eq.0) write(*,*) 'rgsigps=',jlat,rgsigps(jlat)
         enddo
       endif
       if(clnomvar .eq. 'PB') then
         do jlat = 1, nj_l
           rgsigpsb(jlat) = zgr(jlat,1)*100.0d0
+          !if(mpi_myid.eq.0) write(*,*) 'rgsigpsb=',jlat,rgsigpsb(jlat)
         enddo
       endif
 
@@ -1560,6 +1575,161 @@ CONTAINS
 
     return
   END SUBROUTINE BHI_RDSPSTD
+
+
+  SUBROUTINE BHI_RDSPSTD_NEWFMT
+    implicit none
+
+    integer, parameter  :: inbrvar3d=5
+    integer, parameter  :: inbrvar2d=2
+    integer jvar,jn,inix,injx,inkx,ntrunc_file
+    integer ikey,jlevo,jlat
+    real*8 zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(0:ntrunc),zwork
+    real*8 zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
+
+    ! standard file variables
+    integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
+           ,ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf  &
+           ,iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas
+    integer iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
+    character*1 clgrtyp
+    character*2 cltypvar
+    character*4 clnomvar
+    character*12 cletiket
+    integer vfstlir,vfstecr,fstprm,fstinf
+
+    data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
+    data varName2d/'UP  ','PB  '/
+
+    call gst_zlegpol(zleg)
+
+    rgsig(:,:)=0.0d0
+    rgsigtb(:,:)=0.0d0
+    rgsigpsb(:)=0.0d0
+
+!   2. Reading the data
+
+    idate(1) = -1
+    ip2      = -1
+    ip3      = -1
+
+    cletiket = 'SPSTDDEV'
+    cltypvar = 'X'
+
+    !write(*,*) 'Reading 3D variables'
+    do jvar = 1, inbrvar3d
+      clnomvar = varName3d(jvar)
+      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        nlev_MT=nlev_M
+      else
+        nlev_MT=nlev_T
+      endif
+      !write(*,*)'Reading ',clnomvar
+      do jlevo = 1,nlev_MT
+        if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+          ip1 = vco_anl%ip1_M(jlevo)
+        else
+          ip1 = vco_anl%ip1_T(jlevo)
+        endif
+        ikey = fstinf(nulbgst,inix,ntrunc_file,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ntrunc_file=ntrunc_file-1
+
+        if(ntrunc_file.gt.ntrunc) call abort3d('RDSPSTD_NEWFMT: ntrunc in file > ntrunc for analysis!')
+
+        if(ikey .ge.0 ) then
+          ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        else
+          write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
+          call abort3d('RDSPSTD_NEWFMT: SPSTDDEV record not found')
+        endif
+
+        zsp(:,jlevo)=0.0d0
+        do jn = 0, ntrunc_file
+          zsp(jn,jlevo) = zspbuf(jn)
+        enddo
+      enddo
+
+      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
+
+      if(clnomvar .eq. 'PP') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_M
+            rgsiguu(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsiguu=',jlat,jlevo,rgsiguu(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_M
+            rgsigvv(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigvv=',jlat,jlevo,rgsigvv(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'UT') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_T
+            rgsigtt(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigtt=',jlat,jlevo,rgsigtt(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'TB') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_T
+            rgsigtb(jlat,jlevo) = zgr(jlat,jlevo)
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigtb=',jlat,jlevo,rgsigtb(jlat,jlevo)
+          enddo
+        enddo
+      elseif(clnomvar .eq. 'LQ') then
+        do jlat = 1, nj_l
+          do jlevo = 1, nlev_T
+            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+            !if(mpi_myid.eq.0) write(*,*) 'rgsigq=',jlat,jlevo,rgsigq(jlat,jlevo)
+          enddo
+        enddo
+      endif
+
+    enddo
+
+    !write(*,*) 'Reading 2D variables'
+    nlev_MT=1
+    do jvar = 1, inbrvar2d
+      clnomvar = varName2d(jvar)
+      !write(*,*)'Reading ',clnomvar
+      ip1 = -1
+      ikey = fstinf(nulbgst,inix,ntrunc_file,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      ntrunc_file=ntrunc_file-1
+
+      if(ikey .ge.0 ) then
+        ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      else
+        write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
+        call abort3d('RDSPSTD_NEWFMT: SPSTDDEV record not found')
+      endif
+
+      zsp(:,1)=0.0d0
+      do jn = 0, ntrunc_file
+        zsp(jn,1) = zspbuf(jn)
+      enddo
+
+      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,1,nj_l,nlev_MT,ntrunc)
+
+      if(clnomvar .eq. 'UP') then
+        do jlat = 1, nj_l
+          rgsigps(jlat) = zgr(jlat,1)*100.0d0
+          !if(mpi_myid.eq.0) write(*,*) 'rgsigps=',jlat,rgsigps(jlat)
+        enddo
+      endif
+      if(clnomvar .eq. 'PB') then
+        do jlat = 1, nj_l
+          rgsigpsb(jlat) = zgr(jlat,1)*100.0d0
+          !if(mpi_myid.eq.0) write(*,*) 'rgsigpsb=',jlat,rgsigpsb(jlat)
+        enddo
+      endif
+
+    enddo
+
+  END SUBROUTINE BHI_RDSPSTD_NEWFMT
 
 
   SUBROUTINE BHI_RDSTD2D
@@ -1609,9 +1779,9 @@ CONTAINS
 
       ikey = fstinf(nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
-      if (ini .ne. nlev_MT) then
-        write(*,*) 'RDSTD2D: ikey, varname, ini, nlev=',ikey,clnomvar,ini,nlev_MT
-        call abort3d('RDSTD2D: BG stat levels inconsitencies')
+      if (ink .ne. nlev_MT .or. inj .ne. nj_l) then
+        write(*,*) 'RDSTD2D: ikey, varname, ink, nlev, ini, nj=',ikey,clnomvar,ink,nlev_MT,inj,nj_l
+        call abort3d('RDSTD2D: BG stat levels or latitudes inconsitencies')
       endif
 
       if(ikey .ge.0 ) then
@@ -1624,31 +1794,33 @@ CONTAINS
       if(clnomvar .eq. 'PP') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_M
-            rgsiguu(jlat,jlevo) = zgr(jlat,jlevo)
+            rgsiguu(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
+            write(400,*) jlat,jlevo,rgsiguu(jlat,jlevo)
           enddo
         enddo
+        call flush(400)
       elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_M
-            rgsigvv(jlat,jlevo) = zgr(jlat,jlevo)
+            rgsigvv(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'UT') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
-            rgsigtt(jlat,jlevo) = zgr(jlat,jlevo)
+            rgsigtt(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'TB' .or. clnomvar .eq. 'TT') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
-            rgsigtb(jlat,jlevo) = zgr(jlat,jlevo)
+            rgsigtb(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
           enddo
         enddo
       elseif(clnomvar .eq. 'LQ') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_T
-            rgsigq(jlat,jlevo) = zgr(jlat,jlevo)*rfacthum
+            rgsigq(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)*rfacthum
           enddo
         enddo
       endif
@@ -1670,12 +1842,13 @@ CONTAINS
 
       if(clnomvar .eq. 'UP') then
         do jlat = 1, nj_l
-          rgsigps(jlat) = zgr(jlat,1)*100.0d0
+          rgsigps(jlat) = zgr(nj_l-jlat+1,1)*100.0d0
         enddo
       endif
       if(clnomvar .eq. 'PB' .or. clnomvar .eq. 'P0') then
         do jlat = 1, nj_l
-          rgsigpsb(jlat) = zgr(jlat,1)*100.0d0
+          rgsigpsb(jlat) = zgr(nj_l-jlat+1,1)*100.0d0
+          write(*,*) 'RGSIGPSB read in=',jlat,rgsigpsb(jlat)
         enddo
       endif
 
@@ -2306,6 +2479,7 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRmu(jlat)
+      !write(*,*) 'CORIOLIS=',jlat,zcoriolis
       do jlon = 1, ni_l
         zpsb(jlon,jlat)=0.0d0
         do jlev=1,nlevPtoT

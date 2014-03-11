@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE INTAVGTL (PVLEV,PRESB,PVI,PVIG,PPS,KNIDIM,KNI,
+      SUBROUTINE INTAVGTL (PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNIDIM,KNI,
      &                     KNPROF,KNO,PPO,PVO)
 C
 #if defined (DOC)
@@ -36,7 +36,7 @@ C
 *
 *Arguments
 *     i   PVLEV(KNIDIM,KNPROF)    : Vertical levels, pressure (source)
-*     i   PRESB(KNIDIM)           : B value for vertical coordinate (source)
+*     i   dP_dPsfc(KNIDIM,KNPROF) : derivative of pressure wrt sfc pressure for vertical coordinate (source)
 *     i   PVI(KNIDIM,KNPROF)      : Increments of vector on input levels
 *     i   PVIG(KNIDIM,KNPROF)     : Vector on input levels (source)
 *     i   PPS(KNPROF)             : Input surface pressure increments
@@ -75,7 +75,7 @@ C
 *               where 
 *
 *                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-*                                = sum_k (dH(i)/dZLNPI(k) * zpresb(k)/PVLEV(k))
+*                                = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
 *
 *               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
 *                    ZPZ(i)=H(i) on output of LAYERAVG
@@ -92,11 +92,11 @@ C
 *
 #endif
       IMPLICIT NONE
-      INTEGER  JI, JO, JN
+      INTEGER  JI, JN
       INTEGER  KNIDIM, KNI, KNO, KNPROF, KFLAG
 C
       REAL*8 PVLEV(KNIDIM,KNPROF)
-      REAL*8 PRESB(KNI)
+      REAL*8 dP_dPsfc(KNIDIM,KNPROF)
       REAL*8 PPO(KNO), PVO(KNO,KNPROF)
       REAL*8 PVI(KNIDIM,KNPROF)
       REAL*8 PVIG(KNIDIM,KNPROF)
@@ -116,7 +116,7 @@ C
 C
       DO JN = 1, KNPROF
         DO JI = 1, KNI
-          ZPS(JI,jn)=presb(ji)/PVLEV(JI,JN)
+          ZPS(JI,jn)=dP_dPsfc(ji,jn)/PVLEV(JI,JN)
           ZLNPI(ji,JN)=LOG(PVLEV(ji,JN))
         END DO
       enddo

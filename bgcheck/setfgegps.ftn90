@@ -57,7 +57,6 @@
       REAL*8 ZP0B, ZP0B_P
       REAL*8 ZPT, ZPR, ZCF
       REAL*8 ZMT, ZTOP, ZBOT
-      real sfcfield
  
       REAL*8 JAC(ngpscvmx)
       REAL*8 DX (ngpscvmx)
@@ -80,8 +79,6 @@
       
       CHARACTER(len=2) :: varType
       
-      real, dimension(:), pointer :: dpdp0 => null()
-
       TYPE(GPSPROFILEZD)    :: PRF, PRFP
       TYPE(GPSDIFF)         :: ZTDopv, ZTDopvP
 
@@ -127,7 +124,7 @@
          WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
          ZPR = vco_anl%dprf_M
          ZCF = vco_anl%drcf1
-         LV = 'NA'
+         LV = 'TH'
          WRITE(*,*) 'ZPR = ', ZPR
          WRITE(*,*) 'ZCF = ', ZCF
       endif
@@ -187,6 +184,8 @@
                      ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
                      DO JL = 1, NFLEV
                        ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,LV)
+!C                     Get ZDP = dP/dP0
+                       ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,LV)
                        ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
                        ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
@@ -200,11 +199,6 @@
                      DX(2*NFLEV+1) = ZP0
                      ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,LV)
                      ZMT  = ZGZ(NFLEV)/GRAV
-!C                   Get ZDP = dP/dP0
-                     if (associated(dpdp0))  deallocate(dpdp0)
-                     sfcfield = ZP0B
-                     status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
-                     ZDP = dpdp0(1:NFLEV)
                      CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
                      CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
@@ -255,7 +249,6 @@
       allocate(ZQQB_P(NFLEV))
       allocate(RZHUB_P(NFLEV))
       allocate(ZPP_P(NFLEV))
-      nullify(dpdp0)
 
       icount = 0
       ZSUMTEST = 0
@@ -281,6 +274,8 @@
          ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
          DO JL = 1, NFLEV
             ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,LV)
+!C          Get ZDP = dP/dP0
+            ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,LV)
             ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
             ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
@@ -293,12 +288,6 @@
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
          ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,LV)
          ZMT  = ZGZ(NFLEV)/GRAV
-
-!C       Get ZDP = dP/dP0
-         if (associated(dpdp0))  deallocate(dpdp0)
-         sfcfield = ZP0B
-         status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
-         ZDP = dpdp0(1:NFLEV)
 
          DO JL = 1, NFLEV
              DX (      JL) = ZTT(JL)

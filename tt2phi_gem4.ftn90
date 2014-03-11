@@ -24,7 +24,7 @@ SUBROUTINE tt2phi_gem4(columnghr)
 
   nlev_T = col_getNumLev(columnghr,'TH')
   nlev_M = col_getNumLev(columnghr,'MM')
-  write(*,*) 'tt2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
+  !write(*,*) 'tt2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
   if(nlev_T .ne. nlev_M+1) call abort3d('tt2phi_gem4: nlev_T is not equal to nlev_M+1!')
 
   allocate(tv(nlev_T))
@@ -71,14 +71,14 @@ SUBROUTINE tt2phi_gem4(columnghr)
       gz_T(lev_T) = 0.5d0*( gz_M(lev_M-1) + gz_M(lev_M) )
     enddo
 
-    if(columnIndex.eq.1) then
-      do lev_M = 1, nlev_M
-        write(*,*) 'tt2phi_gem4: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
-      enddo
-      do lev_T = 1, nlev_T
-        write(*,*) 'tt2phi_gem4: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
-      enddo
-    endif
+    !if(columnIndex.eq.1) then
+    !  do lev_M = 1, nlev_M
+    !    write(*,*) 'tt2phi_gem4: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
+    !  enddo
+    !  do lev_T = 1, nlev_T
+    !    write(*,*) 'tt2phi_gem4: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
+    !  enddo
+    !endif
 
   enddo
 

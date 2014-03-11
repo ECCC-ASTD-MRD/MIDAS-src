@@ -50,15 +50,13 @@
       REAL*8 zAzm, Azm
       INTEGER IAZM, ISAT
       REAL*8 Rad, Geo, WFGPS
-      real, dimension(:), pointer :: dpdp0 => null()
       REAL*8, allocatable :: zPP(:)
       REAL*8, allocatable :: zDP(:)
       REAL*8, allocatable :: zTT(:)
       REAL*8, allocatable :: zHU(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      real sfcfield
-      INTEGER JF, stat, stat1
+      INTEGER JF, stat
       INTEGER JL, JJ
       REAL*8 ZP0, ZMT
       REAL*8 HNH1, ZFGE, ZERR
@@ -162,15 +160,13 @@
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
                   zP0  = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-                  sfcfield=zP0
-                  stat1= vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
                   DO JL = 1, NGPSLEV
 !C
 !C     *             Profile x
 !C
                      zPP(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
 !C     *             True implementation of zDP (dP/dP0)
-                     zDP(JL) = dpdp0(JL)
+                     zDP(JL) = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
                      zUU(JL) = 0.d0

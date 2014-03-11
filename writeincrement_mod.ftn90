@@ -213,7 +213,7 @@ module writeIncrement_mod
       ! control variables (NOTE: mpiglobal result only on myid=increment_time_step-1)
       !
       call gsv_setVco(statevectorg,vco_anl)
-      call gsv_setHco  ( statevectorg, hco_anl )
+      call gsv_setHco(statevectorg,hco_anl )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       call gsv_allocate(statevectorg,1,datestamp=tim_getDatestamp(),mpi_local=.false.)
@@ -439,16 +439,25 @@ module writeIncrement_mod
 
       write(*,*) 'Writing fields for datestamp= ',datestamp
 
-      write(*,*) 'Writing variable HY on analysis-increment file'
-
       status = vgd_get(statevector%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-      if(Vcode_anl.ne.5001) call abort3d('writeincrement: only GEM3 unstaggered levels supported!')
+      if(Vcode_anl.eq.5001) then 
 
-      zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
-      zpref_r4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
-      zrcoef_r4 = statevector%vco%drcf1
-      ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
-                                 datestamp,zptop_r4,zpref_r4,zrcoef_r4)
+        write(*,*) 'Writing variable HY in analysis-increment file'
+        zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
+        zpref_r4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+        zrcoef_r4 = statevector%vco%drcf1
+        ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
+                                   datestamp,zptop_r4,zpref_r4,zrcoef_r4)
+      elseif(Vcode_anl.eq.5002) then
+
+        write(*,*) 'Writing Vgrid descriptor record in analysis-increment file'
+        status = vgd_write(statevector%vco%vgrid,nulfile,'fst')
+
+      else
+        write(*,*) 'Vcode_anl=',Vcode_anl
+        call abort3d('writeIncrement: unknown value of Vcode!')
+      endif
+
       !
       ! Analysis grid hybrid vertical coordinate parameters
       !
@@ -519,11 +528,14 @@ module writeIncrement_mod
       IMPLICIT NONE
       type(struct_gsv) :: statevector,statevectorg
       real*8 pesinc(:,:,:)
-      integer ji,jj,jk,nlev_T
-      REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA, zpres
+      integer ji,jj,jk,nlev_T,status
+      REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA
       real*8, pointer :: ps_trl_ptr(:,:,:,:),ps_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:)
+      real(8), pointer :: zpres(:,:,:) => null()
+      real(8), pointer :: dPdPsfc(:,:,:) => null()
+      real(8), allocatable :: ps_trl(:,:)
 
-      WRITE(*,FMT='(/,4X,"Starting LQ2ESGD",//)')
+      write(*,FMT='(/,4X,"Starting LQ2ESGD",//)')
       ps_trl_ptr => gsv_getField(statevectorg,'P0')
       ps_inc_ptr => gsv_getField(statevector ,'P0')
       hu_trl_ptr => gsv_getField(statevectorg,'HU')
@@ -531,20 +543,28 @@ module writeIncrement_mod
       tt_inc_ptr => gsv_getField(statevector ,'TT')
 
       nlev_T = gsv_getNumLev(statevectorg,'TH')
-!$OMP PARALLEL DO PRIVATE(jk,jj,ji,zpres,ze,zel,ztd,zgamma,ztdl)
+
+      allocate(ps_trl(statevectorg%ni,statevectorg%nj))
+      ps_trl(:,:) = ps_trl_ptr(:,1,:,1)
+
+      status=vgd_levels(statevectorg%vco%vgrid,ip1_list=statevectorg%vco%ip1_T,  &
+                        levels=zpres,sfc_field=ps_trl,in_log=.false.)
+      status = vgd_dpidpis(statevectorg%vco%vgrid,statevectorg%vco%ip1_T,dPdPsfc,ps_trl)
+
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji,ze,zel,ztd,zgamma,ztdl)
       do jj=1,statevectorg%nj
-        do jk=1,nlev_T
-          do ji=1,statevectorg%ni
-            zpres  = statevectorg%vco%da_M(jk) + statevectorg%vco%db_M(jk)*ps_trl_ptr(ji,1,jj,1)
+        do ji=1,statevectorg%ni
+
+          do jk=1,nlev_T
             !
-            ! First do the forward branch to get saturated vapour pressure from q
+            ! First do the forward branch to get vapour pressure from q
             !
-            ZE = FOEFQ8(max(hu_trl_ptr(ji,jk,jj,1),1.d-12), zpres)
+            ZE = FOEFQ8(max(hu_trl_ptr(ji,jk,jj,1),1.d-12), zpres(ji,jj,jk) )
             !
-            ! TLM of the saturated vapor pressure from q (specific humidity)
+            ! TLM of the vapor pressure from q (specific humidity)
             !
             ZEL = FOEFQL(hu_inc_ptr(ji,jk,jj,1),ps_inc_ptr(ji,1,jj,1),  &
-                         hu_trl_ptr(ji,jk,jj,1),zpres,statevectorg%vco%dhyb_m(jk))
+                         hu_trl_ptr(ji,jk,jj,1),zpres(ji,jj,jk),dPdPsfc(ji,jj,jk))
             !
             ! TLM of the dewpoint temperature calculation from Teten's relation
             !
@@ -634,7 +654,7 @@ module writeIncrement_mod
       ps_ptr => gsv_getField(statevectorg,'P0')
       zps2d => ps_ptr(:,1,:,1)
       status=vgd_levels(statevectorg%vco%vgrid,  &
-                        ip1_list=statevectorg%vco%ip1_M,  &
+                        ip1_list=statevectorg%vco%ip1_T,  &
                         levels=zpres3d_ptr,sfc_field=zps2d,in_log=.false.)
       if(status.ne.VGD_OK)then
         call abort3d('ERROR with vgd_levels for desired levels ')
@@ -739,7 +759,6 @@ module writeIncrement_mod
       INTEGER JLON, JGL
       REAL*8 ZTEMP, ZGEOP, ZDAM, ZCON
 
-      kiP1      =  statevector%vco%ip1_M(klev)
       !
       lplok = .true.
       !
@@ -747,6 +766,7 @@ module writeIncrement_mod
         !
         ! Virtual temperature field
         !
+        kIP1      =  statevector%vco%ip1_T(klev)
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
             PPTRANS(JLON,JGL) = ZTV(JLON,KLEV,JGL)
@@ -756,6 +776,7 @@ module writeIncrement_mod
         !
         ! Geopotential field
         !
+        kIP1      =  statevector%vco%ip1_T(klev)
         ZGEOP  = 10.0d0 * RG
         ZDAM   = 1.0d0/ZGEOP
         DO JLON = 1, statevector%ni
@@ -767,6 +788,7 @@ module writeIncrement_mod
         !
         ! Wind component (in Knots)
         !
+        kIP1      =  statevector%vco%ip1_M(klev)
         field_ptr => gsv_getField(statevector,varName)
         DO JGL = 1, statevector%nj
           DO JLON = 1, statevector%ni
@@ -775,8 +797,9 @@ module writeIncrement_mod
         END DO
       ELSE IF(trim(varName).EQ.'ES') THEN
         !
-        ! Humidity field
+        ! Humidity field T - Td
         !
+        kIP1      =  statevector%vco%ip1_T(klev)
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
             PPTRANS(JLON,JGL) = zes(JLON,KLEV,JGL)
@@ -784,6 +807,10 @@ module writeIncrement_mod
         END DO
 
       ELSE IF(trim(varName).EQ.'LQ') THEN
+        !
+        ! Humidity field ln(HU)
+        !
+        kIP1      =  statevector%vco%ip1_T(klev)
         field_ptr => gsv_getField(statevector,'HU')
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
@@ -792,6 +819,10 @@ module writeIncrement_mod
         END DO
 
       ELSE IF(trim(varName).EQ.'HU') THEN
+        !
+        ! Humidity field HU
+        !
+          kIP1      =  statevector%vco%ip1_T(klev)
           DO JLON = 1, statevector%ni
             DO JGL = 1, statevector%nj
               PPTRANS(JLON,JGL) = zhu(JLON,KLEV,JGL)
@@ -822,6 +853,11 @@ module writeIncrement_mod
               enddo
             enddo
           else
+            if(vnl_vartypeFromVarname(varName).eq.'MM') then
+              kIP1      =  statevector%vco%ip1_M(klev)
+            else
+              kIP1      =  statevector%vco%ip1_T(klev)
+            endif
             do jlon = 1, statevector%ni
               do jgl = 1, statevector%nj
                 pptrans(jlon,jgl) = field_ptr(jlon,klev,jgl,1)

@@ -17,7 +17,7 @@
 !
       subroutine subasic_gd(statevectorg,lcolumnhr,numStep,datestamplist,indexAnalysis)
       use mpivar_mod
-      use MathPhysConstants_mod
+      use mathPhysConstants_mod
       use gridStateVector_mod
       use columnData_mod
       use HorizontalCoord_mod
@@ -324,7 +324,7 @@ c
      +           nsize,"mpi_double_precision",pe_send,tag,"GRID",status,ierr)
           endif
 
-        endif !pe_send<>0
+        endif !pe_send <> pe_recv (i.e. kstep-1)
 
       enddo !jlev
 
@@ -366,7 +366,7 @@ c
           call vezsint(zps,zpstrl,
      +           statevectorg%ni,statevectorg%nj,1,ini,inj,1)
 
-          status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_M,
+          status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_T,
      &                      levels=zpresanl,sfc_field=zps,in_log=.false.)
 
           if(status.ne.VGD_OK)then

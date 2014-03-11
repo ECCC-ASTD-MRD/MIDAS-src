@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE INTAVGAD (PVLEV,PRESB,PVI,PVIG,PPS,KNIDIM,KNI,
+      SUBROUTINE INTAVGAD(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNIDIM,KNI,
      &                     KNPROF,KNO,PPO,PVO)
 C
 #if defined (DOC)
@@ -74,9 +74,9 @@ C
 *               where
 *
 *                     dPZ(i)/dPs = sum_k (dH(i)/dPVLEV(k) * dPVLEV(k)/dPs)
-*                                = sum_k (dH(i)/dZLNPI(k) * zpresb(k)/PVLEV(k))
+*                                = sum_k (dH(i)/dZLNPI(k) * dP_dPsfc(k)/PVLEV(k))
 *
-*               with ZPZ(k)=zpresb(k)/PVLEV(k) on input to LAYERAVG and
+*               with ZPZ(k)=dP_dPsfc(k)/PVLEV(k) on input to LAYERAVG and
 *                    ZPZ(i)=H(i) on output of LAYERAVG
 *
 *               c) KFLAG=2 for adjoint case:
@@ -95,7 +95,7 @@ C
       INTEGER  KNIDIM, KNI, KNO, KNPROF, KFLAG
 C
       REAL*8 PVLEV(KNIDIM,KNPROF)
-      REAL*8 PRESB(KNI)
+      REAL*8 dP_dPsfc(KNIDIM,KNPROF)
       REAL*8 PPO(KNO), PVO(KNO,KNPROF)
       REAL*8 PVI(KNIDIM,KNPROF)
       REAL*8 PVIG(KNIDIM,KNPROF)
@@ -117,7 +117,7 @@ C
 C
       DO JN = 1, KNPROF
         DO JI = 1, KNI
-          ZPS(JI,jn)=presb(ji)/PVLEV(JI,JN)
+          ZPS(JI,jn)=dP_dPsfc(ji,jn)/PVLEV(JI,JN)
           ZLNPI(ji,jn)=LOG(PVLEV(ji,JN))
         END DO
       enddo

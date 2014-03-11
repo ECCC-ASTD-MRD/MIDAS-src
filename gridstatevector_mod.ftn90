@@ -40,7 +40,7 @@ MODULE gridStateVector_mod
   public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
   public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
   public :: vnl_varNameList2d, vnl_varNameList3d, vnl_varNameList
-  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis
+  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
 
   type struct_gsv

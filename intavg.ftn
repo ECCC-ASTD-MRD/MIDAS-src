@@ -97,18 +97,15 @@ C
 *--------------------------------------------------------------------
 #endif
       IMPLICIT NONE
-      INTEGER  JI, JO, JN
+      INTEGER  JO, JN
       INTEGER  KNIDIM, KNI, KNO, KNPROF, KFLAG
 C
       REAL*8 PVLEV(KNIDIM,KNPROF)
       REAL*8 PPO(KNO), PVO(KNO,KNPROF)
       REAL*8 PVI(KNIDIM,KNPROF)
 C
-      REAL*8  ZLNPI (KNI),ZPZ(KNI),ZPVI(KNI),ZPG(KNI),ZPS(KNI)
+      REAL*8  ZLNPI (KNI),ZPZ(KNI),ZPG(KNI),ZPS(KNI)
       REAL*8  ZLNPO (KNO),ZPZPS,PSS
-C
-      REAL*8 ZPRESB
-      REAL*8 ZC1,ZC2
 C
 C --- KFLAG defines type of calculation: 0=Forward, 1=TLM, 2=ADJ
 C

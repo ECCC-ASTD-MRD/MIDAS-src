@@ -27,11 +27,18 @@ module calcbmatrix_glb_mod
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
-    real*8,allocatable :: stddev3d(:,:,:),stddev3dUnbal(:,:,:),stddevZonAvg(:,:),stddevZonAvgUnbal(:,:)
+    real*4,pointer  :: ensBalPerturbations(:,:,:,:)
+    real*8,allocatable :: stddev3d(:,:,:),stddev3dBal(:,:,:),stddev3dUnbal(:,:,:)
+    real*8,allocatable :: stddevZonAvg(:,:),stddevZonAvgBal(:,:),stddevZonAvgUnbal(:,:)
     real*8,allocatable :: PtoT(:,:,:),theta1(:,:),theta2(:,:)
     real*8,allocatable :: corns(:,:,:),rstddev(:,:)
 
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(ensBalPerturbations(ni,nLevEns_T+1,nj,nens),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -61,7 +68,17 @@ module calcbmatrix_glb_mod
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
+    allocate(stddev3dBal(ni,nLevEns_T+1,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
     allocate(stddev3dUnbal(ni,nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'Problem allocating memory!',ierr
+      call flush(6)
+    endif
+    allocate(stddevZonAvgBal(nLevEns_T+1,nj),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -88,9 +105,9 @@ module calcbmatrix_glb_mod
 
     call uv_to_psichi(ensPerturbations)
 
-    call calcStddev3d(ensPerturbations,stddev3d)
+    call calcStddev3d(ensPerturbations,stddev3d,nkgdimens)
 
-    call calcZonAvg(stddevZonAvg,stddev3d)
+    call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
     call calcTheta(ensPerturbations,theta1) ! theta1 is put in glbcov and used for analysis!
     write(301,*) theta1
@@ -106,17 +123,29 @@ module calcbmatrix_glb_mod
 !    call calcTheta(ensPerturbations,theta2) ! theta2 is used previously for computing unbalanced Chi!
 !    write(302,*) theta2
 
-    call removeBalancedT_Ps(ensPerturbations,PtoT)
+    call removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
 
 !    call removeBalancedChi(ensPerturbations,theta2)
 
-    call multiply3d(ensPerturbations,stddev3d)
+    call multiply3d(ensPerturbations,stddev3d,nkgdimens)
 
-    call spectralFilter(ensPerturbations)
+    call multiply3d(ensBalPerturbations(:,1:nLevEns_T,:,:),   &
+                    stddev3d(:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),:),nLevEns_T)
 
-    call calcStddev3d(ensPerturbations,stddev3dUnbal)
+    call multiply3d(ensBalPerturbations(:,(nLevEns_T+1):(nLevEns_T+1),:,:),  &
+                    stddev3d(:,(2*nLevEns_M+2*nLevEns_T+1):(2*nLevEns_M+2*nLevEns_T+1),:),1)
 
-    call calcZonAvg(stddevZonAvgUnbal,stddev3dUnbal)
+    call spectralFilter(ensPerturbations,nkgdimens)
+
+    call spectralFilter(ensBalPerturbations,nLevEns_T+1)
+
+    call calcStddev3d(ensPerturbations,stddev3dUnbal,nkgdimens)
+
+    call calcStddev3d(ensBalPerturbations,stddev3dBal,nLevEns_T+1)
+
+    call calcZonAvg(stddevZonAvgUnbal,stddev3dUnbal,nkgdimens)
+
+    call calcZonAvg(stddevZonAvgBal,stddev3dBal,nLevEns_T+1)
 
     call normalize3d(ensPerturbations,stddev3dUnbal)
 
@@ -127,6 +156,8 @@ module calcbmatrix_glb_mod
     call writeStats(corns,rstddev,ptot,theta1)
 
     call writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
+
+    call writeStddevBal(stddevZonAvgBal,stddev3dBal)
 
     call writeSpStats(ptot,theta1)
 
@@ -179,9 +210,9 @@ module calcbmatrix_glb_mod
 
     call uv_to_psichi(ensPerturbations)
 
-    call calcStddev3d(ensPerturbations,stddev3d)
+    call calcStddev3d(ensPerturbations,stddev3d,nkgdimens)
 
-    call calcZonAvg(stddevZonAvg,stddev3d)
+    call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
 !    call calcVerticalCov(ensPerturbations,verticalCov)
 
@@ -371,12 +402,13 @@ module calcbmatrix_glb_mod
   end subroutine removeBalancedChi
 
 
-  subroutine removeBalancedT_Ps(ensPerturbations,PtoT)
+  subroutine removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
+    real*4,pointer :: ensBalPerturbations(:,:,:,:)
     real*8 :: PtoT(:,:,:)
 
-    real*4,pointer :: tt_ptr(:,:,:),ps_ptr(:,:,:)
+    real*4,pointer :: tt_ptr(:,:,:),ps_ptr(:,:,:),ttb_ptr(:,:,:),psb_ptr(:,:,:)
     real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nlevEns_M,nj),psi(ni,nLevEns_M,nj)
     integer :: jens,jlat,jlon,jk1,jk2
 
@@ -389,6 +421,11 @@ module calcbmatrix_glb_mod
 
       tt_ptr => ensPerturbations(:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),:,jens)
       ps_ptr => ensPerturbations(:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),:,jens)
+      ttb_ptr => ensBalPerturbations(:,1:nLevEns_T,:,jens)
+      psb_ptr => ensBalPerturbations(:,(1+nLevEns_T):(1+nLevEns_T),:,jens)
+
+      ttb_ptr(:,:,:)=0.0d0
+      psb_ptr(:,:,:)=0.0d0
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jlon,jk1,jk2)
@@ -396,12 +433,14 @@ module calcbmatrix_glb_mod
         do jlon = 1, ni
           do jk1 = 1, nLevEns_T
             do jk2 = 1, nlevptot
-              tt_ptr(jlon,jk1,jlat) = tt_ptr(jlon,jk1,jlat) - PtoT(jk1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+              ttb_ptr(jlon,jk1,jlat) = ttb_ptr(jlon,jk1,jlat) + PtoT(jk1,jk2,jlat)*balancedP(jlon,jk2,jlat)
             enddo
+            tt_ptr(jlon,jk1,jlat) = tt_ptr(jlon,jk1,jlat) - ttb_ptr(jlon,jk1,jlat)
           enddo
           do jk2 = 1, nlevptot
-            ps_ptr(jlon,1,jlat) = ps_ptr(jlon,1,jlat) - PtoT(nLevEns_T+1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+            psb_ptr(jlon,1,jlat) = psb_ptr(jlon,1,jlat) + PtoT(nLevEns_T+1,jk2,jlat)*balancedP(jlon,jk2,jlat)
           enddo
+          ps_ptr(jlon,1,jlat) = ps_ptr(jlon,1,jlat) - psb_ptr(jlon,1,jlat)
         enddo
       enddo
 !$OMP END DO
@@ -712,17 +751,97 @@ module calcbmatrix_glb_mod
   end subroutine writeStddev
 
 
-  subroutine spectralFilter(ensPerturbations)
+  subroutine writeStddevBal(stddevZonAvgBal,stddev3dBal)
+    implicit none
+    real*8 :: stddevZonAvgBal(:,:),stddev3dBal(:,:,:)
+    real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,max(nLevEns_M,nLevens_T)),zbufy(nj)
+    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer vfstecr,fstouv,fnom,fstfrm,fclos
+    integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
+    integer :: nulstats
+    integer,parameter :: nvar3d=1,nvar2d=1
+    character*4 :: nomvar3dBal(nvar3d),nomvar2dBal(nvar2d)
+
+    nomvar3dBal(1)='TB'
+    nomvar2dBal(1)='PB'
+
+    nulstats=0
+    ierr =  fnom  (nulstats,'./stddev_balanced.fst','RND',0)
+    ierr =  fstouv(nulstats,'RND')
+
+    ipak = -32
+    idatyp = 5
+    ip1 = 0
+    ip2 = 0
+    ip3 = nens
+    idateo = 0
+
+    ! do 3d variables
+    do jvar=1,nvar3d
+      nLevEns = nLevEns_T
+      nip1_l(1:nLevEns_T)=nip1_T(1:nLevEns_T)
+      dfact=1.0d0
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          do jlon=1,ni
+            zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,varLevOffset(jvar)+jlev,nj+1-jlat)
+          enddo
+        enddo
+        ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
+                       'E',nomvar3dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+      enddo
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          zbufyz(jlat,jlev)=dfact*stddevZonAvgBal(varLevOffset(jvar)+jlev,nj-jlat+1)
+        enddo
+      enddo
+      ierr = vfstecr(zbufyz(:,1:nLevEns),zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
+                     'E',nomvar3dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+
+    enddo
+
+    ! now do 2D variables
+    do jvar=1,nvar2d
+      dfact=1.0d0/1.0d2
+
+      do jlat=1,nj
+        do jlon=1,ni
+          zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,varLevOffset(nvar3d+1)+jvar,nj+1-jlat)
+        enddo
+      enddo
+      ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
+                     'E',nomvar2dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+
+      do jlat=1,nj
+        zbufy(jlat)=dfact*stddevZonAvgBal(varLevOffset(nvar3d+1)+jvar,nj-jlat+1)
+      enddo
+      ierr = vfstecr(zbufy,zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
+                     'E',nomvar2dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+
+    enddo
+
+    ierr =  fstfrm(nulstats)
+    ierr =  fclos (nulstats)
+
+    write(*,*) 'finished writing stddev...'
+    call flush(6)
+
+  end subroutine writeStddevBal
+
+
+  subroutine spectralFilter(ensPerturbations,nlev)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
-    real*8  :: spectralState(nla,2,nkgdimEns)
-    real*8  :: member(ni,nkgdimens,nj)
-    integer :: jens
+    real*8  :: spectralState(nla,2,nlev)
+    real*8  :: member(ni,nlev,nj)
+    integer :: jens,nlev
 
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))     
-      call gst_reespe(spectralState,member,nkgdimEns,nkgdimEns)
-      call gst_speree(spectralState,member,nkgdimEns,nkgdimEns)
+      call gst_reespe(spectralState,member,nlev,nlev)
+      call gst_speree(spectralState,member,nlev,nlev)
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
@@ -975,10 +1094,10 @@ module calcbmatrix_glb_mod
   end subroutine removeGlobalMean
 
 
-  subroutine calcZonAvg(fieldsZonAvg,fields3D)
+  subroutine calcZonAvg(fieldsZonAvg,fields3D,nlev)
     implicit none
 
-    integer :: jlon,jlat,jlev
+    integer :: jlon,jlat,jlev,nlev
     real*8  :: fieldsZonAvg(:,:),fields3D(:,:,:),dfact
 
     fieldsZonAvg(:,:)=0.0d0
@@ -986,7 +1105,7 @@ module calcbmatrix_glb_mod
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JLEV,JLAT,JLON)
       do jlat=1,nj
-        do jlev=1,nkgdimEns
+        do jlev=1,nlev
           do jlon=1,ni
             fieldsZonAvg(jlev,jlat)=fieldsZonAvg(jlev,jlat)+dfact*fields3D(jlon,jlev,jlat)
           enddo
@@ -1001,10 +1120,10 @@ module calcbmatrix_glb_mod
   end subroutine calcZonAvg
 
 
-  subroutine calcStddev3d(ensPerturbations,stddev3d)
+  subroutine calcStddev3d(ensPerturbations,stddev3d,nlev)
     implicit none
 
-    integer :: jlon,jlat,jlev,jens
+    integer :: jlon,jlat,jlev,jens,nlev
     real*8  :: dnens,stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
@@ -1012,7 +1131,7 @@ module calcbmatrix_glb_mod
     dnens=1.0d0/dble(nens-1)
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
-      do jlev=1,nkgdimEns
+      do jlev=1,nlev
         do jens=1,nens
           do jlat=1,nj
             do jlon=1,ni
@@ -1159,17 +1278,17 @@ module calcbmatrix_glb_mod
   end subroutine normalize3d
 
 
-  subroutine multiply3d(ensPerturbations,stddev3d)
+  subroutine multiply3d(ensPerturbations,stddev3d,nlev)
     implicit none
 
-    integer :: jlon,jlat,jlev,jens
+    integer :: jlon,jlat,jlev,jens,nlev
     real*8  :: stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
       do jlat=1,nj
-        do jlev=1,nkgdimEns
+        do jlev=1,nlev
           do jlon=1,ni
             do jens=1,nens
               ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)*stddev3d(jlon,jlev,jlat)

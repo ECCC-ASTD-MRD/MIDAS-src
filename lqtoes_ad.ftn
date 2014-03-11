@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE LQTOES_AD(LQ,TT,P0,ES,LQ_g,PRES_g,VHYB,zpresb)
+      SUBROUTINE LQTOES_AD(delLQ,delTT,delP0,delES,LQ_g,PRES_g,dPdPsfc)
 !
 ! Purpose: ADJOINT VERSION
 !          to calculate the dew point depression from specific
@@ -24,10 +24,9 @@
       use MathPhysConstants_mod
       use physicsFunctions_mod
       IMPLICIT NONE
-      REAL*8, intent(inout) :: LQ,TT,P0
-      REAL*8, intent(in)  :: ES,LQ_g,PRES_g,VHYB
-      REAL*8 ZE, ZTD,ZGAMMA,ZQBRANCH,HU_g
-      REAL*8 zpresb
+      REAL*8, intent(inout) :: delLQ,delTT,delP0
+      REAL*8, intent(in)  :: delES,LQ_g,PRES_g,dPdPsfc
+      REAL*8 ZE,ZTD,dTDdE,ZQBRANCH,HU_g
       REAL*8 dESdLQ,dESdTT,dESdP0
 
       dESdTT = 1.0d0
@@ -39,25 +38,21 @@
       ZE = FOEFQ8(HU_g, PRES_g)
 
       ZTD=FOTW8(ZE)
-      ZGAMMA=FODTW8(ZTD,ZE)
+      dTDdE=FODTW8(ZTD,ZE)
 *
 * adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
 *
       ZQBRANCH = FQBRANCH(HU_g)
-      dESdLQ = - ZQBRANCH*FOEFQA (dESdTT,ZGAMMA,HU_g,PRES_g)
+      dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_g,PRES_g)
 
-      dESdP0 = - ZQBRANCH*FOEFQPSA(dESdTT,ZGAMMA,HU_g,
-     $           VHYB)-(1.D0-ZQBRANCH)*
-     $           (ZGAMMA*zpresb*dESdTT)
-!      dESdP0 = - ZQBRANCH*FOEFQPSA(dESdTT,ZGAMMA,HU_g,
-!     $           zpresb)-(1.D0-ZQBRANCH)*
-!     $           (ZGAMMA*zpresb*dESdTT)
+      dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_g,dPdPsfc)-
+     &           (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
 
-      ! TLM: lqtoes_tl =  dESdLQ*LQ + dESdP0*P0 + dESdTT*TT
+      ! TLM: delES =  dESdLQ*delLQ + dESdP0*delP0 + dESdTT*delTT
       ! ADJOINT:
-      LQ = LQ + dESdLQ*ES
-      P0 = P0 + dESdP0*ES
-      TT = TT + dESdTT*ES
+      delLQ = delLQ + dESdLQ*delES
+      delP0 = delP0 + dESdP0*delES
+      delTT = delTT + dESdTT*delES
 
       return
       END SUBROUTINE LQTOES_AD

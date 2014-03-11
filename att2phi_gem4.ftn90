@@ -17,40 +17,59 @@ SUBROUTINE att2phi_gem4(column,columng)
 
   type(struct_columnData) :: column,columng
 
-  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,stat
-  real(8) :: hu,tt,ratioP
-  real(8), allocatable :: tv(:),delTv(:)
-  real(8), allocatable :: delLnP_M(:),delLnP_T(:)
-  real(8), pointer     :: delGz_M(:),delGz_T(:),delT(:),delLQ(:),delPsfc(:)
-  real, pointer :: dP_dPsfc_M_r4(:) => null()
-  real, pointer :: dP_dPsfc_T_r4(:) => null()
-  real(4) :: Psfc_r4
+  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T
+  real(8) :: hu,tt,ratioP1
+  real(8), allocatable :: tv(:),delTv(:),ratioP(:)
+  real(8), allocatable :: delLnP_P_M(:),delLnP_M_M(:),delLnP_M(:),delLnP_T(:),delGz_M(:),delGz_T(:)
+  real(8), pointer     :: delGz_M_in(:),delGz_T_in(:),delT(:),delLQ(:),delPsfc(:)
   type(struct_vco), pointer :: vco_anl
 
   vco_anl => col_getVco(columng)
 
   nlev_T = col_getNumLev(columng,'TH')
   nlev_M = col_getNumLev(columng,'MM')
-  write(*,*) 'att2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
+  !write(*,*) 'att2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
   if(nlev_T .ne. nlev_M+1) call abort3d('att2phi_gem4: nlev_T is not equal to nlev_M+1!')
 
   allocate(tv(nlev_T))
   allocate(delTv(nlev_T))
+  allocate(ratioP(nlev_M))
+  allocate(delLnP_P_M(nlev_M))
+  allocate(delLnP_M_M(nlev_M))
   allocate(delLnP_M(nlev_M))
   allocate(delLnP_T(nlev_T))
+  allocate(delGz_M(nlev_M))
+  allocate(delGz_T(nlev_T))
 
   ! loop over all columns
+
+!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M_in,delGz_T_in,delT,  &
+!$OMP delLQ,delPsfc,lev_M,lev_T,delTv,delLnP_P_M,delLnP_M_M,  &
+!$OMP delLnP_M,delLnP_T,delGz_M,delGz_T,hu,tt,tv,ratioP,ratioP1)
   do columnIndex = 1, col_getNumCol(columng)
 
-    delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
-    delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
-    delT    => col_getColumn(column,columnIndex,'TT')
-    delLQ   => col_getColumn(column,columnIndex,'HU')
-    delPsfc => col_getColumn(column,columnIndex,'P0')
+    delGz_M_in => col_getColumn(column,columnIndex,'GZ','MM')
+    delGz_T_in => col_getColumn(column,columnIndex,'GZ','TH')
+    delT       => col_getColumn(column,columnIndex,'TT')
+    delLQ      => col_getColumn(column,columnIndex,'HU')
+    delPsfc    => col_getColumn(column,columnIndex,'P0')
+
+    !if(columnIndex.eq.1) then
+    !  do lev_M = 1, nlev_M
+    !    write(*,*) 'att2phi_gem4: gradient wrt GZ_M=',lev_M,delGZ_M_in(lev_M)
+    !  enddo
+    !  do lev_T = 1, nlev_T
+    !    write(*,*) 'att2phi_gem4: gradient wrt GZ_T=',lev_T,delGZ_T_in(lev_T)
+    !  enddo
+    !endif
 
     delTv(:) = 0.0d0
+    delLnP_P_M(:) = 0.0d0
+    delLnP_M_M(:) = 0.0d0
     delLnP_M(:) = 0.0d0
     delLnP_T(:) = 0.0d0
+    delGz_M(:) = delGz_M_in(:)
+    delGz_T(:) = delGz_T_in(:)
 
     ! compute background virtual temperature on thermo levels and initialize Tv increment
     do lev_T = 1, nlev_T
@@ -59,10 +78,12 @@ SUBROUTINE att2phi_gem4(column,columng)
       tv(lev_T) = fotvt8(tt,hu)
     enddo
 
-    ! compute dP_dPsfc on momentum and thermo levels
-    Psfc_r4 = real(col_getElem(columng,1,columnIndex,'P0'),4)
-    stat= vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_M,dP_dPsfc_M_r4,Psfc_r4)
-    stat= vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dP_dPsfc_T_r4,Psfc_r4)
+    ! compute natural log of momenutum level pressure ratios for each layer
+    do lev_M = 1,(nlev_M-1)
+      lev_T = lev_M+1 ! thermo level just below momentum level
+      ratioP(lev_T) = log( col_getPressure(columng,lev_M+1,columnIndex,'MM') /  &
+                           col_getPressure(columng,lev_M,columnIndex,'MM') )
+    enddo
 
     ! adjoint of compute GZ increment on remaining thermo levels by simple averaging
     do lev_T = 2, (nlev_T-1)
@@ -73,66 +94,84 @@ SUBROUTINE att2phi_gem4(column,columng)
     enddo
 
     ! adjoint of compute GZ increment on top thermo level (from top momentum level)
-    ratioP = col_getPressure(columng,1,columnIndex,'MM') / col_getPressure(columng,1,columnIndex,'TH')
+    ratioP1 = log( col_getPressure(columng,1,columnIndex,'MM') /  &
+                   col_getPressure(columng,1,columnIndex,'TH') )
     !delGz_T(1) = delGz_M(1) +  &
     !             MPC_RGAS_DRY_AIR_R8*( delTv(1)*log(ratioP) +  &
     !                                   tv(1)*(delLnP_M(1) - delLnP_T(1)) )
     delGz_M(1)  = delGz_M(1)  + delGz_T(1)
-    delTv(1)    = delTv(1)    + MPC_RGAS_DRY_AIR_R8*log(ratioP)*delGz_T(1)
+    delTv(1)    = delTv(1)    + MPC_RGAS_DRY_AIR_R8*ratioP1*delGz_T(1)
     delLnP_M(1) = delLnP_M(1) + MPC_RGAS_DRY_AIR_R8*tv(1)*delGz_T(1)
     delLnP_T(1) = delLnP_T(1) - MPC_RGAS_DRY_AIR_R8*tv(1)*delGz_T(1)
 
     ! adjoint of compute GZ increment on momentum levels
-    do lev_M = 1, (nlev_M-1)
+    delTv(2)    = delTv(2)    + MPC_RGAS_DRY_AIR_R8*delGz_M(1)
+    delLnP_P_M(2) =   MPC_RGAS_DRY_AIR_R8*delGz_M(1)
+    delLnP_M_M(1) =  -MPC_RGAS_DRY_AIR_R8*delGz_M(1)
+    do lev_M = 2, (nlev_M-1)
       lev_T = lev_M+1 ! thermo level just below momentum level being computed
-      ratioP = col_getPressure(columng,lev_M+1,columnIndex,'MM') / col_getPressure(columng,lev_M,columnIndex,'MM')
       !delGz_M(lev_M) = delGz_M(lev_M+1) +   &
-      !                 MPC_RGAS_DRY_AIR_R8*( delTv(lev_T)*log(ratioP) +  & 
-      !                                       tv(lev_T)*(delLnP_M(lev_M+1) - delLnP_M(lev_M)) )
-      delTv(lev_T)      = delTv(lev_T-1)    + MPC_RGAS_DRY_AIR_R8*log(ratioP)*delGz_M(lev_M)
-      delLnP_M(lev_M+1) = delLnP_M(lev_M)   + MPC_RGAS_DRY_AIR_R8*tv(lev_T)*delGz_M(lev_M)
-      if(lev_M.gt.1) then
-        delLnP_M(lev_M)   = delLnP_M(lev_M-1) - MPC_RGAS_DRY_AIR_R8*tv(lev_T)*delGz_M(lev_M)
-      else
-        delLnP_M(lev_M)   = delLnP_M(lev_M)   - MPC_RGAS_DRY_AIR_R8*tv(lev_T)*delGz_M(lev_M)
-      endif
+      !                 MPC_RGAS_DRY_AIR_R8*( delTv(lev_T)*ratioP +  & 
+      !                                       tv(lev_T)*(delLnP_M(lev_M+1) -  &
+      !                                       delLnP_M(lev_M)) )
+      delTv(lev_T)      = delTv(lev_T-1)    +  &
+                          MPC_RGAS_DRY_AIR_R8*delGz_M(lev_M)
+      delLnP_P_M(lev_M+1) = delLnP_P_M(lev_M)   +  &
+                            MPC_RGAS_DRY_AIR_R8*delGz_M(lev_M)
+      delLnP_M_M(lev_M)   = delLnP_M_M(lev_M-1) -  &
+                            MPC_RGAS_DRY_AIR_R8*delGz_M(lev_M)
+    enddo
+    do lev_T = 2, nlev_T-1
+      delTv(lev_T) = delTv(lev_T)*ratioP(lev_T)
+    enddo
+    do lev_M = 1, nlev_M
+      delLnP_M(lev_M) = delLnP_M(lev_M) + tv(lev_M  )*delLnP_P_M(lev_M)
+      delLnP_M(lev_M) = delLnP_M(lev_M) + tv(lev_M+1)*delLnP_M_M(lev_M)
     enddo
 
     ! adjoint of compute virtual temperature increment on thermo levels
     do lev_T = 1, nlev_T
       hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
       tt = col_getElem(columng,lev_T,columnIndex,'TT')
-      ! delTv = dTv_dT*delT + dTv_dLQ*delLQ
       !delTv(lev_T) = fottva(hu,1.0d0)*col_getElem(column,lev_T,columnIndex,'TT') +   &
       !               folnqva(hu,tt,1.0d0)*col_getElem(column,lev_T,columnIndex,'HU')
-      delT(lev_T) = fottva(hu,1.0d0)*delTv(lev_T)
-      delLQ(lev_T) = folnqva(hu,tt,1.0d0)*delTv(lev_T)
+      delT(lev_T)  = delT(lev_T)  + fottva(hu,1.0d0)*delTv(lev_T)
+      delLQ(lev_T) = delLQ(lev_T) + folnqva(hu,tt,1.0d0)*delTv(lev_T)
     enddo
 
     ! adjoint of compute lnP increment on momentum and thermo levels
-    delPsfc(1) = col_getElem(column,1,columnIndex,'P0')
     do lev_M = 1, nlev_M
-      !delLnP_M(lev_M) = real(dP_dPsfc_M_r4(lev_M),8)*delPsfc(1)/col_getPressure(columng,lev_M,columnIndex,'MM')
-      delPsfc(1) = delPsfc(1) + real(dP_dPsfc_M_r4(lev_M),8)*delLnP_M(lev_M)/col_getPressure(columng,lev_M,columnIndex,'MM')
+      !delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')*delPsfc(1)/  &
+      !                  col_getPressure(columng,lev_M,columnIndex,'MM')
+      delPsfc(1) = delPsfc(1) + col_getPressureDeriv(columng,lev_M,columnIndex,'MM')*delLnP_M(lev_M)/  &
+                                col_getPressure(columng,lev_M,columnIndex,'MM')
     enddo
     do lev_T = 1, nlev_T
-      !delLnP_T(lev_T) = real(dP_dPsfc_T_r4(lev_T),8)*delPsfc/col_getPressure(columng,lev_T,columnIndex,'TH')
-      delPsfc(1) = delPsfc(1) + real(dP_dPsfc_T_r4(lev_T),8)*delLnP_T(lev_T)/col_getPressure(columng,lev_T,columnIndex,'TH')
+      !delLnP_T(lev_T) = col_getPressureDeriv(columng,lev_T,columnIndex,'TH')*delPsfc(1)/  &
+      !                  col_getPressure(columng,lev_T,columnIndex,'TH')
+      delPsfc(1) = delPsfc(1) + col_getPressureDeriv(columng,lev_T,columnIndex,'TH')*delLnP_T(lev_T)/  &
+                                col_getPressure(columng,lev_T,columnIndex,'TH')
     enddo
 
-    if(columnIndex.eq.1) then
-      do lev_T = 1, nlev_T
-        write(*,*) 'att2phi_gem4: gradient wrt TT, LQ=',delT(lev_T),delLQ(lev_T)
-      enddo
-      write(*,*) 'att2phi_gem4: gradient wrt Psfc=',delPsfc(1)
-    endif
+    !if(columnIndex.eq.1) then
+    !  do lev_T = 1, nlev_T
+    !    write(*,*) 'att2phi_gem4: gradient wrt TT, LQ=',lev_T,delT(lev_T),delLQ(lev_T)
+    !  enddo
+    !  write(*,*) 'att2phi_gem4: gradient wrt Psfc=',delPsfc(1)
+    !endif
 
   enddo
+!$OMP END PARALLEL DO
 
   deallocate(tv)
   deallocate(delTv)
+  deallocate(ratioP)
+  deallocate(delLnP_P_M)
+  deallocate(delLnP_M_M)
   deallocate(delLnP_M)
   deallocate(delLnP_T)
+  deallocate(delGz_M)
+  deallocate(delGz_T)
 
 end subroutine att2phi_gem4
 

@@ -76,18 +76,18 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
   CONTAINS
 
-      SUBROUTINE oda_HTpp
-!*
-!***s/r AOBSPPP  - Adjoint of the "vertical" interpolation
-!*                  for "UPPER AIR" data files.
-!*
-!*
-!*
-!*Author  : P. Koclas *CMC/AES  April 1996
-!*
-!*     Purpose: based on vint3d to build the adjoint of the
-!*              vertical interpolation for UPPER-AIR data files.
-!*
+    SUBROUTINE oda_HTpp
+      !
+      !**s/r   - Adjoint of the "vertical" interpolation
+      !          for "UPPER AIR" data files.
+      !
+      !
+      !
+      !Author  : P. Koclas *CMC/AES  April 1996
+      !
+      !     Purpose: based on vint3d to build the adjoint of the
+      !              vertical interpolation for UPPER-AIR data files.
+      !
       implicit none
       INTEGER IPB,IPT,ITYP
       REAL*8 ZRES
@@ -97,25 +97,24 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       INTEGER INDEX_BODY,INDEX_FAMILY
       REAL*8 columngVarT,columngVarB,lqtoes
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
+      REAL*8 :: dPdPsT,dPdPsB
       logical :: llassim
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varType
-!C
-!C     Temperature lapse rate for extrapolation of gz below model surface
-!C
+      !
+      ! Temperature lapse rate for extrapolation of gz below model surface
+      !
       zgamma = 0.0065d0 / GRAV
       zexp = MPC_RGAS_DRY_AIR_R8*zgamma
-!C
-!C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
-!C
+
       list_family(1) = 'UA'
       list_family(2) = 'AI'
       list_family(3) = 'SW'
 
       FAMILY: do index_family=1,numFamily
 
-        call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
-        BODY: do
+        call obs_set_current_body_list(lobsSpaceData,list_family(index_family))
+        BODY: DO 
           index_body = obs_getBodyIndex(lobsSpaceData)
           if (index_body < 0) exit BODY
 
@@ -123,9 +122,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
              .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 0) &
              .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2)
 
-!C        Process all data within the domain of the model
+          ! Process all data within the domain of the model
           IF (llassim) THEN
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
+            index_header = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
             ZRES = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
@@ -135,28 +134,34 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IPB  = IPT+1
             ZPT  = col_getPressure(LCOLUMNG,IK,INDEX_HEADER,varType)
             ZPB  = col_getPressure(LCOLUMNG,IK+1,INDEX_HEADER,varType)
+            dPdPsT = col_getPressureDeriv(LCOLUMNG,IK  ,INDEX_HEADER,varType)
+            dPdPsB = col_getPressureDeriv(LCOLUMNG,IK+1,INDEX_HEADER,varType)
             ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
             ZWT  = 1.0D0 - ZWB
-            zpresbpt = vco_anl%db_M(ik)
-            zpresbpb = vco_anl%db_M(ik+1)
 
-            ZDADPS   = ( (ZPRESBPT/ZPT)*LOG(ZLEV/ZPB) &
-                 -(ZPRESBPB/ZPB)*LOG(ZLEV/ZPT) ) &
-                 /LOG(ZPB/ZPT)**2
-!C
+            ZDADPS   = ( LOG(ZLEV/ZPB)*dPdPsT/ZPT -   &
+                         LOG(ZLEV/ZPT)*dPdPsB/ZPB )/  &
+                       LOG(ZPB/ZPT)**2
+
             all_column => col_getColumn(lcolumn,INDEX_HEADER)
             tt_column  => col_getColumn(lcolumn,INDEX_HEADER,'TT')
             hu_column  => col_getColumn(lcolumn,INDEX_HEADER,'HU')
             ps_column  => col_getColumn(lcolumn,INDEX_HEADER,'P0')
             if(ITYP.eq.BUFR_NEES) then
-              call lqtoes_ad(hu_column(IK+1),tt_column(IK+1),ps_column(1),  &
-                             ZWB*ZRES,col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'),  &
+              call lqtoes_ad(hu_column(IK+1),  &
+                             tt_column(IK+1),  &
+                             ps_column(1),     &
+                             ZWB*ZRES,         &
+                             col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'),      &
                              col_getPressure(lcolumng,IK+1,INDEX_HEADER,'TH'),  &
-                             vco_anl%dhyb_m(IK+1),vco_anl%db_m(IK+1))
-              call lqtoes_ad(hu_column(IK  ),tt_column(IK  ),ps_column(1),  &
-                             ZWT*ZRES,col_getElem(lcolumng,IK  ,INDEX_HEADER,'HU'),  &
+                             dPdPsB)
+              call lqtoes_ad(hu_column(IK  ),  &
+                             tt_column(IK  ),  &
+                             ps_column(1),     &
+                             ZWT*ZRES,         &
+                             col_getElem(lcolumng,IK  ,INDEX_HEADER,'HU'),      &
                              col_getPressure(lcolumng,IK  ,INDEX_HEADER,'TH'),  &
-                             vco_anl%dhyb_m(IK  ),vco_anl%db_m(IK  ))
+                             dPdPsT)
               columngVarB=lqtoes(col_getElem(lcolumng,IK+1,INDEX_HEADER,'HU'),  &
                                  col_getElem(lcolumng,IK+1,INDEX_HEADER,'TT'),  &
                                  col_getPressure(lcolumng,IK+1,INDEX_HEADER,'TH'))
@@ -181,10 +186,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             nlev_T = col_getNumLev(lcolumn,'TH')
             IPT  = nlev_T - 1 + col_getOffsetFromVarno(lcolumng,ityp)
             IPB  = IPT+1
-!c
-!c-------------adjoint of TL of geopotential extrapolation below
-!c orography
-!c
+            !
+            ! adjoint of TL of geopotential extrapolation below orography
+            !
             zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexp
             ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
             ZTVG = lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*col_getElem(lcolumng,nlev_T,INDEX_HEADER,'TT')
@@ -195,14 +199,13 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                  + lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*ZATV
             hu_column(nlev_T) = hu_column(nlev_T)  &
                  + lcolumng%OLTV(2,nlev_T,INDEX_HEADER)*ZATV
-          ENDIF
+          endif
 
-        ENDDO BODY
+        enddo BODY
 
-      ENDDO FAMILY
+      enddo FAMILY
 
-      RETURN
-      END subroutine oda_HTpp
+    end subroutine oda_HTpp
 
 
       SUBROUTINE oda_HTsf
@@ -224,6 +227,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       INTEGER INDEX_HEADER,IK,nlev
       INTEGER INDEX_BODY,ITYP,INDEX_FAMILY
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
+      REAL*8 :: dPdPsfc
       INTEGER, PARAMETER :: numFamily=4
       CHARACTER(len=2) :: list_family(numFamily),varType
 !C
@@ -279,10 +283,14 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             IF (ITYP.EQ.BUFR_NETS .OR. ITYP.EQ.BUFR_NESS .OR.  &
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
-                call lqtoes_ad(hu_column(nlev),tt_column(nlev),ps_column(1),  &
-                               ZRES,col_getElem(lcolumng,nlev,INDEX_HEADER,'HU'),  &
+                dPdPsfc = col_getPressureDeriv(lcolumng,nlev,index_header,'TH')
+                call lqtoes_ad(hu_column(nlev),  &
+                               tt_column(nlev),  &
+                               ps_column(1),     &
+                               ZRES,             &
+                               col_getElem(lcolumng,nlev,INDEX_HEADER,'HU'),      &
                                col_getPressure(lcolumng,nlev,INDEX_HEADER,'TH'),  &
-                               vco_anl%dhyb_t(col_getNumLev(lcolumn,'TH')),vco_anl%db_t(col_getNumLev(lcolumn,'TH')))
+                               dPdPsfc)
               else
                 all_column(IPB) = all_column(IPB) + ZRES
               endif

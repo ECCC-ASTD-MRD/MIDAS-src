@@ -381,15 +381,12 @@ module obsOperators_mod
     real(8) :: zazm, azm
     integer :: iazm, isat, iclf, jj
     real(8) :: rad, geo, rad1, wfgps
-    integer,pointer :: ip1(:)
     real(8), allocatable :: zpp(:)
     real(8), allocatable :: zdp(:)
     real(8), allocatable :: ztt(:)
     real(8), allocatable :: zhu(:)
     real(8), allocatable :: zuu(:)
     real(8), allocatable :: zvv(:)
-    real(4) :: sfcfield_r4
-    real(4),pointer :: rdp_r4(:)
     real(8) :: zp0, zmt
     real(8) :: hnh1, zobs, zmhx, zoer, zinc
     integer index_header, idatyp, index_body
@@ -399,7 +396,6 @@ module obsOperators_mod
     type(gpsprofile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
     type(gpsdiff), allocatable :: rstv(:),rstvp(:),rstvm(:)
-    type(struct_vco), pointer  :: vco_trl
 
     write(*,*)'ENTER oonl_gpsro'
     !
@@ -422,8 +418,6 @@ module obsOperators_mod
     !  allocate( rstvm(gpsro_maxprfsize) )
     !endif
 
-    vco_trl => col_getVco(columnhr)
-    stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
     jobs=0.0d0
 
     !
@@ -483,15 +477,12 @@ module obsOperators_mod
       slat = sin(zlat)
       zmt  = zmt * RG / gpsgravitysrf(slat)
       zp0  = col_getElem(columnhr,1,index_header,'P0')
-      sfcfield_r4=zp0
-      stat= vgd_dpidpis(vco_trl%vgrid,ip1,rdp_r4,sfcfield_r4)
       do jl = 1, ngpslev
         !
         ! Profile x
         !
         zpp(jl) = col_getPressure(columnhr,jl,index_header,'TH')
-        ! True implementation of ZDP (dP/dP0)
-        zdp(jl) = rdp_r4(jl)
+        zdp(jl) = col_getPressureDeriv(columnhr,jl,index_header,'TH')
         ztt(jl) = col_getElem(columnhr,JL,index_header,'TT') - p_tc
         zhu(jl) = col_getElem(columnhr,JL,index_header,'HU')
         zuu(jl) = 0.d0
@@ -657,7 +648,6 @@ module obsOperators_mod
     real(8), optional :: jobs_out
     logical, optional :: analysisMode_in
 
-    type(struct_vco), pointer :: vco_trl
     real(8), allocatable :: zpp (:)
     real(8), allocatable :: zdp (:)
     real(8), allocatable :: ztt (:)
@@ -670,10 +660,7 @@ module obsOperators_mod
     real(8) :: bias, std
     integer :: headerIndex, bodyIndex, ioneobs, idatyp, ityp, index_ztd, iztd
     integer :: jl, nlev_T, nobs2p, stat
-    integer :: icount1, icount2, icount3, icount, icountp, Vcode
-    integer,pointer :: ip1(:)
-    real(4) :: sfcfield_r4
-    real  ,pointer :: rdp_r4(:)
+    integer :: icount1, icount2, icount3, icount, icountp
     logical  :: assim, llrej, analysisMode
     type(gpsprofilezd)    :: prf
     type(gpsdiff)         :: ztdopv
@@ -708,18 +695,6 @@ module obsOperators_mod
     zdzmin = dzmin      
     nobs2p = 50
     jobs=0.d0
-
-    vco_trl => col_getVco(columnhr)
-    stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
-    stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-
-    if (Vcode .eq. 5002) then
-       write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS STAGGERED'
-       write(*,*)'VCODE= ',Vcode,' LSTAG= TRUE'
-    else
-       write(*,*)'VERTICAL COORD OF TRIAL FIELDS IS NOT STAGGERED'
-       write(*,*)'VCODE= ',Vcode,' LSTAG= FALSE'
-    endif
 
     nlev_T = col_getNumLev(columnhr,'TH')
     if (ltestop) write(*,*) '  col_getNumLev(columnhr,TH) = ',nlev_T
@@ -792,13 +767,11 @@ module obsOperators_mod
       lon  = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
       zlat = lat * MPC_DEGREES_PER_RADIAN_R8
       zlon = lon * MPC_DEGREES_PER_RADIAN_R8
-      sfcfield_r4 =  real(col_getElem(columnhr,1,headerIndex,'P0'),4)
-      stat= vgd_dpidpis(vco_trl%vgrid,ip1,rdp_r4,sfcfield_r4)
       zmt  = col_getHeight(columnhr,nlev_T,headerIndex,'TH')/RG
       do jl = 1, nlev_T
         zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
         ! True implementation of ZDP (dP/dP0)
-        zdp(jl) = rdp_r4(jl)
+        zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
         ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
         zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
       enddo

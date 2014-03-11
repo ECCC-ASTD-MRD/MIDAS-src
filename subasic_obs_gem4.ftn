@@ -14,40 +14,37 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      real*8 FUNCTION LQTOES_TL(delLQ,delTT,delP0,LQ_g,PRES_g,dPdPsfc)
-!
-! Purpose: TLM VERSION
-!          to calculate the dew point depression from specific
-!          humidity, temperature and pressure.  No ice phase
-!          is permitted and the pressure vector is given.
-!
+      subroutine subasic_obs_gem4(lcolumng)
+c
       use MathPhysConstants_mod
       use physicsFunctions_mod
-      IMPLICIT NONE
-      REAL(8) :: delLQ,delTT,delP0,LQ_g,PRES_g,dPdPsfc
-      REAL(8) :: ZE,ZTD,dTDdE,ZQBRANCH,HU_g
-      REAL(8) :: dESdLQ,dESdTT,dESdP0
-
-      dESdTT = 1.0d0
+      use columnData_mod 
+      implicit none
 *
-* Forward calculations of saturation vapour pressure and dewpoint temperature
-* and adjoint of vapour pressure from adjoint of dewpoint temperature
+***s/r SUBASIC_OBS
+*     OBJECT: Initialise background state dependant factors
+*             and vectors for use in TLM and adjoint of
+*             non-linear operator
 *
-      HU_g = exp(LQ_g)
-      ZE = FOEFQ8(HU_g, PRES_g)
-
-      ZTD=FOTW8(ZE)
-      dTDdE=FODTW8(ZTD,ZE)
+*     Author  : S. Pellerin *ARMA/AES Sept. 98
 *
-* adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
 *
-      ZQBRANCH = FQBRANCH(HU_g)
-      dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_g,PRES_g)
+      type(struct_columnData) :: lcolumng
+      integer jlev,jobs,nlev_T
+      real*8 zhu,one,zpresa,zpresb,zpresad,zpresbd
 
-      dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_g,dPdPsfc)-
-     &           (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
+      one=1.0D0
+      nlev_T = col_getNumLev(lcolumng,'TH')
 
-      lqtoes_tl =  dESdLQ*delLQ + dESdP0*delP0 + dESdTT*delTT
+!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu,zpresb,zpresbd,zpresa,zpresad)
+      do jlev = 1, nlev_T
+        do jobs=1,col_getNumCol(lcolumng)
+          zhu=exp(col_getElem(lcolumng,jlev,jobs,'HU'))
+          lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
+          lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(lcolumng,jlev,jobs,'TT'),one)
+        enddo
+      enddo
+!$OMP END PARALLEL DO
 
       return
-      END FUNCTION LQTOES_TL
+      end subroutine subasic_obs_gem4
