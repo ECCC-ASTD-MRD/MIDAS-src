@@ -120,8 +120,8 @@ if [ $mode == full ] ; then
   rm -f enkf_pturb.ftn
 
   # Compile the subroutines...
-  echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
-  SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
+  echo "compiling modulopt (n1qn3)"
+  SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
   s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listing0 2>&1
   grep fail listing0
   if [ $? = "0" ] ; then exit ; fi
