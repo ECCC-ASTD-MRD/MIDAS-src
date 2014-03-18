@@ -147,14 +147,15 @@ module writeIncrement_mod
       type(struct_hco),      pointer :: hco_anl
       type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg
-      integer jk,jj,ji,jstep,nlev_T,ierr,fnom,fstouv,fstfrm,fclos
+      integer jk,jj,ji,jstep,nlev_T,nlev_M,ierr,fnom,fstouv,fstfrm,fclos
+      integer Vcode_anl,status
       integer :: datestamplist(tim_nstepobsinc)
-      real*8  :: hu_anl,deltaHours
-      real*8, allocatable :: zes(:,:,:)
-      real*8, allocatable :: ztv(:,:,:)
-      real*8, allocatable :: zgz(:,:,:)
-      real*8, allocatable :: zhu(:,:,:)
-      real*8, pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
+      real(8)  :: hu_anl,deltaHours
+      real(8), allocatable :: zes(:,:,:)
+      real(8), allocatable :: ztv(:,:,:)
+      real(8), allocatable :: zgz_M(:,:,:),zgz_T(:,:,:)
+      real(8), allocatable :: zhu(:,:,:)
+      real(8), pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
       character(len=4) :: flnum 
       character(len=3) :: flnum2
       character(len=128) :: incFileName
@@ -245,9 +246,11 @@ module writeIncrement_mod
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
         nlev_T = vco_getNumLev(vco_anl,'TH')
+        nlev_M = vco_getNumLev(vco_anl,'MM')
         allocate( zes(hco_anl%ni, nlev_T, hco_anl%nj) )
         allocate( ztv(hco_anl%ni, nlev_T, hco_anl%nj) )
-        allocate( zgz(hco_anl%ni, nlev_T, hco_anl%nj) )
+        allocate( zgz_M(hco_anl%ni, nlev_M, hco_anl%nj) )
+        allocate( zgz_T(hco_anl%ni, nlev_T, hco_anl%nj) )
         allocate( zhu(hco_anl%ni, nlev_T, hco_anl%nj) )
 
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -279,7 +282,12 @@ module writeIncrement_mod
         ! Compute GZ increment
         !
         call lt2tvgd(ztv,statevector,statevectorg)
-        call ltt2phigd(zgz,ztv,statevectorg)
+        status = vgd_get(statevectorg%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+        if(Vcode_anl.eq.5001) then 
+          call ltt2phigd(zgz_T,ztv,statevectorg)
+        else
+          call ltt2phigd_gem4(zgz_M,zgz_T,ztv,statevector,statevectorg)
+        endif
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         !
         ! Now, write out the increment, including diagostic variables
@@ -301,12 +309,13 @@ module writeIncrement_mod
           write(flnum2,'(I3.3)') indexAnalysis
           incFileName = trim(incFileName) // '_' // trim(flnum2)
         endif
-        call writeIncrement(incFileName,statevector,zes,ztv,zgz,zhu,jstep)
+        call writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,jstep)
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
  
         deallocate(zes)
         deallocate(ztv)
-        deallocate(zgz)
+        deallocate(zgz_M)
+        deallocate(zgz_T)
         deallocate(zhu)
 
       endif
@@ -323,7 +332,7 @@ module writeIncrement_mod
     END SUBROUTINE calcWriteIncrement
 
 
-    SUBROUTINE writeIncrement(incFileName,statevector,zes,ztv,zgz,zhu,jstep)
+    SUBROUTINE writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,jstep)
       !
       !**s/r writeIncrement  - Transfer of the contents of statevector into an RPN
       !                        standard file
@@ -331,20 +340,20 @@ module writeIncrement_mod
       implicit none
       character(len=*) :: incFileName
       type(struct_gsv) :: statevector
-      real*8 :: zes(:,:,:),ztv(:,:,:),zgz(:,:,:),zhu(:,:,:)
+      real(8) :: zes(:,:,:),ztv(:,:,:),zgz_T(:,:,:),zhu(:,:,:)
       integer :: jstep
 
       integer write_encode_hyb,fnom,fstouv,fstfrm,fclos,vfstecr
       integer jvar,jlev,ierr,numlev,nulfile
       integer datestamp,inpak_inc,status,Vcode_anl
-      real*8 zwork
-      real*8, allocatable :: zbuffer(:)
+      real(8) zwork
+      real(8), allocatable :: zbuffer(:)
       real   zptop_r4, zpref_r4,zrcoef_r4
       integer nip1,nip2,nip3,ndeet,npas,nidatyp,nig1,nig2,nig3,nig4
       character(len=1)  :: cgrtyp
       character(len=2)  :: cltypinc
       character(len=12) :: cletiket
-      real*8 :: zlowvar(statevector%ni,statevector%nj)
+      real(8) :: zlowvar(statevector%ni,statevector%nj)
       logical llimplemented,FlipLatitude
 
       WRITE(*,FMT='(/,4X,"Starting writeIncrement",//)')
@@ -448,6 +457,7 @@ module writeIncrement_mod
         zrcoef_r4 = statevector%vco%drcf1
         ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
                                    datestamp,zptop_r4,zpref_r4,zrcoef_r4)
+
       elseif(Vcode_anl.eq.5002) then
 
         write(*,*) 'Writing Vgrid descriptor record in analysis-increment file'
@@ -485,7 +495,7 @@ module writeIncrement_mod
 
         do jlev=1,numlev
           call gdout2(cppcvar(jvar),ZLOWVAR,jlev,  &
-               llimplemented,nip1,FlipLatitude,statevector,zes,ztv,zgz,zhu)
+               llimplemented,nip1,FlipLatitude,statevector,zes,ztv,zgz_T,zhu)
           if(.not.llimplemented) exit
 
           IERR  = VFSTECR(ZLOWVAR,zwork,inpak_inc  &
@@ -527,10 +537,10 @@ module writeIncrement_mod
       !
       IMPLICIT NONE
       type(struct_gsv) :: statevector,statevectorg
-      real*8 pesinc(:,:,:)
+      real(8) pesinc(:,:,:)
       integer ji,jj,jk,nlev_T,status
-      REAL*8 ZE, ZEL, ZTD, ZTDL, ZGAMMA
-      real*8, pointer :: ps_trl_ptr(:,:,:,:),ps_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:)
+      REAL(8) ZE, ZEL, ZTD, ZTDL, ZGAMMA
+      real(8), pointer :: ps_trl_ptr(:,:,:,:),ps_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:)
       real(8), pointer :: zpres(:,:,:) => null()
       real(8), pointer :: dPdPsfc(:,:,:) => null()
       real(8), allocatable :: ps_trl(:,:)
@@ -588,9 +598,9 @@ module writeIncrement_mod
       !
       IMPLICIT NONE
       type(struct_gsv) :: statevector,statevectorg
-      real*8  ptv(:,:,:)
-      real*8, pointer :: hu_trl_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:)
-      integer ji,jj,jk,nlev_T
+      real(8) :: ptv(:,:,:)
+      real(8), pointer :: hu_trl_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:)
+      integer :: ji,jj,jk,nlev_T
 
       WRITE(*,FMT='(/,4X,"Starting LT2TVGD",//)')
       hu_trl_ptr => gsv_getField(statevectorg,'HU')
@@ -612,6 +622,126 @@ module writeIncrement_mod
     END subroutine lt2tvgd
 
 
+    SUBROUTINE ltt2phigd_gem4(delGz_M,delGz_T,delTv,statevector,statevectorg)
+      !
+      !**s/r ltt2phigd_gem4 - Temperature to geopotential transformation on GEM4 staggered levels
+      !               NOTE: we assume 
+      !                     1) nlev_T = nlev_M+1 
+      !                     2) GZ_T(nlev_T) = GZ_M(nlev_M), both at the surface
+      !                     3) a thermo level exists at the top, higher than the highest momentum level
+      !                     4) the placement of the thermo levels means that GZ_T is the average of 2 nearest GZ_M
+      !                        (according to Ron and Claude)
+      !
+      !Author  : M. Buehner, February 2014
+      !
+      implicit none
+
+      real(8) :: delGZ_M(:,:,:),delGZ_T(:,:,:)
+      real(8) :: delTv(:,:,:)
+      type(struct_gsv) :: statevector,statevectorg
+
+      integer :: jlat,jlon,lev_M,lev_T,nlev_M,nlev_T
+      integer :: status
+      real(8) :: hu,tt,ratioP1
+      real(8), allocatable :: tv(:),ratioP(:)
+      real(8), allocatable :: delLnP_M(:),delLnP_T(:)
+      real(8), pointer :: Psfc(:,:),ps_ptr(:,:,:,:),zpres3d_ptr(:,:,:)
+      real(8), pointer :: dP_dPsfc_M(:,:,:),dP_dPsfc_T(:,:,:)
+      real(8), pointer :: Pres_M(:,:,:),Pres_T(:,:,:)
+      real(8), pointer :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:),delPsfc(:,:,:,:)
+
+      nlev_T = gsv_getNumLev(statevectorg,'TH')
+      nlev_M = gsv_getNumLev(statevectorg,'MM')
+
+      if(nlev_T .ne. nlev_M+1) call abort3d('ltt2phi_gem4: nlev_T is not equal to nlev_M+1!')
+
+      delPsfc => gsv_getField(statevector ,'P0')
+
+      ! compute pressure on all levels
+      ps_ptr => gsv_getField(statevectorg,'P0')
+      Psfc => ps_ptr(:,1,:,1)
+      status=vgd_levels(statevectorg%vco%vgrid,ip1_list=statevectorg%vco%ip1_M,  &
+                        levels=Pres_M,sfc_field=Psfc,in_log=.false.)
+      status=vgd_levels(statevectorg%vco%vgrid,ip1_list=statevectorg%vco%ip1_T,  &
+                        levels=Pres_T,sfc_field=Psfc,in_log=.false.)
+
+      ! compute dP_dPsfc on all levels
+      status = vgd_dpidpis(statevectorg%vco%vgrid,statevectorg%vco%ip1_M,dP_dPsfc_M,Psfc)
+      status = vgd_dpidpis(statevectorg%vco%vgrid,statevectorg%vco%ip1_T,dP_dPsfc_T,Psfc)
+
+      allocate(tv(nlev_T))
+      allocate(ratioP(nlev_T))
+      allocate(delLnP_M(nlev_M))
+      allocate(delLnP_T(nlev_T))
+      hu_ptr => gsv_getField(statevectorg,'HU')
+      tt_ptr => gsv_getField(statevectorg,'TT')
+
+      ! loop over all horizontal gridpoints
+      do jlat = 1, statevectorg%nj
+        do jlon = 1, statevectorg%ni
+ 
+          ! initialize GZ increment to zero
+          delGz_M(jlon,:,jlat) = 0.0d0
+          delGz_T(jlon,:,jlat) = 0.0d0
+
+          ! compute lnP increment on momentum and thermo levels
+          do lev_M = 1, nlev_M
+            delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
+                              Pres_M(jlon,jlat,lev_M)
+          enddo
+          do lev_T = 1, nlev_T
+            delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
+                              Pres_T(jlon,jlat,lev_T)
+          enddo
+
+          ! compute background virtual temperature
+          do lev_T = 1, nlev_T
+            hu = hu_ptr(jlon,lev_T,jlat,1)
+            tt = tt_ptr(jlon,lev_T,jlat,1)
+            tv(lev_T) = fotvt8(tt,hu)
+          enddo
+    
+          ! compute natural log of momenutum level pressure ratios for each layer
+          do lev_M = 1,(nlev_M-1)
+            lev_T = lev_M+1 ! thermo level just below momentum level
+            ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
+                                 Pres_M(jlon,jlat,lev_M  ) )
+          enddo
+
+          ! compute GZ increment on momentum levels
+          do lev_M = (nlev_M-1), 1, -1
+            lev_T = lev_M+1 ! thermo level just below momentum level being computed
+            delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
+                             MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
+                                                   tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                                   delLnP_M(lev_M)) )
+          enddo
+
+          ! compute GZ increment for top thermo level (from top momentum level)
+          ratioP1 = log( Pres_M(jlon,jlat,1) /  &
+                         Pres_T(jlon,jlat,1) )
+          delGz_T(jlon,1,jlat) = delGz_M(jlon,1,jlat) +  &
+                       MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(jlon,1,jlat) +  &
+                                             tv(1)*(delLnP_M(1) - delLnP_T(1)) )
+
+          ! compute GZ increment on remaining thermo levels by simple averaging
+          do lev_T = 2, (nlev_T-1)
+            lev_M = lev_T ! momentum level just below thermo level being computed
+            delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
+                                               delGz_M(jlon,lev_M,jlat) )
+          enddo
+
+        enddo
+      enddo
+
+      deallocate(tv)
+      deallocate(ratioP)
+      deallocate(delLnP_M)
+      deallocate(delLnP_T)
+
+    end subroutine ltt2phigd_gem4
+
+
     SUBROUTINE ltt2phigd(pgz,ptt,statevectorg)
       !
       !**s/r ltt2phigd  - Grid-point version of ltt2phi.ftn
@@ -625,15 +755,15 @@ module writeIncrement_mod
       IMPLICIT NONE
 
       type(struct_gsv) :: statevectorg
-      real*8 pgz(:,:,:)
-      real*8 ptt(:,:,:)
+      real(8) pgz(:,:,:)
+      real(8) ptt(:,:,:)
 
-      real*8, allocatable :: vma(:),vmb(:),vmc(:),vmd(:),vme(:),vmf(:)
+      real(8), allocatable :: vma(:),vmb(:),vmc(:),vmd(:),vme(:),vmf(:)
       INTEGER JLEV, JLAT, JLON, NLEV_T
-      real*8  zalpha
-      real*8, allocatable :: zprof(:)
-      real*8, pointer :: ps_ptr(:,:,:,:), zpres3d_ptr(:,:,:)
-      real*8, pointer :: zps2d(:,:) 
+      real(8)  zalpha
+      real(8), allocatable :: zprof(:)
+      real(8), pointer :: ps_ptr(:,:,:,:), zpres3d_ptr(:,:,:)
+      real(8), pointer :: zps2d(:,:) 
       integer status
 
       WRITE(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
@@ -697,9 +827,9 @@ module writeIncrement_mod
         integer ki,kj
 
         INTEGER  IKLEVM2, JK, IK
-        REAL*8    ZAK, ZBK, ZCK, ZCON
-        real*8    pgz(:,:,:)
-        real*8    ptt(:,:,:)
+        REAL(8)    ZAK, ZBK, ZCK, ZCON
+        real(8)    pgz(:,:,:)
+        real(8)    ptt(:,:,:)
         !
         ! ptt : working vector of virtual temperatures.
         !
@@ -730,7 +860,7 @@ module writeIncrement_mod
     END subroutine ltt2phigd
 
 
-    SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,FlipLatitude,statevector,zes,ztv,zgz,zhu)
+    SUBROUTINE GDOUT2(varName,pptrans,KLEV,lplok,kip1,FlipLatitude,statevector,zes,ztv,zgz_T,zhu)
       !
       !**s/r GDOUT2  - Transfer of the content of COMGD0 on a RPN
       !     .          standard file.
@@ -747,17 +877,17 @@ module writeIncrement_mod
       IMPLICIT NONE
       INTEGER klev,kip1
       type(struct_gsv) :: statevector
-      real*8, pointer :: field_ptr(:,:,:,:)
-      real*8 :: pptrans(:,:)
-      real*8 :: zes(:,:,:)
-      real*8 :: ztv(:,:,:)
-      real*8 :: zgz(:,:,:)
-      real*8 :: zhu(:,:,:)
+      real(8), pointer :: field_ptr(:,:,:,:)
+      real(8) :: pptrans(:,:)
+      real(8) :: zes(:,:,:)
+      real(8) :: ztv(:,:,:)
+      real(8) :: zgz_T(:,:,:)
+      real(8) :: zhu(:,:,:)
       character(len=*) :: varName
       logical lplok, FlipLatitude
 
       INTEGER JLON, JGL
-      REAL*8 ZTEMP, ZGEOP, ZDAM, ZCON
+      REAL(8) ZTEMP, ZGEOP, ZDAM, ZCON
 
       !
       lplok = .true.
@@ -781,7 +911,7 @@ module writeIncrement_mod
         ZDAM   = 1.0d0/ZGEOP
         DO JLON = 1, statevector%ni
           DO JGL = 1, statevector%nj
-            PPTRANS(JLON,JGL) = ZDAM * zgz(JLON,KLEV,JGL)
+            PPTRANS(JLON,JGL) = ZDAM * zgz_T(JLON,KLEV,JGL)
           END DO
         END DO
       ELSE IF(trim(varName).EQ.'UU'.or.trim(varName).EQ.'VV') THEN
