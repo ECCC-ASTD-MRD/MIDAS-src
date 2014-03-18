@@ -710,19 +710,19 @@ CONTAINS
           zfact2=0.0d0
         endif
         zfactpsb(ij)=zfactpsb(ij)+zfact2
-        write(*,*) 'ZFACTPSB=',ij,zfactpsb(ij)
+        !write(*,*) 'ZFACTPSB=',ij,zfactpsb(ij)
       enddo
     endif
 
     ! Modify RGSIGTB and RGSIGPSB to obtain correct sigma_Tb and sigma_Psb
     do ij=1,nj_l
-      write(*,*) 'RGSIGPSB before fact=',ij,rgsigpsb(ij)
+      !write(*,*) 'RGSIGPSB before fact=',ij,rgsigpsb(ij)
       if(zfactpsb(ij).gt.0.0d0) then
         rgsigpsb(ij)=rgsigpsb(ij)*sqrt(zfactpsb(ij))
       else
         rgsigpsb(ij)=0.0d0
       endif          
-      write(*,*) 'RGSIGPSB after fact=',ij,rgsigpsb(ij)
+      !write(*,*) 'RGSIGPSB after fact=',ij,rgsigpsb(ij)
       do jk1=1,nlev_T
         if(zfacttb(ij,jk1).gt.0.0d0) then
           rgsigtb(ij,jk1)=rgsigtb(ij,jk1)*sqrt(zfacttb(ij,jk1))
@@ -1795,10 +1795,8 @@ CONTAINS
         do jlat = 1, nj_l
           do jlevo = 1, nlev_M
             rgsiguu(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
-            write(400,*) jlat,jlevo,rgsiguu(jlat,jlevo)
           enddo
         enddo
-        call flush(400)
       elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
         do jlat = 1, nj_l
           do jlevo = 1, nlev_M
@@ -1848,7 +1846,6 @@ CONTAINS
       if(clnomvar .eq. 'PB' .or. clnomvar .eq. 'P0') then
         do jlat = 1, nj_l
           rgsigpsb(jlat) = zgr(nj_l-jlat+1,1)*100.0d0
-          write(*,*) 'RGSIGPSB read in=',jlat,rgsigpsb(jlat)
         enddo
       endif
 
