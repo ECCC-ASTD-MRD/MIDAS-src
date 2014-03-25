@@ -193,7 +193,7 @@
                        ZQQB(JL) = EXP(ZHUB(JL))
                        ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
                        DX(NFLEV+JL) = ZHU(JL)
-                       ZGZ(JL)  = col_getElem(lcolumng,JL,INDEX_HEADER,'GZ')
+                       ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
                      ENDDO
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
                      DX(2*NFLEV+1) = ZP0
@@ -283,7 +283,7 @@
             ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
             ZQQ(JL)  = ZQQB(JL) * ZHU(JL) * PERTFAC
             ZHU(JL)  = ZHU(JL) * PERTFAC
-            ZGZ(JL)  = col_getElem(lcolumng,JL,INDEX_HEADER,'GZ')
+            ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
          ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,LV)
