@@ -18,6 +18,7 @@ Module tovs_nl_mod
   public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
+  public :: l_really_present,list_sensors
   public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
   public :: LDBGTOV, LEVEL1B, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
   public :: CPLATFORM, CINSTRUMENT, NOPLATFORM, NOINSTRUMENT
@@ -41,7 +42,8 @@ Module tovs_nl_mod
   Integer, allocatable :: lsensor(:)            ! sensor number for each profile
   Integer, allocatable :: lobsno (:)            ! observation number in cma for each profile
   Integer, allocatable :: ltovsno (:)           ! index in TOVS structures for each observation in cma
-
+  Logical, allocatable :: l_really_present(:)   ! logical flag to identify instruments really assimilated
+  Integer, allocatable :: list_sensors(:,:)     ! sensor list
   Integer JPMOTOP, JPMOLEV, nobtov
 
   ! Variables from comtov.cdk
@@ -159,7 +161,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !           S.  Heilliette
 !            - adapt to CrIS (codtyp 193)
 #endif
-
   use hir_chans
   use obsSpaceData_mod
 
@@ -182,7 +183,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   INTEGER ::  ISRCHEQ
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
-  Integer, Allocatable :: list_sensors(:,:)     ! list of platform, satellite and instrument
 
   CHARACTER(len=2) :: SENSORTYPE
 
@@ -196,6 +196,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   allocate (lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
   allocate (lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
   allocate (ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
+  allocate (l_really_present(nsensors),            stat= alloc_status(6))
   If( any(alloc_status /= 0) ) then
 9201 FORMAT(' TOVS_NL_SETUPALLO: Memory Allocation Error')
      WRITE(*,FMT=9201)
@@ -206,6 +207,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   nchan(:)   = 0 
   ichan(:,:) = 0
   ltovsno(:) = 0
+  l_really_present(:) = .true.
 
   NOBTOV = 0
 
@@ -276,8 +278,9 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   do ji = 1, nsensors
     call isort(ichan(:,ji),nchan(ji))
     if ( nchan(ji) .eq. 0 ) then
-        nchan(ji) = 1
-        ichan(1,ji) = 1
+       l_really_present ( ji ) =.false.
+       nchan(ji) = 1
+       ichan(1,ji) = 1
     endif
   enddo
 
@@ -384,7 +387,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         endif
      enddo
 
-     deallocate (list_sensors)
 
   ENDIF
 

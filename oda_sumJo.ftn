@@ -22,17 +22,18 @@
 !   diagnostic purposes)
 !
 ! Author  : S. Pellerin *ARMA/MRB January 2009
-
       use mpivar_mod
       use obsSpaceData_mod
+      use tovs_nl_mod
       implicit none
       real*8 pjo ! Total observation cost function
 
       type(struct_obs) :: lobsSpaceData
-      integer index_body
+      integer :: index_body,itvs,isens,index_header,idata,idatend
 
       real*8 :: dljoraob,dljoairep,dljosatwind,dljoscat,dljosurfc,dljotov
       real*8 :: dljoprof,dljogpsro,dljogpsztd,pjo_1
+      real*8 :: dljotov_sensors(nsensors)
       integer :: ierr
 
       call tmg_start(81,'SUMJO')
@@ -46,6 +47,7 @@
       dljotov = 0.d0
       dljogpsro = 0.d0
       dljoprof = 0.d0
+      dljotov_sensors(:) = 0.d0
 
       do index_body=1,obs_numbody(lobsSpaceData)
 
@@ -77,6 +79,19 @@
         end select
       enddo
 
+      do itvs =1,NOBTOV
+         index_header=ltovsno(itvs)
+         if (index_header > 0 ) then
+            IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+            IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+            do index_body=IDATA,IDATEND
+               pjo_1 = obs_bodyElem_r(lobsSpaceData,OBS_JOBS,index_body)
+               isens = lsensor (itvs)
+               dljotov_sensors(isens) =  dljotov_sensors(isens) + pjo_1
+            enddo
+         endif
+      enddo
+
       call rpn_comm_allreduce(pjo,pjo,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
       call rpn_comm_allreduce(dljoraob,dljoraob,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
       call rpn_comm_allreduce(dljoairep,dljoairep,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
@@ -87,17 +102,24 @@
       call rpn_comm_allreduce(dljogpsro,dljogpsro,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
       call rpn_comm_allreduce(dljoprof,dljoprof,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
       call rpn_comm_allreduce(dljogpsztd,dljogpsztd,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(dljotov_sensors,dljotov_sensors,NSENSORS,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
       if(mpi_myid == 0) then
-        write(*,'(a15,f23.16)') 'Jo(UA)   = ',dljoraob
-        write(*,'(a15,f23.16)') 'Jo(AI)   = ',dljoairep
-        write(*,'(a15,f23.16)') 'Jo(SF)   = ',dljosurfc
-        write(*,'(a15,f23.16)') 'Jo(SC)   = ',dljoscat
-        write(*,'(a15,f23.16)') 'Jo(TO)   = ',dljotov
-        write(*,'(a15,f23.16)') 'Jo(SW)   = ',dljosatwind
-        write(*,'(a15,f23.16)') 'Jo(PR)   = ',dljoprof
-        write(*,'(a15,f23.16)') 'Jo(RO)   = ',dljogpsro
-        write(*,'(a15,f23.16)') 'Jo(GP)   = ',dljogpsztd
+        write(*,'(a15,f25.17)') 'Jo(UA)   = ',dljoraob
+        write(*,'(a15,f25.17)') 'Jo(AI)   = ',dljoairep
+        write(*,'(a15,f25.17)') 'Jo(SF)   = ',dljosurfc
+        write(*,'(a15,f25.17)') 'Jo(SC)   = ',dljoscat
+        write(*,'(a15,f25.17)') 'Jo(TO)   = ',dljotov
+        write(*,'(a15,f25.17)') 'Jo(SW)   = ',dljosatwind
+        write(*,'(a15,f25.17)') 'Jo(PR)   = ',dljoprof
+        write(*,'(a15,f25.17)') 'Jo(RO)   = ',dljogpsro
+        write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
+        write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
+        write(*,'(1x,a)') '#  plt sat ins    Jo'
+        do isens=1,NSENSORS
+           write(*,'(4(i2,1x),f25.17)') isens,PLATFORM(isens), SATELLITE(isens), INSTRUMENT(isens),dljotov_sensors(isens)
+        enddo
+
       endif 
 
       call tmg_stop(81)

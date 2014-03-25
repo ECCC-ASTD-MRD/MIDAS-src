@@ -19,6 +19,7 @@ subroutine minimize(lcolumng,lobsSpaceData,lastAnalysis)
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
+  use rmatrix_mod
   implicit none
   !
   !Purpose:
@@ -57,5 +58,8 @@ subroutine minimize(lcolumng,lobsSpaceData,lastAnalysis)
 
   call col_deallocate(lcolumn)
   call tmg_stop(2)
+
+! Memory deallocations for non diagonal R matrices for radiances
+  call rmat_cleanup()
 
 end subroutine minimize

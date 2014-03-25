@@ -47,6 +47,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 !     pjo: total value of jo for tovs
 !
 #endif
+  use rmatrix_mod
   use tovs_nl_mod
   use obsSpaceData_mod
 
@@ -68,6 +69,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   integer inobsch(0:jpchmax,jpnsatmax)
   integer lcanjo(jpchmax)
   integer :: index_header, index_body
+ 
+  real (8) :: x(jpchmax),y(jpchmax)
+  integer :: list_chan(jpchmax)
+  integer :: count
+
   integer  isrcheq
   external isrcheq
   external abort3d
@@ -97,7 +103,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
      !      ------------------------------------------------------
 
      ! process only radiance data to be assimilated?
-     ! (data type=[164,168,180,181,182,183,185,186])
      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
      if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER
 
@@ -110,11 +115,19 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 
      isens = lsensor(indxtovs)
 
-     ! loop over all body indices for this header (still in the 'TO' family)
+     ! Set the body list
+     ! (& start at the beginning of the list)
      call obs_set_current_body_list(lobsSpaceData, index_header)
+     count=0
      BODY: do 
         index_body = obs_getBodyIndex(lobsSpaceData)
-        if (index_body < 0) exit BODY
+        if (index_body < 0 ) then
+           if (count>0 .and. rmat_lnondiagr) then
+              call rmat_sqrtRm1(isens,count,x(1:count),y(1:count),list_chan(1:count),indxtovs)
+              dlsum =  dlsum + 0.5d0*dot_product(y(1:count),y(1:count))
+           endif
+           exit BODY
+        endif
 
         ! Only consider if flagged for assimilation
         if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).ne.1 ) cycle BODY                
@@ -143,11 +156,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
         ! only needed for use of nonlinear obs operator in minimization, which is not yet
         ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
         !if (.not. min_lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
-           dlsum =  dlsum &
-                  + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-                     obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
-                  / (2.D0 * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
-                          * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+        dlsum =  dlsum &
+             + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+                obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
+             / (2.D0 * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
+              * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
         !else
         !  compute contribution of data with varqc
  
@@ -157,19 +170,22 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
         !   zqcarg = zgami + exp(-1.0D0*zjon)
         !   dlsum= dlsum - log(zqcarg/(zgami+1.D0))
         !endif
+        count=count+1
+        x(count)=zdtb
+        list_chan(count)=ichn
 
         inobsjo = inobsjo + 1
         inobsch(ichOBS_A,Isens) = inobsch(ichOBS_A,Isens) + 1
         zjoch(ichOBS_A,Isens)   = &
-                 zjoch(ichOBS_A,Isens) &
-               + obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-                 obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) &
-              / (obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)* &
-                 obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+             zjoch(ichOBS_A,Isens) &
+             + obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
+               obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) &
+            / (obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)* &
+               obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
         zavgnrm(ichOBS_A,Isens)   = &
-                 zavgnrm(ichOBS_A,Isens) - &
-                 obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)/ &
-                 obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+             zavgnrm(ichOBS_A,Isens) - &
+             obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)/ &
+             obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
      enddo BODY
 
   enddo HEADER

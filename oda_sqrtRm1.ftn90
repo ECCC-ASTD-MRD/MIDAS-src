@@ -15,7 +15,9 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
+  use rmatrix_mod ,only : rmat_sqrtRm1, rmat_lnondiagr
   use obsSpaceData_mod
+  use tovs_nl_mod, only : jpchmax,ltovsno,lsensor,tvs_Is_idburp_tovs
   implicit NONE
   ! Arguments
   type(struct_obs), intent(inout) :: lobsSpaceData
@@ -29,10 +31,13 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
   !
   !Revision:
   ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
-  !
-  INTEGER index_body,iass
+  ! S. Heilliette ARMA. April 2013. Introduction of non-diagonal R matrix for AIRS and IASI
+  INTEGER index_body,iass,index_header
   logical, save :: firstTime = .true.
   logical, save, allocatable :: includeFlag(:)
+  integer :: idata,idatend,idatyp,count,ichn
+  real (8) :: x(jpchmax),y(jpchmax)
+  integer :: list_chan(jpchmax)
 
   if(firstTime) then
     allocate(includeFlag(obs_numbody(lobsSpaceData)))
@@ -44,12 +49,49 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
   endif
 
   ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
-  do index_body=1,obs_numbody(lobsSpaceData)
-    if(includeFlag(index_body)) then
-      call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body, &
-         obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)/obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
-    endif
+  do index_header =1, obs_numHeader(lobsSpaceData)
+
+     IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+     IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+     IDATYP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+     
+     if ( tvs_Is_idburp_tovs(idatyp) .and. rmat_lnondiagr) then
+        
+        count=0
+        do index_body=idata,idatend
+           if(includeFlag(index_body)) then
+              ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+              ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+              count=count+1
+              list_chan(count)=ichn
+              x(count)=obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)
+           endif
+        enddo
+
+        if (count>0) then
+           call rmat_sqrtRm1(lsensor(ltovsno(index_header)), count, x(1:count), y(1:count), list_chan(1:count), ltovsno(index_header) )
+
+           count=0
+           do index_body=idata,idatend
+              if(includeFlag(index_body)) then
+                 count=count+1
+                 call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body,y(count))
+              endif
+           enddo
+        endif
+        
+     else
+     
+        do index_body=idata,idatend
+           if(includeFlag(index_body)) then
+              call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body, &
+                   obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)/obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+           endif
+        enddo
+     end if
+
   enddo
 
   RETURN
+
 END SUBROUTINE oda_sqrtRm1

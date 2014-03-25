@@ -2,7 +2,7 @@ Module tovs_lin_mod
   Use rttov_types, only : &
      profile_type        ,&
      radiance_type 
-  Use tovs_nl_mod, only : NOBTOV,lsensor,coefs,opts,nchan
+  Use tovs_nl_mod, only : NOBTOV,nsensors,lsensor,coefs,opts,nchan,l_really_present,ichan,list_sensors
   implicit none
   save
   private
@@ -70,7 +70,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 !           S.  Heilliette
 !            - adapt to CrIS (codtyp 193)
 #endif
-
+  Use rmatrix_mod
   use obsSpaceData_mod
 
   IMPLICIT NONE
@@ -95,6 +95,13 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 
 !___ profiles
 
+! Initialization of the correlation matrices
+  call rmat_init(nsensors,nobtov)
+  if (rmat_lnondiagr) then
+     do isens = 1, nsensors
+        if (l_really_present(isens) ) call rmat_readCMatrix(LIST_SENSORS(:,isens), isens, ichan(1:nchan(isens),isens)  )
+     enddo
+  endif
   alloc_status(:) = 0
 
   allocate(profiles_tl(NOBTOV)      , stat= alloc_status(1))

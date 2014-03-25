@@ -31,7 +31,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr)
 !arguments
 !
 
-! appel séparé de RTTOV pour le calcul des radiances AVHRR
+! appel de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
 
 #endif
@@ -50,7 +50,7 @@ type (rttov_chanprof)  :: chanprof(3*NPRF)
 real*8 :: emissivity_out (3*NPRF)
 real*8 :: cloudemissivity (3*NPRF)
 logical :: calcemis  (3*NPRF)
-INTEGER ::  list_sensors (3),setup_errorstatus
+INTEGER ::  list_sensor (3),setup_errorstatus
 LOGICAL ,SAVE :: FIRST=.true.
 integer :: ich,i,j,jn,ichn
 integer :: VERBOSITY_LEVEL,ERR_UNIT=0
@@ -64,9 +64,9 @@ integer :: asw,nlevels,errorstatus,io
 
 IF (FIRST) THEN
    VERBOSITY_LEVEL = 3
-   LIST_SENSORS(1)=10
-   LIST_SENSORS(2)=2
-   LIST_SENSORS(3)=5
+   LIST_SENSOR(1)=10
+   LIST_SENSOR(2)=2
+   LIST_SENSOR(3)=5
    DO ICH=1,NIR
       ICHAN_AVHRR(ICH)=ICH
    ENDDO
@@ -94,7 +94,7 @@ IF (FIRST) THEN
         verbosity_level,  &! in
         opts_avhrr,       &! in
         coefs_avhrr,      &! out
-        list_sensors,     &! in
+        list_sensor,     &! in
         ichan_avhrr  )    ! in Optional 
 
    if ( setup_errorstatus/=0) then
@@ -150,10 +150,10 @@ Call rttov_direct2(    &
      profiles(iptobs(1:nprf)),  & ! in
      coefs_avhrr,      & ! in
      calcemis,         & ! in
-     surfem1_avhrr,       & ! inout
+     surfem1_avhrr,    & ! inout
      emissivity_out,   & ! out
      cloudemissivity,  & ! inout
-     transmission,       & ! inout
+     transmission,     & ! inout
      radiancedata_d  )     ! inout
 
 do jn = 1, nprf
