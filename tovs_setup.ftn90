@@ -49,7 +49,7 @@ SUBROUTINE TOVS_SETUP
 !                     - remove call to s/r SUTOVST (now done in s/r sucvo)
 !    -------------------
 !     Purpose: to read namelist NAMTOV, initialize the observation error covariance
-!              and setup RTTOV-8.
+!              and setup RTTOV-10.
 !
 #endif
 
@@ -78,8 +78,6 @@ SUBROUTINE TOVS_SETUP
   CINSTRUMENTID(1) = 'AMSUA'
   LTSTTOV   = .FALSE.
   LDBGTOV   = .FALSE.
-  LRTNADIR  = .FALSE.
-  LEVEL1B   = .FALSE.
   LNLVTOV   = .FALSE.
   CRTMODL   = 'RTTOV'
 
@@ -116,8 +114,8 @@ SUBROUTINE TOVS_SETUP
 !     .   1.4 Print the content of this NAMELIST
 !     .       ----------------------------------
 
-  WRITE(*,FMT=9140) LTSTTOV, LDBGTOV, LRTNADIR, &
-                         LEVEL1B, LNLVTOV, CRTMODL
+  WRITE(*,FMT=9140) LTSTTOV, LDBGTOV, &
+       LNLVTOV, CRTMODL
   WRITE(*,FMT=9143) NSENSORS
   WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
   WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
@@ -129,8 +127,6 @@ SUBROUTINE TOVS_SETUP
             ,'------------------'                          &
             ,/,6X,'Testing of adjoints     : ',2X,L1       &
             ,/,6X,'TOVS debug              : ',2X,L1       &
-            ,/,6X,'Nadir calculation       : ',2X,L1       &
-            ,/,6X,'Level 1B                : ',2X,L1       &
             ,/,6X,'Non-linear processing   : ',2X,L1       &
             ,/,6X,'Radiative transfer model: ',2X,A)
 

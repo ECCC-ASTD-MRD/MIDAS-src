@@ -278,11 +278,7 @@ c     WRITE(*,*) ' GPS RO DATA   BLOCKS ', NBKTYPGPSRO
 *--------------------------------------------
 *
       ELSE IF ( CDTYP .EQ. 'TO' ) THEN
-         IF ( LEVEL1B ) THEN
-            NVCORD=002150
-         ELSE
-            NVCORD=005042
-         ENDIF
+         NVCORD=002150
          VCONV=1.0D0
 *
 *     GOES

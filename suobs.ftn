@@ -67,8 +67,6 @@ C
       CINSTRUMENTID(:) = '***UNDEFINED***'
       LTSTTOV   = .FALSE.
       LDBGTOV   = .FALSE.
-      LRTNADIR  = .FALSE.
-      LEVEL1B   = .FALSE.
       LNLVTOV   = .FALSE.
       CRTMODL   = 'RTTOV'
       CALL READNML('NAMTOV',IERR)

@@ -535,7 +535,7 @@ C
       INTEGER ITYP,IFLG,IASS,ILEM,ilyr
       INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
       INTEGER ILAT1,ILAT2
-      INTEGER ILANSEA,ISRCHEQ,INDXM
+      INTEGER ILANSEA,ISRCHEQ
       INTEGER INDXSAT,ISATNO
       INTEGER ICHN,IPLATF,INSTR,IPLATFORM,INSTRUM
       REAL*8 DELTAP, DELTAPMIN
@@ -700,8 +700,6 @@ C
      S                 ITYP .EQ. BUFR_NBT2 .OR.
      S                 ITYP .EQ. BUFR_NBT3     )THEN
                      ICHN    = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-c                     INDXM = ILANSEA
-c                     IF (INDXM .EQ. 2 ) INDXM = 0
                      CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
                      CALL MAP_INSTRUM(INSTR,INSTRUM,SENSORTYPE)
                      DO JN = 1, NSENSORS
