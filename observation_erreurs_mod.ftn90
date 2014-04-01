@@ -1,0 +1,796 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+module observation_erreurs_mod
+
+  use MathPhysConstants_mod
+  use obsSpaceData_mod
+  use tovs_nl_mod
+  use bufr
+  implicit none
+  private
+
+  ! public procedures
+  ! -----------------
+
+  public :: oer_set_obs_erreurs
+
+  ! TOVS OBS ERRORS
+  ! ---------------
+
+  real(8) :: toverrst(jpchmax,jpnsatmax)
+
+  !
+  ! CONVENTIONAL OBS ERRORS
+  ! -----------------------
+
+  real(8) :: xstd_ua_ai_sw(20,11)
+  real(8) :: xstd_sf(9,4)
+  real(8) :: xstd_pr(2)
+  real(8) :: xstd_sc(1)
+
+  save
+  contains
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+  subroutine oer_set_obs_erreurs(lobsSpaceData)
+  !
+  ! s/r set_observation_erreurs -SET OBSERVATION ERROR FOR ALL DATA 
+  !
+  ! Author  : S. Laroche  February 2014
+  ! Revision: 
+  !
+  ! Purpose: read and set observation errors (from former sucovo subroutine).
+  !
+  !
+
+  type(struct_obs) :: lobsSpaceData
+
+  !
+  ! Read in the observation stddev errors for radiance data
+  !
+  call oer_read_obs_erreurs_tovs
+
+  !
+  ! Read in the observation stddev errors for conventional data
+  !
+  call oer_read_obs_erreurs_conv
+
+  !
+  ! Set obs error information in obsSpaceData object
+  !
+  call oer_fill_obs_erreurs(lobsSpaceData)
+
+
+  end subroutine oer_set_obs_erreurs
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+  subroutine oer_read_obs_erreurs_tovs
+  !
+  ! s/r oer_read_obs_erreurs_tovs
+  ! - Read the observation erreur statistics and utilization flag for TOVS processing.
+  !
+  !
+  ! Author  : J. Halle !CMDA/AES  May 08, 1996
+  !
+  ! Revision 01  : J. Halle !CMDA/AES  Oct 1999
+  !               - change file name to stats_tovs
+  !
+  ! Revision 002  : J. Halle !CMDA/AES  dec 2000
+  !                adapt to TOVS level 1b.
+  !
+  ! Revision 003  : J. Halle !CMDA/SMC  may 2002
+  !                adapt to RTTOV-7.
+  !
+  ! Revision 004  : J. Halle !CMDA/SMC  sept 2006
+  !                adapt to RTTOV-8.
+  !
+  ! Revision 005  : A. Beaulne !CMDA/SMC  fevr 2007
+  !                adapt utilization flag for AIRS channels
+  !
+  ! Revision 006  : S. Heilliette
+  !                adapt utilization flag for IASI channels
+  !
+  ! Revision 007: S. Macpherson ARMA, Feb 2013
+  !              - add NPP/ATMS codtyp=192
+  !
+  ! Revision 008  : S. Macpherson      apr 2013
+  !              - adapt for new-format stats_tovs file
+  !
+  ! Revision 008  : S. Laroche      Mar 2014
+  !              - upgrade of former f77 subroutine sutovst
+  !              - f90 conversion and cleanup 
+  !
+  !    -------------------
+  !    Purpose: Read the observation error statistics and
+  !             utilization flag for TOVS processing. This information
+  !             resides on an ASCII file and is read using a free format.
+
+      
+  use topLevelControl_mod
+  use hir_chans
+  use mpivar_mod
+  use tovs_nl_mod
+  use rmatrix_mod
+  implicit none
+
+  integer  :: FNOM, FCLOS, ISRCHEQ
+  integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
+  integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
+  integer, dimension(JPCHMAX,JPNSATMAX) :: IUTILST, ICHN, ICHNIN
+  
+  real :: ZDUM
+
+  real(8), dimension(JPCHMAX,2,JPNSATMAX) :: TOVERRIN
+
+  character (len=132) :: CLDUM
+
+  EXTERNAL FNOM, FCLOS, ISRCHEQ
+  EXTERNAL ABORT3D
+
+  WRITE(*,'(//,10x,"-oer_read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
+
+  !
+  !    1. Initialize
+  !       ----------
+  !
+  DO JL = 1, JPNSATMAX  
+     DO JI = 1, JPCHMAX
+        TOVERRST(JI,JL) = 0.0D0
+      TOVERRIN(JI,1,JL) = 0.0D0
+      TOVERRIN(JI,2,JL) = 0.0D0
+      IUTILST   (JI,JL) = 0
+     ENDDO
+  ENDDO
+
+  DO JL = 1, JPNSATMAX
+     IPLATFORM(JL) = 0
+        NUMCHN(JL) = 0
+      NUMCHNIN(JL) = 0
+     DO JI = 1, JPCHMAX
+        ICHN(JI,JL) = 0
+      ICHNIN(JI,JL) = 0
+     ENDDO
+  ENDDO
+
+  if (nobtov==0) return
+
+  !
+  !     2. Open the file
+  !        -------------
+  !
+  ilutov = 0
+  IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
+  IF(IER.LT.0)THEN
+     WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
+     CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+  END IF
+
+  !
+  !     3. Print the file contents
+  !        -----------------------
+  !
+  IF(MPI_MYID.EQ.0) THEN
+     WRITE(*,'(20X,"ASCII dump of stats_tovs file: "//)')
+     DO JI = 1, 9999999
+       READ (ILUTOV,'(A)',IOSTAT=IER) CLDUM
+       IF(IER.EQ.-1) EXIT
+       WRITE(*,'(A)')   CLDUM
+     ENDDO
+  ENDIF
+
+  !
+  !     4. Read number of satellites
+  !        -------------------------
+  !
+  REWIND(ILUTOV)
+  READ (ILUTOV,*)
+  READ (ILUTOV,*) INUMSAT
+  READ (ILUTOV,*)
+
+  !
+  !     5. Read the satellite identification, the number of channels,
+  !        the observation errors and the utilization flags
+  !        ----------------------------------------------------------
+  !
+  WRITE(*,'(5X,"oer_read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
+
+  DO JL = 1, INUMSAT
+
+     READ (ILUTOV,*)
+     READ (ILUTOV,'(A)') CLDUM
+     WRITE(*,'(A)') CLDUM
+     READ (ILUTOV,*)
+     READ (ILUTOV,*) ISATID(JL), NUMCHNIN(JL)
+
+     DO JI = 1, 3
+       READ (ILUTOV,*)
+     ENDDO
+
+     IPLATFORM(JL) = -1    
+     DO I = 1, MXPLATFORM
+      IPOS1=LEN_TRIM(CPLATFORM(I))
+      IPOS2 = INDEX(CLDUM,CPLATFORM(I)(1:IPOS1))
+      IF ( IPOS2 .NE. 0 ) THEN
+         IPLATFORM(JL) = NOPLATFORM(I)
+         EXIT
+      ENDIF
+     ENDDO
+
+     IF ( IPLATFORM(JL) .EQ. -1 ) THEN
+      WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown platform!"/)' )
+      CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+     ENDIF
+
+     IINSTRUMENT(JL) = -1    
+     DO I = 1, JPNSATMAX
+      IPOS1=LEN_TRIM(CINSTRUMENT(I))
+      IPOS2 = INDEX(CLDUM,CINSTRUMENT(I)(1:IPOS1))
+      IF ( IPOS2 .NE. 0 ) THEN
+       IINSTRUMENT(JL) = NOINSTRUMENT(I)
+      ENDIF
+     ENDDO
+
+     IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
+       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown instrument!"/)' )
+       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+     ENDIF  
+
+     DO JI = 1, NUMCHNIN(JL)
+       READ (ILUTOV,*) ICHNIN(JI,JL), TOVERRIN(ICHNIN(JI,JL),1,JL), TOVERRIN(ICHNIN(JI,JL),2,JL), IUTILST(ICHNIN(JI,JL),JL), ZDUM
+     ENDDO
+     READ (ILUTOV,*)
+
+  ENDDO
+
+  !
+  !   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
+  !   otherwise use ERRBGCK (JJ=1)
+  !
+  IF ( top_AnalysisMode() ) THEN
+     JJ = 2
+  ELSE
+     JJ = 1
+  ENDIF
+
+  !
+  !   Fill the observation error array TOVERRST
+  !
+  WRITE(*,'(5X,"oer_read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
+  DO JM= 1, INUMSAT
+    DO JL = 1, NSENSORS
+      IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND. SATELLITE(JL) .EQ. ISATID(JM) ) THEN
+        IF ( INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN
+          NUMCHN(JL)=NUMCHNIN(JM)
+          DO JI = 1, JPCHMAX
+            TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
+            ICHN(JI,JL) = ICHNIN(JI,JM)
+          ENDDO
+          IF (top_AnalysisMode().and.rmat_lnondiagr) call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
+        ENDIF
+      ENDIF
+    ENDDO
+  ENDDO
+
+  !
+  !  Check that oberservation error statistics have been defined for
+  !  all the satellites specified in the namelist.
+  !
+  DO JL = 1, NSENSORS
+     IPLF = ISRCHEQ ( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
+     ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
+     IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
+       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
+       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+     END IF
+     IF ( NUMCHN(JL) .EQ. 0 ) THEN 
+       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
+       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+     ENDIF
+  ENDDO
+
+  !
+  !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
+  !
+  IF ( top_BgckMode() ) THEN
+     DO JM= 1, INUMSAT
+      IF (   IPLATFORM(JM) .EQ. 9  .AND. &
+                ISATID(JM) .EQ. 2  .AND. &
+           IINSTRUMENT(JM) .EQ. 11 ) THEN
+
+         call hir_set_assim_chan("AIRS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
+      END IF
+      IF (   IPLATFORM(JM) .EQ. 10 .AND. &
+                ISATID(JM) .EQ.  2 .AND. &
+           IINSTRUMENT(JM) .EQ. 16 ) THEN
+         call hir_set_assim_chan("IASI",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
+      END IF
+      IF (   IPLATFORM(JM) .EQ. 17 .AND. &
+                ISATID(JM) .EQ.  0 .AND. &
+           IINSTRUMENT(JM) .EQ. 27 ) THEN
+         call hir_set_assim_chan("CRIS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
+      END IF
+     ENDDO
+  END IF
+
+  !
+  !    6. Print out observation errors for each sensor
+  !       --------------------------------------------
+  !
+  IF(MPI_MYID.eq.0) THEN
+     WRITE(*,'(//1X,"Radiance observation errors read from file")')
+     WRITE(*,'(  1X,"------------------------------------------")')
+     DO JL = 1, NSENSORS
+      WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)') &
+              JL, CSATID(JL), CINSTRUMENTID(JL)
+      WRITE(*,'(1X,"Channel",5X,"  error   ")')
+      DO JI = 1, NUMCHN(JL)
+       WRITE (*,'(1X,I7,1(5X,F10.2))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
+      ENDDO
+     ENDDO
+  ENDIF
+
+  !
+  !    7. Close the file
+  !       --------------
+  !
+  IER = FCLOS(ILUTOV)
+  IF(IER.NE.0)THEN
+     CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+  END IF
+
+  end subroutine oer_read_obs_erreurs_tovs
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+  subroutine oer_read_obs_erreurs_conv
+  !
+  ! s/r oer_read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
+  !
+  ! Author  : S. Laroche  February 2014
+  ! Revision: 
+  !          
+  ! Purpose: read observation errors (modification of former readcovo subroutine).
+  !
+
+  implicit none
+
+  integer :: FNOM, FCLOS
+  integer :: IERR, JLEV, JELM, icodtyp, nulstat
+  logical :: LnewExists
+
+  character (len=128) :: ligne
+
+  EXTERNAL FNOM,FCLOS
+!
+!     CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
+!     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+  INQUIRE(FILE='obserr',EXIST=LnewExists)
+  IF (LnewExists )then
+    WRITE(*,*) '--------------------------------------------------------'
+    WRITE(*,*) 'read_obs_errors_conv: reads observation errors in obserr'
+    WRITE(*,*) '--------------------------------------------------------'
+  else
+    CALL ABORT3D('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
+  ENDIF
+!
+!     Read observation errors from file obserr for conventional data
+!     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+  NULSTAT=0
+  IERR=FNOM(NULSTAT,'obserr','SEQ',0)
+  IF ( IERR .EQ. 0 ) THEN
+    write(*,*) 'read_obs_errors_conv: File =  ./obserr'
+    write(*,*) ' opened as unit file ',nulstat
+    open(unit=nulstat, file='obserr', status='OLD')
+  ELSE
+    CALL ABORT3D('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
+  ENDIF
+
+write(*, '(A)') ' '
+
+  do jlev = 1,3
+    read(nulstat, '(A)') ligne
+    write(*, '(A)') ligne
+  enddo
+
+  do jlev = 1, 19
+    read(nulstat, * ) (xstd_ua_ai_sw(jlev,jelm), jelm=1,11)
+    write(*, '(f6.0,10f6.1)' )  (xstd_ua_ai_sw(jlev,jelm), jelm=1,11)
+  enddo
+
+  do jlev = 1,5
+    read(nulstat, '(A)') ligne
+    write(*, '(A)') ligne
+  enddo
+
+  read(nulstat, * ) xstd_pr(1),xstd_pr(2)
+  write(*, '(2f6.1)' )  xstd_pr(1),xstd_pr(2)
+
+  do jlev = 1,5
+    read(nulstat, '(A)') ligne
+    write(*, '(A)') ligne
+  enddo
+
+  read(nulstat, * ) xstd_sc(1)
+  write(*, '(f8.3)' )  xstd_sc(1)
+
+  read(nulstat, '(A)') ligne
+  write(*, '(A)') ligne
+
+  do icodtyp = 1,9
+    do jlev = 1,4
+      read(nulstat, '(A)') ligne
+      write(*, '(A)') ligne
+    enddo
+    read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,4)
+    write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,4)
+  enddo
+
+  write(*, '(A)') ' '
+
+  CLOSE(UNIT=NULSTAT)
+  IERR=FCLOS(NULSTAT)    
+
+  end subroutine oer_read_obs_erreurs_conv
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+  subroutine oer_fill_obs_erreurs(lobsSpaceData)
+  !
+  ! s/r oer_fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
+  !
+  ! Author  : S. Laroche  February 2014
+  ! Revision: 
+  !          
+  !
+  ! Purpose: read observation errors (modification of former readcovo subroutine).
+  !
+  !
+
+  implicit none
+
+  type(struct_obs) :: lobsSpaceData
+
+  integer :: JN, JI, INDEX_BODY, INDEX_HEADER, ITYP, IFLG, IASS, IDATA, IDATEND, IDBURP
+  integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM
+  integer :: ielem,icodtyp
+  real(8) :: ZLAT, ZLON, ZLEV, ZVAL, zwb, zwt
+
+  CHARACTER(len=2) :: SENSORTYPE,CFAM
+
+  !
+  !     ========================================================================== 
+  !
+  WRITE(*,'(10X,"Fill_obs_errors")')
+  WRITE(*,'(10X,"-----------------",/)')
+  WRITE(*,'(10X,"***********************************")')
+  WRITE(*,'(10X,"Fill_obs_errors:",/)')
+  WRITE(*,'(10X,"***********************************")')
+
+  !
+  !     SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
+  !     ---------------------------------------------------
+  !
+  DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
+
+     IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+     IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+     CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
+     ZLAT    = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+     ZLON    = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+     IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+     IPLATF  = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+     INSTR   = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
+
+     DO INDEX_BODY  = IDATA, IDATEND
+
+      ITYP  = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+      IFLG  = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
+      IASS  = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
+      ZVAL  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+
+      IF ( IASS .EQ. 1 ) THEN
+
+  !***********************************************************************
+  !                           TOVS DATA
+  !***********************************************************************
+
+        IF ( CFAM .EQ. 'TO' ) THEN
+
+         IF ( ITYP .EQ. BUFR_NBT1 .OR. &
+              ITYP .EQ. BUFR_NBT2 .OR. &
+              ITYP .EQ. BUFR_NBT3     )THEN
+
+            ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+            CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
+            CALL MAP_INSTRUM(INSTR,INSTRUM,SENSORTYPE)
+
+             DO JN = 1, NSENSORS
+                IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &
+                          ISAT .EQ.  SATELLITE(JN) .AND. &
+                       INSTRUM .EQ. INSTRUMENT(JN)      ) THEN
+                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,TOVERRST(ICHN,JN))
+                ENDIF
+             ENDDO
+
+         ENDIF
+
+  !***********************************************************************
+  !                      RADIOSONDE DATA
+  !***********************************************************************
+
+        ELSE IF ( CFAM .EQ. 'UA' ) THEN
+
+         ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+
+         IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,4))
+         ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,2))
+         ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,3))
+         ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,1))
+         ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,1))
+         ELSE
+
+            if ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) ) then
+              ielem = 4
+            else if (ITYP .EQ. BUFR_NETT) then
+              ielem = 2
+            else if (ITYP .EQ. BUFR_NEES) then
+              ielem = 3
+            else if (ITYP .EQ. BUFR_NEGZ) then
+              ielem = 5
+            endif
+
+            if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(1,1) ) then
+
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(1,ielem))
+
+            else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= xstd_ua_ai_sw(19,1) ) then
+
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(19,ielem))
+
+            else
+
+               do jn = 1,18
+                   if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(jn+1,1) ) exit
+               end do
+
+               zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/xstd_ua_ai_sw(JN,1)) / log(xstd_ua_ai_sw(JN+1,1)/xstd_ua_ai_sw(JN,1))
+               zwt = 1.0D0 - zwb
+
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,zwt*xstd_ua_ai_sw(JN,ielem) + zwb*xstd_ua_ai_sw(JN+1,ielem))
+
+            endif
+
+         ENDIF
+
+  !***********************************************************************
+  !                          AMV, AIREP, AMDAR DATA
+  !***********************************************************************
+
+        ELSE IF ( CFAM .EQ. 'AI'.OR. CFAM .EQ. 'SW') THEN
+
+         ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+
+         IF ( IDBURP .EQ. 188 ) THEN ! AMV
+            if ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) ) then
+               ielem = 11
+            endif
+
+         ELSE IF (IDBURP .EQ. 128 ) THEN ! AIREP
+            if ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) ) then
+               ielem = 7
+            else if ( ITYP .EQ. BUFR_NETT ) then
+               ielem = 6
+            endif
+
+         ELSE IF (IDBURP .EQ. 42 .OR. IDBURP .EQ. 157 .OR. IDBURP .EQ. 177) THEN ! AMDAR
+            if ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) ) then
+               ielem = 10
+            else if ( ITYP .EQ. BUFR_NETT ) then
+               ielem = 8
+            else if ( ITYP .EQ. BUFR_NEES ) then
+               ielem = 9
+            endif
+
+         ENDIF
+
+         if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(1,1) ) then
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(1,ielem))
+         else if ( (ZLEV*MPC_MBAR_PER_PA_R8) <= xstd_ua_ai_sw(19,1) ) then
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_ua_ai_sw(19,ielem))
+         else
+
+            do jn = 1,18
+               if ( (ZLEV*MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(jn+1,1) ) exit
+            enddo
+
+            zwb = log((ZLEV*MPC_MBAR_PER_PA_R8)/xstd_ua_ai_sw(JN,1)) / log(xstd_ua_ai_sw(JN+1,1)/xstd_ua_ai_sw(JN,1))
+            zwt = 1.0D0 - zwb 
+
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,zwt*xstd_ua_ai_sw(JN,ielem) + zwb*xstd_ua_ai_sw(JN+1,ielem))
+
+         endif
+
+  !***********************************************************************
+  !                         SURFACE DATA
+  !***********************************************************************
+
+        ELSE IF ( CFAM .EQ. 'SF' ) THEN
+                               icodtyp = 1   ! Default values
+        IF ( IDBURP .EQ. 12  ) icodtyp = 2   ! SYNOP
+        IF ( IDBURP .EQ. 13  ) icodtyp = 3   ! SHIP NON-AUTOMATIQUE
+        IF ( IDBURP .EQ. 14  ) icodtyp = 4   ! DRIBU
+        IF ( IDBURP .EQ. 18  ) icodtyp = 5   ! DRIFTER
+        IF ( IDBURP .EQ. 145 ) icodtyp = 6   ! STATION AUTOMATIQUE
+        IF ( IDBURP .EQ. 146 ) icodtyp = 7   ! ASYNOP
+        IF ( IDBURP .EQ. 147 ) icodtyp = 8   ! ASHIP
+        IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) .OR. &
+             (ITYP .EQ. BUFR_NEGZ) .OR. (ITYP .EQ. BUFR_NETT) .OR. (ITYP .EQ. BUFR_NEES) ) icodtyp = 9  ! Others
+
+        IF ( (ITYP .EQ. BUFR_NEUS) .OR. (ITYP .EQ. BUFR_NEVS) )THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,4))
+        ELSE IF (ITYP .EQ. BUFR_NETS) THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,2))
+        ELSE IF (ITYP .EQ. BUFR_NESS) THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,3))
+        ELSE IF (ITYP .EQ. BUFR_NEPS ) THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,1))
+        ELSE IF (ITYP .EQ. BUFR_NEPN ) THEN
+           if(icodtyp == 2  .or. icodtyp == 7) then
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(1,1))
+           else
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,1))
+           endif
+        ELSE IF ( (ITYP .EQ. BUFR_NEUU) .OR. (ITYP .EQ. BUFR_NEVV) )THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,4))
+        ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,1))
+        ELSE IF (ITYP .EQ. BUFR_NETT) THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,2))
+        ELSE IF (ITYP .EQ. BUFR_NEES) THEN
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(icodtyp,3))
+        ENDIF
+
+  !***********************************************************************
+  !                             GPS RO DATA
+  !***********************************************************************
+
+        ELSE IF ( CFAM .EQ. 'RO' ) THEN
+  !     
+  !                 Process only refractivity data (codtyp 169)
+  !
+         IF ( obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .EQ. 169 ) THEN
+
+            IF ( ITYP .EQ. BUFR_NEPS ) THEN
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 50.D0)
+            ENDIF
+            IF ( ITYP .EQ. BUFR_NETT) THEN
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 10.D0)
+            ENDIF
+            IF ( ITYP .EQ. BUFR_NERF) THEN
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
+            ENDIF
+            IF ( ITYP .EQ. BUFR_NEBD) THEN
+               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,1001.D0)
+            ENDIF
+
+         ENDIF
+
+  !***********************************************************************
+  !                          GB-GPS SFC MET DATA
+  !***********************************************************************
+
+  !              ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
+  !              AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
+  !              OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING) 
+  !
+        ELSE IF ( CFAM .EQ. 'GP' ) THEN
+
+         IF ( ITYP .EQ. BUFR_NEPS ) THEN ! Psfc Error (Pa)
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(2,1))
+         ENDIF
+         IF ( ITYP .EQ. BUFR_NETS ) THEN ! Tsfc Error (K)
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(2,2))
+         ENDIF
+         IF ( ITYP .EQ. BUFR_NESS ) THEN ! T-Td Error (K)
+            call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sf(2,3))
+         ENDIF
+         ! ZTD Error (m) (value is formal error, real error set later in s/r seterrgpsgb)
+         ! If error is missing, set to dummy value (1 m).
+         IF ( ITYP .EQ. BUFR_NEZD ) THEN
+            IF (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0D0) call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 1.0D0)
+         ENDIF
+
+  !***********************************************************************
+  !        SCATTEROMETER, OZONE, WIND PROFILER DATA
+  !***********************************************************************
+
+        ELSE IF ( CFAM .EQ. 'SC' ) THEN
+
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sc(1))
+
+        ELSE IF ( CFAM .EQ. 'OZ' ) THEN
+
+           call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,0.6D0*obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY))
+
+        ELSE IF ( CFAM .EQ. 'PR' ) THEN
+
+          ZLEV= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY) - obs_headElem_r(lobsSpaceData,OBS_ALT,INDEX_HEADER)
+
+          IF ( ZLEV .GE. 6000. ) THEN
+             call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_pr(2))
+          ELSE
+             call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_pr(1))
+          ENDIF
+
+        ELSE
+
+           WRITE(*,*)' UNKNOWN DATA FAMILY:',CFAM
+
+        ENDIF
+
+  !***********************************************************************
+  !              Check for case where error should have been set but was
+  !              not. 3dvar will abort in this case.
+  !***********************************************************************
+
+        IF (obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY) .LE. 0.0D0) THEN
+
+          WRITE(*,*)'  PROBLEM OBSERR VARIANCE FAM= ',CFAM
+
+          WRITE(*,'(1X,"STNID= ",A10,"IDBURP= ",I5," LAT= ",F10.2," LON = ",F10.2)') &
+             obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),    &
+               IDBURP,                                           &
+               ZLAT*MPC_DEGREES_PER_RADIAN_R8,                   &
+               ZLON*MPC_DEGREES_PER_RADIAN_R8
+
+          WRITE(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
+               ITYP,                                             &
+               obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY), &
+               obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+
+          CALL ABORT3D('oer_fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+
+        ENDIF
+
+      ENDIF ! end of IASS .EQ. 1
+
+    END DO ! end of INDEX_BODY loop 
+
+  END DO ! end of INDEX_HEADER loop
+
+  WRITE(*,'(10X,"Fill_obs_errors")')
+  WRITE(*,'(10X,"---------------",/)')
+
+  end subroutine oer_fill_obs_erreurs
+
+!-----------------------------------------------------------------------------------------
+
+end module observation_erreurs_mod

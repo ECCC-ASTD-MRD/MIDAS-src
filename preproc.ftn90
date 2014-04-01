@@ -35,6 +35,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use gaussgrid_mod
   use tovs_nl_mod
   use burpFiles_mod
+  use observation_erreurs_mod
   IMPLICIT NONE
   
   type(struct_obs) :: lobsSpaceData
@@ -138,7 +139,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Initialize the observation error covariances
   !
-  call sucovo(lobsSpaceData)
+  call oer_set_obs_erreurs(lobsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !

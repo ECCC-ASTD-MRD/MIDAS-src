@@ -148,7 +148,7 @@ if [ $mode == full ] ; then
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
-  SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90"
+  SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
 
   s.compile $INCLUDES $COMPF -O -src $SRC1 > listing3 2>&1
   grep fail listing3
