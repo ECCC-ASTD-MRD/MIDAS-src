@@ -58,6 +58,8 @@
       LOGICAL LLOK
       CHARACTER*2 VARTYPE
 C
+      Write(*,*) "Entering subroutine DOBSZZZ !"
+C
       call obs_set_current_body_list(lobsSpaceData, CDFAM)
       BODY: do
          index_body = obs_getBodyIndex(lobsSpaceData)

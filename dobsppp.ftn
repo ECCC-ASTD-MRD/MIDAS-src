@@ -54,7 +54,8 @@
       real*8,pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
 !
 !     Temperature lapse rate for extrapolation of gz below model surface
-!
+!     
+      Write(*,*) "Entering subroutine DOBSPPP: ",trim(CDFAM) 
       LLPRINT   = .FALSE.
       LLNOXTR   = .FALSE.
       zgamma = 0.0065 / GRAV

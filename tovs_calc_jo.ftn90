@@ -83,6 +83,8 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
   external isrcheq
   external abort3d
 
+  Write(*,*) "Entering tovs_calc_jo subroutine !"
+
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
 !     1.  Computation of (hx - z)/sigma for tovs data only
@@ -145,6 +147,9 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData)
            ichn=ichn-chanoffset(isens)
            indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
            if ( indxchn .eq. 0 ) then
+              Write(*,*) "isens",isens,chanoffset(isens)
+              Write(*,*) "ichn: ",ichn
+              Write(*,*) "ichan: ",ichan(1:nchan(isens),isens)
               write(*,fmt=9202)
 9202          format(' tovs_calc_jo: error with channel number')
               call abort3d('tovs_calc_jo    ')

@@ -86,6 +86,7 @@
 C
 C     Temperature lapse rate for extrapolation of gz below model surface
 C
+      Write(*,*) "Entering subroutine DOBSSFC : ",trim(CDFAM)
       ZGAMMA = 0.0065 / GRAV
       zexp = 1.0/(MPC_RGAS_DRY_AIR_R8*ZGAMMA)
       ZEXPGZ = MPC_RGAS_DRY_AIR_R8*ZGAMMA

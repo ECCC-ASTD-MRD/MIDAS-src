@@ -54,6 +54,7 @@ subroutine tovs_obs(option,pjo,lcolumnghr,lobsSpaceData)
 !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
 !     .    -----------------------------------------------------------------------------
 !     
+  Write(*,*) "Entering subroutine tovs_obs !"
 
   if     ( option .eq. 'HR' .or. option .eq. 'LR') then
      call tovs_fill_profiles(lcolumnghr,lobsSpaceData)
