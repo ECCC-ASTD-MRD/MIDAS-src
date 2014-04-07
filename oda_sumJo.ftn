@@ -114,11 +114,13 @@
         write(*,'(a15,f25.17)') 'Jo(PR)   = ',dljoprof
         write(*,'(a15,f25.17)') 'Jo(RO)   = ',dljogpsro
         write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
+        write(*,*) ' '
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
         write(*,'(1x,a)') '#  plt sat ins    Jo'
         do isens=1,NSENSORS
-           write(*,'(4(i2,1x),f25.17)') isens,PLATFORM(isens), SATELLITE(isens), INSTRUMENT(isens),dljotov_sensors(isens)
+           write(*,'(4(i3,1x),f25.17)') isens,PLATFORM(isens),SATELLITE(isens),INSTRUMENT(isens),dljotov_sensors(isens)
         enddo
+        write(*,*) ' '
 
       endif 
 

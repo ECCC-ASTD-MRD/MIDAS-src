@@ -42,7 +42,7 @@ program cnt0
             '3(" *****************"))') top_crevision
 
   ! MPI initilization
-  call mpi_init  
+  call mpi_initialize  
 
   call tmg_init (mpi_myid, 'TMG_3D-VAR' )
 

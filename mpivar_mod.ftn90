@@ -10,7 +10,7 @@ module mpivar_mod
   ! public variables through inheritance
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
   ! public procedures through inheritance
-  public :: mpi_init,mpi_getptopo
+  public :: mpi_initialize,mpi_getptopo
 
   contains
 

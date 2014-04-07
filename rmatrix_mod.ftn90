@@ -1,33 +1,32 @@
+module rmatrix_mod
+  ! Module to handle non diagonal observation error covariances matrices for assimilation
+  ! of radiances
+  ! S. Heilliette ARMA August 2013
+  use mpivar_mod,  only  : mpi_myid
+  use rttov_const, only  : errorstatus_success
+  implicit none
+  private
+  save
 
-Module rmatrix_mod
-!Module to handle non diagonal observation error covariances matrices for assimilation
-! of radiances
-! S. Heilliette ARMA August 2013
+  ! public variables
+  public :: rmat_lnondiagr
+  ! public subroutines
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1
 
- use mpivar_mod,  only  : mpi_myid
- use rttov_const, only  : errorstatus_success
- implicit none
-
- TYPE rmat_matrix
-    SEQUENCE   
-    REAL(8) ,pointer     :: Rmat(:,:)=>null()
-    INTEGER ,pointer     :: listChans(:)=>null()
-    INTEGER              :: nchans=0
- END TYPE rmat_matrix
-
- private
- save
+  type rmat_matrix
+    sequence   
+    real(8) ,pointer     :: Rmat(:,:)=>null()
+    integer ,pointer     :: listChans(:)=>null()
+    integer              :: nchans=0
+  end type rmat_matrix
   
- type(rmat_matrix),target,allocatable  :: R_inst(:) ! non diagonal Covariance matrices (R) for each instrument
- type(rmat_matrix),target,allocatable  :: C_inst(:) ! non diagonal Correlation matrices for each instrument
- type(rmat_matrix),target,allocatable  :: R_tovs(:) ! non diagonal R matrices used for the assimilation of all radiances
+  type(rmat_matrix),target,allocatable  :: R_inst(:) ! non diagonal Covariance matrices (R) for each instrument
+  type(rmat_matrix),target,allocatable  :: C_inst(:) ! non diagonal Correlation matrices for each instrument
+  type(rmat_matrix),target,allocatable  :: R_tovs(:) ! non diagonal R matrices used for the assimilation of all radiances
  
- logical :: rmat_lnondiagr
+  logical :: rmat_lnondiagr
 
-
- public :: rmat_lnondiagr,rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1
-
-contains
+  contains
 
   subroutine rmat_init(nsensors,nobtovs)
    
@@ -35,15 +34,12 @@ contains
     integer ,intent (in) :: nsensors,nobtovs
     integer :: nulnam,ierr
     integer ,external:: fnom,fclos
-    NAMELIST /NAMRMAT/rmat_lnonDiagR
+    namelist /NAMRMAT/rmat_lnonDiagR
 
-    ! Default value for parameter  rmat_lnondiagr
-    ! don't use interchannel correlation by default
+    ! Default value for parameter rmat_lnondiagr, don't use interchannel correlation by default
     rmat_lnonDiagR=.false.
 
-    !
     ! Read the parameters from NAMRMAT
-    !
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namrmat,iostat=ierr)
@@ -51,18 +47,19 @@ contains
     if(mpi_myid.eq.0) write(*,nml=namrmat)
     ierr=fclos(nulnam)
     if (rmat_lnonDiagR) then
-       allocate(R_inst(nsensors))
-       allocate(C_inst(nsensors))
-       allocate(R_tovs(nobtovs))
+      allocate(R_inst(nsensors))
+      allocate(C_inst(nsensors))
+      allocate(R_tovs(nobtovs))
     endif
+
   end subroutine rmat_init
 
   subroutine rmat_cleanup()
     implicit none
     if (rmat_lnondiagr) then
-       deallocate(R_inst)
-       deallocate(C_inst)
-       deallocate(R_tovs)
+      deallocate(R_inst)
+      deallocate(C_inst)
+      deallocate(R_tovs)
     endif
   end subroutine rmat_cleanup
 
@@ -71,17 +68,17 @@ contains
     implicit none
 #include "rttov_coeffname.interface"
     integer ,intent (in) :: instrument(3), sensor_id, ichan(:)
-    !****************************************
+
     character (len=64) :: filename
     integer :: err
 
     call rttov_coeffname (err, instrument, filename, "Cmat")
 
-    IF (err== errorstatus_success) then
-       call rmat_readCMatrixByFileName(filename,C_inst(sensor_id), ichan )
+    if (err== errorstatus_success) then
+      call rmat_readCMatrixByFileName(filename,C_inst(sensor_id), ichan )
     else
-       Write(*,*) "Unknown instrument ",instrument(:)
-       call abort3d("rmat_read_C_matrix")
+      write(*,*) "Unknown instrument ",instrument(:)
+      call abort3d("rmat_read_C_matrix")
     end if
     
   end subroutine rmat_readCMatrix
@@ -91,18 +88,19 @@ contains
    
     integer ,intent (in) :: sensor_id,offset
     real (8) ,intent (in) :: sigma(:)
-    !****************************************
+
     integer :: i,nchn,j,ii,jj,nsigma
     real (8) :: product
-    Write(*,*) "rmat_setFullRMatrix: "
 
-    Write(*,*) "sensor_id:",sensor_id
+    write(*,*) "rmat_setFullRMatrix: "
+
+    write(*,*) "sensor_id:",sensor_id
 
     nsigma = size( sigma )
     if (nsigma<1) then
-       Write(*,*) "rmat_setFullRMatrix: Strange sigma array size",nsigma
-       Write(*,*) "Please check !"
-       return
+      write(*,*) "rmat_setFullRMatrix: Strange sigma array size",nsigma
+      write(*,*) "Please check !"
+      return
     endif
 
     R_inst(sensor_id) % nchans  =  C_inst(sensor_id) % nchans
@@ -113,17 +111,17 @@ contains
     R_inst(sensor_id)%listChans(:)=C_inst(sensor_id)%listChans(:)
 
     do i=1,C_inst(sensor_id)%nchans
-       ii=R_inst(sensor_id)%listChans(i) + offset
-       do j=1,C_inst(sensor_id)%nchans
-          jj=R_inst(sensor_id)%listChans(j) + offset
-          product=sigma(ii)*sigma(jj)
-          if(product<=0.) then
-            Write(*,*) "Invalid variance: missing channel in stat_tovs !"
-            Write(*,*) ii,jj,offset,sigma(ii),sigma(jj)
-            call abort3d('rmat_setFullRMatrix')
-          endif
-          R_inst(sensor_id)%Rmat(i,j)=product*C_inst(sensor_id)%Rmat(i,j)
-       enddo
+      ii=R_inst(sensor_id)%listChans(i) + offset
+      do j=1,C_inst(sensor_id)%nchans
+        jj=R_inst(sensor_id)%listChans(j) + offset
+        product=sigma(ii)*sigma(jj)
+        if(product<=0.) then
+          write(*,*) "Invalid variance: missing channel in stat_tovs !"
+          write(*,*) ii,jj,offset,sigma(ii),sigma(jj)
+          call abort3d('rmat_setFullRMatrix')
+        endif
+        R_inst(sensor_id)%Rmat(i,j)=product*C_inst(sensor_id)%Rmat(i,j)
+      enddo
     enddo
 
   end subroutine rmat_setFullRMatrix
@@ -134,35 +132,35 @@ contains
     character (len=*),intent(in) :: infile ! name of input file
     type(rmat_matrix),intent(inout) :: C    ! correlation matrix structure
     integer ,intent(in),optional :: liste_chan(:) ! list of requested channels (if missing will read all file content)
-    !********************************************************************************************************************
+
     integer :: i,j,iu,ierr,count,ich,nchn,nch
     integer ,external :: fnom,fclos
-    Real(8) :: x
+    real(8) :: x
     integer ,allocatable :: index(:)
 
     nchn=-1
     if (present(liste_chan)) then
-       nchn=size(liste_chan)
+      nchn=size(liste_chan)
     endif
 
     iu=0
     ierr=fnom(iu,trim(infile),'FTN+SEQ+R/O',0)
     if (ierr/=0) then
-       Write(*,*) "Cannot open "//trim(infile)
-       call abort3d("rmat_readCMatrixByFileName")
+      write(*,*) "Cannot open "//trim(infile)
+      call abort3d("rmat_readCMatrixByFileName")
     endif
 
-    Write(*,*) "rmat_readCMatrixByFileName: Reading "//trim(infile)
+    write(*,*) "rmat_readCMatrixByFileName: Reading "//trim(infile)
     
-    Read(iu,*) nch
+    read(iu,*) nch
     if (nchn==-1) then
-       nchn=nch
+      nchn=nch
     else
-       if(nchn.gt.nch) then
-          Write(*,*) "Not enough channels in "//trim(infile)
-          Write(*,*) nchn,nch
-          call abort3d("rmat_readCMatrixByFileName")
-       endif
+      if(nchn.gt.nch) then
+        write(*,*) "Not enough channels in "//trim(infile)
+        write(*,*) nchn,nch
+        call abort3d("rmat_readCMatrixByFileName")
+      endif
     endif
     allocate(index(nch))
     
@@ -171,42 +169,42 @@ contains
     allocate(C%listChans(nchn))
     C%Rmat=0.d0
     do i=1,nchn
-       C%Rmat(i,i)=1.d0
+      C%Rmat(i,i)=1.d0
     enddo
     count=0
     index=-1
-    Do i=1,nch
-       Read(iu,*) ich
-       if (present(liste_chan)) then
-          bj:do j=1,nchn
-             if (ich==liste_chan(j)) then
-                count=count+1
-                index(i)=j
-                C%listChans(count)=ich
-                exit bj
-             endif
-          enddo bj
-       else
-          index(i)=i
-          C%listChans(i)=ich
-          count=count+1
-       endif
-    Enddo
+    do i=1,nch
+      read(iu,*) ich
+      if (present(liste_chan)) then
+        bj:do j=1,nchn
+          if (ich==liste_chan(j)) then
+            count=count+1
+            index(i)=j
+            C%listChans(count)=ich
+            exit bj
+          endif
+        enddo bj
+      else
+        index(i)=i
+        C%listChans(i)=ich
+        count=count+1
+      endif
+    enddo
     if (count/=nchn) then
-       Write(*,*) "Warning: Missing information in "//trim(infile)
-       do j=1,nchn
-          Write(*,*) j,liste_chan(j) 
-       enddo
-       Write(*,*) "Not important if there is no observation of this family"
+      write(*,*) "Warning: Missing information in "//trim(infile)
+      do j=1,nchn
+        write(*,*) j,liste_chan(j) 
+      enddo
+      write(*,*) "Not important if there is no observation of this family"
     endif
 
     do
-       Read(iu,*,iostat=ierr) i,j,x
-       if (ierr/=0) exit
-       if (index(i)/=-1 .and. index(j)/=-1) then
-          C%Rmat(index(i),index(j))=x
-          C%Rmat(index(j),index(i))=x
-       endif
+      read(iu,*,iostat=ierr) i,j,x
+      if (ierr/=0) exit
+      if (index(i)/=-1 .and. index(j)/=-1) then
+        C%Rmat(index(i),index(j))=x
+        C%Rmat(index(j),index(i))=x
+      endif
     enddo
 
     ierr= fclos(iu)
@@ -225,63 +223,64 @@ contains
     real(8) ,intent(in)   :: x(nsubset)
     real(8) ,intent(out)  :: y(nsubset)
     integer  ,intent(in)  :: indexTovs
-    !**********
+
     real (8) :: Rsub(nsubset,nsubset),alpha,beta
     integer :: index(nsubset)
     integer :: i,j
     type(rmat_matrix),pointer :: R
-    !********************************************************
+
     if (R_tovs(indexTovs)%nchans==0) then
 
-       if (sensor_id>0 .and. sensor_id<=size(R_inst)) then
-          R=>R_inst(sensor_id)
-       else
-          Write(*,*) "invalid sensor_id",sensor_id,size(R_inst)
-          call abort3d('rmat_sqrtRm1')
-       end if
+      if (sensor_id>0 .and. sensor_id<=size(R_inst)) then
+        R=>R_inst(sensor_id)
+      else
+        write(*,*) "invalid sensor_id",sensor_id,size(R_inst)
+        call abort3d('rmat_sqrtRm1')
+      end if
 
-       index=-1
-       do i=1,nsubset
-          bj: do j=1,R%nchans
-             if(list_sub(i)==R%listChans(j)) then
-                index(i)=j
-                exit bj
-             endif
-          enddo bj
-       enddo
-       if (any(index==-1)) then
-          Write(*,*) "Missing information for some channel !"
-          Write(*,*) list_sub(:)
-          Write(*,*) index(:)
-          call abort3d('rmat_sqrtRm1')
-       endif
-       R_tovs(indexTovs)%nchans=nsubset
-       allocate(R_tovs(indexTovs)%listChans(nsubset))
-       R_tovs(indexTovs)%listChans(1:nsubset)=list_sub(1:nsubset)
-       do j=1,nsubset
-          do i=1,nsubset
-             Rsub(i,j)=R%Rmat(index(i),index(j))
-          enddo
-       enddo
-       ! Calculation of R**-1/2
-       call tmg_start(98,'MATSQRT')
-       call  MATSQRT(Rsub,nsubset,-1.d0,.false.)
-       call tmg_stop(98)
-       allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
-       do j=1,nsubset
-          do i=1,nsubset
-             R_tovs(indexTovs)%Rmat(i,j)=Rsub(i,j)
-          enddo
-       enddo
+      index=-1
+      do i=1,nsubset
+        bj: do j=1,R%nchans
+          if(list_sub(i)==R%listChans(j)) then
+            index(i)=j
+            exit bj
+          endif
+        enddo bj
+      enddo
+      if (any(index==-1)) then
+        write(*,*) "Missing information for some channel !"
+        write(*,*) list_sub(:)
+        write(*,*) index(:)
+        call abort3d('rmat_sqrtRm1')
+      endif
+      R_tovs(indexTovs)%nchans=nsubset
+      allocate(R_tovs(indexTovs)%listChans(nsubset))
+      R_tovs(indexTovs)%listChans(1:nsubset)=list_sub(1:nsubset)
+      do j=1,nsubset
+        do i=1,nsubset
+          Rsub(i,j)=R%Rmat(index(i),index(j))
+        enddo
+      enddo
+      ! Calculation of R**-1/2
+      call tmg_start(98,'MATSQRT')
+      call matsqrt(Rsub,nsubset,-1.d0)
+      call tmg_stop(98)
+      allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
+      do j=1,nsubset
+        do i=1,nsubset
+          R_tovs(indexTovs)%Rmat(i,j)=Rsub(i,j)
+        enddo
+      enddo
     endif
+
     call tmg_start(99,'MATMUL')
-    ALPHA=1.d0
-    BETA=0.d0
+    alpha=1.d0
+    beta=0.d0
     y=0.d0
-    !Optimized symetric matrix vector product from Lapack
-    call DSYMV("L", NSUBSET, ALPHA, R_tovs(indexTovs)%Rmat, NSUBSET,X, 1, BETA, Y, 1)
+    ! Optimized symetric matrix vector product from Lapack
+    call dsymv("L", nsubset, alpha, R_tovs(indexTovs)%Rmat, nsubset,x, 1, beta, y, 1)
     call tmg_stop(99)
+
   end subroutine rmat_sqrtRm1
 
-End Module rmatrix_mod
-
+end module rmatrix_mod

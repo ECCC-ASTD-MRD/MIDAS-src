@@ -6,7 +6,7 @@ module mpi_mod
   ! public variables
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
   ! public procedures
-  public :: mpi_init,mpi_getptopo
+  public :: mpi_initialize,mpi_getptopo
 
   integer :: mpi_myid   = 0
   integer :: mpi_nprocs = 0
@@ -15,7 +15,7 @@ module mpi_mod
 
   contains
 
-  subroutine mpi_init()
+  subroutine mpi_initialize()
     implicit none
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
     integer :: npex,npey
@@ -36,10 +36,10 @@ module mpi_mod
 !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()
     numthread=omp_get_num_threads()
-    if(mythread.eq.0) write(*,*) 'mpi_init: NUMBER OF THREADS=',numthread     
+    if(mythread.eq.0) write(*,*) 'mpi_initialize: NUMBER OF THREADS=',numthread     
 !$OMP END PARALLEL
 
-  end subroutine mpi_init
+  end subroutine mpi_initialize
 
 
   subroutine mpi_getptopo(npex,npey)

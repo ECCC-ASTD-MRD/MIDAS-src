@@ -61,7 +61,6 @@ MODULE BmatrixHI
   real*8             :: scaleFactor(maxNumLevels)
   real*8             :: scaleFactorLQ(maxNumLevels)
   logical            :: scaleTG
-  logical            :: useStd2d,useStdNewfmt
   integer            :: ntoar = 3
   real*8             :: ralphatoar = 0.2d0
   integer            :: ntgcorrtyp=1
@@ -118,7 +117,7 @@ CONTAINS
     real(8)          :: zps
 
     !namelist
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,useStd2d,useStdNewfmt
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG
 
     vco_anl => vco_in
     nLev_M=vco_anl%nlev_M
@@ -129,8 +128,6 @@ CONTAINS
     scaleFactor(:)=1.0d0
     scaleFactorLQ(:)=1.0d0
     scaleTG=.true.
-    useStd2d=.false.
-    useStdNewfmt=.false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -320,13 +317,7 @@ CONTAINS
 
     call BHI_sutg(nulbgst)
 
-    if(useStd2d) then
-      call BHI_rdstd2d
-    elseif(useStdNewfmt) then
-      call BHI_rdspstd_newfmt
-    else
-      call BHI_rdspstd(iulbgsto)
-    endif
+    call BHI_rdspstd_newfmt
 
     call BHI_scalestd
 
@@ -1374,10 +1365,8 @@ CONTAINS
   END SUBROUTINE BHI_READCORNS2
 
 
-  SUBROUTINE BHI_RDSPSTD(kulbgsto)
+  SUBROUTINE BHI_RDSPSTD
     implicit none
-
-    integer kulbgsto
 
     integer, parameter  :: inbrvar3d=5
     integer, parameter  :: inbrvar2d=2
@@ -1433,12 +1422,6 @@ CONTAINS
 
         if(ikey .ge.0 ) then
           ikey = vfstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-           if ( kulbgsto .gt. 0 ) then
-            ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits,        &
-                   idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
-                   ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1            &
-                   ,iextr2,iextr3)
-          endif
         else
           if(firstn.eq.-1) firstn=jn
           lastn=jn
@@ -1497,19 +1480,6 @@ CONTAINS
         enddo
       endif
 
-      if ( kulbgsto .gt. 0 ) then
-
-        do jlat = 1, nj_l
-          do jlevo = 1,nlev_MT
-            zgsig(1,jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
-          enddo
-        enddo
-
-        ierr = vfstecr(zgsig(:,:,1:nlev_MT), zwork, -inbits, kulbgsto, idateo, ideet,   &
-               inpas, 1, nj_l, nlev_MT, 0, 0, ip3, 'E', clnomvar,            &
-               'STDDEV  ',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
-
-      endif
     enddo
 
     !write(*,*) 'Reading 2D variables'
@@ -1524,13 +1494,6 @@ CONTAINS
 
         if(ikey .ge.0 ) then
           ikey = vfstlir(zspbuf,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-          if ( kulbgsto .gt. 0 ) then
-            ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits,       &
-                  idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
-                  ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1            &
-                  ,iextr2,iextr3)
-          endif
-
         else
           if(firstn.eq.-1) firstn=jn
           lastn=jn
@@ -1561,17 +1524,6 @@ CONTAINS
         enddo
       endif
 
-      if ( kulbgsto .gt. 0 ) then
-
-        do jlat = 1, nj_l
-          zgsig(1,jlat,1) = zgr(nj_l-jlat+1,1)
-        enddo
-
-        ierr = vfstecr(zgsig, zwork, -inbits, kulbgsto, idateo, ideet,  &
-               inpas, 1, nj_l, 1, 0, 0, ip3, 'E', clnomvar,               &
-               'STDDEV  ',clgrtyp,ig1, ig2, ig3, ig4, idatyp, .true.)
-
-      endif
     enddo
 
     !write(*,*)'DONE in RDSPSTD'
@@ -1619,6 +1571,17 @@ CONTAINS
 
     cletiket = 'SPSTDDEV'
     cltypvar = 'X'
+
+    ! check if file is old format
+    ip1=-1
+    clnomvar=varName3d(1)
+    ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+    write(*,*) 'ini,inj,ink=',inix,injx,inkx
+    if(inix.gt.1) then
+      write(*,*) 'BHI_RDSPSTD_NEWFMT: ini>1, SPSTDDEV is in old format, calling BHI_RDSPSTD...'
+      call bhi_rdspstd
+      return
+    endif
 
     !write(*,*) 'Reading 3D variables'
     do jvar = 1, inbrvar3d

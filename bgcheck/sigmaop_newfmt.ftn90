@@ -1,4 +1,4 @@
-      SUBROUTINE SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
+      SUBROUTINE SIGMAOP_NEWFMT(lcolumng,lcolumnhr,lobsSpaceData)
 
 !*Author  : P. Koklas CMDA/SMC
 !*
@@ -11,6 +11,7 @@
       IMPLICIT NONE
 
       type(struct_hco), pointer        :: hco_anl
+      type(struct_vco), pointer        :: vco_anl
       type(struct_obs)        :: lobsSpaceData
       type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
       type(struct_gsv)        :: statevector
@@ -26,18 +27,18 @@
       INTEGER VFSTLIR,FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
       INTEGER IKEY,ILEN,IERR,IDATE
 
-      REAL*8, allocatable :: ZBUFFER_M(:,:),ZBUFFER_T(:,:)
+      REAL*8, allocatable :: ZBUFFER(:)
       real*8, pointer     :: gz_column(:), tt_column(:), field_ptr(:,:,:)
 
       INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
       INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
 
-      !- Get the appropriate Horizontal Coordinate
+      !- Get the appropriate Horizontal and Vertical Coordinate
       hco_anl => hco_Get('Analysis')
+      vco_anl => col_getVco(lcolumng)
 
-      allocate(ZBUFFER_M(HCO_ANL % NJ,col_getNumLev(lcolumng,'MM')))
-      allocate(ZBUFFER_T(HCO_ANL % NJ,col_getNumLev(lcolumng,'TH')))
+      allocate(ZBUFFER(HCO_ANL % NJ))
 
       call gsv_setVco(statevector,col_getVco(lcolumng))
       call gsv_setHco(statevector,hco_anl)
@@ -65,7 +66,6 @@
       CLETIKET = 'STDDEV'
       write(*,*) 'sigmaop: CLETIKET = ',CLETIKET
       IDATE    = -1
-      IP1      = -1
       IP2      = -1
       IP3      = -1
       CLTYPVAR =' '
@@ -74,39 +74,30 @@
 !C
       CLNOMVAR = 'UU'
       write(*,*) CLNOMVAR 
-      IKEY = VFSTLIR(ZBUFFER_M,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      IERR = FSTPRM(IKEY,IDATEO,IDEET,INPAS   &
-           ,INI,INJ,INK, INBITS, IDATYP       &
-           ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
-           ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
-           ,IUBC,IEXTR1,IEXTR2,IEXTR3)
-      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG,'MM')) then
-         write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'MM')
-         if(ink.eq.1) then
-            write(*,*) 'STDDEV probably in new format, calling sigmaop_newfmt...'
-            call sigmaop_newfmt(lcolumng,lcolumnhr,lobsSpaceData)
-            call col_deallocate(lcolumn)
-            deallocate(ZBUFFER_M)
-            deallocate(ZBUFFER_T)
-            return
-         else
-            call abort3d('sigmaop')
-         endif
-      end if
-
       field_ptr => gsv_getField3D(statevector,'UU')       
-      DO J = 1, col_getNumLev(LCOLUMNG,'MM')
+      do j = 1,col_getNumLev(LCOLUMNG,'MM')
+         IP1 = vco_anl%ip1_M(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+         IERR = FSTPRM(IKEY,IDATEO,IDEET,INPAS   &
+              ,INI,INJ,INK, INBITS, IDATYP       &
+              ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
+              ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
+              ,IUBC,IEXTR1,IEXTR2,IEXTR3)
+         if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(CLNOMVAR)
+            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'MM')
+            stop
+         end if
          DO JLAT = 1, hco_anl % nJ
             DO JLON=1,hco_anl % nI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                endif
              END DO
           END DO
@@ -114,25 +105,26 @@
 
       CLNOMVAR = 'VV'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_M,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG,'MM')) then
-         write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'MM')
-         stop
-      end if
-
       field_ptr => gsv_getField3D(statevector,'VV')
-      DO J = 1, col_getNumLev(LCOLUMNG,'MM')
+      do j = 1,col_getNumLev(LCOLUMNG,'MM')
+         IP1 = vco_anl%ip1_M(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+         if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(CLNOMVAR)
+            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'MM')
+            stop
+         end if
+
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                endif
             END DO
          END DO
@@ -140,24 +132,25 @@
 
       CLNOMVAR = 'ES'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG,'TH')) then
-         write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
-         stop
-      end if
       field_ptr => gsv_getField3D(statevector,'HU')
       DO J = 1, col_getNumLev(LCOLUMNG,'TH')
+         IP1 = vco_anl%ip1_T(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+         if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(CLNOMVAR)
+            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
+            stop
+         end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)
                endif
             END DO
          END DO
@@ -166,24 +159,25 @@
       ! GZ is put into TT slot in gridStateVector
       CLNOMVAR = 'GZ'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG,'TH')) then
-         write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
-         stop
-      end if
       field_ptr => gsv_getField3D(statevector,'TT')
       DO J = 1, col_getNumLev(LCOLUMNG,'TH')
+         IP1 = vco_anl%ip1_T(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+         if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(CLNOMVAR)
+            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
+            stop
+         end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)*RG*10.d0
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)*RG*10.d0
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)*RG*10.d0
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)*RG*10.d0
                endif
             END DO
          END DO
@@ -222,24 +216,25 @@
 !C
       CLNOMVAR = 'TT'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG,'TH')) then
-         write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
-         stop
-      end if
       field_ptr => gsv_getField3D(statevector,'TT')
       DO J = 1, col_getNumLev(LCOLUMNG,'TH')
+         IP1 = vco_anl%ip1_T(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+         if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(CLNOMVAR)
+            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
+            stop
+         end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)
                endif
             END DO
          END DO
@@ -254,7 +249,8 @@
 !C
       CLNOMVAR = 'P0'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+      IP1 = -1
+      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
          write(*,*)
          write(*,*) 'sigmaop: Invalid dimensions for...'
@@ -269,9 +265,9 @@
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)*MPC_PA_PER_MBAR_R8
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)*MPC_PA_PER_MBAR_R8
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)*MPC_PA_PER_MBAR_R8
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)*MPC_PA_PER_MBAR_R8
                endif
             END DO
          END DO
@@ -279,15 +275,16 @@
 
       CLNOMVAR = 'UU'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_M,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'UU')
       DO J = 1, col_getNumLev(LCOLUMNG,'MM')
+         IP1 = vco_anl%ip1_M(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                endif
             END DO
          END DO
@@ -295,15 +292,16 @@
 
       CLNOMVAR = 'VV'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_M,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'VV')
       DO J = 1, col_getNumLev(LCOLUMNG,'MM')
+         IP1 = vco_anl%ip1_M(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_M(JLAT,J)*MPC_M_PER_S_PER_KNOT_R8
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)*MPC_M_PER_S_PER_KNOT_R8
                endif
             END DO
          END DO
@@ -311,15 +309,16 @@
 
       CLNOMVAR = 'TT'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'TT')
       DO J = 1, col_getNumLev(LCOLUMNG,'TH')
+         IP1 = vco_anl%ip1_T(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)
                endif
             END DO
          END DO
@@ -327,15 +326,16 @@
 
       CLNOMVAR = 'ES'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       field_ptr => gsv_getField3D(statevector,'HU')
       DO J = 1, col_getNumLev(LCOLUMNG,'TH')
+         IP1 = vco_anl%ip1_T(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)
                else
-                  field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)
+                  field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)
                endif
             END DO
          END DO
@@ -353,24 +353,25 @@
 !C
       CLNOMVAR = 'LQ'
       write(*,*) CLNOMVAR
-      IKEY = VFSTLIR(ZBUFFER_T,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= col_getNumLev(LCOLUMNG,'TH')) then
-         write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
-         stop
-      end if
       field_ptr => gsv_getField3D(statevector,'HU')
       DO J = 1, col_getNumLev(LCOLUMNG,'TH')
+         IP1 = vco_anl%ip1_T(j)
+         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
+         if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
+            write(*,*)
+            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'nomvar         =', trim(CLNOMVAR)
+            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+            write(*,*) 'Should be      =', 1, hco_anl % nj, col_getNumLev(LCOLUMNG,'TH')
+            stop
+         end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
                if(IG2 .eq. 0) then
-                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER_T(JLAT,J)
+                   field_ptr(JLON,J,INJ-JLAT+1) = ZBUFFER(JLAT)
                else
-                   field_ptr(JLON,J,JLAT) =       ZBUFFER_T(JLAT,J)
+                   field_ptr(JLON,J,JLAT) =       ZBUFFER(JLAT)
                endif
             END DO
          END DO
@@ -384,8 +385,7 @@
       CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
 
       call col_deallocate(lcolumn)
-      deallocate(ZBUFFER_M)
-      deallocate(ZBUFFER_T)
+      deallocate(ZBUFFER)
 
       RETURN
-      END SUBROUTINE SIGMAOP
+      END SUBROUTINE SIGMAOP_NEWFMT
