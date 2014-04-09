@@ -128,10 +128,17 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
 !          map burp satellite info to RTTOV-7 platform and satellite.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
      CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
-
+     if (IPLATFORM==-1) then
+        Write(*,*) "Unknown OBS_SAT !",IVAL
+        CALL ABORT3D('TOVS_SETUPALLO')
+     endif
 !    map burp instrument info to RTTOV-7 instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
      CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
+     if (INSTRUM==-1) then
+        Write(*,*) "Unknown OBS_INS !",IVAL
+        CALL ABORT3D('TOVS_SETUPALLO')
+     endif
 !    find sensor number for this obs.
      DO KRTID = 1, NSENSORS
         IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
@@ -141,9 +148,10 @@ SUBROUTINE TOVS_SETUPALLO(lobsSpaceData)
            GO TO 110
         ENDIF
      ENDDO
+     Write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
      WRITE(*,FMT=9101)
 9101 FORMAT(' TOVS_SETUPALLO: Invalid Sensor')
-     CALL ABORT3D('TOVS_SETUPALLO        ')
+     CALL ABORT3D('TOVS_SETUPALLO')
 
 110  lsensor(nobtov) = nosensor
      lobsno (nobtov) = index_header

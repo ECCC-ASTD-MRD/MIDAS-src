@@ -18,6 +18,7 @@ subroutine add_cloudprms(lobsSpaceData)
 
   character(len=256) :: BURP_SPLIT_VAR
   integer length_burp_split, ier
+  logical :: ldone=.false.
 
   ier = 0
   call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,ier,.true.)
@@ -37,7 +38,6 @@ subroutine add_cloudprms(lobsSpaceData)
 
       ! For AIRS data
       if( platform(krtid) .eq. 9 .and.  &
-          satellite(krtid) .eq. 2 .and.  &
           instrument(krtid) .eq. 11 ) then
         if(jfile == 1) then
           write(*,*) 'INPUT FILE TO AIRSABRP = ', cfilnam(jfile)
@@ -49,11 +49,13 @@ subroutine add_cloudprms(lobsSpaceData)
 
       ! For IASI data
       if( platform(krtid) .eq. 10 .and.  &
-          satellite(krtid) .eq. 2 .and.  &
           instrument(krtid) .eq. 16 ) then
         if(jfile == 1) then
-          write(*,*) 'INPUT FILE TO IASIABRP = ', cfilnam(jfile)
-          call iasiabrp(lobsspacedata,cfilnam(jfile))
+           if (.not. ldone) then 
+              write(*,*) 'INPUT FILE TO IASIABRP = ', cfilnam(jfile)
+              call iasiabrp(lobsspacedata,cfilnam(jfile))
+              ldone=.true.
+           endif
         else
           write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE IASI FILE ???'
         endif
@@ -61,11 +63,13 @@ subroutine add_cloudprms(lobsSpaceData)
 
       ! For CrIS data
       if( platform(krtid) .eq. 17 .and. &
-          satellite(krtid) .eq. 0 .and. &
           instrument(krtid) .eq. 27 ) then
         if(jfile == 1) then
-          write(*,*) 'INPUT FILE TO CRISABRP = ', cfilnam(jfile)
-          call crisabrp(lobsspacedata,cfilnam(jfile))
+           if (.not. ldone) then 
+              write(*,*) 'INPUT FILE TO CRISABRP = ', cfilnam(jfile)
+              call crisabrp(lobsspacedata,cfilnam(jfile))
+              ldone=.true.
+           endif
         else
           write(*,*) 'ERROR! THERE SEEM TO BE MORE THAN ONE CRIS FILE ???'
         endif

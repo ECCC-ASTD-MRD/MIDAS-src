@@ -1,4 +1,4 @@
- !-------------------------------------- LICENCE BEGIN ------------------------------------
+  !-------------------------------------- LICENCE BEGIN ------------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -131,9 +131,6 @@ C
             allocate(LISTBURP(MXSATBURP))
             allocate(LISTSAT(MXSATBURP))
             allocate(LISTPLAT(MXSATBURP))
-            LISTBURP=-1
-            LISTPLAT=-1
-            LISTSAT=-1
             READ(NULNAM,NAMSAT,iostat=ier)
             IF (IER/=0) then
                Write(*,*) "2Error while reading namelist file !"

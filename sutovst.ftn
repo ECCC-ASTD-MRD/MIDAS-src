@@ -321,18 +321,15 @@ C
       IF ( NCONF .EQ. 101 ) THEN
          DO JM= 1, INUMSAT
             IF ( IPLATFORM(JM) .EQ. 9 .AND. 
-     &           ISATID(JM) .EQ. 2 .AND. 
      &           IINSTRUMENT(JM) .EQ. 11 ) THEN
 
                call hir_set_assim_chan("AIRS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
             END IF
             IF ( IPLATFORM(JM) .EQ. 10 .AND. 
-     &           ISATID(JM) .EQ.  2 .AND. 
      &           IINSTRUMENT(JM) .EQ. 16 ) THEN
                call hir_set_assim_chan("IASI",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
             END IF
             IF ( IPLATFORM(JM) .EQ. 17 .AND. 
-     &           ISATID(JM) .EQ.  0 .AND. 
      &           IINSTRUMENT(JM) .EQ. 27 ) THEN
                call hir_set_assim_chan("CRIS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
             END IF
