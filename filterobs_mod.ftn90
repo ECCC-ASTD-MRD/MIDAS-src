@@ -21,9 +21,38 @@ module filterObs_mod
   integer filt_nelems,filt_nlist(30)
   integer filt_nflags,filt_nlistflg(15)
   logical ltopofilt
-  real*8 filt_rlimlvhu
+  real(8) :: filt_rlimlvhu
+
+  ! topographic rejection criteria
+  integer, parameter :: numElem = 16
+  real(8)            :: heightCrit(numElem) =   & ! in Metres
+                                   (/     50.d0,     50.d0,     50.d0,     50.d0,     50.d0,    800.d0,    800.d0,  &
+                                         800.d0,    800.D0,   1000.d0,     50.D0,     50.D0,     50.D0,     50.D0,  &
+                                          50.D0,     50.D0 /)
+  integer, parameter :: elemList(numElem) =  &
+                                   (/ BUFR_NEDS, BUFR_NEFS, BUFR_NEUS, BUFR_NEVS, BUFR_NESS, BUFR_NETS, BUFR_NEPS, &
+                                      BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
+                                      BUFR_NEES, BUFR_NETT /)
+  real(8) :: bndryCritPres   = 5000.0D0  ! in Pascals
+  real(8) :: bndryCritHeight =  400.0D0  ! in Metres
 
 contains
+
+  function findElemIndex(varNum) result(listIndex)
+    implicit none
+    integer :: varNum, listIndex, elemIndex
+
+    listIndex = -1
+    do elemIndex=1,numElem
+      if(varNum.eq.elemList(elemIndex)) listIndex = elemIndex
+    enddo
+    
+    if(listIndex.eq.-1) then
+      write(*,*) 'filterobs_mod-findElemIndex: WARNING: varNum value not found: ',varNum
+    endif
+
+  end function findElemIndex
+
 
   subroutine filt_setup
 
@@ -33,7 +62,7 @@ contains
     integer :: fnom,fclos
     integer nelems,nlist(30)
     integer nflags,nlistflg(15)
-    real*8 rlimlvhu
+    real(8) :: rlimlvhu
     character(len=35) :: CREASON(-8:13)
     data creason/'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
                  'ABS OROGRAPH-PHI                  ', &
@@ -83,8 +112,7 @@ contains
     nlistflg(6)=12
 
     ltopofilt = .true.
-
-    filt_rlimlvhu = 300.d0
+    rlimlvhu = 300.d0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -134,62 +162,55 @@ contains
   end subroutine filt_setup
 
 
-  subroutine filt_suprep(lobsSpaceData)
-!
-!s/r SUPREP -FILTER obsSpaceData BEFORE 3D-VAR ANALYSIS
-!
-!Author  : P. Koclas *CMC/AES  September 1994
-!
-!*    Purpose:
-!             -Select the data in the CMA file which is to be assimilated
-!              by the 3D-var.
-!
-    IMPLICIT NONE
-    type(struct_obs) :: lobsSpaceData
+  subroutine filt_suprep(obsSpaceData)
+    !
+    !Author  : P. Koclas *CMC/AES  September 1994
+    !
+    !*    Purpose: Select the data in the obsSpaceData which are to be assimilated
+    !
+    implicit none
+    type(struct_obs) :: obsSpaceData
     integer, parameter :: numFamily = 9
-    INTEGER INDEX_BODY,INDEX_HEADER
-    INTEGER IPRES,IVCO,IERR,JD
-    INTEGER IJ,IDBURP,ITYP,IFLG,IBAD,IKNT
-    INTEGER IDATA,IDATEND
-    INTEGER ILANSEA
-    LOGICAL LLOK,LLREJ,LLBOGUS
+    integer bodyIndex,headerIndex
+    integer ipres,ivco,ierr,loopIndex
+    integer ij,idburp,ivnm,iflg,ibad,iknt
+    integer idata,idatend
+    integer ilansea
+    logical llok,llrej,llbogus
 
-    if(mpi_myid.eq.0) WRITE(*,*) 'starting subroutine filt_suprep'
+    if(mpi_myid.eq.0) write(*,*) 'starting subroutine filt_suprep'
 
     !
     ! Set the header index in the body of obsSpaceData
     !
-    IJ=0
-    DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
-      IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-      IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-      DO INDEX_BODY= IDATA, IDATEND
-        IJ   = IJ+1
-        call obs_bodySet_i(lobsSpaceData,OBS_HIND,IJ, INDEX_HEADER)
-      ENDDO
-    ENDDO
+    ij=0
+    do headerIndex = 1, obs_numheader(obsSpaceData)
+      idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
+      do bodyIndex= idata, idatend
+        ij   = ij+1
+        call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
+      enddo
+    enddo
 
-    IKNT=0
+    iknt=0
 
-    BODY: do index_body=1,obs_numbody(lobsSpaceData)
-      INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-      ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-      IFLG = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
-      IPRES= NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-      IVCO = obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY)
-      IDBURP=obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+    BODY: do bodyIndex=1,obs_numbody(obsSpaceData)
+      headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+      ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+      idburp=obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       !
       ! Unwanted data types via types specified in NLIST
       !
-      LLOK = .FALSE.
-      LLBOGUS=( IDBURP.eq.150 .or. IDBURP.eq.151 .or. IDBURP.eq.152 .or. IDBURP.eq.153 )
-      DO JD =1,FILT_NELEMS
-        LLOK=( ITYP .EQ. FILT_NLIST(JD) )  .OR. LLOK
-      ENDDO
+      llok = .false.
+      do loopIndex =1,filt_nelems
+        llok=( ivnm.eq.filt_nlist(loopIndex) ) .or. llok
+      enddo
       !
-      ! ALLOW GZ FOR BOGUS DATA ONLY in analysis case 
+      ! Allow gz for bogus data only in analysis case 
       !
-      if  ( top_AnalysisMode() .and. llok .and. ityp.eq.BUFR_negz .and. .not.llbogus ) then
+      llbogus=( idburp.eq.150 .or. idburp.eq.151 .or. idburp.eq.152 .or. idburp.eq.153 )
+      if  ( top_AnalysisMode() .and. llok .and. ivnm.eq.BUFR_NEGZ .and. .not.llbogus ) then
         llok=.false.
       endif
       !
@@ -198,72 +219,70 @@ contains
       ! If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
       ! Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
       !
-      IF ( IDBURP .EQ. 189 ) THEN
-        IF (.NOT.LASSMET .AND. (ITYP .EQ. BUFR_NEPS .OR.  &
-            ITYP .EQ. BUFR_NETS .OR. ITYP .EQ. BUFR_NESS)) THEN
-          LLOK = .FALSE.
-        ENDIF
-      ENDIF
+      if ( idburp .eq. 189 ) then
+        if (.not.lassmet .and. (ivnm .eq. BUFR_NEPS .or.  &
+                                ivnm .eq. BUFR_NETS .or.  &
+                                ivnm .eq. BUFR_NESS)) then
+          llok = .false.
+        endif
+      endif
       !
       ! Exclude T-Td above level RLIMLVHU (mbs)
       !
-      IF ( (IVCO .EQ. 2) .AND. (ITYP .EQ. BUFR_NEES) .AND.  &
-           (IPRES .LT. NINT(FILT_RLIMLVHU*100)) ) THEN
-        LLOK=.FALSE.
-      ENDIF
+      ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+      ipres= nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+      if ( (ivco .eq. 2) .and. (ivnm .eq. BUFR_NEES) .and.  &
+           (ipres .lt. nint(filt_rlimlvhu*100.0d0)) ) then
+        llok=.false.
+      endif
       !
       ! Bad data with quality control flags via bit list specified in NLISTFLG
       !
-      LLREJ = .FALSE.
-      DO JD=1,FILT_NFLAGS
-        IBAD= 13-FILT_NLISTFLG(JD)
-        LLREJ=( BTEST(IFLG,IBAD) ) .OR. LLREJ
-      ENDDO
+      iflg = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex)
+      llrej = .false.
+      do loopIndex=1,filt_nflags
+        ibad= 13-filt_nlistflg(loopIndex)
+        llrej=( btest(iflg,ibad) ) .or. llrej
+      enddo
       !
-      ! Filter TOVS data
+      ! Filter TOVS data: check for invalid land/sea/sea-ice flag
       !
-      ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-      IF ( ITYP .EQ. BUFR_NBT1 .OR. ITYP .EQ. BUFR_NBT2 .OR. &
-           ITYP .EQ. BUFR_NBT3 .AND. tvs_Is_idburp_tovs(IDBURP) ) THEN
-        !
-        ! Invalid land/sea/sea-ice flag
-        !
-        ILANSEA  = obs_headElem_i(lobsSpaceData,OBS_OFL,INDEX_HEADER)
-        IF (ILANSEA .LT. 0 .OR. ILANSEA .GT. 2  ) THEN
-          LLOK = .FALSE.
-        ENDIF
+      if ( tvs_Is_idburp_tovs(idburp) .and. (ivnm .eq. BUFR_NBT1 .or.   &
+                                             ivnm .eq. BUFR_NBT2 .or.   &
+                                             ivnm .eq. BUFR_NBT3) ) then
+        ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
+        if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
+          llok = .false.
+        endif
+      endif
 
-      ENDIF
+      if (llok .and. .not.llrej) then
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
+        iknt= iknt + 1
+      else
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+      endif
 
-      IF (LLOK .AND. .NOT. LLREJ) THEN
-        call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,1)
-        IKNT= IKNT + 1
-      ELSE
-        call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-      ENDIF
-
-    ENDDO BODY
+    enddo body
 
     call rpn_comm_allreduce(iknt,iknt,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    if(mpi_myid.eq.0) WRITE(*,*) '  Number of data assimilated by 3d-var:',IKNT
+    if(mpi_myid.eq.0) write(*,*) '  Number of data to be assimilated:',iknt
 
-    if(mpi_myid.eq.0) WRITE(*,*) 'end of filt_suprep'
+    if(mpi_myid.eq.0) write(*,*) 'end of filt_suprep'
 
-    ! ABORT IF THERE IS NO DATA TO BE ASSIMILATED
-    IF (IKNT.EQ.0 ) THEN
+    ! abort if there is no data to be assimilated
+    if (iknt.eq.0 ) then
       call abort3d('SUPREP. NO DATA TO BE ASSIMILATED')
-    ENDIF
+    endif
 
   end subroutine filt_suprep
 
 
-  subroutine filt_topo(lcolumnhr,lobsSpaceData)
+  subroutine filt_topo(columnhr,obsSpaceData)
     implicit none
 
-    type(struct_columnData) :: lcolumnhr
-    type(struct_obs) :: lobsSpaceData
-
-    integer :: index_header, index_body
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
 
     if (ltopofilt) then
       if(mpi_myid.eq.0) write(*,*)' *****************************************'
@@ -272,11 +291,11 @@ contains
       if(mpi_myid.eq.0) write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
       if(mpi_myid.eq.0) write(*,*)' *                                       *'
       if(mpi_myid.eq.0) write(*,*)' *****************************************'
-      CALL filt_toposfc(lcolumnhr,lobsSpaceData)
-      CALL filt_toporaob(lcolumnhr,lobsSpaceData)
-      CALL filt_topoaisw(lcolumnhr,lobsSpaceData)
-      CALL filt_topoprof(lcolumnhr,lobsSpaceData)
-      CALL filt_topocsbt(lcolumnhr,lobsSpaceData)
+      call filt_toposfc(columnhr,obsSpaceData)
+      call filt_toporaob(columnhr,obsSpaceData)
+      call filt_topoaisw(columnhr,obsSpaceData)
+      call filt_topoprof(columnhr,obsSpaceData)
+      call filt_topocsbt(columnhr,obsSpaceData)
     else
       if(mpi_myid.eq.0) write(*,*)' *****************************************'
       if(mpi_myid.eq.0) write(*,*)' *    filt_topo:                         *'
@@ -288,926 +307,596 @@ contains
   end subroutine filt_topo
 
 
-      SUBROUTINE filt_topoSFC(lcolumnhr,lobsSpaceData)
-!*
-!***s/r  filt_topoSFC
-!*
-!*Author  : P. Koclas *CMC/AES  October  1998
-!*
-!**    Purpose:
-!*      Refuse elements which are too far away from the surface.
-!*      Replace the pressure of elements which are slightly below
-!*      the model surface by the pressure of the trial field.
-!*
-      implicit none
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
+  subroutine filt_topoSfc(columnhr,obsSpaceData)
+    !
+    ! Author  : P. Koclas *CMC/AES  October  1998
+    !
+    ! Purpose: Refuse elements which are too far away from the surface.
+    !          Replace the pressure of elements which are slightly below
+    !          the model surface by the pressure of the trial field.
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
 
-      integer :: index_header, index_body
-      INTEGER JPINEL
-      PARAMETER(JPINEL=10)
-      INTEGER J,JD,JID,JDATA,IBAD,IFLG
-      LOGICAL LLREJ, LLPRINT, LLOK
-      REAL(8) :: ZVAL,ZLEV,ZLEV2,ZDIFF,ZHHH,ZMODEL
-      INTEGER ITYP,IDBURP
-      INTEGER ILEM,ICRIT
-      INTEGER ILISTEL(JPINEL)
-      INTEGER IKOUNTREA(JPINEL),IKOUNTREJ(JPINEL),IKOUNTT
-      REAL(8) :: RLISTCRIT(JPINEL)
+    logical :: llok
+    real(8) :: zdiff
+    integer :: headerIndex, bodyIndex, familyIndex, elemIndex
+    integer :: ivnm,countAssim
+    integer :: countAcc(numElem),countRej(numElem)
+    integer, parameter :: numFamily = 3
+    character(len=2) :: list_family(numFamily)
 
-      character(len=2), dimension(3) :: list_family
-      integer :: index_family
+!    data rlistcrit/50.d0, 50.d0, 50.d0, 50.d0, 50.d0, 800.d0, 800.d0, 800.d0, 800.d0, 1000.d0 /
+    !
+    ! reset dzmax for gb gps ztd to value in namelist file
+    !
+    heightCrit(findElemIndex(BUFR_NEZD)) = dzmax
 
-      DATA    RLISTCRIT/50.D0, 50.D0, 50.D0, 50.D0, 50.D0, 800.D0, 800.D0, 800.D0, 800.D0, 1000.D0 /
-!C
-!C
-!C     RESET DZMAX FOR GB GPS ZTD TO VALUE IN NAMELIST FILE
-!C
-      RLISTCRIT(10) = DZMAX
+!    ilistel(1)=BUFR_NEDS
+!    ilistel(2)=BUFR_NEFS
+!    ilistel(3)=BUFR_NEUS
+!    ilistel(4)=BUFR_NEVS
+!    ilistel(5)=BUFR_NESS
+!    ilistel(6)=BUFR_NETS
+!    ilistel(7)=BUFR_NEPS
+!    ilistel(8)=BUFR_NEPN
+!    ilistel(9)=BUFR_NEGZ
+!    ilistel(10)=BUFR_NEZD
 
-      ILISTEL(1)=BUFR_NEDS
-      ILISTEL(2)=BUFR_NEFS
-      ILISTEL(3)=BUFR_NEUS
-      ILISTEL(4)=BUFR_NEVS
-      ILISTEL(5)=BUFR_NESS
-      ILISTEL(6)=BUFR_NETS
-      ILISTEL(7)=BUFR_NEPS
-      ILISTEL(8)=BUFR_NEPN
-      ILISTEL(9)=BUFR_NEGZ
-      ILISTEL(10)=BUFR_NEZD
+    write(*,*) ' '
+    write(*,*) ' SUBROUTINE filt_topoSFC '
+    write(*,*) ' '
+    write(*,*) '*****************************************************'
+    write(*,222) 'ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
+    write(*,223) 'REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+    write(*,*) '*****************************************************'
+    write(*,*) ' '
 
-      WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE filt_topoSFC '
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '*****************************************************'
-      WRITE(*,222)'ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(*,223)'REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
-      WRITE(*,* ) '*****************************************************'
-      WRITE(*,* ) ' '
-      LLPRINT = .FALSE.
-      !
-      ! Loop over the families of interest
-      !
-      list_family(1) = 'SF'
-      list_family(2) = 'UA'
-      list_family(3) = 'GP'
-      FAMILY: do index_family = 1,3
+    ! Loop over the families of interest
+    list_family(1) = 'SF'
+    list_family(2) = 'UA'
+    list_family(3) = 'GP'
+    FAMILY: do familyIndex = 1, numFamily
 
-!C       SET COUNTERS TO ZERO
-         IKOUNTREJ(:)=0
-         IKOUNTREA(:)=0
-         !
-         ! loop over all header indices of each family
-         !
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_header_list(lobsSpaceData, &
-                                          list_family(index_family))
-         HEADER: do
-            index_header = obs_getHeaderIndex(lobsSpaceData)
-            if (index_header < 0) exit HEADER
+      ! set counters to zero
+      countRej(:)=0
+      countAcc(:)=0
 
-            ! loop over all body indices (still in the same family)
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-            call obs_set_current_body_list(lobsSpaceData, index_header)
-            BODY: do 
-               index_body = obs_getBodyIndex(lobsSpaceData)
-               if (index_body < 0) exit BODY
-
-               LLOK = obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1
-               IF (.not. LLOK) THEN
-                  cycle BODY ! Proceed to the next index_body
-               end if
-
-               IFLG     = obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
-               ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               IDBURP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-               ZDIFF=99999.D0
-
-               IF ( (ITYP .eq. BUFR_NEGZ)  ) THEN
-                  LLREJ = .FALSE.
-                  IF ( .NOT. LLREJ ) THEN
-                     ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-                     ZDIFF= ABS( ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'), &
-                                                     INDEX_HEADER,'MM') &
-                                 )/RG )
-                     ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                  ENDIF
-
-               ELSE
-                  ZHHH=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                  ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                  ZDIFF= ABS( ZHHH- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') &
-                                    /RG )
-                  ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-               ENDIF
-
-               ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-               ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               ZLEV2=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!C
-!C                APPLY FILTER TO SELECTED ELEMENTS
-!C
-               FILTER: DO J=1,JPINEL
-                  ICRIT=RLISTCRIT(J)
-                  ILEM=ILISTEL(J)
-                  IF (ZLEV .EQ. ZLEV2 .AND. ITYP .EQ. ILEM ) THEN
-                    ZDIF: IF ( ZDIFF .LE. ICRIT) THEN
-                      IF (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)THEN
-                        IKOUNTREA(J)=IKOUNTREA(J)+1
-                        IF(LLPRINT) THEN
-                          ZMODEL =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-                          write(*,*)'Keep OBS:stnid,index_header,ityp,',&
-                               'icrit,zlev,zhhh,zmodel,zdiff ', &
-                               obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)&
-                               ,INDEX_HEADER,ITYP,ICRIT,zlev,zhhh,zmodel,zdiff
-                        ENDIF
-                      ENDIF
-                    ELSE
-                      ASSIMILATED: IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS, &
-                                                   INDEX_BODY) &
-                                        .EQ. 1) THEN
-                        call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                                       ibset(obs_bodyElem_i(lobsSpaceData, &
-                                                        OBS_FLG,INDEX_BODY), &
-                                             18 ) &
-                                      )
-                        IF(LLPRINT) THEN
-                          WRITE(*,225) 'Reject OBS ',INDEX_HEADER,ITYP, &
-                              obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),&
-                              IDBURP,  &
-                              obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER),&
-                              obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-                        ENDIF
-                        call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-                        IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                      ENDIF ASSIMILATED
-                    ENDIF ZDIF
-                  ENDIF
-               ENDDO FILTER
-            ENDDO BODY
-         ENDDO HEADER
-
-         WRITE(*,* ) ' '
-         WRITE(*,* ) '*****************************************************'
-         WRITE(*,*) 'FAMILY = ',list_family(index_family)
-         WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-         WRITE(*,222)'ACCEPTED  ',(IKOUNTREA(J),J=1,JPINEL)
-         WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-         WRITE(*,* ) '*****************************************************'
-         WRITE(*,* ) ' '
-  222    FORMAT(2x,a29,10(2x,i5))
-  223    FORMAT(2x,a29,10(2x,f5.0))
-  225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,4(2x,f9.2))
-
-      ENDDO FAMILY
-
-      IKOUNTT=0
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      ENDDO
-      WRITE(*,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS: ",i10)') IKOUNTT
-      WRITE(*,* ) ' '
-
-      RETURN
-      END subroutine filt_toposfc
-
-
-      SUBROUTINE filt_topoRAOB(lcolumnhr,lobsSpaceData)
-!*
-!***s/r  filt_topoRAOB
-!*
-!*Author  : P. Koclas *CMC/AES  October  1998
-!*
-!**    Purpose:
-!*      Refuse elements which are too far away from the surface of the model
-!*      Refuse elements which are considered in the free atmosphere of
-!*      the RAOB but fall in the surface boundary layer of the model atmosphere.
-!*
-      implicit none
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
-
-      integer :: index_header, index_body
-      INTEGER JPINEL,JPRANGE
-      PARAMETER(JPINEL=7,JPRANGE=10)
-      INTEGER IJ,J,JD,JDATA,IFLG
-      LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
-      REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
-      REAL*8 ZLAT,ZLON,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
-      INTEGER ITYP,IASS,ICOUNT
-      INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
-      INTEGER ILEM,IELGZ
-      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL)
-      INTEGER ITOTACC(JPINEL),ITOTREJ(JPINEL),IKOUNTT
-      INTEGER ISFCACC(JPINEL),ISFCREJ(JPINEL),ISBLREJ(JPINEL)
-      INTEGER IGZACC(JPINEL),IGZREJ(JPINEL),IBNDREJ(JPINEL)
-      INTEGER INEARACC(JPINEL),IRANGE(JPRANGE)
-      REAL*8    ZLMINF(JPRANGE),ZLMSUP(JPRANGE),ZDIFGZ
-      REAL*8    RLISTCRIT(JPINEL),RSBLCRIT(JPINEL),JPMAX(JPINEL)
-      LOGICAL LLPRINT,LLOK
-
-      DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
-      DATA    RSBLCRIT /5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0 /
-      DATA    ZLMINF /-9999.D0,-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0/
-      DATA    ZLMSUP /-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0,9999.D0/
-      ILISTEL(1)=BUFR_NEDD
-      ILISTEL(2)=BUFR_NEFF
-      ILISTEL(3)=BUFR_NEUU
-      ILISTEL(4)=BUFR_NEVV
-      ILISTEL(5)=BUFR_NEES
-      ILISTEL(6)=BUFR_NETT
-      ILISTEL(7)=BUFR_NEGZ
-
-      LLPRINT = .FALSE.
-
-      WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE filt_topoRAOB '
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '************************************************'
-      WRITE(*,222)' ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(*,223)' REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
-      WRITE(*,223)' REJECTION SBL (PASCAL) ',(RSBLCRIT(J),J=1,jpinel)
-      WRITE(*,* ) '************************************************'
-      WRITE(*,* ) ' '
-      IELGZ =  ILISTEL(JPINEL)
-!C
-!C     SET COUNTERS TO ZERO
-!C
-      DO J=1,JPRANGE
-         IRANGE(J) = 0
-      ENDDO
-      DO J=1,JPINEL
-         ITOTREJ(J)=0
-         ITOTACC(J)=0
-         ISFCACC(J)=0
-         INEARACC(J)=0
-         ISFCREJ(J)=0
-         ISBLREJ(J)=0
-         IGZACC(J)=0
-         IGZREJ(J)=0
-         IBNDREJ(J)=0
-      ENDDO
-      IKOUNTT=0
-      ICOUNT   =0
-      ICOUNTAL =0
-      ICOUNTAH =0
-      ICOUNTBL =0
-      ICOUNTBH =0
-
-      !
-      ! loop over all header indices of the 'UA' family
-      !
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-      call obs_set_current_header_list(lobsSpaceData, 'UA')
+      ! loop over all header indices of each family
+      call obs_set_current_header_list(obsSpaceData, &
+                                       list_family(familyIndex))
       HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER
 
-         ZLAT=obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-         ZLON=obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-         ZSTNALT=obs_headElem_r(lobsSpaceData,OBS_ALT,INDEX_HEADER)
-         ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-         DO J=1,JPINEL
-            LLALTOK(J) = .FALSE.
-            IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
-         ENDDO
-!C
-!C--------HEIGHT GZ
-         !
-         ! loop over all body indices (still in the 'UA' family)
-         !
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
+        ! loop over all body indices (still in the same family)
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY: do 
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
 
-            ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-            IASS=obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
+          ! skip this obs if it is not on height levels
+          if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.1) cycle BODY
 
-            LLOK = obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2  &
-                   .AND. ITYP.EQ.ILISTEL(JPINEL) .AND. IASS.EQ.1
-            IF (.not. LLOK )  THEN
-               cycle BODY ! Proceed with the next index_body
-            end if
+          ! skip this obs if already flagged to not be assimilated
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
 
-            IKOUNTT=IKOUNTT+1
-            IFLG= obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
-            ITYP= obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-            ZDIFF=99999.D0
-            ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-            IASS=obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
-            ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-            ZDIFF= ( ZVAL-col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM') )/RG
-            ZCRIT= -RLISTCRIT(JPINEL)
-            IF ( ZDIFF .LT. 0.0D0 ) THEN
-               ZDIF: IF(ZDIFF .GE. ZCRIT) THEN
-                  ITOTACC(JPINEL)=ITOTACC(JPINEL)+1
-                  IGZACC(JPINEL)=IGZACC(JPINEL)+1
-                  IF(LLPRINT) THEN
-                     WRITE(*,*) 'Keep GZ BELOW MODEL SFC '  &
-                           ,INDEX_HEADER,ITYP &
-                           ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) &
-                           ,ZLAT,ZLON,ZLEV,ZVAL/RG  &
-                           ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
-                           ,ZDIFF,ZCRIT
-                  ENDIF
-               ELSE
-                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) THEN
-                     call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                           ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 18 ))
-                     IF(LLPRINT) THEN
-                        WRITE(*,*)'REJ GZ BELOW MODEL SFC '  &
-                         ,INDEX_HEADER,ITYP &
-                         ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)  &
-                         ,ZLAT,ZLON,ZLEV,ZVAL/RG &
-                         ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
-                         ,ZDIFF,ZCRIT
-                     ENDIF
-                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-                     ITOTREJ(JPINEL)=ITOTREJ(JPINEL)+1
-                     IGZREJ(JPINEL)=IGZREJ(JPINEL)+1
-                  ENDIF
-               ENDIF ZDIF
-            ENDIF
-         ENDDO BODY
-!C
-!C       REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
-!C       AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
-!C       BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
-!C       AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
-!C       ATMOSPHERE
-!C
-!C
-!C--------------Special case if station elevation is above model elevation
-!C              we want to define zpt at a level above the station.
-!C              To approximate that value, we will transform the difference
-!C              between the 2 elevations into a difference in pressure using
-!C              the rule of thumb (1Mb =8 metres)
-!C--------------Even though TT(element=12001) is not assimmilated
-!C              it is treated as if it were for the evaluation step.
-!C              Otherwise we use observations of TT that are too far
-!C              from the model topography in the verification.
+          ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+          zdiff= abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
+                      col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG )
+          !
+          ! apply filter to selected elements
+          !
+          elemIndex = findElemIndex(ivnm)
+          if (zdiff.le.heightCrit(elemIndex)) then
+            ! obs passes the acceptance criteria
+            if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
+              countAcc(elemIndex) = countAcc(elemIndex)+1
+            endif
+          else
+            ! obs does not pass the acceptance criteria, reject it
+            if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
+              call obs_bodySet_i( obsSpaceData,OBS_FLG,bodyIndex,  &
+                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18) )
+              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+              countRej(elemIndex) = countRej(elemIndex)+1
+            endif
+          endif
+        enddo BODY
+      enddo HEADER
 
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY2: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY2
+      write(*,*) ' '
+      write(*,*) '*****************************************************'
+      write(*,*) 'FAMILY = ',list_family(familyIndex)
+      write(*,222) 'ELEMENTS            ', (elemList(elemIndex),elemIndex=1,numElem)
+      write(*,222) 'ACCEPTED  ',(countAcc(elemIndex),elemIndex=1,numElem)
+      write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
+      write(*,*) '*****************************************************'
+      write(*,*) ' '
+  222 format(2x,a29,16(2x,i5))
+  223 format(2x,a29,16(2x,f5.0))
 
-            ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-            IJ = -1
-            DO J=1,JPINEL-1
-               IF(ITYP.EQ.ILISTEL(J))IJ = J
-            ENDDO
-            LLOK = obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2  &
-                  .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
-            IF (LLOK )  THEN
-               ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-               ZPB =col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-               ZPT =ZPB-RSBLCRIT(IJ)
-               ZDELP = 999999.0D0
-               IF (ZDIFALT .GT. 0.0D0) THEN
-                  ZDELP = ZDIFALT * 100.D0 / 8.0D0
-                  ZPT   = ZPB-(ZDELP+RSBLCRIT(IJ))
-               ENDIF
-               IF(LLALTOK(IJ)) THEN
-!C--------------------Model surface and station altitude are very close
-!C              Accept observation if zlev is within the domain
-!C              of the trial field
-                 ZPB = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
-                 ZPT = col_getPressure(LCOLUMNHR,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')
-                 IF(LLPRINT) THEN
-                   WRITE(*,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
-                       ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
-                       ,ZLON,ZLEV,ZPB,ZPT,ZDIFALT
-                 ENDIF
-               ENDIF
-               IF(ZLEV .GT. ZPB ) THEN
-                  call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                              ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),&
-                                    18 ))
-                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-                  IF(LLPRINT) THEN
-                     WRITE(*,*) 'Rej Obs below model sfc '  &
-                          ,INDEX_HEADER,ITYP &
-                          ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
-                          ,ZLON,ZLEV,ZPB
-                  ENDIF
-                  call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-                  ITOTREJ(IJ)=ITOTREJ(IJ)+1
-                  IBNDREJ(IJ)=IBNDREJ(IJ)+1
-               ELSEIF(ZLEV.LE.ZPB .AND. ZLEV.GT.ZPT ) THEN
-                  call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                       ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 18 ))
-                  ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-                  IF(LLPRINT) THEN
-                     WRITE(*,*) ' REJ SBL ITYP,DALT ',ITYP,ZDIFALT
-                     WRITE(*,*) 'Reject LEV IN SBL LYR '  &
-                          ,INDEX_HEADER,ITYP,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV  &
-                          ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
-                  ENDIF
-                  call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-                  ITOTREJ(IJ)=ITOTREJ(IJ)+1
-                  ISBLREJ(IJ)=ISBLREJ(IJ)+1
-               ENDIF
-            ENDIF
-         ENDDO BODY2
-      ENDDO HEADER
+    enddo FAMILY
 
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '***************************************'
-      WRITE(*,*) 'FAMILY = UA'
-      WRITE(*,222)' ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(*,222)' ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
-      WRITE(*,222)' ACC GZ EXT  ',(IGZACC(J),J=1,JPINEL)
-      WRITE(*,222)' ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
-      WRITE(*,* ) '***************'
-      WRITE(*,222)' REJ GZ EXT  ',(IGZREJ(J),J=1,JPINEL)
-      WRITE(*,222)' REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
-      WRITE(*,222)' REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
-      WRITE(*,222)' REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
-      WRITE(*,* ) '***************************************'
-      WRITE(*,* ) ' '
- 222  FORMAT(2x,a29,7(2x,i5))
- 223  FORMAT(2x,a29,7(2x,f6.0))
+    countAssim=0
+    do bodyIndex=1,obs_numbody(obsSpaceData)
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
+    enddo
+    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS: ",i10)') countAssim
+    write(*,* ) ' '
 
-      IKOUNTT=0
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      ENDDO
-      WRITE(*,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
-      WRITE(*,* ) ' '
-
-      RETURN
-      END subroutine filt_toporaob
+  end subroutine filt_toposfc
 
 
-      SUBROUTINE filt_topoAISW(lcolumnhr,lobsSpaceData)
-!*
-!***s/r  filt_topoAISW
-!*
-!*Author  : R. Sarrazin *CMC/AES  February 2000
-!*
-!**    Purpose:
-!*      Refuse elements which are too close to the surface.
-!*
-      implicit none
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
+  subroutine filt_topoRaob(columnhr,obsSpaceData)
+    !
+    ! Author  : P. Koclas *CMC/AES  October  1998
+    !
+    ! Purpose: Refuse elements which are too far away from the surface of the model
+    !          Refuse elements which are considered in the free atmosphere of
+    !          the RAOB but fall in the surface boundary layer of the model atmosphere.
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
 
-      integer :: index_header, index_body
-      INTEGER JPINEL
-      PARAMETER(JPINEL=4)
-      INTEGER J,JDATA
-      LOGICAL LLPRINT
-      REAL*8 ZVAL,ZDIFF
-      INTEGER ITYP
-      INTEGER ILEM
-      INTEGER IKOUNTREJ(JPINEL),IKOUNTT
-      INTEGER ILISTEL(JPINEL)
-      DATA    ILISTEL/11003,11004,12001,12192/
-      REAL*8    RLISTCRIT
-      character(len=2), dimension(2) :: list_family
-      integer :: index_family
+    integer :: headerIndex, bodyIndex, listIndex, elemIndex
+    integer :: ivnm, iass, countAssim
+    integer :: itotacc(numElem), itotrej(numElem), isblrej(numElem)
+    integer :: igzacc(numElem), igzrej(numElem), ibndrej(numElem)
+    real(8) :: zval, zlev, zdiff, zdifalt
+    real(8) :: zStnAlt, zpb, zpt, zdelp
+    logical :: llok
 
-      DATA    RLISTCRIT/-50.D0/
+!    DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
+!    DATA    RSBLCRIT /5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0 /
+!    ILISTEL(1)=BUFR_NEDD
+!    ILISTEL(2)=BUFR_NEFF
+!    ILISTEL(3)=BUFR_NEUU
+!    ILISTEL(4)=BUFR_NEVV
+!    ILISTEL(5)=BUFR_NEES
+!    ILISTEL(6)=BUFR_NETT
+!    ILISTEL(7)=BUFR_NEGZ
 
-      WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE filt_topoAISW '
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '****************************************************'
-      WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
-      WRITE(*,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
-      WRITE(*,* ) '****************************************************'
-      WRITE(*,* ) ' '
-      LLPRINT = .FALSE.
+    write(*,*) ' '
+    write(*,*) ' SUBROUTINE filt_topoRAOB '
+    write(*,*) ' '
+    write(*,*) '************************************************'
+    write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
+    write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+    write(*,223) ' REJECTION SBL (PASCAL)    ',(bndryCritPres,elemIndex=1,numElem)
+    write(*,*) '************************************************'
+    write(*,*) ' '
+
+    ! set counters to zero
+    itotrej(:)=0
+    itotacc(:)=0
+    isblrej(:)=0
+    igzacc(:)=0
+    igzrej(:)=0
+    ibndrej(:)=0
+
+    ! loop over all header indices of the 'UA' family
+    call obs_set_current_header_list(obsSpaceData, 'UA')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! HEIGHT GZ
+
+      ! loop over all body indices (still in the 'UA' family)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+
+        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY
+
+        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1 ) cycle BODY
+
+        ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        listIndex = findElemIndex(ivnm)
+        llok = ivnm.eq.BUFR_NEGZ .and. listIndex.ne.-1
+        if (.not. llok ) cycle BODY ! Proceed with the next bodyIndex
+
+        zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+        zdiff= ( zval - col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM') )/RG
+        if(zdiff .lt. heightCrit(listIndex)) then
+          itotacc(listIndex) = itotacc(listIndex)+1
+          igzacc(listIndex) = igzacc(listIndex)+1
+        else
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          itotrej(listIndex) = itotrej(listIndex)+1
+          igzrej(listIndex) = igzrej(listIndex)+1
+        endif
+      enddo BODY
       !
-      ! Loop over the families of interest
+      !   REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
+      !   AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
+      !   BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
+      !   AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
+      !   ATMOSPHERE
       !
-      list_family(1) = 'AI'
-      list_family(2) = 'SW'
-      FAMILY: do index_family = 1,2
+      !---Special case if station elevation is above model elevation
+      !   we want to define zpt at a level above the station.
+      !   To approximate that value, we will transform the difference
+      !   between the 2 elevations into a difference in pressure using
+      !   the rule of thumb (1Mb =8 metres)
+      !---Even though TT(element=12001) is not assimmilated
+      !   it is treated as if it were for the evaluation step.
+      !   Otherwise we use observations of TT that are too far
+      !   from the model topography in the verification.
 
-!        SET COUNTERS TO ZERO
-         IKOUNTREJ(:)=0
+      zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
+      zdifalt = zStnAlt- col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
 
-         ! loop over all body indices of each family
-         call obs_set_current_body_list(lobsSpaceData, list_family(index_family))
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
-!C
-!C          REJECT DATA TOO CLOSE TO THE MODEL OROGRAPHY ,PUT TO
-!C          MODEL OROGRAPHY, DATA WHICH IS BELOW , BUT CLOSE TO THE SURFACE.
-!C
-            ZVAL=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZDIFF=  (ZVAL- col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') )/100.D0
-            IF ( ZDIFF .GT. RLISTCRIT ) THEN
-               ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-               DO J=1,JPINEL
-                  ILEM=ILISTEL(J)
-                  IF ( ITYP .EQ. ILEM ) THEN
-                     IF(LLPRINT) THEN
-                        WRITE(*,224) 'Reject OBS ',index_header,ITYP &
-                          ,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY),ZDIFF
-                     ENDIF
-                     call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-                     IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                     call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                           ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),&
-                                 18 ))
-                  ENDIF
-               ENDDO
-            ENDIF
-         ENDDO BODY
+      ! Set the body list & start at the beginning of the list
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY2: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY2
 
-         WRITE(*,* ) ' '
-         WRITE(*,* ) &
-           '*****************************************************************'
-         WRITE(*,*)' FAMILY = ',list_family(index_family)
-         WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-         WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-         WRITE(*,* ) &
-           '*****************************************************************'
-         WRITE(*,* ) ' '
+        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY2
 
-      ENDDO FAMILY
+        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1 ) cycle BODY2
 
-      IKOUNTT=0
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      ENDDO
-      WRITE(*  &
-           ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
-      WRITE(*,* ) ' '
+        ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        listIndex = findElemIndex(ivnm)
+        llok = ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1
+        if (.not. llok ) cycle BODY2 ! Proceed with the next bodyIndex
 
-  222 FORMAT(2x,a29,4(2x,i5))
-  223 FORMAT(2x,a29,4(2x,f5.0))
-  224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
+        zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        zpb = col_getElem(columnhr,1,headerIndex,'P0')
+        zpt = zpb - bndryCritPres
+        zdelp = 999999.0D0
+        if (zdifalt .gt. 0.0d0) then
+          zdelp = zdifalt * 100.d0 / 8.0d0
+          zpt   = zpb - (zdelp + bndryCritPres)
+        endif
 
-      RETURN
-      END subroutine filt_topoaisw
+        if(abs(zdifalt).le.heightCrit(listIndex)) then
+          !--Model surface and station altitude are very close
+          !  Accept observation if zlev is within the domain
+          !  of the trial field
+          zpb = col_getElem(columnhr,1,headerIndex,'P0')
+          zpt = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
+        endif
+        if(zlev .gt. zpb ) then
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                    ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          itotrej(listIndex) = itotrej(listIndex) + 1
+          ibndrej(listIndex) = ibndrej(listIndex) + 1
+        elseif(zlev.le.zpb .and. zlev.gt.zpt ) then
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          itotrej(listIndex) = itotrej(listIndex) + 1
+          isblrej(listIndex) = isblrej(listIndex) + 1
+        endif
+      enddo BODY2
+    enddo HEADER
+
+    write(*,*) ' '
+    write(*,*) '***************************************'
+    write(*,*) 'FAMILY = UA'
+    write(*,222) ' ELEMENTS          ', (elemList(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' ACC GZ EXT  ',(igzacc(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' ACC TOTAL   ',(itotacc(elemIndex),elemIndex=1,numElem)
+    write(*,*) '***************'
+    write(*,222) ' REJ GZ EXT  ',(igzrej(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' REJ OUT BND ',(ibndrej(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' REJ SBL     ',(isblrej(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' REJ TOTAL   ',(itotrej(elemIndex),elemIndex=1,numElem)
+    write(*,*) '***************************************'
+    write(*,*) ' '
+222 format(2x,a29,16(2x,i5))
+223 format(2x,a29,16(2x,f6.0))
+
+    countAssim=0
+    do bodyIndex=1,obs_numbody(obsSpaceData)
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
+    enddo
+    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    write(*,*) ' '
+
+  end subroutine filt_toporaob
 
 
-      SUBROUTINE filt_topoPROF(lcolumnhr,lobsSpaceData)
-!*
-!***s/r  filt_topoPROF
-!*
-!*Author  : J. St-James October 2002
-!*          - Based on the subroutine filt_toporaob.  Adapt to
-!*            Profiler data
-!*
-!**    Purpose:
-!*      Refuse elements which are too far away from the surface of the model
-!*      Refuse elements which are considered in the free atmosphere of
-!*      the RAOB but fall in the surface boundary layer of the model atmosphere.
-!*
-      implicit none
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
+  subroutine filt_topoAISW(columnhr,obsSpaceData)
+    !
+    ! Author  : R. Sarrazin *CMC/AES  February 2000
+    !
+    ! Purpose:  Refuse elements which are too close to the surface.
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
 
-      integer :: index_header, index_body
-      INTEGER JPINEL,JPRANGE
-      PARAMETER(JPINEL=7,JPRANGE=10)
-      INTEGER IJ,J,JD,JDATA,IFLG
-      LOGICAL LLREJ,LLNOIR,LLSFC(JPINEL),LLALTOK(JPINEL),LLFOUND
-      REAL*8 ZVAL,ZLEV,ZCRIT,ZDIFF,ZDIFALT,ZPCRIT,ZPMAX(JPINEL)
-      REAL*8 ZLAT,ZLON,ZGZG,ZSTNALT,ZPB,ZPT,ZDELP
-      INTEGER ITYP,IASS,ICOUNT
-      INTEGER ICOUNTAL,ICOUNTAH,ICOUNTBL,ICOUNTBH
-      INTEGER ILEM,IELGZ
-      INTEGER ILISTEL(JPINEL),INDXEL(JPINEL)
-      INTEGER ITOTACC(JPINEL),ITOTREJ(JPINEL),IKOUNTT
-      INTEGER ISFCACC(JPINEL),ISFCREJ(JPINEL),ISBLREJ(JPINEL)
-      INTEGER IGZACC(JPINEL),IGZREJ(JPINEL),IBNDREJ(JPINEL)
-      INTEGER INEARACC(JPINEL),IRANGE(JPRANGE)
-      REAL*8    ZLMINF(JPRANGE),ZLMSUP(JPRANGE),ZDIFGZ
-      REAL*8    RLISTCRIT(JPINEL),RSBLCRIT(JPINEL),JPMAX(JPINEL)
-      LOGICAL LLPRINT,LLOK
-      logical :: list_is_empty
+    integer :: headerIndex, bodyIndex, familyIndex, listIndex, elemIndex
+    integer :: ivnm, countRej(numElem), countAssim
+    real(8) :: zval, zdiff
+    character(len=2) :: list_family(2)
 
-      DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
-      DATA    RSBLCRIT /400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0 /
-      DATA    ZLMINF /-9999.D0,-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0/
-      DATA    ZLMSUP /-300.D0,-200.D0,-100.D0,-50.D0,0.D0,50.D0,100.D0,200.D0,300.D0,9999.D0/
-      ILISTEL(1)=BUFR_NEDD
-      ILISTEL(2)=BUFR_NEFF
-      ILISTEL(3)=BUFR_NEUU
-      ILISTEL(4)=BUFR_NEVV
-      ILISTEL(5)=BUFR_NEES
-      ILISTEL(6)=BUFR_NETT
-      ILISTEL(7)=BUFR_NEGZ
+!    DATA    RLISTCRIT/50.D0/
+!    DATA    ILISTEL/11003,11004,12001,12192/
 
-      LLPRINT = .FALSE.
+    write(*,*) ' '
+    write(*,*) ' SUBROUTINE filt_topoAISW '
+    write(*,*) ' '
+    write(*,*) '****************************************************'
+    write(*,222) 'ELEMENTS                 ', (elemList(elemIndex),elemIndex=1,numElem)
+    write(*,223) 'REJECTION BOUNDARY(HPA)  ', (bndryCritPres,elemIndex=1,numElem)
+    write(*,*) '****************************************************'
+    write(*,*) ' '
+    
+    ! Loop over the families of interest
+    list_family(1) = 'AI'
+    list_family(2) = 'SW'
+    FAMILY: do familyIndex = 1,2
 
-      WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE filt_topoPROF '
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '************************************************'
-      WRITE(*,222)' ELEMENTS                  ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(*,223)' REJECTION BOUNDARY(METRE) ',(RLISTCRIT(J),J=1,jpinel)
-      WRITE(*,223)' REJECTION SBL (METRE) ',(RSBLCRIT(J),J=1,jpinel)
-      WRITE(*,* ) '************************************************'
-      WRITE(*,* ) ' '
-      IELGZ =  ILISTEL(JPINEL)
-!C
-!C     SET COUNTERS TO ZERO
-!C
-      DO J=1,JPRANGE
-         IRANGE(J) = 0
-      ENDDO
-      DO J=1,JPINEL
-         ITOTREJ(J)=0
-         ITOTACC(J)=0
-         ISFCACC(J)=0
-         INEARACC(J)=0
-         ISFCREJ(J)=0
-         ISBLREJ(J)=0
-         IGZACC(J)=0
-         IGZREJ(J)=0
-         IBNDREJ(J)=0
-      ENDDO
-      IKOUNTT=0
-      ICOUNT   =0
-      ICOUNTAL =0
-      ICOUNTAH =0
-      ICOUNTBL =0
-      ICOUNTBH =0
+      ! set counters to zero
+      countRej(:)=0
+
+      ! loop over all body indices of each family
+      call obs_set_current_body_list(obsSpaceData, list_family(familyIndex))
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        !
+        ! reject data too close to the model orography, put to
+        ! model orography, data which is below , but close to the surface.
+        !
+        zval = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+        zdiff = col_getElem(columnhr,1,headerIndex,'P0') - zval
+        if ( zdiff .lt. bndryCritPres ) then
+          ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+          listIndex = findElemIndex(ivnm)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          countRej(listIndex)=countRej(listIndex)+1
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
+        endif
+      enddo BODY
+
+      write(*,*) ' '
+      write(*,*) '*****************************************************************'
+      write(*,*) ' FAMILY = ',list_family(familyIndex)
+      write(*,222) 'ELEMENTS            ',(elemList(elemIndex),elemIndex=1,numElem)
+      write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
+      write(*,*) '*****************************************************************'
+      write(*,*) ' '
+
+    enddo FAMILY
+
+    countAssim=0
+    do bodyIndex=1,obs_numbody(obsSpaceData)
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
+    enddo
+    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    write(*,*) ' '
+
+222 format(2x,a29,16(2x,i5))
+223 format(2x,a29,16(2x,f5.0))
+
+  end subroutine filt_topoaisw
+
+
+  subroutine filt_topoProf(columnhr,obsSpaceData)
+    !
+    ! Author: J. St-James October 2002
+    !          - Based on the subroutine filt_toporaob.  Adapt to
+    !            Profiler data
+    !
+    ! Purpose: Refuse elements which are too far away from the surface of the model
+    !          Refuse elements which are considered in the free atmosphere of
+    !          the RAOB but fall in the surface boundary layer of the model atmosphere.
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+
+    integer :: headerIndex, bodyIndex, listIndex, elemIndex
+    integer :: ivnm, countAssim
+    integer :: itotrej(numElem), isblrej(numElem), ibndrej(numElem)
+    real(8) :: zval,zlev
+    real(8) :: zStnAlt,zModAlt,zpb,zpt
+    logical :: llok, list_is_empty
+
+!    DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
+!    DATA    RSBLCRIT /400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0 /
+!    ILISTEL(1)=BUFR_NEDD
+!    ILISTEL(2)=BUFR_NEFF
+!    ILISTEL(3)=BUFR_NEUU
+!    ILISTEL(4)=BUFR_NEVV
+!    ILISTEL(5)=BUFR_NEES
+!    ILISTEL(6)=BUFR_NETT
+!    ILISTEL(7)=BUFR_NEGZ
+
+    write(*,*) ' '
+    write(*,*) ' SUBROUTINE filt_topoPROF '
+    write(*,*) ' '
+    write(*,*) '************************************************'
+    write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
+    write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+    write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeight,elemIndex=1,numElem)
+    write(*,*) '************************************************'
+    write(*,*) ' '
+
+    ! set counters to zero
+    itotrej(:)=0
+    isblrej(:)=0
+    ibndrej(:)=0
+
+    ! loop over all header indices of the 'PR' family
+    call obs_set_current_header_list(obsSpaceData, 'PR')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! Set the body list & start at the beginning of the list
+      call obs_set_current_body_list(obsSpaceData, headerIndex,list_is_empty)
+      if (list_is_empty) cycle HEADER ! Proceed to the next HEADER
 
       !
-      ! loop over all header indices of the 'PR' family
+      ! REJECT OBS BELOW THE MODEL SURFACE
+      ! AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
+      ! BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
+      ! AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
+      ! ATMOSPHERE
       !
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-      call obs_set_current_header_list(lobsSpaceData, 'PR')
-      HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+      zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
+      zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_body_list(lobsSpaceData, index_header, &
-                                        list_is_empty)
-         if (list_is_empty) then
-           cycle HEADER                 ! Proceed to the next HEADER
-         end if
+      ! loop over all body indices (still in the 'PR' family)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
 
-         ZLAT=obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-         ZLON=obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
-                                                      * MPC_DEGREES_PER_RADIAN_R8
-         ZSTNALT=obs_headElem_r(lobsSpaceData,OBS_ALT,INDEX_HEADER)
-         ZDIFALT=  ZSTNALT- col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-         DO J=1,JPINEL
-            LLALTOK(J) = .FALSE.
-            IF(ABS(ZDIFALT).LE.RLISTCRIT(J)) LLALTOK(J)=.TRUE.
-         ENDDO
-!C
-!C       REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
-!C       AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
-!C       BOUNDARY LAYER OF THE RAOB OR OF THE MODEL.
-!C       AT THIS POINT WE WANT TO KEEP OBSERVATIONS IN THE FREE
-!C       ATMOSPHERE
-!C
-!C
-!C--------------Special case if station elevation is above model elevation
-!C              we want to define zpt at a level above the station.
-!C              To approximate that value, we will transform the difference
-!C              between the 2 elevations into a difference in pressure using
-!C              the rule of thumb (1Mb =8 metres)
-!C--------------Even though TT(element=12001) is not assimmilated
-!C              it is treated as if it were for the evaluation step.
-!C              Otherwise we use observations of TT that are too far
-!C              from the model topography in the verification.
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1) cycle BODY
 
-         !
-         ! loop over all body indices (still in the 'PR' family)
-         !
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
+        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        listIndex = findElemIndex(ivnm)
+        llok = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1  &
+              .and. ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1
+        if (.not. llok ) cycle BODY ! Proceed to the next bodyIndex
 
-            ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-            IJ = -1
-            DO J=1,JPINEL-1
-               IF(ITYP.EQ.ILISTEL(J))IJ = J
-            ENDDO
-            LLOK = obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1  &
-                .AND. ITYP .NE.ILISTEL(JPINEL) .AND. IJ .NE. -1
-            IF (.not. LLOK )  THEN
-               cycle BODY ! Proceed to the next index_body
-            end if
+        zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        zpb = zModAlt
+        if (zStnAlt .gt. zModAlt) then
+          zpt = zStnAlt + bndryCritHeight
+        else
+          zpt = zModAlt + bndryCritHeight
+        endif
+        if(abs(zStnAlt-zModAlt).le.heightCrit(listIndex)) then
+          !----Model surface and station altitude are very close
+          !    Accept observation if zlev is within the domain
+          !    of the trial field
+          zpb = zModAlt
+          zpt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')/RG
+        endif
+        if(zlev.lt.zpb ) then
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          itotrej(listIndex)=itotrej(listIndex)+1
+          ibndrej(listIndex)=ibndrej(listIndex)+1
+        elseif(zlev.ge.zpb .and. zlev.lt.zpt ) then
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          itotrej(listIndex)=itotrej(listIndex)+1
+          isblrej(listIndex)=isblrej(listIndex)+1
+        endif
+      enddo BODY
+    enddo HEADER
 
-            ZLEV=obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-            ZPB =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-            ZPT =col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG + RSBLCRIT(IJ)
-            IF (ZDIFALT .GT. 0.0D0) THEN
-               ZPT=  col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG &
-                   + (ZDIFALT+RSBLCRIT(IJ))
-            ENDIF
-            IF(LLALTOK(IJ)) THEN
-!C--------------------Model surface and station altitude are very close
-!C                    Accept observation if zlev is within the domain
-!C                    of the trial field
-               ZPB = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-               ZPT = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG
-               IF(LLPRINT) THEN
-                  WRITE(*,*) 'LLALTOK .EQ. .TRUE. ',INDEX_HEADER,ITYP  &
-                       ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT &
-                       ,ZLON,ZLEV  &
-                       ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG  &
-                       ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG &
-                       ,ZDIFALT
-               ENDIF
-            ENDIF
-            IF(ZLEV .LT. ZPB ) THEN
-               call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                    ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 18 ))
-               ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-               IF(LLPRINT) THEN
-                  WRITE(*,*) 'Rej Obs below model sfc ',INDEX_HEADER,ITYP  &
-                       ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT  &
-                       ,ZLON,ZLEV &
-                       ,col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM')-1,INDEX_HEADER,'MM')/RG,ZPT  &
-                       ,INDEX_BODY,ZPB,ZDIFALT
-               ENDIF
-               call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-               ITOTREJ(IJ)=ITOTREJ(IJ)+1
-               IBNDREJ(IJ)=IBNDREJ(IJ)+1
+    write(*,*) ' '
+    write(*,*) '***************************************'
+    write(*,*) 'FAMILY = PR'
+    write(*,222) ' ELEMENTS          ', (elemList(elemIndex),elemIndex=1,numElem)
+    write(*,*) '************'
+    write(*,222) ' REJ OUT BND ',(ibndrej(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' REJ SBL     ',(isblrej(elemIndex),elemIndex=1,numElem)
+    write(*,222) ' REJ TOTAL   ',(itotrej(elemIndex),elemIndex=1,numElem)
+    write(*,*) '***************************************'
+    write(*,*) ' '
+222 format(2x,a29,16(2x,i5))
+223 format(2x,a29,16(2x,f6.0))
 
-            ELSEIF(ZLEV.GE.ZPB .AND. ZLEV.LT.ZPT ) THEN
-               call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
-                    ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 18 ))
-               ZGZG = col_getHeight(lcolumnhr,col_getNumLev(LCOLUMNHR,'MM'),INDEX_HEADER,'MM')/RG
-               IF(LLPRINT) THEN
-                  WRITE(*,*) ' REJ SBL ITYP,DALT ',ITYP,ZDIFALT
-                  WRITE(*,*) 'Reject LEV IN SBL LYR '   &
-                       ,INDEX_HEADER,ITYP,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV  &
-                       ,ZPB,ZPT,RSBLCRIT(IJ),ZDELP,ZDIFALT
-               ENDIF
-               call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
-               ITOTREJ(IJ)=ITOTREJ(IJ)+1
-               ISBLREJ(IJ)=ISBLREJ(IJ)+1
-            ENDIF
-         ENDDO BODY
-      ENDDO HEADER
+    countAssim=0
+    do bodyIndex=1,obs_numbody(obsSpaceData)
+      if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
+    enddo
+    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    write(*,*) ' '
 
-      WRITE(*,*) ' '
-      WRITE(*,*) '***************************************'
-      WRITE(*,*) 'FAMILY = PR'
-      WRITE(*,222)' ELEMENTS          ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(*,222)' ACC OB NEAR ',(INEARACC(J),J=1,JPINEL)
-      WRITE(*,222)' ACC TOTAL   ',(ITOTACC(J),J=1,JPINEL)
-      WRITE(*,* ) '************'
-      WRITE(*,222)' REJ OUT BND ',(IBNDREJ(J),J=1,JPINEL)
-      WRITE(*,222)' REJ SBL     ',(ISBLREJ(J),J=1,JPINEL)
-      WRITE(*,222)' REJ TOTAL   ',(ITOTREJ(J),J=1,JPINEL)
-      WRITE(*,* ) '***************************************'
-      WRITE(*,* ) ' '
- 222  FORMAT(2x,a29,7(2x,i5))
- 223  FORMAT(2x,a29,7(2x,f6.0))
-
-      IKOUNTT=0
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      ENDDO
-      WRITE(*,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)') IKOUNTT
-      WRITE(*,* ) ' '
-
-      RETURN
-      END subroutine filt_topoprof
+  end subroutine filt_topoProf
 
 
-      SUBROUTINE filt_topoCSBT(lcolumnhr,lobsSpaceData)
-!*
-!***s/r  filt_topoCSBT
-!*
-!*Author  : R. Sarrazin *CMC/AES  June 2008
-!*Revision: A. Beaulne  CMDA      October 2012
-!*          Set bit 9 in addition to the already setting of bit 18
-!*
-!**    Purpose:
-!*      Refuse data which are too close to the surface.
-!*
-      implicit none
-      type(struct_columnData) :: lcolumnhr
-      type(struct_obs) :: lobsSpaceData
+  subroutine filt_topoCsbt(columnhr,obsSpaceData)
+    !
+    ! Author  : R. Sarrazin *CMC/AES  June 2008
+    ! Revision: A. Beaulne  CMDA      October 2012
+    !           Set bit 9 in addition to the already setting of bit 18
+    !
+    ! Purpose:  Refuse data which are too close to the surface.
+    !
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
 
-      integer :: index_header, index_body
-      INTEGER JPINEL
-      PARAMETER(JPINEL=1)
-      INTEGER J,JDATA
-      LOGICAL LLPRINT
-      REAL*8 ZVAL,ZDIFF
-      INTEGER ITYP,IDATYP
-      INTEGER ILEM
-      INTEGER IKOUNTREJ(JPINEL),IKOUNTT
-      INTEGER ILISTEL(JPINEL)
-      DATA    ILISTEL/12163/
-      REAL*8  RLISTCRIT
+    integer :: headerIndex, bodyIndex, elemIndex
+    integer :: idatyp, countAssim, countRej
+    real(8), parameter :: minSfcPressure = 80000.D0
 
-      DATA    RLISTCRIT/800.D0/
+!    DATA    RLISTCRIT/800.D0/
+!    DATA    ILISTEL/12163/
 
-      WRITE(*,* ) ' '
-      WRITE(*,* ) ' SUBROUTINE filt_topoCSBT '
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '****************************************************'
-      WRITE(*,222)'ELEMENTS                 ', (  ILISTEL(J),J=1,jpinel)
-      WRITE(*,223)'REJECTION BOUNDARY(HPA)  ', RLISTCRIT
-      WRITE(*,* ) '****************************************************'
-      WRITE(*,* ) ' '
-      LLPRINT = .FALSE.
-!C
-!C     SET COUNTERS TO ZERO
-!C
-      DO J=1,JPINEL
-         IKOUNTREJ(J)=0
-      ENDDO
-      IKOUNTT=0
+    write(*,* ) ' '
+    write(*,* ) ' SUBROUTINE filt_topoCSBT '
+    write(*,* ) ' '
+    write(*,* ) '****************************************************'
+    write(*,222) 'ELEMENTS                  ', BUFR_NBT3
+    write(*,223) 'MINIMUM SFC PRESSURE (PA) ', minSfcPressure
+    write(*,* ) '****************************************************'
+    write(*,* ) ' '
 
-      !
-      ! loop over all header indices of the 'TO' family
-      !
-                                        ! Set the header list
-                                        ! (& start at the beginning of the list)
-      call obs_set_current_header_list(lobsSpaceData, 'TO')
-      HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+    ! set counters to zero
+    countRej=0
 
-         IDATYP   = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-         IF (IDATYP .NE. 185) THEN
-            cycle HEADER ! Proceed to the next index_header
-         end if
+    ! loop over all header indices of the 'TO' family
+    call obs_set_current_header_list(obsSpaceData, 'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
 
-!C
-!C        REJECT DATA TOO CLOSE TO THE OROGRAPHY
-!C
-         !
-         ! loop over all body indices (still in the 'TO' family)
-         !
-                                        ! Set the body list
-                                        ! (& start at the beginning of the list)
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
+      idatyp   = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if (idatyp .ne. 185) cycle HEADER ! Proceed to the next headerIndex
 
-            IKOUNTT=IKOUNTT+1
-            ZDIFF= col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') /100.D0
-            IF ( ZDIFF .LT. RLISTCRIT ) THEN
-              ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               DO J=1,JPINEL
-                 ILEM=ILISTEL(J)
-                 IF ( ITYP .EQ. ILEM ) THEN
-                    IF(LLPRINT) THEN
-                       WRITE(*,224) 'Reject OBS ',INDEX_HEADER,ITYP, &
-                                  obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body), &
-                                  ZDIFF
-                    ENDIF
-                    call obs_bodySet_i(lobsSpaceData,OBS_ASS,index_body,0)
-                    IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body, &
-                           IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),9))
-                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body, &
-                           IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body),18))
-                 ENDIF
-               ENDDO
-            ENDIF
-         ENDDO BODY
-      ENDDO HEADER
+      ! loop over all body indices (still in the 'TO' family)
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
 
-      WRITE(*,* ) ' '
-      WRITE(*,* )  &
-           '*****************************************************************'
-      WRITE(*,*)' FAMILY = TO'
-      WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-      WRITE(*,222)'REJECTED  ',(IKOUNTREJ(J),J=1,JPINEL)
-      WRITE(*,* )  &
-           '*****************************************************************'
-      WRITE(*,* ) ' '
-  222 FORMAT(2x,a29,1(2x,i5))
-  223 FORMAT(2x,a29,1(2x,f5.0))
-  224 FORMAT(2x,a13,2x,I6,2X,I5,2(2x,f9.2))
+        if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_NBT3) cycle BODY
 
-      IKOUNTT=0
-      DO JDATA=1,obs_numbody(lobsSpaceData)
-        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
-      ENDDO
-      WRITE(*  &
-           ,'(1X," NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS:",i10)')IKOUNTT
-      WRITE(*,* ) ' '
+        ! reject obs if the model surface pressure is below the minimum specified value
+        if (col_getElem(columnhr,1,headerIndex,'P0') .lt. minSfcPressure) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          countRej=countRej+1
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18))
+        endif
 
-      END subroutine filt_topocsbt
+      enddo BODY
+    enddo HEADER
+
+    write(*,*) ' '
+    write(*,*) '*****************************************************************'
+    write(*,*) ' FAMILY = TO'
+    write(*,222) 'ELEMENTS            ', BUFR_NBT3
+    write(*,222) 'REJECTED  ',countRej
+    write(*,*) '*****************************************************************'
+    write(*,*) ' '
+222 format(2x,a29,1(4x,i5))
+223 format(2x,a29,1(2x,f7.0))
+
+    countAssim=0
+    do bodyIndex=1,obs_numbody(obsSpaceData)
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .EQ. 1) countAssim=countAssim+1
+    enddo
+    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    write(*,* ) ' '
+
+  end subroutine filt_topocsbt
 
 end module filterObs_mod
-
