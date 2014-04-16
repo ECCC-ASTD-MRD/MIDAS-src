@@ -10,7 +10,7 @@ then
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   MPILIB="rpn_commstubs_40509 rpn_comm_40509"
   MPIKEY=""
-  ABSTAG="_NOMPI"
+  ABSTAG="_nompi"
 else
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for an MPI executable!!"
@@ -132,7 +132,7 @@ grep fail listing4 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
 
 echo "building the executable..."
-s.compile -O $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing5 2>&1
+s.compile -O $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o oavar${ABSTAG}.Abs > listing5 2>&1
 
 status=0
 grep -i ERROR listing? || status=1
