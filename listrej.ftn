@@ -138,8 +138,10 @@
      1  /     'TOVS AMSU-B',        'TOVS MHS',            'AIRS'/
       DATA      CLOBTP(185),       CLOBTP(186),       CLOBTP(188)
      1  /          'GEORAD',            'IASI',           'SATOB'/
-      DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(254)   
-     1  /          'GB-GPS',       'TOVS ATMS',   'SCATTEROMETER'/
+      DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(193)   
+     1  /          'GB-GPS',       'TOVS ATMS',            'CRIS'/
+      DATA      CLOBTP(254)  
+     1  /   'SCATTEROMETER'/
 *
       IF(.NOT.min_lvarqc) RETURN
 

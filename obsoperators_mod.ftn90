@@ -75,6 +75,8 @@ module obsOperators_mod
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
+    Write(*,*) "Entering subroutine oonl_ppp"
+
     zgamma = 0.0065D0 / GRAV
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
@@ -181,6 +183,9 @@ module obsOperators_mod
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
+
+    Write(*,*) "Entering subroutine oonl_sfc"
+
     zgamma = 0.0065d0 / GRAV
     zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma)
 
@@ -304,6 +309,8 @@ module obsOperators_mod
     integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
     real(8) :: zvar,zwb,zwt,zlev,zpt,zpb,jobs
     character(len=2) :: varType, obsfam
+
+    Write(*,*) "Entering subroutine oonl_zzz"
 
     jobs=0.d0
 
@@ -1022,6 +1029,9 @@ module obsOperators_mod
 
     ! 0. set default values if bgckMode, option and source/dest columns not specified
     !
+
+    Write(*,*) "Entering subroutine oonl_tovs"
+
     if(present(bgckMode_in)) then
       bgckMode = bgckMode_in
     else

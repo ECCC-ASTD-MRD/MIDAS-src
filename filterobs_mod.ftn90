@@ -383,25 +383,23 @@ contains
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
 
           ivnm   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          zdiff= abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
-                      col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG )
+          zdiff = abs( obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex) -  &
+                       col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG )
           !
           ! apply filter to selected elements
           !
           elemIndex = findElemIndex(ivnm)
+          if (elemIndex.eq.-1) cycle BODY
+
           if (zdiff.le.heightCrit(elemIndex)) then
             ! obs passes the acceptance criteria
-            if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
-              countAcc(elemIndex) = countAcc(elemIndex)+1
-            endif
+            countAcc(elemIndex) = countAcc(elemIndex)+1
           else
             ! obs does not pass the acceptance criteria, reject it
-            if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
-              call obs_bodySet_i( obsSpaceData,OBS_FLG,bodyIndex,  &
-                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18) )
-              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
-              countRej(elemIndex) = countRej(elemIndex)+1
-            endif
+            call obs_bodySet_i( obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18) )
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+            countRej(elemIndex) = countRej(elemIndex)+1
           endif
         enddo BODY
       enddo HEADER
@@ -449,16 +447,6 @@ contains
     real(8) :: zStnAlt, zpb, zpt, zdelp
     logical :: llok
 
-!    DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
-!    DATA    RSBLCRIT /5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0,5000.0D0 /
-!    ILISTEL(1)=BUFR_NEDD
-!    ILISTEL(2)=BUFR_NEFF
-!    ILISTEL(3)=BUFR_NEUU
-!    ILISTEL(4)=BUFR_NEVV
-!    ILISTEL(5)=BUFR_NEES
-!    ILISTEL(6)=BUFR_NETT
-!    ILISTEL(7)=BUFR_NEGZ
-
     write(*,*) ' '
     write(*,*) ' SUBROUTINE filt_topoRAOB '
     write(*,*) ' '
@@ -491,22 +479,30 @@ contains
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
 
+        ! skip this obs if it is not on pressure level
         if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY
 
-        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1 ) cycle BODY
+        ! skip this obs if already flagged to not be assimilated
+        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0 ) cycle BODY
 
+        ! skip this obs is it is not GZ
         ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
-        llok = ivnm.eq.BUFR_NEGZ .and. listIndex.ne.-1
-        if (.not. llok ) cycle BODY ! Proceed with the next bodyIndex
+        llok = (ivnm.eq.BUFR_NEGZ .and. listIndex.ne.-1)
+        if (.not. llok ) cycle BODY
 
         zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
         zval=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
         zdiff= ( zval - col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM') )/RG
-        if(zdiff .lt. heightCrit(listIndex)) then
+        ! obs is above surface, so it is ok, lets jump to the next obs
+        if(zdiff .ge. 0.0d0) cycle BODY
+
+        if(zdiff .ge. -1.0d0*heightCrit(listIndex)) then
+          ! obs is an acceptably small distance below the surface
           itotacc(listIndex) = itotacc(listIndex)+1
           igzacc(listIndex) = igzacc(listIndex)+1
         else
+          ! too far below surface, reject
           call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
@@ -542,11 +538,12 @@ contains
 
         if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY2
 
-        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1 ) cycle BODY2
+        ! skip this obs if already flagged to not be assimilated
+        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0 ) cycle BODY2
 
         ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
-        llok = ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1
+        llok = (ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
         if (.not. llok ) cycle BODY2 ! Proceed with the next bodyIndex
 
         zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -647,6 +644,10 @@ contains
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
+
+        ! skip this observation if already flagged to not assimilate
+        if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
+
         !
         ! reject data too close to the model orography, put to
         ! model orography, data which is below , but close to the surface.
@@ -657,6 +658,7 @@ contains
         if ( zdiff .lt. bndryCritPres ) then
           ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
+          if(listIndex.eq.-1) cycle BODY
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
           countRej(listIndex)=countRej(listIndex)+1
           call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
@@ -758,12 +760,13 @@ contains
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
 
-        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1) cycle BODY
+        ! skip this obs if already flagged to not be assimilated
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) cycle BODY
 
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
-        llok = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1  &
-              .and. ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1
+        llok = (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1  &
+                .and. ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
         if (.not. llok ) cycle BODY ! Proceed to the next bodyIndex
 
         zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)

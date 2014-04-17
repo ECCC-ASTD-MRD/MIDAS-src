@@ -80,6 +80,8 @@ C
       REAL      ZDUM
 C
       CHARACTER*132  CLDUM
+      CHARACTER*132  CPLATF
+      CHARACTER*132  CINSTR
 C
       EXTERNAL FNOM, FCLOS, ISRCHEQ
       EXTERNAL ABORT3D
@@ -159,6 +161,10 @@ C
          READ (ILUTOV,*,ERR=900)
          READ (ILUTOV,'(A)',ERR=900) CLDUM
          WRITE(*,'(A)') CLDUM
+         CINSTR=CLDUM
+         call split(CINSTR," ",CPLATF)
+         Write(*,*) "CINSTR: ",CINSTR
+         Write(*,*) "CPLATF: ",CPLATF
          READ (ILUTOV,*,ERR=900)
          READ (ILUTOV,*,ERR=900) ISATID(JL), NUMCHNIN(JL)
 c         WRITE ( *, '(" ISATID, NUMCHNIN = ",2(1X,I4))' )
@@ -170,7 +176,7 @@ C
          IPLATFORM(JL) = -1            
          DO I = 1, MXPLATFORM
             IPOS1=LEN_TRIM(CPLATFORM(I))
-            IPOS2 = INDEX(CLDUM,CPLATFORM(I)(1:IPOS1))
+            IPOS2 = INDEX(CPLATF,CPLATFORM(I)(1:IPOS1))
             IF ( IPOS2 .NE. 0 ) THEN
                IPLATFORM(JL) = NOPLATFORM(I)
 c               WRITE ( *, '(" IPLATFORM = ",1X,I4)' )  
@@ -187,7 +193,7 @@ C
          IINSTRUMENT(JL) = -1    
          DO I = 1, JPNSATMAX
             IPOS1=LEN_TRIM(CINSTRUMENT(I))
-            IPOS2 = INDEX(CLDUM,CINSTRUMENT(I)(1:IPOS1))
+            IPOS2 = INDEX(CINSTR,CINSTRUMENT(I)(1:IPOS1))
             IF ( IPOS2 .NE. 0 ) THEN
                IINSTRUMENT(JL) = NOINSTRUMENT(I)
 c               WRITE ( *, '(" IINSTRUMENT = ",1X,I4)' )  
@@ -264,18 +270,15 @@ C
       IF ( top_BgckMode() ) THEN
          DO JM= 1, INUMSAT
             IF ( IPLATFORM(JM) .EQ. 9 .AND. 
-     &           ISATID(JM) .EQ. 2 .AND. 
      &           IINSTRUMENT(JM) .EQ. 11 ) THEN
 
                call hir_set_assim_chan("AIRS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
             END IF
             IF ( IPLATFORM(JM) .EQ. 10 .AND. 
-     &           ISATID(JM) .EQ.  2 .AND. 
      &           IINSTRUMENT(JM) .EQ. 16 ) THEN
                call hir_set_assim_chan("IASI",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
             END IF
             IF ( IPLATFORM(JM) .EQ. 17 .AND. 
-     &           ISATID(JM) .EQ.  0 .AND. 
      &           IINSTRUMENT(JM) .EQ. 27 ) THEN
                call hir_set_assim_chan("CRIS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
             END IF
@@ -319,4 +322,101 @@ C
       CALL ABORT3D ('SUTOVST         ')
 C
       RETURN
+
+      contains
+
+      subroutine compact(str)
+C Code from Benthien's module: http://www.gbenthien.net/strings/index.html
+C Converts multiple spaces and tabs to single spaces; deletes control characters;
+C removes initial spaces.
+
+      character(len=*):: str
+      character(len=1):: ch
+      character(len=len_trim(str)):: outstr
+      integer isp,k,lenstr,i,ich
+
+      str=adjustl(str)
+      lenstr=len_trim(str)
+      outstr=' '
+      isp=0
+      k=0
+
+      do i=1,lenstr
+         ch=str(i:i)
+         ich=iachar(ch)
+
+         select case(ich)
+C space or tab character
+         case(9,32)             
+         if(isp==0) then
+            k=k+1
+            outstr(k:k)=' '
+         end if
+         isp=1
+C not a space, quote, or control character
+         case(33:)              ! not a space, quote, or control character
+         k=k+1
+         outstr(k:k)=ch
+         isp=0
+         
+      end select
+
+      end do
+
+      str=adjustl(outstr)
+
+      end subroutine compact
+
+      subroutine split(str,delims,before)
+C Code extracted from Benthien's module: http://www.gbenthien.net/strings/index.html
+C Routine finds the first instance of a character from 'delims' in the
+C the string 'str'. The characters before the found delimiter are
+C output in 'before'. The characters after the found delimiter are
+C output in 'str'. 
+
+      character(len=*) :: str,delims,before
+      character :: ch,cha
+      integer lenstr,i,k,ipos,iposa
+      str=adjustl(str)
+      call compact(str)
+      lenstr=len_trim(str)
+C string str is empty
+      if(lenstr == 0) return
+      k=0
+      before=' '
+      do i=1,lenstr
+         ch=str(i:i)
+         
+         ipos=index(delims,ch)
+C character is not a delimiter
+         if(ipos == 0) then 
+            k=k+1
+            before(k:k)=ch
+            cycle
+         end if
+C character is a delimiter that is not a space
+         if(ch /= ' ') then     
+            str=str(i+1:)
+            exit
+         end if
+C character is a space delimiter
+         cha=str(i+1:i+1)     
+         iposa=index(delims,cha)
+C next character is a delimiter
+         if(iposa > 0) then    
+            str=str(i+2:)
+            exit
+         else
+            str=str(i+1:)
+            exit
+         end if
+      end do
+      if(i >= lenstr) str=''
+C remove initial spaces
+      str=adjustl(str)
+      return
+
+      end subroutine split
+
       END
+

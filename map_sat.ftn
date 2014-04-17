@@ -1,4 +1,4 @@
-!-------------------------------------- LICENCE BEGIN ------------------------------------
+ !-------------------------------------- LICENCE BEGIN ------------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -39,6 +39,16 @@
 *
 *Revision 006  : S. Macpherson *ARMA  Feb 2013
 *                . add NPP/ATMS codtyp=192
+*
+*Revision 007  : J. Morneau CMDA    FEb 2014
+*                . add GOES15 and MTSAT-2
+*                . add GOES14
+*                . add MSG3 and MSG4
+*Revision 008 :  S. Heilliette    March 2014
+*                . Major Modification:
+*                . information is now read from namelist
+*                . instead of being hardcoded
+
 *
 *    -------------------
 **    Purpose:  Map burp satellite identifier (element #1007)
@@ -85,45 +95,56 @@
       IMPLICIT NONE
 *
       INTEGER J,ISATBURP,IPLATFORM,ISAT
+      INTEGER IER,NULNAM
+      LOGICAL ,SAVE :: LFIRST=.TRUE.
+      INTEGER ,EXTERNAL :: FNOM,FCLOS
 *
-      INTEGER MXSATBURP
-      PARAMETER (MXSATBURP   = 45)
+      INTEGER,SAVE :: MXSATBURP
 *
-      INTEGER LISTBURP(MXSATBURP)
-      INTEGER LISTPLAT(MXSATBURP)
-      INTEGER LISTSAT (MXSATBURP)
-*
-**            Table of BURP satellite identifier element #001007
-**            --------------------------------------------------
-*
+**  Table of BURP satellite identifier element #001007
+      INTEGER,SAVE,allocatable :: LISTBURP(:)
+**  Table of RTTOV-7 platform identifier
+      INTEGER,SAVE,allocatable :: LISTPLAT(:)
+**  Table of RTTOV-7 satellite identifier
+      INTEGER,SAVE,allocatable :: LISTSAT (:)
+C Note: Allocatable arrays in namelists are allowed as
+C of fortran 2003 standard
+      NAMELIST /NAMSAT/ MXSATBURP,LISTBURP, LISTPLAT, LISTSAT
 
-      DATA LISTBURP / 001, 002, 052, 053, 054, 055, 152, 200, 201, 202,
-     &                203, 204, 205, 206, 207, 241, 242, 243, 244, 245,
-     &                246, 247, 248, 249, 252, 253, 254, 255, 256, 500,
-     &                501, 510, 784, 208, 209, 003, 004, 005, 223, 171,
-     &                056, 257, 285, 286, 224/
-*
-**            Table of RTTOV-7 platform identifier
-**            ------------------------------------
-*
-      DATA LISTPLAT / 008, 008, 003, 003, 003, 012, 005, 001, 001, 001,
-     &                001, 001, 001, 001, 001, 002, 002, 002, 002, 002,
-     &                002, 002, 002, 002, 004, 004, 004, 004, 004, 013,
-     &                013, 006, 009, 001, 001, 010, 010, 010, 001, 015,
-     &                012, 004, 002, 002, 017/
-*
-**            Table of RTTOV-7 satellite identifier
-**            ------------------------------------
-*
-      DATA LISTSAT  / 001, 002, 005, 006, 007, 001, 005, 008, 009, 010,
-     &                011, 012, 014, 015, 016, 008, 009, 010, 011, 012,
-     &                013, 014, 015, 016, 008, 009, 010, 011, 012, 003,
-     &                004, 002, 002, 017, 018, 001, 002, 003, 019, 001,
-     &                002, 013, 017, 018, 000/
+C*    .  Fill tables from namelist at the first call 
+C     .  -------------------------------------------
 C
-C*    .  1.0 Find platform and satellite
+      IF (LFIRST) THEN
+         NULNAM=0
+         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+         IF (IER/=0) then
+            Write(*,*) "Error while opening namelist file !"
+            call abort3d("map_sat")
+         ENDIF
+         READ(NULNAM,NAMSAT,iostat=ier)
+         IF (IER/=0) then
+            Write(*,*) "1Error while reading namelist file !"
+            call abort3d("map_sat")
+         ENDIF
+         WRITE(*,NAMSAT)
+         IF (MXSATBURP>0) then
+            allocate(LISTBURP(MXSATBURP))
+            allocate(LISTSAT(MXSATBURP))
+            allocate(LISTPLAT(MXSATBURP))
+            READ(NULNAM,NAMSAT,iostat=ier)
+            IF (IER/=0) then
+               Write(*,*) "2Error while reading namelist file !"
+               call abort3d("map_sat")
+            ENDIF
+            WRITE(*,NAMSAT)
+         ENDIF
+         ier=FCLOS(NULNAM)
+         LFIRST=.FALSE.
+      ENDIF
+
+
+C*    .  Find platform and satellite
 C     .      ---------------------------
- 100  CONTINUE
 C
       IPLATFORM = -1
       ISAT      = -1

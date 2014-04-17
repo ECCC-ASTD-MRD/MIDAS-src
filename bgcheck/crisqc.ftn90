@@ -92,7 +92,6 @@ type(struct_obs),intent(inout) :: lobsSpaceData
 
   DO KRTID = 1, NSENSORS
      IF ( PLATFORM(KRTID) .EQ. 17 .AND. &
-          SATELLITE(KRTID) .EQ. 0 .AND. &
           INSTRUMENT(KRTID) .EQ. 27 ) THEN
         IDCRIS = KRTID
         EXIT

@@ -13,13 +13,13 @@ module rmatrix_mod
   ! public subroutines
   public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1
 
-  type rmat_matrix
-    sequence   
-    real(8) ,pointer     :: Rmat(:,:)=>null()
-    integer ,pointer     :: listChans(:)=>null()
-    integer              :: nchans=0
-  end type rmat_matrix
-  
+ TYPE rmat_matrix
+    SEQUENCE   
+    REAL(8) ,pointer     :: Rmat(:,:)=>null()
+    INTEGER ,pointer     :: listChans(:)=>null()
+    INTEGER              :: nchans=0
+ END TYPE rmat_matrix
+
   type(rmat_matrix),target,allocatable  :: R_inst(:) ! non diagonal Covariance matrices (R) for each instrument
   type(rmat_matrix),target,allocatable  :: C_inst(:) ! non diagonal Correlation matrices for each instrument
   type(rmat_matrix),target,allocatable  :: R_tovs(:) ! non diagonal R matrices used for the assimilation of all radiances

@@ -132,7 +132,7 @@ module observation_erreurs_mod
   use rmatrix_mod
   implicit none
 
-  integer  :: FNOM, FCLOS, ISRCHEQ
+  integer,external  :: FNOM, FCLOS, ISRCHEQ
   integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
   integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
   integer, dimension(JPCHMAX,JPNSATMAX) :: IUTILST, ICHN, ICHNIN
@@ -141,10 +141,7 @@ module observation_erreurs_mod
 
   real(8), dimension(JPCHMAX,2,JPNSATMAX) :: TOVERRIN
 
-  character (len=132) :: CLDUM
-
-  EXTERNAL FNOM, FCLOS, ISRCHEQ
-  EXTERNAL ABORT3D
+  character (len=132) :: CLDUM,CPLATF,CINSTR
 
   WRITE(*,'(//,10x,"-oer_read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
 
@@ -218,6 +215,10 @@ module observation_erreurs_mod
      READ (ILUTOV,*)
      READ (ILUTOV,'(A)') CLDUM
      WRITE(*,'(A)') CLDUM
+     CINSTR=CLDUM
+     call split(CINSTR," ",CPLATF)
+     Write(*,*) "CINSTR: ",CINSTR
+     Write(*,*) "CPLATF: ",CPLATF
      READ (ILUTOV,*)
      READ (ILUTOV,*) ISATID(JL), NUMCHNIN(JL)
 
@@ -228,7 +229,7 @@ module observation_erreurs_mod
      IPLATFORM(JL) = -1    
      DO I = 1, MXPLATFORM
       IPOS1=LEN_TRIM(CPLATFORM(I))
-      IPOS2 = INDEX(CLDUM,CPLATFORM(I)(1:IPOS1))
+      IPOS2 = INDEX(CPLATF,CPLATFORM(I)(1:IPOS1))
       IF ( IPOS2 .NE. 0 ) THEN
          IPLATFORM(JL) = NOPLATFORM(I)
          EXIT
@@ -243,7 +244,7 @@ module observation_erreurs_mod
      IINSTRUMENT(JL) = -1    
      DO I = 1, JPNSATMAX
       IPOS1=LEN_TRIM(CINSTRUMENT(I))
-      IPOS2 = INDEX(CLDUM,CINSTRUMENT(I)(1:IPOS1))
+      IPOS2 = INDEX(CINSTR,CINSTRUMENT(I)(1:IPOS1))
       IF ( IPOS2 .NE. 0 ) THEN
        IINSTRUMENT(JL) = NOINSTRUMENT(I)
       ENDIF
@@ -313,18 +314,15 @@ module observation_erreurs_mod
   IF ( top_BgckMode() ) THEN
      DO JM= 1, INUMSAT
       IF (   IPLATFORM(JM) .EQ. 9  .AND. &
-                ISATID(JM) .EQ. 2  .AND. &
            IINSTRUMENT(JM) .EQ. 11 ) THEN
 
          call hir_set_assim_chan("AIRS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
       END IF
       IF (   IPLATFORM(JM) .EQ. 10 .AND. &
-                ISATID(JM) .EQ.  2 .AND. &
            IINSTRUMENT(JM) .EQ. 16 ) THEN
          call hir_set_assim_chan("IASI",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
       END IF
       IF (   IPLATFORM(JM) .EQ. 17 .AND. &
-                ISATID(JM) .EQ.  0 .AND. &
            IINSTRUMENT(JM) .EQ. 27 ) THEN
          call hir_set_assim_chan("CRIS",IUTILST(ICHNIN(1:NUMCHNIN(JM),JM),JM))
       END IF
@@ -356,6 +354,97 @@ module observation_erreurs_mod
   IF(IER.NE.0)THEN
      CALL ABORT3D ('oer_read_obs_erreurs_tovs')
   END IF
+
+      contains
+
+      subroutine compact(str)
+! Code from Benthien's module: http://www.gbenthien.net/strings/index.html
+! Converts multiple spaces and tabs to single spaces; deletes control characters;
+! removes initial spaces.
+
+        character(len=*):: str
+        character(len=1):: ch
+        character(len=len_trim(str)):: outstr
+        integer isp,k,lenstr,i,ich
+
+        str=adjustl(str)
+        lenstr=len_trim(str)
+        outstr=' '
+        isp=0
+        k=0
+
+        do i=1,lenstr
+           ch=str(i:i)
+           ich=iachar(ch)
+
+           select case(ich)
+           case(9,32)    ! space or tab character         
+              if(isp==0) then
+                 k=k+1
+                 outstr(k:k)=' '
+              end if
+              isp=1
+           case(33:)              ! not a space, quote, or control character
+              k=k+1
+              outstr(k:k)=ch
+              isp=0
+           end select
+
+        end do
+
+        str=adjustl(outstr)
+
+      end subroutine compact
+
+      subroutine split(str,delims,before)
+! Code extracted from Benthien's module: http://www.gbenthien.net/strings/index.html
+! Routine finds the first instance of a character from 'delims' in the
+! the string 'str'. The characters before the found delimiter are
+! output in 'before'. The characters after the found delimiter are
+! output in 'str'. 
+
+        character(len=*) :: str,delims,before
+        character :: ch,cha
+        integer lenstr,i,k,ipos,iposa
+        str=adjustl(str)
+        call compact(str)
+        lenstr=len_trim(str)
+
+        if(lenstr == 0) return ! string str is empty
+        k=0
+        before=' '
+        do i=1,lenstr
+           ch=str(i:i)
+         
+           ipos=index(delims,ch)
+
+           if(ipos == 0) then ! character is not a delimiter
+              k=k+1
+              before(k:k)=ch
+              cycle
+           end if
+           if(ch /= ' ') then ! character is a delimiter that is not a space
+              str=str(i+1:)
+              exit
+           end if
+
+         cha=str(i+1:i+1)  ! character is a space delimiter
+         iposa=index(delims,cha)
+         if(iposa > 0) then   ! next character is a delimiter 
+            str=str(i+2:)
+            exit
+         else
+            str=str(i+1:)
+            exit
+         end if
+      end do
+      if(i >= lenstr) str=''
+
+      str=adjustl(str) ! remove initial spaces
+   
+      return
+
+      end subroutine split
 
   end subroutine oer_read_obs_erreurs_tovs
 

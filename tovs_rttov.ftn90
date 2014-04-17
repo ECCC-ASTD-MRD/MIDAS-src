@@ -101,7 +101,8 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   real*8, allocatable  :: avhrr_surfem1 (:)
   external abort3d
   
-         
+  Write(*,*) "Entering tovs_rttov subroutine !"
+
   if(NOBTOV.eq.0) return                  ! exit if there are not tovs data
 
 !     1.  Get number of threads available and allocate memory for some variables
