@@ -533,7 +533,7 @@ C-----------------------------------------------------------------------
 C
       INTEGER JN,INDEX_BODY,INDEX_HEADER
       INTEGER ITYP,IFLG,IASS,ILEM,ilyr
-      INTEGER IDATA,IDATEND,IDBURP,ITECH,ISAT,ILVL
+      INTEGER IDATA,IDATEND,IDBURP,ISAT,ILVL
       INTEGER ILAT1,ILAT2
       INTEGER ILANSEA,ISRCHEQ
       INTEGER INDXSAT,ISATNO
@@ -578,7 +578,6 @@ C
          ZLON      = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
          IDBURP    = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IPLATF    = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
-         ITECH     = obs_headElem_i(lobsSpaceData,OBS_TEC,INDEX_HEADER)
          INSTR     = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
          DO INDEX_BODY  = IDATA, IDATEND
             LLBAD = .FALSE.
