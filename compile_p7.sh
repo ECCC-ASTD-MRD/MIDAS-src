@@ -37,7 +37,7 @@ cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comc
 compiledir=$PWD
 
 ## for s.compile
-. ssmuse-sh -d hpcs/201402/00/base
+. ssmuse-sh -d hpcs/13b/04/base
 ## for the compiler
 . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
 ## for rmn_014, lapack_3.4.0, rpncomm

@@ -18,11 +18,10 @@ SUBROUTINE UPDATE_BURPFILES(obsdat)
 
       type (struct_obs), intent(inout) :: obsdat
 
-      INTEGER IER
       INTEGER EXDB,EXFIN
 !
       INTEGER J
-      INTEGER FILENUMB,IER,IBRP1,IER,INRECS,ISTAT,LNMX
+      INTEGER FILENUMB,IER,IBRP1,INRECS,ISTAT,LNMX
       INTEGER  FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
       EXTERNAL FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
       character(len=256) :: BURP_SPLIT_VAR
@@ -68,6 +67,8 @@ SUBROUTINE UPDATE_BURPFILES(obsdat)
 !        call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J,LNMX)
          call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J)
       END DO
+
+      call obs_finalize(obsdat)
 !
       WRITE(*,*)' '
       WRITE(*,*)'================================================='

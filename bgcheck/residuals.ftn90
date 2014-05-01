@@ -39,6 +39,5 @@
       END DO
       CALL UPDATE_BURPFILES(lobsSpaceData)
 
-      call obs_finalize(lobsSpaceData)
       RETURN
       END SUBROUTINE RESIDUALS
