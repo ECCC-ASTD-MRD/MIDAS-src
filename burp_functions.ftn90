@@ -539,6 +539,7 @@
    REAL(OBS_REAL)  :: UU,VV,DD,FF
    REAL(OBS_REAL)  :: LEVEL_DD,LEVEL4,LEVEL,LEVEL_UU
 
+   FFFLAG=0 
    NOBSOUT=6
 
 !--------------------------------

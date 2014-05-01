@@ -79,7 +79,6 @@ module verticalCoord_mod
     integer,   dimension(:), pointer :: my_ip1
     real    :: hyb
     real*8  :: dl_ptM,dl_ptT,dl_pref,dl_rcf1,dl_rcf2,zterm
-    real*8,    dimension(:), pointer :: my_a, my_b
     REAL*8 precision
     character(len=10) :: blk_S
     logical :: isExist_L
@@ -241,8 +240,13 @@ module verticalCoord_mod
       if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
         zterm = 1.0d0
       else
-        zterm = ((tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M) &
-                 /(1.0d0-tf_vco%dpt_M/tf_vco%dprf_M))**(tf_vco%drcf1-1.0d0)
+        zterm = tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M
+        ! provention of floating Invalid. 
+        if(zterm <= 0.0D0) then
+          zterm = 0.0D0
+        else
+          zterm = (zterm /(1.0d0-tf_vco%dpt_M/tf_vco%dprf_M))**(tf_vco%drcf1-1.0d0)
+        endif 
       endif
       tf_vco%db_dhyb_M(jlev)= tf_vco%drcf1 * zterm
       tf_vco%da_dhyb_M(jlev)= tf_vco%dprf_M*(1.0d0 - tf_vco%db_dhyb_M(jlev))
@@ -278,8 +282,12 @@ module verticalCoord_mod
       if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
         zterm = 1.0d0
       else
-        zterm = ((tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T) &
-                 /(1.0d0-tf_vco%dpt_T/tf_vco%dprf_T))**(tf_vco%drcf1-1.0d0)
+        zterm = tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M
+        if(zterm <= 0.0D0) then
+          zterm = 0.0D0
+        else
+          zterm = (zterm/(1.0d0-tf_vco%dpt_T/tf_vco%dprf_T))**(tf_vco%drcf1-1.0d0)
+        endif 
       endif
       tf_vco%db_dhyb_T(jlev)= tf_vco%drcf1 * zterm
       tf_vco%da_dhyb_T(jlev)= tf_vco%dprf_T*(1.0d0 - tf_vco%db_dhyb_T(jlev))
