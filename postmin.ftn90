@@ -226,6 +226,7 @@
       CALL SETASSFLG(lobsSpaceData)
       CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
       CALL UPDATE_BURPFILES(lobsSpaceData)
+      call obs_finalize(lobsSpaceData)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       call tmg_stop(93)

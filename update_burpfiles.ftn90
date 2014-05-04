@@ -67,8 +67,6 @@ SUBROUTINE UPDATE_BURPFILES(obsdat)
 !        call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J,LNMX)
          call UPDATE_BURP(obsdat,CFAMTYP(J),CFILNAM(J),J)
       END DO
-
-      call obs_finalize(obsdat)
 !
       WRITE(*,*)' '
       WRITE(*,*)'================================================='

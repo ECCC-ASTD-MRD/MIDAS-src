@@ -137,6 +137,7 @@
          call obs_prnthdr(lobsSpaceData,j)
          call obs_prntbdy(lobsSpaceData,j)
       END DO
+      call obs_finalize(lobsSpaceData)
       RETURN
       END SUBROUTINE BGCHECK
 
