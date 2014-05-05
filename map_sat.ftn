@@ -1,4 +1,4 @@
- !-------------------------------------- LICENCE BEGIN ------------------------------------
+!-------------------------------------- LICENCE BEGIN ------------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -15,148 +15,154 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
       SUBROUTINE MAP_SAT(ISATBURP,IPLATFORM,ISAT)
-#if defined (DOC)
-*
-***s/r MAP_SAT : Map burp satellite identifier (element #1007)
-*                to RTTOV-10 platform and satellite.
-*
-*Author  :       J. Halle *CMDA/SMC May 2002
-*
-*Revision 001  : J. Halle *CMDA/AES Jul 2005
-*                . add NOAA-18.
-*
-*Revision 002  : J. Halle *CMDA/AES May 2007
-*                . add METOP 1,2,3.
-*
-*Revision 003  : R. Sarrazin CMDA   Apr 2008
-*                  add MTSAT1, GOES13 and MSG2, modif to MSG1
-*
-*Revision 004  : C. Cote  mars 2009
-*                . add NOAA-19.
-*
-*Revision 005  : S. Macpherson *ARMA  Jul 2010
-*                . add SSMIS satellites DMSP17-18
-*
-*Revision 006  : S. Macpherson *ARMA  Feb 2013
-*                . add NPP/ATMS codtyp=192
-*
-*Revision 007  : J. Morneau CMDA    FEb 2014
-*                . add GOES15 and MTSAT-2
-*                . add GOES14
-*                . add MSG3 and MSG4
-*Revision 008 :  S. Heilliette    March 2014
-*                . Major Modification:
-*                . information is now read from namelist
-*                . instead of being hardcoded
-
-*
-*    -------------------
-**    Purpose:  Map burp satellite identifier (element #1007)
-*               to RTTOV-7 platform and satellite.
-**              Negative values are returned, if no match in found.
-*
-*               ---------------------------------------------
-*               Table of  RTTOV-7 platform identifier
-*               ---------------------------------------------
-*               Platform          RTTOV-7 platform identifier
-*               ---------         ---------------------------
-*               NOAA               1
-*               DMSP               2
-*               METEOSAT           3
-*               GOES               4
-*               GMS                5
-*               FY2                6
-*               TRMM               7
-*               ERS                8
-*               EOS                9
-*               METOP             10
-*               ENVISAT           11
-*               MSG               12
-*               FY1               13
-*               ADEOS             14
-*               MTSAT             15
-*               CORIOLIS          16
-*               NPP               17
-*               ---------------------------------------------
-*
-*               Example: NOAA15, which has a burp satellite identifier value of 206,
-*                        is mapped into the following:
-*                                RTTOV-7 platform  =  1,
-*                                RTTOV-7 satellite = 15.
-*
-*
-*
-*Arguments:
-*     i : ISATBURP      : BURP satellite identifier
-*     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
-*     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
-*
-#endif
+!
+!**s/r MAP_SAT : Map burp satellite identifier (element #1007)
+!                to RTTOV-10 platform and satellite.
+!
+!Author  :       J. Halle *CMDA/SMC May 2002
+!
+!Revision 001  : J. Halle *CMDA/AES Jul 2005
+!                . add NOAA-18.
+!
+!Revision 002  : J. Halle *CMDA/AES May 2007
+!                . add METOP 1,2,3.
+!
+!Revision 003  : R. Sarrazin CMDA   Apr 2008
+!                  add MTSAT1, GOES13 and MSG2, modif to MSG1
+!
+!Revision 004  : C. Cote  mars 2009
+!                . add NOAA-19.
+!
+!Revision 005  : S. Macpherson *ARMA  Jul 2010
+!                . add SSMIS satellites DMSP17-18
+!
+!Revision 006  : S. Macpherson *ARMA  Feb 2013
+!                . add NPP/ATMS codtyp=192
+!
+!Revision 007  : J. Morneau CMDA    FEb 2014
+!                . add GOES15 and MTSAT-2
+!                . add GOES14
+!                . add MSG3 and MSG4
+!Revision 008 :  S. Heilliette    March 2014
+!                . Major Modification:
+!                . information is now read from namelist
+!                . instead of being hardcoded
+!
+!    -------------------
+!    Purpose:  Map burp satellite identifier (element #1007)
+!               to RTTOV-7 platform and satellite.
+!               Negative values are returned, if no match in found.
+!
+!               ---------------------------------------------
+!               Table of  RTTOV-7 platform identifier
+!               ---------------------------------------------
+!               Platform          RTTOV-7 platform identifier
+!               ---------         ---------------------------
+!               NOAA               1
+!               DMSP               2
+!               METEOSAT           3
+!               GOES               4
+!               GMS                5
+!               FY2                6
+!               TRMM               7
+!               ERS                8
+!               EOS                9
+!               METOP             10
+!               ENVISAT           11
+!               MSG               12
+!               FY1               13
+!               ADEOS             14
+!               MTSAT             15
+!               CORIOLIS          16
+!               NPP               17
+!               ---------------------------------------------
+!
+!               Example: NOAA15, which has a burp satellite identifier value of 206,
+!                        is mapped into the following:
+!                                RTTOV-7 platform  =  1,
+!                                RTTOV-7 satellite = 15.
+!
+!
+!
+!Arguments:
+!     i : ISATBURP      : BURP satellite identifier
+!     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
+!     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
+!
       IMPLICIT NONE
-*
+
       INTEGER J,ISATBURP,IPLATFORM,ISAT
       INTEGER IER,NULNAM
       LOGICAL ,SAVE :: LFIRST=.TRUE.
       INTEGER ,EXTERNAL :: FNOM,FCLOS
-*
-      INTEGER,SAVE :: MXSATBURP
-*
-**  Table of BURP satellite identifier element #001007
-      INTEGER,SAVE,allocatable :: LISTBURP(:)
-**  Table of RTTOV-7 platform identifier
-      INTEGER,SAVE,allocatable :: LISTPLAT(:)
-**  Table of RTTOV-7 satellite identifier
-      INTEGER,SAVE,allocatable :: LISTSAT (:)
-C Note: Allocatable arrays in namelists are allowed as
-C of fortran 2003 standard
-      NAMELIST /NAMSAT/ MXSATBURP,LISTBURP, LISTPLAT, LISTSAT
 
-C*    .  Fill tables from namelist at the first call 
-C     .  -------------------------------------------
-C
+      integer, parameter :: mxsatburp = 100
+      INTEGER,SAVE :: NUMSATBURP
+
+      ! Table of BURP satellite identifier element #001007
+      INTEGER,SAVE :: LISTBURP(mxsatburp)
+      ! Table of RTTOV-7 platform identifier
+      INTEGER,SAVE :: LISTPLAT(mxsatburp)
+      ! Table of RTTOV-7 satellite identifier
+      INTEGER,SAVE :: LISTSAT (mxsatburp)
+
+      NAMELIST /NAMSAT/ LISTBURP, LISTPLAT, LISTSAT
+
+!     Fill tables from namelist at the first call 
+!     -------------------------------------------
+!
       IF (LFIRST) THEN
+         ! set the default values
+         LISTBURP(:) = -1
+         LISTSAT(:) = -1
+         LISTPLAT(:) = -1
+
+         ! read the namelist
          NULNAM=0
          IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
          IF (IER/=0) then
-            Write(*,*) "Error while opening namelist file !"
+            write(*,*) "Error while opening namelist file !"
             call abort3d("map_sat")
          ENDIF
          READ(NULNAM,NAMSAT,iostat=ier)
          IF (IER/=0) then
-            Write(*,*) "1Error while reading namelist file !"
+            write(*,*) "Error while reading namelist file !"
             call abort3d("map_sat")
          ENDIF
-         WRITE(*,NAMSAT)
-         IF (MXSATBURP>0) then
-            allocate(LISTBURP(MXSATBURP))
-            allocate(LISTSAT(MXSATBURP))
-            allocate(LISTPLAT(MXSATBURP))
-            READ(NULNAM,NAMSAT,iostat=ier)
-            IF (IER/=0) then
-               Write(*,*) "2Error while reading namelist file !"
-               call abort3d("map_sat")
-            ENDIF
-            WRITE(*,NAMSAT)
-         ENDIF
          ier=FCLOS(NULNAM)
+
+         ! figure out how many valid elements in the lists
+         DO J=1, MXSATBURP
+           if(listburp(j).eq.-1) then
+             numsatburp = j - 1
+             exit
+           endif
+         enddo
+         if(numsatburp.ge.mxsatburp) then
+           call abort3d('map_sat: exceeded maximum number of platforms')
+         endif
+         write(*,*) 'map_sat: number of satellites found in namelist = ',numsatburp
+         WRITE(*,*) 'map_sat: listburp   = ',listburp(1:numsatburp)
+         WRITE(*,*) 'map_sat: listsat    = ',listsat(1:numsatburp)
+         WRITE(*,*) 'map_sat: listplat   = ',listplat(1:numsatburp)
          LFIRST=.FALSE.
       ENDIF
 
 
-C*    .  Find platform and satellite
-C     .      ---------------------------
-C
+!     .  Find platform and satellite
+!     .      ---------------------------
+!
       IPLATFORM = -1
       ISAT      = -1
-      DO J=1, MXSATBURP
+      DO J=1, NUMSATBURP
          IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
              IPLATFORM = LISTPLAT(J)
              ISAT      = LISTSAT (J)
              RETURN
          ENDIF
       ENDDO
-*
+
       RETURN
-      END
+      END SUBROUTINE MAP_SAT
 
 

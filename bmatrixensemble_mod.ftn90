@@ -234,7 +234,7 @@ CONTAINS
     nip1_T(1:nLevEns_T)=vco_in%ip1_T(topLevIndex_T:nLevInc_T)
 
     !- 2.3 Distribute members in control vector over mpi processes
-    call mpivar_setup_levels(nEns,myMemBeg,myMemEnd,myMemCount)
+    call mpivar_setup_levels_npey(nEns,myMemBeg,myMemEnd,myMemCount)
     write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
 
     if ( myMemCount .le. 0 ) then
@@ -264,7 +264,7 @@ CONTAINS
       nla_l=(ntrunc_l+1)*(ntrunc_l+2)/2
 
       mpiMode=3
-      gstID = gst_setup(6,ni_l,nj_l,ntrunc_l,mpiMode,nEns)
+      gstID = gst_setup(ni_l,nj_l,ntrunc_l,mpiMode,nEns)
       if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
 
       allocate(jn_vec(nla_l),stat=ierr)
@@ -1202,7 +1202,6 @@ CONTAINS
         zgd2(:,1,:)=zgd(:,jk,:)
         call gst_setID(gstID)
         call gst_reespe(zsp2,zgd2,nEns,nEns)
-        call gst_setToDefaultID
         zsp(:,:,jk)=zsp2(:,:,1)
 
       end do
@@ -1656,7 +1655,6 @@ CONTAINS
       if (hco_ben % global) then
         call gst_setID(gstID)
         call gst_speree(zsp1,ensAmplitude,nEns,nEns)
-        call gst_setToDefaultID
       else
         allocate( gd_out(ni_l,myLatBeg:myLatEnd,nEns) )
         kind = 'SpectralToGridPoint'
@@ -1840,7 +1838,6 @@ CONTAINS
       if (hco_ben % global) then
         call gst_setID(gstID)
         call gst_reespe(zsp1,ensAmplitude,nEns,nEns)
-        call gst_setToDefaultID
       else
         allocate( gd_in(ni_l,myLatBeg:myLatEnd,nEns) )
 

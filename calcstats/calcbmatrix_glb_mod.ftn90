@@ -350,7 +350,6 @@ module calcbmatrix_glb_mod
     nLevEns_M=vco_in%nlev_M
     nLevEns_T=vco_in%nlev_T
     nLevPtot=nLevEns_M-1 ! ignore streamfunction at hyb=1, since highly correlated with next level
-!    nkgdimEns=nLevEns_M*2+nLevEns_T*2+2
     varLevOffset(1) = 0
     varLevOffset(2) = 1*nLevEns_M
     varLevOffset(3) = 2*nLevEns_M
@@ -360,7 +359,7 @@ module calcbmatrix_glb_mod
     nla=(ntrunc+1)*(ntrunc+2)/2
     
     mpiMode=2
-    gstID = gst_setup(6,ni,nj,ntrunc,mpiMode)
+    gstID = gst_setup(ni,nj,ntrunc,mpiMode)
 
     allocate(nip1_M(nLevEns_M))
     nip1_M(:)=vco_in%ip1_M(:)

@@ -438,7 +438,7 @@ CONTAINS
 
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop(70)
 
-    call tmg_start(80,'SIMVAR')
+    call tmg_start(80,'MIN_SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
 

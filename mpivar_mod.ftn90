@@ -5,27 +5,31 @@ module mpivar_mod
   private
 
   ! public procedures
-  public :: mpivar_setup_latbands,mpivar_setup_m,mpivar_setup_levels
+  public :: mpivar_setup_latbands, mpivar_setup_lonbands
+  public :: mpivar_setup_m, mpivar_setup_n
+  public :: mpivar_setup_levels_npex, mpivar_setup_levels_npey
 
   ! public variables through inheritance
-  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
+  public :: mpi_myid, mpi_nprocs, mpi_npex, mpi_npey, mpi_myidx, mpi_myidy
   ! public procedures through inheritance
-  public :: mpi_initialize,mpi_getptopo
+  public :: mpi_initialize, mpi_getptopo
 
   contains
 
 
   subroutine mpivar_setup_latbands(nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
+    ! Purpose: compute parameters that define the mpi distribution of
+    !          latitudes over tasks in Y direction (npey)
     implicit none
     integer          :: nj,latPerPE,myLatBeg,myLatEnd,njlath
     integer,optional :: myLatHalfBeg,myLatHalfEnd
 
-    latPerPE=ceiling(dble(nj)/dble(mpi_nprocs))
-    myLatBeg=1+mpi_myid*latPerPE
+    latPerPE=ceiling(dble(nj)/dble(mpi_npey))
+    myLatBeg=1+mpi_myidy*latPerPE
     if(myLatBeg.gt.nj) then
       call abort3d('mpivar_setup_latbands: latitudes not separable on mpi processes!')
     endif
-    myLatEnd=(1+mpi_myid)*latPerPE
+    myLatEnd=(1+mpi_myidy)*latPerPE
     if(myLatEnd>nj) then
       call abort3d('mpivar_setup_latbands: latitudes not divisible by MPI numprocs!')
     endif
@@ -47,13 +51,40 @@ module mpivar_mod
   end subroutine mpivar_setup_latbands
 
 
+  subroutine mpivar_setup_lonbands(ni,lonPerPE,myLonBeg,myLonEnd)
+    ! Purpose: compute parameters that define the mpi distribution of
+    !          longitudes over tasks in X direction (npex)
+    implicit none
+    integer          :: ni,lonPerPE,myLonBeg,myLonEnd
+
+    lonPerPE=ceiling(dble(ni)/dble(mpi_npex))
+    myLonBeg=1+mpi_myidx*lonPerPE
+    if(myLonBeg.gt.ni) then
+      call abort3d('mpivar_setup_lonbands: lonitudes not separable on mpi processes!')
+    endif
+    myLonEnd=(1+mpi_myidx)*lonPerPE
+    if(myLonEnd>ni) then
+      call abort3d('mpivar_setup_lonbands: lonitudes not divisible by MPI npex!')
+    endif
+
+  end subroutine mpivar_setup_lonbands
+
+
   subroutine mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+    ! Purpose: compute parameters that define the mpi distribution of
+    !          wavenumber m over tasks in Y direction (npey)
     implicit none
     integer :: ntrunc,mymBeg,mymEnd,mymSkip,mymCount,jm
 
-    mymBeg=mpi_myid
+    if((ntrunc+1) .lt. mpi_npey) then
+      write(*,*) 'mpivar_setup_m: NPEY (=',mpi_npey,') ',  &
+                 'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
+      call abort3d('mpivar_setup_m')
+    endif
+
+    mymBeg=mpi_myidy
     mymEnd=ntrunc
-    mymSkip=mpi_nprocs
+    mymSkip=mpi_npey
     mymCount=0
     do jm=mymBeg,mymEnd,mymSkip
       mymCount=mymCount+1
@@ -62,27 +93,89 @@ module mpivar_mod
   end subroutine mpivar_setup_m
 
  
-  subroutine mpivar_setup_levels(numlevels,myLevBeg,myLevEnd,myLevCount)
+  subroutine mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+    ! Purpose: compute parameters that define the mpi distribution of
+    !          wavenumber n over tasks in X direction (npex)
+    implicit none
+    integer :: ntrunc,mynBeg,mynEnd,mynSkip,mynCount,jn
+
+    if((ntrunc+1) .lt. mpi_npex) then
+      write(*,*) 'mpivar_setup_n: NPEX (=',mpi_npex,') ',  &
+                 'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
+      call abort3d('mpivar_setup_n')
+    endif
+
+    mynBeg=mpi_myidx
+    mynEnd=ntrunc
+    mynSkip=mpi_npex
+    mynCount=0
+    do jn=mynBeg,mynEnd,mynSkip
+      mynCount=mynCount+1
+    enddo
+
+  end subroutine mpivar_setup_n
+
+
+  subroutine mpivar_setup_levels_npey(numlevels,myLevBeg,myLevEnd,myLevCount)
+    ! Purpose: compute parameters that define the mpi distribution of
+    !          levels over tasks in Y direction (npey)
     implicit none
     integer :: numlevels,myLevBeg,myLevEnd,myLevCount
     integer :: jlev,jproc
-    integer :: myLevCounts(mpi_nprocs)
+    integer :: myLevCounts(mpi_npey)
+
+    if(numlevels .lt. mpi_npey) then
+      write(*,*) 'mpivar_setup_levels_npey: NPEY (=',mpi_npey,') ',  &
+                 'must be less than or equal to number of levels (=',numlevels,')!'
+      call abort3d('mpivar_setup_levels_npey')
+    endif
 
     myLevCounts(:)=0
-    do jproc=1,mpi_nprocs
-      do jlev=jproc,numlevels,mpi_nprocs
+    do jproc=1,mpi_npey
+      do jlev=jproc,numlevels,mpi_npey
         myLevCounts(jproc)=myLevCounts(jproc)+1
       enddo
     enddo
-    myLevCount=myLevCounts(mpi_myid+1)
+    myLevCount=myLevCounts(mpi_myidy+1)
 
     myLevBeg=1
-    do jproc=1,mpi_myid
+    do jproc=1,mpi_myidy
       myLevBeg=myLevBeg+myLevCounts(jproc)
     enddo
     myLevEnd=myLevBeg+myLevCount-1
 
-  end subroutine mpivar_setup_levels
+  end subroutine mpivar_setup_levels_npey
+
+
+  subroutine mpivar_setup_levels_npex(numlevels,myLevBeg,myLevEnd,myLevCount)
+    ! Purpose: compute parameters that define the mpi distribution of
+    !          levels over tasks in X direction (npex)
+    implicit none
+    integer :: numlevels,myLevBeg,myLevEnd,myLevCount
+    integer :: jlev,jproc
+    integer :: myLevCounts(mpi_npex)
+
+    if(numlevels .lt. mpi_npex) then
+      write(*,*) 'mpivar_setup_levels_npex: NPEX (=',mpi_npex,') ',  &
+                 'must be less than or equal to number of levels (=',numlevels,')!'
+      call abort3d('mpivar_setup_levels_npex')
+    endif
+
+    myLevCounts(:)=0
+    do jproc=1,mpi_npex
+      do jlev=jproc,numlevels,mpi_npex
+        myLevCounts(jproc)=myLevCounts(jproc)+1
+      enddo
+    enddo
+    myLevCount=myLevCounts(mpi_myidx+1)
+
+    myLevBeg=1
+    do jproc=1,mpi_myidx
+      myLevBeg=myLevBeg+myLevCounts(jproc)
+    enddo
+    myLevEnd=myLevBeg+myLevCount-1
+
+  end subroutine mpivar_setup_levels_npex
 
  
 end module mpivar_mod

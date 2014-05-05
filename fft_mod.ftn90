@@ -150,6 +150,7 @@ contains
     INTEGER  ILATBD,IJUMP,INFFT
     INTEGER  nfftstrid
 
+    ! Copy over input data into over-dimensioned array
 !$OMP PARALLEL 
 !$OMP DO PRIVATE (jj,jk,ji)
     do jj=myLatBeg(fftID),myLatEnd(fftID)

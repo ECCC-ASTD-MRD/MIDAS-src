@@ -243,8 +243,8 @@ contains
         write(*,*) 'lst_setup: ERROR, number of levels must be specified with MpiMode LatLev'
         stop
       end if
-      call mpivar_setup_levels( maxlevels_in,                                              & ! IN
-                                lst(id) % myLevBeg,lst(id) % myLevEnd,lst(id) % myLevCount ) ! OUT
+      call mpivar_setup_levels_npey( maxlevels_in,                                              & ! IN
+                                     lst(id) % myLevBeg,lst(id) % myLevEnd,lst(id) % myLevCount ) ! OUT
 
     case default
        print*

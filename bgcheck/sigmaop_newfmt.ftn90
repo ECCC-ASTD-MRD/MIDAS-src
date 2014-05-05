@@ -58,13 +58,13 @@
         write(*,*) ' opened as unit file ',iulssf
         ierr =  fstouv(iulssf,'RND+OLD')
       ELSE
-        CALL ABORT3D('SIGMAOP:NO BACKGROUND STAT FILE!!')
+        CALL ABORT3D('SIGMAOP_NEWFMT:NO BACKGROUND STAT FILE!!')
       ENDIF
 !C
 !C     .  2.1 Background error standard deviations
 !C
       CLETIKET = 'STDDEV'
-      write(*,*) 'sigmaop: CLETIKET = ',CLETIKET
+      write(*,*) 'sigmaop_newfmt: CLETIKET = ',CLETIKET
       IDATE    = -1
       IP2      = -1
       IP3      = -1
@@ -85,7 +85,7 @@
               ,IUBC,IEXTR1,IEXTR2,IEXTR3)
          if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
             write(*,*)
-            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
             write(*,*) 'nomvar         =', trim(CLNOMVAR)
             write(*,*) 'etiket         =', trim(CLETIKET)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
@@ -111,7 +111,7 @@
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
             write(*,*)
-            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
             write(*,*) 'nomvar         =', trim(CLNOMVAR)
             write(*,*) 'etiket         =', trim(CLETIKET)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
@@ -138,7 +138,7 @@
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
             write(*,*)
-            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
             write(*,*) 'nomvar         =', trim(CLNOMVAR)
             write(*,*) 'etiket         =', trim(CLETIKET)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
@@ -165,7 +165,7 @@
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
             write(*,*)
-            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
             write(*,*) 'nomvar         =', trim(CLNOMVAR)
             write(*,*) 'etiket         =', trim(CLETIKET)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
@@ -222,7 +222,7 @@
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
             write(*,*)
-            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
             write(*,*) 'nomvar         =', trim(CLNOMVAR)
             write(*,*) 'etiket         =', trim(CLETIKET)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
@@ -253,7 +253,7 @@
       IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
       if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
          write(*,*)
-         write(*,*) 'sigmaop: Invalid dimensions for...'
+         write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
          write(*,*) 'nomvar         =', trim(CLNOMVAR)
          write(*,*) 'etiket         =', trim(CLETIKET)
          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
@@ -359,7 +359,7 @@
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          if (ini /= 1 .or. inj /= hco_anl % nj .or. ink /= 1) then
             write(*,*)
-            write(*,*) 'sigmaop: Invalid dimensions for...'
+            write(*,*) 'sigmaop_newfmt: Invalid dimensions for...'
             write(*,*) 'nomvar         =', trim(CLNOMVAR)
             write(*,*) 'etiket         =', trim(CLETIKET)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink

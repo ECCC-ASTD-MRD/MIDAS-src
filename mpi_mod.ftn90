@@ -4,7 +4,7 @@ module mpi_mod
   private
 
   ! public variables
-  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy
+  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey
   ! public procedures
   public :: mpi_initialize,mpi_getptopo
 
@@ -12,6 +12,8 @@ module mpi_mod
   integer :: mpi_nprocs = 0
   integer :: mpi_myidx  = 0
   integer :: mpi_myidy  = 0
+  integer :: mpi_npex   = 0
+  integer :: mpi_npey   = 0
 
   contains
 
@@ -31,6 +33,8 @@ module mpi_mod
       mpi_myidy=0
     else
       call rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
+      mpi_npex=npex
+      mpi_npey=npey
     endif
 
 !$OMP PARALLEL PRIVATE(numthread,mythread)

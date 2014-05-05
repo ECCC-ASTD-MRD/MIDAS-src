@@ -38,7 +38,6 @@
       type(struct_vco), pointer :: vco_anl
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
-      REAL*8, allocatable :: ZETA(:)
       REAL*8, allocatable :: ZPP(:)
       REAL*8, allocatable :: ZDP(:)
       REAL*8, allocatable :: ZTT(:)
@@ -70,12 +69,11 @@
       INTEGER INDEX_HEADER, FIRST_HEADER
       INTEGER IDATYP, ITYP
       INTEGER IDATA, IDATEND, INDEX_BODY
-      INTEGER JL, JK, NFLEV, ILYR, IOBS
+      INTEGER JL, JK, NFLEV_T, ILYR, IOBS
       INTEGER INOBS_OPT, INOBS_JAC, icount, status, iversion
 
       LOGICAL  ASSIM, LLOK, LSTAG
       CHARACTER*9  STN_JAC
-      CHARACTER*2  LV
       
       CHARACTER(len=2) :: varType
       
@@ -88,17 +86,16 @@
 !C     * 1.  Initializations
 !C     *     ---------------
 !C
-      NFLEV = col_getNumLev(lcolumng,'TH')
-      allocate(ZETA(NFLEV))
-      allocate(ZPP(NFLEV))
-      allocate(ZDP(NFLEV))
-      allocate(ZTT(NFLEV))
-      allocate(ZHU(NFLEV))
-      allocate(ZGZ(NFLEV))
-      allocate(ZTTB(NFLEV))
-      allocate(ZHUB(NFLEV))
-      allocate(ZQQB(NFLEV))
-      allocate(ZQQ(NFLEV))
+      NFLEV_T = col_getNumLev(lcolumng,'TH')
+      allocate(ZPP(NFLEV_T))
+      allocate(ZDP(NFLEV_T))
+      allocate(ZTT(NFLEV_T))
+      allocate(ZHU(NFLEV_T))
+      allocate(ZGZ(NFLEV_T))
+      allocate(ZTTB(NFLEV_T))
+      allocate(ZHUB(NFLEV_T))
+      allocate(ZQQB(NFLEV_T))
+      allocate(ZQQ(NFLEV_T))
 
 !c     Number of locations/sites for observation operator test
       INOBS_OPT = 50
@@ -117,26 +114,16 @@
          LSTAG = .TRUE. 
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
          WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
-         LV = 'TH'
       else
          LSTAG = .FALSE.
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS NOT STAGGERED'
          WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
          ZPR = vco_anl%dprf_M
          ZCF = vco_anl%drcf1
-         LV = 'TH'
          WRITE(*,*) 'ZPR = ', ZPR
          WRITE(*,*) 'ZCF = ', ZCF
       endif
 
-!C
-!C     *    .   1.1  Eta vector
-!C     *    .        ----------
-!C
-      DO JL = 1, NFLEV
-         ZETA(JL) = vco_anl%DHYB_M(JL)
-      ENDDO
-      
 !C
       first_header=-1
       icount = 0
@@ -182,24 +169,24 @@
                      ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
                      ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
                      ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-                     DO JL = 1, NFLEV
-                       ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,LV)
+                     DO JL = 1, NFLEV_T
+                       ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
 !C                     Get ZDP = dP/dP0
-                       ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,LV)
+                       ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                        ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
                        ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
                        ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
                        ZQQB(JL) = EXP(ZHUB(JL))
                        ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
-                       DX(NFLEV+JL) = ZHU(JL)
+                       DX(NFLEV_T+JL) = ZHU(JL)
                        ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
                      ENDDO
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
-                     DX(2*NFLEV+1) = ZP0
-                     ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,LV)
-                     ZMT  = ZGZ(NFLEV)/GRAV
-                     CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+                     DX(2*NFLEV_T+1) = ZP0
+                     ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,'TH')
+                     ZMT  = ZGZ(NFLEV_T)/GRAV
+                     CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
                      CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
@@ -215,7 +202,7 @@
 
                            ZLSUM  = 0.0d0
 !C
-                           DO JL = 1, 2*NFLEV+1
+                           DO JL = 1, 2*NFLEV_T+1
                              ZLSUM = ZLSUM + (JAC(JL)*DX(JL))**2
                            ENDDO
                            call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,SQRT(ZLSUM))
@@ -227,11 +214,11 @@
                              WRITE(*,'(A11,A9,3(1x,f7.2))')   &
                                'SETFGEGPS: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),ZLAT,ZLON,ZLEV
                              WRITE(*,*) 'JL JACT JACQ FGE_T FGE_LQ QQ'
-                             DO JL = 1, NFLEV
-                               WRITE(*,'(1X,I2,5(1x,E13.6))') JL,JAC(JL),JAC(JL+NFLEV)/ZQQB(JL),ZTT(JL),ZHU(JL),ZQQB(JL)
+                             DO JL = 1, NFLEV_T
+                               WRITE(*,'(1X,I2,5(1x,E13.6))') JL,JAC(JL),JAC(JL+NFLEV_T)/ZQQB(JL),ZTT(JL),ZHU(JL),ZQQB(JL)
                              ENDDO                         
                              WRITE(*,*) 'JACPS FGE_PS'
-                             WRITE(*,'(2(1x,E13.6))') JAC(2*NFLEV+1), ZP0
+                             WRITE(*,'(2(1x,E13.6))') JAC(2*NFLEV_T+1), ZP0
                            ENDIF
 
                         ENDIF
@@ -245,10 +232,10 @@
 
       IF ( LTESTOP ) THEN
       
-      allocate(ZTTB_P(NFLEV))
-      allocate(ZQQB_P(NFLEV))
-      allocate(RZHUB_P(NFLEV))
-      allocate(ZPP_P(NFLEV))
+      allocate(ZTTB_P(NFLEV_T))
+      allocate(ZQQB_P(NFLEV_T))
+      allocate(RZHUB_P(NFLEV_T))
+      allocate(ZPP_P(NFLEV_T))
 
       icount = 0
       ZSUMTEST = 0
@@ -272,10 +259,10 @@
          ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
          ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
          ZP0B = col_getElem(lcolumng,1,INDEX_HEADER,'P0')
-         DO JL = 1, NFLEV
-            ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,LV)
+         DO JL = 1, NFLEV_T
+            ZPP(JL)  = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
 !C          Get ZDP = dP/dP0
-            ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,LV)
+            ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
             ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
             ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
@@ -286,14 +273,14 @@
             ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
-         ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,LV)
-         ZMT  = ZGZ(NFLEV)/GRAV
+         ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,'TH')
+         ZMT  = ZGZ(NFLEV_T)/GRAV
 
-         DO JL = 1, NFLEV
+         DO JL = 1, NFLEV_T
              DX (      JL) = ZTT(JL)
-             DX (NFLEV+JL) = ZHU(JL)
+             DX (NFLEV_T+JL) = ZHU(JL)
          ENDDO
-         DX (2*NFLEV+1) = ZP0
+         DX (2*NFLEV_T+1) = ZP0
 
          ZTDOBS = -1.0d0
          DO INDEX_BODY = IDATA, IDATEND
@@ -305,7 +292,7 @@
              ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
              ILYR    = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
              ZTOP    = col_getHeight(lcolumng,ILYR,IOBS,varType)/GRAV
-             if ( ILYR .LT. NFLEV ) then
+             if ( ILYR .LT. NFLEV_T ) then
                ZBOT    = col_getHeight(lcolumng,ILYR+1,IOBS,varType)/GRAV
              else
                ZBOT    = ZTOP
@@ -316,7 +303,7 @@
 
          IF ( ZTDOBS .GT. 0.d0 ) THEN
 !c         Create the pertubation control vector
-           DO JL = 1, NFLEV
+           DO JL = 1, NFLEV_T
              ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
              ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
              ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
@@ -327,8 +314,8 @@
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-           CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
+           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
            CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
@@ -338,7 +325,7 @@
 !c         Linear  --> delta_H = dH/dx * delta_x
 !c
            DELTAH_TL = 0.0d0
-           DO JL = 1, 2*NFLEV+1
+           DO JL = 1, 2*NFLEV_T+1
              DELTAH_TL = DELTAH_TL + JAC(JL)*DX(JL)
            ENDDO
 !c
@@ -373,7 +360,6 @@
       ENDIF
 !-----------------------------------------------------------------------------------------------------------
 
-      deallocate(ZETA)
       deallocate(ZPP)
       deallocate(ZDP)
       deallocate(ZTT)

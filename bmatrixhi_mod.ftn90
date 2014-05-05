@@ -178,9 +178,8 @@ CONTAINS
     nj_l=hco_in%nj
 
     mpiMode=2
-    gstID = gst_setup(6,ni_l,nj_l,ntrunc,mpiMode)
+    gstID = gst_setup(ni_l,nj_l,ntrunc,mpiMode)
     if(mpi_myid.eq.0) write(*,*) 'BHI:returned value of gstID=',gstID
-    call gst_setDefaultID(gstID)
 
     call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
 
@@ -672,7 +671,7 @@ CONTAINS
       do jk1=1,nlev_T
         zfact=corvert(jk1+nkgdim,jk1+nkgdim)
         do ij=1,nj_l
-          zcoriolis = abs(2.d0*romega*gst_getrmu(ij))
+          zcoriolis = abs(2.d0*romega*gst_getrmu(ij,gstID))
           if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
             zfact2=1.0d0/(zfact*zcoriolis*zcoriolis)
           else 
@@ -694,7 +693,7 @@ CONTAINS
         do jk1=1,nlevPtoT
           zfact=zfact+PtoT(nlev_T+1,jk1,klatPtoT)*zpsips(jk1)
         enddo
-        zcoriolis = abs(2.d0*romega*gst_getrmu(ij))
+        zcoriolis = abs(2.d0*romega*gst_getrmu(ij,gstID))
         if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
           zfact2=1.0d0/(zfact*zcoriolis*zcoriolis)
         else 
@@ -819,7 +818,7 @@ CONTAINS
         dlc = 1.d0/dble(pcscl(jlev))
         dlc = 0.5d0*dlc*dlc
         do  jgl = myLatBeg, myLatEnd
-          zr = ra * acos(gst_getRmu(jgl))
+          zr = ra * acos(gst_getRmu(jgl,gstID))
           dlcorr = dexp(-(zr**2)*dlc)
           do  jlon = 1, ni_l
             zgd(jlon,jlev,jgl) = dlcorr
@@ -832,7 +831,7 @@ CONTAINS
         dlc = dltemp/dble(pcscl(jlev))
         dlcsurn = dlc/dln
         do jgl = myLatBeg, myLatEnd
-          zr = ra * acos(gst_getRmu(jgl))
+          zr = ra * acos(gst_getRmu(jgl,gstID))
           dlcorr = (1.d0 + dlc*zr + zr*dlc*zr*dlc/3.d0)*dexp(-zr*dlc)    &
             + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
           dlcorr = dlcorr*dlfac
@@ -950,6 +949,7 @@ CONTAINS
     call BHI_calccorr(zgd,rcscltg,numlev,ntgcorrtyp)
 
     ! 4.3  Bring back the result in spectral space
+    call gst_setID(gstID)
     call gst_reespe(zsp,zgd,1,1)
     nsize=2*nla_mpiglobal
     call rpn_comm_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -983,7 +983,7 @@ CONTAINS
     !  4.5  Correlation
     do jm   = 0, ntrunc
       do jn   = jm, ntrunc
-        jla  = gst_getNIND(jm) + jn - jm
+        jla  = gst_getNIND(jm,gstID) + jn - jm
         dlfac = 0.5d0/dsqrt((2*jn+1.d0)/2.d0)
         cortgg(jla,1) = dlfac * zsp(jn+1,1,1)
         cortgg(jla,2) = dlfac * zsp(jn+1,1,1)
@@ -1038,8 +1038,8 @@ CONTAINS
 !    if (nj_l.ge.injmin) then
        inj=nj_l
        do jlat = 1, nj_l
-          dlwti(jlat) = gst_getrwt(jlat)
-          zrmu(jlat)  = gst_getrmu(jlat)
+          dlwti(jlat) = gst_getrwt(jlat,gstID)
+          zrmu(jlat)  = gst_getrmu(jlat,gstID)
        end do
 !    else
 !       ! apply minimum length to legendre poly expansion.
@@ -1390,6 +1390,7 @@ CONTAINS
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
 
+    call gst_setID(gstID)
     call gst_zlegpol(zleg)
 
     rgsig(:,:)=0.0d0
@@ -1557,6 +1558,7 @@ CONTAINS
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
 
+    call gst_setID(gstID)
     call gst_zlegpol(zleg)
 
     rgsig(:,:)=0.0d0
@@ -1854,6 +1856,7 @@ CONTAINS
 
     !write(*,*) 'RDSPPTOT: set up simple spectral transforms'
 
+    call gst_setID(gstID)
     call gst_zlegpol(zleg)
 
     ip1 = -1
@@ -2170,7 +2173,7 @@ CONTAINS
       do jn = 0 , ntrunc
         do jm = mymBeg, jn, mymSkip
           ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
-          ila_mpiglobal = gst_getNIND(jm) + jn - jm
+          ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
 
           if(jm.eq.0) then
             jdim_mpilocal  = ila_mpilocal
@@ -2228,7 +2231,7 @@ CONTAINS
       do jn = 0 , ntrunc
         do jm = mymBeg, jn, mymSkip
           ila_mpilocal  = Nind_mpilocal(jm) + jn - jm
-          ila_mpiglobal = gst_getNIND(jm) + jn - jm
+          ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
 
           if(jm.eq.0) then
             jdim_mpilocal  = ila_mpilocal
@@ -2356,7 +2359,10 @@ CONTAINS
 
     klatPtoT=1
 
+    call gst_setID(gstID)
+
     call tmg_start(53,'BHI_SPA2GD1')
+
     sq2=sqrt(2.0d0)
     allocate(zsp(nkgdim2,2,0:ntrunc))
     allocate(zsp2(nkgdim2,2,0:ntrunc))
@@ -2378,7 +2384,7 @@ CONTAINS
       icount=0
       do jm = mymBeg, jn, mymSkip
         icount=icount+1
-        ila = gst_getNind(jm) +jn - jm
+        ila = gst_getNind(jm,gstID) +jn - jm
         do jk = 1, nkgdim
           sp(ila,1,jk) = zsp2(jk,1,icount-1)
           sp(ila,2,jk) = zsp2(jk,2,icount-1)
@@ -2390,7 +2396,7 @@ CONTAINS
       enddo
 
       if(mymBeg.eq.0) then
-        ila = gst_getNind(0) +jn
+        ila = gst_getNind(0,gstID) +jn
         do jk = 1, nkgdim
           sp(ila,1,jk) = sp(ila,1,jk)*sq2
           sp(ila,2,jk) = sp(ila,2,jk)*sq2
@@ -2441,7 +2447,7 @@ CONTAINS
     call tmg_start(54,'BHI_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
-      zcoriolis = 2.d0*romega*gst_getRmu(jlat)
+      zcoriolis = 2.d0*romega*gst_getRmu(jlat,gstID)
       !write(*,*) 'CORIOLIS=',jlat,zcoriolis
       do jlon = 1, ni_l
         zpsb(jlon,jlat)=0.0d0
@@ -2512,10 +2518,10 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA)
     do jlev = 1, nlev_M
       do jla = 1, nla_mpiglobal
-        sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
-        sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
-        sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
-        sp(jla,2,nspositDI+jlev-1)=sp(jla,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+        sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
+        sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
+        sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
+        sp(jla,2,nspositDI+jlev-1)=sp(jla,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
       enddo
     enddo
 !$OMP END PARALLEL DO
@@ -2570,6 +2576,8 @@ CONTAINS
     integer :: thdid,numthd,nsize
     integer :: omp_get_thread_num, omp_get_num_threads
 
+    call gst_setID(gstID)
+
     dla2   = ra*ra
     dl1sa2 = 1.d0/dla2
 
@@ -2592,10 +2600,10 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(JLEV,JLA)
     do jlev = 1, nlev_M
       do jla = 1, nla_mpiglobal
-        sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
-        sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla)
-        sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
-        sp(jla,2,nspositDI+jlev-1)=sp(jla,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla)
+        sp(jla,1,nspositVO+jlev-1)=sp(jla,1,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
+        sp(jla,2,nspositVO+jlev-1)=sp(jla,2,nspositVO+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
+        sp(jla,1,nspositDI+jlev-1)=sp(jla,1,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
+        sp(jla,2,nspositDI+jlev-1)=sp(jla,2,nspositDI+jlev-1)*dl1sa2*gst_getrnnp1(jla,gstID)
       enddo
     enddo
 !$OMP END PARALLEL DO
@@ -2619,7 +2627,7 @@ CONTAINS
     call tmg_start(54,'BHI_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
-      zcoriolis = 2.d0*romega*gst_getRMU(jlat)
+      zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
       do jlev = 1, nlev_T
         do jlon = 1, ni_l
           tb0(jlon,jlev,jlat)=gd(jlon,nspositTT+jlev-1,jlat)
@@ -2672,7 +2680,7 @@ CONTAINS
 
       icount=0
       do jm = mymBeg, jn, mymSkip
-        ila = gst_getNind(jm) + jn - jm
+        ila = gst_getNind(jm,gstID) + jn - jm
         icount=icount+1
         do jk = 1, nkgdim
           zsp2(jk,1,icount-1) = sp(ila,1,jk)
