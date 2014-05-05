@@ -14,56 +14,56 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE BGCHECK(lcolumng,lcolumnhr,lobsSpaceData)
-!*
-!***s/r BGCHECK  - BACKGROUND CHECK
-!*
-!*
-!*Author  : P. Koclas *CMC/CMDA  Nov 1998
-!*Revision:
-!*
-!*    -------------------
-!**    Purpose: DO  a background check on all observations
-!*
+      SUBROUTINE BGCHECK(columng,columnhr,obsSpaceData)
+!
+!**s/r BGCHECK  - BACKGROUND CHECK
+!
+!
+!Author  : P. Koclas *CMC/CMDA  Nov 1998
+!Revision:
+!
+!    -------------------
+!*    Purpose: DO  a background check on all observations
+!
       use obsSpaceData_mod
       use columnData_mod
       use tovs_nl_mod
       IMPLICIT NONE
 
-      type(struct_obs) :: lobsSpaceData
-      type(struct_columnData) :: lcolumng,lcolumnhr
+      type(struct_obs) :: obsSpaceData
+      type(struct_columnData) :: columng,columnhr
       INTEGER J,JDATA
       REAL*8 ZJO
       INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
       INTEGER :: index_header,idatyp
       integer :: loop_done_airs, loop_done_iasi, loop_done_cris
       logical :: end_airs,end_iasi,end_cris
-!C
+!
       call tmg_start(2,'BGCHECK')
       WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
-!C
-!C*    1. Preliminary initializations
-!C     .  ---------------------------
-!C
-!C      CALCULATE Sigmap AND INNOVATIONS(O-P)
-!C     ----------------------------------------------
-!C
-      CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
-!C
-!C     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
-!C     ----------------------------------------------
-!C
-      CALL BGCDATA(ZJO,'UA',lobsSpaceData)
-      CALL BGCDATA(ZJO,'AI',lobsSpaceData)
-      CALL BGCDATA(ZJO,'HU',lobsSpaceData)
-      CALL BGCDATA(ZJO,'SF',lobsSpaceData)
-      CALL BGCDATA(ZJO,'ST',lobsSpaceData)
-      CALL BGCDATA(ZJO,'SW',lobsSpaceData)
-      CALL BGCDATA(ZJO,'SC',lobsSpaceData)
-      CALL BGCDATA(ZJO,'PR',lobsSpaceData)
-      CALL BGCGPSRO(lcolumnhr,lobsSpaceData)
-      CALL BGCDATA(ZJO,'GP',lobsSpaceData)
+!
+!     Preliminary initializations
+!     ---------------------------
+!
+!     CALCULATE Sigmap AND INNOVATIONS(O-P)
+!     ----------------------------------------------
+!
+      CALL SIGMAOP(columng,columnhr,obsSpaceData)
+!
+!     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
+!     ----------------------------------------------
+!
+      CALL BGCDATA(ZJO,'UA',obsSpaceData)
+      CALL BGCDATA(ZJO,'AI',obsSpaceData)
+      CALL BGCDATA(ZJO,'HU',obsSpaceData)
+      CALL BGCDATA(ZJO,'SF',obsSpaceData)
+      CALL BGCDATA(ZJO,'ST',obsSpaceData)
+      CALL BGCDATA(ZJO,'SW',obsSpaceData)
+      CALL BGCDATA(ZJO,'SC',obsSpaceData)
+      CALL BGCDATA(ZJO,'PR',obsSpaceData)
+      CALL BGCGPSRO(columnhr,obsSpaceData)
+      CALL BGCDATA(ZJO,'GP',obsSpaceData)
 
       NOBTOV=0
       NOBAIRS=0
@@ -71,14 +71,13 @@
       NOBCRIS=0
 
       ! loop over all header indices of the 'TO' family
-      ! Set the header list
-      ! (& start at the beginning of the list)
-      call obs_set_current_header_list(lobsSpaceData,'TO')
+      ! Set the header list (and start at the beginning of the list)
+      call obs_set_current_header_list(obsSpaceData,'TO')
       HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
+         index_header = obs_getHeaderIndex(obsSpaceData)
          if (index_header < 0) exit HEADER
 
-         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
+         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
 
          IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
@@ -93,7 +92,7 @@
          loop_done_airs = 0
          end_airs       = .false.
          do
-            call AIRSQC ( end_airs, loop_done_airs,lcolumnhr,lobsSpaceData )
+            call AIRSQC ( end_airs, loop_done_airs,columnhr,obsSpaceData )
             loop_done_airs = loop_done_airs + 1
             if ( end_airs ) EXIT 
          end do
@@ -103,7 +102,7 @@
          loop_done_iasi = 0
          end_iasi       = .false.
          do
-            call IASIQC ( end_iasi, loop_done_iasi,lcolumnhr,lobsSpaceData )
+            call IASIQC ( end_iasi, loop_done_iasi,columnhr,obsSpaceData )
             loop_done_iasi = loop_done_iasi + 1
             if ( end_iasi ) EXIT
          end do
@@ -113,23 +112,25 @@
          loop_done_cris = 0
          end_cris       = .false.
          do
-            call CRISQC ( end_cris, loop_done_cris,lcolumnhr,lobsSpaceData )
+            call CRISQC ( end_cris, loop_done_cris,columnhr,obsSpaceData )
             loop_done_cris = loop_done_cris + 1
             if ( end_cris ) EXIT
          end do
       ENDIF
 
-
-!C
-!C     .   3.4.3 Convert CMA ---> BURP file and write it
-!C
-      CALL UPDATE_BURPFILES(lobsSpaceData)
+!
+!     Write out contents of obsSpaceData into BURP files
+!
+      CALL UPDATE_BURPFILES(obsSpaceData)
       ! add cloud parameter data to burp files (AIRS&IASI)
-      CALL ADD_CLOUDPRMS(lobsSpaceData)
+      CALL ADD_CLOUDPRMS(obsSpaceData)
       DO j =1,1
-         call obs_prnthdr(lobsSpaceData,j)
-         call obs_prntbdy(lobsSpaceData,j)
+         call obs_prnthdr(obsSpaceData,j)
+         call obs_prntbdy(obsSpaceData,j)
       END DO
+
+      ! deallocate obsSpaceData
+      call obs_finalize(obsSpaceData)
 
       call tmg_stop(2)
 

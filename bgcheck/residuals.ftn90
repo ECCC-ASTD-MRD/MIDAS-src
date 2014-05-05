@@ -1,4 +1,4 @@
-      SUBROUTINE RESIDUALS(lcolumng,lcolumnhr,lobsSpaceData)
+      SUBROUTINE RESIDUALS(columng,columnhr,obsSpaceData)
 !*
 !***s/r RESIDUALS  - RESIDUALS
 !*
@@ -10,8 +10,8 @@
       use columnData_mod
       IMPLICIT NONE
 
-      type(struct_obs) :: lobsSpaceData
-      type(struct_columnData) :: lcolumng,lcolumnhr
+      type(struct_obs) :: obsSpaceData
+      type(struct_columnData) :: columng,columnhr
       INTEGER J
 
       call tmg_start(2,'RESIDUALS')
@@ -21,16 +21,17 @@
 !C*    1. Preliminary initializations
 !C     .  ---------------------------
 !C
-      CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
+      CALL SIGMAOP(columng,columnhr,obsSpaceData)
 
       DO j =1,1
-         call obs_prnthdr(lobsSpaceData,j)
-         call obs_prntbdy(lobsSpaceData,j)
+         call obs_prnthdr(obsSpaceData,j)
+         call obs_prntbdy(obsSpaceData,j)
       END DO
 
-      CALL UPDATE_BURPFILES(lobsSpaceData)
+      CALL UPDATE_BURPFILES(obsSpaceData)
 
-      call obs_finalize(lobsSpaceData)
+      ! deallocate obsSpaceData
+      call obs_finalize(obsSpaceData)
 
       call tmg_stop (2)
 

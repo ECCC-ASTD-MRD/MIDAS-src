@@ -157,6 +157,7 @@ program cnt0
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData)
 
+    ! Deallocate obsSpaceData
     call obs_finalize(obsSpaceData)
 
   else

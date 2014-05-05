@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
+subroutine oda_LT(statevector,column,columng,lobsSpaceData)
   use MathPhysConstants_mod
   use mpivar_mod
   use gridStateVector_mod
@@ -28,7 +28,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   !          Compute adjoint grided increments from adjoint profiled increments
   !
 
-  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_columnData) :: column,columng
   type(struct_obs)        :: lobsSpaceData
   type(struct_gsv)        :: statevector
 
@@ -36,26 +36,26 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   integer :: mythread,numthread,omp_get_num_threads,omp_get_thread_num
   type(struct_vco), pointer :: vco_anl
 
-  myLatP1 = min(statevector % myLatEnd + 1, statevector % nj)
+  myLatP1 = min(statevector%myLatEnd + 1, statevector%nj)
 
   !
   !- 2.  Variable conversions
   !
 
   !- 2.2 Rotated wind to Meteorological wind
-  if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector % hco % Rotated ) then
+  if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector%hco%Rotated ) then
      write(*,*) 'uvrot2uvAdj Active' 
-     call uvrot2uvAdj('UU', 'VV', col_getNumLev(lcolumn,'MM')) ! IN
+     call uvrot2uvAdj('UU', 'VV', col_getNumLev(column,'MM')) ! IN
   end if
   
   !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-  vco_anl => col_getVco(lcolumng)
+  vco_anl => col_getVco(columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
   call tmg_start(37,'INTERP_ATT2PHI')
   if(Vcode_anl .eq. 5001) then
-    call att2phi(lcolumn,lcolumng)
+    call att2phi(column,columng)
   else
-    call att2phi_gem4(lcolumn,lcolumng)
+    call att2phi_gem4(column,columng)
   endif
   call tmg_stop(37)
   
@@ -71,15 +71,15 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
   mythread=omp_get_thread_num()+1
   numthread=omp_get_num_threads()
 
-  deltalev=ceiling(real(col_getNumLev(lcolumn,'MM'))/real(numthread))
+  deltalev=ceiling(real(col_getNumLev(column,'MM'))/real(numthread))
   ilev1=1+(mythread-1)*deltalev
-  ilev2=min(col_getNumLev(lcolumn,'MM'),mythread*deltalev)
+  ilev2=min(col_getNumLev(column,'MM'),mythread*deltalev)
   if(gsv_varExist('UU'))  call gd2mvoad('UU',ilev1,ilev2)
   if(gsv_varExist('VV'))  call gd2mvoad('VV',ilev1,ilev2)
 
-  deltalev=ceiling(real(col_getNumLev(lcolumn,'TH'))/real(numthread))
+  deltalev=ceiling(real(col_getNumLev(column,'TH'))/real(numthread))
   ilev1=1+(mythread-1)*deltalev
-  ilev2=min(col_getNumLev(lcolumn,'TH'),mythread*deltalev)
+  ilev2=min(col_getNumLev(column,'TH'),mythread*deltalev)
   if(gsv_varExist('HU'))  call gd2mvoad('HU',ilev1,ilev2)
   if(gsv_varExist('TT'))  call gd2mvoad('TT',ilev1,ilev2)
 !$OMP END PARALLEL
@@ -113,7 +113,7 @@ CONTAINS
     !*
     !**    Purpose:  Update the estimate of GD from the gradient components
     !*               at the observation points which have been stored in
-    !*               lcolumn
+    !*               column
     !*
     !* Arguments
     !*     VARNAME: identificator of the variable to be treated
@@ -129,55 +129,55 @@ CONTAINS
     REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
     real(8) :: xpos, ypos, lat, lon, latrot, lonrot
 
-    real(8) :: zfield(1:statevector % ni+1, klev1:klev2,statevector % myLatBeg:myLatP1)
+    real(8) :: zfield(1:statevector%ni+1, klev1:klev2,statevector%myLatBeg:myLatP1)
 
     real*8, pointer :: field_ptr(:,:,:,:)
     real*8, pointer :: column_ptr(:,:)
 
 
-    if (col_getNumCol(LCOLUMN) > 0) column_ptr => col_getAllColumns(lcolumn,varName)
+    if (col_getNumCol(column) > 0) column_ptr => col_getAllColumns(column,varName)
 
     field_ptr  => gsv_getField(statevector,varName)
 
     ! Note: We assume here the all the obs between the poles and the last grid points
     !       (i.e. outside the grid) have been moved within the grid previously
 
-    do jstep = 1, statevector % numStep
+    do jstep = 1, statevector%numStep
 
       zfield(:,:,:) = 0.0D0
       
       !
       !- 2.  LOOP OVER ALL THE OBSERVATIONS
       !
-      DO headerIndex = 1, col_getNumCol(lcolumn)
+      DO headerIndex = 1, col_getNumCol(column)
 
         if ( tim_getTimeInterpWeight(headerIndex,jstep) > 0.0d0 .and. &
              .not.btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
 
           !- 2.1 Find the obs position within the analysis grid
-          call col_getLatLon( lcolumn, headerIndex,                & ! IN
+          call col_getLatLon( column, headerIndex,                & ! IN
                               Lat, Lon, ypos, xpos, LatRot, LonRot ) ! OUT
 
           !- Make sure we are within bounds
-          if ( ypos < real(statevector % myLatBeg,8) .or. &
-               ypos > real(myLatP1               ,8) .or. &
-               xpos < 1.d0                           .or. &
-               xpos > real(statevector % ni + 1  ,8) ) then
+          if ( ypos < real(statevector%myLatBeg,8) .or. &
+               ypos > real(myLatP1             ,8) .or. &
+               xpos < 1.d0                         .or. &
+               xpos > real(statevector%ni + 1  ,8) ) then
             write(*,*) 'oda_LT: Obs outside local domain for job = ', headerIndex
             write(*,*) '  obs position  = ', xpos, ypos
-            write(*,*) '  domain bounds = ', statevector % myLatBeg, myLatP1, statevector % ni + 1
+            write(*,*) '  domain bounds = ', statevector%myLatBeg, myLatP1, statevector%ni + 1
 
             ! if obs above or below latitude band, move it to the edge of this latitude band
-            if( ypos < real(statevector % myLatBeg,8) ) ypos = real(statevector % myLatBeg,8)
-            if( ypos > real(myLatP1               ,8) ) ypos = real(myLatP1               ,8)
+            if( ypos < real(statevector%myLatBeg,8) ) ypos = real(statevector%myLatBeg,8)
+            if( ypos > real(myLatP1             ,8) ) ypos = real(myLatP1             ,8)
 
             ! abort if obs is to the left or right of the analysis domain
             if( xpos < 1.d0                           .or. &
-                xpos > real(statevector % ni + 1  ,8) ) call abort3d('oda_LT')
+                xpos > real(statevector%ni + 1  ,8) ) call abort3d('oda_LT')
           end if
 
           !- 2.2 Find the lower-left grid point next to the observation
-          if ( xpos /= real(statevector % ni + 1,8) ) then
+          if ( xpos /= real(statevector%ni + 1,8) ) then
             ILON = floor(xpos)
           else
             ILON = floor(xpos) - 1
@@ -219,7 +219,7 @@ CONTAINS
       !
       !- 1.  EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIAN
       !      1 into INTO MERIDIAN NI+1
-      DO JLAT = statevector % myLatBeg, myLatP1
+      DO JLAT = statevector%myLatBeg, myLatP1
         DO JLEV = KLEV1, KLEV2
           ZFIELD(1,JLEV,JLAT) =   ZFIELD(STATEVECTOR%NI+1,JLEV,JLAT) &
                                 + ZFIELD(1               ,JLEV,JLAT)
@@ -230,7 +230,7 @@ CONTAINS
       !- 0. Transfer local results to global array
       !
       field_ptr(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1,jstep) = &
-           zfield(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1)
+         zfield(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1)
 
    end do ! jstep
 
@@ -258,14 +258,14 @@ CONTAINS
     !
     !- 1.  Loop over all the observation locations
     !
-    do headerIndex = 1, col_getNumCol(lcolumn)
+    do headerIndex = 1, col_getNumCol(column)
 
       !- 1.1 Extract (rotated) wind profiles
-      UUColumn => col_getColumn(lcolumn,headerIndex,UUvarName)
-      VVColumn => col_getColumn(lcolumn,headerIndex,VVvarName)
+      UUColumn => col_getColumn(column,headerIndex,UUvarName)
+      VVColumn => col_getColumn(column,headerIndex,VVvarName)
        
       !- 1.2 Find the latitudes and longitudes
-      call col_getLatLon( lcolumn, headerIndex,                  & ! IN
+      call col_getLatLon( column, headerIndex,                   & ! IN
                           Lat, Lon, ypos, xpos, LatRot, LonRot )   ! OUT
 
       !- 1.3 Rotate Winds
