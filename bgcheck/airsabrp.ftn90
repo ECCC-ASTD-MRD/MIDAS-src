@@ -152,7 +152,8 @@ SUBROUTINE AIRSABRP(lobsspacedata,brp_file)
 ! crate a new report
 ! ------------------
 
-     Call BURP_New(Cp_rpt, ALLOC_SPACE=1000000, IOSTAT=error)
+!pik Call BURP_New(Cp_rpt, ALLOC_SPACE=1000000, IOSTAT=error)
+     Call BURP_New(Cp_rpt, ALLOC_SPACE=2000000, IOSTAT=error)
 
 
 ! LOOP ON REPORTS
