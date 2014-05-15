@@ -345,7 +345,6 @@ CONTAINS
     if(gst(gstID)%mpiMode.ne.0) then
       call mpivar_setup_latbands(gst(gstID)%nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
       call mpivar_setup_lonbands(gst(gstID)%ni,lonPerPE,myLonBeg,myLonEnd)
-      call mpivar_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
     endif
     gst(gstID)%nk = 0
     if(present(maxlevels_in)) then
@@ -426,6 +425,7 @@ CONTAINS
       gst(gstID)%mynSkip=1
       gst(gstID)%mynCount=gst(gstID)%ntrunc+1
       ! range of m handled by this processor
+      call mpivar_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
       gst(gstID)%mymBeg=mymBeg
       gst(gstID)%mymEnd=mymEnd
       gst(gstID)%mymSkip=mymSkip
@@ -490,6 +490,7 @@ CONTAINS
       gst(gstID)%mynSkip=mynSkip
       gst(gstID)%mynCount=mynCount
       ! range of m handled by this processor
+      call mpivar_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
       gst(gstID)%mymBeg=mymBeg
       gst(gstID)%mymEnd=mymEnd
       gst(gstID)%mymSkip=mymSkip
@@ -525,6 +526,7 @@ CONTAINS
       gst(gstID)%mynSkip=1
       gst(gstID)%mynCount=gst(gstID)%ntrunc+1
       ! range of m handled by this processor
+      call mpivar_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
       gst(gstID)%mymBeg=mymBeg
       gst(gstID)%mymEnd=mymEnd
       gst(gstID)%mymSkip=mymSkip
