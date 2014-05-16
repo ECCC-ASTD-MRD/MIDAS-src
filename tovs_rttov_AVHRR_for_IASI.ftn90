@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr)
+subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr,idiasi)
 #if defined (doc)
 !
 !**s/r tovs_rttov_AVHRR_for_IASI  - Computation of forward radiance with rttov_direct
@@ -49,7 +49,7 @@ implicit none
 #include "rttov_setup.interface"
 #include "rttov_direct2.interface"
 #include "rttov_alloc_rad.interface"
-integer ,intent(in) :: nprf
+integer ,intent(in) :: nprf,idiasi
 integer ,intent (in) :: iptobs(NPRF)
 real (8) , intent (in) :: surfem1_avhrr(3*NPRF)
 !*********************************************************************
@@ -59,7 +59,7 @@ real*8 :: emissivity_out (3*NPRF)
 real*8 :: cloudemissivity (3*NPRF)
 logical :: calcemis  (3*NPRF)
 INTEGER ::  list_sensors (3),setup_errorstatus
-LOGICAL ,SAVE :: FIRST=.true.
+integer, save :: idiasi_old=-1
 integer :: ich,i,j,jn,ichn
 integer :: VERBOSITY_LEVEL,ERR_UNIT=0
 integer :: nchannels
@@ -71,10 +71,10 @@ integer :: nchannels
 integer :: asw,nlevels,errorstatus,io
 !***********************************************
 
-IF (FIRST) THEN
+IF (IDIASI_OLD/=IDIASI) THEN
    VERBOSITY_LEVEL = 3
    LIST_SENSORS(1)=10
-   LIST_SENSORS(2)=2
+   LIST_SENSORS(2)=IDIASI
    LIST_SENSORS(3)=5
    DO ICH=1,NIR
       ICHAN(ICH)=ICH
@@ -97,6 +97,16 @@ IF (FIRST) THEN
    opts%addrefrac=.false. ! to account for atmospheric refraction (useless)
    opts%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
 
+   setup_errorstatus=0
+
+   if (IDIASI_OLD>0) then
+      call rttov_dealloc_coefs(setup_errorstatus, coefs_avhrr )
+      if ( setup_errorstatus/=0) then
+         write(*,*) "Probleme dans rttov_dealloc_coefs !"
+         call abort3d("tovs_rttov_AVHRR_for_IASI")
+      endif
+   endif
+
    call rttov_setup (&
         setup_errorstatus,&! out
         err_unit,         &! in
@@ -116,7 +126,8 @@ IF (FIRST) THEN
    opts%co_data  = ( coefs_avhrr%coef%nco  > 0 )
    opts%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
 
-   FIRST=.FALSE.
+   IDIASI_OLD=IDIASI
+
 ENDIF
 
 
@@ -159,11 +170,11 @@ Call rttov_direct2(    &
      profiles(iptobs(1:nprf)),  & ! in
      coefs_avhrr,      & ! in
      calcemis,         & ! in
-     surfem1_avhrr,       & ! inout
+     surfem1_avhrr,    & ! inout
      emissivity_out,   & ! out
      cloudemissivity,  & ! inout
-     transmission,       & ! inout
-     radiancedata_d  )     ! inout
+     transmission,     & ! inout
+     radiancedata_d  )   ! inout
 
 do jn = 1, nprf
    joff=NIR*(jn-1)

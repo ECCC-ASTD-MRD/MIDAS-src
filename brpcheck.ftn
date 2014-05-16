@@ -136,8 +136,8 @@
                   KRUNN=IRUNN
 *=========================
 *
-                  DEALLOCATE(IBUF)
                ENDIF
+               DEALLOCATE(IBUF)
                IER=MRFCLS(IBRP1)
             ENDIF
          ENDIF

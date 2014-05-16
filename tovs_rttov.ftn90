@@ -43,23 +43,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData)
   use emissivities
   Use rttov_const, only : sensor_id_mw, jpim,gas_id_watervapour
   implicit none
-  interface
-     subroutine tovs_rttov_AVHRR_for_IASI (nthreads,knpf_th,knpf,profilesdata_th,surfem1_avhrr,nch,iptobs_th,nflev )
-
-! appel séparé de RTTOV pour le calcul des radiances AVHRR
-! (non assimilees mais necessaires au background check IASI)
-       Use tovs_mod ,only : jppf
-       Use rttov_types, only : profile_type ,rttov_chanprof
-implicit none
-integer ,intent(in) :: nthreads
-integer ,intent(in) :: knpf
-integer ,intent(in) :: knpf_th(nthreads)
-integer ,intent (in) :: nch,nflev 
-integer ,intent (in) :: iptobs_th(jppf,nthreads)
-real (8) , intent (in) :: surfem1_avhrr(nch)
-type (profile_type) ,intent (in) :: profilesdata_th(knpf,nthreads)
-end subroutine tovs_rttov_AVHRR_for_IASI
-end interface
+  
 !implicits
 #include "partov.cdk"
 #include "comtov.cdk"
@@ -116,7 +100,6 @@ end interface
   integer              :: asw,imonth,ig
   logical, allocatable :: calcemis_th  (:,:)
   real*8, allocatable  :: surfem1 (:)
-  real*8, allocatable  :: avhrr_surfem1 (:)
   external abort3d
   
   Write(*,*) "Entering tovs_rttov subroutine !"
@@ -160,7 +143,6 @@ end interface
    
      nlevels=coefs(krtid)% coef % nlevels
   
-
      sensor_type = coefs(krtid) % coef % id_sensor
      iplatform = coefs(krtid) % coef % id_platform
      isat = coefs(krtid) % coef % id_sat

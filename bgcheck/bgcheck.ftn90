@@ -29,13 +29,14 @@
       use columnData_mod
       use tovs_mod
       IMPLICIT NONE
-
+#include "partov.cdk"
+#include "comtov.cdk"
       type(struct_obs) :: lobsSpaceData
       type(struct_columnData) :: lcolumng,lcolumnhr
       INTEGER J,JDATA
       REAL*8 ZJO
       INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
-      INTEGER :: index_header,idatyp
+      INTEGER :: index_header,idatyp,krtid
       integer :: loop_done_airs, loop_done_iasi, loop_done_cris
       logical :: end_airs,end_iasi,end_cris
 !C
@@ -105,16 +106,24 @@
       ENDIF
 
       IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
-         loop_done_iasi = 0
-         end_iasi       = .false.
-         do
-            call IASIQC ( end_iasi, loop_done_iasi,lcolumnhr,lobsSpaceData )
-            loop_done_iasi = loop_done_iasi + 1
-            if ( end_iasi ) EXIT
-         end do
+
+         do krtid=1,nsensors
+
+            if (PLATFORM(krtid) == 10 .AND. &
+                 INSTRUMENT(krtid) == 16 ) THEN
+               loop_done_iasi = 0
+               end_iasi       = .false.
+               do
+                  call IASIQC ( end_iasi, loop_done_iasi,lcolumnhr,lobsSpaceData,krtid )
+                  loop_done_iasi = loop_done_iasi + 1
+                  if ( end_iasi ) EXIT
+               end do
+            endif
+
+         enddo
       ENDIF
 
-      IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
+      IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN 
          loop_done_cris = 0
          end_cris       = .false.
          do
@@ -123,7 +132,6 @@
             if ( end_cris ) EXIT
          end do
       ENDIF
-
 
 !C
 !C     .   3.4.3 Convert CMA ---> BURP file and write it
