@@ -296,7 +296,6 @@ SUBROUTINE BGCK_IR_SETUP(lobsSpaceData)
   DO KRTID = 1, NSENSORS
 
     IF ( PLATFORM(KRTID) == 10 .AND. &
-         SATELLITE (KRTID) == 2 .AND. &
          INSTRUMENT(KRTID) == 16 ) THEN
 
        allocate ( avhrr_bgck(NOBIASI), stat= alloc_status(1))

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr)
+subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr,idiasi)
 #if defined (doc)
 !
 !**s/r tovs_rttov_AVHRR_for_IASI  - Computation of forward radiance with rttov_direct
@@ -41,7 +41,7 @@ implicit none
 #include "rttov_setup.interface"
 #include "rttov_direct2.interface"
 #include "rttov_alloc_rad.interface"
-integer ,intent(in) :: nprf
+integer ,intent(in) :: nprf,idiasi
 integer ,intent (in) :: iptobs(NPRF)
 real (8) , intent (in) :: surfem1_avhrr(3*NPRF)
 !*********************************************************************
@@ -51,7 +51,7 @@ real*8 :: emissivity_out (3*NPRF)
 real*8 :: cloudemissivity (3*NPRF)
 logical :: calcemis  (3*NPRF)
 INTEGER ::  list_sensor (3),setup_errorstatus
-LOGICAL ,SAVE :: FIRST=.true.
+integer, save :: idiasi_old=-1
 integer :: ich,i,j,jn,ichn
 integer :: VERBOSITY_LEVEL,ERR_UNIT=0
 integer :: ichan_avhrr (NIR)
@@ -62,10 +62,10 @@ integer :: nchannels
 integer :: asw,nlevels,errorstatus,io
 !***********************************************
 
-IF (FIRST) THEN
+IF (IDIASI_OLD/=IDIASI) THEN
    VERBOSITY_LEVEL = 3
    LIST_SENSOR(1)=10
-   LIST_SENSOR(2)=2
+   LIST_SENSOR(2)=idiasi
    LIST_SENSOR(3)=5
    DO ICH=1,NIR
       ICHAN_AVHRR(ICH)=ICH
@@ -88,14 +88,24 @@ IF (FIRST) THEN
    opts_avhrr%addrefrac=.false. ! to account for atmospheric refraction (useless)
    opts_avhrr%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
 
+   setup_errorstatus=0
+
+   if (IDIASI_OLD>0) then
+      call rttov_dealloc_coefs(setup_errorstatus, coefs_avhrr )
+      if ( setup_errorstatus/=0) then
+         write(*,*) "Probleme dans rttov_dealloc_coefs !"
+         call abort3d("tovs_rttov_AVHRR_for_IASI")
+      endif
+   endif
+
    call rttov_setup (&
         setup_errorstatus,&! out
         err_unit,         &! in
         verbosity_level,  &! in
         opts_avhrr,       &! in
         coefs_avhrr,      &! out
-        list_sensor,     &! in
-        ichan_avhrr  )    ! in Optional 
+        list_sensor,      &! in
+        ichan_avhrr  )     ! in Optional 
 
    if ( setup_errorstatus/=0) then
       write(*,*) "Probleme dans rttov_setup!"
@@ -107,7 +117,8 @@ IF (FIRST) THEN
    opts_avhrr%co_data  = ( coefs_avhrr%coef%nco  > 0 )
    opts_avhrr%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
 
-   FIRST=.FALSE.
+   IDIASI_OLD=IDIASI
+   
 ENDIF
 
 

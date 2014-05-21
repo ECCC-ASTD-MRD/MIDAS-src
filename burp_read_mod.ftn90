@@ -2405,20 +2405,19 @@ CONTAINS
     INTEGER     ::   CODTYP
 
     INTEGER     ::   IL,J,NOBS
-    INTEGER     ::   ITECH,SENSOR,ID_SAT,INSTRUMENT,LAND_SEA
+    INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA
     INTEGER     ::   TERRAIN_TYPE,ZENITH,SOLAR_ZENITH,AZIMUTH,CLOUD_COVER,SOLAR_AZIMUTH
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,ITANGENT_RADIUS,IGEOID,IRO_QCFLAG
 
     REAL        ::   RSOLAR_ZENITH,RCLOUD_COVER,RZENITH,RAZIMUTH,RSOLAR_AZIMUTH
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC
-    REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RITECH,RRO_QCFLAG
+    REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
     REAL(OBS_REAL)        ::   RTANGENT_RADIUS,RGEOID
 
     NOBS=obs_numHeader(obsdat)
 
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
     !write(*,*)'  DEBUT WRITE_INFO NOBS CODTYP ----> ',NOBS,CODTYP,size(liste_info),size(RINFO),liste_info
-    ITECH     =0
     LAND_SEA  =0
     INSTRUMENT=0
     ID_SAT    =0
@@ -2523,14 +2522,6 @@ CONTAINS
           ELSE
             CLOUD_COVER=NINT ( RCLOUD_COVER )
           ENDIF
-        CASE( 2022)
-          RITECH=INFOV
-          if (RITECH .eq. PPMIS ) THEN
-            ITECH=8
-            ITECH=-99
-          ELSE
-            ITECH=NINT ( RITECH )
-          ENDIF
         CASE( 10035)
           RTANGENT_RADIUS=INFOV
         CASE( 10036)
@@ -2559,33 +2550,11 @@ CONTAINS
     ! AIRS
     IF ( INSTRUMENT == 420 ) ID_SAT = 784
 
-    ! ZENITH
-    !IF ( ID_SAT .LT. 206 ) THEN
-    IF ( .not. (ID_SAT .GE. 54 .OR. ID_SAT .EQ. 4)   ) THEN
-      ZENITH=9000
-    ENDIF
-
-    ! ITECH
-    IF ( ITECH .NE. -99 ) THEN
-      ITECH = AND(ITECH,56)
-      IF (ITECH .EQ. 0 ) THEN
-        ITECH = 8
-      ENDIF
-    ELSE
-      IF ( CODTYP .EQ. 185 ) then
-        ITECH = 32
-      ELSE
-        ITECH = 8
-      ENDIF
-    ENDIF
-
     if (  trim(FAMTYP) .eq. trim('GO') ) then
       LAND_SEA=0
       ZENITH=0
     ENDIF
-    if ( ID_SAT   .eq. 4 .and.  CODTYP .EQ. 186  ) then
-      CLOUD_COVER=0
-    ENDIF
+   
 
     !-------------------SPECIAL CASES--------------
 
@@ -2602,7 +2571,6 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_SUN,nobs,SOLAR_ZENITH )
     call obs_headSet_i(obsdat,OBS_SAZ,nobs,SOLAR_AZIMUTH )
     call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
-    call obs_headSet_i(obsdat,OBS_TEC,nobs,ITECH)
     call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
     !if( trim(FAMTYP) .eq. trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID

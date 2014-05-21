@@ -153,8 +153,8 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 
 ! crate a new report
 ! ------------------
-
-     Call BURP_New(Cp_rpt, ALLOC_SPACE=10000000, IOSTAT=error)
+!cpik Call BURP_New(Cp_rpt, ALLOC_SPACE=10000000, IOSTAT=error)
+     Call BURP_New(Cp_rpt, ALLOC_SPACE=20000000, IOSTAT=error)
 
 
 ! LOOP ON REPORTS

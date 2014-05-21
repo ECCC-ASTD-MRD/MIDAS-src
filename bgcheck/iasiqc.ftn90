@@ -1,4 +1,4 @@
-SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
+SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData,idiasi)
 !
 !**ID IASIQC -- QUALITY CONTROL OF IASI OBSERVATIONS
 !
@@ -31,14 +31,14 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
   use verticalCoord_mod
   IMPLICIT NONE
   logical,intent(inout) :: iasi_end
-  integer,intent(in) :: iasi_loop_done
+  integer,intent(in) :: iasi_loop_done,idiasi
   type(struct_columnData),intent(in) :: lcolumnhr
   type(struct_obs),intent(inout) :: lobsSpaceData
 !******************************************************************
   type(struct_vco), pointer :: vco_trl
   INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,NLEVB,iextr,JN,NPRF,NFLG,ICHN
-  INTEGER       :: IWINDO,IWINDO_ALT,KRTID,IPRO,NOBIASI
-  INTEGER       :: INDEX_BODY,IDATA,IDATEND,IDIASI,INDEX_HEADER
+  INTEGER       :: IWINDO,IWINDO_ALT,NOBIASI
+  INTEGER       :: INDEX_BODY,IDATA,IDATEND,INDEX_HEADER
   INTEGER       :: IDATYP
   INTEGER       :: DIFFTOP_MIN
   INTEGER ,SAVE :: IMODTOP
@@ -91,16 +91,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
   vco_trl => col_getVco(lcolumnhr)
 
-! ** find sensor number corresponding to IASI      
-
-  DO KRTID = 1, NSENSORS
-     IF ( PLATFORM(KRTID) .EQ. 10 .AND. &
-          INSTRUMENT(KRTID) .EQ. 16 ) THEN
-        IDIASI = KRTID
-        EXIT
-     END IF
-  END DO
-      
    
 ! ** find number of IASI profiles (for memory allocation) and set iasi_end 
 !    M. Buehner: take care of case when bunch*loopdone exactly equals total number of profiles
@@ -117,7 +107,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
             
-     IF ( tvs_Is_idburp_iasi(IDATYP) ) THEN
+     IF ( tvs_Is_idburp_iasi(IDATYP) .and. lsensor(ltovsno (index_header))==idiasi ) THEN
         count_iasi = count_iasi + 1
         IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
              count_iasi <= (iasi_loop_done+1) * bunch_iasi ) NPRF = NPRF + 1
@@ -332,7 +322,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
      IF ( tvs_Is_idburp_tovs(idatyp) ) NOBTOV = NOBTOV + 1
 
-     IF ( tvs_Is_idburp_iasi(IDATYP) ) THEN
+     IF ( tvs_Is_idburp_iasi(IDATYP) .and. lsensor(ltovsno (index_header))==idiasi) THEN
 
         count_iasi = count_iasi + 1
         
@@ -366,9 +356,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
                  iclass=iclass+1
               endif
            enddo
-           call convert_avhrr(profiles_qc(INDEX_HEADER)%sunza, avhrr_bgck(INDEX_HEADER) )
-           call stat_avhrr(avhrr_bgck(INDEX_HEADER))
-
+          
            ZTG(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
            ZPS(NOBIASI) = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0') &
                                                              * MPC_MBAR_PER_PA_R8
@@ -551,9 +539,15 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
   call get_avhrr_emiss(emi_sfc,coefs(idiasi) %coef%ff_cwn,coefs(idiasi) % coef%fmv_chn,nprf,avhrr_surfem1)
 
-  call tovs_rttov_AVHRR_for_IASI(indx,nprf,avhrr_surfem1)
+  call tovs_rttov_AVHRR_for_IASI(indx,nprf,avhrr_surfem1,SATELLITE(idiasi))
 
   deallocate ( avhrr_surfem1  ,stat=alloc_status(1))
+
+  DO JN=1,NPRF
+     IOBS=INDX(JN)
+     call convert_avhrr(profiles_qc(IOBS)%sunza, avhrr_bgck(IOBS) )
+     call stat_avhrr(avhrr_bgck(IOBS))
+  ENDDO
      
   LEV_START_AVHRR(:,:) = 0
   cldflag_avhrr(:,:)=0
@@ -1038,7 +1032,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
 
 
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-         IF ( tvs_Is_idburp_iasi(IDATYP) ) THEN
+         IF ( tvs_Is_idburp_iasi(IDATYP)  .and. lsensor(ltovsno (index_header))==idiasi) THEN
            count_iasi = count_iasi + 1
            IF ( count_iasi > iasi_loop_done * bunch_iasi .AND. &
                 count_iasi <= (iasi_loop_done+1) * bunch_iasi ) THEN 
@@ -1048,6 +1042,21 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
               if  (.not.ASSIM_ALL(NOBIASI)) then
                  call obs_headSet_i(lobsSpaceData, OBS_ST1, index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,INDEX_HEADER),6) )
               endif
+!* -- ADDITION OF NEW IASI INFORMATION IN BURP FILE
+!* ------------------------------------------------
+              call obs_headSet_r(lobsSpaceData, OBS_ETOP, index_header, ETOP(nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_VTOP, index_header, VTOP(nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_ECF,  index_header, 100.*ECF(nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_VCF,  index_header, 100.*VCF(nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_HE,   index_header, HE(nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_ZTSR, index_header, ZTS(nobiasi) )
+              call obs_headSet_i(lobsSpaceData, OBS_NCO2, index_header, NGOOD(nobiasi))
+              call obs_headSet_r(lobsSpaceData, OBS_ZTM,  index_header, ZT(col_getNumLev(lcolumnhr,'TH'),nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_ZTGM, index_header, ZTG(nobiasi) )
+              call obs_headSet_r(lobsSpaceData, OBS_ZLQM, index_header, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),nobiasi)) )
+              call obs_headSet_r(lobsSpaceData, OBS_ZPS,  index_header, 100.*ZPS(nobiasi) )
+              call obs_headSet_i(lobsSpaceData, OBS_STYP, index_header, KSURF(nobiasi) )
+
               DO INDEX_BODY= IDATA, IDATEND
                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
                     ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
@@ -1063,28 +1072,6 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData)
            END IF
         END IF
      END DO HEADER_3
-
- 
-!* -- ADDITION OF NEW IASI INFORMATION IN BURP FILE
-!* ------------------------------------------------
-
-  IPRO = iasi_loop_done * bunch_iasi + 1 
-                
-  DO JN = 1, NPRF
-     call obs_headSet_r(lobsSpaceData, OBS_ETOP, ipro, ETOP(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_VTOP, ipro, VTOP(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_ECF,  ipro, 100.d0*ECF(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_VCF,  ipro, 100.d0*VCF(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_HE,   ipro, HE(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_ZTSR, ipro, ZTS(JN) )
-     call obs_headSet_i(lobsSpaceData, OBS_NCO2, ipro, NGOOD(JN))
-     call obs_headSet_r(lobsSpaceData, OBS_ZTM,  ipro, ZT(col_getNumLev(lcolumnhr,'TH'),JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_ZTGM, ipro, ZTG(JN) )
-     call obs_headSet_r(lobsSpaceData, OBS_ZLQM, ipro, EXP(ZLQ(col_getNumLev(lcolumnhr,'TH'),JN)) )
-     call obs_headSet_r(lobsSpaceData, OBS_ZPS,  ipro, 100.d0*ZPS(JN) )
-     call obs_headSet_i(lobsSpaceData, OBS_STYP, ipro, KSURF(JN) )
-     IPRO = IPRO + 1
-  END DO
 
   deallocate (ZTG,ZPS,ZTS,ZT,ZHT,ZLQ)
   deallocate (BTOBSERR,BTOBS,BTCALC,RCAL_CLR,SFCTAU)

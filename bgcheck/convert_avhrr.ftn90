@@ -1,7 +1,7 @@
 subroutine convert_avhrr(sunzen,avhrr)
 ! conversion des radiance IR en temperatures de brillance
 ! et des radiances visibles en "albedo"
-use MULTIIRBGCHECK ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR
+use MULTIIRBGCHECK ,only : avhrr_bgck_iasi, NIR, NVIS, NCLASSAVHRR,coefs_avhrr
 
 implicit none
 real(8) ,intent(in) :: sunzen
@@ -11,9 +11,10 @@ integer :: ICL
 REAL (8) :: tb(NIR),dtbsdrad(NIR)
 REAL (8) :: FREQ(NIR),OFFSET(NIR),SLOPE(NIR)
 
-DATA FREQ / 0.2687000000D+04 , 0.9272000000D+03 , 0.8377000000D+03 /
-DATA OFFSET / 0.2066990000D+01 , 0.5512600000D+00 , 0.3471600000D+00 /
-DATA SLOPE / 0.9965770000D+00  , 0.9985090000D+00  , 0.9989470000D+00 /
+
+freq=coefs_avhrr%coef%ff_cwn (:)
+offset=coefs_avhrr%coef%ff_bco(:)
+slope=coefs_avhrr%coef%ff_bcs(:)
 
 DO ICL=1,NCLASSAVHRR
    call calcbt(avhrr % radmoy(ICL,4:6), tb, dtbsdrad,freq,offset,slope)

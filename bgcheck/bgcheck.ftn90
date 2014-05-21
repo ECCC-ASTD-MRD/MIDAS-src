@@ -35,7 +35,7 @@
       INTEGER J,JDATA
       REAL*8 ZJO
       INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
-      INTEGER :: index_header,idatyp
+      INTEGER :: index_header,idatyp,krtid
       integer :: loop_done_airs, loop_done_iasi, loop_done_cris
       logical :: end_airs,end_iasi,end_cris
 !
@@ -99,13 +99,21 @@
       ENDIF
 
       IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
-         loop_done_iasi = 0
-         end_iasi       = .false.
-         do
-            call IASIQC ( end_iasi, loop_done_iasi,columnhr,obsSpaceData )
-            loop_done_iasi = loop_done_iasi + 1
-            if ( end_iasi ) EXIT
+
+         do krtid=1,nsensors
+
+            if (PLATFORM(krtid) == 10 .AND. &
+                 INSTRUMENT(krtid) == 16 ) THEN
+               loop_done_iasi = 0
+               end_iasi       = .false.
+               do
+                  call IASIQC ( end_iasi, loop_done_iasi,columnhr,obsSpaceData,krtid)
+                  loop_done_iasi = loop_done_iasi + 1
+                  if ( end_iasi ) EXIT
+               end do
+            endif
          end do
+
       ENDIF
 
       IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
