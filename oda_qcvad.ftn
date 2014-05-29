@@ -32,30 +32,22 @@
       implicit none
 *
       type(struct_obs) :: lobsSpaceData
-      integer index_body
-      logical, save :: firstTime = .true.
-      logical, save, allocatable :: includeFlag(:)
-
-      if(firstTime) then
-        allocate(includeFlag(obs_numbody(lobsSpaceData)))
-        do index_body=1,obs_numbody(lobsSpaceData)
-           includeFlag(index_body) = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) 
-     +                         .and. (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'RO')
-C pas de qcvar pour les radiances en mode matrice R non diagonale
-           if (rmat_lnondiagr) includeFlag(index_body) = 
-     +         includeFlag(index_body) .and.
-     +         (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'TO')
-        enddo
-        firstTime=.false.
-      endif
+      integer :: index_body
+      logical :: includeFlag
 
       do index_body=1,obs_numbody(lobsSpaceData)
-        if (includeFlag(index_body)) then
+        includeFlag = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) 
+     +          .and. (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'RO')
+C pas de qcvar pour les radiances en mode matrice R non diagonale
+        if (rmat_lnondiagr) includeFlag = 
+     +    includeFlag .and.
+     +    (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'TO')
+
+        if (includeFlag) then
           call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, 
-     &           obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
-     &           *(1.d0 - obs_bodyElem_r(lobsSpaceData,OBS_QCV,index_body)))
+     +           obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
+     +           *(1.d0 - obs_bodyElem_r(lobsSpaceData,OBS_QCV,index_body)))
         endif
       enddo
 
-      return
-      end
+      end subroutine oda_qcvad

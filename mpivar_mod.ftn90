@@ -60,11 +60,11 @@ module mpivar_mod
     lonPerPE=ceiling(dble(ni)/dble(mpi_npex))
     myLonBeg=1+mpi_myidx*lonPerPE
     if(myLonBeg.gt.ni) then
-      call abort3d('mpivar_setup_lonbands: lonitudes not separable on mpi processes!')
+      call abort3d('mpivar_setup_lonbands: longitudes not separable on mpi processes!')
     endif
     myLonEnd=(1+mpi_myidx)*lonPerPE
     if(myLonEnd>ni) then
-      call abort3d('mpivar_setup_lonbands: lonitudes not divisible by MPI npex!')
+      call abort3d('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
     endif
 
   end subroutine mpivar_setup_lonbands
@@ -152,8 +152,9 @@ module mpivar_mod
     !          levels over tasks in X direction (npex)
     implicit none
     integer :: numlevels,myLevBeg,myLevEnd,myLevCount
-    integer :: jlev,jproc
+    integer :: jlev,jproc,factor
     integer :: myLevCounts(mpi_npex)
+    logical :: makeEven = .true. ! for simplicity (for now) always divide into even number of levels per MPI task
 
     if(numlevels .lt. mpi_npex) then
       write(*,*) 'mpivar_setup_levels_npex: NPEX (=',mpi_npex,') ',  &
@@ -161,12 +162,26 @@ module mpivar_mod
       call abort3d('mpivar_setup_levels_npex')
     endif
 
+    if(makeEven) then
+      if(mod(numlevels,2).ne.0) then
+        write(*,*) 'mpivar_setup_levels_npex: total number of levels must be even, now=',numlevels
+        call abort3d('mpivar_setup_levels_npex')
+      endif
+      factor = 2
+    else 
+      factor = 1
+    endif
+
     myLevCounts(:)=0
     do jproc=1,mpi_npex
-      do jlev=jproc,numlevels,mpi_npex
+      do jlev=jproc,(numlevels/factor),mpi_npex
         myLevCounts(jproc)=myLevCounts(jproc)+1
       enddo
     enddo
+    do jproc=1,mpi_npex
+      myLevCounts(jproc)=myLevCounts(jproc)*factor
+    enddo
+
     myLevCount=myLevCounts(mpi_myidx+1)
 
     myLevBeg=1

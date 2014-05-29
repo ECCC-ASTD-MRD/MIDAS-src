@@ -45,7 +45,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
   IF(mpi_myid == 0) THEN
     write(*,*)'ODA_HT- Adjoint of linearized observation operators'
-    call flush(6)
   endif
 
   vco_anl => col_getVco(lcolumng)

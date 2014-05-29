@@ -44,7 +44,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   
   integer ezgprm,fnom,fclos,fstouv,fstfrm
   integer ezsetopt,gdxyfll,vezgdef, gdllfxy
-  integer jlev,jobs,ierr,iset,jstep,jlatband
+  integer jlev,jobs,ierr,iset,jstep,jlatlontile
   integer ini, inj,ink,iig1,iig2,iig3,iig4,jvar
   integer itrlnlev
   integer idata,idatend,jdata
@@ -70,7 +70,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   real*8 :: lat_r8,lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
   
   character(len=2) :: flnum
-  character(len=4) :: flnum2
+  character(len=5) :: flnum2
   character(len=128) :: trialfile
 
   integer, allocatable :: nultrl(:)
@@ -102,7 +102,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   allocate(nultrl(tim_nStepObs))
   nultrl(:)=0
   if(indexAnalysis.gt.0) then
-    write(flnum2,'(I3.3)') indexAnalysis
+    write(flnum2,'(I4.4)') (indexAnalysis-1)
     flnum2='_' // trim(flnum2)
   else
     flnum2=''
@@ -133,8 +133,15 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   if(mpi_myid.eq.0) write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
        vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf1
 
+  status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+  if(mpi_myid.eq.0) write(*,*) 'sugomobs: Vcode_trl= ',Vcode_trl, &
+                                       '  Vcode_anl= ',Vcode_anl
+  if(Vcode_trl.ne.5001.and.Vcode_trl.ne.5002) call abort3d('sugomobs: invalid vertical coord for background state!')
+  if(Vcode_anl.ne.5001.and.Vcode_anl.ne.5002) call abort3d('sugomobs: invalid vertical coord for analysis grid!')
+
   !
-  !     Compute the maximum number of columns over all processors (latitude bands)
+  !     Compute the maximum number of columns over all processors (lat-lon tiles)
   !
   call rpn_comm_allreduce(col_getNumCol(columng),numColumn_maxmpiglobal,1,  &
                               "MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -413,23 +420,15 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       zig4 = 1.0D0
       call vcxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
 
-!        if (nobs(jstep).gt.0) then
-!          nobsgid(jstep) = vezgdef(nobs(jstep),1,'Y','L',ig1obs,ig2obs,  &
-!            ig3obs,ig4obs,dlonfld(1:nobs(jstep)),dlatfld(1:nobs(jstep)))
-!        else
-!          write(*,*) 'sugomobs: NO OBS found for this time bin =',jstep
-!          nobsgid(jstep) = -999
-!        endif
-
-      do jlatband = 1,mpi_nprocs
-        if (nobs_mpiglobal(jstep,jlatband).gt.0) then
-           nobsgid_mpiglobal(jstep,jlatband) = vezgdef(nobs_mpiglobal(jstep,jlatband),  &
+      do jlatlontile = 1,mpi_nprocs
+        if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
+           nobsgid_mpiglobal(jstep,jlatlontile) = vezgdef(nobs_mpiglobal(jstep,jlatlontile),  &
                  1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,  &
-                 dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatband),jlatband),  &
-                 dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatband),jlatband))
+                 dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile),  &
+                 dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile))
         else
-          write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatband
-          nobsgid_mpiglobal(jstep,jlatband) = -999
+          write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatlontile
+          nobsgid_mpiglobal(jstep,jlatlontile) = -999
         end if
       end do
 
@@ -469,12 +468,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 
          !     Calculate profiles of pressure values at station location
 
-         status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
-         status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-         if(mpi_myid.eq.0) write(*,*) 'sugomobs: Vcode_trl= ',Vcode_trl, &
-                                              '  Vcode_anl= ',Vcode_anl
-         if(Vcode_trl.ne.5001.and.Vcode_trl.ne.5002) call abort3d('sugomobs: invalid vertical coord for background state!')
-         if(Vcode_anl.ne.5001.and.Vcode_anl.ne.5002) call abort3d('sugomobs: invalid vertical coord for analysis grid!')
 
          !     Compute Pressure fields at desired trial field levels
          call col_calcPressure(columnhr)
@@ -633,9 +626,11 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       if(Vcode_anl .eq. 5001) then
         ! initialize virtual temperature and GZ operators
         call subasic_obs(columng)
-      else
+      elseif(Vcode_anl .eq. 5002) then
         ! only initialize virtual temperature operator
         call subasic_obs_gem4(columng)
+      else
+        call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
       endif
 
       !
@@ -646,8 +641,10 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       enddo
       if(Vcode_anl .eq. 5001) then
         call tt2phi(columng)
-      else
+      elseif(Vcode_anl .eq. 5002) then
         call tt2phi_gem4(columng)
+      else
+        call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
       endif
 
       !
@@ -827,72 +824,72 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
             endif
 
             ! Interpolate to mpiglobal set of columns for a subset of levels
-            do jlatband = 1,mpi_nprocs
-              if (nobs_mpiglobal(jstep,jlatband).gt.0) then
-                iset = ezdefset(nobsgid_mpiglobal(jstep,jlatband),EZscintID)
+            do jlatlontile = 1,mpi_nprocs
+              if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
+                iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
                 if(trim(varName).eq.'UU') then
 
-                  ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
-                                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
+                  ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
+                                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
                                    varTrial_r4,varTrial_zero_r4,  &
-                                   nobs_mpiglobal(jstep,jlatband),ni*nj)
-                  ierr = vezuvint2(varInterp2(1:nobs_mpiglobal(jstep,jlatband)),  &
-                                   varInterp2_VV(1:nobs_mpiglobal(jstep,jlatband)),  &
+                                   nobs_mpiglobal(jstep,jlatlontile),ni*nj)
+                  ierr = vezuvint2(varInterp2(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                   varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile)),  &
                                    varTrial_zero_r4,varTrial_VV_r4,  &
-                                   nobs_mpiglobal(jstep,jlatband),ni*nj)
+                                   nobs_mpiglobal(jstep,jlatlontile),ni*nj)
 
-                  varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) =  &
-                    varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) +  &
-                    varInterp2(1:nobs_mpiglobal(jstep,jlatband))
-                  varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) =  &
-                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband) +  &
-                    varInterp2_VV(1:nobs_mpiglobal(jstep,jlatband))
+                  varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) =  &
+                    varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) +  &
+                    varInterp2(1:nobs_mpiglobal(jstep,jlatlontile))
+                  varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) =  &
+                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) +  &
+                    varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile))
 
                 else
-                  ierr = vezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband),  &
+                  ierr = vezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
                                   varTrial_r4,  &
-                                  nobs_mpiglobal(jstep,jlatband),1,1,ni,nj,1)
+                                  nobs_mpiglobal(jstep,jlatlontile),1,1,ni,nj,1)
                 endif
               endif
             enddo
 
           enddo
 
-          do jlatband = 1,mpi_nprocs
-            if (nobs_mpiglobal(jstep,jlatband).gt.0) then
+          do jlatlontile = 1,mpi_nprocs
+            if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
               do jlev = 1,nlevel
 
                 pe_send = mod(jlev-1,mpi_nprocs)
-                pe_recv = jlatband-1
+                pe_recv = jlatlontile-1
                 tag  = pe_recv*500 + pe_send
                 tag2 = pe_recv*500 + pe_send + 1000000
 
                 if(pe_send.eq.pe_recv) then
                   if(mpi_myid.eq.pe_send) then
-                    varInterp_recv(1:nobs_mpiglobal(jstep,jlatband),jlev) =  &
-                         varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband)
+                    varInterp_recv(1:nobs_mpiglobal(jstep,jlatlontile),jlev) =  &
+                         varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile)
                     if(trim(varName).eq.'UU') then
-                      varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatband),jlev) =  &
-                           varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband)
+                      varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev) =  &
+                           varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile)
                     endif
                   endif
                 else
                   if(mpi_myid.eq.pe_send) then
-                    nsize=nobs_mpiglobal(jstep,jlatband)
-                    call rpn_comm_send(varInterp(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband), &
+                    nsize=nobs_mpiglobal(jstep,jlatlontile)
+                    call rpn_comm_send(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile), &
                        nsize,"mpi_double_precision",pe_recv,tag,"GRID",ierr)
                     if(trim(varName).eq.'UU') then
-                      call rpn_comm_send(varInterp_VV(1:nobs_mpiglobal(jstep,jlatband),jlev,jlatband), &
+                      call rpn_comm_send(varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile), &
                          nsize,"mpi_double_precision",pe_recv,tag2,"GRID",ierr)
                     endif
                   endif
 
                   if(mpi_myid.eq.pe_recv) then
-                    nsize=nobs_mpiglobal(jstep,jlatband)
-                    call rpn_comm_recv(varInterp_recv(1:nobs_mpiglobal(jstep,jlatband),jlev), &
+                    nsize=nobs_mpiglobal(jstep,jlatlontile)
+                    call rpn_comm_recv(varInterp_recv(1:nobs_mpiglobal(jstep,jlatlontile),jlev), &
                        nsize,"mpi_double_precision",pe_send,tag,"GRID",status,ierr)
                     if(trim(varName).eq.'UU') then
-                      call rpn_comm_recv(varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatband),jlev), &
+                      call rpn_comm_recv(varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev), &
                          nsize,"mpi_double_precision",pe_send,tag2,"GRID",status,ierr)
                     endif
                   endif
@@ -919,6 +916,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       deallocate(varTrial_zero_r4)
       deallocate(varInterp,varInterp_VV)
       deallocate(varInterp_recv,varInterp_recv_VV)
+      deallocate(varInterp2,varInterp2_VV)
 
  2001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level',  &
              i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')

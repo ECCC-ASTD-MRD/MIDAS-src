@@ -157,7 +157,7 @@ module writeIncrement_mod
       real(8), allocatable :: zhu(:,:,:)
       real(8), pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
       character(len=4) :: flnum 
-      character(len=3) :: flnum2
+      character(len=4) :: flnum2
       character(len=128) :: incFileName
       integer             :: get_max_rss
 
@@ -306,7 +306,7 @@ module writeIncrement_mod
           incFileName = './rebm'
         endif
         if(indexAnalysis.gt.0) then
-          write(flnum2,'(I3.3)') indexAnalysis
+          write(flnum2,'(I4.4)') (indexAnalysis-1)
           incFileName = trim(incFileName) // '_' // trim(flnum2)
         endif
         call writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,jstep)

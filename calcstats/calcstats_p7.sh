@@ -10,13 +10,13 @@
 #
 flnml="namelist_glb_p7.nml"
 machine="spica"
-gest="/users/dor/arma/bue/power7/3dvar_modular/testnmc/work"
+gest="/users/dor/arma/bue/power7/3dvar_modular/testnmc/work_winter"
 ensdir="/users/dor/arma/bue/power7/3dvar_modular/testnmc/stag/winter/"
 abs="/users/dor/arma/bue/home01/3dvar_latest/compiledir_calcstats/calcstats_p7.abs_NOMPI"
 npex=1
 npey=1
 openmp=32
-maxcputime=7200
+maxcputime=10800
 
 #
 # Don't modify below ...
@@ -56,4 +56,4 @@ cat << EOF > ptopo_nml
 EOF
 scp ptopo_nml ${machine}:${gest}
 
-ord_soumet go_calcstats.sh -mach $machine -mpi -t $maxcputime -cpus ${npex}x${npey}x${openmp} -listing ${gest} -jn calcb
+ord_soumet go_calcstats.sh -mach $machine -mpi -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm 3264M -listing ${gest} -jn calcb

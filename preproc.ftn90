@@ -74,7 +74,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   if(numAnalyses.eq.1) then
     call vco_SetupFromFile(vco_trl,'./trlm_01',.false.)
   else
-    call vco_SetupFromFile(vco_trl,'./trlm_01_001',.false.)
+    call vco_SetupFromFile(vco_trl,'./trlm_01_0000',.false.)
   endif
   call col_setVco(lcolumnhr,vco_trl)
   

@@ -32,17 +32,17 @@ subroutine oda_L(statevector,column,columng,lobsSpaceData)
   type(struct_obs)        :: lobsSpaceData
   type(struct_gsv)        :: statevector
 
-  integer :: nl_ilev, ierr, myLatP1, status, Vcode_anl
+  integer :: nl_ilev, ierr, myLonEndP1, myLatEndP1, status, Vcode_anl
   type(struct_vco), pointer :: vco_anl
 
-  myLatP1 = min(statevector%myLatEnd + 1, statevector%nj)
+  myLonEndP1 = statevector%myLonEnd + 1
+  myLatEndP1 = min(statevector%myLatEnd + 1, statevector%nj)
 
   !
   !- 1.  Interpolation to obs location
   !
   if ( mpi_myid == 0 ) THEN
     write(*,*) ' ODA_L - Horizontal interpolation GD --> MVO'
-    call flush(6)
   end if
 
   !- 1.1 Communicate extra latitude needed for interpolation  
@@ -50,7 +50,7 @@ subroutine oda_L(statevector,column,columng,lobsSpaceData)
   call rpn_comm_barrier("GRID",ierr)
   call tmg_stop(38)
   call tmg_start(39,'INTERP_COMM')
-  if (mpi_nprocs /= 1) call gsv_commLat(statevector)
+  if (mpi_nprocs /= 1) call gsv_commLatLon(statevector)
   call tmg_stop(39)
 
 !$OMP PARALLEL
@@ -118,13 +118,11 @@ CONTAINS
     integer,          intent(in) :: klev
     
     INTEGER :: JLEV, JLAT, JLON, headerIndex, JSTEP
-    INTEGER :: ILON, ILA, ILO
+    INTEGER :: ILON, ILAT, ILO
     
     REAL(8) :: DLMEAN, DLMEAS, DLDLON
     REAL(8) :: DLDX, DLDY, DLDX_new, DLDY_new,DLW1, DLW2, DLW3, DLW4
     real(8) :: xpos, ypos, lat, lon, latrot, lonrot
-    
-    real(8) :: zfield(1:statevector%ni+1, 1:klev, statevector%myLatBeg:myLatP1)
     
     real(8), pointer :: column_ptr(:,:)
     real(8), pointer :: field_ptr(:,:,:,:)
@@ -140,21 +138,8 @@ CONTAINS
     !       (i.e. outside the grid) have been moved within the grid by sugomobs
 
     do jstep = 1, statevector%numStep
-       
-      zfield(1:statevector%ni,1:klev,statevector%myLatBeg:myLatP1)=  &
-         field_ptr(1:statevector%ni,1:KLEV,statevector%myLatBeg:myLatP1,jstep)
-
       !
-      !- 1.  EXPAND Field BY REPEATING MERIDIAN 1 into INTO MERIDIAN NI+1
-      !
-      DO JLEV = 1, KLEV
-        DO JLAT = statevector%myLatBeg, myLatP1
-          ZFIELD(statevector%ni+1,jlev,JLAT) = ZFIELD(1,jlev,JLAT)
-        END DO
-      END DO
-
-      !
-      !- 2.  LOOP OVER ALL THE OBSERVATIONS
+      !- LOOP OVER ALL THE OBSERVATIONS
       !
       DO headerIndex = 1, col_getNumCol(column)
 
@@ -162,44 +147,45 @@ CONTAINS
              .not. btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
 
           !- 2.1 Find the obs position within the analysis grid
-          call col_getLatLon( column, headerIndex,                & ! IN
+          call col_getLatLon( column, headerIndex,                 & ! IN
                               Lat, Lon, ypos, xpos, LatRot, LonRot ) ! OUT
 
           !- Make sure we are within bounds
           if ( ypos < real(statevector%myLatBeg,8) .or. &
-               ypos > real(myLatP1             ,8) .or. &
-               xpos < 1.d0                           .or. &
-               xpos > real(statevector%ni + 1  ,8) ) then
+               ypos > real(myLatEndP1          ,8) .or. &
+               xpos < real(statevector%myLonBeg,8) .or. &
+               xpos > real(myLonEndP1          ,8) ) then
             write(*,*) 'oda_L: Obs outside local domain for headerIndex = ', headerIndex
             write(*,*) '       obs lat, lon position               = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
             write(*,*) '       obs x, y     position               = ', xpos, ypos
-            write(*,*) '       domain x_end, y_start, y_end bounds = ', statevector%ni + 1, statevector%myLatBeg, myLatP1
+            write(*,*) '       domain x_start, x_end, y_start, y_end bounds = ',  &
+                       statevector%myLonBeg, myLonEndP1, statevector%myLatBeg, myLatEndP1
 
             ! if obs above or below latitude band, move it to the edge of this latitude band
             if( ypos < real(statevector%myLatBeg,8) ) ypos = real(statevector%myLatBeg,8)
-            if( ypos > real(myLatP1             ,8) ) ypos = real(myLatP1             ,8)
+            if( ypos > real(myLatEndP1          ,8) ) ypos = real(myLatEndP1          ,8)
 
             ! abort if obs is to the left or right of the analysis domain
-            if( xpos < 1.d0                           .or. &
-                xpos > real(statevector%ni + 1  ,8) ) call abort3d('oda_L')
+            if( xpos < real(statevector%myLonBeg,8)   .or. &
+                xpos > real(myLonEndP1          ,8) ) call abort3d('oda_L')
           end if
 
           !- 2.2 Find the lower-left grid point next to the observation
-          if ( xpos /= real(statevector%ni + 1,8) ) then
+          if ( xpos /= real(myLonEndP1,8) ) then
             ILON = floor(xpos)
           else
             ILON = floor(xpos) - 1
           end if
 
-          if ( ypos /= real(myLatP1,8) ) then
-            ILA = floor(ypos)
+          if ( ypos /= real(myLatEndP1,8) ) then
+            ILAT = floor(ypos)
           else
-            ILA = floor(ypos) - 1
+            ILAT = floor(ypos) - 1
           end if
 
           !- 2.3 Compute the 4 weights of the bilinear interpolation
           DLDX = xpos - real(ILON,8)
-          DLDY = ypos - real(ILA,8)
+          DLDY = ypos - real(ILAT,8)
 
           DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
           DLW2 =       DLDX  * (1.d0-DLDY)
@@ -210,10 +196,10 @@ CONTAINS
           DO JLEV = 1, KLEV
             column_ptr(JLEV,headerIndex) = column_ptr(JLEV,headerIndex)  +  &
                                     tim_getTimeInterpWeight(headerIndex,jstep) *  &
-                                    ( DLW1 * ZFIELD(ILON  ,JLEV,ILA  )             &
-                                    + DLW2 * ZFIELD(ILON+1,JLEV,ILA  )             &
-                                    + DLW3 * ZFIELD(ILON  ,JLEV,ILA+1)             &
-                                    + DLW4 * ZFIELD(ILON+1,JLEV,ILA+1) )
+                                    ( DLW1 * field_ptr(ILON  ,JLEV,ILAT  ,JSTEP) &
+                                    + DLW2 * field_ptr(ILON+1,JLEV,ILAT  ,JSTEP) &
+                                    + DLW3 * field_ptr(ILON  ,JLEV,ILAT+1,JSTEP) &
+                                    + DLW4 * field_ptr(ILON+1,JLEV,ILAT+1,JSTEP) )
           END DO
 
         end if

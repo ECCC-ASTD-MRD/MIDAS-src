@@ -5,6 +5,7 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   !  Header indices are distributed following the chosen strategy,
   !  currently either "round robin" or by latitude bands.
   !
+  use mpi_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use HorizontalCoord_mod
@@ -20,10 +21,9 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   real    :: xpos_r4, ypos_r4
 
   integer :: headerIndex_mpiglobal
-  integer :: nprocs_mpi
-  integer :: latindex
+  integer :: latIndex, lonIndex
   integer :: ierr
-  integer :: IP
+  integer :: IP, IP_x, IP_y
   integer :: gdxyfll
 
   !
@@ -32,10 +32,6 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
 
   !- 1.1 Get the horizontal coordinate of the analysis grid
   hco_anl => hco_Get('Analysis')
-
-  !- 1.2 Obtain nprocs_mpi
-  call rpn_comm_size("ALL", nprocs_mpi, ierr)
-  if ( nprocs_mpi == 0 ) nprocs_mpi = 1
 
   !
   !- 2.  Determine obs_ip according to distribution strategy
@@ -47,7 +43,7 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   case ('ROUNDROBIN')
     !- 2.1 Distribute by round robin:
     do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
-      IP = mod((headerIndex_mpiglobal-1),nprocs_mpi)
+      IP = mod((headerIndex_mpiglobal-1),mpi_nprocs)
       call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
     end do
   case ('LATBANDS')
@@ -57,15 +53,36 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
       lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex_mpiglobal)
       lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
       lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
-      ierr = gdxyfll( hco_anl % EZscintID, & ! IN 
-                      xpos_r4, ypos_r4,          & ! OUT
+      ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
+                      xpos_r4, ypos_r4,    & ! OUT
                       lat_r4, lon_r4, 1 )    ! IN
-      if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+      if ( trim(hco_anl%grtyp) == 'G' .and. hco_anl%ig2 == 1 ) then
          ! Revert latitudes since gdxyfll does not handle properly this grid type
-         ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
+         ypos_r4 = real(hco_anl%nj,4) - ypos_r4 + 1.0
       end if
-      latindex = floor(ypos_r4)
-      IP = ( nprocs_mpi * (latindex-1) ) / hco_anl % nj
+      latIndex = floor(ypos_r4)
+      IP = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
+      call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
+    end do
+  case ('LATLONTILES')
+    !- 2.3 Distribute by latitude/longitude tiles:
+    do headerIndex_mpiglobal = 1, obs_numheader(lobsSpaceData)
+      lat_r8 = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex_mpiglobal)
+      lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex_mpiglobal)
+      lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
+      lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
+      ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
+                      xpos_r4, ypos_r4,    & ! OUT
+                      lat_r4, lon_r4, 1 )    ! IN
+      if ( trim(hco_anl%grtyp) == 'G' .and. hco_anl%ig2 == 1 ) then
+         ! Revert latitudes since gdxyfll does not handle properly this grid type
+         ypos_r4 = real(hco_anl%nj,4) - ypos_r4 + 1.0
+      end if
+      latIndex = floor(ypos_r4)
+      lonIndex = floor(xpos_r4)
+      IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
+      IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
+      IP = IP_x + IP_y*mpi_npex
       call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex_mpiglobal, IP)
     end do
   case default

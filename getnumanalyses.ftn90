@@ -7,7 +7,7 @@ function getNumAnalyses() result(numAnalyses)
   integer :: numAnalyses, indexAnalysis
   integer, parameter :: maxNumAnalyses = 256
   character(len=128) :: fileName
-  character(len=3)   :: flnum
+  character(len=4)   :: flnum
   logical   fileExists
 
   filename='./trlm_01'
@@ -16,7 +16,7 @@ function getNumAnalyses() result(numAnalyses)
     numAnalyses = 1
   else
     LOOP_ANL: do indexAnalysis = 1,maxNumAnalyses
-      write(flnum,'(I3.3)') indexAnalysis
+      write(flnum,'(I4.4)') (indexAnalysis-1)
       fileName='./trlm_01_' // trim(flnum)
       inquire(file=trim(fileName),exist=fileExists)
       if(.not.fileExists) then

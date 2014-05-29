@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 program cnt0
-! pgm CNT0  - Program controlling the job at its highest level
+  ! pgm CNT0  - Program controlling the job at its highest level
 
   use topLevelControl_mod
   use mpivar_mod
@@ -23,16 +23,18 @@ program cnt0
   use columnData_mod  
   use obsSpaceDiag_mod
   use writeIncrement_mod
+  use controlVector_mod
+  use bmatrix_mod
 
   implicit none
-  integer istamp,exdb,exfin
+  integer :: istamp,exdb,exfin
   character(len=9) :: clmsg
-  integer  :: ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
-  logical :: lastAnalysis
+  integer :: ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
+  logical :: isControlAnalysis
   type(struct_obs),target :: obsSpaceData
   type(struct_columnData),target :: columng,columnhr
 
-  istamp=exdb('3DVAR','DEBUT','NON')
+  istamp = exdb('3DVAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
@@ -44,17 +46,17 @@ program cnt0
   ! MPI initilization
   call mpi_initialize  
 
-  call tmg_init (mpi_myid, 'TMG_3D-VAR' )
+  call tmg_init(mpi_myid, 'TMG_3D-VAR' )
 
   if(mpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
     call wrstatus(clmsg)
   endif 
 
-  ! 1. Top Level Control setup
+  ! 1. Top Level Control setup (read NCONF from namelist)
   call top_setup
 
-  ! 2. Decide on configuration of job.
+  ! 2. Decide on configuration of job
 
   ! ---BGCHECK (AIRS, IASI + conventional obs)--- !
   if(top_BgckMode()) then
@@ -75,7 +77,7 @@ program cnt0
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call suinnov(columng,columnhr,obsSpaceData)
-    call tmg_stop (1)
+    call tmg_stop(1)
 
     ! Do the background check and output the observation data files
     call bgcheck(columng,columnhr,obsSpaceData)
@@ -99,7 +101,7 @@ program cnt0
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call suinnov(columng,columnhr,obsSpaceData)
-    call tmg_stop (1)
+    call tmg_stop(1)
 
     ! Compute OER and update the observation data files
     call residuals(columng,columnhr,obsSpaceData)
@@ -114,22 +116,22 @@ program cnt0
     ! Do initial set up
     call tmg_start(1,'PREMIN')
     call preproc(columng,columnhr,obsSpaceData,  &
-                 "VAR",       &  ! obsColumnMode
-                 "LATBANDS",  &  ! obsMpiStrategy
+                 "VAR",          &  ! obsColumnMode
+                 "LATLONTILES",  &  ! obsMpiStrategy
                  numAnalyses)
-    call tmg_stop (1)
+    call tmg_stop(1)
 
-    do indexAnalysis_loop=1,numAnalyses
+    do indexAnalysis_loop = 1, numAnalyses
 
       write(*,*) '============================='
       write(*,*) 'Starting analysis number ', indexAnalysis_loop
       write(*,*) '============================='
 
-      lastAnalysis= (indexAnalysis_loop.eq.numAnalyses)
+      isControlAnalysis = (indexAnalysis_loop.eq.numAnalyses)
       if(numAnalyses.eq.1) then
-        indexAnalysis=0
+        indexAnalysis = 0
       else
-        indexAnalysis=indexAnalysis_loop
+        indexAnalysis = indexAnalysis_loop
       endif
 
       ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
@@ -138,13 +140,13 @@ program cnt0
 
       ! Compute observation innovations and prepare obsSpaceData for minimization
       call suinnov(columng,columnhr,obsSpaceData)
-      call tmg_stop (1)
+      call tmg_stop(1)
 
       ! Add random unbiased perturbations to the OMP values
-      if(numAnalyses.gt.1) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
+      if(.not.isControlAnalysis) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
 
       ! Do minimization of cost function
-      call minimize(columng,obsSpaceData,lastAnalysis)
+      call minimize(columng,obsSpaceData,isControlAnalysis)
 
       ! Calculate and write out the resulting analysis increment
       call calcWriteIncrement(columng,columnhr,indexAnalysis)
@@ -153,6 +155,9 @@ program cnt0
 
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
     call osd_calcInflation(obsSpaceData,columng)
+
+    ! Deallocate B matrices
+    call bmat_finalize(cvm_vazx)
 
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData)
@@ -168,14 +173,14 @@ program cnt0
 
   ! 3. Job termination
 
-  istamp=exfin('3DVAR','FIN','NON')
+  istamp = exfin('3DVAR','FIN','NON')
 
   if(mpi_myid == 0) then
     clmsg = 'VAR3D_END'
     call wrstatus(clmsg)
   endif
 
-  call tmg_terminate (mpi_myid, 'TMG_3D-VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_3D-VAR' )
 
   call rpn_comm_finalize(ierr) 
 

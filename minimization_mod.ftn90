@@ -108,17 +108,18 @@ CONTAINS
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
 
-    IF (LVARQC .and. mpi_myid.eq.0) WRITE(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
+    if(LVARQC .and. mpi_myid.eq.0) write(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
     ! Check for preconditioning file
     inquire(file=preconFileName,exist=preconFileExists)
+    if(.not.preconFileExists .and. mpi_myid.eq.0) write(*,*) 'NO PRECONDITIONING FILE FOUND!'
 
     initialized=.true.
 
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData,lastAnalysis)
+  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData,isControlAnalysis)
     !
     ! Purpose:
     ! 3D/En VAR minimization
@@ -127,12 +128,12 @@ CONTAINS
 
       type(struct_columnData),target :: lcolumn,lcolumng
       type(struct_obs),target :: lobsSpaceData
-      logical :: lastAnalysis
+      logical :: isControlAnalysis
       type(struct_dataptr) :: dataptr 
       integer,allocatable  :: dataptr_int(:) ! obs array used to transmit pointer
       integer              :: nulout = 6
       integer              :: impres
-      INTEGER               :: NGRANGE = 10 ! range of powers of 10 used for gradient test
+      INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
       INTEGER IZS(1),IZTRL(10)
       REAL ZZSUNUSED(1)
@@ -265,7 +266,7 @@ CONTAINS
       if (nwoqcv > 0) lvarqc = .false.
 
       ! do the gradient test for the starting point of minimization
-      if(lgrtest .and. lastAnalysis) then
+      if(lgrtest .and. isControlAnalysis) then
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
       endif
 
@@ -361,7 +362,7 @@ CONTAINS
       min_niter = itertot
 
       ! Test the gradient at the final point
-      if ((lgrtest .and. lastAnalysis)) then
+      if ((lgrtest .and. isControlAnalysis)) then
         WRITE(*,FMT=9400)
  9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
@@ -372,7 +373,7 @@ CONTAINS
       enddo
 
       ! Write out the Hessian to file (for now only 1st member writes)
-      if(lwrthess .and. lastAnalysis) then
+      if(lwrthess .and. isControlAnalysis) then
         if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call rw_vatra (preconFileNameOut,1,  &
           min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
@@ -521,7 +522,6 @@ CONTAINS
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_start(70,'QN')
 
     if(mpi_myid.eq.0) write(*,*) 'end of simvar'
-    call flush(6)
 
   END SUBROUTINE simvar
 
@@ -838,16 +838,16 @@ CONTAINS
       if(mpi_myid.eq.0) write(ireslun) nvamaj,nztrl
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
 
-      allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
+      if(mpi_myid.eq.0) allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
       allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
       do jvec = 1, ictrlvec
         call bmat_expandToMPIGlobal(  &
           vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
           vatravec_r8_mpiglobal,cvDim_return)
-        vatravec_r4_mpiglobal(:)=real(vatravec_r8_mpiglobal(:),4)
+        if(mpi_myid.eq.0) vatravec_r4_mpiglobal(:)=real(vatravec_r8_mpiglobal(:),4)
         if(mpi_myid.eq.0) write(ireslun) vatravec_r4_mpiglobal
       enddo
-      deallocate(vatravec_r4_mpiglobal)
+      if(mpi_myid.eq.0) deallocate(vatravec_r4_mpiglobal)
       deallocate(vatravec_r8_mpiglobal)
 
       allocate(vazxbar_mpiglobal(nvadim_mpiglobal))

@@ -955,6 +955,7 @@ module obsOperators_mod
       if (numgpsztd .gt. 0) then
         write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numgpsztd
         write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
+        if(allocated(vgpsztd_index)) deallocate(vgpsztd_index)
         allocate(vgpsztd_index(numgpsztd))
         iztd = 0
         call obs_set_current_header_list(obsSpaceData,'GP')

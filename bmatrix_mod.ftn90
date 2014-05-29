@@ -215,12 +215,14 @@ contains
     implicit none
     type(struct_gsv) :: statevector
 
-    integer :: jlev,jlat,jlon,lat1,lat2,jstep,jvar
+    integer :: jlev,jlat,jlon,lon1,lon2,lat1,lat2,jstep,jvar
 
     real(8) :: rwtinv
 
     real*8, pointer :: ptr(:,:,:,:)
     
+    lon1 = statevector % myLonBeg
+    lon2 = statevector % myLonEnd
     lat1 = statevector % myLatBeg
     lat2 = statevector % myLatEnd
 
@@ -231,7 +233,7 @@ contains
        rwtinv = real(statevector % ni,8) / gaus_RWT(jlat)
        do jstep = 1, statevector % numStep
           do jlev = 1, statevector % nk
-             do jlon = 1, statevector % ni
+             do jlon = lon1, lon2
                 ptr(jlon,jlev,jlat,jstep) = rwtinv * ptr(jlon,jlev,jlat,jstep)
              end do
           end do

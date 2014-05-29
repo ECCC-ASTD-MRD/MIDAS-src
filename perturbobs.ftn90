@@ -84,14 +84,10 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
   endif
 
   ! apply perturbation for current analysis
-  if(indexAnalysis.le.numPerturbations) then
-    write(*,*) 'perturbObs: applying perturbation for member: ',indexAnalysis
-    do indexBody = 1,obs_numBody(obsSpaceData)      
-      originalOmp = obs_bodyElem_r(obsSpaceData,obs_omp,indexBody)
-      call obs_bodySet_r(obsSpaceData,obs_omp,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
-    enddo
-  else
-    write(*,*) 'perturbObs: no perturbation applied for control member: ',indexAnalysis
-  endif
+  write(*,*) 'perturbObs: applying perturbation for member: ',indexAnalysis
+  do indexBody = 1,obs_numBody(obsSpaceData)      
+    originalOmp = obs_bodyElem_r(obsSpaceData,obs_omp,indexBody)
+    call obs_bodySet_r(obsSpaceData,obs_omp,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
+  enddo
 
 end subroutine perturbObs

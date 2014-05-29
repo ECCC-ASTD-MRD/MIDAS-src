@@ -60,7 +60,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 
   IF(mpi_myid == 0) THEN
     write(*,*)'ODA_H- Linearized observation operators'
-    call flush(6)
   endif
 
   vco_anl => col_getVco(lcolumng)

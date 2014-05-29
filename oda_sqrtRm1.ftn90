@@ -33,20 +33,9 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
   ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
   ! S. Heilliette ARMA. April 2013. Introduction of non-diagonal R matrix for AIRS and IASI
   INTEGER index_body,iass,index_header
-  logical, save :: firstTime = .true.
-  logical, save, allocatable :: includeFlag(:)
   integer :: idata,idatend,idatyp,count,ichn
   real (8) :: x(jpchmax),y(jpchmax)
   integer :: list_chan(jpchmax)
-
-  if(firstTime) then
-    allocate(includeFlag(obs_numbody(lobsSpaceData)))
-    do index_body=1,obs_numbody(lobsSpaceData)
-       iass   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
-       includeFlag(index_body) = (iass.eq.1 .or. iass.eq.-1)
-    enddo
-    firstTime=.false.
-  endif
 
   ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
   do index_header =1, obs_numHeader(lobsSpaceData)
@@ -59,7 +48,8 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
         
         count=0
         do index_body=idata,idatend
-           if(includeFlag(index_body)) then
+           iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
+           if(iass.eq.1 .or. iass.eq.-1) then
               ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
               ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
               count=count+1
@@ -73,7 +63,8 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
 
            count=0
            do index_body=idata,idatend
-              if(includeFlag(index_body)) then
+              iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
+              if(iass.eq.1 .or. iass.eq.-1) then
                  count=count+1
                  call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body,y(count))
               endif
@@ -83,7 +74,8 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
      else
      
         do index_body=idata,idatend
-           if(includeFlag(index_body)) then
+           iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
+           if(iass.eq.1 .or. iass.eq.-1) then
               call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body, &
                    obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)/obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
            endif
@@ -91,7 +83,5 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
      end if
 
   enddo
-
-  RETURN
 
 END SUBROUTINE oda_sqrtRm1

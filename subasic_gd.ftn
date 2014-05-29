@@ -60,7 +60,7 @@
       real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
       integer ntrials, nlev_T, nultrl(500)  
       CHARACTER(len=2)   :: flnum 
-      CHARACTER(len=3)   :: flnum2
+      CHARACTER(len=4)   :: flnum2
       CHARACTER(len=128) :: trialfile 
 
       WRITE(*,FMT='(/,4X,"Starting SUBASIC_GD",//)')
@@ -81,7 +81,7 @@
          write(flnum,'(I2.2)') ntrials+1
          trialfile='./trlm_' // trim(flnum)
          if(indexAnalysis.gt.0) then
-           write(flnum2,'(I3.3)') indexAnalysis
+           write(flnum2,'(I4.4)') (indexAnalysis-1)
            trialfile = trim(trialfile) // '_' // trim(flnum2)
          endif
          inquire(file=trim(trialfile),exist=ltrial)

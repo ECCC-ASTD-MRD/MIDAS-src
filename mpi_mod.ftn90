@@ -28,6 +28,8 @@ module mpi_mod
     call rpn_comm_init(mpi_getptopo,mpi_myid,mpi_nprocs,npex,npey)
     if(mpi_nprocs.lt.1) then
       mpi_nprocs=1
+      mpi_npex=1
+      mpi_npey=1
       mpi_myid=0
       mpi_myidx=0
       mpi_myidy=0
@@ -36,6 +38,8 @@ module mpi_mod
       mpi_npex=npex
       mpi_npey=npey
     endif
+
+    write(*,*) 'mpi_initialize: mpi_myid, mpi_myidx, mpi_myidy = ', mpi_myid, mpi_myidx, mpi_myidy
 
 !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()

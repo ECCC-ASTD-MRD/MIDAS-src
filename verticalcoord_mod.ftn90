@@ -90,12 +90,12 @@ module verticalCoord_mod
     logical :: isExist_L
     integer :: nlev_M,nlev_T
 
+    if(mpi_myid.eq.0) write(*,*) 'vco_SetupFromFile: TEMPLATEFILE=', templatefile
     inquire(file=templatefile,exist=isExist_L)
     IF ( isExist_L )then
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
       if ( ierr .eq. 0 ) then
-        if(mpi_myid.eq.0) write(*,*) ' TEMPLATEFILE=', templatefile
         if(mpi_myid.eq.0) write(*,*) ' opened as unit file ',nultemplate
         ierr =  fstouv(nultemplate,'RND+OLD')
       else

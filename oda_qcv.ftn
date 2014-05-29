@@ -35,24 +35,17 @@
       integer :: index_body,istyp,jj,index_header,ityp,index_body_start,ierr,index_family
       real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
       logical :: lluv
-      logical, save :: firstTime = .true.
-      logical, save, allocatable :: includeFlag(:)
+      logical :: includeFlag
 C
-      if(firstTime) then
-        allocate(includeFlag(obs_numbody(lobsSpaceData)))
-        do index_body=1,obs_numbody(lobsSpaceData)
-           includeFlag(index_body) = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) 
-     +                         .and. (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'RO')
+      BODY: do index_body = 1, obs_numbody(lobsSpaceData)
+        includeFlag = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) 
+     +          .and. (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'RO')
 C pas de qcvar pour  les radiances en mode matrice R non diagonale
-           if (rmat_lnondiagr) includeFlag(index_body) = 
-     +         includeFlag(index_body) .and. 
-     +         (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'TO') 
-        enddo
-        firstTime=.false.
-      endif
+        if (rmat_lnondiagr) includeFlag = 
+     +    includeFlag .and. 
+     +    (obs_getFamily(lobsSpaceData,bodyIndex=index_body).ne.'TO') 
 
-      BODY: do index_body=1,obs_numbody(lobsSpaceData)
-        if (includeFlag(index_body)) then
+        if (includeFlag) then
           index_header = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
           index_body_start = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -127,5 +120,4 @@ C
 
       enddo BODY
 
-      RETURN
-      END
+      END subroutine oda_qcv

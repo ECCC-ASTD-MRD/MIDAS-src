@@ -32,11 +32,12 @@ subroutine oda_LT(statevector,column,columng,lobsSpaceData)
   type(struct_obs)        :: lobsSpaceData
   type(struct_gsv)        :: statevector
 
-  integer :: ilev1,ilev2,deltalev,ierr,myLatP1, status, Vcode_anl
-  integer :: mythread,numthread,omp_get_num_threads,omp_get_thread_num
+  integer :: ilev1, ilev2, deltalev, ierr, myLonEndP1, myLatEndP1, status, Vcode_anl
+  integer :: mythread, numthread, omp_get_num_threads, omp_get_thread_num
   type(struct_vco), pointer :: vco_anl
 
-  myLatP1 = min(statevector%myLatEnd + 1, statevector%nj)
+  myLonEndP1 = statevector%myLonEnd + 1
+  myLatEndP1 = min(statevector%myLatEnd + 1, statevector%nj)
 
   !
   !- 2.  Variable conversions
@@ -95,7 +96,7 @@ subroutine oda_LT(statevector,column,columng,lobsSpaceData)
   call rpn_comm_barrier("GRID",ierr)
   call tmg_stop(38)
   call tmg_start(39,'INTERP_COMM')
-  if (mpi_nprocs /= 1) call gsv_commLatAd(statevector)
+  if (mpi_nprocs /= 1) call gsv_commLatLonAd(statevector)
   call tmg_stop(39)
 
 CONTAINS
@@ -125,11 +126,9 @@ CONTAINS
     integer,          intent(in) :: klev1,klev2
     
     INTEGER   JLEV, JLAT, JLON, headerIndex, JSTEP, JK
-    INTEGER   ILON, ILA, ILO
+    INTEGER   ILON, ILAT, ILO
     REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight
     real(8) :: xpos, ypos, lat, lon, latrot, lonrot
-
-    real(8) :: zfield(1:statevector%ni+1, klev1:klev2,statevector%myLatBeg:myLatP1)
 
     real*8, pointer :: field_ptr(:,:,:,:)
     real*8, pointer :: column_ptr(:,:)
@@ -144,7 +143,7 @@ CONTAINS
 
     do jstep = 1, statevector%numStep
 
-      zfield(:,:,:) = 0.0D0
+      field_ptr(:,klev1:klev2,:,jstep) = 0.0D0
       
       !
       !- 2.  LOOP OVER ALL THE OBSERVATIONS
@@ -160,38 +159,39 @@ CONTAINS
 
           !- Make sure we are within bounds
           if ( ypos < real(statevector%myLatBeg,8) .or. &
-               ypos > real(myLatP1             ,8) .or. &
-               xpos < 1.d0                         .or. &
-               xpos > real(statevector%ni + 1  ,8) ) then
+               ypos > real(myLatEndP1          ,8) .or. &
+               xpos < real(statevector%myLonBeg,8) .or. &
+               xpos > real(myLonEndP1          ,8) ) then
             write(*,*) 'oda_LT: Obs outside local domain for job = ', headerIndex
-            write(*,*) '  obs position  = ', xpos, ypos
-            write(*,*) '  domain bounds = ', statevector%myLatBeg, myLatP1, statevector%ni + 1
+            write(*,*) '  obs x, y position  = ', xpos, ypos
+            write(*,*) '  domain x_start, x_end, y_start, y_end bounds = ',  &
+                       statevector%myLonBeg, myLonEndP1, statevector%myLatBeg, myLatEndP1
 
             ! if obs above or below latitude band, move it to the edge of this latitude band
             if( ypos < real(statevector%myLatBeg,8) ) ypos = real(statevector%myLatBeg,8)
-            if( ypos > real(myLatP1             ,8) ) ypos = real(myLatP1             ,8)
+            if( ypos > real(myLatEndP1          ,8) ) ypos = real(myLatEndP1          ,8)
 
             ! abort if obs is to the left or right of the analysis domain
-            if( xpos < 1.d0                           .or. &
-                xpos > real(statevector%ni + 1  ,8) ) call abort3d('oda_LT')
+            if( xpos < real(statevector%myLonBeg,8) .or. &
+                xpos > real(myLonEndP1          ,8) ) call abort3d('oda_LT')
           end if
 
           !- 2.2 Find the lower-left grid point next to the observation
-          if ( xpos /= real(statevector%ni + 1,8) ) then
+          if ( xpos /= real(myLonEndP1,8) ) then
             ILON = floor(xpos)
           else
             ILON = floor(xpos) - 1
           end if
 
-          if ( ypos /= real(myLatP1,8) ) then
-            ILA = floor(ypos)
+          if ( ypos /= real(myLatEndP1,8) ) then
+            ILAT = floor(ypos)
           else
-            ILA = floor(ypos) - 1
+            ILAT = floor(ypos) - 1
           end if
 
           !- 2.3 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
           DLDX = xpos - real(ILON,8)
-          DLDY = ypos - real(ILA,8)
+          DLDY = ypos - real(ILAT,8)
 
           DInterpWeight = tim_getTimeInterpWeight(headerIndex,jstep)
           
@@ -202,35 +202,19 @@ CONTAINS
 
           !- 2.4 Interpolate the model state to the obs point
           do jlev = klev1, klev2
-            ZFIELD(ILON  ,jlev,ILA  ) = ZFIELD(ILON  ,jlev,ILA  )    &
+            field_ptr(ILON  ,jlev,ILAT,  jstep) = field_ptr(ILON  ,jlev,ILAT,  jstep)    &
                                         + DLW1 * column_ptr(jlev,headerIndex)
-            ZFIELD(ILON+1,jlev,ILA  ) = ZFIELD(ILON+1,jlev,ILA  )    &
+            field_ptr(ILON+1,jlev,ILAT,  jstep) = field_ptr(ILON+1,jlev,ILAT,  jstep)    &
                                         + DLW2 * column_ptr(jlev,headerIndex)
-            ZFIELD(ILON  ,jlev,ILA+1) = ZFIELD(ILON  ,jlev,ILA+1)    &
+            field_ptr(ILON  ,jlev,ILAT+1,jstep) = field_ptr(ILON  ,jlev,ILAT+1,jstep)    &
                                         + DLW3 * column_ptr(jlev,headerIndex)
-            ZFIELD(ILON+1,jlev,ILA+1) = ZFIELD(ILON+1,jlev,ILA+1)    &
+            field_ptr(ILON+1,jlev,ILAT+1,jstep) = field_ptr(ILON+1,jlev,ILAT+1,jstep)    &
                                         + DLW4 * column_ptr(jlev,headerIndex)
           end do
 
         end if
 
       end do ! Obs
-
-      !
-      !- 1.  EXPAND GRID-POINTS ARRAYS OF GD BY REPEATING MERIDIAN
-      !      1 into INTO MERIDIAN NI+1
-      DO JLAT = statevector%myLatBeg, myLatP1
-        DO JLEV = KLEV1, KLEV2
-          ZFIELD(1,JLEV,JLAT) =   ZFIELD(STATEVECTOR%NI+1,JLEV,JLAT) &
-                                + ZFIELD(1               ,JLEV,JLAT)
-        END DO
-      END DO
-
-      !
-      !- 0. Transfer local results to global array
-      !
-      field_ptr(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1,jstep) = &
-         zfield(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1)
 
    end do ! jstep
 
