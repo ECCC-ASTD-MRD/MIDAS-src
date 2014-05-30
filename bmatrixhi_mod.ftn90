@@ -74,6 +74,7 @@ MODULE BmatrixHI
   real(8)             :: rvlocunbalt = 4.0d0
   real(8)             :: rvloclq     = 4.0d0
   real(8)             :: rlimlv_bdl  = 85000.0d0
+  integer             :: numModeZero  ! number of eigenmodes to set to zero
 
   ! this should come from state vector object
   integer             :: numvar3d
@@ -112,7 +113,7 @@ CONTAINS
     logical :: llfound
     real(8) :: zps
 
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero
 
     call tmg_start(15,'BHI_SETUP')
 
@@ -132,6 +133,7 @@ CONTAINS
     scaleFactor(:) = 1.0d0
     scaleFactorLQ(:) = 1.0d0
     scaleTG = .true.
+    numModeZero = 0
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -685,6 +687,20 @@ CONTAINS
       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
       ilwork = 4*nkgdim2*2
       call dsyev('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
+      if(info.ne.0) then
+        write(*,*) 'bhi_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
+        call abort3d('BHI_SUCORNS')
+      endif
+
+      ! set selected number of eigenmodes to zero
+      if(numModeZero.gt.0) then
+        write(*,*) 'bhi_sucorns2: setting ',numModeZero,' eigenvalues to zero for wavenumber n=',jn
+        write(*,*) 'bhi_sucorns2: original eigenvalues=',eigenval(:)
+        do jk1 = 1, numModeZero
+          eigenval(jk1) = 0.0d0
+        enddo
+        write(*,*) 'bhi_sucorns2: modified eigenvalues=',eigenval(:)
+      endif
 
       do jk1 = 1, nkgdim2
         if(eigenval(jk1).lt.1.0d-15) then
