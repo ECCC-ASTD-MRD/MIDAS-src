@@ -699,9 +699,13 @@ module obsOperators_mod
       analysisMode = .true.
     endif
 
+    ! Ensure Jacobian-related arrays are not allocated to force them to be recalculated in oda_H
+    if(allocated(vGPSZTD_Jacobian)) deallocate(vGPSZTD_Jacobian)
+    if(allocated(vGPSZTD_lJac)) deallocate(vGPSZTD_lJac)
+
     zdzmin = dzmin      
     nobs2p = 50
-    jobs=0.d0
+    jobs = 0.d0
 
     nlev_T = col_getNumLev(columnhr,'TH')
     if (ltestop) write(*,*) '  col_getNumLev(columnhr,TH) = ',nlev_T

@@ -589,6 +589,9 @@ module writeIncrement_mod
       enddo
 !$OMP END PARALLEL DO
 
+      ! array allocated by vgrid
+      deallocate(zpres,dPdPsfc)
+
     END subroutine lq2esgd
 
 
@@ -738,6 +741,9 @@ module writeIncrement_mod
       deallocate(ratioP)
       deallocate(delLnP_M)
       deallocate(delLnP_T)
+      ! arrays allocated by vgrid
+      deallocate(Pres_M,Pres_T)
+      deallocate(dP_dPsfc_M,dP_dPsfc_T)
 
     end subroutine ltt2phigd_gem4
 
@@ -807,6 +813,8 @@ module writeIncrement_mod
       deallocate(vme)
       deallocate(vmf)
       deallocate(zprof)
+      ! array allocated by vgrid
+      deallocate(zpres3d_ptr)
 
       RETURN
 

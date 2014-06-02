@@ -27,7 +27,6 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
 
       call tmg_start(93,'POST_UPDATEBRP')
 
-      if(top_AnalysisMode()) call listrej(obsSpaceData)
       if(top_AnalysisMode()) call vint3dfd(obs_oma,obsSpaceData)
       call vint3dfd(obs_omp,obsSpaceData)
       if(top_AnalysisMode()) call setassflg(obsSpaceData)

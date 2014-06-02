@@ -167,6 +167,14 @@ CONTAINS
         impres=0
       endif
 
+      ! deactivate VARQC if this is not a control analysis
+      if(.not.isControlAnalysis) then
+        if(mpi_myid.eq.0) write(*,*) 'min_minvar: Variational QC de-activated for ensemble analyses!'
+        if(mpi_myid.eq.0) write(*,*) ' '
+        lvarqc = .false.
+        min_lvarqc=lvarqc
+      endif
+
       ! allocate control vector related arrays (these are all mpilocal)
 
       allocate(vazx(nvadim_mpilocal),stat=ierr)

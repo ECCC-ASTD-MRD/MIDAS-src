@@ -25,13 +25,14 @@ program cnt0
   use writeIncrement_mod
   use controlVector_mod
   use bmatrix_mod
+  use filterObs_mod  
 
   implicit none
   integer :: istamp,exdb,exfin
   character(len=9) :: clmsg
   integer :: ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
   logical :: isControlAnalysis
-  type(struct_obs),target :: obsSpaceData
+  type(struct_obs),target :: obsSpaceData, obsSpaceData_out
   type(struct_columnData),target :: columng,columnhr
 
   istamp = exdb('3DVAR','DEBUT','NON')
@@ -127,7 +128,7 @@ program cnt0
       write(*,*) 'Starting analysis number ', indexAnalysis_loop
       write(*,*) '============================='
 
-      isControlAnalysis = (indexAnalysis_loop.eq.numAnalyses)
+      isControlAnalysis = (indexAnalysis_loop.eq.1)
       if(numAnalyses.eq.1) then
         indexAnalysis = 0
       else
@@ -151,19 +152,39 @@ program cnt0
       ! Calculate and write out the resulting analysis increment
       call calcWriteIncrement(columng,columnhr,indexAnalysis)
 
+      ! Set the QC flags to be consistent with VAR-QC if control analysis
+      if(isControlAnalysis) then
+        call listrej(obsSpaceData)
+      endif
+
+      ! Make copy of obsSpaceData for control analysis
+      if(isControlAnalysis) then
+        call tmg_start(19,'COPY_OBS')
+        call obs_initialize(obsSpaceData_out,obs_numHeader(obsSpaceData),  &
+                            obs_numBody(obsSpaceData),mpi_local=.true.)
+        call obs_copy(obsSpaceData,obsSpaceData_out)
+        call tmg_stop(19)
+      endif
+
+      ! Re-filter the observations to reject VAR-QC flagged obs for perturbed members
+      if(isControlAnalysis .and. numAnalyses.gt.1) call filt_suprep(obsSpaceData)
+
     enddo
 
+    ! Deallocate original obsSpaceData
+    call obs_finalize(obsSpaceData)
+
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
-    call osd_calcInflation(obsSpaceData,columng)
+    call osd_calcInflation(obsSpaceData_out,columng)
 
     ! Deallocate B matrices
     call bmat_finalize(cvm_vazx)
 
     ! Now write out the observation data files
-    call update_burpfiles(obsSpaceData)
+    call update_burpfiles(obsSpaceData_out)
 
-    ! Deallocate obsSpaceData
-    call obs_finalize(obsSpaceData)
+    ! Deallocate copied obsSpaceData
+    call obs_finalize(obsSpaceData_out)
 
   else
 
