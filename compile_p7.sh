@@ -120,13 +120,6 @@ if [ $mode == full ] ; then
   rm -f enkf_pturb.ftn
 
   # Compile the subroutines...
-  echo "compiling modulopt (n1qn3)"
-  SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-  s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listing0 2>&1
-  grep fail listing0
-  if [ $? = "0" ] ; then exit ; fi
-  rm -f $SRC0
-
   echo "compiling low-level independent modules"
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
@@ -134,6 +127,13 @@ if [ $mode == full ] ; then
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing1 2>&1
   grep fail listing1
   if [ $? = "0" ] ; then exit ; fi
+
+  echo "compiling modulopt (n1qn3)"
+  SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
+  s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listing0 2>&1
+  grep fail listing0
+  if [ $? = "0" ] ; then exit ; fi
+  rm -f $SRC0
 
   echo "compiling analysis grid modules"
   SRC0="gaussgrid_mod.ftn90 windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"

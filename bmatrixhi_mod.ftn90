@@ -247,12 +247,8 @@ CONTAINS
       endif
     enddo
 
-    call tmg_start(16,'BHI_SETUP_SUNEW')
     call BHI_sunewstats
-    call tmg_stop(16)
-    call tmg_start(17,'BHI_SETUP_SUCOR')
     call BHI_sucorns2
-    call tmg_stop(17)
     if(mpi_myid.eq.0) write(*,*) 'END OF BHI_SETUP'
 
     initialized = .true.
@@ -673,7 +669,6 @@ CONTAINS
     enddo
 
     ! compute square-root of corns for each total wavenumber
-    call tmg_start(18,'BHI_SETUP_SQRT')
     allocate(corns_temp(nkgdim2,nkgdim2,0:ntrunc))
     corns_temp(:,:,:)=0.0d0
     do jn = mpi_myid, ntrunc, mpi_nprocs
@@ -731,8 +726,6 @@ CONTAINS
     nsize = nkgdim2*nkgdim2*(ntrunc+1)
     call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(corns_temp)
-
-    call tmg_stop(18)
 
     if(mpi_myid==0) then
       ierr = fstfrm(iulcorvert)
@@ -1844,9 +1837,7 @@ CONTAINS
 
     allocate(gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
 
-    call tmg_start(52,'BHI_CAIN')
     call bhi_cain(controlVector_in,hiControlVector)
-    call tmg_stop(52)
 
     call bhi_spa2gd(hiControlVector,gd_out)
 
@@ -1889,9 +1880,7 @@ CONTAINS
 
     call bhi_spa2gdad(gd_in,hiControlVector)
 
-    call tmg_start(52,'BHI_CAIN')
     call bhi_cainad(hiControlVector,controlVector_out)
-    call tmg_stop(52)
 
     deallocate(gd_in)
 

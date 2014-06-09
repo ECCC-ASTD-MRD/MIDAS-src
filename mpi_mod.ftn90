@@ -6,7 +6,7 @@ module mpi_mod
   ! public variables
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey
   ! public procedures
-  public :: mpi_initialize,mpi_getptopo
+  public :: mpi_initialize,mpi_getptopo,mpi_allreduce_sumreal8scalar
 
   integer :: mpi_myid   = 0
   integer :: mpi_nprocs = 0
@@ -19,8 +19,8 @@ module mpi_mod
 
   subroutine mpi_initialize()
     implicit none
-    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
-    integer :: npex,npey
+    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
+    integer :: npex,npey,ierr
 
     ! Initilize MPI
     npex=0
@@ -34,7 +34,7 @@ module mpi_mod
       mpi_myidx=0
       mpi_myidy=0
     else
-      call rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
+      ierr = rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
       mpi_npex=npex
       mpi_npey=npey
     endif
@@ -70,5 +70,39 @@ module mpi_mod
     ierr=fclos(nulnam)
 
   end subroutine mpi_getptopo 
+
+
+  subroutine mpi_allreduce_sumreal8scalar(sendrecvbuf,com)
+    implicit none
+    real(8) :: sendrecvbuf
+    character(len=*) :: com
+
+    integer :: nsize, ierr, root, rank
+    real(8), allocatable :: allvalues(:)
+
+    ! do a barrier so that timing on reduce operation is accurate
+    call rpn_comm_barrier(com,ierr)
+
+    call tmg_start(16,'allreduce_sum8')
+
+    ! determine number of processors in the communicating group
+    call rpn_comm_size(com,nsize,ierr)
+
+    ! determine where to gather the values: first task in group
+    call rpn_comm_rank(com,rank,ierr)
+    call rpn_comm_allreduce(rank,root,1,"MPI_INTEGER","MPI_MIN",com,ierr)
+
+    ! gather values to be added onto 1 processor
+    allocate(allvalues(nsize))
+    call rpn_comm_gather(sendrecvbuf, 1, "MPI_DOUBLE_PRECISION", allvalues, 1, "MPI_DOUBLE_PRECISION", root, com, ierr)
+
+    ! sum the values and broadcast to group
+    if(rank.eq.root) sendrecvbuf = sum(allvalues(:))
+    deallocate(allvalues)
+    call rpn_comm_bcast(sendrecvbuf, 1, "MPI_DOUBLE_PRECISION", root, com, ierr)
+
+    call tmg_stop(16)
+
+  end subroutine mpi_allreduce_sumreal8scalar
 
 end module mpi_mod

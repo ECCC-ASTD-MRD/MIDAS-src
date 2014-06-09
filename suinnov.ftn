@@ -34,6 +34,7 @@
 !         - added CALL SETERRGPSGB(obsSpaceData,lgpdata) to set ZTD errors
 !         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
 !
+      use mpi_mod
       use topLevelControl_mod
       use minimization_mod
       use obsSpaceData_mod
@@ -142,19 +143,19 @@
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
 
-      call rpn_comm_allreduce(ZJORAOB,ZJORAOB,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOAIREP,ZJOAIREP,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOSURFC,ZJOSURFC,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOSFCSF,ZJOSFCSF,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOSFCUA,ZJOSFCUA,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOSFCSC,ZJOSFCSC,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOSFCGP,ZJOSFCGP,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOTOV,ZJOTOV,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOSATWIND,ZJOSATWIND,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOPROF,ZJOPROF,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOGPSRO,ZJOGPSRO,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJOGPSGB,ZJOGPSGB,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(ZJO,ZJO,1,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call mpi_allreduce_sumreal8scalar(ZJORAOB,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOAIREP,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOSURFC,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOSFCSF,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOSFCUA,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOSFCSC,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOSFCGP,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOTOV,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOSATWIND,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOPROF,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOGPSRO,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOGPSGB,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJO,"GRID")
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
       write(*,'(a15,f23.16)') 'JORAOB   = ',ZJORAOB

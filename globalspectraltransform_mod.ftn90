@@ -3864,15 +3864,23 @@ CONTAINS
   END SUBROUTINE ALLOCATE_COMLEG
 
 
-  SUBROUTINE SULEG
+  SUBROUTINE SULEG(lverbose_in)
     !
     !**s/r SULEG  - Initialisation of Gaussian latitudes, weights and related
     !     .         quantities
     implicit none
+    logical, optional :: lverbose_in
 
+    logical :: lverbose
     integer :: jlat, jm
     real(8) :: zpisu2
     external gauss
+
+    if(present(lverbose_in)) then
+      lverbose = lverbose_in
+    else
+      lverbose = .false.
+    endif
 
     if(mpi_myid.eq.0) write(*,fmt='(//,6(" ***********"))')
     if(mpi_myid.eq.0) write(*,*)'     SULEG: initialisation of Gaussian', &
@@ -3920,18 +3928,19 @@ CONTAINS
 
     !*    4. Print the content of GAUS
 
-    if(mpi_myid.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
+    if(lverbose.and.mpi_myid.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
     do jlat = 1, gst(gstID)%nj
-       if(mpi_myid.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
+       if(lverbose.and.mpi_myid.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
             jlat,gst(gstID)%rlati(jlat),gst(gstID)%rcolat(jlat), gst(gstID)%rmu(jlat)  &
             ,gst(gstID)%rwt(jlat),gst(gstID)%rwocs(jlat)
     enddo
 
-    if(mpi_myid.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
+    if(lverbose.and.mpi_myid.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
 
     do jlat = 1, gst(gstID)%nj
-       if(mpi_myid.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gst(gstID)%r1mu2(jlat),gst(gstID)%rsqm2(jlat),gst(gstID)%r1qm2(jlat)  &
-            ,gst(gstID)%r1mui(jlat),gst(gstID)%r1mua(jlat)
+       if(lverbose.and.mpi_myid.eq.0)  &
+         write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gst(gstID)%r1mu2(jlat),gst(gstID)%rsqm2(jlat),gst(gstID)%r1qm2(jlat)  &
+              ,gst(gstID)%r1mui(jlat),gst(gstID)%r1mua(jlat)
     enddo
 
     !*    5.  Positioning within spectral arrays
@@ -3942,11 +3951,11 @@ CONTAINS
        gst(gstID)%nclm(jm)   = gst(gstID)%ntrunc - jm + 1
     enddo
 
-    if(mpi_myid.eq.0) write(*,fmt='(/," NIND(0:NTRUNC):",/,10(2X,I8))')  &
+    if(lverbose.and.mpi_myid.eq.0) write(*,fmt='(/," NIND(0:NTRUNC):",/,10(2X,I8))')  &
          (gst(gstID)%nind(jm),jm=0,gst(gstID)%ntrunc)
-    if(mpi_myid.eq.0) write(*,fmt='(" NINDRH(0:NTRUNC):",/,10(2X,I8))')  &
+    if(lverbose.and.mpi_myid.eq.0) write(*,fmt='(" NINDRH(0:NTRUNC):",/,10(2X,I8))')  &
          (gst(gstID)%nindrh(jm),jm=0,gst(gstID)%ntrunc)
-    if(mpi_myid.eq.0) write(*,fmt='("   NCLM(0:NTRUNC):",/,10(2X,I8))')  &
+    if(lverbose.and.mpi_myid.eq.0) write(*,fmt='("   NCLM(0:NTRUNC):",/,10(2X,I8))')  &
          (gst(gstID)%nclm(jm),jm=0,gst(gstID)%ntrunc)
 
   END SUBROUTINE SULEG

@@ -32,7 +32,7 @@ MODULE GAUSSGRID_MOD
 !--------------------------------------------------------------------------
 ! gaus_SetupFromHCO
 !--------------------------------------------------------------------------
-  subroutine gaus_SetupFromHCO(hco_in)
+  subroutine gaus_SetupFromHCO(hco_in, lverbose_in)
     !
     !- Initialisation of Gaussian latitudes, weights and related quantities
     !  using the grid info from horizontalcoord_mod
@@ -40,9 +40,17 @@ MODULE GAUSSGRID_MOD
     implicit none
 
     type(struct_hco), intent(in) :: hco_in
+    logical, optional :: lverbose_in
 
+    logical :: lverbose
     integer :: njlath, jlat, my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy
     real(8) :: zpisu2
+
+    if(present(lverbose_in)) then
+      lverbose = lverbose_in
+    else
+      lverbose = .false.
+    endif
 
     !
     !- 1.  Tests on the input grid
@@ -138,17 +146,17 @@ MODULE GAUSSGRID_MOD
 
     !*    4. Print the content of GAUS
 
-    if(my_mpi_id.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
+    if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
     do jlat = 1, gaus_nj
-       if(my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
+       if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
             jlat,gaus_rlati(jlat),gaus_rcolat(jlat), gaus_rmu(jlat)  &
             ,gaus_rwt(jlat),gaus_rwocs(jlat)
     enddo
 
-    if(my_mpi_id.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
+    if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
 
     do jlat = 1, gaus_nj
-       if(my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gaus_r1mu2(jlat),gaus_rsqm2(jlat),gaus_r1qm2(jlat)  &
+       if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gaus_r1mu2(jlat),gaus_rsqm2(jlat),gaus_r1qm2(jlat)  &
             ,gaus_r1mui(jlat),gaus_r1mua(jlat)
     enddo
 
@@ -157,7 +165,7 @@ MODULE GAUSSGRID_MOD
 !--------------------------------------------------------------------------
 ! gaus_Setup
 !--------------------------------------------------------------------------
-  SUBROUTINE GAUS_SETUP(ni_out, nj_out, ni_in, nj_in)
+  SUBROUTINE GAUS_SETUP(ni_out, nj_out, ni_in, nj_in, lverbose_in)
     !
     ! GAUS_SETUP  - Initialisation of Gaussian latitudes, weights and related
     !               quantities
@@ -165,13 +173,21 @@ MODULE GAUSSGRID_MOD
 
     integer, intent(OUT)           :: ni_out, nj_out
     integer, intent(IN), optional  :: ni_in , nj_in
+    logical, intent(IN), optional  :: lverbose_in
 
+    logical :: lverbose
     integer :: ni,nj,nulnam,fnom,fclos,ierr
     integer njlath,jlat,my_mpi_id,my_mpi_idx_dummy,my_mpi_idy_dummy
 
     real*8 zpisu2
 
     NAMELIST /NAMDIM/NI, NJ
+
+    if(present(lverbose_in)) then
+      lverbose = lverbose_in
+    else
+      lverbose = .false.
+    endif
 
     if(present(ni_in).and.present(nj_in)) then
        ni=ni_in
@@ -261,17 +277,17 @@ MODULE GAUSSGRID_MOD
 
     !*    4. Print the content of GAUS
 
-    if(my_mpi_id.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
+    if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(" JLAT:",4X," RLATI",8X,"RCOLAT",8X,"RMU",10X ,"RWT",12X,"RW0CS")')
     do jlat = 1, nj
-       if(my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
+       if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))')  &
             jlat,gaus_rlati(jlat),gaus_rcolat(jlat), gaus_rmu(jlat)  &
             ,gaus_rwt(jlat),gaus_rwocs(jlat)
     enddo
 
-    if(my_mpi_id.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
+    if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(//," JLAT:",4X,"R1MU2",8X,"RSQM2",9X,"R1QM2",10X,"R1MUI",10X,"R1MUA")')
 
     do jlat = 1, nj
-       if(my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gaus_r1mu2(jlat),gaus_rsqm2(jlat),gaus_r1qm2(jlat)  &
+       if(lverbose.and.my_mpi_id.eq.0) write(*,fmt='(2X,I4,5(2X,G23.16))') jlat,gaus_r1mu2(jlat),gaus_rsqm2(jlat),gaus_r1qm2(jlat)  &
             ,gaus_r1mui(jlat),gaus_r1mua(jlat)
     enddo
 

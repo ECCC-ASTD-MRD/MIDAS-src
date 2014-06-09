@@ -9,6 +9,8 @@ c----
 c
 c         arguments
 c
+      use mpi_mod
+
       logical inmemo
       integer n,impres,io,mode,niter,nsim,m,jmin,jmax,izs(1)
       real rzs(1)
@@ -338,8 +340,7 @@ c
                   ps=ps+diag(i)*aux(i)*aux(i)
   420         continue
               call tmg_start(79,'QN_COMM')
-              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision",
-     &                                "mpi_sum","GRID",ierr)
+              call mpi_allreduce_sumreal8scalar(ps,"GRID")
               call tmg_stop(79)
               d1=1.d0/ps
               if (impres.ge.5) then
@@ -363,8 +364,7 @@ c
                   ps=ps+gg(i)*gg(i)/diag(i)
   430         continue
               call tmg_start(79,'QN_COMM')
-              call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision",
-     &                                "mpi_sum","GRID",ierr)
+              call mpi_allreduce_sumreal8scalar(ps,"GRID")
               call tmg_stop(79)
               den=ps
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
@@ -386,8 +386,7 @@ c
                       ps=ps+diag(i)
   440             continue
                   call tmg_start(79,'QN_COMM')
-                  call rpn_comm_allreduce(ps,ps,1,"mpi_double_precision",
-     &                                    "mpi_sum","GRID",ierr)
+                  call mpi_allreduce_sumreal8scalar(ps,"GRID")
                   call tmg_stop(79)
                   ps=ps/n
                   preco=ps
@@ -397,9 +396,7 @@ c
                       ps2=ps2+(diag(i)-ps)**2
   441             continue
                   call tmg_start(79,'QN_COMM')
-                  call rpn_comm_allreduce(ps2,ps2,1,
-     &                                    "mpi_double_precision",
-     &                                    "mpi_sum","GRID",ierr)
+                  call mpi_allreduce_sumreal8scalar(ps2,"GRID")
                   call tmg_stop(79)
                   ps2=dsqrt(ps2/n)
                   if (impres.ge.5) write (io,936) preco,ps2

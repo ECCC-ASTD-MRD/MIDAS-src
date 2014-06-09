@@ -1,6 +1,7 @@
 module writeIncrement_mod
   use MathPhysConstants_mod
   use EarthConstants_mod
+  use varNameList_mod
   use controlVector_mod
   use columnData_mod
   use minimization_mod
@@ -19,11 +20,14 @@ module writeIncrement_mod
   ! this is set to true when supost runs
   logical :: initialized = .false. 
 
+  character(len=12) :: cetikinc_orig
+
   ! namelist variables
-  character(len=4)  :: CPPCVAR(20)
-  character(len=12) :: CETIKINC
-  integer :: NPPCVAR
-  logical :: write4dInc,useTL_LQtoHU
+  character(len=4)  :: cppcvar(20)
+  character(len=12) :: cetikinc
+  integer :: nppcvar, randSeed
+  logical :: write4dInc, useTL_LQtoHU, removeMean, pertBhiOnly
+  real(8) :: e1_scaleFactor, e2_scaleFactor
 
   contains
 
@@ -31,11 +35,12 @@ module writeIncrement_mod
       !
       !**s/r SUPOST  - initialize the post-processing of the model state
       !
-      IMPLICIT NONE
-      INTEGER IERR,jvar,ihu,itt,ivt,imin,igz,ip0,ilq
-      integer :: nulnam,fnom,fclos
-      logical :: lvtout,lgzout
-      NAMELIST /NAMPOST/NPPCVAR,CPPCVAR,CETIKINC,WRITE4DINC,useTL_LQtoHU
+      implicit none
+      integer :: ierr, jvar, ihu, itt, ivt, imin, igz, ip0, ilq
+      integer :: nulnam, fnom, fclos
+      logical :: lvtout, lgzout
+      namelist /nampost/nppcvar, cppcvar, cetikinc, write4dInc, useTL_LQtoHU,  &
+                        e1_scaleFactor,e2_scaleFactor, randSeed, removeMean, pertBhiOnly
 
       write(*,*) '========================================='
       write(*,*) 'supost:  initialization of postprocessing'
@@ -44,17 +49,22 @@ module writeIncrement_mod
       !
       ! 1. Set default values
       !
-      CETIKINC = 'UNDEFINED***'
-      NPPCVAR=6
-      CPPCVAR(:) = '    '
-      CPPCVAR(1) = 'UU'
-      CPPCVAR(2) = 'VV'
-      CPPCVAR(3) = 'TT'
-      CPPCVAR(4) = 'LQ'
-      CPPCVAR(5) = 'P0'
-      CPPCVAR(6) = 'TG'
-      WRITE4DINC = .false.
+      cetikinc = 'UNDEFINED***'
+      nppcvar=6
+      cppcvar(:) = '    '
+      cppcvar(1) = 'UU'
+      cppcvar(2) = 'VV'
+      cppcvar(3) = 'TT'
+      cppcvar(4) = 'LQ'
+      cppcvar(5) = 'P0'
+      cppcvar(6) = 'TG'
+      write4dInc = .false.
       useTL_LQtoHU = .false.
+      e1_scaleFactor = 0.66d0
+      e2_scaleFactor = 0.33d0
+      randSeed = 1
+      removeMean = .true.
+      pertBhiOnly = .true.
       !
       ! 2. Read the parameters from NAMPOST
       !
@@ -64,6 +74,8 @@ module writeIncrement_mod
       if(ierr.ne.0) call abort3d('supost: Error reading namelist')
       if(mpi_myid.eq.0) write(*,nml=nampost)
       ierr=fclos(nulnam)
+
+      cetikinc_orig = cetikinc
       !
       ! reordering cppcvar for dependent variables in writeIncrement
       !
@@ -146,20 +158,25 @@ module writeIncrement_mod
 
       type(struct_hco),      pointer :: hco_anl
       type(struct_vco), pointer :: vco_anl
-      type(struct_gsv) :: statevector,statevectorg
-      integer jk,jj,ji,jstep,nlev_T,nlev_M,ierr,fnom,fstouv,fstfrm,fclos
-      integer Vcode_anl,status
+      type(struct_gsv) :: statevector,statevectorg,statevectorp
+      integer :: jlev, jj, ji, jstep, jvar, perturbLoop, numPerturbLoop, nlev_T, nlev_M, iseed
+      integer :: ierr, fnom, fstouv, fstfrm, fclos
+      integer :: Vcode_anl,status
       integer :: datestamplist(tim_nstepobsinc)
-      real(8)  :: hu_anl,deltaHours
+      real(8)  :: hu_anl,deltaHours, gasdev, zdum, scaleFactor
       real(8), allocatable :: zes(:,:,:)
       real(8), allocatable :: ztv(:,:,:)
       real(8), allocatable :: zgz_M(:,:,:),zgz_T(:,:,:)
       real(8), allocatable :: zhu(:,:,:)
-      real(8), pointer :: lq_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:)
-      character(len=4) :: flnum 
-      character(len=4) :: flnum2
+      real(8), allocatable :: cv_pert_mpilocal(:), cv_pert_mpiglobal(:)
+      real(8), allocatable :: scaleFactorBhi(:)
+      real(8), pointer :: cv_pert_bhi_mpilocal(:), field(:,:,:,:)
+      real(8), pointer :: lq_inc_ptr(:,:,:,:), hu_trl_ptr(:,:,:,:)
+      character(len=4) :: flnum, flnum2
+      character(len=1) :: flnum3
       character(len=128) :: incFileName
-      integer             :: get_max_rss
+      integer :: get_max_rss
+      logical :: globalGSVpresent
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine calcWriteIncrement--'
@@ -178,41 +195,39 @@ module writeIncrement_mod
         call abort3d('calcWriteIncrement: number of cpus < number of increment timesteps, aborting!')
       endif
       !
-      ! Compute the analysis increment
+      ! Determine which MPI tasks will have mpiglobal statevectors (increment, background, perturbation)
+      ! if 3D increment: background fields only on myid=0, so only do calculations for myid=0
+      ! if 4D increment: background fields for jstep on myid=jstep-1, do calculations for first numstep procs
       !
-      call tmg_start(91,'POST_COMPUTEDX')
+      if( (write4dInc      .and. mpi_myid .lt. tim_nstepobsinc) .or.  &
+          (.not.write4dInc .and. mpi_myid .eq. 0          ) ) then
+        globalGSVpresent = .true.
+      else
+        globalGSVpresent = .false.
+      endif
 
+      !
+      ! Setup statevector for storing the analysis increment
+      !
       vco_anl => col_getVco(lcolumng)
       hco_anl => hco_Get('Analysis')
       call gsv_setVco(statevector,vco_anl)
-
-      call gsv_setHco(statevector, hco_anl)
+      call gsv_setHco(statevector,hco_anl)
+      nlev_T = vco_getNumLev(vco_anl,'TH')
+      nlev_M = vco_getNumLev(vco_anl,'MM')
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call gsv_allocate(statevector,tim_nstepobsinc, &
            datestamp=tim_getDatestamp(),mpi_local=.true.)
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-
-      if(write4dInc) then
-        ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
-        call gsv_commMPIGlobal(statevector)
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      else
-        ! mpiglobal result for 3D increment only on myid=0 
-        call gsv_commMPIGlobal3D(statevector)
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      endif
-      call tmg_stop(91)
-
-      WRITE(*,*)' calcWriteIncrement: Transform analysis variables to model variables -'
-
+      !
+      ! Prepare background fields (only P0, TT, HU) at each analysis time needed for computing
+      ! diagnostic fields and make mpiglobal (result only on myid=increment_time_step-1)
+      !
       call tmg_start(92,'POST_DIAG')
-      !
-      ! Prepare background fields (only P0, TT, HU) at each analysis time for flow-dependent 
-      ! control variables (NOTE: mpiglobal result only on myid=increment_time_step-1)
-      !
+      write(*,*)' calcWriteIncrement: Read in background variables to enable calculation of diagnostic variables'
+
       call gsv_setVco(statevectorg,vco_anl)
       call gsv_setHco(statevectorg,hco_anl )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -230,12 +245,30 @@ module writeIncrement_mod
         call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime),indexAnalysis)
       endif
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call tmg_stop(92)
 
-      ! if 3D increment: background fields only on myid=0, so only do calculations for myid=0
-      ! if 4D increment: background fields for jstep on myid=jstep-1, do calculations for first numstep procs
-      if( (write4dInc      .and. mpi_myid .lt. tim_nstepobsinc) .or.  &
-          (.not.write4dInc .and. mpi_myid .eq. 0          ) ) then
+      !
+      ! Compute the analysis increment and make mpiglobal (result only on myid=increment_time_step-1)
+      !
+      call tmg_start(91,'POST_COMPUTEDX')
 
+      call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+
+      if(write4dInc) then
+        ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
+        call gsv_commMPIGlobal(statevector)
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      else
+        ! mpiglobal result for 3D increment only on myid=0 
+        call gsv_commMPIGlobal3D(statevector)
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      endif
+      call tmg_stop(91)
+
+      !
+      ! Allocate fields to hold diagnostic fields
+      !
+      if(globalGSVpresent) then
         if(write4dInc) then
           jstep=mpi_myid+1
         else
@@ -245,86 +278,215 @@ module writeIncrement_mod
         write(*,*) 'calcWriteIncrement: computing the diag variables for timestep:',jstep
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-        nlev_T = vco_getNumLev(vco_anl,'TH')
-        nlev_M = vco_getNumLev(vco_anl,'MM')
         allocate( zes(hco_anl%ni, nlev_T, hco_anl%nj) )
         allocate( ztv(hco_anl%ni, nlev_T, hco_anl%nj) )
         allocate( zgz_M(hco_anl%ni, nlev_M, hco_anl%nj) )
         allocate( zgz_T(hco_anl%ni, nlev_T, hco_anl%nj) )
         allocate( zhu(hco_anl%ni, nlev_T, hco_anl%nj) )
+      endif
 
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        !
-        ! Compute HU increment from LQ increment
-        !
-        hu_trl_ptr => gsv_getField(statevectorg,'HU')  ! this is HU_b
-        lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
-!$OMP PARALLEL DO PRIVATE(jj,jk,ji,hu_anl)
-        do jj = 1,statevectorg%nj
-          do jk = 1,nlev_T
-            do ji = 1,statevectorg%ni
-              ! choose either tangent linear or nonlinear operator for LQ to HU
-              if(useTL_LQtoHU) then
-                zhu(ji,jk,jj) = lq_inc_ptr(ji,jk,jj,1)*hu_trl_ptr(ji,jk,jj,1)
-              else
-                hu_anl = log(hu_trl_ptr(ji,jk,jj,1)) + lq_inc_ptr(ji,jk,jj,1)
-                zhu(ji,jk,jj) = EXP(hu_anl) - hu_trl_ptr(ji,jk,jj,1)
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      !
+      ! If ens-EnVar, loop over additional types of perturbations to analysis increment
+      !
+      if(indexAnalysis.gt.0) then
+        numPerturbLoop = 2
+      else
+        numPerturbLoop = 0
+      endif
+      do perturbLoop = 0, numPerturbLoop
+
+        if(indexAnalysis.gt.1 .and. perturbLoop.eq.1) then ! THIS IS FOR E1 INCREMENTS
+
+          ! setup statevectorp for storing the perturbation
+          call gsv_setVco(statevectorp,vco_anl)
+          call gsv_setHco(statevectorp,hco_anl)
+
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call gsv_allocate(statevectorp,tim_nstepobsinc, &
+               datestamp=tim_getDatestamp(),mpi_local=.true.)
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+          ! compute the (unscaled) perturbation and make it mpiglobal
+          call tmg_start(91,'POST_COMPUTEDX')
+          iseed = abs(randSeed) + indexAnalysis
+          zdum = gasdev(-iseed)
+          allocate(cv_pert_mpiglobal(cvm_nvadim_mpiglobal))
+          do jj = 1, cvm_nvadim_mpiglobal
+            cv_pert_mpiglobal(jj) = gasdev(1)
+          enddo
+
+          allocate(cv_pert_mpilocal(cvm_nvadim))
+          call bmat_reduceToMPILocal(cv_pert_mpilocal,   & ! OUT
+                                     cv_pert_mpiglobal,  & ! IN
+                                     jj )         ! OUT
+          deallocate(cv_pert_mpiglobal)
+
+          if(pertBhiOnly) then
+            ! set Bensemble component of control vector to zero
+            cv_pert_bhi_mpilocal => cvm_getSubVector(cv_pert_mpilocal,2)
+            cv_pert_bhi_mpilocal(:) = 0.0d0
+          endif
+
+          call bmat_sqrtB(cv_pert_mpilocal,cvm_nvadim,statevectorp)
+          deallocate(cv_pert_mpilocal)
+
+          if(pertBhiOnly) then
+            ! undo the Bhi scaleFactor
+            allocate(scaleFactorBhi(max(nLev_M,nLev_T)))
+            call bhi_getScaleFactor(scaleFactorBhi)
+            ! for 3D variables
+            do jvar=1,vnl_numvarmax3D 
+              if(gsv_varExist(vnl_varNameList3D(jvar))) then
+                field => gsv_getField(statevectorp,vnl_varNameList3D(jvar))
+                do jlev = 1, gsv_getNumLev(statevectorp,vnl_vartypeFromVarname(vnl_varNameList3D(jvar)))   
+                  if(scaleFactorBhi(jlev).gt.0.0d0) then
+                    field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBhi(jlev)
+                  endif
+                enddo
               endif
             enddo
-          enddo
-        enddo
-!$OMP END PARALLEL DO
-        !
-        ! Compute ES increment
-        !
-        call lq2esgd(zes,statevector,statevectorg)
-        !
-        ! Compute GZ increment
-        !
-        call lt2tvgd(ztv,statevector,statevectorg)
-        status = vgd_get(statevectorg%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-        if(Vcode_anl.eq.5001) then 
-          call ltt2phigd(zgz_T,ztv,statevectorg)
-        else
-          call ltt2phigd_gem4(zgz_M,zgz_T,ztv,statevector,statevectorg)
-        endif
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        !
-        ! Now, write out the increment, including diagostic variables
-        !
-        if(write4dInc) then
-          call difdatr(datestamplist(jstep),tim_getDatestamp(),deltaHours)
-          if(nint(deltaHours*60.0d0).lt.0) then
-            write(flnum,'(I4.3)') nint(deltaHours*60.0d0)
-          else
-            write(flnum,'(I3.3)') nint(deltaHours*60.0d0)
+            ! for 2D variables
+            do jvar=1,vnl_numvarmax2D 
+              if(gsv_varExist(vnl_varNameList2D(jvar))) then
+                field => gsv_getField(statevectorp,vnl_varNameList2D(jvar))
+                jlev = max(nLev_M,nLev_T)
+                if(scaleFactorBhi(jlev).gt.0.0d0) then
+                  field(:,1,:,:)=field(:,1,:,:)/scaleFactorBhi(jlev)
+                endif
+              endif
+            enddo
+            deallocate(scaleFactorBhi)
           endif
-          write(*,*) 'calcWriteIncrement: dates=',datestamplist(jstep),tim_getDatestamp(),deltaHours,nint(deltaHours*60.0d0)
-          write(*,*) 'calcWriteIncrement: flnum=###',trim(flnum),'###'
-          incFileName = './rebm_'//trim(flnum)//'m'
-        else
+
+          if(write4dInc) then
+            ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
+            call gsv_commMPIGlobal(statevectorp)
+            write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          else
+            ! mpiglobal result for 3D increment only on myid=0 
+            call gsv_commMPIGlobal3D(statevectorp)
+            write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          endif
+          call tmg_stop(91)
+
+          if(globalGSVpresent) then
+            ! add the perturbation times e1_scaleFactor
+            write(*,*) 'calcWriteIncrement: adding E1 perturbation, scaleFactor=',e1_scaleFactor
+            call gsv_add(statevectorp,statevector,e1_scaleFactor)
+          endif
+
+        elseif(indexAnalysis.gt.1 .and. perturbLoop.eq.2) then ! THIS IS FOR E2 INCREMENTS
+
+          if(globalGSVpresent) then
+            ! add the perturbation again (accumulatively) with modified scaleFactor
+            write(*,*) 'calcWriteIncrement: adding E2 perturbation, scaleFactor=',e2_scaleFactor
+            scaleFactor = e2_scaleFactor - e1_scaleFactor
+            call gsv_add(statevectorp,statevector,scaleFactor)
+          endif
+
+        endif
+
+        if(perturbLoop.eq.0) then ! THIS IS FOR UNPERTURBED INCREMENTS
+          cetikinc = cetikinc_orig
+        elseif(perturbLoop.eq.1) then ! THIS IS FOR E1 INCREMENTS
+          if(len_trim(cetikinc_orig).le.9) then
+            cetikinc = trim(cetikinc_orig) // '_E1'
+          else
+            cetikinc = cetikinc_orig
+          endif
+        elseif(perturbLoop.eq.2) then ! THIS IS FOR E2 INCREMENTS
+          if(len_trim(cetikinc_orig).le.9) then
+            cetikinc = trim(cetikinc_orig) // '_E2'
+          else
+            cetikinc = cetikinc_orig
+          endif
+        endif
+        !
+        ! Compute diagnostic variables and write entire increment to file
+        !
+        if(globalGSVpresent) then
+          call tmg_start(92,'POST_DIAG')
+          !
+          ! Compute HU increment from LQ increment
+          !
+          hu_trl_ptr => gsv_getField(statevectorg,'HU')  ! this is HU_b
+          lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
+!$OMP PARALLEL DO PRIVATE(jj,jlev,ji,hu_anl)
+          do jj = 1,statevectorg%nj
+            do jlev = 1,nlev_T
+              do ji = 1,statevectorg%ni
+                ! choose either tangent linear or nonlinear operator for LQ to HU
+                if(useTL_LQtoHU) then
+                  zhu(ji,jlev,jj) = lq_inc_ptr(ji,jlev,jj,1)*hu_trl_ptr(ji,jlev,jj,1)
+                else
+                  hu_anl = log(hu_trl_ptr(ji,jlev,jj,1)) + lq_inc_ptr(ji,jlev,jj,1)
+                  zhu(ji,jlev,jj) = EXP(hu_anl) - hu_trl_ptr(ji,jlev,jj,1)
+                endif
+              enddo
+            enddo
+          enddo
+!$OMP END PARALLEL DO
+          !
+          ! Compute ES increment
+          !
+          call lq2esgd(zes,statevector,statevectorg)
+          !
+          ! Compute GZ increment
+          !
+          call lt2tvgd(ztv,statevector,statevectorg)
+          status = vgd_get(statevectorg%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+          if(Vcode_anl.eq.5001) then 
+            call ltt2phigd(zgz_T,ztv,statevectorg)
+          else
+            call ltt2phigd_gem4(zgz_M,zgz_T,ztv,statevector,statevectorg)
+          endif
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call tmg_stop(92)
+
+          !
+          ! Now, write out the increment, including diagostic variables
+          !
           incFileName = './rebm'
-        endif
-        if(indexAnalysis.gt.0) then
-          write(flnum2,'(I4.4)') (indexAnalysis-1)
-          incFileName = trim(incFileName) // '_' // trim(flnum2)
-        endif
-        call writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,jstep)
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          if(indexAnalysis.gt.0) then
+            write(flnum3,'(I1.1)') perturbLoop
+            incFileName = trim(incFileName) // trim(flnum3)
+          endif
+          if(write4dInc) then
+            call difdatr(datestamplist(jstep),tim_getDatestamp(),deltaHours)
+            if(nint(deltaHours*60.0d0).lt.0) then
+              write(flnum,'(I4.3)') nint(deltaHours*60.0d0)
+            else
+              write(flnum,'(I3.3)') nint(deltaHours*60.0d0)
+            endif
+            write(*,*) 'calcWriteIncrement: dates=',dateStampList(jstep),tim_getDatestamp(),deltaHours,nint(deltaHours*60.0d0)
+            write(*,*) 'calcWriteIncrement: flnum=###',trim(flnum),'###'
+            incFileName = trim(incFileName) // '_' // trim(flnum) // 'm'
+          endif
+          if(indexAnalysis.gt.0) then
+            write(flnum2,'(I4.4)') (indexAnalysis-1)
+            incFileName = trim(incFileName) // '_' // trim(flnum2)
+          endif
+          call writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,dateStampList(jstep))
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
  
+        endif ! globalGSVpresent
+
+      enddo ! perturbLoop
+
+      if(globalGSVpresent) then
         deallocate(zes)
         deallocate(ztv)
         deallocate(zgz_M)
         deallocate(zgz_T)
         deallocate(zhu)
-
       endif
 
       ! free up some memory related to increment
+      if(indexAnalysis.gt.1) call gsv_deallocate(statevectorp)
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
-
-      call tmg_stop(92)
 
       call tmg_stop (3)
       write(*,*) 'LEAVING calcWriteIncrement'
@@ -332,7 +494,7 @@ module writeIncrement_mod
     END SUBROUTINE calcWriteIncrement
 
 
-    SUBROUTINE writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,jstep)
+    SUBROUTINE writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,datestamp)
       !
       !**s/r writeIncrement  - Transfer of the contents of statevector into an RPN
       !                        standard file
@@ -341,11 +503,11 @@ module writeIncrement_mod
       character(len=*) :: incFileName
       type(struct_gsv) :: statevector
       real(8) :: zes(:,:,:),ztv(:,:,:),zgz_T(:,:,:),zhu(:,:,:)
-      integer :: jstep
+      integer :: datestamp
 
       integer write_encode_hyb,fnom,fstouv,fstfrm,fclos,vfstecr
       integer jvar,jlev,ierr,numlev,nulfile
-      integer datestamp,inpak_inc,status,Vcode_anl
+      integer inpak_inc,status,Vcode_anl
       real(8) zwork
       real(8), allocatable :: zbuffer(:)
       real   zptop_r4, zpref_r4,zrcoef_r4
@@ -398,7 +560,6 @@ module writeIncrement_mod
         CGRTYP     = 'E'
         CLTYPINC   = 'X'
         cletiket   =  cetikinc
-        datestamp  =  gsv_getDateStamp(statevector) 
 
         call cxgaig ( CGRTYP,   &                                     ! IN
                       NIG1, NIG2, NIG3, NIG4, &                       ! OUT
@@ -444,7 +605,6 @@ module writeIncrement_mod
       NIG3       =  statevector % hco % ig3
       NIG4       =  statevector % hco % ig4
       cletiket=cetikinc
-      datestamp=gsv_getDateStamp(statevector,jstep)
 
       write(*,*) 'Writing fields for datestamp= ',datestamp
 
@@ -538,7 +698,7 @@ module writeIncrement_mod
       IMPLICIT NONE
       type(struct_gsv) :: statevector,statevectorg
       real(8) pesinc(:,:,:)
-      integer ji,jj,jk,nlev_T,status
+      integer ji,jj,jlev,nlev_T,status
       REAL(8) ZE, ZEL, ZTD, ZTDL, ZGAMMA
       real(8), pointer :: ps_trl_ptr(:,:,:,:),ps_inc_ptr(:,:,:,:),hu_trl_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:)
       real(8), pointer :: zpres(:,:,:) => null()
@@ -561,20 +721,20 @@ module writeIncrement_mod
                         levels=zpres,sfc_field=ps_trl,in_log=.false.)
       status = vgd_dpidpis(statevectorg%vco%vgrid,statevectorg%vco%ip1_T,dPdPsfc,ps_trl)
 
-!$OMP PARALLEL DO PRIVATE(jk,jj,ji,ze,zel,ztd,zgamma,ztdl)
+!$OMP PARALLEL DO PRIVATE(jlev,jj,ji,ze,zel,ztd,zgamma,ztdl)
       do jj=1,statevectorg%nj
         do ji=1,statevectorg%ni
 
-          do jk=1,nlev_T
+          do jlev=1,nlev_T
             !
             ! First do the forward branch to get vapour pressure from q
             !
-            ZE = FOEFQ8(max(hu_trl_ptr(ji,jk,jj,1),1.d-12), zpres(ji,jj,jk) )
+            ZE = FOEFQ8(max(hu_trl_ptr(ji,jlev,jj,1),1.d-12), zpres(ji,jj,jlev) )
             !
             ! TLM of the vapor pressure from q (specific humidity)
             !
-            ZEL = FOEFQL(hu_inc_ptr(ji,jk,jj,1),ps_inc_ptr(ji,1,jj,1),  &
-                         hu_trl_ptr(ji,jk,jj,1),zpres(ji,jj,jk),dPdPsfc(ji,jj,jk))
+            ZEL = FOEFQL(hu_inc_ptr(ji,jlev,jj,1),ps_inc_ptr(ji,1,jj,1),  &
+                         hu_trl_ptr(ji,jlev,jj,1),zpres(ji,jj,jlev),dPdPsfc(ji,jj,jlev))
             !
             ! TLM of the dewpoint temperature calculation from Teten's relation
             !
@@ -582,7 +742,7 @@ module writeIncrement_mod
             ZGAMMA=FODTW8(ZTD,ZE)
             ZTDL = ZGAMMA*ZEL
 
-            pesinc(ji,jk,jj) = tt_inc_ptr(ji,jk,jj,1) - ZTDL
+            pesinc(ji,jlev,jj) = tt_inc_ptr(ji,jlev,jj,1) - ZTDL
 
           enddo
         enddo
@@ -603,7 +763,7 @@ module writeIncrement_mod
       type(struct_gsv) :: statevector,statevectorg
       real(8) :: ptv(:,:,:)
       real(8), pointer :: hu_trl_ptr(:,:,:,:),tt_inc_ptr(:,:,:,:),hu_inc_ptr(:,:,:,:)
-      integer :: ji,jj,jk,nlev_T
+      integer :: ji,jj,jlev,nlev_T
 
       WRITE(*,FMT='(/,4X,"Starting LT2TVGD",//)')
       hu_trl_ptr => gsv_getField(statevectorg,'HU')
@@ -611,12 +771,12 @@ module writeIncrement_mod
       hu_inc_ptr => gsv_getField(statevector ,'HU')
 
       nlev_T = gsv_getNumLev(statevector,'TH')
-!$OMP PARALLEL DO PRIVATE(jj,jk,ji)
+!$OMP PARALLEL DO PRIVATE(jj,jlev,ji)
       do jj = 1, statevector%nj
-        do jk = 1, nlev_T
+        do jlev = 1, nlev_T
           do ji = 1, statevector%ni
-            ptv(ji,jk,jj)=(1.D0+MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1))*tt_inc_ptr(ji,jk,jj,1) +  &
-                MPC_DELTA_R8*hu_trl_ptr(ji,jk,jj,1)*tt_inc_ptr(ji,jk,jj,1)*hu_inc_ptr(ji,jk,jj,1)
+            ptv(ji,jlev,jj)=(1.D0+MPC_DELTA_R8*hu_trl_ptr(ji,jlev,jj,1))*tt_inc_ptr(ji,jlev,jj,1) +  &
+                MPC_DELTA_R8*hu_trl_ptr(ji,jlev,jj,1)*tt_inc_ptr(ji,jlev,jj,1)*hu_inc_ptr(ji,jlev,jj,1)
           enddo
         enddo
       enddo
@@ -652,6 +812,8 @@ module writeIncrement_mod
       real(8), pointer :: dP_dPsfc_M(:,:,:),dP_dPsfc_T(:,:,:)
       real(8), pointer :: Pres_M(:,:,:),Pres_T(:,:,:)
       real(8), pointer :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:),delPsfc(:,:,:,:)
+
+      write(*,FMT='(/,4X,"Starting LTT2PHIGD_GEM4",//)')
 
       nlev_T = gsv_getNumLev(statevectorg,'TH')
       nlev_M = gsv_getNumLev(statevectorg,'MM')
@@ -772,7 +934,7 @@ module writeIncrement_mod
       real(8), pointer :: zps2d(:,:) 
       integer status
 
-      WRITE(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
+      write(*,FMT='(/,4X,"Starting LTT2PHIGD",//)')
 
       nlev_T = gsv_getNumLev(statevectorg,'TH')
       zalpha=-1.0D0
@@ -834,7 +996,7 @@ module writeIncrement_mod
         IMPLICIT NONE
         integer ki,kj
 
-        INTEGER  IKLEVM2, JK, IK
+        INTEGER  IKLEVM2, JLEV, IK
         REAL(8)    ZAK, ZBK, ZCK, ZCON
         real(8)    pgz(:,:,:)
         real(8)    ptt(:,:,:)
@@ -852,8 +1014,8 @@ module writeIncrement_mod
             pgz(ki,nlev_T,kj)
 
         IKLEVM2 = nlev_T-2
-        do JK = 1, IKLEVM2
-          IK = nlev_T-1-JK
+        do JLEV = 1, IKLEVM2
+          IK = nlev_T-1-JLEV
           ZAK = -2.0D0*ZCON*VMA(IK+1)
           ZBK = -2.0D0*ZCON*VMB(IK+1)
           ZCK = -2.0D0*ZCON*VMC(IK+1)

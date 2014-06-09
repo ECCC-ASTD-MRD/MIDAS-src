@@ -610,6 +610,7 @@ MODULE gridStateVector_mod
     statevector_in%myLatBeg=1
     statevector_in%myLatEnd=statevector_in%hco%nj
     statevector_in%latPerPE=statevector_in%hco%nj
+    statevector_in%numStep=1
     statevector_in%mpi_local=.false.
 
   END SUBROUTINE GSV_commMPIGlobal
@@ -669,15 +670,17 @@ MODULE gridStateVector_mod
     statevector_in%myLatBeg=1
     statevector_in%myLatEnd=statevector_in%hco%nj
     statevector_in%latPerPE=statevector_in%hco%nj
+    statevector_in%numStep=1
     statevector_in%mpi_local=.false.
 
   END SUBROUTINE GSV_commMPIGlobal3D
 
 
-  SUBROUTINE GSV_add(statevector_in,statevector_inout)
+  SUBROUTINE GSV_add(statevector_in,statevector_inout,scaleFactor)
     implicit none
     type(struct_gsv) :: statevector_in,statevector_inout
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
+    real(8), optional :: scaleFactor
 
     if(.not.statevector_in%allocated) then
       call abort3d('gridStateVector_in not yet allocated! Aborting.')
@@ -691,20 +694,37 @@ MODULE gridStateVector_mod
     lat1=statevector_in%myLatBeg
     lat2=min(statevector_in%myLatEnd+1,statevector_inout%hco%nj)
 
+    if(present(scaleFactor)) then
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlat = lat1, lat2
-      do jstep = 1, statevector_inout%numStep
-        do jlev = 1, statevector_inout%nk
-          do jlon = lon1, lon2
-            statevector_inout%gd(jlon,jlev,jlat,jstep)= statevector_inout%gd(jlon,jlev,jlat,jstep) +  &
-                                                        statevector_in%gd(jlon,jlev,jlat,jstep)
+      do jlat = lat1, lat2
+        do jstep = 1, statevector_inout%numStep
+          do jlev = 1, statevector_inout%nk
+            do jlon = lon1, lon2
+              statevector_inout%gd(jlon,jlev,jlat,jstep)= statevector_inout%gd(jlon,jlev,jlat,jstep) +  &
+                                            scaleFactor * statevector_in%gd(jlon,jlev,jlat,jstep)
+            enddo
           enddo
         enddo
       enddo
-    enddo
 !$OMP END DO
 !$OMP END PARALLEL
+    else
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlat = lat1, lat2
+        do jstep = 1, statevector_inout%numStep
+          do jlev = 1, statevector_inout%nk
+            do jlon = lon1, lon2
+              statevector_inout%gd(jlon,jlev,jlat,jstep)= statevector_inout%gd(jlon,jlev,jlat,jstep) +  &
+                                                          statevector_in%gd(jlon,jlev,jlat,jstep)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    endif
 
   END SUBROUTINE GSV_add
 
