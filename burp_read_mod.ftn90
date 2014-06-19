@@ -378,6 +378,10 @@ CONTAINS
       ENDIF
 
       if (ref_rpt < 0) Exit
+      if (count .eq. nb_rpts) then
+        write(*,*) 'UPDATE_BURP: ERROR: count = nb_rpts:',count,nb_rpts
+        exit
+      endif
       count = count + 1
       address(count) = ref_rpt
     end do
@@ -1449,6 +1453,12 @@ CONTAINS
       ENDIF
 
       if (ref_rpt < 0) Exit
+
+      if (count .eq. nb_rpts) then
+        write(*,*) 'READBURP: ERROR: count = nb_rpts:',count,nb_rpts
+        exit
+      endif
+
       count = count + 1
       address(count) = ref_rpt
     end do

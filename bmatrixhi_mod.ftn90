@@ -108,10 +108,11 @@ CONTAINS
     type(struct_vco),pointer :: vco_in
     integer                  :: cvDim_out
 
-    integer :: jlev, mpiMode, nulnam, ierr, fnom, fclos, jm, jn, status
-    integer :: latPerPE, lonPerPE
-    logical :: llfound
+    integer :: jlev, mpiMode, nulnam, ierr, fnom, fclos, fstouv, fstfrm
+    integer :: jm, jn, status, latPerPE, lonPerPE
+    logical :: llfound, lExists
     real(8) :: zps
+    character(len=8) :: bFileName = './bgcov'
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero
 
@@ -247,8 +248,31 @@ CONTAINS
       endif
     enddo
 
-    call BHI_sunewstats
+    inquire(file=bFileName,exist=lExists)
+    IF ( lexists )then
+      ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
+      if ( ierr .eq. 0 ) then
+        ierr =  fstouv(nulbgst,'RND+OLD')
+      else
+        call abort3d('BHI_setup:NO BACKGROUND STAT FILE!!')
+      endif
+    endif
+
+    call BHI_rdspPtoT
+
+    call BHI_readcorns2
+
+    call BHI_sutg
+
+    call BHI_rdspstd_newfmt
+
+    call BHI_scalestd
+
     call BHI_sucorns2
+
+    ierr = fstfrm(nulbgst)
+    ierr = fclos(nulbgst)
+
     if(mpi_myid.eq.0) write(*,*) 'END OF BHI_SETUP'
 
     initialized = .true.
@@ -268,39 +292,6 @@ CONTAINS
     enddo
 
   end subroutine bhi_getScaleFactor
-
-
-  SUBROUTINE BHI_SUNEWSTATS
-    implicit none
-
-    integer :: ierr, fnom, fstouv, fstfrm, fclos
-    logical :: lExists
-    character(len=8) :: bFileName = './bgcov'
-
-    inquire(file=bFileName,exist=lExists)
-    IF ( lexists )then
-      ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
-      if ( ierr .eq. 0 ) then
-        ierr =  fstouv(nulbgst,'RND+OLD')
-      else
-        call abort3d('BHI_SUNEWSTATS:NO BACKGROUND STAT FILE!!')
-      endif
-    endif
-
-    call BHI_rdspPtoT
-
-    call BHI_readcorns2
-
-    call BHI_sutg
-
-    call BHI_rdspstd_newfmt
-
-    call BHI_scalestd
-
-    ierr = fstfrm(nulbgst)
-    ierr = fclos(nulbgst)
-
-  END SUBROUTINE BHI_SUNEWSTATS
 
 
   SUBROUTINE BHI_scalestd

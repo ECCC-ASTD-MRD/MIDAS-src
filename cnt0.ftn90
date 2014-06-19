@@ -34,6 +34,8 @@ program cnt0
   logical :: isControlAnalysis
   type(struct_obs),target :: obsSpaceData, obsSpaceData_out
   type(struct_columnData),target :: columng,columnhr
+  type(struct_vco),pointer :: vco_anl => NULL()
+  type(struct_vco),pointer :: vco_trl => NULL()
 
   istamp = exdb('3DVAR','DEBUT','NON')
 
@@ -150,7 +152,9 @@ program cnt0
       call minimize(columng,obsSpaceData,isControlAnalysis)
 
       ! Calculate and write out the resulting analysis increment
-      call calcWriteIncrement(columng,columnhr,indexAnalysis)
+      vco_anl => col_getVco(columng)
+      vco_trl => col_getVco(columnhr)
+      call calcWriteIncrement(vco_anl,vco_trl,indexAnalysis)
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(isControlAnalysis) then

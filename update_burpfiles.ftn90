@@ -51,7 +51,10 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       if (ier.eq.1) then 
          write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
          CALL obs_expandToMpiGlobal(obsSpaceData)
-         IF(mpi_myid /= 0) RETURN
+         IF(mpi_myid /= 0) then
+           call tmg_stop(93)
+           RETURN
+         endif
       else
          write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
       end if

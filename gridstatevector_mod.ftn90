@@ -597,6 +597,8 @@ MODULE gridStateVector_mod
               gd_temp(:,:,:,IP+1)        
         enddo
       enddo
+    else
+      allocate(gd_mpiglobal(1,1,1,1)) ! dummy allocation to avoid error when deallocating
     endif
 
     deallocate(gd_temp)
@@ -657,6 +659,8 @@ MODULE gridStateVector_mod
               gd_temp(:,:,:,IP+1)        
         enddo
       enddo
+    else
+      allocate(gd_mpiglobal(1,1,1,1)) ! dummy allocation to avoid error when deallocating
     endif
 
     deallocate(gd_temp)
@@ -838,7 +842,7 @@ MODULE gridStateVector_mod
     deallocate(statevector%gd,stat=ierr)
     nullify(statevector%gd)
     if(ierr.ne.0) then
-        write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
+      write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
     endif
 
     if(associated(statevector%dateStampList)) deallocate(statevector%dateStampList)

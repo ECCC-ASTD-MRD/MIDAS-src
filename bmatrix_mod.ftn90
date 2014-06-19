@@ -3,7 +3,6 @@ MODULE BMatrix_mod
   use bMatrixEnsemble
   use controlVector_mod
   use gridStateVector_mod
-  use columnData_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use timeCoord_mod
