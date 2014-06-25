@@ -115,6 +115,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData,idiasi)
      END IF
   END DO HEADER
 
+  if ( count_iasi == 0 ) return
 
 ! ** find number of IASI channels and RTTOV levels
 
