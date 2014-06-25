@@ -108,8 +108,7 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData,idiasi)
      if (index_header < 0) exit HEADER
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-!     print *,"aa",ltovsno (index_header)
-!     print *,"bb",lsensor(ltovsno (index_header))
+
      IF ( tvs_Is_idburp_iasi(IDATYP) .and. lsensor(ltovsno (index_header))==idiasi ) THEN
         count_iasi = count_iasi + 1
         IF ( count_iasi > iasi_loop_done * bunch_iasi .AND.  &
@@ -117,6 +116,8 @@ SUBROUTINE IASIQC ( iasi_end, iasi_loop_done, lcolumnhr, lobsSpaceData,idiasi)
         IF ( count_iasi > (iasi_loop_done+1) * bunch_iasi ) iasi_end = .false.
      END IF
   END DO HEADER
+
+  if ( count_iasi == 0 ) return
 
 
 ! ** find number of IASI channels and RTTOV levels
