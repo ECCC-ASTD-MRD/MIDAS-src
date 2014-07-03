@@ -25,6 +25,6 @@ C
       INTEGER JPNSATMAX     ! maximum number of sensors
       INTEGER JPLEVMAX      ! maximum number of pressure levels
       INTEGER JPCHMAX       ! maximum number of channels
-      PARAMETER ( JPNSATMAX = 30 )
+      PARAMETER ( JPNSATMAX = 40 )
       PARAMETER ( JPLEVMAX  = 51 )
       PARAMETER ( JPCHMAX   = 8461  )

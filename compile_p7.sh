@@ -59,6 +59,7 @@ LIBEXTRA="hpcsperf"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
 COMPF_NOC="-openmp $MPIKEY "
+#COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 COMPF="$COMPF_NOC"
 
 cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir

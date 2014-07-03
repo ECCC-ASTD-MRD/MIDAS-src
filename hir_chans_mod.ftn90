@@ -1555,7 +1555,7 @@ do i=1,nch
    if (iselec(i)==0 .or. iselec(i)==1) then
       pt(i)=iselec(i)
    else
-      Write(*,*) "Invalid selection flag ",pt(i),i,cinst
+      Write(*,*) "Invalid selection flag ",iselec(i),i,cinst
       call abort3d("hir_set_assim_chan from  hir_chans module")
    endif
 enddo

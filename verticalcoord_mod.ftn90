@@ -282,7 +282,7 @@ module verticalCoord_mod
       if((tf_vco%drcf1-1.0d0) .lt. epsilon(tf_vco%drcf1)) then
         zterm = 1.0d0
       else
-        zterm = tf_vco%dhyb_M(jlev) - tf_vco%dpt_M/tf_vco%dprf_M
+        zterm = tf_vco%dhyb_T(jlev) - tf_vco%dpt_T/tf_vco%dprf_T
         if(zterm <= 0.0D0) then
           zterm = 0.0D0
         else
