@@ -4,6 +4,8 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
   !Purpose:
   ! Perturb the innovation vector to simulate effect of observation uncertainty
   !
+  ! WARNING: perturbations are not the same when MPI topology changes!!!
+  !
   !Author  : M. Buehner, Dec, 2013
   !
   use obsSpaceData_mod

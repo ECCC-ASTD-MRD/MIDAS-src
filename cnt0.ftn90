@@ -164,8 +164,8 @@ program cnt0
       ! Make copy of obsSpaceData for control analysis
       if(isControlAnalysis) then
         call tmg_start(19,'COPY_OBS')
-        call obs_initialize(obsSpaceData_out,obs_numHeader(obsSpaceData),  &
-                            obs_numBody(obsSpaceData),mpi_local=.true.)
+        call obs_initialize(obsSpaceData_out,obs_numHeader_max(obsSpaceData),  &
+                            obs_numBody_max(obsSpaceData),mpi_local=.true.)
         call obs_copy(obsSpaceData,obsSpaceData_out)
         call tmg_stop(19)
       endif

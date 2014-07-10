@@ -50,15 +50,15 @@ MODULE minimization_mod
   integer             :: n1gc = 3
 
   ! namelist variables
-  INTEGER NVAMAJ,NITERMAX,NSIMMAX,NCYCLEHESSMODE
-  LOGICAL lxbar,lwrthess,lgrtest,lxbar_fg_only
+  INTEGER NVAMAJ,NITERMAX,NSIMMAX,NCYCLEHESSMODE,NITERMAX_PERT
+  LOGICAL lxbar,lwrthess,lgrtest,lvazx
   REAL*8 REPSG,rdf1fac
   LOGICAL min_lvarqc,lvarqc
   integer :: nwoqcv
 
-  NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX,NCYCLEHESSMODE
+  NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX,NCYCLEHESSMODE,NITERMAX_PERT
   NAMELIST /NAMMIN/LGRTEST
-  NAMELIST /NAMMIN/lxbar,lwrthess,lxbar_fg_only
+  NAMELIST /NAMMIN/lxbar,lwrthess,lvazx
   NAMELIST /NAMMIN/REPSG,rdf1fac
   NAMELIST /NAMMIN/LVARQC,NWOQCV
 
@@ -79,18 +79,19 @@ CONTAINS
     nvadim_mpilocal=nvadim_mpilocal_in
 
     ! set default values for namelist variables
-    NVAMAJ = 6
-    NITERMAX = 400
-    RDF1FAC  = 0.25d0
-    NSIMMAX  = 500
-    LGRTEST  = .false.
+    nvamaj = 6
+    nitermax = 400
+    nitermax_pert = -1
+    rdf1fac  = 0.25d0
+    nsimmax  = 500
+    lgrtest  = .false.
     lwrthess = .true.
     lxbar    = .false.
-    lxbar_fg_only = .false.
-    REPSG    = 1d-5
-    LVARQC   = .false.
-    NWOQCV   = 5
-    NCYCLEHESSMODE = 0
+    lvazx    = .false.
+    repsg    = 1d-5
+    lvarqc   = .false.
+    nwoqcv   = 5
+    ncyclehessmode = 0
 
     ! read in the namelist NAMMIN
     nulnam=0
@@ -99,6 +100,9 @@ CONTAINS
     if(ierr.ne.0) call abort3d('min_setup: Error reading namelist')
     write(*,nml=nammin)
     ierr=fclos(nulnam)
+
+    ! if nitermax_pert not specified, make it equal to value for control analysis
+    if(nitermax_pert.le.0) nitermax_pert = nitermax
 
     min_lvarqc=lvarqc
 
@@ -137,22 +141,21 @@ CONTAINS
       REAL ZZSUNUSED(1)
 
       real*8,allocatable :: vazg(:)
-      real*8,allocatable :: vazx(:) ! mpi local version of cvm_vazx
+      real*8,allocatable :: vazx(:)
       real*8,allocatable :: vatra(:)
 
-      REAL*8 DLDS(1)
-      LOGICAL LLTEST,llvarqc, lldf1, lrdvatra, llvazx, llxbar
+      real*8 :: dlds(1)
+      logical :: lltest, llvarqc, lldf1, lrdvatra, llvazx, llxbar
 
-      INTEGER IMODE, ITERMAX, iterdone, ISIMMAX, INDIC, IITNOVQC, jj
-      INTEGER IERR,ITERTOT,isimdone,isimtot,jdata, ISIMNOVQC
-      integer ibrpstamp,isim3d
-      INTEGER ILEN
-      REAL*8 ZJSP, ZXMIN, ZDF1, ZEPS0, ZEPS1
-      REAL*8 DLGNORM, DLXNORM, ZJOTOV
+      integer :: imode, itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc, jj
+      integer :: ierr, itertot, isimdone, isimtot, jdata, isimnovqc
+      integer :: ibrpstamp, isim3d, ilen
+      real*8 :: zjsp, zxmin, zdf1, zeps0, zeps1
+      real*8 :: dlgnorm, dlxnorm, zjotov
 
-      INTEGER FNOM,FCLOS, remove_c
-      EXTERNAL FNOM,FCLOS
-      EXTERNAL  N1QN3
+      integer fnom,fclos, remove_c
+      external fnom,fclos
+      external  n1qn3
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
@@ -248,10 +251,10 @@ CONTAINS
 
       lldf1 = .true.
       if (preconFileExists) then
-        if(mpi_myid.eq.0) write(*,*) 'Minimize : Preconditioning mode'
+        if(mpi_myid.eq.0) write(*,*) 'min_minvar : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
-        llvazx = .false.
+        llvazx = lvazx ! from namelist (default is .false.)
         llxbar = lxbar ! from namelist (default is .false.)
       else
         lrdvatra = .false.
@@ -268,19 +271,11 @@ CONTAINS
           isimdone_000,iztrl,vatra,dg_vbar,                  &
           vazx,llxbar,llvazx,n1gc,imode)
 
-        if (ibrpstamp == tim_getDatestamp() .and. lxbar .and. .not.lxbar_fg_only) then
+        if (ibrpstamp == tim_getDatestamp() .and. lxbar) then
           ! use vbar for true outer loop
           zeps0  = zeps0_000
           zdf1   = zdf1_000
           lldf1 = .false.     ! don't re-compute df1 base on Cost function
-        elseif(ibrpstamp == tim_getDatestamp() .and. lxbar .and. lxbar_fg_only) then
-          ! use vbar as first guess only (i.e. non-zero starting point for minimization)
-          do jdata = 1, nvadim_mpilocal
-            vazx(jdata) = dg_vbar(jdata)
-            dg_vbar(jdata) = 0.0d0
-          enddo
-          zeps0 = repsg
-          lldf1 = .true.      ! Compute df1 base on Cost function
         else
           zeps0 = repsg
           lldf1 = .true.      ! Compute df1 base on Cost function
@@ -289,7 +284,12 @@ CONTAINS
 
       iterdone = 0
       isimdone = 0
-      itermax = nitermax
+      if(isControlAnalysis) then
+        itermax = nitermax
+      else
+        itermax = nitermax_pert
+      endif
+      itermaxtodo = itermax
       isimmax = nsimmax
 
       if (nwoqcv > 0) lvarqc = .false.
@@ -323,7 +323,7 @@ CONTAINS
       ! Iterations of the minimization algorithm
 
       ZXMIN = epsilon(ZXMIN)
-      WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,NITERMAX,NSIMMAX
+      WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,ITERMAX,NSIMMAX
 
  9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
              10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
@@ -345,7 +345,7 @@ CONTAINS
         call fool_optimizer(lobsSpaceData)
 
         isimnovqc = isimnovqc - 1
-        itermax = itermax - iitnovqc + 1
+        itermaxtodo = itermaxtodo - iitnovqc + 1
         isimmax = isimmax - isimnovqc + 1
 
         itertot = itertot + iitnovqc
@@ -355,7 +355,7 @@ CONTAINS
         zeps0 = zeps1
         lvarqc = .true.
 
-        if (imode == 4 .and. itertot < nitermax) then
+        if (imode == 4 .and. itertot < itermax) then
           imode = 2
           INDIC = 2
           call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
@@ -368,12 +368,12 @@ CONTAINS
       call tmg_start(70,'QN')
       call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
           zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-          itermax,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
+          itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
           dlds)
       call tmg_stop(70)
       call fool_optimizer(lobsSpaceData)
 
-      itertot = itertot + itermax
+      itertot = itertot + itermaxtodo
       isimtot = isimtot + isimmax
 
       zeps1 = zeps0/zeps1
@@ -401,7 +401,7 @@ CONTAINS
         dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
       enddo
 
-      ! Write out the Hessian to file (for now only 1st member writes)
+      ! Write out the Hessian to file (only control member writes when nCycleHessMode is not 1)
       if(lwrthess .and. (isControlAnalysis .or. nCycleHessMode.eq.1) ) then
         if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call rw_vatra (preconFileNameOut,1,  &
@@ -686,7 +686,7 @@ CONTAINS
 
   SUBROUTINE rw_vatra (cfname,status,                       &
           nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
-          nztrl,vatra,vazxbar,vazx,lxbar,lvazx,k1gc,imode)
+          nztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
 
     !***s/r RW_VATRA  - Read-Write VAZXBAR and VATRA on file
     !*
@@ -706,13 +706,13 @@ CONTAINS
     !*     i   vatra     : Hessian
     !*     i   vazxbar   : Vazx of previous loop
     !*     i   vazx      : Current state of the minimization
-    !*     i   lxbar     : read in vaxzbar if dates are compatible
-    !*     i   lvazx     : Logical to read vazx
+    !*     i   llxbar    : read in vaxzbar if dates are compatible
+    !*     i   llvazx    : Logical to read vazx
     !*     i   k1gc      : Minimizer ID (2: m1qn2, 3: m1qn3)
     !*     o   imode     : If status=0, set imode=0 (no prec) or 2 (prec)
     IMPLICIT NONE
 
-    logical lxbar,lvazx
+    logical llxbar,llvazx
 
     integer status,kbrpstamp,nsim,itertot,isimtot
     integer, dimension(10), target :: nztrl
@@ -831,7 +831,7 @@ CONTAINS
         nztrl(5) = iztrl(5)
       endif
 
-      if(ibrpstamp == kbrpstamp .and. lxbar) then
+      if(ibrpstamp == kbrpstamp .and. llxbar) then
         if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading vazxbar'
         allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
         read(ireslun) vazxbar_mpiglobal
@@ -839,18 +839,19 @@ CONTAINS
           vazxbar,  &
           vazxbar_mpiglobal,cvDim_return)
         deallocate(vazxbar_mpiglobal)
+      endif
 
-        if(lvazx) then
-          if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading vazx'
-          allocate(vazx_mpiglobal(nvadim_mpiglobal))
-          read(ireslun) vazx_mpiglobal
-          call bmat_reduceToMPILocal(  &
-            vazx,  &
-            vazx_mpiglobal,cvDim_return)
-          deallocate(vazx_mpiglobal)
-        endif
+      if(ibrpstamp == kbrpstamp .and. llvazx) then
+        if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading vazx'
+        allocate(vazx_mpiglobal(nvadim_mpiglobal))
+        read(ireslun) vazx_mpiglobal
+        call bmat_reduceToMPILocal(  &
+          vazx,  &
+          vazx_mpiglobal,cvDim_return)
+        deallocate(vazx_mpiglobal)
+      endif
 
-      else
+      if(ibrpstamp.ne.kbrpstamp) then
         kbrpstamp = ibrpstamp
       endif
 

@@ -427,7 +427,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
                dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile),  &
                dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile))
       else
-        write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatlontile
+        !write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatlontile
         nobsgid_mpiglobal(jstep,jlatlontile) = -999
       end if
     end do

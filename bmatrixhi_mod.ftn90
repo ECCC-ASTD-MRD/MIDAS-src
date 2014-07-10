@@ -38,9 +38,10 @@ MODULE BmatrixHI
 
   logical             :: initialized = .false.
   integer             :: nj_l,ni_l
-  integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2
+  integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2,nkgdimSqrt
   integer             :: ntrunc,nla_mpiglobal,nla_mpilocal
   integer             :: cvDim_mpilocal,cvDim_mpiglobal
+  logical             :: squareSqrt
   integer             :: gstID, gstID2
   integer             :: nlev_bdl
   type(struct_vco),pointer :: vco_anl
@@ -114,7 +115,7 @@ CONTAINS
     real(8) :: zps
     character(len=8) :: bFileName = './bgcov'
 
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt
 
     call tmg_start(15,'BHI_SETUP')
 
@@ -135,6 +136,7 @@ CONTAINS
     scaleFactorLQ(:) = 1.0d0
     scaleTG = .true.
     numModeZero = 0
+    squareSqrt = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -177,8 +179,12 @@ CONTAINS
     nspositPS = 2*nLev_M+2*nLev_T+1
     nspositTG = 2*nLev_M+2*nLev_T+2
     nkgdim = nLev_M*2 + nLev_T*2 + numvar2d
-    nkgdim2 = nkgdim+nLev_T
-
+    nkgdim2 = nkgdim + nLev_T
+    if(squareSqrt) then
+      nkgdimSqrt = nkgdim2
+    else
+      nkgdimSqrt = nkgdim
+    endif
     nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
     
     ni_l = hco_in%ni
@@ -206,10 +212,10 @@ CONTAINS
         if(jm.le.jn) then
           if(jm.eq.0) then
             ! only real component for jm=0
-            cvDim_mpilocal = cvDim_mpilocal + 1*nkgdim2
+            cvDim_mpilocal = cvDim_mpilocal + 1*nkgdimSqrt
           else
             ! both real and imaginary components for jm>0
-            cvDim_mpilocal = cvDim_mpilocal + 2*nkgdim2
+            cvDim_mpilocal = cvDim_mpilocal + 2*nkgdimSqrt
           endif
         endif
       enddo
@@ -331,8 +337,8 @@ CONTAINS
   SUBROUTINE BHI_SUCORNS2
     implicit none
 
-    real(8) :: eigenval(nkgdim2), eigenvec(nkgdim2,nkgdim2),result(nkgdim2,nkgdim2)
-    real(8) :: eigenvalsqrt(nkgdim2)
+    real(8) :: eigenval(nkgdim2), eigenvec(nkgdim2,nkgdim2), result(nkgdim2,nkgdim2)
+    real(8) :: eigenvalsqrt(nkgdim2), eigenvec2(nkgdim2,nkgdim2), eigenvalsqrt2(nkgdim2)
 
     integer :: jlat,jn,jk1,jk2,jk3,jr
     integer :: ilwork,info,klatPtoT
@@ -672,7 +678,12 @@ CONTAINS
 
       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
       ilwork = 4*nkgdim2*2
-      call dsyev('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
+      if(squareSqrt) then
+        call dsyev('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
+      else
+        ! use old version of dsyev for backward compatibility
+        call dsyev2('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
+      endif
       if(info.ne.0) then
         write(*,*) 'bhi_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
         call abort3d('BHI_SUCORNS')
@@ -696,21 +707,49 @@ CONTAINS
         endif
       enddo
  
-      ! E * lambda^1/2
-      do jk1 = 1, nkgdim2
+      ! Reverse the order of E-Values if old formulation (for compatibility)
+      if(.not.squareSqrt) then
+        do jk1 = 1, nkgdim2
+          eigenvalsqrt2(jk1) = eigenvalsqrt(nkgdim2-jk1+1)
+          do jk2 = 1, nkgdim2
+            eigenvec2(jk2,jk1) = eigenvec(jk2,nkgdim2-jk1+1)
+          enddo
+        enddo
+        eigenvalsqrt(:) = eigenvalsqrt2(:)
+        eigenvec(:,:) = eigenvec2(:,:)
+      endif
+
+      ! compute E * lambda^1/2
+      result(:,:) = 0.0d0
+      do jk1 = 1, nkgdimSqrt
          do jk2 = 1, nkgdim2
             result(jk2,jk1) = eigenvec(jk2,jk1)*eigenvalsqrt(jk1)
          enddo
       enddo
 
-      ! (E * lambda^1/2) * E^T
-      do jk1 = 1, nkgdim2
-         do jk2 = 1, nkgdim2
+      ! compute (E * lambda^1/2) * E^T if new formulation
+      if(squareSqrt) then
+        do jk1 = 1, nkgdim2
+          do jk2 = 1, nkgdim2
             do jk3 = 1, nkgdim2
               corns_temp(jk2,jk1,jn) = corns_temp(jk2,jk1,jn) + result(jk2,jk3)*eigenvec(jk1,jk3)
             enddo
-         enddo
-      enddo
+          enddo
+        enddo
+      else
+        corns_temp(:,:,jn) = result(:,:)
+      endif
+
+      !if(jn.eq.30) then
+      !  write(200,*) corns(:,:,jn)
+      !  write(201,*) corns_temp(:,:,jn)
+      !  write(202,*) eigenval(:)
+      !  write(203,*) eigenvec(:,:)
+      !  call flush(200)
+      !  call flush(201)
+      !  call flush(202)
+      !  call flush(203)
+      !endif
 
     enddo ! jn
 
@@ -1815,7 +1854,7 @@ CONTAINS
     real(8)   :: controlVector_in(cvDim_mpilocal)
     type(struct_gsv) :: statevector
     real(8),allocatable :: gd_out(:,:,:)
-    real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim2)
+    real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
     integer   :: jvar, ilev1, ilev2
 
     if(mpi_myid.eq.0) write(*,*) 'bhi_bsqrt: starting'
@@ -1851,7 +1890,7 @@ CONTAINS
     real(8)   :: controlVector_out(cvDim_mpilocal)
     type(struct_gsv) :: statevector
     real(8), allocatable :: gd_in(:,:,:)
-    real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim2)
+    real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
@@ -1976,7 +2015,7 @@ CONTAINS
     cvDim_mpilocal_out = cvDim_mpilocal
 
     jdim_mpilocal = 0
-    do jlev = 1, nkgdim2
+    do jlev = 1, nkgdimSqrt
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if(jm.le.jn) then
@@ -2078,7 +2117,7 @@ CONTAINS
       do jproc = 0, (mpi_nprocs-1)
         jdim_mpilocal = 0
 
-        do jlev = 1, nkgdim2
+        do jlev = 1, nkgdimSqrt
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
               if(jm.le.jn) then
@@ -2136,13 +2175,13 @@ CONTAINS
     implicit none
 
     real(8) :: controlVector_in(cvDim_mpilocal)
-    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdim2)
+    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
 
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
     hiControlVector_out(:,:,:) = 0.0d0
-    do jlev = 1, nkgdim2
+    do jlev = 1, nkgdimSqrt
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if(jm.le.jn) then
@@ -2171,12 +2210,12 @@ CONTAINS
     IMPLICIT NONE
 
     real(8) :: controlVector_out(cvDim_mpilocal)
-    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdim2)
+    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
 
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
-    do jlev = 1, nkgdim2
+    do jlev = 1, nkgdimSqrt
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if(jm.le.jn) then
@@ -2204,7 +2243,7 @@ CONTAINS
   SUBROUTINE BHI_SPA2GD(hiControlVector_in,gd_out)
     IMPLICIT NONE
 
-    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdim2)
+    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
     real(8) :: gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
 
     real(8) :: sptb(maxMyNla,2,nlev_T_even),sp(maxMyNla,2,nkgdim)
@@ -2227,7 +2266,7 @@ CONTAINS
     sptb(:,:,:) = 0.0d0
 
     sq2 = sqrt(2.0d0)
-    allocate(zsp(nkgdim2,2,mymCount))
+    allocate(zsp(nkgdimSqrt,2,mymCount))
     allocate(zsp2(nkgdim2,2,mymCount))
 !$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
     do jn = mynBeg, mynEnd, mynSkip
@@ -2238,7 +2277,7 @@ CONTAINS
           icount = icount+1
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do jlev = 1, nkgdim2
+          do jlev = 1, nkgdimSqrt
             zsp(jlev,1,icount) = hiControlVector_in(ila_mpilocal,1,jlev)
             zsp(jlev,2,icount) = hiControlVector_in(ila_mpilocal,2,jlev)
           enddo
@@ -2247,7 +2286,7 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        CALL DGEMUL(corns(1,1,jn),nkgdim2,'N',zsp(1,1,1),nkgdim2,'N',zsp2(1,1,1),nkgdim2,nkgdim2,nkgdim2,2*icount)
+        CALL DGEMUL(corns(1,1,jn),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,'N',zsp2(1,1,1),nkgdim2,nkgdim2,nkgdimSqrt,2*icount)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -2419,7 +2458,7 @@ CONTAINS
   SUBROUTINE BHI_SPA2GDAD(gd_in,hiControlVector_out)
     implicit none
 
-    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdim2)
+    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
     real(8) :: gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
 
     real(8) :: sptb(maxMyNla,2,nlev_T_even)
@@ -2535,7 +2574,7 @@ CONTAINS
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
-    allocate(zsp(nkgdim2,2,mymCount))
+    allocate(zsp(nkgdimSqrt,2,mymCount))
     allocate(zsp2(nkgdim2,2,mymCount))
 !$OMP PARALLEL DO PRIVATE(JN,JM,JLEV,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount)
     do jn = mynBeg, mynEnd, mynSkip
@@ -2559,14 +2598,14 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        CALL DGEMUL(corns(1,1,jn),nkgdim2,'T',zsp2(1,1,1),nkgdim2,'N',zsp(1,1,1),nkgdim2,nkgdim2,nkgdim2,2*icount)
+        CALL DGEMUL(corns(1,1,jn),nkgdim2,'T',zsp2(1,1,1),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,nkgdimSqrt,nkgdim2,2*icount)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip
           icount=icount+1
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do jlev = 1, nkgdim2
+          do jlev = 1, nkgdimSqrt
             hiControlVector_out(ila_mpilocal,1,jlev) = zsp(jlev,1,icount)
             hiControlVector_out(ila_mpilocal,2,jlev) = zsp(jlev,2,icount)
           enddo
@@ -2580,7 +2619,7 @@ CONTAINS
         ila_mpiglobal = gst_getNIND(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
 
-        do jlev = 1, nkgdim2
+        do jlev = 1, nkgdimSqrt
           hiControlVector_out(ila_mpilocal,1,jlev) = hiControlVector_out(ila_mpilocal,1,jlev)*sq2
           hiControlVector_out(ila_mpilocal,2,jlev) = hiControlVector_out(ila_mpilocal,2,jlev)*sq2
         enddo

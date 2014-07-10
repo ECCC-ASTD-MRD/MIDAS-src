@@ -192,6 +192,7 @@ module writeIncrement_mod
       write(*,*) '--Starting subroutine calcWriteIncrement--'
       write(*,*) '-------------------------------'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call rpn_comm_barrier("GRID",ierr)
       call tmg_start(3,'WRITEINCR')
       !
       ! Read namelist and do some setup
@@ -1266,6 +1267,7 @@ module writeIncrement_mod
       !
       ! Open all of the Trial fields
       !
+      call tmg_start(96,'POST_READBASIC')
       nultrl(:)=0
       ntrials=0 
       do 
@@ -1292,6 +1294,7 @@ module writeIncrement_mod
         write(*,*) 'ntrials, tim_nstepobs = ',ntrials, tim_nstepobs
         call abort3d('subasic_gd: ntrials <> tim_nstepobs')
       endif
+      call tmg_stop(96)
       !
       ! Define horizontal analysis grid
       !
@@ -1321,10 +1324,12 @@ module writeIncrement_mod
              1,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
 
         ! copy interpolated P0 to statevectorg
+        call tmg_start(96,'POST_READBASIC')
         if(mpi_myid.eq.(jstep-1)) then
           ps_ptr => gsv_getField(statevectorg,'P0')
           CALL INITGDG2(ps_ptr(:,:,:,1),zpsg,statevectorg%ni,statevectorg%nj,1,CLNOMVAR)
         endif
+        call tmg_stop(96)
 
         if(basic_tt) then
           !
@@ -1339,10 +1344,12 @@ module writeIncrement_mod
                nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
 
           ! copy interpolated TT to statevectorg
+          call tmg_start(96,'POST_READBASIC')
           if(mpi_myid.eq.(jstep-1)) then
             tt_ptr => gsv_getField(statevectorg,'TT')
             CALL INITGDG2(tt_ptr(:,:,:,1),zttg,statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
           endif
+          call tmg_stop(96)
         endif
 
         if(basic_hu) then
@@ -1358,21 +1365,25 @@ module writeIncrement_mod
                nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
 
           ! copy interpolated HU to statevectorg
+          call tmg_start(96,'POST_READBASIC')
           if(mpi_myid.eq.(jstep-1)) then
             hu_ptr => gsv_getField(statevectorg,'HU')
             CALL INITGDG2(hu_ptr(:,:,:,1),zqqg,statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
           endif
+          call tmg_stop(96)
         endif
 
       enddo ! jstep
       !
       ! Close the Trials files
       !
+      call tmg_start(96,'POST_READBASIC')
       do jfile=1,ntrials
         ierr=fstfrm(nultrl(jfile))  
         ierr=fclos(nultrl(jfile))  
       enddo
       write(*,*) 'Trial files have been closed'
+      call tmg_stop(96)
 
       deallocate(zpsg)
       deallocate(zttg)
@@ -1476,6 +1487,8 @@ module writeIncrement_mod
 
       write(*,*)'vhfstfld: reading ',varName
 
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(96,'POST_READBASIC')
       do JLEV = (1+mpi_myid),itrlnlev,mpi_nprocs
 
         ! Read the high-res trial field
@@ -1497,6 +1510,7 @@ module writeIncrement_mod
         endif
 
       enddo !jlev
+      call tmg_stop(96)
       !
       ! Send all vertical levels to myid = kstep-1
       !
@@ -1523,6 +1537,7 @@ module writeIncrement_mod
 
       deallocate(zhighvar)
 
+      call tmg_start(97,'POST_VINTERP')
       ! From now on, only the processor with the data does work
       if(mpi_myid.eq.kstep-1) then
         !
@@ -1604,6 +1619,7 @@ module writeIncrement_mod
         ! End of vertical interpolation
         !
       endif
+      call tmg_stop(97)
 
       deallocate(zlowvar)
 

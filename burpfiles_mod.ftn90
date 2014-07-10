@@ -50,10 +50,8 @@ SUBROUTINE burp_setupfiles(datestamp)
 
   EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
-  write(cmyidy,'(I4.4)') (mpi_nprocs-mpi_myid)
-  !! later, when the mpi along longitudes bands will be implemented, then
-  !! this 'cmyidx' and 'cmyidy' will change
-  cmyidx = '0001'
+  write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
+  write(cmyidx,'(I4.4)') (mpi_myidx+1)
   cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
 
   CLVALU( 1) = 'brpuan'  

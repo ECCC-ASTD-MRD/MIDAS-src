@@ -96,9 +96,6 @@
         call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
         call obs_reduceToMpiLocal(lobsSpaceData)
       end if
-      if (obsMpiStrategy.eq.'LATBANDS' .or. obsMpiStrategy.eq.'LATLONTILES') then
-        call checkObsMpiIP(lobsSpaceData,burp_split_L)
-      end if
 
       !
       ! Filter out data from CMA
@@ -106,6 +103,10 @@
       call tmg_start(14,'SUPREP')
       call filt_suprep(lobsSpaceData)
       call tmg_stop(14)
+
+      if (obsMpiStrategy.eq.'LATBANDS' .or. obsMpiStrategy.eq.'LATLONTILES') then
+        call checkObsMpiIP(lobsSpaceData,burp_split_L)
+      end if
 
       !
       !- Memory allocation for TOVS processing

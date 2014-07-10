@@ -1760,6 +1760,9 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
 
+    ! this was necessary to avoid FP overflow with 512 mpi tasks
+    zsp_all(:,:,:,:) = 0.0d0
+
     call localizationSqrt(controlVector_in,zsp_all)
 
     do jlev = 1, nLevEns_M ! loop over levels in amplitude field
