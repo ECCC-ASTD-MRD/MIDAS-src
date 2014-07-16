@@ -35,7 +35,6 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
   familyList(8)='RO' ; scaleFactor(8)=0.80d0
   familyList(9)='GP' ; scaleFactor(9)=1.00d0
 
-  ! last member is the control member with no perturbation
   numPerturbations = numAnalyses
 
   if(firstTime) then

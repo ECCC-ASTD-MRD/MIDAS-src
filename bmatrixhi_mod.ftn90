@@ -45,6 +45,7 @@ MODULE BmatrixHI
   integer             :: gstID, gstID2
   integer             :: nlev_bdl
   type(struct_vco),pointer :: vco_anl
+  logical             :: is_staggered
 
   real(8),allocatable :: tantheta(:,:)
   real(8),allocatable :: PtoT(:,:,:)
@@ -110,7 +111,7 @@ CONTAINS
     integer                  :: cvDim_out
 
     integer :: jlev, mpiMode, nulnam, ierr, fnom, fclos, fstouv, fstfrm
-    integer :: jm, jn, status, latPerPE, lonPerPE
+    integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
     character(len=8) :: bFileName = './bgcov'
@@ -128,7 +129,19 @@ CONTAINS
     else
       nLev_T_even = nLev_T
     endif
-    if(mpi_myid.eq.0) write(*,*) 'BHI_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
+    if(mpi_myid.eq.0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
+
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    if(Vcode_anl .eq. 5001) then
+      is_staggered = .false.
+    elseif(Vcode_anl .eq. 5002) then
+      is_staggered = .true.
+    else
+      write(*,*) 'Vcode_anl = ',Vcode_anl
+      call abort3d('bmatrixHI: unknown vertical coordinate type!')
+    endif
+    if(mpi_myid.eq.0) write(*,*) 'bmatrixHI: vertical coord is_staggered = ',is_staggered
+
 
     ! default values for namelist variables
     ntrunc = 108
@@ -303,12 +316,18 @@ CONTAINS
   SUBROUTINE BHI_scalestd
     implicit none
 
-    integer :: jlev, jlon, jlat
+    integer :: jlev, jlon, jlat, shift_level
+
+    if(is_staggered) then
+      shift_level = 1
+    else
+      shift_level = 0
+    endif
 
     do jlev = 1, nlev_M
       do jlat = 1, nj_l
-        rgsiguu(jlat,jlev) = scaleFactor(jlev)*rgsiguu(jlat,jlev)
-        rgsigvv(jlat,jlev) = scaleFactor(jlev)*rgsigvv(jlat,jlev)
+        rgsiguu(jlat,jlev) = scaleFactor(jlev+shift_level)*rgsiguu(jlat,jlev)
+        rgsigvv(jlat,jlev) = scaleFactor(jlev+shift_level)*rgsigvv(jlat,jlev)
       enddo
     enddo
     do jlev = 1, nlev_T
