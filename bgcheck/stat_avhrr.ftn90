@@ -1,7 +1,7 @@
 subroutine stat_avhrr(avhrr)
 ! calcul de statistiques
 ! sur l'information sous-pixel AVHRR
-use MULTIIRBGCHECK ,only : avhrr_bgck_iasi, NIR, NVIS,NCLASSAVHRR
+use multi_ir_bgck_mod ,only : avhrr_bgck_iasi, NIR, NVIS,NCLASSAVHRR
 implicit none
 type (avhrr_bgck_iasi) ,intent(inout) :: avhrr
 integer :: ICL,ICH

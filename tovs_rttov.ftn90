@@ -38,7 +38,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !
   use MathPhysConstants_mod
   use tovs_nl_mod
-  use MULTIIRBGCHECK
+  use multi_ir_bgck_mod
   use obsSpaceData_mod
   use columnData_mod
   use emissivities

@@ -36,7 +36,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,NPRF,surfem1_avhrr,idiasi)
 
 #endif
 Use tovs_nl_mod 
-Use MULTIIRBGCHECK ,only : avhrr_bgck,NIR,NVIS,coefs_avhrr
+Use multi_ir_bgck_mod ,only : avhrr_bgck,NIR,NVIS,coefs_avhrr
 implicit none
 #include "rttov_setup.interface"
 #include "rttov_direct2.interface"

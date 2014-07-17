@@ -28,6 +28,7 @@
       use obsSpaceData_mod
       use columnData_mod
       use tovs_nl_mod
+      use multi_ir_bgck_mod
       IMPLICIT NONE
 
       type(struct_obs) :: obsSpaceData
@@ -82,9 +83,9 @@
          IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
          NOBTOV = NOBTOV + 1
-         IF ( tvs_Is_idburp_airs(IDATYP) ) NOBAIRS = NOBAIRS + 1
-         IF ( tvs_Is_idburp_iasi(IDATYP) ) NOBIASI = NOBIASI + 1
-         IF ( tvs_Is_idburp_cris(IDATYP) ) NOBCRIS = NOBCRIS + 1
+         IF ( tvs_Is_idburp_inst(IDATYP,"AIRS") ) NOBAIRS = NOBAIRS + 1
+         IF ( tvs_Is_idburp_inst(IDATYP,"IASI") ) NOBIASI = NOBIASI + 1
+         IF ( tvs_Is_idburp_inst(IDATYP,"CRIS") ) NOBCRIS = NOBCRIS + 1
 
       enddo HEADER
 
@@ -92,7 +93,7 @@
          loop_done_airs = 0
          end_airs       = .false.
          do
-            call AIRSQC ( end_airs, loop_done_airs,columnhr,obsSpaceData )
+            call HIRQC ( end_airs, loop_done_airs,columnhr,obsSpaceData,"AIRS" )
             loop_done_airs = loop_done_airs + 1
             if ( end_airs ) EXIT 
          end do
@@ -107,7 +108,7 @@
                loop_done_iasi = 0
                end_iasi       = .false.
                do
-                  call IASIQC ( end_iasi, loop_done_iasi,columnhr,obsSpaceData,krtid)
+                  call HIRQC ( end_iasi, loop_done_iasi,columnhr,obsSpaceData,"IASI",krtid)
                   loop_done_iasi = loop_done_iasi + 1
                   if ( end_iasi ) EXIT
                end do
@@ -120,7 +121,7 @@
          loop_done_cris = 0
          end_cris       = .false.
          do
-            call CRISQC ( end_cris, loop_done_cris,columnhr,obsSpaceData )
+            call HIRQC ( end_cris, loop_done_cris,columnhr,obsSpaceData,"CRIS" )
             loop_done_cris = loop_done_cris + 1
             if ( end_cris ) EXIT
          end do

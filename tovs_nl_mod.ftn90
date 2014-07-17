@@ -15,7 +15,7 @@ Module tovs_nl_mod
   public :: radiance_type,profile_type,rttov_chanprof,rttov_coefs,transmission_Type,rttov_options
 
   ! public variables (parameters)
-  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM
+  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM, MXINSTR
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
   public :: l_really_present,list_sensors
@@ -26,7 +26,7 @@ Module tovs_nl_mod
   public :: radiance_d
 
   ! public procedures
-  public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_airs, tvs_Is_idburp_iasi, tvs_Is_idburp_cris
+  public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
 
 
   ! Module parameters
@@ -66,10 +66,11 @@ Module tovs_nl_mod
 
   ! Variable from sensors.ftn
   INTEGER, parameter :: MXPLATFORM = 17
+  INTEGER, parameter :: MXINSTR = 30
   CHARACTER*15 CPLATFORM  (MXPLATFORM  )
-  CHARACTER*15 CINSTRUMENT(JPNSATMAX)
+  CHARACTER*15 CINSTRUMENT(MXINSTR)
   INTEGER NOPLATFORM(MXPLATFORM)
-  INTEGER NOINSTRUMENT(JPNSATMAX)
+  INTEGER NOINSTRUMENT(MXINSTR)
 
 !                         Tables for Platforms and Satellites
 !                         -----------------------------------
@@ -584,7 +585,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
       CHARACTER*15 TEMPOCSATID
 
-      INTEGER IOFFSET1B   (JPNSATMAX)
+      INTEGER IOFFSET1B   (MXINSTR)
 
       DATA IOFFSET1B    /           0,           20,            24,  &
                                    27,           42,             0,  &
@@ -659,7 +660,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
       DO J = 1, NSENSORS
         KINDEX = 0
-        DO K = 1, JPNSATMAX
+        DO K = 1, MXINSTR
            IPOS1=LEN_TRIM(CINSTRUMENT(K))
            IPOS2 = INDEX(CINSTRUMENTID(J),CINSTRUMENT(K)(1:IPOS1))
            IF ( IPOS2 .EQ. 1 ) THEN
@@ -715,32 +716,51 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
   end function tvs_Is_idburp_tovs
 
-
-  logical function tvs_Is_idburp_iasi(idburp)
+ logical function tvs_Is_idburp_inst(idburp,cinst)
     implicit none
     integer ,intent(in) :: idburp
+    character (len=*) ,intent(in) :: cinst
 
-    tvs_Is_idburp_iasi = ( idburp == 186 )
+    select case(trim(cinst))
+    case("IASI","iasi")
+       tvs_Is_idburp_inst = ( idburp == 186 )
+    case("AIRS","airs")
+       tvs_Is_idburp_inst = ( idburp == 183 )
+    case("CRIS","cris")
+       tvs_Is_idburp_inst = ( idburp == 193 )
+    case default
+       CALL ABORT3D('tvs_Is_idburp_inst: unknown instrument: '//trim(cinst))
+    end select
 
-  end function tvs_Is_idburp_iasi
+  end function tvs_Is_idburp_inst
 
 
-  logical function tvs_Is_idburp_airs(idburp)
-    implicit none
-    integer ,intent(in) :: idburp
 
-    tvs_Is_idburp_airs = ( idburp == 183 )
+!  logical function tvs_Is_idburp_iasi(idburp)
+!    implicit none
+!    integer ,intent(in) :: idburp
+!
+!    tvs_Is_idburp_iasi = ( idburp == 186 )
+!
+!  end function tvs_Is_idburp_iasi
 
-  end function tvs_Is_idburp_airs
+
+!  logical function tvs_Is_idburp_airs(idburp)
+!    implicit none
+!    integer ,intent(in) :: idburp
+!
+!    tvs_Is_idburp_airs = ( idburp == 183 )
+!
+!  end function tvs_Is_idburp_airs
 
 
-  logical function tvs_Is_idburp_cris(idburp)
-    implicit none
-    integer ,intent(in) :: idburp
-
-    tvs_Is_idburp_cris = ( idburp == 193 )
-
-  end function tvs_Is_idburp_cris
+!  logical function tvs_Is_idburp_cris(idburp)
+!    implicit none
+!    integer ,intent(in) :: idburp
+!
+!    tvs_Is_idburp_cris = ( idburp == 193 )
+!
+!  end function tvs_Is_idburp_cris
 
 
 End Module tovs_nl_mod

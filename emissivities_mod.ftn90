@@ -17,7 +17,7 @@ Module emissivities
 !*
 !************************************************************************
   use tovs_nl_mod
-  use MULTIIRBGCHECK
+  use multi_ir_bgck_mod
   use hir_chans
 
   implicit none
