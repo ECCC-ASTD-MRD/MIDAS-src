@@ -37,8 +37,6 @@
       REAL*8 ZJO
       INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
       INTEGER :: index_header,idatyp,krtid
-      integer :: loop_done_airs, loop_done_iasi, loop_done_cris
-      logical :: end_airs,end_iasi,end_cris
 !
       call tmg_start(2,'BGCHECK')
       WRITE(*,FMT=9000)
@@ -90,13 +88,7 @@
       enddo HEADER
 
       IF (NOBTOV==NOBAIRS .AND.  NOBAIRS>0) THEN
-         loop_done_airs = 0
-         end_airs       = .false.
-         do
-            call HIRQC ( end_airs, loop_done_airs,columnhr,obsSpaceData,"AIRS" )
-            loop_done_airs = loop_done_airs + 1
-            if ( end_airs ) EXIT 
-         end do
+          call HIRQC ( columnhr,obsSpaceData,"AIRS" )
       ENDIF
 
       IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
@@ -105,26 +97,14 @@
 
             if (PLATFORM(krtid) == 10 .AND. &
                  INSTRUMENT(krtid) == 16 ) THEN
-               loop_done_iasi = 0
-               end_iasi       = .false.
-               do
-                  call HIRQC ( end_iasi, loop_done_iasi,columnhr,obsSpaceData,"IASI",krtid)
-                  loop_done_iasi = loop_done_iasi + 1
-                  if ( end_iasi ) EXIT
-               end do
+                  call HIRQC ( columnhr,obsSpaceData,"IASI",krtid)
             endif
          end do
 
       ENDIF
 
       IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
-         loop_done_cris = 0
-         end_cris       = .false.
-         do
-            call HIRQC ( end_cris, loop_done_cris,columnhr,obsSpaceData,"CRIS" )
-            loop_done_cris = loop_done_cris + 1
-            if ( end_cris ) EXIT
-         end do
+        call HIRQC ( columnhr,obsSpaceData,"CRIS" )
       ENDIF
 
 !

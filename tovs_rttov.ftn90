@@ -98,7 +98,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   integer              :: asw,imonth,ig
   logical, allocatable :: calcemis_th  (:,:)
   real*8, allocatable  :: surfem1 (:)
-  real*8, allocatable  :: avhrr_surfem1 (:)
   external abort3d
   
   write(*,*) "Entering tovs_rttov subroutine"
