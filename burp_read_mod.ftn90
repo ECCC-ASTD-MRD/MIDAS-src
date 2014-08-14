@@ -46,6 +46,8 @@ CONTAINS
     !       REVISION:
     !                 S. MACPHERSON (ARMA) Oct 2013
     !                  -- add 'GP' family (ground-based GPS) as type "SFC"
+    !                 P. KOCLAS (CMDA/SMC)) Aug 2014
+    !                  -- Fix for the Burp 24 bit header markers of the UA4D
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -1015,7 +1017,8 @@ CONTAINS
 
             IF (HIRES .and. KOBSN .gt. 0 .and. .not. regrup ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
-              STATUS=IBSET(STATUS,BIT_STATUS)
+!pik 8-2014   STATUS=IBSET(STATUS,BIT_STATUS)
+              STATUS_HIRES=IBSET(STATUS_HIRES,BIT_STATUS)
               Call BURP_Set_Property(CP_RPT ,FLGS =STATUS_HIRES)
             ENDIF
             IF (HIRES )OBS_START=OBSN
