@@ -51,6 +51,7 @@
       integer          NPPCVAR
       character(len=4)  :: CPPCVAR(20)
       character(len=12) :: CETIKINC
+      character(len=9)  :: clmsg
       logical :: write4dInc,useTL_LQtoHU
       logical lvtout,lgzout
 !
@@ -213,6 +214,12 @@
       call gsv_deallocate(statevector)
 
       call tmg_stop(92)
+
+      IF(mpi_myid.eq.0) THEN
+         clmsg = 'REBM_DONE'
+         call wrstatus(clmsg)
+      ENDIF
+
 !
 !     Now write out the observation data:
 !
