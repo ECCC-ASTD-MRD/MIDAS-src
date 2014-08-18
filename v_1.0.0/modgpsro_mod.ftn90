@@ -1,0 +1,42 @@
+module modgpsro_mod
+  use modgps04profile, only: gpsprofile
+  implicit none
+!
+! Values determined through namelist:
+!
+! 
+! INTEGER LEVELGPSRO
+! REAL*8  SURFMIN, HSFMIN, HTPMAX, DISTMIN, BGCKBAND
+
+!
+! Values determined by input data:
+!
+  integer                                :: numGPSROProfiles
+  integer         , allocatable          :: vGPSRO_IndexPrf(:)    ! index for each profile
+  integer         , allocatable          :: vGPSRO_NumData(:)     ! number of data for each profile
+  real*8          , allocatable          :: vGPSRO_VAR(:,:)
+  real*8          , allocatable          :: vGPSRO_DOB(:,:)
+  real*8          , allocatable          :: vGPSRO_OER(:,:)
+  real*8          , allocatable          :: vGPSRO_Jacobian(:,:,:)
+  logical         , allocatable          :: vGPSRO_lJac(:)
+
+  integer, allocatable :: vGPSRO_Data(:)        ! index for each data value
+
+contains
+
+  integer function iProfile_from_index(index)
+    integer, intent(in) :: index
+    integer             :: iProfile_from_index
+    integer i
+
+    iProfile_from_index=-1
+    do i=1,size(vGPSRO_IndexPrf)
+       if (index.eq.vGPSRO_IndexPrf(i)) then
+          iProfile_from_index=i
+          return
+       endif
+    enddo
+    return
+  end function iProfile_from_index
+
+end module modgpsro_mod

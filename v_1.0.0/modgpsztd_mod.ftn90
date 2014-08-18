@@ -1,0 +1,32 @@
+module modgpsztd_mod
+
+  implicit none
+!
+
+  integer, parameter      ::  max_gps_sites = 1000
+  integer, parameter      ::  max_gps_data  = max_gps_sites*12
+
+  integer                 :: numGPSZTD                ! number of ZTD data to be assimilated
+  integer , allocatable   :: vGPSZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
+  real*8  , allocatable   :: vGPSZTD_Jacobian (:,:)   ! Jacobian for each ZTD observation (numGPSZTD,ncv)
+                                                              ! ncv = 2*nlev+1 = 161  (TTx80, LQx80, P0)
+  logical , allocatable   :: vGPSZTD_lJac (:)         ! logical = true once Jacobian computed/stored
+
+contains
+
+  integer function i_from_index(index)
+    integer, intent(in) :: index
+    integer             :: i_from_index
+    integer i
+
+    i_from_index = -1
+    do i = 1, size(vGPSZTD_Index)
+       if (index .eq. vGPSZTD_Index(i)) then
+          i_from_index = i
+          return
+       endif
+    enddo
+    return
+  end function i_from_index
+
+end module modgpsztd_mod

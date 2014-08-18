@@ -1,0 +1,147 @@
+#!/bin/ksh
+
+set -e
+
+nompi=$1
+if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
+then
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!!Compiling for a NON-MPI executable!!"
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  MPILIB="rpn_commstubs_40509 rpn_comm_40509"
+  MPIKEY=""
+  ABSTAG="_nompi"
+else
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!!Compiling for an MPI executable!!"
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  MPILIB="rpn_comm_40509"
+  MPIKEY="-mpi"
+  ABSTAG=""
+fi
+
+trunkdir=$PWD
+
+cd ../
+mkdir -p compiledir
+cd compiledir
+rm -f *.o *.f *.f90 *.mod
+
+# automatically set the global revision number in comct0.cdk by
+# replacing the string XXXXX with the actual revision number
+revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
+revnum=$(ssh pollux "cd $trunkdir;  svnversion")
+echo "Revision number='$revnum' '$revpath'"
+cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comct0.cdk
+
+compiledir=$PWD
+
+## for s.compile
+. ssmuse-sh -d hpcs/13b/04/base
+## for the compiler
+. ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+## for rmn_014, lapack_3.4.0, rpncomm
+. ssmuse-sh -d rpn/libs/4.0
+. s.ssmuse.dot CMDN/vgrid/3.4.0
+
+. s.ssmuse.dot cmda
+. ssmuse-sh -d arma/rttov/10v1
+
+## For hpcsperf needed for TMG timings
+# . s.ssmuse.dot devtools
+. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
+
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
+
+LIBSYS="essl mass"
+LIBRMN="rmn_014"
+LIBEXTRA="hpcsperf"
+MODBURP="BURP1.3"
+DEFINE="-DNEC=nec -DIBM=ibm"
+COMPF_NOC="-openmp $MPIKEY "
+COMPF="$COMPF_NOC"
+
+cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+
+rm -f *.ftn~ *.ftn90~
+
+echo "STARTING COMPILATION AT:"
+date
+
+# remove enkf_pturb.ftn main program from compilation directory
+rm -f enkf_pturb.ftn
+
+echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
+SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
+s.compile $COMPF_NOC -O -src $SRC0 > listingm 2>&1
+status=0
+grep fail listingm || status=1
+if [ "${status}" -eq 0 ] ; then exit 1; fi
+rm -f $SRC0
+
+echo "compiling low-level independent modules"
+SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 gaussgrid_mod.ftn90"
+s.compile $COMPF -O -src $SRC0 > listing0 2>&1
+status=0
+grep fail listing0 || status=1
+if [ "${status}" -eq 0 ] ; then exit 1; fi
+
+echo "compiling most of the new modules"
+SRC1="controlvector_mod.ftn90 hir_chans_mod.ftn90 tovs_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
+SRC1="$SRC1 globalspectraltransform_mod.ftn90 obsspacedata_mod.ftn90 random_mod.ftn90 varnamelist_mod.ftn90 verticalcoord_mod.ftn90"
+SRC1="$SRC1 columndata_mod.ftn90 gridstatevector_mod.ftn90"
+SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
+SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
+SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90"
+
+
+s.compile $COMPF -O -src $SRC1 > listing1 2>&1
+status=0
+grep fail listing1 || status=1
+if [ "${status}" -eq 0 ] ; then exit 1; fi
+
+echo "compiling burp_read module"
+SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90 update_burpfiles.ftn90"
+s.compile $COMPF -O -src $SRC1 > listing_burp 2>&1
+status=0
+grep fail listing_burp || status=1
+if [ "${status}" -eq 0 ] ; then exit 1; fi
+
+echo "compiling the old modules (cdk90)..."
+SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps01ctphys.cdk90 modgps02wgs84const.cdk90 modgps02wgs84grav.cdk90 modgps03diff.cdk90 modgps04profile.cdk90"
+SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90 modgpsro_mod.ftn90 modgps04profilezd.cdk90"
+SRC2="$SRC2 modgps08ztdop.cdk90 modgpsztd_mod.ftn90"
+s.compile $COMPF -O -src $SRC2 > listing2 2>&1
+status=0
+grep fail listing2 || status=1
+if [ "${status}" -eq 0 ] ; then exit 1; fi
+
+echo "compiling remaining ftn ftn90..."
+filelist=""
+for i in *.ftn *.ftn90
+do
+  xx=`echo $i | grep -v _mod.ftn || true`
+  filelist="$filelist $xx"
+done
+s.compile $COMPF -O -src $filelist > listing4 2>&1
+status=0
+grep fail listing4 || status=1
+if [ "${status}" -eq 0 ] ; then exit 1; fi
+
+echo "building the executable..."
+s.compile -O $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o oavar${ABSTAG}.Abs > listing5 2>&1
+
+status=0
+grep -i ERROR listing? || status=1
+if [ "${status}" -eq 0 ] ; then
+    echo "ERROR found: STOP"
+    exit 1
+fi
+
+rm -f *.ftn* *.cdk* *.h
+
+echo "FINISHED COMPILATION AT:"
+date

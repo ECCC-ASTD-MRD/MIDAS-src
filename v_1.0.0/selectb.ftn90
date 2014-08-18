@@ -1,0 +1,98 @@
+#include "maincompileswitch.inc"
+#include "compileswitches.inc"
+SUBROUTINE SELECTB(obsdat)
+!
+!---------------------------------------------------------------------------------
+!      PURPOSE: READ CMC BURP FILES FILL UP OBSSPACE DATA FILE
+!
+!    ARGUMENTS:
+!                        obsdat   - obsdat-file object
+!
+!       AUTHOR: P. KOCLAS(CMC CMDA)
+!
+!       Revisions:
+!         1 Oct 2013:  S. Macpherson ARMA
+!                      Bug fix: Put CALL SET_ERR_GBGPS *after* OBS_OER initialized to 0
+!
+!     NOTE:
+!     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
+!---------------------------------------------------------------------------------
+!
+      use ObsSpaceData_mod
+      use burp_read
+
+      IMPLICIT NONE
+      #include "cvcord.cdk"
+
+      type (struct_obs), intent(inout) :: obsdat
+
+      INTEGER :: IER,IBEG, IEND, NSTN1,NSTN2
+      INTEGER :: EXDB,EXFIN
+      logical :: obs_full
+!
+      INTEGER :: J,JO
+      REAL(OBS_REAL)  :: MISG
+!
+!
+      WRITE(*,*)' '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)'                SELECT READBURP BEGIN                     '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)' '
+      IER=EXDB('SELECT READBURP','DEBUT','NON')
+      MISG=PPMIS
+
+      IBEG=obs_numbody(obsdat)
+      DO J =1,NFILES
+!
+!        call obs_status(obsdat, obs_full, Nstn1, IBEG, nulout)
+         IBEG=obs_numbody(obsdat) +1
+         Nstn1=obs_numheader(obsdat)
+
+         call READBURP(obsdat,CFAMTYP(J),CFILNAM(J),J)
+!        call obs_status(obsdat, obs_full, Nstn2, IEND, nulout)
+         Nstn2=obs_numheader(obsdat)
+         IEND=obs_numbody(obsdat)
+
+	 IF ( trim(CFAMTYP(J)) .ne. 'TO') THEN
+            call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
+            call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
+            call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
+	 ENDIF
+         DO JO=nstn1+1,nstn2
+	    call obs_headSet_i(obsdat,OBS_OTP,JO,J)
+!    call obs_headSet_i(obsdat,OBS_IDF,JO,J)
+	    call obs_setFamily(obsdat,trim(CFAMTYP(J)),JO)
+	 END DO
+!    initializations
+         DO JO=IBEG,IEND
+            call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
+            call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
+!           call obs_bodySet_r(obsdat,OBS_OMP6,JO,MISG)
+            call obs_bodySet_r(obsdat,OBS_OER ,JO,MISG)
+            call obs_bodySet_r(obsdat,OBS_HPHT,JO,MISG)
+            call obs_bodySet_r(obsdat,OBS_OMF ,JO,MISG)
+            call obs_bodySet_r(obsdat,OBS_OMI ,JO,MISG)
+         END DO
+!
+!    For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
+!    for all ZTD data (element 15031)
+         IF ( trim(CFAMTYP(J)) .eq. 'GP') THEN
+           print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
+           CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
+         ENDIF
+!
+      END DO
+
+      WRITE(*,*) '  readburp obs_numheader(obsdat)', obs_numheader(obsdat)
+      WRITE(*,*) '  readburp obs_numbody(obsdat)  ', obs_numbody  (obsdat)
+!
+      WRITE(*,*)' '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)'                SELECT READBURP     END                   '
+      WRITE(*,*)'================================================='
+      WRITE(*,*)' '
+      IER=EXFIN('SELECT READBURP','FIN','NON')
+      RETURN
+
+END SUBROUTINE SELECTB

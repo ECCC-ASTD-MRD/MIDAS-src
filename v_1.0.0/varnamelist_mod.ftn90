@@ -1,0 +1,175 @@
+module varNameList_mod
+  implicit none
+  save
+
+  integer, parameter          :: vnl_numvarmax3D=18,vnl_numvarmax2D=2
+
+  character(len=4), parameter :: varNameList3D(vnl_numvarmax3D) = (/'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ', &
+                                 'DW  ','O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ','NH3 ' /)
+
+  character(len=2), parameter :: varTypeList3D(vnl_numvarmax3D) = (/'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH', &
+                                 'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH'/)
+
+  character(len=4), parameter :: varNameList2D(vnl_numvarmax2D) = (/'P0  ','TG  '/)
+
+  character(len=2), parameter :: varTypeList2D(vnl_numvarmax2D) = (/'SF',  'SF'/)
+
+  integer, parameter          :: vnl_numvarmax=vnl_numvarmax3D+vnl_numvarmax2D
+  character(len=4), parameter :: varNameList(vnl_numvarmax) = (/ varNameList3D, varNameList2D /)
+  character(len=2), parameter :: varTypeList(vnl_numvarmax) = (/ varTypeList3D, varTypeList2D /)
+
+  contains
+
+    function vnl_varListIndex3d(varName) result(listIndex)
+      implicit none
+      character(len=*), intent(in) :: varName
+      integer                      :: jvar,listIndex
+
+      listIndex=-1
+      do jvar=1,vnl_numvarmax3D
+        if(varName.eq.varNameList3d(jvar)) then
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex.le.0) then
+        call abort3d('vnl_varListIndex3D: Unknown variable name! ' // varName)
+      endif
+
+    end function vnl_varListIndex3d
+
+
+    function vnl_varListIndex2d(varName) result(listIndex)
+      implicit none
+      character(len=*), intent(in) :: varName
+      integer                      :: jvar,listIndex
+
+      listIndex=-1
+      do jvar=1,vnl_numvarmax2D
+        if(varName.eq.varNameList2d(jvar)) then 
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex.le.0) then
+        call abort3d('vnl_varListIndex2D: Unknown variable name! ' // varName)
+      endif
+
+    end function vnl_varListIndex2d
+
+
+    function vnl_varListIndex(varName) result(listIndex)
+      implicit none
+      character(len=*), intent(in) :: varName
+      integer                      :: jvar,listIndex
+
+      listIndex=-1
+      do jvar=1,vnl_numvarmax
+        if(varName.eq.varNameList(jvar)) then 
+          listIndex=jvar
+          exit
+        endif
+      enddo
+
+      if(listIndex.le.0) then
+        call abort3d('vnl_varListIndex: Unknown variable name! ' // varName)
+      endif
+
+    end function vnl_varListIndex
+
+
+    function vnl_varnameFromVarnum(varNumber,varTrNumber) result(varName)
+      use bufr
+      implicit none
+      integer, intent(in) :: varNumber
+      integer, intent(in), optional :: varTrNumber
+      character(len=4)    :: varName
+
+      varName='    '
+      select case (varNumber)
+      case(BUFR_NEUU,BUFR_NEUS)
+        varName='UU'
+      case(BUFR_NEVV,BUFR_NEVS)
+        varName='VV'
+      case(BUFR_NETT,BUFR_NETS)
+        varName='TT'
+      case(BUFR_NEDZ,BUFR_NEGZ)
+        varName='GZ'
+      case(BUFR_NEHU,BUFR_NEHS,BUFR_NEES,BUFR_NESS)
+        varName='HU'
+      case(BUFR_NEPS,BUFR_NEPN)
+        varName='P0'
+      case(BUFR_NERF,BUFR_NEBD,BUFR_NEZD)
+        varName='TT'   ! temporarily associate refractivity and ZTD with temperature
+      case(BUFR_NEDW)
+        varName='DW'
+      case(BUFR_NETR)
+        if (present(varTrNumber)) then      
+           select case (varTrNumber)
+           case(BUFR_NETR_O3)
+              varname='O3'
+           case(BUFR_NETR_H2O)
+              varname='HU'
+           case(BUFR_NETR_CH4)
+              varname='CH4'
+           case(BUFR_NETR_CO2)
+              varname='CO2'
+           case(BUFR_NETR_CO)
+              varname='CO'
+           case(BUFR_NETR_NO2)
+              varname='NO2'
+           case(BUFR_NETR_N2O)
+              varname='N2O'
+           case(BUFR_NETR_HCHO)
+              varname='HCHO'
+           case(BUFR_NETR_SO2)
+              varname='SO2'
+           case default
+              write(*,*) 'vnl_varnameFromVarnum: Unknown TR variable number! ',varTrNumber
+              call abort3d('aborting in vnl_varnameFromVarnum')
+           end select
+        else
+           call abort3d('vnl_varnameFromVarnum: Missing TR variable number ')
+        endif 
+      case default
+        write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
+        call abort3d('aborting in vnl_varnameFromVarnum')
+      end select
+
+    end function vnl_varnameFromVarnum
+
+
+    function vnl_vartypeFromVarname(varName) result(varType)
+      use bufr
+      implicit none
+
+      character(len=*), intent(in)   :: varName
+      character(len=2)               :: varType
+
+      varType = varTypeList(vnl_varListIndex(varName))
+
+    end function vnl_vartypeFromVarname
+
+
+    function vnl_vartypeFromVarnum(varNumber,varTrNumber) result(varType)
+      use bufr
+      implicit none
+
+      integer, intent(in)           :: varNumber
+      integer, intent(in), optional :: varTrNumber
+      character(len=2)              :: varType
+      character(len=4)              :: varName
+
+      if (present(varTrNumber)) then      
+         varName = vnl_varnameFromVarnum(varNumber,varTrNumber)
+      else 
+         varName = vnl_varnameFromVarnum(varNumber)
+      endif 
+      varType = varTypeList(vnl_varListIndex(varName))
+
+    end function vnl_vartypeFromVarnum
+
+
+end module varNameList_mod

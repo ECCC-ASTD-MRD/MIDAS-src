@@ -1,0 +1,69 @@
+      SUBROUTINE MATSQRT(PA,KN,ZSIGN)
+#if defined (DOC) 
+*
+***s/r MATSQRT     - Calculate square root of an error covariance
+*     .              matrix
+*
+*Author  : M. Buehner *ARMA/AES  February, 2000
+*Revision:
+*
+*Arguments
+*     .  PA(KN,KN)     :  on entry, the original matrix
+*     .                   on exit,  the sqrt     matrix
+*     .  KN            : order of the matrix
+#endif
+      IMPLICIT NONE
+*
+* Arguments
+*
+      INTEGER KN
+      REAL*8 PA(KN,KN),ZSIGN
+*
+* Local variables
+*
+      INTEGER JI, J, INFO, IER, IWORK
+      REAL*8 ZWORK(4*KN), ZRESULT(KN,KN), ZEIGENV2(KN,KN),
+     +       ZEIGEN(KN,KN), ZEIGENV(KN)
+*
+      IWORK=4*KN
+*
+      WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
+      WRITE(*,*)' zsign= ',zsign
+      WRITE(*,*)'  -----------------------------------------------'
+*
+*     1. Computation of eigenvalues and eigenvectors
+*
+      DO JI=1,KN
+         DO J=1,KN
+            ZEIGEN(JI,J)=PA(JI,J)
+         END DO
+      END DO
+      CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
+*
+      WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")') 
+      WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN) 
+*
+*     2.  Take SQRT of eigenvalues
+*
+      DO JI=1,KN
+        DO J=1,KN
+          ZEIGENV2(JI,J)= 0.0d0
+        END DO
+      END DO
+      DO JI=1,KN
+        ZEIGENV2(JI,JI)= ZEIGENV(JI)**(0.5d0*ZSIGN)
+      END DO
+*
+      WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")') 
+      WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN) 
+*
+      CALL DGEMUL(ZEIGEN,KN,'N',ZEIGENV2,KN,'N',ZRESULT,KN,KN,KN,KN)      
+      CALL DGEMUL(ZRESULT,KN,'N',ZEIGEN,KN,'T',PA,KN,KN,KN,KN)
+*
+*     4. Deallocate local arrays
+*
+      WRITE(*,*)'MATSQRT-----------Done--------------- '
+      WRITE(*,*)' '
+
+      RETURN
+      END

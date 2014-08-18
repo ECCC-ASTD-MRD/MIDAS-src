@@ -1,0 +1,44 @@
+      SUBROUTINE RESIDUALS(lcolumng,lcolumnhr,lobsSpaceData)
+!*
+!***s/r RESIDUALS  - RESIDUALS
+!*
+!*Author  : P. Koclas *CMC/CMDA  Nov 1998
+!*
+!**    Purpose: TRANSFER resduals O-A to O-P for all observations.
+!*
+      use obsSpaceData_mod
+      use columnData_mod
+      IMPLICIT NONE
+#include "cparbrp.cdk"
+
+      type(struct_obs) :: lobsSpaceData
+      type(struct_columnData) :: lcolumng,lcolumnhr
+      INTEGER J,JDATA
+
+      WRITE(*,FMT=9000)
+ 9000 FORMAT(//,3(" *****************"),/," residuals: BEGIN RESIDUAL CALCULATION",/,3(" *****************"),/)
+!C
+!C*    1. Preliminary initializations
+!C     .  ---------------------------
+!C
+      DO JDATA=1,obs_numbody(lobsSpaceData) 
+         call obs_bodySet_r(lobsSpaceData,OBS_OMF,jdata,PPMIS)
+      ENDDO
+
+      CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
+
+      CALL VINT3DFD(OBS_OMA,lobsSpaceData)
+      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
+
+      DO JDATA=1,obs_numbody(lobsSpaceData)
+         call obs_bodySet_r(lobsSpaceData,OBS_OMF,jdata,obs_bodyElem_r(lobsSpaceData,OBS_OMA,jdata))
+      ENDDO
+      DO j =1,1
+         call obs_prnthdr(lobsSpaceData,j)
+         call obs_prntbdy(lobsSpaceData,j)
+      END DO
+      CALL UPDATE_BURPFILES(lobsSpaceData)
+      call obs_finalize(lobsSpaceData)
+
+      RETURN
+      END SUBROUTINE RESIDUALS

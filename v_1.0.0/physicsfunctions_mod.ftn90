@@ -1,0 +1,407 @@
+module physicsFunctions_mod
+
+  use MathPhysConstants_mod
+  implicit none
+!**s/r physicsFunctions  - REAL*8 thermodyanmic statement functions.
+!
+!     Author: JM Belanger CMDA/SMC  Aug. 2000
+!
+!     Revision 001: Yves J. Rochon *ARQX/SMC, Sept 2004
+!                   - Added functions of sat. vapour pressure
+!                     over water (FOEW8_CMAM) and over ice (FOEI8_CMAM),
+!                     resultant sat. specific humidity (FOQST8_CMAM), and
+!                     others.
+!
+!     REAL*8 version of thermodynamic functions based on
+!     fintern.cdk in the physics library.
+!
+
+  contains
+!
+! ==============================================================================
+!
+!     FONCTION DE TENSION DE VAPEUR SATURANTE (TETENS) - EW OU EI SELON TT
+      real*8 function FOEW8(TTT)
+        implicit none
+        real*8 TTT
+        FOEW8 = 610.78D0*EXP( MIN(SIGN(17.269D0,TTT-MPC_TRIPLE_POINT_R8),SIGN &
+          (21.875D0,TTT-MPC_TRIPLE_POINT_R8))*ABS(TTT-MPC_TRIPLE_POINT_R8)/ &
+          (TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT))))
+      end function foew8
+!
+!     FONCTION CALCULANT LA DERIVEE SELON T DE  LN EW (OU LN EI)
+      real*8 function FODLE8(TTT)
+        implicit none
+        real*8 TTT
+        FODLE8=(4097.93D0+MAX(0.D0,SIGN(1709.88D0,MPC_TRIPLE_POINT_R8-TTT))) &
+         /((TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT)))*  &
+         (TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT))))
+      end function FODLE8
+!
+!     FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT)
+      real*8 function FOQST8(TTT,PRS) 
+        implicit none
+        real*8 TTT,PRS
+        FOQST8=MPC_EPS1_R8/(MAX(1.D0,PRS/FOEW8(TTT))-MPC_EPS2_R8)
+      end function FOQST8
+!
+!     FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
+      real*8 function FODQS8(QST,TTT) 
+        implicit none
+        real*8 TTT,QST
+        FODQS8=QST*(1.D0+MPC_DELTA_R8*QST)*FODLE8(TTT)
+      end function FODQS8
+!     QST EST LA SORTIE DE FOQST
+!
+!     FONCTION CALCULANT TENSION VAP (EEE) FN DE HUM SP (QQQ) ET PRS
+      real*8 function FOEFQ8(QQQ,PRS)  
+        implicit none
+        real*8 QQQ,PRS
+        FOEFQ8= MIN(PRS,(QQQ*PRS) / (MPC_EPS1_R8 + MPC_EPS2_R8*QQQ))
+      end function FOEFQ8
+!
+!     FONCTION CALCULANT HUM SP (QQQ) DE TENS. VAP (EEE) ET PRES (PRS)
+      real*8 function FOQFE8(EEE,PRS)  
+        implicit none
+        real*8 EEE,PRS
+        FOQFE8= MIN(1.D0,MPC_EPS1_R8*EEE / (PRS-MPC_EPS2_R8*EEE))
+      end function FOQFE8
+!
+!     FONCTION CALCULANT TEMP VIRT. (TVI) DE TEMP (TTT) ET HUM SP (QQQ)
+      real*8 function FOTVT8(TTT,QQQ)  
+        implicit none
+        real*8 TTT,QQQ
+        FOTVT8= TTT * (1.0D0 + MPC_DELTA_R8*QQQ)
+      end function FOTVT8
+!
+!     FONCTION CALCULANT TTT DE TEMP VIRT. (TVI) ET HUM SP (QQQ)
+      real*8 function FOTTV8(TVI,QQQ)  
+        implicit none
+        real*8 TVI,QQQ
+        FOTTV8= TVI / (1.0D0 + MPC_DELTA_R8*QQQ)
+      end function FOTTV8
+!
+!     FONCTION CALCULANT HUM REL DE HUM SP (QQQ), TEMP (TTT) ET PRES (PRS)
+!     HR = E/ESAT
+      real*8 function FOHR8(QQQ,TTT,PRS) 
+        implicit none
+        real*8 QQQ,TTT,PRS
+        FOHR8 = MIN(PRS,FOEFQ8(QQQ,PRS)) / FOEW8(TTT)
+      end function FOHR8
+!
+!     LES 5 FONCTIONS SUIVANTES SONT VALIDES DANS LE CONTEXTE OU ON
+!     NE DESIRE PAS TENIR COMPTE DE LA PHASE GLACE DANS LES CALCULS
+!     DE SATURATION.
+!
+!     FONCTION DE VAPEUR SATURANTE (TETENS)
+      real*8 function FOEWA8(TTT) 
+        implicit none
+        real*8 TTT
+        FOEWA8=610.78D0*EXP(17.269D0*(TTT-MPC_TRIPLE_POINT_R8)/(TTT-35.86D0))
+      end function FOEWA8
+!
+!     FONCTION CALCULANT LA DERIVEE SELON T DE LN EW
+      real*8 function FODLA8(TTT) 
+        implicit none
+        real*8 TTT
+        FODLA8=17.269D0*(MPC_TRIPLE_POINT_R8-35.86D0)/(TTT-35.86D0)**2
+      end function FODLA8
+!
+!     FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE
+      real*8 function FOQSA8(TTT,PRS) 
+        implicit none
+        real*8 TTT,PRS
+        FOQSA8=MPC_EPS1_R8/(MAX(1.D0,PRS/FOEWA8(TTT))-MPC_EPS2_R8)
+      end function FOQSA8
+!
+!     FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
+      real*8 function FODQA8(QST,TTT) 
+        implicit none
+        real*8 QST,TTT
+        FODQA8=QST*(1.D0+MPC_DELTA_R8*QST)*FODLA8(TTT)
+      end function FODQA8
+!
+!     FONCTION CALCULANT L'HUMIDITE RELATIVE
+      real*8 function FOHRA8(QQQ,TTT,PRS) 
+        implicit none
+        real*8 QQQ,TTT,PRS
+        FOHRA8=MIN(PRS,FOEFQ8(QQQ,PRS))/FOEWA8(TTT)
+      end function FOHRA8
+!
+!     LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
+!     EN FONCTION DE LA TENSION DE VAPEUR SATURANTE.
+!     (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+!
+!     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+!     SATURANTE PAR RAPPORT A EW.
+      real*8 function FOTW8(EEE) 
+        implicit none
+        real*8 EEE
+        FOTW8=(35.86D0*LOG(EEE/610.78D0)-17.269D0*MPC_TRIPLE_POINT_R8)/ &
+             (LOG(EEE/610.78D0)-17.269D0)
+      end function FOTW8
+!
+!     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+!     SATURANTE PAR RAPPORT A EI.
+      real*8 function FOTI8(EEE) 
+        implicit none
+        real*8 EEE
+        FOTI8=(7.66D0*LOG(EEE/610.78D0)-21.875D0*MPC_TRIPLE_POINT_R8)/ &
+             (LOG(EEE/610.78D0)-21.875D0)
+      end function FOTI8
+!
+!     FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
+!     VAPEUR SATURANTE (EW).
+      real*8 function FODTW8(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
+      end function FODTW8
+!
+!     FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
+!     VAPEUR SATURANTE (EI).
+      real*8 function FODTI8(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FODTI8=(7.66D0-TTT)/EEE  &
+                      /(LOG(EEE/610.78D0)-21.875D0)
+      end function FODTI8
+!
+!     FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
+      real*8 function FOTWI8(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FOTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FOTW8(EEE)  &
+                     -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FOTI8(EEE)
+      end function FOTWI8
+!
+!     FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
+      real*8 function FODTWI8(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FODTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FODTW8(TTT,EEE)  &
+                      -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*FODTI8(TTT,EEE)
+      end function FODTWI8
+!
+!     LES 7 FONCTIONS SUIVANTES POUR EW-EI SONT REQUISES POUR LES MODELES
+!     CMAM ET CGCM. (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+!
+!     FONCTION DE TENSION DE VAPEUR SATURANTE - EW
+      real*8 function FOEW8_CMAM(TTT)  
+        implicit none
+        real*8 TTT
+        FOEW8_CMAM= 100.D0*EXP(21.656D0-5418.D0/TTT)
+      end function FOEW8_CMAM
+
+!     FONCTION DE TENSION DE VAPEUR SATURANTE - EI
+      real*8 function FOEI8_CMAM(TTT)  
+        implicit none
+        real*8 TTT
+        FOEI8_CMAM= 100.D0*EXP(24.292D0-6141.D0/TTT)
+      end function FOEI8_CMAM
+!
+!     FONCTION DE LA PROPORTION DE LA CONTRIBUTION DE EW VS EI
+      real*8 function FOERAT8_CMAM(TTT) 
+        implicit none
+        real*8 TTT
+        FOERAT8_CMAM=MIN(1.0D0,0.0059D0+0.9941D0*EXP(-0.003102D0*  &
+            MIN(0.0D0,TTT-MPC_TRIPLE_POINT_R8)**2))
+      end function FOERAT8_CMAM
+!
+!     FONCTION DE TENSION DE VAPEUR SATURANTE RESULTANTE - EW et EI
+      real*8 function FOEWI8_CMAM(TTT)  
+        implicit none
+        real*8 TTT
+        FOEWI8_CMAM= FOEW8_CMAM(TTT)*FOERAT8_CMAM(TTT)  &
+         +(1.0D0-FOERAT8_CMAM(TTT))*FOEI8_CMAM(TTT)
+      end function FOEWI8_CMAM
+!
+!     FONCTION DE LA DERIVE DE LN(E) PAR RAPPORT A LA TEMPERATURE
+      real*8 function FODLE8_CMAM(TTT)  
+        implicit none
+        real*8 TTT
+        FODLE8_CMAM= FOERAT8_CMAM(TTT)*5418.D0/TTT/TTT  &
+         +(1.0D0-FOERAT8_CMAM(TTT))*6141.D0/TTT/TTT
+      end function FODLE8_CMAM
+!
+!     FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT).
+!     PREND EN COMPTE LES PHASES GLACE ET EAU.
+      real*8 function FOQST8_CMAM(TTT,PRS) 
+        implicit none
+        real*8 TTT,PRS
+        FOQST8_CMAM=MPC_EPS1_R8/(MAX(1.0D0,PRS/  &
+                           FOEWI8_CMAM(TTT))-MPC_EPS2_R8)
+      end function FOQST8_CMAM
+!
+!     LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
+!     EN FONCTION DE LA TENSION DE VAPEUR SATURANTE POUR CMAM/CGCM
+!     (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+!
+!     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+!     SATURANTE PAR RAPPORT A EW.
+      real*8 function FOTW8_CMAM(EEE) 
+        implicit none
+        real*8 EEE
+        FOTW8_CMAM=5418.D0/(21.656D0-LOG(EEE/100.0D0))
+      end function FOTW8_CMAM
+!
+!     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+!     SATURANTE PAR RAPPORT A EI.
+      real*8 function FOTI8_CMAM(EEE) 
+        implicit none
+        real*8 EEE
+        FOTI8_CMAM=6141.D0/(24.292D0-LOG(EEE/100.0D0))
+      end function FOTI8_CMAM
+!
+!     FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
+!     VAPEUR SATURANTE (EW).
+      real*8 function FODTW8_CMAM(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FODTW8_CMAM=TTT/EEE/(21.656D0-LOG(EEE/100.0D0))
+      end function FODTW8_CMAM
+!
+!     FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
+!     VAPEUR SATURANTE (EI).
+      real*8 function FODTI8_CMAM(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FODTI8_CMAM=TTT/EEE/(24.292D0-LOG(EEE/100.0D0))
+      end function FODTI8_CMAM
+!
+!     FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
+      real*8 function FOTWI8_CMAM(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FOTWI8_CMAM= FOERAT8_CMAM(TTT)*FOTW8_CMAM(EEE)+ &
+                   (1.0D0-FOERAT8_CMAM(TTT))*FOTI8_CMAM(EEE)
+      end function FOTWI8_CMAM
+!
+!     FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
+      real*8 function FODTWI8_CMAM(TTT,EEE) 
+        implicit none
+        real*8 TTT,EEE
+        FODTWI8_CMAM= FOERAT8_CMAM(TTT)*FODTW8_CMAM(TTT,EEE)+  &
+                    (1.0D0-FOERAT8_CMAM(TTT))*FODTI8_CMAM(TTT,EEE)
+      end function FODTWI8_CMAM
+!
+
+!
+!     function returning 0/1 depending on the minimum q branch condition
+!     as discussed by Brunet (1996) to prevent getting a vapour pressure that exceeds
+!     the total pressure p when q exceeds 1.
+!
+      real*8 function FQBRANCH(QQQ)  
+        implicit none
+        real*8 QQQ
+        FQBRANCH= 0.5D0+SIGN(0.5D0,1.D0-(QQQ))
+      end function FQBRANCH
+
+!=============================================================================
+!
+!     TLM  of  THERMODYNAMIC FUNCTIONS USED IN 3DVAR
+!     CONSTANTS FROM COMMON /CTESDYN/
+!     NOTE: ALL FUNCTIONS WORK IN  S.I. UNITS
+!           I.E PRS IN PA, QQQ IN KG/KG
+!
+!          ***C. Chouinard August 1998 ***
+! Revision:
+!          S. Pellerin *ARMA/AES - Sept. 1998
+!                      -Tangent-linear operator of Tv
+!
+!
+!      TLM  OF FUNCTION CALCULATING VAPOUR PRESSURE
+!             - INPUT:  QQL ,  PERTURBATION OF LN SPECIFIC HUM
+!                       PRSL ,   PERTURBATION OF SURFACE PRESSURE
+!                       QQQ   ,  SPECIFIC HUMIDITY
+!                       PRS   , PRESSURE
+!                       PNETA   , VALUE OF ETA LEVEL
+!             - OUTPUT: FOEFQL,  PERTURBATION  OF VAPOUR PRESSURE
+!
+      real*8 function FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)  
+        implicit none
+        real*8 QQL,PRSL,QQQ,PRS,PNETA
+        FOEFQL= FQBRANCH(QQQ)  &
+           * ((QQL*MPC_EPS1_R8*PRS*QQQ/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ)  &
+           +  PRSL*PNETA*QQQ)/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))  &
+           + (1.0D0 - FQBRANCH(QQQ))*PRSL*PNETA
+      end function FOEFQL
+!
+!
+!---- Tangent-linear operator of virtual temperature -----
+!
+!     qqq: backgroud specific humidity
+!     ttt: backgroud temperature
+!     ttl: temperature increment
+!     plnql: increment of logarithm specific humidity  (del(ln q))
+!
+      real*8 function fotvvl(qqq,ttt,ttl,plnql) 
+        implicit none
+        real*8 qqq,ttt,ttl,plnql
+        fotvvl=(1 + MPC_DELTA_R8*qqq)*ttl + MPC_DELTA_R8*qqq*ttt*plnql
+      end function fotvvl
+
+!=============================================================================
+!
+!   DEFINITION OF ADJOINTS OF THERMODYNAMIC  FUNCTIONS
+!   CONSTANTS AS IN COMMON /CTESDYN/
+!     NOTE: ALL  UNITS S.I.
+!           I.E. PADES IN DEG K, PRS EN PA, QQQ EN KG/KG
+!
+!      ADJOINT OF LN SPECIFIC  HUM (QQQ) DUE TO DEWPOINT DEPRESSION CORRECTIONS
+!             - INPUT : PADES ,  ADJOINT OF DEWPOINT DEPRESSION
+!                       PGAMMA,  ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+!                       QQQ   , SPECIFIC HUMIDITY
+!                       PRS   , PRESSURE
+!             - OUTPUT: FOEFQA, ADJOINT OF LN SPECIFIC HUMIDITY
+!
+      real*8 function FOEFQA(PADES,PGAMMA,QQQ,PRS)  
+        implicit none
+        real*8 PADES,PGAMMA,QQQ,PRS
+        FOEFQA= PADES*PGAMMA*MPC_EPS1_R8*PRS*QQQ/  &
+                ((MPC_EPS1_R8+MPC_EPS2_R8*QQQ)*(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))
+      end function FOEFQA
+
+!
+!      ADJOINT OF SURFACE PRESSURE  DUE TO DEWPOINT DEPRESSION CORRECTIONS
+!             - INPUT:  PADES ,  ADJOINT OF DEWPOINT DEPRESSION
+!                       PGAMMA,  ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+!                       QQQ   , SPECIFIC HUMIDITY
+!                       PNETA   , VALUE OF NETA
+!             - OUTPUT: FOEFQPSA, ADJOINT OF SURFACE PRESSURE
+!
+      real*8 function FOEFQPSA(PADES,PGAMMA,QQQ,PNETA) 
+        implicit none
+        real*8 PADES,PGAMMA,QQQ,PNETA
+        FOEFQPSA = PADES*PGAMMA*QQQ*PNETA/  &
+                   (MPC_EPS1_R8+MPC_EPS2_R8*QQQ)
+      end function FOEFQPSA
+
+!
+!--------------------- Adjoint of virtual temperature operator -------------------------
+!
+!     fottva: Adjoint of temperature due to virtual temperature correction
+!     qqq:   background specific humidity
+!     tva:   adjoint variable of virtual temperature
+!
+      real*8 function fottva(qqq,tva)  
+        implicit none
+        real*8 qqq,tva
+        fottva= (1D0 + MPC_DELTA_R8*qqq)*tva
+      end function fottva
+
+!
+!     folnqva: Adjoint of logarithm of specific humidity due to virtual temperature correction
+!     qqq:   background specific humidity
+!     ttt:   background temperature
+!     tva:   adjoint variable of virtual temperature
+!
+      real*8 function folnqva(qqq,ttt,tva) 
+        implicit none
+        real*8 qqq,ttt,tva
+        folnqva = MPC_DELTA_R8*qqq*ttt*tva
+      end function folnqva
+
+end module physicsFunctions_mod
+
+

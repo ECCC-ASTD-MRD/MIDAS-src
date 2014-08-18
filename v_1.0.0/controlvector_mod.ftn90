@@ -1,0 +1,123 @@
+!--------------------------------------------------------------------------
+! MODULE controlVector (The control vector and related information.  prefix="cvm")
+!
+! Purpose: 
+!
+! Subroutines:
+!    cvm_setup (public)
+!
+! Dependencies:
+!
+!--------------------------------------------------------------------------
+MODULE ControlVector_mod
+
+  implicit none
+  save
+  private
+
+  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal, cvm_vazx, cvm_nvadim
+
+  logical             :: initialized = .false.
+  integer             :: cvm_dimBHI
+  integer             :: cvm_dimBEN
+  integer             :: cvm_nvadim
+  integer             :: cvm_dimBHI_mpiglobal
+  integer             :: cvm_dimBEN_mpiglobal
+  integer             :: cvm_nvadim_mpiglobal
+
+  real*8, allocatable,target :: cvm_vazx(:)
+
+CONTAINS
+
+  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN)
+    implicit none
+
+    integer        :: dimBHI_in,dimBEN_in
+    integer        :: ierr
+
+    cvm_dimbhi = dimbhi_in
+    cvm_dimben = dimben_in
+    call rpn_comm_allreduce(cvm_dimbhi,cvm_dimbhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(cvm_dimben,cvm_dimben_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+
+    cvm_nvadim = cvm_dimben + cvm_dimbhi
+    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal
+
+    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi,cvm_dimben,cvm_nvadim
+    write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,cvm_nvadim_mpiglobal
+
+    allocate(cvm_vazx(cvm_nvadim),stat=ierr)
+    if(ierr.ne.0) then
+      write(*,*) 'controlVector: Problem allocating memory! id=1',ierr
+      call abort3d('aborting in cvm_setup')
+    endif
+
+    cvm_vazx(:)=0.0d0
+
+    initialized=.true.
+
+  END SUBROUTINE CVM_setup
+
+  FUNCTION CVM_getSubVector(controlVector,subVectorIndex) RESULT(subVector)
+    implicit none
+
+    real*8, pointer :: subVector(:)
+    real*8,target   :: controlVector(:)
+    integer         :: subVectorIndex
+    logical, save   :: firstCall=.true.
+
+    nullify(subVector)
+
+    if(subVectorIndex.eq.1 .and. cvm_dimbhi.gt.0) then
+      subVector => controlVector(1:cvm_dimbhi)
+    elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
+      subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
+    else
+      if(firstCall) then
+        write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
+        firstCall=.false.
+      endif
+    endif
+
+  END FUNCTION CVM_getSubVector
+
+  FUNCTION CVM_getSubVector_mpiglobal(controlVector,subVectorIndex) RESULT(subVector)
+    implicit none
+
+    real*8, pointer :: subVector(:)
+    real*8,target   :: controlVector(:)
+    integer         :: subVectorIndex
+    logical, save   :: firstCall=.true.
+
+    nullify(subVector)
+
+    if(subVectorIndex.eq.1 .and. cvm_dimbhi_mpiglobal.gt.0) then
+      subVector => controlVector(1:cvm_dimbhi_mpiglobal)
+    elseif(subVectorIndex.eq.2 .and. cvm_dimben_mpiglobal.gt.0) then
+      subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
+    else
+      if(firstCall) then
+        write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'
+        firstCall=.false.
+      endif
+    endif
+
+  END FUNCTION CVM_getSubVector_mpiglobal
+
+  SUBROUTINE CVM_deallocate
+    implicit none
+
+    integer :: ierr
+
+    if (allocated(cvm_vazx))then
+      deallocate(cvm_vazx,stat=ierr)
+      if(ierr.eq.0) then
+        write(*,*) 'CVM_VAZX checked and correct. IERR =',ierr
+      else
+        write(*,*) 'Problem detected in CVM_VAZX. IERR =',ierr
+      endif
+    end if
+
+  END SUBROUTINE CVM_deallocate
+
+END MODULE ControlVector_mod
