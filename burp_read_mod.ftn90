@@ -273,6 +273,8 @@ CONTAINS
         BIT_STATUS = 11 
     END SELECT 
 
+    btyp_offset_uni=-999
+    btyp_offset=-999
     if (trim(BURP_TYP) .eq. 'uni') then
       btyp_offset=256
     else
