@@ -168,6 +168,7 @@ module verticalCoord_mod
     stat = stat + VGD_OK
     print*,'vco: vgd_get cb_t vgd_ok= ',VGD_OK
     !
+    allocate(my_ip1(tf_vco%nlev_M)) 
     stat = vgd_get(tf_vco%vgrid,key='vipm - vertical levels (m)',value=my_ip1)
     stat = stat + VGD_OK
     print*,'vco: vgd_get ip1m vgd_ok= ',VGD_OK
@@ -257,6 +258,8 @@ module verticalCoord_mod
     ! Process thermodynamic levels 
 
     stat = 0
+    deallocate(my_ip1) 
+    allocate(my_ip1(tf_vco%nlev_T)) 
     stat = vgd_get(tf_vco%vgrid,key='vipt - vertical ip1 levels (t)',value=my_ip1)
     stat = stat + VGD_OK
     print*,'vco: vgd_get vipt vgd_ok= ',VGD_OK
@@ -298,6 +301,7 @@ module verticalCoord_mod
 
     ierr =  fstfrm(nultemplate)
     ierr =  fclos (nultemplate)
+    deallocate(my_ip1) 
 
   end subroutine vco_SetupFromFile
 

@@ -16,6 +16,7 @@
 !
 SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
   use obsSpaceData_mod
+  implicit NONE
   ! Arguments
   integer, intent(in)  :: elem_dest_i ! destination index
   integer, intent(in)  :: elem_src_i  ! source index
@@ -28,7 +29,6 @@ SUBROUTINE oda_sqrtRm1(lobsSpaceData,elem_dest_i,elem_src_i)
   !Revision:
   ! L. Fillion, ARMA/EC, 5 Jun 2009. Introduce 1 Obs experiment.
   !
-  implicit NONE
   type(struct_obs) :: lobsSpaceData
   INTEGER index_body,iass
   logical, save :: firstTime = .true.

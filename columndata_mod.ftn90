@@ -368,6 +368,12 @@ module columnData_mod
 
       integer :: iobs_local,iobs_global,ierr,nsize,sizeone
       real*8, allocatable :: mountain(:)
+      ! declaire local mpi variables.... 
+      real*8, allocatable :: my_mountain(:)
+      real*8, allocatable :: tmp_all(:,: )
+      real*8, allocatable :: my_lat(:),my_lon(:) ,my_timeInterpWeight(:,:),my_tla(:) 
+      integer :: nsize1,nrow,ncol
+
 
       ! determine the number of columns for mpiglobal object
       sizeone=1
@@ -385,38 +391,64 @@ module columnData_mod
       column_global%varNumLev(:) = column_local%varNumLev(:)
 
       allocate(mountain(column_global%numCol))
-      mountain(:)=0.0d0
+      allocate(my_mountain(column_global%numCol))
+      my_mountain(:)=0.0d0
+
+      ncol=size(column_global%all,1)
+      nrow=size(column_global%all,2)
+      nsize=ncol*nrow
+      allocate(tmp_all(ncol,nrow) ,stat=ierr)
+      tmp_all(:,:) = 0.0D0
+      nsize1=size(column_local%lat)
+      allocate(my_lat(nsize1))
+      allocate(my_lon(nsize1))
+      allocate(my_tla(nsize1))
+      ncol=size(column_global%timeInterpWeight,1)
+      nrow=size(column_global%timeInterpWeight,2)
+      allocate(my_timeInterpWeight(ncol,nrow) )
+
+      my_lat=0.0D0
+      my_lon=0.0d0
+      my_timeInterpWeight=0.0D0 
+      my_tla = 0.0D0 
+
+      
       do iobs_local=1,column_local%numCol
         iobs_global=obs_headerIndex_mpiglobal(lobsSpaceData,iobs_local)
-        column_global%all(:,iobs_global)              = column_local%all(:,iobs_local)
-        column_global%timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
-        mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)
-        column_global%lat(iobs_global)                = column_local%lat(iobs_local)
-        column_global%lon(iobs_global)                = column_local%lon(iobs_local)
-        column_global%tla(iobs_global)                = column_local%tla(iobs_local)
+        tmp_all(:,iobs_global)              = column_local%all(:,iobs_local)
+        my_timeInterpWeight(iobs_global,:) = column_local%timeInterpWeight(iobs_local,:)
+        my_mountain(iobs_global)                         = column_local%gz_t(col_getNumLev(column_local,'TH'),iobs_local)
+        my_lat(iobs_global)                = column_local%lat(iobs_local)
+        my_lon(iobs_global)                = column_local%lon(iobs_local)
+        my_tla(iobs_global)                = column_local%tla(iobs_local)
       enddo
 
       write(*,*) 'starting allreduce'
 
       nsize=size(column_global%all)
-      call rpn_comm_allreduce(column_global%all,column_global%all,nsize, &
+      call rpn_comm_allreduce(tmp_all,column_global%all,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
+      deallocate(tmp_all) 
 
-      nsize=size(mountain)
-      call rpn_comm_allreduce(mountain,mountain,nsize, &
+      nsize=size(my_mountain)
+      call rpn_comm_allreduce(my_mountain,mountain,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
+      deallocate(my_mountain) 
 
       nsize=size(column_global%timeInterpWeight)
-      call rpn_comm_allreduce(column_global%timeInterpWeight,column_global%timeInterpWeight,nsize, &
+      call rpn_comm_allreduce(my_timeInterpWeight,column_global%timeInterpWeight,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
-
+      deallocate(my_timeInterpWeight) 
       nsize=size(column_global%lat)
-      call rpn_comm_allreduce(column_global%lat,column_global%lat,nsize, &
+      call rpn_comm_allreduce(my_lat,column_global%lat,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%lon,column_global%lon,nsize, &
+       deallocate(my_lat) 
+      call rpn_comm_allreduce(my_lon,column_global%lon,nsize, &
                               "mpi_double_precision","mpi_sum","GRID",ierr)
-      call rpn_comm_allreduce(column_global%tla,column_global%tla,nsize, &
+       deallocate(my_lon) 
+      call rpn_comm_allreduce(my_tla,column_global%tla,nsize, &
                               "mpi_integer","mpi_sum","GRID",ierr)
+       deallocate(my_tla) 
 
       do iobs_global=1,column_global%numCol
         column_global%gz_t(col_getNumLev(column_global,'TH'),iobs_global) = mountain(iobs_global)

@@ -113,7 +113,8 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLMEAN, DLMEAS, latObs, lonObs, deltaLon
       REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, DInterpWeight, RWTINV
 
-      real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
+      !real*8 :: zfield(0:(statevector%ni+2),klev1:klev2,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
+      real*8,allocatable :: zfield(:,:,:)
       real*8, pointer :: field_ptr(:,:,:,:)
       real*8,pointer :: column_ptr(:,:)
       real*8 :: dldlat2((statevector%myLatBeg-1):(statevector%myLatEnd+1))
@@ -128,6 +129,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
         DLDLAT2(ILA)=1.0d0/(gaus_RLATI(ILA)-gaus_RLATI(ILA+1))
       enddo
 
+      allocate(zfield(0:(statevector%ni+2),klev1:klev2,(statevector%myLatBeg-1):(statevector%myLatEnd+1)) ) 
       do jstep=1,statevector%numStep
 
         zfield(:,:,:) = 0.0D0
@@ -264,7 +266,7 @@ subroutine oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)
            zfield(1:statevector%ni,klev1:klev2,statevector%myLatBeg:myLatP1)
 
       enddo  ! jstep
-
+      deallocate(zfield) 
       END SUBROUTINE GD2MVOAD   
 
 end subroutine oda_LT

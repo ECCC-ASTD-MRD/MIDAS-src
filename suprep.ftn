@@ -170,6 +170,7 @@ C
       INTEGER IPRES,IPRESMB
       INTEGER JD,INDEX_BODY,JK
       INTEGER IJ,IDBURP,ITYP,IFLG,IBIT,IBAD,IKNT(numFamily),ierr
+      INTEGER :: my_IKNT(numFamily) 
       INTEGER IDATA,IDATEND
       INTEGER ILANSEA,IPROCES,INDXREG,INDXCLD,INDXM
       integer index,ibin(17,numFamily),IBINS(numFamily),isum,INIV(17)
@@ -244,7 +245,7 @@ C
 C
 C     3. filter data in CMA file
 C     .  -----------------------
-      IKNT(:)=0
+      my_IKNT(:)=0
       ibin(:,:)=0
       ibins(:)=0
       CELLIST
@@ -556,7 +557,7 @@ C
 C
             IF (LLOK .AND. .NOT. LLREJ) THEN
               call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,1)
-              IKNT(index_family)= IKNT(index_family) + 1
+              my_IKNT(index_family)= my_IKNT(index_family) + 1
             ELSEIF (LLDIAG) THEN
               call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,-1)
             ELSE
@@ -647,7 +648,7 @@ C
 C
 C-----------------------------------------------------------------------
       WRITE(*,'(1x," Number of data assimilated by 3d-var:",i10)')
-     &     sum(IKNT(:))
+     &     sum(my_IKNT(:))
 C
 C
 C-----------------------------------------------------------------------
@@ -666,7 +667,7 @@ C
       write(*,*) ' isum obs_numbody(lobsSpaceData)  ',isum,obs_numbody(lobsSpaceData)
 C
 C     ABORT IF THERE IS NO DATA TO BE ASSIMILATED
-      call rpn_comm_allreduce(iknt,iknt,numFamily,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(my_iknt,iknt,numFamily,"MPI_INTEGER","MPI_SUM","GRID",ierr)
       IF (sum(IKNT(:)) .EQ. 0 ) THEN
         call abort3d('SUPREP. NO DATA TO BE ASSIMILATED')
       ENDIF

@@ -46,7 +46,6 @@
 
       LOGICAL  LSTAG
 
-      INTEGER NH
 #include "comgpsro.cdk"
 
       LSTAG = .FALSE.

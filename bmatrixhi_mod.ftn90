@@ -97,7 +97,7 @@ MODULE BmatrixHI
   integer,allocatable :: allmBeg(:),allmEnd(:),allmSkip(:),allmCount(:)
   integer             :: myLatBeg,myLatEnd
 
-  integer             :: get_max_rss
+  integer ,external   :: get_max_rss
 
 
 CONTAINS
@@ -855,6 +855,7 @@ CONTAINS
     real*8 cortgg(nla_l,2)
     real*8 zabs, zpole, zconst, dlfac, dlcorr
     real*8 zsp(nla_l,2,1),zgd(ni_l,1,myLatBeg:myLatEnd)
+    real*8,allocatable :: my_zsp(:,:,:)
 
     ! standard file variables
     integer ini,inj,ink, inpas, inbits, idatyp, ideet     &
@@ -925,9 +926,9 @@ CONTAINS
     if ( llimtg ) then
        where ( tgstdbg > rlimsuptg) tgstdbg = rlimsuptg
     endif
-
+    allocate(my_zsp(nla_l,2,1),stat=ierr)
     zgd(:,:,:)=0.0d0
-    zsp(:,:,:)=0.0d0
+    my_zsp(:,:,:)=0.0d0
 
     do jla = 1, nla_l
        cortgg(jla,1) = 0.0
@@ -941,9 +942,10 @@ CONTAINS
     call BHI_calccorr(zgd,rcscltg,numlev,ntgcorrtyp)
 
     ! 4.3  Bring back the result in spectral space
-    call gst_reespe(zsp,zgd,1,1)
+    call gst_reespe(my_zsp,zgd,1,1)
     nsize=2*nla_l
-    call rpn_comm_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call rpn_comm_allreduce(my_zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    deallocate(my_zsp)
 
     ! 4.4  Check positiveness
     llpb = .false.
@@ -1930,9 +1932,12 @@ CONTAINS
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
 
+    real*8,allocatable :: my_cv_mpiglobal(:)
     integer         :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal,ierr
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
+    allocate(my_cv_mpiglobal(size(cv_mpiglobal)),stat=ierr)
+    my_cv_mpiglobal(:)=0.0d0
 
     cv_mpiglobal(:)=0.0d0
 
@@ -1969,10 +1974,10 @@ CONTAINS
           call flush(6)
 
           ! this is the real part
-          cv_mpiglobal(jdim_mpiglobal)=cv_mpilocal(jdim_mpilocal)
+          my_cv_mpiglobal(jdim_mpiglobal)=cv_mpilocal(jdim_mpilocal)
           ! this is the imag part (only for m<>0)
           if(jm.gt.0) then
-            cv_mpiglobal(jdim_mpiglobal+1)=cv_mpilocal(jdim_mpilocal+1)
+            my_cv_mpiglobal(jdim_mpiglobal+1)=cv_mpilocal(jdim_mpilocal+1)
           endif
 
         enddo
@@ -1980,7 +1985,8 @@ CONTAINS
     enddo
 
     call tmg_start(59,'BHI_COMM')
-    call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call rpn_comm_allreduce(my_cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+    deallocate(my_cv_mpiglobal)
     call tmg_stop(59)
 
   end SUBROUTINE BHI_expandToMPIGlobal
@@ -2086,7 +2092,9 @@ CONTAINS
         enddo
       enddo
 
-      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,'N',zsp2(1,1,0),nksdim2_l,nksdim2_l,nkgdim_l,2*(icount))
+      !bhe CALL DGEMUL(corns(1,1,jn),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,'N',zsp2(1,1,0),nksdim2_l,nksdim2_l,nkgdim_l,2*(icount))
+      CALL DGEMM('N','N',nksdim2_l,2*(icount),nkgdim_l,1.0D0, &
+           corns(1,1,jn),nksdim2_l,zsp(1,1,0),nkgdim_l,0.0D0,zsp2(1,1,0),nksdim2_l)
 
       icount=0
       do jm = mymBeg, jn, mymSkip
@@ -2397,7 +2405,9 @@ CONTAINS
         enddo
       enddo
 
-      CALL DGEMUL(corns(1,1,jn),nksdim2_l,'T',zsp2(1,1,0),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,nkgdim_l,nksdim2_l,2*icount)
+      !bhe CALL DGEMUL(corns(1,1,jn),nksdim2_l,'T',zsp2(1,1,0),nksdim2_l,'N',zsp(1,1,0),nkgdim_l,nkgdim_l,nksdim2_l,2*icount)
+      CALL DGEMM('T','N',nkgdim_l,2*icount,nksdim2_l,1.0D0, &
+                  corns(1,1,jn),nksdim2_l,zsp2(1,1,0),nksdim2_l,0.0D0,zsp(1,1,0),nkgdim_l)
 
       icount=0
       do jm = mymBeg, jn, mymSkip
@@ -2457,7 +2467,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJDIM,'N',PN(0,1),KNDIM+1,KNDIM+1,KNJ,KLEV) 
+      !bhe CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJDIM,'N',PN(0,1),KNDIM+1,KNDIM+1,KNJ,KLEV) 
+      CALL DGEMM('N','N',KNDIM+1,KLEV,KNJ,1.0D0,&
+                 ZWORK(0,1),KTRUNC+1,PF(1,1),KNJDIM,0.0D0,PN(0,1),KNDIM+1) 
 
       DEALLOCATE(ZWORK)
 
@@ -2497,7 +2509,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      !CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      CALL DGEMM('T','N',KNJ,KLEV,KTRUNC+1,1.0d0, &
+           ZWORK(0,1),KTRUNC+1,PN(0,1),KNDIM+1,0.0D0,PF(1,1),KNJDIM) 
 
       DEALLOCATE(ZWORK)
 
@@ -2535,7 +2549,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      !bheCALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      CALL DGEMM('T','N',KNJ,KLEV,KTRUNC+1,1.0D0, &
+           ZWORK(0,1),KTRUNC+1,PN(0,1),KNDIM+1,0.0D0,PF(1,1),KNJDIM) 
 
       DEALLOCATE(ZWORK)
 

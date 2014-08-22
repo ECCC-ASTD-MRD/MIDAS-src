@@ -50,7 +50,7 @@ MODULE BmatrixEnsemble
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
   character(len=256)  :: enspathname,ensfilebasename
-  integer             :: get_max_rss
+  integer ,external   :: get_max_rss
 
   type :: struct_ens
     real*4, allocatable :: member(:,:,:,:)
@@ -257,7 +257,7 @@ CONTAINS
     logical :: lExists
 
     ! standard file variables
-    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
+    integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo(7),ikey
     character(len=2)   :: cltypvar
     character(len=1)   :: clgrtyp
     character(len=4)   :: clnomvar
@@ -573,7 +573,7 @@ CONTAINS
     logical :: lExists
 
     ! standard file variables
-    integer ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
+    integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo(7),ikey
     character(len=2)   :: cltypvar
     character(len=1)   :: clgrtyp
     character(len=4)   :: clnomvar
@@ -870,6 +870,7 @@ CONTAINS
     real*8         :: zgd2(ni_l,nEns,myLatBeg:myLatEnd)
     real*8         :: ra = 6371229.D0
     real*8         :: local_length(nLevEns)
+    real(8),allocatable  :: my_zsp(:,:,:)
     integer        :: rpn_comm_datyp,rpn_comm_oper
 
     allocate(ensLocalCor(0:ntrunc_l,nLevEns),stat=ierr)
@@ -899,6 +900,7 @@ CONTAINS
 
     if(local_length(1).gt.0.0) then
 
+       allocate(my_zsp(nla_l,2,nLevEns),stat=ierr)
       ! Calculate 5th Order Correlation Functions in Physical Space
 
       do jk=1,nLevEns
@@ -927,13 +929,13 @@ CONTAINS
         call gst_setID(gstID)
         call gst_reespe(zsp2,zgd2,nEns,nEns)
         call gst_setToDefaultID
-        zsp(:,:,jk)=zsp2(:,:,1)
+        my_zsp(:,:,jk)=zsp2(:,:,1)
 
       enddo
 
       nsize=nla_l*2*nLevEns
-      call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-
+      call RPN_COMM_allreduce(my_zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+      deallocate(my_zsp) 
       ! Copy over to EnsLocalCor and truncate to NTRUNC
 
       do jk=1,nLevEns
@@ -1054,6 +1056,7 @@ CONTAINS
     real*8  :: cv_mpilocal(:)
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
+    real*8,allocatable  :: my_cv_mpiglobal(:)
 
     integer :: jdim_mpilocal,jdim_mpiglobal,memberIndex,jlev,jla,ierr
 
@@ -1063,7 +1066,8 @@ CONTAINS
     jdim_mpiglobal=0
 
     ! initialize receiving global vector to zero
-    cv_mpiglobal(:)=0.0d0
+    allocate(my_cv_mpiglobal(size(cv_mpiglobal)),stat=ierr)
+    my_cv_mpiglobal(:)=0.0d0
 
     ! assign part of mpiglobal vector from current mpi process
     do memberIndex=1,nEns
@@ -1075,7 +1079,7 @@ CONTAINS
 
           if(memberIndex.ge.myMemBeg.and.memberIndex.le.myMemEnd) then
             jdim_mpilocal = jdim_mpilocal + 1
-            cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+            my_cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
           endif
 
         enddo
@@ -1084,7 +1088,8 @@ CONTAINS
     enddo
 
     ! combine the contributions from all mpi processes
-    call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call rpn_comm_allreduce(my_cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+    deallocate(my_cv_mpiglobal)
 
   end SUBROUTINE BEN_expandToMPIGlobal
 
@@ -1454,10 +1459,13 @@ CONTAINS
       ! Vertical localization (removing OMP increased speed 4x)
       call tmg_start(63,'BEN_VLOC')
 
-      call dgemul(ensLocalVert(1,1),nLevEns,'N',  &
-                  zsp2(1,1,1),nLevEns,'N',  &
-                  zsp3(1,1,1),nLevEns,  &
-                  nLevEns,nLevEns,2*nla_l)
+      !bhe call dgemul(ensLocalVert(1,1),nLevEns,'N',  &
+      !            zsp2(1,1,1),nLevEns,'N',  &
+      !            zsp3(1,1,1),nLevEns,  &
+      !            nLevEns,nLevEns,2*nla_l)
+      call dgemm('N','N',nLevEns,2*nla_l,nLevEns,1.0D0, &
+                  ensLocalVert(1,1),nLevEns, &
+                  zsp2(1,1,1),nLevEns,0.0D0,zsp3(1,1,1),nLevEns)  
 
       do jlev=1,nLevEns
         do jla=1,nla_l
@@ -1499,11 +1507,14 @@ CONTAINS
         enddo
       enddo
 
-      call dgemul(ensLocalVert(1,1),nLevEns,'N',  &
-                  zsp2(1,1,1),nLevEns,'N',  &
-                  zsp3(1,1,1),nLevEns,  &
-                  nLevEns,nLevEns,2*nla_l)
+      !call dgemul(ensLocalVert(1,1),nLevEns,'N',  &
+      !            zsp2(1,1,1),nLevEns,'N',  &
+      !            zsp3(1,1,1),nLevEns,  &
+      !bhe            nLevEns,nLevEns,2*nla_l)
 
+      call dgemm ('N','N',nLevEns,2*nla_l,nLevEns,1.0D0, &
+                  ensLocalVert(1,1),nLevEns, zsp2(1,1,1),nLevEns,0.0D0,&
+                  zsp3(1,1,1),nLevEns) 
       do jlev=1,nLevEns
         do jla=1,nla_l
           zsp_all(jla,1,memberIndex,jlev)=zsp3(jlev,1,jla)

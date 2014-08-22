@@ -67,7 +67,6 @@ integer :: ichan (NIR)
 integer :: joff,ioffset
 type ( transmission_Type )  :: transmission
 type ( radiance_type )      :: radiancedata_d
-integer :: nchannels
 integer :: asw,nlevels,errorstatus,io
 !***********************************************
 

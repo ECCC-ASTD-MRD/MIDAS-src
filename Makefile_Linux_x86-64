@@ -1,0 +1,23 @@
+#======== Set for Intel SP2013 =============
+LIBSYS = lapack blas hpcsperf    
+LIBRMN = rmn_014 
+LIBMPI = rpn_comm_40509   
+MPI_STUBS = rpn_commstubs_40509 rpn_comm_40509
+LIBEXTRA =  
+DEBUG =  
+LIBAPPL = rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip modelutils_base $(LIBMPI) $(LIBEXTRA)   
+#ROOT_RTTOV = /users/dor/arma/bhe/dataords/RTTOV-10/Intelsp13/v10/trunk_O0
+ROOT_RTTOV = /users/dor/arma/bhe/dataords/RTTOV-10/Intelsp13/v10/trunk_O1_mpif90
+INC_RTTOV = $(ROOT_RTTOV)/mod $(ROOT_RTTOV)/include
+LIB_RTTOV = $(ROOT_RTTOV)/lib
+#INC_VGRID = /users/dor/arma/bhe/dataords/vgrid/latest_on_20140115/trunk/lib
+#INC_VGRID = /users/dor/arma/bhe/dataords/vgrid/test_intel2013sp1_3.9.0/release-3.9.0/lib
+#LIB_VGRID = /users/dor/arma/bhe/dataords/vgrid/latest_on_20140115/trunk/lib
+#LIB_VGRID = /users/dor/arma/bhe/dataords/vgrid/test_intel2013sp1_3.9.0/release-3.9.0/lib
+#INC_BURP = /users/dor/arma/bhe/dataords/burp_module/Intelsp2013/trunk/include/Linux_x86-64/intel13sp1
+#LIB_BURP = /users/dor/arma/bhe/dataords/burp_module/Intelsp2013/trunk/lib/Linux_x86-64/intel13sp1
+INCLUDES = $(PWD)/shared $(PWD)/modulopt $(INC_RTTOV) $(INC_VGRID)  $(INC_BURP)  
+LIBPATH = $(PWD)/modulopt $(PWD)/shared $(LIB_RTTOV)  $(LIB_VGRID) $(LIB_BURP)  
+SUBOBJS = ./modulopt/*.o ./shared/*.o
+
+
