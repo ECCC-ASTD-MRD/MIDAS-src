@@ -113,8 +113,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
       REAL*8    DLMEAN, DLMEAS, deltaLon
       REAL*8    DLDX, DLDY, DLW1, DLW2, DLW3, DLW4, latObs, lonObs
 
-      !real*8  zfield(0:(statevector%ni+2),1:klev,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
-      real*8,allocatable ::  zfield(:,:,:)
+      real*8  zfield(0:(statevector%ni+2),1:klev,(statevector%myLatBeg-1):(statevector%myLatEnd+1))
       real*8, pointer :: column_ptr(:,:)
       real*8, pointer :: field_ptr(:,:,:,:)
 
@@ -124,7 +123,6 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
       column_ptr => col_getAllColumns(lcolumn,varName)
       column_ptr(:,:) = 0.0d0
 
-      allocate(zfield(0:(statevector%ni+2),1:klev,(statevector%myLatBeg-1):(statevector%myLatEnd+1)) ) 
       do jstep=1,statevector%numStep
 
         zfield(1:STATEVECTOR%NI,1:klev,statevector%myLatBeg:myLatP1)=  &
@@ -240,7 +238,7 @@ subroutine oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)
         END DO
 
       ENDDO ! JSTEP
-      deallocate(zfield) 
+
       RETURN
       END subroutine gd2mvo
 

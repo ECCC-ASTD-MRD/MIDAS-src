@@ -42,8 +42,7 @@
       CHARACTER(len=1) :: CLGRTYP
       CHARACTER(len=4) :: CLNOMVAR
       CHARACTER(len=12) :: CLETIKET
-
-      INTEGER,EXTERNAL :: FNOM,FSTFRM,FCLOS,FSTOUV,FSTINF
+      INTEGER FNOM,FSTFRM,FCLOS,FSTOUV,FSTINF
 
       type(struct_gsv) :: statevectorg
       type(struct_columnData) :: lcolumnhr

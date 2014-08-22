@@ -323,7 +323,6 @@ MODULE gridStateVector_mod
     type(struct_gsv) :: statevector_in
     integer :: nsize,ierr,status
 
-    if(mpi_nprocs == 1) return 
     nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
 
     if(mpi_myid.eq.(mpi_nprocs-1)) then
@@ -354,7 +353,6 @@ MODULE gridStateVector_mod
     real*8 :: latCircle(statevector_in%ni,statevector_in%nk,1,statevector_in%numStep)
 
     nsize=statevector_in%ni*statevector_in%nk*statevector_in%numStep
-    if(mpi_nprocs == 1) return 
 
     if(mpi_myid.eq.0) then
       call rpn_comm_send(statevector_in%gd(:,:,(statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &

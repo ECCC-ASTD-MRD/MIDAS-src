@@ -16,6 +16,7 @@ contains
 
   integer function i_from_index(index)
     integer, intent(in) :: index
+    integer             :: i_from_index
     integer i
 
     i_from_index = -1

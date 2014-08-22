@@ -74,7 +74,6 @@ C
 #include "comgpsro.cdk"
 
       WRITE(*,*)'ENTER SETERRGPSRO'
-      flush(6) 
 C
 C     * 1.  Initializations
 C     *     ---------------
@@ -99,9 +98,7 @@ C
 
       vco_trl => col_getVco(lcolumnhr)
       stat = 0
-      allocate(IP1(NGPSLEV) ) 
       stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
-      allocate(rDP(NGPSLEV)) 
 C
 C     Loop over all header indices of the 'RO' family:
 C
@@ -291,9 +288,6 @@ C
          ENDIF
       ENDDO HEADER
 
-      deallocate(IP1)
-      deallocate(rDP)
-      
       deallocate( RSTV )
       deallocate( ZERR )
       deallocate( ZOFF )

@@ -26,6 +26,7 @@ contains
 
   integer function iProfile_from_index(index)
     integer, intent(in) :: index
+    integer             :: iProfile_from_index
     integer i
 
     iProfile_from_index=-1

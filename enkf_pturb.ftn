@@ -245,5 +245,5 @@ C*    0. MPI, tmg finalize
       write(*,*) ' ENKF_PTURB ENDS'
       write(*,*) ' --------------------------------'
 
-      !return
+      return
       end
