@@ -268,13 +268,15 @@ CONTAINS
     else
 
        ! LAM mode
-       call lst_Setup( lst_ben,                              & ! OUT
+       call lst_Setup( lst_ben,                          & ! OUT
                        ni, nj, hco_ben % dlon, ntrunc,   & ! IN
-                       'LatLev', nEns )                        ! IN
+                       'LatLonMLev', nEns )                ! IN
 
        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
-       nphase = lst_ben % nphase
-       nla_mpilocal  = lst_ben % nla !???
+       nphase       = lst_ben % nphase
+       nla_mpilocal = lst_ben % nla
+       nla_mpiglobal= nla_mpilocal !!!! Because the variables in the global-mode code 
+                                   !    still uses the global size of nla
 
     endif
 
@@ -289,13 +291,16 @@ CONTAINS
 
     call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
 
-    ! all total wavenumbers "n" on each mpi task
-    mynBeg = 0
-    mynEnd = ntrunc
-    mynSkip = 1
-    ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal (only split by m)
-    call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-    call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+    if (hco_ben % global) then
+      ! all total wavenumbers "n" on each mpi task
+      mynBeg = 0
+      mynEnd = ntrunc
+      mynSkip = 1
+
+      ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal (only split by m)
+      call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+      call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+    end if
 
     !- 2.5 Domain Partionning
     call mpivar_setup_latbands(nj,latPerPE,myLatBeg,myLatEnd)
@@ -344,7 +349,9 @@ CONTAINS
       enddo
     else
       cvDim_mpiglobal = lst_ben % nlaGlobal * nphase * nLevEns_M * nEns
-      cvDim_mpilocal  = lst_ben % nla       * nphase * nLevEns_M * myMemCount !???
+      cvDim_mpilocal  = nla_mpilocal        * nphase * nLevEns_M * myMemCount
+      print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben % nlaGlobal, nphase, nLevEns_M, nEns
+      print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, myMemCount
     endif
     cvDim_out = cvDim_mpilocal
 
@@ -1535,54 +1542,94 @@ CONTAINS
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
-    real(8)  :: cv_mpilocal(:)
-    real(8)  :: cv_mpiglobal(:)
-    integer :: cvDim_mpilocal_out
+    real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
+    real(8), intent(in)  :: cv_mpiglobal(cvDim_mpiglobal)
+    integer, intent(out) :: cvDim_mpilocal_out
 
-    integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal
-    integer :: jm, jn, memberIndex, jlev, ierr
+    integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpilocal, ila_mpiglobal
+    integer :: jm, jn, memberIndex, jlev, ierr, p
 
     cvDim_mpilocal_out = cvDim_mpilocal
 
     ! assign part of mpiglobal vector from current mpi process
-    jdim_mpilocal = 0
-    do memberIndex = myMemBeg, myMemEnd
 
-      do jlev = 1, nLevEns_M
-        do jm = mymBeg, mymEnd, mymSkip
-          do jn = jm, ntrunc
+    if (hco_ben % global) then
 
-            ! figure out index into global control vector
-            ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-            if(jm.eq.0) then
-              ! for jm=0 only real part
-              jdim_mpiglobal = ila_mpiglobal
-            else
-              ! for jm>0 both real and imaginary part
-              jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
-            endif
-            ! add offset for level
-            jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-            ! add offset for member index
-            jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
+      ! Global
+      jdim_mpilocal = 0
+      do memberIndex = myMemBeg, myMemEnd
 
-            if(jm.eq.0) then
-              ! controlVector only contain real part for jm=0
-              jdim_mpilocal = jdim_mpilocal + 1
-              cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-            else
-              ! controlVector contains real and imag parts for jm>0
-              jdim_mpilocal = jdim_mpilocal + 1
-              cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-              jdim_mpilocal = jdim_mpilocal + 1
-              cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal+1)
-            endif
+        do jlev = 1, nLevEns_M
+          do jm = mymBeg, mymEnd, mymSkip
+            do jn = jm, ntrunc
 
+              ! figure out index into global control vector
+              ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+              if(jm.eq.0) then
+                ! for jm=0 only real part
+                jdim_mpiglobal = ila_mpiglobal
+              else
+                ! for jm>0 both real and imaginary part
+                jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+              endif
+              ! add offset for level
+              jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+              ! add offset for member index
+              jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
+
+              if(jm.eq.0) then
+                ! controlVector only contain real part for jm=0
+                jdim_mpilocal = jdim_mpilocal + 1
+                cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+              else
+                ! controlVector contains real and imag parts for jm>0
+                jdim_mpilocal = jdim_mpilocal + 1
+                cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+                jdim_mpilocal = jdim_mpilocal + 1
+                cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal+1)
+              endif
+
+            enddo
           enddo
         enddo
+
       enddo
 
-    enddo
+    else
+       
+      ! LAM
+
+      do memberIndex = myMemBeg, myMemEnd
+         do jlev = 1, nLevEns_M
+            do ila_mpilocal = 1, lst_ben%nla
+               do p = 1, lst_ben%nphase
+
+                  jdim_mpilocal = ( (memberIndex-myMemBeg) * nLevEns_M * lst_ben%nla * lst_ben%nphase ) + &
+                                                            ( (jlev-1) * lst_ben%nla * lst_ben%nphase ) + &
+                                                                  ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+
+                  ila_mpiglobal = lst_ben%ilaGlobal(ila_mpilocal)
+                  jdim_mpiglobal = ( (memberIndex-1) * nLevEns_M * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                      ( (jlev-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                                 ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
+  
+                  if ( jdim_mpilocal  > cvDim_mpilocal ) then 
+                     write(*,*) 'BEN_reduceToMPILocal: jdim_mpilocal > cvDim_mpilocal ',memberIndex,jlev,ila_mpilocal,p
+                     call abort3d('BEN_reduceToMPILocal')
+                  end if
+                  if ( jdim_mpiglobal > cvDim_mpiglobal) then
+                     write(*,*) 'BEN_reduceToMPILocal: jdim_mpiglobal > cvDim_mpiglobal ',memberIndex,jlev,ila_mpilocal,p,ila_mpiglobal
+                     call abort3d('BEN_reduceToMPILocal')
+                  end if
+                  
+                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+
+               end do
+            end do
+         end do
+      end do
+
+    end if
 
   END SUBROUTINE BEN_reduceToMPILocal
 
@@ -1591,108 +1638,152 @@ CONTAINS
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
-    real(8)  :: cv_mpilocal(:)
-    real(8)  :: cv_mpiglobal(:)
-    integer :: cvDim_mpiglobal_out
+
+    real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
+    real(8), intent(out) :: cv_mpiglobal(cvDim_mpiglobal)
+    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(8), allocatable :: cv_maxmpilocal(:)
-    real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
+    real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer, allocatable :: allMemBeg(:),allMemEnd(:)
-    integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal, cvDim_maxmpilocal
-    integer :: jm, jn, jproc, memberIndex, jlev, ierr
+    integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
+    integer :: jm, jn, jproc, memberIndex, jlev, ierr, p
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
 
     ! gather all local control vectors onto mpi task 0
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
-    allocate(cv_maxmpilocal(cvDim_maxmpilocal))
-    if(mpi_myid.eq.0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if (hco_ben % global) then
 
-    cv_maxmpilocal(:) = 0.0d0
-    cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
+       ! Global
+       call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
-    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
-                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
+       allocate(cv_maxmpilocal(cvDim_maxmpilocal))
+       if(mpi_myid.eq.0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
-    deallocate(cv_maxmpilocal)
+       cv_maxmpilocal(:) = 0.0d0
+       cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    allocate(allMemBeg(mpi_nprocs))
-    call rpn_comm_allgather(myMemBeg,1,"mpi_integer",       &
-                            allMemBeg,1,"mpi_integer","GRID",ierr)
-    allocate(allMemEnd(mpi_nprocs))
-    call rpn_comm_allgather(myMemEnd,1,"mpi_integer",       &
-                            allMemEnd,1,"mpi_integer","GRID",ierr)
+       call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
+                            cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
 
-    allocate(allmBeg(mpi_nprocs))
-    call rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
-                            allmBeg,1,"mpi_integer","GRID",ierr)
-    allocate(allmEnd(mpi_nprocs))
-    call rpn_comm_allgather(mymEnd,1,"mpi_integer",       &
-                            allmEnd,1,"mpi_integer","GRID",ierr)
-    allocate(allmSkip(mpi_nprocs))
-    call rpn_comm_allgather(mymSkip,1,"mpi_integer",       &
-                            allmSkip,1,"mpi_integer","GRID",ierr)
+       deallocate(cv_maxmpilocal)
 
-    ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
-    if(mpi_myid.eq.0) then
-      cv_mpiglobal(:) = 0.0d0
+       allocate(allMemBeg(mpi_nprocs))
+       call rpn_comm_allgather(myMemBeg,1,"mpi_integer",       &
+                               allMemBeg,1,"mpi_integer","GRID",ierr)
+       allocate(allMemEnd(mpi_nprocs))
+       call rpn_comm_allgather(myMemEnd,1,"mpi_integer",       &
+                               allMemEnd,1,"mpi_integer","GRID",ierr)
+
+       allocate(allmBeg(mpi_nprocs))
+       call rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
+                               allmBeg,1,"mpi_integer","GRID",ierr)
+       allocate(allmEnd(mpi_nprocs))
+       call rpn_comm_allgather(mymEnd,1,"mpi_integer",       &
+                               allmEnd,1,"mpi_integer","GRID",ierr)
+       allocate(allmSkip(mpi_nprocs))
+       call rpn_comm_allgather(mymSkip,1,"mpi_integer",       &
+                               allmSkip,1,"mpi_integer","GRID",ierr)
+
+       ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
+       if(mpi_myid.eq.0) then
+         cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,memberIndex,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
-        jdim_mpilocal = 0
-        do memberIndex = allMemBeg(jproc+1), allMemEnd(jproc+1)
+         do jproc = 0, (mpi_nprocs-1)
+           jdim_mpilocal = 0
+           do memberIndex = allMemBeg(jproc+1), allMemEnd(jproc+1)
 
-          do jlev = 1, nLevEns_M
-            do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
-              do jn = jm, ntrunc
+             do jlev = 1, nLevEns_M
+               do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+                 do jn = jm, ntrunc
 
-                ! figure out index into global control vector
-                ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-                if(jm.eq.0) then
-                  ! for jm=0 only real part
-                  jdim_mpiglobal = ila_mpiglobal
-                else
-                  ! for jm>0 both real and imaginary part
-                  jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
-                endif
-                ! add offset for level
-                jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-                ! add offset for member index
-                jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
+                   ! figure out index into global control vector
+                   ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+                   if(jm.eq.0) then
+                     ! for jm=0 only real part
+                     jdim_mpiglobal = ila_mpiglobal
+                   else
+                     ! for jm>0 both real and imaginary part
+                     jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                   endif
+                   ! add offset for level
+                   jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+                   ! add offset for member index
+                   jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
 
-                ! index into local control vector
-                if(jm.eq.0) then
-                  ! only real component for jm=0
-                  jdim_mpilocal = jdim_mpilocal + 1
-                  cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
-                else
-                  ! both real and imaginary components for jm>0
-                  jdim_mpilocal = jdim_mpilocal + 1
-                  cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
-                  jdim_mpilocal = jdim_mpilocal + 1
-                  cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
-                endif
+                   ! index into local control vector
+                   if(jm.eq.0) then
+                     ! only real component for jm=0
+                     jdim_mpilocal = jdim_mpilocal + 1
+                     cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                   else
+                     ! both real and imaginary components for jm>0
+                     jdim_mpilocal = jdim_mpilocal + 1
+                     cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                     jdim_mpilocal = jdim_mpilocal + 1
+                     cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                   endif
 
-                if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
-                  write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+                   if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
+                     write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
 
-              enddo
-            enddo
-          enddo
-        enddo
-      enddo ! jproc
+                 enddo
+               enddo
+             enddo
+           enddo
+         enddo ! jproc
 !$OMP END PARALLEL DO
 
-    endif ! myid .eq. 0 
+      endif ! myid .eq. 0 
 
-    deallocate(allMemBeg)
-    deallocate(allMemEnd)
-    deallocate(allmBeg)
-    deallocate(allmEnd)
-    deallocate(allmSkip)
-    if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
+      deallocate(allMemBeg)
+      deallocate(allMemEnd)
+      deallocate(allmBeg)
+      deallocate(allmEnd)
+      deallocate(allmSkip)
+      if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
+
+    else
+
+      ! LAM
+      cv_mpiglobal(:) = 0.0d0
+
+      do memberIndex = myMemBeg, myMemEnd
+         do jlev = 1, nLevEns_M
+            do ila_mpilocal = 1, lst_ben%nla
+               do p = 1, lst_ben%nphase
+
+                  jdim_mpilocal = ( (memberIndex-myMemBeg) * nLevEns_M * lst_ben%nla * lst_ben%nphase ) + &
+                                                            ( (jlev-1) * lst_ben%nla * lst_ben%nphase ) + &
+                                                                  ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+
+                  ila_mpiglobal = lst_ben%ilaGlobal(ila_mpilocal)
+                  jdim_mpiglobal = ( (memberIndex-1) * nLevEns_M * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                      ( (jlev-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                                 ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
+  
+                  if ( jdim_mpilocal  > cvDim_mpilocal ) then 
+                     write(*,*) 'BEN_expandToMPIGlobal: jdim_mpilocal > cvDim_mpilocal ',memberIndex,jlev,ila_mpilocal,p
+                     call abort3d('BEN_expandToMPIGlobal')
+                  end if
+                  if ( jdim_mpiglobal > cvDim_mpiglobal) then
+                     write(*,*) 'BEN_expandToMPIGlobal: jdim_mpiglobal > cvDim_mpiglobal ',memberIndex,jlev,ila_mpilocal,p,ila_mpiglobal
+                     call abort3d('BEN_expandToMPIGlobal')
+                  end if
+            
+                  cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+
+               end do
+            end do
+         end do
+      end do
+
+      call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+
+    end if
 
   end SUBROUTINE BEN_expandToMPIGlobal
 
@@ -1792,26 +1883,13 @@ CONTAINS
 !$OMP END PARALLEL
         deallocate(gd_out)
       else
-        allocate( gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns) )
-        kind = 'SpectralToGridPoint'
-        call lst_VarTransform( lst_ben % id,                & ! IN
-                               zsp1(:,:,myMemBeg:myMemEnd), & ! IN
-                               gd_out,                      & ! OUT (i,j,k) !!!
-                               kind, nEns )                   ! IN
 
-        !- reordering because of gd_out(i,j,k)
-!$OMP PARALLEL
-!$OMP DO PRIVATE(memberIndex,jj,ji)        
-        do memberIndex = 1, nEns
-          do jj = myLatBeg, myLatEnd
-            do ji = myLonBeg, myLonEnd
-              ensAmplitude(ji,jj,memberIndex) = gd_out(ji,jj,memberIndex)
-            enddo
-          enddo
-        enddo
-!$OMP END DO
-!$OMP END PARALLEL
-        deallocate(gd_out)
+        kind = 'SpectralToGridPoint'
+        call lst_VarTransform( lst_ben % id,  & ! IN
+                               zsp1,          & ! IN
+                               ensAmplitude,  & ! OUT (i,j,k) !!!
+                               kind, nEns )     ! IN
+
       endif
 
       call tmg_stop(64)
@@ -1990,27 +2068,13 @@ CONTAINS
         deallocate(gd_in)
 
       else
-        allocate( gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns) )
-
-        !- reordering because of gd_in(i,j,k)
-!$OMP PARALLEL
-!$OMP DO PRIVATE(memberIndex,jj,ji)        
-        do memberIndex = 1, nEns
-          do jj = myLatBeg, myLatEnd
-            do ji = myLonBeg, myLonEnd
-              gd_in(ji,jj,memberIndex) = ensAmplitude(ji,jj,memberIndex)
-            enddo
-          enddo
-        enddo
-!$OMP END DO
-!$OMP END PARALLEL
 
         kind = 'GridPointToSpectral'
-        call lst_VarTransform( lst_ben % id,                & ! IN
-                               zsp1(:,:,myMemBeg:myMemEnd), & ! OUT
-                               gd_in,                       & ! IN (i,j,k) !!!
-                               kind, nEns )                   ! IN
-        deallocate(gd_in)
+        call lst_VarTransform( lst_ben % id, & ! IN
+                               zsp1,         & ! OUT
+                               ensAmplitude, & ! IN (i,j,k) !!!
+                               kind, nEns )    ! IN
+
       endif
 
       zsp_all(jlev,:,:,:) = zsp1(:,:,:)

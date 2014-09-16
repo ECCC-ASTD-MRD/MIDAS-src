@@ -25,7 +25,7 @@ module LamSpectralTransform_mod
   public :: struct_lst
   ! public procedures
   public :: lst_Setup, lst_Laplacian, lst_VarTransform
-  public :: lst_ReshapeTrunc
+  public :: lst_ReshapeTrunc ! only for standalone tests
 
   type :: struct_lst
      integer              :: id              ! Transform ID number
@@ -58,15 +58,21 @@ module LamSpectralTransform_mod
      integer                         :: nla
      integer                         :: nlaGlobal
      integer                         :: mymBeg, mymEnd, mymSkip, mymCount, maxmCount
+     integer                         :: mynBeg, mynEnd, mynSkip, mynCount, maxnCount
      integer, allocatable            :: nla_Index(:,:)
      real(8), allocatable            :: lapxy(:)
      real(8), allocatable            :: ilapxy(:)
      integer, allocatable            :: allmBeg(:), allmEnd(:), allmSkip(:)
      integer, allocatable            :: mymIndex(:)
+     integer, allocatable            :: allnBeg(:), allnEnd(:), allnSkip(:)
+     integer, allocatable            :: mynIndex(:)
      logical                         :: allocated = .false.
      integer                         :: latPerPE, myLatBeg, myLatEnd
+     integer                         :: lonPerPE, myLonBeg, myLonEnd
      integer                         :: myLevBeg, myLevEnd, myLevCount, maxLevCount
-     integer, allocatable            :: allLevBeg(:) ,allLevEnd(:)
+     integer, allocatable            :: allLatBeg(:), allLatEnd(:)
+     integer, allocatable            :: allLonBeg(:), allLonEnd(:)
+     integer, allocatable            :: allLevBeg(:), allLevEnd(:)
      character(len=10)               :: MpiMode
   end type struct_lst_local
 
@@ -121,18 +127,16 @@ contains
     nLstAlreadyAllocated = nLstAlreadyAllocated + 1
     if (nLstAlreadyAllocated <= nMaxLst) then
        id = nLstAlreadyAllocated
-       lst_out % id = id
-       print*
-       print*,"lst_setup: Setting transform id = ",id
+       lst_out%id = id
+       write(*,*)
+       write(*,*) "lst_setup: Setting transform id = ",id
     else
-       print*
-       print*,"lst_setup: Too many Spectral Transforms!!!"
-       stop
+       call abort3d('lst_setup: Too many Spectral Transforms!!!')
     end if
 
-    lst(id) % ni = ni_in
-    lst(id) % nj = nj_in
-    lst(id) % ktrunc = ktrunc_in
+    lst(id)%ni = ni_in
+    lst(id)%nj = nj_in
+    lst(id)%ktrunc = ktrunc_in
 
     !  1.1 Check grid dimensions and set padding for the RPN DFT routines
 
@@ -144,232 +148,321 @@ contains
     ! X X X X X X X O O
     ! X X X X X X X O O
 
-    if (mod(lst(id) % ni,2) /= 0 .and. mod(lst(id) % nj,2) /= 0) then
+    if (mod(lst(id)%ni,2) /= 0 .and. mod(lst(id)%nj,2) /= 0) then
        write(6,*) ' The regular Sin & Cos Transform requires that', &
                   ' dimensions be EVEN. Fields MUST be periodic' , &
                   ' but the last colum and row MUST NOT BE a '   , &
                   ' repetition of the first colum and row. '
-       stop
+       call abort3d('lst_setup')
     end if
 
-    nfact = lst(id) % ni
+    nfact = lst(id)%ni
     call ngfft( nfact ) ! INOUT
-    if ( nfact /= lst(id) % ni ) then
+    if ( nfact /= lst(id)%ni ) then
        write(6,*) 'Error: A fast transform cannot be used in X'
-       write(6,6130) lst(id) % ni, nfact
-       stop
+       write(6,6130) lst(id)%ni, nfact
+       call abort3d('lst_setup')
     end if
 
-    nfact = lst(id) % nj
+    nfact = lst(id)%nj
     call ngfft( nfact ) ! INOUT
-    if ( nfact /= lst(id) % nj ) then
+    if ( nfact /= lst(id)%nj ) then
        write(6,*) 'Error: A fast transform cannot be used in Y'
-       write(6,6140) lst(id) % nj, nfact
-       stop
+       write(6,6140) lst(id)%nj, nfact
+       call abort3d('lst_setup')
     end if
 
 6130 FORMAT('N = ni = ', I4,' the nearest factorizable N = ',I4)
 6140 FORMAT('N = nj = ', I4,' the nearest factorizable N = ',I4)
 
     !  1.2 Set the number of phases
-    lst_out % nphase = nphase
+    lst_out%nphase = nphase
 
     !- 1.3 Maximum of integer wavenumbers in x and y directions
-    lst(id) % mmax = lst(id) % ni/2
-    lst(id) % nmax = lst(id) % nj/2
+    lst(id)%mmax = lst(id)%ni/2
+    lst(id)%nmax = lst(id)%nj/2
 
-    if      ( lst(id) % ktrunc > nint(sqrt(real(lst(id) % mmax)**2+real(lst(id) % nmax)**2)) ) then
+    if      ( lst(id)%ktrunc > nint(sqrt(real(lst(id)%mmax)**2+real(lst(id)%nmax)**2)) ) then
       write(6,*)
       write(6,*) 'lst_Setup: Warning: Truncation is larger than sqrt(mmax^2+nmax^2)'
       write(6,*) '           NO TRUNCATION will be applied'
-    else if ( lst(id) % ktrunc > min(lst(id) % mmax,lst(id) % nmax) ) then
+    else if ( lst(id)%ktrunc > min(lst(id)%mmax,lst(id)%nmax) ) then
       write(6,*)
       write(6,*) 'lst_Setup: Warning: Truncation is larger than min(mmax,nmax)'
       write(6,*) '           TRUNCATION will be applied only above mmax and/or nmax'
     else
       write(6,*)
-      write(6,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst(id) % ktrunc
+      write(6,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst(id)%ktrunc
     end if
 
     !- 1.4 MPI Strategy
 
-    lst(id) % MpiMode = MpiMode
-    select case ( trim(lst(id) % MpiMode) )
+    lst(id)%MpiMode = MpiMode
+    select case ( trim(lst(id)%MpiMode) )
     case ('NoMpi')
-       ! range of lats handled by this processor (ALL)
-       lst(id) % latPerPE   = lst(id) % nj
-       lst(id) % myLatBeg   = 1
-       lst(id) % myLatEnd   = lst(id) % nj
+       !- 1.4.1 No MPI
 
-       ! range of m handled by this processor (ALL)
-       lst(id) % mymBeg     = 0
-       lst(id) % mymEnd     = lst(id) % mmax
-       lst(id) % mymSkip    = 1
-       lst(id) % mymCount   = lst(id) % mmax + 1
+       ! range of LONS handled by this processor (ALL) in GRIDPOINT SPACE
+       lst(id)%lonPerPE   = lst(id)%ni
+       lst(id)%myLonBeg   = 1
+       lst(id)%myLonEnd   = lst(id)%ni
 
-       ! set a dummy range of levels handled by this processor
-       lst(id) % myLevBeg   = -1
-       lst(id) % myLevEnd   = -1
-       lst(id) % myLevCount = 0
+       ! range of LATS handled by this processor (ALL) in GRIDPOINT SPACE
+       lst(id)%latPerPE   = lst(id)%nj
+       lst(id)%myLatBeg   = 1
+       lst(id)%myLatEnd   = lst(id)%nj
 
-    case ('LatM')
-       ! range of lats handled by this processor
-       call mpivar_setup_latbands( lst(id) % nj,                                           & ! IN
-                                   lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
+       ! range of M handled by this processor (ALL) in SPECTRAL SPACE
+       lst(id)%mymBeg     = 0
+       lst(id)%mymEnd     = lst(id)%mmax
+       lst(id)%mymSkip    = 1
+       lst(id)%mymCount   = lst(id)%mmax + 1
 
-       ! range of m handled by this processor
-       call mpivar_setup_m( lst(id) % mmax,                                                           & ! IN
-                            lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip, lst(id) % mymCount ) ! OUT
+       ! range of N handled by this processor (ALL) in SPECTRAL SPACE
+       lst(id)%mynBeg     = 0
+       lst(id)%mynEnd     = lst(id)%nmax
+       lst(id)%mynSkip    = 1
+       lst(id)%mynCount   = lst(id)%nmax + 1
 
-       ! set a dummy range of levels handled by this processor
-       lst(id) % myLevBeg   = -1
-       lst(id) % myLevEnd   = -1
-       lst(id) % myLevCount = 0
+       ! set a dummy range of LEVELS handled by this processor
+       lst(id)%myLevBeg   = -1
+       lst(id)%myLevEnd   = -1
+       lst(id)%myLevCount = 0
 
-    case ('LatLev')   
-       ! range of lats handled by this processor
-       call mpivar_setup_latbands( lst(id) % nj,                                           & ! IN
-                                   lst(id) % latPerPE,lst(id) % myLatBeg,lst(id) % myLatEnd) ! OUT
+    case ('LatLonMN')
+       !- 1.4.2 MPI 2D: Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)
 
-       ! range of m handled by this processor (ALL)
-       lst(id) % mymBeg     = 0
-       lst(id) % mymEnd     = lst(id) % mmax
-       lst(id) % mymSkip    = 1
-       lst(id) % mymCount   = lst(id) % mmax + 1
+       ! range of LONS handled by this processor in GRIDPOINT SPACE
+       call mpivar_setup_lonbands( lst(id)%ni,                                       & ! IN
+                                   lst(id)%lonPerPE,lst(id)%myLonBeg,lst(id)%myLonEnd) ! OUT
 
-       ! range of levels handled by this processor
+       ! range of LATS handled by this processor in GRIDPOINT SPACE
+       call mpivar_setup_latbands( lst(id)%nj,                                       & ! IN
+                                   lst(id)%latPerPE,lst(id)%myLatBeg,lst(id)%myLatEnd) ! OUT
+
+       ! range of M handled by this processor in SPECTRAL SPACE
+       call mpivar_setup_m( lst(id)%mmax,                                                     & ! IN
+                            lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip, lst(id)%mymCount ) ! OUT
+
+       ! range of N handled by this processor in SPECTRAL SPACE
+       call mpivar_setup_n( lst(id)%nmax,                                                     & ! IN
+                            lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip, lst(id)%mynCount ) ! OUT
+
+       ! range of LEVELS TEMPORARILY handled by this processor DURING THE SPECTRAL TRANSFORM
        if ( .not.present(maxlevels_in) ) then
-        write(*,*)
-        write(*,*) 'lst_setup: ERROR, number of levels must be specified with MpiMode LatLev'
-        stop
-      end if
-      call mpivar_setup_levels_npey( maxlevels_in,                                              & ! IN
-                                     lst(id) % myLevBeg,lst(id) % myLevEnd,lst(id) % myLevCount ) ! OUT
+          call abort3d('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
+       end if
+            ! 2D MPI decomposition: split levels across npex
+       call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
+                                      lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
+
+       case ('LatLonMLev')
+       !- 1.4.3 MPI 2D: Distribution of lon/lat tiles (gridpoint space) and levels/m (spectral space)
+
+       ! range of LONS handled by this processor in GRIDPOINT SPACE
+       call mpivar_setup_lonbands( lst(id)%ni,                                       & ! IN
+                                   lst(id)%lonPerPE,lst(id)%myLonBeg,lst(id)%myLonEnd) ! OUT
+
+       ! range of LATS handled by this processor in GRIDPOINT SPACE
+       call mpivar_setup_latbands( lst(id)%nj,                                       & ! IN
+                                   lst(id)%latPerPE,lst(id)%myLatBeg,lst(id)%myLatEnd) ! OUT
+
+       ! range of M handled by this processor in SPECTRAL SPACE
+       call mpivar_setup_m( lst(id)%mmax,                                                     & ! IN
+                            lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip, lst(id)%mymCount ) ! OUT
+
+       ! range of N handled by this processor (ALL) in SPECTRAL SPACE 
+       lst(id)%mynBeg     = 0
+       lst(id)%mynEnd     = lst(id)%nmax
+       lst(id)%mynSkip    = 1
+       lst(id)%mynCount   = lst(id)%nmax + 1
+
+       ! range of LEVELS handled by this processor in SPECTRAL SPACE
+       if ( .not.present(maxlevels_in) ) then
+          call abort3d('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMLev')
+       end if
+            ! 2D MPI decomposition: split levels across npex
+       call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
+                                      lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
 
     case default
-       print*
-       print*,'Error: MpiMode Unknown ', trim(MpiMode)
-       stop
+       write(*,*)
+       write(*,*) 'Error: MpiMode Unknown ', trim(MpiMode)
+       call abort3d('lst_setup')
     end select
 
-    print*
-    print*,' Je suis le processeur ', mpi_myid+1, ' sur un total de ', mpi_nprocs
-    print*,'          mband info = ', lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip, lst(id) % mymCount 
-    print*,'          level info = ', lst(id) % myLevBeg, lst(id) % myLevEnd, lst(id) % myLevCount
-    
-    allocate(lst(id) % mymIndex(lst(id) %mymBeg:lst(id) %mymEnd))
-    lst(id) % mymIndex(:)=0
-    do m = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
-      if (m == lst(id) % mymBeg ) then
-        lst(id) % mymIndex(m) = 1
+    write(*,*)
+    write(*,*) ' I am processor ', mpi_myid+1, ' on a total of ', mpi_nprocs
+    write(*,*) '          mband info = ', lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip, lst(id)%mymCount
+    write(*,*) '          nband info = ', lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip, lst(id)%mynCount
+    write(*,*) '          level info = ', lst(id)%myLevBeg, lst(id)%myLevEnd, lst(id)%myLevCount
+
+    ! Set M index
+    allocate(lst(id)%mymIndex(lst(id)%mymBeg:lst(id)%mymEnd))
+    lst(id)%mymIndex(:)=0
+    write(*,*)
+    do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+      if (m == lst(id)%mymBeg ) then
+        lst(id)%mymIndex(m) = 1
       else
-        lst(id) % mymIndex(m) = lst(id) % mymIndex(m-lst(id) % mymSkip) + 1
+        lst(id)%mymIndex(m) = lst(id)%mymIndex(m-lst(id)%mymSkip) + 1
       end if
-      write(*,*) 'lst_setup: mymIndex(',m,')=',lst(id) % mymIndex(m)
+      !write(*,*) 'lst_setup: mymIndex(',m,')=',lst(id)%mymIndex(m)
+    end do
+    
+    ! Set N index
+    allocate(lst(id)%mynIndex(lst(id)%mynBeg:lst(id)%mynEnd))
+    lst(id)%mynIndex(:)=0
+    write(*,*)
+    do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+      if (n == lst(id)%mynBeg ) then
+        lst(id)%mynIndex(n) = 1
+      else
+        lst(id)%mynIndex(n) = lst(id)%mynIndex(n-lst(id)%mynSkip) + 1
+      end if
+      !write(*,*) 'lst_setup: mynIndex(',n,')=',lst(id)%mynIndex(n)
     end do
 
-    if ( trim(lst(id) % MpiMode) /= 'NoMpi') then
-      call rpn_comm_allreduce(lst(id) % mymCount,lst(id) % maxmCount, &
+    if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
+
+      ! Gathering with respect to Longitude
+      allocate(lst(id)%allLonBeg(mpi_npex))
+      call rpn_comm_allgather(lst(id)%myLonBeg ,1,"mpi_integer",       &
+                              lst(id)%allLonBeg,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLonBeg =', lst(id)%allLonBeg(:)
+
+      allocate(lst(id)%allLonEnd(mpi_npex))
+      call rpn_comm_allgather(lst(id)%myLonEnd ,1,"mpi_integer",       &
+                              lst(id)%allLonEnd,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLonEnd =', lst(id)%allLonEnd(:)
+
+      ! Gathering with respect to Latitude
+      allocate(lst(id)%allLatBeg(mpi_npey))
+      call rpn_comm_allgather(lst(id)%myLatBeg ,1,"mpi_integer",       &
+                              lst(id)%allLatBeg,1,"mpi_integer","NS",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLatBeg =', lst(id)%allLatBeg(:)
+
+      allocate(lst(id)%allLatEnd(mpi_npey))
+      call rpn_comm_allgather(lst(id)%myLatEnd ,1,"mpi_integer",       &
+                              lst(id)%allLatEnd,1,"mpi_integer","NS",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLatEnd =', lst(id)%allLatEnd(:)
+
+      ! Gathering with respect to M
+      call rpn_comm_allreduce(lst(id)%mymCount,lst(id)%maxmCount, &
                                 1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'MaxmCount =',lst(id) % maxmCount
+      if ( mpi_myid == 0 ) write(*,*) 'MaxmCount =',lst(id)%maxmCount
 
-      allocate(lst(id) % allmBeg(mpi_nprocs))
-      call rpn_comm_allgather(lst(id) % mymBeg ,1,"mpi_integer",       &
-                              lst(id) % allmBeg,1,"mpi_integer","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'AllmBeg =', lst(id) % allmBeg(:)
+      allocate(lst(id)%allmBeg(mpi_npey))
+      call rpn_comm_allgather(lst(id)%mymBeg ,1,"mpi_integer",       &
+                              lst(id)%allmBeg,1,"mpi_integer","NS",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllmBeg =', lst(id)%allmBeg(:)
 
-      allocate(lst(id) % allmEnd(mpi_nprocs))
-      call rpn_comm_allgather(lst(id) % mymEnd ,1,"mpi_integer",       &
-                              lst(id) % allmEnd,1,"mpi_integer","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'allmEnd =', lst(id) % allmEnd(:)
+      allocate(lst(id)%allmEnd(mpi_npey))
+      call rpn_comm_allgather(lst(id)%mymEnd ,1,"mpi_integer",       &
+                              lst(id)%allmEnd,1,"mpi_integer","NS",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'allmEnd =', lst(id)%allmEnd(:)
     
-      allocate(lst(id) % allmSkip(mpi_nprocs))
-      call rpn_comm_allgather(lst(id) % mymSkip ,1,"mpi_integer",       &
-                              lst(id) % allmSkip,1,"mpi_integer","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'allmSkip = ', lst(id) % allmSkip(:)
+      allocate(lst(id)%allmSkip(mpi_npey))
+      call rpn_comm_allgather(lst(id)%mymSkip ,1,"mpi_integer",       &
+                              lst(id)%allmSkip,1,"mpi_integer","NS",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'allmSkip = ', lst(id)%allmSkip(:)
 
-      call rpn_comm_allreduce(lst(id) % myLevCount,lst(id) % maxLevCount, &
+      ! Gathering with respect to N
+      call rpn_comm_allreduce(lst(id)%mynCount,lst(id)%maxnCount, &
                                 1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'MaxLevCount =',lst(id) % maxLevCount
+      if ( mpi_myid == 0 ) write(*,*) 'MaxnCount =',lst(id)%maxnCount
 
-      allocate(lst(id) % allLevBeg(mpi_nprocs))
-      call rpn_comm_allgather(lst(id) % myLevBeg ,1,"mpi_integer",       &
-                              lst(id) % allLevBeg,1,"mpi_integer","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'AllLevBeg =', lst(id) % allLevBeg(:)
+      allocate(lst(id)%allnBeg(mpi_npex))
+      call rpn_comm_allgather(lst(id)%mynBeg ,1,"mpi_integer",       &
+                              lst(id)%allnBeg,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllnBeg =', lst(id)%allnBeg(:)
 
-      allocate(lst(id) % allLevEnd(mpi_nprocs))
-      call rpn_comm_allgather(lst(id) % myLevEnd ,1,"mpi_integer",       &
-                              lst(id) % allLevEnd,1,"mpi_integer","GRID",ier)
-      if ( mpi_myid == 0 ) print*,'AllLevEnd =', lst(id) % allLevEnd(:)
+      allocate(lst(id)%allnEnd(mpi_npex))
+      call rpn_comm_allgather(lst(id)%mynEnd ,1,"mpi_integer",       &
+                              lst(id)%allnEnd,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllnEnd =', lst(id)%allnEnd(:)
+    
+      allocate(lst(id)%allnSkip(mpi_npex))
+      call rpn_comm_allgather(lst(id)%mynSkip ,1,"mpi_integer",       &
+                              lst(id)%allnSkip,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllnSkip = ', lst(id)%allnSkip(:)
+
+      ! Gathering with respect to levels
+      call rpn_comm_allreduce(lst(id)%myLevCount,lst(id)%maxLevCount, &
+                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'MaxLevCount =',lst(id)%maxLevCount
+
+      allocate(lst(id)%allLevBeg(mpi_npex))
+      call rpn_comm_allgather(lst(id)%myLevBeg ,1,"mpi_integer",       &
+                              lst(id)%allLevBeg,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLevBeg =', lst(id)%allLevBeg(:)
+
+      allocate(lst(id)%allLevEnd(mpi_npex))
+      call rpn_comm_allgather(lst(id)%myLevEnd ,1,"mpi_integer",       &
+                              lst(id)%allLevEnd,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLevEnd =', lst(id)%allLevEnd(:)
     end if
 
     !- 1.5 Compute the Total Wavenumber associated with weach m,n pairs and
     !      the number of spectral element in the VAR array (nla) 
     !      FOR THE LOCAL PROCESSOR
-    allocate( KfromMN(0:lst(id) % mmax,0:lst(id) % nmax) )
+    allocate( KfromMN(0:lst(id)%mmax,0:lst(id)%nmax) )
     KFromMN(:,:) = -1
 
     ! We follow here the method described in Denis et al., MWR, 2002
 !    kmax = min(mmax,nmax)
-    kmax=max(lst(id) % ni-1,lst(id) % nj-1)
+    kmax=max(lst(id)%ni-1,lst(id)%nj-1)
 
     ila = 0
-    do n = 0, lst(id) % nmax
-      do m = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
+    do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+      do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
 !        a = real(m*kmax,8)/real(mmax,8)
 !        b = real(n*kmax,8)/real(nmax,8)
-         a = real(m,8)/real(lst(id) % ni-1,8)
-         b = real(n,8)/real(lst(id) % nj-1,8)
+         a = real(m,8)/real(lst(id)%ni-1,8)
+         b = real(n,8)/real(lst(id)%nj-1,8)
 !         r = sqrt( (a**2) + (b**2) )   ! Ellipse Shape if nmax /= mmax
 !        k = ceiling(r)
          r = kmax * sqrt( (a**2) + (b**2) )
          k = nint(r)
 
-        if ( k <= lst(id) % ktrunc ) then
+        if ( k <= lst(id)%ktrunc ) then
           ila = ila +1
           KFromMN(m,n) = k
-       end if
+        end if
       end do
     end do
 
-    lst(id) % nla      = ila
-    lst_out % nla = lst(id) % nla ! Number of spectral element per phase in the VAR array
+    lst(id)%nla      = ila
+    lst_out%nla = lst(id)%nla ! Number of spectral element per phase in the VAR array
 
-    if ( trim(lst(id) % MpiMode) /= 'NoMpi') then
-       call rpn_comm_allreduce(lst(id) % nla,lst(id) % nlaGlobal,1,"mpi_integer","mpi_sum","GRID",ier)
-       lst_out % nlaGlobal = lst(id) % nlaGlobal ! Number of spectral element per phase in the VAR global array
-    else
-       lst_out % nlaGlobal = lst(id) % nla
-    end if
-
-    allocate( KfromMNglb(0:lst(id) % mmax,0:lst(id) % nmax) )
+    allocate( KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
     KFromMNglb(:,:) = KFromMN(:,:)
-    if ( trim(lst(id) % MpiMode) /= 'NoMpi') then
+    if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
       call rpn_comm_allreduce(KFromMNglb,KFromMNglb, &
-                                (lst(id) % mmax+1)*(lst(id) % nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
+                                (lst(id)%mmax+1)*(lst(id)%nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
     end if
 
     !- 1.6 VAR spectral element ordering &
     !      Total Wavenumbers and Weights associated with each spectral element
     !      FOR THE LOCAL PROCESSOR
-    allocate( lst(id) % nla_Index(0:lst(id) % mmax,0:lst(id) % nmax) )
+    allocate( lst(id)%nla_Index(0:lst(id)%mmax,0:lst(id)%nmax) )
 
-    allocate( lst_out % k(1:lst_out % nla) )
-    allocate( lst_out % m(1:lst_out % nla) )
-    allocate( lst_out % n(1:lst_out % nla) )
-    allocate( lst_out % Weight(1:lst_out % nla) )
-    allocate( lst_out % nePerK(0:lst(id) % ktrunc))
-    allocate( lst_out % ilaFromEK(1:lst_out % nla,0:lst(id) % ktrunc))
-    allocate( lst_out % ilaGlobal(1:lst_out % nla) )
+    allocate( lst_out%k(1:lst_out%nla) )
+    allocate( lst_out%m(1:lst_out%nla) )
+    allocate( lst_out%n(1:lst_out%nla) )
+    allocate( lst_out%Weight(1:lst_out%nla) )
+    allocate( lst_out%nePerK(0:lst(id)%ktrunc))
+    allocate( lst_out%ilaFromEK(1:lst_out%nla,0:lst(id)%ktrunc))
+    allocate( lst_out%ilaGlobal(1:lst_out%nla) )
 
-    lst(id) % nla_Index(:,:) = -1
-    lst_out % ilaFromEK(:,:) = -1
-    lst_out % NEPerK(:)      =  0
+    lst(id)%nla_Index(:,:) = -1
+    lst_out%ilaFromEK(:,:) = -1
+    lst_out%NEPerK(:)      =  0
 
     ila    = 0
     ilaglb = 0
-    do n = 0, lst(id) % nmax
-       do m = 0, lst(id) % mmax
+    do n = 0, lst(id)%nmax
+       do m = 0, lst(id)%mmax
         k    = KfromMN(m,n)
 
         if ( KfromMNglb(m,n) /= -1 ) ilaglb = ilaglb + 1 ! Global Index
@@ -378,23 +471,23 @@ contains
           ila = ila+1
 
           ! Internal index
-          lst(id) % nla_Index(m,n) = ila
+          lst(id)%nla_Index(m,n) = ila
 
           ! Outgoing (public) variables
-          lst_out % nePerK(k) = lst_out % nePerK(k) + 1
-          lst_out % ilaFromEK(lst_out % nePerK(k),k) = ila
-          lst_out % k(ila) = k
-          lst_out % m(ila) = m
-          lst_out % n(ila) = n
-          lst_out % ilaGlobal(ila) = ilaglb
+          lst_out%nePerK(k) = lst_out%nePerK(k) + 1
+          lst_out%ilaFromEK(lst_out%nePerK(k),k) = ila
+          lst_out%k(ila) = k
+          lst_out%m(ila) = m
+          lst_out%n(ila) = n
+          lst_out%ilaGlobal(ila) = ilaglb
 
           ! Spectral coefficient weight associated with this index
           if ( m == 0 .and. n == 0) then
-            lst_out % Weight(ila) = 1.0d0
+            lst_out%Weight(ila) = 1.0d0
           else if (m /= 0 .and. n /= 0) then
-            lst_out % Weight(ila) = 4.0d0
+            lst_out%Weight(ila) = 4.0d0
           else
-            lst_out % Weight(ila) = 2.0d0
+            lst_out%Weight(ila) = 2.0d0
           end if
 
        end if
@@ -402,26 +495,28 @@ contains
       end do
     end do
 
+    lst_out%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
+
     deallocate( KfromMN )
     deallocate( KfromMNglb )
 
     !
     !- 3.  Set factors for parseval identity
     !
-    allocate( lst_out % NormFactor  (lst(id) % nla,nphase))
-    allocate( lst_out % NormFactorAd(lst(id) % nla,nphase))
+    allocate( lst_out%NormFactor  (lst(id)%nla,nphase))
+    allocate( lst_out%NormFactorAd(lst(id)%nla,nphase))
 
     Normfactor1   = 1.0d0
     Normfactor2   = 0.5d0 * sqrt(2.0d0)
     Normfactor3   = 0.5d0
-    NormfactorAd1 =      1.0d0  * real((lst(id) %ni * lst(id) %nj),8)
-    NormfactorAd2 = sqrt(2.0d0) * real((lst(id) %ni * lst(id) %nj),8)
-    NormfactorAd3 =      2.0d0  * real((lst(id) %ni * lst(id) %nj),8)
+    NormfactorAd1 =      1.0d0  * real((lst(id)%ni * lst(id)%nj),8)
+    NormfactorAd2 = sqrt(2.0d0) * real((lst(id)%ni * lst(id)%nj),8)
+    NormfactorAd3 =      2.0d0  * real((lst(id)%ni * lst(id)%nj),8)
 
-    do ila = 1,lst(id) % nla
+    do ila = 1,lst(id)%nla
 
-      m = lst_out % m(ila)
-      n = lst_out % n(ila)
+      m = lst_out%m(ila)
+      n = lst_out%n(ila)
 
       do p = 1, nphase
          if      ( p == 1) then
@@ -437,8 +532,7 @@ contains
             i = 2*m+2
             j = 2*n+2
          else
-            write(*,*) 'lst_Setup: Error in NormFactor'
-            stop
+            call abort3d('lst_Setup: Error in NormFactor')
          end if
 
          if ( i == 1 .or. j == 1) then  
@@ -454,8 +548,8 @@ contains
             factorAd = NormfactorAd3
          end if
          
-         lst_out % NormFactor  (ila,p) = factor
-         lst_out % NormFactorAd(ila,p) = factorAd
+         lst_out%NormFactor  (ila,p) = factor
+         lst_out%NormFactorAd(ila,p) = factorAd
       end do
       
    end do
@@ -463,31 +557,31 @@ contains
     !
     !- 3.  Set variables needed by Forward and Inverse Laplacian
     !
-    allocate(lst(id) % lapxy (lst(id) % nla))
-    allocate(lst(id) % ilapxy(lst(id) % nla))
+    allocate(lst(id)%lapxy (lst(id)%nla))
+    allocate(lst(id)%ilapxy(lst(id)%nla))
 
     dlon = dlon_in
     dx2  = (RA*dlon)**2
     fac  = 2.d0/dx2
 
-    do ila = 1,lst(id) % nla
-      ca = 2.d0*MPC_PI_R8 * lst_out % m(ila)
-      cp = cos(ca/lst(id) % ni)
-      cb = 2.d0*MPC_PI_R8 * lst_out % n(ila)
-      cq = cos(cb/lst(id) % nj)
+    do ila = 1,lst(id)%nla
+      ca = 2.d0*MPC_PI_R8 * lst_out%m(ila)
+      cp = cos(ca/lst(id)%ni)
+      cb = 2.d0*MPC_PI_R8 * lst_out%n(ila)
+      cq = cos(cb/lst(id)%nj)
 
-      lst(id) % lapxy(ila) = fac * (cp + cq - 2.d0)
-      if ( lst(id) % lapxy(ila) /= 0.d0 ) then
-         lst(id) % ilapxy(ila) = 1.d0 / lst(id) % lapxy(ila)
+      lst(id)%lapxy(ila) = fac * (cp + cq - 2.d0)
+      if ( lst(id)%lapxy(ila) /= 0.d0 ) then
+         lst(id)%ilapxy(ila) = 1.d0 / lst(id)%lapxy(ila)
       else
-         lst(id) % ilapxy(ila) = 0.d0
+         lst(id)%ilapxy(ila) = 0.d0
       end if
     end do
 
     !
     !- 4. Finalized
     !
-    lst(id) % allocated = .true.
+    lst(id)%allocated = .true.
 
   end subroutine lst_Setup
 
@@ -505,20 +599,21 @@ contains
     character(len=*), intent(in)    :: TransformDirection
                                      ! SpectralToGridPoint or
                                      ! GridPointToSpectral
-    real(8),          intent(inout) :: GridState(lst(id) % ni,lst(id) % myLatBeg:lst(id) % myLatEnd,nk)
+    real(8),          intent(inout) :: GridState(lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd,nk)
                                      ! 3D field in grid point space
- !   real(8),          intent(inout) :: SpectralStateVar(lst(id) % nla,nphase,nk)
     real(8),          intent(inout) :: SpectralStateVar(:,:,:)
                                      ! 3D spectral coefficients
 
     integer                         :: m, n, k, ni_l, nj_l, nip_l, njp_l
-    integer                         :: kStart, kEnd
+    integer                         :: iStart, iEnd, jStart, jEnd, kStart, kEnd
 
-    integer                         :: j
+    integer                         :: i, j
 
+    real(8), allocatable            :: Step0(:,:,:)
     real(8), allocatable            :: Step1(:,:,:)
     real(8), allocatable            :: Step2(:,:,:)
-    
+    real(8), allocatable            :: Step3(:,:,:)
+
     character(len=1)                :: TransformAxe
 
     !
@@ -526,53 +621,94 @@ contains
     !
     call idcheck(id)
 
-!    kStart = lbound(SpectralStateVar,3)
-!    kEnd   = ubound(SpectralStateVar,3)
-!    if (trim(lst(id) % MpiMode) == 'LatLev') then
-!       if (kStart /= lst(id) % myLevBeg .or. kEnd /= lst(id) % myLevEnd) then
-!         print*
-!         print*, 'lst_VarTransform in LatLev mode: Invalid bounds for SpectralStateVar', kStart, kEnd, lst(id) % myLevBeg, lst(id) % myLevEnd  
-!         stop
-!       end if
-!    else
-!       if (kStart /= 1 .or. kEnd /= nk) then
-!         print*
-!         print*, 'lst_VarTransform: Invalid bounds for SpectralStateVar', kStart, kEnd 
-!         stop
-!       end if
-!    end if
+    !
+    !- 1. Data pre-processing (Input -> Step0)
+    !
+
+    !- 1.1 Settings and Data Selection
+    select case ( trim(TransformDirection) )
+    case ('GridPointToSpectral')
+       iStart = 1 
+       iEnd   = lst(id)%ni
+       jStart = lst(id)%myLatBeg
+       jEnd   = lst(id)%myLatEnd
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+    case ('SpectralToGridPoint')
+       iStart = 1
+       iEnd   = 2*lst(id)%mymCount
+       jStart = 1
+       jEnd   = 2*lst(id)%mynCount
+       if (trim(lst(id)%MpiMode) == 'LatLonMLev') then
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       else
+         kStart= 1
+         kEnd  = nk
+       end if
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call abort3d('lst_VarTransform')
+    end select
+
+    allocate( Step0(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
+    Step0(:,:,:) = 0.d0
+
+    if ( trim(TransformDirection) == 'SpectralToGridPoint' ) then
+       call lst_ReshapeTrunc( Step0,                       & ! OUT
+                              SpectralStateVar,            & ! IN
+                              'ToRPN', kStart, kEnd, id )    ! IN
+    else
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step0(:,:,:) = GridState(:,:,:)
+       else
+         call transpose2d_LonToLev( Step0,            & ! OUT
+                                    GridState, nk, id ) ! IN
+       end if
+    end if
 
     !
-    !- 1.  First pass
+    !- 1.  First pass (Step0 -> Step1)
     !
 
     !- 1.1 Settings and Data Selection
     select case ( trim(TransformDirection) )
     case ('GridPointToSpectral')
        TransformAxe = 'i'
-       ni_l  = lst(id) % ni
+       ni_l  = lst(id)%ni
        nip_l = nip
-       nj_l  = lst(id) % latPerPE
+       nj_l  = lst(id)%latPerPE
        njp_l = 0
-       kStart= 1
-       kEnd  = nk
-    case ('SpectralToGridPoint')
-       TransformAxe = 'j'
-       ni_l  = 2*lst(id) % mymCount
-       nip_l = 0
-       nj_l  = lst(id) % nj
-       njp_l = njp
-       if (trim(lst(id) % MpiMode) == 'LatLev') then
-         kStart= lst(id) % myLevBeg
-         kEnd  = lst(id) % myLevEnd
-       else
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
          kStart= 1
          kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+    case ('SpectralToGridPoint')
+       TransformAxe = 'j'
+       ni_l  = 2*lst(id)%mymCount
+       nip_l = 0
+       nj_l  = lst(id)%nj
+       njp_l = njp
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
        end if
     case default
-       print*
-       print*,'Error: TranformDirection Unknown ', trim(TransformDirection)
-       stop
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call abort3d('lst_VarTransform')
     end select
 
     allocate( Step1(ni_l+nip_l,nj_l+njp_l,kStart:kEnd) )
@@ -580,12 +716,17 @@ contains
 
     !- 1.2 Spectral transform
     if ( trim(TransformDirection) == 'SpectralToGridPoint' ) then
-       call lst_ReshapeTrunc( Step1,             & ! OUT
-                              SpectralStateVar,  & ! IN
-                              'ToRPN', kStart, kEnd, id )    ! IN
+       if ( trim(lst(id)%MpiMode) == 'NoMpi' .or. trim(lst(id)%MpiMode) == 'LatLonMLev') then
+         Step1(:,:,:) = Step0(:,:,:)
+       else
+         call transpose2d_NToLev( Step1,        & ! OUT
+                                  Step0, nk, id ) ! IN
+       end if
     else
-       Step1(1:lst(id) %ni,1:lst(id) % latPerPE,:) = GridState(1:lst(id) %ni,lst(id) % myLatBeg:lst(id) % myLatEnd,:)
+       Step1(1:lst(id)%ni,1:lst(id)%latPerPE,:) = Step0(1:lst(id)%ni,lst(id)%myLatBeg:lst(id)%myLatEnd,:)
     end if
+
+    deallocate( Step0 )
 
     call lst_transform1d( Step1,                       & ! INOUT
                           TransformDirection,          & ! IN
@@ -594,31 +735,36 @@ contains
                           kStart, kEnd )                 ! IN
 
     !
-    !- 2.0 Second pass
+    !- 2.0 Second pass (Step1 -> Step2)
     !   
 
     !- 2.1 Settings
     if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
        TransformAxe = 'j'
-       ni_l  = 2*lst(id) % mymCount
+       ni_l  = 2*lst(id)%mymCount
        nip_l = 0
-       nj_l  = lst(id) % nj
+       nj_l  = lst(id)%nj
        njp_l = njp
-       if (trim(lst(id) % MpiMode) == 'LatLev') then
-         kStart= lst(id) % myLevBeg
-         kEnd  = lst(id) % myLevEnd
-       else
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
          kStart= 1
          kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
        end if
     else
        TransformAxe = 'i'
-       ni_l  = lst(id) % ni
+       ni_l  = lst(id)%ni
        nip_l = nip
-       nj_l  = lst(id) % latPerPE
+       nj_l  = lst(id)%latPerPE
        njp_l = 0
-       kStart= 1
-       kEnd  = nk
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
     end if
 
     allocate( Step2(ni_l+nip_l,nj_l+njp_l,kStart:kEnd) )
@@ -627,46 +773,92 @@ contains
     !- 2.2 Communication between processors
     
     if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
-       if      ( trim(lst(id) % MpiMode) == 'NoMpi') then
-         Step2(:,1:lst(id) % nj,:) = Step1(:,1:lst(id) % nj,:)
-       else if ( trim(lst(id) % MpiMode) == 'LatM') then
-         call transpose_LatToM( Step2,        & ! OUT
-                                Step1, nk, id ) ! IN
+       if      ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step2(:,1:lst(id)%nj,:) = Step1(:,1:lst(id)%nj,:)
        else
-         call transpose_LatToLev( Step2,    & ! OUT
-                                  Step1, nk, id ) ! IN
+         call transpose2d_LatToM( Step2,    & ! OUT
+                                  Step1, id ) ! IN
        end if
     else
-       if      ( trim(lst(id) % MpiMode) == 'NoMpi') then
-         Step2(:,1:lst(id) % nj,:) = Step1(:,1:lst(id) % nj,:)
-       else if ( trim(lst(id) % MpiMode) == 'LatM') then
-         call transpose_MToLat( Step2,        & ! OUT
-                                Step1, nk, id ) ! IN
+       if      ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step2(:,1:lst(id)%nj,:) = Step1(:,1:lst(id)%nj,:)
        else
-         call transpose_LevToLat( Step2,    & ! OUT
-                                  Step1, nk, id ) ! IN
+          call transpose2d_MToLat( Step2,    & ! OUT
+                                   Step1, id ) ! IN
        end if
     end if
 
-    !- 2.3 Spectral Transform
+    deallocate( Step1 )
 
+    !- 2.3 Spectral Transform
     call lst_transform1d( Step2,                      & ! INOUT
                           TransformDirection,         & ! IN
                           TransformAxe,               & ! IN
                           ni_l, nj_l, nip_l, njp_l,   & ! IN
                           kStart, kEnd )                ! IN
 
+    !
+    !- 3.0 Post-processing (Step2 -> Step3 -> Output)
+    ! 
+
+    select case ( trim(TransformDirection) )
+    case ('GridPointToSpectral')
+       iStart = 1 
+       iEnd   = 2*lst(id)%mymCount
+       jStart = 1
+       jEnd   = 2*lst(id)%mynCount
+       if (trim(lst(id)%MpiMode) == 'LatLonMLev') then
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       else
+         kStart= 1
+         kEnd  = nk
+       end if
+    case ('SpectralToGridPoint')
+       iStart = 1
+       iEnd   = lst(id)%lonPerPE
+       jStart = 1
+       jEnd   = lst(id)%latPerPE
+       kStart = 1
+       kEnd   = nk
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call abort3d('lst_VarTransform')
+    end select
+
+    allocate( Step3(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
+    Step3(:,:,:) = 0.d0
+
     if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
 
+       ! Communication between processors
+       if ( trim(lst(id)%MpiMode) == 'NoMpi' .or. trim(lst(id)%MpiMode) == 'LatLonMLev') then
+         Step3(:,:,:) = Step2(:,:,:)
+       else
+         call transpose2d_LevToN( Step3,        & ! OUT
+                                  Step2, nk, id ) ! IN
+       end if
+
        ! Truncation (if applicable) will occur in this step
-       call lst_ReshapeTrunc( Step2,             &  ! IN
+       call lst_ReshapeTrunc( Step3,             &  ! IN
                               SpectralStateVar,  &  ! OUT
                               'ToVAR', kStart, kEnd, id )     ! IN
     else
-       GridState(1:lst(id) %ni,lst(id) % myLatBeg:lst(id) %myLatEnd,:) = Step2(1:lst(id) %ni,1:lst(id) %latPerPE,:)
+
+       ! Communication between processors
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step3(:,:,:) = Step2(1:lst(id)%ni,:,:)
+       else
+         call transpose2d_LevToLon( Step3,                          & ! OUT
+                                    Step2(1:lst(id)%ni,:,:), nk, id ) ! IN
+       end if
+
+       GridState(lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd,:) = Step3(1:lst(id)%lonPerPE,1:lst(id)%latPerPE,:)
+
     end if
 
-    deallocate( Step1, Step2 )
+    deallocate( Step2, Step3 )
 
   end subroutine lst_VarTransform
 
@@ -707,9 +899,9 @@ contains
     case ('SpectralToGridPoint')
        way = +1
     case default
-       print*
-       print*,'Error: TranformDirection Unknown ', trim(TransformDirection)
-       stop
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call abort3d('lst_VarTransform')
     end select
 
     nk = kEnd - kStart + 1
@@ -731,9 +923,9 @@ contains
        np  = njp_l
        nlot= ni_l
     case default
-       print*
-       print*,'Error: TranformAxe Unknown ', trim(TransformAxe)
-       stop
+       write(*,*)
+       write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
+       call abort3d('lst_VarTransform')
     end select
 
     !- 1.2 Fast or Slow Fourier Transform ?
@@ -743,8 +935,7 @@ contains
     if (nfact == n ) then
        call setfft8( n ) ! IN
     else
-       print*,'This routine can only handle fast sin&cos FFT'
-       stop
+       call abort3d('lst_VarTransform: This module can only handle fast sin&cos FFT')
     end if
 
     select case ( trim(TransformAxe) )
@@ -774,220 +965,394 @@ contains
   end subroutine lst_transform1d
 
 !--------------------------------------------------------------------------
-! LST_Transpose_LatToM
+! LST_Transpose2d_LonToLev
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose_LatToM(pgd2,pgd,nk,id)
+  SUBROUTINE transpose2d_LonToLev(pgd_out, pgd_in, nk, id)
     implicit none
 
-    integer, intent(in)  :: id, nk
+    integer, intent(in) :: nk, id
 
-    real(8), intent(out) :: pgd2(2*lst(id) % mymCount,lst(id) % nj+njp  ,nk)
-    real(8), intent(in)  :: pgd (lst(id) % ni+nip    ,lst(id) % latPerPE,nk)
+    real(8), intent(in) :: pgd_in(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
+    real(8), intent(out):: pgd_out(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_recv(lst(id) % maxmCount,2,nk,lst(id) % nj)
-    real(8) :: gd_send(lst(id) % maxmCount,2,nk,lst(id) % latPerPE,mpi_nprocs)
+    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
+    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
 
-    integer :: yourid, jm, icount, nsize, ierr, jlev, jlat
+    integer :: yourid, nsize, ierr, jlev, jlev2, jlat, jlat2, jlon, jlon2
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,icount,jm)
-    do yourid = 0, mpi_nprocs-1
-      do jlat = 1, lst(id) % latPerPE
-        do jlev = 1, nk
-          icount = 0
-          do jm = lst(id) % allmBeg(yourid+1), lst(id) % allmEnd(yourid+1), lst(id) % allmSkip(yourid+1)
-            icount = icount + 1
-            gd_send(icount,1,jlev,jlat,yourid+1) = pgd(2*jm+1, jlat, jlev)
-            gd_send(icount,2,jlev,jlat,yourid+1) = pgd(2*jm+2, jlat, jlev)
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
+    do yourid = 0, (mpi_npex-1)
+      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
+        jlat2 = jlat - lst(id)%myLatBeg + 1
+        do jlev = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          jlev2 = jlev-lst(id)%allLevBeg(yourid+1)+1
+          do jlon = lst(id)%myLonBeg, lst(id)%myLonEnd
+            jlon2 = jlon - lst(id)%myLonBeg + 1
+            gd_send(jlon2,jlev2,jlat2,yourid+1) = pgd_in(jlon,jlat,jlev)
           end do
         end do
       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id) % maxmCount*2*nk*lst(id) % latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+    end if
 
-!$OMP PARALLEL DO PRIVATE(jlat,jlev,icount,jm)
-    do jlat = 1, lst(id) % nj
-      do jlev = 1, nk
-        icount = 0
-        do jm = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
-          icount = icount + 1
-          pgd2(2*lst(id) % mymIndex(jm)-1,jlat,jlev) = gd_recv(icount,1,jlev,jlat)
-          pgd2(2*lst(id) % mymIndex(jm)  ,jlat,jlev) = gd_recv(icount,2,jlev,jlat)
-        enddo
-      enddo
-    enddo
-!$OMP END PARALLEL DO
-
-!    call tmg_stop(58)
-
-  END SUBROUTINE transpose_LattoM
-
-!--------------------------------------------------------------------------
-! Transpose_MToLat
-!--------------------------------------------------------------------------
-  SUBROUTINE transpose_MtoLat(pgd,pgd2,nk,id)
-    implicit none
-
-    integer, intent(in)  :: id,nk
-
-    real(8), intent(in)   :: pgd2(2*lst(id) % mymCount,lst(id) % nj+njp  ,nk)
-    real(8), intent(out)  :: pgd (lst(id) % ni+nip    ,lst(id) % latPerPE,nk)
-
-    real(8) :: gd_send(lst(id) % maxmCount,2,nk,lst(id) % nj)
-    real(8) :: gd_recv(lst(id) % maxmCount,2,nk,lst(id) % latPerPE,mpi_nprocs)
-
-    integer :: yourid, jm, icount, nsize, ierr, jlev, jlat
-
-!    call rpn_comm_barrier("GRID",ierr)
-
-!    call tmg_start(58,'TRANSPOSE')
-
-!$OMP PARALLEL DO PRIVATE(jlat,jlev,icount,jm)
-    do jlat = 1, lst(id) % nj
-      do jlev = 1, nk
-        icount = 0
-        do jm = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
-          icount = icount+1
-          gd_send(icount,1,jlev,jlat) = pgd2(2*lst(id) % mymIndex(jm)-1,jlat,jlev)
-          gd_send(icount,2,jlev,jlat) = pgd2(2*lst(id) % mymIndex(jm)  ,jlat,jlev)
-        end do
-      end do
-    end do
-!$OMP END PARALLEL DO
-
-    nsize = lst(id) % maxmCount*2*nk*lst(id) % latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
-
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,icount,jm)
-    do yourid = 0, mpi_nprocs-1
-      do jlat = 1, lst(id) % latPerPE
-        do jlev = 1, nk
-          icount = 0
-          do jm = lst(id) % allmBeg(yourid+1), lst(id) % allmEnd(yourid+1), lst(id) % allmSkip(yourid+1)
-            icount = icount+1
-            pgd(2*jm+1,jlat,jlev) = gd_recv(icount,1,jlev,jlat,yourid+1)
-            pgd(2*jm+2,jlat,jlev) = gd_recv(icount,2,jlev,jlat,yourid+1)
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
+    do yourid = 0, (mpi_npex-1)
+      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
+        jlat2 = jlat - lst(id)%myLatBeg + 1
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
+          do jlon = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
+            jlon2 = jlon - lst(id)%allLonBeg(yourid+1) + 1
+            pgd_out(jlon,jlat,jlev) = gd_recv(jlon2,jlev2,jlat2,yourid+1)
           end do
         end do
       end do
     end do
 !$OMP END PARALLEL DO
 
-!    call tmg_stop(58)
+    call tmg_stop(28)
 
-  END SUBROUTINE transpose_MtoLat
+  END SUBROUTINE transpose2d_LonToLev
 
 !--------------------------------------------------------------------------
-! Transpose_LatToLev
+! LST_Transpose2d_LevToLon
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose_LatToLev(pgd2,pgd,nk,id)
+  SUBROUTINE transpose2d_LevToLon(pgd_out,pgd_in,nk,id)
     implicit none
 
-    integer, intent(in)  :: nk, id
+    integer, intent(in) :: nk, id
 
-    real(8), intent(out) :: pgd2(lst(id) % ni+nip,lst(id) % nj+njp  ,lst(id) % myLevBeg:lst(id) % myLevEnd)
-    real(8), intent(in)  :: pgd (lst(id) % ni+nip,lst(id) % latPerPE,nk)
+    real(8), intent(out):: pgd_out(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
+    real(8), intent(in) :: pgd_in(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_recv(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % nj)
-    real(8) :: gd_send(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % latPerPE,mpi_nprocs)
+    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
+    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
 
-    integer :: yourid, jm, icount, nsize, ierr, jlev, jlat, jlev2
+    integer :: yourid, nsize, ierr, jlev, jlev2, jlat, jlat2, jlon, jlon2
+
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
+    do yourid = 0, (mpi_npex-1)
+      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
+        jlat2 = jlat - lst(id)%myLatBeg + 1
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
+          do jlon = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
+            jlon2 = jlon - lst(id)%allLonBeg(yourid+1) + 1
+            gd_send(jlon2,jlev2,jlat2,yourid+1) = pgd_in(jlon,jlat,jlev)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
+    do yourid = 0, (mpi_npex-1)
+      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
+        jlat2 = jlat - lst(id)%myLatBeg + 1
+        do jlev=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
+          jlev2=jlev-lst(id)%allLevBeg(yourid+1)+1
+          do jlon = lst(id)%myLonBeg, lst(id)%myLonEnd
+            jlon2 = jlon - lst(id)%myLonBeg + 1
+            pgd_out(jlon,jlat,jlev) = gd_recv(jlon2,jlev2,jlat2,yourid+1)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(28)
+
+  END SUBROUTINE transpose2d_LevtoLon
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_LatToM
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LatToM(pgd_out, pgd_in, id)
+    implicit none
+
+    integer, intent(in)  :: id
+
+    real(8), intent(out) :: pgd_out(2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(in)  :: pgd_in (lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_recv(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
+
+    integer :: yourid, jm, icount, nsize, ierr, jlev, jlev2, jlat, jlat2
+
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(27,'TRANSP_2D_MtoLAT')
 
 !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
-    do yourid = 0, mpi_nprocs-1
-      do jlat = 1, lst(id) % latPerPE
-        do jlev = lst(id) % allLevBeg(yourid+1), lst(id) % allLevEnd(yourid+1)
-          jlev2 = jlev - lst(id) % allLevBeg(yourid+1) + 1
+    do yourid = 0, (mpi_npey-1)
+      do jlat = 1, lst(id)%latPerPE
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1  
           icount = 0
-          do jm = 1, lst(id) % ni+nip
+          do jm = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
             icount = icount + 1
-            gd_send(icount,jlev2,jlat,yourid+1) = pgd(jm, jlat, jlev)
+            gd_send(icount,1,jlev2,jlat,yourid+1) = pgd_in(2*jm+1, jlat, jlev)
+            gd_send(icount,2,jlev2,jlat,yourid+1) = pgd_in(2*jm+2, jlat, jlev)
           end do
         end do
       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = (lst(id) % ni+nip)*lst(id) % maxLevCount*lst(id) % latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
+    nsize = lst(id)%maxmCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npey > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
+    end if
 
-!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,icount,jm)
-    do jlat = 1, lst(id) % nj
-      do jlev = lst(id) % myLevBeg, lst(id) % myLevEnd
-        jlev2 = jlev - lst(id) % myLevBeg + 1
-        icount = 0
-        do jm = 1, lst(id) % ni+nip
-          icount = icount + 1
-          pgd2(jm,jlat,jlev) = gd_recv(icount,jlev2,jlat)
-        enddo
-      enddo
-    enddo
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm)
+    do yourid = 0, (mpi_npey-1)
+      do jlat = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
+        jlat2 = jlat - lst(id)%allLatBeg(yourid+1) + 1
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
+          icount = 0
+          do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+            icount = icount + 1
+            pgd_out(2*lst(id)%mymIndex(jm)-1,jlat,jlev) = gd_recv(icount,1,jlev2,jlat2,yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)  ,jlat,jlev) = gd_recv(icount,2,jlev2,jlat2,yourid+1)
+          end do
+        end do
+      end do
+    end do
 !$OMP END PARALLEL DO
 
-!    call tmg_stop(58)
+    call tmg_stop(27)
 
-  END SUBROUTINE transpose_LattoLev
+  END SUBROUTINE transpose2d_LatToM
 
 !--------------------------------------------------------------------------
-! Transpose_LevtoLat
+! Transpose2d_MToLat
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose_LevtoLat(pgd,pgd2,nk,id)
+  SUBROUTINE transpose2d_MtoLat(pgd_out, pgd_in, id)
     implicit none
 
-    integer, intent(in)  :: id, nk
+    integer, intent(in)  :: id
 
-    real(8), intent(in)  :: pgd2(lst(id) % ni+nip, lst(id) % nj+njp  ,lst(id) % myLevBeg:lst(id) % myLevEnd)
-    real(8), intent(out) :: pgd (lst(id) % ni+nip, lst(id) % latPerPE,nk)
+    real(8), intent(in)   :: pgd_in (2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(out)  :: pgd_out(lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_send(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % nj)
-    real(8) :: gd_recv(lst(id) % ni+nip,lst(id)%maxLevCount,lst(id) % latPerPE,mpi_nprocs)
+    real(8) :: gd_recv(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
 
-    integer :: yourid, jm, icount, nsize, ierr, jlev, jlat, jlev2
+    integer :: yourid, jm, icount, nsize, ierr, jlev, jlev2, jlat, jlat2
 
-!    call rpn_comm_barrier("GRID",ierr)
+    call rpn_comm_barrier("GRID",ierr)
 
-!    call tmg_start(58,'TRANSPOSE')
+    call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,icount,jm)
-    do jlat = 1, lst(id) % nj
-      do jlev = lst(id) % myLevBeg, lst(id) % myLevEnd
-        jlev2 = jlev - lst(id) % myLevBeg + 1
-        icount = 0
-        do jm = 1, lst(id) % ni+nip
-          icount = icount+1
-          gd_send(icount,jlev2,jlat) = pgd2(jm,jlat,jlev)
-        end do
-      end do
-    end do
-!$OMP END PARALLEL DO
-
-    nsize = (lst(id) % ni+nip)*lst(id) % maxLevCount*lst(id) % latPerPE
-    call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                           gd_recv,nsize,"mpi_double_precision","GRID",ierr)
-
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
-    do yourid = 0, mpi_nprocs-1
-      do jlat = 1, lst(id) % latPerPE
-        do jlev = lst(id) % allLevBeg(yourid+1), lst(id) % allLevEnd(yourid+1)
-          jlev2 = jlev - lst(id) % allLevBeg(yourid+1) + 1
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm)
+    do yourid = 0, (mpi_npey-1)
+      do jlat = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
+        jlat2 = jlat - lst(id)%allLatBeg(yourid+1) + 1
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
           icount = 0
-          do jm = 1, lst(id) % ni+nip
+          do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
             icount = icount+1
-            pgd(jm,jlat,jlev) = gd_recv(icount,jlev2,jlat,yourid+1)
+            gd_send(icount,1,jlev2,jlat2,yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,jlat,jlev)
+            gd_send(icount,2,jlev2,jlat2,yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,jlat,jlev)
           end do
         end do
       end do
     end do
 !$OMP END PARALLEL DO
 
-!    call tmg_stop(58)
+    nsize = lst(id)%maxmCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npey > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
+    end if
 
-  END SUBROUTINE transpose_LevtoLat
+!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
+    do yourid = 0, (mpi_npey-1)
+      do jlat = 1, lst(id)%latPerPE
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
+          icount = 0
+          do jm = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
+            icount = icount+1
+            pgd_out(2*jm+1,jlat,jlev) = gd_recv(icount,1,jlev2,jlat,yourid+1)
+            pgd_out(2*jm+2,jlat,jlev) = gd_recv(icount,2,jlev2,jlat,yourid+1)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(27)
+
+  END SUBROUTINE transpose2d_MtoLat
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_LevToN
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LevToN(pgd_out, pgd_in, nk, id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+
+    real(8), intent(out):: pgd_out(2*lst(id)%mymCount, 2*lst(id)%mynCount, nk)
+    real(8), intent(in) :: pgd_in (2*lst(id)%mymCount, lst(id)%nj+njp    , lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_send(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
+
+    integer :: yourid, nsize, ierr, jlev, jlev2, jn, jm, icount
+
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(26,'TRANSP_2D_LEVtoN')
+
+!$OMP PARALLEL DO PRIVATE(yourid,jm,jlev,jlev2,jn,icount)
+    do yourid = 0, (mpi_npex-1)
+      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
+          icount = 0
+          do jn = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
+            icount = icount + 1
+            gd_send(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*jn+1,jlev)
+            gd_send(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*jn+2,jlev)
+            gd_send(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*jn+1,jlev)
+            gd_send(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*jn+2,jlev)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%maxncount*4*lst(id)%maxLevCount*lst(id)%maxmcount
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,jn,jlev,jlev2,jm,icount)
+    do yourid = 0, (mpi_npex-1)
+      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+        do jlev = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          jlev2 = jlev - lst(id)%allLevBeg(yourid+1) + 1
+          icount = 0
+          do jn = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+            icount = icount + 1
+            pgd_out(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)-1,jlev) = gd_recv(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)  ,jlev) = gd_recv(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)-1,jlev) = gd_recv(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)  ,jlev) = gd_recv(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(26)
+
+  END SUBROUTINE transpose2d_LevToN
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_LevToN
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_NToLev(pgd_out, pgd_in, nk, id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+
+    real(8), intent(in) :: pgd_in (2*lst(id)%mymCount, 2*lst(id)%mynCount, nk)
+    real(8), intent(out):: pgd_out(2*lst(id)%mymCount, lst(id)%nj+njp    , lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_send(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
+
+    integer :: yourid, nsize, ierr, jlev, jlev2, jn, jm, icount
+
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(26,'TRANSP_2D_LEVtoN')
+
+!$OMP PARALLEL DO PRIVATE(yourid,jm,jlev,jlev2,jn,icount)
+    do yourid = 0, (mpi_npex-1)
+      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+        do jlev = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          jlev2 = jlev - lst(id)%allLevBeg(yourid+1) + 1
+          icount = 0
+          do jn = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+            icount = icount + 1
+            gd_send(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)-1,jlev)
+            gd_send(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)  ,jlev)
+            gd_send(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)-1,jlev)
+            gd_send(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)  ,jlev)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%maxncount*4*lst(id)%maxLevCount*lst(id)%maxmcount
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,jn,jlev,jlev2,jm,icount)
+    do yourid = 0, (mpi_npex-1)
+      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
+          jlev2 = jlev - lst(id)%myLevBeg + 1
+          icount = 0
+          do jn = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
+            icount = icount + 1
+            pgd_out(2*lst(id)%mymIndex(jm)-1,2*jn+1,jlev) = gd_recv(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)-1,2*jn+2,jlev) = gd_recv(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)  ,2*jn+1,jlev) = gd_recv(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1)
+            pgd_out(2*lst(id)%mymIndex(jm)  ,2*jn+2,jlev) = gd_recv(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(26)
+
+  END SUBROUTINE transpose2d_NtoLev
 
 !--------------------------------------------------------------------------
 ! LST_ReshapeTrunc
@@ -998,8 +1363,8 @@ contains
 
     integer,          intent(in)    :: id, kStart, kEnd
     character(len=*), intent(in)    :: Direction ! ToVAR or ToRPN
-    real(8),          intent(inout) :: SpectralStateRpn(2*lst(id) % mymCount,lst(id) % nj+njp,kStart:kEnd)
-    real(8),          intent(inout) :: SpectralStateVar(lst(id) % nla     ,nphase,kStart:kEnd)
+    real(8),          intent(inout) :: SpectralStateRpn(2*lst(id)%mymCount,2*lst(id)%mynCount,kStart:kEnd)
+    real(8),          intent(inout) :: SpectralStateVar(lst(id)%nla     ,nphase,kStart:kEnd)
 
     integer k, m, n, ila
 
@@ -1008,15 +1373,15 @@ contains
       ! Truncation (if applicable) will be applied here
 !$OMP PARALLEL
 !$OMP DO PRIVATE (n,m,ila,k) 
-      do n = 0, lst(id) % nmax
-        do m = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
-          ila = lst(id) % nla_Index(m,n)
+      do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+        do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+          ila = lst(id)%nla_Index(m,n)
           if ( ila /= -1 ) then
             do k = kStart, kEnd 
-              SpectralStateVar(ila,1,k) = SpectralStateRpn(2*lst(id) % mymIndex(m)-1,2*n+1,k)
-              SpectralStateVar(ila,2,k) = SpectralStateRpn(2*lst(id) % mymIndex(m)-1,2*n+2,k)
-              SpectralStateVar(ila,3,k) = SpectralStateRpn(2*lst(id) % mymIndex(m)  ,2*n+1,k)
-              SpectralStateVar(ila,4,k) = SpectralStateRpn(2*lst(id) % mymIndex(m)  ,2*n+2,k)
+              SpectralStateVar(ila,1,k) = SpectralStateRpn(2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)-1,k)
+              SpectralStateVar(ila,2,k) = SpectralStateRpn(2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)  ,k)
+              SpectralStateVar(ila,3,k) = SpectralStateRpn(2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)-1,k)
+              SpectralStateVar(ila,4,k) = SpectralStateRpn(2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n),  k)
             end do
           end if
         end do
@@ -1028,15 +1393,15 @@ contains
       SpectralStateRpn(:,:,:) = 0.0d0
 !$OMP PARALLEL
 !$OMP DO PRIVATE (n,m,ila,k)
-      do n = 0, lst(id) % nmax
-        do m = lst(id) % mymBeg, lst(id) % mymEnd, lst(id) % mymSkip
-          ila = lst(id) % nla_Index(m,n)
+      do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+        do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+          ila = lst(id)%nla_Index(m,n)
           if ( ila /= -1 ) then
             do k = kStart, kEnd
-              SpectralStateRpn(2*lst(id) % mymIndex(m)-1,2*n+1,k) = SpectralStateVar(ila,1,k)
-              SpectralStateRpn(2*lst(id) % mymIndex(m)-1,2*n+2,k) = SpectralStateVar(ila,2,k)
-              SpectralStateRpn(2*lst(id) % mymIndex(m)  ,2*n+1,k) = SpectralStateVar(ila,3,k)
-              SpectralStateRpn(2*lst(id) % mymIndex(m)  ,2*n+2,k) = SpectralStateVar(ila,4,k)
+              SpectralStateRpn(2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)-1,k) = SpectralStateVar(ila,1,k)
+              SpectralStateRpn(2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)  ,k) = SpectralStateVar(ila,2,k)
+              SpectralStateRpn(2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)-1,k) = SpectralStateVar(ila,3,k)
+              SpectralStateRpn(2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)  ,k) = SpectralStateVar(ila,4,k)
             end do
           end if
         end do
@@ -1047,7 +1412,7 @@ contains
     case default
       write(6,*)
       write(6,*) 'lst_ReshapeTrunc: Unknown Direction', trim(Direction)
-      stop
+      call abort3d('lst_ReshapeTrunc')
     end select
 
   end subroutine lst_ReshapeTrunc
@@ -1062,7 +1427,7 @@ contains
                                      ! LST ID
     integer,          intent(in)    :: nk
                                      ! Grid point data dimensions
-    real(8),          intent(inout) :: GridState(lst(id) % ni,lst(id) % nj,nk)  
+    real(8),          intent(inout) :: GridState(lst(id)%ni,lst(id)%nj,nk)  
                                      ! 3D field in grid point space
     character(len=*), intent(in)    :: Mode
                                      ! Forward or Inverse
@@ -1074,8 +1439,8 @@ contains
 
     character(len=24)   :: kind
 
-    allocate( SpectralStateVar(lst(id) % nla,nphase,nk) )
-    allocate( factor(lst(id) % nla) )
+    allocate( SpectralStateVar(lst(id)%nla,nphase,nk) )
+    allocate( factor(lst(id)%nla) )
 
     call idcheck(id)
 
@@ -1084,13 +1449,13 @@ contains
     !
     select case ( trim(Mode) )
     case ('Forward')
-      factor(:) = lst(id) % lapxy(:)
+      factor(:) = lst(id)%lapxy(:)
     case ('Inverse')
-      factor(:) = lst(id) % ilapxy(:)
+      factor(:) = lst(id)%ilapxy(:)
     case default
       write(6,*)
       write(6,*) 'lst_Laplacian: Error: Mode Unknown ', trim(Mode)
-      stop
+      call abort3d('lst_Laplacian')
     end select
 
     !
@@ -1108,7 +1473,7 @@ contains
 !$OMP PARALLEL
 !$OMP DO PRIVATE (k,ila,p)
     do k = 1, nk
-      do ila = 1, lst(id) % nla
+      do ila = 1, lst(id)%nla
         do p = 1, nphase
           SpectralStateVar(ila,p,k) = factor(ila) * SpectralStateVar(ila,p,k)
         end do
@@ -1139,10 +1504,10 @@ contains
 
     integer, intent(in) :: id
 
-    if ( .not. lst(id) % allocated) then
-       print*
-       print*,"lst_IDCHECK: Unknown transform ID ", id
-       stop
+    if ( .not. lst(id)%allocated) then
+       write(*,*)
+       write(*,*) "transform ID ", id
+       call abort3d('lst_IDCHECK: Unknown transform ID')
     end if
 
   end subroutine idcheck
