@@ -30,7 +30,7 @@ program calcbmatrix_main
   write(*,*) '-----------------------'
 
   !- 1.1 MPI
-  call mpi_init
+  call mpi_initialize
 
   !- 1.2 Read NAMENS namelist
   nens            = 96                ! default value

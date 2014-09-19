@@ -34,9 +34,11 @@ module LamBMatrixHI_mod
   public :: lbhi_Setup, lbhi_bSqrt, lbhi_bSqrtAdj, lbhi_Finalize
   public :: lbhi_expandToMPIglobal, lbhi_reduceToMPIlocal
 
+  integer, parameter :: cv_model = 1
+  integer, parameter :: cv_bhi   = 2
   type  :: lbhi_cv
-     character(len=4)      :: NomVar
-    character(len=1)      :: GridType ! T=Thermo, M=Momentum, N=Non-staggered
+    character(len=4)      :: NomVar(2)
+    character(len=2)      :: GridType ! TT=Thermo, MM=Momentum, NS=Non-staggered
     integer               :: nlev
     integer               :: kDimStart
     integer               :: kDimEnd
@@ -46,6 +48,9 @@ module LamBMatrixHI_mod
 
   integer,parameter    :: nMaxControlVar = 10
   type(lbhi_cv)        :: ControlVariable(nMaxControlVar)
+
+  integer :: UWindID = -1
+  integer :: VWindID = -1
 
   type(struct_hco), pointer :: hco_bhi    ! Analysis horizontal grid parameters
   type(struct_lst)     :: lst_bhi    ! Spectral transform Parameters
@@ -117,7 +122,7 @@ contains
     write(*,nml=nambhi)
     ier = fclos(iu_flnml)
 
-    do k = 1, vco_anl_in%nlev_M
+    do k = 1, max(vco_anl_in%nlev_M,vco_anl_in%nlev_T)
       if ( scaleFactor(k) > 0.0d0 ) then 
         scaleFactor(k) = sqrt(scaleFactor(k))
       else
@@ -125,8 +130,8 @@ contains
       end if
     end do
 
-    write(*,*) 'JFC sum(scaleFactor) : ',sum(scaleFactor(1:vco_anl_in%nlev_M))
-    if ( sum(scaleFactor(1:vco_anl_in%nlev_M)) == 0.0d0 ) then
+    write(*,*) ' sum(scaleFactor) : ',sum(scaleFactor(1:max(vco_anl_in%nlev_M,vco_anl_in%nlev_T)))
+    if ( sum(scaleFactor(1:max(vco_anl_in%nlev_M,vco_anl_in%nlev_T))) == 0.0d0 ) then
       write(*,*) 'lambmatrixHI: scaleFactor=0, skipping rest of setup'
       cvDim_out   = 0
       initialized = .true.
@@ -151,15 +156,15 @@ contains
         ier = fstouv(iu_bstats,'RND+OLD')
       else
         write(*,*)
-        write(*,*) 'lbhi_OpenFiles: Error in opening the background stats file'
+        write(*,*) 'lbhi_Setup: Error in opening the background stats file'
         write(*,*) trim(BStatsFilename)
-        stop
+        call abort3d('lbhi_Setup')
       end if
     else
       write(*,*)
-      write(*,*) 'lbhi_OpenFiles: The background stats file DOES NOT EXIST'
+      write(*,*) 'lbhi_Setup: The background stats file DOES NOT EXIST'
       write(*,*) trim(BStatsFilename)
-      stop
+      call abort3d('lbhi_Setup')
     end if
 
     !
@@ -169,33 +174,23 @@ contains
     nlev_M  = vco_anl_in%nlev_M
     nlev_T  = vco_anl_in%nlev_T
 
-    ! this should come from the state vector object
-    numvar3d = 4
-    numvar2d = 2
-    nControlVariable = numvar3d + numvar2d
-
-    ControlVariable(1)%nomvar = 'PP'
-    ControlVariable(2)%nomvar = 'CC'
-    ControlVariable(3)%nomvar = 'TT'
-    ControlVariable(4)%nomvar = 'LQ'
-    ControlVariable(5)%nomvar = 'P0'
-    ControlVariable(6)%nomvar = 'TG'
-
-    call lbhi_GetGridInfo( iu_bstats ) ! IN
-
-    ControlVariable(1:4)%nlev   = nlev_M
-    ControlVariable(5:6)%nlev   = 1
+    !- Read variables and vertical grid info from the background stats file
+    call lbhi_GetControlVariableInfo( iu_bstats ) ! IN
+    call lbhi_GetHorizGridInfo      ( iu_bstats ) ! IN
 
     nkgdim = 0
     do var = 1, nControlVariable
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
       if (ControlVariable(var)%nlev /= 1) then
-        ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+         if (ControlVariable(var)%GridType == 'TH') then
+            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
+         else
+            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+         end if
       else
-        ControlVariable(var)%ip1(:) = 0
+         ControlVariable(var)%ip1(:) = 0
       end if
-      ControlVariable(var)%GridType = 'N' ! Non-stagerred
       ControlVariable(var)%kDimStart = nkgdim + 1
       nkgdim = nkgdim + ControlVariable(var)%nlev
       ControlVariable(var)%kDimEnd    = nkgdim
@@ -245,9 +240,193 @@ contains
   end subroutine lbhi_Setup
 
 !--------------------------------------------------------------------------
-! LBHI_ReadGetGridInfo
+! LBHI_GetControlVariableInfo
 !--------------------------------------------------------------------------
-  subroutine lbhi_GetGridInfo( iu_bstats )
+  subroutine lbhi_GetControlVariableInfo( iu_bstats )
+    implicit none
+
+    integer, intent(in) :: iu_bstats
+
+    integer :: key, fstinf, ier, fstlir, fstlir_s
+    integer :: ni, nj, nlev
+    integer :: dateo, deet, npas, nk, nbits, datyp
+    integer :: ip1, ip2, ip3
+    integer :: var, varvnl
+
+    character(len=4 )      :: nomvar
+    character(len=2 )      :: typvar
+    character(len=12)      :: etiket
+
+    character(len=4), allocatable :: ControlModelVarnameList(:)
+    character(len=4), allocatable :: ControlBhiVarnameList  (:)
+    character(len=2), allocatable :: ControlVarGridTypeList (:)
+    integer, allocatable          :: ControlVarNlevList     (:)
+
+    logical :: found
+
+    !
+    !- 1.  How Many Control Variables do we have?
+    !
+    dateo  = -1
+    etiket = 'NLEV'
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    typvar = ' '
+    nomvar = 'CVL'
+
+    key = fstinf( iu_bstats,                                  & ! IN
+                  ni, nj, nk,                                 & ! OUT
+                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
+
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: Unable to find variable =',nomvar
+      call abort3d('lbhi_GetControlVariableInfo')
+    end if
+
+    nControlVariable = ni
+    write(*,*)
+    write(*,*) 'Number of Control Variables found = ', nControlVariable
+
+    allocate(ControlModelVarnameList(nControlVariable))
+    allocate(ControlBhiVarnameList  (nControlVariable))
+    allocate(ControlVarGridTypeList (nControlVariable))
+    allocate(ControlVarNlevList     (nControlVariable))
+
+    !
+    !- 2. Read the info from the input file
+    !
+    nomvar = 'CVN'
+
+    etiket = 'MODEL'
+    key = fstlir_s(ControlModelVarnameList,                    & ! OUT 
+                   iu_bstats,                                  & ! IN
+                   ni, nj, nlev,                               & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar 
+      call abort3d('lbhi_GetControlVariableInfo') 
+    end if
+
+    etiket = 'B_HI'
+    key = fstlir_s(ControlBhiVarnameList,                      & ! OUT 
+                   iu_bstats,                                  & ! IN
+                   ni, nj, nlev,                               & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
+      call abort3d('lbhi_GetControlVariableInfo') 
+    end if
+    
+
+    nomvar = 'CVL'
+
+    etiket = 'NLEV'
+    key = fstlir  (ControlVarNlevList,                         & ! OUT 
+                   iu_bstats,                                  & ! IN
+                   ni, nj, nlev,                               & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
+      call abort3d('lbhi_GetControlVariableInfo') 
+    end if
+
+    etiket = 'LEVTYPE'
+    key = fstlir_s(ControlVarGridTypeList,                     & ! OUT 
+                   iu_bstats,                                  & ! IN
+                   ni, nj, nlev,                               & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
+      call abort3d('lbhi_GetControlVariableInfo') 
+    end if
+
+    !
+    !- 3. Introduce the info in the ControlVariable structure
+    !
+    do var = 1, nControlVariable
+       ControlVariable(var)%nomvar(cv_model)= trim(ControlModelVarnameList(var))
+       ControlVariable(var)%nomvar(cv_bhi)  = trim(ControlBhiVarnameList(var))
+       ControlVariable(var)%nlev            = ControlVarNlevList(var)
+       ControlVariable(var)%GridType        = trim(ControlVarGridTypeList(var))
+
+       if      (trim(ControlVariable(var)%nomvar(cv_model)) == 'UU' ) then 
+          UWindID = var
+       else if (trim(ControlVariable(var)%nomvar(cv_model)) == 'VV' ) then
+          VWindID = var
+       end if
+
+       if ( trim(ControlVariable(var)%nomvar(cv_model)) == 'LQ' ) then
+          ControlVariable(var)%nomvar(cv_model) = 'HU' ! PATCH because gridStateVector uses HU
+                                                       ! despite that LQ is outputed from bmatrix_mod
+       end if
+
+       write(*,*)
+       write(*,*) 'nomvar(cv_model) = ', ControlVariable(var)%nomvar(cv_model)
+       write(*,*) 'nomvar(cv_bhi)   = ', ControlVariable(var)%nomvar(cv_bhi)
+       write(*,*) 'nlev             = ', ControlVariable(var)%nlev
+       write(*,*) 'gridtype         = ', ControlVariable(var)%GridType
+    end do
+
+    deallocate(ControlModelVarnameList)
+    deallocate(ControlBhiVarnameList)
+    deallocate(ControlVarGridTypeList)
+    deallocate(ControlVarNlevList)
+
+    !
+    !- 4. Error traps
+    !
+    if ( UWindID == -1 .or. VWindID == -1) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
+      call abort3d('lbhi_GetControlVariableInfo')
+    end if
+
+    !- Make sure that all the control variables are present in GridStateVector
+    do var = 1, nControlVariable
+       if ( .not. gsv_varExist(ControlVariable(var)%nomvar(cv_model)) ) then
+          write(*,*)
+          write(*,*) 'lbhi_GetControlVariableInfo: The following variable is MISSING in GridStateVector'
+          write(*,*) trim(ControlVariable(var)%nomvar(cv_model))
+          call abort3d('lbhi_GetControlVariableInfo')
+       end if
+    end do
+
+    !- Make sure that all the variables in GridStateVector are present in the control variables
+    do varvnl = 1, vnl_numvarmax
+
+       if ( gsv_varExist(vnl_varNameList(varvnl)) ) then
+
+          found = .false.
+          do var = 1, nControlVariable
+             if ( vnl_varNameList(varvnl) == ControlVariable(var)%nomvar(cv_model) ) then
+                found = .true.
+                exit
+             end if
+          end do
+
+          if (.not. found) then
+             write(*,*)
+             write(*,*) 'lbhi_GetControlVariableInfo: The following variable is MISSING in the Control Variables'
+             write(*,*) trim(vnl_varNameList(varvnl))
+             call abort3d('lbhi_GetControlVariableInfo')
+          end if
+
+       end if
+
+    end do
+
+  end subroutine lbhi_GetControlVariableInfo
+
+!--------------------------------------------------------------------------
+! LBHI_GetHorizGridInfo
+!--------------------------------------------------------------------------
+  subroutine lbhi_GetHorizGridInfo( iu_bstats )
     implicit none
 
     integer, intent(in) :: iu_bstats
@@ -274,7 +453,7 @@ contains
     ip2    = -1
     ip3    = -1
     typvar = ' '
-    nomvar = ControlVariable(1)%nomvar
+    nomvar = ControlVariable(1)%nomvar(cv_bhi)
 
     key = fstinf( iu_bstats,                                  & ! IN
                   ni, nj, nk,                                 & ! OUT
@@ -282,8 +461,8 @@ contains
 
     if (key < 0) then
       write(*,*)
-      write(*,*) 'lbhi_GetGridInfo: Unable to find input horiz grid info using =',nomvar
-      stop
+      write(*,*) 'lbhi_GetHorizGridInfo: Unable to find input horiz grid info using =',nomvar
+      call abort3d('lbhi_GetHorizGridInfo')
     end if
 
     ier = fstprm( key,                                                 & ! IN
@@ -303,7 +482,7 @@ contains
          hco_bstats%ig4   == hco_bhi%ig4 ) then
       Regrid = .false.
       write(*,*)
-      write(*,*) 'lbhi_GetGridInfo: No Horizontal regridding needed'
+      write(*,*) 'lbhi_GetHorizGridInfo: No Horizontal regridding needed'
     else
       Regrid = .true.
       hco_bstats%EZscintID = ezqkdef( hco_bstats%ni, hco_bstats%nj,       & ! IN
@@ -312,10 +491,10 @@ contains
                                         hco_bstats%ig4, iu_bstats )         ! IN
       ier = ezdefset(hco_bhi%EZscintID, hco_bstats%EZscintID)               ! IN
       write(*,*)
-      write(*,*) 'lbhi_GetGridInfo: Horizontal regridding is needed'
+      write(*,*) 'lbhi_GetHorizGridInfo: Horizontal regridding is needed'
     end if
 
-  end subroutine lbhi_GetGridInfo
+  end subroutine lbhi_GetHorizGridInfo
 
 !--------------------------------------------------------------------------
 ! LBHI_READSTATS
@@ -389,12 +568,12 @@ contains
         write(*,*) 'lbhi_ReadBSqrt: Truncation here and on stats file different'
         write(*,*) 'VAR truncation        = ', trunc
         write(*,*) 'Stats file truncation = ', infon-1
-        stop
+        call abort3d('lbhi_ReadBSqrt')
       end if
     else
       write(*,*)
       write(*,*) 'lbhi_ReadBSqrt: Cannot find B square-root ', nomvar 
-      stop
+      call abort3d('lbhi_ReadBSqrt')
     end if
 
     !
@@ -479,7 +658,7 @@ contains
         ip2    = -1
         ip3    = -1
         typvar = ' '
-        nomvar = trim(ControlVariable(var)%nomvar)
+        nomvar = trim(ControlVariable(var)%nomvar(cv_bhi))
         etiket = 'STDDEV'
         if ( trim(nomvar) == 'P0') then
           UnitConv = 100.0d0 ! hPa -> Pa
@@ -496,7 +675,7 @@ contains
         if (ier < 0) then
           write(*,*)
           write(*,*) 'lbhi_ReadGridPointStdDev: Cannot find Std Deviations'
-          write(*,*) 'nomvar =', trim(ControlVariable(var)%nomvar)
+          write(*,*) 'nomvar =', trim(ControlVariable(var)%nomvar(cv_bhi))
           write(*,*) 'etiket =', trim(etiket)
           write(*,*) 'ip1    =', ControlVariable(var)%ip1(k)
           call abort3d('lbhi_ReadGridPointStdDev')
@@ -505,7 +684,7 @@ contains
         if (ni_t /= hco_bstats%ni .or. nj_t /= hco_bstats%nj) then
           write(*,*)
           write(*,*) 'lbhi_ReadGridPointStdDev: Invalid dimensions for ...'
-          write(*,*) 'nomvar      =', trim(ControlVariable(var)%nomvar)
+          write(*,*) 'nomvar      =', trim(ControlVariable(var)%nomvar(cv_bhi))
           write(*,*) 'etiket      =', trim(etiket)
           write(*,*) 'ip1         =', ControlVariable(var)%ip1(k)
           write(*,*) 'Found ni,nj =', ni_t, nj_t 
@@ -517,7 +696,7 @@ contains
         if ( .not. Regrid) then
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D(:,:)
         else
-           ! Note: EZSCINT setup was done in GetGridInfo
+           ! Note: EZSCINT setup was done in GetHorizGridInfo
            ier = ezsint(StdDev2D_Regrid, StdDev2D)
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if
@@ -688,9 +867,13 @@ contains
     !
 
     !- 4.1 Memory allocation and Extraction of Psi and Chi from GD
-    if ( ControlVariable(1)%nlev /= nlev_M .or. &
-         ControlVariable(2)%nlev /= nlev_M      ) then
-      call abort3d('lbhi_cv2gd: Error in Psi field or Chi field vertical grid')
+    if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) /= 'UU' .or. &
+         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   /= 'PP' .or. &
+         trim(ControlVariable(VWindID)%nomvar(cv_model)) /= 'VV' .or. &
+         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   /= 'CC' .or. &
+         ControlVariable(UWindID)%nlev /= nlev_M .or. &
+         ControlVariable(VWindID)%nlev /= nlev_M  ) then
+      call abort3d('lbhi_cv2gd: Error in Wind related parameters')
     end if
 
     allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
@@ -698,8 +881,8 @@ contains
     allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
     allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
 
-    psi(:,:,:) = gd_out(:,:,ControlVariable(1)%kDimStart:ControlVariable(1)%kDimEnd)
-    chi(:,:,:) = gd_out(:,:,ControlVariable(2)%kDimStart:ControlVariable(2)%kDimEnd)
+    psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
+    chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
 
     !- 4.2 Do Transform
     call lag_PsiChiToUV( psi, chi,           & ! IN
@@ -740,9 +923,13 @@ contains
     !
 
     !- 4.3 Memory allocation and Extraction of Uphy and Vphy from GDUV
-    if ( ControlVariable(1)%nlev /= nlev_M .or. &
-         ControlVariable(2)%nlev /= nlev_M      ) then
-       call abort3d('lbhi_cv2gd: Error in Psi field or Chi field vertical grid')
+    if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) /= 'UU' .or. &
+         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   /= 'PP' .or. &
+         trim(ControlVariable(VWindID)%nomvar(cv_model)) /= 'VV' .or. &
+         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   /= 'CC' .or. &
+         ControlVariable(UWindID)%nlev /= nlev_M .or. &
+         ControlVariable(VWindID)%nlev /= nlev_M  ) then
+      call abort3d('lbhi_cv2gdadj: Error in Wind related parameters')
     end if
 
     allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
@@ -759,8 +946,8 @@ contains
                             nlev_M)               ! IN
 
     !- 4.1 Insert results in gd and deallocate moemories
-    gd_in(:,:,ControlVariable(1)%kDimStart:ControlVariable(1)%kDimEnd) = psi(:,:,:)
-    gd_in(:,:,ControlVariable(2)%kDimStart:ControlVariable(2)%kDimEnd) = chi(:,:,:)
+    gd_in(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd) = psi(:,:,:)
+    gd_in(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd) = chi(:,:,:)
 
     deallocate(chi)
     deallocate(psi)
@@ -919,10 +1106,12 @@ contains
     real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nksdim)
     character(len=*), intent(in)    :: Direction
 
-    integer :: var, VarID
+    integer :: var,varID
     integer :: kgdStart, kgdEnd, i, j, k, kgd, nlev
 
     real(8), pointer :: field(:,:,:)
+
+    character(len=4 )      :: varname
 
     logical :: ToStateVector
 
@@ -937,58 +1126,44 @@ contains
       call abort3d('StatevectorInterface')
     end select
 
-    do var = 1, vnl_numvarmax 
+    do var = 1, nControlVariable
 
-      if ( gsv_varExist(vnl_varNameList(var)) ) then
+      varname = ControlVariable(var)%nomvar(cv_model)
 
-        field => gsv_getField3D(statevector,vnl_varNameList(var))
+      if (.not. gsv_varExist(varname) ) then
+         write(*,*)
+         write(*,*) 'StatevectorInterface: The following variable is MISSING in GridStateVector'
+         write(*,*) varname
+         call abort3d('StatevectorInterface')
+      end if
 
-        select case ( vnl_varNameList(var) )
-        case ('UU  ')
-          VarID = 1
-        case ('VV  ')
-          VarID = 2
-        case ('TT  ')
-          VarID = 3
-        case ('HU  ')
-          VarID = 4
-        case ('P0  ')
-          VarID = 5
-        case ('TG  ')
-          VarID = 6
-        case default
-          write(*,*)
-          write(*,*) 'StatevectorInterface: No covariances available for variable:', vnl_varNameList(var)
-          call abort3d('StatevectorInterface')
-        end select
+      field => gsv_getField3D(statevector,varname)
 
-        kgdStart = ControlVariable(VarID)%kDimStart
-        kgdEnd   = ControlVariable(VarID)%kDimEnd
+      kgdStart = ControlVariable(var)%kDimStart
+      kgdEnd   = ControlVariable(var)%kDimEnd
    
-        nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(var)))
-        if ( kgdEnd - kgdStart + 1  /= nlev ) then
-           write(*,*)
-           write(*,*) 'StatevectorInterface: Number of vertical level mismatch'
-           write(*,*) kgdEnd - kgdStart + 1, nlev
-           call abort3d('StatevectorInterface')
-        end if
+      nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(varname))
+      if ( kgdEnd - kgdStart + 1  /= nlev ) then
+         write(*,*)
+         write(*,*) 'StatevectorInterface: Number of vertical level mismatch'
+         write(*,*) kgdEnd - kgdStart + 1, nlev
+         call abort3d('StatevectorInterface')
+      end if
 
 !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
-        do j = myLatBeg, myLatEnd
-          do kgd = kgdStart, kgdEnd
+      do j = myLatBeg, myLatEnd
+         do kgd = kgdStart, kgdEnd
             k = kgd - kgdStart + 1
             do i = myLonBeg, myLonEnd
-              if ( ToStateVector ) then
-                field(i,k,j) = gd(i,j,kgd)
-              else
-                gd(i,j,kgd)  = field(i,k,j)
-              end if
+               if ( ToStateVector ) then
+                  field(i,k,j) = gd(i,j,kgd)
+               else
+                  gd(i,j,kgd)  = field(i,k,j)
+               end if
             end do
-          end do
-        end do
+         end do
+      end do
 !$OMP END PARALLEL DO
-
-      end if
 
     end do
 

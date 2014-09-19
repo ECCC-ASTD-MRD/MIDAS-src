@@ -37,7 +37,7 @@ module calcbmatrix_lam_mod
   integer, parameter :: cv_bhi   = 2
   type  :: calcb_cv
     character(len=4)      :: NomVar(2)
-    character(len=1)      :: GridType ! T=Thermo, M=Momentum, N=Non-staggered
+    character(len=2)      :: GridType ! TH=Thermo, MM=Momentum, NS=Non-staggered
     integer               :: nlev
     integer               :: kDimStart
     integer               :: kDimEnd
@@ -76,11 +76,16 @@ module calcbmatrix_lam_mod
     integer :: nulnam, ier, mpiMode, status
     integer :: fclos, fnom, fstouv, fstfrm
     integer :: grd_ext_x, grd_ext_y
-    integer :: numvar3d, numvar2d, var, k
+    integer :: var, k
 
     real(8) :: SurfacePressure
 
+    character(len=4) :: cgneed(nMaxControlVar)
+
+    logical :: mask(nMaxControlVar)
+
     NAMELIST /NAMCALCB_LAM/ntrunc,grd_ext_x,grd_ext_y,NormByStdDev
+    NAMELIST /NAMSTATE/CGNEED
 
     write(*,*)
     write(*,*) 'calcb_lam_setup: Starting...'
@@ -132,68 +137,104 @@ module calcbmatrix_lam_mod
 
     !- 3.4 Setup the LAM spectral transform
     call lst_Setup( lst_bhi,                    & ! OUT
-                    hco_bhi % ni, hco_bhi % nj, & ! IN
-                    hco_bhi % dlon, ntrunc,     & ! IN
+                    hco_bhi%ni, hco_bhi%nj, & ! IN
+                    hco_bhi%dlon, ntrunc,     & ! IN
                     'NoMpi' )                     ! IN
 
     !
     !- 4.  Setup the control variables (model space and B_hi space)
     !
-    numvar3d = 4
-    numvar2d = 2
-    nControlVariable = numvar3d + numvar2d
 
-    ControlVariable(1) % nomvar(cv_model)  = 'UU'
-    ControlVariable(2) % nomvar(cv_model)  = 'VV'
-    if ( trim(WindTransform) == 'PsiChi') then
-      ControlVariable(1) % nomvar(cv_bhi)    = 'PP'
-      ControlVariable(2) % nomvar(cv_bhi)    = 'CC'
-    else
-      ControlVariable(1) % nomvar(cv_bhi)    = 'QQ'
-      ControlVariable(2) % nomvar(cv_bhi)    = 'DD'
-    end if
-    ControlVariable(3) % nomvar(cv_model:cv_bhi) = 'TT'
-    ControlVariable(4) % nomvar(cv_model:cv_bhi) = 'LQ'
-    ControlVariable(5) % nomvar(cv_model:cv_bhi) = 'P0'
-    ControlVariable(6) % nomvar(cv_model:cv_bhi) = 'TG'
+    !- 4.1 Read NAMELIST NAMSTATE to find which fields are needed
+    cgneed(:) = 'NONE'
+    ier=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read (nulnam,nml=namstate)
+    write(*     ,nml=namstate)
+    ier=fclos(nulnam)
 
-    ControlVariable(1:4) % nlev   = vco_bhi % nlev_M
-    ControlVariable(5:6) % nlev   = 1
+    mask = cgneed .ne. 'NONE'
+    nControlVariable = count(mask) 
+    write(*,*)
+    write(*,*) 'Number of Control Variables = ', nControlVariable
 
+    !- 4.2 Set ControlVariable structure
     nkgdim = 0
     do var = 1, nControlVariable
-      allocate( ControlVariable(var) % ip1 (1:ControlVariable(var) % nlev) )
-      if (ControlVariable(var) % nlev /= 1) then
-        ControlVariable(var) % ip1(:) = vco_bhi % ip1_M(:)
-      else
-        ControlVariable(var) % ip1(:) = 0
-      end if
-      ControlVariable(var) % GridType = 'N' ! Non-stagerred
-      ControlVariable(var) % kDimStart = nkgdim + 1
-      nkgdim = nkgdim + ControlVariable(var) % nlev
-      ControlVariable(var) % kDimEnd   = nkgdim
+
+       !- Set variable name
+       ControlVariable(var)%nomvar(cv_model)  = trim(cgneed(var))
+       if ( ControlVariable(var)%nomvar(cv_model) == 'UU' ) then
+          if ( trim(WindTransform) == 'PsiChi') then
+             ControlVariable(var)%nomvar(cv_bhi)    = 'PP'
+          else
+             print*,'Only PsiChi Wind Trasnform is available'
+             stop
+          end if
+       else if ( ControlVariable(var)%nomvar(cv_model) == 'VV' ) then
+          if ( trim(WindTransform) == 'PsiChi') then
+             ControlVariable(var)%nomvar(cv_bhi)    = 'CC'
+          else
+             print*,'Only PsiChi Wind Trasnform is available'
+             stop
+          end if
+       else
+          ControlVariable(var)%nomvar(cv_bhi)    = ControlVariable(var)%nomvar(cv_model)
+       end if
+
+       !- Set Level info
+       if ( ControlVariable(var)%nomvar(cv_model) /= 'TG' ) then
+          call VarLevInfo(ControlVariable(var)%nlev,             & ! OUT
+                          ControlVariable(var)%GridType,         & ! OUT
+                          ControlVariable(var)%nomvar(cv_model), & ! IN 
+                          cflensin(1) )                            ! IN
+       else
+          ControlVariable(var)%nlev     = 1
+          ControlVariable(var)%GridType = 'NS'
+       end if
+
+       write(*,*)
+       write(*,*) 'Control Variable Name ', ControlVariable(var)%nomvar(cv_model)
+       write(*,*) '   Number of Levels = ', ControlVariable(var)%nlev
+       write(*,*) '   Type   of Levels = ', ControlVariable(var)%GridType
+       
+       allocate( ControlVariable(var)%ip1 (ControlVariable(var)%nlev) )
+
+       if (ControlVariable(var)%nlev /= 1) then
+          if (ControlVariable(var)%GridType == 'TH') then
+            ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
+          else
+            ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
+          end if
+       else
+          ControlVariable(var)%ip1(:) = 0
+       end if
+
+       ControlVariable(var)%kDimStart = nkgdim + 1
+       nkgdim = nkgdim + ControlVariable(var)%nlev
+       ControlVariable(var)%kDimEnd   = nkgdim
+
     end do
 
     !
-    !- 5.  Setup a pressure profile for verical localization 
+    !- 5.  Setup a pressure profile for vertical localization 
     !
-    SurfacePressure = 101000.D0
+    !SurfacePressure = 101000.D0
 
-    status = vgd_levels( vco_bhi % vgrid, ip1_list=vco_bhi%ip1_M, & ! IN
-                         levels=pressureProfile,                        & ! OUT
-                         sfc_field=SurfacePressure, in_log=.false.)       ! IN
+    !status = vgd_levels( vco_bhi%vgrid, ip1_list=vco_bhi%ip1_M, & ! IN
+    !                     levels=pressureProfile,                        & ! OUT
+    !                     sfc_field=SurfacePressure, in_log=.false.)       ! IN
 
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'calcb_lam_setup: ERROR with vgd_levels for desired levels '
-      stop
-    else
-       write(*,*)
-       write(*,*) 'Pressure profile...'
-       do k = 1, vco_bhi % nlev_M
-         write(*,*) k, PressureProfile(k) / 100.d0, ' hPa'
-       end do
-    endif
+    !if ( status /= VGD_OK ) then
+    !  write(*,*)
+    !  write(*,*) 'calcb_lam_setup: ERROR with vgd_levels for desired levels '
+    !  stop
+    !else
+    !   write(*,*)
+    !   write(*,*) 'Pressure profile...'
+    !   do k = 1, vco_bhi%nlev_M
+    !     write(*,*) k, PressureProfile(k) / 100.d0, ' hPa'
+    !   end do
+    !endif
 
     !
     !- 6.  Ending
@@ -420,12 +461,12 @@ module calcbmatrix_lam_mod
 
     real(8) :: work, dlat, dlon
 
-    integer :: brpstamp,npak
+    integer :: dateo,npak
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
 
     character(len=1)  :: grtyp
-    character(len=2)  :: typinc
+    character(len=2)  :: typvar
     character(len=12) :: etiket
 
     !
@@ -442,38 +483,38 @@ module calcbmatrix_lam_mod
 
     !- 2.1 Tic-Tac
     deet     =  0
-    ip1      =  hco_ens % ig1
-    ip2      =  hco_ens % ig2
+    ip1      =  hco_ens%ig1
+    ip2      =  hco_ens%ig2
     ip3      =  0
     npas     =  0
     datyp    =  1
     grtyp    = 'E'
-    typinc   = 'X'
+    typvar   = 'X'
     etiket   = 'COREGRID'
-    brpstamp =  0
+    dateo =  0
 
     call cxgaig ( grtyp,                                          & ! IN
                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                  real(hco_ens % xlat1), real(hco_ens % xlon1),   & ! IN
-                  real(hco_ens % xlat2), real(hco_ens % xlon2)  )   ! IN
+                  real(hco_ens%xlat1), real(hco_ens%xlon1),   & ! IN
+                  real(hco_ens%xlat2), real(hco_ens%xlon2)  )   ! IN
 
     ig1      =  ig1_tictac
     ig2      =  ig2_tictac
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(hco_ens % lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, brpstamp, deet, npas, hco_ens%ni, 1, 1, ip1,    &
-                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,          &
+    ier = vfstecr(hco_ens%lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, dateo, deet, npas, hco_ens%ni, 1, 1, ip1,    &
+                  ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(hco_ens % lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, brpstamp, deet, npas, 1, hco_ens%nj, 1, ip1,    &
-                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,          &
+    ier = vfstecr(hco_ens%lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, dateo, deet, npas, 1, hco_ens%nj, 1, ip1,    &
+                  ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
     !- 2.2 2D Field
-    allocate(Field2d(hco_ens % ni,hco_ens % nj))
+    allocate(Field2d(hco_ens%ni,hco_ens%nj))
     Field2d(:,:) = 10.d0
 
     deet      =  0
@@ -482,18 +523,18 @@ module calcbmatrix_lam_mod
     ip3       =  0
     npas      =  0
     datyp     =  1
-    grtyp     =  hco_ens % grtyp
-    typinc    = 'A'
+    grtyp     =  hco_ens%grtyp
+    typvar    = 'A'
     etiket    = 'COREGRID'
-    brpstamp  =  0
-    ig1       =  hco_ens % ig1
-    ig2       =  hco_ens % ig2
-    ig3       =  hco_ens % ig3
-    ig4       =  hco_ens % ig4
+    dateo  =  0
+    ig1       =  hco_ens%ig1
+    ig2       =  hco_ens%ig2
+    ig3       =  hco_ens%ig3
+    ig4       =  hco_ens%ig4
 
     ier = vfstecr(Field2d, work, npak,                                       &
-                  iun, brpstamp, deet, npas, hco_ens%ni, hco_ens%nj, 1, ip1, &
-                  ip2, ip3, typinc, 'P0', etiket, grtyp, ig1,                &
+                  iun, dateo, deet, npas, hco_ens%ni, hco_ens%nj, 1, ip1, &
+                  ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,                &
                   ig2, ig3, ig4, datyp, .true.)
 
     deallocate(Field2d)
@@ -501,52 +542,52 @@ module calcbmatrix_lam_mod
     !
     !- 3.  Create and Write the extended grid (Analysis) template
     !
-    ni_ext = hco_ens % ni + grd_ext_x
-    nj_ext = hco_ens % nj + grd_ext_y
+    ni_ext = hco_ens%ni + grd_ext_x
+    nj_ext = hco_ens%nj + grd_ext_y
 
     !- 3.1 Tic-Tac
     allocate(lon_ext(ni_ext))
     allocate(lat_ext(nj_ext))
 
     !- Copy core grid info
-    lon_ext(1:hco_ens % ni) = hco_ens % lon(:) 
-    lat_ext(1:hco_ens % nj) = hco_ens % lat(:)
+    lon_ext(1:hco_ens%ni) = hco_ens%lon(:) 
+    lat_ext(1:hco_ens%nj) = hco_ens%lat(:)
 
     !- Extend the lat lon
-    dlon = hco_ens % lon(2) - hco_ens % lon(1) 
-    do i = hco_ens % ni + 1, ni_ext
-       lon_ext(i) = lon_ext(hco_ens % ni) + (i - hco_ens % ni) * dlon
+    dlon = hco_ens%lon(2) - hco_ens%lon(1) 
+    do i = hco_ens%ni + 1, ni_ext
+       lon_ext(i) = lon_ext(hco_ens%ni) + (i - hco_ens%ni) * dlon
     end do
 
-    dlat = hco_ens % lat(2) - hco_ens % lat(1) 
-    do j = hco_ens % nj + 1, nj_ext
-       lat_ext(j) = lat_ext(hco_ens % nj) + (j - hco_ens % nj) * dlat
+    dlat = hco_ens%lat(2) - hco_ens%lat(1) 
+    do j = hco_ens%nj + 1, nj_ext
+       lat_ext(j) = lat_ext(hco_ens%nj) + (j - hco_ens%nj) * dlat
     end do
 
     !- Write
     deet     =  0
-    ip1      =  hco_ens % ig1 + 100 ! Must be different from the core grid
-    ip2      =  hco_ens % ig2 + 100 ! Must be different from the core grid
+    ip1      =  hco_ens%ig1 + 100 ! Must be different from the core grid
+    ip2      =  hco_ens%ig2 + 100 ! Must be different from the core grid
     ip3      =  0
     npas     =  0
     datyp    =  1
     grtyp    = 'E'
-    typinc   = 'X'
+    typvar   = 'X'
     etiket   = 'ANALYSIS'
-    brpstamp =  0
+    dateo =  0
     ig1      =  ig1_tictac
     ig2      =  ig2_tictac
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
     ier = vfstecr(lon_ext*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, brpstamp, deet, npas, ni_ext, 1, 1, ip1,  &
-                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,    &
+                  iun, dateo, deet, npas, ni_ext, 1, 1, ip1,  &
+                  ip2, ip3, typvar, '>>', etiket, grtyp, ig1,    &
                   ig2, ig3, ig4, datyp, .true.)
 
     ier = vfstecr(lat_ext*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, brpstamp, deet, npas, 1, nj_ext, 1, ip1,  &
-                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,    &
+                  iun, dateo, deet, npas, 1, nj_ext, 1, ip1,  &
+                  ip2, ip3, typvar, '^^', etiket, grtyp, ig1,    &
                   ig2, ig3, ig4, datyp, .true.)
 
     deallocate(lon_ext)
@@ -562,18 +603,18 @@ module calcbmatrix_lam_mod
     ip3       =  0
     npas      =  0
     datyp     =  1
-    grtyp     =  hco_ens % grtyp
-    typinc    = 'A'
+    grtyp     =  hco_ens%grtyp
+    typvar    = 'A'
     etiket    = 'ANALYSIS'
-    brpstamp  =  0
-    ig1       =  hco_ens % ig1 + 100 ! Must be different from the core grid
-    ig2       =  hco_ens % ig2 + 100 ! Must be different from the core grid
+    dateo  =  0
+    ig1       =  hco_ens%ig1 + 100 ! Must be different from the core grid
+    ig2       =  hco_ens%ig2 + 100 ! Must be different from the core grid
     ig3       =  0
     ig4       =  0
 
     ier = vfstecr(Field2d, work, npak,                               &
-                  iun, brpstamp, deet, npas, ni_ext, nj_ext, 1, ip1, &
-                  ip2, ip3, typinc, 'P0', etiket, grtyp, ig1,        &
+                  iun, dateo, deet, npas, ni_ext, nj_ext, 1, ip1, &
+                  ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,        &
                   ig2, ig3, ig4, datyp, .true.)
 
     deallocate(Field2d)
@@ -585,6 +626,106 @@ module calcbmatrix_lam_mod
     ier = fclos (iun)
 
   end subroutine CreateLamTemplateGrids
+
+!--------------------------------------------------------------------------
+! VarLevInfo
+!--------------------------------------------------------------------------
+  subroutine VarLevInfo( nlev, GridType, VarName, infile )
+    implicit none
+
+    character(len=4), intent(in)  :: VarName
+    character(len=*), intent(in)  :: infile
+
+    integer         , intent(out) :: nlev
+    character(len=2), intent(out) :: GridType
+
+    integer :: fstouv, fnom, fstfrm, fclos, iunens
+    integer :: key, fstinf, fstinl, fstprm, infon
+    integer, parameter :: nmax=2000
+    integer :: liste(nmax)
+
+    integer           :: ip1, ip2, ip3, ier
+    integer           :: ni_t, nj_t, nlev_t, dateo, deet, npas, nbits, datyp
+    integer           :: ig1, ig2, ig3, ig4, extra1, extra2, extra3, swa, lng, dltf, ubc
+    character(len=4 ) :: nomvar
+    character(len=2 ) :: typvar
+    character(len=1 ) :: grtyp
+    character(len=12) :: etiket
+
+    !
+    !- 1.  Open the input file
+    !
+    iunens = 0
+    ier    = fnom(iunens,infile,'RND+OLD+R/O',0)
+    ier    = fstouv(iunens,'RND+OLD')
+
+    !
+    !- 2.  Find the number of records
+    !
+    dateo  = -1
+    etiket = ' '
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    typvar = ' '
+
+    key = fstinl(iunens,                                       & ! IN
+                ni_t, nj_t, nlev_t,                            & ! OUT
+                dateo, etiket, ip1, ip2, ip3, typvar, VarName, & ! IN
+                liste, infon,                                  & ! OUT
+                nmax )                                           ! IN
+
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'VarLevInfo: Cannot find variable ', VarName 
+      call abort3d('VarLevInfo') 
+    end if
+
+    !
+    !- 3.  Find de the Number of verical levels (ip1)
+    !
+    
+    ! We assume that the number of levels = number of records (this could be improve...)
+    nlev = infon 
+    if ( nlev /= 1 .and. nlev /= vco_bhi%nlev_T .and. nlev /= vco_bhi%nlev_M ) then
+       write(*,*)
+       write(*,*) 'The number of levels found does not match with the vco structure !!!'
+       write(*,*) 'nlev found = ', nlev
+       write(*,*) 'vco nlevs  = ', vco_bhi%nlev_T, vco_bhi%nlev_M
+       call abort3d('VarLevInfo')
+    end if
+
+    !
+    !- 4.  Find the type of vertical grid
+    !
+    if ( nlev /=1 ) then
+      ier = fstprm( liste(1),                                            & ! IN
+                    dateo, deet, npas, ni_t, nj_t, nlev_t,               & ! OUT
+                    nbits, datyp, ip1, ip2, ip3, typvar, nomvar, etiket, & ! OUT
+                    grtyp, ig1, ig2, ig3, ig4, swa, lng, dltf, ubc,      & ! OUT
+                    extra1, extra2, extra3 )                               ! OUT
+
+      if      ( ANY(vco_bhi%ip1_M == ip1) ) then
+         GridType = 'MM'
+      else if ( ANY(vco_bhi%ip1_T == ip1) ) then
+         GridType = 'TH'
+      else
+         write(*,*)
+         write(*,*) 'The ip1 found does not match with the vco structure !!!', ip1
+         call abort3d('VarLevInfo')
+      end if
+
+    else
+       GridType = 'NS'
+    end if
+
+    !
+    !- 5.  Close the input file
+    !
+    ier =  fstfrm(iunens)
+    ier =  fclos (iunens)
+
+  end subroutine VarLevInfo
 
 !--------------------------------------------------------------------------
 ! ReadEnsemble
@@ -607,7 +748,7 @@ module calcbmatrix_lam_mod
     character(len=1 )           :: typvar
     character(len=12)           :: etiket
 
-    allocate(work2d(hco_ens % ni, hco_ens % nj))
+    allocate(work2d(hco_ens%ni, hco_ens%nj))
 
     !- Loop over the Ensemble members
     do ens = 1, nens
@@ -623,14 +764,14 @@ module calcbmatrix_lam_mod
       do var = 1, nControlVariable
 
         !- Loop over vertical Levels
-        do k = 1, ControlVariable(var) % nlev
+        do k = 1, ControlVariable(var)%nlev
 
           dateo  = -1
-          ip1    = ControlVariable(var) % ip1(k)
+          ip1    = ControlVariable(var)%ip1(k)
           ip2    = -1
           ip3    = -1
           typvar = ' '
-          nomvar = trim(ControlVariable(var) % nomvar(cv_model))
+          nomvar = trim(ControlVariable(var)%nomvar(cv_model))
           etiket = ' '
           if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
             factor = 1.0/1.94246 ! knots -> m/s
@@ -653,26 +794,26 @@ module calcbmatrix_lam_mod
           if (ier < 0) then
             write(*,*)
             write(*,*) 'Read Ensemble: Cannot find field ...'
-            write(*,*) 'nomvar =', trim(ControlVariable(var) % nomvar(cv_model))
+            write(*,*) 'nomvar =', trim(ControlVariable(var)%nomvar(cv_model))
             write(*,*) 'etiket =', trim(etiket)
-            write(*,*) 'ip1    =', ControlVariable(var) % ip1(k)
+            write(*,*) 'ip1    =', ControlVariable(var)%ip1(k)
             stop
           end if
 
-          if (ni_t /= hco_ens % ni .or. nj_t /= hco_ens % nj) then
+          if (ni_t /= hco_ens%ni .or. nj_t /= hco_ens%nj) then
             write(*,*)
             write(*,*) 'ReadEnsemble: Invalid dimensions for ...'
-            write(*,*) 'nomvar      =', trim(ControlVariable(var) % nomvar(cv_model))
+            write(*,*) 'nomvar      =', trim(ControlVariable(var)%nomvar(cv_model))
             write(*,*) 'etiket      =', trim(etiket)
-            write(*,*) 'ip1         =', ControlVariable(var) % ip1(k)
+            write(*,*) 'ip1         =', ControlVariable(var)%ip1(k)
             write(*,*) 'Found ni,nj =', ni_t, nj_t 
-            write(*,*) 'Should be   =', hco_ens % ni, hco_ens % nj
+            write(*,*) 'Should be   =', hco_ens%ni, hco_ens%nj
             stop
           end if
 
           !- Insert in EnsPerturbations
-          kgdim = ControlVariable(var) % kDimStart + k - 1
-          EnsPerturbations(1:hco_ens % ni, 1:hco_ens % nj,kgdim,ens) = factor * work2d(:,:) 
+          kgdim = ControlVariable(var)%kDimStart + k - 1
+          EnsPerturbations(1:hco_ens%ni, 1:hco_ens%nj,kgdim,ens) = factor * work2d(:,:) 
 
         end do ! Vertical Levels
 
@@ -703,35 +844,35 @@ module calcbmatrix_lam_mod
     integer :: nlev, ens, kStart_u, kStart_v, kEnd_u, kEnd_v
 
     !- Error traps
-    if ( ControlVariable(1) % nlev /= ControlVariable(2) % nlev ) then
+    if ( ControlVariable(1)%nlev /= ControlVariable(2)%nlev ) then
       write(*,*)
       write(*,*) 'UVToCtrlVar: Error in Wind Field vertical grid !!!'
       stop
     end if
-    if ( ControlVariable(1) % nomvar(cv_model) /= 'UU' .or. &
-         ControlVariable(2) % nomvar(cv_model) /= 'VV' ) then
+    if ( ControlVariable(1)%nomvar(cv_model) /= 'UU' .or. &
+         ControlVariable(2)%nomvar(cv_model) /= 'VV' ) then
       write(*,*)
       write(*,*) 'UVToCtrlVar: Wind field(s) missing on input !!!'
-      write(*,*) 'nomvar(1) = ', ControlVariable(1) % nomvar(cv_model)
-      write(*,*) 'nomvar(2) = ', ControlVariable(2) % nomvar(cv_model)
+      write(*,*) 'nomvar(1) = ', ControlVariable(1)%nomvar(cv_model)
+      write(*,*) 'nomvar(2) = ', ControlVariable(2)%nomvar(cv_model)
       stop
     end if
 
     !- Allocation
-    nlev = ControlVariable(1) % nlev
-    allocate(uwind_3d   (hco_bhi % ni, hco_bhi % nj, nlev))
-    allocate(vwind_3d   (hco_bhi % ni, hco_bhi % nj, nlev))
-    allocate(CtrlVar1_3d(hco_bhi % ni, hco_bhi % nj, nlev))
-    allocate(CtrlVar2_3d(hco_bhi % ni, hco_bhi % nj, nlev))
+    nlev = ControlVariable(1)%nlev
+    allocate(uwind_3d   (hco_bhi%ni, hco_bhi%nj, nlev))
+    allocate(vwind_3d   (hco_bhi%ni, hco_bhi%nj, nlev))
+    allocate(CtrlVar1_3d(hco_bhi%ni, hco_bhi%nj, nlev))
+    allocate(CtrlVar2_3d(hco_bhi%ni, hco_bhi%nj, nlev))
 
     !- Loop over all ensemble members
     do ens   = 1, nens
 
       !- Wind position in EnsPerturbations
-      kStart_u = ControlVariable(1) % kDimStart
-      kStart_v = ControlVariable(2) % kDimStart
-      kEnd_u   = ControlVariable(1) % kDimEnd
-      kEnd_v   = ControlVariable(2) % kDimEnd
+      kStart_u = ControlVariable(1)%kDimStart
+      kStart_v = ControlVariable(2)%kDimStart
+      kEnd_u   = ControlVariable(1)%kDimEnd
+      kEnd_v   = ControlVariable(2)%kDimEnd
 
       !- Extract from EnsPerturbations
       uwind_3d = real(ensPerturbations(:,:,kStart_u:kEnd_u,ens),8)
@@ -768,14 +909,14 @@ module calcbmatrix_lam_mod
     implicit none
 
     integer, intent(in)    :: nk
-    real(8), intent(inout) :: VortPsi(hco_bhi % ni, hco_bhi % nj,nk)
-    real(8), intent(inout) :: DivChi (hco_bhi % ni, hco_bhi % nj,nk)
+    real(8), intent(inout) :: VortPsi(hco_bhi%ni, hco_bhi%nj,nk)
+    real(8), intent(inout) :: DivChi (hco_bhi%ni, hco_bhi%nj,nk)
 
-    call lst_Laplacian( lst_bhi % id,   & ! IN
+    call lst_Laplacian( lst_bhi%id,   & ! IN
                         VortPsi,        & ! INOUT
                         'Inverse', nk )   ! IN    
 
-    call lst_Laplacian( lst_bhi % id,   & ! IN
+    call lst_Laplacian( lst_bhi%id,   & ! IN
                         DivChi,         & ! INOUT
                         'Inverse', nk )   ! IN
 
@@ -803,24 +944,24 @@ module calcbmatrix_lam_mod
 
       !- Sum
       do ens = 1, nens
-        do j = 1 , hco_bhi % nj
-          do i = 1, hco_bhi % ni
+        do j = 1 , hco_bhi%nj
+          do i = 1, hco_bhi%ni
             ensMean3d(i,j,kgdim) = ensMean3d(i,j,kgdim) + real(ensPerturbations(i,j,kgdim,ens),8)
           end do
         end do
       end do
 
       !- Mean
-      do j = 1, hco_bhi % nj
-        do i = 1, hco_bhi % ni
+      do j = 1, hco_bhi%nj
+        do i = 1, hco_bhi%ni
           ensMean3d(i,j,kgdim) = ensMean3d(i,j,kgdim) * inens
         end do
       end do
 
       !- Remove Mean
       do ens = 1, nens
-        do j = 1, hco_bhi % nj
-          do i = 1, hco_bhi % ni
+        do j = 1, hco_bhi%nj
+          do i = 1, hco_bhi%ni
             ensPerturbations(i,j,kgdim,ens) = ensPerturbations(i,j,kgdim,ens) - &
                                                 real(ensMean3d(i,j,kgdim),4)
           end do
@@ -861,8 +1002,8 @@ module calcbmatrix_lam_mod
       BinCount (:) = 0
       StdDevBin(:) = 0.d0
       do ens = 1, nens
-        do j = 1, hco_bhi % nj
-          do i = 1, hco_bhi % ni
+        do j = 1, hco_bhi%nj
+          do i = 1, hco_bhi%ni
             b = Bin2d(i,j)
             BinCount(b)  = BinCount(b) + 1
             StdDevBin(b) = StdDevBin(b) + real(ensPerturbations(i,j,kgdim,ens),8)**2
@@ -874,8 +1015,8 @@ module calcbmatrix_lam_mod
       StdDevBin(:) = sqrt( StdDevBin(:) / real((BinCount(:)-1),8) )
 
       !- Distribute bin values at each grid point
-      do j = 1, hco_bhi % nj
-        do i = 1, hco_bhi % ni
+      do j = 1, hco_bhi%nj
+        do i = 1, hco_bhi%ni
           b = Bin2d(i,j)
           StdDev3d(i,j,kgdim) = StdDevBin(b)
         end do
@@ -906,8 +1047,8 @@ module calcbmatrix_lam_mod
 !$OMP PARALLEL
 !$OMP DO PRIVATE (ens, kgdim, j, i)
     do kgdim = 1, nkgdim
-      do j = 1, hco_bhi % nj
-         do i = 1, hco_bhi % ni
+      do j = 1, hco_bhi%nj
+         do i = 1, hco_bhi%ni
            if (StdDev3d(i,j,kgdim) > 0.0d0 ) then
              fact = real(1.0d0/StdDev3d(i,j,kgdim),4)
            else
@@ -956,8 +1097,8 @@ module calcbmatrix_lam_mod
     !
     !- 1.  Calculate the Vertical Covariances in Spectral Space
     !
-    allocate( SpectralStateVar(lst_bhi % nla,lst_bhi % nphase,nkgdim) )
-    allocate( GridState(hco_bhi % ni, hco_bhi % nj, nkgdim) )
+    allocate( SpectralStateVar(lst_bhi%nla,lst_bhi%nphase,nkgdim) )
+    allocate( GridState(hco_bhi%ni, hco_bhi%nj, nkgdim) )
 
     allocate(SumWeight(0:ntrunc))
     SumWeight(:) = 0.d0
@@ -969,7 +1110,7 @@ module calcbmatrix_lam_mod
 
       !- 1.2 Grid Point Space -> Spectral Space
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_bhi % id,          & ! IN
+      call lst_VarTransform( lst_bhi%id,          & ! IN
                              SpectralStateVar,      & ! OUT
                              GridState,             & ! IN
                              kind, nkgdim     )       ! IN
@@ -978,14 +1119,14 @@ module calcbmatrix_lam_mod
 !$OMP PARALLEL
 !$OMP DO PRIVATE (totwvnb,fact,e,ila,p,k2,k1)
       do totwvnb = 0, ntrunc
-        do e = 1, lst_bhi % nePerK(totwvnb)
-          ila = lst_bhi % ilaFromEK(e,totwvnb)
-          do p = 1, lst_bhi % nphase
-            SumWeight(totwvnb) = SumWeight(totwvnb) + lst_bhi % Weight(ila)
+        do e = 1, lst_bhi%nePerK(totwvnb)
+          ila = lst_bhi%ilaFromEK(e,totwvnb)
+          do p = 1, lst_bhi%nphase
+            SumWeight(totwvnb) = SumWeight(totwvnb) + lst_bhi%Weight(ila)
             do k2 = 1, nkgdim
               do k1 = 1, nkgdim
                 SpVertCorrel(k1,k2,totwvnb) = SpVertCorrel(k1,k2,totwvnb) &
-                    + lst_bhi % Weight(ila) * (SpectralStateVar(ila,p,k1) * SpectralStateVar(ila,p,k2))
+                    + lst_bhi%Weight(ila) * (SpectralStateVar(ila,p,k1) * SpectralStateVar(ila,p,k2))
               end do
             end do
           end do
@@ -1062,10 +1203,10 @@ module calcbmatrix_lam_mod
     
     !- 3.2.1 Spectral transform of a delta function (at the center of the domain)
     GridState(:,:,:) = 0.d0
-    GridState(hco_bhi % ni/2,hco_bhi % nj/2,:) = 1.d0
+    GridState(hco_bhi%ni/2,hco_bhi%nj/2,:) = 1.d0
 
     kind = 'GridPointToSpectral'
-    call lst_VarTransform( lst_bhi % id,          & ! IN
+    call lst_VarTransform( lst_bhi%id,          & ! IN
                            SpectralStateVar,      & ! OUT
                            GridState,             & ! IN
                            kind, nkgdim     )       ! IN
@@ -1074,12 +1215,12 @@ module calcbmatrix_lam_mod
 !$OMP PARALLEL
 !$OMP DO PRIVATE (totwvnb,e,ila,p,k)
     do totwvnb = 0, ntrunc
-       do e = 1, lst_bhi % nePerK(totwvnb)
-          ila = lst_bhi % ilaFromEK(e,totwvnb)
-          do p = 1, lst_bhi % nphase
+       do e = 1, lst_bhi%nePerK(totwvnb)
+          ila = lst_bhi%ilaFromEK(e,totwvnb)
+          do p = 1, lst_bhi%nphase
              do k = 1, nkgdim
                 SpectralStateVar(ila,p,k) = SpectralStateVar(ila,p,k) * NormPowerSpectrum(k,totwvnb) * &
-                              lst_bhi % NormFactor(ila,p) * lst_bhi % NormFactorAd(ila,p)
+                              lst_bhi%NormFactor(ila,p) * lst_bhi%NormFactorAd(ila,p)
              end do
           end do
        end do
@@ -1089,21 +1230,21 @@ module calcbmatrix_lam_mod
 
     !- 3.2.3 Move back to physical space
     kind = 'SpectralToGridPoint'
-    call lst_VarTransform( lst_bhi % id,      & ! IN
+    call lst_VarTransform( lst_bhi%id,      & ! IN
                            SpectralStateVar,  & ! IN
                            GridState,         & ! OUT
                            kind, nkgdim )       ! IN
 
     !- 3.2.4 Normalize to 1
     do k = 1, nkgdim
-       if ( GridState(hco_bhi % ni/2,hco_bhi % nj/2,k) < 0.d0 ) then
-          write(*,*) 'CalcSpectralStats: Problem in normalization ', k, GridState(hco_bhi % ni/2,hco_bhi % nj/2,k)
+       if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) < 0.d0 ) then
+          write(*,*) 'CalcSpectralStats: Problem in normalization ', k, GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
           call abort3d('aborting in CalcSpectralStats')
        end if
 
-       if ( GridState(hco_bhi % ni/2,hco_bhi % nj/2,k) /= 0.d0 ) then
-          write(*,*) 'CalcSpectralStats: Normalization factor = ', k, GridState(hco_bhi % ni/2,hco_bhi % nj/2,k), 1.d0 / GridState(hco_bhi % ni/2,hco_bhi % nj/2,k)
-          NormPowerSpectrum(k,:) = NormPowerSpectrum(k,:) / GridState(hco_bhi % ni/2,hco_bhi % nj/2,k)
+       if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) /= 0.d0 ) then
+          write(*,*) 'CalcSpectralStats: Normalization factor = ', k, GridState(hco_bhi%ni/2,hco_bhi%nj/2,k), 1.d0 / GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
+          NormPowerSpectrum(k,:) = NormPowerSpectrum(k,:) / GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
        else
           write(*,*) 'CalcSpectralStats: Setting NormPowerSpectrum to zero = ', k
           NormPowerSpectrum(k,:) = 0.d0
@@ -1161,11 +1302,11 @@ module calcbmatrix_lam_mod
     !
 
     ! Grid spacing in meters
-    dx = hco_bhi % dlon * RA
+    dx = hco_bhi%dlon * RA
     write(*,*)
     write(*,*) 'grid spacing (m) =', dx
 
-    dist = max(hco_bhi % ni, hco_bhi %nj) * dx
+    dist = max(hco_bhi%ni, hco_bhi %nj) * dx
     beta = (dist/(2.d0*MPC_PI_R8))**2
 
     !
@@ -1187,8 +1328,8 @@ module calcbmatrix_lam_mod
 
     do var = 1, nControlVariable
       write(*,*)
-      write(*,*) ControlVariable(var) % nomvar(cv_bhi)
-      do k = ControlVariable(var) % kDimStart, ControlVariable(var) % kDimEnd
+      write(*,*) ControlVariable(var)%nomvar(cv_bhi)
+      do k = ControlVariable(var)%kDimStart, ControlVariable(var)%kDimEnd
         write(*,'(i3,2X,f9.2,2X,a2)') k, HorizScale(k)/1000.d0, 'km'
       end do
     end do
@@ -1224,10 +1365,10 @@ module calcbmatrix_lam_mod
 
     !- 1.1 Compute Weights
     do totwvnb = 0, ntrunc
-      do e = 1, lst_bhi % nePerK(totwvnb)
-        ila = lst_bhi % ilaFromEK(e,totwvnb)
-        do p = 1, lst_bhi % nphase
-          SumWeight(totwvnb) = SumWeight(totwvnb) + lst_bhi % Weight(ila)
+      do e = 1, lst_bhi%nePerK(totwvnb)
+        ila = lst_bhi%ilaFromEK(e,totwvnb)
+        do p = 1, lst_bhi%nphase
+          SumWeight(totwvnb) = SumWeight(totwvnb) + lst_bhi%Weight(ila)
         end do
       end do
     end do
@@ -1356,19 +1497,19 @@ module calcbmatrix_lam_mod
       do var1 = 1, var2
          if (var1 == var2) then
            KeepOrDiscard(var1,var2) = 1.d0 ! Keep Auto-Correlations
-         elseif( (ControlVariable(var2) % nomvar(cv_bhi) == 'CC' .and. &
-                  ControlVariable(var1) % nomvar(cv_bhi) == 'PP') .or. &
-                 (ControlVariable(var2) % nomvar(cv_bhi) == 'TT' .and. &
-                  ControlVariable(var1) % nomvar(cv_bhi) == 'PP') .or. &
-                 (ControlVariable(var2) % nomvar(cv_bhi) == 'P0' .and. &
-                  ControlVariable(var1) % nomvar(cv_bhi) == 'PP') .or. &
-                 (ControlVariable(var2) % nomvar(cv_bhi) == 'P0' .and. &
-                  ControlVariable(var1) % nomvar(cv_bhi) == 'TT') ) then
+         elseif( (ControlVariable(var2)%nomvar(cv_bhi) == 'CC' .and. &
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'PP') .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT' .and. &
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'PP') .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0' .and. &
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'PP') .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0' .and. &
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'TT') ) then
            KeepOrDiscard(var1,var2) = 1.d0 ! Keep these Cross-Correlations
          else
            KeepOrDiscard(var1,var2) = 0.d0 ! Discard these Cross-Correlation
          end if
-         write(*,*) var1, var2, ControlVariable(var1) % nomvar(cv_bhi), ControlVariable(var2) % nomvar(cv_bhi), KeepOrDiscard(var1,var2) 
+         write(*,*) var1, var2, ControlVariable(var1)%nomvar(cv_bhi), ControlVariable(var2)%nomvar(cv_bhi), KeepOrDiscard(var1,var2) 
       end do
     end do
 
@@ -1387,8 +1528,8 @@ module calcbmatrix_lam_mod
       do var2 = 1, nControlVariable
         do var1 = 1, nControlVariable
 
-          do k2 = ControlVariable(var2) % kDimStart, ControlVariable(var2) % kDimEnd
-            do k1 = ControlVariable(var1) % kDimStart, ControlVariable(var1) % kDimEnd
+          do k2 = ControlVariable(var2)%kDimStart, ControlVariable(var2)%kDimEnd
+            do k1 = ControlVariable(var1)%kDimStart, ControlVariable(var1)%kDimEnd
               SpVertCorrel(k1,k2,totwvnb) = KeepOrDiscard(var1,var2) * &
                                             SpVertCorrel(k1,k2,totwvnb)
             end do
@@ -1424,10 +1565,10 @@ module calcbmatrix_lam_mod
       write(*,*) ' BIN_TYPE : No horizontal averaging '
       write(*,*) '          = One bin per horizontal grid point'
 
-      NumBins2d = hco_bhi % ni * hco_bhi % nj
+      NumBins2d = hco_bhi%ni * hco_bhi%nj
       BinCat    = 0
-      do j = 1, hco_bhi % nj
-        do i = 1, hco_bhi % ni
+      do j = 1, hco_bhi%nj
+        do i = 1, hco_bhi%ni
           BinCat = BinCat + 1
           bin2d(i,j) = BinCat
         end do
@@ -1437,9 +1578,9 @@ module calcbmatrix_lam_mod
       write(*,*)
       write(*,*) ' BIN_TYPE : One bin per Y row'
 
-      NumBins2d = hco_bhi % nj
+      NumBins2d = hco_bhi%nj
       BinCat    = 0
-      do j = 1, hco_bhi % nj
+      do j = 1, hco_bhi%nj
         BinCat = BinCat + 1
         bin2d(:,j) = BinCat
       end do
@@ -1471,7 +1612,7 @@ module calcbmatrix_lam_mod
 
     integer :: kgdim, ens
 
-    allocate(work3d(hco_bhi % ni, hco_bhi % nj, nkgdim))
+    allocate(work3d(hco_bhi%ni, hco_bhi%nj, nkgdim))
 
     !- Loop over all variables / levels / ensemble members
     do ens   = 1, nens
@@ -1479,7 +1620,7 @@ module calcbmatrix_lam_mod
         work3d(:,:,:) = real(ensPerturbations(:,:,:,ens),8)
 
         call lag_mach(work3d,                             & ! INOUT
-                      hco_bhi % ni, hco_bhi % nj, nkgdim)   ! IN
+                      hco_bhi%ni, hco_bhi%nj, nkgdim)   ! IN
 
         ensPerturbations(:,:,:,ens) = real(work3d(:,:,:),4)
 
@@ -1515,6 +1656,11 @@ module calcbmatrix_lam_mod
     !- Add Tic-Tac and Toc-Toc
     !
     call WriteTicTacToc(iunstats)
+
+    !
+    !- Add Control Variable Info
+    !
+    call WriteControlVarInfo(iunstats)
 
     !
     !- Bsqrt
@@ -1762,7 +1908,7 @@ module calcbmatrix_lam_mod
     character(len=128):: OutputFileName
     character(len=3)  :: cens
 
-    allocate(work2d(hco_bhi % ni, hco_bhi % nj))
+    allocate(work2d(hco_bhi%ni, hco_bhi%nj))
 
     !- Loop over the Ensemble members
     do ens = 1, nens
@@ -1789,26 +1935,26 @@ module calcbmatrix_lam_mod
       do var = 1, nControlVariable
 
         !- Loop over vertical Levels
-        do k = 1, ControlVariable(var) % nlev
+        do k = 1, ControlVariable(var)%nlev
 
           npak   = -32
           dateo  = 0
           deet   = 0
           npas   = 0
-          ni     = hco_bhi % ni
-          nj     = hco_bhi % nj
+          ni     = hco_bhi%ni
+          nj     = hco_bhi%nj
           nk     = 1
-          ip1    = ControlVariable(var) % ip1(k)
+          ip1    = ControlVariable(var)%ip1(k)
           ip2    = 0
           ip3    = 0
           typvar = 'E'
-          nomvar = trim(ControlVariable(var) % nomvar(cv_type))
+          nomvar = trim(ControlVariable(var)%nomvar(cv_type))
           etiket = 'DEBUG'
-          grtyp  = hco_bhi % grtyp
-          ig1    = hco_bhi % ig1
-          ig2    = hco_bhi % ig2
-          ig3    = hco_bhi % ig3
-          ig4    = hco_bhi % ig4
+          grtyp  = hco_bhi%grtyp
+          ig1    = hco_bhi%ig1
+          ig2    = hco_bhi%ig2
+          ig3    = hco_bhi%ig3
+          ig4    = hco_bhi%ig4
           datyp  = 1
 
           if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
@@ -1820,7 +1966,7 @@ module calcbmatrix_lam_mod
           end if
 
           !- Extract from EnsPerturbations
-          kgdim = ControlVariable(var) % kDimStart + k - 1
+          kgdim = ControlVariable(var)%kDimStart + k - 1
           work2d(:,:) = factor * EnsPerturbations(:,:,kgdim,ens)
 
           !- Writing 
@@ -1869,32 +2015,32 @@ module calcbmatrix_lam_mod
     character(len=12) :: etiket
     character(len=3)  :: cens
 
-    allocate(work2d(hco_bhi % ni, hco_bhi % nj))
+    allocate(work2d(hco_bhi%ni, hco_bhi%nj))
     
     !- Loop over Control Variables
     do var = 1, nControlVariable
 
       !- Loop over vertical Levels
-      do k = 1, ControlVariable(var) % nlev
+      do k = 1, ControlVariable(var)%nlev
          
         npak   = -32
         dateo  = 0
         deet   = 0
         npas   = 0
-        ni     = hco_bhi % ni
-        nj     = hco_bhi % nj
+        ni     = hco_bhi%ni
+        nj     = hco_bhi%nj
         nk     = 1
-        ip1    = ControlVariable(var) % ip1(k)
+        ip1    = ControlVariable(var)%ip1(k)
         ip2    = 0
         ip3    = 0
         typvar = 'E'
-        nomvar = trim(ControlVariable(var) % nomvar(cv_type))
+        nomvar = trim(ControlVariable(var)%nomvar(cv_type))
         etiket = trim(Etiket_in)
-        grtyp  = hco_bhi % grtyp
-        ig1    = hco_bhi % ig1
-        ig2    = hco_bhi % ig2
-        ig3    = hco_bhi % ig3
-        ig4    = hco_bhi % ig4
+        grtyp  = hco_bhi%grtyp
+        ig1    = hco_bhi%ig1
+        ig2    = hco_bhi%ig2
+        ig3    = hco_bhi%ig3
+        ig4    = hco_bhi%ig4
         datyp  = 1
 
         if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
@@ -1906,7 +2052,7 @@ module calcbmatrix_lam_mod
         end if
 
         !- Extract from EnsPerturbations
-        kgdim = ControlVariable(var) % kDimStart + k - 1
+        kgdim = ControlVariable(var)%kDimStart + k - 1
         work2d(:,:) = factor * real(Field3d(:,:,kgdim),4)
 
         !- Writing 
@@ -1956,7 +2102,7 @@ module calcbmatrix_lam_mod
     do var = 1, nControlVariable
 
       !- Loop over vertical Levels
-      do k = 1, ControlVariable(var) % nlev
+      do k = 1, ControlVariable(var)%nlev
 
         npak   = -32
         dateo  = 0
@@ -1965,11 +2111,11 @@ module calcbmatrix_lam_mod
         ni     = ntrunc + 1
         nj     = 1
         nk     = 1
-        ip1    = ControlVariable(var) % ip1(k)
+        ip1    = ControlVariable(var)%ip1(k)
         ip2    = 0
         ip3    = 0
         typvar = 'E'
-        nomvar = trim(ControlVariable(var) % nomvar(cv_type))
+        nomvar = trim(ControlVariable(var)%nomvar(cv_type))
         etiket = trim(Etiket_in)
         grtyp  = 'X'
         ig1    = 0
@@ -1979,7 +2125,7 @@ module calcbmatrix_lam_mod
         datyp  = 1
 
         !- Extract
-        kgdim = ControlVariable(var) % kDimStart + k - 1
+        kgdim = ControlVariable(var)%kDimStart + k - 1
         workecr(:,1) = real(PowerSpectrum(kgdim,:),4)
 
         !- Writing 
@@ -2026,7 +2172,7 @@ module calcbmatrix_lam_mod
     !- Loop over Control Variables
     do var = 1, nControlVariable
 
-      allocate(workecr(1,1,ControlVariable(var) % nlev))
+      allocate(workecr(1,1,ControlVariable(var)%nlev))
 
       npak   = -32
       dateo  = 0
@@ -2034,12 +2180,12 @@ module calcbmatrix_lam_mod
       npas   = 0
       ni     = 1
       nj     = 1
-      nk     = ControlVariable(var) % nlev
+      nk     = ControlVariable(var)%nlev
       ip1    = 0
       ip2    = 0
       ip3    = 0
       typvar = 'E'
-      nomvar = trim(ControlVariable(var) % nomvar(cv_type))
+      nomvar = trim(ControlVariable(var)%nomvar(cv_type))
       etiket = trim(Etiket_in)
       grtyp  = 'X'
       ig1    = 0
@@ -2049,7 +2195,7 @@ module calcbmatrix_lam_mod
       datyp  = 1
 
       !- Extract
-      workecr(1,1,:) = real(HorizScale(ControlVariable(var) % kDimStart:ControlVariable(var) % kDimEnd),4)
+      workecr(1,1,:) = real(HorizScale(ControlVariable(var)%kDimStart:ControlVariable(var)%kDimEnd),4)
 
       !- Writing 
       ier = fstecr(workecr, work, npak, iun, dateo, deet, npas, ni, nj, &
@@ -2076,12 +2222,12 @@ module calcbmatrix_lam_mod
 
     real(8) :: work
 
-    integer :: brpstamp,npak, status
+    integer :: dateo,npak, status
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
 
     character(len=1)  :: grtyp
-    character(len=2)  :: typinc
+    character(len=2)  :: typvar
     character(len=12) :: etiket
 
     !
@@ -2089,40 +2235,40 @@ module calcbmatrix_lam_mod
     !
     npak     = -32
     deet     =  0
-    ip1      =  hco_bhi % ig1
-    ip2      =  hco_bhi % ig2
+    ip1      =  hco_bhi%ig1
+    ip2      =  hco_bhi%ig2
     ip3      =  0
     npas     =  0
     datyp    =  1
     grtyp    = 'E'
-    typinc   = 'X'
+    typvar   = 'X'
     etiket   = 'EXTENDEDGRID'
-    brpstamp =  0
+    dateo =  0
 
     call cxgaig ( grtyp,                                          & ! IN
                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                  real(hco_bhi % xlat1), real(hco_bhi % xlon1),   & ! IN
-                  real(hco_bhi % xlat2), real(hco_bhi % xlon2)  )   ! IN
+                  real(hco_bhi%xlat1), real(hco_bhi%xlon1),   & ! IN
+                  real(hco_bhi%xlat2), real(hco_bhi%xlon2)  )   ! IN
 
     ig1      =  ig1_tictac
     ig2      =  ig2_tictac
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(hco_bhi % lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, brpstamp, deet, npas, hco_bhi%ni, 1, 1, ip1,    &
-                  ip2, ip3, typinc, '>>', etiket, grtyp, ig1,          &
+    ier = vfstecr(hco_bhi%lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, dateo, deet, npas, hco_bhi%ni, 1, 1, ip1,    &
+                  ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(hco_bhi % lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, brpstamp, deet, npas, 1, hco_bhi%nj, 1, ip1,    &
-                  ip2, ip3, typinc, '^^', etiket, grtyp, ig1,          &
+    ier = vfstecr(hco_bhi%lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                  iun, dateo, deet, npas, 1, hco_bhi%nj, 1, ip1,    &
+                  ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                   ig2, ig3, ig4, datyp, .true.)
 
     !
     !- Writing Toc-Toc
     !
-    status = vgd_write(vco_bhi % vgrid,iun,'fst')
+    status = vgd_write(vco_bhi%vgrid,iun,'fst')
 
     if ( status /= VGD_OK ) then
       write(*,*)
@@ -2131,5 +2277,98 @@ module calcbmatrix_lam_mod
     end if
 
   end subroutine WriteTicTacToc
+
+!--------------------------------------------------------------------------
+! WriteControlVarInfo
+!--------------------------------------------------------------------------
+  subroutine WriteControlVarInfo(iun)
+    implicit none
+
+    integer, intent(in) :: iun
+
+    integer :: ier, fstecr, fstecr_s
+
+    real(8) :: work
+
+    integer :: npak, var, dateo, ni, nj
+    integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
+    integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
+
+    character(len=1)  :: grtyp
+    character(len=2)  :: typvar
+    character(len=4)  :: nomvar
+    character(len=12) :: etiket
+
+    character(len=4)  :: ControlModelVarnameList(nControlVariable)
+    character(len=4)  :: ControlBhiVarnameList  (nControlVariable)
+    character(len=2)  :: ControlVarGridTypeList (nControlVariable)
+    integer           :: ControlVarNlevList     (nControlVariable)
+
+    !
+    !- 1. Gathering the info
+    !
+
+    !- Loop over Control Variables
+    do var = 1, nControlVariable
+       ControlModelVarnameList(var) = trim(ControlVariable(var)%nomvar(cv_model))
+       ControlBhiVarnameList(var)   = trim(ControlVariable(var)%nomvar(cv_bhi))
+       ControlVarNlevList(var)      = ControlVariable(var)%nlev
+       ControlVarGridTypeList(var)  = ControlVariable(var)%GridType
+    end do
+
+    write(*,*)
+    write(*,*) 'ControlModelVarnameList = ',ControlModelVarnameList(:)
+    write(*,*) 'ControlBhiVarnameList   = ',ControlBhiVarnameList(:)
+    write(*,*) 'ControlVarNlevList      = ',ControlVarNlevList(:)
+    write(*,*) 'ControlVarGridTypeList  = ',ControlVarGridTypeList(:)
+
+    !
+    !- 2.  Writing the list of control variables and number of vertical levels
+    !
+    npak     = -32
+    dateo    =  0
+    deet     =  0
+    ip1      =  0
+    ip2      =  0
+    ip3      =  0
+    npas     =  0
+    grtyp    = 'X'
+    typvar   = 'X'
+    ig1      =  0
+    ig2      =  0
+    ig3      =  0
+    ig4      =  0
+
+    nomvar   = 'CVN'
+    ni       =  4  ! 4 Characters
+    nj       =  nControlVariable
+    datyp    =  7 ! Character
+
+    ier = fstecr_s(ControlModelVarnameList, work, npak, &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,    &
+                 ip2, ip3, typvar, nomvar, 'MODEL', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
+
+    ier = fstecr_s(ControlBhiVarnameList, work, npak, &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,    &
+                 ip2, ip3, typvar, nomvar, 'B_HI', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
+
+    nomvar   = 'CVL'
+    ni       =  2  ! 2 Characters
+    ier = fstecr_s(ControlVarGridTypeList, work, npak, &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,    &
+                 ip2, ip3, typvar, nomvar, 'LEVTYPE', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
+ 
+    datyp    =  2 ! Integer
+    ni       =  nControlVariable
+    nj       =  1 
+    ier = fstecr(ControlVarNlevList, work, npak, &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,    &
+                 ip2, ip3, typvar, nomvar, 'NLEV', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
+
+  end subroutine WriteControlVarInfo
 
 end module calcbmatrix_lam_mod

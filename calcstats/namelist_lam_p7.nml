@@ -5,16 +5,17 @@
    CGNEED(1)   ='UU'
    CGNEED(2)   ='VV'
    CGNEED(3)   ='TT'
-   CGNEED(4)   ='HU'
+   CGNEED(4)   ='LQ'
    CGNEED(5)   ='P0'
+   CGNEED(6)   ='TG'
 /
  &NAMENS
-   NENS=2
+   NENS=120
    ENSFILEBASENAME='maritimes_'  
 /
  &NAMCALCB_LAM
    NTRUNC    = 75
    GRD_EXT_X = 52
    GRD_EXT_Y = 39
-   NORMBYSTDDEV = .FALSE.
+   NORMBYSTDDEV = .TRUE.
 /
