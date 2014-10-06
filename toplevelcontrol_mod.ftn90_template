@@ -17,7 +17,7 @@ module topLevelControl_mod
   ! public variables
   public :: top_crevision
   ! public procedures
-  public :: top_setup,top_AnalysisMode,top_BgckMode,top_OmpMode
+  public :: top_setup,top_AnalysisMode,top_BgckIrMode,top_BgckConvMode,top_OmpMode
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
   integer :: top_nconf
@@ -62,12 +62,21 @@ module topLevelControl_mod
         
     end function top_OmpMode
 
-    function top_BgckMode() result(bgckMode)
+    function top_BgckIrMode() result(bgckMode)
+      implicit none
+      logical :: bgckMode
+
+      bgckMode= (top_nconf.eq.111)
+        
+    end function top_BgckIrMode
+
+    function top_BgckConvMode() result(bgckMode)
       implicit none
       logical :: bgckMode
 
       bgckMode= (top_nconf.eq.101)
         
-    end function top_BgckMode
+    end function top_BgckConvMode
+
 
 end module topLevelControl_mod

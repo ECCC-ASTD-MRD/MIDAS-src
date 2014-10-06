@@ -87,8 +87,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   
   real*8, pointer :: column_ptr(:) => null()
   
-  integer :: AnalysisGridIndex
-  
   write(*,*) ' '
   write(*,*) '-------- ENTERING SUGOMOBS ---------'
   write(*,*) ' '

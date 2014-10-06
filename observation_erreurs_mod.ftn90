@@ -311,7 +311,7 @@ module observation_erreurs_mod
   !
   !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
   !
-  IF ( top_BgckMode() ) THEN
+  IF ( top_BgckIrMode() ) THEN
      DO JM= 1, INUMSAT
       IF (   IPLATFORM(JM) .EQ. 9  .AND. &
            IINSTRUMENT(JM) .EQ. 11 ) THEN

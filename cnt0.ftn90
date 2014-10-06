@@ -61,9 +61,9 @@ program cnt0
 
   ! 2. Decide on configuration of job
 
-  ! ---BGCHECK (AIRS, IASI + conventional obs)--- !
-  if(top_BgckMode()) then
-    if(mpi_myid == 0) write(*,*) 'CNT0: BGCHECK MODE'
+  ! ---BGCHECK (conventional obs)--- !
+  if(top_BgckConvMode()) then
+    if(mpi_myid == 0) write(*,*) 'CNT0: CONVENTIONNAL BGCHECK MODE'
 
     numAnalyses = 1
     indexAnalysis = 0
@@ -83,7 +83,32 @@ program cnt0
     call tmg_stop(1)
 
     ! Do the background check and output the observation data files
-    call bgcheck(columng,columnhr,obsSpaceData)
+    call bgcheck_conv(columng,columnhr,obsSpaceData)
+
+ ! ---BGCHECK (AIRS, IASI, CrIS)--- !
+  elseif(top_BgckIrMode()) then
+
+
+    numAnalyses = 1
+    indexAnalysis = 0
+
+    ! Do initial set up
+    call tmg_start(1,'PREMIN')
+    call preproc(columng,columnhr,obsSpaceData,  &
+                 "ALL",        & ! obsColumnMode   
+                 "ROUNDROBIN", & ! obsMpiStrategy
+                 numAnalyses)
+
+    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+    call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call suinnov(columng,columnhr,obsSpaceData)
+    call tmg_stop(1)
+
+    ! Do the background check and output the observation data files
+    call bgcheck_ir(columng,columnhr,obsSpaceData)
+
 
   ! ---COMPUTE O-P (for AMSU, GEORAD et SSMIS)--- !
   elseif(top_OmpMode()) then
