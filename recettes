@@ -29,6 +29,7 @@ ABS= 3dvar_p7.abs$(ABSTAG)
 AR      = r.ar -arch $(BASE_ARCH)
 #
 
+
 envar:  $(OBJECTS)
 	-if [ -f "`echo '$(MALIB)' | sed 's/ .*//g'`" ] ;\
 	then \
@@ -69,6 +70,46 @@ envar:  $(OBJECTS)
 
 envar_nompi:
 	$(MAKE) envar LIBMPI="$(MPI_STUBS)"  MPI="" ABSTAG=_NOMPI 
+
+ENKFABS = enkf_pturb_$(BASE_ARCH).Abs 
+enkf_pturb:  $(OBJECTS)
+	-if [ -f "`echo '$(MALIB)' | sed 's/ .*//g'`" ] ;\
+	then \
+	mkdir $(BIG_TMPDIR)/malib$(BASE_ARCH)$(ABI) ;\
+	cp *.o $(BIG_TMPDIR)/malib$(BASE_ARCH)$(ABI) 2>/dev/null ;\
+	set $(MALIB) ;\
+	REV_LIBS="$$1" ;\
+	shift ;\
+	while [ $$# -gt 0 ] ;\
+	do \
+	REV_LIBS="$$1 $${REV_LIBS}" ;\
+	shift; \
+	done ;\
+	for i in $${REV_LIBS} ;\
+	do \
+	$(AR) xv $$i ;\
+	done ;\
+	ICI=$(PWD) ;\
+	cd $(BIG_TMPDIR)/malib$(BASE_ARCH)$(ABI)/ ;\
+	cp *.o $$ICI/. 2>/dev/null ;\
+	cd $$ICI ;\
+	fi ;\
+	if [ "*.o" != "`echo *.o`" ] ; \
+	then \
+	MES_POINT_O="-obj *.o" ;\
+	else \
+	MES_POINT_O="" ;\
+	fi ;\
+        $(RBUILD) -obj $${MES_POINT_O} $(SUBOBJS) -main  enkf_pturb $(DEBUG) -opt "=$(LFLAGS)" \
+          -o $(ENKFABS) -libsys $(LIBSYS) -libappl $(LIBAPPL) -librmn $(LIBRMN) \
+             $(OMP) $(MPI) -libpath $(LIBPATH);\
+	if [ -f "`echo '$(MALIB)' | sed 's/ .*//g'`" ] ;\
+	then \
+	mv $(BIG_TMPDIR)/malib$(BASE_ARCH)$(ABI)/*.o ./ 2>/dev/null ;\
+	rmdir $(BIG_TMPDIR)/malib$(BASE_ARCH)$(ABI) ;\
+	fi ;\
+	rm -f $(ABS)_*.f
+
 clean:
 	rm -f *.f *.f90 *.o *.mod
 

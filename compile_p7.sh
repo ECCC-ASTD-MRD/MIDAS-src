@@ -21,7 +21,14 @@ else
 fi
 
 trunkdir=$PWD
-
+if [ "$BASE_ARCH" = "AIX-powerpc7" ];then
+  compiler="xlf13"
+  FOPTMIZ=2 
+else
+  # At the moment, the defulat on Linux is "Intel13sp1" 
+  compiler="intel13sp1" 
+  FOPTMIZ=1 
+fi
 cd ../
 mkdir -p compiledir
 cd compiledir
@@ -36,28 +43,61 @@ cat ${trunkdir}/comct0_template.cdk |sed "s!XXXXX!${revnum} ${revpath}!g" > comc
 
 compiledir=$PWD
 
+#----------------------------------------------------------------
+#  Set up dependent librarys and tools. 
+#---------------------------------------------------------------
 ## for s.compile
-. ssmuse-sh -d hpcs/13b/04/base
+  . ssmuse-sh -d hpcs/201402/01/base
 ## for the compiler
-. ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+  if [ "$compiler" = "xlf13" ];then
+    . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+    varabs=3dvar_p7${ABSTAG}    
+  else
+      . ssmuse-sh -d hpcs/201402/01/intel13sp1 
+    varabs=3dvar_${BASE_ARCH}${ABSTAG}
+  fi 
+ # for msg in VGRID .. 
+  if [ "$compiler" = "xlf13" ];then
+    LIB_MODELUTILS=/home/ordenv/ssm-domains9/ENV/modelutils/modelutils_1.2.2/aix61-ppc-64/lib/AIX-powerpc7/xlf13
+  else
+    LIB_MODELUTILS=/home/ordenv/ssm-domains9/ENV/modelutils/modelutils_1.2.2/linux26-x86-64/lib/Linux_x86-64/intel13sp1
+  fi 
 ## for rmn_014, lapack_3.4.0, rpncomm
-. ssmuse-sh -d rpn/libs/4.0
-. s.ssmuse.dot CMDN/vgrid/3.4.0
-
-. s.ssmuse.dot cmda
-. ssmuse-sh -d arma/rttov/10v1
+ . ssmuse-sh -d rpn/libs/4.0
+  if [ "$compiler" = "xlf13" ];then
+    . ssmuse-sh -d cmdn/vgrid/5.0.0/xlf13 
+  else
+     . ssmuse-sh -d cmdn/vgrid/5.0.0/intel13sp1
+  fi 
+  if [ "$compiler" = "xlf13" ];then
+    . s.ssmuse.dot cmda
+  else
+    . ssmuse-sh -p cmda/base/master/burplib_1.3.2-intel13sp1_ubuntu-10.04-amd64-64
+  fi  
 
 ## For hpcsperf needed for TMG timings
 # . s.ssmuse.dot devtools
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
+# For RTTOV 10v1 package... 
+if [ "$compiler" = "xlf13" ];then
+ . ssmuse-sh -d arma/rttov/10v1 
+else
+ . ssmuse-sh -d arma/rttov/10v1a 
+fi 
+#-----------------------------------------------------------------------------
 
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
-
-LIBSYS="essl mass"
+ if [ "$compiler" = "xlf13" ];then
+   LIBSYS="hpcsperf essl mass"
+ else
+   LIBSYS="hpcsperf lapack blas"
+ fi 
 LIBRMN="rmn_014"
-LIBEXTRA="hpcsperf"
+#LIBEXTRA="hpcsperf"
 MODBURP="BURP1.3"
-DEFINE="-DNEC=nec -DIBM=ibm"
+if [ "$copiler" = "xlf13" ];then
+  DEFINE="-DNEC=nec -DIBM=ibm"
+fi
 COMPF_NOC="-openmp $MPIKEY "
 COMPF="$COMPF_NOC"
 
@@ -76,7 +116,7 @@ rm -f enkf_pturb.ftn
 
 echo "compiling modulopt (n1qn3) [ALSO DSYEV WHICH SHOULD NOT BE HERE!]"
 SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-s.compile $COMPF_NOC -O -src $SRC0 > listingm 2>&1
+s.compile $COMPF_NOC -O ${FOPTMIZ} -src $SRC0 > listingm 2>&1
 status=0
 grep fail listingm || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
@@ -84,7 +124,7 @@ rm -f $SRC0
 
 echo "compiling low-level independent modules"
 SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 bufr_mod.ftn90 physicsfunctions_mod.ftn90 gaussgrid_mod.ftn90"
-s.compile $COMPF -O -src $SRC0 > listing0 2>&1
+s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
 status=0
 grep fail listing0 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
@@ -98,14 +138,14 @@ SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
 SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90"
 
 
-s.compile $COMPF -O -src $SRC1 > listing1 2>&1
+s.compile $COMPF -O ${FOPTMIZ} -src $SRC1 > listing1 2>&1
 status=0
 grep fail listing1 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
 
 echo "compiling burp_read module"
 SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90 update_burpfiles.ftn90"
-s.compile $COMPF -O -src $SRC1 > listing_burp 2>&1
+s.compile $COMPF -O ${FOPTMIZ} -src $SRC1 > listing_burp 2>&1
 status=0
 grep fail listing_burp || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
@@ -114,7 +154,7 @@ echo "compiling the old modules (cdk90)..."
 SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps01ctphys.cdk90 modgps02wgs84const.cdk90 modgps02wgs84grav.cdk90 modgps03diff.cdk90 modgps04profile.cdk90"
 SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90 modgpsro_mod.ftn90 modgps04profilezd.cdk90"
 SRC2="$SRC2 modgps08ztdop.cdk90 modgpsztd_mod.ftn90"
-s.compile $COMPF -O -src $SRC2 > listing2 2>&1
+s.compile $COMPF -O ${FOPTMIZ} -src $SRC2 > listing2 2>&1
 status=0
 grep fail listing2 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
@@ -126,13 +166,14 @@ do
   xx=`echo $i | grep -v _mod.ftn || true`
   filelist="$filelist $xx"
 done
-s.compile $COMPF -O -src $filelist > listing4 2>&1
+s.compile $COMPF -O ${FOPTMIZ}  -src $filelist > listing4 2>&1
 status=0
 grep fail listing4 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
 
+
 echo "building the executable..."
-s.compile -O $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o oavar${ABSTAG}.Abs > listing5 2>&1
+s.compile -O ${FOPTMIZ}  $COMPF -libpath ${LIB_MODELUTILS} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing5 2>&1
 
 status=0
 grep -i ERROR listing? || status=1
