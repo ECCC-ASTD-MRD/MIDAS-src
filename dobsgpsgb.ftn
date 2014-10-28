@@ -40,6 +40,12 @@
 *          S. Macpherson Jun 2013
 *           -- Use true implementation of ZDP (dP/dP0), although not needed here
 *
+*          S. Macpherson Sep 2014
+*           -- Adadpt for E-GVAP data (ZTD without surface met data, i.e. Psfc)
+*
+*          Bin He    Oct. 2014
+*            -- Fixed the problem when there is zero data on this tile. 
+*            -- updated to VGRID 5.0, the pointers IP1 and rDP are allocated mem. explicitly. 
 *    -------------------
 
 *Arguments (out)
@@ -89,12 +95,13 @@ C
       INTEGER ICOUNT1, ICOUNT2, ICOUNT3, ICOUNT, ICOUNTP, status
       INTEGER,pointer,dimension(:) :: IP1
       CHARACTER*2  LV
+      CHARACTER*9  CSTNID
 
       real sfcfield
       REAL  ,pointer,dimension(:) :: rDP
 
 C
-      LOGICAL  ASSIM, LSTAG, LLOK, LLREJ
+      LOGICAL  ASSIM, LSTAG, LLOK, LLREJ, LFSL
 
       TYPE(GPSPROFILEZD)    :: PRF
       TYPE(GPSDIFF)         :: ZTDopv
@@ -127,7 +134,6 @@ c     Maximum height difference between observation and background surface (m)
 C
       vco_trl => col_getVco(lcolumnhr)
       stat = 0
-      stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
 
       LSTAG = .FALSE.
       if (vco_trl%svcod .eq. 'gemstg') then
@@ -147,6 +153,9 @@ C
 
       nlev_T = col_getNumLev(lcolumnhr,'TH')
       IF (LTESTOP) write(*,*) '  col_getNumLev(lcolumnhr) = ', nlev_T
+      allocate(IP1(nlev_T)) 
+      allocate(rDP(nlev_T)) 
+      stat = vgd_get(vco_trl%vgrid,key='vipt - vertical ip1 levels (t)',value=IP1)
       
 C
 C     * 1.  Initializations
@@ -180,6 +189,10 @@ c     loop over all header indices of the 'GP' family (all obs locations/times)
          if (index_header < 0) exit HEADER
 
          ZPSOBS = -100.00
+         CSTNID = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+         LFSL = .false.
+         if (INDEX(CSTNID,'FSL_') > 0 .or. INDEX(CSTNID,'-NOAA') > 0)
+     &      LFSL = .true.
 C     
 C     *  Process only GP data (codtyp 189)
 C
@@ -256,15 +269,15 @@ c            ZTD (m)
 c
 C     *       If analysis mode, reject ZTD data for any of the following conditions:
 c              (1) the trial PW is too low (extremely dry) 
-c              and if LASSMET=true
-c              (2) Ps observation is missing or out of normal range
-c              (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
+c              and if LASSMET=true (for NOAA/FSL stations only)
+c                (2) Ps observation is missing or out of normal range
+c                (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
 c
                LLREJ = .FALSE.
                ZPOMP = -9999.00
                IF ( NCONF .EQ. 141 ) THEN
                  LLREJ = ( ZPWMOD .LT. ZPWMIN )
-                 IF ( LASSMET ) THEN
+                 IF ( LASSMET .and. LFSL ) THEN
                    IF ( .NOT. LLREJ ) THEN
                      IF ( ZPSOBS .GT. 40000.0 .AND. ZPSOBS .LE. 110000.0 ) THEN
                        ZPOMP = ZPSOBS - ZPSMOD
@@ -306,8 +319,7 @@ C
                      ZOER = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
                      if ( ZOER .LE. 0.0 ) then
                        write(*,*) ' Problem with ZTD observation error!'
-                       write(*,*) ' Station =', 
-     &                  obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+                       write(*,*) ' Station =', CSTNID
                        write(*,*) ' Error =', ZOER
                        call abort3d('DOBSGPSGB: ABORT! BAD ZTD OBSERR') 
                      endif
@@ -332,7 +344,7 @@ C
      &                      .AND. ABS(ZDZ) .LT. XDZMAX ) THEN
                           IONEOBS = INDEX_HEADER
                           WRITE(*,*) 'SINGLE OBS SITE = ', 
-     &                     obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+     &                     CSTNID
                        ENDIF
                      ENDIF
 C
@@ -341,8 +353,7 @@ C
                      IF ( ICOUNTP .LE. NOBS2P ) THEN
                         WRITE(*,
      +                   '(A11,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')
-     +                   'DOBSGPSGB: ',obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
-     +                   ZLAT,ZLON,ZLEV,ZDZ,ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,
+     +                   'DOBSGPSGB: ',CSTNID,ZLAT,ZLON,ZLEV,ZDZ,ZOBS,ZOER/YZDERRWGT,ZHX,-ZINC*ZOER,
      +                   ZPOMPS/100.,ZPOMP/100.,ZPWMOD,PJO,ZINC/ZOER
                      ENDIF
                      
@@ -359,15 +370,25 @@ C
       deallocate(ZHU)
       deallocate(ZDP)
       deallocate(ZPP)
+      deallocate(rDP)
+      deallocate(IP1)
       
       WRITE(*, *) ' '
       WRITE(*, *) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', ICOUNTP
-      BIAS = SUM(ZTDOMP(1:ICOUNTP))/FLOAT(ICOUNTP)
+      IF(ICOUNTP ==0) THEN
+        BIAS = 0.0 
+      ELSE
+        BIAS = SUM(ZTDOMP(1:ICOUNTP))/FLOAT(ICOUNTP)
+      ENDIF 
       STD = 0.d0
       DO JL = 1, ICOUNTP
         STD = STD + (ZTDOMP(JL)-BIAS)**2
       ENDDO
-      STD = SQRT(STD/(float(ICOUNTP)-1.))
+      If(ICOUNTP ==1) THEN
+        STD = 0.0d0
+      else
+        STD = SQRT(STD/(float(ICOUNTP)-1.))
+      endif 
       WRITE(*, *) '     MEAN O-P (BIAS) [mm] = ', BIAS*1000.
       WRITE(*, *) '     STD  O-P        [mm] = ', STD*1000.
       WRITE(*, *) ' '
@@ -443,7 +464,6 @@ C
                ENDDO BODY_3
              ENDIF
           ENDDO HEADER_2
-          
           if ( iztd .ne. numGPSZTD ) then
             call abort3d('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
           endif

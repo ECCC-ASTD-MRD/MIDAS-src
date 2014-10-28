@@ -51,10 +51,10 @@ compiledir=$PWD
 ## for the compiler
   if [ "$compiler" = "xlf13" ];then
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-    varabs=3dvar_p7${ABSTAG}    
+    varabs=oavar${ABSTAG}    
   else
       . ssmuse-sh -d hpcs/201402/01/intel13sp1 
-    varabs=3dvar_${BASE_ARCH}${ABSTAG}
+    varabs=oavar_${BASE_ARCH}${ABSTAG}
   fi 
  # for msg in VGRID .. 
   if [ "$compiler" = "xlf13" ];then
