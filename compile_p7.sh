@@ -1,5 +1,7 @@
 #!/bin/ksh
 
+set -e
+
 mode=$1
 nompi=$2
 
@@ -35,13 +37,13 @@ fi
 if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
   echo " !!! Compiling for a NON-MPI executable !!! "
   echo ""
-  MPILIB="rpn_commstubs_40007 rpn_comm_40007"
+  MPILIB="rpn_commstubs_40511 rpn_comm_40511"
   MPIKEY=""
-  ABSTAG="_NOMPI"
+  ABSTAG="_nompi"
 else
   echo " !!! Compiling for an MPI executable !!!"
   echo ""
-  MPILIB="rpn_comm_40007"
+  MPILIB="rpn_comm_40511"
   MPIKEY="-mpi"
   ABSTAG=""
 fi
@@ -59,48 +61,38 @@ echo "-----------------------"
 echo " "
 cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
 
-ARMNLIB=${ARMNLIB:-/home/dormrb02/ibmenv/armnlib}
+## for s.compile
+. ssmuse-sh -d hpcs/13b/04/base
+## for the compiler
+. ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+## for rmn_014, lapack_3.4.0, rpncomm
+. ssmuse-sh -d rpn/libs/15.0
+. s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
+. s.ssmuse.dot CMDN/vgrid/4.4.1
 
-VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB "
+. s.ssmuse.dot cmda
+. ssmuse-sh -d arma/rttov/10v1
 
-LIBSYS="lapack blas mass"
-LIBRMN="rmn_014_rc2"
-LIBEXTRA="rtools hpm_r"
+## For hpcsperf needed for TMG timings
+# . s.ssmuse.dot devtools
+. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
+
+LIBSYS="essl mass"
+LIBRMN="rmn_015"
+LIBEXTRA="hpcsperf lapack-3.4.0"
 MODBURP="BURP1.3"
 DEFINE="-DNEC=nec -DIBM=ibm"
-ABI="_multi"
-COMPF_NOC="-openmp $MPIKEY "
+COMPF_NOC="-openmp $MPIKEY -O"
 #COMPF="$COMPF_NOC"
-COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
+COMPF="$COMPF_NOC -debug DEBUG -optf=-C"
 
-BASE_INCLUDE="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/include/AIX-powerpc7"
-INCLUDES="-includes ${BASE_INCLUDE}/${MODBURP} ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/mod ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/include"
-
-LIBPATH2="./ $LIBPATH"
-LIBPATH2="${ARMNLIB}/lib/AIX/xlf13 $LIBPATH2"
-LIBPATH2="${ARMNLIB}/modeles/ANAL/v_${VAR3D_VERSION}/lib/AIX-powerpc7 $LIBPATH2"
-LIBPATH2="/home/ordenv/ssm-domains1/ssm-rmnlib-dev/multi/lib/AIX-powerpc7/xlf13 ${ARMNLIB}/modeles/ANAL_shared/rttov10/v1/AIX-powerpc7/xlf13/lib  $LIBPATH2"
-
-echo "LIBPATH2="
-echo $LIBPATH2
-echo "INCLUDES="
-echo $INCLUDES
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB"
 
 # Create and Move to compilation directory
 cd ../
 mkdir -p compiledir
 cd compiledir
 compiledir=$PWD
-
-## To access 'rmn_014_rc2'
-. /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
-. ssmuse-sh -d /ssm/net/rpn/libs/201309/01
-. s.ssmuse.dot Xlf13.110
-. s.ssmuse.dot devtools
-. s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
-. s.ssmuse.dot CMDN/vgrid/4.4.1
-. s.ssmuse.dot rpn_comm
 
 if [ $mode == full ] ; then
 
@@ -124,22 +116,25 @@ if [ $mode == full ] ; then
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC0 > listing1 2>&1
-  grep fail listing1
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $SRC0 > listing1 2>&1
+  status=1
+  grep fail listing1 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
 
   echo "compiling modulopt (n1qn3)"
   SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-  s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listing0 2>&1
-  grep fail listing0
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF_NOC -src $SRC0 > listing0 2>&1
+  status=1
+  grep fail listing0 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
   rm -f $SRC0
 
   echo "compiling analysis grid modules"
   SRC0="gaussgrid_mod.ftn90 windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC0 > listing2 2>&1
-  grep fail listing2
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $SRC0 > listing2 2>&1
+  status=1
+  grep fail listing2 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
 
   echo "compiling most of the new modules"
   SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
@@ -150,45 +145,54 @@ if [ $mode == full ] ; then
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
 
-  s.compile $INCLUDES $COMPF -O -src $SRC1 > listing3 2>&1
-  grep fail listing3
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $SRC1 > listing3 2>&1
+  status=1
+  grep fail listing3 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
 
   echo "compiling burp_read module"
   SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90 update_burpfiles.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC1 > listing4 2>&1
-  grep fail listing4
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $SRC1 > listing4 2>&1
+  status=1
+  grep fail listing4 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
   
   echo "compiling the GPS modules (cdk90)..."
   SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps01ctphys.cdk90 modgps02wgs84const.cdk90 modgps02wgs84grav.cdk90 modgps03diff.cdk90 modgps04profile.cdk90"
   SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90 modgps04profilezd.cdk90"
   SRC2="$SRC2 modgps08ztdop.cdk90"
-  s.compile $INCLUDES $COMPF -O -src $SRC2 > listing5 2>&1
-  grep fail listing5
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $SRC2 > listing5 2>&1
+  status=1
+  grep fail listing5 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
 
   echo "compiling some more modules..."
   SRC2="modgpsro_mod.ftn90 modgpsztd_mod.ftn90 filterobs_mod.ftn90 writeincrement_mod.ftn90 obsoperators_mod.ftn90"
-  s.compile $INCLUDES $COMPF -O -src $SRC2 > listing6 2>&1
-  grep fail listing6
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $SRC2 > listing6 2>&1
+  status=1
+  grep fail listing6 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
 
   echo "compiling remaining ftn ftn90..."
   filelist=""
   for i in *.ftn *.ftn90 ; do
-    xx=`echo $i |grep -v _mod.ftn` 
-    filelist="$filelist $xx"
+      if [[ "${i}" != *_mod.ftn* ]]; then
+	  filelist="$filelist ${i}"
+      fi
   done
-  s.compile $INCLUDES $COMPF -O -src $filelist > listing7 2>&1
-  grep fail listing7
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -src $filelist > listing7 2>&1
+  status=1
+  grep fail listing7 || status=0
+  if [ "${status}" -ne 0 ] ; then exit 1; fi
 
   echo "building the executable..."
-  s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing8 2>&1
-
-  grep -i ERROR listing?
-  if [ $? = "0" ] ; then echo "ERROR found: STOP" ; exit ; fi
+  s.compile $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG > listing8 2>&1
+  status=1
+  grep -i ERROR listing? || status=0
+  if [ "${status}" -ne 0 ] ; then
+      echo "ERROR found: STOP"
+      exit 1
+  fi
 
   rm -f *.ftn* *.f *.f90
 
@@ -202,7 +206,7 @@ elif [ $mode == abs ] ; then
   echo
   echo "building the executable..."
   echo
-  s.compile -O -abi $ABI $COMPF $INCLUDES -libpriv -libpath $LIBPATH2 -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG
+  s.compile $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o 3dvar_p7.abs$ABSTAG
 
 else
 
@@ -210,7 +214,7 @@ else
     file=`basename $mode`
     rm -f $file
     cp $trunkdir/$mode .
-    s.compile $INCLUDES $COMPF -O -src $file
+    s.compile $COMPF -src $file
   else
     echo "File $trunkdir/$mode does NOT exist. Stop"
     exit 1
