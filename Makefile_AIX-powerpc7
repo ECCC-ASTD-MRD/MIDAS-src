@@ -1,11 +1,10 @@
-OPTIL =  
+OPTIL = 
 LIBSYS = lapack blas mass  
 LIBRMN = rmn_015 
-LIBMPI = rpn_comm_40509   
-MPI_STUBS = rpn_commstubs_40509 rpn_comm_40509  
+LIBMPI = rpn_comm_40511
+MPI_STUBS = rpn_commstubs_40511 rpn_comm_40511
 LIBEXTRA = hpcsperf 
-ARMNLIB = /home/dormrb02/ibmenv/armnlib
-LIBAPPL = rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other modelutils_base burp_module descrip $(LIBMPI) $(LIBEXTRA)   
+LIBAPPL = rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $(LIBMPI) $(LIBEXTRA)   
 INCLUDES = $(PWD)/shared $(PWD)/modulopt    
 LIBPATH = $(PWD)/modulopt $(PWD)/shared     
 SUBOBJS = ./modulopt/*.o ./shared/*.o
