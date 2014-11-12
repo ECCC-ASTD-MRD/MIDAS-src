@@ -21,13 +21,13 @@ else
 fi
 
 trunkdir=$PWD
-if [ "$BASE_ARCH" = "AIX-powerpc7" ];then
-  compiler="xlf13"
-  FOPTMIZ=2 
+if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
+    FOPTMIZ=2
+elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
+    FOPTMIZ=1
 else
-  # At the moment, the defulat on Linux is "Intel13sp1" 
-  compiler="intel13sp1u2" 
-  FOPTMIZ=1 
+    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
 fi
 cd ../
 mkdir -p compiledir
@@ -49,50 +49,46 @@ compiledir=$PWD
 ## for s.compile
 . ssmuse-sh -d hpcs/201402/01/base
 ## for the compiler
-if [ "$compiler" = "xlf13" ];then
+if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
+    echo "loading compiler hpcs/ext/xlf_13.1.0.10"
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
+    echo "loading hpcs/201402/01/intel13sp1u2"
+    . ssmuse-sh -d hpcs/201402/01/intel13sp1u2
 else
-    . ssmuse-sh -d hpcs/201402/01/${compiler}
-fi 
+    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
+fi
 
 varabs=oavar_${BASE_ARCH}${ABSTAG}
 
-# for msg in VGRID .. 
-if [ "$compiler" = "xlf13" ];then
-    LIB_MODELUTILS=/home/ordenv/ssm-domains9/ENV/modelutils/modelutils_1.2.2/aix61-ppc-64/lib/AIX-powerpc7/xlf13
-else
-    LIB_MODELUTILS=/home/ordenv/ssm-domains9/ENV/modelutils/modelutils_1.2.2/linux26-x86-64/lib/Linux_x86-64/intel13sp1
-fi 
-## for rmn_015, lapack_3.4.0, rpncomm
+## for rmn_015, rpncomm
+echo "loading rpn/libs/15.0"
 . ssmuse-sh -d rpn/libs/15.0
 ## for 'vgrid'
-. ssmuse-sh -d cmdn/vgrid/5.0.2/${compiler}
+echo "loading cmdn/vgrid/5.0.2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.0.2/${COMP_ARCH}
 ## for 'burplib'
-. ssmuse-sh -p cmda/base/master/burplib_1.3.3-${compiler}_$(ssm platforms | cut -d' ' -f1)
+echo "loading cmda/base/master/burplib_1.3.3-${COMP_ARCH}_$(ssm platforms | cut -d' ' -f1)"
+. ssmuse-sh -p cmda/base/master/burplib_1.3.3-${COMP_ARCH}_$(ssm platforms | cut -d' ' -f1)
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV 10v1 package... 
 echo "loading arma/rttov/10v1"
-if [ "$compiler" = "xlf13" ];then
-    . ssmuse-sh -d arma/rttov/10v1
-else
-    . ssmuse-sh -d arma/rttov/10v1
-fi 
+. ssmuse-sh -d arma/rttov/10v1
 #-----------------------------------------------------------------------------
 
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
-if [ "$compiler" = "xlf13" ]; then
+if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf essl mass"
-else
+elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
     LIBSYS="hpcsperf lapack blas"
+else
+    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
 fi
 LIBRMN="rmn_015"
-#LIBEXTRA="hpcsperf"
-MODBURP="BURP1.3"
-if [ "${compiler}" = "xlf13" ]; then
-    DEFINE="-DNEC=nec -DIBM=ibm"
-fi
 COMPF_NOC="-openmp $MPIKEY "
 COMPF="$COMPF_NOC"
 
@@ -166,7 +162,7 @@ grep fail listing4 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
 
 echo "building the executable..."
-s.compile -O ${FOPTMIZ}  $COMPF -libpath ${LIB_MODELUTILS} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing5 2>&1 || echo "Compilation aborted"
+s.compile -O ${FOPTMIZ}  $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing5 2>&1 || echo "Compilation aborted"
 
 status=0
 grep -iE 'ERROR|ERREUR' listing? || status=1
