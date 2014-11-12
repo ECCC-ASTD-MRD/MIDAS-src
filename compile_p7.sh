@@ -8,14 +8,14 @@ then
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for a NON-MPI executable!!"
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  MPILIB="rpn_commstubs_40509 rpn_comm_40509"
+  MPILIB="rpn_commstubs_40511 rpn_comm_40511"
   MPIKEY=""
   ABSTAG="_nompi"
 else
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for an MPI executable!!"
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  MPILIB="rpn_comm_40509"
+  MPILIB="rpn_comm_40511"
   MPIKEY="-mpi"
   ABSTAG=""
 fi
@@ -26,7 +26,7 @@ if [ "$BASE_ARCH" = "AIX-powerpc7" ];then
   FOPTMIZ=2 
 else
   # At the moment, the defulat on Linux is "Intel13sp1" 
-  compiler="intel13sp1" 
+  compiler="intel13sp1u2" 
   FOPTMIZ=1 
 fi
 cd ../
@@ -47,56 +47,51 @@ compiledir=$PWD
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
 ## for s.compile
-  . ssmuse-sh -d hpcs/201402/01/base
+. ssmuse-sh -d hpcs/201402/01/base
 ## for the compiler
-  if [ "$compiler" = "xlf13" ];then
+if [ "$compiler" = "xlf13" ];then
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-    varabs=oavar${ABSTAG}    
-  else
-      . ssmuse-sh -d hpcs/201402/01/intel13sp1 
-    varabs=oavar_${BASE_ARCH}${ABSTAG}
-  fi 
- # for msg in VGRID .. 
-  if [ "$compiler" = "xlf13" ];then
+else
+    . ssmuse-sh -d hpcs/201402/01/${compiler}
+fi 
+
+varabs=oavar_${BASE_ARCH}${ABSTAG}
+
+# for msg in VGRID .. 
+if [ "$compiler" = "xlf13" ];then
     LIB_MODELUTILS=/home/ordenv/ssm-domains9/ENV/modelutils/modelutils_1.2.2/aix61-ppc-64/lib/AIX-powerpc7/xlf13
-  else
+else
     LIB_MODELUTILS=/home/ordenv/ssm-domains9/ENV/modelutils/modelutils_1.2.2/linux26-x86-64/lib/Linux_x86-64/intel13sp1
-  fi 
-## for rmn_014, lapack_3.4.0, rpncomm
- . ssmuse-sh -d rpn/libs/4.0
-  if [ "$compiler" = "xlf13" ];then
-    . ssmuse-sh -d cmdn/vgrid/5.0.0/xlf13 
-  else
-     . ssmuse-sh -d cmdn/vgrid/5.0.0/intel13sp1
-  fi 
-  if [ "$compiler" = "xlf13" ];then
-    . s.ssmuse.dot cmda
-  else
-    . ssmuse-sh -p cmda/base/master/burplib_1.3.2-intel13sp1_ubuntu-10.04-amd64-64
-  fi  
+fi 
+## for rmn_015, lapack_3.4.0, rpncomm
+. ssmuse-sh -d rpn/libs/15.0
+## for 'vgrid'
+. ssmuse-sh -d cmdn/vgrid/5.0.2/${compiler}
+## for 'burplib'
+. ssmuse-sh -p cmda/base/master/burplib_1.3.3-${compiler}_$(ssm platforms | cut -d' ' -f1)
 
 ## For hpcsperf needed for TMG timings
-# . s.ssmuse.dot devtools
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV 10v1 package... 
+echo "loading arma/rttov/10v1"
 if [ "$compiler" = "xlf13" ];then
- . ssmuse-sh -d arma/rttov/10v1 
+    . ssmuse-sh -d arma/rttov/10v1
 else
- . ssmuse-sh -d arma/rttov/10v1a 
+    . ssmuse-sh -d arma/rttov/10v1
 fi 
 #-----------------------------------------------------------------------------
 
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
- if [ "$compiler" = "xlf13" ];then
-   LIBSYS="hpcsperf essl mass"
- else
-   LIBSYS="hpcsperf lapack blas"
- fi 
-LIBRMN="rmn_014"
+if [ "$compiler" = "xlf13" ]; then
+    LIBSYS="hpcsperf essl mass"
+else
+    LIBSYS="hpcsperf lapack blas"
+fi
+LIBRMN="rmn_015"
 #LIBEXTRA="hpcsperf"
 MODBURP="BURP1.3"
-if [ "$copiler" = "xlf13" ];then
-  DEFINE="-DNEC=nec -DIBM=ibm"
+if [ "${compiler}" = "xlf13" ]; then
+    DEFINE="-DNEC=nec -DIBM=ibm"
 fi
 COMPF_NOC="-openmp $MPIKEY "
 COMPF="$COMPF_NOC"
@@ -137,7 +132,6 @@ SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
 SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
 SRC1="$SRC1 multi_ir_bgck_mod.ftn90 ozoneclim_mod.ftn90"
 
-
 s.compile $COMPF -O ${FOPTMIZ} -src $SRC1 > listing1 2>&1
 status=0
 grep fail listing1 || status=1
@@ -171,12 +165,11 @@ status=0
 grep fail listing4 || status=1
 if [ "${status}" -eq 0 ] ; then exit 1; fi
 
-
 echo "building the executable..."
-s.compile -O ${FOPTMIZ}  $COMPF -libpath ${LIB_MODELUTILS} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing5 2>&1
+s.compile -O ${FOPTMIZ}  $COMPF -libpath ${LIB_MODELUTILS} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing5 2>&1 || echo "Compilation aborted"
 
 status=0
-grep -i ERROR listing? || status=1
+grep -iE 'ERROR|ERREUR' listing? || status=1
 if [ "${status}" -eq 0 ] ; then
     echo "ERROR found: STOP"
     exit 1
@@ -186,3 +179,4 @@ rm -f *.ftn* *.cdk* *.h
 
 echo "FINISHED COMPILATION AT:"
 date
+echo "The program can be found here: ${PWD}/${varabs}.Abs"
