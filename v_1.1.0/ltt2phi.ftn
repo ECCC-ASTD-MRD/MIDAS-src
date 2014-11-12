@@ -1,0 +1,164 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE ltt2phi(lcolumn,lcolumng)
+#if defined (DOC)
+*
+***s/r ltt2phi - Temperature increments to geopotential
+*                increments transformation
+*
+*
+*Author  : S. Pellerin *ARMA/AES September 1998
+*
+**    Purpose:  -Computation of virtual temperature increments from
+*                temperature and logarith of specific humidity
+*                increments
+*
+*               -call lvtap for del vt to del phi transformation
+#endif
+      use MathPhysConstants_mod
+      use columnData_mod 
+      IMPLICIT NONE
+c
+      type(struct_columnData) :: lcolumn,lcolumng
+      type(struct_vco), pointer :: vco_anl
+      integer jobs,jlev
+      real*8  zpscon, zcon,zdelps,zdelt,zalpha,zfacps,zfactt
+      INTEGER IERR,ILEN
+      real*8 zpresb
+      INTEGER mythread,numthd,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
+      real*8, allocatable :: vma(:),vmb(:),vmc(:)
+      real*8, allocatable :: vmd(:),vme(:),vmf(:)
+      real*8, pointer :: gz_column(:)
+      real*8, allocatable :: tv_tmp(:,:)
+
+      allocate(vma(col_getNumLev(lcolumn)))
+      allocate(vmb(col_getNumLev(lcolumn)))
+      allocate(vmc(col_getNumLev(lcolumn)))
+      allocate(vmd(col_getNumLev(lcolumn)))
+      allocate(vme(col_getNumLev(lcolumn)))
+      allocate(vmf(col_getNumLev(lcolumn)))
+      allocate(tv_tmp(col_getNumLev(lcolumn),col_getNumCol(lcolumn)))
+      vco_anl => col_getVco(lcolumng)
+c
+c     Computation of virtual temperature increments
+c     ---------------------------------------------
+c
+!$OMP PARALLEL PRIVATE(jobs,jlev,mythread,numthd,zpresb)
+!$OMP+ PRIVATE(zcon,zfactt,zfacps,zdelt,zdelps)
+      mythread=omp_get_thread_num()+1
+      numthd=omp_get_num_threads()
+      do jobs = mythread, col_getNumCol(lcolumn),numthd
+        do jlev = 1, col_getNumLev(lcolumn)
+          tv_tmp(jlev,jobs) = lcolumng%oltv(1,jlev,jobs)*col_getElem(lcolumn,jlev,jobs,'TT') + 
+     &                             lcolumng%oltv(2,jlev,jobs)*col_getElem(lcolumn,jlev,jobs,'HU')
+        enddo
+c
+c     Prepare r.h.s. for TL-Hydrostatic equation
+c     ------------------------------------------
+c
+        do jlev = 1, col_getNumLev(lcolumn)
+c
+c       zcon = d(lcolumng%rtapfac)/d(ps)
+c
+          zpresb = vco_anl%db_M(jlev)
+          zcon    =(vco_anl%db_dhyb_M(jlev)-zpresb*lcolumng%rtapfac(jlev,jobs))/
+     &             col_getPressure(lcolumng,jlev,jobs,'NA')
+          zfactt  = lcolumng%rtapfac(jlev,jobs)
+          zfacps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon
+          zdelt   = lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
+          zdelps  = col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
+          tv_tmp(jlev,jobs)=lcolumng%rtapfac(jlev,jobs)*tv_tmp(jlev,jobs)
+     &         + col_getElem(lcolumng,jlev,jobs,'TT')*zcon * col_getElem(lcolumn,1,jobs,'P0')
+        enddo
+      enddo
+!$OMP END PARALLEL
+c
+c     Computation of del(GZ)
+c     ----------------------
+c
+      zalpha=0.0D0
+      call matapat(vco_anl%dhyb_m,zalpha,col_getNumLev(lcolumn),vma,vmb,vmc,vmd,vme,vmf)
+      call lvtap
+
+      deallocate(vma)
+      deallocate(vmb)
+      deallocate(vmc)
+      deallocate(vmd)
+      deallocate(vme)
+      deallocate(vmf)
+      deallocate(tv_tmp)
+
+      return
+
+      CONTAINS
+
+      subroutine lvtap
+*S/P LVTAP:
+*         CALCULE Y A PARTIR DE R PAR SOLUTION DE L'EQUATION R*CON=S**E*D(Y)
+*         AVEC UN SCHEME DU 4EME ORDRE DU A J. COTE.
+*         NOTE: CET ALGORITHME EST EXACTEMENT REVERSIBLE (VOIR VPAT).
+*
+*         ON DOIT FOURNIR LA COND
+*         A LA LIMITE INF. Y(N). LA MATRICE MATAP A ETE CALCULEE DANS LA
+*         SUBR. MATAPAT.
+*
+* AUTHOR: MICHEL BELAND - AVRIL 1984 - ADAPTE AU MODELE SEF, AVRIL 1984.
+*
+      IMPLICIT NONE
+      INTEGER  KILG, KLEV
+      REAL*8     PCON
+      INTEGER  JLON, IKLEVM2, JK, IK, jobs
+      REAL*8     ZAK0, ZBK0, ZCK0
+      REAL*8     ZAK, ZBK, ZCK, ZCON
+      INTEGER mythread,numthd
+      INTEGER OMP_GET_THREAD_NUM,OMP_GET_NUM_THREADS
+
+      ZCON = -MPC_RGAS_DRY_AIR_R8
+      ZAK0  = -2.0*ZCON*VMA(col_getNumLev(lcolumn))
+      ZBK0  = -2.0*ZCON*VMB(col_getNumLev(lcolumn))
+      ZCK0  = -2.0*ZCON*VMC(col_getNumLev(lcolumn))
+!$OMP PARALLEL PRIVATE(jobs,jk,IKLEVM2,ik,mythread,numthd)
+!$OMP+ PRIVATE(zak,zbk,zck,gz_column)
+      mythread=omp_get_thread_num()+1
+      numthd=omp_get_num_threads()
+      do jobs = mythread, col_getNumCol(lcolumn),numthd
+        gz_column => col_getColumn(lcolumn,jobs,'GZ')
+        gz_column(col_getNumLev(lcolumn)) = 0.0
+        gz_column(col_getNumLev(lcolumn)-1)=ZAK0*tv_tmp(col_getNumLev(lcolumn)-1,jobs)+
+     $                      ZBK0*tv_tmp(col_getNumLev(lcolumn),jobs)+
+     &                      ZCK0*tv_tmp(col_getNumLev(lcolumn)-2,jobs)+
+     $                      gz_column(col_getNumLev(lcolumn))
+        IKLEVM2 = col_getNumLev(lcolumn)-2
+
+        do JK = 1, IKLEVM2
+          IK = col_getNumLev(lcolumn)-1-JK
+          ZAK = -2.0*ZCON*VMA(IK+1)
+          ZBK = -2.0*ZCON*VMB(IK+1)
+          ZCK = -2.0*ZCON*VMC(IK+1)
+          gz_column(ik)= ZAK*tv_tmp(IK,jobs)+
+     $                     ZBK*tv_tmp(IK+1,jobs)+
+     $                     ZCK*tv_tmp(IK+2,jobs)+
+     +                     gz_column(IK+2)
+        enddo
+
+      enddo
+!$OMP END PARALLEL
+
+      return
+      end subroutine lvtap
+
+      end

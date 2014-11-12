@@ -1,0 +1,112 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+
+      SUBROUTINE HTEXTRAP ( PROFOUT, profin,xpres,jplev,jpmolev,jpmotop,nprf )
+
+#if defined (DOC)
+!*****************************************************************
+!
+!**ID HTEXTRAP -- EXTRAPOLATION OF HEIGHT PROFILES
+!
+!       AUTHOR:   A. BEAULNE (CMDA/SMC) March 2006
+!
+!       REVISION:
+!
+!       OBJECT:  EXTRAPOLATE HEIGHT PROFILES ABOVE 10MB MODEL TOP
+!                ON RTTOV LEVELS UP TO 0.1MB (RTTOV LEVELS 1 TO 7)
+!                USING 10 RTTOV HEIGHT LEVELS FROM 100MB TO 10MB
+!                (RTTOV LEVELS 8 TO 17) FOR LINEAR FIT.
+!
+!                -- LINEAR EXTRAPOLATION FOLLOWING
+!                --    PROFOUT(m) = A * ln(XPRES(mb)) + B
+!                -- AND SOLVE A AND B BY LEAST SQUARE METHOD 
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -PROFIN(JPMOLEV,NPRF) :: HEIGHT PROFILES  -TO BE EXTRAPOLATED- (M)
+!            -XPRES(JPLEV)         :: PRESSURE LEVELS OF RTTOV MODEL (HPA)
+!            -JPLEV                :: NUMBER OF PRESSURE LEVELS OF RTTOV MODEL
+!            -JPMOLEV              :: NUMBER OF RTTOV MODEL LEVELS BELOW NWP MODEL TOP
+!            -JPMOTOP              :: FIRST RTTOV MODEL LEVEL UNDER NWP MODEL TOP
+!            -NPRF                 :: NUMBER OF PROFILES
+!
+!          OUTPUT:
+!            -PROFOUT(JPLEV,NPRF)  :: HEIGHT PROFILES  -EXTRAPOLATED- (M)
+!
+!
+!******************************************************************
+#endif
+
+
+      IMPLICIT NONE
+
+
+      INTEGER      :: I, JK, JN, NPRF, JPMOLEV, JPMOTOP, JPLEV
+      REAL(8)      :: LNX_SUM, LNX_AVG, Y_SUM, Y_AVG, A_NUM, A_DEN, A, B
+      REAL(8)      :: XPRES(JPLEV), PROFIN(JPMOLEV,NPRF), PROFOUT(JPLEV,NPRF)
+
+      INTEGER, PARAMETER :: NL = 10  ! number of points used in the extrapolation
+
+
+      DO JN = 1, NPRF
+
+        LNX_SUM = 0.
+        Y_SUM   = 0.
+        A_NUM   = 0.
+        A_DEN   = 0.
+
+
+!*      FIND AVERAGED VALUES OF HEIGHT AND LN ( PRESSURE )
+
+        DO I = 1, NL
+           LNX_SUM = LNX_SUM + LOG(XPRES(JPMOTOP+I-1))
+           Y_SUM   = Y_SUM   + PROFIN(I,JN)
+        END DO
+          
+        LNX_AVG = LNX_SUM / NL
+        Y_AVG   = Y_SUM   / NL
+
+
+!*      FIND CONSTANTS A AND B BY LEAST-SQUARE METHOD
+      
+        DO I = 1, NL
+           A_NUM = A_NUM + ( LOG(XPRES(JPMOTOP+I-1)) - LNX_AVG ) * ( PROFIN(I,JN) - Y_AVG )
+           A_DEN = A_DEN + ( LOG(XPRES(JPMOTOP+I-1)) - LNX_AVG )**2
+        END DO
+
+        A = A_NUM / A_DEN
+
+        B = Y_AVG - A * LNX_AVG
+
+
+!*      INITIALIZE HEIGHT FOR RTTOV LEVELS UNDER NWP MODEL TOP
+
+        DO JK = 1, JPMOLEV
+           PROFOUT(JPLEV-JPMOLEV+JK,JN) = PROFIN(JK,JN)
+        END DO
+
+
+!*      EXTRAPOLATE HEIGHT FOR RTTOV LEVELS ABOVE NWP MODEL TOP
+
+        DO JK = 1, JPMOTOP-1
+           PROFOUT(JK,JN) = A * LOG(XPRES(JK)) + B
+        END DO
+
+      END DO
+
+
+      END SUBROUTINE HTEXTRAP

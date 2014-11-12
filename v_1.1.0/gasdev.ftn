@@ -1,0 +1,139 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      FUNCTION GASDEV(IDUM)
+*
+***FUNCTION GASDEV
+*
+*ADAPTED from the book:
+*
+*Book-title  NUMERICAL RECIPES in FORTRAN
+*            The Art of Scientific Computing
+*            (First Edition)
+*
+*Authors     Press, Flannery, Teukolsky, Vetterling
+*
+*Language    FORTRAN 77
+*
+*OBJECT      Returns a normally distributed deviate
+*            with zero mean and unit variance, using
+*            RAN1(IDUM) as the source of uniform
+*            deviates
+*
+*ARGUMENTS   INPUT: IDUM: seed for the random number
+*            generator (first call only)
+*
+**
+      IMPLICIT NONE
+
+      REAL*8 RAN1,GASDEV,V1,V2,FAC,RR
+      INTEGER IDUM
+      REAL*8, save  :: GSET
+      INTEGER, save :: ISET=0
+      INTEGER J
+
+      external ran1
+
+C If idum.eq.0 then zero is returned. This is
+C for test purposes.
+      if (idum.eq.0) then
+        gasdev=0
+        return
+      else
+C addition to create a repeatable reset with idum < 0
+        if (idum.lt.0) iset=0
+        IF (ISET.EQ.0.OR.IDUM.eq.999) THEN
+1         V1=2.*RAN1(IDUM)-1.
+          V2=2.*RAN1(IDUM)-1.
+          RR=V1**2+V2**2
+          IF(RR.GE.1.)GO TO 1
+          FAC=SQRT(-2.*LOG(RR)/RR)
+          GSET=V1*FAC
+          GASDEV=V2*FAC
+          ISET=1
+        ELSE
+          GASDEV=GSET
+          ISET=0
+        ENDIF
+      endif
+
+      RETURN
+      END
+
+
+      FUNCTION RAN1(IDUM)
+*
+***FUNCTION RAN1
+*
+*ADAPTED from the book:
+*
+*Book-title  NUMERICAL RECIPES in FORTRAN
+*            The Art of Scientific Computing
+*            (First Edition)
+*
+*Authors     PRESS, FLANNERY, TEUKOLSKY, VETTERLING
+*
+*LANGUAGE    FORTRAN 77
+*
+*OBJECT      Returns a random deviate between 0.0 and 1.0.
+*
+*ARGUMENTS   Set IDUM to any negative value to initialize
+*            or reinitialize the sequence.
+*
+**
+      IMPLICIT NONE
+      REAL*8, save  :: RRAND(97)
+      INTEGER, save :: IX1,IX2,IX3
+      INTEGER, save :: IFF=1
+
+      REAL*8 RM1,RM2,RAN1
+      INTEGER IDUM,J,M1,IA1,IC1,M2,IA2,IC2,
+     +        M3,IA3,IC3
+      PARAMETER (M1=259200,IA1=7141,IC1=54773,RM1=3.8580247E-6)
+      PARAMETER (M2=134456,IA2=8121,IC2=28411,RM2=7.4373773E-6)
+      PARAMETER (M3=243000,IA3=4561,IC3=51349)
+
+      IF (IDUM.LT.0.OR.IFF.EQ.0) THEN
+        IFF=1
+        IX1=MOD(IC1-IDUM,M1)
+        IX1=MOD(IA1*IX1+IC1,M1)
+        IX2=MOD(IX1,M2)
+        IX1=MOD(IA1*IX1+IC1,M1)
+        IX3=MOD(IX1,M3)
+        DO 11 J=1,97
+          IX1=MOD(IA1*IX1+IC1,M1)
+          IX2=MOD(IA2*IX2+IC2,M2)
+          RRAND(J)=(FLOAT(IX1)+FLOAT(IX2)*RM2)*RM1
+11      CONTINUE
+        IDUM=1
+      ENDIF
+      IX1=MOD(IA1*IX1+IC1,M1)
+      IX2=MOD(IA2*IX2+IC2,M2)
+      IX3=MOD(IA3*IX3+IC3,M3)
+      J=1+(97*IX3)/M3
+      IF(J.GT.97.OR.J.LT.1) then
+c       write(6,*) 'Input error in RAN1 J: ',J
+       stop
+      endif
+      RAN1=RRAND(J)
+      RRAND(J)=(FLOAT(IX1)+FLOAT(IX2)*RM2)*RM1
+
+      RETURN
+      END
+
+
+
+

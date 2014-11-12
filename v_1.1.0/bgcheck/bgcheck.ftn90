@@ -1,0 +1,155 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+      SUBROUTINE BGCHECK(lcolumng,lcolumnhr,lobsSpaceData)
+!*
+!***s/r BGCHECK  - BACKGROUND CHECK
+!*
+!*
+!*Author  : P. Koclas *CMC/CMDA  Nov 1998
+!*Revision:
+!*
+!*    -------------------
+!**    Purpose: DO  a background check on all observations
+!*
+      use obsSpaceData_mod
+      use columnData_mod
+      use tovs_mod
+      IMPLICIT NONE
+#include "partov.cdk"
+#include "comtov.cdk"
+      type(struct_obs) :: lobsSpaceData
+      type(struct_columnData) :: lcolumng,lcolumnhr
+      INTEGER J,JDATA
+      REAL*8 ZJO
+      INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
+      INTEGER :: index_header,idatyp,krtid
+      integer :: loop_done_airs, loop_done_iasi, loop_done_cris
+      logical :: end_airs,end_iasi,end_cris
+!C
+      WRITE(*,FMT=9000)
+ 9000 FORMAT(//,3(" *****************"),/," BEGIN BACKGROUND CHECK",/,3(" *****************"),/)
+!C
+!C*    1. Preliminary initializations
+!C     .  ---------------------------
+!C
+!C     TRANSFER O-A to O-P in cma
+!C
+      DO JDATA=1,obs_numbody(lobsSpaceData)  !replaces NDATA
+         call obs_bodySet_r(lobsSpaceData,OBS_OMF,jdata,obs_bodyElem_r(lobsSpaceData,OBS_OMA,jdata))
+      ENDDO
+!C
+!C      CALCULATE Sigmap AND INNOVATIONS(O-P)
+!C     ----------------------------------------------
+!C
+      CALL SIGMAOP(lcolumng,lcolumnhr,lobsSpaceData)
+!C
+!C     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
+!C     ----------------------------------------------
+!C
+      CALL BGCDATA(ZJO,'UA',lobsSpaceData)
+      CALL BGCDATA(ZJO,'AI',lobsSpaceData)
+      CALL BGCDATA(ZJO,'HU',lobsSpaceData)
+      CALL BGCDATA(ZJO,'SF',lobsSpaceData)
+      CALL BGCDATA(ZJO,'ST',lobsSpaceData)
+      CALL BGCDATA(ZJO,'SW',lobsSpaceData)
+      CALL BGCDATA(ZJO,'SC',lobsSpaceData)
+      CALL BGCDATA(ZJO,'PR',lobsSpaceData)
+      CALL BGCGPSRO(lcolumnhr,lobsSpaceData)
+      CALL BGCDATA(ZJO,'GP',lobsSpaceData)
+
+      NOBTOV=0
+      NOBAIRS=0
+      NOBIASI=0
+      NOBCRIS=0
+
+      ! loop over all header indices of the 'TO' family
+      ! Set the header list
+      ! (& start at the beginning of the list)
+      call obs_set_current_header_list(lobsSpaceData,'TO')
+      HEADER: do
+         index_header = obs_getHeaderIndex(lobsSpaceData)
+         if (index_header < 0) exit HEADER
+
+         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
+
+         IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+
+         NOBTOV = NOBTOV + 1
+         IF ( tvs_Is_idburp_airs(IDATYP) ) NOBAIRS = NOBAIRS + 1
+         IF ( tvs_Is_idburp_iasi(IDATYP) ) NOBIASI = NOBIASI + 1
+         IF ( tvs_Is_idburp_cris(IDATYP) ) NOBCRIS = NOBCRIS + 1
+
+      enddo HEADER
+
+      IF (NOBTOV==NOBAIRS .AND.  NOBAIRS>0) THEN
+         loop_done_airs = 0
+         end_airs       = .false.
+         do
+            call AIRSQC ( end_airs, loop_done_airs,lcolumnhr,lobsSpaceData )
+            loop_done_airs = loop_done_airs + 1
+            if ( end_airs ) EXIT 
+         end do
+      ENDIF
+
+      IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
+
+         do krtid=1,nsensors
+
+            if (PLATFORM(krtid) == 10 .AND. &
+                 INSTRUMENT(krtid) == 16 ) THEN
+               loop_done_iasi = 0
+               end_iasi       = .false.
+               do
+                  call IASIQC ( end_iasi, loop_done_iasi,lcolumnhr,lobsSpaceData,krtid )
+                  loop_done_iasi = loop_done_iasi + 1
+                  if ( end_iasi ) EXIT
+               end do
+            endif
+
+         enddo
+      ENDIF
+
+      IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN 
+         loop_done_cris = 0
+         end_cris       = .false.
+         do
+            call CRISQC ( end_cris, loop_done_cris,lcolumnhr,lobsSpaceData )
+            loop_done_cris = loop_done_cris + 1
+            if ( end_cris ) EXIT
+         end do
+      ENDIF
+
+!C
+!C     .   3.4.3 Convert CMA ---> BURP file and write it
+!C
+      CALL VINT3DFD(OBS_OMF,lobsSpaceData)
+      CALL FLAGUVTOFD_OBSDAT(lobsSpaceData)
+      CALL UPDATE_BURPFILES(lobsSpaceData)
+      ! add cloud parameter data to burp files (AIRS&IASI)
+      CALL ADD_CLOUDPRMS(lobsSpaceData)
+      DO j =1,1
+         call obs_prnthdr(lobsSpaceData,j)
+         call obs_prntbdy(lobsSpaceData,j)
+      END DO
+      call obs_finalize(lobsSpaceData)
+      RETURN
+      END SUBROUTINE BGCHECK
+
+
+
+
+
