@@ -1375,6 +1375,8 @@ CONTAINS
     write(*,*) ' NELE_SFC LISTE_ELE_SFC =',NELE_SFC,LISTE_ELE_SFC(1:NELE_SFC)
     write(*,*) ' BNBITSON BNBITSOFF     =',BNBITSON,BNBITSOFF
 
+    btyp_offset_uni=-999
+    btyp_offset=-999
     if (trim(BURP_TYP) .eq. 'uni') then
       btyp_offset=256
     else
